@@ -1,7 +1,8 @@
 /*****************************************************************************
- * ts_pes.h: Transport Stream input module for VLC.
+ * ts_pes.h: Transport Stream input module for Heimdall.
  *****************************************************************************
  * Copyright (C) 2004-2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -17,8 +18,8 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
-#ifndef VLC_TS_PES_H
-#define VLC_TS_PES_H
+#ifndef HEIMDALL_TS_PES_H
+#define HEIMDALL_TS_PES_H
 
 #include "timestamps.h"
 
@@ -29,9 +30,9 @@
 
 typedef struct
 {
-    vlc_object_t *p_obj;
+    heimdall_object_t *p_obj;
     void *priv;
-    void(*pf_parse)(vlc_object_t *, void *, block_t *, uint32_t, ts_90khz_t );
+    void(*pf_parse)(heimdall_object_t *, void *, block_t *, uint32_t, ts_90khz_t );
 } ts_pes_parse_callback;
 
 bool ts_pes_Drain( ts_pes_parse_callback *cb, ts_stream_t *p_pes );

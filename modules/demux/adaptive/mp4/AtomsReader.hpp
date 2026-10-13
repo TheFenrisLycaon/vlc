@@ -2,6 +2,7 @@
  * AtomsReader.hpp
  *****************************************************************************
  * Copyright (C) 2014 - VideoLAN and VLC authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -20,8 +21,8 @@
 #ifndef ATOMSREADER_HPP
 #define ATOMSREADER_HPP
 
-#include <vlc_common.h>
-#include <vlc_stream.h>
+#include <heimdall_common.h>
+#include <heimdall_stream.h>
 #include "../../mp4/libmp4.h"
 
 namespace adaptive
@@ -31,13 +32,13 @@ namespace adaptive
         class AtomsReader
         {
             public:
-                AtomsReader(vlc_object_t *);
+                AtomsReader(heimdall_object_t *);
                 ~AtomsReader();
                 void clean();
                 bool parseBlock(block_t *);
 
             protected:
-                vlc_object_t *object;
+                heimdall_object_t *object;
                 MP4_Box_t *rootbox;
         };
     }

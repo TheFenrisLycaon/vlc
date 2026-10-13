@@ -1,12 +1,13 @@
 /*****************************************************************************
- * transform.c : transform image module for vlc
+ * transform.c : transform image module for heimdall
  *****************************************************************************
  * Copyright (C) 2000-2006 VLC authors and VideoLAN
  * Copyright (C) 2010 Laurent Aimar
  * Copyright (C) 2012 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Samuel Hocevar <sam@zoy.org>
- *          Laurent Aimar <fenrir _AT_ videolan _DOT_ org>
+ *          Laurent Aimar <fenrir _AT_ lycaria _DOT_ org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -27,10 +28,10 @@
 #   include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
 
 #define CFG_PREFIX "transform-"
 
@@ -63,7 +64,7 @@ static int Open(filter_t *filter)
 
     if (!filter->b_allow_fmt_out_change) {
         msg_Err(filter, "Format change is not allowed");
-        return VLC_EINVAL;
+        return HEIMDALL_EINVAL;
     }
 
     static const char *const ppsz_filter_options[] = {
@@ -95,12 +96,12 @@ static int Open(filter_t *filter)
                                   (video_orientation_t)
                        transform_Inverse((video_transform_t)dsc->operation));
 
-    static const struct vlc_filter_operations filter_ops =
+    static const struct heimdall_filter_operations filter_ops =
     {
         .filter_video = Filter,
     };
     filter->ops = &filter_ops;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 #define TYPE_TEXT N_("Transform type")
@@ -111,7 +112,7 @@ static const char * const type_list_text[] = { N_("Rotate by 90 degrees"),
     N_("Flip horizontally"), N_("Flip vertically"),
     N_("Transpose"), N_("Anti-transpose") };
 
-vlc_module_begin()
+heimdall_module_begin()
     set_description(N_("Video transformation filter"))
     set_shortname(N_("Transformation"))
     set_help(N_("Rotate or flip the video"))
@@ -123,4 +124,4 @@ vlc_module_begin()
 
     add_shortcut("transform")
     set_callback_video_filter(Open)
-vlc_module_end()
+heimdall_module_end()

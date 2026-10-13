@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Benjamin Arnaud <bunjee@omega.gg>
  *
@@ -21,11 +22,11 @@
 import QtQuick
 import QtQuick.Templates as T
 
-import VLC.Widgets as Widgets
-import VLC.Style
+import Heimdall.Widgets as Widgets
+import Heimdall.Style
 
 Widgets.IconToolButton {
     // Settings
 
-    text: VLCIcons.circle
+    text: HeimdallIcons.circle
 }

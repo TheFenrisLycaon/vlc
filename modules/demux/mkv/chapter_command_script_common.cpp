@@ -1,4 +1,5 @@
 // Copyright (C) 2024 VLC authors and VideoLAN
+// Copyright (C) 2026 TheFenrisLycaon
 // SPDX-License-Identifier: LGPL-2.1-or-later
 //
 // chapter_command_script_common.cpp :
@@ -20,7 +21,7 @@ bool matroska_script_codec_common_c::Enter()
     {
         if ( (*index).GetSize() )
         {
-            vlc_debug( l, "Matroska Script enter command" );
+            heimdall_debug( l, "Matroska Script enter command" );
             f_result |= get_interpreter().Interpret( MATROSKA_CHAPPROCESSTIME_BEFORE, (*index).GetBuffer(), (*index).GetSize() );
         }
         ++index;
@@ -36,7 +37,7 @@ bool matroska_script_codec_common_c::Leave()
     {
         if ( (*index).GetSize() )
         {
-            vlc_debug( l, "Matroska Script leave command" );
+            heimdall_debug( l, "Matroska Script leave command" );
             f_result |= get_interpreter().Interpret( MATROSKA_CHAPPROCESSTIME_AFTER, (*index).GetBuffer(), (*index).GetSize() );
         }
         ++index;

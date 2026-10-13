@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,19 +21,19 @@ import QtQuick
 import QtQuick.Layouts
 
 
-import VLC.MainInterface
-import VLC.Style
-import VLC.Widgets as Widgets
-import VLC.PlayerControls
+import Heimdall.MainInterface
+import Heimdall.Style
+import Heimdall.Widgets as Widgets
+import Heimdall.PlayerControls
 
 FocusScope {
     id: playerControlLayout
 
     // Properties
 
-    property real spacing: VLCStyle.margin_normal // spacing between controls
+    property real spacing: HeimdallStyle.margin_normal // spacing between controls
 
-    property real layoutSpacing: VLCStyle.margin_xxlarge // spacing between layouts (left, center, and right)
+    property real layoutSpacing: HeimdallStyle.margin_xxlarge // spacing between layouts (left, center, and right)
 
     property int identifier: -1
 

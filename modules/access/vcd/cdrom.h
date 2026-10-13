@@ -2,6 +2,7 @@
  * cdrom.h: cdrom tools header
  *****************************************************************************
  * Copyright (C) 1998-2001 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Johan Bilien <jobi@via.ecp.fr>
  *          Gildas Bazin <gbazin@netcourrier.com>
@@ -21,8 +22,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_CDROM_H
-#define VLC_CDROM_H
+#ifndef HEIMDALL_CDROM_H
+#define HEIMDALL_CDROM_H
 
 #include <assert.h>
 
@@ -152,20 +153,20 @@ typedef struct entries_sect_s
 /*****************************************************************************
  * Prototypes
  *****************************************************************************/
-vcddev_t *ioctl_Open         ( vlc_object_t *, const char * );
-void      ioctl_Close        ( vlc_object_t *, vcddev_t * );
-vcddev_toc_t * ioctl_GetTOC  ( vlc_object_t *, const vcddev_t * );
+vcddev_t *ioctl_Open         ( heimdall_object_t *, const char * );
+void      ioctl_Close        ( heimdall_object_t *, vcddev_t * );
+vcddev_toc_t * ioctl_GetTOC  ( heimdall_object_t *, const vcddev_t * );
 
 /* Returns:
  *    0  success
  *   -1  recoverable failure, or at least not known not to be (ex: a scratch)
  *   -2  irrecoverable failure (ex: disc ejected, device unplugged) */
-int       ioctl_ReadSectors  ( vlc_object_t *, const vcddev_t *,
+int       ioctl_ReadSectors  ( heimdall_object_t *, const vcddev_t *,
                                int, uint8_t *, int, int );
 
 /* CDDA only
  * The track 0 is for album meta data */
-int       ioctl_GetCdText( vlc_object_t *, const vcddev_t *,
-                           vlc_meta_t ***ppp_tracks, int *pi_tracks );
+int       ioctl_GetCdText( heimdall_object_t *, const vcddev_t *,
+                           heimdall_meta_t ***ppp_tracks, int *pi_tracks );
 
-#endif /* VLC_CDROM_H */
+#endif /* HEIMDALL_CDROM_H */

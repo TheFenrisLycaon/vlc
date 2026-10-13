@@ -2,6 +2,7 @@
  * ID3Tag.h : ID3v2 Parsing Helper
  *****************************************************************************
  * Copyright (C) 2016 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -88,13 +89,13 @@ static size_t ID3TAG_Parse( const uint8_t *p_peek, size_t i_peek,
     /* Tags */
     while( frame_length > 10 )
     {
-        uint32_t i_tagname = VLC_FOURCC( p_frame[0], p_frame[1], p_frame[2], p_frame[3] );
+        uint32_t i_tagname = HEIMDALL_FOURCC( p_frame[0], p_frame[1], p_frame[2], p_frame[3] );
         uint32_t i_framesize = ID3TAG_ReadSize( &p_frame[4], i_ID3major != 3 );
         if( i_framesize > frame_length - 10 )
             break; /* not enough peek */
 
         if( i_framesize != 0 &&
-            pf_callback( i_tagname, &p_frame[10], i_framesize, p_priv ) != VLC_SUCCESS )
+            pf_callback( i_tagname, &p_frame[10], i_framesize, p_priv ) != HEIMDALL_SUCCESS )
             break;
 
         p_frame += i_framesize + 10;

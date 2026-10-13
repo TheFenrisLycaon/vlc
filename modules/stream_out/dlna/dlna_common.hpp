@@ -2,6 +2,7 @@
  * dlna_common.hpp : DLNA common header
  *****************************************************************************
  * Copyright © 2018 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Shaleen Jain <shaleen@jain.sh>
  *
@@ -25,8 +26,8 @@
 
 #include <list>
 
-#include <vlc_common.h>
-#include <vlc_fourcc.h>
+#include <heimdall_common.h>
+#include <heimdall_fourcc.h>
 
 #include "../renderer_common.hpp"
 
@@ -36,7 +37,7 @@ namespace DLNA
 {
 
 /* module callback */
-int OpenSout(vlc_object_t *);
+int OpenSout(heimdall_object_t *);
 
 }
 #endif /* DLNA_COMMON_H */

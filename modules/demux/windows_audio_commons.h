@@ -2,6 +2,7 @@
  * windows_audio_common.h: Windows Audio common code
  *****************************************************************************
  * Copyright (C) 2001-2013 VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Denis Charmet <typx@videolan.org>
  *
@@ -22,8 +23,8 @@
 #ifndef DMX_WINDOWS_AUDIO_COMMONS_H
 #define DMX_WINDOWS_AUDIO_COMMONS_H
 
-#include <vlc_aout.h>
-#include <vlc_codecs.h>
+#include <heimdall_aout.h>
+#include <heimdall_codecs.h>
 
 static const uint32_t pi_channels_src[] = {
     WAVE_SPEAKER_FRONT_LEFT, WAVE_SPEAKER_FRONT_RIGHT,

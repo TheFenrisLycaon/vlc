@@ -1,7 +1,7 @@
 # LIBBLURAY
 
 BLURAY_VERSION := 1.4.1
-BLURAY_URL := $(VIDEOLAN)/libbluray/$(BLURAY_VERSION)/libbluray-$(BLURAY_VERSION).tar.xz
+BLURAY_URL := $(LYCARIA)/libbluray/$(BLURAY_VERSION)/libbluray-$(BLURAY_VERSION).tar.xz
 
 ifdef BUILD_DISCS
 ifndef HAVE_WINSTORE

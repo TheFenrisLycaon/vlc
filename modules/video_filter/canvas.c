@@ -2,8 +2,9 @@
  * canvas.c : automatically resize and padd a video to fit in canvas
  *****************************************************************************
  * Copyright (C) 2008 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Antoine Cellerier <dionoea at videolan dot org>
+ * Authors: Antoine Cellerier <dionoea at lycaria dot org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -30,11 +31,11 @@
 
 #include <limits.h>
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_picture.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
 
 /*****************************************************************************
  * Local and extern prototypes.
@@ -102,7 +103,7 @@ static void Flush( filter_t * );
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( N_("Canvas") )
     set_description( N_("Canvas video filter") )
     set_help( CANVAS_HELP )
@@ -120,7 +121,7 @@ vlc_module_begin ()
 
     add_bool( CFG_PREFIX "padd", true,
               PADD_TEXT, PADD_LONGTEXT )
-vlc_module_end ()
+heimdall_module_end ()
 
 static const char *const ppsz_filter_options[] = {
     "width", "height", "aspect", "padd", NULL
@@ -144,7 +145,7 @@ static const struct filter_video_callbacks canvas_cbs =
     video_chain_new, NULL,
 };
 
-static const struct vlc_filter_operations filter_ops =
+static const struct heimdall_filter_operations filter_ops =
 {
     .filter_video = Filter, .flush = Flush, .close = Destroy,
 };
@@ -167,14 +168,14 @@ static int Activate( filter_t *p_filter )
     if( !p_filter->b_allow_fmt_out_change )
     {
         msg_Err( p_filter, "Picture format change isn't allowed" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( !video_format_IsSameChroma( &p_filter->fmt_in.video,
                                     &p_filter->fmt_out.video ) )
     {
         msg_Err( p_filter, "Input and output chromas don't match" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     config_ChainParse( p_filter, CFG_PREFIX, ppsz_filter_options,
@@ -186,7 +187,7 @@ static int Activate( filter_t *p_filter )
     if( i_canvas_width == 0 || i_canvas_height == 0 )
     {
         msg_Err( p_filter, "Width and height options must be set" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( i_canvas_width & 1 || i_canvas_height & 1 )
@@ -194,7 +195,7 @@ static int Activate( filter_t *p_filter )
         /* If this restriction were ever relaxed, it is very important to
          * get the field polatiry correct */
         msg_Err( p_filter, "Width and height options must be even integers" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( p_filter->fmt_in.video.i_sar_num )
@@ -221,7 +222,7 @@ static int Activate( filter_t *p_filter )
         if( numerator <= 0 || denominator < 0 )
         {
             msg_Err( p_filter, "Aspect ratio must be strictly positive" );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
     else
@@ -240,7 +241,7 @@ static int Activate( filter_t *p_filter )
 
     filter_sys_t *p_sys = malloc( sizeof( filter_sys_t ) );
     if( !p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     p_filter->p_sys = p_sys;
 
     filter_owner_t owner = {
@@ -253,7 +254,7 @@ static int Activate( filter_t *p_filter )
     {
         msg_Err( p_filter, "Could not allocate filter chain" );
         free( p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     es_format_Copy( &fmt, &p_filter->fmt_in );
@@ -342,7 +343,7 @@ static int Activate( filter_t *p_filter )
     es_format_Clean( &fmt );
     /* Append scaling module */
     int ret = filter_chain_AppendConverter( p_sys->p_chain, NULL );
-    if ( ret != VLC_SUCCESS )
+    if ( ret != HEIMDALL_SUCCESS )
     {
         msg_Err( p_filter, "Could not append scaling filter" );
         filter_chain_Delete( p_sys->p_chain );
@@ -358,14 +359,14 @@ static int Activate( filter_t *p_filter )
             msg_Err( p_filter, "Could not append croppadd filter" );
             filter_chain_Delete( p_sys->p_chain );
             free( p_sys );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
 
     es_format_Copy( &p_filter->fmt_out,
                     filter_chain_GetFmtOut( p_sys->p_chain ) );
 
-    vlc_ureduce( &p_filter->fmt_out.video.i_sar_num,
+    heimdall_ureduce( &p_filter->fmt_out.video.i_sar_num,
         &p_filter->fmt_out.video.i_sar_den,
         i_canvas_aspect    * p_filter->fmt_out.video.i_visible_height,
         VOUT_ASPECT_FACTOR * p_filter->fmt_out.video.i_visible_width,
@@ -383,7 +384,7 @@ static int Activate( filter_t *p_filter )
 
     p_filter->ops = &filter_ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************

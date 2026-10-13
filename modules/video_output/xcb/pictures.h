@@ -4,6 +4,7 @@
  */
 /*****************************************************************************
  * Copyright © 2009 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -29,11 +30,11 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <xcb/xcb.h>
-#include <vlc_picture.h>
+#include <heimdall_picture.h>
 
-const xcb_format_t *vlc_xcb_DepthToPixmapFormat(const xcb_setup_t *,
+const xcb_format_t *heimdall_xcb_DepthToPixmapFormat(const xcb_setup_t *,
                                                 uint_fast8_t depth);
-bool vlc_xcb_VisualToFormat(const xcb_setup_t *, uint_fast8_t depth,
+bool heimdall_xcb_VisualToFormat(const xcb_setup_t *, uint_fast8_t depth,
                             const xcb_visualtype_t *, video_format_t *);
 
-bool XCB_shm_Check (vlc_object_t *obj, xcb_connection_t *conn);
+bool XCB_shm_Check (heimdall_object_t *obj, xcb_connection_t *conn);

@@ -52,7 +52,7 @@ libstream_out_hls_plugin_la_SOURCES = \
 	stream_out/hls/segments.h stream_out/hls/segments.c \
 	stream_out/hls/codecs.h stream_out/hls/codecs.c \
 	stream_out/hls/subtitles_segmenter.c
-libstream_out_hls_plugin_la_LIBADD = libvlc_hxxxhelper.la
+libstream_out_hls_plugin_la_LIBADD = libheimdall_hxxxhelper.la
 
 sout_PLUGINS += \
 	libstream_out_dummy_plugin.la \
@@ -118,7 +118,7 @@ libstream_out_rtp_plugin_la_CFLAGS = $(AM_CFLAGS)
 libstream_out_rtp_plugin_la_LIBADD = $(SOCKET_LIBS)
 if HAVE_GCRYPT
 SRTP_CFLAGS = -I$(srcdir)/access/rtp
-SRTP_LIBS = libvlc_srtp.la
+SRTP_LIBS = libheimdall_srtp.la
 libstream_out_rtp_plugin_la_CFLAGS += -DHAVE_SRTP $(SRTP_CFLAGS) \
 	$(GCRYPT_CFLAGS)
 libstream_out_rtp_plugin_la_LIBADD += $(SRTP_LIBS) $(GCRYPT_LIBS)
@@ -153,7 +153,7 @@ libstream_out_chromecast_plugin_la_SOURCES = stream_out/chromecast/cast.cpp stre
                                              stream_out/chromecast/chromecast_communication.cpp
 nodist_libstream_out_chromecast_plugin_la_SOURCES = stream_out/chromecast/@PROTOBUF_VERSION@/cast_channel.pb.cc
 libstream_out_chromecast_plugin_la_CPPFLAGS = $(AM_CPPFLAGS) -Istream_out/chromecast/@PROTOBUF_VERSION@ $(CHROMECAST_CFLAGS)
-libstream_out_chromecast_plugin_la_LIBADD = $(CHROMECAST_LIBS) $(SOCKET_LIBS) libvlc_json.la
+libstream_out_chromecast_plugin_la_LIBADD = $(CHROMECAST_LIBS) $(SOCKET_LIBS) libheimdall_json.la
 if HAVE_ANDROID
 libstream_out_chromecast_plugin_la_LIBADD += -llog
 endif

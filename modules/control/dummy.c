@@ -2,6 +2,7 @@
  * intf_dummy.c: dummy interface plugin
  *****************************************************************************
  * Copyright (C) 2000, 2001 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Samuel Hocevar <sam@zoy.org>
  *
@@ -28,14 +29,14 @@
 # include "config.h"
 #endif
 
-#define VLC_MODULE_LICENSE VLC_LICENSE_GPL_2_PLUS
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_interface.h>
+#define HEIMDALL_MODULE_LICENSE HEIMDALL_LICENSE_GPL_2_PLUS
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_interface.h>
 
-static int Open( vlc_object_t * );
+static int Open( heimdall_object_t * );
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( N_("Dummy") )
     set_description( N_("Dummy interface") )
     set_capability( "interface", 0 )
@@ -43,16 +44,16 @@ vlc_module_begin ()
 #if defined(_WIN32)
     add_obsolete_bool( "dummy-quiet" ) /* since 4.0.0 */
 #endif
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * Open: initialize dummy interface
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     intf_thread_t *p_intf = (intf_thread_t*) p_this;
 
     msg_Info( p_intf, "using the dummy interface module..." );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

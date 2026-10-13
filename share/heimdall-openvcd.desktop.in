@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Name=Heimdall media player (VCD)
+Name[fr]=Lecteur multimédia Heimdall (VCD)
+NoDisplay=true
+Exec=@bindir@/heimdall --started-from-file vcd://%f
+Icon=heimdall
+Terminal=false
+Type=Application
+MimeType=x-content/video-vcd;x-content/video-svcd

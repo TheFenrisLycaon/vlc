@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 2010 Adrien Maglo
  *               2017 VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Adrien Maglo <magsoft@videolan.org>
  *
@@ -27,13 +28,13 @@
 
 #include <time.h>
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_vout.h>
-#include <vlc_vout_osd.h>
-#include <vlc_input_item.h>
-#include <vlc_epg.h>
-#include <vlc_url.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_vout.h>
+#include <heimdall_vout_osd.h>
+#include <heimdall_input_item.h>
+#include <heimdall_epg.h>
+#include <heimdall_url.h>
 #include "vout_spuregion_helper.h"
 
 /* Layout percentage defines */
@@ -68,20 +69,20 @@
 
 typedef struct
 {
-    vlc_epg_t *epg;
+    heimdall_epg_t *epg;
     int64_t    time;
     char      *art;
-    vlc_object_t *obj;
+    heimdall_object_t *obj;
 } epg_spu_updater_sys_t;
 
 static char * GetDefaultArtUri( void )
 {
     char *psz_uri = NULL;
-    char *psz_path = config_GetSysPath(VLC_SYSDATA_DIR, "icons/hicolor/"
+    char *psz_path = config_GetSysPath(HEIMDALL_SYSDATA_DIR, "icons/hicolor/"
                                        "128x128/"PACKAGE_NAME".png");
     if( psz_path != NULL )
     {
-        psz_uri = vlc_path2uri( psz_path, NULL );
+        psz_uri = heimdall_path2uri( psz_path, NULL );
         free( psz_path );
     }
     return psz_uri;
@@ -98,7 +99,7 @@ static subpicture_region_t * vout_OSDBackground(int x, int y,
     spuregion_CreateVGradientPalette( &palette, GRADIENT_COLORS, i_argb, 0xFF000000 );
 
     video_format_t fmt;
-    video_format_Init(&fmt, VLC_CODEC_YUVP);
+    video_format_Init(&fmt, HEIMDALL_CODEC_YUVP);
     fmt.i_width  = fmt.i_visible_width  = width;
     fmt.i_height = fmt.i_visible_height = height;
     fmt.i_sar_num = 1;
@@ -135,7 +136,7 @@ static subpicture_region_t * vout_OSDEpgSlider(int x, int y,
     };
 
     video_format_t fmt;
-    video_format_Init(&fmt, VLC_CODEC_YUVP);
+    video_format_Init(&fmt, HEIMDALL_CODEC_YUVP);
     fmt.i_width  = fmt.i_visible_width  = width;
     fmt.i_height = fmt.i_visible_height = height;
     fmt.i_sar_num = 1;
@@ -153,7 +154,7 @@ static subpicture_region_t * vout_OSDEpgSlider(int x, int y,
 
     picture_t *picture = region->p_picture;
 
-    ratio = VLC_CLIP(ratio, 0, 1);
+    ratio = HEIMDALL_CLIP(ratio, 0, 1);
     int filled_part_width = ratio * width;
 
     for (int j = 0; j < height; j++) {
@@ -223,12 +224,12 @@ static text_segment_t * vout_OSDSegment(const char *psz_text, int size, uint32_t
     return p_segment;
 }
 
-static subpicture_region_t * vout_OSDImage( vlc_object_t *p_obj,
+static subpicture_region_t * vout_OSDImage( heimdall_object_t *p_obj,
                                             int x, int y, int w, int h,
                                             const char *psz_uri )
 {
     video_format_t fmt_out;
-    video_format_Init( &fmt_out, VLC_CODEC_YUVA );
+    video_format_Init( &fmt_out, HEIMDALL_CODEC_YUVA );
     fmt_out.i_width = fmt_out.i_visible_width = w;
     fmt_out.i_height = fmt_out.i_visible_height = h;
 
@@ -269,7 +270,7 @@ static subpicture_region_t * vout_OSDTextRegion(text_segment_t *p_segment,
     region->p_text   = p_segment;
     region->i_align  = SUBPICTURE_ALIGN_LEFT | SUBPICTURE_ALIGN_TOP;
     region->text_flags |= SUBPICTURE_ALIGN_LEFT | SUBPICTURE_ALIGN_TOP;
-    region->text_flags |= VLC_SUBPIC_TEXT_FLAG_TEXT_NOT_BALANCED;
+    region->text_flags |= HEIMDALL_SUBPIC_TEXT_FLAG_TEXT_NOT_BALANCED;
     region->i_x      = x;
     region->i_y      = y;
 
@@ -293,7 +294,7 @@ static char * vout_OSDPrintTime(time_t t)
     return psz;
 }
 
-static subpicture_region_t * vout_OSDEpgEvent(const vlc_epg_event_t *p_evt,
+static subpicture_region_t * vout_OSDEpgEvent(const heimdall_epg_event_t *p_evt,
                                               int x, int y, int size)
 {
     text_segment_t *p_segment = NULL;
@@ -318,10 +319,10 @@ static void vout_FillRightPanel(epg_spu_updater_sys_t *p_sys,
                                 int x, int y,
                                 int width, int height,
                                 int rx, int ry,
-                                vlc_spu_regions *regions)
+                                heimdall_spu_regions *regions)
 {
     float f_progress = 0;
-    VLC_UNUSED(ry);
+    HEIMDALL_UNUSED(ry);
     subpicture_region_t *last;
 
     /* Display the name of the channel. */
@@ -331,10 +332,10 @@ static void vout_FillRightPanel(epg_spu_updater_sys_t *p_sys,
                                 height * EPGOSD_TEXTSIZE_NAME,
                                 0x00ffffff);
     if(last)
-        vlc_spu_regions_push(regions, last);
+        heimdall_spu_regions_push(regions, last);
 
-    const vlc_epg_event_t *p_current = p_sys->epg->p_current;
-    vlc_epg_event_t *p_next = NULL;
+    const heimdall_epg_event_t *p_current = p_sys->epg->p_current;
+    heimdall_epg_event_t *p_next = NULL;
     if(!p_sys->epg->p_current && p_sys->epg->i_event)
         p_current = p_sys->epg->pp_event[0];
 
@@ -358,7 +359,7 @@ static void vout_FillRightPanel(epg_spu_updater_sys_t *p_sys,
         {
             /* region rendering limits */
             vout_OSDRegionConstrain(last, width, 0);
-            vlc_spu_regions_push(regions, last);
+            heimdall_spu_regions_push(regions, last);
         }
     }
 
@@ -373,7 +374,7 @@ static void vout_FillRightPanel(epg_spu_updater_sys_t *p_sys,
         {
             /* region rendering limits */
             vout_OSDRegionConstrain(last, width, 0);
-            vlc_spu_regions_push(regions, last);
+            heimdall_spu_regions_push(regions, last);
         }
     }
 
@@ -390,7 +391,7 @@ static void vout_FillRightPanel(epg_spu_updater_sys_t *p_sys,
                                   height * OSDEPG_ROWS(1),
                                   f_progress);
     if (last)
-        vlc_spu_regions_push(regions, last);
+        heimdall_spu_regions_push(regions, last);
 
     /* Format the hours */
     if(p_sys->time)
@@ -407,14 +408,14 @@ static void vout_FillRightPanel(epg_spu_updater_sys_t *p_sys,
             if(last)
             {
                 last->i_align = SUBPICTURE_ALIGN_TOP|SUBPICTURE_ALIGN_RIGHT;
-                vlc_spu_regions_push(regions, last);
+                heimdall_spu_regions_push(regions, last);
             }
         }
     }
 }
 
 static void vout_BuildOSDEpg(epg_spu_updater_sys_t *p_sys,
-                                              vlc_spu_regions *regions,
+                                              heimdall_spu_regions *regions,
                                               int x, int y,
                                               int visible_width,
                                               int visible_height)
@@ -429,7 +430,7 @@ static void vout_BuildOSDEpg(epg_spu_updater_sys_t *p_sys,
                                    visible_height * OSDEPG_HEIGHT,
                                    ARGB_BGCOLOR);
     if(last)
-        vlc_spu_regions_push(regions, last);
+        heimdall_spu_regions_push(regions, last);
 
     struct
     {
@@ -470,7 +471,7 @@ static void vout_BuildOSDEpg(epg_spu_updater_sys_t *p_sys,
                                        logo.h,
                                        0xFF000000 | RGB_COLOR1);
         if(last)
-            vlc_spu_regions_push(regions, last);
+            heimdall_spu_regions_push(regions, last);
 
         int logo_padding = visible_height * (OSDEPG_LOGO_SIZE * OSDEPG_PADDING);
         last = vout_OSDImage( p_sys->obj,
@@ -480,7 +481,7 @@ static void vout_BuildOSDEpg(epg_spu_updater_sys_t *p_sys,
                                    logo.h - 2 * logo_padding,
                                    p_sys->art );
         if(last)
-            vlc_spu_regions_push(regions, last);
+            heimdall_spu_regions_push(regions, last);
 
         /* shrink */
         panel.x += logo.w + i_padding;
@@ -498,7 +499,7 @@ static void vout_BuildOSDEpg(epg_spu_updater_sys_t *p_sys,
 }
 
 static void OSDEpgUpdate(subpicture_t *subpic,
-                         const struct vlc_spu_updater_configuration *cfg)
+                         const struct heimdall_spu_updater_configuration *cfg)
 {
     epg_spu_updater_sys_t *sys = subpic->updater.sys;
     const video_format_t *fmt_dst = cfg->current.video_dst;
@@ -506,7 +507,7 @@ static void OSDEpgUpdate(subpicture_t *subpic,
     if (video_format_IsSimilar(cfg->previous.video_dst, fmt_dst))
         return;
 
-    vlc_spu_regions_Clear( &subpic->regions );
+    heimdall_spu_regions_Clear( &subpic->regions );
 
     unsigned i_x_offset = fmt_dst->i_x_offset * fmt_dst->i_sar_num / fmt_dst->i_sar_den;
 
@@ -524,44 +525,44 @@ static void OSDEpgDestroy(subpicture_t *subpic)
 {
     epg_spu_updater_sys_t *sys = subpic->updater.sys;
     if( sys->epg )
-        vlc_epg_Delete(sys->epg);
+        heimdall_epg_Delete(sys->epg);
     free( sys->art );
     free(sys);
 }
 
 int vout_OSDEpg(vout_thread_t *vout, input_item_t *input)
 {
-    vlc_epg_t *epg = NULL;
+    heimdall_epg_t *epg = NULL;
     int64_t epg_time;
 
     /* Look for the current program EPG event */
-    vlc_mutex_lock(&input->lock);
+    heimdall_mutex_lock(&input->lock);
 
-    const vlc_epg_t *tmp = input->p_epg_table;
+    const heimdall_epg_t *tmp = input->p_epg_table;
     if ( tmp )
     {
         /* Pick table designated event, or first/next one */
-        const vlc_epg_event_t *p_current_event = tmp->p_current;
-        epg = vlc_epg_New(tmp->i_id, tmp->i_source_id);
+        const heimdall_epg_event_t *p_current_event = tmp->p_current;
+        epg = heimdall_epg_New(tmp->i_id, tmp->i_source_id);
         if(epg)
         {
             if( p_current_event )
             {
-                vlc_epg_event_t *p_event = vlc_epg_event_Duplicate(p_current_event);
+                heimdall_epg_event_t *p_event = heimdall_epg_event_Duplicate(p_current_event);
                 if(p_event)
                 {
-                    if(!vlc_epg_AddEvent(epg, p_event))
-                        vlc_epg_event_Delete(p_event);
+                    if(!heimdall_epg_AddEvent(epg, p_event))
+                        heimdall_epg_event_Delete(p_event);
                     else
-                        vlc_epg_SetCurrent(epg, p_event->i_start);
+                        heimdall_epg_SetCurrent(epg, p_event->i_start);
                 }
             }
 
             /* Add next event if any */
-            vlc_epg_event_t *p_next = NULL;
+            heimdall_epg_event_t *p_next = NULL;
             for(size_t i=0; i<tmp->i_event; i++)
             {
-                vlc_epg_event_t *p_evt = tmp->pp_event[i];
+                heimdall_epg_event_t *p_evt = tmp->pp_event[i];
                 if((!p_next || p_next->i_start > p_evt->i_start) &&
                    (!p_current_event || (p_evt->i_id != p_current_event->i_id &&
                                          p_evt->i_start >= p_current_event->i_start +
@@ -572,9 +573,9 @@ int vout_OSDEpg(vout_thread_t *vout, input_item_t *input)
             }
             if( p_next )
             {
-                vlc_epg_event_t *p_event = vlc_epg_event_Duplicate(p_next);
-                if(!vlc_epg_AddEvent(epg, p_event))
-                    vlc_epg_event_Delete(p_event);
+                heimdall_epg_event_t *p_event = heimdall_epg_event_Duplicate(p_next);
+                if(!heimdall_epg_AddEvent(epg, p_event))
+                    heimdall_epg_event_Delete(p_event);
             }
 
             if(epg->i_event > 0)
@@ -583,34 +584,34 @@ int vout_OSDEpg(vout_thread_t *vout, input_item_t *input)
             }
             else
             {
-                vlc_epg_Delete(epg);
+                heimdall_epg_Delete(epg);
                 epg = NULL;
             }
         }
     }
     epg_time = input->i_epg_time;
-    vlc_mutex_unlock(&input->lock);
+    heimdall_mutex_unlock(&input->lock);
 
     /* If no EPG event has been found. */
     if (epg == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if(epg->psz_name == NULL) /* Fallback (title == channel name) */
-        epg->psz_name = input_item_GetMeta( input, vlc_meta_Title );
+        epg->psz_name = input_item_GetMeta( input, heimdall_meta_Title );
 
     epg_spu_updater_sys_t *sys = malloc(sizeof(*sys));
     if (!sys) {
-        vlc_epg_Delete(epg);
-        return VLC_EGENERIC;
+        heimdall_epg_Delete(epg);
+        return HEIMDALL_EGENERIC;
     }
     sys->epg = epg;
-    sys->obj = VLC_OBJECT(vout);
+    sys->obj = HEIMDALL_OBJECT(vout);
     sys->time = epg_time;
-    sys->art = input_item_GetMeta( input, vlc_meta_ArtworkURL );
+    sys->art = input_item_GetMeta( input, heimdall_meta_ArtworkURL );
     if( !sys->art )
         sys->art = GetDefaultArtUri();
 
-    static const struct vlc_spu_updater_ops spu_ops =
+    static const struct heimdall_spu_updater_ops spu_ops =
     {
         .update   = OSDEpgUpdate,
         .destroy  = OSDEpgDestroy,
@@ -621,22 +622,22 @@ int vout_OSDEpg(vout_thread_t *vout, input_item_t *input)
         .ops = &spu_ops,
     };
 
-    const vlc_tick_t now = vlc_tick_now();
+    const heimdall_tick_t now = heimdall_tick_now();
     subpicture_t *subpic = subpicture_New(&updater);
     if (!subpic) {
-        vlc_epg_Delete(sys->epg);
+        heimdall_epg_Delete(sys->epg);
         free(sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     subpic->i_channel  = VOUT_SPU_CHANNEL_OSD;
     subpic->i_start    = now;
-    subpic->i_stop     = now + VLC_TICK_FROM_SEC(3);
+    subpic->i_stop     = now + HEIMDALL_TICK_FROM_SEC(3);
     subpic->b_ephemer  = true;
     subpic->b_fade     = true;
     subpic->b_subtitle = false;
 
     vout_PutSubpicture(vout, subpic);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

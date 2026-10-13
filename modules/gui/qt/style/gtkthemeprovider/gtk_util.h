@@ -19,6 +19,7 @@
 // original code from the Chromium project
 
 // Copyright 2012 The Chromium Authors
+ * Copyright (C) 2026 TheFenrisLycaon
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -35,7 +36,7 @@
 #include "gtk_compat.h"
 #include "scoped_gobject.h"
 
-#include <vlc_picture.h>
+#include <heimdall_picture.h>
 
 namespace gtk {
 
@@ -69,7 +70,7 @@ class CairoSurface {
  public:
   // Attaches a cairo surface to an SkBitmap so that GTK can render
   // into it.  |bitmap| must outlive this CairoSurface.
-  explicit CairoSurface(VLCPicturePtr& bitmap);
+  explicit CairoSurface(HeimdallPicturePtr& bitmap);
 
   // Creates a new cairo surface with the given size.  The memory for
   // this surface is deallocated when this CairoSurface is destroyed.

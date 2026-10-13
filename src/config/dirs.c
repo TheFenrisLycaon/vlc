@@ -2,6 +2,7 @@
  * dirs.c: Platform directories configuration
  *****************************************************************************
  * Copyright (C) 2023 Videolabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Alexandre Janniaux <ajanni@videolabs.io>
  *
@@ -24,16 +25,16 @@
 # include <config.h>
 #endif
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
 #include "configuration.h"
 
 static const char *userdir_to_env[] =
 {
-    [VLC_USERDATA_DIR] = "VLC_USERDATA_PATH",
+    [HEIMDALL_USERDATA_DIR] = "HEIMDALL_USERDATA_PATH",
 };
 
-char *config_GetUserDir (vlc_userdir_t type)
+char *config_GetUserDir (heimdall_userdir_t type)
 {
     if (type >= 0 && type < ARRAY_SIZE(userdir_to_env) &&
         userdir_to_env[type] != NULL)

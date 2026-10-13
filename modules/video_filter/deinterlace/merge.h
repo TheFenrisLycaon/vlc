@@ -1,7 +1,8 @@
 /*****************************************************************************
- * merge.h : Merge (line blending) routines for the VLC deinterlacer
+ * merge.h : Merge (line blending) routines for the Heimdall deinterlacer
  *****************************************************************************
  * Copyright (C) 2011 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Sam Hocevar <sam@zoy.org>                      (generic C routine)
  *         Sigmund Augdal Helberg <sigmunau@videolan.org> (MMXEXT, 3DNow, SSE2)
@@ -23,12 +24,12 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_DEINTERLACE_MERGE_H
-#define VLC_DEINTERLACE_MERGE_H 1
+#ifndef HEIMDALL_DEINTERLACE_MERGE_H
+#define HEIMDALL_DEINTERLACE_MERGE_H 1
 
 /**
  * \file
- * Merge (line blending) routines for the VLC deinterlacer.
+ * Merge (line blending) routines for the Heimdall deinterlacer.
  */
 
 /**

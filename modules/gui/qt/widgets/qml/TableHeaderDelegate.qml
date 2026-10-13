@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2024 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,7 +17,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 import QtQuick
-import VLC.Style
+import Heimdall.Style
 
 // FIXME: Qt 6.4
 // using QObject/QGadget types in Qt.binding in createObject fails

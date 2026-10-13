@@ -2,6 +2,7 @@
  * soutchain.hpp: A class to generate Stream Output Chains
  ****************************************************************************
  * Copyright (C) 2019 Jérôme Froissart <software@froiss.art>
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Jérôme Froissart <software@froiss.art>
  *
@@ -20,8 +21,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_QT_SOUTCHAIN_HPP_
-#define VLC_QT_SOUTCHAIN_HPP_
+#ifndef HEIMDALL_QT_SOUTCHAIN_HPP_
+#define HEIMDALL_QT_SOUTCHAIN_HPP_
 
 #include "qt.hpp"
 

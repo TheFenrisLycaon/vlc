@@ -2,6 +2,7 @@
  * Conversions.cpp
  *****************************************************************************
  * Copyright © 2015 - VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -24,7 +25,7 @@
 
 #include "Conversions.hpp"
 
-#include <vlc_charset.h>
+#include <heimdall_charset.h>
 #include <sstream>
 
 /*
@@ -35,10 +36,10 @@
 
   Example input string: "PT0H9M56.46S"
  */
-static vlc_tick_t str_duration( const char *psz_duration )
+static heimdall_tick_t str_duration( const char *psz_duration )
 {
     bool        timeDesignatorReached = false;
-    vlc_tick_t  res = 0;
+    heimdall_tick_t  res = 0;
     char*       end_ptr;
 
     if ( psz_duration == nullptr )
@@ -47,7 +48,7 @@ static vlc_tick_t str_duration( const char *psz_duration )
         return -1;
     do
     {
-        double number = vlc_strtod_c( psz_duration, &end_ptr );
+        double number = heimdall_strtod_c( psz_duration, &end_ptr );
         double      mul = 0;
         if ( psz_duration != end_ptr )
             psz_duration = end_ptr;
@@ -79,7 +80,7 @@ static vlc_tick_t str_duration( const char *psz_duration )
             default:
                 break ;
         }
-        res += vlc_tick_from_sec(mul * number);
+        res += heimdall_tick_from_sec(mul * number);
         if ( *psz_duration )
             psz_duration++;
     } while ( *psz_duration );
@@ -91,7 +92,7 @@ IsoTime::IsoTime(const std::string &str)
     time = str_duration(str.c_str());
 }
 
-IsoTime::operator vlc_tick_t () const
+IsoTime::operator heimdall_tick_t () const
 {
     return time;
 }
@@ -188,9 +189,9 @@ UTCTime::UTCTime(const std::string &str)
             int64_t mst = timegm( &tm );
             mst += values[UTCTIME_TZ] * -60;
             mst *= 1000;
-            t = VLC_TICK_FROM_MS(mst);
+            t = HEIMDALL_TICK_FROM_MS(mst);
             if(values[UTCTIME_FRAC_DEN] > 0)
-                t += vlc_tick_from_samples(values[UTCTIME_FRAC_NUM], values[UTCTIME_FRAC_DEN]);
+                t += heimdall_tick_from_samples(values[UTCTIME_FRAC_NUM], values[UTCTIME_FRAC_DEN]);
         } else {
             // Failure parsing time string
             t = 0;
@@ -200,7 +201,7 @@ UTCTime::UTCTime(const std::string &str)
     }
 }
 
-UTCTime::operator vlc_tick_t () const
+UTCTime::operator heimdall_tick_t () const
 {
     return t;
 }

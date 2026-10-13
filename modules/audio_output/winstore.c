@@ -1,7 +1,8 @@
 /*****************************************************************************
- * winstore.c : Windows Multimedia Device API audio output plugin for VLC
+ * winstore.c : Windows Multimedia Device API audio output plugin for Heimdall
  *****************************************************************************
  * Copyright (C) 2012 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -28,17 +29,17 @@
 
 #include <audiopolicy.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_aout.h>
-#include <vlc_charset.h> // ToWide
-#include <vlc_modules.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_aout.h>
+#include <heimdall_charset.h> // ToWide
+#include <heimdall_modules.h>
 #include "mmdevice.h"
 
 #include <audioclient.h>
 #include <mmdeviceapi.h>
 
-DEFINE_GUID (GUID_VLC_AUD_OUT, 0x4533f59d, 0x59ee, 0x00c6,
+DEFINE_GUID (GUID_HEIMDALL_AUD_OUT, 0x4533f59d, 0x59ee, 0x00c6,
    0xad, 0xb2, 0xc6, 0x8b, 0x50, 0x1a, 0x66, 0x55);
 
 static void EnterMTA(void)
@@ -66,10 +67,10 @@ typedef struct
 
     // IActivateAudioInterfaceCompletionHandler interface
     IActivateAudioInterfaceCompletionHandler client_locator;
-    vlc_sem_t async_completed;
+    heimdall_sem_t async_completed;
     LONG refs;
-    vlc_mutex_t lock;
-    vlc_thread_t thread;
+    heimdall_mutex_t lock;
+    heimdall_thread_t thread;
     bool stopping;
 
     HANDLE work_event;
@@ -112,7 +113,7 @@ static STDMETHODIMP MMDeviceLocator_ActivateCompleted(IActivateAudioInterfaceCom
 {
     (void)operation;
     aout_sys_t *sys = container_of(This, aout_sys_t, client_locator);
-    vlc_sem_post( &sys->async_completed );
+    heimdall_sem_post( &sys->async_completed );
     return S_OK;
 }
 
@@ -140,7 +141,7 @@ static void WaitForAudioClient(audio_output_t *aout)
     sys->acquired_device = NULL;
     ActivateAudioInterfaceAsync(devId, &IID_IAudioClient, NULL, &sys->client_locator, &asyncOp);
 
-    vlc_sem_wait( &sys->async_completed );
+    heimdall_sem_wait( &sys->async_completed );
 
     if (asyncOp)
     {
@@ -249,20 +250,20 @@ static int DeviceSelectLocked(audio_output_t *aout, const char* id)
     {
         wchar_t *requested_device = ToWide(id);
         if (unlikely(requested_device == NULL))
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         changed = SetRequestedDevice(aout, requested_device);
     }
     if (!changed)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     return DeviceRestartLocked(aout);
 }
 
 static int DeviceSelect(audio_output_t *aout, const char* id)
 {
     aout_sys_t *sys = aout->sys;
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     int ret = DeviceSelectLocked(aout, id);
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
     return ret;
 }
 
@@ -281,7 +282,7 @@ static int VolumeSet(audio_output_t *aout, float vol)
 {
     aout_sys_t *sys = aout->sys;
     if( unlikely( sys->client == NULL ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     HRESULT hr;
     void *pv = NULL;
     ISimpleAudioVolume *pc_AudioVolume = NULL;
@@ -326,7 +327,7 @@ static int MuteSet(audio_output_t *aout, bool mute)
 {
     aout_sys_t *sys = aout->sys;
     if( unlikely( sys->client == NULL ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     HRESULT hr;
     void *pv = NULL;
     ISimpleAudioVolume *pc_AudioVolume = NULL;
@@ -355,40 +356,40 @@ done:
     return SUCCEEDED(hr) ? 0 : -1;
 }
 
-static void Play(audio_output_t *aout, block_t *block, vlc_tick_t date)
+static void Play(audio_output_t *aout, block_t *block, heimdall_tick_t date)
 {
     aout_sys_t *sys = aout->sys;
 
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     if (unlikely(sys->client == NULL))
     {
         block_Release(block);
-        vlc_mutex_unlock(&sys->lock);
+        heimdall_mutex_unlock(&sys->lock);
         return;
     }
 
     aout_stream_owner_AppendBlock(sys->stream, block, date);
 
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
     SetEvent(sys->work_event);
 }
 
-static void Pause(audio_output_t *aout, bool paused, vlc_tick_t date)
+static void Pause(audio_output_t *aout, bool paused, heimdall_tick_t date)
 {
     aout_sys_t *sys = aout->sys;
 
     EnterMTA();
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     if (unlikely(sys->client == NULL))
     {
-        vlc_mutex_unlock(&sys->lock);
+        heimdall_mutex_unlock(&sys->lock);
         LeaveMTA();
         return;
     }
 
     HRESULT hr = aout_stream_owner_Pause(sys->stream, paused);
 
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
     LeaveMTA();
 
     (void) date;
@@ -400,17 +401,17 @@ static void Flush(audio_output_t *aout)
     aout_sys_t *sys = aout->sys;
 
     EnterMTA();
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     if (unlikely(sys->client == NULL))
     {
-        vlc_mutex_unlock(&sys->lock);
+        heimdall_mutex_unlock(&sys->lock);
         LeaveMTA();
         return;
     }
 
     HRESULT hr = aout_stream_owner_Flush(sys->stream);
 
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
     LeaveMTA();
 
     ResetInvalidatedClient(aout, hr);
@@ -422,10 +423,10 @@ static void *PlaybackThread(void *data)
     aout_sys_t *sys = aout->sys;
     struct aout_stream_owner *owner = sys->stream;
 
-    vlc_thread_set_name("vlc-winstore");
+    heimdall_thread_set_name("heimdall-winstore");
 
     EnterMTA();
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
 
     while (true)
     {
@@ -445,9 +446,9 @@ static void *PlaybackThread(void *data)
                 events[ev_count++] = sys->stream->buffer_ready_event;
         }
 
-        vlc_mutex_unlock(&sys->lock);
+        heimdall_mutex_unlock(&sys->lock);
         WaitForMultipleObjects(ev_count, events, FALSE, wait_ms);
-        vlc_mutex_lock(&sys->lock);
+        heimdall_mutex_lock(&sys->lock);
 
         if (sys->stopping)
             break;
@@ -474,7 +475,7 @@ static void *PlaybackThread(void *data)
         }
     }
 
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
     LeaveMTA();
 
     return NULL;
@@ -504,8 +505,8 @@ static int aout_stream_Start(void *func, bool forced, va_list ap)
     HRESULT *hr = va_arg(ap, HRESULT *);
 
     (void) forced;
-    *hr = start(s, fmt, &GUID_VLC_AUD_OUT);
-    return SUCCEEDED(*hr) ? VLC_SUCCESS : VLC_EGENERIC;
+    *hr = start(s, fmt, &GUID_HEIMDALL_AUD_OUT);
+    return SUCCEEDED(*hr) ? HEIMDALL_SUCCESS : HEIMDALL_EGENERIC;
 }
 
 static int Start(audio_output_t *aout, audio_sample_format_t *restrict fmt)
@@ -521,7 +522,7 @@ static int Start(audio_output_t *aout, audio_sample_format_t *restrict fmt)
 
     // Load the "out stream" for the requested device
     EnterMTA();
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
 
     if (sys->requested_device != NULL)
     {
@@ -531,7 +532,7 @@ static int Start(audio_output_t *aout, audio_sample_format_t *restrict fmt)
             DeviceRestartLocked(aout);
             if (sys->client == NULL)
             {
-                vlc_mutex_unlock(&sys->lock);
+                heimdall_mutex_unlock(&sys->lock);
                 LeaveMTA();
                 aout_stream_owner_Delete(owner);
                 return -1;
@@ -542,7 +543,7 @@ static int Start(audio_output_t *aout, audio_sample_format_t *restrict fmt)
     sys->work_event = CreateEvent(NULL, FALSE, FALSE, NULL);
     if (unlikely(sys->work_event == NULL))
     {
-        vlc_mutex_unlock(&sys->lock);
+        heimdall_mutex_unlock(&sys->lock);
         LeaveMTA();
         aout_stream_owner_Delete(owner);
         return -1;
@@ -551,7 +552,7 @@ static int Start(audio_output_t *aout, audio_sample_format_t *restrict fmt)
     for (;;)
     {
         owner->device = sys->client;
-        sys->module = vlc_module_load(vlc_object_logger(s), "aout stream", NULL,
+        sys->module = heimdall_module_load(heimdall_object_logger(s), "aout stream", NULL,
                                       false, aout_stream_Start, s, fmt, &hr);
 
         int ret = -1;
@@ -573,7 +574,7 @@ static int Start(audio_output_t *aout, audio_sample_format_t *restrict fmt)
 
             ret = DeviceRestartLocked(aout);
         }
-        if (ret != VLC_SUCCESS)
+        if (ret != HEIMDALL_SUCCESS)
             break;
 
         if (sys->client == NULL || sys->module != NULL)
@@ -625,14 +626,14 @@ static int Start(audio_output_t *aout, audio_sample_format_t *restrict fmt)
     sys->stream = owner;
     sys->stopping = false;
 
-    if (vlc_clone(&sys->thread, PlaybackThread, aout))
+    if (heimdall_clone(&sys->thread, PlaybackThread, aout))
     {
         aout_stream_owner_Stop(sys->stream);
         sys->stream = NULL;
         goto error;
     }
 
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
     LeaveMTA();
 
     if (sys->client)
@@ -647,7 +648,7 @@ static int Start(audio_output_t *aout, audio_sample_format_t *restrict fmt)
 error:
     CloseHandle(sys->work_event);
     aout_stream_owner_Delete(owner);
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
     LeaveMTA();
     return -1;
 }
@@ -658,11 +659,11 @@ static void Stop(audio_output_t *aout)
 
     assert (sys->stream != NULL);
 
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     sys->stopping = true;
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
     SetEvent(sys->work_event);
-    vlc_join(sys->thread, NULL);
+    heimdall_join(sys->thread, NULL);
 
     EnterMTA();
     aout_stream_owner_Stop(sys->stream);
@@ -673,19 +674,19 @@ static void Stop(audio_output_t *aout)
     sys->stream = NULL;
 }
 
-static int Open(vlc_object_t *obj)
+static int Open(heimdall_object_t *obj)
 {
     audio_output_t *aout = (audio_output_t *)obj;
 
     aout_sys_t *sys = malloc(sizeof (*sys));
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     if (unlikely(FAILED(StringFromIID(&DEVINTERFACE_AUDIO_RENDER, &sys->default_device))))
     {
         msg_Dbg(obj, "Failed to get the default renderer string");
         free(sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     char *psz_default = FromWide(sys->default_device);
@@ -695,9 +696,9 @@ static int Open(vlc_object_t *obj)
         free(psz_default);
     }
 
-    vlc_mutex_init(&sys->lock);
+    heimdall_mutex_init(&sys->lock);
 
-    vlc_sem_init(&sys->async_completed, 0);
+    heimdall_sem_init(&sys->async_completed, 0);
     sys->refs = 0;
     sys->requested_device = sys->default_device;
     sys->acquired_device = NULL;
@@ -715,10 +716,10 @@ static int Open(vlc_object_t *obj)
     aout->pause = Pause;
     aout->flush = Flush;
     aout->device_select = DeviceSelect;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void Close(vlc_object_t *obj)
+static void Close(heimdall_object_t *obj)
 {
     audio_output_t *aout = (audio_output_t *)obj;
     aout_sys_t *sys = aout->sys;
@@ -736,11 +737,11 @@ static void Close(vlc_object_t *obj)
     free(sys);
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname("winstore")
     set_description("Windows Store audio output")
     set_capability("audio output", 50)
     set_subcategory(SUBCAT_AUDIO_AOUT)
     add_shortcut("wasapi")
     set_callbacks(Open, Close)
-vlc_module_end()
+heimdall_module_end()

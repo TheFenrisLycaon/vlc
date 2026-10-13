@@ -1,7 +1,8 @@
 /*****************************************************************************
- * xa.c : xa file demux module for vlc
+ * xa.c : xa file demux module for heimdall
  *****************************************************************************
  * Copyright (C) 2005 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Rémi Denis-Courmont
  *
@@ -29,21 +30,21 @@
 #endif
 
 #include <assert.h>
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_demux.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_demux.h>
 
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  Open ( vlc_object_t * );
+static int  Open ( heimdall_object_t * );
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("XA demuxer") )
     set_subcategory( SUBCAT_INPUT_DEMUX )
     set_capability( "demux", 10 )
     set_callback( Open )
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * Local prototypes
@@ -85,32 +86,32 @@ static_assert(offsetof(xa_header_t, wBitsPerSample) == 22, "Bad padding");
 /*****************************************************************************
  * Open: check file and initializes structures
  *****************************************************************************/
-static int Open( vlc_object_t * p_this )
+static int Open( heimdall_object_t * p_this )
 {
     demux_t     *p_demux = (demux_t*)p_this;
     const uint8_t *peek;
 
     /* XA file heuristic */
-    if( vlc_stream_Peek( p_demux->s, &peek, 10 ) < 10 )
-        return VLC_EGENERIC;
+    if( heimdall_stream_Peek( p_demux->s, &peek, 10 ) < 10 )
+        return HEIMDALL_EGENERIC;
     if( memcmp( peek, "XAI", 4 ) && memcmp( peek, "XAJ", 4 ) &&
             memcmp( peek, "XA\0", 4 ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     if( GetWLE( peek + 8 ) != 1 ) /* format tag */
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    demux_sys_t *p_sys = vlc_obj_malloc( p_this, sizeof (*p_sys) );
+    demux_sys_t *p_sys = heimdall_obj_malloc( p_this, sizeof (*p_sys) );
     if( unlikely( p_sys == NULL ) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     /* read XA header*/
     xa_header_t xa;
 
-    if( vlc_stream_Read( p_demux->s, &xa, HEADER_LENGTH ) < HEADER_LENGTH )
-        return VLC_EGENERIC;
+    if( heimdall_stream_Read( p_demux->s, &xa, HEADER_LENGTH ) < HEADER_LENGTH )
+        return HEIMDALL_EGENERIC;
 
     es_format_t fmt;
-    es_format_Init( &fmt, AUDIO_ES, VLC_CODEC_ADPCM_XA_EA );
+    es_format_Init( &fmt, AUDIO_ES, HEIMDALL_CODEC_ADPCM_XA_EA );
 
     msg_Dbg( p_demux, "assuming EA ADPCM audio codec" );
     fmt.audio.i_rate = GetDWLE( &xa.nSamplesPerSec );
@@ -137,19 +138,19 @@ static int Open( vlc_object_t * p_this )
 
     if( fmt.audio.i_rate == 0 || fmt.audio.i_channels == 0
      || fmt.audio.i_bitspersample != 16 )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     p_sys->p_es = es_out_Add( p_demux->out, &fmt );
     if( unlikely(p_sys->p_es == NULL) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     date_Init( &p_sys->pts, fmt.audio.i_rate, 1 );
-    date_Set( &p_sys->pts, VLC_TICK_0 );
+    date_Set( &p_sys->pts, HEIMDALL_TICK_0 );
 
     p_demux->pf_demux   = Demux;
     p_demux->pf_control = Control;
     p_demux->p_sys      = p_sys;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -161,20 +162,20 @@ static int Demux( demux_t *p_demux )
 {
     demux_sys_t *p_sys = p_demux->p_sys;
     block_t     *p_block;
-    int64_t     i_offset = vlc_stream_Tell( p_demux->s );
+    int64_t     i_offset = heimdall_stream_Tell( p_demux->s );
     unsigned    i_frames = p_sys->i_block_frames;
 
     if( p_sys->i_data_size > 0 &&
         (i_offset - HEADER_LENGTH) >= p_sys->i_data_size )
     {
-        return VLC_DEMUXER_EOF;
+        return HEIMDALL_DEMUXER_EOF;
     }
 
-    p_block = vlc_stream_Block( p_demux->s, p_sys->i_frame_size * i_frames );
+    p_block = heimdall_stream_Block( p_demux->s, p_sys->i_frame_size * i_frames );
     if( p_block == NULL )
     {
         msg_Warn( p_demux, "cannot read data" );
-        return VLC_DEMUXER_EOF;
+        return HEIMDALL_DEMUXER_EOF;
     }
 
     i_frames = p_block->i_buffer / p_sys->i_frame_size;
@@ -184,7 +185,7 @@ static int Demux( demux_t *p_demux )
 
     date_Increment( &p_sys->pts, i_frames * FRAME_LENGTH );
 
-    return VLC_DEMUXER_SUCCESS;
+    return HEIMDALL_DEMUXER_SUCCESS;
 }
 
 /*****************************************************************************

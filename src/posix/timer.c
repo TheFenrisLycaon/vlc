@@ -2,6 +2,7 @@
  * timer.c: simple threaded timer
  *****************************************************************************
  * Copyright (C) 2009-2012 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -27,8 +28,8 @@
 #include <errno.h>
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_threads.h>
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
 
 /*
  * POSIX timers are essentially unusable from a library: there provide no safe
@@ -39,38 +40,38 @@
  * Thus, this is a generic manual implementation of timers using a thread.
  */
 
-struct vlc_timer
+struct heimdall_timer
 {
-    vlc_thread_t thread;
-    vlc_cond_t   reschedule;
-    vlc_mutex_t  lock;
+    heimdall_thread_t thread;
+    heimdall_cond_t   reschedule;
+    heimdall_mutex_t  lock;
     void       (*func) (void *);
     void        *data;
-    vlc_tick_t   value, interval;
+    heimdall_tick_t   value, interval;
     bool         live;
     atomic_uint  overruns;
 };
 
-static void *vlc_timer_thread (void *data)
+static void *heimdall_timer_thread (void *data)
 {
-    vlc_thread_set_name("vlc-timer");
+    heimdall_thread_set_name("heimdall-timer");
 
-    struct vlc_timer *timer = data;
+    struct heimdall_timer *timer = data;
 
-    vlc_mutex_lock (&timer->lock);
+    heimdall_mutex_lock (&timer->lock);
 
     while (timer->live)
     {
         if (timer->value == 0)
         {
             assert(timer->interval == 0);
-            vlc_cond_wait (&timer->reschedule, &timer->lock);
+            heimdall_cond_wait (&timer->reschedule, &timer->lock);
             continue;
         }
 
         if (timer->interval != 0)
         {
-            vlc_tick_t now = vlc_tick_now();
+            heimdall_tick_t now = heimdall_tick_now();
 
             if (now > timer->value)
             {   /* Update overrun counter */
@@ -83,9 +84,9 @@ static void *vlc_timer_thread (void *data)
             }
         }
 
-        vlc_tick_t value = timer->value;
+        heimdall_tick_t value = timer->value;
 
-        if (vlc_cond_timedwait(&timer->reschedule, &timer->lock, value) == 0)
+        if (heimdall_cond_timedwait(&timer->reschedule, &timer->lock, value) == 0)
             continue;
 
         if (likely(timer->value <= value))
@@ -96,23 +97,23 @@ static void *vlc_timer_thread (void *data)
                 timer->value = 0; /* disarm */
         }
 
-        vlc_mutex_unlock (&timer->lock);
+        heimdall_mutex_unlock (&timer->lock);
         timer->func (timer->data);
-        vlc_mutex_lock (&timer->lock);
+        heimdall_mutex_lock (&timer->lock);
     }
 
-    vlc_mutex_unlock (&timer->lock);
+    heimdall_mutex_unlock (&timer->lock);
     return NULL;
 }
 
-int vlc_timer_create (vlc_timer_t *id, void (*func) (void *), void *data)
+int heimdall_timer_create (heimdall_timer_t *id, void (*func) (void *), void *data)
 {
-    struct vlc_timer *timer = malloc (sizeof (*timer));
+    struct heimdall_timer *timer = malloc (sizeof (*timer));
 
     if (unlikely(timer == NULL))
         return ENOMEM;
-    vlc_mutex_init (&timer->lock);
-    vlc_cond_init (&timer->reschedule);
+    heimdall_mutex_init (&timer->lock);
+    heimdall_cond_init (&timer->reschedule);
     assert (func);
     timer->func = func;
     timer->data = data;
@@ -121,7 +122,7 @@ int vlc_timer_create (vlc_timer_t *id, void (*func) (void *), void *data)
     timer->live = true;
     atomic_init(&timer->overruns, 0);
 
-    if (vlc_clone (&timer->thread, vlc_timer_thread, timer))
+    if (heimdall_clone (&timer->thread, heimdall_timer_thread, timer))
     {
         free (timer);
         return ENOMEM;
@@ -131,34 +132,34 @@ int vlc_timer_create (vlc_timer_t *id, void (*func) (void *), void *data)
     return 0;
 }
 
-void vlc_timer_destroy (vlc_timer_t timer)
+void heimdall_timer_destroy (heimdall_timer_t timer)
 {
-    vlc_mutex_lock(&timer->lock);
+    heimdall_mutex_lock(&timer->lock);
     timer->live = false;
-    vlc_cond_signal(&timer->reschedule);
-    vlc_mutex_unlock(&timer->lock);
+    heimdall_cond_signal(&timer->reschedule);
+    heimdall_mutex_unlock(&timer->lock);
 
-    vlc_join (timer->thread, NULL);
+    heimdall_join (timer->thread, NULL);
     free (timer);
 }
 
-void vlc_timer_schedule (vlc_timer_t timer, bool absolute,
-                         vlc_tick_t value, vlc_tick_t interval)
+void heimdall_timer_schedule (heimdall_timer_t timer, bool absolute,
+                         heimdall_tick_t value, heimdall_tick_t interval)
 {
-    if (value == VLC_TIMER_DISARM)
+    if (value == HEIMDALL_TIMER_DISARM)
         interval = 0;
     else
     if (!absolute)
-        value += vlc_tick_now();
+        value += heimdall_tick_now();
 
-    vlc_mutex_lock (&timer->lock);
+    heimdall_mutex_lock (&timer->lock);
     timer->value = value;
     timer->interval = interval;
-    vlc_cond_signal (&timer->reschedule);
-    vlc_mutex_unlock (&timer->lock);
+    heimdall_cond_signal (&timer->reschedule);
+    heimdall_mutex_unlock (&timer->lock);
 }
 
-unsigned vlc_timer_getoverrun (vlc_timer_t timer)
+unsigned heimdall_timer_getoverrun (heimdall_timer_t timer)
 {
     return atomic_exchange_explicit (&timer->overruns, 0,
                                      memory_order_relaxed);

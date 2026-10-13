@@ -2,6 +2,7 @@
  * stereo_widen.c : simple stereo widening effect
  *****************************************************************************
  * Copyright (C) 2012 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author : Sukrit Sangwan < sukritsangwan at gmail dot com >
  *
@@ -24,20 +25,20 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_aout.h>
-#include <vlc_filter.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_aout.h>
+#include <heimdall_filter.h>
+#include <heimdall_plugin.h>
 
 /*****************************************************************************
  * Local prototypes
  *****************************************************************************/
-static int  Open ( vlc_object_t * );
+static int  Open ( heimdall_object_t * );
 static void Close( filter_t * );
 
 static block_t *Filter ( filter_t *, block_t * );
-static int paramCallback( vlc_object_t *, char const *, vlc_value_t ,
-                            vlc_value_t , void * );
+static int paramCallback( heimdall_object_t *, char const *, heimdall_value_t ,
+                            heimdall_value_t , void * );
 
 typedef struct
 {
@@ -73,7 +74,7 @@ typedef struct
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( N_("Stereo Enhancer") )
     set_description( N_("Simple stereo widening effect") )
     set_help( HELP_TEXT )
@@ -89,7 +90,7 @@ vlc_module_begin ()
         CROSSFEED_TEXT, CROSSFEED_LONGTEXT )
     add_float_with_range( CONFIG_PREFIX "dry-mix", 0.8, 0.0, 1.0,
         DRYMIX_TEXT, DRYMIX_LONGTEXT )
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * Open: Allocate buffer
@@ -100,38 +101,38 @@ static int MakeRingBuffer( float **pp_buffer, size_t *pi_buffer,
     const size_t i_size = (2 * (size_t)(1 + f_delay * i_rate / 1000));
 
     if( unlikely(SIZE_MAX / sizeof(float) < i_size) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     float *p_realloc = realloc( *pp_buffer, i_size * sizeof(float) );
     if( !p_realloc )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     memset( p_realloc, 0, i_size * sizeof(float) );
     *pp_write = *pp_buffer = p_realloc;
     *pi_buffer = i_size;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int Open( vlc_object_t *obj )
+static int Open( heimdall_object_t *obj )
 {
     filter_t *p_filter  = (filter_t *)obj;
-    vlc_object_t *p_aout = vlc_object_parent(p_filter);
+    heimdall_object_t *p_aout = heimdall_object_parent(p_filter);
     filter_sys_t *p_sys;
 
-    if( p_filter->fmt_in.audio.i_format != VLC_CODEC_FL32 ||
+    if( p_filter->fmt_in.audio.i_format != HEIMDALL_CODEC_FL32 ||
      !AOUT_FMTS_IDENTICAL( &p_filter->fmt_in.audio, &p_filter->fmt_out.audio) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if( p_filter->fmt_in.audio.i_channels != 2 )
     {
         msg_Err ( p_filter, "stereo enhance requires stereo" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     p_sys = p_filter->p_sys = malloc( sizeof(filter_sys_t) );
     if( unlikely(!p_sys) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
 #define CREATE_VAR( stor, var ) \
     p_sys->stor = var_CreateGetFloat( p_aout, var ); \
@@ -146,18 +147,18 @@ static int Open( vlc_object_t *obj )
     p_sys->pf_ringbuf = NULL;
     p_sys->i_len = 0;
     if( MakeRingBuffer( &p_sys->pf_ringbuf, &p_sys->i_len, &p_sys->pf_write,
-                        p_sys->f_delay, p_filter->fmt_in.audio.i_rate ) != VLC_SUCCESS )
+                        p_sys->f_delay, p_filter->fmt_in.audio.i_rate ) != HEIMDALL_SUCCESS )
     {
         Close( p_filter );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
-    static const struct vlc_filter_operations filter_ops =
+    static const struct heimdall_filter_operations filter_ops =
     {
         .filter_audio = Filter, .close = Close,
     };
     p_filter->ops = &filter_ops;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -199,7 +200,7 @@ static block_t *Filter( filter_t *p_filter, block_t *p_block )
  *****************************************************************************/
 static void Close( filter_t *p_filter )
 {
-    vlc_object_t *p_aout = vlc_object_parent(p_filter);
+    heimdall_object_t *p_aout = heimdall_object_parent(p_filter);
     filter_sys_t *p_sys = p_filter->p_sys;
 
 #define DEL_VAR(var) \
@@ -219,20 +220,20 @@ static void Close( filter_t *p_filter )
 /**********************************************************************
  * Callback to update params on the fly
  **********************************************************************/
-static int paramCallback( vlc_object_t *p_this, char const *psz_var,
-                            vlc_value_t oldval, vlc_value_t newval,
+static int paramCallback( heimdall_object_t *p_this, char const *psz_var,
+                            heimdall_value_t oldval, heimdall_value_t newval,
                             void *p_data )
 {
     filter_t *p_filter = (filter_t *)p_this;
     filter_sys_t *p_sys = p_data;
 
-    VLC_UNUSED(oldval);
-    VLC_UNUSED(p_this);
+    HEIMDALL_UNUSED(oldval);
+    HEIMDALL_UNUSED(p_this);
 
     if( !strcmp( psz_var, CONFIG_PREFIX "delay" ) )
     {
         if( MakeRingBuffer( &p_sys->pf_ringbuf, &p_sys->i_len, &p_sys->pf_write,
-                            newval.f_float, p_filter->fmt_in.audio.i_rate ) != VLC_SUCCESS )
+                            newval.f_float, p_filter->fmt_in.audio.i_rate ) != HEIMDALL_SUCCESS )
         {
             msg_Dbg( p_filter, "Couldn't allocate buffer for delay" );
         }
@@ -248,5 +249,5 @@ static int paramCallback( vlc_object_t *p_this, char const *psz_var,
     else if( !strcmp( psz_var, CONFIG_PREFIX "dry-mix" ) )
         p_sys->f_dry_mix = newval.f_float;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

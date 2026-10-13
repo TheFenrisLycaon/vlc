@@ -2,6 +2,7 @@
  * openurl.hpp: Open a MRL or clipboard content
  ****************************************************************************
  * Copyright © 2009 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Jean-Philippe André <jpeg@videolan.org>
  *
@@ -20,20 +21,20 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  ******************************************************************************/
 
-#ifndef QVLC_OPEN_URL_H_
-#define QVLC_OPEN_URL_H_ 1
+#ifndef QHEIMDALL_OPEN_URL_H_
+#define QHEIMDALL_OPEN_URL_H_ 1
 
 #ifdef HAVE_CONFIG_H
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include "widgets/native/qvlcframe.hpp"
+#include <heimdall_common.h>
+#include "widgets/native/qheimdallframe.hpp"
 #include "util/singleton.hpp"
 
 class QLineEdit;
 
-class OpenUrlDialog : public QVLCDialog
+class OpenUrlDialog : public QHeimdallDialog
 {
     Q_OBJECT
 

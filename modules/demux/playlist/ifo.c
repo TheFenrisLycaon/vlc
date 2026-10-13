@@ -2,8 +2,9 @@
  * ifo.c: Dummy ifo demux to enable opening DVDs rips by double cliking on VIDEO_TS.IFO
  *****************************************************************************
  * Copyright (C) 2007 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Antoine Cellerier <dionoea @t videolan d.t org>
+ * Authors: Antoine Cellerier <dionoea @t lycaria d.t org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -27,9 +28,9 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_access.h>
-#include <vlc_url.h>
+#include <heimdall_common.h>
+#include <heimdall_access.h>
+#include <heimdall_url.h>
 #include <assert.h>
 
 #include "playlist.h"
@@ -48,20 +49,20 @@ static const char *StreamLocation( const stream_t *s )
 /*****************************************************************************
  * Import_IFO: main import function
  *****************************************************************************/
-int Import_IFO( vlc_object_t *p_this )
+int Import_IFO( heimdall_object_t *p_this )
 {
     stream_t *p_stream = (stream_t *)p_this;
 
     if( !stream_HasExtension( p_stream, ".IFO" ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     const char *psz_location = StreamLocation( p_stream );
     if( psz_location == NULL )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     size_t len = strlen( psz_location );
     if( len < 12 )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     const char *psz_probe;
     const char *psz_file = &psz_location[len - 12];
@@ -82,16 +83,16 @@ int Import_IFO( vlc_object_t *p_this )
         p_stream->pf_readdir = ReadDVD_VR;
     }
     else
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     const uint8_t *p_peek;
-    ssize_t i_peek = vlc_stream_Peek( p_stream->s, &p_peek, 8 );
+    ssize_t i_peek = heimdall_stream_Peek( p_stream->s, &p_peek, 8 );
     if( i_peek < 8 || memcmp( p_peek, psz_probe, 8 ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     p_stream->pf_control = PlaylistControl;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int ReadDVD( stream_t *p_stream, input_item_node_t *node )
@@ -100,19 +101,19 @@ static int ReadDVD( stream_t *p_stream, input_item_node_t *node )
 
     char *psz_url = strndup( psz_location, strlen( psz_location ) - 12 );
     if( !psz_url )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     input_item_t *p_input = input_item_New( psz_url, psz_url );
     if( p_input )
     {
-        input_item_AddOption( p_input, "demux=dvd", VLC_INPUT_OPTION_TRUSTED );
+        input_item_AddOption( p_input, "demux=dvd", HEIMDALL_INPUT_OPTION_TRUSTED );
         input_item_node_AppendItem( node, p_input );
         input_item_Release( p_input );
     }
 
     free( psz_url );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int ReadDVD_VR( stream_t *p_stream, input_item_node_t *node )
@@ -123,7 +124,7 @@ static int ReadDVD_VR( stream_t *p_stream, input_item_node_t *node )
     char *psz_url = strdup( psz_location );
 
     if( unlikely( psz_url == NULL ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     strcpy( &psz_url[len - 12], "VR_MOVIE.VRO" );
 
@@ -136,5 +137,5 @@ static int ReadDVD_VR( stream_t *p_stream, input_item_node_t *node )
 
     free( psz_url );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

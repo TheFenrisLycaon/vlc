@@ -2,8 +2,9 @@
  * image.c: Image demuxer
  *****************************************************************************
  * Copyright (C) 2010 Laurent Aimar
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Laurent Aimar <fenrir _AT_ videolan _DOT_ org>
+ * Authors: Laurent Aimar <fenrir _AT_ lycaria _DOT_ org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -30,18 +31,18 @@
 
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_demux.h>
-#include <vlc_image.h>
-#include <vlc_ancillary.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_demux.h>
+#include <heimdall_image.h>
+#include <heimdall_ancillary.h>
 #include "mxpeg_helper.h"
 
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  Open (vlc_object_t *);
-static void Close(vlc_object_t *);
+static int  Open (heimdall_object_t *);
+static void Close(heimdall_object_t *);
 
 #define ID_TEXT N_("ES ID")
 #define ID_LONGTEXT N_( \
@@ -74,7 +75,7 @@ static void Close(vlc_object_t *);
     "Use real-time mode suitable for being used as a master input and " \
     "real-time input slaves.")
 
-vlc_module_begin()
+heimdall_module_begin()
     set_description(N_("Image demuxer"))
     set_shortname(N_("Image"))
     set_subcategory(SUBCAT_INPUT_DEMUX)
@@ -94,7 +95,7 @@ vlc_module_begin()
         change_safe()
     set_capability("demux", 10)
     set_callbacks(Open, Close)
-vlc_module_end()
+heimdall_module_end()
 
 /*****************************************************************************
  * Local prototypes
@@ -103,10 +104,10 @@ typedef struct
 {
     block_t     *data;
     es_out_id_t *es;
-    vlc_tick_t  duration;
+    heimdall_tick_t  duration;
     bool        is_realtime;
-    vlc_tick_t  pts_offset;
-    vlc_tick_t  pts_next;
+    heimdall_tick_t  pts_offset;
+    heimdall_tick_t  pts_next;
     date_t        pts;
 } demux_sys_t;
 
@@ -115,7 +116,7 @@ static block_t *Load(demux_t *demux)
     const unsigned max_size = 4096 * 4096 * 8;
     uint64_t size;
 
-    if (vlc_stream_GetSize(demux->s, &size) == VLC_SUCCESS) {
+    if (heimdall_stream_GetSize(demux->s, &size) == HEIMDALL_SUCCESS) {
         if (size > max_size) {
             msg_Err(demux, "image too large (%"PRIu64" > %u), rejected",
                     size, max_size);
@@ -128,7 +129,7 @@ static block_t *Load(demux_t *demux)
     if (block == NULL)
         return NULL;
 
-    ssize_t val = vlc_stream_Read(demux->s, block->p_buffer, size);
+    ssize_t val = heimdall_stream_Read(demux->s, block->p_buffer, size);
     if (val < 0) {
         block_Release(block);
         return NULL;
@@ -139,7 +140,7 @@ static block_t *Load(demux_t *demux)
 }
 
 static block_t *Decode(demux_t *demux,
-                       es_format_t *fmt, vlc_fourcc_t chroma, block_t *data)
+                       es_format_t *fmt, heimdall_fourcc_t chroma, block_t *data)
 {
     image_handler_t *handler = image_HandlerCreate(demux);
     if (!handler) {
@@ -182,10 +183,10 @@ static block_t *Decode(demux_t *demux,
     }
 
     // Preserve important metadata
-    struct vlc_ancillary *ancillary;
-    ancillary = picture_GetAncillary(image, VLC_ANCILLARY_ID_ICC);
+    struct heimdall_ancillary *ancillary;
+    ancillary = picture_GetAncillary(image, HEIMDALL_ANCILLARY_ID_ICC);
     if (ancillary)
-        vlc_frame_AttachAncillary(data, ancillary);
+        heimdall_frame_AttachAncillary(data, ancillary);
 
     picture_Release(image);
     return data;
@@ -196,39 +197,39 @@ static int Demux(demux_t *demux)
     demux_sys_t *sys = demux->p_sys;
 
     if (!sys->data)
-        return VLC_DEMUXER_EOF;
+        return HEIMDALL_DEMUXER_EOF;
 
-    vlc_tick_t deadline;
-    const vlc_tick_t pts_first = sys->pts_offset + date_Get(&sys->pts);
-    if (sys->pts_next != VLC_TICK_INVALID) {
+    heimdall_tick_t deadline;
+    const heimdall_tick_t pts_first = sys->pts_offset + date_Get(&sys->pts);
+    if (sys->pts_next != HEIMDALL_TICK_INVALID) {
         deadline = sys->pts_next;
     } else if (sys->is_realtime) {
-        deadline = vlc_tick_now();
-        const vlc_tick_t max_wait = VLC_TICK_FROM_MS(20);
+        deadline = heimdall_tick_now();
+        const heimdall_tick_t max_wait = HEIMDALL_TICK_FROM_MS(20);
         if (deadline + max_wait < pts_first) {
             es_out_SetPCR(demux->out, deadline);
             /* That's ugly, but not yet easily fixable */
-            vlc_tick_wait(deadline + max_wait);
-            return VLC_DEMUXER_SUCCESS;
+            heimdall_tick_wait(deadline + max_wait);
+            return HEIMDALL_DEMUXER_SUCCESS;
         }
     } else {
         deadline = 1 + pts_first;
     }
 
     for (;;) {
-        const vlc_tick_t pts = sys->pts_offset + date_Get(&sys->pts);
-        if (sys->duration >= 0 && pts >= VLC_TICK_0 + sys->pts_offset + sys->duration)
-            return VLC_DEMUXER_EOF;
+        const heimdall_tick_t pts = sys->pts_offset + date_Get(&sys->pts);
+        if (sys->duration >= 0 && pts >= HEIMDALL_TICK_0 + sys->pts_offset + sys->duration)
+            return HEIMDALL_DEMUXER_EOF;
 
         if (pts >= deadline)
-            return VLC_DEMUXER_SUCCESS;
+            return HEIMDALL_DEMUXER_SUCCESS;
 
         block_t *data = block_Duplicate(sys->data);
         if (!data)
-            return VLC_DEMUXER_EGENERIC;
+            return HEIMDALL_DEMUXER_EGENERIC;
 
         data->i_dts =
-        data->i_pts = VLC_TICK_0 + pts;
+        data->i_pts = HEIMDALL_TICK_0 + pts;
         es_out_SetPCR(demux->out, data->i_pts);
         if(sys->es)
             es_out_Send(demux->out, sys->es, data);
@@ -246,53 +247,53 @@ static int Control(demux_t *demux, int query, va_list args)
     switch (query) {
     case DEMUX_CAN_SEEK:
         *va_arg(args, bool *) = sys->duration >= 0 && !sys->is_realtime;
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     case DEMUX_GET_POSITION: {
         double *position = va_arg(args, double *);
         if (sys->duration > 0)
             *position = date_Get(&sys->pts) / (double)sys->duration;
         else
             *position = 0;
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
     case DEMUX_SET_POSITION: {
         if (sys->duration < 0 || sys->is_realtime)
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         double position = va_arg(args, double);
         date_Set(&sys->pts, position * sys->duration);
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
     case DEMUX_GET_TIME: {
-        *va_arg(args, vlc_tick_t *) = sys->pts_offset + date_Get(&sys->pts);
-        return VLC_SUCCESS;
+        *va_arg(args, heimdall_tick_t *) = sys->pts_offset + date_Get(&sys->pts);
+        return HEIMDALL_SUCCESS;
     }
     case DEMUX_SET_TIME: {
         if (sys->duration < 0 || sys->is_realtime)
-            return VLC_EGENERIC;
-        vlc_tick_t time = va_arg(args, vlc_tick_t);
-        date_Set(&sys->pts, VLC_CLIP(time - sys->pts_offset, VLC_TICK_0, sys->duration));
-        return VLC_SUCCESS;
+            return HEIMDALL_EGENERIC;
+        heimdall_tick_t time = va_arg(args, heimdall_tick_t);
+        date_Set(&sys->pts, HEIMDALL_CLIP(time - sys->pts_offset, HEIMDALL_TICK_0, sys->duration));
+        return HEIMDALL_SUCCESS;
     }
     case DEMUX_SET_NEXT_DEMUX_TIME: {
-        vlc_tick_t pts_next = VLC_TICK_0 + va_arg(args, vlc_tick_t);
-        if (sys->pts_next == VLC_TICK_INVALID)
-            sys->pts_offset = pts_next - VLC_TICK_0;
+        heimdall_tick_t pts_next = HEIMDALL_TICK_0 + va_arg(args, heimdall_tick_t);
+        if (sys->pts_next == HEIMDALL_TICK_INVALID)
+            sys->pts_offset = pts_next - HEIMDALL_TICK_0;
         sys->pts_next = pts_next;
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
     case DEMUX_GET_LENGTH: {
-        *va_arg(args, vlc_tick_t *) = __MAX(sys->duration, 0);
-        return VLC_SUCCESS;
+        *va_arg(args, heimdall_tick_t *) = __MAX(sys->duration, 0);
+        return HEIMDALL_SUCCESS;
     }
     case DEMUX_GET_FPS: {
         double *fps = va_arg(args, double *);
         *fps = (double)sys->pts.i_divider_num / sys->pts.i_divider_den;
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
     case DEMUX_GET_META:
     case DEMUX_HAS_UNSUPPORTED_META:
     case DEMUX_GET_ATTACHMENTS:
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     case DEMUX_CAN_PAUSE:
     case DEMUX_SET_PAUSE_STATE:
@@ -301,7 +302,7 @@ static int Control(demux_t *demux, int query, va_list args)
         return demux_vaControlHelper( demux->s, 0, -1, 0, 1, query, args );
 
     default:
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     }
 }
@@ -309,7 +310,7 @@ static int Control(demux_t *demux, int query, va_list args)
 static bool IsBmp(stream_t *s)
 {
     const uint8_t *header;
-    if (vlc_stream_Peek(s, &header, 18) < 18)
+    if (heimdall_stream_Peek(s, &header, 18) < 18)
         return false;
     if (memcmp(header, "BM", 2) &&
         memcmp(header, "BA", 2) &&
@@ -333,7 +334,7 @@ static bool IsBmp(stream_t *s)
 static bool IsPcx(stream_t *s)
 {
     const uint8_t *header;
-    if (vlc_stream_Peek(s, &header, 66) < 66)
+    if (heimdall_stream_Peek(s, &header, 66) < 66)
         return false;
     if (header[0] != 0x0A ||                        /* marker */
         (header[1] != 0x00 && header[1] != 0x02 &&
@@ -353,7 +354,7 @@ static bool IsPcx(stream_t *s)
 static bool IsLbm(stream_t *s)
 {
     const uint8_t *header;
-    if (vlc_stream_Peek(s, &header, 12) < 12)
+    if (heimdall_stream_Peek(s, &header, 12) < 12)
         return false;
     if (memcmp(&header[0], "FORM", 4) ||
         GetDWBE(&header[4]) <= 4 ||
@@ -368,7 +369,7 @@ static bool IsPnmBlank(uint8_t v)
 static bool IsPnm(stream_t *s)
 {
     const uint8_t *header;
-    int size = vlc_stream_Peek(s, &header, 256);
+    int size = heimdall_stream_Peek(s, &header, 256);
     if (size < 3)
         return false;
     if (header[0] != 'P' ||
@@ -409,7 +410,7 @@ static uint8_t FindJpegMarker(size_t *position, const uint8_t *data, size_t size
 static bool IsJfif(stream_t *s)
 {
     const uint8_t *header;
-    ssize_t peek = vlc_stream_Peek(s, &header, 4096);
+    ssize_t peek = heimdall_stream_Peek(s, &header, 4096);
     if(peek < 256)
         return false;
     size_t size = (size_t) peek;
@@ -448,7 +449,7 @@ static bool IsJfif(stream_t *s)
 static bool IsWebP(stream_t *s)
 {
     const uint8_t *header;
-    if (vlc_stream_Peek(s, &header, 20) < 20) /* WebP header size */
+    if (heimdall_stream_Peek(s, &header, 20) < 20) /* WebP header size */
         return false;
     if (memcmp(&header[0], "RIFF", 4))
         return false;
@@ -456,13 +457,13 @@ static bool IsWebP(stream_t *s)
     if (memcmp(&header[8], "WEBPVP8 ", 8))
         return false;
     /* skip headers */
-    return vlc_stream_Seek(s, 20) == 0;
+    return heimdall_stream_Seek(s, 20) == 0;
 }
 
 static bool IsSpiff(stream_t *s)
 {
     const uint8_t *header;
-    if (vlc_stream_Peek(s, &header, 36) < 36) /* SPIFF header size */
+    if (heimdall_stream_Peek(s, &header, 36) < 36) /* SPIFF header size */
         return false;
     if (header[0] != 0xff || header[1] != 0xd8 ||
         header[2] != 0xff || header[3] != 0xe8)
@@ -477,7 +478,7 @@ static bool IsSpiff(stream_t *s)
 static bool IsExifXMP(stream_t *s)
 {
     const uint8_t *header;
-    ssize_t peek = vlc_stream_Peek(s, &header, 256);
+    ssize_t peek = heimdall_stream_Peek(s, &header, 256);
     if (peek < 256)
         return false;
     size_t size = (size_t) peek;
@@ -519,7 +520,7 @@ static bool IsSVG(stream_t *s)
     if (!ext) return false;
 
     const uint8_t *header;
-    ssize_t size = vlc_stream_Peek(s, &header, 4096);
+    ssize_t size = heimdall_stream_Peek(s, &header, 4096);
     if (size == -1)
         return false;
     int position = 0;
@@ -555,7 +556,7 @@ static bool IsTarga(stream_t *s)
      * to have a look at the footer. But doing so can be slow. So
      * try to avoid it when possible */
     const uint8_t *header;
-    if (vlc_stream_Peek(s, &header, 18) < 18)   /* Targa fixed header */
+    if (heimdall_stream_Peek(s, &header, 18) < 18)   /* Targa fixed header */
         return false;
     if (header[1] > 1)                      /* Color Map Type */
         return false;
@@ -580,111 +581,111 @@ static bool IsTarga(stream_t *s)
     if (size <= 18 + 26)
         return false;
     bool can_seek;
-    if (vlc_stream_Control(s, STREAM_CAN_SEEK, &can_seek) || !can_seek)
+    if (heimdall_stream_Control(s, STREAM_CAN_SEEK, &can_seek) || !can_seek)
         return false;
 
-    const int64_t position = vlc_stream_Tell(s);
-    if (vlc_stream_Seek(s, size - 26))
+    const int64_t position = heimdall_stream_Tell(s);
+    if (heimdall_stream_Seek(s, size - 26))
         return false;
 
     const uint8_t *footer;
-    if (vlc_stream_Peek(s, &footer, 26) < 26
+    if (heimdall_stream_Peek(s, &footer, 26) < 26
      || memcmp(&footer[8], "TRUEVISION-XFILE.\x00", 18))
         return false;
 
-    return vlc_stream_Seek(s, position) == 0;
+    return heimdall_stream_Seek(s, position) == 0;
 }
 
 typedef struct {
-    vlc_fourcc_t  codec;
+    heimdall_fourcc_t  codec;
     size_t        marker_size;
     const uint8_t marker[14];
     bool          (*detect)(stream_t *s);
 } image_format_t;
 
-#define VLC_CODEC_XCF VLC_FOURCC('X', 'C', 'F', ' ')
-#define VLC_CODEC_LBM VLC_FOURCC('L', 'B', 'M', ' ')
+#define HEIMDALL_CODEC_XCF HEIMDALL_FOURCC('X', 'C', 'F', ' ')
+#define HEIMDALL_CODEC_LBM HEIMDALL_FOURCC('L', 'B', 'M', ' ')
 static const image_format_t formats[] = {
-    { .codec = VLC_CODEC_XCF,
+    { .codec = HEIMDALL_CODEC_XCF,
       .marker_size = 9 + 4 + 1,
       .marker = { 'g', 'i', 'm', 'p', ' ', 'x', 'c', 'f', ' ',
                   'f', 'i', 'l', 'e', '\0' }
     },
-    { .codec = VLC_CODEC_XCF,
+    { .codec = HEIMDALL_CODEC_XCF,
       .marker_size = 9 + 4 + 1,
       .marker = { 'g', 'i', 'm', 'p', ' ', 'x', 'c', 'f', ' ',
                   'v', '0', '0', '1', '\0' }
     },
-    { .codec = VLC_CODEC_XCF,
+    { .codec = HEIMDALL_CODEC_XCF,
       .marker_size = 9 + 4 + 1,
       .marker = { 'g', 'i', 'm', 'p', ' ', 'x', 'c', 'f', ' ',
                   'v', '0', '0', '2', '\0' }
     },
-    { .codec = VLC_CODEC_PNG,
+    { .codec = HEIMDALL_CODEC_PNG,
       .marker_size = 8,
       .marker = { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A }
     },
-    { .codec = VLC_CODEC_GIF,
+    { .codec = HEIMDALL_CODEC_GIF,
       .marker_size = 6,
       .marker = { 'G', 'I', 'F', '8', '7', 'a' }
     },
-    { .codec = VLC_CODEC_GIF,
+    { .codec = HEIMDALL_CODEC_GIF,
       .marker_size = 6,
       .marker = { 'G', 'I', 'F', '8', '9', 'a' }
     },
     /* XXX TIFF detection may be a bit weak */
-    { .codec = VLC_CODEC_TIFF,
+    { .codec = HEIMDALL_CODEC_TIFF,
       .marker_size = 4,
       .marker = { 'I', 'I', 0x2a, 0x00 },
     },
-    { .codec = VLC_CODEC_TIFF,
+    { .codec = HEIMDALL_CODEC_TIFF,
       .marker_size = 4,
       .marker = { 'M', 'M', 0x00, 0x2a },
     },
-    { .codec = VLC_CODEC_BMP,
+    { .codec = HEIMDALL_CODEC_BMP,
       .detect = IsBmp,
     },
-    { .codec = VLC_CODEC_PCX,
+    { .codec = HEIMDALL_CODEC_PCX,
       .detect = IsPcx,
     },
-    { .codec = VLC_CODEC_LBM,
+    { .codec = HEIMDALL_CODEC_LBM,
       .detect = IsLbm,
     },
-    { .codec = VLC_CODEC_PNM,
+    { .codec = HEIMDALL_CODEC_PNM,
       .detect = IsPnm,
     },
-    { .codec = VLC_CODEC_MXPEG,
+    { .codec = HEIMDALL_CODEC_MXPEG,
       .detect = IsMxpeg,
     },
-    { .codec = VLC_CODEC_JPEG,
+    { .codec = HEIMDALL_CODEC_JPEG,
       .detect = IsJfif,
     },
-    { .codec = VLC_CODEC_JPEG,
+    { .codec = HEIMDALL_CODEC_JPEG,
       .detect = IsSpiff,
     },
-    { .codec = VLC_CODEC_JPEG,
+    { .codec = HEIMDALL_CODEC_JPEG,
       .detect = IsExifXMP,
     },
-    { .codec = VLC_CODEC_WEBP,
+    { .codec = HEIMDALL_CODEC_WEBP,
       .detect = IsWebP,
     },
-    { .codec = VLC_CODEC_FARBFELD,
+    { .codec = HEIMDALL_CODEC_FARBFELD,
       .marker_size = 8,
       .marker = { 'f', 'a', 'r', 'b', 'f', 'e', 'l', 'd' },
     },
-    { .codec = VLC_CODEC_BPG,
+    { .codec = HEIMDALL_CODEC_BPG,
       .marker_size = 4,
       .marker = { 'B', 'P', 'G', 0xFB },
     },
-    { .codec = VLC_CODEC_SVG,
+    { .codec = HEIMDALL_CODEC_SVG,
       .detect = IsSVG,
     },
-    { .codec = VLC_CODEC_TARGA,
+    { .codec = HEIMDALL_CODEC_TARGA,
       .detect = IsTarga,
     },
 };
 
-static vlc_fourcc_t Detect(stream_t *s)
+static heimdall_fourcc_t Detect(stream_t *s)
 {
     const uint8_t *peek;
     size_t peek_size = 0;
@@ -696,7 +697,7 @@ static vlc_fourcc_t Detect(stream_t *s)
             if (img->detect(s))
                 return img->codec;
 
-            if (vlc_stream_Seek(s, 0))
+            if (heimdall_stream_Seek(s, 0))
                return 0;
 
             /* Seeking invalidates the current peek buffer */
@@ -705,7 +706,7 @@ static vlc_fourcc_t Detect(stream_t *s)
         }
 
         if (peek_size < img->marker_size) {
-            ssize_t val = vlc_stream_Peek(s, &peek, img->marker_size);
+            ssize_t val = heimdall_stream_Peek(s, &peek, img->marker_size);
             if (val < 0)
                 continue;
             peek_size = val;
@@ -720,60 +721,60 @@ static vlc_fourcc_t Detect(stream_t *s)
     return 0;
 }
 
-static int parse_farbfeld_header(vlc_object_t *object, es_format_t *fmt)
+static int parse_farbfeld_header(heimdall_object_t *object, es_format_t *fmt)
 {
     demux_t *demux = (demux_t*)object;
 
     const uint8_t *p_peek;
-    if (vlc_stream_Peek(demux->s, &p_peek, 16) < 16)
-        return VLC_EGENERIC;
+    if (heimdall_stream_Peek(demux->s, &p_peek, 16) < 16)
+        return HEIMDALL_EGENERIC;
 
     uint32_t width = GetDWBE(p_peek + 8);
     uint32_t height = GetDWBE(p_peek + 12);
 
     if (width == 0 || height == 0)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* Farbfeld is essentially just a header followed by pixels. */
     fmt->video.i_width = width;
     fmt->video.i_height = height;
-    fmt->video.i_chroma = fmt->i_codec = VLC_CODEC_RGBA64;
+    fmt->video.i_chroma = fmt->i_codec = HEIMDALL_CODEC_RGBA64;
 
-    (void) vlc_stream_Read(demux->s, NULL, 16);
+    (void) heimdall_stream_Read(demux->s, NULL, 16);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int Open(vlc_object_t *object)
+static int Open(heimdall_object_t *object)
 {
     demux_t *demux = (demux_t*)object;
 
     /* Detect the image type */
-    vlc_fourcc_t codec = Detect(demux->s);
+    heimdall_fourcc_t codec = Detect(demux->s);
     if (codec == 0)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     msg_Dbg(demux, "Detected image: %s",
-            vlc_fourcc_GetDescription(VIDEO_ES, codec));
+            heimdall_fourcc_GetDescription(VIDEO_ES, codec));
 
-    if (codec == VLC_CODEC_MXPEG)
-        return VLC_EGENERIC; //let avformat demux this file
+    if (codec == HEIMDALL_CODEC_MXPEG)
+        return HEIMDALL_EGENERIC; //let avformat demux this file
 
     /* Load and if selected decode */
     es_format_t fmt;
     es_format_Init(&fmt, VIDEO_ES, codec);
     fmt.video.i_chroma = fmt.i_codec;
 
-    if (codec == VLC_CODEC_FARBFELD)
+    if (codec == HEIMDALL_CODEC_FARBFELD)
     {
         if (parse_farbfeld_header(object, &fmt))
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 
     block_t *data = Load(demux);
     if (data && var_InheritBool(demux, "image-decode")) {
         char *string = var_InheritString(demux, "image-chroma");
-        vlc_fourcc_t chroma = vlc_fourcc_GetCodecFromString(VIDEO_ES, string);
+        heimdall_fourcc_t chroma = heimdall_fourcc_GetCodecFromString(VIDEO_ES, string);
         free(string);
 
         data = Decode(demux, &fmt, chroma, data);
@@ -801,11 +802,11 @@ static int Open(vlc_object_t *object)
         if (data)
             block_Release(data);
         es_format_Clean(&fmt);
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     date_Init(&sys->pts, fmt.video.i_frame_rate, fmt.video.i_frame_rate_base);
-    date_Set(&sys->pts, VLC_TICK_0);
+    date_Set(&sys->pts, HEIMDALL_TICK_0);
     sys->es = es_out_Add(demux->out, &fmt);
     es_format_Clean(&fmt);
     if(unlikely(!sys->es))
@@ -813,21 +814,21 @@ static int Open(vlc_object_t *object)
         if (data)
             block_Release(data);
         free(sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     sys->data        = data;
-    sys->duration    = vlc_tick_from_sec( var_InheritFloat(demux, "image-duration") );
+    sys->duration    = heimdall_tick_from_sec( var_InheritFloat(demux, "image-duration") );
     sys->is_realtime = var_InheritBool(demux, "image-realtime");
-    sys->pts_offset  = sys->is_realtime ? vlc_tick_now() : 0;
-    sys->pts_next    = VLC_TICK_INVALID;
+    sys->pts_offset  = sys->is_realtime ? heimdall_tick_now() : 0;
+    sys->pts_next    = HEIMDALL_TICK_INVALID;
 
     demux->pf_demux   = Demux;
     demux->pf_control = Control;
     demux->p_sys      = sys;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void Close(vlc_object_t *object)
+static void Close(heimdall_object_t *object)
 {
     demux_t     *demux = (demux_t*)object;
     demux_sys_t *sys   = demux->p_sys;

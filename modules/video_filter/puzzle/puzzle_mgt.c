@@ -3,9 +3,10 @@
  *****************************************************************************
  * Copyright (C) 2005-2009 VLC authors and VideoLAN
  * Copyright (C) 2013      Vianney Boyer
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Antoine Cellerier <dionoea -at- videolan -dot- org>
- *          Vianney Boyer <vlcvboyer -at- gmail -dot- com>
+ * Authors: Antoine Cellerier <dionoea -at- lycaria -dot- org>
+ *          Vianney Boyer <heimdallvboyer -at- gmail -dot- com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -31,11 +32,11 @@
 #endif
 #include <math.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_picture.h>
-#include <vlc_rand.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
+#include <heimdall_rand.h>
 
 #include "../filter_picture.h"
 
@@ -74,25 +75,25 @@ int puzzle_bake( filter_t *p_filter, picture_t *p_pic_out, picture_t *p_pic_in)
 
     p_sys->ps_puzzle_array = malloc( sizeof( puzzle_array_t** ) * (p_sys->s_allocated.i_rows + 1));
     if( !p_sys->ps_puzzle_array )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     for (int32_t r=0; r < p_sys->s_allocated.i_rows + 1; r++) {
         p_sys->ps_puzzle_array[r] = malloc( sizeof( puzzle_array_t* ) * (p_sys->s_allocated.i_cols + 1));
         if( !p_sys->ps_puzzle_array[r] )
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         for (int32_t c=0; c < p_sys->s_allocated.i_cols + 1; c++) {
             p_sys->ps_puzzle_array[r][c] = malloc( sizeof( puzzle_array_t ) * p_sys->s_allocated.i_planes);
             if( !p_sys->ps_puzzle_array[r][c] )
-                return VLC_ENOMEM;
+                return HEIMDALL_ENOMEM;
         }
     }
 
     p_sys->ps_desk_planes = malloc( sizeof( puzzle_plane_t ) * p_sys->s_allocated.i_planes);
     if( !p_sys->ps_desk_planes )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     p_sys->ps_pict_planes = malloc( sizeof( puzzle_plane_t ) * p_sys->s_allocated.i_planes);
     if( !p_sys->ps_pict_planes )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     for (uint8_t i_plane = 0; i_plane < p_sys->s_allocated.i_planes; i_plane++) {
         p_sys->ps_desk_planes[i_plane].i_lines = p_pic_out->p[i_plane].i_visible_lines;
@@ -152,12 +153,12 @@ int puzzle_bake( filter_t *p_filter, picture_t *p_pic_out, picture_t *p_pic_in)
 
     if (p_sys->s_current_param.b_advanced && p_sys->s_allocated.i_shape_size != 0) {
         i_ret = puzzle_bake_pieces_shapes ( p_filter );
-        if (i_ret != VLC_SUCCESS)
+        if (i_ret != HEIMDALL_SUCCESS)
             return i_ret;
     }
 
     i_ret = puzzle_bake_piece ( p_filter );
-    if (i_ret != VLC_SUCCESS)
+    if (i_ret != HEIMDALL_SUCCESS)
         return i_ret;
 
     if ( (p_sys->pi_order != NULL) && (p_sys->ps_desk_planes != NULL) && (p_sys->ps_pict_planes != NULL)
@@ -168,7 +169,7 @@ int puzzle_bake( filter_t *p_filter, picture_t *p_pic_out, picture_t *p_pic_in)
         && (p_sys->s_current_param.i_shape_size != 0) )
         p_sys->b_init = false;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 void puzzle_free_ps_puzzle_array( filter_t *p_filter)
@@ -200,14 +201,14 @@ void puzzle_free_ps_puzzle_array( filter_t *p_filter)
 int puzzle_bake_piece( filter_t *p_filter)
 {
     int i_ret = puzzle_allocate_ps_pieces( p_filter);
-    if (i_ret != VLC_SUCCESS)
+    if (i_ret != HEIMDALL_SUCCESS)
         return i_ret;
 
     filter_sys_t *p_sys = p_filter->p_sys;
 
     /* generates random pi_order array */
     i_ret = puzzle_shuffle( p_filter );
-    if (i_ret != VLC_SUCCESS)
+    if (i_ret != HEIMDALL_SUCCESS)
         return i_ret;
 
     int32_t i = 0;
@@ -233,10 +234,10 @@ int puzzle_bake_piece( filter_t *p_filter)
             if (p_sys->s_allocated.i_shape_size > 0) {
 
                 if (orow < p_sys->s_allocated.i_rows - 1)
-                    p_sys->ps_pieces[i].i_btm_shape = 4 + 8 + 8*(( (unsigned) vlc_mrand48()) % ( SHAPES_QTY ) ) + (vlc_mrand48() & 0x01);
+                    p_sys->ps_pieces[i].i_btm_shape = 4 + 8 + 8*(( (unsigned) heimdall_mrand48()) % ( SHAPES_QTY ) ) + (heimdall_mrand48() & 0x01);
 
                 if (ocol < p_sys->s_allocated.i_cols - 1)
-                    p_sys->ps_pieces[i].i_right_shape = 6 + 8 + 8*(( (unsigned) vlc_mrand48()) % ( SHAPES_QTY ) ) + (vlc_mrand48() & 0x01);
+                    p_sys->ps_pieces[i].i_right_shape = 6 + 8 + 8*(( (unsigned) heimdall_mrand48()) % ( SHAPES_QTY ) ) + (heimdall_mrand48() & 0x01);
             }
 
             /* set piece data */
@@ -250,8 +251,8 @@ int puzzle_bake_piece( filter_t *p_filter)
             int32_t i_rand_x = 0;
             int32_t i_rand_y = 0;
             if (p_sys->s_current_param.b_advanced) {
-                i_rand_x = (( (unsigned) vlc_mrand48()) % ( p_sys->ps_desk_planes[0].i_pce_max_width + 1 ) ) - (int32_t) p_sys->ps_desk_planes[0].i_pce_max_width / 2;
-                i_rand_y = (( (unsigned) vlc_mrand48()) % ( p_sys->ps_desk_planes[0].i_pce_max_lines + 1 ) ) - (int32_t) p_sys->ps_desk_planes[0].i_pce_max_lines / 2;
+                i_rand_x = (( (unsigned) heimdall_mrand48()) % ( p_sys->ps_desk_planes[0].i_pce_max_width + 1 ) ) - (int32_t) p_sys->ps_desk_planes[0].i_pce_max_width / 2;
+                i_rand_y = (( (unsigned) heimdall_mrand48()) % ( p_sys->ps_desk_planes[0].i_pce_max_lines + 1 ) ) - (int32_t) p_sys->ps_desk_planes[0].i_pce_max_lines / 2;
             }
 
             /* copy related puzzle data to piece data */
@@ -288,7 +289,7 @@ int puzzle_bake_piece( filter_t *p_filter)
     /* add random rotation to each piece */
     puzzle_random_rotate( p_filter);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -332,13 +333,13 @@ void puzzle_random_rotate( filter_t *p_filter)
         switch ( p_sys->s_current_param.i_rotate )
         {
           case 1:
-                puzzle_rotate_pce( p_filter, i, (( (unsigned) vlc_mrand48()) % ( 2 ) ) * 2, p_sys->ps_pieces[i].i_center_x, p_sys->ps_pieces[i].i_center_y, false );
+                puzzle_rotate_pce( p_filter, i, (( (unsigned) heimdall_mrand48()) % ( 2 ) ) * 2, p_sys->ps_pieces[i].i_center_x, p_sys->ps_pieces[i].i_center_y, false );
             break;
           case 2:
-                puzzle_rotate_pce( p_filter, i, (( (unsigned) vlc_mrand48()) % ( 4 ) ), p_sys->ps_pieces[i].i_center_x, p_sys->ps_pieces[i].i_center_y, false );
+                puzzle_rotate_pce( p_filter, i, (( (unsigned) heimdall_mrand48()) % ( 4 ) ), p_sys->ps_pieces[i].i_center_x, p_sys->ps_pieces[i].i_center_y, false );
             break;
           case 3:
-                puzzle_rotate_pce( p_filter, i, (( (unsigned) vlc_mrand48()) % ( 8 ) ), p_sys->ps_pieces[i].i_center_x, p_sys->ps_pieces[i].i_center_y, false );
+                puzzle_rotate_pce( p_filter, i, (( (unsigned) heimdall_mrand48()) % ( 8 ) ), p_sys->ps_pieces[i].i_center_x, p_sys->ps_pieces[i].i_center_y, false );
             break;
         }
         puzzle_calculate_corners( p_filter, i );
@@ -375,7 +376,7 @@ int puzzle_allocate_ps_pieces( filter_t *p_filter)
     p_sys->s_allocated.i_pieces_nbr = p_sys->s_allocated.i_rows * p_sys->s_allocated.i_cols;
     p_sys->ps_pieces = malloc( sizeof( piece_t) * p_sys->s_allocated.i_pieces_nbr );
     if( !p_sys->ps_pieces )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     for (uint32_t p = 0; p < p_sys->s_allocated.i_pieces_nbr; p++) {
         p_sys->ps_pieces[p].ps_piece_in_plane = malloc( sizeof( piece_in_plane_t) * p_sys->s_allocated.i_planes );
         if( !p_sys->ps_pieces[p].ps_piece_in_plane ) {
@@ -383,7 +384,7 @@ int puzzle_allocate_ps_pieces( filter_t *p_filter)
                 free(p_sys->ps_pieces[i].ps_piece_in_plane);
             free(p_sys->ps_pieces);
             p_sys->ps_pieces = NULL;
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         }
     }
 
@@ -393,7 +394,7 @@ int puzzle_allocate_ps_pieces( filter_t *p_filter)
             free(p_sys->ps_pieces[i].ps_piece_in_plane);
         free(p_sys->ps_pieces);
         p_sys->ps_pieces = NULL;
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
     p_sys->pi_group_qty = malloc( sizeof( int32_t ) * (p_sys->s_allocated.i_pieces_nbr));
     if( !p_sys->pi_group_qty ) {
@@ -403,9 +404,9 @@ int puzzle_allocate_ps_pieces( filter_t *p_filter)
         p_sys->ps_pieces = NULL;
         free(p_sys->ps_pieces_tmp);
         p_sys->ps_pieces_tmp = NULL;
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 bool puzzle_is_valid( filter_sys_t *p_sys, int32_t *pi_pce_lst )
@@ -440,7 +441,7 @@ int puzzle_shuffle( filter_t *p_filter )
     do
     {
         int i_ret = puzzle_generate_rand_pce_list( p_filter, &p_sys->pi_order );
-        if (i_ret != VLC_SUCCESS)
+        if (i_ret != HEIMDALL_SUCCESS)
             return i_ret;
     } while( puzzle_is_finished( p_sys, p_sys->pi_order ) || !puzzle_is_valid( p_sys, p_sys->pi_order ) );
 
@@ -459,7 +460,7 @@ int puzzle_shuffle( filter_t *p_filter )
     p_sys->b_shuffle_rqst = false;
     p_sys->b_finished = false;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 int puzzle_generate_rand_pce_list( filter_t *p_filter, int32_t **pi_pce_lst )
@@ -470,17 +471,17 @@ int puzzle_generate_rand_pce_list( filter_t *p_filter, int32_t **pi_pce_lst )
     free( *pi_pce_lst );
     *pi_pce_lst = calloc( i_pieces_nbr, sizeof(**pi_pce_lst) );
     if( !*pi_pce_lst )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     for( int32_t i = 0; i < i_pieces_nbr; i++ )
         (*pi_pce_lst)[i] = NO_PCE;
 
     for( int32_t c = 0; c < i_pieces_nbr; ) {
-        int32_t i = ((unsigned)vlc_mrand48()) % i_pieces_nbr;
+        int32_t i = ((unsigned)heimdall_mrand48()) % i_pieces_nbr;
         if( (*pi_pce_lst)[i] == NO_PCE )
             (*pi_pce_lst)[i] = c++;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 bool puzzle_is_finished( filter_sys_t *p_sys, int32_t *pi_pce_lst )
@@ -499,7 +500,7 @@ int puzzle_piece_foreground( filter_t *p_filter, int32_t i_piece) {
 
     ps_pieces_tmp = malloc( sizeof( piece_t) * p_sys->s_allocated.i_pieces_nbr );
     if (!ps_pieces_tmp)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     int32_t j=0;
 
@@ -522,7 +523,7 @@ int puzzle_piece_foreground( filter_t *p_filter, int32_t i_piece) {
     free( p_sys->ps_pieces );
     p_sys->ps_pieces = ps_pieces_tmp;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 void puzzle_count_pce_group( filter_t *p_filter) { /* count pce in each group */
@@ -718,9 +719,9 @@ int puzzle_sort_layers( filter_t *p_filter)
     p_sys->ps_pieces = p_sys->ps_pieces_tmp;
     p_sys->ps_pieces_tmp = malloc( sizeof( piece_t) * p_sys->s_allocated.i_pieces_nbr );
     if (!p_sys->ps_pieces_tmp)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -742,7 +743,7 @@ void puzzle_auto_solve( filter_t *p_filter)
     p_sys->i_auto_solve_countdown_val = init_countdown(p_sys->s_current_param.i_auto_solve_speed);
 
     /* random piece to be moved */
-    int32_t i_start = ((unsigned)vlc_mrand48()) % p_sys->s_allocated.i_pieces_nbr;
+    int32_t i_start = ((unsigned)heimdall_mrand48()) % p_sys->s_allocated.i_pieces_nbr;
 
     /* here the computer will help player by placing the piece at the final location */
     for (uint32_t i_l = 0; i_l < p_sys->s_allocated.i_pieces_nbr; i_l++) {
@@ -782,7 +783,7 @@ void puzzle_auto_shuffle( filter_t *p_filter)
     p_sys->i_auto_shuffle_countdown_val = init_countdown(p_sys->s_current_param.i_auto_shuffle_speed);
 
     /* random piece to be moved */
-    int32_t i_start = ((unsigned)vlc_mrand48()) % p_sys->s_allocated.i_pieces_nbr;
+    int32_t i_start = ((unsigned)heimdall_mrand48()) % p_sys->s_allocated.i_pieces_nbr;
 
     for (uint32_t i_l = 0; i_l < p_sys->s_allocated.i_pieces_nbr; i_l++){
         int32_t i = ( i_l + i_start ) % p_sys->s_allocated.i_pieces_nbr;
@@ -801,25 +802,25 @@ void puzzle_auto_shuffle( filter_t *p_filter)
             switch ( p_sys->s_current_param.i_rotate )
             {
               case 1:
-                    puzzle_rotate_pce( p_filter, i, (( (unsigned) vlc_mrand48()) % ( 2 ) ) * 2, p_sys->ps_pieces[i].i_center_x, p_sys->ps_pieces[i].i_center_y, false );
+                    puzzle_rotate_pce( p_filter, i, (( (unsigned) heimdall_mrand48()) % ( 2 ) ) * 2, p_sys->ps_pieces[i].i_center_x, p_sys->ps_pieces[i].i_center_y, false );
                 break;
               case 2:
-                    puzzle_rotate_pce( p_filter, i, (( (unsigned) vlc_mrand48()) % ( 4 ) ), p_sys->ps_pieces[i].i_center_x, p_sys->ps_pieces[i].i_center_y, false );
+                    puzzle_rotate_pce( p_filter, i, (( (unsigned) heimdall_mrand48()) % ( 4 ) ), p_sys->ps_pieces[i].i_center_x, p_sys->ps_pieces[i].i_center_y, false );
                 break;
               case 3:
-                    puzzle_rotate_pce( p_filter, i, (( (unsigned) vlc_mrand48()) % ( 8 ) ), p_sys->ps_pieces[i].i_center_x, p_sys->ps_pieces[i].i_center_y, false );
+                    puzzle_rotate_pce( p_filter, i, (( (unsigned) heimdall_mrand48()) % ( 8 ) ), p_sys->ps_pieces[i].i_center_x, p_sys->ps_pieces[i].i_center_y, false );
                 break;
             }
 
             /* random mvt */
             p_sys->ps_pieces[i].ps_piece_in_plane[0].i_actual_x =
                     p_sys->ps_desk_planes[0].i_border_width
-                    + ( (unsigned) vlc_mrand48()) % ( p_sys->ps_desk_planes[0].i_width - 2*p_sys->ps_desk_planes[0].i_border_width - p_sys->ps_pieces[i].ps_piece_in_plane[0].i_width)
+                    + ( (unsigned) heimdall_mrand48()) % ( p_sys->ps_desk_planes[0].i_width - 2*p_sys->ps_desk_planes[0].i_border_width - p_sys->ps_pieces[i].ps_piece_in_plane[0].i_width)
                     + p_sys->ps_pieces[i].ps_piece_in_plane[0].i_width / 2 * ( 1 - p_sys->ps_pieces[i].i_step_x_x )
                     - (p_sys->ps_pieces[i].ps_piece_in_plane[0].i_lines / 2) * p_sys->ps_pieces[i].i_step_y_x;
             p_sys->ps_pieces[i].ps_piece_in_plane[0].i_actual_y =
                     p_sys->ps_desk_planes[0].i_border_lines
-                    + ( (unsigned) vlc_mrand48()) % ( p_sys->ps_desk_planes[0].i_lines - 2*p_sys->ps_desk_planes[0].i_border_lines - p_sys->ps_pieces[i].ps_piece_in_plane[0].i_lines)
+                    + ( (unsigned) heimdall_mrand48()) % ( p_sys->ps_desk_planes[0].i_lines - 2*p_sys->ps_desk_planes[0].i_border_lines - p_sys->ps_pieces[i].ps_piece_in_plane[0].i_lines)
                     + p_sys->ps_pieces[i].ps_piece_in_plane[0].i_lines / 2 * ( 1 - p_sys->ps_pieces[i].i_step_y_y )
                     - (p_sys->ps_pieces[i].ps_piece_in_plane[0].i_width / 2) * p_sys->ps_pieces[i].i_step_x_y;
 
@@ -848,22 +849,22 @@ void puzzle_auto_shuffle( filter_t *p_filter)
                 }
 
             if ((p_sys->ps_pieces[i].i_left_shape == 0) && (p_sys->ps_pieces[i].i_original_col != 0)) {
-                p_sys->ps_pieces[i_left_pce].i_right_shape = 6 + 8 + 8*(( (unsigned) vlc_mrand48()) % ( SHAPES_QTY ) ) + (vlc_mrand48() & 0x01);
+                p_sys->ps_pieces[i_left_pce].i_right_shape = 6 + 8 + 8*(( (unsigned) heimdall_mrand48()) % ( SHAPES_QTY ) ) + (heimdall_mrand48() & 0x01);
                 p_sys->ps_pieces[i].i_left_shape = (p_sys->ps_pieces[i_left_pce].i_right_shape - 6 ) ^ 0x01;
             }
 
             if ((p_sys->ps_pieces[i].i_right_shape == 6) && (p_sys->ps_pieces[i].i_original_col != p_sys->s_allocated.i_cols-1)) {
-                p_sys->ps_pieces[i].i_right_shape = 6 + 8 + 8*(( (unsigned) vlc_mrand48()) % ( SHAPES_QTY ) ) + (vlc_mrand48() & 0x01);
+                p_sys->ps_pieces[i].i_right_shape = 6 + 8 + 8*(( (unsigned) heimdall_mrand48()) % ( SHAPES_QTY ) ) + (heimdall_mrand48() & 0x01);
                 p_sys->ps_pieces[i_right_pce].i_left_shape = (p_sys->ps_pieces[i].i_right_shape - 6 ) ^ 0x01;
             }
 
             if ((p_sys->ps_pieces[i].i_top_shape == 2) && (p_sys->ps_pieces[i].i_original_row != 0)) {
-                p_sys->ps_pieces[i_top_pce].i_btm_shape = 4 + 8 + 8*(( (unsigned) vlc_mrand48()) % ( SHAPES_QTY ) ) + (vlc_mrand48() & 0x01);
+                p_sys->ps_pieces[i_top_pce].i_btm_shape = 4 + 8 + 8*(( (unsigned) heimdall_mrand48()) % ( SHAPES_QTY ) ) + (heimdall_mrand48() & 0x01);
                 p_sys->ps_pieces[i].i_top_shape = (p_sys->ps_pieces[i_top_pce].i_btm_shape - 2 ) ^ 0x01;
             }
 
             if ((p_sys->ps_pieces[i].i_btm_shape == 4) && (p_sys->ps_pieces[i].i_original_row != p_sys->s_allocated.i_rows-1)) {
-                p_sys->ps_pieces[i].i_btm_shape = 4 + 8 + 8*(( (unsigned) vlc_mrand48()) % ( SHAPES_QTY ) ) + (vlc_mrand48() & 0x01);
+                p_sys->ps_pieces[i].i_btm_shape = 4 + 8 + 8*(( (unsigned) heimdall_mrand48()) % ( SHAPES_QTY ) ) + (heimdall_mrand48() & 0x01);
                 p_sys->ps_pieces[i_btm_pce].i_top_shape = (p_sys->ps_pieces[i].i_btm_shape - 2 ) ^ 0x01;
             }
 
@@ -982,22 +983,22 @@ void puzzle_load( filter_t *p_filter, save_game_t *ps_save_game)
             }
 
         if ((p_sys->ps_pieces[i_pce].i_left_shape == 0) && (p_sys->ps_pieces[i_pce].i_original_col != 0)) {
-            p_sys->ps_pieces[i_left_pce].i_right_shape = 6 + 8 + 8*(( (unsigned) vlc_mrand48()) % ( SHAPES_QTY ) ) + (vlc_mrand48() & 0x01);
+            p_sys->ps_pieces[i_left_pce].i_right_shape = 6 + 8 + 8*(( (unsigned) heimdall_mrand48()) % ( SHAPES_QTY ) ) + (heimdall_mrand48() & 0x01);
             p_sys->ps_pieces[i_pce].i_left_shape = (p_sys->ps_pieces[i_left_pce].i_right_shape - 6 ) ^ 0x01;
         }
 
         if ((p_sys->ps_pieces[i_pce].i_right_shape == 6) && (p_sys->ps_pieces[i_pce].i_original_col != p_sys->s_allocated.i_cols-1)) {
-            p_sys->ps_pieces[i_pce].i_right_shape = 6 + 8 + 8*(( (unsigned) vlc_mrand48()) % ( SHAPES_QTY ) ) + (vlc_mrand48() & 0x01);
+            p_sys->ps_pieces[i_pce].i_right_shape = 6 + 8 + 8*(( (unsigned) heimdall_mrand48()) % ( SHAPES_QTY ) ) + (heimdall_mrand48() & 0x01);
             p_sys->ps_pieces[i_right_pce].i_left_shape = (p_sys->ps_pieces[i_pce].i_right_shape - 6 ) ^ 0x01;
         }
 
         if ((p_sys->ps_pieces[i_pce].i_top_shape == 2) && (p_sys->ps_pieces[i_pce].i_original_row != 0)) {
-            p_sys->ps_pieces[i_top_pce].i_btm_shape = 4 + 8 + 8*(( (unsigned) vlc_mrand48()) % ( SHAPES_QTY ) ) + (vlc_mrand48() & 0x01);
+            p_sys->ps_pieces[i_top_pce].i_btm_shape = 4 + 8 + 8*(( (unsigned) heimdall_mrand48()) % ( SHAPES_QTY ) ) + (heimdall_mrand48() & 0x01);
             p_sys->ps_pieces[i_pce].i_top_shape = (p_sys->ps_pieces[i_top_pce].i_btm_shape - 2 ) ^ 0x01;
         }
 
         if ((p_sys->ps_pieces[i_pce].i_btm_shape == 4) && (p_sys->ps_pieces[i_pce].i_original_row != p_sys->s_allocated.i_rows-1)) {
-            p_sys->ps_pieces[i_pce].i_btm_shape = 4 + 8 + 8*(( (unsigned) vlc_mrand48()) % ( SHAPES_QTY ) ) + (vlc_mrand48() & 0x01);
+            p_sys->ps_pieces[i_pce].i_btm_shape = 4 + 8 + 8*(( (unsigned) heimdall_mrand48()) % ( SHAPES_QTY ) ) + (heimdall_mrand48() & 0x01);
             p_sys->ps_pieces[i_btm_pce].i_top_shape = (p_sys->ps_pieces[i_pce].i_btm_shape - 2 ) ^ 0x01;
         }
 

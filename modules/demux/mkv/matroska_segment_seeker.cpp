@@ -2,6 +2,7 @@
  * matroska_segment.hpp : matroska demuxer
  *****************************************************************************
  * Copyright (C) 2016 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Filip Roséen <filip@videolabs.io>
  *
@@ -67,8 +68,8 @@ SegmentSeeker::add_cluster( KaxCluster * const p_cluster )
 {
     Cluster cinfo = {
         /* fpos     */ p_cluster->GetElementPosition(),
-        /* pts      */ vlc_tick_t( VLC_TICK_FROM_NS( p_cluster->GlobalTimestamp() ) ),
-        /* duration */ vlc_tick_t( -1 ),
+        /* pts      */ heimdall_tick_t( HEIMDALL_TICK_FROM_NS( p_cluster->GlobalTimestamp() ) ),
+        /* duration */ heimdall_tick_t( -1 ),
         /* size     */ p_cluster->IsFiniteSize()
             ? p_cluster->GetEndPosition() - p_cluster->GetElementPosition()
             : UINT64_MAX
@@ -139,7 +140,7 @@ SegmentSeeker::add_seekpoint( track_id_t track_id, Seekpoint sp )
 }
 
 SegmentSeeker::tracks_seekpoint_t
-SegmentSeeker::find_greatest_seekpoints_in_range( fptr_t start_fpos, vlc_tick_t end_pts, track_ids_t const& filter_tracks )
+SegmentSeeker::find_greatest_seekpoints_in_range( fptr_t start_fpos, heimdall_tick_t end_pts, track_ids_t const& filter_tracks )
 {
     tracks_seekpoint_t tpoints;
 
@@ -180,7 +181,7 @@ SegmentSeeker::find_greatest_seekpoints_in_range( fptr_t start_fpos, vlc_tick_t 
 }
 
 SegmentSeeker::Seekpoint
-SegmentSeeker::get_first_seekpoint_around( vlc_tick_t pts, seekpoints_t const& seekpoints,
+SegmentSeeker::get_first_seekpoint_around( heimdall_tick_t pts, seekpoints_t const& seekpoints,
                                            Seekpoint::TrustLevel trust_level )
 {
     if( seekpoints.empty() )
@@ -208,7 +209,7 @@ SegmentSeeker::get_first_seekpoint_around( vlc_tick_t pts, seekpoints_t const& s
 }
 
 SegmentSeeker::seekpoint_pair_t
-SegmentSeeker::get_seekpoints_around( vlc_tick_t pts, seekpoints_t const& seekpoints )
+SegmentSeeker::get_seekpoints_around( heimdall_tick_t pts, seekpoints_t const& seekpoints )
 {
     if( seekpoints.empty() )
     {
@@ -236,7 +237,7 @@ SegmentSeeker::get_seekpoints_around( vlc_tick_t pts, seekpoints_t const& seekpo
 }
 
 SegmentSeeker::seekpoint_pair_t
-SegmentSeeker::get_seekpoints_around( vlc_tick_t target_pts, track_ids_t const& priority_tracks )
+SegmentSeeker::get_seekpoints_around( heimdall_tick_t target_pts, track_ids_t const& priority_tracks )
 {
     seekpoint_pair_t points;
 
@@ -293,7 +294,7 @@ SegmentSeeker::get_seekpoints_around( vlc_tick_t target_pts, track_ids_t const& 
 }
 
 SegmentSeeker::tracks_seekpoint_t
-SegmentSeeker::get_seekpoints( matroska_segment_c& ms, vlc_tick_t target_pts,
+SegmentSeeker::get_seekpoints( matroska_segment_c& ms, heimdall_tick_t target_pts,
                                track_ids_t const& priority_tracks, track_ids_t const& filter_tracks )
 {
     struct contains_all_of_t {
@@ -308,7 +309,7 @@ SegmentSeeker::get_seekpoints( matroska_segment_c& ms, vlc_tick_t target_pts,
         }
     };
 
-    for( vlc_tick_t needle_pts = target_pts; ; )
+    for( heimdall_tick_t needle_pts = target_pts; ; )
     {
         seekpoint_pair_t seekpoints = get_seekpoints_around( needle_pts, priority_tracks );
 
@@ -338,11 +339,11 @@ SegmentSeeker::get_seekpoints( matroska_segment_c& ms, vlc_tick_t target_pts,
         needle_pts = start.pts - 1;
     }
 
-    vlc_assert_unreachable();
+    heimdall_assert_unreachable();
 }
 
 void
-SegmentSeeker::index_range( matroska_segment_c& ms, Range search_area, vlc_tick_t max_pts )
+SegmentSeeker::index_range( matroska_segment_c& ms, Range search_area, heimdall_tick_t max_pts )
 {
     ranges_t areas_to_search = get_search_areas( search_area.start, search_area.end );
 
@@ -351,14 +352,14 @@ SegmentSeeker::index_range( matroska_segment_c& ms, Range search_area, vlc_tick_
 }
 
 void
-SegmentSeeker::index_unsearched_range( matroska_segment_c& ms, Range search_area, vlc_tick_t max_pts )
+SegmentSeeker::index_unsearched_range( matroska_segment_c& ms, Range search_area, heimdall_tick_t max_pts )
 {
     mkv_jump_to( ms, search_area.start );
 
     search_area.start = ms.es.I_O().getFilePointer();
 
     fptr_t  block_pos = search_area.start;
-    vlc_tick_t block_pts;
+    heimdall_tick_t block_pts;
 
     while( block_pos < search_area.end )
     {
@@ -384,7 +385,7 @@ SegmentSeeker::index_unsearched_range( matroska_segment_c& ms, Range search_area
             : static_cast<KaxInternalBlock&>( *block );
 
         block_pos = internal_block.GetElementPosition();
-        block_pts = VLC_TICK_FROM_NS(internal_block.GlobalTimestamp());
+        block_pts = HEIMDALL_TICK_FROM_NS(internal_block.GlobalTimestamp());
         track_id  = internal_block.TrackNum();
 
         bool const b_valid_track = ms.FindTrackByBlock( block, simpleblock ) != NULL;

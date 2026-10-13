@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 2004-2006 VLC authors and VideoLAN
  * Copyright © 2004-2007 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *          Rémi Denis-Courmont
@@ -28,23 +29,23 @@
 
 #include <stdatomic.h>
 
-#include <vlc_common.h>
-#include <vlc_threads.h>
-#include <vlc_poll.h>
-#include <vlc_httpd.h>
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
+#include <heimdall_poll.h>
+#include <heimdall_httpd.h>
 
 #include <assert.h>
 
-#include <vlc_list.h>
-#include <vlc_network.h>
-#include <vlc_tls.h>
-#include <vlc_strings.h>
-#include <vlc_rand.h>
-#include <vlc_charset.h>
-#include <vlc_url.h>
-#include <vlc_mime.h>
-#include <vlc_block.h>
-#include "../libvlc.h"
+#include <heimdall_list.h>
+#include <heimdall_network.h>
+#include <heimdall_tls.h>
+#include <heimdall_strings.h>
+#include <heimdall_rand.h>
+#include <heimdall_charset.h>
+#include <heimdall_url.h>
+#include <heimdall_mime.h>
+#include <heimdall_block.h>
+#include "../libheimdall.h"
 
 #include <string.h>
 #include <errno.h>
@@ -76,8 +77,8 @@ static void httpd_AppendData(httpd_stream_t *stream, uint8_t *p_data, int i_data
 /* each host run in his own thread */
 struct httpd_host_t
 {
-    struct vlc_object_t obj;
-    struct vlc_list node;
+    struct heimdall_object_t obj;
+    struct heimdall_list node;
 
     /* ref count */
     atomic_uint ref;
@@ -87,29 +88,29 @@ struct httpd_host_t
     unsigned     nfd;
     unsigned     port;
 
-    vlc_thread_t thread;
-    vlc_mutex_t lock;
+    heimdall_thread_t thread;
+    heimdall_mutex_t lock;
 
     /* all registered url (becarefull that 2 httpd_url_t could point at the same url)
      * This will slow down the url research but make my live easier
      * All url will have their cb trigger, but only the first one can answer
      * */
-    struct vlc_list urls;
+    struct heimdall_list urls;
 
     size_t client_count;
-    struct vlc_list clients;
+    struct heimdall_list clients;
     unsigned timeout_sec;
 
     /* TLS data */
-    vlc_tls_server_t *p_tls;
+    heimdall_tls_server_t *p_tls;
 };
 
 
 struct httpd_url_t
 {
     httpd_host_t *host;
-    struct vlc_list node;
-    vlc_mutex_t lock;
+    struct heimdall_list node;
+    heimdall_mutex_t lock;
 
     char      *psz_url;
     char      *psz_user;
@@ -142,14 +143,14 @@ enum
 struct httpd_client_t
 {
     httpd_url_t *url;
-    vlc_tls_t   *sock;
+    heimdall_tls_t   *sock;
 
-    struct vlc_list node;
+    struct heimdall_list node;
 
     bool    b_stream_mode;
     uint8_t i_state;
 
-    vlc_tick_t i_timeout_date;
+    heimdall_tick_t i_timeout_date;
 
     /* buffer for reading header */
     int     i_buffer_size;
@@ -266,7 +267,7 @@ static size_t httpd_HtmlError (char **body, int code, const char *url)
     const char *errname = httpd_ReasonFromCode (code);
     assert (errname);
 
-    char *url_Encoded = vlc_xml_encode (url ? url : "");
+    char *url_Encoded = heimdall_xml_encode (url ? url : "");
 
     int res = asprintf (body,
         "<?xml version=\"1.0\" encoding=\"ascii\" ?>\n"
@@ -279,7 +280,7 @@ static size_t httpd_HtmlError (char **body, int code, const char *url)
         "<body>\n"
         "<h1>%d %s%s%s%s</h1>\n"
         "<hr />\n"
-        "<a href=\"http://www.videolan.org\">VideoLAN</a>\n"
+        "<a href=\"http://www.videolan.org\">Lycaria</a>\n"
         "</body>\n"
         "</html>\n", errname, code, errname,
         (url_Encoded ? " (" : ""), (url_Encoded ? url_Encoded : ""), (url_Encoded ? ")" : ""));
@@ -298,14 +299,14 @@ static inline int httpd_UrlCatchCall(httpd_url_t *url, httpd_client_t *client)
 {
     const uint8_t msg = client->query.i_type;
 
-    int status = VLC_EGENERIC;
-    vlc_mutex_lock(&url->lock);
+    int status = HEIMDALL_EGENERIC;
+    heimdall_mutex_lock(&url->lock);
     if (url->catch[msg].cb != NULL)
     {
         status = url->catch[msg].cb(
             url->catch[msg].p_sys, client, &client->answer, &client->query);
     }
-    vlc_mutex_unlock(&url->lock);
+    heimdall_mutex_unlock(&url->lock);
 
     return status;
 }
@@ -331,7 +332,7 @@ httpd_FileCallBack(httpd_callback_sys_t *p_sys, httpd_client_t *cl,
     size_t *pi_body, i_body;
 
     if (!answer || !query )
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
     answer->i_proto  = HTTPD_PROTO_HTTP;
     answer->i_version= 1;
@@ -368,7 +369,7 @@ httpd_FileCallBack(httpd_callback_sys_t *p_sys, httpd_client_t *cl,
 
     httpd_MsgAdd(answer, "Content-Length", "%zu", answer->i_body);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 httpd_file_t *httpd_FileNew(httpd_host_t *host,
@@ -379,7 +380,7 @@ httpd_file_t *httpd_FileNew(httpd_host_t *host,
 {
     const char *mime = psz_mime;
     if (mime == NULL || mime[0] == '\0')
-        mime = vlc_mime_Ext2Mime(psz_url);
+        mime = heimdall_mime_Ext2Mime(psz_url);
 
     size_t mimelen = strlen(mime);
     httpd_file_t *file = malloc(sizeof(*file) + mimelen);
@@ -435,7 +436,7 @@ httpd_HandlerCallBack(httpd_callback_sys_t *p_sys, httpd_client_t *cl,
     char psz_remote_addr[NI_MAXNUMERICHOST];
 
     if (!answer || !query)
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
     answer->i_proto  = HTTPD_PROTO_NONE;
     answer->i_type   = HTTPD_MSG_ANSWER;
@@ -464,7 +465,7 @@ httpd_HandlerCallBack(httpd_callback_sys_t *p_sys, httpd_client_t *cl,
             answer->p_body = (uint8_t*)psz_new;
             answer->i_body = strlen((const char*)answer->p_body);
         }
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
     if (query->i_type == HTTPD_MSG_HEAD) {
         char *p = (char *)answer->p_body;
@@ -508,7 +509,7 @@ httpd_HandlerCallBack(httpd_callback_sys_t *p_sys, httpd_client_t *cl,
         answer->p_body = (uint8_t *)psz_new;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 httpd_handler_t *httpd_HandlerNew(httpd_host_t *host, const char *psz_url,
@@ -566,7 +567,7 @@ static int httpd_RedirectCallBack(httpd_callback_sys_t *p_sys,
     (void)cl;
 
     if (!answer || !query)
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
     answer->i_proto  = HTTPD_PROTO_HTTP;
     answer->i_version= 1;
@@ -584,7 +585,7 @@ static int httpd_RedirectCallBack(httpd_callback_sys_t *p_sys,
     if (httpd_MsgGet(&cl->query, "Connection") != NULL)
         httpd_MsgAdd(answer, "Connection", "close");
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 httpd_redirect_t *httpd_RedirectNew(httpd_host_t *host, const char *psz_url_dst,
@@ -626,7 +627,7 @@ void httpd_RedirectDelete(httpd_redirect_t *rdir)
  *****************************************************************************/
 struct httpd_stream_t
 {
-    vlc_mutex_t lock;
+    heimdall_mutex_t lock;
     httpd_url_t *url;
 
     char    *psz_mime;
@@ -661,18 +662,18 @@ static int httpd_StreamCallBack(httpd_callback_sys_t *p_sys,
     httpd_stream_t *stream = (httpd_stream_t*)p_sys;
 
     if (!answer || !query || !cl)
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
     if (answer->i_body_offset > 0) {
         int     i_pos;
 
         if (answer->i_body_offset >= stream->i_buffer_pos)
-            return VLC_EGENERIC;    /* wait, no data available */
+            return HEIMDALL_EGENERIC;    /* wait, no data available */
 
         if (cl->i_keyframe_wait_to_pass >= 0) {
             if (stream->i_last_keyframe_seen_pos <= cl->i_keyframe_wait_to_pass)
                 /* still waiting for the next keyframe */
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
 
             /* seek to the new keyframe */
             answer->i_body_offset = stream->i_last_keyframe_seen_pos;
@@ -688,7 +689,7 @@ static int httpd_StreamCallBack(httpd_callback_sys_t *p_sys,
         if (i_write > HTTPD_CL_BUFSIZE)
             i_write = HTTPD_CL_BUFSIZE;
         else if (i_write <= 0)
-            return VLC_EGENERIC;    /* wait, no data available */
+            return HEIMDALL_EGENERIC;    /* wait, no data available */
 
         /* Don't go past the end of the circular buffer */
         i_write = __MIN(i_write, stream->i_buffer_size - i_pos);
@@ -704,7 +705,7 @@ static int httpd_StreamCallBack(httpd_callback_sys_t *p_sys,
 
         answer->i_body_offset += i_write;
 
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     } else {
         answer->i_proto  = HTTPD_PROTO_HTTP;
         answer->i_version= 0;
@@ -715,7 +716,7 @@ static int httpd_StreamCallBack(httpd_callback_sys_t *p_sys,
         bool b_has_content_type = false;
         bool b_has_cache_control = false;
 
-        vlc_mutex_lock(&stream->lock);
+        heimdall_mutex_lock(&stream->lock);
         for (size_t i = 0; i < stream->i_http_headers; i++)
             if (strncasecmp(stream->p_http_headers[i].name, "Content-Length", 14)) {
                 httpd_MsgAdd(answer, stream->p_http_headers[i].name, "%s",
@@ -726,11 +727,11 @@ static int httpd_StreamCallBack(httpd_callback_sys_t *p_sys,
                 else if (!strncasecmp(stream->p_http_headers[i].name, "Cache-Control", 13))
                     b_has_cache_control = true;
             }
-        vlc_mutex_unlock(&stream->lock);
+        heimdall_mutex_unlock(&stream->lock);
 
         if (query->i_type != HTTPD_MSG_HEAD) {
             cl->b_stream_mode = true;
-            vlc_mutex_lock(&stream->lock);
+            heimdall_mutex_lock(&stream->lock);
             /* Send the header */
             if (stream->i_header > 0) {
                 answer->i_body = stream->i_header;
@@ -742,7 +743,7 @@ static int httpd_StreamCallBack(httpd_callback_sys_t *p_sys,
                 cl->i_keyframe_wait_to_pass = stream->i_last_keyframe_seen_pos;
             else
                 cl->i_keyframe_wait_to_pass = -1;
-            vlc_mutex_unlock(&stream->lock);
+            heimdall_mutex_unlock(&stream->lock);
         } else {
             httpd_MsgAdd(answer, "Content-Length", "0");
             answer->i_body_offset = 0;
@@ -756,7 +757,7 @@ static int httpd_StreamCallBack(httpd_callback_sys_t *p_sys,
             httpd_MsgAdd(answer, "Server", "Cougar 4.1.0.3921");
             httpd_MsgAdd(answer, "Pragma", "no-cache");
             httpd_MsgAdd(answer, "Pragma", "client-id=%lu",
-                          vlc_mrand48()&0x7fff);
+                          heimdall_mrand48()&0x7fff);
             httpd_MsgAdd(answer, "Pragma", "features=\"broadcast\"");
 
             /* Check if there is a xPlayStrm=1 */
@@ -775,7 +776,7 @@ static int httpd_StreamCallBack(httpd_callback_sys_t *p_sys,
 
         httpd_MsgAdd(answer, "Connection", "close");
 
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 }
 
@@ -794,9 +795,9 @@ httpd_stream_t *httpd_StreamNew(httpd_host_t *host,
     if (!stream->url)
         goto error;
 
-    vlc_mutex_init(&stream->lock);
+    heimdall_mutex_init(&stream->lock);
     if (psz_mime == NULL || psz_mime[0] == '\0')
-        psz_mime = vlc_mime_Ext2Mime(psz_url);
+        psz_mime = heimdall_mime_Ext2Mime(psz_url);
 
     stream->psz_mime = strdup(psz_mime);
     if (stream->psz_mime == NULL)
@@ -841,7 +842,7 @@ error:
 
 int httpd_StreamHeader(httpd_stream_t *stream, uint8_t *p_data, int i_data)
 {
-    vlc_mutex_lock(&stream->lock);
+    heimdall_mutex_lock(&stream->lock);
     free(stream->p_header);
     stream->p_header = NULL;
 
@@ -850,9 +851,9 @@ int httpd_StreamHeader(httpd_stream_t *stream, uint8_t *p_data, int i_data)
         stream->p_header = xmalloc(i_data);
         memcpy(stream->p_header, p_data, i_data);
     }
-    vlc_mutex_unlock(&stream->lock);
+    heimdall_mutex_unlock(&stream->lock);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void httpd_AppendData(httpd_stream_t *stream, uint8_t *p_data, int i_data)
@@ -876,9 +877,9 @@ static void httpd_AppendData(httpd_stream_t *stream, uint8_t *p_data, int i_data
 int httpd_StreamSend(httpd_stream_t *stream, const block_t *p_block)
 {
     if (!p_block || !p_block->p_buffer)
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
-    vlc_mutex_lock(&stream->lock);
+    heimdall_mutex_lock(&stream->lock);
 
     /* save this pointer (to be used by new connection) */
     stream->i_buffer_last_pos = stream->i_buffer_pos;
@@ -890,8 +891,8 @@ int httpd_StreamSend(httpd_stream_t *stream, const block_t *p_block)
 
     httpd_AppendData(stream, p_block->p_buffer, p_block->i_buffer);
 
-    vlc_mutex_unlock(&stream->lock);
-    return VLC_SUCCESS;
+    heimdall_mutex_unlock(&stream->lock);
+    return HEIMDALL_SUCCESS;
 }
 
 void httpd_StreamDelete(httpd_stream_t *stream)
@@ -912,17 +913,17 @@ void httpd_StreamDelete(httpd_stream_t *stream)
  * Low level
  *****************************************************************************/
 static void* httpd_HostThread(void *);
-static httpd_host_t *httpd_HostCreate(vlc_object_t *, const char *,
-                                      const char *, vlc_tls_server_t *,
+static httpd_host_t *httpd_HostCreate(heimdall_object_t *, const char *,
+                                      const char *, heimdall_tls_server_t *,
                                       unsigned);
 
 /* create a new host */
-httpd_host_t *vlc_http_HostNew(vlc_object_t *p_this)
+httpd_host_t *heimdall_http_HostNew(heimdall_object_t *p_this)
 {
     return httpd_HostCreate(p_this, "http-host", "http-port", NULL, 10);
 }
 
-httpd_host_t *vlc_https_HostNew(vlc_object_t *obj)
+httpd_host_t *heimdall_https_HostNew(heimdall_object_t *obj)
 {
     char *cert = var_InheritString(obj, "http-cert");
     if (!cert) {
@@ -931,7 +932,7 @@ httpd_host_t *vlc_https_HostNew(vlc_object_t *obj)
     }
 
     char *key = var_InheritString(obj, "http-key");
-    vlc_tls_server_t *tls = vlc_tls_ServerCreate(obj, cert, key);
+    heimdall_tls_server_t *tls = heimdall_tls_ServerCreate(obj, cert, key);
 
     if (!tls) {
         msg_Err(obj, "HTTP/TLS certificate error (%s and %s)",
@@ -946,7 +947,7 @@ httpd_host_t *vlc_https_HostNew(vlc_object_t *obj)
     return httpd_HostCreate(obj, "http-host", "https-port", tls, 10);
 }
 
-httpd_host_t *vlc_rtsp_HostNew(vlc_object_t *p_this)
+httpd_host_t *heimdall_rtsp_HostNew(heimdall_object_t *p_this)
 {
     unsigned timeout = var_InheritInteger(p_this, "rtsp-timeout");
     return httpd_HostCreate(p_this, "rtsp-host", "rtsp-port", NULL, timeout);
@@ -954,24 +955,24 @@ httpd_host_t *vlc_rtsp_HostNew(vlc_object_t *p_this)
 
 static struct httpd
 {
-    vlc_mutex_t  mutex;
-    struct vlc_list hosts;
-} httpd = { VLC_STATIC_MUTEX, VLC_LIST_INITIALIZER(&httpd.hosts) };
+    heimdall_mutex_t  mutex;
+    struct heimdall_list hosts;
+} httpd = { HEIMDALL_STATIC_MUTEX, HEIMDALL_LIST_INITIALIZER(&httpd.hosts) };
 
-static httpd_host_t *httpd_HostCreate(vlc_object_t *p_this,
+static httpd_host_t *httpd_HostCreate(heimdall_object_t *p_this,
                                        const char *hostvar,
                                        const char *portvar,
-                                       vlc_tls_server_t *p_tls,
+                                       heimdall_tls_server_t *p_tls,
                                        unsigned timeout_sec)
 {
     httpd_host_t *host;
     unsigned port = var_InheritInteger(p_this, portvar);
 
     /* to be sure to avoid multiple creation */
-    vlc_mutex_lock(&httpd.mutex);
+    heimdall_mutex_lock(&httpd.mutex);
 
     /* verify if it already exist */
-    vlc_list_foreach(host, &httpd.hosts, node) {
+    heimdall_list_foreach(host, &httpd.hosts, node) {
         /* cannot mix TLS and non-TLS hosts */
         if (host->port != port
          || (host->p_tls != NULL) != (p_tls != NULL))
@@ -980,18 +981,18 @@ static httpd_host_t *httpd_HostCreate(vlc_object_t *p_this,
         /* Increase existing matching host reference count. */
         atomic_fetch_add_explicit(&host->ref, 1, memory_order_relaxed);
 
-        vlc_mutex_unlock(&httpd.mutex);
-        vlc_tls_ServerDelete(p_tls);
+        heimdall_mutex_unlock(&httpd.mutex);
+        heimdall_tls_ServerDelete(p_tls);
         return host;
     }
 
     /* create the new host */
-    host = (httpd_host_t *)vlc_custom_create(p_this, sizeof (*host),
+    host = (httpd_host_t *)heimdall_custom_create(p_this, sizeof (*host),
                                               "http host");
     if (!host)
         goto error;
 
-    vlc_mutex_init(&host->lock);
+    heimdall_mutex_init(&host->lock);
     atomic_init(&host->ref, 1);
 
     char *hostname = var_InheritString(p_this, hostvar);
@@ -1006,33 +1007,33 @@ static httpd_host_t *httpd_HostCreate(vlc_object_t *p_this,
     for (host->nfd = 0; host->fds[host->nfd] != -1; host->nfd++);
 
     host->port     = port;
-    vlc_list_init(&host->urls);
+    heimdall_list_init(&host->urls);
     host->client_count = 0;
-    vlc_list_init(&host->clients);
+    heimdall_list_init(&host->clients);
     host->timeout_sec = timeout_sec;
     host->p_tls    = p_tls;
 
     /* create the thread */
-    if (vlc_clone(&host->thread, httpd_HostThread, host)) {
+    if (heimdall_clone(&host->thread, httpd_HostThread, host)) {
         msg_Err(p_this, "cannot spawn http host thread");
         goto error;
     }
 
     /* now add it to httpd */
-    vlc_list_append(&host->node, &httpd.hosts);
-    vlc_mutex_unlock(&httpd.mutex);
+    heimdall_list_append(&host->node, &httpd.hosts);
+    heimdall_mutex_unlock(&httpd.mutex);
 
     return host;
 
 error:
-    vlc_mutex_unlock(&httpd.mutex);
+    heimdall_mutex_unlock(&httpd.mutex);
 
     if (host) {
         net_ListenClose(host->fds);
-        vlc_object_delete(host);
+        heimdall_object_delete(host);
     }
 
-    vlc_tls_ServerDelete(p_tls);
+    heimdall_tls_ServerDelete(p_tls);
     return NULL;
 }
 
@@ -1041,31 +1042,31 @@ void httpd_HostDelete(httpd_host_t *host)
 {
     httpd_client_t *client;
 
-    vlc_mutex_lock(&httpd.mutex);
+    heimdall_mutex_lock(&httpd.mutex);
 
     if (atomic_fetch_sub_explicit(&host->ref, 1, memory_order_relaxed) > 1) {
         /* still used */
-        vlc_mutex_unlock(&httpd.mutex);
+        heimdall_mutex_unlock(&httpd.mutex);
         msg_Dbg(host, "httpd_HostDelete: host still in use");
         return;
     }
 
-    vlc_list_remove(&host->node);
-    vlc_cancel(host->thread);
-    vlc_join(host->thread, NULL);
+    heimdall_list_remove(&host->node);
+    heimdall_cancel(host->thread);
+    heimdall_join(host->thread, NULL);
 
     msg_Dbg(host, "HTTP host removed");
 
-    vlc_list_foreach(client, &host->clients, node) {
+    heimdall_list_foreach(client, &host->clients, node) {
         msg_Warn(host, "client still connected");
         httpd_ClientDestroy(client);
     }
 
-    assert(vlc_list_is_empty(&host->urls));
-    vlc_tls_ServerDelete(host->p_tls);
+    assert(heimdall_list_is_empty(&host->urls));
+    heimdall_tls_ServerDelete(host->p_tls);
     net_ListenClose(host->fds);
-    vlc_object_delete(host);
-    vlc_mutex_unlock(&httpd.mutex);
+    heimdall_object_delete(host);
+    heimdall_mutex_unlock(&httpd.mutex);
 }
 
 /* register a new url */
@@ -1076,17 +1077,17 @@ httpd_url_t *httpd_UrlNew(httpd_host_t *host, const char *psz_url,
 
     assert(psz_url);
 
-    vlc_mutex_lock(&host->lock);
-    vlc_list_foreach(url, &host->urls, node)
+    heimdall_mutex_lock(&host->lock);
+    heimdall_list_foreach(url, &host->urls, node)
         if (!strcmp(psz_url, url->psz_url)) {
             msg_Warn(host, "cannot add '%s' (url already defined)", psz_url);
-            vlc_mutex_unlock(&host->lock);
+            heimdall_mutex_unlock(&host->lock);
             return NULL;
         }
 
     url = malloc(sizeof (*url));
     if (unlikely(url == NULL)) {
-        vlc_mutex_unlock(&host->lock);
+        heimdall_mutex_unlock(&host->lock);
         return NULL;
     }
     url->psz_url = NULL;
@@ -1095,7 +1096,7 @@ httpd_url_t *httpd_UrlNew(httpd_host_t *host, const char *psz_url,
 
     url->host = host;
 
-    vlc_mutex_init(&url->lock);
+    heimdall_mutex_init(&url->lock);
 
     url->psz_url = strdup(psz_url);
     if (url->psz_url == NULL)
@@ -1114,8 +1115,8 @@ httpd_url_t *httpd_UrlNew(httpd_host_t *host, const char *psz_url,
         url->catch[i].p_sys = NULL;
     }
 
-    vlc_list_append(&url->node, &host->urls);
-    vlc_mutex_unlock(&host->lock);
+    heimdall_list_append(&url->node, &host->urls);
+    heimdall_mutex_unlock(&host->lock);
 
     return url;
 
@@ -1125,7 +1126,7 @@ error:
     free(url->psz_url);
 
     free(url);
-    vlc_mutex_unlock(&host->lock);
+    heimdall_mutex_unlock(&host->lock);
     return NULL;
 }
 
@@ -1133,12 +1134,12 @@ error:
 int httpd_UrlCatch(httpd_url_t *url, int i_msg, httpd_callback_t cb,
                     httpd_callback_sys_t *p_sys)
 {
-    vlc_mutex_lock(&url->lock);
+    heimdall_mutex_lock(&url->lock);
     url->catch[i_msg].cb   = cb;
     url->catch[i_msg].p_sys= p_sys;
-    vlc_mutex_unlock(&url->lock);
+    heimdall_mutex_unlock(&url->lock);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /* delete a url */
@@ -1147,14 +1148,14 @@ void httpd_UrlDelete(httpd_url_t *url)
     httpd_host_t *host = url->host;
     httpd_client_t *client;
 
-    vlc_mutex_lock(&host->lock);
-    vlc_list_remove(&url->node);
+    heimdall_mutex_lock(&host->lock);
+    heimdall_list_remove(&url->node);
 
     free(url->psz_url);
     free(url->psz_user);
     free(url->psz_password);
 
-    vlc_list_foreach(client, &host->clients, node) {
+    heimdall_list_foreach(client, &host->clients, node) {
         if (client->url != url)
             continue;
 
@@ -1164,7 +1165,7 @@ void httpd_UrlDelete(httpd_url_t *url)
         httpd_ClientDestroy(client);
     }
     free(url);
-    vlc_mutex_unlock(&host->lock);
+    heimdall_mutex_unlock(&host->lock);
 }
 
 static void httpd_MsgInit(httpd_message_t *msg)
@@ -1225,7 +1226,7 @@ void httpd_MsgAdd(httpd_message_t *msg, const char *name, const char *psz_value,
 
     va_list args;
     va_start(args, psz_value);
-    int ret = vlc_vasprintf_c(&h->value, psz_value, args);
+    int ret = heimdall_vasprintf_c(&h->value, psz_value, args);
     va_end(args);
 
     if (ret == -1) {
@@ -1238,18 +1239,18 @@ void httpd_MsgAdd(httpd_message_t *msg, const char *name, const char *psz_value,
 
 char* httpd_ClientIP(const httpd_client_t *cl, char *ip, int *port)
 {
-    return net_GetPeerAddress(vlc_tls_GetFD(cl->sock), ip, port) ? NULL : ip;
+    return net_GetPeerAddress(heimdall_tls_GetFD(cl->sock), ip, port) ? NULL : ip;
 }
 
 char* httpd_ServerIP(const httpd_client_t *cl, char *ip, int *port)
 {
-    return net_GetSockAddress(vlc_tls_GetFD(cl->sock), ip, port) ? NULL : ip;
+    return net_GetSockAddress(heimdall_tls_GetFD(cl->sock), ip, port) ? NULL : ip;
 }
 
 static void httpd_ClientDestroy(httpd_client_t *cl)
 {
-    vlc_list_remove(&cl->node);
-    vlc_tls_Close(cl->sock);
+    heimdall_list_remove(&cl->node);
+    heimdall_tls_Close(cl->sock);
     httpd_MsgClean(&cl->answer);
     httpd_MsgClean(&cl->query);
 
@@ -1257,7 +1258,7 @@ static void httpd_ClientDestroy(httpd_client_t *cl)
     free(cl);
 }
 
-static httpd_client_t *httpd_ClientNew(vlc_tls_t *sock)
+static httpd_client_t *httpd_ClientNew(heimdall_tls_t *sock)
 {
     httpd_client_t *cl = malloc(sizeof(httpd_client_t));
 
@@ -1280,7 +1281,7 @@ static httpd_client_t *httpd_ClientNew(vlc_tls_t *sock)
 static
 ssize_t httpd_NetRecv (httpd_client_t *cl, uint8_t *p, size_t i_len)
 {
-    vlc_tls_t *sock = cl->sock;
+    heimdall_tls_t *sock = cl->sock;
     struct iovec iov = { .iov_base = p, .iov_len = i_len };
     return sock->ops->readv(sock, &iov, 1);
 }
@@ -1288,7 +1289,7 @@ ssize_t httpd_NetRecv (httpd_client_t *cl, uint8_t *p, size_t i_len)
 static
 ssize_t httpd_NetSend (httpd_client_t *cl, const uint8_t *p, size_t i_len)
 {
-    vlc_tls_t *sock = cl->sock;
+    heimdall_tls_t *sock = cl->sock;
     const struct iovec iov = { .iov_base = (void *)p, .iov_len = i_len };
     return sock->ops->writev(sock, &iov, 1);
 }
@@ -1563,7 +1564,7 @@ static int httpd_ClientRecv(httpd_client_t *cl)
                             break;
                         }
                         default:
-                            vlc_assert_unreachable();
+                            heimdall_assert_unreachable();
                     }
                     i_len = 0; /* drop */
                 }
@@ -1682,7 +1683,7 @@ static int httpd_ClientSend(httpd_client_t *cl)
 
 static void httpd_ClientTlsHandshake(httpd_host_t *host, httpd_client_t *cl)
 {
-    switch (vlc_tls_SessionHandshake(host->p_tls, cl->sock))
+    switch (heimdall_tls_SessionHandshake(host->p_tls, cl->sock))
     {
         case -1: cl->i_state = HTTPD_CLIENT_DEAD;       break;
         case 0:  cl->i_state = HTTPD_CLIENT_RECEIVING;  break;
@@ -1706,7 +1707,7 @@ static bool httpdAuthOk(const char *user, const char *pass, const char *b64)
     while (*b64 == ' ')
         b64++;
 
-    char *given_user = vlc_b64_decode(b64);
+    char *given_user = heimdall_b64_decode(b64);
     if (!given_user)
         return false;
 
@@ -1741,14 +1742,14 @@ static void httpdLoop(httpd_host_t *host)
         ufd[nfd].revents = 0;
     }
 
-    vlc_mutex_lock(&host->lock);
+    heimdall_mutex_lock(&host->lock);
     /* add all socket that should be read/write and close dead connection */
-    vlc_tick_t now = vlc_tick_now();
+    heimdall_tick_t now = heimdall_tick_now();
     int delay = -1;
     httpd_client_t *cl;
 
-    int canc = vlc_savecancel();
-    vlc_list_foreach(cl, &host->clients, node) {
+    int canc = heimdall_savecancel();
+    heimdall_list_foreach(cl, &host->clients, node) {
         int val = -1;
 
         switch (cl->i_state) {
@@ -1772,7 +1773,7 @@ static void httpdLoop(httpd_host_t *host)
         }
 
         if (val == 0) {
-            cl->i_timeout_date = now + VLC_TICK_FROM_SEC(host->timeout_sec);
+            cl->i_timeout_date = now + HEIMDALL_TICK_FROM_SEC(host->timeout_sec);
             delay = 0;
         }
 
@@ -1812,7 +1813,7 @@ static void httpdLoop(httpd_host_t *host)
                         answer->i_body = 0;
                         answer->p_body = NULL;
 
-                        httpd_MsgAdd(answer, "Server", "VLC/%s", VERSION);
+                        httpd_MsgAdd(answer, "Server", "Heimdall/%s", VERSION);
                         httpd_MsgAdd(answer, "Content-Length", "0");
 
                         switch(query->i_proto) {
@@ -1877,7 +1878,7 @@ static void httpdLoop(httpd_host_t *host)
                         bool b_auth_failed = false;
 
                         /* Search the url and trigger callbacks */
-                        vlc_list_foreach(url, &host->urls, node) {
+                        heimdall_list_foreach(url, &host->urls, node) {
                             if (strcmp(url->psz_url, query->psz_url))
                                 continue;
 
@@ -1910,7 +1911,7 @@ static void httpdLoop(httpd_host_t *host)
 
                            if (b_auth_failed) {
                                 httpd_MsgAdd(answer, "WWW-Authenticate",
-                                        "Basic realm=\"VLC stream\"");
+                                        "Basic realm=\"Heimdall stream\"");
                                 answer->i_status = 401;
                             } else
                                 answer->i_status = 404; /* no url registered */
@@ -1998,7 +1999,7 @@ static void httpdLoop(httpd_host_t *host)
             }
         }
 
-        pufd->fd = vlc_tls_GetPollFD(cl->sock, &pufd->events);
+        pufd->fd = heimdall_tls_GetPollFD(cl->sock, &pufd->events);
 
         if (pufd->events != 0)
             nfd++;
@@ -2006,20 +2007,20 @@ static void httpdLoop(httpd_host_t *host)
         else if (delay != 0)
             delay = 20;
     }
-    vlc_mutex_unlock(&host->lock);
-    vlc_restorecancel(canc);
+    heimdall_mutex_unlock(&host->lock);
+    heimdall_restorecancel(canc);
 
     while (poll(ufd, nfd, delay) < 0)
     {
         if (errno != EINTR)
-            msg_Err(host, "polling error: %s", vlc_strerror_c(errno));
+            msg_Err(host, "polling error: %s", heimdall_strerror_c(errno));
     }
 
-    canc = vlc_savecancel();
-    vlc_mutex_lock(&host->lock);
+    canc = heimdall_savecancel();
+    heimdall_mutex_lock(&host->lock);
 
     /* Handle client sockets */
-    now = vlc_tick_now();
+    now = heimdall_tick_now();
     nfd = host->nfd;
 
     /* Handle server sockets (accept new connections) */
@@ -2032,28 +2033,28 @@ static void httpdLoop(httpd_host_t *host)
             continue;
 
         /* */
-        fd = vlc_accept (fd, NULL, NULL, true);
+        fd = heimdall_accept (fd, NULL, NULL, true);
         if (fd == -1)
             continue;
         setsockopt (fd, SOL_SOCKET, SO_REUSEADDR,
                 &(int){ 1 }, sizeof(int));
 
-        vlc_tls_t *sk = vlc_tls_SocketOpen(fd);
+        heimdall_tls_t *sk = heimdall_tls_SocketOpen(fd);
         if (unlikely(sk == NULL))
         {
-            vlc_close(fd);
+            heimdall_close(fd);
             continue;
         }
 
         if (host->p_tls != NULL)
         {
             const char *alpn[] = { "http/1.1", NULL };
-            vlc_tls_t *tls;
+            heimdall_tls_t *tls;
 
-            tls = vlc_tls_ServerSessionCreate(host->p_tls, sk, alpn);
+            tls = heimdall_tls_ServerSessionCreate(host->p_tls, sk, alpn);
             if (tls == NULL)
             {
-                vlc_tls_SessionDelete(sk);
+                heimdall_tls_SessionDelete(sk);
                 continue;
             }
             sk = tls;
@@ -2063,25 +2064,25 @@ static void httpdLoop(httpd_host_t *host)
 
         if (unlikely(cl == NULL))
         {
-            vlc_tls_Close(sk);
+            heimdall_tls_Close(sk);
             continue;
         }
 
         if (host->p_tls != NULL)
             cl->i_state = HTTPD_CLIENT_TLS_HS_OUT;
 
-        cl->i_timeout_date = now + VLC_TICK_FROM_SEC(host->timeout_sec);
+        cl->i_timeout_date = now + HEIMDALL_TICK_FROM_SEC(host->timeout_sec);
         host->client_count++;
-        vlc_list_append(&cl->node, &host->clients);
+        heimdall_list_append(&cl->node, &host->clients);
     }
 
-    vlc_mutex_unlock(&host->lock);
-    vlc_restorecancel(canc);
+    heimdall_mutex_unlock(&host->lock);
+    heimdall_restorecancel(canc);
 }
 
 static void* httpd_HostThread(void *data)
 {
-    vlc_thread_set_name("vlc-httpd");
+    heimdall_thread_set_name("heimdall-httpd");
 
     httpd_host_t *host = data;
 
@@ -2094,9 +2095,9 @@ int httpd_StreamSetHTTPHeaders(httpd_stream_t * p_stream,
                                const httpd_header *p_headers, size_t i_headers)
 {
     if (!p_stream)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    vlc_mutex_lock(&p_stream->lock);
+    heimdall_mutex_lock(&p_stream->lock);
     if (p_stream->p_http_headers) {
         for (size_t i = 0; i < p_stream->i_http_headers; i++) {
             free(p_stream->p_http_headers[i].name);
@@ -2108,14 +2109,14 @@ int httpd_StreamSetHTTPHeaders(httpd_stream_t * p_stream,
     }
 
     if (!p_headers || !i_headers) {
-        vlc_mutex_unlock(&p_stream->lock);
-        return VLC_SUCCESS;
+        heimdall_mutex_unlock(&p_stream->lock);
+        return HEIMDALL_SUCCESS;
     }
 
-    p_stream->p_http_headers = vlc_alloc(i_headers, sizeof(httpd_header));
+    p_stream->p_http_headers = heimdall_alloc(i_headers, sizeof(httpd_header));
     if (!p_stream->p_http_headers) {
-        vlc_mutex_unlock(&p_stream->lock);
-        return VLC_ENOMEM;
+        heimdall_mutex_unlock(&p_stream->lock);
+        return HEIMDALL_ENOMEM;
     }
 
     size_t j = 0;
@@ -2135,6 +2136,6 @@ int httpd_StreamSetHTTPHeaders(httpd_stream_t * p_stream,
         j++;
     }
     p_stream->i_http_headers = j;
-    vlc_mutex_unlock(&p_stream->lock);
-    return VLC_SUCCESS;
+    heimdall_mutex_unlock(&p_stream->lock);
+    return HEIMDALL_SUCCESS;
 }

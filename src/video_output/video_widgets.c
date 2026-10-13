@@ -2,9 +2,10 @@
  * video_widgets.c : OSD widgets manipulation functions
  *****************************************************************************
  * Copyright (C) 2004-2010 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Yoann Peronneau <yoann@videolan.org>
- *         Laurent Aimar <fenrir _AT_ videolan _DOT_ org>
+ *         Laurent Aimar <fenrir _AT_ lycaria _DOT_ org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -29,11 +30,11 @@
 #endif
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_vout.h>
-#include <vlc_vout_osd.h>
+#include <heimdall_common.h>
+#include <heimdall_vout.h>
+#include <heimdall_vout_osd.h>
 
-#include <vlc_filter.h>
+#include <heimdall_filter.h>
 
 #include "vout_spuregion_helper.h"
 
@@ -127,7 +128,7 @@ static subpicture_region_t *OSDRegion(int x, int y, int width, int height)
     palette.i_entries = 4;
 
     video_format_t fmt;
-    video_format_Init(&fmt, VLC_CODEC_YUVP);
+    video_format_Init(&fmt, HEIMDALL_CODEC_YUVP);
     fmt.i_width          =
     fmt.i_visible_width  = width;
     fmt.i_height         =
@@ -150,7 +151,7 @@ static subpicture_region_t *OSDRegion(int x, int y, int width, int height)
  * Types are: OSD_HOR_SLIDER and OSD_VERT_SLIDER.
  */
 #define SLIDER_MARGIN_BASE 0.10
-static subpicture_region_t *OSDSlider(vlc_osd_widget_type type, int position,
+static subpicture_region_t *OSDSlider(heimdall_osd_widget_type type, int position,
                                       const unsigned i_visible_width,
                                       const unsigned i_visible_height)
 {
@@ -204,7 +205,7 @@ static subpicture_region_t *OSDSlider(vlc_osd_widget_type type, int position,
  * Create the region for an OSD slider.
  * Types are: OSD_PLAY_ICON, OSD_PAUSE_ICON, OSD_SPEAKER_ICON, OSD_MUTE_ICON
  */
-static subpicture_region_t *OSDIcon(vlc_osd_widget_type type,
+static subpicture_region_t *OSDIcon(heimdall_osd_widget_type type,
                                     const unsigned i_visible_width,
                                     const unsigned i_visible_height)
 {
@@ -253,17 +254,17 @@ static subpicture_region_t *OSDIcon(vlc_osd_widget_type type,
 }
 
 typedef struct {
-    vlc_osd_widget_type type;
+    heimdall_osd_widget_type type;
     int value;
 } osdwidget_spu_updater_sys_t;
 
 static void OSDWidgetUpdate(subpicture_t *subpic,
-                            const struct vlc_spu_updater_configuration *cfg)
+                            const struct heimdall_spu_updater_configuration *cfg)
 {
     osdwidget_spu_updater_sys_t *sys = subpic->updater.sys;
     subpicture_region_t *p_region;
 
-    vlc_spu_regions_Clear( &subpic->regions );
+    heimdall_spu_regions_Clear( &subpic->regions );
 
     subpic->i_original_picture_width  = cfg->current.display_width;
     subpic->i_original_picture_height = cfg->current.display_height;
@@ -275,7 +276,7 @@ static void OSDWidgetUpdate(subpicture_t *subpic,
     {
         p_region->b_absolute = true;
         p_region->b_in_window = true;
-        vlc_spu_regions_push(&subpic->regions, p_region);
+        heimdall_spu_regions_push(&subpic->regions, p_region);
     }
 }
 
@@ -284,12 +285,12 @@ static void OSDWidgetDestroy(subpicture_t *subpic)
     free(subpic->updater.sys);
 }
 
-static void OSDWidget(vout_thread_t *vout, int channel, vlc_osd_widget_type type, int position)
+static void OSDWidget(vout_thread_t *vout, int channel, heimdall_osd_widget_type type, int position)
 {
     if (!var_InheritBool(vout, "osd"))
         return;
     if (type == OSD_HOR_SLIDER || type == OSD_VERT_SLIDER)
-        position = VLC_CLIP(position, 0, 100);
+        position = HEIMDALL_CLIP(position, 0, 100);
 
     osdwidget_spu_updater_sys_t *sys = malloc(sizeof(*sys));
     if (!sys)
@@ -297,7 +298,7 @@ static void OSDWidget(vout_thread_t *vout, int channel, vlc_osd_widget_type type
     sys->type     = type;
     sys->value    = position;
 
-    static const struct vlc_spu_updater_ops spu_ops =
+    static const struct heimdall_spu_updater_ops spu_ops =
     {
         .update   = OSDWidgetUpdate,
         .destroy  = OSDWidgetDestroy,
@@ -314,20 +315,20 @@ static void OSDWidget(vout_thread_t *vout, int channel, vlc_osd_widget_type type
     }
 
     subpic->i_channel  = channel;
-    subpic->i_start    = vlc_tick_now();
-    subpic->i_stop     = subpic->i_start + VLC_TICK_FROM_MS(1200);
+    subpic->i_start    = heimdall_tick_now();
+    subpic->i_stop     = subpic->i_start + HEIMDALL_TICK_FROM_MS(1200);
     subpic->b_ephemer  = true;
     subpic->b_fade     = true;
 
     vout_PutSubpicture(vout, subpic);
 }
 
-void vout_OSDSlider(vout_thread_t *vout, int channel, int position, vlc_osd_widget_type type)
+void vout_OSDSlider(vout_thread_t *vout, int channel, int position, heimdall_osd_widget_type type)
 {
     OSDWidget(vout, channel, type, position);
 }
 
-void vout_OSDIcon(vout_thread_t *vout, int channel, vlc_osd_widget_type type )
+void vout_OSDIcon(vout_thread_t *vout, int channel, heimdall_osd_widget_type type )
 {
     OSDWidget(vout, channel, type, 0);
 }

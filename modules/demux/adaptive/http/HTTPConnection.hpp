@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 2010 - 2011 Klagenfurt University
  *               2014 - 2015 VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Created on: Aug 10, 2010
  * Authors: Christopher Mueller <christopher.mueller@itec.uni-klu.ac.at>
@@ -27,7 +28,7 @@
 
 #include "ConnectionParams.hpp"
 #include "BytesRange.hpp"
-#include <vlc_common.h>
+#include <heimdall_common.h>
 #include <string>
 
 namespace adaptive
@@ -43,7 +44,7 @@ namespace adaptive
         class AbstractConnection
         {
             public:
-                AbstractConnection(vlc_object_t *);
+                AbstractConnection(heimdall_object_t *);
                 virtual ~AbstractConnection();
                 AbstractConnection(AbstractConnection&&) = delete;
                 AbstractConnection& operator=(const AbstractConnection&) = delete;
@@ -63,7 +64,7 @@ namespace adaptive
                 virtual void    setUsed( bool ) = 0;
 
             protected:
-                vlc_object_t      *p_object;
+                heimdall_object_t      *p_object;
                 ConnectionParams   locationparams;
                 ConnectionParams   params;
                 bool               available;
@@ -73,13 +74,13 @@ namespace adaptive
                 size_t             bytesRead;
         };
 
-       class LibVLCHTTPSource;
+       class LibHeimdallHTTPSource;
 
-       class LibVLCHTTPConnection : public AbstractConnection
+       class LibHeimdallHTTPConnection : public AbstractConnection
        {
             public:
-               LibVLCHTTPConnection(vlc_object_t *, AuthStorage *);
-               virtual ~LibVLCHTTPConnection();
+               LibHeimdallHTTPConnection(heimdall_object_t *, AuthStorage *);
+               virtual ~LibHeimdallHTTPConnection();
                bool    canReuse     (const ConnectionParams &) const override;
                RequestStatus request(const std::string& path,
                                      const BytesRange & = BytesRange()) override;
@@ -90,7 +91,7 @@ namespace adaptive
                void reset();
                std::string useragent;
                std::string referer;
-               LibVLCHTTPSource *source;
+               LibHeimdallHTTPSource *source;
                ChunksSourceStream *sourceStream;
                stream_t *stream;
        };
@@ -98,7 +99,7 @@ namespace adaptive
        class StreamUrlConnection : public AbstractConnection
        {
             public:
-                StreamUrlConnection(vlc_object_t *);
+                StreamUrlConnection(heimdall_object_t *);
                 virtual ~StreamUrlConnection();
 
                 bool    canReuse     (const ConnectionParams &) const override;
@@ -119,15 +120,15 @@ namespace adaptive
            public:
                AbstractConnectionFactory() {}
                virtual ~AbstractConnectionFactory() {}
-               virtual AbstractConnection * createConnection(vlc_object_t *, const ConnectionParams &) = 0;
+               virtual AbstractConnection * createConnection(heimdall_object_t *, const ConnectionParams &) = 0;
        };
 
-       class LibVLCHTTPConnectionFactory : public AbstractConnectionFactory
+       class LibHeimdallHTTPConnectionFactory : public AbstractConnectionFactory
        {
            public:
-               LibVLCHTTPConnectionFactory( AuthStorage * );
-               virtual ~LibVLCHTTPConnectionFactory() = default;
-               AbstractConnection * createConnection(vlc_object_t *, const ConnectionParams &) override;
+               LibHeimdallHTTPConnectionFactory( AuthStorage * );
+               virtual ~LibHeimdallHTTPConnectionFactory() = default;
+               AbstractConnection * createConnection(heimdall_object_t *, const ConnectionParams &) override;
            private:
                AuthStorage *authStorage;
        };
@@ -137,7 +138,7 @@ namespace adaptive
            public:
                StreamUrlConnectionFactory();
                virtual ~StreamUrlConnectionFactory() {}
-               AbstractConnection * createConnection(vlc_object_t *, const ConnectionParams &) override;
+               AbstractConnection * createConnection(heimdall_object_t *, const ConnectionParams &) override;
        };
     }
 }

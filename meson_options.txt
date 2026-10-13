@@ -1,14 +1,14 @@
 # General options
 
-option('vlc',
+option('heimdall',
     type : 'boolean',
     value : true,
-    description : 'Build the VLC executable program.')
+    description : 'Build the Heimdall executable program.')
 
 option('tests',
     type : 'feature',
     value : 'auto',
-    description : 'Build the VLC test executables.')
+    description : 'Build the Heimdall test executables.')
 
 option('nls',
     type : 'feature',
@@ -28,22 +28,22 @@ option('binary_version',
 option('stream_outputs',
     type : 'boolean',
     value : true,
-    description : 'Build the VLC stream output modules')
+    description : 'Build the Heimdall stream output modules')
 
-option('videolan_manager',
+option('lycaria_manager',
     type : 'boolean',
     value : true,
-    description : 'Build the VideoLAN manager')
+    description : 'Build the Lycaria manager')
 
 option('addon_manager',
     type : 'boolean',
     value : true,
-    description : 'Build the VLC add-on manager modules')
+    description : 'Build the Heimdall add-on manager modules')
 
 option('run_as_root',
     type : 'boolean',
     value : false,
-    description : 'Allow running VLC as root')
+    description : 'Allow running Heimdall as root')
 
 option('branch_protection',
     type : 'feature',
@@ -73,12 +73,12 @@ option('update-check',
 option('rust',
     type : 'feature',
     value : 'disabled',
-    description : 'Experimental pure Rust VLC modules')
+    description : 'Experimental pure Rust Heimdall modules')
 
 option('extra_rust_flags',
     type : 'array',
     value : [],
-    description : 'Extra RUSTFLAGS to be passed to the compiler when compiling Rust VLC modules')
+    description : 'Extra RUSTFLAGS to be passed to the compiler when compiling Rust Heimdall modules')
 
 option('vendored_rust_deps',
     type : 'string',

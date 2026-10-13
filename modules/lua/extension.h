@@ -2,6 +2,7 @@
  * extension.h: Lua Extensions (meta data, web information, ...)
  *****************************************************************************
  * Copyright (C) 2009-2010 VideoLAN and authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Jean-Philippe André < jpeg # videolan.org >
  *
@@ -23,11 +24,11 @@
 #ifndef LUA_EXTENSION_H
 #define LUA_EXTENSION_H
 
-#include <vlc_extensions.h>
-#include <vlc_arrays.h>
-#include <vlc_dialog.h>
+#include <heimdall_extensions.h>
+#include <heimdall_arrays.h>
+#include <heimdall_dialog.h>
 
-#define WATCH_TIMER_PERIOD    VLC_TICK_FROM_SEC(10) ///< 10s period for the timer
+#define WATCH_TIMER_PERIOD    HEIMDALL_TICK_FROM_SEC(10) ///< 10s period for the timer
 
 /* Extension capabilities */
 #define EXT_HAS_MENU          (1 << 0)   ///< Hook: menu
@@ -65,18 +66,18 @@ struct lua_extension
     /* Lua specific */
     lua_State *L;
 
-    vlclua_dtable_t dtable;
+    heimdalllua_dtable_t dtable;
 
     /* Thread data */
-    vlc_thread_t thread;
-    vlc_mutex_t command_lock;
-    vlc_mutex_t running_lock;
-    vlc_cond_t wait;
+    heimdall_thread_t thread;
+    heimdall_mutex_t command_lock;
+    heimdall_mutex_t running_lock;
+    heimdall_cond_t wait;
 
-    /* The item this extension should use for vlc.input
+    /* The item this extension should use for heimdall.input
      * or NULL if it should use playlist's current input */
     struct input_item_t *p_item;
-    struct vlc_player_listener_id *player_listener;
+    struct heimdall_player_listener_id *player_listener;
 
     extensions_manager_t *p_mgr;     ///< Parent
     /* Queue of commands to execute */
@@ -88,8 +89,8 @@ struct lua_extension
     } *command;
 
     // The two following booleans are protected by command_lock
-    vlc_dialog_id *p_progress_id;
-    vlc_timer_t timer; ///< This timer makes sure Lua never gets stuck >5s
+    heimdall_dialog_id *p_progress_id;
+    heimdall_timer_t timer; ///< This timer makes sure Lua never gets stuck >5s
 
     bool b_exiting;
 
@@ -123,8 +124,8 @@ static inline int PushCommandUnique( extension_t *ext, int cmd, ... )
 }
 
 /* Lua specific functions */
-void vlclua_extension_set( lua_State *L, extension_t * );
-extension_t *vlclua_extension_get( lua_State *L );
+void heimdalllua_extension_set( lua_State *L, extension_t * );
+extension_t *heimdalllua_extension_get( lua_State *L );
 int lua_ExtensionActivate( extensions_manager_t *, extension_t * );
 int lua_ExtensionDeactivate( extensions_manager_t *, extension_t * );
 int lua_ExecuteFunctionVa( extensions_manager_t *p_mgr, extension_t *p_ext,

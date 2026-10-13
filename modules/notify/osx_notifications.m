@@ -5,10 +5,11 @@
  * item changes.
  *****************************************************************************
  * Copyright © 2008, 2011, 2012, 2015, 2018, 2019 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Marvin Scholz <epirat07@gmail.com>
  *          Felix Paul Kühne <fkuehne # videolan.org>
- *          Rafaël Carré <funman@videolanorg>
+ *          Rafaël Carré <funman@lycariaorg>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,7 +26,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  */
 
-#define VLC_MODULE_LICENSE VLC_LICENSE_GPL_2_PLUS
+#define HEIMDALL_MODULE_LICENSE HEIMDALL_LICENSE_GPL_2_PLUS
 
 #ifdef HAVE_CONFIG_H
 # include "config.h"
@@ -33,29 +34,29 @@
 
 #import <Cocoa/Cocoa.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_playlist.h>
-#include <vlc_player.h>
-#include <vlc_interface.h>
-#include <vlc_url.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_playlist.h>
+#include <heimdall_player.h>
+#include <heimdall_interface.h>
+#include <heimdall_url.h>
 
 #pragma mark -
 #pragma mark Class interfaces
-@interface VLCNotificationDelegate : NSObject <NSUserNotificationCenterDelegate>
+@interface HeimdallNotificationDelegate : NSObject <NSUserNotificationCenterDelegate>
 {
     /** Holds the last notification so it can be cleared when the next one is delivered */
     NSUserNotification * _Nullable _lastNotification;
 
     /* the playlist reference */
-    vlc_playlist_t *_p_playlist;
+    heimdall_playlist_t *_p_playlist;
 
     /* the listener ID for player notifications */
-    vlc_player_listener_id *_playerListenerID;
+    heimdall_player_listener_id *_playerListenerID;
 }
 
 /**
- * Initializes a new  VLCNotification Delegate with a given intf_thread_t
+ * Initializes a new  HeimdallNotification Delegate with a given intf_thread_t
  */
 - (instancetype)initWithInterfaceThread:(intf_thread_t * _Nonnull)intf_thread;
 
@@ -68,13 +69,13 @@
 
 struct intf_sys_t
 {
-    void *vlcNotificationDelegate;
+    void *heimdallNotificationDelegate;
 };
 
 #pragma mark -
 #pragma mark callback
 
-static void on_current_media_changed(vlc_player_t *player,
+static void on_current_media_changed(heimdall_player_t *player,
                                      input_item_t *p_input_item, void *data)
 {
 
@@ -82,7 +83,7 @@ static void on_current_media_changed(vlc_player_t *player,
         input_item_Hold(p_input_item);
 
     dispatch_async(dispatch_get_main_queue(), ^{
-        VLCNotificationDelegate *notificationDelegate = (__bridge VLCNotificationDelegate *)data;
+        HeimdallNotificationDelegate *notificationDelegate = (__bridge HeimdallNotificationDelegate *)data;
         [notificationDelegate currentInputItemChanged:p_input_item];
     });
 }
@@ -92,41 +93,41 @@ static void on_current_media_changed(vlc_player_t *player,
 /*
  * Open: Initialization of the module
  */
-static int Open(vlc_object_t *p_this)
+static int Open(heimdall_object_t *p_this)
 {
     intf_thread_t *p_intf = (intf_thread_t *)p_this;
     intf_sys_t *p_sys = p_intf->p_sys = calloc(1, sizeof(intf_sys_t));
 
     if (!p_sys)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     @autoreleasepool {
-        VLCNotificationDelegate *notificationDelegate =
-            [[VLCNotificationDelegate alloc] initWithInterfaceThread:p_intf];
+        HeimdallNotificationDelegate *notificationDelegate =
+            [[HeimdallNotificationDelegate alloc] initWithInterfaceThread:p_intf];
         
         if (notificationDelegate == nil) {
             free(p_sys);
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         }
         
-        p_sys->vlcNotificationDelegate = (__bridge_retained void*)notificationDelegate;
+        p_sys->heimdallNotificationDelegate = (__bridge_retained void*)notificationDelegate;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*
  * Close: Destruction of the module
  */
-static void Close(vlc_object_t *p_this)
+static void Close(heimdall_object_t *p_this)
 {
     intf_thread_t *p_intf = (intf_thread_t *)p_this;
     intf_sys_t *p_sys = p_intf->p_sys;
 
     @autoreleasepool {
         // Transfer ownership of notification delegate object back to ARC
-        VLCNotificationDelegate *notificationDelegate =
-            (__bridge_transfer VLCNotificationDelegate*)p_sys->vlcNotificationDelegate;
+        HeimdallNotificationDelegate *notificationDelegate =
+            (__bridge_transfer HeimdallNotificationDelegate*)p_sys->heimdallNotificationDelegate;
 
         // Ensure the object is deallocated
         notificationDelegate = nil;
@@ -163,7 +164,7 @@ static inline NSString* CharsToNSString(char * _Nullable cStr)
 
 #pragma mark -
 #pragma mark Class implementation
-@implementation VLCNotificationDelegate
+@implementation HeimdallNotificationDelegate
 
 - (id)initWithInterfaceThread:(intf_thread_t *)intf_thread
 {
@@ -171,15 +172,15 @@ static inline NSString* CharsToNSString(char * _Nullable cStr)
     
     if (self) {
 
-        _p_playlist = vlc_intf_GetMainPlaylist(intf_thread);
-        vlc_player_t *player = vlc_playlist_GetPlayer(_p_playlist);
-        static const struct vlc_player_cbs player_cbs =
+        _p_playlist = heimdall_intf_GetMainPlaylist(intf_thread);
+        heimdall_player_t *player = heimdall_playlist_GetPlayer(_p_playlist);
+        static const struct heimdall_player_cbs player_cbs =
         {
             .on_current_media_changed = on_current_media_changed
         };
-        vlc_player_Lock(player);
-        _playerListenerID = vlc_player_AddListener(player, &player_cbs, (__bridge void *)self);
-        vlc_player_Unlock(player);
+        heimdall_player_Lock(player);
+        _playerListenerID = heimdall_player_AddListener(player, &player_cbs, (__bridge void *)self);
+        heimdall_player_Unlock(player);
 
         [[NSUserNotificationCenter defaultUserNotificationCenter] setDelegate:self];
     }
@@ -200,10 +201,10 @@ static inline NSString* CharsToNSString(char * _Nullable cStr)
 
     if (_p_playlist) {
         if (_playerListenerID) {
-            vlc_player_t *player = vlc_playlist_GetPlayer(_p_playlist);
-            vlc_player_Lock(player);
-            vlc_player_RemoveListener(player, _playerListenerID);
-            vlc_player_Unlock(player);
+            heimdall_player_t *player = heimdall_playlist_GetPlayer(_p_playlist);
+            heimdall_player_Lock(player);
+            heimdall_player_RemoveListener(player, _playerListenerID);
+            heimdall_player_Unlock(player);
         }
     }
 }
@@ -237,7 +238,7 @@ static inline NSString* CharsToNSString(char * _Nullable cStr)
 
     char *psz_arturl = input_item_GetArtURL(inputItem);
     if (psz_arturl) {
-        artPath = CharsToNSString(vlc_uri2path(psz_arturl));
+        artPath = CharsToNSString(heimdall_uri2path(psz_arturl));
         free(psz_arturl);
     }
 
@@ -265,9 +266,9 @@ static inline NSString* CharsToNSString(char * _Nullable cStr)
     // Check if notification button ("Skip") was clicked
     if (notification.activationType == NSUserNotificationActivationTypeActionButtonClicked) {
         // Skip to next song
-        vlc_playlist_Lock(_p_playlist);
-        vlc_playlist_Next(_p_playlist);
-        vlc_playlist_Unlock(_p_playlist);
+        heimdall_playlist_Lock(_p_playlist);
+        heimdall_playlist_Next(_p_playlist);
+        heimdall_playlist_Unlock(_p_playlist);
     }
 }
 
@@ -314,7 +315,7 @@ static inline NSString* CharsToNSString(char * _Nullable cStr)
         [notification setValue:@(YES) forKey:@"_showsButtons"];
     } @catch (NSException *exception) {
         if (exception.name == NSUndefinedKeyException)
-            NSLog(@"VLC macOS notifications plugin failed to set private notification values.");
+            NSLog(@"Heimdall macOS notifications plugin failed to set private notification values.");
         else
             @throw exception;
     }
@@ -328,13 +329,13 @@ static inline NSString* CharsToNSString(char * _Nullable cStr)
 
 
 #pragma mark -
-#pragma mark VLC Module descriptor
+#pragma mark Heimdall Module descriptor
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname("OSX-Notifications")
     set_description(N_("macOS notifications plugin"))
     add_shortcut("growl") // Kept for backwards compatibility
     set_subcategory(SUBCAT_INTERFACE_CONTROL)
     set_capability("interface", 0)
     set_callbacks(Open, Close)
-vlc_module_end()
+heimdall_module_end()

@@ -261,7 +261,7 @@
          <item row="1" column="2">
           <widget class="QLineEdit" name="snapshotsPrefix">
            <property name="text">
-            <string>vlc-snap</string>
+            <string>heimdall-snap</string>
            </property>
           </widget>
          </item>

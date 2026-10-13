@@ -2,6 +2,7 @@
  * qt_dirs.cpp : file path helpers
  ****************************************************************************
  * Copyright (C) 2010 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,14 +25,14 @@
 
 #include "qt.hpp"
 #include "qt_dirs.hpp"
-#include <vlc_url.h>
+#include <heimdall_url.h>
 
 QString toURI( const QString& s )
 {
     if( s.contains( qfu("://") ) )
         return s;
 
-    char *psz = vlc_path2uri( qtu(s), NULL );
+    char *psz = heimdall_path2uri( qtu(s), NULL );
     if( psz == NULL )
         return qfu("");
 

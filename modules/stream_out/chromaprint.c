@@ -2,6 +2,7 @@
  * chromaprint.c: Chromaprint Fingerprinter Module
  *****************************************************************************
  * Copyright (C) 2012 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -26,10 +27,10 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_block.h>
-#include <vlc_sout.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_block.h>
+#include <heimdall_sout.h>
 
 #include <assert.h>
 
@@ -43,7 +44,7 @@
 /*****************************************************************************
  * Exported prototypes
  *****************************************************************************/
-static int      Open    ( vlc_object_t * );
+static int      Open    ( heimdall_object_t * );
 
 static void *Add( sout_stream_t *, const es_format_t *, const char * );
 static void  Del( sout_stream_t *, void * );
@@ -56,14 +57,14 @@ static void  Close( sout_stream_t * );
 #define DURATION_TEXT N_("Duration of the fingerprinting" )
 #define DURATION_LONGTEXT N_("Default: 90sec")
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("Chromaprint stream output") )
     set_capability( "sout output", 0 )
     add_shortcut( "chromaprint" )
     set_subcategory( SUBCAT_SOUT_STREAM )
     add_integer( "duration", 90, DURATION_TEXT, DURATION_LONGTEXT )
     set_callback( Open )
-vlc_module_end ()
+heimdall_module_end ()
 
 typedef struct sout_stream_id_sys_t sout_stream_id_sys_t;
 typedef struct
@@ -97,13 +98,13 @@ static const struct sout_stream_operations ops = {
 /*****************************************************************************
  * Open:
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     sout_stream_t *p_stream = (sout_stream_t*)p_this;
     sout_stream_sys_t *p_sys;
 
     p_stream->p_sys = p_sys = malloc(sizeof(sout_stream_sys_t));
-    if ( unlikely( ! p_sys ) ) return VLC_ENOMEM;
+    if ( unlikely( ! p_sys ) ) return HEIMDALL_ENOMEM;
     p_sys->id = NULL;
     p_sys->b_finished = false;
     p_sys->b_done = false;
@@ -114,7 +115,7 @@ static int Open( vlc_object_t *p_this )
     {
         msg_Err( p_stream, "Fingerprint data holder not set" );
         free( p_sys );
-        return VLC_EINVAL;
+        return HEIMDALL_EINVAL;
     }
     msg_Dbg( p_stream, "chromaprint version %s", chromaprint_get_version() );
     p_sys->p_chromaprint_ctx = chromaprint_new( CHROMAPRINT_ALGORITHM_DEFAULT );
@@ -122,10 +123,10 @@ static int Open( vlc_object_t *p_this )
     {
         msg_Err( p_stream, "Can't create chromaprint context" );
         free( p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     p_stream->ops = &ops;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void Finish( sout_stream_t *p_stream )
@@ -173,7 +174,7 @@ Add( sout_stream_t *p_stream, const es_format_t *p_fmt, const char *es_id )
 
     if ( p_fmt->i_cat == AUDIO_ES && !p_sys->id )
     {
-        if( p_fmt->i_codec != VLC_CODEC_S16N || p_fmt->audio.i_channels > 2 )
+        if( p_fmt->i_codec != HEIMDALL_CODEC_S16N || p_fmt->audio.i_channels > 2 )
         {
             msg_Warn( p_stream, "bad input format: need s16l, 1 or 2 channels" );
             goto error;
@@ -225,7 +226,7 @@ static int Send( sout_stream_t *p_stream, void *_id, block_t *p_buf )
     {
         /* drop the whole buffer at once */
         block_ChainRelease( p_buf );
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
     while( p_buf )
@@ -251,5 +252,5 @@ static int Send( sout_stream_t *p_stream, void *_id, block_t *p_buf )
         p_buf = p_next;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

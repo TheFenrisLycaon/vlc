@@ -2,6 +2,7 @@
  * macosx_dragdrop.hpp
  *****************************************************************************
  * Copyright (C) 2026 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Fletcher Holt <fletcherholt649@gmail.com>
  *
@@ -27,7 +28,7 @@
 #include "../src/generic_window.hpp"
 
 @class NSWindow;
-@class VLCDropView;
+@class HeimdallDropView;
 
 /// macOS drag and drop handler
 class MacOSXDragDrop: public SkinObject
@@ -50,7 +51,7 @@ private:
     /// Window
     NSWindow *m_pWindow;
     /// Drop view
-    VLCDropView *m_pDropView;
+    HeimdallDropView *m_pDropView;
     /// Should dropped files play immediately
     bool m_playOnDrop;
     /// Associated generic window

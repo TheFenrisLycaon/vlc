@@ -1,7 +1,8 @@
 /*****************************************************************************
- * audiobargraph_a.c : audiobargraph audio plugin for vlc
+ * audiobargraph_a.c : audiobargraph audio plugin for heimdall
  *****************************************************************************
  * Copyright (C) 2002-2014 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Clement CHESNIN <clement.chesnin@gmail.com>
  *          Philippe COENT <philippe.coent@tdf.fr>
@@ -28,11 +29,11 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_aout.h>
-#include <vlc_filter.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_aout.h>
+#include <heimdall_filter.h>
 
 #include <math.h>
 
@@ -62,11 +63,11 @@
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  Open( vlc_object_t * );
+static int  Open( heimdall_object_t * );
 static void Close( filter_t * );
 static block_t *DoWork( filter_t *, block_t * );
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("Audio part of the BarGraph function") )
     set_shortname( N_("Audiobar Graph") )
     set_capability( "audio filter", 0 )
@@ -80,11 +81,11 @@ vlc_module_begin ()
     add_integer( CFG_PREFIX "repetition_time", 2000, REPETITION_TIME_TEXT, REPETITION_TIME_LONGTEXT )
 
     set_callback( Open )
-vlc_module_end ()
+heimdall_module_end ()
 
 typedef struct ValueDate_t {
     float value;
-    vlc_tick_t date;
+    heimdall_tick_t date;
     struct ValueDate_t* next;
 } ValueDate_t;
 
@@ -93,25 +94,25 @@ typedef struct
     bool            bargraph;
     int             bargraph_repetition;
     bool            silence;
-    vlc_tick_t      time_window;
+    heimdall_tick_t      time_window;
     float           alarm_threshold;
-    vlc_tick_t      repetition_time;
+    heimdall_tick_t      repetition_time;
     int             counter;
     ValueDate_t*    first;
     ValueDate_t*    last;
     int             started;
-    vlc_tick_t      lastAlarm;
+    heimdall_tick_t      lastAlarm;
 } filter_sys_t;
 
 /*****************************************************************************
  * Open: open the visualizer
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     filter_t     *p_filter = (filter_t *)p_this;
     filter_sys_t *p_sys = p_filter->p_sys = malloc(sizeof(*p_sys));
     if (!p_sys)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     static const char *const options[] = {
         "bargraph", "bargraph_repetition", "silence", "time_window",
@@ -122,31 +123,31 @@ static int Open( vlc_object_t *p_this )
     p_sys->bargraph = !!var_CreateGetInteger(p_filter, CFG_PREFIX "bargraph");
     p_sys->bargraph_repetition = var_CreateGetInteger(p_filter, CFG_PREFIX "bargraph_repetition");
     p_sys->silence = !!var_CreateGetInteger(p_filter, CFG_PREFIX "silence");
-    p_sys->time_window = VLC_TICK_FROM_MS( var_CreateGetInteger(p_filter, CFG_PREFIX "time_window") );
+    p_sys->time_window = HEIMDALL_TICK_FROM_MS( var_CreateGetInteger(p_filter, CFG_PREFIX "time_window") );
     p_sys->alarm_threshold = var_CreateGetFloat(p_filter, CFG_PREFIX "alarm_threshold");
-    p_sys->repetition_time = VLC_TICK_FROM_MS( var_CreateGetInteger(p_filter, CFG_PREFIX "repetition_time") );
+    p_sys->repetition_time = HEIMDALL_TICK_FROM_MS( var_CreateGetInteger(p_filter, CFG_PREFIX "repetition_time") );
     p_sys->counter = 0;
     p_sys->first = NULL;
     p_sys->last = NULL;
     p_sys->started = 0;
     p_sys->lastAlarm = 0;
 
-    p_filter->fmt_in.audio.i_format = VLC_CODEC_FL32;
+    p_filter->fmt_in.audio.i_format = HEIMDALL_CODEC_FL32;
     aout_FormatPrepare(&p_filter->fmt_in.audio);
     p_filter->fmt_out.audio = p_filter->fmt_in.audio;
 
-    static const struct vlc_filter_operations filter_ops =
+    static const struct heimdall_filter_operations filter_ops =
     {
         .filter_audio = DoWork, .close = Close,
     };
     p_filter->ops = &filter_ops;
 
-    vlc_object_t *vlc = VLC_OBJECT(vlc_object_instance(p_filter));
+    heimdall_object_t *heimdall = HEIMDALL_OBJECT(heimdall_object_instance(p_filter));
 
-    var_Create(vlc, "audiobargraph_v-alarm", VLC_VAR_BOOL);
-    var_Create(vlc, "audiobargraph_v-i_values", VLC_VAR_STRING);
+    var_Create(heimdall, "audiobargraph_v-alarm", HEIMDALL_VAR_BOOL);
+    var_Create(heimdall, "audiobargraph_v-i_values", HEIMDALL_VAR_STRING);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void SendValues(filter_t *p_filter, float *value, int nbChannels)
@@ -161,7 +162,7 @@ static void SendValues(filter_t *p_filter, float *value, int nbChannels)
     }
 
     //msg_Dbg(p_filter, "values: %s", msg);
-    var_SetString(vlc_object_instance(p_filter), "audiobargraph_v-i_values",
+    var_SetString(heimdall_object_instance(p_filter), "audiobargraph_v-i_values",
                   msg);
 }
 
@@ -229,7 +230,7 @@ static block_t *DoWork( filter_t *p_filter, block_t *p_in_buf )
             sum = sqrtf(sum);
 
             /* 5 - compare it to the threshold */
-            var_SetBool(vlc_object_instance(p_filter), "audiobargraph_v-alarm",
+            var_SetBool(heimdall_object_instance(p_filter), "audiobargraph_v-alarm",
                         sum < p_sys->alarm_threshold);
 
             p_sys->lastAlarm = p_in_buf->i_pts;
@@ -250,10 +251,10 @@ static block_t *DoWork( filter_t *p_filter, block_t *p_in_buf )
 static void Close( filter_t * p_filter )
 {
     filter_sys_t *p_sys = p_filter->p_sys;
-    vlc_object_t *vlc = VLC_OBJECT(vlc_object_instance(p_filter));
+    heimdall_object_t *heimdall = HEIMDALL_OBJECT(heimdall_object_instance(p_filter));
 
-    var_Destroy(vlc, "audiobargraph_v-i_values");
-    var_Destroy(vlc, "audiobargraph_v-alarm");
+    var_Destroy(heimdall, "audiobargraph_v-i_values");
+    var_Destroy(heimdall, "audiobargraph_v-alarm");
 
     while (p_sys->first != NULL) {
         ValueDate_t *current = p_sys->first;

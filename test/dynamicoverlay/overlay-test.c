@@ -2,6 +2,7 @@
  * overlay-test.c : test program for the dynamic overlay plugin
  *****************************************************************************
  * Copyright (C) 2007 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Søren Bøg <avacore@videolan.org>
  *
@@ -315,7 +316,7 @@ int main( int i_argc, char *ppsz_argv[] ) {
     }
     printf( " done\n" );
 
-    printf( "Please make sure vlc is running.\n"
+    printf( "Please make sure heimdall is running.\n"
             "You should append parameters similar to the following:\n"
             "--sub-source overlay{input=%s,output=%s}\n",
             ppsz_argv[1], ppsz_argv[2] );

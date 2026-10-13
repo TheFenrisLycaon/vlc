@@ -2,6 +2,7 @@
  * file_crypt_win32.c: Crypt using CryptProtectData
  *****************************************************************************
  * Copyright © 2016 VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -22,7 +23,7 @@
 # include "config.h"
 #endif
 
-#include <vlc_keystore.h>
+#include <heimdall_keystore.h>
 #include "file_crypt.h"
 
 #include <windows.h>
@@ -62,26 +63,26 @@ static size_t Process(const uint8_t *p_src, size_t i_src_len, uint8_t **pp_dst, 
     return output_blob.cbData;
 }
 
-static size_t Decrypt( vlc_keystore *p_keystore, void *p_ctx, const uint8_t *p_src,
+static size_t Decrypt( heimdall_keystore *p_keystore, void *p_ctx, const uint8_t *p_src,
                       size_t i_src_len, uint8_t ** pp_dst )
 {
-    VLC_UNUSED( p_keystore );
-    VLC_UNUSED( p_ctx );
+    HEIMDALL_UNUSED( p_keystore );
+    HEIMDALL_UNUSED( p_ctx );
     return Process( p_src, i_src_len, pp_dst, FuncUnprotect );
 }
 
-static size_t Encrypt( vlc_keystore *p_keystore, void *p_ctx, const uint8_t *p_src,
+static size_t Encrypt( heimdall_keystore *p_keystore, void *p_ctx, const uint8_t *p_src,
                        size_t i_src_len, uint8_t ** pp_dst )
 {
-    VLC_UNUSED( p_keystore );
-    VLC_UNUSED( p_ctx );
+    HEIMDALL_UNUSED( p_keystore );
+    HEIMDALL_UNUSED( p_ctx );
     return Process( p_src, i_src_len, pp_dst, FuncProtect );
 }
 
-int CryptInit(vlc_keystore *p_keystore, struct crypt *p_crypt)
+int CryptInit(heimdall_keystore *p_keystore, struct crypt *p_crypt)
 {
-    VLC_UNUSED( p_keystore );
+    HEIMDALL_UNUSED( p_keystore );
     p_crypt->pf_decrypt = Decrypt;
     p_crypt->pf_encrypt = Encrypt;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

@@ -2,6 +2,7 @@
  * android/audioformat_jni.h: Android AudioFormat JNI vtable
  *****************************************************************************
  * Copyright © 2012-2022 VLC authors and VideoLAN, VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Thomas Guillem <thomas@gllm.fr>
  *
@@ -20,11 +21,11 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-bool vlc_android_AudioFormat_HasEncoding(long long encoding_flags,
-                                         vlc_fourcc_t i_format);
+bool heimdall_android_AudioFormat_HasEncoding(long long encoding_flags,
+                                         heimdall_fourcc_t i_format);
 
-int vlc_android_AudioFormat_FourCCToEncoding(vlc_fourcc_t format, int *encoding);
+int heimdall_android_AudioFormat_FourCCToEncoding(heimdall_fourcc_t format, int *encoding);
 
 /* init all jni fields.
  * Done only one time during the first initialisation */
-int vlc_android_AudioFormat_InitJNI(vlc_object_t *p_aout);
+int heimdall_android_AudioFormat_InitJNI(heimdall_object_t *p_aout);

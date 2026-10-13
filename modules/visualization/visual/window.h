@@ -2,6 +2,7 @@
  * window.h : Header for FFT window routines
  *****************************************************************************
  * Copyright (C) 2014 Ronald Wright
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Ronald Wright <logiconcepts819@gmail.com>
  *
@@ -20,10 +21,10 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_VISUAL_WINDOW_H_
-#define VLC_VISUAL_WINDOW_H_
+#ifndef HEIMDALL_VISUAL_WINDOW_H_
+#define HEIMDALL_VISUAL_WINDOW_H_
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
 /* Window type enum */
 enum _enum_window_type { NONE, HANN, FLATTOP, BLACKMANHARRIS, KAISER };
@@ -53,7 +54,7 @@ struct _struct_window_param {
 /* Prototypes for the window function */
 typedef struct _struct_window_context window_context;
 typedef struct _struct_window_param window_param;
-void window_get_param( vlc_object_t * p_aout, window_param * p_param );
+void window_get_param( heimdall_object_t * p_aout, window_param * p_param );
 bool window_init( int i_buffer_size, window_param * p_param,
                   window_context * p_ctx );
 void window_scale_in_place( int16_t * p_buffer, window_context * p_ctx );

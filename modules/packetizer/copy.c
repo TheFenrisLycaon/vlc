@@ -2,6 +2,7 @@
  * copy.c
  *****************************************************************************
  * Copyright (C) 2001, 2002, 2006 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *          Eric Petit <titer@videolan.org>
@@ -29,19 +30,19 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
-#include <vlc_block.h>
-#include <vlc_bits.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
+#include <heimdall_block.h>
+#include <heimdall_bits.h>
 
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  Open ( vlc_object_t * );
-static void Close( vlc_object_t * );
+static int  Open ( heimdall_object_t * );
+static void Close( heimdall_object_t * );
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_subcategory( SUBCAT_SOUT_PACKETIZER )
     set_description( N_("Copy packetizer") )
     set_capability( "video packetizer", 1 )
@@ -52,7 +53,7 @@ vlc_module_begin ()
     add_submodule()
         set_capability( "spu packetizer", 1 )
         set_callbacks( Open, Close )
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * Local prototypes
@@ -75,7 +76,7 @@ static void ParseWMV3( decoder_t *, block_t * );
  * Tries to launch a decoder and return score so that the interface is able
  * to choose.
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     decoder_t     *p_dec = (decoder_t*)p_this;
     decoder_sys_t *p_sys;
@@ -85,17 +86,17 @@ static int Open( vlc_object_t *p_this )
         p_dec->fmt_in->i_cat != SPU_ES )
     {
         msg_Err( p_dec, "invalid ES type" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     p_dec->p_sys = p_sys = malloc( sizeof(*p_sys) );
     if (unlikely(p_sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_sys->p_block    = NULL;
     switch( p_dec->fmt_in->i_codec )
     {
-    case VLC_CODEC_WMV3:
+    case HEIMDALL_CODEC_WMV3:
         p_sys->pf_parse = ParseWMV3;
         break;
     default:
@@ -103,17 +104,17 @@ static int Open( vlc_object_t *p_this )
         break;
     }
 
-    vlc_fourcc_t fcc = p_dec->fmt_in->i_codec;
+    heimdall_fourcc_t fcc = p_dec->fmt_in->i_codec;
     /* Fix the value of the fourcc for audio */
     if( p_dec->fmt_in->i_cat == AUDIO_ES )
     {
-        fcc = vlc_fourcc_GetCodecAudio( p_dec->fmt_in->i_codec,
+        fcc = heimdall_fourcc_GetCodecAudio( p_dec->fmt_in->i_codec,
                                                      p_dec->fmt_in->audio.i_bitspersample );
         if( !fcc )
         {
             msg_Err( p_dec, "unknown raw audio sample size" );
             free( p_sys );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
 
@@ -127,13 +128,13 @@ static int Open( vlc_object_t *p_this )
     p_dec->pf_flush = Flush;
     p_dec->pf_get_cc = NULL;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * Close:
  *****************************************************************************/
-static void Close( vlc_object_t *p_this )
+static void Close( heimdall_object_t *p_this )
 {
     decoder_t     *p_dec = (decoder_t*)p_this;
     decoder_sys_t *p_sys = p_dec->p_sys;
@@ -177,12 +178,12 @@ static block_t *Packetize ( decoder_t *p_dec, block_t **pp_block )
     p_block = *pp_block;
     *pp_block = NULL;
 
-    if( p_block->i_dts == VLC_TICK_INVALID )
+    if( p_block->i_dts == HEIMDALL_TICK_INVALID )
     {
         p_block->i_dts = p_block->i_pts;
     }
 
-    if( p_block->i_dts == VLC_TICK_INVALID )
+    if( p_block->i_dts == HEIMDALL_TICK_INVALID )
     {
         msg_Dbg( p_dec, "need valid dts" );
         block_Release( p_block );
@@ -191,7 +192,7 @@ static block_t *Packetize ( decoder_t *p_dec, block_t **pp_block )
 
     if( p_ret != NULL && p_block->i_pts > p_ret->i_pts )
     {
-        if (p_dec->fmt_in->i_codec != VLC_CODEC_OPUS)
+        if (p_dec->fmt_in->i_codec != HEIMDALL_CODEC_OPUS)
             p_ret->i_length = p_block->i_pts - p_ret->i_pts;
     }
     p_sys->p_block = p_block;
@@ -219,12 +220,12 @@ static block_t *PacketizeSub( decoder_t *p_dec, block_t **pp_block )
     p_block = *pp_block;
     *pp_block = NULL;
 
-    if( p_block->i_dts == VLC_TICK_INVALID )
+    if( p_block->i_dts == HEIMDALL_TICK_INVALID )
     {
         p_block->i_dts = p_block->i_pts;
     }
 
-    if( p_block->i_dts == VLC_TICK_INVALID )
+    if( p_block->i_dts == HEIMDALL_TICK_INVALID )
     {
         msg_Dbg( p_dec, "need valid dts" );
         block_Release( p_block );

@@ -2,6 +2,7 @@
  * poll.c: poll() emulation
  *****************************************************************************
  * Copyright © 2007-2012 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -47,7 +48,7 @@ int (poll) (struct pollfd *fds, unsigned nfds, int timeout)
             val = fd;
 
         /* With POSIX, FD_SET & FD_ISSET are not defined if fd is negative or
-         * bigger or equal than FD_SETSIZE. That is one of the reasons why VLC
+         * bigger or equal than FD_SETSIZE. That is one of the reasons why Heimdall
          * uses poll() rather than select(). Most POSIX systems implement
          * fd_set has a bit field with no sanity checks. This is especially bad
          * on systems (such as BSD) that have no process open files limit by

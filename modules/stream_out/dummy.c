@@ -2,6 +2,7 @@
  * dummy.c: dummy stream output module
  *****************************************************************************
  * Copyright (C) 2003-2004 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *
@@ -28,20 +29,20 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_block.h>
-#include <vlc_sout.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_block.h>
+#include <heimdall_sout.h>
 
 static void *Add( sout_stream_t *p_stream, const es_format_t *p_fmt, const char *es_id )
 {
-    VLC_UNUSED(p_stream); VLC_UNUSED(p_fmt); VLC_UNUSED(es_id);
+    HEIMDALL_UNUSED(p_stream); HEIMDALL_UNUSED(p_fmt); HEIMDALL_UNUSED(es_id);
     return malloc( 1 );
 }
 
 static void Del( sout_stream_t *p_stream, void *id )
 {
-    VLC_UNUSED(p_stream);
+    HEIMDALL_UNUSED(p_stream);
     free( id );
 }
 
@@ -49,7 +50,7 @@ static int Send( sout_stream_t *p_stream, void *id, block_t *p_buffer )
 {
     (void)p_stream; (void)id;
     block_ChainRelease( p_buffer );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static const struct sout_stream_operations ops = {
@@ -61,20 +62,20 @@ static const struct sout_stream_operations ops = {
 /*****************************************************************************
  * Open:
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     sout_stream_t *p_stream = (sout_stream_t*)p_this;
 
     p_stream->ops = &ops;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-vlc_module_begin()
+heimdall_module_begin()
     set_description(N_("Dummy stream output"))
     set_capability("sout output", 50)
     add_shortcut("dummy", "drop")
     set_callback(Open )
-vlc_module_end()
+heimdall_module_end()

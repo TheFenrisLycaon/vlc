@@ -2,6 +2,7 @@
  * lru.h : Last recently used cache implementation
  *****************************************************************************
  * Copyright (C) 2020 - VideoLabs, VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -24,17 +25,17 @@
 extern "C" {
 #endif
 
-typedef struct vlc_lru vlc_lru;
+typedef struct heimdall_lru heimdall_lru;
 
-vlc_lru * vlc_lru_New( unsigned max,
+heimdall_lru * heimdall_lru_New( unsigned max,
                        void(*releaseValue)(void *, void *), void * );
-void vlc_lru_Release( vlc_lru *lru );
+void heimdall_lru_Release( heimdall_lru *lru );
 
-bool   vlc_lru_HasKey( vlc_lru *lru, const char *psz_key );
-void * vlc_lru_Get( vlc_lru *lru, const char *psz_key );
-void   vlc_lru_Insert( vlc_lru *lru, const char *psz_key, void *value );
+bool   heimdall_lru_HasKey( heimdall_lru *lru, const char *psz_key );
+void * heimdall_lru_Get( heimdall_lru *lru, const char *psz_key );
+void   heimdall_lru_Insert( heimdall_lru *lru, const char *psz_key, void *value );
 
-void   vlc_lru_Apply( vlc_lru *lru,
+void   heimdall_lru_Apply( heimdall_lru *lru,
                       void(*func)(void *, const char *, void *),
                       void * );
 

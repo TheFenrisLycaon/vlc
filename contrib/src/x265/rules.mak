@@ -2,7 +2,7 @@
 
 #X265_GITURL := https://github.com/videolan/x265
 X265_VERSION := 4.1
-X265_SNAPURL := $(VIDEOLAN)/x265/x265_$(X265_VERSION).tar.gz
+X265_SNAPURL := $(LYCARIA)/x265/x265_$(X265_VERSION).tar.gz
 
 ifdef BUILD_ENCODERS
 ifdef GPL
@@ -49,9 +49,9 @@ X265_CONF := -DENABLE_SHARED=OFF -DENABLE_CLI=OFF
 ifdef HAVE_DARWIN_OS
 ifneq ($(filter arm aarch64, $(ARCH)),)
 ifdef HAVE_IOS
-X265_CONF += -DASM_FLAGS="-mmacosx-version-min=$(VLC_DEPLOYMENT_TARGET);-isysroot;$(IOS_SDK)"
+X265_CONF += -DASM_FLAGS="-mmacosx-version-min=$(HEIMDALL_DEPLOYMENT_TARGET);-isysroot;$(IOS_SDK)"
 else
-X265_CONF += -DASM_FLAGS="-mmacosx-version-min=$(VLC_DEPLOYMENT_TARGET);-isysroot;$(MACOSX_SDK)"
+X265_CONF += -DASM_FLAGS="-mmacosx-version-min=$(HEIMDALL_DEPLOYMENT_TARGET);-isysroot;$(MACOSX_SDK)"
 endif
 endif
 endif

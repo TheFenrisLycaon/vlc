@@ -2,6 +2,7 @@
  * projectm.cpp: visualization module based on libprojectM
  *****************************************************************************
  * Copyright © 2009-2011 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Rémi Duraffort <ivoire@videolan.org>
  *          Laurent Aimar
@@ -25,14 +26,14 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_aout.h>
-#include <vlc_window.h>
-#include <vlc_opengl.h>
-#include <vlc_filter.h>
-#include <vlc_rand.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_aout.h>
+#include <heimdall_window.h>
+#include <heimdall_opengl.h>
+#include <heimdall_filter.h>
+#include <heimdall_rand.h>
 
 #ifdef HAVE_PROJECTM4
 # include <projectM-4/projectM.h>
@@ -59,7 +60,7 @@
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  Open         ( vlc_object_t * );
+static int  Open         ( heimdall_object_t * );
 static void Close        ( filter_t * );
 
 #define CONFIG_TEXT N_("projectM configuration file")
@@ -110,7 +111,7 @@ static void Close        ( filter_t * );
 #define FONT_PATH_MENU DEFAULT_MONOSPACE_FONT_FILE
 #endif
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( N_("projectM"))
     set_description( N_("libprojectM effect") )
     set_capability( "visualization", 0 )
@@ -133,7 +134,7 @@ vlc_module_begin ()
     add_integer( "projectm-texture-size", 1024, TEXTURE_TEXT, TEXTURE_LONGTEXT )
     add_shortcut( "projectm" )
     set_callback( Open )
-vlc_module_end ()
+heimdall_module_end ()
 
 
 /*****************************************************************************
@@ -144,16 +145,16 @@ namespace {
 struct filter_sys_t
 {
     /* */
-    vlc_thread_t thread;
+    heimdall_thread_t thread;
 
     /* Opengl */
-    vlc_gl_t  *gl;
+    heimdall_gl_t  *gl;
 
     /* audio info */
     int i_channels;
 
     /* */
-    vlc_mutex_t lock;
+    heimdall_mutex_t lock;
     bool  b_quit;
     float *p_buffer;
     unsigned i_buffer_size;
@@ -166,7 +167,7 @@ static block_t *DoWork( filter_t *, block_t * );
 static void *Thread( void * );
 
 static const struct FilterOperationInitializer {
-    struct vlc_filter_operations ops {};
+    struct heimdall_filter_operations ops {};
     FilterOperationInitializer()
     {
         ops.filter_audio = DoWork;
@@ -177,52 +178,52 @@ static const struct FilterOperationInitializer {
 /**
  * Open the module
  * @param p_this: the filter object
- * @return VLC_SUCCESS or vlc error codes
+ * @return HEIMDALL_SUCCESS or heimdall error codes
  */
-static int Open( vlc_object_t * p_this )
+static int Open( heimdall_object_t * p_this )
 {
     filter_t     *p_filter = (filter_t *)p_this;
     filter_sys_t *p_sys;
 
     p_filter->p_sys = p_sys = (filter_sys_t*)malloc( sizeof( *p_sys ) );
     if( !p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     /* Create the object for the thread */
     p_sys->b_quit        = false;
     p_sys->i_channels    = aout_FormatNbChannels( &p_filter->fmt_in.audio );
-    vlc_mutex_init( &p_sys->lock );
+    heimdall_mutex_init( &p_sys->lock );
     p_sys->p_buffer      = NULL;
     p_sys->i_buffer_size = 0;
     p_sys->i_nb_samples  = 0;
 
     /* Create the OpenGL context */
-    vlc_window_cfg_t cfg;
+    heimdall_window_cfg_t cfg;
 
     memset(&cfg, 0, sizeof (cfg));
     cfg.is_decorated = true;
     cfg.width = var_CreateGetInteger( p_filter, "projectm-width" );
     cfg.height = var_CreateGetInteger( p_filter, "projectm-height" );
 
-    p_sys->gl = vlc_gl_surface_Create( VLC_OBJECT(p_filter), &cfg, NULL, NULL );
+    p_sys->gl = heimdall_gl_surface_Create( HEIMDALL_OBJECT(p_filter), &cfg, NULL, NULL );
     if( p_sys->gl == NULL )
         goto error;
 
     /* Create the thread */
-    if( vlc_clone( &p_sys->thread, Thread, p_filter ) )
+    if( heimdall_clone( &p_sys->thread, Thread, p_filter ) )
     {
-        vlc_gl_surface_Destroy( p_sys->gl );
+        heimdall_gl_surface_Destroy( p_sys->gl );
         goto error;
     }
 
-    p_filter->fmt_in.audio.i_format = VLC_CODEC_FL32;
+    p_filter->fmt_in.audio.i_format = HEIMDALL_CODEC_FL32;
     p_filter->fmt_out.audio = p_filter->fmt_in.audio;
     p_filter->ops = &filter_ops.ops;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     free (p_sys );
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 
@@ -235,16 +236,16 @@ static void Close( filter_t *p_filter )
     filter_sys_t *p_sys = reinterpret_cast<filter_sys_t *>( p_filter->p_sys );
 
     /* Stop the thread
-     * XXX vlc_cleanup_push does not seems to work with C++ so no
-     * vlc_cancel()... */
-    vlc_mutex_lock( &p_sys->lock );
+     * XXX heimdall_cleanup_push does not seems to work with C++ so no
+     * heimdall_cancel()... */
+    heimdall_mutex_lock( &p_sys->lock );
     p_sys->b_quit = true;
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 
-    vlc_join( p_sys->thread, NULL );
+    heimdall_join( p_sys->thread, NULL );
 
     /* Free the resources */
-    vlc_gl_surface_Destroy( p_sys->gl );
+    heimdall_gl_surface_Destroy( p_sys->gl );
     free( p_sys->p_buffer );
     free( p_sys );
 }
@@ -261,7 +262,7 @@ static block_t *DoWork( filter_t *p_filter, block_t *p_in_buf )
 {
     filter_sys_t *p_sys = reinterpret_cast<filter_sys_t *>( p_filter->p_sys );
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     if( p_sys->i_buffer_size > 0 )
     {
         p_sys->i_nb_samples = __MIN( p_sys->i_buffer_size,
@@ -276,7 +277,7 @@ static block_t *DoWork( filter_t *p_filter, block_t *p_in_buf )
             p_sys->p_buffer[i] = v / p_sys->i_channels;
         }
     }
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 
     return p_in_buf;
 }
@@ -287,11 +288,11 @@ static block_t *DoWork( filter_t *p_filter, block_t *p_in_buf )
  */
 static void *Thread( void *p_data )
 {
-    vlc_thread_set_name("vlc-projectm");
+    heimdall_thread_set_name("heimdall-projectm");
 
     filter_t  *p_filter = (filter_t*)p_data;
     filter_sys_t *p_sys = reinterpret_cast<filter_sys_t *>( p_filter->p_sys );
-    vlc_gl_t *gl = p_sys->gl;
+    heimdall_gl_t *gl = p_sys->gl;
 
 #ifdef HAVE_PROJECTM4
     projectm_handle p_projectm;
@@ -310,7 +311,7 @@ static void *Thread( void *p_data )
 #endif
 #endif
 
-    if( vlc_gl_MakeCurrent( gl ) != VLC_SUCCESS )
+    if( heimdall_gl_MakeCurrent( gl ) != HEIMDALL_SUCCESS )
     {
         msg_Err( p_filter, "Can't attach gl context" );
         return NULL;
@@ -320,7 +321,7 @@ static void *Thread( void *p_data )
 #ifdef _WIN32
     if (glewInit() != GLEW_OK)
     {
-        vlc_gl_ReleaseCurrent( gl );
+        heimdall_gl_ReleaseCurrent( gl );
         return NULL;
     }
 #endif
@@ -348,7 +349,7 @@ static void *Thread( void *p_data )
 
 #ifdef _WIN32
     if ( psz_preset_path == NULL )
-        psz_preset_path = config_GetSysPath(VLC_PKG_DATA_DIR, "visualization");
+        psz_preset_path = config_GetSysPath(HEIMDALL_PKG_DATA_DIR, "visualization");
 #endif
     psz_title_font                = var_InheritString( p_filter, "projectm-title-font" );
     psz_menu_font                 = var_InheritString( p_filter, "projectm-menu-font" );
@@ -391,19 +392,19 @@ static void *Thread( void *p_data )
     /* Choose a preset randomly or projectM will always show the first one */
 #ifndef HAVE_PROJECTM4
     if ( p_projectm->getPlaylistSize() > 0 )
-        p_projectm->selectPreset( (unsigned)vlc_mrand48() % p_projectm->getPlaylistSize() );
+        p_projectm->selectPreset( (unsigned)heimdall_mrand48() % p_projectm->getPlaylistSize() );
 #endif
 
     /* */
     for( ;; )
     {
-        const vlc_tick_t i_deadline = vlc_tick_now() + VLC_TICK_FROM_MS(20); /* 50 fps max */
+        const heimdall_tick_t i_deadline = heimdall_tick_now() + HEIMDALL_TICK_FROM_MS(20); /* 50 fps max */
 
         /* Manage the events */
         unsigned width, height;
         bool quit;
 
-        if( vlc_gl_surface_CheckSize( gl, &width, &height ) )
+        if( heimdall_gl_surface_CheckSize( gl, &width, &height ) )
         {
 #ifdef HAVE_PROJECTM4
             projectm_set_window_size( p_projectm, width, height );
@@ -415,7 +416,7 @@ static void *Thread( void *p_data )
         }
 
         /* Render the image and swap the buffers */
-        vlc_mutex_lock( &p_sys->lock );
+        heimdall_mutex_lock( &p_sys->lock );
         if( p_sys->i_nb_samples > 0 )
         {
 #ifdef HAVE_PROJECTM4
@@ -429,7 +430,7 @@ static void *Thread( void *p_data )
             p_sys->i_nb_samples = 0;
         }
         quit = p_sys->b_quit;
-        vlc_mutex_unlock( &p_sys->lock );
+        heimdall_mutex_unlock( &p_sys->lock );
 
         if( quit )
             break;
@@ -443,9 +444,9 @@ static void *Thread( void *p_data )
 #endif
 
         /* */
-        vlc_tick_wait( i_deadline );
+        heimdall_tick_wait( i_deadline );
 
-        vlc_gl_Swap( gl );
+        heimdall_gl_Swap( gl );
     }
 
 #ifdef HAVE_PROJECTM4
@@ -464,6 +465,6 @@ static void *Thread( void *p_data )
     }
 #endif
 
-    vlc_gl_ReleaseCurrent( gl );
+    heimdall_gl_ReleaseCurrent( gl );
     return NULL;
 }

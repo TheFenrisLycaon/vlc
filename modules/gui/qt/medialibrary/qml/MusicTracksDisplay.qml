@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,11 +17,11 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 import QtQuick
-import VLC.MainInterface
-import VLC.MediaLibrary
+import Heimdall.MainInterface
+import Heimdall.MediaLibrary
 
-import VLC.Style
-import VLC.Widgets as Widgets
+import Heimdall.Style
+import Heimdall.Widgets as Widgets
 
 Widgets.PageExt {
     id: root
@@ -97,7 +98,7 @@ Widgets.PageExt {
             focus: visible
             text: qsTr("No tracks found\nPlease try adding sources")
             Navigation.parentItem: root
-            cover: VLCStyle.noArtAlbumCover
+            cover: HeimdallStyle.noArtAlbumCover
         }
     }
 }

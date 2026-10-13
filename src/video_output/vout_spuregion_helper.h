@@ -2,6 +2,7 @@
  * vout_spuregion_helper.h : vout subpicture region helpers
  *****************************************************************************
  * Copyright (C) 2017 VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -17,8 +18,8 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
-#include <vlc_image.h>
-#include <vlc_subpicture.h>
+#include <heimdall_image.h>
+#include <heimdall_subpicture.h>
 
 #define RGB2YUV( R, G, B ) \
     ((0.257 * R) + (0.504 * G) + (0.098 * B) + 16), \
@@ -64,11 +65,11 @@ spuregion_CreateVGradientFill( plane_t *p, uint8_t i_splits )
 
 
 static inline subpicture_region_t *
-spuregion_CreateFromPicture( vlc_object_t *p_this, video_format_t *p_fmt,
+spuregion_CreateFromPicture( heimdall_object_t *p_this, video_format_t *p_fmt,
                              const char *psz_uri )
 {
     picture_t *p_pic = NULL;
-    struct vlc_logger *logger = p_this->logger;
+    struct heimdall_logger *logger = p_this->logger;
     bool no_interact = p_this->no_interact;
     p_this->logger = NULL;
     p_this->no_interact = true;

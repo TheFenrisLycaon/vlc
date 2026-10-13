@@ -1,7 +1,7 @@
 /*****************************************************************************
  * sout.hpp : Stream output dialog ( old-style, ala WX )
  ****************************************************************************
- * Copyright ( C ) 2006 the VideoLAN team
+ * Copyright ( C ) 2006 the Lycaria team
  *
  * Authors: Clément Stenac <zorglub@videolan.org>
  *
@@ -20,19 +20,19 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef QVLC_SOUT_DIALOG_H_
-#define QVLC_SOUT_DIALOG_H_ 1
+#ifndef QHEIMDALL_SOUT_DIALOG_H_
+#define QHEIMDALL_SOUT_DIALOG_H_ 1
 
 #ifdef HAVE_CONFIG_H
 # include "config.h"
 #endif
 
-#include <vlc_common.h> /* Gettext functions */
+#include <heimdall_common.h> /* Gettext functions */
 
 /* Auto-generated from .ui files */
 #include "ui_sout.h"
 
-#include "widgets/native/qvlcframe.hpp"
+#include "widgets/native/qheimdallframe.hpp"
 #include "util/soutchain.hpp"
 
 #include <QWizard>

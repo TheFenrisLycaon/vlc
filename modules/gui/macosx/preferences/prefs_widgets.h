@@ -2,6 +2,7 @@
  * prefs_widgets.h: Preferences controls
  *****************************************************************************
  * Copyright (C) 2002-2012 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Derk-Jan Hartman <hartman at videolan.org>
  *          Felix Paul Kühne <fkuehne at videolan.org>
@@ -25,7 +26,7 @@
 
 static NSMenu *o_keys_menu = nil;
 
-@interface VLCConfigControl : NSView
+@interface HeimdallConfigControl : NSView
 
 @property (readonly) module_config_t *p_item;
 
@@ -40,7 +41,7 @@ static NSMenu *o_keys_menu = nil;
 @property (readonly) int labelSize;
 
 
-+ (VLCConfigControl *)newControl:(module_config_t *)_p_item
++ (HeimdallConfigControl *)newControl:(module_config_t *)_p_item
                         withView:(NSView *)o_parent_view;
 + (int)calcVerticalMargin:(int)i_curItem lastItem:(int)i_lastItem;
 
@@ -55,21 +56,21 @@ static NSMenu *o_keys_menu = nil;
 
 @end
 
-@interface StringConfigControl : VLCConfigControl
+@interface StringConfigControl : HeimdallConfigControl
 
 - (id)initWithItem:(module_config_t *)_p_item
           withView:(NSView *)o_parent_view;
 
 @end
 
-@interface StringListConfigControl : VLCConfigControl
+@interface StringListConfigControl : HeimdallConfigControl
 
 - (id)initWithItem:(module_config_t *)_p_item
           withView:(NSView *)o_parent_view;
 
 @end
 
-@interface FileConfigControl : VLCConfigControl
+@interface FileConfigControl : HeimdallConfigControl
 
 - (id)initWithItem:(module_config_t *)_p_item
           withView:(NSView *)o_parent_view;
@@ -78,46 +79,14 @@ static NSMenu *o_keys_menu = nil;
 
 @end
 
-@interface ModuleConfigControl : VLCConfigControl
+@interface ModuleConfigControl : HeimdallConfigControl
 
 - (id)initWithItem:(module_config_t *)_p_item
           withView:(NSView *)o_parent_view;
 
 @end
 
-@interface IntegerConfigControl : VLCConfigControl
-
-- (id)initWithItem:(module_config_t *)_p_item
-          withView:(NSView *)o_parent_view;
-
-- (IBAction)stepperChanged:(id)sender;
-
-@end
-
-@interface IntegerListConfigControl : VLCConfigControl
-
-- (id)initWithItem:(module_config_t *)_p_item
-          withView:(NSView *)o_parent_view;
-
-@end
-
-@interface RangedIntegerConfigControl : VLCConfigControl
-
-- (id)initWithItem:(module_config_t *)_p_item
-          withView:(NSView *)o_parent_view;
-
-- (IBAction)sliderChanged:(id)sender;
-
-@end
-
-@interface BoolConfigControl : VLCConfigControl
-
-- (id)initWithItem:(module_config_t *)_p_item
-          withView:(NSView *)o_parent_view;
-
-@end
-
-@interface FloatConfigControl : VLCConfigControl
+@interface IntegerConfigControl : HeimdallConfigControl
 
 - (id)initWithItem:(module_config_t *)_p_item
           withView:(NSView *)o_parent_view;
@@ -126,7 +95,14 @@ static NSMenu *o_keys_menu = nil;
 
 @end
 
-@interface RangedFloatConfigControl : VLCConfigControl
+@interface IntegerListConfigControl : HeimdallConfigControl
+
+- (id)initWithItem:(module_config_t *)_p_item
+          withView:(NSView *)o_parent_view;
+
+@end
+
+@interface RangedIntegerConfigControl : HeimdallConfigControl
 
 - (id)initWithItem:(module_config_t *)_p_item
           withView:(NSView *)o_parent_view;
@@ -135,14 +111,39 @@ static NSMenu *o_keys_menu = nil;
 
 @end
 
-@interface ModuleListConfigControl : VLCConfigControl
+@interface BoolConfigControl : HeimdallConfigControl
 
 - (id)initWithItem:(module_config_t *)_p_item
           withView:(NSView *)o_parent_view;
 
 @end
 
-@interface SectionControl : VLCConfigControl
+@interface FloatConfigControl : HeimdallConfigControl
+
+- (id)initWithItem:(module_config_t *)_p_item
+          withView:(NSView *)o_parent_view;
+
+- (IBAction)stepperChanged:(id)sender;
+
+@end
+
+@interface RangedFloatConfigControl : HeimdallConfigControl
+
+- (id)initWithItem:(module_config_t *)_p_item
+          withView:(NSView *)o_parent_view;
+
+- (IBAction)sliderChanged:(id)sender;
+
+@end
+
+@interface ModuleListConfigControl : HeimdallConfigControl
+
+- (id)initWithItem:(module_config_t *)_p_item
+          withView:(NSView *)o_parent_view;
+
+@end
+
+@interface SectionControl : HeimdallConfigControl
 
 - (id)initWithItem:(module_config_t *)_p_item
           withView:(NSView *)o_parent_view;

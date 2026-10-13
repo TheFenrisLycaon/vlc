@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,17 +19,17 @@
 import QtQuick
 import QtQuick.Templates as T
 
-import VLC.MainInterface
-import VLC.Style
-import VLC.Widgets as Widgets
-import VLC.Playlist
-import VLC.Player
-import VLC.Util
+import Heimdall.MainInterface
+import Heimdall.Style
+import Heimdall.Widgets as Widgets
+import Heimdall.Playlist
+import Heimdall.Player
+import Heimdall.Util
 
 T.Control {
     id: root
-    width: Math.round(VLCStyle.dp(320, VLCStyle.scale))
-    height: Math.round(VLCStyle.dp(180, VLCStyle.scale))
+    width: Math.round(HeimdallStyle.dp(320, HeimdallStyle.scale))
+    height: Math.round(HeimdallStyle.dp(180, HeimdallStyle.scale))
 
     objectName: "pip window"
 
@@ -144,7 +145,7 @@ T.Control {
 
             anchors.centerIn: parent
 
-            font.pixelSize: VLCStyle.icon_large
+            font.pixelSize: HeimdallStyle.icon_large
 
             description: qsTr("play/pause")
 
@@ -152,8 +153,8 @@ T.Control {
 
             text: (Player.playingState !== Player.PLAYING_STATE_PAUSED
                    && Player.playingState !== Player.PLAYING_STATE_STOPPED)
-                  ? VLCIcons.pause_filled
-                  : VLCIcons.play_filled
+                  ? HeimdallIcons.pause_filled
+                  : HeimdallIcons.play_filled
 
             textStyle: root.textStyle
 
@@ -165,17 +166,17 @@ T.Control {
 
             anchors {
                 top: parent.top
-                topMargin: VLCStyle.margin_small
+                topMargin: HeimdallStyle.margin_small
                 right: parent.right
-                rightMargin: VLCStyle.margin_small
+                rightMargin: HeimdallStyle.margin_small
             }
 
-            font.pixelSize: VLCStyle.icon_PIP
+            font.pixelSize: HeimdallStyle.icon_PIP
             description: qsTr("close video")
 
             AccessibleCompat.id: "pipCloseButton"
 
-            text: VLCIcons.close
+            text: HeimdallIcons.close
 
             textStyle: root.textStyle
 
@@ -187,18 +188,18 @@ T.Control {
 
             anchors {
                 top: parent.top
-                topMargin: VLCStyle.margin_small
+                topMargin: HeimdallStyle.margin_small
                 left: parent.left
-                leftMargin: VLCStyle.margin_small
+                leftMargin: HeimdallStyle.margin_small
             }
 
-            font.pixelSize: VLCStyle.icon_PIP
+            font.pixelSize: HeimdallStyle.icon_PIP
 
             description: qsTr("maximize player")
 
             AccessibleCompat.id: "pipFullscreenButton"
 
-            text: VLCIcons.fullscreen
+            text: HeimdallIcons.fullscreen
 
             textStyle: root.textStyle
 

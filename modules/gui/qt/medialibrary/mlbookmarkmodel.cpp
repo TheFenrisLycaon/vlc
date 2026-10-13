@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,19 +24,19 @@
 #include "mlbookmarkmodel.hpp"
 #include "qt.hpp"
 
-#include <vlc_cxx_helpers.hpp>
+#include <heimdall_cxx_helpers.hpp>
 
 #include "medialib.hpp"
 #include "mlhelper.hpp"
 
 #include "util/shared_input_item.hpp"
-#include "util/vlctick.hpp"
+#include "util/heimdalltick.hpp"
 #include "player/player_controller.hpp"
 
 MLBookmarkModel::MLBookmarkModel( QObject *parent )
     : QAbstractListModel( parent )
     , m_currentItem( nullptr, &input_item_Release )
-    , m_ml_event_handle( nullptr, [this](vlc_ml_event_callback_t* cb ) {
+    , m_ml_event_handle( nullptr, [this](heimdall_ml_event_callback_t* cb ) {
         if (!cb)
             return;
         if ( m_mediaLib )
@@ -46,8 +47,8 @@ MLBookmarkModel::MLBookmarkModel( QObject *parent )
 MLBookmarkModel::~MLBookmarkModel()
 {
     if(m_player && m_listener){
-        vlc_player_locker lock{ m_player };
-        vlc_player_RemoveListener( m_player, m_listener );
+        heimdall_player_locker lock{ m_player };
+        heimdall_player_RemoveListener( m_player, m_listener );
     }
 }
 
@@ -66,12 +67,12 @@ QVariant MLBookmarkModel::data( const QModelIndex &index, int role ) const
         case BookmarkRoles::NameRole:
             return QVariant::fromValue( qfu( bookmark.psz_name ) );
         case BookmarkRoles::TimeRole:
-            return QVariant::fromValue( VLCDuration::fromMS( bookmark.i_time ).formatHMS() );
+            return QVariant::fromValue( HeimdallDuration::fromMS( bookmark.i_time ).formatHMS() );
         case BookmarkRoles::PositionRole:
         {
-            vlc_player_locker lock{ m_player };
-            return !vlc_player_GetLength( m_player ) ? QVariant{} :
-                    QVariant::fromValue<float> ((float) VLC_TICK_FROM_MS(bookmark.i_time) / vlc_player_GetLength( m_player ));
+            heimdall_player_locker lock{ m_player };
+            return !heimdall_player_GetLength( m_player ) ? QVariant{} :
+                    QVariant::fromValue<float> ((float) HEIMDALL_TICK_FROM_MS(bookmark.i_time) / heimdall_player_GetLength( m_player ));
         }
         case BookmarkRoles::DescriptionRole:
             return QVariant::fromValue( qfu( bookmark.psz_description ) );
@@ -106,14 +107,14 @@ bool MLBookmarkModel::setData(const QModelIndex &index, const QVariant &value, i
     m_mediaLib->runOnMLThread<Ctx>(this,
     //ML thread
     [mediaId = b.i_media_id, bookmarkTime = b.i_time, updateName, str]
-    (vlc_medialibrary_t* ml, Ctx& ctx)
+    (heimdall_medialibrary_t* ml, Ctx& ctx)
     {
         int ret;
         if ( updateName )
-            ret = vlc_ml_media_update_bookmark( ml, mediaId, bookmarkTime, qtu( str ), nullptr );
+            ret = heimdall_ml_media_update_bookmark( ml, mediaId, bookmarkTime, qtu( str ), nullptr );
         else
-            ret = vlc_ml_media_update_bookmark( ml, mediaId, bookmarkTime, nullptr, qtu( str ) );
-        ctx.updateSucceed = (ret == VLC_SUCCESS);
+            ret = heimdall_ml_media_update_bookmark( ml, mediaId, bookmarkTime, nullptr, qtu( str ) );
+        ctx.updateSucceed = (ret == HEIMDALL_SUCCESS);
     },
     //UI thread
     [this, updateName, mediaId = m_currentMediaId, row, str]
@@ -222,18 +223,18 @@ void MLBookmarkModel::sort( int column, Qt::SortOrder order )
     switch ( column )
     {
         case 0:
-            m_sort = VLC_ML_SORTING_ALPHA;
+            m_sort = HEIMDALL_ML_SORTING_ALPHA;
             break;
         case 1:
             // For bookmarks, default sort order is their time in the media
-            m_sort = VLC_ML_SORTING_DEFAULT;
+            m_sort = HEIMDALL_ML_SORTING_DEFAULT;
             break;
         case 2:
             // We don't support ordering by description, just ignore it
             return;
         default:
             // In all other cases, just list the items as they are inserted
-            m_sort = VLC_ML_SORTING_INSERTIONDATE;
+            m_sort = HEIMDALL_ML_SORTING_INSERTIONDATE;
             break;
     }
     m_desc = order == Qt::DescendingOrder ? true : false;
@@ -242,10 +243,10 @@ void MLBookmarkModel::sort( int column, Qt::SortOrder order )
 
 void MLBookmarkModel::add()
 {
-    vlc_tick_t currentTime;
+    heimdall_tick_t currentTime;
     {
-        vlc_player_locker lock{ m_player };
-        currentTime = vlc_player_GetTime( m_player );
+        heimdall_player_locker lock{ m_player };
+        currentTime = heimdall_player_GetTime( m_player );
     }
 
     if (m_currentMediaId == 0)
@@ -253,19 +254,19 @@ void MLBookmarkModel::add()
 
     m_mediaLib->runOnMLThread(this,
     //ML thread
-    [mediaId = m_currentMediaId, currentTime, count = rowCount()](vlc_medialibrary_t* ml)
+    [mediaId = m_currentMediaId, currentTime, count = rowCount()](heimdall_medialibrary_t* ml)
     {
-        int64_t time = MS_FROM_VLC_TICK(currentTime);
+        int64_t time = MS_FROM_HEIMDALL_TICK(currentTime);
 
-        vlc_ml_media_add_bookmark(ml, mediaId, time);
+        heimdall_ml_media_add_bookmark(ml, mediaId, time);
 
-        ml_unique_ptr<vlc_ml_media_t> media { vlc_ml_get_media(ml, mediaId) };
+        ml_unique_ptr<heimdall_ml_media_t> media { heimdall_ml_get_media(ml, mediaId) };
 
         if (media)
         {
-            QString name = qtr("Bookmark at %1").arg(VLCDuration::fromMS( time ).formatHMS());
+            QString name = qtr("Bookmark at %1").arg(HeimdallDuration::fromMS( time ).formatHMS());
 
-            vlc_ml_media_update_bookmark(ml, mediaId, time, qtu(name), nullptr);
+            heimdall_ml_media_update_bookmark(ml, mediaId, time, qtu(name), nullptr);
         }
     },
     //UI thread
@@ -291,10 +292,10 @@ void MLBookmarkModel::remove( const QModelIndexList &indexes )
     m_mediaLib->runOnMLThread(this,
     //ML thread
     [mediaId = m_currentMediaId, bookmarkTimeList]
-    (vlc_medialibrary_t* ml)
+    (heimdall_medialibrary_t* ml)
     {
         for (int64_t bookmarkTime : bookmarkTimeList)
-            vlc_ml_media_remove_bookmark(ml, mediaId, bookmarkTime);
+            heimdall_ml_media_remove_bookmark(ml, mediaId, bookmarkTime);
     },
     //UI thread
     [this](){
@@ -309,9 +310,9 @@ void MLBookmarkModel::clear()
 
     m_mediaLib->runOnMLThread(this,
     //ML thread
-    [mediaId = m_currentMediaId](vlc_medialibrary_t* ml)
+    [mediaId = m_currentMediaId](heimdall_medialibrary_t* ml)
     {
-        vlc_ml_media_remove_all_bookmarks( ml, mediaId );
+        heimdall_ml_media_remove_all_bookmarks( ml, mediaId );
     },
     //UI thread
     [this, mediaId = m_currentMediaId]()
@@ -330,11 +331,11 @@ void MLBookmarkModel::select(const QModelIndex &index)
     if ( index.isValid() == false )
         return;
     const auto& b = m_bookmarks->p_items[index.row()];
-    vlc_player_locker lock{ m_player };
-    vlc_player_SetTime( m_player, VLC_TICK_FROM_MS( b.i_time ) );
+    heimdall_player_locker lock{ m_player };
+    heimdall_player_SetTime( m_player, HEIMDALL_TICK_FROM_MS( b.i_time ) );
 }
 
-void MLBookmarkModel::onCurrentMediaChanged( vlc_player_t*, input_item_t* media,
+void MLBookmarkModel::onCurrentMediaChanged( heimdall_player_t*, input_item_t* media,
                                              void *data )
 {
     //Player thread
@@ -343,7 +344,7 @@ void MLBookmarkModel::onCurrentMediaChanged( vlc_player_t*, input_item_t* media,
     QString mediaUri;
     uint64_t revision;
     {
-        vlc::threads::mutex_locker lock{ self->m_mutex };
+        heimdall::threads::mutex_locker lock{ self->m_mutex };
         self->m_currentItem.reset( media ? input_item_Hold( media ) : nullptr );
         revision = ++self->m_revision;
         if (media)
@@ -355,7 +356,7 @@ void MLBookmarkModel::onCurrentMediaChanged( vlc_player_t*, input_item_t* media,
     [self, revision, mediaUri]()
     {
         {
-            vlc::threads::mutex_locker lock{ self->m_mutex };
+            heimdall::threads::mutex_locker lock{ self->m_mutex };
             //did we start playing a new media in between
             if (self->m_revision != revision)
                 return;
@@ -364,7 +365,7 @@ void MLBookmarkModel::onCurrentMediaChanged( vlc_player_t*, input_item_t* media,
     });
 }
 
-void MLBookmarkModel::onPlaybackStateChanged( vlc_player_t *, vlc_player_state state,
+void MLBookmarkModel::onPlaybackStateChanged( heimdall_player_t *, heimdall_player_state state,
                                               void *data )
 {
     auto self = static_cast<MLBookmarkModel*>( data );
@@ -373,9 +374,9 @@ void MLBookmarkModel::onPlaybackStateChanged( vlc_player_t *, vlc_player_state s
         return;
 
     QMetaObject::invokeMethod(self, [self, state](){
-        if ( state == VLC_PLAYER_STATE_STARTED )
+        if ( state == HEIMDALL_PLAYER_STATE_STARTED )
             self->refresh( MLBOOKMARKMODEL_REFRESH );
-        else if ( state == VLC_PLAYER_STATE_STOPPING )
+        else if ( state == HEIMDALL_PLAYER_STATE_STOPPING )
             self->refresh( MLBOOKMARKMODEL_CLEAR );
     });
 }
@@ -396,24 +397,24 @@ void MLBookmarkModel::updateMediaId(uint64_t revision, const QString &mediaUri)
     };
     m_mediaLib->runOnMLThread<Ctx>(this,
     //ML thread
-    [mediaUri, sort = m_sort, desc = m_desc](vlc_medialibrary_t* ml, Ctx& ctx){
+    [mediaUri, sort = m_sort, desc = m_desc](heimdall_medialibrary_t* ml, Ctx& ctx){
 
-        auto mlMedia = vlc_ml_get_media_by_mrl( ml, qtu(mediaUri) );
+        auto mlMedia = heimdall_ml_get_media_by_mrl( ml, qtu(mediaUri) );
         if ( mlMedia != nullptr )
         {
             ctx.newMLid = mlMedia->i_id;
-            vlc_ml_release( mlMedia );
+            heimdall_ml_release( mlMedia );
         }
-        vlc_ml_query_params_t params = vlc_ml_query_params_create();
+        heimdall_ml_query_params_t params = heimdall_ml_query_params_create();
         params.i_sort = sort;
         params.b_desc = desc;
-        ctx.newBookmarks.reset( vlc_ml_list_media_bookmarks( ml, &params, ctx.newMLid ) );
+        ctx.newBookmarks.reset( heimdall_ml_list_media_bookmarks( ml, &params, ctx.newMLid ) );
     },
     //UI thread
     [this, revision](quint64, Ctx& ctx) {
         bool valid;
         {
-            vlc::threads::mutex_locker lock{ m_mutex };
+            heimdall::threads::mutex_locker lock{ m_mutex };
             //did we start playing a new media in between
             valid = (m_revision == revision);
         }
@@ -446,11 +447,11 @@ void MLBookmarkModel::refresh(MLBookmarkModel::RefreshOperation forceClear )
         m_mediaLib->runOnMLThread<Ctx>(this,
         //ML thread
         [mediaId, sort = m_sort, desc = m_desc]
-        (vlc_medialibrary_t* ml, Ctx& ctx) {
-            vlc_ml_query_params_t params = vlc_ml_query_params_create();
+        (heimdall_medialibrary_t* ml, Ctx& ctx) {
+            heimdall_ml_query_params_t params = heimdall_ml_query_params_create();
             params.i_sort = sort;
             params.b_desc = desc;
-            ctx.newBookmarks.reset( vlc_ml_list_media_bookmarks( ml, &params, mediaId ) );
+            ctx.newBookmarks.reset( heimdall_ml_list_media_bookmarks( ml, &params, mediaId ) );
         },
         //UI thread
         [this, mediaId](quint64, Ctx& ctx)
@@ -465,18 +466,18 @@ void MLBookmarkModel::refresh(MLBookmarkModel::RefreshOperation forceClear )
     }
 }
 
-vlc_player_t * MLBookmarkModel::player() const
+heimdall_player_t * MLBookmarkModel::player() const
 {
     return m_player;
 }
 
-void MLBookmarkModel::setPlayer(vlc_player_t * player)
+void MLBookmarkModel::setPlayer(heimdall_player_t * player)
 {
     if (m_player == player) return;
 
     if(m_player && m_listener){
-        vlc_player_locker lock{ m_player };
-        vlc_player_RemoveListener( m_player, m_listener );
+        heimdall_player_locker lock{ m_player };
+        heimdall_player_RemoveListener( m_player, m_listener );
     }
 
     m_player = player;
@@ -530,21 +531,21 @@ void MLBookmarkModel::setMl(MediaLib* medialib)
 
 void MLBookmarkModel::initModel()
 {
-    static const vlc_player_cbs cbs = []{
-        vlc_player_cbs cbs {};
+    static const heimdall_player_cbs cbs = []{
+        heimdall_player_cbs cbs {};
         cbs.on_current_media_changed = &onCurrentMediaChanged;
         cbs.on_state_changed = &onPlaybackStateChanged;
         return cbs;
     }();
     QString uri;
     {
-        vlc_player_locker lock{ m_player };
-        vlc::threads::mutex_locker selflock{ m_mutex };
-        m_listener = vlc_player_AddListener( m_player, &cbs, this );
+        heimdall_player_locker lock{ m_player };
+        heimdall::threads::mutex_locker selflock{ m_mutex };
+        m_listener = heimdall_player_AddListener( m_player, &cbs, this );
         if ( m_listener == nullptr )
             throw std::bad_alloc{};
-        auto currentItem = vlc_player_GetCurrentMedia( m_player );
-        m_currentItem = vlc::wrap_cptr( currentItem ? input_item_Hold( currentItem ) : nullptr,
+        auto currentItem = heimdall_player_GetCurrentMedia( m_player );
+        m_currentItem = heimdall::wrap_cptr( currentItem ? input_item_Hold( currentItem ) : nullptr,
                                         &input_item_Release );
         if (m_currentItem)
         {
@@ -554,24 +555,24 @@ void MLBookmarkModel::initModel()
     updateMediaId(0, uri);
 
     if (m_ml_event_handle == nullptr)
-        m_ml_event_handle.reset(m_mediaLib->registerEventListener(onVlcMlEvent, this));
+        m_ml_event_handle.reset(m_mediaLib->registerEventListener(onHeimdallMlEvent, this));
 }
 
-void MLBookmarkModel::onVlcMlEvent(void* data, const vlc_ml_event_t* event)
+void MLBookmarkModel::onHeimdallMlEvent(void* data, const heimdall_ml_event_t* event)
 {
     auto self = static_cast<MLBookmarkModel*>(data);
     auto  mlEvent = std::make_shared<MLEvent>(event);
     QMetaObject::invokeMethod(self, [self, mlEvent] () mutable {
-        self->onVlcMlEvent(*mlEvent);
+        self->onHeimdallMlEvent(*mlEvent);
     });
 }
 
-void MLBookmarkModel::onVlcMlEvent(const MLEvent &event){
+void MLBookmarkModel::onHeimdallMlEvent(const MLEvent &event){
     switch (event.i_type)
     {
-        case VLC_ML_EVENT_BOOKMARKS_ADDED:
-        case VLC_ML_EVENT_BOOKMARKS_DELETED:
-        case VLC_ML_EVENT_BOOKMARKS_UPDATED:
+        case HEIMDALL_ML_EVENT_BOOKMARKS_ADDED:
+        case HEIMDALL_ML_EVENT_BOOKMARKS_DELETED:
+        case HEIMDALL_ML_EVENT_BOOKMARKS_UPDATED:
             refresh(MLBOOKMARKMODEL_REFRESH);
         break;
         default:

@@ -4,6 +4,7 @@
  * Copyright (C) 2012-2013 Rafaël Carré
  * Copyright (C) 2009 Michael Niedermayer <michaelni@gmx.at>
  * Copyright (c) 2009 Baptiste Coudurier <baptiste dot coudurier at gmail dot com>
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Rafaël Carré <funman@videolan.org>
  *
@@ -32,21 +33,21 @@
 
 #include <cinttypes>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_threads.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_threads.h>
 
-#include <vlc_vout_display.h>
+#include <heimdall_vout_display.h>
 
-#include <vlc_block.h>
-#include <vlc_aout.h>
-#include <vlc_cxx_helpers.hpp>
+#include <heimdall_block.h>
+#include <heimdall_aout.h>
+#include <heimdall_cxx_helpers.hpp>
 
 #ifdef HAVE_ARPA_INET_H
 #include <arpa/inet.h>
 #endif
 
-#include "../access/vlc_decklink.h"
+#include "../access/heimdall_decklink.h"
 #include "../stream_out/sdi/V210.hpp"
 #include "../stream_out/sdi/Ancillary.hpp"
 #include "../stream_out/sdi/DBMHelper.hpp"
@@ -197,8 +198,8 @@ struct decklink_sys_t
      * vout module waits until aout has been initialized.
      * That means video-only output is NOT supported.
      */
-    vlc_mutex_t lock;
-    vlc_cond_t cond;
+    heimdall_mutex_t lock;
+    heimdall_cond_t cond;
     uint8_t users;
     bool    b_videomodule;
     bool    b_recycling;
@@ -210,11 +211,11 @@ struct decklink_sys_t
     BMDTimeValue frameduration;
 
     /* XXX: workaround card clock drift */
-    vlc_tick_t offset;
+    heimdall_tick_t offset;
 
     /* !With LOCK */
 
-    vlc_timer_t drain_timer;
+    heimdall_timer_t drain_timer;
 
     /* single video module exclusive */
     struct
@@ -233,16 +234,16 @@ struct decklink_sys_t
  *****************************************************************************/
 
 static int  OpenVideo           (vout_display_t *,
-                                 video_format_t *, vlc_video_context *);
+                                 video_format_t *, heimdall_video_context *);
 static void CloseVideo          (vout_display_t *);
-static int  OpenAudio           (vlc_object_t *);
-static void CloseAudio          (vlc_object_t *);
+static int  OpenAudio           (heimdall_object_t *);
+static void CloseAudio          (heimdall_object_t *);
 
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname(N_("DecklinkOutput"))
     set_description(N_("Output module to write to Blackmagic SDI card"))
     set_section(N_("DeckLink General Options"), NULL)
@@ -285,22 +286,22 @@ vlc_module_begin()
                 RATE_TEXT, RATE_LONGTEXT)
     add_integer(AUDIO_CFG_PREFIX "audio-channels", 2,
                 CHANNELS_TEXT, CHANNELS_LONGTEXT)
-vlc_module_end ()
+heimdall_module_end ()
 
 /* Protects decklink_sys_t creation/deletion */
-static vlc::threads::mutex sys_lock;
-static vlc::threads::condition_variable cond_video;
+static heimdall::threads::mutex sys_lock;
+static heimdall::threads::condition_variable cond_video;
 
-static decklink_sys_t *HoldDLSys(vlc_object_t *obj, int i_cat)
+static decklink_sys_t *HoldDLSys(heimdall_object_t *obj, int i_cat)
 {
-    vlc_object_t *libvlc = VLC_OBJECT(vlc_object_instance(obj));
+    heimdall_object_t *libheimdall = HEIMDALL_OBJECT(heimdall_object_instance(obj));
     decklink_sys_t *sys;
 
     sys_lock.lock();
 
-    if (var_Type(libvlc, "decklink-sys") == VLC_VAR_ADDRESS)
+    if (var_Type(libheimdall, "decklink-sys") == HEIMDALL_VAR_ADDRESS)
     {
-        sys = (decklink_sys_t*)var_GetAddress(libvlc, "decklink-sys");
+        sys = (decklink_sys_t*)var_GetAddress(libheimdall, "decklink-sys");
         sys->users++;
 
         if(i_cat == VIDEO_ES)
@@ -324,10 +325,10 @@ static decklink_sys_t *HoldDLSys(vlc_object_t *obj, int i_cat)
             sys->i_rate = var_InheritInteger(obj, AUDIO_CFG_PREFIX "audio-rate");
             if(sys->i_rate > 0)
                 sys->i_rate = -1;
-            vlc_mutex_init(&sys->lock);
-            vlc_cond_init(&sys->cond);
-            var_Create(libvlc, "decklink-sys", VLC_VAR_ADDRESS);
-            var_SetAddress(libvlc, "decklink-sys", (void*)sys);
+            heimdall_mutex_init(&sys->lock);
+            heimdall_cond_init(&sys->cond);
+            var_Create(libheimdall, "decklink-sys", HEIMDALL_VAR_ADDRESS);
+            var_SetAddress(libheimdall, "decklink-sys", (void*)sys);
         }
     }
 
@@ -335,13 +336,13 @@ static decklink_sys_t *HoldDLSys(vlc_object_t *obj, int i_cat)
     return sys;
 }
 
-static void ReleaseDLSys(vlc_object_t *obj, int i_cat)
+static void ReleaseDLSys(heimdall_object_t *obj, int i_cat)
 {
-    vlc_object_t *libvlc = VLC_OBJECT(vlc_object_instance(obj));
+    heimdall_object_t *libheimdall = HEIMDALL_OBJECT(heimdall_object_instance(obj));
 
     sys_lock.lock();
 
-    struct decklink_sys_t *sys = (struct decklink_sys_t*)var_GetAddress(libvlc, "decklink-sys");
+    struct decklink_sys_t *sys = (struct decklink_sys_t*)var_GetAddress(libheimdall, "decklink-sys");
 
     if (--sys->users == 0) {
         msg_Dbg(obj, "Destroying decklink data");
@@ -358,7 +359,7 @@ static void ReleaseDLSys(vlc_object_t *obj, int i_cat)
             picture_Release(sys->video.pic_nosignal);
 
         free(sys);
-        var_Destroy(libvlc, "decklink-sys");
+        var_Destroy(libheimdall, "decklink-sys");
     }
     else if (i_cat == VIDEO_ES)
     {
@@ -388,7 +389,7 @@ static BMDVideoConnection getVConn(vout_display_t *vd, int mask)
     }
     else /* Pick one as default connection */
     {
-        int iconn = vlc_ctz(mask);
+        int iconn = heimdall_ctz(mask);
         conn = iconn ? BMDVideoConnection( 1 << iconn ) : bmdVideoConnectionSDI;
     }
     return conn;
@@ -424,12 +425,12 @@ static int OpenDecklink(vout_display_t *vd, decklink_sys_t *sys, video_format_t 
     } wanted_mode;
     wanted_mode.id = bmdModeUnknown;
 
-    vlc_mutex_locker locker(&sys->lock);
+    heimdall_mutex_locker locker(&sys->lock);
 
     /* wait until aout is ready */
     msg_Info(vd, "Waiting for DeckLink audio input module to start");
     while (sys->i_rate == -1)
-        vlc_cond_wait(&sys->cond, &sys->lock);
+        heimdall_cond_wait(&sys->cond, &sys->lock);
 
     int i_card_index = var_InheritInteger(vd, CFG_PREFIX "card-index");
     char *mode = var_InheritString(vd, VIDEO_CFG_PREFIX "mode");
@@ -512,7 +513,7 @@ static int OpenDecklink(vout_display_t *vd, decklink_sys_t *sys, video_format_t 
     result = p_config->SetInt(bmdDeckLinkConfigVideoOutputConnection, vconn);
     CHECK("Could not set video output connection");
 
-    p_display_mode = Decklink::Helper::MatchDisplayMode(VLC_OBJECT(vd), sys->p_output,
+    p_display_mode = Decklink::Helper::MatchDisplayMode(HEIMDALL_OBJECT(vd), sys->p_output,
                                           vd->source, wanted_mode.id);
     if(p_display_mode == NULL)
     {
@@ -584,7 +585,7 @@ static int OpenDecklink(vout_display_t *vd, decklink_sys_t *sys, video_format_t 
         fmt->i_y_offset = 0;
         fmt->i_sar_num = 0;
         fmt->i_sar_den = 0;
-        fmt->i_chroma = !sys->video.tenbits ? VLC_CODEC_UYVY : VLC_CODEC_I422_10L; /* we will convert to v210 */
+        fmt->i_chroma = !sys->video.tenbits ? HEIMDALL_CODEC_UYVY : HEIMDALL_CODEC_I422_10L; /* we will convert to v210 */
         fmt->i_frame_rate = (unsigned) sys->frameduration;
         fmt->i_frame_rate_base = (unsigned) sys->timescale;
     }
@@ -601,7 +602,7 @@ static int OpenDecklink(vout_display_t *vd, decklink_sys_t *sys, video_format_t 
 
     /* start */
     result = sys->p_output->StartScheduledPlayback(
-        samples_from_vlc_tick(vlc_tick_now(), sys->timescale), sys->timescale, 1.0);
+        samples_from_heimdall_tick(heimdall_tick_now(), sys->timescale), sys->timescale, 1.0);
     CHECK("Could not start playback");
 
     p_config->Release();
@@ -610,7 +611,7 @@ static int OpenDecklink(vout_display_t *vd, decklink_sys_t *sys, video_format_t 
     p_attributes->Release();
     decklink_iterator->Release();
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     if (sys->p_output) {
@@ -629,23 +630,23 @@ error:
         p_display_mode->Release();
     video_format_Clean(fmt);
 
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 #undef CHECK
 }
 
 /*****************************************************************************
  * Video
  *****************************************************************************/
-static void PrepareVideo(vout_display_t *vd, picture_t *picture, const vlc_render_subpicture *,
-                         vlc_tick_t date)
+static void PrepareVideo(vout_display_t *vd, picture_t *picture, const heimdall_render_subpicture *,
+                         heimdall_tick_t date)
 {
     decklink_sys_t *sys = (decklink_sys_t *) vd->sys;
-    vlc_tick_t now = vlc_tick_now();
+    heimdall_tick_t now = heimdall_tick_now();
 
     if (!picture)
         return;
 
-    if (now - date > vlc_tick_from_sec( sys->video.nosignal_delay )) {
+    if (now - date > heimdall_tick_from_sec( sys->video.nosignal_delay )) {
         msg_Dbg(vd, "no signal");
         if (sys->video.pic_nosignal) {
             picture = sys->video.pic_nosignal;
@@ -742,7 +743,7 @@ static void PrepareVideo(vout_display_t *vd, picture_t *picture, const vlc_rende
         goto end;
     }
 
-    now = vlc_tick_now() - sys->offset;
+    now = heimdall_tick_now() - sys->offset;
 
     BMDTimeValue decklink_now;
     double speed;
@@ -760,24 +761,24 @@ end:
 }
 
 static const auto ops = []{
-    struct vlc_display_operations ops {};
+    struct heimdall_display_operations ops {};
     ops.close = CloseVideo;
     ops.prepare = PrepareVideo;
     return ops;
 }();
 
 static int OpenVideo(vout_display_t *vd,
-                     video_format_t *fmtp, vlc_video_context *context)
+                     video_format_t *fmtp, heimdall_video_context *context)
 {
-    VLC_UNUSED(context);
-    decklink_sys_t *sys = HoldDLSys(VLC_OBJECT(vd), VIDEO_ES);
+    HEIMDALL_UNUSED(context);
+    decklink_sys_t *sys = HoldDLSys(HEIMDALL_OBJECT(vd), VIDEO_ES);
     if(!sys)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     bool b_init;
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     b_init = !sys->b_recycling;
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
 
     if( b_init )
     {
@@ -787,16 +788,16 @@ static int OpenVideo(vout_display_t *vd,
         sys->video.ar = var_InheritInteger(vd, VIDEO_CFG_PREFIX "ar");
         sys->video.pic_nosignal = NULL;
 
-        if (OpenDecklink(vd, sys, fmtp) != VLC_SUCCESS)
+        if (OpenDecklink(vd, sys, fmtp) != HEIMDALL_SUCCESS)
         {
             CloseVideo(vd);
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         char *pic_file = var_InheritString(vd, VIDEO_CFG_PREFIX "nosignal-image");
         if (pic_file)
         {
-            sys->video.pic_nosignal = sdi::Generator::Picture(VLC_OBJECT(vd), pic_file, fmtp);
+            sys->video.pic_nosignal = sdi::Generator::Picture(HEIMDALL_OBJECT(vd), pic_file, fmtp);
             if (!sys->video.pic_nosignal)
                 msg_Err(vd, "Could not create no signal picture");
             free(pic_file);
@@ -807,12 +808,12 @@ static int OpenVideo(vout_display_t *vd,
 
     vd->sys = (void *) sys;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void CloseVideo(vout_display_t *vd)
 {
-    ReleaseDLSys(VLC_OBJECT(vd), VIDEO_ES);
+    ReleaseDLSys(HEIMDALL_OBJECT(vd), VIDEO_ES);
 }
 
 /*****************************************************************************
@@ -825,7 +826,7 @@ static void DrainReset(audio_output_t *aout)
 
     if (sys->drain_timer != NULL)
     {
-        vlc_timer_destroy(sys->drain_timer);
+        heimdall_timer_destroy(sys->drain_timer);
         sys->drain_timer = NULL;
     }
 }
@@ -833,9 +834,9 @@ static void DrainReset(audio_output_t *aout)
 static void Flush(audio_output_t *aout)
 {
     decklink_sys_t *sys = (decklink_sys_t *) aout->sys;
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     IDeckLinkOutput *p_output = sys->p_output;
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
     if (!p_output)
         return;
 
@@ -855,9 +856,9 @@ static void DrainTimerCb(void *data)
 static void Drain(audio_output_t *aout)
 {
     decklink_sys_t *sys = (decklink_sys_t *) aout->sys;
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     IDeckLinkOutput *p_output = sys->p_output;
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
     if (!p_output)
         return;
 
@@ -873,16 +874,16 @@ static void Drain(audio_output_t *aout)
     }
 
     /* Create and arm a timer to notify when drained */
-    int ret = vlc_timer_create(&sys->drain_timer, DrainTimerCb, aout);
+    int ret = heimdall_timer_create(&sys->drain_timer, DrainTimerCb, aout);
     if (ret != 0)
     {
         aout_DrainedReport(aout);
         return;
     }
 
-    vlc_timer_schedule(sys->drain_timer, false,
-                       vlc_tick_from_samples(samples, sys->i_rate),
-                       VLC_TIMER_FIRE_ONCE);
+    heimdall_timer_schedule(sys->drain_timer, false,
+                       heimdall_tick_from_samples(samples, sys->i_rate),
+                       HEIMDALL_TIMER_FIRE_ONCE);
 }
 
 
@@ -891,9 +892,9 @@ static int Start(audio_output_t *aout, audio_sample_format_t *restrict fmt)
     decklink_sys_t *sys = (decklink_sys_t *) aout->sys;
 
     if (sys->i_rate == 0)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    fmt->i_format = VLC_CODEC_S16N;
+    fmt->i_format = HEIMDALL_CODEC_S16N;
     fmt->i_channels = 2; //decklink_sys->i_channels;
     fmt->i_physical_channels = AOUT_CHANS_STEREO; //pi_channels_maps[fmt->i_channels];
     fmt->channel_type = AUDIO_CHANNEL_TYPE_BITMAP;
@@ -902,16 +903,16 @@ static int Start(audio_output_t *aout, audio_sample_format_t *restrict fmt)
     fmt->i_blockalign = fmt->i_channels * fmt->i_bitspersample /8 ;
     fmt->i_frame_length  = FRAME_SIZE;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void PlayAudio(audio_output_t *aout, block_t *audio, vlc_tick_t systempts)
+static void PlayAudio(audio_output_t *aout, block_t *audio, heimdall_tick_t systempts)
 {
     decklink_sys_t *sys = (decklink_sys_t *) aout->sys;
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     IDeckLinkOutput *p_output = sys->p_output;
     audio->i_pts -= sys->offset;
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
     if (!p_output) {
         block_Release(audio);
         return;
@@ -930,20 +931,20 @@ static void PlayAudio(audio_output_t *aout, block_t *audio, vlc_tick_t systempts
     block_Release(audio);
 }
 
-static int OpenAudio(vlc_object_t *p_this)
+static int OpenAudio(heimdall_object_t *p_this)
 {
     audio_output_t *aout = (audio_output_t *)p_this;
     decklink_sys_t *sys = HoldDLSys(p_this, AUDIO_ES);
     if(!sys)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     aout->sys = sys;
 
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     //decklink_sys->i_channels = var_InheritInteger(vd, AUDIO_CFG_PREFIX "audio-channels");
     sys->i_rate = var_InheritInteger(aout, AUDIO_CFG_PREFIX "audio-rate");
-    vlc_cond_signal(&sys->cond);
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_cond_signal(&sys->cond);
+    heimdall_mutex_unlock(&sys->lock);
     sys->drain_timer = NULL;
 
     aout->play      = PlayAudio;
@@ -956,13 +957,13 @@ static int OpenAudio(vlc_object_t *p_this)
     aout->mute_set  = NULL;
     aout->volume_set= NULL;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void CloseAudio(vlc_object_t *p_this)
+static void CloseAudio(heimdall_object_t *p_this)
 {
     decklink_sys_t *sys = (decklink_sys_t *) ((audio_output_t *)p_this)->sys;
-    vlc_mutex_lock(&sys->lock);
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
     ReleaseDLSys(p_this, AUDIO_ES);
 }

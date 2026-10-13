@@ -2,6 +2,7 @@
  * playlist/player.h
  *****************************************************************************
  * Copyright (C) 2018 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -18,17 +19,17 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_PLAYLIST_PLAYER_H
-#define VLC_PLAYLIST_PLAYER_H
+#ifndef HEIMDALL_PLAYLIST_PLAYER_H
+#define HEIMDALL_PLAYLIST_PLAYER_H
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
-typedef struct vlc_playlist vlc_playlist_t;
+typedef struct heimdall_playlist heimdall_playlist_t;
 
 bool
-vlc_playlist_PlayerInit(vlc_playlist_t *playlist, vlc_object_t *parent);
+heimdall_playlist_PlayerInit(heimdall_playlist_t *playlist, heimdall_object_t *parent);
 
 void
-vlc_playlist_PlayerDestroy(vlc_playlist_t *playlist);
+heimdall_playlist_PlayerDestroy(heimdall_playlist_t *playlist);
 
 #endif

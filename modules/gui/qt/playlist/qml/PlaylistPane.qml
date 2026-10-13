@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,11 +23,11 @@ import QtQuick.Layouts
 import QtQml.Models
 
 
-import VLC.MainInterface
-import VLC.Widgets as Widgets
-import VLC.Util
-import VLC.Playlist
-import VLC.Style
+import Heimdall.MainInterface
+import Heimdall.Widgets as Widgets
+import Heimdall.Util
+import Heimdall.Playlist
+import Heimdall.Style
 
 T.Pane {
     id: root
@@ -41,7 +42,7 @@ T.Pane {
     readonly property real minimumWidth: contentItem.Layout.minimumWidth +
                                          leftPadding +
                                          rightPadding +
-                                         2 * (VLCStyle.margin_xsmall)
+                                         2 * (HeimdallStyle.margin_xsmall)
 
     readonly property ListView listView: contentItem.listView
 
@@ -59,7 +60,7 @@ T.Pane {
     implicitHeight: Math.max(implicitBackgroundHeight + topInset + bottomInset,
                              implicitContentHeight + topPadding + bottomPadding)
 
-    verticalPadding: VLCStyle.margin_normal
+    verticalPadding: HeimdallStyle.margin_normal
 
     Accessible.role: Accessible.Pane
     Accessible.name: qsTr("Play Queue")
@@ -84,7 +85,7 @@ T.Pane {
                 const item = root.model.itemAt(index)
                 return {
                     "title": item.title,
-                    "cover": (!!item.artwork && item.artwork.toString() !== "") ? item.artwork : VLCStyle.noArtAlbumCover,
+                    "cover": (!!item.artwork && item.artwork.toString() !== "") ? item.artwork : HeimdallStyle.noArtAlbumCover,
                     "url": item.url
                 }
             }))
@@ -113,7 +114,7 @@ T.Pane {
     }
 
     contentItem: ColumnLayout {
-        spacing: VLCStyle.margin_xxsmall
+        spacing: HeimdallStyle.margin_xxsmall
 
         Layout.minimumWidth: Math.min(Math.max(noContentInfoColumn.implicitWidth,
                                                titleRowLayout.implicitWidth ),
@@ -127,10 +128,10 @@ T.Pane {
 
             Layout.fillHeight: false
             Layout.fillWidth: true
-            Layout.leftMargin: VLCStyle.margin_normal
-            Layout.rightMargin: VLCStyle.margin_normal
+            Layout.leftMargin: HeimdallStyle.margin_normal
+            Layout.rightMargin: HeimdallStyle.margin_normal
 
-            spacing: VLCStyle.margin_xxxsmall
+            spacing: HeimdallStyle.margin_xxxsmall
 
             RowLayout {
                 id: titleRowLayout
@@ -138,7 +139,7 @@ T.Pane {
                 anchors.left: parent.left
                 anchors.right: parent.right
 
-                spacing: VLCStyle.margin_normal
+                spacing: HeimdallStyle.margin_normal
 
                 Widgets.SubtitleLabel {
                     id: titleLabel
@@ -148,13 +149,13 @@ T.Pane {
                     text: qsTr("Play Queue")
                     color: theme.fg.primary
                     font.weight: Font.Bold
-                    font.pixelSize: VLCStyle.dp(24, VLCStyle.scale)
+                    font.pixelSize: HeimdallStyle.dp(24, HeimdallStyle.scale)
                 }
 
                 Widgets.SortControl {
                     id: sort
 
-                    font.pixelSize: VLCStyle.icon_banner
+                    font.pixelSize: HeimdallStyle.icon_banner
 
                     description : qsTr("Sort")
 
@@ -202,7 +203,7 @@ T.Pane {
 
                     enabled: MainPlaylistController.count > 1
 
-                    toggleButton.font.pixelSize: VLCStyle.icon_banner
+                    toggleButton.font.pixelSize: HeimdallStyle.icon_banner
 
                     popBelow: true
 
@@ -210,7 +211,7 @@ T.Pane {
                     displayCaseSensitiveToggleButton: true
 
                     popup.width: Math.max(popup.implicitWidth, root.contentItem?.width * 0.6)
-                    popup.topPadding: VLCStyle.margin_xxsmall
+                    popup.topPadding: HeimdallStyle.margin_xxsmall
 
                     Navigation.parentItem: root
                     Navigation.leftItem: sort
@@ -243,7 +244,7 @@ T.Pane {
                         duration = []
                         for (let i = 0; i < listView.count; ++i) {
                             const itemDuration = model.data(model.index(i, 0), PlaylistListModel.DurationRole)
-                            console.assert(itemDuration !== undefined && itemDuration !== null) // typeof `vlcDuration`
+                            console.assert(itemDuration !== undefined && itemDuration !== null) // typeof `heimdallDuration`
                             duration.push(itemDuration)
                         }
                         duration = duration[0].sum(duration)
@@ -257,26 +258,26 @@ T.Pane {
         Item {
             // Spacer
 
-            implicitHeight: VLCStyle.margin_xsmall
+            implicitHeight: HeimdallStyle.margin_xsmall
         }
 
         RowLayout {
             visible: listView.count !== 0
 
             Layout.fillHeight: false
-            Layout.leftMargin: VLCStyle.margin_normal
-            Layout.rightMargin: Math.max(listView.T.ScrollBar.vertical.width, VLCStyle.margin_normal)
+            Layout.leftMargin: HeimdallStyle.margin_normal
+            Layout.rightMargin: Math.max(listView.T.ScrollBar.vertical.width, HeimdallStyle.margin_normal)
 
-            spacing: VLCStyle.margin_large
+            spacing: HeimdallStyle.margin_large
 
             Widgets.IconLabel {
                 // play queue cover column
-                Layout.preferredWidth: VLCStyle.icon_playlistArt
+                Layout.preferredWidth: HeimdallStyle.icon_playlistArt
 
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
-                text: VLCIcons.album_cover
-                font.pixelSize: VLCStyle.icon_playlistHeader
+                text: HeimdallIcons.album_cover
+                font.pixelSize: HeimdallStyle.icon_playlistHeader
 
                 color: theme.fg.secondary
 
@@ -290,7 +291,7 @@ T.Pane {
                 Layout.fillWidth: true
 
                 elide: Text.ElideRight
-                font.pixelSize: VLCStyle.fontSize_normal
+                font.pixelSize: HeimdallStyle.fontSize_normal
                 textFormat: Text.PlainText
 
                 verticalAlignment: Text.AlignVCenter
@@ -304,11 +305,11 @@ T.Pane {
             Widgets.IconLabel {
                 Layout.preferredWidth: durationMetric.width
 
-                text: VLCIcons.time
+                text: HeimdallIcons.time
                 color: theme.fg.secondary
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
-                font.pixelSize: VLCStyle.icon_playlistHeader
+                font.pixelSize: HeimdallStyle.icon_playlistHeader
 
                 Accessible.role: Accessible.ColumnHeader
                 Accessible.name: qsTr("Duration")
@@ -318,7 +319,7 @@ T.Pane {
                     id: durationMetric
 
                     font.weight: Font.DemiBold
-                    font.pixelSize: VLCStyle.fontSize_normal
+                    font.pixelSize: HeimdallStyle.fontSize_normal
                     text: "00:00"
                 }
             }
@@ -455,7 +456,7 @@ T.Pane {
 
                 // NOTE: Usage of `SmoothedAnimation` is intentional here.
                 SmoothedAnimation {
-                    duration: VLCStyle.duration_veryLong
+                    duration: HeimdallStyle.duration_veryLong
                     easing.type: Easing.InOutSine
                 }
             }
@@ -501,7 +502,7 @@ T.Pane {
                 id: delegate
 
                 width: listView.contentWidth
-                rightPadding: Math.max(listView.T.ScrollBar.vertical.width, VLCStyle.margin_normal)
+                rightPadding: Math.max(listView.T.ScrollBar.vertical.width, HeimdallStyle.margin_normal)
 
                 contextMenu: root.contextMenu
 
@@ -571,15 +572,15 @@ T.Pane {
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
 
-                    text: VLCIcons.playlist
+                    text: HeimdallIcons.playlist
 
                     color: theme.fg.primary
 
-                    font.pixelSize: VLCStyle.dp(48, VLCStyle.scale)
+                    font.pixelSize: HeimdallStyle.dp(48, HeimdallStyle.scale)
                 }
 
                 T.Label {
-                    anchors.topMargin: VLCStyle.margin_xlarge
+                    anchors.topMargin: HeimdallStyle.margin_xlarge
 
                     anchors.horizontalCenter: parent.horizontalCenter
 
@@ -593,11 +594,11 @@ T.Pane {
 
                     color: label.color
 
-                    font.pixelSize: VLCStyle.fontSize_xxlarge
+                    font.pixelSize: HeimdallStyle.fontSize_xxlarge
                 }
 
                 T.Label {
-                    anchors.topMargin: VLCStyle.margin_normal
+                    anchors.topMargin: HeimdallStyle.margin_normal
 
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
@@ -608,7 +609,7 @@ T.Pane {
 
                     color: label.color
 
-                    font.pixelSize: VLCStyle.fontSize_large
+                    font.pixelSize: HeimdallStyle.fontSize_large
                 }
             }
         }
@@ -623,14 +624,14 @@ T.Pane {
 
         focus: true
 
-        font.pixelSize: VLCStyle.icon_banner
-        text: VLCIcons.playlist
+        font.pixelSize: HeimdallStyle.icon_banner
+        text: HeimdallIcons.playlist
         description: qsTr("Play queue")
 
         AccessibleCompat.id: "playqueueToggle"
 
-        width: VLCStyle.bannerButton_width
-        height: VLCStyle.bannerButton_height
+        width: HeimdallStyle.bannerButton_width
+        height: HeimdallStyle.bannerButton_height
         //highlighted: MainCtx.playlistVisible
 
         property Item plListView
@@ -677,7 +678,7 @@ T.Pane {
 
             Timer {
                 id: _timer
-                interval: VLCStyle.duration_humanMoment
+                interval: HeimdallStyle.duration_humanMoment
 
                 onTriggered: {
                     MainCtx.playqueuePanel.visible = true

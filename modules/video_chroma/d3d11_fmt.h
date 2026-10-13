@@ -2,6 +2,7 @@
  * d3d11_fmt.h : D3D11 helper calls
  *****************************************************************************
  * Copyright © 2017 VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Steve Lhomme <robux4@gmail.com>
  *
@@ -20,10 +21,10 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_VIDEOCHROMA_D3D11_FMT_H_
-#define VLC_VIDEOCHROMA_D3D11_FMT_H_
+#ifndef HEIMDALL_VIDEOCHROMA_D3D11_FMT_H_
+#define HEIMDALL_VIDEOCHROMA_D3D11_FMT_H_
 
-#include <vlc_codec.h>
+#include <heimdall_codec.h>
 
 #ifdef __cplusplus
 // avoid some warnings in mingw
@@ -62,7 +63,7 @@ typedef struct
     DXGI_ADAPTER_DESC        adapterDesc;
 } d3d11_device_t;
 
-/* owned by the vout for VLC_CODEC_D3D11_OPAQUE */
+/* owned by the vout for HEIMDALL_CODEC_D3D11_OPAQUE */
 typedef struct
 {
     union {
@@ -107,47 +108,47 @@ typedef struct
  * (ie not DXGI_FORMAT_UNKNWON) */
 #define KNOWN_DXGI_INDEX   0
 
-static inline bool is_d3d11_opaque(vlc_fourcc_t chroma)
+static inline bool is_d3d11_opaque(heimdall_fourcc_t chroma)
 {
-    return chroma == VLC_CODEC_D3D11_OPAQUE ||
-           chroma == VLC_CODEC_D3D11_OPAQUE_10B ||
-           chroma == VLC_CODEC_D3D11_OPAQUE_RGBA ||
-           chroma == VLC_CODEC_D3D11_OPAQUE_BGRA ||
-           chroma == VLC_CODEC_D3D11_OPAQUE_ALPHA;
+    return chroma == HEIMDALL_CODEC_D3D11_OPAQUE ||
+           chroma == HEIMDALL_CODEC_D3D11_OPAQUE_10B ||
+           chroma == HEIMDALL_CODEC_D3D11_OPAQUE_RGBA ||
+           chroma == HEIMDALL_CODEC_D3D11_OPAQUE_BGRA ||
+           chroma == HEIMDALL_CODEC_D3D11_OPAQUE_ALPHA;
 }
 
-extern const struct vlc_video_context_operations d3d11_vctx_ops;
+extern const struct heimdall_video_context_operations d3d11_vctx_ops;
 
 picture_sys_d3d11_t *ActiveD3D11PictureSys(picture_t *);
 
-static inline d3d11_decoder_device_t *GetD3D11OpaqueDevice(vlc_decoder_device *device)
+static inline d3d11_decoder_device_t *GetD3D11OpaqueDevice(heimdall_decoder_device *device)
 {
-    if (device == NULL || device->type != VLC_DECODER_DEVICE_D3D11VA)
+    if (device == NULL || device->type != HEIMDALL_DECODER_DEVICE_D3D11VA)
         return NULL;
     return (d3d11_decoder_device_t *)device->opaque;
 }
 
-static inline d3d11_decoder_device_t *GetD3D11OpaqueContext(vlc_video_context *vctx)
+static inline d3d11_decoder_device_t *GetD3D11OpaqueContext(heimdall_video_context *vctx)
 {
-    vlc_decoder_device *device = vctx ? vlc_video_context_HoldDevice(vctx) : NULL;
+    heimdall_decoder_device *device = vctx ? heimdall_video_context_HoldDevice(vctx) : NULL;
     if (unlikely(device == NULL))
         return NULL;
     d3d11_decoder_device_t *res = NULL;
-    if (device->type == VLC_DECODER_DEVICE_D3D11VA)
+    if (device->type == HEIMDALL_DECODER_DEVICE_D3D11VA)
     {
         assert(device->opaque != NULL);
         res = GetD3D11OpaqueDevice(device);
     }
-    vlc_decoder_device_Release(device);
+    heimdall_decoder_device_Release(device);
     return res;
 }
 
-static inline d3d11_video_context_t *GetD3D11ContextPrivate(vlc_video_context *vctx)
+static inline d3d11_video_context_t *GetD3D11ContextPrivate(heimdall_video_context *vctx)
 {
-    return (d3d11_video_context_t *) vlc_video_context_GetPrivate( vctx, VLC_VIDEO_CONTEXT_D3D11VA );
+    return (d3d11_video_context_t *) heimdall_video_context_GetPrivate( vctx, HEIMDALL_VIDEO_CONTEXT_D3D11VA );
 }
 
-vlc_video_context *D3D11CreateVideoContext(vlc_decoder_device *, DXGI_FORMAT, DXGI_FORMAT);
+heimdall_video_context *D3D11CreateVideoContext(heimdall_decoder_device *, DXGI_FORMAT, DXGI_FORMAT);
 
 void AcquireD3D11PictureSys(picture_sys_d3d11_t *p_sys);
 
@@ -170,14 +171,14 @@ static inline const d3d_format_t *D3D11_RenderFormat(DXGI_FORMAT opaque, DXGI_FO
 
 
 /* map texture planes to resource views */
-int D3D11_AllocateResourceView(struct vlc_logger *obj, ID3D11Device *d3ddevice,
+int D3D11_AllocateResourceView(struct heimdall_logger *obj, ID3D11Device *d3ddevice,
                              const d3d_format_t *format,
                              ID3D11Texture2D *p_texture[DXGI_MAX_SHADER_VIEW], UINT slice_index,
                              ID3D11ShaderResourceView *output[DXGI_MAX_SHADER_VIEW]);
 
-d3d11_decoder_device_t *D3D11_CreateDevice(vlc_object_t *obj, IDXGIAdapter *,
+d3d11_decoder_device_t *D3D11_CreateDevice(heimdall_object_t *obj, IDXGIAdapter *,
                                    bool hw_decoding, bool forced);
-#define D3D11_CreateDevice(a,b,c,d)  D3D11_CreateDevice( VLC_OBJECT(a), b, c, d )
+#define D3D11_CreateDevice(a,b,c,d)  D3D11_CreateDevice( HEIMDALL_OBJECT(a), b, c, d )
 
 void D3D11_ReleaseDevice(d3d11_decoder_device_t *);
 
@@ -190,9 +191,9 @@ int D3D11CheckDriverVersion(const d3d11_device_t *, UINT vendorId,
 
 bool D3D11_DeviceSupportsFormat(d3d11_device_t*, DXGI_FORMAT, UINT supportFlags);
 
-const d3d_format_t *FindD3D11Format(vlc_object_t *,
+const d3d_format_t *FindD3D11Format(heimdall_object_t *,
                                     d3d11_device_t*,
-                                    vlc_fourcc_t i_src_chroma,
+                                    heimdall_fourcc_t i_src_chroma,
                                     int rgb_yuv,
                                     uint8_t bits_per_channel,
                                     uint8_t widthDenominator,
@@ -201,12 +202,12 @@ const d3d_format_t *FindD3D11Format(vlc_object_t *,
                                     int cpu_gpu,
                                     UINT supportFlags);
 #define FindD3D11Format(a,b,c,d,e,f,g,h,i,j)  \
-    FindD3D11Format(VLC_OBJECT(a),b,c,d,e,f,g,h,i,j)
+    FindD3D11Format(HEIMDALL_OBJECT(a),b,c,d,e,f,g,h,i,j)
 
-int AllocateTextures(vlc_object_t *, d3d11_device_t *, const d3d_format_t *,
+int AllocateTextures(heimdall_object_t *, d3d11_device_t *, const d3d_format_t *,
                      const video_format_t *, bool, ID3D11Texture2D *textures[],
-                     plane_t planes[]) VLC_USED;
-#define AllocateTextures(a,b,c,d,e,f,g)  AllocateTextures(VLC_OBJECT(a),b,c,d,e,f,g)
+                     plane_t planes[]) HEIMDALL_USED;
+#define AllocateTextures(a,b,c,d,e,f,g)  AllocateTextures(HEIMDALL_OBJECT(a),b,c,d,e,f,g)
 
 static inline void d3d11_device_lock(d3d11_device_t *d3d_dev)
 {
@@ -223,11 +224,11 @@ static inline void d3d11_device_unlock(d3d11_device_t *d3d_dev)
 void d3d11_pic_context_destroy(picture_context_t *);
 picture_context_t *d3d11_pic_context_copy(picture_context_t *);
 
-picture_t *D3D11_AllocPicture(vlc_object_t *,
-                              const video_format_t *, vlc_video_context *,
+picture_t *D3D11_AllocPicture(heimdall_object_t *,
+                              const video_format_t *, heimdall_video_context *,
                               bool shared, const d3d_format_t *);
-int D3D11_PictureFill(vlc_object_t *,
-                      picture_t *, vlc_video_context *,
+int D3D11_PictureFill(heimdall_object_t *,
+                      picture_t *, heimdall_video_context *,
                       bool shared, const d3d_format_t *);
 
 void D3D11_PictureAttach(picture_t *, ID3D11Texture2D *textures, const d3d_format_t *cfg);

@@ -2,6 +2,7 @@
  * aribcam.c : ARIB STB-B25 software CAM stream filter
  *****************************************************************************
  * Copyright (C) 2014 VideoLAN and authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,9 +23,9 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_stream.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_stream.h>
 
 #include <inttypes.h>
 #include <assert.h>
@@ -34,16 +35,16 @@
 #include <aribb25/b_cas_card.h>
 #include <aribb25/b_cas_card_error_code.h>
 
-static int  Open(vlc_object_t *);
-static void Close(vlc_object_t *);
+static int  Open(heimdall_object_t *);
+static void Close(heimdall_object_t *);
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_subcategory (SUBCAT_INPUT_STREAM_FILTER)
     set_capability ("stream_filter", 0)
     add_shortcut("aribcam")
     set_description (N_("ARIB STD-B25 Cam module"))
     set_callbacks (Open, Close)
-vlc_module_end ()
+heimdall_module_end ()
 
 struct error_messages_s
 {
@@ -181,7 +182,7 @@ static ssize_t Read( stream_t *p_stream, void *p_buf, size_t i_toread )
     while ( i_toread )
     {
         /* make use of the existing buffer, overwritten by decoder data later */
-        int i_srcread = vlc_stream_Read( p_stream->s, p_dst, i_toread );
+        int i_srcread = heimdall_stream_Read( p_stream->s, p_dst, i_toread );
         if ( i_srcread > 0 )
         {
             ARIB_STD_B25_BUFFER putbuf = { p_dst, i_srcread };
@@ -232,8 +233,8 @@ static ssize_t Read( stream_t *p_stream, void *p_buf, size_t i_toread )
 
 static int Seek( stream_t *p_stream, uint64_t i_pos )
 {
-    int i_ret = vlc_stream_Seek( p_stream->s, i_pos );
-    if ( i_ret == VLC_SUCCESS )
+    int i_ret = heimdall_stream_Seek( p_stream->s, i_pos );
+    if ( i_ret == HEIMDALL_SUCCESS )
         RemainFlush( p_stream->p_sys );
     return i_ret;
 }
@@ -243,20 +244,20 @@ static int Seek( stream_t *p_stream, uint64_t i_pos )
  */
 static int Control( stream_t *p_stream, int i_query, va_list args )
 {
-    return vlc_stream_vaControl( p_stream->s, i_query, args );
+    return heimdall_stream_vaControl( p_stream->s, i_query, args );
 }
 
-static int Open( vlc_object_t *p_object )
+static int Open( heimdall_object_t *p_object )
 {
     stream_t *p_stream = (stream_t *) p_object;
 
     int64_t i_stream_size = stream_Size( p_stream->s );
     if ( i_stream_size > 0 && i_stream_size < ARIB_STD_B25_TS_PROBING_MIN_DATA )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     stream_sys_t *p_sys = p_stream->p_sys = calloc( 1, sizeof(*p_sys) );
     if (p_sys == NULL)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_sys->p_b25 = create_arib_std_b25();
     if ( p_sys->p_b25 )
@@ -324,14 +325,14 @@ static int Open( vlc_object_t *p_object )
     p_stream->pf_seek = Seek;
     p_stream->pf_control = Control;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
-    Close( VLC_OBJECT(p_stream) );
-    return VLC_EGENERIC;
+    Close( HEIMDALL_OBJECT(p_stream) );
+    return HEIMDALL_EGENERIC;
 }
 
-static void Close ( vlc_object_t *p_object )
+static void Close ( heimdall_object_t *p_object )
 {
     stream_t *p_stream = (stream_t *)p_object;
     stream_sys_t *p_sys = p_stream->p_sys;

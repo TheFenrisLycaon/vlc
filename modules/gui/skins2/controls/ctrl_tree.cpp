@@ -2,10 +2,11 @@
  * ctrl_tree.cpp
  *****************************************************************************
  * Copyright (C) 2003 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Antoine Cellerier <dionoea@videolan.org>
  *          Clément Stenac <zorglub@videolan.org>
- *          Erwan Tulou  <erwan10 At videolan DoT org>
+ *          Erwan Tulou  <erwan10 At lycaria DoT org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -39,7 +40,7 @@
 #include "../events/evt_scroll.hpp"
 #include "../events/evt_dragndrop.hpp"
 #include "../vars/playtree.hpp"
-#include <vlc_actions.h>
+#include <heimdall_actions.h>
 
 #define LINE_INTERVAL 1  // Number of pixels inserted between 2 lines
 
@@ -381,7 +382,7 @@ void CtrlTree::handleEvent( EvtGeneric &rEvent )
         }
         else
         {
-            // other keys to be forwarded to vlc core
+            // other keys to be forwarded to heimdall core
             EvtKey& rEvtKey = (EvtKey&)rEvent;
             getIntf()->p_sys->p_dialogs->sendKey( rEvtKey.getModKey() );
         }

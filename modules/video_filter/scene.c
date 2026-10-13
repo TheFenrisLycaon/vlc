@@ -2,6 +2,7 @@
  * scene.c : scene video filter (based on modules/video_output/image.c)
  *****************************************************************************
  * Copyright (C) 2004-2008 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Jean-Paul Saman <jpsaman@videolan.org>
  *          Clément Stenac <zorglub@videolan.org>
@@ -32,15 +33,15 @@
 #include <limits.h>
 #include <errno.h>
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_picture.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
 #include "filter_picture.h"
-#include <vlc_image.h>
-#include <vlc_strings.h>
-#include <vlc_fs.h>
+#include <heimdall_image.h>
+#include <heimdall_strings.h>
+#include <heimdall_fs.h>
 
 /*****************************************************************************
  * Local prototypes
@@ -61,12 +62,12 @@ static void SavePicture( filter_t *, picture_t * );
 
 #define WIDTH_TEXT N_( "Image width" )
 #define WIDTH_LONGTEXT N_( "You can enforce the image width. By default " \
-                            "(-1) VLC will adapt to the video " \
+                            "(-1) Heimdall will adapt to the video " \
                             "characteristics.")
 
 #define HEIGHT_TEXT N_( "Image height" )
 #define HEIGHT_LONGTEXT N_( "You can enforce the image height. By default " \
-                            "(-1) VLC will adapt to the video " \
+                            "(-1) Heimdall will adapt to the video " \
                             "characteristics.")
 
 #define RATIO_TEXT N_( "Recording ratio" )
@@ -91,7 +92,7 @@ static void SavePicture( filter_t *, picture_t * );
 #define SCENE_HELP N_("Send your video to picture files")
 #define CFG_PREFIX "scene-"
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( N_( "Scene filter" ) )
     set_description( N_( "Scene video filter" ) )
     set_help(SCENE_HELP)
@@ -116,7 +117,7 @@ vlc_module_begin ()
                             RATIO_TEXT, RATIO_LONGTEXT )
 
     set_callback_video_filter( Create )
-vlc_module_end ()
+heimdall_module_end ()
 
 static const char *const ppsz_vfilter_options[] = {
     "format", "width", "height", "ratio", "prefix", "path", "replace", NULL
@@ -138,7 +139,7 @@ typedef struct
     char *psz_path;
     char *psz_prefix;
     char *psz_format;
-    vlc_fourcc_t i_format;
+    heimdall_fourcc_t i_format;
     int32_t i_width;
     int32_t i_height;
     int32_t i_ratio;  /* save every n-th frame */
@@ -153,25 +154,25 @@ static int Create( filter_t *p_filter )
 {
     filter_sys_t *p_sys;
 
-    const vlc_chroma_description_t *p_chroma =
-        vlc_fourcc_GetChromaDescription( p_filter->fmt_in.video.i_chroma );
+    const heimdall_chroma_description_t *p_chroma =
+        heimdall_fourcc_GetChromaDescription( p_filter->fmt_in.video.i_chroma );
     assert( p_chroma != NULL );
     if( p_chroma->plane_count == 0 )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     config_ChainParse( p_filter, CFG_PREFIX, ppsz_vfilter_options,
                        p_filter->p_cfg );
 
     p_filter->p_sys = p_sys = calloc( 1, sizeof( filter_sys_t ) );
     if( p_filter->p_sys == NULL )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_sys->p_image = image_HandlerCreate( p_filter );
     if( !p_sys->p_image )
     {
         msg_Err( p_filter, "Couldn't get handle to image conversion routines." );
         free( p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     p_sys->psz_format = var_CreateGetString( p_filter, CFG_PREFIX "format" );
@@ -183,7 +184,7 @@ static int Create( filter_t *p_filter )
         image_HandlerDelete( p_sys->p_image );
         free( p_sys->psz_format );
         free( p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     p_sys->i_width = var_CreateGetInteger( p_filter, CFG_PREFIX "width" );
     p_sys->i_height = var_CreateGetInteger( p_filter, CFG_PREFIX "height" );
@@ -194,7 +195,7 @@ static int Create( filter_t *p_filter )
     p_sys->psz_prefix = var_CreateGetString( p_filter, CFG_PREFIX "prefix" );
     p_sys->psz_path = var_GetNonEmptyString( p_filter, CFG_PREFIX "path" );
     if( p_sys->psz_path == NULL )
-        p_sys->psz_path = config_GetUserDir( VLC_SNAPSHOTS_DIR );
+        p_sys->psz_path = config_GetUserDir( HEIMDALL_SNAPSHOTS_DIR );
 
     if (unlikely(p_sys->psz_path == NULL))
     {
@@ -203,16 +204,16 @@ static int Create( filter_t *p_filter )
         free( p_sys->psz_prefix );
         free( p_sys->psz_format );
         free( p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    static const struct vlc_filter_operations filter_ops =
+    static const struct heimdall_filter_operations filter_ops =
     {
         .filter_video = Filter, .close = Destroy,
     };
     p_filter->ops = &filter_ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -328,7 +329,7 @@ static void SavePicture( filter_t *p_filter, picture_t *p_pic )
     /* Save the image */
     i_ret = image_WriteUrl( p_sys->p_image, p_pic, &fmt_in, p_sys->i_format, &fmt_out,
                             psz_temp );
-    if( i_ret != VLC_SUCCESS )
+    if( i_ret != HEIMDALL_SUCCESS )
     {
         msg_Err( p_filter, "could not create snapshot %s", psz_temp );
     }
@@ -336,13 +337,13 @@ static void SavePicture( filter_t *p_filter, picture_t *p_pic )
     {
         /* switch to the final destination */
 #if defined (_WIN32) || defined(__OS2__)
-        vlc_unlink( psz_filename );
+        heimdall_unlink( psz_filename );
 #endif
-        i_ret = vlc_rename( psz_temp, psz_filename );
+        i_ret = heimdall_rename( psz_temp, psz_filename );
         if( i_ret == -1 )
         {
             msg_Err( p_filter, "could not rename snapshot %s: %s",
-                     psz_filename, vlc_strerror_c(errno) );
+                     psz_filename, heimdall_strerror_c(errno) );
             goto error;
         }
     }

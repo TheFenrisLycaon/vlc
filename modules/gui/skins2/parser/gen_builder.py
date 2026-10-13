@@ -15,6 +15,7 @@ hppfile.write(
  * builder_data.hpp
  *****************************************************************************
  * Copyright (C) 2003 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  * $Id$
  *
  * Authors: Cyril Deguet     <asmax@via.ecp.fr>
@@ -41,7 +42,7 @@ hppfile.write(
 #ifndef BUILDER_DATA_HPP
 #define BUILDER_DATA_HPP
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 #include <list>
 #include <map>
 #include <string>

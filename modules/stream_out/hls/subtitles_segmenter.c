@@ -2,6 +2,7 @@
  * subtitle_segmenter.c: Create subtitle segments
  *****************************************************************************
  * Copyright (C) 2024 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -23,12 +24,12 @@
 
 #include <assert.h>
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
-#include <vlc_block.h>
-#include <vlc_frame.h>
-#include <vlc_sout.h>
-#include <vlc_tick.h>
+#include <heimdall_block.h>
+#include <heimdall_frame.h>
+#include <heimdall_sout.h>
+#include <heimdall_tick.h>
 
 #include "hls.h"
 
@@ -45,8 +46,8 @@ struct hls_sub_segmenter
     sout_mux_t *spu_muxer;
     sout_input_t *spu_muxer_input;
     bool segment_empty;
-    vlc_tick_t last_segment;
-    vlc_tick_t last_stream_update;
+    heimdall_tick_t last_segment;
+    heimdall_tick_t last_stream_update;
 };
 
 static int hls_sub_segmenter_ResetMuxer(struct hls_sub_segmenter *segmenter,
@@ -61,14 +62,14 @@ static int hls_sub_segmenter_ResetMuxer(struct hls_sub_segmenter *segmenter,
 
     segmenter->spu_muxer = sout_MuxNew(segmenter->owner.p_access, "webvtt");
     if (segmenter->spu_muxer == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     segmenter->spu_muxer_input =
         sout_MuxAddStream(segmenter->spu_muxer, &owner_input->fmt);
 
     // Disable mux caching.
     segmenter->spu_muxer->b_waiting_stream = false;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int hls_sub_segmenter_EndSegment(struct hls_sub_segmenter *segmenter,
@@ -79,20 +80,20 @@ static int hls_sub_segmenter_EndSegment(struct hls_sub_segmenter *segmenter,
 }
 
 static int hls_sub_segmenter_EndEmptySegment(
-    struct hls_sub_segmenter *segmenter, sout_input_t *input, vlc_tick_t len)
+    struct hls_sub_segmenter *segmenter, sout_input_t *input, heimdall_tick_t len)
 {
     char *vtt_header = strdup("WEBVTT\n\n");
     if (unlikely(vtt_header == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     block_t *empty_segment = block_heap_Alloc(vtt_header, strlen(vtt_header));
     if (unlikely(empty_segment == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     empty_segment->i_flags |= BLOCK_FLAG_HEADER;
     empty_segment->i_length = len;
     if (sout_AccessOutWrite(segmenter->spu_muxer->p_access, empty_segment) < 0)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     return hls_sub_segmenter_EndSegment(segmenter, input);
 }
@@ -101,11 +102,11 @@ static int hls_sub_segmenter_Add(sout_mux_t *mux, sout_input_t *input)
 {
     struct hls_sub_segmenter *segmenter = mux->p_sys;
     hls_sub_segmenter_ResetMuxer(segmenter, input);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int hls_sub_segmenter_MuxSend(struct hls_sub_segmenter *segmenter,
-                                     vlc_frame_t *spu)
+                                     heimdall_frame_t *spu)
 {
     segmenter->segment_empty = false;
     return sout_MuxSendBuffer(
@@ -118,14 +119,14 @@ static void hls_sub_segmenter_Del(sout_mux_t *mux, sout_input_t *input)
 
     if (segmenter->last_segment != segmenter->last_stream_update)
     {
-        const vlc_tick_t seglen =
+        const heimdall_tick_t seglen =
             segmenter->last_stream_update - segmenter->last_segment;
 
-        if (!vlc_fifo_IsEmpty(input->p_fifo))
+        if (!heimdall_fifo_IsEmpty(input->p_fifo))
         {
             /* Drain the last ephemeral SPU. */
-            vlc_frame_t *ephemeral = vlc_fifo_Get(input->p_fifo);
-            assert(ephemeral->i_length == VLC_TICK_INVALID);
+            heimdall_frame_t *ephemeral = heimdall_fifo_Get(input->p_fifo);
+            assert(ephemeral->i_length == HEIMDALL_TICK_INVALID);
             ephemeral->i_length = seglen;
             hls_sub_segmenter_MuxSend(segmenter, ephemeral);
         }
@@ -142,9 +143,9 @@ static void hls_sub_segmenter_Del(sout_mux_t *mux, sout_input_t *input)
         sout_MuxDelete(segmenter->spu_muxer);
 }
 
-static vlc_frame_t* hls_sub_segmenter_CutEphemeral(vlc_frame_t *ephemeral, vlc_tick_t length)
+static heimdall_frame_t* hls_sub_segmenter_CutEphemeral(heimdall_frame_t *ephemeral, heimdall_tick_t length)
 {
-    vlc_frame_t *cut = vlc_frame_Duplicate(ephemeral);
+    heimdall_frame_t *cut = heimdall_frame_Duplicate(ephemeral);
     if (unlikely(cut == NULL))
         return NULL;
 
@@ -160,7 +161,7 @@ static vlc_frame_t* hls_sub_segmenter_CutEphemeral(vlc_frame_t *ephemeral, vlc_t
  * to segment length. 
  */
 void hls_sub_segmenter_SignalStreamUpdate(sout_mux_t *mux,
-                                          vlc_tick_t stream_time)
+                                          heimdall_tick_t stream_time)
 {
     if (mux->i_nb_inputs == 0)
         return;
@@ -173,17 +174,17 @@ void hls_sub_segmenter_SignalStreamUpdate(sout_mux_t *mux,
         segmenter->config->segment_length)
         return;
 
-    if (!vlc_fifo_IsEmpty(owner_input->p_fifo))
+    if (!heimdall_fifo_IsEmpty(owner_input->p_fifo))
     {
-        vlc_frame_t *ephemeral = vlc_fifo_Show(owner_input->p_fifo);
+        heimdall_frame_t *ephemeral = heimdall_fifo_Show(owner_input->p_fifo);
 
         /* The segmenter should only keep ephemeral SPUs in queue. */
-        assert(ephemeral->i_length == VLC_TICK_INVALID);
+        assert(ephemeral->i_length == HEIMDALL_TICK_INVALID);
 
-        const vlc_tick_t eph_len =
+        const heimdall_tick_t eph_len =
             (segmenter->last_segment + segmenter->config->segment_length) -
             ephemeral->i_pts;
-        vlc_frame_t *cut = hls_sub_segmenter_CutEphemeral(ephemeral, eph_len);
+        heimdall_frame_t *cut = hls_sub_segmenter_CutEphemeral(ephemeral, eph_len);
         if (likely(cut != NULL))
             hls_sub_segmenter_MuxSend(segmenter, cut);
     }
@@ -201,39 +202,39 @@ void hls_sub_segmenter_SignalStreamUpdate(sout_mux_t *mux,
 static int
 hls_sub_segmenter_ProcessSingleFrame(struct hls_sub_segmenter *segmenter,
                                      sout_input_t *owner_input,
-                                     vlc_frame_t *spu)
+                                     heimdall_frame_t *spu)
 {
-    const vlc_tick_t seglen = segmenter->config->segment_length;
+    const heimdall_tick_t seglen = segmenter->config->segment_length;
     if (spu->i_pts >= segmenter->last_segment + seglen)
         hls_sub_segmenter_EndSegment(segmenter, owner_input);
 
     // If the subtitle overlaps between segments, we have to split it.
     while (spu->i_pts + spu->i_length > segmenter->last_segment + seglen)
     {
-        vlc_frame_t *capped_spu = vlc_frame_Duplicate(spu);
+        heimdall_frame_t *capped_spu = heimdall_frame_Duplicate(spu);
         if (unlikely(capped_spu == NULL))
         {
-            vlc_frame_Release(spu);
-            return VLC_ENOMEM;
+            heimdall_frame_Release(spu);
+            return HEIMDALL_ENOMEM;
         }
 
         // Extra time not fitting in the current segment.
-        const vlc_tick_t extra_time =
-            (spu->i_pts - VLC_TICK_0 + spu->i_length) -
+        const heimdall_tick_t extra_time =
+            (spu->i_pts - HEIMDALL_TICK_0 + spu->i_length) -
             segmenter->last_segment - seglen;
 
         // Shorten the copy length so it fits the current segment.
         capped_spu->i_length -= extra_time;
 
-        if (spu->i_dts != VLC_TICK_INVALID)
+        if (spu->i_dts != HEIMDALL_TICK_INVALID)
             spu->i_dts += capped_spu->i_length;
         spu->i_pts += capped_spu->i_length;
         spu->i_length = extra_time;
 
         const int status = hls_sub_segmenter_MuxSend(segmenter, capped_spu);
-        if (status != VLC_SUCCESS)
+        if (status != HEIMDALL_SUCCESS)
         {
-            vlc_frame_Release(spu);
+            heimdall_frame_Release(spu);
             return status;
         }
         hls_sub_segmenter_EndSegment(segmenter, owner_input);
@@ -246,22 +247,22 @@ static int hls_sub_segmenter_Process(sout_mux_t *mux)
     struct hls_sub_segmenter *segmenter = mux->p_sys;
 
     if (mux->i_nb_inputs == 0)
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
     sout_input_t *input = mux->pp_inputs[0];
 
-    vlc_fifo_Lock(input->p_fifo);
-    vlc_frame_t *chain = vlc_fifo_DequeueAllUnlocked(input->p_fifo);
+    heimdall_fifo_Lock(input->p_fifo);
+    heimdall_frame_t *chain = heimdall_fifo_DequeueAllUnlocked(input->p_fifo);
 
-    int status = VLC_SUCCESS;
+    int status = HEIMDALL_SUCCESS;
     while (chain != NULL)
     {
-        if (chain->i_length == VLC_TICK_INVALID)
+        if (chain->i_length == HEIMDALL_TICK_INVALID)
         {
             /* Ephemeral SPUs length depends on the next SPUs timestamps. */
             if (chain->p_next == NULL)
             {
-                vlc_fifo_QueueUnlocked(input->p_fifo, chain);
+                heimdall_fifo_QueueUnlocked(input->p_fifo, chain);
                 break;
             }
             else
@@ -270,36 +271,36 @@ static int hls_sub_segmenter_Process(sout_mux_t *mux)
             }
         }
 
-        vlc_frame_t *next = chain->p_next;
+        heimdall_frame_t *next = chain->p_next;
         chain->p_next = NULL;
         status =
             hls_sub_segmenter_ProcessSingleFrame(segmenter, input, chain);
-        if (status != VLC_SUCCESS)
+        if (status != HEIMDALL_SUCCESS)
         {
-            vlc_frame_ChainRelease(next);
+            heimdall_frame_ChainRelease(next);
             break;
         }
         chain = next;
     }
-    vlc_fifo_Unlock(input->p_fifo);
+    heimdall_fifo_Unlock(input->p_fifo);
     return status;
 }
 
 static int hls_sub_segmenter_Control(sout_mux_t *mux, int query, va_list args)
 {
     if (query != MUX_CAN_ADD_STREAM_WHILE_MUXING)
-        return VLC_ENOTSUP;
+        return HEIMDALL_ENOTSUP;
 
     *(va_arg(args, bool *)) = false;
     (void)mux;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 sout_mux_t *CreateSubtitleSegmenter(sout_access_out_t *access,
                                     const struct hls_config *config)
 {
     struct hls_sub_segmenter *segmenter =
-        vlc_object_create(access, sizeof(*segmenter));
+        heimdall_object_create(access, sizeof(*segmenter));
     if (unlikely(segmenter == NULL))
         return NULL;
 
@@ -307,7 +308,7 @@ sout_mux_t *CreateSubtitleSegmenter(sout_access_out_t *access,
     mux->psz_mux = strdup("hls-sub-segmenter");
     if (unlikely(mux->psz_mux == NULL))
     {
-        vlc_object_delete(mux);
+        heimdall_object_delete(mux);
         return NULL;
     }
 
@@ -317,7 +318,7 @@ sout_mux_t *CreateSubtitleSegmenter(sout_access_out_t *access,
     mux->pp_inputs = NULL;
     mux->b_add_stream_any_time = false;
     mux->b_waiting_stream = true;
-    mux->i_add_stream_start = VLC_TICK_INVALID;
+    mux->i_add_stream_start = HEIMDALL_TICK_INVALID;
     mux->p_sys = segmenter;
     mux->p_access = access;
 
@@ -329,7 +330,7 @@ sout_mux_t *CreateSubtitleSegmenter(sout_access_out_t *access,
     segmenter->config = config;
     segmenter->spu_muxer = NULL;
     segmenter->segment_empty = true;
-    segmenter->last_segment = VLC_TICK_0;
-    segmenter->last_stream_update = VLC_TICK_INVALID;
+    segmenter->last_segment = HEIMDALL_TICK_0;
+    segmenter->last_stream_update = HEIMDALL_TICK_INVALID;
     return &segmenter->owner;
 }

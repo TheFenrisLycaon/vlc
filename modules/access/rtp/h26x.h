@@ -3,6 +3,7 @@
  */
 /*****************************************************************************
  * Copyright (C) 2022 VideoLabs, VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License
@@ -18,11 +19,11 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  ****************************************************************************/
-#include <vlc_common.h>
-#include <vlc_block.h>
-#include <vlc_strings.h>
-#include <vlc_codec.h>
-#include <vlc_demux.h>
+#include <heimdall_common.h>
+#include <heimdall_block.h>
+#include <heimdall_strings.h>
+#include <heimdall_codec.h>
+#include <heimdall_demux.h>
 
 #include "rtp.h"
 #include "../live555_dtsgen.h"
@@ -32,11 +33,11 @@ static const uint8_t annexbheader[] = { 0, 0, 0, 1 };
 struct rtp_h26x_sys
 {
     unsigned flags;
-    vlc_tick_t pts;
+    heimdall_tick_t pts;
     block_t **pp_packets_next;
     block_t *p_packets;
     block_t *xps;
-    struct vlc_rtp_es *es;
+    struct heimdall_rtp_es *es;
     decoder_t *p_packetizer;
     struct dtsgen_t dtsgen;
 };
@@ -51,7 +52,7 @@ static void rtp_h26x_clear(struct rtp_h26x_sys *sys)
 static void rtp_h26x_init(struct rtp_h26x_sys *sys)
 {
     sys->flags = 0;
-    sys->pts = VLC_TICK_INVALID;
+    sys->pts = HEIMDALL_TICK_INVALID;
     sys->p_packets = NULL;
     sys->pp_packets_next = &sys->p_packets;
     sys->xps = NULL;
@@ -69,7 +70,7 @@ static void h26x_extractbase64xps(const char *psz64,
     {
         psz64 += strspn(psz64, " ");
         uint8_t *xps = NULL;
-        size_t xpssz = vlc_b64_decode_binary(&xps, psz64);
+        size_t xpssz = heimdall_b64_decode_binary(&xps, psz64);
         pf_output(outputsys, xps, xpssz);
         psz64 = strchr(psz64, ',');
         if(psz64)
@@ -113,7 +114,7 @@ static inline block_t * h26x_fillextradata (const char *psz)
 
 static void h26x_output(struct rtp_h26x_sys *sys,
                         block_t *block,
-                        vlc_tick_t pts, bool pcr, bool au_end)
+                        heimdall_tick_t pts, bool pcr, bool au_end)
 {
     if(!block)
         return;
@@ -129,7 +130,7 @@ static void h26x_output(struct rtp_h26x_sys *sys,
         dtsgen_Resync(&sys->dtsgen);
 
     block->i_pts = pts;
-    block->i_dts = VLC_TICK_INVALID; /* RTP does not specify this */
+    block->i_dts = HEIMDALL_TICK_INVALID; /* RTP does not specify this */
     if(au_end)
         block->i_flags |= BLOCK_FLAG_AU_END;
 
@@ -140,9 +141,9 @@ static void h26x_output(struct rtp_h26x_sys *sys,
                                                        block ? &block : NULL)))
         {
             dtsgen_AddNextPTS(&sys->dtsgen, p_out->i_pts);
-            vlc_tick_t dts = dtsgen_GetDTS(&sys->dtsgen);
+            heimdall_tick_t dts = dtsgen_GetDTS(&sys->dtsgen);
             p_out->i_dts = dts;
-            vlc_rtp_es_send(sys->es, p_out);
+            heimdall_rtp_es_send(sys->es, p_out);
         }
         block = NULL; // for drain iteration
     }

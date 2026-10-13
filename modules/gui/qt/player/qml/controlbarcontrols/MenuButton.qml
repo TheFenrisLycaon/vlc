@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,18 +19,18 @@
 import QtQuick
 
 
-import VLC.MainInterface
-import VLC.Widgets as Widgets
-import VLC.Style
-import VLC.Menus
-import VLC.Util
+import Heimdall.MainInterface
+import Heimdall.Widgets as Widgets
+import Heimdall.Style
+import Heimdall.Menus
+import Heimdall.Util
 
 Widgets.IconToolButton {
     id: menuBtn
 
     signal requestLockUnlockAutoHide(bool lock)
 
-    text: VLCIcons.ellipsis
+    text: HeimdallIcons.ellipsis
     description: qsTr("Menu")
 
     AccessibleCompat.id: "menuButton"

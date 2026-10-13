@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2025 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,11 +20,11 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Templates as T
 
-import VLC.MainInterface
-import VLC.Widgets as Widgets
-import VLC.Style
-import VLC.Util
-import VLC.MediaLibrary
+import Heimdall.MainInterface
+import Heimdall.Widgets as Widgets
+import Heimdall.Style
+import Heimdall.Util
+import Heimdall.MediaLibrary
 
 T.Pane {
     id: root
@@ -33,10 +34,10 @@ T.Pane {
     implicitHeight: Math.max(implicitBackgroundHeight + topInset + bottomInset,
                              implicitContentHeight + topPadding + bottomPadding)
 
-    verticalPadding: VLCStyle.margin_small
-    horizontalPadding: VLCStyle.margin_normal
+    verticalPadding: HeimdallStyle.margin_small
+    horizontalPadding: HeimdallStyle.margin_normal
 
-    spacing: VLCStyle.margin_xsmall
+    spacing: HeimdallStyle.margin_xsmall
 
     required property string section
 
@@ -52,7 +53,7 @@ T.Pane {
 
     property var _albumData
     readonly property url _albumCover: _initialFetchCompleted ? ((_albumData?.cover && (_albumData.cover !== "")) ? _albumData.cover
-                                                                                                                  : VLCStyle.noArtAlbumCover)
+                                                                                                                  : HeimdallStyle.noArtAlbumCover)
                                                               : ""
 
     signal changeToNextSectionRequested()
@@ -162,7 +163,7 @@ T.Pane {
     component TitleLabel: Widgets.SubtitleLabel {
         required property MusicAlbumSectionDelegate delegate
 
-        font.pixelSize: VLCStyle.fontSize_xxlarge
+        font.pixelSize: HeimdallStyle.fontSize_xxlarge
 
         text: delegate._initialFetchCompleted ? (delegate._albumData?.title || qsTr("Unknown title"))
                                               : " " // to get the implicit height during layouting at initialization
@@ -206,7 +207,7 @@ T.Pane {
     component PlayButton: Widgets.ActionButtonPrimary {
         required property MusicAlbumSectionDelegate delegate
 
-        iconTxt: VLCIcons.play
+        iconTxt: HeimdallIcons.play
         text: qsTr("Play")
         enabled: !!delegate?._albumData?.id
         visible: delegate._initialFetchCompleted
@@ -219,7 +220,7 @@ T.Pane {
     component EnqueueButton: Widgets.ActionButtonOverlay {
         required property MusicAlbumSectionDelegate delegate
 
-        iconTxt: VLCIcons.enqueue
+        iconTxt: HeimdallIcons.enqueue
         text: qsTr("Enqueue")
         enabled: !!delegate?._albumData?.id
         visible: delegate._initialFetchCompleted
@@ -232,7 +233,7 @@ T.Pane {
     component PreviousSectionButton: Widgets.ActionButtonOverlay {
         required property MusicAlbumSectionDelegate delegate
 
-        iconTxt: VLCIcons.chevron_up
+        iconTxt: HeimdallIcons.chevron_up
         text: qsTr("Prev")
         enabled: delegate.previousSectionButtonEnabled
 
@@ -244,7 +245,7 @@ T.Pane {
     component NextSectionButton: Widgets.ActionButtonOverlay {
         required property MusicAlbumSectionDelegate delegate
 
-        iconTxt: VLCIcons.chevron_down
+        iconTxt: HeimdallIcons.chevron_down
         text: qsTr("Next")
         enabled: delegate.nextSectionButtonEnabled
 
@@ -261,17 +262,17 @@ T.Pane {
         readonly property Item artworkTextureProvider: (artwork.status === Image.Ready) ? artwork.textureProviderItem
                                                                                         : null
 
-        readonly property bool compactDownButtons: (_contentItem.width < VLCStyle.colWidth(3))
-        readonly property bool compactRightButtons: (_contentItem.width < VLCStyle.colWidth(5))
+        readonly property bool compactDownButtons: (_contentItem.width < HeimdallStyle.colWidth(3))
+        readonly property bool compactRightButtons: (_contentItem.width < HeimdallStyle.colWidth(5))
 
         Widgets.ImageExt {
             id: artwork
 
             Layout.fillHeight: true
-            Layout.preferredHeight: VLCStyle.cover_small
-            Layout.preferredWidth: VLCStyle.cover_small
+            Layout.preferredHeight: HeimdallStyle.cover_small
+            Layout.preferredWidth: HeimdallStyle.cover_small
 
-            radius: VLCStyle.expandCover_music_radius
+            radius: HeimdallStyle.expandCover_music_radius
 
             source: root._albumCover
 
@@ -302,7 +303,7 @@ T.Pane {
             Layout.fillWidth: true
             Layout.alignment: Qt.AlignVCenter
 
-            spacing: VLCStyle.margin_xsmall
+            spacing: HeimdallStyle.margin_xsmall
 
             Column {
                 anchors.left: parent.left
@@ -329,7 +330,7 @@ T.Pane {
                 anchors.left: parent.left
                 anchors.right: parent.right
 
-                spacing: VLCStyle.margin_small
+                spacing: HeimdallStyle.margin_small
 
                 PlayButton {
                     id: playButton
@@ -365,7 +366,7 @@ T.Pane {
         // Column {
         //     Layout.alignment: Qt.AlignVCenter
 
-        //     spacing: VLCStyle.margin_small
+        //     spacing: HeimdallStyle.margin_small
 
         //     PreviousSectionButton {
         //         id: previousSectionButton

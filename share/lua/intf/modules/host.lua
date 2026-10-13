@@ -1,9 +1,10 @@
 --[==========================================================================[
- host.lua: VLC Lua interface command line host module
+ host.lua: Heimdall Lua interface command line host module
 --[==========================================================================[
  Copyright (C) 2007-2012 the VideoLAN team
+ Copyright (C) 2026 TheFenrisLycaon
 
- Authors: Antoine Cellerier <dionoea at videolan dot org>
+ Authors: Antoine Cellerier <dionoea at lycaria dot org>
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -58,7 +59,7 @@ Example use:
         end
     end
 
-For complete examples see existing VLC Lua interface modules (ie cli.lua)
+For complete examples see existing Heimdall Lua interface modules (ie cli.lua)
 --]==========================================================================]
 
 status = { init = 0, read = 1, write = 2, password = 3 }
@@ -92,60 +93,60 @@ function host()
 
     local function send( client, data, len )
         if len then
-            return vlc.net.send( client.wfd, data, len )
+            return heimdall.net.send( client.wfd, data, len )
         else
-            return vlc.net.send( client.wfd, data or client.buffer )
+            return heimdall.net.send( client.wfd, data or client.buffer )
         end
     end
 
     local function recv( client, len )
         if len then
-            return vlc.net.recv( client.rfd, len )
+            return heimdall.net.recv( client.rfd, len )
         else
-            return vlc.net.recv( client.rfd )
+            return heimdall.net.recv( client.rfd )
         end
     end
 
     local function write( client, data )
-        return vlc.net.write( client.wfd, data or client.buffer )
+        return heimdall.net.write( client.wfd, data or client.buffer )
     end
 
     local function read( client, len )
         if len then
-            return vlc.net.read( client.rfd, len )
+            return heimdall.net.read( client.rfd, len )
         else
-            return vlc.net.read( client.rfd )
+            return heimdall.net.read( client.rfd )
         end
     end
 
     local function write_console( client, data )
-        -- FIXME: this method shouldn't be needed. vlc.net.write should
+        -- FIXME: this method shouldn't be needed. heimdall.net.write should
         -- just work
-        vlc.win.console_write(data or client.buffer)
+        heimdall.win.console_write(data or client.buffer)
         return string.len(data or client.buffer)
     end
 
     local function read_console( client, len )
         -- Read stdin from a windows console (beware: select/poll doesn't work!)
-        return vlc.win.console_read()
+        return heimdall.win.console_read()
     end
 
     local function del_client( client )
         if not clients[client] then
-            vlc.msg.err("couldn't find client to remove.")
+            heimdall.msg.err("couldn't find client to remove.")
             return
         end
 
         if client.type == client_type.stdio then
             h:broadcast("Shutting down.\r\n")
-            vlc.msg.info("Requested shutdown.")
-            vlc.misc.quit()
+            heimdall.msg.info("Requested shutdown.")
+            heimdall.misc.quit()
         elseif client.type == client_type.net
         or client.type == client_type.telnet then
             if client.wfd ~= client.rfd then
-                vlc.net.close( client.rfd )
+                heimdall.net.close( client.rfd )
             end
-            vlc.net.close( client.wfd )
+            heimdall.net.close( client.wfd )
         end
         clients[client] = nil
     end
@@ -170,8 +171,8 @@ function host()
             w = send
             r = recv
         elseif t == client_type.stdio or t == client_type.fifo then
-            if vlc.win and t == client_type.stdio then
-                vlc.win.console_init()
+            if heimdall.win and t == client_type.stdio then
+                heimdall.win.console_init()
                 w = write_console
                 r = read_console
             else
@@ -197,7 +198,7 @@ function host()
                          switch_status = switch_status,
                          append = append,
                        }
-        client:send( "VLC media player "..vlc.misc.version().."\n" )
+        client:send( "Heimdall media player "..heimdall.misc.version().."\n" )
         clients[client] = client
         client:switch_status(status.password)
     end
@@ -208,7 +209,7 @@ function host()
                          and listeners.tcp[host][port] then
             error("Already listening on tcp host `"..host..":"..tostring(port).."'")
         end
-        if listeners.stdio and vlc.win then
+        if listeners.stdio and heimdall.win then
             error("Cannot listen on console and sockets concurrently on Windows")
         end
         if not listeners.tcp then
@@ -222,7 +223,7 @@ function host()
             -- FIXME: if host == "list" we'll have a problem
             listeners.tcp.list = {}
         end
-        local listener = vlc.net.listen_tcp( host, port )
+        local listener = heimdall.net.listen_tcp( host, port )
         local type = telnet and client_type.telnet or client_type.net;
         table.insert( listeners.tcp.list, { data = listener,
                                             type = type,
@@ -233,7 +234,7 @@ function host()
         if listeners.stdio then
             error("Already listening on stdio")
         end
-        if listeners.tcp and vlc.win then
+        if listeners.tcp and heimdall.win then
             error("Cannot listen on console and sockets concurrently on Windows")
         end
         new_client( h, 0, 1, client_type.stdio )
@@ -246,13 +247,13 @@ function host()
                 h:listen( u )
             end
         else
-            vlc.msg.info( "Listening on host \""..url.."\"." )
+            heimdall.msg.info( "Listening on host \""..url.."\"." )
             if url == "*console" then
                 h:listen_stdio()
             else
-                u = vlc.strings.url_parse( url )
+                u = heimdall.strings.url_parse( url )
                 if u.host == nil then
-                    u = vlc.strings.url_parse( "//" .. url )
+                    u = heimdall.strings.url_parse( "//" .. url )
                 end
                 h:listen_tcp( u.host, u.port, (u.protocol == "telnet") )
             end
@@ -262,7 +263,7 @@ function host()
     local function _accept_and_select( h )
         local wclients = {}
         local rclients = {}
-        if not (vlc.win and listeners.stdio) then
+        if not (heimdall.win and listeners.stdio) then
             local function filter_client( fds, status, event )
                 for _, client in pairs(clients) do
                     if client.status == status then
@@ -272,34 +273,34 @@ function host()
             end
 
             local pollfds = {}
-            filter_client( pollfds, status.read, vlc.net.POLLIN )
-            filter_client( pollfds, status.password, vlc.net.POLLIN )
-            filter_client( pollfds, status.write, vlc.net.POLLOUT )
+            filter_client( pollfds, status.read, heimdall.net.POLLIN )
+            filter_client( pollfds, status.password, heimdall.net.POLLIN )
+            filter_client( pollfds, status.write, heimdall.net.POLLOUT )
             if listeners.tcp then
                 for _, listener in pairs(listeners.tcp.list) do
                     for _, fd in pairs({listener.data:fds()}) do
-                        pollfds[fd] = vlc.net.POLLIN
+                        pollfds[fd] = heimdall.net.POLLIN
                     end
                 end
             end
 
-            local ret = vlc.net.poll( pollfds )
+            local ret = heimdall.net.poll( pollfds )
             if ret > 0 then
                 for _, client in pairs(clients) do
-                    if is_flag_set(pollfds[client:fd()], vlc.net.POLLIN) then
+                    if is_flag_set(pollfds[client:fd()], heimdall.net.POLLIN) then
                         table.insert(rclients, client)
-                    elseif is_flag_set(pollfds[client:fd()], vlc.net.POLLERR)
-                    or is_flag_set(pollfds[client:fd()], vlc.net.POLLHUP)
-                    or is_flag_set(pollfds[client:fd()], vlc.net.POLLNVAL) then
+                    elseif is_flag_set(pollfds[client:fd()], heimdall.net.POLLERR)
+                    or is_flag_set(pollfds[client:fd()], heimdall.net.POLLHUP)
+                    or is_flag_set(pollfds[client:fd()], heimdall.net.POLLNVAL) then
                         client:del()
-                    elseif is_flag_set(pollfds[client:fd()], vlc.net.POLLOUT) then
+                    elseif is_flag_set(pollfds[client:fd()], heimdall.net.POLLOUT) then
                         table.insert(wclients, client)
                     end
                 end
                 if listeners.tcp then
                     for _, listener in pairs(listeners.tcp.list) do
                         for _, fd in pairs({listener.data:fds()}) do
-                            if is_flag_set(pollfds[fd], vlc.net.POLLIN) then
+                            if is_flag_set(pollfds[fd], heimdall.net.POLLIN) then
                                 local afd = listener.data:accept()
                                 new_client( h, afd, afd, listener.type )
                                 break
@@ -312,7 +313,7 @@ function host()
             for _, client in pairs(clients) do
                 if client.type == client_type.stdio then
                     if client.status == status.read or client.status == status.password then
-                        if vlc.win.console_wait(50) then
+                        if heimdall.win.console_wait(50) then
                             table.insert(rclients, client)
                         end
                     else

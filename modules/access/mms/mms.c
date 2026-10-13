@@ -2,6 +2,7 @@
  * mms.c: MMS over tcp, udp and http access plug-in
  *****************************************************************************
  * Copyright (C) 2002-2004 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *
@@ -28,9 +29,9 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_access.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_access.h>
 
 #include "mms.h"
 
@@ -42,8 +43,8 @@
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  Open ( vlc_object_t * );
-static void Close( vlc_object_t * );
+static int  Open ( heimdall_object_t * );
+static void Close( heimdall_object_t * );
 
 #define ALL_TEXT N_("Force selection of all streams")
 #define ALL_LONGTEXT N_( \
@@ -57,7 +58,7 @@ static void Close( vlc_object_t * );
 #define TIMEOUT_TEXT N_("TCP/UDP timeout (ms)")
 #define TIMEOUT_LONGTEXT N_("Amount of time (in ms) to wait before aborting network reception of data. Note that there will be 10 retries before completely giving up.")
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( "MMS" )
     set_description( N_("Microsoft Media Server (MMS) input") )
     set_capability( "access", -1 )
@@ -71,7 +72,7 @@ vlc_module_begin ()
 
     add_shortcut( "mms", "mmsu", "mmst", "mmsh" )
     set_callbacks( Open, Close )
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * Local prototypes
@@ -84,7 +85,7 @@ typedef struct
 /*****************************************************************************
  * Open:
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     stream_t *p_access = (stream_t*)p_this;
 
@@ -100,13 +101,13 @@ static int Open( vlc_object_t *p_this )
     {   /* try mmsh if mmstu failed */
         return  MMSHOpen ( p_access );
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * Close: free unused data structures
  *****************************************************************************/
-static void Close( vlc_object_t *p_this )
+static void Close( heimdall_object_t *p_this )
 {
     stream_t     *p_access = (stream_t*)p_this;
     access_sys_t *p_sys = p_access->p_sys;

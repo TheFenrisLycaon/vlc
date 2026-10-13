@@ -1,7 +1,7 @@
-VLM: VideoLAN (Media) Manager
+VLM: Lycaria (Media) Manager
 
 VLM is a little media manager originally designed to launch multiple
-streams with only one VLC.
+streams with only one Heimdall.
 
 I - Interfaces
  1) Telnet interface
@@ -115,7 +115,7 @@ IV - The configuration file
   type a list of VLM command lines. But beware of recursive calls: you
   can put a "load (file)" command in a configuration file, so for
   example, if you put a "load pouet" in a pouet file, and you launch the
-  "load pouet" command, then pouet will be loaded endlessly, and VLC
+  "load pouet" command, then pouet will be loaded endlessly, and Heimdall
   will crash (at least).
   The load command converts the medias configurations into command lines,
   and writes them into a file.

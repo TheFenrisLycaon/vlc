@@ -2,6 +2,7 @@
  * remap.c : simple channel remapper plug-in
  *****************************************************************************
  * Copyright (C) 2011 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cheng Sun <chengsun9@gmail.com>
  *
@@ -29,18 +30,18 @@
 
 #include <stdbit.h>
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_aout.h>
-#include <vlc_filter.h>
-#include <vlc_block.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_aout.h>
+#include <heimdall_filter.h>
+#include <heimdall_block.h>
 #include <assert.h>
 
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  OpenFilter( vlc_object_t * );
+static int  OpenFilter( heimdall_object_t * );
 
 #define REMAP_CFG "aout-remap-"
 
@@ -72,7 +73,7 @@ static const int channel_flag[] =
     AOUT_CHAN_MIDDLELEFT, AOUT_CHAN_MIDDLERIGHT, AOUT_CHAN_LFE
 };
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("Audio channel remapper") )
     set_capability( "audio filter", 0 )
     set_subcategory( SUBCAT_AUDIO_AFILTER )
@@ -92,7 +93,7 @@ vlc_module_begin ()
             "When mapping more than one channel to a single output channel, "
             "normalize the output accordingly." )
 
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * Local prototypes
@@ -158,7 +159,7 @@ static inline uint32_t CanonicaliseChannels( uint32_t i_physical_channels )
         if( (i_physical_channels & ~valid_channels[i]) == 0 )
             return valid_channels[i];
 
-    vlc_assert_unreachable();
+    heimdall_assert_unreachable();
 }
 
 /*****************************************************************************
@@ -228,15 +229,15 @@ static inline remap_fun_t GetRemapFun( audio_format_t *p_format, bool b_add )
     {
         switch( p_format->i_format )
         {
-            case VLC_CODEC_U8:
+            case HEIMDALL_CODEC_U8:
                 return RemapAddU8;
-            case VLC_CODEC_S16N:
+            case HEIMDALL_CODEC_S16N:
                 return RemapAddS16N;
-            case VLC_CODEC_S32N:
+            case HEIMDALL_CODEC_S32N:
                 return RemapAddS32N;
-            case VLC_CODEC_FL32:
+            case HEIMDALL_CODEC_FL32:
                 return RemapAddFL32;
-            case VLC_CODEC_FL64:
+            case HEIMDALL_CODEC_FL64:
                 return RemapAddFL64;
         }
     }
@@ -244,15 +245,15 @@ static inline remap_fun_t GetRemapFun( audio_format_t *p_format, bool b_add )
     {
         switch( p_format->i_format )
         {
-            case VLC_CODEC_U8:
+            case HEIMDALL_CODEC_U8:
                 return RemapCopyU8;
-            case VLC_CODEC_S16N:
+            case HEIMDALL_CODEC_S16N:
                 return RemapCopyS16N;
-            case VLC_CODEC_S32N:
+            case HEIMDALL_CODEC_S32N:
                 return RemapCopyS32N;
-            case VLC_CODEC_FL32:
+            case HEIMDALL_CODEC_FL32:
                 return RemapCopyFL32;
-            case VLC_CODEC_FL64:
+            case HEIMDALL_CODEC_FL64:
                 return RemapCopyFL64;
         }
     }
@@ -264,7 +265,7 @@ static inline remap_fun_t GetRemapFun( audio_format_t *p_format, bool b_add )
 /*****************************************************************************
  * OpenFilter:
  *****************************************************************************/
-static int OpenFilter( vlc_object_t *p_this )
+static int OpenFilter( heimdall_object_t *p_this )
 {
     filter_t *p_filter = (filter_t *)p_this;
     filter_sys_t *p_sys;
@@ -273,9 +274,9 @@ static int OpenFilter( vlc_object_t *p_this )
     audio_format_t *audio_out = &p_filter->fmt_out.audio;
 
     /* Allocate the memory needed to store the module's structure */
-    p_sys = p_filter->p_sys = vlc_obj_malloc( p_this, sizeof(filter_sys_t) );
+    p_sys = p_filter->p_sys = heimdall_obj_malloc( p_this, sizeof(filter_sys_t) );
     if( unlikely( p_sys == NULL ) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     static const char *const options[] = {
         "channel-left", "channel-center", "channel-right", "channel-rearleft",
@@ -292,10 +293,10 @@ static int OpenFilter( vlc_object_t *p_this )
     for( uint8_t in_ch = 0, wg4_i = 0; in_ch < audio_in->i_channels; in_ch++, wg4_i++ )
     {
         /* explode in_channels in the right order */
-        while( ( audio_in->i_physical_channels & pi_vlc_chan_order_wg4[ wg4_i ] ) == 0 )
+        while( ( audio_in->i_physical_channels & pi_heimdall_chan_order_wg4[ wg4_i ] ) == 0 )
         {
             wg4_i++;
-            assert( wg4_i < sizeof( pi_vlc_chan_order_wg4 )/sizeof( pi_vlc_chan_order_wg4[0] ) );
+            assert( wg4_i < sizeof( pi_heimdall_chan_order_wg4 )/sizeof( pi_heimdall_chan_order_wg4[0] ) );
         }
         unsigned channel_wg4idx_len = sizeof( channel_wg4idx )/sizeof( channel_wg4idx[0] );
         const uint8_t *pi_chnidx = memchr( channel_wg4idx, wg4_i, channel_wg4idx_len );
@@ -305,7 +306,7 @@ static int OpenFilter( vlc_object_t *p_this )
         if (val >= AOUT_CHAN_MAX)
         {
             msg_Err( p_filter, "invalid channel index" );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
         if (val < 0)
         {
@@ -325,10 +326,10 @@ static int OpenFilter( vlc_object_t *p_this )
     uint8_t out_ch_sorted[ AOUT_CHAN_MAX ];
     for( uint8_t i = 0, wg4_i = 0; i < i_channels; i++, wg4_i++ )
     {
-        while( ( i_output_physical & pi_vlc_chan_order_wg4[ wg4_i ] ) == 0 )
+        while( ( i_output_physical & pi_heimdall_chan_order_wg4[ wg4_i ] ) == 0 )
         {
             wg4_i++;
-            assert( wg4_i < sizeof( pi_vlc_chan_order_wg4 )/sizeof( pi_vlc_chan_order_wg4[0] ) );
+            assert( wg4_i < sizeof( pi_heimdall_chan_order_wg4 )/sizeof( pi_heimdall_chan_order_wg4[0] ) );
         }
         out_ch_sorted[ i ] = wg4_i;
     }
@@ -353,7 +354,7 @@ static int OpenFilter( vlc_object_t *p_this )
     if( !p_sys->pf_remap )
     {
         msg_Err( p_filter, "Could not decide on %s remap function", b_multiple ? "an add" : "a copy" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     audio_out->i_rate = audio_in->i_rate;
@@ -368,12 +369,12 @@ static int OpenFilter( vlc_object_t *p_this )
              aout_FormatPrintChannels( audio_in ),
              aout_FormatPrintChannels( audio_out ) );
 
-    static const struct vlc_filter_operations filter_ops =
+    static const struct heimdall_filter_operations filter_ops =
     {
         .filter_audio = Remap,
     };
     p_filter->ops = &filter_ops;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************

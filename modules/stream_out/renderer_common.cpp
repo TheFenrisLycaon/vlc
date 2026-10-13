@@ -2,6 +2,7 @@
  * renderer_common.cpp : renderer helper functions
  *****************************************************************************
  * Copyright © 2014-2018 VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Adrien Maglo <magsoft@videolan.org>
  *          Jean-Baptiste Kempf <jb@videolan.org>
@@ -34,7 +35,7 @@
 #include "renderer_common.hpp"
 
 std::string
-GetVencOption( sout_stream_t *p_stream, vlc_fourcc_t *p_codec_video,
+GetVencOption( sout_stream_t *p_stream, heimdall_fourcc_t *p_codec_video,
         const video_format_t *p_vid, int i_quality );
 
 std::string GetVencVPXOption( sout_stream_t * /* p_stream */,
@@ -59,9 +60,9 @@ struct venc_options
     std::string (*get_opt)( sout_stream_t *, const video_format_t *, int);
 };
 
-std::map<vlc_fourcc_t, std::vector<venc_options>> opts = {
+std::map<heimdall_fourcc_t, std::vector<venc_options>> opts = {
     {
-        VLC_CODEC_H264,
+        HEIMDALL_CODEC_H264,
         {
         #ifdef __APPLE__
             { GetVencAvcodecVTOption },
@@ -72,7 +73,7 @@ std::map<vlc_fourcc_t, std::vector<venc_options>> opts = {
         }
     },
     {
-        VLC_CODEC_VP8,
+        HEIMDALL_CODEC_VP8,
         {
             { GetVencVPXOption }
         }
@@ -80,10 +81,10 @@ std::map<vlc_fourcc_t, std::vector<venc_options>> opts = {
 };
 
 std::string
-GetVencOption( sout_stream_t *p_stream, std::vector<vlc_fourcc_t> codecs,
-        vlc_fourcc_t *out_codec, const video_format_t *p_vid, int i_quality )
+GetVencOption( sout_stream_t *p_stream, std::vector<heimdall_fourcc_t> codecs,
+        heimdall_fourcc_t *out_codec, const video_format_t *p_vid, int i_quality )
 {
-    for (vlc_fourcc_t codec : codecs) {
+    for (heimdall_fourcc_t codec : codecs) {
         auto opt = opts.find(codec);
         if (opt == opts.end())
             break;
@@ -92,7 +93,7 @@ GetVencOption( sout_stream_t *p_stream, std::vector<vlc_fourcc_t> codecs,
             std::stringstream ssout, ssvenc;
             char fourcc[5];
             ssvenc << "vcodec=";
-            vlc_fourcc_to_char( codec, fourcc );
+            heimdall_fourcc_to_char( codec, fourcc );
             fourcc[4] = '\0';
             ssvenc << fourcc << ',';
 
@@ -103,7 +104,7 @@ GetVencOption( sout_stream_t *p_stream, std::vector<vlc_fourcc_t> codecs,
             ssout << "transcode{" << ssvenc.str() << "}:dummy";
 
             sout_stream_t *p_sout_test =
-                sout_StreamChainNew( VLC_OBJECT(p_stream), ssout.str().c_str(), NULL );
+                sout_StreamChainNew( HEIMDALL_OBJECT(p_stream), ssout.str().c_str(), NULL );
 
             if( p_sout_test != NULL )
             {
@@ -113,7 +114,7 @@ GetVencOption( sout_stream_t *p_stream, std::vector<vlc_fourcc_t> codecs,
                 es_format_t fmt;
                 es_format_InitFromVideo( &fmt, p_vid );
                 fmt.i_codec =
-                fmt.video.i_chroma = VLC_CODEC_I420;
+                fmt.video.i_chroma = HEIMDALL_CODEC_I420;
 
                 /* Test the maximum size/fps we will encode */
                 fmt.video.i_visible_width = fmt.video.i_width = 1920;
@@ -144,9 +145,9 @@ GetVencOption( sout_stream_t *p_stream, std::vector<vlc_fourcc_t> codecs,
 }
 
 std::string
-vlc_sout_renderer_GetVcodecOption(sout_stream_t *p_stream,
-        std::vector<vlc_fourcc_t> codecs,
-        vlc_fourcc_t *out_codec, const video_format_t *p_vid, int i_quality)
+heimdall_sout_renderer_GetVcodecOption(sout_stream_t *p_stream,
+        std::vector<heimdall_fourcc_t> codecs,
+        heimdall_fourcc_t *out_codec, const video_format_t *p_vid, int i_quality)
 {
     std::stringstream ssout;
     static const char video_maxres_hd[] = "maxwidth=1920,maxheight=1080";

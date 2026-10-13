@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright © 2002-2004 VLC authors and VideoLAN
  * Copyright © 2011-2012 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -25,15 +26,15 @@
 
 #include <math.h>
 
-#include <vlc_replay_gain.h>
-#include <vlc_meta.h>
-#include <vlc_charset.h>
-#include <vlc_variables.h>
+#include <heimdall_replay_gain.h>
+#include <heimdall_meta.h>
+#include <heimdall_charset.h>
+#include <heimdall_variables.h>
 
-int vlc_replay_gain_CopyFromMeta( audio_replay_gain_t *p_dst, const vlc_meta_t *p_meta )
+int heimdall_replay_gain_CopyFromMeta( audio_replay_gain_t *p_dst, const heimdall_meta_t *p_meta )
 {
     if( !p_dst || !p_meta )
-        return VLC_EINVAL;
+        return HEIMDALL_EINVAL;
 
     /* replay gain presence flags */
     enum audio_replay_gain_flags {
@@ -73,10 +74,10 @@ int vlc_replay_gain_CopyFromMeta( audio_replay_gain_t *p_dst, const vlc_meta_t *
 
         for( size_t j = 0; j < ARRAY_SIZE( rg_meta[i].tags ); j++ )
         {
-            const char *psz_meta = vlc_meta_GetExtra( p_meta, rg_meta[i].tags[j] );
+            const char *psz_meta = heimdall_meta_GetExtra( p_meta, rg_meta[i].tags[j] );
             if( psz_meta )
             {
-                float f_value = vlc_strtof_c( psz_meta, NULL );
+                float f_value = heimdall_strtof_c( psz_meta, NULL );
 
                 if( rg_meta[i].flag & GAINS_MASK )
                 {
@@ -102,20 +103,20 @@ int vlc_replay_gain_CopyFromMeta( audio_replay_gain_t *p_dst, const vlc_meta_t *
     /* Only look for reference loudness if a track or album gain was found */
     for( size_t i = 0; i < ARRAY_SIZE( rg_loudness ) && ( found & GAINS_MASK ); i++ )
     {
-        const char *psz_meta = vlc_meta_GetExtra( p_meta, rg_loudness[i] );
+        const char *psz_meta = heimdall_meta_GetExtra( p_meta, rg_loudness[i] );
         if( psz_meta )
         {
             p_dst->pb_reference_loudness = true;
-            p_dst->pf_reference_loudness = vlc_strtof_c( psz_meta, NULL );
+            p_dst->pf_reference_loudness = heimdall_strtof_c( psz_meta, NULL );
             break;
         }
     }
 
     /* Success if either a track or album gain was found. Peak defaults to 1.0 when absent */
-    return ( found & GAINS_MASK ) ? VLC_SUCCESS : VLC_EGENERIC;
+    return ( found & GAINS_MASK ) ? HEIMDALL_SUCCESS : HEIMDALL_EGENERIC;
 }
 
-float replay_gain_CalcMultiplier( vlc_object_t *p_obj, const audio_replay_gain_t *p_rg )
+float replay_gain_CalcMultiplier( heimdall_object_t *p_obj, const audio_replay_gain_t *p_rg )
 {
     unsigned mode = AUDIO_REPLAY_GAIN_MAX;
 

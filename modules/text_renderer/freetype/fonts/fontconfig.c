@@ -2,6 +2,7 @@
  * freetype.c : Put text on the video, using freetype2
  *****************************************************************************
  * Copyright (C) 2002 - 2015 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Sigmund Augdal Helberg <dnumgis@videolan.org>
  *          Gildas Bazin <gbazin@videolan.org>
@@ -37,9 +38,9 @@
 #include <assert.h>
 #include <stdint.h>
 
-#include <vlc_common.h>
-#include <vlc_filter.h>                     /* filter_sys_t */
-#include <vlc_dialog.h>                     /* FcCache dialog */
+#include <heimdall_common.h>
+#include <heimdall_filter.h>                     /* filter_sys_t */
+#include <heimdall_dialog.h>                     /* FcCache dialog */
 
 #include <fontconfig/fontconfig.h>
 
@@ -48,7 +49,7 @@
 
 static FcConfig *config;
 static uintptr_t refs;
-static vlc_mutex_t lock = VLC_STATIC_MUTEX;
+static heimdall_mutex_t lock = HEIMDALL_STATIC_MUTEX;
 
 static void FontConfig_DefaultSubstitute( FcPattern *p_pattern )
 {
@@ -59,36 +60,36 @@ static void FontConfig_DefaultSubstitute( FcPattern *p_pattern )
 #endif
 }
 
-int FontConfig_Prepare( vlc_font_select_t *fs )
+int FontConfig_Prepare( heimdall_font_select_t *fs )
 {
-    int ret = VLC_SUCCESS;
-    vlc_tick_t ts;
+    int ret = HEIMDALL_SUCCESS;
+    heimdall_tick_t ts;
 
-    vlc_mutex_lock( &lock );
+    heimdall_mutex_lock( &lock );
     if( refs++ > 0 )
     {
-        vlc_mutex_unlock( &lock );
-        return VLC_SUCCESS;
+        heimdall_mutex_unlock( &lock );
+        return HEIMDALL_SUCCESS;
     }
 
     msg_Dbg( fs->p_obj, "Building font databases.");
-    ts = vlc_tick_now();
+    ts = heimdall_tick_now();
 
 #ifndef _WIN32
     config = FcInitLoadConfigAndFonts();
     if( unlikely(config == NULL) )
-        ret = VLC_ENOMEM;
+        ret = HEIMDALL_ENOMEM;
 
 #else
     config = FcInitLoadConfig();
     if( unlikely(config == NULL) )
     {
-        ret = VLC_ENOMEM;
+        ret = HEIMDALL_ENOMEM;
         goto end;
     }
 
     int i_ret =
-        vlc_dialog_display_progress( fs->p_obj, true, 0.0, NULL,
+        heimdall_dialog_display_progress( fs->p_obj, true, 0.0, NULL,
                                      _("Building font cache"),
                                      _("Please wait while your font cache is rebuilt.\n"
                                      "This should take less than a few minutes.") );
@@ -98,36 +99,36 @@ int FontConfig_Prepare( vlc_font_select_t *fs )
     if( FcConfigBuildFonts( config ) == FcFalse )
     {
         FcConfigDestroy(config);
-        ret = VLC_ENOMEM;
+        ret = HEIMDALL_ENOMEM;
     }
 
     if( i_dialog_id != 0 )
-        vlc_dialog_cancel( fs->p_obj, i_dialog_id );
+        heimdall_dialog_cancel( fs->p_obj, i_dialog_id );
 
 end:
 #endif
 
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
         refs--;
 
-    vlc_mutex_unlock( &lock );
-    msg_Dbg( fs->p_obj, "Took %" PRId64 " microseconds", vlc_tick_now() - ts );
+    heimdall_mutex_unlock( &lock );
+    msg_Dbg( fs->p_obj, "Took %" PRId64 " microseconds", heimdall_tick_now() - ts );
 
     return ret;
 }
 
-void FontConfig_Unprepare( vlc_font_select_t *fs )
+void FontConfig_Unprepare( heimdall_font_select_t *fs )
 {
-    VLC_UNUSED(fs);
-    vlc_mutex_lock( &lock );
+    HEIMDALL_UNUSED(fs);
+    heimdall_mutex_lock( &lock );
     assert( refs > 0 );
     if( --refs == 0 )
         FcConfigDestroy( config );
 
-    vlc_mutex_unlock( &lock );
+    heimdall_mutex_unlock( &lock );
 }
 
-static void FontConfig_AddFromFcPattern( FcPattern *p_pat,  vlc_family_t *p_family )
+static void FontConfig_AddFromFcPattern( FcPattern *p_pat,  heimdall_family_t *p_family )
 {
     int bold;
     int italic;
@@ -152,12 +153,12 @@ static void FontConfig_AddFromFcPattern( FcPattern *p_pat,  vlc_family_t *p_fami
     psz_fontfile = strdup( (const char*)val_s );
     if( psz_fontfile )
         NewFont( psz_fontfile, i_index,
-                 ((bold > FC_WEIGHT_NORMAL) ? VLC_FONT_FLAG_BOLD : 0) |
-                 ((italic != FC_SLANT_ROMAN) ? VLC_FONT_FLAG_ITALIC : 0),
+                 ((bold > FC_WEIGHT_NORMAL) ? HEIMDALL_FONT_FLAG_BOLD : 0) |
+                 ((italic != FC_SLANT_ROMAN) ? HEIMDALL_FONT_FLAG_ITALIC : 0),
                  p_family );
 }
 
-static void FontConfig_FillFaces( vlc_family_t *p_family )
+static void FontConfig_FillFaces( heimdall_family_t *p_family )
 {
     FcPattern *pat = FcPatternCreate();
     if ( !pat )
@@ -196,8 +197,8 @@ static void FontConfig_FillFaces( vlc_family_t *p_family )
     FcPatternDestroy( pat );
 }
 
-int FontConfig_SelectAmongFamilies( vlc_font_select_t *fs, const fontfamilies_t *families,
-                                    const vlc_family_t **pp_result )
+int FontConfig_SelectAmongFamilies( heimdall_font_select_t *fs, const fontfamilies_t *families,
+                                    const heimdall_family_t **pp_result )
 {
     FcResult result = FcResultMatch;
     FcPattern *pat, *p_matchpat;
@@ -206,11 +207,11 @@ int FontConfig_SelectAmongFamilies( vlc_font_select_t *fs, const fontfamilies_t 
     /* Create a pattern and fill it */
     pat = FcPatternCreate();
     if (!pat)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* */
     const char *psz_lcname;
-    vlc_vector_foreach( psz_lcname, &families->vec )
+    heimdall_vector_foreach( psz_lcname, &families->vec )
         FcPatternAddString( pat, FC_FAMILY, (const FcChar8*) psz_lcname );
     FcPatternAddBool( pat, FC_OUTLINE, FcTrue );
 
@@ -219,29 +220,29 @@ int FontConfig_SelectAmongFamilies( vlc_font_select_t *fs, const fontfamilies_t 
     if( !FcConfigSubstitute( config, pat, FcMatchPattern ) )
     {
         FcPatternDestroy( pat );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Find the best font for the pattern, destroy the pattern */
     p_matchpat = FcFontMatch( config, pat, &result );
     FcPatternDestroy( pat );
     if( !p_matchpat )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     if( result == FcResultNoMatch )
     {
         *pp_result = NULL;
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
     if( FcResultMatch != FcPatternGetString( p_matchpat, FC_FAMILY, 0, &val_s ) )
     {
         FcPatternDestroy( p_matchpat );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     char *psz_fnlc = LowercaseDup((const char *)val_s);
-    vlc_family_t *p_family = vlc_dictionary_value_for_key( &fs->family_map, psz_fnlc );
-    if( p_family == kVLCDictionaryNotFound )
+    heimdall_family_t *p_family = heimdall_dictionary_value_for_key( &fs->family_map, psz_fnlc );
+    if( p_family == kHeimdallDictionaryNotFound )
     {
         p_family = NewFamily( fs, psz_fnlc, &fs->p_families,
                               &fs->family_map, psz_fnlc );
@@ -249,7 +250,7 @@ int FontConfig_SelectAmongFamilies( vlc_font_select_t *fs, const fontfamilies_t 
         {
             free( psz_fnlc );
             FcPatternDestroy( p_matchpat );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
 
@@ -261,45 +262,45 @@ int FontConfig_SelectAmongFamilies( vlc_font_select_t *fs, const fontfamilies_t 
 
     *pp_result = p_family;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-int FontConfig_GetFamily( vlc_font_select_t *fs, const char *psz_lcname,
-                          const vlc_family_t **pp_result )
+int FontConfig_GetFamily( heimdall_font_select_t *fs, const char *psz_lcname,
+                          const heimdall_family_t **pp_result )
 {
     fontfamilies_t families;
     families.psz_key = psz_lcname;
-    vlc_vector_init( &families.vec );
-    vlc_vector_push( &families.vec, (char *) psz_lcname );
+    heimdall_vector_init( &families.vec );
+    heimdall_vector_push( &families.vec, (char *) psz_lcname );
     int ret = FontConfig_SelectAmongFamilies( fs, &families, pp_result );
-    vlc_vector_clear( &families.vec );
+    heimdall_vector_clear( &families.vec );
     return ret;
 }
 
-int FontConfig_GetFallbacksAmongFamilies( vlc_font_select_t *fs, const fontfamilies_t *families,
-                                          uni_char_t codepoint, vlc_family_t **pp_result )
+int FontConfig_GetFallbacksAmongFamilies( heimdall_font_select_t *fs, const fontfamilies_t *families,
+                                          uni_char_t codepoint, heimdall_family_t **pp_result )
 {
 
-    VLC_UNUSED( codepoint );
-    vlc_family_t *p_family =
-            vlc_dictionary_value_for_key( &fs->fallback_map, families->psz_key );
-    if( p_family != kVLCDictionaryNotFound )
+    HEIMDALL_UNUSED( codepoint );
+    heimdall_family_t *p_family =
+            heimdall_dictionary_value_for_key( &fs->fallback_map, families->psz_key );
+    if( p_family != kHeimdallDictionaryNotFound )
     {
         *pp_result = p_family;
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
     p_family = NULL;
 
     FcPattern  *p_pattern = FcPatternCreate();
     if (!p_pattern)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     const char *psz_lcname;
-    vlc_vector_foreach( psz_lcname, &families->vec )
+    heimdall_vector_foreach( psz_lcname, &families->vec )
         FcPatternAddString( p_pattern, FC_FAMILY, (const FcChar8*) psz_lcname );
     FcPatternAddBool( p_pattern, FC_OUTLINE, FcTrue );
 
-    vlc_family_t *p_current = NULL;
+    heimdall_family_t *p_current = NULL;
     if( FcConfigSubstitute( config, p_pattern, FcMatchPattern ) == FcTrue )
     {
         FontConfig_DefaultSubstitute( p_pattern );
@@ -328,8 +329,8 @@ int FontConfig_GetFallbacksAmongFamilies( vlc_font_select_t *fs, const fontfamil
     FcPatternDestroy( p_pattern );
 
     if( p_family )
-        vlc_dictionary_insert( &fs->fallback_map, families->psz_key, p_family );
+        heimdall_dictionary_insert( &fs->fallback_map, families->psz_key, p_family );
 
     *pp_result = p_family;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

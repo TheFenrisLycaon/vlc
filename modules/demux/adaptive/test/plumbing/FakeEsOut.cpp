@@ -2,6 +2,7 @@
  *
  *****************************************************************************
  * Copyright (C) 2020 VideoLabs, VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -27,8 +28,8 @@
 
 #include "../test.hpp"
 
-#include <vlc_block.h>
-#include <vlc_es_out.h>
+#include <heimdall_block.h>
+#include <heimdall_es_out.h>
 
 #include <limits>
 #include <list>
@@ -38,7 +39,7 @@
 using namespace adaptive;
 
 using OutputVal = std::pair<const AbstractFakeESOutID *, block_t *>;
-const Times drainTimes(SegmentTimes(),std::numeric_limits<vlc_tick_t>::max());
+const Times drainTimes(SegmentTimes(),std::numeric_limits<heimdall_tick_t>::max());
 
 #define DT(t) Times(SegmentTimes(), (t))
 
@@ -56,9 +57,9 @@ class DummyEsOut
         static int callback_control( es_out_t *, input_source_t *, int, va_list );
         static void callback_destroy( es_out_t * );
 
-        vlc_tick_t dts;
-        vlc_tick_t pts;
-        vlc_tick_t pcr;
+        heimdall_tick_t dts;
+        heimdall_tick_t pts;
+        heimdall_tick_t pcr;
 
         class ES
         {
@@ -84,9 +85,9 @@ DummyEsOut::~DummyEsOut()
 
 void DummyEsOut::reset()
 {
-    dts = VLC_TICK_INVALID;
-    pts = VLC_TICK_INVALID;
-    pcr = VLC_TICK_INVALID;
+    dts = HEIMDALL_TICK_INVALID;
+    pts = HEIMDALL_TICK_INVALID;
+    pcr = HEIMDALL_TICK_INVALID;
     while(!eslist.empty())
     {
         delete eslist.front();
@@ -114,7 +115,7 @@ int DummyEsOut::callback_send(es_out_t *out, es_out_id_t *, block_t *b)
     dummyesout->dts = b->i_dts;
     dummyesout->pts = b->i_pts;
     block_Release(b);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 void DummyEsOut::callback_del(es_out_t *out, es_out_id_t *id)
@@ -139,7 +140,7 @@ int DummyEsOut::callback_control(es_out_t *out, input_source_t *, int i_query, v
         {
             if( i_query == ES_OUT_SET_GROUP_PCR )
                 (void) va_arg( args, int );
-            dummyesout->pcr = va_arg( args, vlc_tick_t );
+            dummyesout->pcr = va_arg( args, heimdall_tick_t );
             break;
         }
         case ES_OUT_SET_ES:
@@ -151,7 +152,7 @@ int DummyEsOut::callback_control(es_out_t *out, input_source_t *, int i_query, v
                 if( e->fmt.i_cat == es->fmt.i_cat )
                     e->b_selected = (e == es);
             }
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
         case ES_OUT_SET_ES_STATE:
         {
@@ -160,24 +161,24 @@ int DummyEsOut::callback_control(es_out_t *out, input_source_t *, int i_query, v
             bool b = va_arg( args, int );
             auto it = std::find(dummyesout->eslist.begin(), dummyesout->eslist.end(), es);
             if(it == dummyesout->eslist.end())
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             (*it)->b_selected = b;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
         case ES_OUT_GET_ES_STATE:
         {
             ES *es = (ES *) va_arg( args, es_out_id_t * );
             auto it = std::find(dummyesout->eslist.begin(), dummyesout->eslist.end(), es);
             if(it == dummyesout->eslist.end())
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             *va_arg( args, bool * ) = (*it)->b_selected;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 void DummyEsOut::callback_destroy(es_out_t *)
@@ -208,7 +209,7 @@ DummyEsOut::ES::~ES()
     es_format_Clean(&fmt);
 }
 
-static void enqueue(es_out_t *out, es_out_id_t *id, vlc_tick_t dts, vlc_tick_t pts)
+static void enqueue(es_out_t *out, es_out_id_t *id, heimdall_tick_t dts, heimdall_tick_t pts)
 {
     block_t *b = block_Alloc(1);
     if(b)
@@ -219,8 +220,8 @@ static void enqueue(es_out_t *out, es_out_id_t *id, vlc_tick_t dts, vlc_tick_t p
     }
 }
 
-#define TMS(t) (VLC_TICK_0 + VLC_TICK_FROM_MS(t))
-#define DMS(t) (VLC_TICK_FROM_MS(t))
+#define TMS(t) (HEIMDALL_TICK_0 + HEIMDALL_TICK_FROM_MS(t))
+#define DMS(t) (HEIMDALL_TICK_FROM_MS(t))
 #define SEND(t) enqueue(out, id, t, t)
 #define PCR(t) es_out_SetPCR(out, t)
 #define FROM_MPEGTS(x) (INT64_C(x) * 100 / 9)
@@ -232,16 +233,16 @@ static int check3(es_out_t *out, DummyEsOut *dummy, FakeESOut *fakees)
     /* few ES reusability checks */
     try
     {
-        es_format_Init(&fmt, AUDIO_ES, VLC_CODEC_MP4A);
+        es_format_Init(&fmt, AUDIO_ES, HEIMDALL_CODEC_MP4A);
         FakeESOutID fakeid0(fakees, &fmt);
         fmt.audio.i_rate = 48000;
         FakeESOutID fakeid1(fakees, &fmt);
         fmt.i_original_fourcc = 0xbeef;
         FakeESOutID fakeid2(fakees, &fmt);
         es_format_Clean(&fmt);
-        es_format_Init(&fmt, VIDEO_ES, VLC_CODEC_H264);
+        es_format_Init(&fmt, VIDEO_ES, HEIMDALL_CODEC_H264);
         FakeESOutID fakeid3(fakees, &fmt);
-        fmt.i_codec = VLC_CODEC_MPGV;
+        fmt.i_codec = HEIMDALL_CODEC_MPGV;
         FakeESOutID fakeid4(fakees, &fmt);
         fakees->setSrcID(SrcID::make()); // change source sequence id
         FakeESOutID fakeid0b(fakees, fakeid0.getFmt());
@@ -261,7 +262,7 @@ static int check3(es_out_t *out, DummyEsOut *dummy, FakeESOut *fakees)
         return 1;
     }
 
-    es_format_Init(&fmt, VIDEO_ES, VLC_CODEC_H264);
+    es_format_Init(&fmt, VIDEO_ES, HEIMDALL_CODEC_H264);
     es_out_id_t *id = es_out_Add(out, &fmt);
     try
     {
@@ -272,38 +273,38 @@ static int check3(es_out_t *out, DummyEsOut *dummy, FakeESOut *fakees)
         fakees->commandsQueue()->Commit();
         fakees->commandsQueue()->Process(drainTimes);
         Expect(dummy->eslist.size() == 1);
-        Expect(dummy->eslist.front()->fmt.i_codec == VLC_CODEC_H264);
+        Expect(dummy->eslist.front()->fmt.i_codec == HEIMDALL_CODEC_H264);
         dummy->eslist.front()->b_selected = true; /* fake selection */
 
         /* subsequent ES should be allocated */
         es_format_Clean(&fmt);
-        es_format_Init(&fmt, AUDIO_ES, VLC_CODEC_MP4A);
+        es_format_Init(&fmt, AUDIO_ES, HEIMDALL_CODEC_MP4A);
         id = es_out_Add(out, &fmt);
         fakees->commandsQueue()->Commit();
         fakees->commandsQueue()->Process(drainTimes);
         Expect(dummy->eslist.size() == 2);
-        Expect(dummy->eslist.front()->fmt.i_codec == VLC_CODEC_H264);
+        Expect(dummy->eslist.front()->fmt.i_codec == HEIMDALL_CODEC_H264);
         Expect(dummy->eslist.front()->b_selected == true);
-        Expect(dummy->eslist.back()->fmt.i_codec == VLC_CODEC_MP4A);
+        Expect(dummy->eslist.back()->fmt.i_codec == HEIMDALL_CODEC_MP4A);
 
         /* on restart / new segment, unused ES should be reclaimed */
         fakees->recycleAll();
         es_format_Clean(&fmt);
-        es_format_Init(&fmt, VIDEO_ES, VLC_CODEC_MPGV);
+        es_format_Init(&fmt, VIDEO_ES, HEIMDALL_CODEC_MPGV);
         id = es_out_Add(out, &fmt);
         fakees->commandsQueue()->Commit();
         fakees->commandsQueue()->Process(drainTimes);
         Expect(dummy->eslist.size() == 3);
         fakees->gc();
         Expect(dummy->eslist.size() == 1);
-        Expect(dummy->eslist.front()->fmt.i_codec == VLC_CODEC_MPGV);
+        Expect(dummy->eslist.front()->fmt.i_codec == HEIMDALL_CODEC_MPGV);
         Expect(dummy->eslist.front()->b_selected == true);
 
         /* on restart / new segment, ES MUST be reused */
         fakees->recycleAll();
         Expect(dummy->eslist.size() == 1);
         es_format_Clean(&fmt);
-        es_format_Init(&fmt, VIDEO_ES, VLC_CODEC_MPGV);
+        es_format_Init(&fmt, VIDEO_ES, HEIMDALL_CODEC_MPGV);
         /* check ID signaling so we don't blame FakeEsOut */
         {
             FakeESOutID fakeid(fakees, &fmt);
@@ -321,10 +322,10 @@ static int check3(es_out_t *out, DummyEsOut *dummy, FakeESOut *fakees)
         fakees->recycleAll();
         Expect(dummy->eslist.size() == 1);
         es_format_Clean(&fmt);
-        es_format_Init(&fmt, VIDEO_ES, VLC_CODEC_H264);
+        es_format_Init(&fmt, VIDEO_ES, HEIMDALL_CODEC_H264);
         id = es_out_Add(out, &fmt);
         es_format_Clean(&fmt);
-        es_format_Init(&fmt, AUDIO_ES, VLC_CODEC_MP4A);
+        es_format_Init(&fmt, AUDIO_ES, HEIMDALL_CODEC_MP4A);
         id = es_out_Add(out, &fmt);
         fakees->commandsQueue()->Commit();
         fakees->commandsQueue()->Process(drainTimes);
@@ -340,10 +341,10 @@ static int check3(es_out_t *out, DummyEsOut *dummy, FakeESOut *fakees)
         fakees->recycleAll();
         Expect(dummy->eslist.size() == 2);
         es_format_Clean(&fmt);
-        es_format_Init(&fmt, VIDEO_ES, VLC_CODEC_H264);
+        es_format_Init(&fmt, VIDEO_ES, HEIMDALL_CODEC_H264);
         id = es_out_Add(out, &fmt);
         es_format_Clean(&fmt);
-        es_format_Init(&fmt, AUDIO_ES, VLC_CODEC_MP4A);
+        es_format_Init(&fmt, AUDIO_ES, HEIMDALL_CODEC_MP4A);
         id = es_out_Add(out, &fmt);
         fakees->commandsQueue()->Commit();
         fakees->commandsQueue()->Process(drainTimes);
@@ -358,7 +359,7 @@ static int check3(es_out_t *out, DummyEsOut *dummy, FakeESOut *fakees)
         fakees->recycleAll();
         Expect(dummy->eslist.size() == 2);
         es_format_Clean(&fmt);
-        es_format_Init(&fmt, AUDIO_ES, VLC_CODEC_MP4A);
+        es_format_Init(&fmt, AUDIO_ES, HEIMDALL_CODEC_MP4A);
         id = es_out_Add(out, &fmt);
         fakees->commandsQueue()->Commit();
         fakees->commandsQueue()->Process(drainTimes);
@@ -379,12 +380,12 @@ static int check3(es_out_t *out, DummyEsOut *dummy, FakeESOut *fakees)
 static int check2(es_out_t *out, DummyEsOut *, FakeESOut *fakees)
 {
     es_format_t fmt;
-    es_format_Init(&fmt, VIDEO_ES, VLC_CODEC_H264);
+    es_format_Init(&fmt, VIDEO_ES, HEIMDALL_CODEC_H264);
     es_out_id_t *id = es_out_Add(out, &fmt);
     try
     {
-        vlc_tick_t mediaref = TMS(10000);
-        SegmentTimes segmentTimes(VLC_TICK_INVALID, mediaref, mediaref);
+        heimdall_tick_t mediaref = TMS(10000);
+        SegmentTimes segmentTimes(HEIMDALL_TICK_INVALID, mediaref, mediaref);
 
         /* setExpectedTimestamp check starting from zero every segment (smooth streaming) */
         fakees->setSegmentStartTimes(segmentTimes);
@@ -462,19 +463,19 @@ static int check2(es_out_t *out, DummyEsOut *, FakeESOut *fakees)
 static int check1(es_out_t *out, DummyEsOut *ctx, FakeESOut *fakees)
 {
     es_format_t fmt;
-    es_format_Init(&fmt, VIDEO_ES, VLC_CODEC_H264);
+    es_format_Init(&fmt, VIDEO_ES, HEIMDALL_CODEC_H264);
     es_out_id_t *id = es_out_Add(out, &fmt);
 
     /* ensure ES is created */
-    const Times drainTimes(SegmentTimes(),std::numeric_limits<vlc_tick_t>::max());
+    const Times drainTimes(SegmentTimes(),std::numeric_limits<heimdall_tick_t>::max());
 
     fakees->commandsQueue()->Commit();
     fakees->commandsQueue()->Process(drainTimes);
 
     try
     {
-        vlc_tick_t mediaref = TMS(10000);
-        SegmentTimes segmentTimes(VLC_TICK_INVALID, mediaref, mediaref);
+        heimdall_tick_t mediaref = TMS(10000);
+        SegmentTimes segmentTimes(HEIMDALL_TICK_INVALID, mediaref, mediaref);
         fakees->setSegmentStartTimes(segmentTimes);
 
         PCR(TMS(0));
@@ -483,27 +484,27 @@ static int check1(es_out_t *out, DummyEsOut *ctx, FakeESOut *fakees)
         PCR(TMS(5000));
 
         Times first = fakees->commandsQueue()->getFirstTimes();
-        Expect(first.continuous != VLC_TICK_INVALID);
+        Expect(first.continuous != HEIMDALL_TICK_INVALID);
         Expect(first.continuous == TMS(0));
         Expect(first.segment.media == mediaref);
 
         Expect(mediaref + DMS(5000) == fakees->commandsQueue()->getBufferingLevel().segment.media);
 
         /* Reference has local timestamp < rolled ts */
-        vlc_tick_t reference = TMS(0);
+        heimdall_tick_t reference = TMS(0);
         fakees->resetTimestamps();
         fakees->setSegmentStartTimes(segmentTimes);
         fakees->setSynchronizationReference(SynchronizationReference());
         SEND(reference);
         PCR(reference);
         Expect(fakees->commandsQueue()->getBufferingLevel().continuous == reference);
-        vlc_tick_t ts = TMS(1000) + FROM_MPEGTS(0x1FFFFFFFF);
+        heimdall_tick_t ts = TMS(1000) + FROM_MPEGTS(0x1FFFFFFFF);
         ts = fakees->applyTimestampContinuity(ts);
         fprintf(stderr, "timestamp %" PRId64 "\n", ts);
         Expect(ts == reference + DMS(1000));
 
         /* Reference has local multiple rolled timestamp < multiple rolled ts */
-        reference = VLC_TICK_0 + FROM_MPEGTS(0x1FFFFFFFF) * 2;
+        reference = HEIMDALL_TICK_0 + FROM_MPEGTS(0x1FFFFFFFF) * 2;
         fakees->resetTimestamps();
         fakees->setSegmentStartTimes(segmentTimes);
         fakees->setSynchronizationReference(SynchronizationReference());
@@ -516,34 +517,34 @@ static int check1(es_out_t *out, DummyEsOut *ctx, FakeESOut *fakees)
 
 
         /* Reference has local timestamp rolled > ts */
-        reference = VLC_TICK_0 + FROM_MPEGTS(0x1FFFFFFFF);
+        reference = HEIMDALL_TICK_0 + FROM_MPEGTS(0x1FFFFFFFF);
         fakees->resetTimestamps();
         fakees->setSegmentStartTimes(segmentTimes);
         fakees->setSynchronizationReference(SynchronizationReference());
         SEND(reference);
         PCR(reference);
         Expect(fakees->commandsQueue()->getBufferingLevel().continuous == reference);
-        ts = VLC_TICK_0 + 1;
+        ts = HEIMDALL_TICK_0 + 1;
         ts = fakees->applyTimestampContinuity(ts);
         fprintf(stderr, "timestamp %" PRId64 "\n", ts);
         Expect(ts == reference + 1);
 
         /* Reference has local timestamp mutiple rolled > multiple rolled ts */
-        reference = VLC_TICK_0 + FROM_MPEGTS(0x1FFFFFFFF) * 5;
+        reference = HEIMDALL_TICK_0 + FROM_MPEGTS(0x1FFFFFFFF) * 5;
         fakees->resetTimestamps();
         fakees->setSegmentStartTimes(segmentTimes);
         fakees->setSynchronizationReference(SynchronizationReference());
         SEND(reference);
         PCR(reference);
         Expect(fakees->commandsQueue()->getBufferingLevel().continuous == reference);
-        ts = VLC_TICK_0 + 1 + FROM_MPEGTS(0x1FFFFFFFF) * 2;
+        ts = HEIMDALL_TICK_0 + 1 + FROM_MPEGTS(0x1FFFFFFFF) * 2;
         ts = fakees->applyTimestampContinuity(ts);
         fprintf(stderr, "timestamp %" PRId64 "\n", ts);
         Expect(ts == reference + 1);
 
         /* Do not trigger unwanted roll on long playbacks due to
          * initial reference value */
-        reference = VLC_TICK_0 + FROM_MPEGTS(0x00000FFFF);
+        reference = HEIMDALL_TICK_0 + FROM_MPEGTS(0x00000FFFF);
         fakees->resetTimestamps();
         fakees->setSegmentStartTimes(segmentTimes);
         fakees->setSynchronizationReference(SynchronizationReference());
@@ -563,7 +564,7 @@ static int check1(es_out_t *out, DummyEsOut *ctx, FakeESOut *fakees)
         SEND(ts);
         PCR(ts);
         fakees->commandsQueue()->Process(drainTimes);
-        ts = VLC_TICK_0 + 100; /* next ts has rolled */
+        ts = HEIMDALL_TICK_0 + 100; /* next ts has rolled */
         SEND(ts);
         PCR(ts);
         fakees->commandsQueue()->Process(drainTimes);
@@ -583,16 +584,16 @@ static int check1(es_out_t *out, DummyEsOut *ctx, FakeESOut *fakees)
 static int check0(es_out_t *out, DummyEsOut *, FakeESOut *fakees)
 {
     es_format_t fmt;
-    es_format_Init(&fmt, VIDEO_ES, VLC_CODEC_H264);
+    es_format_Init(&fmt, VIDEO_ES, HEIMDALL_CODEC_H264);
     es_out_id_t *id = es_out_Add(out, &fmt);
     try
     {
 
-        vlc_tick_t mediaref = TMS(10000);
-        SegmentTimes segmentTimes(VLC_TICK_INVALID, mediaref, mediaref);
+        heimdall_tick_t mediaref = TMS(10000);
+        SegmentTimes segmentTimes(HEIMDALL_TICK_INVALID, mediaref, mediaref);
         fakees->setSegmentStartTimes(segmentTimes);
 
-        Expect(fakees->commandsQueue()->getBufferingLevel().segment.media == VLC_TICK_INVALID);
+        Expect(fakees->commandsQueue()->getBufferingLevel().segment.media == HEIMDALL_TICK_INVALID);
 
         PCR(TMS(0));
         for(int i=0; i<=5000; i += 1000)
@@ -600,7 +601,7 @@ static int check0(es_out_t *out, DummyEsOut *, FakeESOut *fakees)
         PCR(TMS(5000));
 
         Times first = fakees->commandsQueue()->getFirstTimes();
-        Expect(first.continuous != VLC_TICK_INVALID);
+        Expect(first.continuous != HEIMDALL_TICK_INVALID);
         Expect(first.continuous == TMS(0));
         Expect(first.segment.media == mediaref);
         Expect(mediaref + DMS(5000) == fakees->commandsQueue()->getBufferingLevel().segment.media);
@@ -613,7 +614,7 @@ static int check0(es_out_t *out, DummyEsOut *, FakeESOut *fakees)
         //    assert(fakees->commandsQueue()->getBufferingLevel().continuous == TMS(6000));
 
         //    first = fakees->commandsQueue()->getFirstTimes();
-        //    assert(first.continuous != VLC_TICK_INVALID);
+        //    assert(first.continuous != HEIMDALL_TICK_INVALID);
         //    assert(first.continuous == TMS(0));
         //    assert(first.segment.media == mediaref);
 

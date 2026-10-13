@@ -1,7 +1,8 @@
 /*****************************************************************************
- * dynamicoverlay.h : dynamic overlay plugin for vlc
+ * dynamicoverlay.h : dynamic overlay plugin for heimdall
  *****************************************************************************
  * Copyright (C) 2008 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Jean-Paul Saman <jpsaman@videolan.org>
  *
@@ -23,10 +24,10 @@
 #ifndef DYNAMIC_OVERLAY_H
 #define DYNAMIC_OVERLAY_H   1
 
-#include <vlc_common.h>
-#include <vlc_filter.h>
-#include <vlc_text_style.h>
-#include <vlc_vector.h>
+#include <heimdall_common.h>
+#include <heimdall_filter.h>
+#include <heimdall_text_style.h>
+#include <heimdall_vector.h>
 
 /*****************************************************************************
  * buffer_t: Command and response buffer
@@ -58,7 +59,7 @@ typedef struct commandparams_t
     size_t  i_id;       /*< overlay id */
     int32_t i_shmid;    /*< shared memory identifier */
 
-    vlc_fourcc_t fourcc;/*< chroma */
+    heimdall_fourcc_t fourcc;/*< chroma */
 
     int32_t i_x;        /*< x position of overlay */
     int32_t i_y;        /*< y position of overlay */
@@ -152,7 +153,7 @@ void OverlayDestroy( overlay_t *p_ovl );
  * list_t: Command queue
  *****************************************************************************/
 
-typedef struct VLC_VECTOR(overlay_t *) list_t;
+typedef struct HEIMDALL_VECTOR(overlay_t *) list_t;
 
 /*****************************************************************************
  * filter_sys_t: adjust filter method descriptor
@@ -172,7 +173,7 @@ typedef struct
     queue_t atomic, pending, processed;
     list_t overlays;
 
-    vlc_mutex_t lock;   /* lock to protect psz_inputfile and psz_outputfile */
+    heimdall_mutex_t lock;   /* lock to protect psz_inputfile and psz_outputfile */
 } filter_sys_t;
 
 #endif

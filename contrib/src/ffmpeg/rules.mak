@@ -178,7 +178,7 @@ DEPS_ffmpeg += mingw12-fixes $(DEPS_mingw12-fixes) d3d12 $(DEPS_d3d12)
 endif
 FFMPEGCONF += --target-os=mingw32
 FFMPEGCONF += --enable-w32threads
-# We don't currently support D3D12 in VLC
+# We don't currently support D3D12 in Heimdall
 FFMPEGCONF += --disable-d3d12va
 ifndef HAVE_WINSTORE
 FFMPEGCONF += --enable-dxva2

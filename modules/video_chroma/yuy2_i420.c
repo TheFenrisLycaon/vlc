@@ -1,9 +1,10 @@
 /*****************************************************************************
- * yuy2_i420.c : Packed YUV 4:2:2 to Planar YUV conversion module for vlc
+ * yuy2_i420.c : Packed YUV 4:2:2 to Planar YUV conversion module for heimdall
  *****************************************************************************
  * Copyright (C) 2007 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Antoine Cellerier <dionoea at videolan dot org>
+ * Authors: Antoine Cellerier <dionoea at lycaria dot org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -28,11 +29,11 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_picture.h>
-#include <vlc_chroma_probe.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
+#include <heimdall_chroma_probe.h>
 
 #define SRC_FOURCC "YUY2,YUNV,YVYU,UYVY,UYNV,Y422"
 #define DEST_FOURCC  "I420"
@@ -46,19 +47,19 @@ static int  Activate ( filter_t * );
  * Module descriptor
  *****************************************************************************/
 
-static void ProbeChroma(vlc_chroma_conv_vec *vec)
+static void ProbeChroma(heimdall_chroma_conv_vec *vec)
 {
-    vlc_chroma_conv_add(vec, 1, VLC_CODEC_YUYV, VLC_CODEC_I420, false);
-    vlc_chroma_conv_add(vec, 1, VLC_CODEC_YVYU, VLC_CODEC_I420, false);
-    vlc_chroma_conv_add(vec, 1, VLC_CODEC_UYVY, VLC_CODEC_I420, false);
+    heimdall_chroma_conv_add(vec, 1, HEIMDALL_CODEC_YUYV, HEIMDALL_CODEC_I420, false);
+    heimdall_chroma_conv_add(vec, 1, HEIMDALL_CODEC_YVYU, HEIMDALL_CODEC_I420, false);
+    heimdall_chroma_conv_add(vec, 1, HEIMDALL_CODEC_UYVY, HEIMDALL_CODEC_I420, false);
 }
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("Conversions from " SRC_FOURCC " to " DEST_FOURCC) )
     set_callback_video_converter( Activate, 80 )
     add_submodule()
         set_callback_chroma_conv_probe(ProbeChroma)
-vlc_module_end ()
+heimdall_module_end ()
 
 VIDEO_FILTER_WRAPPER( YUY2_I420 )
 VIDEO_FILTER_WRAPPER( YVYU_I420 )
@@ -84,18 +85,18 @@ static int Activate( filter_t *p_filter )
 
     switch( p_filter->fmt_out.video.i_chroma )
     {
-        case VLC_CODEC_I420:
+        case HEIMDALL_CODEC_I420:
             switch( p_filter->fmt_in.video.i_chroma )
             {
-                case VLC_CODEC_YUYV:
+                case HEIMDALL_CODEC_YUYV:
                     p_filter->ops = &YUY2_I420_ops;
                     break;
 
-                case VLC_CODEC_YVYU:
+                case HEIMDALL_CODEC_YVYU:
                     p_filter->ops = &YVYU_I420_ops;
                     break;
 
-                case VLC_CODEC_UYVY:
+                case HEIMDALL_CODEC_UYVY:
                     p_filter->ops = &UYVY_I420_ops;
                     break;
 

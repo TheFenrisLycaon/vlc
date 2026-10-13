@@ -3,6 +3,7 @@ dnl
 dnl Copyright © 2008 Luca Barbato <lu_zero@gentoo.org>,
 dnl                  Diego Pettenò <flameeyes@gentoo.org>
 dnl                  Jean-Baptiste Kempf
+dnl Copyright (C) 2026 TheFenrisLycaon
 dnl
 dnl This program is free software; you can redistribute it and/or modify
 dnl it under the terms of the GNU General Public License as published by
@@ -77,21 +78,21 @@ AM_CONDITIONAL([HAVE_][$1],
 m4_popdef([with_arg])
 ])
 
-dnl PKG_ENABLE_MODULES_VLC(VARIABLE-PREFIX,
-dnl                         VLC_MODULE_NAME  dnl (if empty, same as VARIABLE-PREFIX)
+dnl PKG_ENABLE_MODULES_HEIMDALL(VARIABLE-PREFIX,
+dnl                         HEIMDALL_MODULE_NAME  dnl (if empty, same as VARIABLE-PREFIX)
 dnl                         PKG MODULES,
 dnl                         [DESCRIPTION], [DEFAULT],
 dnl                         [EXTRA_CFLAGS], [EXTRA_LIBS], [EXTRA_CPPFLAGS]
-AC_DEFUN([PKG_ENABLE_MODULES_VLC],
+AC_DEFUN([PKG_ENABLE_MODULES_HEIMDALL],
 [
 m4_pushdef([module_names], m4_default(m4_tolower([$2]),m4_tolower([$1])))
 m4_pushdef([enable_arg], m4_tolower([$1]))
 
 PKG_WITH_MODULES([$1],[$3],
-    VLC_ADD_PLUGIN(module_names)
-    m4_ifval( m4_normalize([$8]), VLC_ADD_CPPFLAGS(module_names, [$8]))
-    VLC_ADD_CFLAGS(module_names,[$$1_CFLAGS] [$6])
-    VLC_ADD_LIBS(module_names,[$$1_LIBS] [$7]),
+    HEIMDALL_ADD_PLUGIN(module_names)
+    m4_ifval( m4_normalize([$8]), HEIMDALL_ADD_CPPFLAGS(module_names, [$8]))
+    HEIMDALL_ADD_CFLAGS(module_names,[$$1_CFLAGS] [$6])
+    HEIMDALL_ADD_LIBS(module_names,[$$1_LIBS] [$7]),
     AS_IF([test x"$AS_TR_SH([enable_]enable_arg)" = "xyes"],
         [AC_MSG_ERROR(Library [$3] needed for [m4_tolower([$1])] was not found)],
         [AC_MSG_WARN(Library [$3] needed for [m4_tolower([$1])] was not found)]

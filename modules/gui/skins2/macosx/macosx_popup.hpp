@@ -2,6 +2,7 @@
  * macosx_popup.hpp
  *****************************************************************************
  * Copyright (C) 2026 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Fletcher Holt <fletcherholt649@gmail.com>
  *          Felix Paul Kühne <fkuehne@videolan.org>
@@ -29,7 +30,7 @@
 #include <map>
 
 @class NSMenu;
-@class VLCPopupMenuTarget;
+@class HeimdallPopupMenuTarget;
 
 /// macOS implementation of OSPopup
 class MacOSXPopup: public OSPopup
@@ -56,7 +57,7 @@ public:
 private:
     /// The popup menu
     NSMenu *m_pMenu;
-    VLCPopupMenuTarget *m_pTarget;
+    HeimdallPopupMenuTarget *m_pTarget;
     /// Map of item IDs to positions
     std::map<int, int> m_idPosMap;
 };

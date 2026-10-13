@@ -2,10 +2,11 @@
  * opensles_android.c : audio output for android native code
  *****************************************************************************
  * Copyright © 2011-2012 VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Dominique Martinet <asmadeus@codewreck.org>
  *          Hugo Beauzée-Luyssen <hugo@beauzee.fr>
- *          Rafaël Carré <funman@videolanorg>
+ *          Rafaël Carré <funman@lycariaorg>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -26,9 +27,9 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_aout.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_aout.h>
 #include <assert.h>
 #include <dlfcn.h>
 #include <math.h>
@@ -40,7 +41,7 @@
 #include <jni.h>
 
 #define OPENSLES_BUFFERS 255 /* maximum number of buffers */
-#define OPENSLES_BUFLEN  VLC_TICK_FROM_MS(10)
+#define OPENSLES_BUFLEN  HEIMDALL_TICK_FROM_MS(10)
 /*
  * 10ms of precision when mesasuring latency should be enough,
  * with 255 buffers we can buffer 2.55s of audio.
@@ -97,7 +98,7 @@ typedef struct
 
     /* */
 
-    vlc_mutex_t                     lock;
+    heimdall_mutex_t                     lock;
 
     /* audio buffered through opensles */
     uint8_t                        *buf;
@@ -122,7 +123,7 @@ static inline int bytesPerSample(void)
 
 #if 0
 // FIXME: port to aout_TimingReport()
-static int TimeGet(audio_output_t* aout, vlc_tick_t* restrict drift)
+static int TimeGet(audio_output_t* aout, heimdall_tick_t* restrict drift)
 {
     aout_sys_t *sys = aout->sys;
 
@@ -133,15 +134,15 @@ static int TimeGet(audio_output_t* aout, vlc_tick_t* restrict drift)
         return -1;
     }
 
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     bool started = sys->started;
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
 
     if (!started)
         return -1;
 
     *drift = OPENSLES_BUFLEN * st.count
-        + vlc_tick_from_samples(sys->samples, sys->rate);
+        + heimdall_tick_from_samples(sys->samples, sys->rate);
 
     /* msg_Dbg(aout, "latency %"PRId64" ms, %d/%d buffers", *drift / 1000,
         (int)st.count, OPENSLES_BUFFERS); */
@@ -154,7 +155,7 @@ static void Flush(audio_output_t *aout)
 {
     aout_sys_t *sys = aout->sys;
 
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     SetPlayState(sys->playerPlay, SL_PLAYSTATE_STOPPED);
     Clear(sys->playerBufferQueue);
     SetPlayState(sys->playerPlay, SL_PLAYSTATE_PLAYING);
@@ -167,7 +168,7 @@ static void Flush(audio_output_t *aout)
     sys->samples = 0;
     sys->started = false;
 
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
 }
 
 static int VolumeSet(audio_output_t *aout, float vol)
@@ -205,7 +206,7 @@ static int MuteSet(audio_output_t *aout, bool mute)
     }
 }
 
-static void Pause(audio_output_t *aout, bool pause, vlc_tick_t date)
+static void Pause(audio_output_t *aout, bool pause, heimdall_tick_t date)
 {
     (void)date;
     aout_sys_t *sys = aout->sys;
@@ -293,12 +294,12 @@ static int WriteBuffer(audio_output_t *aout)
     }
 }
 
-static void Play(audio_output_t *aout, block_t *p_buffer, vlc_tick_t date)
+static void Play(audio_output_t *aout, block_t *p_buffer, heimdall_tick_t date)
 {
     aout_sys_t *sys = aout->sys;
 
     p_buffer->p_next = NULL; /* Make sur our linked list doesn't use old references */
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
 
     sys->samples += p_buffer->i_buffer / bytesPerSample();
 
@@ -309,7 +310,7 @@ static void Play(audio_output_t *aout, block_t *p_buffer, vlc_tick_t date)
     while (WriteBuffer(aout))
         ;
 
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
     (void) date;
 }
 
@@ -321,12 +322,12 @@ static void PlayedCallback (SLAndroidSimpleBufferQueueItf caller, void *pContext
 
     assert (caller == sys->playerBufferQueue);
 
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     sys->started = true;
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
 }
 
-static int Open (vlc_object_t *obj)
+static int Open (heimdall_object_t *obj)
 {
     audio_output_t *aout = (audio_output_t *)obj;
     aout_sys_t *sys;
@@ -334,7 +335,7 @@ static int Open (vlc_object_t *obj)
 
     aout->sys = sys = calloc(1, sizeof(*sys));
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     sys->p_so_handle = dlopen("libOpenSLES.so", RTLD_NOW);
     if (sys->p_so_handle == NULL)
@@ -389,7 +390,7 @@ static int Open (vlc_object_t *obj)
     result = Realize(sys->outputMixObject, SL_BOOLEAN_FALSE);
     CHECK_OPENSL_ERROR("Failed to realize output mix");
 
-    vlc_mutex_init(&sys->lock);
+    heimdall_mutex_init(&sys->lock);
 
     aout->start      = Start;
     aout->stop       = Stop;
@@ -399,7 +400,7 @@ static int Open (vlc_object_t *obj)
     aout->mute_set   = MuteSet;
     aout->volume_set = VolumeSet;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     if (sys->outputMixObject)
@@ -409,10 +410,10 @@ error:
     if (sys->p_so_handle)
         dlclose(sys->p_so_handle);
     free(sys);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
-static void Close(vlc_object_t *obj)
+static void Close(heimdall_object_t *obj)
 {
     audio_output_t *aout = (audio_output_t *)obj;
     aout_sys_t *sys = aout->sys;
@@ -444,7 +445,7 @@ static void Stop(audio_output_t *aout)
 static int Start(audio_output_t *aout, audio_sample_format_t *restrict fmt)
 {
     if (aout_FormatNbChannels(fmt) == 0 || !AOUT_FMT_LINEAR(fmt))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     SLresult       result;
 
@@ -514,8 +515,8 @@ static int Start(audio_output_t *aout, audio_sample_format_t *restrict fmt)
 
     /* XXX: rounding shouldn't affect us at normal sampling rate */
     sys->rate = fmt->i_rate;
-    sys->samples_per_buf = samples_from_vlc_tick(OPENSLES_BUFLEN, fmt->i_rate);
-    sys->buf = vlc_alloc(sys->samples_per_buf * bytesPerSample(), OPENSLES_BUFFERS);
+    sys->samples_per_buf = samples_from_heimdall_tick(OPENSLES_BUFLEN, fmt->i_rate);
+    sys->buf = heimdall_alloc(sys->samples_per_buf * bytesPerSample(), OPENSLES_BUFFERS);
     if (!sys->buf)
         goto error;
 
@@ -527,17 +528,17 @@ static int Start(audio_output_t *aout, audio_sample_format_t *restrict fmt)
     sys->samples = 0;
 
     // we want 16bit signed data native endian.
-    fmt->i_format              = VLC_CODEC_S16N;
+    fmt->i_format              = HEIMDALL_CODEC_S16N;
     fmt->i_physical_channels   = AOUT_CHAN_LEFT | AOUT_CHAN_RIGHT;
     fmt->channel_type = AUDIO_CHANNEL_TYPE_BITMAP;
 
-    SetPositionUpdatePeriod(sys->playerPlay, MS_FROM_VLC_TICK(AOUT_MIN_PREPARE_TIME));
+    SetPositionUpdatePeriod(sys->playerPlay, MS_FROM_HEIMDALL_TICK(AOUT_MIN_PREPARE_TIME));
 
     aout_FormatPrepare(fmt);
 
     msg_Dbg(aout, "using OpenSL ES API");
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     if (sys->playerObject) {
@@ -548,10 +549,10 @@ error:
         sys->playerPlay = NULL;
     }
 
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description("OpenSLES audio output")
     set_shortname("OpenSLES")
     set_subcategory(SUBCAT_AUDIO_AOUT)
@@ -559,4 +560,4 @@ vlc_module_begin ()
     set_capability("audio output", 170)
     add_shortcut("opensles", "android")
     set_callbacks(Open, Close)
-vlc_module_end ()
+heimdall_module_end ()

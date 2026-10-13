@@ -1,7 +1,8 @@
-# Cargo/Rust specific makefile rules for VLC 3rd party libraries ("contrib")
+# Cargo/Rust specific makefile rules for Heimdall 3rd party libraries ("contrib")
 # Copyright (C) 2003-2020 the VideoLAN team
+# Copyright (C) 2026 TheFenrisLycaon
 #
-# This file is under the same license as the vlc package.
+# This file is under the same license as the heimdall package.
 
 # default in Debian bookworm
 RUST_VERSION_MIN=1.63.0
@@ -45,9 +46,9 @@ RUST_TARGET := $(shell $(SRC)/get-rust-target.sh $(RUST_TARGET_FLAGS) $(HOST) 2>
 RUST_HOST :=  $(shell $(SRC)/get-rust-target.sh $(RUST_BUILD_FLAGS) $(BUILD) 2>/dev/null || echo FAIL)
 
 ifneq ($(RUST_HOST),FAIL)
-# For now, VLC don't support Tier 3 platforms (ios 32bit, tvOS).
+# For now, Heimdall don't support Tier 3 platforms (ios 32bit, tvOS).
 # Supporting a Tier 3 platform means building an untested rust toolchain.
-# TODO Let's hope tvOS move from Tier 3 to Tier 2 before the VLC 4.0 release.
+# TODO Let's hope tvOS move from Tier 3 to Tier 2 before the Heimdall 4.0 release.
 ifneq ($(RUST_TARGET),FAIL)
 ifeq ($(call system_tool_matches_min, echo 'fn main() {}' | rustc --target=$(RUST_TARGET) --emit=dep-info - -o /dev/null 2>/dev/null && rustc --version,$(RUST_VERSION_MIN)),)
 BUILD_RUST="1"
@@ -73,17 +74,17 @@ CARGO_ENV = TARGET_CC="$(CC)" TARGET_AR="$(AR)" TARGET_RANLIB="$(RANLIB)" \
 CARGO_ENV_NATIVE = TARGET_CC="$(BUILDCC)" TARGET_AR="$(BUILDAR)" TARGET_RANLIB="$(BUILDRANLIB)" \
 	TARGET_CFLAGS="$(BUILDCFLAGS)"
 
-ifdef VLC_DEPLOYMENT_TARGET
+ifdef HEIMDALL_DEPLOYMENT_TARGET
 ifeq ($(HAVE_MACOSX),1)
-CARGO_ENV += MACOSX_DEPLOYMENT_TARGET=$(VLC_DEPLOYMENT_TARGET)
+CARGO_ENV += MACOSX_DEPLOYMENT_TARGET=$(HEIMDALL_DEPLOYMENT_TARGET)
 else ifeq ($(HAVE_TVOS),1)
-CARGO_ENV += TVOS_DEPLOYMENT_TARGET=$(VLC_DEPLOYMENT_TARGET)
+CARGO_ENV += TVOS_DEPLOYMENT_TARGET=$(HEIMDALL_DEPLOYMENT_TARGET)
 else ifeq ($(HAVE_WATCHOS),1)
-CARGO_ENV += WATCHOS_DEPLOYMENT_TARGET=$(VLC_DEPLOYMENT_TARGET)
+CARGO_ENV += WATCHOS_DEPLOYMENT_TARGET=$(HEIMDALL_DEPLOYMENT_TARGET)
 else ifeq ($(HAVE_XROS),1)
-CARGO_ENV += XROS_DEPLOYMENT_TARGET=$(VLC_DEPLOYMENT_TARGET)
+CARGO_ENV += XROS_DEPLOYMENT_TARGET=$(HEIMDALL_DEPLOYMENT_TARGET)
 else ifeq ($(HAVE_IOS),1)
-CARGO_ENV += IPHONEOS_DEPLOYMENT_TARGET=$(VLC_DEPLOYMENT_TARGET)
+CARGO_ENV += IPHONEOS_DEPLOYMENT_TARGET=$(HEIMDALL_DEPLOYMENT_TARGET)
 endif
 endif
 
@@ -107,7 +108,7 @@ CARGOC_INSTALL = $(CARGO) capi install $(CARGO_INSTALL_ARGS)
 
 download_vendor = \
 	rm $@.skip-hash; \
-	$(call download,$(CONTRIB_VIDEOLAN)/$(2)/$(1)) || (\
+	$(call download,$(CONTRIB_LYCARIA)/$(2)/$(1)) || (\
                rm $@; \
                $(RM) -R vendor-$(2)-build; \
                mkdir -p vendor-$(2)-build && \

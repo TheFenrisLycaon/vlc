@@ -2,6 +2,7 @@
  * player_input.c: Player input implementation
  *****************************************************************************
  * Copyright © 2018-2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,73 +23,73 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_memstream.h>
-#include <vlc_dialog.h>
+#include <heimdall_common.h>
+#include <heimdall_memstream.h>
+#include <heimdall_dialog.h>
 #include "player.h"
 
-struct vlc_player_track_priv *
-vlc_player_input_FindTrackById(struct vlc_player_input *input, vlc_es_id_t *id,
+struct heimdall_player_track_priv *
+heimdall_player_input_FindTrackById(struct heimdall_player_input *input, heimdall_es_id_t *id,
                                size_t *idx)
 {
-    vlc_player_track_vector *vec =
-        vlc_player_input_GetTrackVector(input, vlc_es_id_GetCat(id));
-    return vec ? vlc_player_track_vector_FindById(vec, id, idx) : NULL;
+    heimdall_player_track_vector *vec =
+        heimdall_player_input_GetTrackVector(input, heimdall_es_id_GetCat(id));
+    return vec ? heimdall_player_track_vector_FindById(vec, id, idx) : NULL;
 }
 
-vlc_tick_t
-vlc_player_input_GetTime(struct vlc_player_input *input, bool seeking,
-                         vlc_tick_t system_now)
+heimdall_tick_t
+heimdall_player_input_GetTime(struct heimdall_player_input *input, bool seeking,
+                         heimdall_tick_t system_now)
 {
-    vlc_player_t *player = input->player;
-    vlc_tick_t ts;
+    heimdall_player_t *player = input->player;
+    heimdall_tick_t ts;
 
     if (input == player->input
-     && vlc_player_GetTimerPoint(player, &seeking, system_now, &ts, NULL) == 0)
+     && heimdall_player_GetTimerPoint(player, &seeking, system_now, &ts, NULL) == 0)
         return ts;
     return input->time;
 }
 
 double
-vlc_player_input_GetPos(struct vlc_player_input *input, bool seeking,
-                        vlc_tick_t system_now)
+heimdall_player_input_GetPos(struct heimdall_player_input *input, bool seeking,
+                        heimdall_tick_t system_now)
 {
-    vlc_player_t *player = input->player;
+    heimdall_player_t *player = input->player;
     double pos;
 
     if (input == player->input
-     && vlc_player_GetTimerPoint(player, &seeking, system_now, NULL, &pos) == 0)
+     && heimdall_player_GetTimerPoint(player, &seeking, system_now, NULL, &pos) == 0)
         return pos;
     return input->position;
 }
 
 bool
-vlc_player_input_HandleAtoBLoop(struct vlc_player_input *input, bool forced)
+heimdall_player_input_HandleAtoBLoop(struct heimdall_player_input *input, bool forced)
 {
     if (!input->abloop_state[0].set || !input->abloop_state[1].set
-     || (input->capabilities & VLC_PLAYER_CAP_SEEK) == 0)
+     || (input->capabilities & HEIMDALL_PLAYER_CAP_SEEK) == 0)
         return false;
 
-    vlc_player_t *player = input->player;
+    heimdall_player_t *player = input->player;
 
     if (player->input != input)
         return false;
 
-    vlc_tick_t now = vlc_tick_now();
-    if (input->abloop_state[0].time != VLC_TICK_INVALID
-     && input->abloop_state[1].time != VLC_TICK_INVALID)
+    heimdall_tick_t now = heimdall_tick_now();
+    if (input->abloop_state[0].time != HEIMDALL_TICK_INVALID
+     && input->abloop_state[1].time != HEIMDALL_TICK_INVALID)
     {
-        vlc_tick_t time = vlc_player_input_GetTime(input, false, now);
+        heimdall_tick_t time = heimdall_player_input_GetTime(input, false, now);
         if (forced
-         || (time != VLC_TICK_INVALID && time >= input->abloop_state[1].time))
-            vlc_player_SetTime(player, input->abloop_state[0].time);
+         || (time != HEIMDALL_TICK_INVALID && time >= input->abloop_state[1].time))
+            heimdall_player_SetTime(player, input->abloop_state[0].time);
         return true;
     }
 
-    double pos = vlc_player_input_GetPos(input, false, now);
+    double pos = heimdall_player_input_GetPos(input, false, now);
     if (forced || pos >= input->abloop_state[1].pos)
     {
-        vlc_player_SetPosition(player, input->abloop_state[0].pos);
+        heimdall_player_SetPosition(player, input->abloop_state[0].pos);
         return true;
     }
 
@@ -96,40 +97,40 @@ vlc_player_input_HandleAtoBLoop(struct vlc_player_input *input, bool forced)
 }
 
 int
-vlc_player_input_Start(struct vlc_player_input *input)
+heimdall_player_input_Start(struct heimdall_player_input *input)
 {
     int ret = input_Start(input->thread);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
         return ret;
     input->started = true;
     return ret;
 }
 
 static inline void
-vlc_player_assert_seek_params(enum vlc_player_seek_speed speed,
-                              enum vlc_player_whence whence)
+heimdall_player_assert_seek_params(enum heimdall_player_seek_speed speed,
+                              enum heimdall_player_whence whence)
 {
-    assert(speed == VLC_PLAYER_SEEK_PRECISE
-        || speed == VLC_PLAYER_SEEK_FAST);
-    assert(whence == VLC_PLAYER_WHENCE_ABSOLUTE
-        || whence == VLC_PLAYER_WHENCE_RELATIVE);
+    assert(speed == HEIMDALL_PLAYER_SEEK_PRECISE
+        || speed == HEIMDALL_PLAYER_SEEK_FAST);
+    assert(whence == HEIMDALL_PLAYER_WHENCE_ABSOLUTE
+        || whence == HEIMDALL_PLAYER_WHENCE_RELATIVE);
     (void) speed; (void) whence;
 }
 
 void
-vlc_player_input_SeekByPos(struct vlc_player_input *input, double position,
-                           enum vlc_player_seek_speed speed,
-                           enum vlc_player_whence whence)
+heimdall_player_input_SeekByPos(struct heimdall_player_input *input, double position,
+                           enum heimdall_player_seek_speed speed,
+                           enum heimdall_player_whence whence)
 {
-    vlc_player_t *player = input->player;
-    vlc_player_assert_seek_params(speed, whence);
+    heimdall_player_t *player = input->player;
+    heimdall_player_assert_seek_params(speed, whence);
 
     /* Assert before we modify position internally, this only check that user
      * positions are correct. */
-    if (whence != VLC_PLAYER_WHENCE_ABSOLUTE)
+    if (whence != HEIMDALL_PLAYER_WHENCE_ABSOLUTE)
     {
         assert(position >= -1 && position <=1);
-        position += vlc_player_input_GetPos(input, true, vlc_tick_now());
+        position += heimdall_player_input_GetPos(input, true, heimdall_tick_now());
     }
     else
     {
@@ -141,51 +142,51 @@ vlc_player_input_SeekByPos(struct vlc_player_input *input, double position,
     else if (position > 1)
         position = 1;
 
-    vlc_player_UpdateTimerSeekState(player, VLC_TICK_INVALID, position);
+    heimdall_player_UpdateTimerSeekState(player, HEIMDALL_TICK_INVALID, position);
 
     int ret = input_ControlPush(input->thread, INPUT_CONTROL_SET_POSITION,
         &(input_control_param_t) {
             .pos.f_val = position,
-            .pos.b_fast_seek = speed == VLC_PLAYER_SEEK_FAST,
+            .pos.b_fast_seek = speed == HEIMDALL_PLAYER_SEEK_FAST,
     });
 
-    if (ret == VLC_SUCCESS)
-        vlc_player_osd_Position(player, input, VLC_TICK_INVALID, position);
+    if (ret == HEIMDALL_SUCCESS)
+        heimdall_player_osd_Position(player, input, HEIMDALL_TICK_INVALID, position);
 }
 
 void
-vlc_player_input_SeekByTime(struct vlc_player_input *input, vlc_tick_t time,
-                            enum vlc_player_seek_speed speed,
-                            enum vlc_player_whence whence)
+heimdall_player_input_SeekByTime(struct heimdall_player_input *input, heimdall_tick_t time,
+                            enum heimdall_player_seek_speed speed,
+                            enum heimdall_player_whence whence)
 {
-    vlc_player_t *player = input->player;
-    vlc_player_assert_seek_params(speed, whence);
+    heimdall_player_t *player = input->player;
+    heimdall_player_assert_seek_params(speed, whence);
 
-    if (whence != VLC_PLAYER_WHENCE_ABSOLUTE)
-        time += vlc_player_input_GetTime(input, true, vlc_tick_now());
+    if (whence != HEIMDALL_PLAYER_WHENCE_ABSOLUTE)
+        time += heimdall_player_input_GetTime(input, true, heimdall_tick_now());
 
-    if (time < VLC_TICK_0)
-        time = VLC_TICK_0;
+    if (time < HEIMDALL_TICK_0)
+        time = HEIMDALL_TICK_0;
 
-    vlc_player_UpdateTimerSeekState(player, time, -1);
+    heimdall_player_UpdateTimerSeekState(player, time, -1);
 
     int ret = input_ControlPush(input->thread, INPUT_CONTROL_SET_TIME,
         &(input_control_param_t) {
             .time.i_val = time,
-            .time.b_fast_seek = speed == VLC_PLAYER_SEEK_FAST,
+            .time.b_fast_seek = speed == HEIMDALL_PLAYER_SEEK_FAST,
     });
 
-    if (ret == VLC_SUCCESS)
-        vlc_player_osd_Position(player, input, time, -1);
+    if (ret == HEIMDALL_SUCCESS)
+        heimdall_player_osd_Position(player, input, time, -1);
 }
 
 void
-vlc_player_input_UpdateViewpoint(struct vlc_player_input *input,
-                                 const vlc_viewpoint_t *viewpoint,
-                                 enum vlc_player_whence whence)
+heimdall_player_input_UpdateViewpoint(struct heimdall_player_input *input,
+                                 const heimdall_viewpoint_t *viewpoint,
+                                 enum heimdall_player_whence whence)
 {
     input_control_param_t param = { .viewpoint = *viewpoint };
-    if (whence == VLC_PLAYER_WHENCE_ABSOLUTE)
+    if (whence == HEIMDALL_PLAYER_WHENCE_ABSOLUTE)
         input_ControlPush(input->thread, INPUT_CONTROL_SET_VIEWPOINT,
                           &param);
     else
@@ -194,23 +195,23 @@ vlc_player_input_UpdateViewpoint(struct vlc_player_input *input,
 }
 
 static bool
-vlc_player_WaitRetryDelay(vlc_player_t *player)
+heimdall_player_WaitRetryDelay(heimdall_player_t *player)
 {
-#define RETRY_TIMEOUT_BASE VLC_TICK_FROM_MS(100)
-#define RETRY_TIMEOUT_MAX VLC_TICK_FROM_MS(3200)
+#define RETRY_TIMEOUT_BASE HEIMDALL_TICK_FROM_MS(100)
+#define RETRY_TIMEOUT_MAX HEIMDALL_TICK_FROM_MS(3200)
 #define MAX_EOS_BURST 4
     /* Temporize only after a few successive EOS */
     if (player->eos_burst_count > MAX_EOS_BURST)
     {
         unsigned pow = player->eos_burst_count - MAX_EOS_BURST;
         /* Delay the next opening to avoid busy loops */
-        vlc_tick_t delay = RETRY_TIMEOUT_BASE;
+        heimdall_tick_t delay = RETRY_TIMEOUT_BASE;
         for (unsigned i = 1; i < pow && delay < RETRY_TIMEOUT_MAX; ++i)
             delay *= 2; /* Wait 100, 200, 400, 800, 1600 and finally 3200ms */
-        delay += vlc_tick_now();
+        delay += heimdall_tick_now();
 
         while (player->eos_burst_count != 0
-            && vlc_cond_timedwait(&player->start_delay_cond, &player->lock,
+            && heimdall_cond_timedwait(&player->start_delay_cond, &player->lock,
                                   delay) == 0);
         if (player->eos_burst_count == 0)
             return false; /* canceled */
@@ -219,18 +220,18 @@ vlc_player_WaitRetryDelay(vlc_player_t *player)
 }
 
 void
-vlc_player_input_HandleState(struct vlc_player_input *input,
-                             enum vlc_player_state state, vlc_tick_t state_date)
+heimdall_player_input_HandleState(struct heimdall_player_input *input,
+                             enum heimdall_player_state state, heimdall_tick_t state_date)
 {
-    vlc_player_t *player = input->player;
+    heimdall_player_t *player = input->player;
 
     /* The STOPPING state can be set earlier by the player. In that case,
      * ignore all future events except the STOPPED one */
-    if (input->state == VLC_PLAYER_STATE_STOPPING
-     && state != VLC_PLAYER_STATE_STOPPED)
+    if (input->state == HEIMDALL_PLAYER_STATE_STOPPING
+     && state != HEIMDALL_PLAYER_STATE_STOPPED)
         return;
 
-    enum vlc_player_state last_state = input->state;
+    enum heimdall_player_state last_state = input->state;
     input->state = state;
 
     /* Override the global state if the player is still playing and has a next
@@ -238,76 +239,76 @@ vlc_player_input_HandleState(struct vlc_player_input *input,
     bool send_event = player->global_state != state;
     switch (input->state)
     {
-        case VLC_PLAYER_STATE_STOPPED:
+        case HEIMDALL_PLAYER_STATE_STOPPED:
             assert(!input->started);
             assert(input != player->input);
 
             if (input->titles)
             {
-                vlc_player_title_list_Release(input->titles);
+                heimdall_player_title_list_Release(input->titles);
                 input->titles = NULL;
-                vlc_player_SendEvent(player, on_titles_changed, NULL);
+                heimdall_player_SendEvent(player, on_titles_changed, NULL);
             }
 
-            vlc_player_ResetTimer(player);
+            heimdall_player_ResetTimer(player);
 
-            if (player->last_eos != VLC_TICK_INVALID)
+            if (player->last_eos != HEIMDALL_TICK_INVALID)
             {
-                vlc_tick_t diff = vlc_tick_now() - player->last_eos;
-                if (diff < VLC_PLAYER_EOS_BURST_THRESHOLD)
+                heimdall_tick_t diff = heimdall_tick_now() - player->last_eos;
+                if (diff < HEIMDALL_PLAYER_EOS_BURST_THRESHOLD)
                     ++player->eos_burst_count;
                 else
                     player->eos_burst_count = 0;
             }
 
             if (player->started)
-                vlc_player_WaitRetryDelay(player);
+                heimdall_player_WaitRetryDelay(player);
 
             /* Assign the current date after the wait */
-            player->last_eos = vlc_tick_now();
+            player->last_eos = heimdall_tick_now();
 
             if (!player->deleting)
             {
-                vlc_player_OpenNextMedia(player);
+                heimdall_player_OpenNextMedia(player);
                 /* It is possible to open several medias in a stopped state */
                 if (player->input && player->started)
-                    vlc_player_input_Start(player->input);
+                    heimdall_player_input_Start(player->input);
             }
             if (!player->input)
                 player->started = false;
 
-            send_event = !player->started && last_state != VLC_PLAYER_STATE_STOPPED;
+            send_event = !player->started && last_state != HEIMDALL_PLAYER_STATE_STOPPED;
             break;
-        case VLC_PLAYER_STATE_STOPPING:
+        case HEIMDALL_PLAYER_STATE_STOPPING:
         {
-            enum vlc_player_media_stopping_reason reason;
+            enum heimdall_player_media_stopping_reason reason;
             /* The order matters. input->error is only set while the
                input->started flag is set, so an error or EOS that follows a
                user stop request is ignored and the stop is reported as USER,
                whereas an error that occurred before a user stop request takes
                precedence and is reported as ERROR. */
-            if (input->error != VLC_PLAYER_ERROR_NONE)
-                reason = VLC_PLAYER_MEDIA_STOPPING_ERROR;
+            if (input->error != HEIMDALL_PLAYER_ERROR_NONE)
+                reason = HEIMDALL_PLAYER_MEDIA_STOPPING_ERROR;
             else if (!input->started)
-                reason = VLC_PLAYER_MEDIA_STOPPING_USER;
+                reason = HEIMDALL_PLAYER_MEDIA_STOPPING_USER;
             else
-                reason = VLC_PLAYER_MEDIA_STOPPING_EOS;
+                reason = HEIMDALL_PLAYER_MEDIA_STOPPING_EOS;
             input->started = false;
 
             /* Note: no need to hold the media here, as it is already protected
                by the player lock. User can hold the input_item, if they want
                to use it beyond the callback scope. */
             input_item_t *media = input_GetItem(input->thread);
-            vlc_player_SendEvent(player, on_stopping_current_media,
+            heimdall_player_SendEvent(player, on_stopping_current_media,
                                  media, reason);
 
-            vlc_player_UpdateTimerEvent(player, NULL,
-                                        VLC_PLAYER_TIMER_EVENT_DISCONTINUITY,
-                                        VLC_TICK_INVALID);
+            heimdall_player_UpdateTimerEvent(player, NULL,
+                                        HEIMDALL_PLAYER_TIMER_EVENT_DISCONTINUITY,
+                                        HEIMDALL_TICK_INVALID);
 
-            vlc_player_UpdateTimerEvent(player, NULL,
-                                        VLC_PLAYER_TIMER_EVENT_STOPPING,
-                                        VLC_TICK_INVALID);
+            heimdall_player_UpdateTimerEvent(player, NULL,
+                                        HEIMDALL_PLAYER_TIMER_EVENT_STOPPING,
+                                        HEIMDALL_TICK_INVALID);
 
             if (input == player->input)
                 player->input = NULL;
@@ -317,146 +318,146 @@ vlc_player_input_HandleState(struct vlc_player_input *input,
             send_event = !player->started;
             break;
         }
-        case VLC_PLAYER_STATE_PLAYING:
-            input->pause_date = VLC_TICK_INVALID;
-            vlc_player_SignalAtoBLoop(player);
-            vlc_player_UpdateTimerEvent(player, NULL,
-                                        VLC_PLAYER_TIMER_EVENT_PLAYING,
+        case HEIMDALL_PLAYER_STATE_PLAYING:
+            input->pause_date = HEIMDALL_TICK_INVALID;
+            heimdall_player_SignalAtoBLoop(player);
+            heimdall_player_UpdateTimerEvent(player, NULL,
+                                        HEIMDALL_PLAYER_TIMER_EVENT_PLAYING,
                                         state_date);
             /* fall through */
-        case VLC_PLAYER_STATE_STARTED:
+        case HEIMDALL_PLAYER_STATE_STARTED:
             if (player->started &&
-                player->global_state == VLC_PLAYER_STATE_PLAYING)
+                player->global_state == HEIMDALL_PLAYER_STATE_PLAYING)
                 send_event = false;
             break;
 
-        case VLC_PLAYER_STATE_PAUSED:
+        case HEIMDALL_PLAYER_STATE_PAUSED:
             /* Can pause from PLAYING or STARTED (deferred pause during buffering) */
-            assert(player->global_state == VLC_PLAYER_STATE_PLAYING
-                   || player->global_state == VLC_PLAYER_STATE_STARTED);
-            assert(state_date != VLC_TICK_INVALID);
+            assert(player->global_state == HEIMDALL_PLAYER_STATE_PLAYING
+                   || player->global_state == HEIMDALL_PLAYER_STATE_STARTED);
+            assert(state_date != HEIMDALL_TICK_INVALID);
             input->pause_date = state_date;
 
-            vlc_player_SignalAtoBLoop(player);
-            vlc_player_UpdateTimerEvent(player, NULL,
-                                        VLC_PLAYER_TIMER_EVENT_PAUSED,
+            heimdall_player_SignalAtoBLoop(player);
+            heimdall_player_UpdateTimerEvent(player, NULL,
+                                        HEIMDALL_PLAYER_TIMER_EVENT_PAUSED,
                                         input->pause_date);
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 
     if (send_event)
     {
         assert(player->global_state != input->state);
         player->global_state = input->state;
-        vlc_player_SendEvent(player, on_state_changed, player->global_state);
+        heimdall_player_SendEvent(player, on_state_changed, player->global_state);
     }
 }
 
 static void
-vlc_player_input_HandleStateEvent(struct vlc_player_input *input,
-                                  input_state_e state, vlc_tick_t state_date)
+heimdall_player_input_HandleStateEvent(struct heimdall_player_input *input,
+                                  input_state_e state, heimdall_tick_t state_date)
 {
     switch (state)
     {
         case OPENING_S:
-            vlc_player_input_HandleState(input, VLC_PLAYER_STATE_STARTED,
-                                         VLC_TICK_INVALID);
+            heimdall_player_input_HandleState(input, HEIMDALL_PLAYER_STATE_STARTED,
+                                         HEIMDALL_TICK_INVALID);
             break;
         case PLAYING_S:
             input->playing = true;
-            vlc_player_input_HandleState(input, VLC_PLAYER_STATE_PLAYING,
+            heimdall_player_input_HandleState(input, HEIMDALL_PLAYER_STATE_PLAYING,
                                          state_date);
             break;
         case PAUSE_S:
-            vlc_player_input_HandleState(input, VLC_PLAYER_STATE_PAUSED,
+            heimdall_player_input_HandleState(input, HEIMDALL_PLAYER_STATE_PAUSED,
                                          state_date);
             break;
         case END_S:
             input->playing = false;
-            vlc_player_input_HandleState(input, VLC_PLAYER_STATE_STOPPING,
-                                         VLC_TICK_INVALID);
-            vlc_player_destructor_AddStoppingInput(input->player, input);
+            heimdall_player_input_HandleState(input, HEIMDALL_PLAYER_STATE_STOPPING,
+                                         HEIMDALL_TICK_INVALID);
+            heimdall_player_destructor_AddStoppingInput(input->player, input);
             break;
         case ERROR_S:
             /* Don't send errors if the input is stopped by the user */
             if (input->started)
             {
                 /* Contrary to the input_thread_t, an error is not a state */
-                input->error = VLC_PLAYER_ERROR_GENERIC;
-                vlc_player_SendEvent(input->player, on_error_changed, input->error);
+                input->error = HEIMDALL_PLAYER_ERROR_GENERIC;
+                heimdall_player_SendEvent(input->player, on_error_changed, input->error);
             }
             /* input->playing monitor the OPENING_S -> PLAYING_S transition.
              * If input->playing is false, we have an error at the opening of
              * the input thread and we won't reach END_S. */
             if (!input->playing)
             {
-                vlc_player_input_HandleState(input, VLC_PLAYER_STATE_STOPPING,
-                                             VLC_TICK_INVALID);
-                vlc_player_destructor_AddStoppingInput(input->player, input);
+                heimdall_player_input_HandleState(input, HEIMDALL_PLAYER_STATE_STOPPING,
+                                             HEIMDALL_TICK_INVALID);
+                heimdall_player_destructor_AddStoppingInput(input->player, input);
             }
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 }
 
 static void
-vlc_player_input_HandleProgramEvent(struct vlc_player_input *input,
-                                    const struct vlc_input_event_program *ev)
+heimdall_player_input_HandleProgramEvent(struct heimdall_player_input *input,
+                                    const struct heimdall_input_event_program *ev)
 {
-    vlc_player_t *player = input->player;
-    struct vlc_player_program *prgm;
-    vlc_player_program_vector *vec = &input->program_vector;
+    heimdall_player_t *player = input->player;
+    struct heimdall_player_program *prgm;
+    heimdall_player_program_vector *vec = &input->program_vector;
 
     switch (ev->action)
     {
-        case VLC_INPUT_PROGRAM_ADDED:
-            prgm = vlc_player_program_New(ev->id, ev->title);
+        case HEIMDALL_INPUT_PROGRAM_ADDED:
+            prgm = heimdall_player_program_New(ev->id, ev->title);
             if (!prgm)
                 break;
 
-            if (!vlc_vector_push(vec, prgm))
+            if (!heimdall_vector_push(vec, prgm))
             {
-                vlc_player_program_Delete(prgm);
+                heimdall_player_program_Delete(prgm);
                 break;
             }
-            vlc_player_SendEvent(player, on_program_list_changed,
-                                 VLC_PLAYER_LIST_ADDED, prgm);
+            heimdall_player_SendEvent(player, on_program_list_changed,
+                                 HEIMDALL_PLAYER_LIST_ADDED, prgm);
             break;
-        case VLC_INPUT_PROGRAM_DELETED:
+        case HEIMDALL_INPUT_PROGRAM_DELETED:
         {
             size_t idx;
-            prgm = vlc_player_program_vector_FindById(vec, ev->id, &idx);
+            prgm = heimdall_player_program_vector_FindById(vec, ev->id, &idx);
             if (prgm)
             {
-                vlc_player_SendEvent(player, on_program_list_changed,
-                                     VLC_PLAYER_LIST_REMOVED, prgm);
-                vlc_vector_remove(vec, idx);
-                vlc_player_program_Delete(prgm);
+                heimdall_player_SendEvent(player, on_program_list_changed,
+                                     HEIMDALL_PLAYER_LIST_REMOVED, prgm);
+                heimdall_vector_remove(vec, idx);
+                heimdall_player_program_Delete(prgm);
             }
             break;
         }
-        case VLC_INPUT_PROGRAM_UPDATED:
-        case VLC_INPUT_PROGRAM_SCRAMBLED:
-            prgm = vlc_player_program_vector_FindById(vec, ev->id, NULL);
+        case HEIMDALL_INPUT_PROGRAM_UPDATED:
+        case HEIMDALL_INPUT_PROGRAM_SCRAMBLED:
+            prgm = heimdall_player_program_vector_FindById(vec, ev->id, NULL);
             if (!prgm)
                 break;
-            if (ev->action == VLC_INPUT_PROGRAM_UPDATED)
+            if (ev->action == HEIMDALL_INPUT_PROGRAM_UPDATED)
             {
-                if (vlc_player_program_Update(prgm, ev->id, ev->title) != 0)
+                if (heimdall_player_program_Update(prgm, ev->id, ev->title) != 0)
                     break;
             }
             else
                 prgm->scrambled = ev->scrambled;
-            vlc_player_SendEvent(player, on_program_list_changed,
-                                 VLC_PLAYER_LIST_UPDATED, prgm);
+            heimdall_player_SendEvent(player, on_program_list_changed,
+                                 HEIMDALL_PLAYER_LIST_UPDATED, prgm);
             break;
-        case VLC_INPUT_PROGRAM_SELECTED:
+        case HEIMDALL_INPUT_PROGRAM_SELECTED:
         {
             int unselected_id = -1, selected_id = -1;
-            vlc_vector_foreach(prgm, vec)
+            heimdall_vector_foreach(prgm, vec)
             {
                 if (prgm->group_id == ev->id)
                 {
@@ -478,24 +479,24 @@ vlc_player_input_HandleProgramEvent(struct vlc_player_input *input,
                 }
             }
             if (unselected_id != -1 || selected_id != -1)
-                vlc_player_SendEvent(player, on_program_selection_changed,
+                heimdall_player_SendEvent(player, on_program_selection_changed,
                                      unselected_id, selected_id);
             break;
         }
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 }
 
-static const struct vlc_player_track_priv *
-vlc_player_FindTeletextSource(const struct vlc_player_input *input,
-                              const struct vlc_player_track_priv *exclude,
+static const struct heimdall_player_track_priv *
+heimdall_player_FindTeletextSource(const struct heimdall_player_input *input,
+                              const struct heimdall_player_track_priv *exclude,
                               bool selected)
 {
-    const struct vlc_player_track_priv *t;
-    vlc_vector_foreach(t, &input->spu_track_vector)
+    const struct heimdall_player_track_priv *t;
+    heimdall_vector_foreach(t, &input->spu_track_vector)
     {
-        if (t->t.fmt.i_codec == VLC_CODEC_TELETEXT &&
+        if (t->t.fmt.i_codec == HEIMDALL_CODEC_TELETEXT &&
            t != exclude &&
            t->t.selected == selected)
             return t;
@@ -504,7 +505,7 @@ vlc_player_FindTeletextSource(const struct vlc_player_input *input,
 }
 
 static unsigned
-vlc_player_input_TeletextUserPage(const struct vlc_player_track_priv *t)
+heimdall_player_input_TeletextUserPage(const struct heimdall_player_track_priv *t)
 {
     const uint8_t mag = t->t.fmt.subs.teletext.i_magazine;
     const uint8_t page = t->t.fmt.subs.teletext.i_page;
@@ -513,121 +514,121 @@ vlc_player_input_TeletextUserPage(const struct vlc_player_track_priv *t)
 }
 
 static void
-vlc_player_input_HandleTeletextMenu(struct vlc_player_input *input,
-                                    const struct vlc_input_event_es *ev,
-                                    const struct vlc_player_track_priv *trackpriv)
+heimdall_player_input_HandleTeletextMenu(struct heimdall_player_input *input,
+                                    const struct heimdall_input_event_es *ev,
+                                    const struct heimdall_player_track_priv *trackpriv)
 {
-    vlc_player_t *player = input->player;
+    heimdall_player_t *player = input->player;
     if (ev->fmt->i_cat != SPU_ES ||
-        ev->fmt->i_codec != VLC_CODEC_TELETEXT)
+        ev->fmt->i_codec != HEIMDALL_CODEC_TELETEXT)
         return;
     switch (ev->action)
     {
-        case VLC_INPUT_ES_ADDED:
+        case HEIMDALL_INPUT_ES_ADDED:
         {
             if (!input->teletext_source)
             {
                 input->teletext_source = trackpriv;
-                vlc_player_SendEvent(player, on_teletext_menu_changed, true);
+                heimdall_player_SendEvent(player, on_teletext_menu_changed, true);
             }
             break;
         }
-        case VLC_INPUT_ES_DELETED:
+        case HEIMDALL_INPUT_ES_DELETED:
         {
             if (input->teletext_source == trackpriv)
             {
                 input->teletext_source =
-                        vlc_player_FindTeletextSource(input, trackpriv, true);
+                        heimdall_player_FindTeletextSource(input, trackpriv, true);
                 if (!input->teletext_source)
                     input->teletext_source =
-                            vlc_player_FindTeletextSource(input, trackpriv, false);
+                            heimdall_player_FindTeletextSource(input, trackpriv, false);
                 if (!input->teletext_source) /* no more teletext ES */
                 {
                     if (input->teletext_enabled)
                     {
                         input->teletext_enabled = false;
-                        vlc_player_SendEvent(player, on_teletext_enabled_changed, false);
+                        heimdall_player_SendEvent(player, on_teletext_enabled_changed, false);
                     }
-                    vlc_player_SendEvent(player, on_teletext_menu_changed, false);
+                    heimdall_player_SendEvent(player, on_teletext_menu_changed, false);
                 }
                 else /* another teletext ES was reselected */
                 {
                     if (input->teletext_source->t.selected != input->teletext_enabled)
                     {
                         input->teletext_enabled = input->teletext_source->t.selected;
-                        vlc_player_SendEvent(player, on_teletext_enabled_changed,
+                        heimdall_player_SendEvent(player, on_teletext_enabled_changed,
                                              input->teletext_source->t.selected);
                     }
                     input->teletext_page =
-                            vlc_player_input_TeletextUserPage(input->teletext_source);
-                    vlc_player_SendEvent(player, on_teletext_page_changed,
+                            heimdall_player_input_TeletextUserPage(input->teletext_source);
+                    heimdall_player_SendEvent(player, on_teletext_page_changed,
                                          input->teletext_page);
                 }
             }
             break;
         }
-        case VLC_INPUT_ES_UPDATED:
+        case HEIMDALL_INPUT_ES_UPDATED:
             break;
-        case VLC_INPUT_ES_SELECTED:
+        case HEIMDALL_INPUT_ES_SELECTED:
         {
             if (!input->teletext_enabled) /* we stick with the first selected */
             {
                 input->teletext_source = trackpriv;
                 input->teletext_enabled = true;
-                input->teletext_page = vlc_player_input_TeletextUserPage(trackpriv);
-                vlc_player_SendEvent(player, on_teletext_enabled_changed, true);
-                vlc_player_SendEvent(player, on_teletext_page_changed,
+                input->teletext_page = heimdall_player_input_TeletextUserPage(trackpriv);
+                heimdall_player_SendEvent(player, on_teletext_enabled_changed, true);
+                heimdall_player_SendEvent(player, on_teletext_page_changed,
                                      input->teletext_page);
             }
             break;
         }
-        case VLC_INPUT_ES_UNSELECTED:
+        case HEIMDALL_INPUT_ES_UNSELECTED:
             if (input->teletext_source == trackpriv)
             {
                 /* If there's another selected teletext, it needs to become source */
-                const struct vlc_player_track_priv *other =
-                        vlc_player_FindTeletextSource(input, trackpriv, true);
+                const struct heimdall_player_track_priv *other =
+                        heimdall_player_FindTeletextSource(input, trackpriv, true);
                 if (other)
                 {
                     input->teletext_source = other;
                     if (!input->teletext_enabled)
                     {
                         input->teletext_enabled = true;
-                        vlc_player_SendEvent(player, on_teletext_enabled_changed, true);
+                        heimdall_player_SendEvent(player, on_teletext_enabled_changed, true);
                     }
-                    input->teletext_page = vlc_player_input_TeletextUserPage(other);
-                    vlc_player_SendEvent(player, on_teletext_page_changed,
+                    input->teletext_page = heimdall_player_input_TeletextUserPage(other);
+                    heimdall_player_SendEvent(player, on_teletext_page_changed,
                                          input->teletext_page);
                 }
                 else
                 {
                     input->teletext_enabled = false;
-                    vlc_player_SendEvent(player, on_teletext_enabled_changed, false);
+                    heimdall_player_SendEvent(player, on_teletext_enabled_changed, false);
                 }
             }
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 }
 
 static void
-vlc_player_input_HandleEsEvent(struct vlc_player_input *input,
-                               const struct vlc_input_event_es *ev)
+heimdall_player_input_HandleEsEvent(struct heimdall_player_input *input,
+                               const struct heimdall_input_event_es *ev)
 {
     assert(ev->id && ev->title && ev->fmt);
 
-    vlc_player_track_vector *vec =
-        vlc_player_input_GetTrackVector(input, ev->fmt->i_cat);
+    heimdall_player_track_vector *vec =
+        heimdall_player_input_GetTrackVector(input, ev->fmt->i_cat);
     if (!vec)
         return; /* UNKNOWN_ES or DATA_ES not handled */
 
-    vlc_player_t *player = input->player;
-    struct vlc_player_track_priv *trackpriv;
+    heimdall_player_t *player = input->player;
+    struct heimdall_player_track_priv *trackpriv;
     switch (ev->action)
     {
-        case VLC_INPUT_ES_ADDED:
-            trackpriv = vlc_player_track_priv_New(ev->id, ev->title, ev->fmt);
+        case HEIMDALL_INPUT_ES_ADDED:
+            trackpriv = heimdall_player_track_priv_New(ev->id, ev->title, ev->fmt);
             if (!trackpriv)
                 break;
 
@@ -635,111 +636,111 @@ vlc_player_input_HandleEsEvent(struct vlc_player_input *input,
                 input->ml.has_video_tracks = true;
             else if (ev->fmt->i_cat == AUDIO_ES)
                 input->ml.has_audio_tracks = true;
-            if (!vlc_vector_push(vec, trackpriv))
+            if (!heimdall_vector_push(vec, trackpriv))
             {
-                vlc_player_track_priv_Delete(trackpriv);
+                heimdall_player_track_priv_Delete(trackpriv);
                 break;
             }
-            vlc_player_SendEvent(player, on_track_list_changed,
-                                 VLC_PLAYER_LIST_ADDED, &trackpriv->t);
-            vlc_player_input_HandleTeletextMenu(input, ev, trackpriv);
+            heimdall_player_SendEvent(player, on_track_list_changed,
+                                 HEIMDALL_PLAYER_LIST_ADDED, &trackpriv->t);
+            heimdall_player_input_HandleTeletextMenu(input, ev, trackpriv);
             break;
-        case VLC_INPUT_ES_DELETED:
+        case HEIMDALL_INPUT_ES_DELETED:
         {
             size_t idx;
-            trackpriv = vlc_player_track_vector_FindById(vec, ev->id, &idx);
+            trackpriv = heimdall_player_track_vector_FindById(vec, ev->id, &idx);
             if (trackpriv)
             {
-                vlc_player_input_HandleTeletextMenu(input, ev, trackpriv);
-                vlc_player_SendEvent(player, on_track_list_changed,
-                                     VLC_PLAYER_LIST_REMOVED, &trackpriv->t);
-                vlc_vector_remove(vec, idx);
-                vlc_player_track_priv_Delete(trackpriv);
+                heimdall_player_input_HandleTeletextMenu(input, ev, trackpriv);
+                heimdall_player_SendEvent(player, on_track_list_changed,
+                                     HEIMDALL_PLAYER_LIST_REMOVED, &trackpriv->t);
+                heimdall_vector_remove(vec, idx);
+                heimdall_player_track_priv_Delete(trackpriv);
             }
             break;
         }
-        case VLC_INPUT_ES_UPDATED:
-            trackpriv = vlc_player_track_vector_FindById(vec, ev->id, NULL);
+        case HEIMDALL_INPUT_ES_UPDATED:
+            trackpriv = heimdall_player_track_vector_FindById(vec, ev->id, NULL);
             if (!trackpriv)
                 break;
-            if (vlc_player_track_priv_Update(trackpriv, ev->title, ev->fmt) != 0)
+            if (heimdall_player_track_priv_Update(trackpriv, ev->title, ev->fmt) != 0)
                 break;
-            vlc_player_SendEvent(player, on_track_list_changed,
-                                 VLC_PLAYER_LIST_UPDATED, &trackpriv->t);
-            vlc_player_input_HandleTeletextMenu(input, ev, trackpriv);
+            heimdall_player_SendEvent(player, on_track_list_changed,
+                                 HEIMDALL_PLAYER_LIST_UPDATED, &trackpriv->t);
+            heimdall_player_input_HandleTeletextMenu(input, ev, trackpriv);
             break;
-        case VLC_INPUT_ES_SELECTED:
-            trackpriv = vlc_player_track_vector_FindById(vec, ev->id, NULL);
+        case HEIMDALL_INPUT_ES_SELECTED:
+            trackpriv = heimdall_player_track_vector_FindById(vec, ev->id, NULL);
             if (trackpriv)
             {
                 trackpriv->t.selected = true;
                 trackpriv->selected_by_user = ev->forced;
                 trackpriv->vout_order = ev->vout_order;
-                vlc_player_SendEvent(player, on_track_selection_changed,
+                heimdall_player_SendEvent(player, on_track_selection_changed,
                                      NULL, trackpriv->t.es_id);
-                vlc_player_input_HandleTeletextMenu(input, ev, trackpriv);
+                heimdall_player_input_HandleTeletextMenu(input, ev, trackpriv);
             }
             break;
-        case VLC_INPUT_ES_UNSELECTED:
-            trackpriv = vlc_player_track_vector_FindById(vec, ev->id, NULL);
+        case HEIMDALL_INPUT_ES_UNSELECTED:
+            trackpriv = heimdall_player_track_vector_FindById(vec, ev->id, NULL);
             if (trackpriv)
             {
-                vlc_player_RemoveTimerSource(player, ev->id);
+                heimdall_player_RemoveTimerSource(player, ev->id);
                 trackpriv->t.selected = false;
                 trackpriv->selected_by_user = false;
-                vlc_player_SendEvent(player, on_track_selection_changed,
+                heimdall_player_SendEvent(player, on_track_selection_changed,
                                      trackpriv->t.es_id, NULL);
-                vlc_player_input_HandleTeletextMenu(input, ev, trackpriv);
+                heimdall_player_input_HandleTeletextMenu(input, ev, trackpriv);
             }
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 }
 
 static void
-vlc_player_input_HandleTitleEvent(struct vlc_player_input *input,
-                                  const struct vlc_input_event_title *ev)
+heimdall_player_input_HandleTitleEvent(struct heimdall_player_input *input,
+                                  const struct heimdall_input_event_title *ev)
 {
-    vlc_player_t *player = input->player;
+    heimdall_player_t *player = input->player;
     switch (ev->action)
     {
-        case VLC_INPUT_TITLE_NEW_LIST:
+        case HEIMDALL_INPUT_TITLE_NEW_LIST:
         {
             input_thread_private_t *input_th = input_priv(input->thread);
             const int title_offset = input_th->i_title_offset;
             const int chapter_offset = input_th->i_seekpoint_offset;
 
             if (input->titles)
-                vlc_player_title_list_Release(input->titles);
+                heimdall_player_title_list_Release(input->titles);
             input->title_selected = input->chapter_selected = 0;
             input->titles =
-                vlc_player_title_list_Create(ev->list.array, ev->list.count,
+                heimdall_player_title_list_Create(ev->list.array, ev->list.count,
                                              title_offset, chapter_offset);
-            vlc_player_SendEvent(player, on_titles_changed, input->titles);
+            heimdall_player_SendEvent(player, on_titles_changed, input->titles);
             if (input->titles)
             {
-                vlc_player_SendEvent(player, on_title_selection_changed,
+                heimdall_player_SendEvent(player, on_title_selection_changed,
                                      &input->titles->array[0], 0);
-                if (input->ml.restore == VLC_RESTOREPOINT_TITLE &&
+                if (input->ml.restore == HEIMDALL_RESTOREPOINT_TITLE &&
                     (size_t)input->ml.states.current_title < ev->list.count)
                 {
-                    vlc_player_SelectTitleIdx(player, input->ml.states.current_title);
+                    heimdall_player_SelectTitleIdx(player, input->ml.states.current_title);
                 }
-                input->ml.restore = VLC_RESTOREPOINT_POSITION;
+                input->ml.restore = HEIMDALL_RESTOREPOINT_POSITION;
             }
-            else input->ml.restore = VLC_RESTOREPOINT_NONE;
+            else input->ml.restore = HEIMDALL_RESTOREPOINT_NONE;
             break;
         }
-        case VLC_INPUT_TITLE_SELECTED:
+        case HEIMDALL_INPUT_TITLE_SELECTED:
             if (!input->titles)
-                return; /* a previous VLC_INPUT_TITLE_NEW_LIST failed */
+                return; /* a previous HEIMDALL_INPUT_TITLE_NEW_LIST failed */
             assert(ev->selected_idx < input->titles->count);
             input->title_selected = ev->selected_idx;
-            vlc_player_SendEvent(player, on_title_selection_changed,
+            heimdall_player_SendEvent(player, on_title_selection_changed,
                                  &input->titles->array[input->title_selected],
                                  input->title_selected);
-            if (input->ml.restore == VLC_RESTOREPOINT_POSITION &&
+            if (input->ml.restore == HEIMDALL_RESTOREPOINT_POSITION &&
                 input->ml.states.current_title >= 0 &&
                 (size_t)input->ml.states.current_title == ev->selected_idx &&
                 input->ml.pos > .0f)
@@ -749,23 +750,23 @@ vlc_player_input_HandleTitleEvent(struct vlc_player_input *input,
             /* Reset the wanted title to avoid forcing it or the position
              * again during the next title change
              */
-            input->ml.restore = VLC_RESTOREPOINT_NONE;
+            input->ml.restore = HEIMDALL_RESTOREPOINT_NONE;
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 }
 
 static void
-vlc_player_input_HandleChapterEvent(struct vlc_player_input *input,
-                                    const struct vlc_input_event_chapter *ev)
+heimdall_player_input_HandleChapterEvent(struct heimdall_player_input *input,
+                                    const struct heimdall_input_event_chapter *ev)
 {
-    vlc_player_t *player = input->player;
+    heimdall_player_t *player = input->player;
     if (!input->titles || ev->title < 0 || ev->seekpoint < 0)
-        return; /* a previous VLC_INPUT_TITLE_NEW_LIST failed */
+        return; /* a previous HEIMDALL_INPUT_TITLE_NEW_LIST failed */
 
     assert((size_t)ev->title < input->titles->count);
-    const struct vlc_player_title *title = &input->titles->array[ev->title];
+    const struct heimdall_player_title *title = &input->titles->array[ev->title];
     if (!title->chapter_count)
         return;
 
@@ -773,22 +774,22 @@ vlc_player_input_HandleChapterEvent(struct vlc_player_input *input,
     input->title_selected = ev->title;
     input->chapter_selected = ev->seekpoint;
 
-    const struct vlc_player_chapter *chapter = &title->chapters[ev->seekpoint];
-    vlc_player_SendEvent(player, on_chapter_selection_changed, title, ev->title,
+    const struct heimdall_player_chapter *chapter = &title->chapters[ev->seekpoint];
+    heimdall_player_SendEvent(player, on_chapter_selection_changed, title, ev->title,
                          chapter, ev->seekpoint);
 }
 
 static void
-vlc_player_input_HandleVoutEvent(struct vlc_player_input *input,
-                                 const struct vlc_input_event_vout *ev)
+heimdall_player_input_HandleVoutEvent(struct heimdall_player_input *input,
+                                 const struct heimdall_input_event_vout *ev)
 {
     assert(ev->vout);
     assert(ev->id);
 
-    vlc_player_t *player = input->player;
+    heimdall_player_t *player = input->player;
 
-    struct vlc_player_track_priv *trackpriv =
-        vlc_player_input_FindTrackById(input, ev->id, NULL);
+    struct heimdall_player_track_priv *trackpriv =
+        heimdall_player_input_FindTrackById(input, ev->id, NULL);
     if (!trackpriv)
         return;
 
@@ -796,42 +797,42 @@ vlc_player_input_HandleVoutEvent(struct vlc_player_input *input,
 
     switch (ev->action)
     {
-        case VLC_INPUT_EVENT_VOUT_STARTED:
+        case HEIMDALL_INPUT_EVENT_VOUT_STARTED:
             trackpriv->vout = ev->vout;
-            vlc_player_SendEvent(player, on_vout_changed,
-                                 VLC_PLAYER_VOUT_STARTED, ev->vout,
+            heimdall_player_SendEvent(player, on_vout_changed,
+                                 HEIMDALL_PLAYER_VOUT_STARTED, ev->vout,
                                  ev->order, ev->id);
 
             if (is_video_es)
             {
                 /* Register vout callbacks after the vout list event */
-                vlc_player_vout_AddCallbacks(player, ev->vout);
+                heimdall_player_vout_AddCallbacks(player, ev->vout);
             }
             break;
-        case VLC_INPUT_EVENT_VOUT_STOPPED:
+        case HEIMDALL_INPUT_EVENT_VOUT_STOPPED:
             if (is_video_es)
             {
                 /* Un-register vout callbacks before the vout list event */
-                vlc_player_vout_DelCallbacks(player, ev->vout);
+                heimdall_player_vout_DelCallbacks(player, ev->vout);
             }
 
             trackpriv->vout = NULL;
-            vlc_player_SendEvent(player, on_vout_changed,
-                                 VLC_PLAYER_VOUT_STOPPED, ev->vout,
-                                 VLC_VOUT_ORDER_NONE, ev->id);
+            heimdall_player_SendEvent(player, on_vout_changed,
+                                 HEIMDALL_PLAYER_VOUT_STOPPED, ev->vout,
+                                 HEIMDALL_VOUT_ORDER_NONE, ev->id);
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 }
 
 static void
-vlc_player_input_NavigationFallback(struct vlc_player_input *input, int nav_type)
+heimdall_player_input_NavigationFallback(struct heimdall_player_input *input, int nav_type)
 {
-    vlc_player_t *player = input->player;
+    heimdall_player_t *player = input->player;
 
     /* Handle Up/Down/Left/Right if the demux can't navigate */
-    vlc_viewpoint_t vp = { 0 };
+    heimdall_viewpoint_t vp = { 0 };
     bool viewpoint_updated = true;
     float yaw = 0.f, pitch = 0.f, roll = 0.f;
 
@@ -861,13 +862,13 @@ vlc_player_input_NavigationFallback(struct vlc_player_input *input, int nav_type
             viewpoint_updated = false;
             return;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 
     /* Try to change the viewpoint if possible */
     bool viewpoint_ch = false;
     size_t vout_count;
-    vout_thread_t **vouts = vlc_player_vout_HoldAll(input->player, &vout_count);
+    vout_thread_t **vouts = heimdall_player_vout_HoldAll(input->player, &vout_count);
     for (size_t i = 0; i < vout_count; ++i)
     {
         if (!viewpoint_ch && var_GetBool(vouts[i], "viewpoint-changeable"))
@@ -878,34 +879,34 @@ vlc_player_input_NavigationFallback(struct vlc_player_input *input, int nav_type
 
     if (viewpoint_ch && viewpoint_updated)
     {
-        vlc_viewpoint_from_euler(&vp, yaw, pitch, roll);
-        vlc_player_input_UpdateViewpoint(input, &vp, VLC_PLAYER_WHENCE_RELATIVE);
+        heimdall_viewpoint_from_euler(&vp, yaw, pitch, roll);
+        heimdall_player_input_UpdateViewpoint(input, &vp, HEIMDALL_PLAYER_WHENCE_RELATIVE);
     }
     else if (seek_direction != 0)
     {
         /* Seek or change volume if the input doesn't have navigation or viewpoint */
-        vlc_tick_t it = vlc_tick_from_sec(seek_direction
+        heimdall_tick_t it = heimdall_tick_from_sec(seek_direction
                       * var_InheritInteger(player, "short-jump-size"));
-        vlc_player_input_SeekByTime(input, it, VLC_PLAYER_SEEK_PRECISE,
-                                    VLC_PLAYER_WHENCE_RELATIVE);
+        heimdall_player_input_SeekByTime(input, it, HEIMDALL_PLAYER_SEEK_PRECISE,
+                                    HEIMDALL_PLAYER_WHENCE_RELATIVE);
     }
     else
     {
         assert(vol_direction != 0);
         if (input == player->input)
-            vlc_player_aout_IncrementVolume(player, vol_direction, NULL);
+            heimdall_player_aout_IncrementVolume(player, vol_direction, NULL);
     }
 }
 
 static void
-vlc_player_input_MouseFallback(struct vlc_player_input *input)
+heimdall_player_input_MouseFallback(struct heimdall_player_input *input)
 {
-    vlc_player_t *player = input->player;
-    vlc_player_TogglePause(player);
+    heimdall_player_t *player = input->player;
+    heimdall_player_TogglePause(player);
 }
 
 static void
-vlc_player_DisplayFrameError(vlc_player_t *player,
+heimdall_player_DisplayFrameError(heimdall_player_t *player,
                              const char *title, const char *title_error,
                              int status)
 {
@@ -917,64 +918,64 @@ vlc_player_DisplayFrameError(vlc_player_t *player,
     switch (status)
     {
         case 0:
-            vlc_player_osd_Message(player, title);
+            heimdall_player_osd_Message(player, title);
             break;
         case -EAGAIN:
             break;
         case -ERANGE:
-            vlc_dialog_display_error(player, title_error, erange);
+            heimdall_dialog_display_error(player, title_error, erange);
             break;
         case -EBUSY:
-            vlc_dialog_display_error(player, title_error, ebusy);
+            heimdall_dialog_display_error(player, title_error, ebusy);
             break;
         case -ENOTSUP:
-            vlc_dialog_display_error(player, title_error, enotusp);
+            heimdall_dialog_display_error(player, title_error, enotusp);
             break;
         default:
         case -EINVAL:
-            vlc_dialog_display_error(player, title_error, einval);
+            heimdall_dialog_display_error(player, title_error, einval);
             break;
     }
 }
 
 static void
-vlc_player_input_FrameNextStatus(struct vlc_player_input *input, int status)
+heimdall_player_input_FrameNextStatus(struct heimdall_player_input *input, int status)
 {
-    vlc_player_t *player = input->player;
+    heimdall_player_t *player = input->player;
 
     unsigned count;
-    vlc_player_SendEventCount(player, on_next_frame_status, count, status);
+    heimdall_player_SendEventCount(player, on_next_frame_status, count, status);
 
     /* Don't display errors if status is handled by the player user */
     if (count != 0)
         return;
 
-    vlc_player_DisplayFrameError(player, _("Next frame"),
+    heimdall_player_DisplayFrameError(player, _("Next frame"),
                                  _("Next frame error"), status);
 }
 
 static void
-vlc_player_input_FramePreviousStatus(struct vlc_player_input *input, int status)
+heimdall_player_input_FramePreviousStatus(struct heimdall_player_input *input, int status)
 {
-    vlc_player_t *player = input->player;
+    heimdall_player_t *player = input->player;
 
     unsigned count;
-    vlc_player_SendEventCount(player, on_prev_frame_status, count, status);
+    heimdall_player_SendEventCount(player, on_prev_frame_status, count, status);
 
     /* Don't display errors if status is handled by the player user */
     if (count != 0)
         return;
 
-    vlc_player_DisplayFrameError(player, _("Previous frame"),
+    heimdall_player_DisplayFrameError(player, _("Previous frame"),
                                  _("Previous frame error"), status);
 }
 
 static bool
 input_thread_Events(input_thread_t *input_thread,
-                    const struct vlc_input_event *event, void *user_data)
+                    const struct heimdall_input_event *event, void *user_data)
 {
-    struct vlc_player_input *input = user_data;
-    vlc_player_t *player = input->player;
+    struct heimdall_player_input *input = user_data;
+    heimdall_player_t *player = input->player;
     input_thread_private_t *priv = input_priv(input_thread);
 
     assert(input_thread == input->thread);
@@ -982,47 +983,47 @@ input_thread_Events(input_thread_t *input_thread,
     /* No player lock for this event */
     if (event->type == INPUT_EVENT_OUTPUT_CLOCK)
     {
-        if (event->output_clock.system_ts != VLC_TICK_INVALID)
+        if (event->output_clock.system_ts != HEIMDALL_TICK_INVALID)
         {
-            const struct vlc_player_timer_point point = {
+            const struct heimdall_player_timer_point point = {
                 .position = 0,
                 .rate = event->output_clock.rate,
                 .ts = event->output_clock.ts,
-                .length = VLC_TICK_INVALID,
+                .length = HEIMDALL_TICK_INVALID,
                 .system_date = event->output_clock.system_ts,
             };
-            vlc_player_UpdateTimer(player, event->output_clock.id,
+            heimdall_player_UpdateTimer(player, event->output_clock.id,
                                    event->output_clock.master, &point,
-                                   VLC_TICK_INVALID,
+                                   HEIMDALL_TICK_INVALID,
                                    event->output_clock.frame_rate,
                                    event->output_clock.frame_rate_base, 0);
         }
         else
         {
-            vlc_player_UpdateTimerEvent(player, event->output_clock.id,
-                                        VLC_PLAYER_TIMER_EVENT_DISCONTINUITY,
-                                        VLC_TICK_INVALID);
+            heimdall_player_UpdateTimerEvent(player, event->output_clock.id,
+                                        HEIMDALL_PLAYER_TIMER_EVENT_DISCONTINUITY,
+                                        HEIMDALL_TICK_INVALID);
         }
         return true;
     }
 
     bool handled = true;
 
-    vlc_mutex_lock(&player->lock);
+    heimdall_mutex_lock(&player->lock);
 
     switch (event->type)
     {
         case INPUT_EVENT_STATE:
-            vlc_player_input_HandleStateEvent(input, event->state.value,
+            heimdall_player_input_HandleStateEvent(input, event->state.value,
                                               event->state.date);
             break;
         case INPUT_EVENT_EOF:
-            handled = vlc_player_input_HandleAtoBLoop(input, true);
+            handled = heimdall_player_input_HandleAtoBLoop(input, true);
             if (handled)
                 break;
             if (player->play_and_pause)
             {
-                vlc_player_Pause(player);
+                heimdall_player_Pause(player);
                 handled = true;
             }
             else if (input->repeat > 0)
@@ -1037,41 +1038,41 @@ input_thread_Events(input_thread_t *input_thread,
             break;
         case INPUT_EVENT_RATE:
             input->rate = event->rate;
-            vlc_player_SignalAtoBLoop(player);
-            vlc_player_SendEvent(player, on_rate_changed, input->rate);
+            heimdall_player_SignalAtoBLoop(player);
+            heimdall_player_SendEvent(player, on_rate_changed, input->rate);
             break;
         case INPUT_EVENT_CAPABILITIES:
         {
             int old_caps = input->capabilities;
             input->capabilities = event->capabilities;
-            vlc_player_SendEvent(player, on_capabilities_changed,
+            heimdall_player_SendEvent(player, on_capabilities_changed,
                                  old_caps, input->capabilities);
             break;
         }
         case INPUT_EVENT_TIMES:
         {
             bool changed = false;
-            vlc_tick_t system_date = VLC_TICK_INVALID;
-            vlc_tick_t duration = input_GetItemDuration(input->thread, event->times.length);
+            heimdall_tick_t system_date = HEIMDALL_TICK_INVALID;
+            heimdall_tick_t duration = input_GetItemDuration(input->thread, event->times.length);
 
-            if (event->times.time != VLC_TICK_INVALID
+            if (event->times.time != HEIMDALL_TICK_INVALID
              && (input->time != event->times.time
               || input->position != event->times.position))
             {
                 input->time = event->times.time;
                 input->position = event->times.position;
-                system_date = vlc_tick_now();
+                system_date = heimdall_tick_now();
                 changed = true;
-                vlc_player_SendEvent(player, on_position_changed,
+                heimdall_player_SendEvent(player, on_position_changed,
                                      input->time, input->position);
 
-                vlc_player_input_HandleAtoBLoop(input, false);
+                heimdall_player_input_HandleAtoBLoop(input, false);
             }
             if (input->length != duration)
             {
                 input->length = duration;
                 input_item_SetDuration(input_GetItem(input->thread), duration);
-                vlc_player_SendEvent(player, on_length_changed, input->length);
+                heimdall_player_SendEvent(player, on_length_changed, input->length);
                 changed = true;
             }
 
@@ -1089,7 +1090,7 @@ input_thread_Events(input_thread_t *input_thread,
 
             if (changed)
             {
-                const struct vlc_player_timer_point point = {
+                const struct heimdall_player_timer_point point = {
                     .position = input->position,
                     .rate = input->rate,
                     .ts = input->time,
@@ -1097,100 +1098,100 @@ input_thread_Events(input_thread_t *input_thread,
                     .live = input->live,
                     .system_date = system_date,
                 };
-                vlc_player_UpdateTimer(player, NULL, false, &point,
+                heimdall_player_UpdateTimer(player, NULL, false, &point,
                                        input->normal_time, 0, 0, priv->i_start);
-                vlc_player_SignalAtoBLoop(player);
+                heimdall_player_SignalAtoBLoop(player);
             }
             break;
         }
         case INPUT_EVENT_PROGRAM:
-            vlc_player_input_HandleProgramEvent(input, &event->program);
+            heimdall_player_input_HandleProgramEvent(input, &event->program);
             break;
         case INPUT_EVENT_ES:
-            vlc_player_input_HandleEsEvent(input, &event->es);
+            heimdall_player_input_HandleEsEvent(input, &event->es);
             break;
         case INPUT_EVENT_TITLE:
-            vlc_player_input_HandleTitleEvent(input, &event->title);
+            heimdall_player_input_HandleTitleEvent(input, &event->title);
             break;
         case INPUT_EVENT_CHAPTER:
-            vlc_player_input_HandleChapterEvent(input, &event->chapter);
+            heimdall_player_input_HandleChapterEvent(input, &event->chapter);
             break;
         case INPUT_EVENT_RECORD:
             input->recording = event->record;
-            vlc_player_SendEvent(player, on_recording_changed, input->recording);
+            heimdall_player_SendEvent(player, on_recording_changed, input->recording);
             break;
         case INPUT_EVENT_STATISTICS:
             input->stats = *event->stats;
-            vlc_player_SendEvent(player, on_statistics_changed, &input->stats);
+            heimdall_player_SendEvent(player, on_statistics_changed, &input->stats);
             break;
         case INPUT_EVENT_SIGNAL:
             input->signal_quality = event->signal.quality;
             input->signal_strength = event->signal.strength;
-            vlc_player_SendEvent(player, on_signal_changed,
+            heimdall_player_SendEvent(player, on_signal_changed,
                                  input->signal_quality, input->signal_strength);
             break;
         case INPUT_EVENT_CACHE:
             if (event->cache == 0.0f)
-                vlc_player_UpdateTimerEvent(player, NULL,
-                                            VLC_PLAYER_TIMER_EVENT_DISCONTINUITY,
-                                            VLC_TICK_INVALID);
+                heimdall_player_UpdateTimerEvent(player, NULL,
+                                            HEIMDALL_PLAYER_TIMER_EVENT_DISCONTINUITY,
+                                            HEIMDALL_TICK_INVALID);
             input->cache = event->cache;
-            vlc_player_SendEvent(player, on_buffering_changed, event->cache);
+            heimdall_player_SendEvent(player, on_buffering_changed, event->cache);
             break;
         case INPUT_EVENT_VOUT:
-            vlc_player_input_HandleVoutEvent(input, &event->vout);
+            heimdall_player_input_HandleVoutEvent(input, &event->vout);
             break;
         case INPUT_EVENT_OUTPUT_STATE:
-            if (event->output_state.action == VLC_INPUT_EVENT_OUTPUT_STATE_PAUSED)
-                vlc_player_UpdateTimerEvent(player, event->output_state.id,
-                                            VLC_PLAYER_TIMER_EVENT_PAUSED,
+            if (event->output_state.action == HEIMDALL_INPUT_EVENT_OUTPUT_STATE_PAUSED)
+                heimdall_player_UpdateTimerEvent(player, event->output_state.id,
+                                            HEIMDALL_PLAYER_TIMER_EVENT_PAUSED,
                                             event->output_state.paused_date);
             break;
         case INPUT_EVENT_ITEM_META:
         case INPUT_EVENT_ITEM_INFO:
-            vlc_player_SendEvent(player, on_media_meta_changed,
+            heimdall_player_SendEvent(player, on_media_meta_changed,
                                  input_GetItem(input->thread));
             break;
         case INPUT_EVENT_ITEM_EPG:
-            vlc_player_SendEvent(player, on_media_epg_changed,
+            heimdall_player_SendEvent(player, on_media_epg_changed,
                                  input_GetItem(input->thread));
             break;
         case INPUT_EVENT_SUBITEMS:
-            vlc_player_SendEvent(player, on_media_subitems_changed,
+            heimdall_player_SendEvent(player, on_media_subitems_changed,
                                  input_GetItem(input->thread), event->subitems);
             input_item_node_Delete(event->subitems);
             break;
         case INPUT_EVENT_DEAD:
-            vlc_player_destructor_AddJoinableInput(player, input);
+            heimdall_player_destructor_AddJoinableInput(player, input);
             break;
         case INPUT_EVENT_VBI_PAGE:
             input->teletext_page = event->vbi_page < 999 ? event->vbi_page : 100;
-            vlc_player_SendEvent(player, on_teletext_page_changed,
+            heimdall_player_SendEvent(player, on_teletext_page_changed,
                                  input->teletext_page);
             break;
         case INPUT_EVENT_VBI_TRANSPARENCY:
             input->teletext_transparent = event->vbi_transparent;
-            vlc_player_SendEvent(player, on_teletext_transparency_changed,
+            heimdall_player_SendEvent(player, on_teletext_transparency_changed,
                                  input->teletext_transparent);
             break;
         case INPUT_EVENT_ATTACHMENTS:
-            vlc_player_SendEvent(player, on_media_attachments_added,
+            heimdall_player_SendEvent(player, on_media_attachments_added,
                                  input_GetItem(input->thread),
                                  event->attachments.array,
                                  event->attachments.count);
             break;
         case INPUT_EVENT_NAV_FAILED:
-            vlc_player_input_NavigationFallback(input, event->nav_type);
+            heimdall_player_input_NavigationFallback(input, event->nav_type);
             break;
         case INPUT_EVENT_MOUSE_LEFT:
-            vlc_player_input_MouseFallback(input);
+            heimdall_player_input_MouseFallback(input);
             break;
         case INPUT_EVENT_FRAME_NEXT_STATUS:
-            vlc_player_input_FrameNextStatus(input,
+            heimdall_player_input_FrameNextStatus(input,
                                              event->frame_next_status);
             break;
         case INPUT_EVENT_FRAME_PREVIOUS_STATUS:
-            vlc_player_input_FramePreviousStatus(input,
+            heimdall_player_input_FramePreviousStatus(input,
                                                  event->frame_previous_status);
             break;
         default:
@@ -1198,12 +1199,12 @@ input_thread_Events(input_thread_t *input_thread,
             break;
     }
 
-    vlc_mutex_unlock(&player->lock);
+    heimdall_mutex_unlock(&player->lock);
     return handled;
 }
 
 void
-vlc_player_input_SelectTracksByStringIds(struct vlc_player_input *input,
+heimdall_player_input_SelectTracksByStringIds(struct heimdall_player_input *input,
                                          enum es_format_category_e cat,
                                          const char *str_ids)
 {
@@ -1211,41 +1212,41 @@ vlc_player_input_SelectTracksByStringIds(struct vlc_player_input *input,
 }
 
 char *
-vlc_player_input_GetSelectedTrackStringIds(struct vlc_player_input *input,
+heimdall_player_input_GetSelectedTrackStringIds(struct heimdall_player_input *input,
                                            enum es_format_category_e cat)
 {
-    vlc_player_track_vector *vec = vlc_player_input_GetTrackVector(input, cat);
+    heimdall_player_track_vector *vec = heimdall_player_input_GetTrackVector(input, cat);
     assert(vec);
     bool first_track = true;
-    struct vlc_memstream ms;
+    struct heimdall_memstream ms;
 
-    struct vlc_player_track_priv* t;
-    vlc_vector_foreach(t, vec)
+    struct heimdall_player_track_priv* t;
+    heimdall_vector_foreach(t, vec)
     {
-        if (t->selected_by_user && vlc_es_id_IsStrIdStable(t->t.es_id))
+        if (t->selected_by_user && heimdall_es_id_IsStrIdStable(t->t.es_id))
         {
             if (first_track)
             {
-                int ret = vlc_memstream_open(&ms);
+                int ret = heimdall_memstream_open(&ms);
                 if (ret != 0)
                     return NULL;
             }
-            const char *str_id = vlc_es_id_GetStrId(t->t.es_id);
+            const char *str_id = heimdall_es_id_GetStrId(t->t.es_id);
             assert(str_id);
 
             if (!first_track)
-                vlc_memstream_putc(&ms, ',');
-            vlc_memstream_puts(&ms, str_id);
+                heimdall_memstream_putc(&ms, ',');
+            heimdall_memstream_puts(&ms, str_id);
             first_track = false;
         }
     }
-    return !first_track && vlc_memstream_close(&ms) == 0 ? ms.ptr : NULL;
+    return !first_track && heimdall_memstream_close(&ms) == 0 ? ms.ptr : NULL;
 }
 
-struct vlc_player_input *
-vlc_player_input_New(vlc_player_t *player, input_item_t *item)
+struct heimdall_player_input *
+heimdall_player_input_New(heimdall_player_t *player, input_item_t *item)
 {
-    struct vlc_player_input *input = malloc(sizeof(*input));
+    struct heimdall_player_input *input = malloc(sizeof(*input));
     if (!input)
         return NULL;
 
@@ -1253,14 +1254,14 @@ vlc_player_input_New(vlc_player_t *player, input_item_t *item)
     input->started = false;
     input->playing = false;
 
-    input->state = VLC_PLAYER_STATE_STOPPED;
-    input->error = VLC_PLAYER_ERROR_NONE;
+    input->state = HEIMDALL_PLAYER_STATE_STOPPED;
+    input->error = HEIMDALL_PLAYER_ERROR_NONE;
     input->rate = 1.f;
     input->capabilities = 0;
-    input->length = input->time = VLC_TICK_INVALID;
+    input->length = input->time = HEIMDALL_TICK_INVALID;
     input->live = false;
-    input->normal_time = VLC_TICK_0;
-    input->pause_date = VLC_TICK_INVALID;
+    input->normal_time = HEIMDALL_TICK_0;
+    input->pause_date = HEIMDALL_TICK_INVALID;
     input->position = 0.f;
 
     input->recording = false;
@@ -1270,10 +1271,10 @@ vlc_player_input_New(vlc_player_t *player, input_item_t *item)
 
     memset(&input->stats, 0, sizeof(input->stats));
 
-    vlc_vector_init(&input->program_vector);
-    vlc_vector_init(&input->video_track_vector);
-    vlc_vector_init(&input->audio_track_vector);
-    vlc_vector_init(&input->spu_track_vector);
+    heimdall_vector_init(&input->program_vector);
+    heimdall_vector_init(&input->video_track_vector);
+    heimdall_vector_init(&input->audio_track_vector);
+    heimdall_vector_init(&input->spu_track_vector);
     input->teletext_source = NULL;
 
     input->titles = NULL;
@@ -1291,17 +1292,17 @@ vlc_player_input_New(vlc_player_t *player, input_item_t *item)
     input->ml.states.current_video_track =
         input->ml.states.current_audio_track =
         input->ml.states.current_subtitle_track = NULL;
-    input->ml.restore = VLC_RESTOREPOINT_NONE;
+    input->ml.restore = HEIMDALL_RESTOREPOINT_NONE;
     input->ml.restore_states = false;
     input->ml.delay_restore = false;
     input->ml.pos = -1.f;
     input->ml.has_audio_tracks = input->ml.has_video_tracks = false;
 
-    static const struct vlc_input_thread_callbacks cbs = {
+    static const struct heimdall_input_thread_callbacks cbs = {
         .on_event = input_thread_Events,
     };
 
-    const struct vlc_input_thread_cfg cfg = {
+    const struct heimdall_input_thread_cfg cfg = {
         .type = INPUT_TYPE_PLAYBACK,
         .hw_dec = INPUT_CFG_HW_DEC_DEFAULT,
         .resource = player->resource,
@@ -1318,26 +1319,26 @@ vlc_player_input_New(vlc_player_t *player, input_item_t *item)
         free(input);
         return NULL;
     }
-    vlc_player_input_RestoreMlStates(input, false);
+    heimdall_player_input_RestoreMlStates(input, false);
 
     if (player->video_string_ids)
-        vlc_player_input_SelectTracksByStringIds(input, VIDEO_ES,
+        heimdall_player_input_SelectTracksByStringIds(input, VIDEO_ES,
                                                  player->video_string_ids);
 
     if (player->audio_string_ids)
-        vlc_player_input_SelectTracksByStringIds(input, AUDIO_ES,
+        heimdall_player_input_SelectTracksByStringIds(input, AUDIO_ES,
                                                  player->audio_string_ids);
 
     if (player->sub_string_ids)
-        vlc_player_input_SelectTracksByStringIds(input, SPU_ES,
+        heimdall_player_input_SelectTracksByStringIds(input, SPU_ES,
                                                  player->sub_string_ids);
 
     /* Initial sub/audio delay */
-    const vlc_tick_t cat_delays[DATA_ES] = {
+    const heimdall_tick_t cat_delays[DATA_ES] = {
         [AUDIO_ES] =
-            VLC_TICK_FROM_MS(var_InheritInteger(player, "audio-desync")),
+            HEIMDALL_TICK_FROM_MS(var_InheritInteger(player, "audio-desync")),
         [SPU_ES] =
-            vlc_tick_from_samples(var_InheritInteger(player, "sub-delay"), 10),
+            heimdall_tick_from_samples(var_InheritInteger(player, "sub-delay"), 10),
     };
 
     for (enum es_format_category_e i = UNKNOWN_ES; i < DATA_ES; ++i)
@@ -1346,8 +1347,8 @@ vlc_player_input_New(vlc_player_t *player, input_item_t *item)
         if (cat_delays[i] != 0)
         {
             int ret = input_SetEsCatDelay(input->thread, i, cat_delays[i]);
-            if (ret == VLC_SUCCESS)
-                vlc_player_SendEvent(player, on_category_delay_changed, i,
+            if (ret == HEIMDALL_SUCCESS)
+                heimdall_player_SendEvent(player, on_category_delay_changed, i,
                                      cat_delays[i]);
         }
     }
@@ -1355,7 +1356,7 @@ vlc_player_input_New(vlc_player_t *player, input_item_t *item)
 }
 
 void
-vlc_player_input_Delete(struct vlc_player_input *input)
+heimdall_player_input_Delete(struct heimdall_player_input *input)
 {
     assert(input->titles == NULL);
     assert(input->program_vector.size == 0);
@@ -1364,10 +1365,10 @@ vlc_player_input_Delete(struct vlc_player_input *input)
     assert(input->spu_track_vector.size == 0);
     assert(input->teletext_source == NULL);
 
-    vlc_vector_destroy(&input->program_vector);
-    vlc_vector_destroy(&input->video_track_vector);
-    vlc_vector_destroy(&input->audio_track_vector);
-    vlc_vector_destroy(&input->spu_track_vector);
+    heimdall_vector_destroy(&input->program_vector);
+    heimdall_vector_destroy(&input->video_track_vector);
+    heimdall_vector_destroy(&input->audio_track_vector);
+    heimdall_vector_destroy(&input->spu_track_vector);
 
     input_Close(input->thread);
     free(input);

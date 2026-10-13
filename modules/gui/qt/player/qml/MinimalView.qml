@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2022 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,12 +18,12 @@
  *****************************************************************************/
 import QtQuick
 
-import VLC.MainInterface
-import VLC.Widgets as Widgets
-import VLC.Player
-import VLC.Style
-import VLC.Util
-import VLC.Menus
+import Heimdall.MainInterface
+import Heimdall.Widgets as Widgets
+import Heimdall.Player
+import Heimdall.Style
+import Heimdall.Util
+import Heimdall.Menus
 
 FocusScope {
     id: root
@@ -36,8 +37,8 @@ FocusScope {
         id: theme
 
         palette: (MainCtx.hasEmbededVideo && MainCtx.pinVideoControls === false)
-                 ? VLCStyle.darkPalette
-                 : VLCStyle.palette
+                 ? HeimdallStyle.darkPalette
+                 : HeimdallStyle.palette
 
         colorSet: ColorContext.Window
     }
@@ -96,7 +97,7 @@ FocusScope {
             id: logo
 
             source: MainCtx.useXmasCone()
-                    ? "qrc:///logo/vlc48-xmas.png"
+                    ? "qrc:///logo/heimdall48-xmas.png"
                     : "qrc:///misc/cone.svg"
 
             anchors.centerIn: parent
@@ -129,7 +130,7 @@ FocusScope {
             right: parent.right
         }
 
-        height: VLCStyle.globalToolbar_height
+        height: HeimdallStyle.globalToolbar_height
 
         //drag and dbl click the titlebar in CSD mode
         Loader {
@@ -137,7 +138,7 @@ FocusScope {
 
             anchors.fill: parent
             active: root._showCSD
-            source: "qrc:///qt/qml/VLC/Widgets/CSDTitlebarTapNDrapHandler.qml"
+            source: "qrc:///qt/qml/Heimdall/Widgets/CSDTitlebarTapNDrapHandler.qml"
         }
 
         Loader {
@@ -153,9 +154,9 @@ FocusScope {
             active:  root._showCSD
             enabled: root._showCSD
             visible: root._showCSD
-            source:  VLCStyle.palette.hasCSDImage
-                     ? "qrc:///qt/qml/VLC/Widgets/CSDThemeButtonSet.qml"
-                     : "qrc:///qt/qml/VLC/Widgets/CSDWindowButtonSet.qml"
+            source:  HeimdallStyle.palette.hasCSDImage
+                     ? "qrc:///qt/qml/Heimdall/Widgets/CSDThemeButtonSet.qml"
+                     : "qrc:///qt/qml/Heimdall/Widgets/CSDWindowButtonSet.qml"
         }
     }
 
@@ -164,7 +165,7 @@ FocusScope {
             bottom: parent.bottom
             left: parent.left
             right: parent.right
-            margins: VLCStyle.margin_large
+            margins: HeimdallStyle.margin_large
         }
     }
 

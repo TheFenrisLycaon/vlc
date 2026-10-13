@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2022 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,8 +27,8 @@
 
 #undef signals
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
 #include "../qtthemeprovider.hpp"
 #include <mutex>
 #include <functional>
@@ -54,24 +55,24 @@ public:
     int csdFrameMarginBottom = 0;
 };
 
-static bool isThemeDark( vlc_qt_theme_provider_t*)
+static bool isThemeDark( heimdall_qt_theme_provider_t*)
 {
     GdkRGBA colBg = GetBgColor("");
     GdkRGBA colText = GetFgColor("GtkLabel#label");
     return GdkRBGALightness(colBg) < GdkRBGALightness(colText);
 }
 
-static void setGtkColor(vlc_qt_theme_provider_t* obj,
-                        vlc_qt_theme_color_set set, vlc_qt_theme_color_section section,
-                        vlc_qt_theme_color_name name, vlc_qt_theme_color_state state,
+static void setGtkColor(heimdall_qt_theme_provider_t* obj,
+                        heimdall_qt_theme_color_set set, heimdall_qt_theme_color_section section,
+                        heimdall_qt_theme_color_name name, heimdall_qt_theme_color_state state,
                         const GdkRGBA& gColor)
 {
      obj->setColorF(obj, set, section, name, state, gColor.red, gColor.green, gColor.blue, gColor.alpha);
 }
 
-static void setGtkColorSet(vlc_qt_theme_provider_t* obj,
-                           vlc_qt_theme_color_set set, vlc_qt_theme_color_section section,
-                           vlc_qt_theme_color_name name,
+static void setGtkColorSet(heimdall_qt_theme_provider_t* obj,
+                           heimdall_qt_theme_color_set set, heimdall_qt_theme_color_section section,
+                           heimdall_qt_theme_color_name name,
                            std::function<GdkRGBA (const std::string&)> getter, const std::string &selector)
 {
     setGtkColor(obj, set, section, name, VQTC_STATE_NORMAL, getter(selector));
@@ -81,36 +82,36 @@ static void setGtkColorSet(vlc_qt_theme_provider_t* obj,
     setGtkColor(obj, set, section, name, VQTC_STATE_FOCUSED, getter(selector + ":focus"));
 }
 
-static void setGtkColorSetBg(vlc_qt_theme_provider_t* obj,
-                           vlc_qt_theme_color_set set,  vlc_qt_theme_color_name name,
+static void setGtkColorSetBg(heimdall_qt_theme_provider_t* obj,
+                           heimdall_qt_theme_color_set set,  heimdall_qt_theme_color_name name,
                              const std::string &selector)
 {
     setGtkColorSet(obj, set, VQTC_SECTION_BG, name, GetBgColor, selector);
 }
 
-static void setGtkColorSetFg(vlc_qt_theme_provider_t* obj,
-                           vlc_qt_theme_color_set set,  vlc_qt_theme_color_name name,
+static void setGtkColorSetFg(heimdall_qt_theme_provider_t* obj,
+                           heimdall_qt_theme_color_set set,  heimdall_qt_theme_color_name name,
                              const std::string &selector)
 {
     setGtkColorSet(obj, set, VQTC_SECTION_FG, name, GetFgColor, selector);
 }
 
-static void setGtkColorSetFgFromBg(vlc_qt_theme_provider_t* obj,
-                           vlc_qt_theme_color_set set,  vlc_qt_theme_color_name name,
+static void setGtkColorSetFgFromBg(heimdall_qt_theme_provider_t* obj,
+                           heimdall_qt_theme_color_set set,  heimdall_qt_theme_color_name name,
                                    const std::string &selector)
 {
     setGtkColorSet(obj, set, VQTC_SECTION_FG, name, GetBgColor, selector);
 }
 
 
-static void setGtkColorSetBorder(vlc_qt_theme_provider_t* obj, vlc_qt_theme_color_set set, const std::string &selector)
+static void setGtkColorSetBorder(heimdall_qt_theme_provider_t* obj, heimdall_qt_theme_color_set set, const std::string &selector)
 {
     setGtkColorSet(obj, set, VQTC_SECTION_DECORATION, VQTC_NAME_BORDER, GetBorderColor, selector);
 }
 
-static void setGtkColorSetHighlight(vlc_qt_theme_provider_t* obj, vlc_qt_theme_color_set set, const std::string &selector)
+static void setGtkColorSetHighlight(heimdall_qt_theme_provider_t* obj, heimdall_qt_theme_color_set set, const std::string &selector)
 {
-    auto setFgBg = [obj, set, &selector](vlc_qt_theme_color_state state, std::string stateStr)
+    auto setFgBg = [obj, set, &selector](heimdall_qt_theme_color_state state, std::string stateStr)
     {
         setGtkColor(obj, set, VQTC_SECTION_BG, VQTC_NAME_HIGHLIGHT, state, GetBgColor(selector + stateStr));
         setGtkColor(obj, set, VQTC_SECTION_FG, VQTC_NAME_HIGHLIGHT, state, GetFgColor(selector + stateStr + " GtkLabel#label"));
@@ -122,23 +123,23 @@ static void setGtkColorSetHighlight(vlc_qt_theme_provider_t* obj, vlc_qt_theme_c
     setFgBg(VQTC_STATE_FOCUSED, ":selected:focus");
 }
 
-picture_t* getThemeImage(vlc_qt_theme_provider_t* obj, vlc_qt_theme_image_type type, const vlc_qt_theme_image_setting* settings)
+picture_t* getThemeImage(heimdall_qt_theme_provider_t* obj, heimdall_qt_theme_image_type type, const heimdall_qt_theme_image_setting* settings)
 {
     auto sys = static_cast<GtkPrivateThemeProvider*>(obj->p_sys);
-    if (type == VLC_QT_THEME_IMAGE_TYPE_CSD_BUTTON)
+    if (type == HEIMDALL_QT_THEME_IMAGE_TYPE_CSD_BUTTON)
     {
         SetDeviceScaleFactor(settings->windowScaleFactor);
 
         bool windowMaximized = settings->u.csdButton.maximized;
         bool windowActive = settings->u.csdButton.active;
         int bannerHeight = settings->u.csdButton.bannerHeight;
-        vlc_qt_theme_csd_button_state state = settings->u.csdButton.state;
-        vlc_qt_theme_csd_button_type buttonType = settings->u.csdButton.buttonType;
+        heimdall_qt_theme_csd_button_state state = settings->u.csdButton.state;
+        heimdall_qt_theme_csd_button_type buttonType = settings->u.csdButton.buttonType;
 
-        if (buttonType == VLC_QT_THEME_BUTTON_MAXIMIZE && windowMaximized)
-            buttonType = VLC_QT_THEME_BUTTON_RESTORE;
-        else if (buttonType == VLC_QT_THEME_BUTTON_RESTORE && !windowMaximized)
-             buttonType = VLC_QT_THEME_BUTTON_MAXIMIZE;
+        if (buttonType == HEIMDALL_QT_THEME_BUTTON_MAXIMIZE && windowMaximized)
+            buttonType = HEIMDALL_QT_THEME_BUTTON_RESTORE;
+        else if (buttonType == HEIMDALL_QT_THEME_BUTTON_RESTORE && !windowMaximized)
+             buttonType = HEIMDALL_QT_THEME_BUTTON_MAXIMIZE;
 
         if (windowActive != sys->windowActive
             || windowMaximized != sys->windowMaximized
@@ -157,7 +158,7 @@ picture_t* getThemeImage(vlc_qt_theme_provider_t* obj, vlc_qt_theme_image_type t
             sys->csdFrameMarginTop = frameMargin.top();
             sys->csdFrameMarginBottom = frameMargin.bottom();
             if (obj->metricsUpdated)
-                obj->metricsUpdated(obj, VLC_QT_THEME_IMAGE_TYPE_CSD_BUTTON, obj->metricsUpdatedData);
+                obj->metricsUpdated(obj, HEIMDALL_QT_THEME_IMAGE_TYPE_CSD_BUTTON, obj->metricsUpdatedData);
         }
 
         picture_t* pic = sys->navButtons.GetImage(buttonType, state).get();
@@ -168,10 +169,10 @@ picture_t* getThemeImage(vlc_qt_theme_provider_t* obj, vlc_qt_theme_image_type t
     return nullptr;
 }
 
-static bool getThemeMetrics(vlc_qt_theme_provider_t* obj, vlc_qt_theme_image_type type, struct vlc_qt_theme_metrics* metrics)
+static bool getThemeMetrics(heimdall_qt_theme_provider_t* obj, heimdall_qt_theme_image_type type, struct heimdall_qt_theme_metrics* metrics)
 {
     auto sys = static_cast<GtkPrivateThemeProvider*>(obj->p_sys);
-    if (type != VLC_QT_THEME_IMAGE_TYPE_CSD_BUTTON)
+    if (type != HEIMDALL_QT_THEME_IMAGE_TYPE_CSD_BUTTON)
         return false;
     metrics->u.csd.interNavButtonSpacing = sys->interNavButtonSpacing;
 
@@ -182,14 +183,14 @@ static bool getThemeMetrics(vlc_qt_theme_provider_t* obj, vlc_qt_theme_image_typ
     return true;
 }
 
-bool supportThemeImage(vlc_qt_theme_provider_t*, vlc_qt_theme_image_type type)
+bool supportThemeImage(heimdall_qt_theme_provider_t*, heimdall_qt_theme_image_type type)
 {
-    if (type == VLC_QT_THEME_IMAGE_TYPE_CSD_BUTTON)
+    if (type == HEIMDALL_QT_THEME_IMAGE_TYPE_CSD_BUTTON)
         return true;
     return false;
 }
 
-static int updatePalette(vlc_qt_theme_provider_t* obj)
+static int updatePalette(heimdall_qt_theme_provider_t* obj)
 {
     bool isDark = isThemeDark(obj);
 
@@ -422,18 +423,18 @@ static int updatePalette(vlc_qt_theme_provider_t* obj)
         setGtkColorSetBorder(obj, CS, SWITCH_SELECTOR);
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void Close(vlc_qt_theme_provider_t* obj)
+static void Close(heimdall_qt_theme_provider_t* obj)
 {
     auto sys = static_cast<GtkPrivateThemeProvider*>(obj->p_sys);
     delete sys;
 }
 
-static int Open(vlc_object_t* p_this)
+static int Open(heimdall_object_t* p_this)
 {
-    vlc_qt_theme_provider_t* obj = (vlc_qt_theme_provider_t*)p_this;
+    heimdall_qt_theme_provider_t* obj = (heimdall_qt_theme_provider_t*)p_this;
 
 
     std::once_flag flag;
@@ -477,7 +478,7 @@ static int Open(vlc_object_t* p_this)
 
     auto sys = new (std::nothrow) GtkPrivateThemeProvider();
     if (!sys)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     obj->p_sys = sys;
     obj->close = Close;
@@ -486,12 +487,12 @@ static int Open(vlc_object_t* p_this)
     obj->supportThemeImage  = supportThemeImage;
     obj->getThemeImage = getThemeImage;
     obj->getThemeMetrics = getThemeMetrics;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     add_shortcut("qt-themeprovider-gtk")
     set_description( "Qt GTK system theme" )
     set_capability("qt theme provider", 0)
     set_callback(Open)
-vlc_module_end()
+heimdall_module_end()

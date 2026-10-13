@@ -2,6 +2,7 @@
  * spatializer.cpp: sound reverberation
  *****************************************************************************
  * Copyright (C) 2004, 2006, 2007 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Google Summer of Code 2007
  *
@@ -37,10 +38,10 @@
 #include <new>
 using std::nothrow;
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_aout.h>
-#include <vlc_filter.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_aout.h>
+#include <heimdall_filter.h>
 
 #include "revmodel.hpp"
 #define SPAT_AMP 0.3
@@ -50,7 +51,7 @@ using std::nothrow;
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  Open ( vlc_object_t * );
+static int  Open ( heimdall_object_t * );
 
 #define ROOMSIZE_TEXT N_("Room size")
 #define ROOMSIZE_LONGTEXT N_("Defines the virtual surface of the room" \
@@ -68,7 +69,7 @@ static int  Open ( vlc_object_t * );
 #define DAMP_TEXT N_("Damp")
 #define DAMP_LONGTEXT NULL
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("Audio Spatializer") )
     set_shortname( N_("Spatializer" ) )
     set_capability( "audio filter", 0 )
@@ -86,7 +87,7 @@ vlc_module_begin ()
                             DRY_TEXT,DRY_LONGTEXT )
     add_float_with_range( "spatializer-damp",  0.5,   0.,  1.,
                             DAMP_TEXT,DAMP_LONGTEXT )
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * Local prototypes
@@ -96,14 +97,14 @@ namespace {
 
 struct filter_sys_t
 {
-    vlc_mutex_t lock;
+    heimdall_mutex_t lock;
     revmodel *p_reverbm;
 };
 
 } // namespace
 
-#define DECLARECB(fn) static int fn (vlc_object_t *,char const *, \
-                                     vlc_value_t, vlc_value_t, void *)
+#define DECLARECB(fn) static int fn (heimdall_object_t *,char const *, \
+                                     heimdall_value_t, heimdall_value_t, void *)
 DECLARECB( RoomCallback  );
 DECLARECB( WetCallback   );
 DECLARECB( DryCallback   );
@@ -116,8 +117,8 @@ namespace {
 
 struct callback_s {
   const char *psz_name;
-  int (*fp_callback)(vlc_object_t *,const char *,
-                     vlc_value_t,vlc_value_t,void *);
+  int (*fp_callback)(heimdall_object_t *,const char *,
+                     heimdall_value_t,heimdall_value_t,void *);
   void (revmodel::* fp_set)(float);
 };
 
@@ -139,7 +140,7 @@ static block_t *DoWork( filter_t *, block_t * );
 static void Close( filter_t *p_filter )
 {
     filter_sys_t *p_sys = reinterpret_cast<filter_sys_t *>( p_filter->p_sys );
-    vlc_object_t *p_aout = vlc_object_parent(p_filter);
+    heimdall_object_t *p_aout = heimdall_object_parent(p_filter);
 
     /* Delete the callbacks */
     for (const auto& cb : callbacks)
@@ -155,16 +156,16 @@ static void Close( filter_t *p_filter )
 /*****************************************************************************
  * Open:
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     filter_t     *p_filter = (filter_t *)p_this;
     filter_sys_t *p_sys;
-    vlc_object_t *p_aout = vlc_object_parent(p_filter);
+    heimdall_object_t *p_aout = heimdall_object_parent(p_filter);
 
      /* Allocate structure */
     p_filter->p_sys = p_sys = (filter_sys_t*)malloc( sizeof( *p_sys ) );
     if( !p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     /* Force new to return 0 on failure instead of throwing, since we don't
        want an exception to leak back to C code. Bad things would happen. */
@@ -172,10 +173,10 @@ static int Open( vlc_object_t *p_this )
     if( !p_sys->p_reverbm )
     {
         free( p_sys );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
-    vlc_mutex_init( &p_sys->lock );
+    heimdall_mutex_init( &p_sys->lock );
 
     for (const auto& cb : callbacks)
     {
@@ -185,19 +186,19 @@ static int Open( vlc_object_t *p_this )
         var_AddCallback(p_aout, cb.psz_name, cb.fp_callback, p_sys);
     }
 
-    p_filter->fmt_in.audio.i_format = VLC_CODEC_FL32;
+    p_filter->fmt_in.audio.i_format = HEIMDALL_CODEC_FL32;
     aout_FormatPrepare(&p_filter->fmt_in.audio);
     p_filter->fmt_out.audio = p_filter->fmt_in.audio;
 
-    static const struct vlc_filter_operations filter_ops = []{
-        struct vlc_filter_operations ops {};
+    static const struct heimdall_filter_operations filter_ops = []{
+        struct heimdall_filter_operations ops {};
         ops.filter_audio = DoWork;
         ops.close = Close;
         return ops;
     }();
 
     p_filter->ops = &filter_ops;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -209,7 +210,7 @@ static void SpatFilter( filter_t *p_filter, float *out, float *in,
                         unsigned i_samples, unsigned i_channels )
 {
     filter_sys_t *p_sys = reinterpret_cast<filter_sys_t *>( p_filter->p_sys );
-    vlc_mutex_locker locker( &p_sys->lock );
+    heimdall_mutex_locker locker( &p_sys->lock );
 
     for( unsigned i = 0; i < i_samples; i++ )
     {
@@ -236,57 +237,57 @@ static block_t *DoWork( filter_t * p_filter, block_t * p_in_buf )
  * Variables callbacks
  *****************************************************************************/
 
-static int RoomCallback( vlc_object_t *p_this, char const *,
-                         vlc_value_t, vlc_value_t newval, void *p_data )
+static int RoomCallback( heimdall_object_t *p_this, char const *,
+                         heimdall_value_t, heimdall_value_t newval, void *p_data )
 {
     filter_sys_t *p_sys = (filter_sys_t*)p_data;
-    vlc_mutex_locker locker( &p_sys->lock );
+    heimdall_mutex_locker locker( &p_sys->lock );
 
     p_sys->p_reverbm->setroomsize(newval.f_float);
     msg_Dbg( p_this, "room size is now %3.1f", newval.f_float );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int WidthCallback( vlc_object_t *p_this, char const *,
-                          vlc_value_t, vlc_value_t newval, void *p_data )
+static int WidthCallback( heimdall_object_t *p_this, char const *,
+                          heimdall_value_t, heimdall_value_t newval, void *p_data )
 {
     filter_sys_t *p_sys = (filter_sys_t*)p_data;
-    vlc_mutex_locker locker( &p_sys->lock );
+    heimdall_mutex_locker locker( &p_sys->lock );
 
     p_sys->p_reverbm->setwidth(newval.f_float);
     msg_Dbg( p_this, "width is now %3.1f", newval.f_float );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int WetCallback( vlc_object_t *p_this, char const *,
-                        vlc_value_t, vlc_value_t newval, void *p_data )
+static int WetCallback( heimdall_object_t *p_this, char const *,
+                        heimdall_value_t, heimdall_value_t newval, void *p_data )
 {
     filter_sys_t *p_sys = (filter_sys_t*)p_data;
-    vlc_mutex_locker locker( &p_sys->lock );
+    heimdall_mutex_locker locker( &p_sys->lock );
 
     p_sys->p_reverbm->setwet(newval.f_float);
     msg_Dbg( p_this, "'wet' value is now %3.1f", newval.f_float );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int DryCallback( vlc_object_t *p_this, char const *,
-                        vlc_value_t, vlc_value_t newval, void *p_data )
+static int DryCallback( heimdall_object_t *p_this, char const *,
+                        heimdall_value_t, heimdall_value_t newval, void *p_data )
 {
     filter_sys_t *p_sys = (filter_sys_t*)p_data;
-    vlc_mutex_locker locker( &p_sys->lock );
+    heimdall_mutex_locker locker( &p_sys->lock );
 
     p_sys->p_reverbm->setdry(newval.f_float);
     msg_Dbg( p_this, "'dry' value is now %3.1f", newval.f_float );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int DampCallback( vlc_object_t *p_this, char const *,
-                         vlc_value_t, vlc_value_t newval, void *p_data )
+static int DampCallback( heimdall_object_t *p_this, char const *,
+                         heimdall_value_t, heimdall_value_t newval, void *p_data )
 {
     filter_sys_t *p_sys = (filter_sys_t*)p_data;
-    vlc_mutex_locker locker( &p_sys->lock );
+    heimdall_mutex_locker locker( &p_sys->lock );
 
     p_sys->p_reverbm->setdamp(newval.f_float);
     msg_Dbg( p_this, "'damp' value is now %3.1f", newval.f_float );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

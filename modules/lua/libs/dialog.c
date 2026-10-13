@@ -2,6 +2,7 @@
  * dialog.c: Functions to create interface dialogs from Lua extensions
  *****************************************************************************
  * Copyright (C) 2009-2010 VideoLAN and authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Jean-Philippe André < jpeg # videolan.org >
  *
@@ -22,7 +23,7 @@
 
 /// Dialog user interface APIs.
 // Functions to create interface dialogs from Lua extensions.
-// @module vlc.dialog
+// @module heimdall.dialog
 
 /*
  * Preamble
@@ -35,11 +36,11 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_dialog.h>
-#include <vlc_extensions.h>
+#include <heimdall_common.h>
+#include <heimdall_dialog.h>
+#include <heimdall_extensions.h>
 
-#include "../vlc.h"
+#include "../heimdall.h"
 #include "../libs.h"
 
 #include "assert.h"
@@ -62,34 +63,34 @@
 // @function    dialog
 // @tparam      string title Human-readable title of the dialog
 // @treturn     Dialog A new Dialog object
-static int vlclua_dialog_create( lua_State *L );
+static int heimdalllua_dialog_create( lua_State *L );
 
 /// Close and delete this dialog.
 //
 // @function    Dialog:delete
-static int vlclua_dialog_delete( lua_State *L );
+static int heimdalllua_dialog_delete( lua_State *L );
 
 /// Show this dialog.
 //
 // @function    Dialog:show
-static int vlclua_dialog_show( lua_State *L );
+static int heimdalllua_dialog_show( lua_State *L );
 
 /// Hide (but not close) this dialog.
 //
 // @function    Dialog:hide
-static int vlclua_dialog_hide( lua_State *L );
+static int heimdalllua_dialog_hide( lua_State *L );
 
 /// Set the title for this dialog.
 //
 // @function    Dialog:set_title
 // @tparam      string title New human-readable title for this dialog
-static int vlclua_dialog_set_title( lua_State *L );
+static int heimdalllua_dialog_set_title( lua_State *L );
 
 /// Update this dialog immediately.
 //
 // Update the dialog immediately (don't wait for the current function to return).
 // @function    Dialog:update
-static int vlclua_dialog_update( lua_State *L );
+static int heimdalllua_dialog_update( lua_State *L );
 
 static void lua_SetDialogUpdate( lua_State *L, int flag );
 static int lua_GetDialogUpdate( lua_State *L );
@@ -127,7 +128,7 @@ int lua_DialogFlush( lua_State *L );
 // @tparam[opt] int    width Width size hint (in pixels)
 // @tparam[opt] int    height Height size hint (in pixels)
 // @treturn     Widget The newly created button widget.
-static int vlclua_dialog_add_button( lua_State *L );
+static int heimdalllua_dialog_add_button( lua_State *L );
 
 /// Add a label to the dialog.
 //
@@ -141,10 +142,10 @@ static int vlclua_dialog_add_button( lua_State *L );
 // @tparam[opt] int    width Width size hint (in pixels)
 // @tparam[opt] int    height Height size hint (in pixels)
 // @treturn     Widget The newly created label widget.
-static int vlclua_dialog_add_label( lua_State *L );
+static int heimdalllua_dialog_add_label( lua_State *L );
 
-static int vlclua_dialog_add_html( lua_State *L );
-static int vlclua_dialog_add_text_inner( lua_State *L, int );
+static int heimdalllua_dialog_add_html( lua_State *L );
+static int heimdalllua_dialog_add_text_inner( lua_State *L, int );
 
 /// Add an editable text field to the dialog.
 //
@@ -158,9 +159,9 @@ static int vlclua_dialog_add_text_inner( lua_State *L, int );
 // @tparam[opt] int    width Width size hint (in pixels)
 // @tparam[opt] int    height Height size hint (in pixels)
 // @treturn     Widget The newly created text field widget.
-static inline int vlclua_dialog_add_text_input( lua_State *L )
+static inline int heimdalllua_dialog_add_text_input( lua_State *L )
 {
-    return vlclua_dialog_add_text_inner( L, EXTENSION_WIDGET_TEXT_FIELD );
+    return heimdalllua_dialog_add_text_inner( L, EXTENSION_WIDGET_TEXT_FIELD );
 }
 
 /// Add an editable masked text field to the dialog.
@@ -178,9 +179,9 @@ static inline int vlclua_dialog_add_text_input( lua_State *L )
 // @tparam[opt] int    width Width size hint (in pixels)
 // @tparam[opt] int    height Height size hint (in pixels)
 // @treturn     Widget The newly created password field widget.
-static inline int vlclua_dialog_add_password( lua_State *L )
+static inline int heimdalllua_dialog_add_password( lua_State *L )
 {
-    return vlclua_dialog_add_text_inner( L, EXTENSION_WIDGET_PASSWORD );
+    return heimdalllua_dialog_add_text_inner( L, EXTENSION_WIDGET_PASSWORD );
 }
 
 /// Add a rich text HTML label to the dialog.
@@ -197,9 +198,9 @@ static inline int vlclua_dialog_add_password( lua_State *L )
 // @tparam[opt] int    width Width size hint (in pixels)
 // @tparam[opt] int    height Height size hint (in pixels)
 // @treturn     Widget The newly created HTML label widget.
-static inline int vlclua_dialog_add_html( lua_State *L )
+static inline int heimdalllua_dialog_add_html( lua_State *L )
 {
-    return vlclua_dialog_add_text_inner( L, EXTENSION_WIDGET_HTML );
+    return heimdalllua_dialog_add_text_inner( L, EXTENSION_WIDGET_HTML );
 }
 
 /// Add a check box to the dialog.
@@ -217,7 +218,7 @@ static inline int vlclua_dialog_add_html( lua_State *L )
 // @tparam[opt] int    width Width size hint (in pixels)
 // @tparam[opt] int    height Height size hint (in pixels)
 // @treturn     Widget The newly created check box widget.
-static int vlclua_dialog_add_check_box( lua_State *L );
+static int heimdalllua_dialog_add_check_box( lua_State *L );
 
 /// Add a list to the dialog.
 //
@@ -232,7 +233,7 @@ static int vlclua_dialog_add_check_box( lua_State *L );
 // @tparam[opt] int    width Width size hint (in pixels)
 // @tparam[opt] int    height Height size hint (in pixels)
 // @treturn     Widget The newly created list widget.
-static int vlclua_dialog_add_list( lua_State *L );
+static int heimdalllua_dialog_add_list( lua_State *L );
 
 /// Add a drop down to the dialog.
 //
@@ -247,7 +248,7 @@ static int vlclua_dialog_add_list( lua_State *L );
 // @tparam[opt] int    width Width size hint (in pixels)
 // @tparam[opt] int    height Height size hint (in pixels)
 // @treturn     Widget The newly created drop down widget.
-static int vlclua_dialog_add_dropdown( lua_State *L );
+static int heimdalllua_dialog_add_dropdown( lua_State *L );
 
 /// Add an image to the dialog.
 //
@@ -264,7 +265,7 @@ static int vlclua_dialog_add_dropdown( lua_State *L );
 // @tparam[opt] int    width Width size hint (in pixels)
 // @tparam[opt] int    height Height size hint (in pixels)
 // @treturn     Widget The newly created image widget.
-static int vlclua_dialog_add_image( lua_State *L );
+static int heimdalllua_dialog_add_image( lua_State *L );
 
 /// Add a loading spinner to the dialog.
 //
@@ -278,9 +279,9 @@ static int vlclua_dialog_add_image( lua_State *L );
 // @tparam[opt] int    width Width size hint (in pixels)
 // @tparam[opt] int    height Height size hint (in pixels)
 // @treturn     Widget The newly created loading spinner widget.
-static int vlclua_dialog_add_spin_icon( lua_State *L );
+static int heimdalllua_dialog_add_spin_icon( lua_State *L );
 
-static int vlclua_create_widget_inner( lua_State *L, int i_args,
+static int heimdalllua_create_widget_inner( lua_State *L, int i_args,
                                        extension_widget_t *p_widget);
 
 
@@ -294,7 +295,7 @@ static int vlclua_create_widget_inner( lua_State *L, int i_args,
 // @function    Dialog:del_widget
 // @tparam      Widget widget The widget to remove
 // @raise Error if called with something that isn't a Widget.
-static int vlclua_dialog_delete_widget( lua_State *L );
+static int heimdalllua_dialog_delete_widget( lua_State *L );
 
 /// Widget methods
 //
@@ -310,7 +311,7 @@ static int vlclua_dialog_delete_widget( lua_State *L );
 // @function    Widget:set_text
 // @tparam      string text New widget text
 // @raise Error if called for an unsupported widget type.
-static int vlclua_widget_set_text( lua_State *L );
+static int heimdalllua_widget_set_text( lua_State *L );
 
 /// Get the widget text.
 //
@@ -320,7 +321,7 @@ static int vlclua_widget_set_text( lua_State *L );
 // @function    Widget:get_text
 // @raise Error if called for an unsupported widget type.
 // @treturn     string The current label or content of widget.
-static int vlclua_widget_get_text( lua_State *L );
+static int heimdalllua_widget_get_text( lua_State *L );
 
 /// Set the checkbox widget checked state.
 //
@@ -330,7 +331,7 @@ static int vlclua_widget_get_text( lua_State *L );
 // @function    Widget:set_checked
 // @tparam      bool checked If the checkbox is checked (`true`) or not (`false`)
 // @raise Error if called for an unsupported widget type.
-static int vlclua_widget_set_checked( lua_State *L );
+static int heimdalllua_widget_set_checked( lua_State *L );
 
 /// Get the checkbox widget checked state.
 //
@@ -340,7 +341,7 @@ static int vlclua_widget_set_checked( lua_State *L );
 // @function    Widget:get_checked
 // @treturn     bool If the checkbox is checked (`true`) or not (`false`)
 // @raise Error if called for an unsupported widget type.
-static int vlclua_widget_get_checked( lua_State *L );
+static int heimdalllua_widget_get_checked( lua_State *L );
 
 /// Add an item to the widget
 //
@@ -351,7 +352,7 @@ static int vlclua_widget_get_checked( lua_State *L );
 // @tparam      string value The user-facing text to be added
 // @tparam      int id An unique identifier for this item
 // @raise Error if called for an unsupported widget type.
-static int vlclua_widget_add_value( lua_State *L );
+static int heimdalllua_widget_add_value( lua_State *L );
 
 /// Get the current item of the drop-down
 //
@@ -368,7 +369,7 @@ static int vlclua_widget_add_value( lua_State *L );
 // @treturn[2]  int `-1` if no item is selected
 // @return[2]   `nil` if no item is selected
 // @raise Error if called for an unsupported widget type.
-static int vlclua_widget_get_value( lua_State *L );
+static int heimdalllua_widget_get_value( lua_State *L );
 
 /// Clear the items of the widget
 //
@@ -377,7 +378,7 @@ static int vlclua_widget_get_value( lua_State *L );
 // Applies to: List, Drop-down
 // @function    Widget:clear
 // @raise Error if called for an unsupported widget type.
-static int vlclua_widget_clear( lua_State *L );
+static int heimdalllua_widget_clear( lua_State *L );
 
 /// Get the currently selected item(s) of the list
 //
@@ -389,21 +390,21 @@ static int vlclua_widget_clear( lua_State *L );
 // @function    Widget:get_selection
 // @treturn     int The unique identifier of the current item
 // @raise Error if called for an unsupported widget type.
-static int vlclua_widget_get_selection( lua_State *L );
+static int heimdalllua_widget_get_selection( lua_State *L );
 
 /// Start animating the current widget.
 //
 // Applies to: Loading spinner
 // @function    Widget:animate
 // @raise Error if called for an unsupported widget type.
-static int vlclua_widget_animate( lua_State *L );
+static int heimdalllua_widget_animate( lua_State *L );
 
 /// Stop animating the current widget.
 //
 // Applies to: Loading spinner
 // @function    Widget:stop
 // @raise Error if called for an unsupported widget type.
-static int vlclua_widget_stop( lua_State *L );
+static int heimdalllua_widget_stop( lua_State *L );
 
 /* Helpers */
 static void AddWidget( extension_dialog_t *p_dialog,
@@ -411,39 +412,39 @@ static void AddWidget( extension_dialog_t *p_dialog,
 static int DeleteWidget( extension_dialog_t *p_dialog,
                          extension_widget_t *p_widget );
 
-static const luaL_Reg vlclua_dialog_reg[] = {
-    { "show", vlclua_dialog_show },
-    { "hide", vlclua_dialog_hide },
-    { "delete", vlclua_dialog_delete },
-    { "set_title", vlclua_dialog_set_title },
-    { "update", vlclua_dialog_update },
+static const luaL_Reg heimdalllua_dialog_reg[] = {
+    { "show", heimdalllua_dialog_show },
+    { "hide", heimdalllua_dialog_hide },
+    { "delete", heimdalllua_dialog_delete },
+    { "set_title", heimdalllua_dialog_set_title },
+    { "update", heimdalllua_dialog_update },
 
-    { "add_button", vlclua_dialog_add_button },
-    { "add_label", vlclua_dialog_add_label },
-    { "add_html", vlclua_dialog_add_html },
-    { "add_text_input", vlclua_dialog_add_text_input },
-    { "add_password", vlclua_dialog_add_password },
-    { "add_check_box", vlclua_dialog_add_check_box },
-    { "add_dropdown", vlclua_dialog_add_dropdown },
-    { "add_list", vlclua_dialog_add_list },
-    { "add_image", vlclua_dialog_add_image },
-    { "add_spin_icon", vlclua_dialog_add_spin_icon },
+    { "add_button", heimdalllua_dialog_add_button },
+    { "add_label", heimdalllua_dialog_add_label },
+    { "add_html", heimdalllua_dialog_add_html },
+    { "add_text_input", heimdalllua_dialog_add_text_input },
+    { "add_password", heimdalllua_dialog_add_password },
+    { "add_check_box", heimdalllua_dialog_add_check_box },
+    { "add_dropdown", heimdalllua_dialog_add_dropdown },
+    { "add_list", heimdalllua_dialog_add_list },
+    { "add_image", heimdalllua_dialog_add_image },
+    { "add_spin_icon", heimdalllua_dialog_add_spin_icon },
 
-    { "del_widget", vlclua_dialog_delete_widget },
+    { "del_widget", heimdalllua_dialog_delete_widget },
     { NULL, NULL }
 };
 
-static const luaL_Reg vlclua_widget_reg[] = {
-    { "set_text", vlclua_widget_set_text },
-    { "get_text", vlclua_widget_get_text },
-    { "set_checked", vlclua_widget_set_checked },
-    { "get_checked", vlclua_widget_get_checked },
-    { "add_value", vlclua_widget_add_value },
-    { "get_value", vlclua_widget_get_value },
-    { "clear", vlclua_widget_clear },
-    { "get_selection", vlclua_widget_get_selection },
-    { "animate", vlclua_widget_animate },
-    { "stop", vlclua_widget_stop },
+static const luaL_Reg heimdalllua_widget_reg[] = {
+    { "set_text", heimdalllua_widget_set_text },
+    { "get_text", heimdalllua_widget_get_text },
+    { "set_checked", heimdalllua_widget_set_checked },
+    { "get_checked", heimdalllua_widget_get_checked },
+    { "add_value", heimdalllua_widget_add_value },
+    { "get_value", heimdalllua_widget_get_value },
+    { "clear", heimdalllua_widget_clear },
+    { "get_selection", heimdalllua_widget_get_selection },
+    { "animate", heimdalllua_widget_animate },
+    { "stop", heimdalllua_widget_stop },
     { NULL, NULL }
 };
 
@@ -459,8 +460,8 @@ static const char key_opaque = 'A',
  */
 void luaopen_dialog( lua_State *L, void *opaque )
 {
-    lua_getglobal( L, "vlc" );
-    lua_pushcfunction( L, vlclua_dialog_create );
+    lua_getglobal( L, "heimdall" );
+    lua_pushcfunction( L, heimdalllua_dialog_create );
     lua_setfield( L, -2, "dialog" );
 
     /* Add a private pointer (opaque) in the registry
@@ -474,19 +475,19 @@ void luaopen_dialog( lua_State *L, void *opaque )
     lua_SetDialogUpdate( L, 0 );
 }
 
-static int vlclua_dialog_create( lua_State *L )
+static int heimdalllua_dialog_create( lua_State *L )
 {
     if( !lua_isstring( L, 1 ) )
-        return luaL_error( L, "vlc.dialog() usage: (title)" );
+        return luaL_error( L, "heimdall.dialog() usage: (title)" );
     const char *psz_title = luaL_checkstring( L, 1 );
 
-    vlc_object_t *p_this = vlclua_get_this( L );
+    heimdall_object_t *p_this = heimdalllua_get_this( L );
 
     extension_dialog_t *p_dlg = calloc( 1, sizeof( extension_dialog_t ) );
     if( !p_dlg )
         return 0; // luaL_error( L, "Out Of Memory" );
 
-    lua_getglobal( L, "vlc" );
+    lua_getglobal( L, "heimdall" );
     lua_getfield( L, -1, "__dialog" );
     if( lua_topointer( L, lua_gettop( L ) ) != NULL )
     {
@@ -505,13 +506,13 @@ static int vlclua_dialog_create( lua_State *L )
     p_dlg->p_sys = (void*) lua_topointer( L, -1 ); // "const" discarded
     lua_pop( L, 1 );
 
-    vlc_mutex_init( &p_dlg->lock );
-    vlc_cond_init( &p_dlg->cond );
+    heimdall_mutex_init( &p_dlg->lock );
+    heimdall_cond_init( &p_dlg->cond );
 
     /* @todo Use the registry instead of __dialog,
        so that the user can't tamper with it */
 
-    lua_getglobal( L, "vlc" );
+    lua_getglobal( L, "heimdall" );
     lua_pushlightuserdata( L, p_dlg );
     lua_setfield( L, -2, "__dialog" );
     lua_pop( L, 1 );
@@ -522,9 +523,9 @@ static int vlclua_dialog_create( lua_State *L )
     if( luaL_newmetatable( L, "dialog" ) )
     {
         lua_newtable( L );
-        luaL_register( L, NULL, vlclua_dialog_reg );
+        luaL_register( L, NULL, heimdalllua_dialog_reg );
         lua_setfield( L, -2, "__index" );
-        lua_pushcfunction( L, vlclua_dialog_delete );
+        lua_pushcfunction( L, heimdalllua_dialog_delete );
         lua_setfield( L, -2, "__gc" );
     }
 
@@ -536,9 +537,9 @@ static int vlclua_dialog_create( lua_State *L )
     return 1;
 }
 
-static int vlclua_dialog_delete( lua_State *L )
+static int heimdalllua_dialog_delete( lua_State *L )
 {
-    vlc_object_t *p_mgr = vlclua_get_this( L );
+    heimdall_object_t *p_mgr = heimdalllua_get_this( L );
 
     /* Get dialog descriptor */
     extension_dialog_t **pp_dlg =
@@ -551,7 +552,7 @@ static int vlclua_dialog_delete( lua_State *L )
     *pp_dlg = NULL;
 
     /* Remove private __dialog field */
-    lua_getglobal( L, "vlc" );
+    lua_getglobal( L, "heimdall" );
     lua_pushnil( L );
     lua_setfield( L, -2, "__dialog" );
 
@@ -561,18 +562,18 @@ static int vlclua_dialog_delete( lua_State *L )
     msg_Dbg( p_mgr, "Deleting dialog '%s'", p_dlg->psz_title );
     p_dlg->b_kill = true;
     lua_SetDialogUpdate( L, 0 ); // Reset the update flag
-    vlc_ext_dialog_update( p_mgr, p_dlg );
+    heimdall_ext_dialog_update( p_mgr, p_dlg );
 
-    /* After vlc_ext_dialog_update, the UI thread must take the lock asap and
+    /* After heimdall_ext_dialog_update, the UI thread must take the lock asap and
      * then signal us when it's done deleting the dialog.
      */
     msg_Dbg( p_mgr, "Waiting for the dialog to be deleted..." );
-    vlc_mutex_lock( &p_dlg->lock );
+    heimdall_mutex_lock( &p_dlg->lock );
     while( p_dlg->p_sys_intf != NULL )
     {
-        vlc_cond_wait( &p_dlg->cond, &p_dlg->lock );
+        heimdall_cond_wait( &p_dlg->cond, &p_dlg->lock );
     }
-    vlc_mutex_unlock( &p_dlg->lock );
+    heimdall_mutex_unlock( &p_dlg->lock );
 
     free( p_dlg->psz_title );
     p_dlg->psz_title = NULL;
@@ -604,7 +605,7 @@ static int vlclua_dialog_delete( lua_State *L )
     return 1;
 }
 
-static int vlclua_dialog_show( lua_State *L )
+static int heimdalllua_dialog_show( lua_State *L )
 {
     extension_dialog_t **pp_dlg =
             (extension_dialog_t**) luaL_checkudata( L, 1, "dialog" );
@@ -618,7 +619,7 @@ static int vlclua_dialog_show( lua_State *L )
     return 1;
 }
 
-static int vlclua_dialog_hide( lua_State *L )
+static int heimdalllua_dialog_hide( lua_State *L )
 {
     extension_dialog_t **pp_dlg =
             (extension_dialog_t**) luaL_checkudata( L, 1, "dialog" );
@@ -632,7 +633,7 @@ static int vlclua_dialog_hide( lua_State *L )
     return 1;
 }
 
-static int vlclua_dialog_set_title( lua_State *L )
+static int heimdalllua_dialog_set_title( lua_State *L )
 {
     extension_dialog_t **pp_dlg =
             (extension_dialog_t**) luaL_checkudata( L, 1, "dialog" );
@@ -640,22 +641,22 @@ static int vlclua_dialog_set_title( lua_State *L )
         return luaL_error( L, "Can't get pointer to dialog" );
     extension_dialog_t *p_dlg = *pp_dlg;
 
-    vlc_mutex_lock( &p_dlg->lock );
+    heimdall_mutex_lock( &p_dlg->lock );
 
     const char *psz_title = luaL_checkstring( L, 2 );
     free( p_dlg->psz_title );
     p_dlg->psz_title = strdup( psz_title );
 
-    vlc_mutex_unlock( &p_dlg->lock );
+    heimdall_mutex_unlock( &p_dlg->lock );
 
     lua_SetDialogUpdate( L, 1 );
 
     return 1;
 }
 
-static int vlclua_dialog_update( lua_State *L )
+static int heimdalllua_dialog_update( lua_State *L )
 {
-    vlc_object_t *p_mgr = vlclua_get_this( L );
+    heimdall_object_t *p_mgr = heimdalllua_get_this( L );
 
     extension_dialog_t **pp_dlg =
             (extension_dialog_t**) luaL_checkudata( L, 1, "dialog" );
@@ -664,7 +665,7 @@ static int vlclua_dialog_update( lua_State *L )
     extension_dialog_t *p_dlg = *pp_dlg;
 
     // Updating dialog immediately
-    vlc_ext_dialog_update( p_mgr, p_dlg );
+    heimdall_ext_dialog_update( p_mgr, p_dlg );
 
     // Reset update flag
     lua_SetDialogUpdate( L, 0 );
@@ -696,17 +697,17 @@ static int lua_GetDialogUpdate( lua_State *L )
  */
 int lua_DialogFlush( lua_State *L )
 {
-    lua_getglobal( L, "vlc" );
+    lua_getglobal( L, "heimdall" );
     lua_getfield( L, -1, "__dialog" );
     extension_dialog_t *p_dlg = ( extension_dialog_t* )lua_topointer( L, -1 );
 
     if( !p_dlg )
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
-    int i_ret = VLC_SUCCESS;
+    int i_ret = HEIMDALL_SUCCESS;
     if( lua_GetDialogUpdate( L ) )
     {
-        i_ret = vlc_ext_dialog_update( vlclua_get_this( L ), p_dlg );
+        i_ret = heimdall_ext_dialog_update( heimdalllua_get_this( L ), p_dlg );
         lua_SetDialogUpdate( L, 0 );
     }
 
@@ -718,7 +719,7 @@ int lua_DialogFlush( lua_State *L )
  * Arguments: text, function (as string)
  * Qt: QPushButton
  */
-static int vlclua_dialog_add_button( lua_State *L )
+static int heimdalllua_dialog_add_button( lua_State *L )
 {
     /* Verify arguments */
     if( !lua_isstring( L, 2 ) || !lua_isfunction( L, 3 ) )
@@ -733,7 +734,7 @@ static int vlclua_dialog_add_button( lua_State *L )
     lua_settable( L, LUA_REGISTRYINDEX );
     p_widget->p_sys = NULL;
 
-    return vlclua_create_widget_inner( L, 2, p_widget );
+    return heimdalllua_create_widget_inner( L, 2, p_widget );
 }
 
 /*
@@ -741,7 +742,7 @@ static int vlclua_dialog_add_button( lua_State *L )
  * Arguments: text
  * Qt: QLabel
  */
-static int vlclua_dialog_add_label( lua_State *L )
+static int heimdalllua_dialog_add_label( lua_State *L )
 {
     /* Verify arguments */
     if( !lua_isstring( L, 2 ) )
@@ -750,7 +751,7 @@ static int vlclua_dialog_add_label( lua_State *L )
     p_widget->type = EXTENSION_WIDGET_LABEL;
     p_widget->psz_text = strdup( luaL_checkstring( L, 2 ) );
 
-    return vlclua_create_widget_inner( L, 1, p_widget );
+    return heimdalllua_create_widget_inner( L, 1, p_widget );
 }
 
 /*
@@ -758,7 +759,7 @@ static int vlclua_dialog_add_label( lua_State *L )
  * Arguments: text (may be nil)
  * Qt: QLineEdit (Text/Password) or QTextArea (HTML)
  */
-static int vlclua_dialog_add_text_inner( lua_State *L, int i_type )
+static int heimdalllua_dialog_add_text_inner( lua_State *L, int i_type )
 {
     /* Verify arguments */
     if( !lua_isstring( L, 2 ) && !lua_isnil( L, 2 ) )
@@ -769,7 +770,7 @@ static int vlclua_dialog_add_text_inner( lua_State *L, int i_type )
     if( !lua_isnil( L, 2 ) )
         p_widget->psz_text = strdup( luaL_checkstring( L, 2 ) );
 
-    return vlclua_create_widget_inner( L, 1, p_widget );
+    return heimdalllua_create_widget_inner( L, 1, p_widget );
 }
 
 /*
@@ -777,7 +778,7 @@ static int vlclua_dialog_add_text_inner( lua_State *L, int i_type )
  * Arguments: text, checked (as bool)
  * Qt: QCheckBox
  */
-static int vlclua_dialog_add_check_box( lua_State *L )
+static int heimdalllua_dialog_add_check_box( lua_State *L )
 {
     /* Verify arguments */
     if( !lua_isstring( L, 2 ) )
@@ -788,7 +789,7 @@ static int vlclua_dialog_add_check_box( lua_State *L )
     p_widget->psz_text = strdup( luaL_checkstring( L, 2 ) );
     p_widget->b_checked = lua_toboolean( L, 3 );
 
-    return vlclua_create_widget_inner( L, 2, p_widget );
+    return heimdalllua_create_widget_inner( L, 2, p_widget );
 }
 
 /*
@@ -797,12 +798,12 @@ static int vlclua_dialog_add_check_box( lua_State *L )
  * Qt: QComboBox
  * @todo make it editable?
  */
-static int vlclua_dialog_add_dropdown( lua_State *L )
+static int heimdalllua_dialog_add_dropdown( lua_State *L )
 {
     extension_widget_t *p_widget = calloc( 1, sizeof( extension_widget_t ) );
     p_widget->type = EXTENSION_WIDGET_DROPDOWN;
 
-    return vlclua_create_widget_inner( L, 0, p_widget );
+    return heimdalllua_create_widget_inner( L, 0, p_widget );
 }
 
 /*
@@ -810,12 +811,12 @@ static int vlclua_dialog_add_dropdown( lua_State *L )
  * Arguments: (none)
  * Qt: QListWidget
  */
-static int vlclua_dialog_add_list( lua_State *L )
+static int heimdalllua_dialog_add_list( lua_State *L )
 {
     extension_widget_t *p_widget = calloc( 1, sizeof( extension_widget_t ) );
     p_widget->type = EXTENSION_WIDGET_LIST;
 
-    return vlclua_create_widget_inner( L, 0, p_widget );
+    return heimdalllua_create_widget_inner( L, 0, p_widget );
 }
 
 /*
@@ -823,7 +824,7 @@ static int vlclua_dialog_add_list( lua_State *L )
  * Arguments: (string) url
  * Qt: QLabel with setPixmap( QPixmap& )
  */
-static int vlclua_dialog_add_image( lua_State *L )
+static int heimdalllua_dialog_add_image( lua_State *L )
 {
     /* Verify arguments */
     if( !lua_isstring( L, 2 ) )
@@ -833,7 +834,7 @@ static int vlclua_dialog_add_image( lua_State *L )
     p_widget->type = EXTENSION_WIDGET_IMAGE;
     p_widget->psz_text = strdup( luaL_checkstring( L, 2 ) );
 
-    return vlclua_create_widget_inner( L, 1, p_widget );
+    return heimdalllua_create_widget_inner( L, 1, p_widget );
 }
 
 /*
@@ -841,7 +842,7 @@ static int vlclua_dialog_add_image( lua_State *L )
  * Arguments: (int) loop count to play: 0 means stopped, -1 means infinite.
  * Qt: SpinningIcon (custom widget)
  */
-static int vlclua_dialog_add_spin_icon( lua_State *L )
+static int heimdalllua_dialog_add_spin_icon( lua_State *L )
 {
     /* Verify arguments */
     if( !lua_isstring( L, 2 ) )
@@ -850,7 +851,7 @@ static int vlclua_dialog_add_spin_icon( lua_State *L )
     extension_widget_t *p_widget = calloc( 1, sizeof( extension_widget_t ) );
     p_widget->type = EXTENSION_WIDGET_SPIN_ICON;
 
-    return vlclua_create_widget_inner( L, 0, p_widget );
+    return heimdalllua_create_widget_inner( L, 0, p_widget );
 }
 
 /*
@@ -859,7 +860,7 @@ static int vlclua_dialog_add_spin_icon( lua_State *L )
  * @param i_args Number of arguments before "row" (0 or more)
  * @param p_widget The widget to add
  */
-static int vlclua_create_widget_inner( lua_State *L, int i_args,
+static int heimdalllua_create_widget_inner( lua_State *L, int i_args,
                                        extension_widget_t *p_widget )
 {
     int arg = i_args + 2;
@@ -895,12 +896,12 @@ static int vlclua_create_widget_inner( lua_State *L, int i_args,
     else goto end_of_args;
 
 end_of_args:
-    vlc_mutex_lock( &p_dlg->lock );
+    heimdall_mutex_lock( &p_dlg->lock );
 
     /* Add the widget to the dialog descriptor */
     AddWidget( p_dlg, p_widget );
 
-    vlc_mutex_unlock( &p_dlg->lock );
+    heimdall_mutex_unlock( &p_dlg->lock );
 
     /* Create meta table */
     extension_widget_t **pp_widget = lua_newuserdata( L, sizeof( extension_widget_t* ) );
@@ -908,7 +909,7 @@ end_of_args:
     if( luaL_newmetatable( L, "widget" ) )
     {
         lua_newtable( L );
-        luaL_register( L, NULL, vlclua_widget_reg );
+        luaL_register( L, NULL, heimdalllua_widget_reg );
         lua_setfield( L, -2, "__index" );
     }
     lua_setmetatable( L, -2 );
@@ -918,7 +919,7 @@ end_of_args:
     return 1;
 }
 
-static int vlclua_widget_set_text( lua_State *L )
+static int heimdalllua_widget_set_text( lua_State *L )
 {
     /* Get dialog */
     extension_widget_t **pp_widget =
@@ -948,21 +949,21 @@ static int vlclua_widget_set_text( lua_State *L )
             return luaL_error( L, "method set_text not valid for this widget" );
     }
 
-    vlc_mutex_lock( &p_widget->p_dialog->lock );
+    heimdall_mutex_lock( &p_widget->p_dialog->lock );
 
     /* Update widget */
     p_widget->b_update = true;
     free( p_widget->psz_text );
     p_widget->psz_text = strdup( luaL_checkstring( L, 2 ) );
 
-    vlc_mutex_unlock( &p_widget->p_dialog->lock );
+    heimdall_mutex_unlock( &p_widget->p_dialog->lock );
 
     lua_SetDialogUpdate( L, 1 );
 
     return 1;
 }
 
-static int vlclua_widget_get_text( lua_State *L )
+static int heimdalllua_widget_get_text( lua_State *L )
 {
     /* Get dialog */
     extension_widget_t **pp_widget =
@@ -989,12 +990,12 @@ static int vlclua_widget_get_text( lua_State *L )
     }
 
     extension_dialog_t *p_dlg = p_widget->p_dialog;
-    vlc_mutex_lock( &p_dlg->lock );
+    heimdall_mutex_lock( &p_dlg->lock );
 
     char *psz_text = NULL;
     if( p_widget->psz_text )
         psz_text = strdup( p_widget->psz_text );
-    vlc_mutex_unlock( &p_dlg->lock );
+    heimdall_mutex_unlock( &p_dlg->lock );
 
     lua_pushstring( L, psz_text );
 
@@ -1002,7 +1003,7 @@ static int vlclua_widget_get_text( lua_State *L )
     return 1;
 }
 
-static int vlclua_widget_get_checked( lua_State *L )
+static int heimdalllua_widget_get_checked( lua_State *L )
 {
     /* Get widget */
     extension_widget_t **pp_widget =
@@ -1014,14 +1015,14 @@ static int vlclua_widget_get_checked( lua_State *L )
     if( p_widget->type != EXTENSION_WIDGET_CHECK_BOX )
         return luaL_error( L, "method get_checked not valid for this widget" );
 
-    vlc_mutex_lock( &p_widget->p_dialog->lock );
+    heimdall_mutex_lock( &p_widget->p_dialog->lock );
     lua_pushboolean( L, p_widget->b_checked );
-    vlc_mutex_unlock( &p_widget->p_dialog->lock );
+    heimdall_mutex_unlock( &p_widget->p_dialog->lock );
 
     return 1;
 }
 
-static int vlclua_widget_add_value( lua_State *L )
+static int heimdalllua_widget_add_value( lua_State *L )
 {
     /* Get widget */
     extension_widget_t **pp_widget =
@@ -1042,7 +1043,7 @@ static int vlclua_widget_add_value( lua_State *L )
     p_new_value->psz_text = strdup( luaL_checkstring( L, 2 ) );
     p_new_value->i_id = lua_tointeger( L, 3 );
 
-    vlc_mutex_lock( &p_widget->p_dialog->lock );
+    heimdall_mutex_lock( &p_widget->p_dialog->lock );
 
     if( !p_widget->p_values )
     {
@@ -1060,14 +1061,14 @@ static int vlclua_widget_add_value( lua_State *L )
     }
 
     p_widget->b_update = true;
-    vlc_mutex_unlock( &p_widget->p_dialog->lock );
+    heimdall_mutex_unlock( &p_widget->p_dialog->lock );
 
     lua_SetDialogUpdate( L, 1 );
 
     return 1;
 }
 
-static int vlclua_widget_get_value( lua_State *L )
+static int heimdalllua_widget_get_value( lua_State *L )
 {
     /* Get widget */
     extension_widget_t **pp_widget =
@@ -1079,7 +1080,7 @@ static int vlclua_widget_get_value( lua_State *L )
     if( p_widget->type != EXTENSION_WIDGET_DROPDOWN )
         return luaL_error( L, "method get_value not valid for this widget" );
 
-    vlc_mutex_lock( &p_widget->p_dialog->lock );
+    heimdall_mutex_lock( &p_widget->p_dialog->lock );
 
     struct extension_widget_value_t *p_value;
     for( p_value = p_widget->p_values;
@@ -1090,19 +1091,19 @@ static int vlclua_widget_get_value( lua_State *L )
         {
             lua_pushinteger( L, p_value->i_id );
             lua_pushstring( L, p_value->psz_text );
-            vlc_mutex_unlock( &p_widget->p_dialog->lock );
+            heimdall_mutex_unlock( &p_widget->p_dialog->lock );
             return 2;
         }
     }
 
-    vlc_mutex_unlock( &p_widget->p_dialog->lock );
+    heimdall_mutex_unlock( &p_widget->p_dialog->lock );
 
     lua_pushinteger( L, -1 );
     lua_pushnil( L );
     return 2;
 }
 
-static int vlclua_widget_clear( lua_State *L )
+static int heimdalllua_widget_clear( lua_State *L )
 {
     /* Get widget */
     extension_widget_t **pp_widget =
@@ -1117,7 +1118,7 @@ static int vlclua_widget_clear( lua_State *L )
 
     struct extension_widget_value_t *p_value, *p_next;
 
-    vlc_mutex_lock( &p_widget->p_dialog->lock );
+    heimdall_mutex_lock( &p_widget->p_dialog->lock );
 
     for( p_value = p_widget->p_values;
          p_value != NULL;
@@ -1131,14 +1132,14 @@ static int vlclua_widget_clear( lua_State *L )
     p_widget->p_values = NULL;
     p_widget->b_update = true;
 
-    vlc_mutex_unlock( &p_widget->p_dialog->lock );
+    heimdall_mutex_unlock( &p_widget->p_dialog->lock );
 
     lua_SetDialogUpdate( L, 1 );
 
     return 1;
 }
 
-static int vlclua_widget_get_selection( lua_State *L )
+static int heimdalllua_widget_get_selection( lua_State *L )
 {
     /* Get widget */
     extension_widget_t **pp_widget =
@@ -1153,7 +1154,7 @@ static int vlclua_widget_get_selection( lua_State *L )
     /* Create empty table */
     lua_newtable( L );
 
-    vlc_mutex_lock( &p_widget->p_dialog->lock );
+    heimdall_mutex_lock( &p_widget->p_dialog->lock );
 
     struct extension_widget_value_t *p_value;
     for( p_value = p_widget->p_values;
@@ -1168,12 +1169,12 @@ static int vlclua_widget_get_selection( lua_State *L )
         }
     }
 
-    vlc_mutex_unlock( &p_widget->p_dialog->lock );
+    heimdall_mutex_unlock( &p_widget->p_dialog->lock );
 
     return 1;
 }
 
-static int vlclua_widget_set_checked( lua_State *L )
+static int heimdalllua_widget_set_checked( lua_State *L )
 {
     /* Get dialog */
     extension_widget_t **pp_widget =
@@ -1189,12 +1190,12 @@ static int vlclua_widget_set_checked( lua_State *L )
     if( !lua_isboolean( L, 2 ) )
         return luaL_error( L, "widget:set_checked usage: (bool)" );
 
-    vlc_mutex_lock( &p_widget->p_dialog->lock );
+    heimdall_mutex_lock( &p_widget->p_dialog->lock );
 
     bool b_old_check = p_widget->b_checked;
     p_widget->b_checked = lua_toboolean( L, 2 );
 
-    vlc_mutex_unlock( &p_widget->p_dialog->lock );
+    heimdall_mutex_unlock( &p_widget->p_dialog->lock );
 
     if( b_old_check != p_widget->b_checked )
     {
@@ -1206,7 +1207,7 @@ static int vlclua_widget_set_checked( lua_State *L )
     return 1;
 }
 
-static int vlclua_widget_animate( lua_State *L )
+static int heimdalllua_widget_animate( lua_State *L )
 {
     /* Get dialog */
     extension_widget_t **pp_widget =
@@ -1219,12 +1220,12 @@ static int vlclua_widget_animate( lua_State *L )
         return luaL_error( L, "method animate not valid for this widget" );
 
     /* Verify arguments */
-    vlc_mutex_lock( &p_widget->p_dialog->lock );
+    heimdall_mutex_lock( &p_widget->p_dialog->lock );
     if( !lua_isnumber( L, 2 ) )
         p_widget->i_spin_loops = -1;
     else
         p_widget->i_spin_loops = lua_tointeger( L, 2 );
-    vlc_mutex_unlock( &p_widget->p_dialog->lock );
+    heimdall_mutex_unlock( &p_widget->p_dialog->lock );
 
     /* Signal interface of the change */
     p_widget->b_update = true;
@@ -1233,7 +1234,7 @@ static int vlclua_widget_animate( lua_State *L )
     return 1;
 }
 
-static int vlclua_widget_stop( lua_State *L )
+static int heimdalllua_widget_stop( lua_State *L )
 {
     /* Get dialog */
     extension_widget_t **pp_widget =
@@ -1245,12 +1246,12 @@ static int vlclua_widget_stop( lua_State *L )
     if( p_widget->type != EXTENSION_WIDGET_SPIN_ICON )
         return luaL_error( L, "method stop not valid for this widget" );
 
-    vlc_mutex_lock( &p_widget->p_dialog->lock );
+    heimdall_mutex_lock( &p_widget->p_dialog->lock );
 
     bool b_needs_update = p_widget->i_spin_loops != 0;
     p_widget->i_spin_loops = 0;
 
-    vlc_mutex_unlock( &p_widget->p_dialog->lock );
+    heimdall_mutex_unlock( &p_widget->p_dialog->lock );
 
     if( b_needs_update )
     {
@@ -1267,7 +1268,7 @@ static int vlclua_widget_stop( lua_State *L )
  * Remove it from the list once it has been safely destroyed by the interface
  * @note This will always update the dialog
  */
-static int vlclua_dialog_delete_widget( lua_State *L )
+static int heimdalllua_dialog_delete_widget( lua_State *L )
 {
     /* Get dialog */
     extension_dialog_t **pp_dlg =
@@ -1297,19 +1298,19 @@ static int vlclua_dialog_delete_widget( lua_State *L )
         lua_settable( L, LUA_REGISTRYINDEX );
     }
 
-    vlc_object_t *p_mgr = vlclua_get_this( L );
+    heimdall_object_t *p_mgr = heimdalllua_get_this( L );
 
     p_widget->b_kill = true;
 
     lua_SetDialogUpdate( L, 0 ); // Reset update flag
-    int i_ret = vlc_ext_dialog_update( p_mgr, p_dlg );
+    int i_ret = heimdall_ext_dialog_update( p_mgr, p_dlg );
 
-    if( i_ret != VLC_SUCCESS )
+    if( i_ret != HEIMDALL_SUCCESS )
     {
         return luaL_error( L, "Could not delete widget" );
     }
 
-    vlc_mutex_lock( &p_dlg->lock );
+    heimdall_mutex_lock( &p_dlg->lock );
 
     /* Same remarks as for dialog delete.
      * If the dialog is deleted or about to be deleted, then there is no
@@ -1318,14 +1319,14 @@ static int vlclua_dialog_delete_widget( lua_State *L )
     while( p_widget->p_sys_intf != NULL && !p_dlg->b_kill
            && p_dlg->p_sys_intf != NULL )
     {
-        vlc_cond_wait( &p_dlg->cond, &p_dlg->lock );
+        heimdall_cond_wait( &p_dlg->cond, &p_dlg->lock );
     }
 
     i_ret = DeleteWidget( p_dlg, p_widget );
 
-    vlc_mutex_unlock( &p_dlg->lock );
+    heimdall_mutex_unlock( &p_dlg->lock );
 
-    if( i_ret != VLC_SUCCESS )
+    if( i_ret != HEIMDALL_SUCCESS )
     {
         return luaL_error( L, "Could not remove widget from list" );
     }
@@ -1372,7 +1373,7 @@ static int DeleteWidget( extension_dialog_t *p_dialog,
     }
 
     if( !found )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     ARRAY_REMOVE( p_dialog->widgets, pos );
 
@@ -1389,5 +1390,5 @@ static int DeleteWidget( extension_dialog_t *p_dialog,
     free( p_widget->psz_text );
     free( p_widget );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

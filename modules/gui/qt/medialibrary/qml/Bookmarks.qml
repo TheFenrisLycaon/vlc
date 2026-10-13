@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2022 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,11 +18,11 @@
  *****************************************************************************/
 import QtQuick
 
-import VLC.MediaLibrary
+import Heimdall.MediaLibrary
 
-import VLC.Widgets as Widgets
-import VLC.Style
-import VLC.Player
+import Heimdall.Widgets as Widgets
+import Heimdall.Style
+import Heimdall.Player
 
 Item {
     id: control
@@ -53,7 +54,7 @@ Item {
                     target: control
                     properties: "opacity"
                     to: 0
-                    duration: VLCStyle.duration_short; easing.type: Easing.OutSine
+                    duration: HeimdallStyle.duration_short; easing.type: Easing.OutSine
                 }
                 PropertyAction { target: control; property: "visible"; value: false; }
             }
@@ -66,7 +67,7 @@ Item {
                     target: control
                     properties: "opacity"
                     to: 1
-                    duration: VLCStyle.duration_short; easing.type: Easing.InSine
+                    duration: HeimdallStyle.duration_short; easing.type: Easing.InSine
                 }
             }
         }
@@ -97,7 +98,7 @@ Item {
             backgroundColor: bookmarkButton.colorContext.fg.primary
 
             x: control.width * model.position - width/2
-            y: VLCStyle.dp(1, VLCStyle.scale)
+            y: HeimdallStyle.dp(1, HeimdallStyle.scale)
             focusPolicy: Qt.NoFocus
 
             onClicked: modelBookmark.select(modelBookmark.index(index, 0))

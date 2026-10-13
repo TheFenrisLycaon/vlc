@@ -2,6 +2,7 @@
  * player_track.c: Player track and program implementation
  *****************************************************************************
  * Copyright © 2018-2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -24,11 +25,11 @@
 
 #include <limits.h>
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 #include "player.h"
 
 static char *
-vlc_player_program_DupTitle(int id, const char *title)
+heimdall_player_program_DupTitle(int id, const char *title)
 {
     char *dup;
     if (title)
@@ -38,13 +39,13 @@ vlc_player_program_DupTitle(int id, const char *title)
     return dup;
 }
 
-struct vlc_player_program *
-vlc_player_program_New(int id, const char *name)
+struct heimdall_player_program *
+heimdall_player_program_New(int id, const char *name)
 {
-    struct vlc_player_program *prgm = malloc(sizeof(*prgm));
+    struct heimdall_player_program *prgm = malloc(sizeof(*prgm));
     if (!prgm)
         return NULL;
-    prgm->name = vlc_player_program_DupTitle(id, name);
+    prgm->name = heimdall_player_program_DupTitle(id, name);
     if (!prgm->name)
     {
         free(prgm);
@@ -57,19 +58,19 @@ vlc_player_program_New(int id, const char *name)
 }
 
 int
-vlc_player_program_Update(struct vlc_player_program *prgm, int id,
+heimdall_player_program_Update(struct heimdall_player_program *prgm, int id,
                           const char *name)
 {
     free((char *)prgm->name);
-    prgm->name = vlc_player_program_DupTitle(id, name);
-    return prgm->name != NULL ? VLC_SUCCESS : VLC_ENOMEM;
+    prgm->name = heimdall_player_program_DupTitle(id, name);
+    return prgm->name != NULL ? HEIMDALL_SUCCESS : HEIMDALL_ENOMEM;
 }
 
-struct vlc_player_program *
-vlc_player_program_Dup(const struct vlc_player_program *src)
+struct heimdall_player_program *
+heimdall_player_program_Dup(const struct heimdall_player_program *src)
 {
-    struct vlc_player_program *dup =
-        vlc_player_program_New(src->group_id, src->name);
+    struct heimdall_player_program *dup =
+        heimdall_player_program_New(src->group_id, src->name);
 
     if (!dup)
         return NULL;
@@ -79,19 +80,19 @@ vlc_player_program_Dup(const struct vlc_player_program *src)
 }
 
 void
-vlc_player_program_Delete(struct vlc_player_program *prgm)
+heimdall_player_program_Delete(struct heimdall_player_program *prgm)
 {
     free((char *)prgm->name);
     free(prgm);
 }
 
-struct vlc_player_program *
-vlc_player_program_vector_FindById(vlc_player_program_vector *vec, int id,
+struct heimdall_player_program *
+heimdall_player_program_vector_FindById(heimdall_player_program_vector *vec, int id,
                                    size_t *idx)
 {
     for (size_t i = 0; i < vec->size; ++i)
     {
-        struct vlc_player_program *prgm = vec->data[i];
+        struct heimdall_player_program *prgm = vec->data[i];
         if (prgm->group_id == id)
         {
             if (idx)
@@ -102,17 +103,17 @@ vlc_player_program_vector_FindById(vlc_player_program_vector *vec, int id,
     return NULL;
 }
 
-struct vlc_player_track_priv *
-vlc_player_track_priv_New(vlc_es_id_t *id, const char *name, const es_format_t *fmt)
+struct heimdall_player_track_priv *
+heimdall_player_track_priv_New(heimdall_es_id_t *id, const char *name, const es_format_t *fmt)
 {
-    struct vlc_player_track_priv *trackpriv = malloc(sizeof(*trackpriv));
+    struct heimdall_player_track_priv *trackpriv = malloc(sizeof(*trackpriv));
     if (!trackpriv)
         return NULL;
-    struct vlc_player_track *track = &trackpriv->t;
+    struct heimdall_player_track *track = &trackpriv->t;
 
-    trackpriv->delay = VLC_TICK_MAX;
+    trackpriv->delay = HEIMDALL_TICK_MAX;
     trackpriv->vout = NULL;
-    trackpriv->vout_order = VLC_VOUT_ORDER_NONE;
+    trackpriv->vout_order = HEIMDALL_VOUT_ORDER_NONE;
     trackpriv->selected_by_user = false;
 
     track->name = strdup(name);
@@ -123,41 +124,41 @@ vlc_player_track_priv_New(vlc_es_id_t *id, const char *name, const es_format_t *
     }
 
     int ret = es_format_Copy(&track->fmt, fmt);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
     {
         free((char *)track->name);
         free(track);
         return NULL;
     }
-    track->es_id = vlc_es_id_Hold(id);
+    track->es_id = heimdall_es_id_Hold(id);
     track->selected = false;
 
     return trackpriv;
 }
 
 void
-vlc_player_track_priv_Delete(struct vlc_player_track_priv *trackpriv)
+heimdall_player_track_priv_Delete(struct heimdall_player_track_priv *trackpriv)
 {
-    struct vlc_player_track *track = &trackpriv->t;
+    struct heimdall_player_track *track = &trackpriv->t;
     es_format_Clean(&track->fmt);
     free((char *)track->name);
-    vlc_es_id_Release(track->es_id);
+    heimdall_es_id_Release(track->es_id);
     free(trackpriv);
 }
 
 void
-vlc_player_track_Delete(struct vlc_player_track *track)
+heimdall_player_track_Delete(struct heimdall_player_track *track)
 {
-    struct vlc_player_track_priv *trackpriv =
-        container_of(track, struct vlc_player_track_priv, t);
-    vlc_player_track_priv_Delete(trackpriv);
+    struct heimdall_player_track_priv *trackpriv =
+        container_of(track, struct heimdall_player_track_priv, t);
+    heimdall_player_track_priv_Delete(trackpriv);
 }
 
-struct vlc_player_track *
-vlc_player_track_Dup(const struct vlc_player_track *src)
+struct heimdall_player_track *
+heimdall_player_track_Dup(const struct heimdall_player_track *src)
 {
-    struct vlc_player_track_priv *duppriv =
-        vlc_player_track_priv_New(src->es_id, src->name, &src->fmt);
+    struct heimdall_player_track_priv *duppriv =
+        heimdall_player_track_priv_New(src->es_id, src->name, &src->fmt);
 
     if (!duppriv)
         return NULL;
@@ -166,37 +167,37 @@ vlc_player_track_Dup(const struct vlc_player_track *src)
 }
 
 int
-vlc_player_track_priv_Update(struct vlc_player_track_priv *trackpriv,
+heimdall_player_track_priv_Update(struct heimdall_player_track_priv *trackpriv,
                              const char *name, const es_format_t *fmt)
 {
-    struct vlc_player_track *track = &trackpriv->t;
+    struct heimdall_player_track *track = &trackpriv->t;
 
     if (strcmp(name, track->name) != 0)
     {
         char *dup = strdup(name);
         if (!dup)
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         free((char *)track->name);
         track->name = dup;
     }
 
     es_format_t fmtdup;
     int ret = es_format_Copy(&fmtdup, fmt);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
         return ret;
 
     es_format_Clean(&track->fmt);
     track->fmt = fmtdup;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-struct vlc_player_track_priv *
-vlc_player_track_vector_FindById(vlc_player_track_vector *vec, vlc_es_id_t *id,
+struct heimdall_player_track_priv *
+heimdall_player_track_vector_FindById(heimdall_player_track_vector *vec, heimdall_es_id_t *id,
                                  size_t *idx)
 {
     for (size_t i = 0; i < vec->size; ++i)
     {
-        struct vlc_player_track_priv *trackpriv = vec->data[i];
+        struct heimdall_player_track_priv *trackpriv = vec->data[i];
         if (trackpriv->t.es_id == id)
         {
             if (idx)
@@ -209,10 +210,10 @@ vlc_player_track_vector_FindById(vlc_player_track_vector *vec, vlc_es_id_t *id,
 
 
 int
-vlc_player_GetFirstSelectedTrackId(const vlc_player_track_vector* tracks)
+heimdall_player_GetFirstSelectedTrackId(const heimdall_player_track_vector* tracks)
 {
-    struct vlc_player_track_priv* t;
-    vlc_vector_foreach(t, tracks)
+    struct heimdall_player_track_priv* t;
+    heimdall_vector_foreach(t, tracks)
     {
         if (t->t.selected)
             return t->t.fmt.i_id;

@@ -2,6 +2,7 @@
  * FormatNameSpace.hpp
  *****************************************************************************
  * Copyright © 2019 VideoLabs, VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -20,8 +21,8 @@
 #ifndef FORMATNAMESPACE_HPP_
 #define FORMATNAMESPACE_HPP_
 
-#include <vlc_common.h>
-#include <vlc_es.h>
+#include <heimdall_common.h>
+#include <heimdall_es.h>
 #include <vector>
 #include <string>
 
@@ -36,7 +37,7 @@ namespace adaptive
 
         private:
             void ParseString(const std::string &);
-            void Parse(vlc_fourcc_t, const std::vector<std::string> &);
+            void Parse(heimdall_fourcc_t, const std::vector<std::string> &);
             void ParseMPEG4Elements(const std::vector<std::string> &);
             es_format_t fmt;
     };

@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
  * Copyright (C) 2020 Videolabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -19,20 +20,20 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_GL_API_H
-#define VLC_GL_API_H
+#ifndef HEIMDALL_GL_API_H
+#define HEIMDALL_GL_API_H
 
 #ifdef HAVE_CONFIG_H
 # include "config.h"
 #endif
 
 #include <stdbool.h>
-#include <vlc_common.h>
-#include <vlc_opengl.h>
+#include <heimdall_common.h>
+#include <heimdall_opengl.h>
 
 #include "gl_common.h"
 
-struct vlc_gl_api {
+struct heimdall_gl_api {
     opengl_vtable_t vt;
 
     /* Highest GLSL version supported by the API */
@@ -49,6 +50,6 @@ struct vlc_gl_api {
 };
 
 int
-vlc_gl_api_Init(struct vlc_gl_api *api, vlc_gl_t *gl);
+heimdall_gl_api_Init(struct heimdall_gl_api *api, heimdall_gl_t *gl);
 
 #endif

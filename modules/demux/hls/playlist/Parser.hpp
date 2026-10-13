@@ -2,6 +2,7 @@
  * Parser.hpp
  *****************************************************************************
  * Copyright © 2015 - VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -26,7 +27,7 @@
 #include <sstream>
 #include <list>
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
 namespace adaptive
 {
@@ -57,18 +58,18 @@ namespace hls
                 M3U8Parser             (adaptive::SharedResources *);
                 virtual ~M3U8Parser    ();
 
-                M3U8 *             parse  (vlc_object_t *p_obj, stream_t *p_stream, const std::string &);
-                bool appendSegmentsFromPlaylistURI(vlc_object_t *, HLSRepresentation *);
+                M3U8 *             parse  (heimdall_object_t *p_obj, stream_t *p_stream, const std::string &);
+                bool appendSegmentsFromPlaylistURI(heimdall_object_t *, HLSRepresentation *);
 
             private:
                 HLSRepresentation * createRepresentation(BaseAdaptationSet *, const AttributesTag *);
-                void createAndFillRepresentation(vlc_object_t *, BaseAdaptationSet *,
+                void createAndFillRepresentation(heimdall_object_t *, BaseAdaptationSet *,
                                                  const AttributesTag *, const std::list<Tag *>&);
                 void fillRepresentationFromMediainfo(const AttributesTag *, const std::string &,
                                                      HLSRepresentation *);
                 void fillAdaptsetFromMediainfo(const AttributesTag *, const std::string &,
                                                const std::string &, BaseAdaptationSet *);
-                void parseSegments(vlc_object_t *, HLSRepresentation *, const std::list<Tag *>&);
+                void parseSegments(heimdall_object_t *, HLSRepresentation *, const std::list<Tag *>&);
                 std::list<Tag *> parseEntries(stream_t *);
                 adaptive::SharedResources *resources;
         };

@@ -2,8 +2,9 @@
  * fsc_window.cpp
  *****************************************************************************
  * Copyright (C) 2010 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Author: Erwan Tulou      <erwan10 at videolan Dot Org>
+ * Author: Erwan Tulou      <erwan10 at lycaria Dot Org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,7 +24,7 @@
 #include "vout_manager.hpp"
 #include "os_factory.hpp"
 #include "os_timer.hpp"
-#include "vlcproc.hpp"
+#include "heimdallproc.hpp"
 
 /**
  * Fading out is computed in the following way:
@@ -50,7 +51,7 @@ FscWindow::FscWindow( intf_thread_t *pIntf, int left, int top,
     (void)visible;
     m_pTimer = OSFactory::instance( getIntf() )->createOSTimer( m_cmdFscHide );
 
-    VarBool &rFullscreen = VlcProc::instance( getIntf() )->getFullscreenVar();
+    VarBool &rFullscreen = HeimdallProc::instance( getIntf() )->getFullscreenVar();
     rFullscreen.addObserver( this );
 
     // opacity overridden by user
@@ -80,7 +81,7 @@ FscWindow::~FscWindow()
     // unregister Fsc
     VoutManager::instance( getIntf())->registerFSC( NULL );
 
-    VarBool &rFullscreen = VlcProc::instance( getIntf() )->getFullscreenVar();
+    VarBool &rFullscreen = HeimdallProc::instance( getIntf() )->getFullscreenVar();
     rFullscreen.delObserver( this );
 
     delete m_pTimer;
@@ -89,7 +90,7 @@ FscWindow::~FscWindow()
 
 void FscWindow::onMouseMoved( )
 {
-    VarBool &rFullscreen = VlcProc::instance( getIntf() )->getFullscreenVar();
+    VarBool &rFullscreen = HeimdallProc::instance( getIntf() )->getFullscreenVar();
     if( rFullscreen.get()  )
     {
         show();
@@ -151,7 +152,7 @@ void FscWindow::processEvent( EvtLeave &rEvtLeave )
 
 void FscWindow::onUpdate( Subject<VarBool> &rVariable, void *arg  )
 {
-    VarBool &rFullscreen = VlcProc::instance( getIntf() )->getFullscreenVar();
+    VarBool &rFullscreen = HeimdallProc::instance( getIntf() )->getFullscreenVar();
     if( &rVariable == &rFullscreen )
     {
         if( !rFullscreen.get() )

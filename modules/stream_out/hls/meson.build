@@ -1,6 +1,6 @@
 # HLS Stream output modules
 
-vlc_modules += {
+heimdall_modules += {
     'name' : 'stream_out_hls',
     'sources' : files(
         'hls.c',

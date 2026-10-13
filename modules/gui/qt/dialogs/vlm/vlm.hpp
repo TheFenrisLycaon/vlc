@@ -1,7 +1,7 @@
 /*****************************************************************************
  * vlm.hpp : VLM Management
  ****************************************************************************
- * Copyright ( C ) 2006 the VideoLAN team
+ * Copyright ( C ) 2006 the Lycaria team
  *
  * Authors: Jean-François Massol <jf.massol@gmail.com>
  *          Jean-Baptiste Kempf <jb@videolan.org>
@@ -21,19 +21,19 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef QVLC_VLM_DIALOG_H_
-#define QVLC_VLM_DIALOG_H_ 1
+#ifndef QHEIMDALL_VLM_DIALOG_H_
+#define QHEIMDALL_VLM_DIALOG_H_ 1
 
 #ifdef HAVE_CONFIG_H
 # include "config.h"
 #endif
 
-#include <vlc_vlm.h>
+#include <heimdall_vlm.h>
 
 /* Auto-generated from .ui files */
 #include "ui_vlm.h"
 
-#include "widgets/native/qvlcframe.hpp"
+#include "widgets/native/qheimdallframe.hpp"
 #include <QDateTime>
 
 enum{
@@ -60,7 +60,7 @@ class VLMAWidget;
 class VLMWrapper;
 
 
-class VLMDialog : public QVLCFrame
+class VLMDialog : public QHeimdallFrame
 {
     Q_OBJECT
 

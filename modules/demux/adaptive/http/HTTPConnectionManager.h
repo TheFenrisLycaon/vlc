@@ -2,6 +2,7 @@
  * HTTPConnectionManager.h
  *****************************************************************************
  * Copyright (C) 2010 - 2011 Klagenfurt University
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Created on: Aug 10, 2010
  * Authors: Christopher Mueller <christopher.mueller@itec.uni-klu.ac.at>
@@ -28,8 +29,8 @@
 #include "../logic/IDownloadRateObserver.h"
 #include "BytesRange.hpp"
 
-#include <vlc_common.h>
-#include <vlc_threads.h>
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
 
 #include <vector>
 #include <list>
@@ -50,7 +51,7 @@ namespace adaptive
         class AbstractConnectionManager : public IDownloadRateObserver
         {
             public:
-                AbstractConnectionManager(vlc_object_t *);
+                AbstractConnectionManager(heimdall_object_t *);
                 ~AbstractConnectionManager();
                 AbstractConnectionManager(AbstractConnectionManager&&) = delete;
                 AbstractConnectionManager& operator=(const AbstractConnectionManager&) = delete;
@@ -66,12 +67,12 @@ namespace adaptive
                 virtual void cancel(AbstractChunkSource *) = 0;
 
                 virtual void updateDownloadRate(const ID &, size_t,
-                                                vlc_tick_t, vlc_tick_t) override;
+                                                heimdall_tick_t, heimdall_tick_t) override;
                 void setDownloadRateObserver(IDownloadRateObserver *);
 
             protected:
                 void deleteSource(AbstractChunkSource *);
-                vlc_object_t                                       *p_object;
+                heimdall_object_t                                       *p_object;
 
             private:
                 IDownloadRateObserver                              *rateObserver;
@@ -80,7 +81,7 @@ namespace adaptive
         class HTTPConnectionManager : public AbstractConnectionManager
         {
             public:
-                HTTPConnectionManager           (vlc_object_t *p_object);
+                HTTPConnectionManager           (heimdall_object_t *p_object);
                 virtual ~HTTPConnectionManager  ();
 
                 void    closeAllConnections ()  override;
@@ -99,7 +100,7 @@ namespace adaptive
                 void    releaseAllConnections ();
                 Downloader                                         *downloader;
                 Downloader                                         *downloaderhp;
-                vlc_mutex_t                                         lock;
+                heimdall_mutex_t                                         lock;
                 std::vector<AbstractConnection *>                   connectionPool;
                 std::list<AbstractConnectionFactory *>              factories;
                 bool                                                localAllowed;

@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,12 +22,12 @@ import QtQuick.Templates as T
 import QtQuick.Layouts
 import QtQml.Models
 
-import VLC.MainInterface
-import VLC.Widgets as Widgets
-import VLC.Style
-import VLC.Playlist
-import VLC.Player
-import VLC.Util
+import Heimdall.MainInterface
+import Heimdall.Widgets as Widgets
+import Heimdall.Style
+import Heimdall.Playlist
+import Heimdall.Player
+import Heimdall.Util
 
 T.Control {
     id: delegate
@@ -59,7 +60,7 @@ T.Control {
     required property string artist
     required property string album
     required property string title
-    required property var duration // TODO: Qt 6.2 can not use value type vlcTick
+    required property var duration // TODO: Qt 6.2 can not use value type heimdallTick
     required property bool preparsed
 
     // Optional
@@ -78,11 +79,11 @@ T.Control {
 
     hoverEnabled: true
 
-    verticalPadding: VLCStyle.margin_xxxsmall
+    verticalPadding: HeimdallStyle.margin_xxxsmall
 
-    leftPadding: VLCStyle.margin_normal
+    leftPadding: HeimdallStyle.margin_normal
 
-    rightPadding: VLCStyle.margin_normal
+    rightPadding: HeimdallStyle.margin_normal
 
     implicitWidth: Math.max(implicitBackgroundWidth + leftInset + rightInset,
                             implicitContentWidth + leftPadding + rightPadding)
@@ -98,11 +99,11 @@ T.Control {
 
     // NOTE: This is useful for keyboard navigation on a column, to avoid blocking visibility on
     //       the surrounding items.
-    T.ToolTip.timeout: (visualFocus) ? VLCStyle.duration_humanMoment : 0
+    T.ToolTip.timeout: (visualFocus) ? HeimdallStyle.duration_humanMoment : 0
 
     T.ToolTip.text: (textInfo.text + '\n' + textArtist.text)
 
-    T.ToolTip.delay: VLCStyle.delayToolTipAppear
+    T.ToolTip.delay: HeimdallStyle.delayToolTipAppear
 
     // Events
 
@@ -142,7 +143,7 @@ T.Control {
         Widgets.CurrentIndicator {
             anchors {
                 left: parent.left
-                leftMargin: VLCStyle.margin_xxsmall
+                leftMargin: HeimdallStyle.margin_xxsmall
                 verticalCenter: parent.verticalCenter
             }
 
@@ -169,8 +170,8 @@ T.Control {
         Item {
             id: artworkItem
 
-            Layout.preferredHeight: VLCStyle.icon_playlistArt
-            Layout.preferredWidth: VLCStyle.icon_playlistArt
+            Layout.preferredHeight: HeimdallStyle.icon_playlistArt
+            Layout.preferredWidth: HeimdallStyle.icon_playlistArt
             Layout.alignment: Qt.AlignVCenter
 
             Accessible.role: Accessible.Graphic
@@ -194,7 +195,7 @@ T.Control {
                 visible: !statusIcon.visible
                 asynchronous: true
                 opacity: (status === Image.Ready ? 1.0 : 0.0)
-                radius: VLCStyle.listAlbumCover_radius
+                radius: HeimdallStyle.listAlbumCover_radius
                 backgroundColor: theme.bg.primary
 
                 sourceSize: Qt.size(width * eDPR, height * eDPR)
@@ -207,17 +208,17 @@ T.Control {
                 Behavior on opacity {
                     // WARNING: OpacityAnimator is not used because `visible` is not immediately respected in that case.
                     NumberAnimation {
-                        duration: VLCStyle.duration_short
+                        duration: HeimdallStyle.duration_short
                         easing.type: Easing.InSine
                     }
                 }
 
-                readonly property url targetSource: (delegate?.artwork.toString()) ? VLCAccessImage.uri(delegate.artwork) : VLCStyle.noArtAlbumCover
+                readonly property url targetSource: (delegate?.artwork.toString()) ? HeimdallAccessImage.uri(delegate.artwork) : HeimdallStyle.noArtAlbumCover
                 readonly property url defaultSource: delegate.preparsed ? targetSource : ""
 
                 onStatusChanged: {
-                    if (source !== VLCStyle.noArtAlbumCover && status === Image.Error)
-                        source = VLCStyle.noArtAlbumCover
+                    if (source !== HeimdallStyle.noArtAlbumCover && status === Image.Error)
+                        source = HeimdallStyle.noArtAlbumCover
                 }
 
                 function resetSource() {
@@ -239,7 +240,7 @@ T.Control {
                     id: artworkTimer
                     running: defaultRunning
                     readonly property bool defaultRunning: (artwork.status === Image.Null)
-                    interval: VLCStyle.duration_long
+                    interval: HeimdallStyle.duration_long
                     onTriggered: {
                         // Remove the preparse guard, enough time has passed:
                         artwork.source = Qt.binding(() => { return artwork.targetSource; })
@@ -260,9 +261,9 @@ T.Control {
                 color: theme.accent
                 text: {
                     if (Player.playingState === Player.PLAYING_STATE_PLAYING)
-                        return VLCIcons.volume_high
+                        return HeimdallIcons.volume_high
                     else if (Player.playingState === Player.PLAYING_STATE_PAUSED)
-                        return VLCIcons.pause_filled
+                        return HeimdallIcons.pause_filled
                     else
                         return ""
                 }
@@ -274,8 +275,8 @@ T.Control {
 
             Layout.fillWidth: true
             Layout.fillHeight: true
-            Layout.leftMargin: VLCStyle.margin_large
-            spacing: VLCStyle.margin_xxxsmall
+            Layout.leftMargin: HeimdallStyle.margin_large
+            spacing: HeimdallStyle.margin_xxxsmall
 
             Widgets.ListLabel {
                 id: textInfo

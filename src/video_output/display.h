@@ -2,8 +2,9 @@
  * display.h: "vout display" management
  *****************************************************************************
  * Copyright (C) 2009 Laurent Aimar
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Laurent Aimar <fenrir _AT_ videolan _DOT_ org>
+ * Authors: Laurent Aimar <fenrir _AT_ lycaria _DOT_ org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by

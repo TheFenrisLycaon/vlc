@@ -2,6 +2,7 @@
  * matroska_segment.hpp : matroska demuxer
  *****************************************************************************
  * Copyright (C) 2003-2004 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *          Steve Lhomme <steve.lhomme@free.fr>
@@ -21,8 +22,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_MKV_MATROSKA_SEGMENT_HPP_
-#define VLC_MKV_MATROSKA_SEGMENT_HPP_
+#ifndef HEIMDALL_MKV_MATROSKA_SEGMENT_HPP_
+#define HEIMDALL_MKV_MATROSKA_SEGMENT_HPP_
 
 #include "demux.hpp"
 #include "mkv.hpp"
@@ -94,13 +95,13 @@ public:
     uint64_t                i_timescale;
 
     /* duration of the segment */
-    vlc_tick_t              i_duration;
-    vlc_tick_t              i_mk_start_time;
+    heimdall_tick_t              i_duration;
+    heimdall_tick_t              i_mk_start_time;
 
     /* all tracks */
     tracks_map_t tracks;
     SegmentSeeker::track_ids_t priority_tracks;
-    vlc_tick_t                 pcr_shift = 0;
+    heimdall_tick_t                 pcr_shift = 0;
 
     /* from seekhead */
     int                     i_seekhead_count;
@@ -144,7 +145,7 @@ public:
     bool PreloadClusters( uint64_t i_cluster_position );
     void InformationCreate();
 
-    bool Seek( demux_t &, vlc_tick_t i_mk_date, vlc_tick_t i_mk_time_offset, bool b_accurate );
+    bool Seek( demux_t &, heimdall_tick_t i_mk_date, heimdall_tick_t i_mk_time_offset, bool b_accurate );
 
     int BlockGet( KaxBlock * &, KaxSimpleBlock * &, KaxBlockAdditions * &,
                   bool *, bool *, uint64_t *);
@@ -163,7 +164,7 @@ public:
     {
         if( unlikely( m.IsFiniteSize() && m.GetSize() >= SIZE_MAX ) )
         {
-            msg_Err( VLC_OBJECT(&sys.demuxer), "%s too big, aborting", EBML_NAME(&m) );
+            msg_Err( HEIMDALL_OBJECT(&sys.demuxer), "%s too big, aborting", EBML_NAME(&m) );
             return false;
         }
         try
@@ -179,7 +180,7 @@ public:
         }
         catch(...)
         {
-            msg_Err( VLC_OBJECT(&sys.demuxer), "Couldn't read %s", EBML_NAME(&m) );
+            msg_Err( HEIMDALL_OBJECT(&sys.demuxer), "Couldn't read %s", EBML_NAME(&m) );
             return false;
         }
 

@@ -2,6 +2,7 @@
  * mmstu.h: MMS access plug-in
  *****************************************************************************
  * Copyright (C) 2001, 2002 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *
@@ -20,8 +21,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_MMS_MMSTU_H_
-#define VLC_MMS_MMSTU_H_
+#ifndef HEIMDALL_MMS_MMSTU_H_
+#define HEIMDALL_MMS_MMSTU_H_
 
 #define MMS_PACKET_ANY          0
 #define MMS_PACKET_CMD          1
@@ -41,7 +42,7 @@ typedef struct
                                 /* send by server */
     char        sz_bind_addr[NI_MAXNUMERICHOST]; /* used by udp */
 
-    vlc_url_t   url;
+    heimdall_url_t   url;
     uint64_t    i_position;
     uint64_t    i_size;
 
@@ -57,7 +58,7 @@ typedef struct
     size_t      i_buffer_udp;
 
     /* data necessary to send data to server */
-    vlc_guid_t  guid;
+    heimdall_guid_t  guid;
     int         i_command_level;
     int         i_seq_num;
     uint32_t    i_header_packet_id_type;
@@ -90,11 +91,11 @@ typedef struct
     bool  b_seekable;
     bool  b_eof;
 
-    vlc_mutex_t  lock_netwrite;
+    heimdall_mutex_t  lock_netwrite;
     bool         b_keep_alive;
     struct {
-         vlc_thread_t thread;
-         vlc_sem_t    sem;
+         heimdall_thread_t thread;
+         heimdall_sem_t    sem;
     } keep_alive;
 } access_sys_t;
 

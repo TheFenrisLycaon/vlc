@@ -1,6 +1,7 @@
 --[[
 
  Copyright © 2012 VideoLAN and AUTHORS
+ Copyright (C) 2026 TheFenrisLycaon
 
  Authors: François Revol <revol at free dot fr>
 
@@ -30,7 +31,7 @@ end
 -- http://www.assemblee-nationale.tv/direct.html?flux=7#
 
 -- advertised command line:
--- vlc --rtsp-tcp rtsp://wowg.tdf-cdn.com/5638/live
+-- heimdall --rtsp-tcp rtsp://wowg.tdf-cdn.com/5638/live
 
 -- references & interesting URLs:
 -- http://www.assemblee-nationale.tv/js/direct.js
@@ -76,9 +77,9 @@ function main()
     local live_streams = {}
 
     -- fetch the main JS file
-    fd, msg = vlc.stream( "http://www.assemblee-nationale.tv/js/direct.js" )
+    fd, msg = heimdall.stream( "http://www.assemblee-nationale.tv/js/direct.js" )
     if not fd then
-        vlc.msg.warn(msg)
+        heimdall.msg.warn(msg)
         return nil
     end
 
@@ -100,9 +101,9 @@ function main()
     end
 
     -- fetch the streams JS file
-    fd, msg = vlc.stream( "http://www.assemblee-nationale.tv/ahp/scripts/streams.js" )
+    fd, msg = heimdall.stream( "http://www.assemblee-nationale.tv/ahp/scripts/streams.js" )
     if not fd then
-        vlc.msg.warn(msg)
+        heimdall.msg.warn(msg)
         return nil
     end
 
@@ -115,7 +116,7 @@ function main()
                 str = string.sub(str, len + 2)
                 table.insert( rtmp_names, s )
             until string.len(str) == 0
-            -- vlc.msg.warn(table.concat(rtmp_names,","))
+            -- heimdall.msg.warn(table.concat(rtmp_names,","))
         elseif( string.find( line, "var appNames = new Array" ) ) then
             _, _, str = string.find( line, "Array%( (.*)%);" )
             repeat
@@ -123,7 +124,7 @@ function main()
                 str = string.sub(str, len + 2)
                 table.insert( app_names, s )
             until string.len(str) == 0
-            -- vlc.msg.warn(table.concat(app_names,","))
+            -- heimdall.msg.warn(table.concat(app_names,","))
         elseif( string.find( line, "var streamNamesHttp = new Array" ) ) then
             _, _, str = string.find( line, "Array%( (.*)%);" )
             repeat
@@ -131,7 +132,7 @@ function main()
                 str = string.sub(str, len + 2)
                 table.insert( http_names, s )
             until string.len(str) == 0
-            -- vlc.msg.warn(table.concat(http_names,","))
+            -- heimdall.msg.warn(table.concat(http_names,","))
         elseif( string.find( line, "var streamNamesRtsp = new Array" ) ) then
             _, _, str = string.find( line, "Array%( (.*)%);" )
             repeat
@@ -139,7 +140,7 @@ function main()
                 str = string.sub(str, len + 2)
                 table.insert( rtsp_names, s )
             until string.len(str) == 0
-            -- vlc.msg.warn(table.concat(rtsp_names,","))
+            -- heimdall.msg.warn(table.concat(rtsp_names,","))
         elseif( string.find( line, "var streamNamesHls = new Array" ) ) then
             _, _, str = string.find( line, "Array%( (.*)%);" )
             repeat
@@ -147,26 +148,26 @@ function main()
                 str = string.sub(str, len + 2)
                 table.insert( hls_names, s )
             until string.len(str) == 0
-            -- vlc.msg.warn(table.concat(hls_names,","))
+            -- heimdall.msg.warn(table.concat(hls_names,","))
         end
         line = fd:readline()
     end
 
     if not rtmp_base then
-        vlc.msg.warn("Unable to locate rmsp base url")
+        heimdall.msg.warn("Unable to locate rmsp base url")
     end
     if not rtsp_base then
-        vlc.msg.warn("Unable to locate rtsp base url")
+        heimdall.msg.warn("Unable to locate rtsp base url")
     end
     if not iphone_base then
-        vlc.msg.warn("Unable to locate iphone base url")
+        heimdall.msg.warn("Unable to locate iphone base url")
     end
 
     -- fetch the current live status
     -- XXX: disable live checks if show_all?
-    fd, msg = vlc.stream( "http://www.assemblee-nationale.tv/live/live.txt?rnd=" .. os.time() )
+    fd, msg = heimdall.stream( "http://www.assemblee-nationale.tv/live/live.txt?rnd=" .. os.time() )
     if not fd then
-        vlc.msg.warn(msg)
+        heimdall.msg.warn(msg)
         return nil
     end
 
@@ -175,7 +176,7 @@ function main()
         local stream = tonumber(line)
         if stream ~= nil then
             live_streams[stream] = 1
-            vlc.msg.dbg("live: " .. tostring(stream))
+            heimdall.msg.dbg("live: " .. tostring(stream))
         end
         line = fd:readline()
     end
@@ -195,7 +196,7 @@ function main()
                 local options={"deinterlace=1", "rtsp-tcp=1"}
                 local path
                 path = rtsp_base .. rtsp_names[idx] .. "/live"
-                vlc.sd.add_item( {path=path,
+                heimdall.sd.add_item( {path=path,
                 duration=duration,
                 artist=artist,
                 title=name_prefix .. " " .. idx .. " (rtsp)",
@@ -207,7 +208,7 @@ function main()
             if do_rtmp then
                 local options={"deinterlace=1"}
                 local path = rtmp_base .. rtmp_names[idx]
-                vlc.sd.add_item( {path=path,
+                heimdall.sd.add_item( {path=path,
                 duration=duration,
                 artist=artist,
                 title=name_prefix .. " " .. idx .. " (rtmp)",
@@ -215,11 +216,11 @@ function main()
                 options=options} )
             end
 
-            -- add iphone (m3u8) streams, VLC doesn't like them much yet
+            -- add iphone (m3u8) streams, Heimdall doesn't like them much yet
             if do_iphone then
                 local options={"deinterlace=1"}
                 local path = iphone_base .. hls_names[idx] .. '/stream1.m3u8'
-                vlc.sd.add_item( {path=path,
+                heimdall.sd.add_item( {path=path,
                 duration=duration,
                 artist=artist,
                 title=name_prefix .. " " .. idx .. " (iphone)",

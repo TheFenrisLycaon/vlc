@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Prince Gupta <guptaprince8832@gmail.com>
  *
@@ -22,11 +23,11 @@ import QtQuick.Window
 import QtQuick.Templates as T
 import QtQml.Models
 
-import VLC.MainInterface
-import VLC.Style
-import VLC.Widgets as Widgets
-import VLC.Playlist as Playlist
-import VLC.Util
+import Heimdall.MainInterface
+import Heimdall.Style
+import Heimdall.Widgets as Widgets
+import Heimdall.Playlist as Playlist
+import Heimdall.Util
 
 Item {
     id: dragItem
@@ -35,7 +36,7 @@ Item {
     // Properties
     //---------------------------------------------------------------------------------------------
 
-    readonly property int coverSize: VLCStyle.icon_dragItem
+    readonly property int coverSize: HeimdallStyle.icon_dragItem
 
     property var indexes: []
 
@@ -45,7 +46,7 @@ Item {
     //        in order to pick the right method.
     property bool indexesFlat: false
 
-    property string defaultCover: VLCStyle.noArtAlbumCover
+    property string defaultCover: HeimdallStyle.noArtAlbumCover
 
     property string defaultText: qsTr("Unknown")
 
@@ -73,12 +74,12 @@ Item {
     // string => role
     property string coverRole: "cover"
 
-    property real padding: VLCStyle.margin_xsmall
-    property real margins: VLCStyle.margin_large
+    property real padding: HeimdallStyle.margin_xsmall
+    property real margins: HeimdallStyle.margin_large
 
     readonly property ColorContext colorContext: ColorContext {
         id: theme
-        palette: VLCStyle.palette
+        palette: HeimdallStyle.palette
         colorSet: ColorContext.Window
     }
 
@@ -86,7 +87,7 @@ Item {
     signal requestInputItems(var indexes, var data, var resolve, var reject)
 
     function coversXPos(index) {
-        return VLCStyle.margin_small + (coverSize / 1.5) * index + margins;
+        return HeimdallStyle.margin_small + (coverSize / 1.5) * index + margins;
     }
 
     /**
@@ -142,12 +143,12 @@ Item {
 
     Drag.dragType: Drag.None
 
-    Drag.hotSpot.x: - VLCStyle.dragDelta + margins
+    Drag.hotSpot.x: - HeimdallStyle.dragDelta + margins
 
-    Drag.hotSpot.y: - VLCStyle.dragDelta + margins
+    Drag.hotSpot.y: - HeimdallStyle.dragDelta + margins
 
     width: padding * 2
-           + coversXPos(_displayedCoversCount - 1) + coverSize + VLCStyle.margin_small
+           + coversXPos(_displayedCoversCount - 1) + coverSize + HeimdallStyle.margin_small
            + subtitleLabel.width
            + margins /* one margins comes from `coversXPos()` */
 
@@ -453,9 +454,9 @@ Item {
 
         color: fsmLoadingFailed.active ? theme.bg.negative : theme.bg.primary
         border.color: theme.border
-        border.width: VLCStyle.dp(1, VLCStyle.scale)
+        border.width: HeimdallStyle.dp(1, HeimdallStyle.scale)
         border.pixelAligned: (radius < Number.EPSILON)
-        radius: VLCStyle.dp(6, VLCStyle.scale)
+        radius: HeimdallStyle.dp(6, HeimdallStyle.scale)
 
         Widgets.RoundedRectangleShadow {
             blending: false // offscreen stacked below everything, no need for blending even though it is not opaque
@@ -465,7 +466,7 @@ Item {
             // factor which can lead to visible clipping, or increase the margin:
             blurRadius: (dragItem.margins / compensationFactor)
 
-            yOffset: VLCStyle.dp(4, VLCStyle.scale)
+            yOffset: HeimdallStyle.dp(4, HeimdallStyle.scale)
 
             color: Qt.rgba(0, 0, 0, .2)
 
@@ -509,13 +510,13 @@ Item {
                 anchors.centerIn: parent
                 width: coverSize
                 height: coverSize
-                radius: coverRepeater.count > 1 ? dragItem.coverSize : VLCStyle.dp(3, VLCStyle.scale)
+                radius: coverRepeater.count > 1 ? dragItem.coverSize : HeimdallStyle.dp(3, HeimdallStyle.scale)
                 source: modelData.artwork ?? modelData.fallback ?? dragItem.defaultCover
                 sourceSize: dragItem.imageSourceSize ?? Qt.size(width * eDPR, height * eDPR)
                 textureProviderItem: modelData?.textureProvider ?? null
 
                 backgroundColor: theme.bg.primary
-                borderWidth: VLCStyle.dp(1, VLCStyle.scale)
+                borderWidth: HeimdallStyle.dp(1, HeimdallStyle.scale)
                 borderColor: theme.border
                 fillMode: Image.PreserveAspectCrop
 
@@ -583,7 +584,7 @@ Item {
         radius: dragItem.coverSize
         visible: dragItem._indexesSize > dragItem._maxCovers
         color: theme.bg.secondary
-        border.width: VLCStyle.dp(1, VLCStyle.scale)
+        border.width: HeimdallStyle.dp(1, HeimdallStyle.scale)
         border.color: theme.border
         border.pixelAligned: (radius < Number.EPSILON)
 
@@ -592,7 +593,7 @@ Item {
 
             verticalAlignment: Text.AlignVCenter
             horizontalAlignment: Text.AlignHCenter
-            font.pixelSize: VLCStyle.fontSize_small
+            font.pixelSize: HeimdallStyle.fontSize_small
 
             color: theme.accent
 
@@ -609,7 +610,7 @@ Item {
         id: subtitleLabel
 
         anchors.verticalCenter: parent.verticalCenter
-        x: dragItem.coversXPos(_displayedCoversCount - 1) + dragItem.coverSize + VLCStyle.margin_small
+        x: dragItem.coversXPos(_displayedCoversCount - 1) + dragItem.coverSize + HeimdallStyle.margin_small
 
         visible: text && text !== ""
         text: {

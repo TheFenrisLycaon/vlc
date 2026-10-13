@@ -2,6 +2,7 @@
  * simple_preferences.hpp : Simple prefs
  ****************************************************************************
  * Copyright (C) 2006 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Clément Stenac <zorglub@videolan.org>
  *
@@ -20,14 +21,14 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_QT_SIMPLE_PREFERENCES_HPP_
-#define VLC_QT_SIMPLE_PREFERENCES_HPP_
+#ifndef HEIMDALL_QT_SIMPLE_PREFERENCES_HPP_
+#define HEIMDALL_QT_SIMPLE_PREFERENCES_HPP_
 
 #ifdef HAVE_CONFIG_H
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
 /* Auto-generated from .ui files */
 #include "ui_sprefs_input.h"
@@ -143,7 +144,7 @@ private:
 
 #ifdef _WIN32
     QList<QTreeWidgetItem *> listAsso;
-    bool addType( const char * psz_ext, QTreeWidgetItem*, QTreeWidgetItem*, QVLCRegistry* );
+    bool addType( const char * psz_ext, QTreeWidgetItem*, QTreeWidgetItem*, QHeimdallRegistry* );
     void saveLang();
 #endif
 

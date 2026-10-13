@@ -22,7 +22,7 @@ gl_common_dep = declare_dependency(
         'sampler_loader.c',
         ),
     compile_args: opengl_headers_c_args,
-    include_directories: [vlc_include_dirs],
+    include_directories: [heimdall_include_dirs],
     dependencies: [contrib_dep, opengl_dep],
 )
 
@@ -32,30 +32,30 @@ opengl_vout_commonsources = files(
     'vout_helper.c',
 )
 
-libvlc_opengl = []
+libheimdall_opengl = []
 if opengl_dep.found() and not (have_ios or have_tvos or host_system == 'android')
-    libvlc_opengl = static_library('vlc_opengl',
+    libheimdall_opengl = static_library('heimdall_opengl',
                                    dependencies: [
                                     gl_common_dep,
                                     m_lib,
                                    ])
 endif
 
-vlc_modules += {
+heimdall_modules += {
     'name' : 'gl',
     'sources' : [
             files('display.c'),
             opengl_vout_commonsources
         ],
-    'link_with' : [libvlc_opengl],
+    'link_with' : [libheimdall_opengl],
     'dependencies' : [gl_common_dep, m_lib],
     'plugin_dir' : 'video_output',
     'enabled' : opengl_dep.found() and not (have_ios or have_tvos or host_system == 'android')
 }
 
-libvlc_opengles = []
+libheimdall_opengles = []
 if opengles2_dep.found()
-    libvlc_opengles = static_library('vlc_opengles',
+    libheimdall_opengles = static_library('heimdall_opengles',
                                      dependencies: [gl_common_dep, m_lib],
                                      c_args: '-DUSE_OPENGL_ES2')
 endif
@@ -67,11 +67,11 @@ endif
 gl_vout_dep = disabler()
 if opengl_dep.found() and not (have_ios or have_tvos or host_system == 'android')
     gl_vout_dep = declare_dependency(
-        link_with: libvlc_opengl,
+        link_with: libheimdall_opengl,
     )
 elif opengles2_dep.found() or have_ios or have_tvos or host_system == 'android'
     gl_vout_dep = declare_dependency(
-        link_with: libvlc_opengles,
+        link_with: libheimdall_opengles,
         compile_args: ['-DUSE_OPENGL_ES2'],
     )
 endif
@@ -85,26 +85,26 @@ endif
 gl_plugin_dep = disabler()
 if opengl_dep.found() and not (have_ios or have_tvos or host_system == 'android')
     gl_plugin_dep = declare_dependency(
-        link_with: libvlc_opengl,
+        link_with: libheimdall_opengl,
         compile_args: opengl_headers_c_args,
         dependencies: [opengl_dep.partial_dependency(compile_args: true, includes: true)],
     )
 elif opengles2_dep.found() or have_ios or have_tvos or host_system == 'android'
     gl_plugin_dep = declare_dependency(
-        link_with: libvlc_opengles,
+        link_with: libheimdall_opengles,
         compile_args: opengl_headers_c_args + ['-DUSE_OPENGL_ES2'],
         dependencies: [opengles2_dep.partial_dependency(compile_args: true, includes: true)],
     )
 endif
 
 # gles2 vout display module
-vlc_modules += {
+heimdall_modules += {
     'name' : 'gles2',
     'sources' : [
             files('display.c'),
             opengl_vout_commonsources
         ],
-    'link_with' : [libvlc_opengles],
+    'link_with' : [libheimdall_opengles],
     'dependencies' : [gl_common_dep, m_lib],
     'c_args' : ['-DUSE_OPENGL_ES2'],
     'plugin_dir' : 'video_output',
@@ -112,7 +112,7 @@ vlc_modules += {
 }
 
 # glfilter_draw
-vlc_modules += {
+heimdall_modules += {
     'name' : 'glfilter_draw',
     'sources' : files('filter_draw.c'),
     'dependencies' : [gl_plugin_dep, m_lib],
@@ -121,7 +121,7 @@ vlc_modules += {
 }
 
 # glfilter_mock (test module)
-vlc_modules += {
+heimdall_modules += {
     'name' : 'glfilter_mock',
     'sources' : files('filter_mock.c'),
     'dependencies' : [gl_plugin_dep, m_lib],
@@ -138,7 +138,7 @@ if libplacebo_dep.found()
     glsampler_builtin_deps += libplacebo_dep
     glsampler_builtin_link += libplacebo_utils
 endif
-vlc_modules += {
+heimdall_modules += {
     'name' : 'glsampler_builtin',
     'sources' : files('sampler.c'),
     'dependencies' : glsampler_builtin_deps,
@@ -149,7 +149,7 @@ vlc_modules += {
 }
 
 # interop_sw
-vlc_modules += {
+heimdall_modules += {
     'name' : 'glinterop_sw',
     'sources' : files('interop_sw.c'),
     'dependencies' : [gl_common_dep, gl_vout_dep, m_lib],
@@ -159,7 +159,7 @@ vlc_modules += {
 
 # interop_dxva2
 dxva2_dep = cc.find_library('dxva2', required: false)
-vlc_modules += {
+heimdall_modules += {
     'name' : 'glinterop_dxva2',
     'sources' : files('interop_dxva2.c'),
     'c_args' : [ contrib_inc_args ],
@@ -170,11 +170,11 @@ vlc_modules += {
 }
 
 # glinterop_vaapi - VAAPI (E)GL interop
-vlc_modules += {
+heimdall_modules += {
     'name' : 'glinterop_vaapi',
     'sources' : files(
         'interop_vaapi.c',
-        '../../hw/vaapi/vlc_vaapi.c',
+        '../../hw/vaapi/heimdall_vaapi.c',
     ),
     'dependencies' : [gl_common_dep, libva_dep, egl_dep, drm_includes],
     'plugin_dir' : 'video_output',
@@ -182,7 +182,7 @@ vlc_modules += {
 }
 
 # egl_display_generic
-vlc_modules += {
+heimdall_modules += {
     'name' : 'egl_display_generic',
     'sources' : files('egl_display_generic.c'),
     'dependencies' : [egl_dep],
@@ -199,7 +199,7 @@ if drm_dep.found()
     egl_display_gbm_deps += drm_dep
 endif
 
-vlc_modules += {
+heimdall_modules += {
     'name' : 'egl_display_gbm',
     'sources' : files('egl_display_gbm.c'),
     'dependencies' : egl_display_gbm_deps,

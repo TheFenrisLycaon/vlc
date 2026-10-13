@@ -2,6 +2,7 @@
  * mainctx_win32.cpp : Main interface
  ****************************************************************************
  * Copyright (C) 2006-2010 VideoLAN and AUTHORS
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Jean-Baptiste Kempf <jb@videolan.org>
  *          Hugo Beauzée-Luyssen <hugo@beauzee.fr>
@@ -99,7 +100,7 @@ public:
         // Only applicable with Direct Composition:
         assert(p_intf);
         assert(p_intf->p_compositor);
-        if (p_intf->p_compositor->type() != vlc::Compositor::DirectCompositionCompositor)
+        if (p_intf->p_compositor->type() != heimdall::Compositor::DirectCompositionCompositor)
             return false;
 
         return createWindowWithoutRedirectionSurfaceImpl(window);

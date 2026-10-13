@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Benjamin Arnaud <bunjee@omega.gg>
  *
@@ -20,11 +21,11 @@
 
 import QtQuick
 
-import VLC.Style
+import Heimdall.Style
 
 ButtonExt {
     id: control
 
     colorContext.colorSet: ColorContext.ButtonAccent
-    iconSize: VLCStyle.icon_actionButton
+    iconSize: HeimdallStyle.icon_actionButton
 }

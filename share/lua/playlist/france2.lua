@@ -1,8 +1,9 @@
 --[[
 
  Copyright © 2008 the VideoLAN team
+ Copyright (C) 2026 TheFenrisLycaon
 
- Authors: Antoine Cellerier <dionoea at videolan dot org>
+ Authors: Antoine Cellerier <dionoea at lycaria dot org>
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -21,8 +22,8 @@
 
 -- Probe function.
 function probe()
-    return vlc.access == "http"
-        and string.match( vlc.path, "^www%.francetvinfo%.fr/replay%-jt/.+" )
+    return heimdall.access == "http"
+        and string.match( heimdall.path, "^www%.francetvinfo%.fr/replay%-jt/.+" )
 end
 
 -- Parse function.
@@ -30,7 +31,7 @@ function parse()
     p = {}
     while true do
         -- Try to find the video's title
-        line = vlc.readline()
+        line = heimdall.readline()
         if not line then break end
         if string.match( line, "class=\"editiondate\"" ) then
             _,_,editiondate = string.find( line, "<h1>(.-)</h1>" )
@@ -46,7 +47,7 @@ function parse()
             if oldtime then
                 table.insert( p, { path = video; name = name; duration = time - oldtime; options = { ':start-time='..tostring(oldtime); ':stop-time='..tostring(time) } } )
             end
-            name = vlc.strings.resolve_xml_special_chars( string.gsub( line, "^.*>(.*)<..*$", "%1" ) )
+            name = heimdall.strings.resolve_xml_special_chars( string.gsub( line, "^.*>(.*)<..*$", "%1" ) )
         end
     end
     if oldtime then

@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,11 +20,11 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Templates as T
 
-import VLC.MainInterface
-import VLC.Dialogs
-import VLC.Widgets as Widgets
-import VLC.Util
-import VLC.Style
+import Heimdall.MainInterface
+import Heimdall.Dialogs
+import Heimdall.Widgets as Widgets
+import Heimdall.Util
+import Heimdall.Style
 
 Item {
     id: root
@@ -51,10 +52,10 @@ Item {
 
     Component.onDestruction: {
         if (questionDialog.dialogId !== null) {
-            vlcDialog.dismiss(questionDialog.dialogId)
+            heimdallDialog.dismiss(questionDialog.dialogId)
             questionDialog.dialogId = null
         } if (loginDialog.dialogId !== null) {
-            vlcDialog.dismiss(loginDialog.dialogId)
+            heimdallDialog.dismiss(loginDialog.dialogId)
             loginDialog.dialogId = null
         }
     }
@@ -71,18 +72,18 @@ Item {
     // Connections
     //---------------------------------------------------------------------------------------------
 
-    VLCDialog
+    HeimdallDialog
     {
-        id: vlcDialog
+        id: heimdallDialog
 
         Component.onCompleted: {
-            VLCDialogModel.provider = vlcDialog
+            HeimdallDialogModel.provider = heimdallDialog
         }
 
         Component.onDestruction: {
             // Only clear the provider if we are still the current one.
-            if (VLCDialogModel.provider === vlcDialog)
-                VLCDialogModel.provider = null
+            if (HeimdallDialogModel.provider === heimdallDialog)
+                HeimdallDialogModel.provider = null
         }
 
         onLogin: (dialogId, title, text, defaultUsername, askStore) => {
@@ -163,7 +164,7 @@ Item {
         anchors {
             bottom: parent.bottom
             horizontalCenter: parent.horizontalCenter
-            bottomMargin: VLCStyle.margin_small
+            bottomMargin: HeimdallStyle.margin_small
         }
 
         edge: Widgets.DrawerExt.Edges.Bottom
@@ -173,15 +174,15 @@ Item {
 
         ColorContext {
             id: errorMsgTheme
-            palette: VLCStyle.palette
+            palette: HeimdallStyle.palette
             colorSet: ColorContext.Window
         }
 
         component: Rectangle {
             color: errorMsgTheme.bg.negative
 
-            height: messageText.implicitHeight + VLCStyle.margin_normal
-            radius: VLCStyle.fontHeight_normal / 2
+            height: messageText.implicitHeight + HeimdallStyle.margin_normal
+            radius: HeimdallStyle.fontHeight_normal / 2
 
             property real layoutWidth: layout.width
 
@@ -191,28 +192,28 @@ Item {
             RowLayout {
                 id: layout
 
-                spacing: VLCStyle.margin_xsmall
+                spacing: HeimdallStyle.margin_xsmall
                 anchors.top: parent.top
                 anchors.bottom: parent.bottom
 
                 Widgets.IconLabel {
-                    text: VLCIcons.info
+                    text: HeimdallIcons.info
                     color: errorMsgTheme.fg.primary
-                    Layout.leftMargin: VLCStyle.margin_xxsmall
+                    Layout.leftMargin: HeimdallStyle.margin_xxsmall
                 }
 
                 T.Label {
                     id: messageText
 
                     Layout.maximumWidth: root.width * 0.5
-                    Layout.leftMargin: VLCStyle.margin_xxsmall
-                    Layout.rightMargin: VLCStyle.margin_xxsmall
+                    Layout.leftMargin: HeimdallStyle.margin_xxsmall
+                    Layout.rightMargin: HeimdallStyle.margin_xxsmall
 
                     text: (DialogErrorModel.repeatedMessageCount > 1 ? '[' + DialogErrorModel.repeatedMessageCount + '] ' : '')
                           + DialogErrorModel.notificationText
 
                     wrapMode: Text.WrapAnywhere
-                    font.pixelSize: VLCStyle.fontSize_normal
+                    font.pixelSize: HeimdallStyle.fontSize_normal
                     font.bold: true
                     color: errorMsgTheme.fg.primary
                 }
@@ -234,10 +235,10 @@ Item {
 
                 Widgets.IconToolButton {
                     id: closeBtn
-                    font.pixelSize: VLCStyle.icon_normal
-                    text: VLCIcons.clear
+                    font.pixelSize: HeimdallStyle.icon_normal
+                    text: HeimdallIcons.clear
                     description: qsTr("Dismiss")
-                    Layout.rightMargin: VLCStyle.margin_xxsmall
+                    Layout.rightMargin: HeimdallStyle.margin_xxsmall
 
                     color: closeBtn.colorContext.fg.primary
                     backgroundColor: closeBtn.colorContext.bg.negative
@@ -251,8 +252,8 @@ Item {
             }
 
             Widgets.RoundedRectangleShadow {
-                yOffset: VLCStyle.dp(4, VLCStyle.scale)
-                blurRadius: VLCStyle.dp(3, VLCStyle.scale)
+                yOffset: HeimdallStyle.dp(4, HeimdallStyle.scale)
+                blurRadius: HeimdallStyle.dp(3, HeimdallStyle.scale)
 
                 opacity: 0.2
 
@@ -290,14 +291,14 @@ Item {
 
             readonly property ColorContext colorContext: ColorContext {
                 id: loginContentTheme
-                palette: VLCStyle.palette
+                palette: HeimdallStyle.palette
                 colorSet: ColorContext.Window
             }
 
             Text {
                 text: qsTr("User")
                 color: loginContentTheme.fg.primary
-                font.pixelSize: VLCStyle.fontSize_normal
+                font.pixelSize: HeimdallStyle.fontSize_normal
             }
 
             Widgets.TextFieldExt {
@@ -316,14 +317,14 @@ Item {
             Text {
                 text: qsTr("Password")
                 color: loginContentTheme.fg.primary
-                font.pixelSize: VLCStyle.fontSize_normal
+                font.pixelSize: HeimdallStyle.fontSize_normal
             }
 
             Widgets.TextFieldExt {
                 id: password
 
                 echoMode: TextInput.Password
-                font.pixelSize: VLCStyle.fontSize_normal
+                font.pixelSize: HeimdallStyle.fontSize_normal
                 Layout.fillWidth:true
 
                 Navigation.upItem: username
@@ -335,7 +336,7 @@ Item {
             Text {
                 text: qsTr("Save password")
                 color: loginContentTheme.fg.primary
-                font.pixelSize: VLCStyle.fontSize_normal
+                font.pixelSize: HeimdallStyle.fontSize_normal
             }
             Widgets.CheckBoxExt {
                 id: savePassword
@@ -349,11 +350,11 @@ Item {
 
         footer: FocusScope {
             id: loginButtons
-            implicitHeight: VLCStyle.icon_normal
+            implicitHeight: HeimdallStyle.icon_normal
 
             readonly property ColorContext colorContext: ColorContext {
                 id: loginFooterTheme
-                palette: VLCStyle.palette
+                palette: HeimdallStyle.palette
                 colorSet: ColorContext.Window
             }
 
@@ -363,8 +364,8 @@ Item {
 
                 RowLayout {
                     anchors.fill: parent
-                    anchors.leftMargin: VLCStyle.margin_xxsmall
-                    anchors.rightMargin: VLCStyle.margin_xxsmall
+                    anchors.leftMargin: HeimdallStyle.margin_xxsmall
+                    anchors.rightMargin: HeimdallStyle.margin_xxsmall
 
                     Widgets.TextToolButton {
                         id: loginCancel
@@ -404,13 +405,13 @@ Item {
 
         onAccepted: {
             if (loginDialog.dialogId !== null) {
-                vlcDialog.post_login(loginDialog.dialogId, username.text, password.text, savePassword.checked)
+                heimdallDialog.post_login(loginDialog.dialogId, username.text, password.text, savePassword.checked)
                 loginDialog.dialogId = null
             }
         }
         onRejected: {
             if (loginDialog.dialogId !== null) {
-                vlcDialog.dismiss(loginDialog.dialogId)
+                heimdallDialog.dismiss(loginDialog.dialogId)
                 loginDialog.dialogId = null
             }
         }
@@ -433,13 +434,13 @@ Item {
 
             readonly property ColorContext colorContext: ColorContext {
                 id: progressContentTheme
-                palette: VLCStyle.palette
+                palette: HeimdallStyle.palette
                 colorSet: ColorContext.Window
             }
 
             Text {
                 focus: false
-                font.pixelSize: VLCStyle.fontSize_normal
+                font.pixelSize: HeimdallStyle.fontSize_normal
                 color: progressContentTheme.fg.primary
                 text: progressDialog.text
                 wrapMode: Text.WordWrap
@@ -459,18 +460,18 @@ Item {
 
         footer: FocusScope {
             focus: true
-            implicitHeight: VLCStyle.icon_normal
+            implicitHeight: HeimdallStyle.icon_normal
 
             readonly property ColorContext colorContext: ColorContext {
-                palette: VLCStyle.palette
+                palette: HeimdallStyle.palette
                 colorSet: ColorContext.Window
             }
 
             Rectangle {
                 color: questionDialog.colorContext.bg.primary
                 anchors.fill: parent
-                anchors.leftMargin: VLCStyle.margin_xxsmall
-                anchors.rightMargin: VLCStyle.margin_xxsmall
+                anchors.leftMargin: HeimdallStyle.margin_xxsmall
+                anchors.rightMargin: HeimdallStyle.margin_xxsmall
 
                 Widgets.TextToolButton {
                     anchors.right: parent.right
@@ -479,7 +480,7 @@ Item {
                     text: progressDialog.cancelTxt
 
                     onClicked: {
-                        vlcDialog.dismiss(progressDialog.dialogId)
+                        heimdallDialog.dismiss(progressDialog.dialogId)
                         progressDialog.dialogId = null
                         progressDialog.close()
                     }
@@ -505,7 +506,7 @@ Item {
         contentItem: Text {
             id: content
             focus: false
-            font.pixelSize: VLCStyle.fontSize_normal
+            font.pixelSize: HeimdallStyle.fontSize_normal
             color: questionDialog.colorContext.fg.primary
             wrapMode: Text.WordWrap
         }
@@ -513,18 +514,18 @@ Item {
         footer: FocusScope {
             focus: true
             id: questionButtons
-            implicitHeight: VLCStyle.icon_normal
+            implicitHeight: HeimdallStyle.icon_normal
 
             readonly property ColorContext colorContext: ColorContext {
-                palette: VLCStyle.palette
+                palette: HeimdallStyle.palette
                 colorSet: ColorContext.Window
             }
 
             Rectangle {
                 color: questionDialog.colorContext.bg.primary
                 anchors.fill: parent
-                anchors.leftMargin: VLCStyle.margin_xxsmall
-                anchors.rightMargin: VLCStyle.margin_xxsmall
+                anchors.leftMargin: HeimdallStyle.margin_xxsmall
+                anchors.rightMargin: HeimdallStyle.margin_xxsmall
 
                 RowLayout {
                     anchors.fill: parent
@@ -542,7 +543,7 @@ Item {
                         Keys.onPressed: (event) => Navigation.defaultKeyAction(event)
 
                         onClicked: {
-                            vlcDialog.dismiss(questionDialog.dialogId)
+                            heimdallDialog.dismiss(questionDialog.dialogId)
                             questionDialog.dialogId = null
                             questionDialog.close()
                         }
@@ -561,7 +562,7 @@ Item {
                         Keys.onPressed: (event) => Navigation.defaultKeyAction(event)
 
                         onClicked: {
-                            vlcDialog.post_action1(questionDialog.dialogId)
+                            heimdallDialog.post_action1(questionDialog.dialogId)
                             questionDialog.dialogId = null
                             questionDialog.close()
                         }
@@ -578,7 +579,7 @@ Item {
                         Keys.onPressed: (event) => Navigation.defaultKeyAction(event)
 
                         onClicked: {
-                            vlcDialog.post_action2(questionDialog.dialogId)
+                            heimdallDialog.post_action2(questionDialog.dialogId)
                             questionDialog.dialogId = null
                             questionDialog.close()
                         }
@@ -597,7 +598,7 @@ Item {
     Loader {
         id: toolbarEditorDialogLoader
         active: false
-        source: "qrc:///qt/qml/VLC/Dialogs/ToolbarEditorDialog.qml"
+        source: "qrc:///qt/qml/Heimdall/Dialogs/ToolbarEditorDialog.qml"
 
         Connections {
             target: DialogsProvider

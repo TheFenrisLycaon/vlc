@@ -2,9 +2,10 @@
  * colorthres.c: Threshold color based on similarity to reference color
  *****************************************************************************
  * Copyright (C) 2000-2009 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Sigmund Augdal <dnumgis@videolan.org>
- *          Antoine Cellerier <dionoea at videolan dot org>
+ *          Antoine Cellerier <dionoea at lycaria dot org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -32,12 +33,12 @@
 #include <math.h>
 #include <stdatomic.h>
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_sout.h>
-#include <vlc_filter.h>
-#include <vlc_picture.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_sout.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
 #include "filter_picture.h"
 
 /*****************************************************************************
@@ -65,7 +66,7 @@ static const char *const ppsz_color_descriptions[] = {
 
 #define CFG_PREFIX "colorthres-"
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("Color threshold filter") )
     set_shortname( N_("Color threshold" ))
     set_help(COLOR_HELP)
@@ -77,7 +78,7 @@ vlc_module_begin ()
     add_integer( CFG_PREFIX "similaritythres", 15,
                  N_("Similarity threshold"), "" )
     set_callback_video_filter( Create )
-vlc_module_end ()
+heimdall_module_end ()
 
 static const char *const ppsz_filter_options[] = {
     "color", "saturationthres", "similaritythres", NULL
@@ -86,8 +87,8 @@ static const char *const ppsz_filter_options[] = {
 /*****************************************************************************
  * callback prototypes
  *****************************************************************************/
-static int FilterCallback( vlc_object_t *, char const *,
-                           vlc_value_t, vlc_value_t, void * );
+static int FilterCallback( heimdall_object_t *, char const *,
+                           heimdall_value_t, heimdall_value_t, void * );
 
 
 /*****************************************************************************
@@ -100,7 +101,7 @@ typedef struct
     atomic_int i_color;
 } filter_sys_t;
 
-static const struct vlc_filter_operations packed_filter_ops =
+static const struct heimdall_filter_operations packed_filter_ops =
 {
     .filter_video = FilterPacked, .close = Destroy,
 };
@@ -127,20 +128,20 @@ static int Create( filter_t *p_filter )
         default:
             msg_Err( p_filter, "Unsupported input chroma (%4.4s)",
                      (char*)&(p_filter->fmt_in.video.i_chroma) );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 
     if( !video_format_IsSameChroma( &p_filter->fmt_in.video,
                                     &p_filter->fmt_out.video ) )
     {
         msg_Err( p_filter, "Input and output chromas don't match" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Allocate structure */
     p_sys = p_filter->p_sys = malloc( sizeof( filter_sys_t ) );
     if( p_filter->p_sys == NULL )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     config_ChainParse( p_filter, CFG_PREFIX, ppsz_filter_options,
                        p_filter->p_cfg );
@@ -155,7 +156,7 @@ static int Create( filter_t *p_filter )
     var_AddCallback( p_filter, CFG_PREFIX "similaritythres", FilterCallback, p_sys );
     var_AddCallback( p_filter, CFG_PREFIX "saturationthres", FilterCallback, p_sys );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -271,7 +272,7 @@ static picture_t *FilterPacked( filter_t *p_filter, picture_t *p_pic )
     int i_y_offset, i_u_offset, i_v_offset;
     int i_ret = GetPackedYuvOffsets( p_filter->fmt_in.video.i_chroma,
                                      &i_y_offset, &i_u_offset, &i_v_offset );
-    if( i_ret == VLC_EGENERIC )
+    if( i_ret == HEIMDALL_EGENERIC )
     {
         picture_Release( p_pic );
         return NULL;
@@ -314,8 +315,8 @@ static picture_t *FilterPacked( filter_t *p_filter, picture_t *p_pic )
     return CopyInfoAndRelease( p_outpic, p_pic );
 }
 
-static int FilterCallback ( vlc_object_t *p_this, char const *psz_var,
-                         vlc_value_t oldval, vlc_value_t newval, void *p_data )
+static int FilterCallback ( heimdall_object_t *p_this, char const *psz_var,
+                         heimdall_value_t oldval, heimdall_value_t newval, void *p_data )
 {
     filter_sys_t *p_sys = p_data;
 
@@ -327,5 +328,5 @@ static int FilterCallback ( vlc_object_t *p_this, char const *psz_var,
         atomic_store( &p_sys->i_satthres, newval.i_int );
 
     (void)p_this; (void)oldval;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

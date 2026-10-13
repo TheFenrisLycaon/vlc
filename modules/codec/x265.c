@@ -2,8 +2,9 @@
  * x265.c: HEVC/H.265 video encoder
  *****************************************************************************
  * Copyright (C) 2013 Rafaël Carré
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Rafaël Carré <funman@videolanorg>
+ * Authors: Rafaël Carré <funman@lycariaorg>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,12 +28,12 @@
 # include "config.h"
 #endif
 
-#define VLC_MODULE_LICENSE VLC_LICENSE_GPL_2_PLUS
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_threads.h>
-#include <vlc_sout.h>
-#include <vlc_codec.h>
+#define HEIMDALL_MODULE_LICENSE HEIMDALL_LICENSE_GPL_2_PLUS
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_threads.h>
+#include <heimdall_sout.h>
+#include <heimdall_codec.h>
 
 #include <x265.h>
 
@@ -46,15 +47,15 @@
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  Open (vlc_object_t *);
+static int  Open (heimdall_object_t *);
 static void Close(encoder_t *);
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description(N_("H.265/HEVC encoder (x265)"))
     set_capability("video encoder", 200)
     set_callback(Open)
     set_subcategory(SUBCAT_INPUT_VCODEC)
-vlc_module_end ()
+heimdall_module_end ()
 
 typedef struct
 {
@@ -63,7 +64,7 @@ typedef struct
 
     unsigned        frame_count;
 #ifndef NDEBUG
-    vlc_tick_t      start;
+    heimdall_tick_t      start;
 #endif
 } encoder_sys_t;
 
@@ -82,8 +83,8 @@ static block_t *Encode(encoder_t *p_enc, picture_t *p_pict)
     if (likely(p_pict)) {
         pic.pts = p_pict->date;
 #ifndef NDEBUG
-        if (unlikely(p_sys->start == VLC_TICK_INVALID)) {
-            p_sys->start = vlc_tick_now();
+        if (unlikely(p_sys->start == HEIMDALL_TICK_INVALID)) {
+            p_sys->start = heimdall_tick_now();
         }
 #endif
         for (int i = 0; i < p_pict->i_planes; i++) {
@@ -117,7 +118,7 @@ static block_t *Encode(encoder_t *p_enc, picture_t *p_pict)
     memcpy(p_block->p_buffer, nal[0].payload, i_out);
 
     /* This isn't really valid for streams with B-frames */
-    p_block->i_length = vlc_tick_from_samples(
+    p_block->i_length = heimdall_tick_from_samples(
                 p_enc->fmt_in.video.i_frame_rate_base,
                 p_enc->fmt_in.video.i_frame_rate );
 
@@ -141,32 +142,32 @@ static block_t *Encode(encoder_t *p_enc, picture_t *p_pict)
 
 #ifndef NDEBUG
     msg_Dbg(p_enc, "%zu bytes (frame %u, %.2ffps)", p_block->i_buffer,
-        p_sys->frame_count, (float)p_sys->frame_count * CLOCK_FREQ / (vlc_tick_now() - p_sys->start));
+        p_sys->frame_count, (float)p_sys->frame_count * CLOCK_FREQ / (heimdall_tick_now() - p_sys->start));
 #endif
 
     return p_block;
 }
 
-static int  Open (vlc_object_t *p_this)
+static int  Open (heimdall_object_t *p_this)
 {
     encoder_t     *p_enc = (encoder_t *)p_this;
     encoder_sys_t *p_sys;
 
-    if (p_enc->fmt_out.i_codec != VLC_CODEC_HEVC && !p_enc->obj.force)
-        return VLC_EGENERIC;
+    if (p_enc->fmt_out.i_codec != HEIMDALL_CODEC_HEVC && !p_enc->obj.force)
+        return HEIMDALL_EGENERIC;
 
     p_enc->fmt_out.i_cat = VIDEO_ES;
-    p_enc->fmt_out.i_codec = VLC_CODEC_HEVC;
+    p_enc->fmt_out.i_codec = HEIMDALL_CODEC_HEVC;
     p_sys = malloc(sizeof(encoder_sys_t));
     if (!p_sys)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    p_enc->fmt_in.i_codec = p_enc->fmt_in.video.i_chroma = VLC_CODEC_I420;
+    p_enc->fmt_in.i_codec = p_enc->fmt_in.video.i_chroma = HEIMDALL_CODEC_I420;
 
     x265_param *param = &p_sys->param;
     x265_param_default(param);
 
-    param->frameNumThreads = vlc_GetCPUCount();
+    param->frameNumThreads = heimdall_GetCPUCount();
     if(param->frameNumThreads > X265_MAX_FRAME_THREADS)
         param->frameNumThreads = X265_MAX_FRAME_THREADS;
     param->bEnableWavefront = 0; // buggy in x265, use frame threading for now
@@ -194,12 +195,12 @@ static int  Open (vlc_object_t *p_this)
         msg_Err(p_enc, "Width (%d) must be a multiple of %d",
             param->sourceWidth, param->maxCUSize);
         free(p_sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     if (param->sourceHeight & 7) {
         msg_Err(p_enc, "Height (%d) must be a multiple of 8", param->sourceHeight);
         free(p_sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if (p_enc->fmt_out.i_bitrate > 0) {
@@ -211,7 +212,7 @@ static int  Open (vlc_object_t *p_this)
     if (p_sys->h == NULL) {
         msg_Err(p_enc, "cannot open x265 encoder");
         free(p_sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     x265_nal *nal;
@@ -219,7 +220,7 @@ static int  Open (vlc_object_t *p_this)
     if (x265_encoder_headers(p_sys->h, &nal, &i_nal) < 0) {
         msg_Err(p_enc, "cannot get x265 headers");
         Close(p_enc);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     size_t i_extra = 0;
@@ -231,7 +232,7 @@ static int  Open (vlc_object_t *p_this)
     uint8_t *p_extra = p_enc->fmt_out.p_extra = malloc(i_extra);
     if (!p_extra) {
         Close(p_enc);
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     for (uint32_t i = 0; i < i_nal; i++) {
@@ -241,10 +242,10 @@ static int  Open (vlc_object_t *p_this)
 
     p_sys->frame_count = 0;
 #ifndef NDEBUG
-    p_sys->start = VLC_TICK_INVALID;
+    p_sys->start = HEIMDALL_TICK_INVALID;
 #endif
 
-    static const struct vlc_encoder_operations ops =
+    static const struct heimdall_encoder_operations ops =
     {
         .close = Close,
         .encode_video = Encode,
@@ -252,7 +253,7 @@ static int  Open (vlc_object_t *p_this)
     p_enc->ops = &ops;
     p_enc->p_sys = p_sys;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void Close(encoder_t *p_enc)

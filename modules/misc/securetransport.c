@@ -2,6 +2,7 @@
  * securetransport.c
  *****************************************************************************
  * Copyright (C) 2013 David Fuhrmann
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -26,17 +27,17 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_threads.h>
-#include <vlc_plugin.h>
-#include <vlc_tls.h>
-#include <vlc_dialog.h>
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
+#include <heimdall_plugin.h>
+#include <heimdall_tls.h>
+#include <heimdall_dialog.h>
 
 #include <Security/Security.h>
 #include <Security/SecureTransport.h>
 #include <TargetConditionals.h>
 
-#include <vlc_charset.h>
+#include <heimdall_charset.h>
 
 /* From MacErrors.h (cannot be included because it isn't present in iOS: */
 #ifndef ioErr
@@ -47,7 +48,7 @@
  * ALPN helper functions
  *****************************************************************************/
 
-/* Converts the VLC ALPN C array (null-terminated) to a ALPN
+/* Converts the Heimdall ALPN C array (null-terminated) to a ALPN
  * CFMutableArray as expected by the Secure Transport API
  * Returns CFMutableArrayRef on success, else NULL.
  */
@@ -87,13 +88,13 @@ static char* CFArrayALPNCopyFirst(CFArrayRef alpnArray)
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  OpenClient  (vlc_tls_client_t *);
+static int  OpenClient  (heimdall_tls_client_t *);
 
 #if !TARGET_OS_IPHONE
-    static int  OpenServer  (vlc_tls_server_t *crd, const char *cert, const char *key);
+    static int  OpenServer  (heimdall_tls_server_t *crd, const char *cert, const char *key);
 #endif
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description(N_("TLS support for OS X and iOS"))
     set_capability("tls client", 2)
     set_callback(OpenClient)
@@ -112,7 +113,7 @@ vlc_module_begin ()
         set_subcategory(SUBCAT_ADVANCED_NETWORK)
 #endif /* !TARGET_OS_IPHONE */
 
-vlc_module_end ()
+heimdall_module_end ()
 
 
 #define cfKeyHost CFSTR("host")
@@ -123,26 +124,26 @@ typedef struct {
 
     /* valid in server mode */
     CFArrayRef server_cert_chain;
-} vlc_tls_creds_sys_t;
+} heimdall_tls_creds_sys_t;
 
 typedef struct {
-    vlc_tls_t tls;
+    heimdall_tls_t tls;
     SSLContextRef p_context;
-    vlc_tls_creds_sys_t *p_cred;
+    heimdall_tls_creds_sys_t *p_cred;
     size_t i_send_buffered_bytes;
-    vlc_tls_t *sock;
-    vlc_object_t *obj;
+    heimdall_tls_t *sock;
+    heimdall_object_t *obj;
 
     bool b_blocking_send;
     bool b_handshaked;
     bool b_server_mode;
 
-    vlc_mutex_t lock;
-} vlc_tls_st_t;
+    heimdall_mutex_t lock;
+} heimdall_tls_st_t;
 
-static int st_Error (vlc_tls_t *obj, int val)
+static int st_Error (heimdall_tls_t *obj, int val)
 {
-    vlc_tls_st_t *sys = (vlc_tls_st_t *)obj;
+    heimdall_tls_st_t *sys = (heimdall_tls_st_t *)obj;
 
     switch (val)
     {
@@ -171,8 +172,8 @@ static OSStatus st_SocketReadFunc (SSLConnectionRef connection,
                                    void *data,
                                    size_t *dataLength) {
 
-    vlc_tls_t *session = (vlc_tls_t *)connection;
-    vlc_tls_st_t *sys = (vlc_tls_st_t *)session;
+    heimdall_tls_t *session = (heimdall_tls_t *)connection;
+    heimdall_tls_st_t *sys = (heimdall_tls_st_t *)session;
     struct iovec iov = {
         .iov_base = data,
         .iov_len = *dataLength,
@@ -225,8 +226,8 @@ static OSStatus st_SocketWriteFunc (SSLConnectionRef connection,
                                     const void *data,
                                     size_t *dataLength) {
 
-    vlc_tls_t *session = (vlc_tls_t *)connection;
-    vlc_tls_st_t *sys = (vlc_tls_st_t *)session;
+    heimdall_tls_t *session = (heimdall_tls_t *)connection;
+    heimdall_tls_st_t *sys = (heimdall_tls_st_t *)session;
     struct iovec iov = {
         .iov_base = (void *)data,
         .iov_len = *dataLength,
@@ -263,9 +264,9 @@ static OSStatus st_SocketWriteFunc (SSLConnectionRef connection,
     return retValue;
 }
 
-static int st_validateServerCertificate (vlc_tls_t *session, const char *hostname) {
+static int st_validateServerCertificate (heimdall_tls_t *session, const char *hostname) {
 
-    vlc_tls_st_t *sys = (vlc_tls_st_t *)session;
+    heimdall_tls_st_t *sys = (heimdall_tls_st_t *)session;
     int result = -1;
     SecCertificateRef leaf_cert = NULL;
 
@@ -355,11 +356,11 @@ static int st_validateServerCertificate (vlc_tls_t *session, const char *hostnam
              "This problem may be caused by a configuration error "
              "or an attempt to breach your security or your privacy.\n\n"
              "If in doubt, abort now.\n");
-    int answer = vlc_dialog_wait_question(sys->obj,
-                                          VLC_DIALOG_QUESTION_WARNING, _("Abort"),
+    int answer = heimdall_dialog_wait_question(sys->obj,
+                                          HEIMDALL_DIALOG_QUESTION_WARNING, _("Abort"),
                                           _("Accept certificate temporarily"),
                                           NULL, _("Insecure site"),
-                                          vlc_gettext (msg), hostname);
+                                          heimdall_gettext (msg), hostname);
     if (answer == 1) {
         msg_Warn(sys->obj, "Proceeding despite of failed certificate validation");
 
@@ -403,13 +404,13 @@ out:
  * 1 if more would-be blocking recv is needed,
  * 2 if more would-be blocking send is required.
  */
-static int st_Handshake (vlc_tls_t *session,
+static int st_Handshake (heimdall_tls_t *session,
                          const char *host, const char *service,
                          char **restrict alp) {
 
-    vlc_tls_st_t *sys = (vlc_tls_st_t *)session;
+    heimdall_tls_st_t *sys = (heimdall_tls_st_t *)session;
 
-    VLC_UNUSED(service);
+    HEIMDALL_UNUSED(service);
 
     OSStatus retValue = SSLHandshake(sys->p_context);
 
@@ -482,27 +483,27 @@ static int st_Handshake (vlc_tls_t *session,
     }
 }
 
-static int st_GetFD (vlc_tls_t *session, short *restrict events)
+static int st_GetFD (heimdall_tls_t *session, short *restrict events)
 {
-    vlc_tls_st_t *sys = (vlc_tls_st_t *)session;
-    vlc_tls_t *sock = sys->sock;
+    heimdall_tls_st_t *sys = (heimdall_tls_st_t *)session;
+    heimdall_tls_t *sock = sys->sock;
 
-    return vlc_tls_GetPollFD(sock, events);
+    return heimdall_tls_GetPollFD(sock, events);
 }
 
 /**
  * Sends data through a TLS session.
  */
-static ssize_t st_Send (vlc_tls_t *session, const struct iovec *iov,
+static ssize_t st_Send (heimdall_tls_t *session, const struct iovec *iov,
                         unsigned count)
 {
-    vlc_tls_st_t *sys = (vlc_tls_st_t *)session;
+    heimdall_tls_st_t *sys = (heimdall_tls_st_t *)session;
     OSStatus ret = noErr;
 
     if (unlikely(count == 0))
         return 0;
 
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
 
     /*
      * SSLWrite does not return the number of bytes actually written to
@@ -532,7 +533,7 @@ static ssize_t st_Send (vlc_tls_t *session, const struct iovec *iov,
             sys->i_send_buffered_bytes = 0;
 
         } else if (ret == errSSLWouldBlock) {
-            vlc_mutex_unlock(&sys->lock);
+            heimdall_mutex_unlock(&sys->lock);
             errno = againErr;
             return -1;
         }
@@ -544,44 +545,44 @@ static ssize_t st_Send (vlc_tls_t *session, const struct iovec *iov,
         if (ret == errSSLWouldBlock) {
             sys->i_send_buffered_bytes = iov->iov_len;
             errno = againErr;
-            vlc_mutex_unlock(&sys->lock);
+            heimdall_mutex_unlock(&sys->lock);
             return -1;
         }
     }
 
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
     return ret != noErr ? st_Error(session, ret) : actualSize;
 }
 
 /**
  * Receives data through a TLS session.
  */
-static ssize_t st_Recv (vlc_tls_t *session, struct iovec *iov, unsigned count)
+static ssize_t st_Recv (heimdall_tls_t *session, struct iovec *iov, unsigned count)
 {
-    vlc_tls_st_t *sys = (vlc_tls_st_t *)session;
+    heimdall_tls_st_t *sys = (heimdall_tls_st_t *)session;
 
     if (unlikely(count == 0))
         return 0;
 
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
 
     size_t actualSize;
     OSStatus ret = SSLRead(sys->p_context, iov->iov_base, iov->iov_len,
                            &actualSize);
 
     if (ret == errSSLWouldBlock && actualSize) {
-        vlc_mutex_unlock(&sys->lock);
+        heimdall_mutex_unlock(&sys->lock);
         return actualSize;
     }
 
     /* peer performed shutdown */
     if (ret == errSSLClosedNoNotify || ret == errSSLClosedGraceful) {
         msg_Dbg(sys->obj, "Got close notification with code %i", (int)ret);
-        vlc_mutex_unlock(&sys->lock);
+        heimdall_mutex_unlock(&sys->lock);
         return 0;
     }
 
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
     return ret != noErr ? st_Error(session, ret) : actualSize;
 }
 
@@ -589,14 +590,14 @@ static ssize_t st_Recv (vlc_tls_t *session, struct iovec *iov, unsigned count)
  * Closes a TLS session.
  */
 
-static int st_SessionShutdown (vlc_tls_t *session, bool duplex) {
+static int st_SessionShutdown (heimdall_tls_t *session, bool duplex) {
 
-    vlc_tls_st_t *sys = (vlc_tls_st_t *)session;
+    heimdall_tls_st_t *sys = (heimdall_tls_st_t *)session;
 
     msg_Dbg(sys->obj, "shutdown TLS session");
 
     OSStatus ret = noErr;
-    VLC_UNUSED(duplex);
+    HEIMDALL_UNUSED(duplex);
 
     if (sys->b_handshaked) {
         ret = SSLClose(sys->p_context);
@@ -610,9 +611,9 @@ static int st_SessionShutdown (vlc_tls_t *session, bool duplex) {
     return 0;
 }
 
-static void st_SessionClose (vlc_tls_t *session) {
+static void st_SessionClose (heimdall_tls_t *session) {
 
-    vlc_tls_st_t *sys = (vlc_tls_st_t *)session;
+    heimdall_tls_st_t *sys = (heimdall_tls_st_t *)session;
     msg_Dbg(sys->obj, "close TLS session");
 
     if (sys->p_context) {
@@ -621,7 +622,7 @@ static void st_SessionClose (vlc_tls_t *session) {
     free(sys);
 }
 
-static const struct vlc_tls_operations st_ops =
+static const struct heimdall_tls_operations st_ops =
 {
     st_GetFD,
     st_Recv,
@@ -634,11 +635,11 @@ static const struct vlc_tls_operations st_ops =
  * Initializes a client-side TLS session.
  */
 
-static vlc_tls_st_t *st_SessionOpenCommon(vlc_object_t *obj,
-                                          vlc_tls_creds_sys_t *crd,
-                                          vlc_tls_t *sock, bool b_server)
+static heimdall_tls_st_t *st_SessionOpenCommon(heimdall_object_t *obj,
+                                          heimdall_tls_creds_sys_t *crd,
+                                          heimdall_tls_t *sock, bool b_server)
 {
-    vlc_tls_st_t *sys = malloc(sizeof (*sys));
+    heimdall_tls_st_t *sys = malloc(sizeof (*sys));
     if (unlikely(sys == NULL))
         return NULL;
 
@@ -649,10 +650,10 @@ static vlc_tls_st_t *st_SessionOpenCommon(vlc_object_t *obj,
     sys->p_context = NULL;
     sys->sock = sock;
     sys->b_server_mode = b_server;
-    vlc_mutex_init(&sys->lock);
+    heimdall_mutex_init(&sys->lock);
     sys->obj = obj;
 
-    vlc_tls_t *tls = &sys->tls;
+    heimdall_tls_t *tls = &sys->tls;
 
     tls->ops = &st_ops;
 
@@ -684,12 +685,12 @@ error:
     return NULL;
 }
 
-static vlc_tls_t *st_ClientSessionOpen(vlc_tls_client_t *crd, vlc_tls_t *sock,
+static heimdall_tls_t *st_ClientSessionOpen(heimdall_tls_client_t *crd, heimdall_tls_t *sock,
                                  const char *hostname, const char *const *alpn)
 {
     msg_Dbg(crd, "open TLS session for %s", hostname);
 
-    vlc_tls_st_t *sys = st_SessionOpenCommon(VLC_OBJECT(crd), crd->sys, sock,
+    heimdall_tls_st_t *sys = st_SessionOpenCommon(HEIMDALL_OBJECT(crd), crd->sys, sock,
                                              false);
     if (sys == NULL)
         return NULL;
@@ -765,10 +766,10 @@ error:
     return NULL;
 }
 
-static void st_ClientDestroy (vlc_tls_client_t *crd) {
+static void st_ClientDestroy (heimdall_tls_client_t *crd) {
     msg_Dbg(crd, "close secure transport client");
 
-    vlc_tls_creds_sys_t *sys = crd->sys;
+    heimdall_tls_creds_sys_t *sys = crd->sys;
 
     if (sys->whitelist)
         CFRelease(sys->whitelist);
@@ -776,7 +777,7 @@ static void st_ClientDestroy (vlc_tls_client_t *crd) {
     free(sys);
 }
 
-static const struct vlc_tls_client_operations st_ClientOps =
+static const struct heimdall_tls_client_operations st_ClientOps =
 {
     .open = st_ClientSessionOpen,
     .handshake = st_Handshake,
@@ -786,20 +787,20 @@ static const struct vlc_tls_client_operations st_ClientOps =
 /**
  * Initializes a client-side TLS credentials.
  */
-static int OpenClient (vlc_tls_client_t *crd) {
+static int OpenClient (heimdall_tls_client_t *crd) {
 
     msg_Dbg(crd, "open st client");
 
-    vlc_tls_creds_sys_t *sys = malloc (sizeof (*sys));
+    heimdall_tls_creds_sys_t *sys = malloc (sizeof (*sys));
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     sys->whitelist = CFArrayCreateMutable(kCFAllocatorDefault, 0, &kCFTypeArrayCallBacks);
     sys->server_cert_chain = NULL;
 
     crd->ops = &st_ClientOps;
     crd->sys = sys;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /* Begin of server-side methods */
@@ -808,18 +809,18 @@ static int OpenClient (vlc_tls_client_t *crd) {
 /**
  * Initializes a server-side TLS session.
  */
-static vlc_tls_t *st_ServerSessionOpen (vlc_tls_server_t *crd, vlc_tls_t *sock,
+static heimdall_tls_t *st_ServerSessionOpen (heimdall_tls_server_t *crd, heimdall_tls_t *sock,
                                         const char *const *alpn) {
 
-    VLC_UNUSED(alpn);
+    HEIMDALL_UNUSED(alpn);
     msg_Dbg(crd, "open TLS server session");
 
-    vlc_tls_st_t *sys = st_SessionOpenCommon(VLC_OBJECT(crd), crd->sys, sock,
+    heimdall_tls_st_t *sys = st_SessionOpenCommon(HEIMDALL_OBJECT(crd), crd->sys, sock,
                                              true);
     if (sys == NULL)
         return NULL;
 
-    vlc_tls_creds_sys_t *p_cred_sys = crd->sys;
+    heimdall_tls_creds_sys_t *p_cred_sys = crd->sys;
 
     OSStatus ret = SSLSetCertificate(sys->p_context, p_cred_sys->server_cert_chain);
     if (ret != noErr) {
@@ -835,15 +836,15 @@ error:
     return NULL;
 }
 
-static int st_ServerHandshake (vlc_tls_t *session, char **restrict alp) {
+static int st_ServerHandshake (heimdall_tls_t *session, char **restrict alp) {
 
     return st_Handshake(session, NULL, NULL, alp);
 }
 
-static void st_ServerDestroy (vlc_tls_server_t *crd) {
+static void st_ServerDestroy (heimdall_tls_server_t *crd) {
     msg_Dbg(crd, "close secure transport server");
 
-    vlc_tls_creds_sys_t *sys = crd->sys;
+    heimdall_tls_creds_sys_t *sys = crd->sys;
 
     if (sys->server_cert_chain)
         CFRelease(sys->server_cert_chain);
@@ -851,7 +852,7 @@ static void st_ServerDestroy (vlc_tls_server_t *crd) {
     free(sys);
 }
 
-static const struct vlc_tls_server_operations st_ServerOps =
+static const struct heimdall_tls_server_operations st_ServerOps =
 {
     .open = st_ServerSessionOpen,
     .handshake = st_ServerHandshake,
@@ -861,13 +862,13 @@ static const struct vlc_tls_server_operations st_ServerOps =
 /**
  * Initializes server-side TLS credentials.
  */
-static int OpenServer (vlc_tls_server_t *crd, const char *cert, const char *key) {
+static int OpenServer (heimdall_tls_server_t *crd, const char *cert, const char *key) {
 
     /*
      * This function expects the label of the certificate in "cert", stored
      * in the MacOS keychain. The appropriate private key is found automatically.
      */
-    VLC_UNUSED(key);
+    HEIMDALL_UNUSED(key);
     OSStatus ret;
 
     msg_Dbg(crd, "open st server");
@@ -886,14 +887,14 @@ static int OpenServer (vlc_tls_server_t *crd, const char *cert, const char *key)
                                                  &attrList, &searchReference);
     if (ret != noErr || searchReference == NULL) {
         msg_Err(crd, "Cannot find certificate with alias %s", cert);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     SecKeychainItemRef itemRef = NULL;
     ret = SecKeychainSearchCopyNext(searchReference, &itemRef);
     if (ret != noErr) {
         msg_Err(crd, "Cannot get certificate with alias %s, error: %d", cert, ret);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     CFRelease(searchReference);
 
@@ -905,7 +906,7 @@ static int OpenServer (vlc_tls_server_t *crd, const char *cert, const char *key)
     if (ret != noErr) {
         msg_Err(crd, "Cannot get private key for certificate");
         CFRelease(certificate);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /*
@@ -914,13 +915,13 @@ static int OpenServer (vlc_tls_server_t *crd, const char *cert, const char *key)
      */
     SecPolicyRef policy = SecPolicyCreateSSL(true, NULL);
     SecTrustRef trust_ref = NULL;
-    int result = VLC_SUCCESS;
+    int result = HEIMDALL_SUCCESS;
 
     /* According to docu its fine to pass just one certificate */
     ret = SecTrustCreateWithCertificates((CFArrayRef)certificate, policy, &trust_ref);
     if (ret != noErr) {
         msg_Err(crd, "Cannot create trust");
-        result = VLC_EGENERIC;
+        result = HEIMDALL_EGENERIC;
         goto out;
     }
 
@@ -928,7 +929,7 @@ static int OpenServer (vlc_tls_server_t *crd, const char *cert, const char *key)
     ret = SecTrustEvaluate(trust_ref, &status);
     if (ret != noErr) {
         msg_Err(crd, "Error evaluating trust");
-        result = VLC_EGENERIC;
+        result = HEIMDALL_EGENERIC;
         goto out;
     }
 
@@ -937,7 +938,7 @@ static int OpenServer (vlc_tls_server_t *crd, const char *cert, const char *key)
     ret = SecTrustGetResult(trust_ref, &status, &cert_chain, &status_chain);
     if (ret != noErr || !cert_chain) {
         msg_Err(crd, "error while getting certificate chain");
-        result = VLC_EGENERIC;
+        result = HEIMDALL_EGENERIC;
         goto out;
     }
 
@@ -952,10 +953,10 @@ static int OpenServer (vlc_tls_server_t *crd, const char *cert, const char *key)
         CFArrayAppendArray(server_cert_chain, cert_chain, CFRangeMake(1, num_cert_chain - 1));
     CFRelease(cert_chain);
 
-    vlc_tls_creds_sys_t *sys = malloc(sizeof(*sys));
+    heimdall_tls_creds_sys_t *sys = malloc(sizeof(*sys));
     if (unlikely(sys == NULL)) {
         CFRelease(server_cert_chain);
-        result = VLC_ENOMEM;
+        result = HEIMDALL_ENOMEM;
         goto out;
     }
 

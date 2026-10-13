@@ -3,12 +3,13 @@
  *****************************************************************************
  * Copyright (C) 2003-2009 VLC authors and VideoLAN
  *               2018 VideoLabs, VideoLAN and VLC authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *          Gildas Bazin <gbazin@videolan.org>
  *          Jean-Paul Saman <jpsaman #_at_# m2x dot nl>
- *          Antoine Cellerier <dionoea at videolan dot org>
- *          Ilkka Ollakka <ileoo at videolan dot org>
+ *          Antoine Cellerier <dionoea at lycaria dot org>
+ *          Ilkka Ollakka <ileoo at lycaria dot org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -27,11 +28,11 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_modules.h>
-#include <vlc_codec.h>
-#include <vlc_aout.h>
-#include <vlc_sout.h>
+#include <heimdall_common.h>
+#include <heimdall_modules.h>
+#include <heimdall_codec.h>
+#include <heimdall_aout.h>
+#include <heimdall_sout.h>
 
 #include "encoder.h"
 #include "encoder_priv.h"
@@ -65,10 +66,10 @@ int transcode_encoder_audio_open( transcode_encoder_t *p_enc,
     {
         assert( p_enc->p_encoder->ops != NULL );
         p_enc->p_encoder->fmt_out.i_codec =
-                vlc_fourcc_GetCodec( AUDIO_ES, p_enc->p_encoder->fmt_out.i_codec );
+                heimdall_fourcc_GetCodec( AUDIO_ES, p_enc->p_encoder->fmt_out.i_codec );
     }
 
-    return ( p_enc->p_encoder->p_module ) ? VLC_SUCCESS: VLC_EGENERIC;
+    return ( p_enc->p_encoder->p_module ) ? HEIMDALL_SUCCESS: HEIMDALL_EGENERIC;
 }
 
 static int encoder_audio_configure( const transcode_encoder_config_t *p_cfg,
@@ -105,7 +106,7 @@ static int encoder_audio_configure( const transcode_encoder_config_t *p_cfg,
     p_enc_out->i_physical_channels = pi_channels_maps[p_enc_out->i_channels];
 
     if( b_keep_fmtin ) /* This is tested/wanted decoder fmtin */
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
     p_enc_in->i_physical_channels = p_enc_out->i_physical_channels;
 
@@ -125,7 +126,7 @@ static int encoder_audio_configure( const transcode_encoder_config_t *p_cfg,
     }
     aout_FormatPrepare( p_enc_in );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 int transcode_encoder_audio_configure( const transcode_encoder_config_t *p_cfg,
@@ -139,7 +140,7 @@ int transcode_encoder_audio_configure( const transcode_encoder_config_t *p_cfg,
 int transcode_encoder_audio_test( encoder_t *p_encoder,
                                   const transcode_encoder_config_t *p_cfg,
                                   const es_format_t *p_dec_out,
-                                  vlc_fourcc_t i_codec_in,
+                                  heimdall_fourcc_t i_codec_in,
                                   es_format_t *p_enc_wanted_in )
 {
     p_encoder->p_cfg = p_cfg->p_config_chain;
@@ -155,8 +156,8 @@ int transcode_encoder_audio_test( encoder_t *p_encoder,
     {
         es_format_Clean( &p_encoder->fmt_in );
         es_format_Clean( &p_encoder->fmt_out );
-        vlc_object_delete(p_encoder);
-        return VLC_EGENERIC;
+        heimdall_object_delete(p_encoder);
+        return HEIMDALL_EGENERIC;
     }
 
     p_encoder->fmt_in.audio.i_format = i_codec_in;
@@ -183,14 +184,14 @@ int transcode_encoder_audio_test( encoder_t *p_encoder,
     /* copy our requested format */
     es_format_Copy( p_enc_wanted_in, &p_encoder->fmt_in );
 
-    vlc_encoder_Destroy( p_encoder );
+    heimdall_encoder_Destroy( p_encoder );
 
-    return p_module != NULL ? VLC_SUCCESS : VLC_EGENERIC;
+    return p_module != NULL ? HEIMDALL_SUCCESS : HEIMDALL_EGENERIC;
 }
 
 block_t * transcode_encoder_audio_encode( transcode_encoder_t *p_enc, block_t *p_block )
 {
-    return vlc_encoder_EncodeAudio( p_enc->p_encoder, p_block );
+    return heimdall_encoder_EncodeAudio( p_enc->p_encoder, p_block );
 }
 
 int transcode_encoder_audio_drain( transcode_encoder_t *p_enc, block_t **out )
@@ -200,5 +201,5 @@ int transcode_encoder_audio_drain( transcode_encoder_t *p_enc, block_t **out )
         p_block = transcode_encoder_audio_encode( p_enc, NULL );
         block_ChainAppend( out, p_block );
     } while( p_block );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

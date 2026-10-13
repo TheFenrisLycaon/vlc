@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,12 +19,12 @@
 
 import QtQuick
 
-import VLC.MediaLibrary
+import Heimdall.MediaLibrary
 
-import VLC.Util
-import VLC.Widgets as Widgets
-import VLC.MainInterface
-import VLC.Style
+import Heimdall.Util
+import Heimdall.Widgets as Widgets
+import Heimdall.MainInterface
+import Heimdall.Style
 
 MainViewLoader {
     id: root
@@ -95,7 +96,7 @@ MainViewLoader {
         indexes: indexesFlat ? selectionModel.selectedIndexesFlat
                              : selectionModel.selectedIndexes
         indexesFlat: !!selectionModel.selectedIndexesFlat
-        defaultCover: VLCStyle.noArtArtistSmall
+        defaultCover: HeimdallStyle.noArtArtistSmall
     }
 
     Component {
@@ -104,9 +105,9 @@ MainViewLoader {
         Widgets.ExpandGridItemView {
             id: artistGrid
 
-            basePictureWidth: VLCStyle.gridCover_music_width
-            basePictureHeight: VLCStyle.gridCover_music_height
-            titleTopMargin: VLCStyle.gridItemTitle_topMargin + VLCStyle.margin_xxsmall
+            basePictureWidth: HeimdallStyle.gridCover_music_width
+            basePictureHeight: HeimdallStyle.gridCover_music_height
+            titleTopMargin: HeimdallStyle.gridItemTitle_topMargin + HeimdallStyle.margin_xxsmall
 
             selectionModel: root.selectionModel
             model: artistModel
@@ -138,7 +139,7 @@ MainViewLoader {
                 pictureRadius: (width / 2) // "pictureWidth" is image source width, postprocessing is done on item
 
                 image: model.cover || ""
-                fallbackImage: VLCStyle.noArtArtistSmall
+                fallbackImage: HeimdallStyle.noArtArtistSmall
 
                 title: model.name || qsTr("Unknown artist")
                 subtitle: qsTr("%1 song", "%1 songs", model.nb_tracks).arg(model.nb_tracks)
@@ -155,8 +156,8 @@ MainViewLoader {
                     contextMenu.popup(selectionModel.selectedIndexes, globalMousePos)
                 }
 
-                selectedShadow.anchors.margins: VLCStyle.dp(1, VLCStyle.scale) // outside border
-                unselectedShadow.anchors.margins: VLCStyle.dp(1, VLCStyle.scale) // outside border
+                selectedShadow.anchors.margins: HeimdallStyle.dp(1, HeimdallStyle.scale) // outside border
+                unselectedShadow.anchors.margins: HeimdallStyle.dp(1, HeimdallStyle.scale) // outside border
             }
         }
     }
@@ -181,7 +182,7 @@ MainViewLoader {
                     headerDelegate: tableColumns.titleHeaderDelegate,
                     colDelegate: tableColumns.titleDelegate,
 
-                    placeHolder: VLCStyle.noArtArtistSmall
+                    placeHolder: HeimdallStyle.noArtArtistSmall
                 })
             }]
 
@@ -196,7 +197,7 @@ MainViewLoader {
                     headerDelegate: tableColumns.titleHeaderDelegate,
                     colDelegate: tableColumns.titleDelegate,
 
-                    placeHolder: VLCStyle.noArtArtistSmall
+                    placeHolder: HeimdallStyle.noArtArtistSmall
                 }
             }, {
                 size: 1,
@@ -213,7 +214,7 @@ MainViewLoader {
             focus: true
             dragItem: artistsDragItem
             rowContextMenu: contextMenu
-            rowHeight: VLCStyle.tableCoverRow_height
+            rowHeight: HeimdallStyle.tableCoverRow_height
 
             displayMarginBeginning: root.displayMarginBeginning
             displayMarginEnd: root.displayMarginEnd
@@ -230,7 +231,7 @@ MainViewLoader {
                     requestArtistAlbumView(Qt.TabFocusReason)
             }
 
-            sortModel: (_availableRowWidth < VLCStyle.colWidth(4)) ? _modelSmall
+            sortModel: (_availableRowWidth < HeimdallStyle.colWidth(4)) ? _modelSmall
                                                                    : _modelMedium
 
             onItemDoubleClicked: function(index, model) {
@@ -255,7 +256,7 @@ MainViewLoader {
         Widgets.EmptyLabelButton {
             text: qsTr("No artists found\nPlease try adding sources")
             Navigation.parentItem: root
-            cover: VLCStyle.noArtArtistCover
+            cover: HeimdallStyle.noArtArtistCover
         }
     }
 }

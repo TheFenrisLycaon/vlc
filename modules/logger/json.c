@@ -2,6 +2,7 @@
  * json.c: JSON tracer plugin
  *****************************************************************************
  * Copyright © 2021 Videolabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors : Nicolas Le Quec
  *
@@ -24,13 +25,13 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_fs.h>
-#include <vlc_charset.h>
-#include <vlc_tracer.h>
-#include <vlc_memstream.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_fs.h>
+#include <heimdall_charset.h>
+#include <heimdall_tracer.h>
+#include <heimdall_memstream.h>
 
 #include <stdbool.h>
 #include <stdarg.h>
@@ -38,14 +39,14 @@
 #include <assert.h>
 #include <ctype.h>
 
-#define JSON_FILENAME "vlc-log.json"
+#define JSON_FILENAME "heimdall-log.json"
 
-#define TIME_FROM_TICK(ts) NS_FROM_VLC_TICK(ts)
+#define TIME_FROM_TICK(ts) NS_FROM_HEIMDALL_TICK(ts)
 
 typedef struct
 {
     FILE *stream;
-} vlc_tracer_sys_t;
+} heimdall_tracer_sys_t;
 
 static void PrintUTF8Char(FILE *stream, uint32_t character)
 {
@@ -121,7 +122,7 @@ static void JsonPrintString(FILE *stream, const char *str)
             else
             {
                 uint32_t bytes;
-                ssize_t len = vlc_towc(str, &bytes);
+                ssize_t len = heimdall_towc(str, &bytes);
                 assert(len > 0);
                 PrintUTF8Char(stream, bytes);
                 str += len - 1;
@@ -147,7 +148,7 @@ static void JsonPrintKeyValueUnsigned(FILE *stream, const char *key, uint64_t va
 static void JsonPrintKeyValueNumberFromDouble(FILE *stream, const char *key, double value)
 {
     JsonPrintString(stream, key);
-    vlc_fprintf_c(stream, ": \"%le\"", value);
+    heimdall_fprintf_c(stream, ": \"%le\"", value);
 }
 
 static void JsonPrintKeyValueLabel(FILE *stream, const char *key, const char *value)
@@ -170,9 +171,9 @@ static void JsonEndObjectSection(FILE *stream)
     fputc('}', stream);
 }
 
-static void TraceJson(void *opaque, vlc_tick_t ts, const struct vlc_tracer_trace *trace)
+static void TraceJson(void *opaque, heimdall_tick_t ts, const struct heimdall_tracer_trace *trace)
 {
-    vlc_tracer_sys_t *sys = opaque;
+    heimdall_tracer_sys_t *sys = opaque;
     FILE* stream = sys->stream;
 
     flockfile(stream);
@@ -182,25 +183,25 @@ static void TraceJson(void *opaque, vlc_tick_t ts, const struct vlc_tracer_trace
 
     JsonStartObjectSection(stream, "Body");
 
-    const struct vlc_tracer_entry *entry = trace->entries;
+    const struct heimdall_tracer_entry *entry = trace->entries;
     while (entry->key != NULL)
     {
         switch (entry->type)
         {
-            case VLC_TRACER_UINT:
+            case HEIMDALL_TRACER_UINT:
                 JsonPrintKeyValueUnsigned(stream, entry->key, entry->value.uinteger);
                 break;
-            case VLC_TRACER_INT:
+            case HEIMDALL_TRACER_INT:
                 JsonPrintKeyValueNumber(stream, entry->key, entry->value.integer);
                 break;
-            case VLC_TRACER_DOUBLE:
+            case HEIMDALL_TRACER_DOUBLE:
                 JsonPrintKeyValueNumberFromDouble(stream, entry->key, entry->value.double_);
                 break;
-            case VLC_TRACER_STRING:
+            case HEIMDALL_TRACER_STRING:
                 JsonPrintKeyValueLabel(stream, entry->key, entry->value.string);
                 break;
             default:
-                vlc_assert_unreachable();
+                heimdall_assert_unreachable();
                 break;
         }
         entry++;
@@ -217,21 +218,21 @@ static void TraceJson(void *opaque, vlc_tick_t ts, const struct vlc_tracer_trace
 
 static void Close(void *opaque)
 {
-    vlc_tracer_sys_t *sys = opaque;
+    heimdall_tracer_sys_t *sys = opaque;
     fclose(sys->stream);
     free(sys);
 }
 
-static const struct vlc_tracer_operations json_ops =
+static const struct heimdall_tracer_operations json_ops =
 {
     TraceJson,
     Close
 };
 
-static const struct vlc_tracer_operations *Open(vlc_object_t *obj,
+static const struct heimdall_tracer_operations *Open(heimdall_object_t *obj,
                                                void **restrict sysp)
 {
-    vlc_tracer_sys_t *sys = malloc(sizeof (*sys));
+    heimdall_tracer_sys_t *sys = malloc(sizeof (*sys));
     if (unlikely(sys == NULL))
         return NULL;
 
@@ -241,7 +242,7 @@ static const struct vlc_tracer_operations *Open(vlc_object_t *obj,
 #ifdef __APPLE__
     if (path == NULL)
     {
-        char *home = config_GetUserDir(VLC_HOME_DIR);
+        char *home = config_GetUserDir(HEIMDALL_HOME_DIR);
         if (home != NULL)
         {
             if (asprintf(&path, "%s/Library/Logs/"JSON_FILENAME, home) == -1)
@@ -255,11 +256,11 @@ static const struct vlc_tracer_operations *Open(vlc_object_t *obj,
 
     /* Open the log file and remove any buffering for the stream */
     msg_Dbg(obj, "opening logfile `%s'", filename);
-    sys->stream = vlc_fopen(filename, "at");
+    sys->stream = heimdall_fopen(filename, "at");
     if (sys->stream == NULL)
     {
         msg_Err(obj, "error opening log file `%s': %s", filename,
-            vlc_strerror_c(errno) );
+            heimdall_strerror_c(errno) );
         free(path);
         free(sys);
         return NULL;
@@ -275,7 +276,7 @@ static const struct vlc_tracer_operations *Open(vlc_object_t *obj,
 #define LOGFILE_NAME_TEXT N_("Log filename")
 #define LOGFILE_NAME_LONGTEXT N_("Specify the log filename.")
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname(N_("Tracer"))
     set_description(N_("JSON tracer"))
     set_subcategory(SUBCAT_ADVANCED_MISC)
@@ -283,4 +284,4 @@ vlc_module_begin()
     set_callback(Open)
 
     add_savefile("json-tracer-file", NULL, LOGFILE_NAME_TEXT, LOGFILE_NAME_LONGTEXT)
-vlc_module_end()
+heimdall_module_end()

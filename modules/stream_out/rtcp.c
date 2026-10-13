@@ -2,6 +2,7 @@
  * rtcp.c: RTCP stream output support
  *****************************************************************************
  * Copyright © 2007 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -26,12 +27,12 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_block.h>
+#include <heimdall_common.h>
+#include <heimdall_block.h>
 
-#include <vlc_network.h>
-#include <vlc_sout.h>
-#include <vlc_fs.h>
+#include <heimdall_network.h>
+#include <heimdall_sout.h>
+#include <heimdall_fs.h>
 #include "rtp.h"
 
 #include <assert.h>
@@ -66,7 +67,7 @@ struct rtcp_sender_t
 };
 
 
-rtcp_sender_t *OpenRTCP (vlc_object_t *obj, int rtp_fd, int proto,
+rtcp_sender_t *OpenRTCP (heimdall_object_t *obj, int rtp_fd, int proto,
                          bool mux)
 {
     rtcp_sender_t *rtcp;
@@ -82,7 +83,7 @@ rtcp_sender_t *OpenRTCP (vlc_object_t *obj, int rtp_fd, int proto,
     {
         /* RTP/RTCP mux: duplicate the socket */
 #ifndef _WIN32
-        fd = vlc_dup (rtp_fd);
+        fd = heimdall_dup (rtp_fd);
 #else
         WSAPROTOCOL_INFO info;
         WSADuplicateSocket (rtp_fd, GetCurrentProcessId (), &info);
@@ -141,7 +142,7 @@ rtcp_sender_t *OpenRTCP (vlc_object_t *obj, int rtp_fd, int proto,
     ptr[1] = 200; /* payload type: Sender Report */
     SetWBE (ptr + 2, 6); /* length = 6 (7 double words) */
     memset (ptr + 4, 0, 4); /* SSRC unknown yet */
-    SetQWBE (ptr + 8, vlc_ntp_time ());
+    SetQWBE (ptr + 8, heimdall_ntp_time ());
     memset (ptr + 16, 0, 12); /* timestamp and counters */
     ptr += 28;
 
@@ -180,7 +181,7 @@ void CloseRTCP (rtcp_sender_t *rtcp)
         return;
 
     uint8_t *ptr = rtcp->payload;
-    uint64_t now64 = vlc_ntp_time ();
+    uint64_t now64 = heimdall_ntp_time ();
     SetQWBE (ptr + 8, now64); /* Update the Sender Report timestamp */
 
     /* Bye */
@@ -216,7 +217,7 @@ void SendRTCP (rtcp_sender_t *restrict rtcp, const block_t *rtp)
 
     uint8_t *ptr = rtcp->payload;
     uint32_t last = GetDWBE (ptr + 8); // last RTCP SR send time
-    uint64_t now64 = vlc_ntp_time ();
+    uint64_t now64 = heimdall_ntp_time ();
     if ((now64 >> 32) < (last + 5))
         return; // no more than one SR every 5 seconds
 

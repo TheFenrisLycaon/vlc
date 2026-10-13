@@ -2,6 +2,7 @@
  * mediacodec_jni.c: mc_api implementation using JNI
  *****************************************************************************
  * Copyright © 2015 VLC authors and VideoLAN, VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -29,8 +30,8 @@
 #include <stdint.h>
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_threads.h>
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
 
 #include <OMX_Core.h>
 #include <OMX_Component.h>
@@ -39,7 +40,7 @@
 #include "mediacodec.h"
 #include "../../video_output/android/env.h"
 
-char* MediaCodec_GetName(vlc_object_t *p_obj, vlc_fourcc_t codec,
+char* MediaCodec_GetName(heimdall_object_t *p_obj, heimdall_fourcc_t codec,
                          const char *psz_mime, int profile, int *p_quirks);
 
 #define THREAD_NAME "mediacodec"
@@ -134,13 +135,13 @@ static inline jstring jni_new_string(JNIEnv *env, const char *psz_string)
 /* Initialize all jni fields.
  * Done only one time during the first initialisation */
 static bool
-InitJNIFields (vlc_object_t *p_obj, JNIEnv *env)
+InitJNIFields (heimdall_object_t *p_obj, JNIEnv *env)
 {
-    static vlc_mutex_t lock = VLC_STATIC_MUTEX;
+    static heimdall_mutex_t lock = HEIMDALL_STATIC_MUTEX;
     static int i_init_state = -1;
     bool ret;
 
-    vlc_mutex_lock(&lock);
+    heimdall_mutex_lock(&lock);
 
     if (i_init_state != -1)
         goto end;
@@ -207,7 +208,7 @@ end:
     if (!ret)
         msg_Err(p_obj, "MediaCodec jni init failed");
 
-    vlc_mutex_unlock(&lock);
+    heimdall_mutex_unlock(&lock);
     return ret;
 }
 
@@ -244,7 +245,7 @@ end:
 /*****************************************************************************
  * MediaCodec_GetName
  *****************************************************************************/
-char* MediaCodec_GetName(vlc_object_t *p_obj, vlc_fourcc_t codec,
+char* MediaCodec_GetName(heimdall_object_t *p_obj, heimdall_fourcc_t codec,
                          const char *psz_mime, int profile, int *p_quirks)
 {
     JNIEnv *env;

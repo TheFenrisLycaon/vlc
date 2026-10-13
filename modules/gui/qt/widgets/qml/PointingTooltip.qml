@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,15 +18,15 @@
  *****************************************************************************/
 import QtQuick
 
-import VLC.Style
+import Heimdall.Style
 
 // NOTE: Attached pointing tool tip must be used if the popup type is `Popup.Window`.
 ToolTipExt {
     id: pointingTooltip
 
     margins: 0
-    padding: VLCStyle.margin_xxsmall
-    radius: VLCStyle.dp(6, VLCStyle.scale)
+    padding: HeimdallStyle.margin_xxsmall
+    radius: HeimdallStyle.dp(6, HeimdallStyle.scale)
 
     height: implicitHeight + background.arrowHeight
     bottomInset: height - implicitHeight
@@ -33,7 +34,7 @@ ToolTipExt {
     implicitHeight: (implicitContentHeight + topPadding + bottomPadding)
 
     x: _x
-    y: _pos.y - (implicitHeight + arrowArea.implicitHeight + VLCStyle.dp(7.5, VLCStyle.scale))
+    y: _pos.y - (implicitHeight + arrowArea.implicitHeight + HeimdallStyle.dp(7.5, HeimdallStyle.scale))
 
     readonly property real _x: _pos.x - (width / 2)
     property point pos
@@ -78,8 +79,8 @@ ToolTipExt {
                 anchors.horizontalCenterOffset: (pointingTooltip._x - pointingTooltip.x)
                 anchors.verticalCenter: parent.top
 
-                implicitWidth: VLCStyle.dp(10, VLCStyle.scale)
-                implicitHeight: VLCStyle.dp(10, VLCStyle.scale)
+                implicitWidth: HeimdallStyle.dp(10, HeimdallStyle.scale)
+                implicitHeight: HeimdallStyle.dp(10, HeimdallStyle.scale)
 
                 rotation: 45
 

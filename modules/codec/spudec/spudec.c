@@ -2,6 +2,7 @@
  * spudec.c : SPU decoder thread
  *****************************************************************************
  * Copyright (C) 2000-2001, 2006 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Sam Hocevar <sam@zoy.org>
  *          Laurent Aimar <fenrir@via.ecp.fr>
@@ -28,24 +29,24 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
 
 #include "spudec.h"
 
 /*****************************************************************************
  * Module descriptor.
  *****************************************************************************/
-static int  DecoderOpen   ( vlc_object_t * );
-static int  PacketizerOpen( vlc_object_t * );
-static void Close         ( vlc_object_t * );
+static int  DecoderOpen   ( heimdall_object_t * );
+static int  PacketizerOpen( heimdall_object_t * );
+static void Close         ( heimdall_object_t * );
 
 #define DVDSUBTRANS_DISABLE_TEXT N_("Disable DVD subtitle transparency")
 #define DVDSUBTRANS_DISABLE_LONGTEXT N_("Removes all transparency effects " \
                                         "used in DVD subtitles.")
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("DVD subtitles decoder") )
     set_shortname( N_("DVD subtitles") )
     set_capability( "spu decoder", 75 )
@@ -58,7 +59,7 @@ vlc_module_begin ()
     set_description( N_("DVD subtitles packetizer") )
     set_capability( "spu packetizer", 50 )
     set_callbacks( PacketizerOpen, Close )
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * Local prototypes
@@ -67,17 +68,17 @@ static block_t *      Reassemble( decoder_t *, block_t * );
 static int            Decode    ( decoder_t *, block_t * );
 static block_t *      Packetize ( decoder_t *, block_t ** );
 
-static int OpenCommon( vlc_object_t *p_this, bool b_packetizer )
+static int OpenCommon( heimdall_object_t *p_this, bool b_packetizer )
 {
     decoder_t     *p_dec = (decoder_t*)p_this;
     decoder_sys_t *p_sys;
 
-    if( p_dec->fmt_in->i_codec != VLC_CODEC_SPU )
-        return VLC_EGENERIC;
+    if( p_dec->fmt_in->i_codec != HEIMDALL_CODEC_SPU )
+        return HEIMDALL_EGENERIC;
 
     p_dec->p_sys = p_sys = malloc( sizeof( decoder_sys_t ) );
     if( !p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_sys->b_packetizer = b_packetizer;
     p_sys->b_disabletrans = var_InheritBool( p_dec, "dvdsub-transparency" );
@@ -93,23 +94,23 @@ static int OpenCommon( vlc_object_t *p_this, bool b_packetizer )
     {
         p_dec->pf_packetize  = Packetize;
         es_format_Copy( &p_dec->fmt_out, p_dec->fmt_in );
-        p_dec->fmt_out.i_codec = VLC_CODEC_SPU;
+        p_dec->fmt_out.i_codec = HEIMDALL_CODEC_SPU;
     }
     else
     {
-        p_dec->fmt_out.i_codec = VLC_CODEC_SPU;
+        p_dec->fmt_out.i_codec = HEIMDALL_CODEC_SPU;
         p_dec->pf_decode    = Decode;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int DecoderOpen( vlc_object_t *p_this )
+static int DecoderOpen( heimdall_object_t *p_this )
 {
     return OpenCommon( p_this, false );
 }
 
-static int PacketizerOpen( vlc_object_t *p_this )
+static int PacketizerOpen( heimdall_object_t *p_this )
 {
     return OpenCommon( p_this, true );
 }
@@ -117,7 +118,7 @@ static int PacketizerOpen( vlc_object_t *p_this )
 /*****************************************************************************
  * Close:
  *****************************************************************************/
-static void Close( vlc_object_t *p_this )
+static void Close( heimdall_object_t *p_this )
 {
     decoder_t     *p_dec = (decoder_t*)p_this;
     decoder_sys_t *p_sys = p_dec->p_sys;
@@ -140,22 +141,22 @@ static int Decode( decoder_t *p_dec, block_t *p_block )
     block_t       *p_spu_block;
 
     if( p_block == NULL ) /* No Drain */
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
     p_spu_block = Reassemble( p_dec, p_block );
 
     if( ! p_spu_block )
     {
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
     }
 
     size_t block_size;
-    vlc_frame_ChainProperties( p_spu_block, NULL, &block_size, NULL );
+    heimdall_frame_ChainProperties( p_spu_block, NULL, &block_size, NULL );
     if ( p_sys->buffer_size < block_size )
     {
         void *bigger = realloc( p_sys->buffer, block_size );
         if ( unlikely(bigger == NULL) )
         {
-            return VLCDEC_ECRITICAL;
+            return HEIMDALLDEC_ECRITICAL;
         }
         p_sys->buffer = bigger;
         p_sys->buffer_size = block_size;
@@ -173,7 +174,7 @@ static int Decode( decoder_t *p_dec, block_t *p_block )
     p_sys->i_spu      = 0;
     p_sys->p_block    = NULL;
 
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }
 
 /*****************************************************************************
@@ -196,7 +197,7 @@ static block_t *Packetize( decoder_t *p_dec, block_t **pp_block )
     }
 
     p_spu->i_dts = p_spu->i_pts;
-    p_spu->i_length = VLC_TICK_INVALID;
+    p_spu->i_length = HEIMDALL_TICK_INVALID;
 
     /* reinit context */
     p_sys->i_spu_size = 0;
@@ -221,7 +222,7 @@ static block_t *Reassemble( decoder_t *p_dec, block_t *p_block )
     }
 
     if( p_sys->i_spu_size <= 0 &&
-        ( p_block->i_pts == VLC_TICK_INVALID || p_block->i_buffer < 4 ) )
+        ( p_block->i_pts == HEIMDALL_TICK_INVALID || p_block->i_buffer < 4 ) )
     {
         msg_Dbg( p_dec, "invalid starting packet (size < 4 or pts <=0)" );
         msg_Dbg( p_dec, "spu size: %d, i_pts: %"PRId64" i_buffer: %zu",

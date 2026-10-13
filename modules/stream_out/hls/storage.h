@@ -2,6 +2,7 @@
  * storage.h
  *****************************************************************************
  * Copyright (C) 2023 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -60,7 +61,7 @@ typedef struct hls_storage
 int hls_storage_FromBlocks(block_t *content,
                            const struct hls_storage_config *,
                            const struct hls_config *,
-                           hls_storage_t **out) VLC_USED;
+                           hls_storage_t **out) HEIMDALL_USED;
 
 /**
  * Create an HLS opaque storage from a byte buffer.
@@ -80,7 +81,7 @@ int hls_storage_FromBytes(void *data,
                           size_t size,
                           const struct hls_storage_config *,
                           const struct hls_config *,
-                          hls_storage_t **out) VLC_USED;
+                          hls_storage_t **out) HEIMDALL_USED;
 
 size_t hls_storage_GetSize(const hls_storage_t *);
 

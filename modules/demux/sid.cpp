@@ -1,10 +1,11 @@
 /**
  * @file sid.cpp
- * @brief Sidplay demux module for VLC media player
+ * @brief Sidplay demux module for Heimdall media player
  */
 /*****************************************************************************
  * Copyright © 2010 Rémi Denis-Courmont
  * Copyright © 2010 Alan Fischer <alan@lightningtoads.com>
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -33,11 +34,11 @@
 # include <config.h>
 #endif
 
-#include <vlc_common.h>
-#include <vlc_charset.h>
-#include <vlc_input.h>
-#include <vlc_demux.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_charset.h>
+#include <heimdall_input.h>
+#include <heimdall_demux.h>
+#include <heimdall_plugin.h>
 
 #include <limits.h>
 
@@ -46,16 +47,16 @@
 
 #include <new>
 
-static int  Open (vlc_object_t *);
-static void Close (vlc_object_t *);
+static int  Open (heimdall_object_t *);
+static void Close (heimdall_object_t *);
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname ("sid")
     set_description ( N_("C64 sid demuxer") )
     set_subcategory (SUBCAT_INPUT_DEMUX)
     set_capability ("demux", 100)
     set_callbacks (Open, Close)
-vlc_module_end ()
+heimdall_module_end ()
 
 namespace {
 
@@ -81,7 +82,7 @@ struct demux_sys_t
 static int Demux (demux_t *);
 static int Control (demux_t *, int, va_list);
 
-static int Open (vlc_object_t *obj)
+static int Open (heimdall_object_t *obj)
 {
     demux_t *demux = (demux_t *)obj;
     demux_sys_t *sys = NULL;
@@ -93,21 +94,21 @@ static int Open (vlc_object_t *obj)
 
     int64_t size = stream_Size (demux->s);
     if (size < 4 || size > LONG_MAX) /* We need to load the whole file for sidplay */
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     const uint8_t *peek;
-    if (vlc_stream_Peek (demux->s, &peek, 4) < 4)
-        return VLC_EGENERIC;
+    if (heimdall_stream_Peek (demux->s, &peek, 4) < 4)
+        return HEIMDALL_EGENERIC;
 
     /* sidplay2 can read PSID and the newer RSID formats */
     if(memcmp(peek,"PSID",4)!=0 && memcmp(peek,"RSID",4)!=0)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     uint8_t *data = (uint8_t*) malloc(size);
     if (unlikely (data==NULL))
         goto error;
 
-    if (vlc_stream_Read (demux->s,data,size) < size) {
+    if (heimdall_stream_Read (demux->s,data,size) < size) {
         free (data);
         goto error;
     }
@@ -155,7 +156,7 @@ static int Open (vlc_object_t *obj)
     sys->bytes_per_frame = sys->info.channels * sys->config.precision / 8;
     sys->block_size = sys->config.frequency / 10 * sys->bytes_per_frame;
 
-    es_format_Init (&fmt, AUDIO_ES, VLC_CODEC_S16N);
+    es_format_Init (&fmt, AUDIO_ES, HEIMDALL_CODEC_S16N);
 
     fmt.audio.i_channels        = sys->info.channels;
     fmt.audio.i_bitspersample   = sys->config.precision;
@@ -171,7 +172,7 @@ static int Open (vlc_object_t *obj)
         goto error;
 
     date_Init (&sys->pts, fmt.audio.i_rate, 1);
-    date_Set(&sys->pts, VLC_TICK_0);
+    date_Set(&sys->pts, HEIMDALL_TICK_0);
 
     sys->tune->selectSong (0);
     result = (sys->player->load (sys->tune) >=0 );
@@ -184,7 +185,7 @@ static int Open (vlc_object_t *obj)
     demux->pf_control = Control;
     demux->p_sys = sys;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     msg_Err (demux, "An error occurred during sid demuxing" );
@@ -192,11 +193,11 @@ error:
     delete builder;
     delete tune;
     free (sys);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 
-static void Close (vlc_object_t *obj)
+static void Close (heimdall_object_t *obj)
 {
     demux_t *demux = (demux_t *)obj;
     demux_sys_t *sys = reinterpret_cast<demux_sys_t *>(demux->p_sys);
@@ -213,17 +214,17 @@ static int Demux (demux_t *demux)
 
     block_t *block = block_Alloc( sys->block_size);
     if (unlikely(block==NULL))
-        return VLC_DEMUXER_EOF;
+        return HEIMDALL_DEMUXER_EOF;
 
     if (!sys->tune->getStatus()) {
         block_Release (block);
-        return VLC_DEMUXER_EOF;
+        return HEIMDALL_DEMUXER_EOF;
     }
 
     int i_read = sys->player->play ((void*)block->p_buffer, block->i_buffer);
     if (i_read <= 0) {
         block_Release (block);
-        return VLC_DEMUXER_EOF;
+        return HEIMDALL_DEMUXER_EOF;
     }
     block->i_buffer = i_read;
     block->i_pts = block->i_dts = date_Get (&sys->pts);
@@ -234,7 +235,7 @@ static int Demux (demux_t *demux)
 
     date_Increment (&sys->pts, i_read / sys->bytes_per_frame);
 
-    return VLC_DEMUXER_SUCCESS;
+    return HEIMDALL_DEMUXER_SUCCESS;
 }
 
 
@@ -246,28 +247,28 @@ static int Control (demux_t *demux, int query, va_list args)
     {
         case DEMUX_GET_TIME : {
             /* FIXME resolution in 100ns? */
-            *va_arg (args, vlc_tick_t*) =
-                sys->player->time() * sys->player->timebase() * VLC_TICK_FROM_MS(10);
-            return VLC_SUCCESS;
+            *va_arg (args, heimdall_tick_t*) =
+                sys->player->time() * sys->player->timebase() * HEIMDALL_TICK_FROM_MS(10);
+            return HEIMDALL_SUCCESS;
         }
 
         case DEMUX_GET_META : {
-            vlc_meta_t *p_meta = va_arg (args, vlc_meta_t *);
+            heimdall_meta_t *p_meta = va_arg (args, heimdall_meta_t *);
 
             /* These are specified in the sid tune class as 0 = Title, 1 = Artist, 2 = Copyright/Publisher */
             char *psz_title = FromCharset( "CP1252", sys->tuneInfo.infoString[0], strlen(sys->tuneInfo.infoString[0]) );
             char *psz_artist = FromCharset( "CP1252", sys->tuneInfo.infoString[1], strlen(sys->tuneInfo.infoString[1]) );
             char *psz_copyright = FromCharset( "CP1252", sys->tuneInfo.infoString[2], strlen(sys->tuneInfo.infoString[2]) );
 
-            vlc_meta_SetTitle( p_meta, psz_title );
-            vlc_meta_SetArtist( p_meta, psz_artist );
-            vlc_meta_SetCopyright( p_meta, psz_copyright );
+            heimdall_meta_SetTitle( p_meta, psz_title );
+            heimdall_meta_SetArtist( p_meta, psz_artist );
+            heimdall_meta_SetCopyright( p_meta, psz_copyright );
 
             free( psz_title );
             free( psz_artist );
             free( psz_copyright );
 
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
 
         case DEMUX_GET_TITLE_INFO :
@@ -276,28 +277,28 @@ static int Control (demux_t *demux, int query, va_list args)
                 int *pi_int = va_arg( args, int* );
 
                 *pi_int = sys->tuneInfo.songs;
-                *ppp_title = (input_title_t**) vlc_alloc( sys->tuneInfo.songs, sizeof (input_title_t*));
+                *ppp_title = (input_title_t**) heimdall_alloc( sys->tuneInfo.songs, sizeof (input_title_t*));
 
                 for( int i = 0; i < sys->tuneInfo.songs; i++ ) {
-                    (*ppp_title)[i] = vlc_input_title_New();
+                    (*ppp_title)[i] = heimdall_input_title_New();
                 }
 
-                return VLC_SUCCESS;
+                return HEIMDALL_SUCCESS;
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
         case DEMUX_SET_TITLE : {
             int i_idx = va_arg (args, int);
             sys->tune->selectSong (i_idx+1);
             bool result = (sys->player->load (sys->tune) >=0 );
             if (!result)
-                return  VLC_EGENERIC;
+                return  HEIMDALL_EGENERIC;
 
             sys->last_title = i_idx;
             sys->title_changed = true;
             msg_Dbg( demux, "set song %i", i_idx);
 
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
 
         case DEMUX_TEST_AND_CLEAR_FLAGS: {
@@ -308,12 +309,12 @@ static int Control (demux_t *demux, int query, va_list args)
                 sys->title_changed = false;
             } else
                 *flags = 0;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
 
         case DEMUX_GET_TITLE:
             *va_arg(args, int *) = sys->last_title;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
 
         case DEMUX_CAN_PAUSE:
         case DEMUX_SET_PAUSE_STATE:
@@ -323,5 +324,5 @@ static int Control (demux_t *demux, int query, va_list args)
                                           sys->bytes_per_frame, query, args );
     }
 
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }

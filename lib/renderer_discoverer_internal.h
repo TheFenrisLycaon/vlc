@@ -1,7 +1,8 @@
 /*****************************************************************************
- * renderer_discoverer_internal.h:  libvlc external API
+ * renderer_discoverer_internal.h:  libheimdall external API
  *****************************************************************************
  * Copyright © 2016 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -18,12 +19,12 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef _LIBVLC_RENDERER_DISCOVERER_INTERNAL_H
-#define _LIBVLC_RENDERER_DISCOVERER_INTERNAL_H 1
+#ifndef _LIBHEIMDALL_RENDERER_DISCOVERER_INTERNAL_H
+#define _LIBHEIMDALL_RENDERER_DISCOVERER_INTERNAL_H 1
 
-#include <vlc_renderer_discovery.h>
+#include <heimdall_renderer_discovery.h>
 
-vlc_renderer_item_t *
-libvlc_renderer_item_to_vlc( libvlc_renderer_item_t *p_item );
+heimdall_renderer_item_t *
+libheimdall_renderer_item_to_heimdall( libheimdall_renderer_item_t *p_item );
 
 #endif

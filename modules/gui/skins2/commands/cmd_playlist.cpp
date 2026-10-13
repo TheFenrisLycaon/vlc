@@ -2,6 +2,7 @@
  * cmd_playlist.cpp
  *****************************************************************************
  * Copyright (C) 2003 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cyril Deguet     <asmax@via.ecp.fr>
  *          Olivier Teulière <ipkiss@via.ecp.fr>
@@ -22,9 +23,9 @@
  *****************************************************************************/
 
 #include "cmd_playlist.hpp"
-#include <vlc_playlist.h>
-#include <vlc_url.h>
-#include "../src/vlcproc.hpp"
+#include <heimdall_playlist.h>
+#include <heimdall_url.h>
+#include "../src/heimdallproc.hpp"
 #include "../utils/var_bool.hpp"
 
 void CmdPlaylistDel::execute()
@@ -34,53 +35,53 @@ void CmdPlaylistDel::execute()
 
 void CmdPlaylistNext::execute()
 {
-    vlc_playlist_Lock( getPL() );
-    vlc_playlist_Next( getPL() );
-    vlc_playlist_Unlock( getPL() );
+    heimdall_playlist_Lock( getPL() );
+    heimdall_playlist_Next( getPL() );
+    heimdall_playlist_Unlock( getPL() );
 }
 
 
 void CmdPlaylistPrevious::execute()
 {
-    vlc_playlist_Lock( getPL() );
-    vlc_playlist_Prev( getPL() );
-    vlc_playlist_Unlock( getPL() );
+    heimdall_playlist_Lock( getPL() );
+    heimdall_playlist_Prev( getPL() );
+    heimdall_playlist_Unlock( getPL() );
 }
 
 
 void CmdPlaylistRandom::execute()
 {
-    vlc_playlist_Lock( getPL() );
-    vlc_playlist_SetPlaybackOrder( getPL(), m_value ?
-                    VLC_PLAYLIST_PLAYBACK_ORDER_RANDOM :
-                    VLC_PLAYLIST_PLAYBACK_ORDER_NORMAL );
-    vlc_playlist_Unlock( getPL() );
+    heimdall_playlist_Lock( getPL() );
+    heimdall_playlist_SetPlaybackOrder( getPL(), m_value ?
+                    HEIMDALL_PLAYLIST_PLAYBACK_ORDER_RANDOM :
+                    HEIMDALL_PLAYLIST_PLAYBACK_ORDER_NORMAL );
+    heimdall_playlist_Unlock( getPL() );
 }
 
 
 void CmdPlaylistLoop::execute()
 {
-    vlc_playlist_Lock( getPL() );
-    vlc_playlist_SetPlaybackRepeat( getPL(), m_value ?
-                    VLC_PLAYLIST_PLAYBACK_REPEAT_ALL :
-                    VLC_PLAYLIST_PLAYBACK_REPEAT_NONE );
-    vlc_playlist_Unlock( getPL() );
+    heimdall_playlist_Lock( getPL() );
+    heimdall_playlist_SetPlaybackRepeat( getPL(), m_value ?
+                    HEIMDALL_PLAYLIST_PLAYBACK_REPEAT_ALL :
+                    HEIMDALL_PLAYLIST_PLAYBACK_REPEAT_NONE );
+    heimdall_playlist_Unlock( getPL() );
 }
 
 
 void CmdPlaylistRepeat::execute()
 {
-    vlc_playlist_Lock( getPL() );
-    vlc_playlist_SetPlaybackRepeat( getPL(), m_value ?
-                    VLC_PLAYLIST_PLAYBACK_REPEAT_CURRENT :
-                    VLC_PLAYLIST_PLAYBACK_REPEAT_NONE);
-    vlc_playlist_Unlock( getPL() );
+    heimdall_playlist_Lock( getPL() );
+    heimdall_playlist_SetPlaybackRepeat( getPL(), m_value ?
+                    HEIMDALL_PLAYLIST_PLAYBACK_REPEAT_CURRENT :
+                    HEIMDALL_PLAYLIST_PLAYBACK_REPEAT_NONE);
+    heimdall_playlist_Unlock( getPL() );
 }
 
 
 void CmdPlaylistLoad::execute()
 {
-    char* psz_path = vlc_uri2path( m_file.c_str() );
+    char* psz_path = heimdall_uri2path( m_file.c_str() );
     if ( !psz_path )
     {
         msg_Err(getIntf(),"unable to load playlist %s", m_file.c_str() );
@@ -89,12 +90,12 @@ void CmdPlaylistLoad::execute()
     free( psz_path );
 
     input_item_t *media = input_item_New( m_file.c_str(), NULL );
-    vlc_playlist_Lock( getPL() );
-    vlc_playlist_AppendOne( getPL(), media );
-    ssize_t index = vlc_playlist_IndexOfMedia( getPL(), media );
+    heimdall_playlist_Lock( getPL() );
+    heimdall_playlist_AppendOne( getPL(), media );
+    ssize_t index = heimdall_playlist_IndexOfMedia( getPL(), media );
     if( index != -1 )
-        vlc_playlist_PlayAt( getPL(), index) ;
-    vlc_playlist_Unlock( getPL() );
+        heimdall_playlist_PlayAt( getPL(), index) ;
+    heimdall_playlist_Unlock( getPL() );
 }
 
 
@@ -113,14 +114,14 @@ void CmdPlaylistSave::execute()
         return;
     }
 
-    vlc_playlist_Lock( getPL() );
-    vlc_playlist_Export( getPL(), m_file.c_str(), psz_module );
-    vlc_playlist_Unlock( getPL() );
+    heimdall_playlist_Lock( getPL() );
+    heimdall_playlist_Export( getPL(), m_file.c_str(), psz_module );
+    heimdall_playlist_Unlock( getPL() );
 }
 
 void CmdPlaylistFirst::execute()
 {
-    vlc_playlist_Lock( getPL() );
-    vlc_playlist_PlayAt( getPL(), 0 );
-    vlc_playlist_Unlock( getPL() );
+    heimdall_playlist_Lock( getPL() );
+    heimdall_playlist_PlayAt( getPL(), 0 );
+    heimdall_playlist_Unlock( getPL() );
 }

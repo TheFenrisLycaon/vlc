@@ -1,7 +1,8 @@
 /*****************************************************************************
- * alsa.c: ALSA capture module for VLC
+ * alsa.c: ALSA capture module for Heimdall
  *****************************************************************************
  * Copyright (C) 2012 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -27,11 +28,11 @@
 #include <poll.h>
 #include <alsa/asoundlib.h>
 
-#include <vlc_common.h>
-#include <vlc_threads.h>
-#include <vlc_demux.h>
-#include <vlc_aout.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
+#include <heimdall_demux.h>
+#include <heimdall_aout.h>
+#include <heimdall_plugin.h>
 
 #define HELP_TEXT N_( \
     "Pass alsa:// to open the default ALSA capture device, " \
@@ -39,8 +40,8 @@
 #define STEREO_TEXT N_("Stereo")
 #define RATE_TEXT N_("Sample rate")
 
-static int Open (vlc_object_t *);
-static void Close (vlc_object_t *);
+static int Open (heimdall_object_t *);
+static void Close (heimdall_object_t *);
 
 static const int rate_values[] = { 192000, 176400,
     96000, 88200, 48000, 44100,
@@ -53,7 +54,7 @@ static const char *const rate_names[] = { N_("192000 Hz"), N_("176400 Hz"),
     N_("11025 Hz"), N_("8000 Hz"), N_("4000 Hz")
 };
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname (N_("ALSA"))
     set_description (N_("ALSA audio capture"))
     set_capability ("access", 0)
@@ -66,11 +67,11 @@ vlc_module_begin ()
 
     add_shortcut ("alsa")
     set_callbacks (Open, Close)
-vlc_module_end ()
+heimdall_module_end ()
 
-/** Helper for ALSA -> VLC debugging output */
+/** Helper for ALSA -> Heimdall debugging output */
 /** XXX: duplicated from ALSA output */
-static void Dump (vlc_object_t *obj, const char *msg,
+static void Dump (heimdall_object_t *obj, const char *msg,
                   int (*cb)(void *, snd_output_t *), void *p)
 {
     snd_output_t *output;
@@ -93,9 +94,9 @@ static void Dump (vlc_object_t *obj, const char *msg,
     snd_output_close (output);
 }
 #define Dump(o, m, cb, p) \
-        Dump(VLC_OBJECT(o), m, (int (*)(void *, snd_output_t *))(cb), p)
+        Dump(HEIMDALL_OBJECT(o), m, (int (*)(void *, snd_output_t *))(cb), p)
 
-static void DumpDevice (vlc_object_t *obj, snd_pcm_t *pcm)
+static void DumpDevice (heimdall_object_t *obj, snd_pcm_t *pcm)
 {
     snd_pcm_info_t *info;
 
@@ -110,7 +111,7 @@ static void DumpDevice (vlc_object_t *obj, snd_pcm_t *pcm)
     }
 }
 
-static void DumpDeviceStatus (vlc_object_t *obj, snd_pcm_t *pcm)
+static void DumpDeviceStatus (heimdall_object_t *obj, snd_pcm_t *pcm)
 {
     snd_pcm_status_t *status;
 
@@ -118,17 +119,17 @@ static void DumpDeviceStatus (vlc_object_t *obj, snd_pcm_t *pcm)
     snd_pcm_status (pcm, status);
     Dump (obj, "current status:\n", snd_pcm_status_dump, status);
 }
-#define DumpDeviceStatus(o, p) DumpDeviceStatus(VLC_OBJECT(o), p)
+#define DumpDeviceStatus(o, p) DumpDeviceStatus(HEIMDALL_OBJECT(o), p)
 
 
 typedef struct
 {
     snd_pcm_t *pcm;
     es_out_id_t *es;
-    vlc_thread_t thread;
+    heimdall_thread_t thread;
 
-    vlc_tick_t start;
-    vlc_tick_t caching;
+    heimdall_tick_t start;
+    heimdall_tick_t caching;
     snd_pcm_uframes_t period_size;
     unsigned rate;
 } demux_sys_t;
@@ -142,9 +143,9 @@ static void Poll (snd_pcm_t *pcm, int canc)
     snd_pcm_poll_descriptors (pcm, ufd, n);
     do
     {
-        vlc_restorecancel (canc);
+        heimdall_restorecancel (canc);
         while (poll (ufd, n, -1) == -1);
-        canc = vlc_savecancel ();
+        canc = heimdall_savecancel ();
         snd_pcm_poll_descriptors_revents (pcm, ufd, n, &revents);
     }
     while (!revents);
@@ -158,9 +159,9 @@ static void *Thread (void *data)
     size_t bytes;
     int canc, val;
 
-    vlc_thread_set_name("vlc-alsa");
+    heimdall_thread_set_name("heimdall-alsa");
 
-    canc = vlc_savecancel ();
+    canc = heimdall_savecancel ();
     bytes = snd_pcm_frames_to_bytes (pcm, sys->period_size);
     val = snd_pcm_start (pcm);
     if (val)
@@ -180,10 +181,10 @@ static void *Thread (void *data)
 
         /* Read data */
         snd_pcm_sframes_t frames, delay;
-        vlc_tick_t pts;
+        heimdall_tick_t pts;
 
         frames = snd_pcm_readi (pcm, block->p_buffer, sys->period_size);
-        pts = vlc_tick_now ();
+        pts = heimdall_tick_now ();
         if (frames < 0)
         {
             block_Release (block);
@@ -223,12 +224,12 @@ static void *Thread (void *data)
         if (snd_pcm_delay (pcm, &delay))
             delay = 0;
         delay += frames;
-        pts -= vlc_tick_from_samples(delay,  sys->rate);
+        pts -= heimdall_tick_from_samples(delay,  sys->rate);
 
         block->i_buffer = snd_pcm_frames_to_bytes (pcm, frames);
         block->i_nb_samples = frames;
         block->i_pts = pts;
-        block->i_length = vlc_tick_from_samples(frames, sys->rate);
+        block->i_length = heimdall_tick_from_samples(frames, sys->rate);
 
         es_out_SetPCR(demux->out, block->i_pts);
         es_out_Send (demux->out, sys->es, block);
@@ -243,11 +244,11 @@ static int Control (demux_t *demux, int query, va_list ap)
     switch (query)
     {
         case DEMUX_GET_TIME:
-            *va_arg (ap, vlc_tick_t *) = vlc_tick_now () - sys->start;
+            *va_arg (ap, heimdall_tick_t *) = heimdall_tick_now () - sys->start;
             break;
 
         case DEMUX_GET_PTS_DELAY:
-            *va_arg (ap, vlc_tick_t *) = sys->caching;
+            *va_arg (ap, heimdall_tick_t *) = sys->caching;
             break;
 
         //case DEMUX_SET_NEXT_DEMUX_TIME: still needed?
@@ -262,51 +263,51 @@ static int Control (demux_t *demux, int query, va_list ap)
             break;
 
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static const vlc_fourcc_t formats[] = {
-    [SND_PCM_FORMAT_S8]                 = VLC_CODEC_S8,
-    [SND_PCM_FORMAT_U8]                 = VLC_CODEC_U8,
-    [SND_PCM_FORMAT_S16_LE]             = VLC_CODEC_S16L,
-    [SND_PCM_FORMAT_S16_BE]             = VLC_CODEC_S16B,
-    [SND_PCM_FORMAT_U16_LE]             = VLC_CODEC_U16L,
-    [SND_PCM_FORMAT_U16_BE]             = VLC_CODEC_U16B,
-    [SND_PCM_FORMAT_S24_LE]             = VLC_CODEC_S24L32,
-    [SND_PCM_FORMAT_S24_BE]             = VLC_CODEC_S24B32,
-    [SND_PCM_FORMAT_U24_LE]             = VLC_CODEC_U32L, // TODO: replay gain
-    [SND_PCM_FORMAT_U24_BE]             = VLC_CODEC_U32B, // ^
-    [SND_PCM_FORMAT_S32_LE]             = VLC_CODEC_S32L,
-    [SND_PCM_FORMAT_S32_BE]             = VLC_CODEC_S32B,
-    [SND_PCM_FORMAT_U32_LE]             = VLC_CODEC_U32L,
-    [SND_PCM_FORMAT_U32_BE]             = VLC_CODEC_U32B,
-    [SND_PCM_FORMAT_FLOAT_LE]           = VLC_CODEC_F32L,
-    [SND_PCM_FORMAT_FLOAT_BE]           = VLC_CODEC_F32B,
-    [SND_PCM_FORMAT_FLOAT64_LE]         = VLC_CODEC_F64L,
-    [SND_PCM_FORMAT_FLOAT64_BE]         = VLC_CODEC_F64B,
-  //[SND_PCM_FORMAT_IEC958_SUBFRAME_LE] = VLC_CODEC_SPDIFL,
-  //[SND_PCM_FORMAT_IEC958_SUBFRAME_BE] = VLC_CODEC_SPDIFB,
-    [SND_PCM_FORMAT_MU_LAW]             = VLC_CODEC_MULAW,
-    [SND_PCM_FORMAT_A_LAW]              = VLC_CODEC_ALAW,
-  //[SND_PCM_FORMAT_IMA_ADPCM]          = VLC_CODEC_ADPCM_?, // XXX: which one?
-    [SND_PCM_FORMAT_MPEG]               = VLC_CODEC_MPGA,
-    [SND_PCM_FORMAT_GSM]                = VLC_CODEC_GSM,
-  //[SND_PCM_FORMAT_SPECIAL]            = VLC_CODEC_?
-    [SND_PCM_FORMAT_S24_3LE]            = VLC_CODEC_S24L,
-    [SND_PCM_FORMAT_S24_3BE]            = VLC_CODEC_S24B,
-    [SND_PCM_FORMAT_U24_3LE]            = VLC_CODEC_U24L,
-    [SND_PCM_FORMAT_U24_3BE]            = VLC_CODEC_U24B,
-    [SND_PCM_FORMAT_S20_3LE]            = VLC_CODEC_S24L, // TODO: replay gain
-    [SND_PCM_FORMAT_S20_3BE]            = VLC_CODEC_S24B, // ^
-    [SND_PCM_FORMAT_U20_3LE]            = VLC_CODEC_U24L, // ^
-    [SND_PCM_FORMAT_U20_3BE]            = VLC_CODEC_U24B, // ^
-    [SND_PCM_FORMAT_S18_3LE]            = VLC_CODEC_S24L, // ^
-    [SND_PCM_FORMAT_S18_3BE]            = VLC_CODEC_S24B, // ^
-    [SND_PCM_FORMAT_U18_3LE]            = VLC_CODEC_U24L, // ^
-    [SND_PCM_FORMAT_U18_3BE]            = VLC_CODEC_U24B, // ^
+static const heimdall_fourcc_t formats[] = {
+    [SND_PCM_FORMAT_S8]                 = HEIMDALL_CODEC_S8,
+    [SND_PCM_FORMAT_U8]                 = HEIMDALL_CODEC_U8,
+    [SND_PCM_FORMAT_S16_LE]             = HEIMDALL_CODEC_S16L,
+    [SND_PCM_FORMAT_S16_BE]             = HEIMDALL_CODEC_S16B,
+    [SND_PCM_FORMAT_U16_LE]             = HEIMDALL_CODEC_U16L,
+    [SND_PCM_FORMAT_U16_BE]             = HEIMDALL_CODEC_U16B,
+    [SND_PCM_FORMAT_S24_LE]             = HEIMDALL_CODEC_S24L32,
+    [SND_PCM_FORMAT_S24_BE]             = HEIMDALL_CODEC_S24B32,
+    [SND_PCM_FORMAT_U24_LE]             = HEIMDALL_CODEC_U32L, // TODO: replay gain
+    [SND_PCM_FORMAT_U24_BE]             = HEIMDALL_CODEC_U32B, // ^
+    [SND_PCM_FORMAT_S32_LE]             = HEIMDALL_CODEC_S32L,
+    [SND_PCM_FORMAT_S32_BE]             = HEIMDALL_CODEC_S32B,
+    [SND_PCM_FORMAT_U32_LE]             = HEIMDALL_CODEC_U32L,
+    [SND_PCM_FORMAT_U32_BE]             = HEIMDALL_CODEC_U32B,
+    [SND_PCM_FORMAT_FLOAT_LE]           = HEIMDALL_CODEC_F32L,
+    [SND_PCM_FORMAT_FLOAT_BE]           = HEIMDALL_CODEC_F32B,
+    [SND_PCM_FORMAT_FLOAT64_LE]         = HEIMDALL_CODEC_F64L,
+    [SND_PCM_FORMAT_FLOAT64_BE]         = HEIMDALL_CODEC_F64B,
+  //[SND_PCM_FORMAT_IEC958_SUBFRAME_LE] = HEIMDALL_CODEC_SPDIFL,
+  //[SND_PCM_FORMAT_IEC958_SUBFRAME_BE] = HEIMDALL_CODEC_SPDIFB,
+    [SND_PCM_FORMAT_MU_LAW]             = HEIMDALL_CODEC_MULAW,
+    [SND_PCM_FORMAT_A_LAW]              = HEIMDALL_CODEC_ALAW,
+  //[SND_PCM_FORMAT_IMA_ADPCM]          = HEIMDALL_CODEC_ADPCM_?, // XXX: which one?
+    [SND_PCM_FORMAT_MPEG]               = HEIMDALL_CODEC_MPGA,
+    [SND_PCM_FORMAT_GSM]                = HEIMDALL_CODEC_GSM,
+  //[SND_PCM_FORMAT_SPECIAL]            = HEIMDALL_CODEC_?
+    [SND_PCM_FORMAT_S24_3LE]            = HEIMDALL_CODEC_S24L,
+    [SND_PCM_FORMAT_S24_3BE]            = HEIMDALL_CODEC_S24B,
+    [SND_PCM_FORMAT_U24_3LE]            = HEIMDALL_CODEC_U24L,
+    [SND_PCM_FORMAT_U24_3BE]            = HEIMDALL_CODEC_U24B,
+    [SND_PCM_FORMAT_S20_3LE]            = HEIMDALL_CODEC_S24L, // TODO: replay gain
+    [SND_PCM_FORMAT_S20_3BE]            = HEIMDALL_CODEC_S24B, // ^
+    [SND_PCM_FORMAT_U20_3LE]            = HEIMDALL_CODEC_U24L, // ^
+    [SND_PCM_FORMAT_U20_3BE]            = HEIMDALL_CODEC_U24B, // ^
+    [SND_PCM_FORMAT_S18_3LE]            = HEIMDALL_CODEC_S24L, // ^
+    [SND_PCM_FORMAT_S18_3BE]            = HEIMDALL_CODEC_S24B, // ^
+    [SND_PCM_FORMAT_U18_3LE]            = HEIMDALL_CODEC_U24L, // ^
+    [SND_PCM_FORMAT_U18_3BE]            = HEIMDALL_CODEC_U24B, // ^
 };
 
 #ifdef WORDS_BIGENDIAN
@@ -339,16 +340,16 @@ static uint16_t channel_maps[] = {
     /* TODO: support 7-8 channels - need channels reodering */
 };
 
-static int Open (vlc_object_t *obj)
+static int Open (heimdall_object_t *obj)
 {
     demux_t *demux = (demux_t *)obj;
 
     if (demux->out == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    demux_sys_t *sys = vlc_obj_malloc(obj, sizeof (*sys));
+    demux_sys_t *sys = heimdall_obj_malloc(obj, sizeof (*sys));
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     /* Open the device */
     const char *device = demux->psz_location;
@@ -365,11 +366,11 @@ static int Open (vlc_object_t *obj)
     {
         msg_Err (demux, "cannot open ALSA device \"%s\": %s", device,
                  snd_strerror (val));
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     sys->pcm = pcm;
     msg_Dbg (demux, "using ALSA device: %s", device);
-    DumpDevice (VLC_OBJECT(demux), pcm);
+    DumpDevice (HEIMDALL_OBJECT(demux), pcm);
 
     /* Negotiate capture parameters */
     snd_pcm_hw_params_t *hw;
@@ -459,8 +460,8 @@ static int Open (vlc_object_t *obj)
     fmt.audio.i_rate = param;
     sys->rate = param;
 
-    sys->start = vlc_tick_now ();
-    sys->caching = VLC_TICK_FROM_MS(var_InheritInteger (demux, "live-caching"));
+    sys->start = heimdall_tick_now ();
+    sys->caching = HEIMDALL_TICK_FROM_MS(var_InheritInteger (demux, "live-caching"));
     param = sys->caching;
     val = snd_pcm_hw_params_set_buffer_time_near (pcm, hw, &param, NULL);
     if (val)
@@ -501,7 +502,7 @@ static int Open (vlc_object_t *obj)
     sys->es = es_out_Add (demux->out, &fmt);
     demux->p_sys = sys;
 
-    if (vlc_clone (&sys->thread, Thread, demux))
+    if (heimdall_clone (&sys->thread, Thread, demux))
     {
         es_out_Del (demux->out, sys->es);
         goto error;
@@ -509,19 +510,19 @@ static int Open (vlc_object_t *obj)
 
     demux->pf_demux = NULL;
     demux->pf_control = Control;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 error:
     snd_pcm_close (pcm);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
-static void Close (vlc_object_t *obj)
+static void Close (heimdall_object_t *obj)
 {
     demux_t *demux = (demux_t *)obj;
     demux_sys_t *sys = demux->p_sys;
 
-    vlc_cancel (sys->thread);
-    vlc_join (sys->thread, NULL);
+    heimdall_cancel (sys->thread);
+    heimdall_join (sys->thread, NULL);
 
     snd_pcm_close (sys->pcm);
 }

@@ -2,6 +2,7 @@
  * x11_window.hpp
  *****************************************************************************
  * Copyright (C) 2003 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cyril Deguet     <asmax@via.ecp.fr>
  *          Olivier Teulière <ipkiss@via.ecp.fr>
@@ -30,7 +31,7 @@
 #include "../src/generic_window.hpp"
 #include "../src/os_window.hpp"
 
-#include <vlc_window.h>
+#include <heimdall_window.h>
 
 class X11Display;
 class X11DragDrop;
@@ -69,8 +70,8 @@ public:
     Window getDrawable() const { return m_wnd; }
 
     /// Set the window handler
-    void setOSHandle( vlc_window_t *pWnd ) const {
-        pWnd->type = VLC_WINDOW_TYPE_XID;
+    void setOSHandle( heimdall_window_t *pWnd ) const {
+        pWnd->type = HEIMDALL_WINDOW_TYPE_XID;
         pWnd->info.has_double_click = true;
         pWnd->handle.xid = m_wnd;
         pWnd->display.x11 = NULL;

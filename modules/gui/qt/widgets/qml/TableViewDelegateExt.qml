@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,10 +21,10 @@ import QtQuick
 import QtQuick.Templates as T
 import QtQuick.Layouts
 
-import VLC.MainInterface
-import VLC.Widgets as Widgets
-import VLC.Style
-import VLC.Util
+import Heimdall.MainInterface
+import Heimdall.Widgets as Widgets
+import Heimdall.Style
+import Heimdall.Util
 
 T.Control {
     id: delegate
@@ -210,7 +211,7 @@ T.Control {
     }
 
     background: AnimatedBackground {
-        animationDuration: VLCStyle.duration_short
+        animationDuration: HeimdallStyle.duration_short
         enabled: theme.initialized
         color: delegate.selected ? theme.bg.highlight : theme.bg.primary
         border.color: visualFocus ? theme.visualFocus : Qt.alpha(theme.visualFocus, 0.0)
@@ -219,7 +220,7 @@ T.Control {
     contentItem: Row {
         id: contentItemRow
 
-        spacing: VLCStyle.column_spacing
+        spacing: HeimdallStyle.column_spacing
 
         Repeater {
             model: delegate.sortModel
@@ -289,7 +290,7 @@ T.Control {
         }
 
         Item {
-            width: VLCStyle.contextButton_width
+            width: HeimdallStyle.contextButton_width
 
             height: parent.height
 
@@ -299,13 +300,13 @@ T.Control {
                 id: contextButton
 
                 // place it at the end of the last column, we don't want spacing for this column
-                x: - contentItemRow.spacing + VLCStyle.contextButton_margin
+                x: - contentItemRow.spacing + HeimdallStyle.contextButton_margin
 
                 anchors.verticalCenter: parent.verticalCenter
 
-                text: VLCIcons.ellipsis
+                text: HeimdallIcons.ellipsis
 
-                font.pixelSize: VLCStyle.icon_normal
+                font.pixelSize: HeimdallStyle.icon_normal
 
                 description: qsTr("Menu")
 
@@ -333,7 +334,7 @@ T.Control {
                     if (!delegate.selected)
                         delegate.selectAndFocus(Qt.NoModifier, Qt.MouseFocusReason)
 
-                    const pos = contextButton.mapToGlobal(VLCStyle.margin_xsmall, contextButton.height / 2 + VLCStyle.fontHeight_normal)
+                    const pos = contextButton.mapToGlobal(HeimdallStyle.margin_xsmall, contextButton.height / 2 + HeimdallStyle.fontHeight_normal)
                     const selectionIndexes = delegate.ListView.view.selectionModel.selectedIndexes
 
                     delegate._contextMenuRequestID

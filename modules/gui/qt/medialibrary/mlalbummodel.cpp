@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,7 +20,7 @@
 #include "mlalbummodel.hpp"
 #include "mlhelper.hpp"
 
-#include "util/vlctick.hpp"
+#include "util/heimdalltick.hpp"
 
 MLAlbumModel::MLAlbumModel(QObject *parent)
     : MLBaseModel(parent)
@@ -42,46 +43,46 @@ QHash<int, QByteArray> MLAlbumModel::roleNames() const
     };
 }
 
-vlc_ml_sorting_criteria_t MLAlbumModel::nameToCriteria(QByteArray name) const
+heimdall_ml_sorting_criteria_t MLAlbumModel::nameToCriteria(QByteArray name) const
 {
-    return QHash<QByteArray, vlc_ml_sorting_criteria_t> {
-        {QByteArrayLiteral("id"), VLC_ML_SORTING_DEFAULT},
-        {QByteArrayLiteral("title"), VLC_ML_SORTING_ALPHA},
-        {QByteArrayLiteral("release_year"), VLC_ML_SORTING_RELEASEDATE},
-        {QByteArrayLiteral("main_artist"), VLC_ML_SORTING_ARTIST},
+    return QHash<QByteArray, heimdall_ml_sorting_criteria_t> {
+        {QByteArrayLiteral("id"), HEIMDALL_ML_SORTING_DEFAULT},
+        {QByteArrayLiteral("title"), HEIMDALL_ML_SORTING_ALPHA},
+        {QByteArrayLiteral("release_year"), HEIMDALL_ML_SORTING_RELEASEDATE},
+        {QByteArrayLiteral("main_artist"), HEIMDALL_ML_SORTING_ARTIST},
         // {"nb_tracks"},
-        {QByteArrayLiteral("duration"), VLC_ML_SORTING_DURATION},
-    }.value(name, VLC_ML_SORTING_DEFAULT);
+        {QByteArrayLiteral("duration"), HEIMDALL_ML_SORTING_DURATION},
+    }.value(name, HEIMDALL_ML_SORTING_DEFAULT);
 }
 
-void MLAlbumModel::onVlcMlEvent(const MLEvent &event)
+void MLAlbumModel::onHeimdallMlEvent(const MLEvent &event)
 {
     switch( event.i_type )
     {
-        case VLC_ML_EVENT_ALBUM_ADDED:
+        case HEIMDALL_ML_EVENT_ALBUM_ADDED:
         {
             emit resetRequested();
             return;
         }
-        case VLC_ML_EVENT_ALBUM_DELETED:
+        case HEIMDALL_ML_EVENT_ALBUM_DELETED:
         {
-            MLItemId itemId(event.deletion.i_entity_id, VLC_ML_PARENT_UNKNOWN);
+            MLItemId itemId(event.deletion.i_entity_id, HEIMDALL_ML_PARENT_UNKNOWN);
             deleteItemInCache(itemId);
             return;
         }
-        case VLC_ML_EVENT_ALBUM_UPDATED:
+        case HEIMDALL_ML_EVENT_ALBUM_UPDATED:
         {
-            MLItemId itemId(event.modification.i_entity_id, VLC_ML_PARENT_UNKNOWN);
+            MLItemId itemId(event.modification.i_entity_id, HEIMDALL_ML_PARENT_UNKNOWN);
             updateItemInCache(itemId);
             return;
         }
-        case VLC_ML_EVENT_ARTIST_DELETED:
-            if ( m_parent.id != 0 && m_parent.type == VLC_ML_PARENT_ARTIST &&
+        case HEIMDALL_ML_EVENT_ARTIST_DELETED:
+            if ( m_parent.id != 0 && m_parent.type == HEIMDALL_ML_PARENT_ARTIST &&
                  event.deletion.i_entity_id == m_parent.id )
                     emit resetRequested();
             return;
-        case VLC_ML_EVENT_GENRE_DELETED:
-            if ( m_parent.id != 0 && m_parent.type == VLC_ML_PARENT_GENRE &&
+        case HEIMDALL_ML_EVENT_GENRE_DELETED:
+            if ( m_parent.id != 0 && m_parent.type == HEIMDALL_ML_PARENT_GENRE &&
                  event.deletion.i_entity_id == m_parent.id )
                     emit resetRequested();
             return;
@@ -89,7 +90,7 @@ void MLAlbumModel::onVlcMlEvent(const MLEvent &event)
             break;
     }
 
-    MLBaseModel::onVlcMlEvent( event );
+    MLBaseModel::onHeimdallMlEvent( event );
 }
 
 QVariant MLAlbumModel::itemRoleData(const MLItem *item, const int role) const
@@ -130,34 +131,34 @@ MLAlbumModel::createMLLoader() const
     return std::make_unique<MLListCacheLoader>(m_mediaLib, std::make_shared<MLAlbumModel::Loader>(*this));
 }
 
-size_t MLAlbumModel::Loader::count(vlc_medialibrary_t* ml, const vlc_ml_query_params_t* query) const
+size_t MLAlbumModel::Loader::count(heimdall_medialibrary_t* ml, const heimdall_ml_query_params_t* query) const
 {
     if ( m_parent.id <= 0 )
-        return vlc_ml_count_albums(ml, query);
-    return vlc_ml_count_albums_of(ml, query, m_parent.type, m_parent.id);
+        return heimdall_ml_count_albums(ml, query);
+    return heimdall_ml_count_albums_of(ml, query, m_parent.type, m_parent.id);
 }
 
 std::vector<std::unique_ptr<MLItem>>
-MLAlbumModel::Loader::load(vlc_medialibrary_t* ml, const vlc_ml_query_params_t* query) const
+MLAlbumModel::Loader::load(heimdall_medialibrary_t* ml, const heimdall_ml_query_params_t* query) const
 {
-    ml_unique_ptr<vlc_ml_album_list_t> album_list;
+    ml_unique_ptr<heimdall_ml_album_list_t> album_list;
     if ( m_parent.id <= 0 )
-        album_list.reset( vlc_ml_list_albums(ml, query) );
+        album_list.reset( heimdall_ml_list_albums(ml, query) );
     else
-        album_list.reset( vlc_ml_list_albums_of(ml, query, m_parent.type, m_parent.id ) );
+        album_list.reset( heimdall_ml_list_albums_of(ml, query, m_parent.type, m_parent.id ) );
     if ( album_list == nullptr )
         return {};
     std::vector<std::unique_ptr<MLItem>> res;
-    for( const vlc_ml_album_t& album: ml_range_iterate<vlc_ml_album_t>( album_list ) )
+    for( const heimdall_ml_album_t& album: ml_range_iterate<heimdall_ml_album_t>( album_list ) )
         res.emplace_back( std::make_unique<MLAlbum>( &album ) );
     return res;
 }
 
 std::unique_ptr<MLItem>
-MLAlbumModel::Loader::loadItemById(vlc_medialibrary_t* ml, MLItemId itemId) const
+MLAlbumModel::Loader::loadItemById(heimdall_medialibrary_t* ml, MLItemId itemId) const
 {
-    assert(itemId.type == VLC_ML_PARENT_ALBUM);
-    ml_unique_ptr<vlc_ml_album_t> album(vlc_ml_get_album(ml, itemId.id));
+    assert(itemId.type == HEIMDALL_ML_PARENT_ALBUM);
+    ml_unique_ptr<heimdall_ml_album_t> album(heimdall_ml_get_album(ml, itemId.id));
     if (!album)
         return nullptr;
     return std::make_unique<MLAlbum>(album.get());

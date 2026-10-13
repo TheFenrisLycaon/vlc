@@ -1,6 +1,7 @@
 
 /*****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,9 +20,9 @@
 import QtQuick
 import QtQuick.Window
 
-import VLC.MainInterface
-import VLC.Widgets as Widgets
-import VLC.Style
+import Heimdall.MainInterface
+import Heimdall.Widgets as Widgets
+import Heimdall.Style
 
 
 Item {
@@ -29,7 +30,7 @@ Item {
 
     // Properties
 
-    property real playIconSize: VLCStyle.play_cover_normal
+    property real playIconSize: HeimdallStyle.play_cover_normal
 
     property bool playCoverShowPlay: implicitPlayCoverShowPlay
     property bool implicitPlayCoverShowPlay: false
@@ -80,8 +81,8 @@ Item {
 
     // Settings
 
-    height: VLCStyle.listAlbumCover_height
-    width: VLCStyle.listAlbumCover_width
+    height: HeimdallStyle.listAlbumCover_height
+    width: HeimdallStyle.listAlbumCover_width
 
     Accessible.role: Accessible.Graphic
     Accessible.name: qsTr("Media cover")
@@ -106,7 +107,7 @@ Item {
     Timer {
         id: timer
 
-        interval: VLCStyle.duration_long
+        interval: HeimdallStyle.duration_long
         onTriggered: root._loadTimeout = true
     }
 
@@ -186,7 +187,7 @@ Item {
 
             Behavior on opacity {
                 OpacityAnimator {
-                    duration: VLCStyle.duration_short
+                    duration: HeimdallStyle.duration_short
 
                     easing.type: Easing.InOutSine
                 }

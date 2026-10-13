@@ -2,6 +2,7 @@
  * avahi.c: Bonjour services discovery module
  *****************************************************************************
  * Copyright (C) 2005-2009, 2016 VideoLAN and VLC authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Jon Lech Johansen <jon@nanocrew.net>
  *          Jean-Baptiste Kempf <jb@videolan.org>
@@ -29,12 +30,12 @@
 # include "config.h"
 #endif
 
-#define VLC_MODULE_LICENSE VLC_LICENSE_GPL_2_PLUS
-#include <vlc_common.h>
-#include <vlc_arrays.h>
-#include <vlc_plugin.h>
-#include <vlc_services_discovery.h>
-#include <vlc_renderer_discovery.h>
+#define HEIMDALL_MODULE_LICENSE HEIMDALL_LICENSE_GPL_2_PLUS
+#include <heimdall_common.h>
+#include <heimdall_arrays.h>
+#include <heimdall_plugin.h>
+#include <heimdall_services_discovery.h>
+#include <heimdall_renderer_discovery.h>
 
 #include <avahi-client/client.h>
 #include <avahi-client/publish.h>
@@ -48,15 +49,15 @@
  *****************************************************************************/
 
 /* Callbacks */
-static int  OpenSD ( vlc_object_t * );
-static void CloseSD( vlc_object_t * );
-static int  OpenRD ( vlc_object_t * );
-static void CloseRD( vlc_object_t * );
+static int  OpenSD ( heimdall_object_t * );
+static void CloseSD( heimdall_object_t * );
+static int  OpenRD ( heimdall_object_t * );
+static void CloseRD( heimdall_object_t * );
 
-VLC_SD_PROBE_HELPER("avahi", N_("Zeroconf network services"), SD_CAT_LAN)
-VLC_RD_PROBE_HELPER( "avahi_renderer", "Avahi Zeroconf renderer Discovery" )
+HEIMDALL_SD_PROBE_HELPER("avahi", N_("Zeroconf network services"), SD_CAT_LAN)
+HEIMDALL_RD_PROBE_HELPER( "avahi_renderer", "Avahi Zeroconf renderer Discovery" )
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( "Avahi" )
     set_description( N_("Zeroconf services") )
     set_subcategory( SUBCAT_PLAYLIST_SD )
@@ -64,15 +65,15 @@ vlc_module_begin ()
     set_callbacks( OpenSD, CloseSD )
     add_shortcut( "mdns", "avahi" )
 
-    VLC_SD_PROBE_SUBMODULE
+    HEIMDALL_SD_PROBE_SUBMODULE
     add_submodule() \
         set_description( N_( "Avahi Renderer Discovery" ) )
         set_subcategory( SUBCAT_SOUT_RENDERER )
         set_capability( "renderer_discovery", 0 )
         set_callbacks( OpenRD, CloseRD )
         add_shortcut( "mdns_renderer", "avahi_renderer" )
-        VLC_RD_PROBE_SUBMODULE
-vlc_module_end ()
+        HEIMDALL_RD_PROBE_SUBMODULE
+heimdall_module_end ()
 
 /*****************************************************************************
  * Local structures
@@ -82,8 +83,8 @@ typedef struct
 {
     AvahiThreadedPoll   *poll;
     AvahiClient         *client;
-    vlc_dictionary_t    services_name_to_input_item;
-    vlc_object_t        *parent;
+    heimdall_dictionary_t    services_name_to_input_item;
+    heimdall_object_t        *parent;
     bool                renderer;
 } discovery_sys_t;
 
@@ -131,7 +132,7 @@ static void add_renderer( const char *psz_protocol, const char *psz_name,
                           const char *psz_addr, uint16_t i_port,
                           AvahiStringList *txt, discovery_sys_t *p_sys )
 {
-    vlc_renderer_discovery_t *p_rd = ( vlc_renderer_discovery_t* )(p_sys->parent);
+    heimdall_renderer_discovery_t *p_rd = ( heimdall_renderer_discovery_t* )(p_sys->parent);
     AvahiStringList *asl = NULL;
     char *friendly_name = NULL;
     char *icon_uri = NULL;
@@ -153,9 +154,9 @@ static void add_renderer( const char *psz_protocol, const char *psz_name,
                 int ca = atoi( value );
 
                 if( ( ca & 0x01 ) != 0 )
-                    renderer_flags |= VLC_RENDERER_CAN_VIDEO;
+                    renderer_flags |= HEIMDALL_RENDERER_CAN_VIDEO;
                 if( ( ca & 0x04 ) != 0 )
-                    renderer_flags |= VLC_RENDERER_CAN_AUDIO;
+                    renderer_flags |= HEIMDALL_RENDERER_CAN_AUDIO;
             }
 
             if( key != NULL )
@@ -183,7 +184,7 @@ static void add_renderer( const char *psz_protocol, const char *psz_name,
             goto error;
         }
 
-        extra_uri = renderer_flags & VLC_RENDERER_CAN_VIDEO ? NULL : "no-video";
+        extra_uri = renderer_flags & HEIMDALL_RENDERER_CAN_VIDEO ? NULL : "no-video";
         demux = "cc_demux";
     }
 
@@ -197,15 +198,15 @@ static void add_renderer( const char *psz_protocol, const char *psz_name,
         }
     }
 
-    vlc_renderer_item_t *p_renderer_item =
-        vlc_renderer_item_new( psz_protocol, friendly_name ? friendly_name : psz_name, uri, extra_uri,
+    heimdall_renderer_item_t *p_renderer_item =
+        heimdall_renderer_item_new( psz_protocol, friendly_name ? friendly_name : psz_name, uri, extra_uri,
                                demux, icon_uri, renderer_flags );
     if( p_renderer_item == NULL )
         goto error;
 
-    vlc_dictionary_insert( &p_sys->services_name_to_input_item,
+    heimdall_dictionary_insert( &p_sys->services_name_to_input_item,
         psz_name, p_renderer_item);
-    vlc_rd_add_item( p_rd, p_renderer_item );
+    heimdall_rd_add_item( p_rd, p_renderer_item );
 
 error:
     free( friendly_name );
@@ -250,8 +251,8 @@ static void resolve_callback(
 {
     discovery_sys_t *p_sys = userdata;
 
-    VLC_UNUSED(interface); VLC_UNUSED(host_name);
-    VLC_UNUSED(flags);
+    HEIMDALL_UNUSED(interface); HEIMDALL_UNUSED(host_name);
+    HEIMDALL_UNUSED(flags);
 
     if( event == AVAHI_RESOLVER_FAILURE )
     {
@@ -357,7 +358,7 @@ static void resolve_callback(
         if( p_input != NULL )
         {
             services_discovery_t *p_sd = ( services_discovery_t* )(p_sys->parent);
-            vlc_dictionary_insert( &p_sys->services_name_to_input_item,
+            heimdall_dictionary_insert( &p_sys->services_name_to_input_item,
                 name, p_input );
             services_discovery_AddItem( p_sd, p_input );
        }
@@ -380,8 +381,8 @@ static void browse_callback(
     AvahiLookupResultFlags flags,
     void* userdata )
 {
-    VLC_UNUSED(b);
-    VLC_UNUSED(flags);
+    HEIMDALL_UNUSED(b);
+    HEIMDALL_UNUSED(flags);
     discovery_sys_t *p_sys = userdata;
     if( event == AVAHI_BROWSER_NEW )
     {
@@ -398,7 +399,7 @@ static void browse_callback(
     {
         /** \todo Store the input id and search it, rather than searching the items */
         void *p_item;
-        p_item = vlc_dictionary_value_for_key(
+        p_item = heimdall_dictionary_value_for_key(
                         &p_sys->services_name_to_input_item,
                         name );
         if( !p_item )
@@ -407,9 +408,9 @@ static void browse_callback(
         {
             if( p_sys->renderer )
             {
-                vlc_renderer_discovery_t *p_rd = ( vlc_renderer_discovery_t* )(p_sys->parent);
-                vlc_rd_remove_item( p_rd, p_item );
-                vlc_renderer_item_release( p_item );
+                heimdall_renderer_discovery_t *p_rd = ( heimdall_renderer_discovery_t* )(p_sys->parent);
+                heimdall_rd_remove_item( p_rd, p_item );
+                heimdall_renderer_item_release( p_item );
             }
             else
             {
@@ -417,7 +418,7 @@ static void browse_callback(
                 services_discovery_RemoveItem( p_sd, p_item );
                 input_item_Release( p_item );
             }
-            vlc_dictionary_remove_value_for_key(
+            heimdall_dictionary_remove_value_for_key(
                         &p_sys->services_name_to_input_item,
                         name, NULL, NULL );
         }
@@ -426,14 +427,14 @@ static void browse_callback(
 
 static void clear_input_item( void* p_item, void* p_obj )
 {
-    VLC_UNUSED( p_obj );
+    HEIMDALL_UNUSED( p_obj );
     input_item_Release( p_item );
 }
 
 static void clear_renderer_item( void* p_item, void* p_obj )
 {
-    VLC_UNUSED( p_obj );
-    vlc_renderer_item_release( p_item );
+    HEIMDALL_UNUSED( p_obj );
+    heimdall_renderer_item_release( p_item );
 }
 
 /*****************************************************************************
@@ -443,7 +444,7 @@ static int OpenCommon( discovery_sys_t *p_sys )
 {
     int err;
 
-    vlc_dictionary_init( &p_sys->services_name_to_input_item, 1 );
+    heimdall_dictionary_init( &p_sys->services_name_to_input_item, 1 );
 
     p_sys->poll = avahi_threaded_poll_new();
     if( p_sys->poll == NULL )
@@ -480,7 +481,7 @@ static int OpenCommon( discovery_sys_t *p_sys )
 
     avahi_threaded_poll_start( p_sys->poll );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     if( p_sys->client != NULL )
@@ -488,44 +489,44 @@ error:
     if( p_sys->poll != NULL )
         avahi_threaded_poll_free( p_sys->poll );
 
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
-static int OpenSD( vlc_object_t *p_this )
+static int OpenSD( heimdall_object_t *p_this )
 {
     services_discovery_t *p_sd = ( services_discovery_t* )p_this;
     p_sd->description = _("Zeroconf network services");
 
     discovery_sys_t *p_sys = p_sd->p_sys = calloc( 1, sizeof( discovery_sys_t ) );
     if( !p_sd->p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     p_sys->parent = p_this;
     p_sys->renderer = false;
 
     int ret = OpenCommon( p_sys );
-    if( ret != VLC_SUCCESS )
+    if( ret != HEIMDALL_SUCCESS )
     {
-        vlc_dictionary_clear( &p_sys->services_name_to_input_item,
+        heimdall_dictionary_clear( &p_sys->services_name_to_input_item,
                               clear_input_item, NULL );
         free( p_sys );
     }
     return ret;
 }
 
-static int OpenRD( vlc_object_t *p_this )
+static int OpenRD( heimdall_object_t *p_this )
 {
-    vlc_renderer_discovery_t *p_rd = (vlc_renderer_discovery_t *)p_this;
+    heimdall_renderer_discovery_t *p_rd = (heimdall_renderer_discovery_t *)p_this;
 
     discovery_sys_t *p_sys = p_rd->p_sys = calloc( 1, sizeof( discovery_sys_t ) );
     if( !p_rd->p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     p_sys->parent = p_this;
     p_sys->renderer = true;
 
     int ret = OpenCommon( p_sys );
-    if( ret != VLC_SUCCESS )
+    if( ret != HEIMDALL_SUCCESS )
     {
-        vlc_dictionary_clear( &p_sys->services_name_to_input_item,
+        heimdall_dictionary_clear( &p_sys->services_name_to_input_item,
                               clear_renderer_item, NULL );
         free( p_sys );
     }
@@ -544,22 +545,22 @@ static void CloseCommon( discovery_sys_t *p_sys )
 
 }
 
-static void CloseSD( vlc_object_t *p_this )
+static void CloseSD( heimdall_object_t *p_this )
 {
     services_discovery_t *p_sd = ( services_discovery_t* )p_this;
     discovery_sys_t *p_sys = p_sd->p_sys;
     CloseCommon( p_sys );
-    vlc_dictionary_clear( &p_sys->services_name_to_input_item,
+    heimdall_dictionary_clear( &p_sys->services_name_to_input_item,
                           clear_input_item, NULL );
     free( p_sys );
 }
 
-static void CloseRD( vlc_object_t *p_this )
+static void CloseRD( heimdall_object_t *p_this )
 {
-    vlc_renderer_discovery_t *p_rd = (vlc_renderer_discovery_t *)p_this;
+    heimdall_renderer_discovery_t *p_rd = (heimdall_renderer_discovery_t *)p_this;
     discovery_sys_t *p_sys = p_rd->p_sys;
     CloseCommon( p_sys );
-    vlc_dictionary_clear( &p_sys->services_name_to_input_item,
+    heimdall_dictionary_clear( &p_sys->services_name_to_input_item,
                           clear_renderer_item, NULL );
     free( p_sys );
 }

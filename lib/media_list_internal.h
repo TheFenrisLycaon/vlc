@@ -1,8 +1,9 @@
 /*****************************************************************************
- * media_list_internal.h : Definition of opaque structures for libvlc exported API
+ * media_list_internal.h : Definition of opaque structures for libheimdall exported API
  * Also contains some internal utility functions
  *****************************************************************************
  * Copyright (C) 2005-2009 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Clément Stenac <zorglub@videolan.org>
  *
@@ -21,23 +22,23 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef _LIBVLC_MEDIA_LIST_INTERNAL_H
-#define _LIBVLC_MEDIA_LIST_INTERNAL_H 1
+#ifndef _LIBHEIMDALL_MEDIA_LIST_INTERNAL_H
+#define _LIBHEIMDALL_MEDIA_LIST_INTERNAL_H 1
 
-#include <vlc/vlc.h>
-#include <vlc/libvlc_media.h>
+#include <heimdall/heimdall.h>
+#include <heimdall/libheimdall_media.h>
 
-#include <vlc_common.h>
-#include <vlc_arrays.h>
+#include <heimdall_common.h>
+#include <heimdall_arrays.h>
 
-struct libvlc_media_list_t
+struct libheimdall_media_list_t
 {
-    vlc_mutex_t                 object_lock;
-    vlc_atomic_rc_t             rc;
-    libvlc_media_t * p_md; /* The media from which the
+    heimdall_mutex_t                 object_lock;
+    heimdall_atomic_rc_t             rc;
+    libheimdall_media_t * p_md; /* The media from which the
                                        * mlist comes, if any. */
-    libvlc_media_t * p_internal_md; /* media set from media.c */
-    vlc_array_t                items;
+    libheimdall_media_t * p_internal_md; /* media set from media.c */
+    heimdall_array_t                items;
 
     /* This indicates if this media list is read-only
      * from a user point of view */
@@ -45,17 +46,17 @@ struct libvlc_media_list_t
 };
 
 /* Media List */
-void libvlc_media_list_internal_clear( libvlc_media_list_t *p_mlist );
+void libheimdall_media_list_internal_clear( libheimdall_media_list_t *p_mlist );
 
-void libvlc_media_list_internal_add_media(
-        libvlc_media_list_t * p_mlist,
-        libvlc_media_t * p_md );
+void libheimdall_media_list_internal_add_media(
+        libheimdall_media_list_t * p_mlist,
+        libheimdall_media_t * p_md );
 
-void libvlc_media_list_internal_insert_media(
-        libvlc_media_list_t * p_mlist,
-        libvlc_media_t * p_md, int index );
+void libheimdall_media_list_internal_insert_media(
+        libheimdall_media_list_t * p_mlist,
+        libheimdall_media_t * p_md, int index );
 
-int libvlc_media_list_internal_remove_index(
-        libvlc_media_list_t * p_mlist, int index );
+int libheimdall_media_list_internal_remove_index(
+        libheimdall_media_list_t * p_mlist, int index );
 
 #endif

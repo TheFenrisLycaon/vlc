@@ -3,8 +3,9 @@
  *****************************************************************************
  * Copyright (C) 2005-2009 VLC authors and VideoLAN
  * Copyright (C) 2013      Vianney Boyer
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Vianney Boyer <vlcvboyer -at- gmail -dot- com>
+ * Authors: Vianney Boyer <heimdallvboyer -at- gmail -dot- com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -21,8 +22,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_PUZZLE_H
-#define VLC_PUZZLE_H 1
+#ifndef HEIMDALL_PUZZLE_H
+#define HEIMDALL_PUZZLE_H 1
 
 #include "puzzle_mgt.h"
 
@@ -63,17 +64,17 @@ struct filter_sys_t {
     uint8_t i_preview_pos;
     int32_t i_selected;
 
-    vlc_mutex_t lock, pce_lock;
+    heimdall_mutex_t lock, pce_lock;
 
     int32_t i_auto_shuffle_countdown_val, i_auto_solve_countdown_val;
 
     point_t **ps_bezier_pts_H;
 };
 
-struct vlc_mouse_t;
+struct heimdall_mouse_t;
 
 picture_t *Filter( filter_t *, picture_t * );
-int puzzle_Callback( vlc_object_t *, char const *, vlc_value_t, vlc_value_t, void * );
-int puzzle_mouse( filter_t *, struct vlc_mouse_t *, const struct vlc_mouse_t * );
+int puzzle_Callback( heimdall_object_t *, char const *, heimdall_value_t, heimdall_value_t, void * );
+int puzzle_mouse( filter_t *, struct heimdall_mouse_t *, const struct heimdall_mouse_t * );
 
 #endif

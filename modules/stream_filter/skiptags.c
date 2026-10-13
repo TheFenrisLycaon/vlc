@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright © 2005-2008 VLC authors and VideoLAN
  * Copyright © 2016-2017 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -27,10 +28,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_stream.h>
-#include <vlc_block.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_stream.h>
+#include <heimdall_block.h>
 
 #define MAX_TAGS 16
 #define MAX_TAG_SIZE (1<<21)
@@ -64,7 +65,7 @@ static uint_fast32_t SkipID3Tag(stream_t *s)
     const uint8_t *peek;
 
     /* Get 10-bytes ID3 header */
-    if (vlc_stream_Peek(s, &peek, 10) < 10)
+    if (heimdall_stream_Peek(s, &peek, 10) < 10)
         return 0;
     if (memcmp(peek, "ID3", 3))
         return 0;
@@ -87,7 +88,7 @@ static uint_fast32_t SkipAPETag(stream_t *s)
     const uint8_t *peek;
 
     /* Get 32-bytes APE header */
-    if (vlc_stream_Peek(s, &peek, 32) < 32)
+    if (heimdall_stream_Peek(s, &peek, 32) < 32)
         return 0;
     if (memcmp(peek, "APETAGEX", 8))
         return 0;
@@ -120,16 +121,16 @@ static uint_fast32_t SkipAPETag(stream_t *s)
 static bool SkipTag(stream_t *s, uint_fast32_t (*skipper)(stream_t *),
                     block_t **pp_block, unsigned *pi_tags_count)
 {
-    uint_fast64_t offset = vlc_stream_Tell(s);
+    uint_fast64_t offset = heimdall_stream_Tell(s);
     uint_fast32_t size = skipper(s);
     if (size == 0)
         return false;
     if (*pi_tags_count < MAX_TAGS && size <= MAX_TAG_SIZE)
     {
-        *pp_block = vlc_stream_Block(s, size);
+        *pp_block = heimdall_stream_Block(s, size);
         if (unlikely(!*pp_block))
         {   /* I/O error, try to restore offset. If it fails, screwed. */
-            if (vlc_stream_Seek(s, offset))
+            if (heimdall_stream_Seek(s, offset))
                 msg_Err(s, "seek failure");
             return false;
         }
@@ -153,11 +154,11 @@ static bool SkipTag(stream_t *s, uint_fast32_t (*skipper)(stream_t *),
 #else
         ssize_t skip = size;
 #endif
-        ssize_t read = vlc_stream_Read(s, NULL, skip);
+        ssize_t read = heimdall_stream_Read(s, NULL, skip);
 
         if (unlikely(read < 0))
         {   /* I/O error, try to restore offset. If it fails, screwed. */
-            if (vlc_stream_Seek(s, offset))
+            if (heimdall_stream_Seek(s, offset))
                 msg_Err(s, "seek failure");
             return false;
         }
@@ -173,7 +174,7 @@ static bool SkipTag(stream_t *s, uint_fast32_t (*skipper)(stream_t *),
 
 static ssize_t Read(stream_t *stream, void *buf, size_t buflen)
 {
-    return vlc_stream_Read(stream->s, buf, buflen);
+    return heimdall_stream_Read(stream->s, buf, buflen);
 }
 
 static int Seek(stream_t *stream, uint64_t offset)
@@ -182,7 +183,7 @@ static int Seek(stream_t *stream, uint64_t offset)
 
     if (unlikely(offset + sys->header_skip < offset))
         return -1;
-    return vlc_stream_Seek(stream->s, sys->header_skip + offset);
+    return heimdall_stream_Seek(stream->s, sys->header_skip + offset);
 }
 
 static int Control(stream_t *stream, int query, va_list args)
@@ -198,22 +199,22 @@ static int Control(stream_t *stream, int query, va_list args)
             if (sys->p_tags == NULL)
                 break;
             *va_arg(args, const block_t **) = sys->p_tags;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
 
         case STREAM_GET_SIZE:
         {
             uint64_t size;
-            int ret = vlc_stream_GetSize(stream->s, &size);
-            if (ret == VLC_SUCCESS)
+            int ret = heimdall_stream_GetSize(stream->s, &size);
+            if (ret == HEIMDALL_SUCCESS)
                 *va_arg(args, uint64_t *) = size - sys->header_skip;
             return ret;
         }
     }
 
-    return vlc_stream_vaControl(stream->s, query, args);
+    return heimdall_stream_vaControl(stream->s, query, args);
 }
 
-static int Open(vlc_object_t *obj)
+static int Open(heimdall_object_t *obj)
 {
     stream_t *stream = (stream_t *)obj;
     stream_t *s = stream->s;
@@ -233,11 +234,11 @@ static int Open(vlc_object_t *obj)
         }
     }
 
-    uint_fast64_t offset = vlc_stream_Tell(s);
+    uint_fast64_t offset = heimdall_stream_Tell(s);
     if (offset == 0 || !(sys = skiptags_sys_New()))
     {
         block_ChainRelease( p_tags );
-        return VLC_EGENERIC; /* nothing to do */
+        return HEIMDALL_EGENERIC; /* nothing to do */
     }
 
     sys->header_skip = offset;
@@ -246,10 +247,10 @@ static int Open(vlc_object_t *obj)
     stream->pf_read = Read;
     stream->pf_seek = Seek;
     stream->pf_control = Control;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void Close(vlc_object_t *obj)
+static void Close(heimdall_object_t *obj)
 {
     stream_t *stream = (stream_t *)obj;
     struct skiptags_sys_t *sys = (struct skiptags_sys_t *) stream->p_sys;
@@ -257,10 +258,10 @@ static void Close(vlc_object_t *obj)
     skiptags_sys_Delete(sys);
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_subcategory(SUBCAT_INPUT_STREAM_FILTER)
     set_capability("stream_filter", 330)
 
     set_description(N_("APE/ID3 tags-skipping filter"))
     set_callbacks(Open, Close)
-vlc_module_end()
+heimdall_module_end()

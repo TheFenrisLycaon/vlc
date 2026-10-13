@@ -3,6 +3,7 @@
  * filesystem.c: filesystem helpers
  *****************************************************************************
  * Copyright © 2024 VLC authors, VideoLAN and Videolabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gabriel Lafond Thenaille <gabriel@videolabs.io>
  *****************************************************************************/
@@ -11,15 +12,15 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_fs.h>
+#include <heimdall_common.h>
+#include <heimdall_fs.h>
 
 /**
  * Create all directories in the given path if missing.
  */
-int vlc_mkdir_parent(const char *dirname, mode_t mode)
+int heimdall_mkdir_parent(const char *dirname, mode_t mode)
 {
-    int ret = vlc_mkdir(dirname, mode);
+    int ret = heimdall_mkdir(dirname, mode);
     if (ret == 0 || errno == EEXIST) {
         return 0;
     } else if (errno != ENOENT) {
@@ -38,7 +39,7 @@ int vlc_mkdir_parent(const char *dirname, mode_t mode)
             break;
         }
         *ptr = '\0';
-        if (vlc_mkdir(path, mode) != 0) {
+        if (heimdall_mkdir(path, mode) != 0) {
             if (errno != EEXIST) {
                 free(path);
                 return -1;
@@ -47,7 +48,7 @@ int vlc_mkdir_parent(const char *dirname, mode_t mode)
         *ptr = DIR_SEP_CHAR;
         ptr++;
     }
-    ret = vlc_mkdir(path, mode);
+    ret = heimdall_mkdir(path, mode);
     if (errno == EEXIST) {
         ret = 0;
     }

@@ -21,33 +21,33 @@ wait_or_quit()
 # Remove the fail file if needed
 rm -f $TELNET_FAIL
 
-# Test that VLC handle options correctly
-../vlc -I luatelnet --telnet-port $PORT &
-VLC1=$!
+# Test that Heimdall handle options correctly
+../heimdall -I luatelnet --telnet-port $PORT &
+HEIMDALL1=$!
 sleep 1
-killer $VLC1 &
+killer $HEIMDALL1 &
 echo "admin\nshutdown\n" | nc localhost $PORT
-wait_or_quit $VLC1
+wait_or_quit $HEIMDALL1
 
-../vlc -I luatelnet --telnet-port $PORT --telnet-password bla &
-VLC2=$!
+../heimdall -I luatelnet --telnet-port $PORT --telnet-password bla &
+HEIMDALL2=$!
 sleep 1
-killer $VLC2 &
+killer $HEIMDALL2 &
 echo "bla\nshutdown\n" | nc localhost $PORT
-wait_or_quit $VLC2
+wait_or_quit $HEIMDALL2
 
-../vlc -I luatelnet --telnet-port $PORT --telnet-password one_long_password &
-VLC3=$!
+../heimdall -I luatelnet --telnet-port $PORT --telnet-password one_long_password &
+HEIMDALL3=$!
 sleep 1
-killer $VLC3 &
+killer $HEIMDALL3 &
 echo "one_long_password\nshutdown\n" | nc localhost $PORT
-wait_or_quit $VLC3
+wait_or_quit $HEIMDALL3
 
-../vlc -I luatelnet --telnet-port $PORT --telnet-password "" &
-VLC4=$!
+../heimdall -I luatelnet --telnet-port $PORT --telnet-password "" &
+HEIMDALL4=$!
 sleep 1
-killer $VLC4 &
+killer $HEIMDALL4 &
 echo "\nshutdown\n" | nc localhost $PORT
-wait_or_quit $VLC4
+wait_or_quit $HEIMDALL4
 
 exit 0

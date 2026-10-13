@@ -2,6 +2,7 @@
  * omxil.c: Video decoder module making use of OpenMAX IL components.
  *****************************************************************************
  * Copyright (C) 2010 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gildas Bazin <gbazin@videolan.org>
  *
@@ -31,11 +32,11 @@
 #define dll_open(name) dlopen( name, RTLD_NOW )
 #define dll_close(handle) dlclose(handle)
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
-#include <vlc_block_helper.h>
-#include <vlc_cpu.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
+#include <heimdall_block_helper.h>
+#include <heimdall_cpu.h>
 
 #include "omxil.h"
 #include "omxil_core.h"
@@ -68,7 +69,7 @@ static const char *ppsz_extra_dll_list[] =
 /*****************************************************************************
  * Global OMX Core instance, shared between module instances
  *****************************************************************************/
-static vlc_mutex_t omx_core_mutex = VLC_STATIC_MUTEX;
+static heimdall_mutex_t omx_core_mutex = HEIMDALL_STATIC_MUTEX;
 static unsigned int omx_refcount = 0;
 static void *dll_handle;
 OMX_ERRORTYPE (*pf_init) (void);
@@ -95,14 +96,14 @@ static void CloseExtraDll(void)
 #define CloseExtraDll()
 #endif
 
-int InitOmxCore(vlc_object_t *p_this)
+int InitOmxCore(heimdall_object_t *p_this)
 {
     int i;
-    vlc_mutex_lock( &omx_core_mutex );
+    heimdall_mutex_lock( &omx_core_mutex );
     if( omx_refcount > 0 ) {
         omx_refcount++;
-        vlc_mutex_unlock( &omx_core_mutex );
-        return VLC_SUCCESS;
+        heimdall_mutex_unlock( &omx_core_mutex );
+        return HEIMDALL_SUCCESS;
     }
 
 #ifdef RPI_OMX
@@ -131,8 +132,8 @@ int InitOmxCore(vlc_object_t *p_this)
     if( !dll_handle )
     {
         CloseExtraDll();
-        vlc_mutex_unlock( &omx_core_mutex );
-        return VLC_EGENERIC;
+        heimdall_mutex_unlock( &omx_core_mutex );
+        return HEIMDALL_EGENERIC;
     }
 
     pf_init = dlsym( dll_handle, "OMX_Init" );
@@ -148,8 +149,8 @@ int InitOmxCore(vlc_object_t *p_this)
                   ppsz_dll_list[i], dlerror() );
         dll_close(dll_handle);
         CloseExtraDll();
-        vlc_mutex_unlock( &omx_core_mutex );
-        return VLC_EGENERIC;
+        heimdall_mutex_unlock( &omx_core_mutex );
+        return HEIMDALL_EGENERIC;
     }
 
     /* Initialise the OMX core */
@@ -160,17 +161,17 @@ int InitOmxCore(vlc_object_t *p_this)
                   ErrorToString(omx_error) );
         dll_close(dll_handle);
         CloseExtraDll();
-        vlc_mutex_unlock( &omx_core_mutex );
-        return VLC_EGENERIC;
+        heimdall_mutex_unlock( &omx_core_mutex );
+        return HEIMDALL_EGENERIC;
     }
     omx_refcount++;
-    vlc_mutex_unlock( &omx_core_mutex );
-    return VLC_SUCCESS;
+    heimdall_mutex_unlock( &omx_core_mutex );
+    return HEIMDALL_SUCCESS;
 }
 
 void DeinitOmxCore(void)
 {
-    vlc_mutex_lock( &omx_core_mutex );
+    heimdall_mutex_lock( &omx_core_mutex );
     omx_refcount--;
     if( omx_refcount == 0 )
     {
@@ -178,7 +179,7 @@ void DeinitOmxCore(void)
         dll_close( dll_handle );
         CloseExtraDll();
     }
-    vlc_mutex_unlock( &omx_core_mutex );
+    heimdall_mutex_unlock( &omx_core_mutex );
 }
 
 /*****************************************************************************
@@ -199,7 +200,7 @@ static const struct
     { 0, 0 }
 };
 
-int CreateComponentsList(vlc_object_t *p_this, const char *psz_role,
+int CreateComponentsList(heimdall_object_t *p_this, const char *psz_role,
                          char ppsz_components[MAX_COMPONENTS_LIST_SIZE][OMX_MAX_STRINGNAME_SIZE])
 {
     char psz_name[OMX_MAX_STRINGNAME_SIZE];

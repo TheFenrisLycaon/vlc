@@ -2,6 +2,7 @@
  * cvdsub.c : CVD Subtitle decoder
  *****************************************************************************
  * Copyright (C) 2003, 2004 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Rocky Bernstein
  *          Gildas Bazin <gbazin@videolan.org>
@@ -30,11 +31,11 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
 
-#include <vlc_bits.h>
+#include <heimdall_bits.h>
 
 #include "../demux/mpeg/timestamps.h"
 
@@ -43,11 +44,11 @@
 /*****************************************************************************
  * Module descriptor.
  *****************************************************************************/
-static int  DecoderOpen   ( vlc_object_t * );
-static int  PacketizerOpen( vlc_object_t * );
-static void DecoderClose  ( vlc_object_t * );
+static int  DecoderOpen   ( heimdall_object_t * );
+static int  PacketizerOpen( heimdall_object_t * );
+static void DecoderClose  ( heimdall_object_t * );
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("CVD subtitle decoder") )
     set_capability( "spu decoder", 50 )
     set_callbacks( DecoderOpen, DecoderClose )
@@ -56,7 +57,7 @@ vlc_module_begin ()
     set_description( N_("Chaoji VCD subtitle packetizer") )
     set_capability( "spu packetizer", 50 )
     set_callbacks( PacketizerOpen, DecoderClose )
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * Local prototypes
@@ -89,7 +90,7 @@ typedef struct
   size_t metadata_offset;          /* offset to data describing the image */
   size_t metadata_length;          /* length of metadata */
 
-  vlc_tick_t i_duration;   /* how long to display the image, 0 stands
+  heimdall_tick_t i_duration;   /* how long to display the image, 0 stands
                            for "until next subtitle" */
 
   uint16_t i_x_start, i_y_start; /* position of top leftmost pixel of
@@ -100,17 +101,17 @@ typedef struct
   uint8_t p_palette_highlight[4][4];
 } decoder_sys_t;
 
-static int OpenCommon( vlc_object_t *p_this, bool b_packetizer )
+static int OpenCommon( heimdall_object_t *p_this, bool b_packetizer )
 {
     decoder_t     *p_dec = (decoder_t*)p_this;
     decoder_sys_t *p_sys;
 
-    if( p_dec->fmt_in->i_codec != VLC_CODEC_CVD )
-        return VLC_EGENERIC;
+    if( p_dec->fmt_in->i_codec != HEIMDALL_CODEC_CVD )
+        return HEIMDALL_EGENERIC;
 
     p_dec->p_sys = p_sys = malloc( sizeof( decoder_sys_t ) );
     if( !p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_sys->i_state = SUBTITLE_BLOCK_EMPTY;
     p_sys->p_spu   = NULL;
@@ -118,20 +119,20 @@ static int OpenCommon( vlc_object_t *p_this, bool b_packetizer )
     if( b_packetizer )
     {
         p_dec->pf_packetize    = Packetize;
-        p_dec->fmt_out.i_codec = VLC_CODEC_CVD;
+        p_dec->fmt_out.i_codec = HEIMDALL_CODEC_CVD;
     }
     else
     {
         p_dec->pf_decode       = Decode;
-        p_dec->fmt_out.i_codec = VLC_CODEC_YUVP;
+        p_dec->fmt_out.i_codec = HEIMDALL_CODEC_YUVP;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 /*****************************************************************************
  * DecoderOpen: open/initialize the cvdsub decoder.
  *****************************************************************************/
-static int DecoderOpen( vlc_object_t *p_this )
+static int DecoderOpen( heimdall_object_t *p_this )
 {
     return OpenCommon( p_this, false );
 }
@@ -139,7 +140,7 @@ static int DecoderOpen( vlc_object_t *p_this )
 /*****************************************************************************
  * PacketizerOpen: open/initialize the cvdsub packetizer.
  *****************************************************************************/
-static int PacketizerOpen( vlc_object_t *p_this )
+static int PacketizerOpen( heimdall_object_t *p_this )
 {
     return OpenCommon( p_this, true );
 }
@@ -147,7 +148,7 @@ static int PacketizerOpen( vlc_object_t *p_this )
 /*****************************************************************************
  * DecoderClose: closes the cvdsub decoder/packetizer.
  *****************************************************************************/
-void DecoderClose( vlc_object_t *p_this )
+void DecoderClose( heimdall_object_t *p_this )
 {
     decoder_t     *p_dec = (decoder_t*)p_this;
     decoder_sys_t *p_sys = p_dec->p_sys;
@@ -164,23 +165,23 @@ static int Decode( decoder_t *p_dec, block_t *p_block )
     block_t *p_data;
 
     if( p_block == NULL ) /* No Drain */
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
 
     if( p_block->i_flags & BLOCK_FLAG_CORRUPTED )
     {
         block_Release( p_block );
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
     }
 
     if( !(p_data = Reassemble( p_dec, p_block )) )
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
 
     /* Parse and decode */
     subpicture_t *p_spu = DecodePacket( p_dec, p_data );
     block_Release( p_data );
     if( p_spu != NULL )
         decoder_QueueSub( p_dec, p_spu );
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }
 
 /*****************************************************************************
@@ -235,7 +236,7 @@ static block_t *Reassemble( decoder_t *p_dec, block_t *p_block )
      * to detect the first packet in a subtitle.  The first packet
      * seems to have a valid PTS while later packets for the same
      * image don't. */
-    if( p_sys->i_state == SUBTITLE_BLOCK_EMPTY && p_block->i_pts == VLC_TICK_INVALID )
+    if( p_sys->i_state == SUBTITLE_BLOCK_EMPTY && p_block->i_pts == HEIMDALL_TICK_INVALID )
     {
         msg_Warn( p_dec, "first packet expected but no PTS present");
         block_Release( p_block );
@@ -248,7 +249,7 @@ static block_t *Reassemble( decoder_t *p_dec, block_t *p_block )
     /* First packet in the subtitle block */
     if( p_sys->i_state == SUBTITLE_BLOCK_EMPTY )
     {
-        if( ParseHeader( p_dec, p_block ) != VLC_SUCCESS )
+        if( ParseHeader( p_dec, p_block ) != HEIMDALL_SUCCESS )
         {
             msg_Warn( p_dec, "Missing header data");
             block_Release( p_block );
@@ -319,7 +320,7 @@ static int ParseHeader( decoder_t *p_dec, block_t *p_block )
     decoder_sys_t *p_sys = p_dec->p_sys;
     uint8_t *p = p_block->p_buffer;
     if (p_block->i_buffer < 4)
-        return VLC_EINVAL; // not enough data
+        return HEIMDALL_EINVAL; // not enough data
 
     p_sys->i_spu_size = (p[0] << 8) + p[1] + 4; p += 2;
 
@@ -335,7 +336,7 @@ static int ParseHeader( decoder_t *p_dec, block_t *p_block )
     msg_Dbg( p_dec, "total size: %zu  metadata size: %zu",
              p_sys->i_spu_size, p_sys->metadata_length );
 #endif
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*
@@ -367,7 +368,7 @@ static void ParseMetaInfo( decoder_t *p_dec, block_t *p_spu  )
 
 #ifdef DEBUG_CVDSUB
             msg_Dbg( p_dec, "subtitle display duration %"PRIu64" ms",
-                     MS_FROM_VLC_TICK(p_sys->i_duration) );
+                     MS_FROM_HEIMDALL_TICK(p_sys->i_duration) );
 #endif
             break;
 
@@ -543,7 +544,7 @@ static subpicture_t *DecodePacket( decoder_t *p_dec, block_t *p_data )
     p_spu->b_ephemer = true;
 
     /* Create new SPU region */
-    video_format_Init( &fmt, VLC_CODEC_YUVP );
+    video_format_Init( &fmt, HEIMDALL_CODEC_YUVP );
     fmt.i_sar_num = 1;
     fmt.i_sar_den = 1;
     fmt.i_width = fmt.i_visible_width = p_sys->i_width;
@@ -562,13 +563,13 @@ static subpicture_t *DecodePacket( decoder_t *p_dec, block_t *p_data )
         return NULL;
     }
 
-    vlc_spu_regions_push(&p_spu->regions, p_region);
+    heimdall_spu_regions_push(&p_spu->regions, p_region);
     p_region->b_absolute = true; p_region->b_in_window = false;
     p_region->i_x = p_sys->i_x_start;
     p_region->i_x = p_region->i_x * 3 / 4; /* FIXME: use aspect ratio for x? */
     p_region->i_y = p_sys->i_y_start;
 
-    if( RenderImage( p_dec, p_data, p_region->p_picture ) != VLC_SUCCESS )
+    if( RenderImage( p_dec, p_data, p_region->p_picture ) != HEIMDALL_SUCCESS )
     {
         msg_Err( p_dec, "cannot render SPU region" );
         subpicture_Delete( p_spu );
@@ -611,7 +612,7 @@ static int RenderImage( decoder_t *p_dec, block_t *p_data,
     bs_t bs;
 
     if( p_data->i_buffer <= p_sys->i_image_offset )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     bs_init( &bs, p_data->p_buffer + p_sys->i_image_offset,
              p_data->i_buffer - p_sys->i_image_offset );
@@ -649,5 +650,5 @@ static int RenderImage( decoder_t *p_dec, block_t *p_data,
             bs_align( &bs );
         }
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Benjamin Arnaud <bunjee@omega.gg>
  *
@@ -21,11 +22,11 @@
 import QtQuick
 
 
-import VLC.Style
-import VLC.MainInterface
-import VLC.Widgets as Widgets
-import VLC.Util
-import VLC.Network
+import Heimdall.Style
+import Heimdall.MainInterface
+import Heimdall.Widgets as Widgets
+import Heimdall.Util
+import Heimdall.Network
 
 FocusScope {
     id: root
@@ -174,8 +175,8 @@ FocusScope {
         Widgets.ExpandGridItemView {
             id: gridView
 
-            basePictureWidth: VLCStyle.gridCover_network_width
-            basePictureHeight: VLCStyle.gridCover_network_height
+            basePictureWidth: HeimdallStyle.gridCover_network_width
+            basePictureHeight: HeimdallStyle.gridCover_network_height
 
             maxNbItemPerRow: 12
 
@@ -280,7 +281,7 @@ FocusScope {
 
             rowContextMenu: null
 
-            rowHeight: VLCStyle.tableCoverRow_height
+            rowHeight: HeimdallStyle.tableCoverRow_height
 
             displayMarginBeginning: root.displayMarginBeginning
             displayMarginEnd: root.displayMarginEnd
@@ -290,7 +291,7 @@ FocusScope {
 
             model: root.model
 
-            sortModel: (_availableRowWidth < VLCStyle.colWidth(4)) ? _modelSmall
+            sortModel: (_availableRowWidth < HeimdallStyle.colWidth(4)) ? _modelSmall
                                                                    : _modelMedium
 
             preferredHeader: root.header
@@ -310,8 +311,8 @@ FocusScope {
             Widgets.TableColumns {
                 id: tableColumns
 
-                titleCover_width: VLCStyle.listAlbumCover_width
-                titleCover_height: VLCStyle.listAlbumCover_height
+                titleCover_width: HeimdallStyle.listAlbumCover_width
+                titleCover_height: HeimdallStyle.listAlbumCover_height
 
                 showTitleText: listView.sortModel === listView._modelSmall
             }
@@ -349,7 +350,7 @@ FocusScope {
 
                                 const text = itemText.rowModel[itemText.colModel.criteria]
 
-                                if (text.toString() === "vlc://nop")
+                                if (text.toString() === "heimdall://nop")
                                     return ""
                                 else
                                     return text

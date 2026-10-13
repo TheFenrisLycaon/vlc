@@ -1,10 +1,11 @@
 /**
  * @file rtp.c
- * @brief Real-Time Protocol (RTP) demux module for VLC media player
+ * @brief Real-Time Protocol (RTP) demux module for Heimdall media player
  */
 /*****************************************************************************
  * Copyright (C) 2001-2005 VLC authors and VideoLAN
  * Copyright © 2007-2009 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License
@@ -27,18 +28,18 @@
 #include <stdarg.h>
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_demux.h>
-#include <vlc_network.h>
-#include <vlc_plugin.h>
-#include "vlc_dtls.h"
-#include <vlc_modules.h> /* module_exists() */
+#include <heimdall_common.h>
+#include <heimdall_demux.h>
+#include <heimdall_network.h>
+#include <heimdall_plugin.h>
+#include "heimdall_dtls.h"
+#include <heimdall_modules.h> /* module_exists() */
 
 #include "rtp.h"
 #ifdef HAVE_SRTP
 # include "srtp.h"
 # include <gcrypt.h>
-# include <vlc_gcrypt.h>
+# include <heimdall_gcrypt.h>
 #endif
 #include "sdp.h"
 #include "input.h"
@@ -54,91 +55,91 @@
 # define IPPROTO_DCCP 33 /* IANA */
 #endif
 
-struct vlc_rtp_es_id {
-    struct vlc_rtp_es es;
+struct heimdall_rtp_es_id {
+    struct heimdall_rtp_es es;
     es_out_t *out;
     es_out_id_t *id;
 };
 
-static void vlc_rtp_es_id_destroy(struct vlc_rtp_es *es)
+static void heimdall_rtp_es_id_destroy(struct heimdall_rtp_es *es)
 {
-    struct vlc_rtp_es_id *ei = container_of(es, struct vlc_rtp_es_id, es);
+    struct heimdall_rtp_es_id *ei = container_of(es, struct heimdall_rtp_es_id, es);
 
     es_out_Del(ei->out, ei->id);
     free(ei);
 }
 
-static void vlc_rtp_es_id_send(struct vlc_rtp_es *es, block_t *block)
+static void heimdall_rtp_es_id_send(struct heimdall_rtp_es *es, block_t *block)
 {
-    struct vlc_rtp_es_id *ei = container_of(es, struct vlc_rtp_es_id, es);
+    struct heimdall_rtp_es_id *ei = container_of(es, struct heimdall_rtp_es_id, es);
 
     /* TODO: Don't set PCR here. Breaks multiple sources (in a session)
      * and more importantly eventually multiple sessions. */
-    vlc_tick_t pcr = (block->i_dts != VLC_TICK_INVALID) ? block->i_dts
+    heimdall_tick_t pcr = (block->i_dts != HEIMDALL_TICK_INVALID) ? block->i_dts
                                                         : block->i_pts;
-    if (pcr != VLC_TICK_INVALID)
+    if (pcr != HEIMDALL_TICK_INVALID)
         es_out_SetPCR(ei->out, pcr);
     es_out_Send(ei->out, ei->id, block);
 }
 
-static const struct vlc_rtp_es_operations vlc_rtp_es_id_ops = {
-    vlc_rtp_es_id_destroy, vlc_rtp_es_id_send,
+static const struct heimdall_rtp_es_operations heimdall_rtp_es_id_ops = {
+    heimdall_rtp_es_id_destroy, heimdall_rtp_es_id_send,
 };
 
-static struct vlc_rtp_es *vlc_rtp_es_request(struct vlc_rtp_pt *pt,
+static struct heimdall_rtp_es *heimdall_rtp_es_request(struct heimdall_rtp_pt *pt,
                                              const es_format_t *restrict fmt)
 {
     demux_t *demux = pt->owner.data;
 
-    struct vlc_rtp_es_id *ei = malloc(sizeof (*ei));
+    struct heimdall_rtp_es_id *ei = malloc(sizeof (*ei));
     if (unlikely(ei == NULL))
-        return vlc_rtp_es_dummy;
+        return heimdall_rtp_es_dummy;
 
-    ei->es.ops = &vlc_rtp_es_id_ops;
+    ei->es.ops = &heimdall_rtp_es_id_ops;
     ei->out = demux->out;
     ei->id = es_out_Add(demux->out, fmt);
     if (ei->id == NULL) {
         free(ei);
-        return vlc_rtp_es_dummy;
+        return heimdall_rtp_es_dummy;
     }
     return &ei->es;
 }
 
-struct vlc_rtp_es_mux {
-    struct vlc_rtp_es es;
-    vlc_demux_chained_t *chained_demux;
+struct heimdall_rtp_es_mux {
+    struct heimdall_rtp_es es;
+    heimdall_demux_chained_t *chained_demux;
 };
 
-static void vlc_rtp_es_mux_destroy(struct vlc_rtp_es *es)
+static void heimdall_rtp_es_mux_destroy(struct heimdall_rtp_es *es)
 {
-    struct vlc_rtp_es_mux *em = container_of(es, struct vlc_rtp_es_mux, es);
+    struct heimdall_rtp_es_mux *em = container_of(es, struct heimdall_rtp_es_mux, es);
 
-    vlc_demux_chained_Delete(em->chained_demux);
+    heimdall_demux_chained_Delete(em->chained_demux);
     free(em);
 }
 
-static void vlc_rtp_es_mux_send(struct vlc_rtp_es *es, block_t *block)
+static void heimdall_rtp_es_mux_send(struct heimdall_rtp_es *es, block_t *block)
 {
-    struct vlc_rtp_es_mux *em = container_of(es, struct vlc_rtp_es_mux, es);
+    struct heimdall_rtp_es_mux *em = container_of(es, struct heimdall_rtp_es_mux, es);
 
-    vlc_demux_chained_Send(em->chained_demux, block);
+    heimdall_demux_chained_Send(em->chained_demux, block);
 }
 
-static const struct vlc_rtp_es_operations vlc_rtp_es_mux_ops = {
-    vlc_rtp_es_mux_destroy, vlc_rtp_es_mux_send,
+static const struct heimdall_rtp_es_operations heimdall_rtp_es_mux_ops = {
+    heimdall_rtp_es_mux_destroy, heimdall_rtp_es_mux_send,
 };
 
-static struct vlc_rtp_es *vlc_rtp_mux_request(struct vlc_rtp_pt *pt,
+static struct heimdall_rtp_es *heimdall_rtp_mux_request(struct heimdall_rtp_pt *pt,
                                               const char *name)
 {
     demux_t *demux = pt->owner.data;
 
-    struct vlc_rtp_es_mux *em = malloc(sizeof (*em));
+    struct heimdall_rtp_es_mux *em = malloc(sizeof (*em));
     if (unlikely(em == NULL))
-        return vlc_rtp_es_dummy;
+        return heimdall_rtp_es_dummy;
 
-    em->es.ops = &vlc_rtp_es_mux_ops;
-    em->chained_demux = vlc_demux_chained_New(VLC_OBJECT(demux), name,
+    em->es.ops = &heimdall_rtp_es_mux_ops;
+    em->chained_demux = heimdall_demux_chained_New(HEIMDALL_OBJECT(demux), name,
                                               demux->out);
     if (em->chained_demux == NULL) {
         free(em);
@@ -147,33 +148,33 @@ static struct vlc_rtp_es *vlc_rtp_mux_request(struct vlc_rtp_pt *pt,
     return &em->es;
 }
 
-static const struct vlc_rtp_pt_owner_operations vlc_rtp_pt_owner_ops = {
-    vlc_rtp_es_request, vlc_rtp_mux_request,
+static const struct heimdall_rtp_pt_owner_operations heimdall_rtp_pt_owner_ops = {
+    heimdall_rtp_es_request, heimdall_rtp_mux_request,
 };
 
-int vlc_rtp_pt_instantiate(vlc_object_t *obj, struct vlc_rtp_pt *restrict pt,
-                           const struct vlc_sdp_pt *restrict desc)
+int heimdall_rtp_pt_instantiate(heimdall_object_t *obj, struct heimdall_rtp_pt *restrict pt,
+                           const struct heimdall_sdp_pt *restrict desc)
 {
     char modname[32];
-    int ret = VLC_ENOTSUP;
+    int ret = HEIMDALL_ENOTSUP;
 
     if (strchr(desc->name, ',') != NULL)
-        /* Comma has special meaning in vlc_module_match(), forbid it */
-        return VLC_EINVAL;
+        /* Comma has special meaning in heimdall_module_match(), forbid it */
+        return HEIMDALL_EINVAL;
     if ((size_t)snprintf(modname, sizeof (modname), "%s/%s",
                          desc->media->type, desc->name) >= sizeof (modname))
-        return VLC_ENOTSUP; /* Outlandish media type with long name */
+        return HEIMDALL_ENOTSUP; /* Outlandish media type with long name */
 
     module_t **mods;
-    ssize_t n = vlc_module_match("rtp parser", modname, true, &mods, NULL);
+    ssize_t n = heimdall_module_match("rtp parser", modname, true, &mods, NULL);
 
     for (ssize_t i = 0; i < n; i++) {
-        vlc_rtp_parser_cb cb = vlc_module_map(vlc_object_logger(obj), mods[i]);
+        heimdall_rtp_parser_cb cb = heimdall_module_map(heimdall_object_logger(obj), mods[i]);
         if (cb == NULL)
             continue;
 
         ret = cb(obj, pt, desc);
-        if (ret == VLC_SUCCESS) {
+        if (ret == HEIMDALL_SUCCESS) {
             msg_Dbg(obj, "- module \"%s\"", module_get_name(mods[i], true));
             assert(pt->ops != NULL);
             ret = 0;
@@ -221,9 +222,9 @@ static int Control (demux_t *demux, int query, va_list args)
     {
         case DEMUX_GET_PTS_DELAY:
         {
-            *va_arg (args, vlc_tick_t *) =
-                VLC_TICK_FROM_MS( var_InheritInteger (demux, "network-caching") );
-            return VLC_SUCCESS;
+            *va_arg (args, heimdall_tick_t *) =
+                HEIMDALL_TICK_FROM_MS( var_InheritInteger (demux, "network-caching") );
+            return HEIMDALL_SUCCESS;
         }
 
         case DEMUX_CAN_PAUSE:
@@ -232,7 +233,7 @@ static int Control (demux_t *demux, int query, va_list args)
         {
             bool *v = va_arg( args, bool * );
             *v = false;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
     }
 
@@ -242,41 +243,41 @@ static int Control (demux_t *demux, int query, va_list args)
         {
             float *v = va_arg (args, float *);
             *v = 0.;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
 
         case DEMUX_GET_LENGTH:
         case DEMUX_GET_TIME:
         {
-            *va_arg (args, vlc_tick_t *) = 0;
-            return VLC_SUCCESS;
+            *va_arg (args, heimdall_tick_t *) = 0;
+            return HEIMDALL_SUCCESS;
         }
     }
 
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /**
  * Releases resources
  */
-static void Close (vlc_object_t *obj)
+static void Close (heimdall_object_t *obj)
 {
     demux_t *demux = (demux_t *)obj;
     rtp_sys_t *p_sys = demux->p_sys;
 
-    vlc_cancel(p_sys->thread);
-    vlc_join(p_sys->thread, NULL);
+    heimdall_cancel(p_sys->thread);
+    heimdall_join(p_sys->thread, NULL);
 #ifdef HAVE_SRTP
     if (p_sys->input_sys.srtp)
         srtp_destroy (p_sys->input_sys.srtp);
 #endif
     rtp_session_destroy (obj->logger, p_sys->session);
     if (p_sys->input_sys.rtcp_sock != NULL)
-        vlc_dtls_Close(p_sys->input_sys.rtcp_sock);
-    vlc_dtls_Close(p_sys->input_sys.rtp_sock);
+        heimdall_dtls_Close(p_sys->input_sys.rtcp_sock);
+    heimdall_dtls_Close(p_sys->input_sys.rtp_sock);
 }
 
-static int OpenSDP(vlc_object_t *obj)
+static int OpenSDP(heimdall_object_t *obj)
 {
     demux_t *demux = (demux_t *)obj;
     uint64_t size;
@@ -284,24 +285,24 @@ static int OpenSDP(vlc_object_t *obj)
 
     assert(demux->out != NULL);
 
-    if (vlc_stream_Peek(demux->s, &peek, 3) < 3 || memcmp(peek, "v=0", 3))
-        return VLC_EGENERIC; /* not an SDP */
+    if (heimdall_stream_Peek(demux->s, &peek, 3) < 3 || memcmp(peek, "v=0", 3))
+        return HEIMDALL_EGENERIC; /* not an SDP */
 
-    if (vlc_stream_GetSize(demux->s, &size))
+    if (heimdall_stream_GetSize(demux->s, &size))
         size = 65536;
     else if (size > 65536) {
         msg_Err(obj, "SDP description too large: %" PRIu64 " bytes", size);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* We must peek so that fallback to another plugin works. */
-    ssize_t sdplen = vlc_stream_Peek(demux->s, &peek, size);
+    ssize_t sdplen = heimdall_stream_Peek(demux->s, &peek, size);
     if (sdplen < 0)
         return sdplen;
 
-    rtp_sys_t *sys = vlc_obj_malloc(obj, sizeof (*sys));
+    rtp_sys_t *sys = heimdall_obj_malloc(obj, sizeof (*sys));
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     sys->input_sys.rtp_sock = NULL;
     sys->input_sys.rtcp_sock = NULL;
@@ -310,25 +311,25 @@ static int OpenSDP(vlc_object_t *obj)
     sys->input_sys.srtp = NULL;
 #endif
 
-    struct vlc_sdp *sdp = vlc_sdp_parse((const char *)peek, sdplen);
+    struct heimdall_sdp *sdp = heimdall_sdp_parse((const char *)peek, sdplen);
     if (sdp == NULL) {
         msg_Err(obj, "SDP description parse error");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    struct vlc_sdp_media *media = sdp->media;
+    struct heimdall_sdp_media *media = sdp->media;
     if (media == NULL || media->next != NULL) {
         msg_Dbg(obj, "only one SDP m= line supported");
         goto error;
     }
 
-    if (vlc_sdp_media_attr_value(media, "control") != NULL
-     || vlc_sdp_attr_value(sdp, "control") != NULL) {
+    if (heimdall_sdp_media_attr_value(media, "control") != NULL
+     || heimdall_sdp_attr_value(sdp, "control") != NULL) {
         msg_Dbg(obj, "RTSP not supported");
         goto error;
     }
 
-    struct vlc_sdp_conn *conn = media->conns;
+    struct heimdall_sdp_conn *conn = media->conns;
     if (conn != NULL && conn->next != NULL) {
         msg_Dbg(obj, "only one SDP c= line supported");
         goto error;
@@ -344,8 +345,8 @@ static int OpenSDP(vlc_object_t *obj)
     /* Determine destination port numbers */
     unsigned int rtp_port, rtcp_port;
 
-    if (!vlc_sdp_media_attr_present(media, "rtcp-mux")) {
-        const char *rtcp = vlc_sdp_media_attr_value(media, "rtcp");
+    if (!heimdall_sdp_media_attr_present(media, "rtcp-mux")) {
+        const char *rtcp = heimdall_sdp_media_attr_value(media, "rtcp");
 
         if (rtcp != NULL) {
             /* Explicit RTCP port */
@@ -378,9 +379,9 @@ static int OpenSDP(vlc_object_t *obj)
 
     /* Determine source address */
     char srcbuf[256], *src = NULL;
-    const char *sfilter = vlc_sdp_media_attr_value(media, "source-filter");
+    const char *sfilter = heimdall_sdp_media_attr_value(media, "source-filter");
     if (sfilter == NULL)
-        sfilter = vlc_sdp_attr_value(sdp, "source-filter");
+        sfilter = heimdall_sdp_attr_value(sdp, "source-filter");
     /* FIXME: handle multiple source-filter attributes, match destination,
      * check IP version */
     if (sfilter != NULL
@@ -392,7 +393,7 @@ static int OpenSDP(vlc_object_t *obj)
     if (fd == -1)
         goto error;
 
-    sys->input_sys.rtp_sock = vlc_datagram_CreateFD(fd);
+    sys->input_sys.rtp_sock = heimdall_datagram_CreateFD(fd);
     if (unlikely(sys->input_sys.rtp_sock == NULL)) {
         net_Close(fd);
         goto error;
@@ -403,7 +404,7 @@ static int OpenSDP(vlc_object_t *obj)
         if (fd == -1)
             goto error;
 
-        sys->input_sys.rtcp_sock = vlc_datagram_CreateFD(fd);
+        sys->input_sys.rtcp_sock = heimdall_datagram_CreateFD(fd);
         if (unlikely(sys->input_sys.rtcp_sock == NULL)) {
             net_Close(fd);
             goto error;
@@ -419,13 +420,13 @@ static int OpenSDP(vlc_object_t *obj)
     sys->session = rtp_session_create_custom(var_InheritInteger(obj, "rtp-max-dropout"),
                                              var_InheritInteger(obj, "rtp-max-misorder"),
                                              var_InheritInteger(obj, "rtp-max-src"),
-                                             vlc_tick_from_sec(var_InheritInteger(obj, "rtp-timeout")));
+                                             heimdall_tick_from_sec(var_InheritInteger(obj, "rtp-timeout")));
     if (sys->session == NULL)
         goto error;
 
     /* Parse payload types */
-    const struct vlc_rtp_pt_owner pt_owner = { &vlc_rtp_pt_owner_ops, demux };
-    int err = vlc_rtp_add_media_types(obj, sys->session, media, &pt_owner);
+    const struct heimdall_rtp_pt_owner pt_owner = { &heimdall_rtp_pt_owner_ops, demux };
+    int err = heimdall_rtp_add_media_types(obj, sys->session, media, &pt_owner);
     if (err < 0) {
         msg_Err(obj, "SDP description parse error");
         goto error;
@@ -433,33 +434,33 @@ static int OpenSDP(vlc_object_t *obj)
     if (err > 0 && module_exists("live555")) /* Bail out to live555 */
         goto error;
 
-    if (vlc_clone(&sys->thread, rtp_dgram_thread, sys)) {
+    if (heimdall_clone(&sys->thread, rtp_dgram_thread, sys)) {
         rtp_session_destroy(obj->logger, sys->session);
         goto error;
     }
 
-    vlc_sdp_free(sdp);
-    return VLC_SUCCESS;
+    heimdall_sdp_free(sdp);
+    return HEIMDALL_SUCCESS;
 
 error:
     if (sys->input_sys.rtcp_sock != NULL)
-        vlc_dtls_Close(sys->input_sys.rtcp_sock);
+        heimdall_dtls_Close(sys->input_sys.rtcp_sock);
     if (sys->input_sys.rtp_sock != NULL)
-        vlc_dtls_Close(sys->input_sys.rtp_sock);
-    vlc_sdp_free(sdp);
-    return VLC_EGENERIC;
+        heimdall_dtls_Close(sys->input_sys.rtp_sock);
+    heimdall_sdp_free(sdp);
+    return HEIMDALL_EGENERIC;
 }
 
 /**
  * Probes and initializes.
  */
-static int OpenURL(vlc_object_t *obj)
+static int OpenURL(heimdall_object_t *obj)
 {
     demux_t *demux = (demux_t *)obj;
     int tp; /* transport protocol */
 
     if (demux->out == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if (!strcasecmp(demux->psz_name, "dccp"))
         tp = IPPROTO_DCCP;
@@ -467,15 +468,15 @@ static int OpenURL(vlc_object_t *obj)
     if (!strcasecmp(demux->psz_name, "rtp"))
         tp = IPPROTO_UDP;
     else
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    rtp_sys_t *p_sys = vlc_obj_malloc(obj, sizeof (*p_sys));
+    rtp_sys_t *p_sys = heimdall_obj_malloc(obj, sizeof (*p_sys));
     if (unlikely(p_sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     char *tmp = strdup (demux->psz_location);
     if (tmp == NULL)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     char *shost;
     char *dhost = strchr (tmp, '@');
@@ -522,7 +523,7 @@ static int OpenURL(vlc_object_t *obj)
 # endif
 #endif
 #ifdef SOCK_DCCP
-            var_Create (obj, "dccp-service", VLC_VAR_STRING);
+            var_Create (obj, "dccp-service", HEIMDALL_VAR_STRING);
             var_SetString (obj, "dccp-service", "RTPV"); /* FIXME: RTPA? */
             fd = net_Connect (obj, dhost, dport, SOCK_DCCP, tp);
             co = true;
@@ -535,18 +536,18 @@ static int OpenURL(vlc_object_t *obj)
     free (tmp);
 
     if(fd == -1)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    p_sys->input_sys.rtp_sock = (co ? vlc_dccp_CreateFD : vlc_datagram_CreateFD)(fd);
+    p_sys->input_sys.rtp_sock = (co ? heimdall_dccp_CreateFD : heimdall_datagram_CreateFD)(fd);
     if (p_sys->input_sys.rtp_sock == NULL) {
         if (rtcp_fd != -1)
             net_Close(rtcp_fd);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     net_SetCSCov (fd, -1, 12);
 
     if (rtcp_fd != -1) {
-        p_sys->input_sys.rtcp_sock = vlc_datagram_CreateFD(rtcp_fd);
+        p_sys->input_sys.rtcp_sock = heimdall_datagram_CreateFD(rtcp_fd);
         if (p_sys->input_sys.rtcp_sock == NULL)
             net_Close (rtcp_fd);
     } else
@@ -565,18 +566,18 @@ static int OpenURL(vlc_object_t *obj)
                         var_InheritInteger(obj, "rtp-max-dropout"),
                         var_InheritInteger(obj, "rtp-max-misorder"),
                         var_InheritInteger(obj, "rtp-max-src"),
-                        vlc_tick_from_sec(var_InheritInteger(obj, "rtp-timeout")) );
+                        heimdall_tick_from_sec(var_InheritInteger(obj, "rtp-timeout")) );
     if (p_sys->session == NULL)
         goto error;
 
-    const struct vlc_rtp_pt_owner pt_owner = { &vlc_rtp_pt_owner_ops, demux };
-    rtp_autodetect(VLC_OBJECT(demux), p_sys->session, &pt_owner);
+    const struct heimdall_rtp_pt_owner pt_owner = { &heimdall_rtp_pt_owner_ops, demux };
+    rtp_autodetect(HEIMDALL_OBJECT(demux), p_sys->session, &pt_owner);
 
 #ifdef HAVE_SRTP
     char *key = var_CreateGetNonEmptyString (demux, "srtp-key");
     if (key)
     {
-        vlc_gcrypt_init ();
+        heimdall_gcrypt_init ();
         p_sys->input_sys.srtp = srtp_create (SRTP_ENCR_AES_CM, SRTP_AUTH_HMAC_SHA1, 10,
                                    SRTP_PRF_AES_CM, SRTP_RCC_MODE1);
         if (p_sys->input_sys.srtp == NULL)
@@ -592,15 +593,15 @@ static int OpenURL(vlc_object_t *obj)
         if (val)
         {
             msg_Err (obj, "bad SRTP key/salt combination (%s)",
-                     vlc_strerror_c(val));
+                     heimdall_strerror_c(val));
             goto error;
         }
     }
 #endif
 
-    if (vlc_clone (&p_sys->thread, rtp_dgram_thread, p_sys))
+    if (heimdall_clone (&p_sys->thread, rtp_dgram_thread, p_sys))
         goto error;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
 #ifdef HAVE_SRTP
@@ -610,9 +611,9 @@ error:
     if (p_sys->session != NULL)
         rtp_session_destroy(obj->logger, p_sys->session);
     if (p_sys->input_sys.rtcp_sock != NULL)
-        vlc_dtls_Close(p_sys->input_sys.rtcp_sock);
-    vlc_dtls_Close(p_sys->input_sys.rtp_sock);
-    return VLC_EGENERIC;
+        heimdall_dtls_Close(p_sys->input_sys.rtcp_sock);
+    heimdall_dtls_Close(p_sys->input_sys.rtp_sock);
+    return HEIMDALL_EGENERIC;
 }
 
 #define RTCP_PORT_TEXT N_("RTCP (local) port")
@@ -652,7 +653,7 @@ error:
 /*
  * Module descriptor
  */
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname(N_("RTP"))
     set_description(N_("Real-Time Protocol (RTP) input"))
     set_subcategory(SUBCAT_INPUT_DEMUX)
@@ -690,4 +691,4 @@ vlc_module_begin()
 
     /*add_shortcut ("sctp")*/
     add_shortcut("dccp", "rtp")
-vlc_module_end()
+heimdall_module_end()

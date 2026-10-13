@@ -2,6 +2,7 @@
  * d3d11_processor.h: D3D11 VideoProcessor helper
  *****************************************************************************
  * Copyright © 2017 VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Steve Lhomme <robux4@gmail.com>
  *
@@ -20,10 +21,10 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_D3D11_PROCESSOR_H
-#define VLC_D3D11_PROCESSOR_H
+#ifndef HEIMDALL_D3D11_PROCESSOR_H
+#define HEIMDALL_D3D11_PROCESSOR_H
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
 #include "../../video_chroma/d3d11_fmt.h"
 
@@ -39,19 +40,19 @@ typedef struct
     ID3D11VideoProcessor           *videoProcessor;
 } d3d11_processor_t;
 
-int D3D11_CreateProcessor(vlc_object_t *, d3d11_device_t *,
+int D3D11_CreateProcessor(heimdall_object_t *, d3d11_device_t *,
                           D3D11_VIDEO_FRAME_FORMAT srcFields,
                           const video_format_t *fmt_in, const video_format_t *fmt_out,
                           d3d11_processor_t *out);
-#define D3D11_CreateProcessor(a,b,c,d,e,f) D3D11_CreateProcessor(VLC_OBJECT(a),b,c,d,e,f)
+#define D3D11_CreateProcessor(a,b,c,d,e,f) D3D11_CreateProcessor(HEIMDALL_OBJECT(a),b,c,d,e,f)
 
 void D3D11_ReleaseProcessor(d3d11_processor_t *);
 
-HRESULT D3D11_Assert_ProcessorInput(vlc_object_t *, d3d11_processor_t *, picture_sys_d3d11_t *);
-#define D3D11_Assert_ProcessorInput(a,b,c) D3D11_Assert_ProcessorInput(VLC_OBJECT(a),b,c)
+HRESULT D3D11_Assert_ProcessorInput(heimdall_object_t *, d3d11_processor_t *, picture_sys_d3d11_t *);
+#define D3D11_Assert_ProcessorInput(a,b,c) D3D11_Assert_ProcessorInput(HEIMDALL_OBJECT(a),b,c)
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* VLC_D3D11_PROCESSOR_H */
+#endif /* HEIMDALL_D3D11_PROCESSOR_H */

@@ -1,9 +1,10 @@
 /**
  * @file window.c
- * @brief Android native window provider module for VLC media player
+ * @brief Android native window provider module for Heimdall media player
  */
 /*****************************************************************************
  * Copyright © 2013 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Adrien Maglo <magsoft@videolan.org>
  *
@@ -28,13 +29,13 @@
 
 #include <stdarg.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_window.h>
-#include <vlc_codec.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_window.h>
+#include <heimdall_codec.h>
 
-#include <vlc/libvlc.h>
-#include <vlc/libvlc_media_player.h>
+#include <heimdall/libheimdall.h>
+#include <heimdall/libheimdall_media_player.h>
 
 #include <dlfcn.h>
 #include <jni.h>
@@ -44,176 +45,176 @@
 
 typedef struct
 {
-    vlc_wasync_resize_compressor_t compressor;
+    heimdall_wasync_resize_compressor_t compressor;
 } vout_window_sys_t;
 
 struct vout_window_sys_cb
 {
     void *opaque;
-    libvlc_video_output_cleanup_cb cleanup_cb;
+    libheimdall_video_output_cleanup_cb cleanup_cb;
 };
 
-static void OnNewWindowSize(vlc_window_t *wnd,
+static void OnNewWindowSize(heimdall_window_t *wnd,
                             unsigned i_width, unsigned i_height)
 {
     vout_window_sys_t *sys = (vout_window_sys_t *) wnd->sys;
-    vlc_wasync_resize_compressor_reportSize(&sys->compressor, i_width, i_height);
+    heimdall_wasync_resize_compressor_reportSize(&sys->compressor, i_width, i_height);
 }
 
-static void OnNewMouseCoords(vlc_window_t *wnd,
+static void OnNewMouseCoords(heimdall_window_t *wnd,
                              const struct awh_mouse_coords *coords)
 {
-    vlc_window_ReportMouseMoved(wnd, coords->i_x, coords->i_y);
+    heimdall_window_ReportMouseMoved(wnd, coords->i_x, coords->i_y);
     switch (coords->i_action)
     {
         case AMOTION_EVENT_ACTION_DOWN:
-            vlc_window_ReportMousePressed(wnd, coords->i_button);
+            heimdall_window_ReportMousePressed(wnd, coords->i_button);
             break;
         case AMOTION_EVENT_ACTION_UP:
-            vlc_window_ReportMouseReleased(wnd, coords->i_button);
+            heimdall_window_ReportMouseReleased(wnd, coords->i_button);
             break;
         case AMOTION_EVENT_ACTION_MOVE:
             break;
     }
 }
 
-static void Close(vlc_window_t *wnd)
+static void Close(heimdall_window_t *wnd)
 {
     vout_window_sys_t *sys = (vout_window_sys_t *) wnd->sys;
-    vlc_wasync_resize_compressor_destroy(&sys->compressor);
+    heimdall_wasync_resize_compressor_destroy(&sys->compressor);
     AWindowHandler_destroy(wnd->display.anativewindow);
 }
 
-static int Open(vlc_window_t *wnd)
+static int Open(heimdall_window_t *wnd)
 {
-    static const struct vlc_window_operations ops = {
+    static const struct heimdall_window_operations ops = {
         .destroy = Close,
     };
 
     /* We cannot create a window without the associated AWindow instance. */
     jobject jobj = var_InheritAddress(wnd, "drawable-androidwindow");
     if (jobj == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    vout_window_sys_t *sys = vlc_obj_malloc(VLC_OBJECT(wnd), sizeof (*sys));
+    vout_window_sys_t *sys = heimdall_obj_malloc(HEIMDALL_OBJECT(wnd), sizeof (*sys));
     if (sys == NULL)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    if (vlc_wasync_resize_compressor_init(&sys->compressor, wnd))
-        return VLC_EGENERIC;
+    if (heimdall_wasync_resize_compressor_init(&sys->compressor, wnd))
+        return HEIMDALL_EGENERIC;
 
     wnd->sys = sys;
 
-    AWindowHandler *p_awh = AWindowHandler_new(VLC_OBJECT(wnd), wnd,
+    AWindowHandler *p_awh = AWindowHandler_new(HEIMDALL_OBJECT(wnd), wnd,
         &(awh_events_t) { OnNewWindowSize, OnNewMouseCoords });
     if (p_awh == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    wnd->type = VLC_WINDOW_TYPE_ANDROID_NATIVE;
+    wnd->type = HEIMDALL_WINDOW_TYPE_ANDROID_NATIVE;
     wnd->display.anativewindow = p_awh;
     wnd->handle.android_id = AWindow_Video;
     wnd->ops = &ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void DestroyCallback(vlc_window_t *wnd)
+static void DestroyCallback(heimdall_window_t *wnd)
 {
     struct vout_window_sys_cb *sys = wnd->sys;
     if (sys->cleanup_cb != NULL)
         sys->cleanup_cb(sys->opaque);
 }
 
-static int OpenCallback(vlc_window_t *wnd)
+static int OpenCallback(heimdall_window_t *wnd)
 {
-    static const struct vlc_window_operations ops = {
+    static const struct heimdall_window_operations ops = {
         .destroy = DestroyCallback,
     };
 
-    libvlc_video_engine_t engine = var_InheritInteger(wnd, "vout-cb-type");
-    if (engine != libvlc_video_engine_anw)
-        return VLC_EGENERIC;
+    libheimdall_video_engine_t engine = var_InheritInteger(wnd, "vout-cb-type");
+    if (engine != libheimdall_video_engine_anw)
+        return HEIMDALL_EGENERIC;
 
-    struct vout_window_sys_cb *sys = vlc_obj_malloc(VLC_OBJECT(wnd), sizeof (*sys));
+    struct vout_window_sys_cb *sys = heimdall_obj_malloc(HEIMDALL_OBJECT(wnd), sizeof (*sys));
     if (sys == NULL)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     sys->opaque = var_InheritAddress(wnd, "vout-cb-opaque");
-    libvlc_video_output_setup_cb setup_cb = var_InheritAddress(wnd, "vout-cb-setup");
-    libvlc_video_update_output_cb update_cb = var_InheritAddress(wnd, "vout-cb-update-output");
+    libheimdall_video_output_setup_cb setup_cb = var_InheritAddress(wnd, "vout-cb-setup");
+    libheimdall_video_update_output_cb update_cb = var_InheritAddress(wnd, "vout-cb-update-output");
     sys->cleanup_cb = var_InheritAddress(wnd, "vout-cb-cleanup");
 
     if (update_cb == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if (setup_cb != NULL)
     {
-        const libvlc_video_setup_device_cfg_t cfg = {
+        const libheimdall_video_setup_device_cfg_t cfg = {
             .hardware_decoding = true,
         };
-        libvlc_video_setup_device_info_t out;
+        libheimdall_video_setup_device_info_t out;
         bool success = setup_cb(&sys->opaque, &cfg, &out);
         if (!success)
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         (void) out; /* Ignored on Android */
     }
 
     /* Default values, parameters are overridden by the producer */
-    const libvlc_video_render_cfg_t render_cfg = {
+    const libheimdall_video_render_cfg_t render_cfg = {
         .width = 1,
         .height = 1,
     };
-    libvlc_video_output_cfg_t out = { .u.anw = { NULL, NULL } };
+    libheimdall_video_output_cfg_t out = { .u.anw = { NULL, NULL } };
     bool success = update_cb(sys->opaque, &render_cfg, &out);
     if (!success)
         goto error;
     assert(out.u.anw.video != NULL);
 
     AWindowHandler *awh =
-        AWindowHandler_newFromANWs(VLC_OBJECT(wnd), out.u.anw.video, out.u.anw.subtitle);
+        AWindowHandler_newFromANWs(HEIMDALL_OBJECT(wnd), out.u.anw.video, out.u.anw.subtitle);
     if (awh == NULL)
         goto error;
 
     wnd->sys = sys;
-    wnd->type = VLC_WINDOW_TYPE_ANDROID_NATIVE;
+    wnd->type = HEIMDALL_WINDOW_TYPE_ANDROID_NATIVE;
     wnd->display.anativewindow = awh;
     wnd->handle.android_id = AWindow_Video;
     wnd->ops = &ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 error:
     if (sys->cleanup_cb != NULL)
         sys->cleanup_cb(sys->opaque);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 static int
-OpenDecDevice(vlc_decoder_device *device, vlc_window_t *window)
+OpenDecDevice(heimdall_decoder_device *device, heimdall_window_t *window)
 {
     AWindowHandler *awh;
-    if (window && window->type == VLC_WINDOW_TYPE_ANDROID_NATIVE)
+    if (window && window->type == HEIMDALL_WINDOW_TYPE_ANDROID_NATIVE)
     {
         awh = window->display.anativewindow;
     }
     else
     {
-        awh = AWindowHandler_new(VLC_OBJECT(device), NULL, NULL);
+        awh = AWindowHandler_new(HEIMDALL_OBJECT(device), NULL, NULL);
         if (awh == NULL)
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
     }
 
-    static const struct vlc_decoder_device_operations ops =
+    static const struct heimdall_decoder_device_operations ops =
     {
         .close = NULL,
     };
     device->ops = &ops;
-    device->type = VLC_DECODER_DEVICE_AWINDOW;
+    device->type = HEIMDALL_DECODER_DEVICE_AWINDOW;
     device->opaque = awh;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname(N_("Android Window"))
     set_description(N_("Android native window"))
     set_subcategory(SUBCAT_VIDEO_VOUT)
@@ -225,4 +226,4 @@ vlc_module_begin()
     add_submodule ()
         set_callback_dec_device(OpenDecDevice, 1)
         add_shortcut("android")
-vlc_module_end()
+heimdall_module_end()

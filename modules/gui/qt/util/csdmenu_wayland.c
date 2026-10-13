@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2024 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -41,9 +42,9 @@ static void csd_registry_global_cb(void* data, struct wl_registry* registry,
 
 static void csd_registry_global_remove_cb(void* data, struct wl_registry* registry, uint32_t id)
 {
-    VLC_UNUSED(data);
-    VLC_UNUSED(registry);
-    VLC_UNUSED(id);
+    HEIMDALL_UNUSED(data);
+    HEIMDALL_UNUSED(registry);
+    HEIMDALL_UNUSED(id);
 }
 
 static const struct wl_registry_listener csd_registry_cbs = {
@@ -64,7 +65,7 @@ static bool CSDMenuPopup(qt_csd_menu_t* p_this, qt_csd_menu_event* event)
     return true;
 }
 
-void WaylandCSDMenuClose(vlc_object_t* obj)
+void WaylandCSDMenuClose(heimdall_object_t* obj)
 {
     qt_csd_menu_t* menu = (qt_csd_menu_t*)obj;
     csd_menu_priv_t* sys = (csd_menu_priv_t*)menu->p_sys;
@@ -77,17 +78,17 @@ void WaylandCSDMenuClose(vlc_object_t* obj)
 int WaylandCSDMenuOpen(qt_csd_menu_t* p_this, qt_csd_menu_info* info)
 {
     if (info->platform != QT_CSD_PLATFORM_WAYLAND) {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if (info->data.wayland.display == NULL || info->data.wayland.toplevel == NULL) {
         msg_Warn(p_this, "wayland display or surface not provided");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    csd_menu_priv_t* sys = (csd_menu_priv_t*)vlc_obj_calloc(p_this, 1, sizeof(csd_menu_priv_t));
+    csd_menu_priv_t* sys = (csd_menu_priv_t*)heimdall_obj_calloc(p_this, 1, sizeof(csd_menu_priv_t));
     if (!sys)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_this->p_sys = sys;
 
@@ -115,12 +116,12 @@ int WaylandCSDMenuOpen(qt_csd_menu_t* p_this, qt_csd_menu_info* info)
     //module functions
     p_this->popup = CSDMenuPopup;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     p_this->p_sys = NULL;
-    WaylandCSDMenuClose(VLC_OBJECT(p_this));
-    vlc_obj_free(p_this, sys);
-    return VLC_EGENERIC;
+    WaylandCSDMenuClose(HEIMDALL_OBJECT(p_this));
+    heimdall_obj_free(p_this, sys);
+    return HEIMDALL_EGENERIC;
 }
 

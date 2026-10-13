@@ -2,6 +2,7 @@
  * devicelister.h: Media library network file system
  *****************************************************************************
  * Copyright (C) 2018 VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -24,16 +25,16 @@
 
 #include "devicelister.h"
 
-#include <vlc_services_discovery.h>
+#include <heimdall_services_discovery.h>
 
 #include <memory>
 
-namespace vlc
+namespace heimdall
 {
 namespace medialibrary
 {
 
-DeviceLister::DeviceLister( vlc_object_t* parent )
+DeviceLister::DeviceLister( heimdall_object_t* parent )
     : m_parent( parent )
 {
 }
@@ -48,16 +49,16 @@ void DeviceLister::refresh()
 
 bool DeviceLister::start( ml::IDeviceListerCb* cb )
 {
-    vlc::threads::mutex_locker lock( m_mutex );
+    heimdall::threads::mutex_locker lock( m_mutex );
 
-    auto provider = vlc_media_source_provider_Get( vlc_object_instance( m_parent ) );
+    auto provider = heimdall_media_source_provider_Get( heimdall_object_instance( m_parent ) );
 
-    using SourceMetaPtr = std::unique_ptr<vlc_media_source_meta_list_t,
-                                          decltype( &vlc_media_source_meta_list_Delete )>;
+    using SourceMetaPtr = std::unique_ptr<heimdall_media_source_meta_list_t,
+                                          decltype( &heimdall_media_source_meta_list_Delete )>;
 
     SourceMetaPtr providerList{
-        vlc_media_source_provider_List( provider, SD_CAT_LAN ),
-        &vlc_media_source_meta_list_Delete
+        heimdall_media_source_provider_List( provider, SD_CAT_LAN ),
+        &heimdall_media_source_meta_list_Delete
     };
 
     if (providerList.get() == nullptr)
@@ -65,23 +66,23 @@ bool DeviceLister::start( ml::IDeviceListerCb* cb )
 
     m_cb = cb;
 
-    auto nbProviders = vlc_media_source_meta_list_Count( providerList.get() );
+    auto nbProviders = heimdall_media_source_meta_list_Count( providerList.get() );
 
     for ( auto i = 0u; i < nbProviders; ++i )
     {
-        auto meta = vlc_media_source_meta_list_Get( providerList.get(), i );
-        auto mediaSource = vlc_media_source_provider_GetMediaSource( provider,
+        auto meta = heimdall_media_source_meta_list_Get( providerList.get(), i );
+        auto mediaSource = heimdall_media_source_provider_GetMediaSource( provider,
                                                                      meta->name );
         if ( mediaSource == nullptr )
             continue;
         MediaSource s{ mediaSource };
 
-        static const vlc_media_tree_callbacks cbs {
+        static const heimdall_media_tree_callbacks cbs {
             &DeviceLister::onChildrenReset, &DeviceLister::onChildrenAdded,
             &DeviceLister::onChildrenRemoved, nullptr
         };
 
-        s.l = vlc_media_tree_AddListener( s.s->tree, &cbs, this, true );
+        s.l = heimdall_media_tree_AddListener( s.s->tree, &cbs, this, true );
         m_mediaSources.push_back( std::move( s ) );
     }
     return m_mediaSources.empty() == false;
@@ -89,20 +90,20 @@ bool DeviceLister::start( ml::IDeviceListerCb* cb )
 
 void DeviceLister::stop()
 {
-    vlc::threads::mutex_locker lock( m_mutex );
+    heimdall::threads::mutex_locker lock( m_mutex );
 
     m_mediaSources.clear();
     m_cb = nullptr;
 }
 
-void DeviceLister::onChildrenReset( vlc_media_tree_t* tree, input_item_node_t* node,
+void DeviceLister::onChildrenReset( heimdall_media_tree_t* tree, input_item_node_t* node,
                                     void* data )
 {
     auto self = static_cast<DeviceLister*>( data );
     self->onChildrenReset( tree, node );
 }
 
-void DeviceLister::onChildrenAdded( vlc_media_tree_t* tree, input_item_node_t* node,
+void DeviceLister::onChildrenAdded( heimdall_media_tree_t* tree, input_item_node_t* node,
                                     input_item_node_t* const children[], size_t count,
                                     void* data )
 {
@@ -110,7 +111,7 @@ void DeviceLister::onChildrenAdded( vlc_media_tree_t* tree, input_item_node_t* n
     self->onChildrenAdded( tree, node, children, count );
 }
 
-void DeviceLister::onChildrenRemoved( vlc_media_tree_t* tree, input_item_node_t* node,
+void DeviceLister::onChildrenRemoved( heimdall_media_tree_t* tree, input_item_node_t* node,
                                       input_item_node_t* const children[], size_t count,
                                       void* data )
 {
@@ -118,7 +119,7 @@ void DeviceLister::onChildrenRemoved( vlc_media_tree_t* tree, input_item_node_t*
     self->onChildrenRemoved( tree, node, children, count );
 }
 
-void DeviceLister::onChildrenReset( vlc_media_tree_t* tree, input_item_node_t* )
+void DeviceLister::onChildrenReset( heimdall_media_tree_t* tree, input_item_node_t* )
 {
     for ( auto i = 0; i < tree->root.i_children; ++i )
     {
@@ -127,7 +128,7 @@ void DeviceLister::onChildrenReset( vlc_media_tree_t* tree, input_item_node_t* )
     }
 }
 
-void DeviceLister::onChildrenAdded( vlc_media_tree_t*, input_item_node_t*,
+void DeviceLister::onChildrenAdded( heimdall_media_tree_t*, input_item_node_t*,
                                     input_item_node_t* const children[], size_t count )
 {
     for ( auto i = 0u; i < count; ++i )
@@ -137,7 +138,7 @@ void DeviceLister::onChildrenAdded( vlc_media_tree_t*, input_item_node_t*,
     }
 }
 
-void DeviceLister::onChildrenRemoved(vlc_media_tree_t*, input_item_node_t*,
+void DeviceLister::onChildrenRemoved(heimdall_media_tree_t*, input_item_node_t*,
                                      input_item_node_t* const children[], size_t count )
 {
     for ( auto i = 0u; i < count; ++i )
@@ -147,7 +148,7 @@ void DeviceLister::onChildrenRemoved(vlc_media_tree_t*, input_item_node_t*,
     }
 }
 
-DeviceLister::MediaSource::MediaSource( vlc_media_source_t *ms )
+DeviceLister::MediaSource::MediaSource( heimdall_media_source_t *ms )
     : s( ms )
     , l( nullptr )
 {
@@ -156,9 +157,9 @@ DeviceLister::MediaSource::MediaSource( vlc_media_source_t *ms )
 DeviceLister::MediaSource::~MediaSource()
 {
     if ( l != nullptr )
-        vlc_media_tree_RemoveListener( s->tree, l );
+        heimdall_media_tree_RemoveListener( s->tree, l );
     if ( s != nullptr )
-        vlc_media_source_Release( s );
+        heimdall_media_source_Release( s );
 }
 
 DeviceLister::MediaSource::MediaSource( DeviceLister::MediaSource&& rhs ) noexcept

@@ -2,6 +2,7 @@
  * cmd_quit.cpp
  *****************************************************************************
  * Copyright (C) 2003 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cyril Deguet     <asmax@via.ecp.fr>
  *          Olivier Teulière <ipkiss@via.ecp.fr>
@@ -25,8 +26,8 @@
 #   include "config.h"
 #endif
 
-#include <vlc_vout.h>
-#include <vlc_vout_osd.h>
+#include <heimdall_vout.h>
+#include <heimdall_vout_osd.h>
 
 #include "cmd_quit.hpp"
 #include "../src/os_factory.hpp"
@@ -35,12 +36,12 @@
 
 void CmdQuit::execute()
 {
-    vlc_player_t *player = vlc_playlist_GetPlayer( getPL() );
-    vlc_player_osd_Message( player,
+    heimdall_player_t *player = heimdall_playlist_GetPlayer( getPL() );
+    heimdall_player_osd_Message( player,
         VOUT_SPU_CHANNEL_OSD, "%s", _( "Quit" ) );
 
-    // Kill libvlc
-    libvlc_Quit( vlc_object_instance(getIntf()) );
+    // Kill libheimdall
+    libheimdall_Quit( heimdall_object_instance(getIntf()) );
 }
 
 

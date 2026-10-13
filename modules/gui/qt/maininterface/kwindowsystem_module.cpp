@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2024 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,7 +20,7 @@
 
 #include <QRegion>
 
-#include <vlc_plugin.h>
+#include <heimdall_plugin.h>
 
 #include <KWindowEffects>
 
@@ -44,7 +45,7 @@ static void setBlurBehind(QWindow* const window, const bool enable = true, const
     KWindowEffects::enableBlurBehind(window, enable, region);
 }
 
-static int Open(vlc_object_t* const p_this)
+static int Open(heimdall_object_t* const p_this)
 {
     assert(p_this);
 
@@ -55,19 +56,19 @@ static int Open(vlc_object_t* const p_this)
     // so that another potentially compatible
     // module can be loaded instead:
     if (!isEffectAvailable(nullptr, WindowEffectsModule::BlurBehind))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     const auto obj = reinterpret_cast<WindowEffectsModule*>(p_this);
 
     obj->setBlurBehind = setBlurBehind;
     obj->isEffectAvailable = isEffectAvailable;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     add_shortcut("QtKWindowSystem")
     set_description("Provides window effects through KWindowSystem.")
     set_capability("qtwindoweffects", 10)
     set_callback(Open)
-vlc_module_end()
+heimdall_module_end()

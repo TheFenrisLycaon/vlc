@@ -2,6 +2,7 @@
  * timestamps.h: MPEG TS/PS Timestamps helpers
  *****************************************************************************
  * Copyright (C) 2004-2016 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -16,18 +17,18 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
-#ifndef VLC_MPEG_TIMESTAMPS_H
-#define VLC_MPEG_TIMESTAMPS_H
+#ifndef HEIMDALL_MPEG_TIMESTAMPS_H
+#define HEIMDALL_MPEG_TIMESTAMPS_H
 
 #ifndef __cplusplus
 _Static_assert(CLOCK_FREQ == 1000000, "FROM|TO_SCALE_NZ not matching CLOCK_FREQ");
 #endif
 
-#define FROM_SCALE_NZ(x) (((vlc_tick_t)(x) * 100 / 9))
+#define FROM_SCALE_NZ(x) (((heimdall_tick_t)(x) * 100 / 9))
 #define TO_SCALE_NZ(x)   ((x) * 9 / 100)
 
-#define FROM_SCALE(x) (VLC_TICK_0 + FROM_SCALE_NZ(x))
-#define TO_SCALE(x)   TO_SCALE_NZ((x) - VLC_TICK_0)
+#define FROM_SCALE(x) (HEIMDALL_TICK_0 + FROM_SCALE_NZ(x))
+#define TO_SCALE(x)   TO_SCALE_NZ((x) - HEIMDALL_TICK_0)
 
 typedef int64_t ts_90khz_t;
 #define TS_90KHZ_INVALID -1
@@ -35,15 +36,15 @@ typedef int64_t ts_90khz_t;
 #define TS_33BITS_ROLL_NZ      FROM_SCALE_NZ(0x1FFFFFFFF)
 #define TS_33BITS_HALF_ROLL_NZ FROM_SCALE_NZ(0x0FFFFFFFF)
 
-static inline vlc_tick_t TimeStampWrapAround( vlc_tick_t i_past_pcr, vlc_tick_t i_time )
+static inline heimdall_tick_t TimeStampWrapAround( heimdall_tick_t i_past_pcr, heimdall_tick_t i_time )
 {
-    if( i_past_pcr == VLC_TICK_INVALID || i_time >= i_past_pcr )
+    if( i_past_pcr == HEIMDALL_TICK_INVALID || i_time >= i_past_pcr )
         return i_time;
 
-    vlc_tick_t delta = i_past_pcr - i_time;
+    heimdall_tick_t delta = i_past_pcr - i_time;
     if( delta >= TS_33BITS_HALF_ROLL_NZ )
     {
-        vlc_tick_t rolls = (delta + TS_33BITS_ROLL_NZ - 1) / TS_33BITS_ROLL_NZ;
+        heimdall_tick_t rolls = (delta + TS_33BITS_ROLL_NZ - 1) / TS_33BITS_ROLL_NZ;
         i_time += rolls * TS_33BITS_ROLL_NZ;
     }
 

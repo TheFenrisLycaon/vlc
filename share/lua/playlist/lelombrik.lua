@@ -3,6 +3,7 @@
 
 
  Copyright © 2007 the VideoLAN team
+ Copyright (C) 2026 TheFenrisLycaon
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -21,24 +22,24 @@
 
 -- Probe function.
 function probe()
-    local path = vlc.path:gsub("^www%.", "")
-    return vlc.access == "http"
+    local path = heimdall.path:gsub("^www%.", "")
+    return heimdall.access == "http"
         and string.match( path, "^lelombrik%.net/videos" )
 end
 
 -- Parse function.
 function parse()
     while true do
-        line = vlc.readline()
+        line = heimdall.readline()
         if not line then
-            vlc.msg.err("Couldn't extract the video URL from lelombrik")
+            heimdall.msg.err("Couldn't extract the video URL from lelombrik")
             return { }
         end
 
         if string.match( line, "id=\"nom_fichier\">" ) then
             title = string.gsub( line, ".*\"nom_fichier\">([^<]*).*", "%1" )
             if title then
-                title = vlc.strings.from_charset( "ISO_8859-1", title )
+                title = heimdall.strings.from_charset( "ISO_8859-1", title )
             end
         elseif string.match( line, "'file'" ) then
             _,_,path = string.find( line, "'file', *'([^']*)")

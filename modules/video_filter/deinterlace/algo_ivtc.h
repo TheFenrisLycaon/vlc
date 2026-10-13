@@ -1,7 +1,8 @@
 /*****************************************************************************
- * algo_ivtc.h : IVTC (inverse telecine) algorithm for the VLC deinterlacer
+ * algo_ivtc.h : IVTC (inverse telecine) algorithm for the Heimdall deinterlacer
  *****************************************************************************
  * Copyright (C) 2010-2011 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Juha Jeronen <juha.jeronen@jyu.fi>
  *
@@ -20,8 +21,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_DEINTERLACE_ALGO_IVTC_H
-#define VLC_DEINTERLACE_ALGO_IVTC_H 1
+#ifndef HEIMDALL_DEINTERLACE_ALGO_IVTC_H
+#define HEIMDALL_DEINTERLACE_ALGO_IVTC_H 1
 
 /* Forward declarations */
 struct filter_t;
@@ -130,9 +131,9 @@ typedef struct
  *
  * @param p_filter The filter instance. Must be non-NULL.
  * @param[out] p_dst Output frame. Must be allocated by caller.
- * @return VLC error code (int).
- * @retval VLC_SUCCESS A film frame was reconstructed to p_dst.
- * @retval VLC_EGENERIC Frame dropped as part of normal IVTC operation.
+ * @return Heimdall error code (int).
+ * @retval HEIMDALL_SUCCESS A film frame was reconstructed to p_dst.
+ * @retval HEIMDALL_EGENERIC Frame dropped as part of normal IVTC operation.
  * @see Deinterlace()
  * @see ComposeFrame()
  * @see CalculateInterlaceScore()
@@ -159,7 +160,7 @@ void IVTCClearState( filter_t *p_filter );
 
 /**
  * \file
- * IVTC (inverse telecine) algorithm for the VLC deinterlacer.
+ * IVTC (inverse telecine) algorithm for the Heimdall deinterlacer.
  * Also known as "film mode" or "3:2 reverse pulldown" in some equipment.
  *
  * Summary:

@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2024 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,13 +19,13 @@
 #include <QTest>
 #include <QAbstractItemModelTester>
 
-#include "vlc_stub_modules.hpp"
+#include "heimdall_stub_modules.hpp"
 
 #include "../util/renderer_manager.hpp"
 
-using RendererItemPtr = ::vlc::vlc_shared_data_ptr<vlc_renderer_item_t,
-    &vlc_renderer_item_hold,
-    &vlc_renderer_item_release>;
+using RendererItemPtr = ::heimdall::heimdall_shared_data_ptr<heimdall_renderer_item_t,
+    &heimdall_renderer_item_hold,
+    &heimdall_renderer_item_release>;
 
 class TestClass : public QObject
 {
@@ -34,10 +35,10 @@ private:
     RendererItemPtr pushDummyRDItem(int i) {
         QString name = QString("name%1").arg(i);
         QString sout = QString("dummy://%1.%1.%1.%1:%1").arg(i);
-        RendererItemPtr item(vlc_renderer_item_new(
+        RendererItemPtr item(heimdall_renderer_item_new(
                 "type", qtu(name), qtu(sout), "extra sout",
                 nullptr, "icon://", i ));
-        vlc_rd_add_item( rd(), item.get() );
+        heimdall_rd_add_item( rd(), item.get() );
         return item;
     }
 
@@ -52,14 +53,14 @@ private:
         QCOMPARE(m_model->data(idx, RendererManager::FLAGS), id);
     }
 
-    vlc_renderer_discovery_t* rd() const
+    heimdall_renderer_discovery_t* rd() const
     {
         return m_env->renderDiscovery;
     }
 
 private slots:
     void initTestCase() {
-        m_env = std::make_unique<VLCTestingEnv>();
+        m_env = std::make_unique<HeimdallTestingEnv>();
         QVERIFY(m_env->init());
         m_player = m_env->intf->p_player;
     }
@@ -186,7 +187,7 @@ private slots:
             pushDummyRDItem(i);
         }
         QCOMPARE(m_model->rowCount(), 7);
-        vlc_rd_remove_item(rd(), item.get());
+        heimdall_rd_remove_item(rd(), item.get());
         QCOMPARE(m_model->rowCount(), 6);
         m_model->StopScan();
         QCOMPARE(m_model->rowCount(), 6);
@@ -229,9 +230,9 @@ private slots:
 
         //player renderer is actually set
         {
-            vlc_player_Lock(m_player);
-            QCOMPARE(vlc_player_GetRenderer(m_player), r3.get());
-            vlc_player_Unlock(m_player);
+            heimdall_player_Lock(m_player);
+            QCOMPARE(heimdall_player_GetRenderer(m_player), r3.get());
+            heimdall_player_Unlock(m_player);
         }
 
         //select another renderer
@@ -248,9 +249,9 @@ private slots:
 
         //player renderer has actually changed
         {
-            vlc_player_Lock(m_player);
-            QCOMPARE(vlc_player_GetRenderer(m_player), r2.get());
-            vlc_player_Unlock(m_player);
+            heimdall_player_Lock(m_player);
+            QCOMPARE(heimdall_player_GetRenderer(m_player), r2.get());
+            heimdall_player_Unlock(m_player);
         }
 
         //deselect renderer from index
@@ -263,9 +264,9 @@ private slots:
 
         //player renderer is actually unset
         {
-            vlc_player_Lock(m_player);
-            QCOMPARE(vlc_player_GetRenderer(m_player), nullptr);
-            vlc_player_Unlock(m_player);
+            heimdall_player_Lock(m_player);
+            QCOMPARE(heimdall_player_GetRenderer(m_player), nullptr);
+            heimdall_player_Unlock(m_player);
         }
 
         //re-select renderer then deselect it using disableRenderer
@@ -280,9 +281,9 @@ private slots:
 
         //make the player select the renderer itself
         {
-            vlc_player_Lock(m_player);
-            vlc_player_SetRenderer(m_player, r4.get());
-            vlc_player_Unlock(m_player);
+            heimdall_player_Lock(m_player);
+            heimdall_player_SetRenderer(m_player, r4.get());
+            heimdall_player_Unlock(m_player);
         }
         QCOMPARE(m_model->useRenderer(), true);
         for (int i = 0; i < 5; ++i) {
@@ -294,9 +295,9 @@ private slots:
         }
         //the  make the player unselect the renderer
         {
-            vlc_player_Lock(m_player);
-            vlc_player_SetRenderer(m_player, nullptr);
-            vlc_player_Unlock(m_player);
+            heimdall_player_Lock(m_player);
+            heimdall_player_SetRenderer(m_player, nullptr);
+            heimdall_player_Unlock(m_player);
         }
         QCOMPARE(m_model->useRenderer(), false);
         for (int i = 0; i < 5; ++i) {
@@ -319,7 +320,7 @@ private slots:
 
         //selected item is removed
         QCOMPARE(m_model->rowCount(), 5);
-        vlc_rd_remove_item( rd(), r3.get() );
+        heimdall_rd_remove_item( rd(), r3.get() );
 
         //item is held by model
         QCOMPARE(m_model->useRenderer(), true);
@@ -335,11 +336,11 @@ private slots:
 
         //item should be gone after next scan
         m_model->StartScan();
-        vlc_rd_add_item( rd(), r0.get() );
-        vlc_rd_add_item( rd(), r1.get() );
-        vlc_rd_add_item( rd(), r2.get() );
+        heimdall_rd_add_item( rd(), r0.get() );
+        heimdall_rd_add_item( rd(), r1.get() );
+        heimdall_rd_add_item( rd(), r2.get() );
         //no r3
-        vlc_rd_add_item( rd(), r4.get() );
+        heimdall_rd_add_item( rd(), r4.get() );
         m_model->StopScan();
         QCOMPARE(m_model->rowCount(), 4);
 
@@ -347,8 +348,8 @@ private slots:
         selidx = m_model->index(2);
         m_model->setData(selidx, true, RendererManager::SELECTED);
         m_model->StartScan();
-        vlc_rd_add_item( rd(), r0.get() );
-        vlc_rd_add_item( rd(), r1.get() );
+        heimdall_rd_add_item( rd(), r0.get() );
+        heimdall_rd_add_item( rd(), r1.get() );
         m_model->StopScan();
         QCOMPARE(m_model->rowCount(), 3);
         QCOMPARE(m_model->data(selidx, RendererManager::SELECTED), true);
@@ -378,8 +379,8 @@ private slots:
     }
 private:
 
-    std::unique_ptr<VLCTestingEnv> m_env;
-    vlc_player_t* m_player = nullptr;
+    std::unique_ptr<HeimdallTestingEnv> m_env;
+    heimdall_player_t* m_player = nullptr;
     std::unique_ptr<QAbstractItemModelTester> m_modelTester;
     RendererManager* m_model = nullptr;
 };

@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright © 2018 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Marvin Scholz <epirat07 at gmail dot com>
  *
@@ -27,13 +28,13 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_inhibit.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_inhibit.h>
 
 #include <IOKit/pwr_mgt/IOPMLib.h>
 
-struct vlc_inhibit_sys
+struct heimdall_inhibit_sys
 {
     // Activity IOPMAssertion to wake the display if sleeping
     IOPMAssertionID act_assertion_id;
@@ -42,9 +43,9 @@ struct vlc_inhibit_sys
     IOPMAssertionID inh_assertion_id;
 };
 
-static void UpdateInhibit(vlc_inhibit_t *ih, unsigned mask)
+static void UpdateInhibit(heimdall_inhibit_t *ih, unsigned mask)
 {
-    vlc_inhibit_sys_t* sys = ih->p_sys;
+    heimdall_inhibit_sys_t* sys = ih->p_sys;
 
     // Release existing inhibition, if any
     if (sys->inh_assertion_id != kIOPMNullAssertionID) {
@@ -60,10 +61,10 @@ static void UpdateInhibit(vlc_inhibit_t *ih, unsigned mask)
     // we automatically prevent idle sleep too.
 
     IOReturn ret;
-    if ((mask & VLC_INHIBIT_DISPLAY) == VLC_INHIBIT_DISPLAY) {
+    if ((mask & HEIMDALL_INHIBIT_DISPLAY) == HEIMDALL_INHIBIT_DISPLAY) {
 
         // Display inhibition
-        CFStringRef activity_reason = CFSTR("VLC video playback");
+        CFStringRef activity_reason = CFSTR("Heimdall video playback");
 
         msg_Dbg(ih, "Inhibiting display sleep");
 
@@ -81,10 +82,10 @@ static void UpdateInhibit(vlc_inhibit_t *ih, unsigned mask)
                                           activity_reason,
                                           &(sys->inh_assertion_id));
 
-    } else if ((mask & VLC_INHIBIT_SUSPEND) == VLC_INHIBIT_SUSPEND) {
+    } else if ((mask & HEIMDALL_INHIBIT_SUSPEND) == HEIMDALL_INHIBIT_SUSPEND) {
 
         // Idle sleep inhibition
-        CFStringRef activity_reason = CFSTR("VLC audio playback");
+        CFStringRef activity_reason = CFSTR("Heimdall audio playback");
 
         msg_Dbg(ih, "Inhibiting idle sleep");
 
@@ -93,7 +94,7 @@ static void UpdateInhibit(vlc_inhibit_t *ih, unsigned mask)
                                           activity_reason,
                                           &(sys->inh_assertion_id));
 
-    } else if ((mask & VLC_INHIBIT_NONE) == VLC_INHIBIT_NONE) {
+    } else if ((mask & HEIMDALL_INHIBIT_NONE) == HEIMDALL_INHIBIT_NONE) {
         msg_Dbg(ih, "Removed previous inhibition");
         return;
     } else {
@@ -107,27 +108,27 @@ static void UpdateInhibit(vlc_inhibit_t *ih, unsigned mask)
     }
 }
 
-static int OpenInhibit(vlc_object_t *obj)
+static int OpenInhibit(heimdall_object_t *obj)
 {
-    vlc_inhibit_t *ih = (vlc_inhibit_t *)obj;
+    heimdall_inhibit_t *ih = (heimdall_inhibit_t *)obj;
 
     // Initialize module private storage
-    vlc_inhibit_sys_t *sys = ih->p_sys =
-            vlc_obj_malloc(obj, sizeof(vlc_inhibit_sys_t));
+    heimdall_inhibit_sys_t *sys = ih->p_sys =
+            heimdall_obj_malloc(obj, sizeof(heimdall_inhibit_sys_t));
     if (unlikely(ih->p_sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     sys->act_assertion_id = kIOPMNullAssertionID;
     sys->inh_assertion_id = kIOPMNullAssertionID;
 
     ih->inhibit = UpdateInhibit;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void CloseInhibit(vlc_object_t *obj)
+static void CloseInhibit(heimdall_object_t *obj)
 {
-    vlc_inhibit_t *ih = (vlc_inhibit_t*)obj;
-    vlc_inhibit_sys_t* sys = ih->p_sys;
+    heimdall_inhibit_t *ih = (heimdall_inhibit_t*)obj;
+    heimdall_inhibit_sys_t* sys = ih->p_sys;
 
     // Release remaining IOPMAssertion for inhibition, if any
     if (sys->inh_assertion_id != kIOPMNullAssertionID) {
@@ -150,10 +151,10 @@ static void CloseInhibit(vlc_object_t *obj)
     }
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname(N_("macOS sleep inhibition"))
     set_description(N_("macOS screen and idle sleep inhibition"))
     set_subcategory(SUBCAT_ADVANCED_MISC)
     set_capability("inhibit", 10)
     set_callbacks(OpenInhibit, CloseInhibit)
-vlc_module_end()
+heimdall_module_end()

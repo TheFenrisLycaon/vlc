@@ -2,6 +2,7 @@
  * android/device.h: Android AudioTrack/AAudio device handler
  *****************************************************************************
  * Copyright © 2012-2022 VLC authors and VideoLAN, VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Thomas Guillem <thomas@gllm.fr>
  *
@@ -73,12 +74,12 @@ AndroidDevice_GetChanOrder( uint16_t i_physical_channels, uint32_t p_chans_out[]
 
 struct aout_stream
 {
-    struct vlc_object_t obj;
+    struct heimdall_object_t obj;
     void *sys;
 
     void (*stop)(aout_stream_t *);
-    void (*play)(aout_stream_t *, block_t *, vlc_tick_t);
-    void (*pause)(aout_stream_t *, bool, vlc_tick_t);
+    void (*play)(aout_stream_t *, block_t *, heimdall_tick_t);
+    void (*pause)(aout_stream_t *, bool, heimdall_tick_t);
     void (*flush)(aout_stream_t *);
     void (*drain)(aout_stream_t *);
     void (*volume_set)(aout_stream_t *, float volume);
@@ -100,8 +101,8 @@ aout_stream_RestartRequest(aout_stream_t *s, bool restart_dec)
 }
 
 static inline
-void aout_stream_TimingReport(aout_stream_t *s, vlc_tick_t system_ts,
-                              vlc_tick_t audio_ts)
+void aout_stream_TimingReport(aout_stream_t *s, heimdall_tick_t system_ts,
+                              heimdall_tick_t audio_ts)
 {
     aout_TimingReport(s->aout, system_ts, audio_ts);
 }

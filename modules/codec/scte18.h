@@ -2,6 +2,7 @@
  * scte18.h : SCTE-18 EAS decoder
  *****************************************************************************
  * Copyright (C) 2016 - VideoLAN Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -16,8 +17,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
-#ifndef VLC_SCTE18_H
-#define VLC_SCTE18_H
+#ifndef HEIMDALL_SCTE18_H
+#define HEIMDALL_SCTE18_H
 
 #define SCTE18_SI_BASE_PID 0x1FFB
 #define SCTE18_TABLE_ID    0xD8

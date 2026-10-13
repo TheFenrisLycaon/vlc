@@ -2,6 +2,7 @@
  * d3d11_adjust.c: D3D11 filters module callbacks
  *****************************************************************************
  * Copyright © 2017 VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Steve Lhomme <robux4@gmail.com>
  *
@@ -28,13 +29,13 @@
 #include <stdlib.h>
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_picture.h>
-#include <vlc_codec.h>
-#include <vlc_chroma_probe.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
+#include <heimdall_codec.h>
+#include <heimdall_chroma_probe.h>
 
 #define COBJMACROS
 #include <d3d11.h>
@@ -186,7 +187,7 @@ static picture_t *AllocPicture( filter_t *p_filter )
     if (unlikely(cfg == NULL))
         return NULL;
 
-    return D3D11_AllocPicture(VLC_OBJECT(p_filter),
+    return D3D11_AllocPicture(HEIMDALL_OBJECT(p_filter),
                               &p_filter->fmt_out.video, p_filter->vctx_out,
                               false, cfg);
 }
@@ -297,11 +298,11 @@ static picture_t *Filter(filter_t *p_filter, picture_t *p_pic)
     return p_outpic;
 }
 
-static int AdjustCallback( vlc_object_t *p_this, char const *psz_var,
-                           vlc_value_t oldval, vlc_value_t newval,
+static int AdjustCallback( heimdall_object_t *p_this, char const *psz_var,
+                           heimdall_value_t oldval, heimdall_value_t newval,
                            void *p_data )
 {
-    VLC_UNUSED(p_this); VLC_UNUSED(oldval);
+    HEIMDALL_UNUSED(p_this); HEIMDALL_UNUSED(oldval);
     filter_sys_t *p_sys = p_data;
 
     if( !strcmp( psz_var, "contrast" ) )
@@ -313,7 +314,7 @@ static int AdjustCallback( vlc_object_t *p_this, char const *psz_var,
     else if( !strcmp( psz_var, "saturation" ) )
         SetLevel( &p_sys->Saturation, newval.f_float );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void D3D11CloseAdjust(filter_t *filter)
@@ -336,12 +337,12 @@ static void D3D11CloseAdjust(filter_t *filter)
     ID3D11Texture2D_Release(sys->out[0].texture);
     ID3D11Texture2D_Release(sys->out[1].texture);
     D3D11_ReleaseProcessor( &sys->d3d_proc );
-    vlc_video_context_Release(filter->vctx_out);
+    heimdall_video_context_Release(filter->vctx_out);
 
     free(sys);
 }
 
-static const struct vlc_filter_operations filter_ops = {
+static const struct heimdall_filter_operations filter_ops = {
     .filter_video = Filter, .close = D3D11CloseAdjust,
 };
 
@@ -350,15 +351,15 @@ static int D3D11OpenAdjust(filter_t *filter)
     HRESULT hr;
 
     if (!is_d3d11_opaque(filter->fmt_in.video.i_chroma))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     if ( GetD3D11ContextPrivate(filter->vctx_in) == NULL )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     if (!video_format_IsSimilar(&filter->fmt_in.video, &filter->fmt_out.video))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     filter_sys_t *sys = malloc(sizeof (*sys));
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     memset(sys, 0, sizeof (*sys));
 
     d3d11_video_context_t *vtcx_sys = GetD3D11ContextPrivate( filter->vctx_in );
@@ -369,7 +370,7 @@ static int D3D11OpenAdjust(filter_t *filter)
     d3d11_device_lock(sys->d3d_dev);
 
     if (D3D11_CreateProcessor(filter, sys->d3d_dev, D3D11_VIDEO_FRAME_FORMAT_PROGRESSIVE,
-                              &filter->fmt_out.video, &filter->fmt_out.video, &sys->d3d_proc) != VLC_SUCCESS)
+                              &filter->fmt_out.video, &filter->fmt_out.video, &sys->d3d_proc) != HEIMDALL_SUCCESS)
         goto error;
 
     UINT flags;
@@ -515,10 +516,10 @@ static int D3D11OpenAdjust(filter_t *filter)
 
     filter->ops = &filter_ops;
     filter->p_sys = sys;
-    filter->vctx_out = vlc_video_context_Hold(filter->vctx_in);
+    filter->vctx_out = heimdall_video_context_Hold(filter->vctx_in);
     d3d11_device_unlock(sys->d3d_dev);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 error:
     for (int i=0; i<PROCESSOR_SLICES; i++)
     {
@@ -536,30 +537,30 @@ error:
     d3d11_device_unlock(sys->d3d_dev);
     free(sys);
 
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
-static void ProbeChroma(vlc_chroma_conv_vec *vec)
+static void ProbeChroma(heimdall_chroma_conv_vec *vec)
 {
-#define OUT_GPU_CHROMAS VLC_CODEC_D3D11_OPAQUE, VLC_CODEC_D3D11_OPAQUE_10B
+#define OUT_GPU_CHROMAS HEIMDALL_CODEC_D3D11_OPAQUE, HEIMDALL_CODEC_D3D11_OPAQUE_10B
 
-    vlc_chroma_conv_add_in_outlist(vec, 1.1, VLC_CODEC_D3D11_OPAQUE, VLC_CODEC_I420,
-        VLC_CODEC_YV12, VLC_CODEC_NV12);
-    vlc_chroma_conv_add_in_outlist(vec, 1.1, VLC_CODEC_D3D11_OPAQUE_10B,
-        VLC_CODEC_I420_10L, VLC_CODEC_P010);
-    vlc_chroma_conv_add_in_outlist(vec, 1.1, VLC_CODEC_D3D11_OPAQUE_RGBA,
-        VLC_CODEC_RGBA);
-    vlc_chroma_conv_add_in_outlist(vec, 1.1, VLC_CODEC_D3D11_OPAQUE_BGRA,
-        VLC_CODEC_BGRA);
+    heimdall_chroma_conv_add_in_outlist(vec, 1.1, HEIMDALL_CODEC_D3D11_OPAQUE, HEIMDALL_CODEC_I420,
+        HEIMDALL_CODEC_YV12, HEIMDALL_CODEC_NV12);
+    heimdall_chroma_conv_add_in_outlist(vec, 1.1, HEIMDALL_CODEC_D3D11_OPAQUE_10B,
+        HEIMDALL_CODEC_I420_10L, HEIMDALL_CODEC_P010);
+    heimdall_chroma_conv_add_in_outlist(vec, 1.1, HEIMDALL_CODEC_D3D11_OPAQUE_RGBA,
+        HEIMDALL_CODEC_RGBA);
+    heimdall_chroma_conv_add_in_outlist(vec, 1.1, HEIMDALL_CODEC_D3D11_OPAQUE_BGRA,
+        HEIMDALL_CODEC_BGRA);
 
-    vlc_chroma_conv_add_in_outlist(vec, 1.1, VLC_CODEC_I420, OUT_GPU_CHROMAS);
-    vlc_chroma_conv_add_in_outlist(vec, 1.1, VLC_CODEC_I420_10L, OUT_GPU_CHROMAS);
-    vlc_chroma_conv_add_in_outlist(vec, 1.1, VLC_CODEC_YV12, OUT_GPU_CHROMAS);
-    vlc_chroma_conv_add_in_outlist(vec, 1.1, VLC_CODEC_NV12, OUT_GPU_CHROMAS);
-    vlc_chroma_conv_add_in_outlist(vec, 1.1, VLC_CODEC_P010, OUT_GPU_CHROMAS);
+    heimdall_chroma_conv_add_in_outlist(vec, 1.1, HEIMDALL_CODEC_I420, OUT_GPU_CHROMAS);
+    heimdall_chroma_conv_add_in_outlist(vec, 1.1, HEIMDALL_CODEC_I420_10L, OUT_GPU_CHROMAS);
+    heimdall_chroma_conv_add_in_outlist(vec, 1.1, HEIMDALL_CODEC_YV12, OUT_GPU_CHROMAS);
+    heimdall_chroma_conv_add_in_outlist(vec, 1.1, HEIMDALL_CODEC_NV12, OUT_GPU_CHROMAS);
+    heimdall_chroma_conv_add_in_outlist(vec, 1.1, HEIMDALL_CODEC_P010, OUT_GPU_CHROMAS);
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_description(N_("Direct3D11 adjust filter"))
     set_subcategory( SUBCAT_VIDEO_VFILTER )
     set_callback_video_filter(D3D11OpenAdjust)
@@ -607,4 +608,4 @@ vlc_module_begin()
 
     add_submodule()
         set_callback_chroma_conv_probe(ProbeChroma)
-vlc_module_end()
+heimdall_module_end()

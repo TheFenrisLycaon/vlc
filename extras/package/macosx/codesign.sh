@@ -1,6 +1,7 @@
 #!/bin/bash
 # Copyright (C) 2012-2017 VLC authors and VideoLAN
 # Copyright (C) 2012-2014 Felix Paul Kühne <fkuehne at videolan dot org>
+# Copyright (C) 2026 TheFenrisLycaon
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published by
@@ -31,7 +32,7 @@ usage()
 cat << EOF
 usage: $0 [options]
 
-Sign VLC.app in the current directory
+Sign Heimdall.app in the current directory
 
 OPTIONS:
    -h            Show this help
@@ -71,27 +72,27 @@ if [ "x$1" != "x" ]; then
     exit 1
 fi
 
-VLCCACHEGEN=""
-if [ -e "./bin/vlc-cache-gen" ]; then
-    VLCCACHEGEN="./bin/vlc-cache-gen"
+HEIMDALLCACHEGEN=""
+if [ -e "./bin/heimdall-cache-gen" ]; then
+    HEIMDALLCACHEGEN="./bin/heimdall-cache-gen"
 fi
-if [ -e "./vlc-cache-gen" ]; then
-    VLCCACHEGEN="./vlc-cache-gen"
+if [ -e "./heimdall-cache-gen" ]; then
+    HEIMDALLCACHEGEN="./heimdall-cache-gen"
 fi
 
-$VLCCACHEGEN --help 1>/dev/null 2>&1 && returncode=$? || returncode=$?
+$HEIMDALLCACHEGEN --help 1>/dev/null 2>&1 && returncode=$? || returncode=$?
 if [ $returncode -ne 0 ]; then
-    info "WARN: Cannot execute vlc-cache-gen with path '$VLCCACHEGEN' (wrong arch?)"
-    VLCCACHEGEN=""
+    info "WARN: Cannot execute heimdall-cache-gen with path '$HEIMDALLCACHEGEN' (wrong arch?)"
+    HEIMDALLCACHEGEN=""
 fi
 
-if [ -z "$VLCCACHEGEN" ]; then
-    info "WARN: Cannot find vlc-cache-gen, cache will be removed for signing"
+if [ -z "$HEIMDALLCACHEGEN" ]; then
+    info "WARN: Cannot find heimdall-cache-gen, cache will be removed for signing"
 fi
 
 SCRIPTDIR=$(dirname "$0")
 if [ ! -z "$RUNTIME" ]; then
-    RUNTIME_FLAGS="--options runtime --entitlements $SCRIPTDIR/vlc-hardening.entitlements"
+    RUNTIME_FLAGS="--options runtime --entitlements $SCRIPTDIR/heimdall-hardening.entitlements"
 fi
 
 # Call with $1 = file or folder
@@ -104,71 +105,71 @@ sign()
 
 
 info "Cleaning frameworks"
-find VLC.app/Contents/Frameworks -type f -name ".DS_Store" -exec rm '{}' \;
-find VLC.app/Contents/Frameworks -type f -name "*.textile" -exec rm '{}' \;
-find VLC.app/Contents/Frameworks -type f -name "*.txt" -exec rm '{}' \;
+find Heimdall.app/Contents/Frameworks -type f -name ".DS_Store" -exec rm '{}' \;
+find Heimdall.app/Contents/Frameworks -type f -name "*.textile" -exec rm '{}' \;
+find Heimdall.app/Contents/Frameworks -type f -name "*.txt" -exec rm '{}' \;
 
 info "Signing frameworks"
 
-sign "VLC.app/Contents/Frameworks/Sparkle.framework/Versions/B/Autoupdate"
-sign "VLC.app/Contents/Frameworks/Sparkle.framework/Versions/B/Updater.app"
-sign "VLC.app/Contents/Frameworks/Sparkle.framework/"
+sign "Heimdall.app/Contents/Frameworks/Sparkle.framework/Versions/B/Autoupdate"
+sign "Heimdall.app/Contents/Frameworks/Sparkle.framework/Versions/B/Updater.app"
+sign "Heimdall.app/Contents/Frameworks/Sparkle.framework/"
 
-if [ -e "VLC.app/Contents/Frameworks/Breakpad.framework" ]; then
-    sign "VLC.app/Contents/Frameworks/Breakpad.framework/Resources/breakpadUtilities.dylib"
-    sign "VLC.app/Contents/Frameworks/Breakpad.framework/Resources/Inspector"
-    sign "VLC.app/Contents/Frameworks/Breakpad.framework/Resources/crash_report_sender.app"
-    sign "VLC.app/Contents/Frameworks/Breakpad.framework/Versions/A"
+if [ -e "Heimdall.app/Contents/Frameworks/Breakpad.framework" ]; then
+    sign "Heimdall.app/Contents/Frameworks/Breakpad.framework/Resources/breakpadUtilities.dylib"
+    sign "Heimdall.app/Contents/Frameworks/Breakpad.framework/Resources/Inspector"
+    sign "Heimdall.app/Contents/Frameworks/Breakpad.framework/Resources/crash_report_sender.app"
+    sign "Heimdall.app/Contents/Frameworks/Breakpad.framework/Versions/A"
 fi
 
 info "Signing the modules"
 
-for i in $(find VLC.app/Contents/Frameworks/plugins -type f \( -name "*.dylib" -o -name "*.jar" \)  -exec echo {} \;)
+for i in $(find Heimdall.app/Contents/Frameworks/plugins -type f \( -name "*.dylib" -o -name "*.jar" \)  -exec echo {} \;)
 do
     sign "$i"
 done
 
-if [ ! -z "$VLCCACHEGEN" ]; then
-    $VLCCACHEGEN VLC.app/Contents/Frameworks/plugins
-    sign "VLC.app/Contents/Frameworks/plugins/plugins.dat"
+if [ ! -z "$HEIMDALLCACHEGEN" ]; then
+    $HEIMDALLCACHEGEN Heimdall.app/Contents/Frameworks/plugins
+    sign "Heimdall.app/Contents/Frameworks/plugins/plugins.dat"
 else
-    rm "VLC.app/Contents/Frameworks/plugins/plugins.dat" || true
+    rm "Heimdall.app/Contents/Frameworks/plugins/plugins.dat" || true
 fi
 
 info "Signing the libraries"
 
-for i in $(find VLC.app/Contents/Frameworks -type f -name "*.dylib" -d 1 -exec echo {} \;)
+for i in $(find Heimdall.app/Contents/Frameworks -type f -name "*.dylib" -d 1 -exec echo {} \;)
 do
     sign "$i"
 done
 
-for i in $(find VLC.app/Contents/Frameworks/lua -type f -exec echo {} \;)
+for i in $(find Heimdall.app/Contents/Frameworks/lua -type f -exec echo {} \;)
 do
     sign "$i"
 done
 
 info "Signing the executables"
-sign "VLC.app/Contents/MacOS/vlc-preparser"
-sign "VLC.app"
+sign "Heimdall.app/Contents/MacOS/heimdall-preparser"
+sign "Heimdall.app"
 
 
 info "all items signed, validating..."
 
 info "Validating frameworks"
-if [ -e "VLC.app/Contents/Frameworks/Breakpad.framework" ]; then
-    codesign --verify -vv VLC.app/Contents/Frameworks/Breakpad.framework
+if [ -e "Heimdall.app/Contents/Frameworks/Breakpad.framework" ]; then
+    codesign --verify -vv Heimdall.app/Contents/Frameworks/Breakpad.framework
 fi
 
-codesign --verify -vv VLC.app/Contents/Frameworks/Sparkle.framework
+codesign --verify -vv Heimdall.app/Contents/Frameworks/Sparkle.framework
 
 info "Validating autoupdate app"
-codesign --verify -vv VLC.app/Contents/Frameworks/Sparkle.framework/Versions/Current/Updater.app
+codesign --verify -vv Heimdall.app/Contents/Frameworks/Sparkle.framework/Versions/Current/Updater.app
 
 info "Validating complete bundle"
-codesign --verify --deep --strict --verbose=4 VLC.app
+codesign --verify --deep --strict --verbose=4 Heimdall.app
 
 if [ ! -z "$GK" ]; then
-    spctl -a -t exec -vv VLC.app
+    spctl -a -t exec -vv Heimdall.app
 fi
 
 

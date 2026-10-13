@@ -2,6 +2,7 @@
  * input_models.hpp
  *****************************************************************************
  * Copyright (C) 2018 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -26,8 +27,8 @@
 
 #include "qt.hpp"
 #include <memory>
-#include <vlc_player.h>
-#include <vlc_cxx_helpers.hpp>
+#include <heimdall_player.h>
+#include <heimdall_cxx_helpers.hpp>
 #include <QAbstractListModel>
 #include <QList>
 
@@ -48,7 +49,7 @@ class TrackListModel : public QAbstractListModel
     Q_PROPERTY(bool multiSelect READ getMultiSelect WRITE setMultiSelect NOTIFY multiSelectChanged FINAL)
 
 public:
-    TrackListModel(vlc_player_t* player, QObject* parent = nullptr);
+    TrackListModel(heimdall_player_t* player, QObject* parent = nullptr);
 
     Qt::ItemFlags flags(const QModelIndex &) const  override;
 
@@ -58,9 +59,9 @@ public:
 
     bool setData(const QModelIndex &index, const QVariant &value, int role = Qt::EditRole) override;
 
-    void updateTracks(enum vlc_player_list_action action, const vlc_player_track *track_info);
+    void updateTracks(enum heimdall_player_list_action action, const heimdall_player_track *track_info);
 
-    void updateTrackSelection(vlc_es_id_t *trackid, bool selected);
+    void updateTrackSelection(heimdall_es_id_t *trackid, bool selected);
 
     void clear();
 
@@ -78,19 +79,19 @@ signals:
     void multiSelectChanged(bool multiSelect);
 
 private:
-    vlc_player_t* m_player;
+    heimdall_player_t* m_player;
     class Data {
     public:
-        Data(const vlc_player_track *track_info);
+        Data(const heimdall_player_track *track_info);
 
         Data(const Data& data) = default;
         Data& operator =(const Data& data) = default;
 
-        void update( const vlc_player_track *track_info );
+        void update( const heimdall_player_track *track_info );
 
         QString m_title;
-        //vlc_es_id_t *m_id = NULL;
-        ::vlc::vlc_shared_data_ptr<vlc_es_id_t, &vlc_es_id_Hold, &vlc_es_id_Release> m_id;
+        //heimdall_es_id_t *m_id = NULL;
+        ::heimdall::heimdall_shared_data_ptr<heimdall_es_id_t, &heimdall_es_id_Hold, &heimdall_es_id_Release> m_id;
         bool m_selected = false;
     };
     QList<Data> m_data;
@@ -114,7 +115,7 @@ class TitleListModel : public QAbstractListModel
 
 public:
 
-    TitleListModel(vlc_player_t* player, QObject* parent = nullptr);
+    TitleListModel(heimdall_player_t* player, QObject* parent = nullptr);
 
     Qt::ItemFlags flags(const QModelIndex &) const  override;
 
@@ -126,9 +127,9 @@ public:
 
     void setCurrent(int current);
 
-    const vlc_player_title* getTitleAt( size_t index ) const;
+    const heimdall_player_title* getTitleAt( size_t index ) const;
 
-    void resetTitles(vlc_player_title_list* newTitleList);
+    void resetTitles(heimdall_player_title_list* newTitleList);
 
     QHash<int, QByteArray> roleNames() const override;
 
@@ -138,8 +139,8 @@ signals:
     void countChanged();
 
 private:
-    vlc_player_t* m_player;
-    typedef ::vlc::vlc_shared_data_ptr<vlc_player_title_list, &vlc_player_title_list_Hold, &vlc_player_title_list_Release> PlayerTitleList;
+    heimdall_player_t* m_player;
+    typedef ::heimdall::heimdall_shared_data_ptr<heimdall_player_title_list, &heimdall_player_title_list_Hold, &heimdall_player_title_list_Release> PlayerTitleList;
     PlayerTitleList m_titleList;
     int m_current = -1;
     int m_count = 0;
@@ -154,7 +155,7 @@ private:
  * we can select a chapter by setting the Qt::CheckStateRole to true
  *
  * this class expects to be updated by the input manager
- * the parent vlc_player_title isn't hold by this class, it is expected that the property is be valid or null
+ * the parent heimdall_player_title isn't hold by this class, it is expected that the property is be valid or null
  */
 class ChapterListModel : public QAbstractListModel
 {
@@ -169,7 +170,7 @@ public:
         EndPositionRole
     };
 public:
-    ChapterListModel(vlc_player_t* player, QObject* parent = nullptr);
+    ChapterListModel(heimdall_player_t* player, QObject* parent = nullptr);
 
     Qt::ItemFlags flags(const QModelIndex &) const  override;
 
@@ -183,7 +184,7 @@ public:
 
     void setCurrent(int current);
 
-    void resetTitle(const vlc_player_title* newTitle);
+    void resetTitle(const heimdall_player_title* newTitle);
 
     inline int getCount() const { return (m_title == nullptr) ?  0 : m_title->chapter_count; }
 
@@ -198,8 +199,8 @@ public slots:
     QString getNameAtPosition(float pos) const;
 
 private:
-    vlc_player_t* m_player = nullptr;
-    const vlc_player_title* m_title = nullptr;
+    heimdall_player_t* m_player = nullptr;
+    const heimdall_player_title* m_title = nullptr;
     int m_current = -1;
 };
 
@@ -219,7 +220,7 @@ class ProgramListModel : public QAbstractListModel
     Q_PROPERTY(int count READ getCount NOTIFY countChanged FINAL)
 
 public:
-    ProgramListModel(vlc_player_t* player, QObject* parent = nullptr);
+    ProgramListModel(heimdall_player_t* player, QObject* parent = nullptr);
 
     Qt::ItemFlags flags(const QModelIndex &) const  override;
 
@@ -229,7 +230,7 @@ public:
 
     bool setData(const QModelIndex &index, const QVariant &value, int role = Qt::EditRole) override;
 
-    void updatePrograms(enum vlc_player_list_action action, const struct vlc_player_program* program);
+    void updatePrograms(enum heimdall_player_list_action action, const struct heimdall_player_program* program);
 
     void updateProgramSelection(int programid, bool selected);
 
@@ -243,15 +244,15 @@ signals:
     void countChanged();
 
 private:
-    vlc_player_t* m_player;
+    heimdall_player_t* m_player;
     class Data {
     public:
-        Data( const struct vlc_player_program* program );
+        Data( const struct heimdall_player_program* program );
 
         Data(const Data& data) = default;
         Data& operator =(const Data& data) = default;
 
-        void update( const struct vlc_player_program* program );
+        void update( const struct heimdall_player_program* program );
 
         QString m_title;
         int m_id;

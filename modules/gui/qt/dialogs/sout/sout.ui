@@ -143,7 +143,7 @@
      </widget>
     </item>
     <item>
-     <widget class="VLCProfileSelector" name="profileSelect" native="true"/>
+     <widget class="HeimdallProfileSelector" name="profileSelect" native="true"/>
     </item>
    </layout>
   </widget>
@@ -192,7 +192,7 @@
  </widget>
  <customwidgets>
   <customwidget>
-   <class>VLCProfileSelector</class>
+   <class>HeimdallProfileSelector</class>
    <extends>QWidget</extends>
    <header>dialogs/sout/profile_selector.hpp</header>
    <container>1</container>

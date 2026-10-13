@@ -2,8 +2,9 @@
  * podcast_configuration.cpp: Podcast configuration dialog
  ****************************************************************************
  * Copyright (C) 2007 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Antoine Cellerier <dionoea at videolan dot org>
+ * Authors: Antoine Cellerier <dionoea at lycaria dot org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,7 +27,7 @@
 #include "podcast_configuration.hpp"
 
 PodcastConfigDialog::PodcastConfigDialog( qt_intf_t *_p_intf)
-                    : QVLCDialog( nullptr, _p_intf )
+                    : QHeimdallDialog( nullptr, _p_intf )
 
 {
     ui.setupUi( this );

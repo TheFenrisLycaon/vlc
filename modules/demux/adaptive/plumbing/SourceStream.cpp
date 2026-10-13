@@ -2,6 +2,7 @@
  * SourceStream.cpp
  *****************************************************************************
  * Copyright © 2015 - VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -26,12 +27,12 @@
 
 #include "../BlockStreamInterface.hpp"
 #include "../http/Chunk.h"
-#include <vlc_stream.h>
-#include <vlc_demux.h>
+#include <heimdall_stream.h>
+#include <heimdall_demux.h>
 
 using namespace adaptive;
 
-AbstractChunksSourceStream::AbstractChunksSourceStream(vlc_object_t *p_obj_, BlockStreamInterface *source_)
+AbstractChunksSourceStream::AbstractChunksSourceStream(heimdall_object_t *p_obj_, BlockStreamInterface *source_)
     : b_eof( false )
     , p_obj( p_obj_ )
     , source( source_ )
@@ -65,23 +66,23 @@ int AbstractChunksSourceStream::control_Callback(stream_t *, int i_query, va_lis
     {
         case STREAM_GET_SIZE:
             *(va_arg( args, uint64_t * )) = 0;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
 
         case STREAM_CAN_SEEK:
         case STREAM_CAN_FASTSEEK:
         case STREAM_CAN_PAUSE:
         case STREAM_CAN_CONTROL_PACE:
             *va_arg( args, bool * ) = false;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
 
         case STREAM_GET_PTS_DELAY:
-            *(va_arg( args, vlc_tick_t * )) = DEFAULT_PTS_DELAY;
-            return VLC_SUCCESS;
+            *(va_arg( args, heimdall_tick_t * )) = DEFAULT_PTS_DELAY;
+            return HEIMDALL_SUCCESS;
 
         default:
             break;
     }
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 void AbstractChunksSourceStream::delete_Callback(stream_t *)
@@ -90,7 +91,7 @@ void AbstractChunksSourceStream::delete_Callback(stream_t *)
 
 stream_t * AbstractChunksSourceStream::makeStream()
 {
-    stream_t *p_stream = vlc_stream_CommonNew( p_obj, delete_Callback );
+    stream_t *p_stream = heimdall_stream_CommonNew( p_obj, delete_Callback );
     if(p_stream)
     {
         p_stream->pf_control = control_Callback;
@@ -102,7 +103,7 @@ stream_t * AbstractChunksSourceStream::makeStream()
     return p_stream;
 }
 
-ChunksSourceStream::ChunksSourceStream(vlc_object_t *p_obj_, BlockStreamInterface *source_)
+ChunksSourceStream::ChunksSourceStream(heimdall_object_t *p_obj_, BlockStreamInterface *source_)
     : AbstractChunksSourceStream(p_obj_, source_)
 {
     p_block = nullptr;
@@ -173,10 +174,10 @@ ssize_t ChunksSourceStream::Read(uint8_t *buf, size_t size)
 
 int ChunksSourceStream::Seek(uint64_t)
 {
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
-BufferedChunksSourceStream::BufferedChunksSourceStream(vlc_object_t *p_obj_, BlockStreamInterface *source_)
+BufferedChunksSourceStream::BufferedChunksSourceStream(heimdall_object_t *p_obj_, BlockStreamInterface *source_)
     : AbstractChunksSourceStream( p_obj_, source_ )
 {
     i_global_offset = 0;
@@ -250,7 +251,7 @@ int BufferedChunksSourceStream::Seek(uint64_t i_seek)
     {
         msg_Err(p_obj, "tried to seek back in cache %" PRIu64 " < %" PRIu64,
                 i_seek, i_global_offset);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     size_t i_bsseekoffset = i_seek - i_global_offset;
     fillByteStream(i_bsseekoffset);
@@ -258,11 +259,11 @@ int BufferedChunksSourceStream::Seek(uint64_t i_seek)
     {
         msg_Err(p_obj, "tried to seek too far in cache %" PRIu64 " < %" PRIu64 " < %" PRIu64,
                 i_global_offset, i_seek, i_global_offset + block_BytestreamRemaining(&bs));
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     invalidatePeek();
     i_bytestream_offset = i_seek - i_global_offset;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 size_t BufferedChunksSourceStream::Peek(const uint8_t **pp, size_t sz)

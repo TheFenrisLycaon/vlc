@@ -2,6 +2,7 @@
  * playlist/content.c
  *****************************************************************************
  * Copyright (C) 2018 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -31,62 +32,62 @@
 #include "preparse.h"
 
 void
-vlc_playlist_ClearItems(vlc_playlist_t *playlist)
+heimdall_playlist_ClearItems(heimdall_playlist_t *playlist)
 {
-    vlc_playlist_item_t *item;
-    vlc_vector_foreach(item, &playlist->items)
-        vlc_playlist_item_Release(item);
-    vlc_vector_clear(&playlist->items);
+    heimdall_playlist_item_t *item;
+    heimdall_vector_foreach(item, &playlist->items)
+        heimdall_playlist_item_Release(item);
+    heimdall_vector_clear(&playlist->items);
 }
 
 static void
-vlc_playlist_ItemsReset(vlc_playlist_t *playlist)
+heimdall_playlist_ItemsReset(heimdall_playlist_t *playlist)
 {
-    if (playlist->order == VLC_PLAYLIST_PLAYBACK_ORDER_RANDOM)
+    if (playlist->order == HEIMDALL_PLAYLIST_PLAYBACK_ORDER_RANDOM)
         randomizer_Clear(&playlist->randomizer);
 
-    struct vlc_playlist_state state;
-    vlc_playlist_state_Save(playlist, &state);
+    struct heimdall_playlist_state state;
+    heimdall_playlist_state_Save(playlist, &state);
 
     playlist->current = -1;
-    playlist->has_prev = vlc_playlist_ComputeHasPrev(playlist);
-    playlist->has_next = vlc_playlist_ComputeHasNext(playlist);
+    playlist->has_prev = heimdall_playlist_ComputeHasPrev(playlist);
+    playlist->has_next = heimdall_playlist_ComputeHasNext(playlist);
 
-    vlc_playlist_Notify(playlist, on_items_reset, playlist->items.data,
+    heimdall_playlist_Notify(playlist, on_items_reset, playlist->items.data,
                    playlist->items.size);
-    vlc_playlist_state_NotifyChanges(playlist, &state);
+    heimdall_playlist_state_NotifyChanges(playlist, &state);
 }
 
 static void
-vlc_playlist_ItemsInserted(vlc_playlist_t *playlist, size_t index, size_t count,
+heimdall_playlist_ItemsInserted(heimdall_playlist_t *playlist, size_t index, size_t count,
                            bool subitems)
 {
-    if (playlist->order == VLC_PLAYLIST_PLAYBACK_ORDER_RANDOM)
+    if (playlist->order == HEIMDALL_PLAYLIST_PLAYBACK_ORDER_RANDOM)
         randomizer_Add(&playlist->randomizer,
                        &playlist->items.data[index], count);
 
-    struct vlc_playlist_state state;
-    vlc_playlist_state_Save(playlist, &state);
+    struct heimdall_playlist_state state;
+    heimdall_playlist_state_Save(playlist, &state);
 
     if (playlist->current >= (ssize_t) index)
         playlist->current += count;
-    playlist->has_prev = vlc_playlist_ComputeHasPrev(playlist);
-    playlist->has_next = vlc_playlist_ComputeHasNext(playlist);
+    playlist->has_prev = heimdall_playlist_ComputeHasPrev(playlist);
+    playlist->has_next = heimdall_playlist_ComputeHasNext(playlist);
 
-    vlc_playlist_item_t **items = &playlist->items.data[index];
-    vlc_playlist_Notify(playlist, on_items_added, index, items, count);
-    vlc_playlist_state_NotifyChanges(playlist, &state);
+    heimdall_playlist_item_t **items = &playlist->items.data[index];
+    heimdall_playlist_Notify(playlist, on_items_added, index, items, count);
+    heimdall_playlist_state_NotifyChanges(playlist, &state);
 
     for (size_t i = index; i < index + count; ++i)
-        vlc_playlist_AutoPreparse(playlist, playlist->items.data[i], subitems);
+        heimdall_playlist_AutoPreparse(playlist, playlist->items.data[i], subitems);
 }
 
 static void
-vlc_playlist_ItemsMoved(vlc_playlist_t *playlist, size_t index, size_t count,
+heimdall_playlist_ItemsMoved(heimdall_playlist_t *playlist, size_t index, size_t count,
                         size_t target)
 {
-    struct vlc_playlist_state state;
-    vlc_playlist_state_Save(playlist, &state);
+    struct heimdall_playlist_state state;
+    heimdall_playlist_state_Save(playlist, &state);
 
     if (playlist->current != -1) {
         size_t current = (size_t) playlist->current;
@@ -112,27 +113,27 @@ vlc_playlist_ItemsMoved(vlc_playlist_t *playlist, size_t index, size_t count,
         }
     }
 
-    playlist->has_prev = vlc_playlist_ComputeHasPrev(playlist);
-    playlist->has_next = vlc_playlist_ComputeHasNext(playlist);
+    playlist->has_prev = heimdall_playlist_ComputeHasPrev(playlist);
+    playlist->has_next = heimdall_playlist_ComputeHasNext(playlist);
 
-    vlc_playlist_Notify(playlist, on_items_moved, index, count, target);
-    vlc_playlist_state_NotifyChanges(playlist, &state);
+    heimdall_playlist_Notify(playlist, on_items_moved, index, count, target);
+    heimdall_playlist_state_NotifyChanges(playlist, &state);
 }
 
 static void
-vlc_playlist_ItemsRemoving(vlc_playlist_t *playlist, size_t index, size_t count)
+heimdall_playlist_ItemsRemoving(heimdall_playlist_t *playlist, size_t index, size_t count)
 {
-    if (playlist->order == VLC_PLAYLIST_PLAYBACK_ORDER_RANDOM)
+    if (playlist->order == HEIMDALL_PLAYLIST_PLAYBACK_ORDER_RANDOM)
         randomizer_Remove(&playlist->randomizer,
                           &playlist->items.data[index], count);
 }
 
 /* return whether the current media has changed */
 static bool
-vlc_playlist_ItemsRemoved(vlc_playlist_t *playlist, size_t index, size_t count)
+heimdall_playlist_ItemsRemoved(heimdall_playlist_t *playlist, size_t index, size_t count)
 {
-    struct vlc_playlist_state state;
-    vlc_playlist_state_Save(playlist, &state);
+    struct heimdall_playlist_state state;
+    heimdall_playlist_state_Save(playlist, &state);
 
     bool current_media_changed = false;
     if (playlist->current != -1) {
@@ -151,59 +152,59 @@ vlc_playlist_ItemsRemoved(vlc_playlist_t *playlist, size_t index, size_t count)
             playlist->current -= count;
         }
     }
-    playlist->has_prev = vlc_playlist_ComputeHasPrev(playlist);
-    playlist->has_next = vlc_playlist_ComputeHasNext(playlist);
+    playlist->has_prev = heimdall_playlist_ComputeHasPrev(playlist);
+    playlist->has_next = heimdall_playlist_ComputeHasNext(playlist);
 
-    vlc_playlist_Notify(playlist, on_items_removed, index, count);
-    vlc_playlist_state_NotifyChanges(playlist, &state);
+    heimdall_playlist_Notify(playlist, on_items_removed, index, count);
+    heimdall_playlist_state_NotifyChanges(playlist, &state);
 
     return current_media_changed;
 }
 
 static void
-vlc_playlist_ItemReplaced(vlc_playlist_t *playlist, size_t index)
+heimdall_playlist_ItemReplaced(heimdall_playlist_t *playlist, size_t index)
 {
-    struct vlc_playlist_state state;
-    vlc_playlist_state_Save(playlist, &state);
+    struct heimdall_playlist_state state;
+    heimdall_playlist_state_Save(playlist, &state);
 
-    playlist->has_prev = vlc_playlist_ComputeHasPrev(playlist);
-    playlist->has_next = vlc_playlist_ComputeHasNext(playlist);
+    playlist->has_prev = heimdall_playlist_ComputeHasPrev(playlist);
+    playlist->has_next = heimdall_playlist_ComputeHasNext(playlist);
 
-    vlc_playlist_Notify(playlist, on_items_updated, index,
+    heimdall_playlist_Notify(playlist, on_items_updated, index,
                         &playlist->items.data[index], 1);
-    vlc_playlist_state_NotifyChanges(playlist, &state);
+    heimdall_playlist_state_NotifyChanges(playlist, &state);
 
-    vlc_playlist_AutoPreparse(playlist, playlist->items.data[index], false);
+    heimdall_playlist_AutoPreparse(playlist, playlist->items.data[index], false);
 }
 
 size_t
-vlc_playlist_Count(vlc_playlist_t *playlist)
+heimdall_playlist_Count(heimdall_playlist_t *playlist)
 {
-    vlc_playlist_AssertLocked(playlist);
+    heimdall_playlist_AssertLocked(playlist);
     return playlist->items.size;
 }
 
-vlc_playlist_item_t *
-vlc_playlist_Get(vlc_playlist_t *playlist, size_t index)
+heimdall_playlist_item_t *
+heimdall_playlist_Get(heimdall_playlist_t *playlist, size_t index)
 {
-    vlc_playlist_AssertLocked(playlist);
+    heimdall_playlist_AssertLocked(playlist);
     return playlist->items.data[index];
 }
 
 ssize_t
-vlc_playlist_IndexOf(vlc_playlist_t *playlist, const vlc_playlist_item_t *item)
+heimdall_playlist_IndexOf(heimdall_playlist_t *playlist, const heimdall_playlist_item_t *item)
 {
-    vlc_playlist_AssertLocked(playlist);
+    heimdall_playlist_AssertLocked(playlist);
 
     ssize_t index;
-    vlc_vector_index_of(&playlist->items, item, &index);
+    heimdall_vector_index_of(&playlist->items, item, &index);
     return index;
 }
 
 ssize_t
-vlc_playlist_IndexOfMedia(vlc_playlist_t *playlist, const input_item_t *media)
+heimdall_playlist_IndexOfMedia(heimdall_playlist_t *playlist, const input_item_t *media)
 {
-    vlc_playlist_AssertLocked(playlist);
+    heimdall_playlist_AssertLocked(playlist);
 
     playlist_item_vector_t *items = &playlist->items;
     for (size_t i = 0; i < items->size; ++i)
@@ -213,9 +214,9 @@ vlc_playlist_IndexOfMedia(vlc_playlist_t *playlist, const input_item_t *media)
 }
 
 ssize_t
-vlc_playlist_IndexOfId(vlc_playlist_t *playlist, uint64_t id)
+heimdall_playlist_IndexOfId(heimdall_playlist_t *playlist, uint64_t id)
 {
-    vlc_playlist_AssertLocked(playlist);
+    heimdall_playlist_AssertLocked(playlist);
 
     playlist_item_vector_t *items = &playlist->items;
     for (size_t i = 0; i < items->size; ++i)
@@ -225,30 +226,30 @@ vlc_playlist_IndexOfId(vlc_playlist_t *playlist, uint64_t id)
 }
 
 void
-vlc_playlist_Clear(vlc_playlist_t *playlist)
+heimdall_playlist_Clear(heimdall_playlist_t *playlist)
 {
-    vlc_playlist_AssertLocked(playlist);
+    heimdall_playlist_AssertLocked(playlist);
 
-    int ret = vlc_player_SetCurrentMedia(playlist->player, NULL);
-    VLC_UNUSED(ret); /* what could we do? */
+    int ret = heimdall_player_SetCurrentMedia(playlist->player, NULL);
+    HEIMDALL_UNUSED(ret); /* what could we do? */
 
     if (playlist->parser != NULL)
-        vlc_preparser_Cancel(playlist->parser, NULL);
+        heimdall_preparser_Cancel(playlist->parser, NULL);
 
-    vlc_playlist_ClearItems(playlist);
-    vlc_playlist_ItemsReset(playlist);
+    heimdall_playlist_ClearItems(playlist);
+    heimdall_playlist_ItemsReset(playlist);
 }
 
 static int
-vlc_playlist_MediaToItems(vlc_playlist_t *playlist, input_item_t *const media[],
-                          size_t count, vlc_playlist_item_t *items[])
+heimdall_playlist_MediaToItems(heimdall_playlist_t *playlist, input_item_t *const media[],
+                          size_t count, heimdall_playlist_item_t *items[])
 {
-    vlc_playlist_AssertLocked(playlist);
+    heimdall_playlist_AssertLocked(playlist);
     size_t i;
     for (i = 0; i < count; ++i)
     {
         uint64_t id = playlist->idgen++;
-        items[i] = vlc_playlist_item_New(media[i], id);
+        items[i] = heimdall_playlist_item_New(media[i], id);
         if (unlikely(!items[i]))
             break;
     }
@@ -256,148 +257,148 @@ vlc_playlist_MediaToItems(vlc_playlist_t *playlist, input_item_t *const media[],
     {
         /* allocation failure, release partial items */
         while (i)
-            vlc_playlist_item_Release(items[--i]);
-        return VLC_ENOMEM;
+            heimdall_playlist_item_Release(items[--i]);
+        return HEIMDALL_ENOMEM;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 int
-vlc_playlist_Insert(vlc_playlist_t *playlist, size_t index,
+heimdall_playlist_Insert(heimdall_playlist_t *playlist, size_t index,
                     input_item_t *const media[], size_t count)
 {
-    vlc_playlist_AssertLocked(playlist);
+    heimdall_playlist_AssertLocked(playlist);
     assert(index <= playlist->items.size);
 
     /* make space in the vector */
-    if (!vlc_vector_insert_hole(&playlist->items, index, count))
-        return VLC_ENOMEM;
+    if (!heimdall_vector_insert_hole(&playlist->items, index, count))
+        return HEIMDALL_ENOMEM;
 
     /* create playlist items in place */
-    int ret = vlc_playlist_MediaToItems(playlist, media, count,
+    int ret = heimdall_playlist_MediaToItems(playlist, media, count,
                                         &playlist->items.data[index]);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
     {
         /* we were optimistic, it failed, restore the vector state */
-        vlc_vector_remove_slice(&playlist->items, index, count);
+        heimdall_vector_remove_slice(&playlist->items, index, count);
         return ret;
     }
 
-    vlc_playlist_ItemsInserted(playlist, index, count, true);
-    vlc_playlist_UpdateNextMedia(playlist);
+    heimdall_playlist_ItemsInserted(playlist, index, count, true);
+    heimdall_playlist_UpdateNextMedia(playlist);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 void
-vlc_playlist_Move(vlc_playlist_t *playlist, size_t index, size_t count,
+heimdall_playlist_Move(heimdall_playlist_t *playlist, size_t index, size_t count,
                   size_t target)
 {
-    vlc_playlist_AssertLocked(playlist);
+    heimdall_playlist_AssertLocked(playlist);
     assert(index + count <= playlist->items.size);
     assert(target + count <= playlist->items.size);
 
-    vlc_vector_move_slice(&playlist->items, index, count, target);
+    heimdall_vector_move_slice(&playlist->items, index, count, target);
 
-    vlc_playlist_ItemsMoved(playlist, index, count, target);
-    vlc_playlist_UpdateNextMedia(playlist);
+    heimdall_playlist_ItemsMoved(playlist, index, count, target);
+    heimdall_playlist_UpdateNextMedia(playlist);
 }
 
 void
-vlc_playlist_Remove(vlc_playlist_t *playlist, size_t index, size_t count)
+heimdall_playlist_Remove(heimdall_playlist_t *playlist, size_t index, size_t count)
 {
-    vlc_playlist_AssertLocked(playlist);
+    heimdall_playlist_AssertLocked(playlist);
     assert(index < playlist->items.size);
 
-    vlc_playlist_ItemsRemoving(playlist, index, count);
+    heimdall_playlist_ItemsRemoving(playlist, index, count);
 
     for (size_t i = 0; i < count; ++i) {
-        vlc_playlist_item_t *item = playlist->items.data[index + i];
+        heimdall_playlist_item_t *item = playlist->items.data[index + i];
         if (playlist->parser != NULL
                 && item->preparser_req != NULL)
-            vlc_preparser_Cancel(playlist->parser, item->preparser_req);
+            heimdall_preparser_Cancel(playlist->parser, item->preparser_req);
 
-        vlc_playlist_item_Release(item);
+        heimdall_playlist_item_Release(item);
     }
 
-    vlc_vector_remove_slice(&playlist->items, index, count);
+    heimdall_vector_remove_slice(&playlist->items, index, count);
 
-    bool current_media_changed = vlc_playlist_ItemsRemoved(playlist, index,
+    bool current_media_changed = heimdall_playlist_ItemsRemoved(playlist, index,
                                                            count);
     if (current_media_changed)
-        vlc_playlist_SetCurrentMedia(playlist, playlist->current);
+        heimdall_playlist_SetCurrentMedia(playlist, playlist->current);
     else
-        vlc_playlist_UpdateNextMedia(playlist);
+        heimdall_playlist_UpdateNextMedia(playlist);
 }
 
 static int
-vlc_playlist_Replace(vlc_playlist_t *playlist, size_t index,
+heimdall_playlist_Replace(heimdall_playlist_t *playlist, size_t index,
                      input_item_t *media)
 {
-    vlc_playlist_AssertLocked(playlist);
+    heimdall_playlist_AssertLocked(playlist);
     assert(index < playlist->items.size);
 
     uint64_t id = playlist->idgen++;
-    vlc_playlist_item_t *item = vlc_playlist_item_New(media, id);
+    heimdall_playlist_item_t *item = heimdall_playlist_item_New(media, id);
     if (!item)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    if (playlist->order == VLC_PLAYLIST_PLAYBACK_ORDER_RANDOM)
+    if (playlist->order == HEIMDALL_PLAYLIST_PLAYBACK_ORDER_RANDOM)
     {
         randomizer_Remove(&playlist->randomizer,
                           &playlist->items.data[index], 1);
         randomizer_Add(&playlist->randomizer, &item, 1);
     }
 
-    vlc_playlist_item_t *old = playlist->items.data[index];
+    heimdall_playlist_item_t *old = playlist->items.data[index];
     if (playlist->parser != NULL
             && old->preparser_req != NULL)
-        vlc_preparser_Cancel(playlist->parser, old->preparser_req);
-    vlc_playlist_item_Release(old);
+        heimdall_preparser_Cancel(playlist->parser, old->preparser_req);
+    heimdall_playlist_item_Release(old);
     playlist->items.data[index] = item;
 
-    vlc_playlist_ItemReplaced(playlist, index);
-    return VLC_SUCCESS;
+    heimdall_playlist_ItemReplaced(playlist, index);
+    return HEIMDALL_SUCCESS;
 }
 
 int
-vlc_playlist_Expand(vlc_playlist_t *playlist, size_t index,
+heimdall_playlist_Expand(heimdall_playlist_t *playlist, size_t index,
                     input_item_t *const media[], size_t count)
 {
-    vlc_playlist_AssertLocked(playlist);
+    heimdall_playlist_AssertLocked(playlist);
     assert(index < playlist->items.size);
 
     if (count == 0)
-        vlc_playlist_RemoveOne(playlist, index);
+        heimdall_playlist_RemoveOne(playlist, index);
     else
     {
-        int ret = vlc_playlist_Replace(playlist, index, media[0]);
-        if (ret != VLC_SUCCESS)
+        int ret = heimdall_playlist_Replace(playlist, index, media[0]);
+        if (ret != HEIMDALL_SUCCESS)
             return ret;
 
         if (count > 1)
         {
             /* make space in the vector */
-            if (!vlc_vector_insert_hole(&playlist->items, index + 1, count - 1))
-                return VLC_ENOMEM;
+            if (!heimdall_vector_insert_hole(&playlist->items, index + 1, count - 1))
+                return HEIMDALL_ENOMEM;
 
             /* create playlist items in place */
-            ret = vlc_playlist_MediaToItems(playlist, &media[1], count - 1,
+            ret = heimdall_playlist_MediaToItems(playlist, &media[1], count - 1,
                                             &playlist->items.data[index + 1]);
-            if (ret != VLC_SUCCESS)
+            if (ret != HEIMDALL_SUCCESS)
             {
                 /* we were optimistic, it failed, restore the vector state */
-                vlc_vector_remove_slice(&playlist->items, index + 1, count - 1);
+                heimdall_vector_remove_slice(&playlist->items, index + 1, count - 1);
                 return ret;
             }
-            vlc_playlist_ItemsInserted(playlist, index + 1, count - 1, false);
+            heimdall_playlist_ItemsInserted(playlist, index + 1, count - 1, false);
         }
 
         if ((ssize_t) index == playlist->current)
-            vlc_playlist_SetCurrentMedia(playlist, playlist->current);
+            heimdall_playlist_SetCurrentMedia(playlist, playlist->current);
         else
-            vlc_playlist_UpdateNextMedia(playlist);
+            heimdall_playlist_UpdateNextMedia(playlist);
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

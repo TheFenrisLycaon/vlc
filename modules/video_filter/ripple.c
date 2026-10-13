@@ -1,10 +1,11 @@
 /*****************************************************************************
- * ripple.c : Ripple video effect plugin for vlc
+ * ripple.c : Ripple video effect plugin for heimdall
  *****************************************************************************
  * Copyright (C) 2000-2006 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Samuel Hocevar <sam@zoy.org>
- *          Antoine Cellerier <dionoea -at- videolan -dot- org>
+ *          Antoine Cellerier <dionoea -at- lycaria -dot- org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -31,10 +32,10 @@
 
 #include <math.h>                                            /* sin(), cos() */
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_picture.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
 #include "filter_picture.h"
 
 /*****************************************************************************
@@ -47,14 +48,14 @@ VIDEO_FILTER_WRAPPER(Filter)
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("Ripple video filter") )
     set_shortname( N_( "Ripple" ))
     set_subcategory( SUBCAT_VIDEO_VFILTER )
 
     add_shortcut( "ripple" )
     set_callback_video_filter( Create )
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * filter_sys_t: Distort video output method descriptor
@@ -65,7 +66,7 @@ vlc_module_end ()
 typedef struct
 {
     double  f_angle;
-    vlc_tick_t last_date;
+    heimdall_tick_t last_date;
 } filter_sys_t;
 
 /*****************************************************************************
@@ -75,16 +76,16 @@ typedef struct
  *****************************************************************************/
 static int Create( filter_t *p_filter )
 {
-    const vlc_chroma_description_t *p_chroma =
-        vlc_fourcc_GetChromaDescription( p_filter->fmt_in.video.i_chroma );
+    const heimdall_chroma_description_t *p_chroma =
+        heimdall_fourcc_GetChromaDescription( p_filter->fmt_in.video.i_chroma );
     assert( p_chroma != NULL );
     if( p_chroma->plane_count == 0 )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* Allocate structure */
-    filter_sys_t *p_sys = vlc_obj_malloc( VLC_OBJECT(p_filter), sizeof( filter_sys_t ) );
+    filter_sys_t *p_sys = heimdall_obj_malloc( HEIMDALL_OBJECT(p_filter), sizeof( filter_sys_t ) );
     if( unlikely(p_sys == NULL) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     p_filter->p_sys = p_sys;
 
     p_filter->ops = &Filter_ops;
@@ -92,7 +93,7 @@ static int Create( filter_t *p_filter )
     p_sys->f_angle = 0.0;
     p_sys->last_date = 0;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -105,11 +106,11 @@ static int Create( filter_t *p_filter )
 static void Filter( filter_t *p_filter, picture_t *p_pic, picture_t *p_outpic )
 {
     double f_angle;
-    vlc_tick_t new_date = vlc_tick_now();
+    heimdall_tick_t new_date = heimdall_tick_now();
 
     filter_sys_t *p_sys = p_filter->p_sys;
 
-    p_sys->f_angle -= 10.0f * secf_from_vlc_tick(p_sys->last_date - new_date);
+    p_sys->f_angle -= 10.0f * secf_from_heimdall_tick(p_sys->last_date - new_date);
     p_sys->last_date = new_date;
     f_angle = p_sys->f_angle;
 

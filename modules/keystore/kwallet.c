@@ -2,6 +2,7 @@
  * kwallet.c: KWallet keystore module
  *****************************************************************************
  * Copyright © 2015-2016 VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -22,13 +23,13 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_keystore.h>
-#include <vlc_url.h>
-#include <vlc_plugin.h>
-#include <vlc_strings.h>
-#include <vlc_interrupt.h>
-#include <vlc_memstream.h>
+#include <heimdall_common.h>
+#include <heimdall_keystore.h>
+#include <heimdall_url.h>
+#include <heimdall_plugin.h>
+#include <heimdall_strings.h>
+#include <heimdall_interrupt.h>
+#include <heimdall_memstream.h>
 
 #include <dbus/dbus.h>
 
@@ -41,16 +42,16 @@
 #include <errno.h>
 #include <assert.h>
 
-static int Open( vlc_object_t * );
-static void Close( vlc_object_t * );
+static int Open( heimdall_object_t * );
+static void Close( heimdall_object_t * );
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname( N_("KWallet keystore") )
     set_description( N_("Secrets are stored via KWallet") )
     set_subcategory( SUBCAT_ADVANCED_MISC )
     set_capability( "keystore", 100 )
     set_callbacks( Open, Close )
-vlc_module_end()
+heimdall_module_end()
 
 /* kwallet is the kde keyring. *
  * There are several entry categories, *
@@ -67,11 +68,11 @@ vlc_module_end()
  *     _ Authtype ( binary encrypted ) ( optional ) *
  * Secrets are binary encrypted strings */
 
-static const char* psz_folder = VLC_KEYSTORE_NAME;
+static const char* psz_folder = HEIMDALL_KEYSTORE_NAME;
 static const char* psz_kwallet_interface = "org.kde.KWallet";
 
 #define DBUS_INSTANCE_PREFIX "instance"
-#define KWALLET_APP_ID "org.videolan.kwallet"
+#define KWALLET_APP_ID "com.lycaria.kwallet"
 
 /*
  * There are two kwallet services :
@@ -97,18 +98,18 @@ static const char *ppsz_sPath[SERVICE_MAX] = {
     "/modules/kwalletd"
 };
 
-typedef struct vlc_keystore_sys
+typedef struct heimdall_keystore_sys
 {
     DBusConnection* connection;
     int i_sid; /* service ID */
     int i_handle;
     char* psz_app_id;
     char* psz_wallet;
-}  vlc_keystore_sys;
+}  heimdall_keystore_sys;
 
-/* takes all values in the values of vlc_keystore_entry *
+/* takes all values in the values of heimdall_keystore_entry *
  * and formats them in a url key */
-VLC_MALLOC static char*
+HEIMDALL_MALLOC static char*
 values2key( const char* const* ppsz_values, bool b_search )
 {
     char* psz_b64_realm = NULL;
@@ -119,65 +120,65 @@ values2key( const char* const* ppsz_values, bool b_search )
          && !b_search )
         return NULL;
 
-    struct vlc_memstream ms;
-    if ( vlc_memstream_open( &ms ) )
+    struct heimdall_memstream ms;
+    if ( heimdall_memstream_open( &ms ) )
         return NULL;
 
     /* Protocol section */
     if ( ppsz_values[KEY_PROTOCOL] )
-        vlc_memstream_printf( &ms, "%s://", ppsz_values[KEY_PROTOCOL] );
+        heimdall_memstream_printf( &ms, "%s://", ppsz_values[KEY_PROTOCOL] );
     else if ( b_search )
-        vlc_memstream_printf( &ms, "*://" );
+        heimdall_memstream_printf( &ms, "*://" );
 
     /* User section */
     if ( ppsz_values[KEY_USER] )
-        vlc_memstream_printf( &ms, "%s@", ppsz_values[KEY_USER] );
+        heimdall_memstream_printf( &ms, "%s@", ppsz_values[KEY_USER] );
     else if ( b_search )
-        vlc_memstream_printf( &ms, "*" );
+        heimdall_memstream_printf( &ms, "*" );
 
     /* Server section */
     if ( ppsz_values[KEY_SERVER] )
-        vlc_memstream_printf( &ms, "%s", ppsz_values[KEY_SERVER] );
+        heimdall_memstream_printf( &ms, "%s", ppsz_values[KEY_SERVER] );
     else if ( b_search )
-        vlc_memstream_printf( &ms, "*" );
+        heimdall_memstream_printf( &ms, "*" );
 
     /* Port section */
     if ( ppsz_values[KEY_PORT] )
-        vlc_memstream_printf( &ms, ":%s", ppsz_values[KEY_PORT] );
+        heimdall_memstream_printf( &ms, ":%s", ppsz_values[KEY_PORT] );
     else if ( b_search )
-        vlc_memstream_printf( &ms, "*" );
+        heimdall_memstream_printf( &ms, "*" );
 
     /* Path section */
     if( ppsz_values[KEY_PATH] )
     {
         if( ppsz_values[KEY_PATH][0] != '/' )
-            vlc_memstream_putc( &ms, '/' );
+            heimdall_memstream_putc( &ms, '/' );
 
-        vlc_memstream_puts( &ms, ppsz_values[KEY_PATH] );
+        heimdall_memstream_puts( &ms, ppsz_values[KEY_PATH] );
     }
     else if ( b_search )
-        vlc_memstream_printf( &ms, "*" );
+        heimdall_memstream_printf( &ms, "*" );
 
     /* Realm and authtype section */
     if ( ppsz_values[KEY_REALM] || ppsz_values[KEY_AUTHTYPE] )
     {
-        vlc_memstream_printf( &ms, "\?" );
+        heimdall_memstream_printf( &ms, "\?" );
         /* Realm section */
         if ( ppsz_values[KEY_REALM] || b_search )
         {
             if ( ppsz_values[KEY_REALM] )
             {
-                psz_b64_realm = vlc_b64_encode_binary( ( uint8_t* )ppsz_values[KEY_REALM],
+                psz_b64_realm = heimdall_b64_encode_binary( ( uint8_t* )ppsz_values[KEY_REALM],
                                                        strlen(ppsz_values[KEY_REALM] ) );
                 if ( !psz_b64_realm )
                     goto end;
-                vlc_memstream_printf( &ms, "realm=%s", psz_b64_realm );
+                heimdall_memstream_printf( &ms, "realm=%s", psz_b64_realm );
             }
             else
-                vlc_memstream_printf( &ms, "*" );
+                heimdall_memstream_printf( &ms, "*" );
 
             if ( ppsz_values[KEY_AUTHTYPE] )
-                vlc_memstream_printf( &ms, "&" );
+                heimdall_memstream_printf( &ms, "&" );
         }
 
         /* Authtype section */
@@ -186,26 +187,26 @@ values2key( const char* const* ppsz_values, bool b_search )
 
             if ( ppsz_values[KEY_AUTHTYPE] )
             {
-                psz_b64_auth = vlc_b64_encode_binary( ( uint8_t* )ppsz_values[KEY_AUTHTYPE],
+                psz_b64_auth = heimdall_b64_encode_binary( ( uint8_t* )ppsz_values[KEY_AUTHTYPE],
                                                       strlen(ppsz_values[KEY_AUTHTYPE] ) );
                 if ( !psz_b64_auth )
                     goto end;
-                vlc_memstream_printf( &ms, "authtype=%s", psz_b64_auth );
+                heimdall_memstream_printf( &ms, "authtype=%s", psz_b64_auth );
             }
             else
-                vlc_memstream_printf( &ms, "*" );
+                heimdall_memstream_printf( &ms, "*" );
         }
 
     }
     else if ( b_search )
-        vlc_memstream_printf( &ms, "*" );
+        heimdall_memstream_printf( &ms, "*" );
 
     b_state = true;
 
 end:
     free( psz_b64_realm );
     free( psz_b64_auth );
-    char *psz_key = vlc_memstream_close( &ms ) == 0 ? ms.ptr : NULL;
+    char *psz_key = heimdall_memstream_close( &ms ) == 0 ? ms.ptr : NULL;
     if ( !b_state )
     {
         free( psz_key );
@@ -214,17 +215,17 @@ end:
     return psz_key;
 }
 
-/* Take an url key and splits it into vlc_keystore_entry values */
+/* Take an url key and splits it into heimdall_keystore_entry values */
 static int
-key2values( char* psz_key, vlc_keystore_entry* p_entry )
+key2values( char* psz_key, heimdall_keystore_entry* p_entry )
 {
-    vlc_url_t url;
-    int i_ret = VLC_ENOMEM;
+    heimdall_url_t url;
+    int i_ret = HEIMDALL_ENOMEM;
 
     for ( int inc = 0 ; inc < KEY_MAX ; ++inc )
         p_entry->ppsz_values[inc] = NULL;
 
-    vlc_UrlParse( &url, psz_key );
+    heimdall_UrlParse( &url, psz_key );
 
     if ( url.psz_protocol && !( p_entry->ppsz_values[KEY_PROTOCOL] =
                                 strdup( url.psz_protocol ) ) )
@@ -252,7 +253,7 @@ key2values( char* psz_key, vlc_keystore_entry* p_entry )
               psz_option != NULL;
               psz_option = strtok_r( NULL, "&", &p_savetpr ) )
         {
-            enum vlc_keystore_key key;
+            enum heimdall_keystore_key key;
             const char *psz_value;
 
             if ( !strncmp( psz_option, "realm=", strlen( "realm=" ) ) )
@@ -270,17 +271,17 @@ key2values( char* psz_key, vlc_keystore_entry* p_entry )
 
             if ( psz_value != NULL )
             {
-                p_entry->ppsz_values[key] = vlc_b64_decode( psz_value );
+                p_entry->ppsz_values[key] = heimdall_b64_decode( psz_value );
                 if ( !p_entry->ppsz_values[key] )
                     goto end;
             }
         }
     }
 
-    i_ret = VLC_SUCCESS;
+    i_ret = HEIMDALL_SUCCESS;
 
 end:
-    vlc_UrlClean( &url );
+    heimdall_UrlClean( &url );
     if ( i_ret )
     {
         free( p_entry->ppsz_values[KEY_PROTOCOL] );
@@ -295,9 +296,9 @@ end:
 }
 
 static DBusMessage*
-vlc_dbus_new_method( vlc_keystore* p_keystore, const char* psz_method )
+heimdall_dbus_new_method( heimdall_keystore* p_keystore, const char* psz_method )
 {
-    vlc_keystore_sys* p_sys = p_keystore->p_sys;
+    heimdall_keystore_sys* p_sys = p_keystore->p_sys;
     DBusMessage* msg;
 
     msg = dbus_message_new_method_call( ppsz_sAddr[p_sys->i_sid],
@@ -306,7 +307,7 @@ vlc_dbus_new_method( vlc_keystore* p_keystore, const char* psz_method )
                                         psz_method );
     if ( !msg )
     {
-        msg_Err( p_keystore, "vlc_dbus_new_method : Failed to create message" );
+        msg_Err( p_keystore, "heimdall_dbus_new_method : Failed to create message" );
         return NULL;
     }
 
@@ -314,14 +315,14 @@ vlc_dbus_new_method( vlc_keystore* p_keystore, const char* psz_method )
 }
 
 #define MAX_WATCHES 2
-struct vlc_dbus_watch_data
+struct heimdall_dbus_watch_data
 {
     struct pollfd pollfd;
     DBusWatch *p_watch;
 };
 
 static short
-vlc_dbus_watch_get_poll_events( DBusWatch *p_watch )
+heimdall_dbus_watch_get_poll_events( DBusWatch *p_watch )
 {
     unsigned int i_flags = dbus_watch_get_flags( p_watch );
     short i_events = 0;
@@ -333,9 +334,9 @@ vlc_dbus_watch_get_poll_events( DBusWatch *p_watch )
     return i_events;
 }
 
-static struct vlc_dbus_watch_data *
-vlc_dbus_watch_get_data( DBusWatch *p_watch,
-                         struct vlc_dbus_watch_data *p_ctx )
+static struct heimdall_dbus_watch_data *
+heimdall_dbus_watch_get_data( DBusWatch *p_watch,
+                         struct heimdall_dbus_watch_data *p_ctx )
 {
     for( unsigned i = 0; i < MAX_WATCHES; ++i )
     {
@@ -346,16 +347,16 @@ vlc_dbus_watch_get_data( DBusWatch *p_watch,
 }
 
 static dbus_bool_t
-vlc_dbus_watch_add_function( DBusWatch *p_watch, void *p_data )
+heimdall_dbus_watch_add_function( DBusWatch *p_watch, void *p_data )
 {
-    struct vlc_dbus_watch_data *p_ctx = vlc_dbus_watch_get_data( p_watch, p_data );
+    struct heimdall_dbus_watch_data *p_ctx = heimdall_dbus_watch_get_data( p_watch, p_data );
 
     if( p_ctx == NULL )
         return FALSE;
 
     short i_events = POLLHUP | POLLERR;
 
-    i_events |= vlc_dbus_watch_get_poll_events( p_watch );
+    i_events |= heimdall_dbus_watch_get_poll_events( p_watch );
 
     p_ctx->pollfd.fd = dbus_watch_get_unix_fd( p_watch );
     p_ctx->pollfd.events = i_events;
@@ -364,10 +365,10 @@ vlc_dbus_watch_add_function( DBusWatch *p_watch, void *p_data )
 }
 
 static void
-vlc_dbus_watch_toggled_function( DBusWatch *p_watch, void *p_data )
+heimdall_dbus_watch_toggled_function( DBusWatch *p_watch, void *p_data )
 {
-    struct vlc_dbus_watch_data *p_ctx = vlc_dbus_watch_get_data( p_watch, p_data );
-    short i_events = vlc_dbus_watch_get_poll_events( p_watch );
+    struct heimdall_dbus_watch_data *p_ctx = heimdall_dbus_watch_get_data( p_watch, p_data );
+    short i_events = heimdall_dbus_watch_get_poll_events( p_watch );
 
     if( dbus_watch_get_enabled( p_watch ) )
         p_ctx->pollfd.events |= i_events;
@@ -376,28 +377,28 @@ vlc_dbus_watch_toggled_function( DBusWatch *p_watch, void *p_data )
 }
 
 static void
-vlc_dbus_pending_call_notify( DBusPendingCall *p_pending_call, void *p_data )
+heimdall_dbus_pending_call_notify( DBusPendingCall *p_pending_call, void *p_data )
 {
     DBusMessage **pp_repmsg = p_data;
     *pp_repmsg = dbus_pending_call_steal_reply( p_pending_call );
 }
 
 static DBusMessage*
-vlc_dbus_send_message( vlc_keystore* p_keystore, DBusMessage* p_msg )
+heimdall_dbus_send_message( heimdall_keystore* p_keystore, DBusMessage* p_msg )
 {
-    vlc_keystore_sys *p_sys = p_keystore->p_sys;
+    heimdall_keystore_sys *p_sys = p_keystore->p_sys;
     DBusMessage *p_repmsg = NULL;
     DBusPendingCall *p_pending_call = NULL;
 
-    struct vlc_dbus_watch_data watch_ctx[MAX_WATCHES] = {};
+    struct heimdall_dbus_watch_data watch_ctx[MAX_WATCHES] = {};
 
     for( unsigned i = 0; i < MAX_WATCHES; ++i )
         watch_ctx[i].pollfd.fd = -1;
 
     if( !dbus_connection_set_watch_functions( p_sys->connection,
-                                              vlc_dbus_watch_add_function,
+                                              heimdall_dbus_watch_add_function,
                                               NULL,
-                                              vlc_dbus_watch_toggled_function,
+                                              heimdall_dbus_watch_toggled_function,
                                               watch_ctx, NULL ) )
         return NULL;
 
@@ -407,7 +408,7 @@ vlc_dbus_send_message( vlc_keystore* p_keystore, DBusMessage* p_msg )
         goto end;
 
     if( !dbus_pending_call_set_notify( p_pending_call,
-                                       vlc_dbus_pending_call_notify,
+                                       heimdall_dbus_pending_call_notify,
                                        &p_repmsg, NULL ) )
         goto end;
 
@@ -427,15 +428,15 @@ vlc_dbus_send_message( vlc_keystore* p_keystore, DBusMessage* p_msg )
         }
         if( nfds == 0 )
         {
-            msg_Err( p_keystore, "vlc_dbus_send_message: watch functions not called" );
+            msg_Err( p_keystore, "heimdall_dbus_send_message: watch functions not called" );
             goto end;
         }
-        if( vlc_poll_i11e( pollfds, nfds, -1 ) <= 0 )
+        if( heimdall_poll_i11e( pollfds, nfds, -1 ) <= 0 )
         {
             if( errno == EINTR )
-                msg_Dbg( p_keystore, "vlc_dbus_send_message: poll was interrupted" );
+                msg_Dbg( p_keystore, "heimdall_dbus_send_message: poll was interrupted" );
             else
-                msg_Err( p_keystore, "vlc_dbus_send_message: poll failed" );
+                msg_Err( p_keystore, "heimdall_dbus_send_message: poll failed" );
             goto end;
         }
         for( int i = 0; i < nfds; ++ i )
@@ -477,28 +478,28 @@ end:
 }
 
 static int
-kwallet_network_wallet( vlc_keystore* p_keystore )
+kwallet_network_wallet( heimdall_keystore* p_keystore )
 {
-    vlc_keystore_sys* p_sys = p_keystore->p_sys;
+    heimdall_keystore_sys* p_sys = p_keystore->p_sys;
     DBusMessage* msg = NULL;
     DBusMessage* repmsg = NULL;
     DBusError error;
     char* psz_reply;
-    int i_ret = VLC_EGENERIC;
+    int i_ret = HEIMDALL_EGENERIC;
 
     /* init */
-    msg = vlc_dbus_new_method( p_keystore, "networkWallet" );
+    msg = heimdall_dbus_new_method( p_keystore, "networkWallet" );
     if ( !msg )
     {
-        msg_Err( p_keystore, "kwallet_network_wallet : vlc_dbus_new_method failed" );
-        return VLC_EGENERIC;
+        msg_Err( p_keystore, "kwallet_network_wallet : heimdall_dbus_new_method failed" );
+        return HEIMDALL_EGENERIC;
     }
 
     /* sending message */
-    repmsg = vlc_dbus_send_message( p_keystore, msg );
+    repmsg = heimdall_dbus_send_message( p_keystore, msg );
     if ( !repmsg )
     {
-        msg_Err( p_keystore, "kwallet_network_wallet : vlc_dbus_send_message failed" );
+        msg_Err( p_keystore, "kwallet_network_wallet : heimdall_dbus_send_message failed" );
         goto end;
     }
 
@@ -516,11 +517,11 @@ kwallet_network_wallet( vlc_keystore* p_keystore )
     p_sys->psz_wallet = strdup( psz_reply );
     if ( !p_sys->psz_wallet )
     {
-        i_ret = VLC_ENOMEM;
+        i_ret = HEIMDALL_ENOMEM;
         goto end;
     }
 
-    i_ret = VLC_SUCCESS;
+    i_ret = HEIMDALL_SUCCESS;
 
 end:
 
@@ -533,15 +534,15 @@ end:
 }
 
 static int
-kwallet_is_enabled( vlc_keystore* p_keystore, int i_sid, bool* b_is_enabled )
+kwallet_is_enabled( heimdall_keystore* p_keystore, int i_sid, bool* b_is_enabled )
 {
-    VLC_UNUSED( p_keystore );
+    HEIMDALL_UNUSED( p_keystore );
     DBusMessage* msg = NULL;
     DBusMessage* repmsg = NULL;
     DBusMessageIter args;
     DBusError error;
     dbus_bool_t b_reply;
-    int i_ret = VLC_EGENERIC;
+    int i_ret = HEIMDALL_EGENERIC;
 
     /* init */
     msg = dbus_message_new_method_call( "org.freedesktop.DBus",
@@ -550,7 +551,7 @@ kwallet_is_enabled( vlc_keystore* p_keystore, int i_sid, bool* b_is_enabled )
                                         "NameHasOwner" );
     if ( !msg )
     {
-        msg_Err( p_keystore, "vlc_dbus_new_method : Failed to create message" );
+        msg_Err( p_keystore, "heimdall_dbus_new_method : Failed to create message" );
         goto end;
     }
 
@@ -560,10 +561,10 @@ kwallet_is_enabled( vlc_keystore* p_keystore, int i_sid, bool* b_is_enabled )
         goto end;
 
     /* sending message */
-    repmsg = vlc_dbus_send_message( p_keystore, msg );
+    repmsg = heimdall_dbus_send_message( p_keystore, msg );
     if ( !repmsg )
     {
-        msg_Err( p_keystore, "kwallet_is_enabled : vlc_dbus_send_message failed");
+        msg_Err( p_keystore, "kwallet_is_enabled : heimdall_dbus_send_message failed");
         goto end;
     }
 
@@ -580,7 +581,7 @@ kwallet_is_enabled( vlc_keystore* p_keystore, int i_sid, bool* b_is_enabled )
 
     *b_is_enabled = b_reply;
 
-    i_ret = VLC_SUCCESS;
+    i_ret = HEIMDALL_SUCCESS;
 
 end:
 
@@ -593,9 +594,9 @@ end:
 }
 
 static int
-vlc_dbus_init( vlc_keystore* p_keystore )
+heimdall_dbus_init( heimdall_keystore* p_keystore )
 {
-    vlc_keystore_sys* p_sys = p_keystore->p_sys;
+    heimdall_keystore_sys* p_sys = p_keystore->p_sys;
     int i_ret;
     DBusError error;
 
@@ -605,14 +606,14 @@ vlc_dbus_init( vlc_keystore* p_keystore )
     p_sys->connection = dbus_bus_get_private( DBUS_BUS_SESSION, &error );
     if ( dbus_error_is_set( &error ) )
     {
-        msg_Dbg( p_keystore, "vlc_dbus_init : "
+        msg_Dbg( p_keystore, "heimdall_dbus_init : "
                  "Connection error to session bus (%s)", error.message );
         dbus_error_free( &error );
     }
     if ( !p_sys->connection )
     {
-        msg_Dbg( p_keystore, "vlc_dbus_init : connection is NULL");
-        return VLC_EGENERIC;
+        msg_Dbg( p_keystore, "heimdall_dbus_init : connection is NULL");
+        return HEIMDALL_EGENERIC;
     }
 
     /* requesting name */
@@ -625,7 +626,7 @@ vlc_dbus_init( vlc_keystore* p_keystore )
                                        &error );
         if ( dbus_error_is_set( &error ) )
         {
-            msg_Dbg( p_keystore, "vlc_dbus_init : dbus_bus_request_name :"
+            msg_Dbg( p_keystore, "heimdall_dbus_init : dbus_bus_request_name :"
                      " error (%s)", error.message );
             dbus_error_free( &error );
         }
@@ -638,7 +639,7 @@ vlc_dbus_init( vlc_keystore* p_keystore )
     }
     if ( p_sys->psz_app_id == NULL )
     {
-        msg_Dbg( p_keystore, "vlc_dbus_init : Too many kwallet instances" );
+        msg_Dbg( p_keystore, "heimdall_dbus_init : Too many kwallet instances" );
         goto error;
     }
 
@@ -649,7 +650,7 @@ vlc_dbus_init( vlc_keystore* p_keystore )
         bool b_is_enabled = false;
         if ( kwallet_is_enabled( p_keystore, i, &b_is_enabled ) )
         {
-            msg_Dbg( p_keystore, "vlc_dbus_init : kwallet_is_enabled failed" );
+            msg_Dbg( p_keystore, "heimdall_dbus_init : kwallet_is_enabled failed" );
             goto error;
         }
         if ( b_is_enabled == true )
@@ -657,7 +658,7 @@ vlc_dbus_init( vlc_keystore* p_keystore )
     }
     if ( i == SERVICE_MAX )
     {
-        msg_Dbg( p_keystore, "vlc_dbus_init : No kwallet service enabled" );
+        msg_Dbg( p_keystore, "heimdall_dbus_init : No kwallet service enabled" );
         goto error;
     }
     p_sys->i_sid = i;
@@ -665,36 +666,36 @@ vlc_dbus_init( vlc_keystore* p_keystore )
     /* getting the name of the wallet assigned to network passwords */
     if ( kwallet_network_wallet( p_keystore ) )
     {
-        msg_Dbg(p_keystore, "vlc_dbus_init : kwallet_network_wallet has failed");
+        msg_Dbg(p_keystore, "heimdall_dbus_init : kwallet_network_wallet has failed");
         goto error;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     FREENULL( p_sys->psz_app_id );
     dbus_connection_close( p_sys->connection );
     dbus_connection_unref( p_sys->connection );
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 static int
-kwallet_has_folder( vlc_keystore* p_keystore, const char* psz_folder_name, bool *b_has_folder )
+kwallet_has_folder( heimdall_keystore* p_keystore, const char* psz_folder_name, bool *b_has_folder )
 {
-    vlc_keystore_sys* p_sys = p_keystore->p_sys;
+    heimdall_keystore_sys* p_sys = p_keystore->p_sys;
     DBusMessage* msg = NULL;
     DBusMessage* repmsg = NULL;
     DBusError error;
     DBusMessageIter args;
     dbus_bool_t b_reply;
-    int i_ret = VLC_EGENERIC;
+    int i_ret = HEIMDALL_EGENERIC;
 
     /* init */
-    msg = vlc_dbus_new_method( p_keystore, "hasFolder" );
+    msg = heimdall_dbus_new_method( p_keystore, "hasFolder" );
     if ( !msg )
     {
-        msg_Err( p_keystore, "kwallet_has_folder : vlc_dbus_new_method failed" );
-        return VLC_EGENERIC;
+        msg_Err( p_keystore, "kwallet_has_folder : heimdall_dbus_new_method failed" );
+        return HEIMDALL_EGENERIC;
     }
 
     /* argument init */
@@ -705,10 +706,10 @@ kwallet_has_folder( vlc_keystore* p_keystore, const char* psz_folder_name, bool 
         goto end;
 
     /* sending message */
-    repmsg = vlc_dbus_send_message( p_keystore, msg );
+    repmsg = heimdall_dbus_send_message( p_keystore, msg );
     if ( !repmsg )
     {
-        msg_Err( p_keystore, "kwallet_has_folder : vlc_dbus_send_message failed" );
+        msg_Err( p_keystore, "kwallet_has_folder : heimdall_dbus_send_message failed" );
         goto end;
     }
 
@@ -726,7 +727,7 @@ kwallet_has_folder( vlc_keystore* p_keystore, const char* psz_folder_name, bool 
 
     *b_has_folder = b_reply;
 
-    i_ret = VLC_SUCCESS;
+    i_ret = HEIMDALL_SUCCESS;
 
 end:
 
@@ -739,22 +740,22 @@ end:
 }
 
 static int
-kwallet_create_folder( vlc_keystore* p_keystore, const char* psz_folder_name )
+kwallet_create_folder( heimdall_keystore* p_keystore, const char* psz_folder_name )
 {
-    vlc_keystore_sys* p_sys = p_keystore->p_sys;
+    heimdall_keystore_sys* p_sys = p_keystore->p_sys;
     DBusMessage* msg = NULL;
     DBusMessage* repmsg = NULL;
     DBusError error;
     DBusMessageIter args;
     dbus_bool_t b_reply;
-    int i_ret = VLC_EGENERIC;
+    int i_ret = HEIMDALL_EGENERIC;
 
     /* init */
-    msg = vlc_dbus_new_method( p_keystore, "createFolder" );
+    msg = heimdall_dbus_new_method( p_keystore, "createFolder" );
     if ( !msg )
     {
-        msg_Err( p_keystore, "kwallet_create_folder : vlc_dbus_new_method failed" );
-        return VLC_EGENERIC;
+        msg_Err( p_keystore, "kwallet_create_folder : heimdall_dbus_new_method failed" );
+        return HEIMDALL_EGENERIC;
     }
 
     /* argument init */
@@ -765,10 +766,10 @@ kwallet_create_folder( vlc_keystore* p_keystore, const char* psz_folder_name )
         goto end;
 
     /* sending message */
-    repmsg = vlc_dbus_send_message( p_keystore, msg );
+    repmsg = heimdall_dbus_send_message( p_keystore, msg );
     if ( !repmsg )
     {
-        msg_Err( p_keystore, "kwallet_create_folder : vlc_dbus_send_message failed" );
+        msg_Err( p_keystore, "kwallet_create_folder : heimdall_dbus_send_message failed" );
         goto end;
     }
 
@@ -790,7 +791,7 @@ kwallet_create_folder( vlc_keystore* p_keystore, const char* psz_folder_name )
     }
 
 
-    i_ret = VLC_SUCCESS;
+    i_ret = HEIMDALL_SUCCESS;
 
 end:
 
@@ -803,9 +804,9 @@ end:
 }
 
 static int
-kwallet_open( vlc_keystore* p_keystore )
+kwallet_open( heimdall_keystore* p_keystore )
 {
-    vlc_keystore_sys* p_sys = p_keystore->p_sys;
+    heimdall_keystore_sys* p_sys = p_keystore->p_sys;
     DBusMessage* msg = NULL;
     DBusMessage* repmsg = NULL;
     DBusMessageIter args;
@@ -813,14 +814,14 @@ kwallet_open( vlc_keystore* p_keystore )
     unsigned long long ull_win_id = 0;
     unsigned int ui_reply = 1;
     bool b_has_folder;
-    int i_ret = VLC_EGENERIC;
+    int i_ret = HEIMDALL_EGENERIC;
 
     /* init */
-    msg = vlc_dbus_new_method( p_keystore, "open" );
+    msg = heimdall_dbus_new_method( p_keystore, "open" );
     if ( !msg )
     {
-        msg_Err( p_keystore, "kwallet_open : vlc_dbus_new_method failed");
-        return VLC_EGENERIC;
+        msg_Err( p_keystore, "kwallet_open : heimdall_dbus_new_method failed");
+        return HEIMDALL_EGENERIC;
     }
 
     /* Init args */
@@ -831,10 +832,10 @@ kwallet_open( vlc_keystore* p_keystore )
         goto end;
 
     /* sending message */
-    repmsg = vlc_dbus_send_message( p_keystore, msg );
+    repmsg = heimdall_dbus_send_message( p_keystore, msg );
     if ( !repmsg )
     {
-        msg_Err( p_keystore, "kwallet_open : vlc_dbus_send_message failed" );
+        msg_Err( p_keystore, "kwallet_open : heimdall_dbus_send_message failed" );
         goto end;
     }
 
@@ -850,7 +851,7 @@ kwallet_open( vlc_keystore* p_keystore )
     }
     p_sys->i_handle = ui_reply;
 
-    /* opening the vlc password folder == VLC_KEYSTORE_NAME */
+    /* opening the heimdall password folder == HEIMDALL_KEYSTORE_NAME */
     if ( kwallet_has_folder( p_keystore, psz_folder, &b_has_folder ) )
         goto end;
     if ( !b_has_folder )
@@ -863,7 +864,7 @@ kwallet_open( vlc_keystore* p_keystore )
         }
     }
 
-    i_ret = VLC_SUCCESS;
+    i_ret = HEIMDALL_SUCCESS;
 
 end:
 
@@ -876,21 +877,21 @@ end:
 }
 
 static int
-kwallet_has_entry( vlc_keystore* p_keystore, char* psz_entry_name, bool *b_has_entry )
+kwallet_has_entry( heimdall_keystore* p_keystore, char* psz_entry_name, bool *b_has_entry )
 {
-    vlc_keystore_sys* p_sys = p_keystore->p_sys;
+    heimdall_keystore_sys* p_sys = p_keystore->p_sys;
     DBusMessage* msg = NULL;
     DBusMessage* repmsg = NULL;
     DBusError error;
     DBusMessageIter args;
     dbus_bool_t b_reply;
-    int i_ret = VLC_EGENERIC;
+    int i_ret = HEIMDALL_EGENERIC;
 
     /* init */
-    if ( !( msg = vlc_dbus_new_method(p_keystore, "hasEntry" ) ) )
+    if ( !( msg = heimdall_dbus_new_method(p_keystore, "hasEntry" ) ) )
     {
-        msg_Err( p_keystore, "kwallet_has_entry : vlc_dbus_new_method failed" );
-        return VLC_EGENERIC;
+        msg_Err( p_keystore, "kwallet_has_entry : heimdall_dbus_new_method failed" );
+        return HEIMDALL_EGENERIC;
     }
 
     /* argument init */
@@ -903,9 +904,9 @@ kwallet_has_entry( vlc_keystore* p_keystore, char* psz_entry_name, bool *b_has_e
 
     /* sending message */
 
-    if ( !( repmsg = vlc_dbus_send_message( p_keystore, msg ) ) )
+    if ( !( repmsg = heimdall_dbus_send_message( p_keystore, msg ) ) )
     {
-        msg_Err( p_keystore, "kwallet_has_entry : vlc_dbus_send_message failed" );
+        msg_Err( p_keystore, "kwallet_has_entry : heimdall_dbus_send_message failed" );
         goto end;
     }
 
@@ -921,7 +922,7 @@ kwallet_has_entry( vlc_keystore* p_keystore, char* psz_entry_name, bool *b_has_e
     }
     *b_has_entry = b_reply;
 
-    i_ret = VLC_SUCCESS;
+    i_ret = HEIMDALL_SUCCESS;
 
 end:
 
@@ -934,21 +935,21 @@ end:
 }
 
 static int
-kwallet_write_password( vlc_keystore* p_keystore, char* psz_entry_name, const char* psz_secret )
+kwallet_write_password( heimdall_keystore* p_keystore, char* psz_entry_name, const char* psz_secret )
 {
-    vlc_keystore_sys* p_sys = p_keystore->p_sys;
+    heimdall_keystore_sys* p_sys = p_keystore->p_sys;
     DBusMessage* msg = NULL;
     DBusMessage* repmsg = NULL;
     DBusError error;
     DBusMessageIter args;
     int i_reply;
-    int i_ret = VLC_EGENERIC;
+    int i_ret = HEIMDALL_EGENERIC;
 
     /* init */
-    if ( !( msg = vlc_dbus_new_method( p_keystore, "writePassword" ) ) )
+    if ( !( msg = heimdall_dbus_new_method( p_keystore, "writePassword" ) ) )
     {
-        msg_Err( p_keystore, "kwallet_write_password : vlc_dbus_new_method failed" );
-        return VLC_EGENERIC;
+        msg_Err( p_keystore, "kwallet_write_password : heimdall_dbus_new_method failed" );
+        return HEIMDALL_EGENERIC;
     }
 
     /* argument init */
@@ -961,9 +962,9 @@ kwallet_write_password( vlc_keystore* p_keystore, char* psz_entry_name, const ch
         goto end;
 
     /* sending message */
-    if ( !( repmsg = vlc_dbus_send_message( p_keystore, msg ) ) )
+    if ( !( repmsg = heimdall_dbus_send_message( p_keystore, msg ) ) )
     {
-        msg_Err( p_keystore, "kwallet_write_password : vlc_dbus_send_message failed" );
+        msg_Err( p_keystore, "kwallet_write_password : heimdall_dbus_send_message failed" );
         goto end;
     }
 
@@ -978,7 +979,7 @@ kwallet_write_password( vlc_keystore* p_keystore, char* psz_entry_name, const ch
         goto end;
     }
 
-    i_ret = VLC_SUCCESS;
+    i_ret = HEIMDALL_SUCCESS;
 
 end:
 
@@ -991,34 +992,34 @@ end:
 }
 
 static int
-kwallet_remove_entry( vlc_keystore* p_keystore, char* psz_entry_name )
+kwallet_remove_entry( heimdall_keystore* p_keystore, char* psz_entry_name )
 {
-    vlc_keystore_sys* p_sys = p_keystore->p_sys;
+    heimdall_keystore_sys* p_sys = p_keystore->p_sys;
     DBusMessage* msg = NULL;
     DBusMessage* repmsg = NULL;
     DBusError error;
     DBusMessageIter args;
     int i_reply;
     bool b_has_entry = false;
-    int i_ret = VLC_EGENERIC;
+    int i_ret = HEIMDALL_EGENERIC;
 
     if ( kwallet_has_entry( p_keystore, psz_entry_name, &b_has_entry ) )
     {
         msg_Err( p_keystore, "kwallet_remove_entry : kwallet_has_entry failed" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     if ( !b_has_entry )
     {
         msg_Err( p_keystore, "kwallet_remove_entry : there is no such entry :"
                 "%s", psz_entry_name );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* init */
-    if ( !( msg = vlc_dbus_new_method( p_keystore, "removeEntry" ) ) )
+    if ( !( msg = heimdall_dbus_new_method( p_keystore, "removeEntry" ) ) )
     {
-        msg_Err( p_keystore, "kwallet_remove_entry : vlc_dbus_new_method failed" );
-        return VLC_EGENERIC;
+        msg_Err( p_keystore, "kwallet_remove_entry : heimdall_dbus_new_method failed" );
+        return HEIMDALL_EGENERIC;
     }
 
     /* argument init */
@@ -1030,9 +1031,9 @@ kwallet_remove_entry( vlc_keystore* p_keystore, char* psz_entry_name )
         goto end;
 
     /* sending message */
-    if ( !( repmsg = vlc_dbus_send_message( p_keystore, msg ) ) )
+    if ( !( repmsg = heimdall_dbus_send_message( p_keystore, msg ) ) )
     {
-        msg_Err( p_keystore, "kwallet_remove_entry : vlc_dbus_send_message failed" );
+        msg_Err( p_keystore, "kwallet_remove_entry : heimdall_dbus_send_message failed" );
         goto end;
     }
 
@@ -1047,7 +1048,7 @@ kwallet_remove_entry( vlc_keystore* p_keystore, char* psz_entry_name )
         goto end;
     }
 
-    i_ret = VLC_SUCCESS;
+    i_ret = HEIMDALL_SUCCESS;
 
 end:
 
@@ -1059,18 +1060,18 @@ end:
     return i_ret;
 }
 
-static vlc_keystore_entry*
-kwallet_read_password_list( vlc_keystore* p_keystore, char* psz_entry_name,
+static heimdall_keystore_entry*
+kwallet_read_password_list( heimdall_keystore* p_keystore, char* psz_entry_name,
                             unsigned int* pi_count )
 {
-    vlc_keystore_sys* p_sys = p_keystore->p_sys;
+    heimdall_keystore_sys* p_sys = p_keystore->p_sys;
     DBusMessage* msg = NULL;
     DBusMessage* repmsg = NULL;
     DBusMessageIter args;
     DBusMessageIter sub_iter;
     DBusMessageIter dict_iter;
     DBusMessageIter var_iter;
-    vlc_keystore_entry* p_entries = NULL;
+    heimdall_keystore_entry* p_entries = NULL;
     size_t i_size;
     uint8_t* p_secret_decoded = NULL;
     char* p_reply;
@@ -1079,9 +1080,9 @@ kwallet_read_password_list( vlc_keystore* p_keystore, char* psz_entry_name,
 
     /* init */
     *pi_count = 0;
-    if ( !( msg = vlc_dbus_new_method( p_keystore, "readPasswordList" ) ) )
+    if ( !( msg = heimdall_dbus_new_method( p_keystore, "readPasswordList" ) ) )
     {
-        msg_Err( p_keystore, "kwallet_read_password_list : vlc_dbus_new_method failed" );
+        msg_Err( p_keystore, "kwallet_read_password_list : heimdall_dbus_new_method failed" );
         goto error;
     }
 
@@ -1094,9 +1095,9 @@ kwallet_read_password_list( vlc_keystore* p_keystore, char* psz_entry_name,
         goto error;
 
     /* sending message */
-    if ( !( repmsg = vlc_dbus_send_message( p_keystore, msg ) ) )
+    if ( !( repmsg = heimdall_dbus_send_message( p_keystore, msg ) ) )
     {
-        msg_Err( p_keystore, "kwallet_read_password_list : vlc_dbus_send_message failed" );
+        msg_Err( p_keystore, "kwallet_read_password_list : heimdall_dbus_send_message failed" );
         goto error;
     }
 
@@ -1130,7 +1131,7 @@ kwallet_read_password_list( vlc_keystore* p_keystore, char* psz_entry_name,
 
         if ( *pi_count == 0 )
             goto error;
-        if ( !( p_entries = calloc( *pi_count, sizeof( vlc_keystore_entry ) ) ) )
+        if ( !( p_entries = calloc( *pi_count, sizeof( heimdall_keystore_entry ) ) ) )
             goto error;
 
         dbus_message_iter_init( repmsg, &args );
@@ -1161,10 +1162,10 @@ kwallet_read_password_list( vlc_keystore* p_keystore, char* psz_entry_name,
             dbus_message_iter_recurse( &dict_iter, &var_iter );
             dbus_message_iter_get_basic( &var_iter, &p_secret );
 
-            i_size = vlc_b64_decode_binary( &p_secret_decoded, p_secret);
+            i_size = heimdall_b64_decode_binary( &p_secret_decoded, p_secret);
             if ( key2values( p_reply, &p_entries[i] ) )
                 goto error;
-            if ( ( vlc_keystore_entry_set_secret( &p_entries[i],
+            if ( ( heimdall_keystore_entry_set_secret( &p_entries[i],
                                                   p_secret_decoded,
                                                   i_size ) ) )
                 goto error;
@@ -1183,7 +1184,7 @@ error:
     free( p_secret_decoded );
     *pi_count = 0;
     if ( p_entries )
-        vlc_keystore_release_entries( p_entries, i );
+        heimdall_keystore_release_entries( p_entries, i );
     if ( msg )
         dbus_message_unref( msg );
     if ( repmsg )
@@ -1193,7 +1194,7 @@ error:
 
 
 static int
-Store( vlc_keystore* p_keystore, const char *const ppsz_values[KEY_MAX],
+Store( heimdall_keystore* p_keystore, const char *const ppsz_values[KEY_MAX],
        const uint8_t* p_secret, size_t i_secret_len, const char* psz_label )
 {
     char* psz_key;
@@ -1203,28 +1204,28 @@ Store( vlc_keystore* p_keystore, const char *const ppsz_values[KEY_MAX],
 
     psz_key = values2key( ppsz_values, false );
     if ( !psz_key )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    psz_b64_secret = vlc_b64_encode_binary( p_secret, i_secret_len );
+    psz_b64_secret = heimdall_b64_encode_binary( p_secret, i_secret_len );
     if ( !psz_b64_secret )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     if ( kwallet_write_password( p_keystore, psz_key, psz_b64_secret ) )
     {
         free( psz_b64_secret );
         free( psz_key );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     free( psz_b64_secret );
     free( psz_key );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static unsigned int
-Find( vlc_keystore* p_keystore, const char *const ppsz_values[KEY_MAX],
-      vlc_keystore_entry** pp_entries )
+Find( heimdall_keystore* p_keystore, const char *const ppsz_values[KEY_MAX],
+      heimdall_keystore_entry** pp_entries )
 {
     char* psz_key;
     unsigned int i_count = 0;
@@ -1245,10 +1246,10 @@ Find( vlc_keystore* p_keystore, const char *const ppsz_values[KEY_MAX],
 }
 
 static unsigned int
-Remove( vlc_keystore* p_keystore, const char* const ppsz_values[KEY_MAX] )
+Remove( heimdall_keystore* p_keystore, const char* const ppsz_values[KEY_MAX] )
 {
     char* psz_key;
-    vlc_keystore_entry* p_entries;
+    heimdall_keystore_entry* p_entries;
     unsigned i_count = 0;
 
     psz_key = values2key( ppsz_values, true );
@@ -1269,13 +1270,13 @@ Remove( vlc_keystore* p_keystore, const char* const ppsz_values[KEY_MAX] )
         psz_key = values2key( ( const char* const* )p_entries[i].ppsz_values, false );
         if ( !psz_key )
         {
-            vlc_keystore_release_entries( p_entries, i_count );
+            heimdall_keystore_release_entries( p_entries, i_count );
             return i;
         }
 
         if ( kwallet_remove_entry( p_keystore, psz_key ) )
         {
-            vlc_keystore_release_entries( p_entries, i_count );
+            heimdall_keystore_release_entries( p_entries, i_count );
             free( psz_key );
             return i;
         }
@@ -1291,9 +1292,9 @@ Remove( vlc_keystore* p_keystore, const char* const ppsz_values[KEY_MAX] )
 }
 
 static void
-Close( vlc_object_t* p_this )
+Close( heimdall_object_t* p_this )
 {
-    vlc_keystore *p_keystore = ( vlc_keystore* )p_this;
+    heimdall_keystore *p_keystore = ( heimdall_keystore* )p_this;
 
     dbus_connection_close( p_keystore->p_sys->connection );
     dbus_connection_unref( p_keystore->p_sys->connection );
@@ -1303,19 +1304,19 @@ Close( vlc_object_t* p_this )
 }
 
 static int
-Open( vlc_object_t* p_this )
+Open( heimdall_object_t* p_this )
 {
-    vlc_keystore *p_keystore = ( vlc_keystore* )p_this;
+    heimdall_keystore *p_keystore = ( heimdall_keystore* )p_this;
     int i_ret;
 
-    p_keystore->p_sys = calloc( 1, sizeof( vlc_keystore_sys ) );
+    p_keystore->p_sys = calloc( 1, sizeof( heimdall_keystore_sys ) );
     if ( !p_keystore->p_sys)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    i_ret = vlc_dbus_init( p_keystore );
+    i_ret = heimdall_dbus_init( p_keystore );
     if ( i_ret )
     {
-        msg_Dbg( p_keystore, "vlc_dbus_init failed" );
+        msg_Dbg( p_keystore, "heimdall_dbus_init failed" );
         goto error;
     }
 

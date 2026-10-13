@@ -3,6 +3,7 @@
  */
 /*****************************************************************************
  * Copyright © 2020 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License
@@ -28,23 +29,23 @@
 #include <stdbool.h>
 #include <string.h>
 #include "../sdp.h"
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
 static void test_sdp_valid(const char *str)
 {
     size_t len;
 
     for (len = 0; str[len] != '\0'; len++) {
-        struct vlc_sdp *sdp = vlc_sdp_parse(str, len);
+        struct heimdall_sdp *sdp = heimdall_sdp_parse(str, len);
 
         if (sdp != NULL)
-            vlc_sdp_free(sdp);
+            heimdall_sdp_free(sdp);
     }
 
-    struct vlc_sdp *sdp = vlc_sdp_parse(str, len);
+    struct heimdall_sdp *sdp = heimdall_sdp_parse(str, len);
 
     assert(sdp != NULL);
-    vlc_sdp_free(sdp);
+    heimdall_sdp_free(sdp);
 }
 
 static void test_sdp_invalid(const char *base, size_t len)
@@ -52,10 +53,10 @@ static void test_sdp_invalid(const char *base, size_t len)
     bool ok = false;
 
     for (size_t i = 0; i <= len; i++) {
-        struct vlc_sdp *sdp = vlc_sdp_parse(base, i);
+        struct heimdall_sdp *sdp = heimdall_sdp_parse(base, i);
 
         if (sdp != NULL)
-            vlc_sdp_free(sdp);
+            heimdall_sdp_free(sdp);
 
         ok = sdp != NULL;
     }
@@ -89,13 +90,13 @@ int main(void)
 
     test_sdp_valid(example);
 
-    struct vlc_sdp *sdp = vlc_sdp_parse(example, strlen(example));
+    struct heimdall_sdp *sdp = heimdall_sdp_parse(example, strlen(example));
     assert(sdp != NULL);
-    assert(vlc_sdp_attr_present(sdp, "recvonly"));
-    assert(!vlc_sdp_attr_present(sdp, "sendrecv"));
-    assert(vlc_sdp_attr_value(sdp, "recvonly") == NULL);
+    assert(heimdall_sdp_attr_present(sdp, "recvonly"));
+    assert(!heimdall_sdp_attr_present(sdp, "sendrecv"));
+    assert(heimdall_sdp_attr_value(sdp, "recvonly") == NULL);
 
-    const struct vlc_sdp_media *m = sdp->media;
+    const struct heimdall_sdp_media *m = sdp->media;
     assert(m != NULL);
     assert(m->next == NULL);
     assert(!strcmp(m->type, "text"));
@@ -103,10 +104,10 @@ int main(void)
     assert(m->port_count == 1);
     assert(!strcmp(m->proto, "RTP/AVP"));
     assert(!strcmp(m->format, "96"));
-    assert(vlc_sdp_media_attr_present(m, "rtpmap"));
-    assert(!strcmp(vlc_sdp_media_attr_value(m, "rtpmap"), "96 t140/1000"));
+    assert(heimdall_sdp_media_attr_present(m, "rtpmap"));
+    assert(!strcmp(heimdall_sdp_media_attr_value(m, "rtpmap"), "96 t140/1000"));
 
-    const struct vlc_sdp_conn *c = vlc_sdp_media_conn(m);
+    const struct heimdall_sdp_conn *c = heimdall_sdp_media_conn(m);
     assert(c != NULL);
     assert(c->family == 4);
     assert(!strcmp(c->addr, "239.255.0.2"));
@@ -119,7 +120,7 @@ int main(void)
     assert(c->ttl == 255);
     assert(c->addr_count == 2);
 
-    vlc_sdp_free(sdp);
+    heimdall_sdp_free(sdp);
 
     /* Connection address starting with '/': the first sscanf() conversion
      * fails, so the truncation offset must default to zero. */
@@ -134,7 +135,7 @@ int main(void)
 
     test_sdp_valid(slashaddr);
 
-    sdp = vlc_sdp_parse(slashaddr, strlen(slashaddr));
+    sdp = heimdall_sdp_parse(slashaddr, strlen(slashaddr));
     assert(sdp != NULL);
     c = sdp->conn;
     assert(c != NULL);
@@ -143,12 +144,12 @@ int main(void)
     assert(c->ttl == 255);
     assert(c->addr_count == 1);
     assert(sdp->media != NULL);
-    c = vlc_sdp_media_conn(sdp->media);
+    c = heimdall_sdp_media_conn(sdp->media);
     assert(c != NULL);
     assert(c->family == 6);
     assert(!strcmp(c->addr, ""));
     assert(c->addr_count == 1);
-    vlc_sdp_free(sdp);
+    heimdall_sdp_free(sdp);
 
     char smallest[] =
         "v=0\n"

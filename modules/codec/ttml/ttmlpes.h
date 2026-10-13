@@ -2,6 +2,7 @@
  * ttmlpes.c : TTML subtitles in EN 303 560 payload
  *****************************************************************************
  * Copyright (C) 2018 VideoLabs, VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -18,9 +19,9 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#include <vlc_common.h>
-#include <vlc_block.h>
-#include <vlc_stream.h>
+#include <heimdall_common.h>
+#include <heimdall_block.h>
+#include <heimdall_stream.h>
 
 enum
 {
@@ -30,9 +31,9 @@ enum
 
 struct ttml_in_pes_ctx
 {
-    vlc_tick_t i_offset; /* relative segment offset to apply */
-    vlc_tick_t i_prev_block_time; /* because blocks are duplicated */
-    vlc_tick_t i_prev_segment_start_time; /* because content can overlap */
+    heimdall_tick_t i_offset; /* relative segment offset to apply */
+    heimdall_tick_t i_prev_block_time; /* because blocks are duplicated */
+    heimdall_tick_t i_prev_segment_start_time; /* because content can overlap */
 };
 
 static void ttml_in_pes_Init(struct ttml_in_pes_ctx *p)
@@ -44,7 +45,7 @@ static void ttml_in_pes_Init(struct ttml_in_pes_ctx *p)
 
 static inline bool TTML_in_PES(decoder_t *p_dec)
 {
-    return p_dec->fmt_in->i_codec == VLC_CODEC_TTML_TS;
+    return p_dec->fmt_in->i_codec == HEIMDALL_CODEC_TTML_TS;
 }
 
 static block_t * DecompressTTML( decoder_t *p_dec, const uint8_t *p_data, size_t i_data )
@@ -52,15 +53,15 @@ static block_t * DecompressTTML( decoder_t *p_dec, const uint8_t *p_data, size_t
     block_t *p_decomp = NULL;
     block_t **pp_append = &p_decomp;
 
-    stream_t *s = vlc_stream_MemoryNew( p_dec, (uint8_t *) p_data, i_data, true );
+    stream_t *s = heimdall_stream_MemoryNew( p_dec, (uint8_t *) p_data, i_data, true );
     if( !s )
         return NULL;
-    stream_t *p_inflate = vlc_stream_FilterNew( s, "inflate" );
+    stream_t *p_inflate = heimdall_stream_FilterNew( s, "inflate" );
     if( p_inflate )
     {
         for( ;; )
         {
-            *pp_append = vlc_stream_Block( p_inflate, 64 * 1024 );
+            *pp_append = heimdall_stream_Block( p_inflate, 64 * 1024 );
             if( *pp_append == NULL ||
                 (*pp_append)->i_buffer < 64*1024 )
                 break;
@@ -68,7 +69,7 @@ static block_t * DecompressTTML( decoder_t *p_dec, const uint8_t *p_data, size_t
         }
         s = p_inflate;
     }
-    vlc_stream_Delete( s );
+    heimdall_stream_Delete( s );
     return p_decomp ? block_ChainGather( p_decomp ) : NULL;
 }
 
@@ -78,18 +79,18 @@ static int ParsePESEncap( decoder_t *p_dec,
                           block_t *p_block )
 {
     if( p_block == NULL ) /* No Drain */
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
 
     if( p_block->i_buffer < 7 )
     {
         block_Release( p_block );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( p_block->i_dts == p_ctx->i_prev_block_time )
     {
         block_Release( p_block );
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
     int64_t i_segment_base = GetDWBE(p_block->p_buffer);
@@ -98,7 +99,7 @@ static int ParsePESEncap( decoder_t *p_dec,
     uint8_t i_num_segments = p_block->p_buffer[6];
     size_t i_data = p_block->i_buffer - 7;
     const uint8_t *p_data = &p_block->p_buffer[7];
-    p_ctx->i_offset = (p_block->i_dts - VLC_TICK_0) - i_segment_base;
+    p_ctx->i_offset = (p_block->i_dts - HEIMDALL_TICK_0) - i_segment_base;
     for( uint8_t i=0; i<i_num_segments; i++ )
     {
         if( i_data < 3 )
@@ -131,5 +132,5 @@ static int ParsePESEncap( decoder_t *p_dec,
 
     p_ctx->i_prev_block_time = p_block->i_dts;
     block_Release( p_block );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

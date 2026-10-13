@@ -20,7 +20,7 @@ struct my_task
     char *str;
 
     /* embedded runnable */
-    struct vlc_runnable runnable;
+    struct heimdall_runnable runnable;
 };
 
 void Run(void *userdata)
@@ -37,21 +37,21 @@ and submit it as follow:
     task->runnable.run = Run;
     task->runnable.userdata = task; /* userdata passed to Run() */
 
-    vlc_executor_Submit(executor, &task->runnable);
+    heimdall_executor_Submit(executor, &task->runnable);
 ```
 
-Since the task is allocated by the caller, vlc_executor_Submit() may not fail
+Since the task is allocated by the caller, heimdall_executor_Submit() may not fail
 (it returns void).
 
 The cancellation of a submitted runnable may be requested. It succeeds only if
 the runnable has not started yet.
 
 ```c
-VLC_API void
-vlc_executor_Submit(vlc_executor_t *executor, struct vlc_runnable *runnable);
+HEIMDALL_API void
+heimdall_executor_Submit(heimdall_executor_t *executor, struct heimdall_runnable *runnable);
 
-VLC_API bool
-vlc_executor_Cancel(vlc_executor_t *executor, struct vlc_runnable *runnable);
+HEIMDALL_API bool
+heimdall_executor_Cancel(heimdall_executor_t *executor, struct heimdall_runnable *runnable);
 ```
 
 
@@ -68,25 +68,25 @@ This documentation aims to explain the rationale for each decision.
 
 ### Runnable allocation
 
-The `struct vlc_runnable` must be provided by the client, and the executor uses
+The `struct heimdall_runnable` must be provided by the client, and the executor uses
 only this instance to represent its task (it does not allocate per-task private
 data).
 
-Firstly, note that this allows `vlc_executor_Submit()` to return `void`, so no
+Firstly, note that this allows `heimdall_executor_Submit()` to return `void`, so no
 error handling is necessary. It's minor, but convenient.
 
 An attractive alternative would be to return a new allocated runnable on
 submission, which could be used for cancellation:
 
 ```c
-struct vlc_runnable *
-vlc_executor_Submit(vlc_executor_t *, void (*run)(void *), void *userdata);
+struct heimdall_runnable *
+heimdall_executor_Submit(heimdall_executor_t *, void (*run)(void *), void *userdata);
 
-void vlc_executor_Cancel(vlc_executor_t *, struct vlc_runnable *);
+void heimdall_executor_Cancel(heimdall_executor_t *, struct heimdall_runnable *);
 ```
 
 But this is inherently racy: a naive implementation could return a pointer to a
-`vlc_runnable` already freed. Indeed, `vlc_executor_Submit()` must post the
+`heimdall_runnable` already freed. Indeed, `heimdall_executor_Submit()` must post the
 runnable to some pending queue, and in theory it may be executed by a background
 thread even before the function returns.
 
@@ -97,7 +97,7 @@ complete, this simple code is incorrect:
 struct my_task
 {
     char *some_custom_data;
-    struct vlc_runnable *runnable; /* keep a pointer to cancel it */
+    struct heimdall_runnable *runnable; /* keep a pointer to cancel it */
 };
 
 void Run(void *userdata)
@@ -109,22 +109,22 @@ void Run(void *userdata)
 
 ```c
     struct my_task *task = ...;
-    task->runnable = vlc_executor_Submit(executor, Run, task);
+    task->runnable = heimdall_executor_Submit(executor, Run, task);
     /* task->runnable may be already freed here */
-    vlc_executor_Cancel(executor, task->runnable); /* boom, use-after-free */
+    heimdall_executor_Cancel(executor, task->runnable); /* boom, use-after-free */
 ```
 
 To avoid use-after-free, runnable ownership must be shared. This makes
 the API more complex:
 
 ```c
-struct vlc_runnable_t *runnable = vlc_executor_Submit(executor, Run, task);
-vlc_runnable_Release(runnable); /* don't need the runnable anymore */
+struct heimdall_runnable_t *runnable = heimdall_executor_Submit(executor, Run, task);
+heimdall_runnable_Release(runnable); /* don't need the runnable anymore */
 ```
 
 However, this would still be insufficient: the task resources must typically be
 released at the end of the `run()` callback, but at this point
-`vlc_executor_Submit()` may not have returned yet, so the runnable instance
+`heimdall_executor_Submit()` may not have returned yet, so the runnable instance
 would not be known by the user.
 
 Since in practice, the client needs its own task structure (to store the
@@ -138,7 +138,7 @@ the stack (provided that it lives long enough).
 
 This design also has disadvantages. In particular, it forces the runnable queue
 to be implemented as an intrusive list. As a consequence, the public `struct
-vlc_runnable` must include an executor-private field (`struct vlc_list node`),
+heimdall_runnable` must include an executor-private field (`struct heimdall_list node`),
 and the same runnable may not be queued twice (it is not possible to put the
 same item twice in the same intrusive list).
 
@@ -167,8 +167,8 @@ mechanism either (see below). The user has to handle timeouts manually.
 It just provides a way to cancel a queued task that has not started yet:
 
 ```c
-VLC_API bool
-vlc_executor_Cancel(vlc_executor_t *executor, struct vlc_runnable *runnable);
+HEIMDALL_API bool
+heimdall_executor_Cancel(heimdall_executor_t *executor, struct heimdall_runnable *runnable);
 ```
 
 The runnable instance is created and destroyed by the user, so there is no
@@ -192,19 +192,19 @@ Note that the use-after-free race condition on cancel could alternatively be
 solved by passing an optional user-provided `void *id`:
 
 ```c
-struct vlc_runnable
+struct heimdall_runnable
 {
     void (*run)(void *userdata)
     void *userdata;
-    struct vlc_list node;
+    struct heimdall_list node;
 
     /* add a user-provided id (may be NULL) used for cancellation */
     void *id;
 }
 
-void vlc_executor_Submit(vlc_executor_t *executor, struct vlc_runnable *);
+void heimdall_executor_Submit(heimdall_executor_t *executor, struct heimdall_runnable *);
 
-void vlc_executor_Cancel(vlc_executor_t *executor, void *id);
+void heimdall_executor_Cancel(heimdall_executor_t *executor, void *id);
 ```
 
 This would solve the problem because the user owns the `id`, so it is guaranteed
@@ -225,8 +225,8 @@ has to keep track of submitted tasks, which is inconvenient.
 ### Timeout
 
 A timeout implementation is often very specific to the concrete task
-implementation (for example, calling `vlc_cond_timedwait()` instead of
-`vlc_cond_wait()`), so it makes sense to let the user implement it.
+implementation (for example, calling `heimdall_cond_timedwait()` instead of
+`heimdall_cond_wait()`), so it makes sense to let the user implement it.
 
 However, we could see the timeout as a cancellation where the deadline is known
 in advance. Since the user must already implement the interruption on its own,

@@ -2,6 +2,7 @@
  * renderer_common.hpp : renderer helper functions
  *****************************************************************************
  * Copyright © 2014-2018 VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Adrien Maglo <magsoft@videolan.org>
  *          Jean-Baptiste Kempf <jb@videolan.org>
@@ -29,8 +30,8 @@
 #include <string>
 #include <vector>
 
-#include <vlc_common.h>
-#include <vlc_sout.h>
+#include <heimdall_common.h>
+#include <heimdall_sout.h>
 
 #define PERF_TEXT N_( "Performance warning" )
 #define PERF_LONGTEXT N_( "Display a performance warning when transcoding" )
@@ -79,8 +80,8 @@ static const int conversion_quality_list[] = {
 };
 
 std::string
-vlc_sout_renderer_GetVcodecOption(sout_stream_t *p_stream,
-        std::vector<vlc_fourcc_t> codecs,
-        vlc_fourcc_t *out_codec, const video_format_t *p_vid, int i_quality);
+heimdall_sout_renderer_GetVcodecOption(sout_stream_t *p_stream,
+        std::vector<heimdall_fourcc_t> codecs,
+        heimdall_fourcc_t *out_codec, const video_format_t *p_vid, int i_quality);
 
 #endif /* RENDERER_COMMON_H */

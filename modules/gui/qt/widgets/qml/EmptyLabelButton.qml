@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Benjamin Arnaud <bunjee@omega.gg>
  *
@@ -20,10 +21,10 @@
 
 import QtQuick
 
-import VLC.MainInterface
-import VLC.Style
-import VLC.Widgets as Widgets
-import VLC.Util
+import Heimdall.MainInterface
+import Heimdall.Style
+import Heimdall.Widgets as Widgets
+import Heimdall.Util
 
 EmptyLabel {
     id: root
@@ -71,12 +72,12 @@ EmptyLabel {
 
         anchors.horizontalCenter: parent.horizontalCenter
 
-        width: Math.max(VLCStyle.dp(84, VLCStyle.scale), implicitWidth)
+        width: Math.max(HeimdallStyle.dp(84, HeimdallStyle.scale), implicitWidth)
 
         focus: true
 
         text: qsTr("Browse")
-        iconTxt: VLCIcons.topbar_network
+        iconTxt: HeimdallIcons.topbar_network
 
         Navigation.parentItem: root
 

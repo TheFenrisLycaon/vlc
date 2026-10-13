@@ -5,6 +5,7 @@
 /*****************************************************************************
  * Copyright © 2022 Rémi Denis-Courmont
  * Copyright © 2026 Alexandre Janniaux <ajanni@videolabs.io>
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -34,17 +35,17 @@
 #else
 # include <drm_mode.h>
 #endif
-#include <vlc_common.h>
-#include <vlc_fourcc.h>
-#include "vlc_drm.h"
+#include <heimdall_common.h>
+#include <heimdall_fourcc.h>
+#include "heimdall_drm.h"
 
 enum { /* DO NOT CHANGE. MUST MATCH KERNEL ABI. */
-    VLC_DRM_PLANE_TYPE_OVERLAY=0,
-    VLC_DRM_PLANE_TYPE_PRIMARY=1,
-    VLC_DRM_PLANE_TYPE_CURSOR=2,
+    HEIMDALL_DRM_PLANE_TYPE_OVERLAY=0,
+    HEIMDALL_DRM_PLANE_TYPE_PRIMARY=1,
+    HEIMDALL_DRM_PLANE_TYPE_CURSOR=2,
 };
 
-int vlc_drm_get_crtc_index(int fd, uint_fast32_t crtc_id)
+int heimdall_drm_get_crtc_index(int fd, uint_fast32_t crtc_id)
 {
     uint32_t crtcs[32];
     struct drm_mode_card_res res = {
@@ -52,7 +53,7 @@ int vlc_drm_get_crtc_index(int fd, uint_fast32_t crtc_id)
         .count_crtcs = ARRAY_SIZE(crtcs),
     };
 
-    if (vlc_drm_ioctl(fd, DRM_IOCTL_MODE_GETRESOURCES, &res) < 0)
+    if (heimdall_drm_ioctl(fd, DRM_IOCTL_MODE_GETRESOURCES, &res) < 0)
         return -1;
     if (unlikely(res.count_crtcs > ARRAY_SIZE(crtcs))) {
         /* The API cannot deal with more than 32 CRTCs. Buggy driver? */
@@ -68,18 +69,18 @@ int vlc_drm_get_crtc_index(int fd, uint_fast32_t crtc_id)
     return -1;
 }
 
-static bool vlc_drm_prop_match(int fd, uint_fast32_t pid, const char *name)
+static bool heimdall_drm_prop_match(int fd, uint_fast32_t pid, const char *name)
 {
     struct drm_mode_get_property prop = {
         .prop_id = pid,
     };
 
-    if (vlc_drm_ioctl(fd, DRM_IOCTL_MODE_GETPROPERTY, &prop) < 0)
+    if (heimdall_drm_ioctl(fd, DRM_IOCTL_MODE_GETPROPERTY, &prop) < 0)
         return false;
     return strcmp(name, prop.name) == 0;
 }
 
-static int vlc_drm_get_prop(int fd, uint_fast32_t oid, uint_fast32_t tid,
+static int heimdall_drm_get_prop(int fd, uint_fast32_t oid, uint_fast32_t tid,
                             const char *name, uint64_t *restrict valp)
 {
     struct drm_mode_obj_get_properties counter = {
@@ -88,12 +89,12 @@ static int vlc_drm_get_prop(int fd, uint_fast32_t oid, uint_fast32_t tid,
     };
     int ret = -1;
 
-    if (vlc_drm_ioctl(fd, DRM_IOCTL_MODE_OBJ_GETPROPERTIES, &counter) < 0)
+    if (heimdall_drm_ioctl(fd, DRM_IOCTL_MODE_OBJ_GETPROPERTIES, &counter) < 0)
         return -1;
 
     size_t count = counter.count_props;
-    uint32_t *ids = vlc_alloc(count, sizeof (*ids));
-    uint64_t *values = vlc_alloc(count, sizeof (*values));
+    uint32_t *ids = heimdall_alloc(count, sizeof (*ids));
+    uint64_t *values = heimdall_alloc(count, sizeof (*values));
 
     if (unlikely(ids == NULL || values == NULL))
         goto out;
@@ -106,7 +107,7 @@ static int vlc_drm_get_prop(int fd, uint_fast32_t oid, uint_fast32_t tid,
         .obj_type = tid,
     };
 
-    if (vlc_drm_ioctl(fd, DRM_IOCTL_MODE_OBJ_GETPROPERTIES, &props) < 0)
+    if (heimdall_drm_ioctl(fd, DRM_IOCTL_MODE_OBJ_GETPROPERTIES, &props) < 0)
         goto out;
     if (unlikely(count < props.count_props)) {
         /*
@@ -122,7 +123,7 @@ static int vlc_drm_get_prop(int fd, uint_fast32_t oid, uint_fast32_t tid,
 
     /* NOTE: if more than one property is needed, rethink this function */
     for (size_t i = 0; i < props.count_props; i++) {
-        if (vlc_drm_prop_match(fd, ids[i], name)) {
+        if (heimdall_drm_prop_match(fd, ids[i], name)) {
             *valp = values[i];
             ret = 0;
             goto out;
@@ -135,18 +136,18 @@ out:
     return ret;
 }
 
-static int vlc_drm_get_plane_prop(int fd, uint_fast32_t plane,
+static int heimdall_drm_get_plane_prop(int fd, uint_fast32_t plane,
                                   const char *name, uint64_t *restrict valp)
 {
-    return vlc_drm_get_prop(fd, plane, DRM_MODE_OBJECT_PLANE, name, valp);
+    return heimdall_drm_get_prop(fd, plane, DRM_MODE_OBJECT_PLANE, name, valp);
 }
 
-static ssize_t vlc_drm_get_planes(int fd, uint32_t **restrict listp)
+static ssize_t heimdall_drm_get_planes(int fd, uint32_t **restrict listp)
 {
     size_t count = 32;
 
     for (;;) {
-        uint32_t *planes = vlc_alloc(count, sizeof (*planes));
+        uint32_t *planes = heimdall_alloc(count, sizeof (*planes));
         if (unlikely(planes == NULL))
             return -1;
 
@@ -155,7 +156,7 @@ static ssize_t vlc_drm_get_planes(int fd, uint32_t **restrict listp)
             .count_planes = count,
         };
 
-        if (vlc_drm_ioctl(fd, DRM_IOCTL_MODE_GETPLANERESOURCES, &res) < 0) {
+        if (heimdall_drm_ioctl(fd, DRM_IOCTL_MODE_GETPLANERESOURCES, &res) < 0) {
             free(planes);
             return -1;
         }
@@ -171,13 +172,13 @@ static ssize_t vlc_drm_get_planes(int fd, uint32_t **restrict listp)
     }
 }
 
-uint_fast32_t vlc_drm_get_crtc_primary_plane(int fd, unsigned int idx,
+uint_fast32_t heimdall_drm_get_crtc_primary_plane(int fd, unsigned int idx,
                                              size_t *restrict nfmt)
 {
     assert(idx < 32); /* Don't mix up object IDs and indices! */
 
     uint32_t *planes;
-    ssize_t count = vlc_drm_get_planes(fd, &planes);
+    ssize_t count = heimdall_drm_get_planes(fd, &planes);
     if (count < 0)
         return -1;
 
@@ -189,10 +190,10 @@ uint_fast32_t vlc_drm_get_crtc_primary_plane(int fd, unsigned int idx,
         };
         uint64_t planetype;
 
-        if (vlc_drm_ioctl(fd, DRM_IOCTL_MODE_GETPLANE, &plane) >= 0
+        if (heimdall_drm_ioctl(fd, DRM_IOCTL_MODE_GETPLANE, &plane) >= 0
          && ((plane.possible_crtcs >> idx) & 1)
-         && vlc_drm_get_plane_prop(fd, planes[i], "type", &planetype) == 0
-         && planetype == VLC_DRM_PLANE_TYPE_PRIMARY) {
+         && heimdall_drm_get_plane_prop(fd, planes[i], "type", &planetype) == 0
+         && planetype == HEIMDALL_DRM_PLANE_TYPE_PRIMARY) {
             ret = planes[i];
             *nfmt = plane.count_format_types;
             goto out;
@@ -204,12 +205,12 @@ out:
     return ret;
 }
 
-static uint_fast32_t vlc_drm_find_format(vlc_fourcc_t vlc_fourcc, size_t n,
+static uint_fast32_t heimdall_drm_find_format(heimdall_fourcc_t heimdall_fourcc, size_t n,
                                          const uint32_t *restrict drm_fourccs)
 {
-    assert(vlc_fourcc != 0);
+    assert(heimdall_fourcc != 0);
 
-    const uint_fast32_t drm_fourcc = vlc_drm_fourcc(vlc_fourcc);
+    const uint_fast32_t drm_fourcc = heimdall_drm_fourcc(heimdall_fourcc);
 
     if (drm_fourcc != 0) {
         /* Linear search for YUV(A) and RGBA formats */
@@ -220,16 +221,16 @@ static uint_fast32_t vlc_drm_find_format(vlc_fourcc_t vlc_fourcc, size_t n,
 
     /* Quadratic search for RGB formats */
     for (size_t i = 0; i < n; i++)
-        if (vlc_fourcc_drm(drm_fourccs[i]) == vlc_fourcc)
+        if (heimdall_fourcc_drm(drm_fourccs[i]) == heimdall_fourcc)
             return drm_fourccs[i];
 
      return 0;
 }
 
-uint_fast32_t vlc_drm_find_best_format(int fd, uint_fast32_t plane_id,
-                                       size_t nfmt, vlc_fourcc_t chroma)
+uint_fast32_t heimdall_drm_find_best_format(int fd, uint_fast32_t plane_id,
+                                       size_t nfmt, heimdall_fourcc_t chroma)
 {
-    uint32_t *fmts = vlc_alloc(nfmt, sizeof (*fmts));
+    uint32_t *fmts = heimdall_alloc(nfmt, sizeof (*fmts));
     if (unlikely(fmts == NULL))
         return 0;
 
@@ -239,7 +240,7 @@ uint_fast32_t vlc_drm_find_best_format(int fd, uint_fast32_t plane_id,
         .format_type_ptr = (uintptr_t)(void *)fmts,
     };
 
-    if (vlc_drm_ioctl(fd, DRM_IOCTL_MODE_GETPLANE, &plane) < 0) {
+    if (heimdall_drm_ioctl(fd, DRM_IOCTL_MODE_GETPLANE, &plane) < 0) {
         free(fmts);
         return 0;
     }
@@ -247,19 +248,19 @@ uint_fast32_t vlc_drm_find_best_format(int fd, uint_fast32_t plane_id,
     if (nfmt > plane.count_format_types)
         nfmt = plane.count_format_types;
 
-    vlc_fourcc_t *list = NULL;
+    heimdall_fourcc_t *list = NULL;
     /* Look for an exact match first */
-    uint_fast32_t drm_fourcc = vlc_drm_find_format(chroma, nfmt, fmts);
+    uint_fast32_t drm_fourcc = heimdall_drm_find_format(chroma, nfmt, fmts);
     if (drm_fourcc != 0)
         goto out;
 
     /* Fallback to decreasingly optimal formats */
-    list = vlc_fourcc_GetFallback(chroma);
+    list = heimdall_fourcc_GetFallback(chroma);
     if (list == NULL)
         goto out;
 
     for (size_t i = 0; list[i] != 0; i++) {
-        drm_fourcc = vlc_drm_find_format(list[i], nfmt, fmts);
+        drm_fourcc = heimdall_drm_find_format(list[i], nfmt, fmts);
         if (drm_fourcc != 0)
             goto out;
     }

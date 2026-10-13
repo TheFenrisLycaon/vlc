@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 # SPDX-License-Identifier: LGPL-2.1-or-later
 # Copyright (C) 2024 Alexandre Janniaux <ajanni@videolabs.io>
+# Copyright (C) 2026 TheFenrisLycaon
 #
 # Helper script to implement a cargo-based automake test driver.
 # See modules/Makefile.am and included Makefile for usage.
@@ -48,9 +49,9 @@ rust_triple = args.host
 
 cmd = ['cargo', 'test',
        '--offline', '--locked',
-       '--config', f'target.{rust_triple}.vlccore.rustc-link-lib=["vlccore"]',
-       '--config', f'target.{rust_triple}.vlccore.rustc-link-search=["{lib_dir}"]',
-       '--config', f'target.{rust_triple}.vlccore.rustc-link-arg=["-Wl,-rpath,{lib_dir}"]',
+       '--config', f'target.{rust_triple}.heimdallcore.rustc-link-lib=["heimdallcore"]',
+       '--config', f'target.{rust_triple}.heimdallcore.rustc-link-search=["{lib_dir}"]',
+       '--config', f'target.{rust_triple}.heimdallcore.rustc-link-arg=["-Wl,-rpath,{lib_dir}"]',
        '--color', 'always' if args.color_tests == 'yes' else 'never',
        '--package', test_name,
        '--',

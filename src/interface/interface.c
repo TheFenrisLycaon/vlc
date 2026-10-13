@@ -4,6 +4,7 @@
  * interface, such as command line.
  *****************************************************************************
  * Copyright (C) 1998-2007 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Vincent Seguin <seguin@via.ecp.fr>
  *
@@ -38,21 +39,21 @@
 
 #include <unistd.h>
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_modules.h>
-#include <vlc_interface.h>
-#include <vlc_playlist.h>
-#include "../libvlc.h"
-#include "../lib/libvlc_internal.h"
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_modules.h>
+#include <heimdall_interface.h>
+#include <heimdall_playlist.h>
+#include "../libheimdall.h"
+#include "../lib/libheimdall_internal.h"
 
-static int AddIntfCallback( vlc_object_t *, char const *,
-                            vlc_value_t , vlc_value_t , void * );
+static int AddIntfCallback( heimdall_object_t *, char const *,
+                            heimdall_value_t , heimdall_value_t , void * );
 
-vlc_playlist_t *
-vlc_intf_GetMainPlaylist(intf_thread_t *intf)
+heimdall_playlist_t *
+heimdall_intf_GetMainPlaylist(intf_thread_t *intf)
 {
-    vlc_playlist_t *pl = libvlc_GetMainPlaylist(vlc_object_instance(intf));
+    heimdall_playlist_t *pl = libheimdall_GetMainPlaylist(heimdall_object_instance(intf));
     assert(pl);
     return pl;
 }
@@ -60,46 +61,46 @@ vlc_intf_GetMainPlaylist(intf_thread_t *intf)
 /**
  * Create and start an interface.
  *
- * @param libvlc the private libvlc instance starting the interface
+ * @param libheimdall the private libheimdall instance starting the interface
  * @param chain configuration chain string
- * @return VLC_SUCCESS or an error code
+ * @return HEIMDALL_SUCCESS or an error code
  */
-int intf_Create( libvlc_int_t *libvlc, const char *chain )
+int intf_Create( libheimdall_int_t *libheimdall, const char *chain )
 {
-    assert( libvlc );
-    libvlc_priv_t *priv = libvlc_priv(libvlc);
+    assert( libheimdall );
+    libheimdall_priv_t *priv = libheimdall_priv(libheimdall);
 
     /* Ensure that each interfaces can access the main playlist */
-    if (libvlc_GetMainPlaylist(libvlc) == NULL)
-        return VLC_ENOMEM;
+    if (libheimdall_GetMainPlaylist(libheimdall) == NULL)
+        return HEIMDALL_ENOMEM;
 
     /* Allocate structure */
-    intf_thread_t *p_intf = vlc_custom_create( libvlc, sizeof( *p_intf ),
+    intf_thread_t *p_intf = heimdall_custom_create( libheimdall, sizeof( *p_intf ),
                                                "interface" );
     if( unlikely(p_intf == NULL) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     /* Variable used for interface spawning */
-    vlc_value_t val;
-    var_Create( p_intf, "intf-add", VLC_VAR_STRING | VLC_VAR_ISCOMMAND );
-    var_Change( p_intf, "intf-add", VLC_VAR_SETTEXT, _("Add Interface") );
+    heimdall_value_t val;
+    var_Create( p_intf, "intf-add", HEIMDALL_VAR_STRING | HEIMDALL_VAR_ISCOMMAND );
+    var_Change( p_intf, "intf-add", HEIMDALL_VAR_SETTEXT, _("Add Interface") );
 #if defined(HAVE_ISATTY)
     if( isatty( 0 ) )
 #endif
     {
         val.psz_string = (char *)"rc,none";
-        var_Change( p_intf, "intf-add", VLC_VAR_ADDCHOICE, val, _("Console") );
+        var_Change( p_intf, "intf-add", HEIMDALL_VAR_ADDCHOICE, val, _("Console") );
     }
     val.psz_string = (char *)"telnet,none";
-    var_Change( p_intf, "intf-add", VLC_VAR_ADDCHOICE, val, _("Telnet") );
+    var_Change( p_intf, "intf-add", HEIMDALL_VAR_ADDCHOICE, val, _("Telnet") );
     val.psz_string = (char *)"http,none";
-    var_Change( p_intf, "intf-add", VLC_VAR_ADDCHOICE, val, _("Web") );
+    var_Change( p_intf, "intf-add", HEIMDALL_VAR_ADDCHOICE, val, _("Web") );
 #ifdef ENABLE_UPNP_SERVER
     val.psz_string = (char *)"upnp,none";
-    var_Change( p_intf, "intf-add", VLC_VAR_ADDCHOICE, val, _("Upnp") );
+    var_Change( p_intf, "intf-add", HEIMDALL_VAR_ADDCHOICE, val, _("Upnp") );
 #endif
     val.psz_string = (char *)"gestures,none";
-    var_Change( p_intf, "intf-add", VLC_VAR_ADDCHOICE, val,
+    var_Change( p_intf, "intf-add", HEIMDALL_VAR_ADDCHOICE, val,
                 _("Mouse Gestures") );
 
     var_AddCallback( p_intf, "intf-add", AddIntfCallback, NULL );
@@ -117,19 +118,19 @@ int intf_Create( libvlc_int_t *libvlc, const char *chain )
         goto error;
     }
 
-    vlc_mutex_lock(&priv->lock);
+    heimdall_mutex_lock(&priv->lock);
     p_intf->p_next = priv->interfaces;
     priv->interfaces = p_intf;
-    vlc_mutex_unlock(&priv->lock);
+    heimdall_mutex_unlock(&priv->lock);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     if( p_intf->p_module )
         module_unneed( p_intf, p_intf->p_module );
     config_ChainDestroy( p_intf->p_cfg );
-    vlc_object_delete(p_intf);
-    return VLC_EGENERIC;
+    heimdall_object_delete(p_intf);
+    return HEIMDALL_EGENERIC;
 }
 
 /**
@@ -139,7 +140,7 @@ error:
  * beginning of the playlist. That is meant to compensate for the reverse
  * parsing order of the command line.
  */
-int intf_InsertItem(libvlc_int_t *libvlc, const char *mrl, unsigned optc,
+int intf_InsertItem(libheimdall_int_t *libheimdall, const char *mrl, unsigned optc,
                     const char *const *optv, unsigned flags)
 {
     input_item_t *item = input_item_New(mrl, NULL);
@@ -149,48 +150,48 @@ int intf_InsertItem(libvlc_int_t *libvlc, const char *mrl, unsigned optc,
 
     int ret = -1;
 
-    if (input_item_AddOptions(item, optc, optv, flags) == VLC_SUCCESS)
+    if (input_item_AddOptions(item, optc, optv, flags) == HEIMDALL_SUCCESS)
     {
-        vlc_playlist_t *playlist = libvlc_GetMainPlaylist(libvlc);
+        heimdall_playlist_t *playlist = libheimdall_GetMainPlaylist(libheimdall);
         if (playlist)
         {
-            vlc_playlist_Lock(playlist);
-            ret = vlc_playlist_InsertOne(playlist, 0, item);
-            vlc_playlist_Unlock(playlist);
+            heimdall_playlist_Lock(playlist);
+            ret = heimdall_playlist_InsertOne(playlist, 0, item);
+            heimdall_playlist_Unlock(playlist);
         }
     }
     input_item_Release(item);
     return ret;
 }
 
-void libvlc_InternalPlay(libvlc_int_t *libvlc)
+void libheimdall_InternalPlay(libheimdall_int_t *libheimdall)
 {
-    if (!var_InheritBool(VLC_OBJECT(libvlc), "playlist-autostart"))
+    if (!var_InheritBool(HEIMDALL_OBJECT(libheimdall), "playlist-autostart"))
         return;
-    vlc_playlist_t *playlist = libvlc_GetMainPlaylist(libvlc);
+    heimdall_playlist_t *playlist = libheimdall_GetMainPlaylist(libheimdall);
     if (!playlist)
         return;
-    vlc_playlist_Lock(playlist);
-    if (vlc_playlist_Count(playlist) > 0)
+    heimdall_playlist_Lock(playlist);
+    if (heimdall_playlist_Count(playlist) > 0)
     {
-        if (vlc_playlist_GetCurrentIndex(playlist) < 0)
-            vlc_playlist_GoTo(playlist, 0);
-        vlc_playlist_Start(playlist);
+        if (heimdall_playlist_GetCurrentIndex(playlist) < 0)
+            heimdall_playlist_GoTo(playlist, 0);
+        heimdall_playlist_Start(playlist);
     }
-    vlc_playlist_Unlock(playlist);
+    heimdall_playlist_Unlock(playlist);
 }
 
-static void libvlc_AutoRun(libvlc_int_t *libvlc)
+static void libheimdall_AutoRun(libheimdall_int_t *libheimdall)
 {
-    struct vlc_logger *log = libvlc->obj.logger;
+    struct heimdall_logger *log = libheimdall->obj.logger;
     module_t **mods;
-    ssize_t total = vlc_module_match("autorun", NULL, false, &mods, NULL);
+    ssize_t total = heimdall_module_match("autorun", NULL, false, &mods, NULL);
 
     for (ssize_t i = 0; i < total; i++) {
-        void (*func)(libvlc_int_t *) = vlc_module_map(log, mods[i]);
+        void (*func)(libheimdall_int_t *) = heimdall_module_map(log, mods[i]);
 
         assert(func != NULL);
-        func(libvlc);
+        func(libheimdall);
     }
 
     free(mods);
@@ -199,63 +200,63 @@ static void libvlc_AutoRun(libvlc_int_t *libvlc)
 /**
  * Starts an interface plugin.
  */
-int libvlc_InternalAddIntf(libvlc_int_t *libvlc, const char *name)
+int libheimdall_InternalAddIntf(libheimdall_int_t *libheimdall, const char *name)
 {
     int ret;
 
     if (name != NULL)
-        ret = intf_Create(libvlc, name);
+        ret = intf_Create(libheimdall, name);
     else
     {   /* Default interface */
-        libvlc_AutoRun(libvlc);
+        libheimdall_AutoRun(libheimdall);
 
-        char *intf = var_InheritString(libvlc, "intf");
+        char *intf = var_InheritString(libheimdall, "intf");
         if (intf == NULL) /* "intf" has not been set */
-            msg_Info(libvlc, _("Running vlc with the default interface. "
-                     "Use 'cvlc' to use vlc without interface."));
+            msg_Info(libheimdall, _("Running heimdall with the default interface. "
+                     "Use 'cheimdall' to use heimdall without interface."));
 
-        ret = intf_Create(libvlc, intf);
+        ret = intf_Create(libheimdall, intf);
         free(intf);
         name = "default";
     }
-    if (ret != VLC_SUCCESS)
-        msg_Err(libvlc, "interface \"%s\" initialization failed", name);
+    if (ret != HEIMDALL_SUCCESS)
+        msg_Err(libheimdall, "interface \"%s\" initialization failed", name);
     return ret;
 }
 
 /**
  * Stops and destroys all interfaces, then the playlist.
  * @warning FIXME
- * @param libvlc the LibVLC instance
+ * @param libheimdall the LibHeimdall instance
  */
-void intf_DestroyAll(libvlc_int_t *libvlc)
+void intf_DestroyAll(libheimdall_int_t *libheimdall)
 {
-    libvlc_priv_t *priv = libvlc_priv(libvlc);
+    libheimdall_priv_t *priv = libheimdall_priv(libheimdall);
 
-    vlc_mutex_lock(&priv->lock);
+    heimdall_mutex_lock(&priv->lock);
     intf_thread_t *intf, **pp = &priv->interfaces;
 
     while ((intf = *pp) != NULL)
     {
         *pp = intf->p_next;
-        vlc_mutex_unlock(&priv->lock);
+        heimdall_mutex_unlock(&priv->lock);
 
         module_unneed(intf, intf->p_module);
         config_ChainDestroy(intf->p_cfg);
         var_DelCallback(intf, "intf-add", AddIntfCallback, NULL);
-        vlc_object_delete(intf);
+        heimdall_object_delete(intf);
 
-        vlc_mutex_lock(&priv->lock);
+        heimdall_mutex_lock(&priv->lock);
     }
-    vlc_mutex_unlock(&priv->lock);
+    heimdall_mutex_unlock(&priv->lock);
 }
 
 /* Following functions are local */
 
-static int AddIntfCallback( vlc_object_t *obj, char const *var,
-                            vlc_value_t old, vlc_value_t cur, void *data )
+static int AddIntfCallback( heimdall_object_t *obj, char const *var,
+                            heimdall_value_t old, heimdall_value_t cur, void *data )
 {
-    int ret = intf_Create( vlc_object_instance(obj), cur.psz_string );
+    int ret = intf_Create( heimdall_object_instance(obj), cur.psz_string );
     if( ret )
         msg_Err( obj, "interface \"%s\" initialization failed",
                  cur.psz_string );

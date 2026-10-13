@@ -2,6 +2,7 @@
  * configuration.h management of the modules configuration
  *****************************************************************************
  * Copyright (C) 2007 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -18,23 +19,23 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef LIBVLC_CONFIGURATION_H
-# define LIBVLC_CONFIGURATION_H 1
+#ifndef LIBHEIMDALL_CONFIGURATION_H
+# define LIBHEIMDALL_CONFIGURATION_H 1
 
-#include <vlc_configuration.h>
+#include <heimdall_configuration.h>
 
 /* Internal configuration prototypes and structures */
 
-struct vlc_plugin_t;
+struct heimdall_plugin_t;
 
-struct vlc_param {
+struct heimdall_param {
     union {
         _Atomic int64_t i; /**< Current value (if integer or boolean) */
         _Atomic float f; /**< Current value (if floating point) */
         char *_Atomic str; /**< Current value (if character string) */
     } value;
 
-    struct vlc_plugin_t *owner;
+    struct heimdall_plugin_t *owner;
     unsigned char shortname; /**< Optional short option name */
     unsigned internal:1; /**< Hidden from preferences and help */
     unsigned unsaved:1; /**< Not stored in persistent configuration */
@@ -48,19 +49,19 @@ struct vlc_param {
  *
  * \return the configuration parameter, or NULL if not found
  */
-struct vlc_param *vlc_param_Find(const char *name);
+struct heimdall_param *heimdall_param_Find(const char *name);
 
-int vlc_param_SetString(struct vlc_param *param, const char *value);
+int heimdall_param_SetString(struct heimdall_param *param, const char *value);
 
-int  config_AutoSaveConfigFile( libvlc_int_t * );
+int  config_AutoSaveConfigFile( libheimdall_int_t * );
 
-void config_Free(struct vlc_param *, size_t);
+void config_Free(struct heimdall_param *, size_t);
 
-void config_CmdLineEarlyScan( libvlc_int_t *, int, const char *[] );
+void config_CmdLineEarlyScan( libheimdall_int_t *, int, const char *[] );
 
-int config_LoadCmdLine   ( libvlc_int_t *, int, const char *[], int * );
-int config_LoadConfigFile( libvlc_int_t * );
-bool config_PrintHelp (libvlc_int_t *);
+int config_LoadCmdLine   ( libheimdall_int_t *, int, const char *[], int * );
+int config_LoadConfigFile( libheimdall_int_t * );
+bool config_PrintHelp (libheimdall_int_t *);
 void config_Lock(void);
 void config_Unlock(void);
 
@@ -77,11 +78,11 @@ bool config_IsSafe (const char *);
  *
  * @return a heap-allocated string (use free() to release it), or NULL on error
  */
-char *config_GetLibDir(void) VLC_USED VLC_MALLOC;
+char *config_GetLibDir(void) HEIMDALL_USED HEIMDALL_MALLOC;
 
 /* The configuration file */
-#define CONFIG_FILE                     "vlcrc"
+#define CONFIG_FILE                     "heimdallrc"
 
-char *platform_GetUserDir( vlc_userdir_t ) VLC_USED VLC_MALLOC;
+char *platform_GetUserDir( heimdall_userdir_t ) HEIMDALL_USED HEIMDALL_MALLOC;
 
 #endif

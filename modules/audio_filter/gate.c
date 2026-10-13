@@ -2,6 +2,7 @@
  * gate.c : noise gate audio filter
  *****************************************************************************
  * Copyright © 2025 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  * 
  * Authors: Paschalis Melissas <melissaspaschalis@gmail.com>
  *
@@ -28,19 +29,19 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_aout.h>
-#include <vlc_aout_volume.h>
-#include <vlc_filter.h>
-#include <vlc_modules.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_aout.h>
+#include <heimdall_aout_volume.h>
+#include <heimdall_filter.h>
+#include <heimdall_modules.h>
+#include <heimdall_plugin.h>
 #include <math.h>
 
 /*****************************************************************************
  * Local prototypes
  *****************************************************************************/
 
-static int      Open        ( vlc_object_t * );
+static int      Open        ( heimdall_object_t * );
 static void     Close       ( filter_t * );
 static block_t  *Process    ( filter_t *, block_t * );
 
@@ -95,7 +96,7 @@ static float set_alpha(int sample_rate, float smoothing_time)
 #define SMOOTHING_TEXT N_("Smoothing time")
 #define SMOOTHING_LONGTEXT N_("Amount of time for the smoothed response in milliseconds")
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname( N_("Noise Gate") )
     set_description( N_("Noise gate audio filter") )
     set_subcategory( SUBCAT_AUDIO_AFILTER )
@@ -110,25 +111,25 @@ vlc_module_begin()
     set_capability( "audio filter", 0 )
     add_shortcut( "gate" )
     set_callback( Open )
-vlc_module_end()
+heimdall_module_end()
 
 /*****************************************************************************
  * Open: initialize filter
  *****************************************************************************/
 
-static int Open(vlc_object_t *p_this)
+static int Open(heimdall_object_t *p_this)
 {
     filter_t *p_filter = (filter_t *)p_this;
     
-    if (p_filter->fmt_in.audio.i_format != VLC_CODEC_FL32) 
+    if (p_filter->fmt_in.audio.i_format != HEIMDALL_CODEC_FL32) 
     {
         msg_Warn( p_filter, "unsupported format" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     filter_sys_t *p_sys = p_filter->p_sys = malloc( sizeof( *p_sys ) );
     if (!p_sys)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     /* Initialize parameters */
     p_sys->channels = p_filter->fmt_in.audio.i_channels;
@@ -137,7 +138,7 @@ static int Open(vlc_object_t *p_this)
     {
         msg_Err(p_filter, "sample rate is zero");
         free(p_sys);
-        return VLC_EINVAL;
+        return HEIMDALL_EINVAL;
     }
     p_sys->thresh = var_InheritFloat(p_filter, "gate-threshold");
     float thresh_lin = db_to_linear(p_sys->thresh); /* Convert parameters to linear scale */
@@ -154,7 +155,7 @@ static int Open(vlc_object_t *p_this)
     {
         msg_Err(p_filter, "Invalid smoothing time (%f), smoothing time must be between 1 and 30 ms",smoothing_time);
         free(p_sys);
-        return VLC_EINVAL;
+        return HEIMDALL_EINVAL;
     }
     p_sys->alpha = set_alpha(sample_rate,smoothing_time);
     p_sys->pow = (float*)calloc( p_sys->channels,sizeof(float));
@@ -165,7 +166,7 @@ static int Open(vlc_object_t *p_this)
         free(p_sys->pow);
         free(p_sys->gain);
         free(p_sys);
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
     for (int i = 0; i < p_sys->channels; i++) 
     {
@@ -175,13 +176,13 @@ static int Open(vlc_object_t *p_this)
         
     p_filter->fmt_out.audio = p_filter->fmt_in.audio;
 
-    static const struct vlc_filter_operations filter_ops = 
+    static const struct heimdall_filter_operations filter_ops = 
     {
         .filter_audio = Process, .close = Close,
     };
     p_filter->ops = &filter_ops;
     
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************

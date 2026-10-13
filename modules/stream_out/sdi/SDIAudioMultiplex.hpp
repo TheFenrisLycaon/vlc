@@ -2,6 +2,7 @@
  * SDIAudioMultiplex.hpp: SDI Audio Multiplexing
  *****************************************************************************
  * Copyright © 2018 VideoLabs, VideoLAN and VideoLAN Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -34,7 +35,7 @@ namespace sdi_sout
                                     public AbstractStreamOutputBuffer
     {
         public:
-            SDIAudioMultiplexBuffer(vlc_object_t *);
+            SDIAudioMultiplexBuffer(heimdall_object_t *);
             virtual ~SDIAudioMultiplexBuffer();
             virtual void FlushQueued(); /* impl */
             virtual void Enqueue(void *); /* impl */
@@ -48,7 +49,7 @@ namespace sdi_sout
     class SDIAudioMultiplexConfig
     {
         public:
-            SDIAudioMultiplexConfig(vlc_object_t *obj, uint8_t channels = 2);
+            SDIAudioMultiplexConfig(heimdall_object_t *obj, uint8_t channels = 2);
             ~SDIAudioMultiplexConfig();
             SDIAudioMultiplexBuffer *getBufferForStream(const StreamID &);
             const es_format_t * getConfigurationForStream(const StreamID &) const;
@@ -72,7 +73,7 @@ namespace sdi_sout
             class Mapping
             {
                 public:
-                    Mapping(vlc_object_t *, const StreamID &);
+                    Mapping(heimdall_object_t *, const StreamID &);
                     ~Mapping();
                     StreamID id;
                     es_format_t fmt;
@@ -86,17 +87,17 @@ namespace sdi_sout
             unsigned subframeslotbitmap;
             uint8_t framewidth;
             bool b_accept_any;
-            vlc_object_t *obj;
+            heimdall_object_t *obj;
     };
 
     class SDIAudioMultiplex
     {
         public:
-            SDIAudioMultiplex(vlc_object_t *, uint8_t channels);
+            SDIAudioMultiplex(heimdall_object_t *, uint8_t channels);
             ~SDIAudioMultiplex();
-            vlc_tick_t bufferStart() const;
-            unsigned availableVirtualSamples(vlc_tick_t) const;
-            unsigned alignedInterleaveInSamples(vlc_tick_t, unsigned) const;
+            heimdall_tick_t bufferStart() const;
+            unsigned availableVirtualSamples(heimdall_tick_t) const;
+            unsigned alignedInterleaveInSamples(heimdall_tick_t, unsigned) const;
             block_t * Extract(unsigned);
             unsigned getFreeSubFrameSlots() const;
             void SetSubFrameSource(uint8_t, AES3AudioBuffer *, AES3AudioSubFrameIndex);
@@ -105,10 +106,10 @@ namespace sdi_sout
 #endif
 
             SDIAudioMultiplexConfig config;
-            vlc_tick_t head;
+            heimdall_tick_t head;
 
         private:
-            vlc_object_t *p_obj;
+            heimdall_object_t *p_obj;
             AES3AudioFrameSource framesources[MAX_AES3_AUDIO_FRAMES];
     };
 }

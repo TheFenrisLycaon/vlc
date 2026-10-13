@@ -2,6 +2,7 @@
  * live.c: HTTP read-only live stream
  *****************************************************************************
  * Copyright (C) 2015 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -24,24 +25,24 @@
 
 #include <stdlib.h>
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 #include "message.h"
 #include "resource.h"
 #include "live.h"
 
 #pragma GCC visibility push(default)
 
-static int vlc_http_live_req(const struct vlc_http_resource *res,
-                             struct vlc_http_msg *req, void *opaque)
+static int heimdall_http_live_req(const struct heimdall_http_resource *res,
+                             struct heimdall_http_msg *req, void *opaque)
 {
-    vlc_http_msg_add_header(req, "Accept-Encoding", "gzip, deflate");
+    heimdall_http_msg_add_header(req, "Accept-Encoding", "gzip, deflate");
     (void) res;
     (void) opaque;
     return 0;
 }
 
-static int vlc_http_live_resp(const struct vlc_http_resource *res,
-                              const struct vlc_http_msg *resp, void *opaque)
+static int heimdall_http_live_resp(const struct heimdall_http_resource *res,
+                              const struct heimdall_http_msg *resp, void *opaque)
 {
     (void) res;
     (void) resp;
@@ -49,21 +50,21 @@ static int vlc_http_live_resp(const struct vlc_http_resource *res,
     return 0;
 }
 
-static const struct vlc_http_resource_cbs vlc_http_live_callbacks =
+static const struct heimdall_http_resource_cbs heimdall_http_live_callbacks =
 {
-    vlc_http_live_req,
-    vlc_http_live_resp,
+    heimdall_http_live_req,
+    heimdall_http_live_resp,
 };
 
-struct vlc_http_resource *vlc_http_live_create(struct vlc_http_mgr *mgr,
+struct heimdall_http_resource *heimdall_http_live_create(struct heimdall_http_mgr *mgr,
                                                const char *uri, const char *ua,
                                                const char *ref)
 {
-    struct vlc_http_resource *res = malloc(sizeof (*res));
+    struct heimdall_http_resource *res = malloc(sizeof (*res));
     if (unlikely(res == NULL))
         return NULL;
 
-    if (vlc_http_res_init(res, &vlc_http_live_callbacks, mgr, uri, ua, ref))
+    if (heimdall_http_res_init(res, &heimdall_http_live_callbacks, mgr, uri, ua, ref))
     {
         free(res);
         res = NULL;
@@ -72,15 +73,15 @@ struct vlc_http_resource *vlc_http_live_create(struct vlc_http_mgr *mgr,
     return res;
 }
 
-block_t *vlc_http_live_read(struct vlc_http_resource *res)
+block_t *heimdall_http_live_read(struct heimdall_http_resource *res)
 {
-    block_t *block = vlc_http_res_read(res);
-    if (block != NULL && block != vlc_http_error)
+    block_t *block = heimdall_http_res_read(res);
+    if (block != NULL && block != heimdall_http_error)
         return block;
 
     /* Automatically try to reconnect */
     /* TODO: Retry-After parsing, loop and pacing timer */
-    vlc_http_msg_destroy(res->response);
+    heimdall_http_msg_destroy(res->response);
     res->response = NULL;
-    return vlc_http_res_read(res);
+    return heimdall_http_res_read(res);
 }

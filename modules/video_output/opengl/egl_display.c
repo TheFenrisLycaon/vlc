@@ -2,6 +2,7 @@
  * egl_display.c
  *****************************************************************************
  * Copyright (C) 2021 Videolabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -23,16 +24,16 @@
 #endif
 
 #include <assert.h>
-#include <vlc_common.h>
-#include <vlc_modules.h>
+#include <heimdall_common.h>
+#include <heimdall_modules.h>
 
 #include "egl_display.h"
 
-struct vlc_egl_display *
-vlc_egl_display_New(vlc_object_t *parent, const char *name)
+struct heimdall_egl_display *
+heimdall_egl_display_New(heimdall_object_t *parent, const char *name)
 {
-    struct vlc_egl_display *display =
-        vlc_object_create(parent, sizeof(*display));
+    struct heimdall_egl_display *display =
+        heimdall_object_create(parent, sizeof(*display));
     if (!display)
         return NULL;
 
@@ -43,12 +44,12 @@ vlc_egl_display_New(vlc_object_t *parent, const char *name)
         name = "any";
 
     module_t **mods;
-    ssize_t total = vlc_module_match("egl display", name, true, &mods, NULL);
+    ssize_t total = heimdall_module_match("egl display", name, true, &mods, NULL);
     for (ssize_t i = 0; i < total; ++i)
     {
-        vlc_egl_display_open_fn *open = vlc_module_map(parent->logger, mods[i]);
+        heimdall_egl_display_open_fn *open = heimdall_module_map(parent->logger, mods[i]);
 
-        if (open && open(display) == VLC_SUCCESS)
+        if (open && open(display) == HEIMDALL_SUCCESS)
         {
             assert(display->display != EGL_NO_DISPLAY);
             free(mods);
@@ -57,15 +58,15 @@ vlc_egl_display_New(vlc_object_t *parent, const char *name)
     }
 
     free(mods);
-    vlc_object_delete(display);
+    heimdall_object_delete(display);
     return NULL;
 }
 
-void vlc_egl_display_Delete(struct vlc_egl_display *display)
+void heimdall_egl_display_Delete(struct heimdall_egl_display *display)
 {
     if (display->ops && display->ops->close) {
         display->ops->close(display);
     }
 
-    vlc_object_delete(display);
+    heimdall_object_delete(display);
 }

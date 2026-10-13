@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,7 +26,7 @@
 #include <QObject>
 #include <QWindow>
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
 #include "qt.hpp"
 
@@ -35,7 +36,7 @@
 #include <xcb/xproto.h>
 #include <xcb/render.h>
 
-namespace vlc {
+namespace heimdall {
 
 class CompositorX11RenderClient : public QObject
 {

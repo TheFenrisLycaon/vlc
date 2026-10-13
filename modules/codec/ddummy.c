@@ -1,7 +1,8 @@
 /*****************************************************************************
- * ddummy.c: dummy decoder plugin for vlc.
+ * ddummy.c: dummy decoder plugin for heimdall.
  *****************************************************************************
  * Copyright (C) 2002 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Samuel Hocevar <sam@zoy.org>
  *
@@ -27,21 +28,21 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
-#include <vlc_fs.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
+#include <heimdall_fs.h>
 
 #define SAVE_TEXT N_("Save raw codec data")
 #define SAVE_LONGTEXT N_( \
     "Save the raw codec data if you have selected/forced the dummy " \
     "decoder in the main options." )
 
-static int OpenDecoder( vlc_object_t * );
-static int OpenDecoderDump( vlc_object_t * );
-static void CloseDecoder( vlc_object_t * );
+static int OpenDecoder( heimdall_object_t * );
+static int OpenDecoderDump( heimdall_object_t * );
+static void CloseDecoder( heimdall_object_t * );
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( N_("Dummy") )
     set_description( N_("Dummy decoder") )
     set_capability( "spu decoder", 0 )
@@ -72,7 +73,7 @@ vlc_module_begin ()
     add_shortcut( "dump")
     set_capability( "audio decoder", 0 )
     set_callbacks( OpenDecoderDump, CloseDecoder )
-vlc_module_end ()
+heimdall_module_end ()
 
 
 /*****************************************************************************
@@ -83,7 +84,7 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block );
 /*****************************************************************************
  * OpenDecoder: Open the decoder
  *****************************************************************************/
-static int OpenDecoderCommon( vlc_object_t *p_this, bool b_force_dump )
+static int OpenDecoderCommon( heimdall_object_t *p_this, bool b_force_dump )
 {
     decoder_t *p_dec = (decoder_t*)p_this;
     char psz_file[10 + 3 * sizeof (p_dec)];
@@ -94,11 +95,11 @@ static int OpenDecoderCommon( vlc_object_t *p_this, bool b_force_dump )
         b_force_dump = var_InheritBool( p_dec, "dummy-save-es" );
     if( b_force_dump )
     {
-        FILE *stream = vlc_fopen( psz_file, "wb" );
+        FILE *stream = heimdall_fopen( psz_file, "wb" );
         if( stream == NULL )
         {
             msg_Err( p_dec, "cannot create `%s'", psz_file );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
         msg_Dbg( p_dec, "dumping stream to file `%s'", psz_file );
         p_dec->p_sys = (void *)stream;
@@ -111,15 +112,15 @@ static int OpenDecoderCommon( vlc_object_t *p_this, bool b_force_dump )
 
     es_format_Copy( &p_dec->fmt_out, p_dec->fmt_in );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int OpenDecoder( vlc_object_t *p_this )
+static int OpenDecoder( heimdall_object_t *p_this )
 {
     return OpenDecoderCommon( p_this, false );
 }
 
-static int  OpenDecoderDump( vlc_object_t *p_this )
+static int  OpenDecoderDump( heimdall_object_t *p_this )
 {
     return OpenDecoderCommon( p_this, true );
 }
@@ -133,7 +134,7 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
 {
     FILE *stream = (void *)p_dec->p_sys;
 
-    if( !p_block ) return VLCDEC_SUCCESS;
+    if( !p_block ) return HEIMDALLDEC_SUCCESS;
 
     if( stream != NULL
      && p_block->i_buffer > 0
@@ -144,13 +145,13 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
     }
     block_Release( p_block );
 
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }
 
 /*****************************************************************************
  * CloseDecoder: decoder destruction
  *****************************************************************************/
-static void CloseDecoder( vlc_object_t *p_this )
+static void CloseDecoder( heimdall_object_t *p_this )
 {
     decoder_t *p_dec = (decoder_t *)p_this;
     FILE *stream = (void *)p_dec->p_sys;

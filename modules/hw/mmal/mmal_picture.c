@@ -2,6 +2,7 @@
  * mmal_picture.c: MMAL picture related shared functionality
  *****************************************************************************
  * Copyright © 2014 jusst technologies GmbH
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Julian Scheel <julian@jusst.de>
  *          John Cox <jc@kynesim.co.uk>
@@ -21,8 +22,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#include <vlc_common.h>
-#include <vlc_picture.h>
+#include <heimdall_common.h>
+#include <heimdall_picture.h>
 
 #include <bcm_host.h>
 #include <interface/mmal/mmal.h>
@@ -57,9 +58,9 @@ static void flush_range(void * const start, const size_t len)
     vcsm_clean_invalid2(b);
 }
 
-MMAL_FOURCC_T vlc_to_mmal_color_space(const video_color_space_t vlc_cs)
+MMAL_FOURCC_T heimdall_to_mmal_color_space(const video_color_space_t heimdall_cs)
 {
-    switch (vlc_cs)
+    switch (heimdall_cs)
     {
         case COLOR_SPACE_BT601:
             return MMAL_COLOR_SPACE_ITUR_BT601;
@@ -71,30 +72,30 @@ MMAL_FOURCC_T vlc_to_mmal_color_space(const video_color_space_t vlc_cs)
     return MMAL_COLOR_SPACE_UNKNOWN;
 }
 
-MMAL_FOURCC_T vlc_to_mmal_video_fourcc(const video_frame_format_t * const vf_vlc)
+MMAL_FOURCC_T heimdall_to_mmal_video_fourcc(const video_frame_format_t * const vf_heimdall)
 {
-    switch (vf_vlc->i_chroma) {
-        case VLC_CODEC_BGRX:
+    switch (vf_heimdall->i_chroma) {
+        case HEIMDALL_CODEC_BGRX:
             return MMAL_ENCODING_BGRA;
-        case VLC_CODEC_RGBX:
+        case HEIMDALL_CODEC_RGBX:
             return MMAL_ENCODING_RGBA;
-        case VLC_CODEC_XBGR:
+        case HEIMDALL_CODEC_XBGR:
             return MMAL_ENCODING_ABGR;
-        case VLC_CODEC_XRGB:
+        case HEIMDALL_CODEC_XRGB:
             return MMAL_ENCODING_ARGB;
-        case VLC_CODEC_RGB565BE:
+        case HEIMDALL_CODEC_RGB565BE:
             return MMAL_ENCODING_RGB16;
-        case VLC_CODEC_I420:
+        case HEIMDALL_CODEC_I420:
             return MMAL_ENCODING_I420;
-        case VLC_CODEC_RGBA:
+        case HEIMDALL_CODEC_RGBA:
             return MMAL_ENCODING_RGBA;
-        case VLC_CODEC_BGRA:
+        case HEIMDALL_CODEC_BGRA:
             return MMAL_ENCODING_BGRA;
-        case VLC_CODEC_ARGB:
+        case HEIMDALL_CODEC_ARGB:
             return MMAL_ENCODING_ARGB;
-        case VLC_CODEC_ABGR:
+        case HEIMDALL_CODEC_ABGR:
             return MMAL_ENCODING_ABGR;
-        case VLC_CODEC_MMAL_OPAQUE:
+        case HEIMDALL_CODEC_MMAL_OPAQUE:
             return MMAL_ENCODING_OPAQUE;
         default:
             break;
@@ -102,41 +103,41 @@ MMAL_FOURCC_T vlc_to_mmal_video_fourcc(const video_frame_format_t * const vf_vlc
     return 0;
 }
 
-static void vlc_fmt_to_video_format(MMAL_VIDEO_FORMAT_T *const vf_mmal, const video_frame_format_t * const vf_vlc)
+static void heimdall_fmt_to_video_format(MMAL_VIDEO_FORMAT_T *const vf_mmal, const video_frame_format_t * const vf_heimdall)
 {
-    const unsigned int wmask = (vf_vlc->i_chroma == VLC_CODEC_I420) ? 31 : 15;
+    const unsigned int wmask = (vf_heimdall->i_chroma == HEIMDALL_CODEC_I420) ? 31 : 15;
 
-    vf_mmal->width          = (vf_vlc->i_width + wmask) & ~wmask;
-    vf_mmal->height         = (vf_vlc->i_height + 15) & ~15;
-    vf_mmal->crop.x         = vf_vlc->i_x_offset;
-    vf_mmal->crop.y         = vf_vlc->i_y_offset;
-    vf_mmal->crop.width     = vf_vlc->i_visible_width;
-    vf_mmal->crop.height    = vf_vlc->i_visible_height;
-    if (vf_vlc->i_sar_num == 0 || vf_vlc->i_sar_den == 0) {
+    vf_mmal->width          = (vf_heimdall->i_width + wmask) & ~wmask;
+    vf_mmal->height         = (vf_heimdall->i_height + 15) & ~15;
+    vf_mmal->crop.x         = vf_heimdall->i_x_offset;
+    vf_mmal->crop.y         = vf_heimdall->i_y_offset;
+    vf_mmal->crop.width     = vf_heimdall->i_visible_width;
+    vf_mmal->crop.height    = vf_heimdall->i_visible_height;
+    if (vf_heimdall->i_sar_num == 0 || vf_heimdall->i_sar_den == 0) {
         vf_mmal->par.num        = 1;
         vf_mmal->par.den        = 1;
     } else {
-        vf_mmal->par.num        = vf_vlc->i_sar_num;
-        vf_mmal->par.den        = vf_vlc->i_sar_den;
+        vf_mmal->par.num        = vf_heimdall->i_sar_num;
+        vf_mmal->par.den        = vf_heimdall->i_sar_den;
     }
-    vf_mmal->frame_rate.num = vf_vlc->i_frame_rate;
-    vf_mmal->frame_rate.den = vf_vlc->i_frame_rate_base;
-    vf_mmal->color_space    = vlc_to_mmal_color_space(vf_vlc->space);
+    vf_mmal->frame_rate.num = vf_heimdall->i_frame_rate;
+    vf_mmal->frame_rate.den = vf_heimdall->i_frame_rate_base;
+    vf_mmal->color_space    = heimdall_to_mmal_color_space(vf_heimdall->space);
 }
 
 
-void hw_mmal_vlc_fmt_to_mmal_fmt(MMAL_ES_FORMAT_T *const es_fmt, const video_frame_format_t * const vf_vlc)
+void hw_mmal_heimdall_fmt_to_mmal_fmt(MMAL_ES_FORMAT_T *const es_fmt, const video_frame_format_t * const vf_heimdall)
 {
-    vlc_fmt_to_video_format(&es_fmt->es->video, vf_vlc);
+    heimdall_fmt_to_video_format(&es_fmt->es->video, vf_heimdall);
 }
 
-bool hw_mmal_vlc_pic_to_mmal_fmt_update(MMAL_ES_FORMAT_T *const es_fmt, const picture_t * const pic)
+bool hw_mmal_heimdall_pic_to_mmal_fmt_update(MMAL_ES_FORMAT_T *const es_fmt, const picture_t * const pic)
 {
     MMAL_VIDEO_FORMAT_T vf_new_ss;
     MMAL_VIDEO_FORMAT_T *const vf_old = &es_fmt->es->video;
     MMAL_VIDEO_FORMAT_T *const vf_new = &vf_new_ss;
 
-    vlc_fmt_to_video_format(vf_new, &pic->format);
+    heimdall_fmt_to_video_format(vf_new, &pic->format);
 
     if (
         vf_new->width          != vf_old->width          ||
@@ -244,7 +245,7 @@ MMAL_STATUS_T hw_mmal_port_pool_ref_fill(hw_mmal_port_pool_ref_t * const ppr)
 }
 
 
-MMAL_STATUS_T hw_mmal_opaque_output(vlc_object_t * const obj,
+MMAL_STATUS_T hw_mmal_opaque_output(heimdall_object_t * const obj,
                                     hw_mmal_port_pool_ref_t ** pppr,
                                     MMAL_PORT_T * const port,
                                     const unsigned int extra_buffers, MMAL_PORT_BH_CB_T callback)
@@ -467,7 +468,7 @@ int hw_mmal_copy_pic_to_buf(void * const buf_data,
     assert(fmt->encoding == MMAL_ENCODING_I420);
 
     switch (pic->format.i_chroma) {
-        case VLC_CODEC_I420:
+        case HEIMDALL_CODEC_I420:
         {
             // TODO replace by plane_CopyPixels() or a fake picture_CopyPixels
             // or use copy.c Copy420_P_to_P
@@ -492,7 +493,7 @@ int hw_mmal_copy_pic_to_buf(void * const buf_data,
             break;
         }
 
-        case VLC_CODEC_I420_10L:
+        case HEIMDALL_CODEC_I420_10L:
         {
             const size_t y_size = video->width * video->height;
             mem_copy_2d_10_to_8(dest, video->width,
@@ -518,7 +519,7 @@ int hw_mmal_copy_pic_to_buf(void * const buf_data,
         default:
             if (pLength != NULL)
                 *pLength = 0;
-            return VLC_EINVAL;
+            return HEIMDALL_EINVAL;
     }
 
     if (!is_cma) {  // ** CMA is currently always uncached
@@ -528,14 +529,14 @@ int hw_mmal_copy_pic_to_buf(void * const buf_data,
     if (pLength != NULL)
         *pLength = (uint32_t)length;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 
 static MMAL_BOOL_T rep_buf_free_cb(MMAL_BUFFER_HEADER_T *header, void *userdata)
 {
     cma_buf_t * const cb = userdata;
-    VLC_UNUSED(header);
+    HEIMDALL_UNUSED(header);
 
     cma_buf_unref(cb);
     return MMAL_FALSE;
@@ -563,7 +564,7 @@ static void pic_to_buf_copy_props(MMAL_BUFFER_HEADER_T * const buf, const pictur
         buf->flags &= ~MMAL_BUFFER_HEADER_VIDEO_FLAG_TOP_FIELD_FIRST;
         buf->type->video.flags &= ~MMAL_BUFFER_HEADER_VIDEO_FLAG_TOP_FIELD_FIRST;
     }
-    buf->pts = pic->date != VLC_TICK_INVALID ? pic->date : MMAL_TIME_UNKNOWN;
+    buf->pts = pic->date != HEIMDALL_TICK_INVALID ? pic->date : MMAL_TIME_UNKNOWN;
     buf->dts = buf->pts;
 }
 
@@ -572,7 +573,7 @@ static int cma_buf_buf_attach(MMAL_BUFFER_HEADER_T * const buf, cma_buf_t * cons
     // Just a CMA buffer - fill in new buffer
     const uintptr_t vc_h = cma_buf_vc_handle(cb);
     if (vc_h == 0)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     mmal_buffer_header_reset(buf);
     buf->data       = (uint8_t *)vc_h;
@@ -580,7 +581,7 @@ static int cma_buf_buf_attach(MMAL_BUFFER_HEADER_T * const buf, cma_buf_t * cons
     buf->length     = buf->alloc_size;
     // Ensure cb remains valid for the duration of this buffer
     mmal_buffer_header_pre_release_cb_set(buf, rep_buf_free_cb, cma_buf_ref(cb));
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 MMAL_BUFFER_HEADER_T * hw_mmal_pic_buf_copied(const picture_t *const pic,
@@ -597,12 +598,12 @@ MMAL_BUFFER_HEADER_T * hw_mmal_pic_buf_copied(const picture_t *const pic,
     if (cb == NULL)
         goto fail1;
 
-    if (cma_buf_buf_attach(buf, cb) != VLC_SUCCESS)
+    if (cma_buf_buf_attach(buf, cb) != HEIMDALL_SUCCESS)
         goto fail2;
 
     pic_to_buf_copy_props(buf, pic);
 
-    if (hw_mmal_copy_pic_to_buf(cma_buf_addr(cb), &buf->length, port->format, pic, is_cma) != VLC_SUCCESS)
+    if (hw_mmal_copy_pic_to_buf(cma_buf_addr(cb), &buf->length, port->format, pic, is_cma) != HEIMDALL_SUCCESS)
         goto fail2;
     buf->flags = MMAL_BUFFER_HEADER_FLAG_FRAME_END;
 
@@ -750,7 +751,7 @@ struct vzc_pool_ctl_s
     unsigned int max_n;
     unsigned int seq;
 
-    vlc_mutex_t lock;
+    heimdall_mutex_t lock;
 
     MMAL_POOL_T * buf_pool;
 
@@ -867,7 +868,7 @@ static pool_ent_t * pool_ent_alloc_new(size_t req_size)
     ent->next = ent->prev = NULL;
 
     // Alloc from vcsm
-    if ((ent->vcsm_hdl = vcsm_malloc_cache(alloc_size, VCSM_CACHE_TYPE_HOST, (char *)"vlc-subpic")) == -1)
+    if ((ent->vcsm_hdl = vcsm_malloc_cache(alloc_size, VCSM_CACHE_TYPE_HOST, (char *)"heimdall-subpic")) == -1)
         goto fail1;
     if ((ent->vc_hdl = vcsm_vc_hdl_from_hdl(ent->vcsm_hdl)) == 0)
         goto fail2;
@@ -909,7 +910,7 @@ static void pool_recycle(vzc_pool_ctl_t * const pc, pool_ent_t * const ent)
         ent->pic = NULL;
     }
 
-    vlc_mutex_lock(&pc->lock);
+    heimdall_mutex_lock(&pc->lock);
 
     // If we have a full pool then extract the LRU and free it
     // Free done outside mutex
@@ -918,7 +919,7 @@ static void pool_recycle(vzc_pool_ctl_t * const pc, pool_ent_t * const ent)
 
     ent_add_head(&pc->ent_pool, ent);
 
-    vlc_mutex_unlock(&pc->lock);
+    heimdall_mutex_unlock(&pc->lock);
 
     ent_free(xs);
 }
@@ -936,7 +937,7 @@ static pool_ent_t * pool_best_fit(vzc_pool_ctl_t * const pc, size_t req_size)
 {
     pool_ent_t * best = NULL;
 
-    vlc_mutex_lock(&pc->lock);
+    heimdall_mutex_lock(&pc->lock);
 
     {
         pool_ent_t * ent = pc->ent_pool.ents;
@@ -953,7 +954,7 @@ static pool_ent_t * pool_best_fit(vzc_pool_ctl_t * const pc, size_t req_size)
         ent_extract(&pc->ent_pool, best);
     }
 
-    vlc_mutex_unlock(&pc->lock);
+    heimdall_mutex_unlock(&pc->lock);
 
     if (best == NULL)
         best = pool_ent_alloc_new(req_size);
@@ -1064,7 +1065,7 @@ MMAL_BUFFER_HEADER_T * hw_mmal_vzc_buf_from_pic(vzc_pool_ctl_t * const pc,
         // ?? Round start offset as well as length
         const video_format_t *const fmt = &pic->format;
 
-        const unsigned int bpp = (vlc_fourcc_GetChromaBPP(fmt->i_chroma) + 7) >> 3;
+        const unsigned int bpp = (heimdall_fourcc_GetChromaBPP(fmt->i_chroma) + 7) >> 3;
         const unsigned int xl = (fmt->i_x_offset & ~15);
         const unsigned int xr = (fmt->i_x_offset + fmt->i_visible_width + 15) & ~15;
         const size_t dst_stride = (xr - xl) * bpp;
@@ -1086,7 +1087,7 @@ MMAL_BUFFER_HEADER_T * hw_mmal_vzc_buf_from_pic(vzc_pool_ctl_t * const pc,
 
             if ((ent = pool_best_fit(pc, dst_size)) == NULL)
                 goto fail2;
-            if ((ent->enc_type = vlc_to_mmal_video_fourcc(&pic->format)) == 0)
+            if ((ent->enc_type = heimdall_to_mmal_video_fourcc(&pic->format)) == 0)
                 goto fail2;
 
             ent->pic = picture_Hold(pic);
@@ -1105,7 +1106,7 @@ MMAL_BUFFER_HEADER_T * hw_mmal_vzc_buf_from_pic(vzc_pool_ctl_t * const pc,
         buf->alloc_size = buf->length = dst_size;
         buf->offset = 0;
         buf->flags = MMAL_BUFFER_HEADER_FLAG_FRAME_END;
-        buf->pts = buf->dts = pic->date != VLC_TICK_INVALID ? pic->date : MMAL_TIME_UNKNOWN;
+        buf->pts = buf->dts = pic->date != HEIMDALL_TICK_INVALID ? pic->date : MMAL_TIME_UNKNOWN;
         buf->type->video = (MMAL_BUFFER_HEADER_VIDEO_SPECIFIC_T){
             .planes = 1,
             .pitch = { dst_stride }
@@ -1214,7 +1215,7 @@ static MMAL_BOOL_T vcz_pool_release_cb(MMAL_POOL_T * buf_pool, MMAL_BUFFER_HEADE
     vzc_pool_ctl_t * const pc = userdata;
     vzc_subbuf_ent_t * const sb = buf->user_data;
 
-    VLC_UNUSED(buf_pool);
+    HEIMDALL_UNUSED(buf_pool);
 
     if (sb != NULL) {
         buf->user_data = NULL;
@@ -1236,7 +1237,7 @@ vzc_pool_ctl_t * hw_mmal_vzc_pool_new(bool is_cma)
     pc->is_cma = is_cma;
 
     pc->max_n = 8;
-    vlc_mutex_init(&pc->lock);  // Must init before potential destruction
+    heimdall_mutex_init(&pc->lock);  // Must init before potential destruction
 
     if ((pc->buf_pool = mmal_pool_create(64, 0)) == NULL)
     {

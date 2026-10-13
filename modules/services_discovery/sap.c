@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 2004-2005 the VideoLAN team
  * Copyright © 2007 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Clément Stenac <zorglub@videolan.org>
  *          Rémi Denis-Courmont
@@ -29,19 +30,19 @@
 # include "config.h"
 #endif
 
-#define VLC_MODULE_LICENSE VLC_LICENSE_GPL_2_PLUS
-#include <vlc_common.h>
-#include <vlc_arrays.h>
-#include <vlc_threads.h>
-#include <vlc_poll.h>
-#include <vlc_plugin.h>
+#define HEIMDALL_MODULE_LICENSE HEIMDALL_LICENSE_GPL_2_PLUS
+#include <heimdall_common.h>
+#include <heimdall_arrays.h>
+#include <heimdall_threads.h>
+#include <heimdall_poll.h>
+#include <heimdall_plugin.h>
 #include <assert.h>
 
-#include <vlc_demux.h>
-#include <vlc_services_discovery.h>
+#include <heimdall_demux.h>
+#include <heimdall_services_discovery.h>
 
-#include <vlc_network.h>
-#include <vlc_charset.h>
+#include <heimdall_network.h>
+#include <heimdall_charset.h>
 
 #include <errno.h>
 #include <unistd.h>
@@ -86,7 +87,7 @@
 
 typedef struct
 {
-    vlc_thread_t thread;
+    heimdall_thread_t thread;
 
     /* Socket descriptors */
     int i_fd;
@@ -96,7 +97,7 @@ typedef struct
     int i_announces;
     struct sap_announce_t **pp_announces;
 
-    vlc_tick_t i_timeout;
+    heimdall_tick_t i_timeout;
 
     void *root_cat;
 } services_discovery_sys_t;
@@ -194,7 +195,7 @@ static input_item_t *AddCategory (services_discovery_t *sd, const char *name)
         return c->item;
     }
 
-    c->item = input_item_NewExt("vlc://nop", c->name,
+    c->item = input_item_NewExt("heimdall://nop", c->name,
                                 INPUT_DURATION_INDEFINITE,
                                 ITEM_TYPE_NODE, ITEM_LOCAL);
 
@@ -211,8 +212,8 @@ static input_item_t *AddCategory (services_discovery_t *sd, const char *name)
 
 typedef struct sap_announce_t
 {
-    vlc_tick_t i_last;
-    vlc_tick_t i_period;
+    heimdall_tick_t i_last;
+    heimdall_tick_t i_period;
     uint8_t i_period_trust;
 
     uint16_t    i_hash;
@@ -226,7 +227,7 @@ static sap_announce_t *CreateAnnounce(services_discovery_t *p_sd,
                                       uint16_t i_hash, const char *psz_sdp)
 {
     /* Parse SDP info */
-    struct vlc_sdp *p_sdp = vlc_sdp_parse(psz_sdp, strlen(psz_sdp));
+    struct heimdall_sdp *p_sdp = heimdall_sdp_parse(psz_sdp, strlen(psz_sdp));
     if (p_sdp == NULL)
         return NULL;
 
@@ -242,7 +243,7 @@ static sap_announce_t *CreateAnnounce(services_discovery_t *p_sd,
     input_item_t *p_input;
     const char *psz_value;
 
-    p_sap->i_last = vlc_tick_now();
+    p_sap->i_last = heimdall_tick_now();
     p_sap->i_period = 0;
     p_sap->i_period_trust = 0;
     p_sap->i_hash = i_hash;
@@ -257,16 +258,16 @@ static sap_announce_t *CreateAnnounce(services_discovery_t *p_sd,
 
     p_sap->p_item = p_input;
 
-    input_item_SetMeta(p_input, vlc_meta_Description, p_sdp->info);
+    input_item_SetMeta(p_input, heimdall_meta_Description, p_sdp->info);
 
-    psz_value = vlc_sdp_attr_value(p_sdp, "tool");
+    psz_value = heimdall_sdp_attr_value(p_sdp, "tool");
     if( psz_value != NULL )
     {
         input_item_AddInfo( p_input, _("Session"), _("Tool"), "%s", psz_value );
     }
 
     /* Handle category */
-    psz_value = vlc_sdp_attr_value(p_sdp, "cat");
+    psz_value = heimdall_sdp_attr_value(p_sdp, "cat");
     char *str = NULL;
     if (psz_value != NULL)
     {
@@ -282,18 +283,18 @@ static sap_announce_t *CreateAnnounce(services_discovery_t *p_sd,
     }
     else
     {
-        /* backward compatibility with VLC 0.7.3-2.0.0 senders */
-        psz_value = vlc_sdp_attr_value(p_sdp, "x-plgroup");
+        /* backward compatibility with Heimdall 0.7.3-2.0.0 senders */
+        psz_value = heimdall_sdp_attr_value(p_sdp, "x-plgroup");
     }
     input_item_t *cat = psz_value == NULL ? NULL : AddCategory(p_sd, psz_value);
     free(str);
     services_discovery_AddSubItem(p_sd, cat, p_input);
 
-    vlc_sdp_free(p_sdp);
+    heimdall_sdp_free(p_sdp);
     return p_sap;
 error:
     free(p_sap);
-    vlc_sdp_free(p_sdp);
+    heimdall_sdp_free(p_sdp);
     return NULL;
 }
 
@@ -311,20 +312,20 @@ static int RemoveAnnounce( services_discovery_t *p_sd,
     TAB_REMOVE(p_sys->i_announces, p_sys->pp_announces, p_announce);
     free( p_announce );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int InitSocket( services_discovery_t *p_sd, const char *psz_address,
                        int i_port )
 {
-    int i_fd = net_ListenUDP1 (VLC_OBJECT(p_sd), psz_address, i_port);
+    int i_fd = net_ListenUDP1 (HEIMDALL_OBJECT(p_sd), psz_address, i_port);
     if (i_fd == -1)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     shutdown( i_fd, SHUT_WR );
     services_discovery_sys_t *p_sys = p_sd->p_sys;
     TAB_APPEND(p_sys->i_fd, p_sys->pi_fd, i_fd);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /* i_read is at least > 6 */
@@ -339,14 +340,14 @@ static int ParseSAP( services_discovery_t *p_sd, const uint8_t *buf,
     assert (buf[len] == '\0');
 
     if (len < 4)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     uint8_t flags = buf[0];
     uint8_t auth_len = buf[1];
 
     /* First, check the sap announce is correct */
     if ((flags >> 5) != 1)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     bool b_ipv6 = (flags & 0x10) != 0;
     bool b_need_delete = (flags & 0x04) != 0;
@@ -354,7 +355,7 @@ static int ParseSAP( services_discovery_t *p_sd, const uint8_t *buf,
     if (flags & 0x02)
     {
         msg_Dbg( p_sd, "encrypted packet, unsupported" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     bool b_compressed = (flags & 0x01) != 0;
@@ -362,7 +363,7 @@ static int ParseSAP( services_discovery_t *p_sd, const uint8_t *buf,
     uint16_t i_hash = U16_AT (buf + 2);
 
     if( i_hash == 0 )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     buf += 4;
     if( b_ipv6 )
@@ -379,7 +380,7 @@ static int ParseSAP( services_discovery_t *p_sd, const uint8_t *buf,
     // Skips auth data
     buf += auth_len;
     if (buf > end)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     uint8_t *decomp = NULL;
     if( b_compressed )
@@ -388,7 +389,7 @@ static int ParseSAP( services_discovery_t *p_sd, const uint8_t *buf,
         if (newsize < 0)
         {
             msg_Dbg( p_sd, "decompression of SAP packet failed" );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         decomp = xrealloc (decomp, newsize + 1);
@@ -449,12 +450,12 @@ static int ParseSAP( services_discovery_t *p_sd, const uint8_t *buf,
                     p_announce->i_period_trust++;
 
                 /* Compute the average period */
-                vlc_tick_t now = vlc_tick_now();
+                heimdall_tick_t now = heimdall_tick_now();
                 p_announce->i_period = ( p_announce->i_period * (p_announce->i_period_trust-1) + (now - p_announce->i_last) ) / p_announce->i_period_trust;
                 p_announce->i_last = now;
             }
             free (decomp);
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
     }
 
@@ -463,10 +464,10 @@ static int ParseSAP( services_discovery_t *p_sd, const uint8_t *buf,
         TAB_APPEND(p_sys->i_announces, p_sys->pp_announces, sap);
 
     free (decomp);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 error:
     free (decomp);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /*****************************************************************************
@@ -478,13 +479,13 @@ error:
 
 static void *Run( void *data )
 {
-    vlc_thread_set_name("vlc-sap");
+    heimdall_thread_set_name("heimdall-sap");
 
     services_discovery_t *p_sd = data;
     services_discovery_sys_t *p_sys = p_sd->p_sys;
     char *psz_addr;
     int timeout = -1;
-    int canc = vlc_savecancel ();
+    int canc = heimdall_savecancel ();
 
     /* Braindead Winsock DNS resolver will get stuck over 2 seconds per failed
      * DNS queries, even if the DNS server returns an error with milliseconds.
@@ -557,7 +558,7 @@ static void *Run( void *data )
     /* read SAP packets */
     for (;;)
     {
-        vlc_restorecancel (canc);
+        heimdall_restorecancel (canc);
         unsigned n = p_sys->i_fd;
         struct pollfd ufd[n];
 
@@ -569,7 +570,7 @@ static void *Run( void *data )
         }
 
         int val = poll (ufd, n, timeout);
-        canc = vlc_savecancel ();
+        canc = heimdall_savecancel ();
         if (val > 0)
         {
             for (unsigned i = 0; i < n; i++)
@@ -582,7 +583,7 @@ static void *Run( void *data )
                     i_read = recv (ufd[i].fd, p_buffer, MAX_SAP_BUFFER, 0);
                     if (i_read < 0)
                         msg_Warn (p_sd, "receive error: %s",
-                                  vlc_strerror_c(errno));
+                                  heimdall_strerror_c(errno));
                     if (i_read > 6)
                     {
                         /* Parse the packet */
@@ -593,7 +594,7 @@ static void *Run( void *data )
             }
         }
 
-        vlc_tick_t now = vlc_tick_now();
+        heimdall_tick_t now = heimdall_tick_now();
 
         /* A 1 hour timeout correspond to the RFC Implicit timeout.
          * This timeout is tuned in the following loop. */
@@ -603,7 +604,7 @@ static void *Run( void *data )
         for( int i = 0; i < p_sys->i_announces; i++ )
         {
             sap_announce_t * p_announce = p_sys->pp_announces[i];
-            vlc_tick_t i_last_period = now - p_announce->i_last;
+            heimdall_tick_t i_last_period = now - p_announce->i_last;
 
             /* Remove the announcement, if the last announcement was 1 hour ago
              * or if the last packet emitted was 10 times the average time
@@ -617,8 +618,8 @@ static void *Run( void *data )
             {
                 /* Compute next timeout */
                 if( p_announce->i_period_trust > 5 )
-                    timeout = __MIN(MS_FROM_VLC_TICK(10 * p_announce->i_period - i_last_period), timeout);
-                timeout = __MIN(MS_FROM_VLC_TICK(p_sys->i_timeout - i_last_period), timeout);
+                    timeout = __MIN(MS_FROM_HEIMDALL_TICK(10 * p_announce->i_period - i_last_period), timeout);
+                timeout = __MIN(MS_FROM_HEIMDALL_TICK(p_sys->i_timeout - i_last_period), timeout);
             }
         }
 
@@ -627,21 +628,21 @@ static void *Run( void *data )
         else if( timeout < 200 )
             timeout = 200; /* Don't wakeup too fast. */
     }
-    vlc_assert_unreachable ();
+    heimdall_assert_unreachable ();
 }
 
 /*****************************************************************************
  * Open: initialize and create stuff
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     services_discovery_t *p_sd = ( services_discovery_t* )p_this;
     services_discovery_sys_t *p_sys  = (services_discovery_sys_t *)
                                 malloc( sizeof( services_discovery_sys_t ) );
     if( !p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    p_sys->i_timeout = vlc_tick_from_sec(var_CreateGetInteger( p_sd, "sap-timeout" ));
+    p_sys->i_timeout = heimdall_tick_from_sec(var_CreateGetInteger( p_sd, "sap-timeout" ));
 
     p_sd->p_sys  = p_sys;
     p_sd->description = _("Network streams (SAP)");
@@ -653,26 +654,26 @@ static int Open( vlc_object_t *p_this )
     p_sys->pp_announces = NULL;
     p_sys->root_cat = NULL;
     /* TODO: create sockets here, and fix racy sockets table */
-    if (vlc_clone (&p_sys->thread, Run, p_sd))
+    if (heimdall_clone (&p_sys->thread, Run, p_sd))
     {
         free (p_sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * Close:
  *****************************************************************************/
-static void Close( vlc_object_t *p_this )
+static void Close( heimdall_object_t *p_this )
 {
     services_discovery_t *p_sd = ( services_discovery_t* )p_this;
     services_discovery_sys_t    *p_sys  = p_sd->p_sys;
     int i;
 
-    vlc_cancel (p_sys->thread);
-    vlc_join (p_sys->thread, NULL);
+    heimdall_cancel (p_sys->thread);
+    heimdall_join (p_sys->thread, NULL);
 
     for( i = p_sys->i_fd-1 ; i >= 0 ; i-- )
     {
@@ -707,9 +708,9 @@ static void Close( vlc_object_t *p_this )
        "Otherwise, all announcements are parsed by the \"live555\" " \
        "(RTP/RTSP) module." )
 
-VLC_SD_PROBE_HELPER("sap", N_("Network streams (SAP)"), SD_CAT_LAN)
+HEIMDALL_SD_PROBE_HELPER("sap", N_("Network streams (SAP)"), SD_CAT_LAN)
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname(N_("SAP"))
     set_description(N_("Network streams (SAP)") )
     set_subcategory(SUBCAT_PLAYLIST_SD)
@@ -723,5 +724,5 @@ vlc_module_begin()
     set_capability("services_discovery", 0)
     set_callbacks(Open, Close)
 
-    VLC_SD_PROBE_SUBMODULE
-vlc_module_end()
+    HEIMDALL_SD_PROBE_SUBMODULE
+heimdall_module_end()

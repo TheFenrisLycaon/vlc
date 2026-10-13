@@ -2,6 +2,7 @@
  * FakeESOutID.cpp
  *****************************************************************************
  * Copyright © 2015 VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -110,10 +111,10 @@ bool FakeESOutID::isCompatible( const FakeESOutID *p_other ) const
 
     switch(fmt.i_codec)
     {
-        case VLC_CODEC_H264:
-        case VLC_CODEC_HEVC:
-        case VLC_CODEC_VC1:
-        case VLC_CODEC_AV1:
+        case HEIMDALL_CODEC_H264:
+        case HEIMDALL_CODEC_HEVC:
+        case HEIMDALL_CODEC_VC1:
+        case HEIMDALL_CODEC_AV1:
         {
             if(fmt.i_extra && p_other->fmt.i_extra &&
                fmt.i_extra == p_other->fmt.i_extra)

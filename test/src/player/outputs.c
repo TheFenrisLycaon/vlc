@@ -3,6 +3,7 @@
  * outputs.c: audio/video outputs player test
  *****************************************************************************
  * Copyright (C) 2018-2025 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *****************************************************************************/
 
 #include "common.h"
@@ -11,19 +12,19 @@ static void
 test_no_outputs(struct ctx *ctx)
 {
     test_log("test_no_outputs\n");
-    vlc_player_t *player = ctx->player;
+    heimdall_player_t *player = ctx->player;
 
-    struct media_params params = DEFAULT_MEDIA_PARAMS(VLC_TICK_FROM_MS(10));
+    struct media_params params = DEFAULT_MEDIA_PARAMS(HEIMDALL_TICK_FROM_MS(10));
     player_set_current_mock_media(ctx, "media1", &params, false);
     player_start(ctx);
 
-    wait_state(ctx, VLC_PLAYER_STATE_STOPPING);
+    wait_state(ctx, HEIMDALL_PLAYER_STATE_STOPPING);
     {
         vec_on_vout_changed *vec = &ctx->report.on_vout_changed;
         assert(vec->size == 0);
     }
 
-    audio_output_t *aout = vlc_player_aout_Hold(player);
+    audio_output_t *aout = heimdall_player_aout_Hold(player);
     assert(!aout);
 
     test_end(ctx);
@@ -33,42 +34,42 @@ static void
 test_outputs(struct ctx *ctx)
 {
     test_log("test_outputs\n");
-    vlc_player_t *player = ctx->player;
+    heimdall_player_t *player = ctx->player;
 
     /* Test that the player has a valid aout and vout, even before first
      * playback */
-    audio_output_t *aout = vlc_player_aout_Hold(player);
+    audio_output_t *aout = heimdall_player_aout_Hold(player);
     assert(aout);
 
-    vout_thread_t *vout = vlc_player_vout_Hold(player);
+    vout_thread_t *vout = heimdall_player_vout_Hold(player);
     assert(vout);
 
     size_t vout_count;
-    vout_thread_t **vout_list = vlc_player_vout_HoldAll(player, &vout_count);
+    vout_thread_t **vout_list = heimdall_player_vout_HoldAll(player, &vout_count);
     assert(vout_count == 1 && vout_list[0] == vout);
     vout_Release(vout_list[0]);
     free(vout_list);
     vout_Release(vout);
 
     /* Test that the player keep the same aout and vout during playback */
-    struct media_params params = DEFAULT_MEDIA_PARAMS(VLC_TICK_FROM_MS(10));
+    struct media_params params = DEFAULT_MEDIA_PARAMS(HEIMDALL_TICK_FROM_MS(10));
 
     player_set_current_mock_media(ctx, "media1", &params, false);
     player_start(ctx);
 
-    wait_state(ctx, VLC_PLAYER_STATE_STOPPING);
+    wait_state(ctx, HEIMDALL_PLAYER_STATE_STOPPING);
 
     {
         vec_on_vout_changed *vec = &ctx->report.on_vout_changed;
         assert(vec->size >= 1);
-        assert(vec->data[0].action == VLC_PLAYER_VOUT_STARTED);
+        assert(vec->data[0].action == HEIMDALL_PLAYER_VOUT_STARTED);
 
-        vout_thread_t *same_vout = vlc_player_vout_Hold(player);
+        vout_thread_t *same_vout = heimdall_player_vout_Hold(player);
         assert(vec->data[0].vout == same_vout);
         vout_Release(same_vout);
     }
 
-    audio_output_t *same_aout = vlc_player_aout_Hold(player);
+    audio_output_t *same_aout = heimdall_player_aout_Hold(player);
     assert(same_aout == aout);
     aout_Release(same_aout);
 

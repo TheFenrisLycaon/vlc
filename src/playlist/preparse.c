@@ -2,6 +2,7 @@
  * playlist/preparse.c
  *****************************************************************************
  * Copyright (C) 2018 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -29,97 +30,97 @@
 #include "playlist.h"
 #include "notify.h"
 
-typedef struct VLC_VECTOR(input_item_t *) media_vector_t;
+typedef struct HEIMDALL_VECTOR(input_item_t *) media_vector_t;
 
 static void
-vlc_playlist_CollectChildren(vlc_playlist_t *playlist,
+heimdall_playlist_CollectChildren(heimdall_playlist_t *playlist,
                              media_vector_t *dest,
                              const input_item_node_t *node)
 {
-    vlc_playlist_AssertLocked(playlist);
+    heimdall_playlist_AssertLocked(playlist);
     for (int i = 0; i < node->i_children; ++i)
     {
         input_item_node_t *child = node->pp_children[i];
         input_item_t *media = child->p_item;
-        vlc_vector_push(dest, media);
-        vlc_playlist_CollectChildren(playlist, dest, child);
+        heimdall_vector_push(dest, media);
+        heimdall_playlist_CollectChildren(playlist, dest, child);
     }
 }
 
 int
-vlc_playlist_ExpandItem(vlc_playlist_t *playlist, size_t index,
+heimdall_playlist_ExpandItem(heimdall_playlist_t *playlist, size_t index,
                         const input_item_node_t *node)
 {
-    vlc_playlist_AssertLocked(playlist);
+    heimdall_playlist_AssertLocked(playlist);
 
-    media_vector_t flatten = VLC_VECTOR_INITIALIZER;
-    vlc_playlist_CollectChildren(playlist, &flatten, node);
+    media_vector_t flatten = HEIMDALL_VECTOR_INITIALIZER;
+    heimdall_playlist_CollectChildren(playlist, &flatten, node);
 
-    int ret = vlc_playlist_Expand(playlist, index, flatten.data, flatten.size);
-    vlc_vector_destroy(&flatten);
+    int ret = heimdall_playlist_Expand(playlist, index, flatten.data, flatten.size);
+    heimdall_vector_destroy(&flatten);
 
     return ret;
 }
 
 int
-vlc_playlist_ExpandItemFromNode(vlc_playlist_t *playlist,
+heimdall_playlist_ExpandItemFromNode(heimdall_playlist_t *playlist,
                                 const input_item_node_t *subitems)
 {
-    vlc_playlist_AssertLocked(playlist);
+    heimdall_playlist_AssertLocked(playlist);
     input_item_t *media = subitems->p_item;
-    ssize_t index = vlc_playlist_IndexOfMedia(playlist, media);
+    ssize_t index = heimdall_playlist_IndexOfMedia(playlist, media);
     if (index == -1)
-        return VLC_ENOENT;
+        return HEIMDALL_ENOENT;
 
     /* replace the item by its flatten subtree */
-    return vlc_playlist_ExpandItem(playlist, index, subitems);
+    return heimdall_playlist_ExpandItem(playlist, index, subitems);
 }
 
 static void
-on_subtree_added(vlc_preparser_req *req, input_item_node_t *subtree,
+on_subtree_added(heimdall_preparser_req *req, input_item_node_t *subtree,
                  void *userdata)
 {
-    VLC_UNUSED(req); /* retrieved by subtree->p_item */
-    vlc_playlist_t *playlist = userdata;
+    HEIMDALL_UNUSED(req); /* retrieved by subtree->p_item */
+    heimdall_playlist_t *playlist = userdata;
 
-    vlc_playlist_Lock(playlist);
-    vlc_playlist_ExpandItemFromNode(playlist, subtree);
-    vlc_playlist_Unlock(playlist);
+    heimdall_playlist_Lock(playlist);
+    heimdall_playlist_ExpandItemFromNode(playlist, subtree);
+    heimdall_playlist_Unlock(playlist);
     input_item_node_Delete(subtree);
 }
 
 static void
-on_preparse_ended(vlc_preparser_req *req, int status, void *userdata)
+on_preparse_ended(heimdall_preparser_req *req, int status, void *userdata)
 {
     /* This function may be called synchronously on the calling thread if it was
        cancelled when the request had not started yet. The playlist cancels with
        the playlist lock held, so nothing here may take that lock before the status
        has been checked. */
-    if (status != VLC_SUCCESS)
+    if (status != HEIMDALL_SUCCESS)
         return;
 
-    input_item_t *media = vlc_preparser_req_GetItem(req);
-    vlc_playlist_t *playlist = userdata;
+    input_item_t *media = heimdall_preparser_req_GetItem(req);
+    heimdall_playlist_t *playlist = userdata;
 
-    vlc_playlist_Lock(playlist);
-    ssize_t index = vlc_playlist_IndexOfMedia(playlist, media);
+    heimdall_playlist_Lock(playlist);
+    ssize_t index = heimdall_playlist_IndexOfMedia(playlist, media);
     if (index != -1)
-        vlc_playlist_Notify(playlist, on_items_updated, index,
+        heimdall_playlist_Notify(playlist, on_items_updated, index,
                             &playlist->items.data[index], 1);
-    vlc_playlist_Unlock(playlist);
+    heimdall_playlist_Unlock(playlist);
 }
 
-static const struct vlc_preparser_cbs preparser_callbacks = {
+static const struct heimdall_preparser_cbs preparser_callbacks = {
     .on_ended = on_preparse_ended,
     .on_subtree_added = on_subtree_added,
 };
 
 void
-vlc_playlist_AutoPreparse(vlc_playlist_t *playlist, vlc_playlist_item_t *item,
+heimdall_playlist_AutoPreparse(heimdall_playlist_t *playlist, heimdall_playlist_item_t *item,
                           bool parse_subitems)
 {
 #ifdef TEST_PLAYLIST
-    VLC_UNUSED(preparser_callbacks);
+    HEIMDALL_UNUSED(preparser_callbacks);
 #endif
 
     input_item_t *input = item->media;
@@ -129,15 +130,15 @@ vlc_playlist_AutoPreparse(vlc_playlist_t *playlist, vlc_playlist_item_t *item,
     {
         switch (playlist->recursive)
         {
-            case VLC_PLAYLIST_PREPARSING_ENABLED:
+            case HEIMDALL_PLAYLIST_PREPARSING_ENABLED:
                 parse_subitems = false;
                 break;
-            case VLC_PLAYLIST_PREPARSING_COLLAPSE:
+            case HEIMDALL_PLAYLIST_PREPARSING_COLLAPSE:
                 break;
-            case VLC_PLAYLIST_PREPARSING_RECURSIVE:
+            case HEIMDALL_PLAYLIST_PREPARSING_RECURSIVE:
                 parse_subitems = true;
                 break;
-            default: vlc_assert_unreachable();
+            default: heimdall_assert_unreachable();
         }
 
         bool input_net;
@@ -157,24 +158,24 @@ vlc_playlist_AutoPreparse(vlc_playlist_t *playlist, vlc_playlist_item_t *item,
                 return;
         }
 
-        int options = VLC_PREPARSER_TYPE_PARSE | VLC_PREPARSER_TYPE_FETCHMETA_LOCAL;
+        int options = HEIMDALL_PREPARSER_TYPE_PARSE | HEIMDALL_PREPARSER_TYPE_FETCHMETA_LOCAL;
         if (parse_subitems)
-            options |= VLC_PREPARSER_OPTION_SUBITEMS;
+            options |= HEIMDALL_PREPARSER_OPTION_SUBITEMS;
 
-        vlc_preparser_req *req =
-            vlc_preparser_req_NewParse(playlist->parser, input, options,
+        heimdall_preparser_req *req =
+            heimdall_preparser_req_NewParse(playlist->parser, input, options,
                                        &preparser_callbacks, playlist);
         if (req == NULL)
             return;
 
         /* Store the request before submitting it. The callbacks may run
-           even before vlc_preparser_Submit returns. */
+           even before heimdall_preparser_Submit returns. */
         item->preparser_req = req;
 
-        if (vlc_preparser_Submit(playlist->parser, req) != VLC_SUCCESS)
+        if (heimdall_preparser_Submit(playlist->parser, req) != HEIMDALL_SUCCESS)
         {
             item->preparser_req = NULL;
-            vlc_preparser_req_Release(req);
+            heimdall_preparser_req_Release(req);
         }
     }
 }

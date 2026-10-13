@@ -2,6 +2,7 @@
  * codecs.h
  *****************************************************************************
  * Copyright (C) 2023 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -20,7 +21,7 @@
 #ifndef HLS_CODECS_H
 #define HLS_CODECS_H
 
-int hls_codec_Format(struct vlc_memstream *, const es_format_t *, bool legacy_codecs);
+int hls_codec_Format(struct heimdall_memstream *, const es_format_t *, bool legacy_codecs);
 bool hls_codec_IsSupported(const es_format_t *);
 
 #endif

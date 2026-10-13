@@ -2,6 +2,7 @@
  * sampler.h
  *****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -18,16 +19,16 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_GL_SAMPLER_PRIV_H
-#define VLC_GL_SAMPLER_PRIV_H
+#ifndef HEIMDALL_GL_SAMPLER_PRIV_H
+#define HEIMDALL_GL_SAMPLER_PRIV_H
 
 #ifdef HAVE_CONFIG_H
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_opengl.h>
-#include <vlc_opengl_sampler.h>
+#include <heimdall_common.h>
+#include <heimdall_opengl.h>
+#include <heimdall_opengl_sampler.h>
 
 #include "gl_common.h"
 #include "picture.h"
@@ -42,11 +43,11 @@ extern "C"
  *
  * \param gl the OpenGL context
  * \param glfmt the input format
- * \param expose_planes if set, vlc_texture() exposes a single plane at a time
+ * \param expose_planes if set, heimdall_texture() exposes a single plane at a time
  */
-struct vlc_gl_sampler *
-vlc_gl_sampler_New(struct vlc_gl_t *gl,
-                   const struct vlc_gl_format *glfmt, bool expose_planes);
+struct heimdall_gl_sampler *
+heimdall_gl_sampler_New(struct heimdall_gl_t *gl,
+                   const struct heimdall_gl_format *glfmt, bool expose_planes);
 
 /**
  * Delete a sampler
@@ -54,7 +55,7 @@ vlc_gl_sampler_New(struct vlc_gl_t *gl,
  * \param sampler the sampler
  */
 void
-vlc_gl_sampler_Delete(struct vlc_gl_sampler *sampler);
+heimdall_gl_sampler_Delete(struct heimdall_gl_sampler *sampler);
 
 #ifdef __cplusplus
 }

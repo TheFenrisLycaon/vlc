@@ -2,6 +2,7 @@
  * omxil.h: helper functions
  *****************************************************************************
  * Copyright (C) 2010 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gildas Bazin <gbazin@videolan.org>
  *
@@ -46,8 +47,8 @@ enum
  *****************************************************************************/
 typedef struct OmxFifo
 {
-    vlc_mutex_t lock;
-    vlc_cond_t  wait;
+    heimdall_mutex_t lock;
+    heimdall_cond_t  wait;
 
     OMX_BUFFERHEADERTYPE *p_first;
     OMX_BUFFERHEADERTYPE **pp_last;

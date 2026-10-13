@@ -2,6 +2,7 @@
  * freetype.c : Put text on the video, using freetype2
  *****************************************************************************
  * Copyright (C) 2002 - 2015 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Sigmund Augdal Helberg <dnumgis@videolan.org>
  *          Gildas Bazin <gbazin@videolan.org>
@@ -55,7 +56,7 @@
 
 #include "freetype.h"
 
-#include <vlc_arrays.h>
+#include <heimdall_arrays.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -124,13 +125,13 @@ extern "C" {
  */
 enum
 {
-    VLC_FONT_FLAG_BOLD    = 1 << 0,
-    VLC_FONT_FLAG_ITALIC  = 1 << 1,
+    HEIMDALL_FONT_FLAG_BOLD    = 1 << 0,
+    HEIMDALL_FONT_FLAG_ITALIC  = 1 << 1,
 };
-typedef struct vlc_font_t vlc_font_t;
-struct vlc_font_t
+typedef struct heimdall_font_t heimdall_font_t;
+struct heimdall_font_t
 {
-    vlc_font_t *p_next;   /**< next font in the chain */
+    heimdall_font_t *p_next;   /**< next font in the chain */
     /**
      * path to the font file on disk, or ":/x" for font attachments, where x
      * is the attachment index within \ref filter_sys_t::pp_font_attachments
@@ -144,9 +145,9 @@ struct vlc_font_t
 /**
  * Representation of font families (linked-list)
  */
-struct vlc_family_t
+struct heimdall_family_t
 {
-    vlc_family_t *p_next; /**< next family in the chain */
+    heimdall_family_t *p_next; /**< next family in the chain */
     /**
      * Human-readable name, usually requested.
      * Can be fallback-xxxx for font attachments with no family name, and for fallback
@@ -158,28 +159,28 @@ struct vlc_family_t
      * the two cases.
      */
     char         *psz_name;
-    vlc_font_t   *p_fonts; /**< fonts matching this family */
+    heimdall_font_t   *p_fonts; /**< fonts matching this family */
 };
 
 typedef struct
 {
     const char *psz_key;
-    struct VLC_VECTOR(char *) vec;
+    struct HEIMDALL_VECTOR(char *) vec;
 } fontfamilies_t;
 
 #define FB_LIST_ATTACHMENTS "attachments"
 #define FB_LIST_DEFAULT     "default"
 #define FB_NAME             "fallback"
 
-vlc_font_select_t * FontSelectNew( filter_t * );
-void FontSelectDelete( vlc_font_select_t * );
+heimdall_font_select_t * FontSelectNew( filter_t * );
+void FontSelectDelete( heimdall_font_select_t * );
 
 /**
- * Get a pointer to the vlc_family_t in the master list that matches \p psz_family.
+ * Get a pointer to the heimdall_family_t in the master list that matches \p psz_family.
  * Add this family to the list if it hasn't been added yet.
  */
-const vlc_family_t * FontSelectFamily( vlc_font_select_t *, const char *psz_family );
-const vlc_family_t * FontSelectAmongFamilies( vlc_font_select_t *, const fontfamilies_t * );
+const heimdall_family_t * FontSelectFamily( heimdall_font_select_t *, const char *psz_family );
+const heimdall_family_t * FontSelectAmongFamilies( heimdall_font_select_t *, const fontfamilies_t * );
 
 /**
  * Get the fallback list for \p fontfamilies_t from the system and cache
@@ -187,7 +188,7 @@ const vlc_family_t * FontSelectAmongFamilies( vlc_font_select_t *, const fontfam
  * On Windows fallback lists are populated progressively as required
  * using Uniscribe, so we need the codepoint here.
  */
-vlc_family_t * FontFallbacksAmongFamilies( vlc_font_select_t *, const fontfamilies_t *,
+heimdall_family_t * FontFallbacksAmongFamilies( heimdall_font_select_t *, const fontfamilies_t *,
                                        uni_char_t codepoint );
 
 /* ******************
@@ -212,17 +213,17 @@ vlc_family_t * FontFallbacksAmongFamilies( vlc_font_select_t *, const fontfamili
  *
  * \return the new family representation
  */
-vlc_family_t *NewFamily( vlc_font_select_t *, const char *psz_family,
-                         vlc_family_t **pp_list, vlc_dictionary_t *p_dict,
+heimdall_family_t *NewFamily( heimdall_font_select_t *, const char *psz_family,
+                         heimdall_family_t **pp_list, heimdall_dictionary_t *p_dict,
                          const char *psz_key );
-vlc_family_t *NewFamilyFromMixedCase( vlc_font_select_t *, const char *psz_family,
-                                      vlc_family_t **pp_list, vlc_dictionary_t *p_dict,
+heimdall_family_t *NewFamilyFromMixedCase( heimdall_font_select_t *, const char *psz_family,
+                                      heimdall_family_t **pp_list, heimdall_dictionary_t *p_dict,
                                       const char *psz_key );
 
-vlc_family_t * DeclareNewFamily( vlc_font_select_t *, const char *psz_family );
-int DeclareFamilyAsAttachMenFallback( vlc_font_select_t *, vlc_family_t * );
+heimdall_family_t * DeclareNewFamily( heimdall_font_select_t *, const char *psz_family );
+int DeclareFamilyAsAttachMenFallback( heimdall_font_select_t *, heimdall_family_t * );
 
-char *CreateUniqueFamilyKey( vlc_font_select_t * );
+char *CreateUniqueFamilyKey( heimdall_font_select_t * );
 
 /**
  * Creates a new font.
@@ -238,15 +239,15 @@ char *CreateUniqueFamilyKey( vlc_font_select_t * );
  * \remark This function takes ownership of \p psz_fontfile
  * \return the new font
  */
-vlc_font_t *NewFont( char *psz_fontfile, int i_index,
-                     int i_flags, vlc_family_t *p_parent );
+heimdall_font_t *NewFont( char *psz_fontfile, int i_index,
+                     int i_flags, heimdall_family_t *p_parent );
 
 /**
  * Free families and fonts associated.
  *
  * \param p_family the family to free [IN]
  */
-void FreeFamiliesAndFonts( vlc_family_t *p_family );
+void FreeFamiliesAndFonts( heimdall_family_t *p_family );
 
 /**
  * Free families, but not the fonts associated.
@@ -270,18 +271,18 @@ void FreeFamilies( void *p_families, void *p_obj );
  * of that function, where each family is added to the default list if
  * its name has "fallback" in it. So InitDefaultList() is not called on Android.
  *
- * \param fs the vlc_font_select_t handle [IN]
+ * \param fs the heimdall_font_select_t handle [IN]
  * \param ppsz_default the table default fonts [IN]
  * \param i_size the size of the supplied table [IN]
  *
  * \return the default fallback list
  */
-vlc_family_t *InitDefaultList( vlc_font_select_t *fs, const char *const *ppsz_default,
+heimdall_family_t *InitDefaultList( heimdall_font_select_t *fs, const char *const *ppsz_default,
                                int i_size );
 
 /* Debug Helpers */
 #ifdef DEBUG_PLATFORM_FONTS
-void DumpFamilies( vlc_font_select_t * );
+void DumpFamilies( heimdall_font_select_t * );
 #endif
 
 /* String helpers */
@@ -294,12 +295,12 @@ void LowercaseTransform( char *psz );
 int ConvertToLiveSize( filter_t *p_filter, const text_style_t *p_style );
 
 /* Only for fonts implementors */
-vlc_family_t *SearchFallbacks( vlc_font_select_t *, vlc_family_t *p_fallbacks,
+heimdall_family_t *SearchFallbacks( heimdall_font_select_t *, heimdall_family_t *p_fallbacks,
                                       uni_char_t codepoint );
-bool CheckFace( vlc_font_select_t *fs, vlc_font_t *p_font, uni_char_t codepoint );
+bool CheckFace( heimdall_font_select_t *fs, heimdall_font_t *p_font, uni_char_t codepoint );
 FT_Face doLoadFace( void *, const char *psz_fontfile, int i_idx );
 
-char * MakeFilePath( vlc_font_select_t *, const char *psz_filename );
+char * MakeFilePath( heimdall_font_select_t *, const char *psz_filename );
 
 #ifdef __cplusplus
 }

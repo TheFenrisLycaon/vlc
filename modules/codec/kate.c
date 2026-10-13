@@ -2,6 +2,7 @@
  * kate.c : a decoder for the kate bitstream format
  *****************************************************************************
  * Copyright (C) 2000-2008 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Vincent Penquerc'h <ogg.k.ogg.k@googlemail.com>
  *
@@ -27,10 +28,10 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_input_item.h>
-#include <vlc_codec.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_input_item.h>
+#include <heimdall_codec.h>
 #include "../demux/xiph.h"
 
 #include <kate/kate.h>
@@ -42,8 +43,8 @@
 /* #define ENABLE_PROFILE */
 
 #ifdef ENABLE_PROFILE
-# define PROFILE_START(name) int64_t profile_start_##name = vlc_tick_now()
-# define PROFILE_STOP(name) fprintf( stderr, #name ": %f ms\n", (vlc_tick_now() - profile_start_##name)/1000.0f )
+# define PROFILE_START(name) int64_t profile_start_##name = heimdall_tick_now()
+# define PROFILE_STOP(name) fprintf( stderr, #name ": %f ms\n", (heimdall_tick_now() - profile_start_##name)/1000.0f )
 #else
 # define PROFILE_START(name) ((void)0)
 # define PROFILE_STOP(name) ((void)0)
@@ -86,11 +87,11 @@ typedef struct
     /*
      * Common properties
      */
-    vlc_tick_t i_pts;
-    vlc_tick_t i_max_stop;
+    heimdall_tick_t i_pts;
+    heimdall_tick_t i_max_stop;
 
     /* decoder_sys_t is shared between decoder and spu units */
-    vlc_mutex_t lock;
+    heimdall_mutex_t lock;
     int         i_refcount;
 
 #ifdef HAVE_TIGER
@@ -118,7 +119,7 @@ typedef struct
 typedef struct
 {
     decoder_sys_t *p_dec_sys;
-    vlc_tick_t     i_start;
+    heimdall_tick_t     i_start;
 } kate_spu_updater_sys_t;
 
 
@@ -137,23 +138,23 @@ typedef struct
  * callbacks will be set for the user prefs, and these will in turn walk
  * through this list and tell each decoder to update the relevant variable.
  * HOWEVER.
- * VLC's variable system is still in my way as I can't get the value of
+ * Heimdall's variable system is still in my way as I can't get the value of
  * the user pref variables at decoder start *unless* I create my own vars
  * which inherit from the user ones, but those are utterly useless after
  * that first use, since they'll be detached from the ones the user can
  * change. So, I create them, read their values, and then destroy them.
  */
-static vlc_mutex_t kate_decoder_list_mutex = VLC_STATIC_MUTEX;
+static heimdall_mutex_t kate_decoder_list_mutex = HEIMDALL_STATIC_MUTEX;
 static size_t kate_decoder_list_size = 0;
 static decoder_t **kate_decoder_list = NULL;
 
 /*****************************************************************************
  * Local prototypes
  *****************************************************************************/
-static int  OpenDecoder   ( vlc_object_t * );
-static void CloseDecoder  ( vlc_object_t * );
+static int  OpenDecoder   ( heimdall_object_t * );
+static void CloseDecoder  ( heimdall_object_t * );
 #ifdef ENABLE_PACKETIZER
-static int OpenPacketizer( vlc_object_t *p_this );
+static int OpenPacketizer( heimdall_object_t *p_this );
 #endif
 
 static int  DecodeSub( decoder_t *p_dec, block_t *p_block );
@@ -187,7 +188,7 @@ static void UpdateTigerFontDesc( decoder_t *p_dec );
 
 #define FORMAT_TEXT N_("Formatted Subtitles")
 #define FORMAT_LONGTEXT N_("Kate streams allow for text formatting. " \
- "VLC partly implements this, but you can choose to disable all formatting. " \
+ "Heimdall partly implements this, but you can choose to disable all formatting. " \
  "Note that this has no effect is rendering via Tiger is enabled.")
 
 #ifdef HAVE_TIGER
@@ -256,13 +257,13 @@ static const char *const ppsz_color_descriptions[] = {
 #define HELP_TEXT N_( \
     "Kate is a codec for text and image based overlays.\n" \
     "The Tiger rendering library is needed to render complex Kate streams, " \
-    "but VLC can still render static text and image based subtitles if " \
+    "but Heimdall can still render static text and image based subtitles if " \
     "it is not available.\n" \
     "Note that changing settings below will not take effect until a new stream is played. " \
     "This will hopefully be fixed soon." \
     )
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( N_("Kate"))
     set_description( N_("Kate overlay decoder") )
     set_help( HELP_TEXT )
@@ -314,23 +315,23 @@ vlc_module_begin ()
     add_shortcut( "kate" )
 #endif
 
-vlc_module_end ()
+heimdall_module_end ()
 
-static int OpenCommon( vlc_object_t *p_this, bool b_packetizer )
+static int OpenCommon( heimdall_object_t *p_this, bool b_packetizer )
 {
     decoder_t     *p_dec = (decoder_t*)p_this;
     decoder_sys_t *p_sys;
 
-    if( p_dec->fmt_in->i_codec != VLC_CODEC_KATE )
+    if( p_dec->fmt_in->i_codec != HEIMDALL_CODEC_KATE )
     {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     msg_Dbg( p_dec, "kate: OpenDecoder");
 
     /* Allocate the memory needed to store the decoder's structure */
     if( ( p_dec->p_sys = p_sys = malloc(sizeof(*p_sys)) ) == NULL )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     if( b_packetizer )
         p_dec->pf_packetize = Packetize;
@@ -338,7 +339,7 @@ static int OpenCommon( vlc_object_t *p_this, bool b_packetizer )
         p_dec->pf_decode    = DecodeSub;
     p_dec->pf_flush = Flush;
 
-    vlc_mutex_init( &p_sys->lock );
+    heimdall_mutex_init( &p_sys->lock );
     p_sys->i_refcount = 0;
     DecSysHold( p_sys );
 
@@ -348,7 +349,7 @@ static int OpenCommon( vlc_object_t *p_this, bool b_packetizer )
 #endif
     p_sys->b_ready = false;
     p_sys->i_pts =
-    p_sys->i_max_stop = VLC_TICK_INVALID;
+    p_sys->i_max_stop = HEIMDALL_TICK_INVALID;
 
     kate_comment_init( &p_sys->kc );
     kate_info_init( &p_sys->ki );
@@ -358,7 +359,7 @@ static int OpenCommon( vlc_object_t *p_this, bool b_packetizer )
     /* retrieve options */
     p_sys->b_formatted = var_CreateGetBool( p_dec, "kate-formatted" );
 
-    vlc_mutex_lock( &kate_decoder_list_mutex );
+    heimdall_mutex_lock( &kate_decoder_list_mutex );
 
 #ifdef HAVE_TIGER
 
@@ -406,7 +407,7 @@ static int OpenCommon( vlc_object_t *p_this, bool b_packetizer )
 #endif
 
     if( b_packetizer )
-        p_dec->fmt_out.i_codec = VLC_CODEC_KATE;
+        p_dec->fmt_out.i_codec = HEIMDALL_CODEC_KATE;
     else
         p_dec->fmt_out.i_codec = 0; // may vary during the stream
 
@@ -418,18 +419,18 @@ static int OpenCommon( vlc_object_t *p_this, bool b_packetizer )
         kate_decoder_list = list;
     }
 
-    vlc_mutex_unlock( &kate_decoder_list_mutex );
+    heimdall_mutex_unlock( &kate_decoder_list_mutex );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int OpenDecoder( vlc_object_t *p_this )
+static int OpenDecoder( heimdall_object_t *p_this )
 {
     return OpenCommon( p_this, false );
 }
 
 #ifdef ENABLE_PACKETIZER
-static int OpenPacketizer( vlc_object_t *p_this )
+static int OpenPacketizer( heimdall_object_t *p_this )
 {
     return OpenCommon( p_this, true );
 }
@@ -444,11 +445,11 @@ static void Flush( decoder_t *p_dec )
 
 #ifdef HAVE_TIGER
     /* Hmm, should we wait before flushing the renderer ? I think not, but not certain... */
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     tiger_renderer_seek( p_sys->p_tr, 0 );
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 #endif
-    p_sys->i_max_stop = VLC_TICK_INVALID;
+    p_sys->i_max_stop = HEIMDALL_TICK_INVALID;
 }
 
 /****************************************************************************
@@ -467,14 +468,14 @@ static void *DecodeBlock( decoder_t *p_dec, block_t *p_block )
         if( p_block->i_flags & BLOCK_FLAG_DISCONTINUITY)
         {
             /* Hmm, should we wait before flushing the renderer ? I think not, but not certain... */
-            vlc_mutex_lock( &p_sys->lock );
+            heimdall_mutex_lock( &p_sys->lock );
             tiger_renderer_seek( p_sys->p_tr, 0 );
-            vlc_mutex_unlock( &p_sys->lock );
+            heimdall_mutex_unlock( &p_sys->lock );
         }
 #endif
         if( p_block->i_flags & BLOCK_FLAG_CORRUPTED )
         {
-            p_sys->i_max_stop = VLC_TICK_INVALID;
+            p_sys->i_max_stop = HEIMDALL_TICK_INVALID;
             block_Release( p_block );
             return NULL;
         }
@@ -499,12 +500,12 @@ static void *DecodeBlock( decoder_t *p_dec, block_t *p_block )
 static int DecodeSub( decoder_t *p_dec, block_t *p_block )
 {
     if( p_block == NULL ) /* No Drain */
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
 
     subpicture_t *p_spu = DecodeBlock( p_dec, p_block );
     if( p_spu != NULL )
         decoder_QueueSub( p_dec, p_spu );
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }
 
 static block_t *Packetize( decoder_t *p_dec, block_t **pp_block )
@@ -530,10 +531,10 @@ static int ProcessHeaders( decoder_t *p_dec )
     size_t i_count;
     if( xiph_SplitHeaders( pi_size, pp_data, &i_count,
                            p_dec->fmt_in->i_extra, p_dec->fmt_in->p_extra) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if( i_count < 1 )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* Take care of the initial Kate header */
     kp.nbytes = pi_size[0];
@@ -542,7 +543,7 @@ static int ProcessHeaders( decoder_t *p_dec )
     if( i_ret < 0 )
     {
         msg_Err( p_dec, "this bitstream does not contain Kate data (%d)", i_ret );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     msg_Dbg( p_dec, "%s %s text, granule rate %f, granule shift %d",
@@ -559,7 +560,7 @@ static int ProcessHeaders( decoder_t *p_dec )
         if( i_ret < 0 )
         {
             msg_Err( p_dec, "Kate header %d is corrupted: %d", i_headeridx, i_ret );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         /* header 1 is comments */
@@ -579,7 +580,7 @@ static int ProcessHeaders( decoder_t *p_dec )
         if (i_ret < 0)
         {
             msg_Err( p_dec, "Kate failed to initialize for decoding: %d", i_ret );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
         p_sys->b_ready = true;
     }
@@ -590,7 +591,7 @@ static int ProcessHeaders( decoder_t *p_dec )
                                  p_dec->fmt_in->i_extra );
         if( unlikely( p_extra == NULL ) )
         {
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         }
         p_dec->fmt_out.p_extra = p_extra;
         p_dec->fmt_out.i_extra = p_dec->fmt_in->i_extra;
@@ -599,7 +600,7 @@ static int ProcessHeaders( decoder_t *p_dec )
     }
 #endif
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -611,7 +612,7 @@ static void *ProcessPacket( decoder_t *p_dec, kate_packet *p_kp,
     decoder_sys_t *p_sys = p_dec->p_sys;
 
     /* Date management */
-    if( p_block->i_pts != VLC_TICK_INVALID && p_block->i_pts != p_sys->i_pts )
+    if( p_block->i_pts != HEIMDALL_TICK_INVALID && p_block->i_pts != p_sys->i_pts )
     {
         p_sys->i_pts = p_block->i_pts;
     }
@@ -650,9 +651,9 @@ static inline void rgb_to_yuv( uint8_t *y, uint8_t *u, uint8_t *v,
 /*
   This retrieves the size of the video.
   The best case is when the original video size is known, as we can then
-  scale images to match. In this case, since VLC autoscales, we want to
-  return the original size and let VLC scale everything.
-  if the original size is not known, then VLC can't resize, so we return
+  scale images to match. In this case, since Heimdall autoscales, we want to
+  return the original size and let Heimdall scale everything.
+  if the original size is not known, then Heimdall can't resize, so we return
   the size of the incoming video. If sizes in the Kate stream are in
   relative units, it works fine. If they are absolute, you get what you
   ask for. Images aren't rescaled.
@@ -745,9 +746,9 @@ static void TigerDestroySubpicture( subpicture_t *p_subpic )
     free( p_spusys );
 }
 /*
- * We get premultiplied alpha, but VLC doesn't expect this, so we demultiply
+ * We get premultiplied alpha, but Heimdall doesn't expect this, so we demultiply
  * alpha to avoid double multiply (and thus thinner text than we should)).
- * Best would be to have VLC be able to handle premultiplied alpha, as it
+ * Best would be to have Heimdall be able to handle premultiplied alpha, as it
  * would be faster to blend as well.
  *
  * Also, we flip color components around for big endian machines, as Tiger
@@ -773,14 +774,14 @@ static void PostprocessTigerImage( plane_t *p_plane, unsigned int i_width )
             {
 #ifdef WORDS_BIGENDIAN
                 uint8_t tmp = p_pixel[2];
-                p_pixel[0] = clip_uint8_vlc((p_pixel[3] * 255 + a / 2) / a);
+                p_pixel[0] = clip_uint8_heimdall((p_pixel[3] * 255 + a / 2) / a);
                 p_pixel[3] = a;
-                p_pixel[2] = clip_uint8_vlc((p_pixel[1] * 255 + a / 2) / a);
-                p_pixel[1] = clip_uint8_vlc((tmp * 255 + a / 2) / a);
+                p_pixel[2] = clip_uint8_heimdall((p_pixel[1] * 255 + a / 2) / a);
+                p_pixel[1] = clip_uint8_heimdall((tmp * 255 + a / 2) / a);
 #else
-                p_pixel[0] = clip_uint8_vlc((p_pixel[0] * 255 + a / 2) / a);
-                p_pixel[1] = clip_uint8_vlc((p_pixel[1] * 255 + a / 2) / a);
-                p_pixel[2] = clip_uint8_vlc((p_pixel[2] * 255 + a / 2) / a);
+                p_pixel[0] = clip_uint8_heimdall((p_pixel[0] * 255 + a / 2) / a);
+                p_pixel[1] = clip_uint8_heimdall((p_pixel[1] * 255 + a / 2) / a);
+                p_pixel[2] = clip_uint8_heimdall((p_pixel[2] * 255 + a / 2) / a);
 #endif
             }
             else
@@ -800,7 +801,7 @@ static void PostprocessTigerImage( plane_t *p_plane, unsigned int i_width )
    Looks good with white though since it's all luma. Hopefully that will be the
    common case. */
 static void TigerUpdateSubpicture( subpicture_t *p_subpic,
-                                   const struct vlc_spu_updater_configuration *cfg )
+                                   const struct heimdall_spu_updater_configuration *cfg )
 {
     kate_spu_updater_sys_t *p_spusys = p_subpic->updater.sys;
     decoder_sys_t *p_sys = p_spusys->p_dec_sys;
@@ -808,7 +809,7 @@ static void TigerUpdateSubpicture( subpicture_t *p_subpic,
     const video_format_t *p_fmt_dst = cfg->current.video_dst;
     plane_t *p_plane;
     /* time in seconds from the start of the stream */
-    kate_float t = secf_from_vlc_tick( p_spusys->i_start + cfg->pts - p_subpic->i_start );
+    kate_float t = secf_from_heimdall_tick( p_spusys->i_start + cfg->pts - p_subpic->i_start );
 
     bool new_regions = false;
     if( !video_format_IsSimilar(cfg->previous.video_src, p_fmt_src) ||
@@ -820,7 +821,7 @@ static void TigerUpdateSubpicture( subpicture_t *p_subpic,
         PROFILE_START( TigerValidateSubpicture );
 
         /* it is likely that the current region (if any) can be kept as is; test for this */
-        vlc_mutex_lock( &p_sys->lock );
+        heimdall_mutex_lock( &p_sys->lock );
         if( p_sys->b_dirty || tiger_renderer_is_dirty( p_sys->p_tr ) )
         {
             new_regions = true;
@@ -833,20 +834,20 @@ static void TigerUpdateSubpicture( subpicture_t *p_subpic,
             goto exit;
         }
 exit:
-        vlc_mutex_unlock( &p_sys->lock );
+        heimdall_mutex_unlock( &p_sys->lock );
         PROFILE_STOP( TigerValidateSubpicture );
     }
 
     if (!new_regions)
         return;
 
-    vlc_spu_regions_Clear( &p_subpic->regions );
+    heimdall_spu_regions_Clear( &p_subpic->regions );
 
     PROFILE_START( TigerUpdateSubpicture );
 
     /* create a full frame region - this will also tell Tiger the size of the frame */
     video_format_t fmt = *p_fmt_dst;
-    fmt.i_chroma         = VLC_CODEC_RGBA;
+    fmt.i_chroma         = HEIMDALL_CODEC_RGBA;
     fmt.i_width          =
     fmt.i_visible_width  = p_fmt_src->i_width;
     fmt.i_height         =
@@ -865,7 +866,7 @@ exit:
     p_r->i_y = 0;
     p_r->i_align = SUBPICTURE_ALIGN_TOP | SUBPICTURE_ALIGN_LEFT;
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
 
     int i_ret;
     p_plane = &p_r->p_picture->p[0];
@@ -892,19 +893,19 @@ exit:
     PROFILE_STOP( tiger_renderer_render );
 
     PostprocessTigerImage( p_plane, fmt.i_width );
-    vlc_spu_regions_push( &p_subpic->regions, p_r );
+    heimdall_spu_regions_push( &p_subpic->regions, p_r );
     p_sys->b_dirty = false;
 
     PROFILE_STOP( TigerUpdateSubpicture );
 
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 
     return;
 
 failure:
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
     subpicture_region_Delete( p_r );
-    vlc_spu_regions_Clear( &p_subpic->regions );
+    heimdall_spu_regions_Clear( &p_subpic->regions );
 }
 
 static uint32_t GetTigerColor( decoder_t *p_dec, const char *psz_prefix )
@@ -1022,7 +1023,7 @@ static subpicture_t *DecodePacket( decoder_t *p_dec, kate_packet *p_kp, block_t 
             return NULL;
     }
 
-    static const struct vlc_spu_updater_ops spu_ops =
+    static const struct heimdall_spu_updater_ops spu_ops =
     {
 #ifdef HAVE_TIGER
         .update   = TigerUpdateSubpicture,
@@ -1046,7 +1047,7 @@ static subpicture_t *DecodePacket( decoder_t *p_dec, kate_packet *p_kp, block_t 
     }
 
     p_spu->i_start = p_block->i_pts;
-    p_spu->i_stop = p_block->i_pts + vlc_tick_from_samples(ev->duration * p_sys->ki.gps_denominator, p_sys->ki.gps_numerator);
+    p_spu->i_stop = p_block->i_pts + heimdall_tick_from_samples(ev->duration * p_sys->ki.gps_denominator, p_sys->ki.gps_numerator);
     p_spu->b_ephemer = false;
 
 #ifdef HAVE_TIGER
@@ -1060,9 +1061,9 @@ static subpicture_t *DecodePacket( decoder_t *p_dec, kate_packet *p_kp, block_t 
         p_spu->b_ephemer = true;
 
         /* add the event to tiger */
-        vlc_mutex_lock( &p_sys->lock );
+        heimdall_mutex_lock( &p_sys->lock );
         CHECK_TIGER_RET( tiger_renderer_add_event( p_sys->p_tr, ev->ki, ev ) );
-        vlc_mutex_unlock( &p_sys->lock );
+        heimdall_mutex_unlock( &p_sys->lock );
     }
     else
 #endif
@@ -1120,7 +1121,7 @@ static subpicture_t *SetupSimpleKateSPU( decoder_t *p_dec, subpicture_t *p_spu,
 
         /* create a separate region for the bitmap */
         video_format_t fmt;
-        video_format_Init( &fmt, VLC_CODEC_YUVP );
+        video_format_Init( &fmt, HEIMDALL_CODEC_YUVP );
         fmt.i_width = fmt.i_visible_width = ev->bitmap->width;
         fmt.i_height = fmt.i_visible_height = ev->bitmap->height;
         fmt.i_x_offset = fmt.i_y_offset = 0;
@@ -1197,9 +1198,9 @@ static subpicture_t *SetupSimpleKateSPU( decoder_t *p_dec, subpicture_t *p_spu,
     {
         p_bitmap_region->b_absolute = p_region->b_absolute;
         p_bitmap_region->b_in_window = p_region->b_in_window;
-        vlc_spu_regions_push(&p_spu->regions, p_bitmap_region);
+        heimdall_spu_regions_push(&p_spu->regions, p_bitmap_region);
     }
-    vlc_spu_regions_push(&p_spu->regions, p_region);
+    heimdall_spu_regions_push(&p_spu->regions, p_region);
 
     return p_spu;
 }
@@ -1227,9 +1228,9 @@ static void ParseKateComments( decoder_t *p_dec )
             psz_value++;
 
             if( !p_dec->p_description )
-                p_dec->p_description = vlc_meta_New();
+                p_dec->p_description = heimdall_meta_New();
             if( p_dec->p_description )
-                vlc_meta_SetExtra( p_dec->p_description, psz_name, psz_value );
+                heimdall_meta_SetExtra( p_dec->p_description, psz_name, psz_value );
         }
         free( psz_comment );
         i++;
@@ -1239,13 +1240,13 @@ static void ParseKateComments( decoder_t *p_dec )
 /*****************************************************************************
  * CloseDecoder: clean up the decoder
  *****************************************************************************/
-static void CloseDecoder( vlc_object_t *p_this )
+static void CloseDecoder( heimdall_object_t *p_this )
 {
     decoder_t *p_dec = (decoder_t *)p_this;
     size_t     i_index;
 
     /* remove the decoder from the global list */
-    vlc_mutex_lock( &kate_decoder_list_mutex );
+    heimdall_mutex_lock( &kate_decoder_list_mutex );
     for( i_index = 0; i_index < kate_decoder_list_size; i_index++ )
     {
         if( kate_decoder_list[ i_index ] == p_dec )
@@ -1254,7 +1255,7 @@ static void CloseDecoder( vlc_object_t *p_this )
             break;
         }
     }
-    vlc_mutex_unlock( &kate_decoder_list_mutex );
+    heimdall_mutex_unlock( &kate_decoder_list_mutex );
 
     msg_Dbg( p_dec, "Closing Kate decoder" );
     DecSysRelease( p_dec->p_sys );
@@ -1262,22 +1263,22 @@ static void CloseDecoder( vlc_object_t *p_this )
 
 static void DecSysHold( decoder_sys_t *p_sys )
 {
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     p_sys->i_refcount++;
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 }
 
 static void DecSysRelease( decoder_sys_t *p_sys )
 {
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     p_sys->i_refcount--;
     if( p_sys->i_refcount > 0)
     {
-        vlc_mutex_unlock( &p_sys->lock );
+        heimdall_mutex_unlock( &p_sys->lock );
         return;
     }
 
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 
 #ifdef HAVE_TIGER
     if( p_sys->p_tr )

@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Benjamin Arnaud <bunjee@omega.gg>
  *
@@ -24,12 +25,12 @@
 // MediaLibrary includes
 #include "mlqmltypes.hpp"
 
-class VLCDuration;
+class HeimdallDuration;
 
 class MLFolder : public MLItem
 {
 public:
-    MLFolder(const vlc_ml_folder_t * data);
+    MLFolder(const heimdall_ml_folder_t * data);
 
 public: // Interface
     bool isPresent() const;
@@ -39,7 +40,7 @@ public: // Interface
 
     QString getMRL() const;
 
-    VLCDuration getDuration() const;
+    HeimdallDuration getDuration() const;
 
     unsigned int getCount() const;
 

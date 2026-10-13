@@ -2,6 +2,7 @@
  * SourceStream.hpp
  *****************************************************************************
  * Copyright © 2015 - VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -22,8 +23,8 @@
 
 #include "../tools/Macros.hpp"
 
-#include <vlc_common.h>
-#include <vlc_block_helper.h>
+#include <heimdall_common.h>
+#include <heimdall_block_helper.h>
 
 namespace adaptive
 {
@@ -44,7 +45,7 @@ namespace adaptive
         PREREQ_VIRTUAL(AbstractChunksSourceStream);
 
         public:
-            AbstractChunksSourceStream(vlc_object_t *, BlockStreamInterface *);
+            AbstractChunksSourceStream(heimdall_object_t *, BlockStreamInterface *);
             virtual ~AbstractChunksSourceStream();
             void Reset() override;
             stream_t *makeStream() override;
@@ -53,7 +54,7 @@ namespace adaptive
             virtual ssize_t Read(uint8_t *, size_t) = 0;
             virtual int     Seek(uint64_t) = 0;
             bool b_eof;
-            vlc_object_t *p_obj;
+            heimdall_object_t *p_obj;
             BlockStreamInterface *source;
 
         private:
@@ -66,7 +67,7 @@ namespace adaptive
     class ChunksSourceStream : public AbstractChunksSourceStream
     {
         public:
-            ChunksSourceStream(vlc_object_t *, BlockStreamInterface *);
+            ChunksSourceStream(heimdall_object_t *, BlockStreamInterface *);
             virtual ~ChunksSourceStream();
             void Reset() override;
 
@@ -82,7 +83,7 @@ namespace adaptive
     class BufferedChunksSourceStream : public AbstractChunksSourceStream
     {
         public:
-            BufferedChunksSourceStream(vlc_object_t *, BlockStreamInterface *);
+            BufferedChunksSourceStream(heimdall_object_t *, BlockStreamInterface *);
             virtual ~BufferedChunksSourceStream();
             void Reset() override;
 

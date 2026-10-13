@@ -2,6 +2,7 @@
  * win32.c: Screen capture module.
  *****************************************************************************
  * Copyright (C) 2004-2011 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gildas Bazin <gbazin@videolan.org>
  *
@@ -28,9 +29,9 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
 
 #include "screen.h"
 
@@ -67,14 +68,14 @@ typedef struct
  *
  * Windows may supply these coordinates in physical or logical units
  * depending on the version of Windows and the DPI awareness of the application.
- * I have noticed that even different interfaces of VLC (qt, rc...) can lead
+ * I have noticed that even different interfaces of Heimdall (qt, rc...) can lead
  * to differences in DPI awareness. The choice of physical vs logical seems
  * to be universal though (it applies to everything we use, from GetCursorPos
  * to GetSystemMetrics and BitBlt) so we don't have to worry about anything.
  *
  * The only issue here is that it can be confusing to users when setting e.g.
  * subscreen position and dimensions. This however can be controlled by
- * disabling display scaling in the compatibility settings of the VLC executable.
+ * disabling display scaling in the compatibility settings of the Heimdall executable.
  */
 static inline void FromScreenCoordinates( demux_t *p_demux, POINT *p_point )
 {
@@ -103,7 +104,7 @@ int screen_InitCaptureGDI( demux_t *p_demux )
 
     p_sys->p_data = p_data = calloc( 1, sizeof( screen_data_t ) );
     if( !p_data )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     /* Get the device context for the whole screen */
     p_data->hdc_src = CreateDC( TEXT("DISPLAY"), NULL, NULL, NULL );
@@ -111,7 +112,7 @@ int screen_InitCaptureGDI( demux_t *p_demux )
     {
         msg_Err( p_demux, "cannot get device context" );
         free( p_data );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     p_data->hdc_dst = CreateCompatibleDC( p_data->hdc_src );
@@ -120,7 +121,7 @@ int screen_InitCaptureGDI( demux_t *p_demux )
         msg_Err( p_demux, "cannot get compat device context" );
         ReleaseDC( 0, p_data->hdc_src );
         free( p_data );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     i_bits_per_pixel = GetDeviceCaps( p_data->hdc_src, BITSPIXEL );
@@ -135,17 +136,17 @@ int screen_InitCaptureGDI( demux_t *p_demux )
     switch( i_bits_per_pixel )
     {
     case 16:    /* Yes it is really 15 bits (when using BI_RGB) */
-        i_chroma = VLC_CODEC_RGB555LE; break;
+        i_chroma = HEIMDALL_CODEC_RGB555LE; break;
     case 24:
-        i_chroma = VLC_CODEC_RGB24; break;
+        i_chroma = HEIMDALL_CODEC_RGB24; break;
     case 32:
-        i_chroma = VLC_CODEC_BGRX; break;
+        i_chroma = HEIMDALL_CODEC_BGRX; break;
     default:
         msg_Err( p_demux, "unknown screen depth %i", i_bits_per_pixel );
         DeleteDC( p_data->hdc_dst );
         ReleaseDC( 0, p_data->hdc_src );
         free( p_data );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     int screen_width  = GetSystemMetrics( SM_CXVIRTUALSCREEN );
@@ -166,7 +167,7 @@ int screen_InitCaptureGDI( demux_t *p_demux )
     };
     p_sys->ops = &ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 void screen_CloseCapture( void *opaque )
@@ -183,7 +184,7 @@ void screen_CloseCapture( void *opaque )
 #ifdef SCREEN_MOUSE
     if( p_data->p_blend )
     {
-        vlc_filter_Delete( p_data->p_blend );
+        heimdall_filter_Delete( p_data->p_blend );
     }
 #endif
 
@@ -203,7 +204,7 @@ static void CaptureBlockRelease( block_t *p_block )
     free( p_block );
 }
 
-static const struct vlc_block_callbacks CaptureBlockCallbacks =
+static const struct heimdall_block_callbacks CaptureBlockCallbacks =
 {
     CaptureBlockRelease,
 };
@@ -239,7 +240,7 @@ static block_t *CaptureBlockNew( demux_t *p_demux )
                                             (int)p_sys->fmt.video.i_height :
                                             p_data->i_fragment_size;
         p_sys->f_fps *= (p_sys->fmt.video.i_height/p_data->i_fragment_size);
-        p_sys->i_incr = vlc_tick_rate_duration( p_sys->f_fps );
+        p_sys->i_incr = heimdall_tick_rate_duration( p_sys->f_fps );
         p_data->i_fragment = 0;
         p_data->p_block = 0;
     }
@@ -299,19 +300,19 @@ static void RenderCursor( demux_t *p_demux, int i_x, int i_y,
 
     if( !p_data->p_blend )
     {
-        p_data->p_blend = vlc_object_create( p_demux, sizeof(filter_t) );
+        p_data->p_blend = heimdall_object_create( p_demux, sizeof(filter_t) );
         if( p_data->p_blend )
         {
             es_format_Init( &p_data->p_blend->fmt_in, VIDEO_ES,
-                            VLC_CODEC_RGBA );
+                            HEIMDALL_CODEC_RGBA );
             p_data->p_blend->fmt_in.video = p_sys->p_mouse->format;
             p_data->p_blend->fmt_out = p_sys->fmt;
             p_data->p_blend->p_module =
-                vlc_filter_LoadModule( p_data->p_blend, "video blending", NULL, false );
+                heimdall_filter_LoadModule( p_data->p_blend, "video blending", NULL, false );
             if( !p_data->p_blend->p_module )
             {
                 msg_Err( p_demux, "Could not load video blending module" );
-                vlc_object_delete(p_data->p_blend);
+                heimdall_object_delete(p_data->p_blend);
                 p_data->p_blend = NULL;
                 picture_Release( p_sys->p_mouse );
                 p_sys->p_mouse = NULL;

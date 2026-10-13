@@ -2,6 +2,7 @@
  * prefs_widgets.m: Preferences controls
  *****************************************************************************
  * Copyright (C) 2002-2012 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Derk-Jan Hartman <hartman at videolan.org>
  *          Jérôme Decoodt <djc at videolan.org>
@@ -31,22 +32,22 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_modules.h>
-#include <vlc_plugin.h>
-#include <vlc_actions.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_modules.h>
+#include <heimdall_plugin.h>
+#include <heimdall_actions.h>
 
 #import "preferences/prefs_widgets.h"
 
 #import "extensions/NSString+Helpers.h"
-#import "extensions/NSTextField+VLCAdditions.h"
+#import "extensions/NSTextField+HeimdallAdditions.h"
 
-#import "main/VLCMain.h"
+#import "main/HeimdallMain.h"
 
-#import "views/VLCUIUnits.h"
+#import "views/HeimdallUIUnits.h"
 
-NSString * const VLCPrefsWidgetModuleDragType = @"VLC media player module";
+NSString * const HeimdallPrefsWidgetModuleDragType = @"Heimdall media player module";
 
 #define CONFIG_ITEM_STRING_LIST (CONFIG_ITEM_STRING + 10)
 #define CONFIG_ITEM_RANGED_INTEGER (CONFIG_ITEM_INTEGER + 10)
@@ -208,13 +209,13 @@ my_width, tooltip, init_value)                                              \
     [o_checkbox sizeToFit];                                                 \
 }
 
-@interface VLCConfigControl()
+@interface HeimdallConfigControl()
 {
     const char *psz_name;
 }
 @end
 
-@implementation VLCConfigControl
+@implementation HeimdallConfigControl
 
 - (id)initWithFrame:(NSRect)frame
 {
@@ -585,10 +586,10 @@ my_width, tooltip, init_value)                                              \
     return i_margin;
 }
 
-+ (VLCConfigControl *)newControl:(module_config_t *)_p_item
++ (HeimdallConfigControl *)newControl:(module_config_t *)_p_item
                         withView:(NSView *)parentView
 {
-    VLCConfigControl *control = NULL;
+    HeimdallConfigControl *control = NULL;
 
     switch(_p_item->i_type) {
         case CONFIG_ITEM_STRING:
@@ -681,7 +682,7 @@ my_width, tooltip, init_value)                                              \
 
 - (void)applyChanges
 {
-    vlc_value_t val;
+    heimdall_value_t val;
     switch(self.p_item->i_type) {
         case CONFIG_ITEM_STRING:
         case CONFIG_ITEM_PASSWORD:
@@ -699,7 +700,7 @@ my_width, tooltip, init_value)                                              \
         case CONFIG_ITEM_KEY:
             /* So you don't need to restart to have the changes take effect */
             val.i_int = [self intValue];
-            var_Set(vlc_object_instance(getIntf()), psz_name, val);
+            var_Set(heimdall_object_instance(getIntf()), psz_name, val);
         case CONFIG_ITEM_INTEGER:
         case CONFIG_ITEM_BOOL:
             config_PutInt(psz_name, [self intValue]);
@@ -735,8 +736,8 @@ my_width, tooltip, init_value)                                              \
 - (id)initWithItem:(module_config_t *)p_item
           withView:(NSView *)parentView
 {
-    const NSUInteger leftMargin = VLCUIUnits.largeSpacing;
-    const NSUInteger rightMargin = VLCUIUnits.largeSpacing;
+    const NSUInteger leftMargin = HeimdallUIUnits.largeSpacing;
+    const NSUInteger rightMargin = HeimdallUIUnits.largeSpacing;
 
     NSRect mainFrame = [parentView frame];
     NSString *labelString, *o_textfieldString, *o_textfieldTooltip;
@@ -815,8 +816,8 @@ my_width, tooltip, init_value)                                              \
 - (id)initWithItem:(module_config_t *)p_item
           withView:(NSView *)parentView
 {
-    const NSUInteger leftMargin = VLCUIUnits.largeSpacing;
-    const NSUInteger rightMargin = VLCUIUnits.largeSpacing;
+    const NSUInteger leftMargin = HeimdallUIUnits.largeSpacing;
+    const NSUInteger rightMargin = HeimdallUIUnits.largeSpacing;
 
     NSRect mainFrame = [parentView frame];
     NSString *labelString, *o_textfieldTooltip;
@@ -919,8 +920,8 @@ my_width, tooltip, init_value)                                              \
 - (id)initWithItem:(module_config_t *)p_item
           withView:(NSView *)parentView
 {
-    const NSUInteger leftMargin = VLCUIUnits.largeSpacing;
-    const NSUInteger rightMargin = VLCUIUnits.largeSpacing;
+    const NSUInteger leftMargin = HeimdallUIUnits.largeSpacing;
+    const NSUInteger rightMargin = HeimdallUIUnits.largeSpacing;
 
     NSRect mainFrame = [parentView frame];
     NSString *labelString, *o_itemTooltip, *o_textfieldString;
@@ -1009,8 +1010,8 @@ my_width, tooltip, init_value)                                              \
 - (id)initWithItem:(module_config_t *)p_item
           withView:(NSView *)parentView
 {
-    const NSUInteger leftMargin = VLCUIUnits.largeSpacing;
-    const NSUInteger rightMargin = VLCUIUnits.largeSpacing;
+    const NSUInteger leftMargin = HeimdallUIUnits.largeSpacing;
+    const NSUInteger rightMargin = HeimdallUIUnits.largeSpacing;
 
     NSRect mainFrame = [parentView frame];
     NSString *labelString, *o_popupTooltip;
@@ -1145,8 +1146,8 @@ my_width, tooltip, init_value)                                              \
 - (id)initWithItem:(module_config_t *)p_item
           withView:(NSView *)parentView
 {
-    const NSUInteger leftMargin = VLCUIUnits.largeSpacing;
-    const NSUInteger rightMargin = VLCUIUnits.largeSpacing;
+    const NSUInteger leftMargin = HeimdallUIUnits.largeSpacing;
+    const NSUInteger rightMargin = HeimdallUIUnits.largeSpacing;
 
     NSRect mainFrame = [parentView frame];
     NSString *labelString, *toolTip;
@@ -1237,8 +1238,8 @@ my_width, tooltip, init_value)                                              \
 - (id)initWithItem:(module_config_t *)p_item
           withView:(NSView *)parentView
 {
-    const NSUInteger leftMargin = VLCUIUnits.largeSpacing;
-    const NSUInteger rightMargin = VLCUIUnits.largeSpacing;
+    const NSUInteger leftMargin = HeimdallUIUnits.largeSpacing;
+    const NSUInteger rightMargin = HeimdallUIUnits.largeSpacing;
 
     NSRect mainFrame = [parentView frame];
     NSString *labelString, *o_textfieldTooltip;
@@ -1330,8 +1331,8 @@ my_width, tooltip, init_value)                                              \
 - (id)initWithItem:(module_config_t *)p_item
           withView:(NSView *)parentView
 {
-    const NSUInteger leftMargin = VLCUIUnits.largeSpacing;
-    const NSUInteger rightMargin = VLCUIUnits.largeSpacing;
+    const NSUInteger leftMargin = HeimdallUIUnits.largeSpacing;
+    const NSUInteger rightMargin = HeimdallUIUnits.largeSpacing;
 
     NSRect mainFrame = [parentView frame];
     NSString *labelString, *toolTip;
@@ -1445,8 +1446,8 @@ my_width, tooltip, init_value)                                              \
 - (id)initWithItem:(module_config_t *)p_item
           withView:(NSView *)parentView
 {
-    const NSUInteger leftMargin = VLCUIUnits.largeSpacing;
-    const NSUInteger rightMargin = VLCUIUnits.largeSpacing;
+    const NSUInteger leftMargin = HeimdallUIUnits.largeSpacing;
+    const NSUInteger rightMargin = HeimdallUIUnits.largeSpacing;
 
     NSRect mainFrame = [parentView frame];
     NSString *labelString, *toolTip;
@@ -1539,8 +1540,8 @@ my_width, tooltip, init_value)                                              \
 - (id)initWithItem:(module_config_t *)p_item
           withView:(NSView *)parentView
 {
-    const NSUInteger leftMargin = VLCUIUnits.largeSpacing;
-    const NSUInteger rightMargin = VLCUIUnits.largeSpacing;
+    const NSUInteger leftMargin = HeimdallUIUnits.largeSpacing;
+    const NSUInteger rightMargin = HeimdallUIUnits.largeSpacing;
 
     NSRect mainFrame = [parentView frame];
     NSString *labelString, *toolTip;
@@ -1651,8 +1652,8 @@ my_width, tooltip, init_value)                                              \
 - (id)initWithItem:(module_config_t *)p_item
           withView:(NSView *)parentView
 {
-    const NSUInteger leftMargin = VLCUIUnits.largeSpacing;
-    const NSUInteger rightMargin = VLCUIUnits.largeSpacing;
+    const NSUInteger leftMargin = HeimdallUIUnits.largeSpacing;
+    const NSUInteger rightMargin = HeimdallUIUnits.largeSpacing;
 
     NSRect mainFrame = [parentView frame];
     NSString *labelString, *toolTip;
@@ -1799,8 +1800,8 @@ o_moduleenabled = [NSNumber numberWithBool:NO];\
     } /* FOR i_module_index */
     module_list_free(p_list);
 
-    const NSUInteger leftMargin = VLCUIUnits.largeSpacing;
-    const NSUInteger rightMargin = VLCUIUnits.largeSpacing;
+    const NSUInteger leftMargin = HeimdallUIUnits.largeSpacing;
+    const NSUInteger rightMargin = HeimdallUIUnits.largeSpacing;
 
     // First, initialize and draw the table view to get its height
     // width is increased a little to fix horizontal auto-sizing
@@ -1833,7 +1834,7 @@ o_moduleenabled = [NSNumber numberWithBool:NO];\
     [o_tableColumn setDataCell: o_dataCell];
     [o_tableColumn setWidth:s_rc.size.width - 34];
     [o_tableview addTableColumn: o_tableColumn];
-    [o_tableview registerForDraggedTypes:@[VLCPrefsWidgetModuleDragType]];
+    [o_tableview registerForDraggedTypes:@[HeimdallPrefsWidgetModuleDragType]];
 
     [o_tableview setDataSource:self];
     [o_tableview setTarget: self];
@@ -1918,8 +1919,8 @@ o_moduleenabled = [NSNumber numberWithBool:NO];\
 
 - (BOOL)tableView:(NSTableView *)tableView writeRowsWithIndexes:(NSIndexSet *)rowIndexes toPasteboard:(NSPasteboard *)pboard
 {
-    [pboard declareTypes:@[VLCPrefsWidgetModuleDragType] owner:nil];
-    [pboard setPropertyList:@[@(rowIndexes.firstIndex)] forType:VLCPrefsWidgetModuleDragType];
+    [pboard declareTypes:@[HeimdallPrefsWidgetModuleDragType] owner:nil];
+    [pboard setPropertyList:@[@(rowIndexes.firstIndex)] forType:HeimdallPrefsWidgetModuleDragType];
     return YES;
 }
 
@@ -1952,7 +1953,7 @@ o_moduleenabled = [NSNumber numberWithBool:NO];\
 
     // Intra-table drag - data is the array of rows.
     if (!accepted && (array =
-                      [pb propertyListForType:VLCPrefsWidgetModuleDragType]) != NULL) {
+                      [pb propertyListForType:HeimdallPrefsWidgetModuleDragType]) != NULL) {
         NSEnumerator *iter = nil;
         id val;
         // Move the modules
@@ -2020,8 +2021,8 @@ objectValueForTableColumn:(NSTableColumn *)aTableColumn row:(NSInteger)rowIndex
 - (id)initWithItem:(module_config_t *)p_item
           withView:(NSView *)parentView
 {
-    const NSUInteger leftMargin = VLCUIUnits.largeSpacing;
-    const NSUInteger rightMargin = VLCUIUnits.largeSpacing;
+    const NSUInteger leftMargin = HeimdallUIUnits.largeSpacing;
+    const NSUInteger rightMargin = HeimdallUIUnits.largeSpacing;
 
     NSRect mainFrame = [parentView frame];
     NSString *labelString;

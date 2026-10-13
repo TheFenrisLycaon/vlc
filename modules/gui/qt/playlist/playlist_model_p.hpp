@@ -2,6 +2,7 @@
  * playlist_model_p.hpp
  *****************************************************************************
  * Copyright (C) 2018 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,7 +23,7 @@
 
 #include "playlist_model.hpp"
 
-namespace vlc {
+namespace heimdall {
 namespace playlist {
 
 class PlaylistListModelPrivate
@@ -59,18 +60,18 @@ public:
     void notifyItemsChanged(int index, int count,
                             const QVector<int> &roles = {});
 
-    vlc_playlist_t* m_playlist = nullptr;
-    vlc_playlist_listener_id *m_listener = nullptr;
+    heimdall_playlist_t* m_playlist = nullptr;
+    heimdall_playlist_listener_id *m_listener = nullptr;
 
     /* access only from the UI thread */
     QVector<PlaylistItem> m_items;
     ssize_t m_current = -1;
 
-    VLCDuration m_duration = VLCDuration{};
+    HeimdallDuration m_duration = HeimdallDuration{};
 };
 
 } //namespace playlist
-} //namespace vlc
+} //namespace heimdall
 
 
 #endif // PLAYLIST_MODEL_P_HPP

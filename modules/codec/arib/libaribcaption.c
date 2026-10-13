@@ -2,6 +2,7 @@
  * ARIB STD-B24 caption decoder/renderer using libaribcaption.
  *****************************************************************************
  * Copyright (C) 2022 magicxqq
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors:  magicxqq <xqq@xqq.im>
  *
@@ -32,10 +33,10 @@
 #include <string.h>
 #include <limits.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_atomic.h>
-#include <vlc_codec.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_atomic.h>
+#include <heimdall_codec.h>
 
 #include <aribcaption/aribcaption.h>
 
@@ -46,7 +47,7 @@
 typedef struct
 {
     /* The following fields of decoder_sys_t are shared between decoder and spu units */
-    vlc_atomic_rc_t    rc;
+    heimdall_atomic_rc_t    rc;
 
     bool               b_cfg_fadeout;
 
@@ -54,26 +55,26 @@ typedef struct
     aribcc_decoder_t  *p_decoder;
     aribcc_renderer_t *p_renderer;
 
-    vlc_mutex_t        dec_lock;    // protect p_dec pointer
+    heimdall_mutex_t        dec_lock;    // protect p_dec pointer
     decoder_t*         p_dec;       // pointer to decoder_t for logcat callback, NULL if decoder closed
 } decoder_sys_t;
 
 typedef struct
 {
     decoder_sys_t         *p_dec_sys;
-    vlc_tick_t             i_pts;
+    heimdall_tick_t             i_pts;
     aribcc_render_result_t render_result;
 } libaribcaption_spu_updater_sys_t;
 
 
 static void DecSysRetain(decoder_sys_t *p_sys)
 {
-    vlc_atomic_rc_inc(&p_sys->rc);
+    heimdall_atomic_rc_inc(&p_sys->rc);
 }
 
 static void DecSysRelease(decoder_sys_t *p_sys)
 {
-    if (!vlc_atomic_rc_dec(&p_sys->rc))
+    if (!heimdall_atomic_rc_dec(&p_sys->rc))
         return;
 
     if (p_sys->p_renderer)
@@ -107,7 +108,7 @@ static void CopyImageToRegion(picture_t *dst_pic, const aribcc_image_t *image)
 }
 
 static void SubpictureUpdate(subpicture_t *p_subpic,
-                             const struct vlc_spu_updater_configuration *cfg)
+                             const struct heimdall_spu_updater_configuration *cfg)
 {
     libaribcaption_spu_updater_sys_t *p_spusys = p_subpic->updater.sys;
     decoder_sys_t *p_sys = p_spusys->p_dec_sys;
@@ -127,11 +128,11 @@ static void SubpictureUpdate(subpicture_t *p_subpic,
                                                           i_render_area_height);
     }
 
-    const vlc_tick_t i_stream_date = p_spusys->i_pts + (cfg->pts - p_subpic->i_start);
+    const heimdall_tick_t i_stream_date = p_spusys->i_pts + (cfg->pts - p_subpic->i_start);
 
     /* Retrieve the expected render status for detecting whether the subtitle image changed */
     aribcc_render_status_t status = aribcc_renderer_try_render(p_sys->p_renderer,
-                                                               MS_FROM_VLC_TICK(i_stream_date));
+                                                               MS_FROM_HEIMDALL_TICK(i_stream_date));
     if (status == ARIBCC_RENDER_STATUS_GOT_IMAGE_UNCHANGED) {
         /* Skip rendering since images were not changed */
         if (!b_src_changed && !b_dst_changed) {
@@ -140,13 +141,13 @@ static void SubpictureUpdate(subpicture_t *p_subpic,
     }
 
     status = aribcc_renderer_render(p_sys->p_renderer,
-                                    MS_FROM_VLC_TICK(i_stream_date),
+                                    MS_FROM_HEIMDALL_TICK(i_stream_date),
                                     &p_spusys->render_result);
     if (status == ARIBCC_RENDER_STATUS_ERROR) {
         return;
     }
 
-    vlc_spu_regions_Clear( &p_subpic->regions );
+    heimdall_spu_regions_Clear( &p_subpic->regions );
 
     aribcc_image_t *p_images = p_spusys->render_result.images;
     uint32_t        i_image_count = p_spusys->render_result.image_count;
@@ -159,7 +160,7 @@ static void SubpictureUpdate(subpicture_t *p_subpic,
     p_subpic->i_original_picture_height = i_render_area_height;
 
     video_format_t fmt_region = *p_dst_format;
-    fmt_region.i_chroma       = VLC_CODEC_RGBA;
+    fmt_region.i_chroma       = HEIMDALL_CODEC_RGBA;
     fmt_region.i_x_offset     = 0;
     fmt_region.i_y_offset     = 0;
     fmt_region.transfer       = TRANSFER_FUNC_SRGB;
@@ -189,7 +190,7 @@ static void SubpictureUpdate(subpicture_t *p_subpic,
 
         CopyImageToRegion(region->p_picture, image);
 
-        vlc_spu_regions_push(&p_subpic->regions, region);
+        heimdall_spu_regions_push(&p_subpic->regions, region);
     }
 
     aribcc_render_result_cleanup(&p_spusys->render_result);
@@ -210,18 +211,18 @@ static int Decode(decoder_t *p_dec, block_t *p_block)
     decoder_sys_t *p_sys = p_dec->p_sys;
 
     if (p_block == NULL) /* No Drain */
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
 
     if (p_block->i_flags & BLOCK_FLAG_CORRUPTED) {
         block_Release(p_block);
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
     }
 
     aribcc_caption_t caption;
     aribcc_decode_status_t status = aribcc_decoder_decode(p_sys->p_decoder,
                                                           p_block->p_buffer,
                                                           p_block->i_buffer,
-                                                          MS_FROM_VLC_TICK(p_block->i_pts),
+                                                          MS_FROM_HEIMDALL_TICK(p_block->i_pts),
                                                           &caption);
     if (status == ARIBCC_DECODE_STATUS_ERROR) {
         msg_Err(p_dec, "aribcc_decoder_decode() returned with error");
@@ -229,7 +230,7 @@ static int Decode(decoder_t *p_dec, block_t *p_block)
 
     if (status == ARIBCC_DECODE_STATUS_ERROR || status == ARIBCC_DECODE_STATUS_NO_CAPTION) {
         block_Release(p_block);
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
     }
 
     aribcc_renderer_append_caption(p_sys->p_renderer, &caption);
@@ -239,13 +240,13 @@ static int Decode(decoder_t *p_dec, block_t *p_block)
     libaribcaption_spu_updater_sys_t *p_spusys = malloc(sizeof(libaribcaption_spu_updater_sys_t));
     if (!p_spusys) {
         block_Release(p_block);
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
     }
     p_spusys->p_dec_sys = p_sys;
     p_spusys->i_pts = p_block->i_pts;
     memset(&p_spusys->render_result, 0, sizeof(p_spusys->render_result));
 
-    static const struct vlc_spu_updater_ops spu_ops =
+    static const struct heimdall_spu_updater_ops spu_ops =
     {
         .update   = SubpictureUpdate,
         .destroy  = SubpictureDestroy,
@@ -261,7 +262,7 @@ static int Decode(decoder_t *p_dec, block_t *p_block)
         msg_Warn(p_dec, "can't get spu buffer");
         free(p_spusys);
         block_Release(p_block);
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
     }
     p_spu->i_start = p_block->i_pts;
     p_spu->i_stop = p_block->i_pts;
@@ -270,7 +271,7 @@ static int Decode(decoder_t *p_dec, block_t *p_block)
     if (caption.wait_duration == ARIBCC_DURATION_INDEFINITE) {
         p_spu->b_ephemer = true;
     } else {
-        p_spu->i_stop = p_block->i_pts + VLC_TICK_FROM_MS(caption.wait_duration);
+        p_spu->i_stop = p_block->i_pts + HEIMDALL_TICK_FROM_MS(caption.wait_duration);
     }
 
 
@@ -280,7 +281,7 @@ static int Decode(decoder_t *p_dec, block_t *p_block)
 
     decoder_QueueSub(p_dec, p_spu);
 
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }
 
 /*****************************************************************************
@@ -301,7 +302,7 @@ static void LogcatCallback(aribcc_loglevel_t level, const char *message, void *u
     decoder_sys_t *p_sys = userdata;
 
     if (p_sys->p_dec != NULL) {
-        vlc_mutex_lock(&p_sys->dec_lock);
+        heimdall_mutex_lock(&p_sys->dec_lock);
 
         if (p_sys->p_dec != NULL) {
             decoder_t* p_dec = p_sys->p_dec;
@@ -315,7 +316,7 @@ static void LogcatCallback(aribcc_loglevel_t level, const char *message, void *u
             }
         }
 
-        vlc_mutex_unlock(&p_sys->dec_lock);
+        heimdall_mutex_unlock(&p_sys->dec_lock);
     }
 }
 
@@ -324,25 +325,25 @@ static void LogcatCallback(aribcc_loglevel_t level, const char *message, void *u
 /*****************************************************************************
  * Open: Create libaribcaption context/decoder/renderer.
  *****************************************************************************/
-static int Open(vlc_object_t *p_this)
+static int Open(heimdall_object_t *p_this)
 {
     decoder_t     *p_dec = (decoder_t *)p_this;
     decoder_sys_t *p_sys;
 
-    if (p_dec->fmt_in->i_codec != VLC_CODEC_ARIB_A &&
-        p_dec->fmt_in->i_codec != VLC_CODEC_ARIB_C) {
-        return VLC_ENOTSUP;
+    if (p_dec->fmt_in->i_codec != HEIMDALL_CODEC_ARIB_A &&
+        p_dec->fmt_in->i_codec != HEIMDALL_CODEC_ARIB_C) {
+        return HEIMDALL_ENOTSUP;
     }
 
     p_sys = malloc(sizeof(decoder_sys_t));
     if (unlikely(p_sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    vlc_atomic_rc_init(&p_sys->rc);
+    heimdall_atomic_rc_init(&p_sys->rc);
 
     p_sys->b_cfg_fadeout = var_InheritBool(p_this, ARIBCAPTION_CFG_PREFIX "fadeout");
 
-    vlc_mutex_init(&p_sys->dec_lock);
+    heimdall_mutex_init(&p_sys->dec_lock);
     p_sys->p_dec = p_dec;
 
     /* Create libaribcaption context */
@@ -350,7 +351,7 @@ static int Open(vlc_object_t *p_this)
     if (!p_ctx) {
         msg_Err(p_dec, "libaribcaption context allocation failed");
         DecSysRelease(p_sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     aribcc_context_set_logcat_callback(p_ctx, LogcatCallback, p_sys);
@@ -361,11 +362,11 @@ static int Open(vlc_object_t *p_this)
     if (!p_decoder) {
         msg_Err(p_dec, "libaribcaption decoder creation failed");
         DecSysRelease(p_sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     aribcc_profile_t i_profile = ARIBCC_PROFILE_A;
-    if (p_dec->fmt_in->i_codec == VLC_CODEC_ARIB_C) {
+    if (p_dec->fmt_in->i_codec == HEIMDALL_CODEC_ARIB_C) {
         i_profile = ARIBCC_PROFILE_C;
     }
 
@@ -377,7 +378,7 @@ static int Open(vlc_object_t *p_this)
     if (!b_succ) {
         msg_Err(p_dec, "libaribcaption decoder initialization failed");
         DecSysRelease(p_sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
 
@@ -386,7 +387,7 @@ static int Open(vlc_object_t *p_this)
     if (!p_renderer) {
         msg_Err(p_dec, "libaribcaption renderer creation failed");
         DecSysRelease(p_sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     int i_cfg_rendering_backend =
@@ -398,7 +399,7 @@ static int Open(vlc_object_t *p_this)
     if (!b_succ) {
         msg_Err(p_dec, "libaribcaption renderer initialization failed");
         DecSysRelease(p_sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     aribcc_renderer_set_storage_policy(p_renderer, ARIBCC_CAPTION_STORAGE_POLICY_MINIMUM, 0);
@@ -427,22 +428,22 @@ static int Open(vlc_object_t *p_this)
     p_dec->p_sys = p_sys;
     p_dec->pf_decode = Decode;
     p_dec->pf_flush  = Flush;
-    p_dec->fmt_out.i_codec = VLC_CODEC_RGBA;
+    p_dec->fmt_out.i_codec = HEIMDALL_CODEC_RGBA;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * Close: finish
  *****************************************************************************/
-static void Close(vlc_object_t *p_this)
+static void Close(heimdall_object_t *p_this)
 {
     decoder_t *p_dec = (decoder_t *)p_this;
     decoder_sys_t *p_sys = p_dec->p_sys;
 
-    vlc_mutex_lock(&p_sys->dec_lock);
+    heimdall_mutex_lock(&p_sys->dec_lock);
     p_sys->p_dec = NULL;
-    vlc_mutex_unlock(&p_sys->dec_lock);
+    heimdall_mutex_unlock(&p_sys->dec_lock);
 
     DecSysRelease(p_sys);
 }
@@ -516,7 +517,7 @@ static const char* const ppsz_rendering_backend_descriptions[] = {
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname(N_("ARIB caption"))
     set_description(N_("ARIB caption renderer"))
     set_capability("spu decoder", 60)
@@ -532,4 +533,4 @@ vlc_module_begin ()
     add_bool(ARIBCAPTION_CFG_PREFIX "ignore-ruby", false, CFG_TEXT_IGNORE_RUBY, CFG_LONGTEXT_IGNORE_RUBY)
     add_bool(ARIBCAPTION_CFG_PREFIX "fadeout", false, CFG_TEXT_FADEOUT, CFG_LONGTEXT_FADEOUT)
     add_float_with_range(ARIBCAPTION_CFG_PREFIX "stroke-width", 1.5f, 0.0f, 3.0f, CFG_TEXT_STROKE_WIDTH, CFG_LONGTEXT_STROKE_WIDTH)
-vlc_module_end ()
+heimdall_module_end ()

@@ -2,6 +2,7 @@
  * yuvp.c: YUVP to YUVA/RGBA chroma converter
  *****************************************************************************
  * Copyright (C) 2008 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar < fenrir @ videolan.org >
  *
@@ -27,11 +28,11 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_picture.h>
-#include <vlc_chroma_probe.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
+#include <heimdall_chroma_probe.h>
 #include <assert.h>
 #include "../video_filter/filter_picture.h"
 
@@ -44,18 +45,18 @@
  *****************************************************************************/
 static int  Open ( filter_t * );
 
-static void ProbeChroma(vlc_chroma_conv_vec *vec)
+static void ProbeChroma(heimdall_chroma_conv_vec *vec)
 {
-    vlc_chroma_conv_add_in_outlist(vec, 1, VLC_CODEC_YUVP, VLC_CODEC_RGBA,
-        VLC_CODEC_ARGB, VLC_CODEC_BGRA, VLC_CODEC_ABGR, VLC_CODEC_YUVA);
+    heimdall_chroma_conv_add_in_outlist(vec, 1, HEIMDALL_CODEC_YUVP, HEIMDALL_CODEC_RGBA,
+        HEIMDALL_CODEC_ARGB, HEIMDALL_CODEC_BGRA, HEIMDALL_CODEC_ABGR, HEIMDALL_CODEC_YUVA);
 }
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("YUVP converter") )
     set_callback_video_converter( Open, 10 )
     add_submodule()
         set_callback_chroma_conv_probe(ProbeChroma)
-vlc_module_end ()
+heimdall_module_end ()
 
 /****************************************************************************
  * Local prototypes
@@ -71,27 +72,27 @@ static int Open( filter_t *p_filter )
 {
     /* It only supports YUVP to YUVA/RGBA without scaling
      * (if scaling is required another filter can do it) */
-    if( p_filter->fmt_in.video.i_chroma != VLC_CODEC_YUVP )
-        return VLC_EGENERIC;
+    if( p_filter->fmt_in.video.i_chroma != HEIMDALL_CODEC_YUVP )
+        return HEIMDALL_EGENERIC;
     switch ( p_filter->fmt_out.video.i_chroma )
     {
         CASE_PACKED_RGBA
-        case VLC_CODEC_YUVA:
+        case HEIMDALL_CODEC_YUVA:
             break;
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
     if( p_filter->fmt_in.video.i_width  != p_filter->fmt_out.video.i_width ||
         p_filter->fmt_in.video.i_height != p_filter->fmt_out.video.i_height ||
         p_filter->fmt_in.video.orientation != p_filter->fmt_out.video.orientation )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     p_filter->ops = &Convert_ops;
 
     msg_Dbg( p_filter, "YUVP to %4.4s converter",
              (const char*)&p_filter->fmt_out.video.i_chroma );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /****************************************************************************
@@ -104,11 +105,11 @@ static void Convert( filter_t *p_filter, picture_t *p_source,
     const video_palette_t *p_yuvp = p_filter->fmt_in.video.p_palette;
 
     assert( p_yuvp != NULL );
-    assert( p_filter->fmt_in.video.i_chroma == VLC_CODEC_YUVP );
+    assert( p_filter->fmt_in.video.i_chroma == HEIMDALL_CODEC_YUVP );
     assert( p_filter->fmt_in.video.i_width == p_filter->fmt_out.video.i_width );
     assert( p_filter->fmt_in.video.i_height == p_filter->fmt_out.video.i_height );
 
-    if( p_filter->fmt_out.video.i_chroma == VLC_CODEC_YUVA )
+    if( p_filter->fmt_out.video.i_chroma == HEIMDALL_CODEC_YUVA )
     {
         for( unsigned int y = 0; y < p_filter->fmt_in.video.i_height; y++ )
         {
@@ -137,8 +138,8 @@ static void Convert( filter_t *p_filter, picture_t *p_source,
     video_palette_t rgbp;
     int r, g, b, a;
 
-    if (GetPackedRgbIndexes(p_filter->fmt_out.video.i_chroma, &r, &g, &b, &a) != VLC_SUCCESS)
-        vlc_assert_unreachable();
+    if (GetPackedRgbIndexes(p_filter->fmt_out.video.i_chroma, &r, &g, &b, &a) != HEIMDALL_SUCCESS)
+        heimdall_assert_unreachable();
 
     /* Create a RGBA palette */
     assert(p_yuvp->i_entries <= VIDEO_PALETTE_COLORS_MAX);
@@ -191,8 +192,8 @@ static void Yuv2Rgb( uint8_t *r, uint8_t *g, uint8_t *b, int y1, int u1, int v1 
             - FIX(0.71414*255.0/224.0) * cr + ONE_HALF;
     b_add = FIX(1.77200*255.0/224.0) * cb + ONE_HALF;
     y = (y1 - 16) * FIX(255.0/219.0);
-    *r = vlc_uint8( (y + r_add) >> SCALEBITS );
-    *g = vlc_uint8( (y + g_add) >> SCALEBITS );
-    *b = vlc_uint8( (y + b_add) >> SCALEBITS );
+    *r = heimdall_uint8( (y + r_add) >> SCALEBITS );
+    *g = heimdall_uint8( (y + g_add) >> SCALEBITS );
+    *b = heimdall_uint8( (y + b_add) >> SCALEBITS );
 #undef FIX
 }

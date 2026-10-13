@@ -2,6 +2,7 @@
  * jpeg2000.h J2K definitions
  *****************************************************************************
  * Copyright (C) 2017 VideoLAN Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -17,10 +18,10 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
-#ifndef VLC_JPEG2000_H
-#define VLC_JPEG2000_H
+#ifndef HEIMDALL_JPEG2000_H
+#define HEIMDALL_JPEG2000_H
 
-#define J2K_BOX_JP2C VLC_FOURCC('j','p','2','c')
+#define J2K_BOX_JP2C HEIMDALL_FOURCC('j','p','2','c')
 
 enum j2k_profiles_e
 {

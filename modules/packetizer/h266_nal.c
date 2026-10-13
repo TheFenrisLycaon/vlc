@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright © 2019 VideoLabs, VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -25,8 +26,8 @@
 #include "hxxx_ep3b.h"
 #include "iso_color_tables.h"
 
-#include <vlc_common.h>
-#include <vlc_bits.h>
+#include <heimdall_common.h>
+#include <heimdall_bits.h>
 
 #include <math.h>
 #include <assert.h>
@@ -325,7 +326,7 @@ static bool h266_parse_dpb_parameters(bs_t *p_bs,
 static bool h266_parse_vui_parameters(bs_t *p_bs, nal_ue_t payloadSize,
                                       h266_vui_parameters_t *p_vui)
 {
-    VLC_UNUSED(payloadSize);
+    HEIMDALL_UNUSED(payloadSize);
     p_vui->progressive_source_flag = bs_read1(p_bs);
     p_vui->interlaced_source_flag = bs_read1(p_bs);
     bs_skip(p_bs, 2);
@@ -499,7 +500,7 @@ static bool h266_parse_pic_reflist(bs_t *p_bs, nal_ue_t sps_num_ref_pic_lists,
                                    unsigned listIdx, unsigned rplsIdx,
                                    h266_sequence_parameter_set_t *p_sps)
 {
-    VLC_UNUSED(listIdx);
+    HEIMDALL_UNUSED(listIdx);
     nal_ue_t numentries = bs_read_ue(p_bs);
     if(numentries > 16 + 13) // A.4.2 wrost case MaxDpbSize = 2 * maxDpbPicBuf(8)
         return false;
@@ -599,8 +600,8 @@ static bool h266_parse_sequence_parameter_set_rbsp(bs_t *p_bs,
             {
                 unsigned tmpWidthVal = (p_sps->pic_width_max_in_luma_samples + CtbSizeY - 1) / CtbSizeY;
                 unsigned tmpHeightVal = (p_sps->pic_height_max_in_luma_samples + CtbSizeY - 1) / CtbSizeY;
-                uint8_t readsizeW = ceil(vlc_log2(tmpWidthVal));
-                uint8_t readsizeH = ceil(vlc_log2(tmpHeightVal));
+                uint8_t readsizeW = ceil(heimdall_log2(tmpWidthVal));
+                uint8_t readsizeH = ceil(heimdall_log2(tmpHeightVal));
                 if(i > 0 && p_sps->pic_width_max_in_luma_samples > CtbSizeY)
                     bs_skip(p_bs, readsizeW);
                 if(i > 0 && p_sps->pic_height_max_in_luma_samples > CtbSizeY)
@@ -1142,7 +1143,7 @@ bool h266_get_frame_rate(const h266_sequence_parameter_set_t *p_sps,
                          const h266_video_parameter_set_t *p_vps,
                          unsigned *pi_num, unsigned *pi_den)
 {
-    VLC_UNUSED(p_vps);
+    HEIMDALL_UNUSED(p_vps);
     if(p_sps->general_hrd_parameters.num_units_in_tick &&
         p_sps->general_hrd_parameters.time_scale)
     {

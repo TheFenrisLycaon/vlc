@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,8 +20,8 @@ import QtQuick
 import QtQuick.Window
 
 
-import VLC.MainInterface
-import VLC.Style
+import Heimdall.MainInterface
+import Heimdall.Style
 
 Row {
     id: windowButtonGroup
@@ -80,7 +81,7 @@ Row {
                         return "\uE921"
 
                     else
-                        return VLCIcons.window_minimize
+                        return HeimdallIcons.window_minimize
                 }
 
                 case CSDButton.MaximizeRestore:
@@ -92,8 +93,8 @@ Row {
 
                     else
                         return (MainCtx.intfMainWindow.visibility === Window.Maximized)
-                                ? VLCIcons.window_restore
-                                : VLCIcons.window_maximize
+                                ? HeimdallIcons.window_restore
+                                : HeimdallIcons.window_maximize
                 }
 
                 case CSDButton.Close:
@@ -102,7 +103,7 @@ Row {
                         return "\uE8BB"
 
                     else
-                        return VLCIcons.window_close
+                        return HeimdallIcons.window_close
                 }
                 }
                 console.assert(false, "unreachable")
@@ -110,12 +111,12 @@ Row {
 
             onClicked: modelData.click()
 
-            // handles VLCStyle.scale changes
+            // handles HeimdallStyle.scale changes
             onWidthChanged: Qt.callLater(updateRect)
             onHeightChanged: Qt.callLater(updateRect)
 
             Connections {
-                target: VLCStyle
+                target: HeimdallStyle
 
                 // handle window resize
                 function onAppWidthChanged() { Qt.callLater(updateRect) }

@@ -2,6 +2,7 @@
  * smb2.c: SMB2 access plug-in
  *****************************************************************************
  * Copyright © 2018  VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -33,16 +34,16 @@
 # include <poll.h>
 #endif
 
-#include <vlc_common.h>
-#include <vlc_access.h>
-#include <vlc_dialog.h>
-#include <vlc_input_item.h>
-#include <vlc_plugin.h>
-#include <vlc_url.h>
-#include <vlc_keystore.h>
-#include <vlc_interrupt.h>
-#include <vlc_network.h>
-#include <vlc_memstream.h>
+#include <heimdall_common.h>
+#include <heimdall_access.h>
+#include <heimdall_dialog.h>
+#include <heimdall_input_item.h>
+#include <heimdall_plugin.h>
+#include <heimdall_url.h>
+#include <heimdall_keystore.h>
+#include <heimdall_interrupt.h>
+#include <heimdall_network.h>
+#include <heimdall_memstream.h>
 
 #include <smb2/smb2.h>
 #include <smb2/libsmb2.h>
@@ -62,13 +63,13 @@ netbios_ns_interrupt_callback(void *data)
 static inline void
 netbios_ns_interrupt_register(netbios_ns *ns)
 {
-    vlc_interrupt_register(netbios_ns_interrupt_callback, ns);
+    heimdall_interrupt_register(netbios_ns_interrupt_callback, ns);
 }
 
 static inline int
 netbios_ns_interrupt_unregister(void)
 {
-    return vlc_interrupt_unregister();
+    return heimdall_interrupt_unregister();
 }
 
 #else
@@ -96,10 +97,10 @@ netbios_ns_interrupt_unregister(void)
 #include "smb_common.h"
 #include "cache.h"
 
-static int Open(vlc_object_t *);
-static void Close(vlc_object_t *);
+static int Open(heimdall_object_t *);
+static void Close(heimdall_object_t *);
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname("smb2")
     set_description(N_("SMB2 / SMB3 input"))
     set_help(N_("Samba (Windows network shares) input via libsmb2"))
@@ -110,9 +111,9 @@ vlc_module_begin()
     add_string("smb-domain", NULL, SMB_DOMAIN_TEXT, SMB_DOMAIN_LONGTEXT)
     add_shortcut("smb", "smb2")
     set_callbacks(Open, Close)
-vlc_module_end()
+heimdall_module_end()
 
-VLC_ACCESS_CACHE_REGISTER(smb2_cache);
+HEIMDALL_ACCESS_CACHE_REGISTER(smb2_cache);
 
 struct access_sys
 {
@@ -125,16 +126,16 @@ struct access_sys
     struct srvsvc_netshareenumall_rep *share_enum;
 #endif
     uint64_t                smb2_size;
-    vlc_url_t               encoded_url;
+    heimdall_url_t               encoded_url;
     bool                    eof;
     bool                    smb2_connected;
 
-    struct vlc_access_cache_entry *cache_entry;
+    struct heimdall_access_cache_entry *cache_entry;
 };
 
-struct vlc_smb2_op
+struct heimdall_smb2_op
 {
-    struct vlc_logger *log;
+    struct heimdall_logger *log;
 
     struct smb2_context *smb2;
     struct smb2_context **smb2p;
@@ -151,8 +152,8 @@ struct vlc_smb2_op
     } res;
 };
 
-#define VLC_SMB2_OP(access, smb2p_) { \
-    .log = access ? vlc_object_logger(access) : NULL, \
+#define HEIMDALL_SMB2_OP(access, smb2p_) { \
+    .log = access ? heimdall_object_logger(access) : NULL, \
     .smb2p = smb2p_, \
     .smb2 = (assert(*smb2p_ != NULL), *smb2p_), \
     .error_status = 0, \
@@ -160,7 +161,7 @@ struct vlc_smb2_op
 };
 
 static inline void
-vlc_smb2_op_reset(struct vlc_smb2_op *op, struct smb2_context **smb2p)
+heimdall_smb2_op_reset(struct heimdall_smb2_op *op, struct smb2_context **smb2p)
 {
     op->res_done = false;
     op->smb2p = smb2p;
@@ -169,13 +170,13 @@ vlc_smb2_op_reset(struct vlc_smb2_op *op, struct smb2_context **smb2p)
 }
 
 static int
-vlc_smb2_check_status(struct vlc_smb2_op *op, const char *psz_func, int status)
+heimdall_smb2_check_status(struct heimdall_smb2_op *op, const char *psz_func, int status)
 {
     if (status < 0)
     {
         const char *psz_error = smb2_get_error(op->smb2);
         if (op->log)
-            vlc_warning(op->log, "%s failed: %d, '%s'", psz_func, status, psz_error);
+            heimdall_warning(op->log, "%s failed: %d, '%s'", psz_func, status, psz_error);
         op->error_status = status;
         return -1;
     }
@@ -187,12 +188,12 @@ vlc_smb2_check_status(struct vlc_smb2_op *op, const char *psz_func, int status)
 }
 
 static void
-vlc_smb2_set_error(struct vlc_smb2_op *op, const char *psz_func, int err)
+heimdall_smb2_set_error(struct heimdall_smb2_op *op, const char *psz_func, int err)
 {
     if (op->log && err != -EINTR)
-        vlc_error(op->log, "%s failed: %d, %s", psz_func, err, smb2_get_error(op->smb2));
+        heimdall_error(op->log, "%s failed: %d, %s", psz_func, err, smb2_get_error(op->smb2));
 
-    /* Don't override if set via vlc_smb2_check_status */
+    /* Don't override if set via heimdall_smb2_check_status */
     if (op->error_status == 0)
         op->error_status = err;
 
@@ -201,16 +202,16 @@ vlc_smb2_set_error(struct vlc_smb2_op *op, const char *psz_func, int err)
     *op->smb2p = NULL;
 }
 
-#define VLC_SMB2_CHECK_STATUS(op, status) \
-    vlc_smb2_check_status(op, __func__, status)
+#define HEIMDALL_SMB2_CHECK_STATUS(op, status) \
+    heimdall_smb2_check_status(op, __func__, status)
 
-#define VLC_SMB2_SET_ERROR(op, func, err) \
-    vlc_smb2_set_error(op, func, err)
+#define HEIMDALL_SMB2_SET_ERROR(op, func, err) \
+    heimdall_smb2_set_error(op, func, err)
 
-#define VLC_SMB2_STATUS_DENIED(x) (x == -ECONNREFUSED || x == -EACCES)
+#define HEIMDALL_SMB2_STATUS_DENIED(x) (x == -ECONNREFUSED || x == -EACCES)
 
 static int
-vlc_smb2_mainloop(struct vlc_smb2_op *op)
+heimdall_smb2_mainloop(struct heimdall_smb2_op *op)
 {
     while (op->error_status == 0 && !op->res_done)
     {
@@ -226,16 +227,16 @@ vlc_smb2_mainloop(struct vlc_smb2_op *op)
             p_fds[i].fd = fds[i];
         }
 
-        if (fds == NULL || (ret = vlc_poll_i11e(p_fds, fd_count, smb2_timeout)) < 0)
+        if (fds == NULL || (ret = heimdall_poll_i11e(p_fds, fd_count, smb2_timeout)) < 0)
         {
             if (op->log && errno == EINTR)
-                vlc_warning(op->log, "vlc_poll_i11e interrupted");
-            VLC_SMB2_SET_ERROR(op, "poll", -errno);
+                heimdall_warning(op->log, "heimdall_poll_i11e interrupted");
+            HEIMDALL_SMB2_SET_ERROR(op, "poll", -errno);
         }
         else if (ret == 0)
         {
             if (smb2_service_fd(op->smb2, -1, 0) < 0)
-                VLC_SMB2_SET_ERROR(op, "smb2_service", -EINVAL);
+                HEIMDALL_SMB2_SET_ERROR(op, "smb2_service", -EINVAL);
         }
         else
         {
@@ -243,7 +244,7 @@ vlc_smb2_mainloop(struct vlc_smb2_op *op)
             {
                 if (p_fds[i].revents
                  && smb2_service_fd(op->smb2, p_fds[i].fd, p_fds[i].revents) < 0)
-                    VLC_SMB2_SET_ERROR(op, "smb2_service", -EINVAL);
+                    HEIMDALL_SMB2_SET_ERROR(op, "smb2_service", -EINVAL);
             }
         }
     }
@@ -261,26 +262,26 @@ vlc_smb2_mainloop(struct vlc_smb2_op *op)
     return op->error_status;
 }
 
-#define VLC_SMB2_GENERIC_CB() \
-    struct vlc_smb2_op *op = private_data; \
+#define HEIMDALL_SMB2_GENERIC_CB() \
+    struct heimdall_smb2_op *op = private_data; \
     assert(op->smb2 == smb2); (void) smb2; \
-    if (VLC_SMB2_CHECK_STATUS(op, status)) \
+    if (HEIMDALL_SMB2_CHECK_STATUS(op, status)) \
         return
 
 static void
 smb2_generic_cb(struct smb2_context *smb2, int status, void *data,
                 void *private_data)
 {
-    VLC_UNUSED(data);
-    VLC_SMB2_GENERIC_CB();
+    HEIMDALL_UNUSED(data);
+    HEIMDALL_SMB2_GENERIC_CB();
 }
 
 static void
 smb2_read_cb(struct smb2_context *smb2, int status, void *data,
              void *private_data)
 {
-    VLC_UNUSED(data);
-    VLC_SMB2_GENERIC_CB();
+    HEIMDALL_UNUSED(data);
+    HEIMDALL_SMB2_GENERIC_CB();
 
     op->res.read.len = status;
 }
@@ -299,18 +300,18 @@ FileRead(stream_t *access, void *buf, size_t len)
     if (len > 262144)
         len = 262144;
 
-    struct vlc_smb2_op op = VLC_SMB2_OP(access, &sys->smb2);
+    struct heimdall_smb2_op op = HEIMDALL_SMB2_OP(access, &sys->smb2);
     op.res.read.len = 0;
 
     int err = smb2_read_async(sys->smb2, sys->smb2fh, buf, len,
                               smb2_read_cb, &op);
     if (err < 0)
     {
-        VLC_SMB2_SET_ERROR(&op, "smb2_read_async", err);
+        HEIMDALL_SMB2_SET_ERROR(&op, "smb2_read_async", err);
         return 0;
     }
 
-    if (vlc_smb2_mainloop(&op) < 0)
+    if (heimdall_smb2_mainloop(&op) < 0)
         return 0;
 
     if (op.res.read.len == 0)
@@ -325,26 +326,26 @@ FileSeek(stream_t *access, uint64_t i_pos)
     struct access_sys *sys = access->p_sys;
 
     if (sys->smb2 == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if (i_pos > INT64_MAX)
     {
         msg_Err(access, "can't seek past INT64_MAX (requested: %"PRIu64")\n",
                 i_pos);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    struct vlc_smb2_op op = VLC_SMB2_OP(access, &sys->smb2);
+    struct heimdall_smb2_op op = HEIMDALL_SMB2_OP(access, &sys->smb2);
 
     int64_t err = smb2_lseek(op.smb2, sys->smb2fh, i_pos, SEEK_SET, NULL);
     if (err < 0)
     {
-        VLC_SMB2_SET_ERROR(&op, "smb2_lseek", err);
+        HEIMDALL_SMB2_SET_ERROR(&op, "smb2_lseek", err);
         return err;
     }
     sys->eof = false;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int
@@ -375,7 +376,7 @@ FileControl(stream_t *access, int i_query, va_list args)
         }
 
         case STREAM_GET_PTS_DELAY:
-            *va_arg(args, vlc_tick_t * ) = VLC_TICK_FROM_MS(
+            *va_arg(args, heimdall_tick_t * ) = HEIMDALL_TICK_FROM_MS(
                 var_InheritInteger(access, "network-caching"));
             break;
 
@@ -383,62 +384,62 @@ FileControl(stream_t *access, int i_query, va_list args)
             break;
 
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-VLC_MALLOC static char *
-vlc_smb2_get_url(vlc_url_t *url, const char *file)
+HEIMDALL_MALLOC static char *
+heimdall_smb2_get_url(heimdall_url_t *url, const char *file)
 {
     /* smb2://<psz_host><i_port><psz_path><file>?<psz_option> */
-    struct vlc_memstream buf;
-    vlc_memstream_open(&buf);
+    struct heimdall_memstream buf;
+    heimdall_memstream_open(&buf);
     if (strchr(url->psz_host, ':') != NULL)
-        vlc_memstream_printf(&buf, "smb://[%s]", url->psz_host);
+        heimdall_memstream_printf(&buf, "smb://[%s]", url->psz_host);
     else
-        vlc_memstream_printf(&buf, "smb://%s", url->psz_host);
+        heimdall_memstream_printf(&buf, "smb://%s", url->psz_host);
 
     if (url->i_port != 0)
-        vlc_memstream_printf(&buf, ":%d", url->i_port);
+        heimdall_memstream_printf(&buf, ":%d", url->i_port);
 
     if (url->psz_path != NULL)
     {
-        vlc_memstream_puts(&buf, url->psz_path);
+        heimdall_memstream_puts(&buf, url->psz_path);
         if (url->psz_path[0] != '\0' && url->psz_path[strlen(url->psz_path) - 1] != '/')
-            vlc_memstream_putc(&buf, '/');
+            heimdall_memstream_putc(&buf, '/');
     }
     else
-        vlc_memstream_putc(&buf, '/');
+        heimdall_memstream_putc(&buf, '/');
 
-    vlc_memstream_puts(&buf, file);
+    heimdall_memstream_puts(&buf, file);
 
     if (url->psz_option)
-        vlc_memstream_printf(&buf, "?%s", url->psz_option);
+        heimdall_memstream_printf(&buf, "?%s", url->psz_option);
 
-    if (vlc_memstream_close(&buf))
+    if (heimdall_memstream_close(&buf))
         return NULL;
     return buf.ptr;
 }
 
-static int AddItem(stream_t *access, struct vlc_readdir_helper *rdh,
+static int AddItem(stream_t *access, struct heimdall_readdir_helper *rdh,
                    const char* name, int i_type, struct smb2_stat_64 *stats)
 {
     struct access_sys *sys = access->p_sys;
-    char *name_encoded = vlc_uri_encode(name);
+    char *name_encoded = heimdall_uri_encode(name);
     if (name_encoded == NULL)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    char *url = vlc_smb2_get_url(&sys->encoded_url, name_encoded);
+    char *url = heimdall_smb2_get_url(&sys->encoded_url, name_encoded);
     free(name_encoded);
     if (url == NULL)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     input_item_t *p_item;
-    int ret = vlc_readdir_helper_additem(rdh, url, NULL, name, i_type,
+    int ret = heimdall_readdir_helper_additem(rdh, url, NULL, name, i_type,
                                          ITEM_NET, &p_item);
 
-    if (ret == VLC_SUCCESS && p_item && stats)
+    if (ret == HEIMDALL_SUCCESS && p_item && stats)
     {
         input_item_AddStat( p_item, "mtime", stats->smb2_mtime);
         input_item_AddStat( p_item, "size", stats->smb2_size);
@@ -452,13 +453,13 @@ DirRead(stream_t *access, input_item_node_t *p_node)
 {
     struct access_sys *sys = access->p_sys;
     struct smb2dirent *smb2dirent;
-    int ret = VLC_SUCCESS;
+    int ret = HEIMDALL_SUCCESS;
     assert(sys->smb2dir);
 
-    struct vlc_readdir_helper rdh;
-    vlc_readdir_helper_init(&rdh, access, p_node);
+    struct heimdall_readdir_helper rdh;
+    heimdall_readdir_helper_init(&rdh, access, p_node);
 
-    while (ret == VLC_SUCCESS
+    while (ret == HEIMDALL_SUCCESS
         && (smb2dirent = smb2_readdir(sys->smb2, sys->smb2dir)) != NULL)
     {
         int i_type;
@@ -477,7 +478,7 @@ DirRead(stream_t *access, input_item_node_t *p_node)
         ret = AddItem(access, &rdh, smb2dirent->name, i_type, &smb2dirent->st);
     }
 
-    vlc_readdir_helper_finish(&rdh, ret == VLC_SUCCESS);
+    heimdall_readdir_helper_finish(&rdh, ret == HEIMDALL_SUCCESS);
 
     return ret;
 }
@@ -488,9 +489,9 @@ ShareEnum(stream_t *access, input_item_node_t *p_node)
     struct access_sys *sys = access->p_sys;
     assert(sys->share_enum != NULL);
 
-    int ret = VLC_SUCCESS;
-    struct vlc_readdir_helper rdh;
-    vlc_readdir_helper_init(&rdh, access, p_node);
+    int ret = HEIMDALL_SUCCESS;
+    struct heimdall_readdir_helper rdh;
+    heimdall_readdir_helper_init(&rdh, access, p_node);
 
 #ifdef LIBSMB2_SHARE_ENUM_V2
     struct srvsvc_SHARE_INFO_1_CONTAINER *ctr = &sys->share_enum->ses.ShareInfo.Level1;
@@ -501,7 +502,7 @@ ShareEnum(stream_t *access, input_item_node_t *p_node)
 #endif
 
     for (uint32_t iinfo = 0;
-         iinfo < ctr_count && ret == VLC_SUCCESS; ++iinfo)
+         iinfo < ctr_count && ret == HEIMDALL_SUCCESS; ++iinfo)
     {
 #ifdef LIBSMB2_SHARE_ENUM_V2
        struct srvsvc_SHARE_INFO_1 *info = &ctr->Buffer->share_info_1[iinfo];
@@ -523,56 +524,56 @@ ShareEnum(stream_t *access, input_item_node_t *p_node)
        }
     }
 
-    vlc_readdir_helper_finish(&rdh, ret == VLC_SUCCESS);
+    heimdall_readdir_helper_finish(&rdh, ret == HEIMDALL_SUCCESS);
     return 0;
 }
 
 static int
-vlc_smb2_close_fh(stream_t *access, struct smb2_context **smb2p,
+heimdall_smb2_close_fh(stream_t *access, struct smb2_context **smb2p,
                   struct smb2fh *smb2fh)
 {
-    struct vlc_smb2_op op = VLC_SMB2_OP(access, smb2p);
+    struct heimdall_smb2_op op = HEIMDALL_SMB2_OP(access, smb2p);
 
     int err = smb2_close_async(op.smb2, smb2fh, smb2_generic_cb, &op);
     if (err < 0)
     {
-        VLC_SMB2_SET_ERROR(&op, "smb2_close_async", err);
+        HEIMDALL_SMB2_SET_ERROR(&op, "smb2_close_async", err);
         return -1;
     }
 
-    return vlc_smb2_mainloop(&op);
+    return heimdall_smb2_mainloop(&op);
 }
 
 static int
-vlc_smb2_disconnect_share(stream_t *access, struct smb2_context **smb2p)
+heimdall_smb2_disconnect_share(stream_t *access, struct smb2_context **smb2p)
 {
-    struct vlc_smb2_op op = VLC_SMB2_OP(access, smb2p);
+    struct heimdall_smb2_op op = HEIMDALL_SMB2_OP(access, smb2p);
 
     int err = smb2_disconnect_share_async(op.smb2, smb2_generic_cb, &op);
     if (err < 0)
     {
-        VLC_SMB2_SET_ERROR(&op, "smb2_connect_share_async", err);
+        HEIMDALL_SMB2_SET_ERROR(&op, "smb2_connect_share_async", err);
         return -1;
     }
 
-    return vlc_smb2_mainloop(&op);
+    return heimdall_smb2_mainloop(&op);
 }
 
 static void
 smb2_open_cb(struct smb2_context *smb2, int status, void *data,
              void *private_data)
 {
-    VLC_SMB2_GENERIC_CB();
+    HEIMDALL_SMB2_GENERIC_CB();
 
     op->res.data = data;
 }
 
 static void
-vlc_smb2_print_addr(stream_t *access)
+heimdall_smb2_print_addr(stream_t *access)
 {
     struct access_sys *sys = access->p_sys;
 
-    vlc_sockaddr addr;
+    heimdall_sockaddr addr;
     if (getsockname(smb2_get_fd(sys->smb2), &addr.sa,
                     &(socklen_t){ sizeof(addr.ss) }) != 0)
         return;
@@ -600,13 +601,13 @@ vlc_smb2_print_addr(stream_t *access)
 }
 
 static int
-vlc_smb2_open_share(stream_t *access, struct smb2_context **smb2p,
+heimdall_smb2_open_share(stream_t *access, struct smb2_context **smb2p,
                     struct smb2_url *smb2_url, bool do_enum)
 {
     struct access_sys *sys = access->p_sys;
     struct smb2_stat_64 smb2_stat;
 
-    struct vlc_smb2_op op = VLC_SMB2_OP(access, smb2p);
+    struct heimdall_smb2_op op = HEIMDALL_SMB2_OP(access, smb2p);
 
     int ret;
     if (do_enum)
@@ -623,16 +624,16 @@ vlc_smb2_open_share(stream_t *access, struct smb2_context **smb2p,
                               smb2_generic_cb, &op);
         if (ret < 0)
         {
-            VLC_SMB2_SET_ERROR(&op, "smb2_stat_async", ret);
+            HEIMDALL_SMB2_SET_ERROR(&op, "smb2_stat_async", ret);
             goto error;
         }
 
-        if (vlc_smb2_mainloop(&op) != 0)
+        if (heimdall_smb2_mainloop(&op) != 0)
             goto error;
 
         if (smb2_stat.smb2_type == SMB2_TYPE_FILE)
         {
-            vlc_smb2_op_reset(&op, smb2p);
+            heimdall_smb2_op_reset(&op, smb2p);
 
             sys->smb2_size = smb2_stat.smb2_size;
             ret = smb2_open_async(op.smb2, smb2_url->path, O_RDONLY,
@@ -640,7 +641,7 @@ vlc_smb2_open_share(stream_t *access, struct smb2_context **smb2p,
         }
         else if (smb2_stat.smb2_type == SMB2_TYPE_DIRECTORY)
         {
-            vlc_smb2_op_reset(&op, smb2p);
+            heimdall_smb2_op_reset(&op, smb2p);
 
             ret = smb2_opendir_async(op.smb2, smb2_url->path, smb2_open_cb, &op);
         }
@@ -653,11 +654,11 @@ vlc_smb2_open_share(stream_t *access, struct smb2_context **smb2p,
 
     if (ret < 0)
     {
-        VLC_SMB2_SET_ERROR(&op, "smb2_open*_async", ret);
+        HEIMDALL_SMB2_SET_ERROR(&op, "smb2_open*_async", ret);
         goto error;
     }
 
-    if (vlc_smb2_mainloop(&op) != 0)
+    if (heimdall_smb2_mainloop(&op) != 0)
         goto error;
 
     if (do_enum)
@@ -667,7 +668,7 @@ vlc_smb2_open_share(stream_t *access, struct smb2_context **smb2p,
     else if (smb2_stat.smb2_type == SMB2_TYPE_DIRECTORY)
         sys->smb2dir = op.res.data;
     else
-        vlc_assert_unreachable();
+        heimdall_assert_unreachable();
 
     return 0;
 error:
@@ -675,36 +676,36 @@ error:
 }
 
 static void
-vlc_smb2_FreeContext(void *context)
+heimdall_smb2_FreeContext(void *context)
 {
     struct smb2_context *smb2 = context;
 
-    vlc_smb2_disconnect_share(NULL, &smb2);
+    heimdall_smb2_disconnect_share(NULL, &smb2);
     if (smb2 != NULL)
         smb2_destroy_context(smb2);
 }
 
 static int
-vlc_smb2_connect_share(stream_t *access, const char *server,
+heimdall_smb2_connect_share(stream_t *access, const char *server,
                        const char *share, const char *username)
 {
     struct access_sys *sys = access->p_sys;
 
-    struct vlc_smb2_op op = VLC_SMB2_OP(access, &sys->smb2);
+    struct heimdall_smb2_op op = HEIMDALL_SMB2_OP(access, &sys->smb2);
     int err = smb2_connect_share_async(sys->smb2, server, share,
                                        username, smb2_generic_cb, &op);
     if (err < 0)
     {
-        VLC_SMB2_SET_ERROR(&op, "smb2_connect_share_async", err);
+        HEIMDALL_SMB2_SET_ERROR(&op, "smb2_connect_share_async", err);
         return op.error_status;
     }
 
-    return vlc_smb2_mainloop(&op);
+    return heimdall_smb2_mainloop(&op);
 }
 
 static int
-vlc_smb2_connect_open_share(stream_t *access, const char *url,
-                            const vlc_credential *credential,
+heimdall_smb2_connect_open_share(stream_t *access, const char *url,
+                            const heimdall_credential *credential,
                             bool guest_with_valid_passwd)
 {
     struct access_sys *sys = access->p_sys;
@@ -739,13 +740,13 @@ vlc_smb2_connect_open_share(stream_t *access, const char *url,
         password = guest_with_valid_passwd ? "" : NULL;
     }
 
-    struct vlc_access_cache_entry *cache_entry =
-        vlc_access_cache_GetSmbEntry(&smb2_cache, smb2_url->server, share,
+    struct heimdall_access_cache_entry *cache_entry =
+        heimdall_access_cache_GetSmbEntry(&smb2_cache, smb2_url->server, share,
                                      credential->psz_username);
     if (cache_entry != NULL)
     {
         struct smb2_context *smb2 = cache_entry->context;
-        err = vlc_smb2_open_share(access, &smb2, smb2_url, do_enum);
+        err = heimdall_smb2_open_share(access, &smb2, smb2_url, do_enum);
         if (err == 0)
         {
             assert(smb2 != NULL);
@@ -760,28 +761,28 @@ vlc_smb2_connect_open_share(stream_t *access, const char *url,
             return 0;
         }
         else
-            vlc_access_cache_entry_Delete(cache_entry);
+            heimdall_access_cache_entry_Delete(cache_entry);
     }
 
     smb2_set_security_mode(sys->smb2, SMB2_NEGOTIATE_SIGNING_ENABLED);
     smb2_set_password(sys->smb2, password);
     smb2_set_domain(sys->smb2, domain ? domain : "");
 
-    err = vlc_smb2_connect_share(access, smb2_url->server, share, username);
+    err = heimdall_smb2_connect_share(access, smb2_url->server, share, username);
     if (err < 0)
         goto error;
 
     sys->smb2_connected = true;
 
-    vlc_smb2_print_addr(access);
+    heimdall_smb2_print_addr(access);
 
-    err = vlc_smb2_open_share(access, &sys->smb2, smb2_url, do_enum);
+    err = heimdall_smb2_open_share(access, &sys->smb2, smb2_url, do_enum);
     if (err < 0)
         goto error;
 
-    sys->cache_entry = vlc_access_cache_entry_NewSmb(sys->smb2, smb2_url->server, share,
+    sys->cache_entry = heimdall_access_cache_entry_NewSmb(sys->smb2, smb2_url->server, share,
                                                      credential->psz_username,
-                                                     vlc_smb2_FreeContext);
+                                                     heimdall_smb2_FreeContext);
     if (sys->cache_entry == NULL)
     {
         err = -ENOMEM;
@@ -799,7 +800,7 @@ error:
     {
         if (sys->smb2_connected)
         {
-            vlc_smb2_disconnect_share(access, &sys->smb2);
+            heimdall_smb2_disconnect_share(access, &sys->smb2);
             sys->smb2_connected = false;
         }
         if (sys->smb2 != NULL)
@@ -812,7 +813,7 @@ error:
 }
 
 static int
-vlc_smb2_resolve(stream_t *access, const char *host, unsigned port,
+heimdall_smb2_resolve(stream_t *access, const char *host, unsigned port,
                  char **out_host)
 {
     (void) access;
@@ -827,7 +828,7 @@ vlc_smb2_resolve(stream_t *access, const char *host, unsigned port,
 
     /* Test if the host can be resolved */
     struct addrinfo *info = NULL;
-    if (vlc_getaddrinfo_i11e(host, port, NULL, &info) == 0)
+    if (heimdall_getaddrinfo_i11e(host, port, NULL, &info) == 0)
     {
         freeaddrinfo(info);
         /* Let smb2 resolve it */
@@ -867,26 +868,26 @@ vlc_smb2_resolve(stream_t *access, const char *host, unsigned port,
 }
 
 static int
-Open(vlc_object_t *p_obj)
+Open(heimdall_object_t *p_obj)
 {
     stream_t *access = (stream_t *)p_obj;
-    struct access_sys *sys = vlc_obj_calloc(p_obj, 1, sizeof (*sys));
+    struct access_sys *sys = heimdall_obj_calloc(p_obj, 1, sizeof (*sys));
     char *var_domain = NULL;
     int ret;
 
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     access->p_sys = sys;
 
     /* Parse the encoded URL */
-    if (vlc_UrlParseFixup(&sys->encoded_url, access->psz_url) != 0)
-        return VLC_ENOMEM;
+    if (heimdall_UrlParseFixup(&sys->encoded_url, access->psz_url) != 0)
+        return HEIMDALL_ENOMEM;
 
     if (sys->encoded_url.psz_path == NULL)
         sys->encoded_url.psz_path = (char *) "/";
 
     char *resolved_host = NULL;
-    ret = vlc_smb2_resolve(access, sys->encoded_url.psz_host,
+    ret = heimdall_smb2_resolve(access, sys->encoded_url.psz_host,
                            sys->encoded_url.i_port, &resolved_host);
 
     /* smb2_* functions need a decoded url. Re compose the url from the
@@ -896,15 +897,15 @@ Open(vlc_object_t *p_obj)
         goto error;
     else if (ret == 0)
     {
-        vlc_url_t resolved_url = sys->encoded_url;
+        heimdall_url_t resolved_url = sys->encoded_url;
         resolved_url.psz_host = resolved_host;
-        url = vlc_uri_compose(&resolved_url);
+        url = heimdall_uri_compose(&resolved_url);
     }
     else
     {
-        url = vlc_uri_compose(&sys->encoded_url);
+        url = heimdall_uri_compose(&sys->encoded_url);
     }
-    if (!vlc_uri_decode(url))
+    if (!heimdall_uri_decode(url))
     {
         free(url);
         free(resolved_host);
@@ -912,23 +913,23 @@ Open(vlc_object_t *p_obj)
         goto error;
     }
 
-    vlc_credential credential;
-    vlc_credential_init(&credential, &sys->encoded_url);
+    heimdall_credential credential;
+    heimdall_credential_init(&credential, &sys->encoded_url);
     var_domain = var_InheritString(access, "smb-domain");
     credential.psz_realm = var_domain;
 
     /* First, try Guest login or using "smb-" options (without
      * keystore/user interaction) */
-    if (vlc_credential_get(&credential, access, "smb-user", "smb-pwd", NULL,
+    if (heimdall_credential_get(&credential, access, "smb-user", "smb-pwd", NULL,
                            NULL) == -EINTR)
     {
-        vlc_credential_clean(&credential);
+        heimdall_credential_clean(&credential);
         free(resolved_host);
         ret = -EINTR;
         goto error;
     }
 
-    ret = vlc_smb2_connect_open_share(access, url, &credential, false);
+    ret = heimdall_smb2_connect_open_share(access, url, &credential, false);
     if (ret == -EINVAL && credential.psz_username == NULL)
     {
         /* Since last Windows 11 update (KB5026436), Windows SMB servers need a
@@ -941,32 +942,32 @@ Open(vlc_object_t *p_obj)
          * it seems to break anonymous login with other samba servers (but
          * samba.c doesn't have this problem so this might be libsmb2 issue).
          * */
-        ret = vlc_smb2_connect_open_share(access, url, &credential, true);
+        ret = heimdall_smb2_connect_open_share(access, url, &credential, true);
     }
 
-    while (VLC_SMB2_STATUS_DENIED(ret)
-        && vlc_credential_get(&credential, access, "smb-user", "smb-pwd",
+    while (HEIMDALL_SMB2_STATUS_DENIED(ret)
+        && heimdall_credential_get(&credential, access, "smb-user", "smb-pwd",
                               SMB_LOGIN_DIALOG_TITLE, SMB_LOGIN_DIALOG_TEXT,
                               sys->encoded_url.psz_host) == 0)
-        ret = vlc_smb2_connect_open_share(access, url, &credential, false);
+        ret = heimdall_smb2_connect_open_share(access, url, &credential, false);
     free(resolved_host);
     free(url);
     if (ret == 0)
-        vlc_credential_store(&credential, access);
-    vlc_credential_clean(&credential);
+        heimdall_credential_store(&credential, access);
+    heimdall_credential_clean(&credential);
 
     if (ret != 0)
     {
         const char *error = smb2_get_error(sys->smb2);
         if (error && *error)
-            vlc_dialog_display_error(access,
+            heimdall_dialog_display_error(access,
                                      _("SMB2 operation failed"), "%s", error);
         if (credential.i_get_order == GET_FROM_DIALOG)
         {
             /* Tell other smb modules (likely dsm) that we already requested
              * credential to the users and that it it useless to try again.
              * This avoid to show 2 login dialogs for the same access. */
-            var_Create(access, "smb-dialog-failed", VLC_VAR_VOID);
+            var_Create(access, "smb-dialog-failed", HEIMDALL_VAR_VOID);
         }
         goto error;
     }
@@ -990,25 +991,25 @@ Open(vlc_object_t *p_obj)
         access->pf_control = access_vaDirectoryControlHelper;
     }
     else
-        vlc_assert_unreachable();
+        heimdall_assert_unreachable();
 
     free(var_domain);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
-    vlc_UrlClean(&sys->encoded_url);
+    heimdall_UrlClean(&sys->encoded_url);
     free(var_domain);
 
-    /* Returning VLC_ETIMEOUT will stop the module probe and prevent to load
+    /* Returning HEIMDALL_ETIMEOUT will stop the module probe and prevent to load
      * the next smb module. The smb2 module can return this specific error in
      * case of network error (EIO) or when the user asked to cancel it
-     * (vlc_killed()). Indeed, in these cases, it is useless to try next smb
+     * (heimdall_killed()). Indeed, in these cases, it is useless to try next smb
      * modules. */
-    return ret == -EINTR || ret == -EIO || vlc_killed() ? VLC_ETIMEOUT : VLC_EGENERIC;
+    return ret == -EINTR || ret == -EIO || heimdall_killed() ? HEIMDALL_ETIMEOUT : HEIMDALL_EGENERIC;
 }
 
 static void
-Close(vlc_object_t *p_obj)
+Close(heimdall_object_t *p_obj)
 {
     stream_t *access = (stream_t *)p_obj;
     struct access_sys *sys = access->p_sys;
@@ -1016,21 +1017,21 @@ Close(vlc_object_t *p_obj)
     if (sys->smb2fh != NULL)
     {
         if (sys->smb2)
-            vlc_smb2_close_fh(access, &sys->smb2, sys->smb2fh);
+            heimdall_smb2_close_fh(access, &sys->smb2, sys->smb2fh);
     }
     else if (sys->smb2dir != NULL)
         smb2_closedir(sys->smb2, sys->smb2dir);
     else if (sys->share_enum != NULL)
         smb2_free_data(sys->smb2, sys->share_enum);
     else
-        vlc_assert_unreachable();
+        heimdall_assert_unreachable();
 
     assert(sys->smb2_connected);
 
     if (sys->smb2 != NULL)
-        vlc_access_cache_AddEntry(&smb2_cache, sys->cache_entry);
+        heimdall_access_cache_AddEntry(&smb2_cache, sys->cache_entry);
     else
-        vlc_access_cache_entry_Delete(sys->cache_entry);
+        heimdall_access_cache_entry_Delete(sys->cache_entry);
 
-    vlc_UrlClean(&sys->encoded_url);
+    heimdall_UrlClean(&sys->encoded_url);
 }

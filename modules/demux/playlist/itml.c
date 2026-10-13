@@ -2,6 +2,7 @@
  * itml.c : iTunes Music Library import functions
  *******************************************************************************
  * Copyright (C) 2007 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Yoann Peronneau <yoann@videolan.org>
  *
@@ -28,11 +29,11 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_access.h>
-#include <vlc_xml.h>
-#include <vlc_strings.h>
-#include <vlc_url.h>
+#include <heimdall_common.h>
+#include <heimdall_access.h>
+#include <heimdall_xml.h>
+#include <heimdall_strings.h>
+#include <heimdall_url.h>
 
 #include "itml.h"
 #include "playlist.h"
@@ -42,31 +43,31 @@ static int ReadDir( stream_t *, input_item_node_t * );
 /**
  * \brief iTML submodule initialization function
  */
-int Import_iTML( vlc_object_t *p_this )
+int Import_iTML( heimdall_object_t *p_this )
 {
     stream_t *p_demux = (stream_t *)p_this;
 
     if( !stream_HasExtension( p_demux, ".xml" )
      && !p_demux->obj.force )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     const uint8_t *p_peek;
-    ssize_t i_peek = vlc_stream_Peek( p_demux->s, &p_peek, 128 );
+    ssize_t i_peek = heimdall_stream_Peek( p_demux->s, &p_peek, 128 );
     if ( i_peek < 32 ||
          !strnstr( (const char *) p_peek, "<!DOCTYPE plist ", i_peek ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    i_peek = vlc_stream_Peek( p_demux->s, &p_peek, 1024 );
+    i_peek = heimdall_stream_Peek( p_demux->s, &p_peek, 1024 );
     if( i_peek < 23 ||
         !strnstr( (const char *) p_peek, "<key>Music Folder</key>", i_peek ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     msg_Dbg( p_demux, "using iTunes Media Library reader" );
 
     p_demux->pf_readdir = ReadDir;
     p_demux->pf_control = PlaylistControl;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /**
@@ -131,7 +132,7 @@ static bool parse_plist_node( stream_t *p_demux, input_item_node_t *p_input_node
                               const char *psz_element,
                               xml_elem_hnd_t *p_handlers )
 {
-    VLC_UNUSED(p_track); VLC_UNUSED(psz_element);
+    HEIMDALL_UNUSED(p_track); HEIMDALL_UNUSED(psz_element);
     const char *attr, *value;
     bool b_version_found = false;
 
@@ -257,7 +258,7 @@ static bool parse_plist_dict( stream_t *p_demux, input_item_node_t *p_input_node
                               const char *psz_element,
                               xml_elem_hnd_t *p_handlers )
 {
-    VLC_UNUSED(p_track); VLC_UNUSED(psz_element); VLC_UNUSED(p_handlers);
+    HEIMDALL_UNUSED(p_track); HEIMDALL_UNUSED(psz_element); HEIMDALL_UNUSED(p_handlers);
     xml_elem_hnd_t pl_elements[] =
         { {"dict",    COMPLEX_CONTENT, {.cmplx = parse_tracks_dict} },
           {"array",   SIMPLE_CONTENT,  {NULL} },
@@ -279,7 +280,7 @@ static bool parse_tracks_dict( stream_t *p_demux, input_item_node_t *p_input_nod
                                const char *psz_element,
                                xml_elem_hnd_t *p_handlers )
 {
-    VLC_UNUSED(p_track); VLC_UNUSED(psz_element); VLC_UNUSED(p_handlers);
+    HEIMDALL_UNUSED(p_track); HEIMDALL_UNUSED(psz_element); HEIMDALL_UNUSED(p_handlers);
     xml_elem_hnd_t tracks_elements[] =
         { {"dict",    COMPLEX_CONTENT, {.cmplx = parse_track_dict} },
           {"key",     SIMPLE_CONTENT,  {NULL} },
@@ -300,7 +301,7 @@ static bool parse_track_dict( stream_t *p_demux, input_item_node_t *p_input_node
                               const char *psz_element,
                               xml_elem_hnd_t *p_handlers )
 {
-    VLC_UNUSED(psz_element); VLC_UNUSED(p_handlers);
+    HEIMDALL_UNUSED(psz_element); HEIMDALL_UNUSED(p_handlers);
     input_item_t *p_new_input = NULL;
     int i_ret;
     p_track = new_track();
@@ -381,7 +382,7 @@ static bool save_data( track_elem_t *p_track, const char *psz_name,
         return false;
 
     /* re-convert xml special characters inside psz_value */
-    vlc_xml_decode( psz_value );
+    heimdall_xml_decode( psz_value );
 
 #define SAVE_INFO( name, value ) \
     if( !strcmp( psz_name, name ) ) { p_track->value = strdup( psz_value ); }
@@ -395,7 +396,7 @@ static bool save_data( track_elem_t *p_track, const char *psz_name,
     else if( !strcmp( psz_name, "Total Time" ) )
     {
         long i_num = atol( psz_value );
-        p_track->duration = (vlc_tick_t) i_num*1000;
+        p_track->duration = (heimdall_tick_t) i_num*1000;
     }
 #undef SAVE_INFO
     return true;
@@ -429,8 +430,8 @@ static bool skip_element( stream_t *p_demux, input_item_node_t *p_input_node,
                           track_elem_t *p_track, xml_reader_t *p_xml_reader,
                           const char *psz_element, xml_elem_hnd_t *p_handlers )
 {
-    VLC_UNUSED(p_demux); VLC_UNUSED(p_input_node);
-    VLC_UNUSED(p_track); VLC_UNUSED(p_handlers);
+    HEIMDALL_UNUSED(p_demux); HEIMDALL_UNUSED(p_input_node);
+    HEIMDALL_UNUSED(p_track); HEIMDALL_UNUSED(p_handlers);
     const char *node;
     int type;
 

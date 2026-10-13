@@ -2,6 +2,7 @@
  * freetype.c : Put text on the video, using freetype2
  *****************************************************************************
  * Copyright (C) 2002 - 2015 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Sigmund Augdal Helberg <dnumgis@videolan.org>
  *          Gildas Bazin <gbazin@videolan.org>
@@ -34,13 +35,13 @@
 #endif
 #include <math.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_input.h>                             /* vlc_input_attachment_* */
-#include <vlc_filter.h>                                      /* filter_sys_t */
-#include <vlc_subpicture.h>
-#include <vlc_text_style.h>                                   /* text_style_t*/
-#include <vlc_charset.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_input.h>                             /* heimdall_input_attachment_* */
+#include <heimdall_filter.h>                                      /* filter_sys_t */
+#include <heimdall_subpicture.h>
+#include <heimdall_text_style.h>                                   /* text_style_t*/
+#include <heimdall_charset.h>
 
 #include <assert.h>
 
@@ -132,7 +133,7 @@ static const char *const ppsz_blending_mode[] = {
 };
 
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( N_("Text renderer"))
     set_description( N_("Freetype2 font renderer") )
     set_subcategory( SUBCAT_VIDEO_SUBPIC )
@@ -214,7 +215,7 @@ vlc_module_begin ()
 
     add_shortcut( "text" )
     set_callback_text_renderer( Create, 100 )
-vlc_module_end ()
+heimdall_module_end ()
 
 /* */
 
@@ -275,16 +276,16 @@ static int LoadFontsFromAttachments( filter_t *p_filter )
     FT_Face               p_face = NULL;
 
     if( filter_GetInputAttachments( p_filter, &pp_attachments, &i_attachments_cnt ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     p_sys->i_font_attachments = 0;
-    p_sys->pp_font_attachments = vlc_alloc( i_attachments_cnt, sizeof(*p_sys->pp_font_attachments));
+    p_sys->pp_font_attachments = heimdall_alloc( i_attachments_cnt, sizeof(*p_sys->pp_font_attachments));
     if( !p_sys->pp_font_attachments )
     {
         for( int i = 0; i < i_attachments_cnt; ++i )
-            vlc_input_attachment_Release( pp_attachments[ i ] );
+            heimdall_input_attachment_Release( pp_attachments[ i ] );
         free( pp_attachments );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     int k = 0;
@@ -307,11 +308,11 @@ static int LoadFontsFromAttachments( filter_t *p_filter )
             {
                 int i_flags = 0;
                 if( p_face->style_flags & FT_STYLE_FLAG_BOLD )
-                    i_flags |= VLC_FONT_FLAG_BOLD;
+                    i_flags |= HEIMDALL_FONT_FLAG_BOLD;
                 if( p_face->style_flags & FT_STYLE_FLAG_ITALIC )
-                    i_flags |= VLC_FONT_FLAG_ITALIC;
+                    i_flags |= HEIMDALL_FONT_FLAG_ITALIC;
 
-                vlc_family_t *p_family = DeclareNewFamily( p_sys->fs, p_face->family_name );
+                heimdall_family_t *p_family = DeclareNewFamily( p_sys->fs, p_face->family_name );
                 if( unlikely( !p_family ) )
                     goto error;
 
@@ -332,23 +333,23 @@ static int LoadFontsFromAttachments( filter_t *p_filter )
         }
         else
         {
-            vlc_input_attachment_Release( p_attach );
+            heimdall_input_attachment_Release( p_attach );
         }
     }
 
     free( pp_attachments );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     if( p_face )
         FT_Done_Face( p_face );
 
     for( int i = k + 1; i < i_attachments_cnt; ++i )
-        vlc_input_attachment_Release( pp_attachments[ i ] );
+        heimdall_input_attachment_Release( pp_attachments[ i ] );
 
     free( pp_attachments );
-    return VLC_ENOMEM;
+    return HEIMDALL_ENOMEM;
 }
 
 /*****************************************************************************
@@ -529,9 +530,9 @@ static void RenderBackground( const subpicture_region_t *p_region_in,
                     FT_BBox absbox =
                     {
                         .xMin = __MAX(0, segmentbgbox.xMin - p_regionbbox->xMin),
-                        .xMax = VLC_CLIP(segmentbgbox.xMax - p_regionbbox->xMin,
+                        .xMax = HEIMDALL_CLIP(segmentbgbox.xMax - p_regionbbox->xMin,
                                          0, p_picture->format.i_visible_width),
-                        .yMin = VLC_CLIP(p_regionbbox->yMax - segmentbgbox.yMin,
+                        .yMin = HEIMDALL_CLIP(p_regionbbox->yMax - segmentbgbox.yMin,
                                          0, p_picture->format.i_visible_height),
                         .yMax = __MAX(0, p_regionbbox->yMax - segmentbgbox.yMax),
                     };
@@ -558,7 +559,7 @@ static void RenderCharAXYZ( filter_t *p_filter,
                            int g,
                            const ft_drawing_functions *draw )
 {
-    VLC_UNUSED(p_filter);
+    HEIMDALL_UNUSED(p_filter);
     /* Render all glyphs and underline/strikethrough */
     filter_sys_t *p_sys = p_filter ? p_filter->p_sys : NULL;
     for( int i = p_line->i_first_visible_char_index; i <= p_line->i_last_visible_char_index; i++ )
@@ -673,7 +674,7 @@ static inline void RenderAXYZ( filter_t *p_filter,
     const text_style_t *p_style = p_sys->p_default_style;
     uint8_t i_x, i_y, i_z;
 
-    if (p_region_in->text_flags & VLC_SUBPIC_TEXT_FLAG_NO_REGION_BG) {
+    if (p_region_in->text_flags & HEIMDALL_SUBPIC_TEXT_FLAG_NO_REGION_BG) {
         /* Render the background just under the text */
         draw->fill( p_picture, STYLE_ALPHA_TRANSPARENT, 0x00, 0x00, 0x00,
                    0, 0, p_region->fmt.i_visible_width, p_region->fmt.i_visible_height );
@@ -970,10 +971,10 @@ static size_t SegmentsToTextAndStyles( filter_t *p_filter, const text_segment_t 
 /**
  * Get the appropriate drawing functions based on chroma codec and blending mode
  */
-static const ft_drawing_functions *GetDrawingFunctions( vlc_fourcc_t chroma,
+static const ft_drawing_functions *GetDrawingFunctions( heimdall_fourcc_t chroma,
                                                         int i_blending_mode )
 {
-    if( chroma == VLC_CODEC_YUVA )
+    if( chroma == HEIMDALL_CODEC_YUVA )
     {
         static const ft_drawing_functions DRAW_YUVA =
             { .extract = YUVFromXRGB,
@@ -988,8 +989,8 @@ static const ft_drawing_functions *GetDrawingFunctions( vlc_fourcc_t chroma,
             return &DRAW_YUVA_KNOCKOUT;
         return &DRAW_YUVA;
     }
-    else if( chroma == VLC_CODEC_RGBA
-          || chroma == VLC_CODEC_BGRA )
+    else if( chroma == HEIMDALL_CODEC_RGBA
+          || chroma == HEIMDALL_CODEC_BGRA )
     {
         static const ft_drawing_functions DRAW_RGBA =
             { .extract = RGBFromXRGB,
@@ -1004,8 +1005,8 @@ static const ft_drawing_functions *GetDrawingFunctions( vlc_fourcc_t chroma,
             return &DRAW_RGBA_KNOCKOUT;
         return &DRAW_RGBA;
     }
-    else if( chroma == VLC_CODEC_ARGB
-          || chroma == VLC_CODEC_ABGR )
+    else if( chroma == HEIMDALL_CODEC_ARGB
+          || chroma == HEIMDALL_CODEC_ABGR )
     {
         static const ft_drawing_functions DRAW_ARGB =
             { .extract = RGBFromXRGB,
@@ -1032,11 +1033,11 @@ static const ft_drawing_functions *GetDrawingFunctions( vlc_fourcc_t chroma,
  */
 static subpicture_region_t *Render( filter_t *p_filter,
                          const subpicture_region_t *p_region_in,
-                         const vlc_fourcc_t *p_chroma_list )
+                         const heimdall_fourcc_t *p_chroma_list )
 {
     filter_sys_t *p_sys = p_filter->p_sys;
     subpicture_region_t *region = NULL;
-    bool b_grid = (p_region_in->text_flags & VLC_SUBPIC_TEXT_FLAG_GRID_MODE) != 0;
+    bool b_grid = (p_region_in->text_flags & HEIMDALL_SUBPIC_TEXT_FLAG_GRID_MODE) != 0;
     p_sys->i_scale = ( b_grid ) ? 100 : var_InheritInteger( p_filter, "sub-text-scale");
 
     UpdateDefaultLiveStyles( p_filter );
@@ -1055,7 +1056,7 @@ static subpicture_region_t *Render( filter_t *p_filter,
     }
 
     layout_text_block_t text_block = { 0 };
-    text_block.b_balanced = (p_region_in->text_flags & VLC_SUBPIC_TEXT_FLAG_TEXT_NOT_BALANCED) == 0;
+    text_block.b_balanced = (p_region_in->text_flags & HEIMDALL_SUBPIC_TEXT_FLAG_TEXT_NOT_BALANCED) == 0;
     text_block.b_grid = b_grid;
     text_block.i_count = SegmentsToTextAndStyles( p_filter, p_region_in->p_text,
                                                   &text_block );
@@ -1089,14 +1090,14 @@ static subpicture_region_t *Render( filter_t *p_filter,
 
     /* Don't attempt to render text that couldn't be laid out
      * properly. */
-    if (!( rv == VLC_SUCCESS && text_block.i_count > 0 && bbox.xMin < bbox.xMax && bbox.yMin < bbox.yMax ))
+    if (!( rv == HEIMDALL_SUCCESS && text_block.i_count > 0 && bbox.xMin < bbox.xMax && bbox.yMin < bbox.yMax ))
     {
-        rv = VLC_EGENERIC;
+        rv = HEIMDALL_EGENERIC;
         goto done;
     }
 
-    const vlc_fourcc_t p_chroma_list_yuvp[] = { VLC_CODEC_YUVP, 0 };
-    const vlc_fourcc_t p_chroma_list_rgba[] = { VLC_CODEC_RGBA, 0 };
+    const heimdall_fourcc_t p_chroma_list_yuvp[] = { HEIMDALL_CODEC_YUVP, 0 };
+    const heimdall_fourcc_t p_chroma_list_rgba[] = { HEIMDALL_CODEC_RGBA, 0 };
 
     int i_margin = (p_sys->p_default_style->i_background_alpha > 0 && !b_grid)
                     ? i_max_face_height / 4 : 0;
@@ -1104,7 +1105,7 @@ static subpicture_region_t *Render( filter_t *p_filter,
     if( (unsigned)i_margin * 2 >= i_max_width || (unsigned)i_margin * 2 >= i_max_height )
         i_margin = 0;
 
-    if( p_sys->i_forced_chroma == VLC_CODEC_YUVP )
+    if( p_sys->i_forced_chroma == HEIMDALL_CODEC_YUVP )
         p_chroma_list = p_chroma_list_yuvp;
     else if( !p_chroma_list || *p_chroma_list == 0 )
         p_chroma_list = p_chroma_list_rgba;
@@ -1163,7 +1164,7 @@ static subpicture_region_t *Render( filter_t *p_filter,
     }
 
 //        unsigned bboxcolor = 0xFF000000;
-    /* TODO 4.0. No region self BG color for VLC 3.0 API*/
+    /* TODO 4.0. No region self BG color for Heimdall 3.0 API*/
 
     /* Avoid useless pixels:
         *        reshrink/trim Region Box to padded text one,
@@ -1183,7 +1184,7 @@ static subpicture_region_t *Render( filter_t *p_filter,
     fmt.i_sar_num = fmt.i_sar_den = 1;
     int i_blending_mode =  p_sys->p_default_style->e_blending_mode;
 
-    for( const vlc_fourcc_t *p_chroma = p_chroma_list; *p_chroma != 0; p_chroma++ )
+    for( const heimdall_fourcc_t *p_chroma = p_chroma_list; *p_chroma != 0; p_chroma++ )
     {
         /* Create a new subpicture region */
         fmt.i_chroma = *p_chroma;
@@ -1199,7 +1200,7 @@ static subpicture_region_t *Render( filter_t *p_filter,
         region->fmt.i_sar_num = p_region_in->fmt.i_sar_num;
         region->fmt.i_sar_den = p_region_in->fmt.i_sar_den;
 
-        if( *p_chroma == VLC_CODEC_YUVP )
+        if( *p_chroma == HEIMDALL_CODEC_YUVP )
             RenderYUVP( p_region_in, region, text_block.p_laid,
                                 &renderbbox, &bbox );
         else
@@ -1247,7 +1248,7 @@ done:
     return region;
 }
 
-static const struct vlc_filter_operations filter_ops =
+static const struct heimdall_filter_operations filter_ops =
 {
     .render = Render, .close = Destroy,
 };
@@ -1264,14 +1265,14 @@ static int Create( filter_t *p_filter )
     /* Allocate structure */
     p_filter->p_sys = p_sys = calloc( 1, sizeof( *p_sys ) );
     if( !p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     /* Init Freetype and its stroker */
     if( FT_Init_FreeType( &p_sys->p_library ) )
     {
         msg_Err( p_filter, "Failed to initialize FreeType" );
         free( p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( FT_Stroker_New( p_sys->p_library, &p_sys->p_stroker ) )
@@ -1280,7 +1281,7 @@ static int Create( filter_t *p_filter )
         p_sys->p_stroker = NULL;
     }
 
-    p_sys->ftcache = vlc_ftcache_New( VLC_OBJECT(p_filter), p_sys->p_library,
+    p_sys->ftcache = heimdall_ftcache_New( HEIMDALL_OBJECT(p_filter), p_sys->p_library,
                             var_InheritInteger( p_filter, "freetype-cache-size" ) );
     if( !p_sys->ftcache )
         goto error;
@@ -1306,7 +1307,7 @@ static int Create( filter_t *p_filter )
     FillDefaultStyles( p_filter );
 
     if( var_InheritBool( p_filter, "freetype-yuvp" ) )
-        p_sys->i_forced_chroma = VLC_CODEC_YUVP;
+        p_sys->i_forced_chroma = HEIMDALL_CODEC_YUVP;
 
     /*
      * The following variables should not be cached, as they might be changed on-the-fly:
@@ -1317,7 +1318,7 @@ static int Create( filter_t *p_filter )
 
     float f_shadow_angle       = var_InheritFloat( p_filter, "freetype-shadow-angle" );
     float f_shadow_distance    = var_InheritFloat( p_filter, "freetype-shadow-distance" );
-    f_shadow_distance          = VLC_CLIP( f_shadow_distance, 0, 1 );
+    f_shadow_distance          = HEIMDALL_CLIP( f_shadow_distance, 0, 1 );
     p_sys->f_shadow_vector_x   = f_shadow_distance * cosf((float)(2. * M_PI) * f_shadow_angle / 360);
     p_sys->f_shadow_vector_y   = f_shadow_distance * sinf((float)(2. * M_PI) * f_shadow_angle / 360);
 
@@ -1325,16 +1326,16 @@ static int Create( filter_t *p_filter )
     if( !p_sys->fs )
         goto error;
 
-    if( LoadFontsFromAttachments( p_filter ) == VLC_ENOMEM )
+    if( LoadFontsFromAttachments( p_filter ) == HEIMDALL_ENOMEM )
         goto error;
 
     p_filter->ops = &filter_ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     Destroy( p_filter );
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /*****************************************************************************
@@ -1352,7 +1353,7 @@ static void Destroy( filter_t *p_filter )
 #endif
 
     if( p_sys->ftcache )
-        vlc_ftcache_Delete( p_sys->ftcache );
+        heimdall_ftcache_Delete( p_sys->ftcache );
 
     if( p_sys->fs )
         FontSelectDelete( p_sys->fs );
@@ -1368,7 +1369,7 @@ static void Destroy( filter_t *p_filter )
     if( p_sys->pp_font_attachments )
     {
         for( int k = 0; k < p_sys->i_font_attachments; k++ )
-            vlc_input_attachment_Release( p_sys->pp_font_attachments[k] );
+            heimdall_input_attachment_Release( p_sys->pp_font_attachments[k] );
 
         free( p_sys->pp_font_attachments );
     }

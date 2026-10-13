@@ -2,6 +2,7 @@
  * modules.c : Builtin and plugin modules management functions
  *****************************************************************************
  * Copyright (C) 2001-2011 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Sam Hocevar <sam@zoy.org>
  *          Ethan C. Baldridge <BaldridgeE@cadmus.com>
@@ -35,11 +36,11 @@
 #endif
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_modules.h>
-#include "../libvlc.h"
+#include <heimdall_common.h>
+#include <heimdall_modules.h>
+#include "../libheimdall.h"
 #include "config/configuration.h"
-#include "vlc_arrays.h"
+#include "heimdall_arrays.h"
 #include "modules/modules.h"
 
 bool module_provides (const module_t *m, const char *cap)
@@ -107,7 +108,7 @@ static bool module_match_name(const module_t *m, const char *name, size_t len)
      return false;
 }
 
-ssize_t vlc_module_match(const char *capability, const char *names,
+ssize_t heimdall_module_match(const char *capability, const char *names,
                          bool strict, module_t ***restrict modules,
                          size_t *restrict strict_matches)
 {
@@ -187,14 +188,14 @@ ssize_t vlc_module_match(const char *capability, const char *names,
     return matches;
 }
 
-void *vlc_module_map(vlc_logger_t *log, module_t *module)
+void *heimdall_module_map(heimdall_logger_t *log, module_t *module)
 {
-    return vlc_plugin_Map(log, module->plugin) ? NULL : module->pf_activate;
+    return heimdall_plugin_Map(log, module->plugin) ? NULL : module->pf_activate;
 }
 
-module_t *(vlc_module_load)(struct vlc_logger *log, const char *capability,
+module_t *(heimdall_module_load)(struct heimdall_logger *log, const char *capability,
                             const char *name, bool strict,
-                            vlc_activate_t probe, ...)
+                            heimdall_activate_t probe, ...)
 {
     if (name == NULL || name[0] == '\0')
         name = "any";
@@ -202,13 +203,13 @@ module_t *(vlc_module_load)(struct vlc_logger *log, const char *capability,
     /* Find matching modules */
     module_t **mods;
     size_t strict_total;
-    ssize_t total = vlc_module_match(capability, name, strict,
+    ssize_t total = heimdall_module_match(capability, name, strict,
                                      &mods, &strict_total);
 
     if (unlikely(total < 0))
         return NULL;
 
-    vlc_debug(log, "looking for %s module matching \"%s\": %zd candidates",
+    heimdall_debug(log, "looking for %s module matching \"%s\": %zd candidates",
               capability, name, total);
 
     module_t *module = NULL;
@@ -218,8 +219,8 @@ module_t *(vlc_module_load)(struct vlc_logger *log, const char *capability,
 
     for (size_t i = 0; i < (size_t)total; i++) {
         module_t *cand = mods[i];
-        int ret = VLC_EGENERIC;
-        void *cb = vlc_module_map(log, cand);
+        int ret = HEIMDALL_EGENERIC;
+        void *cb = heimdall_module_map(log, cand);
 
         if (cb == NULL)
             continue;
@@ -231,12 +232,12 @@ module_t *(vlc_module_load)(struct vlc_logger *log, const char *capability,
         va_end(ap);
 
         switch (ret) {
-            case VLC_SUCCESS:
-                vlc_debug(log, "using %s module \"%s\"", capability,
+            case HEIMDALL_SUCCESS:
+                heimdall_debug(log, "using %s module \"%s\"", capability,
                           module_get_object(cand));
                 module = cand;
                 /* fall through */
-            case VLC_ETIMEOUT:
+            case HEIMDALL_ETIMEOUT:
                 goto done;
         }
     }
@@ -245,7 +246,7 @@ done:
     va_end (args);
 
     if (module == NULL)
-        vlc_debug(log, "no %s modules matched with name %s", capability, name);
+        heimdall_debug(log, "no %s modules matched with name %s", capability, name);
 
     free(mods);
     return module;
@@ -253,26 +254,26 @@ done:
 
 static int generic_start(void *func, bool forced, va_list ap)
 {
-    vlc_object_t *obj = va_arg(ap, vlc_object_t *);
-    int (*activate)(vlc_object_t *) = func;
+    heimdall_object_t *obj = va_arg(ap, heimdall_object_t *);
+    int (*activate)(heimdall_object_t *) = func;
     int ret;
 
     obj->force = forced;
     ret = activate(obj);
-    if (ret != VLC_SUCCESS)
-        vlc_objres_clear(obj);
+    if (ret != HEIMDALL_SUCCESS)
+        heimdall_objres_clear(obj);
     return ret;
 }
 
 #undef module_need
-module_t *module_need(vlc_object_t *obj, const char *cap, const char *name,
+module_t *module_need(heimdall_object_t *obj, const char *cap, const char *name,
                       bool strict)
 {
     const bool b_force_backup = obj->force; /* FIXME: remove this */
-    module_t *module = vlc_module_load(obj->logger, cap, name, strict,
+    module_t *module = heimdall_module_load(obj->logger, cap, name, strict,
                                        generic_start, obj);
     if (module != NULL) {
-        var_Create(obj, "module-name", VLC_VAR_STRING);
+        var_Create(obj, "module-name", HEIMDALL_VAR_STRING);
         var_SetString(obj, "module-name", module_get_object(module));
     }
 
@@ -281,7 +282,7 @@ module_t *module_need(vlc_object_t *obj, const char *cap, const char *name,
 }
 
 #undef module_unneed
-void module_unneed(vlc_object_t *obj, module_t *module)
+void module_unneed(heimdall_object_t *obj, module_t *module)
 {
     msg_Dbg(obj, "removing \"%s\" module \"%s\"", module_get_capability(module),
             module_get_object(module));
@@ -290,7 +291,7 @@ void module_unneed(vlc_object_t *obj, module_t *module)
     if (module->deactivate != NULL)
         module->deactivate(obj);
 
-    vlc_objres_clear(obj);
+    heimdall_objres_clear(obj);
 }
 
 module_t *module_find (const char *name)
@@ -318,7 +319,7 @@ module_t *module_find (const char *name)
 
 module_config_t *module_config_get( const module_t *module, unsigned *restrict psize )
 {
-    const vlc_plugin_t *plugin = module->plugin;
+    const heimdall_plugin_t *plugin = module->plugin;
 
     assert( psize != NULL );
     *psize = 0;
@@ -330,7 +331,7 @@ module_config_t *module_config_get( const module_t *module, unsigned *restrict p
     }
 
     size_t size = plugin->conf.size;
-    module_config_t *config = vlc_alloc( size, sizeof( *config ) );
+    module_config_t *config = heimdall_alloc( size, sizeof( *config ) );
 
     if( !config )
         return NULL;
@@ -338,7 +339,7 @@ module_config_t *module_config_get( const module_t *module, unsigned *restrict p
     unsigned i, j;
     for( i = 0, j = 0; i < size; i++ )
     {
-        const struct vlc_param *param = plugin->conf.params + i;
+        const struct heimdall_param *param = plugin->conf.params + i;
         const module_config_t *item = &param->item;
 
         if (param->internal /* internal option */

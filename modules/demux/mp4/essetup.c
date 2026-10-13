@@ -2,6 +2,7 @@
  * essetup.h: es setup from stsd and extensions parsing
  *****************************************************************************
  * Copyright (C) 2001-2004, 2010, 2014 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *
@@ -33,8 +34,8 @@
 #include "../../packetizer/mpeg4systems.h"
 #include "qt_palette.h"
 
-#include <vlc_demux.h>
-#include <vlc_aout.h>
+#include <heimdall_demux.h>
+#include <heimdall_aout.h>
 #include <assert.h>
 
 
@@ -94,7 +95,7 @@ static void SetupESDS( demux_t *p_demux, const mp4_track_t *p_track,
     case( 0xe0 ): /* NeroDigital: dvd subs */
         if( p_fmt->i_cat == SPU_ES )
         {
-            p_fmt->i_codec = VLC_CODEC_SPU;
+            p_fmt->i_codec = HEIMDALL_CODEC_SPU;
             if( p_track->i_width > 0 )
                 p_fmt->subs.spu.i_original_frame_width = p_track->i_width;
             if( p_track->i_height > 0 )
@@ -104,7 +105,7 @@ static void SetupESDS( demux_t *p_demux, const mp4_track_t *p_track,
     case( 0xe1 ): /* QCelp for 3gp */
         if( p_fmt->i_cat == AUDIO_ES )
         {
-            p_fmt->i_codec = VLC_CODEC_QCELP;
+            p_fmt->i_codec = HEIMDALL_CODEC_QCELP;
         }
         break;
 
@@ -131,7 +132,7 @@ static void SetupESDS( demux_t *p_demux, const mp4_track_t *p_track,
                    p_decconfig->i_decoder_specific_info_len,
                    p_fmt );
 
-    if( p_fmt->i_codec == VLC_CODEC_SPU &&
+    if( p_fmt->i_codec == HEIMDALL_CODEC_SPU &&
             p_fmt->i_extra >= sizeof(p_fmt->subs.spu.palette) )
     {
         for (size_t i = 0; i < ARRAY_SIZE(p_fmt->subs.spu.palette); i++)
@@ -190,7 +191,7 @@ static int SetupRTPReceptionHintTrack( demux_t *p_demux, const mp4_track_t *p_tr
             switch( rtp_payload )
             {
              case 3:
-                p_fmt->i_codec = VLC_CODEC_GSM;
+                p_fmt->i_codec = HEIMDALL_CODEC_GSM;
                 codec_set = true;
                 break;
              default:
@@ -221,17 +222,17 @@ static int SetupRTPReceptionHintTrack( demux_t *p_demux, const mp4_track_t *p_tr
             /* Codecs using slices need their picture constructed from sample */
             if( !strcmp(pch, "H264") )
             {
-                p_fmt->i_codec = VLC_CODEC_H264;
+                p_fmt->i_codec = HEIMDALL_CODEC_H264;
                 /* ******* sending AnnexB ! */
                 p_fmt->b_packetized = false;
             }
             else if( !strcmp(pch, "GSM") )
             {
-                p_fmt->i_codec = VLC_CODEC_GSM;
+                p_fmt->i_codec = HEIMDALL_CODEC_GSM;
             }
             else if( !strcmp(pch, "Speex") )
             {
-                p_fmt->i_codec = VLC_CODEC_SPEEX;
+                p_fmt->i_codec = HEIMDALL_CODEC_SPEEX;
             }
             else if( !codec_set )
             {
@@ -402,7 +403,7 @@ int SetupVideoES( demux_t *p_demux, const mp4_track_t *p_track, const MP4_Box_t 
     const MP4_Box_t *p_prhd = MP4_BoxGet( p_sample, "sv3d/proj/prhd" );
     if (p_prhd && BOXDATA(p_prhd))
     {
-        vlc_viewpoint_from_euler(&p_fmt->video.pose,
+        heimdall_viewpoint_from_euler(&p_fmt->video.pose,
                                   BOXDATA(p_prhd)->f_pose_yaw_degrees,
                                   BOXDATA(p_prhd)->f_pose_pitch_degrees,
                                   BOXDATA(p_prhd)->f_pose_roll_degrees);
@@ -418,34 +419,34 @@ int SetupVideoES( demux_t *p_demux, const mp4_track_t *p_track, const MP4_Box_t 
     /* It's a little ugly but .. there are special cases */
     switch( i_sample_type )
     {
-        case( VLC_FOURCC( 's', '2', '6', '3' ) ):
-            p_fmt->i_codec = VLC_CODEC_H263;
+        case( HEIMDALL_FOURCC( 's', '2', '6', '3' ) ):
+            p_fmt->i_codec = HEIMDALL_CODEC_H263;
             break;
-        case VLC_FOURCC('y','v','1','2'):
-            p_fmt->i_codec = VLC_CODEC_YV12;
+        case HEIMDALL_FOURCC('y','v','1','2'):
+            p_fmt->i_codec = HEIMDALL_CODEC_YV12;
             break;
-        case VLC_FOURCC('y','u','v','2'):
-            p_fmt->i_codec = VLC_CODEC_YUV2;
+        case HEIMDALL_FOURCC('y','u','v','2'):
+            p_fmt->i_codec = HEIMDALL_CODEC_YUV2;
             break;
-        case VLC_FOURCC('A','B','G','R'):
-            p_fmt->i_codec = VLC_CODEC_ARGB;
+        case HEIMDALL_FOURCC('A','B','G','R'):
+            p_fmt->i_codec = HEIMDALL_CODEC_ARGB;
             break;
-        case VLC_FOURCC('2','4','B','G'):
-            p_fmt->i_codec = VLC_CODEC_BGR24;
+        case HEIMDALL_FOURCC('2','4','B','G'):
+            p_fmt->i_codec = HEIMDALL_CODEC_BGR24;
             break;
-        case VLC_FOURCC('r','a','w',' '):
+        case HEIMDALL_FOURCC('r','a','w',' '):
             switch( p_vide->i_depth ) {
                 case 16:
-                    p_fmt->i_codec = VLC_CODEC_RGB555BE;
+                    p_fmt->i_codec = HEIMDALL_CODEC_RGB555BE;
                     break;
                 case 24:
-                    p_fmt->i_codec = VLC_CODEC_RGB24;
+                    p_fmt->i_codec = HEIMDALL_CODEC_RGB24;
                     break;
                 case 32:
-                    p_fmt->i_codec = VLC_CODEC_ARGB;
+                    p_fmt->i_codec = HEIMDALL_CODEC_ARGB;
                     break;
                 case 32 + 8:
-                    p_fmt->i_codec = VLC_CODEC_GREY;
+                    p_fmt->i_codec = HEIMDALL_CODEC_GREY;
                     break;
                 default:
                     msg_Dbg( p_demux, "Unrecognized raw video format (depth = %" PRIu16 ")",
@@ -454,7 +455,7 @@ int SetupVideoES( demux_t *p_demux, const mp4_track_t *p_track, const MP4_Box_t 
                     break;
             }
             break;
-        case( VLC_FOURCC( 'r', 'r', 't', 'p' ) ): /* RTP Reception Hint Track */
+        case( HEIMDALL_FOURCC( 'r', 'r', 't', 'p' ) ): /* RTP Reception Hint Track */
         {
             if( !SetupRTPReceptionHintTrack( p_demux, p_track, p_sample, p_fmt, params ) )
                 p_fmt->i_codec = i_sample_type;
@@ -497,16 +498,16 @@ int SetupVideoES( demux_t *p_demux, const mp4_track_t *p_track, const MP4_Box_t 
     const MP4_Box_t *p_colr = MP4_BoxGet( p_sample, "colr" );
     if ( p_colr != NULL )
     {
-        if ( BOXDATA(p_colr)->i_type == VLC_FOURCC( 'n', 'c', 'l', 'c' ) ||
-             BOXDATA(p_colr)->i_type == VLC_FOURCC( 'n', 'c', 'l', 'x' ) )
+        if ( BOXDATA(p_colr)->i_type == HEIMDALL_FOURCC( 'n', 'c', 'l', 'c' ) ||
+             BOXDATA(p_colr)->i_type == HEIMDALL_FOURCC( 'n', 'c', 'l', 'x' ) )
         {
             p_fmt->video.primaries =
-                    iso_23001_8_cp_to_vlc_primaries( BOXDATA( p_colr )->nclc.i_primary_idx );
+                    iso_23001_8_cp_to_heimdall_primaries( BOXDATA( p_colr )->nclc.i_primary_idx );
             p_fmt->video.transfer =
-                    iso_23001_8_tc_to_vlc_xfer( BOXDATA( p_colr )->nclc.i_transfer_function_idx );
+                    iso_23001_8_tc_to_heimdall_xfer( BOXDATA( p_colr )->nclc.i_transfer_function_idx );
             p_fmt->video.space =
-                    iso_23001_8_mc_to_vlc_coeffs( BOXDATA( p_colr )->nclc.i_matrix_idx );
-            if ( BOXDATA(p_colr)->i_type == VLC_FOURCC( 'n', 'c', 'l', 'x' ) &&
+                    iso_23001_8_mc_to_heimdall_coeffs( BOXDATA( p_colr )->nclc.i_matrix_idx );
+            if ( BOXDATA(p_colr)->i_type == HEIMDALL_FOURCC( 'n', 'c', 'l', 'x' ) &&
                     (BOXDATA(p_colr)->nclc.i_full_range >> 7) != 0 )
                 p_fmt->video.color_range = COLOR_RANGE_FULL;
             else
@@ -544,26 +545,26 @@ int SetupVideoES( demux_t *p_demux, const mp4_track_t *p_track, const MP4_Box_t 
     else switch( i_sample_type )
     {
         /* qt decoder, send the complete chunk */
-        case VLC_FOURCC ('h', 'd', 'v', '1'): // HDV 720p30
-        case VLC_FOURCC ('h', 'd', 'v', '2'): // HDV 1080i60
-        case VLC_FOURCC ('h', 'd', 'v', '3'): // HDV 1080i50
-        case VLC_FOURCC ('h', 'd', 'v', '5'): // HDV 720p25
-        case VLC_FOURCC ('m', 'x', '5', 'n'): // MPEG2 IMX NTSC 525/60 50mb/s produced by FCP
-        case VLC_FOURCC ('m', 'x', '5', 'p'): // MPEG2 IMX PAL 625/60 50mb/s produced by FCP
-        case VLC_FOURCC ('m', 'x', '4', 'n'): // MPEG2 IMX NTSC 525/60 40mb/s produced by FCP
-        case VLC_FOURCC ('m', 'x', '4', 'p'): // MPEG2 IMX PAL 625/60 40mb/s produced by FCP
-        case VLC_FOURCC ('m', 'x', '3', 'n'): // MPEG2 IMX NTSC 525/60 30mb/s produced by FCP
-        case VLC_FOURCC ('m', 'x', '3', 'p'): // MPEG2 IMX PAL 625/50 30mb/s produced by FCP
-        case VLC_FOURCC ('x', 'd', 'v', '2'): // XDCAM HD 1080i60
-        case VLC_FOURCC ('A', 'V', 'm', 'p'): // AVID IMX PAL
-            p_fmt->i_codec = VLC_CODEC_MPGV;
+        case HEIMDALL_FOURCC ('h', 'd', 'v', '1'): // HDV 720p30
+        case HEIMDALL_FOURCC ('h', 'd', 'v', '2'): // HDV 1080i60
+        case HEIMDALL_FOURCC ('h', 'd', 'v', '3'): // HDV 1080i50
+        case HEIMDALL_FOURCC ('h', 'd', 'v', '5'): // HDV 720p25
+        case HEIMDALL_FOURCC ('m', 'x', '5', 'n'): // MPEG2 IMX NTSC 525/60 50mb/s produced by FCP
+        case HEIMDALL_FOURCC ('m', 'x', '5', 'p'): // MPEG2 IMX PAL 625/60 50mb/s produced by FCP
+        case HEIMDALL_FOURCC ('m', 'x', '4', 'n'): // MPEG2 IMX NTSC 525/60 40mb/s produced by FCP
+        case HEIMDALL_FOURCC ('m', 'x', '4', 'p'): // MPEG2 IMX PAL 625/60 40mb/s produced by FCP
+        case HEIMDALL_FOURCC ('m', 'x', '3', 'n'): // MPEG2 IMX NTSC 525/60 30mb/s produced by FCP
+        case HEIMDALL_FOURCC ('m', 'x', '3', 'p'): // MPEG2 IMX PAL 625/50 30mb/s produced by FCP
+        case HEIMDALL_FOURCC ('x', 'd', 'v', '2'): // XDCAM HD 1080i60
+        case HEIMDALL_FOURCC ('A', 'V', 'm', 'p'): // AVID IMX PAL
+            p_fmt->i_codec = HEIMDALL_CODEC_MPGV;
             break;
         /* qt decoder, send the complete chunk */
-        case VLC_CODEC_SVQ1:
-        case VLC_CODEC_SVQ3:
-        case VLC_FOURCC( 'V', 'P', '3', '1' ):
-        case VLC_FOURCC( '3', 'I', 'V', '1' ):
-        case VLC_FOURCC( 'Z', 'y', 'G', 'o' ):
+        case HEIMDALL_CODEC_SVQ1:
+        case HEIMDALL_CODEC_SVQ3:
+        case HEIMDALL_FOURCC( 'V', 'P', '3', '1' ):
+        case HEIMDALL_FOURCC( '3', 'I', 'V', '1' ):
+        case HEIMDALL_FOURCC( 'Z', 'y', 'G', 'o' ):
         {
             CopyExtradata( p_sample->data.p_sample_vide->p_qt_image_description,
                            p_sample->data.p_sample_vide->i_qt_image_description,
@@ -571,17 +572,17 @@ int SetupVideoES( demux_t *p_demux, const mp4_track_t *p_track, const MP4_Box_t 
             break;
         }
 
-        case VLC_FOURCC( 'A', 'V', 'j', '2' ):
-            p_fmt->i_codec = VLC_CODEC_JPEG2000;
+        case HEIMDALL_FOURCC( 'A', 'V', 'j', '2' ):
+            p_fmt->i_codec = HEIMDALL_CODEC_JPEG2000;
             /* final decoded resolution stored in ARES w, h, nbfields to group
              * but since avcodec can't tell... */
             break;
 
-        case VLC_FOURCC('j', 'p', 'e', 'g'):
-            p_fmt->i_codec = VLC_CODEC_MJPG;
+        case HEIMDALL_FOURCC('j', 'p', 'e', 'g'):
+            p_fmt->i_codec = HEIMDALL_CODEC_MJPG;
            break;
 
-        case VLC_CODEC_FFV1:
+        case HEIMDALL_CODEC_FFV1:
         {
             MP4_Box_t *p_binary = MP4_BoxGet( p_sample, "glbl" );
             if( p_binary && BOXDATA(p_binary) )
@@ -593,7 +594,7 @@ int SetupVideoES( demux_t *p_demux, const mp4_track_t *p_track, const MP4_Box_t 
             break;
         }
 
-        case VLC_FOURCC( 'v', 'c', '-', '1' ):
+        case HEIMDALL_FOURCC( 'v', 'c', '-', '1' ):
         {
             MP4_Box_t *p_dvc1 = MP4_BoxGet( p_sample, "dvc1" );
             if( p_dvc1 && BOXDATA(p_dvc1) )
@@ -611,7 +612,7 @@ int SetupVideoES( demux_t *p_demux, const mp4_track_t *p_track, const MP4_Box_t 
 
         case ATOM_av01:
         {
-            static_assert(ATOM_av01 == VLC_CODEC_AV1, "VLC_CODEC_AV1 != ATOM_av01");
+            static_assert(ATOM_av01 == HEIMDALL_CODEC_AV1, "HEIMDALL_CODEC_AV1 != ATOM_av01");
             MP4_Box_t *p_av1C = MP4_BoxGet( p_sample, "av1C" );
             if( p_av1C && BOXDATA(p_av1C) )
             {
@@ -626,7 +627,7 @@ int SetupVideoES( demux_t *p_demux, const mp4_track_t *p_track, const MP4_Box_t 
             break;
         }
 
-        case VLC_FOURCC( 'v', 'v', 'c', '1' ):
+        case HEIMDALL_FOURCC( 'v', 'v', 'c', '1' ):
         {
             MP4_Box_t *p_vvcC = MP4_BoxGet( p_sample, "vvcC" );
             if( p_vvcC && p_vvcC->data.p_binary &&
@@ -658,10 +659,10 @@ int SetupVideoES( demux_t *p_demux, const mp4_track_t *p_track, const MP4_Box_t 
         }
 
         /* avc1: send avcC (h264 without annexe B, ie without start code)*/
-        case VLC_FOURCC( 'a', 'v', 'c', '3' ):
-        case VLC_FOURCC( 'a', 'v', 'c', '1' ):
-        case VLC_FOURCC( 'd', 'v', 'a', '1' ): /* DolbyVision */
-        case VLC_FOURCC( 'd', 'v', 'a', 'v' ): /* DolbyVision */
+        case HEIMDALL_FOURCC( 'a', 'v', 'c', '3' ):
+        case HEIMDALL_FOURCC( 'a', 'v', 'c', '1' ):
+        case HEIMDALL_FOURCC( 'd', 'v', 'a', '1' ): /* DolbyVision */
+        case HEIMDALL_FOURCC( 'd', 'v', 'a', 'v' ): /* DolbyVision */
         {
             MP4_Box_t *p_avcC = MP4_BoxGet( p_sample, "avcC" );
 
@@ -679,16 +680,16 @@ int SetupVideoES( demux_t *p_demux, const mp4_track_t *p_track, const MP4_Box_t 
             }
             break;
         }
-        case VLC_FOURCC( 'h', 'v', 'c', '1' ):
-        case VLC_FOURCC( 'h', 'e', 'v', '1' ):
-        case VLC_FOURCC( 'd', 'v', 'h', 'e' ): /* DolbyVision */
-        case VLC_FOURCC( 'd', 'v', 'h', '1' ): /* DolbyVision */
+        case HEIMDALL_FOURCC( 'h', 'v', 'c', '1' ):
+        case HEIMDALL_FOURCC( 'h', 'e', 'v', '1' ):
+        case HEIMDALL_FOURCC( 'd', 'v', 'h', 'e' ): /* DolbyVision */
+        case HEIMDALL_FOURCC( 'd', 'v', 'h', '1' ): /* DolbyVision */
         {
             MP4_Box_t *p_hvcC = MP4_BoxGet( p_sample, "hvcC" );
 
             /* Handle DV fourcc collision at demux level */
-            if( i_sample_type == VLC_FOURCC( 'd', 'v', 'h', '1' ) )
-                p_fmt->i_codec = VLC_FOURCC( 'd', 'v', 'h', 'e' );
+            if( i_sample_type == HEIMDALL_FOURCC( 'd', 'v', 'h', '1' ) )
+                p_fmt->i_codec = HEIMDALL_FOURCC( 'd', 'v', 'h', 'e' );
 
             if( p_hvcC && p_hvcC->data.p_binary )
             {
@@ -712,11 +713,11 @@ int SetupVideoES( demux_t *p_demux, const mp4_track_t *p_track, const MP4_Box_t 
             {
                 const MP4_Box_data_vpcC_t *p_data = BOXDATA(p_vpcC);
                 if( i_sample_type == ATOM_vp10 )
-                    p_fmt->i_codec = VLC_CODEC_VP10;
+                    p_fmt->i_codec = HEIMDALL_CODEC_VP10;
                 else if( i_sample_type == ATOM_vp09 )
-                    p_fmt->i_codec = VLC_CODEC_VP9;
+                    p_fmt->i_codec = HEIMDALL_CODEC_VP9;
                 else
-                    p_fmt->i_codec = VLC_CODEC_VP8;
+                    p_fmt->i_codec = HEIMDALL_CODEC_VP8;
                 p_fmt->i_profile = p_data->i_profile;
                 p_fmt->i_level = p_data->i_level;
 
@@ -744,11 +745,11 @@ int SetupVideoES( demux_t *p_demux, const mp4_track_t *p_track, const MP4_Box_t 
                 else
                 {
                     p_fmt->video.primaries =
-                            iso_23001_8_cp_to_vlc_primaries( p_data->i_color_primaries );
+                            iso_23001_8_cp_to_heimdall_primaries( p_data->i_color_primaries );
                     p_fmt->video.transfer =
-                            iso_23001_8_tc_to_vlc_xfer( p_data->i_xfer_function );
+                            iso_23001_8_tc_to_heimdall_xfer( p_data->i_xfer_function );
                     p_fmt->video.space =
-                            iso_23001_8_mc_to_vlc_coeffs( p_data->i_matrix_coeffs );
+                            iso_23001_8_mc_to_heimdall_coeffs( p_data->i_matrix_coeffs );
                 }
 
                 p_fmt->video.color_range = p_data->i_fullrange ? COLOR_RANGE_FULL : COLOR_RANGE_LIMITED;
@@ -789,7 +790,7 @@ int SetupVideoES( demux_t *p_demux, const mp4_track_t *p_track, const MP4_Box_t 
             p_cfg->p_asf = MP4_BoxGet( p_sample, "ASF " );
             /* fallthrough */
         case ATOM_H264:
-        case VLC_FOURCC('W','V','C','1'):
+        case HEIMDALL_FOURCC('W','V','C','1'):
         {
             MP4_Box_t *p_strf = MP4_BoxGet(  p_sample, "strf" );
             if ( p_strf && BOXDATA(p_strf) )
@@ -810,18 +811,18 @@ int SetupVideoES( demux_t *p_demux, const mp4_track_t *p_track, const MP4_Box_t 
             break;
         }
 
-        case VLC_FOURCC( 'a', 'i', '5', 'p' ):
-        case VLC_FOURCC( 'a', 'i', '5', 'q' ):
-        case VLC_FOURCC( 'a', 'i', '5', '2' ):
-        case VLC_FOURCC( 'a', 'i', '5', '3' ):
-        case VLC_FOURCC( 'a', 'i', '5', '5' ):
-        case VLC_FOURCC( 'a', 'i', '5', '6' ):
-        case VLC_FOURCC( 'a', 'i', '1', 'p' ):
-        case VLC_FOURCC( 'a', 'i', '1', 'q' ):
-        case VLC_FOURCC( 'a', 'i', '1', '2' ):
-        case VLC_FOURCC( 'a', 'i', '1', '3' ):
-        case VLC_FOURCC( 'a', 'i', '1', '5' ):
-        case VLC_FOURCC( 'a', 'i', '1', '6' ):
+        case HEIMDALL_FOURCC( 'a', 'i', '5', 'p' ):
+        case HEIMDALL_FOURCC( 'a', 'i', '5', 'q' ):
+        case HEIMDALL_FOURCC( 'a', 'i', '5', '2' ):
+        case HEIMDALL_FOURCC( 'a', 'i', '5', '3' ):
+        case HEIMDALL_FOURCC( 'a', 'i', '5', '5' ):
+        case HEIMDALL_FOURCC( 'a', 'i', '5', '6' ):
+        case HEIMDALL_FOURCC( 'a', 'i', '1', 'p' ):
+        case HEIMDALL_FOURCC( 'a', 'i', '1', 'q' ):
+        case HEIMDALL_FOURCC( 'a', 'i', '1', '2' ):
+        case HEIMDALL_FOURCC( 'a', 'i', '1', '3' ):
+        case HEIMDALL_FOURCC( 'a', 'i', '1', '5' ):
+        case HEIMDALL_FOURCC( 'a', 'i', '1', '6' ):
         {
             if( !p_fmt->i_extra && p_fmt->video.i_width < UINT16_MAX &&
                 p_fiel && BOXDATA(p_fiel) )
@@ -833,8 +834,8 @@ int SetupVideoES( demux_t *p_demux, const mp4_track_t *p_track, const MP4_Box_t 
             break;
         }
 
-        case VLC_FOURCC('s','m','c',' '):
-        case VLC_FOURCC('8','B','P','S'):
+        case HEIMDALL_FOURCC('s','m','c',' '):
+        case HEIMDALL_FOURCC('8','B','P','S'):
         {
             if( p_sample->data.p_sample_vide->p_palette )
             {
@@ -907,19 +908,19 @@ int SetupAudioES( demux_t *p_demux, const mp4_track_t *p_track,
     /* It's a little ugly but .. there are special cases */
     switch( i_sample_type )
     {
-        case( VLC_FOURCC( 'r', 'r', 't', 'p' ) ): /* RTP Reception Hint Track */
+        case( HEIMDALL_FOURCC( 'r', 'r', 't', 'p' ) ): /* RTP Reception Hint Track */
         {
             if( !SetupRTPReceptionHintTrack( p_demux, p_track, p_sample, p_fmt, p_cfg ) )
                 return 0;
             break;
         }
         case ATOM_agsm: /* Apple gsm 33 bytes != MS GSM (agsm fourcc, 65 bytes) */
-            p_fmt->i_codec = VLC_CODEC_GSM;
+            p_fmt->i_codec = HEIMDALL_CODEC_GSM;
             break;
-        case( VLC_FOURCC( '.', 'm', 'p', '3' ) ):
-        case( VLC_FOURCC( 'm', 's', 0x00, 0x55 ) ):
+        case( HEIMDALL_FOURCC( '.', 'm', 'p', '3' ) ):
+        case( HEIMDALL_FOURCC( 'm', 's', 0x00, 0x55 ) ):
         {
-            p_fmt->i_codec = VLC_CODEC_MP3;
+            p_fmt->i_codec = HEIMDALL_CODEC_MP3;
             p_fmt->b_packetized = false;
             break;
         }
@@ -945,9 +946,9 @@ int SetupAudioES( demux_t *p_demux, const mp4_track_t *p_track,
                 };
 
                 if( xiph_PackHeaders( &p_fmt->i_extra, &p_fmt->p_extra,
-                                      headers_sizes, headers, 3 ) == VLC_SUCCESS )
+                                      headers_sizes, headers, 3 ) == HEIMDALL_SUCCESS )
                 {
-                    p_fmt->i_codec = VLC_CODEC_VORBIS;
+                    p_fmt->i_codec = HEIMDALL_CODEC_VORBIS;
                     p_fmt->b_packetized = false;
                 }
             }
@@ -969,7 +970,7 @@ int SetupAudioES( demux_t *p_demux, const mp4_track_t *p_track,
                     p_extra[4] = 0x80; /* 0x80 Last metablock | 0x00 StreamInfo */
                     memcpy( &p_extra[8], p_fCtS->data.p_binary->p_blob, p_fCtS->data.p_binary->i_blob );
 
-                    p_fmt->i_codec = VLC_CODEC_FLAC;
+                    p_fmt->i_codec = HEIMDALL_CODEC_FLAC;
                     p_fmt->b_packetized = false;
                 }
             }
@@ -989,7 +990,7 @@ int SetupAudioES( demux_t *p_demux, const mp4_track_t *p_track,
                     p_fmt->p_extra = p_extra;
                     memcpy( p_extra, p_dfLa->data.p_binary->p_blob, p_dfLa->data.p_binary->i_blob);
                     memcpy( p_extra, "fLaC", 4 );
-                    p_fmt->i_codec = VLC_CODEC_FLAC;
+                    p_fmt->i_codec = HEIMDALL_CODEC_FLAC;
                 }
             }
             break;
@@ -1018,14 +1019,14 @@ int SetupAudioES( demux_t *p_demux, const mp4_track_t *p_track,
                     memcpy(&p_dst[10 + i_src], "OpusTags\x00\x00\x00\x00\x00\x00\x00", 16);
                     p_fmt->i_extra = i_dst;
                     p_fmt->p_extra = p_dst;
-                    p_fmt->i_codec = VLC_CODEC_OPUS;
+                    p_fmt->i_codec = HEIMDALL_CODEC_OPUS;
                 }
             }
             break;
         }
         case( ATOM_eac3 ):
         {
-            p_fmt->i_codec = VLC_CODEC_EAC3;
+            p_fmt->i_codec = HEIMDALL_CODEC_EAC3;
             /* TS 102.366. F6 The values of the ChannelCount and SampleSize fields
              *             within the EC3SampleEntry Box shall be ignored. */
             p_fmt->audio.i_channels = 0;
@@ -1041,7 +1042,7 @@ int SetupAudioES( demux_t *p_demux, const mp4_track_t *p_track,
         case( ATOM_AC3 ):
         case( ATOM_ac3 ):
         {
-            p_fmt->i_codec = VLC_CODEC_A52;
+            p_fmt->i_codec = HEIMDALL_CODEC_A52;
             /* TS 102.366. F3 The values of the ChannelCount and SampleSize fields
              *             within the AC3SampleEntry Box shall be ignored */
             p_fmt->audio.i_channels = 0;
@@ -1079,56 +1080,56 @@ int SetupAudioES( demux_t *p_demux, const mp4_track_t *p_track,
             }
             break;
         }
-        case VLC_FOURCC( 'm', 'l', 'p', 'a' ):
+        case HEIMDALL_FOURCC( 'm', 'l', 'p', 'a' ):
             /* spec violation: 32 bits rate instead of fixed point */
-            p_fmt->i_codec = VLC_CODEC_TRUEHD;
+            p_fmt->i_codec = HEIMDALL_CODEC_TRUEHD;
             p_fmt->audio.i_rate = ((unsigned int)p_soun->i_sampleratehi << 16) | p_soun->i_sampleratelo;
             break;
 
         case ATOM_dtsc: /* DTS */
         {
-            p_fmt->i_codec = VLC_CODEC_DTS;
+            p_fmt->i_codec = HEIMDALL_CODEC_DTS;
             p_fmt->i_profile = PROFILE_DTS;
             break;
         }
         case ATOM_dtse: /* DTS LBR */
         {
-            p_fmt->i_codec = VLC_CODEC_DTS;
+            p_fmt->i_codec = HEIMDALL_CODEC_DTS;
             p_fmt->i_profile = PROFILE_DTS_EXPRESS;
             break;
         }
         case ATOM_dtsh: /* DTS‐HD audio formats */
         case ATOM_dtsl: /* DTS‐HD Lossless formats */
         {
-            p_fmt->i_codec = VLC_CODEC_DTS;
+            p_fmt->i_codec = HEIMDALL_CODEC_DTS;
             p_fmt->i_profile = PROFILE_DTS_HD;
             break;
         }
 
-        case VLC_FOURCC( 't', 'w', 'o', 's' ):
-            p_fmt->i_codec = VLC_CODEC_S16B;
+        case HEIMDALL_FOURCC( 't', 'w', 'o', 's' ):
+            p_fmt->i_codec = HEIMDALL_CODEC_S16B;
             p_fmt->i_original_fourcc = i_sample_type;
             p_fmt->audio.i_bitspersample = 16;
             break;
 
-        case VLC_FOURCC( 's', 'o', 'w', 't' ):
-            p_fmt->i_codec = VLC_CODEC_S16L;
+        case HEIMDALL_FOURCC( 's', 'o', 'w', 't' ):
+            p_fmt->i_codec = HEIMDALL_CODEC_S16L;
             p_fmt->i_original_fourcc = i_sample_type;
             p_fmt->audio.i_bitspersample = 16;
             break;
 
         case 0x0000000:
-        case( VLC_FOURCC( 'r', 'a', 'w', ' ' ) ):
-        case( VLC_FOURCC( 'N', 'O', 'N', 'E' ) ):
+        case( HEIMDALL_FOURCC( 'r', 'a', 'w', ' ' ) ):
+        case( HEIMDALL_FOURCC( 'N', 'O', 'N', 'E' ) ):
         {
             if( (p_soun->i_samplesize+7)/8 == 1 )
             {
-                p_fmt->i_codec = VLC_CODEC_U8;
+                p_fmt->i_codec = HEIMDALL_CODEC_U8;
                 p_fmt->audio.i_bitspersample = 8;
             }
             else
             {
-                p_fmt->i_codec = VLC_CODEC_S16B;
+                p_fmt->i_codec = HEIMDALL_CODEC_S16B;
                 p_fmt->audio.i_bitspersample = 16;
             }
             p_fmt->i_original_fourcc = p_fmt->i_codec;
@@ -1154,21 +1155,21 @@ int SetupAudioES( demux_t *p_demux, const mp4_track_t *p_track,
             const MP4_Box_t *p_pcmC = MP4_BoxGet( p_sample, "pcmC" );
             if( p_pcmC )
             {
-                const vlc_fourcc_t lookup = i_sample_type +
+                const heimdall_fourcc_t lookup = i_sample_type +
                         BOXDATA(p_pcmC)->i_sample_size +
                        (BOXDATA(p_pcmC)->i_format_flags & 0x01);
-                const vlc_fourcc_t lookuptable[10][2] =
+                const heimdall_fourcc_t lookuptable[10][2] =
                 {
-                    { ATOM_fpcm + 32 + 0, VLC_CODEC_F32B },
-                    { ATOM_fpcm + 32 + 1, VLC_CODEC_F32L },
-                    { ATOM_fpcm + 64 + 0, VLC_CODEC_F64B },
-                    { ATOM_fpcm + 64 + 1, VLC_CODEC_F64L },
-                    { ATOM_ipcm + 16 + 0, VLC_CODEC_S16B },
-                    { ATOM_ipcm + 16 + 1, VLC_CODEC_S16L },
-                    { ATOM_ipcm + 24 + 0, VLC_CODEC_S24B },
-                    { ATOM_ipcm + 24 + 1, VLC_CODEC_S24L },
-                    { ATOM_ipcm + 32 + 0, VLC_CODEC_S32B },
-                    { ATOM_ipcm + 32 + 1, VLC_CODEC_S32L },
+                    { ATOM_fpcm + 32 + 0, HEIMDALL_CODEC_F32B },
+                    { ATOM_fpcm + 32 + 1, HEIMDALL_CODEC_F32L },
+                    { ATOM_fpcm + 64 + 0, HEIMDALL_CODEC_F64B },
+                    { ATOM_fpcm + 64 + 1, HEIMDALL_CODEC_F64L },
+                    { ATOM_ipcm + 16 + 0, HEIMDALL_CODEC_S16B },
+                    { ATOM_ipcm + 16 + 1, HEIMDALL_CODEC_S16L },
+                    { ATOM_ipcm + 24 + 0, HEIMDALL_CODEC_S24B },
+                    { ATOM_ipcm + 24 + 1, HEIMDALL_CODEC_S24L },
+                    { ATOM_ipcm + 32 + 0, HEIMDALL_CODEC_S32B },
+                    { ATOM_ipcm + 32 + 1, HEIMDALL_CODEC_S32L },
                 };
                 for( size_t i = 0; i<10; i++ )
                     if( lookuptable[i][0] == lookup )
@@ -1180,25 +1181,25 @@ int SetupAudioES( demux_t *p_demux, const mp4_track_t *p_track,
         case ATOM_in24:
             p_fmt->i_original_fourcc =
             p_fmt->i_codec = p_enda && BOXDATA(p_enda)->i_little_endian == 1 ?
-                                    VLC_CODEC_S24L : VLC_CODEC_S24B;
+                                    HEIMDALL_CODEC_S24L : HEIMDALL_CODEC_S24B;
             break;
         case ATOM_in32:
             p_fmt->i_original_fourcc =
             p_fmt->i_codec = p_enda && BOXDATA(p_enda)->i_little_endian == 1 ?
-                                    VLC_CODEC_S32L : VLC_CODEC_S32B;
+                                    HEIMDALL_CODEC_S32L : HEIMDALL_CODEC_S32B;
             break;
         case ATOM_fl32:
             p_fmt->i_original_fourcc =
             p_fmt->i_codec = p_enda && BOXDATA(p_enda)->i_little_endian == 1 ?
-                                    VLC_CODEC_F32L : VLC_CODEC_F32B;
+                                    HEIMDALL_CODEC_F32L : HEIMDALL_CODEC_F32B;
             break;
         case ATOM_fl64:
             p_fmt->i_original_fourcc =
             p_fmt->i_codec = p_enda && BOXDATA(p_enda)->i_little_endian == 1 ?
-                                    VLC_CODEC_F64L : VLC_CODEC_F64B;
+                                    HEIMDALL_CODEC_F64L : HEIMDALL_CODEC_F64B;
             break;
 
-        case VLC_CODEC_DVD_LPCM:
+        case HEIMDALL_CODEC_DVD_LPCM:
         {
             if( p_soun->i_qt_version == 2 )
             {
@@ -1211,30 +1212,30 @@ int SetupAudioES( demux_t *p_demux, const mp4_track_t *p_track,
                     unsigned     i_flags;
                     unsigned     i_mask;
                     unsigned     i_bits;
-                    vlc_fourcc_t i_codec;
+                    heimdall_fourcc_t i_codec;
                 } p_formats[] = {
-                    { 0x01,           0x03, 32, VLC_CODEC_F32L },
-                    { 0x01,           0x03, 64, VLC_CODEC_F64L },
-                    { 0x01|0x02,      0x03, 32, VLC_CODEC_F32B },
-                    { 0x01|0x02,      0x03, 64, VLC_CODEC_F64B },
+                    { 0x01,           0x03, 32, HEIMDALL_CODEC_F32L },
+                    { 0x01,           0x03, 64, HEIMDALL_CODEC_F64L },
+                    { 0x01|0x02,      0x03, 32, HEIMDALL_CODEC_F32B },
+                    { 0x01|0x02,      0x03, 64, HEIMDALL_CODEC_F64B },
 
-                    { 0x00,           0x05,  8, VLC_CODEC_U8 },
-                    { 0x00|     0x04, 0x05,  8, VLC_CODEC_S8 },
+                    { 0x00,           0x05,  8, HEIMDALL_CODEC_U8 },
+                    { 0x00|     0x04, 0x05,  8, HEIMDALL_CODEC_S8 },
 
-                    { 0x00,           0x07, 16, VLC_CODEC_U16L },
-                    { 0x00|0x02,      0x07, 16, VLC_CODEC_U16B },
-                    { 0x00     |0x04, 0x07, 16, VLC_CODEC_S16L },
-                    { 0x00|0x02|0x04, 0x07, 16, VLC_CODEC_S16B },
+                    { 0x00,           0x07, 16, HEIMDALL_CODEC_U16L },
+                    { 0x00|0x02,      0x07, 16, HEIMDALL_CODEC_U16B },
+                    { 0x00     |0x04, 0x07, 16, HEIMDALL_CODEC_S16L },
+                    { 0x00|0x02|0x04, 0x07, 16, HEIMDALL_CODEC_S16B },
 
-                    { 0x00,           0x07, 24, VLC_CODEC_U24L },
-                    { 0x00|0x02,      0x07, 24, VLC_CODEC_U24B },
-                    { 0x00     |0x04, 0x07, 24, VLC_CODEC_S24L },
-                    { 0x00|0x02|0x04, 0x07, 24, VLC_CODEC_S24B },
+                    { 0x00,           0x07, 24, HEIMDALL_CODEC_U24L },
+                    { 0x00|0x02,      0x07, 24, HEIMDALL_CODEC_U24B },
+                    { 0x00     |0x04, 0x07, 24, HEIMDALL_CODEC_S24L },
+                    { 0x00|0x02|0x04, 0x07, 24, HEIMDALL_CODEC_S24B },
 
-                    { 0x00,           0x07, 32, VLC_CODEC_U32L },
-                    { 0x00|0x02,      0x07, 32, VLC_CODEC_U32B },
-                    { 0x00     |0x04, 0x07, 32, VLC_CODEC_S32L },
-                    { 0x00|0x02|0x04, 0x07, 32, VLC_CODEC_S32B },
+                    { 0x00,           0x07, 32, HEIMDALL_CODEC_U32L },
+                    { 0x00|0x02,      0x07, 32, HEIMDALL_CODEC_U32B },
+                    { 0x00     |0x04, 0x07, 32, HEIMDALL_CODEC_S32L },
+                    { 0x00|0x02|0x04, 0x07, 32, HEIMDALL_CODEC_S32B },
 
                     {0, 0, 0, 0}
                 };
@@ -1267,32 +1268,32 @@ int SetupAudioES( demux_t *p_demux, const mp4_track_t *p_track,
     const MP4_Box_t *p_chan = MP4_BoxGet( p_sample, "chan" );
     if ( p_chan )
     {
-        uint16_t i_vlc_mapping = 0;
+        uint16_t i_heimdall_mapping = 0;
         uint8_t i_channels = 0;
         const uint32_t *p_rg_chans_order = NULL;
 
-        if ( CoreAudio_Layout_to_vlc( &BOXDATA(p_chan)->layout,
-                                      &i_vlc_mapping, &i_channels,
-                                      &p_rg_chans_order ) != VLC_SUCCESS )
+        if ( CoreAudio_Layout_to_heimdall( &BOXDATA(p_chan)->layout,
+                                      &i_heimdall_mapping, &i_channels,
+                                      &p_rg_chans_order ) != HEIMDALL_SUCCESS )
         {
             msg_Warn( p_demux, "discarding chan mapping" );
         }
-        else if( i_vlc_mapping )
+        else if( i_heimdall_mapping )
         {
             const unsigned i_bps = aout_BitsPerSample( p_fmt->i_codec );
             /* Uncompressed audio */
             if( i_bps )
                  p_cfg->i_chans_to_reorder =
                     aout_CheckChannelReorder( p_rg_chans_order, NULL,
-                                              i_vlc_mapping,
+                                              i_heimdall_mapping,
                                               p_cfg->rgi_chans_reordering );
 
-            /* we can only set bitmap for VLC mapping or [re]mapped pcm audio
-             * as vlc can't enumerate channels for compressed content */
+            /* we can only set bitmap for Heimdall mapping or [re]mapped pcm audio
+             * as heimdall can't enumerate channels for compressed content */
             if( i_bps )
             {
-                p_fmt->audio.i_channels = stdc_count_ones(i_vlc_mapping);
-                p_fmt->audio.i_physical_channels = i_vlc_mapping;
+                p_fmt->audio.i_channels = stdc_count_ones(i_heimdall_mapping);
+                p_fmt->audio.i_physical_channels = i_heimdall_mapping;
             }
         }
     }
@@ -1317,29 +1318,29 @@ int SetupAudioES( demux_t *p_demux, const mp4_track_t *p_track,
     }
     else switch( i_sample_type )
     {
-        case VLC_CODEC_AMR_NB:
+        case HEIMDALL_CODEC_AMR_NB:
             p_fmt->audio.i_rate = 8000;
             break;
-        case VLC_CODEC_AMR_WB:
+        case HEIMDALL_CODEC_AMR_WB:
             p_fmt->audio.i_rate = 16000;
             break;
-        case VLC_CODEC_QDMC:
-        case VLC_CODEC_QDM2:
-        case VLC_CODEC_ALAC:
+        case HEIMDALL_CODEC_QDMC:
+        case HEIMDALL_CODEC_QDM2:
+        case HEIMDALL_CODEC_ALAC:
         {
             CopyExtradata( p_sample->data.p_sample_soun->p_qt_description,
                            p_sample->data.p_sample_soun->i_qt_description,
                            p_fmt );
-            if( p_fmt->i_extra == 56 && i_sample_type == VLC_CODEC_ALAC )
+            if( p_fmt->i_extra == 56 && i_sample_type == HEIMDALL_CODEC_ALAC )
             {
                 p_fmt->audio.i_channels = *((uint8_t*)p_fmt->p_extra + 41);
                 p_fmt->audio.i_rate = GetDWBE((uint8_t*)p_fmt->p_extra + 52);
             }
             break;
         }
-        case VLC_CODEC_ADPCM_MS:
-        case VLC_CODEC_ADPCM_IMA_WAV:
-        case VLC_CODEC_QCELP:
+        case HEIMDALL_CODEC_ADPCM_MS:
+        case HEIMDALL_CODEC_ADPCM_IMA_WAV:
+        case HEIMDALL_CODEC_QCELP:
         {
             p_fmt->audio.i_blockalign = p_sample->data.p_sample_soun->i_bytes_per_frame;
             break;
@@ -1390,32 +1391,32 @@ int SetupSpuES( demux_t *p_demux, const mp4_track_t *p_track,
     /* It's a little ugly but .. there are special cases */
     switch( i_sample_type )
     {
-        case VLC_FOURCC('s','t','p','p'):
-            p_fmt->i_codec = VLC_CODEC_TTML;
+        case HEIMDALL_FOURCC('s','t','p','p'):
+            p_fmt->i_codec = HEIMDALL_CODEC_TTML;
             break;
         case ATOM_wvtt:
-            p_fmt->i_codec = VLC_CODEC_WEBVTT;
+            p_fmt->i_codec = HEIMDALL_CODEC_WEBVTT;
             break;
         case ATOM_c608: /* EIA608 closed captions */
-            p_fmt->i_codec = VLC_CODEC_CEA608;
+            p_fmt->i_codec = HEIMDALL_CODEC_CEA608;
             p_fmt->subs.cc.i_reorder_depth = -1;
             break;
         case ATOM_c708: /* EIA708 closed captions */
-            p_fmt->i_codec = VLC_CODEC_CEA708;
+            p_fmt->i_codec = HEIMDALL_CODEC_CEA708;
             p_fmt->subs.cc.i_reorder_depth = -1;
             break;
 
-        case( VLC_FOURCC( 't', 'e', 'x', 't' ) ):
-        case( VLC_FOURCC( 't', 'x', '3', 'g' ) ):
+        case( HEIMDALL_FOURCC( 't', 'e', 'x', 't' ) ):
+        case( HEIMDALL_FOURCC( 't', 'x', '3', 'g' ) ):
         {
             const MP4_Box_data_sample_generic_t *p_text = p_sample->data.p_sample_gen;
             if(!p_text)
                 return 0;
 
-            if( i_sample_type == VLC_FOURCC( 't', 'e', 'x', 't' ) )
-                p_fmt->i_codec = VLC_CODEC_QTXT;
+            if( i_sample_type == HEIMDALL_FOURCC( 't', 'e', 'x', 't' ) )
+                p_fmt->i_codec = HEIMDALL_CODEC_QTXT;
             else
-                p_fmt->i_codec = VLC_CODEC_TX3G;
+                p_fmt->i_codec = HEIMDALL_CODEC_TX3G;
 
             if( p_text->i_data > 4 && GetDWBE(p_text->p_data) & 0xC0000000 )
             {

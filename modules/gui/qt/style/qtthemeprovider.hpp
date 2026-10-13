@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2022 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,9 +24,9 @@
 #include "config.h"
 #endif
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
-enum vlc_qt_theme_color_state {
+enum heimdall_qt_theme_color_state {
     VQTC_STATE_NORMAL = 0,
     VQTC_STATE_DISABLED,
     VQTC_STATE_PRESSED,
@@ -35,13 +36,13 @@ enum vlc_qt_theme_color_state {
 };
 
 
-enum vlc_qt_theme_color_section {
+enum heimdall_qt_theme_color_section {
     VQTC_SECTION_FG,
     VQTC_SECTION_BG,
     VQTC_SECTION_DECORATION,
     VQTC_SECTION_COUNT
 };
-enum vlc_qt_theme_color_set {
+enum heimdall_qt_theme_color_set {
     VQTC_SET_VIEW = 0,
     VQTC_SET_WINDOW,
     VQTC_SET_ITEM,
@@ -60,7 +61,7 @@ enum vlc_qt_theme_color_set {
     VQTC_SET_COUNT
 };
 
-enum vlc_qt_theme_color_name {
+enum heimdall_qt_theme_color_name {
     VQTC_NAME_PRIMARY = 0,
     VQTC_NAME_SECONDARY,
     VQTC_NAME_HIGHLIGHT,
@@ -77,34 +78,34 @@ enum vlc_qt_theme_color_name {
     VQTC_NAME_COUNT
 };
 
-enum vlc_qt_theme_image_type
+enum heimdall_qt_theme_image_type
 {
-    VLC_QT_THEME_IMAGE_TYPE_CSD_BUTTON
+    HEIMDALL_QT_THEME_IMAGE_TYPE_CSD_BUTTON
 };
 
-enum vlc_qt_theme_csd_button_type {
-    VLC_QT_THEME_BUTTON_MAXIMIZE = 0,
-    VLC_QT_THEME_BUTTON_MINIMIZE,
-    VLC_QT_THEME_BUTTON_RESTORE,
-    VLC_QT_THEME_BUTTON_CLOSE,
-    VLC_QT_THEME_BUTTON_TYPE_COUNT
+enum heimdall_qt_theme_csd_button_type {
+    HEIMDALL_QT_THEME_BUTTON_MAXIMIZE = 0,
+    HEIMDALL_QT_THEME_BUTTON_MINIMIZE,
+    HEIMDALL_QT_THEME_BUTTON_RESTORE,
+    HEIMDALL_QT_THEME_BUTTON_CLOSE,
+    HEIMDALL_QT_THEME_BUTTON_TYPE_COUNT
 };
 
-enum vlc_qt_theme_csd_button_state {
-    VLC_QT_THEME_BUTTON_STATE_DISABLED = 0,
-    VLC_QT_THEME_BUTTON_STATE_HOVERED,
-    VLC_QT_THEME_BUTTON_STATE_NORMAL,
-    VLC_QT_THEME_BUTTON_STATE_PRESSED,
-    VLC_QT_THEME_BUTTON_STATE_COUNT
+enum heimdall_qt_theme_csd_button_state {
+    HEIMDALL_QT_THEME_BUTTON_STATE_DISABLED = 0,
+    HEIMDALL_QT_THEME_BUTTON_STATE_HOVERED,
+    HEIMDALL_QT_THEME_BUTTON_STATE_NORMAL,
+    HEIMDALL_QT_THEME_BUTTON_STATE_PRESSED,
+    HEIMDALL_QT_THEME_BUTTON_STATE_COUNT
 };
 
-struct vlc_qt_theme_image_setting {
+struct heimdall_qt_theme_image_setting {
     float windowScaleFactor;
     float userScaleFacor;
     union {
         struct {
-            vlc_qt_theme_csd_button_type buttonType;
-            vlc_qt_theme_csd_button_state state;
+            heimdall_qt_theme_csd_button_type buttonType;
+            heimdall_qt_theme_csd_button_state state;
             bool maximized;
             bool active;
             int bannerHeight;
@@ -112,7 +113,7 @@ struct vlc_qt_theme_image_setting {
     } u;
 };
 
-struct vlc_qt_theme_metrics {
+struct heimdall_qt_theme_metrics {
     union {
         struct {
             int interNavButtonSpacing;
@@ -126,41 +127,41 @@ struct vlc_qt_theme_metrics {
 };
 
 
-struct vlc_qt_theme_provider_t
+struct heimdall_qt_theme_provider_t
 {
-    struct vlc_object_t obj;
+    struct heimdall_object_t obj;
     void* p_sys;
 
     //set by user while opening
-    void (*paletteUpdated)(vlc_qt_theme_provider_t* obj, void* data);
+    void (*paletteUpdated)(heimdall_qt_theme_provider_t* obj, void* data);
     void* paletteUpdatedData;
 
-    void (*metricsUpdated)(vlc_qt_theme_provider_t* obj, vlc_qt_theme_image_type type, void* data);
+    void (*metricsUpdated)(heimdall_qt_theme_provider_t* obj, heimdall_qt_theme_image_type type, void* data);
     void* metricsUpdatedData;
 
 
     void (*setColorInt)(
-            vlc_qt_theme_provider_t* obj,
-            vlc_qt_theme_color_set set, vlc_qt_theme_color_section section,
-            vlc_qt_theme_color_name name, vlc_qt_theme_color_state state,
+            heimdall_qt_theme_provider_t* obj,
+            heimdall_qt_theme_color_set set, heimdall_qt_theme_color_section section,
+            heimdall_qt_theme_color_name name, heimdall_qt_theme_color_state state,
             int r, int g, int b, int a);
     void (*setColorF)(
-            vlc_qt_theme_provider_t* obj,
-            vlc_qt_theme_color_set set, vlc_qt_theme_color_section section,
-            vlc_qt_theme_color_name name, vlc_qt_theme_color_state state,
+            heimdall_qt_theme_provider_t* obj,
+            heimdall_qt_theme_color_set set, heimdall_qt_theme_color_section section,
+            heimdall_qt_theme_color_name name, heimdall_qt_theme_color_state state,
             double r, double g, double b, double a);
     void* setColorData;
 
     //set by module
-    void (*close)(vlc_qt_theme_provider_t* obj);
-    bool (*isThemeDark)(vlc_qt_theme_provider_t* obj);
+    void (*close)(heimdall_qt_theme_provider_t* obj);
+    bool (*isThemeDark)(heimdall_qt_theme_provider_t* obj);
     /**
-     * return VLC_SUCCESS if palette have been updated, VLC_EGENERIC otherwise
+     * return HEIMDALL_SUCCESS if palette have been updated, HEIMDALL_EGENERIC otherwise
      */
-    int (*updatePalette)(vlc_qt_theme_provider_t* obj);
-    picture_t* (*getThemeImage)(vlc_qt_theme_provider_t* obj, vlc_qt_theme_image_type type, const vlc_qt_theme_image_setting* setting);
-    bool (*getThemeMetrics)(vlc_qt_theme_provider_t* obj, vlc_qt_theme_image_type type, vlc_qt_theme_metrics* setting);
-    bool (*supportThemeImage)(vlc_qt_theme_provider_t* obj, vlc_qt_theme_image_type type);
+    int (*updatePalette)(heimdall_qt_theme_provider_t* obj);
+    picture_t* (*getThemeImage)(heimdall_qt_theme_provider_t* obj, heimdall_qt_theme_image_type type, const heimdall_qt_theme_image_setting* setting);
+    bool (*getThemeMetrics)(heimdall_qt_theme_provider_t* obj, heimdall_qt_theme_image_type type, heimdall_qt_theme_metrics* setting);
+    bool (*supportThemeImage)(heimdall_qt_theme_provider_t* obj, heimdall_qt_theme_image_type type);
 };
 
 #endif // QTTHEMEPROVIDER_HPP

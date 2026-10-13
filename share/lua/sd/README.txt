@@ -1,11 +1,11 @@
-## Instructions to code your own VLC Lua services discovery script.
+## Instructions to code your own Heimdall Lua services discovery script.
 
-See lua/README.txt for generic documentation about Lua usage in VLC.
+See lua/README.txt for generic documentation about Lua usage in Heimdall.
 
 Examples: See fmc.lua, frenchtv.lua
 
 ## API
-VLC Lua SD modules should define two functions:
+Heimdall Lua SD modules should define two functions:
   * descriptor(): returns a table with information about the module.
     The table has the following members:
       .title: the name of the SD
@@ -18,7 +18,7 @@ VLC Lua SD modules should define two functions:
       return { title = "My SD's title", capabilities={"search"}}
     end
 
-  * main(): will be called when the SD is started. It should use VLC's SD API
+  * main(): will be called when the SD is started. It should use Heimdall's SD API
     described in lua/README.txt do add the items found.
 
   * search(query_string): Will be called with a string to search for
@@ -28,7 +28,7 @@ VLC Lua SD modules should define two functions:
 User defined modules stored in the share/lua/modules/ directory are
 available. Read the 'Lazy initialization' section
 
-Available VLC specific Lua modules: input, msg, net, object, sd,
+Available Heimdall specific Lua modules: input, msg, net, object, sd,
 strings, variables, stream, gettext, xml. See lua/README.txt.
 
 ## Lazy Initialization
@@ -37,8 +37,8 @@ SD Lua scripts are actually ran in two different contexts/interpreters. One of
 them is the one that will call your main() and search() functions. The other one
 is a lighter one that will only fetch your description(). Due to threading
 issues and to reduce implementation complexity (NDLR: i guess), the
-description() interpreter doesn't load/expose VLC's API nor add
-share/lua/modules to the lua load path (these modules are using vlc API anyway).
+description() interpreter doesn't load/expose Heimdall's API nor add
+share/lua/modules to the lua load path (these modules are using heimdall API anyway).
 This has some implications to the way you need to load modules.
 
 This means you cannot make a global/top-level require for the module you use but

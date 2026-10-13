@@ -2,8 +2,9 @@
  * puzzle_pce.c : Puzzle game filter - pieces functions
  *****************************************************************************
  * Copyright (C) 2013 Vianney Boyer
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Author:  Vianney Boyer <vlcvboyer -at- gmail -dot- com>
+ * Author:  Vianney Boyer <heimdallvboyer -at- gmail -dot- com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -29,11 +30,11 @@
 #endif
 #include <math.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_picture.h>
-#include <vlc_rand.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
+#include <heimdall_rand.h>
 
 #include "../filter_picture.h"
 
@@ -71,12 +72,12 @@ int puzzle_bake_pieces_shapes( filter_t *p_filter)
     puzzle_free_ps_pieces_shapes(p_filter);
     p_sys->ps_pieces_shapes = malloc( sizeof( piece_shape_t *) * PIECE_TYPE_NBR );
     if( !p_sys->ps_pieces_shapes )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     for (int32_t i_piece = 0; i_piece < PIECE_TYPE_NBR; i_piece++) {
         p_sys->ps_pieces_shapes[i_piece] = malloc( sizeof( piece_shape_t) * p_sys->s_allocated.i_planes );
         if( !p_sys->ps_pieces_shapes[i_piece] )
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         for (uint8_t i_plane = 0; i_plane < p_sys->s_allocated.i_planes; i_plane++) {
             p_sys->ps_pieces_shapes[i_piece][i_plane].i_row_nbr = 0;
             p_sys->ps_pieces_shapes[i_piece][i_plane].ps_piece_shape_row = NULL;
@@ -88,21 +89,21 @@ int puzzle_bake_pieces_shapes( filter_t *p_filter)
     for (uint8_t i_plane = 0; i_plane < p_sys->s_allocated.i_planes; i_plane++) {
         int i_ret;
         i_ret = puzzle_generate_sect_border( p_filter, &p_sys->ps_pieces_shapes[i_currect_shape+0][i_plane], i_plane, puzzle_SHAPE_LEFT);
-        if (i_ret != VLC_SUCCESS) return i_ret;
+        if (i_ret != HEIMDALL_SUCCESS) return i_ret;
         i_ret = puzzle_generate_sect_border( p_filter, &p_sys->ps_pieces_shapes[i_currect_shape+1][i_plane], i_plane, puzzle_SHAPE_LEFT);
-        if (i_ret != VLC_SUCCESS) return i_ret;
+        if (i_ret != HEIMDALL_SUCCESS) return i_ret;
         i_ret = puzzle_generate_sect_border( p_filter, &p_sys->ps_pieces_shapes[i_currect_shape+2][i_plane], i_plane, puzzle_SHAPE_TOP);
-        if (i_ret != VLC_SUCCESS) return i_ret;
+        if (i_ret != HEIMDALL_SUCCESS) return i_ret;
         i_ret = puzzle_generate_sect_border( p_filter, &p_sys->ps_pieces_shapes[i_currect_shape+3][i_plane], i_plane, puzzle_SHAPE_TOP);
-        if (i_ret != VLC_SUCCESS) return i_ret;
+        if (i_ret != HEIMDALL_SUCCESS) return i_ret;
         i_ret = puzzle_generate_sect_border( p_filter, &p_sys->ps_pieces_shapes[i_currect_shape+4][i_plane], i_plane, puzzle_SHAPE_BTM);
-        if (i_ret != VLC_SUCCESS) return i_ret;
+        if (i_ret != HEIMDALL_SUCCESS) return i_ret;
         i_ret = puzzle_generate_sect_border( p_filter, &p_sys->ps_pieces_shapes[i_currect_shape+5][i_plane], i_plane, puzzle_SHAPE_BTM);
-        if (i_ret != VLC_SUCCESS) return i_ret;
+        if (i_ret != HEIMDALL_SUCCESS) return i_ret;
         i_ret = puzzle_generate_sect_border( p_filter, &p_sys->ps_pieces_shapes[i_currect_shape+6][i_plane], i_plane, puzzle_SHAPE_RIGHT);
-        if (i_ret != VLC_SUCCESS) return i_ret;
+        if (i_ret != HEIMDALL_SUCCESS) return i_ret;
         i_ret = puzzle_generate_sect_border( p_filter, &p_sys->ps_pieces_shapes[i_currect_shape+7][i_plane], i_plane, puzzle_SHAPE_RIGHT);
-        if (i_ret != VLC_SUCCESS) return i_ret;
+        if (i_ret != HEIMDALL_SUCCESS) return i_ret;
     }
 
     i_currect_shape += 8;
@@ -122,28 +123,28 @@ int puzzle_bake_pieces_shapes( filter_t *p_filter)
             free(ps_scale_pts_V);
             free(ps_neg_pts_H);
             free(ps_neg_pts_V);
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
-        int i_ret = VLC_SUCCESS;
+        int i_ret = HEIMDALL_SUCCESS;
         for (uint8_t i_plane = 0; i_plane < p_sys->s_allocated.i_planes; i_plane++) {
             i_ret = puzzle_generate_sect_bezier( p_filter, &p_sys->ps_pieces_shapes[i_currect_shape][i_plane],   7, ps_scale_pts_V, i_plane, puzzle_SHAPE_LEFT);
-            if (i_ret != VLC_SUCCESS) break;
+            if (i_ret != HEIMDALL_SUCCESS) break;
             i_ret = puzzle_generate_sect_bezier( p_filter, &p_sys->ps_pieces_shapes[i_currect_shape+1][i_plane], 7, ps_neg_pts_V,   i_plane, puzzle_SHAPE_LEFT);
-            if (i_ret != VLC_SUCCESS) break;
+            if (i_ret != HEIMDALL_SUCCESS) break;
             i_ret = puzzle_generate_sect_bezier(  p_filter, &p_sys->ps_pieces_shapes[i_currect_shape+2][i_plane], 7, ps_scale_pts_H, i_plane, puzzle_SHAPE_TOP);
-            if (i_ret != VLC_SUCCESS) break;
+            if (i_ret != HEIMDALL_SUCCESS) break;
             i_ret = puzzle_generate_sect_bezier(  p_filter, &p_sys->ps_pieces_shapes[i_currect_shape+3][i_plane], 7, ps_neg_pts_H,   i_plane, puzzle_SHAPE_TOP);
-            if (i_ret != VLC_SUCCESS) break;
+            if (i_ret != HEIMDALL_SUCCESS) break;
 
             i_ret = puzzle_generate_sectTop2Btm( p_filter,    &p_sys->ps_pieces_shapes[i_currect_shape+4][i_plane], &p_sys->ps_pieces_shapes[i_currect_shape+2][i_plane], i_plane);
-            if (i_ret != VLC_SUCCESS) break;
+            if (i_ret != HEIMDALL_SUCCESS) break;
             i_ret = puzzle_generate_sectTop2Btm( p_filter,    &p_sys->ps_pieces_shapes[i_currect_shape+5][i_plane], &p_sys->ps_pieces_shapes[i_currect_shape+3][i_plane], i_plane);
-            if (i_ret != VLC_SUCCESS) break;
+            if (i_ret != HEIMDALL_SUCCESS) break;
             i_ret = puzzle_generate_sectLeft2Right( p_filter, &p_sys->ps_pieces_shapes[i_currect_shape+6][i_plane], &p_sys->ps_pieces_shapes[i_currect_shape][i_plane],   i_plane);
-            if (i_ret != VLC_SUCCESS) break;
+            if (i_ret != HEIMDALL_SUCCESS) break;
             i_ret = puzzle_generate_sectLeft2Right( p_filter, &p_sys->ps_pieces_shapes[i_currect_shape+7][i_plane], &p_sys->ps_pieces_shapes[i_currect_shape+1][i_plane], i_plane);
-            if (i_ret != VLC_SUCCESS) break;
+            if (i_ret != HEIMDALL_SUCCESS) break;
         }
 
         free(ps_scale_pts_H);
@@ -151,14 +152,14 @@ int puzzle_bake_pieces_shapes( filter_t *p_filter)
         free(ps_neg_pts_H);
         free(ps_neg_pts_V);
 
-        if (i_ret != VLC_SUCCESS) return i_ret;
+        if (i_ret != HEIMDALL_SUCCESS) return i_ret;
 
         i_currect_shape += 8;
     }
 
     p_sys->b_shape_init = true;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /* free allocated shapes data */
@@ -589,7 +590,7 @@ int puzzle_generate_sect_border( filter_t *p_filter, piece_shape_t *ps_piece_sha
 {
     /* generate data required to draw a sector of border puzzle piece */
     if (!ps_piece_shape)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     filter_sys_t *p_sys = p_filter->p_sys;
 
@@ -607,7 +608,7 @@ int puzzle_generate_sect_border( filter_t *p_filter, piece_shape_t *ps_piece_sha
     ps_piece_shape->i_first_row_offset = i_min_y;
     ps_piece_shape->ps_piece_shape_row = malloc( sizeof( piece_shape_row_t ) * i_nb_y );
     if (!ps_piece_shape->ps_piece_shape_row)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     for (int32_t i_y = i_min_y; i_y < i_nb_y + i_min_y; i_y++) {
         uint8_t i_sect = 0;
@@ -639,7 +640,7 @@ int puzzle_generate_sect_border( filter_t *p_filter, piece_shape_t *ps_piece_sha
                 free(ps_piece_shape->ps_piece_shape_row[i].ps_row_section);
             free(ps_piece_shape->ps_piece_shape_row);
             ps_piece_shape->ps_piece_shape_row = NULL;
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         }
 
         for (uint8_t i=0; i < i_sect; i++) {
@@ -647,7 +648,7 @@ int puzzle_generate_sect_border( filter_t *p_filter, piece_shape_t *ps_piece_sha
             ps_piece_shape->ps_piece_shape_row[i_row].ps_row_section[i].i_width = pi_sects[i];
         }
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -658,7 +659,7 @@ int puzzle_generate_sect_bezier( filter_t *p_filter, piece_shape_t *ps_piece_sha
 {
     /* generate data required to draw a sector of puzzle piece using bezier shape */
     if ((!ps_pt) || (!ps_piece_shape))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     filter_sys_t *p_sys = p_filter->p_sys;
 
@@ -686,7 +687,7 @@ int puzzle_generate_sect_bezier( filter_t *p_filter, piece_shape_t *ps_piece_sha
     ps_piece_shape->i_first_row_offset = i_min_y;
     ps_piece_shape->ps_piece_shape_row = malloc( sizeof( piece_shape_row_t ) * ps_piece_shape->i_row_nbr );
     if (!ps_piece_shape->ps_piece_shape_row)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     return puzzle_generate_shape_lines(p_filter, ps_piece_shape, i_min_y, i_nb_y, f_x_ratio, f_y_ratio, ps_pt, i_pts_nbr, i_border, i_plane);
 }
@@ -749,7 +750,7 @@ int puzzle_generate_shape_lines( filter_t *p_filter, piece_shape_t *ps_piece_sha
                         free(ps_piece_shape->ps_piece_shape_row[i].ps_row_section);
                     free(ps_piece_shape->ps_piece_shape_row);
                     ps_piece_shape->ps_piece_shape_row = NULL;
-                    return VLC_ENOMEM;
+                    return HEIMDALL_ENOMEM;
                 }
                 for (uint8_t i=0; i < i_sect; i++) {
                     ps_piece_shape->ps_piece_shape_row[i_row].ps_row_section[i].i_type = i % 2; /* 0 = fill ; 1 = offset */
@@ -764,7 +765,7 @@ int puzzle_generate_shape_lines( filter_t *p_filter, piece_shape_t *ps_piece_sha
                         free(ps_piece_shape->ps_piece_shape_row[i].ps_row_section);
                     free(ps_piece_shape->ps_piece_shape_row);
                     ps_piece_shape->ps_piece_shape_row = NULL;
-                    return VLC_ENOMEM;
+                    return HEIMDALL_ENOMEM;
                 }
                 for (uint8_t i=0; i < i_sect; i++) {
                     ps_piece_shape->ps_piece_shape_row[i_row].ps_row_section[i].i_type = (i + 1) % 2; /* 0 = fill ; 1 = offset */
@@ -782,7 +783,7 @@ int puzzle_generate_shape_lines( filter_t *p_filter, piece_shape_t *ps_piece_sha
                     free(ps_piece_shape->ps_piece_shape_row[i].ps_row_section);
                 free(ps_piece_shape->ps_piece_shape_row);
                 ps_piece_shape->ps_piece_shape_row = NULL;
-                return VLC_ENOMEM;
+                return HEIMDALL_ENOMEM;
             }
             for (uint8_t i=0; i < i_sect; i++) {
                 ps_piece_shape->ps_piece_shape_row[i_row].ps_row_section[i].i_type = (i+1) % 2; /* 0 = fill ; 1 = offset */
@@ -790,7 +791,7 @@ int puzzle_generate_shape_lines( filter_t *p_filter, piece_shape_t *ps_piece_sha
             }
         }
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -859,7 +860,7 @@ int puzzle_detect_curve( filter_t *p_filter, int32_t i_y, float f_x_ratio, float
 int puzzle_generate_sectLeft2Right( filter_t *p_filter, piece_shape_t *ps_piece_shape, piece_shape_t *ps_left_piece_shape, uint8_t i_plane)
 {
     if ((!ps_piece_shape) || (!ps_left_piece_shape))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     filter_sys_t *p_sys = p_filter->p_sys;
 
@@ -871,7 +872,7 @@ int puzzle_generate_sectLeft2Right( filter_t *p_filter, piece_shape_t *ps_piece_
     ps_piece_shape->i_first_row_offset = i_min_y;
     ps_piece_shape->ps_piece_shape_row = malloc( sizeof( piece_shape_row_t ) * i_nb_y );
     if (!ps_piece_shape->ps_piece_shape_row)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     for (int32_t i_y = i_min_y; i_y < i_nb_y + i_min_y; i_y++) {
         int32_t i_row = i_y - i_min_y;
@@ -888,7 +889,7 @@ int puzzle_generate_sectLeft2Right( filter_t *p_filter, piece_shape_t *ps_piece_
                 free(ps_piece_shape->ps_piece_shape_row[i].ps_row_section);
             free(ps_piece_shape->ps_piece_shape_row);
             ps_piece_shape->ps_piece_shape_row = NULL;
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         }
 
         ps_piece_shape->ps_piece_shape_row[i_row].ps_row_section[0].i_type =
@@ -904,7 +905,7 @@ int puzzle_generate_sectLeft2Right( filter_t *p_filter, piece_shape_t *ps_piece_
                     + (i_s == 0 ? i_right_width - i_left_width : 0);
         }
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -913,7 +914,7 @@ int puzzle_generate_sectLeft2Right( filter_t *p_filter, piece_shape_t *ps_piece_
 int puzzle_generate_sectTop2Btm( filter_t *p_filter, piece_shape_t *ps_piece_shape, piece_shape_t *ps_top_piece_shape, uint8_t i_plane)
 {
     if ((!ps_piece_shape) || (!ps_top_piece_shape))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     filter_sys_t *p_sys = p_filter->p_sys;
 
@@ -930,7 +931,7 @@ int puzzle_generate_sectTop2Btm( filter_t *p_filter, piece_shape_t *ps_piece_sha
     ps_piece_shape->i_first_row_offset = i_min_y;
     ps_piece_shape->ps_piece_shape_row = malloc( sizeof( piece_shape_row_t ) * i_nb_y );
     if (!ps_piece_shape->ps_piece_shape_row)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     for (int32_t i_y = i_min_y; i_y < i_nb_y + i_min_y; i_y++) {
         int32_t i_top_y = 2 * i_min_y - i_y + (i_nb_y - i_top_nb_y);
@@ -945,7 +946,7 @@ int puzzle_generate_sectTop2Btm( filter_t *p_filter, piece_shape_t *ps_piece_sha
                     free(ps_piece_shape->ps_piece_shape_row[i].ps_row_section);
                 free(ps_piece_shape->ps_piece_shape_row);
                 ps_piece_shape->ps_piece_shape_row = NULL;
-                return VLC_ENOMEM;
+                return HEIMDALL_ENOMEM;
             }
             ps_piece_shape->ps_piece_shape_row[i_row].ps_row_section[0].i_type = 0;
             ps_piece_shape->ps_piece_shape_row[i_row].ps_row_section[0].i_width =
@@ -967,7 +968,7 @@ int puzzle_generate_sectTop2Btm( filter_t *p_filter, piece_shape_t *ps_piece_sha
                     free(ps_piece_shape->ps_piece_shape_row[i].ps_row_section);
                 free(ps_piece_shape->ps_piece_shape_row);
                 ps_piece_shape->ps_piece_shape_row = NULL;
-                return VLC_ENOMEM;
+                return HEIMDALL_ENOMEM;
             }
 
             for (int8_t i_s=0; i_s<i_section_nbr; i_s++) {
@@ -979,5 +980,5 @@ int puzzle_generate_sectTop2Btm( filter_t *p_filter, piece_shape_t *ps_piece_sha
             }
         }
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

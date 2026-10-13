@@ -2,8 +2,9 @@
  * osd.c: Generic lua interface functions
  *****************************************************************************
  * Copyright (C) 2007-2008 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Antoine Cellerier <dionoea at videolan tod org>
+ * Authors: Antoine Cellerier <dionoea at lycaria tod org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,18 +32,18 @@
 # include "config.h"
 #endif
 
-#include <vlc_vout.h>
-#include <vlc_vout_osd.h>
-#include <vlc_subpicture.h>
+#include <heimdall_vout.h>
+#include <heimdall_vout_osd.h>
+#include <heimdall_subpicture.h>
 
-#include "../vlc.h"
+#include "../heimdall.h"
 #include "../libs.h"
 #include "input.h"
 
 /*****************************************************************************
  * OSD
  *****************************************************************************/
-static int vlc_osd_icon_from_string( const char *psz_name )
+static int heimdall_osd_icon_from_string( const char *psz_name )
 {
     static const struct
     {
@@ -63,15 +64,15 @@ static int vlc_osd_icon_from_string( const char *psz_name )
     return 0;
 }
 
-static int vlclua_osd_icon( lua_State *L )
+static int heimdalllua_osd_icon( lua_State *L )
 {
     const char *psz_icon = luaL_checkstring( L, 1 );
-    int i_icon = vlc_osd_icon_from_string( psz_icon );
+    int i_icon = heimdall_osd_icon_from_string( psz_icon );
     int i_chan = (int)luaL_optinteger( L, 2, VOUT_SPU_CHANNEL_OSD );
     if( !i_icon )
         return luaL_error( L, "\"%s\" is not a valid osd icon.", psz_icon );
 
-    vout_thread_t *p_vout = vlclua_get_vout_internal(L);
+    vout_thread_t *p_vout = heimdalllua_get_vout_internal(L);
     if( p_vout )
     {
         vout_OSDIcon( p_vout, i_chan, i_icon );
@@ -80,7 +81,7 @@ static int vlclua_osd_icon( lua_State *L )
     return 0;
 }
 
-static int vlc_osd_position_from_string( const char *psz_name )
+static int heimdall_osd_position_from_string( const char *psz_name )
 {
     static const struct
     {
@@ -105,24 +106,24 @@ static int vlc_osd_position_from_string( const char *psz_name )
     return 0;
 }
 
-static int vlclua_osd_message( lua_State *L )
+static int heimdalllua_osd_message( lua_State *L )
 {
     const char *psz_message = luaL_checkstring( L, 1 );
     int i_chan = (int)luaL_optinteger( L, 2, VOUT_SPU_CHANNEL_OSD );
     const char *psz_position = luaL_optstring( L, 3, "top-right" );
-    vlc_tick_t duration = (vlc_tick_t)luaL_optinteger( L, 4, VLC_TICK_FROM_SEC(1));
+    heimdall_tick_t duration = (heimdall_tick_t)luaL_optinteger( L, 4, HEIMDALL_TICK_FROM_SEC(1));
 
-    vout_thread_t *p_vout = vlclua_get_vout_internal(L);
+    vout_thread_t *p_vout = heimdalllua_get_vout_internal(L);
     if( p_vout )
     {
-        vout_OSDText( p_vout, i_chan, vlc_osd_position_from_string( psz_position ),
+        vout_OSDText( p_vout, i_chan, heimdall_osd_position_from_string( psz_position ),
                       duration, psz_message );
         vout_Release( p_vout );
     }
     return 0;
 }
 
-static int vlc_osd_slider_type_from_string( const char *psz_name )
+static int heimdall_osd_slider_type_from_string( const char *psz_name )
 {
     static const struct
     {
@@ -141,17 +142,17 @@ static int vlc_osd_slider_type_from_string( const char *psz_name )
     return 0;
 }
 
-static int vlclua_osd_slider( lua_State *L )
+static int heimdalllua_osd_slider( lua_State *L )
 {
     int i_position = luaL_checkinteger( L, 1 );
     const char *psz_type = luaL_checkstring( L, 2 );
-    int i_type = vlc_osd_slider_type_from_string( psz_type );
+    int i_type = heimdall_osd_slider_type_from_string( psz_type );
     int i_chan = (int)luaL_optinteger( L, 3, VOUT_SPU_CHANNEL_OSD );
     if( !i_type )
         return luaL_error( L, "\"%s\" is not a valid slider type.",
                            psz_type );
 
-    vout_thread_t *p_vout = vlclua_get_vout_internal(L);
+    vout_thread_t *p_vout = heimdalllua_get_vout_internal(L);
     if( p_vout )
     {
         vout_OSDSlider( p_vout, i_chan, i_position, i_type );
@@ -160,9 +161,9 @@ static int vlclua_osd_slider( lua_State *L )
     return 0;
 }
 
-static int vlclua_spu_channel_register( lua_State *L )
+static int heimdalllua_spu_channel_register( lua_State *L )
 {
-    vout_thread_t *p_vout = vlclua_get_vout_internal(L);
+    vout_thread_t *p_vout = heimdalllua_get_vout_internal(L);
     if( !p_vout )
         return luaL_error( L, "Unable to find vout." );
 
@@ -172,10 +173,10 @@ static int vlclua_spu_channel_register( lua_State *L )
     return 1;
 }
 
-static int vlclua_spu_channel_clear( lua_State *L )
+static int heimdalllua_spu_channel_clear( lua_State *L )
 {
     ssize_t i_chan = luaL_checkinteger( L, 1 );
-    vout_thread_t *p_vout = vlclua_get_vout_internal(L);
+    vout_thread_t *p_vout = heimdalllua_get_vout_internal(L);
     if( !p_vout )
         return luaL_error( L, "Unable to find vout." );
 
@@ -187,18 +188,18 @@ static int vlclua_spu_channel_clear( lua_State *L )
 /*****************************************************************************
  *
  *****************************************************************************/
-static const luaL_Reg vlclua_osd_reg[] = {
-    { "icon", vlclua_osd_icon },
-    { "message", vlclua_osd_message },
-    { "slider", vlclua_osd_slider },
-    { "channel_register", vlclua_spu_channel_register },
-    { "channel_clear", vlclua_spu_channel_clear },
+static const luaL_Reg heimdalllua_osd_reg[] = {
+    { "icon", heimdalllua_osd_icon },
+    { "message", heimdalllua_osd_message },
+    { "slider", heimdalllua_osd_slider },
+    { "channel_register", heimdalllua_spu_channel_register },
+    { "channel_clear", heimdalllua_spu_channel_clear },
     { NULL, NULL }
 };
 
 void luaopen_osd( lua_State *L )
 {
     lua_newtable( L );
-    luaL_register( L, NULL, vlclua_osd_reg );
+    luaL_register( L, NULL, heimdalllua_osd_reg );
     lua_setfield( L, -2, "osd" );
 }

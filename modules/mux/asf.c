@@ -1,7 +1,8 @@
 /*****************************************************************************
- * asf.c: asf muxer module for vlc
+ * asf.c: asf muxer module for heimdall
  *****************************************************************************
  * Copyright (C) 2003-2004, 2006 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *          Gildas Bazin <gbazin@videolan.org>
@@ -31,15 +32,15 @@
 
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_arrays.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_sout.h>
-#include <vlc_block.h>
-#include <vlc_codecs.h>
-#include <vlc_arrays.h>
-#include <vlc_rand.h>
+#include <heimdall_common.h>
+#include <heimdall_arrays.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_sout.h>
+#include <heimdall_block.h>
+#include <heimdall_codecs.h>
+#include <heimdall_arrays.h>
+#include <heimdall_rand.h>
 
 #include "../demux/asf/libasf_guid.h"
 
@@ -48,8 +49,8 @@
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  Open   ( vlc_object_t * );
-static void Close  ( vlc_object_t * );
+static int  Open   ( heimdall_object_t * );
+static void Close  ( heimdall_object_t * );
 
 #define SOUT_CFG_PREFIX "sout-asf-"
 
@@ -69,7 +70,7 @@ static void Close  ( vlc_object_t * );
 #define BITRATE_LONGTEXT N_("Do not try to guess ASF bitrate. Setting this, allows you to control how Windows Media Player will cache streamed content. Set to audio+video bitrate in bytes")
 
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("ASF muxer") )
     set_subcategory( SUBCAT_SOUT_MUX )
     set_shortname( "ASF" )
@@ -92,7 +93,7 @@ vlc_module_begin ()
     add_integer( SOUT_CFG_PREFIX "bitrate-override", 0, BITRATE_TEXT,
                                  BITRATE_LONGTEXT )
 
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * Locales prototypes
@@ -113,7 +114,7 @@ typedef struct
 
     /* codec information */
     uint16_t     i_tag;     /* for audio */
-    vlc_fourcc_t i_fourcc;  /* for video */
+    heimdall_fourcc_t i_fourcc;  /* for video */
     const char         *psz_name; /* codec name */
     int          i_blockalign; /* for audio only */
     bool   b_audio_correction;
@@ -130,23 +131,23 @@ typedef struct
 
 typedef struct
 {
-    vlc_guid_t      fid;    /* file id */
+    heimdall_guid_t      fid;    /* file id */
     int             i_packet_size;
     int64_t         i_packet_count;
-    vlc_tick_t      i_dts_first;
-    vlc_tick_t      i_dts_last;
+    heimdall_tick_t      i_dts_first;
+    heimdall_tick_t      i_dts_last;
     int64_t         i_preroll_time; /* in milliseconds */
     int64_t         i_bitrate;
     int64_t         i_bitrate_override;
 
-    vlc_array_t     tracks;
+    heimdall_array_t     tracks;
 
     bool            b_write_header;
 
     block_t         *pk;
     int             i_pk_used;
     int             i_pk_frame;
-    vlc_tick_t      i_pk_dts;
+    heimdall_tick_t      i_pk_dts;
 
     bool      b_asf_http;
     int             i_seq;
@@ -184,7 +185,7 @@ static void bo_addle_str16( bo_t *, const char * );
 /*****************************************************************************
  * Open:
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     sout_mux_t     *p_mux = (sout_mux_t*)p_this;
     sout_mux_sys_t *p_sys;
@@ -199,7 +200,7 @@ static int Open( vlc_object_t *p_this )
 
     p_mux->p_sys = p_sys = malloc( sizeof( sout_mux_sys_t ) );
     if( !p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     p_sys->b_asf_http = p_mux->psz_mux && !strcmp( p_mux->psz_mux, "asfh" );
     if( p_sys->b_asf_http )
     {
@@ -209,12 +210,12 @@ static int Open( vlc_object_t *p_this )
     p_sys->i_pk_used    = 0;
     p_sys->i_pk_frame   = 0;
     p_sys->i_dts_first  =
-    p_sys->i_dts_last   = VLC_TICK_INVALID;
+    p_sys->i_dts_last   = HEIMDALL_TICK_INVALID;
     p_sys->i_preroll_time = 2000;
     p_sys->i_bitrate    = 0;
     p_sys->i_bitrate_override = 0;
     p_sys->i_seq        = 0;
-    vlc_array_init( &p_sys->tracks );
+    heimdall_array_init( &p_sys->tracks );
 
     p_sys->b_write_header = true;
     p_sys->i_packet_size = var_InheritInteger( p_mux, "sout-asf-packet-size" );
@@ -226,9 +227,9 @@ static int Open( vlc_object_t *p_this )
 
     /* Generate a random fid */
     p_sys->fid.Data1 = 0xbabac001;
-    vlc_rand_bytes(&p_sys->fid.Data2, sizeof(p_sys->fid.Data2));
-    vlc_rand_bytes(&p_sys->fid.Data3, sizeof(p_sys->fid.Data3));
-    vlc_rand_bytes(p_sys->fid.Data4, sizeof(p_sys->fid.Data4));
+    heimdall_rand_bytes(&p_sys->fid.Data2, sizeof(p_sys->fid.Data2));
+    heimdall_rand_bytes(&p_sys->fid.Data3, sizeof(p_sys->fid.Data3));
+    heimdall_rand_bytes(p_sys->fid.Data4, sizeof(p_sys->fid.Data4));
 
     /* Meta data */
     p_sys->psz_title = var_GetString( p_mux, SOUT_CFG_PREFIX "title" );
@@ -242,13 +243,13 @@ static int Open( vlc_object_t *p_this )
              p_sys->psz_title, p_sys->psz_author, p_sys->psz_copyright,
              p_sys->psz_comment, p_sys->psz_rating );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * Close:
  *****************************************************************************/
-static void Close( vlc_object_t * p_this )
+static void Close( heimdall_object_t * p_this )
 {
     sout_mux_t     *p_mux = (sout_mux_t*)p_this;
     sout_mux_sys_t *p_sys = p_mux->p_sys;
@@ -268,22 +269,22 @@ static void Close( vlc_object_t * p_this )
     }
 
     /* rewrite header */
-    if( sout_AccessOutSeek( p_mux->p_access, 0 ) == VLC_SUCCESS )
+    if( sout_AccessOutSeek( p_mux->p_access, 0 ) == HEIMDALL_SUCCESS )
     {
         out = asf_header_create( p_mux, false );
         sout_AccessOutWrite( p_mux->p_access, out );
     }
 
 
-    for( size_t i = 0; i < vlc_array_count( &p_sys->tracks ); i++ )
+    for( size_t i = 0; i < heimdall_array_count( &p_sys->tracks ); i++ )
     {
-        asf_track_t *track = vlc_array_item_at_index( &p_sys->tracks, i );
+        asf_track_t *track = heimdall_array_item_at_index( &p_sys->tracks, i );
         free( track->p_extra );
         es_format_Clean( &track->fmt );
         free( track );
     }
 
-    vlc_array_clear( &p_sys->tracks );
+    heimdall_array_clear( &p_sys->tracks );
     free( p_sys->psz_title );
     free( p_sys->psz_author );
     free( p_sys->psz_copyright );
@@ -306,7 +307,7 @@ static int Control( sout_mux_t *p_mux, int i_query, va_list args )
        case MUX_CAN_ADD_STREAM_WHILE_MUXING:
            pb_bool = va_arg( args, bool * );
            *pb_bool = false;
-           return VLC_SUCCESS;
+           return HEIMDALL_SUCCESS;
 
        case MUX_GET_MIME:
            ppsz = va_arg( args, char ** );
@@ -314,10 +315,10 @@ static int Control( sout_mux_t *p_mux, int i_query, va_list args )
                *ppsz = strdup( "video/x-ms-asf-stream" );
            else
                *ppsz = strdup( "video/x-ms-asf" );
-           return VLC_SUCCESS;
+           return HEIMDALL_SUCCESS;
 
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 }
 
@@ -331,15 +332,15 @@ static int AddStream( sout_mux_t *p_mux, sout_input_t *p_input )
     bo_t             bo;
 
     msg_Dbg( p_mux, "adding input" );
-    if( vlc_array_count( &p_sys->tracks ) >= MAX_ASF_TRACKS )
+    if( heimdall_array_count( &p_sys->tracks ) >= MAX_ASF_TRACKS )
     {
         msg_Dbg( p_mux, "cannot add this track (too much tracks)" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     tk = p_input->p_sys = malloc( sizeof( asf_track_t ) );
     if( unlikely(p_input->p_sys == NULL) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     memset( tk, 0, sizeof( *tk ) );
     tk->i_cat = p_input->p_fmt->i_cat;
     tk->i_sequence = 0;
@@ -356,85 +357,85 @@ static int AddStream( sout_mux_t *p_mux, sout_input_t *p_input )
 
             switch( p_input->p_fmt->i_codec )
             {
-                case VLC_CODEC_A52:
+                case HEIMDALL_CODEC_A52:
                     tk->i_tag = WAVE_FORMAT_A52;
                     tk->psz_name = "A/52";
                     i_bitspersample = 0;
                     break;
-                case VLC_CODEC_MP4A:
+                case HEIMDALL_CODEC_MP4A:
                     tk->i_tag = WAVE_FORMAT_AAC;
                     tk->psz_name = "MPEG-4 Audio";
                     i_bitspersample = 0;
                     break;
-                case VLC_CODEC_MP3:
+                case HEIMDALL_CODEC_MP3:
                     tk->psz_name = "MPEG Audio Layer 3";
                     tk->i_tag = WAVE_FORMAT_MPEGLAYER3;
                     i_bitspersample = 0;
                     i_blockalign = 1;
                     i_extra = 12;
                     break;
-                case VLC_CODEC_MP2:
-                case VLC_CODEC_MPGA:
+                case HEIMDALL_CODEC_MP2:
+                case HEIMDALL_CODEC_MPGA:
                     tk->psz_name = "MPEG Audio Layer 1/2";
                     tk->i_tag = WAVE_FORMAT_MPEG;
                     i_bitspersample = 0;
                     i_blockalign = 1;
                     i_extra = 22;
                     break;
-                case VLC_CODEC_WMA1:
+                case HEIMDALL_CODEC_WMA1:
                     tk->psz_name = "Windows Media Audio v1";
                     tk->i_tag = WAVE_FORMAT_WMA1;
                     tk->b_audio_correction = true;
                     break;
-                case VLC_CODEC_WMA2:
+                case HEIMDALL_CODEC_WMA2:
                     tk->psz_name= "Windows Media Audio (v2) 7, 8 and 9 Series";
                     tk->i_tag = WAVE_FORMAT_WMA2;
                     tk->b_audio_correction = true;
                     break;
-                case VLC_CODEC_WMAP:
+                case HEIMDALL_CODEC_WMAP:
                     tk->psz_name = "Windows Media Audio 9 Professional";
                     tk->i_tag = WAVE_FORMAT_WMAP;
                     tk->b_audio_correction = true;
                     break;
-                case VLC_CODEC_WMAL:
+                case HEIMDALL_CODEC_WMAL:
                     tk->psz_name = "Windows Media Audio 9 Lossless";
                     tk->i_tag = WAVE_FORMAT_WMAL;
                     tk->b_audio_correction = true;
                     break;
                     /* raw codec */
-                case VLC_CODEC_U8:
+                case HEIMDALL_CODEC_U8:
                     tk->psz_name = "Raw audio 8bits";
                     tk->i_tag = WAVE_FORMAT_PCM;
                     i_blockalign= p_input->p_fmt->audio.i_channels;
                     i_bitspersample = 8;
                     break;
-                case VLC_CODEC_S16L:
+                case HEIMDALL_CODEC_S16L:
                     tk->psz_name = "Raw audio 16bits";
                     tk->i_tag = WAVE_FORMAT_PCM;
                     i_blockalign= 2 * p_input->p_fmt->audio.i_channels;
                     i_bitspersample = 16;
                     break;
-                case VLC_CODEC_S24L:
+                case HEIMDALL_CODEC_S24L:
                     tk->psz_name = "Raw audio 24bits";
                     tk->i_tag = WAVE_FORMAT_PCM;
                     i_blockalign= 3 * p_input->p_fmt->audio.i_channels;
                     i_bitspersample = 24;
                     break;
-                case VLC_CODEC_S32L:
+                case HEIMDALL_CODEC_S32L:
                     tk->psz_name = "Raw audio 32bits";
                     tk->i_tag = WAVE_FORMAT_PCM;
                     i_blockalign= 4 * p_input->p_fmt->audio.i_channels;
                     i_bitspersample = 32;
                     break;
                 default:
-                    return VLC_EGENERIC;
+                    return HEIMDALL_EGENERIC;
             }
 
             tk->i_extra = sizeof( WAVEFORMATEX ) +
                           p_input->p_fmt->i_extra + i_extra;
             tk->p_extra = malloc( tk->i_extra );
             if( !tk->p_extra )
-                return VLC_ENOMEM;
+                return HEIMDALL_ENOMEM;
             bo_init( &bo, tk->p_extra, tk->i_extra );
             bo_addle_u16( &bo, tk->i_tag );
             bo_addle_u16( &bo, p_input->p_fmt->audio.i_channels );
@@ -493,46 +494,46 @@ static int AddStream( sout_mux_t *p_mux, sout_input_t *p_input )
             uint8_t *p_codec_extra = NULL;
             size_t     i_codec_extra = 0;
 
-            if( p_fmt->i_codec == VLC_CODEC_MP4V )
+            if( p_fmt->i_codec == HEIMDALL_CODEC_MP4V )
             {
                 tk->psz_name = "MPEG-4 Video";
-                tk->i_fourcc = VLC_FOURCC( 'M', 'P', '4', 'S' );
+                tk->i_fourcc = HEIMDALL_FOURCC( 'M', 'P', '4', 'S' );
             }
-            else if( p_fmt->i_codec == VLC_CODEC_DIV3 )
+            else if( p_fmt->i_codec == HEIMDALL_CODEC_DIV3 )
             {
                 tk->psz_name = "MSMPEG-4 V3 Video";
-                tk->i_fourcc = VLC_FOURCC( 'M', 'P', '4', '3' );
+                tk->i_fourcc = HEIMDALL_FOURCC( 'M', 'P', '4', '3' );
             }
-            else if( p_fmt->i_codec == VLC_CODEC_DIV2 )
+            else if( p_fmt->i_codec == HEIMDALL_CODEC_DIV2 )
             {
                 tk->psz_name = "MSMPEG-4 V2 Video";
-                tk->i_fourcc = VLC_FOURCC( 'M', 'P', '4', '2' );
+                tk->i_fourcc = HEIMDALL_FOURCC( 'M', 'P', '4', '2' );
             }
-            else if( p_fmt->i_codec == VLC_CODEC_DIV1 )
+            else if( p_fmt->i_codec == HEIMDALL_CODEC_DIV1 )
             {
                 tk->psz_name = "MSMPEG-4 V1 Video";
-                tk->i_fourcc = VLC_FOURCC( 'M', 'P', 'G', '4' );
+                tk->i_fourcc = HEIMDALL_FOURCC( 'M', 'P', 'G', '4' );
             }
-            else if( p_fmt->i_codec == VLC_CODEC_WMV1 )
+            else if( p_fmt->i_codec == HEIMDALL_CODEC_WMV1 )
             {
                 tk->psz_name = "Windows Media Video 7";
-                tk->i_fourcc = VLC_FOURCC( 'W', 'M', 'V', '1' );
+                tk->i_fourcc = HEIMDALL_FOURCC( 'W', 'M', 'V', '1' );
             }
-            else if( p_fmt->i_codec == VLC_CODEC_WMV2 )
+            else if( p_fmt->i_codec == HEIMDALL_CODEC_WMV2 )
             {
                 tk->psz_name = "Windows Media Video 8";
-                tk->i_fourcc = VLC_FOURCC( 'W', 'M', 'V', '2' );
+                tk->i_fourcc = HEIMDALL_FOURCC( 'W', 'M', 'V', '2' );
             }
-            else if( p_fmt->i_codec == VLC_CODEC_WMV3 )
+            else if( p_fmt->i_codec == HEIMDALL_CODEC_WMV3 )
             {
                 tk->psz_name = "Windows Media Video 9";
-                tk->i_fourcc = VLC_FOURCC( 'W', 'M', 'V', '3' );
+                tk->i_fourcc = HEIMDALL_FOURCC( 'W', 'M', 'V', '3' );
                 tk->b_extended = true;
             }
-            else if( p_fmt->i_codec == VLC_CODEC_VC1 )
+            else if( p_fmt->i_codec == HEIMDALL_CODEC_VC1 )
             {
                 tk->psz_name = "Windows Media Video 9 Advanced Profile";
-                tk->i_fourcc = VLC_FOURCC( 'W', 'V', 'C', '1' );
+                tk->i_fourcc = HEIMDALL_FOURCC( 'W', 'V', 'C', '1' );
                 tk->b_extended = true;
 
                 if( p_fmt->i_extra > 0 )
@@ -546,10 +547,10 @@ static int AddStream( sout_mux_t *p_mux, sout_input_t *p_input )
                     }
                 }
             }
-            else if( p_fmt->i_codec == VLC_CODEC_H264 )
+            else if( p_fmt->i_codec == HEIMDALL_CODEC_H264 )
             {
                 tk->psz_name = "H.264/MPEG-4 AVC";
-                tk->i_fourcc = VLC_FOURCC('h','2','6','4');
+                tk->i_fourcc = HEIMDALL_FOURCC('h','2','6','4');
             }
             else
             {
@@ -566,19 +567,19 @@ static int AddStream( sout_mux_t *p_mux, sout_input_t *p_input )
                 }
             }
 
-            tk->i_extra = 11 + sizeof( VLC_BITMAPINFOHEADER ) + i_codec_extra;
+            tk->i_extra = 11 + sizeof( HEIMDALL_BITMAPINFOHEADER ) + i_codec_extra;
             tk->p_extra = malloc( tk->i_extra );
             if( !tk->p_extra )
             {
                 free( p_codec_extra );
-                return VLC_ENOMEM;
+                return HEIMDALL_ENOMEM;
             }
             bo_init( &bo, tk->p_extra, tk->i_extra );
             bo_addle_u32( &bo, p_fmt->video.i_width );
             bo_addle_u32( &bo, p_fmt->video.i_height );
             bo_add_u8   ( &bo, 0x02 );  /* flags */
-            bo_addle_u16( &bo, sizeof( VLC_BITMAPINFOHEADER ) + i_codec_extra );
-            bo_addle_u32( &bo, sizeof( VLC_BITMAPINFOHEADER ) + i_codec_extra );
+            bo_addle_u16( &bo, sizeof( HEIMDALL_BITMAPINFOHEADER ) + i_codec_extra );
+            bo_addle_u32( &bo, sizeof( HEIMDALL_BITMAPINFOHEADER ) + i_codec_extra );
             bo_addle_u32( &bo, p_fmt->video.i_width );
             bo_addle_u32( &bo, p_fmt->video.i_height );
             bo_addle_u16( &bo, 1 );
@@ -610,24 +611,24 @@ static int AddStream( sout_mux_t *p_mux, sout_input_t *p_input )
         default:
             msg_Err(p_mux, "unhandled track type" );
             free( tk );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 
-    if( vlc_array_append( &p_sys->tracks, tk ) )
+    if( heimdall_array_append( &p_sys->tracks, tk ) )
     {
         free( tk->p_extra );
         free( tk );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     es_format_Copy( &tk->fmt, p_input->p_fmt );
 
-    tk->i_id = vlc_array_index_of_item( &p_sys->tracks, tk ) + 1;
+    tk->i_id = heimdall_array_index_of_item( &p_sys->tracks, tk ) + 1;
 
     if( p_sys->b_asf_http )
         p_sys->b_write_header = true;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -660,7 +661,7 @@ static void DelStream( sout_mux_t *p_mux, sout_input_t *p_input )
 
     if( p_sys->b_asf_http )
     {
-        vlc_array_remove( &p_sys->tracks, vlc_array_index_of_item( &p_sys->tracks, tk ) );
+        heimdall_array_remove( &p_sys->tracks, heimdall_array_index_of_item( &p_sys->tracks, tk ) );
         p_sys->b_write_header = true;
     }
 }
@@ -686,7 +687,7 @@ static int Mux( sout_mux_t *p_mux )
     {
         sout_input_t  *p_input;
         asf_track_t   *tk;
-        vlc_tick_t    i_dts;
+        heimdall_tick_t    i_dts;
         block_t *data;
         block_t *pk;
 
@@ -694,10 +695,10 @@ static int Mux( sout_mux_t *p_mux )
         if( i_stream < 0 )
         {
             /* not enough data */
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
 
-        if( p_sys->i_dts_first == VLC_TICK_INVALID )
+        if( p_sys->i_dts_first == HEIMDALL_TICK_INVALID )
         {
             p_sys->i_dts_first = i_dts;
         }
@@ -712,7 +713,7 @@ static int Mux( sout_mux_t *p_mux )
         data = block_FifoGet( p_input->p_fifo );
 
         /* Convert VC1 to ASF special format */
-        if( tk->i_fourcc == VLC_FOURCC( 'W', 'V', 'C', '1' ) )
+        if( tk->i_fourcc == HEIMDALL_FOURCC( 'W', 'V', 'C', '1' ) )
         {
             while( data->i_buffer >= 4 &&
                    ( data->p_buffer[0] != 0x00 || data->p_buffer[1] != 0x00 ||
@@ -735,7 +736,7 @@ static int Mux( sout_mux_t *p_mux )
         }
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /****************************************************************************
@@ -810,7 +811,7 @@ static void bo_addle_str16_nosize( bo_t *bo, const char *str )
 /****************************************************************************
  * GUID definitions
  ****************************************************************************/
-static void bo_add_guid( bo_t *p_bo, const vlc_guid_t *id )
+static void bo_add_guid( bo_t *p_bo, const heimdall_guid_t *id )
 {
     bo_addle_u32( p_bo, id->Data1 );
     bo_addle_u16( p_bo, id->Data2 );
@@ -837,7 +838,7 @@ static void asf_chunk_add( bo_t *bo,
 static block_t *asf_header_create( sout_mux_t *p_mux, bool b_broadcast )
 {
     sout_mux_sys_t *p_sys = p_mux->p_sys;
-    vlc_tick_t i_duration = 0;
+    heimdall_tick_t i_duration = 0;
     int i_size, i_header_ext_size;
     int i_ci_size, i_cm_size = 0, i_cd_size = 0;
     int i_subo_count = 0; /* header sub object count */
@@ -846,7 +847,7 @@ static block_t *asf_header_create( sout_mux_t *p_mux, bool b_broadcast )
 
     msg_Dbg( p_mux, "Asf muxer creating header" );
 
-    if( p_sys->i_dts_first != VLC_TICK_INVALID && p_sys->i_dts_last > p_sys->i_dts_first )
+    if( p_sys->i_dts_first != HEIMDALL_TICK_INVALID && p_sys->i_dts_last > p_sys->i_dts_first )
     {
         i_duration = p_sys->i_dts_last - p_sys->i_dts_first;
     }
@@ -854,9 +855,9 @@ static block_t *asf_header_create( sout_mux_t *p_mux, bool b_broadcast )
     /* calculate header size */
     i_size = 30 + 104;
     i_ci_size = 44;
-    for( size_t i = 0; i < vlc_array_count( &p_sys->tracks ); i++ )
+    for( size_t i = 0; i < heimdall_array_count( &p_sys->tracks ); i++ )
     {
-        asf_track_t *tk = vlc_array_item_at_index( &p_sys->tracks, i );
+        asf_track_t *tk = heimdall_array_item_at_index( &p_sys->tracks, i );
         /* update also track-id */
         tk->i_id = i + 1;
 
@@ -883,9 +884,9 @@ static block_t *asf_header_create( sout_mux_t *p_mux, bool b_broadcast )
     i_header_ext_size = 46;
 
     /* size of the metadata object */
-    for( size_t i = 0; i < vlc_array_count( &p_sys->tracks ); i++ )
+    for( size_t i = 0; i < heimdall_array_count( &p_sys->tracks ); i++ )
     {
-        const asf_track_t *p_track = vlc_array_item_at_index( &p_sys->tracks, i );
+        const asf_track_t *p_track = heimdall_array_item_at_index( &p_sys->tracks, i );
         if( p_track->i_cat == VIDEO_ES &&
             p_track->fmt.video.i_sar_num != 0 &&
             p_track->fmt.video.i_sar_den != 0 )
@@ -916,7 +917,7 @@ static block_t *asf_header_create( sout_mux_t *p_mux, bool b_broadcast )
     /* calculate header sub object count */
     i_subo_count += 1; /* file properties */
     i_subo_count += 1; /* header extension */
-    i_subo_count += vlc_array_count( &p_sys->tracks ); /* stream info */
+    i_subo_count += heimdall_array_count( &p_sys->tracks ); /* stream info */
     i_subo_count += 1; /* codec info */
     i_subo_count += (i_cd_size ? 1 : 0); /* content description if any */
 
@@ -937,8 +938,8 @@ static block_t *asf_header_create( sout_mux_t *p_mux, bool b_broadcast )
                                 p_sys->i_packet_size ); /* file size */
     bo_addle_u64( &bo, 0 );                 /* creation date */
     bo_addle_u64( &bo, b_broadcast ? 0xffffffffLL : p_sys->i_packet_count );
-    bo_addle_u64( &bo, MSFTIME_FROM_VLC_TICK(i_duration) );   /* play duration (100ns) */
-    bo_addle_u64( &bo, MSFTIME_FROM_VLC_TICK(i_duration) );   /* send duration (100ns) */
+    bo_addle_u64( &bo, MSFTIME_FROM_HEIMDALL_TICK(i_duration) );   /* play duration (100ns) */
+    bo_addle_u64( &bo, MSFTIME_FROM_HEIMDALL_TICK(i_duration) );   /* send duration (100ns) */
     bo_addle_u64( &bo, p_sys->i_preroll_time ); /* preroll duration (ms) */
     bo_addle_u32( &bo, b_broadcast ? 0x01 : 0x02 /* seekable */ ); /* flags */
     bo_addle_u32( &bo, p_sys->i_packet_size );  /* packet size min */
@@ -956,9 +957,9 @@ static block_t *asf_header_create( sout_mux_t *p_mux, bool b_broadcast )
     bo_addle_u32( &bo, i_header_ext_size - 46 );
 
     /* extended stream properties */
-    for( size_t i = 0; i < vlc_array_count( &p_sys->tracks ); i++ )
+    for( size_t i = 0; i < heimdall_array_count( &p_sys->tracks ); i++ )
     {
-        const asf_track_t *p_track = vlc_array_item_at_index( &p_sys->tracks, i );
+        const asf_track_t *p_track = heimdall_array_item_at_index( &p_sys->tracks, i );
         const es_format_t *p_fmt = &p_track->fmt;
 
         if( !p_track->b_extended )
@@ -995,14 +996,14 @@ static block_t *asf_header_create( sout_mux_t *p_mux, bool b_broadcast )
         unsigned int i_dst_num = 0, i_dst_den = 0;
 
         asf_track_t *tk = NULL;
-        for( size_t i = 0; i < vlc_array_count( &p_sys->tracks ); i++ )
+        for( size_t i = 0; i < heimdall_array_count( &p_sys->tracks ); i++ )
         {
-            tk = vlc_array_item_at_index( &p_sys->tracks, i );
+            tk = heimdall_array_item_at_index( &p_sys->tracks, i );
             if( tk->i_cat == VIDEO_ES &&
                 tk->fmt.video.i_sar_num != 0 &&
                 tk->fmt.video.i_sar_den != 0 )
             {
-                vlc_ureduce( &i_dst_num, &i_dst_den,
+                heimdall_ureduce( &i_dst_num, &i_dst_den,
                              tk->fmt.video.i_sar_num,
                              tk->fmt.video.i_sar_den, 0 );
                 break;
@@ -1052,9 +1053,9 @@ static block_t *asf_header_create( sout_mux_t *p_mux, bool b_broadcast )
     }
 
     /* stream properties */
-    for( size_t i = 0; i < vlc_array_count( &p_sys->tracks ); i++ )
+    for( size_t i = 0; i < heimdall_array_count( &p_sys->tracks ); i++ )
     {
-        asf_track_t *tk = vlc_array_item_at_index( &p_sys->tracks, i);
+        asf_track_t *tk = heimdall_array_item_at_index( &p_sys->tracks, i);
 
         bo_add_guid ( &bo, &asf_object_stream_properties_guid );
         bo_addle_u64( &bo, 78 + tk->i_extra + (tk->b_audio_correction ? 8:0) );
@@ -1095,10 +1096,10 @@ static block_t *asf_header_create( sout_mux_t *p_mux, bool b_broadcast )
     bo_add_guid ( &bo, &asf_object_codec_list_guid );
     bo_addle_u64( &bo, i_ci_size );
     bo_add_guid ( &bo, &asf_guid_reserved_2 );
-    bo_addle_u32( &bo, vlc_array_count( &p_sys->tracks ) );
-    for( size_t i = 0; i < vlc_array_count( &p_sys->tracks ); i++ )
+    bo_addle_u32( &bo, heimdall_array_count( &p_sys->tracks ) );
+    for( size_t i = 0; i < heimdall_array_count( &p_sys->tracks ); i++ )
     {
-        asf_track_t *tk = vlc_array_item_at_index( &p_sys->tracks ,i);
+        asf_track_t *tk = heimdall_array_item_at_index( &p_sys->tracks ,i);
 
         if( tk->i_cat == VIDEO_ES ) bo_addle_u16( &bo, 1 /* video */ );
         else if( tk->i_cat == AUDIO_ES ) bo_addle_u16( &bo, 2 /* audio */ );
@@ -1153,7 +1154,7 @@ static block_t *asf_packet_flush( sout_mux_t *p_mux )
     bo_add_u8( &bo, 0x11 );
     bo_add_u8( &bo, 0x5d );
     bo_addle_u16( &bo, i_pad );
-    bo_addle_u32( &bo, MS_FROM_VLC_TICK(p_sys->i_pk_dts - p_sys->i_dts_first) +
+    bo_addle_u32( &bo, MS_FROM_HEIMDALL_TICK(p_sys->i_pk_dts - p_sys->i_dts_first) +
                   p_sys->i_preroll_time );
     bo_addle_u16( &bo, 0 /* data->i_length */ );
     bo_add_u8( &bo, 0x80 | p_sys->i_pk_frame );
@@ -1213,7 +1214,7 @@ static block_t *asf_packet_create( sout_mux_t *p_mux,
         bo_addle_u32( &bo, i_pos );
         bo_add_u8   ( &bo, 0x08 );  /* flags */
         bo_addle_u32( &bo, i_data );
-        bo_addle_u32( &bo, MS_FROM_VLC_TICK(data->i_dts - p_sys->i_dts_first) +
+        bo_addle_u32( &bo, MS_FROM_HEIMDALL_TICK(data->i_dts - p_sys->i_dts_first) +
                       p_sys->i_preroll_time );
         bo_addle_u16( &bo, i_payload );
         bo_add_mem  ( &bo, &p_data[i_pos], i_payload );

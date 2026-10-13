@@ -20,7 +20,7 @@
 #include <QAbstractProxyModel>
 #include <QMessageBox>
 
-class VLCVarChoiceModel;
+class HeimdallVarChoiceModel;
 
 class MainUI : public QObject
 {
@@ -33,7 +33,7 @@ public:
     [[nodiscard]] bool setup(QQmlEngine* engine);
 
     QPointer<QQmlComponent> getComponent() const {return m_component;}
-    VLC_USED
+    HEIMDALL_USED
     QQuickItem* createRootItem();
 
 private:
@@ -51,7 +51,7 @@ private:
     QPointer<QQmlEngine> m_engineBound;
 };
 
-namespace vlc {
+namespace heimdall {
 
 struct QSortFilterProxyModelForeign
 {

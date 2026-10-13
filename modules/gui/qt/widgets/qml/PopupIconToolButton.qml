@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Benjamin Arnaud <bunjee@omega.gg>
  *
@@ -21,10 +22,10 @@
 import QtQuick
 
 
-import VLC.MainInterface
-import VLC.Style
-import VLC.Widgets as Widgets
-import VLC.Util
+import Heimdall.MainInterface
+import Heimdall.Style
+import Heimdall.Widgets as Widgets
+import Heimdall.Util
 
 Widgets.IconToolButton {
     id: control
@@ -66,9 +67,9 @@ Widgets.IconToolButton {
         id: popup
 
         x: (parent.width - width) / 2
-        y: -height - VLCStyle.margin_xxxsmall
+        y: -height - HeimdallStyle.margin_xxxsmall
 
-        padding: VLCStyle.margin_small
+        padding: HeimdallStyle.margin_small
 
         focus: true
 
@@ -99,7 +100,7 @@ Widgets.IconToolButton {
                 colorSet: ColorContext.Window
             }
 
-            radius: VLCStyle.dp(8, VLCStyle.scale)
+            radius: HeimdallStyle.dp(8, HeimdallStyle.scale)
 
             // NOTE: The opacity should be stronger on a light background for readability.
             color: popupTheme.bg.primary.alpha(popupTheme.palette.isDark ? 0.8 : 0.96)

@@ -2,6 +2,7 @@
  * x11_factory.cpp
  *****************************************************************************
  * Copyright (C) 2003 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cyril Deguet     <asmax@via.ecp.fr>
  *          Olivier Teulière <ipkiss@via.ecp.fr>
@@ -39,9 +40,9 @@
 
 #include "../src/generic_window.hpp"
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_xlib.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_xlib.h>
 
 X11Factory::X11Factory( intf_thread_t *pIntf ): OSFactory( pIntf ),
     m_pDisplay( NULL ), m_pTimerLoop( NULL ), m_dirSep( "/" ),
@@ -63,7 +64,7 @@ X11Factory::~X11Factory()
 bool X11Factory::init()
 {
     // make sure xlib is safe-thread
-    if( !vlc_xlib_init( VLC_OBJECT( getIntf() ) ) )
+    if( !heimdall_xlib_init( HEIMDALL_OBJECT( getIntf() ) ) )
     {
         msg_Err( getIntf(), "initializing xlib for multi-threading failed" );
         return false;
@@ -85,14 +86,14 @@ bool X11Factory::init()
                                      ConnectionNumber( pDisplay ) );
 
     // Initialize the resource path
-    char *datadir = config_GetUserDir( VLC_USERDATA_DIR );
+    char *datadir = config_GetUserDir( HEIMDALL_USERDATA_DIR );
     if (likely(datadir != nullptr))
     {
         m_resourcePath.push_back( (std::string)datadir + "/skins2" );
         free( datadir );
     }
     m_resourcePath.push_back( (std::string)"share/skins2" );
-    datadir = config_GetSysPath(VLC_PKG_DATA_DIR, "skins2");
+    datadir = config_GetSysPath(HEIMDALL_PKG_DATA_DIR, "skins2");
     if (likely(datadir != nullptr))
     {
         m_resourcePath.push_back( (std::string)datadir );
@@ -380,13 +381,13 @@ void X11Factory::getMousePos( int &rXPos, int &rYPos ) const
 void X11Factory::rmDir( const std::string &rPath )
 {
     const char *file;
-    vlc_DIR *dir;
+    heimdall_DIR *dir;
 
-    dir = vlc_opendir( rPath.c_str() );
+    dir = heimdall_opendir( rPath.c_str() );
     if( !dir ) return;
 
     // Parse the directory and remove everything it contains
-    while( (file = vlc_readdir( dir )) )
+    while( (file = heimdall_readdir( dir )) )
     {
         std::string filename = file;
 
@@ -403,7 +404,7 @@ void X11Factory::rmDir( const std::string &rPath )
     }
 
     // Close the directory
-    vlc_closedir( dir );
+    heimdall_closedir( dir );
 
     // And delete it
     rmdir( rPath.c_str() );

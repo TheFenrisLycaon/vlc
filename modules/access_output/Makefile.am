@@ -35,7 +35,7 @@ EXTRA_LTLIBRARIES += libaccess_output_shout_plugin.la
 
 libaccess_http_put_plugin_la_SOURCES = access_output/http-put.c
 libaccess_http_put_plugin_la_CPPFLAGS = $(AM_CPPFLAGS) -I$(srcdir)/access/http
-libaccess_http_put_plugin_la_LIBADD = libvlc_http.la
+libaccess_http_put_plugin_la_LIBADD = libheimdall_http.la
 access_out_PLUGINS += libaccess_http_put_plugin.la
 
 ### SRT ###

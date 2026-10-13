@@ -1,5 +1,6 @@
 /******************************************************************************
  * Copyright (C) 2024 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Ash <ashutoshv191@gmail.com>
  *
@@ -63,18 +64,18 @@ public:
 protected:
     QHash<int, QByteArray> roleNames() const override;
     QVariant itemRoleData(const MLItem *item, int role) const override;
-    void onVlcMlEvent(const MLEvent &event) override;
+    void onHeimdallMlEvent(const MLEvent &event) override;
     std::unique_ptr<MLListCacheLoader> createMLLoader() const override;
 
 private:
-    vlc_ml_sorting_criteria_t nameToCriteria(QByteArray name) const override;
+    heimdall_ml_sorting_criteria_t nameToCriteria(QByteArray name) const override;
     void generateThumbnail(const MLVideo *video) const;
 
     struct Loader : public MLListCacheLoader::MLOp
     {
         using MLListCacheLoader::MLOp::MLOp;
-        size_t count(vlc_medialibrary_t *ml, const vlc_ml_query_params_t *queryParams) const override;
-        std::vector<std::unique_ptr<MLItem>> load(vlc_medialibrary_t *ml, const vlc_ml_query_params_t *queryParams) const override;
-        std::unique_ptr<MLItem> loadItemById(vlc_medialibrary_t *ml, MLItemId itemId) const override;
+        size_t count(heimdall_medialibrary_t *ml, const heimdall_ml_query_params_t *queryParams) const override;
+        std::vector<std::unique_ptr<MLItem>> load(heimdall_medialibrary_t *ml, const heimdall_ml_query_params_t *queryParams) const override;
+        std::unique_ptr<MLItem> loadItemById(heimdall_medialibrary_t *ml, MLItemId itemId) const override;
     };
 };

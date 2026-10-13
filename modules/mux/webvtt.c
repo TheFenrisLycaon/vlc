@@ -2,6 +2,7 @@
  * webvtt.c: muxer for raw WEBVTT
  *****************************************************************************
  * Copyright (C) 2024 VideoLabs, VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -21,12 +22,12 @@
 #include "config.h"
 #endif
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
-#include <vlc_codec.h>
-#include <vlc_memstream.h>
-#include <vlc_plugin.h>
-#include <vlc_sout.h>
+#include <heimdall_codec.h>
+#include <heimdall_memstream.h>
+#include <heimdall_plugin.h>
+#include <heimdall_sout.h>
 
 #include "../codec/webvtt/webvtt.h"
 #include "../demux/mp4/minibox.h"
@@ -37,10 +38,10 @@ typedef struct
     const sout_input_t *input;
 } sout_mux_sys_t;
 
-static void OutputTime(struct vlc_memstream *ms, vlc_tick_t time)
+static void OutputTime(struct heimdall_memstream *ms, heimdall_tick_t time)
 {
-    const vlc_tick_t secs = SEC_FROM_VLC_TICK(time);
-    vlc_memstream_printf(ms,
+    const heimdall_tick_t secs = SEC_FROM_HEIMDALL_TICK(time);
+    heimdall_memstream_printf(ms,
                          "%02" PRIi64 ":%02" PRIi64 ":%02" PRIi64 ".%03" PRIi64,
                          secs / 3600,
                          secs % 3600 / 60,
@@ -50,25 +51,25 @@ static void OutputTime(struct vlc_memstream *ms, vlc_tick_t time)
 
 static block_t *FormatCue(const webvtt_cue_t *cue)
 {
-    struct vlc_memstream ms;
-    if (vlc_memstream_open(&ms))
+    struct heimdall_memstream ms;
+    if (heimdall_memstream_open(&ms))
         return NULL;
 
     if (cue->psz_id != NULL)
-        vlc_memstream_printf(&ms, "%s\n", cue->psz_id);
+        heimdall_memstream_printf(&ms, "%s\n", cue->psz_id);
 
     OutputTime(&ms, cue->i_start);
-    vlc_memstream_printf(&ms, " --> ");
+    heimdall_memstream_printf(&ms, " --> ");
     OutputTime(&ms, cue->i_stop);
 
     if (cue->psz_attrs != NULL)
-        vlc_memstream_printf(&ms, " %s\n", cue->psz_attrs);
+        heimdall_memstream_printf(&ms, " %s\n", cue->psz_attrs);
     else
-        vlc_memstream_putc(&ms, '\n');
+        heimdall_memstream_putc(&ms, '\n');
 
-    vlc_memstream_printf(&ms, "%s\n\n", cue->psz_text);
+    heimdall_memstream_printf(&ms, "%s\n\n", cue->psz_text);
 
-    if (vlc_memstream_close(&ms))
+    if (heimdall_memstream_close(&ms))
         return NULL;
 
     block_t *formatted = block_heap_Alloc(ms.ptr, ms.length);
@@ -77,7 +78,7 @@ static block_t *FormatCue(const webvtt_cue_t *cue)
     return formatted;
 }
 
-static void UnpackISOBMFF(const vlc_frame_t *packed, webvtt_cue_t *out)
+static void UnpackISOBMFF(const heimdall_frame_t *packed, webvtt_cue_t *out)
 {
     mp4_box_iterator_t it;
     mp4_box_iterator_Init(&it, packed->p_buffer, packed->i_buffer);
@@ -132,9 +133,9 @@ static int Control(sout_mux_t *mux, int query, va_list args)
     {
         case MUX_CAN_ADD_STREAM_WHILE_MUXING:
             *(va_arg(args, bool *)) = false;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         default:
-            return VLC_ENOTSUP;
+            return HEIMDALL_ENOTSUP;
     }
     (void)mux;
 }
@@ -142,12 +143,12 @@ static int Control(sout_mux_t *mux, int query, va_list args)
 static int AddStream(sout_mux_t *mux, sout_input_t *input)
 {
     sout_mux_sys_t *sys = mux->p_sys;
-    if ((input->fmt.i_codec != VLC_CODEC_WEBVTT &&
-         input->fmt.i_codec != VLC_CODEC_TEXT) ||
+    if ((input->fmt.i_codec != HEIMDALL_CODEC_WEBVTT &&
+         input->fmt.i_codec != HEIMDALL_CODEC_TEXT) ||
         sys->input)
-        return VLC_ENOTSUP;
+        return HEIMDALL_ENOTSUP;
     sys->input = input;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void DelStream(sout_mux_t *mux, sout_input_t *input)
@@ -162,7 +163,7 @@ static int Mux(sout_mux_t *mux)
     sout_mux_sys_t *sys = mux->p_sys;
 
     if (mux->i_nb_inputs == 0)
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
     sout_input_t *input = mux->pp_inputs[0];
 
@@ -174,7 +175,7 @@ static int Mux(sout_mux_t *mux)
             data = block_Alloc(input->fmt.i_extra + 2);
 
             if (unlikely(data == NULL))
-                return VLC_ENOMEM;
+                return HEIMDALL_ENOMEM;
             memcpy(data->p_buffer, input->fmt.p_extra, input->fmt.i_extra);
             data->p_buffer[data->i_buffer - 2] = '\n';
             data->p_buffer[data->i_buffer - 1] = '\n';
@@ -183,7 +184,7 @@ static int Mux(sout_mux_t *mux)
         {
             data = block_Alloc(8);
             if (unlikely(data == NULL))
-                return VLC_ENOMEM;
+                return HEIMDALL_ENOMEM;
             memcpy(data->p_buffer, "WEBVTT\n\n", 8);
         }
 
@@ -195,24 +196,24 @@ static int Mux(sout_mux_t *mux)
         sys->header_done = true;
     }
 
-    vlc_fifo_Lock(input->p_fifo);
-    vlc_frame_t *chain = vlc_fifo_DequeueAllUnlocked(input->p_fifo);
-    int status = VLC_SUCCESS;
+    heimdall_fifo_Lock(input->p_fifo);
+    heimdall_frame_t *chain = heimdall_fifo_DequeueAllUnlocked(input->p_fifo);
+    int status = HEIMDALL_SUCCESS;
     while (chain != NULL)
     {
         // Ephemer subtitles stop being displayed at the next SPU display time.
         // We need to delay if subsequent SPU aren't available yet.
-        const bool is_ephemer = (chain->i_length == VLC_TICK_INVALID);
+        const bool is_ephemer = (chain->i_length == HEIMDALL_TICK_INVALID);
         if (is_ephemer && chain->p_next == NULL)
         {
-            vlc_fifo_QueueUnlocked(input->p_fifo, chain);
+            heimdall_fifo_QueueUnlocked(input->p_fifo, chain);
             chain = NULL;
             break;
         }
 
         webvtt_cue_t cue = {};
 
-        if (sys->input->fmt.i_codec != VLC_CODEC_WEBVTT)
+        if (sys->input->fmt.i_codec != HEIMDALL_CODEC_WEBVTT)
             cue.psz_text = strndup((char *)chain->p_buffer, chain->i_buffer);
         else
             UnpackISOBMFF(chain, &cue);
@@ -220,13 +221,13 @@ static int Mux(sout_mux_t *mux)
         if (unlikely(cue.psz_text == NULL))
         {
             webvtt_cue_Clean(&cue);
-            status = VLC_ENOMEM;
+            status = HEIMDALL_ENOMEM;
             break;
         }
 
-        cue.i_start = chain->i_pts - VLC_TICK_0;
+        cue.i_start = chain->i_pts - HEIMDALL_TICK_0;
         if(is_ephemer)
-            cue.i_stop = chain->p_next->i_pts - VLC_TICK_0;
+            cue.i_stop = chain->p_next->i_pts - HEIMDALL_TICK_0;
         else
             cue.i_stop = cue.i_start + chain->i_length;
         block_t *to_write = FormatCue(&cue);
@@ -237,30 +238,30 @@ static int Mux(sout_mux_t *mux)
             written = sout_AccessOutWrite(mux->p_access, to_write);
         if (written == -1)
         {
-            status = VLC_EGENERIC;
+            status = HEIMDALL_EGENERIC;
             break;
         }
 
-        vlc_frame_t *next = chain->p_next;
-        vlc_frame_Release(chain);
+        heimdall_frame_t *next = chain->p_next;
+        heimdall_frame_Release(chain);
         chain = next;
     }
 
-    vlc_frame_ChainRelease(chain);
-    vlc_fifo_Unlock(input->p_fifo);
+    heimdall_frame_ChainRelease(chain);
+    heimdall_fifo_Unlock(input->p_fifo);
     return status;
 }
 /*****************************************************************************
  * Open:
  *****************************************************************************/
-int webvtt_OpenMuxer(vlc_object_t *this)
+int webvtt_OpenMuxer(heimdall_object_t *this)
 {
     sout_mux_t *mux = (sout_mux_t *)this;
     sout_mux_sys_t *sys;
 
     mux->p_sys = sys = malloc(sizeof(*sys));
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     sys->header_done = false;
     sys->input = NULL;
@@ -270,13 +271,13 @@ int webvtt_OpenMuxer(vlc_object_t *this)
     mux->pf_delstream = DelStream;
     mux->pf_mux = Mux;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * Close:
  *****************************************************************************/
-void webvtt_CloseMuxer(vlc_object_t *this)
+void webvtt_CloseMuxer(heimdall_object_t *this)
 {
     sout_mux_t *mux = (sout_mux_t *)this;
     free(mux->p_sys);

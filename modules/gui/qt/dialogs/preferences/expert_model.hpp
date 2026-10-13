@@ -2,6 +2,7 @@
  * expert_model.hpp : Detailed preferences overview - model
  *****************************************************************************
  * Copyright (C) 2019-2022 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Lyndon Brown <jnqnfe@gmail.com>
  *
@@ -20,8 +21,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_QT_EXPERT_PREFERENCES_MODEL_HPP_
-#define VLC_QT_EXPERT_PREFERENCES_MODEL_HPP_
+#ifndef HEIMDALL_QT_EXPERT_PREFERENCES_MODEL_HPP_
+#define HEIMDALL_QT_EXPERT_PREFERENCES_MODEL_HPP_
 
 #ifdef HAVE_CONFIG_H
 # include "config.h"

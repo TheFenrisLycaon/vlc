@@ -2,6 +2,7 @@
  * converter_cvpx.c: OpenGL Apple CVPX opaque converter
  *****************************************************************************
  * Copyright (C) 2017 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,8 +23,8 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
 #include "gl_util.h"
 #include "interop.h"
 #include "../../codec/vt_utils.h"
@@ -57,7 +58,7 @@ struct priv
 #if TARGET_OS_IPHONE
 /* CVOpenGLESTextureCache version (ios) */
 static int
-tc_cvpx_update(const struct vlc_gl_interop *interop, uint32_t textures[],
+tc_cvpx_update(const struct heimdall_gl_interop *interop, uint32_t textures[],
                const int32_t tex_width[], const int32_t tex_height[],
                picture_t *pic, const size_t *plane_offset)
 {
@@ -96,7 +97,7 @@ tc_cvpx_update(const struct vlc_gl_interop *interop, uint32_t textures[],
             msg_Err(interop->gl,
                     "CVOpenGLESTextureCacheCreateTextureFromImage failed: %d",
                     err);
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         textures[i] = CVOpenGLESTextureGetName(cvtex);
@@ -109,13 +110,13 @@ tc_cvpx_update(const struct vlc_gl_interop *interop, uint32_t textures[],
         priv->last_cvtexs[i] = cvtex;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 #else
 /* IOSurface version (macos) */
 static int
-tc_cvpx_update(const struct vlc_gl_interop *interop, uint32_t textures[],
+tc_cvpx_update(const struct heimdall_gl_interop *interop, uint32_t textures[],
                const int32_t tex_width[], const int32_t tex_height[],
                picture_t *pic, const size_t *plane_offset)
 {
@@ -145,7 +146,7 @@ tc_cvpx_update(const struct vlc_gl_interop *interop, uint32_t textures[],
         {
             msg_Err(interop->gl, "CGLTexImageIOSurface2D error: %u: %s", i,
                     CGLErrorString(err));
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
 
@@ -153,12 +154,12 @@ tc_cvpx_update(const struct vlc_gl_interop *interop, uint32_t textures[],
         picture_Release(priv->last_pic);
     priv->last_pic = picture_Hold(pic);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 #endif
 
 static void
-Close(struct vlc_gl_interop *interop)
+Close(struct heimdall_gl_interop *interop)
 {
     struct priv *priv = interop->priv;
 
@@ -176,24 +177,24 @@ Close(struct vlc_gl_interop *interop)
 }
 
 static int
-Open(struct vlc_gl_interop *interop)
+Open(struct heimdall_gl_interop *interop)
 {
-    if (interop->fmt_in.i_chroma != VLC_CODEC_CVPX_UYVY
-     && interop->fmt_in.i_chroma != VLC_CODEC_CVPX_NV12
-     && interop->fmt_in.i_chroma != VLC_CODEC_CVPX_I420
-     && interop->fmt_in.i_chroma != VLC_CODEC_CVPX_BGRA
-     && interop->fmt_in.i_chroma != VLC_CODEC_CVPX_P010)
-        return VLC_EGENERIC;
+    if (interop->fmt_in.i_chroma != HEIMDALL_CODEC_CVPX_UYVY
+     && interop->fmt_in.i_chroma != HEIMDALL_CODEC_CVPX_NV12
+     && interop->fmt_in.i_chroma != HEIMDALL_CODEC_CVPX_I420
+     && interop->fmt_in.i_chroma != HEIMDALL_CODEC_CVPX_BGRA
+     && interop->fmt_in.i_chroma != HEIMDALL_CODEC_CVPX_P010)
+        return HEIMDALL_EGENERIC;
 
     /* The pictures are uploaded upside-down */
     video_format_TransformBy(&interop->fmt_out, TRANSFORM_VFLIP);
 
     struct priv *priv = calloc(1, sizeof(struct priv));
     if (unlikely(priv == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
 #define LOAD_FUNCTION(name) \
-    priv->gl.name = vlc_gl_GetProcAddress(interop->gl, "gl" # name); \
+    priv->gl.name = heimdall_gl_GetProcAddress(interop->gl, "gl" # name); \
     assert(priv->gl.name != NULL)
 
     LOAD_FUNCTION(ActiveTexture);
@@ -209,7 +210,7 @@ Open(struct vlc_gl_interop *interop)
         {
             msg_Warn(&interop->obj, "OpenGL provider is not using CAEAGL, cannot use interop_cvpx");
             free(priv);
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
         CVReturn err =
             CVOpenGLESTextureCacheCreate(kCFAllocatorDefault, NULL,
@@ -218,7 +219,7 @@ Open(struct vlc_gl_interop *interop)
         {
             msg_Err(interop->gl, "CVOpenGLESTextureCacheCreate failed: %d", err);
             free(priv);
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
 #else
@@ -229,37 +230,37 @@ Open(struct vlc_gl_interop *interop)
         {
             msg_Warn(&interop->obj, "OpenGL provider is not using CGL, cannot use interop_cvpx");
             free(priv);
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
 #endif
 
-    struct vlc_gl_extension_vt extension_vt;
-    vlc_gl_LoadExtensionFunctions(interop->gl, &extension_vt);
+    struct heimdall_gl_extension_vt extension_vt;
+    heimdall_gl_LoadExtensionFunctions(interop->gl, &extension_vt);
 
     /* RG textures are available natively since OpenGL 3.0 and OpenGL ES 3.0 */
-    bool has_texture_rg = vlc_gl_GetVersionMajor(&extension_vt) >= 3
-        || (interop->gl->api_type == VLC_OPENGL
-            && vlc_gl_HasExtension(&extension_vt, "GL_ARB_texture_rg"))
-        || (interop->gl->api_type == VLC_OPENGL_ES2
-            && vlc_gl_HasExtension(&extension_vt, "GL_EXT_texture_rg"));
+    bool has_texture_rg = heimdall_gl_GetVersionMajor(&extension_vt) >= 3
+        || (interop->gl->api_type == HEIMDALL_OPENGL
+            && heimdall_gl_HasExtension(&extension_vt, "GL_ARB_texture_rg"))
+        || (interop->gl->api_type == HEIMDALL_OPENGL_ES2
+            && heimdall_gl_HasExtension(&extension_vt, "GL_EXT_texture_rg"));
 
     interop->tex_target = tex_target;
 
     switch (interop->fmt_in.i_chroma)
     {
-        case VLC_CODEC_CVPX_UYVY:
-            /* Generate a VLC_CODEC_VYUY shader in order to use the "gbr"
+        case HEIMDALL_CODEC_CVPX_UYVY:
+            /* Generate a HEIMDALL_CODEC_VYUY shader in order to use the "gbr"
              * swizzling. Indeed, the Y, Cb and Cr color channels within the
              * GL_RGB_422_APPLE format are mapped into the existing green, blue
              * and red color channels, respectively. cf. APPLE_rgb_422 khronos
              * extension. */
 
-            interop->fmt_out.i_chroma = VLC_CODEC_VYUY;
+            interop->fmt_out.i_chroma = HEIMDALL_CODEC_VYUY;
             interop->fmt_out.space = interop->fmt_in.space;
 
             interop->tex_count = 1;
-            interop->texs[0] = (struct vlc_gl_tex_cfg) {
+            interop->texs[0] = (struct heimdall_gl_tex_cfg) {
                 .w = {1, 1},
                 .h = {1, 1},
                 .internal = GL_RGB,
@@ -268,20 +269,20 @@ Open(struct vlc_gl_interop *interop)
             };
 
             break;
-        case VLC_CODEC_CVPX_NV12:
+        case HEIMDALL_CODEC_CVPX_NV12:
         {
-            interop->fmt_out.i_chroma = VLC_CODEC_NV12;
+            interop->fmt_out.i_chroma = HEIMDALL_CODEC_NV12;
             interop->fmt_out.space = interop->fmt_in.space;
 
             interop->tex_count = 2;
-            interop->texs[0] = (struct vlc_gl_tex_cfg) {
+            interop->texs[0] = (struct heimdall_gl_tex_cfg) {
                 .w = {1, 1},
                 .h = {1, 1},
                 .internal = has_texture_rg ? GL_RED : GL_LUMINANCE,
                 .format = has_texture_rg ? GL_RED : GL_LUMINANCE,
                 .type = GL_UNSIGNED_BYTE,
             };
-            interop->texs[1] = (struct vlc_gl_tex_cfg) {
+            interop->texs[1] = (struct heimdall_gl_tex_cfg) {
                 .w = {1, 2},
                 .h = {1, 2},
                 .internal = has_texture_rg ? GL_RG : GL_LUMINANCE_ALPHA,
@@ -291,25 +292,25 @@ Open(struct vlc_gl_interop *interop)
 
             break;
         }
-        case VLC_CODEC_CVPX_P010:
+        case HEIMDALL_CODEC_CVPX_P010:
         {
             if (!has_texture_rg
-             || vlc_gl_interop_GetTexFormatSize(interop, tex_target, GL_RG,
+             || heimdall_gl_interop_GetTexFormatSize(interop, tex_target, GL_RG,
                                                 GL_RG16, GL_UNSIGNED_SHORT) != 16)
                 goto error;
 
-            interop->fmt_out.i_chroma = VLC_CODEC_P010;
+            interop->fmt_out.i_chroma = HEIMDALL_CODEC_P010;
             interop->fmt_out.space = interop->fmt_in.space;
 
             interop->tex_count = 2;
-            interop->texs[0] = (struct vlc_gl_tex_cfg) {
+            interop->texs[0] = (struct heimdall_gl_tex_cfg) {
                 .w = {1, 1},
                 .h = {1, 1},
                 .internal = GL_R16,
                 .format = GL_RED,
                 .type = GL_UNSIGNED_SHORT,
             };
-            interop->texs[1] = (struct vlc_gl_tex_cfg) {
+            interop->texs[1] = (struct heimdall_gl_tex_cfg) {
                 .w = {1, 2},
                 .h = {1, 2},
                 .internal = GL_RG16,
@@ -319,19 +320,19 @@ Open(struct vlc_gl_interop *interop)
 
             break;
         }
-        case VLC_CODEC_CVPX_I420:
-            interop->fmt_out.i_chroma = VLC_CODEC_I420;
+        case HEIMDALL_CODEC_CVPX_I420:
+            interop->fmt_out.i_chroma = HEIMDALL_CODEC_I420;
             interop->fmt_out.space = interop->fmt_in.space;
 
             interop->tex_count = 3;
-            interop->texs[0] = (struct vlc_gl_tex_cfg) {
+            interop->texs[0] = (struct heimdall_gl_tex_cfg) {
                 .w = {1, 1},
                 .h = {1, 1},
                 .internal = has_texture_rg ? GL_RED : GL_LUMINANCE,
                 .format = has_texture_rg ? GL_RED : GL_LUMINANCE,
                 .type = GL_UNSIGNED_BYTE,
             };
-            interop->texs[1] = interop->texs[2] = (struct vlc_gl_tex_cfg) {
+            interop->texs[1] = interop->texs[2] = (struct heimdall_gl_tex_cfg) {
                 .w = {1, 2},
                 .h = {1, 2},
                 .internal = has_texture_rg ? GL_RED : GL_LUMINANCE,
@@ -340,12 +341,12 @@ Open(struct vlc_gl_interop *interop)
             };
 
             break;
-        case VLC_CODEC_CVPX_BGRA:
-            interop->fmt_out.i_chroma = VLC_CODEC_BGRA;
+        case HEIMDALL_CODEC_CVPX_BGRA:
+            interop->fmt_out.i_chroma = HEIMDALL_CODEC_BGRA;
             interop->fmt_out.space = COLOR_SPACE_UNDEF;
 
             interop->tex_count = 1;
-            interop->texs[0] = (struct vlc_gl_tex_cfg) {
+            interop->texs[0] = (struct heimdall_gl_tex_cfg) {
                 .w = {1, 1},
                 .h = {1, 1},
                 .internal = GL_RGBA,
@@ -359,7 +360,7 @@ Open(struct vlc_gl_interop *interop)
 
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 
 #if TARGET_OS_IPHONE
@@ -371,22 +372,22 @@ Open(struct vlc_gl_interop *interop)
 
     priv->last_pic = NULL;
     interop->priv = priv;
-    static const struct vlc_gl_interop_ops ops = {
+    static const struct heimdall_gl_interop_ops ops = {
         .update_textures = tc_cvpx_update,
         .close = Close,
     };
     interop->ops = &ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     free(priv);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description("Apple OpenGL CVPX converter")
     set_capability("glinterop", 1)
     set_callback(Open)
     set_subcategory(SUBCAT_VIDEO_VOUT)
-vlc_module_end ()
+heimdall_module_end ()

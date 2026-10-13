@@ -1,9 +1,10 @@
 /**
  * @file xdg-shell.c
- * @brief Desktop shell surface provider module for VLC media player
+ * @brief Desktop shell surface provider module for Heimdall media player
  */
 /*****************************************************************************
  * Copyright © 2014, 2017 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -59,10 +60,10 @@
 # define xdg_toplevel_unset_fullscreen wl_shell_surface_set_toplevel
 #endif
 
-#include <vlc_common.h>
-#include <vlc_threads.h>
-#include <vlc_plugin.h>
-#include <vlc_window.h>
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
+#include <heimdall_plugin.h>
+#include <heimdall_window.h>
 
 #include "input.h"
 #include "output.h"
@@ -97,7 +98,7 @@ typedef struct
             unsigned height;
             bool fullscreen;
         } latch;
-        vlc_sem_t configured;
+        heimdall_sem_t configured;
     } wm;
     struct
     {
@@ -111,8 +112,8 @@ typedef struct
     struct wl_cursor *cursor;
     struct wl_surface *cursor_surface;
 
-    vlc_mutex_t lock;
-    vlc_thread_t thread;
+    heimdall_mutex_t lock;
+    heimdall_thread_t thread;
 } vout_window_sys_t;
 
 static void cleanup_wl_display_read(void *data)
@@ -125,15 +126,15 @@ static void cleanup_wl_display_read(void *data)
 /** Background thread for Wayland shell events handling */
 static void *Thread(void *data)
 {
-    vlc_thread_set_name("vlc-wayland-evt");
+    heimdall_thread_set_name("heimdall-wayland-evt");
 
-    vlc_window_t *wnd = data;
+    heimdall_window_t *wnd = data;
     vout_window_sys_t *sys = wnd->sys;
     struct wl_display *display = wnd->display.wl;
     struct pollfd ufd[1];
 
-    int canc = vlc_savecancel();
-    vlc_cleanup_push(cleanup_wl_display_read, display);
+    int canc = heimdall_savecancel();
+    heimdall_cleanup_push(cleanup_wl_display_read, display);
 
     ufd[0].fd = wl_display_get_fd(display);
     ufd[0].events = POLLIN;
@@ -147,24 +148,24 @@ static void *Thread(void *data)
 
         wl_display_flush(display);
         timeout = seat_next_timeout(&sys->seats);
-        vlc_restorecancel(canc);
+        heimdall_restorecancel(canc);
 
         int val = poll(ufd, 1, timeout);
 
-        canc = vlc_savecancel();
+        canc = heimdall_savecancel();
         if (val == 0)
             seat_timeout(&sys->seats);
 
         wl_display_read_events(display);
         wl_display_dispatch_pending(display);
     }
-    vlc_assert_unreachable();
-    vlc_cleanup_pop();
-    //vlc_restorecancel(canc);
+    heimdall_assert_unreachable();
+    heimdall_cleanup_pop();
+    //heimdall_restorecancel(canc);
     //return NULL;
 }
 
-static void ResizeAck(vlc_window_t *wnd, unsigned width, unsigned height,
+static void ResizeAck(heimdall_window_t *wnd, unsigned width, unsigned height,
                       void *data)
 {
 #ifdef XDG_SHELL
@@ -180,7 +181,7 @@ static void ResizeAck(vlc_window_t *wnd, unsigned width, unsigned height,
 #endif
 }
 
-static void ReportSize(vlc_window_t *wnd, void *data)
+static void ReportSize(heimdall_window_t *wnd, void *data)
 {
     vout_window_sys_t *sys = wnd->sys;
     /* Zero wm.width or zero wm.height means the client should choose.
@@ -208,7 +209,7 @@ static void ReportSize(vlc_window_t *wnd, void *data)
     wnd->owner.cbs->resized(wnd, width, height, ResizeAck, data);
 }
 
-static void Resize(vlc_window_t *wnd, unsigned width, unsigned height)
+static void Resize(heimdall_window_t *wnd, unsigned width, unsigned height)
 {
     vout_window_sys_t *sys = wnd->sys;
 
@@ -220,17 +221,17 @@ static void Resize(vlc_window_t *wnd, unsigned width, unsigned height)
     xdg_toplevel_set_min_size(sys->toplevel, width, height);
 #endif
 
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     sys->set.width = width;
     sys->set.height = height;
     ReportSize(wnd, NULL);
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
     wl_display_flush(wnd->display.wl);
 }
 
-static void Close(vlc_window_t *);
+static void Close(heimdall_window_t *);
 
-static void UnsetFullscreen(vlc_window_t *wnd)
+static void UnsetFullscreen(heimdall_window_t *wnd)
 {
     vout_window_sys_t *sys = wnd->sys;
 
@@ -238,7 +239,7 @@ static void UnsetFullscreen(vlc_window_t *wnd)
     wl_display_flush(wnd->display.wl);
 }
 
-static void SetFullscreen(vlc_window_t *wnd, const char *idstr)
+static void SetFullscreen(heimdall_window_t *wnd, const char *idstr)
 {
     vout_window_sys_t *sys = wnd->sys;
     struct wl_output *output = NULL;
@@ -254,7 +255,7 @@ static void SetFullscreen(vlc_window_t *wnd, const char *idstr)
 }
 
 #ifdef XDG_SHELL
-static void SetDecoration(vlc_window_t *wnd, bool decorated)
+static void SetDecoration(heimdall_window_t *wnd, bool decorated)
 {
     vout_window_sys_t *sys = wnd->sys;
     const uint_fast32_t deco_mode = decorated
@@ -269,7 +270,7 @@ static void SetDecoration(vlc_window_t *wnd, bool decorated)
 }
 #endif
 
-static int Enable(vlc_window_t *wnd, const vlc_window_cfg_t *restrict cfg)
+static int Enable(heimdall_window_t *wnd, const heimdall_window_cfg_t *restrict cfg)
 {
     vout_window_sys_t *sys = wnd->sys;
     struct wl_display *display = wnd->display.wl;
@@ -283,18 +284,18 @@ static int Enable(vlc_window_t *wnd, const vlc_window_cfg_t *restrict cfg)
     SetDecoration(wnd, cfg->is_decorated);
 #else
     if (cfg->is_decorated)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 #endif
     Resize(wnd, cfg->width, cfg->height);
     wl_surface_commit(wnd->handle.wl);
     wl_display_flush(display);
 #ifdef XDG_SHELL
-    vlc_sem_wait(&sys->wm.configured);
+    heimdall_sem_wait(&sys->wm.configured);
 #endif
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static const struct vlc_window_operations ops = {
+static const struct heimdall_window_operations ops = {
     .enable = Enable,
     .resize = Resize,
     .destroy = Close,
@@ -308,7 +309,7 @@ static void xdg_toplevel_configure_cb(void *data,
                                       int32_t width, int32_t height,
                                       struct wl_array *states)
 {
-    vlc_window_t *wnd = data;
+    heimdall_window_t *wnd = data;
     vout_window_sys_t *sys = wnd->sys;
     const uint32_t *state;
 
@@ -334,9 +335,9 @@ static void xdg_toplevel_configure_cb(void *data,
 
 static void xdg_toplevel_close_cb(void *data, struct xdg_toplevel *toplevel)
 {
-    vlc_window_t *wnd = data;
+    heimdall_window_t *wnd = data;
 
-    vlc_window_ReportClose(wnd);
+    heimdall_window_ReportClose(wnd);
     (void) toplevel;
 }
 
@@ -346,7 +347,7 @@ static void xdg_toplevel_configure_bounds_cb(
         int32_t width, int32_t height
 ){
     // TODO for tiling window managers
-    vlc_window_t *wnd = data;
+    heimdall_window_t *wnd = data;
     vout_window_sys_t *sys = wnd->sys;
 
     msg_Dbg(wnd, "window configure bounds: %" PRId32 "x%" PRId32,
@@ -372,21 +373,21 @@ static const struct xdg_toplevel_listener xdg_toplevel_cbs =
 static void xdg_surface_configure_cb(void *data, struct xdg_surface *surface,
                                      uint32_t serial)
 {
-    vlc_window_t *wnd = data;
+    heimdall_window_t *wnd = data;
     vout_window_sys_t *sys = wnd->sys;
 
     if (sys->wm.latch.fullscreen)
-        vlc_window_ReportFullscreen(wnd, NULL);
+        heimdall_window_ReportFullscreen(wnd, NULL);
     else
-        vlc_window_ReportWindowed(wnd);
+        heimdall_window_ReportWindowed(wnd);
 
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     sys->wm.width = sys->wm.latch.width;
     sys->wm.height = sys->wm.latch.height;
     ReportSize(wnd, &serial);
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
 
-    vlc_sem_post(&sys->wm.configured);
+    heimdall_sem_post(&sys->wm.configured);
     (void) surface;
 }
 
@@ -411,7 +412,7 @@ static void xdg_toplevel_decoration_configure_cb(void *data,
                                       struct zxdg_toplevel_decoration_v1 *deco,
                                                  uint32_t mode)
 {
-    vlc_window_t *wnd = data;
+    heimdall_window_t *wnd = data;
 
     msg_Dbg(wnd, "new decoration mode: %"PRIu32, mode);
     (void) deco;
@@ -428,10 +429,10 @@ static void wl_shell_surface_configure_cb(void *data,
                                           uint32_t edges,
                                           int32_t width, int32_t height)
 {
-    vlc_window_t *wnd = data;
+    heimdall_window_t *wnd = data;
 
     msg_Dbg(wnd, "new configuration: %"PRId32"x%"PRId32, width, height);
-    vlc_window_ReportSize(wnd, width, height);
+    heimdall_window_ReportSize(wnd, width, height);
     (void) toplevel; (void) edges;
 }
 
@@ -461,7 +462,7 @@ static const struct wl_shell_surface_listener wl_shell_surface_cbs =
 static void register_wl_compositor(void *data, struct wl_registry *registry,
                                    uint32_t name, uint32_t vers)
 {
-    vlc_window_t *wnd = data;
+    heimdall_window_t *wnd = data;
     vout_window_sys_t *sys = wnd->sys;
 
     if (likely(sys->compositor == NULL))
@@ -472,7 +473,7 @@ static void register_wl_compositor(void *data, struct wl_registry *registry,
 static void register_wl_output(void *data, struct wl_registry *registry,
                                uint32_t name, uint32_t vers)
 {
-    vlc_window_t *wnd = data;
+    heimdall_window_t *wnd = data;
     vout_window_sys_t *sys = wnd->sys;
 
     output_create(sys->outputs, registry, name, vers);
@@ -481,7 +482,7 @@ static void register_wl_output(void *data, struct wl_registry *registry,
 static void register_wl_seat(void *data, struct wl_registry *registry,
                              uint32_t name, uint32_t vers)
 {
-    vlc_window_t *wnd = data;
+    heimdall_window_t *wnd = data;
     vout_window_sys_t *sys = wnd->sys;
 
     seat_create(wnd, registry, name, vers, &sys->seats);
@@ -491,7 +492,7 @@ static void register_wl_seat(void *data, struct wl_registry *registry,
 static void register_wl_shell(void *data, struct wl_registry *registry,
                               uint32_t name, uint32_t vers)
 {
-    vlc_window_t *wnd = data;
+    heimdall_window_t *wnd = data;
     vout_window_sys_t *sys = wnd->sys;
 
     if (likely(sys->wm_base == NULL))
@@ -503,7 +504,7 @@ static void register_wl_shell(void *data, struct wl_registry *registry,
 static void register_wl_shm(void *data, struct wl_registry *registry,
                             uint32_t name, uint32_t vers)
 {
-    vlc_window_t *wnd = data;
+    heimdall_window_t *wnd = data;
     vout_window_sys_t *sys = wnd->sys;
 
     if (likely(sys->shm == NULL))
@@ -514,7 +515,7 @@ static void register_wl_shm(void *data, struct wl_registry *registry,
 static void register_xdg_wm_base(void *data, struct wl_registry *registry,
                                  uint32_t name, uint32_t vers)
 {
-    vlc_window_t *wnd = data;
+    heimdall_window_t *wnd = data;
     vout_window_sys_t *sys = wnd->sys;
 
     if (likely(sys->wm_base == NULL))
@@ -526,7 +527,7 @@ static void register_xdg_decoration_manager(void *data,
                                             struct wl_registry *registry,
                                             uint32_t name, uint32_t vers)
 {
-    vlc_window_t *wnd = data;
+    heimdall_window_t *wnd = data;
     vout_window_sys_t *sys = wnd->sys;
 
     if (likely(sys->deco_manager == NULL))
@@ -544,9 +545,9 @@ struct registry_handler
 
 
 #ifdef XDG_TOPLEVEL_CONFIGURE_BOUNDS_SINCE_VERSION
-#define VLC_XDG_WM_BASE_VERSION XDG_TOPLEVEL_CONFIGURE_BOUNDS_SINCE_VERSION
+#define HEIMDALL_XDG_WM_BASE_VERSION XDG_TOPLEVEL_CONFIGURE_BOUNDS_SINCE_VERSION
 #else
-#define VLC_XDG_WM_BASE_VERSION 1
+#define HEIMDALL_XDG_WM_BASE_VERSION 1
 #endif
 
 static const struct registry_handler global_handlers[] =
@@ -559,7 +560,7 @@ static const struct registry_handler global_handlers[] =
 #endif
      { "wl_shm", register_wl_shm, 1 },
 #ifdef XDG_SHELL
-     { "xdg_wm_base", register_xdg_wm_base, VLC_XDG_WM_BASE_VERSION },
+     { "xdg_wm_base", register_xdg_wm_base, HEIMDALL_XDG_WM_BASE_VERSION },
      { "zxdg_decoration_manager_v1", register_xdg_decoration_manager, 1 },
 #endif
 };
@@ -575,7 +576,7 @@ static int rghcmp(const void *a, const void *b)
 static void registry_global_cb(void *data, struct wl_registry *registry,
                                uint32_t name, const char *iface, uint32_t vers)
 {
-    vlc_window_t *wnd = data;
+    heimdall_window_t *wnd = data;
     const struct registry_handler *h;
 
     msg_Dbg(wnd, "global %3"PRIu32": %s version %"PRIu32, name, iface, vers);
@@ -593,7 +594,7 @@ static void registry_global_cb(void *data, struct wl_registry *registry,
 static void registry_global_remove_cb(void *data, struct wl_registry *registry,
                                       uint32_t name)
 {
-    vlc_window_t *wnd = data;
+    heimdall_window_t *wnd = data;
     vout_window_sys_t *sys = wnd->sys;
 
     msg_Dbg(wnd, "global remove %3"PRIu32, name);
@@ -616,7 +617,7 @@ static const struct wl_registry_listener registry_cbs =
     registry_global_remove_cb,
 };
 
-struct wl_surface *window_get_cursor(vlc_window_t *wnd, int32_t *restrict hsx,
+struct wl_surface *window_get_cursor(heimdall_window_t *wnd, int32_t *restrict hsx,
                                      int32_t *restrict hsy)
 {
     vout_window_sys_t *sys = wnd->sys;
@@ -645,11 +646,11 @@ struct wl_surface *window_get_cursor(vlc_window_t *wnd, int32_t *restrict hsx,
 /**
  * Creates a Wayland shell surface.
  */
-static int Open(vlc_window_t *wnd)
+static int Open(heimdall_window_t *wnd)
 {
     vout_window_sys_t *sys = malloc(sizeof (*sys));
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     sys->compositor = NULL;
     sys->shm = NULL;
@@ -676,8 +677,8 @@ static int Open(vlc_window_t *wnd)
     wl_list_init(&sys->seats);
     sys->cursor_theme = NULL;
     sys->cursor_surface = NULL;
-    vlc_mutex_init(&sys->lock);
-    vlc_sem_init(&sys->wm.configured, 0);
+    heimdall_mutex_init(&sys->lock);
+    heimdall_sem_init(&sys->wm.configured, 0);
     wnd->sys = sys;
     wnd->handle.wl = NULL;
 
@@ -691,7 +692,7 @@ static int Open(vlc_window_t *wnd)
     {
         output_list_destroy(sys->outputs);
         free(sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Find the interesting singleton(s) */
@@ -729,7 +730,7 @@ static int Open(vlc_window_t *wnd)
 
     char *title = var_InheritString(wnd, "video-title");
     xdg_toplevel_set_title(toplevel,
-                           (title != NULL) ? title : _("VLC media player"));
+                           (title != NULL) ? title : _("Heimdall media player"));
     free(title);
 
     char *app_id = var_InheritString(wnd, "app-id");
@@ -761,15 +762,15 @@ static int Open(vlc_window_t *wnd)
                                                  wnd);
 #endif
 
-    wnd->type = VLC_WINDOW_TYPE_WAYLAND;
+    wnd->type = HEIMDALL_WINDOW_TYPE_WAYLAND;
     wnd->handle.wl = surface;
     wnd->display.wl = display;
     wnd->ops = &ops;
 
-    if (vlc_clone(&sys->thread, Thread, wnd))
+    if (heimdall_clone(&sys->thread, Thread, wnd))
         goto error;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     seat_destroy_all(&sys->seats);
@@ -800,18 +801,18 @@ error:
         wl_registry_destroy(sys->registry);
     wl_display_disconnect(display);
     free(sys);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /**
  * Destroys a XDG shell surface.
  */
-static void Close(vlc_window_t *wnd)
+static void Close(heimdall_window_t *wnd)
 {
     vout_window_sys_t *sys = wnd->sys;
 
-    vlc_cancel(sys->thread);
-    vlc_join(sys->thread, NULL);
+    heimdall_cancel(sys->thread);
+    heimdall_join(sys->thread, NULL);
 
     seat_destroy_all(&sys->seats);
     output_list_destroy(sys->outputs);
@@ -847,7 +848,7 @@ static void Close(vlc_window_t *wnd)
 #define OUTPUT_LONGTEXT N_( \
     "Fullscreen mode with use the output with this name by default.")
 
-vlc_module_begin()
+heimdall_module_begin()
 #ifdef XDG_SHELL
     set_shortname(N_("XDG shell"))
     set_description(N_("XDG shell surface"))
@@ -867,4 +868,4 @@ vlc_module_begin()
     add_integer("wl-output", 0, OUTPUT_TEXT, OUTPUT_LONGTEXT)
         change_integer_range(0, UINT32_MAX)
         change_volatile()
-vlc_module_end()
+heimdall_module_end()

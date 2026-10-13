@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2010 Nolan Lum <nol888@gmail.com>
  * Copyright (c) 2009 Loren Merritt <lorenm@u.washignton.edu>
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This file is part of Libav.
  *
@@ -78,7 +79,7 @@ static void blur_line_c(uint16_t *dc, uint16_t *buf, uint16_t *buf1,
 }
 
 #if HAVE_SSSE3
-VLC_SSE
+HEIMDALL_SSE
 static void filter_line_ssse3(uint8_t *dst, uint8_t *src, uint16_t *dc,
                               int width, int thresh, const uint16_t *dithers)
 {
@@ -160,7 +161,7 @@ static void filter_line_ssse3(uint8_t *dst, uint8_t *src, uint16_t *dc,
         :"xmm0", "xmm1", "xmm2", "xmm3", "xmm7", "memory"\
     );
 
-VLC_SSE
+HEIMDALL_SSE
 static void blur_line_sse2(uint16_t *dc, uint16_t *buf, uint16_t *buf1,
                            uint8_t *src, int sstride, int width)
 {

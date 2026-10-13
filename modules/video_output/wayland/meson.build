@@ -57,7 +57,7 @@ xdg_decoration_code = custom_target(
 )
 xdg_decoration_sources = [xdg_decoration_client_hdr, xdg_decoration_code]
 
-vlc_modules += {
+heimdall_modules += {
     'name': 'wl_shm',
     'sources': [
         files('registry.c', 'registry.h', 'shm.c'),
@@ -86,7 +86,7 @@ if xkbcommon_dep.found()
     shell_common_deps += xkbcommon_dep
 endif
 
-vlc_modules += {
+heimdall_modules += {
     'name': 'xdg_shell',
     'sources': [
         shell_common_sources,
@@ -100,7 +100,7 @@ vlc_modules += {
     'plugin_dir' : 'video_output',
 }
 
-vlc_modules += {
+heimdall_modules += {
     'name': 'wl_shell',
     'sources': [
         shell_common_sources,
@@ -112,7 +112,7 @@ vlc_modules += {
 }
 
 if egl_dep.found()
-    vlc_modules += {
+    heimdall_modules += {
         'name': 'egl_wl',
         'sources': files('../opengl/egl.c'),
         'c_args': ['-DUSE_PLATFORM_WAYLAND=1'],
@@ -136,7 +136,7 @@ if egl_dep.found()
             command: [wayland_scanner, 'private-code', '@INPUT@', '@OUTPUT@'],
         )
 
-        vlc_modules += {
+        heimdall_modules += {
             'name': 'egl_gbm_wl',
             'sources': [
                 files('../opengl/egl_gbm.c'),
@@ -149,7 +149,7 @@ if egl_dep.found()
     endif
 endif
 
-vlc_modules += {
+heimdall_modules += {
     'name': 'vk_wl',
     'sources': files('vulkan.c', '../vulkan/platform.h'),
     'c_args': ['-DVK_USE_PLATFORM_WAYLAND_KHR'],

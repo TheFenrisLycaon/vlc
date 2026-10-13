@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,13 +23,13 @@
 #include <memory>
 #include <functional>
 
-#include "vlcmediasourcewrapper.hpp"
+#include "heimdallmediasourcewrapper.hpp"
 
 class MediaTreeListener
 {
 public:
-    using ListenerPtr = std::unique_ptr<vlc_media_tree_listener_id,
-                                        std::function<void(vlc_media_tree_listener_id*)>>;
+    using ListenerPtr = std::unique_ptr<heimdall_media_tree_listener_id,
+                                        std::function<void(heimdall_media_tree_listener_id*)>>;
 
     class MediaTreeListenerCb
     {

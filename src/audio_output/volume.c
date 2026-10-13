@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 2002-2004 VLC authors and VideoLAN
  * Copyright (C) 2011-2012 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -27,12 +28,12 @@
 #include <stddef.h>
 #include <math.h>
 
-#include <vlc_common.h>
-#include "../libvlc.h"
-#include <vlc_modules.h>
-#include <vlc_aout.h>
-#include <vlc_aout_volume.h>
-#include <vlc_replay_gain.h>
+#include <heimdall_common.h>
+#include "../libheimdall.h"
+#include <heimdall_modules.h>
+#include <heimdall_aout.h>
+#include <heimdall_aout_volume.h>
+#include <heimdall_replay_gain.h>
 #include "aout_internal.h"
 
 struct aout_volume
@@ -44,17 +45,17 @@ struct aout_volume
     module_t *module;
 };
 
-static int ReplayGainCallback (vlc_object_t *, char const *,
-                               vlc_value_t, vlc_value_t, void *);
+static int ReplayGainCallback (heimdall_object_t *, char const *,
+                               heimdall_value_t, heimdall_value_t, void *);
 
 #undef aout_volume_New
 /**
  * Creates a software amplifier.
  */
-aout_volume_t *aout_volume_New(vlc_object_t *parent,
+aout_volume_t *aout_volume_New(heimdall_object_t *parent,
                                const audio_replay_gain_t *gain)
 {
-    aout_volume_t *vol = vlc_custom_create(parent, sizeof (aout_volume_t),
+    aout_volume_t *vol = heimdall_custom_create(parent, sizeof (aout_volume_t),
                                            "volume");
     if (unlikely(vol == NULL))
         return NULL;
@@ -80,7 +81,7 @@ aout_volume_t *aout_volume_New(vlc_object_t *parent,
 /**
  * Selects the current sample format for software amplification.
  */
-int aout_volume_SetFormat(aout_volume_t *vol, vlc_fourcc_t format)
+int aout_volume_SetFormat(aout_volume_t *vol, heimdall_fourcc_t format)
 {
     audio_volume_t *obj = &vol->object;
     if (vol->module != NULL)
@@ -110,9 +111,9 @@ void aout_volume_Delete(aout_volume_t *vol)
 
     if (vol->module != NULL)
         module_unneed(obj, vol->module);
-    var_DelCallback(vlc_object_parent(obj), "audio-replay-gain-mode",
+    var_DelCallback(heimdall_object_parent(obj), "audio-replay-gain-mode",
                     ReplayGainCallback, vol);
-    vlc_object_delete(obj);
+    heimdall_object_delete(obj);
 }
 
 void aout_volume_SetVolume(aout_volume_t *vol, float factor)
@@ -135,12 +136,12 @@ int aout_volume_Amplify(aout_volume_t *vol, block_t *block)
     return 0;
 }
 
-static int ReplayGainCallback (vlc_object_t *obj, char const *var,
-                               vlc_value_t oldval, vlc_value_t val, void *data)
+static int ReplayGainCallback (heimdall_object_t *obj, char const *var,
+                               heimdall_value_t oldval, heimdall_value_t val, void *data)
 {
     aout_volume_t *vol = data;
     float multiplier = replay_gain_CalcMultiplier(obj, &vol->replay_gain);
     atomic_store_explicit(&vol->gain_factor, multiplier, memory_order_relaxed);
-    VLC_UNUSED(var); VLC_UNUSED(oldval); VLC_UNUSED(val);
-    return VLC_SUCCESS;
+    HEIMDALL_UNUSED(var); HEIMDALL_UNUSED(oldval); HEIMDALL_UNUSED(val);
+    return HEIMDALL_SUCCESS;
 }

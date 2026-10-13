@@ -2,6 +2,7 @@
  * medialibrary.c: test for the medialibrary code
  *****************************************************************************
  * Copyright (C) 2023 Videolabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Alexandre Janniaux <ajanni@videolabs.io>
  *
@@ -26,76 +27,76 @@
 
 /* Define a builtin module for mocked parts */
 #define MODULE_NAME test_misc_medialibrary
-#undef VLC_DYNAMIC_PLUGIN
+#undef HEIMDALL_DYNAMIC_PLUGIN
 
-#include "../../libvlc/test.h"
+#include "../../libheimdall/test.h"
 
-#include <vlc/vlc.h>
+#include <heimdall/heimdall.h>
 
-#include <vlc_common.h>
-#include <vlc_image.h>
-#include <vlc_picture.h>
-#include <vlc_plugin.h>
-#include <vlc_block.h>
-#include <vlc_codec.h>
-#include <vlc_filter.h>
+#include <heimdall_common.h>
+#include <heimdall_image.h>
+#include <heimdall_picture.h>
+#include <heimdall_plugin.h>
+#include <heimdall_block.h>
+#include <heimdall_codec.h>
+#include <heimdall_filter.h>
 
-#include <vlc_media_library.h>
+#include <heimdall_media_library.h>
 #include <ftw.h>
 
-#include "../lib/libvlc_internal.h"
+#include "../lib/libheimdall_internal.h"
 
-const char vlc_module_name[] = MODULE_STRING;
+const char heimdall_module_name[] = MODULE_STRING;
 
 static int exitcode = 0;
 
-static void ValidateThumbnail(void *data, const vlc_ml_event_t *event)
+static void ValidateThumbnail(void *data, const heimdall_ml_event_t *event)
 {
-    if (event->i_type != VLC_ML_EVENT_MEDIA_THUMBNAIL_GENERATED)
+    if (event->i_type != HEIMDALL_ML_EVENT_MEDIA_THUMBNAIL_GENERATED)
         return;
 
     assert(event->media_thumbnail_generated.b_success);
-    vlc_sem_t *sem = data;
-    vlc_sem_post(sem);
+    heimdall_sem_t *sem = data;
+    heimdall_sem_post(sem);
 }
 
-static int OpenIntf(vlc_object_t *root)
+static int OpenIntf(heimdall_object_t *root)
 {
-    vlc_medialibrary_t *ml = vlc_ml_instance_get(root);
+    heimdall_medialibrary_t *ml = heimdall_ml_instance_get(root);
     if (ml == NULL)
     {
         exitcode = 77;
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
     #define MOCK_URL "mock://video_track_count=1;length=100000000;" \
                      "video_width=800;video_height=600"
-    vlc_ml_media_t *media = vlc_ml_new_external_media(ml, MOCK_URL);
+    heimdall_ml_media_t *media = heimdall_ml_new_external_media(ml, MOCK_URL);
 
-    vlc_sem_t sem;
-    vlc_sem_init(&sem, 0);
+    heimdall_sem_t sem;
+    heimdall_sem_init(&sem, 0);
 
-    vlc_ml_event_callback_t *listener =
-        vlc_ml_event_register_callback(ml, ValidateThumbnail, &sem);
-    vlc_ml_media_generate_thumbnail(ml, media->i_id,
-            VLC_ML_THUMBNAIL_SMALL, 800, 600, 0.f);
+    heimdall_ml_event_callback_t *listener =
+        heimdall_ml_event_register_callback(ml, ValidateThumbnail, &sem);
+    heimdall_ml_media_generate_thumbnail(ml, media->i_id,
+            HEIMDALL_ML_THUMBNAIL_SMALL, 800, 600, 0.f);
 
-    vlc_sem_wait(&sem);
-    vlc_ml_event_unregister_callback(ml, listener);
+    heimdall_sem_wait(&sem);
+    heimdall_ml_event_unregister_callback(ml, listener);
 
-    vlc_ml_media_release(media);
+    heimdall_ml_media_release(media);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /** Inject the mocked modules as a static plugin: **/
-vlc_module_begin()
+heimdall_module_begin()
     set_callback(OpenIntf)
     set_capability("interface", 0)
-vlc_module_end()
+heimdall_module_end()
 
-VLC_EXPORT const vlc_plugin_cb vlc_static_modules[] = {
-    VLC_SYMBOL(vlc_entry),
+HEIMDALL_EXPORT const heimdall_plugin_cb heimdall_static_modules[] = {
+    HEIMDALL_SYMBOL(heimdall_entry),
     NULL
 };
 
@@ -108,15 +109,15 @@ static int cleanup_tmpdir(const char *dirpath, const struct stat *sb,
 
 int main(void)
 {
-    char template[] = "/tmp/vlc.test." MODULE_STRING ".XXXXXX";
+    char template[] = "/tmp/heimdall.test." MODULE_STRING ".XXXXXX";
     const char *tempdir = mkdtemp(template);
     if (tempdir == NULL)
     {
         assert(tempdir != NULL);
         return -1;
     }
-    fprintf(stderr, "Using VLC_USERDATA_PATH directory %s\n", tempdir);
-    setenv("VLC_USERDATA_PATH", tempdir, 1);
+    fprintf(stderr, "Using HEIMDALL_USERDATA_PATH directory %s\n", tempdir);
+    setenv("HEIMDALL_USERDATA_PATH", tempdir, 1);
 
     test_init();
 
@@ -125,12 +126,12 @@ int main(void)
         "--no-auto-preparse", "--media-library"
     };
 
-    libvlc_instance_t *vlc = libvlc_new(ARRAY_SIZE(args), args);
+    libheimdall_instance_t *heimdall = libheimdall_new(ARRAY_SIZE(args), args);
 
-    libvlc_InternalAddIntf(vlc->p_libvlc_int, MODULE_STRING);
-    libvlc_InternalPlay(vlc->p_libvlc_int);
+    libheimdall_InternalAddIntf(heimdall->p_libheimdall_int, MODULE_STRING);
+    libheimdall_InternalPlay(heimdall->p_libheimdall_int);
 
-    libvlc_release(vlc);
+    libheimdall_release(heimdall);
 
     /* Remove temporary directory */
     nftw(tempdir, cleanup_tmpdir, FOPEN_MAX, FTW_DEPTH | FTW_MOUNT | FTW_PHYS);

@@ -2,8 +2,9 @@
  * subtitle.c: subtitle decoder using libavcodec library
  *****************************************************************************
  * Copyright (C) 2009 Laurent Aimar
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Laurent Aimar <fenrir _AT_ videolan _DOT_ org>
+ * Authors: Laurent Aimar <fenrir _AT_ lycaria _DOT_ org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -28,9 +29,9 @@
 #endif
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_codec.h>
-#include <vlc_avcodec.h>
+#include <heimdall_common.h>
+#include <heimdall_codec.h>
+#include <heimdall_avcodec.h>
 
 #include <libavcodec/avcodec.h>
 #include <libavutil/mem.h>
@@ -45,7 +46,7 @@ typedef struct
     bool b_need_ephemer; /* Does the format need the ephemer flag (no end time set) */
 } decoder_sys_t;
 
-static subpicture_t *ConvertSubtitle(decoder_t *, AVSubtitle *, vlc_tick_t pts,
+static subpicture_t *ConvertSubtitle(decoder_t *, AVSubtitle *, heimdall_tick_t pts,
                                      AVCodecContext *avctx);
 static int  DecodeSubtitle(decoder_t *, block_t *);
 static void Flush(decoder_t *);
@@ -53,13 +54,13 @@ static void Flush(decoder_t *);
 /**
  * Initialize subtitle decoder
  */
-int InitSubtitleDec(vlc_object_t *obj)
+int InitSubtitleDec(heimdall_object_t *obj)
 {
     decoder_t *dec = (decoder_t *)obj;
     const AVCodec *codec;
     AVCodecContext *context = ffmpeg_AllocContext(dec, &codec, false);
     if (context == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     decoder_sys_t *sys;
 
@@ -77,7 +78,7 @@ int InitSubtitleDec(vlc_object_t *obj)
     default:
         msg_Warn(dec, "refusing to decode non validated subtitle codec");
         avcodec_free_context(&context);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* */
@@ -85,7 +86,7 @@ int InitSubtitleDec(vlc_object_t *obj)
     if (unlikely(sys == NULL))
     {
         avcodec_free_context(&context);
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     sys->p_context = context;
@@ -126,13 +127,13 @@ int InitSubtitleDec(vlc_object_t *obj)
     char *psz_opts = var_InheritString(dec, "avcodec-options");
     AVDictionary *options = NULL;
     if (psz_opts) {
-        vlc_av_get_options(psz_opts, &options);
+        heimdall_av_get_options(psz_opts, &options);
         free(psz_opts);
     }
 
-    vlc_avcodec_lock();
+    heimdall_avcodec_lock();
     ret = avcodec_open2(context, codec, options ? &options : NULL);
-    vlc_avcodec_unlock();
+    heimdall_avcodec_unlock();
 
     AVDictionaryEntry *t = NULL;
     while ((t = av_dict_get(options, "", t, AV_DICT_IGNORE_SUFFIX))) {
@@ -144,7 +145,7 @@ int InitSubtitleDec(vlc_object_t *obj)
         msg_Err(dec, "cannot open codec (%s)", codec->name);
         free(sys);
         avcodec_free_context(&context);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* */
@@ -152,10 +153,10 @@ int InitSubtitleDec(vlc_object_t *obj)
     dec->pf_decode = DecodeSubtitle;
     dec->pf_flush  = Flush;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-void EndSubtitleDec(vlc_object_t *obj)
+void EndSubtitleDec(heimdall_object_t *obj)
 {
     decoder_t *dec = (decoder_t *)obj;
     decoder_sys_t *sys = dec->p_sys;
@@ -266,7 +267,7 @@ static int DecodeSubtitle(decoder_t *dec, block_t *block)
     subpicture_t *spu;
     while ((spu = DecodeBlock(dec, block_ptr)) != NULL)
         decoder_QueueSub(dec, spu);
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }
 
 /**
@@ -279,7 +280,7 @@ static subpicture_region_t *ConvertRegionRGBA(AVSubtitleRect *ffregion)
 
     video_format_t fmt;
     memset(&fmt, 0, sizeof(fmt));
-    fmt.i_chroma         = VLC_CODEC_RGBA;
+    fmt.i_chroma         = HEIMDALL_CODEC_RGBA;
     fmt.i_width          =
     fmt.i_visible_width  = ffregion->w;
     fmt.i_height         =
@@ -320,7 +321,7 @@ static subpicture_region_t *ConvertRegionRGBA(AVSubtitleRect *ffregion)
 /**
  * Convert a libavcodec subtitle to our format.
  */
-static subpicture_t *ConvertSubtitle(decoder_t *dec, AVSubtitle *ffsub, vlc_tick_t pts,
+static subpicture_t *ConvertSubtitle(decoder_t *dec, AVSubtitle *ffsub, heimdall_tick_t pts,
                                      AVCodecContext *avctx)
 {
     subpicture_t *spu = decoder_NewSubpicture(dec, NULL);
@@ -331,8 +332,8 @@ static subpicture_t *ConvertSubtitle(decoder_t *dec, AVSubtitle *ffsub, vlc_tick
 
     //msg_Err(dec, "%lld %d %d",
     //        pts, ffsub->start_display_time, ffsub->end_display_time);
-    spu->i_start    = pts + VLC_TICK_FROM_MS(ffsub->start_display_time);
-    spu->i_stop     = pts + VLC_TICK_FROM_MS(ffsub->end_display_time);
+    spu->i_start    = pts + HEIMDALL_TICK_FROM_MS(ffsub->start_display_time);
+    spu->i_stop     = pts + HEIMDALL_TICK_FROM_MS(ffsub->end_display_time);
     spu->b_ephemer  = p_sys->b_need_ephemer;
                     /* We only show subtitle for i_stop time only */
 
@@ -362,7 +363,7 @@ static subpicture_t *ConvertSubtitle(decoder_t *dec, AVSubtitle *ffsub, vlc_tick
             break;
         }
         if (region) {
-            vlc_spu_regions_push(&spu->regions, region);
+            heimdall_spu_regions_push(&spu->regions, region);
         }
     }
     avsubtitle_free(ffsub);

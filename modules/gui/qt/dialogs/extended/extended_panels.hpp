@@ -2,9 +2,10 @@
  * extended_panels.hpp : Extended Panels
  ****************************************************************************
  * Copyright (C) 2006 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Clément Stenac <zorglub@videolan.org>
- *          Antoine Cellerier <dionoea at videolan dot org>
+ *          Antoine Cellerier <dionoea at lycaria dot org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,14 +22,14 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_QT_EXTENDED_PANELS_HPP_
-#define VLC_QT_EXTENDED_PANELS_HPP_
+#ifndef HEIMDALL_QT_EXTENDED_PANELS_HPP_
+#define HEIMDALL_QT_EXTENDED_PANELS_HPP_
 
 #ifdef HAVE_CONFIG_H
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
 #include "qt.hpp"
 #include "util/variables.hpp"
@@ -280,7 +281,7 @@ private:
     SyncWidget *secondarySubsSpin;
     QDoubleSpinBox *subSpeedSpin;
     QDoubleSpinBox *subDurationSpin;
-    QVLCFloat m_SubsDelayCfgFactor;
+    QHeimdallFloat m_SubsDelayCfgFactor;
 
     bool b_userAction;
 

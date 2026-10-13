@@ -2,6 +2,7 @@
  * arrays.h : Test for ARRAY_* macros
  *****************************************************************************
  * Copyright (C) 2018 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -26,8 +27,8 @@
 
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_arrays.h>
+#include <heimdall_common.h>
+#include <heimdall_arrays.h>
 
 static void test_array_insert_remove(void)
 {

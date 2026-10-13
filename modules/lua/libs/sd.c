@@ -2,9 +2,10 @@
  * sd.c: Services discovery related functions
  *****************************************************************************
  * Copyright (C) 2007-2008 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Antoine Cellerier <dionoea at videolan tod org>
- *          Fabio Ritrovato <sephiroth87 at videolan dot org>
+ * Authors: Antoine Cellerier <dionoea at lycaria tod org>
+ *          Fabio Ritrovato <sephiroth87 at lycaria dot org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,16 +35,16 @@
 
 #include <assert.h>
 #include <math.h>
-#include <vlc_common.h>
-#include <vlc_services_discovery.h>
-#include <vlc_charset.h>
-#include <vlc_strings.h>
-#include <vlc_hash.h>
+#include <heimdall_common.h>
+#include <heimdall_services_discovery.h>
+#include <heimdall_charset.h>
+#include <heimdall_strings.h>
+#include <heimdall_hash.h>
 
-#include "../vlc.h"
+#include "../heimdall.h"
 #include "../libs.h"
 
-static int vlclua_sd_delete_common( input_item_t **pp_item )
+static int heimdalllua_sd_delete_common( input_item_t **pp_item )
 {
     assert(pp_item != NULL);
 
@@ -54,9 +55,9 @@ static int vlclua_sd_delete_common( input_item_t **pp_item )
     return 1;
 }
 
-static int vlclua_sd_remove_common( lua_State *L, input_item_t **pp_item )
+static int heimdalllua_sd_remove_common( lua_State *L, input_item_t **pp_item )
 {
-    services_discovery_t *p_sd = (services_discovery_t *)vlclua_get_this( L );
+    services_discovery_t *p_sd = (services_discovery_t *)heimdalllua_get_this( L );
 
     if (pp_item == NULL)
         return luaL_error( L, "expected item" );
@@ -75,20 +76,20 @@ static int vlclua_sd_remove_common( lua_State *L, input_item_t **pp_item )
 
 /*** Input item ***/
 
-static int vlclua_sd_item_delete( lua_State *L )
+static int heimdalllua_sd_item_delete( lua_State *L )
 {
     input_item_t **pp_item = luaL_checkudata( L, 1, "input_item_t" );
 
-    return vlclua_sd_delete_common( pp_item );
+    return heimdalllua_sd_delete_common( pp_item );
 }
 
-#define vlclua_item_luareg( a ) \
-{ "set_" # a, vlclua_item_set_ ## a },
+#define heimdalllua_item_luareg( a ) \
+{ "set_" # a, heimdalllua_item_set_ ## a },
 
-#define vlclua_item_meta( lowercase, normal ) \
-static int vlclua_item_set_ ## lowercase ( lua_State *L )\
+#define heimdalllua_item_meta( lowercase, normal ) \
+static int heimdalllua_item_set_ ## lowercase ( lua_State *L )\
 {\
-    services_discovery_t *p_sd = (services_discovery_t *)vlclua_get_this( L );\
+    services_discovery_t *p_sd = (services_discovery_t *)heimdalllua_get_this( L );\
     input_item_t **pp_node = (input_item_t **)luaL_checkudata( L, 1, "input_item_t" );\
     if( *pp_node )\
     {\
@@ -101,58 +102,58 @@ static int vlclua_item_set_ ## lowercase ( lua_State *L )\
     return 1;\
 }
 
-vlclua_item_meta(title, Title)
-vlclua_item_meta(artist, Artist)
-vlclua_item_meta(genre, Genre)
-vlclua_item_meta(copyright, Copyright)
-vlclua_item_meta(album, Album)
-vlclua_item_meta(tracknum, TrackNum)
-vlclua_item_meta(description, Description)
-vlclua_item_meta(rating, Rating)
-vlclua_item_meta(date, Date)
-vlclua_item_meta(setting, Setting)
-vlclua_item_meta(url, URL)
-vlclua_item_meta(language, Language)
-vlclua_item_meta(nowplaying, NowPlaying)
-vlclua_item_meta(publisher, Publisher)
-vlclua_item_meta(encodedby, EncodedBy)
-vlclua_item_meta(arturl, ArtworkURL)
-vlclua_item_meta(trackid, TrackID)
-vlclua_item_meta(tracktotal, TrackTotal)
-vlclua_item_meta(director, Director)
-vlclua_item_meta(season, Season)
-vlclua_item_meta(episode, Episode)
-vlclua_item_meta(showname, ShowName)
-vlclua_item_meta(actors, Actors)
+heimdalllua_item_meta(title, Title)
+heimdalllua_item_meta(artist, Artist)
+heimdalllua_item_meta(genre, Genre)
+heimdalllua_item_meta(copyright, Copyright)
+heimdalllua_item_meta(album, Album)
+heimdalllua_item_meta(tracknum, TrackNum)
+heimdalllua_item_meta(description, Description)
+heimdalllua_item_meta(rating, Rating)
+heimdalllua_item_meta(date, Date)
+heimdalllua_item_meta(setting, Setting)
+heimdalllua_item_meta(url, URL)
+heimdalllua_item_meta(language, Language)
+heimdalllua_item_meta(nowplaying, NowPlaying)
+heimdalllua_item_meta(publisher, Publisher)
+heimdalllua_item_meta(encodedby, EncodedBy)
+heimdalllua_item_meta(arturl, ArtworkURL)
+heimdalllua_item_meta(trackid, TrackID)
+heimdalllua_item_meta(tracktotal, TrackTotal)
+heimdalllua_item_meta(director, Director)
+heimdalllua_item_meta(season, Season)
+heimdalllua_item_meta(episode, Episode)
+heimdalllua_item_meta(showname, ShowName)
+heimdalllua_item_meta(actors, Actors)
 
-static const luaL_Reg vlclua_item_reg[] = {
-    vlclua_item_luareg(title)
-    vlclua_item_luareg(artist)
-    vlclua_item_luareg(genre)
-    vlclua_item_luareg(copyright)
-    vlclua_item_luareg(album)
-    vlclua_item_luareg(tracknum)
-    vlclua_item_luareg(description)
-    vlclua_item_luareg(rating)
-    vlclua_item_luareg(date)
-    vlclua_item_luareg(setting)
-    vlclua_item_luareg(url)
-    vlclua_item_luareg(language)
-    vlclua_item_luareg(nowplaying)
-    vlclua_item_luareg(publisher)
-    vlclua_item_luareg(encodedby)
-    vlclua_item_luareg(arturl)
-    vlclua_item_luareg(trackid)
-    vlclua_item_luareg(tracktotal)
-    vlclua_item_luareg(director)
-    vlclua_item_luareg(season)
-    vlclua_item_luareg(episode)
-    vlclua_item_luareg(showname)
-    vlclua_item_luareg(actors)
+static const luaL_Reg heimdalllua_item_reg[] = {
+    heimdalllua_item_luareg(title)
+    heimdalllua_item_luareg(artist)
+    heimdalllua_item_luareg(genre)
+    heimdalllua_item_luareg(copyright)
+    heimdalllua_item_luareg(album)
+    heimdalllua_item_luareg(tracknum)
+    heimdalllua_item_luareg(description)
+    heimdalllua_item_luareg(rating)
+    heimdalllua_item_luareg(date)
+    heimdalllua_item_luareg(setting)
+    heimdalllua_item_luareg(url)
+    heimdalllua_item_luareg(language)
+    heimdalllua_item_luareg(nowplaying)
+    heimdalllua_item_luareg(publisher)
+    heimdalllua_item_luareg(encodedby)
+    heimdalllua_item_luareg(arturl)
+    heimdalllua_item_luareg(trackid)
+    heimdalllua_item_luareg(tracktotal)
+    heimdalllua_item_luareg(director)
+    heimdalllua_item_luareg(season)
+    heimdalllua_item_luareg(episode)
+    heimdalllua_item_luareg(showname)
+    heimdalllua_item_luareg(actors)
     { NULL, NULL }
 };
 
-static input_item_t *vlclua_sd_create_item( services_discovery_t *p_sd,
+static input_item_t *heimdalllua_sd_create_item( services_discovery_t *p_sd,
                                             lua_State *L )
 {
     if( !lua_istable( L, -1 ) )
@@ -183,23 +184,23 @@ static input_item_t *vlclua_sd_create_item( services_discovery_t *p_sd,
         return NULL;
 
     /* The table must be at the top of the stack when calling
-     * vlclua_read_options() */
+     * heimdalllua_read_options() */
     char **ppsz_options = NULL;
     int i_options = 0;
 
     lua_pushvalue( L, -1 );
-    vlclua_read_options( p_sd, L, &i_options, &ppsz_options );
+    heimdalllua_read_options( p_sd, L, &i_options, &ppsz_options );
     lua_pop( L, 1 );
 
     input_item_AddOptions( p_input, i_options, (const char **)ppsz_options,
-                           VLC_INPUT_OPTION_TRUSTED );
+                           HEIMDALL_INPUT_OPTION_TRUSTED );
     while( i_options > 0 )
         free( ppsz_options[--i_options] );
     free( ppsz_options );
 
-    vlclua_read_meta_data( p_sd, L, p_input );
+    heimdalllua_read_meta_data( p_sd, L, p_input );
     /* This one is to be tested... */
-    vlclua_read_custom_meta_data( p_sd, L, p_input );
+    heimdalllua_read_custom_meta_data( p_sd, L, p_input );
     /* The duration is given in seconds, convert to microseconds */
 
     lua_getfield( L, -1, "duration" );
@@ -216,12 +217,12 @@ static input_item_t *vlclua_sd_create_item( services_discovery_t *p_sd,
         char *s = strdup( luaL_checkstring( L, -1 ) );
         if ( s )
         {
-            vlc_hash_md5_t md5;
-            vlc_hash_md5_Init( &md5 );
-            vlc_hash_md5_Update( &md5, s, strlen( s ) );
+            heimdall_hash_md5_t md5;
+            heimdall_hash_md5_Init( &md5 );
+            heimdall_hash_md5_Update( &md5, s, strlen( s ) );
             free( s );
-            char tmp[VLC_HASH_MD5_DIGEST_HEX_SIZE];
-            vlc_hash_FinishHex( &md5, tmp );
+            char tmp[HEIMDALL_HASH_MD5_DIGEST_HEX_SIZE];
+            heimdall_hash_FinishHex( &md5, tmp );
             input_item_AddInfo( p_input, "uid", "md5", "%s", tmp );
         }
     }
@@ -233,9 +234,9 @@ static input_item_t *vlclua_sd_create_item( services_discovery_t *p_sd,
     if( luaL_newmetatable( L, "input_item_t" ) )
     {
         lua_newtable( L );
-        luaL_register( L, NULL, vlclua_item_reg );
+        luaL_register( L, NULL, heimdalllua_item_reg );
         lua_setfield( L, -2, "__index" );
-        lua_pushcfunction( L, vlclua_sd_item_delete );
+        lua_pushcfunction( L, heimdalllua_sd_item_delete );
         lua_setfield( L, -2, "__gc" );
         lua_pushliteral( L, "none of your business" );
         lua_setfield( L, -2, "__metatable" );
@@ -248,14 +249,14 @@ static input_item_t *vlclua_sd_create_item( services_discovery_t *p_sd,
 
 /*** Input item tree node ***/
 
-static int vlclua_sd_node_delete( lua_State *L )
+static int heimdalllua_sd_node_delete( lua_State *L )
 {
     input_item_t **pp_item = luaL_checkudata( L, 1, "node" );
 
-    return vlclua_sd_delete_common( pp_item );
+    return heimdalllua_sd_delete_common( pp_item );
 }
 
-static int vlclua_sd_add_sub_common( services_discovery_t *p_sd,
+static int heimdalllua_sd_add_sub_common( services_discovery_t *p_sd,
                                      input_item_t **pp_node,
                                      input_item_t *p_input )
 {
@@ -264,18 +265,18 @@ static int vlclua_sd_add_sub_common( services_discovery_t *p_sd,
     return 1;
 }
 
-static int vlclua_node_add_subitem( lua_State *L )
+static int heimdalllua_node_add_subitem( lua_State *L )
 {
-    services_discovery_t *p_sd = (services_discovery_t *)vlclua_get_this( L );
+    services_discovery_t *p_sd = (services_discovery_t *)heimdalllua_get_this( L );
     input_item_t **pp_node = (input_item_t **)luaL_checkudata( L, 1, "node" );
 
-    return vlclua_sd_add_sub_common( p_sd, pp_node,
-                                     vlclua_sd_create_item( p_sd, L ) );
+    return heimdalllua_sd_add_sub_common( p_sd, pp_node,
+                                     heimdalllua_sd_create_item( p_sd, L ) );
 }
 
-static const luaL_Reg vlclua_node_reg[];
+static const luaL_Reg heimdalllua_node_reg[];
 
-static input_item_t *vlclua_sd_create_node( services_discovery_t *p_sd,
+static input_item_t *heimdalllua_sd_create_node( services_discovery_t *p_sd,
                                             lua_State *L )
 {
     if( !lua_istable( L, -1 ) )
@@ -318,9 +319,9 @@ static input_item_t *vlclua_sd_create_node( services_discovery_t *p_sd,
     if( luaL_newmetatable( L, "node" ) )
     {
         lua_newtable( L );
-        luaL_register( L, NULL, vlclua_node_reg );
+        luaL_register( L, NULL, heimdalllua_node_reg );
         lua_setfield( L, -2, "__index" );
-        lua_pushcfunction( L, vlclua_sd_node_delete );
+        lua_pushcfunction( L, heimdalllua_sd_node_delete );
         lua_setfield( L, -2, "__gc" );
     }
     lua_setmetatable( L, -2 );
@@ -328,25 +329,25 @@ static input_item_t *vlclua_sd_create_node( services_discovery_t *p_sd,
     return p_input;
 }
 
-static int vlclua_node_add_subnode( lua_State *L )
+static int heimdalllua_node_add_subnode( lua_State *L )
 {
-    services_discovery_t *p_sd = (services_discovery_t *)vlclua_get_this( L );
+    services_discovery_t *p_sd = (services_discovery_t *)heimdalllua_get_this( L );
     input_item_t **pp_node = (input_item_t **)luaL_checkudata( L, 1, "node" );
 
-    return vlclua_sd_add_sub_common( p_sd, pp_node,
-                                     vlclua_sd_create_node( p_sd, L ) );
+    return heimdalllua_sd_add_sub_common( p_sd, pp_node,
+                                     heimdalllua_sd_create_node( p_sd, L ) );
 }
 
-static const luaL_Reg vlclua_node_reg[] = {
-    { "add_subitem", vlclua_node_add_subitem },
-    { "add_subnode", vlclua_node_add_subnode },
+static const luaL_Reg heimdalllua_node_reg[] = {
+    { "add_subitem", heimdalllua_node_add_subitem },
+    { "add_subnode", heimdalllua_node_add_subnode },
     { NULL, NULL }
 };
 
 
 /*** Services discovery instance ***/
 
-static int vlclua_sd_add_common( services_discovery_t *p_sd,
+static int heimdalllua_sd_add_common( services_discovery_t *p_sd,
                                  input_item_t *p_input )
 {
     if( p_input != NULL )
@@ -354,45 +355,45 @@ static int vlclua_sd_add_common( services_discovery_t *p_sd,
     return 1;
 }
 
-static int vlclua_sd_add_item( lua_State *L )
+static int heimdalllua_sd_add_item( lua_State *L )
 {
-    services_discovery_t *p_sd = (services_discovery_t *)vlclua_get_this( L );
+    services_discovery_t *p_sd = (services_discovery_t *)heimdalllua_get_this( L );
 
-    return vlclua_sd_add_common( p_sd, vlclua_sd_create_item( p_sd, L ) );
+    return heimdalllua_sd_add_common( p_sd, heimdalllua_sd_create_item( p_sd, L ) );
 }
 
-static int vlclua_sd_add_node( lua_State *L )
+static int heimdalllua_sd_add_node( lua_State *L )
 {
-    services_discovery_t *p_sd = (services_discovery_t *)vlclua_get_this( L );
+    services_discovery_t *p_sd = (services_discovery_t *)heimdalllua_get_this( L );
 
-    return vlclua_sd_add_common( p_sd, vlclua_sd_create_node( p_sd, L ) );
+    return heimdalllua_sd_add_common( p_sd, heimdalllua_sd_create_node( p_sd, L ) );
 }
 
-static int vlclua_sd_remove_item( lua_State *L )
+static int heimdalllua_sd_remove_item( lua_State *L )
 {
     input_item_t **pp_input = luaL_checkudata( L, 1, "input_item_t" );
 
-    return vlclua_sd_remove_common( L, pp_input );
+    return heimdalllua_sd_remove_common( L, pp_input );
 }
 
-static int vlclua_sd_remove_node( lua_State *L )
+static int heimdalllua_sd_remove_node( lua_State *L )
 {
     input_item_t **pp_input = luaL_checkudata( L, 1, "node" );
 
-    return vlclua_sd_remove_common( L, pp_input );
+    return heimdalllua_sd_remove_common( L, pp_input );
 }
 
-static const luaL_Reg vlclua_sd_sd_reg[] = {
-    { "add_item", vlclua_sd_add_item },
-    { "add_node", vlclua_sd_add_node },
-    { "remove_item", vlclua_sd_remove_item },
-    { "remove_node", vlclua_sd_remove_node },
+static const luaL_Reg heimdalllua_sd_sd_reg[] = {
+    { "add_item", heimdalllua_sd_add_item },
+    { "add_node", heimdalllua_sd_add_node },
+    { "remove_item", heimdalllua_sd_remove_item },
+    { "remove_node", heimdalllua_sd_remove_node },
     { NULL, NULL }
 };
 
 void luaopen_sd_sd( lua_State *L )
 {
     lua_newtable( L );
-    luaL_register( L, NULL, vlclua_sd_sd_reg );
+    luaL_register( L, NULL, heimdalllua_sd_sd_reg );
     lua_setfield( L, -2, "sd" );
 }

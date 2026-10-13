@@ -2,6 +2,7 @@
  * source.c: input thread source handling
  *****************************************************************************
  * Copyright (C) 1998-2007 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Christophe Massiot <massiot@via.ecp.fr>
  *          Laurent Aimar <fenrir@via.ecp.fr>
@@ -29,13 +30,13 @@
 
 input_source_t *input_source_Hold(input_source_t *in)
 {
-    vlc_atomic_rc_inc( &in->rc );
+    heimdall_atomic_rc_inc( &in->rc );
     return in;
 }
 
 void input_source_Release(input_source_t *in)
 {
-    if( vlc_atomic_rc_dec( &in->rc ) )
+    if( heimdall_atomic_rc_dec( &in->rc ) )
     {
         free( in->str_id );
         free( in );

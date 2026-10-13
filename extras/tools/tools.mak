@@ -1,6 +1,7 @@
 # Copyright (C) 2003-2011 the VideoLAN team
+# Copyright (C) 2026 TheFenrisLycaon
 #
-# This file is under the same license as the vlc package.
+# This file is under the same license as the heimdall package.
 
 include $(TOOLS)/packages.mak
 TARBALLS := $(TOOLS)
@@ -35,7 +36,7 @@ else
 SHA512SUM = $(error SHA-512 checksumming not found!)
 endif
 
-download_pkg = $(call download,$(VIDEOLAN)/$(2)/$(lastword $(subst /, ,$(@)))) || \
+download_pkg = $(call download,$(LYCARIA)/$(2)/$(lastword $(subst /, ,$(@)))) || \
 	( $(call download,$(1)) && echo "Please upload this package $(lastword $(subst /, ,$(@))) to our FTP" )  \
 	&& grep $(@) $(TOOLS)/SHA512SUMS| $(SHA512SUM) /dev/stdin
 
@@ -217,10 +218,10 @@ config.sub: $(TOOLS)/config.sub-$(CONFIGSUB_VERSION)
 
 .getconfigguess:
 .buildconfigguess: config.guess config.sub
-	# install in a dummy autoconf so that VLC contribs pick it
-	install -d           "$(PREFIX)/share/autoconf-vlc/build-aux"
-	install config.guess "$(PREFIX)/share/autoconf-vlc/build-aux"
-	install config.sub   "$(PREFIX)/share/autoconf-vlc/build-aux"
+	# install in a dummy autoconf so that Heimdall contribs pick it
+	install -d           "$(PREFIX)/share/autoconf-heimdall/build-aux"
+	install config.guess "$(PREFIX)/share/autoconf-heimdall/build-aux"
+	install config.sub   "$(PREFIX)/share/autoconf-heimdall/build-aux"
 	touch $@
 
 # autoconf
@@ -475,9 +476,9 @@ ninja: ninja-$(NINJA_BUILD_NAME).tar.gz
 	$(MOVE)
 
 .buildninja: ninja
-	cmake -S $< -B $</vlc_build -DCMAKE_INSTALL_PREFIX:STRING=$(PREFIX) -DBUILD_TESTING=OFF
-	+cmake --build $</vlc_build
-	+cmake --install $</vlc_build
+	cmake -S $< -B $</heimdall_build -DCMAKE_INSTALL_PREFIX:STRING=$(PREFIX) -DBUILD_TESTING=OFF
+	+cmake --build $</heimdall_build
+	+cmake --install $</heimdall_build
 	touch $@
 
 CLEAN_PKG += ninja

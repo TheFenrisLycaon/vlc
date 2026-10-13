@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2023 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,7 +17,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#include "util/vlctick.hpp"
+#include "util/heimdalltick.hpp"
 #include "delay_estimator.hpp"
 
 DelayEstimator::DelayEstimator(QObject *parent)
@@ -36,7 +37,7 @@ bool DelayEstimator::isSpottedTimeMarked() {
     return m_spottedTime.valid();
 }
 
-/*Q_INVOKABLE*/ VLCDuration DelayEstimator::getDelay()
+/*Q_INVOKABLE*/ HeimdallDuration DelayEstimator::getDelay()
 {
     return m_delay;
 }
@@ -44,9 +45,9 @@ bool DelayEstimator::isSpottedTimeMarked() {
 /*Q_INVOKABLE*/ void DelayEstimator::markHeardTime()
 {
     if (isHeardTimeMarked())
-        m_heardTime = VLCTime();
+        m_heardTime = HeimdallTime();
     else
-        m_heardTime = vlc_tick_now();
+        m_heardTime = heimdall_tick_now();
 
     emit heardTimeChanged();
 
@@ -57,9 +58,9 @@ bool DelayEstimator::isSpottedTimeMarked() {
 /*Q_INVOKABLE*/ void DelayEstimator::markSpottedTime()
 {
     if (isSpottedTimeMarked())
-        m_spottedTime = VLCTime();
+        m_spottedTime = HeimdallTime();
     else
-        m_spottedTime = vlc_tick_now();
+        m_spottedTime = heimdall_tick_now();
 
     emit spottedTimeChanged();
 
@@ -74,8 +75,8 @@ void DelayEstimator::calculateDelay()
     {
         m_delay = m_heardTime - m_spottedTime;
         emit delayChanged();
-        m_heardTime = VLCTime();
-        m_spottedTime = VLCTime();
+        m_heardTime = HeimdallTime();
+        m_spottedTime = HeimdallTime();
         emit spottedTimeChanged();
         emit heardTimeChanged();
     }
@@ -83,9 +84,9 @@ void DelayEstimator::calculateDelay()
 
 /*Q_INVOKABLE*/ void DelayEstimator::reset()
 {
-    m_heardTime = VLCTime();
-    m_spottedTime = VLCTime();
-    m_delay = VLCDuration();
+    m_heardTime = HeimdallTime();
+    m_spottedTime = HeimdallTime();
+    m_delay = HeimdallDuration();
     emit delayChanged();
     emit spottedTimeChanged();
     emit heardTimeChanged();

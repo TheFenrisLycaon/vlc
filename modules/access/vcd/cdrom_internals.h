@@ -2,6 +2,7 @@
  * cdrom_internals.h: cdrom tools private header
  *****************************************************************************
  * Copyright (C) 1998-2001 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Johan Bilien <jobi@via.ecp.fr>
  *          Gildas Bazin <gbazin@netcourrier.com>
@@ -181,16 +182,16 @@ typedef struct cdrom_readlong_s
 /*****************************************************************************
  * Local Prototypes
  *****************************************************************************/
-static int    OpenVCDImage( vlc_object_t *, const char *, struct vcddev_s * );
-static void   CloseVCDImage( vlc_object_t *, struct vcddev_s * );
+static int    OpenVCDImage( heimdall_object_t *, const char *, struct vcddev_s * );
+static void   CloseVCDImage( heimdall_object_t *, struct vcddev_s * );
 
 #if defined( __APPLE__ )
-static CDTOC *darwin_getTOC( vlc_object_t *, const struct vcddev_s * );
+static CDTOC *darwin_getTOC( heimdall_object_t *, const struct vcddev_s * );
 static int    darwin_getNumberOfTracks( CDTOC *, int, int *, int * );
 
 #elif defined( _WIN32 )
-static int    win32_vcd_open( vlc_object_t *, const char *, struct vcddev_s *);
+static int    win32_vcd_open( heimdall_object_t *, const char *, struct vcddev_s *);
 
 #elif defined( __OS2__ )
-static int    os2_vcd_open( vlc_object_t *, const char *, struct vcddev_s *);
+static int    os2_vcd_open( heimdall_object_t *, const char *, struct vcddev_s *);
 #endif

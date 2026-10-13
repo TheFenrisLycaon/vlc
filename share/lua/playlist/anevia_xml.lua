@@ -4,6 +4,7 @@
  available streams on the server.
 
  Copyright © 2009 M2X BV
+ Copyright (C) 2026 TheFenrisLycaon
 
  Authors: Jean-Paul Saman <jpsaman@videolan.org>
 
@@ -24,22 +25,22 @@
 
 -- Probe function.
 function probe()
-    return vlc.access == "http"
-        and string.match( vlc.path, "/ws/Mgmt/" )
+    return heimdall.access == "http"
+        and string.match( heimdall.path, "/ws/Mgmt/" )
 end
 
 -- Fake readline. Read <>(..*)</> whole, otherwise pretend a newline.
 -- In lua, indices are from 1, not 0, so no +1 needed.
 function readline()
-    local n = string.find(vlc.peek(998),"><") -- A random large number
-    return n and vlc.read(n) or vlc.readline()
+    local n = string.find(heimdall.peek(998),"><") -- A random large number
+    return n and heimdall.read(n) or heimdall.readline()
 end
 
 -- Parse function.
 function parse()
     local p = {}
     local line
-    _,_,server = string.find( vlc.path, "(.*)/ws/Mgmt/" )
+    _,_,server = string.find( heimdall.path, "(.*)/ws/Mgmt/" )
     while true do
         line = readline()
         if not line then break end

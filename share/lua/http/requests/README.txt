@@ -36,8 +36,8 @@ status.xml or status.json
 ===========
 
 
-< Get VLC status information, current item info and meta.
-< Get VLC version, and http api version
+< Get Heimdall status information, current item info and meta.
+< Get Heimdall version, and http api version
 
 > add <uri> to playlist and start playback:
   ?command=in_play&input=<uri>&option=<option>

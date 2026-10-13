@@ -2,6 +2,7 @@
  * a52.h
  *****************************************************************************
  * Copyright (C) 2001-2016 Laurent Aimar
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Stéphane Borel <stef@via.ecp.fr>
  *          Christophe Massiot <massiot@via.ecp.fr>
@@ -24,25 +25,25 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_A52_H_
-#define VLC_A52_H_
+#ifndef HEIMDALL_A52_H_
+#define HEIMDALL_A52_H_
 
 #include <stdbit.h>
-#include <vlc_bits.h>
+#include <heimdall_bits.h>
 
 /**
- * Minimum AC3 header size that vlc_a52_header_Parse needs.
+ * Minimum AC3 header size that heimdall_a52_header_Parse needs.
  */
-#define VLC_A52_MIN_HEADER_SIZE  (8)
-#define VLC_A52_EAC3_BSI_SIZE    ((532 + 7)/8)
-#define VLC_A52_EAC3_HEADER_SIZE (VLC_A52_EAC3_BSI_SIZE + 2)
+#define HEIMDALL_A52_MIN_HEADER_SIZE  (8)
+#define HEIMDALL_A52_EAC3_BSI_SIZE    ((532 + 7)/8)
+#define HEIMDALL_A52_EAC3_HEADER_SIZE (HEIMDALL_A52_EAC3_BSI_SIZE + 2)
 
-#define VLC_A52_PROFILE_EAC3_DEPENDENT 1
+#define HEIMDALL_A52_PROFILE_EAC3_DEPENDENT 1
 
 /**
  * AC3 header information.
  */
-struct vlc_a52_bitstream_info
+struct heimdall_a52_bitstream_info
 {
     uint8_t i_fscod;
     uint8_t i_frmsizcod;
@@ -84,17 +85,17 @@ typedef struct
     unsigned int i_size;
     unsigned int i_samples;
 
-    struct vlc_a52_bitstream_info bs;
+    struct heimdall_a52_bitstream_info bs;
 
     uint8_t i_blocks_per_sync_frame;
-} vlc_a52_header_t;
+} heimdall_a52_header_t;
 
 /**
  * It parse AC3 sync info.
  *
  * cf. AC3 spec
  */
-static inline int vlc_a52_ParseAc3BitstreamInfo( struct vlc_a52_bitstream_info *bs,
+static inline int heimdall_a52_ParseAc3BitstreamInfo( struct heimdall_a52_bitstream_info *bs,
                                                  const uint8_t *p_buf, size_t i_buf )
 {
     bs_t s;
@@ -103,10 +104,10 @@ static inline int vlc_a52_ParseAc3BitstreamInfo( struct vlc_a52_bitstream_info *
     /* cf. 5.3.2 */
     bs->i_fscod = bs_read( &s, 2 );
     if( bs->i_fscod == 3 )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     bs->i_frmsizcod = bs_read( &s, 6 );
     if( bs->i_frmsizcod >= 38 )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     bs->i_bsid = bs_read( &s, 5 );
     bs->i_bsmod = bs_read( &s, 3 );
     bs->i_acmod = bs_read( &s, 3 );
@@ -124,18 +125,18 @@ static inline int vlc_a52_ParseAc3BitstreamInfo( struct vlc_a52_bitstream_info *
     bs->ac3.i_dsurmod = bs->i_acmod == 0x2 ? bs_read( &s, 2 ) : 0;
     bs->i_lfeon = bs_read( &s, 1 );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static inline int vlc_a52_header_ParseAc3( vlc_a52_header_t *p_header,
+static inline int heimdall_a52_header_ParseAc3( heimdall_a52_header_t *p_header,
                                            const uint8_t *p_buf,
                                            const uint32_t *p_acmod,
                                            const unsigned *pi_fscod_samplerates )
 {
-    if( vlc_a52_ParseAc3BitstreamInfo( &p_header->bs,
+    if( heimdall_a52_ParseAc3BitstreamInfo( &p_header->bs,
                                        &p_buf[4], /* start code + CRC */
-                                       VLC_A52_MIN_HEADER_SIZE - 4 ) != VLC_SUCCESS )
-        return VLC_EGENERIC;
+                                       HEIMDALL_A52_MIN_HEADER_SIZE - 4 ) != HEIMDALL_SUCCESS )
+        return HEIMDALL_EGENERIC;
 
     /* cf. Table 5.18 Frame Size Code Table */
     static const uint16_t ppi_frmsizcod_fscod_sizes[][3] = {
@@ -187,7 +188,7 @@ static inline int vlc_a52_header_ParseAc3( vlc_a52_header_t *p_header,
         512, 576, 640
     };
 
-    const struct vlc_a52_bitstream_info *bs = &p_header->bs;
+    const struct heimdall_a52_bitstream_info *bs = &p_header->bs;
 
     p_header->i_channels_conf = p_acmod[bs->i_acmod];
     p_header->i_chan_mode = 0;
@@ -201,7 +202,7 @@ static inline int vlc_a52_header_ParseAc3( vlc_a52_header_t *p_header,
 
     p_header->i_channels = stdc_count_ones(p_header->i_channels_conf);
 
-    const unsigned i_rate_shift = VLC_CLIP(bs->i_bsid, 8, 11) - 8;
+    const unsigned i_rate_shift = HEIMDALL_CLIP(bs->i_bsid, 8, 11) - 8;
     p_header->i_bitrate = (pi_frmsizcod_bitrates[bs->i_frmsizcod >> 1] * 1000)
                         >> i_rate_shift;
     p_header->i_rate = pi_fscod_samplerates[bs->i_fscod] >> i_rate_shift;
@@ -212,13 +213,13 @@ static inline int vlc_a52_header_ParseAc3( vlc_a52_header_t *p_header,
     p_header->i_samples = p_header->i_blocks_per_sync_frame * 256;
 
     p_header->b_eac3 = false;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /**
  * It parse E-AC3 sync info
  */
-static inline int vlc_a52_ParseEac3BitstreamInfo( struct vlc_a52_bitstream_info *bs,
+static inline int heimdall_a52_ParseEac3BitstreamInfo( struct heimdall_a52_bitstream_info *bs,
                                                   const uint8_t *p_buf, size_t i_buf )
 {
     bs_t s;
@@ -228,14 +229,14 @@ static inline int vlc_a52_ParseEac3BitstreamInfo( struct vlc_a52_bitstream_info 
 
     bs->eac3.i_frmsiz = bs_read( &s, 11 );
     if( bs->eac3.i_frmsiz < 2 )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     bs->i_fscod = bs_read( &s, 2 );
     if( bs->i_fscod == 0x03 )
     {
         bs->eac3.i_fscod2 = bs_read( &s, 2 );
         if( bs->eac3.i_fscod2 == 0x03 )
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         bs->eac3.i_numblkscod = 0x03;
     }
     else bs->eac3.i_numblkscod = bs_read( &s, 2 );
@@ -244,10 +245,10 @@ static inline int vlc_a52_ParseEac3BitstreamInfo( struct vlc_a52_bitstream_info 
     bs->i_lfeon = bs_read1( &s );
     bs->i_bsid = bs_read( &s, 5 );
 
-    if( i_buf <= VLC_A52_MIN_HEADER_SIZE )
+    if( i_buf <= HEIMDALL_A52_MIN_HEADER_SIZE )
     {
         bs->i_bsmod = 0;
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
     bs_skip( &s, 5 ); /* dialnorm */
@@ -325,20 +326,20 @@ static inline int vlc_a52_ParseEac3BitstreamInfo( struct vlc_a52_bitstream_info 
     }
     else bs->i_bsmod = 0;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static inline int vlc_a52_header_ParseEac3( vlc_a52_header_t *p_header,
+static inline int heimdall_a52_header_ParseEac3( heimdall_a52_header_t *p_header,
                                             const uint8_t *p_buf,
                                             const uint32_t *p_acmod,
                                             const unsigned *pi_fscod_samplerates )
 {
-    if( vlc_a52_ParseEac3BitstreamInfo( &p_header->bs,
+    if( heimdall_a52_ParseEac3BitstreamInfo( &p_header->bs,
                                         &p_buf[2], /* start code */
-                                        VLC_A52_MIN_HEADER_SIZE - 2 ) != VLC_SUCCESS )
-        return VLC_EGENERIC;
+                                        HEIMDALL_A52_MIN_HEADER_SIZE - 2 ) != HEIMDALL_SUCCESS )
+        return HEIMDALL_EGENERIC;
 
-    const struct vlc_a52_bitstream_info *bs = &p_header->bs;
+    const struct heimdall_a52_bitstream_info *bs = &p_header->bs;
 
     p_header->i_size = 2 * (bs->eac3.i_frmsiz + 1 );
 
@@ -366,16 +367,16 @@ static inline int vlc_a52_header_ParseEac3( vlc_a52_header_t *p_header,
     p_header->i_samples = p_header->i_blocks_per_sync_frame * 256;
 
     p_header->b_eac3 = true;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /**
- * It will parse the header AC3 frame and fill vlc_a52_header_t* if
- * it is valid or return VLC_EGENERIC.
+ * It will parse the header AC3 frame and fill heimdall_a52_header_t* if
+ * it is valid or return HEIMDALL_EGENERIC.
  *
  * XXX It will only recognize big endian bitstream ie starting with 0x0b, 0x77
  */
-static inline int vlc_a52_header_Parse( vlc_a52_header_t *p_header,
+static inline int heimdall_a52_header_Parse( heimdall_a52_header_t *p_header,
                                         const uint8_t *p_buffer, int i_buffer )
 {
     static const uint32_t p_acmod[8] = {
@@ -392,25 +393,25 @@ static inline int vlc_a52_header_Parse( vlc_a52_header_t *p_header,
         48000, 44100, 32000
     };
 
-    if( i_buffer < VLC_A52_MIN_HEADER_SIZE )
-        return VLC_EGENERIC;
+    if( i_buffer < HEIMDALL_A52_MIN_HEADER_SIZE )
+        return HEIMDALL_EGENERIC;
 
     /* Check synword */
     if( p_buffer[0] != 0x0b || p_buffer[1] != 0x77 )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* Check bsid */
     const int bsid = p_buffer[5] >> 3;
 
     /* cf. Annex E 2.3.1.6 of AC3 spec */
     if( bsid <= 10 )
-        return vlc_a52_header_ParseAc3( p_header, p_buffer,
+        return heimdall_a52_header_ParseAc3( p_header, p_buffer,
                                         p_acmod, pi_fscod_samplerates );
     else if( bsid <= 16 )
-        return vlc_a52_header_ParseEac3( p_header, p_buffer,
+        return heimdall_a52_header_ParseEac3( p_header, p_buffer,
                                          p_acmod, pi_fscod_samplerates );
     else
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 }
 
 #endif

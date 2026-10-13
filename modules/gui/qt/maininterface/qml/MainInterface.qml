@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,17 +27,17 @@ import QtQuick.Layouts
 import QtQuick.Templates
 import QtQuick.Window
 
-import VLC.MainInterface
-import VLC.Widgets as Widgets
-import VLC.Style
-import VLC.Util
-import VLC.Playlist
-import VLC.Player
-import VLC.Dialogs
-// import VLC.MediaLibrary
-import VLC.Menus
-import VLC.Network
-import VLC.PlayerControls
+import Heimdall.MainInterface
+import Heimdall.Widgets as Widgets
+import Heimdall.Style
+import Heimdall.Util
+import Heimdall.Playlist
+import Heimdall.Player
+import Heimdall.Dialogs
+// import Heimdall.MediaLibrary
+import Heimdall.Menus
+import Heimdall.Network
+import Heimdall.PlayerControls
 
 Item {
     id: root
@@ -59,13 +60,13 @@ Item {
         anchors.bottomMargin: MainCtx.windowExtendedMargin
 
         Binding {
-            target: VLCStyle
+            target: HeimdallStyle
             property: "appWidth"
             value: g_mainInterface.width
         }
 
         Binding {
-            target: VLCStyle
+            target: HeimdallStyle
             property: "appHeight"
             value: g_mainInterface.height
         }
@@ -147,12 +148,12 @@ Item {
 
             scale: Math.min(Math.max(historyDragHandler.accumulatedDelta / historyDragHandler.threshold, 0.2), 1.0)
 
-            readonly property real margin: VLCStyle.dp(128, VLCStyle.scale)
+            readonly property real margin: HeimdallStyle.dp(128, HeimdallStyle.scale)
 
             x: (historyDragHandler.accumulatedDelta / historyDragHandler.threshold * margin)
 
             implicitWidth: implicitHeight
-            implicitHeight: backArrowText.implicitHeight + VLCStyle.margin_small
+            implicitHeight: backArrowText.implicitHeight + HeimdallStyle.margin_small
             radius: (width / 2)
 
             border.width: 1
@@ -164,7 +165,7 @@ Item {
 
             Behavior on color {
                 ColorAnimation {
-                    duration: VLCStyle.duration_short
+                    duration: HeimdallStyle.duration_short
                 }
             }
 
@@ -173,9 +174,9 @@ Item {
 
                 anchors.centerIn: parent
 
-                text: VLCIcons.back
+                text: HeimdallIcons.back
 
-                font.pixelSize: VLCStyle.fontSize_xxxlarge * 1.2
+                font.pixelSize: HeimdallStyle.fontSize_xxxlarge * 1.2
 
                 color: (historyDragHandler.accumulatedDelta >= historyDragHandler.threshold) ? theme.bg.primary
                                                                                              : theme.accent
@@ -187,7 +188,7 @@ Item {
 
                 color: theme.accent
 
-                blurRadius: VLCStyle.dp(8, VLCStyle.scale)
+                blurRadius: HeimdallStyle.dp(8, HeimdallStyle.scale)
 
                 compensationFactor: 3.0
 
@@ -195,7 +196,7 @@ Item {
 
                 Behavior on opacity {
                     NumberAnimation {
-                        duration: VLCStyle.duration_short
+                        duration: HeimdallStyle.duration_short
                     }
                 }
             }
@@ -203,7 +204,7 @@ Item {
 
         ColorContext {
             id: theme
-            palette: VLCStyle.palette
+            palette: HeimdallStyle.palette
             colorSet: ColorContext.View
         }
 
@@ -213,7 +214,7 @@ Item {
             parent: null
             z: 99
             colorContext.palette: parent && parent.colorContext ? parent.colorContext.palette
-                                                                : VLCStyle.palette
+                                                                : HeimdallStyle.palette
 
             Component.onCompleted: {
                 MainCtx.setAttachedToolTip(this)
@@ -225,7 +226,7 @@ Item {
             z: 99
 
             colorContext.palette: parent && parent.colorContext ? parent.colorContext.palette
-                                                                : VLCStyle.palette
+                                                                : HeimdallStyle.palette
 
             Widgets.PointingToolTipAttached.instance: this
 
@@ -239,7 +240,7 @@ Item {
             id: playlistWindowLoader
             asynchronous: true
             active: !MainCtx.playqueuePanel.docked
-            source: "qrc:///qt/qml/VLC/Playlist/PlaylistDetachedWindow.qml"
+            source: "qrc:///qt/qml/Heimdall/Playlist/PlaylistDetachedWindow.qml"
         }
 
         Connections {
@@ -319,20 +320,20 @@ Item {
 
                 switch (MainCtx.effectiveMainInterfaceMode) {
                 case MainCtx.MAININTERFACE_MODE_MINIMAL:
-                    return "qrc:///qt/qml/VLC/Player/MinimalView.qml"
+                    return "qrc:///qt/qml/Heimdall/Player/MinimalView.qml"
                 case  MainCtx.MAININTERFACE_MODE_PLAYER:
-                    return "qrc:///qt/qml/VLC/Player/Player.qml"
+                    return "qrc:///qt/qml/Heimdall/Player/Player.qml"
                 default:
                     console.error("unexpected interface mode", MainCtx.effectiveMainInterfaceMode)
                 case MainCtx.MAININTERFACE_MODE_MAINDISPLAY:
-                    return "qrc:///qt/qml/VLC/MainInterface/MainDisplay.qml"
+                    return "qrc:///qt/qml/Heimdall/MainInterface/MainDisplay.qml"
                 }
             }
         }
 
         Loader {
             asynchronous: true
-            source: "qrc:///qt/qml/VLC/Menus/GlobalShortcuts.qml"
+            source: "qrc:///qt/qml/Heimdall/Menus/GlobalShortcuts.qml"
         }
 
         Loader {
@@ -345,7 +346,7 @@ Item {
             }
             Component.onCompleted: {
                 setSource(
-                    "qrc:///qt/qml/VLC/Widgets/CSDMouseStealer.qml", {
+                    "qrc:///qt/qml/Heimdall/Widgets/CSDMouseStealer.qml", {
                         target: g_mainInterface,
                         anchorInside: Qt.binding(() => !_extendedFrameVisible)
                     })
@@ -387,7 +388,7 @@ Item {
         Behavior on compensationFactor {
             // FIXME: Use UniformAnimator instead
             NumberAnimation {
-                duration: VLCStyle.duration_veryShort
+                duration: HeimdallStyle.duration_veryShort
             }
         }
     }

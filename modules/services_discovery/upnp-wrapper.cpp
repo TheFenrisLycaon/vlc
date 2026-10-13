@@ -2,6 +2,7 @@
  * upnp-wrapper.cpp :  UPnP Instance Wrapper class
  *****************************************************************************
  * Copyright © 2004-2018 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Rémi Denis-Courmont (original plugin)
  *          Christian Henz <henz # c-lab.de>
@@ -32,7 +33,7 @@
 
 UpnpInstanceWrapper* UpnpInstanceWrapper::s_instance;
 UpnpInstanceWrapper::Listeners UpnpInstanceWrapper::s_listeners;
-vlc::threads::mutex UpnpInstanceWrapper::s_lock;
+heimdall::threads::mutex UpnpInstanceWrapper::s_lock;
 
 UpnpInstanceWrapper::UpnpInstanceWrapper()
     : m_handle( -1 )
@@ -46,9 +47,9 @@ UpnpInstanceWrapper::~UpnpInstanceWrapper()
     UpnpFinish();
 }
 
-UpnpInstanceWrapper *UpnpInstanceWrapper::get(vlc_object_t *p_obj)
+UpnpInstanceWrapper *UpnpInstanceWrapper::get(heimdall_object_t *p_obj)
 {
-    vlc::threads::mutex_locker lock( s_lock );
+    heimdall::threads::mutex_locker lock( s_lock );
     if ( s_instance == NULL )
     {
         UpnpInstanceWrapper* instance = new(std::nothrow) UpnpInstanceWrapper;
@@ -105,7 +106,7 @@ UpnpInstanceWrapper *UpnpInstanceWrapper::get(vlc_object_t *p_obj)
 void UpnpInstanceWrapper::release()
 {
     UpnpInstanceWrapper *p_delete = NULL;
-    vlc::threads::mutex_locker lock( s_lock );
+    heimdall::threads::mutex_locker lock( s_lock );
     if (--s_instance->m_refcount == 0)
     {
         p_delete = s_instance;
@@ -121,7 +122,7 @@ UpnpClient_Handle UpnpInstanceWrapper::handle() const
 
 int UpnpInstanceWrapper::Callback(Upnp_EventType event_type, UpnpEventPtr p_event, void *p_user_data)
 {
-    vlc::threads::mutex_locker lock( s_lock );
+    heimdall::threads::mutex_locker lock( s_lock );
     for (Listeners::iterator iter = s_listeners.begin(); iter != s_listeners.end(); ++iter)
     {
         (*iter)->onEvent(event_type, p_event, p_user_data);
@@ -132,14 +133,14 @@ int UpnpInstanceWrapper::Callback(Upnp_EventType event_type, UpnpEventPtr p_even
 
 void UpnpInstanceWrapper::addListener(ListenerPtr listener)
 {
-    vlc::threads::mutex_locker lock( s_lock );
+    heimdall::threads::mutex_locker lock( s_lock );
     if ( std::find( s_listeners.begin(), s_listeners.end(), listener) == s_listeners.end() )
         s_listeners.push_back( std::move(listener) );
 }
 
 void UpnpInstanceWrapper::removeListener(ListenerPtr listener)
 {
-    vlc::threads::mutex_locker lock( s_lock );
+    heimdall::threads::mutex_locker lock( s_lock );
     Listeners::iterator iter = std::find( s_listeners.begin(), s_listeners.end(), listener );
     if ( iter != s_listeners.end() )
         s_listeners.erase( iter );

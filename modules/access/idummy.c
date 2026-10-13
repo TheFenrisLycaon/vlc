@@ -1,7 +1,8 @@
 /*****************************************************************************
- * idummy.c: dummy input plugin, to manage "vlc://" special options
+ * idummy.c: dummy input plugin, to manage "heimdall://" special options
  *****************************************************************************
  * Copyright (C) 2001, 2002 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Samuel Hocevar <sam@zoy.org>
  *
@@ -28,21 +29,21 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_interface.h>
-#include <vlc_demux.h>
-#include <vlc_charset.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_interface.h>
+#include <heimdall_demux.h>
+#include <heimdall_charset.h>
 
-static int OpenDemux( vlc_object_t * );
+static int OpenDemux( heimdall_object_t * );
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( N_("Dummy") )
     set_description( N_("Dummy input") )
     set_capability( "access", 0 )
     set_callback( OpenDemux )
-    add_shortcut( "dummy", "vlc" )
-vlc_module_end ()
+    add_shortcut( "dummy", "heimdall" )
+heimdall_module_end ()
 
 static int DemuxControl( demux_t *, int, va_list );
 
@@ -55,25 +56,25 @@ static int DemuxNoOp( demux_t *demux )
 static int DemuxHold( demux_t *demux )
 {
     (void) demux;
-    vlc_tick_sleep( VLC_HARD_MIN_SLEEP ); /* FIXME!!! */
+    heimdall_tick_sleep( HEIMDALL_HARD_MIN_SLEEP ); /* FIXME!!! */
     return 1;
 }
 
 typedef struct
 {
-    vlc_tick_t end;
-    vlc_tick_t length;
+    heimdall_tick_t end;
+    heimdall_tick_t length;
 } demux_sys_t;
 
 static int DemuxPause( demux_t *demux )
 {
     demux_sys_t *p_sys = demux->p_sys;
-    vlc_tick_t now = vlc_tick_now();
+    heimdall_tick_t now = heimdall_tick_now();
 
     if( now >= p_sys->end )
         return 0;
 
-    vlc_tick_sleep( VLC_HARD_MIN_SLEEP ); /* FIXME!!! */
+    heimdall_tick_sleep( HEIMDALL_HARD_MIN_SLEEP ); /* FIXME!!! */
     return 1;
 }
 
@@ -87,7 +88,7 @@ static int ControlPause( demux_t *demux, int query, va_list args )
         {
             double *ppos = va_arg( args, double * );
             double pos;
-            vlc_tick_t now = vlc_tick_now();
+            heimdall_tick_t now = heimdall_tick_now();
 
             pos = 1. + ((double)(now - p_sys->end) / (double)p_sys->length);
             *ppos = (pos <= 1.) ? pos : 1.;
@@ -97,7 +98,7 @@ static int ControlPause( demux_t *demux, int query, va_list args )
         case DEMUX_SET_POSITION:
         {
             double pos = va_arg( args, double );
-            vlc_tick_t now = vlc_tick_now();
+            heimdall_tick_t now = heimdall_tick_now();
 
             p_sys->end = now + (p_sys->length * (1. - pos));
             break;
@@ -105,21 +106,21 @@ static int ControlPause( demux_t *demux, int query, va_list args )
 
         case DEMUX_GET_LENGTH:
         {
-            *va_arg( args, vlc_tick_t * ) = p_sys->length;
+            *va_arg( args, heimdall_tick_t * ) = p_sys->length;
             break;
         }
 
         case DEMUX_GET_TIME:
         {
-            vlc_tick_t *ppos = va_arg( args, vlc_tick_t * );
-            *ppos = vlc_tick_now() + p_sys->length - p_sys->end;
+            heimdall_tick_t *ppos = va_arg( args, heimdall_tick_t * );
+            *ppos = heimdall_tick_now() + p_sys->length - p_sys->end;
             break;
         }
 
         case DEMUX_SET_TIME:
         {
-            vlc_tick_t pos = va_arg( args, vlc_tick_t );
-            p_sys->end = vlc_tick_now() + p_sys->length - pos;
+            heimdall_tick_t pos = va_arg( args, heimdall_tick_t );
+            p_sys->end = heimdall_tick_now() + p_sys->length - pos;
             break;
         }
 
@@ -130,37 +131,37 @@ static int ControlPause( demux_t *demux, int query, va_list args )
         default:
             return DemuxControl( demux, query, args );
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * OpenDemux: initialize the target, ie. parse the command
  *****************************************************************************/
-static int OpenDemux( vlc_object_t *p_this )
+static int OpenDemux( heimdall_object_t *p_this )
 {
     demux_t *p_demux = (demux_t*)p_this;
     const char *psz_name = p_demux->psz_location;
 
     p_demux->p_sys = NULL;
 
-    /* Check for a "vlc://nop" command */
+    /* Check for a "heimdall://nop" command */
     if( !strcasecmp( psz_name, "nop" ) )
     {
 nop:
         msg_Info( p_demux, "command `nop'" );
         p_demux->pf_demux = DemuxNoOp;
         p_demux->pf_control = DemuxControl;
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
-    /* Check for a "vlc://quit" command */
+    /* Check for a "heimdall://quit" command */
     if( !strcasecmp( psz_name, "quit" ) )
     {
         msg_Info( p_demux, "command `quit'" );
         p_demux->pf_demux = DemuxNoOp;
         p_demux->pf_control = DemuxControl;
-        libvlc_Quit( vlc_object_instance(p_demux) );
-        return VLC_SUCCESS;
+        libheimdall_Quit( heimdall_object_instance(p_demux) );
+        return HEIMDALL_SUCCESS;
     }
 
     if( !strcasecmp( psz_name, "pause" ) )
@@ -169,34 +170,34 @@ nop:
 
         p_demux->pf_demux = DemuxHold;
         p_demux->pf_control = DemuxControl;
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
-    /* Check for a "vlc://pause:***" command */
+    /* Check for a "heimdall://pause:***" command */
     if( !strncasecmp( psz_name, "pause:", 6 ) )
     {
-        double f = vlc_atof_c( psz_name + 6 );
-        vlc_tick_t length = vlc_tick_from_sec( f );
+        double f = heimdall_atof_c( psz_name + 6 );
+        heimdall_tick_t length = heimdall_tick_from_sec( f );
 
         msg_Info( p_demux, "command `pause %f'", f );
         if( length == 0 )
             goto nop; /* avoid division by zero */
 
-        demux_sys_t *p_sys = vlc_obj_malloc( p_this, sizeof( *p_sys ) );
+        demux_sys_t *p_sys = heimdall_obj_malloc( p_this, sizeof( *p_sys ) );
         if( p_sys == NULL )
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
 
-        p_sys->end = vlc_tick_now() + length;
+        p_sys->end = heimdall_tick_now() + length;
         p_sys->length = length;
 
         p_demux->p_sys = p_sys;
         p_demux->pf_demux = DemuxPause;
         p_demux->pf_control = ControlPause;
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
     msg_Err( p_demux, "unknown command `%s'", psz_name );
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 static int DemuxControl( demux_t *p_demux, int i_query, va_list args )
@@ -206,10 +207,10 @@ static int DemuxControl( demux_t *p_demux, int i_query, va_list args )
     {
     case DEMUX_GET_PTS_DELAY:
     {
-        *va_arg( args, vlc_tick_t * ) = DEFAULT_PTS_DELAY;
-        return VLC_SUCCESS;
+        *va_arg( args, heimdall_tick_t * ) = DEFAULT_PTS_DELAY;
+        return HEIMDALL_SUCCESS;
     }
     default:
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 }

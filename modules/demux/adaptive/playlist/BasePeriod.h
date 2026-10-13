@@ -2,6 +2,7 @@
  * Period.h
  *****************************************************************************
  * Copyright (C) 2010 - 2011 Klagenfurt University
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Created on: Aug 10, 2010
  * Authors: Christopher Mueller <christopher.mueller@itec.uni-klu.ac.at>
@@ -42,14 +43,14 @@ namespace adaptive
                 const std::vector<BaseAdaptationSet *>& getAdaptationSets   () const;
                 BaseAdaptationSet *                 getAdaptationSetByID(const ID &) const;
                 void                                addAdaptationSet    (BaseAdaptationSet *AdaptationSet);
-                void                                debug               (vlc_object_t *,int = 0) const;
+                void                                debug               (heimdall_object_t *,int = 0) const;
 
-                vlc_tick_t getPeriodStart() const override;
-                vlc_tick_t getPeriodDuration() const override;
+                heimdall_tick_t getPeriodStart() const override;
+                heimdall_tick_t getPeriodDuration() const override;
                 BasePlaylist *getPlaylist() const override;
 
-                vlc_tick_t duration;
-                vlc_tick_t startTime;
+                heimdall_tick_t duration;
+                heimdall_tick_t startTime;
 
             private:
                 std::vector<BaseAdaptationSet *>    adaptationSets;

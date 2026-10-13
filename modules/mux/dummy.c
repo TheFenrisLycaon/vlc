@@ -1,7 +1,8 @@
 /*****************************************************************************
- * dummy.c: dummy muxer module for vlc
+ * dummy.c: dummy muxer module for heimdall
  *****************************************************************************
  * Copyright (C) 2001, 2002 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *          Eric Petit <titer@videolan.org>
@@ -29,24 +30,24 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_sout.h>
-#include <vlc_block.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_sout.h>
+#include <heimdall_block.h>
 
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  Open   ( vlc_object_t * );
-static void Close  ( vlc_object_t * );
+static int  Open   ( heimdall_object_t * );
+static void Close  ( heimdall_object_t * );
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("Dummy/Raw muxer") )
     set_capability( "sout mux", 5 )
     set_subcategory( SUBCAT_SOUT_MUX )
     add_shortcut( "dummy", "raw", "es" )
     set_callbacks( Open, Close )
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * Exported prototypes
@@ -66,7 +67,7 @@ typedef struct
 /*****************************************************************************
  * Open:
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     sout_mux_t *p_mux = (sout_mux_t*)p_this;
     sout_mux_sys_t  *p_sys;
@@ -81,17 +82,17 @@ static int Open( vlc_object_t *p_this )
 
     p_mux->p_sys = p_sys = malloc( sizeof( sout_mux_sys_t ) );
     if( !p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     p_sys->b_header      = true;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * Close:
  *****************************************************************************/
 
-static void Close( vlc_object_t * p_this )
+static void Close( heimdall_object_t * p_this )
 {
     sout_mux_t *p_mux = (sout_mux_t*)p_this;
     sout_mux_sys_t *p_sys = p_mux->p_sys;
@@ -102,7 +103,7 @@ static void Close( vlc_object_t * p_this )
 
 static int Control( sout_mux_t *p_mux, int i_query, va_list args )
 {
-    VLC_UNUSED(p_mux);
+    HEIMDALL_UNUSED(p_mux);
     bool *pb_bool;
 
     switch( i_query )
@@ -110,24 +111,24 @@ static int Control( sout_mux_t *p_mux, int i_query, va_list args )
         case MUX_CAN_ADD_STREAM_WHILE_MUXING:
             pb_bool = va_arg( args, bool * );
             *pb_bool = true;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
 
         case MUX_GET_MIME:   /* Unknown */
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
    }
 }
 
 static int AddStream( sout_mux_t *p_mux, sout_input_t *p_input )
 {
-    VLC_UNUSED(p_input);
+    HEIMDALL_UNUSED(p_input);
     msg_Dbg( p_mux, "adding input" );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void DelStream( sout_mux_t *p_mux, sout_input_t *p_input )
 {
-    VLC_UNUSED(p_input);
+    HEIMDALL_UNUSED(p_input);
     msg_Dbg( p_mux, "removing input" );
 }
 
@@ -156,9 +157,9 @@ static int Mux( sout_mux_t *p_mux )
         }
 
         p_fifo = p_mux->pp_inputs[i]->p_fifo;
-        vlc_fifo_Lock( p_fifo );
-        block_t *p_data = vlc_fifo_DequeueAllUnlocked( p_fifo );
-        vlc_fifo_Unlock( p_fifo );
+        heimdall_fifo_Lock( p_fifo );
+        block_t *p_data = heimdall_fifo_DequeueAllUnlocked( p_fifo );
+        heimdall_fifo_Unlock( p_fifo );
         while( p_data != NULL )
         {
             block_t *p_next = p_data->p_next;
@@ -171,5 +172,5 @@ static int Mux( sout_mux_t *p_mux )
     }
     p_sys->b_header = false;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

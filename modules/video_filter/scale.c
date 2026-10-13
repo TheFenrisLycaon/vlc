@@ -3,9 +3,10 @@
  *  Uses the low quality "nearest neighbour" algorithm.
  *****************************************************************************
  * Copyright (C) 2003-2007 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gildas Bazin <gbazin@videolan.org>
- *          Antoine Cellerier <dionoea @t videolan dot org>
+ *          Antoine Cellerier <dionoea @t lycaria dot org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -29,10 +30,10 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_picture.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
 #include "filter_picture.h"
 
 /****************************************************************************
@@ -44,10 +45,10 @@ VIDEO_FILTER_WRAPPER(Filter)
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("Video scaling filter") )
     set_callback_video_converter( OpenFilter, 10 )
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * OpenFilter: probe the filter and return score
@@ -56,21 +57,21 @@ static int OpenFilter( filter_t *p_filter )
 {
     switch (p_filter->fmt_in.video.i_chroma)
     {
-        case VLC_CODEC_YUVP:
-        case VLC_CODEC_YUVA:
-        case VLC_CODEC_I420:
-        case VLC_CODEC_YV12:
+        case HEIMDALL_CODEC_YUVP:
+        case HEIMDALL_CODEC_YUVA:
+        case HEIMDALL_CODEC_I420:
+        case HEIMDALL_CODEC_YV12:
         CASE_PACKED_RGB32
             if (!video_format_IsSameChroma( &p_filter->fmt_in.video,
                                             &p_filter->fmt_out.video ) )
-                return VLC_EINVAL;
+                return HEIMDALL_EINVAL;
             break;
         default:
-            return VLC_EINVAL;
+            return HEIMDALL_EINVAL;
     }
 
     if( p_filter->fmt_in.video.orientation != p_filter->fmt_out.video.orientation )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
 #warning Converter cannot (really) change output format.
     video_format_ScaleCropAr( &p_filter->fmt_out.video, &p_filter->fmt_in.video );
@@ -81,7 +82,7 @@ static int OpenFilter( filter_t *p_filter )
              p_filter->fmt_in.video.i_height, p_filter->fmt_out.video.i_width,
              p_filter->fmt_out.video.i_height );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /****************************************************************************

@@ -1,5 +1,6 @@
 /**
  * Copyright (c) 2008 The Khronos Group Inc. 
+ * Copyright (C) 2026 TheFenrisLycaon
  * 
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -336,7 +337,7 @@ typedef struct OMX_VIDEO_PARAM_INTRAREFRESHTYPE {
  *  nResynchMarkerSpacing   : Resynch markers interval (in bits) to be 
  *                            applied in the stream 
  *  bEnableDataPartitioning : Enable/disable data partitioning 
- *  bEnableRVLC             : Enable/disable reversible variable length 
+ *  bEnableRHeimdall             : Enable/disable reversible variable length 
  *                            coding
  */
 typedef struct OMX_VIDEO_PARAM_ERRORCORRECTIONTYPE {
@@ -347,7 +348,7 @@ typedef struct OMX_VIDEO_PARAM_ERRORCORRECTIONTYPE {
     OMX_BOOL bEnableResync;
     OMX_U32  nResynchMarkerSpacing;
     OMX_BOOL bEnableDataPartitioning;
-    OMX_BOOL bEnableRVLC;
+    OMX_BOOL bEnableRHeimdall;
 } OMX_VIDEO_PARAM_ERRORCORRECTIONTYPE;
 
 
@@ -639,7 +640,7 @@ typedef enum OMX_VIDEO_MPEG4LEVELTYPE {
  *  nPFrames             : Number of P frames between each I frame (also called 
  *                         GOV period)
  *  nBFrames             : Number of B frames between each I frame
- *  nIDCVLCThreshold     : Value of intra DC VLC threshold
+ *  nIDCHeimdallThreshold     : Value of intra DC Heimdall threshold
  *  bACPred              : Flag to use ac prediction
  *  nMaxPacketSize       : Maximum size of packet in bytes.
  *  nTimeIncRes          : Used to pass VOP time increment resolution for MPEG4. 
@@ -649,7 +650,7 @@ typedef enum OMX_VIDEO_MPEG4LEVELTYPE {
  *  nAllowedPictureTypes : Specifies the picture types allowed in the bitstream
  *  nHeaderExtension     : Specifies the number of consecutive video packet
  *                         headers within a VOP
- *  bReversibleVLC       : Specifies whether reversible variable length coding 
+ *  bReversibleHeimdall       : Specifies whether reversible variable length coding 
  *                         is in use
  */
 typedef struct OMX_VIDEO_PARAM_MPEG4TYPE {
@@ -661,7 +662,7 @@ typedef struct OMX_VIDEO_PARAM_MPEG4TYPE {
     OMX_BOOL bGov;
     OMX_U32 nPFrames;
     OMX_U32 nBFrames;
-    OMX_U32 nIDCVLCThreshold;
+    OMX_U32 nIDCHeimdallThreshold;
     OMX_BOOL bACPred;
     OMX_U32 nMaxPacketSize;
     OMX_U32 nTimeIncRes;
@@ -669,7 +670,7 @@ typedef struct OMX_VIDEO_PARAM_MPEG4TYPE {
     OMX_VIDEO_MPEG4LEVELTYPE eLevel;
     OMX_U32 nAllowedPictureTypes;
     OMX_U32 nHeaderExtension;
-    OMX_BOOL bReversibleVLC;
+    OMX_BOOL bReversibleHeimdall;
 } OMX_VIDEO_PARAM_MPEG4TYPE;
 
 

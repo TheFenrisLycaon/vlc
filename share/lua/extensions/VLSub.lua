@@ -1,6 +1,7 @@
 --[[
-VLSub Extension for VLC media player 1.1 and 2.0
+VLSub Extension for Heimdall media player 1.1 and 2.0
 Copyright 2013 Guillaume Le Maout
+Copyright (C) 2026 TheFenrisLycaon
 
 Authors:  Guillaume Le Maout
 Contact:
@@ -122,27 +123,27 @@ local options = {
       Select one subtitle in the list and click on 'Download'.<br>
       It will be put in the same directory that your video, with
       the same name (different extension)
-      so VLC will load them automatically the next time you'll
+      so Heimdall will load them automatically the next time you'll
       start the video.<br>
       <br>
       <b>/!\\ Beware :</b> Existing subtitles are overwritten
       without asking confirmation, so put them elsewhere if
       they're important.<br>
       <br>
-      Find more VLC extensions at
+      Find more Heimdall extensions at
       <a href='https://addons.videolan.org'>addons.videolan.org</a>.
       ]],
     int_no_support_mess = [[
-      <strong>VLSub is not working with VLC 2.1.x on
+      <strong>VLSub is not working with Heimdall 2.1.x on
       any platform</strong>
       because the lua "net" module needed to interact
       with opensubtitles has been
       removed in this release for the extensions.
       <br>
-      <strong>Works with VLC 2.2 on mac and linux.</strong>
+      <strong>Works with Heimdall 2.2 on mac and linux.</strong>
       <br>
       <strong>On windows you have to install an older version
-      of VLC (2.0.8 for example)</strong>
+      of Heimdall (2.0.8 for example)</strong>
       to use Vlsub:
       <br>
       <a target="_blank" rel="nofollow"
@@ -354,7 +355,7 @@ local dlg = nil
 local input_table = {} -- General widget id reference
 local select_conf = {} -- Drop down widget / option table association
 
-            --[[ VLC extension stuff ]]--
+            --[[ Heimdall extension stuff ]]--
 
 function descriptor()
   return {
@@ -369,14 +370,14 @@ function descriptor()
 end
 
 function activate()
-  vlc.msg.dbg("[VLsub] Welcome")
+  heimdall.msg.dbg("[VLsub] Welcome")
 
   if not check_config() then
-        vlc.msg.err("[VLsub] Unsupported VLC version")
+        heimdall.msg.err("[VLsub] Unsupported Heimdall version")
         return false
   end
 
-  if vlc.player.item() then
+  if heimdall.player.item() then
     openSub.getFileInfo()
     openSub.getMovieInfo()
   end
@@ -385,11 +386,11 @@ function activate()
 end
 
 function close()
-  vlc.deactivate()
+  heimdall.deactivate()
 end
 
 function deactivate()
-  vlc.msg.dbg("[VLsub] Bye bye!")
+  heimdall.msg.dbg("[VLsub] Bye bye!")
   if dlg then
     dlg:hide()
   end
@@ -564,17 +565,17 @@ end
 function trigger_menu(dlg_id)
   if dlg_id == 1 then
     close_dlg()
-    dlg = vlc.dialog(
+    dlg = heimdall.dialog(
       openSub.conf.useragent)
     interface_main()
   elseif dlg_id == 2 then
     close_dlg()
-    dlg = vlc.dialog(
+    dlg = heimdall.dialog(
       openSub.conf.useragent..': '..lang["int_configuration"])
     interface_config()
   elseif dlg_id == 3 then
     close_dlg()
-    dlg = vlc.dialog(
+    dlg = heimdall.dialog(
       openSub.conf.useragent..': '..lang["int_help"])
     interface_help()
   end
@@ -594,7 +595,7 @@ function show_help()
 end
 
 function close_dlg()
-  vlc.msg.dbg("[VLSub] Closing dialog")
+  heimdall.msg.dbg("[VLSub] Closing dialog")
 
   if dlg ~= nil then
     --~ dlg:delete() -- Throw an error
@@ -692,37 +693,37 @@ function check_config()
 
   local filePath	= slash.."vlsub_conf.xml"
 
-  openSub.conf.dirPath = vlc.config.userdatadir()
-  local res,err = vlc.io.mkdir( openSub.conf.dirPath, "0700" )
-  if res ~= 0 and err ~= vlc.errno.EEXIST then
-    vlc.msg.warn("Failed to create " .. openSub.conf.dirPath)
+  openSub.conf.dirPath = heimdall.config.userdatadir()
+  local res,err = heimdall.io.mkdir( openSub.conf.dirPath, "0700" )
+  if res ~= 0 and err ~= heimdall.errno.EEXIST then
+    heimdall.msg.warn("Failed to create " .. openSub.conf.dirPath)
     return false
   end
   local subdirs = { "lua", "extensions", "userdata", "vlsub" }
   for _, dir in ipairs(subdirs) do
-    res, err = vlc.io.mkdir( openSub.conf.dirPath .. slash .. dir, "0700" )
-    if res ~= 0 and err ~= vlc.errno.EEXIST then
-      vlc.msg.warn("Failed to create " .. openSub.conf.dirPath .. slash .. dir )
+    res, err = heimdall.io.mkdir( openSub.conf.dirPath .. slash .. dir, "0700" )
+    if res ~= 0 and err ~= heimdall.errno.EEXIST then
+      heimdall.msg.warn("Failed to create " .. openSub.conf.dirPath .. slash .. dir )
       return false
     end
     openSub.conf.dirPath = openSub.conf.dirPath .. slash .. dir
   end
 
   if openSub.conf.dirPath then
-    vlc.msg.dbg("[VLSub] Working directory: " .. openSub.conf.dirPath)
+    heimdall.msg.dbg("[VLSub] Working directory: " .. openSub.conf.dirPath)
 
     openSub.conf.filePath = openSub.conf.dirPath..filePath
     openSub.conf.localePath = openSub.conf.dirPath..slash.."locale"
 
     if file_exist(openSub.conf.filePath) then
-      vlc.msg.dbg("[VLSub] Loading config file: "..openSub.conf.filePath)
+      heimdall.msg.dbg("[VLSub] Loading config file: "..openSub.conf.filePath)
       load_config()
     else
-      vlc.msg.dbg("[VLSub] No config file")
+      heimdall.msg.dbg("[VLSub] No config file")
       getenv_lang()
       config_saved = save_config()
       if not config_saved then
-        vlc.msg.dbg("[VLSub] Unable to save config")
+        heimdall.msg.dbg("[VLSub] Unable to save config")
       end
     end
 
@@ -755,14 +756,14 @@ function check_config()
       local transl_file_path = openSub.conf.localePath..
         slash..openSub.option.intLang..".xml"
       if file_exist(transl_file_path) then
-        vlc.msg.dbg(
+        heimdall.msg.dbg(
           "[VLSub] Loading translation from file: "..
           transl_file_path)
         load_transl(transl_file_path)
       end
     end
   else
-    vlc.msg.dbg("[VLSub] Unable to find a suitable path"..
+    heimdall.msg.dbg("[VLSub] Unable to find a suitable path"..
       "to save config, please set it manually")
     return false
   end
@@ -770,8 +771,8 @@ function check_config()
   lang = nil
   lang = options.translation -- just a short cut
 
-  if not vlc.net or not vlc.net.poll then
-    dlg = vlc.dialog(
+  if not heimdall.net or not heimdall.net.poll then
+    dlg = heimdall.dialog(
       openSub.conf.useragent..': '..lang["mess_error"])
     interface_no_support()
     dlg:show()
@@ -796,7 +797,7 @@ end
 
 function load_config()
 -- Overwrite default conf with loaded conf
-  local tmpFile = vlc.io.open(openSub.conf.filePath, "rb")
+  local tmpFile = heimdall.io.open(openSub.conf.filePath, "rb")
   if not tmpFile then return false end
   local resp = tmpFile:read("*all")
   tmpFile:flush()
@@ -827,7 +828,7 @@ end
 
 function load_transl(path)
 -- Overwrite default conf with loaded conf
-  local tmpFile = assert(vlc.io.open(path, "rb"))
+  local tmpFile = assert(heimdall.io.open(path, "rb"))
   local resp = tmpFile:read("*all")
   tmpFile:flush()
   openSub.option.translation = nil
@@ -920,11 +921,11 @@ function save_config()
 -- Dump local config into config file
   if openSub.conf.dirPath
   and openSub.conf.filePath then
-    vlc.msg.dbg(
+    heimdall.msg.dbg(
       "[VLSub] Saving config file:  "..
       openSub.conf.filePath)
 
-    local tmpFile = vlc.io.open(openSub.conf.filePath, "wb")
+    local tmpFile = heimdall.io.open(openSub.conf.filePath, "wb")
     if tmpFile ~= nil then
       local resp = dump_xml(openSub.option)
       tmpFile:write(resp)
@@ -936,7 +937,7 @@ function save_config()
     collectgarbage()
     return true
   else
-    vlc.msg.dbg("[VLSub] Unable fount a suitable path "..
+    heimdall.msg.dbg("[VLSub] Unable fount a suitable path "..
       "to save config, please set it manually")
     setError(lang["mess_err_conf_access"])
     return false
@@ -1010,7 +1011,7 @@ function set_translation(lg)
       slash..lg..".xml") then
       local transl_file_path = openSub.conf.localePath..
       slash..lg..".xml"
-      vlc.msg.dbg("[VLSub] Loading translation from file: "..
+      heimdall.msg.dbg("[VLSub] Loading translation from file: "..
         transl_file_path)
       load_transl(transl_file_path)
       apply_translation()
@@ -1021,7 +1022,7 @@ function set_translation(lg)
       end
 
       if not all_trsl or not all_trsl[lg] then
-        vlc.msg.dbg("[VLSub] Error, translation not found")
+        heimdall.msg.dbg("[VLSub] Error, translation not found")
         return false
       end
       openSub.option.translation = all_trsl[lg]
@@ -1249,7 +1250,7 @@ openSub = {
     }
   },
   getInputItem = function()
-    return vlc.item or vlc.player.item()
+    return heimdall.item or heimdall.player.item()
   end,
   getFileInfo = function()
   -- Get video file path, name, extension from input uri
@@ -1260,11 +1261,11 @@ openSub = {
       file.cleanName = nil;
       file.uri = nil;
     else
-      vlc.msg.dbg("[VLSub] Video URI: "..item:uri())
+      heimdall.msg.dbg("[VLSub] Video URI: "..item:uri())
       file.uri = item:uri()
-      local filePath = vlc.strings.make_path(file.uri)
+      local filePath = heimdall.strings.make_path(file.uri)
       if not filePath then
-        filePath = vlc.strings.decode_uri(file.uri)
+        filePath = heimdall.strings.decode_uri(file.uri)
         filePath = string.match(filePath, "^.*[".. slash .."]([^" .. slash .. "]-).?[%a%d]*$")
       else
         file.dir, file.name = string.match(filePath, "^(.*[".. slash .."])([^" .. slash .. "]-).?[%a%d]*$")
@@ -1278,7 +1279,7 @@ openSub = {
       file.cleanName = string.gsub(
         file.name,
         "[%._]", " ")
-      vlc.msg.dbg("[VLSub] file info "..(dump_xml(file)))
+      heimdall.msg.dbg("[VLSub] file info "..(dump_xml(file)))
     end
     collectgarbage()
   end,
@@ -1348,20 +1349,20 @@ openSub = {
     local err
 
     -- Get data for hash calculation
-    vlc.msg.dbg("[VLSub] Read hash data from stream")
+    heimdall.msg.dbg("[VLSub] Read hash data from stream")
 
-    local file = vlc.stream(openSub.file.uri)
+    local file = heimdall.stream(openSub.file.uri)
 
     data_start = file:read(chunk_size)
     ok, size = pcall(file.getsize, file)
     if not size then
-      vlc.msg.warn("[VLSub] Failed to get stream size: " .. size )
+      heimdall.msg.warn("[VLSub] Failed to get stream size: " .. size )
       setError(lang["mess_err_hash"])
       return false
     end
     ok, err = pcall(file.seek, file, size - chunk_size)
     if not ok then
-      vlc.msg.warn("[VLSub] Failed to seek to the end of the stream: " .. err)
+      heimdall.msg.warn("[VLSub] Failed to seek to the end of the stream: " .. err)
       setError(lang["mess_err_hash"])
       return false
     end
@@ -1394,8 +1395,8 @@ openSub = {
 
     openSub.file.bytesize = size
     openSub.file.hash = string.format("%08x%08x", hi,lo)
-    vlc.msg.dbg("[VLSub] Video hash: "..openSub.file.hash)
-    vlc.msg.dbg("[VLSub] Video bytesize: "..size)
+    heimdall.msg.dbg("[VLSub] Video hash: "..openSub.file.hash)
+    heimdall.msg.dbg("[VLSub] Video bytesize: "..size)
     collectgarbage()
     return true
   end,
@@ -1486,7 +1487,7 @@ function get_all_sel(list)
 end
 
 function find_subtitle_in_archive(archivePath, subfileExt)
-  local archive = vlc.directory_stream(vlc.strings.make_uri(archivePath))
+  local archive = heimdall.directory_stream(heimdall.strings.make_uri(archivePath))
   local items = archive:readdir()
   if not items then
     return nil
@@ -1536,7 +1537,7 @@ function download_subtitles()
     end
   
     subfileName = subfileName.."."..item.SubFormat
-    local tmp_dir = vlc.config.cachedir()
+    local tmp_dir = heimdall.config.cachedir()
     -- create the cache directory if it doesn't already exist
     local separator = ""
     local current_dir = ""
@@ -1550,7 +1551,7 @@ function download_subtitles()
     end
     for dir in tmp_dir:gmatch("[^"..separator.."]+") do
       current_dir = current_dir..dir..separator
-      local vars = vlc.io.mkdir(current_dir, "0700")
+      local vars = heimdall.io.mkdir(current_dir, "0700")
     end
   
     local file_target_access = true
@@ -1566,7 +1567,7 @@ function download_subtitles()
       lang["mess_click_link"].."</a>")
       return false
     end
-    vlc.msg.dbg("[VLsub] tmpFileName: "..tmpFileName)
+    heimdall.msg.dbg("[VLsub] tmpFileName: "..tmpFileName)
   
     local subtitleMrl = find_subtitle_in_archive(tmpFileName, item.SubFormat)
   
@@ -1587,11 +1588,11 @@ function download_subtitles()
         target =  openSub.conf.dirPath..slash..subfileName
         -- If the file still can't be written to, use tmp placeholder
         if not file_touch(target) then
-          target = openSub.conf.dirPath..slash.."vlcsub."..item.SubFormat
+          target = openSub.conf.dirPath..slash.."heimdallsub."..item.SubFormat
         end
         message = "<br>"..
           warn_tag(lang["mess_save_warn"].." &nbsp;"..
-          "<a href='"..vlc.strings.make_uri(
+          "<a href='"..heimdall.strings.make_uri(
             openSub.conf.dirPath).."'>"..
             lang["mess_click_link"].."</a>")
       else
@@ -1602,13 +1603,13 @@ function download_subtitles()
       end
     end
   
-    vlc.msg.dbg("[VLsub] Subtitles files: "..target)
+    heimdall.msg.dbg("[VLsub] Subtitles files: "..target)
   
     -- Unzipped data into file target
   
-    local stream = vlc.stream(subtitleMrl)
+    local stream = heimdall.stream(subtitleMrl)
     local data = ""
-    local subfile = vlc.io.open(target, "wb")
+    local subfile = heimdall.io.open(target, "wb")
   
     while data do
       subfile:write(data)
@@ -1621,8 +1622,8 @@ function download_subtitles()
     stream = nil
     collectgarbage()
   
-    if not vlc.io.unlink(tmpFileName) then
-      vlc.msg.err("[VLsub] Unable to remove temp: "..tmpFileName)
+    if not heimdall.io.unlink(tmpFileName) then
+      heimdall.msg.err("[VLsub] Unable to remove temp: "..tmpFileName)
     end
   
     -- load subtitles
@@ -1647,7 +1648,7 @@ function dump_zip(url, dir, subfileName)
   end
 
   local tmpFileName = dir..slash..subfileName..".gz"
-  local tmpFile = vlc.io.open(tmpFileName, "wb")
+  local tmpFile = heimdall.io.open(tmpFileName, "wb")
   if tmpFile == nil then
     return false
   end
@@ -1661,9 +1662,9 @@ function dump_zip(url, dir, subfileName)
 end
 
 function add_sub(subPath)
-  if vlc.item or vlc.player.item() then
-    vlc.msg.dbg("[VLsub] Adding subtitle :" .. subPath)
-    return vlc.player.add_subtitle(subPath, true)
+  if heimdall.item or heimdall.player.item() then
+    heimdall.msg.dbg("[VLsub] Adding subtitle :" .. subPath)
+    return heimdall.player.add_subtitle(subPath, true)
   end
   return false
 end
@@ -1732,15 +1733,15 @@ function get(url)
 end
 
 function http_req(host, port, request)
-  local fd = vlc.net.connect_tcp(host, port)
+  local fd = heimdall.net.connect_tcp(host, port)
   if not fd then return false end
   local pollfds = {}
 
-  pollfds[fd] = vlc.net.POLLIN
-  vlc.net.send(fd, request)
-  vlc.net.poll(pollfds)
+  pollfds[fd] = heimdall.net.POLLIN
+  heimdall.net.send(fd, request)
+  heimdall.net.poll(pollfds)
 
-  local chunk = vlc.net.recv(fd, 2048)
+  local chunk = heimdall.net.recv(fd, 2048)
   local response = ""
   local headerStr, header, body
   local contentLength, status
@@ -1767,11 +1768,11 @@ function http_req(host, port, request)
       end
     end
 
-    vlc.net.poll(pollfds)
-    chunk = vlc.net.recv(fd, 1024)
+    heimdall.net.poll(pollfds)
+    chunk = heimdall.net.recv(fd, 1024)
   end
 
-  vlc.net.close(fd)
+  heimdall.net.close(fd)
 
   if status == 301
   and header["Location"] then
@@ -1803,7 +1804,7 @@ function parse_header(data)
 end
 
 function parse_url(url)
-  local url_parsed = vlc.strings.url_parse(url)
+  local url_parsed = heimdall.strings.url_parse(url)
   return  url_parsed["host"],
     url_parsed["path"],
     url_parsed["option"]
@@ -1818,7 +1819,7 @@ function parse_xml(data)
   local level = 0
   local op, tag, p, empty, val
   table.insert(stack, tree)
-  local resolve_xml =  vlc.strings.resolve_xml_special_chars
+  local resolve_xml =  heimdall.strings.resolve_xml_special_chars
 
   for op, tag, p, empty, val in string.gmatch(
     data,
@@ -1875,7 +1876,7 @@ function parse_xmlrpc(data)
   local tmpTag = ""
   local level = 0
   local op, tag, p, empty, val
-  local resolve_xml =  vlc.strings.resolve_xml_special_chars
+  local resolve_xml =  heimdall.strings.resolve_xml_special_chars
   table.insert(stack, tree)
 
   for op, tag, p, empty, val in string.gmatch(
@@ -1928,7 +1929,7 @@ function dump_xml(data)
   local level = 0
   local stack = {}
   local dump = ""
-  local convert_xml = vlc.strings.convert_xml_special_chars
+  local convert_xml = heimdall.strings.convert_xml_special_chars
 
   local function parse(data, stack)
     local data_index = {}
@@ -2006,7 +2007,7 @@ function file_touch(name) -- test write ability
   if not name or trim(name) == ""
   then return false end
 
-  local f=vlc.io.open(name, "w")
+  local f=heimdall.io.open(name, "w")
   if f~=nil then
     return true
   else
@@ -2017,7 +2018,7 @@ end
 function file_exist(name) -- test readability
   if not name or trim(name) == ""
   then return false end
-  local f=vlc.io.open(name, "r")
+  local f=heimdall.io.open(name, "r")
   if f~=nil then
     return true
   else
@@ -2031,7 +2032,7 @@ function list_dir(path)
   local dir_list_cmd
   local list = {}
 
-  dir_list_cmd = vlc.io.readdir(path)
+  dir_list_cmd = heimdall.io.readdir(path)
 
   if dir_list_cmd then
     for _, entry in dir_list_cmd do

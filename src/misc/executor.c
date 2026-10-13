@@ -2,6 +2,7 @@
  * misc/executor.c
  *****************************************************************************
  * Copyright (C) 2020 Videolabs, VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,44 +23,44 @@
 # include "config.h"
 #endif
 
-#include <vlc_executor.h>
+#include <heimdall_executor.h>
 
-#include <vlc_atomic.h>
-#include <vlc_list.h>
-#include <vlc_threads.h>
-#include "../libvlc.h"
+#include <heimdall_atomic.h>
+#include <heimdall_list.h>
+#include <heimdall_threads.h>
+#include "../libheimdall.h"
 
 /**
  * An executor can spawn several threads.
  *
  * This structure contains the data specific to one thread.
  */
-struct vlc_executor_thread {
-    /** Node of vlc_executor.threads list */
-    struct vlc_list node;
+struct heimdall_executor_thread {
+    /** Node of heimdall_executor.threads list */
+    struct heimdall_list node;
 
     /** The executor owning the thread */
-    vlc_executor_t *owner;
+    heimdall_executor_t *owner;
 
     /** The system thread */
-    vlc_thread_t thread;
+    heimdall_thread_t thread;
 
     /** The current task executed by the thread, NULL if none */
-    struct vlc_runnable *current_task;
+    struct heimdall_runnable *current_task;
 };
 
 /**
- * The executor (also vlc_executor_t, exposed as opaque type in the public
+ * The executor (also heimdall_executor_t, exposed as opaque type in the public
  * header).
  */
-struct vlc_executor {
-    vlc_mutex_t lock;
+struct heimdall_executor {
+    heimdall_mutex_t lock;
 
     /** Maximum number of threads to run the tasks */
     unsigned max_threads;
 
-    /** List of active vlc_executor_thread */
-    struct vlc_list threads;
+    /** List of active heimdall_executor_thread */
+    struct heimdall_list threads;
 
     /** Thread count (in a separate field to quickly compare to max_threads) */
     unsigned nthreads;
@@ -68,46 +69,46 @@ struct vlc_executor {
     unsigned unfinished;
 
     /** Wait for the executor to be idle (i.e. unfinished == 0) */
-    vlc_cond_t idle_wait;
+    heimdall_cond_t idle_wait;
 
-    /** Queue of vlc_runnable */
-    struct vlc_list queue;
+    /** Queue of heimdall_runnable */
+    struct heimdall_list queue;
 
     /** Wait for the queue to be non-empty */
-    vlc_cond_t queue_wait;
+    heimdall_cond_t queue_wait;
 
     /** True if executor deletion is requested */
     bool closing;
 };
 
 static void
-QueuePush(vlc_executor_t *executor, struct vlc_runnable *runnable)
+QueuePush(heimdall_executor_t *executor, struct heimdall_runnable *runnable)
 {
-    vlc_mutex_assert(&executor->lock);
+    heimdall_mutex_assert(&executor->lock);
 
-    vlc_list_append(&runnable->node, &executor->queue);
-    vlc_cond_signal(&executor->queue_wait);
+    heimdall_list_append(&runnable->node, &executor->queue);
+    heimdall_cond_signal(&executor->queue_wait);
 }
 
-static struct vlc_runnable *
-QueueTake(vlc_executor_t *executor)
+static struct heimdall_runnable *
+QueueTake(heimdall_executor_t *executor)
 {
-    vlc_mutex_assert(&executor->lock);
+    heimdall_mutex_assert(&executor->lock);
 
-    while (!executor->closing && vlc_list_is_empty(&executor->queue))
-        vlc_cond_wait(&executor->queue_wait, &executor->lock);
+    while (!executor->closing && heimdall_list_is_empty(&executor->queue))
+        heimdall_cond_wait(&executor->queue_wait, &executor->lock);
 
     if (executor->closing)
         return NULL;
 
-    struct vlc_runnable *runnable =
-        vlc_list_first_entry_or_null(&executor->queue, struct vlc_runnable,
+    struct heimdall_runnable *runnable =
+        heimdall_list_first_entry_or_null(&executor->queue, struct heimdall_runnable,
                                      node);
     assert(runnable);
-    vlc_list_remove(&runnable->node);
+    heimdall_list_remove(&runnable->node);
 
     /* Set links to NULL to know that it has been taken by a thread in
-     * vlc_executor_Cancel() */
+     * heimdall_executor_Cancel() */
     runnable->node.prev = runnable->node.next = NULL;
 
     return runnable;
@@ -116,88 +117,88 @@ QueueTake(vlc_executor_t *executor)
 static void *
 ThreadRun(void *userdata)
 {
-    struct vlc_executor_thread *thread = userdata;
-    vlc_executor_t *executor = thread->owner;
+    struct heimdall_executor_thread *thread = userdata;
+    heimdall_executor_t *executor = thread->owner;
 
-    vlc_thread_set_name("vlc-exec-runner");
+    heimdall_thread_set_name("heimdall-exec-runner");
 
-    vlc_mutex_lock(&executor->lock);
+    heimdall_mutex_lock(&executor->lock);
 
-    struct vlc_runnable *runnable;
+    struct heimdall_runnable *runnable;
     /* When the executor is closing, QueueTake() returns NULL */
     while ((runnable = QueueTake(executor)))
     {
         thread->current_task = runnable;
-        vlc_mutex_unlock(&executor->lock);
+        heimdall_mutex_unlock(&executor->lock);
 
         /* Execute the user-provided runnable, without the executor lock */
         runnable->run(runnable->userdata);
 
-        vlc_mutex_lock(&executor->lock);
+        heimdall_mutex_lock(&executor->lock);
         thread->current_task = NULL;
 
-        vlc_thread_set_name("vlc-exec-runner");
+        heimdall_thread_set_name("heimdall-exec-runner");
 
         assert(executor->unfinished > 0);
         --executor->unfinished;
         if (!executor->unfinished)
-            vlc_cond_signal(&executor->idle_wait);
+            heimdall_cond_signal(&executor->idle_wait);
     }
 
-    vlc_mutex_unlock(&executor->lock);
+    heimdall_mutex_unlock(&executor->lock);
 
     return NULL;
 }
 
 static int
-SpawnThread(vlc_executor_t *executor)
+SpawnThread(heimdall_executor_t *executor)
 {
     assert(executor->nthreads < executor->max_threads);
 
-    struct vlc_executor_thread *thread = malloc(sizeof(*thread));
+    struct heimdall_executor_thread *thread = malloc(sizeof(*thread));
     if (!thread)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     thread->owner = executor;
     thread->current_task = NULL;
 
-    if (vlc_clone(&thread->thread, ThreadRun, thread))
+    if (heimdall_clone(&thread->thread, ThreadRun, thread))
     {
         free(thread);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     executor->nthreads++;
-    vlc_list_append(&thread->node, &executor->threads);
+    heimdall_list_append(&thread->node, &executor->threads);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-vlc_executor_t *
-vlc_executor_New(unsigned max_threads)
+heimdall_executor_t *
+heimdall_executor_New(unsigned max_threads)
 {
     assert(max_threads);
-    vlc_executor_t *executor = malloc(sizeof(*executor));
+    heimdall_executor_t *executor = malloc(sizeof(*executor));
     if (!executor)
         return NULL;
 
-    vlc_mutex_init(&executor->lock);
+    heimdall_mutex_init(&executor->lock);
 
     executor->max_threads = max_threads;
     executor->nthreads = 0;
     executor->unfinished = 0;
 
-    vlc_list_init(&executor->threads);
-    vlc_list_init(&executor->queue);
+    heimdall_list_init(&executor->threads);
+    heimdall_list_init(&executor->queue);
 
-    vlc_cond_init(&executor->idle_wait);
-    vlc_cond_init(&executor->queue_wait);
+    heimdall_cond_init(&executor->idle_wait);
+    heimdall_cond_init(&executor->queue_wait);
 
     executor->closing = false;
 
-    /* Create one thread on init so that vlc_executor_Submit() may never fail */
+    /* Create one thread on init so that heimdall_executor_Submit() may never fail */
     int ret = SpawnThread(executor);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
     {
         free(executor);
         return NULL;
@@ -207,9 +208,9 @@ vlc_executor_New(unsigned max_threads)
 }
 
 void
-vlc_executor_Submit(vlc_executor_t *executor, struct vlc_runnable *runnable)
+heimdall_executor_Submit(heimdall_executor_t *executor, struct heimdall_runnable *runnable)
 {
-    vlc_mutex_lock(&executor->lock);
+    heimdall_mutex_lock(&executor->lock);
 
     assert(!executor->closing);
 
@@ -220,13 +221,13 @@ vlc_executor_Submit(vlc_executor_t *executor, struct vlc_runnable *runnable)
         /* If it fails, this is not an error, there is at least one thread */
         SpawnThread(executor);
 
-    vlc_mutex_unlock(&executor->lock);
+    heimdall_mutex_unlock(&executor->lock);
 }
 
 bool
-vlc_executor_Cancel(vlc_executor_t *executor, struct vlc_runnable *runnable)
+heimdall_executor_Cancel(heimdall_executor_t *executor, struct heimdall_runnable *runnable)
 {
-    vlc_mutex_lock(&executor->lock);
+    heimdall_mutex_lock(&executor->lock);
 
     /* Either both prev and next are set, either both are NULL */
     assert(!runnable->node.prev == !runnable->node.next);
@@ -234,56 +235,56 @@ vlc_executor_Cancel(vlc_executor_t *executor, struct vlc_runnable *runnable)
     bool in_queue = runnable->node.prev;
     if (in_queue)
     {
-        vlc_list_remove(&runnable->node);
+        heimdall_list_remove(&runnable->node);
 
         assert(executor->unfinished > 0);
         --executor->unfinished;
         if (!executor->unfinished)
-            vlc_cond_signal(&executor->idle_wait);
+            heimdall_cond_signal(&executor->idle_wait);
     }
 
-    vlc_mutex_unlock(&executor->lock);
+    heimdall_mutex_unlock(&executor->lock);
 
     return in_queue;
 }
 
 void
-vlc_executor_WaitIdle(vlc_executor_t *executor)
+heimdall_executor_WaitIdle(heimdall_executor_t *executor)
 {
-    vlc_mutex_lock(&executor->lock);
+    heimdall_mutex_lock(&executor->lock);
     while (executor->unfinished)
-        vlc_cond_wait(&executor->idle_wait, &executor->lock);
-    vlc_mutex_unlock(&executor->lock);
+        heimdall_cond_wait(&executor->idle_wait, &executor->lock);
+    heimdall_mutex_unlock(&executor->lock);
 }
 
 void
-vlc_executor_Delete(vlc_executor_t *executor)
+heimdall_executor_Delete(heimdall_executor_t *executor)
 {
-    vlc_mutex_lock(&executor->lock);
+    heimdall_mutex_lock(&executor->lock);
 
     executor->closing = true;
 
     /* All the tasks must be canceled on delete */
-    assert(vlc_list_is_empty(&executor->queue));
+    assert(heimdall_list_is_empty(&executor->queue));
 
     /* "closing" is now true, this will wake up threads */
-    vlc_cond_broadcast(&executor->queue_wait);
+    heimdall_cond_broadcast(&executor->queue_wait);
 
-    vlc_mutex_unlock(&executor->lock);
+    heimdall_mutex_unlock(&executor->lock);
 
     /* The threads list may not be written at this point, so it is safe to read
      * it without mutex locked (the mutex must be released to join the
      * threads). */
 
-    struct vlc_executor_thread *thread;
-    vlc_list_foreach(thread, &executor->threads, node)
+    struct heimdall_executor_thread *thread;
+    heimdall_list_foreach(thread, &executor->threads, node)
     {
-        vlc_join(thread->thread, NULL);
+        heimdall_join(thread->thread, NULL);
         free(thread);
     }
 
     /* The queue must still be empty (no runnable submitted a new runnable) */
-    assert(vlc_list_is_empty(&executor->queue));
+    assert(heimdall_list_is_empty(&executor->queue));
 
     /* There are no tasks anymore */
     assert(!executor->unfinished);

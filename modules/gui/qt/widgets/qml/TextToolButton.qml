@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,22 +20,22 @@ import QtQuick
 import QtQuick.Templates as T
 
 
-import VLC.MainInterface
-import VLC.Style
+import Heimdall.MainInterface
+import Heimdall.Style
 
 T.ToolButton {
     id: control
 
-    font.pixelSize: VLCStyle.fontSize_normal
+    font.pixelSize: HeimdallStyle.fontSize_normal
 
     implicitWidth: Math.max(implicitBackgroundWidth + leftInset + rightInset,
                             implicitContentWidth + leftPadding + rightPadding)
     implicitHeight: Math.max(implicitBackgroundHeight + topInset + bottomInset,
                              implicitContentHeight + topPadding + bottomPadding)
 
-    padding: VLCStyle.margin_xxsmall
+    padding: HeimdallStyle.margin_xxsmall
 
-    property real radius: VLCStyle.button_radius
+    property real radius: HeimdallStyle.button_radius
 
     // Keys
 

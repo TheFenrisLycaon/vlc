@@ -2,6 +2,7 @@
  * FakeESOut.cpp
  *****************************************************************************
  * Copyright © 2014-2015 VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -25,8 +26,8 @@
 #include "FakeESOut.hpp"
 #include "FakeESOutID.hpp"
 #include "CommandsQueue.hpp"
-#include <vlc_es_out.h>
-#include <vlc_block.h>
+#include <heimdall_es_out.h>
+#include <heimdall_block.h>
 #include <cassert>
 #include <cstdlib>
 
@@ -114,12 +115,12 @@ AbstractFakeEsOut::operator es_out_t *()
 FakeESOut::LockedFakeEsOut::LockedFakeEsOut(FakeESOut &q)
 {
     p = &q;
-    vlc_mutex_lock(&p->lock);
+    heimdall_mutex_lock(&p->lock);
 }
 
 FakeESOut::LockedFakeEsOut::~LockedFakeEsOut()
 {
-    vlc_mutex_unlock(&p->lock);
+    heimdall_mutex_unlock(&p->lock);
 }
 
 FakeESOut::LockedFakeEsOut::operator es_out_t*()
@@ -150,8 +151,8 @@ FakeESOut::FakeESOut( es_out_t *es, AbstractCommandsQueue *queue,
     expected.b_timestamp_set = false;
     priority = ES_PRIORITY_SELECTABLE_MIN;
     pcrstatus = PcrStatus::Valid;
-    pcrcomparison = VLC_TICK_INVALID;
-    vlc_mutex_init(&lock);
+    pcrcomparison = HEIMDALL_TICK_INVALID;
+    heimdall_mutex_init(&lock);
 }
 
 FakeESOut::LockedFakeEsOut FakeESOut::WithLock()
@@ -180,14 +181,14 @@ FakeESOut::~FakeESOut()
 
 void FakeESOut::resetTimestamps()
 {
-    setExpectedTimestamp(VLC_TICK_INVALID);
-    setAssociatedTimestamp(VLC_TICK_INVALID);
+    setExpectedTimestamp(HEIMDALL_TICK_INVALID);
+    setAssociatedTimestamp(HEIMDALL_TICK_INVALID);
     startTimes = SegmentTimes();
 }
 
-void FakeESOut::setExpectedTimestamp(vlc_tick_t ts)
+void FakeESOut::setExpectedTimestamp(heimdall_tick_t ts)
 {
-    if(ts == VLC_TICK_INVALID)
+    if(ts == HEIMDALL_TICK_INVALID)
     {
         expected.b_timestamp_set = false;
         timestamps_offset = 0;
@@ -200,9 +201,9 @@ void FakeESOut::setExpectedTimestamp(vlc_tick_t ts)
     }
 }
 
-void FakeESOut::setAssociatedTimestamp(vlc_tick_t ts)
+void FakeESOut::setAssociatedTimestamp(heimdall_tick_t ts)
 {
-    if(ts == VLC_TICK_INVALID)
+    if(ts == HEIMDALL_TICK_INVALID)
     {
         associated.b_timestamp_set = false;
         timestamps_offset = 0;
@@ -215,9 +216,9 @@ void FakeESOut::setAssociatedTimestamp(vlc_tick_t ts)
     }
 }
 
-void FakeESOut::setAssociatedTimestamp(vlc_tick_t mpegts, vlc_tick_t muxed)
+void FakeESOut::setAssociatedTimestamp(heimdall_tick_t mpegts, heimdall_tick_t muxed)
 {
-    if(mpegts == VLC_TICK_INVALID)
+    if(mpegts == HEIMDALL_TICK_INVALID)
     {
         setAssociatedTimestamp(mpegts);
     }
@@ -329,14 +330,14 @@ void FakeESOut::sendData( AbstractFakeESOutID *id_, block_t *p_block )
     /* Be sure to notify Data before Sending, because UI would still not pick new ES */
     gc();
     if( !id->realESID() ||
-        es_out_Send( real_es_out, id->realESID(), p_block ) != VLC_SUCCESS )
+        es_out_Send( real_es_out, id->realESID(), p_block ) != HEIMDALL_SUCCESS )
     {
         block_Release( p_block );
     }
     gc();
 }
 
-void FakeESOut::sendMeta( int group, const vlc_meta_t *p_meta )
+void FakeESOut::sendMeta( int group, const heimdall_meta_t *p_meta )
 {
     es_out_Control( real_es_out, ES_OUT_SET_GROUP_META, group, p_meta );
 }
@@ -356,7 +357,7 @@ size_t FakeESOut::esCount() const
 
 bool FakeESOut::hasSegmentStartTimes() const
 {
-    return startTimes.media != VLC_TICK_INVALID;
+    return startTimes.media != HEIMDALL_TICK_INVALID;
 }
 
 void FakeESOut::setSegmentStartTimes(const SegmentTimes &t)
@@ -373,7 +374,7 @@ void FakeESOut::setSegmentProgressTimes(const SegmentTimes &t)
 
 bool FakeESOut::hasSynchronizationReference() const
 {
-    return synchronizationReference.second.continuous != VLC_TICK_INVALID;
+    return synchronizationReference.second.continuous != HEIMDALL_TICK_INVALID;
 }
 
 void FakeESOut::setSynchronizationReference(const SynchronizationReference &r)
@@ -389,7 +390,7 @@ void FakeESOut::setSrcID( const SrcID &s )
 void FakeESOut::setPCRTrusted( bool b )
 {
     pcrstatus = b ? PcrStatus::Valid : PcrStatus::WaitingFirst;
-    pcrcomparison = VLC_TICK_INVALID;
+    pcrcomparison = HEIMDALL_TICK_INVALID;
 }
 
 void FakeESOut::schedulePCRReset()
@@ -465,7 +466,7 @@ bool FakeESOut::hasSelectedEs(const AbstractFakeESOutID *id) const
     {
         bool b_selected;
         return es_out_Control( real_es_out, ES_OUT_GET_ES_STATE,
-                               id->realESID(), &b_selected ) == VLC_SUCCESS
+                               id->realESID(), &b_selected ) == HEIMDALL_SUCCESS
                && b_selected;
     }
     return false;
@@ -500,9 +501,9 @@ void FakeESOut::scheduleNecessaryMilestone()
     }
 }
 
-vlc_tick_t FakeESOut::fixTimestamp(vlc_tick_t ts)
+heimdall_tick_t FakeESOut::fixTimestamp(heimdall_tick_t ts)
 {
-    if(ts != VLC_TICK_INVALID)
+    if(ts != HEIMDALL_TICK_INVALID)
     {
         if(associated.b_timestamp_set)
         {
@@ -522,7 +523,7 @@ vlc_tick_t FakeESOut::fixTimestamp(vlc_tick_t ts)
              * In that case we need to enforce playlist time */
             if(!expected.b_offset_calculated)
             {
-                if(ts < VLC_TICK_FROM_SEC(1)) /* Starting 0 */
+                if(ts < HEIMDALL_TICK_FROM_SEC(1)) /* Starting 0 */
                     timestamps_offset = expected.timestamp - ts;
                 else
                     timestamps_offset = 0;
@@ -534,14 +535,14 @@ vlc_tick_t FakeESOut::fixTimestamp(vlc_tick_t ts)
     return ts;
 }
 
-vlc_tick_t FakeESOut::applyTimestampContinuity(vlc_tick_t ts)
+heimdall_tick_t FakeESOut::applyTimestampContinuity(heimdall_tick_t ts)
 {
-    if(ts == VLC_TICK_INVALID)
+    if(ts == HEIMDALL_TICK_INVALID)
         return ts;
 
-    constexpr vlc_tick_t rollover = INT64_C(0x1FFFFFFFF) * 100 / 9;
-    constexpr vlc_tick_t halfroll = INT64_C(0x0FFFFFFFF) * 100 / 9;
-    if(synchronizationReference.second.segment.demux != VLC_TICK_INVALID)
+    constexpr heimdall_tick_t rollover = INT64_C(0x1FFFFFFFF) * 100 / 9;
+    constexpr heimdall_tick_t halfroll = INT64_C(0x0FFFFFFFF) * 100 / 9;
+    if(synchronizationReference.second.segment.demux != HEIMDALL_TICK_INVALID)
     {
         while(ts - synchronizationReference.second.segment.demux > halfroll)
         {
@@ -553,10 +554,10 @@ vlc_tick_t FakeESOut::applyTimestampContinuity(vlc_tick_t ts)
         }
     }
 
-    if(synchronizationReference.second.segment.demux != VLC_TICK_INVALID &&
-       synchronizationReference.second.continuous != VLC_TICK_INVALID)
+    if(synchronizationReference.second.segment.demux != HEIMDALL_TICK_INVALID &&
+       synchronizationReference.second.continuous != HEIMDALL_TICK_INVALID)
     {
-        vlc_tick_t continuityoffset = synchronizationReference.second.continuous -
+        heimdall_tick_t continuityoffset = synchronizationReference.second.continuous -
                                       synchronizationReference.second.segment.demux;
 
         /* avoid triggering false roll when reference is 13 hours away */
@@ -564,7 +565,7 @@ vlc_tick_t FakeESOut::applyTimestampContinuity(vlc_tick_t ts)
             synchronizationReference.second.offsetBy(halfroll / 2);
 
         ts += continuityoffset;
-        assert(ts >= VLC_TICK_INVALID);
+        assert(ts >= HEIMDALL_TICK_INVALID);
     }
     else /* First synchronization point */
     {
@@ -604,7 +605,7 @@ void FakeESOut::declareEs(const es_format_t *fmt)
 /* Always pass Fake ES ID to slave demuxes, it is just an opaque struct to them */
 es_out_id_t * FakeESOut::esOutAdd(const es_format_t *p_fmt)
 {
-    vlc_mutex_locker locker(&lock);
+    heimdall_mutex_locker locker(&lock);
 
     if( p_fmt->i_cat != VIDEO_ES && p_fmt->i_cat != AUDIO_ES && p_fmt->i_cat != SPU_ES )
         return nullptr;
@@ -633,7 +634,7 @@ es_out_id_t * FakeESOut::esOutAdd(const es_format_t *p_fmt)
 
 int FakeESOut::esOutSend(es_out_id_t *p_es, block_t *p_block)
 {
-    vlc_mutex_locker locker(&lock);
+    heimdall_mutex_locker locker(&lock);
 
     scheduleNecessaryMilestone();
 
@@ -643,7 +644,7 @@ int FakeESOut::esOutSend(es_out_id_t *p_es, block_t *p_block)
     p_block->i_dts = fixTimestamp( p_block->i_dts );
     p_block->i_pts = fixTimestamp( p_block->i_pts );
 
-    if(!hasSynchronizationReference() && p_block->i_dts != VLC_TICK_INVALID)
+    if(!hasSynchronizationReference() && p_block->i_dts != HEIMDALL_TICK_INVALID)
     {
         synchronizationReference.second.segment = startTimes;
         synchronizationReference.second.continuous = p_block->i_dts;
@@ -655,11 +656,11 @@ int FakeESOut::esOutSend(es_out_id_t *p_es, block_t *p_block)
     p_block->i_pts = applyTimestampContinuity( p_block->i_pts );
 
     SegmentTimes times;
-    if(p_block->i_dts != VLC_TICK_INVALID)
+    if(p_block->i_dts != HEIMDALL_TICK_INVALID)
     {
         times = synchronizationReference.second.segment;
         times.offsetBy(p_block->i_dts - times.demux);
-        assert(times.media != VLC_TICK_INVALID);
+        assert(times.media != HEIMDALL_TICK_INVALID);
         /* For bogus PCR */
         pcrcomparison = p_block->i_dts;
     }
@@ -668,14 +669,14 @@ int FakeESOut::esOutSend(es_out_id_t *p_es, block_t *p_block)
     if( likely(command) )
     {
         commandsqueue->Schedule( command );
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 void FakeESOut::esOutDel(es_out_id_t *p_es)
 {
-    vlc_mutex_locker locker(&lock);
+    heimdall_mutex_locker locker(&lock);
 
     FakeESOutID *es_id = reinterpret_cast<FakeESOutID *>( p_es );
     AbstractCommand *command = commandsfactory->createEsOutDelCommand( es_id );
@@ -689,7 +690,7 @@ void FakeESOut::esOutDel(es_out_id_t *p_es)
 
 int FakeESOut::esOutControl(int i_query, va_list args)
 {
-    vlc_mutex_locker locker(&lock);
+    heimdall_mutex_locker locker(&lock);
 
     scheduleNecessaryMilestone();
 
@@ -703,12 +704,12 @@ int FakeESOut::esOutControl(int i_query, va_list args)
                 i_group = va_arg( args, int );
             else
                 i_group = 0;
-            vlc_tick_t  pcr = va_arg( args, vlc_tick_t );
+            heimdall_tick_t  pcr = va_arg( args, heimdall_tick_t );
 
             SegmentTimes times;
 
             if( pcrstatus != PcrStatus::WaitingFirst &&
-                synchronizationReference.second.segment.demux != VLC_TICK_INVALID )
+                synchronizationReference.second.segment.demux != HEIMDALL_TICK_INVALID )
             {
                 pcr = fixTimestamp( pcr );
 
@@ -717,7 +718,7 @@ int FakeESOut::esOutControl(int i_query, va_list args)
                 times = synchronizationReference.second.segment;
                 times.offsetBy(pcr - times.demux);
             }
-            else pcr = VLC_TICK_INVALID;
+            else pcr = HEIMDALL_TICK_INVALID;
 
             /* Offset/Bad PCR handling */
             if( pcrstatus == PcrStatus::WaitingFirst )
@@ -725,9 +726,9 @@ int FakeESOut::esOutControl(int i_query, va_list args)
                 pcrstatus = PcrStatus::Evaluating;
             }
             else if( pcrstatus == PcrStatus::Evaluating &&
-                pcrcomparison != VLC_TICK_INVALID && pcr != VLC_TICK_INVALID )
+                pcrcomparison != HEIMDALL_TICK_INVALID && pcr != HEIMDALL_TICK_INVALID )
             {
-                if( std::llabs(pcr - pcrcomparison) > vlc_tick_from_sec(2) )
+                if( std::llabs(pcr - pcrcomparison) > heimdall_tick_from_sec(2) )
                     pcrstatus = PcrStatus::Broken;
                 else
                     pcrstatus = PcrStatus::Valid;
@@ -736,14 +737,14 @@ int FakeESOut::esOutControl(int i_query, va_list args)
             if( pcrstatus == PcrStatus::Broken )
             {
                 times = SegmentTimes();
-                pcr = VLC_TICK_INVALID;
+                pcr = HEIMDALL_TICK_INVALID;
             }
 
             AbstractCommand *command = commandsfactory->createEsOutControlPCRCommand( i_group, times, pcr );
             if( likely(command) )
             {
                 commandsqueue->Schedule( command );
-                return VLC_SUCCESS;
+                return HEIMDALL_SUCCESS;
             }
         }
         break;
@@ -751,12 +752,12 @@ int FakeESOut::esOutControl(int i_query, va_list args)
         case ES_OUT_SET_GROUP_META:
         {
             static_cast<void>(va_arg( args, int )); /* ignore group */
-            const vlc_meta_t *p_meta = va_arg( args, const vlc_meta_t * );
+            const heimdall_meta_t *p_meta = va_arg( args, const heimdall_meta_t * );
             AbstractCommand *command = commandsfactory->createEsOutMetaCommand( this,-1, p_meta );
             if( likely(command) )
             {
                 commandsqueue->Schedule( command );
-                return VLC_SUCCESS;
+                return HEIMDALL_SUCCESS;
             }
         }
         break;
@@ -767,21 +768,21 @@ int FakeESOut::esOutControl(int i_query, va_list args)
             static_cast<void>(va_arg( args, es_out_id_t * ));
             bool *pb = va_arg( args, bool * );
             *pb = true;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
 
         case ES_OUT_SET_ES:
         case ES_OUT_SET_ES_DEFAULT:
         case ES_OUT_SET_ES_STATE:
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
     }
 
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 void FakeESOut::esOutDestroy()
 {
-    vlc_mutex_locker locker(&lock);
+    heimdall_mutex_locker locker(&lock);
 
     scheduleNecessaryMilestone();
 

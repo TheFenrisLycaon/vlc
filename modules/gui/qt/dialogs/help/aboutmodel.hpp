@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,7 +22,7 @@
 #include <QObject>
 #include <QtQml>
 
-#include <vlc_about.h>
+#include <heimdall_about.h>
 #include "config.h"
 
 class AboutModel : public QObject

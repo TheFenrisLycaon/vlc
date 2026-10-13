@@ -2,6 +2,7 @@
  * mmal.c: MMAL-based vout plugin for Raspberry Pi
  *****************************************************************************
  * Copyright © 2014 jusst technologies GmbH
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Dennis Hamester <dennis.hamester@gmail.com>
  *          Julian Scheel <julian@jusst.de>
@@ -26,9 +27,9 @@
 #include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_vout_display.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_vout_display.h>
 
 #include "mmal_picture.h"
 
@@ -63,13 +64,13 @@
 #define PHASE_OFFSET_TARGET ((double)0.25)
 #define PHASE_CHECK_INTERVAL 100
 
-static int OpenMmalVout(vout_display_t *, video_format_t *, vlc_video_context *);
-static int OpenMmalWindow(vlc_window_t *);
+static int OpenMmalVout(vout_display_t *, video_format_t *, heimdall_video_context *);
+static int OpenMmalWindow(heimdall_window_t *);
 
 #define SUBS_MAX 4
 
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname(N_("MMAL vout"))
     set_description(N_("MMAL-based vout plugin for Raspberry Pi"))
     add_shortcut("mmal_vout")
@@ -87,7 +88,7 @@ vlc_module_begin()
         set_callback(OpenMmalWindow)
         add_string(MMAL_DISPLAY_NAME, "auto", MMAL_DISPLAY_TEXT,
                         MMAL_DISPLAY_LONGTEXT)
-vlc_module_end()
+heimdall_module_end()
 
 typedef struct vout_subpic_s {
     MMAL_COMPONENT_T *component;
@@ -95,7 +96,7 @@ typedef struct vout_subpic_s {
 } vout_subpic_t;
 
 typedef struct vout_display_sys_t {
-    vlc_decoder_device *dec_dev;
+    heimdall_decoder_device *dec_dev;
     MMAL_COMPONENT_T *component;
     MMAL_PORT_T *input;
     MMAL_POOL_T *pool; /* mmal buffer headers, used for pushing pictures to component*/
@@ -144,8 +145,8 @@ typedef struct vout_display_sys_t {
 
 // At the moment we cope with any mono-planar RGBA thing
 // We could cope with many other things but they currently don't occur
-const vlc_fourcc_t hw_mmal_vzc_subpicture_chromas[] = {
-    VLC_CODEC_RGBA, VLC_CODEC_BGRA, VLC_CODEC_ARGB, VLC_CODEC_ABGR, 0
+const heimdall_fourcc_t hw_mmal_vzc_subpicture_chromas[] = {
+    HEIMDALL_CODEC_RGBA, HEIMDALL_CODEC_BGRA, HEIMDALL_CODEC_ARGB, HEIMDALL_CODEC_ABGR, 0
 };
 
 
@@ -153,21 +154,21 @@ const vlc_fourcc_t hw_mmal_vzc_subpicture_chromas[] = {
 
 static bool want_copy(const video_format_t * const fmt)
 {
-    return (fmt->i_chroma == VLC_CODEC_I420 || fmt->i_chroma == VLC_CODEC_I420_10L);
+    return (fmt->i_chroma == HEIMDALL_CODEC_I420 || fmt->i_chroma == HEIMDALL_CODEC_I420_10L);
 }
 
-static vlc_fourcc_t req_chroma(const video_format_t * const fmt)
+static heimdall_fourcc_t req_chroma(const video_format_t * const fmt)
 {
     return hw_mmal_chroma_is_mmal(fmt->i_chroma) || want_copy(fmt) ?
-        fmt->i_chroma : VLC_CODEC_I420;
+        fmt->i_chroma : HEIMDALL_CODEC_I420;
 }
 
-static MMAL_FOURCC_T vout_vlc_to_mmal_pic_fourcc(const unsigned int fcc)
+static MMAL_FOURCC_T vout_heimdall_to_mmal_pic_fourcc(const unsigned int fcc)
 {
     switch (fcc){
-    case VLC_CODEC_MMAL_OPAQUE:
+    case HEIMDALL_CODEC_MMAL_OPAQUE:
         return MMAL_ENCODING_OPAQUE;
-    case VLC_CODEC_I420:
+    case HEIMDALL_CODEC_I420:
         return MMAL_ENCODING_I420;
     default:
         break;
@@ -182,7 +183,7 @@ static void display_set_format(const vout_display_t * const vd, MMAL_ES_FORMAT_T
     MMAL_VIDEO_FORMAT_T * const v_fmt = &es_fmt->es->video;
 
     es_fmt->type = MMAL_ES_TYPE_VIDEO;
-    es_fmt->encoding = is_intermediate ? MMAL_ENCODING_I420 : vout_vlc_to_mmal_pic_fourcc(vd->fmt->i_chroma);
+    es_fmt->encoding = is_intermediate ? MMAL_ENCODING_I420 : vout_heimdall_to_mmal_pic_fourcc(vd->fmt->i_chroma);
     es_fmt->encoding_variant = 0;
 
     v_fmt->width  = (w + 31) & ~31;
@@ -200,7 +201,7 @@ static void display_set_format(const vout_display_t * const vd, MMAL_ES_FORMAT_T
     }
     v_fmt->frame_rate.num = vd->fmt->i_frame_rate;
     v_fmt->frame_rate.den = vd->fmt->i_frame_rate_base;
-    v_fmt->color_space    = vlc_to_mmal_color_space(vd->fmt->space);
+    v_fmt->color_space    = heimdall_to_mmal_color_space(vd->fmt->space);
 }
 
 static void display_src_rect(const vout_display_t * const vd, MMAL_RECT_T *const rect)
@@ -214,7 +215,7 @@ static void display_src_rect(const vout_display_t * const vd, MMAL_RECT_T *const
 
 static void isp_input_cb(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buf)
 {
-    VLC_UNUSED(port);
+    HEIMDALL_UNUSED(port);
 
     mmal_buffer_header_release(buf);
 }
@@ -308,7 +309,7 @@ static MMAL_STATUS_T isp_prepare(vout_display_t * const vd, struct vout_isp_conf
 static void isp_close(vout_display_t * const vd, vout_display_sys_t * const vd_sys)
 {
     struct vout_isp_conf_s * const isp = &vd_sys->isp;
-    VLC_UNUSED(vd);
+    HEIMDALL_UNUSED(vd);
 
     if (isp->component == NULL)
         return;
@@ -344,7 +345,7 @@ static void isp_close(vout_display_t * const vd, vout_display_sys_t * const vd_s
 static MMAL_BOOL_T isp_out_pool_cb(MMAL_POOL_T *pool, MMAL_BUFFER_HEADER_T *buffer, void *userdata)
 {
     struct vout_isp_conf_s * const isp = userdata;
-    VLC_UNUSED(pool);
+    HEIMDALL_UNUSED(pool);
     if (isp->output->is_enabled) {
         mmal_buffer_header_reset(buffer);
         if (mmal_port_send_buffer(isp->output, buffer) == MMAL_SUCCESS)
@@ -468,7 +469,7 @@ static void maintain_phase_sync(vout_display_t *vd);
 
 static void vd_input_port_cb(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buf)
 {
-    VLC_UNUSED(port);
+    HEIMDALL_UNUSED(port);
 
     mmal_buffer_header_release(buf);
 }
@@ -506,7 +507,7 @@ static int configure_display(vout_display_t *vd)
     if (status != MMAL_SUCCESS) {
         msg_Err(vd, "Failed to commit format for input port %s (status=%"PRIx32" %s)",
                         sys->input->name, status, mmal_status_to_string(status));
-        return VLC_EINVAL;
+        return HEIMDALL_EINVAL;
     }
     place_dest(vd);
 
@@ -523,7 +524,7 @@ static int configure_display(vout_display_t *vd)
     if (status != MMAL_SUCCESS) {
         msg_Err(vd, "Failed to set display region (status=%"PRIx32" %s)",
                         status, mmal_status_to_string(status));
-        return VLC_EINVAL;
+        return HEIMDALL_EINVAL;
     }
 
     sys->adjust_refresh_rate = var_InheritBool(vd, MMAL_ADJUST_REFRESHRATE_NAME);
@@ -533,12 +534,12 @@ static int configure_display(vout_display_t *vd)
         set_latency_target(vd, true);
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int SetDisplaySize(vout_display_t *vd, unsigned width, unsigned height)
 {
-    VLC_UNUSED(width); VLC_UNUSED(height);
+    HEIMDALL_UNUSED(width); HEIMDALL_UNUSED(height);
     return configure_display(vd);
 }
 
@@ -586,7 +587,7 @@ static void vd_display(vout_display_t *vd, picture_t *p_pic)
 
 
         // If dimensions have chnaged then fix that
-        if (hw_mmal_vlc_pic_to_mmal_fmt_update(sys->input->format, p_pic))
+        if (hw_mmal_heimdall_pic_to_mmal_fmt_update(sys->input->format, p_pic))
         {
             msg_Dbg(vd, "Reset port format");
 
@@ -613,7 +614,7 @@ static void vd_display(vout_display_t *vd, picture_t *p_pic)
             MMAL_BUFFER_HEADER_T * const sub_buf = !is_mmal_pic ? NULL :
                 hw_mmal_pic_sub_buf_get(p_pic, sub_no);
 
-            if ((rv = hw_mmal_subpic_update(VLC_OBJECT(vd),
+            if ((rv = hw_mmal_subpic_update(HEIMDALL_OBJECT(vd),
                                             sub_buf != NULL ? sub_buf : *psub_bufs2++,
                                             &sys->subs[sub_no].sub,
                                             &p_pic->format,
@@ -642,23 +643,23 @@ static int vd_reset_pictures(vout_display_t *vd, video_format_t *fmt)
     msg_Warn(vd, "Reset Pictures");
     *fmt = *vd->source; // Take (nearly) whatever source wants to give us
     fmt->i_chroma = req_chroma(fmt);  // Adjust chroma to something we can actually deal with
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int vd_video_place_changed(vout_display_t *vd, const vout_display_place_t *place)
 {
-    VLC_UNUSED(place);
+    HEIMDALL_UNUSED(place);
     return configure_display(vd);
 }
 
 static int vd_aspect_changed(vout_display_t *vd, const video_format_t *source)
 {
-    VLC_UNUSED(source);
+    HEIMDALL_UNUSED(source);
     return vd_video_place_changed(vd, NULL);
 }
 
 static int attach_subpics(vout_display_t * const vd, vout_display_sys_t * const sys,
-                          const vlc_render_subpicture * const spic)
+                          const heimdall_render_subpicture * const spic)
 {
     unsigned int n = 0;
 
@@ -667,13 +668,13 @@ static int attach_subpics(vout_display_t * const vd, vout_display_sys_t * const 
         if ((sys->vzc = hw_mmal_vzc_pool_new(devsys->is_cma)) == NULL)
         {
             msg_Err(vd, "Failed to allocate VZC");
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         }
     }
 
     // Attempt to import the subpics
     const struct subpicture_region_rendered *r;
-    vlc_vector_foreach(r, &spic->regions) {
+    heimdall_vector_foreach(r, &spic->regions) {
         picture_t *const src = r->p_picture;
 
         // At this point I think the subtitles are being placed in the
@@ -689,20 +690,20 @@ static int attach_subpics(vout_display_t * const vd, vout_display_sys_t * const 
             n == 0)) == NULL)
         {
             msg_Err(vd, "Failed to allocate vzc buffer for subpic");
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         }
 
         if (++n == SUBS_MAX)
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 
 static void vd_prepare(vout_display_t *vd, picture_t *p_pic,
-                       const vlc_render_subpicture *subpicture, vlc_tick_t date)
+                       const heimdall_render_subpicture *subpicture, heimdall_tick_t date)
 {
-    VLC_UNUSED(date);
+    HEIMDALL_UNUSED(date);
     vout_display_sys_t * const sys = vd->sys;
 
     if (sys->force_config ||
@@ -783,10 +784,10 @@ static int set_latency_target(vout_display_t *vd, bool enable)
     if (status != MMAL_SUCCESS) {
         msg_Err(vd, "Failed to configure latency target on input port %s (status=%"PRIx32" %s)",
                         sys->input->name, status, mmal_status_to_string(status));
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void adjust_refresh_rate(vout_display_t *vd)
@@ -953,7 +954,7 @@ static void CloseMmalVout(vout_display_t * vd)
     }
 
     if (sys->dec_dev)
-        vlc_decoder_device_Release(sys->dec_dev);
+        heimdall_decoder_device_Release(sys->dec_dev);
 
     free(sys);
 }
@@ -977,7 +978,7 @@ static int find_display_num(const char * name)
     return display_name_to_num[i].num;
 }
 
-static const struct vlc_display_operations ops = {
+static const struct heimdall_display_operations ops = {
     .close = CloseMmalVout,
     .prepare = vd_prepare,
     .display = vd_display,
@@ -989,38 +990,38 @@ static const struct vlc_display_operations ops = {
 };
 
 static int OpenMmalVout(vout_display_t *vd,
-                        video_format_t *fmtp, vlc_video_context *vctx)
+                        video_format_t *fmtp, heimdall_video_context *vctx)
 {
-    if (vd->cfg->window->type != VLC_WINDOW_TYPE_MMAL)
-        return VLC_ENOTSUP;
+    if (vd->cfg->window->type != HEIMDALL_WINDOW_TYPE_MMAL)
+        return HEIMDALL_ENOTSUP;
 
     vout_display_sys_t *sys;
     MMAL_DISPLAYREGION_T display_region;
     MMAL_STATUS_T status;
-    int ret = VLC_EGENERIC;
+    int ret = HEIMDALL_EGENERIC;
     // At the moment all copy is via I420
     const bool needs_copy = !hw_mmal_chroma_is_mmal(vd->source->i_chroma);
     const MMAL_FOURCC_T enc_in = needs_copy ? MMAL_ENCODING_I420 :
-        vout_vlc_to_mmal_pic_fourcc(vd->source->i_chroma);
+        vout_heimdall_to_mmal_pic_fourcc(vd->source->i_chroma);
 
     sys = calloc(1, sizeof(struct vout_display_sys_t));
     if (!sys)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     vd->sys = sys;
 
     if (vctx)
     {
-        sys->dec_dev = vlc_video_context_HoldDevice(vctx);
-        if (sys->dec_dev && sys->dec_dev->type != VLC_DECODER_DEVICE_MMAL)
+        sys->dec_dev = heimdall_video_context_HoldDevice(vctx);
+        if (sys->dec_dev && sys->dec_dev->type != HEIMDALL_DECODER_DEVICE_MMAL)
         {
-            vlc_decoder_device_Release(sys->dec_dev);
+            heimdall_decoder_device_Release(sys->dec_dev);
             sys->dec_dev = NULL;
         }
     }
 
     if (sys->dec_dev == NULL)
-        sys->dec_dev = vlc_decoder_device_Create(VLC_OBJECT(vd), vd->cfg->window);
-    if (sys->dec_dev == NULL || sys->dec_dev->type != VLC_DECODER_DEVICE_MMAL)
+        sys->dec_dev = heimdall_decoder_device_Create(HEIMDALL_OBJECT(vd), vd->cfg->window);
+    if (sys->dec_dev == NULL || sys->dec_dev->type != HEIMDALL_DECODER_DEVICE_MMAL)
     {
         msg_Err(vd, "Missing decoder device");
         goto fail;
@@ -1133,7 +1134,7 @@ static int OpenMmalVout(vout_display_t *vd,
                             sys->component->control->name, i, status, mmal_status_to_string(status));
             goto fail;
         }
-        if ((status = hw_mmal_subpic_open(VLC_OBJECT(vd), &sub->sub, sub->component->input[0],
+        if ((status = hw_mmal_subpic_open(HEIMDALL_OBJECT(vd), &sub->sub, sub->component->input[0],
                                           vd->cfg->window->handle.display_id, sys->layer + i + 1)) != MMAL_SUCCESS) {
             msg_Dbg(vd, "Failed to open subpic %d", i);
             goto fail;
@@ -1154,7 +1155,7 @@ static int OpenMmalVout(vout_display_t *vd,
 
     vd->ops = &ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 fail:
     CloseMmalVout(vd);
@@ -1164,26 +1165,26 @@ fail:
 
 ///////////////////////////////
 
-static int send_resolution(vlc_window_t *wnd)
+static int send_resolution(heimdall_window_t *wnd)
 {
     TV_DISPLAY_STATE_T display_state = {0};
-    int ret = VLC_SUCCESS;
+    int ret = HEIMDALL_SUCCESS;
 
     if (vc_tv_get_display_state_id(wnd->handle.display_id, &display_state) == 0) {
         msg_Dbg(wnd, "State=%#x", display_state.state);
         if (display_state.state & 0xFF) {
             msg_Dbg(wnd, "HDMI: %dx%d", display_state.display.hdmi.width, display_state.display.hdmi.height);
-            vlc_window_ReportSize(wnd, display_state.display.hdmi.width, display_state.display.hdmi.height);
+            heimdall_window_ReportSize(wnd, display_state.display.hdmi.width, display_state.display.hdmi.height);
         } else if (display_state.state & 0xFF00) {
             msg_Dbg(wnd, "SDTV: %dx%d", display_state.display.sdtv.width, display_state.display.sdtv.height);
-            vlc_window_ReportSize(wnd, display_state.display.sdtv.width, display_state.display.sdtv.height);
+            heimdall_window_ReportSize(wnd, display_state.display.sdtv.width, display_state.display.sdtv.height);
         } else {
             msg_Warn(wnd, "Invalid display state %"PRIx32, display_state.state);
-            ret = VLC_EINVAL;
+            ret = HEIMDALL_EINVAL;
         }
     } else {
         msg_Warn(wnd, "Failed to query display resolution");
-        ret = VLC_EACCES;
+        ret = HEIMDALL_EACCES;
     }
 
     return ret;
@@ -1191,30 +1192,30 @@ static int send_resolution(vlc_window_t *wnd)
 
 static void tvservice_cb(void *callback_data, uint32_t reason, uint32_t param1, uint32_t param2)
 {
-    VLC_UNUSED(reason);
-    VLC_UNUSED(param1);
-    VLC_UNUSED(param2);
+    HEIMDALL_UNUSED(reason);
+    HEIMDALL_UNUSED(param1);
+    HEIMDALL_UNUSED(param2);
 
-    vlc_window_t *wnd = callback_data;
+    heimdall_window_t *wnd = callback_data;
     send_resolution(wnd);
 }
 
-static int EnableWindow(vlc_window_t *wnd, const vlc_window_cfg_t *cfg)
+static int EnableWindow(heimdall_window_t *wnd, const heimdall_window_cfg_t *cfg)
 {
     int err = send_resolution(wnd);
-    if (err != VLC_SUCCESS)
+    if (err != HEIMDALL_SUCCESS)
         return err;
 
     vc_tv_register_callback(tvservice_cb, wnd);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void DisableWindow(vlc_window_t *wnd)
+static void DisableWindow(heimdall_window_t *wnd)
 {
     vc_tv_unregister_callback_full(tvservice_cb, wnd);
 }
 
-static int OpenMmalWindow(vlc_window_t *wnd)
+static int OpenMmalWindow(heimdall_window_t *wnd)
 {
     {
         char *display_name = var_InheritString(wnd, MMAL_DISPLAY_NAME);
@@ -1230,12 +1231,12 @@ static int OpenMmalWindow(vlc_window_t *wnd)
         free(display_name);
     }
 
-    static const struct vlc_window_operations ops = {
+    static const struct heimdall_window_operations ops = {
         .enable = EnableWindow,
         .disable = DisableWindow,
     };
 
-    wnd->type = VLC_WINDOW_TYPE_MMAL;
+    wnd->type = HEIMDALL_WINDOW_TYPE_MMAL;
     wnd->ops = &ops;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

@@ -2,6 +2,7 @@
  * BlockStreamInterface.hpp
  *****************************************************************************
  * Copyright © 2015-2019 - VideoLabs, VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -20,7 +21,7 @@
 #ifndef BLOCKSTREAMINTERFACE_HPP
 #define BLOCKSTREAMINTERFACE_HPP
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 #include "tools/Macros.hpp"
 
 namespace adaptive

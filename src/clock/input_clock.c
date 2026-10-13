@@ -4,9 +4,10 @@
  * Copyright (C) 1999-2018 VLC authors and VideoLAN
  * Copyright (C) 2008 Laurent Aimar
  * Copyright (C) 2023-2025 Alexandre Janniaux <ajanni@videolabs.io>
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Christophe Massiot <massiot@via.ecp.fr>
- *          Laurent Aimar < fenrir _AT_ videolan _DOT_ org >
+ *          Laurent Aimar < fenrir _AT_ lycaria _DOT_ org >
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -30,7 +31,7 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 #include "input_clock.h"
 #include "clock_internal.h"
 #include <assert.h>
@@ -81,7 +82,7 @@
 
 /* Latency introduced on DVDs with CR == 0 on chapter change - this is from
  * my dice --Meuuh */
-#define CR_MEAN_PTS_GAP VLC_TICK_FROM_MS(300)
+#define CR_MEAN_PTS_GAP HEIMDALL_TICK_FROM_MS(300)
 
 #define CR_MAX_GAP CR_MEAN_PTS_GAP
 
@@ -94,9 +95,9 @@
  * It is 60s max, remember as it is limited by the size it takes by es_out.c
  * it can be really large.
  */
-//#define CR_BUFFERING_TARGET VLC_TICK_FROM_SEC(60)
+//#define CR_BUFFERING_TARGET HEIMDALL_TICK_FROM_SEC(60)
 /* Due to some problems in es_out, we cannot use a large value yet */
-#define CR_BUFFERING_TARGET VLC_TICK_FROM_MS(100)
+#define CR_BUFFERING_TARGET HEIMDALL_TICK_FROM_MS(100)
 
 /* */
 #define INPUT_CLOCK_LATE_COUNT (3)
@@ -104,9 +105,9 @@
 /* */
 struct input_clock_t
 {
-    struct vlc_logger *logger;
+    struct heimdall_logger *logger;
     struct {
-        const struct vlc_input_clock_cbs *cbs;
+        const struct heimdall_input_clock_cbs *cbs;
         void *opaque;
     } listener;
 
@@ -115,16 +116,16 @@ struct input_clock_t
     clock_point_t last;
 
     /* Amount of extra buffering expressed in stream clock */
-    vlc_tick_t i_buffering_duration;
+    heimdall_tick_t i_buffering_duration;
 
     /* Clock drift */
-    vlc_tick_t i_next_drift_update;
+    heimdall_tick_t i_next_drift_update;
     average_t drift;
 
     /* Late statistics */
     struct
     {
-        vlc_tick_t  pi_value[INPUT_CLOCK_LATE_COUNT];
+        heimdall_tick_t  pi_value[INPUT_CLOCK_LATE_COUNT];
         unsigned i_index;
     } late;
 
@@ -137,21 +138,21 @@ struct input_clock_t
     /* Current modifiers */
     bool    b_paused;
     float   rate;
-    vlc_tick_t i_pts_delay;
-    vlc_tick_t i_pause_date;
+    heimdall_tick_t i_pts_delay;
+    heimdall_tick_t i_pause_date;
 };
 
-static vlc_tick_t ClockStreamToSystem( input_clock_t *, vlc_tick_t i_stream );
-static vlc_tick_t ClockSystemToStream( input_clock_t *, vlc_tick_t i_system );
+static heimdall_tick_t ClockStreamToSystem( input_clock_t *, heimdall_tick_t i_stream );
+static heimdall_tick_t ClockSystemToStream( input_clock_t *, heimdall_tick_t i_system );
 
-static vlc_tick_t ClockGetTsOffset( input_clock_t * );
+static heimdall_tick_t ClockGetTsOffset( input_clock_t * );
 
 static void UpdateListener( input_clock_t *cl, bool discontinuity )
 {
     if (cl->listener.cbs == NULL)
         return;
 
-    const vlc_tick_t system_expected =
+    const heimdall_tick_t system_expected =
         ClockStreamToSystem( cl, cl->last.stream + AvgGet( &cl->drift ) ) +
         cl->i_pts_delay + ClockGetTsOffset( cl );
 
@@ -164,7 +165,7 @@ static void UpdateListener( input_clock_t *cl, bool discontinuity )
 /*****************************************************************************
  * input_clock_New: create a new clock
  *****************************************************************************/
-input_clock_t *input_clock_New(struct vlc_logger *logger, float rate)
+input_clock_t *input_clock_New(struct heimdall_logger *logger, float rate)
 {
     input_clock_t *cl = malloc( sizeof(*cl) );
     if( !cl )
@@ -175,13 +176,13 @@ input_clock_t *input_clock_New(struct vlc_logger *logger, float rate)
 
     cl->b_has_reference = false;
     cl->b_origin_changed = false;
-    cl->ref = clock_point_Create( VLC_TICK_INVALID, VLC_TICK_INVALID );
+    cl->ref = clock_point_Create( HEIMDALL_TICK_INVALID, HEIMDALL_TICK_INVALID );
 
-    cl->last = clock_point_Create( VLC_TICK_INVALID, VLC_TICK_INVALID );
+    cl->last = clock_point_Create( HEIMDALL_TICK_INVALID, HEIMDALL_TICK_INVALID );
 
     cl->i_buffering_duration = 0;
 
-    cl->i_next_drift_update = VLC_TICK_INVALID;
+    cl->i_next_drift_update = HEIMDALL_TICK_INVALID;
     AvgInit( &cl->drift, 10 );
 
     cl->late.i_index = 0;
@@ -191,7 +192,7 @@ input_clock_t *input_clock_New(struct vlc_logger *logger, float rate)
     cl->rate = rate;
     cl->i_pts_delay = 0;
     cl->b_paused = false;
-    cl->i_pause_date = VLC_TICK_INVALID;
+    cl->i_pause_date = HEIMDALL_TICK_INVALID;
 
     return cl;
 }
@@ -206,7 +207,7 @@ void input_clock_Delete( input_clock_t *cl )
 }
 
 void input_clock_AttachListener(input_clock_t *cl,
-                                const struct vlc_input_clock_cbs *cbs,
+                                const struct heimdall_input_clock_cbs *cbs,
                                 void *opaque)
 {
     assert(cbs && cl->listener.cbs == NULL);
@@ -222,32 +223,32 @@ void input_clock_AttachListener(input_clock_t *cl,
  *  i_ck_stream: date in stream clock
  *  i_ck_system: date in system clock
  *****************************************************************************/
-vlc_tick_t input_clock_Update( input_clock_t *cl,
+heimdall_tick_t input_clock_Update( input_clock_t *cl,
                          bool b_can_pace_control, bool b_buffering,
                          bool b_extra_buffering_allowed,
-                         vlc_tick_t i_ck_stream, vlc_tick_t i_ck_system )
+                         heimdall_tick_t i_ck_stream, heimdall_tick_t i_ck_system )
 {
     bool b_reset_reference = false;
     bool discontinuity = false;
 
     b_can_pace_control |= b_buffering;
 
-    assert( i_ck_stream != VLC_TICK_INVALID && i_ck_system != VLC_TICK_INVALID );
+    assert( i_ck_stream != HEIMDALL_TICK_INVALID && i_ck_system != HEIMDALL_TICK_INVALID );
 
     if( !cl->b_has_reference )
     {
         /* */
         b_reset_reference= true;
     }
-    else if (!b_buffering && cl->last.stream != VLC_TICK_INVALID)
+    else if (!b_buffering && cl->last.stream != HEIMDALL_TICK_INVALID)
     {
-        assert(cl->last.system != VLC_TICK_INVALID);
+        assert(cl->last.system != HEIMDALL_TICK_INVALID);
 
         /* We need compare both stream and system times for discontinuity.
          * Indeed, a big stream diff is OK if we have the same system diff. */
-        vlc_tick_t stream_diff = i_ck_stream - cl->last.stream;
-        vlc_tick_t system_diff = (i_ck_system - cl->last.system) * cl->rate;
-        vlc_tick_t diff = stream_diff - system_diff;
+        heimdall_tick_t stream_diff = i_ck_stream - cl->last.stream;
+        heimdall_tick_t system_diff = (i_ck_system - cl->last.system) * cl->rate;
+        heimdall_tick_t diff = stream_diff - system_diff;
 
         /* A discontinuity happen if stream timings increase much more than
          * system timings or if the stream is going backward.
@@ -257,12 +258,12 @@ vlc_tick_t input_clock_Update( input_clock_t *cl,
             /* Stream discontinuity, for which we haven't received a
              * warning from the stream control facilities (dd-edited
              * stream ?). */
-            vlc_warning(cl->logger, "clock gap, unexpected stream discontinuity: "
+            heimdall_warning(cl->logger, "clock gap, unexpected stream discontinuity: "
                      "system_diff: %"PRId64" stream_diff: %"PRId64,
                      system_diff, stream_diff);
 
             /* */
-            vlc_warning(cl->logger, "feeding synchro with a new reference point trying"
+            heimdall_warning(cl->logger, "feeding synchro with a new reference point trying"
                      " to recover from clock gap");
             b_reset_reference= true;
             discontinuity = true;
@@ -273,7 +274,7 @@ vlc_tick_t input_clock_Update( input_clock_t *cl,
     /* */
     if( b_reset_reference )
     {
-        cl->i_next_drift_update = VLC_TICK_INVALID;
+        cl->i_next_drift_update = HEIMDALL_TICK_INVALID;
         AvgReset( &cl->drift );
 
         /* Feed synchro with a new reference point. */
@@ -285,11 +286,11 @@ vlc_tick_t input_clock_Update( input_clock_t *cl,
      * when we don't control the source pace */
     if( !b_can_pace_control && cl->i_next_drift_update < i_ck_system )
     {
-        const vlc_tick_t i_converted = ClockSystemToStream( cl, i_ck_system );
+        const heimdall_tick_t i_converted = ClockSystemToStream( cl, i_ck_system );
 
         AvgUpdate( &cl->drift, i_converted - i_ck_stream );
 
-        cl->i_next_drift_update = i_ck_system + VLC_TICK_FROM_MS(200); /* FIXME why that */
+        cl->i_next_drift_update = i_ck_system + HEIMDALL_TICK_FROM_MS(200); /* FIXME why that */
     }
 
     /* Update the extra buffering value */
@@ -302,7 +303,7 @@ vlc_tick_t input_clock_Update( input_clock_t *cl,
         /* Try to bufferize more than necessary by reading
          * CR_BUFFERING_RATE/256 faster until we have CR_BUFFERING_TARGET.
          */
-        const vlc_tick_t i_duration = __MAX( i_ck_stream - cl->last.stream, 0 );
+        const heimdall_tick_t i_duration = __MAX( i_ck_stream - cl->last.stream, 0 );
 
         cl->i_buffering_duration += ( i_duration * CR_BUFFERING_RATE + 255 ) / 256;
         if( cl->i_buffering_duration > CR_BUFFERING_TARGET )
@@ -315,8 +316,8 @@ vlc_tick_t input_clock_Update( input_clock_t *cl,
 
     /* It does not take the decoder latency into account but it is not really
      * the goal of the clock here */
-    const vlc_tick_t i_system_expected = ClockStreamToSystem( cl, i_ck_stream + AvgGet( &cl->drift ) );
-    const vlc_tick_t i_late = (i_ck_system - cl->i_pts_delay ) - i_system_expected;
+    const heimdall_tick_t i_system_expected = ClockStreamToSystem( cl, i_ck_stream + AvgGet( &cl->drift ) );
+    const heimdall_tick_t i_late = (i_ck_system - cl->i_pts_delay ) - i_system_expected;
     if( i_late > 0 )
     {
         cl->late.pi_value[cl->late.i_index] = i_late;
@@ -336,7 +337,7 @@ void input_clock_Reset( input_clock_t *cl )
     cl->b_has_reference = false;
     cl->b_origin_changed = false;
     cl->ref = cl->last
-        = clock_point_Create( VLC_TICK_INVALID, VLC_TICK_INVALID );
+        = clock_point_Create( HEIMDALL_TICK_INVALID, HEIMDALL_TICK_INVALID );
 
     if (cl->listener.cbs != NULL && cl->listener.cbs->reset != NULL)
         cl->listener.cbs->reset(cl->listener.opaque);
@@ -355,7 +356,7 @@ void input_clock_ChangeRate( input_clock_t *cl, float rate )
         /* Move the reference point (as if we were playing at the new rate
          * from the start */
         cl->ref.system = cl->last.system
-            - (vlc_tick_t) ((cl->last.system - cl->ref.system) / rate * oldrate);
+            - (heimdall_tick_t) ((cl->last.system - cl->ref.system) / rate * oldrate);
 
         UpdateListener( cl, false );
     }
@@ -364,13 +365,13 @@ void input_clock_ChangeRate( input_clock_t *cl, float rate )
 /*****************************************************************************
  * input_clock_ChangePause:
  *****************************************************************************/
-void input_clock_ChangePause( input_clock_t *cl, bool b_paused, vlc_tick_t i_date )
+void input_clock_ChangePause( input_clock_t *cl, bool b_paused, heimdall_tick_t i_date )
 {
     assert( (!cl->b_paused) != (!b_paused) );
 
     if( cl->b_paused )
     {
-        const vlc_tick_t i_duration = i_date - cl->i_pause_date;
+        const heimdall_tick_t i_duration = i_date - cl->i_pause_date;
 
         if( cl->b_has_reference && i_duration > 0 )
         {
@@ -387,9 +388,9 @@ void input_clock_ChangePause( input_clock_t *cl, bool b_paused, vlc_tick_t i_dat
 /*****************************************************************************
  * input_clock_GetWakeup
  *****************************************************************************/
-vlc_tick_t input_clock_GetWakeup( input_clock_t *cl )
+heimdall_tick_t input_clock_GetWakeup( input_clock_t *cl )
 {
-    vlc_tick_t i_wakeup = 0;
+    heimdall_tick_t i_wakeup = 0;
 
     /* Synchronized, we can wait */
     if( cl->b_has_reference )
@@ -407,11 +408,11 @@ float input_clock_GetRate( input_clock_t *cl )
 }
 
 int input_clock_GetState( input_clock_t *cl,
-                          vlc_tick_t *pi_stream_start, vlc_tick_t *pi_system_start,
-                          vlc_tick_t *pi_stream_duration, vlc_tick_t *pi_system_duration )
+                          heimdall_tick_t *pi_stream_start, heimdall_tick_t *pi_system_start,
+                          heimdall_tick_t *pi_stream_duration, heimdall_tick_t *pi_system_duration )
 {
     if( !cl->b_has_reference )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     *pi_stream_start = cl->ref.stream;
     *pi_system_start = cl->ref.system;
@@ -419,40 +420,40 @@ int input_clock_GetState( input_clock_t *cl,
     *pi_stream_duration = cl->last.stream - cl->ref.stream;
     *pi_system_duration = cl->last.system - cl->ref.system;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 int input_clock_GetBufferingDuration(
     const input_clock_t *clock,
-    vlc_tick_t *stream_duration,
-    vlc_tick_t *system_duration
+    heimdall_tick_t *stream_duration,
+    heimdall_tick_t *system_duration
 ){
     if (!clock->b_has_reference)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     *stream_duration = clock->last.stream - clock->ref.stream;
     *system_duration = clock->last.system - clock->ref.system;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-vlc_tick_t input_clock_GetSystemDuration(
+heimdall_tick_t input_clock_GetSystemDuration(
     const input_clock_t *clock,
-    vlc_tick_t system_reference
+    heimdall_tick_t system_reference
 ){
     if (!clock->b_has_reference)
         return 0;
 
-    vlc_tick_t system_start = clock->ref.system;
+    heimdall_tick_t system_start = clock->ref.system;
     return system_reference - system_start;
 }
 
-void input_clock_ChangeSystemOrigin( input_clock_t *cl, vlc_tick_t i_system )
+void input_clock_ChangeSystemOrigin( input_clock_t *cl, heimdall_tick_t i_system )
 {
     assert( cl->b_has_reference );
     cl->b_origin_changed = true;
 
-    vlc_tick_t i_offset = i_system - cl->ref.system - ClockGetTsOffset( cl );
+    heimdall_tick_t i_offset = i_system - cl->ref.system - ClockGetTsOffset( cl );
 
     cl->ref.system += i_offset;
     cl->last.system += i_offset;
@@ -462,11 +463,11 @@ void input_clock_ChangeSystemOrigin( input_clock_t *cl, vlc_tick_t i_system )
 
 #warning "input_clock_SetJitter needs more work"
 void input_clock_SetJitter( input_clock_t *cl,
-                            vlc_tick_t i_pts_delay, int i_cr_average )
+                            heimdall_tick_t i_pts_delay, int i_cr_average )
 {
     /* Update late observations */
-    const vlc_tick_t i_delay_delta = i_pts_delay - cl->i_pts_delay;
-    vlc_tick_t pi_late[INPUT_CLOCK_LATE_COUNT];
+    const heimdall_tick_t i_delay_delta = i_pts_delay - cl->i_pts_delay;
+    heimdall_tick_t pi_late[INPUT_CLOCK_LATE_COUNT];
     for( int i = 0; i < INPUT_CLOCK_LATE_COUNT; i++ )
         pi_late[i] = __MAX( cl->late.pi_value[(cl->late.i_index + 1 + i)%INPUT_CLOCK_LATE_COUNT] - i_delay_delta, 0 );
 
@@ -496,7 +497,7 @@ void input_clock_SetJitter( input_clock_t *cl,
         AvgRescale( &cl->drift, i_cr_average );
 }
 
-vlc_tick_t input_clock_GetJitter( input_clock_t *cl )
+heimdall_tick_t input_clock_GetJitter( input_clock_t *cl )
 {
     static_assert (INPUT_CLOCK_LATE_COUNT == 3,
                    "unsupported INPUT_CLOCK_LATE_COUNT");
@@ -506,9 +507,9 @@ vlc_tick_t input_clock_GetJitter( input_clock_t *cl )
      * XXX we only increase pts_delay over time, decreasing it is
      * not that easy if we want to be robust.
      */
-    const vlc_tick_t *p = cl->late.pi_value;
-    vlc_tick_t i_late_median = p[0] + p[1] + p[2] - __MIN(__MIN(p[0],p[1]),p[2]) - __MAX(__MAX(p[0],p[1]),p[2]);
-    vlc_tick_t i_pts_delay = cl->i_pts_delay ;
+    const heimdall_tick_t *p = cl->late.pi_value;
+    heimdall_tick_t i_late_median = p[0] + p[1] + p[2] - __MIN(__MIN(p[0],p[1]),p[2]) - __MAX(__MAX(p[0],p[1]),p[2]);
+    heimdall_tick_t i_pts_delay = cl->i_pts_delay ;
 
     return i_pts_delay + i_late_median;
 }
@@ -516,12 +517,12 @@ vlc_tick_t input_clock_GetJitter( input_clock_t *cl )
 /*****************************************************************************
  * ClockStreamToSystem: converts a movie clock to system date
  *****************************************************************************/
-static vlc_tick_t ClockStreamToSystem( input_clock_t *cl, vlc_tick_t i_stream )
+static heimdall_tick_t ClockStreamToSystem( input_clock_t *cl, heimdall_tick_t i_stream )
 {
     if( !cl->b_has_reference )
-        return VLC_TICK_INVALID;
+        return HEIMDALL_TICK_INVALID;
 
-    return (vlc_tick_t) (( i_stream - cl->ref.stream ) / cl->rate) + cl->ref.system;
+    return (heimdall_tick_t) (( i_stream - cl->ref.stream ) / cl->rate) + cl->ref.system;
 }
 
 /*****************************************************************************
@@ -529,17 +530,17 @@ static vlc_tick_t ClockStreamToSystem( input_clock_t *cl, vlc_tick_t i_stream )
  *****************************************************************************
  * Caution : a valid reference point is needed for this to operate.
  *****************************************************************************/
-static vlc_tick_t ClockSystemToStream( input_clock_t *cl, vlc_tick_t i_system )
+static heimdall_tick_t ClockSystemToStream( input_clock_t *cl, heimdall_tick_t i_system )
 {
     assert( cl->b_has_reference );
-    return (vlc_tick_t) (( i_system - cl->ref.system ) * cl->rate) + cl->ref.stream;
+    return (heimdall_tick_t) (( i_system - cl->ref.system ) * cl->rate) + cl->ref.stream;
 }
 
 /**
  * It returns timestamp display offset due to ref/last modified on rate changes
  * It ensures that currently converted dates are not changed.
  */
-static vlc_tick_t ClockGetTsOffset( input_clock_t *cl )
+static heimdall_tick_t ClockGetTsOffset( input_clock_t *cl )
 {
     return cl->i_pts_delay * ( 1.0f / cl->rate - 1.0f );
 }

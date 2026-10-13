@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,14 +26,14 @@
 #include "player_controller_p.hpp"
 #include "util/shared_input_item.hpp"
 
-#include <vlc_actions.h>           /* ACTION_ID */
-#include <vlc_url.h>            /* vlc_uri_decode */
-#include <vlc_strings.h>        /* vlc_strfplayer */
-#include <vlc_aout.h>           /* audio_output_t */
-#include <vlc_es.h>
-#include <vlc_cxx_helpers.hpp>
-#include <vlc_vout.h>
-#include <vlc_preparser.h>
+#include <heimdall_actions.h>           /* ACTION_ID */
+#include <heimdall_url.h>            /* heimdall_uri_decode */
+#include <heimdall_strings.h>        /* heimdall_strfplayer */
+#include <heimdall_aout.h>           /* audio_output_t */
+#include <heimdall_es.h>
+#include <heimdall_cxx_helpers.hpp>
+#include <heimdall_vout.h>
+#include <heimdall_preparser.h>
 
 #include <QFile>
 #include <QDir>
@@ -45,29 +46,29 @@
 
 #include <cassert>
 
-#define POSITION_MIN_UPDATE_INTERVAL VLC_TICK_FROM_MS(15)
+#define POSITION_MIN_UPDATE_INTERVAL HEIMDALL_TICK_FROM_MS(15)
 
 //PlayerController private implementation
 
-using SharedEsId = ::vlc::vlc_shared_data_ptr<vlc_es_id_t,
-                                              &vlc_es_id_Hold,
-                                              &vlc_es_id_Release>;
+using SharedEsId = ::heimdall::heimdall_shared_data_ptr<heimdall_es_id_t,
+                                              &heimdall_es_id_Hold,
+                                              &heimdall_es_id_Release>;
 
-using SharedTitleList = ::vlc::vlc_shared_data_ptr<vlc_player_title_list,
-                                                   &vlc_player_title_list_Hold,
-                                                   &vlc_player_title_list_Release>;
+using SharedTitleList = ::heimdall::heimdall_shared_data_ptr<heimdall_player_title_list,
+                                                   &heimdall_player_title_list_Hold,
+                                                   &heimdall_player_title_list_Release>;
 
 PlayerControllerPrivate::~PlayerControllerPrivate()
 {
     assert(m_smpteTimerRequestCount == 0);
 
-    vlc_player_locker locker{m_player}; //this also locks the player
-    vlc_player_vout_RemoveListener( m_player, m_player_vout_listener );
-    vlc_player_aout_RemoveListener( m_player, m_player_aout_listener );
-    vlc_player_RemoveListener( m_player, m_player_listener );
-    vlc_player_RemoveTimer( m_player, m_player_timer );
+    heimdall_player_locker locker{m_player}; //this also locks the player
+    heimdall_player_vout_RemoveListener( m_player, m_player_vout_listener );
+    heimdall_player_aout_RemoveListener( m_player, m_player_aout_listener );
+    heimdall_player_RemoveListener( m_player, m_player_listener );
+    heimdall_player_RemoveTimer( m_player, m_player_timer );
     if (m_preparser != nullptr)
-        vlc_preparser_Delete(m_preparser);
+        heimdall_preparser_Delete(m_preparser);
 }
 
 bool PlayerControllerPrivate::isCurrentItemSynced()
@@ -76,7 +77,7 @@ bool PlayerControllerPrivate::isCurrentItemSynced()
      * request can be submitted on the wrong media or worse, no media at
      * all. Here d->m_currentItem is read and modified under the player
      * lock. */
-    return m_currentItem.get() == vlc_player_GetCurrentMedia( m_player );
+    return m_currentItem.get() == heimdall_player_GetCurrentMedia( m_player );
 }
 
 
@@ -93,9 +94,9 @@ void PlayerControllerPrivate::UpdateName(input_item_t* media)
     char *formatted = NULL;
     if (format != NULL)
     {
-        vlc_player_Lock( m_player );
-        formatted = vlc_strfplayer( m_player, media, format );
-        vlc_player_Unlock( m_player );
+        heimdall_player_Lock( m_player );
+        formatted = heimdall_strfplayer( m_player, media, format );
+        heimdall_player_Unlock( m_player );
         free( format );
         if( formatted != NULL )
         {
@@ -111,7 +112,7 @@ void PlayerControllerPrivate::UpdateName(input_item_t* media)
         char *file = uri ? strrchr( uri, '/' ) : NULL;
         if( file != NULL )
         {
-            vlc_uri_decode( ++file );
+            heimdall_uri_decode( ++file );
             name = qfu(file);
         }
         else
@@ -152,7 +153,7 @@ void PlayerControllerPrivate::UpdateStats( const input_stats_t& stats )
     emit q->statisticsUpdated( stats );
 }
 
-void PlayerControllerPrivate::UpdateProgram(enum vlc_player_list_action action, const struct vlc_player_program* prgm)
+void PlayerControllerPrivate::UpdateProgram(enum heimdall_player_list_action action, const struct heimdall_player_program* prgm)
 {
     Q_Q(PlayerController);
     m_programList.updatePrograms( action, prgm );
@@ -169,11 +170,11 @@ void PlayerControllerPrivate::UpdateProgram(enum vlc_player_list_action action, 
     emit q->isEncryptedChanged( prgm->scrambled );
 }
 
-void PlayerControllerPrivate::UpdateTrackSelection(vlc_es_id_t *trackid, bool selected)
+void PlayerControllerPrivate::UpdateTrackSelection(heimdall_es_id_t *trackid, bool selected)
 {
     if (trackid == NULL)
         return;
-    es_format_category_e cat = vlc_es_id_GetCat(trackid);
+    es_format_category_e cat = heimdall_es_id_GetCat(trackid);
     TrackListModel* tracklist;
     switch (cat) {
     case VIDEO_ES: tracklist = &m_videoTracks; break;
@@ -189,22 +190,22 @@ void PlayerControllerPrivate::UpdateMeta( input_item_t *p_item )
     Q_Q(PlayerController);
 
     {
-        vlc_mutex_locker locker(&p_item->lock);
+        heimdall_mutex_locker locker(&p_item->lock);
 
         if (p_item->p_meta)
         {
-            m_title   = vlc_meta_Get(p_item->p_meta, vlc_meta_Title);
-            m_artist  = vlc_meta_Get(p_item->p_meta, vlc_meta_Artist);
-            m_album   = vlc_meta_Get(p_item->p_meta, vlc_meta_Album);
-            m_artwork = vlc_meta_Get(p_item->p_meta, vlc_meta_ArtworkURL);
+            m_title   = heimdall_meta_Get(p_item->p_meta, heimdall_meta_Title);
+            m_artist  = heimdall_meta_Get(p_item->p_meta, heimdall_meta_Artist);
+            m_album   = heimdall_meta_Get(p_item->p_meta, heimdall_meta_Album);
+            m_artwork = heimdall_meta_Get(p_item->p_meta, heimdall_meta_ArtworkURL);
 
             /* Capture the raw sylt-data buffer; the entry list is built on
              * first read so we don't pay for it when lyrics are never shown.
              * Later meta refreshes may not carry sylt-data again, so keep the
              * cached buffer until the current media changes. */
-            const char *psz_sylt_data = vlc_meta_GetExtra( p_item->p_meta, "sylt-data" );
+            const char *psz_sylt_data = heimdall_meta_GetExtra( p_item->p_meta, "sylt-data" );
             if (!psz_sylt_data)
-                psz_sylt_data = vlc_meta_GetExtra( p_item->p_meta, "uslt-data" );
+                psz_sylt_data = heimdall_meta_GetExtra( p_item->p_meta, "uslt-data" );
 
             if (psz_sylt_data != NULL)
             {
@@ -248,9 +249,9 @@ PlayerControllerPrivate::syltLyrics() const
                 if (sep <= 0)
                     continue;
 
-                const vlc_tick_t time =
-                    VLC_TICK_FROM_MS( entry.first( sep ).toLongLong() );
-                lyrics.push_back( TimedText( entry.sliced( sep + 1 ).toString(), VLCTime( time ) ) );
+                const heimdall_tick_t time =
+                    HEIMDALL_TICK_FROM_MS( entry.first( sep ).toLongLong() );
+                lyrics.push_back( TimedText( entry.sliced( sep + 1 ).toString(), HeimdallTime( time ) ) );
             }
             m_syltLyrics = std::move( lyrics );
         }
@@ -264,14 +265,14 @@ void PlayerControllerPrivate::UpdateInfo( input_item_t *p_item )
     emit q->infoChanged( p_item );
 }
 
-void PlayerControllerPrivate::UpdateVouts(vout_thread_t **vouts, size_t i_vouts, enum vlc_player_vout_action action)
+void PlayerControllerPrivate::UpdateVouts(vout_thread_t **vouts, size_t i_vouts, enum heimdall_player_vout_action action)
 {
     Q_Q(PlayerController);
     bool hadVideo = m_hasVideo;
 
-    if (action == VLC_PLAYER_VOUT_STARTED)
+    if (action == HEIMDALL_PLAYER_VOUT_STARTED)
         ++m_vout_ref;
-    else if (action == VLC_PLAYER_VOUT_STOPPED)
+    else if (action == HEIMDALL_PLAYER_VOUT_STOPPED)
         --m_vout_ref;
     assert(m_vout_ref >= 0);
     m_hasVideo = (m_vout_ref > 0);
@@ -294,22 +295,22 @@ void PlayerControllerPrivate::UpdateVouts(vout_thread_t **vouts, size_t i_vouts,
         emit q->hasVideoOutputChanged(m_hasVideo);
 }
 
-void PlayerControllerPrivate::UpdateSpuOrder(vlc_es_id_t *es_id, enum vlc_vout_order order)
+void PlayerControllerPrivate::UpdateSpuOrder(heimdall_es_id_t *es_id, enum heimdall_vout_order order)
 {
     switch (order)
     {
-        case VLC_VOUT_ORDER_NONE:
+        case HEIMDALL_VOUT_ORDER_NONE:
             if (es_id == m_secondarySpuEsId.get())
                 m_secondarySpuEsId.reset(NULL, false);
             break;
-        case VLC_VOUT_ORDER_SECONDARY:
+        case HEIMDALL_VOUT_ORDER_SECONDARY:
             m_secondarySpuEsId.reset(es_id, true);
             if (m_secondarySubtitleDelay.valid())
             {
-                vlc_player_locker lock{ m_player };
-                vlc_player_SetEsIdDelay(m_player, es_id,
-                                        m_secondarySubtitleDelay.toVLCTick(),
-                                        VLC_PLAYER_WHENCE_ABSOLUTE);
+                heimdall_player_locker lock{ m_player };
+                heimdall_player_SetEsIdDelay(m_player, es_id,
+                                        m_secondarySubtitleDelay.toHeimdallTick(),
+                                        HEIMDALL_PLAYER_WHENCE_ABSOLUTE);
             }
             break;
         default:
@@ -317,23 +318,23 @@ void PlayerControllerPrivate::UpdateSpuOrder(vlc_es_id_t *es_id, enum vlc_vout_o
     }
 }
 
-int PlayerControllerPrivate::interpolateTime(vlc_tick_t system_now)
+int PlayerControllerPrivate::interpolateTime(heimdall_tick_t system_now)
 {
-    vlc_tick_t new_time;
-    if (vlc_player_timer_point_Interpolate(&m_player_time, system_now,
-                                           &new_time, &m_position) == VLC_SUCCESS)
+    heimdall_tick_t new_time;
+    if (heimdall_player_timer_point_Interpolate(&m_player_time, system_now,
+                                           &new_time, &m_position) == HEIMDALL_SUCCESS)
     {
         m_time = new_time;
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 extern "C" {
 
 //player callbacks
 
-static  void on_player_current_media_changed(vlc_player_t *, input_item_t *new_media, void *data)
+static  void on_player_current_media_changed(heimdall_player_t *, input_item_t *new_media, void *data)
 {
     PlayerControllerPrivate* that = static_cast<PlayerControllerPrivate*>(data);
     msg_Dbg( that->p_intf, "on_player_current_media_changed");
@@ -342,7 +343,7 @@ static  void on_player_current_media_changed(vlc_player_t *, input_item_t *new_m
     {
         that->callAsync([that] () {
             {
-                vlc_player_locker lock{ that->m_player };
+                heimdall_player_locker lock{ that->m_player };
                 that->m_currentItem.reset(nullptr);
             }
 
@@ -374,10 +375,10 @@ static  void on_player_current_media_changed(vlc_player_t *, input_item_t *new_m
         that->UpdateMeta( newMediaPtr.get() );
         that->UpdateInfo( newMediaPtr.get() );
         that->UpdateName( newMediaPtr.get() );
-        that->m_url = vlc::wrap_cptr( input_item_GetURI( newMediaPtr.get() ) ).get();
+        that->m_url = heimdall::wrap_cptr( input_item_GetURI( newMediaPtr.get() ) ).get();
 
         {
-            vlc_player_locker lock{ that->m_player };
+            heimdall_player_locker lock{ that->m_player };
             that->m_currentItem = std::move(newMediaPtr);
         }
 
@@ -388,7 +389,7 @@ static  void on_player_current_media_changed(vlc_player_t *, input_item_t *new_m
     });
 }
 
-static void on_player_state_changed(vlc_player_t *, enum vlc_player_state state, void *data)
+static void on_player_state_changed(heimdall_player_t *, enum heimdall_player_state state, void *data)
 {
     PlayerControllerPrivate* that = static_cast<PlayerControllerPrivate*>(data);
     msg_Dbg( that->p_intf, "on_player_state_changed");
@@ -397,27 +398,27 @@ static void on_player_state_changed(vlc_player_t *, enum vlc_player_state state,
         PlayerController* q = that->q_func();
         that->m_playing_status = static_cast<PlayerController::PlayingState>(state);
         switch ( state ) {
-        case VLC_PLAYER_STATE_STARTED:
-            msg_Dbg( that->p_intf, "on_player_state_changed VLC_PLAYER_STATE_STARTED");
+        case HEIMDALL_PLAYER_STATE_STARTED:
+            msg_Dbg( that->p_intf, "on_player_state_changed HEIMDALL_PLAYER_STATE_STARTED");
             break;
-        case VLC_PLAYER_STATE_PLAYING:
+        case HEIMDALL_PLAYER_STATE_PLAYING:
         {
-            msg_Dbg( that->p_intf, "on_player_state_changed VLC_PLAYER_STATE_PLAYING");
+            msg_Dbg( that->p_intf, "on_player_state_changed HEIMDALL_PLAYER_STATE_PLAYING");
             SharedAOut aout = q->getAout();
             that->m_audioStereoMode.resetObject( aout.get() );
             that->m_audioMixMode.resetObject( aout.get() );
             that->m_audioVisualization.resetObject( aout.get() );
             break;
         }
-        case VLC_PLAYER_STATE_PAUSED:
-            msg_Dbg( that->p_intf, "on_player_state_changed VLC_PLAYER_STATE_PAUSED");
+        case HEIMDALL_PLAYER_STATE_PAUSED:
+            msg_Dbg( that->p_intf, "on_player_state_changed HEIMDALL_PLAYER_STATE_PAUSED");
             break;
-        case VLC_PLAYER_STATE_STOPPING:
-            msg_Dbg( that->p_intf, "on_player_state_changed VLC_PLAYER_STATE_STOPPING");
+        case HEIMDALL_PLAYER_STATE_STOPPING:
+            msg_Dbg( that->p_intf, "on_player_state_changed HEIMDALL_PLAYER_STATE_STOPPING");
             break;
-        case VLC_PLAYER_STATE_STOPPED:
+        case HEIMDALL_PLAYER_STATE_STOPPED:
         {
-            msg_Dbg( that->p_intf, "on_player_state_changed VLC_PLAYER_STATE_STOPPED");
+            msg_Dbg( that->p_intf, "on_player_state_changed HEIMDALL_PLAYER_STATE_STOPPED");
 
             that->m_audioStereoMode.resetObject((audio_output_t*)nullptr);
             that->m_audioMixMode.resetObject((audio_output_t*)nullptr);
@@ -427,7 +428,7 @@ static void on_player_state_changed(vlc_player_t *, enum vlc_player_state state,
             that->m_position = 0;
             that->m_time = 0;
             that->m_length = 0;
-            emit q->positionUpdated( -1.0, VLCTime() , VLCDuration() );
+            emit q->positionUpdated( -1.0, HeimdallTime() , HeimdallDuration() );
             that->m_rate = 1.0f;
             emit q->rateChanged( 1.0f );
             that->m_name = "";
@@ -448,8 +449,8 @@ static void on_player_state_changed(vlc_player_t *, enum vlc_player_state state,
             that->m_teletextAvailable = false;
             emit q->teletextAvailableChanged( false );
             that->m_ABLoopState = PlayerController::ABLOOP_STATE_NONE;
-            that->m_ABLoopA = VLCTime();
-            that->m_ABLoopB = VLCTime();
+            that->m_ABLoopA = HeimdallTime();
+            that->m_ABLoopB = HeimdallTime();
             emit q->ABLoopStateChanged(PlayerController::ABLOOP_STATE_NONE);
             emit q->ABLoopAChanged(that->m_ABLoopA);
             emit q->ABLoopBChanged(that->m_ABLoopB);
@@ -494,13 +495,13 @@ static void on_player_state_changed(vlc_player_t *, enum vlc_player_state state,
     });
 }
 
-void on_player_error_changed(vlc_player_t *, enum vlc_player_error , void *data)
+void on_player_error_changed(heimdall_player_t *, enum heimdall_player_error , void *data)
 {
     PlayerControllerPrivate* that = static_cast<PlayerControllerPrivate*>(data);
     msg_Dbg( that->p_intf, "on_player_error_changed");
 }
 
-static void on_player_buffering(vlc_player_t *, float new_buffering, void *data)
+static void on_player_buffering(heimdall_player_t *, float new_buffering, void *data)
 {
     PlayerControllerPrivate* that = static_cast<PlayerControllerPrivate*>(data);
     msg_Dbg( that->p_intf, "on_player_buffering");
@@ -510,7 +511,7 @@ static void on_player_buffering(vlc_player_t *, float new_buffering, void *data)
     });
 }
 
-static void on_player_capabilities_changed(vlc_player_t *, int old_caps, int new_caps, void *data)
+static void on_player_capabilities_changed(heimdall_player_t *, int old_caps, int new_caps, void *data)
 {
     PlayerControllerPrivate* that = static_cast<PlayerControllerPrivate*>(data);
     msg_Dbg( that->p_intf, "on_player_capabilities_changed");
@@ -518,23 +519,23 @@ static void on_player_capabilities_changed(vlc_player_t *, int old_caps, int new
         PlayerController* q = that->q_func();
         that->m_capabilities = new_caps;
 
-        bool oldSeekable = old_caps & VLC_PLAYER_CAP_SEEK;
-        bool newSeekable = new_caps & VLC_PLAYER_CAP_SEEK;
+        bool oldSeekable = old_caps & HEIMDALL_PLAYER_CAP_SEEK;
+        bool newSeekable = new_caps & HEIMDALL_PLAYER_CAP_SEEK;
         if (newSeekable != oldSeekable)
             emit q->seekableChanged( newSeekable );
 
-        bool oldRewindable = old_caps & VLC_PLAYER_CAP_REWIND;
-        bool newRewindable = new_caps & VLC_PLAYER_CAP_REWIND;
+        bool oldRewindable = old_caps & HEIMDALL_PLAYER_CAP_REWIND;
+        bool newRewindable = new_caps & HEIMDALL_PLAYER_CAP_REWIND;
         if (newRewindable != oldRewindable)
             emit q->rewindableChanged( newRewindable );
 
-        bool oldPauseable = old_caps & VLC_PLAYER_CAP_PAUSE;
-        bool newPauseable = new_caps & VLC_PLAYER_CAP_PAUSE;
+        bool oldPauseable = old_caps & HEIMDALL_PLAYER_CAP_PAUSE;
+        bool newPauseable = new_caps & HEIMDALL_PLAYER_CAP_PAUSE;
         if (newPauseable != oldPauseable)
             emit q->pausableChanged( newPauseable );
 
-        bool oldChangeRate = old_caps & VLC_PLAYER_CAP_CHANGE_RATE;
-        bool newChangeRate = new_caps & VLC_PLAYER_CAP_CHANGE_RATE;
+        bool oldChangeRate = old_caps & HEIMDALL_PLAYER_CAP_CHANGE_RATE;
+        bool newChangeRate = new_caps & HEIMDALL_PLAYER_CAP_CHANGE_RATE;
         if (newChangeRate != oldChangeRate)
             emit q->rateChangableChanged( newChangeRate );
     });
@@ -542,13 +543,13 @@ static void on_player_capabilities_changed(vlc_player_t *, int old_caps, int new
     //FIXME other events?
 }
 
-static void on_player_track_list_changed(vlc_player_t *, enum vlc_player_list_action action, const struct vlc_player_track *track, void *data)
+static void on_player_track_list_changed(heimdall_player_t *, enum heimdall_player_list_action action, const struct heimdall_player_track *track, void *data)
 {
     PlayerControllerPrivate* that = static_cast<PlayerControllerPrivate*>(data);
-    struct vlc_player_track* dup = vlc_player_track_Dup(track);
+    struct heimdall_player_track* dup = heimdall_player_track_Dup(track);
     if (!dup)
         return;
-    std::shared_ptr<struct vlc_player_track> trackPtr(dup, vlc_player_track_Delete);
+    std::shared_ptr<struct heimdall_player_track> trackPtr(dup, heimdall_player_track_Delete);
 
     msg_Dbg( that->p_intf, "on_player_track_list_changed");
     that->callAsync([that,action,trackPtr] () {
@@ -573,7 +574,7 @@ static void on_player_track_list_changed(vlc_player_t *, enum vlc_player_list_ac
     });
 }
 
-static void on_player_track_selection_changed(vlc_player_t *, vlc_es_id_t * unselected, vlc_es_id_t *selected, void *data)
+static void on_player_track_selection_changed(heimdall_player_t *, heimdall_es_id_t * unselected, heimdall_es_id_t *selected, void *data)
 {
     PlayerControllerPrivate* that = static_cast<PlayerControllerPrivate*>(data);
     msg_Dbg( that->p_intf, "on_player_track_selection_changed");
@@ -590,21 +591,21 @@ static void on_player_track_selection_changed(vlc_player_t *, vlc_es_id_t * unse
 }
 
 
-static void on_player_program_list_changed(vlc_player_t *, enum vlc_player_list_action action, const struct vlc_player_program *prgm, void *data)
+static void on_player_program_list_changed(heimdall_player_t *, enum heimdall_player_list_action action, const struct heimdall_player_program *prgm, void *data)
 {
     PlayerControllerPrivate* that = static_cast<PlayerControllerPrivate*>(data);
     msg_Dbg( that->p_intf, "on_player_program_list_changed");
-    struct vlc_player_program* dup = vlc_player_program_Dup(prgm);
+    struct heimdall_player_program* dup = heimdall_player_program_Dup(prgm);
     if (!dup)
         return;
-    std::shared_ptr<struct vlc_player_program> prgmPtr(dup, vlc_player_program_Delete);
+    std::shared_ptr<struct heimdall_player_program> prgmPtr(dup, heimdall_player_program_Delete);
 
     that->callAsync([that,action,prgmPtr] (){
         that->UpdateProgram(action, prgmPtr.get());
     });
 }
 
-static void on_player_program_selection_changed(vlc_player_t *, int unselected, int selected, void *data)
+static void on_player_program_selection_changed(heimdall_player_t *, int unselected, int selected, void *data)
 {
     PlayerControllerPrivate* that = static_cast<PlayerControllerPrivate*>(data);
     msg_Dbg( that->p_intf, "on_player_program_selection_changed");
@@ -615,7 +616,7 @@ static void on_player_program_selection_changed(vlc_player_t *, int unselected, 
     });
 }
 
-static void on_player_titles_changed(vlc_player_t *, struct vlc_player_title_list *titles, void *data)
+static void on_player_titles_changed(heimdall_player_t *, struct heimdall_player_title_list *titles, void *data)
 {
     PlayerControllerPrivate* that = static_cast<PlayerControllerPrivate*>(data);
     msg_Dbg( that->p_intf, "on_player_title_array_changed");
@@ -623,7 +624,7 @@ static void on_player_titles_changed(vlc_player_t *, struct vlc_player_title_lis
     SharedTitleList sharedTitleList = SharedTitleList(titles);
 
     that->callAsync([that,sharedTitleList] (){
-        struct vlc_player_title_list *titles = sharedTitleList.get();
+        struct heimdall_player_title_list *titles = sharedTitleList.get();
         that->m_chapterList.resetTitle(nullptr);
         that->m_titleList.resetTitles(titles);
 
@@ -631,10 +632,10 @@ static void on_player_titles_changed(vlc_player_t *, struct vlc_player_title_lis
         bool hasTitles = false;
         if (titles)
         {
-            size_t nbTitles = vlc_player_title_list_GetCount(titles);
+            size_t nbTitles = heimdall_player_title_list_GetCount(titles);
             for( size_t i = 0; i < nbTitles; i++)
             {
-                const vlc_player_title* title = vlc_player_title_list_GetAt(titles, i);
+                const heimdall_player_title* title = heimdall_player_title_list_GetAt(titles, i);
                 if( (title ->flags & INPUT_TITLE_MENU) != 0 )
                 {
                     hasMenu = true;
@@ -661,8 +662,8 @@ static void on_player_titles_changed(vlc_player_t *, struct vlc_player_title_lis
     });
 }
 
-static void on_player_title_selection_changed(vlc_player_t *,
-                                              const struct vlc_player_title *new_title, size_t new_idx, void *data)
+static void on_player_title_selection_changed(heimdall_player_t *,
+                                              const struct heimdall_player_title *new_title, size_t new_idx, void *data)
 {
     PlayerControllerPrivate* that = static_cast<PlayerControllerPrivate*>(data);
     msg_Dbg( that->p_intf, "on_player_title_selection_changed");
@@ -673,17 +674,17 @@ static void on_player_title_selection_changed(vlc_player_t *,
         that->m_chapterList.resetTitle(new_title);
         that->m_titleList.setCurrent(new_idx);
         that->m_hasChapters  = hasChapter;
-        that->m_isInteractive = new_title && (new_title->flags & VLC_PLAYER_TITLE_INTERACTIVE);
-        that->m_isMenu = new_title && (new_title->flags & VLC_PLAYER_TITLE_MENU);
+        that->m_isInteractive = new_title && (new_title->flags & HEIMDALL_PLAYER_TITLE_INTERACTIVE);
+        that->m_isMenu = new_title && (new_title->flags & HEIMDALL_PLAYER_TITLE_MENU);
         emit q->isMenuChanged( that->m_isMenu );
         emit q->isInteractiveChanged( that->m_isInteractive );
         emit q->hasChaptersChanged( hasChapter );
     });
 }
 
-static void on_player_chapter_selection_changed(vlc_player_t *,
-                                                const struct vlc_player_title *, size_t,
-                                                const struct vlc_player_chapter *, size_t chapter_idx,
+static void on_player_chapter_selection_changed(heimdall_player_t *,
+                                                const struct heimdall_player_title *, size_t,
+                                                const struct heimdall_player_chapter *, size_t chapter_idx,
                                                 void *data)
 {
     PlayerControllerPrivate* that = static_cast<PlayerControllerPrivate*>(data);
@@ -694,7 +695,7 @@ static void on_player_chapter_selection_changed(vlc_player_t *,
 }
 
 
-static void on_player_teletext_menu_changed(vlc_player_t *, bool has_teletext_menu, void *data)
+static void on_player_teletext_menu_changed(heimdall_player_t *, bool has_teletext_menu, void *data)
 {
     PlayerControllerPrivate* that = static_cast<PlayerControllerPrivate*>(data);
     msg_Dbg( that->p_intf, "on_player_teletext_menu_changed, %s", has_teletext_menu ? "available" : "unavailable" );
@@ -704,7 +705,7 @@ static void on_player_teletext_menu_changed(vlc_player_t *, bool has_teletext_me
     });
 }
 
-static void on_player_teletext_enabled_changed(vlc_player_t *, bool enabled, void *data)
+static void on_player_teletext_enabled_changed(heimdall_player_t *, bool enabled, void *data)
 {
     PlayerControllerPrivate* that = static_cast<PlayerControllerPrivate*>(data);
     msg_Dbg( that->p_intf, "on_player_teletext_enabled_changed %s", enabled ? "enabled" : "disabled");
@@ -714,7 +715,7 @@ static void on_player_teletext_enabled_changed(vlc_player_t *, bool enabled, voi
     });
 }
 
-static void on_player_teletext_page_changed(vlc_player_t *, unsigned new_page, void *data)
+static void on_player_teletext_page_changed(heimdall_player_t *, unsigned new_page, void *data)
 {
     PlayerControllerPrivate* that = static_cast<PlayerControllerPrivate*>(data);
     msg_Dbg( that->p_intf, "on_player_teletext_page_changed %u", new_page);
@@ -724,7 +725,7 @@ static void on_player_teletext_page_changed(vlc_player_t *, unsigned new_page, v
     });
 }
 
-static void on_player_teletext_transparency_changed(vlc_player_t *, bool enabled, void *data)
+static void on_player_teletext_transparency_changed(heimdall_player_t *, bool enabled, void *data)
 {
     PlayerControllerPrivate* that = static_cast<PlayerControllerPrivate*>(data);
     msg_Dbg( that->p_intf, "on_player_teletext_transparency_changed %s", enabled ? "enabled" : "disabled");
@@ -734,8 +735,8 @@ static void on_player_teletext_transparency_changed(vlc_player_t *, bool enabled
     });
 }
 
-static void on_player_category_delay_changed(vlc_player_t *,
-                               enum es_format_category_e cat, vlc_tick_t new_delay,
+static void on_player_category_delay_changed(heimdall_player_t *,
+                               enum es_format_category_e cat, heimdall_tick_t new_delay,
                                void *data)
 {
     PlayerControllerPrivate* that = static_cast<PlayerControllerPrivate*>(data);
@@ -757,8 +758,8 @@ static void on_player_category_delay_changed(vlc_player_t *,
     });
 }
 
-static void on_player_track_delay_changed(vlc_player_t *,
-                                vlc_es_id_t *es_id, vlc_tick_t new_delay,
+static void on_player_track_delay_changed(heimdall_player_t *,
+                                heimdall_es_id_t *es_id, heimdall_tick_t new_delay,
                                 void *data)
 {
     PlayerControllerPrivate* that = static_cast<PlayerControllerPrivate*>(data);
@@ -773,7 +774,7 @@ static void on_player_track_delay_changed(vlc_player_t *,
     });
 }
 
-static void on_player_associated_subs_fps_changed(vlc_player_t *, float subs_fps, void *data)
+static void on_player_associated_subs_fps_changed(heimdall_player_t *, float subs_fps, void *data)
 {
     PlayerControllerPrivate* that = static_cast<PlayerControllerPrivate*>(data);
     msg_Dbg( that->p_intf, "on_associated_subs_fps_changed");
@@ -783,14 +784,14 @@ static void on_player_associated_subs_fps_changed(vlc_player_t *, float subs_fps
     });
 }
 
-void on_player_renderer_changed(vlc_player_t *, vlc_renderer_item_t *new_item, void *data)
+void on_player_renderer_changed(heimdall_player_t *, heimdall_renderer_item_t *new_item, void *data)
 {
-    VLC_UNUSED(new_item);
-    VLC_UNUSED(data);
+    HEIMDALL_UNUSED(new_item);
+    HEIMDALL_UNUSED(data);
 }
 
 
-static void on_player_record_changed(vlc_player_t *, bool recording, void *data)
+static void on_player_record_changed(heimdall_player_t *, bool recording, void *data)
 {
     PlayerControllerPrivate* that = static_cast<PlayerControllerPrivate*>(data);
     msg_Dbg( that->p_intf, "on_player_record_changed");
@@ -800,15 +801,15 @@ static void on_player_record_changed(vlc_player_t *, bool recording, void *data)
     });
 }
 
-static void on_player_signal_changed(vlc_player_t *, float quality, float strength, void *data)
+static void on_player_signal_changed(heimdall_player_t *, float quality, float strength, void *data)
 {
     PlayerControllerPrivate* that = static_cast<PlayerControllerPrivate*>(data);
-    VLC_UNUSED(quality);
-    VLC_UNUSED(strength);
+    HEIMDALL_UNUSED(quality);
+    HEIMDALL_UNUSED(strength);
     msg_Dbg( that->p_intf, "on_player_signal_changed");
 }
 
-static void on_player_stats_changed(vlc_player_t *, const struct input_stats_t *stats, void *data)
+static void on_player_stats_changed(heimdall_player_t *, const struct input_stats_t *stats, void *data)
 {
     PlayerControllerPrivate* that = static_cast<PlayerControllerPrivate*>(data);
     struct input_stats_t stats_tmp = *stats;
@@ -818,24 +819,24 @@ static void on_player_stats_changed(vlc_player_t *, const struct input_stats_t *
     });
 }
 
-static void on_player_atobloop_changed(vlc_player_t *, enum vlc_player_abloop state, vlc_tick_t time, double, void *data)
+static void on_player_atobloop_changed(heimdall_player_t *, enum heimdall_player_abloop state, heimdall_tick_t time, double, void *data)
 {
     PlayerControllerPrivate* that = static_cast<PlayerControllerPrivate*>(data);
     msg_Dbg( that->p_intf, "on_player_atobloop_changed");
     that->callAsync([that,state,time] (){
         PlayerController* q = that->q_func();
         switch (state) {
-        case VLC_PLAYER_ABLOOP_NONE:
-            that->m_ABLoopA = VLCTime();
-            that->m_ABLoopB = VLCTime();
+        case HEIMDALL_PLAYER_ABLOOP_NONE:
+            that->m_ABLoopA = HeimdallTime();
+            that->m_ABLoopB = HeimdallTime();
             emit q->ABLoopAChanged(that->m_ABLoopA);
             emit q->ABLoopBChanged(that->m_ABLoopB);
             break;
-        case VLC_PLAYER_ABLOOP_A:
+        case HEIMDALL_PLAYER_ABLOOP_A:
             that->m_ABLoopA = time;
             emit q->ABLoopAChanged(that->m_ABLoopA);
             break;
-        case VLC_PLAYER_ABLOOP_B:
+        case HEIMDALL_PLAYER_ABLOOP_B:
             that->m_ABLoopB = time;
             emit q->ABLoopBChanged(that->m_ABLoopB);
             break;
@@ -845,7 +846,7 @@ static void on_player_atobloop_changed(vlc_player_t *, enum vlc_player_abloop st
     });
 }
 
-static void on_player_media_meta_changed(vlc_player_t *, input_item_t *media, void *data)
+static void on_player_media_meta_changed(heimdall_player_t *, input_item_t *media, void *data)
 {
     PlayerControllerPrivate* that = static_cast<PlayerControllerPrivate*>(data);
     msg_Dbg( that->p_intf, "on_player_item_meta_changed");
@@ -860,7 +861,7 @@ static void on_player_media_meta_changed(vlc_player_t *, input_item_t *media, vo
     });
 }
 
-static void on_player_media_epg_changed(vlc_player_t *, input_item_t *, void *data)
+static void on_player_media_epg_changed(heimdall_player_t *, input_item_t *, void *data)
 {
     PlayerControllerPrivate* that = static_cast<PlayerControllerPrivate*>(data);
     msg_Dbg( that->p_intf, "on_player_item_epg_changed");
@@ -869,26 +870,26 @@ static void on_player_media_epg_changed(vlc_player_t *, input_item_t *, void *da
     });
 }
 
-static void on_player_subitems_changed(vlc_player_t *, input_item_t *, const input_item_node_t *, void *data)
+static void on_player_subitems_changed(heimdall_player_t *, input_item_t *, const input_item_node_t *, void *data)
 {
     PlayerControllerPrivate* that = static_cast<PlayerControllerPrivate*>(data);
     msg_Dbg( that->p_intf, "on_player_subitems_changed");
 }
 
 
-static void on_player_vout_changed(vlc_player_t *player, enum vlc_player_vout_action action,
-    vout_thread_t *, enum vlc_vout_order order, vlc_es_id_t *es_id, void *data)
+static void on_player_vout_changed(heimdall_player_t *player, enum heimdall_player_vout_action action,
+    vout_thread_t *, enum heimdall_vout_order order, heimdall_es_id_t *es_id, void *data)
 {
     PlayerControllerPrivate* that = static_cast<PlayerControllerPrivate*>(data);
     msg_Dbg( that->p_intf, "on_player_vout_list_changed");
 
-    switch (vlc_es_id_GetCat(es_id))
+    switch (heimdall_es_id_GetCat(es_id))
     {
         case VIDEO_ES:
         {
             //player is locked within callbacks*
             size_t i_vout = 0;
-            vout_thread_t **vouts = vlc_player_vout_HoldAll(player, &i_vout);
+            vout_thread_t **vouts = heimdall_player_vout_HoldAll(player, &i_vout);
 
             std::shared_ptr<vout_thread_t*> voutsPtr( vouts, [i_vout]( vout_thread_t**vouts ) {
                 for (size_t i = 0; i < i_vout; i++)
@@ -975,13 +976,13 @@ static void on_player_aout_mute_changed(audio_output_t *, bool muted, void *data
     });
 }
 
-static void on_player_corks_changed(vlc_player_t *, unsigned, void *data)
+static void on_player_corks_changed(heimdall_player_t *, unsigned, void *data)
 {
     PlayerControllerPrivate* that = static_cast<PlayerControllerPrivate*>(data);
     msg_Dbg( that->p_intf, "on_player_corks_changed");
 }
 
-static void on_player_playback_restore_queried(vlc_player_t *, void *data)
+static void on_player_playback_restore_queried(heimdall_player_t *, void *data)
 {
     PlayerControllerPrivate* that = static_cast<PlayerControllerPrivate*>(data);
     msg_Dbg( that->p_intf, "on_playback_restore_queried");
@@ -991,7 +992,7 @@ static void on_player_playback_restore_queried(vlc_player_t *, void *data)
     });
 }
 
-static void on_player_timer_update(const struct vlc_player_timer_point *point,
+static void on_player_timer_update(const struct heimdall_player_timer_point *point,
                                    void *data)
 {
     PlayerControllerPrivate* that = static_cast<PlayerControllerPrivate*>(data);
@@ -1004,9 +1005,9 @@ static void on_player_timer_update(const struct vlc_player_timer_point *point,
         that->m_player_time = point_copy;
         bool lengthOrRateChanged = false;
 
-        if (that->m_length.toVLCTick() != that->m_player_time.length)
+        if (that->m_length.toHeimdallTick() != that->m_player_time.length)
         {
-            that->m_length = that->m_player_time.length > 0 ? VLCDuration(that->m_player_time.length) : VLCDuration();
+            that->m_length = that->m_player_time.length > 0 ? HeimdallDuration(that->m_player_time.length) : HeimdallDuration();
             emit q->lengthChanged(that->m_length);
 
             lengthOrRateChanged = true;
@@ -1019,26 +1020,26 @@ static void on_player_timer_update(const struct vlc_player_timer_point *point,
             lengthOrRateChanged = true;
         }
 
-        vlc_tick_t system_now = vlc_tick_now();
-        if (that->interpolateTime(system_now) == VLC_SUCCESS)
+        heimdall_tick_t system_now = heimdall_tick_now();
+        if (that->interpolateTime(system_now) == HEIMDALL_SUCCESS)
         {
             if (lengthOrRateChanged || !that->m_position_timer.isActive())
             {
                 q->updatePosition();
 
-                if (that->m_player_time.system_date != VLC_TICK_MAX)
+                if (that->m_player_time.system_date != HEIMDALL_TICK_MAX)
                 {
                     // Setup the position update interval, depending on media
-                    // length and rate.  XXX: VLC_TICK_FROM_MS(1) is an educated
+                    // length and rate.  XXX: HEIMDALL_TICK_FROM_MS(1) is an educated
                     // guess, it should be also calculated according to the slider
                     // size.
 
-                    vlc_tick_t interval =
-                        that->m_length.toVLCTick() / that->m_player_time.rate / VLC_TICK_FROM_MS(1);
+                    heimdall_tick_t interval =
+                        that->m_length.toHeimdallTick() / that->m_player_time.rate / HEIMDALL_TICK_FROM_MS(1);
                     if (interval < POSITION_MIN_UPDATE_INTERVAL)
                         interval = POSITION_MIN_UPDATE_INTERVAL;
 
-                    that->m_position_timer.start(MS_FROM_VLC_TICK(interval));
+                    that->m_position_timer.start(MS_FROM_HEIMDALL_TICK(interval));
                 }
             }
             q->updateTime(system_now, lengthOrRateChanged);
@@ -1047,14 +1048,14 @@ static void on_player_timer_update(const struct vlc_player_timer_point *point,
     });
 }
 
-static void on_player_timer_paused(vlc_tick_t system_date, void *data)
+static void on_player_timer_paused(heimdall_tick_t system_date, void *data)
 {
     PlayerControllerPrivate* that = static_cast<PlayerControllerPrivate*>(data);
     that->callAsync([that,system_date](){
         PlayerController* q = that->q_func();
 
-        if (system_date != VLC_TICK_INVALID
-         && that->interpolateTime(system_date) == VLC_SUCCESS)
+        if (system_date != HEIMDALL_TICK_INVALID
+         && that->interpolateTime(system_date) == HEIMDALL_SUCCESS)
         {
             // The discontinuity event got a valid system date, update the time
             // properties.
@@ -1068,7 +1069,7 @@ static void on_player_timer_paused(vlc_tick_t system_date, void *data)
     });
 }
 
-static void on_player_timer_seek(const struct vlc_player_timer_point *point,
+static void on_player_timer_seek(const struct heimdall_player_timer_point *point,
                                  void *data)
 {
     PlayerControllerPrivate* that = static_cast<PlayerControllerPrivate*>(data);
@@ -1081,11 +1082,11 @@ static void on_player_timer_seek(const struct vlc_player_timer_point *point,
             that->m_player_time = point_copy;
             if (that->m_player_time.position > 0)
                 that->m_position = that->m_player_time.position;
-            if (that->m_player_time.ts != VLC_TICK_INVALID)
-                that->m_time = that->m_player_time.ts - VLC_TICK_0;
+            if (that->m_player_time.ts != HEIMDALL_TICK_INVALID)
+                that->m_time = that->m_player_time.ts - HEIMDALL_TICK_0;
 
             q->updatePosition();
-            q->updateTime(VLC_TICK_INVALID, false);
+            q->updateTime(HEIMDALL_TICK_INVALID, false);
 
             that->m_position_timer.stop();
             that->m_time_timer.stop();
@@ -1094,7 +1095,7 @@ static void on_player_timer_seek(const struct vlc_player_timer_point *point,
     else
         that->seeking = false;
 }
-static void on_player_timer_smpte_update(const struct vlc_player_timer_smpte_timecode *tc,
+static void on_player_timer_smpte_update(const struct heimdall_player_timer_smpte_timecode *tc,
                                          void *data)
 {
     PlayerControllerPrivate* that = static_cast<PlayerControllerPrivate *>(data);
@@ -1105,10 +1106,10 @@ static void on_player_timer_smpte_update(const struct vlc_player_timer_smpte_tim
 }
 
 
-static void on_preparse_ended_callback(vlc_preparser_req *req,
+static void on_preparse_ended_callback(heimdall_preparser_req *req,
                                        int, void *userdata)
 {
-    input_item_t *p_item = vlc_preparser_req_GetItem(req);
+    input_item_t *p_item = heimdall_preparser_req_GetItem(req);
     PlayerControllerPrivate *me = reinterpret_cast<PlayerControllerPrivate *>(userdata);
     me->onArtFetchEnded(p_item, input_item_IsArtFetched(p_item));
 }
@@ -1116,8 +1117,8 @@ static void on_preparse_ended_callback(vlc_preparser_req *req,
 
 } //extern "C"
 
-static const struct vlc_player_cbs player_cbs = [] {
-    struct vlc_player_cbs cbs {};
+static const struct heimdall_player_cbs player_cbs = [] {
+    struct heimdall_player_cbs cbs {};
     cbs.on_current_media_changed = on_player_current_media_changed;
     cbs.on_state_changed = on_player_state_changed;
     cbs.on_error_changed = on_player_error_changed;
@@ -1151,38 +1152,38 @@ static const struct vlc_player_cbs player_cbs = [] {
     return cbs;
 }();
 
-static const vlc_player_vout_cbs player_vout_cbs = []{
-    struct vlc_player_vout_cbs cbs{};
+static const heimdall_player_vout_cbs player_vout_cbs = []{
+    struct heimdall_player_vout_cbs cbs{};
     cbs.on_fullscreen_changed = on_player_vout_fullscreen_changed;
     cbs.on_wallpaper_mode_changed = on_player_vout_wallpaper_mode_changed;
     return cbs;
 }();
 
-static const vlc_player_aout_cbs player_aout_cbs = []{
-    struct vlc_player_aout_cbs cbs{};
+static const heimdall_player_aout_cbs player_aout_cbs = []{
+    struct heimdall_player_aout_cbs cbs{};
     cbs.on_volume_changed = on_player_aout_volume_changed;
     cbs.on_mute_changed = on_player_aout_mute_changed;
     return cbs;
 }();
 
-static const vlc_player_timer_cbs player_timer_cbs = []{
-    struct vlc_player_timer_cbs cbs {};
+static const heimdall_player_timer_cbs player_timer_cbs = []{
+    struct heimdall_player_timer_cbs cbs {};
     cbs.on_update = on_player_timer_update;
     cbs.on_paused = on_player_timer_paused;
     cbs.on_seek = on_player_timer_seek;
     return cbs;
 }();
 
-static const struct vlc_player_timer_smpte_cbs player_timer_smpte_cbs = []{
-    struct vlc_player_timer_smpte_cbs cbs {};
+static const struct heimdall_player_timer_smpte_cbs player_timer_smpte_cbs = []{
+    struct heimdall_player_timer_smpte_cbs cbs {};
     cbs.on_update = on_player_timer_smpte_update;
     return cbs;
 }();
 
 // art fetcher callbacks
 
-static const struct vlc_preparser_cbs art_fetcher_cbs = []{
-    struct vlc_preparser_cbs cbs{};
+static const struct heimdall_preparser_cbs art_fetcher_cbs = []{
+    struct heimdall_preparser_cbs cbs{};
     cbs.on_ended = on_preparse_ended_callback;
     return cbs;
 }();
@@ -1213,31 +1214,31 @@ PlayerControllerPrivate::PlayerControllerPrivate(PlayerController *playercontrol
     , m_rendererManager(p_intf, m_player)
 {
     {
-        vlc_player_locker locker{m_player};
-        m_player_listener = vlc_player_AddListener( m_player, &player_cbs, this );
-        m_player_aout_listener = vlc_player_aout_AddListener( m_player, &player_aout_cbs, this );
-        m_player_vout_listener = vlc_player_vout_AddListener( m_player, &player_vout_cbs, this );
-        m_player_timer = vlc_player_AddTimer( m_player, VLC_TICK_FROM_MS(500), &player_timer_cbs, this );
+        heimdall_player_locker locker{m_player};
+        m_player_listener = heimdall_player_AddListener( m_player, &player_cbs, this );
+        m_player_aout_listener = heimdall_player_aout_AddListener( m_player, &player_aout_cbs, this );
+        m_player_vout_listener = heimdall_player_vout_AddListener( m_player, &player_vout_cbs, this );
+        m_player_timer = heimdall_player_AddTimer( m_player, HEIMDALL_TICK_FROM_MS(500), &player_timer_cbs, this );
     }
 
-    QObject::connect( &m_autoscale, &QVLCBool::valueChanged, q_ptr, &PlayerController::autoscaleChanged );
-    QObject::connect( &m_audioVisualization, &VLCVarChoiceModel::hasCurrentChanged, q_ptr, &PlayerController::hasAudioVisualizationChanged );
+    QObject::connect( &m_autoscale, &QHeimdallBool::valueChanged, q_ptr, &PlayerController::autoscaleChanged );
+    QObject::connect( &m_audioVisualization, &HeimdallVarChoiceModel::hasCurrentChanged, q_ptr, &PlayerController::hasAudioVisualizationChanged );
 
     m_time_timer.setSingleShot( true );
     m_time_timer.setTimerType( Qt::PreciseTimer );
 
     // Initialise fullscreen to match the player state
-    m_fullscreen = vlc_player_vout_IsFullscreen( m_player );
+    m_fullscreen = heimdall_player_vout_IsFullscreen( m_player );
 
-    m_volume = vlc_player_aout_GetVolume( m_player );
+    m_volume = heimdall_player_aout_GetVolume( m_player );
 }
 
 void PlayerControllerPrivate::addSMPTETimer()
 {
     assert( !m_player_timer_smpte );
 
-    vlc_player_locker lock{ m_player };
-    m_player_timer_smpte = vlc_player_AddSmpteTimer( m_player, &player_timer_smpte_cbs, this );
+    heimdall_player_locker lock{ m_player };
+    m_player_timer_smpte = heimdall_player_AddSmpteTimer( m_player, &player_timer_smpte_cbs, this );
     assert( m_player_timer_smpte );
 }
 
@@ -1245,8 +1246,8 @@ void PlayerControllerPrivate::removeSMPTETimer()
 {
     assert( m_player_timer_smpte );
 
-    vlc_player_locker lock{ m_player };
-    vlc_player_RemoveTimer( m_player, m_player_timer_smpte );
+    heimdall_player_locker lock{ m_player };
+    heimdall_player_RemoveTimer( m_player, m_player_timer_smpte );
     m_player_timer_smpte = nullptr;
 }
 
@@ -1264,7 +1265,7 @@ PlayerController::~PlayerController()
 
 // PLAYBACK
 
-vlc_player_t * PlayerController::getPlayer() const
+heimdall_player_t * PlayerController::getPlayer() const
 {
     Q_D(const PlayerController);
 
@@ -1274,15 +1275,15 @@ vlc_player_t * PlayerController::getPlayer() const
 input_item_t *PlayerController::getInput() const
 {
     Q_D(const PlayerController);
-    vlc_player_locker locker{ d->m_player };
-    return vlc_player_GetCurrentMedia( d->m_player );
+    heimdall_player_locker locker{ d->m_player };
+    return heimdall_player_GetCurrentMedia( d->m_player );
 }
 
 bool PlayerController::isStarted() const
 {
     Q_D(const PlayerController);
-    vlc_player_locker locker{ d->m_player };
-    return vlc_player_IsStarted( d->m_player );
+    heimdall_player_locker locker{ d->m_player };
+    return heimdall_player_IsStarted( d->m_player );
 }
 
 bool PlayerController::hasInput() const
@@ -1294,11 +1295,11 @@ void PlayerController::reverse()
 {
     Q_D(PlayerController);
     msg_Dbg( d->p_intf, "reverse");
-    vlc_player_locker lock{ d->m_player };
-    if ( vlc_player_CanChangeRate( d->m_player ) )
+    heimdall_player_locker lock{ d->m_player };
+    if ( heimdall_player_CanChangeRate( d->m_player ) )
     {
-        float f_rate_ = vlc_player_GetRate( d->m_player );
-        vlc_player_ChangeRate( d->m_player, -f_rate_ );
+        float f_rate_ = heimdall_player_GetRate( d->m_player );
+        heimdall_player_ChangeRate( d->m_player, -f_rate_ );
     }
 }
 
@@ -1310,10 +1311,10 @@ void PlayerController::setRate( float new_rate )
         return;
 
     msg_Dbg( d->p_intf, "setRate %f", new_rate);
-    vlc_player_locker lock{ d->m_player };
-    if ( vlc_player_CanChangeRate( d->m_player ) )
+    heimdall_player_locker lock{ d->m_player };
+    if ( heimdall_player_CanChangeRate( d->m_player ) )
     {
-        vlc_player_ChangeRate( d->m_player, new_rate );
+        heimdall_player_ChangeRate( d->m_player, new_rate );
 
         // Until the timer notifies the change, we need to still change
         // the rate, because player timer update may take a long time.
@@ -1328,51 +1329,51 @@ void PlayerController::slower()
 {
     Q_D(PlayerController);
     msg_Dbg( d->p_intf, "slower");
-    vlc_player_locker lock{ d->m_player };
-    if ( vlc_player_CanChangeRate( d->m_player ) )
-        vlc_player_DecrementRate( d->m_player );
+    heimdall_player_locker lock{ d->m_player };
+    if ( heimdall_player_CanChangeRate( d->m_player ) )
+        heimdall_player_DecrementRate( d->m_player );
 }
 
 void PlayerController::faster()
 {
     Q_D(PlayerController);
     msg_Dbg( d->p_intf, "faster");
-    vlc_player_locker lock{ d->m_player };
-    if ( vlc_player_CanChangeRate( d->m_player ) )
-        vlc_player_IncrementRate( d->m_player );
+    heimdall_player_locker lock{ d->m_player };
+    if ( heimdall_player_CanChangeRate( d->m_player ) )
+        heimdall_player_IncrementRate( d->m_player );
 }
 
 void PlayerController::littlefaster()
 {
     Q_D(PlayerController);
     msg_Dbg( d->p_intf, "littlefaster");
-    var_SetInteger( vlc_object_instance(d->p_intf), "key-action", ACTIONID_RATE_FASTER_FINE );
+    var_SetInteger( heimdall_object_instance(d->p_intf), "key-action", ACTIONID_RATE_FASTER_FINE );
 }
 
 void PlayerController::littleslower()
 {
     Q_D(PlayerController);
     msg_Dbg( d->p_intf, "littleslower");
-    var_SetInteger( vlc_object_instance(d->p_intf), "key-action", ACTIONID_RATE_SLOWER_FINE );
+    var_SetInteger( heimdall_object_instance(d->p_intf), "key-action", ACTIONID_RATE_SLOWER_FINE );
 }
 
 void PlayerController::normalRate()
 {
     Q_D(PlayerController);
     msg_Dbg( d->p_intf, "normalRate");
-    vlc_player_locker lock{ d->m_player };
-    if ( vlc_player_CanChangeRate( d->m_player ) )
-        vlc_player_ChangeRate( d->m_player, 1.0f );
+    heimdall_player_locker lock{ d->m_player };
+    if ( heimdall_player_CanChangeRate( d->m_player ) )
+        heimdall_player_ChangeRate( d->m_player, 1.0f );
 }
 
 
-void PlayerController::setTime(VLCTime new_time)
+void PlayerController::setTime(HeimdallTime new_time)
 {
     Q_D(PlayerController);
-    vlc_player_locker lock{ d->m_player };
+    heimdall_player_locker lock{ d->m_player };
     if( !d->isCurrentItemSynced() )
         return;
-    vlc_player_SetTime( d->m_player, new_time.toVLCTick() );
+    heimdall_player_SetTime( d->m_player, new_time.toHeimdallTick() );
 }
 
 void PlayerController::setPosition(double position)
@@ -1381,10 +1382,10 @@ void PlayerController::setPosition(double position)
     if (qFuzzyCompare(d->m_position, position))
         return;
 
-    vlc_player_locker lock{ d->m_player };
+    heimdall_player_locker lock{ d->m_player };
     if( !d->isCurrentItemSynced() )
         return;
-    vlc_player_SetPosition( d->m_player, position );
+    heimdall_player_SetPosition( d->m_player, position );
 }
 
 void PlayerController::jumpFwd()
@@ -1392,10 +1393,10 @@ void PlayerController::jumpFwd()
     Q_D(PlayerController);
     msg_Dbg( d->p_intf, "jumpFwd");
     int i_interval = var_InheritInteger( d->p_intf, "short-jump-size" );
-    vlc_player_locker lock{ d->m_player };
+    heimdall_player_locker lock{ d->m_player };
     if( !d->isCurrentItemSynced() )
         return;
-    vlc_player_JumpTime( d->m_player, vlc_tick_from_sec( i_interval ) );
+    heimdall_player_JumpTime( d->m_player, heimdall_tick_from_sec( i_interval ) );
 }
 
 void PlayerController::jumpBwd()
@@ -1403,31 +1404,31 @@ void PlayerController::jumpBwd()
     Q_D(PlayerController);
     msg_Dbg( d->p_intf, "jumpBwd");
     int i_interval = var_InheritInteger( d->p_intf, "short-jump-size" );
-    vlc_player_locker lock{ d->m_player };
+    heimdall_player_locker lock{ d->m_player };
     if( !d->isCurrentItemSynced() )
         return;
-    vlc_player_JumpTime( d->m_player, vlc_tick_from_sec( -i_interval ) );
+    heimdall_player_JumpTime( d->m_player, heimdall_tick_from_sec( -i_interval ) );
 }
 
-void PlayerController::jumpTime(VLCTime i_time)
+void PlayerController::jumpTime(HeimdallTime i_time)
 {
     Q_D(PlayerController);
     msg_Dbg( d->p_intf, "jumpTime");
-    vlc_player_locker lock{ d->m_player };
+    heimdall_player_locker lock{ d->m_player };
     if( !d->isCurrentItemSynced() )
         return;
-    vlc_player_JumpTime( d->m_player, i_time.toVLCTick() );
+    heimdall_player_JumpTime( d->m_player, i_time.toHeimdallTick() );
 }
 
 void PlayerController::jumpToPos( double new_pos )
 {
     Q_D(PlayerController);
     {
-        vlc_player_locker lock{ d->m_player };
+        heimdall_player_locker lock{ d->m_player };
         if( !d->isCurrentItemSynced() )
             return;
-        if( vlc_player_IsStarted( d->m_player ) )
-            vlc_player_SetPosition( d->m_player, new_pos );
+        if( heimdall_player_IsStarted( d->m_player ) )
+            heimdall_player_SetPosition( d->m_player, new_pos );
     }
     emit seekRequested( new_pos );
 }
@@ -1435,75 +1436,75 @@ void PlayerController::jumpToPos( double new_pos )
 void PlayerController::frameNext()
 {
     Q_D(PlayerController);
-    vlc_player_locker lock{ d->m_player };
+    heimdall_player_locker lock{ d->m_player };
     if( !d->isCurrentItemSynced() )
         return;
-    vlc_player_NextVideoFrame( d->m_player );
+    heimdall_player_NextVideoFrame( d->m_player );
 }
 
 void PlayerController::framePrev()
 {
     Q_D(PlayerController);
-    vlc_player_locker lock{ d->m_player };
+    heimdall_player_locker lock{ d->m_player };
     if( !d->isCurrentItemSynced() )
         return;
-    vlc_player_PreviousVideoFrame( d->m_player );
+    heimdall_player_PreviousVideoFrame( d->m_player );
 }
 
 //TRACKS
 
-void PlayerController::setAudioDelay(VLCDuration delay)
+void PlayerController::setAudioDelay(HeimdallDuration delay)
 {
     Q_D(PlayerController);
-    vlc_player_locker lock{ d->m_player };
+    heimdall_player_locker lock{ d->m_player };
     if( !d->isCurrentItemSynced() )
         return;
-    vlc_player_SetAudioDelay( d->m_player, delay.toVLCTick(), VLC_PLAYER_WHENCE_ABSOLUTE );
+    heimdall_player_SetAudioDelay( d->m_player, delay.toHeimdallTick(), HEIMDALL_PLAYER_WHENCE_ABSOLUTE );
 }
 
-/*Q_INVOKABLE*/void PlayerController::addAudioDelay(VLCDuration delay)
+/*Q_INVOKABLE*/void PlayerController::addAudioDelay(HeimdallDuration delay)
 {
     Q_D(PlayerController);
-    vlc_player_locker lock{ d->m_player };
-    vlc_player_SetAudioDelay( d->m_player, delay.toVLCTick(), VLC_PLAYER_WHENCE_RELATIVE );
+    heimdall_player_locker lock{ d->m_player };
+    heimdall_player_SetAudioDelay( d->m_player, delay.toHeimdallTick(), HEIMDALL_PLAYER_WHENCE_RELATIVE );
     emit audioDelayChanged(delay);
 }
 
-void PlayerController::setSubtitleDelay(VLCDuration delay)
+void PlayerController::setSubtitleDelay(HeimdallDuration delay)
 {
     Q_D(PlayerController);
-    vlc_player_locker lock{ d->m_player };
+    heimdall_player_locker lock{ d->m_player };
     if(!d->isCurrentItemSynced() )
         return;
-    vlc_player_SetSubtitleDelay( d->m_player, delay.toVLCTick(), VLC_PLAYER_WHENCE_ABSOLUTE );
+    heimdall_player_SetSubtitleDelay( d->m_player, delay.toHeimdallTick(), HEIMDALL_PLAYER_WHENCE_ABSOLUTE );
 }
 
-/*Q_INVOKABLE*/void PlayerController::addSubtitleDelay(VLCDuration delay)
+/*Q_INVOKABLE*/void PlayerController::addSubtitleDelay(HeimdallDuration delay)
 {
     Q_D(PlayerController);
-    vlc_player_locker lock{ d->m_player };
-    vlc_player_SetSubtitleDelay( d->m_player, delay.toVLCTick(), VLC_PLAYER_WHENCE_RELATIVE);
+    heimdall_player_locker lock{ d->m_player };
+    heimdall_player_SetSubtitleDelay( d->m_player, delay.toHeimdallTick(), HEIMDALL_PLAYER_WHENCE_RELATIVE);
     emit subtitleDelayChanged(delay);
 }
 
-void PlayerController::setSecondarySubtitleDelay(VLCDuration delay)
+void PlayerController::setSecondarySubtitleDelay(HeimdallDuration delay)
 {
     Q_D(PlayerController);
-    vlc_player_locker lock{ d->m_player };
+    heimdall_player_locker lock{ d->m_player };
     if( !d->isCurrentItemSynced() )
         return;
     if (d->m_secondarySpuEsId.get() != NULL)
-        vlc_player_SetEsIdDelay(d->m_player, d->m_secondarySpuEsId.get(),
-                                delay.toVLCTick(), VLC_PLAYER_WHENCE_ABSOLUTE);
+        heimdall_player_SetEsIdDelay(d->m_player, d->m_secondarySpuEsId.get(),
+                                delay.toHeimdallTick(), HEIMDALL_PLAYER_WHENCE_ABSOLUTE);
 }
 
-/*Q_INVOKABLE*/void PlayerController::addSecondarySubtitleDelay(VLCDuration delay)
+/*Q_INVOKABLE*/void PlayerController::addSecondarySubtitleDelay(HeimdallDuration delay)
 {
     Q_D(PlayerController);
-    vlc_player_locker lock{ d->m_player };
+    heimdall_player_locker lock{ d->m_player };
     if (d->m_secondarySpuEsId.get() != NULL) {
-        vlc_player_SetEsIdDelay(d->m_player, d->m_secondarySpuEsId.get(),
-                                delay.toVLCTick(), VLC_PLAYER_WHENCE_RELATIVE);
+        heimdall_player_SetEsIdDelay(d->m_player, d->m_secondarySpuEsId.get(),
+                                delay.toHeimdallTick(), HEIMDALL_PLAYER_WHENCE_RELATIVE);
         emit secondarySubtitleDelayChanged(delay);
     }
 }
@@ -1515,7 +1516,7 @@ int PlayerController::getAudioDelayMS() const
 
 void PlayerController::setAudioDelayMS(int ms)
 {
-    setAudioDelay( VLCDuration::fromMS(ms) );
+    setAudioDelay( HeimdallDuration::fromMS(ms) );
 }
 
 int PlayerController::getSubtitleDelayMS() const
@@ -1525,7 +1526,7 @@ int PlayerController::getSubtitleDelayMS() const
 
 void PlayerController::setSubtitleDelayMS(int ms)
 {
-    setSubtitleDelay( VLCDuration::fromMS(ms) );
+    setSubtitleDelay( HeimdallDuration::fromMS(ms) );
 }
 
 int PlayerController::getSecondarySubtitleDelayMS() const
@@ -1535,16 +1536,16 @@ int PlayerController::getSecondarySubtitleDelayMS() const
 
 void PlayerController::setSecondarySubtitleDelayMS(int ms)
 {
-    setSecondarySubtitleDelay( VLCDuration::fromMS(ms) );
+    setSecondarySubtitleDelay( HeimdallDuration::fromMS(ms) );
 }
 
 void PlayerController::setSubtitleFPS(float fps)
 {
     Q_D(PlayerController);
-    vlc_player_locker lock{ d->m_player };
+    heimdall_player_locker lock{ d->m_player };
     if( !d->isCurrentItemSynced() )
         return;
-    vlc_player_SetAssociatedSubsFPS( d->m_player, fps );
+    heimdall_player_SetAssociatedSubsFPS( d->m_player, fps );
 }
 
 //TITLE/CHAPTER/MENU
@@ -1552,131 +1553,131 @@ void PlayerController::setSubtitleFPS(float fps)
 void PlayerController::sectionPrev()
 {
     Q_D(PlayerController);
-    vlc_player_locker lock{ d->m_player };
+    heimdall_player_locker lock{ d->m_player };
     if( !d->isCurrentItemSynced() )
         return;
-    if( vlc_player_IsStarted( d->m_player ) )
+    if( heimdall_player_IsStarted( d->m_player ) )
     {
-        if (vlc_player_GetSelectedChapter( d->m_player ) != NULL)
-            vlc_player_SelectPrevChapter( d->m_player );
+        if (heimdall_player_GetSelectedChapter( d->m_player ) != NULL)
+            heimdall_player_SelectPrevChapter( d->m_player );
         else
-            vlc_player_SelectPrevTitle( d->m_player );
+            heimdall_player_SelectPrevTitle( d->m_player );
     }
 }
 
 void PlayerController::sectionNext()
 {
     Q_D(PlayerController);
-    vlc_player_locker lock{ d->m_player };
+    heimdall_player_locker lock{ d->m_player };
     if( !d->isCurrentItemSynced() )
         return;
-    if( vlc_player_IsStarted( d->m_player ) )
+    if( heimdall_player_IsStarted( d->m_player ) )
     {
-        if (vlc_player_GetSelectedChapter( d->m_player ) != NULL)
-            vlc_player_SelectNextChapter( d->m_player );
+        if (heimdall_player_GetSelectedChapter( d->m_player ) != NULL)
+            heimdall_player_SelectNextChapter( d->m_player );
         else
-            vlc_player_SelectNextTitle( d->m_player );
+            heimdall_player_SelectNextTitle( d->m_player );
     }
 }
 
 void PlayerController::sectionMenu()
 {
     Q_D(PlayerController);
-    vlc_player_locker lock{ d->m_player };
+    heimdall_player_locker lock{ d->m_player };
     if( !d->isCurrentItemSynced() )
         return;
-    if( vlc_player_IsStarted( d->m_player ) )
-        vlc_player_Navigate( d->m_player, VLC_PLAYER_NAV_MENU );
+    if( heimdall_player_IsStarted( d->m_player ) )
+        heimdall_player_Navigate( d->m_player, HEIMDALL_PLAYER_NAV_MENU );
 }
 
 void PlayerController::navigateUp()
 {
     Q_D(PlayerController);
-    vlc_player_locker lock{ d->m_player };
+    heimdall_player_locker lock{ d->m_player };
     if( !d->isCurrentItemSynced() )
         return;
-    if( vlc_player_IsStarted( d->m_player ) )
-        vlc_player_Navigate( d->m_player, VLC_PLAYER_NAV_UP);
+    if( heimdall_player_IsStarted( d->m_player ) )
+        heimdall_player_Navigate( d->m_player, HEIMDALL_PLAYER_NAV_UP);
 }
 
 void PlayerController::navigateDown()
 {
     Q_D(PlayerController);
-    vlc_player_locker lock{ d->m_player };
+    heimdall_player_locker lock{ d->m_player };
     if( !d->isCurrentItemSynced() )
         return;
-    if( vlc_player_IsStarted( d->m_player ) )
-        vlc_player_Navigate( d->m_player, VLC_PLAYER_NAV_DOWN);
+    if( heimdall_player_IsStarted( d->m_player ) )
+        heimdall_player_Navigate( d->m_player, HEIMDALL_PLAYER_NAV_DOWN);
 }
 
 void PlayerController::navigateLeft()
 {
     Q_D(PlayerController);
-    vlc_player_locker lock{ d->m_player };
+    heimdall_player_locker lock{ d->m_player };
     if( !d->isCurrentItemSynced() )
         return;
-    if( vlc_player_IsStarted( d->m_player ) )
-        vlc_player_Navigate( d->m_player, VLC_PLAYER_NAV_LEFT);
+    if( heimdall_player_IsStarted( d->m_player ) )
+        heimdall_player_Navigate( d->m_player, HEIMDALL_PLAYER_NAV_LEFT);
 }
 
 void PlayerController::navigateRight()
 {
     Q_D(PlayerController);
-    vlc_player_locker lock{ d->m_player };
+    heimdall_player_locker lock{ d->m_player };
     if( !d->isCurrentItemSynced() )
         return;
-    if( vlc_player_IsStarted( d->m_player ) )
-        vlc_player_Navigate( d->m_player, VLC_PLAYER_NAV_RIGHT);
+    if( heimdall_player_IsStarted( d->m_player ) )
+        heimdall_player_Navigate( d->m_player, HEIMDALL_PLAYER_NAV_RIGHT);
 }
 
 void PlayerController::navigateActivate()
 {
     Q_D(PlayerController);
-    vlc_player_locker lock{ d->m_player };
+    heimdall_player_locker lock{ d->m_player };
     if( !d->isCurrentItemSynced() )
         return;
-    if( vlc_player_IsStarted( d->m_player ) )
-        vlc_player_Navigate( d->m_player, VLC_PLAYER_NAV_ACTIVATE);
+    if( heimdall_player_IsStarted( d->m_player ) )
+        heimdall_player_Navigate( d->m_player, HEIMDALL_PLAYER_NAV_ACTIVATE);
 }
 
 void PlayerController::chapterNext()
 {
     Q_D(PlayerController);
-    vlc_player_locker lock{ d->m_player };
+    heimdall_player_locker lock{ d->m_player };
     if( !d->isCurrentItemSynced() )
         return;
-    if (vlc_player_IsStarted(d->m_player ))
-        vlc_player_SelectNextChapter( d->m_player );
+    if (heimdall_player_IsStarted(d->m_player ))
+        heimdall_player_SelectNextChapter( d->m_player );
 }
 
 void PlayerController::chapterPrev()
 {
     Q_D(PlayerController);
-    vlc_player_locker lock{ d->m_player };
+    heimdall_player_locker lock{ d->m_player };
     if( !d->isCurrentItemSynced() )
         return;
-    if (vlc_player_IsStarted(d->m_player ))
-        vlc_player_SelectPrevChapter( d->m_player );
+    if (heimdall_player_IsStarted(d->m_player ))
+        heimdall_player_SelectPrevChapter( d->m_player );
 }
 
 void PlayerController::titleNext()
 {
     Q_D(PlayerController);
-    vlc_player_locker lock{ d->m_player };
+    heimdall_player_locker lock{ d->m_player };
     if( !d->isCurrentItemSynced() )
         return;
-    if (vlc_player_IsStarted(d->m_player ))
-        vlc_player_SelectNextTitle( d->m_player );
+    if (heimdall_player_IsStarted(d->m_player ))
+        heimdall_player_SelectNextTitle( d->m_player );
 }
 
 void PlayerController::titlePrev()
 {
     Q_D(PlayerController);
-    vlc_player_locker lock{ d->m_player };
+    heimdall_player_locker lock{ d->m_player };
     if( !d->isCurrentItemSynced() )
         return;
-    if (vlc_player_IsStarted(d->m_player ))
-        vlc_player_SelectPrevTitle( d->m_player );
+    if (heimdall_player_IsStarted(d->m_player ))
+        heimdall_player_SelectPrevTitle( d->m_player );
 }
 
 //PROGRAMS
@@ -1684,11 +1685,11 @@ void PlayerController::titlePrev()
 void PlayerController::changeProgram( int program )
 {
     Q_D(PlayerController);
-    vlc_player_locker lock{ d->m_player };
+    heimdall_player_locker lock{ d->m_player };
     if( !d->isCurrentItemSynced() )
         return;
-    if( vlc_player_IsStarted( d->m_player ) )
-        vlc_player_SelectProgram( d->m_player, program );
+    if( heimdall_player_IsStarted( d->m_player ) )
+        heimdall_player_SelectProgram( d->m_player, program );
 }
 
 //TELETEXT
@@ -1697,31 +1698,31 @@ void PlayerController::changeProgram( int program )
 void PlayerController::enableTeletext( bool enable )
 {
     Q_D(PlayerController);
-    vlc_player_locker lock{ d->m_player };
+    heimdall_player_locker lock{ d->m_player };
     if( !d->isCurrentItemSynced() )
         return;
-    if (vlc_player_IsStarted(d->m_player ))
-        vlc_player_SetTeletextEnabled( d->m_player, enable );
+    if (heimdall_player_IsStarted(d->m_player ))
+        heimdall_player_SetTeletextEnabled( d->m_player, enable );
 }
 
 void PlayerController::setTeletextPage(int page)
 {
     Q_D(PlayerController);
-    vlc_player_locker lock{ d->m_player };
+    heimdall_player_locker lock{ d->m_player };
     if( !d->isCurrentItemSynced() )
         return;
-    if (vlc_player_IsTeletextEnabled( d->m_player ))
-        vlc_player_SelectTeletextPage( d->m_player, page );
+    if (heimdall_player_IsTeletextEnabled( d->m_player ))
+        heimdall_player_SelectTeletextPage( d->m_player, page );
 }
 
 void PlayerController::setTeletextTransparency( bool transparent )
 {
     Q_D(PlayerController);
-    vlc_player_locker lock{ d->m_player };
+    heimdall_player_locker lock{ d->m_player };
     if( !d->isCurrentItemSynced() )
         return;
-    if (vlc_player_IsTeletextEnabled( d->m_player ))
-        vlc_player_SetTeletextTransparency( d->m_player, transparent );
+    if (heimdall_player_IsTeletextEnabled( d->m_player ))
+        heimdall_player_SetTeletextTransparency( d->m_player, transparent );
 }
 
 //VOUT PROPERTIES
@@ -1733,11 +1734,11 @@ PlayerController::VOutThreadList PlayerController::getVouts() const
     VOutThreadList VoutList;
     size_t i_vout;
     {
-        vlc_player_locker lock{ d->m_player };
-        if( !vlc_player_IsStarted( d->m_player ) )
+        heimdall_player_locker lock{ d->m_player };
+        if( !heimdall_player_IsStarted( d->m_player ) )
             return VOutThreadList{};
         i_vout = 0;
-        pp_vout = vlc_player_vout_HoldAll( d->m_player, &i_vout );
+        pp_vout = heimdall_player_vout_HoldAll( d->m_player, &i_vout );
         if ( i_vout <= 0 )
             return VOutThreadList{};
     }
@@ -1756,8 +1757,8 @@ PlayerController::VOutThreadList PlayerController::getVouts() const
 SharedVOutThread PlayerController::getVout()
 {
     Q_D(PlayerController);
-    vlc_player_locker lock{ d->m_player };
-    vout_thread_t* vout = vlc_player_vout_Hold( d->m_player );
+    heimdall_player_locker lock{ d->m_player };
+    vout_thread_t* vout = heimdall_player_vout_Hold( d->m_player );
     if( vout == NULL )
         return SharedVOutThread{};
     return SharedVOutThread{vout, false};
@@ -1767,8 +1768,8 @@ void PlayerController::setFullscreen( bool new_val )
 {
     Q_D(PlayerController);
     msg_Dbg(d->p_intf, "setFullscreen %s", new_val? "fullscreen" : "windowed");
-    vlc_player_locker lock{ d->m_player };
-    vlc_player_vout_SetFullscreen( d->m_player, new_val );
+    heimdall_player_locker lock{ d->m_player };
+    heimdall_player_vout_SetFullscreen( d->m_player, new_val );
 }
 
 void PlayerController::toggleFullscreen()
@@ -1780,8 +1781,8 @@ void PlayerController::toggleFullscreen()
 void PlayerController::setWallpaperMode( bool new_val )
 {
     Q_D(PlayerController);
-    vlc_player_locker lock{ d->m_player };
-    vlc_player_vout_SetWallpaperModeEnabled( d->m_player, new_val );
+    heimdall_player_locker lock{ d->m_player };
+    heimdall_player_vout_SetWallpaperModeEnabled( d->m_player, new_val );
 }
 
 bool PlayerController::getAutoscale( ) const
@@ -1801,29 +1802,29 @@ void PlayerController::setAutoscale( bool new_val )
 SharedAOut PlayerController::getAout()
 {
     Q_D(PlayerController);
-    vlc_player_locker lock{ d->m_player };
-    return SharedAOut( vlc_player_aout_Hold( d->m_player ), false );
+    heimdall_player_locker lock{ d->m_player };
+    return SharedAOut( heimdall_player_aout_Hold( d->m_player ), false );
 }
 
 void PlayerController::setVolume(float volume)
 {
     Q_D(PlayerController);
-    vlc_player_locker lock{ d->m_player };
-    vlc_player_aout_SetVolume( d->m_player, volume );
+    heimdall_player_locker lock{ d->m_player };
+    heimdall_player_aout_SetVolume( d->m_player, volume );
 }
 
 void PlayerController::setVolumeUp(int steps)
 {
     Q_D(PlayerController);
-    vlc_player_locker lock{ d->m_player };
-    vlc_player_aout_IncrementVolume( d->m_player, steps, NULL );
+    heimdall_player_locker lock{ d->m_player };
+    heimdall_player_aout_IncrementVolume( d->m_player, steps, NULL );
 }
 
 void PlayerController::setVolumeDown(int steps)
 {
     Q_D(PlayerController);
-    vlc_player_locker lock{ d->m_player };
-    vlc_player_aout_DecrementVolume( d->m_player, steps, NULL );
+    heimdall_player_locker lock{ d->m_player };
+    heimdall_player_aout_DecrementVolume( d->m_player, steps, NULL );
 }
 
 void PlayerController::setMuted(bool muted)
@@ -1831,8 +1832,8 @@ void PlayerController::setMuted(bool muted)
     Q_D(PlayerController);
     if( d->m_muted == muted )
         return;
-    vlc_player_locker lock{ d->m_player };
-    vlc_player_aout_Mute( d->m_player, muted );
+    heimdall_player_locker lock{ d->m_player };
+    heimdall_player_aout_Mute( d->m_player, muted );
 }
 
 void PlayerController::toggleMuted()
@@ -1860,32 +1861,32 @@ void PlayerController::updatePositionFromTimer()
 {
     Q_D(PlayerController);
 
-    vlc_tick_t system_now = vlc_tick_now();
-    if (d->interpolateTime(system_now) == VLC_SUCCESS)
+    heimdall_tick_t system_now = heimdall_tick_now();
+    if (d->interpolateTime(system_now) == HEIMDALL_SUCCESS)
         updatePosition();
 }
 
-void PlayerController::updateTime(vlc_tick_t system_now, bool forceUpdate)
+void PlayerController::updateTime(heimdall_tick_t system_now, bool forceUpdate)
 {
     Q_D(PlayerController);
 
     // Update time properties
     emit timeChanged(d->m_time);
-    if (d->m_time.valid() && d->m_length.valid() && d->m_time <= VLCTime(d->m_length))
-        d->m_remainingTime = VLCTime(d->m_length) - d->m_time;
+    if (d->m_time.valid() && d->m_length.valid() && d->m_time <= HeimdallTime(d->m_length))
+        d->m_remainingTime = HeimdallTime(d->m_length) - d->m_time;
     else
-        d->m_remainingTime = VLCDuration();
+        d->m_remainingTime = HeimdallDuration();
     emit remainingTimeChanged(d->m_remainingTime);
 
     if (d->m_syltRaw.has_value() && d->m_time.valid())
     {
         const auto& lyrics = d->syltLyrics();
         int currentIndex = -1;
-        const vlc_tick_t currentTime = d->m_time.toVLCTick();
+        const heimdall_tick_t currentTime = d->m_time.toHeimdallTick();
 
         for (int i = 0; i < lyrics.size(); ++i)
         {
-            if ((lyrics[i].time().toVLCTick() - 1) > currentTime)
+            if ((lyrics[i].time().toHeimdallTick() - 1) > currentTime)
                 break;
             currentIndex = i;
         }
@@ -1898,16 +1899,16 @@ void PlayerController::updateTime(vlc_tick_t system_now, bool forceUpdate)
         }
     }
 
-    if (system_now != VLC_TICK_INVALID
-     && d->m_player_time.system_date != VLC_TICK_MAX
+    if (system_now != HEIMDALL_TICK_INVALID
+     && d->m_player_time.system_date != HEIMDALL_TICK_MAX
      && (forceUpdate || !d->m_time_timer.isActive()))
     {
         // Tell the timer to wait until the next second is reached.
-        vlc_tick_t next_update_date =
-            vlc_player_timer_point_GetNextIntervalDate(&d->m_player_time, system_now,
-                                                       d->m_time.toVLCTick(), VLC_TICK_FROM_SEC(1));
+        heimdall_tick_t next_update_date =
+            heimdall_player_timer_point_GetNextIntervalDate(&d->m_player_time, system_now,
+                                                       d->m_time.toHeimdallTick(), HEIMDALL_TICK_FROM_SEC(1));
 
-        vlc_tick_t next_update_interval = next_update_date - system_now;
+        heimdall_tick_t next_update_interval = next_update_date - system_now;
 
         if (next_update_interval > 0)
         {
@@ -1917,7 +1918,7 @@ void PlayerController::updateTime(vlc_tick_t system_now, bool forceUpdate)
             // seconds.
             static const unsigned imprecision_delay_ms = 30;
 
-            d->m_time_timer.start(MS_FROM_VLC_TICK(next_update_interval)
+            d->m_time_timer.start(MS_FROM_HEIMDALL_TICK(next_update_interval)
                                   + imprecision_delay_ms);
         }
     }
@@ -1938,18 +1939,18 @@ void PlayerController::updateTimeFromTimer()
 {
     Q_D(PlayerController);
 
-    vlc_tick_t system_now = vlc_tick_now();
-    if (d->interpolateTime(system_now) == VLC_SUCCESS)
+    heimdall_tick_t system_now = heimdall_tick_now();
+    if (d->interpolateTime(system_now) == HEIMDALL_SUCCESS)
         updateTime(system_now, false);
 }
 
 void PlayerController::restorePlaybackPos()
 {
     Q_D(PlayerController);
-    vlc_player_locker lock{ d->m_player };
+    heimdall_player_locker lock{ d->m_player };
     if (!d->isCurrentItemSynced())
         return;
-    vlc_player_RestorePlaybackPos( d->m_player );
+    heimdall_player_RestorePlaybackPos( d->m_player );
 }
 
 void PlayerController::acknowledgeRestoreCallback()
@@ -1966,8 +1967,8 @@ void PlayerController::acknowledgeRestoreCallback()
 void PlayerController::setABloopState(ABLoopState state)
 {
     Q_D(PlayerController);
-    vlc_player_locker lock{ d->m_player };
-    vlc_player_SetAtoBLoop( d->m_player, static_cast<vlc_player_abloop>(state));
+    heimdall_player_locker lock{ d->m_player };
+    heimdall_player_SetAtoBLoop( d->m_player, static_cast<heimdall_player_abloop>(state));
 }
 
 void PlayerController::toggleABloopState()
@@ -2039,8 +2040,8 @@ void PlayerController::requestRemoveSMPTETimer()
 void PlayerController::setRecording( bool recording )
 {
     Q_D(PlayerController);
-    vlc_player_locker lock{ d->m_player };
-    vlc_player_SetRecordingEnabled( d->m_player, recording, NULL );
+    heimdall_player_locker lock{ d->m_player };
+    heimdall_player_SetRecordingEnabled( d->m_player, recording, NULL );
 }
 
 void PlayerController::snapshot()
@@ -2070,7 +2071,7 @@ QString PlayerController::highResolutionTime() const
     Q_D(const PlayerController);
 
     // Sample:
-    vlc_player_timer_smpte_timecode sample;
+    heimdall_player_timer_smpte_timecode sample;
     {
 #ifndef QT_HAS_LIBATOMIC
         QReadLocker lock(&d->m_highResolutionTimeLock);
@@ -2078,7 +2079,7 @@ QString PlayerController::highResolutionTime() const
         sample = d->m_highResolutionTime;
     }
 
-    const vlc_player_timer_smpte_timecode& lastSample = d->m_highResolutionTimeSample.first;
+    const heimdall_player_timer_smpte_timecode& lastSample = d->m_highResolutionTimeSample.first;
 
     if (sample.frames == lastSample.frames &&
         sample.frame_resolution == lastSample.frame_resolution &&
@@ -2110,30 +2111,30 @@ void PlayerController::requestArtUpdate( input_item_t *p_item )
 
     if (d->m_preparser == nullptr)
     {
-        vlc_tick_t default_timeout =
-            VLC_TICK_FROM_MS(var_InheritInteger(d->p_intf, "preparse-timeout"));
+        heimdall_tick_t default_timeout =
+            HEIMDALL_TICK_FROM_MS(var_InheritInteger(d->p_intf, "preparse-timeout"));
         if (default_timeout < 0)
             default_timeout = 0;
 
-        const struct vlc_preparser_cfg cfg = [default_timeout]{
-            struct vlc_preparser_cfg cfg{};
-            cfg.types = VLC_PREPARSER_TYPE_FETCHMETA_ALL;
+        const struct heimdall_preparser_cfg cfg = [default_timeout]{
+            struct heimdall_preparser_cfg cfg{};
+            cfg.types = HEIMDALL_PREPARSER_TYPE_FETCHMETA_ALL;
             cfg.max_parser_threads = 1;
             cfg.timeout = default_timeout;
             cfg.external_process = false;
             return cfg;
         }();
-        d->m_preparser = vlc_preparser_New(VLC_OBJECT(d->p_intf), &cfg);
+        d->m_preparser = heimdall_preparser_New(HEIMDALL_OBJECT(d->p_intf), &cfg);
         if (unlikely(d->m_preparser == nullptr))
             return;
     }
 
     int fetch_options = var_InheritBool( d->p_intf, "metadata-network-access" ) ?
-            VLC_PREPARSER_TYPE_FETCHMETA_ALL :
-            VLC_PREPARSER_TYPE_FETCHMETA_LOCAL;
+            HEIMDALL_PREPARSER_TYPE_FETCHMETA_ALL :
+            HEIMDALL_PREPARSER_TYPE_FETCHMETA_LOCAL;
 
-    vlc_preparser_req *req =
-        vlc_preparser_req_NewParse( d->m_preparser, p_item, fetch_options,
+    heimdall_preparser_req *req =
+        heimdall_preparser_req_NewParse( d->m_preparser, p_item, fetch_options,
                                     &art_fetcher_cbs, d );
     if (unlikely(req == nullptr))
         return;
@@ -2141,16 +2142,16 @@ void PlayerController::requestArtUpdate( input_item_t *p_item )
     /* This request is never cancelled from here, so submit it and drop the
        handle straight away: on success the running task owns it, on failure
        this release is the one that frees it. */
-    vlc_preparser_Submit( d->m_preparser, req );
-    vlc_preparser_req_Release( req );
+    heimdall_preparser_Submit( d->m_preparser, req );
+    heimdall_preparser_req_Release( req );
 }
 
 void PlayerControllerPrivate::onArtFetchEnded(input_item_t *p_item, bool)
 {
     Q_Q(PlayerController);
 
-    vlc_player_locker lock{ m_player };
-    bool b_current_item = (p_item == vlc_player_GetCurrentMedia( m_player ));
+    heimdall_player_locker lock{ m_player };
+    bool b_current_item = (p_item == heimdall_player_GetCurrentMedia( m_player ));
     /* No input will signal the cover art to update,
          * let's do it ourself */
     if ( b_current_item )
@@ -2166,7 +2167,7 @@ const QString PlayerController::decodeArtURL( input_item_t *p_item )
     char *psz_art = input_item_GetArtURL( p_item );
     if( psz_art )
     {
-        char *psz = vlc_uri2path( psz_art );
+        char *psz = heimdall_uri2path( psz_art );
         free( psz_art );
         psz_art = psz;
     }
@@ -2186,7 +2187,7 @@ void PlayerController::setArt( input_item_t *p_item, QString fileUrl )
     Q_D(PlayerController);
     if( hasInput() )
     {
-        char *psz_cachedir = config_GetUserDir( VLC_CACHE_DIR );
+        char *psz_cachedir = config_GetUserDir( HEIMDALL_CACHE_DIR );
         QString old_url = decodeArtURL( p_item );
         old_url = QDir( old_url ).canonicalPath();
 
@@ -2208,8 +2209,8 @@ void PlayerController::refreshMediaMeta( input_item_t *p_item )
     Q_D(PlayerController);
 
     const bool isCurrentItem = [d, p_item]() {
-        vlc_player_locker lock{ d->m_player };
-        return p_item == vlc_player_GetCurrentMedia( d->m_player );
+        heimdall_player_locker lock{ d->m_player };
+        return p_item == heimdall_player_GetCurrentMedia( d->m_player );
     }();
 
     if (!isCurrentItem)
@@ -2223,14 +2224,14 @@ void PlayerController::refreshMediaMeta( input_item_t *p_item )
 
 bool PlayerController::associateSubtitleFile(const QString &uri)
 {
-    return AddAssociatedMedia(SPU_ES, uri, true, true, true) == VLC_SUCCESS;
+    return AddAssociatedMedia(SPU_ES, uri, true, true, true) == HEIMDALL_SUCCESS;
 }
 
 int PlayerController::AddAssociatedMedia(es_format_category_e cat, const QString &uri, bool select, bool notify, bool check_ext)
 {
     Q_D(PlayerController);
-    vlc_player_locker lock{ d->m_player };
-    return vlc_player_AddAssociatedMedia( d->m_player, cat, qtu(uri), select, notify, check_ext );
+    heimdall_player_locker lock{ d->m_player };
+    return heimdall_player_AddAssociatedMedia( d->m_player, cat, qtu(uri), select, notify, check_ext );
 }
 
 #define QABSTRACTLIST_GETTER( type, fun, var ) \
@@ -2248,16 +2249,16 @@ QABSTRACTLIST_GETTER( TitleListModel, getTitles, m_titleList)
 QABSTRACTLIST_GETTER( ChapterListModel,getChapters, m_chapterList)
 QABSTRACTLIST_GETTER( AudioDeviceModel, getAudioDevices, m_audioDeviceList)
 QABSTRACTLIST_GETTER( ProgramListModel, getPrograms, m_programList)
-QABSTRACTLIST_GETTER( VLCVarChoiceModel, getVideoStereoMode, m_videoStereoMode)
-QABSTRACTLIST_GETTER( VLCVarChoiceModel, getZoom, m_zoom)
-QABSTRACTLIST_GETTER( VLCVarChoiceModel, getAspectRatio, m_aspectRatio)
-QABSTRACTLIST_GETTER( VLCVarChoiceModel, getCrop, m_crop)
-QABSTRACTLIST_GETTER( VLCVarChoiceModel, getFit, m_fit)
-QABSTRACTLIST_GETTER( VLCVarChoiceModel, getDeinterlace, m_deinterlace)
-QABSTRACTLIST_GETTER( VLCVarChoiceModel, getDeinterlaceMode, m_deinterlaceMode)
-QABSTRACTLIST_GETTER( VLCVarChoiceModel, getAudioStereoMode, m_audioStereoMode)
-QABSTRACTLIST_GETTER( VLCVarChoiceModel, getAudioMixMode, m_audioMixMode)
-QABSTRACTLIST_GETTER( VLCVarChoiceModel, getAudioVisualizations, m_audioVisualization)
+QABSTRACTLIST_GETTER( HeimdallVarChoiceModel, getVideoStereoMode, m_videoStereoMode)
+QABSTRACTLIST_GETTER( HeimdallVarChoiceModel, getZoom, m_zoom)
+QABSTRACTLIST_GETTER( HeimdallVarChoiceModel, getAspectRatio, m_aspectRatio)
+QABSTRACTLIST_GETTER( HeimdallVarChoiceModel, getCrop, m_crop)
+QABSTRACTLIST_GETTER( HeimdallVarChoiceModel, getFit, m_fit)
+QABSTRACTLIST_GETTER( HeimdallVarChoiceModel, getDeinterlace, m_deinterlace)
+QABSTRACTLIST_GETTER( HeimdallVarChoiceModel, getDeinterlaceMode, m_deinterlaceMode)
+QABSTRACTLIST_GETTER( HeimdallVarChoiceModel, getAudioStereoMode, m_audioStereoMode)
+QABSTRACTLIST_GETTER( HeimdallVarChoiceModel, getAudioMixMode, m_audioMixMode)
+QABSTRACTLIST_GETTER( HeimdallVarChoiceModel, getAudioVisualizations, m_audioVisualization)
 QABSTRACTLIST_GETTER( RendererManager, getRendererManager, m_rendererManager)
 
 #undef QABSTRACTLIST_GETTER
@@ -2272,17 +2273,17 @@ QABSTRACTLIST_GETTER( RendererManager, getRendererManager, m_rendererManager)
 
 PRIMITIVETYPE_GETTER(PlayerController::PlayingState, getPlayingState, m_playing_status)
 PRIMITIVETYPE_GETTER(QString, getName, m_name)
-PRIMITIVETYPE_GETTER(VLCTime, getTime, m_time)
-PRIMITIVETYPE_GETTER(VLCDuration, getRemainingTime, m_remainingTime)
+PRIMITIVETYPE_GETTER(HeimdallTime, getTime, m_time)
+PRIMITIVETYPE_GETTER(HeimdallDuration, getRemainingTime, m_remainingTime)
 PRIMITIVETYPE_GETTER(double, getPosition, m_position)
-PRIMITIVETYPE_GETTER(VLCDuration, getLength, m_length)
-PRIMITIVETYPE_GETTER(VLCDuration, getAudioDelay, m_audioDelay)
-PRIMITIVETYPE_GETTER(VLCDuration, getSubtitleDelay, m_subtitleDelay)
-PRIMITIVETYPE_GETTER(VLCDuration, getSecondarySubtitleDelay, m_secondarySubtitleDelay)
-PRIMITIVETYPE_GETTER(bool, isSeekable, m_capabilities & VLC_PLAYER_CAP_SEEK)
-PRIMITIVETYPE_GETTER(bool, isRewindable, m_capabilities & VLC_PLAYER_CAP_REWIND)
-PRIMITIVETYPE_GETTER(bool, isPausable, m_capabilities & VLC_PLAYER_CAP_PAUSE)
-PRIMITIVETYPE_GETTER(bool, isRateChangable, m_capabilities & VLC_PLAYER_CAP_CHANGE_RATE)
+PRIMITIVETYPE_GETTER(HeimdallDuration, getLength, m_length)
+PRIMITIVETYPE_GETTER(HeimdallDuration, getAudioDelay, m_audioDelay)
+PRIMITIVETYPE_GETTER(HeimdallDuration, getSubtitleDelay, m_subtitleDelay)
+PRIMITIVETYPE_GETTER(HeimdallDuration, getSecondarySubtitleDelay, m_secondarySubtitleDelay)
+PRIMITIVETYPE_GETTER(bool, isSeekable, m_capabilities & HEIMDALL_PLAYER_CAP_SEEK)
+PRIMITIVETYPE_GETTER(bool, isRewindable, m_capabilities & HEIMDALL_PLAYER_CAP_REWIND)
+PRIMITIVETYPE_GETTER(bool, isPausable, m_capabilities & HEIMDALL_PLAYER_CAP_PAUSE)
+PRIMITIVETYPE_GETTER(bool, isRateChangable, m_capabilities & HEIMDALL_PLAYER_CAP_CHANGE_RATE)
 PRIMITIVETYPE_GETTER(bool, canRestorePlayback, m_canRestorePlayback);
 PRIMITIVETYPE_GETTER(float, getSubtitleFPS, m_subtitleFPS)
 PRIMITIVETYPE_GETTER(bool, hasVideoOutput, m_hasVideo)
@@ -2301,8 +2302,8 @@ PRIMITIVETYPE_GETTER(bool, hasPrograms, m_hasPrograms)
 PRIMITIVETYPE_GETTER(bool, isEncrypted, m_encrypted)
 PRIMITIVETYPE_GETTER(bool, isRecording, m_recording)
 PRIMITIVETYPE_GETTER(PlayerController::ABLoopState, getABloopState, m_ABLoopState)
-PRIMITIVETYPE_GETTER(VLCTime, getABLoopA, m_ABLoopA)
-PRIMITIVETYPE_GETTER(VLCTime, getABLoopB, m_ABLoopB)
+PRIMITIVETYPE_GETTER(HeimdallTime, getABLoopA, m_ABLoopA)
+PRIMITIVETYPE_GETTER(HeimdallTime, getABLoopB, m_ABLoopB)
 PRIMITIVETYPE_GETTER(bool, isTeletextEnabled, m_teletextEnabled)
 PRIMITIVETYPE_GETTER(bool, isTeletextAvailable, m_teletextAvailable)
 PRIMITIVETYPE_GETTER(int, getTeletextPage, m_teletextPage)

@@ -2,6 +2,7 @@
  * sampler.c: built-in OpenGL sampler module
  *****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -24,10 +25,10 @@
 
 #include "sampler.h"
 
-#include <vlc_common.h>
-#include <vlc_memstream.h>
-#include <vlc_opengl.h>
-#include <vlc_fs.h>
+#include <heimdall_common.h>
+#include <heimdall_memstream.h>
+#include <heimdall_opengl.h>
+#include <heimdall_fs.h>
 
 #ifdef HAVE_LIBPLACEBO_GL
 #include <libplacebo/opengl.h>
@@ -41,11 +42,11 @@
 #include "gl_util.h"
 
 struct sampler_priv {
-    struct vlc_gl_t *gl;
-    struct vlc_gl_api api;
+    struct heimdall_gl_t *gl;
+    struct heimdall_gl_api api;
     const opengl_vtable_t *vt; /* for convenience, same as &api.vt */
 
-    struct vlc_gl_picture pic;
+    struct heimdall_gl_picture pic;
 
     struct {
         GLint Textures[PICTURE_PLANE_MAX];
@@ -67,41 +68,41 @@ struct sampler_priv {
     const struct pl_shader_res *pl_sh_res;
 #endif
 
-    /* If set, vlc_texture() exposes a single plane (without chroma
-     * conversion), selected by vlc_gl_sampler_SetCurrentPlane(). */
+    /* If set, heimdall_texture() exposes a single plane (without chroma
+     * conversion), selected by heimdall_gl_sampler_SetCurrentPlane(). */
     bool expose_planes;
     unsigned plane;
 
     int glsl_version;
 
-    struct vlc_gl_extension_vt extension_vt;
+    struct heimdall_gl_extension_vt extension_vt;
 };
 
 static inline struct sampler_priv *
-PRIV(struct vlc_gl_sampler *sampler)
+PRIV(struct heimdall_gl_sampler *sampler)
 {
     return sampler->sys;
 }
 
 static int
-sampler_update(struct vlc_gl_sampler *sampler,
-               const struct vlc_gl_picture *picture)
+sampler_update(struct heimdall_gl_sampler *sampler,
+               const struct heimdall_gl_picture *picture)
 {
     struct sampler_priv *priv = PRIV(sampler);
     priv->pic = *picture;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void
-sampler_select_plane(struct vlc_gl_sampler *sampler, unsigned plane)
+sampler_select_plane(struct heimdall_gl_sampler *sampler, unsigned plane)
 {
     struct sampler_priv *priv = PRIV(sampler);
     priv->plane = plane;
 }
 
 static void
-sampler_close(struct vlc_gl_sampler *sampler)
+sampler_close(struct heimdall_gl_sampler *sampler)
 {
 #ifdef HAVE_LIBPLACEBO_GL
     struct sampler_priv *priv = PRIV(sampler);
@@ -208,8 +209,8 @@ init_conv_matrix(float conv_matrix_out[],
 }
 
 static int
-sampler_yuv_base_init(struct vlc_gl_sampler *sampler,
-                      const vlc_chroma_description_t *desc,
+sampler_yuv_base_init(struct heimdall_gl_sampler *sampler,
+                      const heimdall_chroma_description_t *desc,
                       video_color_space_t yuv_space)
 {
     struct sampler_priv *priv = PRIV(sampler);
@@ -229,8 +230,8 @@ sampler_yuv_base_init(struct vlc_gl_sampler *sampler,
 
     if (desc->pixel_size == 2)
     {
-        if (desc->fcc != VLC_CODEC_P010 && desc->fcc != VLC_CODEC_P012
-         && desc->fcc != VLC_CODEC_P016) {
+        if (desc->fcc != HEIMDALL_CODEC_P010 && desc->fcc != HEIMDALL_CODEC_P012
+         && desc->fcc != HEIMDALL_CODEC_P016) {
             /* Do a bit shift if samples are stored on LSB. */
             float yuv_range_correction = (float)((1 << 16) - 1)
                                          / ((1 << desc->pixel_bits) - 1);
@@ -276,8 +277,8 @@ sampler_yuv_base_init(struct vlc_gl_sampler *sampler,
      *
      * This is equivalent to swap columns 1 and 2.
      */
-    bool swap_uv = desc->fcc == VLC_CODEC_YV12 ||
-                   desc->fcc == VLC_CODEC_NV21;
+    bool swap_uv = desc->fcc == HEIMDALL_CODEC_YV12 ||
+                   desc->fcc == HEIMDALL_CODEC_NV21;
     if (swap_uv)
     {
         /* Remember, the matrix in column-major order */
@@ -289,11 +290,11 @@ sampler_yuv_base_init(struct vlc_gl_sampler *sampler,
         /* column2 <- tmp */
         memcpy(matrix + 8, tmp, sizeof(tmp));
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void
-sampler_base_fetch_locations(struct vlc_gl_sampler *sampler, uint32_t program)
+sampler_base_fetch_locations(struct heimdall_gl_sampler *sampler, uint32_t program)
 {
     struct sampler_priv *priv = PRIV(sampler);
 
@@ -312,7 +313,7 @@ sampler_base_fetch_locations(struct vlc_gl_sampler *sampler, uint32_t program)
      * tex_count > 9 would overflow the char name[] string during
      * snprintf operations. */
     if (tex_count >= PICTURE_PLANE_MAX)
-        vlc_assert_unreachable();
+        heimdall_assert_unreachable();
 
     for (unsigned i = 0; i < tex_count; ++i)
     {
@@ -345,12 +346,12 @@ sampler_base_fetch_locations(struct vlc_gl_sampler *sampler, uint32_t program)
 }
 
 static void
-sampler_base_load(struct vlc_gl_sampler *sampler)
+sampler_base_load(struct heimdall_gl_sampler *sampler)
 {
     struct sampler_priv *priv = PRIV(sampler);
 
     const opengl_vtable_t *vt = priv->vt;
-    struct vlc_gl_picture *pic = &priv->pic;
+    struct heimdall_gl_picture *pic = &priv->pic;
 
     if (priv->yuv_color)
         vt->UniformMatrix4fv(priv->uloc.ConvMatrix, 1, GL_FALSE,
@@ -442,7 +443,7 @@ sampler_base_load(struct vlc_gl_sampler *sampler)
 }
 
 static void
-sampler_xyz12_fetch_locations(struct vlc_gl_sampler *sampler, uint32_t program)
+sampler_xyz12_fetch_locations(struct heimdall_gl_sampler *sampler, uint32_t program)
 {
     struct sampler_priv *priv = PRIV(sampler);
     const opengl_vtable_t *vt = priv->vt;
@@ -452,11 +453,11 @@ sampler_xyz12_fetch_locations(struct vlc_gl_sampler *sampler, uint32_t program)
 }
 
 static void
-sampler_xyz12_load(struct vlc_gl_sampler *sampler)
+sampler_xyz12_load(struct heimdall_gl_sampler *sampler)
 {
     struct sampler_priv *priv = PRIV(sampler);
     const opengl_vtable_t *vt = priv->vt;
-    struct vlc_gl_picture *pic = &priv->pic;
+    struct heimdall_gl_picture *pic = &priv->pic;
 
     vt->Uniform1i(priv->uloc.Textures[0], 0);
 
@@ -466,9 +467,9 @@ sampler_xyz12_load(struct vlc_gl_sampler *sampler)
 }
 
 static int
-xyz12_shader_init(struct vlc_gl_sampler *sampler)
+xyz12_shader_init(struct heimdall_gl_sampler *sampler)
 {
-    static const struct vlc_gl_sampler_ops ops = {
+    static const struct heimdall_gl_sampler_ops ops = {
         .fetch_locations = sampler_xyz12_fetch_locations,
         .load = sampler_xyz12_load,
         .update = sampler_update,
@@ -495,7 +496,7 @@ xyz12_shader_init(struct vlc_gl_sampler *sampler)
         "    0.0,      0.0,         0.0,        1.0 "
         " );"
 
-        "vec4 vlc_texture(vec2 tex_coords)\n"
+        "vec4 heimdall_texture(vec2 tex_coords)\n"
         "{ "
         " vec4 v_in, v_out;"
         " v_in  = texture2D(Textures[0], tex_coords);\n"
@@ -508,15 +509,15 @@ xyz12_shader_init(struct vlc_gl_sampler *sampler)
 
     sampler->shader.body = strdup(template);
     if (!sampler->shader.body)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int
-opengl_init_swizzle(struct vlc_gl_sampler *sampler,
+opengl_init_swizzle(struct heimdall_gl_sampler *sampler,
                     const char *swizzle_per_tex[],
-                    const vlc_chroma_description_t *desc)
+                    const heimdall_chroma_description_t *desc)
 {
     if (desc->plane_count == 4)
         swizzle_per_tex[0] = swizzle_per_tex[1] = swizzle_per_tex[2] = swizzle_per_tex[3] = "r";
@@ -544,57 +545,57 @@ opengl_init_swizzle(struct vlc_gl_sampler *sampler,
          */
         switch (desc->fcc)
         {
-            case VLC_CODEC_UYVY:
+            case HEIMDALL_CODEC_UYVY:
                 swizzle_per_tex[0] = "g";
                 swizzle_per_tex[1] = "rb";
                 break;
-            case VLC_CODEC_YUYV:
+            case HEIMDALL_CODEC_YUYV:
                 swizzle_per_tex[0] = "r";
                 swizzle_per_tex[1] = "ga";
                 break;
-            case VLC_CODEC_VYUY:
+            case HEIMDALL_CODEC_VYUY:
                 swizzle_per_tex[0] = "g";
                 swizzle_per_tex[1] = "br";
                 break;
-            case VLC_CODEC_YVYU:
+            case HEIMDALL_CODEC_YVYU:
                 swizzle_per_tex[0] = "r";
                 swizzle_per_tex[1] = "ag";
                 break;
-            case VLC_CODEC_V308:
+            case HEIMDALL_CODEC_V308:
                 swizzle_per_tex[0] = "rgb";
                 assert(sampler->tex_count == 1);
                 break;
-            case VLC_CODEC_VUYX:
-            case VLC_CODEC_VUYA:
+            case HEIMDALL_CODEC_VUYX:
+            case HEIMDALL_CODEC_VUYA:
                 swizzle_per_tex[0] = "bgr";
                 break;
-            case VLC_CODEC_Y410:
-            case VLC_CODEC_Y412:
+            case HEIMDALL_CODEC_Y410:
+            case HEIMDALL_CODEC_Y412:
                 swizzle_per_tex[0] = "grb";
                 break;
             default:
                 assert(!"missing chroma");
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
         }
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void
-GetNames(struct vlc_gl_sampler *sampler, GLenum tex_target,
+GetNames(struct heimdall_gl_sampler *sampler, GLenum tex_target,
          const char **glsl_sampler, const char **texture)
 {
     struct sampler_priv *priv = PRIV(sampler);
 
     bool has_texture_func =
-        (priv->gl->api_type == VLC_OPENGL && priv->glsl_version >= 130) ||
-        (priv->gl->api_type == VLC_OPENGL_ES2 && priv->glsl_version >= 300);
+        (priv->gl->api_type == HEIMDALL_OPENGL && priv->glsl_version >= 130) ||
+        (priv->gl->api_type == HEIMDALL_OPENGL_ES2 && priv->glsl_version >= 300);
 
     //GLES has no texture rectangle
     bool has_texture_rect_func =
-        (priv->gl->api_type == VLC_OPENGL && priv->glsl_version >= 140);
+        (priv->gl->api_type == HEIMDALL_OPENGL && priv->glsl_version >= 140);
 
-    const bool is_yuv = vlc_fourcc_IsYUV(sampler->fmt_in.i_chroma);
+    const bool is_yuv = heimdall_fourcc_IsYUV(sampler->fmt_in.i_chroma);
 
     switch (tex_target)
     {
@@ -611,15 +612,15 @@ GetNames(struct vlc_gl_sampler *sampler, GLenum tex_target,
             *texture = has_texture_rect_func ? "texture" : "texture2DRect";
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 }
 
 static int
-InitShaderExtensions(struct vlc_gl_sampler *sampler, GLenum tex_target)
+InitShaderExtensions(struct heimdall_gl_sampler *sampler, GLenum tex_target)
 {
     struct sampler_priv *priv = PRIV(sampler);
-    const bool is_yuv = vlc_fourcc_IsYUV(sampler->fmt_in.i_chroma);
+    const bool is_yuv = heimdall_fourcc_IsYUV(sampler->fmt_in.i_chroma);
 
     const char *image_external = priv->glsl_version >= 300
         ? "#extension GL_OES_EGL_image_external_essl3 : require\n"
@@ -645,14 +646,14 @@ InitShaderExtensions(struct vlc_gl_sampler *sampler, GLenum tex_target)
     {
         if (ret == 0)
             FREENULL(sampler->shader.extensions);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void
-sampler_planes_fetch_locations(struct vlc_gl_sampler *sampler, uint32_t program)
+sampler_planes_fetch_locations(struct heimdall_gl_sampler *sampler, uint32_t program)
 {
     struct sampler_priv *priv = PRIV(sampler);
 
@@ -669,13 +670,13 @@ sampler_planes_fetch_locations(struct vlc_gl_sampler *sampler, uint32_t program)
 }
 
 static void
-sampler_planes_load(struct vlc_gl_sampler *sampler)
+sampler_planes_load(struct heimdall_gl_sampler *sampler)
 {
     struct sampler_priv *priv = PRIV(sampler);
     unsigned plane = priv->plane;
 
     const opengl_vtable_t *vt = priv->vt;
-    struct vlc_gl_picture *pic = &priv->pic;
+    struct heimdall_gl_picture *pic = &priv->pic;
 
     vt->Uniform1i(priv->uloc.Textures[0], 0);
 
@@ -691,16 +692,16 @@ sampler_planes_load(struct vlc_gl_sampler *sampler)
 }
 
 static int
-sampler_planes_init(struct vlc_gl_sampler *sampler)
+sampler_planes_init(struct heimdall_gl_sampler *sampler)
 {
     GLenum tex_target = sampler->tex_target;
 
-    struct vlc_memstream ms;
-    if (vlc_memstream_open(&ms))
-        return VLC_EGENERIC;
+    struct heimdall_memstream ms;
+    if (heimdall_memstream_open(&ms))
+        return HEIMDALL_EGENERIC;
 
-#define ADD(x) vlc_memstream_puts(&ms, x)
-#define ADDF(x, ...) vlc_memstream_printf(&ms, x, ##__VA_ARGS__)
+#define ADD(x) heimdall_memstream_puts(&ms, x)
+#define ADDF(x, ...) heimdall_memstream_printf(&ms, x, ##__VA_ARGS__)
 
     const char *sampler_type;
     const char *texture_fn;
@@ -711,7 +712,7 @@ sampler_planes_init(struct vlc_gl_sampler *sampler)
     if (tex_target == GL_TEXTURE_RECTANGLE)
         ADD("uniform vec2 TexSize;\n");
 
-    ADD("vec4 vlc_texture(vec2 tex_coords) {\n");
+    ADD("vec4 heimdall_texture(vec2 tex_coords) {\n");
 
     if (tex_target == GL_TEXTURE_RECTANGLE)
     {
@@ -725,18 +726,18 @@ sampler_planes_init(struct vlc_gl_sampler *sampler)
 #undef ADD
 #undef ADDF
 
-    if (vlc_memstream_close(&ms) != 0)
-        return VLC_EGENERIC;
+    if (heimdall_memstream_close(&ms) != 0)
+        return HEIMDALL_EGENERIC;
 
     int ret = InitShaderExtensions(sampler, tex_target);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
     {
         free(ms.ptr);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     sampler->shader.body = ms.ptr;
 
-    static const struct vlc_gl_sampler_ops ops = {
+    static const struct heimdall_gl_sampler_ops ops = {
         .fetch_locations = sampler_planes_fetch_locations,
         .load = sampler_planes_load,
         .update = sampler_update,
@@ -745,18 +746,18 @@ sampler_planes_init(struct vlc_gl_sampler *sampler)
     };
     sampler->ops = &ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 #ifdef HAVE_LIBPLACEBO_GL
-static struct pl_custom_lut *LoadCustomLUT(struct vlc_gl_sampler *sampler,
+static struct pl_custom_lut *LoadCustomLUT(struct heimdall_gl_sampler *sampler,
                                            const char *filepath)
 {
     struct sampler_priv *priv = PRIV(sampler);
     if (!filepath || !filepath[0])
         return NULL;
 
-    FILE *fs = vlc_fopen(filepath, "rb");
+    FILE *fs = heimdall_fopen(filepath, "rb");
     struct pl_custom_lut *lut = NULL;
     char *lut_file = NULL;
     if (!fs)
@@ -769,7 +770,7 @@ static struct pl_custom_lut *LoadCustomLUT(struct vlc_gl_sampler *sampler,
         goto error;
     rewind(fs);
 
-    lut_file = vlc_alloc(length, sizeof(*lut_file));
+    lut_file = heimdall_alloc(length, sizeof(*lut_file));
     if (!lut_file)
         goto error;
     ret = fread(lut_file, length, 1, fs);
@@ -788,7 +789,7 @@ error:
 #endif
 
 static int
-opengl_fragment_shader_init(struct vlc_gl_sampler *sampler, bool expose_planes)
+opengl_fragment_shader_init(struct heimdall_gl_sampler *sampler, bool expose_planes)
 {
     struct sampler_priv *priv = PRIV(sampler);
     const video_format_t *fmt = &sampler->fmt_in;
@@ -798,18 +799,18 @@ opengl_fragment_shader_init(struct vlc_gl_sampler *sampler, bool expose_planes)
     priv->expose_planes = expose_planes;
     priv->plane = 0;
 
-    vlc_fourcc_t chroma = fmt->i_chroma;
+    heimdall_fourcc_t chroma = fmt->i_chroma;
     video_color_space_t yuv_space = fmt->space;
 
     const char *swizzle_per_tex[PICTURE_PLANE_MAX] = { NULL, };
-    const bool is_yuv = vlc_fourcc_IsYUV(chroma);
+    const bool is_yuv = heimdall_fourcc_IsYUV(chroma);
     int ret;
 
-    const vlc_chroma_description_t *desc = vlc_fourcc_GetChromaDescription(chroma);
+    const heimdall_chroma_description_t *desc = heimdall_fourcc_GetChromaDescription(chroma);
     if (desc == NULL)
     {
         msg_Dbg(priv->gl, "opengl sampler: unknown chroma description %4.4s", (const char *)&chroma);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     unsigned tex_count = sampler->tex_count;
@@ -817,17 +818,17 @@ opengl_fragment_shader_init(struct vlc_gl_sampler *sampler, bool expose_planes)
     if (expose_planes)
         return sampler_planes_init(sampler);
 
-    if (chroma == VLC_CODEC_XYZ_12L ||
-        chroma == VLC_CODEC_XYZ_12B)
+    if (chroma == HEIMDALL_CODEC_XYZ_12L ||
+        chroma == HEIMDALL_CODEC_XYZ_12B)
         return xyz12_shader_init(sampler);
 
-    const bool is_y21x_packed = chroma == VLC_CODEC_Y210
-                             || chroma == VLC_CODEC_Y212;
+    const bool is_y21x_packed = chroma == HEIMDALL_CODEC_Y210
+                             || chroma == HEIMDALL_CODEC_Y212;
 
     if (is_yuv)
     {
         ret = sampler_yuv_base_init(sampler, desc, yuv_space);
-        if (ret != VLC_SUCCESS)
+        if (ret != HEIMDALL_SUCCESS)
         {
             msg_Dbg(priv->gl, "opengl sampler: could not initialize YUV shaders for %4.4s", (const char *)&chroma);
             return ret;
@@ -835,7 +836,7 @@ opengl_fragment_shader_init(struct vlc_gl_sampler *sampler, bool expose_planes)
         if (!is_y21x_packed)
         {
             ret = opengl_init_swizzle(sampler, swizzle_per_tex, desc);
-            if (ret != VLC_SUCCESS)
+            if (ret != HEIMDALL_SUCCESS)
             {
                 msg_Dbg(priv->gl, "opengl sampler: could not determine swizzle for %4.4s", (const char *)&chroma);
                 return ret;
@@ -846,12 +847,12 @@ opengl_fragment_shader_init(struct vlc_gl_sampler *sampler, bool expose_planes)
     const char *glsl_sampler, *lookup;
     GetNames(sampler, tex_target, &glsl_sampler, &lookup);
 
-    struct vlc_memstream ms;
-    if (vlc_memstream_open(&ms) != 0)
-        return VLC_EGENERIC;
+    struct heimdall_memstream ms;
+    if (heimdall_memstream_open(&ms) != 0)
+        return HEIMDALL_EGENERIC;
 
-#define ADD(x) vlc_memstream_puts(&ms, x)
-#define ADDF(x, ...) vlc_memstream_printf(&ms, x, ##__VA_ARGS__)
+#define ADD(x) heimdall_memstream_puts(&ms, x)
+#define ADDF(x, ...) heimdall_memstream_printf(&ms, x, ##__VA_ARGS__)
 
     ADDF("uniform %s Textures[%u];\n", glsl_sampler, tex_count);
 
@@ -859,9 +860,9 @@ opengl_fragment_shader_init(struct vlc_gl_sampler *sampler, bool expose_planes)
     if (priv->pl_sh) {
         pl_shader sh = priv->pl_sh;
         struct pl_color_map_params color_params;
-        vlc_placebo_ColorMapParams(VLC_OBJECT(priv->gl), "gl", &color_params);
+        heimdall_placebo_ColorMapParams(HEIMDALL_OBJECT(priv->gl), "gl", &color_params);
 
-        struct pl_color_space src_space = vlc_placebo_ColorSpace(fmt);
+        struct pl_color_space src_space = heimdall_placebo_ColorSpace(fmt);
         struct pl_color_space dst_space = pl_color_space_unknown;
         dst_space.primaries = var_InheritInteger(priv->gl, "target-prim");
         dst_space.transfer = var_InheritInteger(priv->gl, "target-trc");
@@ -897,7 +898,7 @@ opengl_fragment_shader_init(struct vlc_gl_sampler *sampler, bool expose_planes)
 #if !defined(USE_OPENGL_ES2)
                 const opengl_vtable_t *vt = priv->vt;
                 /* fetch framebuffer depth (we are already bound to the default one). */
-                if (priv->gl->api_type == VLC_OPENGL &&
+                if (priv->gl->api_type == HEIMDALL_OPENGL &&
                     vt->GetFramebufferAttachmentParameteriv != NULL)
                 {
                     vt->GetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_BACK_LEFT,
@@ -956,7 +957,7 @@ opengl_fragment_shader_init(struct vlc_gl_sampler *sampler, bool expose_planes)
         fmt->primaries == COLOR_PRIMARIES_BT2020)
     {
         // no warning for HLG because it's more or less backwards-compatible
-        msg_Warn(priv->gl, "VLC needs to be built with support for libplacebo "
+        msg_Warn(priv->gl, "Heimdall needs to be built with support for libplacebo "
                  "in order to display wide gamut or HDR signals correctly.");
     }
 #endif
@@ -967,7 +968,7 @@ opengl_fragment_shader_init(struct vlc_gl_sampler *sampler, bool expose_planes)
     if (is_yuv)
         ADD("uniform mat4 ConvMatrix;\n");
 
-    ADD("vec4 vlc_texture(vec2 tex_coords) {\n");
+    ADD("vec4 heimdall_texture(vec2 tex_coords) {\n");
 
     unsigned color_count;
     if (is_y21x_packed)
@@ -1062,18 +1063,18 @@ opengl_fragment_shader_init(struct vlc_gl_sampler *sampler, bool expose_planes)
 #undef ADD
 #undef ADDF
 
-    if (vlc_memstream_close(&ms) != 0)
-        return VLC_EGENERIC;
+    if (heimdall_memstream_close(&ms) != 0)
+        return HEIMDALL_EGENERIC;
 
     ret = InitShaderExtensions(sampler, tex_target);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
     {
         free(ms.ptr);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     sampler->shader.body = ms.ptr;
 
-    static const struct vlc_gl_sampler_ops ops = {
+    static const struct heimdall_gl_sampler_ops ops = {
         .fetch_locations = sampler_base_fetch_locations,
         .load = sampler_base_load,
         .update = sampler_update,
@@ -1082,38 +1083,38 @@ opengl_fragment_shader_init(struct vlc_gl_sampler *sampler, bool expose_planes)
     };
     sampler->ops = &ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 #if defined(HAVE_LIBPLACEBO_GL) && PL_API_VER >= 215
 static pl_voidfunc_t PlaceboGetProcAddr(void *opaque, const char *name)
 {
-    vlc_gl_t *gl = opaque;
-    return (pl_voidfunc_t)vlc_gl_GetProcAddress(gl, name);
+    heimdall_gl_t *gl = opaque;
+    return (pl_voidfunc_t)heimdall_gl_GetProcAddress(gl, name);
 }
 #endif
 
 static int
-Open(struct vlc_gl_sampler *sampler,
+Open(struct heimdall_gl_sampler *sampler,
      bool expose_planes)
 {
     struct sampler_priv *priv = calloc(1, sizeof(*priv));
     if (!priv)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     sampler->sys = priv;
 
     priv->gl = sampler->gl;
 
-    int ret = vlc_gl_api_Init(&priv->api, sampler->gl);
-    if (ret != VLC_SUCCESS)
+    int ret = heimdall_gl_api_Init(&priv->api, sampler->gl);
+    if (ret != HEIMDALL_SUCCESS)
     {
         free(priv);
         return ret;
     }
     priv->vt = &priv->api.vt;
 
-    vlc_gl_LoadExtensionFunctions(sampler->gl, &priv->extension_vt);
+    heimdall_gl_LoadExtensionFunctions(sampler->gl, &priv->extension_vt);
 
     memcpy(priv->pic.mtx, MATRIX2x3_IDENTITY, sizeof(MATRIX2x3_IDENTITY));
     priv->pic.mtx_has_changed = true;
@@ -1134,7 +1135,7 @@ Open(struct vlc_gl_sampler *sampler,
             break;
     }
 
-    const struct vlc_gl_api *api = &priv->api;
+    const struct heimdall_gl_api *api = &priv->api;
     int glsl_version;
     if (api->is_gles) {
         if (asprintf(&sampler->shader.precision,
@@ -1145,7 +1146,7 @@ Open(struct vlc_gl_sampler *sampler,
             priv->unsigned_sampler ? "precision highp usampler2D;\n" : "" ) <= 0 )
         {
             free(priv);
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         }
 
         if (api->glsl_version >= 300) {
@@ -1160,14 +1161,14 @@ Open(struct vlc_gl_sampler *sampler,
             free(sampler->shader.precision);
             sampler->shader.precision = NULL;
             free(priv);
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         }
     } else {
         sampler->shader.precision = strdup("// no precision\n");
         if (!sampler->shader.precision)
         {
             free(priv);
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         }
         /* GLSL version 420+ breaks backwards compatibility with pre-GLSL 130
          * syntax, which we use in our vertex/fragment shaders. */
@@ -1177,7 +1178,7 @@ Open(struct vlc_gl_sampler *sampler,
             free(sampler->shader.precision);
             sampler->shader.precision = NULL;
             free(priv);
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         }
     }
     priv->glsl_version = glsl_version;
@@ -1186,7 +1187,7 @@ Open(struct vlc_gl_sampler *sampler,
     priv->uloc.pl_vars = NULL;
     priv->uloc.pl_descs = NULL;
     priv->pl_sh_res = NULL;
-    priv->pl_log = vlc_placebo_CreateLog(VLC_OBJECT(sampler->gl));
+    priv->pl_log = heimdall_placebo_CreateLog(HEIMDALL_OBJECT(sampler->gl));
 
     const struct pl_opengl_params gl_params =
     {
@@ -1219,7 +1220,7 @@ Open(struct vlc_gl_sampler *sampler,
         free(sampler->shader.version);
         sampler->shader.version = NULL;
         free(priv);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     vt->BindFramebuffer(GL_FRAMEBUFFER, out_fb);
@@ -1228,13 +1229,13 @@ Open(struct vlc_gl_sampler *sampler,
         .gpu = priv->pl_opengl->gpu,
         .glsl = {
             .version = glsl_version,
-            .gles = sampler->gl->api_type == VLC_OPENGL_ES2,
+            .gles = sampler->gl->api_type == HEIMDALL_OPENGL_ES2,
         },
     });
 #endif
 
     ret = opengl_fragment_shader_init(sampler, expose_planes);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
     {
         msg_Dbg(sampler->gl, "opengl sampler: could not initialize shaders");
         free(sampler->shader.precision);
@@ -1245,12 +1246,12 @@ Open(struct vlc_gl_sampler *sampler,
         return ret;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-#include <vlc_plugin.h>
+#include <heimdall_plugin.h>
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname("glsampler")
     set_description("OpenGL built-in sampler")
     set_callback_opengl_sampler(Open)
@@ -1274,4 +1275,4 @@ vlc_module_begin()
     add_loadfile("gl-lut-file", NULL,
                  N_("Custom LUT"), N_("Path to a custom .cube LUT file"))
 #endif
-vlc_module_end()
+heimdall_module_end()

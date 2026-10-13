@@ -2,6 +2,7 @@
  * pacer.h: decoder picture output pacing
  *****************************************************************************
  * Copyright © 2017-2022 VideoLabs, VideoLAN and VLC authors
+ * Copyright (C) 2026 TheFenrisLycaon
   *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,8 +23,8 @@
 
 struct pic_pacer
 {
-    vlc_mutex_t lock;
-    vlc_cond_t  wait;
+    heimdall_mutex_t lock;
+    heimdall_cond_t  wait;
     uint8_t     nb_fields_out;
     uint8_t     allocated_fields_max;
     uint8_t     allocated_fields_next;

@@ -2,6 +2,7 @@
  * x11_loop.cpp
  *****************************************************************************
  * Copyright (C) 2003 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cyril Deguet     <asmax@via.ecp.fr>
  *          Olivier Teulière <ipkiss@via.ecp.fr>
@@ -41,7 +42,7 @@
 #include "../events/evt_scroll.hpp"
 #include "../commands/async_queue.hpp"
 #include "../utils/var_bool.hpp"
-#include <vlc_actions.h>
+#include <heimdall_actions.h>
 
 
 // Maximum interval between clicks for a double-click (in microsec)
@@ -54,7 +55,7 @@ X11Loop::X11Loop( intf_thread_t *pIntf, X11Display &rDisplay ):
     m_lastClickTime( 0 ), m_lastClickPosX( 0 ), m_lastClickPosY( 0 )
 {
     if(m_keymap.empty()) {
-        // Initialize the key map where VLC keys differ from X11 keys.
+        // Initialize the key map where Heimdall keys differ from X11 keys.
         m_keymap[XK_F1] = KEY_F1;
         m_keymap[XK_F2] = KEY_F2;
         m_keymap[XK_F3] = KEY_F3;
@@ -191,7 +192,7 @@ void X11Loop::handleX11Event()
                 (Atom)event.xclient.data.l[0] == wm_delete )
             {
                 msg_Dbg( getIntf(), "Received WM_DELETE_WINDOW message" );
-                libvlc_Quit( vlc_object_instance(getIntf()) );
+                libheimdall_Quit( heimdall_object_instance(getIntf()) );
             }
         }
         return;
@@ -266,7 +267,7 @@ void X11Loop::handleX11Event()
             if( event.type == ButtonPress &&
                 event.xbutton.button == 1 )
             {
-                vlc_tick_t time = vlc_tick_now();
+                heimdall_tick_t time = heimdall_tick_now();
                 int x, y;
                 pFactory->getMousePos( x, y );
                 if( time - m_lastClickTime < m_dblClickDelay &&
@@ -340,7 +341,7 @@ void X11Loop::handleX11Event()
         case KeyRelease:
         {
             // Take the first keysym = lower case character, and translate.
-            int key = keysymToVlcKey( XLookupKeysym( &event.xkey, 0 ) );
+            int key = keysymToHeimdallKey( XLookupKeysym( &event.xkey, 0 ) );
 
             EvtKey evt( getIntf(), key,
                         event.type==KeyRelease ? EvtKey::kUp : EvtKey::kDown,

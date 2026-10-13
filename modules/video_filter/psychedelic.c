@@ -1,10 +1,11 @@
 /*****************************************************************************
- * psychedelic.c : Psychedelic video effect plugin for vlc
+ * psychedelic.c : Psychedelic video effect plugin for heimdall
  *****************************************************************************
  * Copyright (C) 2000-2006 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Samuel Hocevar <sam@zoy.org>
- *          Antoine Cellerier <dionoea -at- videolan -dot- org>
+ *          Antoine Cellerier <dionoea -at- lycaria -dot- org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -31,11 +32,11 @@
 
 #include <math.h>                                            /* sin(), cos() */
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_picture.h>
-#include <vlc_image.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
+#include <heimdall_image.h>
 
 /*****************************************************************************
  * Local prototypes
@@ -47,14 +48,14 @@ VIDEO_FILTER_WRAPPER_CLOSE(Filter, Destroy)
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("Psychedelic video filter") )
     set_shortname( N_( "Psychedelic" ))
     set_subcategory( SUBCAT_VIDEO_VFILTER )
 
     add_shortcut( "psychedelic" )
     set_callback_video_filter( Create )
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * filter_sys_t: Distort video output method descriptor
@@ -77,18 +78,18 @@ typedef struct
  *****************************************************************************/
 static int Create( filter_t *p_filter )
 {
-    const vlc_fourcc_t fourcc = p_filter->fmt_in.video.i_chroma;
-    const vlc_chroma_description_t *p_chroma = vlc_fourcc_GetChromaDescription( fourcc );
+    const heimdall_fourcc_t fourcc = p_filter->fmt_in.video.i_chroma;
+    const heimdall_chroma_description_t *p_chroma = heimdall_fourcc_GetChromaDescription( fourcc );
     assert( p_chroma != NULL );
     if( p_chroma->plane_count != 3 || p_chroma->pixel_size != 1 ) {
         msg_Err( p_filter, "Unsupported chroma (%4.4s)", (char*)&fourcc );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Allocate structure */
     filter_sys_t *p_sys = malloc( sizeof( filter_sys_t ) );
     if( p_sys == NULL )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     p_filter->p_sys = p_sys;
 
     p_filter->ops = &Filter_ops;
@@ -103,7 +104,7 @@ static int Create( filter_t *p_filter )
     p_sys->v = 0;
     p_sys->p_image = NULL;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************

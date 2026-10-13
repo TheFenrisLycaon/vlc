@@ -2,6 +2,7 @@
  * spawn.c
  *****************************************************************************
  * Copyright (C) 2008, 2020 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -30,15 +31,15 @@
 #include <signal.h>
 #include <sys/wait.h>
 
-#include <vlc_common.h>
-#include <vlc_spawn.h>
+#include <heimdall_common.h>
+#include <heimdall_spawn.h>
 
 #if (_POSIX_SPAWN >= 0)
 #include <spawn.h>
 
 extern char **environ;
 
-static int vlc_spawn_inner(pid_t *restrict pid, const char *path,
+static int heimdall_spawn_inner(pid_t *restrict pid, const char *path,
                            const int *fdv, const char *const *argv,
                            bool search)
 {
@@ -80,7 +81,7 @@ static int vlc_spawn_inner(pid_t *restrict pid, const char *path,
         sigemptyset(&set);
         posix_spawnattr_setsigmask(&attr, &set);
 
-        /* Reset SIGPIPE handler (which VLC overrode). */
+        /* Reset SIGPIPE handler (which Heimdall overrode). */
         sigaddset(&set, SIGPIPE);
         posix_spawnattr_setsigdefault(&attr, &set);
     }
@@ -115,9 +116,9 @@ out:
 
 #else /* _POSIX_SPAWN */
 
-#include <vlc_fs.h>
+#include <heimdall_fs.h>
 
-static int vlc_spawn_inner(pid_t *restrict pid, const char *path,
+static int heimdall_spawn_inner(pid_t *restrict pid, const char *path,
                            const int *fdv, const char *const *argv,
                            bool search)
 {
@@ -128,7 +129,7 @@ static int vlc_spawn_inner(pid_t *restrict pid, const char *path,
     assert(fdv != NULL);
     assert(argv != NULL);
 
-    int nulfd = vlc_open("/dev/null", O_RDWR);
+    int nulfd = heimdall_open("/dev/null", O_RDWR);
     if (unlikely(nulfd == -1))
         return errno;
 
@@ -136,7 +137,7 @@ static int vlc_spawn_inner(pid_t *restrict pid, const char *path,
 
     char **vargv = malloc(sizeof (*argv) * argc);
     if (unlikely(vargv == NULL)) {
-        vlc_close(nulfd);
+        heimdall_close(nulfd);
         return errno;
     }
 
@@ -154,7 +155,7 @@ static int vlc_spawn_inner(pid_t *restrict pid, const char *path,
 
          default:
              free(vargv);
-             vlc_close(nulfd);
+             heimdall_close(nulfd);
              return 0;
     }
 
@@ -187,19 +188,19 @@ static int vlc_spawn_inner(pid_t *restrict pid, const char *path,
 
 #endif /* _POSIX_SPAWN */
 
-int vlc_spawnp(pid_t *restrict pid, const char *path,
+int heimdall_spawnp(pid_t *restrict pid, const char *path,
                const int *fdv, const char *const *argv)
 {
-    return vlc_spawn_inner(pid, path, fdv, argv, true);
+    return heimdall_spawn_inner(pid, path, fdv, argv, true);
 }
 
-int vlc_spawn(pid_t *restrict pid, const char *file,
+int heimdall_spawn(pid_t *restrict pid, const char *file,
               const int *fdv, const char *const *argv)
 {
-    return vlc_spawn_inner(pid, file, fdv, argv, false);
+    return heimdall_spawn_inner(pid, file, fdv, argv, false);
 }
 
-int vlc_waitpid(pid_t pid)
+int heimdall_waitpid(pid_t pid)
 {
     int status;
 

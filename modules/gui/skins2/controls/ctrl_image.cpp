@@ -2,6 +2,7 @@
  * ctrl_image.cpp
  *****************************************************************************
  * Copyright (C) 2003 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cyril Deguet     <asmax@via.ecp.fr>
  *          Olivier Teulière <ipkiss@via.ecp.fr>
@@ -26,7 +27,7 @@
 #include "../events/evt_generic.hpp"
 #include "../src/os_factory.hpp"
 #include "../src/os_graphics.hpp"
-#include "../src/vlcproc.hpp"
+#include "../src/heimdallproc.hpp"
 #include "../src/scaled_bitmap.hpp"
 #include "../src/art_manager.hpp"
 #include "../utils/position.hpp"
@@ -43,14 +44,14 @@ CtrlImage::CtrlImage( intf_thread_t *pIntf, GenericBitmap &rBitmap,
     if( m_art )
     {
         // art file if any will overwrite the original image
-        VlcProc *pVlcProc = VlcProc::instance( getIntf() );
+        HeimdallProc *pHeimdallProc = HeimdallProc::instance( getIntf() );
         ArtManager* pArtManager = ArtManager::instance( getIntf() );
 
         // add observer
-        pVlcProc->getStreamArtVar().addObserver( this );
+        pHeimdallProc->getStreamArtVar().addObserver( this );
 
         // retrieve initial state of art file
-        std::string str = pVlcProc->getStreamArtVar().get();
+        std::string str = pHeimdallProc->getStreamArtVar().get();
         GenericBitmap* pArt = (GenericBitmap*) pArtManager->getArtBitmap( str );
         if( pArt )
         {
@@ -74,8 +75,8 @@ CtrlImage::~CtrlImage()
 
     if( m_art )
     {
-        VlcProc *pVlcProc = VlcProc::instance( getIntf() );
-        pVlcProc->getStreamArtVar().delObserver( this );
+        HeimdallProc *pHeimdallProc = HeimdallProc::instance( getIntf() );
+        pHeimdallProc->getStreamArtVar().delObserver( this );
     }
 }
 
@@ -252,9 +253,9 @@ void CtrlImage::draw( OSGraphics &rImage, int xDest, int yDest, int w, int h )
 void CtrlImage::onUpdate( Subject<VarString> &rVariable, void* arg )
 {
     (void)arg;
-    VlcProc *pVlcProc = VlcProc::instance( getIntf() );
+    HeimdallProc *pHeimdallProc = HeimdallProc::instance( getIntf() );
 
-    if( &rVariable == &pVlcProc->getStreamArtVar() )
+    if( &rVariable == &pHeimdallProc->getStreamArtVar() )
     {
         std::string str = ((VarString&)rVariable).get();
         ArtManager* pArtManager = ArtManager::instance( getIntf() );

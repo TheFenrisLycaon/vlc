@@ -2,6 +2,7 @@
  * M3U8.hpp
  *****************************************************************************
  * Copyright © 2015 - VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -32,7 +33,7 @@ namespace hls
         class M3U8 : public BasePlaylist
         {
             public:
-                M3U8(vlc_object_t *);
+                M3U8(heimdall_object_t *);
                 virtual ~M3U8();
 
                 bool isLive() const override;

@@ -2,6 +2,7 @@
  *
  *****************************************************************************
  * Copyright (C) 2020 VideoLabs, VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -36,7 +37,7 @@
 
 #include "../test.hpp"
 
-#include <vlc_stream.h>
+#include <heimdall_stream.h>
 
 #include <limits>
 #include <algorithm>
@@ -45,20 +46,20 @@ using namespace adaptive;
 using namespace adaptive::playlist;
 using namespace hls::playlist;
 
-static M3U8 * ParseM3U8(vlc_object_t *obj, const char *psz, size_t isz)
+static M3U8 * ParseM3U8(heimdall_object_t *obj, const char *psz, size_t isz)
 {
     M3U8Parser parser(nullptr);
-    stream_t *substream = vlc_stream_MemoryNew(obj, ((uint8_t *)psz), isz, true);
+    stream_t *substream = heimdall_stream_MemoryNew(obj, ((uint8_t *)psz), isz, true);
     if(!substream)
         return nullptr;
     M3U8 *m3u = parser.parse(obj, substream, std::string("stdin://"));
-    vlc_stream_Delete(substream);
+    heimdall_stream_Delete(substream);
     return m3u;
 }
 
 int M3U8MasterPlaylist_test()
 {
-    vlc_object_t *obj = static_cast<vlc_object_t*>(nullptr);
+    heimdall_object_t *obj = static_cast<heimdall_object_t*>(nullptr);
 
     const char manifest0[] =
     "#EXTM3U\n"
@@ -268,7 +269,7 @@ int M3U8MasterPlaylist_test()
 
 int M3U8Playlist_test()
 {
-    vlc_object_t *obj = static_cast<vlc_object_t*>(nullptr);
+    heimdall_object_t *obj = static_cast<heimdall_object_t*>(nullptr);
     DefaultBufferingLogic bufferingLogic;
 
     /* Manifest 0 */
@@ -293,26 +294,26 @@ int M3U8Playlist_test()
 
         uint64_t number = bufferingLogic.getStartSegmentNumber(rep);
         Expect(number == 10);
-        vlc_tick_t mediatime, duration;
+        heimdall_tick_t mediatime, duration;
         Expect(rep->getPlaybackTimeDurationBySegmentNumber(std::numeric_limits<uint64_t>::max(),
                                                            &mediatime, &duration) == false);
         Expect(rep->getPlaybackTimeDurationBySegmentNumber(number + 1, &mediatime, &duration) == false);
         Expect(rep->getPlaybackTimeDurationBySegmentNumber(number - 1, &mediatime, &duration) == false);
         Expect(rep->getPlaybackTimeDurationBySegmentNumber(number, &mediatime, &duration) == true);
-        Expect(mediatime == vlc_tick_from_sec(0));
-        Expect(duration == vlc_tick_from_sec(8));
-        Expect(rep->getSegmentNumberByTime(vlc_tick_from_sec(0), &number));
+        Expect(mediatime == heimdall_tick_from_sec(0));
+        Expect(duration == heimdall_tick_from_sec(8));
+        Expect(rep->getSegmentNumberByTime(heimdall_tick_from_sec(0), &number));
         Expect(number == 10);
         Segment *seg = rep->getMediaSegment(number);
         Expect(seg);
         Expect(seg->getSequenceNumber() == 10);
         Expect(seg->startTime == (stime_t) 0);
 
-        vlc_tick_t begin, end;
+        heimdall_tick_t begin, end;
         Expect(rep->getMediaPlaybackRange(&begin, &end, &duration));
-        Expect(begin == vlc_tick_from_sec(0));
-        Expect(end == vlc_tick_from_sec(8));
-        Expect(duration == vlc_tick_from_sec(8));
+        Expect(begin == heimdall_tick_from_sec(0));
+        Expect(end == heimdall_tick_from_sec(8));
+        Expect(duration == heimdall_tick_from_sec(8));
         delete m3u;
     }
     catch(...)
@@ -352,13 +353,13 @@ int M3U8Playlist_test()
         Expect(number == 12);
         Expect(!discont);
         Expect(seg->getSequenceNumber() == 12);
-        Expect(seg->startTime == timescale.ToScaled(vlc_tick_from_sec(20)));
+        Expect(seg->startTime == timescale.ToScaled(heimdall_tick_from_sec(20)));
 
-        vlc_tick_t begin, end, duration;
+        heimdall_tick_t begin, end, duration;
         Expect(rep->getMediaPlaybackRange(&begin, &end, &duration));
-        Expect(begin == vlc_tick_from_sec(0));
-        Expect(end == vlc_tick_from_sec(30));
-        Expect(duration == vlc_tick_from_sec(30));
+        Expect(begin == heimdall_tick_from_sec(0));
+        Expect(end == heimdall_tick_from_sec(30));
+        Expect(duration == heimdall_tick_from_sec(30));
 
         delete m3u;
     }
@@ -391,11 +392,11 @@ int M3U8Playlist_test()
         BaseRepresentation *rep = m3u->getFirstPeriod()->getAdaptationSets().front()->
                                   getRepresentations().front();
         uint64_t number;
-        Expect(rep->getSegmentNumberByTime(vlc_tick_from_sec(2), &number));
+        Expect(rep->getSegmentNumberByTime(heimdall_tick_from_sec(2), &number));
         Expect(number == 10);
-        Expect(rep->getSegmentNumberByTime(vlc_tick_from_sec(8), &number));
+        Expect(rep->getSegmentNumberByTime(heimdall_tick_from_sec(8), &number));
         Expect(number == 11);
-        Expect(rep->getSegmentNumberByTime(vlc_tick_from_sec(100), &number));
+        Expect(rep->getSegmentNumberByTime(heimdall_tick_from_sec(100), &number));
         Expect(number == 14);
         Expect(bufferingLogic.getStartSegmentNumber(rep) < 13);
 
@@ -441,27 +442,27 @@ int M3U8Playlist_test()
         Expect(discont);
 
         /* mapping past discontinuity */
-        Expect(rep->getSegmentNumberByTime(vlc_tick_from_sec(23), &number));
+        Expect(rep->getSegmentNumberByTime(heimdall_tick_from_sec(23), &number));
         Expect(number == 20);
 
         /* date set and incremented */
         seg = rep->getMediaSegment(10);
         Expect(seg);
-        Expect(static_cast<HLSSegment *>(seg)->getDisplayTime() == VLC_TICK_0 + vlc_tick_from_sec(10));
+        Expect(static_cast<HLSSegment *>(seg)->getDisplayTime() == HEIMDALL_TICK_0 + heimdall_tick_from_sec(10));
         seg = rep->getMediaSegment(11);
         Expect(seg);
-        Expect(static_cast<HLSSegment *>(seg)->getDisplayTime() == VLC_TICK_0 + vlc_tick_from_sec(10 + 8));
+        Expect(static_cast<HLSSegment *>(seg)->getDisplayTime() == HEIMDALL_TICK_0 + heimdall_tick_from_sec(10 + 8));
 
         /* date change after discontinuity */
         seg = rep->getMediaSegment(20);
         Expect(seg);
-        Expect(static_cast<HLSSegment *>(seg)->getDisplayTime() == VLC_TICK_0 + vlc_tick_from_sec(7200));
+        Expect(static_cast<HLSSegment *>(seg)->getDisplayTime() == HEIMDALL_TICK_0 + heimdall_tick_from_sec(7200));
 
-        vlc_tick_t begin, end, duration;
+        heimdall_tick_t begin, end, duration;
         Expect(rep->getMediaPlaybackRange(&begin, &end, &duration));
-        Expect(begin == vlc_tick_from_sec(0));
-        Expect(end == vlc_tick_from_sec(34));
-        Expect(duration == vlc_tick_from_sec(34));
+        Expect(begin == heimdall_tick_from_sec(0));
+        Expect(end == heimdall_tick_from_sec(34));
+        Expect(duration == heimdall_tick_from_sec(34));
 
         delete m3u;
     }
@@ -493,11 +494,11 @@ int M3U8Playlist_test()
     {
         Expect(m3u);
         Expect(m3u->isLive() == false);
-        Expect(m3u->presentationStartOffset == vlc_tick_from_sec(50 - 11.5));
+        Expect(m3u->presentationStartOffset == heimdall_tick_from_sec(50 - 11.5));
         BaseRepresentation *rep = m3u->getFirstPeriod()->getAdaptationSets().front()->
                                   getRepresentations().front();
         Expect(bufferingLogic.getStartSegmentNumber(rep) == 13);
-        m3u->presentationStartOffset = vlc_tick_from_sec(11.5);
+        m3u->presentationStartOffset = heimdall_tick_from_sec(11.5);
         Expect(bufferingLogic.getStartSegmentNumber(rep) == 11);
 
         delete m3u;
@@ -533,7 +534,7 @@ int M3U8Playlist_test()
         BaseRepresentation *rep = m3u->getFirstPeriod()->getAdaptationSets().front()->
                                   getRepresentations().front();
         Expect(bufferingLogic.getStartSegmentNumber(rep) ==
-               (UINT64_C(14) - SEC_FROM_VLC_TICK(DefaultBufferingLogic::BUFFERING_LOWEST_LIMIT)));
+               (UINT64_C(14) - SEC_FROM_HEIMDALL_TICK(DefaultBufferingLogic::BUFFERING_LOWEST_LIMIT)));
 
         delete m3u;
     }

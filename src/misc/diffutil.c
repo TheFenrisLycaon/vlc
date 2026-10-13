@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2022 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -20,7 +21,7 @@
 #include "config.h"
 #endif
 
-#include <vlc_diffutil.h>
+#include <heimdall_diffutil.h>
 #include <assert.h>
 
 // An O(ND) Difference Algorithm and Its Variations, EUGENE W. MYERS. (A Linear Space Refinement)
@@ -31,7 +32,7 @@ typedef struct {
     int32_t y;
 } diffutil_snakepoint_t;
 
-typedef struct diffutil_snake_t VLC_VECTOR(diffutil_snakepoint_t) diffutil_snake_t;
+typedef struct diffutil_snake_t HEIMDALL_VECTOR(diffutil_snakepoint_t) diffutil_snake_t;
 
 typedef struct {
     int32_t left;
@@ -46,7 +47,7 @@ typedef struct {
 
 
 typedef struct {
-    const vlc_diffutil_callback_t* op;
+    const heimdall_diffutil_callback_t* op;
     const void* dataNew;
     const void* dataOld;
     int32_t z;
@@ -200,21 +201,21 @@ static diffutil_snake_t* MergeSnake(const diffutil_snakepoint_t* start, const di
         {
             goto out;
         }
-        vlc_vector_init(snake);
-        vlc_vector_push(snake, *start);
+        heimdall_vector_init(snake);
+        heimdall_vector_push(snake, *start);
     }
     if (tail)
     {
-        vlc_vector_push_all(snake, tail->data, tail->size);
+        heimdall_vector_push_all(snake, tail->data, tail->size);
 
     }
     else
-        vlc_vector_push(snake, *stop);
+        heimdall_vector_push(snake, *stop);
 
 out:
     if (tail)
     {
-        vlc_vector_destroy(tail);
+        heimdall_vector_destroy(tail);
         free(tail);
     }
 
@@ -245,7 +246,7 @@ static diffutil_snake_t* DiffUtilFindPath(diffutil_context_t* ctx, int32_t left,
 }
 
 
-diffutil_snake_t* vlc_diffutil_build_snake(const vlc_diffutil_callback_t* diffOp, const void* dataOld, const void* dataNew)
+diffutil_snake_t* heimdall_diffutil_build_snake(const heimdall_diffutil_callback_t* diffOp, const void* dataOld, const void* dataNew)
 {
     assert(dataNew);
     assert(dataOld);
@@ -274,7 +275,7 @@ diffutil_snake_t* vlc_diffutil_build_snake(const vlc_diffutil_callback_t* diffOp
         snake = malloc(sizeof(diffutil_snake_t));
         if (!snake)
             return NULL;
-        vlc_vector_init(snake);
+        heimdall_vector_init(snake);
         return snake;
     }
 
@@ -297,19 +298,19 @@ out:
     return snake;
 }
 
-void vlc_diffutil_free_snake(diffutil_snake_t* snake)
+void heimdall_diffutil_free_snake(diffutil_snake_t* snake)
 {
     if (snake)
     {
-        vlc_vector_destroy(snake);
+        heimdall_vector_destroy(snake);
         free(snake);
     }
 }
 
-bool vlc_diffutil_walk_snake(
+bool heimdall_diffutil_walk_snake(
     const diffutil_snake_t* snake,
-    const vlc_diffutil_snake_callback_t* snakeOp, void* cbData,
-    const vlc_diffutil_callback_t* diffOp, const void* dataOld, const void* dataNew)
+    const heimdall_diffutil_snake_callback_t* snakeOp, void* cbData,
+    const heimdall_diffutil_callback_t* diffOp, const void* dataOld, const void* dataNew)
 {
     if (!snake)
         return false;
@@ -358,25 +359,25 @@ bool vlc_diffutil_walk_snake(
 
 typedef struct
 {
-    vlc_diffutil_changelist_t* result;
-    enum vlc_diffutil_result_flag flags;
+    heimdall_diffutil_changelist_t* result;
+    enum heimdall_diffutil_result_flag flags;
     uint32_t head;
     uint32_t countInsert;
     uint32_t countRemove;
-} vlc_build_result_context;
+} heimdall_build_result_context;
 
 static void buildResultInsert(void* cbData, const void* listOld, uint32_t oldPos, const void* listNew, uint32_t newPos)
 {
-    VLC_UNUSED(listOld);
-    VLC_UNUSED(listNew);
+    HEIMDALL_UNUSED(listOld);
+    HEIMDALL_UNUSED(listNew);
 
-    vlc_build_result_context* ctx = cbData;
-    if ((ctx->flags & VLC_DIFFUTIL_RESULT_AGGREGATE)
-        && !(ctx->flags & VLC_DIFFUTIL_RESULT_MOVE)
+    heimdall_build_result_context* ctx = cbData;
+    if ((ctx->flags & HEIMDALL_DIFFUTIL_RESULT_AGGREGATE)
+        && !(ctx->flags & HEIMDALL_DIFFUTIL_RESULT_MOVE)
         && ctx->result->size > 0 )
     {
-        vlc_diffutil_change_t* previousOp = &ctx->result->data[ctx->result->size - 1];
-        if (previousOp->type == VLC_DIFFUTIL_OP_INSERT
+        heimdall_diffutil_change_t* previousOp = &ctx->result->data[ctx->result->size - 1];
+        if (previousOp->type == HEIMDALL_DIFFUTIL_OP_INSERT
             && previousOp->op.insert.y + previousOp->count == newPos)
         {
             ctx->head++;
@@ -385,8 +386,8 @@ static void buildResultInsert(void* cbData, const void* listOld, uint32_t oldPos
         }
     }
 
-    vlc_diffutil_change_t op = {
-        .type = VLC_DIFFUTIL_OP_INSERT,
+    heimdall_diffutil_change_t op = {
+        .type = HEIMDALL_DIFFUTIL_OP_INSERT,
         .op.insert = {
             .x = oldPos,
             .y = newPos,
@@ -396,22 +397,22 @@ static void buildResultInsert(void* cbData, const void* listOld, uint32_t oldPos
     };
     ctx->head++;
     ctx->countInsert++;
-    vlc_vector_push(ctx->result, op);
+    heimdall_vector_push(ctx->result, op);
 }
 
 static void buildResultRemove(
     void* cbData, const void* listOld, unsigned posOld, const void* listNew, uint32_t posNew)
 {
-    VLC_UNUSED(listOld);
-    VLC_UNUSED(listNew);
+    HEIMDALL_UNUSED(listOld);
+    HEIMDALL_UNUSED(listNew);
 
-    vlc_build_result_context* ctx = cbData;
-    if ((ctx->flags & VLC_DIFFUTIL_RESULT_AGGREGATE)
-        && !(ctx->flags & VLC_DIFFUTIL_RESULT_MOVE)
+    heimdall_build_result_context* ctx = cbData;
+    if ((ctx->flags & HEIMDALL_DIFFUTIL_RESULT_AGGREGATE)
+        && !(ctx->flags & HEIMDALL_DIFFUTIL_RESULT_MOVE)
         && ctx->result->size > 0 )
     {
-        vlc_diffutil_change_t* previousOp = &ctx->result->data[ctx->result->size - 1];
-        if (previousOp->type == VLC_DIFFUTIL_OP_REMOVE
+        heimdall_diffutil_change_t* previousOp = &ctx->result->data[ctx->result->size - 1];
+        if (previousOp->type == HEIMDALL_DIFFUTIL_OP_REMOVE
             && previousOp->op.remove.x + previousOp->count == posOld)
         {
             previousOp->count += 1;
@@ -419,8 +420,8 @@ static void buildResultRemove(
         }
     }
 
-    vlc_diffutil_change_t op = {
-        .type = VLC_DIFFUTIL_OP_REMOVE,
+    heimdall_diffutil_change_t op = {
+        .type = HEIMDALL_DIFFUTIL_OP_REMOVE,
         .op.remove = {
             .x = posOld,
             .y = posNew,
@@ -429,44 +430,44 @@ static void buildResultRemove(
         .count = 1,
     };
     ctx->countRemove++;
-    vlc_vector_push(ctx->result, op);
+    heimdall_vector_push(ctx->result, op);
 }
 
 static void buildResultEqual(
     void* cbData, const void* listOld, uint32_t posOld, const void* listNew, uint32_t posNew)
 {
-    VLC_UNUSED(listOld);
-    VLC_UNUSED(posOld);
-    VLC_UNUSED(listNew);
-    VLC_UNUSED(posNew);
+    HEIMDALL_UNUSED(listOld);
+    HEIMDALL_UNUSED(posOld);
+    HEIMDALL_UNUSED(listNew);
+    HEIMDALL_UNUSED(posNew);
 
-    vlc_build_result_context* ctx = cbData;
+    heimdall_build_result_context* ctx = cbData;
     ctx->head++;
 }
 
-static void vlc_diffutil_gather_move_changes(
-    vlc_build_result_context* ctx,
-    const vlc_diffutil_callback_t* diffOp, const void* dataOld, const void* dataNew,
-    enum vlc_diffutil_result_flag flags)
+static void heimdall_diffutil_gather_move_changes(
+    heimdall_build_result_context* ctx,
+    const heimdall_diffutil_callback_t* diffOp, const void* dataOld, const void* dataNew,
+    enum heimdall_diffutil_result_flag flags)
 {
-    vlc_diffutil_change_t* prev = NULL;
+    heimdall_diffutil_change_t* prev = NULL;
     for (size_t i = 0; i < ctx->result->size; i++)
     {
-        vlc_diffutil_change_t* op = &ctx->result->data[i];
-        if (op->type == VLC_DIFFUTIL_OP_INSERT)
+        heimdall_diffutil_change_t* op = &ctx->result->data[i];
+        if (op->type == HEIMDALL_DIFFUTIL_OP_INSERT)
             ctx->countInsert--;
-        else if (op->type == VLC_DIFFUTIL_OP_REMOVE)
+        else if (op->type == HEIMDALL_DIFFUTIL_OP_REMOVE)
             ctx->countRemove--;
 
-        if (op->type == VLC_DIFFUTIL_OP_INSERT && ctx->countRemove > 0)
+        if (op->type == HEIMDALL_DIFFUTIL_OP_INSERT && ctx->countRemove > 0)
         {
             //account for items in between that will be deleted
             int32_t delta = -1;
             for (size_t j = i+1; j < ctx->result->size; j++)
             {
-                if (ctx->result->data[j].type == VLC_DIFFUTIL_OP_REMOVE)
+                if (ctx->result->data[j].type == HEIMDALL_DIFFUTIL_OP_REMOVE)
                 {
-                    vlc_diffutil_change_t* removeOp = &ctx->result->data[j];
+                    heimdall_diffutil_change_t* removeOp = &ctx->result->data[j];
                     if (diffOp->isSame(dataOld, removeOp->op.remove.x, dataNew, op->op.insert.y))
                     {
                         int32_t toX = op->op.insert.index;
@@ -474,13 +475,13 @@ static void vlc_diffutil_gather_move_changes(
                         int32_t x = removeOp->op.remove.x;
                         int32_t y = op->op.insert.y;
 
-                        op->type = VLC_DIFFUTIL_OP_MOVE;
+                        op->type = HEIMDALL_DIFFUTIL_OP_MOVE;
                         op->op.move.from = fromX + delta;
                         op->op.move.to = toX;
                         op->op.move.x = x;
                         op->op.move.y = y;
 
-                        removeOp->type = VLC_DIFFUTIL_OP_IGNORE;
+                        removeOp->type = HEIMDALL_DIFFUTIL_OP_IGNORE;
                         ctx->countRemove--;
 
                         break;
@@ -488,21 +489,21 @@ static void vlc_diffutil_gather_move_changes(
                     else
                         delta += 1;
                 }
-                else if (ctx->result->data[j].type == VLC_DIFFUTIL_OP_INSERT)
+                else if (ctx->result->data[j].type == HEIMDALL_DIFFUTIL_OP_INSERT)
                 {
                     delta -= 1;
                 }
             }
         }
-        else if (op->type == VLC_DIFFUTIL_OP_REMOVE && ctx->countInsert > 0)
+        else if (op->type == HEIMDALL_DIFFUTIL_OP_REMOVE && ctx->countInsert > 0)
         {
             //account for items inbetween that will be deleted
             int32_t delta = 1;
             for (size_t j = i+1; j < ctx->result->size; j++)
             {
-                if (ctx->result->data[j].type == VLC_DIFFUTIL_OP_INSERT)
+                if (ctx->result->data[j].type == HEIMDALL_DIFFUTIL_OP_INSERT)
                 {
-                    vlc_diffutil_change_t* insertOp = &ctx->result->data[j];
+                    heimdall_diffutil_change_t* insertOp = &ctx->result->data[j];
                     if (diffOp->isSame(dataOld, op->op.remove.x, dataNew, insertOp->op.insert.y))
                     {
                         int32_t toX = insertOp->op.insert.index;
@@ -510,13 +511,13 @@ static void vlc_diffutil_gather_move_changes(
                         int32_t x = op->op.remove.x;
                         int32_t y = insertOp->op.insert.y;
 
-                        op->type = VLC_DIFFUTIL_OP_MOVE;
+                        op->type = HEIMDALL_DIFFUTIL_OP_MOVE;
                         op->op.move.from = fromX;
                         op->op.move.to = toX + delta;
                         op->op.move.x = x;
                         op->op.move.y = y;
 
-                        insertOp->type = VLC_DIFFUTIL_OP_IGNORE;
+                        insertOp->type = HEIMDALL_DIFFUTIL_OP_IGNORE;
                         ctx->countInsert--;
 
                         break;
@@ -524,57 +525,57 @@ static void vlc_diffutil_gather_move_changes(
                     else
                         delta -= 1;
                 }
-                else if (ctx->result->data[j].type == VLC_DIFFUTIL_OP_REMOVE)
+                else if (ctx->result->data[j].type == HEIMDALL_DIFFUTIL_OP_REMOVE)
                     delta += 1;
             }
         }
 
         //test if we can aggregate the node with the previous one
-        if ((flags & VLC_DIFFUTIL_RESULT_AGGREGATE) )
+        if ((flags & HEIMDALL_DIFFUTIL_RESULT_AGGREGATE) )
         {
-            if (op->type == VLC_DIFFUTIL_OP_IGNORE)
+            if (op->type == HEIMDALL_DIFFUTIL_OP_IGNORE)
                 continue;
 
             else if (prev != NULL && op->type == prev->type)
             {
-                if (op->type == VLC_DIFFUTIL_OP_INSERT
+                if (op->type == HEIMDALL_DIFFUTIL_OP_INSERT
                     && op->op.insert.index == prev->op.insert.index + prev->count)
                 {
                     prev->count += 1;
-                    op->type = VLC_DIFFUTIL_OP_IGNORE;
+                    op->type = HEIMDALL_DIFFUTIL_OP_IGNORE;
                 }
-                else if (op->type == VLC_DIFFUTIL_OP_REMOVE
+                else if (op->type == HEIMDALL_DIFFUTIL_OP_REMOVE
                     && op->op.remove.index == prev->op.remove.index)
                 {
                     prev->count += 1;
-                    op->type = VLC_DIFFUTIL_OP_IGNORE;
+                    op->type = HEIMDALL_DIFFUTIL_OP_IGNORE;
                 }
-                else if (op->type == VLC_DIFFUTIL_OP_MOVE )
+                else if (op->type == HEIMDALL_DIFFUTIL_OP_MOVE )
                 {
                     //move forward
                     if (op->op.move.from == prev->op.move.from
                         && op->op.move.to == prev->op.move.to)
                     {
                         prev->count += 1;
-                        op->type = VLC_DIFFUTIL_OP_IGNORE;
+                        op->type = HEIMDALL_DIFFUTIL_OP_IGNORE;
                     }
                     //move backward
                     else if (op->op.move.from == prev->op.move.from + prev->count
                         && op->op.move.to == prev->op.move.to + prev->count)
                     {
                         prev->count += 1;
-                        op->type = VLC_DIFFUTIL_OP_IGNORE;
+                        op->type = HEIMDALL_DIFFUTIL_OP_IGNORE;
                     }
                 }
             }
 
-            if (op->type != VLC_DIFFUTIL_OP_IGNORE)
+            if (op->type != HEIMDALL_DIFFUTIL_OP_IGNORE)
                 prev = op;
         }
     }
 }
 
-vlc_diffutil_changelist_t* vlc_diffutil_build_change_list(const diffutil_snake_t* snake, const vlc_diffutil_callback_t* diffOp,
+heimdall_diffutil_changelist_t* heimdall_diffutil_build_change_list(const diffutil_snake_t* snake, const heimdall_diffutil_callback_t* diffOp,
     const void* dataOld, const void* dataNew, int flags)
 {
     assert(snake);
@@ -582,35 +583,35 @@ vlc_diffutil_changelist_t* vlc_diffutil_build_change_list(const diffutil_snake_t
     assert(dataNew);
     assert(dataOld);
 
-    vlc_diffutil_snake_callback_t snakeOp= {
+    heimdall_diffutil_snake_callback_t snakeOp= {
         .remove = &buildResultRemove,
         .insert = &buildResultInsert,
         .equal = &buildResultEqual,
     };
 
-    vlc_build_result_context ctx;
+    heimdall_build_result_context ctx;
     ctx.flags = flags;
     ctx.head = 0;
-    ctx.result = malloc(sizeof(vlc_diffutil_changelist_t));
+    ctx.result = malloc(sizeof(heimdall_diffutil_changelist_t));
     ctx.countInsert = 0;
     ctx.countRemove = 0;
 
     if (!ctx.result)
         return NULL;
-    vlc_vector_init(ctx.result);
+    heimdall_vector_init(ctx.result);
 
-    vlc_diffutil_walk_snake(snake, &snakeOp, &ctx, diffOp, dataOld, dataNew);
+    heimdall_diffutil_walk_snake(snake, &snakeOp, &ctx, diffOp, dataOld, dataNew);
 
     //search for move
-    if (flags & VLC_DIFFUTIL_RESULT_MOVE)
+    if (flags & HEIMDALL_DIFFUTIL_RESULT_MOVE)
     {
-        vlc_diffutil_gather_move_changes(&ctx, diffOp, dataOld, dataNew, flags);
+        heimdall_diffutil_gather_move_changes(&ctx, diffOp, dataOld, dataNew, flags);
     }
     return ctx.result;
 }
 
-void vlc_diffutil_free_change_list(vlc_diffutil_changelist_t* changelist)
+void heimdall_diffutil_free_change_list(heimdall_diffutil_changelist_t* changelist)
 {
-    vlc_vector_destroy(changelist);
+    heimdall_vector_destroy(changelist);
     free(changelist);
 }

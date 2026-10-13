@@ -116,7 +116,7 @@ moc_headers = files(
     'network/networkmediamodel.hpp',
     'network/standardpathmodel.hpp',
     'style/systempalette.hpp',
-    'style/vlcicons.hpp',
+    'style/heimdallicons.hpp',
     'style/colorcontext.hpp',
     'player/input_models.hpp',
     'player/delay_estimator.hpp',
@@ -135,7 +135,7 @@ moc_headers = files(
     'util/color_scheme_model.hpp',
     'util/ui_notifier.hpp',
     'util/color_svg_image_provider.hpp',
-    'util/vlcaccess_image_provider.hpp',
+    'util/heimdallaccess_image_provider.hpp',
     'util/csdbuttonmodel.hpp',
     'util/csdmenu.hpp',
     'util/imageluminanceextractor.hpp',
@@ -150,8 +150,8 @@ moc_headers = files(
     'util/validators.hpp',
     'util/varchoicemodel.hpp',
     'util/variables.hpp',
-    'util/vlchotkeyconverter.hpp',
-    'util/vlctick.hpp',
+    'util/heimdallhotkeyconverter.hpp',
+    'util/heimdalltick.hpp',
     'util/dismiss_popup_event_filter.hpp',
     'util/list_selection_model.hpp',
     'util/qsgtextureview.hpp',
@@ -401,14 +401,14 @@ qt_plugin_sources = files(
     'network/networkmediamodel.hpp',
     'network/standardpathmodel.cpp',
     'network/standardpathmodel.hpp',
-    'network/vlcmediasourcewrapper.hpp',
+    'network/heimdallmediasourcewrapper.hpp',
     'style/qtthemeprovider.hpp',
     'style/colorcontext.cpp',
     'style/colorcontext.hpp',
     'style/systempalette.cpp',
     'style/systempalette.hpp',
-    'style/vlcicons.cpp',
-    'style/vlcicons.hpp',
+    'style/heimdallicons.cpp',
+    'style/heimdallicons.hpp',
     'style/defaultthemeproviders.hpp',
     'style/systempalettethemeprovider.cpp',
     'player/input_models.cpp',
@@ -449,8 +449,8 @@ qt_plugin_sources = files(
     'util/ui_notifier.hpp',
     'util/color_svg_image_provider.cpp',
     'util/color_svg_image_provider.hpp',
-    'util/vlcaccess_image_provider.cpp',
-    'util/vlcaccess_image_provider.hpp',
+    'util/heimdallaccess_image_provider.cpp',
+    'util/heimdallaccess_image_provider.hpp',
     'util/covergenerator.cpp',
     'util/covergenerator.hpp',
     'util/csdbuttonmodel.cpp',
@@ -490,10 +490,10 @@ qt_plugin_sources = files(
     'util/varchoicemodel.hpp',
     'util/variables.cpp',
     'util/variables.hpp',
-    'util/vlctick.cpp',
-    'util/vlctick.hpp',
-    'util/vlchotkeyconverter.cpp',
-    'util/vlchotkeyconverter.hpp',
+    'util/heimdalltick.cpp',
+    'util/heimdalltick.hpp',
+    'util/heimdallhotkeyconverter.cpp',
+    'util/heimdallhotkeyconverter.hpp',
     'util/shared_input_item.hpp',
     'util/fast_gaussian_blur_template.h',
     'util/effects_image_provider.cpp',
@@ -507,8 +507,8 @@ qt_plugin_sources = files(
     'util/list_selection_model.cpp',
     'util/list_selection_model.hpp',
     'util/model_recovery_agent.hpp',
-    'util/vlcqtmessagehandler.cpp',
-    'util/vlcqtmessagehandler.hpp',
+    'util/heimdallqtmessagehandler.cpp',
+    'util/heimdallqtmessagehandler.hpp',
     'util/colorizedsvgicon.cpp',
     'util/colorizedsvgicon.hpp',
     'util/kirigamiwheelhandler.cpp',
@@ -530,8 +530,8 @@ qt_plugin_sources = files(
     'widgets/native/navigation_attached.hpp',
     'widgets/native/mlfolderseditor.cpp',
     'widgets/native/mlfolderseditor.hpp',
-    'widgets/native/qvlcframe.cpp',
-    'widgets/native/qvlcframe.hpp',
+    'widgets/native/qheimdallframe.cpp',
+    'widgets/native/qheimdallframe.hpp',
     'widgets/native/searchlineedit.cpp',
     'widgets/native/searchlineedit.hpp',
     'widgets/native/viewblockingrectangle.cpp',
@@ -605,9 +605,9 @@ ui_sources = files(
 qml_modules = []
 
 qml_modules += {
-    'name' : 'VLC.Dialogs',
+    'name' : 'Heimdall.Dialogs',
     'target' : 'dialogs',
-    'outdir' : 'VLC/Dialogs',
+    'outdir' : 'Heimdall/Dialogs',
     'sources': files(
         'dialogs/dialogs/qml/CustomDialog.qml',
         'dialogs/dialogs/qml/Dialogs.qml',
@@ -631,9 +631,9 @@ if get_option('update-check').allowed() and gcrypt_dep.found()
 endif
 
 qml_modules += {
-    'name' : 'VLC.MainInterface',
+    'name' : 'Heimdall.MainInterface',
     'target' : 'maininterface',
-    'outdir' : 'VLC/MainInterface',
+    'outdir' : 'Heimdall/MainInterface',
     'sources': files(
         'maininterface/qml/LocalTopbar.qml',
         'maininterface/qml/MenuTopbar.qml',
@@ -647,9 +647,9 @@ qml_modules += {
     ),
 }
 qml_modules += {
-    'name' : 'VLC.MediaLibrary',
+    'name' : 'Heimdall.MediaLibrary',
     'target' : 'medialibrary',
-    'outdir' : 'VLC/MediaLibrary',
+    'outdir' : 'Heimdall/MediaLibrary',
     'sources': files(
         'medialibrary/qml/ArtistTopBanner.qml',
         'medialibrary/qml/AudioGridItem.qml',
@@ -695,9 +695,9 @@ qml_modules += {
 }
 
 qml_modules += {
-    'name' : 'VLC.Menus',
+    'name' : 'Heimdall.Menus',
     'target' : 'menus',
-    'outdir' : 'VLC/Menus',
+    'outdir' : 'Heimdall/Menus',
     'sources': files(
         'menus/qml/GlobalShortcuts.qml',
         'menus/qml/Menubar.qml',
@@ -706,9 +706,9 @@ qml_modules += {
 }
 
 qml_modules += {
-    'name' : 'VLC.Network',
+    'name' : 'Heimdall.Network',
     'target' : 'network',
-    'outdir' : 'VLC/Network',
+    'outdir' : 'Heimdall/Network',
     'sources': files(
         'network/qml/AddressbarButton.qml',
         'network/qml/BrowseDeviceView.qml',
@@ -728,9 +728,9 @@ qml_modules += {
 }
 
 qml_modules += {
-   'name' : 'VLC.Player',
+   'name' : 'Heimdall.Player',
    'target' : 'player',
-   'outdir' : 'VLC/Player',
+   'outdir' : 'Heimdall/Player',
    'sources': files(
        'player/qml/ControlBar.qml',
        'player/qml/PlaybackSpeed.qml',
@@ -761,9 +761,9 @@ qml_modules += {
 }
 
 qml_modules += {
-   'name' : 'VLC.PlayerControls',
+   'name' : 'Heimdall.PlayerControls',
    'target' : 'playercontrols',
-   'outdir' : 'VLC/PlayerControls',
+   'outdir' : 'Heimdall/PlayerControls',
    'sources': files(
        'player/qml/controlbarcontrols/HighResolutionTimeWidget.qml',
        'player/qml/controlbarcontrols/ArtworkInfoWidget.qml',
@@ -814,9 +814,9 @@ qml_modules += {
 }
 
 qml_modules += {
-    'name' : 'VLC.Playlist',
+    'name' : 'Heimdall.Playlist',
     'target' : 'playlist',
-    'outdir' : 'VLC/Playlist',
+    'outdir' : 'Heimdall/Playlist',
     'sources': files(
         'playlist/qml/PlaylistDelegate.qml',
         'playlist/qml/PlaylistPane.qml',
@@ -825,19 +825,19 @@ qml_modules += {
 }
 
 qml_modules += {
-    'name' : 'VLC.Style',
+    'name' : 'Heimdall.Style',
     'target' : 'style',
-    'outdir' : 'VLC/Style',
+    'outdir' : 'Heimdall/Style',
     'singletons': files(
         'style/AcrylicController.qml',
-        'style/VLCStyle.qml',
+        'style/HeimdallStyle.qml',
     ),
 }
 
 qml_modules += {
-    'name' : 'VLC.Util',
+    'name' : 'Heimdall.Util',
     'target' : 'util',
-    'outdir' : 'VLC/Util',
+    'outdir' : 'Heimdall/Util',
     'sources': files(
         'util/qml/ModelSortSettingHandler.qml',
         'util/qml/DefaultFlickableScrollHandler.qml',
@@ -856,9 +856,9 @@ qml_modules += {
 }
 
 qml_modules += {
-    'name' : 'VLC.Widgets',
+    'name' : 'Heimdall.Widgets',
     'target' : 'widgets',
-    'outdir' : 'VLC/Widgets',
+    'outdir' : 'Heimdall/Widgets',
     'sources': files(
         'widgets/qml/LabelExt.qml',
         'widgets/qml/ActionButtonOverlay.qml',
@@ -1186,7 +1186,7 @@ if qt6_dep.found()
             qt_wayland_sources += [qt_wl_viewporter_hdr, qt_wl_viewporter_code]
         endif
 
-        vlc_modules += {
+        heimdall_modules += {
             'name': 'qt_wayland',
             'sources': qt_wayland_sources,
             'c_args': qt_wayland_cargs,
@@ -1207,7 +1207,7 @@ if qt6_dep.found()
         required: get_option('qt_gtk').disable_auto_if(host_system in ['windows', 'darwin'])
     )
 
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'qt_gtktheme',
         'sources' : files(
             'style/gtkthemeprovider/gtk_compat.cpp',
@@ -1236,7 +1236,7 @@ if qt6_dep.found()
                                          version: '>=6.0.0',
                                          required: false)
         if (kf6WindowSystem_dep.found())
-            vlc_modules += {
+            heimdall_modules += {
                 'name' : 'qtwindoweffects',
                 'sources' : files(
                     'maininterface/windoweffects_module.hpp',
@@ -1248,7 +1248,7 @@ if qt6_dep.found()
         endif
     endif
 
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'qt_x11',
         'include_directories' : qt_include_dir,
         'sources' : files(
@@ -1273,7 +1273,7 @@ if qt6_dep.found()
 
     # TODO support qmlcachegen
 
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'qt',
         'sources' : [qt6pre_files, qt6pre_qrc, shader_targets, shaders_processed, qt_sources, qt_plugin_sources],
         'extra_files' : [shader_files],
@@ -1286,7 +1286,7 @@ if qt6_dep.found()
         'plugin_dir' : 'gui',
     }
 
-    vlc_tests += {
+    heimdall_tests += {
         'name': 'base_model_test',
         'sources': files(
             'tests/test_base_model.cpp',
@@ -1298,20 +1298,20 @@ if qt6_dep.found()
             'util/listcache.hpp',
             'util/locallistcacheloader.hpp'),
         'suite': ['qt'],
-        'link_with': [libvlccore],
+        'link_with': [libheimdallcore],
         'link_args': qt_link_args,
         'dependencies': [qt6_dep, qt_extra_deps],
     }
 
     qtest_qt6_dep = dependency('qt6', version: '=' + qt6_dep.version(), modules: ['Test'], required: false)
     if qtest_qt6_dep.found()
-        vlc_tests += {
+        heimdall_tests += {
             'name': 'test_qt_ml_model',
             'sources': files(
                 'tests/test_ml_model.cpp',
-                'tests/vlc_stub_modules.cpp',
+                'tests/heimdall_stub_modules.cpp',
                 'util/base_model.cpp',
-                'util/vlctick.cpp',
+                'util/heimdalltick.cpp',
                 'medialibrary/mlbasemodel.cpp',
                 'medialibrary/medialib.cpp',
                 'medialibrary/mlthreadpool.cpp',
@@ -1322,11 +1322,11 @@ if qt6_dep.found()
                 'tests/test_ml_model.cpp'
             ),
             'moc_headers': files(
-                'tests/vlc_stub_modules.cpp',
+                'tests/heimdall_stub_modules.cpp',
                 'util/base_model.hpp',
                 'util/listcache.hpp',
                 'util/locallistcacheloader.hpp',
-                'util/vlctick.hpp',
+                'util/heimdalltick.hpp',
                 'medialibrary/mlqmltypes.hpp',
                 'medialibrary/mlbasemodel.hpp',
                 'medialibrary/medialib.hpp',
@@ -1336,15 +1336,15 @@ if qt6_dep.found()
             ),
             'suite': ['qt'],
             'include_directories' : qt_include_dir,
-            'link_with': [libvlccore, libvlc],
+            'link_with': [libheimdallcore, libheimdall],
             'link_args': qt_link_args,
             'dependencies': [qt6_dep, qt_extra_deps, qtest_qt6_dep],
         }
 
-        vlc_tests += {
+        heimdall_tests += {
             'name': 'test_qt_navigation_model',
             'sources': files(
-                'tests/vlc_stub_modules.cpp',
+                'tests/heimdall_stub_modules.cpp',
                 'tests/test_navigation_model.cpp',
                 'maininterface/navigationmodel.hpp',
                 'maininterface/navigationmodel.cpp'
@@ -1357,11 +1357,11 @@ if qt6_dep.found()
             ),
             'suite': ['qt'],
             'include_directories' : qt_include_dir,
-            'link_with': [libvlccore, libvlc],
+            'link_with': [libheimdallcore, libheimdall],
             'dependencies': [qt6_dep, qt_extra_deps, qtest_qt6_dep]
         }
 
-        vlc_tests += {
+        heimdall_tests += {
             'name': 'test_qt_controlbar_layout',
             'sources': files(
                 'tests/test_controlbar_layout.cpp',
@@ -1385,11 +1385,11 @@ if qt6_dep.found()
             ),
             'suite': ['qt'],
             'include_directories' : qt_include_dir,
-            'link_with': [libvlccore],
+            'link_with': [libheimdallcore],
             'dependencies': [qt6_dep, qt_extra_deps, qtest_qt6_dep]
         }
 
-        vlc_tests += {
+        heimdall_tests += {
             'name': 'test_qt_color_scheme_model',
             'sources': files(
                 'tests/test_color_scheme_model.cpp',
@@ -1404,15 +1404,15 @@ if qt6_dep.found()
             ),
             'suite': ['qt'],
             'include_directories' : qt_include_dir,
-            'link_with': [libvlccore],
+            'link_with': [libheimdallcore],
             'dependencies': [qt6_dep, qt_extra_deps, qtest_qt6_dep]
         }
 
 
-        vlc_tests += {
+        heimdall_tests += {
             'name': 'test_qt_renderer_manager',
             'sources': files(
-                'tests/vlc_stub_modules.cpp',
+                'tests/heimdall_stub_modules.cpp',
                 'tests/test_renderer_manager_model.cpp',
                 'util/renderer_manager.hpp',
                 'util/renderer_manager.cpp'
@@ -1425,12 +1425,12 @@ if qt6_dep.found()
             ),
             'suite': ['qt'],
             'include_directories' : qt_include_dir,
-            'link_with': [libvlccore, libvlc],
+            'link_with': [libheimdallcore, libheimdall],
             'link_args': qt_link_args,
             'dependencies': [qt6_dep, qt_extra_deps, qtest_qt6_dep]
         }
 
-        vlc_tests += {
+        heimdall_tests += {
             'name': 'test_qt_thread_runner',
             'sources': files(
                 'tests/test_thread_runner.cpp',
@@ -1450,23 +1450,23 @@ if qt6_dep.found()
         }
 
 
-        vlc_tests += {
+        heimdall_tests += {
             'name': 'test_qt_dialog_model',
             'sources': files(
-                'tests/vlc_stub_modules.cpp',
-                'tests/test_vlc_dialog_model.cpp',
+                'tests/heimdall_stub_modules.cpp',
+                'tests/test_heimdall_dialog_model.cpp',
                 'dialogs/dialogs/dialogmodel.hpp',
                 'dialogs/dialogs/dialogmodel.cpp'
             ),
             'moc_sources': files(
-                'tests/test_vlc_dialog_model.cpp'
+                'tests/test_heimdall_dialog_model.cpp'
             ),
             'moc_headers': files(
                 'dialogs/dialogs/dialogmodel.hpp'
             ),
             'suite': ['qt'],
             'include_directories' : qt_include_dir,
-            'link_with': [libvlccore, libvlc],
+            'link_with': [libheimdallcore, libheimdall],
             'link_args': qt_link_args,
             'dependencies': [qt6_dep, qt_extra_deps, qtest_qt6_dep],
         }

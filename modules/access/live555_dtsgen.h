@@ -2,6 +2,7 @@
  * live555_dtsgen.h : DTS rebuilder for pts only streams
  *****************************************************************************
  * Copyright (C) 2018 VideoLabs, VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -23,18 +24,18 @@
 
 struct dtsgen_t
 {
-    vlc_tick_t history[DTSGEN_HISTORY_COUNT];
-    vlc_tick_t ordereddts[DTSGEN_HISTORY_COUNT];
-    vlc_tick_t i_startingdts;
-    vlc_tick_t i_startingdiff;
+    heimdall_tick_t history[DTSGEN_HISTORY_COUNT];
+    heimdall_tick_t ordereddts[DTSGEN_HISTORY_COUNT];
+    heimdall_tick_t i_startingdts;
+    heimdall_tick_t i_startingdiff;
     unsigned reorderdepth;
     unsigned count;
 };
 
-static int cmpvlctickp(const void *p1, const void *p2)
+static int cmpheimdalltickp(const void *p1, const void *p2)
 {
-    if(*((vlc_tick_t *)p1) >= *((vlc_tick_t *)p2))
-        return *((vlc_tick_t *)p1) > *((vlc_tick_t *)p2) ? 1 : 0;
+    if(*((heimdall_tick_t *)p1) >= *((heimdall_tick_t *)p2))
+        return *((heimdall_tick_t *)p1) > *((heimdall_tick_t *)p2) ? 1 : 0;
     else
         return -1;
 }
@@ -97,7 +98,7 @@ static void dtsgen_Resync(struct dtsgen_t *d)
  *  (with mandatory gap/increase in DTS caused by previous step)
  */
 
-static void dtsgen_AddNextPTS(struct dtsgen_t *d, vlc_tick_t i_pts)
+static void dtsgen_AddNextPTS(struct dtsgen_t *d, heimdall_tick_t i_pts)
 {
     /* Check saved pts in reception order to find reordering depth */
     if(d->count > 0 && d->count < DTSGEN_HISTORY_COUNT)
@@ -133,12 +134,12 @@ static void dtsgen_AddNextPTS(struct dtsgen_t *d, vlc_tick_t i_pts)
     }
 
     /* order pts in second list, will be used as dts */
-    qsort(&d->ordereddts, d->count, sizeof(d->ordereddts[0]), cmpvlctickp);
+    qsort(&d->ordereddts, d->count, sizeof(d->ordereddts[0]), cmpheimdalltickp);
 }
 
-static vlc_tick_t dtsgen_GetDTS(struct dtsgen_t *d)
+static heimdall_tick_t dtsgen_GetDTS(struct dtsgen_t *d)
 {
-    vlc_tick_t i_dts = VLC_TICK_INVALID;
+    heimdall_tick_t i_dts = HEIMDALL_TICK_INVALID;
 
     /* When we have inspected enough packets,
      * use the reorderdepth th packet as dts offset */
@@ -151,12 +152,12 @@ static vlc_tick_t dtsgen_GetDTS(struct dtsgen_t *d)
     else if(d->count == 1)
     {
         d->i_startingdts =
-        i_dts = __MAX(d->history[0] - VLC_TICK_FROM_MS(150), VLC_TICK_0);
+        i_dts = __MAX(d->history[0] - HEIMDALL_TICK_FROM_MS(150), HEIMDALL_TICK_0);
         d->i_startingdiff = d->history[0] - i_dts;
     }
     else if(d->count > 1)
     {
-        vlc_tick_t i_diff = d->ordereddts[d->count - 1] -
+        heimdall_tick_t i_diff = d->ordereddts[d->count - 1] -
                             d->ordereddts[0];
         i_diff = __MIN(d->i_startingdiff, i_diff);
         d->i_startingdts += i_diff / DTSGEN_REORDER_MAX;
@@ -167,10 +168,10 @@ static vlc_tick_t dtsgen_GetDTS(struct dtsgen_t *d)
 }
 
 #ifdef DTSGEN_DEBUG
-static void dtsgen_Debug(vlc_object_t *p_demux, struct dtsgen_t *d,
-                         vlc_tick_t dts, vlc_tick_t pts)
+static void dtsgen_Debug(heimdall_object_t *p_demux, struct dtsgen_t *d,
+                         heimdall_tick_t dts, heimdall_tick_t pts)
 {
-    if(pts == VLC_TICK_INVALID)
+    if(pts == HEIMDALL_TICK_INVALID)
         return;
     msg_Dbg(p_demux, "dtsgen %" PRId64 " / pts %" PRId64 " diff %" PRId64 ", "
                      "pkt count %u, reorder %u",

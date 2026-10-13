@@ -2,6 +2,7 @@
  * SmoothParser.cpp
  *****************************************************************************
  * Copyright © 2015 - VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -40,7 +41,7 @@
 using namespace smooth::playlist;
 using namespace adaptive::xml;
 
-ManifestParser::ManifestParser(Node *root_, vlc_object_t *p_object_,
+ManifestParser::ManifestParser(Node *root_, heimdall_object_t *p_object_,
                                stream_t *stream, const std::string & streambaseurl_)
 {
     root = root_;

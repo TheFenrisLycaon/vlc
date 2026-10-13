@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2024 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Prince Gupta <guptaprince8832@gmail.com>
  *
@@ -32,7 +33,7 @@ MLMediaStore::~MLMediaStore() = default;
 MLMediaStore::MLMediaStore(MediaLib *ml, QObject *parent)
     : QObject(parent)
     , m_ml {ml}
-    , m_ml_event_handle( nullptr, [this](vlc_ml_event_callback_t* cb )
+    , m_ml_event_handle( nullptr, [this](heimdall_ml_event_callback_t* cb )
     {
         assert( m_ml != nullptr );
         m_ml->unregisterEventListener( cb );
@@ -40,7 +41,7 @@ MLMediaStore::MLMediaStore(MediaLib *ml, QObject *parent)
 {
     m_ml_event_handle.reset
     (
-        m_ml->registerEventListener(MLMediaStore::onVlcMlEvent, this)
+        m_ml->registerEventListener(MLMediaStore::onHeimdallMlEvent, this)
     );
 }
 
@@ -55,9 +56,9 @@ void MLMediaStore::insert(const QString &mrl)
 
     m_ml->runOnMLThread<Ctx>(this,
     //ML thread
-    [mrl](vlc_medialibrary_t *ml, Ctx &ctx)
+    [mrl](heimdall_medialibrary_t *ml, Ctx &ctx)
     {
-        ml_unique_ptr<vlc_ml_media_t> media {vlc_ml_get_media_by_mrl(ml, qtu(mrl))};
+        ml_unique_ptr<heimdall_ml_media_t> media {heimdall_ml_get_media_by_mrl(ml, qtu(mrl))};
         if (media)
             ctx.media = MLMedia(media.get());
     },
@@ -87,18 +88,18 @@ void MLMediaStore::clear()
     m_mrls.clear();
 }
 
-void MLMediaStore::onVlcMlEvent(void *data, const vlc_ml_event_t *event)
+void MLMediaStore::onHeimdallMlEvent(void *data, const heimdall_ml_event_t *event)
 {
     auto self = static_cast<MLMediaStore*>(data);
     switch (event->i_type)
     {
-    case VLC_ML_EVENT_MEDIA_ADDED:
+    case HEIMDALL_ML_EVENT_MEDIA_ADDED:
     {
-        const vlc_ml_media_t *media = event->creation.p_media;
+        const heimdall_ml_media_t *media = event->creation.p_media;
         QString mrl;
-        for (const vlc_ml_file_t &file : ml_range_iterate<vlc_ml_file_t>(media->p_files))
+        for (const heimdall_ml_file_t &file : ml_range_iterate<heimdall_ml_file_t>(media->p_files))
         {
-            if (file.i_type == VLC_ML_FILE_TYPE_MAIN)
+            if (file.i_type == HEIMDALL_ML_FILE_TYPE_MAIN)
             {
                 mrl = QString::fromUtf8(file.psz_mrl);
                 break;
@@ -117,9 +118,9 @@ void MLMediaStore::onVlcMlEvent(void *data, const vlc_ml_event_t *event)
         break;
     }
 
-    case VLC_ML_EVENT_MEDIA_UPDATED:
+    case HEIMDALL_ML_EVENT_MEDIA_UPDATED:
     {
-        const MLItemId id(event->modification.i_entity_id, VLC_ML_PARENT_UNKNOWN);
+        const MLItemId id(event->modification.i_entity_id, HEIMDALL_ML_PARENT_UNKNOWN);
         QMetaObject::invokeMethod(self, [self, id] () mutable
         {
             self->update(id);
@@ -128,9 +129,9 @@ void MLMediaStore::onVlcMlEvent(void *data, const vlc_ml_event_t *event)
         break;
     }
 
-    case VLC_ML_EVENT_MEDIA_DELETED:
+    case HEIMDALL_ML_EVENT_MEDIA_DELETED:
     {
-        const MLItemId id{ event->deletion.i_entity_id, VLC_ML_PARENT_UNKNOWN };
+        const MLItemId id{ event->deletion.i_entity_id, HEIMDALL_ML_PARENT_UNKNOWN };
         QMetaObject::invokeMethod(self, [self, id]()
         {
             self->remove(id);
@@ -156,9 +157,9 @@ void MLMediaStore::update(const MLItemId &id)
 
     m_ml->runOnMLThread<Ctx>(this,
     //ML thread
-    [id](vlc_medialibrary_t *ml, Ctx &ctx)
+    [id](heimdall_medialibrary_t *ml, Ctx &ctx)
     {
-        ml_unique_ptr<vlc_ml_media_t> media {vlc_ml_get_media(ml, id.id)};
+        ml_unique_ptr<heimdall_ml_media_t> media {heimdall_ml_get_media(ml, id.id)};
         ctx.media = media ? MLMedia(media.get()) : MLMedia {};
     },
     //UI thread

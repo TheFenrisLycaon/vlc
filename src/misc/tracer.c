@@ -1,9 +1,10 @@
 /*****************************************************************************
  * tracer.c: tracing interface
  * This library provides an interface to the traces to be used by other
- * modules. See vlc_config.h for output configuration.
+ * modules. See heimdall_config.h for output configuration.
  *****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -28,70 +29,70 @@
 #include <stdarg.h>
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_modules.h>
-#include <vlc_tracer.h>
-#include "../libvlc.h"
+#include <heimdall_common.h>
+#include <heimdall_modules.h>
+#include <heimdall_tracer.h>
+#include "../libheimdall.h"
 
-struct vlc_tracer {
-    const struct vlc_tracer_operations *ops;
+struct heimdall_tracer {
+    const struct heimdall_tracer_operations *ops;
 };
 
 /**
  * Module-based message trace.
  */
-struct vlc_tracer_module {
-    struct vlc_object_t obj;
-    struct vlc_tracer tracer;
+struct heimdall_tracer_module {
+    struct heimdall_object_t obj;
+    struct heimdall_tracer tracer;
     void *opaque;
 };
 
-#undef vlc_tracer_TraceWithTs
-void vlc_tracer_TraceWithTs(struct vlc_tracer *tracer, vlc_tick_t ts,
-                            const struct vlc_tracer_trace *trace)
+#undef heimdall_tracer_TraceWithTs
+void heimdall_tracer_TraceWithTs(struct heimdall_tracer *tracer, heimdall_tick_t ts,
+                            const struct heimdall_tracer_trace *trace)
 {
     assert(tracer->ops->trace != NULL);
-    struct vlc_tracer_module *module =
-            container_of(tracer, struct vlc_tracer_module, tracer);
+    struct heimdall_tracer_module *module =
+            container_of(tracer, struct heimdall_tracer_module, tracer);
 
     /* Pass message to the callback */
     tracer->ops->trace(module->opaque, ts, trace);
 }
 
-static int vlc_tracer_load(void *func, bool forced, va_list ap)
+static int heimdall_tracer_load(void *func, bool forced, va_list ap)
 {
-    vlc_tracer_open_cb activate = func;
-    struct vlc_tracer_module *module = va_arg(ap, struct vlc_tracer_module *);
+    heimdall_tracer_open_cb activate = func;
+    struct heimdall_tracer_module *module = va_arg(ap, struct heimdall_tracer_module *);
 
     (void) forced;
-    module->tracer.ops = activate(VLC_OBJECT(module), &module->opaque);
-    return (module->tracer.ops != NULL) ? VLC_SUCCESS : VLC_EGENERIC;
+    module->tracer.ops = activate(HEIMDALL_OBJECT(module), &module->opaque);
+    return (module->tracer.ops != NULL) ? HEIMDALL_SUCCESS : HEIMDALL_EGENERIC;
 }
 
-struct vlc_tracer *vlc_tracer_Create(vlc_object_t *parent, const char *module_name)
+struct heimdall_tracer *heimdall_tracer_Create(heimdall_object_t *parent, const char *module_name)
 {
-    struct vlc_tracer_module *module;
+    struct heimdall_tracer_module *module;
 
-    module = vlc_custom_create(parent, sizeof (*module), "tracer");
+    module = heimdall_custom_create(parent, sizeof (*module), "tracer");
     if (unlikely(module == NULL))
         return NULL;
 
-    if (vlc_module_load(vlc_object_logger(module), "tracer", module_name, false,
-                        vlc_tracer_load, module) == NULL) {
-        vlc_object_delete(VLC_OBJECT(module));
+    if (heimdall_module_load(heimdall_object_logger(module), "tracer", module_name, false,
+                        heimdall_tracer_load, module) == NULL) {
+        heimdall_object_delete(HEIMDALL_OBJECT(module));
         return NULL;
     }
 
     return &module->tracer;
 }
 
-void vlc_tracer_Destroy(struct vlc_tracer *tracer)
+void heimdall_tracer_Destroy(struct heimdall_tracer *tracer)
 {
-    struct vlc_tracer_module *module =
-        container_of(tracer, struct vlc_tracer_module, tracer);
+    struct heimdall_tracer_module *module =
+        container_of(tracer, struct heimdall_tracer_module, tracer);
 
     if (module->tracer.ops->destroy != NULL)
         module->tracer.ops->destroy(module->opaque);
 
-    vlc_object_delete(VLC_OBJECT(module));
+    heimdall_object_delete(HEIMDALL_OBJECT(module));
 }

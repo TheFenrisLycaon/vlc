@@ -40,41 +40,41 @@ rust_flags += rust_optimization_args[get_option('optimization')]
 
 cargo_target_dir = join_paths(meson.current_build_dir(), 'cargo_target')
 
-vlcrs_core = disabler()
+heimdallrs_core = disabler()
 if get_option('rust').enabled()
-    subdir('vlcrs-core')
+    subdir('heimdallrs-core')
 endif
 
-vlcrs_core_macros = disabler()
+heimdallrs_core_macros = disabler()
 if get_option('rust').enabled()
-    subdir('vlcrs-macros')
+    subdir('heimdallrs-macros')
 endif
 
-module_cargo_depends += [vlcrs_core, vlcrs_core_macros]
+module_cargo_depends += [heimdallrs_core, heimdallrs_core_macros]
 
 if get_option('rust').enabled() and not meson.is_cross_build()
-    vlc_build_lib_dir = join_paths(meson.project_build_root(), 'src')
+    heimdall_build_lib_dir = join_paths(meson.project_build_root(), 'src')
 
     rust_test_env = environment()
-    rust_test_env.prepend('LD_LIBRARY_PATH', vlc_build_lib_dir)
-    rust_test_env.prepend('DYLD_LIBRARY_PATH', vlc_build_lib_dir)
+    rust_test_env.prepend('LD_LIBRARY_PATH', heimdall_build_lib_dir)
+    rust_test_env.prepend('DYLD_LIBRARY_PATH', heimdall_build_lib_dir)
     rust_test_env.set('CARGO_TARGET_DIR', cargo_target_dir)
 
     cargo_link_override = [
-        '--config', 'target.@0@.vlccore.rustc-link-lib=["vlccore"]'.format(rust_triplet),
-        '--config', 'target.@0@.vlccore.rustc-link-search=["@1@"]'.format(rust_triplet, vlc_build_lib_dir),
-        '--config', 'target.@0@.vlccore.rustc-link-arg=["-Wl,-rpath,@1@"]'.format(rust_triplet, vlc_build_lib_dir),
+        '--config', 'target.@0@.heimdallcore.rustc-link-lib=["heimdallcore"]'.format(rust_triplet),
+        '--config', 'target.@0@.heimdallcore.rustc-link-search=["@1@"]'.format(rust_triplet, heimdall_build_lib_dir),
+        '--config', 'target.@0@.heimdallcore.rustc-link-arg=["-Wl,-rpath,@1@"]'.format(rust_triplet, heimdall_build_lib_dir),
     ]
 
     rust_test_args = ['test', '--locked'] + extra_cargo_args + cargo_link_override + \
         ['--manifest-path', meson.project_source_root() / 'Cargo.toml']
 
-    foreach crate : ['vlcrs-core', 'vlcrs-macros', 'vlcrs-messages', 'vlcrs-utils']
+    foreach crate : ['heimdallrs-core', 'heimdallrs-macros', 'heimdallrs-messages', 'heimdallrs-utils']
         test('rust-' + crate,
             cargo_bin,
             args: rust_test_args + ['-p', crate],
             env: rust_test_env,
-            depends: [libvlccore, vlcrs_core, vlcrs_core_macros],
+            depends: [libheimdallcore, heimdallrs_core, heimdallrs_core_macros],
             timeout: 60,
             suite: 'rust',
         )

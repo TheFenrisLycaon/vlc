@@ -2,6 +2,7 @@
  * aribsub.c : ARIB subtitles decoder
  *****************************************************************************
  * Copyright (C) 2012 Naohiro KORIYAMA
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors:  Naohiro KORIYAMA <nkoriyama@gmail.com>
  *
@@ -24,10 +25,10 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
 
  #include "substext.h"
  #include <aribb24/parser.h>
@@ -38,8 +39,8 @@
 /*****************************************************************************
  * Module descriptor.
  *****************************************************************************/
-static int  Open( vlc_object_t * );
-static void Close( vlc_object_t * );
+static int  Open( heimdall_object_t * );
+static void Close( heimdall_object_t * );
 static int Decode( decoder_t *, block_t * );
 
 #define IGNORE_RUBY_TEXT N_("Ignore ruby (furigana)")
@@ -47,7 +48,7 @@ static int Decode( decoder_t *, block_t * );
 #define USE_CORETEXT_TEXT N_("Use Core Text renderer")
 #define USE_CORETEXT_LONGTEXT N_("Use Core Text renderer in the subtitle.")
 
-vlc_module_begin ()
+heimdall_module_begin ()
 #   define ARIBSUB_CFG_PREFIX "aribsub-"
     set_description( N_("ARIB subtitles decoder") )
     set_shortname( N_("ARIB subtitles") )
@@ -57,7 +58,7 @@ vlc_module_begin ()
 
     add_bool( ARIBSUB_CFG_PREFIX "ignore-ruby", false, IGNORE_RUBY_TEXT, IGNORE_RUBY_LONGTEXT )
     add_bool( ARIBSUB_CFG_PREFIX "use-coretext", false, USE_CORETEXT_TEXT, USE_CORETEXT_LONGTEXT )
-vlc_module_end ()
+heimdall_module_end ()
 
 
 /****************************************************************************
@@ -90,35 +91,35 @@ static void messages_callback_handler( void *, const char *psz_message );
  * Tries to launch a decoder and return score so that the interface is able
  * to choose.
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     decoder_t     *p_dec = (decoder_t *) p_this;
     decoder_sys_t *p_sys;
 
-    if( p_dec->fmt_in->i_codec != VLC_CODEC_ARIB_A &&
-        p_dec->fmt_in->i_codec != VLC_CODEC_ARIB_C )
+    if( p_dec->fmt_in->i_codec != HEIMDALL_CODEC_ARIB_A &&
+        p_dec->fmt_in->i_codec != HEIMDALL_CODEC_ARIB_C )
     {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     p_sys = (decoder_sys_t*) calloc( 1, sizeof(decoder_sys_t) );
     if( p_sys == NULL )
     {
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     p_sys->p_arib_instance = arib_instance_new( (void *) p_this );
     if ( !p_sys->p_arib_instance )
     {
         free( p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     p_dec->p_sys = p_sys;
     p_dec->pf_decode = Decode;
     p_dec->fmt_out.i_codec = 0;
 
-    p_sys->b_a_profile = ( p_dec->fmt_in->i_codec == VLC_CODEC_ARIB_A );
+    p_sys->b_a_profile = ( p_dec->fmt_in->i_codec == HEIMDALL_CODEC_ARIB_A );
 
     p_sys->b_ignore_ruby =
         var_InheritBool( p_this, ARIBSUB_CFG_PREFIX "ignore-ruby" );
@@ -135,13 +136,13 @@ static int Open( vlc_object_t *p_this )
     arib_register_messages_callback( p_sys->p_arib_instance,
                                      messages_callback_handler );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * Close:
  *****************************************************************************/
-static void Close( vlc_object_t *p_this )
+static void Close( heimdall_object_t *p_this )
 {
     decoder_t     *p_dec = (decoder_t*) p_this;
     decoder_sys_t *p_sys = p_dec->p_sys;
@@ -163,12 +164,12 @@ static int Decode( decoder_t *p_dec, block_t *p_block )
     decoder_sys_t *p_sys = p_dec->p_sys;
 
     if( p_block == NULL ) /* No Drain */
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
 
     if( p_block->i_flags & BLOCK_FLAG_CORRUPTED )
     {
         block_Release( p_block );
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
     }
 
     arib_parser_t *p_parser = arib_get_parser( p_sys->p_arib_instance );
@@ -182,7 +183,7 @@ static int Decode( decoder_t *p_dec, block_t *p_block )
     }
 
     block_Release( p_block );
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }
 
 /* following functions are local */
@@ -195,7 +196,7 @@ static void messages_callback_handler( void *p_opaque, const char *psz_message )
 
 static char* get_arib_base_dir( void )
 {
-    char *psz_data_dir = config_GetUserDir( VLC_USERDATA_DIR );
+    char *psz_data_dir = config_GetUserDir( HEIMDALL_USERDATA_DIR );
     if( psz_data_dir == NULL )
     {
         return NULL;
@@ -261,9 +262,9 @@ static subpicture_t *render( decoder_t *p_dec, arib_parser_t *p_parser,
         goto decoder_NewSubpictureText_failed;
     }
 
-    vlc_tick_t i_duration = VLC_TICK_FROM_US(arib_decoder_get_time( p_arib_decoder ));
+    heimdall_tick_t i_duration = HEIMDALL_TICK_FROM_US(arib_decoder_get_time( p_arib_decoder ));
     p_spu->i_start = p_block->i_pts;
-    p_spu->i_stop = i_duration ? p_block->i_pts + i_duration : VLC_TICK_INVALID;
+    p_spu->i_stop = i_duration ? p_block->i_pts + i_duration : HEIMDALL_TICK_INVALID;
     p_spu->b_ephemer  = i_duration == 0;
 
     arib_spu_updater_sys_t *p_spu_sys = p_spu->updater.sys;

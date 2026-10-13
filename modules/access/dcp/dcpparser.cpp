@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2013 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors:
  *          Nicolas Bertrand <nico@isf.cc>
@@ -34,11 +35,11 @@
 # include "config.h"
 #endif
 
-/* VLC core API headers */
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_xml.h>
-#include <vlc_url.h>
+/* Heimdall core API headers */
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_xml.h>
+#include <heimdall_url.h>
 
 #include <iostream>
 #include <string>
@@ -327,7 +328,7 @@ int AssetMap::Parse ( )
                 msg_Err( p_demux, "cryptographic key IDs found in CPL and no path to KDM given");
                 free( psz_kdm_path );
                 this->CloseXml();
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             }
             KDM p_kdm( p_demux, psz_kdm_path, p_dcp );
             free( psz_kdm_path );
@@ -389,7 +390,7 @@ int AssetMap::Parse ( )
     }
     /* free memory */
     this->CloseXml();
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 
@@ -723,8 +724,8 @@ int XmlFile::OpenXml()
 {
     char *psz_uri;
 
-    psz_uri = vlc_path2uri( this->s_path.c_str(), "file" );
-    this->p_stream = vlc_stream_NewURL(this->p_demux, psz_uri );
+    psz_uri = heimdall_path2uri( this->s_path.c_str(), "file" );
+    this->p_stream = heimdall_stream_NewURL(this->p_demux, psz_uri );
     free(psz_uri);
     if( ! this->p_stream ) {
         return -1;
@@ -732,7 +733,7 @@ int XmlFile::OpenXml()
 
     this->p_xmlReader = xml_ReaderCreate( this->p_demux, this->p_stream);
     if( ! this->p_xmlReader ) {
-        vlc_stream_Delete( this->p_stream );
+        heimdall_stream_Delete( this->p_stream );
         return -1;
     }
     return 0;
@@ -819,7 +820,7 @@ int XmlFile::isCPL()
 
 void XmlFile::CloseXml() {
     if( this->p_stream )
-        vlc_stream_Delete( this->p_stream );
+        heimdall_stream_Delete( this->p_stream );
     if( this->p_xmlReader )
         xml_ReaderDelete( this->p_xmlReader );
 }
@@ -829,7 +830,7 @@ void XmlFile::CloseXml() {
  */
 
 PKL::~PKL() {
-    vlc_delete_all(vec_cpl);
+    heimdall_delete_all(vec_cpl);
 }
 
 int PKL::Parse()
@@ -1323,7 +1324,7 @@ int Reel::ParseAsset(string p_node, int p_type, TrackType_t e_track) {
  */
 
 CPL::~CPL() {
-    vlc_delete_all(vec_reel);
+    heimdall_delete_all(vec_reel);
 }
 
 int CPL::Parse()

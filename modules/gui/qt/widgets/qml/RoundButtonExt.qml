@@ -1,6 +1,7 @@
 /*****************************************************************************
  * Copyright (C) 2025 VLC authors and VideoLAN
  * Copyright (C) 2017 The Qt Company Ltd.
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,8 +20,8 @@
 import QtQuick
 import QtQuick.Templates as T
 
-import VLC.Widgets as Widgets
-import VLC.Style
+import Heimdall.Widgets as Widgets
+import Heimdall.Style
 
 T.RoundButton {
     id: control
@@ -35,10 +36,10 @@ T.RoundButton {
 
     hoverEnabled: true
 
-    padding: VLCStyle.dp(6, VLCStyle.scale)
-    spacing: VLCStyle.dp(6, VLCStyle.scale)
+    padding: HeimdallStyle.dp(6, HeimdallStyle.scale)
+    spacing: HeimdallStyle.dp(6, HeimdallStyle.scale)
 
-    font.pixelSize: VLCStyle.icon_small
+    font.pixelSize: HeimdallStyle.icon_small
 
     //Accessible
     Accessible.onPressAction: control.clicked()

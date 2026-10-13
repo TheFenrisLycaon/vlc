@@ -1,7 +1,8 @@
 /*****************************************************************************
- * grey_yuv.c : grayscale to others conversion module for vlc
+ * grey_yuv.c : grayscale to others conversion module for heimdall
  *****************************************************************************
  * Copyright (C) 2007, 2008 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Sam Hocevar <sam@zoy.org>
  *
@@ -28,11 +29,11 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_picture.h>
-#include <vlc_chroma_probe.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
+#include <heimdall_chroma_probe.h>
 
 #define SRC_FOURCC  "GREY"
 #define DEST_FOURCC "I420,YUY2"
@@ -45,30 +46,30 @@ static int  Activate ( filter_t * );
 /*****************************************************************************
  * Module descriptor.
  *****************************************************************************/
-static void ProbeChroma(vlc_chroma_conv_vec *vec)
+static void ProbeChroma(heimdall_chroma_conv_vec *vec)
 {
-    vlc_chroma_conv_add_in_outlist(vec, 1, VLC_CODEC_GREY, VLC_CODEC_I420,
-        VLC_CODEC_YUYV);
+    heimdall_chroma_conv_add_in_outlist(vec, 1, HEIMDALL_CODEC_GREY, HEIMDALL_CODEC_I420,
+        HEIMDALL_CODEC_YUYV);
 }
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("Conversions from " SRC_FOURCC " to " DEST_FOURCC) )
     set_callback_video_converter( Activate, 80 )
     add_submodule()
         set_callback_chroma_conv_probe(ProbeChroma)
-vlc_module_end ()
+heimdall_module_end ()
 
 VIDEO_FILTER_WRAPPER( GREY_I420 )
 VIDEO_FILTER_WRAPPER( GREY_YUY2 )
 
-static const struct vlc_filter_operations *
+static const struct heimdall_filter_operations *
 GetFilterOperations( filter_t *filter )
 {
     switch( filter->fmt_out.video.i_chroma )
     {
-        case VLC_CODEC_I420:
+        case HEIMDALL_CODEC_I420:
             return &GREY_I420_ops;
-        case VLC_CODEC_YUYV:
+        case HEIMDALL_CODEC_YUYV:
             return &GREY_YUY2_ops;
         default:
             return NULL;
@@ -85,21 +86,21 @@ static int Activate( filter_t *p_filter )
     if( p_filter->fmt_out.video.i_width & 1
      || p_filter->fmt_out.video.i_height & 1 )
     {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( p_filter->fmt_in.video.i_width != p_filter->fmt_out.video.i_width
        || p_filter->fmt_in.video.i_height != p_filter->fmt_out.video.i_height
        || p_filter->fmt_in.video.orientation != p_filter->fmt_out.video.orientation )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    if ( p_filter->fmt_in.video.i_chroma != VLC_CODEC_GREY )
-        return VLC_EGENERIC;
+    if ( p_filter->fmt_in.video.i_chroma != HEIMDALL_CODEC_GREY )
+        return HEIMDALL_EGENERIC;
     p_filter->ops = GetFilterOperations(p_filter);
     if ( p_filter->ops == NULL )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /* Following functions are local */

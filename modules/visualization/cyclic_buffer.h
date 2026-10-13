@@ -1,7 +1,8 @@
 /*****************************************************************************
- * cyclic_buffer.h cyclic buffer helper class for vlc's audio visualizations
+ * cyclic_buffer.h cyclic buffer helper class for heimdall's audio visualizations
  *****************************************************************************
  * Copyright © 2012 Vovoid Media Technologies
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Jonatan "jaw" Wallmander
  *
@@ -28,7 +29,7 @@ class block_holder
 {
 public:
     float data[512]; // data holder
-    vlc_tick_t pts; // machine time when this is to be played
+    heimdall_tick_t pts; // machine time when this is to be played
     block_holder()
     {
         pts = 0; // max_int 64-bit
@@ -50,7 +51,7 @@ public:
 
     block_holder* consume()
     {
-        vlc_tick_t cur_machine_time = vlc_tick_now();
+        heimdall_tick_t cur_machine_time = heimdall_tick_now();
         size_t steps = 0;
         while (
                (cycl_buffer[consumer_pos].pts < cur_machine_time)

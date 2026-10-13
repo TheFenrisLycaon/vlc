@@ -1,9 +1,10 @@
 /*****************************************************************************
- * imem.c : Memory input for VLC
+ * imem.c : Memory input for Heimdall
  *****************************************************************************
  * Copyright (C) 2009-2010 Laurent Aimar
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Author: Laurent Aimar <fenrir _AT_ videolan _DOT org>
+ * Author: Laurent Aimar <fenrir _AT_ lycaria _DOT org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -30,20 +31,20 @@
 #include <limits.h>
 #include <math.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_access.h>
-#include <vlc_demux.h>
-#include <vlc_charset.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_access.h>
+#include <heimdall_demux.h>
+#include <heimdall_charset.h>
 
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  OpenAccess (vlc_object_t *);
-static void CloseAccess(vlc_object_t *);
+static int  OpenAccess (heimdall_object_t *);
+static void CloseAccess(heimdall_object_t *);
 
-static int  OpenDemux (vlc_object_t *);
-static void CloseDemux(vlc_object_t *);
+static int  OpenDemux (heimdall_object_t *);
+static void CloseDemux(heimdall_object_t *);
 
 #define ID_TEXT N_("ID")
 #define ID_LONGTEXT N_(\
@@ -113,7 +114,7 @@ static const char *cat_texts[] = {
 #define SIZE_LONGTEXT N_(\
     "Size of stream in bytes")
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname(N_("Memory input"))
     set_description(N_("Memory input"))
     set_subcategory(SUBCAT_INPUT_ACCESS)
@@ -177,7 +178,7 @@ vlc_module_begin()
         add_shortcut("imem")
         set_capability("access", 0)
         set_callbacks(OpenAccess, CloseAccess)
-vlc_module_end()
+heimdall_module_end()
 
 /*****************************************************************************
  * Exported API
@@ -215,12 +216,12 @@ typedef struct {
 
     es_out_id_t  *es;
 
-    vlc_tick_t   dts;
+    heimdall_tick_t   dts;
 
-    vlc_tick_t   deadline;
+    heimdall_tick_t   deadline;
 } imem_sys_t;
 
-static void ParseMRL(vlc_object_t *, const char *);
+static void ParseMRL(heimdall_object_t *, const char *);
 
 /**
  * It closes the common part of the access and access_demux
@@ -233,14 +234,14 @@ static void CloseCommon(imem_sys_t *sys)
 /**
  * It initializes the common part for imem access/access_demux.
  */
-static int OpenCommon(vlc_object_t *object, imem_sys_t **sys_ptr, const char *psz_path)
+static int OpenCommon(heimdall_object_t *object, imem_sys_t **sys_ptr, const char *psz_path)
 {
     char *tmp;
 
     /* */
-    imem_sys_t *sys = vlc_obj_calloc(object, 1, sizeof(*sys));
+    imem_sys_t *sys = heimdall_obj_calloc(object, 1, sizeof(*sys));
     if (!sys)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     /* Read the user functions */
     tmp = var_InheritString(object, "imem-get");
@@ -254,7 +255,7 @@ static int OpenCommon(vlc_object_t *object, imem_sys_t **sys_ptr, const char *ps
     free(tmp);
 
     if (!sys->source.get || !sys->source.release) {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     tmp = var_InheritString(object, "imem-data");
@@ -276,26 +277,26 @@ static int OpenCommon(vlc_object_t *object, imem_sys_t **sys_ptr, const char *ps
 
     /* */
     sys->dts       = 0;
-    sys->deadline  = VLC_TICK_INVALID;
+    sys->deadline  = HEIMDALL_TICK_INVALID;
 
     *sys_ptr = sys;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /**
  * It opens an imem access.
  */
-static int OpenAccess(vlc_object_t *object)
+static int OpenAccess(heimdall_object_t *object)
 {
     stream_t   *access = (stream_t *)object;
     imem_sys_t *sys;
 
     if (OpenCommon(object, &sys, access->psz_location))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if (var_InheritInteger(object, "imem-cat") != 4) {
         CloseCommon(sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* */
@@ -305,13 +306,13 @@ static int OpenAccess(vlc_object_t *object)
     access->pf_seek    = NULL;
     access->p_sys      = sys;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /**
  * It closes an imem access
  */
-static void CloseAccess(vlc_object_t *object)
+static void CloseAccess(heimdall_object_t *object)
 {
     stream_t *access = (stream_t *)object;
 
@@ -330,28 +331,28 @@ static int ControlAccess(stream_t *access, int i_query, va_list args)
     case STREAM_CAN_FASTSEEK: {
         bool *b = va_arg( args, bool* );
         *b = false;
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
     case STREAM_CAN_PAUSE:
     case STREAM_CAN_CONTROL_PACE: {
         bool *b = va_arg( args, bool* );
         *b = true;
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
     case STREAM_GET_SIZE: {
         uint64_t *s = va_arg(args, uint64_t *);
         *s = var_InheritInteger(access, "imem-size");
-        return *s ? VLC_SUCCESS : VLC_EGENERIC;
+        return *s ? HEIMDALL_SUCCESS : HEIMDALL_EGENERIC;
     }
     case STREAM_GET_PTS_DELAY:
-        *va_arg(args, vlc_tick_t *) = DEFAULT_PTS_DELAY; /* FIXME? */
-        return VLC_SUCCESS;
+        *va_arg(args, heimdall_tick_t *) = DEFAULT_PTS_DELAY; /* FIXME? */
+        return HEIMDALL_SUCCESS;
 
     case STREAM_SET_PAUSE_STATE:
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
     default:
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 }
 
@@ -385,7 +386,7 @@ static block_t *Block(stream_t *access, bool *restrict eof)
     return block;
 }
 
-static inline int GetCategory(vlc_object_t *object)
+static inline int GetCategory(heimdall_object_t *object)
 {
     const int cat = var_InheritInteger(object, "imem-cat");
     switch (cat)
@@ -407,16 +408,16 @@ static inline int GetCategory(vlc_object_t *object)
 /**
  * It opens an imem access_demux.
  */
-static int OpenDemux(vlc_object_t *object)
+static int OpenDemux(heimdall_object_t *object)
 {
     demux_t    *demux = (demux_t *)object;
     imem_sys_t *sys;
 
     if (demux->out == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if (OpenCommon(object, &sys, demux->psz_location))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* ES format */
     es_format_t fmt;
@@ -427,7 +428,7 @@ static int OpenDemux(vlc_object_t *object)
 
     char *tmp = var_InheritString(object, "imem-codec");
     if (tmp)
-        fmt.i_codec = vlc_fourcc_GetCodecFromString(fmt.i_cat, tmp);
+        fmt.i_codec = heimdall_fourcc_GetCodecFromString(fmt.i_cat, tmp);
     free(tmp);
 
     switch (fmt.i_cat) {
@@ -475,7 +476,7 @@ static int OpenDemux(vlc_object_t *object)
     default:
         es_format_Clean(&fmt);
         CloseCommon(sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     fmt.psz_language = var_InheritString(object, "imem-language");
@@ -485,7 +486,7 @@ static int OpenDemux(vlc_object_t *object)
 
     if (!sys->es) {
         CloseCommon(sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* */
@@ -493,13 +494,13 @@ static int OpenDemux(vlc_object_t *object)
     demux->pf_demux   = Demux;
     demux->p_sys      = sys;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /**
  * It closes an imem access_demux
  */
-static void CloseDemux(vlc_object_t *object)
+static void CloseDemux(heimdall_object_t *object)
 {
     demux_t *demux = (demux_t *)object;
 
@@ -519,41 +520,41 @@ static int ControlDemux(demux_t *demux, int i_query, va_list args)
     case DEMUX_CAN_CONTROL_PACE: {
         bool *b = va_arg(args, bool *);
         *b = true;
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
     case DEMUX_SET_PAUSE_STATE:
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
     case DEMUX_GET_PTS_DELAY: {
-        *va_arg(args, vlc_tick_t *) = DEFAULT_PTS_DELAY; /* FIXME? */
-        return VLC_SUCCESS;
+        *va_arg(args, heimdall_tick_t *) = DEFAULT_PTS_DELAY; /* FIXME? */
+        return HEIMDALL_SUCCESS;
     }
     case DEMUX_GET_POSITION: {
         double *position = va_arg(args, double *);
         *position = 0.0;
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
     case DEMUX_GET_TIME: {
-        *va_arg(args, vlc_tick_t *) = sys->dts;
-        return VLC_SUCCESS;
+        *va_arg(args, heimdall_tick_t *) = sys->dts;
+        return HEIMDALL_SUCCESS;
     }
     case DEMUX_GET_LENGTH: {
-        *va_arg(args, vlc_tick_t *) = 0;
-        return VLC_SUCCESS;
+        *va_arg(args, heimdall_tick_t *) = 0;
+        return HEIMDALL_SUCCESS;
     }
     case DEMUX_SET_NEXT_DEMUX_TIME:
-        sys->deadline = va_arg(args, vlc_tick_t);
-        return VLC_SUCCESS;
+        sys->deadline = va_arg(args, heimdall_tick_t);
+        return HEIMDALL_SUCCESS;
 
     /* */
     case DEMUX_CAN_SEEK:
     case DEMUX_SET_POSITION:
     case DEMUX_SET_TIME:
     default:
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /**
@@ -564,7 +565,7 @@ static int Demux(demux_t *demux)
 {
     imem_sys_t *sys = (imem_sys_t*)demux->p_sys;
 
-    if (sys->deadline == VLC_TICK_INVALID)
+    if (sys->deadline == HEIMDALL_TICK_INVALID)
         sys->deadline = sys->dts + 1;
 
     for (;;) {
@@ -579,7 +580,7 @@ static int Demux(demux_t *demux)
 
         if (sys->source.get(sys->source.data, sys->source.cookie,
                             &dts, &pts, &flags, &buffer_size, &buffer))
-            return VLC_DEMUXER_EOF;
+            return HEIMDALL_DEMUXER_EOF;
 
         if (dts < 0)
             dts = pts;
@@ -587,8 +588,8 @@ static int Demux(demux_t *demux)
         if (buffer_size > 0) {
             block_t *block = block_Alloc(buffer_size);
             if (block) {
-                block->i_dts = dts >= 0 ? (1 + dts) : VLC_TICK_INVALID;
-                block->i_pts = pts >= 0 ? (1 + pts) : VLC_TICK_INVALID;
+                block->i_dts = dts >= 0 ? (1 + dts) : HEIMDALL_TICK_INVALID;
+                block->i_pts = pts >= 0 ? (1 + pts) : HEIMDALL_TICK_INVALID;
                 memcpy(block->p_buffer, buffer, buffer_size);
 
                 es_out_SetPCR(demux->out, block->i_dts);
@@ -601,8 +602,8 @@ static int Demux(demux_t *demux)
         sys->source.release(sys->source.data, sys->source.cookie,
                             buffer_size, buffer);
     }
-    sys->deadline = VLC_TICK_INVALID;
-    return VLC_DEMUXER_SUCCESS;
+    sys->deadline = HEIMDALL_TICK_INVALID;
+    return HEIMDALL_DEMUXER_SUCCESS;
 }
 
 /**
@@ -612,24 +613,24 @@ static int Demux(demux_t *demux)
  *
  * XXX get and release are not supported on purpose.
  */
-static void ParseMRL(vlc_object_t *object, const char *psz_path)
+static void ParseMRL(heimdall_object_t *object, const char *psz_path)
 {
     static const struct {
         const char *name;
         int        type;
     } options[] = {
-        { "id",         VLC_VAR_INTEGER },
-        { "group",      VLC_VAR_INTEGER },
-        { "cat",        VLC_VAR_INTEGER },
-        { "samplerate", VLC_VAR_INTEGER },
-        { "channels",   VLC_VAR_INTEGER },
-        { "width",      VLC_VAR_INTEGER },
-        { "height",     VLC_VAR_INTEGER },
-        { "cookie",     VLC_VAR_STRING },
-        { "codec",      VLC_VAR_STRING },
-        { "language",   VLC_VAR_STRING },
-        { "dar",        VLC_VAR_STRING },
-        { "fps",        VLC_VAR_STRING },
+        { "id",         HEIMDALL_VAR_INTEGER },
+        { "group",      HEIMDALL_VAR_INTEGER },
+        { "cat",        HEIMDALL_VAR_INTEGER },
+        { "samplerate", HEIMDALL_VAR_INTEGER },
+        { "channels",   HEIMDALL_VAR_INTEGER },
+        { "width",      HEIMDALL_VAR_INTEGER },
+        { "height",     HEIMDALL_VAR_INTEGER },
+        { "cookie",     HEIMDALL_VAR_STRING },
+        { "codec",      HEIMDALL_VAR_STRING },
+        { "language",   HEIMDALL_VAR_STRING },
+        { "dar",        HEIMDALL_VAR_STRING },
+        { "fps",        HEIMDALL_VAR_STRING },
         { NULL, -1 }
     };
 
@@ -659,10 +660,10 @@ static void ParseMRL(vlc_object_t *object, const char *psz_path)
             if (strcmp(options[i].name, option))
                 continue;
             /* */
-            var_Create(object, name, options[i].type | VLC_VAR_DOINHERIT);
-            if (options[i].type == VLC_VAR_INTEGER && value) {
+            var_Create(object, name, options[i].type | HEIMDALL_VAR_DOINHERIT);
+            if (options[i].type == HEIMDALL_VAR_INTEGER && value) {
                 var_SetInteger(object, name, strtol(value, NULL, 0));
-            } else if (options[i].type == VLC_VAR_STRING && value) {
+            } else if (options[i].type == HEIMDALL_VAR_STRING && value) {
                 var_SetString(object, name, value);
             }
             break;

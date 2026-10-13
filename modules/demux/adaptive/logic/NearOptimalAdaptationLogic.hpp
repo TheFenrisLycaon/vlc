@@ -2,6 +2,7 @@
  * NearOptimalAdaptationLogic.hpp
  *****************************************************************************
  * Copyright (C) 2017 - VideoLAN Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -25,7 +26,7 @@
 #include "../tools/MovingAverage.hpp"
 #include <map>
 
-#include <vlc_threads.h>
+#include <heimdall_threads.h>
 
 namespace adaptive
 {
@@ -39,9 +40,9 @@ namespace adaptive
                 NearOptimalContext();
 
             private:
-                vlc_tick_t buffering_min;
-                vlc_tick_t buffering_level;
-                vlc_tick_t buffering_target;
+                heimdall_tick_t buffering_min;
+                heimdall_tick_t buffering_level;
+                heimdall_tick_t buffering_target;
                 unsigned last_download_rate;
                 MovingAverage<unsigned> average;
         };
@@ -49,13 +50,13 @@ namespace adaptive
         class NearOptimalAdaptationLogic : public AbstractAdaptationLogic
         {
             public:
-                NearOptimalAdaptationLogic(vlc_object_t *);
+                NearOptimalAdaptationLogic(heimdall_object_t *);
                 virtual ~NearOptimalAdaptationLogic();
 
                 BaseRepresentation* getNextRepresentation(BaseAdaptationSet *,
                                                           BaseRepresentation *) override;
                 void                updateDownloadRate     (const ID &, size_t,
-                                                            vlc_tick_t, vlc_tick_t) override;
+                                                            heimdall_tick_t, heimdall_tick_t) override;
                 void                trackerEvent           (const TrackerEvent &) override;
 
             private:
@@ -69,7 +70,7 @@ namespace adaptive
                 std::map<uint64_t, float>   utilities;
                 unsigned                    currentBps;
                 unsigned                    usedBps;
-                vlc_mutex_t                 lock;
+                heimdall_mutex_t                 lock;
         };
     }
 }

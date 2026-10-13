@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,10 +20,10 @@ import QtQuick
 import QtQuick.Templates as T
 
 
-import VLC.MainInterface
-import VLC.Style
-import VLC.Widgets as Widgets
-import VLC.Util
+import Heimdall.MainInterface
+import Heimdall.Style
+import Heimdall.Widgets as Widgets
+import Heimdall.Util
 
 T.ComboBox {
     id: control
@@ -33,8 +34,8 @@ T.ComboBox {
                              implicitContentHeight + topPadding + bottomPadding,
                              implicitIndicatorHeight + topPadding + bottomPadding)
 
-    padding: VLCStyle.margin_xxsmall
-    font.pixelSize: VLCStyle.fontSize_large
+    padding: HeimdallStyle.margin_xxsmall
+    font.pixelSize: HeimdallStyle.fontSize_large
 
     readonly property ColorContext colorContext: ColorContext {
         id: theme
@@ -56,7 +57,7 @@ T.ComboBox {
     delegate: T.ItemDelegate {
         width: control.width
         height: implicitContentHeight + topPadding + bottomPadding
-        padding: VLCStyle.margin_xsmall
+        padding: HeimdallStyle.margin_xsmall
         leftPadding: control.leftPadding
         contentItem: Widgets.ListLabel {
             text: control.textRole ? (Helpers.isArray(control.model) ? modelData[control.textRole] : model[control.textRole]) : modelData
@@ -70,9 +71,9 @@ T.ComboBox {
     indicator: Widgets.IconLabel {
         x: control.width - width - rightPadding
         y: control.topPadding + (control.availableHeight - height) / 2
-        font.pixelSize: VLCStyle.icon_normal
+        font.pixelSize: HeimdallStyle.icon_normal
         font.bold: true
-        text: VLCIcons.expand
+        text: HeimdallIcons.expand
         color: control.color
         verticalAlignment: Text.AlignVCenter
         horizontalAlignment: Text.AlignHCenter
@@ -91,8 +92,8 @@ T.ComboBox {
         enabled: theme.initialized
         color: control.bgColor
         border.color: theme.border
-        border.width: VLCStyle.dp(2, VLCStyle.scale)
-        radius: VLCStyle.dp(2, VLCStyle.scale)
+        border.width: HeimdallStyle.dp(2, HeimdallStyle.scale)
+        radius: HeimdallStyle.dp(2, HeimdallStyle.scale)
     }
 
     popup: Popup {

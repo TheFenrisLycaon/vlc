@@ -2,6 +2,7 @@
  * record.c: record stream output module
  *****************************************************************************
  * Copyright (C) 2008-2009 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *
@@ -30,19 +31,19 @@
 
 #include <limits.h>
 
-#include <vlc_common.h>
-#include <vlc_arrays.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_block.h>
-#include <vlc_sout.h>
-#include <vlc_fs.h>
+#include <heimdall_common.h>
+#include <heimdall_arrays.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_block.h>
+#include <heimdall_sout.h>
+#include <heimdall_fs.h>
 #include <assert.h>
 
 /*****************************************************************************
  * Exported prototypes
  *****************************************************************************/
-static int      Open    ( vlc_object_t * );
+static int      Open    ( heimdall_object_t * );
 
 /*****************************************************************************
  * Module descriptor
@@ -53,7 +54,7 @@ static int      Open    ( vlc_object_t * );
 
 #define SOUT_CFG_PREFIX "sout-record-"
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("Record stream output") )
     set_capability( "sout output", 0 )
     add_shortcut( "record" )
@@ -65,7 +66,7 @@ vlc_module_begin ()
                 DST_PREFIX_LONGTEXT )
 
     set_callback( Open )
-vlc_module_end ()
+heimdall_module_end ()
 
 /* */
 static const char *const ppsz_sout_options[] = {
@@ -99,17 +100,17 @@ typedef struct
 
     sout_stream_t *p_out;
 
-    vlc_tick_t  i_date_start;
+    heimdall_tick_t  i_date_start;
     size_t      i_size;
 
-    vlc_tick_t  i_max_wait;
+    heimdall_tick_t  i_max_wait;
     size_t      i_max_size;
 
     bool        b_drop;
 
     int              i_id;
     sout_stream_id_sys_t **id;
-    vlc_tick_t  i_dts_start;
+    heimdall_tick_t  i_dts_start;
 } sout_stream_sys_t;
 
 static void OutputStart( sout_stream_t *p_stream );
@@ -126,14 +127,14 @@ static const struct sout_stream_operations ops = {
 /*****************************************************************************
  * Open:
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     sout_stream_t *p_stream = (sout_stream_t*)p_this;
     sout_stream_sys_t *p_sys;
 
     p_stream->p_sys = p_sys = malloc( sizeof(*p_sys) );
     if( !p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     config_ChainParse( p_stream, SOUT_CFG_PREFIX, ppsz_sout_options, p_stream->p_cfg );
 
@@ -145,17 +146,17 @@ static int Open( vlc_object_t *p_this )
         if( !p_sys->psz_prefix )
         {
             free( p_sys );
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         }
     }
 
-    p_sys->i_date_start = VLC_TICK_INVALID;
+    p_sys->i_date_start = HEIMDALL_TICK_INVALID;
     p_sys->i_size = 0;
 #ifdef OPTIMIZE_MEMORY
-    p_sys->i_max_wait = VLC_TICK_FROM_SEC(5);
+    p_sys->i_max_wait = HEIMDALL_TICK_FROM_SEC(5);
     p_sys->i_max_size = 1*1024*1024; /* 1 MiB */
 #else
-    p_sys->i_max_wait = VLC_TICK_FROM_SEC(30);
+    p_sys->i_max_wait = HEIMDALL_TICK_FROM_SEC(30);
     p_sys->i_max_size = 20*1024*1024; /* 20 MiB */
 #endif
     p_sys->b_drop = false;
@@ -163,7 +164,7 @@ static int Open( vlc_object_t *p_this )
     TAB_INIT( p_sys->i_id, p_sys->id );
     p_stream->ops = &ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -240,20 +241,20 @@ static int Send( sout_stream_t *p_stream, void *id, block_t *p_buffer )
 {
     sout_stream_sys_t *p_sys = p_stream->p_sys;
 
-    if( p_sys->i_date_start == VLC_TICK_INVALID )
-        p_sys->i_date_start = vlc_tick_now();
+    if( p_sys->i_date_start == HEIMDALL_TICK_INVALID )
+        p_sys->i_date_start = heimdall_tick_now();
     if( !p_sys->p_out &&
-        ( vlc_tick_now() - p_sys->i_date_start > p_sys->i_max_wait ||
+        ( heimdall_tick_now() - p_sys->i_date_start > p_sys->i_max_wait ||
           p_sys->i_size > p_sys->i_max_size ) )
     {
         msg_Dbg( p_stream, "Starting recording, waited %ds and %dbyte",
-                 (int)SEC_FROM_VLC_TICK(vlc_tick_now() - p_sys->i_date_start), (int)p_sys->i_size );
+                 (int)SEC_FROM_HEIMDALL_TICK(heimdall_tick_now() - p_sys->i_date_start), (int)p_sys->i_size );
         OutputStart( p_stream );
     }
 
     OutputSend( p_stream, id, p_buffer );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -264,7 +265,7 @@ typedef struct
     const char  psz_muxer[19];
     const char  psz_extension[5];
     int         i_es_max;
-    vlc_fourcc_t codec[128];
+    heimdall_fourcc_t codec[128];
 } muxer_properties_t;
 
 #define M(muxer, ext, count, ... ) { .psz_muxer = muxer, .psz_extension = ext, .i_es_max = count, .codec = { __VA_ARGS__, 0 } }
@@ -272,58 +273,58 @@ typedef struct
  * Do not do non native and non standard association !
  * Muxer will be probe if no entry found */
 static const muxer_properties_t p_muxers[] = {
-    M( "raw", "mp3", 1,         VLC_CODEC_MPGA, VLC_CODEC_MP2, VLC_CODEC_MP3 ),
-    M( "raw", "a52", 1,         VLC_CODEC_A52, VLC_CODEC_EAC3 ),
-    M( "raw", "dts", 1,         VLC_CODEC_DTS ),
-    M( "raw", "mpc", 1,         VLC_CODEC_MUSEPACK7, VLC_CODEC_MUSEPACK8 ),
-    M( "raw", "ape", 1,         VLC_CODEC_APE ),
+    M( "raw", "mp3", 1,         HEIMDALL_CODEC_MPGA, HEIMDALL_CODEC_MP2, HEIMDALL_CODEC_MP3 ),
+    M( "raw", "a52", 1,         HEIMDALL_CODEC_A52, HEIMDALL_CODEC_EAC3 ),
+    M( "raw", "dts", 1,         HEIMDALL_CODEC_DTS ),
+    M( "raw", "mpc", 1,         HEIMDALL_CODEC_MUSEPACK7, HEIMDALL_CODEC_MUSEPACK8 ),
+    M( "raw", "ape", 1,         HEIMDALL_CODEC_APE ),
 
-    M( "wav", "wav", 1,         VLC_CODEC_U8,   VLC_CODEC_S16L,
-                                VLC_CODEC_S24L, VLC_CODEC_S32L, VLC_CODEC_FL32 ),
+    M( "wav", "wav", 1,         HEIMDALL_CODEC_U8,   HEIMDALL_CODEC_S16L,
+                                HEIMDALL_CODEC_S24L, HEIMDALL_CODEC_S32L, HEIMDALL_CODEC_FL32 ),
 
-    //M( "avformat{mux=flac}", "flac", 1, VLC_CODEC_FLAC ), BROKEN
+    //M( "avformat{mux=flac}", "flac", 1, HEIMDALL_CODEC_FLAC ), BROKEN
 
-    M( "ogg", "ogg", INT_MAX,   VLC_CODEC_VORBIS, VLC_CODEC_SPEEX,  VLC_CODEC_FLAC,
-                                VLC_CODEC_SUBT,   VLC_CODEC_THEORA,
-                                VLC_CODEC_OPUS ),
+    M( "ogg", "ogg", INT_MAX,   HEIMDALL_CODEC_VORBIS, HEIMDALL_CODEC_SPEEX,  HEIMDALL_CODEC_FLAC,
+                                HEIMDALL_CODEC_SUBT,   HEIMDALL_CODEC_THEORA,
+                                HEIMDALL_CODEC_OPUS ),
 
-    M( "asf", "asf", 127,       VLC_CODEC_WMA1, VLC_CODEC_WMA2, VLC_CODEC_WMAP, VLC_CODEC_WMAL, VLC_CODEC_WMAS,
-                                VLC_CODEC_WMV1, VLC_CODEC_WMV2, VLC_CODEC_WMV3, VLC_CODEC_VC1 ),
+    M( "asf", "asf", 127,       HEIMDALL_CODEC_WMA1, HEIMDALL_CODEC_WMA2, HEIMDALL_CODEC_WMAP, HEIMDALL_CODEC_WMAL, HEIMDALL_CODEC_WMAS,
+                                HEIMDALL_CODEC_WMV1, HEIMDALL_CODEC_WMV2, HEIMDALL_CODEC_WMV3, HEIMDALL_CODEC_VC1 ),
 
-    M( "mp4", "mp4", INT_MAX,   VLC_CODEC_MP4A, VLC_CODEC_A52, VLC_CODEC_EAC3, VLC_CODEC_DTS,
-                                VLC_CODEC_H264, VLC_CODEC_MP4V, VLC_CODEC_HEVC, VLC_CODEC_AV1,
-                                VLC_CODEC_SUBT, VLC_CODEC_QTXT, VLC_CODEC_TX3G ),
+    M( "mp4", "mp4", INT_MAX,   HEIMDALL_CODEC_MP4A, HEIMDALL_CODEC_A52, HEIMDALL_CODEC_EAC3, HEIMDALL_CODEC_DTS,
+                                HEIMDALL_CODEC_H264, HEIMDALL_CODEC_MP4V, HEIMDALL_CODEC_HEVC, HEIMDALL_CODEC_AV1,
+                                HEIMDALL_CODEC_SUBT, HEIMDALL_CODEC_QTXT, HEIMDALL_CODEC_TX3G ),
 
-    M( "ps", "mpg", 16/* FIXME*/, VLC_CODEC_MPGV, VLC_CODEC_MP2V, VLC_CODEC_MP1V,
-                                VLC_CODEC_MPGA, VLC_CODEC_DVD_LPCM, VLC_CODEC_A52,
-                                VLC_CODEC_DTS,
-                                VLC_CODEC_SPU ),
+    M( "ps", "mpg", 16/* FIXME*/, HEIMDALL_CODEC_MPGV, HEIMDALL_CODEC_MP2V, HEIMDALL_CODEC_MP1V,
+                                HEIMDALL_CODEC_MPGA, HEIMDALL_CODEC_DVD_LPCM, HEIMDALL_CODEC_A52,
+                                HEIMDALL_CODEC_DTS,
+                                HEIMDALL_CODEC_SPU ),
 
-    M( "avi", "avi", 100,       VLC_CODEC_A52, VLC_CODEC_MPGA,
-                                VLC_CODEC_WMA1, VLC_CODEC_WMA2, VLC_CODEC_WMAP, VLC_CODEC_WMAL,
-                                VLC_CODEC_U8, VLC_CODEC_S16L, VLC_CODEC_S24L,
-                                VLC_CODEC_MP4V ),
+    M( "avi", "avi", 100,       HEIMDALL_CODEC_A52, HEIMDALL_CODEC_MPGA,
+                                HEIMDALL_CODEC_WMA1, HEIMDALL_CODEC_WMA2, HEIMDALL_CODEC_WMAP, HEIMDALL_CODEC_WMAL,
+                                HEIMDALL_CODEC_U8, HEIMDALL_CODEC_S16L, HEIMDALL_CODEC_S24L,
+                                HEIMDALL_CODEC_MP4V ),
 
-    M( "ts", "ts", 8000,        VLC_CODEC_MPGV, VLC_CODEC_MP2V, VLC_CODEC_MP1V,
-                                VLC_CODEC_H264, VLC_CODEC_HEVC,
-                                VLC_CODEC_MPGA, VLC_CODEC_MP2, VLC_CODEC_MP3,
-                                VLC_CODEC_DVD_LPCM, VLC_CODEC_A52, VLC_CODEC_EAC3,
-                                VLC_CODEC_DTS,  VLC_CODEC_MP4A,
-                                VLC_CODEC_DVBS, VLC_CODEC_TELETEXT ),
+    M( "ts", "ts", 8000,        HEIMDALL_CODEC_MPGV, HEIMDALL_CODEC_MP2V, HEIMDALL_CODEC_MP1V,
+                                HEIMDALL_CODEC_H264, HEIMDALL_CODEC_HEVC,
+                                HEIMDALL_CODEC_MPGA, HEIMDALL_CODEC_MP2, HEIMDALL_CODEC_MP3,
+                                HEIMDALL_CODEC_DVD_LPCM, HEIMDALL_CODEC_A52, HEIMDALL_CODEC_EAC3,
+                                HEIMDALL_CODEC_DTS,  HEIMDALL_CODEC_MP4A,
+                                HEIMDALL_CODEC_DVBS, HEIMDALL_CODEC_TELETEXT ),
 
     M( "avformat{mux=webm}", "webm", 32,
-                                VLC_CODEC_VP8, VLC_CODEC_VP9,
-                                VLC_CODEC_VORBIS, VLC_CODEC_OPUS ),
+                                HEIMDALL_CODEC_VP8, HEIMDALL_CODEC_VP9,
+                                HEIMDALL_CODEC_VORBIS, HEIMDALL_CODEC_OPUS ),
 
-    M( "mkv", "mkv", 32,        VLC_CODEC_H264, VLC_CODEC_HEVC, VLC_CODEC_MP4V,
-                                VLC_CODEC_A52, VLC_CODEC_EAC3, VLC_CODEC_DTS, VLC_CODEC_MP4A,
-                                VLC_CODEC_VORBIS, VLC_CODEC_FLAC ),
+    M( "mkv", "mkv", 32,        HEIMDALL_CODEC_H264, HEIMDALL_CODEC_HEVC, HEIMDALL_CODEC_MP4V,
+                                HEIMDALL_CODEC_A52, HEIMDALL_CODEC_EAC3, HEIMDALL_CODEC_DTS, HEIMDALL_CODEC_MP4A,
+                                HEIMDALL_CODEC_VORBIS, HEIMDALL_CODEC_FLAC ),
 };
 #undef M
 
-static void set_record_file_var(vlc_object_t *obj, const char *file)
+static void set_record_file_var(heimdall_object_t *obj, const char *file)
 {
-    while ((obj = vlc_object_parent(obj)) != NULL)
+    while ((obj = heimdall_object_parent(obj)) != NULL)
     {
         if (var_Type(obj, "record-file") != 0)
         {
@@ -366,7 +367,7 @@ static int OutputNew( sout_stream_t *p_stream,
     /* Create the output */
     msg_Dbg( p_stream, "Using record output `%s'", psz_output );
 
-    p_sys->p_out = sout_StreamChainNew( VLC_OBJECT(p_stream), psz_output,
+    p_sys->p_out = sout_StreamChainNew( HEIMDALL_OBJECT(p_stream), psz_output,
                                         NULL );
 
     if( !p_sys->p_out )
@@ -384,7 +385,7 @@ static int OutputNew( sout_stream_t *p_stream,
     }
 
     if( psz_file && psz_extension )
-        set_record_file_var(VLC_OBJECT(p_stream), psz_file);
+        set_record_file_var(HEIMDALL_OBJECT(p_stream), psz_file);
 
     free( psz_file );
     free( psz_output );
@@ -399,11 +400,11 @@ error:
 
 }
 
-static vlc_tick_t BlockTick( const block_t *p_block )
+static heimdall_tick_t BlockTick( const block_t *p_block )
 {
     if( unlikely(!p_block) )
-        return VLC_TICK_INVALID;
-    else if( likely(p_block->i_dts != VLC_TICK_INVALID) )
+        return HEIMDALL_TICK_INVALID;
+    else if( likely(p_block->i_dts != HEIMDALL_TICK_INVALID) )
         return p_block->i_dts;
     else
         return p_block->i_pts;
@@ -486,7 +487,7 @@ static void OutputStart( sout_stream_t *p_stream )
             char *psz_file;
             int i_es;
 
-            psz_file = tempnam( NULL, "vlc" );
+            psz_file = tempnam( NULL, "heimdall" );
             if( !psz_file )
                 continue;
 
@@ -495,7 +496,7 @@ static void OutputStart( sout_stream_t *p_stream )
 
             if( i_es < 0 )
             {
-                vlc_unlink( psz_file );
+                heimdall_unlink( psz_file );
                 free( psz_file );
                 continue;
             }
@@ -521,7 +522,7 @@ static void OutputStart( sout_stream_t *p_stream )
                 if( i_best_es >= p_sys->i_id )
                     break;
             }
-            vlc_unlink( psz_file );
+            heimdall_unlink( psz_file );
             free( psz_file );
         }
 
@@ -541,7 +542,7 @@ static void OutputStart( sout_stream_t *p_stream )
 
     /* Compute highest timestamp of first I over all streams */
     p_sys->i_dts_start = 0;
-    vlc_tick_t i_highest_head_dts = 0;
+    heimdall_tick_t i_highest_head_dts = 0;
     for( int i = 0; i < p_sys->i_id; i++ )
     {
         sout_stream_id_sys_t *id = p_sys->id[i];
@@ -550,7 +551,7 @@ static void OutputStart( sout_stream_t *p_stream )
             continue;
 
         const block_t *p_block = id->p_first;
-        vlc_tick_t i_dts = BlockTick( p_block );
+        heimdall_tick_t i_dts = BlockTick( p_block );
 
         if( i_dts > i_highest_head_dts &&
            ( id->fmt.i_cat == AUDIO_ES || id->fmt.i_cat == VIDEO_ES ) )
@@ -575,12 +576,12 @@ static void OutputStart( sout_stream_t *p_stream )
         p_sys->i_dts_start = i_highest_head_dts;
 
     sout_stream_id_sys_t *p_cand;
-    vlc_tick_t canddts;
+    heimdall_tick_t canddts;
     do
     {
         /* dequeue candidate */
         p_cand = NULL;
-        canddts = VLC_TICK_INVALID;
+        canddts = HEIMDALL_TICK_INVALID;
 
         /* Send buffered data in dts order */
         for( int i = 0; i < p_sys->i_id; i++ )
@@ -591,18 +592,18 @@ static void OutputStart( sout_stream_t *p_stream )
                 continue;
 
             block_t *p_id_block;
-            vlc_tick_t id_dts = VLC_TICK_INVALID;
+            heimdall_tick_t id_dts = HEIMDALL_TICK_INVALID;
             for( p_id_block = id->p_first; p_id_block; p_id_block = p_id_block->p_next )
             {
                 id_dts = BlockTick( p_id_block );
-                if( id_dts != VLC_TICK_INVALID )
+                if( id_dts != HEIMDALL_TICK_INVALID )
                     break;
             }
 
-            if( id_dts == VLC_TICK_INVALID )
+            if( id_dts == HEIMDALL_TICK_INVALID )
             {
                 p_cand = id;
-                canddts = VLC_TICK_INVALID;
+                canddts = HEIMDALL_TICK_INVALID;
                 break;
             }
 

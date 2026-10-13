@@ -17,8 +17,8 @@
  *****************************************************************************/
 import QtQuick
 import QtTest
-import VLC.MainInterface
-import VLC.Player
+import Heimdall.MainInterface
+import Heimdall.Player
 
 // Safety net: when the play queue panel shows in the player.
 TestCase {

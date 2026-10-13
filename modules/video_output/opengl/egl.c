@@ -4,6 +4,7 @@
  */
 /*****************************************************************************
  * Copyright © 2010-2014 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -29,13 +30,13 @@
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 
-#include <vlc_common.h>
-#include <vlc_threads.h>
-#include <vlc_plugin.h>
-#include <vlc_opengl.h>
-#include <vlc_window.h>
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
+#include <heimdall_plugin.h>
+#include <heimdall_opengl.h>
+#include <heimdall_window.h>
 #ifdef USE_PLATFORM_X11
-# include <vlc_xlib.h>
+# include <heimdall_xlib.h>
 # include <X11/Xutil.h>
 #endif
 #ifdef USE_PLATFORM_XCB
@@ -55,7 +56,7 @@ static PFNEGLGETPLATFORMDISPLAYEXTPROC getPlatformDisplayEXT;
 static PFNEGLCREATEPLATFORMWINDOWSURFACEEXTPROC createPlatformWindowSurfaceEXT;
 #endif
 
-typedef struct vlc_gl_sys_t
+typedef struct heimdall_gl_sys_t
 {
     EGLDisplay display;
     EGLSurface surface;
@@ -74,26 +75,26 @@ typedef struct vlc_gl_sys_t
     struct wl_egl_window *window;
 #endif
     bool is_current;
-} vlc_gl_sys_t;
+} heimdall_gl_sys_t;
 
 static bool CheckAPI(EGLDisplay dpy, const char *api)
 {
     const char *apis = eglQueryString(dpy, EGL_CLIENT_APIS);
-    return vlc_gl_StrHasToken(apis, api);
+    return heimdall_gl_StrHasToken(apis, api);
 }
 
 static bool CheckClientExt(const char *name)
 {
-    return vlc_gl_StrHasToken(clientExts, name);
+    return heimdall_gl_StrHasToken(clientExts, name);
 }
 
 static bool CheckDisplayExt(EGLDisplay display, const char *name)
 {
     const char *exts = eglQueryString(display, EGL_EXTENSIONS);
-    return vlc_gl_StrHasToken(exts, name);
+    return heimdall_gl_StrHasToken(exts, name);
 }
 
-static void LogDeviceInfo(vlc_gl_t *gl,
+static void LogDeviceInfo(heimdall_gl_t *gl,
                           PFNEGLQUERYDEVICESTRINGEXTPROC eglQueryDeviceStringEXT,
                           EGLDeviceEXT device)
 {
@@ -103,7 +104,7 @@ static void LogDeviceInfo(vlc_gl_t *gl,
 
     /* EGL_EXT_device_query_name is a device extension, so it must be tested
      * against the device's own extension string, not the client one. */
-    if (vlc_gl_StrHasToken(device_ext, "EGL_EXT_device_query_name"))
+    if (heimdall_gl_StrHasToken(device_ext, "EGL_EXT_device_query_name"))
     {
         const char *vendor = eglQueryDeviceStringEXT(device, EGL_VENDOR);
         const char *renderer = eglQueryDeviceStringEXT(device, EGL_RENDERER_EXT);
@@ -113,13 +114,13 @@ static void LogDeviceInfo(vlc_gl_t *gl,
 
     msg_Dbg(gl, "   extensions: %s", device_ext);
 
-    if (vlc_gl_StrHasToken(device_ext, "EGL_EXT_device_drm"))
+    if (heimdall_gl_StrHasToken(device_ext, "EGL_EXT_device_drm"))
     {
         const char *path = eglQueryDeviceStringEXT(device, EGL_DRM_DEVICE_FILE_EXT);
         if (path != NULL)
             msg_Dbg(gl, "   drm device: %s", path);
     }
-    if (vlc_gl_StrHasToken(device_ext, "EGL_EXT_device_drm_render_node"))
+    if (heimdall_gl_StrHasToken(device_ext, "EGL_EXT_device_drm_render_node"))
     {
         const char *path = eglQueryDeviceStringEXT(device, EGL_DRM_RENDER_NODE_FILE_EXT);
         if (path != NULL)
@@ -127,7 +128,7 @@ static void LogDeviceInfo(vlc_gl_t *gl,
     }
 }
 
-static void DisplayAvailableDevices(vlc_gl_t *gl)
+static void DisplayAvailableDevices(heimdall_gl_t *gl)
 {
     PFNEGLQUERYDEVICESEXTPROC eglQueryDevicesEXT =
         (PFNEGLQUERYDEVICESEXTPROC)eglGetProcAddress("eglQueryDevicesEXT");
@@ -142,7 +143,7 @@ static void DisplayAvailableDevices(vlc_gl_t *gl)
         return;
     }
 
-    EGLDeviceEXT *devices = vlc_alloc(device_count, sizeof(*devices));
+    EGLDeviceEXT *devices = heimdall_alloc(device_count, sizeof(*devices));
     if (devices == NULL)
         return;
 
@@ -171,20 +172,20 @@ struct gl_api
    EGLint     attr[3];
 };
 
-static int MakeCurrent (vlc_gl_t *gl)
+static int MakeCurrent (heimdall_gl_t *gl)
 {
-    vlc_gl_sys_t *sys = gl->sys;
+    heimdall_gl_sys_t *sys = gl->sys;
 
     if (eglMakeCurrent (sys->display, sys->surface, sys->surface,
                         sys->context) != EGL_TRUE)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     sys->is_current = true;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void ReleaseCurrent (vlc_gl_t *gl)
+static void ReleaseCurrent (heimdall_gl_t *gl)
 {
-    vlc_gl_sys_t *sys = gl->sys;
+    heimdall_gl_sys_t *sys = gl->sys;
 
     eglMakeCurrent (sys->display, EGL_NO_SURFACE, EGL_NO_SURFACE,
                     EGL_NO_CONTEXT);
@@ -192,24 +193,24 @@ static void ReleaseCurrent (vlc_gl_t *gl)
 }
 
 #ifdef USE_PLATFORM_WAYLAND
-static void Resize (vlc_gl_t *gl, unsigned width, unsigned height)
+static void Resize (heimdall_gl_t *gl, unsigned width, unsigned height)
 {
-    vlc_gl_sys_t *sys = gl->sys;
+    heimdall_gl_sys_t *sys = gl->sys;
 
     wl_egl_window_resize(sys->window, width, height, 0, 0);
 }
 
-static void DestroySurface(vlc_gl_t *gl)
+static void DestroySurface(heimdall_gl_t *gl)
 {
-    vlc_gl_sys_t *sys = gl->sys;
+    heimdall_gl_sys_t *sys = gl->sys;
 
     wl_egl_window_destroy(sys->window);
 }
 
-static EGLSurface CreateSurface(vlc_gl_t *gl, EGLDisplay dpy, EGLConfig config,
+static EGLSurface CreateSurface(heimdall_gl_t *gl, EGLDisplay dpy, EGLConfig config,
                                 unsigned int width, unsigned int height)
 {
-    vlc_gl_sys_t *sys = gl->sys;
+    heimdall_gl_sys_t *sys = gl->sys;
     EGLSurface surface;
 
     sys->window = wl_egl_window_create(gl->surface->handle.wl, width, height);
@@ -234,16 +235,16 @@ static EGLSurface CreateSurface(vlc_gl_t *gl, EGLDisplay dpy, EGLConfig config,
     return surface;
 }
 
-static void ReleaseDisplay(vlc_gl_t *gl)
+static void ReleaseDisplay(heimdall_gl_t *gl)
 {
     (void) gl;
 }
 
-static EGLDisplay OpenDisplay(vlc_gl_t *gl)
+static EGLDisplay OpenDisplay(heimdall_gl_t *gl)
 {
-    vlc_window_t *surface = gl->surface;
+    heimdall_window_t *surface = gl->surface;
 
-    if (surface->type != VLC_WINDOW_TYPE_WAYLAND)
+    if (surface->type != HEIMDALL_WINDOW_TYPE_WAYLAND)
         return EGL_NO_DISPLAY;
     if (!CheckClientExt("EGL_KHR_display_reference")) {
         msg_Warn(gl, "EGL display reference counting not supported");
@@ -273,9 +274,9 @@ static EGLDisplay OpenDisplay(vlc_gl_t *gl)
 }
 
 #elif defined(USE_PLATFORM_X11)
-static void Resize (vlc_gl_t *gl, unsigned width, unsigned height)
+static void Resize (heimdall_gl_t *gl, unsigned width, unsigned height)
 {
-    vlc_gl_sys_t *sys = gl->sys;
+    heimdall_gl_sys_t *sys = gl->sys;
     EGLint val;
 
     EGLDisplay old_display = eglGetCurrentDisplay();
@@ -304,17 +305,17 @@ static void Resize (vlc_gl_t *gl, unsigned width, unsigned height)
         XSync(sys->x11, False);
 }
 
-static void DestroySurface(vlc_gl_t *gl)
+static void DestroySurface(heimdall_gl_t *gl)
 {
-    vlc_gl_sys_t *sys = gl->sys;
+    heimdall_gl_sys_t *sys = gl->sys;
 
     XUnmapWindow(sys->x11, sys->x11_win);
 }
 
-static EGLSurface CreateSurface(vlc_gl_t *gl, EGLDisplay dpy, EGLConfig config,
+static EGLSurface CreateSurface(heimdall_gl_t *gl, EGLDisplay dpy, EGLConfig config,
                                 unsigned int width, unsigned int height)
 {
-    vlc_gl_sys_t *sys = gl->sys;
+    heimdall_gl_sys_t *sys = gl->sys;
 
     EGLint val;
     if (eglGetConfigAttrib(dpy, config, EGL_NATIVE_VISUAL_ID, &val) == EGL_FALSE)
@@ -356,19 +357,19 @@ static EGLSurface CreateSurface(vlc_gl_t *gl, EGLDisplay dpy, EGLConfig config,
     return eglCreateWindowSurface(dpy, config, win, NULL);
 }
 
-static void ReleaseDisplay(vlc_gl_t *gl)
+static void ReleaseDisplay(heimdall_gl_t *gl)
 {
-    vlc_gl_sys_t *sys = gl->sys;
+    heimdall_gl_sys_t *sys = gl->sys;
 
     XCloseDisplay(sys->x11);
 }
 
-static EGLDisplay OpenDisplay(vlc_gl_t *gl)
+static EGLDisplay OpenDisplay(heimdall_gl_t *gl)
 {
-    vlc_window_t *surface = gl->surface;
-    vlc_gl_sys_t *sys = gl->sys;
+    heimdall_window_t *surface = gl->surface;
+    heimdall_gl_sys_t *sys = gl->sys;
 
-    if (surface->type != VLC_WINDOW_TYPE_XID || !vlc_xlib_init(VLC_OBJECT(gl)))
+    if (surface->type != HEIMDALL_WINDOW_TYPE_XID || !heimdall_xlib_init(HEIMDALL_OBJECT(gl)))
         return EGL_NO_DISPLAY;
 
     Display *x11 = XOpenDisplay(surface->display.x11);
@@ -435,9 +436,9 @@ static int GetScreenNum(xcb_connection_t *conn, const xcb_screen_t *scr)
     return n;
 }
 
-static void Resize (vlc_gl_t *gl, unsigned width, unsigned height)
+static void Resize (heimdall_gl_t *gl, unsigned width, unsigned height)
 {
-    vlc_gl_sys_t *sys = gl->sys;
+    heimdall_gl_sys_t *sys = gl->sys;
     EGLint val;
 
     EGLDisplay old_display = eglGetCurrentDisplay();
@@ -465,9 +466,9 @@ static void Resize (vlc_gl_t *gl, unsigned width, unsigned height)
     free(xcb_request_check(sys->conn, cookie));
 }
 
-static void DestroySurface(vlc_gl_t *gl)
+static void DestroySurface(heimdall_gl_t *gl)
 {
-    vlc_gl_sys_t *sys = gl->sys;
+    heimdall_gl_sys_t *sys = gl->sys;
 
     xcb_unmap_window(sys->conn, sys->xcb_win);
 }
@@ -489,11 +490,11 @@ static uint8_t VisualIdToDepth(xcb_connection_t *conn, xcb_visualid_t vid)
     return 0;
 }
 
-static EGLSurface CreateSurface(vlc_gl_t *gl, EGLDisplay dpy, EGLConfig config,
+static EGLSurface CreateSurface(heimdall_gl_t *gl, EGLDisplay dpy, EGLConfig config,
                                 unsigned int width, unsigned int height)
 {
 # ifdef EGL_EXT_platform_base
-    vlc_gl_sys_t *sys = gl->sys;
+    heimdall_gl_sys_t *sys = gl->sys;
     xcb_connection_t *conn = sys->conn;
 
     EGLint val;
@@ -536,27 +537,27 @@ static EGLSurface CreateSurface(vlc_gl_t *gl, EGLDisplay dpy, EGLConfig config,
 # endif
 }
 
-static void ReleaseDisplay(vlc_gl_t *gl)
+static void ReleaseDisplay(heimdall_gl_t *gl)
 {
-    vlc_gl_sys_t *sys = gl->sys;
+    heimdall_gl_sys_t *sys = gl->sys;
 
     xcb_disconnect(sys->conn);
 }
 
-static EGLDisplay OpenDisplay(vlc_gl_t *gl)
+static EGLDisplay OpenDisplay(heimdall_gl_t *gl)
 {
 # ifdef EGL_EXT_platform_xcb
-    vlc_window_t *surface = gl->surface;
-    vlc_gl_sys_t *sys = gl->sys;
+    heimdall_window_t *surface = gl->surface;
+    heimdall_gl_sys_t *sys = gl->sys;
     xcb_connection_t *conn;
     const xcb_screen_t *scr;
 
-    if (surface->type != VLC_WINDOW_TYPE_XID)
+    if (surface->type != HEIMDALL_WINDOW_TYPE_XID)
         return EGL_NO_DISPLAY;
     if (!CheckClientExt("EGL_EXT_platform_xcb"))
         return EGL_NO_DISPLAY;
-    if (vlc_xcb_parent_Create(gl->obj.logger, surface, &conn,
-                              &scr) != VLC_SUCCESS)
+    if (heimdall_xcb_parent_Create(gl->obj.logger, surface, &conn,
+                              &scr) != HEIMDALL_SUCCESS)
         return EGL_NO_DISPLAY;
 
     const EGLint attrs[] = {
@@ -583,13 +584,13 @@ out:
 #elif defined (USE_PLATFORM_ANDROID)
 # define Resize (NULL)
 
-static void DestroySurface(vlc_gl_t *gl)
+static void DestroySurface(heimdall_gl_t *gl)
 {
     AWindowHandler_releaseANativeWindow(gl->surface->display.anativewindow,
                                         gl->surface->handle.android_id);
 }
 
-static EGLSurface CreateSurface(vlc_gl_t *gl, EGLDisplay dpy, EGLConfig config,
+static EGLSurface CreateSurface(heimdall_gl_t *gl, EGLDisplay dpy, EGLConfig config,
                                 unsigned int width, unsigned int height)
 {
     ANativeWindow *anw =
@@ -608,15 +609,15 @@ static EGLSurface CreateSurface(vlc_gl_t *gl, EGLDisplay dpy, EGLConfig config,
     return eglCreateWindowSurface(dpy, config, anw, NULL);
 }
 
-static void ReleaseDisplay(vlc_gl_t *gl)
+static void ReleaseDisplay(heimdall_gl_t *gl)
 {
     (void) gl;
 }
 
-static EGLDisplay OpenDisplay(vlc_gl_t *gl)
+static EGLDisplay OpenDisplay(heimdall_gl_t *gl)
 {
 # if defined (__ANDROID__) || defined (ANDROID)
-    if (gl->surface->type == VLC_WINDOW_TYPE_ANDROID_NATIVE)
+    if (gl->surface->type == HEIMDALL_WINDOW_TYPE_ANDROID_NATIVE)
         return eglGetDisplay(EGL_DEFAULT_DISPLAY);
 # endif
     return EGL_NO_DISPLAY;
@@ -625,12 +626,12 @@ static EGLDisplay OpenDisplay(vlc_gl_t *gl)
 #else
 # define Resize (NULL)
 
-static void DestroySurface(vlc_gl_t *gl)
+static void DestroySurface(heimdall_gl_t *gl)
 {
     (void) gl;
 }
 
-static EGLSurface CreateSurface(vlc_gl_t *gl, EGLDisplay dpy, EGLConfig config,
+static EGLSurface CreateSurface(heimdall_gl_t *gl, EGLDisplay dpy, EGLConfig config,
                                 unsigned int width, unsigned int height)
 {
     HWND window = gl->surface->handle.hwnd;
@@ -639,25 +640,25 @@ static EGLSurface CreateSurface(vlc_gl_t *gl, EGLDisplay dpy, EGLConfig config,
     return eglCreateWindowSurface(dpy, config, window, NULL);
 }
 
-static void ReleaseDisplay(vlc_gl_t *gl)
+static void ReleaseDisplay(heimdall_gl_t *gl)
 {
     (void) gl;
 }
 
-static EGLDisplay OpenDisplay(vlc_gl_t *gl)
+static EGLDisplay OpenDisplay(heimdall_gl_t *gl)
 {
 # if defined (_WIN32) || defined (__VC32__) \
   && !defined (__CYGWIN__) && !defined (__SCITECH_SNAP__)
-    if (gl->surface->type == VLC_WINDOW_TYPE_HWND)
+    if (gl->surface->type == HEIMDALL_WINDOW_TYPE_HWND)
         return eglGetDisplay(EGL_DEFAULT_DISPLAY);
 # endif
     return EGL_NO_DISPLAY;
 }
 #endif
 
-static void SwapBuffers (vlc_gl_t *gl)
+static void SwapBuffers (heimdall_gl_t *gl)
 {
-    vlc_gl_sys_t *sys = gl->sys;
+    heimdall_gl_sys_t *sys = gl->sys;
 
     if (!sys->is_current)
     {
@@ -677,15 +678,15 @@ static void SwapBuffers (vlc_gl_t *gl)
         eglSwapBuffers (sys->display, sys->surface);
 }
 
-static void *GetSymbol(vlc_gl_t *gl, const char *procname)
+static void *GetSymbol(heimdall_gl_t *gl, const char *procname)
 {
     (void) gl;
     return (void *)eglGetProcAddress (procname);
 }
 
-static void Close(vlc_gl_t *gl)
+static void Close(heimdall_gl_t *gl)
 {
-    vlc_gl_sys_t *sys = gl->sys;
+    heimdall_gl_sys_t *sys = gl->sys;
 
     if (sys->context != EGL_NO_CONTEXT)
         eglDestroyContext(sys->display, sys->context);
@@ -700,9 +701,9 @@ static void Close(vlc_gl_t *gl)
 
 static void InitEGL(void)
 {
-    static vlc_once_t once = VLC_STATIC_ONCE;
+    static heimdall_once_t once = HEIMDALL_STATIC_ONCE;
 
-    if (unlikely(!vlc_once_begin(&once))) {
+    if (unlikely(!heimdall_once_begin(&once))) {
         clientExts = eglQueryString(EGL_NO_DISPLAY, EGL_EXTENSIONS);
         if (!clientExts)
             clientExts = "";
@@ -713,24 +714,24 @@ static void InitEGL(void)
         createPlatformWindowSurfaceEXT =
             (void *) eglGetProcAddress("eglCreatePlatformWindowSurfaceEXT");
 #endif
-        vlc_once_complete(&once);
+        heimdall_once_complete(&once);
     }
 }
 
 /**
  * Probe EGL display availability
  */
-static int Open(vlc_gl_t *gl, const struct gl_api *api,
+static int Open(heimdall_gl_t *gl, const struct gl_api *api,
                 unsigned width, unsigned height,
-                const struct vlc_gl_cfg *gl_cfg)
+                const struct heimdall_gl_cfg *gl_cfg)
 {
     InitEGL();
 
-    int ret = VLC_EGENERIC;
-    vlc_object_t *obj = VLC_OBJECT(gl);
-    vlc_gl_sys_t *sys = malloc(sizeof (*sys));
+    int ret = HEIMDALL_EGENERIC;
+    heimdall_object_t *obj = HEIMDALL_OBJECT(gl);
+    heimdall_gl_sys_t *sys = malloc(sizeof (*sys));
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     msg_Dbg(obj, "EGL client extensions: %s", clientExts);
 
@@ -743,7 +744,7 @@ static int Open(vlc_gl_t *gl, const struct gl_api *api,
     sys->display = OpenDisplay(gl);
     if (sys->display == EGL_NO_DISPLAY) {
         free(sys);
-        return VLC_ENOTSUP;
+        return HEIMDALL_ENOTSUP;
     }
 
     /* Initialize EGL display */
@@ -843,7 +844,7 @@ static int Open(vlc_gl_t *gl, const struct gl_api *api,
     sys->context = ctx;
 
     /* Initialize OpenGL callbacks */
-    static const struct vlc_gl_operations ops =
+    static const struct heimdall_gl_operations ops =
     {
         .make_current = MakeCurrent,
         .release_current = ReleaseCurrent,
@@ -854,15 +855,15 @@ static int Open(vlc_gl_t *gl, const struct gl_api *api,
     };
     gl->ops = &ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     Close(gl);
     return ret;
 }
 
-static int OpenGLES2(vlc_gl_t *gl, unsigned width, unsigned height,
-                     const struct vlc_gl_cfg *gl_cfg)
+static int OpenGLES2(heimdall_gl_t *gl, unsigned width, unsigned height,
+                     const struct heimdall_gl_cfg *gl_cfg)
 {
     static const struct gl_api api = {
         "OpenGL_ES", EGL_OPENGL_ES_API, 4, EGL_OPENGL_ES2_BIT,
@@ -871,8 +872,8 @@ static int OpenGLES2(vlc_gl_t *gl, unsigned width, unsigned height,
     return Open(gl, &api, width, height, gl_cfg);
 }
 
-static int OpenGL(vlc_gl_t *gl, unsigned width, unsigned height,
-                  const struct vlc_gl_cfg *gl_cfg)
+static int OpenGL(heimdall_gl_t *gl, unsigned width, unsigned height,
+                  const struct heimdall_gl_cfg *gl_cfg)
 {
     static const struct gl_api api = {
         "OpenGL", EGL_OPENGL_API, 4, EGL_OPENGL_BIT,
@@ -882,21 +883,21 @@ static int OpenGL(vlc_gl_t *gl, unsigned width, unsigned height,
 }
 
 #ifdef USE_PLATFORM_XCB
-# define VLC_PRIORITY 60
+# define HEIMDALL_PRIORITY 60
 #endif
-#ifndef VLC_PRIORITY
-# define VLC_PRIORITY 50
+#ifndef HEIMDALL_PRIORITY
+# define HEIMDALL_PRIORITY 50
 #endif
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname (N_("EGL"))
     set_description (N_("EGL extension for OpenGL"))
     set_subcategory (SUBCAT_VIDEO_VOUT)
-    set_callback_opengl(OpenGL, VLC_PRIORITY)
+    set_callback_opengl(OpenGL, HEIMDALL_PRIORITY)
     add_shortcut ("egl")
 
     add_submodule ()
-    set_callback_opengl_es2(OpenGLES2, VLC_PRIORITY)
+    set_callback_opengl_es2(OpenGLES2, HEIMDALL_PRIORITY)
     add_shortcut ("egl")
 
-vlc_module_end ()
+heimdall_module_end ()

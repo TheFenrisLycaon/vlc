@@ -2,6 +2,7 @@
  * platform.c: Vulkan platform abstraction
  *****************************************************************************
  * Copyright (C) 2018 Niklas Haas
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -25,18 +26,18 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_modules.h>
+#include <heimdall_common.h>
+#include <heimdall_modules.h>
 
 #include "platform.h"
 
-static int vlc_vk_start(void *func, bool forced, va_list ap)
+static int heimdall_vk_start(void *func, bool forced, va_list ap)
 {
-    int (*activate)(vlc_vk_platform_t *vk) = func;
-    vlc_vk_platform_t *vk = va_arg(ap, vlc_vk_platform_t *);
+    int (*activate)(heimdall_vk_platform_t *vk) = func;
+    heimdall_vk_platform_t *vk = va_arg(ap, heimdall_vk_platform_t *);
 
     int ret = activate(vk);
-    /* TODO: vlc_objres_clear, which is not in the public API. */
+    /* TODO: heimdall_objres_clear, which is not in the public API. */
     (void)forced;
     return ret;
 }
@@ -48,12 +49,12 @@ static int vlc_vk_start(void *func, bool forced, va_list ap)
  * @param name module name (or "any")
  * @return a new platform object, or NULL on failure
  */
-vlc_vk_platform_t *vlc_vk_platform_Create(struct vlc_window *wnd, const char *name)
+heimdall_vk_platform_t *heimdall_vk_platform_Create(struct heimdall_window *wnd, const char *name)
 {
-    vlc_object_t *parent = VLC_OBJECT(wnd);
-    struct vlc_vk_platform_t *vk;
+    heimdall_object_t *parent = HEIMDALL_OBJECT(wnd);
+    struct heimdall_vk_platform_t *vk;
 
-    vk = vlc_object_create(parent, sizeof (*vk));
+    vk = heimdall_object_create(parent, sizeof (*vk));
     if (unlikely(vk == NULL))
         return NULL;
 
@@ -61,23 +62,23 @@ vlc_vk_platform_t *vlc_vk_platform_Create(struct vlc_window *wnd, const char *na
     vk->ops = NULL;
     vk->window = wnd;
 
-    vk->module = vlc_module_load(vlc_object_logger(wnd), "vulkan platform", name,
-                                 true, vlc_vk_start, vk);
+    vk->module = heimdall_module_load(heimdall_object_logger(wnd), "vulkan platform", name,
+                                 true, heimdall_vk_start, vk);
 
     if (vk->module == NULL)
     {
-        vlc_object_delete(vk);
+        heimdall_object_delete(vk);
         return NULL;
     }
 
     return vk;
 }
 
-void vlc_vk_platform_Release(vlc_vk_platform_t *vk)
+void heimdall_vk_platform_Release(heimdall_vk_platform_t *vk)
 {
     if (vk->ops)
         vk->ops->close(vk);
 
-    /* TODO: use vlc_objres_clear */
-    vlc_object_delete(vk);
+    /* TODO: use heimdall_objres_clear */
+    heimdall_object_delete(vk);
 }

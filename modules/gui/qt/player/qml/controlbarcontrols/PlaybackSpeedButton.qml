@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,16 +21,16 @@ import QtQuick
 import QtQuick.Templates as T
 
 
-import VLC.MainInterface
-import VLC.Style
-import VLC.Player
-import VLC.Widgets
-import VLC.Util
+import Heimdall.MainInterface
+import Heimdall.Style
+import Heimdall.Player
+import Heimdall.Widgets
+import Heimdall.Util
 
 PopupIconToolButton {
     id: root
 
-    popup.width: VLCStyle.dp(256, VLCStyle.scale)
+    popup.width: HeimdallStyle.dp(256, HeimdallStyle.scale)
 
     text: qsTr("Playback Speed")
 
@@ -69,7 +70,7 @@ PopupIconToolButton {
             verticalAlignment: Text.AlignVCenter
             horizontalAlignment: Text.AlignHCenter
 
-            font.pixelSize: VLCStyle.fontSize_normal
+            font.pixelSize: HeimdallStyle.fontSize_normal
 
             text: !root.paintOnly ? qsTr("%1x").arg(+Player.rate.toFixed(2))
                                   : qsTr("1x")
@@ -84,8 +85,8 @@ PopupIconToolButton {
 
         z: -1
 
-        WheelToVLCConverter {
-            id: wheelToVLC
+        WheelToHeimdallConverter {
+            id: wheelToHeimdall
 
             function handle(steps: int) {
                 let func
@@ -99,8 +100,8 @@ PopupIconToolButton {
             }
 
             Component.onCompleted: {
-                wheelUpDown.connect(wheelToVLC.handle)
-                wheelLeftRight.connect(wheelToVLC.handle)
+                wheelUpDown.connect(wheelToHeimdall.handle)
+                wheelLeftRight.connect(wheelToHeimdall.handle)
             }
         }
 
@@ -129,7 +130,7 @@ PopupIconToolButton {
                 //     root.popup.contentItem.slider.value += 0.01 * delta
                 // } else
                 {
-                    wheelToVLC.qmlWheelEvent(wheel)
+                    wheelToHeimdall.qmlWheelEvent(wheel)
                 }
 
                 wheel.accepted = true

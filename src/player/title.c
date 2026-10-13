@@ -2,6 +2,7 @@
  * player_title.c: Player title implementation
  *****************************************************************************
  * Copyright © 2018-2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -25,29 +26,29 @@
 #include <limits.h>
 #include <stdckdint.h>
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 #include "player.h"
 
-struct vlc_player_title_list *
-vlc_player_title_list_Hold(struct vlc_player_title_list *titles)
+struct heimdall_player_title_list *
+heimdall_player_title_list_Hold(struct heimdall_player_title_list *titles)
 {
-    vlc_atomic_rc_inc(&titles->rc);
+    heimdall_atomic_rc_inc(&titles->rc);
     return titles;
 }
 
 void
-vlc_player_title_list_Release(struct vlc_player_title_list *titles)
+heimdall_player_title_list_Release(struct heimdall_player_title_list *titles)
 {
-    if (!vlc_atomic_rc_dec(&titles->rc))
+    if (!heimdall_atomic_rc_dec(&titles->rc))
         return;
     for (size_t title_idx = 0; title_idx < titles->count; ++title_idx)
     {
-        struct vlc_player_title *title = &titles->array[title_idx];
+        struct heimdall_player_title *title = &titles->array[title_idx];
         free((char *)title->name);
         for (size_t chapter_idx = 0; chapter_idx < title->chapter_count;
              ++chapter_idx)
         {
-            const struct vlc_player_chapter *chapter =
+            const struct heimdall_player_chapter *chapter =
                 &title->chapters[chapter_idx];
             free((char *)chapter->name);
         }
@@ -66,7 +67,7 @@ input_title_GetName(const struct input_title_t *input_title, int idx,
     if (input_title->i_length > 0)
     {
         strcpy(length_str, " [");
-        vlc_tick_to_str(&length_str[2], input_title->i_length);
+        heimdall_tick_to_str(&length_str[2], input_title->i_length);
         strcat(length_str, "]");
     }
     else
@@ -95,8 +96,8 @@ seekpoint_GetName(seekpoint_t *seekpoint, int idx, int chapter_offset)
     return dup;
 }
 
-struct vlc_player_title_list *
-vlc_player_title_list_Create(input_title_t *const *array, size_t count,
+struct heimdall_player_title_list *
+heimdall_player_title_list_Create(input_title_t *const *array, size_t count,
                              int title_offset, int chapter_offset)
 {
     if (count == 0)
@@ -104,21 +105,21 @@ vlc_player_title_list_Create(input_title_t *const *array, size_t count,
 
     /* Allocate the struct + the whole list */
     size_t size;
-    if (ckd_mul(&size, count, sizeof(struct vlc_player_title)))
+    if (ckd_mul(&size, count, sizeof(struct heimdall_player_title)))
         return NULL;
-    if (ckd_add(&size, size, sizeof(struct vlc_player_title_list)))
+    if (ckd_add(&size, size, sizeof(struct heimdall_player_title_list)))
         return NULL;
-    struct vlc_player_title_list *titles = malloc(size);
+    struct heimdall_player_title_list *titles = malloc(size);
     if (!titles)
         return NULL;
 
-    vlc_atomic_rc_init(&titles->rc);
+    heimdall_atomic_rc_init(&titles->rc);
     titles->count = count;
 
     for (size_t title_idx = 0; title_idx < titles->count; ++title_idx)
     {
         const struct input_title_t *input_title = array[title_idx];
-        struct vlc_player_title *title = &titles->array[title_idx];
+        struct heimdall_player_title *title = &titles->array[title_idx];
 
         title->name = input_title_GetName(input_title, title_idx, title_offset);
         title->length = input_title->i_length;
@@ -127,15 +128,15 @@ vlc_player_title_list_Create(input_title_t *const *array, size_t count,
                                        input_title->i_seekpoint : 0;
         title->chapter_count = seekpoint_count;
 
-        struct vlc_player_chapter *chapters = title->chapter_count == 0 ? NULL :
-            vlc_alloc(title->chapter_count, sizeof(*chapters));
+        struct heimdall_player_chapter *chapters = title->chapter_count == 0 ? NULL :
+            heimdall_alloc(title->chapter_count, sizeof(*chapters));
 
         if (chapters)
         {
             for (size_t chapter_idx = 0; chapter_idx < title->chapter_count;
                  ++chapter_idx)
             {
-                struct vlc_player_chapter *chapter = &chapters[chapter_idx];
+                struct heimdall_player_chapter *chapter = &chapters[chapter_idx];
                 seekpoint_t *seekpoint = input_title->seekpoint[chapter_idx];
 
                 chapter->name = seekpoint_GetName(seekpoint, chapter_idx,
@@ -154,22 +155,22 @@ vlc_player_title_list_Create(input_title_t *const *array, size_t count,
         {
             /* Release titles up to title_idx */
             titles->count = title_idx;
-            vlc_player_title_list_Release(titles);
+            heimdall_player_title_list_Release(titles);
             return NULL;
         }
     }
     return titles;
 }
 
-const struct vlc_player_title *
-vlc_player_title_list_GetAt(struct vlc_player_title_list *titles, size_t idx)
+const struct heimdall_player_title *
+heimdall_player_title_list_GetAt(struct heimdall_player_title_list *titles, size_t idx)
 {
     assert(idx < titles->count);
     return &titles->array[idx];
 }
 
 size_t
-vlc_player_title_list_GetCount(struct vlc_player_title_list *titles)
+heimdall_player_title_list_GetCount(struct heimdall_player_title_list *titles)
 {
     return titles->count;
 }

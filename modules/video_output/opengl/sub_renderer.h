@@ -2,6 +2,7 @@
  * sub_renderer.h
  *****************************************************************************
  * Copyright (C) 2020 Videolabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -18,26 +19,26 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_SUB_RENDERER_H
-#define VLC_SUB_RENDERER_H
+#ifndef HEIMDALL_SUB_RENDERER_H
+#define HEIMDALL_SUB_RENDERER_H
 
 #ifdef HAVE_CONFIG_H
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_opengl.h>
+#include <heimdall_common.h>
+#include <heimdall_opengl.h>
 
 #include "gl_api.h"
 #include "gl_common.h"
 #include "interop.h"
 
-struct vlc_render_subpicture;
+struct heimdall_render_subpicture;
 
 /**
  * A subpictures renderer handles the rendering of RGB subpictures.
  */
-struct vlc_gl_sub_renderer;
+struct heimdall_gl_sub_renderer;
 
 /**
  * Create a new subpictures renderer
@@ -45,9 +46,9 @@ struct vlc_gl_sub_renderer;
  * \param gl the GL context
  * \param api the OpenGL API
  */
-struct vlc_gl_sub_renderer *
-vlc_gl_sub_renderer_New(vlc_gl_t *gl, const struct vlc_gl_api *api,
-                        struct vlc_gl_interop *interop);
+struct heimdall_gl_sub_renderer *
+heimdall_gl_sub_renderer_New(heimdall_gl_t *gl, const struct heimdall_gl_api *api,
+                        struct heimdall_gl_interop *interop);
 
 /**
  * Delete a subpictures renderer
@@ -55,7 +56,7 @@ vlc_gl_sub_renderer_New(vlc_gl_t *gl, const struct vlc_gl_api *api,
  * \param sr the renderer
  */
 void
-vlc_gl_sub_renderer_Delete(struct vlc_gl_sub_renderer *sr);
+heimdall_gl_sub_renderer_Delete(struct heimdall_gl_sub_renderer *sr);
 
 /**
  * Prepare the fragment shader
@@ -67,14 +68,14 @@ vlc_gl_sub_renderer_Delete(struct vlc_gl_sub_renderer *sr);
  * \param subpicture the subpicture to render
  */
 int
-vlc_gl_sub_renderer_Prepare(struct vlc_gl_sub_renderer *sr,
-                            const struct vlc_render_subpicture *subpicture);
+heimdall_gl_sub_renderer_Prepare(struct heimdall_gl_sub_renderer *sr,
+                            const struct heimdall_render_subpicture *subpicture);
 
 /**
  * Change the output size
  */
 void
-vlc_gl_sub_renderer_SetOutputSize(struct vlc_gl_sub_renderer *sr,
+heimdall_gl_sub_renderer_SetOutputSize(struct heimdall_gl_sub_renderer *sr,
                                   unsigned width, unsigned height);
 
 /**
@@ -83,6 +84,6 @@ vlc_gl_sub_renderer_SetOutputSize(struct vlc_gl_sub_renderer *sr,
  * \param sr the renderer
  */
 int
-vlc_gl_sub_renderer_Draw(struct vlc_gl_sub_renderer *sr);
+heimdall_gl_sub_renderer_Draw(struct heimdall_gl_sub_renderer *sr);
 
 #endif

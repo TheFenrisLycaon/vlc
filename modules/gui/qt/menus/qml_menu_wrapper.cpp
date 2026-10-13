@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -89,7 +90,7 @@ void StringListMenu::popup(const QPoint &point, const QVariantList &stringList)
 
 QMenu *BasicMenuContainer::newMenu()
 {
-    QMenu *m = new VLCMenu(m_ctx->getIntf());
+    QMenu *m = new HeimdallMenu(m_ctx->getIntf());
     m->setAttribute(Qt::WA_DeleteOnClose);
     if (m_prevMenu)
     {
@@ -116,7 +117,7 @@ void BasicMenuContainer::setVisible(bool visible)
 void SortMenu::popup(const QPoint &point, const bool popupAbovePoint, const QVariantList &model)
 {
     assert(m_ctx);
-    m_menu = std::make_unique<VLCMenu>(m_ctx->getIntf());
+    m_menu = std::make_unique<HeimdallMenu>(m_ctx->getIntf());
 
     connect( m_menu.get(), &QMenu::aboutToShow, this, [this]() {
         m_shown = true;
@@ -237,7 +238,7 @@ void SortMenuAlbums::onPopup(QMenu *menu)
 }
 
 QmlGlobalMenu::QmlGlobalMenu(QObject *parent)
-    : VLCMenuBar(parent)
+    : HeimdallMenuBar(parent)
 {
 }
 
@@ -250,7 +251,7 @@ void QmlGlobalMenu::popup(QPoint pos)
     if (!p_intf)
         return;
 
-    m_menu = std::make_unique<VLCMenu>(m_ctx->getIntf());
+    m_menu = std::make_unique<HeimdallMenu>(m_ctx->getIntf());
     QMenu* submenu;
 
     connect( m_menu.get(), &QMenu::aboutToShow, this, [this]() {
@@ -338,7 +339,7 @@ void QmlMenuBarMenu::keyReleaseEvent(QKeyEvent * event)
 }
 
 QmlMenuBar::QmlMenuBar(QObject *parent)
-    : VLCMenuBar(parent)
+    : HeimdallMenuBar(parent)
 {
 }
 
@@ -363,7 +364,7 @@ QmlMenuBar::QmlMenuBar(QObject *parent)
     case HELP:
         return qtr("&Help");
     }
-    vlc_assert_unreachable();
+    heimdall_assert_unreachable();
     return "";
 }
 
@@ -415,7 +416,7 @@ void QmlMenuBar::setupMenuEntry(QMenu* menu, MenuEntry entry)
         HelpMenu( p_intf, menu );
         break;
     default:
-        vlc_assert_unreachable();
+        heimdall_assert_unreachable();
     };
 }
 
@@ -573,7 +574,7 @@ bool QmlMenuPositioner::eventFilter(QObject * object, QEvent * event)
     if (m_ctx == nullptr || m_player == nullptr)
         return;
 
-    m_menu = std::make_unique<VLCMenu>(m_ctx->getIntf());
+    m_menu = std::make_unique<HeimdallMenu>(m_ctx->getIntf());
 
     connect(m_menu.get(), &QMenu::aboutToHide, this, &QmlBookmarkMenu::aboutToHide);
     connect(m_menu.get(), &QMenu::aboutToShow, this, &QmlBookmarkMenu::aboutToShow);
@@ -664,7 +665,7 @@ void QmlBookmarkMenu::close()
     if (m_player == nullptr)
         return;
 
-    m_menu = std::make_unique<VLCMenu>(m_ctx->getIntf());
+    m_menu = std::make_unique<HeimdallMenu>(m_ctx->getIntf());
 
     connect(m_menu.get(), &QMenu::aboutToHide, this, &QmlProgramMenu::aboutToHide);
     connect(m_menu.get(), &QMenu::aboutToShow, this, &QmlProgramMenu::aboutToShow);
@@ -727,7 +728,7 @@ void QmlRendererMenu::close()
 /* Q_INVOKABLE */ void QmlTrackMenu::popup(const QPoint & position)
 {
     assert(m_ctx);
-    m_menu = std::make_unique<VLCMenu>(m_ctx->getIntf());
+    m_menu = std::make_unique<HeimdallMenu>(m_ctx->getIntf());
 
     beforePopup(m_menu.get());
 
@@ -791,7 +792,7 @@ void QmlAudioMenu::beforePopup(QMenu * menu) /* override */
 }
 
 QmlAudioContextMenu::QmlAudioContextMenu(QObject *parent)
-    : VLCMenuBar(parent)
+    : HeimdallMenuBar(parent)
 {
 }
 
@@ -1056,7 +1057,7 @@ void PlaylistContextMenu::popup(int selectedIndex, QPoint pos )
     if (!m_controler || !m_model || !m_selectionModel)
         return;
 
-    m_menu = std::make_unique<VLCMenu>(m_ctx->getIntf());
+    m_menu = std::make_unique<HeimdallMenu>(m_ctx->getIntf());
     QAction* action;
 
     QList<QUrl> selectedUrlList;
@@ -1163,7 +1164,7 @@ void PlaylistContextMenu::popup(int selectedIndex, QPoint pos )
 
         m_menu->addSeparator();
 
-        using namespace vlc::playlist;
+        using namespace heimdall::playlist;
         PlaylistController::SortKey currentKey = m_controler->getSortKey();
         PlaylistController::SortOrder currentOrder = m_controler->getSortOrder();
 

@@ -1,7 +1,8 @@
 /*****************************************************************************
- * cdda.c : CD digital audio input module for vlc
+ * cdda.c : CD digital audio input module for heimdall
  *****************************************************************************
  * Copyright (C) 2000, 2003-2006, 2008-2009 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *          Gildas Bazin <gbazin@netcourrier.com>
@@ -40,20 +41,20 @@
 #include <string.h>
 #include <ctype.h>
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_demux.h>
-#include <vlc_plugin.h>
-#include <vlc_input_item.h>
-#include <vlc_access.h>
-#include <vlc_meta.h>
-#include <vlc_charset.h> /* ToLocaleDup */
-#include <vlc_url.h>
-#include <vlc_strings.h>
-#include <vlc_memstream.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_demux.h>
+#include <heimdall_plugin.h>
+#include <heimdall_input_item.h>
+#include <heimdall_access.h>
+#include <heimdall_meta.h>
+#include <heimdall_charset.h> /* ToLocaleDup */
+#include <heimdall_url.h>
+#include <heimdall_strings.h>
+#include <heimdall_memstream.h>
 #ifdef HAVE_GCRYPT
 # include <gcrypt.h>
-# include <vlc_gcrypt.h>
+# include <heimdall_gcrypt.h>
 #endif
 
 #include "disc_helper.h"
@@ -63,7 +64,7 @@
 
 #define INVALID_SECTOR ((unsigned) -1)
 
-static vcddev_t *DiscOpen(vlc_object_t *obj, const char *location,
+static vcddev_t *DiscOpen(heimdall_object_t *obj, const char *location,
                          const char *path, unsigned *restrict trackp)
 {
     char *devpath;
@@ -75,7 +76,7 @@ static vcddev_t *DiscOpen(vlc_object_t *obj, const char *location,
     else if (location[0] != '\0')
     {
 #if (DIR_SEP_CHAR == '/')
-        char *dec = vlc_uri_decode_duplicate(location);
+        char *dec = heimdall_uri_decode_duplicate(location);
         if (dec == NULL)
             return NULL;
 
@@ -121,7 +122,7 @@ static vcddev_t *DiscOpen(vlc_object_t *obj, const char *location,
 #endif
 
 #ifdef __APPLE__
-    if (DiscProbeMacOSPermission(obj, devpath) != VLC_SUCCESS) {
+    if (DiscProbeMacOSPermission(obj, devpath) != HEIMDALL_SUCCESS) {
         free(devpath);
         return NULL;
     }
@@ -156,16 +157,16 @@ static int Demux(demux_t *demux)
     unsigned count = CDDA_BLOCKS_ONCE;
 
     if (sys->position >= sys->length)
-        return VLC_DEMUXER_EOF;
+        return HEIMDALL_DEMUXER_EOF;
 
     if (sys->position + count >= sys->length)
         count = sys->length - sys->position;
 
     block_t *block = block_Alloc(count * CDDA_DATA_SIZE);
     if (unlikely(block == NULL))
-        return VLC_DEMUXER_EOF;
+        return HEIMDALL_DEMUXER_EOF;
 
-    int ret = ioctl_ReadSectors(VLC_OBJECT(demux), sys->vcddev,
+    int ret = ioctl_ReadSectors(HEIMDALL_OBJECT(demux), sys->vcddev,
                                 sys->start + sys->position,
                                 block->p_buffer, count, CDDA_TYPE);
     if (ret < 0)
@@ -175,11 +176,11 @@ static int Demux(demux_t *demux)
 
         /* Nothing left to read: the disc is gone, or the drive is. */
         if (ret == -2)
-            return VLC_DEMUXER_EGENERIC;
+            return HEIMDALL_DEMUXER_EGENERIC;
 
         /* Skip potentially bad sector */
         sys->position++;
-        return VLC_DEMUXER_SUCCESS;
+        return HEIMDALL_DEMUXER_SUCCESS;
     }
 
     sys->position += count;
@@ -190,7 +191,7 @@ static int Demux(demux_t *demux)
 
     es_out_Send(demux->out, sys->es, block);
     es_out_SetPCR(demux->out, date_Get(&sys->pts));
-    return VLC_DEMUXER_SUCCESS;
+    return HEIMDALL_DEMUXER_SUCCESS;
 }
 
 static int DemuxControl(demux_t *demux, int query, va_list args)
@@ -205,8 +206,8 @@ static int DemuxControl(demux_t *demux, int query, va_list args)
             *va_arg(args, bool*) = true;
             break;
         case DEMUX_GET_PTS_DELAY:
-            *va_arg(args, vlc_tick_t *) =
-                VLC_TICK_FROM_MS( var_InheritInteger(demux, "disc-caching") );
+            *va_arg(args, heimdall_tick_t *) =
+                HEIMDALL_TICK_FROM_MS( var_InheritInteger(demux, "disc-caching") );
             break;
 
         case DEMUX_SET_PAUSE_STATE:
@@ -219,26 +220,26 @@ static int DemuxControl(demux_t *demux, int query, va_list args)
 
         case DEMUX_SET_POSITION:
             sys->position = lround(va_arg(args, double) * sys->length);
-            date_Set(&sys->pts, VLC_TICK_0);
+            date_Set(&sys->pts, HEIMDALL_TICK_0);
             date_Increment(&sys->pts, sys->position);
             break;
 
         case DEMUX_GET_LENGTH:
-            *va_arg(args, vlc_tick_t *) = vlc_tick_from_samples(sys->length, CD_ROM_CDDA_FRAMES);
+            *va_arg(args, heimdall_tick_t *) = heimdall_tick_from_samples(sys->length, CD_ROM_CDDA_FRAMES);
             break;
         case DEMUX_GET_TIME:
-            *va_arg(args, vlc_tick_t *) = vlc_tick_from_samples(sys->position, CD_ROM_CDDA_FRAMES);
+            *va_arg(args, heimdall_tick_t *) = heimdall_tick_from_samples(sys->position, CD_ROM_CDDA_FRAMES);
             break;
         case DEMUX_SET_TIME:
-            sys->position = samples_from_vlc_tick(va_arg(args, vlc_tick_t), CD_ROM_CDDA_FRAMES);
-            date_Set(&sys->pts, VLC_TICK_0);
+            sys->position = samples_from_heimdall_tick(va_arg(args, heimdall_tick_t), CD_ROM_CDDA_FRAMES);
+            date_Set(&sys->pts, HEIMDALL_TICK_0);
             date_Increment(&sys->pts, sys->position);
             break;
 
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*
@@ -302,14 +303,14 @@ static int TOC_GetAudioRange(vcddev_toc_t *p_toc,
     return (i_last >= i_first) ? i_last - i_first + 1 : 0;
 }
 
-static int DemuxOpen(vlc_object_t *obj, vcddev_t *dev, unsigned track)
+static int DemuxOpen(heimdall_object_t *obj, vcddev_t *dev, unsigned track)
 {
     demux_t *demux = (demux_t *)obj;
 
     if (demux->out == NULL)
         goto error;
 
-    demux_sys_t *sys = vlc_obj_malloc(obj, sizeof (*sys));
+    demux_sys_t *sys = heimdall_obj_malloc(obj, sizeof (*sys));
     if (unlikely(sys == NULL))
         goto error;
 
@@ -348,22 +349,22 @@ static int DemuxOpen(vlc_object_t *obj, vcddev_t *dev, unsigned track)
 
     es_format_t fmt;
 
-    es_format_Init(&fmt, AUDIO_ES, VLC_CODEC_S16L);
+    es_format_Init(&fmt, AUDIO_ES, HEIMDALL_CODEC_S16L);
     fmt.audio.i_rate = 44100;
     fmt.audio.i_channels = 2;
     sys->es = es_out_Add(demux->out, &fmt);
 
     date_Init(&sys->pts, CD_ROM_CDDA_FRAMES, 1);
-    date_Set(&sys->pts, VLC_TICK_0);
+    date_Set(&sys->pts, HEIMDALL_TICK_0);
 
     sys->position = 0;
     demux->pf_demux = Demux;
     demux->pf_control = DemuxControl;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     ioctl_Close(obj, dev);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /*****************************************************************************
@@ -377,7 +378,7 @@ typedef struct
     int          i_cdda_first;                      /* First .. */
     int          i_cdda_last;                       /* Last .. */
     int          cdtextc;
-    vlc_meta_t **cdtextv;
+    heimdall_meta_t **cdtextv;
     musicbrainz_recording_t *mbrecord;
 } access_sys_t;
 
@@ -439,7 +440,7 @@ static char * BuildMusicbrainzDiscID( const vcddev_toc_t *p_toc,
 
     size_t i_len = gcry_md_get_algo_dlen( GCRY_MD_SHA1 );
     unsigned char *output = gcry_md_read( hd, GCRY_MD_SHA1 );
-    char *out = vlc_b64_encode_binary( output, i_len );
+    char *out = heimdall_b64_encode_binary( output, i_len );
     if( out )
     {
         i_len = strlen( out );
@@ -465,7 +466,7 @@ static char * BuildMusicbrainzDiscID( const vcddev_toc_t *p_toc,
 # define BuildMusicbrainzDiscID(a, b, c, d) (NULL)
 #endif
 
-static musicbrainz_recording_t * GetMusicbrainzInfo( vlc_object_t *obj,
+static musicbrainz_recording_t * GetMusicbrainzInfo( heimdall_object_t *obj,
                                                      const vcddev_toc_t *p_toc,
                                                      int i_total, int i_first, int i_last )
 {
@@ -489,10 +490,10 @@ static musicbrainz_recording_t * GetMusicbrainzInfo( vlc_object_t *obj,
     }
     else /* Fuzzy lookup using TOC */
     {
-        struct vlc_memstream ms;
+        struct heimdall_memstream ms;
 
-        vlc_memstream_open(&ms);
-        vlc_memstream_printf(&ms, "toc=%u+%u", i_first, i_last );
+        heimdall_memstream_open(&ms);
+        heimdall_memstream_printf(&ms, "toc=%u+%u", i_first, i_last );
 
         /* LEAD OUT sector info
          * https://github.com/metabrainz/libdiscid/blob/e46249415eb6d657ecc63667b03d670a4347712f/src/toc.c#L90 */
@@ -501,10 +502,10 @@ static musicbrainz_recording_t * GetMusicbrainzInfo( vlc_object_t *obj,
             i_last_track_end = LBAPregap(p_toc->p_sectors[i_total].i_lba) - CD_ROM_XA_INTERVAL;
         else
             i_last_track_end = LBAPregap(p_toc->p_sectors[p_toc->i_tracks].i_lba);
-        vlc_memstream_printf(&ms, "+%u", i_last_track_end );
+        heimdall_memstream_printf(&ms, "+%u", i_last_track_end );
         for( int i = 0; i<i_total; i++ ) /* skipped LEAD OUT, audio only */
-            vlc_memstream_printf(&ms, "+%u", LBAPregap(p_toc->p_sectors[i].i_lba) );
-        if( vlc_memstream_close(&ms) == 0 )
+            heimdall_memstream_printf(&ms, "+%u", LBAPregap(p_toc->p_sectors[i].i_lba) );
+        if( heimdall_memstream_close(&ms) == 0 )
         {
             recording = musicbrainz_lookup_recording_by_toc( &cfg, ms.ptr );
             free( ms.ptr );
@@ -515,15 +516,15 @@ static musicbrainz_recording_t * GetMusicbrainzInfo( vlc_object_t *obj,
     return recording;
 }
 
-static void AccessGetMeta(stream_t *access, vlc_meta_t *meta)
+static void AccessGetMeta(stream_t *access, heimdall_meta_t *meta)
 {
     access_sys_t *sys = access->p_sys;
 
-    vlc_meta_SetTitle(meta, "Audio CD");
+    heimdall_meta_SetTitle(meta, "Audio CD");
 
     /* Retrieve CD-TEXT information */
     if (sys->cdtextc > 0 && sys->cdtextv[0] != NULL)
-        vlc_meta_Merge(meta, sys->cdtextv[0]);
+        heimdall_meta_Merge(meta, sys->cdtextv[0]);
 
 /* Return true if the given string is not NULL and not empty */
 #define NONEMPTY( psz ) ( (psz) && *(psz) )
@@ -556,8 +557,8 @@ static int ReadDir(stream_t *access, input_item_node_t *node)
            p_toc->i_last_track > sys->i_cdda_last)
             i_last_sector -= CD_ROM_XA_INTERVAL;
 
-        const vlc_tick_t duration =
-            vlc_tick_from_samples(i_last_sector - i_first_sector, CD_ROM_CDDA_FRAMES);
+        const heimdall_tick_t duration =
+            heimdall_tick_from_samples(i_last_sector - i_first_sector, CD_ROM_CDDA_FRAMES);
 
         input_item_t *item = input_item_NewDisc(access->psz_url,
                                                 (name != NULL) ? name :
@@ -570,19 +571,19 @@ static int ReadDir(stream_t *access, input_item_node_t *node)
         char *opt;
         if (likely(asprintf(&opt, "cdda-track=%i", i + 1) != -1))
         {
-            input_item_AddOption(item, opt, VLC_INPUT_OPTION_TRUSTED);
+            input_item_AddOption(item, opt, HEIMDALL_INPUT_OPTION_TRUSTED);
             free(opt);
         }
 
         if (likely(asprintf(&opt, "cdda-first-sector=%i", i_first_sector) != -1))
         {
-            input_item_AddOption(item, opt, VLC_INPUT_OPTION_TRUSTED);
+            input_item_AddOption(item, opt, HEIMDALL_INPUT_OPTION_TRUSTED);
             free(opt);
         }
 
         if (likely(asprintf(&opt, "cdda-last-sector=%i", i_last_sector) != -1))
         {
-            input_item_AddOption(item, opt, VLC_INPUT_OPTION_TRUSTED);
+            input_item_AddOption(item, opt, HEIMDALL_INPUT_OPTION_TRUSTED);
             free(opt);
         }
 
@@ -601,28 +602,28 @@ static int ReadDir(stream_t *access, input_item_node_t *node)
         /* Per track CDText */
         if(sys->cdtextc > 0)
         {
-            const vlc_meta_t *m;
+            const heimdall_meta_t *m;
 
             /* Album CDtext data */
             if ((m = sys->cdtextv[0]) != NULL)
             {
-                ON_EMPTY(genre,       vlc_meta_Get(m, vlc_meta_Genre));
-                ON_EMPTY(description, vlc_meta_Get(m, vlc_meta_Description));
+                ON_EMPTY(genre,       heimdall_meta_Get(m, heimdall_meta_Genre));
+                ON_EMPTY(description, heimdall_meta_Get(m, heimdall_meta_Description));
             }
 
             if (i + 1 < sys->cdtextc && (m = sys->cdtextv[i + 1]) != NULL)
             {
-                ON_EMPTY(title,       vlc_meta_Get(m, vlc_meta_Title));
-                ON_EMPTY(artist,      vlc_meta_Get(m, vlc_meta_Artist));
-                ON_EMPTY(album_artist,vlc_meta_Get(m, vlc_meta_AlbumArtist));
-                ON_EMPTY(album,       vlc_meta_Get(m, vlc_meta_Album));
-                ON_EMPTY(genre,       vlc_meta_Get(m, vlc_meta_Genre));
-                ON_EMPTY(description, vlc_meta_Get(m, vlc_meta_Description));
+                ON_EMPTY(title,       heimdall_meta_Get(m, heimdall_meta_Title));
+                ON_EMPTY(artist,      heimdall_meta_Get(m, heimdall_meta_Artist));
+                ON_EMPTY(album_artist,heimdall_meta_Get(m, heimdall_meta_AlbumArtist));
+                ON_EMPTY(album,       heimdall_meta_Get(m, heimdall_meta_Album));
+                ON_EMPTY(genre,       heimdall_meta_Get(m, heimdall_meta_Genre));
+                ON_EMPTY(description, heimdall_meta_Get(m, heimdall_meta_Description));
 
-                author = vlc_meta_GetExtra(m, "AUTHOR");
-                composer = vlc_meta_GetExtra(m, "COMPOSER");
-                arranger = vlc_meta_GetExtra(m, "ARRANGER");
-                isrc = vlc_meta_GetExtra(m, "ISRC");
+                author = heimdall_meta_GetExtra(m, "AUTHOR");
+                composer = heimdall_meta_GetExtra(m, "COMPOSER");
+                arranger = heimdall_meta_GetExtra(m, "ARRANGER");
+                isrc = heimdall_meta_GetExtra(m, "ISRC");
             }
         }
 
@@ -676,13 +677,13 @@ static int ReadDir(stream_t *access, input_item_node_t *node)
             input_item_SetAlbum(item, album);
 
         if (NONEMPTY(author))
-            vlc_meta_SetExtra(item->p_meta, "AUTHOR", author);
+            heimdall_meta_SetExtra(item->p_meta, "AUTHOR", author);
         if (NONEMPTY(composer))
-            vlc_meta_SetExtra(item->p_meta, "COMPOSER", composer);
+            heimdall_meta_SetExtra(item->p_meta, "COMPOSER", composer);
         if (NONEMPTY(arranger))
-            vlc_meta_SetExtra(item->p_meta, "ARRANGER", arranger);
+            heimdall_meta_SetExtra(item->p_meta, "ARRANGER", arranger);
         if (NONEMPTY(isrc))
-            vlc_meta_SetExtra(item->p_meta, "ISRC", isrc);
+            heimdall_meta_SetExtra(item->p_meta, "ISRC", isrc);
 
         if (year != 0)
         {
@@ -703,28 +704,28 @@ static int ReadDir(stream_t *access, input_item_node_t *node)
     }
 #undef ON_EMPTY
 #undef NONEMPTY
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int AccessControl(stream_t *access, int query, va_list args)
 {
     if (query == STREAM_GET_META)
     {
-        AccessGetMeta(access, va_arg(args, vlc_meta_t *));
-        return VLC_SUCCESS;
+        AccessGetMeta(access, va_arg(args, heimdall_meta_t *));
+        return HEIMDALL_SUCCESS;
     }
     return access_vaDirectoryControlHelper(access, query, args);
 }
 
-static int AccessOpen(vlc_object_t *obj, vcddev_t *dev)
+static int AccessOpen(heimdall_object_t *obj, vcddev_t *dev)
 {
     stream_t *access = (stream_t *)obj;
     /* Only whole discs here */
-    access_sys_t *sys = vlc_obj_malloc(obj, sizeof (*sys));
+    access_sys_t *sys = heimdall_obj_malloc(obj, sizeof (*sys));
     if (unlikely(sys == NULL))
     {
         ioctl_Close(obj, dev);
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     sys->vcddev = dev;
@@ -765,20 +766,20 @@ static int AccessOpen(vlc_object_t *obj, vcddev_t *dev)
     access->pf_readdir = ReadDir;
     access->pf_seek = NULL;
     access->pf_control = AccessControl;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     ioctl_Close(obj, dev);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 static void AccessClose(access_sys_t *sys)
 {
     for (int i = 0; i < sys->cdtextc; i++)
     {
-        vlc_meta_t *meta = sys->cdtextv[i];
+        heimdall_meta_t *meta = sys->cdtextv[i];
         if (meta != NULL)
-            vlc_meta_Delete(meta);
+            heimdall_meta_Delete(meta);
     }
     free(sys->cdtextv);
 
@@ -787,7 +788,7 @@ static void AccessClose(access_sys_t *sys)
     vcddev_toc_Free(sys->p_toc);
 }
 
-static int Open(vlc_object_t *obj)
+static int Open(heimdall_object_t *obj)
 {
     stream_t *stream = (stream_t *)obj;
     unsigned track;
@@ -795,7 +796,7 @@ static int Open(vlc_object_t *obj)
     vcddev_t *dev = DiscOpen(obj, stream->psz_location, stream->psz_filepath,
                              &track);
     if (dev == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if (track == 0)
         return AccessOpen(obj, dev);
@@ -803,7 +804,7 @@ static int Open(vlc_object_t *obj)
         return DemuxOpen(obj, dev, track);
 }
 
-static void Close(vlc_object_t *obj)
+static void Close(heimdall_object_t *obj)
 {
     stream_t *stream = (stream_t *)obj;
     void *sys = stream->p_sys;
@@ -839,7 +840,7 @@ static void Close(vlc_object_t *obj)
 
 #define HELP_TEXT N_("Usage hint: [cdda:][device][@[track]]")
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( N_("Audio CD") )
     set_description( N_("Audio CD input") )
     set_help( HELP_TEXT )
@@ -861,4 +862,4 @@ vlc_module_begin ()
                 N_( "Address of the musicbrainz server to use." ) )
 
     add_shortcut( "cdda", "cddasimple" )
-vlc_module_end ()
+heimdall_module_end ()

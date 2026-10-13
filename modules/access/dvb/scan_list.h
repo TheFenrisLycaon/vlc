@@ -2,6 +2,7 @@
  * scan_list.h : Scanning parameters and transponders list
  *****************************************************************************
  * Copyright (C) 2016 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -17,8 +18,8 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA    02111, USA.
  *****************************************************************************/
-#ifndef VLC_SCAN_LIST_H
-#define VLC_SCAN_LIST_H
+#ifndef HEIMDALL_SCAN_LIST_H
+#define HEIMDALL_SCAN_LIST_H
 
 typedef struct scan_list_entry_t scan_list_entry_t;
 
@@ -42,8 +43,8 @@ typedef struct scan_list_entry_t
 
 } scan_list_entry_t;
 
-scan_list_entry_t * scan_list_dvbv5_load( vlc_object_t *, const char *, size_t * );
-scan_list_entry_t * scan_list_dvbv3_load( vlc_object_t *, const char *, size_t * );
+scan_list_entry_t * scan_list_dvbv5_load( heimdall_object_t *, const char *, size_t * );
+scan_list_entry_t * scan_list_dvbv3_load( heimdall_object_t *, const char *, size_t * );
 
 void scan_list_entries_release( scan_list_entry_t * );
 

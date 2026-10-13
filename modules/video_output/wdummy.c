@@ -4,6 +4,7 @@
  */
 /*****************************************************************************
  * Copyright © 2009, 2018 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -26,33 +27,33 @@
 
 #include <stdarg.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_window.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_window.h>
 
-static int Enable(vlc_window_t *wnd, const vlc_window_cfg_t *cfg)
+static int Enable(heimdall_window_t *wnd, const heimdall_window_cfg_t *cfg)
 {
-    vlc_window_ReportSize(wnd, cfg->width, cfg->height);
-    return VLC_SUCCESS;
+    heimdall_window_ReportSize(wnd, cfg->width, cfg->height);
+    return HEIMDALL_SUCCESS;
 }
 
-static const struct vlc_window_operations ops = {
+static const struct heimdall_window_operations ops = {
     .enable = Enable,
-    .resize = vlc_window_ReportSize,
+    .resize = heimdall_window_ReportSize,
 };
 
-static int Open(vlc_window_t *wnd)
+static int Open(heimdall_window_t *wnd)
 {
-    wnd->type = VLC_WINDOW_TYPE_DUMMY;
+    wnd->type = HEIMDALL_WINDOW_TYPE_DUMMY;
     wnd->ops = &ops;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname(N_("Dummy window"))
     set_description(N_("Dummy window"))
     set_subcategory(SUBCAT_VIDEO_VOUT)
     set_capability("vout window", 1)
     set_callback(Open)
     add_shortcut("dummy")
-vlc_module_end()
+heimdall_module_end()

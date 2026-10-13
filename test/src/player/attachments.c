@@ -3,6 +3,7 @@
  * attachments.c: attachments player test
  *****************************************************************************
  * Copyright (C) 2018-2025 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *****************************************************************************/
 
 #include "common.h"
@@ -12,9 +13,9 @@ test_attachments(struct ctx *ctx)
 {
     test_log("attachments\n");
 
-    vlc_player_t *player = ctx->player;
+    heimdall_player_t *player = ctx->player;
 
-    struct media_params params = DEFAULT_MEDIA_PARAMS(VLC_TICK_FROM_SEC(1));
+    struct media_params params = DEFAULT_MEDIA_PARAMS(HEIMDALL_TICK_FROM_SEC(1));
     params.attachment_count = 99;
     player_set_next_mock_media(ctx, "media1", &params);
 
@@ -23,7 +24,7 @@ test_attachments(struct ctx *ctx)
     vec_on_media_attachments_added *vec = &ctx->report.on_media_attachments_added;
 
     while (vec->size == 0)
-        vlc_player_CondWait(player, &ctx->wait);
+        heimdall_player_CondWait(player, &ctx->wait);
 
     input_attachment_t **array = vec->data[0].array;
     size_t count = vec->data[0].count;

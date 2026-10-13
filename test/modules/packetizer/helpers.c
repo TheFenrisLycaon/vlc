@@ -2,6 +2,7 @@
  * helpers.c:
  *****************************************************************************
  * Copyright © 2018 VideoLabs and VideoLAN Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -25,9 +26,9 @@
 #undef NDEBUG
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_block.h>
-#include <vlc_block_helper.h>
+#include <heimdall_common.h>
+#include <heimdall_block.h>
+#include <heimdall_block_helper.h>
 
 #include "../modules/packetizer/startcode_helper.h"
 

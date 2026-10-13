@@ -2,6 +2,7 @@
  * FormatNamespace.cpp
  *****************************************************************************
  * Copyright © 2019 VideoLabs, VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -32,7 +33,7 @@
 
 using namespace adaptive;
 
-#define MP4RA(fcc) VLC_FOURCC(fcc[0], fcc[1], fcc[2], fcc[3])
+#define MP4RA(fcc) HEIMDALL_FOURCC(fcc[0], fcc[1], fcc[2], fcc[3])
 #define MSFCC(fcc) MP4RA(fcc)
 
 FormatNamespace::FormatNamespace(const std::string &codec)
@@ -91,14 +92,14 @@ void FormatNamespace::ParseString(const std::string &codecstring)
     Parse(MP4RA(fourcc), elements);
 }
 
-void FormatNamespace::Parse(vlc_fourcc_t fcc, const std::vector<std::string> &elements)
+void FormatNamespace::Parse(heimdall_fourcc_t fcc, const std::vector<std::string> &elements)
 {
     switch(fcc)
     {
         /* VIDEO */
         case MP4RA("mp4v"):
             /* set default if no elements */
-            es_format_Change(&fmt, VIDEO_ES, VLC_CODEC_MP4V);
+            es_format_Change(&fmt, VIDEO_ES, HEIMDALL_CODEC_MP4V);
             ParseMPEG4Elements(elements);
             break;
         case MP4RA("avc1"):
@@ -108,7 +109,7 @@ void FormatNamespace::Parse(vlc_fourcc_t fcc, const std::vector<std::string> &el
         case MP4RA("svc1"):
         case MP4RA("mvc1"):
         case MP4RA("mvc2"):
-            es_format_Change(&fmt, VIDEO_ES, VLC_FOURCC('a','v','c','1'));
+            es_format_Change(&fmt, VIDEO_ES, HEIMDALL_FOURCC('a','v','c','1'));
             if(elements.size() > 0 && elements.at(0).size() == 6)
             {
                 const std::string &sixbytes = elements.at(0);
@@ -126,10 +127,10 @@ void FormatNamespace::Parse(vlc_fourcc_t fcc, const std::vector<std::string> &el
         case MP4RA("lhe1"):
         case MP4RA("dvhe"): /* DolbyVision */
         //case MP4RA("dvh1"): /* DolbyVision (Collides with DV) */
-            es_format_Change(&fmt, VIDEO_ES, VLC_CODEC_HEVC);
+            es_format_Change(&fmt, VIDEO_ES, HEIMDALL_CODEC_HEVC);
             break;
         case MP4RA("av01"):
-            es_format_Change(&fmt, VIDEO_ES, VLC_CODEC_AV1);
+            es_format_Change(&fmt, VIDEO_ES, HEIMDALL_CODEC_AV1);
             if(elements.size() > 1)
             {
                 fmt.i_profile = std::stoi(elements.at(0), nullptr, 16);
@@ -137,20 +138,20 @@ void FormatNamespace::Parse(vlc_fourcc_t fcc, const std::vector<std::string> &el
             }
             break;
         case MP4RA("avs1"):
-            es_format_Change(&fmt, VIDEO_ES, VLC_CODEC_CAVS);
+            es_format_Change(&fmt, VIDEO_ES, HEIMDALL_CODEC_CAVS);
             break;
         case MP4RA("avs2"):
-            es_format_Change(&fmt, VIDEO_ES, VLC_CODEC_CAVS2);
+            es_format_Change(&fmt, VIDEO_ES, HEIMDALL_CODEC_CAVS2);
             break;
         case MP4RA("avs3"):
-            es_format_Change(&fmt, VIDEO_ES, VLC_CODEC_CAVS3);
+            es_format_Change(&fmt, VIDEO_ES, HEIMDALL_CODEC_CAVS3);
             break;
         case MP4RA("vp09"):
         case MP4RA("vp08"):
             es_format_Change(&fmt, VIDEO_ES,
-                             vlc_fourcc_GetCodec(VIDEO_ES, fcc == MP4RA("vp09")
-                                                           ? VLC_CODEC_VP9
-                                                           : VLC_CODEC_VP8));
+                             heimdall_fourcc_GetCodec(VIDEO_ES, fcc == MP4RA("vp09")
+                                                           ? HEIMDALL_CODEC_VP9
+                                                           : HEIMDALL_CODEC_VP8));
             if(elements.size() > 1)
             {
                 fmt.i_profile = std::stoi(elements.at(0), nullptr, 16);
@@ -159,22 +160,22 @@ void FormatNamespace::Parse(vlc_fourcc_t fcc, const std::vector<std::string> &el
             break;
         case MP4RA("vvc1"):
         case MP4RA("vvi1"):
-            es_format_Change(&fmt, VIDEO_ES, VLC_CODEC_VVC);
+            es_format_Change(&fmt, VIDEO_ES, HEIMDALL_CODEC_VVC);
             if(elements.size() > 0)
                 fmt.i_profile = std::stoi(elements.at(0), nullptr, 16);
             break;
         case MSFCC("AVC1"):
         case MSFCC("AVCB"):
         case MSFCC("H264"):
-            es_format_Change(&fmt, VIDEO_ES, VLC_FOURCC('a','v','c','1'));
+            es_format_Change(&fmt, VIDEO_ES, HEIMDALL_FOURCC('a','v','c','1'));
             break;
         case MSFCC("WVC1"):
-            es_format_Change(&fmt, VIDEO_ES, VLC_CODEC_VC1);
+            es_format_Change(&fmt, VIDEO_ES, HEIMDALL_CODEC_VC1);
             break;
         /* AUDIO */
         case MP4RA("mp4a"):
             /* set default if no elements */
-            es_format_Change(&fmt, AUDIO_ES, VLC_CODEC_MP4A);
+            es_format_Change(&fmt, AUDIO_ES, HEIMDALL_CODEC_MP4A);
             ParseMPEG4Elements(elements);
             break;
         case MP4RA("dtsh"):
@@ -182,29 +183,29 @@ void FormatNamespace::Parse(vlc_fourcc_t fcc, const std::vector<std::string> &el
         case MP4RA("ec-3"):
         case MP4RA("ac-4"):
         case MP4RA("opus"):
-            es_format_Change(&fmt, AUDIO_ES, vlc_fourcc_GetCodec(AUDIO_ES, fcc));
+            es_format_Change(&fmt, AUDIO_ES, heimdall_fourcc_GetCodec(AUDIO_ES, fcc));
             break;
         case MSFCC("AACL"):
-            es_format_Change(&fmt, AUDIO_ES, VLC_CODEC_MP4A);
+            es_format_Change(&fmt, AUDIO_ES, HEIMDALL_CODEC_MP4A);
             fmt.i_profile = AAC_PROFILE_LC;
             break;
         case MSFCC("WMAP"):
-            es_format_Change(&fmt, AUDIO_ES, VLC_CODEC_WMAP);
+            es_format_Change(&fmt, AUDIO_ES, HEIMDALL_CODEC_WMAP);
             break;
         /* SUBTITLES */
         case MP4RA("stpp"):
         case MSFCC("TTML"):
-            es_format_Change(&fmt, SPU_ES, VLC_CODEC_TTML);
+            es_format_Change(&fmt, SPU_ES, HEIMDALL_CODEC_TTML);
             break;
         case MP4RA("wvtt"):
-            es_format_Change(&fmt, SPU_ES, VLC_CODEC_WEBVTT);
+            es_format_Change(&fmt, SPU_ES, HEIMDALL_CODEC_WEBVTT);
             break;
         default: /* dumb and probably broken lookup as fcc ~~ mp4ra */
 //            {
 //                const enum es_format_category_e cats[] = { VIDEO_ES, AUDIO_ES, SPU_ES };
 //                for(size_t i=0; i < ARRAY_SIZE(cats); i++)
 //                {
-//                    vlc_fourcc_t rfcc = vlc_fourcc_GetCodec(cats[i], fcc);
+//                    heimdall_fourcc_t rfcc = heimdall_fourcc_GetCodec(cats[i], fcc);
 //                    if(rfcc)
 //                    {
 //                        printf("%4.4s --> %4.4s %d\n", &rfcc, &fcc, cats[i]);

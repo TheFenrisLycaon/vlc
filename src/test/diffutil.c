@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2022 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,8 +20,8 @@
 # include "config.h"
 #endif
 
-#include <vlc_diffutil.h>
-#include <vlc_memstream.h>
+#include <heimdall_diffutil.h>
+#include <heimdall_memstream.h>
 #include <assert.h>
 
 static uint32_t getSize(const void* ptr)
@@ -38,60 +39,60 @@ static bool isSame(const void* ptrA, uint32_t posA, const void* ptrB, uint32_t p
 
 static void buildSnakeResultInsert(void* cbData, const void* listOld, uint32_t posOld, const void* listNew, uint32_t posNew)
 {
-    VLC_UNUSED(listOld);
-    VLC_UNUSED(posOld);
+    HEIMDALL_UNUSED(listOld);
+    HEIMDALL_UNUSED(posOld);
     assert(listNew);
     const char* list = listNew;
-    struct vlc_memstream* ms = cbData;
-    vlc_memstream_putc(ms, '+');
-    vlc_memstream_putc(ms, list[posNew]);
+    struct heimdall_memstream* ms = cbData;
+    heimdall_memstream_putc(ms, '+');
+    heimdall_memstream_putc(ms, list[posNew]);
 }
 
 static void buildSnakeResultRemove(void* cbData, const void* listOld, uint32_t pos, const void* listNew,  uint32_t posNew)
 {
-    VLC_UNUSED(listNew);
-    VLC_UNUSED(posNew);
+    HEIMDALL_UNUSED(listNew);
+    HEIMDALL_UNUSED(posNew);
     assert(listOld);
     const char* list = listOld;
-    struct vlc_memstream* ms = cbData;
-    vlc_memstream_putc(ms, '-');
-    vlc_memstream_putc(ms, list[pos]);
+    struct heimdall_memstream* ms = cbData;
+    heimdall_memstream_putc(ms, '-');
+    heimdall_memstream_putc(ms, list[pos]);
 }
 
 static void buildSnakeResultEqual(void* cbData, const void* listOld, uint32_t posOld, const void* listNew, uint32_t posNew)
 {
-    VLC_UNUSED(listNew);
-    VLC_UNUSED(posNew);
+    HEIMDALL_UNUSED(listNew);
+    HEIMDALL_UNUSED(posNew);
     assert(listOld);
     const char* list = listOld;
-    struct vlc_memstream* ms = cbData;
-    vlc_memstream_putc(ms, '=');
-    vlc_memstream_putc(ms, list[posOld]);
+    struct heimdall_memstream* ms = cbData;
+    heimdall_memstream_putc(ms, '=');
+    heimdall_memstream_putc(ms, list[posOld]);
 }
 
 
 static void check_snake(const char* oldInput, const char* newInput, const char* modList)
 {
-    vlc_diffutil_callback_t diffOp = {
+    heimdall_diffutil_callback_t diffOp = {
         .getOldSize = &getSize,
         .getNewSize = &getSize,
         .isSame = &isSame,
     };
 
-    vlc_diffutil_snake_callback_t snakeOp= {
+    heimdall_diffutil_snake_callback_t snakeOp= {
         .remove = &buildSnakeResultRemove,
         .insert = &buildSnakeResultInsert,
         .equal = &buildSnakeResultEqual,
     };
 
-    struct vlc_memstream output;
-    vlc_memstream_open(&output);
-    diffutil_snake_t* snake = vlc_diffutil_build_snake(&diffOp, oldInput, newInput);
+    struct heimdall_memstream output;
+    heimdall_memstream_open(&output);
+    diffutil_snake_t* snake = heimdall_diffutil_build_snake(&diffOp, oldInput, newInput);
     assert(snake);
-    vlc_diffutil_walk_snake(snake, &snakeOp, &output, &diffOp, oldInput, newInput);
-    vlc_diffutil_free_snake(snake);
+    heimdall_diffutil_walk_snake(snake, &snakeOp, &output, &diffOp, oldInput, newInput);
+    heimdall_diffutil_free_snake(snake);
 
-    int ret = vlc_memstream_close(&output);
+    int ret = heimdall_memstream_close(&output);
     assert(ret == 0);
     assert(strcmp(output.ptr, modList) == 0);
     free(output.ptr);
@@ -107,11 +108,11 @@ typedef struct {
 #define CHECK_MOVE_UNPACK_FROM(num) (num & 0xFFFF)
 #define CHECK_MOVE_UNPACK_TO(num) ((num >> 16)  & 0xFFFF)
 
-typedef struct VLC_VECTOR(char) string_vector_t;
+typedef struct HEIMDALL_VECTOR(char) string_vector_t;
 
 static void check_changelist(const char* oldInput, const char* newInput, int flags, size_t expectedLen, const changelist_check_t* expectedResult)
 {
-    vlc_diffutil_callback_t diffOp = {
+    heimdall_diffutil_callback_t diffOp = {
         .getOldSize = &getSize,
         .getNewSize = &getSize,
         .isSame = &isSame,
@@ -119,36 +120,36 @@ static void check_changelist(const char* oldInput, const char* newInput, int fla
 
     //rebuild the result from the changelist to verify that we end up with the right result
     string_vector_t strvec;
-    vlc_vector_init(&strvec);
-    vlc_vector_push_all(&strvec, oldInput, strlen(oldInput) + 1);
+    heimdall_vector_init(&strvec);
+    heimdall_vector_push_all(&strvec, oldInput, strlen(oldInput) + 1);
 
-    diffutil_snake_t* snake = vlc_diffutil_build_snake(&diffOp, oldInput, newInput);
-    vlc_diffutil_changelist_t* changelist = vlc_diffutil_build_change_list(snake, &diffOp, oldInput, newInput, flags);
+    diffutil_snake_t* snake = heimdall_diffutil_build_snake(&diffOp, oldInput, newInput);
+    heimdall_diffutil_changelist_t* changelist = heimdall_diffutil_build_change_list(snake, &diffOp, oldInput, newInput, flags);
     size_t changePos = 0;
     for (size_t i = 0; i < changelist->size; i++)
     {
-        vlc_diffutil_change_t* op = &changelist->data[i];
+        heimdall_diffutil_change_t* op = &changelist->data[i];
         switch(op->type)
         {
-        case VLC_DIFFUTIL_OP_INSERT:
+        case HEIMDALL_DIFFUTIL_OP_INSERT:
             assert(changePos < expectedLen);
             assert(expectedResult[changePos].op == '+');
             assert(expectedResult[changePos].pos == op->op.insert.index);
             assert(strlen(expectedResult[changePos].data) == op->count);
             assert(strncmp(expectedResult[changePos].data, &newInput[op->op.insert.y], op->count) == 0);
-            vlc_vector_insert_all(&strvec, op->op.insert.index, &newInput[op->op.insert.y], op->count);
+            heimdall_vector_insert_all(&strvec, op->op.insert.index, &newInput[op->op.insert.y], op->count);
             changePos++;
             break;
-        case VLC_DIFFUTIL_OP_REMOVE:
+        case HEIMDALL_DIFFUTIL_OP_REMOVE:
             assert(changePos < expectedLen);
             assert(expectedResult[changePos].op == '-');
             assert(expectedResult[changePos].pos == op->op.remove.index);
             assert(strlen(expectedResult[changePos].data) == op->count);
             assert(strncmp(expectedResult[changePos].data, &oldInput[op->op.remove.x], op->count) == 0);
-            vlc_vector_remove_slice(&strvec, op->op.remove.index, op->count);
+            heimdall_vector_remove_slice(&strvec, op->op.remove.index, op->count);
             changePos++;
             break;
-        case VLC_DIFFUTIL_OP_MOVE:
+        case HEIMDALL_DIFFUTIL_OP_MOVE:
         {
             uint16_t fromPos = CHECK_MOVE_UNPACK_FROM(expectedResult[changePos].pos);
             uint16_t toPos = CHECK_MOVE_UNPACK_TO(expectedResult[changePos].pos);
@@ -159,23 +160,23 @@ static void check_changelist(const char* oldInput, const char* newInput, int fla
             assert(strlen(expectedResult[changePos].data) == op->count);
             assert(strncmp(expectedResult[changePos].data, &oldInput[op->op.move.x], op->count) == 0);
 
-            //vlc_vector_move_slice represent move operation a bit differently from us
+            //heimdall_vector_move_slice represent move operation a bit differently from us
             if (op->op.move.from < op->op.move.to)
-                vlc_vector_move_slice(&strvec, op->op.move.from, op->count, op->op.move.to - op->count);
+                heimdall_vector_move_slice(&strvec, op->op.move.from, op->count, op->op.move.to - op->count);
             else
-                vlc_vector_move_slice(&strvec, op->op.move.from, op->count, op->op.move.to);
+                heimdall_vector_move_slice(&strvec, op->op.move.from, op->count, op->op.move.to);
             changePos++;
             break;
         }
-        case VLC_DIFFUTIL_OP_IGNORE:
+        case HEIMDALL_DIFFUTIL_OP_IGNORE:
             break;
         }
     }
     assert(strcmp(newInput, strvec.data) == 0);
-    vlc_vector_destroy(&strvec);
+    heimdall_vector_destroy(&strvec);
 
-    vlc_diffutil_free_change_list(changelist);
-    vlc_diffutil_free_snake(snake);
+    heimdall_diffutil_free_change_list(changelist);
+    heimdall_diffutil_free_snake(snake);
 }
 
 #define CHECK_CHANGELIST(from, to, flags, ...) \
@@ -187,11 +188,11 @@ static void check_changelist(const char* oldInput, const char* newInput, int fla
 #define CHECK_SIMPLE(from, to, ...) \
     CHECK_CHANGELIST(from, to, 0, __VA_ARGS__)
 #define CHECK_AGGREG(from, to, ...) \
-    CHECK_CHANGELIST(from, to, VLC_DIFFUTIL_RESULT_AGGREGATE, __VA_ARGS__)
+    CHECK_CHANGELIST(from, to, HEIMDALL_DIFFUTIL_RESULT_AGGREGATE, __VA_ARGS__)
 #define CHECK_MOVE(from, to, ...) \
-    CHECK_CHANGELIST(from, to, VLC_DIFFUTIL_RESULT_MOVE, __VA_ARGS__)
+    CHECK_CHANGELIST(from, to, HEIMDALL_DIFFUTIL_RESULT_MOVE, __VA_ARGS__)
 #define CHECK_MOVE_AG(from, to, ...) \
-    CHECK_CHANGELIST(from, to, VLC_DIFFUTIL_RESULT_MOVE | VLC_DIFFUTIL_RESULT_AGGREGATE, __VA_ARGS__)
+    CHECK_CHANGELIST(from, to, HEIMDALL_DIFFUTIL_RESULT_MOVE | HEIMDALL_DIFFUTIL_RESULT_AGGREGATE, __VA_ARGS__)
 
 
 int main(void)

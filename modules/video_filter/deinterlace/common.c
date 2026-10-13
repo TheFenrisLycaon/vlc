@@ -1,7 +1,8 @@
 /*****************************************************************************
- * common.c : Common helper function for the VLC deinterlacer
+ * common.c : Common helper function for the Heimdall deinterlacer
  *****************************************************************************
  * Copyright (C) 2000-2017 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Sam Hocevar <sam@zoy.org>
  *         Christophe Massiot <massiot@via.ecp.fr>
@@ -28,7 +29,7 @@
 # include "config.h"
 #endif
 
-#include <vlc_picture.h>
+#include <heimdall_picture.h>
 
 #include "common.h"
 
@@ -39,7 +40,7 @@ void InitDeinterlacingContext( struct deinterlace_ctx *p_context )
     p_context->settings.b_use_frame_history = false;
     p_context->settings.b_custom_pts = false;
 
-    p_context->meta[0].pi_date = VLC_TICK_INVALID;
+    p_context->meta[0].pi_date = HEIMDALL_TICK_INVALID;
     p_context->meta[0].pi_nb_fields = 2;
     p_context->meta[0].pb_top_field_first = true;
     for( int i = 1; i < METADATA_SIZE; i++ )
@@ -53,7 +54,7 @@ void InitDeinterlacingContext( struct deinterlace_ctx *p_context )
 
 void FlushDeinterlacing(struct deinterlace_ctx *p_context)
 {
-    p_context->meta[0].pi_date = VLC_TICK_INVALID;
+    p_context->meta[0].pi_date = HEIMDALL_TICK_INVALID;
     p_context->meta[0].pi_nb_fields = 2;
     p_context->meta[0].pb_top_field_first = true;
     for( int i = 1; i < METADATA_SIZE; i++ )
@@ -69,10 +70,10 @@ void FlushDeinterlacing(struct deinterlace_ctx *p_context)
     }
 }
 
-vlc_tick_t GetFieldDuration(const struct deinterlace_ctx *p_context,
+heimdall_tick_t GetFieldDuration(const struct deinterlace_ctx *p_context,
                          const video_format_t *fmt, const picture_t *p_pic )
 {
-    vlc_tick_t i_field_dur = 0;
+    heimdall_tick_t i_field_dur = 0;
 
     /* Calculate one field duration. */
     int i = 0;
@@ -80,7 +81,7 @@ vlc_tick_t GetFieldDuration(const struct deinterlace_ctx *p_context,
     /* Find oldest valid logged date.
        The current input frame doesn't count. */
     for( ; i < iend; i++ )
-        if( p_context->meta[i].pi_date != VLC_TICK_INVALID )
+        if( p_context->meta[i].pi_date != HEIMDALL_TICK_INVALID )
             break;
     if( i < iend )
     {
@@ -93,7 +94,7 @@ vlc_tick_t GetFieldDuration(const struct deinterlace_ctx *p_context,
         i_field_dur = (p_pic->date - p_context->meta[i].pi_date) / i_fields_total;
     }
     else if (fmt->i_frame_rate)
-        i_field_dur = vlc_tick_from_samples( fmt->i_frame_rate_base, fmt->i_frame_rate);
+        i_field_dur = heimdall_tick_from_samples( fmt->i_frame_rate_base, fmt->i_frame_rate);
 
     /* Note that we default to field duration 0 if it could not be
        determined. This behaves the same as the old code - leaving the
@@ -236,7 +237,7 @@ picture_t *DoDeinterlacing( filter_t *p_filter,
             p_dst[i]           = AllocPicture( p_filter );
             if( p_dst[i] )
             {
-                vlc_picture_chain_AppendChain( p_dst[i-1], p_dst[i] );
+                heimdall_picture_chain_AppendChain( p_dst[i-1], p_dst[i] );
                 picture_CopyProperties( p_dst[i], p_pic );
             }
             else
@@ -307,7 +308,7 @@ picture_t *DoDeinterlacing( filter_t *p_filter,
             i_frame_offset == CUSTOM_PTS );
     if( i_frame_offset != CUSTOM_PTS )
     {
-        vlc_tick_t i_base_pts = p_context->meta[i_meta_idx].pi_date;
+        heimdall_tick_t i_base_pts = p_context->meta[i_meta_idx].pi_date;
 
         /* Note: in the usual case (i_frame_offset = 0  and
                  b_double_rate = false), this effectively does nothing.
@@ -317,16 +318,16 @@ picture_t *DoDeinterlacing( filter_t *p_filter,
 
         if( p_context->settings.b_double_rate )
         {
-            vlc_tick_t i_field_dur = GetFieldDuration( p_context, &p_filter->fmt_out.video, p_pic );
+            heimdall_tick_t i_field_dur = GetFieldDuration( p_context, &p_filter->fmt_out.video, p_pic );
             /* Processing all actually allocated output frames. */
             for( int i = 1; i < i_double_rate_alloc_end; ++i )
             {
                 /* XXX it's not really good especially for the first picture, but
                  * I don't think that delaying by one frame is worth it */
-                if( i_base_pts != VLC_TICK_INVALID )
+                if( i_base_pts != HEIMDALL_TICK_INVALID )
                     p_dst[i]->date = i_base_pts + i * i_field_dur;
                 else
-                    p_dst[i]->date = VLC_TICK_INVALID;
+                    p_dst[i]->date = HEIMDALL_TICK_INVALID;
             }
         }
     }

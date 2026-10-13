@@ -1,9 +1,10 @@
 /**
  * @file window.c
- * @brief X C Bindings window provider module for VLC media player
+ * @brief X C Bindings window provider module for Heimdall media player
  */
 /*****************************************************************************
  * Copyright © 2009 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -40,24 +41,24 @@
 #ifdef HAVE_XKBCOMMON
 # include <xcb/xkb.h>
 # include <xkbcommon/xkbcommon-x11.h>
-# include "vlc_xkb.h"
+# include "heimdall_xkb.h"
 #endif
 typedef xcb_atom_t Atom;
 #include <X11/Xatom.h> /* XA_WM_NAME */
 
-#include <vlc_common.h>
-#include <vlc_threads.h>
-#include <vlc_poll.h>
-#include <vlc_plugin.h>
-#include <vlc_actions.h>
-#include <vlc_window.h>
-#include <vlc_ancillary.h>
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
+#include <heimdall_poll.h>
+#include <heimdall_plugin.h>
+#include <heimdall_actions.h>
+#include <heimdall_window.h>
+#include <heimdall_ancillary.h>
 
 typedef struct
 {
     xcb_connection_t *conn;
-    vlc_thread_t thread;
-    vlc_latch_t ready;
+    heimdall_thread_t thread;
+    heimdall_latch_t ready;
 
     xcb_window_t root;
     xcb_atom_t wm_state;
@@ -118,7 +119,7 @@ xcb_atom_t get_atom (xcb_connection_t *conn, xcb_intern_atom_cookie_t ck)
 }
 
 #ifdef HAVE_XKBCOMMON
-static int InitKeyboard(vlc_window_t *wnd)
+static int InitKeyboard(heimdall_window_t *wnd)
 {
     vout_window_sys_t *sys = wnd->sys;
     xcb_connection_t *conn = sys->conn;
@@ -142,7 +143,7 @@ static int InitKeyboard(vlc_window_t *wnd)
     return 0;
 }
 
-static void DeinitKeyboard(vlc_window_t *wnd)
+static void DeinitKeyboard(heimdall_window_t *wnd)
 {
     vout_window_sys_t *sys = wnd->sys;
 
@@ -154,7 +155,7 @@ static void DeinitKeyboard(vlc_window_t *wnd)
     sys->xkb.map = NULL;
 }
 
-static void ProcessKeyboardEvent(vlc_window_t *wnd,
+static void ProcessKeyboardEvent(heimdall_window_t *wnd,
                                  const xcb_generic_event_t *ev)
 {
     vout_window_sys_t *sys = wnd->sys;
@@ -182,7 +183,7 @@ static void ProcessKeyboardEvent(vlc_window_t *wnd,
     }
 }
 
-static int InitKeyboardExtension(vlc_window_t *wnd)
+static int InitKeyboardExtension(heimdall_window_t *wnd)
 {
     vout_window_sys_t *sys = wnd->sys;
     xcb_connection_t *conn = sys->conn;
@@ -245,7 +246,7 @@ static int InitKeyboardExtension(vlc_window_t *wnd)
     return 0;
 }
 
-static void DeinitKeyboardExtension(vlc_window_t *wnd)
+static void DeinitKeyboardExtension(heimdall_window_t *wnd)
 {
     vout_window_sys_t *sys = wnd->sys;
 
@@ -259,7 +260,7 @@ static void DeinitKeyboardExtension(vlc_window_t *wnd)
 # define DeinitKeyboardExtension(w) ((void)(w))
 #endif
 
-static int InitRandR(vlc_window_t *wnd)
+static int InitRandR(heimdall_window_t *wnd)
 {
     vout_window_sys_t *sys = wnd->sys;
     xcb_connection_t *conn = sys->conn;
@@ -268,13 +269,13 @@ static int InitRandR(vlc_window_t *wnd)
     const xcb_query_extension_reply_t *e =
         xcb_get_extension_data(conn, &xcb_randr_id);
     if (!e || !e->present)
-        return VLC_ENOTSUP;
+        return HEIMDALL_ENOTSUP;
 
     xcb_randr_query_version_reply_t *v =
         xcb_randr_query_version_reply(conn,
             xcb_randr_query_version(conn, 1, 2), NULL);
     if (v == NULL)
-        return VLC_ENOTSUP;
+        return HEIMDALL_ENOTSUP;
 
     sys->event_randr = e->first_event + XCB_RANDR_NOTIFY;
     msg_Dbg(wnd, "using X RandR extension v%"PRIu32".%"PRIu32,
@@ -283,10 +284,10 @@ static int InitRandR(vlc_window_t *wnd)
     free(v);
     xcb_randr_select_input(conn, sys->root, XCB_RANDR_NOTIFY_MASK_CRTC_CHANGE |
                                             XCB_RANDR_NOTIFY_MASK_RESOURCE_CHANGE);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int UpdateDisplays(vlc_window_t *wnd)
+static int UpdateDisplays(heimdall_window_t *wnd)
 {
     vout_window_sys_t *sys = wnd->sys;
     xcb_connection_t *conn = sys->conn;
@@ -295,26 +296,26 @@ static int UpdateDisplays(vlc_window_t *wnd)
         xcb_randr_get_screen_resources_reply(conn,
             xcb_randr_get_screen_resources(conn, sys->root), NULL);
     if (res == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     const xcb_randr_output_t *outs = xcb_randr_get_screen_resources_outputs(res);
     sys->num_displays = 0;
     sys->current_display = -1;
-    sys->displays = vlc_reallocarray(sys->displays, res->num_outputs,
+    sys->displays = heimdall_reallocarray(sys->displays, res->num_outputs,
                                      sizeof(sys->displays[0]));
     if (sys->displays == NULL) {
         free(res);
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     struct {
         xcb_randr_get_output_info_reply_t *info;
         xcb_randr_get_output_info_cookie_t oic;
         xcb_randr_get_crtc_info_cookie_t cic;
-    } *tmp = vlc_reallocarray(NULL, res->num_outputs, sizeof(tmp[0]));
+    } *tmp = heimdall_reallocarray(NULL, res->num_outputs, sizeof(tmp[0]));
     if (tmp == NULL) {
         free(res);
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     for (unsigned i = 0; i < res->num_outputs; i++)
@@ -348,10 +349,10 @@ static int UpdateDisplays(vlc_window_t *wnd)
 
     free(tmp);
     free(res);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void ProcessRandREvent(vlc_window_t *wnd, xcb_generic_event_t *gev)
+static void ProcessRandREvent(heimdall_window_t *wnd, xcb_generic_event_t *gev)
 {
     xcb_randr_notify_event_t *ev = (xcb_randr_notify_event_t *) gev;
     vout_window_sys_t *sys = wnd->sys;
@@ -375,13 +376,13 @@ static void ProcessRandREvent(vlc_window_t *wnd, xcb_generic_event_t *gev)
     }
 }
 
-static void UpdateICCProfile(vlc_window_t *wnd)
+static void UpdateICCProfile(heimdall_window_t *wnd)
 {
     vout_window_sys_t *sys = wnd->sys;
     xcb_connection_t *conn = sys->conn;
 
     if (sys->icc_atom == XCB_ATOM_NONE) {
-        vlc_window_ReportICCProfile(wnd, NULL);
+        heimdall_window_ReportICCProfile(wnd, NULL);
         return;
     }
 
@@ -391,23 +392,23 @@ static void UpdateICCProfile(vlc_window_t *wnd)
             xcb_get_property(conn, false, sys->root, sys->icc_atom,
                              XCB_ATOM_CARDINAL, 0, max_length), NULL);
     if (!r || r->response_type == XCB_ATOM_NONE || !r->length || r->bytes_after) {
-        vlc_window_ReportICCProfile(wnd, NULL);
+        heimdall_window_ReportICCProfile(wnd, NULL);
         free(r);
         return;
     }
 
     int len = xcb_get_property_value_length(r);
-    struct vlc_icc_profile_t *icc = malloc(sizeof(*icc) + len);
+    struct heimdall_icc_profile_t *icc = malloc(sizeof(*icc) + len);
     if (icc) {
         icc->size = len;
         memcpy(icc->data, xcb_get_property_value(r), len);
-        vlc_window_ReportICCProfile(wnd, icc);
+        heimdall_window_ReportICCProfile(wnd, icc);
     }
     free(r);
 }
 
 /** Get ID of closest display to a position, or -1 if no displays */
-static int DisplayForCoords(vlc_window_t *wnd, int xpos, int ypos)
+static int DisplayForCoords(heimdall_window_t *wnd, int xpos, int ypos)
 {
     vout_window_sys_t *sys = wnd->sys;
     if (sys->num_displays == 0)
@@ -415,9 +416,9 @@ static int DisplayForCoords(vlc_window_t *wnd, int xpos, int ypos)
 
     int best = 0, idx = -1;
     for (int i = 0; i < sys->num_displays; i++) {
-        int xclip = VLC_CLIP(xpos, sys->displays[i].x,
+        int xclip = HEIMDALL_CLIP(xpos, sys->displays[i].x,
                              sys->displays[i].x + sys->displays[i].width);
-        int yclip = VLC_CLIP(xpos, sys->displays[i].y,
+        int yclip = HEIMDALL_CLIP(xpos, sys->displays[i].y,
                              sys->displays[i].y + sys->displays[i].height);
         int delta = abs(xpos - xclip) + abs(ypos - yclip);
         if (delta == 0)
@@ -432,7 +433,7 @@ static int DisplayForCoords(vlc_window_t *wnd, int xpos, int ypos)
     return idx;
 }
 
-static void DisplayChanged(vlc_window_t *wnd, int new_display)
+static void DisplayChanged(heimdall_window_t *wnd, int new_display)
 {
     vout_window_sys_t *sys = wnd->sys;
     xcb_connection_t *conn = sys->conn;
@@ -449,13 +450,13 @@ static void DisplayChanged(vlc_window_t *wnd, int new_display)
     UpdateICCProfile(wnd);
 }
 
-static void UpdateGeometry(vlc_window_t *wnd, unsigned *x, unsigned *y,
+static void UpdateGeometry(heimdall_window_t *wnd, unsigned *x, unsigned *y,
                            unsigned *width, unsigned *height)
 {
     vout_window_sys_t *sys = wnd->sys;
 
     if (sys->width != *width || sys->height != *height) {
-        vlc_window_ReportSize(wnd, sys->width, sys->height);
+        heimdall_window_ReportSize(wnd, sys->width, sys->height);
        *width = sys->width;
        *height = sys->height;
     }
@@ -484,7 +485,7 @@ static xcb_cursor_t CursorCreate(xcb_connection_t *conn, xcb_window_t root)
     return cur;
 }
 
-static int ProcessEvent(vlc_window_t *wnd, xcb_generic_event_t *ev)
+static int ProcessEvent(heimdall_window_t *wnd, xcb_generic_event_t *ev)
 {
     vout_window_sys_t *sys = wnd->sys;
     int ret = 0;
@@ -495,14 +496,14 @@ static int ProcessEvent(vlc_window_t *wnd, xcb_generic_event_t *ev)
         {
 #ifdef HAVE_XKBCOMMON
             xcb_key_press_event_t *e = (xcb_key_press_event_t *)ev;
-            uint_fast32_t vk = vlc_xkb_get_one(sys->xkb.state, e->detail);
+            uint_fast32_t vk = heimdall_xkb_get_one(sys->xkb.state, e->detail);
 
             msg_Dbg(wnd, "key: 0x%08"PRIxFAST32" (X11: 0x%04"PRIx32")",
                     vk, e->detail);
             if (vk == KEY_UNSET)
                 break;
 
-            vlc_window_ReportKeyPress(wnd, vk);
+            heimdall_window_ReportKeyPress(wnd, vk);
 #endif
             break;
         }
@@ -510,12 +511,12 @@ static int ProcessEvent(vlc_window_t *wnd, xcb_generic_event_t *ev)
         case XCB_KEY_RELEASE:
             break;
 
-        /* Note a direct mapping of buttons from XCB to VLC is assumed. */
+        /* Note a direct mapping of buttons from XCB to Heimdall is assumed. */
         case XCB_BUTTON_PRESS:
         {
             xcb_button_release_event_t *bpe = (void *)ev;
 
-            vlc_window_ReportMousePressed(wnd, bpe->detail - 1);
+            heimdall_window_ReportMousePressed(wnd, bpe->detail - 1);
             ret = 1;
             break;
         }
@@ -524,7 +525,7 @@ static int ProcessEvent(vlc_window_t *wnd, xcb_generic_event_t *ev)
         {
             xcb_button_release_event_t *bre = (void *)ev;
 
-            vlc_window_ReportMouseReleased(wnd, bre->detail - 1);
+            heimdall_window_ReportMouseReleased(wnd, bre->detail - 1);
             ret = 1;
             break;
         }
@@ -533,7 +534,7 @@ static int ProcessEvent(vlc_window_t *wnd, xcb_generic_event_t *ev)
         {
             xcb_motion_notify_event_t *mne = (void *)ev;
 
-            vlc_window_ReportMouseMoved(wnd, mne->event_x, mne->event_y);
+            heimdall_window_ReportMouseMoved(wnd, mne->event_x, mne->event_y);
             ret = 1;
             break;
         }
@@ -548,7 +549,7 @@ static int ProcessEvent(vlc_window_t *wnd, xcb_generic_event_t *ev)
             break;
         }
         case XCB_DESTROY_NOTIFY:
-            vlc_window_ReportClose (wnd);
+            heimdall_window_ReportClose (wnd);
             break;
 
         case XCB_UNMAP_NOTIFY:
@@ -596,12 +597,12 @@ static int ProcessEvent(vlc_window_t *wnd, xcb_generic_event_t *ev)
 /** Background thread for X11 events handling */
 static void *Thread (void *data)
 {
-    vlc_thread_set_name("vlc-window-x11");
+    heimdall_thread_set_name("heimdall-window-x11");
     unsigned x = 0;
     unsigned y = 0;
     unsigned width = 0;
     unsigned height = 0;
-    vlc_window_t *wnd = data;
+    heimdall_window_t *wnd = data;
     vout_window_sys_t *p_sys = wnd->sys;
     xcb_connection_t *conn = p_sys->conn;
     struct pollfd ufd = {
@@ -610,8 +611,8 @@ static void *Thread (void *data)
     };
     xcb_window_t window = wnd->handle.xid;
     xcb_cursor_t cursor = CursorCreate(conn, p_sys->root); /* blank cursor */
-    vlc_tick_t lifetime = VLC_TICK_FROM_MS( var_InheritInteger(wnd, "mouse-hide-timeout") );
-    vlc_tick_t deadline = VLC_TICK_MAX;
+    heimdall_tick_t lifetime = HEIMDALL_TICK_FROM_MS( var_InheritInteger(wnd, "mouse-hide-timeout") );
+    heimdall_tick_t deadline = HEIMDALL_TICK_MAX;
     xcb_generic_event_t *ev;
 
     if (ufd.fd == -1)
@@ -631,7 +632,7 @@ static void *Thread (void *data)
     if (qpr != NULL) {
         while ((ev = xcb_poll_for_queued_event(conn)) != NULL)
             ProcessEvent(wnd, ev);
-        vlc_window_ReportMouseMoved(wnd, qpr->win_x, qpr->win_y);
+        heimdall_window_ReportMouseMoved(wnd, qpr->win_x, qpr->win_y);
         free(qpr);
     }
 
@@ -647,27 +648,27 @@ static void *Thread (void *data)
         UpdateGeometry(wnd, &x, &y, &width, &height);
         free(geo);
     }
-    vlc_latch_count_down(&p_sys->ready, 1);
+    heimdall_latch_count_down(&p_sys->ready, 1);
 
     for (;;)
     {
         int timeout = -1;
 
-        if (deadline != VLC_TICK_MAX)
+        if (deadline != HEIMDALL_TICK_MAX)
         {
-            vlc_tick_t delay = deadline - vlc_tick_now();
-            timeout = (delay > 0) ? MS_FROM_VLC_TICK(delay) : 0;
+            heimdall_tick_t delay = deadline - heimdall_tick_now();
+            timeout = (delay > 0) ? MS_FROM_HEIMDALL_TICK(delay) : 0;
         }
 
         int val = poll(&ufd, 1, timeout);
 
-        int canc = vlc_savecancel ();
+        int canc = heimdall_savecancel ();
 
         if (val == 0)
         {   /* timeout: hide cursor */
             xcb_change_window_attributes(conn, window, XCB_CW_CURSOR, &cursor);
             xcb_flush(conn);
-            deadline = VLC_TICK_MAX;
+            deadline = HEIMDALL_TICK_MAX;
         }
         else
         {
@@ -683,11 +684,11 @@ static void *Thread (void *data)
                 xcb_change_window_attributes(conn, window, XCB_CW_CURSOR,
                                              &(uint32_t){ XCB_CURSOR_NONE });
                 xcb_flush(conn);
-                deadline = vlc_tick_now() + lifetime;
+                deadline = heimdall_tick_now() + lifetime;
             }
         }
 
-        vlc_restorecancel (canc);
+        heimdall_restorecancel (canc);
 
         if (xcb_connection_has_error (conn))
         {
@@ -703,7 +704,7 @@ static void *Thread (void *data)
 #define NET_WM_STATE_TOGGLE 2
 
 /** Changes the EWMH state of the (mapped) window */
-static void change_wm_state (vlc_window_t *wnd, bool on, xcb_atom_t state)
+static void change_wm_state (heimdall_window_t *wnd, bool on, xcb_atom_t state)
 {
     vout_window_sys_t *sys = wnd->sys;
     /* From EWMH "_WM_STATE" */
@@ -726,7 +727,7 @@ static void change_wm_state (vlc_window_t *wnd, bool on, xcb_atom_t state)
                     (const char *)&ev);
 }
 
-static void Resize(vlc_window_t *wnd, unsigned width, unsigned height)
+static void Resize(heimdall_window_t *wnd, unsigned width, unsigned height)
 {
     vout_window_sys_t *sys = wnd->sys;
     xcb_connection_t *conn = sys->conn;
@@ -738,18 +739,18 @@ static void Resize(vlc_window_t *wnd, unsigned width, unsigned height)
     xcb_flush(conn);
 }
 
-static void SetState(vlc_window_t *wnd, unsigned state)
+static void SetState(heimdall_window_t *wnd, unsigned state)
 {
     vout_window_sys_t *sys = wnd->sys;
-    bool above = (state & VLC_WINDOW_STATE_ABOVE) != 0;
-    bool below = (state & VLC_WINDOW_STATE_BELOW) != 0;
+    bool above = (state & HEIMDALL_WINDOW_STATE_ABOVE) != 0;
+    bool below = (state & HEIMDALL_WINDOW_STATE_BELOW) != 0;
 
     change_wm_state(wnd, above, sys->wm_state_above);
     change_wm_state(wnd, below, sys->wm_state_below);
     xcb_flush(sys->conn);
 }
 
-static void UnsetFullscreen(vlc_window_t *wnd)
+static void UnsetFullscreen(heimdall_window_t *wnd)
 {
     vout_window_sys_t *sys = wnd->sys;
 
@@ -757,7 +758,7 @@ static void UnsetFullscreen(vlc_window_t *wnd)
     xcb_flush(sys->conn);
 }
 
-static void SetFullscreen(vlc_window_t *wnd, const char *idstr)
+static void SetFullscreen(heimdall_window_t *wnd, const char *idstr)
 {
     vout_window_sys_t *sys = wnd->sys;
 
@@ -821,7 +822,7 @@ void set_hostname_prop (xcb_connection_t *conn, xcb_window_t window)
     free(hostname);
 }
 
-static int Enable(vlc_window_t *wnd, const vlc_window_cfg_t *restrict cfg)
+static int Enable(heimdall_window_t *wnd, const heimdall_window_cfg_t *restrict cfg)
 {
     vout_window_sys_t *sys = wnd->sys;
     xcb_connection_t *conn = sys->conn;
@@ -843,11 +844,11 @@ static int Enable(vlc_window_t *wnd, const vlc_window_cfg_t *restrict cfg)
     /* Make the window visible */
     ck = xcb_map_window_checked(conn, window);
     free(xcb_request_check(conn, ck));
-    vlc_latch_wait(&sys->ready);
-    return VLC_SUCCESS;
+    heimdall_latch_wait(&sys->ready);
+    return HEIMDALL_SUCCESS;
 }
 
-static void Disable(vlc_window_t *wnd)
+static void Disable(heimdall_window_t *wnd)
 {
     vout_window_sys_t *sys = wnd->sys;
     xcb_connection_t *conn = sys->conn;
@@ -856,9 +857,9 @@ static void Disable(vlc_window_t *wnd)
     xcb_flush(conn);
 }
 
-static void Close(vlc_window_t *);
+static void Close(heimdall_window_t *);
 
-static const struct vlc_window_operations ops = {
+static const struct heimdall_window_operations ops = {
     .enable = Enable,
     .disable = Disable,
     .resize = Resize,
@@ -868,15 +869,15 @@ static const struct vlc_window_operations ops = {
     .set_state = SetState,
 };
 
-static int OpenCommon(vlc_window_t *wnd, char *display, xcb_connection_t *conn,
+static int OpenCommon(heimdall_window_t *wnd, char *display, xcb_connection_t *conn,
                       xcb_window_t root, xcb_window_t window, uint32_t events,
                       uint32_t evroot)
 {
-    vout_window_sys_t *sys = vlc_obj_malloc(VLC_OBJECT(wnd), sizeof (*sys));
+    vout_window_sys_t *sys = heimdall_obj_malloc(HEIMDALL_OBJECT(wnd), sizeof (*sys));
     if (sys == NULL)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    wnd->type = VLC_WINDOW_TYPE_XID;
+    wnd->type = HEIMDALL_WINDOW_TYPE_XID;
     wnd->handle.xid = window;
     wnd->display.x11 = display;
     wnd->ops = &ops;
@@ -896,10 +897,10 @@ static int OpenCommon(vlc_window_t *wnd, char *display, xcb_connection_t *conn,
     else
         sys->xkb.ctx = NULL;
 #else
-    VLC_UNUSED(events);
+    HEIMDALL_UNUSED(events);
 #endif
 
-    if (InitRandR(wnd) == VLC_SUCCESS) {
+    if (InitRandR(wnd) == HEIMDALL_SUCCESS) {
         /* Start tracking ICC profile changes */
         evroot |= XCB_EVENT_MASK_PROPERTY_CHANGE;
         xcb_change_window_attributes(conn, sys->root, XCB_CW_EVENT_MASK, &evroot);
@@ -909,21 +910,21 @@ static int OpenCommon(vlc_window_t *wnd, char *display, xcb_connection_t *conn,
     /* ICCCM */
     /* No cut&paste nor drag&drop, only Window Manager communication. */
     set_ascii_prop(conn, window, XA_WM_NAME,
-    /* xgettext: This is a plain ASCII spelling of "VLC media player"
+    /* xgettext: This is a plain ASCII spelling of "Heimdall media player"
        for the ICCCM window name. This must be pure ASCII.
-       The limitation is partially with ICCCM and partially with VLC.
+       The limitation is partially with ICCCM and partially with Heimdall.
        For Latin script languages, you may need to strip accents.
        For other scripts, you will need to transliterate into Latin. */
-                   vlc_pgettext("ASCII", "VLC media player"));
+                   heimdall_pgettext("ASCII", "Heimdall media player"));
 
     set_ascii_prop(conn, window, XA_WM_ICON_NAME,
-    /* xgettext: This is a plain ASCII spelling of "VLC"
+    /* xgettext: This is a plain ASCII spelling of "Heimdall"
        for the ICCCM window name. This must be pure ASCII. */
-                   vlc_pgettext("ASCII", "VLC"));
+                   heimdall_pgettext("ASCII", "Heimdall"));
 
     set_wm_hints(conn, window);
     xcb_change_property(conn, XCB_PROP_MODE_REPLACE, window, XA_WM_CLASS,
-                        XA_STRING, 8, 8, "vlc\0Vlc");
+                        XA_STRING, 8, 8, "heimdall\0Heimdall");
     set_hostname_prop(conn, window);
 
     /* EWMH */
@@ -956,13 +957,13 @@ static int OpenCommon(vlc_window_t *wnd, char *display, xcb_connection_t *conn,
         free(title);
     }
     else
-        set_string(conn, window, utf8, net_wm_name, _("VLC media player"));
+        set_string(conn, window, utf8, net_wm_name, _("Heimdall media player"));
 
     xcb_atom_t net_wm_icon_name = get_atom(conn, net_wm_icon_name_ck);
-    set_string(conn, window, utf8, net_wm_icon_name, _("VLC"));
+    set_string(conn, window, utf8, net_wm_icon_name, _("Heimdall"));
 
     xcb_atom_t wm_window_role = get_atom(conn, wm_window_role_ck);
-    set_ascii_prop(conn, window, wm_window_role, "vlc-video");
+    set_ascii_prop(conn, window, wm_window_role, "heimdall-video");
 
     /* Cache any EWMH atom we may need later */
     sys->wm_state = get_atom(conn, wm_state_ck);
@@ -971,26 +972,26 @@ static int OpenCommon(vlc_window_t *wnd, char *display, xcb_connection_t *conn,
     sys->wm_state_fullscreen = get_atom(conn, wm_state_fs_ck);
     sys->motif_wm_hints = get_atom(conn, motif_wm_hints_ck);
 
-    vlc_latch_init(&sys->ready, 1);
+    heimdall_latch_init(&sys->ready, 1);
     /* Create the event thread. It will dequeue all events, so any checked
      * request from this thread must be completed at this point. */
-    if (vlc_clone(&sys->thread, Thread, wnd))
+    if (heimdall_clone(&sys->thread, Thread, wnd))
     {
         DeinitKeyboardExtension(wnd);
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /**
  * Create an X11 window.
  */
-static int Open(vlc_window_t *wnd)
+static int Open(heimdall_window_t *wnd)
 {
     xcb_generic_error_t *err;
     xcb_void_cookie_t ck;
-    int ret = VLC_EGENERIC;
+    int ret = HEIMDALL_EGENERIC;
 
     /* Connect to X */
     char *display = var_InheritString (wnd, "x11-display");
@@ -1048,10 +1049,10 @@ static int Open(vlc_window_t *wnd)
     }
 
     ret = OpenCommon(wnd, display, conn, scr->root, window, values[1], 0);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
         goto error;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     xcb_disconnect (conn);
@@ -1063,13 +1064,13 @@ error:
 /**
  * Destroys the X11 window.
  */
-static void Close (vlc_window_t *wnd)
+static void Close (heimdall_window_t *wnd)
 {
     vout_window_sys_t *p_sys = wnd->sys;
     xcb_connection_t *conn = p_sys->conn;
 
-    vlc_cancel (p_sys->thread);
-    vlc_join (p_sys->thread, NULL);
+    heimdall_cancel (p_sys->thread);
+    heimdall_join (p_sys->thread, NULL);
 
     DeinitKeyboardExtension(wnd);
     xcb_disconnect (conn);
@@ -1079,30 +1080,30 @@ static void Close (vlc_window_t *wnd)
 
 /*** Embedded drawable support ***/
 
-static int EmEnable(vlc_window_t *wnd, const vlc_window_cfg_t *restrict cfg)
+static int EmEnable(heimdall_window_t *wnd, const heimdall_window_cfg_t *restrict cfg)
 {
     vout_window_sys_t *sys = wnd->sys;
 
     change_wm_state(wnd, cfg->is_fullscreen, sys->wm_state_fullscreen);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static vlc_mutex_t serializer = VLC_STATIC_MUTEX;
+static heimdall_mutex_t serializer = HEIMDALL_STATIC_MUTEX;
 
 /** Acquire a drawable */
-static int AcquireDrawable (vlc_object_t *obj, xcb_window_t window)
+static int AcquireDrawable (heimdall_object_t *obj, xcb_window_t window)
 {
-    vlc_object_t *vlc = VLC_OBJECT(vlc_object_instance(obj));
+    heimdall_object_t *heimdall = HEIMDALL_OBJECT(heimdall_object_instance(obj));
     xcb_window_t *used;
     size_t n = 0;
 
-    if (var_Create(vlc, "xid-in-use", VLC_VAR_ADDRESS))
-        return VLC_ENOMEM;
+    if (var_Create(heimdall, "xid-in-use", HEIMDALL_VAR_ADDRESS))
+        return HEIMDALL_ENOMEM;
 
     /* Keep a list of busy drawables, so we don't overlap videos if there are
      * more than one video track in the stream. */
-    vlc_mutex_lock (&serializer);
-    used = var_GetAddress(vlc, "xid-in-use");
+    heimdall_mutex_lock (&serializer);
+    used = var_GetAddress(heimdall, "xid-in-use");
     if (used != NULL)
     {
         while (used[n])
@@ -1118,7 +1119,7 @@ static int AcquireDrawable (vlc_object_t *obj, xcb_window_t window)
     {
         used[n] = window;
         used[n + 1] = 0;
-        var_SetAddress(vlc, "xid-in-use", used);
+        var_SetAddress(heimdall, "xid-in-use", used);
     }
     else
     {
@@ -1126,20 +1127,20 @@ skip:
         msg_Warn (obj, "X11 drawable 0x%08"PRIx8" is busy", window);
         window = 0;
     }
-    vlc_mutex_unlock (&serializer);
+    heimdall_mutex_unlock (&serializer);
 
-    return (window == 0) ? VLC_EGENERIC : VLC_SUCCESS;
+    return (window == 0) ? HEIMDALL_EGENERIC : HEIMDALL_SUCCESS;
 }
 
 /** Remove this drawable from the list of busy ones */
-static void ReleaseDrawable (vlc_object_t *obj, xcb_window_t window)
+static void ReleaseDrawable (heimdall_object_t *obj, xcb_window_t window)
 {
-    vlc_object_t *vlc = VLC_OBJECT(vlc_object_instance(obj));
+    heimdall_object_t *heimdall = HEIMDALL_OBJECT(heimdall_object_instance(obj));
     xcb_window_t *used;
     size_t n = 0;
 
-    vlc_mutex_lock (&serializer);
-    used = var_GetAddress(vlc, "xid-in-use");
+    heimdall_mutex_lock (&serializer);
+    used = var_GetAddress(heimdall, "xid-in-use");
     assert (used);
     while (used[n] != window)
     {
@@ -1151,21 +1152,21 @@ static void ReleaseDrawable (vlc_object_t *obj, xcb_window_t window)
     while (used[++n]);
 
     if (!used[0])
-        var_SetAddress(vlc, "xid-in-use", NULL);
+        var_SetAddress(heimdall, "xid-in-use", NULL);
     else
         used = NULL;
 
-    vlc_mutex_unlock (&serializer);
+    heimdall_mutex_unlock (&serializer);
 
     free( used );
 
     /* Variables are reference-counted... */
-    var_Destroy(vlc, "xid-in-use");
+    var_Destroy(heimdall, "xid-in-use");
 }
 
-static void EmClose(vlc_window_t *);
+static void EmClose(heimdall_window_t *);
 
-static const struct vlc_window_operations em_ops = {
+static const struct heimdall_window_operations em_ops = {
     .enable = EmEnable,
     .set_fullscreen = SetFullscreen,
     .unset_fullscreen = UnsetFullscreen,
@@ -1176,15 +1177,15 @@ static const struct vlc_window_operations em_ops = {
 /**
  * Wrap an existing X11 window to embed the video.
  */
-static int EmOpen (vlc_window_t *wnd)
+static int EmOpen (heimdall_window_t *wnd)
 {
-    int ret = VLC_EGENERIC;
+    int ret = HEIMDALL_EGENERIC;
     xcb_window_t window = var_InheritInteger (wnd, "drawable-xid");
     if (window == 0)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    if (AcquireDrawable (VLC_OBJECT(wnd), window))
-        return VLC_EGENERIC;
+    if (AcquireDrawable (HEIMDALL_OBJECT(wnd), window))
+        return HEIMDALL_EGENERIC;
 
     xcb_connection_t *conn = xcb_connect (NULL, NULL);
     if (xcb_connection_has_error (conn))
@@ -1219,24 +1220,24 @@ static int EmOpen (vlc_window_t *wnd)
 
     uint32_t evroot = (root == window) ? value : 0;
     ret = OpenCommon(wnd, NULL, conn, root, window, value, evroot);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
         goto error;
 
     wnd->ops = &em_ops;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     xcb_disconnect (conn);
-    ReleaseDrawable (VLC_OBJECT(wnd), window);
-    return VLC_EGENERIC;
+    ReleaseDrawable (HEIMDALL_OBJECT(wnd), window);
+    return HEIMDALL_EGENERIC;
 }
 
-static void EmClose (vlc_window_t *wnd)
+static void EmClose (heimdall_window_t *wnd)
 {
     xcb_window_t window = wnd->handle.xid;
 
     Close (wnd);
-    ReleaseDrawable (VLC_OBJECT(wnd), window);
+    ReleaseDrawable (HEIMDALL_OBJECT(wnd), window);
 }
 
 #define DISPLAY_TEXT N_("X11 display")
@@ -1252,7 +1253,7 @@ static void EmClose (vlc_window_t *wnd)
 /*
  * Module descriptor
  */
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname (N_("X window"))
     set_description (N_("X11 video window (XCB)"))
     set_subcategory (SUBCAT_VIDEO_VOUT)
@@ -1270,4 +1271,4 @@ vlc_module_begin ()
     add_string ("x11-display", NULL, DISPLAY_TEXT, DISPLAY_LONGTEXT)
     add_integer ("drawable-xid", 0, XID_TEXT, XID_LONGTEXT)
         change_volatile ()
-vlc_module_end ()
+heimdall_module_end ()

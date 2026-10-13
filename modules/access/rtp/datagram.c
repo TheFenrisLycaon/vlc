@@ -2,6 +2,7 @@
  * datagram.c:
  *****************************************************************************
  * Copyright (C) 2020 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -28,27 +29,27 @@
 #include <poll.h>
 #endif
 
-#include <vlc_common.h>
-#include <vlc_network.h>
-#include <vlc_poll.h>
-#include "vlc_dtls.h"
+#include <heimdall_common.h>
+#include <heimdall_network.h>
+#include <heimdall_poll.h>
+#include "heimdall_dtls.h"
 
 #ifndef MSG_TRUNC
 #define MSG_TRUNC 0
 #endif
 
-struct vlc_dgram_sock
+struct heimdall_dgram_sock
 {
     int fd;
-    struct vlc_dtls s;
+    struct heimdall_dtls s;
 };
 
-static void vlc_datagram_Close(struct vlc_dtls *dgs)
+static void heimdall_datagram_Close(struct heimdall_dtls *dgs)
 {
-    struct vlc_dgram_sock *s = container_of(dgs, struct vlc_dgram_sock, s);
+    struct heimdall_dgram_sock *s = container_of(dgs, struct heimdall_dgram_sock, s);
 
 #ifndef _WIN32
-    vlc_close(s->fd);
+    heimdall_close(s->fd);
 #else
     closesocket(s->fd);
 #endif
@@ -56,20 +57,20 @@ static void vlc_datagram_Close(struct vlc_dtls *dgs)
 }
 
 /* Note: must not be a cancellation point */
-static int vlc_datagram_GetPollFD(struct vlc_dtls *dgs, short *restrict ev)
+static int heimdall_datagram_GetPollFD(struct heimdall_dtls *dgs, short *restrict ev)
 {
     (void) ev; /* no changes there */
-    return container_of(dgs, struct vlc_dgram_sock, s)->fd;
+    return container_of(dgs, struct heimdall_dgram_sock, s)->fd;
 }
 
-static ssize_t vlc_datagram_Recv(struct vlc_dtls *dgs, struct iovec *iov,
+static ssize_t heimdall_datagram_Recv(struct heimdall_dtls *dgs, struct iovec *iov,
                                  unsigned iovlen, bool *truncated)
 {
     struct msghdr msg = {
         .msg_iov = iov,
         .msg_iovlen = iovlen,
     };
-    int fd = container_of(dgs, struct vlc_dgram_sock, s)->fd;
+    int fd = container_of(dgs, struct heimdall_dgram_sock, s)->fd;
     ssize_t ret = recvmsg(fd, &msg, 0);
 
     if (ret >= 0)
@@ -78,44 +79,44 @@ static ssize_t vlc_datagram_Recv(struct vlc_dtls *dgs, struct iovec *iov,
     return ret;
 }
 
-static ssize_t vlc_datagram_Send(struct vlc_dtls *dgs,
+static ssize_t heimdall_datagram_Send(struct heimdall_dtls *dgs,
                                  const struct iovec *iov, unsigned iovlen)
 {
     const struct msghdr msg = {
         .msg_iov = (struct iovec *)iov,
         .msg_iovlen = iovlen,
     };
-    int fd = container_of(dgs, struct vlc_dgram_sock, s)->fd;
+    int fd = container_of(dgs, struct heimdall_dgram_sock, s)->fd;
 
-    return vlc_sendmsg(fd, &msg, 0);
+    return heimdall_sendmsg(fd, &msg, 0);
 }
 
-static const struct vlc_dtls_operations vlc_datagram_ops = {
-    vlc_datagram_Close,
-    vlc_datagram_GetPollFD,
-    vlc_datagram_Recv,
-    vlc_datagram_Send,
+static const struct heimdall_dtls_operations heimdall_datagram_ops = {
+    heimdall_datagram_Close,
+    heimdall_datagram_GetPollFD,
+    heimdall_datagram_Recv,
+    heimdall_datagram_Send,
 };
 
-struct vlc_dtls *vlc_datagram_CreateFD(int fd)
+struct heimdall_dtls *heimdall_datagram_CreateFD(int fd)
 {
-    struct vlc_dgram_sock *s = malloc(sizeof (*s));
+    struct heimdall_dgram_sock *s = malloc(sizeof (*s));
 
     if (likely(s != NULL)) {
         s->fd = fd;
-        s->s.ops = &vlc_datagram_ops;
+        s->s.ops = &heimdall_datagram_ops;
     }
 
     return &s->s;
 }
 
-static ssize_t vlc_dccp_Recv(struct vlc_dtls *dgs, struct iovec *iov,
+static ssize_t heimdall_dccp_Recv(struct heimdall_dtls *dgs, struct iovec *iov,
                              unsigned iovlen, bool *truncated)
 {
-    ssize_t ret = vlc_datagram_Recv(dgs, iov, iovlen, truncated);
+    ssize_t ret = heimdall_datagram_Recv(dgs, iov, iovlen, truncated);
 
     if (unlikely(ret == 0)) {
-        int fd = container_of(dgs, struct vlc_dgram_sock, s)->fd;
+        int fd = container_of(dgs, struct heimdall_dgram_sock, s)->fd;
         struct pollfd ufd = { .fd = fd, };
 
         /* On a connection-oriented datagram socket, recv() can return zero
@@ -141,20 +142,20 @@ static ssize_t vlc_dccp_Recv(struct vlc_dtls *dgs, struct iovec *iov,
     return ret;
 }
 
-static const struct vlc_dtls_operations vlc_dccp_ops = {
-    vlc_datagram_Close,
-    vlc_datagram_GetPollFD,
-    vlc_dccp_Recv,
-    vlc_datagram_Send,
+static const struct heimdall_dtls_operations heimdall_dccp_ops = {
+    heimdall_datagram_Close,
+    heimdall_datagram_GetPollFD,
+    heimdall_dccp_Recv,
+    heimdall_datagram_Send,
 };
 
-struct vlc_dtls *vlc_dccp_CreateFD(int fd)
+struct heimdall_dtls *heimdall_dccp_CreateFD(int fd)
 {
-    struct vlc_dgram_sock *s = malloc(sizeof (*s));
+    struct heimdall_dgram_sock *s = malloc(sizeof (*s));
 
     if (likely(s != NULL)) {
         s->fd = fd;
-        s->s.ops = &vlc_dccp_ops;
+        s->s.ops = &heimdall_dccp_ops;
     }
 
     return &s->s;

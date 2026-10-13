@@ -2,6 +2,7 @@
  * x11_display.cpp
  *****************************************************************************
  * Copyright (C) 2003 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cyril Deguet     <asmax@via.ecp.fr>
  *          Olivier Teulière <ipkiss@via.ecp.fr>
@@ -31,7 +32,7 @@
 #include "x11_display.hpp"
 #include "../src/logger.hpp"
 
-#include "../share/icons/32x32/vlc.xpm"
+#include "../share/icons/32x32/heimdall.xpm"
 
 template<class type> type X11Display::putPixel(type r, type g, type b) const
 {
@@ -210,8 +211,8 @@ X11Display::X11Display( intf_thread_t *pIntf ): SkinObject( pIntf ),
 
         // initialize WM_CLASS
         XClassHint classhint;
-        classhint.res_name = (char*) "vlc";
-        classhint.res_class = (char*) "Vlc";
+        classhint.res_name = (char*) "heimdall";
+        classhint.res_class = (char*) "Heimdall";
         XSetClassHint( m_pDisplay, m_mainWindow, &classhint );
 
         // Receive WM_DELETE_WINDOW
@@ -234,11 +235,11 @@ X11Display::X11Display( intf_thread_t *pIntf ): SkinObject( pIntf ),
                          sizeof( motifWmHints ) / sizeof( long ) );
 
         // Change the window title
-        XStoreName( m_pDisplay, m_mainWindow, "VLC Media Player" );
+        XStoreName( m_pDisplay, m_mainWindow, "Heimdall Media Player" );
 
         // Add an icon
         Pixmap icon_pixmap, shape_pixmap;
-        int ret = XpmCreatePixmapFromData( m_pDisplay, root, (char**)vlc_xpm,
+        int ret = XpmCreatePixmapFromData( m_pDisplay, root, (char**)heimdall_xpm,
                                            &icon_pixmap, &shape_pixmap, NULL );
         if( ret == XpmSuccess )
         {

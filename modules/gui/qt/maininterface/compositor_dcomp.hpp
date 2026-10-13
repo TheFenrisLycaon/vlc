@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,8 +16,8 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
-#ifndef VLC_COMPOSITOR_DIRECT_COMPOSITION
-#define VLC_COMPOSITOR_DIRECT_COMPOSITION
+#ifndef HEIMDALL_COMPOSITOR_DIRECT_COMPOSITION
+#define HEIMDALL_COMPOSITOR_DIRECT_COMPOSITION
 
 #include "compositor.hpp"
 
@@ -40,7 +41,7 @@ class IDCompositionVisual;
 class IDCompositionDevice;
 class IDCompositionTarget;
 
-namespace vlc {
+namespace heimdall {
 
 class CompositorDCompositionAcrylicSurface;
 
@@ -57,7 +58,7 @@ public:
     void destroyMainInterface() override;
     void unloadGUI() override;
 
-    bool setupVoutWindow(vlc_window_t *p_wnd, VoutDestroyCb destroyCb) override;
+    bool setupVoutWindow(heimdall_window_t *p_wnd, VoutDestroyCb destroyCb) override;
     QWindow* interfaceMainWindow() const override;
 
     Type type() const override;
@@ -84,7 +85,7 @@ private slots:
     void onSurfaceSizeChanged(const QSizeF& size) override;
 
 protected:
-    int windowEnable(const vlc_window_cfg_t *) override;
+    int windowEnable(const heimdall_window_cfg_t *) override;
     void windowDisable() override;
     void windowDestroy() override;
 
@@ -110,4 +111,4 @@ private:
 
 }
 
-#endif /* VLC_COMPOSITOR_DIRECT_COMPOSITION */
+#endif /* HEIMDALL_COMPOSITOR_DIRECT_COMPOSITION */

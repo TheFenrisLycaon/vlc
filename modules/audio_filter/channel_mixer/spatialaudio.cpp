@@ -2,6 +2,7 @@
  * spatialaudio.cpp : Ambisonics audio renderer and binauralizer filter
  *****************************************************************************
  * Copyright © 2017 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Adrien Maglo <magsoft@videolan.org>
  *
@@ -30,12 +31,12 @@
 
 #include <cassert>
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_aout.h>
-#include <vlc_filter.h>
-#include <vlc_viewpoint.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_aout.h>
+#include <heimdall_filter.h>
+#include <heimdall_viewpoint.h>
 
 #include <new>
 #include <vector>
@@ -67,12 +68,12 @@
 #define HRTF_FILE_LONGTEXT N_("Custom HRTF (Head-related transfer function) file " \
                               "in the SOFA format.")
 
-static int OpenBinauralizer(vlc_object_t *p_this);
-static int Open( vlc_object_t * );
+static int OpenBinauralizer(heimdall_object_t *p_this);
+static int Open( heimdall_object_t * );
 static void Close( filter_t * );
 static void Flush( filter_t * );
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname("Spatialaudio")
     set_description(N_("Ambisonics renderer and binauralizer"))
     set_capability("audio renderer", 1)
@@ -87,7 +88,7 @@ vlc_module_begin()
     set_capability("audio converter", 30)
     set_callback(OpenBinauralizer)
     add_shortcut("binauralizer")
-vlc_module_end()
+heimdall_module_end()
 
 #define AMB_BLOCK_TIME_LEN 1024
 
@@ -131,7 +132,7 @@ struct filter_spatialaudio
     CAmbisonicSpeaker *speakers;
 
     std::vector<float> inputSamples;
-    vlc_tick_t i_inputPTS;
+    heimdall_tick_t i_inputPTS;
     unsigned i_order;
     unsigned i_nondiegetic;
     unsigned i_lr_channels; // number of physical left/right channel pairs
@@ -161,7 +162,7 @@ static std::string getHRTFPath(filter_t *p_filter)
     }
     else
     {
-        char *dataDir = config_GetSysPath(VLC_PKG_DATA_DIR, DEFAULT_HRTF_PATH);
+        char *dataDir = config_GetSysPath(HEIMDALL_PKG_DATA_DIR, DEFAULT_HRTF_PATH);
         if (dataDir != NULL)
         {
             HRTFPath = std::string(dataDir);
@@ -197,7 +198,7 @@ static block_t *Mix( filter_t *p_filter, block_t *p_buf )
     else
         p_out_buf->i_pts = p_sys->i_inputPTS;
     p_out_buf->i_dts = p_out_buf->i_pts;
-    p_out_buf->i_length = vlc_tick_from_samples(p_out_buf->i_nb_samples, p_filter->fmt_in.audio.i_rate);
+    p_out_buf->i_length = heimdall_tick_from_samples(p_out_buf->i_nb_samples, p_filter->fmt_in.audio.i_rate);
 
     float *p_dest = (float *)p_out_buf->p_buffer;
     const float *p_src = (float *)p_sys->inputSamples.data();
@@ -244,7 +245,7 @@ static block_t *Mix( filter_t *p_filter, block_t *p_buf )
                 break;
             }
             default:
-                vlc_assert_unreachable();
+                heimdall_assert_unreachable();
         }
 
         // Interleave the results.
@@ -285,12 +286,12 @@ static void Flush( filter_t *p_filter )
     p_sys->i_inputPTS = 0;
 }
 
-static void ChangeViewpoint( filter_t *p_filter, const vlc_viewpoint_t *p_vp)
+static void ChangeViewpoint( filter_t *p_filter, const heimdall_viewpoint_t *p_vp)
 {
     filter_spatialaudio *p_sys = reinterpret_cast<filter_spatialaudio *>(p_filter->p_sys);
 
     float yaw, pitch, roll;
-    vlc_viewpoint_to_euler(p_vp, &yaw, &pitch, &roll);
+    heimdall_viewpoint_to_euler(p_vp, &yaw, &pitch, &roll);
 
 #define RAD(d) ((float) ((d) * M_PI / 180.f))
     p_sys->f_teta = -RAD(yaw);
@@ -308,31 +309,31 @@ static int allocateBuffers(filter_spatialaudio *p_sys)
 {
     p_sys->inBuf = (float**)calloc(p_sys->i_inputNb, sizeof(float*));
     if (p_sys->inBuf == NULL)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     for (unsigned i = 0; i < p_sys->i_inputNb; ++i)
     {
-        p_sys->inBuf[i] = (float *)vlc_alloc(AMB_BLOCK_TIME_LEN, sizeof(float));
+        p_sys->inBuf[i] = (float *)heimdall_alloc(AMB_BLOCK_TIME_LEN, sizeof(float));
         if (p_sys->inBuf[i] == NULL)
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
     }
 
     p_sys->outBuf = (float**)calloc(p_sys->i_outputNb, sizeof(float*));
     if (p_sys->outBuf == NULL)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     for (unsigned i = 0; i < p_sys->i_outputNb; ++i)
     {
-        p_sys->outBuf[i] = (float *)vlc_alloc(AMB_BLOCK_TIME_LEN, sizeof(float));
+        p_sys->outBuf[i] = (float *)heimdall_alloc(AMB_BLOCK_TIME_LEN, sizeof(float));
         if (p_sys->outBuf[i] == NULL)
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static const struct FilterOperationInitializer {
-    struct vlc_filter_operations ops {};
+    struct heimdall_filter_operations ops {};
     FilterOperationInitializer()
     {
         ops.filter_audio = Mix;
@@ -342,35 +343,35 @@ static const struct FilterOperationInitializer {
     }
 } filter_ops;
 
-static int OpenBinauralizer(vlc_object_t *p_this)
+static int OpenBinauralizer(heimdall_object_t *p_this)
 {
     filter_t *p_filter = (filter_t *)p_this;
     const audio_format_t *infmt = &p_filter->fmt_in.audio;
     const audio_format_t *outfmt = &p_filter->fmt_out.audio;
 
-    if (infmt->i_format != VLC_CODEC_FL32 || outfmt->i_format != VLC_CODEC_FL32)
-        return VLC_EGENERIC;
+    if (infmt->i_format != HEIMDALL_CODEC_FL32 || outfmt->i_format != HEIMDALL_CODEC_FL32)
+        return HEIMDALL_EGENERIC;
 
     if (infmt->i_rate != outfmt->i_rate)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if (infmt->i_channels <= 2 || outfmt->i_channels != 2
      || outfmt->i_chan_mode != AOUT_CHANMODE_BINAURAL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     filter_spatialaudio *p_sys = new(std::nothrow)filter_spatialaudio();
     if (p_sys == NULL)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_sys->mode = filter_spatialaudio::BINAURALIZER;
     p_sys->i_inputNb = p_filter->fmt_in.audio.i_channels;
     p_sys->i_outputNb = 2;
     p_sys->i_lr_channels = 1;
 
-    if (allocateBuffers(p_sys) != VLC_SUCCESS)
+    if (allocateBuffers(p_sys) != HEIMDALL_SUCCESS)
     {
         delete p_sys;
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     unsigned s = 0;
@@ -378,7 +379,7 @@ static int OpenBinauralizer(vlc_object_t *p_this)
     if (!p_sys->speakers)
     {
         delete p_sys;
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     p_sys->speakers[s++].SetPosition({DegreesToRadians(30), 0.f, 1.f});
@@ -414,17 +415,17 @@ static int OpenBinauralizer(vlc_object_t *p_this)
     {
         msg_Err(p_filter, "Error creating the binauralizer.");
         delete p_sys;
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     p_sys->binauralizer.Reset();
 
     p_filter->p_sys = p_sys;
     p_filter->ops = &filter_ops.ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int Open(vlc_object_t *p_this)
+static int Open(heimdall_object_t *p_this)
 {
     filter_t *p_filter = (filter_t *)p_this;
     audio_format_t *infmt = &p_filter->fmt_in.audio;
@@ -433,21 +434,21 @@ static int Open(vlc_object_t *p_this)
     assert(infmt->channel_type != outfmt->channel_type);
 
     if (infmt->channel_type != AUDIO_CHANNEL_TYPE_AMBISONICS)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    if (infmt->i_format != VLC_CODEC_FL32 || outfmt->i_format != VLC_CODEC_FL32)
-        return VLC_EGENERIC;
+    if (infmt->i_format != HEIMDALL_CODEC_FL32 || outfmt->i_format != HEIMDALL_CODEC_FL32)
+        return HEIMDALL_EGENERIC;
 
     //support order 1 to 3
     if ( infmt->i_channels < 4 || infmt->i_channels > ( (AMB_MAX_ORDER + 1) * (AMB_MAX_ORDER + 1) + 2 ) )
     {
         msg_Err(p_filter, "Unsupported number of Ambisonics channels");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     filter_spatialaudio *p_sys = new(std::nothrow)filter_spatialaudio();
     if (p_sys == NULL)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_sys->f_teta = 0.f;
     p_sys->f_phi = 0.f;
@@ -456,10 +457,10 @@ static int Open(vlc_object_t *p_this)
     p_sys->i_inputNb = p_filter->fmt_in.audio.i_channels;
     p_sys->i_outputNb = p_filter->fmt_out.audio.i_channels;
 
-    if (allocateBuffers(p_sys) != VLC_SUCCESS)
+    if (allocateBuffers(p_sys) != HEIMDALL_SUCCESS)
     {
         delete p_sys;
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     int i_sqrt_channels = 1;
@@ -475,7 +476,7 @@ static int Open(vlc_object_t *p_this)
     {
         msg_Err(p_filter, "Invalid number of non-diegetic Ambisonics channels %i", p_sys->i_nondiegetic);
         delete p_sys;
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     msg_Dbg(p_filter, "Order: %d %d %d", p_sys->i_order, p_sys->i_nondiegetic, infmt->i_channels);
@@ -495,7 +496,7 @@ static int Open(vlc_object_t *p_this)
         {
             msg_Err(p_filter, "Error creating the binaural decoder.");
             delete p_sys;
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
         p_sys->binauralDecoder.Reset();
     }
@@ -519,12 +520,12 @@ static int Open(vlc_object_t *p_this)
         {
             msg_Err(p_filter, "Error creating the Ambisonics decoder.");
             delete p_sys;
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         /* Speaker setup, inspired from:
          * https://www.dolby.com/us/en/guide/surround-sound-speaker-setup/7-1-setup.html
-         * The position must follow the order of pi_vlc_chan_order_wg4 */
+         * The position must follow the order of pi_heimdall_chan_order_wg4 */
         unsigned s = 0;
 
         p_sys->speakerDecoder.SetPosition(s++, {DegreesToRadians(30), 0.f, 1.f});
@@ -561,7 +562,7 @@ static int Open(vlc_object_t *p_this)
     {
         msg_Err(p_filter, "Error creating the ambisonic processor.");
         delete p_sys;
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
 #if SPATIALAUDIO_API_VERSION_MAJOR >= 2
@@ -574,13 +575,13 @@ static int Open(vlc_object_t *p_this)
     {
         msg_Err(p_filter, "Error creating the ambisonic zoomer.");
         delete p_sys;
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     p_filter->p_sys = p_sys;
     p_filter->ops = &filter_ops.ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void Close(filter_t *p_filter)

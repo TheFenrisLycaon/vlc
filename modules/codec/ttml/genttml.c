@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 2015-2018 VLC authors and VideoLAN
  * Copyright (C) 2017-2018 VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Hugo Beauzée-Luyssen <hugo@beauzee.fr>
  *          Sushma Reddy <sushma.reddy@research.iiit.ac.in>
@@ -28,8 +29,8 @@
 
 //#define TTML_GEN_DEBUG
 
-#include <vlc_common.h>
-#include <vlc_strings.h>
+#include <heimdall_common.h>
+#include <heimdall_strings.h>
 
 #include <assert.h>
 #include <stdlib.h>
@@ -75,23 +76,23 @@ char *tt_genTiming( tt_time_t t )
     return i_ret < 0 ? NULL : psz;
 }
 
-static void tt_MemstreamPutEntities( struct vlc_memstream *p_stream, const char *psz )
+static void tt_MemstreamPutEntities( struct heimdall_memstream *p_stream, const char *psz )
 {
-    char *psz_entities = vlc_xml_encode( psz );
+    char *psz_entities = heimdall_xml_encode( psz );
     if( psz_entities )
     {
-        vlc_memstream_puts( p_stream, psz_entities );
+        heimdall_memstream_puts( p_stream, psz_entities );
         free( psz_entities );
     }
 }
 
-void tt_node_AttributesToText( struct vlc_memstream *p_stream, const tt_node_t* p_node )
+void tt_node_AttributesToText( struct heimdall_memstream *p_stream, const tt_node_t* p_node )
 {
     bool b_timed_node = false;
-    const vlc_dictionary_t* p_attr_dict = &p_node->attr_dict;
+    const heimdall_dictionary_t* p_attr_dict = &p_node->attr_dict;
     for (size_t i = 0; i < p_attr_dict->i_size; ++i)
     {
-        for ( vlc_dictionary_entry_t* p_entry = p_attr_dict->p_entries[i];
+        for ( heimdall_dictionary_entry_t* p_entry = p_attr_dict->p_entries[i];
              p_entry != NULL; p_entry = p_entry->p_next )
         {
             const char *psz_value = NULL;
@@ -117,9 +118,9 @@ void tt_node_AttributesToText( struct vlc_memstream *p_stream, const tt_node_t* 
             if( psz_value == NULL )
                 continue;
 
-            vlc_memstream_printf( p_stream, " %s=\"", p_entry->psz_key );
+            heimdall_memstream_printf( p_stream, " %s=\"", p_entry->psz_key );
             tt_MemstreamPutEntities( p_stream, psz_value );
-            vlc_memstream_putc( p_stream, '"' );
+            heimdall_memstream_putc( p_stream, '"' );
         }
     }
 
@@ -128,20 +129,20 @@ void tt_node_AttributesToText( struct vlc_memstream *p_stream, const tt_node_t* 
         if( tt_time_Valid( &p_node->timings.begin ) )
         {
             char *psz = tt_genTiming( p_node->timings.begin );
-            vlc_memstream_printf( p_stream, " begin=\"%s\"", psz );
+            heimdall_memstream_printf( p_stream, " begin=\"%s\"", psz );
             free( psz );
         }
 
         if( tt_time_Valid( &p_node->timings.end ) )
         {
             char *psz = tt_genTiming( p_node->timings.end );
-            vlc_memstream_printf( p_stream, " end=\"%s\"", psz );
+            heimdall_memstream_printf( p_stream, " end=\"%s\"", psz );
             free( psz );
         }
     }
 }
 
-void tt_node_ToText( struct vlc_memstream *p_stream, const tt_basenode_t *p_basenode,
+void tt_node_ToText( struct heimdall_memstream *p_stream, const tt_basenode_t *p_basenode,
                      const tt_time_t *playbacktime )
 {
     if( p_basenode->i_type == TT_NODE_TYPE_ELEMENT )
@@ -152,17 +153,17 @@ void tt_node_ToText( struct vlc_memstream *p_stream, const tt_basenode_t *p_base
             !tt_timings_Contains( &p_node->timings, playbacktime ) )
             return;
 
-        vlc_memstream_putc( p_stream, '<' );
+        heimdall_memstream_putc( p_stream, '<' );
         tt_MemstreamPutEntities( p_stream, p_node->psz_node_name );
 
         tt_node_AttributesToText( p_stream, p_node );
 
         if( tt_node_HasChild( p_node ) )
         {
-            vlc_memstream_putc( p_stream, '>' );
+            heimdall_memstream_putc( p_stream, '>' );
 
 #ifdef TTML_DEMUX_DEBUG
-            vlc_memstream_printf( p_stream, "<!-- starts %ld ends %ld -->",
+            heimdall_memstream_printf( p_stream, "<!-- starts %ld ends %ld -->",
                                  tt_time_Convert( &p_node->timings.begin ),
                                  tt_time_Convert( &p_node->timings.end ) );
 #endif
@@ -173,12 +174,12 @@ void tt_node_ToText( struct vlc_memstream *p_stream, const tt_basenode_t *p_base
                 tt_node_ToText( p_stream, p_child, playbacktime );
             }
 
-            vlc_memstream_puts( p_stream, "</" );
+            heimdall_memstream_puts( p_stream, "</" );
             tt_MemstreamPutEntities( p_stream, p_node->psz_node_name );
-            vlc_memstream_putc( p_stream, '>' );
+            heimdall_memstream_putc( p_stream, '>' );
         }
         else
-            vlc_memstream_puts( p_stream, "/>" );
+            heimdall_memstream_puts( p_stream, "/>" );
     }
     else
     {

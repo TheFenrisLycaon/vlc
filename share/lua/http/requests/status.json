@@ -1,7 +1,7 @@
-<?vlc --[[
+<?heimdall --[[
 vim:syntax=lua
 <!--  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - >
-<  status.xml: VLC media player web interface
+<  status.xml: Heimdall media player web interface
 <  this should mirror the content and function of status.json
 < - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - >
 <  Copyright (C) 2005-2009 the VideoLAN team
@@ -23,7 +23,7 @@ vim:syntax=lua
 <  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
 < - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
 ]]?>
-<?vlc
+<?heimdall
 
 --package.loaded.httprequests = nil --uncomment to debug changes
 local httprequests = require "httprequests"

@@ -3,10 +3,11 @@
  *****************************************************************************
  * Copyright (C) 2001-2016 VLC authors and VideoLAN
  * Copyright (C) 2007-2012 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Rémi Denis-Courmont
- *          Felix Paul Kühne <fkuehne at videolan dot org>
- *          Pierre d'Herbemont <pdherbemont # videolan org>
+ *          Felix Paul Kühne <fkuehne at lycaria dot org>
+ *          Pierre d'Herbemont <pdherbemont # lycaria org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -27,10 +28,10 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_charset.h>
-#include "../libvlc.h"
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_charset.h>
+#include "../libheimdall.h"
 #include "../config/configuration.h"
 
 #include <libgen.h>
@@ -48,7 +49,7 @@ static bool config_isBundle()
 
 static char *config_getLibraryDirReal(const char *fallback)
 {
-    const char *dir = getenv("VLC_LIB_PATH");
+    const char *dir = getenv("HEIMDALL_LIB_PATH");
     if (dir) {
         return strdup(dir);
     }
@@ -72,7 +73,7 @@ static char *config_getLibraryDirReal(const char *fallback)
 // Usually stored alongside main executables in appleOS bundles
 static char *config_getLibExecDir(const char *fallback)
 {
-    const char *dir = getenv("VLC_LIBEXEC_PATH");
+    const char *dir = getenv("HEIMDALL_LIBEXEC_PATH");
     if (dir) {
         return strdup(dir);
     }
@@ -94,7 +95,7 @@ static char *config_getLibExecDir(const char *fallback)
 
 static char *config_getDataDirReal(const char *fallback)
 {
-    const char *dir = getenv("VLC_DATA_PATH");
+    const char *dir = getenv("HEIMDALL_DATA_PATH");
     if (dir) {
         return strdup(dir);
     }
@@ -120,16 +121,16 @@ char *config_GetLibDir(void)
     return config_getLibraryDirReal(LIBDIR);
 }
 
-char *config_GetSysPath(vlc_sysdir_t type, const char *filename)
+char *config_GetSysPath(heimdall_sysdir_t type, const char *filename)
 {
     char *dir = NULL;
     switch (type)
     {
-        case VLC_PKG_DATA_DIR:
+        case HEIMDALL_PKG_DATA_DIR:
             dir = config_getDataDirReal(PKGDATADIR);
             break;
 
-        case VLC_PKG_LIB_DIR:
+        case HEIMDALL_PKG_LIB_DIR:
             dir = config_getLibraryDirReal(PKGLIBDIR);
             /* On iOS and tvOS, dylibs must be located in frameworks and
              * frameworks must be flatten in the frameworks/ directory.
@@ -139,18 +140,18 @@ char *config_GetSysPath(vlc_sysdir_t type, const char *filename)
                 return dir;
 #endif
             break;
-        case VLC_LIB_DIR:
+        case HEIMDALL_LIB_DIR:
             dir = config_getLibraryDirReal(LIBDIR);
             break;
 
-        case VLC_PKG_LIBEXEC_DIR:
+        case HEIMDALL_PKG_LIBEXEC_DIR:
             dir = config_getLibExecDir(PKGLIBEXECDIR);
             break;
-        case VLC_LIBEXEC_DIR:
+        case HEIMDALL_LIBEXEC_DIR:
             dir = config_getLibExecDir(LIBEXECDIR);
             break;
 
-        case VLC_LOCALE_DIR:
+        case HEIMDALL_LOCALE_DIR:
             dir = config_getDataDirReal(NULL);
             if (dir) {
                 NSString *result = [NSString stringWithFormat:@"%s/locale", dir];
@@ -162,10 +163,10 @@ char *config_GetSysPath(vlc_sysdir_t type, const char *filename)
             dir = strdup(LOCALEDIR);
             break;
 
-        case VLC_SYSDATA_DIR:
+        case HEIMDALL_SYSDATA_DIR:
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 
     if (filename == NULL || unlikely(dir == NULL))
@@ -188,27 +189,27 @@ static char *config_GetHomeDir (void)
     return strdup (home);
 }
 
-static char *getAppDependentDir(vlc_userdir_t type)
+static char *getAppDependentDir(heimdall_userdir_t type)
 {
     NSString *formatString;
     switch (type) {
-        case VLC_CONFIG_DIR:
+        case HEIMDALL_CONFIG_DIR:
             formatString = @"%s/Library/Preferences/%@";
             break;
-        case VLC_TEMPLATES_DIR:
-        case VLC_USERDATA_DIR:
+        case HEIMDALL_TEMPLATES_DIR:
+        case HEIMDALL_USERDATA_DIR:
             formatString = @"%s/Library/Application Support/%@";
             break;
-        case VLC_CACHE_DIR:
+        case HEIMDALL_CACHE_DIR:
             formatString = @"%s/Library/Caches/%@";
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
             break;
     }
 
     // Default fallback
-    NSString *identifier = @"org.videolan.vlc";
+    NSString *identifier = @"com.lycaria.heimdall";
     NSBundle *mainBundle = [NSBundle mainBundle];
     if (mainBundle) {
         NSString *bundleId = mainBundle.bundleIdentifier;
@@ -222,39 +223,39 @@ static char *getAppDependentDir(vlc_userdir_t type)
     return strdup(result.UTF8String);
 }
 
-char *platform_GetUserDir (vlc_userdir_t type)
+char *platform_GetUserDir (heimdall_userdir_t type)
 {
     const char *psz_path;
     switch (type) {
-        case VLC_CONFIG_DIR:
-        case VLC_TEMPLATES_DIR:
-        case VLC_USERDATA_DIR:
-        case VLC_CACHE_DIR:
+        case HEIMDALL_CONFIG_DIR:
+        case HEIMDALL_TEMPLATES_DIR:
+        case HEIMDALL_USERDATA_DIR:
+        case HEIMDALL_CACHE_DIR:
             return getAppDependentDir(type);
 
-        case VLC_DESKTOP_DIR:
+        case HEIMDALL_DESKTOP_DIR:
             psz_path = "%s/Desktop";
             break;
-        case VLC_DOWNLOAD_DIR:
+        case HEIMDALL_DOWNLOAD_DIR:
             psz_path = "%s/Downloads";
             break;
-        case VLC_DOCUMENTS_DIR:
+        case HEIMDALL_DOCUMENTS_DIR:
             psz_path = "%s/Documents";
             break;
-        case VLC_MUSIC_DIR:
+        case HEIMDALL_MUSIC_DIR:
             psz_path = "%s/Music";
             break;
-        case VLC_SNAPSHOTS_DIR:
-        case VLC_PICTURES_DIR:
+        case HEIMDALL_SNAPSHOTS_DIR:
+        case HEIMDALL_PICTURES_DIR:
             psz_path = "%s/Pictures";
             break;
-        case VLC_VIDEOS_DIR:
+        case HEIMDALL_VIDEOS_DIR:
             psz_path = "%s/Movies";
             break;
-        case VLC_PUBLICSHARE_DIR:
+        case HEIMDALL_PUBLICSHARE_DIR:
             psz_path = "%s/Public";
             break;
-        case VLC_HOME_DIR:
+        case HEIMDALL_HOME_DIR:
         default:
             psz_path = "%s";
     }

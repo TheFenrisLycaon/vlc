@@ -2,6 +2,7 @@
  * playlist_parser.c: test for the lua playlist parser module
  *****************************************************************************
  * Copyright (C) 2026 VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Bipul Lamsal <bipullamsal _at_ gmail.com>
  *
@@ -30,30 +31,30 @@
 
 /* Define a builtin module for mocked parts */
 #define MODULE_NAME test_lua_playlist_parser
-#undef VLC_DYNAMIC_PLUGIN
+#undef HEIMDALL_DYNAMIC_PLUGIN
 
-#include "../../libvlc/test.h"
+#include "../../libheimdall/test.h"
 
-#include <vlc_common.h>
-#include <vlc_demux.h>
-#include <vlc_input_item.h>
-#include <vlc_interface.h>
-#include <vlc_plugin.h>
-#include <vlc_stream.h>
+#include <heimdall_common.h>
+#include <heimdall_demux.h>
+#include <heimdall_input_item.h>
+#include <heimdall_interface.h>
+#include <heimdall_plugin.h>
+#include <heimdall_stream.h>
 
-#include "../lib/libvlc_internal.h"
+#include "../lib/libheimdall_internal.h"
 
-const char vlc_module_name[] = MODULE_STRING;
+const char heimdall_module_name[] = MODULE_STRING;
 
-static int OpenIntf(vlc_object_t *root) {
+static int OpenIntf(heimdall_object_t *root) {
   // setup
-  const char *test_parsed_value = "VideoLAN";
+  const char *test_parsed_value = "Lycaria";
   const char *sample_test_markup = "<html><title>%s</title></html>\n";
   char sample_test[100];
   snprintf(sample_test, sizeof(sample_test), sample_test_markup,
            test_parsed_value);
 
-  stream_t *p_s = vlc_stream_MemoryNew(root, (uint8_t *)sample_test,
+  stream_t *p_s = heimdall_stream_MemoryNew(root, (uint8_t *)sample_test,
                                        strlen(sample_test), true);
   assert(p_s != NULL);
 
@@ -69,7 +70,7 @@ static int OpenIntf(vlc_object_t *root) {
   input_item_t *p_item = input_item_New(INPUT_ITEM_URI_NOP, NULL);
   input_item_node_t *p_node = input_item_node_Create(p_item);
 
-  int probe_ret = vlc_stream_ReadDir(p_d, p_node);
+  int probe_ret = heimdall_stream_ReadDir(p_d, p_node);
 
   assert(probe_ret == 0);
   assert(p_node->i_children == 1);
@@ -83,22 +84,22 @@ static int OpenIntf(vlc_object_t *root) {
   // this calls demux_DestroyDemux(p_d) callback unloading the module and
   // deleting the stream as well
   demux_Delete(p_d);
-  return VLC_SUCCESS;
+  return HEIMDALL_SUCCESS;
 }
 
 /** Inject the mocked modules as a static plugin: **/
-vlc_module_begin()
+heimdall_module_begin()
     set_callback(OpenIntf)
     set_capability("interface", 0)
-vlc_module_end()
+heimdall_module_end()
 
-VLC_EXPORT const vlc_plugin_cb vlc_static_modules[] = {
-    VLC_SYMBOL(vlc_entry),
+HEIMDALL_EXPORT const heimdall_plugin_cb heimdall_static_modules[] = {
+    HEIMDALL_SYMBOL(heimdall_entry),
     NULL
 };
 
 int main(void) {
-  setenv("VLC_USERDATA_PATH", TOP_SRCDIR "/test/modules/", 1);
+  setenv("HEIMDALL_USERDATA_PATH", TOP_SRCDIR "/test/modules/", 1);
   test_init();
 
   const char *const args[] = {
@@ -109,11 +110,11 @@ int main(void) {
       "--no-auto-preparse",
   };
 
-  libvlc_instance_t *vlc = libvlc_new(ARRAY_SIZE(args), args);
+  libheimdall_instance_t *heimdall = libheimdall_new(ARRAY_SIZE(args), args);
 
-  libvlc_InternalAddIntf(vlc->p_libvlc_int, MODULE_STRING);
-  libvlc_InternalPlay(vlc->p_libvlc_int);
+  libheimdall_InternalAddIntf(heimdall->p_libheimdall_int, MODULE_STRING);
+  libheimdall_InternalPlay(heimdall->p_libheimdall_int);
 
-  libvlc_release(vlc);
+  libheimdall_release(heimdall);
   return 0;
 }

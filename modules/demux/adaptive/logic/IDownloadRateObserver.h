@@ -2,6 +2,7 @@
  * IDownloadRateObserver.h
  *****************************************************************************
  * Copyright (C) 2010 - 2011 Klagenfurt University
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Created on: Aug 10, 2010
  * Authors: Christopher Mueller <christopher.mueller@itec.uni-klu.ac.at>
@@ -27,8 +28,8 @@
 
 #include "../tools/Macros.hpp"
 
-#include <vlc_common.h>
-#include <vlc_tick.h>
+#include <heimdall_common.h>
+#include <heimdall_tick.h>
 
 namespace adaptive
 {
@@ -40,7 +41,7 @@ namespace adaptive
 
         public:
             virtual void updateDownloadRate(const ID &, size_t,
-                                            vlc_tick_t, vlc_tick_t) = 0;
+                                            heimdall_tick_t, heimdall_tick_t) = 0;
     };
 }
 

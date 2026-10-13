@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Benjamin Arnaud <bunjee@omega.gg>
  *
@@ -21,18 +22,18 @@
 import QtQuick
 
 
-import VLC.MainInterface
-import VLC.Player
-import VLC.Widgets as Widgets
-import VLC.Style
-import VLC.Util
+import Heimdall.MainInterface
+import Heimdall.Player
+import Heimdall.Widgets as Widgets
+import Heimdall.Style
+import Heimdall.Util
 
 Widgets.IconToolButton {
     id: root
 
     signal requestLockUnlockAutoHide(bool lock)
 
-    text: VLCIcons.bookmark
+    text: HeimdallIcons.bookmark
     description: qsTr("Bookmarks")
 
     AccessibleCompat.id: "bookmarkButton"

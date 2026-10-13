@@ -4,6 +4,7 @@
  */
 /*****************************************************************************
  * Copyright © 2008 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License
@@ -36,12 +37,12 @@
 # include <winsock2.h>
 #endif
 
-#include <vlc_common.h>
-#include <vlc_threads.h>
-#include <vlc_poll.h>
-#include <vlc_demux.h>
-#include <vlc_block.h>
-#include "vlc_dtls.h"
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
+#include <heimdall_poll.h>
+#include <heimdall_demux.h>
+#include <heimdall_block.h>
+#include "heimdall_dtls.h"
 
 #include "rtp.h"
 #ifdef HAVE_SRTP
@@ -54,7 +55,7 @@
 /**
  * Processes a packet received from the RTP socket.
  */
-static void rtp_process (struct vlc_logger *logger, rtp_input_sys_t *sys,
+static void rtp_process (struct heimdall_logger *logger, rtp_input_sys_t *sys,
                          rtp_session_t *session, block_t *block)
 {
     if (block->i_buffer < 2)
@@ -69,7 +70,7 @@ static void rtp_process (struct vlc_logger *logger, rtp_input_sys_t *sys,
         size_t len = block->i_buffer;
         if (srtp_recv (sys->srtp, block->p_buffer, &len))
         {
-            vlc_debug (logger, "SRTP authentication/decryption failed");
+            heimdall_debug (logger, "SRTP authentication/decryption failed");
             goto drop;
         }
         block->i_buffer = len;
@@ -82,12 +83,12 @@ drop:
     block_Release (block);
 }
 
-static int rtp_timeout (vlc_tick_t deadline)
+static int rtp_timeout (heimdall_tick_t deadline)
 {
-    if (deadline == VLC_TICK_INVALID)
+    if (deadline == HEIMDALL_TICK_INVALID)
         return -1; /* infinite */
 
-    vlc_tick_t t = vlc_tick_now ();
+    heimdall_tick_t t = heimdall_tick_now ();
     if (t >= deadline)
         return 0;
 
@@ -103,23 +104,23 @@ static int rtp_timeout (vlc_tick_t deadline)
 void *rtp_dgram_thread (void *opaque)
 {
     rtp_sys_t *sys = opaque;
-    vlc_tick_t deadline = VLC_TICK_INVALID;
-    struct vlc_dtls *rtp_sock = sys->input_sys.rtp_sock;
+    heimdall_tick_t deadline = HEIMDALL_TICK_INVALID;
+    struct heimdall_dtls *rtp_sock = sys->input_sys.rtp_sock;
 
-    vlc_thread_set_name("vlc-rtp");
+    heimdall_thread_set_name("heimdall-rtp");
 
     for (;;)
     {
         struct pollfd ufd[1];
 
         ufd[0].events = POLLIN;
-        ufd[0].fd = vlc_dtls_GetPollFD(rtp_sock, &ufd[0].events);
+        ufd[0].fd = heimdall_dtls_GetPollFD(rtp_sock, &ufd[0].events);
 
         int n = poll (ufd, 1, rtp_timeout (deadline));
         if (n == -1)
             continue;
 
-        int canc = vlc_savecancel ();
+        int canc = heimdall_savecancel ();
         if (n == 0)
             goto dequeue;
 
@@ -130,11 +131,11 @@ void *rtp_dgram_thread (void *opaque)
                 break; /* we are totallly screwed */
 
             bool truncated;
-            ssize_t len = vlc_dtls_Recv(rtp_sock, block->p_buffer,
+            ssize_t len = heimdall_dtls_Recv(rtp_sock, block->p_buffer,
                                        block->i_buffer, &truncated);
             if (len >= 0) {
                 if (truncated) {
-                    vlc_error (sys->logger, "packet truncated (MRU was %zu)",
+                    heimdall_error (sys->logger, "packet truncated (MRU was %zu)",
                             block->i_buffer);
                     block->i_flags |= BLOCK_FLAG_CORRUPTED;
                 }
@@ -147,8 +148,8 @@ void *rtp_dgram_thread (void *opaque)
             {
                 if (errno == EPIPE)
                     break; /* connection terminated */
-                vlc_warning (sys->logger, "RTP network error: %s",
-                          vlc_strerror_c(errno));
+                heimdall_warning (sys->logger, "RTP network error: %s",
+                          heimdall_strerror_c(errno));
                 block_Release (block);
             }
 
@@ -156,9 +157,9 @@ void *rtp_dgram_thread (void *opaque)
         }
 
     dequeue:
-        if (!rtp_dequeue (sys->logger, sys->session, vlc_tick_now(), &deadline))
-            deadline = VLC_TICK_INVALID;
-        vlc_restorecancel (canc);
+        if (!rtp_dequeue (sys->logger, sys->session, heimdall_tick_now(), &deadline))
+            deadline = HEIMDALL_TICK_INVALID;
+        heimdall_restorecancel (canc);
     }
     return NULL;
 }

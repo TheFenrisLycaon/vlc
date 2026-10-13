@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Prince Gupta <guptaprince8832@gmail.com>
  *
@@ -21,8 +22,8 @@
 import QtQuick
 
 
-import VLC.Widgets
-import VLC.Style
+import Heimdall.Widgets
+import Heimdall.Style
 
 
 ViewBlockingRectangle {

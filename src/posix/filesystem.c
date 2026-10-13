@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 2005-2006 VLC authors and VideoLAN
  * Copyright © 2005-2008 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Rémi Denis-Courmont
  *
@@ -42,11 +43,11 @@
 #include <sys/socket.h>
 #endif
 
-#include <vlc_common.h>
-#include <vlc_fs.h>
+#include <heimdall_common.h>
+#include <heimdall_fs.h>
 
 #if !defined(HAVE_ACCEPT4)
-static inline void vlc_cloexec(int fd)
+static inline void heimdall_cloexec(int fd)
 {
     fcntl(fd, F_SETFD, FD_CLOEXEC | fcntl(fd, F_GETFD));
 }
@@ -55,7 +56,7 @@ static inline void vlc_cloexec(int fd)
 # define MSG_NOSIGNAL 0
 #endif
 
-int vlc_open (const char *filename, int flags, ...)
+int heimdall_open (const char *filename, int flags, ...)
 {
     unsigned int mode = 0;
     va_list ap;
@@ -68,7 +69,7 @@ int vlc_open (const char *filename, int flags, ...)
     return open(filename, flags | O_CLOEXEC, mode);
 }
 
-int vlc_openat (int dir, const char *filename, int flags, ...)
+int heimdall_openat (int dir, const char *filename, int flags, ...)
 {
     unsigned int mode = 0;
     va_list ap;
@@ -82,24 +83,24 @@ int vlc_openat (int dir, const char *filename, int flags, ...)
 }
 
 #ifdef HAVE_MKOSTEMP
-int vlc_mkstemp (char *template)
+int heimdall_mkstemp (char *template)
 {
     return mkostemp(template, O_CLOEXEC);
 }
 #endif
 
-VLC_WEAK int vlc_memfd(void)
+HEIMDALL_WEAK int heimdall_memfd(void)
 {
     char bufpath[] = "/tmp/"PACKAGE_NAME"XXXXXX";
     int fd;
 
-    fd = vlc_mkstemp (bufpath);
+    fd = heimdall_mkstemp (bufpath);
     if (fd != -1)
         unlink (bufpath);
     return fd;
 }
 
-int vlc_close (int fd)
+int heimdall_close (int fd)
 {
     int ret;
 #ifdef POSIX_CLOSE_RESTART
@@ -116,53 +117,53 @@ int vlc_close (int fd)
     return ret;
 }
 
-int vlc_mkdir (const char *dirname, mode_t mode)
+int heimdall_mkdir (const char *dirname, mode_t mode)
 {
     return mkdir (dirname, mode);
 }
 
-DIR *vlc_opendir (const char *dirname)
+DIR *heimdall_opendir (const char *dirname)
 {
     return opendir (dirname);
 }
 
-void vlc_closedir(DIR *dir)
+void heimdall_closedir(DIR *dir)
 {
     closedir(dir);
 }
 
-const char *vlc_readdir(DIR *dir)
+const char *heimdall_readdir(DIR *dir)
 {
     struct dirent *ent = readdir (dir);
     return (ent != NULL) ? ent->d_name : NULL;
 }
 
-void vlc_rewinddir(DIR *dir)
+void heimdall_rewinddir(DIR *dir)
 {
     rewinddir(dir);
 }
 
-int vlc_stat (const char *filename, struct stat *buf)
+int heimdall_stat (const char *filename, struct stat *buf)
 {
     return stat (filename, buf);
 }
 
-int vlc_lstat (const char *filename, struct stat *buf)
+int heimdall_lstat (const char *filename, struct stat *buf)
 {
     return lstat (filename, buf);
 }
 
-int vlc_unlink (const char *filename)
+int heimdall_unlink (const char *filename)
 {
     return unlink (filename);
 }
 
-int vlc_rename (const char *oldpath, const char *newpath)
+int heimdall_rename (const char *oldpath, const char *newpath)
 {
     return rename (oldpath, newpath);
 }
 
-char *vlc_getcwd (void)
+char *heimdall_getcwd (void)
 {
     long path_max = pathconf (".", _PC_PATH_MAX);
     size_t size = (path_max == -1 || path_max > 4096) ? 4096 : path_max;
@@ -183,24 +184,24 @@ char *vlc_getcwd (void)
     return NULL;
 }
 
-int vlc_dup (int oldfd)
+int heimdall_dup (int oldfd)
 {
     return fcntl (oldfd, F_DUPFD_CLOEXEC, 0);
 }
 
-int vlc_dup2(int oldfd, int newfd)
+int heimdall_dup2(int oldfd, int newfd)
 {
 #ifdef HAVE_DUP3
     return dup3(oldfd, newfd, O_CLOEXEC);
 #else
     int ret = dup2(oldfd, newfd);
     if (ret >= 0)
-        vlc_cloexec(newfd);
+        heimdall_cloexec(newfd);
     return ret;
 #endif
 }
 
-int vlc_pipe (int fds[2])
+int heimdall_pipe (int fds[2])
 {
 #ifdef HAVE_PIPE2
     return pipe2(fds, O_CLOEXEC);
@@ -208,21 +209,21 @@ int vlc_pipe (int fds[2])
     int ret = pipe(fds);
     if (ret == 0)
     {
-        vlc_cloexec(fds[0]);
-        vlc_cloexec(fds[1]);
+        heimdall_cloexec(fds[0]);
+        heimdall_cloexec(fds[1]);
     }
     return ret;
 #endif
 }
 
-ssize_t vlc_write(int fd, const void *buf, size_t len)
+ssize_t heimdall_write(int fd, const void *buf, size_t len)
 {
     struct iovec iov = { .iov_base = (void *)buf, .iov_len = len };
 
-    return vlc_writev(fd, &iov, 1);
+    return heimdall_writev(fd, &iov, 1);
 }
 
-ssize_t vlc_writev(int fd, const struct iovec *iov, int count)
+ssize_t heimdall_writev(int fd, const struct iovec *iov, int count)
 {
     sigset_t set, oset;
 
@@ -259,12 +260,12 @@ ssize_t vlc_writev(int fd, const struct iovec *iov, int count)
     return val;
 }
 
-#include <vlc_network.h>
+#include <heimdall_network.h>
 
 #ifndef HAVE_ACCEPT4
-static void vlc_socket_setup(int fd, bool nonblock)
+static void heimdall_socket_setup(int fd, bool nonblock)
 {
-    vlc_cloexec(fd);
+    heimdall_cloexec(fd);
 
     if (nonblock)
         fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) | O_NONBLOCK);
@@ -275,7 +276,7 @@ static void vlc_socket_setup(int fd, bool nonblock)
 }
 #endif
 
-int vlc_socket (int pf, int type, int proto, bool nonblock)
+int heimdall_socket (int pf, int type, int proto, bool nonblock)
 {
 #ifdef SOCK_CLOEXEC
     if (nonblock)
@@ -289,12 +290,12 @@ int vlc_socket (int pf, int type, int proto, bool nonblock)
 #else
     int fd = socket (pf, type, proto);
     if (fd != -1)
-        vlc_socket_setup(fd, nonblock);
+        heimdall_socket_setup(fd, nonblock);
 #endif
     return fd;
 }
 
-int vlc_socketpair(int pf, int type, int proto, int fds[2], bool nonblock)
+int heimdall_socketpair(int pf, int type, int proto, int fds[2], bool nonblock)
 {
 #ifdef SOCK_CLOEXEC
     if (nonblock)
@@ -314,14 +315,14 @@ int vlc_socketpair(int pf, int type, int proto, int fds[2], bool nonblock)
     int ret = socketpair(pf, type, proto, fds);
     if (ret == 0)
     {
-        vlc_socket_setup(fds[0], nonblock);
-        vlc_socket_setup(fds[1], nonblock);
+        heimdall_socket_setup(fds[0], nonblock);
+        heimdall_socket_setup(fds[1], nonblock);
     }
 #endif
     return ret;
 }
 
-int vlc_accept (int lfd, struct sockaddr *addr, socklen_t *alen, bool nonblock)
+int heimdall_accept (int lfd, struct sockaddr *addr, socklen_t *alen, bool nonblock)
 {
 #ifdef HAVE_ACCEPT4
     int flags = SOCK_CLOEXEC;
@@ -336,17 +337,17 @@ int vlc_accept (int lfd, struct sockaddr *addr, socklen_t *alen, bool nonblock)
 #else
     int fd = accept(lfd, addr, alen);
     if (fd != -1)
-        vlc_socket_setup(fd, nonblock);
+        heimdall_socket_setup(fd, nonblock);
 #endif
     return fd;
 }
 
-ssize_t vlc_send(int fd, const void *buf, size_t len, int flags)
+ssize_t heimdall_send(int fd, const void *buf, size_t len, int flags)
 {
-    return vlc_sendto(fd, buf, len, flags, NULL, 0);
+    return heimdall_sendto(fd, buf, len, flags, NULL, 0);
 }
 
-ssize_t vlc_sendto(int fd, const void *buf, size_t len, int flags,
+ssize_t heimdall_sendto(int fd, const void *buf, size_t len, int flags,
                    const struct sockaddr *dst, socklen_t dstlen)
 {
     struct iovec iov = {
@@ -360,10 +361,10 @@ ssize_t vlc_sendto(int fd, const void *buf, size_t len, int flags,
         .msg_iovlen = 1,
     };
 
-    return vlc_sendmsg(fd, &msg, flags);
+    return heimdall_sendmsg(fd, &msg, flags);
 }
 
-ssize_t vlc_sendmsg(int fd, const struct msghdr *msg, int flags)
+ssize_t heimdall_sendmsg(int fd, const struct msghdr *msg, int flags)
 {
     return sendmsg(fd, msg, flags | MSG_NOSIGNAL);
 }

@@ -25,15 +25,16 @@
  *
  *****************************************************************************
  *
- * Note that changes made by any members or contributors of the VideoLAN team
- * (i.e. changes that were checked in exclusively into one of VideoLAN's source code
+ * Note that changes made by any members or contributors of the Lycaria team
+ * (i.e. changes that were checked in exclusively into one of Lycaria's source code
  * repositories) are licensed under the GNU General Public License version 2,
  * or (at your option) any later version.
  * Thus, the following statements apply to our changes:
  *
  * Copyright (C) 2006-2007 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  * Authors: Eric Petit <titer@m0k.org>
- *          Felix Kühne <fkuehne at videolan dot org>
+ *          Felix Kühne <fkuehne at lycaria dot org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

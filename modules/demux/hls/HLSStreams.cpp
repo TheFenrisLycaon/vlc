@@ -2,6 +2,7 @@
  * HLSStreams.cpp
  *****************************************************************************
  * Copyright (C) 2015 - VideoLAN and VLC authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -23,8 +24,8 @@
 
 #include "HLSStreams.hpp"
 #include "../adaptive/tools/Conversions.hpp"
-#include <vlc_demux.h>
-#include <vlc_meta.h>
+#include <heimdall_demux.h>
+#include <heimdall_meta.h>
 
 #include <limits>
 
@@ -41,17 +42,17 @@ using namespace hls;
 HLSStream::HLSStream(demux_t *demux)
     : AbstractStream(demux)
 {
-    p_meta = vlc_meta_New();
+    p_meta = heimdall_meta_New();
     b_meta_updated = false;
 }
 
 HLSStream::~HLSStream()
 {
     if(p_meta)
-        vlc_meta_Delete(p_meta);
+        heimdall_meta_Delete(p_meta);
 }
 
-void HLSStream::setMetadataTimeOffset(vlc_tick_t i_offset)
+void HLSStream::setMetadataTimeOffset(heimdall_tick_t i_offset)
 {
     if(i_offset >= 0)
         fakeEsOut()->setAssociatedTimestamp(i_offset);
@@ -59,7 +60,7 @@ void HLSStream::setMetadataTimeOffset(vlc_tick_t i_offset)
         fakeEsOut()->setAssociatedTimestamp(-1);
 }
 
-void HLSStream::setMetadataTimeMapping(vlc_tick_t mpegts, vlc_tick_t muxed)
+void HLSStream::setMetadataTimeMapping(heimdall_tick_t mpegts, heimdall_tick_t muxed)
 {
     fakeEsOut()->setAssociatedTimestamp(mpegts, muxed);
 }
@@ -90,16 +91,16 @@ int HLSStream::ParseID3PrivTag(const uint8_t *p_payload, size_t i_payload)
     {
         setMetadataTimeOffset(FROM_SCALE_NZ(GetQWBE(&p_payload[45])));
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 int HLSStream::ParseID3Tag(uint32_t i_tag, const uint8_t *p_payload, size_t i_payload)
 {
-    if(i_tag == VLC_FOURCC('P','R','I','V'))
+    if(i_tag == HEIMDALL_FOURCC('P','R','I','V'))
         (void) ParseID3PrivTag(p_payload, i_payload);
     else
         (void) ID3HandleTag(p_payload, i_payload, i_tag, p_meta, &b_meta_updated);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 int HLSStream::ID3TAG_Parse_Handler(uint32_t i_tag, const uint8_t *p_payload, size_t i_payload, void *p_priv)
@@ -137,7 +138,7 @@ block_t * HLSStream::checkBlock(block_t *p_block, bool b_first)
             if(eol)
             {
                 uint64_t mpegts = std::numeric_limits<uint64_t>::max();
-                vlc_tick_t local = std::numeric_limits<vlc_tick_t>::max();
+                heimdall_tick_t local = std::numeric_limits<heimdall_tick_t>::max();
                 std::string str(p + 16, eol - p - 16);
 
                 std::string::size_type pos = str.find("LOCAL:");
@@ -153,9 +154,9 @@ block_t * HLSStream::checkBlock(block_t *p_block, bool b_first)
                 }
 
                 if(mpegts != std::numeric_limits<uint64_t>::max() &&
-                   local != std::numeric_limits<vlc_tick_t>::max())
+                   local != std::numeric_limits<heimdall_tick_t>::max())
                 {
-                    setMetadataTimeMapping(VLC_TICK_0 + mpegts * 100/9, VLC_TICK_0 + local);
+                    setMetadataTimeMapping(HEIMDALL_TICK_0 + mpegts * 100/9, HEIMDALL_TICK_0 + local);
                 }
             }
         }
@@ -172,7 +173,7 @@ block_t * HLSStream::checkBlock(block_t *p_block, bool b_first)
     return p_block;
 }
 
-AbstractDemuxer *HLSStream::newDemux(vlc_object_t *p_obj, const StreamFormat &format,
+AbstractDemuxer *HLSStream::newDemux(heimdall_object_t *p_obj, const StreamFormat &format,
                                      es_out_t *out, AbstractSourceStream *source) const
 {
     AbstractDemuxer *ret = nullptr;

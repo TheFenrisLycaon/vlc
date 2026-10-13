@@ -1,6 +1,7 @@
 
 /*****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,19 +19,19 @@
  *****************************************************************************/
 import QtQuick
 
-import VLC.Style
-import VLC.Util
+import Heimdall.Style
+import Heimdall.Util
 
 DoubleShadow {
     id: root
 
     opacity: 0.62
 
-    primaryVerticalOffset: VLCStyle.dp(1, VLCStyle.scale)
-    primaryBlurRadius: VLCStyle.dp(3, VLCStyle.scale)
+    primaryVerticalOffset: HeimdallStyle.dp(1, HeimdallStyle.scale)
+    primaryBlurRadius: HeimdallStyle.dp(3, HeimdallStyle.scale)
 
-    secondaryVerticalOffset: VLCStyle.dp(6, VLCStyle.scale)
-    secondaryBlurRadius: VLCStyle.dp(14, VLCStyle.scale)
+    secondaryVerticalOffset: HeimdallStyle.dp(6, HeimdallStyle.scale)
+    secondaryBlurRadius: HeimdallStyle.dp(14, HeimdallStyle.scale)
 
     z: -1
 }

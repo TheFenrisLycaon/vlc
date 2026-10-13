@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 2002-2008 the VideoLAN team
  * Copyright © 2007-2015 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Samuel Hocevar <sam@zoy.org>
  *
@@ -25,12 +26,12 @@
 # include "config.h"
 #endif
 
-#define VLC_MODULE_LICENSE VLC_LICENSE_GPL_2_PLUS
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_fs.h>
-//#include <vlc_charset.h>
+#define HEIMDALL_MODULE_LICENSE HEIMDALL_LICENSE_GPL_2_PLUS
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_fs.h>
+//#include <heimdall_charset.h>
 
 #include <stdarg.h>
 #include <assert.h>
@@ -43,17 +44,17 @@ typedef struct
     FILE *stream;
     const char *footer;
     int verbosity;
-} vlc_logger_sys_t;
+} heimdall_logger_sys_t;
 
-#define TEXT_FILENAME "vlc-log.txt"
+#define TEXT_FILENAME "heimdall-log.txt"
 #define TEXT_HEADER "\xEF\xBB\xBF" /* UTF-8 BOM */ \
                     "-- logger module started --\n"
 #define TEXT_FOOTER "-- logger module stopped --\n"
 
-static void LogText(void *opaque, int type, const vlc_log_t *meta,
+static void LogText(void *opaque, int type, const heimdall_log_t *meta,
                     const char *format, va_list ap)
 {
-    vlc_logger_sys_t *sys = opaque;
+    heimdall_logger_sys_t *sys = opaque;
     FILE *stream = sys->stream;
 
     if (sys->verbosity < type)
@@ -68,26 +69,26 @@ static void LogText(void *opaque, int type, const vlc_log_t *meta,
 
 static void Close(void *opaque)
 {
-    vlc_logger_sys_t *sys = opaque;
+    heimdall_logger_sys_t *sys = opaque;
 
     fputs(sys->footer, sys->stream);
     fclose(sys->stream);
     free(sys);
 }
 
-static const struct vlc_logger_operations text_ops =
+static const struct heimdall_logger_operations text_ops =
 {
     LogText,
     Close
 };
 
-#define HTML_FILENAME "vlc-log.html"
+#define HTML_FILENAME "heimdall-log.html"
 #define HTML_HEADER \
     "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01//EN\"\n" \
     "  \"http://www.w3.org/TR/html4/strict.dtd\">\n" \
     "<html>\n" \
     "  <head>\n" \
-    "    <title>vlc log</title>\n" \
+    "    <title>heimdall log</title>\n" \
     "    <meta http-equiv=\"Content-Type\"" \
              " content=\"text/html; charset=UTF-8\">\n" \
     "  </head>\n" \
@@ -100,13 +101,13 @@ static const struct vlc_logger_operations text_ops =
     "  </body>\n" \
     "</html>\n"
 
-static void LogHtml(void *opaque, int type, const vlc_log_t *meta,
+static void LogHtml(void *opaque, int type, const heimdall_log_t *meta,
                     const char *format, va_list ap)
 {
     static const unsigned color[4] = {
         0xffffff, 0xff6666, 0xffff66, 0xaaaaaa,
     };
-    vlc_logger_sys_t *sys = opaque;
+    heimdall_logger_sys_t *sys = opaque;
     FILE *stream = sys->stream;
 
     if (sys->verbosity < type)
@@ -121,13 +122,13 @@ static void LogHtml(void *opaque, int type, const vlc_log_t *meta,
     funlockfile(stream);
 }
 
-static const struct vlc_logger_operations html_ops =
+static const struct heimdall_logger_operations html_ops =
 {
     LogHtml,
     Close
 };
 
-static const struct vlc_logger_operations *Open(vlc_object_t *obj,
+static const struct heimdall_logger_operations *Open(heimdall_object_t *obj,
                                                 void **restrict sysp)
 {
     if (!var_InheritBool(obj, "file-logging"))
@@ -139,16 +140,16 @@ static const struct vlc_logger_operations *Open(vlc_object_t *obj,
     if (verbosity < 0)
         return NULL; /* nothing to log */
 
-    verbosity += VLC_MSG_ERR;
+    verbosity += HEIMDALL_MSG_ERR;
 
-    vlc_logger_sys_t *sys = malloc(sizeof (*sys));
+    heimdall_logger_sys_t *sys = malloc(sizeof (*sys));
     if (unlikely(sys == NULL))
         return NULL;
 
     const char *filename = TEXT_FILENAME;
     const char *header = TEXT_HEADER;
 
-    const struct vlc_logger_operations *ops = &text_ops;
+    const struct heimdall_logger_operations *ops = &text_ops;
     sys->footer = TEXT_FOOTER;
     sys->verbosity = verbosity;
 
@@ -171,7 +172,7 @@ static const struct vlc_logger_operations *Open(vlc_object_t *obj,
 #ifdef __APPLE__
     if (path == NULL)
     {
-        char *home = config_GetUserDir(VLC_HOME_DIR);
+        char *home = config_GetUserDir(HEIMDALL_HOME_DIR);
         if (home != NULL)
         {
             if (asprintf(&path, "%s/Library/Logs/%s", home, filename) == -1)
@@ -185,11 +186,11 @@ static const struct vlc_logger_operations *Open(vlc_object_t *obj,
 
     /* Open the log file and remove any buffering for the stream */
     msg_Dbg(obj, "opening logfile `%s'", filename);
-    sys->stream = vlc_fopen(filename, "at");
+    sys->stream = heimdall_fopen(filename, "at");
     if (sys->stream == NULL)
     {
         msg_Err(obj, "error opening log file `%s': %s", filename,
-                vlc_strerror_c(errno) );
+                heimdall_strerror_c(errno) );
         free(path);
         free(sys);
         return NULL;
@@ -208,16 +209,16 @@ static const char *const mode_list_text[] = { N_("Text"), N_("HTML") };
 
 static const int verbosity_values[] = {
     -1,
-    VLC_MSG_INFO,
-    VLC_MSG_ERR,
-    VLC_MSG_WARN,
-    VLC_MSG_DBG
+    HEIMDALL_MSG_INFO,
+    HEIMDALL_MSG_ERR,
+    HEIMDALL_MSG_WARN,
+    HEIMDALL_MSG_DBG
 };
 
 static const char *const verbosity_text[] = { N_("Default"), N_("Info"), N_("Error"), N_("Warning"), N_("Debug") };
 
 #define FILE_LOG_TEXT N_("Log to file")
-#define FILE_LOG_LONGTEXT N_("Log all VLC messages to a text file.")
+#define FILE_LOG_LONGTEXT N_("Log all Heimdall messages to a text file.")
 
 #define LOGFILE_NAME_TEXT N_("Log filename")
 #define LOGFILE_NAME_LONGTEXT N_("Specify the log filename.")
@@ -229,7 +230,7 @@ static const char *const verbosity_text[] = { N_("Default"), N_("Info"), N_("Err
 #define LOGVERBOSE_LONGTEXT N_("Select the logging verbosity or " \
 "default to use the same verbosity given by --verbose.")
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname(N_("Logger"))
     set_description(N_("File logger"))
     set_subcategory(SUBCAT_ADVANCED_MISC)
@@ -242,4 +243,4 @@ vlc_module_begin()
         change_string_list(mode_list, mode_list_text)
     add_integer("log-verbose", -1, LOGVERBOSE_TEXT, LOGVERBOSE_LONGTEXT)
         change_integer_list(verbosity_values, verbosity_text)
-vlc_module_end ()
+heimdall_module_end ()

@@ -1,7 +1,8 @@
 /*****************************************************************************
- * libmp4.c : LibMP4 library for mp4 module for vlc
+ * libmp4.c : LibMP4 library for mp4 module for heimdall
  *****************************************************************************
  * Copyright (C) 2001-2004, 2010 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Laurent Aimar <fenrir@via.ecp.fr>
  *
@@ -24,9 +25,9 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_stream.h>                               /* vlc_stream_Peek*/
-#include <vlc_strings.h>                              /* vlc_ascii_tolower */
+#include <heimdall_common.h>
+#include <heimdall_stream.h>                               /* heimdall_stream_Peek*/
+#include <heimdall_strings.h>                              /* heimdall_ascii_tolower */
 
 #ifdef HAVE_ZLIB_H
 #   include <zlib.h>                                  /* for compressed moov */
@@ -249,7 +250,7 @@ static uint8_t *mp4_readbox_enter_common( stream_t *s, MP4_Box_t *box,
     if( unlikely(buf == NULL) )
         return NULL;
 
-    ssize_t val = vlc_stream_Read( s, buf, readsize );
+    ssize_t val = heimdall_stream_Read( s, buf, readsize );
     if( (size_t)val != readsize )
     {
         msg_Warn( s, "mp4: wanted %"PRIu64" bytes, got %zd", readsize, val );
@@ -326,27 +327,27 @@ static int MP4_PeekBoxHeader( stream_t *p_stream, MP4_Box_t *p_box );
 int MP4_Seek( stream_t *p_stream, uint64_t i_pos )
 {
     bool b_canseek = false;
-    if ( vlc_stream_Control( p_stream, STREAM_CAN_SEEK, &b_canseek ) != VLC_SUCCESS ||
+    if ( heimdall_stream_Control( p_stream, STREAM_CAN_SEEK, &b_canseek ) != HEIMDALL_SUCCESS ||
          b_canseek )
     {
         /* can seek or don't know */
-        return vlc_stream_Seek( p_stream, i_pos );
+        return heimdall_stream_Seek( p_stream, i_pos );
     }
     /* obviously can't seek then */
 
-    int64_t i_current_pos = vlc_stream_Tell( p_stream );
+    int64_t i_current_pos = heimdall_stream_Tell( p_stream );
     if ( i_current_pos < 0 || i_pos < (uint64_t)i_current_pos )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     uint64_t i_toread = i_pos - i_current_pos;
     if( i_toread == 0 )
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     if( i_toread > SSIZE_MAX ) // we can't read more than that
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    if( vlc_stream_Read( p_stream, NULL, i_toread ) != (ssize_t) i_toread )
-        return VLC_EGENERIC;
-    return VLC_SUCCESS;
+    if( heimdall_stream_Read( p_stream, NULL, i_toread ) != (ssize_t) i_toread )
+        return HEIMDALL_EGENERIC;
+    return HEIMDALL_SUCCESS;
 }
 
 static void MP4_BoxAddChild( MP4_Box_t *p_parent, MP4_Box_t *p_childbox )
@@ -377,9 +378,9 @@ MP4_Box_t * MP4_BoxExtract( MP4_Box_t **pp_chain, uint32_t i_type )
     return NULL;
 }
 
-/* Don't use vlc_stream_Seek directly */
-#undef vlc_stream_Seek
-#define vlc_stream_Seek(a,b) __NO__
+/* Don't use heimdall_stream_Seek directly */
+#undef heimdall_stream_Seek
+#define heimdall_stream_Seek(a,b) __NO__
 
 /*****************************************************************************
  * MP4_PeekBoxHeader : Load only common parameters for all boxes
@@ -394,11 +395,11 @@ static int MP4_PeekBoxHeader( stream_t *p_stream, MP4_Box_t *p_box )
     ssize_t i_read;
     const uint8_t  *p_peek;
 
-    if( ( ( i_read = vlc_stream_Peek( p_stream, &p_peek, 32 ) ) < 8 ) )
+    if( ( ( i_read = heimdall_stream_Peek( p_stream, &p_peek, 32 ) ) < 8 ) )
     {
         return 0;
     }
-    p_box->i_pos = vlc_stream_Tell( p_stream );
+    p_box->i_pos = heimdall_stream_Tell( p_stream );
 
     p_box->data.p_payload = NULL;
     p_box->p_father = NULL;
@@ -466,7 +467,7 @@ static MP4_Box_t *MP4_ReadBoxRestricted( stream_t *p_stream, MP4_Box_t *p_father
     if( peekbox.i_size < 8 )
     {
         msg_Warn( p_stream, "found an invalid sized %"PRIu64" box %4.4s @%"PRIu64 ,
-                  peekbox.i_size, (char *) &peekbox.i_type, vlc_stream_Tell(p_stream) );
+                  peekbox.i_size, (char *) &peekbox.i_type, heimdall_stream_Tell(p_stream) );
         return NULL;
     }
 
@@ -501,7 +502,7 @@ static MP4_Box_t *MP4_ReadBoxRestricted( stream_t *p_stream, MP4_Box_t *p_father
 
     const uint64_t i_next = p_box->i_pos + p_box->i_size;
     p_box->p_father = p_father;
-    if( MP4_Box_Read_Specific( p_stream, p_box, p_father ) != VLC_SUCCESS )
+    if( MP4_Box_Read_Specific( p_stream, p_box, p_father ) != HEIMDALL_SUCCESS )
     {
         msg_Warn( p_stream, "Failed reading box %4.4s", (char*) &peekbox.i_type );
         MP4_BoxFree( p_box );
@@ -509,11 +510,11 @@ static MP4_Box_t *MP4_ReadBoxRestricted( stream_t *p_stream, MP4_Box_t *p_father
     }
 
     /* Check is we consumed all data */
-    if( vlc_stream_Tell( p_stream ) < i_next )
+    if( heimdall_stream_Tell( p_stream ) < i_next )
     {
         MP4_Seek( p_stream, i_next - 1 ); /*  since past seek can fail when hitting EOF */
         MP4_Seek( p_stream, i_next );
-        if( vlc_stream_Tell( p_stream ) < i_next - 1 ) /* Truncated box */
+        if( heimdall_stream_Tell( p_stream ) < i_next - 1 ) /* Truncated box */
         {
             msg_Warn( p_stream, "truncated box %4.4s discarded", (char*) &peekbox.i_type );
             MP4_BoxFree( p_box );
@@ -539,7 +540,7 @@ static int MP4_ReadBoxContainerChildrenIndexed( stream_t *p_stream,
     /* Size of root container is set to 0 when unknown, for example
      * with a DASH stream. In that case, we skip the following check */
     if( (p_container->i_size || p_container->p_father)
-            && ( vlc_stream_Tell( p_stream ) + ((b_indexed)?16:8) >
+            && ( heimdall_stream_Tell( p_stream ) + ((b_indexed)?16:8) >
         (uint64_t)(p_container->i_pos + p_container->i_size) )
       )
     {
@@ -560,7 +561,7 @@ static int MP4_ReadBoxContainerChildrenIndexed( stream_t *p_stream,
         b_continue = false;
         if ( p_container->i_size )
         {
-            const uint64_t i_tell = vlc_stream_Tell( p_stream );
+            const uint64_t i_tell = heimdall_stream_Tell( p_stream );
             if( i_tell + ((b_indexed)?16:8) >= i_end )
                 break;
         }
@@ -569,7 +570,7 @@ static int MP4_ReadBoxContainerChildrenIndexed( stream_t *p_stream,
         if ( b_indexed )
         {
             uint8_t read[8];
-            if ( vlc_stream_Read( p_stream, read, 8 ) < 8 )
+            if ( heimdall_stream_Read( p_stream, read, 8 ) < 8 )
                 break;
             i_index = GetDWBE(&read[4]);
         }
@@ -585,7 +586,7 @@ static int MP4_ReadBoxContainerChildrenIndexed( stream_t *p_stream,
             }
         }
 
-        const uint64_t i_tell = vlc_stream_Tell( p_stream );
+        const uint64_t i_tell = heimdall_stream_Tell( p_stream );
         if ( p_container->i_size && i_tell >= i_end )
         {
             assert( i_tell == i_end );
@@ -606,7 +607,7 @@ static int MP4_ReadBoxContainerChildrenIndexed( stream_t *p_stream,
     /* Always move to end of container */
     if ( !b_onexclude &&  p_container->i_size )
     {
-        const uint64_t i_tell = vlc_stream_Tell( p_stream );
+        const uint64_t i_tell = heimdall_stream_Tell( p_stream );
         if ( i_tell != i_end )
             MP4_Seek( p_stream, i_end );
     }
@@ -644,13 +645,13 @@ static int MP4_ReadBoxContainerRawInBox( stream_t *p_stream, MP4_Box_t *p_contai
 {
     if(!p_container)
         return 0;
-    stream_t *p_substream = vlc_stream_MemoryNew( p_stream, p_buffer, i_size,
+    stream_t *p_substream = heimdall_stream_MemoryNew( p_stream, p_buffer, i_size,
                                                   true );
     if( !p_substream )
         return 0;
     MP4_Box_t *p_last = p_container->p_last;
     MP4_ReadBoxContainerChildren( p_substream, p_container, NULL );
-    vlc_stream_Delete( p_substream );
+    heimdall_stream_Delete( p_substream );
     /* do pos fixup */
     if( p_container )
     {
@@ -686,9 +687,9 @@ static int MP4_ReadBoxSkip( stream_t *p_stream, MP4_Box_t *p_box )
     {
         const uint8_t *p_peek;
         size_t header_size = mp4_box_headersize( p_box ) + 4;
-        vlc_fourcc_t i_fcc;
+        heimdall_fourcc_t i_fcc;
 
-        ssize_t i_read = vlc_stream_Peek( p_stream, &p_peek, 44 );
+        ssize_t i_read = heimdall_stream_Peek( p_stream, &p_peek, 44 );
         if( unlikely(i_read < (ssize_t)header_size) )
             return 0;
 
@@ -697,7 +698,7 @@ static int MP4_ReadBoxSkip( stream_t *p_stream, MP4_Box_t *p_box )
 
         if( i_read >= 8 )
         {
-            i_fcc = VLC_FOURCC( p_peek[0], p_peek[1], p_peek[2], p_peek[3] );
+            i_fcc = HEIMDALL_FOURCC( p_peek[0], p_peek[1], p_peek[2], p_peek[3] );
 
             if( i_fcc == ATOM_cmov || i_fcc == ATOM_mvhd )
             {
@@ -748,7 +749,7 @@ static int MP4_ReadBox_mdia( stream_t *p_stream, MP4_Box_t *p_container )
 
 static int MP4_ReadBox_ilst( stream_t *p_stream, MP4_Box_t *p_box )
 {
-    if( p_box->i_size < 8 || vlc_stream_Read( p_stream, NULL, 8 ) != 8 )
+    if( p_box->i_size < 8 || heimdall_stream_Read( p_stream, NULL, 8 ) != 8 )
         return 0;
 
     /* Find our handler */
@@ -797,7 +798,7 @@ static int MP4_ReadBox_ftyp( stream_t *p_stream, MP4_Box_t *p_box )
     if( p_box->data.p_ftyp->i_compatible_brands_count > 0 )
     {
         uint32_t *tab = p_box->data.p_ftyp->i_compatible_brands =
-            vlc_alloc( p_box->data.p_ftyp->i_compatible_brands_count,
+            heimdall_alloc( p_box->data.p_ftyp->i_compatible_brands_count,
                        sizeof(uint32_t) );
 
         if( unlikely( tab == NULL ) )
@@ -1121,7 +1122,7 @@ static int MP4_ReadBox_sidx(  stream_t *p_stream, MP4_Box_t *p_box )
         MP4_READBOX_EXIT( 1 );
 
     p_sidx_data->i_reference_count = i_count;
-    p_sidx_data->p_items = vlc_alloc( i_count, sizeof( MP4_Box_sidx_item_t ) );
+    p_sidx_data->p_items = heimdall_alloc( i_count, sizeof( MP4_Box_sidx_item_t ) );
     if( unlikely(p_sidx_data->p_items == NULL) )
         MP4_READBOX_EXIT( 0 );
 
@@ -1247,7 +1248,7 @@ static int MP4_ReadBox_trun(  stream_t *p_stream, MP4_Box_t *p_box )
     if( i_entry_size * 4 * count > i_read )
         MP4_READBOX_EXIT( 0 );
 
-    p_trun->p_samples = vlc_alloc( count, sizeof(MP4_descriptor_trun_sample_t) );
+    p_trun->p_samples = heimdall_alloc( count, sizeof(MP4_descriptor_trun_sample_t) );
     if ( p_trun->p_samples == NULL )
         MP4_READBOX_EXIT( 0 );
     p_trun->i_sample_count = count;
@@ -1479,7 +1480,7 @@ static int MP4_ReadBox_hdlr( stream_t *p_stream, MP4_Box_t *p_box )
         size_t i_copy;
 
         /* Yes, I love .mp4 :( */
-        if( p_box->data.p_hdlr->i_predefined == VLC_FOURCC( 'm', 'h', 'l', 'r' ) )
+        if( p_box->data.p_hdlr->i_predefined == HEIMDALL_FOURCC( 'm', 'h', 'l', 'r' ) )
         {
             uint8_t i_len;
 
@@ -1678,8 +1679,8 @@ static int MP4_ReadBox_stts( stream_t *p_stream, MP4_Box_t *p_box )
         MP4_READBOX_EXIT( 0 );
     }
 
-    p_box->data.p_stts->pi_sample_count = vlc_alloc( count, sizeof(uint32_t) );
-    p_box->data.p_stts->pi_sample_delta = vlc_alloc( count, sizeof(uint32_t) );
+    p_box->data.p_stts->pi_sample_count = heimdall_alloc( count, sizeof(uint32_t) );
+    p_box->data.p_stts->pi_sample_delta = heimdall_alloc( count, sizeof(uint32_t) );
     p_box->data.p_stts->i_entry_count = count;
 
     if( p_box->data.p_stts->pi_sample_count == NULL
@@ -1726,8 +1727,8 @@ static int MP4_ReadBox_ctts( stream_t *p_stream, MP4_Box_t *p_box )
     if( UINT64_C(8) * count > i_read )
         MP4_READBOX_EXIT( 0 );
 
-    p_box->data.p_ctts->pi_sample_count = vlc_alloc( count, sizeof(uint32_t) );
-    p_box->data.p_ctts->pi_sample_offset = vlc_alloc( count, sizeof(int32_t) );
+    p_box->data.p_ctts->pi_sample_count = heimdall_alloc( count, sizeof(uint32_t) );
+    p_box->data.p_ctts->pi_sample_offset = heimdall_alloc( count, sizeof(int32_t) );
     if( unlikely(p_box->data.p_ctts->pi_sample_count == NULL
               || p_box->data.p_ctts->pi_sample_offset == NULL) )
     {
@@ -2271,7 +2272,7 @@ static int MP4_ReadBox_sbgp( stream_t *p_stream, MP4_Box_t *p_box )
     if( p_sbgp->i_entry_count > i_read / (4 + 4) )
         p_sbgp->i_entry_count = i_read / (4 + 4);
 
-    p_sbgp->p_entries = vlc_alloc( p_sbgp->i_entry_count, sizeof(*p_sbgp->p_entries) );
+    p_sbgp->p_entries = heimdall_alloc( p_sbgp->i_entry_count, sizeof(*p_sbgp->p_entries) );
     if( !p_sbgp->p_entries )
     {
         MP4_FreeBox_sbgp( p_box );
@@ -2350,7 +2351,7 @@ static int MP4_ReadBox_sgpd( stream_t *p_stream, MP4_Box_t *p_box )
 
     MP4_GET4BYTES( p_sgpd->i_entry_count );
 
-    p_sgpd->p_entries = vlc_alloc( p_sgpd->i_entry_count, sizeof(*p_sgpd->p_entries) );
+    p_sgpd->p_entries = heimdall_alloc( p_sgpd->i_entry_count, sizeof(*p_sgpd->p_entries) );
     if( !p_sgpd->p_entries )
         MP4_READBOX_EXIT( 0 );
 
@@ -2406,7 +2407,7 @@ static int MP4_ReadBox_sgpd( stream_t *p_stream, MP4_Box_t *p_box )
                 break;
 
             default:
-                vlc_assert_unreachable();
+                heimdall_assert_unreachable();
                 free( p_sgpd->p_entries );
                 p_sgpd->i_entry_count = 0;
                 p_sgpd->p_entries = NULL;
@@ -2450,7 +2451,7 @@ static int MP4_ReadBox_stsdext_chan( stream_t *p_stream, MP4_Box_t *p_box )
         MP4_READBOX_EXIT( 0 );
 
     p_chan->layout.p_descriptions =
-        vlc_alloc( p_chan->layout.i_channels_description_count, i_descsize );
+        heimdall_alloc( p_chan->layout.i_channels_description_count, i_descsize );
 
     if ( !p_chan->layout.p_descriptions )
         MP4_READBOX_EXIT( 0 );
@@ -2996,7 +2997,7 @@ static int MP4_ReadBox_stsd( stream_t *p_stream, MP4_Box_t *p_box )
     if( p_mdia == NULL || p_mdia->i_type != ATOM_mdia ||
         (p_hdlr = MP4_BoxGet( p_mdia, "hdlr" )) == NULL )
     {
-        if ( MP4_Seek( p_stream, p_box->i_pos + p_box->i_size ) == VLC_SUCCESS )
+        if ( MP4_Seek( p_stream, p_box->i_pos + p_box->i_size ) == HEIMDALL_SUCCESS )
         {
             msg_Warn( p_stream, "missing hdlr for stsd, delaying" );
             MP4_READBOX_EXIT( 1 );
@@ -3098,7 +3099,7 @@ static int MP4_ReadBox_stsz( stream_t *p_stream, MP4_Box_t *p_box )
             MP4_READBOX_EXIT( 0 );
 
         p_box->data.p_stsz->i_entry_size =
-            vlc_alloc( count, sizeof(uint32_t) );
+            heimdall_alloc( count, sizeof(uint32_t) );
         if( unlikely( !p_box->data.p_stsz->i_entry_size ) )
             MP4_READBOX_EXIT( 0 );
 
@@ -3143,7 +3144,7 @@ static int MP4_ReadBox_stz2( stream_t *p_stream, MP4_Box_t *p_box )
         MP4_READBOX_EXIT( 0 );
 
     p_box->data.p_stsz->i_entry_size =
-            vlc_alloc( count, sizeof(uint32_t) );
+            heimdall_alloc( count, sizeof(uint32_t) );
     if( unlikely( p_box->data.p_stsz->i_entry_size == NULL ) )
         MP4_READBOX_EXIT( 0 );
 
@@ -3159,7 +3160,7 @@ static int MP4_ReadBox_stz2( stream_t *p_stream, MP4_Box_t *p_box )
     }
     else
     {
-        vlc_assert( field_size == 4 );
+        heimdall_assert( field_size == 4 );
         count &= ~1;
         for( uint32_t i = 0; i < count; i += 2 )
         {
@@ -3207,10 +3208,10 @@ static int MP4_ReadBox_stsc( stream_t *p_stream, MP4_Box_t *p_box )
     if( UINT64_C(12) * count > i_read )
         MP4_READBOX_EXIT( 0 );
 
-    p_box->data.p_stsc->i_first_chunk = vlc_alloc( count, sizeof(uint32_t) );
-    p_box->data.p_stsc->i_samples_per_chunk = vlc_alloc( count,
+    p_box->data.p_stsc->i_first_chunk = heimdall_alloc( count, sizeof(uint32_t) );
+    p_box->data.p_stsc->i_samples_per_chunk = heimdall_alloc( count,
                                                          sizeof(uint32_t) );
-    p_box->data.p_stsc->i_sample_description_index = vlc_alloc( count,
+    p_box->data.p_stsc->i_sample_description_index = heimdall_alloc( count,
                                                             sizeof(uint32_t) );
     if( unlikely( p_box->data.p_stsc->i_first_chunk == NULL
      || p_box->data.p_stsc->i_samples_per_chunk == NULL
@@ -3310,7 +3311,7 @@ static int MP4_ReadBox_stco_co64( stream_t *p_stream, MP4_Box_t *p_box )
     if( (sixtyfour ? UINT64_C(8) : UINT64_C(4)) * count > i_read )
         MP4_READBOX_EXIT( 0 );
 
-    p_box->data.p_co64->i_chunk_offset = vlc_alloc( count, sizeof(uint64_t) );
+    p_box->data.p_co64->i_chunk_offset = heimdall_alloc( count, sizeof(uint64_t) );
     if( unlikely(p_box->data.p_co64->i_chunk_offset == NULL) )
         MP4_READBOX_EXIT( 0 );
     p_box->data.p_co64->i_entry_count = count;
@@ -3348,7 +3349,7 @@ static int MP4_ReadBox_stss( stream_t *p_stream, MP4_Box_t *p_box )
     if( UINT64_C(4) * count > i_read )
         MP4_READBOX_EXIT( 0 );
 
-    p_box->data.p_stss->i_sample_number = vlc_alloc( count, sizeof(uint32_t) );
+    p_box->data.p_stss->i_sample_number = heimdall_alloc( count, sizeof(uint32_t) );
     if( unlikely( p_box->data.p_stss->i_sample_number == NULL ) )
         MP4_READBOX_EXIT( 0 );
     p_box->data.p_stss->i_entry_count = count;
@@ -3384,9 +3385,9 @@ static int MP4_ReadBox_stsh( stream_t *p_stream, MP4_Box_t *p_box )
     if( UINT64_C(8) * count > i_read )
         MP4_READBOX_EXIT( 0 );
 
-    p_box->data.p_stsh->i_shadowed_sample_number = vlc_alloc( count,
+    p_box->data.p_stsh->i_shadowed_sample_number = heimdall_alloc( count,
                                                             sizeof(uint32_t) );
-    p_box->data.p_stsh->i_sync_sample_number = vlc_alloc( count,
+    p_box->data.p_stsh->i_sync_sample_number = heimdall_alloc( count,
                                                           sizeof(uint32_t) );
     if( p_box->data.p_stsh->i_shadowed_sample_number == NULL
      || p_box->data.p_stsh->i_sync_sample_number == NULL )
@@ -3463,7 +3464,7 @@ static int MP4_ReadBox_elst( stream_t *p_stream, MP4_Box_t *p_box )
     if( count > i_entries_max )
         count = i_entries_max;
 
-    p_elst->entries = vlc_alloc( count, sizeof(*p_elst->entries) );
+    p_elst->entries = heimdall_alloc( count, sizeof(*p_elst->entries) );
     if( !p_elst->entries )
         MP4_READBOX_EXIT( 0 );
 
@@ -3653,7 +3654,7 @@ static int MP4_ReadBox_cmov( stream_t *p_stream, MP4_Box_t *p_box )
     msg_Dbg( p_stream, "read box: \"cmov\" box successfully uncompressed" );
 
     /* now create a memory stream */
-    p_stream_memory = vlc_stream_MemoryNew( VLC_OBJECT(p_stream),
+    p_stream_memory = heimdall_stream_MemoryNew( HEIMDALL_OBJECT(p_stream),
                                             p_data, z_data.total_out, false );
     if( !p_stream_memory )
     {
@@ -3664,7 +3665,7 @@ static int MP4_ReadBox_cmov( stream_t *p_stream, MP4_Box_t *p_box )
     /* and read uncompressd moov */
     MP4_Box_t *p_moov =  MP4_ReadBox( p_stream_memory, NULL );
 
-    vlc_stream_Delete( p_stream_memory );
+    heimdall_stream_Delete( p_stream_memory );
 
     if( p_moov )
         MP4_BoxAddChild( p_box, p_moov );
@@ -3801,7 +3802,7 @@ static int MP4_ReadBox_skcr( stream_t *p_stream, MP4_Box_t *p_box )
 
 static int MP4_ReadBox_drms( stream_t *p_stream, MP4_Box_t *p_box )
 {
-    VLC_UNUSED(p_box);
+    HEIMDALL_UNUSED(p_box);
     /* ATOMs 'user', 'key', 'iviv', and 'priv' will be skipped,
      * so unless data decrypt itself by magic, there will be no playback,
      * but we never know... */
@@ -3874,9 +3875,9 @@ static int MP4_ReadBox_data( stream_t *p_stream, MP4_Box_t *p_box )
 static int MP4_ReadBox_Metadata( stream_t *p_stream, MP4_Box_t *p_box )
 {
     const uint8_t *p_peek;
-    if ( vlc_stream_Peek( p_stream, &p_peek, 16 ) < 16 )
+    if ( heimdall_stream_Peek( p_stream, &p_peek, 16 ) < 16 )
         return 0;
-    if ( vlc_stream_Read( p_stream, NULL, 8 ) != 8 )
+    if ( heimdall_stream_Read( p_stream, NULL, 8 ) != 8 )
         return 0;
     const uint32_t stoplist[] = { ATOM_data, 0 };
     return MP4_ReadBoxContainerChildren( p_stream, p_box, stoplist );
@@ -3996,7 +3997,7 @@ static int MP4_ReadBox_HMMT( stream_t *p_stream, MP4_Box_t *p_box )
     if( p_hmmt->i_chapter_count > MAX_CHAPTER_COUNT )
         p_hmmt->i_chapter_count = MAX_CHAPTER_COUNT;
 
-    p_hmmt->pi_chapter_start = vlc_alloc( p_hmmt->i_chapter_count, sizeof(uint32_t) );
+    p_hmmt->pi_chapter_start = heimdall_alloc( p_hmmt->i_chapter_count, sizeof(uint32_t) );
     if( p_hmmt->pi_chapter_start == NULL )
         MP4_READBOX_EXIT( 0 );
 
@@ -4026,7 +4027,7 @@ static int MP4_ReadBox_TrackReference( stream_t *p_stream, MP4_Box_t *p_box )
     p_box->data.p_track_reference->i_track_ID = NULL;
     count = i_read / sizeof(uint32_t);
     p_box->data.p_track_reference->i_entry_count = count;
-    p_box->data.p_track_reference->i_track_ID = vlc_alloc( count,
+    p_box->data.p_track_reference->i_track_ID = heimdall_alloc( count,
                                                         sizeof(uint32_t) );
     if( p_box->data.p_track_reference->i_track_ID == NULL )
         MP4_READBOX_EXIT( 0 );
@@ -4047,7 +4048,7 @@ static int MP4_ReadBox_tref( stream_t *p_stream, MP4_Box_t *p_box )
 {
     /* skip header */
     size_t i_header = mp4_box_headersize( p_box );
-    if( vlc_stream_Read( p_stream, NULL, i_header ) != (ssize_t) i_header )
+    if( heimdall_stream_Read( p_stream, NULL, i_header ) != (ssize_t) i_header )
         return 0;
     /* read each reference atom with forced handler */
     uint64_t i_remain = p_box->i_size - 8;
@@ -4126,13 +4127,13 @@ static int MP4_ReadBox_colr( stream_t *p_stream, MP4_Box_t *p_box )
 {
     MP4_READBOX_ENTER( MP4_Box_data_colr_t, NULL );
     MP4_GETFOURCC( p_box->data.p_colr->i_type );
-    if ( p_box->data.p_colr->i_type == VLC_FOURCC( 'n', 'c', 'l', 'c' ) ||
-         p_box->data.p_colr->i_type == VLC_FOURCC( 'n', 'c', 'l', 'x' ) )
+    if ( p_box->data.p_colr->i_type == HEIMDALL_FOURCC( 'n', 'c', 'l', 'c' ) ||
+         p_box->data.p_colr->i_type == HEIMDALL_FOURCC( 'n', 'c', 'l', 'x' ) )
     {
         MP4_GET2BYTES( p_box->data.p_colr->nclc.i_primary_idx );
         MP4_GET2BYTES( p_box->data.p_colr->nclc.i_transfer_function_idx );
         MP4_GET2BYTES( p_box->data.p_colr->nclc.i_matrix_idx );
-        if ( p_box->data.p_colr->i_type == VLC_FOURCC( 'n', 'c', 'l', 'x' ) )
+        if ( p_box->data.p_colr->i_type == HEIMDALL_FOURCC( 'n', 'c', 'l', 'x' ) )
             MP4_GET1BYTE( p_box->data.p_colr->nclc.i_full_range );
     }
     else
@@ -4180,16 +4181,16 @@ static int MP4_ReadBox_meta( stream_t *p_stream, MP4_Box_t *p_box )
         return 0;
 
     /* skip over box header */
-    if( vlc_stream_Read( p_stream, NULL, i_headersize ) != (ssize_t) i_headersize )
+    if( heimdall_stream_Read( p_stream, NULL, i_headersize ) != (ssize_t) i_headersize )
         return 0;
 
     /* meta content starts with a 4 byte version/flags value (should be 0) */
-    if( vlc_stream_Peek( p_stream, &p_peek, 8 ) < 8 )
+    if( heimdall_stream_Peek( p_stream, &p_peek, 8 ) < 8 )
         return 0;
 
     if( !memcmp( p_peek, "\0\0\0", 4 ) ) /* correct header case */
     {
-        if( vlc_stream_Read( p_stream, NULL, 4 ) != 4 )
+        if( heimdall_stream_Read( p_stream, NULL, 4 ) != 4 )
             return 0;
     }
     else if( memcmp( &p_peek[4], "hdlr", 4 ) ) /* Broken, headerless ones */
@@ -4591,7 +4592,7 @@ static int MP4_ReadBox_Reference( stream_t *p_stream, MP4_Box_t *p_box )
             p_data->i_reference_count )
         MP4_READBOX_EXIT( 0 );
 
-    p_data->p_references = vlc_alloc( p_data->i_reference_count, sizeof(*p_data->p_references) );
+    p_data->p_references = heimdall_alloc( p_data->i_reference_count, sizeof(*p_data->p_references) );
     if( !p_data->p_references )
         MP4_READBOX_EXIT( 0 );
     for( uint16_t i=0; i<p_data->i_reference_count; i++ )
@@ -4689,7 +4690,7 @@ static int MP4_ReadBox_iloc( stream_t *p_stream, MP4_Box_t *p_box )
     if( i_read / 6 < p_data->i_item_count )
         MP4_READBOX_EXIT( 0 );
 
-    p_data->p_items = vlc_alloc( p_data->i_item_count, sizeof(p_data->p_items[0]) );
+    p_data->p_items = heimdall_alloc( p_data->i_item_count, sizeof(p_data->p_items[0]) );
     if( !p_data->p_items )
         MP4_READBOX_EXIT( 0 );
 
@@ -4732,7 +4733,7 @@ static int MP4_ReadBox_iloc( stream_t *p_stream, MP4_Box_t *p_box )
             MP4_READBOX_EXIT( 0 );
         }
 
-        p_data->p_items[i].p_extents = vlc_alloc( p_data->p_items[i].i_extent_count,
+        p_data->p_items[i].p_extents = heimdall_alloc( p_data->p_items[i].i_extent_count,
                                                sizeof(p_data->p_items[i].p_extents[0]) );
         if(!p_data->p_items[i].p_extents)
         {
@@ -4771,7 +4772,7 @@ static int MP4_ReadBox_iloc( stream_t *p_stream, MP4_Box_t *p_box )
 static int MP4_ReadBox_iinf( stream_t *p_stream, MP4_Box_t *p_box )
 {
     const uint8_t *p_versionpeek;
-    if( vlc_stream_Peek( p_stream, &p_versionpeek, 9 ) < 9 )
+    if( heimdall_stream_Peek( p_stream, &p_versionpeek, 9 ) < 9 )
         return 0;
 
     size_t i_header = 12 + (( p_versionpeek[8] == 0 ) ? 2 : 4);
@@ -4861,13 +4862,13 @@ static int MP4_ReadBox_infe( stream_t *p_stream, MP4_Box_t *p_box )
         MP4_GET2BYTES( p_data->i_item_protection_index );
         MP4_GETFOURCC( p_data->item_type );
         p_data->psz_item_name = mp4_getstringz( &p_peek, &i_read );
-        if( p_data->item_type == VLC_FOURCC('m','i','m','e') )
+        if( p_data->item_type == HEIMDALL_FOURCC('m','i','m','e') )
         {
             p_data->psz_content_type = mp4_getstringz( &p_peek, &i_read );
             if( i_read > 0 )
                 p_data->psz_content_encoding = mp4_getstringz( &p_peek, &i_read );
         }
-        else if( p_data->item_type == VLC_FOURCC('u','r','i',' ') )
+        else if( p_data->item_type == HEIMDALL_FOURCC('u','r','i',' ') )
         {
             p_data->psz_item_uri_type = mp4_getstringz( &p_peek, &i_read );
         }
@@ -4935,7 +4936,7 @@ static int MP4_ReadBox_ipma( stream_t *p_stream, MP4_Box_t *p_box )
         MP4_READBOX_EXIT( 0 );
     }
 
-    p_data->p_entries = vlc_alloc( p_data->i_entry_count, sizeof(p_data->p_entries[0]) );
+    p_data->p_entries = heimdall_alloc( p_data->i_entry_count, sizeof(p_data->p_entries[0]) );
     if( !p_data->p_entries )
     {
         p_data->i_entry_count = 0;
@@ -4963,7 +4964,7 @@ static int MP4_ReadBox_ipma( stream_t *p_stream, MP4_Box_t *p_box )
         }
 
         p_data->p_entries[i].p_assocs =
-                vlc_alloc( p_data->p_entries[i].i_association_count,
+                heimdall_alloc( p_data->p_entries[i].i_association_count,
                            sizeof(p_data->p_entries[i].p_assocs[0]) );
         if( !p_data->p_entries[i].p_assocs )
         {
@@ -5404,10 +5405,10 @@ static int MP4_Box_Read_Specific( stream_t *p_stream, MP4_Box_t *p_box, MP4_Box_
 
     if( !(MP4_Box_Function[i_index].MP4_ReadBox_function)( p_stream, p_box ) )
     {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static MP4_Box_t *MP4_ReadBoxAllocateCheck( stream_t *p_stream, MP4_Box_t *p_father )
@@ -5472,7 +5473,7 @@ static MP4_Box_t *MP4_ReadBox( stream_t *p_stream, MP4_Box_t *p_father )
     if( !p_box )
         return NULL;
 
-    if( MP4_Box_Read_Specific( p_stream, p_box, p_father ) != VLC_SUCCESS )
+    if( MP4_Box_Read_Specific( p_stream, p_box, p_father ) != HEIMDALL_SUCCESS )
     {
         uint64_t i_end = p_box->i_pos + p_box->i_size;
         MP4_BoxFree( p_box );
@@ -5567,7 +5568,7 @@ MP4_Box_t *MP4_BoxGetRoot( stream_t *p_stream )
 
     p_vroot->i_shortsize = 1;
     uint64_t i_size;
-    if( vlc_stream_GetSize( p_stream, &i_size ) == 0 )
+    if( heimdall_stream_GetSize( p_stream, &i_size ) == 0 )
         p_vroot->i_size = i_size;
 
     /* First get the moov */
@@ -5580,7 +5581,7 @@ MP4_Box_t *MP4_BoxGetRoot( stream_t *p_stream )
     if( i_result && !MP4_BoxGet( p_vroot, "moov" ) )
     {
         bool b_seekable;
-        if( vlc_stream_Control( p_stream, STREAM_CAN_SEEK, &b_seekable ) != VLC_SUCCESS || !b_seekable )
+        if( heimdall_stream_Control( p_stream, STREAM_CAN_SEEK, &b_seekable ) != HEIMDALL_SUCCESS || !b_seekable )
         {
             msg_Err( p_stream, "no moov before mdat and the stream is not seekable" );
             goto error;
@@ -5604,7 +5605,7 @@ MP4_Box_t *MP4_BoxGetRoot( stream_t *p_stream )
         return p_vroot;
     }
 
-    if( vlc_stream_Tell( p_stream ) + 8 < i_size )
+    if( heimdall_stream_Tell( p_stream ) + 8 < i_size )
     {
         /* Get the rest of the file */
         i_result = MP4_ReadBoxContainerChildren( p_stream, p_vroot, NULL );
@@ -5637,7 +5638,7 @@ error:
 }
 
 
-static void MP4_BoxDumpStructure_Internal( vlc_object_t *obj, const MP4_Box_t *p_box,
+static void MP4_BoxDumpStructure_Internal( heimdall_object_t *obj, const MP4_Box_t *p_box,
                                            unsigned int i_level )
 {
     const MP4_Box_t *p_child;
@@ -5675,7 +5676,7 @@ static void MP4_BoxDumpStructure_Internal( vlc_object_t *obj, const MP4_Box_t *p
     }
 }
 
-void MP4_BoxDumpStructure( vlc_object_t *obj, const MP4_Box_t *p_box )
+void MP4_BoxDumpStructure( heimdall_object_t *obj, const MP4_Box_t *p_box )
 {
     MP4_BoxDumpStructure_Internal( obj, p_box, 0 );
 }
@@ -5784,7 +5785,7 @@ static const MP4_Box_t * MP4_BoxGet_Path( const MP4_Box_t *p_box, const char *ps
 
             uint32_t i_fourcc = 0 ;
             if( len == 4 )
-                i_fourcc = VLC_FOURCC( psz_token[0], psz_token[1],
+                i_fourcc = HEIMDALL_FOURCC( psz_token[0], psz_token[1],
                                        psz_token[2], psz_token[3] );
 
             for( p_box = p_box->p_first; p_box; p_box = p_box->p_next )

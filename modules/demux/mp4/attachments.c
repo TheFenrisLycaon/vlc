@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 2001-2015 VLC authors and VideoLAN
  *               2019 VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,8 +23,8 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_input.h>
+#include <heimdall_common.h>
+#include <heimdall_input.h>
 
 #include "libmp4.h"
 #include "attachments.h"
@@ -163,12 +164,12 @@ static const MP4_Box_t * GetValidThumMeta( const MP4_Box_t *p_thum,
 int MP4_GetCoverMetaURI( const MP4_Box_t *p_root,
                          const MP4_Box_t *p_metaroot,
                          const char *psz_metapath,
-                         vlc_meta_t *p_meta )
+                         heimdall_meta_t *p_meta )
 {
     bool b_attachment_set = false;
 
     if( !p_meta )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if ( p_metaroot )
     {
@@ -182,7 +183,7 @@ int MP4_GetCoverMetaURI( const MP4_Box_t *p_root,
                                  "attachment://%s/covr/data[%u]",
                                  psz_metapath, i_index - 1 ) )
             {
-                vlc_meta_SetArtURL( p_meta, psz_attachment );
+                heimdall_meta_SetArtURL( p_meta, psz_attachment );
                 b_attachment_set = true;
                 free( psz_attachment );
             }
@@ -200,7 +201,7 @@ int MP4_GetCoverMetaURI( const MP4_Box_t *p_root,
             if ( -1 != asprintf( &psz_attachment,
                                  "attachment://pnot[%u]", i_index - 1 ) )
             {
-                vlc_meta_SetArtURL( p_meta, psz_attachment );
+                heimdall_meta_SetArtURL( p_meta, psz_attachment );
                 b_attachment_set = true;
                 free( psz_attachment );
             }
@@ -220,7 +221,7 @@ int MP4_GetCoverMetaURI( const MP4_Box_t *p_root,
                                  "attachment://thum[%u]",
                                  i_index - 1 ) )
             {
-                vlc_meta_SetArtURL( p_meta, psz_attachment );
+                heimdall_meta_SetArtURL( p_meta, psz_attachment );
                 b_attachment_set = true;
                 free( psz_attachment );
             }
@@ -228,9 +229,9 @@ int MP4_GetCoverMetaURI( const MP4_Box_t *p_root,
     }
 
     if( !b_attachment_set )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 size_t MP4_GetAttachments( const MP4_Box_t *p_root, input_attachment_t ***ppp_attach )
@@ -264,7 +265,7 @@ size_t MP4_GetAttachments( const MP4_Box_t *p_root, input_attachment_t ***ppp_at
     if ( i_count == 0 )
         return 0;
 
-    pp_attach = vlc_alloc( i_count, sizeof(input_attachment_t*) );
+    pp_attach = heimdall_alloc( i_count, sizeof(input_attachment_t*) );
     if( !(pp_attach) )
         return 0;
 
@@ -290,7 +291,7 @@ size_t MP4_GetAttachments( const MP4_Box_t *p_root, input_attachment_t ***ppp_at
                            i_index - 1 ) > -1 )
             {
                 input_attachment_t *p_attach =
-                    vlc_input_attachment_New(
+                    heimdall_input_attachment_New(
                             psz_filename,
                             psz_mime,
                             "Cover picture",
@@ -320,7 +321,7 @@ size_t MP4_GetAttachments( const MP4_Box_t *p_root, input_attachment_t ***ppp_at
                 if( p_pict )
                 {
                     input_attachment_t *p_attach =
-                            vlc_input_attachment_New(
+                            heimdall_input_attachment_New(
                                 psz_location,
                                 "image/x-pict",
                                 "Quickdraw image",
@@ -351,7 +352,7 @@ size_t MP4_GetAttachments( const MP4_Box_t *p_root, input_attachment_t ***ppp_at
             if ( asprintf( &psz_location, "thum[%u]", i_index - 1 ) > -1 )
             {
                 input_attachment_t *p_attach =
-                        vlc_input_attachment_New(
+                        heimdall_input_attachment_New(
                             psz_location,
                             psz_mime,
                             "Cover picture",

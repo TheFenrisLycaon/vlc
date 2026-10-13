@@ -54,9 +54,9 @@ nsProcess = shared_library('nsProcess',
                            install: true,
                            install_dir: 'NSIS')
 
-vlc_nsi = configure_file(
-  input: 'vlc.win32.nsi.in',
-  output: 'vlc.win32.nsi',
+heimdall_nsi = configure_file(
+  input: 'heimdall.win32.nsi.in',
+  output: 'heimdall.win32.nsi',
   configuration: nsi_conf,
   format: 'cmake@',
   install: true,
@@ -73,16 +73,16 @@ spad_nsi = configure_file(
 )
 
 install_data('nsProcess.nsh',    install_dir : 'NSIS')
-install_data('vlc_branding.bmp', install_dir : 'NSIS')
+install_data('heimdall_branding.bmp', install_dir : 'NSIS')
 install_subdir('languages',      install_dir : '.')
 install_subdir('helpers',        install_dir : '.')
 
 if have_win_store
-  nsi_script_dir = 'vlc-' + winstaller_suffix + '-uwp'
+  nsi_script_dir = 'heimdall-' + winstaller_suffix + '-uwp'
 elif cc.compiles(ucrt_version_test, name: 'compiles with Universal C Runtime')
-  nsi_script_dir = 'vlc-' + winstaller_suffix + '-ucrt'
+  nsi_script_dir = 'heimdall-' + winstaller_suffix + '-ucrt'
 else
-  nsi_script_dir = 'vlc-' + winstaller_suffix
+  nsi_script_dir = 'heimdall-' + winstaller_suffix
 endif
 
 if makensis.found()
@@ -93,13 +93,13 @@ if makensis.found()
         build_by_default: false,
         console: true)
 
-    vlc_nsis = custom_target(
-        command: [makensis, nsi_script_dir / 'vlc.win32.nsi'],
-        input: vlc_nsi,
-        output: 'vlc-' + vlc_version + '-' + winstaller_suffix + '.exe', # real name but root build folder
+    heimdall_nsis = custom_target(
+        command: [makensis, nsi_script_dir / 'heimdall.win32.nsi'],
+        input: heimdall_nsi,
+        output: 'heimdall-' + heimdall_version + '-' + winstaller_suffix + '.exe', # real name but root build folder
         build_by_default: false,
         console: true,
         depends: nsProcess)
 
-    alias_target('package-win32-exe', spad_nsis, vlc_nsis)
+    alias_target('package-win32-exe', spad_nsis, heimdall_nsis)
 endif

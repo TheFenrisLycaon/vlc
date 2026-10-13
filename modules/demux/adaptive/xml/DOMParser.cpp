@@ -2,6 +2,7 @@
  * DOMParser.cpp
  *****************************************************************************
  * Copyright (C) 2010 - 2011 Klagenfurt University
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Created on: Aug 10, 2010
  * Authors: Christopher Mueller <christopher.mueller@itec.uni-klu.ac.at>
@@ -30,29 +31,29 @@
 #include <vector>
 #include <stack>
 #include <cstring>
-#include <vlc_xml.h>
+#include <heimdall_xml.h>
 
 using namespace adaptive::xml;
 
 DOMParser::DOMParser() :
     root( nullptr ),
     stream( nullptr ),
-    vlc_reader( nullptr )
+    heimdall_reader( nullptr )
 {
 }
 
 DOMParser::DOMParser    (stream_t *stream) :
     root( nullptr ),
     stream( stream ),
-    vlc_reader( nullptr )
+    heimdall_reader( nullptr )
 {
 }
 
 DOMParser::~DOMParser   ()
 {
     delete this->root;
-    if(this->vlc_reader)
-        xml_ReaderDelete(this->vlc_reader);
+    if(this->heimdall_reader)
+        xml_ReaderDelete(this->heimdall_reader);
 }
 
 Node*   DOMParser::getRootNode              ()
@@ -64,14 +65,14 @@ bool    DOMParser::parse                    (bool b)
     if(!stream)
         return false;
 
-    if(!vlc_reader && !(vlc_reader = xml_ReaderCreate(stream, stream)))
+    if(!heimdall_reader && !(heimdall_reader = xml_ReaderCreate(stream, stream)))
         return false;
 
-    struct vlc_logger *const logger = vlc_reader->obj.logger;
+    struct heimdall_logger *const logger = heimdall_reader->obj.logger;
     if(!b)
-        vlc_reader->obj.logger = nullptr;
+        heimdall_reader->obj.logger = nullptr;
     root = processNode(b);
-    vlc_reader->obj.logger = logger;
+    heimdall_reader->obj.logger = logger;
     if ( root == nullptr )
         return false;
 
@@ -81,14 +82,14 @@ bool    DOMParser::parse                    (bool b)
 bool DOMParser::reset(stream_t *s)
 {
     stream = s;
-    if(!vlc_reader)
+    if(!heimdall_reader)
         return true;
     delete root;
     root = nullptr;
 
-    xml_ReaderDelete(vlc_reader);
-    vlc_reader = xml_ReaderCreate(s, s);
-    return !!vlc_reader;
+    xml_ReaderDelete(heimdall_reader);
+    heimdall_reader = xml_ReaderCreate(s, s);
+    return !!heimdall_reader;
 }
 
 Node* DOMParser::processNode(bool b_strict)
@@ -97,14 +98,14 @@ Node* DOMParser::processNode(bool b_strict)
     int type;
     std::stack<Node *> lifo;
 
-    while( (type = xml_ReaderNextNodeNS(vlc_reader, &data, &ns)) > 0 )
+    while( (type = xml_ReaderNextNodeNS(heimdall_reader, &data, &ns)) > 0 )
     {
         switch(type)
         {
             case XML_READER_STARTELEM:
             {
                 Namespaces::Ptr ptr = nss.registerNamespace(ns);
-                bool empty = xml_ReaderIsEmptyElement(vlc_reader);
+                bool empty = xml_ReaderIsEmptyElement(heimdall_reader);
                 const char *unprefixed = std::strchr(data, ':');
                 data = unprefixed ? unprefixed + 1 : data;
                 auto name = std::make_unique<std::string>(data);
@@ -166,7 +167,7 @@ void    DOMParser::addAttributesToNode      (Node *node)
     const char *attrName;
     const char *ns;
 
-    while((attrName = xml_ReaderNextAttrNS(this->vlc_reader, &attrValue, &ns)) != nullptr)
+    while((attrName = xml_ReaderNextAttrNS(this->heimdall_reader, &attrValue, &ns)) != nullptr)
     {
         Namespaces::Ptr ptr = nss.registerNamespace(ns ? ns : "");
         std::string key     = attrName;

@@ -2,6 +2,7 @@
  * chunked_test.c: HTTP 1.1 chunked encoding decoder test
  *****************************************************************************
  * Copyright (C) 2015 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -28,27 +29,27 @@
 #include <stddef.h>
 #include <string.h>
 
-#include <vlc_common.h>
-#include <vlc_tls.h>
-#include <vlc_block.h>
+#include <heimdall_common.h>
+#include <heimdall_tls.h>
+#include <heimdall_block.h>
 #include "conn.h"
 #include "message.h"
 
-const char vlc_module_name[] = "test_h1chunked";
+const char heimdall_module_name[] = "test_h1chunked";
 
 /* I/O callbacks */
 static const char *stream_content;
 static size_t stream_length;
 static bool stream_bad;
 
-static int fd_callback(struct vlc_tls *tls, short *restrict events)
+static int fd_callback(struct heimdall_tls *tls, short *restrict events)
 {
     (void) tls;
     (void) events;
     return -1;
 }
 
-static ssize_t recv_callback(struct vlc_tls *tls, struct iovec *iov,
+static ssize_t recv_callback(struct heimdall_tls *tls, struct iovec *iov,
                              unsigned count)
 {
     size_t rcvd = 0;
@@ -74,35 +75,35 @@ static ssize_t recv_callback(struct vlc_tls *tls, struct iovec *iov,
     return rcvd;
 }
 
-static void close_callback(struct vlc_tls *tls)
+static void close_callback(struct heimdall_tls *tls)
 {
     (void) tls;
 }
 
-static const struct vlc_tls_operations chunked_ops =
+static const struct heimdall_tls_operations chunked_ops =
 {
     .get_fd = fd_callback,
     .readv = recv_callback,
     .close = close_callback,
 };
 
-static struct vlc_tls chunked_tls =
+static struct heimdall_tls chunked_tls =
 {
     .ops = &chunked_ops,
 };
 
-static void stream_close_callback(struct vlc_http_stream *stream, bool bad)
+static void stream_close_callback(struct heimdall_http_stream *stream, bool bad)
 {
     (void) stream;
     assert(bad == stream_bad);
 }
 
-static const struct vlc_http_stream_cbs chunked_stream_cbs =
+static const struct heimdall_http_stream_cbs chunked_stream_cbs =
 {
     .close = stream_close_callback,
 };
 
-static struct vlc_http_stream chunked_stream =
+static struct heimdall_http_stream chunked_stream =
 {
     &chunked_stream_cbs,
 };
@@ -111,7 +112,7 @@ static struct vlc_http_stream chunked_stream =
 
 static void test_good(void)
 {
-    struct vlc_http_stream *s;
+    struct heimdall_http_stream *s;
     block_t *b;
 
     /* Simple good payload */
@@ -122,68 +123,68 @@ static void test_good(void)
     stream_length = strlen(stream_content);
     stream_bad = false;
 
-    s = vlc_chunked_open(&chunked_stream, &chunked_tls);
+    s = heimdall_chunked_open(&chunked_stream, &chunked_tls);
     assert(s != NULL);
-    assert(vlc_http_stream_read_headers(s) == NULL);
+    assert(heimdall_http_stream_read_headers(s) == NULL);
 
-    b = vlc_http_stream_read(s);
+    b = heimdall_http_stream_read(s);
     assert(b != NULL);
     assert(b->i_buffer == 10);
     assert(!memcmp(b->p_buffer, "1234567890", 10));
     block_Release(b);
 
-    b = vlc_http_stream_read(s);
+    b = heimdall_http_stream_read(s);
     assert(b != NULL);
     assert(b->i_buffer == 26);
     assert(!memcmp(b->p_buffer, "abcdefghijklmnopqrstuvwxyz", 26));
     block_Release(b);
 
-    b = vlc_http_stream_read(s);
+    b = heimdall_http_stream_read(s);
     assert(b == NULL);
-    b = vlc_http_stream_read(s);
+    b = heimdall_http_stream_read(s);
     assert(b == NULL);
 
-    vlc_http_stream_close(s, false);
+    heimdall_http_stream_close(s, false);
 }
 
 static void test_empty(void)
 {
-    struct vlc_http_stream *s;
+    struct heimdall_http_stream *s;
     block_t *b;
 
     stream_content = "0\r\n";
     stream_length = 3;
     stream_bad = true;
 
-    s = vlc_chunked_open(&chunked_stream, &chunked_tls);
+    s = heimdall_chunked_open(&chunked_stream, &chunked_tls);
     assert(s != NULL);
 
-    b = vlc_http_stream_read(s);
+    b = heimdall_http_stream_read(s);
     assert(b == NULL);
-    b = vlc_http_stream_read(s);
+    b = heimdall_http_stream_read(s);
     assert(b == NULL);
-    vlc_http_stream_close(s, false);
+    heimdall_http_stream_close(s, false);
 }
 
 static void test_bad(const char *payload)
 {
-    struct vlc_http_stream *s;
+    struct heimdall_http_stream *s;
     block_t *b;
 
     stream_content = payload;
     stream_length = strlen(payload);
     stream_bad = true;
 
-    s = vlc_chunked_open(&chunked_stream, &chunked_tls);
+    s = heimdall_chunked_open(&chunked_stream, &chunked_tls);
     assert(s != NULL);
 
-    while ((b = vlc_http_stream_read(s)) != vlc_http_error)
+    while ((b = heimdall_http_stream_read(s)) != heimdall_http_error)
     {
         assert(b != NULL);
         block_Release(b);
     }
 
-    vlc_http_stream_close(s, false);
+    heimdall_http_stream_close(s, false);
 }
 
 int main(void)

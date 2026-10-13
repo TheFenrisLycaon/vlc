@@ -2,6 +2,7 @@
  * device.cpp: Media library network device
  *****************************************************************************
  * Copyright (C) 2018 VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -28,7 +29,7 @@
 #include <cassert>
 #include <cstring>
 
-namespace vlc {
+namespace heimdall {
   namespace medialibrary {
 
 SDDevice::SDDevice(const std::string& uuid, std::string scheme, bool removable, bool isNetwork)
@@ -87,7 +88,7 @@ void SDDevice::addMountpoint( std::string mrl )
         auto mp = Mountpoint{ std::move( mrl ) };
         m_mountpoints.push_back( std::move( mp ) );
     }
-    catch ( const vlc::url::invalid& )
+    catch ( const heimdall::url::invalid& )
     {
     }
 }
@@ -108,12 +109,12 @@ void SDDevice::removeMountpoint( const std::string& cmrl )
 std::tuple<bool, std::string>
 SDDevice::matchesMountpoint( const std::string& mrl ) const
 {
-    vlc::url probedUrl;
+    heimdall::url probedUrl;
     try
     {
-        probedUrl = vlc::url{ mrl };
+        probedUrl = heimdall::url{ mrl };
     }
-    catch ( const vlc::url::invalid& )
+    catch ( const heimdall::url::invalid& )
     {
         return std::make_tuple( false, "" );
     }
@@ -144,9 +145,9 @@ SDDevice::matchesMountpoint( const std::string& mrl ) const
                 {
                     continue;
                 }
-                vlc_url_t url = m.url;
+                heimdall_url_t url = m.url;
                 url.i_port = probedUrl.i_port;
-                char* tmpUrl_psz = vlc_uri_compose(&url);
+                char* tmpUrl_psz = heimdall_uri_compose(&url);
                 if (!tmpUrl_psz)
                     continue;
                 std::string tmpUrl(tmpUrl_psz);
@@ -181,4 +182,4 @@ const std::string& SDDevice::scheme() const
 }
 
   } /* namespace medialibrary */
-} /* namespace vlc */
+} /* namespace heimdall */

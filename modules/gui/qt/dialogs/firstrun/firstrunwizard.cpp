@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,10 +27,10 @@
 #include <QButtonGroup>
 #include <QFileDialog>
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_url.h>
-#include <vlc_cxx_helpers.hpp>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_url.h>
+#include <heimdall_cxx_helpers.hpp>
 
 FirstRunWizard::FirstRunWizard( qt_intf_t *_p_intf, QWidget *parent)
                : QWizard( parent )
@@ -48,17 +49,17 @@ FirstRunWizard::FirstRunWizard( qt_intf_t *_p_intf, QWidget *parent)
     ui.setupUi( this );
 
     /* Set the privacy and network policy */
-    ui.policy->setHtml( qtr( "<p>In order to protect your privacy, <i>VLC media player</i> "
+    ui.policy->setHtml( qtr( "<p>In order to protect your privacy, <i>Heimdall media player</i> "
         "does <b>not</b> collect personal data or transmit them, "
         "not even in anonymized form, to anyone."
         "</p>\n"
-        "<p>Nevertheless, <i>VLC</i> is able to automatically retrieve "
+        "<p>Nevertheless, <i>Heimdall</i> is able to automatically retrieve "
         "information about the media in your play queue from third party "
         "Internet-based services. This includes cover art, track names, "
         "artist names and other meta-data."
         "</p>\n"
         "<p>Consequently, this may entail identifying some of your media files to third party "
-        "entities. Therefore the <i>VLC</i> developers require your express "
+        "entities. Therefore the <i>Heimdall</i> developers require your express "
         "consent for the media player to access the Internet automatically."
         "</p>\n" ) );
     ui.policy->setReadOnly( true );
@@ -103,7 +104,7 @@ FirstRunWizard::FirstRunWizard( qt_intf_t *_p_intf, QWidget *parent)
     setOption( QWizard::NoCancelButton );
 
     /* Create new instance of MLFoldersModel */
-    if ( vlc_ml_instance_get( p_intf ) )
+    if ( heimdall_ml_instance_get( p_intf ) )
     {
         const auto foldersModel = new MLFoldersModel( this );
         foldersModel->setCtx( p_intf->p_mi );
@@ -167,7 +168,7 @@ void FirstRunWizard::finish()
     }
 
     /* Commit changes to the scanned folders for the Media Library */
-    if( vlc_ml_instance_get( p_intf ) && mlFoldersEditor )
+    if( heimdall_ml_instance_get( p_intf ) && mlFoldersEditor )
         mlFoldersEditor->commit();
 
     /* Reload the indexing service for the media library */
@@ -202,13 +203,13 @@ void FirstRunWizard::updateColorLabel( QAbstractButton* btn )
     switch ( colorSchemeGroup->id(btn) )
     {
         case ColorSchemeModel::System:
-            ui.explainerLabel->setText( qtr( "<i>VLC will automatically switch to dark mode accordingly with system settings</i>" ) );
+            ui.explainerLabel->setText( qtr( "<i>Heimdall will automatically switch to dark mode accordingly with system settings</i>" ) );
             break;
         case ColorSchemeModel::Day:
-            ui.explainerLabel->setText( qtr( "<i>VLC will automatically use light mode</i>" ) );
+            ui.explainerLabel->setText( qtr( "<i>Heimdall will automatically use light mode</i>" ) );
             break;
         case ColorSchemeModel::Night:
-            ui.explainerLabel->setText( qtr( "<i>VLC will automatically use dark mode</i>" ) );
+            ui.explainerLabel->setText( qtr( "<i>Heimdall will automatically use dark mode</i>" ) );
             break;
     }
 }
@@ -222,10 +223,10 @@ void FirstRunWizard::updateLayoutLabel( QAbstractButton* btn )
     switch ( ui.layoutGroup->id( btn ) )
     {
         case MODERN:
-            ui.layoutExplainer->setText( qtr( "<i>VLC will use a modern layout with no menubar or pinned controls but with client-side decoration</i>" ) );
+            ui.layoutExplainer->setText( qtr( "<i>Heimdall will use a modern layout with no menubar or pinned controls but with client-side decoration</i>" ) );
             break;
         case CLASSIC:
-            ui.layoutExplainer->setText( qtr( "<i>VLC will use a classic layout with a menubar and pinned controls but with no client-side decoration</i>" ) );
+            ui.layoutExplainer->setText( qtr( "<i>Heimdall will use a classic layout with a menubar and pinned controls but with no client-side decoration</i>" ) );
             break;
     }
 }
@@ -312,7 +313,7 @@ void FirstRunWizard::initializePage( int id )
  * The default options are:
  * - Yes to metadata
  * - System/Auto colour scheme
- * - Modern VLC layout
+ * - Modern Heimdall layout
  */
 void FirstRunWizard::reject()
 {
@@ -348,12 +349,12 @@ void FirstRunWizard::addDefaults()
     if( mlDefaults || !mlFoldersEditor || mlFoldersEditor->rowCount() )
         return;
 
-    for( auto&& target : { VLC_VIDEOS_DIR, VLC_MUSIC_DIR } )
+    for( auto&& target : { HEIMDALL_VIDEOS_DIR, HEIMDALL_MUSIC_DIR } )
     {
-        auto folder = vlc::wrap_cptr( config_GetUserDir( target ) );
+        auto folder = heimdall::wrap_cptr( config_GetUserDir( target ) );
         if( folder == nullptr )
             continue;
-        auto folderMrl = vlc::wrap_cptr( vlc_path2uri( folder.get(), nullptr ) );
+        auto folderMrl = heimdall::wrap_cptr( heimdall_path2uri( folder.get(), nullptr ) );
         if ( !mlFoldersEditor->contains( QUrl( folderMrl.get() ) ) )
             mlFoldersEditor->add( QUrl( folderMrl.get() ) );
     }

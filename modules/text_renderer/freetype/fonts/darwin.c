@@ -2,6 +2,7 @@
  * darwin.c : Put text on the video, using freetype2
  *****************************************************************************
  * Copyright (C) 2015 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Felix Paul Kühne <fkuehne@videolan.org>
  *          Jean-Baptiste Kempf <jb@videolan.org>
@@ -30,9 +31,9 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_filter.h>                                      /* filter_sys_t */
-#include <vlc_charset.h>                                     /* FromCFString */
+#include <heimdall_common.h>
+#include <heimdall_filter.h>                                      /* filter_sys_t */
+#include <heimdall_charset.h>                                     /* FromCFString */
 
 #include <CoreFoundation/CoreFoundation.h>
 #include <CoreText/CoreText.h>
@@ -101,7 +102,7 @@ static CFIndex getFontIndexInFontFile(const char* psz_filePath, const char* psz_
     return index;
 }
 
-static void addNewFontToFamily(vlc_font_select_t *fs, CTFontDescriptorRef iter, char *path, vlc_family_t *p_family, int index)
+static void addNewFontToFamily(heimdall_font_select_t *fs, CTFontDescriptorRef iter, char *path, heimdall_family_t *p_family, int index)
 {
     int i_flags = 0;
     CFDictionaryRef fontTraits = CTFontDescriptorCopyAttribute(iter, kCTFontTraitsAttribute);
@@ -109,12 +110,12 @@ static void addNewFontToFamily(vlc_font_select_t *fs, CTFontDescriptorRef iter, 
     float traitValue = 0.;
     CFNumberGetValue(trait, kCFNumberFloatType, &traitValue);
     if( traitValue > 0.23 )
-        i_flags |= VLC_FONT_FLAG_BOLD;
+        i_flags |= HEIMDALL_FONT_FLAG_BOLD;
     trait = CFDictionaryGetValue(fontTraits, kCTFontSlantTrait);
     traitValue = 0.;
     CFNumberGetValue(trait, kCFNumberFloatType, &traitValue);
     if( traitValue > 0.03 )
-        i_flags |= VLC_FONT_FLAG_ITALIC;
+        i_flags |= HEIMDALL_FONT_FLAG_ITALIC;
 
 #ifndef NDEBUG
     CFStringRef name = CTFontDescriptorCopyAttribute(iter, kCTFontNameAttribute);
@@ -124,7 +125,7 @@ static void addNewFontToFamily(vlc_font_select_t *fs, CTFontDescriptorRef iter, 
     if(name)
         CFRelease(name);
 #else
-    VLC_UNUSED(fs);
+    HEIMDALL_UNUSED(fs);
 #endif
     NewFont(path, index, i_flags, p_family);
 
@@ -196,7 +197,7 @@ static float ScoreCTFontMatchResults(CTFontDescriptorRef desc)
 static CFComparisonResult SortCTFontMatchResults(CTFontDescriptorRef desc1,
                                                  CTFontDescriptorRef desc2, void *ctx)
 {
-    VLC_UNUSED(ctx);
+    HEIMDALL_UNUSED(ctx);
     float score1 = ScoreCTFontMatchResults(desc1);
     float score2 = ScoreCTFontMatchResults(desc2);
     if(score1 <= score2)
@@ -205,22 +206,22 @@ static CFComparisonResult SortCTFontMatchResults(CTFontDescriptorRef desc1,
         return kCFCompareGreaterThan;
 }
 
-int CoreText_GetFamily(vlc_font_select_t *fs, const char *psz_lcname,
-                       const vlc_family_t **pp_result)
+int CoreText_GetFamily(heimdall_font_select_t *fs, const char *psz_lcname,
+                       const heimdall_family_t **pp_result)
 {
-    int i_ret = VLC_EGENERIC;
+    int i_ret = HEIMDALL_EGENERIC;
 
     if (unlikely(psz_lcname == NULL)) {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     psz_lcname = CoreText_TranslateGenericFamily(psz_lcname);
 
     /* let's double check if we have parsed this family already */
-    vlc_family_t *p_family = vlc_dictionary_value_for_key(&fs->family_map, psz_lcname);
+    heimdall_family_t *p_family = heimdall_dictionary_value_for_key(&fs->family_map, psz_lcname);
     if (p_family) {
         *pp_result = p_family;
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
     CTFontCollectionRef coreTextFontCollection = NULL;
@@ -295,7 +296,7 @@ int CoreText_GetFamily(vlc_font_select_t *fs, const char *psz_lcname,
         addNewFontToFamily(fs, iter, path, p_family, fontIndex);
     }
 
-    i_ret = VLC_SUCCESS;
+    i_ret = HEIMDALL_SUCCESS;
 
 end:
     if (matchedFontDescriptions != NULL) {
@@ -317,17 +318,17 @@ end:
     return i_ret;
 }
 
-int CoreText_GetFallbacks(vlc_font_select_t *fs, const char *psz_lcname,
-                          uni_char_t codepoint, vlc_family_t **pp_result)
+int CoreText_GetFallbacks(heimdall_font_select_t *fs, const char *psz_lcname,
+                          uni_char_t codepoint, heimdall_family_t **pp_result)
 {
-    int i_ret = VLC_EGENERIC;
+    int i_ret = HEIMDALL_EGENERIC;
     if (unlikely(psz_lcname == NULL)) {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     psz_lcname = CoreText_TranslateGenericFamily(psz_lcname);
 
-    vlc_family_t *p_family = NULL;
+    heimdall_family_t *p_family = NULL;
     CFStringRef postScriptFallbackFontname = NULL;
     CTFontDescriptorRef fallbackFontDescriptor = NULL;
     char *psz_lc_fallback = NULL;
@@ -358,9 +359,9 @@ int CoreText_GetFallbacks(vlc_font_select_t *fs, const char *psz_lcname,
 
     psz_lc_fallback = LowercaseDup(psz_fallbackFamilyName);
 
-    p_family = vlc_dictionary_value_for_key(&fs->family_map, psz_lc_fallback);
+    p_family = heimdall_dictionary_value_for_key(&fs->family_map, psz_lc_fallback);
     if (p_family) {
-        i_ret = VLC_SUCCESS;
+        i_ret = HEIMDALL_SUCCESS;
         goto done;
     }
 
@@ -375,7 +376,7 @@ int CoreText_GetFallbacks(vlc_font_select_t *fs, const char *psz_lcname,
 
     /* check if the path is empty, which can happen in rare circumstances */
     if (psz_fontPath == NULL || *psz_fontPath == '\0') {
-        i_ret = VLC_SUCCESS;
+        i_ret = HEIMDALL_SUCCESS;
         goto done;
     }
 
@@ -387,7 +388,7 @@ int CoreText_GetFallbacks(vlc_font_select_t *fs, const char *psz_lcname,
 
     addNewFontToFamily(fs, fallbackFontDescriptor, strdup(psz_fontPath), p_family, fontIndex);
 
-    i_ret = VLC_SUCCESS;
+    i_ret = HEIMDALL_SUCCESS;
 
 done:
     CFRelease(familyName);

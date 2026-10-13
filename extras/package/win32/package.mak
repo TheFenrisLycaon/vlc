@@ -1,6 +1,6 @@
 if HAVE_WIN32
 BUILT_SOURCES_distclean += \
-	extras/package/win32/NSIS/vlc.win32.nsi extras/package/win32/NSIS/spad.nsi
+	extras/package/win32/NSIS/heimdall.win32.nsi extras/package/win32/NSIS/spad.nsi
 endif
 
 win32_destdir=@PACKAGE_DIR@
@@ -16,22 +16,22 @@ build-npapi: package-win-install
 endif
 
 if HAVE_ARM64
-WINVERSION=vlc-$(VERSION)-winarm64
+WINVERSION=heimdall-$(VERSION)-winarm64
 else
 if HAVE_WIN64
-WINVERSION=vlc-$(VERSION)-win64
+WINVERSION=heimdall-$(VERSION)-win64
 else
-WINVERSION=vlc-$(VERSION)-win32
+WINVERSION=heimdall-$(VERSION)-win32
 endif
 endif
 
 package-win-install:
 	$(MAKE) install
-	cp '$(DESTDIR)$(libdir)/libvlc.dll.a' '$(DESTDIR)$(libdir)/libvlc.lib'
-	cp '$(DESTDIR)$(libdir)/libvlccore.dll.a' '$(DESTDIR)$(libdir)/libvlccore.lib'
+	cp '$(DESTDIR)$(libdir)/libheimdall.dll.a' '$(DESTDIR)$(libdir)/libheimdall.lib'
+	cp '$(DESTDIR)$(libdir)/libheimdallcore.dll.a' '$(DESTDIR)$(libdir)/libheimdallcore.lib'
 if ENABLE_PDB
-	cp lib/.libs/libvlc.pdb '$(DESTDIR)$(bindir)'
-	cp src/.libs/libvlccore.pdb '$(DESTDIR)$(bindir)'
+	cp lib/.libs/libheimdall.pdb '$(DESTDIR)$(bindir)'
+	cp src/.libs/libheimdallcore.pdb '$(DESTDIR)$(bindir)'
 	find '$(DESTDIR)$(pkglibdir)/plugins' -name "*.dll" -exec sh -c "echo {} | sed -e 's@$(DESTDIR)$(pkglibdir)/plugins/\(.*\)/\(.*\).dll@modules/.libs/\2.pdb $(DESTDIR)$(pkglibdir)/plugins/\1@' | xargs -t cp " \;
 if ENABLE_QT
 	find modules/gui/qt/.libs/ -name "*.pdb" -exec cp {} '$(DESTDIR)$(pkglibdir)/plugins/gui/' \;
@@ -43,10 +43,10 @@ package-win-sdk: package-win-install
 	mkdir -p "$(win32_destdir)/sdk/lib/"
 	cp -r $(prefix)/include "$(win32_destdir)/sdk"
 	cp -r $(prefix)/lib/pkgconfig "$(win32_destdir)/sdk/lib"
-	$(DLLTOOL) -D libvlc.dll -l "$(win32_destdir)/sdk/lib/libvlc.lib" -d "$(top_builddir)/lib/.libs/libvlc.dll.def"
-	cp -rv "$(win32_destdir)/sdk/lib/libvlc.lib" "$(win32_destdir)/sdk/lib/libvlc.dll.a"
-	$(DLLTOOL) -D libvlccore.dll -l "$(win32_destdir)/sdk/lib/libvlccore.lib" -d "$(top_builddir)/src/.libs/libvlccore.dll.def"
-	cp -rv "$(win32_destdir)/sdk/lib/libvlccore.lib" "$(win32_destdir)/sdk/lib/libvlccore.dll.a"
+	$(DLLTOOL) -D libheimdall.dll -l "$(win32_destdir)/sdk/lib/libheimdall.lib" -d "$(top_builddir)/lib/.libs/libheimdall.dll.def"
+	cp -rv "$(win32_destdir)/sdk/lib/libheimdall.lib" "$(win32_destdir)/sdk/lib/libheimdall.dll.a"
+	$(DLLTOOL) -D libheimdallcore.dll -l "$(win32_destdir)/sdk/lib/libheimdallcore.lib" -d "$(top_builddir)/src/.libs/libheimdallcore.dll.def"
+	cp -rv "$(win32_destdir)/sdk/lib/libheimdallcore.lib" "$(win32_destdir)/sdk/lib/libheimdallcore.dll.a"
 
 package-win-common: package-win-install package-win-sdk
 # Executables, major libs
@@ -66,7 +66,7 @@ endif
 	done
 	cp "$(srcdir)/README.md" "$(win32_destdir)/README.txt"
 
-	cp $(srcdir)/share/icons/vlc.ico $(win32_destdir)
+	cp $(srcdir)/share/icons/heimdall.ico $(win32_destdir)
 	for plugindir in $(pkglibdir)/plugins/*/; do \
 		plugin_destdir="$(win32_destdir)/plugins/`basename $$plugindir`"; \
 		mkdir -p "$$plugin_destdir"; \
@@ -103,9 +103,9 @@ endif
 	find $(win32_destdir) -type f \( -name "*xml" -or -name "*html" -or -name '*js' -or -name '*css' -or -name '*hosts' -or -iname '*txt' -or -name '*.cfg' -or -name '*.lua' \) -exec $(U2D) -q {} \;
 
 package-win-activex: build-npapi
-	cp "$(top_builddir)/npapi-vlc/installed/lib/axvlc.dll" "$(win32_destdir)/"
+	cp "$(top_builddir)/npapi-heimdall/installed/lib/axheimdall.dll" "$(win32_destdir)/"
 	mkdir -p "$(win32_destdir)/sdk/activex/"
-	cp $(top_builddir)/npapi-vlc/activex/README.TXT $(top_builddir)/npapi-vlc/share/test/test.html $(win32_destdir)/sdk/activex/
+	cp $(top_builddir)/npapi-heimdall/activex/README.TXT $(top_builddir)/npapi-heimdall/share/test/test.html $(win32_destdir)/sdk/activex/
 
 package-win-strip: package-win-common
 	mkdir -p "$(win32_debugdir)"/
@@ -138,19 +138,19 @@ package-win32-src: package-win-strip
 if HAVE_MAKENSIS
 # Script installer
 	mkdir -p "$(win32_destdir)/NSIS/"
-	cp    $(top_builddir)/extras/package/win32/NSIS/vlc.win32.nsi "$(win32_destdir)/"
+	cp    $(top_builddir)/extras/package/win32/NSIS/heimdall.win32.nsi "$(win32_destdir)/"
 	cp    $(top_builddir)/extras/package/win32/NSIS/spad.nsi      "$(win32_destdir)/"
 	cp -r $(srcdir)/extras/package/win32/NSIS/languages           "$(win32_destdir)/"
 	cp -r $(srcdir)/extras/package/win32/NSIS/helpers             "$(win32_destdir)/"
 	cp "$(top_srcdir)/extras/package/win32/NSIS/nsProcess.nsh" "$(win32_destdir)/NSIS/"
-	cp "$(top_srcdir)/extras/package/win32/NSIS/vlc_branding.bmp" "$(win32_destdir)/NSIS/"
+	cp "$(top_srcdir)/extras/package/win32/NSIS/heimdall_branding.bmp" "$(win32_destdir)/NSIS/"
 endif
 
 if HAVE_MAKENSIS
-package-win32-exe: package-win32-src $(win32_destdir)/NSIS/nsProcess.dll extras/package/win32/NSIS/vlc.win32.nsi
+package-win32-exe: package-win32-src $(win32_destdir)/NSIS/nsProcess.dll extras/package/win32/NSIS/heimdall.win32.nsi
 # Create package
 	$(MAKENSIS) "$(win32_destdir)/spad.nsi"
-	$(MAKENSIS) "$(win32_destdir)/vlc.win32.nsi"
+	$(MAKENSIS) "$(win32_destdir)/heimdall.win32.nsi"
 else
 package-win32-exe:
 	@echo "makensis require to build NSIS installer not found or too old"; exit 1;
@@ -158,17 +158,17 @@ endif
 
 package-win32-zip: package-win-strip
 	rm -f -- $(WINVERSION).zip
-	zip -r -9 $(WINVERSION).zip vlc-$(VERSION) --exclude \*.nsi \*NSIS\* \*languages\* \*sdk\* \*helpers\* spad\*
+	zip -r -9 $(WINVERSION).zip heimdall-$(VERSION) --exclude \*.nsi \*NSIS\* \*languages\* \*sdk\* \*helpers\* spad\*
 
 package-win32-debug-zip: package-win-common
 	rm -f -- $(WINVERSION)-debug.zip
-	zip -r -9 $(WINVERSION)-debug.zip vlc-$(VERSION)
+	zip -r -9 $(WINVERSION)-debug.zip heimdall-$(VERSION)
 
 package-win32-7zip: package-win-strip
-	$(SEVENZIP) a $(7ZIP_OPTS) $(WINVERSION).7z vlc-$(VERSION)
+	$(SEVENZIP) a $(7ZIP_OPTS) $(WINVERSION).7z heimdall-$(VERSION)
 
 package-win32-debug-7zip: package-win-common
-	$(SEVENZIP) a $(7ZIP_OPTS) $(WINVERSION)-debug.7z vlc-$(VERSION)
+	$(SEVENZIP) a $(7ZIP_OPTS) $(WINVERSION)-debug.7z heimdall-$(VERSION)
 
 package-win32-cleanup:
 	rm -Rf $(win32_destdir) $(win32_debugdir)
@@ -190,13 +190,13 @@ package-win32-release: package-win32-src $(win32_destdir)/NSIS/nsProcess.dll pac
 .PHONY: package-win-install package-win-common package-win-strip package-win32-src package-win32-exe package-win32-zip package-win32-debug-zip package-win32-7zip package-win32-debug-7zip package-win32-cleanup package-win32 package-win32-debug
 
 EXTRA_DIST += \
-	extras/package/win32/vlc.exe.manifest \
-	extras/package/win32/libvlc.dll.manifest \
-	extras/package/win32/libvlccore.dll.manifest \
+	extras/package/win32/heimdall.exe.manifest \
+	extras/package/win32/libheimdall.dll.manifest \
+	extras/package/win32/libheimdallcore.dll.manifest \
 	extras/package/win32/configure.sh \
-	extras/package/win32/NSIS/vlc.win32.nsi.in \
+	extras/package/win32/NSIS/heimdall.win32.nsi.in \
 	extras/package/win32/NSIS/spad.nsi.in \
-	extras/package/win32/NSIS/vlc_branding.bmp \
+	extras/package/win32/NSIS/heimdall_branding.bmp \
 	extras/package/win32/NSIS/languages/BengaliExtra.nsh \
 	extras/package/win32/NSIS/languages/BasqueExtra.nsh \
 	extras/package/win32/NSIS/languages/PortugueseBRExtra.nsh \

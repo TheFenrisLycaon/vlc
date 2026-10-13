@@ -1,7 +1,8 @@
 /*****************************************************************************
- * audiobargraph_v.c : audiobargraph video plugin for vlc
+ * audiobargraph_v.c : audiobargraph video plugin for heimdall
  *****************************************************************************
  * Copyright (C) 2003-2006 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Clement CHESNIN <clement.chesnin@gmail.com>
  *          Philippe COENT <philippe.coent@tdf.fr>
@@ -33,12 +34,12 @@
 
 #include "common.h"
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_subpicture.h>
-#include <vlc_image.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_subpicture.h>
+#include <heimdall_image.h>
 
 /*****************************************************************************
  * Module descriptor
@@ -55,7 +56,7 @@ static int  OpenSub  (filter_t *);
 static int  OpenVideo(filter_t *);
 static void Close    (filter_t *);
 
-vlc_module_begin ()
+heimdall_module_begin ()
 
     set_subcategory(SUBCAT_VIDEO_SUBPIC)
 
@@ -79,7 +80,7 @@ vlc_module_begin ()
     set_callback_video_filter(OpenVideo)
     set_description(N_("Audio Bar Graph Video sub source"))
     add_shortcut("audiobargraph_v")
-vlc_module_end ()
+heimdall_module_end ()
 
 
 /*****************************************************************************
@@ -95,7 +96,7 @@ typedef struct
     int nbChannels;
     int *i_values;
     picture_t *p_pic;
-    vlc_tick_t date;
+    heimdall_tick_t date;
     int scale;
     bool use_alarm_indicator;
     int barWidth;
@@ -107,9 +108,9 @@ typedef struct
  */
 typedef struct
 {
-    vlc_blender_t *p_blend;
+    heimdall_blender_t *p_blend;
 
-    vlc_mutex_t lock;
+    heimdall_mutex_t lock;
 
     BarGraph_t p_BarGraph;
 
@@ -174,7 +175,7 @@ static void parse_i_values(BarGraph_t *p_BarGraph, char *i_values)
         p_BarGraph->i_values = xrealloc(p_BarGraph->i_values,
                                           p_BarGraph->nbChannels*sizeof(int));
         float db = log10(atof(res)) * 20;
-        p_BarGraph->i_values[p_BarGraph->nbChannels-1] = VLC_CLIP(iec_scale(db)*p_BarGraph->scale, 0, p_BarGraph->scale);
+        p_BarGraph->i_values[p_BarGraph->nbChannels-1] = HEIMDALL_CLIP(iec_scale(db)*p_BarGraph->scale, 0, p_BarGraph->scale);
         res = strtok_r(NULL, delim, &tok);
     }
 }
@@ -239,7 +240,7 @@ static void Draw(BarGraph_t *b)
 
     if (b->p_pic)
         picture_Release(b->p_pic);
-    b->p_pic = picture_New(VLC_CODEC_YUVA, w, h, 1, 1);
+    b->p_pic = picture_New(HEIMDALL_CODEC_YUVA, w, h, 1, 1);
     if (!b->p_pic)
         return;
     picture_t *p_pic = b->p_pic;
@@ -299,14 +300,14 @@ static void Draw(BarGraph_t *b)
 /*****************************************************************************
  * Callback to update params on the fly
  *****************************************************************************/
-static int BarGraphCallback(vlc_object_t *p_this, char const *psz_var,
-                         vlc_value_t oldval, vlc_value_t newval, void *p_data)
+static int BarGraphCallback(heimdall_object_t *p_this, char const *psz_var,
+                         heimdall_value_t oldval, heimdall_value_t newval, void *p_data)
 {
-    VLC_UNUSED(p_this); VLC_UNUSED(oldval);
+    HEIMDALL_UNUSED(p_this); HEIMDALL_UNUSED(oldval);
     filter_sys_t *p_sys = p_data;
     BarGraph_t *p_BarGraph = &p_sys->p_BarGraph;
 
-    vlc_mutex_lock(&p_sys->lock);
+    heimdall_mutex_lock(&p_sys->lock);
     if (!strcmp(psz_var, CFG_PREFIX "x"))
         p_sys->i_pos_x = newval.i_int;
     else if (!strcmp(psz_var, CFG_PREFIX "y"))
@@ -314,7 +315,7 @@ static int BarGraphCallback(vlc_object_t *p_this, char const *psz_var,
     else if (!strcmp(psz_var, CFG_PREFIX "position"))
         p_sys->i_pos = newval.i_int;
     else if (!strcmp(psz_var, CFG_PREFIX "opacity"))
-        p_BarGraph->i_alpha = VLC_CLIP(newval.i_int, 0, 255);
+        p_BarGraph->i_alpha = HEIMDALL_CLIP(newval.i_int, 0, 255);
     else if (!strcmp(psz_var, CFG_PREFIX "i_values")) {
         if (newval.psz_string)
             parse_i_values(p_BarGraph, newval.psz_string);
@@ -330,15 +331,15 @@ static int BarGraphCallback(vlc_object_t *p_this, char const *psz_var,
         Draw(p_BarGraph);
     }
     p_sys->b_spu_update = true;
-    vlc_mutex_unlock(&p_sys->lock);
+    heimdall_mutex_unlock(&p_sys->lock);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /**
  * Sub source
  */
-static subpicture_t *FilterSub(filter_t *p_filter, vlc_tick_t date)
+static subpicture_t *FilterSub(filter_t *p_filter, heimdall_tick_t date)
 {
     filter_sys_t *p_sys = p_filter->p_sys;
     BarGraph_t *p_BarGraph = &(p_sys->p_BarGraph);
@@ -348,10 +349,10 @@ static subpicture_t *FilterSub(filter_t *p_filter, vlc_tick_t date)
     video_format_t fmt;
     picture_t *p_pic;
 
-    vlc_mutex_lock(&p_sys->lock);
+    heimdall_mutex_lock(&p_sys->lock);
     /* Basic test:  b_spu_update occurs on a dynamic change */
     if (!p_sys->b_spu_update) {
-        vlc_mutex_unlock(&p_sys->lock);
+        heimdall_mutex_unlock(&p_sys->lock);
         return NULL;
     }
 
@@ -363,7 +364,7 @@ static subpicture_t *FilterSub(filter_t *p_filter, vlc_tick_t date)
         goto exit;
 
     p_spu->i_start = date;
-    p_spu->i_stop = VLC_TICK_INVALID;
+    p_spu->i_stop = HEIMDALL_TICK_INVALID;
     p_spu->b_ephemer = true;
 
     /* Send an empty subpicture to clear the display when needed */
@@ -371,7 +372,7 @@ static subpicture_t *FilterSub(filter_t *p_filter, vlc_tick_t date)
         goto exit;
 
     /* Create new SPU region */
-    video_format_Init(&fmt, VLC_CODEC_YUVA);
+    video_format_Init(&fmt, HEIMDALL_CODEC_YUVA);
     fmt.i_sar_num = fmt.i_sar_den = 1;
     fmt.i_width = fmt.i_visible_width = p_pic->p[Y_PLANE].i_visible_pitch;
     fmt.i_height = fmt.i_visible_height = p_pic->p[Y_PLANE].i_visible_lines;
@@ -399,12 +400,12 @@ static subpicture_t *FilterSub(filter_t *p_filter, vlc_tick_t date)
     p_region->i_x = p_sys->i_pos_x > 0 ? p_sys->i_pos_x : 0;
     p_region->i_y = p_sys->i_pos_y > 0 ? p_sys->i_pos_y : 0;
 
-    vlc_spu_regions_push(&p_spu->regions, p_region);
+    heimdall_spu_regions_push(&p_spu->regions, p_region);
 
     p_spu->i_alpha = p_BarGraph->i_alpha ;
 
 exit:
-    vlc_mutex_unlock(&p_sys->lock);
+    heimdall_mutex_unlock(&p_sys->lock);
 
     return p_spu;
 }
@@ -426,7 +427,7 @@ static picture_t *FilterVideo(filter_t *p_filter, picture_t *p_src)
     picture_Copy(p_dst, p_src);
 
     /* */
-    vlc_mutex_lock(&p_sys->lock);
+    heimdall_mutex_lock(&p_sys->lock);
 
     /* */
     const picture_t *p_pic = p_BarGraph->p_pic;
@@ -471,17 +472,17 @@ static picture_t *FilterVideo(filter_t *p_filter, picture_t *p_src)
         msg_Err(p_filter, "failed to blend a picture");
 
 out:
-    vlc_mutex_unlock(&p_sys->lock);
+    heimdall_mutex_unlock(&p_sys->lock);
 
     picture_Release(p_src);
     return p_dst;
 }
 
-static const struct vlc_filter_operations filter_sub_ops = {
+static const struct heimdall_filter_operations filter_sub_ops = {
     .source_sub = FilterSub, .close = Close
 };
 
-static const struct vlc_filter_operations filter_video_ops = {
+static const struct heimdall_filter_operations filter_video_ops = {
     .filter_video = FilterVideo, .close = Close,
 };
 
@@ -495,23 +496,23 @@ static int OpenCommon(filter_t *p_filter, bool b_sub)
     /* */
     if (!b_sub && !es_format_IsSimilar(&p_filter->fmt_in, &p_filter->fmt_out)) {
         msg_Err(p_filter, "Input and output format does not match");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
 
     /* */
     p_filter->p_sys = p_sys = malloc(sizeof(*p_sys));
     if (!p_sys)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     /* */
     p_sys->p_blend = NULL;
     if (!b_sub) {
-        p_sys->p_blend = filter_NewBlend(VLC_OBJECT(p_filter),
+        p_sys->p_blend = filter_NewBlend(HEIMDALL_OBJECT(p_filter),
                                           &p_filter->fmt_in.video);
         if (!p_sys->p_blend) {
             free(p_sys);
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
 
@@ -526,7 +527,7 @@ static int OpenCommon(filter_t *p_filter, bool b_sub)
     BarGraph_t *p_BarGraph = &p_sys->p_BarGraph;
     p_BarGraph->p_pic = NULL;
     p_BarGraph->i_alpha = var_CreateGetInteger(p_filter, CFG_PREFIX "opacity");
-    p_BarGraph->i_alpha = VLC_CLIP(p_BarGraph->i_alpha, 0, 255);
+    p_BarGraph->i_alpha = HEIMDALL_CLIP(p_BarGraph->i_alpha, 0, 255);
     p_BarGraph->i_values = NULL;
     parse_i_values(p_BarGraph, &(char){ 0 });
     p_BarGraph->use_alarm_indicator = false;
@@ -538,17 +539,17 @@ static int OpenCommon(filter_t *p_filter, bool b_sub)
     if (!b_sub && p_sys->i_pos_x >= 0 && p_sys->i_pos_y >= 0)
         p_sys->i_pos = -1;
 
-    vlc_object_t *vlc = VLC_OBJECT(vlc_object_instance(p_filter));
+    heimdall_object_t *heimdall = HEIMDALL_OBJECT(heimdall_object_instance(p_filter));
 
-    vlc_mutex_init(&p_sys->lock);
-    var_Create(vlc, CFG_PREFIX "alarm", VLC_VAR_BOOL);
-    var_Create(vlc, CFG_PREFIX "i_values", VLC_VAR_STRING);
+    heimdall_mutex_init(&p_sys->lock);
+    var_Create(heimdall, CFG_PREFIX "alarm", HEIMDALL_VAR_BOOL);
+    var_Create(heimdall, CFG_PREFIX "i_values", HEIMDALL_VAR_STRING);
 
-    var_AddCallback(vlc, CFG_PREFIX "alarm", BarGraphCallback, p_sys);
-    var_AddCallback(vlc, CFG_PREFIX "i_values", BarGraphCallback, p_sys);
+    var_AddCallback(heimdall, CFG_PREFIX "alarm", BarGraphCallback, p_sys);
+    var_AddCallback(heimdall, CFG_PREFIX "i_values", BarGraphCallback, p_sys);
 
-    var_TriggerCallback(vlc, CFG_PREFIX "alarm");
-    var_TriggerCallback(vlc, CFG_PREFIX "i_values");
+    var_TriggerCallback(heimdall, CFG_PREFIX "alarm");
+    var_TriggerCallback(heimdall, CFG_PREFIX "i_values");
 
     for (int i = 0; ppsz_filter_callbacks[i]; i++)
         var_AddCallback(p_filter, ppsz_filter_callbacks[i],
@@ -559,7 +560,7 @@ static int OpenCommon(filter_t *p_filter, bool b_sub)
     else
         p_filter->ops = &filter_video_ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /**
@@ -584,16 +585,16 @@ static int OpenVideo(filter_t *p_filter)
 static void Close(filter_t *p_filter)
 {
     filter_sys_t *p_sys = p_filter->p_sys;
-    vlc_object_t *vlc = VLC_OBJECT(vlc_object_instance(p_filter));
+    heimdall_object_t *heimdall = HEIMDALL_OBJECT(heimdall_object_instance(p_filter));
 
     for (int i = 0; ppsz_filter_callbacks[i]; i++)
         var_DelCallback(p_filter, ppsz_filter_callbacks[i],
                          BarGraphCallback, p_sys);
 
-    var_DelCallback(vlc, CFG_PREFIX "i_values", BarGraphCallback, p_sys);
-    var_DelCallback(vlc, CFG_PREFIX "alarm", BarGraphCallback, p_sys);
-    var_Destroy(vlc, CFG_PREFIX "i_values");
-    var_Destroy(vlc, CFG_PREFIX "alarm");
+    var_DelCallback(heimdall, CFG_PREFIX "i_values", BarGraphCallback, p_sys);
+    var_DelCallback(heimdall, CFG_PREFIX "alarm", BarGraphCallback, p_sys);
+    var_Destroy(heimdall, CFG_PREFIX "i_values");
+    var_Destroy(heimdall, CFG_PREFIX "alarm");
 
     if (p_sys->p_blend)
         filter_DeleteBlend(p_sys->p_blend);

@@ -1,7 +1,8 @@
 /*****************************************************************************
- * amem.c : virtual LibVLC audio output plugin
+ * amem.c : virtual LibHeimdall audio output plugin
  *****************************************************************************
  * Copyright (C) 2011 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,13 +23,13 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_aout.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_aout.h>
 #include <assert.h>
 
-static int Open (vlc_object_t *);
-static void Close (vlc_object_t *);
+static int Open (heimdall_object_t *);
+static void Close (heimdall_object_t *);
 
 #define AMEM_SAMPLE_RATE_MAX 384000
 #define AMEM_CHAN_MAX 8
@@ -41,13 +42,13 @@ static const char* const format_list[AMEM_NB_FORMATS] = {
     "FL32",
 };
 
-static const vlc_fourcc_t format_list_fourcc[AMEM_NB_FORMATS] = {
-    VLC_CODEC_S16N,
-    VLC_CODEC_S32N,
-    VLC_CODEC_FL32,
+static const heimdall_fourcc_t format_list_fourcc[AMEM_NB_FORMATS] = {
+    HEIMDALL_CODEC_S16N,
+    HEIMDALL_CODEC_S32N,
+    HEIMDALL_CODEC_FL32,
 };
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname (N_("Audio memory"))
     set_description (N_("Audio memory output"))
     set_capability ("audio output", 0)
@@ -67,7 +68,7 @@ vlc_module_begin ()
         change_integer_range (1, AMEM_CHAN_MAX)
         change_private()
 
-vlc_module_end ()
+heimdall_module_end ()
 
 typedef struct
 {
@@ -95,29 +96,29 @@ typedef struct
     float volume;
     bool mute;
     bool ready;
-    vlc_mutex_t lock;
+    heimdall_mutex_t lock;
 } aout_sys_t;
 
-static void Play(audio_output_t *aout, block_t *block, vlc_tick_t date)
+static void Play(audio_output_t *aout, block_t *block, heimdall_tick_t date)
 {
     aout_sys_t *sys = aout->sys;
 
-    vlc_mutex_lock(&sys->lock);
-    sys->play(sys->opaque, block->p_buffer, block->i_nb_samples, US_FROM_VLC_TICK(date));
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
+    sys->play(sys->opaque, block->p_buffer, block->i_nb_samples, US_FROM_HEIMDALL_TICK(date));
+    heimdall_mutex_unlock(&sys->lock);
     block_Release (block);
 }
 
-static void Pause (audio_output_t *aout, bool paused, vlc_tick_t date)
+static void Pause (audio_output_t *aout, bool paused, heimdall_tick_t date)
 {
     aout_sys_t *sys = aout->sys;
     void (*cb) (void *, int64_t) = paused ? sys->pause : sys->resume;
 
     if (cb != NULL)
     {
-        vlc_mutex_lock(&sys->lock);
+        heimdall_mutex_lock(&sys->lock);
         cb (sys->opaque, date);
-        vlc_mutex_unlock(&sys->lock);
+        heimdall_mutex_unlock(&sys->lock);
     }
 }
 
@@ -127,9 +128,9 @@ static void Flush (audio_output_t *aout)
 
     if (sys->flush != NULL)
     {
-        vlc_mutex_lock(&sys->lock);
+        heimdall_mutex_lock(&sys->lock);
         sys->flush (sys->opaque);
-        vlc_mutex_unlock(&sys->lock);
+        heimdall_mutex_unlock(&sys->lock);
     }
 }
 
@@ -137,9 +138,9 @@ static void Drain (audio_output_t *aout)
 {
     aout_sys_t *sys = aout->sys;
 
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     sys->drain (sys->opaque);
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
 
     aout_DrainedReport (aout);
 }
@@ -151,12 +152,12 @@ static int VolumeSet (audio_output_t *aout, float vol)
 
     sys->volume = vol;
 
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     if (sys->ready)
         val = sys->set_volume(sys->opaque, vol, sys->mute);
     else
         val = 0; /* sys->opaque is not yet defined... */
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
 
     return val ? -1 : 0;
 }
@@ -168,12 +169,12 @@ static int MuteSet (audio_output_t *aout, bool mute)
 
     sys->mute = mute;
 
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     if (sys->ready)
         val = sys->set_volume(sys->opaque, sys->volume, mute);
     else
         val = 0; /* sys->opaque is not yet defined... */
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
 
     return val ? -1 : 0;
 }
@@ -203,14 +204,14 @@ static void Stop (audio_output_t *aout)
 {
     aout_sys_t *sys = aout->sys;
 
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     if (sys->flush != NULL)
         sys->flush (sys->opaque);
     if (sys->cleanup != NULL)
         sys->cleanup (sys->opaque);
 
     sys->ready = false;
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
 }
 
 static int Start (audio_output_t *aout, audio_sample_format_t * restrict fmt)
@@ -221,9 +222,9 @@ static int Start (audio_output_t *aout, audio_sample_format_t * restrict fmt)
     int i_idx;
 
     if (aout_FormatNbChannels(fmt) == 0)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     if (sys->setup != NULL)
     {
         channels = aout_FormatNbChannels(fmt);
@@ -231,8 +232,8 @@ static int Start (audio_output_t *aout, audio_sample_format_t * restrict fmt)
         sys->opaque = sys->setup_opaque;
         if (sys->setup (&sys->opaque, format, &fmt->i_rate, &channels))
         {
-            vlc_mutex_unlock(&sys->lock);
-            return VLC_EGENERIC;
+            heimdall_mutex_unlock(&sys->lock);
+            return HEIMDALL_EGENERIC;
         }
     }
     else
@@ -242,8 +243,8 @@ static int Start (audio_output_t *aout, audio_sample_format_t * restrict fmt)
         psz_format = var_InheritString (aout, "amem-format");
         if (psz_format == NULL)
         {
-            vlc_mutex_unlock(&sys->lock);
-            return VLC_ENOMEM;
+            heimdall_mutex_unlock(&sys->lock);
+            return HEIMDALL_ENOMEM;
         }
 
         if (strlen(psz_format) != 4) /* fourcc string length */
@@ -251,9 +252,9 @@ static int Start (audio_output_t *aout, audio_sample_format_t * restrict fmt)
             msg_Err (aout, "Invalid paramameter for amem-format: '%s'",
                      psz_format);
             free(psz_format);
-            vlc_mutex_unlock(&sys->lock);
+            heimdall_mutex_unlock(&sys->lock);
 
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         strcpy(format, psz_format);
@@ -266,7 +267,7 @@ static int Start (audio_output_t *aout, audio_sample_format_t * restrict fmt)
     sys->ready = true;
     if (sys->set_volume != NULL)
         sys->set_volume(sys->opaque, sys->volume, sys->mute);
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
 
     /* amem-format: string to fourcc */
     for (i_idx = 0; i_idx < AMEM_NB_FORMATS; i_idx++)
@@ -289,7 +290,7 @@ static int Start (audio_output_t *aout, audio_sample_format_t * restrict fmt)
         msg_Err (aout, "format not supported: %s, %u channel(s), %u Hz",
                  format, channels, fmt->i_rate);
         Stop (aout);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* channel mapping */
@@ -323,19 +324,19 @@ static int Start (audio_output_t *aout, audio_sample_format_t * restrict fmt)
             fmt->i_physical_channels = AOUT_CHANS_7_1;
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 
     fmt->channel_type = AUDIO_CHANNEL_TYPE_BITMAP;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int Open (vlc_object_t *obj)
+static int Open (heimdall_object_t *obj)
 {
     audio_output_t *aout = (audio_output_t *)obj;
     aout_sys_t *sys = malloc (sizeof (*sys));
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     void *opaque = var_InheritAddress (obj, "amem-data");
     sys->setup = var_InheritAddress (obj, "amem-setup");
@@ -361,12 +362,12 @@ static int Open (vlc_object_t *obj)
     sys->volume = 1.;
     sys->mute = false;
     sys->ready = false;
-    vlc_mutex_init(&sys->lock);
+    heimdall_mutex_init(&sys->lock);
 
     if (sys->play == NULL)
     {
         free (sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     aout->sys = sys;
@@ -386,10 +387,10 @@ static int Open (vlc_object_t *obj)
         aout->volume_set = SoftVolumeSet;
         aout->mute_set = SoftMuteSet;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void Close (vlc_object_t *obj)
+static void Close (heimdall_object_t *obj)
 {
     audio_output_t *aout = (audio_output_t *)obj;
     aout_sys_t *sys = aout->sys;

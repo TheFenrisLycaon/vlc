@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,10 +22,10 @@ import QtQuick.Templates as T
 import QtQuick.Layouts
 
 
-import VLC.MainInterface
-import VLC.Widgets as Widgets
-import VLC.Style
-import VLC.Util
+import Heimdall.MainInterface
+import Heimdall.Widgets as Widgets
+import Heimdall.Style
+import Heimdall.Util
 
 T.TabButton {
     id: control
@@ -40,15 +41,15 @@ T.TabButton {
 
     // Settings
 
-    width: control.showText ? VLCStyle.bannerTabButton_width_large
-                            : VLCStyle.icon_banner
+    width: control.showText ? HeimdallStyle.bannerTabButton_width_large
+                            : HeimdallStyle.icon_banner
 
     implicitWidth: Math.max(implicitBackgroundWidth + leftInset + rightInset,
                             implicitContentWidth + leftPadding + rightPadding)
     implicitHeight: Math.max(implicitBackgroundHeight + topInset + bottomInset,
                              implicitContentHeight + topPadding + bottomPadding)
 
-    padding: VLCStyle.margin_xxsmall
+    padding: HeimdallStyle.margin_xxsmall
 
     text: model.displayText
 
@@ -66,7 +67,7 @@ T.TabButton {
 
     T.ToolTip.visible: (showText === false && T.ToolTip.text && (hovered || visualFocus))
 
-    T.ToolTip.delay: VLCStyle.delayToolTipAppear
+    T.ToolTip.delay: HeimdallStyle.delayToolTipAppear
 
     T.ToolTip.text: text
 
@@ -85,7 +86,7 @@ T.TabButton {
     background: Widgets.AnimatedBackground {
         enabled: theme.initialized
 
-        animationDuration: VLCStyle.duration_short
+        animationDuration: HeimdallStyle.duration_short
 
         color: theme.bg.primary
         border.color: visualFocus ? theme.visualFocus : Qt.alpha(theme.visualFocus, 0.0)
@@ -93,7 +94,7 @@ T.TabButton {
         Widgets.CurrentIndicator {
             anchors {
                 bottom: parent.bottom
-                bottomMargin: VLCStyle.margin_xxxsmall
+                bottomMargin: HeimdallStyle.margin_xxxsmall
                 horizontalCenter: parent.horizontalCenter
             }
 
@@ -124,7 +125,7 @@ T.TabButton {
                     ? theme.accent
                     : theme.fg.primary
 
-            font.pixelSize: VLCStyle.icon_banner
+            font.pixelSize: HeimdallStyle.icon_banner
 
             Layout.fillWidth: !label.visible
             Layout.fillHeight: true
@@ -143,7 +144,7 @@ T.TabButton {
 
             elide: Text.ElideRight
 
-            font.pixelSize: VLCStyle.fontSize_normal
+            font.pixelSize: HeimdallStyle.fontSize_normal
 
             font.weight: (control.activeFocus ||
                           control.hovered     ||
@@ -156,13 +157,13 @@ T.TabButton {
             Layout.fillWidth: true
             Layout.fillHeight: true
             Layout.maximumWidth: implicitWidth + 1
-            Layout.leftMargin: iconLabel.visible ? VLCStyle.margin_xsmall : 0
+            Layout.leftMargin: iconLabel.visible ? HeimdallStyle.margin_xsmall : 0
 
             DelayedBehavior on color {
                 delayedEnabled: theme.initialized
 
                 ColorAnimation {
-                    duration: VLCStyle.duration_short
+                    duration: HeimdallStyle.duration_short
                 }
             }
         }

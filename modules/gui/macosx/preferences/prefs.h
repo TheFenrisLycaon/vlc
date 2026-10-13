@@ -1,10 +1,11 @@
 /*****************************************************************************
- * prefs.h: MacOS X module for vlc
+ * prefs.h: MacOS X module for heimdall
  *****************************************************************************
  * Copyright (C) 2002-2015 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Jon Lech Johansen <jon-vl@nanocrew.net>
- *          Felix Paul Kühne <fkuehne at videolan dot org>
+ *          Felix Paul Kühne <fkuehne at lycaria dot org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,12 +24,12 @@
 
 #import <Cocoa/Cocoa.h>
 
-@class VLCTreeMainItem;
+@class HeimdallTreeMainItem;
 
 /*****************************************************************************
- * VLCPrefs interface
+ * HeimdallPrefs interface
  *****************************************************************************/
-@interface VLCPrefs : NSWindowController<NSSplitViewDelegate>
+@interface HeimdallPrefs : NSWindowController<NSSplitViewDelegate>
 
 @property (readwrite, weak) IBOutlet NSTextField *titleLabel;
 @property (readwrite, weak) IBOutlet NSOutlineView *tree;

@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,13 +20,13 @@ import QtQuick
 import QtQuick.Layouts
 
 
-import VLC.Widgets as Widgets
-import VLC.Util
-import VLC.MainInterface
-import VLC.Style
-import VLC.Network
-import VLC.Dialogs
-import VLC.Menus
+import Heimdall.Widgets as Widgets
+import Heimdall.Util
+import Heimdall.MainInterface
+import Heimdall.Style
+import Heimdall.Network
+import Heimdall.Dialogs
+import Heimdall.Menus
 
 Widgets.PageExt {
     id: root
@@ -50,8 +51,8 @@ Widgets.PageExt {
 
         focus: true
 
-        basePictureWidth: VLCStyle.gridCover_network_width
-        basePictureHeight: VLCStyle.gridCover_network_height
+        basePictureWidth: HeimdallStyle.gridCover_network_width
+        basePictureHeight: HeimdallStyle.gridCover_network_height
         subtitleHeight: 0
 
         model: sourcesModel

@@ -2,6 +2,7 @@
  * nvdec_priv.h : NVDEC private common code
  *****************************************************************************
  * Copyright © 2019-2023 VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Steve Lhomme <robux4@videolabs.io>
  *
@@ -20,11 +21,11 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_VIDEOCHROMA_NVDEC_PRIV_H_
-#define VLC_VIDEOCHROMA_NVDEC_PRIV_H_
+#ifndef HEIMDALL_VIDEOCHROMA_NVDEC_PRIV_H_
+#define HEIMDALL_VIDEOCHROMA_NVDEC_PRIV_H_
 
-#define FFNV_LOG_FUNC(logctx, msg, ...)        msg_Err((vlc_object_t*)logctx, msg, __VA_ARGS__)
-#define FFNV_DEBUG_LOG_FUNC(logctx, msg, ...)  msg_Dbg((vlc_object_t*)logctx, msg, __VA_ARGS__)
+#define FFNV_LOG_FUNC(logctx, msg, ...)        msg_Err((heimdall_object_t*)logctx, msg, __VA_ARGS__)
+#define FFNV_DEBUG_LOG_FUNC(logctx, msg, ...)  msg_Dbg((heimdall_object_t*)logctx, msg, __VA_ARGS__)
 
 #include <ffnvcodec/dynlink_loader.h>
 
@@ -35,26 +36,26 @@ typedef struct {
 
 } decoder_device_nvdec_t;
 
-static inline decoder_device_nvdec_t *GetNVDECOpaqueDevice(vlc_decoder_device *device)
+static inline decoder_device_nvdec_t *GetNVDECOpaqueDevice(heimdall_decoder_device *device)
 {
-    if (device == NULL || device->type != VLC_DECODER_DEVICE_NVDEC)
+    if (device == NULL || device->type != HEIMDALL_DECODER_DEVICE_NVDEC)
         return NULL;
     return device->opaque;
 }
 
-static inline int CudaCheckErr(vlc_object_t *obj, CudaFunctions *cudaFunctions, CUresult result, const char *psz_func)
+static inline int CudaCheckErr(heimdall_object_t *obj, CudaFunctions *cudaFunctions, CUresult result, const char *psz_func)
 {
     if (unlikely(result != CUDA_SUCCESS)) {
         const char *psz_err, *psz_err_str;
         cudaFunctions->cuGetErrorName(result, &psz_err);
         cudaFunctions->cuGetErrorString(result, &psz_err_str);
         msg_Err(obj, "%s failed: %s (%s)", psz_func, psz_err_str, psz_err);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-/* for VLC_CODEC_NVDEC_OPAQUE / VLC_CODEC_NVDEC_OPAQUE_16B */
+/* for HEIMDALL_CODEC_NVDEC_OPAQUE / HEIMDALL_CODEC_NVDEC_OPAQUE_16B */
 typedef struct
 {
     picture_context_t ctx;

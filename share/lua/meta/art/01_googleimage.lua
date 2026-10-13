@@ -2,6 +2,7 @@
  Gets an artwork from images.google.com
 
  Copyright © 2007 the VideoLAN team
+ Copyright (C) 2026 TheFenrisLycaon
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -24,9 +25,9 @@ end
 
 -- Return the artwork
 function fetch_art()
-    if vlc.item == nil then return nil end
+    if heimdall.item == nil then return nil end
 
-    local meta = vlc.item:metas()
+    local meta = heimdall.item:metas()
 
 -- Radio Entries
     if meta["Listing Type"] == "radio"
@@ -44,7 +45,7 @@ function fetch_art()
     else
         return nil
     end
-    fd = vlc.stream( "http://images.google.com/images?q="..vlc.strings.encode_uri_component( title ) )
+    fd = heimdall.stream( "http://images.google.com/images?q="..heimdall.strings.encode_uri_component( title ) )
     if not fd then return nil end
 
     page = fd:read( 65653 )

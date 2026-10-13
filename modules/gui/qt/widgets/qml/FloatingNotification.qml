@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2025 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Prince Gupta <guptaprince8832@gmail.com>
  *
@@ -20,8 +21,8 @@
 
 import QtQuick
 
-import VLC.MainInterface
-import VLC.Style
+import Heimdall.MainInterface
+import Heimdall.Style
 
 Column {
     id: root
@@ -32,11 +33,11 @@ Column {
         model.remove(index, 1)
     }
 
-    spacing: VLCStyle.margin_normal
+    spacing: HeimdallStyle.margin_normal
 
     Behavior on y {
         NumberAnimation {
-            duration: VLCStyle.duration_short
+            duration: HeimdallStyle.duration_short
             easing.type: Easing.InOutQuad
         }
     }
@@ -74,7 +75,7 @@ Column {
             width: notifText.implicitWidth
             height: notifText.implicitHeight
 
-            radius: VLCStyle.dp(3, VLCStyle.scale)
+            radius: HeimdallStyle.dp(3, HeimdallStyle.scale)
 
             scale: 0
 
@@ -110,7 +111,7 @@ Column {
                         NumberAnimation {
                             target: delegate
                             property: "scale"
-                            duration: VLCStyle.duration_short
+                            duration: HeimdallStyle.duration_short
                             easing.type: Easing.InOutQuad
                         }
 
@@ -138,7 +139,7 @@ Column {
                         NumberAnimation {
                             target: delegate
                             property: "scale"
-                            duration: VLCStyle.duration_short
+                            duration: HeimdallStyle.duration_short
                             easing.type: Easing.InOutQuad
                         }
                     }
@@ -148,7 +149,7 @@ Column {
             Timer {
                 id: lifetime
 
-                interval: VLCStyle.duration_humanMoment
+                interval: HeimdallStyle.duration_humanMoment
 
                 running: true
 
@@ -162,7 +163,7 @@ Column {
             SubtitleLabel {
                 id: notifText
 
-                padding: VLCStyle.margin_small
+                padding: HeimdallStyle.margin_small
 
                 color: theme.fg.primary
 

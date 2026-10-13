@@ -2,6 +2,7 @@
  * bookmarks.cpp : Bookmarks
  ****************************************************************************
  * Copyright (C) 2007-2008 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Antoine Lejeune <phytos@via.ecp.fr>
  *
@@ -34,12 +35,12 @@
 #include <QDialogButtonBox>
 #include <QTreeView>
 
-BookmarksDialog::BookmarksDialog( qt_intf_t *_p_intf ):QVLCFrame( _p_intf )
+BookmarksDialog::BookmarksDialog( qt_intf_t *_p_intf ):QHeimdallFrame( _p_intf )
 {
     setWindowFlags( Qt::Tool );
     setWindowOpacity( var_InheritFloat( p_intf, "qt-opacity" ) );
     setWindowTitle( qtr( "Edit Bookmarks" ) );
-    setWindowRole( "vlc-bookmarks" );
+    setWindowRole( "heimdall-bookmarks" );
 
     QHBoxLayout *layout = new QHBoxLayout( this );
 
@@ -106,10 +107,10 @@ BookmarksDialog::~BookmarksDialog()
 
 void BookmarksDialog::updateButtons()
 {
-    vlc_player_locker lock{ m_model->player() };
-    vlc_player_state currentState = vlc_player_GetState( m_model->player() );
-    addButton->setEnabled(currentState != VLC_PLAYER_STATE_STOPPING &&
-                          currentState != VLC_PLAYER_STATE_STOPPED);
+    heimdall_player_locker lock{ m_model->player() };
+    heimdall_player_state currentState = heimdall_player_GetState( m_model->player() );
+    addButton->setEnabled(currentState != HEIMDALL_PLAYER_STATE_STOPPING &&
+                          currentState != HEIMDALL_PLAYER_STATE_STOPPED);
 
     clearButton->setEnabled( bookmarksList->model()->rowCount() > 0 );
     delButton->setEnabled( bookmarksList->selectionModel()->hasSelection() );
@@ -148,5 +149,5 @@ void BookmarksDialog::toggleVisible()
     {
         update();
     }
-    QVLCFrame::toggleVisible();
+    QHeimdallFrame::toggleVisible();
 }

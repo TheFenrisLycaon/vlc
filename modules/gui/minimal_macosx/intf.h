@@ -2,9 +2,10 @@
  * intf.h: MacOS X interface module
  *****************************************************************************
  * Copyright (C) 2002-2012 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Pierre d'Herbemont <pdherbemont # videolan.org>
- *          Felix Paul Kühne <fkuehne at videolan dot org>
+ *          Felix Paul Kühne <fkuehne at lycaria dot org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -26,8 +27,8 @@
 #endif
 
 #import <Cocoa/Cocoa.h>
-#import <vlc_common.h>
-#import <vlc_interface.h>
+#import <heimdall_common.h>
+#import <heimdall_interface.h>
 
 /*****************************************************************************
  * Local prototypes.

@@ -1,8 +1,9 @@
 /*****************************************************************************
- * vlc_config_cat.h : Definition of configuration categories
+ * heimdall_config_cat.h : Definition of configuration categories
  *****************************************************************************
  * Copyright (C) 2003 VLC authors and VideoLAN
  * Copyright (C) 2023 Videolabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Clément Stenac <zorglub@videolan.org>
  *          Anil Daoud <anil@videolan.org>
@@ -27,8 +28,8 @@
 # include <config.h>
 #endif
 
-#include <vlc_common.h>
-#include <vlc_config_cat.h>
+#include <heimdall_common.h>
+#include <heimdall_config_cat.h>
 
 #include <assert.h>
 
@@ -89,7 +90,7 @@ static const struct config_subcategory_t subcategories_array[] =
 };
 
 const struct config_category_t *
-vlc_config_cat_Find(enum vlc_config_cat cat)
+heimdall_config_cat_Find(enum heimdall_config_cat cat)
 {
     for (size_t i=0; i < ARRAY_SIZE(categories_array); i++ )
     {
@@ -100,14 +101,14 @@ vlc_config_cat_Find(enum vlc_config_cat cat)
 }
 
 const struct config_category_t *
-vlc_config_cat_GetAt(size_t index)
+heimdall_config_cat_GetAt(size_t index)
 {
     assert(index < ARRAY_SIZE(categories_array));
     return &categories_array[index];
 }
 
 const struct config_subcategory_t *
-vlc_config_subcat_Find(enum vlc_config_subcat subcat)
+heimdall_config_subcat_Find(enum heimdall_config_subcat subcat)
 {
     for (size_t i=0; i < ARRAY_SIZE(subcategories_array); i++)
     {
@@ -118,20 +119,20 @@ vlc_config_subcat_Find(enum vlc_config_subcat subcat)
 }
 
 const struct config_subcategory_t *
-vlc_config_subcat_GetAt(size_t index)
+heimdall_config_subcat_GetAt(size_t index)
 {
     assert(index < ARRAY_SIZE(subcategories_array));
     return &subcategories_array[index];
 }
 
 size_t
-vlc_config_cat_Count(void)
+heimdall_config_cat_Count(void)
 {
     return ARRAY_SIZE(categories_array);
 }
 
 size_t
-vlc_config_subcat_Count(void)
+heimdall_config_subcat_Count(void)
 {
     return ARRAY_SIZE(subcategories_array);
 }

@@ -2,6 +2,7 @@
  * IndexReader.cpp
  *****************************************************************************
  * Copyright (C) 2015 - VideoLAN and VLC authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -29,7 +30,7 @@ using namespace adaptive::mp4;
 using namespace dash::mp4;
 using namespace dash::mpd;
 
-IndexReader::IndexReader(vlc_object_t *obj)
+IndexReader::IndexReader(heimdall_object_t *obj)
     : AtomsReader(obj)
 {
 }

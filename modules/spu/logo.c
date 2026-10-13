@@ -1,7 +1,8 @@
 /*****************************************************************************
- * logo.c : logo video plugin for vlc
+ * logo.c : logo video plugin for heimdall
  *****************************************************************************
  * Copyright (C) 2003-2006 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gildas Bazin <gbazin@videolan.org>
  *          Simon Latapie <garf@videolan.org>
@@ -32,14 +33,14 @@
 
 #include "common.h"
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_mouse.h>
-#include <vlc_subpicture.h>
-#include <vlc_url.h>
-#include <vlc_image.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_mouse.h>
+#include <heimdall_subpicture.h>
+#include <heimdall_url.h>
+#include <heimdall_image.h>
 
 /*****************************************************************************
  * Module descriptor
@@ -69,7 +70,7 @@ static int  OpenSub  ( filter_t * );
 static int  OpenVideo( filter_t * );
 static void Close    ( filter_t * );
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_subcategory( SUBCAT_VIDEO_SUBPIC )
     set_help(LOGO_HELP)
     set_callback_sub_source( OpenSub, 0 )
@@ -93,7 +94,7 @@ vlc_module_begin ()
     set_callback_video_filter( OpenVideo )
     set_description( N_("Logo video filter") )
     add_shortcut( "logo" )
-vlc_module_end ()
+heimdall_module_end ()
 
 
 /*****************************************************************************
@@ -121,7 +122,7 @@ typedef struct
     unsigned int i_count;   /* the number of logo images to be displayed */
 
     int i_repeat;         /* how often to repeat the images, image time in ms */
-    vlc_tick_t i_next_pic;     /* when to bring up a new logo image */
+    heimdall_tick_t i_next_pic;     /* when to bring up a new logo image */
 
     unsigned int i_counter; /* index into the list of logo images */
 
@@ -135,9 +136,9 @@ typedef struct
  */
 typedef struct
 {
-    vlc_blender_t *p_blend;
+    heimdall_blender_t *p_blend;
 
-    vlc_mutex_t lock;
+    heimdall_mutex_t lock;
 
     logo_list_t list;
 
@@ -168,17 +169,17 @@ static const char *const ppsz_filter_callbacks[] = {
 
 static int OpenCommon( filter_t *, bool b_sub );
 
-static subpicture_t *FilterSub( filter_t *, vlc_tick_t );
+static subpicture_t *FilterSub( filter_t *, heimdall_tick_t );
 static picture_t    *FilterVideo( filter_t *, picture_t * );
 
-static int Mouse( filter_t *, vlc_mouse_t *, const vlc_mouse_t * );
+static int Mouse( filter_t *, heimdall_mouse_t *, const heimdall_mouse_t * );
 
-static int LogoCallback( vlc_object_t *, char const *,
-                         vlc_value_t, vlc_value_t, void * );
+static int LogoCallback( heimdall_object_t *, char const *,
+                         heimdall_value_t, heimdall_value_t, void * );
 
-static void LogoListLoad( vlc_object_t *, logo_list_t *, const char * );
+static void LogoListLoad( heimdall_object_t *, logo_list_t *, const char * );
 static void LogoListUnload( logo_list_t * );
-static logo_t *LogoListNext( logo_list_t *p_list, vlc_tick_t i_date );
+static logo_t *LogoListNext( logo_list_t *p_list, heimdall_tick_t i_date );
 static logo_t *LogoListCurrent( logo_list_t *p_list );
 
 /**
@@ -197,11 +198,11 @@ static int OpenVideo( filter_t *p_filter )
     return OpenCommon( p_filter, false );
 }
 
-static const struct vlc_filter_operations filter_sub_ops = {
+static const struct heimdall_filter_operations filter_sub_ops = {
     .source_sub = FilterSub, .close = Close,
 };
 
-static const struct vlc_filter_operations filter_video_ops = {
+static const struct heimdall_filter_operations filter_video_ops = {
     .filter_video = FilterVideo,
     .video_mouse = Mouse,
     .close = Close,
@@ -219,25 +220,25 @@ static int OpenCommon( filter_t *p_filter, bool b_sub )
     if( !b_sub && !es_format_IsSimilar( &p_filter->fmt_in, &p_filter->fmt_out ) )
     {
         msg_Err( p_filter, "Input and output format does not match" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* */
     p_filter->p_sys = p_sys = malloc( sizeof( *p_sys ) );
     if( !p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     /* */
     p_sys->p_blend = NULL;
     if( !b_sub )
     {
 
-        p_sys->p_blend = filter_NewBlend( VLC_OBJECT(p_filter),
+        p_sys->p_blend = filter_NewBlend( HEIMDALL_OBJECT(p_filter),
                                           &p_filter->fmt_in.video );
         if( !p_sys->p_blend )
         {
             free( p_sys );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
 
@@ -254,13 +255,13 @@ static int OpenCommon( filter_t *p_filter, bool b_sub )
         if( p_sys->p_blend )
             filter_DeleteBlend( p_sys->p_blend );
         free( p_sys );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
     if( *psz_filename == '\0' )
         msg_Warn( p_filter, "no logo file specified" );
 
     p_list->i_alpha = var_CreateGetIntegerCommand( p_filter, "logo-opacity");
-    p_list->i_alpha = VLC_CLIP( p_list->i_alpha, 0, 255 );
+    p_list->i_alpha = HEIMDALL_CLIP( p_list->i_alpha, 0, 255 );
     p_list->i_delay = var_CreateGetIntegerCommand( p_filter, "logo-delay" );
     p_list->i_repeat = var_CreateGetIntegerCommand( p_filter, "logo-repeat" );
 
@@ -272,8 +273,8 @@ static int OpenCommon( filter_t *p_filter, bool b_sub )
     if( !b_sub && p_sys->i_pos_x >= 0 && p_sys->i_pos_y >= 0 )
         p_sys->i_pos = -1;
 
-    vlc_mutex_init( &p_sys->lock );
-    LogoListLoad( VLC_OBJECT(p_filter), p_list, psz_filename );
+    heimdall_mutex_init( &p_sys->lock );
+    LogoListLoad( HEIMDALL_OBJECT(p_filter), p_list, psz_filename );
     p_sys->b_spu_update = true;
     p_sys->b_mouse_grab = false;
 
@@ -288,7 +289,7 @@ static int OpenCommon( filter_t *p_filter, bool b_sub )
         p_filter->ops = &filter_video_ops;
 
     free( psz_filename );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /**
@@ -312,7 +313,7 @@ static void Close( filter_t *p_filter )
 /**
  * Sub source
  */
-static subpicture_t *FilterSub( filter_t *p_filter, vlc_tick_t date )
+static subpicture_t *FilterSub( filter_t *p_filter, heimdall_tick_t date )
 {
     filter_sys_t *p_sys = p_filter->p_sys;
     logo_list_t *p_list = &p_sys->list;
@@ -322,7 +323,7 @@ static subpicture_t *FilterSub( filter_t *p_filter, vlc_tick_t date )
     picture_t *p_pic;
     logo_t *p_logo;
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     /* Basic test:  b_spu_update occurs on a dynamic change,
                     & i_next_pic is the general timer, when to
                     look at updating the logo image */
@@ -330,7 +331,7 @@ static subpicture_t *FilterSub( filter_t *p_filter, vlc_tick_t date )
     if( ( !p_sys->b_spu_update && p_list->i_next_pic > date ) ||
         !p_list->i_repeat )
     {
-        vlc_mutex_unlock( &p_sys->lock );
+        heimdall_mutex_unlock( &p_sys->lock );
         return NULL;
     }
 
@@ -346,7 +347,7 @@ static subpicture_t *FilterSub( filter_t *p_filter, vlc_tick_t date )
         goto exit;
 
     p_spu->i_start = date;
-    p_spu->i_stop = VLC_TICK_INVALID;
+    p_spu->i_stop = HEIMDALL_TICK_INVALID;
     p_spu->b_ephemer = true;
 
     /* Send an empty subpicture to clear the display when needed */
@@ -385,13 +386,13 @@ static subpicture_t *FilterSub( filter_t *p_filter, vlc_tick_t date )
     p_region->i_x = p_sys->i_pos_x > 0 ? p_sys->i_pos_x : 0;
     p_region->i_y = p_sys->i_pos_y > 0 ? p_sys->i_pos_y : 0;
 
-    vlc_spu_regions_push( &p_spu->regions, p_region );
+    heimdall_spu_regions_push( &p_spu->regions, p_region );
 
     p_spu->i_alpha = ( p_logo->i_alpha != -1 ?
                        p_logo->i_alpha : p_list->i_alpha );
 
 exit:
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 
     return p_spu;
 }
@@ -411,7 +412,7 @@ static picture_t *FilterVideo( filter_t *p_filter, picture_t *p_src )
     picture_Copy( p_dst, p_src );
 
     /* */
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
 
     logo_t *p_logo;
     if( p_list->i_next_pic < p_src->date )
@@ -463,19 +464,19 @@ static picture_t *FilterVideo( filter_t *p_filter, picture_t *p_src )
             msg_Err( p_filter, "failed to blend a picture" );
         }
     }
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 
 exit:
     picture_Release( p_src );
     return p_dst;
 }
 
-static int Mouse( filter_t *p_filter, vlc_mouse_t *p_new,
-                  const vlc_mouse_t *p_old )
+static int Mouse( filter_t *p_filter, heimdall_mouse_t *p_new,
+                  const heimdall_mouse_t *p_old )
 {
     filter_sys_t *p_sys = p_filter->p_sys;
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     logo_t *p_logo = LogoListCurrent( &p_sys->list );
     const picture_t *p_pic = p_logo->p_pic;
 
@@ -491,43 +492,43 @@ static int Mouse( filter_t *p_filter, vlc_mouse_t *p_new,
                             p_new->i_y >= p_sys->i_pos_y &&
                             p_new->i_y <  p_sys->i_pos_y + i_logo_h;
 
-        if( b_over && vlc_mouse_HasPressed( p_old, p_new, MOUSE_BUTTON_LEFT ) )
+        if( b_over && heimdall_mouse_HasPressed( p_old, p_new, MOUSE_BUTTON_LEFT ) )
             p_sys->b_mouse_grab = true;
-        else if( vlc_mouse_HasReleased( p_old, p_new, MOUSE_BUTTON_LEFT ) )
+        else if( heimdall_mouse_HasReleased( p_old, p_new, MOUSE_BUTTON_LEFT ) )
             p_sys->b_mouse_grab = false;
 
         if( p_sys->b_mouse_grab )
         {
             int i_dx, i_dy;
-            vlc_mouse_GetMotion( &i_dx, &i_dy, p_old, p_new );
-            p_sys->i_pos_x = VLC_CLIP( p_sys->i_pos_x + i_dx, 0,
+            heimdall_mouse_GetMotion( &i_dx, &i_dy, p_old, p_new );
+            p_sys->i_pos_x = HEIMDALL_CLIP( p_sys->i_pos_x + i_dx, 0,
                                     (int)p_filter->fmt_in.video.i_width  - i_logo_w );
-            p_sys->i_pos_y = VLC_CLIP( p_sys->i_pos_y + i_dy, 0,
+            p_sys->i_pos_y = HEIMDALL_CLIP( p_sys->i_pos_y + i_dy, 0,
                                     (int)p_filter->fmt_in.video.i_height - i_logo_h );
         }
 
         if( p_sys->b_mouse_grab || b_over )
         {
-            vlc_mutex_unlock( &p_sys->lock );
-            return VLC_EGENERIC;
+            heimdall_mutex_unlock( &p_sys->lock );
+            return HEIMDALL_EGENERIC;
         }
     }
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * Callback to update params on the fly
  *****************************************************************************/
-static int LogoCallback( vlc_object_t *p_this, char const *psz_var,
-                         vlc_value_t oldval, vlc_value_t newval, void *p_data )
+static int LogoCallback( heimdall_object_t *p_this, char const *psz_var,
+                         heimdall_value_t oldval, heimdall_value_t newval, void *p_data )
 {
-    VLC_UNUSED(oldval);
+    HEIMDALL_UNUSED(oldval);
     filter_sys_t *p_sys = p_data;
     logo_list_t *p_list = &p_sys->list;
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     if( !strcmp( psz_var, "logo-file" ) )
     {
         LogoListUnload( p_list );
@@ -547,22 +548,22 @@ static int LogoCallback( vlc_object_t *p_this, char const *psz_var,
     }
     else if ( !strcmp( psz_var, "logo-opacity" ) )
     {
-        p_list->i_alpha = VLC_CLIP( newval.i_int, 0, 255 );
+        p_list->i_alpha = HEIMDALL_CLIP( newval.i_int, 0, 255 );
     }
     else if ( !strcmp( psz_var, "logo-repeat" ) )
     {
         p_list->i_repeat = newval.i_int;
     }
     p_sys->b_spu_update = true;
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /**
  * It loads the logo image into memory.
  */
-static picture_t *LoadPicture( vlc_object_t *p_this, const char *psz_filename )
+static picture_t *LoadPicture( heimdall_object_t *p_this, const char *psz_filename )
 {
     if( !psz_filename )
         return NULL;
@@ -572,9 +573,9 @@ static picture_t *LoadPicture( vlc_object_t *p_this, const char *psz_filename )
         return NULL;
 
     video_format_t fmt_out;
-    video_format_Init( &fmt_out, VLC_CODEC_YUVA );
+    video_format_Init( &fmt_out, HEIMDALL_CODEC_YUVA );
 
-    char *psz_url = vlc_path2uri( psz_filename, NULL );
+    char *psz_url = heimdall_path2uri( psz_filename, NULL );
     picture_t *p_pic = image_ReadUrl( p_image, psz_url, &fmt_out );
     free( psz_url );
     image_HandlerDelete( p_image );
@@ -591,7 +592,7 @@ static picture_t *LoadPicture( vlc_object_t *p_this, const char *psz_filename )
  * times. An image without a stated time or opacity will use the
  * logo-delay and logo-opacity values.
  */
-static void LogoListLoad( vlc_object_t *p_this, logo_list_t *p_logo_list,
+static void LogoListLoad( heimdall_object_t *p_this, logo_list_t *p_logo_list,
                           const char *psz_filename )
 {
     char *psz_list; /* the list: <logo>[,[<delay>[,[<alpha>]]]][;...] */
@@ -686,13 +687,13 @@ static void LogoListUnload( logo_list_t *p_list )
 /**
  * Go to the next logo and return its pointer.
  */
-static logo_t *LogoListNext( logo_list_t *p_list, vlc_tick_t i_date )
+static logo_t *LogoListNext( logo_list_t *p_list, heimdall_tick_t i_date )
 {
     p_list->i_counter = ( p_list->i_counter + 1 ) % p_list->i_count;
 
     logo_t *p_logo = LogoListCurrent( p_list );
 
-    p_list->i_next_pic = i_date + VLC_TICK_FROM_MS( p_logo->i_delay != -1 ?
+    p_list->i_next_pic = i_date + HEIMDALL_TICK_FROM_MS( p_logo->i_delay != -1 ?
                           p_logo->i_delay : p_list->i_delay );
     return p_logo;
 }

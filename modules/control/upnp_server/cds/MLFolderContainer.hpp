@@ -2,6 +2,7 @@
  * MLFolderContainer.hpp : MediaLibrary IFolder container
  *****************************************************************************
  * Copyright © 2024 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Alaric Senat <alaric@videolabs.io>
  *
@@ -22,9 +23,9 @@
 #ifndef MLFOLDERCONTAINER_HPP
 #define MLFOLDERCONTAINER_HPP
 
-#include <vlc_cxx_helpers.hpp>
-#include <vlc_media_library.h>
-#include <vlc_url.h>
+#include <heimdall_cxx_helpers.hpp>
+#include <heimdall_media_library.h>
+#include <heimdall_url.h>
 
 #include "../ml.hpp"
 #include "Container.hpp"
@@ -34,10 +35,10 @@ namespace cds
 {
 class MLFolderContainer : public Container
 {
-    static void dump_folder_metadata(xml::Element &dest, const vlc_ml_folder_t &folder)
+    static void dump_folder_metadata(xml::Element &dest, const heimdall_ml_folder_t &folder)
     {
         xml::Document &doc = dest.owner;
-        auto path = vlc::wrap_cptr(vlc_uri2path(folder.psz_mrl), &free);
+        auto path = heimdall::wrap_cptr(heimdall_uri2path(folder.psz_mrl), &free);
 
         // Only keep the last folder from the path
         const char *folder_name = nullptr;
@@ -99,7 +100,7 @@ class MLFolderContainer : public Container
                                        const BrowseParams params,
                                        const Object::ExtraId &extra) const final
     {
-        const vlc_ml_query_params_t query_params = params.to_query_params();
+        const heimdall_ml_query_params_t query_params = params.to_query_params();
         assert(extra.has_value());
 
         const auto folder = ml::Folder::get(ml_, extra->ml_id);

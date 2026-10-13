@@ -2,6 +2,7 @@
  * hqdn3d.c : high-quality denoise 3D ported from MPlayer
  *****************************************************************************
  * Copyright (C) 2011 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cheng Sun <chengsun9@gmail.com>
  *
@@ -28,11 +29,11 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_picture.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
 #include "filter_picture.h"
 
 
@@ -44,8 +45,8 @@
 static int  Open         (filter_t *);
 static void Close        (filter_t *);
 static picture_t *Filter (filter_t *, picture_t *);
-static int DenoiseCallback( vlc_object_t *p_this, char const *psz_var,
-                            vlc_value_t oldval, vlc_value_t newval,
+static int DenoiseCallback( heimdall_object_t *p_this, char const *psz_var,
+                            heimdall_value_t oldval, heimdall_value_t newval,
                             void *p_data );
 
 /*****************************************************************************
@@ -59,7 +60,7 @@ static int DenoiseCallback( vlc_object_t *p_this, char const *psz_var,
 #define LUMA_TEMP_TEXT          N_("Temporal luma strength (0-254)")
 #define CHROMA_TEMP_TEXT        N_("Temporal chroma strength (0-254)")
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname(N_("HQ Denoiser 3D"))
     set_description(N_("High Quality 3D Denoiser filter"))
     set_subcategory(SUBCAT_VIDEO_VFILTER)
@@ -76,7 +77,7 @@ vlc_module_begin()
     add_shortcut("hqdn3d")
 
     set_callback_video_filter(Open)
-vlc_module_end()
+heimdall_module_end()
 
 static const char *const filter_options[] = {
     "luma-spat", "chroma-spat", "luma-temp", "chroma-temp", NULL
@@ -87,12 +88,12 @@ static const char *const filter_options[] = {
  *****************************************************************************/
 typedef struct
 {
-    const vlc_chroma_description_t *chroma;
+    const heimdall_chroma_description_t *chroma;
     int w[3], h[3];
 
     struct vf_priv_s cfg;
     bool   b_recalc_coefs;
-    vlc_mutex_t coefs_mutex;
+    heimdall_mutex_t coefs_mutex;
     float  luma_spat, luma_temp, chroma_spat, chroma_temp;
 } filter_sys_t;
 
@@ -105,26 +106,26 @@ static int Open(filter_t *filter)
     struct vf_priv_s *cfg;
     const video_format_t *fmt_in  = &filter->fmt_in.video;
     const video_format_t *fmt_out = &filter->fmt_out.video;
-    const vlc_fourcc_t fourcc_in  = fmt_in->i_chroma;
+    const heimdall_fourcc_t fourcc_in  = fmt_in->i_chroma;
     int wmax = 0;
 
     if ( !video_format_IsSameChroma( fmt_in, fmt_out ) ) {
         msg_Err(filter, "Input and output chromas don't match");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    const vlc_chroma_description_t *chroma =
-            vlc_fourcc_GetChromaDescription(fourcc_in);
+    const heimdall_chroma_description_t *chroma =
+            heimdall_fourcc_GetChromaDescription(fourcc_in);
     assert( chroma != NULL );
     if (chroma->plane_count != 3 || chroma->pixel_size != 1) {
         msg_Err(filter, "Unsupported chroma (%4.4s)", (char*)&fourcc_in);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Allocate structure */
     sys = calloc(1, sizeof(filter_sys_t));
     if (!sys) {
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
     cfg = &sys->cfg;
 
@@ -138,21 +139,21 @@ static int Open(filter_t *filter)
     cfg->Line = malloc(wmax*sizeof(unsigned int));
     if (!cfg->Line) {
         free(sys);
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     config_ChainParse(filter, FILTER_PREFIX, filter_options,
                       filter->p_cfg);
 
 
-    vlc_mutex_init( &sys->coefs_mutex );
+    heimdall_mutex_init( &sys->coefs_mutex );
     sys->b_recalc_coefs = true;
     sys->luma_spat = var_CreateGetFloatCommand(filter, FILTER_PREFIX "luma-spat");
     sys->chroma_spat = var_CreateGetFloatCommand(filter, FILTER_PREFIX "chroma-spat");
     sys->luma_temp = var_CreateGetFloatCommand(filter, FILTER_PREFIX "luma-temp");
     sys->chroma_temp = var_CreateGetFloatCommand(filter, FILTER_PREFIX "chroma-temp");
 
-    static const struct vlc_filter_operations filter_ops =
+    static const struct heimdall_filter_operations filter_ops =
     {
         .filter_video = Filter, .close = Close,
     };
@@ -165,7 +166,7 @@ static int Open(filter_t *filter)
     var_AddCallback( filter, FILTER_PREFIX "luma-temp", DenoiseCallback, sys );
     var_AddCallback( filter, FILTER_PREFIX "chroma-temp", DenoiseCallback, sys );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -205,7 +206,7 @@ static picture_t *Filter(filter_t *filter, picture_t *src)
         picture_Release(src);
         return NULL;
     }
-    vlc_mutex_lock( &sys->coefs_mutex );
+    heimdall_mutex_lock( &sys->coefs_mutex );
     recalc = sys->b_recalc_coefs;
     sys->b_recalc_coefs = false;
 
@@ -218,7 +219,7 @@ static picture_t *Filter(filter_t *filter, picture_t *src)
         PrecalcCoefs(cfg->Coefs[2], sys->chroma_spat);
         PrecalcCoefs(cfg->Coefs[3], sys->chroma_temp);
     }
-    vlc_mutex_unlock( &sys->coefs_mutex );
+    heimdall_mutex_unlock( &sys->coefs_mutex );
 
     deNoise(src->p[0].p_pixels, dst->p[0].p_pixels,
             cfg->Line, &cfg->Frame[0], sys->w[0], sys->h[0],
@@ -250,17 +251,17 @@ static picture_t *Filter(filter_t *filter, picture_t *src)
 }
 
 
-static int DenoiseCallback( vlc_object_t *p_this, char const *psz_var,
-                            vlc_value_t oldval, vlc_value_t newval,
+static int DenoiseCallback( heimdall_object_t *p_this, char const *psz_var,
+                            heimdall_value_t oldval, heimdall_value_t newval,
                             void *p_data )
 {
-    VLC_UNUSED(p_this); VLC_UNUSED(oldval);
+    HEIMDALL_UNUSED(p_this); HEIMDALL_UNUSED(oldval);
 
     filter_sys_t *sys = p_data;
 
     /* Just take values and flag for recalc so we don't block UI thread calling this
      * and don't right thread safety calcing coefs in here without mutex*/
-    vlc_mutex_lock( &sys->coefs_mutex );
+    heimdall_mutex_lock( &sys->coefs_mutex );
     if( !strcmp( psz_var, FILTER_PREFIX "luma-spat") )
         sys->luma_spat = newval.f_float;
     else if( !strcmp( psz_var, FILTER_PREFIX "luma-temp") )
@@ -270,7 +271,7 @@ static int DenoiseCallback( vlc_object_t *p_this, char const *psz_var,
     else if( !strcmp( psz_var, FILTER_PREFIX "chroma-spat") )
         sys->chroma_temp = newval.f_float;
     sys->b_recalc_coefs = true;
-    vlc_mutex_unlock( &sys->coefs_mutex );
+    heimdall_mutex_unlock( &sys->coefs_mutex );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

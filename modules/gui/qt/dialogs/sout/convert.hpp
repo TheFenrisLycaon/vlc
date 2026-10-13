@@ -2,6 +2,7 @@
  * convert.hpp : GotoTime dialogs
  ****************************************************************************
  * Copyright (C) 2007 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Jean-Baptiste Kempf <jb (at) videolan.org>
  *
@@ -20,20 +21,20 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef QVLC_CONVERT_DIALOG_H_
-#define QVLC_CONVERT_DIALOG_H_ 1
+#ifndef QHEIMDALL_CONVERT_DIALOG_H_
+#define QHEIMDALL_CONVERT_DIALOG_H_ 1
 
 #include <QUrl>
 
-#include "widgets/native/qvlcframe.hpp"
+#include "widgets/native/qheimdallframe.hpp"
 
 class QLineEdit;
 class QCheckBox;
 class QRadioButton;
 class QPushButton;
-class VLCProfileSelector;
+class HeimdallProfileSelector;
 
-class ConvertDialog : public QVLCDialog
+class ConvertDialog : public QHeimdallDialog
 {
     Q_OBJECT
 public:
@@ -48,7 +49,7 @@ private:
     QCheckBox *displayBox, *deinterBox, *appendBox;
     QRadioButton *dumpRadio;
     QPushButton *okButton;
-    VLCProfileSelector *profile;
+    HeimdallProfileSelector *profile;
 
     const QStringList *incomingMRLs;
     const bool singleFileSelected;

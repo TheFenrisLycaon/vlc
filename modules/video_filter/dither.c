@@ -1,7 +1,8 @@
 /*****************************************************************************
- * dither.c : Dithering video filters for VLC
+ * dither.c : Dithering video filters for Heimdall
  *****************************************************************************
  * Copyright (C) 2025 VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Brandon Li <brandonli2006ma@gmail.com>
  *
@@ -31,13 +32,13 @@
 #include <limits.h>
 #include <math.h>
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_picture.h>
-#include <vlc_opengl.h>
-#include <vlc_rand.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
+#include <heimdall_opengl.h>
+#include <heimdall_rand.h>
 
 /*****************************************************************************
  * Local prototypes
@@ -75,7 +76,7 @@ static  void write_yuv         ( picture_t *p_pic, unsigned int i_x, unsigned in
 #define EUCLIDEAN_DISTANCE  3
 #define RANDOMIZATION       4
 
-static const struct vlc_filter_operations filter_ops =
+static const struct heimdall_filter_operations filter_ops =
 {
     .filter_video = Filter, .close = Close,
 };
@@ -97,7 +98,7 @@ static const char *const ppsz_dither_modes[] = { "floyd-steinberg", "sierra-filt
 static const char *const ppsz_dither_descriptions[] =
     { N_("Floyd-Steinberg"), N_("Sierra Filter-Lite"), N_("Jarvis, Judice & Ninke"), N_("Euclidean Distance"), N_("Randomization") };
 
-vlc_module_begin()
+heimdall_module_begin()
     set_description( N_("Dithering video filter") )
     set_shortname( N_("Dither") )
     set_subcategory( SUBCAT_VIDEO_VFILTER )
@@ -108,7 +109,7 @@ vlc_module_begin()
     add_string( "palette", "#FFFFFF,#000000",
            N_("Color palette"), N_("Comma-separated list of hexadecimal colors (e.g. #FF0000,#00FF00,#0000FF)") )
     set_callback_video_filter( Open )
-vlc_module_end()
+heimdall_module_end()
 
 /*****************************************************************************
  * Open: Create the dither filter, creating cache table
@@ -116,39 +117,39 @@ vlc_module_end()
 static int Open( filter_t *p_filter )
 {
     if( p_filter->fmt_in.video.i_width > SIZE_MAX / 3 * 2 )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     filter_sys_t *p_sys = malloc( sizeof( filter_sys_t ) );
     if ( !p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_filter->p_sys = p_sys;
 
     // choose write/read functions
-    const vlc_fourcc_t chroma = p_filter->fmt_in.video.i_chroma;
+    const heimdall_fourcc_t chroma = p_filter->fmt_in.video.i_chroma;
     switch ( chroma )
     {
-    case VLC_CODEC_BGR24:
+    case HEIMDALL_CODEC_BGR24:
         p_sys->pf_read_pixel = read_bgr24;
         p_sys->pf_write_pixel = write_bgr24;
         break;
-    case VLC_CODEC_RGB24:
+    case HEIMDALL_CODEC_RGB24:
         p_sys->pf_read_pixel = read_rgb24;
         p_sys->pf_write_pixel = write_rgb24;
         break;
-    case VLC_CODEC_RGBA:
+    case HEIMDALL_CODEC_RGBA:
         p_sys->pf_read_pixel = read_rgba;
         p_sys->pf_write_pixel = write_rgba;
         break;
-    // Let VLC handle YUV conversion (for future reference)
-    // case VLC_CODEC_I420:
+    // Let Heimdall handle YUV conversion (for future reference)
+    // case HEIMDALL_CODEC_I420:
     //     p_sys->pf_read_pixel = read_yuv;
     //     p_sys->pf_write_pixel = write_yuv;
     //     break;
     default:
         msg_Err( p_filter, "Unsupported chroma" );
         free( p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     // choose dithering mode
@@ -157,7 +158,7 @@ static int Open( filter_t *p_filter )
     {
         msg_Err( p_filter, "No dithering mode specified" );
         free( p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if ( !strcmp(psz_mode, "floyd-steinberg") )
@@ -175,7 +176,7 @@ static int Open( filter_t *p_filter )
         msg_Err( p_filter, "Invalid dithering mode" );
         free( psz_mode );
         free( p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     free( psz_mode );
 
@@ -185,7 +186,7 @@ static int Open( filter_t *p_filter )
     {
         msg_Err( p_filter, "No dithering palette specified" );
         free( p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     int i_num_colors = 1;
@@ -197,13 +198,13 @@ static int Open( filter_t *p_filter )
     }
 
     // parse colors
-    p_sys->p_palette = vlc_alloc( i_num_colors, sizeof( int ) );
+    p_sys->p_palette = heimdall_alloc( i_num_colors, sizeof( int ) );
     if ( !p_sys->p_palette )
     {
         msg_Err( p_filter, "Failed to allocate memory for palette" );
         free( psz_palette );
         free( p_sys );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     char *p_tmp_saveptr;
@@ -224,7 +225,7 @@ static int Open( filter_t *p_filter )
             free( p_sys->p_palette );
             free( psz_palette );
             free( p_sys );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
         p_sys->p_palette[ i_index++ ] = (int) l_rgb;
         ppsz_token = strtok_r( NULL, ",", &p_tmp_saveptr );
@@ -269,11 +270,11 @@ static int Open( filter_t *p_filter )
     // allocate dither buffers
     const unsigned int i_width = p_filter->fmt_in.video.i_width;
     const size_t i_single_in_px = (size_t)i_width * 3 * 2;
-    int *p_all = vlc_alloc( i_single_in_px, 3 * sizeof( int ) );
+    int *p_all = heimdall_alloc( i_single_in_px, 3 * sizeof( int ) );
     if (!p_all) {
         free(p_sys->p_palette);
         free(p_sys);
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
     p_sys->p_dither_buffer[0] = p_all;
     p_sys->p_dither_buffer[1] = p_all + i_single_in_px;
@@ -281,7 +282,7 @@ static int Open( filter_t *p_filter )
 
     p_filter->ops = &filter_ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -418,7 +419,7 @@ static void FilterRandom( const filter_t *p_filter, picture_t *p_pic )
     const unsigned int i_height = p_pic->format.i_visible_height;
     const unsigned int i_x_offset = p_pic->format.i_x_offset;
     const unsigned int i_y_offset = p_pic->format.i_y_offset;
-    const int i_seed = (int) vlc_mrand48();
+    const int i_seed = (int) heimdall_mrand48();
     for ( unsigned int i_y = 0; i_y < i_height; i_y++ )
     {
         int i_row_seed = i_seed + (int) i_y;

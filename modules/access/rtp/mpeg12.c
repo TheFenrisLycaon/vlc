@@ -4,6 +4,7 @@
  */
 /*****************************************************************************
  * Copyright © 2021 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License
@@ -28,11 +29,11 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include <vlc_common.h>
-#include <vlc_block.h>
-#include <vlc_es.h>
-#include <vlc_plugin.h>
-#include <vlc_strings.h>
+#include <heimdall_common.h>
+#include <heimdall_block.h>
+#include <heimdall_es.h>
+#include <heimdall_plugin.h>
+#include <heimdall_strings.h>
 
 #include "rtp.h"
 #include "../../packetizer/mpegaudio.h"
@@ -44,10 +45,10 @@ struct rtp_mpa {
     block_t *frags;
     block_t **frag_end;
     size_t offset;
-    struct vlc_rtp_es *es;
+    struct heimdall_rtp_es *es;
 };
 
-static void *rtp_mpa_init(struct vlc_rtp_pt *pt)
+static void *rtp_mpa_init(struct heimdall_rtp_pt *pt)
 {
     struct rtp_mpa *sys = malloc(sizeof (*sys));
     if (unlikely(sys == NULL))
@@ -59,8 +60,8 @@ static void *rtp_mpa_init(struct vlc_rtp_pt *pt)
 
     es_format_t fmt;
 
-    es_format_Init(&fmt, AUDIO_ES, VLC_CODEC_MPGA);
-    sys->es = vlc_rtp_pt_request_es(pt, &fmt);
+    es_format_Init(&fmt, AUDIO_ES, HEIMDALL_CODEC_MPGA);
+    sys->es = heimdall_rtp_pt_request_es(pt, &fmt);
     return sys;
 }
 
@@ -70,7 +71,7 @@ static void rtp_mpa_send(struct rtp_mpa *sys)
     block_t *frame = block_ChainGather(frags);
 
     if (likely(frame != NULL))
-        vlc_rtp_es_send(sys->es, frame);
+        heimdall_rtp_es_send(sys->es, frame);
     else
         block_ChainRelease(frags);
 
@@ -79,7 +80,7 @@ static void rtp_mpa_send(struct rtp_mpa *sys)
     sys->offset = 0;
 }
 
-static void rtp_mpa_destroy(struct vlc_rtp_pt *pt, void *data)
+static void rtp_mpa_destroy(struct heimdall_rtp_pt *pt, void *data)
 {
     struct rtp_mpa *sys = data;
 
@@ -88,21 +89,21 @@ static void rtp_mpa_destroy(struct vlc_rtp_pt *pt, void *data)
 
     if (sys->frags != NULL)
         rtp_mpa_send(sys);
-    vlc_rtp_es_destroy(sys->es);
+    heimdall_rtp_es_destroy(sys->es);
     free(sys);
     (void) pt;
 }
 
-static void rtp_mpa_decode(struct vlc_rtp_pt *pt, void *data, block_t *block,
-                           const struct vlc_rtp_pktinfo *restrict info)
+static void rtp_mpa_decode(struct heimdall_rtp_pt *pt, void *data, block_t *block,
+                           const struct heimdall_rtp_pktinfo *restrict info)
 {
-    struct vlc_logger *log = pt->opaque;
+    struct heimdall_logger *log = pt->opaque;
     struct rtp_mpa *sys = data;
 
     if (unlikely(sys == NULL))
         goto drop;
     if (block->i_buffer < 4) {
-        vlc_warning(log, "malformatted packet (%zu bytes)", block->i_buffer);
+        heimdall_warning(log, "malformatted packet (%zu bytes)", block->i_buffer);
         goto drop;
     }
 
@@ -117,7 +118,7 @@ static void rtp_mpa_decode(struct vlc_rtp_pt *pt, void *data, block_t *block,
 
     if (offset != sys->offset) {
         /* Discontinuous offset, probably packet loss. */
-        vlc_warning(log, "offset discontinuity: expected %zu, got %"PRIuFAST16,
+        heimdall_warning(log, "offset discontinuity: expected %zu, got %"PRIuFAST16,
                     sys->offset, offset);
         block->i_flags |= BLOCK_FLAG_CORRUPTED;
     }
@@ -145,7 +146,7 @@ static void rtp_mpa_decode(struct vlc_rtp_pt *pt, void *data, block_t *block,
         struct mpga_frameheader_s fh;
         if(mpga_decode_frameheader(ntoh32(header), &fh))
         {
-            vlc_warning(log, "malformatted header");
+            heimdall_warning(log, "malformatted header");
             block->i_flags |= BLOCK_FLAG_CORRUPTED;
             break;
         }
@@ -154,7 +155,7 @@ static void rtp_mpa_decode(struct vlc_rtp_pt *pt, void *data, block_t *block,
          * sense the completion of the frame when the next frame starts. */
         if (fh.i_frame_size == 0) {
             if (sys->offset >= MAX_PACKET_SIZE) {
-                vlc_warning(log, "oversized packet (%zu bytes)", sys->offset);
+                heimdall_warning(log, "oversized packet (%zu bytes)", sys->offset);
                 rtp_mpa_send(sys);
             }
             break;
@@ -171,7 +172,7 @@ static void rtp_mpa_decode(struct vlc_rtp_pt *pt, void *data, block_t *block,
             break;
 
         if (offset != 0) {
-            vlc_warning(log, "invalid frame fragmentation");
+            heimdall_warning(log, "invalid frame fragmentation");
             block->i_flags |= BLOCK_FLAG_CORRUPTED;
             break;
         }
@@ -184,7 +185,7 @@ static void rtp_mpa_decode(struct vlc_rtp_pt *pt, void *data, block_t *block,
             memcpy(frame->p_buffer, block->p_buffer, frame->i_buffer);
             frame->i_flags = block->i_flags;
             frame->i_pts = block->i_pts;
-            vlc_rtp_es_send(sys->es, frame);
+            heimdall_rtp_es_send(sys->es, frame);
 
             block->i_flags = 0;
         } else
@@ -192,7 +193,7 @@ static void rtp_mpa_decode(struct vlc_rtp_pt *pt, void *data, block_t *block,
 
         block->p_buffer += fh.i_frame_size;
         block->i_buffer -= fh.i_frame_size;
-        block->i_pts = VLC_TICK_INVALID;
+        block->i_pts = HEIMDALL_TICK_INVALID;
         sys->offset -= fh.i_frame_size;
     }
     return;
@@ -201,7 +202,7 @@ drop:
     block_Release(block);
 }
 
-static const struct vlc_rtp_pt_operations rtp_mpa_ops = {
+static const struct heimdall_rtp_pt_operations rtp_mpa_ops = {
     NULL, rtp_mpa_init, rtp_mpa_destroy, rtp_mpa_decode,
 };
 
@@ -210,10 +211,10 @@ struct rtp_mpv {
     block_t *frags;
     block_t **frag_end;
     size_t size;
-    struct vlc_rtp_es *es;
+    struct heimdall_rtp_es *es;
 };
 
-static void *rtp_mpv_init(struct vlc_rtp_pt *pt)
+static void *rtp_mpv_init(struct heimdall_rtp_pt *pt)
 {
     struct rtp_mpv *sys = malloc(sizeof (*sys));
     if (unlikely(sys == NULL))
@@ -225,8 +226,8 @@ static void *rtp_mpv_init(struct vlc_rtp_pt *pt)
 
     es_format_t fmt;
 
-    es_format_Init(&fmt, VIDEO_ES, VLC_CODEC_MPGV);
-    sys->es = vlc_rtp_pt_request_es(pt, &fmt);
+    es_format_Init(&fmt, VIDEO_ES, HEIMDALL_CODEC_MPGV);
+    sys->es = heimdall_rtp_pt_request_es(pt, &fmt);
     return sys;
 }
 
@@ -236,7 +237,7 @@ static void rtp_mpv_send(struct rtp_mpv *sys)
     block_t *frame = block_ChainGather(frags);
 
     if (likely(frame != NULL))
-        vlc_rtp_es_send(sys->es, frame);
+        heimdall_rtp_es_send(sys->es, frame);
     else
         block_ChainRelease(frags);
 
@@ -245,7 +246,7 @@ static void rtp_mpv_send(struct rtp_mpv *sys)
     sys->size = 0;
 }
 
-static void rtp_mpv_destroy(struct vlc_rtp_pt *pt, void *data)
+static void rtp_mpv_destroy(struct heimdall_rtp_pt *pt, void *data)
 {
     struct rtp_mpv *sys = data;
 
@@ -254,7 +255,7 @@ static void rtp_mpv_destroy(struct vlc_rtp_pt *pt, void *data)
 
     if (sys->frags != NULL)
         rtp_mpv_send(sys);
-    vlc_rtp_es_destroy(sys->es);
+    heimdall_rtp_es_destroy(sys->es);
     free(sys);
     (void) pt;
 }
@@ -281,16 +282,16 @@ static const unsigned short pic_types[8] = {
 
 #define EXTRACT(x,mask) (((x) & (mask)) >> stdc_trailing_zeros(mask))
 
-static void rtp_mpv_decode(struct vlc_rtp_pt *pt, void *data, block_t *block,
-                           const struct vlc_rtp_pktinfo *restrict info)
+static void rtp_mpv_decode(struct heimdall_rtp_pt *pt, void *data, block_t *block,
+                           const struct heimdall_rtp_pktinfo *restrict info)
 {
-    struct vlc_logger *log = pt->opaque;
+    struct heimdall_logger *log = pt->opaque;
     struct rtp_mpv *sys = data;
 
     if (unlikely(sys == NULL))
         goto drop;
     if (block->i_buffer < 4) {
-        vlc_warning(log, "malformatted packet (%zu bytes)", block->i_buffer);
+        heimdall_warning(log, "malformatted packet (%zu bytes)", block->i_buffer);
         goto drop;
     }
 
@@ -299,7 +300,7 @@ static void rtp_mpv_decode(struct vlc_rtp_pt *pt, void *data, block_t *block,
 
     if (header & MPV_TWO_BIT) {
         if (block->i_buffer < 8) {
-            vlc_warning(log, "malformatted packet (%zu bytes)",
+            heimdall_warning(log, "malformatted packet (%zu bytes)",
                         block->i_buffer);
             goto drop;
         }
@@ -321,7 +322,7 @@ static void rtp_mpv_decode(struct vlc_rtp_pt *pt, void *data, block_t *block,
     sys->size += block->i_buffer;
 
     if (sys->size >= MAX_PACKET_SIZE) {
-        vlc_warning(log, "oversized packet (%zu bytes)", sys->size);
+        heimdall_warning(log, "oversized packet (%zu bytes)", sys->size);
         rtp_mpv_send(sys); /* refuse to queue arbitrarily large packet */
     }
     else
@@ -334,89 +335,89 @@ drop:
     block_Release(block);
 }
 
-static const struct vlc_rtp_pt_operations rtp_mpv_ops = {
+static const struct heimdall_rtp_pt_operations rtp_mpv_ops = {
     NULL, rtp_mpv_init, rtp_mpv_destroy, rtp_mpv_decode,
 };
 
 /* video/MP1S, video/MP2P: MPEG-1/2 system streams */
-static void *rtp_mp2p_init(struct vlc_rtp_pt *pt)
+static void *rtp_mp2p_init(struct heimdall_rtp_pt *pt)
 {
-    return vlc_rtp_pt_request_mux(pt, "ps");
+    return heimdall_rtp_pt_request_mux(pt, "ps");
 }
 
-static void rtp_mp2p_destroy(struct vlc_rtp_pt *pt, void *data)
+static void rtp_mp2p_destroy(struct heimdall_rtp_pt *pt, void *data)
 {
-    vlc_rtp_es_destroy(data);
+    heimdall_rtp_es_destroy(data);
     (void) pt;
 }
 
-static void rtp_mp2p_decode(struct vlc_rtp_pt *pt, void *data, block_t *block,
-                            const struct vlc_rtp_pktinfo *restrict info)
+static void rtp_mp2p_decode(struct heimdall_rtp_pt *pt, void *data, block_t *block,
+                            const struct heimdall_rtp_pktinfo *restrict info)
 {
     if (info->m) /* TODO: avoid stream/chained-demux to preserve flags */
         block->i_flags |= BLOCK_FLAG_DISCONTINUITY;
 
-    vlc_rtp_es_send(data, block);
+    heimdall_rtp_es_send(data, block);
     (void) pt;
 }
 
-static const struct vlc_rtp_pt_operations rtp_mp2p_ops = {
+static const struct heimdall_rtp_pt_operations rtp_mp2p_ops = {
     NULL, rtp_mp2p_init, rtp_mp2p_destroy, rtp_mp2p_decode,
 };
 
 /* video/MP2T: MPEG-2 Transport Stream */
-static void *rtp_mp2t_init(struct vlc_rtp_pt *pt)
+static void *rtp_mp2t_init(struct heimdall_rtp_pt *pt)
 {
-    return vlc_rtp_pt_request_mux(pt, "ts");
+    return heimdall_rtp_pt_request_mux(pt, "ts");
 }
 
-static void rtp_mp2t_destroy(struct vlc_rtp_pt *pt, void *data)
+static void rtp_mp2t_destroy(struct heimdall_rtp_pt *pt, void *data)
 {
-    vlc_rtp_es_destroy(data);
+    heimdall_rtp_es_destroy(data);
     (void) pt;
 }
 
-static void rtp_mp2t_decode(struct vlc_rtp_pt *pt, void *data, block_t *block,
-                            const struct vlc_rtp_pktinfo *restrict info)
+static void rtp_mp2t_decode(struct heimdall_rtp_pt *pt, void *data, block_t *block,
+                            const struct heimdall_rtp_pktinfo *restrict info)
 {
     if (info->m) /* TODO: avoid stream/chained-demux to preserve flags */
         block->i_flags |= BLOCK_FLAG_DISCONTINUITY;
 
     block->i_buffer -= block->i_buffer % 188;
-    vlc_rtp_es_send(data, block);
+    heimdall_rtp_es_send(data, block);
     (void) pt;
 }
 
-static const struct vlc_rtp_pt_operations rtp_mp2t_ops = {
+static const struct heimdall_rtp_pt_operations rtp_mp2t_ops = {
     NULL, rtp_mp2t_init, rtp_mp2t_destroy, rtp_mp2t_decode,
 };
 
 
-static int rtp_mpeg12_open(vlc_object_t *obj, struct vlc_rtp_pt *pt,
-                        const struct vlc_sdp_pt *desc)
+static int rtp_mpeg12_open(heimdall_object_t *obj, struct heimdall_rtp_pt *pt,
+                        const struct heimdall_sdp_pt *desc)
 {
-    pt->opaque = vlc_object_logger(obj);
+    pt->opaque = heimdall_object_logger(obj);
 
-    if (vlc_ascii_strcasecmp(desc->name, "MPA") == 0) /* RFC2250 §3.2 */
+    if (heimdall_ascii_strcasecmp(desc->name, "MPA") == 0) /* RFC2250 §3.2 */
         pt->ops = &rtp_mpa_ops;
-    else if (vlc_ascii_strcasecmp(desc->name, "MPV") == 0) /* RFC2250 §3.1 */
+    else if (heimdall_ascii_strcasecmp(desc->name, "MPV") == 0) /* RFC2250 §3.1 */
         pt->ops = &rtp_mpv_ops;
-    else if (vlc_ascii_strcasecmp(desc->name, "MP1S") == 0
-          || vlc_ascii_strcasecmp(desc->name, "MP2P") == 0) /* RFC2250 §2 */
+    else if (heimdall_ascii_strcasecmp(desc->name, "MP1S") == 0
+          || heimdall_ascii_strcasecmp(desc->name, "MP2P") == 0) /* RFC2250 §2 */
         pt->ops = &rtp_mp2p_ops;
-    else if (vlc_ascii_strcasecmp(desc->name, "MP2T") == 0) /* RFC2250 §2 */
+    else if (heimdall_ascii_strcasecmp(desc->name, "MP2T") == 0) /* RFC2250 §2 */
         pt->ops = &rtp_mp2t_ops;
     else
-        return VLC_ENOTSUP;
+        return HEIMDALL_ENOTSUP;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname(N_("RTP MPEG"))
     set_description(N_("RTP MPEG-1/2 payload parser"))
     set_subcategory(SUBCAT_INPUT_DEMUX)
     set_rtp_parser_callback(rtp_mpeg12_open)
     add_shortcut("audio/MPA", "video/MPV", "video/MP1S", "video/MP2P",
                  "video/MP2T")
-vlc_module_end()
+heimdall_module_end()

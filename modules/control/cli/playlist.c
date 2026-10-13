@@ -1,7 +1,8 @@
 /*****************************************************************************
- * playlist.c : remote control stdin/stdout module for vlc
+ * playlist.c : remote control stdin/stdout module for heimdall
  *****************************************************************************
  * Copyright (C) 2004-2009 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Peter Surda <shurdeek@panorama.sth.ac.at>
  *         Jean-Paul Saman <jpsaman #_at_# m2x _replaceWith#dot_ nl>
@@ -25,11 +26,11 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_interface.h>
-#include <vlc_input_item.h>
-#include <vlc_playlist.h>
-#include <vlc_url.h>
+#include <heimdall_common.h>
+#include <heimdall_interface.h>
+#include <heimdall_input_item.h>
+#include <heimdall_playlist.h>
+#include <heimdall_url.h>
 
 #include "cli.h"
 
@@ -103,7 +104,7 @@ static input_item_t *parse_MRL(const char *mrl)
             if (strstr( psz_item, "://" ) != NULL)
                 psz_item_mrl = strdup(psz_item);
             else
-                psz_item_mrl = vlc_path2uri(psz_item, NULL);
+                psz_item_mrl = heimdall_path2uri(psz_item, NULL);
             if (psz_item_mrl == NULL)
             {
                 free(psz_orig);
@@ -127,7 +128,7 @@ static input_item_t *parse_MRL(const char *mrl)
         p_item = input_item_New(psz_item_mrl, NULL);
         for (int i = 0; i < i_options; i++)
             input_item_AddOption(p_item, ppsz_options[i],
-                                 VLC_INPUT_OPTION_TRUSTED);
+                                 HEIMDALL_INPUT_OPTION_TRUSTED);
         free(psz_item_mrl);
     }
 
@@ -139,22 +140,22 @@ static input_item_t *parse_MRL(const char *mrl)
 }
 #endif
 
-static void print_playlist(struct cli_client *cl, vlc_playlist_t *playlist)
+static void print_playlist(struct cli_client *cl, heimdall_playlist_t *playlist)
 {
-    size_t count = vlc_playlist_Count(playlist);
-    size_t current = vlc_playlist_GetCurrentIndex(playlist);
+    size_t count = heimdall_playlist_Count(playlist);
+    size_t current = heimdall_playlist_GetCurrentIndex(playlist);
 
     for (size_t i = 0; i < count; ++i)
     {
-        vlc_playlist_item_t *plitem = vlc_playlist_Get(playlist, i);
-        input_item_t *item = vlc_playlist_item_GetMedia(plitem);
-        vlc_tick_t len = item->i_duration;
+        heimdall_playlist_item_t *plitem = heimdall_playlist_Get(playlist, i);
+        input_item_t *item = heimdall_playlist_item_GetMedia(plitem);
+        heimdall_tick_t len = item->i_duration;
         char selected = (i == current) ? '*' : ' ';
 
-        if (len != INPUT_DURATION_INDEFINITE && len != VLC_TICK_INVALID)
+        if (len != INPUT_DURATION_INDEFINITE && len != HEIMDALL_TICK_INVALID)
         {
             char buf[MSTRTIME_MAX_SIZE];
-            vlc_tick_to_str(buf, len);
+            heimdall_tick_to_str(buf, len);
             cli_printf(cl, "| %c%zu %s (%s)", selected, i, item->psz_name, buf);
         }
         else
@@ -163,14 +164,14 @@ static void print_playlist(struct cli_client *cl, vlc_playlist_t *playlist)
 }
 
 static int PlaylistDoVoid(struct cli_client *cl, void *data,
-                          int (*cb)(vlc_playlist_t *))
+                          int (*cb)(heimdall_playlist_t *))
 {
-    vlc_playlist_t *playlist = data;
+    heimdall_playlist_t *playlist = data;
     int ret;
 
-    vlc_playlist_Lock(playlist);
+    heimdall_playlist_Lock(playlist);
     ret = cb(playlist);
-    vlc_playlist_Unlock(playlist);
+    heimdall_playlist_Unlock(playlist);
     (void) cl;
     return ret;
 }
@@ -179,26 +180,26 @@ static int PlaylistPrev(struct cli_client *cl, const char *const *args,
                         size_t count, void *data)
 {
     (void) args; (void) count;
-    return PlaylistDoVoid(cl, data, vlc_playlist_Prev);
+    return PlaylistDoVoid(cl, data, heimdall_playlist_Prev);
 }
 
 static int PlaylistNext(struct cli_client *cl, const char *const *args,
                         size_t count, void *data)
 {
     (void) args; (void) count;
-    return PlaylistDoVoid(cl, data, vlc_playlist_Next);
+    return PlaylistDoVoid(cl, data, heimdall_playlist_Next);
 }
 
 static int PlaylistPlay(struct cli_client *cl, const char *const *args,
                         size_t count, void *data)
 {
     (void) args; (void) count;
-    return PlaylistDoVoid(cl, data, vlc_playlist_Start);
+    return PlaylistDoVoid(cl, data, heimdall_playlist_Start);
 }
 
-static int PlaylistDoStop(vlc_playlist_t *playlist)
+static int PlaylistDoStop(heimdall_playlist_t *playlist)
 {
-    vlc_playlist_Stop(playlist);
+    heimdall_playlist_Stop(playlist);
     return 0;
 }
 
@@ -209,10 +210,10 @@ static int PlaylistStop(struct cli_client *cl, const char *const *args,
     return PlaylistDoVoid(cl, data, PlaylistDoStop);
 }
 
-static int PlaylistDoClear(vlc_playlist_t *playlist)
+static int PlaylistDoClear(heimdall_playlist_t *playlist)
 {
-    vlc_playlist_Stop(playlist);
-    vlc_playlist_Clear(playlist);
+    heimdall_playlist_Stop(playlist);
+    heimdall_playlist_Clear(playlist);
     return 0;
 }
 
@@ -223,15 +224,15 @@ static int PlaylistClear(struct cli_client *cl, const char *const *args,
     return PlaylistDoVoid(cl, data, PlaylistDoClear);
 }
 
-static int PlaylistDoSort(vlc_playlist_t *playlist)
+static int PlaylistDoSort(heimdall_playlist_t *playlist)
 {
-    struct vlc_playlist_sort_criterion criteria =
+    struct heimdall_playlist_sort_criterion criteria =
     {
-        .key = VLC_PLAYLIST_SORT_KEY_ARTIST,
-        .order = VLC_PLAYLIST_SORT_ORDER_ASCENDING
+        .key = HEIMDALL_PLAYLIST_SORT_KEY_ARTIST,
+        .order = HEIMDALL_PLAYLIST_SORT_ORDER_ASCENDING
     };
 
-    return vlc_playlist_Sort(playlist, &criteria, 1);
+    return heimdall_playlist_Sort(playlist, &criteria, 1);
 }
 
 static int PlaylistSort(struct cli_client *cl, const char *const *args,
@@ -244,12 +245,12 @@ static int PlaylistSort(struct cli_client *cl, const char *const *args,
 static int PlaylistList(struct cli_client *cl, const char *const *args,
                         size_t count, void *data)
 {
-    vlc_playlist_t *playlist = data;
+    heimdall_playlist_t *playlist = data;
 
     cli_printf(cl, "+----[ Playlist ]");
-    vlc_playlist_Lock(playlist);
+    heimdall_playlist_Lock(playlist);
     print_playlist(cl, playlist);
-    vlc_playlist_Unlock(playlist);
+    heimdall_playlist_Unlock(playlist);
     cli_printf(cl, "+----[ End of playlist ]");
     (void) args; (void) count;
     return 0;
@@ -257,19 +258,19 @@ static int PlaylistList(struct cli_client *cl, const char *const *args,
 
 static int PlaylistRepeatCommon(struct cli_client *cl, const char *const *args,
                                 size_t count, void *data,
-                                enum vlc_playlist_playback_repeat on_mode)
+                                enum heimdall_playlist_playback_repeat on_mode)
 
 {
-    vlc_playlist_t *playlist = data;
+    heimdall_playlist_t *playlist = data;
 
-    vlc_playlist_Lock(playlist);
+    heimdall_playlist_Lock(playlist);
 
-    enum vlc_playlist_playback_repeat cur_mode =
-                                      vlc_playlist_GetPlaybackRepeat(playlist);
-    enum vlc_playlist_playback_repeat new_mode;
+    enum heimdall_playlist_playback_repeat cur_mode =
+                                      heimdall_playlist_GetPlaybackRepeat(playlist);
+    enum heimdall_playlist_playback_repeat new_mode;
 
     if (cur_mode == on_mode)
-        new_mode = VLC_PLAYLIST_PLAYBACK_REPEAT_NONE;
+        new_mode = HEIMDALL_PLAYLIST_PLAYBACK_REPEAT_NONE;
     else
         new_mode = on_mode;
 
@@ -278,13 +279,13 @@ static int PlaylistRepeatCommon(struct cli_client *cl, const char *const *args,
         if (strcmp(args[1], "on") == 0)
             new_mode = on_mode;
         if (strcmp(args[1], "off") == 0)
-            new_mode = VLC_PLAYLIST_PLAYBACK_REPEAT_NONE;
+            new_mode = HEIMDALL_PLAYLIST_PLAYBACK_REPEAT_NONE;
     }
 
     if (new_mode != cur_mode)
-        vlc_playlist_SetPlaybackRepeat(playlist, new_mode);
+        heimdall_playlist_SetPlaybackRepeat(playlist, new_mode);
 
-    vlc_playlist_Unlock(playlist);
+    heimdall_playlist_Unlock(playlist);
     (void) cl;
     return 0;
 }
@@ -293,44 +294,44 @@ static int PlaylistRepeat(struct cli_client *cl, const char *const *args,
                           size_t count, void *data)
 {
     return PlaylistRepeatCommon(cl, args, count, data,
-                                VLC_PLAYLIST_PLAYBACK_REPEAT_CURRENT);
+                                HEIMDALL_PLAYLIST_PLAYBACK_REPEAT_CURRENT);
 }
 
 static int PlaylistLoop(struct cli_client *cl, const char *const *args,
                         size_t count, void *data)
 {
     return PlaylistRepeatCommon(cl, args, count, data,
-                                VLC_PLAYLIST_PLAYBACK_REPEAT_ALL);
+                                HEIMDALL_PLAYLIST_PLAYBACK_REPEAT_ALL);
 }
 
 static int PlaylistRandom(struct cli_client *cl, const char *const *args,
                           size_t count, void *data)
 {
-    vlc_playlist_t *playlist = data;
+    heimdall_playlist_t *playlist = data;
 
-    vlc_playlist_Lock(playlist);
+    heimdall_playlist_Lock(playlist);
 
-    enum vlc_playlist_playback_order cur_mode =
-                                       vlc_playlist_GetPlaybackOrder(playlist);
-    enum vlc_playlist_playback_order new_mode;
+    enum heimdall_playlist_playback_order cur_mode =
+                                       heimdall_playlist_GetPlaybackOrder(playlist);
+    enum heimdall_playlist_playback_order new_mode;
 
-    if (cur_mode == VLC_PLAYLIST_PLAYBACK_ORDER_RANDOM)
-        new_mode = VLC_PLAYLIST_PLAYBACK_ORDER_NORMAL;
+    if (cur_mode == HEIMDALL_PLAYLIST_PLAYBACK_ORDER_RANDOM)
+        new_mode = HEIMDALL_PLAYLIST_PLAYBACK_ORDER_NORMAL;
     else
-        new_mode = VLC_PLAYLIST_PLAYBACK_ORDER_RANDOM;
+        new_mode = HEIMDALL_PLAYLIST_PLAYBACK_ORDER_RANDOM;
 
     if (count > 1)
     {
         if (strcmp(args[1], "on") == 0)
-            new_mode = VLC_PLAYLIST_PLAYBACK_ORDER_RANDOM;
+            new_mode = HEIMDALL_PLAYLIST_PLAYBACK_ORDER_RANDOM;
         if (strcmp(args[1], "off") == 0)
-            new_mode = VLC_PLAYLIST_PLAYBACK_ORDER_NORMAL;
+            new_mode = HEIMDALL_PLAYLIST_PLAYBACK_ORDER_NORMAL;
     }
 
     if (new_mode != cur_mode)
-        vlc_playlist_SetPlaybackOrder(playlist, new_mode);
+        heimdall_playlist_SetPlaybackOrder(playlist, new_mode);
 
-    vlc_playlist_Unlock(playlist);
+    heimdall_playlist_Unlock(playlist);
     (void) cl;
     return 0;
 }
@@ -338,35 +339,35 @@ static int PlaylistRandom(struct cli_client *cl, const char *const *args,
 static int PlaylistGoto(struct cli_client *cl, const char *const *args,
                         size_t n_args, void *data)
 {
-    vlc_playlist_t *playlist = data;
+    heimdall_playlist_t *playlist = data;
     const char *arg = n_args > 1 ? args[1] : "";
     unsigned long long index = atoll(arg);
 
-    vlc_playlist_Lock(playlist);
+    heimdall_playlist_Lock(playlist);
 
-    int ret = vlc_playlist_PlayAt(playlist, index);
+    int ret = heimdall_playlist_PlayAt(playlist, index);
     if (ret) {
-        size_t count = vlc_playlist_Count(playlist);
+        size_t count = heimdall_playlist_Count(playlist);
 
         cli_printf(cl,
-                   vlc_ngettext("Playlist has only %zu element",
+                   heimdall_ngettext("Playlist has only %zu element",
                                 "Playlist has only %zu elements", count),
                    count);
     }
 
-    vlc_playlist_Unlock(playlist);
+    heimdall_playlist_Unlock(playlist);
     return ret;
 }
 
 static int PlaylistAddCommon(struct cli_client *cl, const char *const *args,
                              size_t n_args, void *data, bool play)
 {
-    vlc_playlist_t *playlist = data;
+    heimdall_playlist_t *playlist = data;
     size_t count;
     int ret = 0;
 
-    vlc_playlist_Lock(playlist);
-    count = vlc_playlist_Count(playlist);
+    heimdall_playlist_Lock(playlist);
+    count = heimdall_playlist_Count(playlist);
 #ifdef HAVE_WORDEXP
 
     for (size_t i = 1; i < n_args;)
@@ -377,7 +378,7 @@ static int PlaylistAddCommon(struct cli_client *cl, const char *const *args,
             item = input_item_New(args[i], NULL);
         else
         {
-            char *url = vlc_path2uri(args[i], NULL);
+            char *url = heimdall_path2uri(args[i], NULL);
 
             if (url != NULL)
             {
@@ -397,7 +398,7 @@ static int PlaylistAddCommon(struct cli_client *cl, const char *const *args,
         {
             if (likely(item != NULL)
              && input_item_AddOption(item, args[i] + 1,
-                                     VLC_INPUT_OPTION_TRUSTED))
+                                     HEIMDALL_INPUT_OPTION_TRUSTED))
             {
                 input_item_Release(item);
                 item = NULL;
@@ -407,14 +408,14 @@ static int PlaylistAddCommon(struct cli_client *cl, const char *const *args,
 
         if (unlikely(item == NULL))
         {
-            ret = VLC_ENOMEM;
+            ret = HEIMDALL_ENOMEM;
             continue;
         }
 
-        if (vlc_playlist_InsertOne(playlist, count, item) == VLC_SUCCESS)
+        if (heimdall_playlist_InsertOne(playlist, count, item) == HEIMDALL_SUCCESS)
         {
             if (play)
-                vlc_playlist_PlayAt(playlist, count);
+                heimdall_playlist_PlayAt(playlist, count);
 
             count++;
         }
@@ -432,14 +433,14 @@ static int PlaylistAddCommon(struct cli_client *cl, const char *const *args,
         cli_printf(cl, "Trying to %s %s to playlist.",
                    play ? "add" : "enqueue", arg);
 
-        if (vlc_playlist_InsertOne(playlist, count, item) == VLC_SUCCESS
+        if (heimdall_playlist_InsertOne(playlist, count, item) == HEIMDALL_SUCCESS
          && play)
-            vlc_playlist_PlayAt(playlist, count);
+            heimdall_playlist_PlayAt(playlist, count);
 
         input_item_Release(item);
     }
 #endif
-    vlc_playlist_Unlock(playlist);
+    heimdall_playlist_Unlock(playlist);
     return ret;
 }
 
@@ -458,60 +459,60 @@ static int PlaylistEnqueue(struct cli_client *cl, const char *const *args,
 static int PlaylistMove(struct cli_client *cl, const char *const *args,
                         size_t count, void *data)
 {
-    vlc_playlist_t *playlist = data;
+    heimdall_playlist_t *playlist = data;
     int ret;
 
     if (count != 3)
     {
         cli_printf(cl, "%s expects two parameters", args[0]);
-        return VLC_EGENERIC /*EINVAL*/;
+        return HEIMDALL_EGENERIC /*EINVAL*/;
     }
 
     size_t from = strtoul(args[1], NULL, 0);
     size_t to = strtoul(args[2], NULL, 0);
 
-    vlc_playlist_Lock(playlist);
-    size_t size = vlc_playlist_Count(playlist);
+    heimdall_playlist_Lock(playlist);
+    size_t size = heimdall_playlist_Count(playlist);
 
     if (from < size && to < size)
     {
-        vlc_playlist_Move(playlist, from, 1, to);
+        heimdall_playlist_Move(playlist, from, 1, to);
         ret = 0;
     }
     else
     {
-        cli_printf(cl, vlc_ngettext("Playlist has only %zu element",
+        cli_printf(cl, heimdall_ngettext("Playlist has only %zu element",
                                     "Playlist has only %zu elements", size),
                   size);
-        ret = VLC_ENOENT;
+        ret = HEIMDALL_ENOENT;
     }
-    vlc_playlist_Unlock(playlist);
+    heimdall_playlist_Unlock(playlist);
     return ret;
 }
 
 static void ItemPrint(struct cli_client *cl, input_item_t *item)
 {
-    vlc_meta_t *meta;
+    heimdall_meta_t *meta;
     info_category_t *category;
     char **extras;
 
-    vlc_mutex_lock(&item->lock);
+    heimdall_mutex_lock(&item->lock);
     meta = item->p_meta;
     cli_printf(cl, "+----[ %s ]", "Meta data");
     cli_printf(cl, "| ");
 
-    for (int i = 0; i < VLC_META_TYPE_COUNT; i++) {
-        const char *s = vlc_meta_Get(meta, i);
+    for (int i = 0; i < HEIMDALL_META_TYPE_COUNT; i++) {
+        const char *s = heimdall_meta_Get(meta, i);
 
         if (s != NULL)
-            cli_printf(cl, "| %s: %s", vlc_meta_TypeToString(i), s);
+            cli_printf(cl, "| %s: %s", heimdall_meta_TypeToString(i), s);
     }
 
-    extras = vlc_meta_CopyExtraNames(meta);
+    extras = heimdall_meta_CopyExtraNames(meta);
     if (extras != NULL) {
         for (size_t i = 0; extras[i] != NULL; i++) {
              cli_printf(cl, "| %s: %s", extras[i],
-                        vlc_meta_GetExtra(meta, extras[i]));
+                        heimdall_meta_GetExtra(meta, extras[i]));
              free(extras[i]);
         }
         free(extras);
@@ -519,7 +520,7 @@ static void ItemPrint(struct cli_client *cl, input_item_t *item)
 
     cli_printf(cl, "| ");
 
-    vlc_list_foreach(category, &item->categories, node) {
+    heimdall_list_foreach(category, &item->categories, node) {
         info_t *info;
 
         if (info_category_IsHidden(category))
@@ -532,24 +533,24 @@ static void ItemPrint(struct cli_client *cl, input_item_t *item)
         cli_printf(cl, "| ");
     }
     cli_printf(cl, "+----[ %s ]", "end of stream info");
-    vlc_mutex_unlock(&item->lock);
+    heimdall_mutex_unlock(&item->lock);
 }
 
 static int PlaylistItemInfo(struct cli_client *cl, const char *const *args,
                             size_t count, void *data)
 {
-    vlc_playlist_t *playlist = data;
+    heimdall_playlist_t *playlist = data;
     ssize_t idx;
     input_item_t *item;
 
-    vlc_playlist_Lock(playlist);
+    heimdall_playlist_Lock(playlist);
     if (count >= 2)
         idx = atoi(args[1]);
     else
-        idx = vlc_playlist_GetCurrentIndex(playlist);
+        idx = heimdall_playlist_GetCurrentIndex(playlist);
 
-    if ((size_t)idx < vlc_playlist_Count(playlist))
-        item = vlc_playlist_item_GetMedia(vlc_playlist_Get(playlist, idx));
+    if ((size_t)idx < heimdall_playlist_Count(playlist))
+        item = heimdall_playlist_item_GetMedia(heimdall_playlist_Get(playlist, idx));
     else
         item = NULL;
 
@@ -557,9 +558,9 @@ static int PlaylistItemInfo(struct cli_client *cl, const char *const *args,
         ItemPrint(cl, item);
     else
         cli_printf(cl, "no input");
-    vlc_playlist_Unlock(playlist);
+    heimdall_playlist_Unlock(playlist);
     (void) args; (void) count;
-    return (item != NULL) ? 0 : VLC_ENOENT;
+    return (item != NULL) ? 0 : HEIMDALL_ENOENT;
 }
 
 static const struct cli_handler cmds[] =
@@ -584,5 +585,5 @@ static const struct cli_handler cmds[] =
 void RegisterPlaylist(intf_thread_t *intf)
 {
     RegisterHandlers(intf, cmds, ARRAY_SIZE(cmds),
-                     vlc_intf_GetMainPlaylist(intf));
+                     heimdall_intf_GetMainPlaylist(intf));
 }

@@ -2,6 +2,7 @@
  * macosx_factory.mm
  *****************************************************************************
  * Copyright (C) 2026 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Fletcher Holt <fletcherholt649@gmail.com>
  *          Felix Paul Kühne <fkuehne@videolan.org>
@@ -37,7 +38,7 @@
 #include "macosx_popup.hpp"
 #include "../src/generic_window.hpp"
 
-#include <vlc_configuration.h>
+#include <heimdall_configuration.h>
 
 #include <dirent.h>
 #include <unistd.h>
@@ -51,14 +52,14 @@ MacOSXFactory::MacOSXFactory( intf_thread_t *pIntf ):
     // Relative path for development builds (CWD is the build directory)
     m_resourcePath.push_back( "share/skins2" );
 
-    char *datadir = config_GetUserDir( VLC_USERDATA_DIR );
+    char *datadir = config_GetUserDir( HEIMDALL_USERDATA_DIR );
     if( datadir )
     {
         m_resourcePath.push_back( std::string(datadir) + "/skins" );
         m_resourcePath.push_back( std::string(datadir) + "/skins2" );
         free( datadir );
     }
-    datadir = config_GetSysPath( VLC_PKG_DATA_DIR, NULL );
+    datadir = config_GetSysPath( HEIMDALL_PKG_DATA_DIR, NULL );
     if( datadir )
     {
         m_resourcePath.push_back( std::string(datadir) + "/skins" );

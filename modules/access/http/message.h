@@ -2,6 +2,7 @@
  * message.h: HTTP request/response
  *****************************************************************************
  * Copyright (C) 2015 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -28,8 +29,8 @@
  * \file message.h
  */
 
-struct vlc_http_msg;
-struct vlc_http_cookie_jar_t;
+struct heimdall_http_msg;
+struct heimdall_http_cookie_jar_t;
 
 /**
  * Creates an HTTP request.
@@ -42,9 +43,9 @@ struct vlc_http_cookie_jar_t;
  * @param path request path (e.g. "/dir/page.html")
  * @return an HTTP stream or NULL on allocation failure
  */
-struct vlc_http_msg *
-vlc_http_req_create(const char *method, const char *scheme,
-                    const char *authority, const char *path) VLC_USED;
+struct heimdall_http_msg *
+heimdall_http_req_create(const char *method, const char *scheme,
+                    const char *authority, const char *path) HEIMDALL_USED;
 
 /**
  * Creates an HTTP response.
@@ -54,12 +55,12 @@ vlc_http_req_create(const char *method, const char *scheme,
  * @param status HTTP status code
  * @return an HTTP stream or NULL on allocation failure
  */
-struct vlc_http_msg *vlc_http_resp_create(unsigned status) VLC_USED;
+struct heimdall_http_msg *heimdall_http_resp_create(unsigned status) HEIMDALL_USED;
 
 /**
  * Destroys an HTTP message.
  */
-void vlc_http_msg_destroy(struct vlc_http_msg *);
+void heimdall_http_msg_destroy(struct heimdall_http_msg *);
 
 /**
  * Formats a header field.
@@ -71,8 +72,8 @@ void vlc_http_msg_destroy(struct vlc_http_msg *);
  * @param fmt printf-style format string
  * @return 0 on success, -1 on error (out of memory)
  */
-int vlc_http_msg_add_header(struct vlc_http_msg *, const char *name,
-                            const char *fmt, ...) VLC_FORMAT(3,4);
+int heimdall_http_msg_add_header(struct heimdall_http_msg *, const char *name,
+                            const char *fmt, ...) HEIMDALL_FORMAT(3,4);
 
 /**
  * Formats an authority.
@@ -82,21 +83,21 @@ int vlc_http_msg_add_header(struct vlc_http_msg *, const char *name,
  * @return the formatted authority as a heap-allocated nul-terminated string,
  *         or NULL on allocation failure
  */
-char *vlc_http_authority(const char *host, unsigned port);
+char *heimdall_http_authority(const char *host, unsigned port);
 
 /**
  * Sets the agent field.
  *
  * Sets the User-Agent or Server header field.
  */
-int vlc_http_msg_add_agent(struct vlc_http_msg *, const char *);
+int heimdall_http_msg_add_agent(struct heimdall_http_msg *, const char *);
 
 /**
  * Gets the agent field.
  *
  * Gets the User-Agent or Server header field.
  */
-const char *vlc_http_msg_get_agent(const struct vlc_http_msg *);
+const char *heimdall_http_msg_get_agent(const struct heimdall_http_msg *);
 
 /**
  * Parses a timestamp header field.
@@ -105,7 +106,7 @@ w* @param msg the response to get the timestamp header from
  * @param name header field name
  * @return a timestamp value, or -1 on error.
  */
-time_t vlc_http_msg_get_time(const struct vlc_http_msg *msg, const char *name);
+time_t heimdall_http_msg_get_time(const struct heimdall_http_msg *msg, const char *name);
 
 /**
  * Parses an HTTP-date string.
@@ -116,7 +117,7 @@ time_t vlc_http_msg_get_time(const struct vlc_http_msg *msg, const char *name);
  * @param str NULL-terminated date string
  * @return a timestamp value, or -1 on error.
  */
-time_t vlc_http_mktime(const char *str);
+time_t heimdall_http_mktime(const char *str);
 
 /**
  * Adds a timestamp header field.
@@ -126,13 +127,13 @@ time_t vlc_http_mktime(const char *str);
  * @param t pointer to timestamp
  * @return 0 on success, -1 on error (errno is set accordingly)
  */
-int vlc_http_msg_add_time(struct vlc_http_msg *msg, const char *name,
+int heimdall_http_msg_add_time(struct heimdall_http_msg *msg, const char *name,
                           const time_t *t);
 
 /**
  * Adds a Date header field.
  */
-int vlc_http_msg_add_atime(struct vlc_http_msg *);
+int heimdall_http_msg_add_atime(struct heimdall_http_msg *);
 
 /**
  * Gets message date.
@@ -141,7 +142,7 @@ int vlc_http_msg_add_atime(struct vlc_http_msg *);
  *
  * @return a time value on success, -1 on error.
  */
-time_t vlc_http_msg_get_atime(const struct vlc_http_msg *);
+time_t heimdall_http_msg_get_atime(const struct heimdall_http_msg *);
 
 /**
  * Gets resource date.
@@ -151,7 +152,7 @@ time_t vlc_http_msg_get_atime(const struct vlc_http_msg *);
  *
  * @return a time value on success, -1 on error.
  */
-time_t vlc_http_msg_get_mtime(const struct vlc_http_msg *);
+time_t heimdall_http_msg_get_mtime(const struct heimdall_http_msg *);
 
 /**
  * Gets retry timeout.
@@ -162,15 +163,15 @@ time_t vlc_http_msg_get_mtime(const struct vlc_http_msg *);
  *
  * @return the time in seconds, zero if the date is overdue or on error.
  */
-unsigned vlc_http_msg_get_retry_after(const struct vlc_http_msg *);
+unsigned heimdall_http_msg_get_retry_after(const struct heimdall_http_msg *);
 
-void vlc_http_msg_get_cookies(const struct vlc_http_msg *,
-                              struct vlc_http_cookie_jar_t *,
+void heimdall_http_msg_get_cookies(const struct heimdall_http_msg *,
+                              struct heimdall_http_cookie_jar_t *,
                               const char *host, const char *path);
-int vlc_http_msg_add_cookies(struct vlc_http_msg *,
-                             struct vlc_http_cookie_jar_t *);
+int heimdall_http_msg_add_cookies(struct heimdall_http_msg *,
+                             struct heimdall_http_cookie_jar_t *);
 
-char *vlc_http_msg_get_basic_realm(const struct vlc_http_msg *);
+char *heimdall_http_msg_get_basic_realm(const struct heimdall_http_msg *);
 
 /**
  * Adds Basic credentials.
@@ -186,7 +187,7 @@ char *vlc_http_msg_get_basic_realm(const struct vlc_http_msg *);
  * @return 0 on success, -1 on out-of-memory (ENOMEM) or if username or
  * password are invalid (EINVAL).
  */
-int vlc_http_msg_add_creds_basic(struct vlc_http_msg *msg, bool proxy,
+int heimdall_http_msg_add_creds_basic(struct heimdall_http_msg *msg, bool proxy,
                                  const char *username, const char *password);
 
 
@@ -200,7 +201,7 @@ int vlc_http_msg_add_creds_basic(struct vlc_http_msg *msg, bool proxy,
  * @return header field value (valid until message is destroyed),
  *         or NULL if no fields matched
  */
-const char *vlc_http_msg_get_header(const struct vlc_http_msg *,
+const char *heimdall_http_msg_get_header(const struct heimdall_http_msg *,
                                     const char *name);
 
 /**
@@ -208,21 +209,21 @@ const char *vlc_http_msg_get_header(const struct vlc_http_msg *,
  *
  * @return status code (e.g. 404), or negative if request
  */
-int vlc_http_msg_get_status(const struct vlc_http_msg *m);
+int heimdall_http_msg_get_status(const struct heimdall_http_msg *m);
 
 /**
  * Gets request method.
  *
  * @return request method (e.g. "GET"), or NULL if response
  */
-const char *vlc_http_msg_get_method(const struct vlc_http_msg *);
+const char *heimdall_http_msg_get_method(const struct heimdall_http_msg *);
 
 /**
  * Gets request scheme.
  *
  * @return request scheme (e.g. "https"), or NULL if absent
  */
-const char *vlc_http_msg_get_scheme(const struct vlc_http_msg *);
+const char *heimdall_http_msg_get_scheme(const struct heimdall_http_msg *);
 
 /**
  * Gets request authority.
@@ -230,14 +231,14 @@ const char *vlc_http_msg_get_scheme(const struct vlc_http_msg *);
  * @return request authority (e.g. "www.example.com:8080"),
  *         or NULL if response
  */
-const char *vlc_http_msg_get_authority(const struct vlc_http_msg *);
+const char *heimdall_http_msg_get_authority(const struct heimdall_http_msg *);
 
 /**
  * Gets request absolute path.
  *
  * @return request absolute path (e.g. "/index.html"), or NULL if absent
  */
-const char *vlc_http_msg_get_path(const struct vlc_http_msg *);
+const char *heimdall_http_msg_get_path(const struct heimdall_http_msg *);
 
 /**
  * Looks up a token in a header field.
@@ -249,7 +250,7 @@ const char *vlc_http_msg_get_path(const struct vlc_http_msg *);
  * @param token HTTP token name
  * @return the first byte of the token if found, NULL if not found.
  */
-const char *vlc_http_msg_get_token(const struct vlc_http_msg *msg,
+const char *heimdall_http_msg_get_token(const struct heimdall_http_msg *msg,
                                    const char *field, const char *token);
 
 /**
@@ -260,7 +261,7 @@ const char *vlc_http_msg_get_token(const struct vlc_http_msg *msg,
  * @return First character of the following token,
  *         or NULL if there are no further tokens
  */
-const char *vlc_http_next_token(const char *);
+const char *heimdall_http_next_token(const char *);
 
 /**
  * Gets HTTP payload length.
@@ -270,7 +271,7 @@ const char *vlc_http_next_token(const char *);
  *
  * @return byte length, or (uintmax_t)-1 if unknown.
  */
-uintmax_t vlc_http_msg_get_size(const struct vlc_http_msg *);
+uintmax_t heimdall_http_msg_get_size(const struct heimdall_http_msg *);
 
 /**
  * Gets next response headers.
@@ -283,13 +284,13 @@ uintmax_t vlc_http_msg_get_size(const struct vlc_http_msg *);
  *
  * @return next response headers or NULL on error
  */
-struct vlc_http_msg *vlc_http_msg_iterate(struct vlc_http_msg *) VLC_USED;
+struct heimdall_http_msg *heimdall_http_msg_iterate(struct heimdall_http_msg *) HEIMDALL_USED;
 
 /**
  * Gets final response headers.
  *
  * Skips HTTP 1xx continue headers until a final set of response headers is
- * received. This is a convenience wrapper around vlc_http_msg_iterate() for
+ * received. This is a convenience wrapper around heimdall_http_msg_iterate() for
  * use when continuation headers are not useful (e.g. GET or CONNECT).
  *
  * @param m current response headers or NULL
@@ -297,7 +298,7 @@ struct vlc_http_msg *vlc_http_msg_iterate(struct vlc_http_msg *) VLC_USED;
  * @return the final response headers (m if it was already final),
  *         NULL if the parameter was NULL, or NULL on error
  */
-struct vlc_http_msg *vlc_http_msg_get_final(struct vlc_http_msg *) VLC_USED;
+struct heimdall_http_msg *heimdall_http_msg_get_final(struct heimdall_http_msg *) HEIMDALL_USED;
 
 /**
  * Receives HTTP data.
@@ -308,9 +309,9 @@ struct vlc_http_msg *vlc_http_msg_get_final(struct vlc_http_msg *) VLC_USED;
  *
  * @return data block
  * @retval NULL on end-of-stream
- * @retval vlc_http_error on fatal error
+ * @retval heimdall_http_error on fatal error
  */
-block_t *vlc_http_msg_read(struct vlc_http_msg *) VLC_USED;
+block_t *heimdall_http_msg_read(struct heimdall_http_msg *) HEIMDALL_USED;
 
 /**
  * Sends HTTP data.
@@ -325,7 +326,7 @@ block_t *vlc_http_msg_read(struct vlc_http_msg *) VLC_USED;
  * @retval 0 success
  * @retval -1 fatal error
  */
-int vlc_http_msg_write(struct vlc_http_msg *msg, block_t *b, bool eos);
+int heimdall_http_msg_write(struct heimdall_http_msg *msg, block_t *b, bool eos);
 
 /** @} */
 
@@ -347,7 +348,7 @@ int vlc_http_msg_write(struct vlc_http_msg *msg, block_t *b, bool eos);
  * @{
  */
 
-struct vlc_http_stream;
+struct heimdall_http_stream;
 
 /**
  * Error pointer value
@@ -359,28 +360,28 @@ struct vlc_http_stream;
  *
  * @warning Dereferencing this pointer is undefined.
  */
-extern void *const vlc_http_error;
+extern void *const heimdall_http_error;
 
-void vlc_http_msg_attach(struct vlc_http_msg *m, struct vlc_http_stream *s);
-struct vlc_http_msg *vlc_http_msg_get_initial(struct vlc_http_stream *s)
-VLC_USED;
+void heimdall_http_msg_attach(struct heimdall_http_msg *m, struct heimdall_http_stream *s);
+struct heimdall_http_msg *heimdall_http_msg_get_initial(struct heimdall_http_stream *s)
+HEIMDALL_USED;
 
 /** HTTP stream callbacks
  *
  * Connection-specific callbacks for stream manipulation
  */
-struct vlc_http_stream_cbs
+struct heimdall_http_stream_cbs
 {
-    struct vlc_http_msg *(*read_headers)(struct vlc_http_stream *);
-    ssize_t (*write)(struct vlc_http_stream *, const void *, size_t, bool eos);
-    block_t *(*read)(struct vlc_http_stream *);
-    void (*close)(struct vlc_http_stream *, bool abort);
+    struct heimdall_http_msg *(*read_headers)(struct heimdall_http_stream *);
+    ssize_t (*write)(struct heimdall_http_stream *, const void *, size_t, bool eos);
+    block_t *(*read)(struct heimdall_http_stream *);
+    void (*close)(struct heimdall_http_stream *, bool abort);
 };
 
 /** HTTP stream */
-struct vlc_http_stream
+struct heimdall_http_stream
 {
-    const struct vlc_http_stream_cbs *cbs;
+    const struct heimdall_http_stream_cbs *cbs;
 };
 
 /**
@@ -398,7 +399,7 @@ struct vlc_http_stream
  *
  */
 static inline
-struct vlc_http_msg *vlc_http_stream_read_headers(struct vlc_http_stream *s)
+struct heimdall_http_msg *heimdall_http_stream_read_headers(struct heimdall_http_stream *s)
 {
     return s->cbs->read_headers(s);
 }
@@ -417,7 +418,7 @@ struct vlc_http_msg *vlc_http_stream_read_headers(struct vlc_http_stream *s)
  * @retval len success
  * @retval -1 error
  */
-static inline ssize_t vlc_http_stream_write(struct vlc_http_stream *s,
+static inline ssize_t heimdall_http_stream_write(struct heimdall_http_stream *s,
                                             const void *base, size_t length,
                                             bool eos)
 {
@@ -432,9 +433,9 @@ static inline ssize_t vlc_http_stream_write(struct vlc_http_stream *s,
  * @param s HTTP stream to read from
  * @return a block of data (use block_Release() to free it)
  * @retval NULL The end of the stream was reached.
- * @retval vlc_http_error The stream encountered a fatal error.
+ * @retval heimdall_http_error The stream encountered a fatal error.
  */
-static inline block_t *vlc_http_stream_read(struct vlc_http_stream *s)
+static inline block_t *heimdall_http_stream_read(struct heimdall_http_stream *s)
 {
     return s->cbs->read(s);
 }
@@ -448,7 +449,7 @@ static inline block_t *vlc_http_stream_read(struct vlc_http_stream *s)
  * @param s HTTP stream to close
  * @param abort whether to close the connection and prevent re-use
  */
-static inline void vlc_http_stream_close(struct vlc_http_stream *s, bool abort)
+static inline void heimdall_http_stream_close(struct heimdall_http_stream *s, bool abort)
 {
     s->cbs->close(s, abort);
 }
@@ -469,24 +470,24 @@ static inline void vlc_http_stream_close(struct vlc_http_stream *s, bool abort)
  * @return A heap-allocated nul-terminated string or *lenp bytes,
  *         or NULL on error
  */
-char *vlc_http_msg_format(const struct vlc_http_msg *m, size_t *restrict lenp,
-                          bool proxied, bool chunked) VLC_USED VLC_MALLOC;
+char *heimdall_http_msg_format(const struct heimdall_http_msg *m, size_t *restrict lenp,
+                          bool proxied, bool chunked) HEIMDALL_USED HEIMDALL_MALLOC;
 
 /**
  * Parses an HTTP 1.1 message header.
  */
-struct vlc_http_msg *vlc_http_msg_headers(const char *msg) VLC_USED;
+struct heimdall_http_msg *heimdall_http_msg_headers(const char *msg) HEIMDALL_USED;
 
-struct vlc_h2_frame;
+struct heimdall_h2_frame;
 
 /**
  * Formats an HTTP 2.0 HEADER frame.
  */
-struct vlc_h2_frame *vlc_http_msg_h2_frame(const struct vlc_http_msg *m,
+struct heimdall_h2_frame *heimdall_http_msg_h2_frame(const struct heimdall_http_msg *m,
                                            uint_fast32_t stream_id, bool eos);
 
 /**
  * Parses an HTTP 2.0 header table.
  */
-struct vlc_http_msg *vlc_http_msg_h2_headers(unsigned count,
+struct heimdall_http_msg *heimdall_http_msg_h2_headers(unsigned count,
                                              const char *const headers[][2]);

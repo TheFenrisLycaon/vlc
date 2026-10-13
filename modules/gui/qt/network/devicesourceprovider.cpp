@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2024 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -181,7 +182,7 @@ void MediaSourceModel::removeItems(const std::vector<SharedInputItem> &inputList
     }
 }
 
-SharedMediaSourceModel MediaSourceCache::getMediaSourceModel(vlc_media_source_provider_t* provider, const char* name)
+SharedMediaSourceModel MediaSourceCache::getMediaSourceModel(heimdall_media_source_provider_t* provider, const char* name)
 {
     //MediaSourceCache may be accessed by multiple threads
     QMutexLocker lock{&m_mutex};
@@ -195,7 +196,7 @@ SharedMediaSourceModel MediaSourceCache::getMediaSourceModel(vlc_media_source_pr
             return ref;
     }
     MediaSourcePtr mediaSource(
-        vlc_media_source_provider_GetMediaSource(provider, name),
+        heimdall_media_source_provider_GetMediaSource(provider, name),
         false );
 
     if (!mediaSource)
@@ -226,8 +227,8 @@ DeviceSourceProvider::~DeviceSourceProvider()
 
 void DeviceSourceProvider::init()
 {
-    using SourceMetaPtr = std::unique_ptr<vlc_media_source_meta_list_t,
-                                          decltype( &vlc_media_source_meta_list_Delete )>;
+    using SourceMetaPtr = std::unique_ptr<heimdall_media_source_meta_list_t,
+                                          decltype( &heimdall_media_source_meta_list_Delete )>;
 
     struct Ctx {
         bool success = false;
@@ -239,22 +240,22 @@ void DeviceSourceProvider::init()
         this,
         //Worker thread
         [intf = m_ctx->getIntf(), sdSource = m_sdSource, nameFilter = m_sourceName, thread](Ctx& ctx){
-            auto libvlc = vlc_object_instance(intf);
+            auto libheimdall = heimdall_object_instance(intf);
 
-            auto provider = vlc_media_source_provider_Get( libvlc );
-            SourceMetaPtr providerList( vlc_media_source_provider_List(
+            auto provider = heimdall_media_source_provider_Get( libheimdall );
+            SourceMetaPtr providerList( heimdall_media_source_provider_List(
                                            provider,
                                            static_cast<services_discovery_category_e>(sdSource) ),
-                                       &vlc_media_source_meta_list_Delete );
+                                       &heimdall_media_source_meta_list_Delete );
 
             if (!providerList)
                 return;
 
-            size_t nbProviders = vlc_media_source_meta_list_Count( providerList.get() );
+            size_t nbProviders = heimdall_media_source_meta_list_Count( providerList.get() );
 
             for ( size_t i = 0u; i < nbProviders; ++i )
             {
-                auto meta = vlc_media_source_meta_list_Get( providerList.get(), i );
+                auto meta = heimdall_media_source_meta_list_Get( providerList.get(), i );
                 const QString sourceName = qfu( meta->name );
                 if ( nameFilter != '*' && nameFilter != sourceName )
                     continue;

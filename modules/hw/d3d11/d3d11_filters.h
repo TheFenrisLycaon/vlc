@@ -2,6 +2,7 @@
  * d3d11_filters.h : D3D11 filters module callbacks
  *****************************************************************************
  * Copyright © 2017 VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Steve Lhomme <robux4@gmail.com>
  *
@@ -20,11 +21,11 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_D3D11_FILTERS_H
-#define VLC_D3D11_FILTERS_H
+#ifndef HEIMDALL_D3D11_FILTERS_H
+#define HEIMDALL_D3D11_FILTERS_H
 
-#include <vlc_common.h>
-#include <vlc_vout_display.h>
+#include <heimdall_common.h>
+#include <heimdall_vout_display.h>
 
 #include "../../video_chroma/d3d11_fmt.h"
 
@@ -35,14 +36,14 @@ extern "C" {
 int  D3D11OpenDeinterlace(filter_t *);
 int  D3D11OpenConverter(filter_t *);
 int  D3D11OpenCPUConverter(filter_t *);
-int  D3D11OpenBlockDecoder(vlc_object_t *);
-void D3D11CloseBlockDecoder(vlc_object_t *);
+int  D3D11OpenBlockDecoder(heimdall_object_t *);
+void D3D11CloseBlockDecoder(heimdall_object_t *);
 
-int  D3D11OpenDecoderDeviceW8(vlc_decoder_device *, vlc_window_t *);
-int  D3D11OpenDecoderDeviceAny(vlc_decoder_device *, vlc_window_t *);
+int  D3D11OpenDecoderDeviceW8(heimdall_decoder_device *, heimdall_window_t *);
+int  D3D11OpenDecoderDeviceAny(heimdall_decoder_device *, heimdall_window_t *);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* VLC_D3D11_FILTERS_H */
+#endif /* HEIMDALL_D3D11_FILTERS_H */

@@ -1,9 +1,10 @@
 /*****************************************************************************
- * fps.c : fps conversion plugin for vlc
+ * fps.c : fps conversion plugin for heimdall
  *****************************************************************************
  * Copyright (C) 2014 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Author: Ilkka Ollakka <ileoo at videolan dot org>
+ * Author: Ilkka Ollakka <ileoo at lycaria dot org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -28,11 +29,11 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_picture.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
 
 static int Open( filter_t * );
 static picture_t *Filter( filter_t *p_filter, picture_t *p_picture);
@@ -41,7 +42,7 @@ static picture_t *Filter( filter_t *p_filter, picture_t *p_picture);
 
 #define FPS_TEXT N_( "Frame rate" )
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("FPS conversion video filter") )
     set_shortname( N_("FPS Converter" ))
     set_subcategory( SUBCAT_VIDEO_VFILTER )
@@ -49,7 +50,7 @@ vlc_module_begin ()
     add_shortcut( "fps" )
     add_string( CFG_PREFIX "fps", NULL, FPS_TEXT, NULL )
     set_callback_video_filter( Open )
-vlc_module_end ()
+heimdall_module_end ()
 
 static const char *const ppsz_filter_options[] = {
     "fps",
@@ -62,7 +63,7 @@ typedef struct
 {
     date_t          next_output_pts; /**< output calculated PTS */
     picture_t       *p_previous_pic; /**< kept source picture used to produce filter output */
-    vlc_tick_t      i_output_frame_interval;
+    heimdall_tick_t      i_output_frame_interval;
 } filter_sys_t;
 
 static void SetOutputDate(filter_sys_t *p_sys, picture_t *pic)
@@ -74,11 +75,11 @@ static void SetOutputDate(filter_sys_t *p_sys, picture_t *pic)
 static picture_t *Filter( filter_t *p_filter, picture_t *p_picture)
 {
     filter_sys_t *p_sys = p_filter->p_sys;
-    const vlc_tick_t src_date = p_picture->date;
+    const heimdall_tick_t src_date = p_picture->date;
     /* If input picture doesn't have actual valid timestamp,
         we don't really have currently a way to know what else
         to do with it other than drop it for now*/
-    if( unlikely( src_date == VLC_TICK_INVALID) )
+    if( unlikely( src_date == HEIMDALL_TICK_INVALID) )
     {
         msg_Dbg( p_filter, "skipping non-dated picture");
         picture_Release( p_picture );
@@ -90,7 +91,7 @@ static picture_t *Filter( filter_t *p_filter, picture_t *p_picture)
 
     /* First time we get some valid timestamp, we'll take it as base for output
         later on we retake new timestamp if it has jumped too much */
-    if( unlikely( ( date_Get( &p_sys->next_output_pts ) == VLC_TICK_INVALID ) ||
+    if( unlikely( ( date_Get( &p_sys->next_output_pts ) == HEIMDALL_TICK_INVALID ) ||
                    ( src_date > ( date_Get( &p_sys->next_output_pts ) + p_sys->i_output_frame_interval ) )
                 ) )
     {
@@ -126,7 +127,7 @@ static picture_t *Filter( filter_t *p_filter, picture_t *p_picture)
         picture_Copy( p_tmp, p_sys->p_previous_pic);
         SetOutputDate( p_sys, p_tmp );
 
-        vlc_picture_chain_AppendChain( last_pic, p_tmp );
+        heimdall_picture_chain_AppendChain( last_pic, p_tmp );
         last_pic = p_tmp;
     }
 
@@ -151,10 +152,10 @@ static void Close( filter_t *p_filter )
 {
     Flush( p_filter );
     if( p_filter->vctx_out )
-        vlc_video_context_Release( p_filter->vctx_out );
+        heimdall_video_context_Release( p_filter->vctx_out );
 }
 
-static const struct vlc_filter_operations filter_ops =
+static const struct heimdall_filter_operations filter_ops =
 {
     .filter_video = Filter, .close = Close,
     .flush = Flush,
@@ -167,12 +168,12 @@ static int Open( filter_t *p_filter )
     /* This filter cannot change the format. */
     if( !video_format_IsSameChroma( &p_filter->fmt_in.video,
                                     &p_filter->fmt_out.video ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    p_sys = p_filter->p_sys = vlc_obj_malloc( VLC_OBJECT(p_filter), sizeof( *p_sys ) );
+    p_sys = p_filter->p_sys = heimdall_obj_malloc( HEIMDALL_OBJECT(p_filter), sizeof( *p_sys ) );
 
     if( unlikely( !p_sys ) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     config_ChainParse( p_filter, CFG_PREFIX, ppsz_filter_options,
                        p_filter->p_cfg );
@@ -193,15 +194,15 @@ static int Open( filter_t *p_filter )
 
     if( p_filter->fmt_out.video.i_frame_rate == 0 ) {
         msg_Err( p_filter, "Invalid output frame rate" );
-        vlc_obj_free( VLC_OBJECT(p_filter), p_sys );
-        return VLC_EGENERIC;
+        heimdall_obj_free( HEIMDALL_OBJECT(p_filter), p_sys );
+        return HEIMDALL_EGENERIC;
     }
 
     msg_Dbg( p_filter, "Converting fps from %d/%d -> %d/%d",
             p_filter->fmt_in.video.i_frame_rate, p_filter->fmt_in.video.i_frame_rate_base,
             p_filter->fmt_out.video.i_frame_rate, p_filter->fmt_out.video.i_frame_rate_base );
 
-    p_sys->i_output_frame_interval = vlc_tick_from_samples(p_filter->fmt_out.video.i_frame_rate_base,
+    p_sys->i_output_frame_interval = heimdall_tick_from_samples(p_filter->fmt_out.video.i_frame_rate_base,
                                                            p_filter->fmt_out.video.i_frame_rate);
 
     date_Init( &p_sys->next_output_pts,
@@ -213,7 +214,7 @@ static int Open( filter_t *p_filter )
 
     /* We don't change neither the format nor the picture */
     if ( p_filter->vctx_in )
-        p_filter->vctx_out = vlc_video_context_Hold( p_filter->vctx_in );
+        p_filter->vctx_out = heimdall_video_context_Hold( p_filter->vctx_in );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2024 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,7 +22,7 @@
 #endif
 
 #include "../maininterface/navigationmodel.hpp"
-#include "vlc_stub_modules.hpp"
+#include "heimdall_stub_modules.hpp"
 
 #include <memory>
 #include <vector>
@@ -31,7 +32,7 @@
 #include <QAbstractItemModelTester>
 #include <QSignalSpy>
 
-class TestVLCNavigationModel : public QObject
+class TestHeimdallNavigationModel : public QObject
 {
     Q_OBJECT
 
@@ -147,7 +148,7 @@ private:
 
 private slots:
     void initTestCase() {
-        m_env = std::make_unique<VLCTestingEnv>();
+        m_env = std::make_unique<HeimdallTestingEnv>();
         QVERIFY(m_env->init());
     }
 
@@ -534,12 +535,12 @@ private slots:
 
 
 private:
-    std::unique_ptr<VLCTestingEnv> m_env;
+    std::unique_ptr<HeimdallTestingEnv> m_env;
     std::unique_ptr<NavigationModel> m_model;
     std::unique_ptr<QSignalSpy> m_insertedSpy;
     std::unique_ptr<QSignalSpy> m_removedSpy;
 };
 
 
-QTEST_GUILESS_MAIN(TestVLCNavigationModel)
+QTEST_GUILESS_MAIN(TestHeimdallNavigationModel)
 #include "test_navigation_model.moc"

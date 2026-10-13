@@ -2,6 +2,7 @@
  * file.c
  *****************************************************************************
  * Copyright (C) 2001, 2002 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *          Eric Petit <titer@videolan.org>
@@ -39,15 +40,15 @@
 #   include <io.h>      /* setmode() */
 #endif
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_sout.h>
-#include <vlc_block.h>
-#include <vlc_fs.h>
-#include <vlc_network.h>
-#include <vlc_strings.h>
-#include <vlc_dialog.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_sout.h>
+#include <heimdall_block.h>
+#include <heimdall_fs.h>
+#include <heimdall_network.h>
+#include <heimdall_strings.h>
+#include <heimdall_dialog.h>
 
 #ifndef O_LARGEFILE
 #   define O_LARGEFILE 0
@@ -88,7 +89,7 @@ static ssize_t Write( sout_access_out_t *p_access, block_t *p_buffer )
             if (errno == EINTR)
                 continue;
             block_ChainRelease (p_buffer);
-            msg_Err( p_access, "cannot write: %s", vlc_strerror_c(errno) );
+            msg_Err( p_access, "cannot write: %s", heimdall_strerror_c(errno) );
             return -1;
         }
 
@@ -124,14 +125,14 @@ static ssize_t WritePipe(sout_access_out_t *access, block_t *block)
         }
 
         /* TODO: vectorized I/O with writev() */
-        ssize_t val = vlc_write(fd, block->p_buffer, block->i_buffer);
+        ssize_t val = heimdall_write(fd, block->p_buffer, block->i_buffer);
         if (val < 0)
         {
             if (errno == EINTR)
                 continue;
 
             block_ChainRelease(block);
-            msg_Err(access, "cannot write: %s", vlc_strerror_c(errno));
+            msg_Err(access, "cannot write: %s", heimdall_strerror_c(errno));
             total = -1;
             break;
         }
@@ -163,13 +164,13 @@ static ssize_t Send(sout_access_out_t *access, block_t *block)
         }
 
         /* TODO: vectorized I/O with sendmsg() */
-        ssize_t val = vlc_send(fd, block->p_buffer, block->i_buffer, 0);
+        ssize_t val = heimdall_send(fd, block->p_buffer, block->i_buffer, 0);
         if (val <= 0)
         {   /* FIXME: errno is meaningless if val is zero */
             if (errno == EINTR)
                 continue;
             block_ChainRelease(block);
-            msg_Err(access, "cannot write: %s", vlc_strerror_c(errno));
+            msg_Err(access, "cannot write: %s", heimdall_strerror_c(errno));
             return -1;
         }
 
@@ -212,9 +213,9 @@ static int Control( sout_access_out_t *p_access, int i_query, va_list args )
         }
 
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static const char *const ppsz_sout_options[] = {
@@ -230,14 +231,14 @@ static const char *const ppsz_sout_options[] = {
 /*****************************************************************************
  * Open: open the file
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     sout_access_out_t   *p_access = (sout_access_out_t*)p_this;
     int fd;
-    int *fdp = vlc_obj_malloc(p_this, sizeof (*fdp));
+    int *fdp = heimdall_obj_malloc(p_this, sizeof (*fdp));
 
     if (unlikely(fdp == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     config_ChainParse( p_access, SOUT_CFG_PREFIX, ppsz_sout_options, p_access->p_cfg );
 
@@ -253,14 +254,14 @@ static int Open( vlc_object_t *p_this )
         {
             msg_Err (p_access, "invalid file descriptor: %s",
                      p_access->psz_path);
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
-        fd = vlc_dup (fd);
+        fd = heimdall_dup (fd);
         if (fd == -1)
         {
             msg_Err (p_access, "cannot use file descriptor: %s",
-                     vlc_strerror_c(errno));
-            return VLC_EGENERIC;
+                     heimdall_strerror_c(errno));
+            return HEIMDALL_EGENERIC;
         }
     }
     else
@@ -269,12 +270,12 @@ static int Open( vlc_object_t *p_this )
 #if defined( _WIN32 ) || defined( __OS2__ )
         setmode (STDOUT_FILENO, O_BINARY);
 #endif
-        fd = vlc_dup (STDOUT_FILENO);
+        fd = heimdall_dup (STDOUT_FILENO);
         if (fd == -1)
         {
             msg_Err (p_access, "cannot use standard output: %s",
-                     vlc_strerror_c(errno));
-            return VLC_EGENERIC;
+                     heimdall_strerror_c(errno));
+            return HEIMDALL_EGENERIC;
         }
         msg_Dbg( p_access, "using stdout" );
     }
@@ -285,7 +286,7 @@ static int Open( vlc_object_t *p_this )
 
         if (var_InheritBool (p_access, SOUT_CFG_PREFIX"format"))
         {
-            buf = vlc_strftime (path);
+            buf = heimdall_strftime (path);
             path = buf;
         }
 
@@ -300,17 +301,17 @@ static int Open( vlc_object_t *p_this )
 #endif
         do
         {
-            fd = vlc_open (path, flags, 0666);
+            fd = heimdall_open (path, flags, 0666);
             if (fd != -1)
                 break;
             if (fd == -1)
                 msg_Err (p_access, "cannot create %s: %s", path,
-                         vlc_strerror_c(errno));
+                         heimdall_strerror_c(errno));
             if (overwrite || errno != EEXIST)
                 break;
             flags &= ~O_EXCL;
         }
-        while (vlc_dialog_wait_question (p_access, VLC_DIALOG_QUESTION_NORMAL,
+        while (heimdall_dialog_wait_question (p_access, HEIMDALL_DIALOG_QUESTION_NORMAL,
                                          _("Keep existing file"),
                                          _("Overwrite"), NULL, path,
                                          _("The output file already exists. "
@@ -318,7 +319,7 @@ static int Open( vlc_object_t *p_this )
                                          "overwritten and its content will be lost.")) == 1);
         free (buf);
         if (fd == -1)
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 
     *fdp = fd;
@@ -328,9 +329,9 @@ static int Open( vlc_object_t *p_this )
 
     if (fstat (fd, &st))
     {
-        msg_Err (p_access, "write error: %s", vlc_strerror_c(errno));
-        vlc_close (fd);
-        return VLC_EGENERIC;
+        msg_Err (p_access, "write error: %s", heimdall_strerror_c(errno));
+        heimdall_close (fd);
+        return HEIMDALL_EGENERIC;
     }
 
     p_access->pf_read  = Read;
@@ -358,18 +359,18 @@ static int Open( vlc_object_t *p_this )
     if (append)
         lseek (fd, 0, SEEK_END);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * Close: close the target
  *****************************************************************************/
-static void Close( vlc_object_t * p_this )
+static void Close( heimdall_object_t * p_this )
 {
     sout_access_out_t *p_access = (sout_access_out_t*)p_this;
     int *fdp = p_access->p_sys, fd = *fdp;
 
-    vlc_close(fd);
+    heimdall_close(fd);
     msg_Dbg( p_access, "file access output closed" );
 }
 
@@ -385,7 +386,7 @@ static void Close( vlc_object_t * p_this )
 #define SYNC_TEXT N_("Synchronous writing")
 #define SYNC_LONGTEXT N_( "Open the file with synchronous writing.")
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("File stream output") )
     set_shortname( N_("File" ))
     set_capability( "sout access", 50 )
@@ -399,4 +400,4 @@ vlc_module_begin ()
     add_bool( SOUT_CFG_PREFIX "sync", false, SYNC_TEXT,SYNC_LONGTEXT )
 #endif
     set_callbacks( Open, Close )
-vlc_module_end ()
+heimdall_module_end ()

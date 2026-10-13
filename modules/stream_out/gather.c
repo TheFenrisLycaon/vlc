@@ -2,6 +2,7 @@
  * gather.c: gathering stream output module
  *****************************************************************************
  * Copyright (C) 2003-2004 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *
@@ -28,23 +29,23 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_sout.h>
-#include <vlc_block.h>
-#include <vlc_list.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_sout.h>
+#include <heimdall_block.h>
+#include <heimdall_list.h>
 
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int      Open    ( vlc_object_t * );
+static int      Open    ( heimdall_object_t * );
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("Gathering stream output") )
     set_capability( "sout filter", 50 )
     add_shortcut( "gather" )
     set_callback( Open )
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * Exported prototypes
@@ -62,12 +63,12 @@ typedef struct
     es_format_t fmt;
     void          *id;
     char *es_id;
-    struct vlc_list node;
+    struct heimdall_list node;
 } sout_stream_id_sys_t;
 
 typedef struct
 {
-    struct vlc_list ids;
+    struct heimdall_list ids;
 } sout_stream_sys_t;
 
 static const struct sout_stream_operations ops = {
@@ -80,18 +81,18 @@ static const struct sout_stream_operations ops = {
 /*****************************************************************************
  * Open:
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     sout_stream_t     *p_stream = (sout_stream_t*)p_this;
     sout_stream_sys_t *p_sys;
 
     p_stream->p_sys = p_sys = malloc( sizeof( sout_stream_sys_t ) );
     if( p_sys == NULL )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    vlc_list_init(&p_sys->ids);
+    heimdall_list_init(&p_sys->ids);
     p_stream->ops = &ops;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -102,7 +103,7 @@ static void Close( sout_stream_t *p_stream )
     sout_stream_sys_t *p_sys = p_stream->p_sys;
     sout_stream_id_sys_t *id;
 
-    vlc_list_foreach (id, &p_sys->ids, node)
+    heimdall_list_foreach (id, &p_sys->ids, node)
     {
         sout_StreamIdDel( p_stream->p_next, id->id );
         es_format_Clean( &id->fmt );
@@ -122,7 +123,7 @@ Add( sout_stream_t *p_stream, const es_format_t *p_fmt, const char *es_id )
     sout_stream_id_sys_t *id;
 
     /* search a compatible output */
-    vlc_list_foreach (id, &p_sys->ids, node)
+    heimdall_list_foreach (id, &p_sys->ids, node)
     {
         if( id->b_used )
             continue;
@@ -154,7 +155,7 @@ Add( sout_stream_t *p_stream, const es_format_t *p_fmt, const char *es_id )
     }
 
     /* destroy all outputs from the same category */
-    vlc_list_foreach (id, &p_sys->ids, node)
+    heimdall_list_foreach (id, &p_sys->ids, node)
         if( !id->b_used && id->fmt.i_cat == p_fmt->i_cat )
         {
             sout_StreamIdDel( p_stream->p_next, id->id );
@@ -186,7 +187,7 @@ Add( sout_stream_t *p_stream, const es_format_t *p_fmt, const char *es_id )
         return NULL;
     }
 
-    vlc_list_append(&id->node, &p_sys->ids);
+    heimdall_list_append(&id->node, &p_sys->ids);
     return id;
 }
 
@@ -195,7 +196,7 @@ Add( sout_stream_t *p_stream, const es_format_t *p_fmt, const char *es_id )
  *****************************************************************************/
 static void Del( sout_stream_t *p_stream, void *_id )
 {
-    VLC_UNUSED(p_stream);
+    HEIMDALL_UNUSED(p_stream);
     sout_stream_id_sys_t *id = (sout_stream_id_sys_t *)_id;
     id->b_used = false;
 }

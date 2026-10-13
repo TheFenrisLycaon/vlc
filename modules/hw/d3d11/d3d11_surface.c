@@ -1,7 +1,8 @@
 /*****************************************************************************
- * d3d11_surface.c : D3D11 GPU surface conversion module for vlc
+ * d3d11_surface.c : D3D11 GPU surface conversion module for heimdall
  *****************************************************************************
  * Copyright © 2015 VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Steve Lhomme <robux4@gmail.com>
  *
@@ -28,9 +29,9 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_filter.h>
-#include <vlc_picture.h>
+#include <heimdall_common.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
 
 #include <assert.h>
 
@@ -57,7 +58,7 @@ typedef struct
         ID3D11Texture2D  *staging;
         ID3D11Resource   *staging_resource;
     };
-    vlc_mutex_t      staging_lock;
+    heimdall_mutex_t      staging_lock;
 
 #if CAN_PROCESSOR
     union {
@@ -85,7 +86,7 @@ static int SetupProcessor(filter_t *p_filter, d3d11_device_t *d3d_dev,
     d3d11_device_lock(d3d_dev);
 
     if (D3D11_CreateProcessor(p_filter, d3d_dev, D3D11_VIDEO_FRAME_FORMAT_PROGRESSIVE,
-                              &p_filter->fmt_in.video, &p_filter->fmt_out.video, &sys->d3d_proc) != VLC_SUCCESS)
+                              &p_filter->fmt_in.video, &p_filter->fmt_out.video, &sys->d3d_proc) != HEIMDALL_SUCCESS)
         goto error;
 
     UINT flags;
@@ -125,7 +126,7 @@ static int SetupProcessor(filter_t *p_filter, d3d11_device_t *d3d_dev,
             else
             {
                 d3d11_device_unlock(d3d_dev);
-                return VLC_SUCCESS;
+                return HEIMDALL_SUCCESS;
             }
         }
         if (sys->d3d_proc.videoProcessor)
@@ -138,7 +139,7 @@ static int SetupProcessor(filter_t *p_filter, d3d11_device_t *d3d_dev,
 error:
     D3D11_ReleaseProcessor(&sys->d3d_proc);
     d3d11_device_unlock(d3d_dev);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 #endif
 
@@ -223,10 +224,10 @@ static int assert_staging(filter_t *p_filter, filter_sys_t *sys, DXGI_FORMAT for
 #endif
     if (FAILED(hr)) {
         msg_Err(p_filter, "Failed to create a %s staging texture to extract surface pixels (hr=0x%lX)", DxgiFormatToStr(texDesc.Format), hr );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 ok:
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void D3D11_YUY2(filter_t *p_filter, picture_t *src, picture_t *dst)
@@ -244,7 +245,7 @@ static void D3D11_YUY2(filter_t *p_filter, picture_t *src, picture_t *dst)
     D3D11_TEXTURE2D_DESC desc;
     D3D11_MAPPED_SUBRESOURCE lock;
 
-    vlc_mutex_lock(&sys->staging_lock);
+    heimdall_mutex_lock(&sys->staging_lock);
     UINT srcSlice = p_sys->slice_index;
     ID3D11Resource *srcResource = p_sys->resource[KNOWN_DXGI_INDEX];
 
@@ -253,7 +254,7 @@ static void D3D11_YUY2(filter_t *p_filter, picture_t *src, picture_t *dst)
     {
         HRESULT hr;
         if (FAILED( D3D11_Assert_ProcessorInput(p_filter, &sys->d3d_proc, p_sys) )) {
-            vlc_mutex_unlock(&sys->staging_lock);
+            heimdall_mutex_unlock(&sys->staging_lock);
             return;
         }
 
@@ -268,7 +269,7 @@ static void D3D11_YUY2(filter_t *p_filter, picture_t *src, picture_t *dst)
         if (FAILED(hr))
         {
             msg_Err(p_filter, "Failed to process the video. (hr=0x%lX)", hr);
-            vlc_mutex_unlock(&sys->staging_lock);
+            heimdall_mutex_unlock(&sys->staging_lock);
             return;
         }
 
@@ -286,11 +287,11 @@ static void D3D11_YUY2(filter_t *p_filter, picture_t *src, picture_t *dst)
                                          0, D3D11_MAP_READ, 0, &lock);
     if (FAILED(hr)) {
         msg_Err(p_filter, "Failed to map source surface. (hr=0x%lX)", hr);
-        vlc_mutex_unlock(&sys->staging_lock);
+        heimdall_mutex_unlock(&sys->staging_lock);
         return;
     }
 
-    if (dst->format.i_chroma == VLC_CODEC_I420)
+    if (dst->format.i_chroma == HEIMDALL_CODEC_I420)
         picture_SwapUV( dst );
 
     ID3D11Texture2D_GetDesc(sys->staging, &desc);
@@ -337,12 +338,12 @@ static void D3D11_YUY2(filter_t *p_filter, picture_t *src, picture_t *dst)
         msg_Err(p_filter, "Unsupported D3D11VA conversion from 0x%08X to YV12", desc.Format);
     }
 
-    if (dst->format.i_chroma == VLC_CODEC_I420 || dst->format.i_chroma == VLC_CODEC_I420_10L)
+    if (dst->format.i_chroma == HEIMDALL_CODEC_I420 || dst->format.i_chroma == HEIMDALL_CODEC_I420_10L)
         picture_SwapUV( dst );
 
     /* */
     ID3D11DeviceContext_Unmap(sys->d3d_dev->d3dcontext, sys->staging_resource, 0);
-    vlc_mutex_unlock(&sys->staging_lock);
+    heimdall_mutex_unlock(&sys->staging_lock);
 }
 
 static void D3D11_NV12(filter_t *p_filter, picture_t *src, picture_t *dst)
@@ -360,7 +361,7 @@ static void D3D11_NV12(filter_t *p_filter, picture_t *src, picture_t *dst)
     D3D11_TEXTURE2D_DESC desc;
     D3D11_MAPPED_SUBRESOURCE lock;
 
-    vlc_mutex_lock(&sys->staging_lock);
+    heimdall_mutex_lock(&sys->staging_lock);
     UINT srcSlice = p_sys->slice_index;
     ID3D11Resource *srcResource = p_sys->resource[KNOWN_DXGI_INDEX];
 
@@ -369,7 +370,7 @@ static void D3D11_NV12(filter_t *p_filter, picture_t *src, picture_t *dst)
     {
         HRESULT hr;
         if (FAILED( D3D11_Assert_ProcessorInput(p_filter, &sys->d3d_proc, p_sys) )) {
-            vlc_mutex_unlock(&sys->staging_lock);
+            heimdall_mutex_unlock(&sys->staging_lock);
             return;
         }
 
@@ -384,7 +385,7 @@ static void D3D11_NV12(filter_t *p_filter, picture_t *src, picture_t *dst)
         if (FAILED(hr))
         {
             msg_Err(p_filter, "Failed to process the video. (hr=0x%lX)", hr);
-            vlc_mutex_unlock(&sys->staging_lock);
+            heimdall_mutex_unlock(&sys->staging_lock);
             return;
         }
 
@@ -402,7 +403,7 @@ static void D3D11_NV12(filter_t *p_filter, picture_t *src, picture_t *dst)
                                          0, D3D11_MAP_READ, 0, &lock);
     if (FAILED(hr)) {
         msg_Err(p_filter, "Failed to map source surface. (hr=0x%lX)", hr);
-        vlc_mutex_unlock(&sys->staging_lock);
+        heimdall_mutex_unlock(&sys->staging_lock);
         return;
     }
 
@@ -426,7 +427,7 @@ static void D3D11_NV12(filter_t *p_filter, picture_t *src, picture_t *dst)
 
     /* */
     ID3D11DeviceContext_Unmap(sys->d3d_dev->d3dcontext, sys->staging_resource, 0);
-    vlc_mutex_unlock(&sys->staging_lock);
+    heimdall_mutex_unlock(&sys->staging_lock);
 }
 
 static void D3D11_RGBA(filter_t *p_filter, picture_t *src, picture_t *dst)
@@ -438,7 +439,7 @@ static void D3D11_RGBA(filter_t *p_filter, picture_t *src, picture_t *dst)
     D3D11_TEXTURE2D_DESC desc;
     D3D11_MAPPED_SUBRESOURCE lock;
 
-    vlc_mutex_lock(&sys->staging_lock);
+    heimdall_mutex_lock(&sys->staging_lock);
     ID3D11DeviceContext_CopySubresourceRegion(sys->d3d_dev->d3dcontext, sys->staging_resource,
                                               0, 0, 0, 0,
                                               p_sys->resource[KNOWN_DXGI_INDEX],
@@ -449,7 +450,7 @@ static void D3D11_RGBA(filter_t *p_filter, picture_t *src, picture_t *dst)
                                          0, D3D11_MAP_READ, 0, &lock);
     if (FAILED(hr)) {
         msg_Err(p_filter, "Failed to map source surface. (hr=0x%lX)", hr);
-        vlc_mutex_unlock(&sys->staging_lock);
+        heimdall_mutex_unlock(&sys->staging_lock);
         return;
     }
 
@@ -463,17 +464,17 @@ static void D3D11_RGBA(filter_t *p_filter, picture_t *src, picture_t *dst)
 
     /* */
     ID3D11DeviceContext_Unmap(sys->d3d_dev->d3dcontext, sys->staging_resource, 0);
-    vlc_mutex_unlock(&sys->staging_lock);
+    heimdall_mutex_unlock(&sys->staging_lock);
 }
 
 static void DeleteFilter( filter_t * p_filter )
 {
-    vlc_filter_UnloadModule( p_filter );
+    heimdall_filter_UnloadModule( p_filter );
 
     es_format_Clean( &p_filter->fmt_in );
     es_format_Clean( &p_filter->fmt_out );
 
-    vlc_object_delete(p_filter);
+    heimdall_object_delete(p_filter);
 }
 
 static picture_t *NewBuffer(filter_t *p_filter)
@@ -483,19 +484,19 @@ static picture_t *NewBuffer(filter_t *p_filter)
     return p_sys->staging_pic;
 }
 
-static vlc_decoder_device * HoldD3D11DecoderDevice(vlc_object_t *o, void *sys)
+static heimdall_decoder_device * HoldD3D11DecoderDevice(heimdall_object_t *o, void *sys)
 {
-    VLC_UNUSED(o);
+    HEIMDALL_UNUSED(o);
     filter_t *p_this = sys;
     return filter_HoldDecoderDevice(p_this);
 }
 
 static filter_t *CreateCPUtoGPUFilter( filter_t *p_this, const es_format_t *p_fmt_in,
-                               vlc_fourcc_t dst_chroma )
+                               heimdall_fourcc_t dst_chroma )
 {
     filter_t *p_filter;
 
-    p_filter = vlc_object_create( p_this, sizeof(filter_t) );
+    p_filter = heimdall_object_create( p_this, sizeof(filter_t) );
     if (unlikely(p_filter == NULL))
         return NULL;
 
@@ -507,7 +508,7 @@ static filter_t *CreateCPUtoGPUFilter( filter_t *p_this, const es_format_t *p_fm
     es_format_InitFromVideo( &p_filter->fmt_in,  &p_fmt_in->video );
     es_format_InitFromVideo( &p_filter->fmt_out, &p_fmt_in->video );
     p_filter->fmt_out.i_codec = p_filter->fmt_out.video.i_chroma = dst_chroma;
-    p_filter->p_module = vlc_filter_LoadModule( p_filter, "video converter", NULL, false );
+    p_filter->p_module = heimdall_filter_LoadModule( p_filter, "video converter", NULL, false );
 
     if( !p_filter->p_module )
     {
@@ -546,7 +547,7 @@ static void NV12_D3D11(filter_t *p_filter, picture_t *src, picture_t *dst)
         picture_UpdatePlanes(dst, lock.pData, lock.RowPitch);
 
         /* The dx/d3d buffer is always allocated as YV12 */
-        if (dst->format.i_chroma == VLC_CODEC_I420)
+        if (dst->format.i_chroma == HEIMDALL_CODEC_I420)
             picture_SwapUV( dst );
 
         picture_context_t *dst_pic_ctx = dst->context;
@@ -576,7 +577,7 @@ static void NV12_D3D11(filter_t *p_filter, picture_t *src, picture_t *dst)
         picture_UpdatePlanes(sys->staging_pic, lock.pData, lock.RowPitch);
 
         /* The dx/d3d buffer is always allocated as YV12 */
-        if (sys->staging_pic->format.i_chroma == VLC_CODEC_I420)
+        if (sys->staging_pic->format.i_chroma == HEIMDALL_CODEC_I420)
             picture_SwapUV( sys->staging_pic );
 
         picture_context_t *staging_pic_ctx = sys->staging_pic->context;
@@ -646,16 +647,16 @@ static picture_t *AllocateCPUtoGPUTexture(filter_t *p_filter, filter_sys_t *p_sy
     }
 
     if (AllocateTextures(p_filter, p_sys->d3d_dev, cfg,
-                         &p_dst->format, false, pic_ctx->picsys.texture, p_dst->p) != VLC_SUCCESS)
+                         &p_dst->format, false, pic_ctx->picsys.texture, p_dst->p) != HEIMDALL_SUCCESS)
         goto done;
 
-    if (unlikely(D3D11_AllocateResourceView(vlc_object_logger(p_filter), p_sys->d3d_dev->d3ddevice, cfg,
-                                            pic_ctx->picsys.texture, 0, pic_ctx->picsys.renderSrc) != VLC_SUCCESS))
+    if (unlikely(D3D11_AllocateResourceView(heimdall_object_logger(p_filter), p_sys->d3d_dev->d3ddevice, cfg,
+                                            pic_ctx->picsys.texture, 0, pic_ctx->picsys.renderSrc) != HEIMDALL_SUCCESS))
         goto done;
 
     pic_ctx->s = (picture_context_t) {
         d3d11_pic_context_destroy, d3d11_pic_context_copy,
-        vlc_video_context_Hold(p_filter->vctx_out),
+        heimdall_video_context_Hold(p_filter->vctx_out),
     };
     pic_ctx->picsys.sharedHandle = INVALID_HANDLE_VALUE;
     AcquireD3D11PictureSys(&pic_ctx->picsys);
@@ -688,153 +689,153 @@ static void D3D11CloseCPUConverter( filter_t *p_filter )
         DeleteFilter(p_sys->filter);
     if (p_sys->staging_pic)
         picture_Release(p_sys->staging_pic);
-    vlc_video_context_Release(p_filter->vctx_out);
+    heimdall_video_context_Release(p_filter->vctx_out);
 }
 
-static const struct vlc_filter_operations NV12_D3D11_ops = {
+static const struct heimdall_filter_operations NV12_D3D11_ops = {
     .filter_video = NV12_D3D11_Filter, .close = D3D11CloseCPUConverter,
 };
 
 int D3D11OpenConverter( filter_t *p_filter )
 {
     if ( !is_d3d11_opaque(p_filter->fmt_in.video.i_chroma) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     if ( GetD3D11ContextPrivate(p_filter->vctx_in) == NULL )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if ( p_filter->fmt_in.video.i_visible_height != p_filter->fmt_out.video.i_visible_height
          || p_filter->fmt_in.video.i_width != p_filter->fmt_out.video.i_width )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     uint8_t pixel_bytes = 1;
     switch( p_filter->fmt_out.video.i_chroma ) {
-    case VLC_CODEC_I420:
-    case VLC_CODEC_YV12:
-        if( p_filter->fmt_in.video.i_chroma != VLC_CODEC_D3D11_OPAQUE )
-            return VLC_EGENERIC;
+    case HEIMDALL_CODEC_I420:
+    case HEIMDALL_CODEC_YV12:
+        if( p_filter->fmt_in.video.i_chroma != HEIMDALL_CODEC_D3D11_OPAQUE )
+            return HEIMDALL_EGENERIC;
         p_filter->ops = &D3D11_YUY2_ops;
         break;
-    case VLC_CODEC_I420_10L:
-        if( p_filter->fmt_in.video.i_chroma != VLC_CODEC_D3D11_OPAQUE_10B )
-            return VLC_EGENERIC;
+    case HEIMDALL_CODEC_I420_10L:
+        if( p_filter->fmt_in.video.i_chroma != HEIMDALL_CODEC_D3D11_OPAQUE_10B )
+            return HEIMDALL_EGENERIC;
         p_filter->ops = &D3D11_YUY2_ops;
         pixel_bytes = 2;
         break;
-    case VLC_CODEC_NV12:
-        if( p_filter->fmt_in.video.i_chroma != VLC_CODEC_D3D11_OPAQUE )
-            return VLC_EGENERIC;
+    case HEIMDALL_CODEC_NV12:
+        if( p_filter->fmt_in.video.i_chroma != HEIMDALL_CODEC_D3D11_OPAQUE )
+            return HEIMDALL_EGENERIC;
         p_filter->ops = &D3D11_NV12_ops;
         break;
-    case VLC_CODEC_P010:
-        if( p_filter->fmt_in.video.i_chroma != VLC_CODEC_D3D11_OPAQUE_10B )
-            return VLC_EGENERIC;
+    case HEIMDALL_CODEC_P010:
+        if( p_filter->fmt_in.video.i_chroma != HEIMDALL_CODEC_D3D11_OPAQUE_10B )
+            return HEIMDALL_EGENERIC;
         p_filter->ops = &D3D11_NV12_ops;
         pixel_bytes = 2;
         break;
-    case VLC_CODEC_RGBA:
-        if( p_filter->fmt_in.video.i_chroma != VLC_CODEC_D3D11_OPAQUE_RGBA )
-            return VLC_EGENERIC;
+    case HEIMDALL_CODEC_RGBA:
+        if( p_filter->fmt_in.video.i_chroma != HEIMDALL_CODEC_D3D11_OPAQUE_RGBA )
+            return HEIMDALL_EGENERIC;
         p_filter->ops = &D3D11_RGBA_ops;
         break;
-    case VLC_CODEC_BGRA:
-        if( p_filter->fmt_in.video.i_chroma != VLC_CODEC_D3D11_OPAQUE_BGRA )
-            return VLC_EGENERIC;
+    case HEIMDALL_CODEC_BGRA:
+        if( p_filter->fmt_in.video.i_chroma != HEIMDALL_CODEC_D3D11_OPAQUE_BGRA )
+            return HEIMDALL_EGENERIC;
         p_filter->ops = &D3D11_RGBA_ops;
         break;
     default:
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    filter_sys_t *p_sys = vlc_obj_calloc(VLC_OBJECT(p_filter), 1, sizeof(filter_sys_t));
+    filter_sys_t *p_sys = heimdall_obj_calloc(HEIMDALL_OBJECT(p_filter), 1, sizeof(filter_sys_t));
     if (!p_sys)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     d3d11_video_context_t *vctx_sys = GetD3D11ContextPrivate(p_filter->vctx_in);
     d3d11_decoder_device_t *dev_sys = GetD3D11OpaqueContext(p_filter->vctx_in);
     p_sys->d3d_dev = &dev_sys->d3d_dev;
 
-    if (assert_staging(p_filter, p_sys, vctx_sys->format) != VLC_SUCCESS)
+    if (assert_staging(p_filter, p_sys, vctx_sys->format) != HEIMDALL_SUCCESS)
     {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if (CopyInitCache(&p_sys->cache, p_filter->fmt_in.video.i_width * pixel_bytes))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    vlc_mutex_init(&p_sys->staging_lock);
+    heimdall_mutex_init(&p_sys->staging_lock);
     p_filter->p_sys = p_sys;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 int D3D11OpenCPUConverter( filter_t *p_filter )
 {
-    int err = VLC_EGENERIC;
+    int err = HEIMDALL_EGENERIC;
     filter_sys_t *p_sys = NULL;
 
-    if ( p_filter->fmt_out.video.i_chroma != VLC_CODEC_D3D11_OPAQUE
-     &&  p_filter->fmt_out.video.i_chroma != VLC_CODEC_D3D11_OPAQUE_10B )
-        return VLC_EGENERIC;
+    if ( p_filter->fmt_out.video.i_chroma != HEIMDALL_CODEC_D3D11_OPAQUE
+     &&  p_filter->fmt_out.video.i_chroma != HEIMDALL_CODEC_D3D11_OPAQUE_10B )
+        return HEIMDALL_EGENERIC;
 
     if ( p_filter->fmt_in.video.i_height != p_filter->fmt_out.video.i_height
          || p_filter->fmt_in.video.i_width != p_filter->fmt_out.video.i_width )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     switch( p_filter->fmt_in.video.i_chroma ) {
-    case VLC_CODEC_I420:
-    case VLC_CODEC_I420_10L:
-    case VLC_CODEC_YV12:
-    case VLC_CODEC_NV12:
-    case VLC_CODEC_P010:
+    case HEIMDALL_CODEC_I420:
+    case HEIMDALL_CODEC_I420_10L:
+    case HEIMDALL_CODEC_YV12:
+    case HEIMDALL_CODEC_NV12:
+    case HEIMDALL_CODEC_P010:
         p_filter->ops = &NV12_D3D11_ops;
         break;
     default:
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    vlc_decoder_device *dec_device = filter_HoldDecoderDeviceType( p_filter, VLC_DECODER_DEVICE_D3D11VA );
+    heimdall_decoder_device *dec_device = filter_HoldDecoderDeviceType( p_filter, HEIMDALL_DECODER_DEVICE_D3D11VA );
     if (dec_device == NULL)
     {
         msg_Err(p_filter, "Missing decoder device");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     d3d11_decoder_device_t *devsys = GetD3D11OpaqueDevice(dec_device);
     if (unlikely(devsys == NULL))
     {
         msg_Err(p_filter, "Incompatible decoder device %d", dec_device->type);
-        vlc_decoder_device_Release(dec_device);
-        return VLC_EGENERIC;
+        heimdall_decoder_device_Release(dec_device);
+        return HEIMDALL_EGENERIC;
     }
 
-    p_sys = vlc_obj_calloc(VLC_OBJECT(p_filter), 1, sizeof(filter_sys_t));
+    p_sys = heimdall_obj_calloc(HEIMDALL_OBJECT(p_filter), 1, sizeof(filter_sys_t));
     if (!p_sys) {
-        vlc_decoder_device_Release(dec_device);
-        return VLC_ENOMEM;
+        heimdall_decoder_device_Release(dec_device);
+        return HEIMDALL_ENOMEM;
     }
     p_sys->d3d_dev = &devsys->d3d_dev;
 
     DXGI_FORMAT vctx_fmt;
     switch( p_filter->fmt_in.video.i_chroma ) {
-    case VLC_CODEC_I420:
-    case VLC_CODEC_YV12:
-    case VLC_CODEC_NV12:
+    case HEIMDALL_CODEC_I420:
+    case HEIMDALL_CODEC_YV12:
+    case HEIMDALL_CODEC_NV12:
         vctx_fmt = DXGI_FORMAT_NV12;
         break;
-    case VLC_CODEC_I420_10L:
-    case VLC_CODEC_P010:
+    case HEIMDALL_CODEC_I420_10L:
+    case HEIMDALL_CODEC_P010:
         vctx_fmt = DXGI_FORMAT_P010;
         break;
     default:
-        vlc_assert_unreachable();
+        heimdall_assert_unreachable();
     }
     p_filter->vctx_out = D3D11CreateVideoContext(dec_device, vctx_fmt, DXGI_FORMAT_UNKNOWN);
-    vlc_decoder_device_Release(dec_device);
+    heimdall_decoder_device_Release(dec_device);
     if ( p_filter->vctx_out == NULL )
     {
         msg_Dbg(p_filter, "no video context");
         goto done;
     }
 
-    vlc_fourcc_t d3d_fourcc = DxgiFormatFourcc(vctx_fmt);
+    heimdall_fourcc_t d3d_fourcc = DxgiFormatFourcc(vctx_fmt);
 
     if ( p_filter->fmt_in.video.i_chroma != d3d_fourcc )
     {
@@ -851,12 +852,12 @@ int D3D11OpenCPUConverter( filter_t *p_filter )
     }
 
     p_filter->p_sys = p_sys;
-    err = VLC_SUCCESS;
+    err = HEIMDALL_SUCCESS;
 
 done:
-    if (err != VLC_SUCCESS)
+    if (err != HEIMDALL_SUCCESS)
     {
-        vlc_video_context_Release(p_filter->vctx_out);
+        heimdall_video_context_Release(p_filter->vctx_out);
     }
     return err;
 }

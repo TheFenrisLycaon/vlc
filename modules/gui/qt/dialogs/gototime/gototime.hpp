@@ -2,6 +2,7 @@
  * gototime.hpp : GotoTime dialogs
  ****************************************************************************
  * Copyright (C) 2007 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Jean-Baptiste Kempf <jb (at) videolan.org>
  *
@@ -20,14 +21,14 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef QVLC_GOTOTIME_DIALOG_H_
-#define QVLC_GOTOTIME_DIALOG_H_ 1
+#ifndef QHEIMDALL_GOTOTIME_DIALOG_H_
+#define QHEIMDALL_GOTOTIME_DIALOG_H_ 1
 
-#include "widgets/native/qvlcframe.hpp"
+#include "widgets/native/qheimdallframe.hpp"
 
 class QTimeEdit;
 
-class GotoTimeDialog : public QVLCDialog
+class GotoTimeDialog : public QHeimdallDialog
 {
     Q_OBJECT
 public:

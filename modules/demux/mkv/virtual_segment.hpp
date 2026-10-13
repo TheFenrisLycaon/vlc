@@ -2,6 +2,7 @@
  * virtual_segment.hpp : virtual segment implementation in the MKV demuxer
  *****************************************************************************
  * Copyright © 2003-2011 VideoLAN and VLC authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *          Steve Lhomme <steve.lhomme@free.fr>
@@ -22,8 +23,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_MKV_VIRTUAL_SEGMENT_HPP_
-#define VLC_MKV_VIRTUAL_SEGMENT_HPP_
+#ifndef HEIMDALL_MKV_VIRTUAL_SEGMENT_HPP_
+#define HEIMDALL_MKV_VIRTUAL_SEGMENT_HPP_
 
 #include "mkv.hpp"
 
@@ -37,7 +38,7 @@ namespace mkv {
 class virtual_chapter_c
 {
 public:
-    virtual_chapter_c( matroska_segment_c &seg, chapter_item_c *p_chap, vlc_tick_t start, vlc_tick_t stop, std::vector<virtual_chapter_c *> & sub_chaps ):
+    virtual_chapter_c( matroska_segment_c &seg, chapter_item_c *p_chap, heimdall_tick_t start, heimdall_tick_t stop, std::vector<virtual_chapter_c *> & sub_chaps ):
         segment(seg), p_chapter(p_chap),
         i_mk_virtual_start_time(start), i_mk_virtual_stop_time(stop),
         sub_vchapters(sub_chaps)
@@ -47,9 +48,9 @@ public:
     static virtual_chapter_c * CreateVirtualChapter( chapter_item_c * p_chap,
                                                      matroska_segment_c & main_segment,
                                                      const std::vector<matroska_segment_c*> & opened_segments,
-                                                     vlc_tick_t & usertime_offset, bool b_ordered );
+                                                     heimdall_tick_t & usertime_offset, bool b_ordered );
 
-    virtual_chapter_c* getSubChapterbyTimecode( vlc_tick_t time );
+    virtual_chapter_c* getSubChapterbyTimecode( heimdall_tick_t time );
     bool Leave( );
     bool EnterAndLeave( virtual_chapter_c *p_leaving_vchapter, bool b_enter = true );
     virtual_chapter_c * FindChapter( chapter_uid i_find_uid );
@@ -65,12 +66,12 @@ public:
         return ( itemA->i_mk_virtual_start_time < itemB->i_mk_virtual_start_time );
     }
 
-    bool ContainsTimestamp( vlc_tick_t i_pts );
+    bool ContainsTimestamp( heimdall_tick_t i_pts );
 
     matroska_segment_c  &segment;
     chapter_item_c      *p_chapter;
-    vlc_tick_t          i_mk_virtual_start_time;
-    vlc_tick_t          i_mk_virtual_stop_time;
+    heimdall_tick_t          i_mk_virtual_start_time;
+    heimdall_tick_t          i_mk_virtual_stop_time;
     int                 i_seekpoint_num;
     std::vector<virtual_chapter_c *> sub_vchapters;
 #ifdef MKV_DEBUG
@@ -85,14 +86,14 @@ public:
     ~virtual_edition_c();
     std::vector<virtual_chapter_c*> vchapters;
 
-    virtual_chapter_c* getChapterbyTimecode( vlc_tick_t time );
+    virtual_chapter_c* getChapterbyTimecode( heimdall_tick_t time );
     std::string GetMainName();
     int PublishChapters( input_title_t & title, int & i_user_chapters, int i_level );
     virtual_chapter_c * BrowseCodecPrivate( chapter_codec_id codec_id,
                                             chapter_cmd_match match );
 
     bool                b_ordered;
-    vlc_tick_t          i_duration;
+    heimdall_tick_t          i_duration;
     chapter_edition_c   *p_edition;
     int                 i_seekpoint_num;
 
@@ -136,7 +137,7 @@ public:
         return &p_current_vchapter->segment;
     }
 
-    inline vlc_tick_t Duration()
+    inline heimdall_tick_t Duration()
     {
         return veditions[i_current_edition]->i_duration;
     }
@@ -149,7 +150,7 @@ public:
     virtual_chapter_c * FindChapter( chapter_uid i_find_uid );
 
     bool UpdateCurrentToChapter( demux_t & demux );
-    bool Seek( demux_t & demuxer, vlc_tick_t i_mk_date, virtual_chapter_c *p_vchapter, bool b_precise = true );
+    bool Seek( demux_t & demuxer, heimdall_tick_t i_mk_date, virtual_chapter_c *p_vchapter, bool b_precise = true );
 private:
     void KeepTrackSelection( const matroska_segment_c & old, const matroska_segment_c & next );
 

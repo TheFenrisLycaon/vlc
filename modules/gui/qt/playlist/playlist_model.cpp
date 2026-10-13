@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,12 +28,12 @@
 #include "util/shared_input_item.hpp"
 #include "playlist_controller.hpp"
 
-namespace vlc {
+namespace heimdall {
 namespace playlist {
 
 namespace {
 
-static QVector<PlaylistItem> toVec(vlc_playlist_item_t *const items[],
+static QVector<PlaylistItem> toVec(heimdall_playlist_item_t *const items[],
                                    size_t len)
 {
     QVector<PlaylistItem> vec;
@@ -56,8 +57,8 @@ static QVector<RAW> toRaw(const QVector<WRAPPER> &items)
 extern "C" { // for C callbacks
 
 static void
-on_playlist_items_reset(vlc_playlist_t *playlist,
-                        vlc_playlist_item_t *const items[],
+on_playlist_items_reset(heimdall_playlist_t *playlist,
+                        heimdall_playlist_item_t *const items[],
                         size_t len, void *userdata)
 {
     PlaylistListModelPrivate *that = static_cast<PlaylistListModelPrivate *>(userdata);
@@ -70,8 +71,8 @@ on_playlist_items_reset(vlc_playlist_t *playlist,
 }
 
 static void
-on_playlist_items_added(vlc_playlist_t *playlist, size_t index,
-                        vlc_playlist_item_t *const items[], size_t len,
+on_playlist_items_added(heimdall_playlist_t *playlist, size_t index,
+                        heimdall_playlist_item_t *const items[], size_t len,
                         void *userdata)
 {
     PlaylistListModelPrivate *that = static_cast<PlaylistListModelPrivate *>(userdata);
@@ -84,7 +85,7 @@ on_playlist_items_added(vlc_playlist_t *playlist, size_t index,
 }
 
 static void
-on_playlist_items_moved(vlc_playlist_t *playlist, size_t index, size_t count,
+on_playlist_items_moved(heimdall_playlist_t *playlist, size_t index, size_t count,
                         size_t target, void *userdata)
 {
     PlaylistListModelPrivate *that = static_cast<PlaylistListModelPrivate *>(userdata);
@@ -96,7 +97,7 @@ on_playlist_items_moved(vlc_playlist_t *playlist, size_t index, size_t count,
 }
 
 static void
-on_playlist_items_removed(vlc_playlist_t *playlist, size_t index, size_t count,
+on_playlist_items_removed(heimdall_playlist_t *playlist, size_t index, size_t count,
                           void *userdata)
 {
     PlaylistListModelPrivate *that = static_cast<PlaylistListModelPrivate *>(userdata);
@@ -108,8 +109,8 @@ on_playlist_items_removed(vlc_playlist_t *playlist, size_t index, size_t count,
 }
 
 static void
-on_playlist_items_updated(vlc_playlist_t *playlist, size_t index,
-                          vlc_playlist_item_t *const items[], size_t len,
+on_playlist_items_updated(heimdall_playlist_t *playlist, size_t index,
+                          heimdall_playlist_item_t *const items[], size_t len,
                           void *userdata)
 {
     PlaylistListModelPrivate *that = static_cast<PlaylistListModelPrivate *>(userdata);
@@ -125,7 +126,7 @@ on_playlist_items_updated(vlc_playlist_t *playlist, size_t index,
 }
 
 static void
-on_playlist_current_item_changed(vlc_playlist_t *playlist, ssize_t index,
+on_playlist_current_item_changed(heimdall_playlist_t *playlist, ssize_t index,
                                  void *userdata)
 {
     PlaylistListModelPrivate *that = static_cast<PlaylistListModelPrivate *>(userdata);
@@ -144,8 +145,8 @@ on_playlist_current_item_changed(vlc_playlist_t *playlist, ssize_t index,
 
 } // extern "C"
 
-static const struct vlc_playlist_callbacks playlist_callbacks = []{
-    struct vlc_playlist_callbacks cbs {};
+static const struct heimdall_playlist_callbacks playlist_callbacks = []{
+    struct heimdall_playlist_callbacks cbs {};
     cbs.on_items_reset = on_playlist_items_reset;
     cbs.on_items_added = on_playlist_items_added;
     cbs.on_items_moved = on_playlist_items_moved;
@@ -166,8 +167,8 @@ PlaylistListModelPrivate::~PlaylistListModelPrivate()
 {
     if (m_playlist && m_listener)
     {
-        vlc_playlist_locker locker(m_playlist);
-        vlc_playlist_RemoveListener(m_playlist, m_listener);
+        heimdall_playlist_locker locker(m_playlist);
+        heimdall_playlist_RemoveListener(m_playlist, m_listener);
     }
 }
 
@@ -178,7 +179,7 @@ void PlaylistListModelPrivate::onItemsReset(const QVector<PlaylistItem>&& newCon
     m_items = newContent;
     q->endResetModel();
 
-    m_duration = VLCDuration();
+    m_duration = HeimdallDuration();
     if (m_items.size())
     {
         for(const auto& i : m_items)
@@ -243,9 +244,9 @@ void PlaylistListModelPrivate::onItemsRemoved(size_t index, size_t count)
     q->endRemoveRows();
 
     //maybe we removed the only valid elements
-    if (m_duration.toVLCTick() == 0 && m_duration.valid())
+    if (m_duration.toHeimdallTick() == 0 && m_duration.valid())
     {
-        m_duration = VLCDuration();
+        m_duration = HeimdallDuration();
         for(const auto& i : m_items)
             m_duration += i.getDuration();
     }
@@ -271,7 +272,7 @@ PlaylistListModel::PlaylistListModel(QObject *parent)
 {
 }
 
-PlaylistListModel::PlaylistListModel(vlc_playlist_t *raw_playlist, QObject *parent)
+PlaylistListModel::PlaylistListModel(heimdall_playlist_t *raw_playlist, QObject *parent)
     : QAbstractListModel(parent)
     , d_ptr(new PlaylistListModelPrivate(this))
 {
@@ -308,7 +309,7 @@ PlaylistListModel::rowCount(const QModelIndex &parent) const
     return d->m_items.size();
 }
 
-VLCDuration
+HeimdallDuration
 PlaylistListModel::getDuration() const
 {
     Q_D(const PlaylistListModel);
@@ -329,16 +330,16 @@ void PlaylistListModel::removeItems(const QVector<int>& indexes)
         return;
     if (indexes.size() == 0)
         return;
-    QVector<vlc_playlist_item_t *> itemsToRemove;
+    QVector<heimdall_playlist_item_t *> itemsToRemove;
     std::transform(indexes.begin(), indexes.end(),std::back_inserter(itemsToRemove), [&] (int index) {
         return d->m_items[index].raw();
     });
 
     {
-        vlc_playlist_locker locker(d->m_playlist);
-        int ret = vlc_playlist_RequestRemove(d->m_playlist, itemsToRemove.constData(),
+        heimdall_playlist_locker locker(d->m_playlist);
+        int ret = heimdall_playlist_RequestRemove(d->m_playlist, itemsToRemove.constData(),
                                              itemsToRemove.size(), indexes[0]);
-        if (ret != VLC_SUCCESS)
+        if (ret != HEIMDALL_SUCCESS)
             throw std::bad_alloc();
     }
 }
@@ -373,7 +374,7 @@ PlaylistListModel::moveItems(const QVector<int> &sortedIndexes, int target,
         return;
     if (sortedIndexes.size() == 0)
         return;
-    QVector<vlc_playlist_item_t*> itemsToMove;
+    QVector<heimdall_playlist_item_t*> itemsToMove;
     std::transform(sortedIndexes.begin(), sortedIndexes.end(),
                    std::back_inserter(itemsToMove),
                    [&] (int index) {
@@ -385,11 +386,11 @@ PlaylistListModel::moveItems(const QVector<int> &sortedIndexes, int target,
         target = getMovePostTarget(sortedIndexes, target);
     }
 
-    vlc_playlist_locker locker(d->m_playlist);
-    int ret = vlc_playlist_RequestMove(d->m_playlist, itemsToMove.constData(),
+    heimdall_playlist_locker locker(d->m_playlist);
+    int ret = heimdall_playlist_RequestMove(d->m_playlist, itemsToMove.constData(),
                                        itemsToMove.size(), target,
                                        sortedIndexes[0]);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
         throw std::bad_alloc();
 }
 
@@ -424,12 +425,12 @@ QVariantList PlaylistListModel::getItemsForIndexes(const QVector<int> & indexes)
         if (index < 0 || index >= d->m_items.count())
             continue;
 
-        vlc_playlist_item_t * item = d->m_items[index].raw();
+        heimdall_playlist_item_t * item = d->m_items[index].raw();
 
         if (item == nullptr)
             continue;
 
-        input_item_t * media = vlc_playlist_item_GetMedia(item);
+        input_item_t * media = heimdall_playlist_item_GetMedia(item);
 
         if (media == nullptr)
             continue;
@@ -448,21 +449,21 @@ Playlist PlaylistListModel::getPlaylist() const
     return Playlist(d->m_playlist);
 }
 
-void PlaylistListModel::setPlaylist(vlc_playlist_t* playlist)
+void PlaylistListModel::setPlaylist(heimdall_playlist_t* playlist)
 {
     Q_D(PlaylistListModel);
     if (d->m_playlist && d->m_listener)
     {
-        vlc_playlist_locker locker(d->m_playlist);
-        vlc_playlist_RemoveListener(d->m_playlist, d->m_listener);
+        heimdall_playlist_locker locker(d->m_playlist);
+        heimdall_playlist_RemoveListener(d->m_playlist, d->m_listener);
         d->m_playlist = nullptr;
         d->m_listener = nullptr;
     }
     if (playlist)
     {
-        vlc_playlist_locker locker(playlist);
+        heimdall_playlist_locker locker(playlist);
         d->m_playlist = playlist;
-        d->m_listener = vlc_playlist_AddListener(d->m_playlist, &playlist_callbacks, d, true);
+        d->m_listener = heimdall_playlist_AddListener(d->m_playlist, &playlist_callbacks, d, true);
     }
     emit playlistChanged( Playlist(d->m_playlist) );
 }
@@ -496,7 +497,7 @@ PlaylistListModel::data(const QModelIndex &index, int role) const
     case IsCurrentRole:
         return row == d->m_current;
     case DurationRole:
-        return QVariant::fromValue<VLCDuration>(d->m_items[row].getDuration());
+        return QVariant::fromValue<HeimdallDuration>(d->m_items[row].getDuration());
     case ArtistRole:
         return d->m_items[row].getArtist();
     case AlbumRole:
@@ -513,4 +514,4 @@ PlaylistListModel::data(const QModelIndex &index, int role) const
 }
 
 } // namespace playlist
-} // namespace vlc
+} // namespace heimdall

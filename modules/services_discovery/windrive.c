@@ -1,9 +1,10 @@
 /**
  * @file win_disc.c
- * @brief List of disc drives for VLC media player for Windows
+ * @brief List of disc drives for Heimdall media player for Windows
  */
 /*****************************************************************************
  * Copyright © 2010 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -24,20 +25,20 @@
 # include <config.h>
 #endif
 
-#include <vlc_common.h>
-#include <vlc_services_discovery.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_services_discovery.h>
+#include <heimdall_plugin.h>
 
 #include <windows.h>
 
-static int Open (vlc_object_t *);
+static int Open (heimdall_object_t *);
 
-VLC_SD_PROBE_HELPER("disc", N_("Discs"), SD_CAT_DEVICES)
+HEIMDALL_SD_PROBE_HELPER("disc", N_("Discs"), SD_CAT_DEVICES)
 
 /*
  * Module descriptor
  */
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname (N_("Discs"))
     set_description (N_("Discs"))
     set_subcategory (SUBCAT_PLAYLIST_SD)
@@ -45,14 +46,14 @@ vlc_module_begin ()
     set_callback(Open)
     add_shortcut ("disc")
 
-    VLC_SD_PROBE_SUBMODULE
+    HEIMDALL_SD_PROBE_SUBMODULE
 
-vlc_module_end ()
+heimdall_module_end ()
 
 /**
  * Probes and initializes.
  */
-static int Open (vlc_object_t *obj)
+static int Open (heimdall_object_t *obj)
 {
     services_discovery_t *sd = (services_discovery_t *)obj;
 
@@ -83,5 +84,5 @@ static int Open (vlc_object_t *obj)
 
         services_discovery_AddItem(sd, item);
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

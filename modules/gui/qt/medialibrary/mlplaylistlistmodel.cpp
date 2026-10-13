@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,10 +23,10 @@
 
 #include "mlplaylistlistmodel.hpp"
 
-// VLC includes
-#include <vlc_media_library.h>
+// Heimdall includes
+#include <heimdall_media_library.h>
 #include "qt.hpp"
-#include "util/vlctick.hpp"
+#include "util/heimdalltick.hpp"
 #include "dialogs/dialogs_provider.hpp"
 #include "playlist/playlist_controller.hpp"
 
@@ -47,28 +48,28 @@ const int MLPLAYLISTMODEL_COVER_HEIGHT = 162 * 3;
 const int PLAYLIST_COVERX = 2;
 const int PLAYLIST_COVERY = 2;
 
-void appendMediaIntoPlaylist(vlc_medialibrary_t* ml, int64_t playlistId, const std::vector<MLItemId>& itemList)
+void appendMediaIntoPlaylist(heimdall_medialibrary_t* ml, int64_t playlistId, const std::vector<MLItemId>& itemList)
 {
-    vlc_ml_query_params_t query = vlc_ml_query_params_create();
+    heimdall_ml_query_params_t query = heimdall_ml_query_params_create();
 
     for (auto itemId : itemList)
     {
         // NOTE: When we have a parent it's a collection of media(s).
-        if (itemId.type != VLC_ML_PARENT_UNKNOWN)
+        if (itemId.type != HEIMDALL_ML_PARENT_UNKNOWN)
         {
-            ml_unique_ptr<vlc_ml_media_list_t> list;
+            ml_unique_ptr<heimdall_ml_media_list_t> list;
 
-            list.reset(vlc_ml_list_media_of(ml, &query, itemId.type, itemId.id));
+            list.reset(heimdall_ml_list_media_of(ml, &query, itemId.type, itemId.id));
 
             if (!list)
                 continue;
 
-            for (const vlc_ml_media_t & media : ml_range_iterate<vlc_ml_media_t>(list))
-                vlc_ml_playlist_append(ml, playlistId, &media.i_id, 1);
+            for (const heimdall_ml_media_t & media : ml_range_iterate<heimdall_ml_media_t>(list))
+                heimdall_ml_playlist_append(ml, playlistId, &media.i_id, 1);
         }
         // NOTE: Otherwise we add the media directly.
         else
-            vlc_ml_playlist_append(ml, playlistId, &itemId.id, 1);
+            heimdall_ml_playlist_append(ml, playlistId, &itemId.id, 1);
     }
 }
 
@@ -96,13 +97,13 @@ void appendMediaIntoPlaylist(vlc_medialibrary_t* ml, int64_t playlistId, const s
 
     m_mediaLib->runOnMLThread<Ctx>(this,
     //ML thread
-    [name](vlc_medialibrary_t* ml, Ctx& ctx)
+    [name](heimdall_medialibrary_t* ml, Ctx& ctx)
     {
-        vlc_ml_playlist_t * playlist = vlc_ml_playlist_create(ml, qtu(name));
+        heimdall_ml_playlist_t * playlist = heimdall_ml_playlist_create(ml, qtu(name));
         if (playlist)
         {
-            ctx.createdPlaylistId = MLItemId(playlist->i_id, VLC_ML_PARENT_UNKNOWN);
-            vlc_ml_playlist_release(playlist);
+            ctx.createdPlaylistId = MLItemId(playlist->i_id, HEIMDALL_ML_PARENT_UNKNOWN);
+            heimdall_ml_playlist_release(playlist);
         }
     },
     [this, initialItems](quint64, const Ctx& ctx) {
@@ -126,7 +127,7 @@ void appendMediaIntoPlaylist(vlc_medialibrary_t* ml, int64_t playlistId, const s
 
     m_mediaLib->runOnMLThread(this,
     //ML thread
-    [playlistId, ids](vlc_medialibrary_t* ml) {
+    [playlistId, ids](heimdall_medialibrary_t* ml) {
         std::vector<MLItemId> mlItemIdVector;
         mlItemIdVector.reserve(ids.size());
 
@@ -145,7 +146,7 @@ void appendMediaIntoPlaylist(vlc_medialibrary_t* ml, int64_t playlistId, const s
         }
         else
         {
-            QVector<vlc::playlist::Media> medias = vlc::playlist::toMediaList(ids);
+            QVector<heimdall::playlist::Media> medias = heimdall::playlist::toMediaList(ids);
 
             for (const auto& media : medias)
             {
@@ -153,17 +154,17 @@ void appendMediaIntoPlaylist(vlc_medialibrary_t* ml, int64_t playlistId, const s
 
                 const char * const uri = media.raw()->psz_uri;
 
-                vlc_ml_media_t * ml_media = vlc_ml_get_media_by_mrl(ml, uri);
+                heimdall_ml_media_t * ml_media = heimdall_ml_get_media_by_mrl(ml, uri);
 
                 if (ml_media == nullptr)
                 {
-                    ml_media = vlc_ml_new_external_media(ml, uri);
+                    ml_media = heimdall_ml_new_external_media(ml, uri);
                     if (ml_media == nullptr)
                         continue;
                 }
 
-                vlc_ml_playlist_append(ml, playlistId.id, &ml_media->i_id, 1);
-                vlc_ml_media_release(ml_media);
+                heimdall_ml_playlist_append(ml, playlistId.id, &ml_media->i_id, 1);
+                heimdall_ml_media_release(ml_media);
             }
         }
     },
@@ -196,10 +197,10 @@ void appendMediaIntoPlaylist(vlc_medialibrary_t* ml, int64_t playlistId, const s
 
     m_mediaLib->runOnMLThread(this,
     //ML thread
-    [itemList](vlc_medialibrary_t* ml)
+    [itemList](heimdall_medialibrary_t* ml)
     {
         for (auto itemId : itemList)
-            vlc_ml_playlist_delete(ml, itemId.id);
+            heimdall_ml_playlist_delete(ml, itemId.id);
     },
     //UI thread
     [this](){
@@ -237,9 +238,9 @@ void appendMediaIntoPlaylist(vlc_medialibrary_t* ml, int64_t playlistId, const s
 
     m_mediaLib->runOnMLThread(this,
     // ML thread
-    [id, result](vlc_medialibrary_t * ml)
+    [id, result](heimdall_medialibrary_t * ml)
     {
-        vlc_ml_playlist_rename(ml, id, qtu(result));
+        heimdall_ml_playlist_rename(ml, id, qtu(result));
     });
 
     // NOTE: We want the change to be visible right away.
@@ -378,12 +379,12 @@ QString MLPlaylistListModel::getCover(const MLPlaylist * playlist) const
 // Private MLBaseModel reimplementation
 //-------------------------------------------------------------------------------------------------
 
-void MLPlaylistListModel::onVlcMlEvent(const MLEvent & event) /* override */
+void MLPlaylistListModel::onHeimdallMlEvent(const MLEvent & event) /* override */
 {
     if (m_transactionPending
-        && (event.i_type == VLC_ML_EVENT_PLAYLIST_UPDATED
-            || event.i_type == VLC_ML_EVENT_PLAYLIST_DELETED
-            || event.i_type == VLC_ML_EVENT_PLAYLIST_ADDED))
+        && (event.i_type == HEIMDALL_ML_EVENT_PLAYLIST_UPDATED
+            || event.i_type == HEIMDALL_ML_EVENT_PLAYLIST_DELETED
+            || event.i_type == HEIMDALL_ML_EVENT_PLAYLIST_ADDED))
     {
         m_resetAfterTransaction = true;
         return;
@@ -391,20 +392,20 @@ void MLPlaylistListModel::onVlcMlEvent(const MLEvent & event) /* override */
 
     switch (event.i_type)
     {
-    case VLC_ML_EVENT_PLAYLIST_DELETED:
+    case HEIMDALL_ML_EVENT_PLAYLIST_DELETED:
     {
-        MLItemId itemId(event.deletion.i_entity_id, VLC_ML_PARENT_PLAYLIST);
+        MLItemId itemId(event.deletion.i_entity_id, HEIMDALL_ML_PARENT_PLAYLIST);
         deleteItemInCache(itemId);
         return;
     }
-    case VLC_ML_EVENT_PLAYLIST_UPDATED:
+    case HEIMDALL_ML_EVENT_PLAYLIST_UPDATED:
     {
 
-        MLItemId itemId(event.modification.i_entity_id, VLC_ML_PARENT_PLAYLIST);
+        MLItemId itemId(event.modification.i_entity_id, HEIMDALL_ML_PARENT_PLAYLIST);
         updateItemInCache(itemId);
         return;
     }
-    case VLC_ML_EVENT_PLAYLIST_ADDED:
+    case HEIMDALL_ML_EVENT_PLAYLIST_ADDED:
     {
         emit resetRequested();
         break;
@@ -413,7 +414,7 @@ void MLPlaylistListModel::onVlcMlEvent(const MLEvent & event) /* override */
         break;
     }
 
-    MLBaseModel::onVlcMlEvent(event);
+    MLBaseModel::onHeimdallMlEvent(event);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -483,21 +484,21 @@ void MLPlaylistListModel::setPlaylistType(PlaylistType playlistType)
 // Loader
 //=================================================================================================
 
-static inline vlc_ml_playlist_type_t qmlToMLPlaylistType(MLPlaylistListModel::PlaylistType type)
+static inline heimdall_ml_playlist_type_t qmlToMLPlaylistType(MLPlaylistListModel::PlaylistType type)
 {
     switch(type) {
     case MLPlaylistListModel::PlaylistType::PLAYLIST_TYPE_ALL:
-        return VLC_ML_PLAYLIST_TYPE_ALL;
+        return HEIMDALL_ML_PLAYLIST_TYPE_ALL;
     case MLPlaylistListModel::PlaylistType::PLAYLIST_TYPE_AUDIO:
-        return VLC_ML_PLAYLIST_TYPE_AUDIO;
+        return HEIMDALL_ML_PLAYLIST_TYPE_AUDIO;
     case MLPlaylistListModel::PlaylistType::PLAYLIST_TYPE_VIDEO:
-        return VLC_ML_PLAYLIST_TYPE_VIDEO;
+        return HEIMDALL_ML_PLAYLIST_TYPE_VIDEO;
     case MLPlaylistListModel::PlaylistType::PLAYLIST_TYPE_AUDIO_ONLY:
-        return VLC_ML_PLAYLIST_TYPE_AUDIO_ONLY;
+        return HEIMDALL_ML_PLAYLIST_TYPE_AUDIO_ONLY;
     case MLPlaylistListModel::PlaylistType::PLAYLIST_TYPE_VIDEO_ONLY:
-        return VLC_ML_PLAYLIST_TYPE_VIDEO_ONLY;
+        return HEIMDALL_ML_PLAYLIST_TYPE_VIDEO_ONLY;
     default:
-        vlc_assert_unreachable();
+        heimdall_assert_unreachable();
     }
 }
 
@@ -506,26 +507,26 @@ MLPlaylistListModel::Loader::Loader(const MLPlaylistListModel & model, PlaylistT
     , m_playlistType(playlistType)
 {}
 
-size_t MLPlaylistListModel::Loader::count(vlc_medialibrary_t* ml, const vlc_ml_query_params_t* queryParams) const /* override */
+size_t MLPlaylistListModel::Loader::count(heimdall_medialibrary_t* ml, const heimdall_ml_query_params_t* queryParams) const /* override */
 {
-    vlc_ml_playlist_type_t mlPlaylistType = qmlToMLPlaylistType(m_playlistType);
+    heimdall_ml_playlist_type_t mlPlaylistType = qmlToMLPlaylistType(m_playlistType);
 
-    return vlc_ml_count_playlists(ml, queryParams, mlPlaylistType);
+    return heimdall_ml_count_playlists(ml, queryParams, mlPlaylistType);
 }
 
 std::vector<std::unique_ptr<MLItem>>
-MLPlaylistListModel::Loader::load(vlc_medialibrary_t* ml, const vlc_ml_query_params_t* queryParams) const /* override */
+MLPlaylistListModel::Loader::load(heimdall_medialibrary_t* ml, const heimdall_ml_query_params_t* queryParams) const /* override */
 {
-    vlc_ml_playlist_type_t mlPlaylistType = qmlToMLPlaylistType(m_playlistType);
+    heimdall_ml_playlist_type_t mlPlaylistType = qmlToMLPlaylistType(m_playlistType);
 
-    ml_unique_ptr<vlc_ml_playlist_list_t> list(vlc_ml_list_playlists(ml, queryParams, mlPlaylistType));
+    ml_unique_ptr<heimdall_ml_playlist_list_t> list(heimdall_ml_list_playlists(ml, queryParams, mlPlaylistType));
 
     if (list == nullptr)
         return {};
 
     std::vector<std::unique_ptr<MLItem>> result;
 
-    for (const vlc_ml_playlist_t & playlist : ml_range_iterate<vlc_ml_playlist_t>(list))
+    for (const heimdall_ml_playlist_t & playlist : ml_range_iterate<heimdall_ml_playlist_t>(list))
     {
         result.emplace_back(std::make_unique<MLPlaylist>(&playlist));
     }
@@ -534,10 +535,10 @@ MLPlaylistListModel::Loader::load(vlc_medialibrary_t* ml, const vlc_ml_query_par
 }
 
 std::unique_ptr<MLItem>
-MLPlaylistListModel::Loader::loadItemById(vlc_medialibrary_t* ml, MLItemId itemId) const
+MLPlaylistListModel::Loader::loadItemById(heimdall_medialibrary_t* ml, MLItemId itemId) const
 {
-    assert(itemId.type == VLC_ML_PARENT_PLAYLIST);
-    ml_unique_ptr<vlc_ml_playlist_t> playlist(vlc_ml_get_playlist(ml, itemId.id));
+    assert(itemId.type == HEIMDALL_ML_PARENT_PLAYLIST);
+    ml_unique_ptr<heimdall_ml_playlist_t> playlist(heimdall_ml_get_playlist(ml, itemId.id));
     if (!playlist)
         return nullptr;
     return std::make_unique<MLPlaylist>(playlist.get());

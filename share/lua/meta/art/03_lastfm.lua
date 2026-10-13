@@ -2,6 +2,7 @@
  Gets an artwork from last.fm
 
  Copyright © 2010 the VideoLAN team
+ Copyright (C) 2026 TheFenrisLycaon
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -24,15 +25,15 @@ end
 
 -- Return the artwork
 function fetch_art()
-    if vlc.item == nil then return nil end
-    local meta = vlc.item:metas()
+    if heimdall.item == nil then return nil end
+    local meta = heimdall.item:metas()
 
     if meta["Listing Type"] == "radio"
     or meta["Listing Type"] == "tv"
     then return nil end
 
     if meta["artist"] and meta["album"] then
-        title = vlc.strings.encode_uri_component(meta["artist"]).."/"..vlc.strings.encode_uri_component(meta["album"])
+        title = heimdall.strings.encode_uri_component(meta["artist"]).."/"..heimdall.strings.encode_uri_component(meta["album"])
     else
         return nil
     end
@@ -44,7 +45,7 @@ function fetch_art()
     title = string.gsub( title, "CD%d+", "" )
     -- remove Disc \w+ from string
     title = string.gsub( title, "Disc %w+", "" )
-    fd = vlc.stream( "http://www.last.fm/music/" .. title )
+    fd = heimdall.stream( "http://www.last.fm/music/" .. title )
     if not fd then return nil end
     page = fd:read( 65653 )
     fd = nil

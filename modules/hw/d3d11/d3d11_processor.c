@@ -2,6 +2,7 @@
  * d3d11_processor.c: D3D11 VideoProcessor helper
  *****************************************************************************
  * Copyright © 2017 VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Steve Lhomme <robux4@gmail.com>
  *
@@ -24,8 +25,8 @@
 # include "config.h"
 #endif
 
-#include <vlc_filter.h>
-#include <vlc_picture.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
 
 #include <assert.h>
 
@@ -37,7 +38,7 @@
 
 #if defined(ID3D11VideoContext_VideoProcessorBlt)
 #ifndef NDEBUG
-static void LogProcessorSupport(vlc_object_t *o,
+static void LogProcessorSupport(heimdall_object_t *o,
                                 ID3D11VideoProcessorEnumerator *processorEnumerator)
 {
     UINT flags;
@@ -67,7 +68,7 @@ static void LogProcessorSupport(vlc_object_t *o,
 #endif
 
 #undef D3D11_CreateProcessor
-int D3D11_CreateProcessor(vlc_object_t *o, d3d11_device_t *d3d_dev,
+int D3D11_CreateProcessor(heimdall_object_t *o, d3d11_device_t *d3d_dev,
                           D3D11_VIDEO_FRAME_FORMAT srcFields,
                           const video_format_t *fmt_in, const video_format_t *fmt_out,
                           d3d11_processor_t *out)
@@ -117,10 +118,10 @@ int D3D11_CreateProcessor(vlc_object_t *o, d3d11_device_t *d3d_dev,
     LogProcessorSupport(o, out->procEnumerator);
 #endif
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 error:
     D3D11_ReleaseProcessor(out);
-    return VLC_ENOTSUP;
+    return HEIMDALL_ENOTSUP;
 }
 
 void D3D11_ReleaseProcessor(d3d11_processor_t *out)
@@ -148,7 +149,7 @@ void D3D11_ReleaseProcessor(d3d11_processor_t *out)
 }
 
 #undef D3D11_Assert_ProcessorInput
-HRESULT D3D11_Assert_ProcessorInput(vlc_object_t *o, d3d11_processor_t *d3d_proc, picture_sys_d3d11_t *p_sys)
+HRESULT D3D11_Assert_ProcessorInput(heimdall_object_t *o, d3d11_processor_t *d3d_proc, picture_sys_d3d11_t *p_sys)
 {
     if (p_sys->processorInput)
         return S_OK;

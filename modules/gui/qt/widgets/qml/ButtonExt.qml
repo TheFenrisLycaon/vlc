@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2025 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,9 +23,9 @@ import QtQuick.Templates as T
 import QtQuick.Layouts
 
 
-import VLC.MainInterface
-import VLC.Widgets as Widgets
-import VLC.Style
+import Heimdall.MainInterface
+import Heimdall.Widgets as Widgets
+import Heimdall.Style
 
 T.Button {
     id: control
@@ -40,12 +41,12 @@ T.Button {
 
     property string iconTxt: ""
 
-    property int iconSize: VLCStyle.icon_normal
+    property int iconSize: HeimdallStyle.icon_normal
 
     property color color: theme.fg.primary
     property color colorFocus: theme.visualFocus
 
-    property int radius: VLCStyle.button_radius
+    property int radius: HeimdallStyle.button_radius
 
     //set to true when user animates the background manually
     property bool extBackgroundAnimation: false
@@ -60,10 +61,10 @@ T.Button {
     implicitHeight: Math.max(implicitBackgroundHeight + topInset + bottomInset,
                              implicitContentHeight + topPadding + bottomPadding)
 
-    padding: VLCStyle.margin_xsmall
-    spacing: VLCStyle.margin_xsmall
+    padding: HeimdallStyle.margin_xsmall
+    spacing: HeimdallStyle.margin_xsmall
 
-    font.pixelSize: VLCStyle.fontSize_normal
+    font.pixelSize: HeimdallStyle.fontSize_normal
 
     // Keys
 
@@ -80,7 +81,7 @@ T.Button {
 
     T.ToolTip.visible: (T.ToolTip.text && (!showText || label.implicitWidth > label.width) && (hovered || visualFocus))
 
-    T.ToolTip.delay: VLCStyle.delayToolTipAppear
+    T.ToolTip.delay: HeimdallStyle.delayToolTipAppear
 
     T.ToolTip.text: text
 
@@ -109,12 +110,12 @@ T.Button {
         Rectangle {
             anchors {
                 bottom: parent.bottom
-                bottomMargin: VLCStyle.margin_xxxsmall
+                bottomMargin: HeimdallStyle.margin_xxxsmall
                 horizontalCenter: parent.horizontalCenter
             }
 
-            implicitWidth: (parent.width - VLCStyle.margin_xsmall)
-            implicitHeight: VLCStyle.heightBar_xxxsmall
+            implicitWidth: (parent.width - HeimdallStyle.margin_xsmall)
+            implicitHeight: HeimdallStyle.heightBar_xxxsmall
 
             width: control.contentItem?.implicitWidth ?? implicitWidth
 
@@ -176,7 +177,7 @@ T.Button {
 
             elide: Text.ElideRight
 
-            font.pixelSize: VLCStyle.fontSize_normal
+            font.pixelSize: HeimdallStyle.fontSize_normal
             font.weight: Font.DemiBold
 
             textFormat: Text.PlainText
@@ -187,7 +188,7 @@ T.Button {
             Layout.fillWidth: true
             Layout.fillHeight: true
             Layout.maximumWidth: implicitWidth + 1
-            Layout.leftMargin: iconLabel.visible ? VLCStyle.margin_xsmall : 0
+            Layout.leftMargin: iconLabel.visible ? HeimdallStyle.margin_xsmall : 0
         }
 
         Item {

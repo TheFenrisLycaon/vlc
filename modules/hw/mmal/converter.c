@@ -2,6 +2,7 @@
  * converter.c: MMAL-based resizer
  *****************************************************************************
  * Copyright © 2014 jusst technologies GmbH
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Dennis Hamester <dennis.hamester@gmail.com>
  *          Julian Scheel <julian@jusst.de>
@@ -28,11 +29,11 @@
 
 #include <stdatomic.h>
 
-#include <vlc_common.h>
-#include <vlc_codec.h>
-#include <vlc_filter.h>
-#include <vlc_plugin.h>
-#include <vlc_chroma_probe.h>
+#include <heimdall_common.h>
+#include <heimdall_codec.h>
+#include <heimdall_filter.h>
+#include <heimdall_plugin.h>
+#include <heimdall_chroma_probe.h>
 
 #include <interface/mmal/mmal.h>
 #include <interface/mmal/util/mmal_util.h>
@@ -66,21 +67,21 @@ static const char * const  ppsz_converter_text[] = {
 
 static int OpenConverter(filter_t *);
 
-static void ProbeChroma(vlc_chroma_conv_vec *vec)
+static void ProbeChroma(heimdall_chroma_conv_vec *vec)
 {
 #define OUT_CHROMAS \
-    VLC_CODEC_BGRX, VLC_CODEC_RGBX, VLC_CODEC_XBGR, \
-    VLC_CODEC_XRGB, VLC_CODEC_RGB565BE, VLC_CODEC_RGBA, \
-    VLC_CODEC_BGRA, VLC_CODEC_ARGB, VLC_CODEC_ABGR
+    HEIMDALL_CODEC_BGRX, HEIMDALL_CODEC_RGBX, HEIMDALL_CODEC_XBGR, \
+    HEIMDALL_CODEC_XRGB, HEIMDALL_CODEC_RGB565BE, HEIMDALL_CODEC_RGBA, \
+    HEIMDALL_CODEC_BGRA, HEIMDALL_CODEC_ARGB, HEIMDALL_CODEC_ABGR
 
-    vlc_chroma_conv_add_in_outlist(vec, 1, VLC_CODEC_I420_10L, OUT_CHROMAS);
-    vlc_chroma_conv_add_in_outlist(vec, 1, VLC_CODEC_I420, OUT_CHROMAS);
-    vlc_chroma_conv_add_in_outlist(vec, 1.1, VLC_CODEC_MMAL_OPAQUE, OUT_CHROMAS);
-    vlc_chroma_conv_add_in_outlist(vec, 1.1, VLC_CODEC_I420_10L, VLC_CODEC_MMAL_OPAQUE);
-    vlc_chroma_conv_add_in_outlist(vec, 1.1, VLC_CODEC_I420, VLC_CODEC_MMAL_OPAQUE);
+    heimdall_chroma_conv_add_in_outlist(vec, 1, HEIMDALL_CODEC_I420_10L, OUT_CHROMAS);
+    heimdall_chroma_conv_add_in_outlist(vec, 1, HEIMDALL_CODEC_I420, OUT_CHROMAS);
+    heimdall_chroma_conv_add_in_outlist(vec, 1.1, HEIMDALL_CODEC_MMAL_OPAQUE, OUT_CHROMAS);
+    heimdall_chroma_conv_add_in_outlist(vec, 1.1, HEIMDALL_CODEC_I420_10L, HEIMDALL_CODEC_MMAL_OPAQUE);
+    heimdall_chroma_conv_add_in_outlist(vec, 1.1, HEIMDALL_CODEC_I420, HEIMDALL_CODEC_MMAL_OPAQUE);
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_subcategory( SUBCAT_VIDEO_VFILTER )
     set_shortname(N_("MMAL resizer"))
     set_description(N_("MMAL resizing conversion filter"))
@@ -92,7 +93,7 @@ vlc_module_begin()
     set_callback_video_converter(OpenConverter, 900)
     add_submodule()
         set_callback_chroma_conv_probe(ProbeChroma)
-vlc_module_end()
+heimdall_module_end()
 
 #define MMAL_SLICE_HEIGHT 16
 
@@ -131,12 +132,12 @@ static MMAL_FOURCC_T pic_to_slice_mmal_fourcc(MMAL_FOURCC_T fcc)
     return 0;
 }
 
-static picture_t * pic_fifo_get(vlc_picture_chain_t * const pf)
+static picture_t * pic_fifo_get(heimdall_picture_chain_t * const pf)
 {
-    return vlc_picture_chain_PopFront( pf );
+    return heimdall_picture_chain_PopFront( pf );
 }
 
-static void pic_fifo_release_all(vlc_picture_chain_t * const pf)
+static void pic_fifo_release_all(heimdall_picture_chain_t * const pf)
 {
     picture_t * pic;
     while ((pic = pic_fifo_get(pf)) != NULL) {
@@ -144,21 +145,21 @@ static void pic_fifo_release_all(vlc_picture_chain_t * const pf)
     }
 }
 
-static void pic_fifo_init(vlc_picture_chain_t * const pf)
+static void pic_fifo_init(heimdall_picture_chain_t * const pf)
 {
-    vlc_picture_chain_Init( pf );
+    heimdall_picture_chain_Init( pf );
 }
 
-static void pic_fifo_put(vlc_picture_chain_t * const pf, picture_t * pic)
+static void pic_fifo_put(heimdall_picture_chain_t * const pf, picture_t * pic)
 {
-    vlc_picture_chain_Append( pf, pic  );
+    heimdall_picture_chain_Append( pf, pic  );
 }
 
 #define SUBS_MAX 3
 
 typedef struct conv_frame_stash_s
 {
-    vlc_tick_t pts;
+    heimdall_tick_t pts;
     MMAL_BUFFER_HEADER_T * sub_bufs[SUBS_MAX];
 } conv_frame_stash_t;
 
@@ -176,11 +177,11 @@ typedef struct
 
     subpic_reg_stash_t subs[SUBS_MAX];
 
-    vlc_picture_chain_t ret_pics;
+    heimdall_picture_chain_t ret_pics;
 
     unsigned int pic_n;
-    vlc_sem_t sem;
-    vlc_mutex_t lock;
+    heimdall_sem_t sem;
+    heimdall_mutex_t lock;
 
     MMAL_STATUS_T err_stream;
 
@@ -195,11 +196,11 @@ typedef struct
 
     // Slice specific tracking stuff
     struct {
-        vlc_picture_chain_t pics;
+        heimdall_picture_chain_t pics;
         unsigned int line;  // Lines filled
     } slice;
 
-    vlc_decoder_device *dec_dev;
+    heimdall_decoder_device *dec_dev;
 } converter_sys_t;
 
 
@@ -214,15 +215,15 @@ static void cma_buf_pool_deletez(cma_buf_pool_t ** const pp)
 
 static MMAL_STATUS_T pic_to_format(MMAL_ES_FORMAT_T * const es_fmt, const picture_t * const pic)
 {
-    unsigned int bpp = (vlc_fourcc_GetChromaBPP(pic->format.i_chroma) + 7) >> 3;
+    unsigned int bpp = (heimdall_fourcc_GetChromaBPP(pic->format.i_chroma) + 7) >> 3;
     MMAL_VIDEO_FORMAT_T * const v_fmt = &es_fmt->es->video;
 
     es_fmt->type = MMAL_ES_TYPE_VIDEO;
-    es_fmt->encoding = vlc_to_mmal_video_fourcc(&pic->format);
+    es_fmt->encoding = heimdall_to_mmal_video_fourcc(&pic->format);
     es_fmt->encoding_variant = 0;
 
     // Fill in crop etc.
-    hw_mmal_vlc_fmt_to_mmal_fmt(es_fmt, &pic->format);
+    hw_mmal_heimdall_fmt_to_mmal_fmt(es_fmt, &pic->format);
     // Override width / height with strides if appropriate
     if (bpp != 0) {
         v_fmt->width = pic->p[0].i_pitch / bpp;
@@ -282,18 +283,18 @@ static void conv_control_port_cb(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffer
 
 static void conv_input_port_cb(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buf)
 {
-    VLC_UNUSED(port);
+    HEIMDALL_UNUSED(port);
 
     mmal_buffer_header_release(buf);
 }
 
 static void conv_out_q_pic(converter_sys_t * const sys, picture_t * const pic)
 {
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     pic_fifo_put(&sys->ret_pics, pic);
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
 
-    vlc_sem_post(&sys->sem);
+    heimdall_sem_post(&sys->sem);
 }
 
 static void conv_output_port_cb(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buf)
@@ -334,7 +335,7 @@ static void slice_output_port_cb(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buf)
     if (buf->data != NULL && buf->length != 0)
     {
         // Got slice
-        picture_t *pic = vlc_picture_chain_PeekFront( &sys->slice.pics );
+        picture_t *pic = heimdall_picture_chain_PeekFront( &sys->slice.pics );
         const unsigned int scale_lines = sys->output->format->es->video.height;  // Expected lines of callback
 
         if (pic == NULL) {
@@ -381,9 +382,9 @@ static void slice_output_port_cb(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buf)
             else {
                 sys->slice.line = 0;
 
-                vlc_mutex_lock(&sys->lock);
+                heimdall_mutex_lock(&sys->lock);
                 pic = pic_fifo_get(&sys->slice.pics);  // Remove head from Q
-                vlc_mutex_unlock(&sys->lock);
+                heimdall_mutex_unlock(&sys->lock);
 
                 buf_to_pic_copy_props(pic, buf);
                 conv_out_q_pic(sys, pic);
@@ -402,7 +403,7 @@ static void slice_output_port_cb(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buf)
 
 fail:
     sys->err_stream = MMAL_EIO;
-    vlc_sem_post(&sys->sem);  // If we were waiting then break us out - the flush should fix sem values
+    heimdall_sem_post(&sys->sem);  // If we were waiting then break us out - the flush should fix sem values
 }
 
 
@@ -447,7 +448,7 @@ static void conv_flush(filter_t * p_filter)
     pic_fifo_release_all(&sys->ret_pics);
 
     // Reset sem values - easiest & most reliable way is to just kill & re-init
-    vlc_sem_init(&sys->sem, 0);
+    heimdall_sem_init(&sys->sem, 0);
     sys->pic_n = 0;
 
     // Reset error status
@@ -458,7 +459,7 @@ static void conv_stash_fixup(filter_t * const p_filter, converter_sys_t * const 
 {
     conv_frame_stash_t * const stash = sys->stash + (p_pic->date & 0xf);
     unsigned int sub_no;
-    VLC_UNUSED(p_filter);
+    HEIMDALL_UNUSED(p_filter);
 
     p_pic->date = stash->pts;
     for (sub_no = 0; sub_no != SUBS_MAX; ++sub_no) {
@@ -476,7 +477,7 @@ static void conv_stash_fixup(filter_t * const p_filter, converter_sys_t * const 
 // Free it
 static MMAL_BOOL_T out_buffer_pre_release_cb(MMAL_BUFFER_HEADER_T *header, void *userdata)
 {
-    VLC_UNUSED(userdata);
+    HEIMDALL_UNUSED(userdata);
 
     picture_t * const pic = header->user_data;
     header->user_data = NULL;
@@ -493,16 +494,16 @@ static MMAL_STATUS_T conv_set_output(filter_t * const p_filter, converter_sys_t 
 
     sys->output->userdata = (struct MMAL_PORT_USERDATA_T *)p_filter;
     sys->output->format->type = MMAL_ES_TYPE_VIDEO;
-    sys->output->format->encoding = vlc_to_mmal_video_fourcc(&p_filter->fmt_out.video);
+    sys->output->format->encoding = heimdall_to_mmal_video_fourcc(&p_filter->fmt_out.video);
     sys->output->format->encoding_variant = 0;
-    hw_mmal_vlc_fmt_to_mmal_fmt(sys->output->format, &p_filter->fmt_out.video);
+    hw_mmal_heimdall_fmt_to_mmal_fmt(sys->output->format, &p_filter->fmt_out.video);
 
     if (pic != NULL)
     {
         // Override default format width/height if we have a pic we need to match
         if ((status = pic_to_format(sys->output->format, pic)) != MMAL_SUCCESS)
         {
-            msg_Err(p_filter, "Bad format desc: %4.4s, pic=%p, bits=%d", (const char*)&pic->format.i_chroma, (void*)pic, vlc_fourcc_GetChromaBPP(pic->format.i_chroma));
+            msg_Err(p_filter, "Bad format desc: %4.4s, pic=%p, bits=%d", (const char*)&pic->format.i_chroma, (void*)pic, heimdall_fourcc_GetChromaBPP(pic->format.i_chroma));
             return status;
         }
     }
@@ -546,7 +547,7 @@ static picture_t *conv_filter(filter_t *p_filter, picture_t *p_pic)
     // Check pic fmt corresponds to what we have set up
     // ??? ISP may require flush (disable) but actually seems quite happy
     //     without
-    if (hw_mmal_vlc_pic_to_mmal_fmt_update(sys->input->format, p_pic))
+    if (hw_mmal_heimdall_pic_to_mmal_fmt_update(sys->input->format, p_pic))
     {
         msg_Dbg(p_filter, "Reset input port format");
         mmal_port_format_commit(sys->input);
@@ -563,7 +564,7 @@ static picture_t *conv_filter(filter_t *p_filter, picture_t *p_pic)
 
         for (sub_no = 0; sub_no != SUBS_MAX; ++sub_no) {
             int rv;
-            if ((rv = hw_mmal_subpic_update(VLC_OBJECT(p_filter),
+            if ((rv = hw_mmal_subpic_update(HEIMDALL_OBJECT(p_filter),
                                             hw_mmal_pic_sub_buf_get(p_pic, sub_no),
                                             sys->subs + sub_no,
                                             &p_pic->format,
@@ -632,9 +633,9 @@ static picture_t *conv_filter(filter_t *p_filter, picture_t *p_pic)
         out_pic->format.i_sar_num = p_filter->fmt_out.video.i_sar_num;
 
         if (sys->is_sliced) {
-            vlc_mutex_lock(&sys->lock);
+            heimdall_mutex_lock(&sys->lock);
             pic_fifo_put(&sys->slice.pics, out_pic);
-            vlc_mutex_unlock(&sys->lock);
+            heimdall_mutex_unlock(&sys->lock);
 
             // Poke any returned pic buffers into output
             // In general this should only happen immediately after enable
@@ -708,12 +709,12 @@ static picture_t *conv_filter(filter_t *p_filter, picture_t *p_pic)
     if (sys->pic_n++ == 1) {
         return NULL;
     }
-    vlc_sem_wait(&sys->sem);
+    heimdall_sem_wait(&sys->sem);
 
     // Return a single pending buffer
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     ret_pics = pic_fifo_get(&sys->ret_pics);
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
 
     if (sys->err_stream != MMAL_SUCCESS)
         goto stream_fail;
@@ -774,10 +775,10 @@ static void CloseConverter(filter_t *p_filter)
         mmal_component_release(sys->component);
 
     if (p_filter->vctx_out)
-        vlc_video_context_Release(p_filter->vctx_out);
+        heimdall_video_context_Release(p_filter->vctx_out);
 
     if (sys->dec_dev)
-        vlc_decoder_device_Release(sys->dec_dev);
+        heimdall_decoder_device_Release(sys->dec_dev);
 
     p_filter->p_sys = NULL;
     free(sys);
@@ -786,33 +787,33 @@ static void CloseConverter(filter_t *p_filter)
 
 static MMAL_FOURCC_T filter_enc_in(const video_format_t * const fmt)
 {
-    if (hw_mmal_chroma_is_mmal(fmt->i_chroma) || fmt->i_chroma == VLC_CODEC_I420)
-        return vlc_to_mmal_video_fourcc(fmt);
+    if (hw_mmal_chroma_is_mmal(fmt->i_chroma) || fmt->i_chroma == HEIMDALL_CODEC_I420)
+        return heimdall_to_mmal_video_fourcc(fmt);
 
-    if (fmt->i_chroma == VLC_CODEC_I420_10L)
+    if (fmt->i_chroma == HEIMDALL_CODEC_I420_10L)
         return MMAL_ENCODING_I420;
 
     return 0;
 }
 
 
-static const struct vlc_filter_operations filter_ops = {
+static const struct heimdall_filter_operations filter_ops = {
     .filter_video = conv_filter, .flush = conv_flush, .close = CloseConverter,
 };
 
 static int OpenConverter(filter_t *p_filter)
 {
-    int ret = VLC_EGENERIC;
+    int ret = HEIMDALL_EGENERIC;
     converter_sys_t *sys;
     MMAL_STATUS_T status;
-    if (p_filter->fmt_out.video.i_chroma == VLC_CODEC_I420)
-        return VLC_EGENERIC;
-    const MMAL_FOURCC_T enc_out = vlc_to_mmal_video_fourcc(&p_filter->fmt_out.video);
+    if (p_filter->fmt_out.video.i_chroma == HEIMDALL_CODEC_I420)
+        return HEIMDALL_EGENERIC;
+    const MMAL_FOURCC_T enc_out = heimdall_to_mmal_video_fourcc(&p_filter->fmt_out.video);
     const MMAL_FOURCC_T enc_in = filter_enc_in(&p_filter->fmt_in.video);
 
     // At least in principle we should deal with any mmal format as input
     if (enc_in == 0 || enc_out == 0)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     filter_resizer_t resizer_type =
 #ifdef NDEBUG
@@ -828,7 +829,7 @@ retry:
     if (enc_in == MMAL_ENCODING_YUVUV64_10) {
         // If resizer selected then just give up
         if (resizer_type == FILTER_RESIZER_RESIZER)
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         // otherwise downgrade HVS to ISP
         resizer_type = FILTER_RESIZER_ISP;
     }
@@ -839,24 +840,24 @@ retry:
     // Only HVS can deal with SAND30
     if (enc_in == MMAL_ENCODING_YUV10_COL) {
         if (resizer_type != FILTER_RESIZER_HVS)
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 
     // Check we have a sliced version of the fourcc if we want the resizer
     if (resizer_type == FILTER_RESIZER_RESIZER && pic_to_slice_mmal_fourcc(enc_out) == 0) {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     sys = calloc(1, sizeof(converter_sys_t));
     if (!sys) {
-        ret = VLC_ENOMEM;
+        ret = HEIMDALL_ENOMEM;
         goto fail;
     }
     p_filter->p_sys = sys;
 
     // Init stuff the we destroy unconditionally in Close first
-    vlc_mutex_init(&sys->lock);
-    vlc_sem_init(&sys->sem, 0);
+    heimdall_mutex_init(&sys->lock);
+    heimdall_sem_init(&sys->sem, 0);
     sys->err_stream = MMAL_SUCCESS;
     pic_fifo_init(&sys->ret_pics);
     pic_fifo_init(&sys->slice.pics);
@@ -867,11 +868,11 @@ retry:
     if (hw_mmal_chroma_is_mmal(p_filter->fmt_in.video.i_chroma))
     {
         assert(p_filter->vctx_in);
-        sys->dec_dev = vlc_video_context_HoldDevice(p_filter->vctx_in);
-        assert(sys->dec_dev->type == VLC_DECODER_DEVICE_MMAL);
+        sys->dec_dev = heimdall_video_context_HoldDevice(p_filter->vctx_in);
+        assert(sys->dec_dev->type == HEIMDALL_DECODER_DEVICE_MMAL);
     }
     else
-        sys->dec_dev = filter_HoldDecoderDeviceType(p_filter, VLC_DECODER_DEVICE_MMAL);
+        sys->dec_dev = filter_HoldDecoderDeviceType(p_filter, HEIMDALL_DECODER_DEVICE_MMAL);
     if (sys->dec_dev == NULL) {
         msg_Err(p_filter, "missing MMAL decoder device");
         goto fail;
@@ -880,9 +881,9 @@ retry:
     if (hw_mmal_chroma_is_mmal(p_filter->fmt_out.video.i_chroma))
     {
         if (hw_mmal_chroma_is_mmal(p_filter->fmt_in.video.i_chroma))
-            p_filter->vctx_out = vlc_video_context_Hold(p_filter->vctx_in);
+            p_filter->vctx_out = heimdall_video_context_Hold(p_filter->vctx_in);
         else {
-            p_filter->vctx_out = vlc_video_context_Create(sys->dec_dev, VLC_VIDEO_CONTEXT_MMAL, 0, NULL);
+            p_filter->vctx_out = heimdall_video_context_Create(sys->dec_dev, HEIMDALL_VIDEO_CONTEXT_MMAL, 0, NULL);
             if (unlikely(p_filter->vctx_out == NULL)) {
                 msg_Err(p_filter, "failed to create the output video context");
                 goto fail;
@@ -943,7 +944,7 @@ retry:
     sys->input->format->type = MMAL_ES_TYPE_VIDEO;
     sys->input->format->encoding = enc_in;
     sys->input->format->encoding_variant = MMAL_ENCODING_I420;
-    hw_mmal_vlc_fmt_to_mmal_fmt(sys->input->format, &p_filter->fmt_in.video);
+    hw_mmal_heimdall_fmt_to_mmal_fmt(sys->input->format, &p_filter->fmt_in.video);
     port_parameter_set_bool(sys->input, MMAL_PARAMETER_ZERO_COPY, 1);
 
     mmal_log_dump_format(sys->input->format);
@@ -979,7 +980,7 @@ retry:
     {
         unsigned int i;
         for (i = 0; i != SUBS_MAX; ++i) {
-            if (hw_mmal_subpic_open(VLC_OBJECT(p_filter), sys->subs + i, sys->component->input[i + 1], -1, i + 1) != MMAL_SUCCESS)
+            if (hw_mmal_subpic_open(HEIMDALL_OBJECT(p_filter), sys->subs + i, sys->component->input[i + 1], -1, i + 1) != MMAL_SUCCESS)
             {
                 msg_Err(p_filter, "Failed to open subpic %d", i);
                 goto fail;
@@ -990,7 +991,7 @@ retry:
     p_filter->ops = &filter_ops;
     // video_drain NIF in filter structure
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 fail:
     CloseConverter(p_filter);

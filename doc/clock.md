@@ -2,8 +2,8 @@
 
 ## Introduction
 
-This document presents the new clock architecture for **VLC**, starting from
-VLC 4.0.
+This document presents the new clock architecture for **Heimdall**, starting from
+Heimdall 4.0.
 
 The clock is the element that manages the synchronisation of all [ES][ES],
 notably audio and video (+subtitles) synchronization.
@@ -21,8 +21,8 @@ And most clocks drift.
 
 ### Old clock system
 
-The old clock from VLC was mainly an "*input clock*", based on the [input
-PCR][PCR] (from the file), inherited from the time where VLC was mostly a
+The old clock from Heimdall was mainly an "*input clock*", based on the [input
+PCR][PCR] (from the file), inherited from the time where Heimdall was mostly a
 **MPEG-2/TS** player on the network. This is the correct clock for streaming,
 and notably when your input format carries a [PCR][] or something similar.
 
@@ -52,7 +52,7 @@ situation.
 For example, you could have an **audio master clock** *(local files)*, an
 **input PCR master clock** *(streaming)*, a **video master clock** *(V-Sync)*
 or a future **external clock** *(SDI, netsync...)*.  In the *audio master
-clock* mode, VLC would not resample the audio anymore.
+clock* mode, Heimdall would not resample the audio anymore.
 
 As previously, there is one clock per input-program.  This **main clock** is
 therefore mostly at the es_out level and manages mostly the [PTS][] of all the
@@ -65,7 +65,7 @@ those clock is master, the other are slaves.
 
 The main clock is the part managing the selection of the clocks and it will
 derive the main timings from the system clock *(the monotonic clock)* and
-will provide those timings to the rest of VLC, including outputs, modules and
+will provide those timings to the rest of Heimdall, including outputs, modules and
 interfaces.
 
 It is currently an affine function based on the system clock, where the affine

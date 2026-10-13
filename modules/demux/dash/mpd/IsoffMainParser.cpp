@@ -2,6 +2,7 @@
  * IsoffMainParser.cpp
  *****************************************************************************
  * Copyright (C) 2010 - 2012 Klagenfurt University
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Created on: Jan 27, 2012
  * Authors: Christopher Mueller <christopher.mueller@itec.uni-klu.ac.at>
@@ -43,7 +44,7 @@
 #include "../../adaptive/tools/Helper.h"
 #include "../../adaptive/tools/Debug.hpp"
 #include "../../adaptive/tools/Conversions.hpp"
-#include <vlc_stream.h>
+#include <heimdall_stream.h>
 #include <cstdio>
 #include <limits>
 
@@ -51,7 +52,7 @@ using namespace dash::mpd;
 using namespace adaptive::xml;
 using namespace adaptive::playlist;
 
-IsoffMainParser::IsoffMainParser    (Node *root_, vlc_object_t *p_object_,
+IsoffMainParser::IsoffMainParser    (Node *root_, heimdall_object_t *p_object_,
                                      stream_t *stream, const std::string & streambaseurl_)
 {
     root = root_;
@@ -70,7 +71,7 @@ static void parseAvailability(MPD *mpd, Node *node, T *s)
     if(node->hasAttribute("availabilityTimeOffset"))
     {
         double val = Integer<double>(node->getAttributeValue("availabilityTimeOffset"));
-        s->addAttribute(new AvailabilityTimeOffsetAttr(vlc_tick_from_sec(val)));
+        s->addAttribute(new AvailabilityTimeOffsetAttr(heimdall_tick_from_sec(val)));
     }
     if(node->hasAttribute("availabilityTimeComplete"))
     {
@@ -125,7 +126,7 @@ void    IsoffMainParser::parseMPDAttributes   (MPD *mpd, xml::Node *node)
         else if(attr.name == "minimumUpdatePeriod")
         {
             mpd->b_needsUpdates = true;
-            vlc_tick_t minupdate = IsoTime(attr.value);
+            heimdall_tick_t minupdate = IsoTime(attr.value);
             if(minupdate > 0)
                 mpd->minUpdatePeriod = minupdate;
         }

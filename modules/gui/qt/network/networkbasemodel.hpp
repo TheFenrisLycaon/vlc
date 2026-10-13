@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,7 +25,7 @@
 #endif
 
 #include "util/base_model.hpp"
-#include <vlc_media_source.h>
+#include <heimdall_media_source.h>
 
 #include <QString>
 #include <QUrl>

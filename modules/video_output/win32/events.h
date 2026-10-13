@@ -2,6 +2,7 @@
  * events.h: Windows video output header file
  *****************************************************************************
  * Copyright (C) 2001-2009 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gildas Bazin <gbazin@videolan.org>
  *          Damien Fouilleul <damienf@videolan.org>
@@ -21,15 +22,15 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#include <vlc_window.h>
-#include <vlc_vout_display.h>
+#include <heimdall_window.h>
+#include <heimdall_vout_display.h>
 
 #include <windows.h>
 
 /**
  * HWNDs manager.
  */
-struct event_thread_t *EventThreadCreate( vlc_object_t *, vlc_window_t *,
+struct event_thread_t *EventThreadCreate( heimdall_object_t *, heimdall_window_t *,
                                    const struct vout_display_placement *,
                                    const vout_display_owner_t * );
 void            EventThreadDestroy( struct event_thread_t * );

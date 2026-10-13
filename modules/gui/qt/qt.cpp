@@ -2,6 +2,7 @@
  * qt.cpp : Qt interface
  ****************************************************************************
  * Copyright © 2006-2009 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Clément Stenac <zorglub@videolan.org>
  *          Jean-Baptiste Kempf <jb@videolan.org>
@@ -33,7 +34,7 @@ QT_BEGIN_NAMESPACE
 #include "plugins.hpp"
 QT_END_NAMESPACE
 
-#define VLC_MODULE_LICENSE VLC_LICENSE_GPL_2_PLUS
+#define HEIMDALL_MODULE_LICENSE HEIMDALL_LICENSE_GPL_2_PLUS
 
 #include <stdlib.h>
 #include <unistd.h>
@@ -100,10 +101,10 @@ extern "C" char **environ;
 #include "dialogs/help/help.hpp"     /* Launch Update */
 #include "util/dismiss_popup_event_filter.hpp"
 #include "maininterface/compositor.hpp"
-#include "util/vlctick.hpp"
+#include "util/heimdalltick.hpp"
 #include "util/shared_input_item.hpp"
 #include "util/model_recovery_agent.hpp"
-#include "util/vlcqtmessagehandler.hpp"
+#include "util/heimdallqtmessagehandler.hpp"
 #include "network/networkmediamodel.hpp"
 #include "network/devicesourceprovider.hpp"
 #include "playlist/playlist_common.hpp"
@@ -114,18 +115,18 @@ extern "C" char **environ;
 #include <QVector>
 #include "playlist/playlist_item.hpp"
 
-#include <vlc_interface.h>
-#include <vlc_plugin.h>
-#include <vlc_window.h>
-#include <vlc_player.h>
-#include <vlc_threads.h>
-#include <vlc_messages.h>
+#include <heimdall_interface.h>
+#include <heimdall_plugin.h>
+#include <heimdall_window.h>
+#include <heimdall_player.h>
+#include <heimdall_threads.h>
+#include <heimdall_messages.h>
 
 #include <QQuickWindow>
 #include <QOpenGLContext> // Available in Qt GUI, no need for Qt OpenGL module
 
 #ifndef X_DISPLAY_MISSING
-# include <vlc_xlib.h>
+# include <heimdall_xlib.h>
 #endif
 
 /*****************************************************************************
@@ -133,10 +134,10 @@ extern "C" char **environ;
  *****************************************************************************/
 static int  OpenInternal ( qt_intf_t * );
 static void CloseInternal( qt_intf_t * );
-static int  OpenIntf     ( vlc_object_t * );
-static int  OpenDialogs  ( vlc_object_t * );
-static void Close        ( vlc_object_t * );
-static int  WindowOpen   ( vlc_window_t * );
+static int  OpenIntf     ( heimdall_object_t * );
+static int  OpenDialogs  ( heimdall_object_t * );
+static void Close        ( heimdall_object_t * );
+static int  WindowOpen   ( heimdall_window_t * );
 static void ShowDialog   ( intf_thread_t *, int, int, intf_dialog_args_t * );
 
 
@@ -149,11 +150,11 @@ static void ShowDialog   ( intf_thread_t *, int, int, intf_dialog_args_t * );
 
 #define SYSTRAY_TEXT N_( "Systray icon" )
 #define SYSTRAY_LONGTEXT N_( "Show an icon in the systray " \
-                             "allowing you to control VLC media player " \
+                             "allowing you to control Heimdall media player " \
                              "for basic actions." )
 
-#define MINIMIZED_TEXT N_( "Start VLC with only a systray icon" )
-#define MINIMIZED_LONGTEXT N_( "VLC will start with just an icon in " \
+#define MINIMIZED_TEXT N_( "Start Heimdall with only a systray icon" )
+#define MINIMIZED_LONGTEXT N_( "Heimdall will start with just an icon in " \
                                "your taskbar." )
 
 #define KEEPSIZE_TEXT N_( "Resize interface to the native video size" )
@@ -169,7 +170,7 @@ static void ShowDialog   ( intf_thread_t *, int, int, intf_dialog_args_t * );
 #define NOTIFICATION_TEXT N_( "Show notification popup on track change" )
 #define NOTIFICATION_LONGTEXT N_( \
     "Show a notification popup with the artist and track name when " \
-    "the current play queue item changes, when VLC is minimized or hidden." )
+    "the current play queue item changes, when Heimdall is minimized or hidden." )
 
 #define OPACITY_TEXT N_( "Windows opacity between 0.1 and 1" )
 #define OPACITY_LONGTEXT N_( "Sets the windows opacity between 0.1 and 1 " \
@@ -206,7 +207,7 @@ static void ShowDialog   ( intf_thread_t *, int, int, intf_dialog_args_t * );
         "the recent items played in the player." )
 
 #define QT_MODE_TEXT N_( "Selection of the starting mode and look" )
-#define QT_MODE_LONGTEXT N_( "Start VLC with:\n" \
+#define QT_MODE_LONGTEXT N_( "Start Heimdall with:\n" \
                              " - normal mode\n"  \
                              " - a zone always present to show information " \
                                   "as lyrics, album arts...\n" \
@@ -236,8 +237,8 @@ static void ShowDialog   ( intf_thread_t *, int, int, intf_dialog_args_t * );
 #define QT_DISABLE_VOLUME_KEYS_LONGTEXT N_(                                             \
     "With this option checked, the volume up, volume down and mute buttons on your "    \
     "keyboard will always change your system volume. With this option unchecked, the "  \
-    "volume buttons will change VLC's volume when VLC is selected and change the "      \
-    "system volume when VLC is not selected." )
+    "volume buttons will change Heimdall's volume when Heimdall is selected and change the "      \
+    "system volume when Heimdall is not selected." )
 
 #define QT_PAUSE_MINIMIZED_TEXT N_( "Pause the video playback when minimized" )
 #define QT_PAUSE_MINIMIZED_LONGTEXT N_( \
@@ -314,7 +315,7 @@ static const int i_raise_list[] =
 static const char *const psz_raise_list_text[] =
     { N_( "Never" ), N_( "Video" ), N_( "Audio" ), _( "Audio/Video" ) };
 
-static const char *const compositor_vlc[] = {
+static const char *const compositor_heimdall[] = {
     "auto",
 #ifdef _WIN32
     "dcomp",
@@ -346,7 +347,7 @@ static const char *const compositor_user[] = {
 };
 
 /**********************************************************************/
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( "Qt" )
     set_description( N_("Qt interface") )
     set_subcategory( SUBCAT_INTERFACE_MAIN )
@@ -389,7 +390,7 @@ vlc_module_begin ()
               nullptr )
 
     add_string("qt-compositor", "auto", QT_COMPOSITOR_TEXT, QT_COMPOSITOR_LONGTEXT)
-            change_string_list(compositor_vlc, compositor_user)
+            change_string_list(compositor_heimdall, compositor_user)
 
     add_obsolete_bool( "qt-recentplay" )
     add_obsolete_string( "qt-recentplay-filter" )
@@ -514,7 +515,7 @@ vlc_module_begin ()
         set_description( "Qt basic system theme" )
         set_callback( SystemPaletteThemeProviderOpen )
         add_shortcut("qt-themeprovider-systempalette")
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************/
 
@@ -522,8 +523,8 @@ Q_DECLARE_METATYPE(QQmlError)
 
 /* Ugly, but the Qt interface assumes single instance anyway */
 static qt_intf_t* g_qtIntf = nullptr;
-static vlc::threads::condition_variable wait_ready;
-static vlc::threads::mutex lock;
+static heimdall::threads::condition_variable wait_ready;
+static heimdall::threads::mutex lock;
 static bool busy = false;
 static enum {
     OPEN_STATE_INIT,
@@ -561,8 +562,8 @@ public:
     {
         Q_UNUSED(context);
 
-        const char* text = (n >= 0 && disambiguation != nullptr) ? vlc_ngettext(sourceText, disambiguation, n)
-                                                                 : vlc_gettext(sourceText);
+        const char* text = (n >= 0 && disambiguation != nullptr) ? heimdall_ngettext(sourceText, disambiguation, n)
+                                                                 : heimdall_gettext(sourceText);
 
         assert(text);
         return QString::fromUtf8(text);
@@ -577,7 +578,7 @@ static void *Thread( void * );
 static void *ThreadCleanup( qt_intf_t *p_intf, CleanupReason cleanupReason );
 
 #ifdef Q_OS_MAC
-/* Used to abort the app.exec() on OSX after libvlc_Quit is called */
+/* Used to abort the app.exec() on OSX after libheimdall_Quit is called */
 #include <CoreFoundation/CFRunLoop.h>
 #endif
 
@@ -585,16 +586,16 @@ static void *ThreadCleanup( qt_intf_t *p_intf, CleanupReason cleanupReason );
 static int OpenInternal( qt_intf_t *p_intf )
 {
 #ifndef X_DISPLAY_MISSING
-    if (!vlc_xlib_init(&p_intf->obj))
-        return VLC_EGENERIC;
+    if (!heimdall_xlib_init(&p_intf->obj))
+        return HEIMDALL_EGENERIC;
 #endif
 
 #if (_POSIX_SPAWN >= 0) && (!defined(__APPLE__) || TARGET_OS_OSX)
     /* Check if QApplication works */
     /* Note: Disabled on iOS/tvOS/visionOS as process spawning is not allowed */
-    char *path = config_GetSysPath(VLC_PKG_LIBEXEC_DIR, "vlc-qt-check");
+    char *path = config_GetSysPath(HEIMDALL_PKG_LIBEXEC_DIR, "heimdall-qt-check");
     if (unlikely(path == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     char *argv[] = { path, NULL };
     pid_t pid;
@@ -602,7 +603,7 @@ static int OpenInternal( qt_intf_t *p_intf )
     int val = posix_spawn(&pid, path, NULL, NULL, argv, environ);
     free(path);
     if (val)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     int status;
     while (waitpid(pid, &status, 0) == -1);
@@ -610,44 +611,44 @@ static int OpenInternal( qt_intf_t *p_intf )
     if (!WIFEXITED(status) || WEXITSTATUS(status) != 0)
     {
         msg_Dbg(p_intf, "Qt check failed (%d). Skipping.", status);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 #endif
 
     /* Get the playlist before the lock to avoid a lock-order-inversion */
-    vlc_playlist_t *playlist = vlc_intf_GetMainPlaylist(p_intf->intf);
+    heimdall_playlist_t *playlist = heimdall_intf_GetMainPlaylist(p_intf->intf);
 
-    vlc::threads::mutex_locker locker (lock);
+    heimdall::threads::mutex_locker locker (lock);
     if (busy || open_state == OPEN_STATE_ERROR)
     {
         if (busy)
             msg_Err (p_intf, "cannot start Qt multiple times");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     p_intf->p_mi = NULL;
 
     /* set up the playlist to work on */
     p_intf->p_playlist = playlist;
-    p_intf->p_player = vlc_playlist_GetPlayer( p_intf->p_playlist );
+    p_intf->p_player = heimdall_playlist_GetPlayer( p_intf->p_playlist );
 
     /* */
 #ifdef Q_OS_MAC
     /* Run mainloop on the main thread as Cocoa requires */
     CFRunLoopPerformBlock(CFRunLoopGetMain(), kCFRunLoopDefaultMode, ^{
         Thread(static_cast<void*>(p_intf));
-        vlc_sem_post(&p_intf->wait_quit);
+        heimdall_sem_post(&p_intf->wait_quit);
     });
     CFRunLoopWakeUp(CFRunLoopGetMain());
 #else
-    if( vlc_clone( &p_intf->thread, Thread, p_intf ) )
+    if( heimdall_clone( &p_intf->thread, Thread, p_intf ) )
     {
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 #endif
 
     /* Wait for the interface to be ready. This prevents the main
-     * LibVLC thread from starting video playback before we can create
+     * LibHeimdall thread from starting video playback before we can create
      * an embedded video window. */
     while (open_state == OPEN_STATE_INIT)
         wait_ready.wait(lock);
@@ -655,13 +656,13 @@ static int OpenInternal( qt_intf_t *p_intf )
     if (open_state == OPEN_STATE_ERROR)
     {
 #ifndef Q_OS_MAC
-        vlc_join (p_intf->thread, NULL);
+        heimdall_join (p_intf->thread, NULL);
 #endif
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     busy = true;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 
@@ -674,77 +675,77 @@ static void CloseInternal( qt_intf_t *p_intf )
 
     msg_Dbg( p_intf, "waiting for UI thread..." );
 #ifndef Q_OS_MAC
-    vlc_join (p_intf->thread, NULL);
+    heimdall_join (p_intf->thread, NULL);
 #else
-    vlc_sem_wait(&p_intf->wait_quit);
+    heimdall_sem_wait(&p_intf->wait_quit);
 #endif
 
 
     //mutex scope
     {
-        vlc::threads::mutex_locker locker (lock);
+        heimdall::threads::mutex_locker locker (lock);
         assert (busy);
         assert (open_state == OPEN_STATE_INIT);
         busy = false;
     }
-    vlc_LogDestroy(p_intf->obj.logger);
-    vlc_object_delete(p_intf);
+    heimdall_LogDestroy(p_intf->obj.logger);
+    heimdall_object_delete(p_intf);
 }
 
 
 /* Open Qt interface */
-static int OpenIntfCommon( vlc_object_t *p_this, bool dialogProvider )
+static int OpenIntfCommon( heimdall_object_t *p_this, bool dialogProvider )
 {
     auto intfThread = reinterpret_cast<intf_thread_t*>(p_this);
-    libvlc_int_t *libvlc = vlc_object_instance( p_this );
+    libheimdall_int_t *libheimdall = heimdall_object_instance( p_this );
 
     /* Ensure initialization of objects in qt_intf_t. */
-    auto p_intf = vlc_object_create<qt_intf_t>( libvlc );
+    auto p_intf = heimdall_object_create<qt_intf_t>( libheimdall );
     if (!p_intf)
-        return VLC_ENOMEM;
-    p_intf->obj.logger = vlc_LogHeaderCreate(libvlc->obj.logger, "qt");
+        return HEIMDALL_ENOMEM;
+    p_intf->obj.logger = heimdall_LogHeaderCreate(libheimdall->obj.logger, "qt");
     if (!p_intf->obj.logger)
     {
-        vlc_object_delete(p_intf);
-        return VLC_EGENERIC;
+        heimdall_object_delete(p_intf);
+        return HEIMDALL_EGENERIC;
     }
-    vlc_sem_init(&p_intf->wait_quit, 0);
+    heimdall_sem_init(&p_intf->wait_quit, 0);
     p_intf->intf = intfThread;
     p_intf->b_isDialogProvider = dialogProvider;
     p_intf->isShuttingDown = false;
     p_intf->refCount = 1;
 
     int ret = OpenInternal(p_intf);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
     {
-        vlc_LogDestroy(p_intf->obj.logger);
-        vlc_object_delete(p_intf);
-        return VLC_EGENERIC;
+        heimdall_LogDestroy(p_intf->obj.logger);
+        heimdall_object_delete(p_intf);
+        return HEIMDALL_EGENERIC;
     }
     intfThread->pf_show_dialog = p_intf->pf_show_dialog;
     intfThread->p_sys = reinterpret_cast<intf_sys_t*>(p_intf);
 
     //mutex scope
     {
-        vlc::threads::mutex_locker locker (lock);
+        heimdall::threads::mutex_locker locker (lock);
         g_qtIntf = p_intf;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int OpenIntf( vlc_object_t *p_this )
+static int OpenIntf( heimdall_object_t *p_this )
 {
     return OpenIntfCommon(p_this, false);
 }
 
 /* Open Dialog Provider */
-static int OpenDialogs( vlc_object_t *p_this )
+static int OpenDialogs( heimdall_object_t *p_this )
 {
     return OpenIntfCommon(p_this, false);
 }
 
 /* close interface */
-static void Close( vlc_object_t *p_this )
+static void Close( heimdall_object_t *p_this )
 {
     intf_thread_t* intfThread = (intf_thread_t*)(p_this);
     auto p_intf = reinterpret_cast<qt_intf_t*>(intfThread->p_sys);
@@ -758,7 +759,7 @@ static void Close( vlc_object_t *p_this )
         bool shutdown = false;
         //mutex scope
         {
-            vlc::threads::mutex_locker locker(lock);
+            heimdall::threads::mutex_locker locker(lock);
             assert(g_qtIntf == p_intf);
             p_intf->refCount -= 1;
             if (p_intf->refCount == 0)
@@ -779,10 +780,10 @@ static inline void registerMetaTypes()
 {
     qRegisterMetaType<size_t>();
     qRegisterMetaType<ssize_t>();
-    qRegisterMetaType<vlc_tick_t>();
+    qRegisterMetaType<heimdall_tick_t>();
 
-    qRegisterMetaType<VLCTime>();
-    qRegisterMetaType<VLCDuration>();
+    qRegisterMetaType<HeimdallTime>();
+    qRegisterMetaType<HeimdallDuration>();
     qRegisterMetaType<QList<TimedText>>("QList<TimedText>");
     qRegisterMetaType<SharedInputItem>();
     qRegisterMetaType<NetworkTreeItem>();
@@ -792,28 +793,28 @@ static inline void registerMetaTypes()
     qRegisterMetaType<MLItemId>();
     qRegisterMetaType<QVector<MLItemId>>();
     qRegisterMetaType<QList<QQmlError>>();
-    qRegisterMetaType<VLCDialog::QuestionType>();
+    qRegisterMetaType<HeimdallDialog::QuestionType>();
 }
 
 static void *Thread( void *obj )
 {
     qt_intf_t *p_intf = (qt_intf_t *)obj;
 
-    auto vlcQtMessageHandler = VlcQtMessageHandlerRegisterer{VLC_OBJECT(p_intf)};
+    auto heimdallQtMessageHandler = HeimdallQtMessageHandlerRegisterer{HEIMDALL_OBJECT(p_intf)};
 
-    char vlc_name[] = "vlc"; /* for WM_CLASS */
+    char heimdall_name[] = "heimdall"; /* for WM_CLASS */
     char *argv[3] = { nullptr };
     int argc = 0;
 
 #if !defined(__APPLE__)
-    vlc_thread_set_name("vlc-qt");
+    heimdall_thread_set_name("heimdall-qt");
 #endif
 
-    auto argvReleaser = vlc::wrap_carray<char*>(argv, [](char* ptr[]) {
+    auto argvReleaser = heimdall::wrap_carray<char*>(argv, [](char* ptr[]) {
         for ( int i = 0; ptr[i] != nullptr; ++i )
             free(ptr[i]);
     });
-    argv[argc++] = strdup(vlc_name);
+    argv[argc++] = strdup(heimdall_name);
 
 #ifdef QT_QML_DEBUG
     char* qmlJsDebugOpt = var_InheritString(p_intf, "qt-qmljsdebugger");
@@ -901,7 +902,7 @@ static void *Thread( void *obj )
 #endif
 
     auto compositor = var_InheritString(p_intf, "qt-compositor");
-    vlc::CompositorFactory compositorFactory(p_intf, compositor);
+    heimdall::CompositorFactory compositorFactory(p_intf, compositor);
     free(compositor);
 
     // at the moment, the vout is created in another thread than the rendering thread
@@ -924,7 +925,7 @@ static void *Thread( void *obj )
      * applicationShouldTerminate:, which is catched by Qt and
      * trigger termination of the app.exec() runloop.
      * We don't want to quit right now and instead trigger
-     * libvlc_Quit() to unload the interface from Close and avoid
+     * libheimdall_Quit() to unload the interface from Close and avoid
      * racing the window by removing the eventloop before it's
      * destroyed. */
     class QuitSpy : public QObject
@@ -959,13 +960,13 @@ static void *Thread( void *obj )
 
     /* All the settings are in the .conf/.ini style */
 #ifdef _WIN32
-    char *cConfigDir = config_GetUserDir( VLC_CONFIG_DIR );
+    char *cConfigDir = config_GetUserDir( HEIMDALL_CONFIG_DIR );
     if (likely(cConfigDir != nullptr))
     {
         QString configDir = cConfigDir;
         free( cConfigDir );
-        if( configDir.endsWith( "\\vlc" ) )
-            configDir.chop( 4 ); /* the "\vlc" dir is added again by QSettings */
+        if( configDir.endsWith( "\\heimdall" ) )
+            configDir.chop( 4 ); /* the "\heimdall" dir is added again by QSettings */
         QSettings::setPath( QSettings::IniFormat, QSettings::UserScope, configDir );
     }
 #endif
@@ -976,7 +977,7 @@ static void *Thread( void *obj )
 #else
             QSettings::NativeFormat,
 #endif
-            QSettings::UserScope, "vlc", "vlc-qt-interface" );
+            QSettings::UserScope, "heimdall", "heimdall-qt-interface" );
 
     // It is guaranteed that the returned format is supported, if a format is returned.
     static const auto createCompatibleOpenGLFormat = []() -> std::optional<QSurfaceFormat> {
@@ -1273,23 +1274,23 @@ static void *Thread( void *obj )
     }
 #endif
 
-    app.setApplicationDisplayName( qtr("VLC media player") );
+    app.setApplicationDisplayName( qtr("Heimdall media player") );
     app.setApplicationVersion( QString::fromUtf8(VERSION_MESSAGE) );
 
     if( QDate::currentDate().dayOfYear() >= QT_XMAS_JOKE_DAY && var_InheritBool( p_intf, "qt-icon-change" ) )
-        app.setWindowIcon( QIcon::fromTheme( "vlc-xmas", QIcon( ":/logo/vlc128-xmas.png" ) ) );
+        app.setWindowIcon( QIcon::fromTheme( "heimdall-xmas", QIcon( ":/logo/heimdall128-xmas.png" ) ) );
     else
-        app.setWindowIcon( QIcon::fromTheme( "vlc", QIcon( ":/logo/vlc256.png" ) ) );
+        app.setWindowIcon( QIcon::fromTheme( "heimdall", QIcon( ":/logo/heimdall256.png" ) ) );
 
     app.setDesktopFileName( PACKAGE );
 
     DialogErrorModel::getInstance( p_intf );
-    VLCDialogModel::getInstance( p_intf );
+    HeimdallDialogModel::getInstance( p_intf );
 
     /* Initialize the Dialog Provider and the Main Input Manager */
     DialogsProvider::getInstance( p_intf );
     p_intf->p_mainPlayerController = new PlayerController(p_intf);
-    p_intf->p_mainPlaylistController = new vlc::playlist::PlaylistController(p_intf->p_playlist);
+    p_intf->p_mainPlaylistController = new heimdall::playlist::PlaylistController(p_intf->p_playlist);
 
     std::optional playlistModelRecoveryAgent = std::unique_ptr<ModelRecoveryAgent>();
     QMetaObject::invokeMethod(&app, [&playlistModelRecoveryAgent, settings = QPointer(p_intf->mainSettings), mpc = QPointer(p_intf->p_mainPlaylistController)]() {
@@ -1426,17 +1427,17 @@ static void *Thread( void *obj )
         }
 
         /* FIXME: Temporary, while waiting for a proper window provider API */
-        libvlc_int_t *libvlc = vlc_object_instance( p_intf );
+        libheimdall_int_t *libheimdall = heimdall_object_instance( p_intf );
         if( known_type )
-            var_SetString( libvlc, "window", "qt,any" );
+            var_SetString( libheimdall, "window", "qt,any" );
     }
 
     /* Explain how to show a dialog :D */
     p_intf->pf_show_dialog = ShowDialog;
 
-    /* Tell the main LibVLC thread we are ready */
+    /* Tell the main LibHeimdall thread we are ready */
     {
-        vlc::threads::mutex_locker locker (lock);
+        heimdall::threads::mutex_locker locker (lock);
         assert(g_qtIntf == nullptr);
         g_qtIntf = p_intf;
         open_state = OPEN_STATE_OPENED;
@@ -1453,7 +1454,7 @@ static void *Thread( void *obj )
     {
         if ( !QApplication::setStyle( s_style ) )
         {
-            // With VLC 3.0 we provide the Fusion style, but not with VLC 4.0.
+            // With Heimdall 3.0 we provide the Fusion style, but not with Heimdall 4.0.
             // Since we use the same setting key, if the style is no longer
             // available, we clear the setting so that we don't unnecessarily
             // try the style at every start:
@@ -1474,7 +1475,7 @@ static void *Thread( void *obj )
 static void *ThreadCleanup( qt_intf_t *p_intf, CleanupReason cleanupReason )
 {
     {
-        vlc::threads::mutex_locker locker (lock);
+        heimdall::threads::mutex_locker locker (lock);
         if( cleanupReason == CLEANUP_ERROR )
         {
             open_state = OPEN_STATE_ERROR;
@@ -1501,7 +1502,7 @@ static void *ThreadCleanup( qt_intf_t *p_intf, CleanupReason cleanupReason )
        Settings must be destroyed after that.
      */
     DialogsProvider::killInstance();
-    VLCDialogModel::killInstance();
+    HeimdallDialogModel::killInstance();
     DialogErrorModel::killInstance();
     MediaSourceCache::killInstance();
 
@@ -1543,18 +1544,18 @@ static void *ThreadCleanup( qt_intf_t *p_intf, CleanupReason cleanupReason )
 static void ShowDialog( intf_thread_t *p_intf, int i_dialog_event, int i_arg,
                         intf_dialog_args_t *p_arg )
 {
-    VLC_UNUSED( p_intf );
+    HEIMDALL_UNUSED( p_intf );
     DialogEvent *event = new DialogEvent( i_dialog_event, i_arg, p_arg );
     QApplication::postEvent( THEDP, event );
 }
 
-static void WindowCloseCb( vlc_window_t * )
+static void WindowCloseCb( heimdall_window_t * )
 {
     qt_intf_t *p_intf = nullptr;
     bool shutdown = false;
     //mutex scope
     {
-        vlc::threads::mutex_locker locker(lock);
+        heimdall::threads::mutex_locker locker(lock);
         assert(g_qtIntf != nullptr);
         p_intf = g_qtIntf;
 
@@ -1569,45 +1570,45 @@ static void WindowCloseCb( vlc_window_t * )
 /**
  * Video output window provider
  */
-static int WindowOpen( vlc_window_t *p_wnd ) try
+static int WindowOpen( heimdall_window_t *p_wnd ) try
 {
     if( !var_InheritBool( p_wnd, "embedded-video" ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     qt_intf_t *p_intf = nullptr;
     //mutex scope
     {
-        vlc::threads::mutex_locker locker(lock);
+        heimdall::threads::mutex_locker locker(lock);
 
         p_intf = g_qtIntf;
         if( !p_intf )
         {   /* If another interface is used, this plugin cannot work */
             msg_Dbg( p_wnd, "Qt interface not found" );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         if (unlikely(open_state != OPEN_STATE_OPENED))
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
         if (p_intf->isShuttingDown)
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
         {
             const QString& platform = qApp->platformName();
             if (platform == QLatin1String("windows") || platform == QLatin1String("direct2d"))
             {
                 if( var_InheritBool( p_wnd, "video-wallpaper" ) )
-                    return VLC_EGENERIC;
+                    return HEIMDALL_EGENERIC;
             }
         }
 
         bool ret = p_intf->p_compositor->setupVoutWindow( p_wnd, &WindowCloseCb );
         if (ret)
             p_intf->refCount += 1;
-        return ret ? VLC_SUCCESS : VLC_EGENERIC;
+        return ret ? HEIMDALL_SUCCESS : HEIMDALL_EGENERIC;
     }
 }
 catch (std::bad_alloc&)
 {
-    return VLC_ENOMEM;
+    return HEIMDALL_ENOMEM;
 }

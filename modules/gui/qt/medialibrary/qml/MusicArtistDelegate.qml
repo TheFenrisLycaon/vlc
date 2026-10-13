@@ -1,5 +1,6 @@
 ﻿/*****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Benjamin Arnaud <bunjee@omega.gg>
  *
@@ -24,12 +25,12 @@ import QtQuick.Templates as T
 import QtQuick.Layouts
 import QtQml.Models
 
-import VLC.MediaLibrary
+import Heimdall.MediaLibrary
 
-import VLC.MainInterface
-import VLC.Widgets as Widgets
-import VLC.Style
-import VLC.Util
+import Heimdall.MainInterface
+import Heimdall.Widgets as Widgets
+import Heimdall.Style
+import Heimdall.Util
 
 T.ItemDelegate {
     id: root
@@ -60,10 +61,10 @@ T.ItemDelegate {
                              implicitContentHeight + topPadding + bottomPadding,
                              implicitIndicatorHeight + topPadding + bottomPadding)
 
-    height: VLCStyle.play_cover_small + (VLCStyle.margin_xsmall * 2)
+    height: HeimdallStyle.play_cover_small + (HeimdallStyle.margin_xsmall * 2)
 
-    verticalPadding: VLCStyle.margin_xsmall
-    horizontalPadding: VLCStyle.margin_normal
+    verticalPadding: HeimdallStyle.margin_xsmall
+    horizontalPadding: HeimdallStyle.margin_normal
 
     hoverEnabled: true
 
@@ -152,7 +153,7 @@ T.ItemDelegate {
         Widgets.CurrentIndicator {
             anchors {
                 left: parent.left
-                leftMargin: VLCStyle.margin_xxxsmall
+                leftMargin: HeimdallStyle.margin_xxxsmall
                 verticalCenter: parent.verticalCenter
             }
 
@@ -163,19 +164,19 @@ T.ItemDelegate {
     }
 
     contentItem: RowLayout {
-        spacing: VLCStyle.margin_xsmall
+        spacing: HeimdallStyle.margin_xsmall
 
         Widgets.ImageExt {
             id: roundImage
 
-            Layout.preferredHeight: VLCStyle.play_cover_small
+            Layout.preferredHeight: HeimdallStyle.play_cover_small
             Layout.fillHeight: true
             Layout.preferredWidth: height
 
             radius: width / 2
 
             source: (model.cover) ? model.cover
-                                  : VLCStyle.noArtArtistSmall
+                                  : HeimdallStyle.noArtArtistSmall
             sourceSize: Qt.size(width * eDPR, height * eDPR)
 
             Layout.alignment: Qt.AlignLeft | Qt.AlignVCenter
@@ -185,7 +186,7 @@ T.ItemDelegate {
             borderColor: (isCurrent || _isHover) ? theme.accent
                                                  : theme.border
 
-            borderWidth: VLCStyle.dp(1, VLCStyle.scale)
+            borderWidth: HeimdallStyle.dp(1, HeimdallStyle.scale)
 
             fillMode: Image.PreserveAspectCrop
 

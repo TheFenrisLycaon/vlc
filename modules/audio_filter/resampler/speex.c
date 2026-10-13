@@ -2,6 +2,7 @@
  * speex.c : libspeex DSP resampler
  *****************************************************************************
  * Copyright © 2011-2012 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -26,21 +27,21 @@
 #include <stdckdint.h>
 #include <limits.h>
 
-#include <vlc_common.h>
-#include <vlc_aout.h>
-#include <vlc_filter.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_aout.h>
+#include <heimdall_filter.h>
+#include <heimdall_plugin.h>
 
 #include <speex/speex_resampler.h>
 
 #define QUALITY_TEXT N_("Resampling quality")
 #define QUALITY_LONGTEXT N_( "Resampling quality, from worst to best" )
 
-static int Open (vlc_object_t *);
-static int OpenResampler (vlc_object_t *);
+static int Open (heimdall_object_t *);
+static int OpenResampler (heimdall_object_t *);
 static void Close (filter_t *);
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname (N_("Speex resampler"))
     set_description (N_("Speex resampler") )
     set_subcategory (SUBCAT_AUDIO_RESAMPLER)
@@ -54,11 +55,11 @@ vlc_module_begin ()
     set_capability ("audio resampler", 0)
     set_callback (OpenResampler)
     add_shortcut ("speex")
-vlc_module_end ()
+heimdall_module_end ()
 
 static block_t *Resample (filter_t *, block_t *);
 
-static int OpenResampler (vlc_object_t *obj)
+static int OpenResampler (heimdall_object_t *obj)
 {
     filter_t *filter = (filter_t *)obj;
 
@@ -67,13 +68,13 @@ static int OpenResampler (vlc_object_t *obj)
     /* Cannot remix */
      || filter->fmt_in.audio.i_channels != filter->fmt_out.audio.i_channels
      || filter->fmt_in.audio.i_physical_channels == 0 )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     switch (filter->fmt_in.audio.i_format)
     {
-        case VLC_CODEC_FL32: break;
-        case VLC_CODEC_S16N: break;
-        default:             return VLC_EGENERIC;
+        case HEIMDALL_CODEC_FL32: break;
+        case HEIMDALL_CODEC_S16N: break;
+        default:             return HEIMDALL_EGENERIC;
     }
 
     SpeexResamplerState *st;
@@ -90,25 +91,25 @@ static int OpenResampler (vlc_object_t *obj)
     {
         msg_Err (obj, "cannot initialize resampler: %s",
                  speex_resampler_strerror (err));
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
-    static const struct vlc_filter_operations filter_ops =
+    static const struct heimdall_filter_operations filter_ops =
         { .filter_audio = Resample, .close = Close };
 
     filter->p_sys = st;
     filter->ops = &filter_ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int Open (vlc_object_t *obj)
+static int Open (heimdall_object_t *obj)
 {
     filter_t *filter = (filter_t *)obj;
 
     /* Will change rate */
     if (filter->fmt_in.audio.i_rate == filter->fmt_out.audio.i_rate)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     return OpenResampler (obj);
 }
 
@@ -154,7 +155,7 @@ static block_t *Resample (filter_t *filter, block_t *in)
         goto error;
 
     int err;
-    if (filter->fmt_in.audio.i_format == VLC_CODEC_FL32)
+    if (filter->fmt_in.audio.i_format == HEIMDALL_CODEC_FL32)
         err = speex_resampler_process_interleaved_float (st,
             (float *)in->p_buffer, &ilen, (float *)out->p_buffer, &olen);
     else
@@ -176,7 +177,7 @@ static block_t *Resample (filter_t *filter, block_t *in)
     out->i_buffer = olen * framesize;
     out->i_nb_samples = olen;
     out->i_pts = in->i_pts;
-    out->i_length = vlc_tick_from_samples(olen, filter->fmt_out.audio.i_rate);
+    out->i_length = heimdall_tick_from_samples(olen, filter->fmt_out.audio.i_rate);
 error:
     block_Release (in);
     return out;

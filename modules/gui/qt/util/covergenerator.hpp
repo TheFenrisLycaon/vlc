@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Benjamin Arnaud <bunjee@omega.gg>
  *
@@ -35,7 +36,7 @@
 #include <QPainter>
 
 // Forward declarations
-struct vlc_medialibrary_t;
+struct heimdall_medialibrary_t;
 class MLItemId;
 
 class CoverGenerator
@@ -82,7 +83,7 @@ private: // Functions
 
     void blur(QImage &image) const;
 
-    QString getPrefix(vlc_ml_parent_type type) const;
+    QString getPrefix(heimdall_ml_parent_type type) const;
 
 private:
     QSize m_size;

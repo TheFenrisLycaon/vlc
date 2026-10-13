@@ -4,9 +4,10 @@
  * Copyright © 2006-2008 Rafaël Carré
  * Copyright © 2007-2010 Mirsal Ennaime
  * Copyright © 2009-2010 The VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors:    Mirsal Ennaime <mirsal at mirsal fr>
- *             Rafaël Carré <funman at videolanorg>
+ *             Rafaël Carré <funman at lycariaorg>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,12 +24,12 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_DBUS_DBUS_TRACKLIST_H_
-#define VLC_DBUS_DBUS_TRACKLIST_H_
+#ifndef HEIMDALL_DBUS_DBUS_TRACKLIST_H_
+#define HEIMDALL_DBUS_DBUS_TRACKLIST_H_
 
-#include <vlc_common.h>
-#include <vlc_arrays.h>
-#include <vlc_interface.h>
+#include <heimdall_common.h>
+#include <heimdall_arrays.h>
+#include <heimdall_interface.h>
 #include "dbus_common.h"
 
 #define DBUS_MPRIS_TRACKLIST_INTERFACE    "org.mpris.MediaPlayer2.TrackList"
@@ -46,7 +47,7 @@ struct tracklist_append_event {
     struct tracklist_change_event change_ev;
     bool has_previous;    // false when items are inserted at the start of the tracklist
     uint64_t after_track; // track id, only valid when has_previous is true
-    vlc_playlist_item_t *items[];
+    heimdall_playlist_item_t *items[];
 };
 
 struct tracklist_remove_event {
@@ -61,8 +62,8 @@ typedef struct tracklist_remove_event tracklist_remove_event_t;
  * The event data will be used to generate TrackAdded DBus signals later on.
  */
 tracklist_append_event_t *
-tracklist_append_event_create( vlc_playlist_item_t *after_track,
-                               vlc_playlist_item_t *const items[],
+tracklist_append_event_create( heimdall_playlist_item_t *after_track,
+                               heimdall_playlist_item_t *const items[],
                                size_t count );
 
 /* Creates an event holding what items have been removed from a tracklist.
@@ -70,7 +71,7 @@ tracklist_append_event_create( vlc_playlist_item_t *after_track,
  * Assumes playlist is locked.
  */
 tracklist_remove_event_t *
-tracklist_remove_event_create( vlc_playlist_t *playlist, size_t first_index, size_t count );
+tracklist_remove_event_create( heimdall_playlist_t *playlist, size_t first_index, size_t count );
 
 /* Releases any resources reserved for this event */
 void tracklist_append_event_destroy( tracklist_append_event_t *event );
@@ -100,6 +101,6 @@ DBusHandlerResult handle_tracklist ( DBusConnection *p_conn,
                                      DBusMessage *p_from,
                                      void *p_this );
 
-int TrackListPropertiesChangedEmit( intf_thread_t *, vlc_dictionary_t * );
+int TrackListPropertiesChangedEmit( intf_thread_t *, heimdall_dictionary_t * );
 
 #endif /* include-guard */

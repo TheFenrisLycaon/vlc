@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright © 2015 VideoLAN Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -21,7 +22,7 @@
 
 #include "hxxx_nal.h"
 
-#include <vlc_block.h>
+#include <heimdall_block.h>
 
 static bool block_WillRealloc( block_t *p_block, ssize_t i_prebody, size_t i_body )
 {
@@ -55,7 +56,7 @@ block_t *hxxx_AnnexB_to_xVC( block_t *p_block, uint8_t i_nal_length_size )
     if(!p_block->i_buffer || p_block->p_buffer[0])
         goto error;
 
-    if(! (p_list = vlc_alloc( i_list, sizeof(*p_list) )) )
+    if(! (p_list = heimdall_alloc( i_list, sizeof(*p_list) )) )
         goto error;
 
     /* Search all startcode of size 3 */

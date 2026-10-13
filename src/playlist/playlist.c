@@ -2,6 +2,7 @@
  * playlist/playlist.c
  *****************************************************************************
  * Copyright (C) 2018 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -24,34 +25,34 @@
 
 #include "playlist.h"
 
-#include <vlc_common.h>
-#include <vlc_preparser.h>
+#include <heimdall_common.h>
+#include <heimdall_preparser.h>
 
 #include "content.h"
 #include "item.h"
 #include "player.h"
 
-vlc_playlist_t *
-vlc_playlist_New(vlc_object_t *parent, enum vlc_playlist_preparsing rec,
-                 unsigned preparse_max_threads, vlc_tick_t preparse_timeout)
+heimdall_playlist_t *
+heimdall_playlist_New(heimdall_object_t *parent, enum heimdall_playlist_preparsing rec,
+                 unsigned preparse_max_threads, heimdall_tick_t preparse_timeout)
 {
-    vlc_playlist_t *playlist = malloc(sizeof(*playlist));
+    heimdall_playlist_t *playlist = malloc(sizeof(*playlist));
     if (unlikely(!playlist))
         return NULL;
 
-    if (rec != VLC_PLAYLIST_PREPARSING_DISABLED)
+    if (rec != HEIMDALL_PLAYLIST_PREPARSING_DISABLED)
     {
-        const struct vlc_preparser_cfg cfg = {
-            .types = VLC_PREPARSER_TYPE_PARSE | VLC_PREPARSER_TYPE_FETCHMETA_LOCAL,
+        const struct heimdall_preparser_cfg cfg = {
+            .types = HEIMDALL_PREPARSER_TYPE_PARSE | HEIMDALL_PREPARSER_TYPE_FETCHMETA_LOCAL,
             .max_parser_threads = preparse_max_threads,
             .timeout = preparse_timeout,
-#if !defined(HAVE_VLC_EXTERNAL_PREPARSER)
+#if !defined(HAVE_HEIMDALL_EXTERNAL_PREPARSER)
         .external_process = false,
 #else
         .external_process = true,
 #endif
         };
-        playlist->parser = vlc_preparser_New(parent, &cfg);
+        playlist->parser = heimdall_preparser_New(parent, &cfg);
         if (playlist->parser == NULL)
         {
             free(playlist);
@@ -62,52 +63,52 @@ vlc_playlist_New(vlc_object_t *parent, enum vlc_playlist_preparsing rec,
         playlist->parser = NULL;
     playlist->recursive = rec;
 
-    bool ok = vlc_playlist_PlayerInit(playlist, parent);
+    bool ok = heimdall_playlist_PlayerInit(playlist, parent);
     if (unlikely(!ok))
     {
         if (playlist->parser != NULL)
-            vlc_preparser_Delete(playlist->parser);
+            heimdall_preparser_Delete(playlist->parser);
         free(playlist);
         return NULL;
     }
-    playlist->stopped_action = VLC_PLAYLIST_MEDIA_STOPPED_CONTINUE;
+    playlist->stopped_action = HEIMDALL_PLAYLIST_MEDIA_STOPPED_CONTINUE;
 
-    vlc_vector_init(&playlist->items);
+    heimdall_vector_init(&playlist->items);
     randomizer_Init(&playlist->randomizer);
     playlist->current = -1;
     playlist->has_prev = false;
     playlist->has_next = false;
-    vlc_list_init(&playlist->listeners);
-    playlist->repeat = VLC_PLAYLIST_PLAYBACK_REPEAT_NONE;
-    playlist->order = VLC_PLAYLIST_PLAYBACK_ORDER_NORMAL;
+    heimdall_list_init(&playlist->listeners);
+    playlist->repeat = HEIMDALL_PLAYLIST_PLAYBACK_REPEAT_NONE;
+    playlist->order = HEIMDALL_PLAYLIST_PLAYBACK_ORDER_NORMAL;
     playlist->idgen = 0;
 
     return playlist;
 }
 
 void
-vlc_playlist_Delete(vlc_playlist_t *playlist)
+heimdall_playlist_Delete(heimdall_playlist_t *playlist)
 {
-    assert(vlc_list_is_empty(&playlist->listeners));
+    assert(heimdall_list_is_empty(&playlist->listeners));
 
     if (playlist->parser != NULL) {
-        vlc_preparser_Delete(playlist->parser);
+        heimdall_preparser_Delete(playlist->parser);
     }
 
-    vlc_playlist_PlayerDestroy(playlist);
+    heimdall_playlist_PlayerDestroy(playlist);
     randomizer_Destroy(&playlist->randomizer);
-    vlc_playlist_ClearItems(playlist);
+    heimdall_playlist_ClearItems(playlist);
     free(playlist);
 }
 
 void
-vlc_playlist_Lock(vlc_playlist_t *playlist)
+heimdall_playlist_Lock(heimdall_playlist_t *playlist)
 {
-    vlc_player_Lock(playlist->player);
+    heimdall_player_Lock(playlist->player);
 }
 
 void
-vlc_playlist_Unlock(vlc_playlist_t *playlist)
+heimdall_playlist_Unlock(heimdall_playlist_t *playlist)
 {
-    vlc_player_Unlock(playlist->player);
+    heimdall_player_Unlock(playlist->player);
 }

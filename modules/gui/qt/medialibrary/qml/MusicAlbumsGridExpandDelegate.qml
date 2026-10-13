@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,12 +21,12 @@ import QtQuick.Window
 import QtQuick.Layouts
 import QtQml.Models
 
-import VLC.MainInterface
-import VLC.MediaLibrary
+import Heimdall.MainInterface
+import Heimdall.MediaLibrary
 
-import VLC.Widgets as Widgets
-import VLC.Util
-import VLC.Style
+import Heimdall.Widgets as Widgets
+import Heimdall.Util
+import Heimdall.Style
 
 FocusScope {
     id: root
@@ -60,7 +61,7 @@ FocusScope {
 
     function setCurrentItemFocus(reason) {
         root.playActionBtn.forceActiveFocus(reason);
-        if (VLCStyle.isScreenSmall)
+        if (HeimdallStyle.isScreenSmall)
             root.forcePlayActionBtnFocusOnce = true;
     }
 
@@ -88,7 +89,7 @@ FocusScope {
                 right: parent.right
             }
             color: theme.border
-            height: VLCStyle.expandDelegate_border
+            height: HeimdallStyle.expandDelegate_border
         }
 
         Rectangle {
@@ -98,7 +99,7 @@ FocusScope {
                 right: parent.right
             }
             color: theme.border
-            height: VLCStyle.expandDelegate_border
+            height: HeimdallStyle.expandDelegate_border
         }
     }
 
@@ -106,11 +107,11 @@ FocusScope {
         id: layout
 
         anchors.fill: parent
-        anchors.leftMargin: VLCStyle.margin_normal
-        anchors.topMargin: VLCStyle.margin_large
-        anchors.rightMargin: VLCStyle.margin_small
-        anchors.bottomMargin: VLCStyle.margin_xxsmall
-        spacing: VLCStyle.margin_large
+        anchors.leftMargin: HeimdallStyle.margin_normal
+        anchors.topMargin: HeimdallStyle.margin_large
+        anchors.rightMargin: HeimdallStyle.margin_small
+        anchors.bottomMargin: HeimdallStyle.margin_xxsmall
+        spacing: HeimdallStyle.margin_large
 
         Component {
             id: cover
@@ -123,10 +124,10 @@ FocusScope {
 
                 height: cover_height
                 width: cover_width
-                radius: VLCStyle.expandCover_music_radius
+                radius: HeimdallStyle.expandCover_music_radius
                 source: (root.model && root.model.cover && root.model.cover !== "")
                     ?  root.model.cover
-                    : VLCStyle.noArtAlbumCover
+                    : HeimdallStyle.noArtAlbumCover
                 sourceSize: Qt.size(width * eDPR, height * eDPR)
                 backgroundColor: theme.bg.primary
                 textureProviderItem: root.view?.itemAtIndex(root.index)?.artworkTextureProvider ?? null
@@ -150,16 +151,16 @@ FocusScope {
                 property alias playActionBtn: _playActionBtn
 
                 focus: true
-                width: VLCStyle.expandCover_music_width
+                width: HeimdallStyle.expandCover_music_width
 
-                spacing: VLCStyle.margin_small
+                spacing: HeimdallStyle.margin_small
 
                 Layout.alignment: Qt.AlignCenter
 
                 Widgets.ActionButtonPrimary {
                     id: _playActionBtn
 
-                    iconTxt: VLCIcons.play
+                    iconTxt: HeimdallIcons.play
                     text: qsTr("Play")
                     onClicked: MediaLib.addAndPlay( root.model.id )
 
@@ -167,7 +168,7 @@ FocusScope {
                         // root.setCurrentItemFocus sets active focus to playActionBtn, but it gets stolen
                         // by the delegate of the first track at initial load when playActionBtn is in the
                         // header of tracks
-                        if (VLCStyle.isScreenSmall && root.forcePlayActionBtnFocusOnce) {
+                        if (HeimdallStyle.isScreenSmall && root.forcePlayActionBtnFocusOnce) {
                             root.forcePlayActionBtnFocusOnce = false
                             root.playActionBtn.forceActiveFocus(Qt.TabFocusReason)
                         }
@@ -177,18 +178,18 @@ FocusScope {
                 Widgets.ButtonExt {
                     id: _enqueueActionBtn
 
-                    iconTxt: VLCIcons.enqueue
+                    iconTxt: HeimdallIcons.enqueue
                     text: qsTr("Enqueue")
                     onClicked: MediaLib.addToPlaylist( root.model.id )
                 }
 
 
                 Navigation.parentItem: root
-                Navigation.rightItem: VLCStyle.isScreenSmall ? root.headerFocusScope : tracks
-                Navigation.upItem: VLCStyle.isScreenSmall ? root.headerFocusScope : null
+                Navigation.rightItem: HeimdallStyle.isScreenSmall ? root.headerFocusScope : tracks
+                Navigation.upItem: HeimdallStyle.isScreenSmall ? root.headerFocusScope : null
 
                 Navigation.downAction: function () {
-                    if (!VLCStyle.isScreenSmall)
+                    if (!HeimdallStyle.isScreenSmall)
                         return
 
                     if (tracks.count > 0) {
@@ -217,7 +218,7 @@ FocusScope {
                 Navigation.parentItem: root
                 Navigation.leftItem: root.enqueueActionBtn
                 Navigation.downAction: function () {
-                    if (VLCStyle.isScreenSmall) {
+                    if (HeimdallStyle.isScreenSmall) {
                         root.enqueueActionBtn.forceActiveFocus(Qt.TabFocusReason);
                         return
                     }
@@ -250,13 +251,13 @@ FocusScope {
                         }
 
                         Widgets.IconToolButton {
-                            text: VLCIcons.close
+                            text: HeimdallIcons.close
                             focus: true
 
                             description: qsTr("Close Panel")
 
                             Navigation.parentItem: headerFocusScope
-                            Layout.rightMargin: VLCStyle.margin_small
+                            Layout.rightMargin: HeimdallStyle.margin_small
 
                             onClicked: root.retract()
                         }
@@ -290,11 +291,11 @@ FocusScope {
 
                 Loader {
                     sourceComponent: cover
-                    property int cover_height: VLCStyle.cover_small
-                    property int cover_width: VLCStyle.cover_small
+                    property int cover_height: HeimdallStyle.cover_small
+                    property int cover_width: HeimdallStyle.cover_small
 
-                    Layout.bottomMargin: VLCStyle.margin_large
-                    Layout.rightMargin: VLCStyle.margin_xxsmall
+                    Layout.bottomMargin: HeimdallStyle.margin_large
+                    Layout.rightMargin: HeimdallStyle.margin_xxsmall
                 }
 
                 Column {
@@ -302,12 +303,12 @@ FocusScope {
 
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    Layout.bottomMargin: VLCStyle.margin_large
+                    Layout.bottomMargin: HeimdallStyle.margin_large
 
                     Loader {
                         sourceComponent: header_common
                         width: parent.width
-                        property int bottomPadding: VLCStyle.margin_xsmall
+                        property int bottomPadding: HeimdallStyle.margin_xsmall
 
                         onLoaded: {
                             root.headerFocusScope = item
@@ -329,8 +330,8 @@ FocusScope {
         FocusScope {
             id: artAndControl
 
-            visible: !VLCStyle.isScreenSmall
-            focus: !VLCStyle.isScreenSmall
+            visible: !HeimdallStyle.isScreenSmall
+            focus: !HeimdallStyle.isScreenSmall
 
             implicitHeight: artAndControlLayout.implicitHeight
             implicitWidth: artAndControlLayout.implicitWidth
@@ -339,18 +340,18 @@ FocusScope {
             Column {
                 id: artAndControlLayout
 
-                spacing: VLCStyle.margin_normal
-                bottomPadding: VLCStyle.margin_large
+                spacing: HeimdallStyle.margin_normal
+                bottomPadding: HeimdallStyle.margin_large
 
                 /* A bigger cover for the album */
                 Loader {
-                    sourceComponent: !VLCStyle.isScreenSmall ? cover : null
-                    property int cover_height: VLCStyle.expandCover_music_height
-                    property int cover_width: VLCStyle.expandCover_music_width
+                    sourceComponent: !HeimdallStyle.isScreenSmall ? cover : null
+                    property int cover_height: HeimdallStyle.expandCover_music_height
+                    property int cover_width: HeimdallStyle.expandCover_music_width
                 }
 
                 Loader {
-                    sourceComponent: !VLCStyle.isScreenSmall ? buttons : null
+                    sourceComponent: !HeimdallStyle.isScreenSmall ? buttons : null
 
                     onLoaded: {
                         root.playActionBtn = item.playActionBtn
@@ -372,7 +373,7 @@ FocusScope {
 
                     visible: true,
 
-                    text: VLCStyle.isScreenSmall ? qsTr("Tracks") : qsTr("Title"),
+                    text: HeimdallStyle.isScreenSmall ? qsTr("Tracks") : qsTr("Title"),
 
                     showSection: "",
 
@@ -420,12 +421,12 @@ FocusScope {
             fadingEdge.backgroundColor: background.color
 
             preferredHeader: Loader {
-                sourceComponent: VLCStyle.isScreenSmall
+                sourceComponent: HeimdallStyle.isScreenSmall
                                  ? header_small
                                  : header_common
                 width: tracks.width
 
-                property int bottomPadding: VLCStyle.margin_large //used only by header_common
+                property int bottomPadding: HeimdallStyle.margin_large //used only by header_common
             }
 
             clip: true // content may overflow if not enough space is provided
@@ -435,26 +436,26 @@ FocusScope {
             Layout.fillWidth: true
             Layout.fillHeight: true
 
-            rowHeight: VLCStyle.tableRow_height
+            rowHeight: HeimdallStyle.tableRow_height
 
             parentId: root.model?.id
             onParentIdChanged: {
                 currentIndex = 0
             }
 
-            sortModel: VLCStyle.isScreenSmall
+            sortModel: HeimdallStyle.isScreenSmall
                        ? _titleModel // use criterias text with small screens
                        : _allModel
 
             Navigation.parentItem: root
-            Navigation.leftItem: VLCStyle.isScreenSmall ? null : root.enqueueActionBtn
+            Navigation.leftItem: HeimdallStyle.isScreenSmall ? null : root.enqueueActionBtn
             Navigation.upItem: headerItem
 
 
             MLTableColumns {
                 id: tableColumns
 
-                showCriterias: VLCStyle.isScreenSmall
+                showCriterias: HeimdallStyle.isScreenSmall
             }
         }
     }

@@ -2,6 +2,7 @@
  * viewpoint.c: viewpoint helpers for conversions and transformations
  *****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Alexandre Janniaux <ajanni@videolabs.io>
  *
@@ -24,10 +25,10 @@
 # include "config.h"
 #endif
 
-#include <vlc_viewpoint.h>
-#include <vlc_es.h>
+#include <heimdall_viewpoint.h>
+#include <heimdall_es.h>
 
-void vlc_viewpoint_to_4x4( const vlc_viewpoint_t *vp, float *m )
+void heimdall_viewpoint_to_4x4( const heimdall_viewpoint_t *vp, float *m )
 {
     float yaw   = -vp->yaw   * (float)M_PI / 180.f;
     float pitch = -vp->pitch * (float)M_PI / 180.f;
@@ -71,7 +72,7 @@ void vlc_viewpoint_to_4x4( const vlc_viewpoint_t *vp, float *m )
                     m[4*i+l] += y_rot[i][j] * x_rot[j][k] * z_rot[k][l];
 }
 
-void vlc_viewpoint_from_orientation(vlc_viewpoint_t *vp,
+void heimdall_viewpoint_from_orientation(heimdall_viewpoint_t *vp,
                                     video_orientation_t orient)
 {
     switch(orient)
@@ -79,26 +80,26 @@ void vlc_viewpoint_from_orientation(vlc_viewpoint_t *vp,
         default:
         case ORIENT_NORMAL:
         case ORIENT_HFLIPPED:
-            vlc_viewpoint_from_euler(vp, 0.f, 0.f, 0.f);
+            heimdall_viewpoint_from_euler(vp, 0.f, 0.f, 0.f);
             break;
 
         case ORIENT_ROTATED_90:
         case ORIENT_ANTI_TRANSPOSED:
-            vlc_viewpoint_from_euler(vp, 0.f, 0.f, -90.f);
+            heimdall_viewpoint_from_euler(vp, 0.f, 0.f, -90.f);
             break;
 
         case ORIENT_ROTATED_180:
         case ORIENT_VFLIPPED:
-            vlc_viewpoint_from_euler(vp, 0.f, 0.f, -180.f);
+            heimdall_viewpoint_from_euler(vp, 0.f, 0.f, -180.f);
             break;
         case ORIENT_ROTATED_270:
         case ORIENT_TRANSPOSED:
-            vlc_viewpoint_from_euler(vp, 0.f, 0.f, -270.f);
+            heimdall_viewpoint_from_euler(vp, 0.f, 0.f, -270.f);
             break;
     }
 }
 
-void vlc_viewpoint_from_euler(vlc_viewpoint_t *vp,
+void heimdall_viewpoint_from_euler(heimdall_viewpoint_t *vp,
                               float yaw, float pitch, float roll)
 {
     vp->yaw   = yaw;
@@ -106,7 +107,7 @@ void vlc_viewpoint_from_euler(vlc_viewpoint_t *vp,
     vp->roll  = roll;
 }
 
-void vlc_viewpoint_to_euler(const vlc_viewpoint_t *vp,
+void heimdall_viewpoint_to_euler(const heimdall_viewpoint_t *vp,
                             float *yaw, float *pitch, float *roll)
 {
     *yaw   = vp->yaw;

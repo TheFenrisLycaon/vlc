@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Name=Heimdall media player (DVD)
+Name[fr]=Lecteur multimédia Heimdall (DVD)
+NoDisplay=true
+Exec=@bindir@/heimdall --started-from-file dvd://%f
+Icon=heimdall
+Terminal=false
+Type=Application
+MimeType=x-content/video-dvd

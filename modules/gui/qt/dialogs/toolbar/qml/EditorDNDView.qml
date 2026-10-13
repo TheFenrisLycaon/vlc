@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,14 +21,14 @@ import QtQuick.Templates as T
 import QtQml.Models
 
 
-import VLC.Style
-import VLC.Util
-import VLC.Widgets as Widgets
+import Heimdall.Style
+import Heimdall.Util
+import Heimdall.Widgets as Widgets
 
 ListView {
     id: playerBtnDND
 
-    spacing: VLCStyle.margin_xsmall
+    spacing: HeimdallStyle.margin_xsmall
     orientation: Qt.Horizontal
     clip: true
 
@@ -50,7 +51,7 @@ ListView {
             from: 1.0
             to: 0.0
 
-            duration: VLCStyle.duration_long
+            duration: HeimdallStyle.duration_long
         }
     }
 
@@ -62,7 +63,7 @@ ListView {
         NumberAnimation {
             property: "opacity"; from: 0; to: 1.0
 
-            duration: VLCStyle.duration_long
+            duration: HeimdallStyle.duration_long
         }
     }
 
@@ -70,7 +71,7 @@ ListView {
         NumberAnimation {
             properties: "x"
 
-            duration: VLCStyle.duration_long
+            duration: HeimdallStyle.duration_long
             easing.type: Easing.OutSine
         }
 
@@ -102,7 +103,7 @@ ListView {
         colorSet: ColorContext.View
     }
 
-    VLCFlickableScrollHandler {
+    HeimdallFlickableScrollHandler {
         fallbackScroll: true
         enabled: true
     }
@@ -130,8 +131,8 @@ ListView {
 
             z: 2
 
-            implicitWidth: VLCStyle.dp(2, VLCStyle.scale)
-            implicitHeight: VLCStyle.icon_medium
+            implicitWidth: HeimdallStyle.dp(2, HeimdallStyle.scale)
+            implicitHeight: HeimdallStyle.icon_medium
 
             visible: dropVisible
             color: theme.accent
@@ -166,7 +167,7 @@ ListView {
     }
 
     delegate: EditorDNDDelegate {
-        height: Math.min((contentItem.implicitHeight > 0) ? contentItem.implicitHeight : Number.MAX_VALUE, VLCStyle.controlLayoutHeight)
+        height: Math.min((contentItem.implicitHeight > 0) ? contentItem.implicitHeight : Number.MAX_VALUE, HeimdallStyle.controlLayoutHeight)
 
         anchors.verticalCenter: parent ? parent.verticalCenter : undefined
         dndView: playerBtnDND

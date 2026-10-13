@@ -1,11 +1,12 @@
 /*****************************************************************************
- * access.c : V4L2 compressed byte stream input module for vlc
+ * access.c : V4L2 compressed byte stream input module for heimdall
  *****************************************************************************
  * Copyright (C) 2002-2011 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Benjamin Pracht <bigben at videolan dot org>
+ * Authors: Benjamin Pracht <bigben at lycaria dot org>
  *          Richard Hosking <richard at hovis dot net>
- *          Antoine Cellerier <dionoea at videolan d.t org>
+ *          Antoine Cellerier <dionoea at lycaria d.t org>
  *          Dennis Lou <dlou99 at yahoo dot com>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -31,20 +32,20 @@
 #include <errno.h>
 #include <poll.h>
 
-#include <vlc_common.h>
-#include <vlc_access.h>
-#include <vlc_es.h>
-#include <vlc_interrupt.h>
+#include <heimdall_common.h>
+#include <heimdall_access.h>
+#include <heimdall_es.h>
+#include <heimdall_interrupt.h>
 
 #include "v4l2.h"
 
 typedef struct
 {
     int fd;
-    struct vlc_v4l2_buffers *pool;
+    struct heimdall_v4l2_buffers *pool;
     uint32_t blocksize;
     uint32_t block_flags;
-    vlc_v4l2_ctrl_t *controls;
+    heimdall_v4l2_ctrl_t *controls;
 } access_sys_t;
 
 /**
@@ -61,7 +62,7 @@ static int AccessPoll(stream_t *access)
     ufd.fd = sys->fd;
     ufd.events = POLLIN;
 
-    return vlc_poll_i11e(&ufd, 1, -1);
+    return heimdall_poll_i11e(&ufd, 1, -1);
 }
 
 static block_t *MMapBlock(stream_t *access, bool *restrict eof)
@@ -71,10 +72,10 @@ static block_t *MMapBlock(stream_t *access, bool *restrict eof)
     if (AccessPoll(access) < 0)
         return NULL;
 
-    block_t *block = GrabVideo(VLC_OBJECT(access), sys->pool);
+    block_t *block = GrabVideo(HEIMDALL_OBJECT(access), sys->pool);
     if (block != NULL)
     {
-        block->i_pts = block->i_dts = vlc_tick_now();
+        block->i_pts = block->i_dts = heimdall_tick_now();
         block->i_flags |= sys->block_flags;
     }
     (void) eof;
@@ -96,7 +97,7 @@ static block_t *ReadBlock(stream_t *access, bool *restrict eof)
     if (val < 0)
     {
         block_Release(block);
-        msg_Err(access, "cannot read buffer: %s", vlc_strerror_c(errno));
+        msg_Err(access, "cannot read buffer: %s", heimdall_strerror_c(errno));
         *eof = true;
         return NULL;
     }
@@ -117,7 +118,7 @@ static int AccessControl(stream_t *access, int query, va_list args)
             break;
 
         case STREAM_GET_PTS_DELAY:
-            *va_arg(args,vlc_tick_t *) = VLC_TICK_FROM_MS(
+            *va_arg(args,heimdall_tick_t *) = HEIMDALL_TICK_FROM_MS(
                 var_InheritInteger(access, "live-caching"));
             break;
 
@@ -126,20 +127,20 @@ static int AccessControl(stream_t *access, int query, va_list args)
             break;
 
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-void AccessClose(vlc_object_t *obj)
+void AccessClose(heimdall_object_t *obj)
 {
     stream_t *access = (stream_t *)obj;
     access_sys_t *sys = access->p_sys;
 
     if (sys->pool != NULL)
         StopMmap(sys->pool);
-    ControlsDeinit(vlc_object_parent(obj), sys->controls);
+    ControlsDeinit(heimdall_object_parent(obj), sys->controls);
     v4l2_close(sys->fd);
     free(sys);
 }
@@ -149,14 +150,14 @@ static int InitVideo(stream_t *access, int fd, uint32_t caps)
     access_sys_t *sys = access->p_sys;
     es_format_t es_fmt;
 
-    if (SetupVideo(VLC_OBJECT(access), fd, caps, &es_fmt, &sys->blocksize,
+    if (SetupVideo(HEIMDALL_OBJECT(access), fd, caps, &es_fmt, &sys->blocksize,
                    &sys->block_flags))
         return -1;
 
     /* Init I/O method */
     if (caps & V4L2_CAP_STREAMING)
     {
-        sys->pool = StartMmap (VLC_OBJECT(access), fd);
+        sys->pool = StartMmap (HEIMDALL_OBJECT(access), fd);
         if (sys->pool == NULL)
             return -1;
         access->pf_block = MMapBlock;
@@ -174,16 +175,16 @@ static int InitVideo(stream_t *access, int fd, uint32_t caps)
     return 0;
 }
 
-int AccessOpen(vlc_object_t *obj)
+int AccessOpen(heimdall_object_t *obj)
 {
     stream_t *access = (stream_t *)obj;
 
     if (access->b_preparsing)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     access_sys_t *sys = calloc(1, sizeof (*sys));
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     access->p_sys = sys;
 
     ParseMRL(obj, access->psz_location);
@@ -205,11 +206,11 @@ int AccessOpen(vlc_object_t *obj)
         goto error;
     }
 
-    sys->controls = ControlsInit(vlc_object_parent(obj), fd);
+    sys->controls = ControlsInit(heimdall_object_parent(obj), fd);
     access->pf_seek = NULL;
     access->pf_control = AccessControl;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 error:
     free(sys);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }

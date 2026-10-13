@@ -2,6 +2,7 @@
  * vobsub.h: Vobsub support
  *****************************************************************************
  * Copyright (C) 2009 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: John Stebbins
  *
@@ -50,11 +51,11 @@ static inline int vobsub_palette_parse( const char *psz_buf, uint32_t *pu_palett
                 &palette[12], &palette[13], &palette[14], &palette[15] ) == ARRAY_SIZE(palette) )
     {
         vobsub_palette_argb2ayvu( palette, pu_palette );
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
     else
     {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 }
 
@@ -67,15 +68,15 @@ static inline int vobsub_size_parse( const char *psz_buf,
     {
         *pi_original_frame_width = w;
         *pi_original_frame_height = h;
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
     else
     {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 }
 
-static inline void vobsub_extra_parse(vlc_object_t *o, subs_format_t *subs,
+static inline void vobsub_extra_parse(heimdall_object_t *o, subs_format_t *subs,
                                       const uint8_t *buf, size_t buf_size)
 {
     char *psz_start;
@@ -90,7 +91,7 @@ static inline void vobsub_extra_parse(vlc_object_t *o, subs_format_t *subs,
     if( psz_start &&
         vobsub_size_parse( psz_start,
                             &subs->spu.i_original_frame_width,
-                            &subs->spu.i_original_frame_height ) == VLC_SUCCESS )
+                            &subs->spu.i_original_frame_height ) == HEIMDALL_SUCCESS )
     {
         msg_Dbg( o, "original frame size: %ux%u",
                     subs->spu.i_original_frame_width,
@@ -103,7 +104,7 @@ static inline void vobsub_extra_parse(vlc_object_t *o, subs_format_t *subs,
 
     psz_start = strstr( psz_buf, "palette:" );
     if( psz_start &&
-        vobsub_palette_parse( psz_start, subs->spu.palette ) == VLC_SUCCESS )
+        vobsub_palette_parse( psz_start, subs->spu.palette ) == HEIMDALL_SUCCESS )
     {
         subs->spu.b_palette = true;
         msg_Dbg( o, "vobsub palette read" );

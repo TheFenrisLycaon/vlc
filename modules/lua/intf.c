@@ -2,8 +2,9 @@
  * intf.c: Generic lua interface functions
  *****************************************************************************
  * Copyright (C) 2007-2008 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Antoine Cellerier <dionoea at videolan tod org>
+ * Authors: Antoine Cellerier <dionoea at lycaria tod org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,12 +32,12 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_interface.h>
-#include <vlc_fs.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_interface.h>
+#include <heimdall_fs.h>
 
-#include "vlc.h"
+#include "heimdall.h"
 #include "libs.h"
 
 static const char * const ppsz_intf_options[] = { "intf", "config", NULL };
@@ -48,8 +49,8 @@ struct intf_sys_t
 {
     char *psz_filename;
     lua_State *L;
-    vlc_thread_t thread;
-    vlclua_dtable_t dtable;
+    heimdall_thread_t thread;
+    heimdalllua_dtable_t dtable;
 };
 /*****************************************************************************
  *
@@ -87,8 +88,8 @@ static char *MakeConfig( intf_thread_t *p_intf, const char *name )
             ;
         else
         {
-            vlc_url_t url;
-            vlc_UrlParse( &url, psz_host );
+            heimdall_url_t url;
+            heimdall_UrlParse( &url, psz_host );
             unsigned i_port = var_InheritInteger( p_intf, "telnet-port" );
             if ( url.i_port != 0 )
             {
@@ -101,7 +102,7 @@ static char *MakeConfig( intf_thread_t *p_intf, const char *name )
 
             char *psz_esc_host = config_StringEscape( url.psz_host );
             free( psz_host );
-            vlc_UrlClean( &url );
+            heimdall_UrlClean( &url );
 
             if( asprintf( &psz_host, "telnet://%s:%d",
                           psz_esc_host ? psz_esc_host : "", i_port ) == -1 )
@@ -179,13 +180,13 @@ static char *StripPasswords( const char *psz_config )
 
 static void *Run(void *data)
 {
-    vlc_thread_set_name("vlc-lua-intf");
+    heimdall_thread_set_name("heimdall-lua-intf");
 
     intf_thread_t *p_intf = data;
     intf_sys_t *p_sys = p_intf->p_sys;
     lua_State *L = p_sys->L;
 
-    if (vlclua_dofile(VLC_OBJECT(p_intf), L, p_sys->psz_filename))
+    if (heimdalllua_dofile(HEIMDALL_OBJECT(p_intf), L, p_sys->psz_filename))
     {
         msg_Err(p_intf, "Error loading script %s: %s", p_sys->psz_filename,
                 lua_tostring(L, lua_gettop(L)));
@@ -194,13 +195,13 @@ static void *Run(void *data)
     return NULL;
 }
 
-static int Start_LuaIntf( vlc_object_t *p_this, const char *name )
+static int Start_LuaIntf( heimdall_object_t *p_this, const char *name )
 {
     if( lua_Disabled( p_this ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     intf_thread_t *p_intf = (intf_thread_t*)p_this;
-    struct vlc_logger *logger = p_intf->obj.logger;
+    struct heimdall_logger *logger = p_intf->obj.logger;
     lua_State *L;
     char *namebuf = NULL;
 
@@ -210,7 +211,7 @@ static int Start_LuaIntf( vlc_object_t *p_this, const char *name )
     {
         namebuf = var_InheritString( p_this, "lua-intf" );
         if( unlikely(namebuf == NULL) )
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         name = namebuf;
     }
 
@@ -218,20 +219,20 @@ static int Start_LuaIntf( vlc_object_t *p_this, const char *name )
     if( unlikely(p_sys == NULL) )
     {
         free( namebuf );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
     p_intf->p_sys = p_sys;
 
-    p_intf->obj.logger = vlc_LogHeaderCreate( logger, name );
+    p_intf->obj.logger = heimdall_LogHeaderCreate( logger, name );
     if( p_intf->obj.logger == NULL )
     {
         p_intf->obj.logger = logger;
         free( p_sys );
         free( namebuf );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
-    p_sys->psz_filename = vlclua_find_file( "intf", name );
+    p_sys->psz_filename = heimdalllua_find_file( "intf", name );
     if( !p_sys->psz_filename )
     {
         msg_Err( p_intf, "Couldn't find lua interface script \"%s\".",
@@ -247,15 +248,15 @@ static int Start_LuaIntf( vlc_object_t *p_this, const char *name )
         goto error;
     }
 
-    vlclua_set_this( L, p_intf );
-    vlc_playlist_t *playlist = vlc_intf_GetMainPlaylist(p_intf);
-    vlclua_set_playlist_internal(L, playlist);
+    heimdalllua_set_this( L, p_intf );
+    heimdall_playlist_t *playlist = heimdall_intf_GetMainPlaylist(p_intf);
+    heimdalllua_set_playlist_internal(L, playlist);
 
     luaL_openlibs( L );
 
     /* register our functions */
     static const luaL_Reg p_reg[] = { { NULL, NULL } };
-    luaL_register_namespace( L, "vlc", p_reg );
+    luaL_register_namespace( L, "heimdall", p_reg );
 
     /* register submodules */
     luaopen_config( L );
@@ -263,7 +264,7 @@ static int Start_LuaIntf( vlc_object_t *p_this, const char *name )
     luaopen_input( L );
     luaopen_msg( L );
     luaopen_misc( L );
-    if( vlclua_fd_init( L, &p_sys->dtable ) )
+    if( heimdalllua_fd_init( L, &p_sys->dtable ) )
     {
         lua_close( L );
         goto error;
@@ -280,7 +281,7 @@ static int Start_LuaIntf( vlc_object_t *p_this, const char *name )
     luaopen_gettext( L );
     luaopen_xml( L );
     luaopen_equalizer( L );
-    luaopen_vlcio( L );
+    luaopen_heimdallio( L );
     luaopen_errno( L );
     luaopen_rand( L );
     luaopen_rd( L );
@@ -295,7 +296,7 @@ static int Start_LuaIntf( vlc_object_t *p_this, const char *name )
     lua_pop( L, 1 );
 
     /* Setup the module search path */
-    if( vlclua_add_modules_path( L, p_sys->psz_filename ) )
+    if( heimdalllua_add_modules_path( L, p_sys->psz_filename ) )
     {
         msg_Warn( p_intf, "Error while setting the module search path for %s",
                   p_sys->psz_filename );
@@ -366,7 +367,7 @@ static int Start_LuaIntf( vlc_object_t *p_this, const char *name )
         /* msg_Warn( p_intf, "The `telnet' lua interface script was replaced "
                           "by `cli', please update your configuration!" ); */
 
-        char *wrapped_file = vlclua_find_file( "intf", "cli" );
+        char *wrapped_file = heimdalllua_find_file( "intf", "cli" );
         if( !wrapped_file )
         {
             msg_Err( p_intf, "Couldn't find lua interface script \"cli\", "
@@ -380,55 +381,55 @@ static int Start_LuaIntf( vlc_object_t *p_this, const char *name )
 
     p_sys->L = L;
 
-    if( vlc_clone( &p_sys->thread, Run, p_intf ) )
+    if( heimdall_clone( &p_sys->thread, Run, p_intf ) )
         goto error_lua;
     free( namebuf );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 error_lua:
-    vlclua_fd_cleanup( &p_sys->dtable );
+    heimdalllua_fd_cleanup( &p_sys->dtable );
     lua_close( p_sys->L );
 error:
     free( p_sys->psz_filename );
     free( p_sys );
-    vlc_LogDestroy( p_intf->obj.logger );
+    heimdall_LogDestroy( p_intf->obj.logger );
     p_intf->obj.logger = logger;
     free( namebuf );
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
-void Close_LuaIntf( vlc_object_t *p_this )
+void Close_LuaIntf( heimdall_object_t *p_this )
 {
     intf_thread_t *p_intf = (intf_thread_t*)p_this;
     intf_sys_t *p_sys = p_intf->p_sys;
 
-    vlclua_fd_interrupt( &p_sys->dtable );
-    vlc_join( p_sys->thread, NULL );
+    heimdalllua_fd_interrupt( &p_sys->dtable );
+    heimdall_join( p_sys->thread, NULL );
 
     lua_close( p_sys->L );
-    vlclua_fd_cleanup( &p_sys->dtable );
+    heimdalllua_fd_cleanup( &p_sys->dtable );
     free( p_sys->psz_filename );
     free( p_sys );
-    vlc_LogDestroy( p_intf->obj.logger );
+    heimdall_LogDestroy( p_intf->obj.logger );
 }
 
-int Open_LuaIntf( vlc_object_t *p_this )
+int Open_LuaIntf( heimdall_object_t *p_this )
 {
     return Start_LuaIntf( p_this, NULL );
 }
 
-int Open_LuaHTTP( vlc_object_t *p_this )
+int Open_LuaHTTP( heimdall_object_t *p_this )
 {
     return Start_LuaIntf( p_this, "http" );
 }
 
-int Open_LuaTelnet( vlc_object_t *p_this )
+int Open_LuaTelnet( heimdall_object_t *p_this )
 {
     char *pw = var_CreateGetNonEmptyString( p_this, "telnet-password" );
     if( pw == NULL )
     {
         msg_Err( p_this, "password not configured" );
         msg_Info( p_this, "Please specify the password in the preferences." );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     free( pw );
     return Start_LuaIntf( p_this, "telnet" );

@@ -1,9 +1,10 @@
 /*****************************************************************************
- * bdagraph.cpp : DirectShow BDA graph for vlc
+ * bdagraph.cpp : DirectShow BDA graph for heimdall
  *****************************************************************************
  * Copyright (C) 2007 the VideoLAN team
  * Copyright (C) 2011 Rémi Denis-Courmont
  * Copyright (C) 2012 John Freed
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Ken Self <kenself(at)optusnet(dot)com(dot)au>
  *
@@ -31,8 +32,8 @@
 
 #include <cassert>
 
-#include <vlc_common.h>
-#include <vlc_block.h>
+#include <heimdall_common.h>
+#include <heimdall_block.h>
 
 #include <objbase.h>
 #include <initguid.h>
@@ -77,11 +78,11 @@ static BinaryConvolutionCodeRate dvb_parse_fec (uint32_t fec)
 {
     switch (fec)
     {
-        case VLC_FEC(1,2): return BDA_BCC_RATE_1_2;
-        case VLC_FEC(2,3): return BDA_BCC_RATE_2_3;
-        case VLC_FEC(3,4): return BDA_BCC_RATE_3_4;
-        case VLC_FEC(5,6): return BDA_BCC_RATE_5_6;
-        case VLC_FEC(7,8): return BDA_BCC_RATE_7_8;
+        case HEIMDALL_FEC(1,2): return BDA_BCC_RATE_1_2;
+        case HEIMDALL_FEC(2,3): return BDA_BCC_RATE_2_3;
+        case HEIMDALL_FEC(3,4): return BDA_BCC_RATE_3_4;
+        case HEIMDALL_FEC(5,6): return BDA_BCC_RATE_5_6;
+        case HEIMDALL_FEC(7,8): return BDA_BCC_RATE_7_8;
     }
     return BDA_BCC_RATE_NOT_SET;
 }
@@ -90,10 +91,10 @@ static GuardInterval dvb_parse_guard (uint32_t guard)
 {
     switch (guard)
     {
-        case VLC_GUARD(1, 4): return BDA_GUARD_1_4;
-        case VLC_GUARD(1, 8): return BDA_GUARD_1_8;
-        case VLC_GUARD(1,16): return BDA_GUARD_1_16;
-        case VLC_GUARD(1,32): return BDA_GUARD_1_32;
+        case HEIMDALL_GUARD(1, 4): return BDA_GUARD_1_4;
+        case HEIMDALL_GUARD(1, 8): return BDA_GUARD_1_8;
+        case HEIMDALL_GUARD(1,16): return BDA_GUARD_1_16;
+        case HEIMDALL_GUARD(1,32): return BDA_GUARD_1_32;
     }
     return BDA_GUARD_NOT_SET;
 }
@@ -159,14 +160,14 @@ struct dvb_device
     uint32_t lowf, highf, switchf;
 };
 
-dvb_device_t *dvb_open (vlc_object_t *obj)
+dvb_device_t *dvb_open (heimdall_object_t *obj)
 {
     dvb_device_t *d = new dvb_device_t;
 
     d->module = new BDAGraph (obj);
     d->frequency = 0;
     d->srate = 0;
-    d->fec = VLC_FEC_AUTO;
+    d->fec = HEIMDALL_FEC_AUTO;
     d->inversion = -1;
     d->pol = 0;
     d->lowf = d->highf = d->switchf = 0;
@@ -264,7 +265,7 @@ int dvb_set_dvbs2 (dvb_device_t *, uint64_t /*freq*/, const char * /*mod*/,
                    uint32_t /*srate*/, uint32_t /*fec*/, int /*pilot*/, int /*rolloff*/,
                    uint8_t /*sid*/)
 {
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 int dvb_set_sec (dvb_device_t *d, uint64_t freq, char pol,
@@ -304,13 +305,13 @@ int dvb_set_dvbt2 (dvb_device_t *d, uint32_t freq, const char * /*mod*/,
 int dvb_set_isdbc (dvb_device_t *, uint32_t /*freq*/, const char * /*mod*/,
                    uint32_t /*srate*/, uint32_t /*fec*/)
 {
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /* ISDB-S */
 int dvb_set_isdbs (dvb_device_t *, uint64_t /*freq*/, uint16_t /*ts_id*/)
 {
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /* ISDB-T */
@@ -318,7 +319,7 @@ int dvb_set_isdbt (dvb_device_t *, uint32_t /*freq*/, uint32_t /*bandwidth*/,
                    int /*transmit_mode*/, uint32_t /*guard*/,
                    const isdbt_layer_t /*layers*/[3])
 {
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /* ATSC */
@@ -340,8 +341,8 @@ int dvb_set_cqam (dvb_device_t *d, uint32_t freq, const char * /*mod*/)
 BDAOutput::BDAOutput( ) :
     p_first(NULL), pp_next(&p_first)
 {
-    vlc_mutex_init( &lock );
-    vlc_cond_init( &wait );
+    heimdall_mutex_init( &lock );
+    heimdall_cond_init( &wait );
 }
 
 BDAOutput::~BDAOutput()
@@ -351,10 +352,10 @@ BDAOutput::~BDAOutput()
 
 void BDAOutput::Push( block_t *p_block )
 {
-    vlc_mutex_locker l( &lock );
+    heimdall_mutex_locker l( &lock );
 
     block_ChainLastAppend( &pp_next, p_block );
-    vlc_cond_signal( &wait );
+    heimdall_cond_signal( &wait );
 }
 
 ssize_t BDAOutput::Pop(void *buf, size_t len, int ms)
@@ -362,12 +363,12 @@ ssize_t BDAOutput::Pop(void *buf, size_t len, int ms)
     if( ms < 0 )
         ms = 250;
 
-    vlc_mutex_locker l( &lock );
+    heimdall_mutex_locker l( &lock );
 
-    vlc_tick_t i_deadline = vlc_tick_now() + VLC_TICK_FROM_MS( ms );
+    heimdall_tick_t i_deadline = heimdall_tick_now() + HEIMDALL_TICK_FROM_MS( ms );
     while( !p_first )
     {
-        if( vlc_cond_timedwait( &wait, &lock, i_deadline ) )
+        if( heimdall_cond_timedwait( &wait, &lock, i_deadline ) )
             return -1;
     }
 
@@ -400,7 +401,7 @@ ssize_t BDAOutput::Pop(void *buf, size_t len, int ms)
 
 void BDAOutput::Empty()
 {
-    vlc_mutex_locker l( &lock );
+    heimdall_mutex_locker l( &lock );
 
     if( p_first )
         block_ChainRelease( p_first );
@@ -411,7 +412,7 @@ void BDAOutput::Empty()
 /*****************************************************************************
 * Constructor
 *****************************************************************************/
-BDAGraph::BDAGraph( vlc_object_t *p_this ):
+BDAGraph::BDAGraph( heimdall_object_t *p_this ):
     ul_cbrc( 0 ),
     p_access( p_this ),
     clsid_network_type(CLSID_NULL),
@@ -544,7 +545,7 @@ int BDAGraph::SubmitTuneRequest(void)
         {
             msg_Warn( p_access, "SubmitTuneRequest: "
                 "Cannot Build the Graph: hr=0x%8lx", hr );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
         msg_Dbg( p_access, "SubmitTuneRequest: Starting the Graph" );
 
@@ -562,10 +563,10 @@ int BDAGraph::SubmitTuneRequest(void)
     {
         msg_Warn( p_access, "SubmitTuneRequest: "
             "Failed to Start the Graph: hr=0x%8lx", hr );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -607,13 +608,13 @@ int BDAGraph::SetCQAM(long l_frequency)
     {
         msg_Warn( p_access, "SetCQAM: "\
             "Cannot create Tuning Space: hr=0x%8lx", hr );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( !p_scanning_tuner )
     {
         msg_Warn( p_access, "SetCQAM: Cannot get scanning tuner" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     hr = p_scanning_tuner->get_TuneRequest( &l.p_tune_request );
@@ -621,7 +622,7 @@ int BDAGraph::SetCQAM(long l_frequency)
     {
         msg_Warn( p_access, "SetCQAM: "\
             "Cannot get Tune Request: hr=0x%8lx", hr );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     hr = l.p_tune_request->QueryInterface( IID_PPV_ARGS( &l.p_cqam_tune_request ) );
@@ -629,7 +630,7 @@ int BDAGraph::SetCQAM(long l_frequency)
     {
         msg_Warn( p_access, "SetCQAM: "\
                   "Cannot QI for IDigitalCableTuneRequest: hr=0x%8lx", hr );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     hr = ::CoCreateInstance( __uuidof(DigitalCableLocator), 0, CLSCTX_INPROC,
@@ -638,7 +639,7 @@ int BDAGraph::SetCQAM(long l_frequency)
     {
         msg_Warn( p_access, "SetCQAM: "\
                   "Cannot create the CQAM locator: hr=0x%8lx", hr );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     hr = S_OK;
@@ -652,7 +653,7 @@ int BDAGraph::SetCQAM(long l_frequency)
     {
         msg_Warn( p_access, "SetCQAM: "\
                  "Cannot set tuning parameters: hr=0x%8lx", hr );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     hr = l.p_cqam_tune_request->put_Locator( l.p_cqam_locator );
@@ -660,7 +661,7 @@ int BDAGraph::SetCQAM(long l_frequency)
     {
         msg_Warn( p_access, "SetCQAM: "\
                   "Cannot put the locator: hr=0x%8lx", hr );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     hr = p_scanning_tuner->Validate( l.p_cqam_tune_request );
@@ -675,10 +676,10 @@ int BDAGraph::SetCQAM(long l_frequency)
     {
         msg_Warn( p_access, "SetCQAM: "\
             "Cannot put the tune request: hr=0x%8lx", hr );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -721,13 +722,13 @@ int BDAGraph::SetATSC(long l_frequency)
     {
         msg_Warn( p_access, "SetATSC: "\
             "Cannot create Tuning Space: hr=0x%8lx", hr );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( !p_scanning_tuner )
     {
         msg_Warn( p_access, "SetATSC: Cannot get scanning tuner" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     hr = p_scanning_tuner->get_TuneRequest( &l.p_tune_request );
@@ -735,7 +736,7 @@ int BDAGraph::SetATSC(long l_frequency)
     {
         msg_Warn( p_access, "SetATSC: "\
             "Cannot get Tune Request: hr=0x%8lx", hr );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     hr = l.p_tune_request->QueryInterface( IID_PPV_ARGS( &l.p_atsc_tune_request ) );
@@ -743,7 +744,7 @@ int BDAGraph::SetATSC(long l_frequency)
     {
         msg_Warn( p_access, "SetATSC: "\
             "Cannot QI for IATSCChannelTuneRequest: hr=0x%8lx", hr );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     hr = ::CoCreateInstance( __uuidof(ATSCLocator), 0, CLSCTX_INPROC,
@@ -752,7 +753,7 @@ int BDAGraph::SetATSC(long l_frequency)
     {
         msg_Warn( p_access, "SetATSC: "\
             "Cannot create the ATSC locator: hr=0x%8lx", hr );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     hr = S_OK;
@@ -768,7 +769,7 @@ int BDAGraph::SetATSC(long l_frequency)
     {
         msg_Warn( p_access, "SetATSC: "\
             "Cannot set tuning parameters: hr=0x%8lx", hr );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     hr = l.p_atsc_tune_request->put_Locator( l.p_atsc_locator );
@@ -776,7 +777,7 @@ int BDAGraph::SetATSC(long l_frequency)
     {
         msg_Warn( p_access, "SetATSC: "\
             "Cannot put the locator: hr=0x%8lx", hr );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     hr = p_scanning_tuner->Validate( l.p_atsc_tune_request );
@@ -791,10 +792,10 @@ int BDAGraph::SetATSC(long l_frequency)
     {
         msg_Warn( p_access, "SetATSC: "\
             "Cannot put the tune request: hr=0x%8lx", hr );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -851,13 +852,13 @@ int BDAGraph::SetDVBT(long l_frequency, uint32_t fec_hp, uint32_t fec_lp,
     {
         msg_Warn( p_access, "SetDVBT: "\
             "Cannot create Tuning Space: hr=0x%8lx", hr );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( !p_scanning_tuner )
     {
         msg_Warn( p_access, "SetDVBT: Cannot get scanning tuner" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     hr = p_scanning_tuner->get_TuneRequest( &l.p_tune_request );
@@ -865,7 +866,7 @@ int BDAGraph::SetDVBT(long l_frequency, uint32_t fec_hp, uint32_t fec_lp,
     {
         msg_Warn( p_access, "SetDVBT: "\
             "Cannot get Tune Request: hr=0x%8lx", hr );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     msg_Dbg( p_access, "SetDVBT: Creating DVB tune request" );
@@ -874,7 +875,7 @@ int BDAGraph::SetDVBT(long l_frequency, uint32_t fec_hp, uint32_t fec_lp,
     {
         msg_Warn( p_access, "SetDVBT: "\
             "Cannot QI for IDVBTuneRequest: hr=0x%8lx", hr );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     l.p_dvb_tune_request->put_ONID( -1 );
@@ -887,7 +888,7 @@ int BDAGraph::SetDVBT(long l_frequency, uint32_t fec_hp, uint32_t fec_lp,
     {
         msg_Dbg( p_access, "SetDVBT: "\
             "cannot get tuning space: hr=0x%8lx", hr );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     msg_Dbg( p_access, "SetDVBT: QI to DVBT TS" );
@@ -896,7 +897,7 @@ int BDAGraph::SetDVBT(long l_frequency, uint32_t fec_hp, uint32_t fec_lp,
     {
         msg_Warn( p_access, "SetDVBT: "\
             "Cannot QI for IDVBTuningSpace2: hr=0x%8lx", hr );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     msg_Dbg( p_access, "SetDVBT: Creating local locator" );
@@ -906,7 +907,7 @@ int BDAGraph::SetDVBT(long l_frequency, uint32_t fec_hp, uint32_t fec_lp,
     {
         msg_Warn( p_access, "SetDVBT: "\
             "Cannot create the DVBT Locator: hr=0x%8lx", hr );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     hr = l.p_dvb_tuning_space->put_SystemType( DVB_Terrestrial );
@@ -929,7 +930,7 @@ int BDAGraph::SetDVBT(long l_frequency, uint32_t fec_hp, uint32_t fec_lp,
     {
         msg_Warn( p_access, "SetDVBT: "\
             "Cannot set tuning parameters on Locator: hr=0x%8lx", hr );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     msg_Dbg( p_access, "SetDVBT: putting DVBT locator into local tune request" );
@@ -939,7 +940,7 @@ int BDAGraph::SetDVBT(long l_frequency, uint32_t fec_hp, uint32_t fec_lp,
     {
         msg_Warn( p_access, "SetDVBT: "\
             "Cannot put the locator: hr=0x%8lx", hr );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     msg_Dbg( p_access, "SetDVBT: putting local Tune Request to scanning tuner" );
@@ -955,11 +956,11 @@ int BDAGraph::SetDVBT(long l_frequency, uint32_t fec_hp, uint32_t fec_lp,
     {
         msg_Warn( p_access, "SetDVBT: "\
             "Cannot put the tune request: hr=0x%8lx", hr );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     msg_Dbg( p_access, "SetDVBT: return success" );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -1015,13 +1016,13 @@ int BDAGraph::SetDVBT2(long l_frequency, uint32_t fec,
     {
         msg_Warn( p_access, "SetDVBT: "\
             "Cannot create Tuning Space: hr=0x%8lx", hr );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( !p_scanning_tuner )
     {
         msg_Warn( p_access, "SetDVBT: Cannot get scanning tuner" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     hr = p_scanning_tuner->get_TuneRequest( &l.p_tune_request );
@@ -1029,7 +1030,7 @@ int BDAGraph::SetDVBT2(long l_frequency, uint32_t fec,
     {
         msg_Warn( p_access, "SetDVBT: "\
             "Cannot get Tune Request: hr=0x%8lx", hr );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     msg_Dbg( p_access, "SetDVBT: Creating DVB tune request" );
@@ -1038,7 +1039,7 @@ int BDAGraph::SetDVBT2(long l_frequency, uint32_t fec,
     {
         msg_Warn( p_access, "SetDVBT: "\
             "Cannot QI for IDVBTuneRequest: hr=0x%8lx", hr );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     l.p_dvb_tune_request->put_ONID( -1 );
@@ -1051,7 +1052,7 @@ int BDAGraph::SetDVBT2(long l_frequency, uint32_t fec,
     {
         msg_Dbg( p_access, "SetDVBT: "\
             "cannot get tuning space: hr=0x%8lx", hr );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     msg_Dbg( p_access, "SetDVBT: QI to DVBT TS" );
@@ -1060,7 +1061,7 @@ int BDAGraph::SetDVBT2(long l_frequency, uint32_t fec,
     {
         msg_Warn( p_access, "SetDVBT: "\
             "Cannot QI for IDVBTuningSpace2: hr=0x%8lx", hr );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     msg_Dbg( p_access, "SetDVBT: Creating local locator2" );
@@ -1073,7 +1074,7 @@ int BDAGraph::SetDVBT2(long l_frequency, uint32_t fec,
     {
         msg_Warn( p_access, "SetDVBT: "\
             "Cannot create the DVBT Locator2: hr=0x%8lx", hr );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     hr = l.p_dvb_tuning_space->put_SystemType( DVB_Terrestrial );
@@ -1097,7 +1098,7 @@ int BDAGraph::SetDVBT2(long l_frequency, uint32_t fec,
     {
         msg_Warn( p_access, "SetDVBT: "\
             "Cannot set tuning parameters on Locator: hr=0x%8lx", hr );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     msg_Dbg( p_access, "SetDVBT: putting DVBT locator into local tune request" );
@@ -1107,7 +1108,7 @@ int BDAGraph::SetDVBT2(long l_frequency, uint32_t fec,
     {
         msg_Warn( p_access, "SetDVBT: "\
             "Cannot put the locator: hr=0x%8lx", hr );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     msg_Dbg( p_access, "SetDVBT: putting local Tune Request to scanning tuner" );
@@ -1123,7 +1124,7 @@ int BDAGraph::SetDVBT2(long l_frequency, uint32_t fec,
     {
         msg_Warn( p_access, "SetDVBT: "\
             "Cannot put the tune request: hr=0x%8lx", hr );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* TBS tuner PLP set workaround */
@@ -1160,7 +1161,7 @@ int BDAGraph::SetDVBT2(long l_frequency, uint32_t fec,
     }
 
     msg_Dbg( p_access, "SetDVBT: return success" );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 
@@ -1208,14 +1209,14 @@ int BDAGraph::SetDVBC(long l_frequency, const char *mod, long l_symbolrate)
     {
         msg_Warn( p_access, "SetDVBC: "\
             "Cannot create Tuning Space: hr=0x%8lx", hr );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     msg_Dbg( p_access, "SetDVBC: check on scanning tuner" );
     if( !p_scanning_tuner )
     {
         msg_Warn( p_access, "SetDVBC: Cannot get scanning tuner" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     msg_Dbg( p_access, "SetDVBC: get tune request" );
@@ -1224,7 +1225,7 @@ int BDAGraph::SetDVBC(long l_frequency, const char *mod, long l_symbolrate)
     {
         msg_Warn( p_access, "SetDVBC: "\
             "Cannot get Tune Request: hr=0x%8lx", hr );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     msg_Dbg( p_access, "SetDVBC: QI for dvb tune request" );
@@ -1233,7 +1234,7 @@ int BDAGraph::SetDVBC(long l_frequency, const char *mod, long l_symbolrate)
     {
         msg_Warn( p_access, "SetDVBC: "\
             "Cannot QI for IDVBTuneRequest: hr=0x%8lx", hr );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     l.p_dvb_tune_request->put_ONID( -1 );
@@ -1247,7 +1248,7 @@ int BDAGraph::SetDVBC(long l_frequency, const char *mod, long l_symbolrate)
     {
         msg_Warn( p_access, "SetDVBC: "\
             "Cannot create the DVB-C Locator: hr=0x%8lx", hr );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
 
@@ -1257,7 +1258,7 @@ int BDAGraph::SetDVBC(long l_frequency, const char *mod, long l_symbolrate)
     {
         msg_Dbg( p_access, "SetDVBC: "\
             "cannot get tuning space: hr=0x%8lx", hr );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     msg_Dbg( p_access, "SetDVBC: QI for dvb tuning space" );
@@ -1266,7 +1267,7 @@ int BDAGraph::SetDVBC(long l_frequency, const char *mod, long l_symbolrate)
     {
         msg_Warn( p_access, "SetDVBC: "\
             "Cannot QI for IDVBTuningSpace2: hr=0x%8lx", hr );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     msg_Dbg( p_access, "SetDVBC: set up locator" );
@@ -1284,7 +1285,7 @@ int BDAGraph::SetDVBC(long l_frequency, const char *mod, long l_symbolrate)
     {
         msg_Warn( p_access, "SetDVBC: "\
             "Cannot set tuning parameters on Locator: hr=0x%8lx", hr );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     msg_Dbg( p_access, "SetDVBC: put locator to dvb tune request" );
@@ -1293,7 +1294,7 @@ int BDAGraph::SetDVBC(long l_frequency, const char *mod, long l_symbolrate)
     {
         msg_Warn( p_access, "SetDVBC: "\
             "Cannot put the locator: hr=0x%8lx", hr );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     msg_Dbg( p_access, "SetDVBC: validate dvb tune request" );
@@ -1311,11 +1312,11 @@ int BDAGraph::SetDVBC(long l_frequency, const char *mod, long l_symbolrate)
     {
         msg_Warn( p_access, "SetDVBC: "\
             "Cannot put the tune request: hr=0x%8lx", hr );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     msg_Dbg( p_access, "SetDVBC: return success" );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -1344,17 +1345,17 @@ int BDAGraph::SetInversion(int inversion)
     {
         msg_Warn( p_access, "SetInversion: "\
             "No scanning tuner" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* SetInversion is called for all DVB tuners, before the dvb_tune(),
      * in access.c. Since DVBT and DVBC don't support spectral
-     * inversion, we need to return VLC_SUCCESS in those cases
+     * inversion, we need to return HEIMDALL_SUCCESS in those cases
      * so that dvb_tune() will be called */
     if( ( GetSystem( clsid_network_type ) & ( DTV_DELIVERY_DVB_S | DTV_DELIVERY_DVB_S2 | DTV_DELIVERY_ISDB_S ) ) == 0 )
     {
         msg_Dbg( p_access, "SetInversion: Not Satellite type" );
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
     msg_Dbg( p_access, "SetInversion: get TS" );
@@ -1363,7 +1364,7 @@ int BDAGraph::SetInversion(int inversion)
     {
         msg_Warn( p_access, "SetInversion: "\
             "cannot get tuning space: hr=0x%8lx", hr );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     hr = p_tuning_space->QueryInterface( IID_PPV_ARGS( &l.p_dvbs_tuning_space ) );
@@ -1371,7 +1372,7 @@ int BDAGraph::SetInversion(int inversion)
     {
         msg_Warn( p_access, "SetInversion: "\
             "Cannot QI for IDVBSTuningSpace: hr=0x%8lx", hr );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( i_inversion != BDA_SPECTRAL_INVERSION_NOT_SET )
@@ -1380,10 +1381,10 @@ int BDAGraph::SetInversion(int inversion)
     {
         msg_Warn( p_access, "SetInversion: "\
             "Cannot put inversion: hr=0x%8lx", hr );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -1470,13 +1471,13 @@ int BDAGraph::SetDVBS(long l_frequency, long l_symbolrate, uint32_t fec,
     {
         msg_Warn( p_access, "SetDVBS: "\
             "Cannot create Tuning Space: hr=0x%8lx", hr );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( !p_scanning_tuner )
     {
         msg_Warn( p_access, "SetDVBS: Cannot get scanning tuner" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     hr = p_scanning_tuner->get_TuneRequest( &l.p_tune_request );
@@ -1484,7 +1485,7 @@ int BDAGraph::SetDVBS(long l_frequency, long l_symbolrate, uint32_t fec,
     {
         msg_Warn( p_access, "SetDVBS: "\
             "Cannot get Tune Request: hr=0x%8lx", hr );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     hr = l.p_tune_request->QueryInterface( IID_PPV_ARGS( &l.p_dvb_tune_request ) );
@@ -1492,7 +1493,7 @@ int BDAGraph::SetDVBS(long l_frequency, long l_symbolrate, uint32_t fec,
     {
         msg_Warn( p_access, "SetDVBS: "\
             "Cannot QI for IDVBTuneRequest: hr=0x%8lx", hr );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     l.p_dvb_tune_request->put_ONID( -1 );
@@ -1505,7 +1506,7 @@ int BDAGraph::SetDVBS(long l_frequency, long l_symbolrate, uint32_t fec,
     {
         msg_Warn( p_access, "SetDVBS: "\
             "Cannot create the DVBS Locator: hr=0x%8lx", hr );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     msg_Dbg( p_access, "SetDVBS: get TS" );
@@ -1514,7 +1515,7 @@ int BDAGraph::SetDVBS(long l_frequency, long l_symbolrate, uint32_t fec,
     {
         msg_Dbg( p_access, "SetDVBS: "\
             "cannot get tuning space: hr=0x%8lx", hr );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     hr = p_tuning_space->QueryInterface( IID_PPV_ARGS( &l.p_dvbs_tuning_space ) );
@@ -1522,7 +1523,7 @@ int BDAGraph::SetDVBS(long l_frequency, long l_symbolrate, uint32_t fec,
     {
         msg_Warn( p_access, "SetDVBS: "\
             "Cannot QI for IDVBSTuningSpace: hr=0x%8lx", hr );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     hr = l.p_dvbs_tuning_space->put_SystemType( DVB_Satellite );
@@ -1563,7 +1564,7 @@ int BDAGraph::SetDVBS(long l_frequency, long l_symbolrate, uint32_t fec,
     {
         msg_Warn( p_access, "SetDVBS: "\
             "Cannot set tuning parameters on Locator: hr=0x%8lx", hr );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     hr = l.p_dvb_tune_request->put_Locator( l.p_dvbs_locator );
@@ -1571,7 +1572,7 @@ int BDAGraph::SetDVBS(long l_frequency, long l_symbolrate, uint32_t fec,
     {
         msg_Warn( p_access, "SetDVBS: "\
             "Cannot put the locator: hr=0x%8lx", hr );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     hr = p_scanning_tuner->Validate( l.p_dvb_tune_request );
@@ -1587,10 +1588,10 @@ int BDAGraph::SetDVBS(long l_frequency, long l_symbolrate, uint32_t fec,
     {
         msg_Warn( p_access, "SetDVBS: "\
             "Cannot put the tune request: hr=0x%8lx", hr );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -2270,7 +2271,7 @@ HRESULT BDAGraph::Build()
         return hr;
     }
 
-    /* We need the MPEG2 Demultiplexer even though we are going to use the VLC
+    /* We need the MPEG2 Demultiplexer even though we are going to use the Heimdall
      * TS demuxer. The TIF filter connects to the MPEG2 demux and works with
      * the Network Provider filter to set up the stream */
     //msg_Dbg( p_access, "Build: using MPEG2 demux" );
@@ -3282,7 +3283,7 @@ HRESULT BDAGraph::Register()
     }
 
     const size_t len = ARRAY_SIZE(pwsz_graph_name);
-    _snwprintf( pwsz_graph_name, len - 1, L"VLC BDA Graph %08p Pid %08x",
+    _snwprintf( pwsz_graph_name, len - 1, L"Heimdall BDA Graph %08p Pid %08x",
         p_filter_graph, ::GetCurrentProcessId() );
     pwsz_graph_name[len-1] = 0;
     hr = CreateItemMoniker( L"!", pwsz_graph_name, &l.p_moniker );

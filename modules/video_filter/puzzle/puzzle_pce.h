@@ -2,8 +2,9 @@
  * puzzle_pce.h : Puzzle game filter - pieces functions
  *****************************************************************************
  * Copyright (C) 2013 Vianney Boyer
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Author:  Vianney Boyer <vlcvboyer -at- gmail -dot- com>
+ * Author:  Vianney Boyer <heimdallvboyer -at- gmail -dot- com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -23,11 +24,11 @@
 /*****************************************************************************
  * Preamble
  *****************************************************************************/
-#ifndef VLC_LIB_PUZZLE_PCE_H
-#define VLC_LIB_PUZZLE_PCE_H 1
+#ifndef HEIMDALL_LIB_PUZZLE_PCE_H
+#define HEIMDALL_LIB_PUZZLE_PCE_H 1
 
-#include <vlc_common.h>
-#include <vlc_filter.h>
+#include <heimdall_common.h>
+#include <heimdall_filter.h>
 
 #include "puzzle_bezier.h"
 #include "puzzle_lib.h"

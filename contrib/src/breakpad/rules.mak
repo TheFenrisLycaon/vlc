@@ -1,8 +1,8 @@
 # Breakpad
 
-# This is the VideoLAN fork of Breakpad, not Google Breakpad!
+# This is the Lycaria fork of Breakpad, not Google Breakpad!
 BREAKPAD_VERSION := 0.1.3
-BREAKPAD_URL := $(CONTRIB_VIDEOLAN)/breakpad/breakpad-$(BREAKPAD_VERSION).tar.gz
+BREAKPAD_URL := $(CONTRIB_LYCARIA)/breakpad/breakpad-$(BREAKPAD_VERSION).tar.gz
 
 ifdef HAVE_MACOSX
 PKGS += breakpad

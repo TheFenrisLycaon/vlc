@@ -1,7 +1,8 @@
 /*****************************************************************************
- * wav.c: wav muxer module for vlc
+ * wav.c: wav muxer module for heimdall
  *****************************************************************************
  * Copyright (C) 2004, 2006 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gildas Bazin <gbazin@videolan.org>
  *
@@ -28,28 +29,28 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_aout.h>
-#include <vlc_sout.h>
-#include <vlc_block.h>
-#include <vlc_codecs.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_aout.h>
+#include <heimdall_sout.h>
+#include <heimdall_block.h>
+#include <heimdall_codecs.h>
 
 #include "../demux/windows_audio_commons.h"
 
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  Open   ( vlc_object_t * );
-static void Close  ( vlc_object_t * );
+static int  Open   ( heimdall_object_t * );
+static void Close  ( heimdall_object_t * );
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("WAV muxer") )
     set_capability( "sout mux", 5 )
     set_subcategory( SUBCAT_SOUT_MUX )
     set_callbacks( Open, Close )
     add_shortcut( "wav" )
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * Exported prototypes
@@ -81,7 +82,7 @@ typedef struct
 /*****************************************************************************
  * Open:
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     sout_mux_t *p_mux = (sout_mux_t*)p_this;
     sout_mux_sys_t  *p_sys;
@@ -93,20 +94,20 @@ static int Open( vlc_object_t *p_this )
 
     p_mux->p_sys = p_sys = malloc( sizeof( sout_mux_sys_t ) );
     if( !p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     p_sys->b_used   = false;
     p_sys->b_header = true;
     p_sys->i_data   = 0;
 
     p_sys->i_chans_to_reorder = 0;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * Close:
  *****************************************************************************/
-static void Close( vlc_object_t * p_this )
+static void Close( heimdall_object_t * p_this )
 {
     sout_mux_t *p_mux = (sout_mux_t*)p_this;
     sout_mux_sys_t *p_sys = p_mux->p_sys;
@@ -115,7 +116,7 @@ static void Close( vlc_object_t * p_this )
 
 static int Control( sout_mux_t *p_mux, int i_query, va_list args )
 {
-    VLC_UNUSED(p_mux);
+    HEIMDALL_UNUSED(p_mux);
     bool *pb_bool;
     char **ppsz;
 
@@ -124,15 +125,15 @@ static int Control( sout_mux_t *p_mux, int i_query, va_list args )
         case MUX_CAN_ADD_STREAM_WHILE_MUXING:
             pb_bool = va_arg( args, bool * );
             *pb_bool = false;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
 
         case MUX_GET_MIME:
             ppsz = va_arg( args, char ** );
             *ppsz = strdup( "audio/wav" );
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
 
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 }
 static int AddStream( sout_mux_t *p_mux, sout_input_t *p_input )
@@ -147,13 +148,13 @@ static int AddStream( sout_mux_t *p_mux, sout_input_t *p_input )
     if( p_input->p_fmt->i_cat != AUDIO_ES )
     {
         msg_Dbg( p_mux, "not an audio stream" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( p_sys->b_used )
     {
         msg_Dbg( p_mux, "can't add more than 1 stream" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     msg_Dbg( p_mux, "adding %i input channels, %iHz",
@@ -163,9 +164,9 @@ static int AddStream( sout_mux_t *p_mux, sout_input_t *p_input )
     p_sys->i_channel_mask = 0;
     if( p_input->p_fmt->audio.i_physical_channels )
     {
-        for( unsigned i = 0; pi_vlc_chan_order_wg4[i]; i++ )
-            if( p_input->p_fmt->audio.i_physical_channels & pi_vlc_chan_order_wg4[i])
-                p_sys->i_channel_mask |= pi_vlc_chan_order_wg4[i];
+        for( unsigned i = 0; pi_heimdall_chan_order_wg4[i]; i++ )
+            if( p_input->p_fmt->audio.i_physical_channels & pi_heimdall_chan_order_wg4[i])
+                p_sys->i_channel_mask |= pi_heimdall_chan_order_wg4[i];
 
         p_sys->i_chans_to_reorder =
             aout_CheckChannelReorder( NULL, pi_channels_aout,
@@ -180,13 +181,13 @@ static int AddStream( sout_mux_t *p_mux, sout_input_t *p_input )
     b_ext = p_sys->b_ext = p_input->p_fmt->audio.i_channels > 2;
 
     /* Build a WAV header for the output data */
-    p_sys->waveheader[0] = VLC_FOURCC('R', 'I', 'F', 'F'); /* MainChunkID */
+    p_sys->waveheader[0] = HEIMDALL_FOURCC('R', 'I', 'F', 'F'); /* MainChunkID */
     SetDWLE( &p_sys->waveheader[1], 0 ); /* Length */
-    p_sys->waveheader[2] = VLC_FOURCC('W', 'A', 'V', 'E'); /* ChunkTypeID */
-    p_sys->waveheader[3] = VLC_FOURCC('f', 'm', 't', ' '); /* SubChunkID */
+    p_sys->waveheader[2] = HEIMDALL_FOURCC('W', 'A', 'V', 'E'); /* ChunkTypeID */
+    p_sys->waveheader[3] = HEIMDALL_FOURCC('f', 'm', 't', ' '); /* SubChunkID */
     SetDWLE( &p_sys->waveheader[4], b_ext ? 40 : 16 ); /* SubChunkLength */
 
-    p_sys->waveheader2[0] = VLC_FOURCC('d', 'a', 't', 'a'); /* DataChunkID */
+    p_sys->waveheader2[0] = HEIMDALL_FOURCC('d', 'a', 't', 'a'); /* DataChunkID */
     SetDWLE( &p_sys->waveheader2[1], 0 ); /* DataLength */
 
     /* Build a WAVEVFORMAT header for the output data */
@@ -214,7 +215,7 @@ static int AddStream( sout_mux_t *p_mux, sout_input_t *p_input )
 
     p_sys->b_used = true;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static block_t *GetHeader( sout_mux_t *p_mux )
@@ -239,11 +240,11 @@ static block_t *GetHeader( sout_mux_t *p_mux )
 
 static void DelStream( sout_mux_t *p_mux, sout_input_t *p_input )
 {
-    VLC_UNUSED(p_input);
+    HEIMDALL_UNUSED(p_input);
     msg_Dbg( p_mux, "removing input" );
 
     msg_Dbg( p_mux, "writing header data" );
-    if( sout_AccessOutSeek( p_mux->p_access, 0 ) == VLC_SUCCESS )
+    if( sout_AccessOutSeek( p_mux->p_access, 0 ) == HEIMDALL_SUCCESS )
     {
         sout_AccessOutWrite( p_mux->p_access, GetHeader( p_mux ) );
     }
@@ -254,7 +255,7 @@ static int Mux( sout_mux_t *p_mux )
     sout_mux_sys_t *p_sys = p_mux->p_sys;
     sout_input_t *p_input;
 
-    if( !p_mux->i_nb_inputs ) return VLC_SUCCESS;
+    if( !p_mux->i_nb_inputs ) return HEIMDALL_SUCCESS;
 
     if( p_sys->b_header )
     {
@@ -265,9 +266,9 @@ static int Mux( sout_mux_t *p_mux )
 
     p_input = p_mux->pp_inputs[0];
 
-    vlc_fifo_Lock( p_input->p_fifo );
-    block_t *p_block = vlc_fifo_DequeueAllUnlocked( p_input->p_fifo );
-    vlc_fifo_Unlock( p_input->p_fifo );
+    heimdall_fifo_Lock( p_input->p_fifo );
+    block_t *p_block = heimdall_fifo_DequeueAllUnlocked( p_input->p_fifo );
+    heimdall_fifo_Unlock( p_input->p_fifo );
 
     while( p_block != NULL)
     {
@@ -288,5 +289,5 @@ static int Mux( sout_mux_t *p_mux )
         p_block = p_next_block;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

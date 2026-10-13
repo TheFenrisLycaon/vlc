@@ -1,7 +1,8 @@
 /*****************************************************************************
- * blendbench.c : blending benchmark plugin for vlc
+ * blendbench.c : blending benchmark plugin for heimdall
  *****************************************************************************
  * Copyright (C) 2007 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Søren Bøg <avacore@videolan.org>
  *
@@ -28,14 +29,14 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_sout.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_sout.h>
 
-#include <vlc_filter.h>
-#include <vlc_picture.h>
-#include <vlc_image.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
+#include <heimdall_image.h>
 
 /*****************************************************************************
  * Local prototypes
@@ -70,7 +71,7 @@ static picture_t *Filter( filter_t *, picture_t * );
 
 #define CFG_PREFIX "blendbench-"
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("Blending benchmark filter") )
     set_shortname( N_("Blendbench" ))
     set_subcategory( SUBCAT_VIDEO_VFILTER )
@@ -94,7 +95,7 @@ vlc_module_begin ()
               BLEND_CHROMA_LONGTEXT )
 
     set_callback_video_filter( Create )
-vlc_module_end ()
+heimdall_module_end ()
 
 static const char *const ppsz_filter_options[] = {
     "loops", "alpha", "base-image", "base-chroma", "blend-image",
@@ -112,12 +113,12 @@ typedef struct
     picture_t *p_base_image;
     picture_t *p_blend_image;
 
-    vlc_fourcc_t i_base_chroma;
-    vlc_fourcc_t i_blend_chroma;
+    heimdall_fourcc_t i_base_chroma;
+    heimdall_fourcc_t i_blend_chroma;
 } filter_sys_t;
 
-static int blendbench_LoadImage( vlc_object_t *p_this, picture_t **pp_pic,
-                                 vlc_fourcc_t i_chroma, char *psz_file, const char *psz_name )
+static int blendbench_LoadImage( heimdall_object_t *p_this, picture_t **pp_pic,
+                                 heimdall_fourcc_t i_chroma, char *psz_file, const char *psz_name )
 {
     image_handler_t *p_image;
     video_format_t fmt_out;
@@ -132,17 +133,17 @@ static int blendbench_LoadImage( vlc_object_t *p_this, picture_t **pp_pic,
     if( *pp_pic == NULL )
     {
         msg_Err( p_this, "Unable to load %s image", psz_name );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     msg_Dbg( p_this, "%s image has dim %d x %d (Y plane)", psz_name,
              (*pp_pic)->p[Y_PLANE].i_visible_pitch,
              (*pp_pic)->p[Y_PLANE].i_visible_lines );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static const struct vlc_filter_operations filter_ops =
+static const struct heimdall_filter_operations filter_ops =
 {
     .filter_video = Filter, .close = Destroy,
 };
@@ -159,7 +160,7 @@ static int Create( filter_t *p_filter )
     /* Allocate structure */
     p_filter->p_sys = malloc( sizeof( filter_sys_t ) );
     if( p_filter->p_sys == NULL )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_sys = p_filter->p_sys;
     p_sys->b_done = false;
@@ -178,13 +179,13 @@ static int Create( filter_t *p_filter )
 
     psz_temp = var_CreateGetStringCommand( p_filter, CFG_PREFIX "base-chroma" );
     p_sys->i_base_chroma = !psz_temp || strlen( psz_temp ) != 4 ? 0 :
-        VLC_FOURCC( psz_temp[0], psz_temp[1], psz_temp[2], psz_temp[3] );
+        HEIMDALL_FOURCC( psz_temp[0], psz_temp[1], psz_temp[2], psz_temp[3] );
     psz_cmd = var_CreateGetStringCommand( p_filter, CFG_PREFIX "base-image" );
-    i_ret = blendbench_LoadImage( VLC_OBJECT(p_filter), &p_sys->p_base_image,
+    i_ret = blendbench_LoadImage( HEIMDALL_OBJECT(p_filter), &p_sys->p_base_image,
                                   p_sys->i_base_chroma, psz_cmd, "Base" );
     free( psz_temp );
     free( psz_cmd );
-    if( i_ret != VLC_SUCCESS )
+    if( i_ret != HEIMDALL_SUCCESS )
     {
         free( p_sys );
         return i_ret;
@@ -193,23 +194,23 @@ static int Create( filter_t *p_filter )
     psz_temp = var_CreateGetStringCommand( p_filter,
                                            CFG_PREFIX "blend-chroma" );
     p_sys->i_blend_chroma = !psz_temp || strlen( psz_temp ) != 4
-        ? 0 : VLC_FOURCC( psz_temp[0], psz_temp[1], psz_temp[2], psz_temp[3] );
+        ? 0 : HEIMDALL_FOURCC( psz_temp[0], psz_temp[1], psz_temp[2], psz_temp[3] );
     psz_cmd = var_CreateGetStringCommand( p_filter, CFG_PREFIX "blend-image" );
-    i_ret = blendbench_LoadImage( VLC_OBJECT(p_filter), &p_sys->p_blend_image, p_sys->i_blend_chroma,
+    i_ret = blendbench_LoadImage( HEIMDALL_OBJECT(p_filter), &p_sys->p_blend_image, p_sys->i_blend_chroma,
                                   psz_cmd, "Blend" );
 
     free( psz_temp );
     free( psz_cmd );
 
-    if( i_ret != VLC_SUCCESS )
+    if( i_ret != HEIMDALL_SUCCESS )
     {
         picture_Release( p_sys->p_base_image );
         free( p_sys );
 
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -234,7 +235,7 @@ static picture_t *Filter( filter_t *p_filter, picture_t *p_pic )
     if( p_sys->b_done )
         return p_pic;
 
-    p_blend = vlc_object_create( p_filter, sizeof(filter_t) );
+    p_blend = heimdall_object_create( p_filter, sizeof(filter_t) );
     if( !p_blend )
     {
         picture_Release( p_pic );
@@ -242,32 +243,32 @@ static picture_t *Filter( filter_t *p_filter, picture_t *p_pic )
     }
     p_blend->fmt_out.video = p_sys->p_base_image->format;
     p_blend->fmt_in.video = p_sys->p_blend_image->format;
-    p_blend->p_module = vlc_filter_LoadModule( p_blend, "video blending", NULL, false );
+    p_blend->p_module = heimdall_filter_LoadModule( p_blend, "video blending", NULL, false );
     if( !p_blend->p_module )
     {
         picture_Release( p_pic );
-        vlc_object_delete(p_blend);
+        heimdall_object_delete(p_blend);
         return NULL;
     }
     assert( p_blend->ops != NULL );
 
-    vlc_tick_t time = vlc_tick_now();
+    heimdall_tick_t time = heimdall_tick_now();
     for( int i_iter = 0; i_iter < p_sys->i_loops; ++i_iter )
     {
         filter_Blend( p_blend, p_sys->p_base_image,
                       0, 0, p_sys->p_blend_image, p_sys->i_alpha );
     }
-    time = vlc_tick_now() - time;
+    time = heimdall_tick_now() - time;
 
     msg_Info( p_filter, "Blended %d images in %f sec", p_sys->i_loops,
-              secf_from_vlc_tick(time) );
+              secf_from_heimdall_tick(time) );
     msg_Info( p_filter, "Speed is: %f images/second, %f pixels/second",
               (float) p_sys->i_loops / time * CLOCK_FREQ,
               (float) p_sys->i_loops / time * CLOCK_FREQ *
                   p_sys->p_blend_image->p[Y_PLANE].i_visible_pitch *
                   p_sys->p_blend_image->p[Y_PLANE].i_visible_lines );
 
-    vlc_filter_Delete( p_blend );
+    heimdall_filter_Delete( p_blend );
 
     p_sys->b_done = true;
     return p_pic;

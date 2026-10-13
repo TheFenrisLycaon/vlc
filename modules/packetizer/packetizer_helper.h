@@ -2,8 +2,9 @@
  * packetizer_helper.h: Packetizer helpers
  *****************************************************************************
  * Copyright (C) 2009 Laurent Aimar
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Laurent Aimar <fenrir _AT_ videolan _DOT_ org>
+ * Authors: Laurent Aimar <fenrir _AT_ lycaria _DOT_ org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -20,12 +21,12 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_PACKETIZER_HELPER_H_
-#define VLC_PACKETIZER_HELPER_H_
+#ifndef HEIMDALL_PACKETIZER_HELPER_H_
+#define HEIMDALL_PACKETIZER_HELPER_H_
 
-#include <vlc_block.h>
+#include <heimdall_block.h>
 
-enum vlc_packetizer_state
+enum heimdall_packetizer_state
 {
     STATE_NOSYNC,
     STATE_SYNC,
@@ -220,8 +221,8 @@ static block_t *packetizer_PacketizeBlock( packetizer_t *p_pack, block_t **pp_bl
         p_pic = p_pack->pf_parse( p_pack->p_private, &b_used_ts, p_pic );
         if( b_used_ts )
         {
-            p_block_bytestream->i_dts = VLC_TICK_INVALID;
-            p_block_bytestream->i_pts = VLC_TICK_INVALID;
+            p_block_bytestream->i_dts = HEIMDALL_TICK_INVALID;
+            p_block_bytestream->i_pts = HEIMDALL_TICK_INVALID;
         }
 
         if( !p_pic )

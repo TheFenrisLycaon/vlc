@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,9 +17,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 import QtQuick
-import VLC.MainInterface
-import VLC.Style
-import VLC.Util
+import Heimdall.MainInterface
+import Heimdall.Style
+import Heimdall.Util
 
 // targetWidth: concerned widget's current width
 // HorizontalResizeHandle actually doesn't resizes target
@@ -37,7 +38,7 @@ MouseArea {
     property int _previousX
 
     cursorShape: Qt.SplitHCursor
-    width: VLCStyle.resizeHandleWidth
+    width: HeimdallStyle.resizeHandleWidth
     acceptedButtons: Qt.LeftButton
     preventStealing: true
 

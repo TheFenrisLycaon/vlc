@@ -4,6 +4,7 @@
  */
 /*****************************************************************************
  * Copyright © 2008 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License
@@ -27,27 +28,27 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <vlc_common.h>
-#include <vlc_block.h>
-#include <vlc_es.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_block.h>
+#include <heimdall_es.h>
+#include <heimdall_plugin.h>
 
 #include "../../demux/xiph.h"
 #include "rtp.h"
 
 struct rtp_xiph {
-    vlc_object_t *obj;
+    heimdall_object_t *obj;
     enum es_format_category_e cat;
-    vlc_fourcc_t fourcc;
+    heimdall_fourcc_t fourcc;
 };
 
 struct rtp_xiph_source {
-    struct vlc_rtp_es *id;
+    struct heimdall_rtp_es *id;
     block_t     *block;
     uint32_t     ident;
 };
 
-static void *xiph_init(struct vlc_rtp_pt *pt)
+static void *xiph_init(struct heimdall_rtp_pt *pt)
 {
     struct rtp_xiph_source *self = malloc(sizeof (*self));
 
@@ -61,7 +62,7 @@ static void *xiph_init(struct vlc_rtp_pt *pt)
     return self;
 }
 
-static void xiph_destroy(struct vlc_rtp_pt *pt, void *data)
+static void xiph_destroy(struct heimdall_rtp_pt *pt, void *data)
 {
     struct rtp_xiph_source *self = data;
 
@@ -70,14 +71,14 @@ static void xiph_destroy(struct vlc_rtp_pt *pt, void *data)
     if (self->block)
     {
         self->block->i_flags |= BLOCK_FLAG_CORRUPTED;
-        vlc_rtp_es_send(self->id, self->block);
+        heimdall_rtp_es_send(self->id, self->block);
     }
-    vlc_rtp_es_destroy(self->id);
+    heimdall_rtp_es_destroy(self->id);
     free (self);
     (void) pt;
 }
 
-/* Convert configuration from RTP to VLC format */
+/* Convert configuration from RTP to Heimdall format */
 static ssize_t xiph_header (void **pextra, const uint8_t *buf, size_t len)
 {
     /* Headers number */
@@ -110,7 +111,7 @@ static ssize_t xiph_header (void **pextra, const uint8_t *buf, size_t len)
         return -1;
     setuplen = len - (idlen + cmtlen);
 
-    /* Create the VLC extra format header */
+    /* Create the Heimdall extra format header */
     size_t sizes[3] = {
         idlen, cmtlen, setuplen
     };
@@ -127,8 +128,8 @@ static ssize_t xiph_header (void **pextra, const uint8_t *buf, size_t len)
     return extra_size;
 }
 
-static void xiph_decode(struct vlc_rtp_pt *pt, void *data, block_t *block,
-                        const struct vlc_rtp_pktinfo *restrict info)
+static void xiph_decode(struct heimdall_rtp_pt *pt, void *data, block_t *block,
+                        const struct heimdall_rtp_pktinfo *restrict info)
 {
     struct rtp_xiph_source *self = data;
     struct rtp_xiph *sys = pt->opaque;
@@ -230,8 +231,8 @@ static void xiph_decode(struct vlc_rtp_pt *pt, void *data, block_t *block,
                 block_t *raw = block_Alloc (len);
                 memcpy (raw->p_buffer, block->p_buffer, len);
                 raw->i_pts = block->i_pts; /* FIXME: what about pkts > 1 */
-                block->i_dts = VLC_TICK_INVALID;
-                vlc_rtp_es_send(self->id, raw);
+                block->i_dts = HEIMDALL_TICK_INVALID;
+                heimdall_rtp_es_send(self->id, raw);
                 break;
             }
 
@@ -249,11 +250,11 @@ static void xiph_decode(struct vlc_rtp_pt *pt, void *data, block_t *block,
                 es_format_Init(&fmt, sys->cat, sys->fourcc);
                 fmt.p_extra = extv;
                 fmt.i_extra = extc;
-                vlc_rtp_es_destroy(self->id);
+                heimdall_rtp_es_destroy(self->id);
                 msg_Dbg(sys->obj,
                         "packed configuration received (%06"PRIx32")", ident);
                 self->ident = ident;
-                self->id = vlc_rtp_pt_request_es(pt, &fmt);
+                self->id = heimdall_rtp_pt_request_es(pt, &fmt);
                 break;
             }
         }
@@ -268,22 +269,22 @@ drop:
     block_Release (block);
 }
 
-static void xiph_release(struct vlc_rtp_pt *pt)
+static void xiph_release(struct heimdall_rtp_pt *pt)
 {
     free(pt->opaque);
 }
 
-static const struct vlc_rtp_pt_operations rtp_xiph_ops = {
+static const struct heimdall_rtp_pt_operations rtp_xiph_ops = {
     xiph_release, xiph_init, xiph_destroy, xiph_decode,
 };
 
-static int xiph_open(vlc_object_t *obj, struct vlc_rtp_pt *pt,
-                     const struct vlc_sdp_pt *desc,
-                     int cat, vlc_fourcc_t fourcc)
+static int xiph_open(heimdall_object_t *obj, struct heimdall_rtp_pt *pt,
+                     const struct heimdall_sdp_pt *desc,
+                     int cat, heimdall_fourcc_t fourcc)
 {
     struct rtp_xiph *sys = malloc(sizeof (*sys));
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     sys->obj = obj;
     sys->cat = cat;
@@ -291,24 +292,24 @@ static int xiph_open(vlc_object_t *obj, struct vlc_rtp_pt *pt,
     pt->opaque = sys;
     pt->ops = &rtp_xiph_ops;
     (void) desc;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /* Xiph Vorbis audio (RFC 5215) */
-static int vorbis_open(vlc_object_t *obj, struct vlc_rtp_pt *pt,
-                       const struct vlc_sdp_pt *desc)
+static int vorbis_open(heimdall_object_t *obj, struct heimdall_rtp_pt *pt,
+                       const struct heimdall_sdp_pt *desc)
 {
-    return xiph_open(obj, pt, desc, AUDIO_ES, VLC_CODEC_VORBIS);
+    return xiph_open(obj, pt, desc, AUDIO_ES, HEIMDALL_CODEC_VORBIS);
 }
 
 /* Xiph Theora video (I-D draft-barbato-avt-rtp-theora-01) */
-static int theora_open(vlc_object_t *obj, struct vlc_rtp_pt *pt,
-                       const struct vlc_sdp_pt *desc)
+static int theora_open(heimdall_object_t *obj, struct heimdall_rtp_pt *pt,
+                       const struct heimdall_sdp_pt *desc)
 {
-    return xiph_open(obj, pt, desc, VIDEO_ES, VLC_CODEC_THEORA);
+    return xiph_open(obj, pt, desc, VIDEO_ES, HEIMDALL_CODEC_THEORA);
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname(N_("RTP Xiph"))
     set_description(N_("RTP Xiph payload parser"))
     set_subcategory(SUBCAT_INPUT_DEMUX)
@@ -320,4 +321,4 @@ vlc_module_begin()
     set_capability("rtp video parser", 0)
     set_callback(theora_open)
     add_shortcut("theora")
-vlc_module_end()
+heimdall_module_end()

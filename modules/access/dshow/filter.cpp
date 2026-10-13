@@ -1,7 +1,8 @@
 /*****************************************************************************
- * filter.cpp : DirectShow access module for vlc
+ * filter.cpp : DirectShow access module for heimdall
  *****************************************************************************
  * Copyright (C) 2002-2010 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Gildas Bazin <gbazin@videolan.org>
  *
@@ -28,8 +29,8 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_fourcc.h>
+#include <heimdall_common.h>
+#include <heimdall_fourcc.h>
 
 #include "access.h"
 #include "filter.h"
@@ -48,7 +49,7 @@ DEFINE_GUID(MEDIASUBTYPE_DIVX ,0x58564944 /* XVID */ , 0x0000, 0x0010, 0x80, 0x0
 
 #define DEBUG_DSHOW 1
 
-#define FILTER_NAME  L"VideoLAN Capture Filter"
+#define FILTER_NAME  L"Lycaria Capture Filter"
 #define PIN_NAME     L"Capture"
 
 void WINAPI FreeMediaType( AM_MEDIA_TYPE& mt )
@@ -95,9 +96,9 @@ HRESULT WINAPI CopyMediaType( AM_MEDIA_TYPE *pmtTarget,
     return S_OK;
 }
 
-vlc_fourcc_t GetFourCCFromMediaType( const AM_MEDIA_TYPE &media_type )
+heimdall_fourcc_t GetFourCCFromMediaType( const AM_MEDIA_TYPE &media_type )
 {
-    vlc_fourcc_t i_fourcc = 0;
+    heimdall_fourcc_t i_fourcc = 0;
 
     if( media_type.majortype == MEDIATYPE_Video )
     {
@@ -106,83 +107,83 @@ vlc_fourcc_t GetFourCCFromMediaType( const AM_MEDIA_TYPE &media_type )
         {
             /* Packed RGB formats */
             if( media_type.subtype == MEDIASUBTYPE_RGB1 )
-               i_fourcc = VLC_FOURCC( 'R', 'G', 'B', '1' );
+               i_fourcc = HEIMDALL_FOURCC( 'R', 'G', 'B', '1' );
             else if( media_type.subtype == MEDIASUBTYPE_RGB4 )
-               i_fourcc = VLC_FOURCC( 'R', 'G', 'B', '4' );
+               i_fourcc = HEIMDALL_FOURCC( 'R', 'G', 'B', '4' );
             else if( media_type.subtype == MEDIASUBTYPE_RGB8 )
-               i_fourcc = VLC_FOURCC( 'R', 'G', 'B', '8' );
+               i_fourcc = HEIMDALL_FOURCC( 'R', 'G', 'B', '8' );
             else if( media_type.subtype == MEDIASUBTYPE_RGB555 )
-               i_fourcc = VLC_CODEC_RGB555LE;
+               i_fourcc = HEIMDALL_CODEC_RGB555LE;
             else if( media_type.subtype == MEDIASUBTYPE_RGB565 )
-               i_fourcc = VLC_CODEC_RGB565LE;
+               i_fourcc = HEIMDALL_CODEC_RGB565LE;
             else if( media_type.subtype == MEDIASUBTYPE_RGB24 )
-               i_fourcc = VLC_CODEC_BGR24;
+               i_fourcc = HEIMDALL_CODEC_BGR24;
             else if( media_type.subtype == MEDIASUBTYPE_RGB32 )
-               i_fourcc = VLC_CODEC_BGRX;
+               i_fourcc = HEIMDALL_CODEC_BGRX;
             else if( media_type.subtype == MEDIASUBTYPE_ARGB32 )
-               i_fourcc = VLC_CODEC_BGRA;
+               i_fourcc = HEIMDALL_CODEC_BGRA;
 
             /* Planar YUV formats */
             else if( media_type.subtype == MEDIASUBTYPE_I420 )
-               i_fourcc = VLC_CODEC_I420;
+               i_fourcc = HEIMDALL_CODEC_I420;
             else if( media_type.subtype == MEDIASUBTYPE_Y41P )
-               i_fourcc = VLC_CODEC_I411;
+               i_fourcc = HEIMDALL_CODEC_I411;
             else if( media_type.subtype == MEDIASUBTYPE_YV12 )
-               i_fourcc = VLC_CODEC_YV12;
+               i_fourcc = HEIMDALL_CODEC_YV12;
             else if( media_type.subtype == MEDIASUBTYPE_IYUV )
-               i_fourcc = VLC_CODEC_YV12;
+               i_fourcc = HEIMDALL_CODEC_YV12;
             else if( media_type.subtype == MEDIASUBTYPE_YVU9 )
-               i_fourcc = VLC_CODEC_I410;
+               i_fourcc = HEIMDALL_CODEC_I410;
 
             /* Semi-planar YUV formats */
             else if( media_type.subtype == MEDIASUBTYPE_NV12 )
-               i_fourcc = VLC_CODEC_NV12;
+               i_fourcc = HEIMDALL_CODEC_NV12;
 
             /* Packed YUV formats */
             else if( media_type.subtype == MEDIASUBTYPE_YVYU )
-               i_fourcc = VLC_CODEC_YVYU;
+               i_fourcc = HEIMDALL_CODEC_YVYU;
             else if( media_type.subtype == MEDIASUBTYPE_YUYV )
-               i_fourcc = VLC_CODEC_YUYV;
+               i_fourcc = HEIMDALL_CODEC_YUYV;
             else if( media_type.subtype == MEDIASUBTYPE_Y411 )
-               i_fourcc = VLC_FOURCC( 'I', '4', '1', 'N' );
+               i_fourcc = HEIMDALL_FOURCC( 'I', '4', '1', 'N' );
             else if( media_type.subtype == MEDIASUBTYPE_Y211 )
-               i_fourcc = VLC_CODEC_Y211;
+               i_fourcc = HEIMDALL_CODEC_Y211;
             else if( media_type.subtype == MEDIASUBTYPE_YUY2 )
-               i_fourcc = VLC_CODEC_YUYV;
+               i_fourcc = HEIMDALL_CODEC_YUYV;
             else if( media_type.subtype == MEDIASUBTYPE_UYVY )
-               i_fourcc = VLC_CODEC_UYVY;
+               i_fourcc = HEIMDALL_CODEC_UYVY;
             /* HDYC uses UYVY sample positions but Rec709 colourimetry */
-            /* FIXME: When VLC understands colourspace, something will need
+            /* FIXME: When Heimdall understands colourspace, something will need
              * to be added / changed here. Until then, just make it behave
              * like UYVY */
             else if( media_type.subtype == MEDIASUBTYPE_HDYC )
-                i_fourcc = VLC_CODEC_UYVY;
+                i_fourcc = HEIMDALL_CODEC_UYVY;
 
             /* MPEG2 video elementary stream */
             else if( media_type.subtype == MEDIASUBTYPE_MPEG2_VIDEO )
-               i_fourcc = VLC_CODEC_MPGV;
+               i_fourcc = HEIMDALL_CODEC_MPGV;
 
             /* DivX video */
             else if( media_type.subtype == MEDIASUBTYPE_DIVX )
-               i_fourcc = VLC_CODEC_MP4V;
+               i_fourcc = HEIMDALL_CODEC_MP4V;
 
             /* DV formats */
             else if( media_type.subtype == MEDIASUBTYPE_dvsl )
-               i_fourcc = VLC_CODEC_DV;
+               i_fourcc = HEIMDALL_CODEC_DV;
             else if( media_type.subtype == MEDIASUBTYPE_dvsd )
-               i_fourcc = VLC_CODEC_DV;
+               i_fourcc = HEIMDALL_CODEC_DV;
             else if( media_type.subtype == MEDIASUBTYPE_dvhd )
-               i_fourcc = VLC_CODEC_DV;
+               i_fourcc = HEIMDALL_CODEC_DV;
 
             /* MJPEG format */
             else if( media_type.subtype == MEDIASUBTYPE_MJPG )
-                i_fourcc = VLC_CODEC_MJPG;
+                i_fourcc = HEIMDALL_CODEC_MJPG;
 
             else if( media_type.subtype == MEDIASUBTYPE_H264 ||
                      media_type.subtype == MEDIASUBTYPE_h264 ||
                      media_type.subtype == MEDIASUBTYPE_x264 ||
                      media_type.subtype == MEDIASUBTYPE_X264 )
-                i_fourcc = VLC_CODEC_H264;
+                i_fourcc = HEIMDALL_CODEC_H264;
         }
     }
     else if( media_type.majortype == MEDIATYPE_Audio )
@@ -191,17 +192,17 @@ vlc_fourcc_t GetFourCCFromMediaType( const AM_MEDIA_TYPE &media_type )
         if( media_type.formattype == FORMAT_WaveFormatEx )
         {
             if( media_type.subtype == MEDIASUBTYPE_PCM )
-                i_fourcc = VLC_FOURCC( 'a', 'r', 'a', 'w' );
+                i_fourcc = HEIMDALL_FOURCC( 'a', 'r', 'a', 'w' );
             else if( media_type.subtype == MEDIASUBTYPE_IEEE_FLOAT )
-                i_fourcc = VLC_CODEC_FL32;
+                i_fourcc = HEIMDALL_CODEC_FL32;
         }
     }
     else if( media_type.majortype == MEDIATYPE_Stream )
     {
         if( media_type.subtype == MEDIASUBTYPE_MPEG2_PROGRAM )
-            i_fourcc = VLC_FOURCC( 'm', 'p', '2', 'p' );
+            i_fourcc = HEIMDALL_FOURCC( 'm', 'p', '2', 'p' );
         else if( media_type.subtype == MEDIASUBTYPE_MPEG2_TRANSPORT )
-            i_fourcc = VLC_FOURCC( 'm', 'p', '2', 't' );
+            i_fourcc = HEIMDALL_FOURCC( 'm', 'p', '2', 't' );
     }
 
     return i_fourcc;
@@ -211,7 +212,7 @@ vlc_fourcc_t GetFourCCFromMediaType( const AM_MEDIA_TYPE &media_type )
  * Implementation of our dummy directshow filter pin class
  ****************************************************************************/
 
-CapturePin::CapturePin( vlc_object_t *_p_input, access_sys_t *_p_sys,
+CapturePin::CapturePin( heimdall_object_t *_p_input, access_sys_t *_p_sys,
                         CaptureFilter* _p_filter,
                         AM_MEDIA_TYPE *mt, size_t mt_count )
   : p_input( _p_input ), p_sys( _p_sys ), p_filter( _p_filter ),
@@ -241,7 +242,7 @@ CapturePin::~CapturePin()
  * @return S_OK if a sample was available, S_FALSE if no sample was
  * available
  */
-HRESULT CapturePin::CustomGetSamples( std::deque<VLCMediaSample> &external_queue )
+HRESULT CapturePin::CustomGetSamples( std::deque<HeimdallMediaSample> &external_queue )
 {
 #if 0 //def DEBUG_DSHOW
     msg_Dbg( p_input, "CapturePin::CustomGetSamples: %d samples in the queue", samples_queue.size());
@@ -259,12 +260,12 @@ HRESULT CapturePin::CustomGetSamples( std::deque<VLCMediaSample> &external_queue
  * Returns a sample from its sample queue. Proper locking must be done prior
  * to this call. Current dshow code protects the access to any sample queue
  * (audio and video) with the p_sys->lock
- * @param vlc_sample [out] Address of a sample if successful. Undefined
+ * @param heimdall_sample [out] Address of a sample if successful. Undefined
  * otherwise.
  * @return S_OK if a sample was available, S_FALSE if no sample was
  * available
  */
-HRESULT CapturePin::CustomGetSample( VLCMediaSample *vlc_sample )
+HRESULT CapturePin::CustomGetSample( HeimdallMediaSample *heimdall_sample )
 {
 #if 0 //def DEBUG_DSHOW
     msg_Dbg( p_input, "CapturePin::CustomGetSample" );
@@ -272,7 +273,7 @@ HRESULT CapturePin::CustomGetSample( VLCMediaSample *vlc_sample )
 
     if( !samples_queue.empty() )
     {
-        *vlc_sample = samples_queue.back();
+        *heimdall_sample = samples_queue.back();
         samples_queue.pop_back();
         return S_OK;
     }
@@ -491,7 +492,7 @@ STDMETHODIMP CapturePin::QueryId( LPWSTR * Id )
     msg_Dbg( p_input, "CapturePin::QueryId" );
 #endif
 
-    *Id = (LPWSTR)L"VLC Capture Pin";
+    *Id = (LPWSTR)L"Heimdall Capture Pin";
 
     return S_OK;
 }
@@ -509,7 +510,7 @@ STDMETHODIMP CapturePin::QueryAccept( const AM_MEDIA_TYPE *pmt )
         return S_FALSE;
     }
 
-    vlc_fourcc_t i_fourcc = GetFourCCFromMediaType(*pmt);
+    heimdall_fourcc_t i_fourcc = GetFourCCFromMediaType(*pmt);
     if( !i_fourcc )
     {
         msg_Dbg( p_input, "CapturePin::QueryAccept "
@@ -596,12 +597,12 @@ STDMETHODIMP CapturePin::EndFlush( void )
     msg_Dbg( p_input, "CapturePin::EndFlush" );
 #endif
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     while( !samples_queue.empty() )
     {
         samples_queue.pop_back();
     }
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 
     return S_OK;
 }
@@ -644,10 +645,10 @@ STDMETHODIMP CapturePin::Receive( IMediaSample *pSample )
     msg_Dbg( p_input, "CapturePin::Receive" );
 #endif
 
-    VLCMediaSample vlc_sample = {pSample, vlc_tick_now()};
+    HeimdallMediaSample heimdall_sample = {pSample, heimdall_tick_now()};
 
-    vlc_mutex_lock( &p_sys->lock );
-    samples_queue.push_front( vlc_sample );
+    heimdall_mutex_lock( &p_sys->lock );
+    samples_queue.push_front( heimdall_sample );
 
     /* Make sure we don't cache too many samples */
     if( samples_queue.size() > 10 )
@@ -656,8 +657,8 @@ STDMETHODIMP CapturePin::Receive( IMediaSample *pSample )
         msg_Dbg( p_input, "CapturePin::Receive trashing late input sample" );
     }
 
-    vlc_cond_signal( &p_sys->wait );
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_cond_signal( &p_sys->wait );
+    heimdall_mutex_unlock( &p_sys->lock );
 
     return S_OK;
 }
@@ -688,7 +689,7 @@ STDMETHODIMP CapturePin::ReceiveCanBlock( void )
 /****************************************************************************
  * Implementation of our dummy directshow filter class
  ****************************************************************************/
-CaptureFilter::CaptureFilter( vlc_object_t *_p_input, access_sys_t *p_sys,
+CaptureFilter::CaptureFilter( heimdall_object_t *_p_input, access_sys_t *p_sys,
                               AM_MEDIA_TYPE *mt, size_t mt_count )
   : p_input( _p_input ),
     p_pin( new CapturePin( _p_input, p_sys, this, mt, mt_count ) ),
@@ -895,7 +896,7 @@ ComPtr<CapturePin>& CaptureFilter::CustomGetPin()
  * Implementation of our dummy directshow enumpins class
  ****************************************************************************/
 
-CaptureEnumPins::CaptureEnumPins( vlc_object_t *_p_input,
+CaptureEnumPins::CaptureEnumPins( heimdall_object_t *_p_input,
                                   ComPtr<CaptureFilter> _p_filter,
                                   ComPtr<CaptureEnumPins> pEnumPins )
   : p_input( _p_input ), p_filter( _p_filter ), i_ref( 0 )
@@ -1019,7 +1020,7 @@ STDMETHODIMP CaptureEnumPins::Clone( IEnumPins **ppEnum )
 /****************************************************************************
  * Implementation of our dummy directshow enummediatypes class
  ****************************************************************************/
-CaptureEnumMediaTypes::CaptureEnumMediaTypes( vlc_object_t *_p_input,
+CaptureEnumMediaTypes::CaptureEnumMediaTypes( heimdall_object_t *_p_input,
     ComPtr<CapturePin> _p_pin, CaptureEnumMediaTypes *pEnumMediaTypes )
   : p_input( _p_input ), p_pin( _p_pin ), i_ref( 1 )
 {

@@ -2,6 +2,7 @@
  * cdg.c: CDG decoder module
  *****************************************************************************
  * Copyright (C) 2007 Laurent Aimar
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir # via.ecp.fr>
  *
@@ -27,9 +28,9 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
 
 /*****************************************************************************
  * decoder_sys_t : decoder descriptor
@@ -69,7 +70,7 @@ typedef struct
 /*****************************************************************************
  * Local prototypes
  *****************************************************************************/
-static int  Open ( vlc_object_t * );
+static int  Open ( heimdall_object_t * );
 
 static int Decode( decoder_t *, block_t * );
 
@@ -80,29 +81,29 @@ static int Render( decoder_sys_t *p_cdg, picture_t *p_picture );
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-vlc_module_begin ()
+heimdall_module_begin ()
     set_subcategory( SUBCAT_INPUT_VCODEC )
     set_description( N_("CDG video decoder") )
     set_capability( "video decoder", 1000 )
     set_callback( Open )
     add_shortcut( "cdg" )
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * Open: probe the decoder and return score
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     decoder_t *p_dec = (decoder_t*)p_this;
     decoder_sys_t *p_sys;
 
-    if( p_dec->fmt_in->i_codec != VLC_CODEC_CDG )
-        return VLC_EGENERIC;
+    if( p_dec->fmt_in->i_codec != HEIMDALL_CODEC_CDG )
+        return HEIMDALL_EGENERIC;
 
     /* Allocate the memory needed to store the decoder's structure */
-    p_dec->p_sys = p_sys = vlc_obj_calloc( p_this, 1, sizeof(decoder_sys_t) );
+    p_dec->p_sys = p_sys = heimdall_obj_calloc( p_this, 1, sizeof(decoder_sys_t) );
     if( !p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     /* Init */
     p_sys->p_screen = p_sys->screen;
@@ -111,7 +112,7 @@ static int Open( vlc_object_t *p_this )
     /* Set output properties
      * TODO maybe it would be better to use RV16 or RV24 ? */
     p_dec->fmt_out.i_codec =
-    p_dec->fmt_out.video.i_chroma = VLC_CODEC_XBGR;
+    p_dec->fmt_out.video.i_chroma = HEIMDALL_CODEC_XBGR;
     p_dec->fmt_out.video.i_width = CDG_DISPLAY_WIDTH;
     p_dec->fmt_out.video.i_height = CDG_DISPLAY_HEIGHT;
     p_dec->fmt_out.video.i_sar_num = 1;
@@ -121,7 +122,7 @@ static int Open( vlc_object_t *p_this )
     p_dec->pf_decode = Decode;
     p_dec->pf_flush  = Flush;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -145,7 +146,7 @@ static int Decode( decoder_t *p_dec, block_t *p_block )
     picture_t *p_pic = NULL;
 
     if( !p_block ) /* No Drain */
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
 
     if( p_block->i_flags & BLOCK_FLAG_CORRUPTED )
     {
@@ -172,14 +173,14 @@ static int Decode( decoder_t *p_dec, block_t *p_block )
             goto exit;
 
         Render( p_sys, p_pic );
-        p_pic->date = p_block->i_pts != VLC_TICK_INVALID ? p_block->i_pts : p_block->i_dts;
+        p_pic->date = p_block->i_pts != HEIMDALL_TICK_INVALID ? p_block->i_pts : p_block->i_dts;
     }
 
 exit:
     block_Release( p_block );
     if( p_pic != NULL )
         decoder_QueueVideo( p_dec, p_pic );
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }
 
 /*****************************************************************************

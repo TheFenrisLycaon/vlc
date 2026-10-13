@@ -2,6 +2,7 @@
  * dialogs.cpp
  *****************************************************************************
  * Copyright (C) 2003 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cyril Deguet     <asmax@via.ecp.fr>
  *          Olivier Teulière <ipkiss@via.ecp.fr>
@@ -28,8 +29,8 @@
 #include "../commands/cmd_quit.hpp"
 #include "../commands/cmd_playlist.hpp"
 #include "../commands/cmd_playtree.hpp"
-#include <vlc_modules.h>
-#include <vlc_url.h>
+#include <heimdall_modules.h>
+#include <heimdall_url.h>
 
 /// Callback called when a new skin is chosen
 void Dialogs::showChangeSkinCB( intf_dialog_args_t *pArg )
@@ -40,7 +41,7 @@ void Dialogs::showChangeSkinCB( intf_dialog_args_t *pArg )
     {
         if( pArg->psz_results[0] )
         {
-            char* psz_path = vlc_uri2path( pArg->psz_results[0] );
+            char* psz_path = heimdall_uri2path( pArg->psz_results[0] );
             if( psz_path )
             {
                 // Create a change skin command
@@ -98,15 +99,15 @@ void Dialogs::showPlaylistSaveCB( intf_dialog_args_t *pArg )
 
 
 /// Callback called when the popup menu is requested
-static int PopupMenuCB( vlc_object_t *p_this, const char *psz_variable,
-                        vlc_value_t old_val, vlc_value_t new_val, void *param )
+static int PopupMenuCB( heimdall_object_t *p_this, const char *psz_variable,
+                        heimdall_value_t old_val, heimdall_value_t new_val, void *param )
 {
     (void)p_this; (void)psz_variable; (void)old_val;
 
     Dialogs *p_dialogs = (Dialogs *)param;
     p_dialogs->showPopupMenu( new_val.b_bool != 0, INTF_DIALOG_POPUPMENU );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 
@@ -122,10 +123,10 @@ Dialogs::~Dialogs()
     {
         // Detach the dialogs provider from its parent interface
         module_unneed( m_pProvider, m_pModule );
-        vlc_object_delete(m_pProvider);
+        heimdall_object_delete(m_pProvider);
 
         /* Unregister callbacks */
-        var_DelCallback( vlc_object_instance(getIntf()), "intf-popupmenu",
+        var_DelCallback( heimdall_object_instance(getIntf()), "intf-popupmenu",
                          PopupMenuCB, this );
     }
 }
@@ -161,20 +162,20 @@ void Dialogs::destroy( intf_thread_t *pIntf )
 bool Dialogs::init()
 {
     // Allocate descriptor
-    m_pProvider = vlc_object_create<intf_thread_t>( getIntf() );
+    m_pProvider = heimdall_object_create<intf_thread_t>( getIntf() );
     if( m_pProvider == NULL )
         return false;
 
     m_pModule = module_need( m_pProvider, "dialogs provider", NULL, false );
     if( m_pModule == NULL )
     {
-        vlc_object_delete(m_pProvider);
+        heimdall_object_delete(m_pProvider);
         m_pProvider = NULL;
         return false;
     }
 
     /* Register callback for the intf-popupmenu variable */
-    var_AddCallback( vlc_object_instance(getIntf()), "intf-popupmenu",
+    var_AddCallback( heimdall_object_instance(getIntf()), "intf-popupmenu",
                      PopupMenuCB, this );
 
     return true;

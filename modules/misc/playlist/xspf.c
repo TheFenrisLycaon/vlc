@@ -2,8 +2,9 @@
  * xspf.c : XSPF playlist export functions
  ******************************************************************************
  * Copyright (C) 2006-2009 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Daniel Stränger <vlc at schmaller dot de>
+ * Authors: Daniel Stränger <heimdall at schmaller dot de>
  *          Yoann Peronneau <yoann@videolan.org>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -29,22 +30,22 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_input_item.h>
-#include <vlc_playlist_export.h>
-#include <vlc_strings.h>
-#include <vlc_url.h>
+#include <heimdall_common.h>
+#include <heimdall_input_item.h>
+#include <heimdall_playlist_export.h>
+#include <heimdall_strings.h>
+#include <heimdall_url.h>
 
 #include <assert.h>
 
-int xspf_export_playlist( vlc_object_t *p_this );
+int xspf_export_playlist( heimdall_object_t *p_this );
 
 static char *input_xml( input_item_t *p_item, char *(*func)(input_item_t *) )
 {
     char *tmp = func( p_item );
     if( tmp == NULL )
         return NULL;
-    char *ret = vlc_xml_encode( tmp );
+    char *ret = heimdall_xml_encode( tmp );
     free( tmp );
     return ret;
 }
@@ -58,7 +59,7 @@ static char *input_xml( input_item_t *p_item, char *(*func)(input_item_t *) )
 static void xspf_export_item( input_item_t *p_input, FILE *p_file, uint64_t id)
 {
     char *psz;
-    vlc_tick_t i_duration;
+    heimdall_tick_t i_duration;
 
     fputs( "\t\t<track>\n", p_file );
 
@@ -124,7 +125,7 @@ xspfexportitem_end:
     i_duration = input_item_GetDuration( p_input );
     if( i_duration > 0 )
         fprintf( p_file, "\t\t\t<duration>%"PRIu64"</duration>\n",
-                 MS_FROM_VLC_TICK(i_duration) );
+                 MS_FROM_HEIMDALL_TICK(i_duration) );
 
     /* export the intenal id and the input's options (bookmarks, ...)
      * in <extension> */
@@ -132,7 +133,7 @@ xspfexportitem_end:
            "http://www.videolan.org/vlc/playlist/0\">\n", p_file );
 
     /* print the id */
-    fprintf( p_file, "\t\t\t\t<vlc:id>%"PRIu64"</vlc:id>\n", id );
+    fprintf( p_file, "\t\t\t\t<heimdall:id>%"PRIu64"</heimdall:id>\n", id );
 
     for( int i = 0; i < p_input->i_options; i++ )
     {
@@ -142,11 +143,11 @@ xspfexportitem_end:
         if ( psz_src[0] == ':' )
             psz_src++;
 
-        psz_ret = vlc_xml_encode( psz_src );
+        psz_ret = heimdall_xml_encode( psz_src );
         if ( psz_ret == NULL )
             continue;
 
-        fprintf( p_file, "\t\t\t\t<vlc:option>%s</vlc:option>\n", psz_ret );
+        fprintf( p_file, "\t\t\t\t<heimdall:option>%s</heimdall:option>\n", psz_ret );
         free( psz_ret );
     }
     fputs( "\t\t\t</extension>\n", p_file );
@@ -156,27 +157,27 @@ xspfexportitem_end:
 /**
  * \brief Prints the XSPF header to file, writes each item by xspf_export_item()
  * and closes the open xml elements
- * \param p_this the VLC playlist object
- * \return VLC_SUCCESS if some memory is available, otherwise VLC_ENOMEM
+ * \param p_this the Heimdall playlist object
+ * \return HEIMDALL_SUCCESS if some memory is available, otherwise HEIMDALL_ENOMEM
  */
-int xspf_export_playlist( vlc_object_t *p_this )
+int xspf_export_playlist( heimdall_object_t *p_this )
 {
-    struct vlc_playlist_export *p_export = (struct vlc_playlist_export *) p_this;
+    struct heimdall_playlist_export *p_export = (struct heimdall_playlist_export *) p_this;
 
     /* write XSPF XML header */
     fprintf( p_export->file, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" );
     fprintf( p_export->file,
              "<playlist xmlns=\"http://xspf.org/ns/0/\" " \
-              "xmlns:vlc=\"http://www.videolan.org/vlc/playlist/ns/0/\" " \
+              "xmlns:heimdall=\"http://www.videolan.org/vlc/playlist/ns/0/\" " \
               "version=\"1\">\n" );
 
     fprintf( p_export->file, "\t<trackList>\n" );
-    size_t count = vlc_playlist_view_Count(p_export->playlist_view);
+    size_t count = heimdall_playlist_view_Count(p_export->playlist_view);
     for( size_t i = 0; i < count; ++i )
     {
-        vlc_playlist_item_t *item =
-            vlc_playlist_view_Get(p_export->playlist_view, i);
-        input_item_t *media = vlc_playlist_item_GetMedia(item);
+        heimdall_playlist_item_t *item =
+            heimdall_playlist_view_Get(p_export->playlist_view, i);
+        input_item_t *media = heimdall_playlist_item_GetMedia(item);
 
         xspf_export_item(media, p_export->file, i);
     }
@@ -186,5 +187,5 @@ int xspf_export_playlist( vlc_object_t *p_this )
     /* close the header elements */
     fprintf( p_export->file, "</playlist>\n" );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

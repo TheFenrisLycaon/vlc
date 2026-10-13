@@ -2,6 +2,7 @@
  * vout_window.hpp
  *****************************************************************************
  * Copyright (C) 2003 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cyril Deguet     <asmax@via.ecp.fr>
  *
@@ -26,21 +27,21 @@
 #include "generic_window.hpp"
 #include "dialogs.hpp"
 #include "../commands/cmd_generic.hpp"
-#include <vlc_window.h>
+#include <heimdall_window.h>
 #include <memory>
 #include "../../../video_output/wasync_resize_compressor.h"
 
 class OSGraphics;
 class OSTimer;
 class CtrlVideo;
-struct vlc_window;
+struct heimdall_window;
 
 /// Class to handle a video output window
 class VoutWindow: private GenericWindow
 {
 public:
 
-    VoutWindow( intf_thread_t *pIntf, struct vlc_window *pWnd,
+    VoutWindow( intf_thread_t *pIntf, struct heimdall_window *pWnd,
                 int width, int height, GenericWindow* pParent = NULL );
     ~VoutWindow();
 
@@ -87,7 +88,7 @@ public:
 private:
 
     /// vout thread
-    struct vlc_window *m_pWnd;
+    struct heimdall_window *m_pWnd;
 
     /// original width and height
     int original_width;
@@ -104,7 +105,7 @@ private:
     int mouse_hide_timeout;
     DEFINE_CALLBACK( VoutWindow, HideMouse );
 
-    vlc_wasync_resize_compressor_t m_compressor;
+    heimdall_wasync_resize_compressor_t m_compressor;
 };
 
 typedef CountedPtr<VoutWindow> VoutWindowPtr;

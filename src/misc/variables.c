@@ -2,6 +2,7 @@
  * variables.c: routines for object variables handling
  *****************************************************************************
  * Copyright (C) 2002-2009 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Samuel Hocevar <sam@zoy.org>
  *
@@ -35,10 +36,10 @@
 #include <math.h>
 #include <limits.h>
 
-#include <vlc_common.h>
-#include <vlc_arrays.h>
-#include <vlc_charset.h>
-#include "../libvlc.h"
+#include <heimdall_common.h>
+#include <heimdall_arrays.h>
+#include <heimdall_charset.h>
+#include "../libheimdall.h"
 #include "variables.h"
 #include "config/configuration.h"
 
@@ -47,8 +48,8 @@ typedef struct callback_entry_t
     struct callback_entry_t *next;
     union
     {
-        vlc_callback_t       pf_value_callback;
-        vlc_list_callback_t  pf_list_callback;
+        heimdall_callback_t       pf_value_callback;
+        heimdall_list_callback_t  pf_list_callback;
         void *               p_callback;
     };
     void *         p_data;
@@ -56,21 +57,21 @@ typedef struct callback_entry_t
 
 typedef struct variable_ops_t
 {
-    int  (*pf_cmp) ( vlc_value_t, vlc_value_t );
-    void (*pf_dup) ( vlc_value_t * );
-    void (*pf_free) ( vlc_value_t * );
+    int  (*pf_cmp) ( heimdall_value_t, heimdall_value_t );
+    void (*pf_dup) ( heimdall_value_t * );
+    void (*pf_free) ( heimdall_value_t * );
 } variable_ops_t;
 
 /**
  * The structure describing a variable.
- * \note vlc_value_t is the common union for variable values
+ * \note heimdall_value_t is the common union for variable values
  */
 struct variable_t
 {
     char *       psz_name; /**< The variable unique name (must be first) */
 
     /** The variable's exported value */
-    vlc_value_t  val;
+    heimdall_value_t  val;
 
     /** The variable display name, mainly for use by the interfaces */
     char *       psz_text;
@@ -81,10 +82,10 @@ struct variable_t
     unsigned     i_usage;  /**< Reference count */
 
     /** If the variable has min/max/step values */
-    vlc_value_t  min, max, step;
+    heimdall_value_t  min, max, step;
 
     /** List of choices */
-    vlc_value_t *choices;
+    heimdall_value_t *choices;
     /** List of friendly names for the choices */
     char       **choices_text;
     size_t       choices_count;
@@ -97,37 +98,37 @@ struct variable_t
     /** Registered list callbacks */
     callback_entry_t    *list_callbacks;
 
-    vlc_cond_t   wait;
+    heimdall_cond_t   wait;
 };
 
-static int CmpBool( vlc_value_t v, vlc_value_t w )
+static int CmpBool( heimdall_value_t v, heimdall_value_t w )
 {
     return v.b_bool ? w.b_bool ? 0 : 1 : w.b_bool ? -1 : 0;
 }
 
-static int CmpInt( vlc_value_t v, vlc_value_t w )
+static int CmpInt( heimdall_value_t v, heimdall_value_t w )
 {
     return v.i_int == w.i_int ? 0 : v.i_int > w.i_int ? 1 : -1;
 }
 
-static int CmpString( vlc_value_t v, vlc_value_t w )
+static int CmpString( heimdall_value_t v, heimdall_value_t w )
 {
     if( !v.psz_string )
         return !w.psz_string ? 0 : -1;
     else
         return !w.psz_string ? 1 : strcmp( v.psz_string, w.psz_string );
 }
-static int CmpFloat( vlc_value_t v, vlc_value_t w ) { return v.f_float == w.f_float ? 0 : v.f_float > w.f_float ? 1 : -1; }
-static int CmpAddress( vlc_value_t v, vlc_value_t w ) { return v.p_address == w.p_address ? 0 : v.p_address > w.p_address ? 1 : -1; }
+static int CmpFloat( heimdall_value_t v, heimdall_value_t w ) { return v.f_float == w.f_float ? 0 : v.f_float > w.f_float ? 1 : -1; }
+static int CmpAddress( heimdall_value_t v, heimdall_value_t w ) { return v.p_address == w.p_address ? 0 : v.p_address > w.p_address ? 1 : -1; }
 
-static void DupDummy( vlc_value_t *p_val ) { (void)p_val; /* unused */ }
-static void DupString( vlc_value_t *p_val )
+static void DupDummy( heimdall_value_t *p_val ) { (void)p_val; /* unused */ }
+static void DupString( heimdall_value_t *p_val )
 {
     p_val->psz_string = strdup( p_val->psz_string ? p_val->psz_string :  "" );
 }
 
-static void FreeDummy( vlc_value_t *p_val ) { (void)p_val; /* unused */ }
-static void FreeString( vlc_value_t *p_val ) { free( p_val->psz_string ); }
+static void FreeDummy( heimdall_value_t *p_val ) { (void)p_val; /* unused */ }
+static void FreeString( heimdall_value_t *p_val ) { free( p_val->psz_string ); }
 
 static const struct variable_ops_t
 void_ops   = { NULL,       DupDummy,  FreeDummy,  },
@@ -147,12 +148,12 @@ static int varcmp( const void *a, const void *b )
     return strcmp( va->psz_name, vb->psz_name );
 }
 
-static variable_t *Lookup( vlc_object_t *obj, const char *psz_name )
+static variable_t *Lookup( heimdall_object_t *obj, const char *psz_name )
 {
-    vlc_object_internals_t *priv = vlc_internals( obj );
+    heimdall_object_internals_t *priv = heimdall_internals( obj );
     void **pp_var;
 
-    vlc_mutex_lock(&priv->var_lock);
+    heimdall_mutex_lock(&priv->var_lock);
     pp_var = tfind( &psz_name, &priv->var_root, varcmp );
     return (pp_var != NULL) ? *pp_var : NULL;
 }
@@ -188,12 +189,12 @@ static void Destroy( variable_t *p_var )
  * - If the value is higher than the maximum, use the maximum.
  * - If the variable has steps, round the value to the nearest step.
  */
-static void CheckValue(variable_t *var, vlc_value_t *val)
+static void CheckValue(variable_t *var, heimdall_value_t *val)
 {
     /* Check that our variable is within the bounds */
-    switch (var->i_type & VLC_VAR_TYPE)
+    switch (var->i_type & HEIMDALL_VAR_TYPE)
     {
-        case VLC_VAR_INTEGER:
+        case HEIMDALL_VAR_INTEGER:
             if (val->i_int < var->min.i_int)
                val->i_int = var->min.i_int;
             else if (val->i_int > var->max.i_int)
@@ -209,7 +210,7 @@ static void CheckValue(variable_t *var, vlc_value_t *val)
             }
             break;
 
-        case VLC_VAR_FLOAT:
+        case HEIMDALL_VAR_FLOAT:
             if (isless(val->f_float, var->min.f_float))
                 val->f_float = var->min.f_float;
             else if (isgreater(val->f_float, var->max.f_float))
@@ -224,16 +225,16 @@ static void CheckValue(variable_t *var, vlc_value_t *val)
 /**
  * Waits until the variable is inactive (i.e. not executing a callback)
  */
-static void WaitUnused(vlc_object_t *obj, variable_t *var)
+static void WaitUnused(heimdall_object_t *obj, variable_t *var)
 {
-    vlc_object_internals_t *priv = vlc_internals(obj);
+    heimdall_object_internals_t *priv = heimdall_internals(obj);
 
     while (var->b_incallback)
-        vlc_cond_wait(&var->wait, &priv->var_lock);
+        heimdall_cond_wait(&var->wait, &priv->var_lock);
 }
 
-static void TriggerCallback(vlc_object_t *obj, variable_t *var,
-                            const char *name, vlc_value_t prev)
+static void TriggerCallback(heimdall_object_t *obj, variable_t *var,
+                            const char *name, heimdall_value_t prev)
 {
     assert(obj != NULL);
 
@@ -241,11 +242,11 @@ static void TriggerCallback(vlc_object_t *obj, variable_t *var,
     if (entry == NULL)
         return;
 
-    vlc_object_internals_t *priv = vlc_internals(obj);
+    heimdall_object_internals_t *priv = heimdall_internals(obj);
 
     assert(!var->b_incallback);
     var->b_incallback = true;
-    vlc_mutex_unlock(&priv->var_lock);
+    heimdall_mutex_unlock(&priv->var_lock);
 
     do
     {
@@ -254,13 +255,13 @@ static void TriggerCallback(vlc_object_t *obj, variable_t *var,
     }
     while (entry != NULL);
 
-    vlc_mutex_lock(&priv->var_lock);
+    heimdall_mutex_lock(&priv->var_lock);
     var->b_incallback = false;
-    vlc_cond_broadcast(&var->wait);
+    heimdall_cond_broadcast(&var->wait);
 }
 
-static void TriggerListCallback(vlc_object_t *obj, variable_t *var,
-                                const char *name, int action, vlc_value_t *val)
+static void TriggerListCallback(heimdall_object_t *obj, variable_t *var,
+                                const char *name, int action, heimdall_value_t *val)
 {
     assert(obj != NULL);
 
@@ -268,11 +269,11 @@ static void TriggerListCallback(vlc_object_t *obj, variable_t *var,
     if (entry == NULL)
         return;
 
-    vlc_object_internals_t *priv = vlc_internals(obj);
+    heimdall_object_internals_t *priv = heimdall_internals(obj);
 
     assert(!var->b_incallback);
     var->b_incallback = true;
-    vlc_mutex_unlock(&priv->var_lock);
+    heimdall_mutex_unlock(&priv->var_lock);
 
     do
     {
@@ -281,23 +282,23 @@ static void TriggerListCallback(vlc_object_t *obj, variable_t *var,
     }
     while (entry != NULL);
 
-    vlc_mutex_lock(&priv->var_lock);
+    heimdall_mutex_lock(&priv->var_lock);
     var->b_incallback = false;
-    vlc_cond_broadcast(&var->wait);
+    heimdall_cond_broadcast(&var->wait);
 }
 
-int (var_Create)( vlc_object_t *p_this, const char *psz_name, int i_type )
+int (var_Create)( heimdall_object_t *p_this, const char *psz_name, int i_type )
 {
     assert( p_this );
 
     variable_t *p_var = calloc( 1, sizeof( *p_var ) );
     if( p_var == NULL )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_var->psz_name = strdup( psz_name );
     p_var->psz_text = NULL;
 
-    p_var->i_type = i_type & ~VLC_VAR_DOINHERIT;
+    p_var->i_type = i_type & ~HEIMDALL_VAR_DOINHERIT;
 
     p_var->i_usage = 1;
 
@@ -311,67 +312,67 @@ int (var_Create)( vlc_object_t *p_this, const char *psz_name, int i_type )
     /* Always initialize the variable, even if it is a list variable; this
      * will lead to errors if the variable is not initialized, but it will
      * not cause crashes in the variable handling. */
-    switch( i_type & VLC_VAR_CLASS )
+    switch( i_type & HEIMDALL_VAR_CLASS )
     {
-        case VLC_VAR_BOOL:
+        case HEIMDALL_VAR_BOOL:
             p_var->ops = &bool_ops;
             p_var->val.b_bool = false;
             break;
-        case VLC_VAR_INTEGER:
+        case HEIMDALL_VAR_INTEGER:
             p_var->ops = &int_ops;
             p_var->val.i_int = 0;
             p_var->min.i_int = INT64_MIN;
             p_var->max.i_int = INT64_MAX;
             break;
-        case VLC_VAR_STRING:
+        case HEIMDALL_VAR_STRING:
             p_var->ops = &string_ops;
             p_var->val.psz_string = NULL;
             break;
-        case VLC_VAR_FLOAT:
+        case HEIMDALL_VAR_FLOAT:
             p_var->ops = &float_ops;
             p_var->val.f_float = 0.f;
             p_var->min.f_float = -FLT_MAX;
             p_var->max.f_float = FLT_MAX;
             break;
-        case VLC_VAR_COORDS:
+        case HEIMDALL_VAR_COORDS:
             p_var->ops = &coords_ops;
             p_var->val.coords.x = p_var->val.coords.y = 0;
             break;
-        case VLC_VAR_ADDRESS:
+        case HEIMDALL_VAR_ADDRESS:
             p_var->ops = &addr_ops;
             p_var->val.p_address = NULL;
             break;
-        case VLC_VAR_VOID:
+        case HEIMDALL_VAR_VOID:
             p_var->ops = &void_ops;
             break;
         default:
-            vlc_assert_unreachable ();
+            heimdall_assert_unreachable ();
     }
 
-    vlc_cond_init(&p_var->wait);
+    heimdall_cond_init(&p_var->wait);
 
-    if (i_type & VLC_VAR_DOINHERIT)
+    if (i_type & HEIMDALL_VAR_DOINHERIT)
         var_Inherit(p_this, psz_name, i_type, &p_var->val);
 
-    vlc_object_internals_t *p_priv = vlc_internals( p_this );
+    heimdall_object_internals_t *p_priv = heimdall_internals( p_this );
     void **pp_var;
     variable_t *p_oldvar;
-    int ret = VLC_SUCCESS;
+    int ret = HEIMDALL_SUCCESS;
 
-    vlc_mutex_lock( &p_priv->var_lock );
+    heimdall_mutex_lock( &p_priv->var_lock );
 
     pp_var = tsearch( p_var, &p_priv->var_root, varcmp );
     if( unlikely(pp_var == NULL) )
-        ret = VLC_ENOMEM;
+        ret = HEIMDALL_ENOMEM;
     else if( (p_oldvar = *pp_var) == p_var ) /* Variable create */
         p_var = NULL; /* Variable created */
     else /* Variable already exists */
     {
-        assert (((i_type ^ p_oldvar->i_type) & VLC_VAR_CLASS) == 0);
+        assert (((i_type ^ p_oldvar->i_type) & HEIMDALL_VAR_CLASS) == 0);
         p_oldvar->i_usage++;
-        p_oldvar->i_type |= i_type & VLC_VAR_ISCOMMAND;
+        p_oldvar->i_type |= i_type & HEIMDALL_VAR_ISCOMMAND;
     }
-    vlc_mutex_unlock( &p_priv->var_lock );
+    heimdall_mutex_unlock( &p_priv->var_lock );
 
     /* If we did not need to create a new variable, free everything... */
     if( p_var != NULL )
@@ -379,13 +380,13 @@ int (var_Create)( vlc_object_t *p_this, const char *psz_name, int i_type )
     return ret;
 }
 
-void (var_Destroy)(vlc_object_t *p_this, const char *psz_name)
+void (var_Destroy)(heimdall_object_t *p_this, const char *psz_name)
 {
     variable_t *p_var;
 
     assert( p_this );
 
-    vlc_object_internals_t *p_priv = vlc_internals( p_this );
+    heimdall_object_internals_t *p_priv = heimdall_internals( p_this );
 
     p_var = Lookup( p_this, psz_name );
     if( p_var == NULL )
@@ -401,7 +402,7 @@ void (var_Destroy)(vlc_object_t *p_this, const char *psz_name)
         assert(p_var->i_usage != -1u);
         p_var = NULL;
     }
-    vlc_mutex_unlock( &p_priv->var_lock );
+    heimdall_mutex_unlock( &p_priv->var_lock );
 
     if( p_var != NULL )
         Destroy( p_var );
@@ -412,72 +413,72 @@ static void CleanupVar( void *var )
     Destroy( var );
 }
 
-void var_DestroyAll( vlc_object_t *obj )
+void var_DestroyAll( heimdall_object_t *obj )
 {
-    vlc_object_internals_t *priv = vlc_internals( obj );
+    heimdall_object_internals_t *priv = heimdall_internals( obj );
 
     tdestroy( priv->var_root, CleanupVar );
     priv->var_root = NULL;
 }
 
-int (var_Change)(vlc_object_t *p_this, const char *psz_name, int i_action, ...)
+int (var_Change)(heimdall_object_t *p_this, const char *psz_name, int i_action, ...)
 {
     va_list ap;
-    int ret = VLC_SUCCESS;
+    int ret = HEIMDALL_SUCCESS;
     variable_t *p_var;
-    vlc_value_t oldval;
-    vlc_value_t newval;
+    heimdall_value_t oldval;
+    heimdall_value_t newval;
 
     assert( p_this );
 
-    vlc_object_internals_t *p_priv = vlc_internals( p_this );
+    heimdall_object_internals_t *p_priv = heimdall_internals( p_this );
 
     p_var = Lookup( p_this, psz_name );
     if( p_var == NULL )
     {
-        vlc_mutex_unlock( &p_priv->var_lock );
-        return VLC_ENOENT;
+        heimdall_mutex_unlock( &p_priv->var_lock );
+        return HEIMDALL_ENOENT;
     }
 
     va_start(ap, i_action);
     switch( i_action )
     {
-        case VLC_VAR_GETMIN:
-            *va_arg(ap, vlc_value_t *) = p_var->min;
+        case HEIMDALL_VAR_GETMIN:
+            *va_arg(ap, heimdall_value_t *) = p_var->min;
             break;
-        case VLC_VAR_GETMAX:
-            *va_arg(ap, vlc_value_t *) = p_var->max;
+        case HEIMDALL_VAR_GETMAX:
+            *va_arg(ap, heimdall_value_t *) = p_var->max;
             break;
-        case VLC_VAR_SETMINMAX:
+        case HEIMDALL_VAR_SETMINMAX:
             assert(p_var->ops->pf_free == FreeDummy);
-            p_var->min = va_arg(ap, vlc_value_t);
-            p_var->max = va_arg(ap, vlc_value_t);
+            p_var->min = va_arg(ap, heimdall_value_t);
+            p_var->max = va_arg(ap, heimdall_value_t);
             break;
-        case VLC_VAR_SETSTEP:
+        case HEIMDALL_VAR_SETSTEP:
             assert(p_var->ops->pf_free == FreeDummy);
-            p_var->step = va_arg(ap, vlc_value_t);
+            p_var->step = va_arg(ap, heimdall_value_t);
             CheckValue( p_var, &p_var->val );
             break;
-        case VLC_VAR_GETSTEP:
-            switch (p_var->i_type & VLC_VAR_TYPE)
+        case HEIMDALL_VAR_GETSTEP:
+            switch (p_var->i_type & HEIMDALL_VAR_TYPE)
             {
-                case VLC_VAR_INTEGER:
+                case HEIMDALL_VAR_INTEGER:
                     if (p_var->step.i_int == 0)
-                        ret = VLC_EGENERIC;
+                        ret = HEIMDALL_EGENERIC;
                     break;
-                case VLC_VAR_FLOAT:
+                case HEIMDALL_VAR_FLOAT:
                     if (p_var->step.f_float == 0.f)
-                        ret = VLC_EGENERIC;
+                        ret = HEIMDALL_EGENERIC;
                     break;
                 default:
-                    ret = VLC_EGENERIC;
+                    ret = HEIMDALL_EGENERIC;
             }
-            if (ret == VLC_SUCCESS)
-                *va_arg(ap, vlc_value_t *) = p_var->step;
+            if (ret == HEIMDALL_SUCCESS)
+                *va_arg(ap, heimdall_value_t *) = p_var->step;
             break;
-        case VLC_VAR_ADDCHOICE:
+        case HEIMDALL_VAR_ADDCHOICE:
         {
-            vlc_value_t val = va_arg(ap, vlc_value_t);
+            heimdall_value_t val = va_arg(ap, heimdall_value_t);
             const char *text = va_arg(ap, const char *);
             size_t count = p_var->choices_count;
 
@@ -488,13 +489,13 @@ int (var_Change)(vlc_object_t *p_this, const char *psz_name, int i_action, ...)
             if (text != NULL)
                 p_var->choices_text[count - 1] = strdup(text);
 
-            TriggerListCallback(p_this, p_var, psz_name, VLC_VAR_ADDCHOICE,
+            TriggerListCallback(p_this, p_var, psz_name, HEIMDALL_VAR_ADDCHOICE,
                                 &val);
             break;
         }
-        case VLC_VAR_DELCHOICE:
+        case HEIMDALL_VAR_DELCHOICE:
         {
-            vlc_value_t val = va_arg(ap, vlc_value_t);
+            heimdall_value_t val = va_arg(ap, heimdall_value_t);
             size_t count = p_var->choices_count, i;
 
             for (i = 0; i < count; i++)
@@ -503,7 +504,7 @@ int (var_Change)(vlc_object_t *p_this, const char *psz_name, int i_action, ...)
 
             if (i == count)
             {   /* Not found */
-                ret = VLC_EGENERIC;
+                ret = HEIMDALL_EGENERIC;
                 break;
             }
 
@@ -513,14 +514,14 @@ int (var_Change)(vlc_object_t *p_this, const char *psz_name, int i_action, ...)
             TAB_ERASE(count, p_var->choices_text, i);
             assert(count == p_var->choices_count);
 
-            TriggerListCallback(p_this, p_var, psz_name, VLC_VAR_DELCHOICE,
+            TriggerListCallback(p_this, p_var, psz_name, HEIMDALL_VAR_DELCHOICE,
                                 &val);
             break;
         }
-        case VLC_VAR_CHOICESCOUNT:
+        case HEIMDALL_VAR_CHOICESCOUNT:
             *va_arg(ap, size_t *) = p_var->choices_count;
             break;
-        case VLC_VAR_CLEARCHOICES:
+        case HEIMDALL_VAR_CLEARCHOICES:
             for (size_t i = 0; i < p_var->choices_count; i++)
                 p_var->ops->pf_free(&p_var->choices[i]);
             for (size_t i = 0; i < p_var->choices_count; i++)
@@ -529,11 +530,11 @@ int (var_Change)(vlc_object_t *p_this, const char *psz_name, int i_action, ...)
             free(p_var->choices_text);
             p_var->choices_text = NULL;
 
-            TriggerListCallback(p_this, p_var, psz_name, VLC_VAR_CLEARCHOICES, NULL);
+            TriggerListCallback(p_this, p_var, psz_name, HEIMDALL_VAR_CLEARCHOICES, NULL);
             break;
-        case VLC_VAR_SETVALUE:
+        case HEIMDALL_VAR_SETVALUE:
             /* Duplicate data if needed */
-            newval = va_arg(ap, vlc_value_t);
+            newval = va_arg(ap, heimdall_value_t);
             p_var->ops->pf_dup( &newval );
             /* Backup needed stuff */
             oldval = p_var->val;
@@ -544,10 +545,10 @@ int (var_Change)(vlc_object_t *p_this, const char *psz_name, int i_action, ...)
             /* Free data if needed */
             p_var->ops->pf_free( &oldval );
             break;
-        case VLC_VAR_GETCHOICES:
+        case HEIMDALL_VAR_GETCHOICES:
         {
             size_t *count = va_arg(ap, size_t *);
-            vlc_value_t **values = va_arg(ap, vlc_value_t **);
+            heimdall_value_t **values = va_arg(ap, heimdall_value_t **);
             char ***texts = va_arg(ap, char ***);
 
             *count = p_var->choices_count;
@@ -555,7 +556,7 @@ int (var_Change)(vlc_object_t *p_this, const char *psz_name, int i_action, ...)
 
             for (size_t i = 0; i < p_var->choices_count; i++)
             {
-                vlc_value_t *val = (*values) + i;
+                heimdall_value_t *val = (*values) + i;
                 *val = p_var->choices[i];
                 p_var->ops->pf_dup(val);
             }
@@ -571,7 +572,7 @@ int (var_Change)(vlc_object_t *p_this, const char *psz_name, int i_action, ...)
             }
             break;
         }
-        case VLC_VAR_SETTEXT:
+        case HEIMDALL_VAR_SETTEXT:
         {
             const char *text = va_arg(ap, const char *);
 
@@ -579,7 +580,7 @@ int (var_Change)(vlc_object_t *p_this, const char *psz_name, int i_action, ...)
             p_var->psz_text = (text != NULL) ? strdup(text) : NULL;
             break;
         }
-        case VLC_VAR_GETTEXT:
+        case HEIMDALL_VAR_GETTEXT:
             *va_arg(ap, char **) = (p_var->psz_text != NULL)
                 ? strdup(p_var->psz_text) : NULL;
             break;
@@ -587,26 +588,26 @@ int (var_Change)(vlc_object_t *p_this, const char *psz_name, int i_action, ...)
             break;
     }
     va_end(ap);
-    vlc_mutex_unlock( &p_priv->var_lock );
+    heimdall_mutex_unlock( &p_priv->var_lock );
     return ret;
 }
 
-int (var_GetAndSet)(vlc_object_t *p_this, const char *psz_name, int i_action,
-                    vlc_value_t *p_val)
+int (var_GetAndSet)(heimdall_object_t *p_this, const char *psz_name, int i_action,
+                    heimdall_value_t *p_val)
 {
     variable_t *p_var;
-    vlc_value_t oldval;
+    heimdall_value_t oldval;
 
     assert( p_this );
     assert( p_val );
 
-    vlc_object_internals_t *p_priv = vlc_internals( p_this );
+    heimdall_object_internals_t *p_priv = heimdall_internals( p_this );
 
     p_var = Lookup( p_this, psz_name );
     if( p_var == NULL )
     {
-        vlc_mutex_unlock( &p_priv->var_lock );
-        return VLC_ENOENT;
+        heimdall_mutex_unlock( &p_priv->var_lock );
+        return HEIMDALL_ENOENT;
     }
 
     WaitUnused( p_this, p_var );
@@ -620,25 +621,25 @@ int (var_GetAndSet)(vlc_object_t *p_this, const char *psz_name, int i_action,
     /* depending of the action required */
     switch( i_action )
     {
-    case VLC_VAR_BOOL_TOGGLE:
-        assert( ( p_var->i_type & VLC_VAR_BOOL ) == VLC_VAR_BOOL );
+    case HEIMDALL_VAR_BOOL_TOGGLE:
+        assert( ( p_var->i_type & HEIMDALL_VAR_BOOL ) == HEIMDALL_VAR_BOOL );
         p_var->val.b_bool = !p_var->val.b_bool;
         break;
-    case VLC_VAR_INTEGER_ADD:
-        assert( ( p_var->i_type & VLC_VAR_INTEGER ) == VLC_VAR_INTEGER );
+    case HEIMDALL_VAR_INTEGER_ADD:
+        assert( ( p_var->i_type & HEIMDALL_VAR_INTEGER ) == HEIMDALL_VAR_INTEGER );
         p_var->val.i_int += p_val->i_int;
         break;
-    case VLC_VAR_INTEGER_OR:
-        assert( ( p_var->i_type & VLC_VAR_INTEGER ) == VLC_VAR_INTEGER );
+    case HEIMDALL_VAR_INTEGER_OR:
+        assert( ( p_var->i_type & HEIMDALL_VAR_INTEGER ) == HEIMDALL_VAR_INTEGER );
         p_var->val.i_int |= p_val->i_int;
         break;
-    case VLC_VAR_INTEGER_NAND:
-        assert( ( p_var->i_type & VLC_VAR_INTEGER ) == VLC_VAR_INTEGER );
+    case HEIMDALL_VAR_INTEGER_NAND:
+        assert( ( p_var->i_type & HEIMDALL_VAR_INTEGER ) == HEIMDALL_VAR_INTEGER );
         p_var->val.i_int &= ~p_val->i_int;
         break;
     default:
-        vlc_mutex_unlock( &p_priv->var_lock );
-        return VLC_EGENERIC;
+        heimdall_mutex_unlock( &p_priv->var_lock );
+        return HEIMDALL_EGENERIC;
     }
 
     /*  Check boundaries */
@@ -648,51 +649,51 @@ int (var_GetAndSet)(vlc_object_t *p_this, const char *psz_name, int i_action,
     /* Deal with callbacks.*/
     TriggerCallback( p_this, p_var, psz_name, oldval );
 
-    vlc_mutex_unlock( &p_priv->var_lock );
-    return VLC_SUCCESS;
+    heimdall_mutex_unlock( &p_priv->var_lock );
+    return HEIMDALL_SUCCESS;
 }
 
-int (var_Type)(vlc_object_t *p_this, const char *psz_name)
+int (var_Type)(heimdall_object_t *p_this, const char *psz_name)
 {
     variable_t *p_var;
     int i_type = 0;
 
     assert( p_this );
 
-    vlc_object_internals_t *p_priv = vlc_internals( p_this );
+    heimdall_object_internals_t *p_priv = heimdall_internals( p_this );
 
     p_var = Lookup( p_this, psz_name );
     if( p_var != NULL )
     {
         i_type = p_var->i_type;
         if (p_var->choices_count > 0)
-            i_type |= VLC_VAR_HASCHOICE;
+            i_type |= HEIMDALL_VAR_HASCHOICE;
     }
-    vlc_mutex_unlock( &p_priv->var_lock );
+    heimdall_mutex_unlock( &p_priv->var_lock );
 
     return i_type;
 }
 
-int (var_SetChecked)(vlc_object_t *p_this, const char *psz_name,
-                     int expected_type, vlc_value_t val)
+int (var_SetChecked)(heimdall_object_t *p_this, const char *psz_name,
+                     int expected_type, heimdall_value_t val)
 {
     variable_t *p_var;
-    vlc_value_t oldval;
+    heimdall_value_t oldval;
 
     assert( p_this );
 
-    vlc_object_internals_t *p_priv = vlc_internals( p_this );
+    heimdall_object_internals_t *p_priv = heimdall_internals( p_this );
 
     p_var = Lookup( p_this, psz_name );
     if( p_var == NULL )
     {
-        vlc_mutex_unlock( &p_priv->var_lock );
-        return VLC_ENOENT;
+        heimdall_mutex_unlock( &p_priv->var_lock );
+        return HEIMDALL_ENOENT;
     }
 
     assert( expected_type == 0 ||
-            (p_var->i_type & VLC_VAR_CLASS) == expected_type );
-    assert ((p_var->i_type & VLC_VAR_CLASS) != VLC_VAR_VOID);
+            (p_var->i_type & HEIMDALL_VAR_CLASS) == expected_type );
+    assert ((p_var->i_type & HEIMDALL_VAR_CLASS) != HEIMDALL_VAR_VOID);
 
     WaitUnused( p_this, p_var );
 
@@ -714,30 +715,30 @@ int (var_SetChecked)(vlc_object_t *p_this, const char *psz_name,
     /* Free data if needed */
     p_var->ops->pf_free( &oldval );
 
-    vlc_mutex_unlock( &p_priv->var_lock );
-    return VLC_SUCCESS;
+    heimdall_mutex_unlock( &p_priv->var_lock );
+    return HEIMDALL_SUCCESS;
 }
 
-int (var_Set)(vlc_object_t *p_this, const char *psz_name, vlc_value_t val)
+int (var_Set)(heimdall_object_t *p_this, const char *psz_name, heimdall_value_t val)
 {
     return var_SetChecked( p_this, psz_name, 0, val );
 }
 
-int (var_GetChecked)(vlc_object_t *p_this, const char *psz_name,
-                     int expected_type, vlc_value_t *p_val)
+int (var_GetChecked)(heimdall_object_t *p_this, const char *psz_name,
+                     int expected_type, heimdall_value_t *p_val)
 {
     assert( p_this );
 
-    vlc_object_internals_t *p_priv = vlc_internals( p_this );
+    heimdall_object_internals_t *p_priv = heimdall_internals( p_this );
     variable_t *p_var;
-    int err = VLC_SUCCESS;
+    int err = HEIMDALL_SUCCESS;
 
     p_var = Lookup( p_this, psz_name );
     if( p_var != NULL )
     {
         assert( expected_type == 0 ||
-                (p_var->i_type & VLC_VAR_CLASS) == expected_type );
-        assert ((p_var->i_type & VLC_VAR_CLASS) != VLC_VAR_VOID);
+                (p_var->i_type & HEIMDALL_VAR_CLASS) == expected_type );
+        assert ((p_var->i_type & HEIMDALL_VAR_CLASS) != HEIMDALL_VAR_VOID);
 
         /* Really get the variable */
         *p_val = p_var->val;
@@ -746,37 +747,37 @@ int (var_GetChecked)(vlc_object_t *p_this, const char *psz_name,
         p_var->ops->pf_dup( p_val );
     }
     else
-        err = VLC_ENOENT;
+        err = HEIMDALL_ENOENT;
 
-    vlc_mutex_unlock( &p_priv->var_lock );
+    heimdall_mutex_unlock( &p_priv->var_lock );
     return err;
 }
 
-int (var_Get)(vlc_object_t *p_this, const char *psz_name, vlc_value_t *p_val)
+int (var_Get)(heimdall_object_t *p_this, const char *psz_name, heimdall_value_t *p_val)
 {
     return var_GetChecked( p_this, psz_name, 0, p_val );
 }
 
 typedef enum
 {
-    vlc_value_callback,
-    vlc_list_callback
-} vlc_callback_type_t;
+    heimdall_value_callback,
+    heimdall_list_callback
+} heimdall_callback_type_t;
 
-static void AddCallback( vlc_object_t *p_this, const char *psz_name,
+static void AddCallback( heimdall_object_t *p_this, const char *psz_name,
                          callback_entry_t *restrict entry,
-                         vlc_callback_type_t i_type )
+                         heimdall_callback_type_t i_type )
 {
     variable_t *p_var;
 
     assert( p_this );
 
-    vlc_object_internals_t *p_priv = vlc_internals( p_this );
+    heimdall_object_internals_t *p_priv = heimdall_internals( p_this );
 
     p_var = Lookup( p_this, psz_name );
     if( p_var == NULL )
     {
-        vlc_mutex_unlock( &p_priv->var_lock );
+        heimdall_mutex_unlock( &p_priv->var_lock );
         msg_Err( p_this, "cannot add callback %p to nonexistent variable '%s'",
                  entry->p_callback, psz_name );
         free( entry );
@@ -787,7 +788,7 @@ static void AddCallback( vlc_object_t *p_this, const char *psz_name,
 
     callback_entry_t **pp;
 
-    if (i_type == vlc_value_callback)
+    if (i_type == heimdall_value_callback)
         pp = &p_var->value_callbacks;
     else
         pp = &p_var->list_callbacks;
@@ -795,34 +796,34 @@ static void AddCallback( vlc_object_t *p_this, const char *psz_name,
     entry->next = *pp;
     *pp = entry;
 
-    vlc_mutex_unlock( &p_priv->var_lock );
+    heimdall_mutex_unlock( &p_priv->var_lock );
 }
 
-void (var_AddCallback)(vlc_object_t *p_this, const char *psz_name,
-                       vlc_callback_t pf_callback, void *p_data)
+void (var_AddCallback)(heimdall_object_t *p_this, const char *psz_name,
+                       heimdall_callback_t pf_callback, void *p_data)
 {
     callback_entry_t *entry = xmalloc(sizeof (*entry));
 
     entry->pf_value_callback = pf_callback;
     entry->p_data = p_data;
-    AddCallback(p_this, psz_name, entry, vlc_value_callback);
+    AddCallback(p_this, psz_name, entry, heimdall_value_callback);
 }
 
-static void DelCallback( vlc_object_t *p_this, const char *psz_name,
+static void DelCallback( heimdall_object_t *p_this, const char *psz_name,
                          const callback_entry_t *restrict match,
-                         vlc_callback_type_t i_type )
+                         heimdall_callback_type_t i_type )
 {
     callback_entry_t **pp, *entry;
     variable_t *p_var;
 
     assert( p_this );
 
-    vlc_object_internals_t *p_priv = vlc_internals( p_this );
+    heimdall_object_internals_t *p_priv = heimdall_internals( p_this );
 
     p_var = Lookup( p_this, psz_name );
     if( p_var == NULL )
     {
-        vlc_mutex_unlock( &p_priv->var_lock );
+        heimdall_mutex_unlock( &p_priv->var_lock );
         msg_Err( p_this, "cannot delete callback %p from nonexistent "
                  "variable '%s'", match->p_callback, psz_name );
         return;
@@ -830,7 +831,7 @@ static void DelCallback( vlc_object_t *p_this, const char *psz_name,
 
     WaitUnused( p_this, p_var );
 
-    if (i_type == vlc_value_callback)
+    if (i_type == heimdall_value_callback)
         pp = &p_var->value_callbacks;
     else
         pp = &p_var->list_callbacks;
@@ -847,23 +848,23 @@ static void DelCallback( vlc_object_t *p_this, const char *psz_name,
     }
 
     *pp = entry->next;
-    vlc_mutex_unlock( &p_priv->var_lock );
+    heimdall_mutex_unlock( &p_priv->var_lock );
     free(entry);
 }
 
-void (var_DelCallback)(vlc_object_t *p_this, const char *psz_name,
-                       vlc_callback_t pf_callback, void *p_data)
+void (var_DelCallback)(heimdall_object_t *p_this, const char *psz_name,
+                       heimdall_callback_t pf_callback, void *p_data)
 {
     callback_entry_t entry;
     entry.pf_value_callback = pf_callback;
     entry.p_data = p_data;
 
-    DelCallback(p_this, psz_name, &entry, vlc_value_callback);
+    DelCallback(p_this, psz_name, &entry, heimdall_value_callback);
 }
 
-void (var_TriggerCallback)(vlc_object_t *p_this, const char *psz_name)
+void (var_TriggerCallback)(heimdall_object_t *p_this, const char *psz_name)
 {
-    vlc_object_internals_t *p_priv = vlc_internals( p_this );
+    heimdall_object_internals_t *p_priv = heimdall_internals( p_this );
     variable_t *p_var = Lookup( p_this, psz_name );
     if( p_var != NULL )
     {
@@ -873,27 +874,27 @@ void (var_TriggerCallback)(vlc_object_t *p_this, const char *psz_name)
          * call stored functions, retake the lock. */
         TriggerCallback( p_this, p_var, psz_name, p_var->val );
     }
-    vlc_mutex_unlock( &p_priv->var_lock );
+    heimdall_mutex_unlock( &p_priv->var_lock );
 }
 
-void (var_AddListCallback)(vlc_object_t *p_this, const char *psz_name,
-                           vlc_list_callback_t pf_callback, void *p_data)
+void (var_AddListCallback)(heimdall_object_t *p_this, const char *psz_name,
+                           heimdall_list_callback_t pf_callback, void *p_data)
 {
     callback_entry_t *entry = xmalloc(sizeof (*entry));
 
     entry->pf_list_callback = pf_callback;
     entry->p_data = p_data;
-    AddCallback(p_this, psz_name, entry, vlc_list_callback);
+    AddCallback(p_this, psz_name, entry, heimdall_list_callback);
 }
 
-void (var_DelListCallback)(vlc_object_t *p_this, const char *psz_name,
-                           vlc_list_callback_t pf_callback, void *p_data)
+void (var_DelListCallback)(heimdall_object_t *p_this, const char *psz_name,
+                           heimdall_list_callback_t pf_callback, void *p_data)
 {
     callback_entry_t entry;
 
     entry.pf_list_callback = pf_callback;
     entry.p_data = p_data;
-    DelCallback(p_this, psz_name, &entry, vlc_list_callback);
+    DelCallback(p_this, psz_name, &entry, heimdall_list_callback);
 }
 
 /** Parse a stringified option
@@ -905,13 +906,13 @@ void (var_DelListCallback)(vlc_object_t *p_this, const char *psz_name,
  * \param psz_option the option to parse
  * \param trusted whether the option is set by a trusted input or not
  */
-void var_OptionParse( vlc_object_t *p_obj, const char *psz_option,
+void var_OptionParse( heimdall_object_t *p_obj, const char *psz_option,
                       bool trusted )
 {
     char *psz_name, *psz_value;
     int  i_type;
     bool b_isno = false;
-    vlc_value_t val;
+    heimdall_value_t val;
 
     val.psz_string = NULL;
 
@@ -950,7 +951,7 @@ void var_OptionParse( vlc_object_t *p_obj, const char *psz_option,
     }
     if( !i_type ) goto cleanup; /* Option doesn't exist */
 
-    if( ( i_type != VLC_VAR_BOOL ) &&
+    if( ( i_type != HEIMDALL_VAR_BOOL ) &&
         ( !psz_value || !*psz_value ) ) goto cleanup; /* Invalid value */
 
     /* check if option is unsafe */
@@ -969,7 +970,7 @@ void var_OptionParse( vlc_object_t *p_obj, const char *psz_option,
 
     switch( i_type )
     {
-    case VLC_VAR_BOOL:
+    case HEIMDALL_VAR_BOOL:
         if( psz_value )
         {
             char *endptr;
@@ -984,15 +985,15 @@ void var_OptionParse( vlc_object_t *p_obj, const char *psz_option,
             val.b_bool = !b_isno;
         break;
 
-    case VLC_VAR_INTEGER:
+    case HEIMDALL_VAR_INTEGER:
         val.i_int = strtoll( psz_value, NULL, 0 );
         break;
 
-    case VLC_VAR_FLOAT:
-        val.f_float = vlc_atof_c( psz_value );
+    case HEIMDALL_VAR_FLOAT:
+        val.f_float = heimdall_atof_c( psz_value );
         break;
 
-    case VLC_VAR_STRING:
+    case HEIMDALL_VAR_STRING:
         val.psz_string = psz_value;
         break;
 
@@ -1006,9 +1007,9 @@ cleanup:
     free( psz_name );
 }
 
-int (var_LocationParse)(vlc_object_t *obj, const char *mrl, const char *pref)
+int (var_LocationParse)(heimdall_object_t *obj, const char *mrl, const char *pref)
 {
-    int ret = VLC_SUCCESS;
+    int ret = HEIMDALL_SUCCESS;
     size_t preflen = strlen (pref) + 1;
 
     assert(mrl != NULL);
@@ -1028,47 +1029,47 @@ int (var_LocationParse)(vlc_object_t *obj, const char *mrl, const char *pref)
             free (buf);
         }
         else
-            ret = VLC_ENOMEM;
+            ret = HEIMDALL_ENOMEM;
         mrl += len;
     }
 
     return ret;
 }
 
-int var_Inherit( vlc_object_t *p_this, const char *psz_name, int i_type,
-                 vlc_value_t *p_val )
+int var_Inherit( heimdall_object_t *p_this, const char *psz_name, int i_type,
+                 heimdall_value_t *p_val )
 {
-    i_type &= VLC_VAR_CLASS;
-    for (vlc_object_t *obj = p_this; obj != NULL; obj = vlc_object_parent(obj))
+    i_type &= HEIMDALL_VAR_CLASS;
+    for (heimdall_object_t *obj = p_this; obj != NULL; obj = heimdall_object_parent(obj))
     {
-        if( var_GetChecked( obj, psz_name, i_type, p_val ) == VLC_SUCCESS )
-            return VLC_SUCCESS;
+        if( var_GetChecked( obj, psz_name, i_type, p_val ) == HEIMDALL_SUCCESS )
+            return HEIMDALL_SUCCESS;
     }
 
     /* else take value from config */
-    switch( i_type & VLC_VAR_CLASS )
+    switch( i_type & HEIMDALL_VAR_CLASS )
     {
-        case VLC_VAR_STRING:
+        case HEIMDALL_VAR_STRING:
             p_val->psz_string = config_GetPsz( psz_name );
             break;
-        case VLC_VAR_FLOAT:
+        case HEIMDALL_VAR_FLOAT:
             p_val->f_float = config_GetFloat( psz_name );
             break;
-        case VLC_VAR_INTEGER:
+        case HEIMDALL_VAR_INTEGER:
             p_val->i_int = config_GetInt( psz_name );
             break;
-        case VLC_VAR_BOOL:
+        case HEIMDALL_VAR_BOOL:
             p_val->b_bool = config_GetInt( psz_name ) > 0;
             break;
         default:
-            vlc_assert_unreachable();
-        case VLC_VAR_ADDRESS:
-            return VLC_ENOENT;
+            heimdall_assert_unreachable();
+        case HEIMDALL_VAR_ADDRESS:
+            return HEIMDALL_ENOENT;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-int (var_InheritURational)(vlc_object_t *object,
+int (var_InheritURational)(heimdall_object_t *object,
                            unsigned *num, unsigned *den,
                            const char *var)
 {
@@ -1124,15 +1125,15 @@ int (var_InheritURational)(vlc_object_t *object,
         *num = 1;
         *den = 0;
     } else
-        vlc_ureduce(num, den, n, d, 0);
+        heimdall_ureduce(num, den, n, d, 0);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     free(str);
     *num = 0;
     *den = 0;
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 static thread_local void *twalk_ctx;
@@ -1150,17 +1151,17 @@ static void TwalkGetNames(const void *data, const VISIT which, const int depth)
         ARRAY_APPEND(*names, dup);
 }
 
-char **var_GetAllNames(vlc_object_t *obj)
+char **var_GetAllNames(heimdall_object_t *obj)
 {
-    vlc_object_internals_t *priv = vlc_internals(obj);
+    heimdall_object_internals_t *priv = heimdall_internals(obj);
 
     DECL_ARRAY(char *) names;
     ARRAY_INIT(names);
 
     twalk_ctx = &names;
-    vlc_mutex_lock(&priv->var_lock);
+    heimdall_mutex_lock(&priv->var_lock);
     twalk(priv->var_root, TwalkGetNames);
-    vlc_mutex_unlock(&priv->var_lock);
+    heimdall_mutex_unlock(&priv->var_lock);
 
     if (names.i_size == 0)
         return NULL;

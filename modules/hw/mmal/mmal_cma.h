@@ -2,6 +2,7 @@
  * mmal_cmal.h:
  *****************************************************************************
  * Copyright © 2018-2020 John Cox
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: John Cox <jc@kynesim.co.uk>
  *
@@ -20,8 +21,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_MMAL_MMAL_CMA_H_
-#define VLC_MMAL_MMAL_CMA_H_
+#ifndef HEIMDALL_MMAL_MMAL_CMA_H_
+#define HEIMDALL_MMAL_MMAL_CMA_H_
 
 
 struct cma_pool_fixed_s;
@@ -46,4 +47,4 @@ cma_buf_pool_t * cma_buf_pool_new(const unsigned int pool_size,
                                   const unsigned int flight_size,
                                   bool is_cma, const char * const name);
 
-#endif // VLC_MMAL_MMAL_CMA_H_
+#endif // HEIMDALL_MMAL_MMAL_CMA_H_

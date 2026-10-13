@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,16 +19,16 @@
 #ifndef VAR_COMMON_P_HPP
 #define VAR_COMMON_P_HPP
 
-#include <vlc_cxx_helpers.hpp>
-#include <vlc_vout.h>
-#include <vlc_aout.h>
+#include <heimdall_cxx_helpers.hpp>
+#include <heimdall_vout.h>
+#include <heimdall_aout.h>
 
-struct VLCObjectHolder
+struct HeimdallObjectHolder
 {
 public:
-    virtual ~VLCObjectHolder() {}
+    virtual ~HeimdallObjectHolder() {}
 
-    virtual vlc_object_t* get() const
+    virtual heimdall_object_t* get() const
     {
         assert(false);
         return nullptr;
@@ -41,7 +42,7 @@ public:
     {
         assert(false);
     }
-    virtual void reset(vlc_object_t*, bool  = true )
+    virtual void reset(heimdall_object_t*, bool  = true )
     {
         assert(false);
     }
@@ -58,23 +59,23 @@ public:
 };
 
 template<typename T>
-struct VLCObjectHolderImpl : public VLCObjectHolder
+struct HeimdallObjectHolderImpl : public HeimdallObjectHolder
 {
 };
 
 template<>
-struct VLCObjectHolderImpl<vout_thread_t> : public VLCObjectHolder
+struct HeimdallObjectHolderImpl<vout_thread_t> : public HeimdallObjectHolder
 {
 public:
-    VLCObjectHolderImpl(vout_thread_t* vout)
+    HeimdallObjectHolderImpl(vout_thread_t* vout)
         : m_object(vout)
     { }
 
-    vlc_object_t* get() const override
+    heimdall_object_t* get() const override
     {
         if (!m_object)
             return nullptr;
-        return VLC_OBJECT(m_object.get());
+        return HEIMDALL_OBJECT(m_object.get());
     }
 
     void reset(vout_thread_t* vout, bool hold) override
@@ -89,23 +90,23 @@ public:
 private:
     static void obj_hold( vout_thread_t* obj ) { vout_Hold(obj); }
     static void obj_release( vout_thread_t* obj ) { vout_Release(obj); }
-    typedef ::vlc::vlc_shared_data_ptr<vout_thread_t, &obj_hold, &obj_release> SharedPtr;
+    typedef ::heimdall::heimdall_shared_data_ptr<vout_thread_t, &obj_hold, &obj_release> SharedPtr;
     SharedPtr m_object;
 };
 
 template<>
-struct VLCObjectHolderImpl<qt_intf_t> : public VLCObjectHolder
+struct HeimdallObjectHolderImpl<qt_intf_t> : public HeimdallObjectHolder
 {
 public:
-    VLCObjectHolderImpl(qt_intf_t* p_intf)
+    HeimdallObjectHolderImpl(qt_intf_t* p_intf)
         : m_object(p_intf)
     { }
 
-    vlc_object_t* get() const override
+    heimdall_object_t* get() const override
     {
         if (!m_object)
             return nullptr;
-        return VLC_OBJECT(m_object);
+        return HEIMDALL_OBJECT(m_object);
     }
 
     void reset(qt_intf_t* p_intf, bool) override
@@ -122,19 +123,19 @@ private:
 };
 
 template<>
-struct VLCObjectHolderImpl<audio_output_t> : public VLCObjectHolder
+struct HeimdallObjectHolderImpl<audio_output_t> : public HeimdallObjectHolder
 {
 public:
 
-    VLCObjectHolderImpl(audio_output_t* aout)
+    HeimdallObjectHolderImpl(audio_output_t* aout)
         : m_object(aout)
     { }
 
-    vlc_object_t* get() const override
+    heimdall_object_t* get() const override
     {
         if (!m_object)
             return nullptr;
-        return VLC_OBJECT(m_object.get());
+        return HEIMDALL_OBJECT(m_object.get());
     }
 
     void reset(audio_output_t* aout, bool hold) override
@@ -149,24 +150,24 @@ public:
 private:
     static void obj_hold( audio_output_t* obj ) { aout_Hold(obj); }
     static void obj_release( audio_output_t* obj ) { aout_Release(obj); }
-    typedef ::vlc::vlc_shared_data_ptr<audio_output_t, &obj_hold, &obj_release> SharedPtr;
+    typedef ::heimdall::heimdall_shared_data_ptr<audio_output_t, &obj_hold, &obj_release> SharedPtr;
     SharedPtr m_object;
 };
 
 template<>
-struct VLCObjectHolderImpl<vlc_object_t> : public VLCObjectHolder
+struct HeimdallObjectHolderImpl<heimdall_object_t> : public HeimdallObjectHolder
 {
 public:
 
-    VLCObjectHolderImpl(vlc_object_t* obj)
+    HeimdallObjectHolderImpl(heimdall_object_t* obj)
         : m_object(obj)
     { }
 
-    vlc_object_t* get() const override {
+    heimdall_object_t* get() const override {
         return m_object;
     }
 
-    void reset(vlc_object_t* obj, bool) override {
+    void reset(heimdall_object_t* obj, bool) override {
         m_object = obj;
     }
 
@@ -175,7 +176,7 @@ public:
     }
 
 private:
-    vlc_object_t *m_object;
+    heimdall_object_t *m_object;
 };
 
 #endif // VAR_COMMON_P_HPP

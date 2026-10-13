@@ -2,6 +2,7 @@
  * vout_subpictures.c : subpicture management functions
  *****************************************************************************
  * Copyright (C) 2000-2019 VLC authors, VideoLAN and Videolabs SAS
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Vincent Seguin <seguin@via.ecp.fr>
  *          Samuel Hocevar <sam@zoy.org>
@@ -32,13 +33,13 @@
 #include <assert.h>
 #include <limits.h>
 
-#include <vlc_common.h>
-#include <vlc_filter.h>
-#include <vlc_spu.h>
-#include <vlc_vector.h>
-#include <vlc_vout_display.h>
+#include <heimdall_common.h>
+#include <heimdall_filter.h>
+#include <heimdall_spu.h>
+#include <heimdall_vector.h>
+#include <heimdall_vout_display.h>
 
-#include "../libvlc.h"
+#include "../libheimdall.h"
 #include "vout_internal.h"
 #include "../misc/subpicture.h"
 #include "../input/input_internal.h"
@@ -53,27 +54,27 @@ typedef struct {
     /* Shared with prerendering thread */
     subpicture_t *subpic; /* picture to be rendered */
     /* */
-    vlc_tick_t orgstart; /* original picture timestamp, for conversion updates */
-    vlc_tick_t orgstop;
-    vlc_tick_t start; /* current entry rendering time, */
-    vlc_tick_t stop;  /* set to subpicture at rendering time */
+    heimdall_tick_t orgstart; /* original picture timestamp, for conversion updates */
+    heimdall_tick_t orgstop;
+    heimdall_tick_t start; /* current entry rendering time, */
+    heimdall_tick_t stop;  /* set to subpicture at rendering time */
     bool is_late;
-    enum vlc_vout_order channel_order;
+    enum heimdall_vout_order channel_order;
 } spu_render_entry_t;
 
-typedef struct VLC_VECTOR(spu_render_entry_t) spu_render_vector;
+typedef struct HEIMDALL_VECTOR(spu_render_entry_t) spu_render_vector;
 
 struct spu_channel {
     spu_render_vector entries;
     size_t id;
-    enum vlc_vout_order order;
-    vlc_clock_t *clock;
-    vlc_tick_t delay;
+    enum heimdall_vout_order order;
+    heimdall_clock_t *clock;
+    heimdall_tick_t delay;
     float rate;
 };
 
-typedef struct VLC_VECTOR(struct spu_channel) spu_channel_vector;
-typedef struct VLC_VECTOR(subpicture_t *) spu_prerender_vector;
+typedef struct HEIMDALL_VECTOR(struct spu_channel) spu_channel_vector;
+typedef struct HEIMDALL_VECTOR(subpicture_t *) spu_prerender_vector;
 #define SPU_CHROMALIST_COUNT 10
 
 struct subtitle_position_cache
@@ -94,21 +95,21 @@ struct subtitle_position_cache
         int i_max_height;
     } key;
 };
-typedef struct VLC_VECTOR(struct subtitle_position_cache) subtitles_positions_vector;
+typedef struct HEIMDALL_VECTOR(struct subtitle_position_cache) subtitles_positions_vector;
 
 typedef struct spu_private_t spu_private_t;
 
 struct spu_private_t {
     spu_t spu;
 
-    vlc_mutex_t  lock;            /* lock to protect all following fields */
+    heimdall_mutex_t  lock;            /* lock to protect all following fields */
     input_thread_t *input;
 
     spu_channel_vector channels;
 
     int channel;             /**< number of subpicture channels registered */
     filter_t *text;                              /**< text renderer module */
-    vlc_mutex_t textlock;
+    heimdall_mutex_t textlock;
     filter_t *scale_yuvp;                     /**< scaling module for YUVP */
     filter_t *scale;                    /**< scaling module (all but YUVP) */
     bool crop_highlight;                     /**< force cropping of subpicture */
@@ -137,34 +138,34 @@ struct spu_private_t {
     filter_chain_t *source_chain;
     char           *filter_chain_current;
     char           *filter_chain_update;
-    vlc_mutex_t    filter_chain_lock;
+    heimdall_mutex_t    filter_chain_lock;
     filter_chain_t *filter_chain;
     /**/
     struct
     {
-        vlc_thread_t    thread;
-        vlc_mutex_t     lock;
-        vlc_cond_t      cond;
-        vlc_cond_t      output_cond;
+        heimdall_thread_t    thread;
+        heimdall_mutex_t     lock;
+        heimdall_cond_t      cond;
+        heimdall_cond_t      output_cond;
         spu_prerender_vector vector;
         subpicture_t   *p_processed;
         video_format_t  fmtsrc;
         video_format_t  fmtdst;
         bool            spu_in_full_window;
         vout_display_place_t video_position;
-        vlc_fourcc_t    chroma_list[SPU_CHROMALIST_COUNT+1];
+        heimdall_fourcc_t    chroma_list[SPU_CHROMALIST_COUNT+1];
         bool            live;
     } prerender;
 
     /* */
-    vlc_tick_t          last_sort_date;
+    heimdall_tick_t          last_sort_date;
     vout_thread_t       *vout;
 };
 
 static void spu_PrerenderCancel(spu_private_t *, const subpicture_t *);
 
 static void spu_channel_Init(struct spu_channel *channel, size_t id,
-                             enum vlc_vout_order order, vlc_clock_t *clock)
+                             enum heimdall_vout_order order, heimdall_clock_t *clock)
 {
     channel->id = id;
     channel->clock = clock;
@@ -172,11 +173,11 @@ static void spu_channel_Init(struct spu_channel *channel, size_t id,
     channel->rate = 1.f;
     channel->order = order;
 
-    vlc_vector_init(&channel->entries);
+    heimdall_vector_init(&channel->entries);
 }
 
 static int spu_channel_Push(struct spu_channel *channel, subpicture_t *subpic,
-                            vlc_tick_t orgstart, vlc_tick_t orgstop)
+                            heimdall_tick_t orgstart, heimdall_tick_t orgstop)
 {
     const spu_render_entry_t entry = {
         .subpic = subpic,
@@ -185,7 +186,7 @@ static int spu_channel_Push(struct spu_channel *channel, subpicture_t *subpic,
         .start = subpic->i_start,
         .stop = subpic->i_stop,
     };
-    return vlc_vector_push(&channel->entries, entry) ? VLC_SUCCESS : VLC_EGENERIC;
+    return heimdall_vector_push(&channel->entries, entry) ? HEIMDALL_SUCCESS : HEIMDALL_EGENERIC;
 }
 
 static void spu_Channel_CleanEntry(spu_private_t *sys, spu_render_entry_t *entry)
@@ -199,13 +200,13 @@ static void spu_Channel_CleanEntry(spu_private_t *sys, spu_render_entry_t *entry
 static void spu_channel_Clean(spu_private_t *sys, struct spu_channel *channel)
 {
     spu_render_entry_t *entry;
-    vlc_vector_foreach_ref(entry, &channel->entries)
+    heimdall_vector_foreach_ref(entry, &channel->entries)
         spu_Channel_CleanEntry(sys, entry);
-    vlc_vector_clear(&channel->entries);
+    heimdall_vector_clear(&channel->entries);
 }
 
-static bool spu_HasAlreadyExpired(vlc_tick_t start, vlc_tick_t stop,
-                                  vlc_tick_t system_now)
+static bool spu_HasAlreadyExpired(heimdall_tick_t start, heimdall_tick_t stop,
+                                  heimdall_tick_t system_now)
 {
     bool b_stop_is_valid = (stop >= start);
     /* we can't include ephemere SPU without end date
@@ -218,7 +219,7 @@ static bool spu_HasAlreadyExpired(vlc_tick_t start, vlc_tick_t stop,
 
 static void spu_channel_EarlyRemoveLate(spu_private_t *sys,
                                         struct spu_channel *channel,
-                                        vlc_tick_t system_now)
+                                        heimdall_tick_t system_now)
 {
     if(channel->entries.size == 0)
         return;
@@ -226,7 +227,7 @@ static void spu_channel_EarlyRemoveLate(spu_private_t *sys,
      * order. Ephemer really expires on next SPU activation, or if it has a valid
      * stop time */
     const spu_render_entry_t *last = &channel->entries.data[channel->entries.size-1];
-    vlc_tick_t minactivespu = last->start;
+    heimdall_tick_t minactivespu = last->start;
     int64_t minactivespuorder = last->subpic->i_order;
     for (size_t i = 0; i < channel->entries.size - 1; i++)
     {
@@ -253,7 +254,7 @@ static void spu_channel_EarlyRemoveLate(spu_private_t *sys,
             spu_HasAlreadyExpired(entry->start, entry->stop, system_now))
         {
             spu_Channel_CleanEntry(sys, &channel->entries.data[i]);
-            vlc_vector_remove(&channel->entries, i);
+            heimdall_vector_remove(&channel->entries, i);
             continue;
         }
         i++;
@@ -273,10 +274,10 @@ static struct spu_channel *spu_GetChannel(spu_t *spu, size_t channel_id, size_t 
             return &sys->channels.data[i];
         }
     }
-    vlc_assert_unreachable();
+    heimdall_assert_unreachable();
 }
 
-static ssize_t spu_GetFreeChannelId(spu_t *spu, enum vlc_vout_order *order)
+static ssize_t spu_GetFreeChannelId(spu_t *spu, enum heimdall_vout_order *order)
 {
     spu_private_t *sys = container_of(spu, spu_private_t, spu);
 
@@ -285,7 +286,7 @@ static ssize_t spu_GetFreeChannelId(spu_t *spu, enum vlc_vout_order *order)
 
     size_t id;
     if (order)
-        *order = VLC_VOUT_ORDER_PRIMARY;
+        *order = HEIMDALL_VOUT_ORDER_PRIMARY;
     for (id = VOUT_SPU_CHANNEL_OSD_COUNT; id < sys->channels.size + 1; ++id)
     {
         bool used = false;
@@ -295,7 +296,7 @@ static ssize_t spu_GetFreeChannelId(spu_t *spu, enum vlc_vout_order *order)
             {
                 used = true;
                 if (order)
-                    *order = VLC_VOUT_ORDER_SECONDARY;
+                    *order = HEIMDALL_VOUT_ORDER_SECONDARY;
                 break;
             }
         }
@@ -316,17 +317,17 @@ static int spu_get_attachments(filter_t *filter,
     {
         int count = input_GetAttachments(sys->input, attachment_ptr);
         if (count <= 0)
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         *attachment_count = count;
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 static filter_t *SpuRenderCreateAndLoadText(spu_t *spu)
 {
-    filter_t *text = vlc_custom_create(spu, sizeof(*text), "spu text");
+    filter_t *text = heimdall_custom_create(spu, sizeof(*text), "spu text");
     if (!text)
         return NULL;
 
@@ -343,16 +344,16 @@ static filter_t *SpuRenderCreateAndLoadText(spu_t *spu)
         .sys = spu
     };
 
-    char *list = var_InheritString(VLC_OBJECT(text), "text-renderer");
+    char *list = var_InheritString(HEIMDALL_OBJECT(text), "text-renderer");
     if (unlikely(list != NULL))
     {
-        text->p_module = vlc_filter_LoadModule(text, "text renderer", list, false);
+        text->p_module = heimdall_filter_LoadModule(text, "text renderer", list, false);
         free(list);
     }
 
     if (!text->p_module)
     {
-        vlc_object_delete(text);
+        heimdall_object_delete(text);
         return NULL;
     }
     assert( text->ops != NULL );
@@ -360,12 +361,12 @@ static filter_t *SpuRenderCreateAndLoadText(spu_t *spu)
     return text;
 }
 
-static filter_t *SpuRenderCreateAndLoadScale(vlc_object_t *object,
-                                             vlc_fourcc_t src_chroma,
-                                             vlc_fourcc_t dst_chroma,
+static filter_t *SpuRenderCreateAndLoadScale(heimdall_object_t *object,
+                                             heimdall_fourcc_t src_chroma,
+                                             heimdall_fourcc_t dst_chroma,
                                              bool require_resize)
 {
-    filter_t *scale = vlc_custom_create(object, sizeof(*scale), "scale");
+    filter_t *scale = heimdall_custom_create(object, sizeof(*scale), "scale");
     if (!scale)
         return NULL;
 
@@ -383,10 +384,10 @@ static filter_t *SpuRenderCreateAndLoadScale(vlc_object_t *object,
     scale->fmt_out.video.i_height =
     scale->fmt_out.video.i_visible_height = require_resize ? 16 : 32;
 
-    scale->p_module = vlc_filter_LoadModule(scale, "video converter", NULL, false);
+    scale->p_module = heimdall_filter_LoadModule(scale, "video converter", NULL, false);
     if (!scale->p_module)
     {
-        vlc_object_delete(scale);
+        heimdall_object_delete(scale);
         return NULL;
     }
     assert( scale->ops != NULL );
@@ -419,18 +420,18 @@ static subpicture_region_t *SpuRenderText(spu_t *spu,
                           const subpicture_region_t *region,
                           unsigned output_width,
                           unsigned output_height,
-                          const vlc_fourcc_t *chroma_list)
+                          const heimdall_fourcc_t *chroma_list)
 {
     spu_private_t *sys = container_of(spu, spu_private_t, spu);
     assert(subpicture_region_IsText( region ));
     if ( region->p_text == NULL )
         return NULL;
 
-    vlc_mutex_lock(&sys->textlock);
+    heimdall_mutex_lock(&sys->textlock);
     filter_t *text = sys->text;
     if(unlikely(text == NULL))
     {
-        vlc_mutex_unlock(&sys->textlock);
+        heimdall_mutex_unlock(&sys->textlock);
         return NULL;
     }
 
@@ -445,7 +446,7 @@ static subpicture_region_t *SpuRenderText(spu_t *spu,
     subpicture_region_t *rendered_region = text->ops->render(text, region, chroma_list);
     assert(rendered_region == NULL || !subpicture_region_IsText(rendered_region));
 
-    vlc_mutex_unlock(&sys->textlock);
+    heimdall_mutex_unlock(&sys->textlock);
     return rendered_region;
 }
 
@@ -631,7 +632,7 @@ static void SpuAreaMoveInside(spu_area_t *area, const unsigned boundary_width,
 static void subtitles_positions_StartUpdate(subtitles_positions_vector *subs)
 {
     struct subtitle_position_cache *pos;
-    vlc_vector_foreach_ref(pos, subs)
+    heimdall_vector_foreach_ref(pos, subs)
     {
         pos->is_active = false;
     }
@@ -644,7 +645,7 @@ static void subtitles_positions_FinishUpdate(subtitles_positions_vector *subs)
     {
         pos = &subs->data[i - 1];
         if (!pos->is_active)
-            vlc_vector_remove(subs, i - 1);
+            heimdall_vector_remove(subs, i - 1);
     }
 }
 
@@ -671,7 +672,7 @@ static struct subtitle_position_cache *subtitles_positions_FindRelativeRegion(
     const subpicture_region_t *region)
 {
     struct subtitle_position_cache *pos;
-    vlc_vector_foreach_ref(pos, subs)
+    heimdall_vector_foreach_ref(pos, subs)
     {
         if (subtitle_position_cache_Matches(pos, subpic, region))
         {
@@ -692,7 +693,7 @@ static void subtitles_positions_AddRelativeRegion(subtitles_positions_vector *su
 
     if (write == NULL)
     {
-        if (unlikely(!vlc_vector_insert_hole(subs, subs->size, 1)))
+        if (unlikely(!heimdall_vector_insert_hole(subs, subs->size, 1)))
             return;
         write = &subs->data[subs->size - 1];
     }
@@ -794,7 +795,7 @@ static int SpuRenderCmp(const void *s0, const void *s1)
 }
 
 static size_t spu_channel_UpdateDates(struct spu_channel *channel,
-                                       vlc_tick_t system_now)
+                                       heimdall_tick_t system_now)
 {
     /* Put every spu start and stop ts into the same array to convert them in
      * one shot */
@@ -804,28 +805,28 @@ static size_t spu_channel_UpdateDates(struct spu_channel *channel,
     if (!channel->clock)
         goto end;
 
-    vlc_clock_Lock(channel->clock);
+    heimdall_clock_Lock(channel->clock);
     spu_render_entry_t *entry;
-    vlc_vector_foreach_ref(entry, &channel->entries)
+    heimdall_vector_foreach_ref(entry, &channel->entries)
     {
         assert(entry);
 
-        entry->start = vlc_clock_ConvertToSystem(channel->clock, system_now,
+        entry->start = heimdall_clock_ConvertToSystem(channel->clock, system_now,
                                                  entry->orgstart, channel->rate,
                                                  NULL);
 
-        if (entry->orgstop != VLC_TICK_INVALID)
+        if (entry->orgstop != HEIMDALL_TICK_INVALID)
         {
-            entry->stop = vlc_clock_ConvertToSystem(channel->clock,
+            entry->stop = heimdall_clock_ConvertToSystem(channel->clock,
                                                     system_now,
                                                     entry->orgstop,
                                                     channel->rate,
                                                     NULL);
         }
         else
-            entry->stop = VLC_TICK_INVALID;
+            entry->stop = HEIMDALL_TICK_INVALID;
     }
-    vlc_clock_Unlock(channel->clock);
+    heimdall_clock_Unlock(channel->clock);
 
 end:
     return channel->entries.size;
@@ -833,7 +834,7 @@ end:
 
 static bool
 spu_render_entry_IsSelected(spu_render_entry_t *render_entry, size_t channel_id,
-                            vlc_tick_t render_date, bool ignore_osd)
+                            heimdall_tick_t render_date, bool ignore_osd)
 {
     subpicture_t *subpic = render_entry->subpic;
     assert(subpic);
@@ -844,7 +845,7 @@ spu_render_entry_IsSelected(spu_render_entry_t *render_entry, size_t channel_id,
     if (ignore_osd && subpic->i_channel < VOUT_SPU_CHANNEL_OSD_COUNT)
         return false;
 
-    assert(render_date != VLC_TICK_INVALID);
+    assert(render_date != HEIMDALL_TICK_INVALID);
     // is it too early for this entry ?
     return render_date >= render_entry->start;
 }
@@ -860,8 +861,8 @@ spu_render_entry_IsSelected(spu_render_entry_t *render_entry, size_t channel_id,
  * more difficult to guess if a subpicture has to be rendered or not.
  *****************************************************************************/
 static spu_render_entry_t *
-spu_SelectSubpictures(spu_t *spu, vlc_tick_t system_now,
-                      vlc_tick_t render_subtitle_date,
+spu_SelectSubpictures(spu_t *spu, heimdall_tick_t system_now,
+                      heimdall_tick_t render_subtitle_date,
                       bool ignore_osd, size_t *subpicture_count)
 {
     spu_private_t *sys = container_of(spu, spu_private_t, spu);
@@ -877,7 +878,7 @@ spu_SelectSubpictures(spu_t *spu, vlc_tick_t system_now,
         return NULL;
 
     spu_render_entry_t *subpicture_array =
-        vlc_alloc(total_size, sizeof(spu_render_entry_t));
+        heimdall_alloc(total_size, sizeof(spu_render_entry_t));
     if (!subpicture_array)
         return NULL;
 
@@ -886,9 +887,9 @@ spu_SelectSubpictures(spu_t *spu, vlc_tick_t system_now,
     {
         struct spu_channel *channel = &sys->channels.data[i];
 
-        vlc_tick_t   start_date = render_subtitle_date;
-        vlc_tick_t   ephemer_subtitle_date = 0;
-        vlc_tick_t   ephemer_osd_date = 0;
+        heimdall_tick_t   start_date = render_subtitle_date;
+        heimdall_tick_t   ephemer_subtitle_date = 0;
+        heimdall_tick_t   ephemer_osd_date = 0;
         int64_t      selected_max_order = INT64_MIN;
 
         if (spu_channel_UpdateDates(channel, system_now) == 0)
@@ -896,15 +897,15 @@ spu_SelectSubpictures(spu_t *spu, vlc_tick_t system_now,
 
         /* Select available pictures */
         spu_render_entry_t *render_entry;
-        vlc_vector_foreach_ref(render_entry, &channel->entries) {
+        heimdall_vector_foreach_ref(render_entry, &channel->entries) {
             subpicture_t *current = render_entry->subpic;
-            const vlc_tick_t render_date = current->b_subtitle ? render_subtitle_date : system_now;
+            const heimdall_tick_t render_date = current->b_subtitle ? render_subtitle_date : system_now;
 
             if (!spu_render_entry_IsSelected(render_entry, channel->id,
                                              render_date, ignore_osd))
                 continue;
 
-            vlc_tick_t *date_ptr  = current->b_subtitle ? &ephemer_subtitle_date  : &ephemer_osd_date;
+            heimdall_tick_t *date_ptr  = current->b_subtitle ? &ephemer_subtitle_date  : &ephemer_osd_date;
             if (current->i_start >= *date_ptr) {
                 *date_ptr = render_entry->start;
                 if (current->i_order > selected_max_order)
@@ -914,9 +915,9 @@ spu_SelectSubpictures(spu_t *spu, vlc_tick_t system_now,
             /* If the spu is ephemer, the stop time is invalid, but it has been converted to
                system time and used in comparisons below */
             const bool is_stop_valid = !current->b_ephemer ||
-                (render_entry->orgstop != VLC_TICK_INVALID && render_entry->orgstop > render_entry->orgstart);
+                (render_entry->orgstop != HEIMDALL_TICK_INVALID && render_entry->orgstop > render_entry->orgstart);
             render_entry->is_late = is_stop_valid &&
-                (current->i_stop == VLC_TICK_INVALID || current->i_stop <= render_date);
+                (current->i_stop == HEIMDALL_TICK_INVALID || current->i_stop <= render_date);
 
             /* start_date will be used for correct automatic overlap support
              * in case picture that should not be displayed anymore (display_time)
@@ -929,13 +930,13 @@ spu_SelectSubpictures(spu_t *spu, vlc_tick_t system_now,
         if (start_date < sys->last_sort_date)
             start_date = sys->last_sort_date;
         if (start_date <= 0)
-            start_date = VLC_TICK_MAX;
+            start_date = HEIMDALL_TICK_MAX;
 
         /* Select pictures to be displayed */
         for (size_t index = 0; index < channel->entries.size; ) {
             render_entry = &channel->entries.data[index];
             subpicture_t *current = render_entry->subpic;
-            const vlc_tick_t render_date = current->b_subtitle ? render_subtitle_date : system_now;
+            const heimdall_tick_t render_date = current->b_subtitle ? render_subtitle_date : system_now;
 
             if (!spu_render_entry_IsSelected(render_entry, channel->id,
                                              render_date, ignore_osd))
@@ -944,12 +945,12 @@ spu_SelectSubpictures(spu_t *spu, vlc_tick_t system_now,
                 continue;
             }
 
-            const vlc_tick_t stop_date = current->b_subtitle ? __MAX(start_date, sys->last_sort_date) : system_now;
+            const heimdall_tick_t stop_date = current->b_subtitle ? __MAX(start_date, sys->last_sort_date) : system_now;
 
             /* Destroy late and obsolete ephemer subpictures */
             bool is_rejected = render_entry->is_late && render_entry->stop <= stop_date;
             if (current->b_ephemer) {
-                const vlc_tick_t ephemer_date = current->b_subtitle ? ephemer_subtitle_date : ephemer_osd_date;
+                const heimdall_tick_t ephemer_date = current->b_subtitle ? ephemer_subtitle_date : ephemer_osd_date;
                 if (render_entry->start < ephemer_date)
                     is_rejected = true;
                 else if (render_entry->start == ephemer_date &&
@@ -960,7 +961,7 @@ spu_SelectSubpictures(spu_t *spu, vlc_tick_t system_now,
             if (is_rejected)
             {
                 spu_Channel_CleanEntry(sys, render_entry);
-                vlc_vector_remove(&channel->entries, index);
+                heimdall_vector_remove(&channel->entries, index);
             }
             else
             {
@@ -988,14 +989,14 @@ spu_SelectSubpictures(spu_t *spu, vlc_tick_t system_now,
 static struct subpicture_region_rendered *SpuRenderRegion(spu_t *spu,
                             spu_area_t *dst_area,
                             subpicture_t *subpic,
-                            enum vlc_vout_order channel_order,
+                            enum heimdall_vout_order channel_order,
                             subpicture_region_t *region,
                             const spu_scale_t scale_size, bool apply_scale,
-                            const vlc_fourcc_t *chroma_list,
+                            const heimdall_fourcc_t *chroma_list,
                             const unsigned output_x, const unsigned output_y,
                             const unsigned output_width, const unsigned output_height,
                             const spu_area_t *subtitle_area, size_t subtitle_area_count,
-                            vlc_tick_t render_date)
+                            heimdall_tick_t render_date)
 {
     assert(!subpicture_region_IsText( region ));
     spu_private_t *sys = container_of(spu, spu_private_t, spu);
@@ -1013,7 +1014,7 @@ static struct subpicture_region_rendered *SpuRenderRegion(spu_t *spu,
      * FIXME b_force_palette and crop_highlight are applied to all subpictures using palette
      * instead of only the right one (being the dvd spu).
      */
-    const bool using_palette = region->p_picture->format.i_chroma == VLC_CODEC_YUVP;
+    const bool using_palette = region->p_picture->format.i_chroma == HEIMDALL_CODEC_YUVP;
     const bool force_palette = using_palette && sys->palette.i_entries > 0;
     const bool crop_requested = (force_palette && sys->crop_highlight) ||
                                 region->i_max_width || region->i_max_height;
@@ -1032,7 +1033,7 @@ static struct subpicture_region_rendered *SpuRenderRegion(spu_t *spu,
      * We compute the position in the rendered size */
 
     int i_align;
-    if (channel_order == VLC_VOUT_ORDER_SECONDARY && sys->secondary_alignment >= 0)
+    if (channel_order == HEIMDALL_VOUT_ORDER_SECONDARY && sys->secondary_alignment >= 0)
         i_align = sys->secondary_alignment;
     else
         i_align = region->i_align;
@@ -1040,7 +1041,7 @@ static struct subpicture_region_rendered *SpuRenderRegion(spu_t *spu,
     SpuRegionPlace(&x_offset, &y_offset,
                    subpic, region, i_align);
 
-    if (channel_order == VLC_VOUT_ORDER_SECONDARY)
+    if (channel_order == HEIMDALL_VOUT_ORDER_SECONDARY)
     {
         int secondary_margin =
             apply_scale ? spu_invscale_h(sys->secondary_margin, scale_size) : sys->secondary_margin;
@@ -1236,7 +1237,7 @@ static struct subpicture_region_rendered *SpuRenderRegion(spu_t *spu,
 
             /* */
             if (picture) {
-                if(subpicture_region_cache_Assign(region, picture) != VLC_SUCCESS)
+                if(subpicture_region_cache_Assign(region, picture) != HEIMDALL_SUCCESS)
                     picture_Release(picture);
             }
         }
@@ -1332,9 +1333,9 @@ static struct subpicture_region_rendered *SpuRenderRegion(spu_t *spu,
     }
     int fade_alpha = 255;
     if (subpic->b_fade) {
-        assert(subpic->i_stop != VLC_TICK_INVALID);
+        assert(subpic->i_stop != HEIMDALL_TICK_INVALID);
         assert(subpic->i_stop > subpic->i_start);
-        vlc_tick_t fade_start = subpic->i_start + 3 * (subpic->i_stop - subpic->i_start) / 4;
+        heimdall_tick_t fade_start = subpic->i_start + 3 * (subpic->i_stop - subpic->i_start) / 4;
 
         if (fade_start <= render_date && fade_start < subpic->i_stop)
             fade_alpha = 255 * (subpic->i_stop - render_date) /
@@ -1363,16 +1364,16 @@ static void spu_UpdateOriginalSize(spu_t *spu, subpicture_t *subpic,
 /**
  * This function renders all sub picture units in the list.
  */
-static vlc_render_subpicture *SpuRenderSubpictures(spu_t *spu,
+static heimdall_render_subpicture *SpuRenderSubpictures(spu_t *spu,
                                           size_t i_subpicture,
                                           const spu_render_entry_t *p_entries,
-                                          const vlc_fourcc_t *chroma_list,
+                                          const heimdall_fourcc_t *chroma_list,
                                           const video_format_t *fmt_dst,
                                           const video_format_t *fmt_src,
                                           bool spu_in_full_window,
                                           const vout_display_place_t *video_position,
-                                          vlc_tick_t system_now,
-                                          vlc_tick_t render_subtitle_date,
+                                          heimdall_tick_t system_now,
+                                          heimdall_tick_t render_subtitle_date,
                                           bool external_scale)
 {
     spu_private_t *sys = container_of(spu, spu_private_t, spu);
@@ -1385,7 +1386,7 @@ static vlc_render_subpicture *SpuRenderSubpictures(spu_t *spu,
 
         size_t count = 0;
         const subpicture_region_t *p_head;
-        vlc_spu_regions_foreach_const(p_head, &subpic->regions)
+        heimdall_spu_regions_foreach_const(p_head, &subpic->regions)
             count++;
 
         if (subpic->b_subtitle)
@@ -1396,7 +1397,7 @@ static vlc_render_subpicture *SpuRenderSubpictures(spu_t *spu,
         return NULL;
 
     /* Create the output subpicture */
-    vlc_render_subpicture *output = vlc_render_subpicture_New();
+    heimdall_render_subpicture *output = heimdall_render_subpicture_New();
     if (unlikely(output == NULL))
         return NULL;
     output->i_order = p_entries[i_subpicture - 1].subpic->i_order;
@@ -1420,7 +1421,7 @@ static vlc_render_subpicture *SpuRenderSubpictures(spu_t *spu,
         subpicture_t *subpic = entry->subpic;
         subpicture_region_t *region;
 
-        if (vlc_spu_regions_is_empty(&subpic->regions))
+        if (heimdall_spu_regions_is_empty(&subpic->regions))
             continue;
 
         spu_UpdateOriginalSize(spu, subpic, fmt_src);
@@ -1432,7 +1433,7 @@ static vlc_render_subpicture *SpuRenderSubpictures(spu_t *spu,
          * We always transform non absolute subtitle into absolute one on the
          * first rendering to allow good subtitle overlap support.
          */
-        vlc_spu_regions_foreach(region, &subpic->regions) {
+        heimdall_spu_regions_foreach(region, &subpic->regions) {
             spu_area_t area;
 
             /* last minute text rendering */
@@ -1446,7 +1447,7 @@ static vlc_render_subpicture *SpuRenderSubpictures(spu_t *spu,
                     // not a rendering error for Text-To-Speech
                     continue;
                 // replace the text region with the rendered region
-                vlc_list_replace(&region->node, &rendered_text->node);
+                heimdall_list_replace(&region->node, &rendered_text->node);
                 subpicture_region_Delete(region);
                 region = rendered_text;
             }
@@ -1469,7 +1470,7 @@ static vlc_render_subpicture *SpuRenderSubpictures(spu_t *spu,
             }
 
             /* Compute region scale AR */
-            vlc_rational_t region_sar = (vlc_rational_t) {
+            heimdall_rational_t region_sar = (heimdall_rational_t) {
                 .num = region->fmt.i_sar_num,
                 .den = region->fmt.i_sar_den
             };
@@ -1480,7 +1481,7 @@ static vlc_render_subpicture *SpuRenderSubpictures(spu_t *spu,
                 const uint64_t i_sar_den = (uint64_t)output_height *
                                            fmt_dst->i_sar_den * i_original_width;
 
-                vlc_ureduce(&region_sar.num, &region_sar.den,
+                heimdall_ureduce(&region_sar.num, &region_sar.den,
                             i_sar_num, i_sar_den, 65536);
             }
 
@@ -1545,7 +1546,7 @@ static vlc_render_subpicture *SpuRenderSubpictures(spu_t *spu,
                 assert(area.y == cache_pos->y);
             }
 
-            vlc_vector_push(&output->regions, output_last_ptr);
+            heimdall_vector_push(&output->regions, output_last_ptr);
 
             if (subpic->b_subtitle) {
                 if (likely(subtitle_area))
@@ -1576,11 +1577,11 @@ static vlc_render_subpicture *SpuRenderSubpictures(spu_t *spu,
 /*****************************************************************************
  * SetHighlights: update subpicture settings
  *****************************************************************************/
-static void SetHighlights(spu_t *spu, const vlc_spu_highlight_t *hl)
+static void SetHighlights(spu_t *spu, const heimdall_spu_highlight_t *hl)
 {
     spu_private_t *sys = container_of(spu, spu_private_t, spu);
 
-    vlc_mutex_assert(&sys->lock);
+    heimdall_mutex_assert(&sys->lock);
 
     sys->palette.i_entries = 0;
     sys->crop_highlight = false;
@@ -1626,12 +1627,12 @@ static int SubSourceInit(filter_t *filter, void *data)
     spu_t *spu = data;
     ssize_t *channel = malloc(sizeof (ssize_t));
     if (unlikely(channel == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     *channel = spu_RegisterChannel(spu);
     filter->owner.sys = channel;
     filter->owner.sub = &sub_cbs;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int SubSourceClean(filter_t *filter, void *data)
@@ -1641,58 +1642,58 @@ static int SubSourceClean(filter_t *filter, void *data)
 
     spu_ClearChannel(spu, *channel);
     free(channel);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * Proxy callbacks
  *****************************************************************************/
 
-static int RestartSubFilterCallback(vlc_object_t *obj, char const *psz_var,
-                                    vlc_value_t oldval, vlc_value_t newval,
+static int RestartSubFilterCallback(heimdall_object_t *obj, char const *psz_var,
+                                    heimdall_value_t oldval, heimdall_value_t newval,
                                     void *p_data)
-{ VLC_UNUSED(obj); VLC_UNUSED(psz_var); VLC_UNUSED(oldval); VLC_UNUSED(newval);
+{ HEIMDALL_UNUSED(obj); HEIMDALL_UNUSED(psz_var); HEIMDALL_UNUSED(oldval); HEIMDALL_UNUSED(newval);
     vout_ControlChangeSubFilters((vout_thread_t *)p_data, NULL);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int SubFilterAddProxyCallbacks(filter_t *filter, void *opaque)
 {
     vout_thread_t *vout = opaque;
-    filter_AddProxyCallbacks(VLC_OBJECT(vout), filter,
+    filter_AddProxyCallbacks(HEIMDALL_OBJECT(vout), filter,
                              RestartSubFilterCallback);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int SubFilterDelProxyCallbacks(filter_t *filter, void *opaque)
 {
     vout_thread_t *vout = opaque;
-    filter_DelProxyCallbacks(VLC_OBJECT(vout), filter,
+    filter_DelProxyCallbacks(HEIMDALL_OBJECT(vout), filter,
                              RestartSubFilterCallback);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int RestartSubSourceCallback(vlc_object_t *obj, char const *psz_var,
-                                    vlc_value_t oldval, vlc_value_t newval,
+static int RestartSubSourceCallback(heimdall_object_t *obj, char const *psz_var,
+                                    heimdall_value_t oldval, heimdall_value_t newval,
                                     void *p_data)
-{ VLC_UNUSED(obj); VLC_UNUSED(psz_var); VLC_UNUSED(oldval); VLC_UNUSED(newval);
+{ HEIMDALL_UNUSED(obj); HEIMDALL_UNUSED(psz_var); HEIMDALL_UNUSED(oldval); HEIMDALL_UNUSED(newval);
     vout_ControlChangeSubSources((vout_thread_t *)p_data, NULL);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int SubSourceAddProxyCallbacks(filter_t *filter, void *opaque)
 {
-    filter_AddProxyCallbacks((vlc_object_t *)opaque, filter,
+    filter_AddProxyCallbacks((heimdall_object_t *)opaque, filter,
                              RestartSubSourceCallback);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int SubSourceDelProxyCallbacks(filter_t *filter, void *opaque)
 {
     vout_thread_t *vout = opaque;
-    filter_DelProxyCallbacks(VLC_OBJECT(vout), filter,
+    filter_DelProxyCallbacks(HEIMDALL_OBJECT(vout), filter,
                              RestartSubSourceCallback);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void spu_PrerenderWake(spu_private_t *sys,
@@ -1700,9 +1701,9 @@ static void spu_PrerenderWake(spu_private_t *sys,
                               const video_format_t *fmt_src,
                               bool spu_in_full_window,
                               const vout_display_place_t *video_position,
-                              const vlc_fourcc_t *chroma_list)
+                              const heimdall_fourcc_t *chroma_list)
 {
-    vlc_mutex_lock(&sys->prerender.lock);
+    heimdall_mutex_lock(&sys->prerender.lock);
     if(!video_format_IsSimilar(fmt_dst, &sys->prerender.fmtdst))
     {
         video_format_Clean(&sys->prerender.fmtdst);
@@ -1723,60 +1724,60 @@ static void spu_PrerenderWake(spu_private_t *sys,
             break;
     }
 
-    vlc_cond_signal(&sys->prerender.cond);
-    vlc_mutex_unlock(&sys->prerender.lock);
+    heimdall_cond_signal(&sys->prerender.cond);
+    heimdall_mutex_unlock(&sys->prerender.lock);
 }
 
 static void spu_PrerenderEnqueue(spu_private_t *sys, subpicture_t *p_subpic)
 {
-    vlc_mutex_lock(&sys->prerender.lock);
-    vlc_vector_push(&sys->prerender.vector, p_subpic);
-    vlc_cond_signal(&sys->prerender.cond);
-    vlc_mutex_unlock(&sys->prerender.lock);
+    heimdall_mutex_lock(&sys->prerender.lock);
+    heimdall_vector_push(&sys->prerender.vector, p_subpic);
+    heimdall_cond_signal(&sys->prerender.cond);
+    heimdall_mutex_unlock(&sys->prerender.lock);
 }
 
 static void spu_PrerenderCancel(spu_private_t *sys, const subpicture_t *p_subpic)
 {
-    vlc_mutex_lock(&sys->prerender.lock);
+    heimdall_mutex_lock(&sys->prerender.lock);
     ssize_t i_idx;
-    vlc_vector_index_of(&sys->prerender.vector, p_subpic, &i_idx);
+    heimdall_vector_index_of(&sys->prerender.vector, p_subpic, &i_idx);
     if(i_idx >= 0)
-        vlc_vector_remove(&sys->prerender.vector, i_idx);
+        heimdall_vector_remove(&sys->prerender.vector, i_idx);
     else while(sys->prerender.p_processed == p_subpic)
-        vlc_cond_wait(&sys->prerender.output_cond, &sys->prerender.lock);
-    vlc_mutex_unlock(&sys->prerender.lock);
+        heimdall_cond_wait(&sys->prerender.output_cond, &sys->prerender.lock);
+    heimdall_mutex_unlock(&sys->prerender.lock);
 }
 
 static void spu_PrerenderPause(spu_private_t *sys)
 {
-    vlc_mutex_lock(&sys->prerender.lock);
+    heimdall_mutex_lock(&sys->prerender.lock);
     while(sys->prerender.p_processed)
-        vlc_cond_wait(&sys->prerender.output_cond, &sys->prerender.lock);
+        heimdall_cond_wait(&sys->prerender.output_cond, &sys->prerender.lock);
     sys->prerender.chroma_list[0] = 0;
-    vlc_mutex_unlock(&sys->prerender.lock);
+    heimdall_mutex_unlock(&sys->prerender.lock);
 }
 
 static void spu_PrerenderSync(spu_private_t *sys, const subpicture_t *p_subpic)
 {
-    vlc_mutex_lock(&sys->prerender.lock);
+    heimdall_mutex_lock(&sys->prerender.lock);
     ssize_t i_idx;
-    vlc_vector_index_of(&sys->prerender.vector, p_subpic, &i_idx);
+    heimdall_vector_index_of(&sys->prerender.vector, p_subpic, &i_idx);
     while(i_idx >= 0 || sys->prerender.p_processed == p_subpic)
     {
-        vlc_cond_wait(&sys->prerender.output_cond, &sys->prerender.lock);
-        vlc_vector_index_of(&sys->prerender.vector, p_subpic, &i_idx);
+        heimdall_cond_wait(&sys->prerender.output_cond, &sys->prerender.lock);
+        heimdall_vector_index_of(&sys->prerender.vector, p_subpic, &i_idx);
     }
-    vlc_mutex_unlock(&sys->prerender.lock);
+    heimdall_mutex_unlock(&sys->prerender.lock);
 }
 
 static void spu_PrerenderText(spu_t *spu, subpicture_t *p_subpic,
-                              const vlc_fourcc_t *chroma_list)
+                              const heimdall_fourcc_t *chroma_list)
 {
     const unsigned i_original_picture_width = p_subpic->i_original_picture_width;
     const unsigned i_original_picture_height = p_subpic->i_original_picture_height;
 
     subpicture_region_t *region;
-    vlc_spu_regions_foreach(region, &p_subpic->regions)
+    heimdall_spu_regions_foreach(region, &p_subpic->regions)
     {
         if(!subpicture_region_IsText( region ))
             continue;
@@ -1785,10 +1786,10 @@ static void spu_PrerenderText(spu_t *spu, subpicture_t *p_subpic,
                         i_original_picture_width, i_original_picture_height,
                         chroma_list);
         if (rendered_text == NULL)
-            vlc_spu_regions_remove(&p_subpic->regions, region);
+            heimdall_spu_regions_remove(&p_subpic->regions, region);
         else
             // replace the text region with the rendered region
-            vlc_list_replace(&region->node, &rendered_text->node);
+            heimdall_list_replace(&region->node, &rendered_text->node);
         subpicture_region_Delete(region);
     }
 }
@@ -1797,13 +1798,13 @@ static void * spu_PrerenderThread(void *priv)
 {
     spu_t *spu = priv;
     spu_private_t *sys = container_of(spu, spu_private_t, spu);
-    vlc_fourcc_t chroma_list[SPU_CHROMALIST_COUNT+1];
+    heimdall_fourcc_t chroma_list[SPU_CHROMALIST_COUNT+1];
 
-    vlc_thread_set_name("vlc-spu-prerend");
+    heimdall_thread_set_name("heimdall-spu-prerend");
 
     chroma_list[SPU_CHROMALIST_COUNT] = 0;
 
-    vlc_mutex_lock(&sys->prerender.lock);
+    heimdall_mutex_lock(&sys->prerender.lock);
     while (sys->prerender.live)
     {
         video_format_t fmtsrc;
@@ -1811,7 +1812,7 @@ static void * spu_PrerenderThread(void *priv)
 
         if (!sys->prerender.vector.size || !sys->prerender.chroma_list[0])
         {
-            vlc_cond_wait(&sys->prerender.cond, &sys->prerender.lock);
+            heimdall_cond_wait(&sys->prerender.cond, &sys->prerender.lock);
             continue;
         }
 
@@ -1825,7 +1826,7 @@ static void * spu_PrerenderThread(void *priv)
                  i_idx = i;
              }
         }
-        vlc_vector_remove(&sys->prerender.vector, i_idx);
+        heimdall_vector_remove(&sys->prerender.vector, i_idx);
         memcpy(chroma_list, sys->prerender.chroma_list, SPU_CHROMALIST_COUNT);
         fmtdst = sys->prerender.fmtdst;
         fmtsrc = sys->prerender.fmtsrc;
@@ -1845,25 +1846,25 @@ static void * spu_PrerenderThread(void *priv)
             display_height = sys->prerender.fmtdst.i_visible_height;
         }
 
-        vlc_mutex_unlock(&sys->prerender.lock);
+        heimdall_mutex_unlock(&sys->prerender.lock);
 
         subpicture_t *p_subpic = sys->prerender.p_processed;
 
 
         subpicture_Update(p_subpic, &fmtsrc, &fmtdst,
                           display_width, display_height,
-                          p_subpic->b_subtitle ? p_subpic->i_start : vlc_tick_now());
+                          p_subpic->b_subtitle ? p_subpic->i_start : heimdall_tick_now());
 
         spu_UpdateOriginalSize(spu, p_subpic, &fmtsrc);
 
         spu_PrerenderText(spu, p_subpic, chroma_list);
 
-        vlc_mutex_lock(&sys->prerender.lock);
+        heimdall_mutex_lock(&sys->prerender.lock);
         sys->prerender.p_processed = NULL;
-        vlc_cond_signal(&sys->prerender.output_cond);
+        heimdall_cond_signal(&sys->prerender.output_cond);
     }
 
-    vlc_mutex_unlock(&sys->prerender.lock);
+    heimdall_mutex_unlock(&sys->prerender.lock);
     return NULL;
 }
 
@@ -1876,13 +1877,13 @@ static void spu_Cleanup(spu_t *spu)
     spu_private_t *sys = container_of(spu, spu_private_t, spu);
 
     if (sys->text)
-        vlc_filter_Delete(sys->text);
+        heimdall_filter_Delete(sys->text);
 
     if (sys->scale_yuvp)
-        vlc_filter_Delete(sys->scale_yuvp);
+        heimdall_filter_Delete(sys->scale_yuvp);
 
     if (sys->scale)
-        vlc_filter_Delete(sys->scale);
+        heimdall_filter_Delete(sys->scale);
 
     filter_chain_ForEach(sys->source_chain, SubSourceClean, spu);
     if (sys->vout)
@@ -1902,11 +1903,11 @@ static void spu_Cleanup(spu_t *spu)
     for (size_t i = 0; i < sys->channels.size; ++i)
         spu_channel_Clean(sys, &sys->channels.data[i]);
 
-    vlc_vector_destroy(&sys->subs_pos);
+    heimdall_vector_destroy(&sys->subs_pos);
 
-    vlc_vector_destroy(&sys->channels);
+    heimdall_vector_destroy(&sys->channels);
 
-    vlc_vector_clear(&sys->prerender.vector);
+    heimdall_vector_clear(&sys->prerender.vector);
     video_format_Clean(&sys->prerender.fmtdst);
     video_format_Clean(&sys->prerender.fmtsrc);
 }
@@ -1920,14 +1921,14 @@ void spu_Destroy(spu_t *spu)
 {
     spu_private_t *sys = container_of(spu, spu_private_t, spu);
     /* stop prerendering */
-    vlc_mutex_lock(&sys->prerender.lock);
+    heimdall_mutex_lock(&sys->prerender.lock);
     sys->prerender.live = false;
-    vlc_cond_signal(&sys->prerender.cond);
-    vlc_mutex_unlock(&sys->prerender.lock);
-    vlc_join(sys->prerender.thread, NULL);
+    heimdall_cond_signal(&sys->prerender.cond);
+    heimdall_mutex_unlock(&sys->prerender.lock);
+    heimdall_join(sys->prerender.thread, NULL);
     /* delete filters and free resources */
     spu_Cleanup(spu);
-    vlc_object_delete(spu);
+    heimdall_object_delete(spu);
 }
 
 #undef spu_Create
@@ -1937,9 +1938,9 @@ void spu_Destroy(spu_t *spu)
  * \param object the parent object which creates the subpicture unit
  * \param vout the video output that will use the ::spu_t instance
  */
-spu_t *spu_Create(vlc_object_t *object, vout_thread_t *vout)
+spu_t *spu_Create(heimdall_object_t *object, vout_thread_t *vout)
 {
-    spu_private_t *sys = vlc_custom_create(object,
+    spu_private_t *sys = heimdall_custom_create(object,
                                            sizeof(spu_private_t),
                                            "subpicture");
     if (!sys)
@@ -1948,39 +1949,39 @@ spu_t *spu_Create(vlc_object_t *object, vout_thread_t *vout)
     /* Initialize spu fields */
     spu_t *spu = &sys->spu;
 
-    vlc_vector_init(&sys->channels);
-    if (!vlc_vector_reserve(&sys->channels, VOUT_SPU_CHANNEL_OSD_COUNT))
+    heimdall_vector_init(&sys->channels);
+    if (!heimdall_vector_reserve(&sys->channels, VOUT_SPU_CHANNEL_OSD_COUNT))
     {
-        vlc_object_delete(spu);
+        heimdall_object_delete(spu);
         return NULL;
     }
     for (size_t i = 0; i < VOUT_SPU_CHANNEL_OSD_COUNT; ++i)
     {
         struct spu_channel channel;
-        spu_channel_Init(&channel, i, VLC_VOUT_ORDER_PRIMARY, NULL);
-        vlc_vector_push(&sys->channels, channel);
+        spu_channel_Init(&channel, i, HEIMDALL_VOUT_ORDER_PRIMARY, NULL);
+        heimdall_vector_push(&sys->channels, channel);
     }
 
     /* Initialize private fields */
-    vlc_mutex_init(&sys->lock);
+    heimdall_mutex_init(&sys->lock);
 
     sys->margin = var_InheritInteger(spu, "sub-margin");
     sys->secondary_margin = var_InheritInteger(spu, "secondary-sub-margin");
 
     sys->secondary_alignment = var_InheritInteger(spu,
                                                   "secondary-sub-alignment");
-    vlc_vector_init(&sys->subs_pos);
+    heimdall_vector_init(&sys->subs_pos);
 
     sys->source_chain_update = NULL;
     sys->filter_chain_update = NULL;
-    vlc_mutex_init(&sys->filter_chain_lock);
+    heimdall_mutex_init(&sys->filter_chain_lock);
     sys->source_chain = filter_chain_NewSPU(spu, "sub source");
     sys->filter_chain = filter_chain_NewSPU(spu, "sub filter");
 
-    vlc_mutex_init(&sys->prerender.lock);
-    vlc_cond_init(&sys->prerender.cond);
-    vlc_cond_init(&sys->prerender.output_cond);
-    vlc_vector_init(&sys->prerender.vector);
+    heimdall_mutex_init(&sys->prerender.lock);
+    heimdall_cond_init(&sys->prerender.cond);
+    heimdall_cond_init(&sys->prerender.output_cond);
+    heimdall_vector_init(&sys->prerender.vector);
     video_format_Init(&sys->prerender.fmtdst, 0);
     video_format_Init(&sys->prerender.fmtsrc, 0);
     sys->prerender.p_processed = NULL;
@@ -1990,17 +1991,17 @@ spu_t *spu_Create(vlc_object_t *object, vout_thread_t *vout)
 
     /* Load text and scale module */
     sys->text = SpuRenderCreateAndLoadText(spu);
-    vlc_mutex_init(&sys->textlock);
+    heimdall_mutex_init(&sys->textlock);
 
     /* XXX spu->p_scale is used for all conversion/scaling except yuvp to
      * yuva/rgba */
-    sys->scale = SpuRenderCreateAndLoadScale(VLC_OBJECT(spu),
-                                             VLC_CODEC_YUVA, VLC_CODEC_RGBA, true);
+    sys->scale = SpuRenderCreateAndLoadScale(HEIMDALL_OBJECT(spu),
+                                             HEIMDALL_CODEC_YUVA, HEIMDALL_CODEC_RGBA, true);
 
     /* This one is used for YUVP to YUVA/RGBA without scaling
      * FIXME rename it */
-    sys->scale_yuvp = SpuRenderCreateAndLoadScale(VLC_OBJECT(spu),
-                                                  VLC_CODEC_YUVP, VLC_CODEC_YUVA, false);
+    sys->scale_yuvp = SpuRenderCreateAndLoadScale(HEIMDALL_OBJECT(spu),
+                                                  HEIMDALL_CODEC_YUVP, HEIMDALL_CODEC_YUVA, false);
 
 
     if (!sys->source_chain || !sys->filter_chain || !sys->text || !sys->scale
@@ -2008,17 +2009,17 @@ spu_t *spu_Create(vlc_object_t *object, vout_thread_t *vout)
     {
         sys->vout = NULL;
         spu_Cleanup(spu);
-        vlc_object_delete(spu);
+        heimdall_object_delete(spu);
         return NULL;
     }
     /* */
     sys->last_sort_date = -1;
     sys->vout = vout;
 
-    if(vlc_clone(&sys->prerender.thread, spu_PrerenderThread, spu))
+    if(heimdall_clone(&sys->prerender.thread, spu_PrerenderThread, spu))
     {
         spu_Cleanup(spu);
-        vlc_object_delete(spu);
+        heimdall_object_delete(spu);
         spu = NULL;
     }
 
@@ -2031,19 +2032,19 @@ spu_t *spu_Create(vlc_object_t *object, vout_thread_t *vout)
 void spu_Attach(spu_t *spu, input_thread_t *input)
 {
     spu_private_t *sys = container_of(spu, spu_private_t, spu);
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     if (sys->input != input) {
         SetHighlights(spu, NULL);
 
         sys->input = input;
 
-        vlc_mutex_lock(&sys->textlock);
+        heimdall_mutex_lock(&sys->textlock);
         if (sys->text)
-            vlc_filter_Delete(sys->text);
+            heimdall_filter_Delete(sys->text);
         sys->text = SpuRenderCreateAndLoadText(spu);
-        vlc_mutex_unlock(&sys->textlock);
+        heimdall_mutex_unlock(&sys->textlock);
     }
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
 }
 
 /**
@@ -2052,35 +2053,35 @@ void spu_Attach(spu_t *spu, input_thread_t *input)
 void spu_Detach(spu_t *spu)
 {
     spu_private_t *sys = container_of(spu, spu_private_t, spu);
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     spu_PrerenderPause(sys);
     sys->input = NULL;
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
 }
 
-void spu_SetClockDelay(spu_t *spu, size_t channel_id, vlc_tick_t delay)
+void spu_SetClockDelay(spu_t *spu, size_t channel_id, heimdall_tick_t delay)
 {
     spu_private_t *sys = container_of(spu, spu_private_t, spu);
 
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     struct spu_channel *channel = spu_GetChannel(spu, channel_id, NULL);
     assert(channel->clock);
-    vlc_clock_Lock(channel->clock);
-    vlc_clock_SetDelay(channel->clock, delay);
-    vlc_clock_Unlock(channel->clock);
+    heimdall_clock_Lock(channel->clock);
+    heimdall_clock_SetDelay(channel->clock, delay);
+    heimdall_clock_Unlock(channel->clock);
     channel->delay = delay;
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
 }
 
 void spu_SetClockRate(spu_t *spu, size_t channel_id, float rate)
 {
     spu_private_t *sys = container_of(spu, spu_private_t, spu);
 
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     struct spu_channel *channel = spu_GetChannel(spu, channel_id, NULL);
     assert(channel->clock);
     channel->rate = rate;
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
 }
 
 static int SubFilter( filter_t *p_filter, void *opaque )
@@ -2088,8 +2089,8 @@ static int SubFilter( filter_t *p_filter, void *opaque )
     subpicture_t **pp_subpic = opaque;
     *pp_subpic = p_filter->ops->filter_sub( p_filter, *pp_subpic );
     if (*pp_subpic == NULL)
-        return VLC_EINVAL; // stop filtering
-    return VLC_SUCCESS;
+        return HEIMDALL_EINVAL; // stop filtering
+    return HEIMDALL_SUCCESS;
 }
 
 /**
@@ -2105,14 +2106,14 @@ void spu_PutSubpicture(spu_t *spu, subpicture_t *subpic)
     spu_private_t *sys = container_of(spu, spu_private_t, spu);
 
     /* Update sub-filter chain */
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     char *chain_update = sys->filter_chain_update;
     sys->filter_chain_update = NULL;
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
 
     bool is_left_empty = false;
 
-    vlc_mutex_lock(&sys->filter_chain_lock);
+    heimdall_mutex_lock(&sys->filter_chain_lock);
     if (chain_update) {
         if (*chain_update) {
             if (sys->vout)
@@ -2135,30 +2136,30 @@ void spu_PutSubpicture(spu_t *spu, subpicture_t *subpic)
         if the filters chain was left empty it may indicate that it's a sub-source configuration */
         is_left_empty = filter_chain_IsEmpty(sys->filter_chain);
     }
-    vlc_mutex_unlock(&sys->filter_chain_lock);
+    heimdall_mutex_unlock(&sys->filter_chain_lock);
 
     if (is_left_empty) {
         /* try to use the configuration as a sub-source configuration,
            but only if there is no 'source_chain_update' value and
            if only if 'chain_update' has a value */
         if (chain_update && *chain_update) {
-            vlc_mutex_lock(&sys->lock);
+            heimdall_mutex_lock(&sys->lock);
             if (!sys->source_chain_update || !*sys->source_chain_update) {
                 free(sys->source_chain_update);
                 sys->source_chain_update = chain_update;
                 sys->source_chain_current = strdup(chain_update);
                 chain_update = NULL;
             }
-            vlc_mutex_unlock(&sys->lock);
+            heimdall_mutex_unlock(&sys->lock);
         }
     }
 
     free(chain_update);
 
     /* Run filter chain on the new subpicture */
-    vlc_mutex_lock(&sys->filter_chain_lock);
+    heimdall_mutex_lock(&sys->filter_chain_lock);
     filter_chain_ForEach( sys->filter_chain, SubFilter, &subpic );
-    vlc_mutex_unlock(&sys->filter_chain_lock);
+    heimdall_mutex_unlock(&sys->filter_chain_lock);
     if (!subpic || subpic->i_channel < 0)
     {
         if (subpic)
@@ -2172,40 +2173,40 @@ void spu_PutSubpicture(spu_t *spu, subpicture_t *subpic)
 
     /* p_private is for spu only and cannot be non NULL here */
     subpicture_region_t *r;
-    vlc_spu_regions_foreach(r, &subpic->regions)
+    heimdall_spu_regions_foreach(r, &subpic->regions)
         assert(!subpicture_region_cache_IsValid(r));
 
     /* */
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     struct spu_channel *channel = spu_GetChannel(spu, subpic->i_channel, NULL);
 
 
     /* Convert all spu ts */
-    vlc_tick_t orgstart = subpic->i_start;
-    vlc_tick_t orgstop = subpic->i_stop;
+    heimdall_tick_t orgstart = subpic->i_start;
+    heimdall_tick_t orgstop = subpic->i_stop;
     if (channel->clock)
     {
-        vlc_tick_t system_now = vlc_tick_now();
+        heimdall_tick_t system_now = heimdall_tick_now();
 
-        vlc_clock_Lock(channel->clock);
+        heimdall_clock_Lock(channel->clock);
         subpic->i_start =
-            vlc_clock_ConvertToSystem(channel->clock, system_now,
+            heimdall_clock_ConvertToSystem(channel->clock, system_now,
                                       orgstart, channel->rate, NULL);
-        if (orgstop != VLC_TICK_INVALID)
+        if (orgstop != HEIMDALL_TICK_INVALID)
         {
             subpic->i_stop =
-                vlc_clock_ConvertToSystem(channel->clock, system_now,
+                heimdall_clock_ConvertToSystem(channel->clock, system_now,
                                       orgstop, channel->rate, NULL);
         }
 
-        vlc_clock_Unlock(channel->clock);
+        heimdall_clock_Unlock(channel->clock);
 
         spu_channel_EarlyRemoveLate(sys, channel, system_now);
 
         /* Maybe the new one is also already expired */
         if(spu_HasAlreadyExpired(subpic->i_start, subpic->i_stop, system_now))
         {
-            vlc_mutex_unlock(&sys->lock);
+            heimdall_mutex_unlock(&sys->lock);
             subpicture_Delete(subpic);
             return;
         }
@@ -2213,24 +2214,24 @@ void spu_PutSubpicture(spu_t *spu, subpicture_t *subpic)
 
     /* An ephemer with stop time can be ephemer,
        but a pic without stop time must be ephemer */
-    if(subpic->i_stop != VLC_TICK_INVALID && subpic->i_stop < subpic->i_start)
+    if(subpic->i_stop != HEIMDALL_TICK_INVALID && subpic->i_stop < subpic->i_start)
         subpic->b_ephemer = true;
 
     if (spu_channel_Push(channel, subpic, orgstart, orgstop))
     {
-        vlc_mutex_unlock(&sys->lock);
+        heimdall_mutex_unlock(&sys->lock);
         msg_Err(spu, "subpicture heap full");
         subpicture_Delete(subpic);
         return;
     }
     spu_PrerenderEnqueue(sys, subpic);
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
 }
 
 struct sub_source
 {
     spu_t       *spu;
-    vlc_tick_t  display_date;
+    heimdall_tick_t  display_date;
 };
 
 /**
@@ -2242,27 +2243,27 @@ static int SubSourceGenerate( filter_t *p_filter, void *opaque )
     subpicture_t *p_subpic = p_filter->ops->source_sub( p_filter, spu_src->display_date );
     if( p_subpic )
         spu_PutSubpicture( spu_src->spu, p_subpic );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-vlc_render_subpicture *spu_Render(spu_t *spu,
-                         const vlc_fourcc_t *chroma_list,
+heimdall_render_subpicture *spu_Render(spu_t *spu,
+                         const heimdall_fourcc_t *chroma_list,
                          const video_format_t *fmt_dst,
                          const video_format_t *fmt_src,
                          bool spu_in_full_window,
                          const vout_display_place_t *video_position,
-                         vlc_tick_t system_now,
-                         vlc_tick_t render_subtitle_date,
+                         heimdall_tick_t system_now,
+                         heimdall_tick_t render_subtitle_date,
                          bool ignore_osd)
 {
     spu_private_t *sys = container_of(spu, spu_private_t, spu);
     const bool external_scale = chroma_list != NULL;
 
     /* Update sub-source chain */
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     char *chain_update = sys->source_chain_update;
     sys->source_chain_update = NULL;
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
 
     if (chain_update) {
         filter_chain_ForEach(sys->source_chain, SubSourceClean, spu);
@@ -2284,22 +2285,22 @@ vlc_render_subpicture *spu_Render(spu_t *spu,
     struct sub_source sub_src = { spu, system_now };
     filter_chain_ForEach(sys->source_chain, SubSourceGenerate, &sub_src);
 
-    static const vlc_fourcc_t chroma_list_default_yuv[] = {
-        VLC_CODEC_YUVA,
-        VLC_CODEC_RGBA,
-        VLC_CODEC_ARGB,
-        VLC_CODEC_BGRA,
-        VLC_CODEC_ABGR,
-        VLC_CODEC_YUVP,
+    static const heimdall_fourcc_t chroma_list_default_yuv[] = {
+        HEIMDALL_CODEC_YUVA,
+        HEIMDALL_CODEC_RGBA,
+        HEIMDALL_CODEC_ARGB,
+        HEIMDALL_CODEC_BGRA,
+        HEIMDALL_CODEC_ABGR,
+        HEIMDALL_CODEC_YUVP,
         0,
     };
-    static const vlc_fourcc_t chroma_list_default_rgb[] = {
-        VLC_CODEC_RGBA,
-        VLC_CODEC_ARGB,
-        VLC_CODEC_BGRA,
-        VLC_CODEC_ABGR,
-        VLC_CODEC_YUVA,
-        VLC_CODEC_YUVP,
+    static const heimdall_fourcc_t chroma_list_default_rgb[] = {
+        HEIMDALL_CODEC_RGBA,
+        HEIMDALL_CODEC_ARGB,
+        HEIMDALL_CODEC_BGRA,
+        HEIMDALL_CODEC_ABGR,
+        HEIMDALL_CODEC_YUVA,
+        HEIMDALL_CODEC_YUVP,
         0,
     };
     static_assert(ARRAY_SIZE(chroma_list_default_yuv) <= SPU_CHROMALIST_COUNT,
@@ -2308,7 +2309,7 @@ vlc_render_subpicture *spu_Render(spu_t *spu,
                   "RGB chroma list too large");
 
     if (!chroma_list || *chroma_list == 0)
-        chroma_list = vlc_fourcc_IsYUV(fmt_dst->i_chroma) ? chroma_list_default_yuv
+        chroma_list = heimdall_fourcc_IsYUV(fmt_dst->i_chroma) ? chroma_list_default_yuv
                                                           : chroma_list_default_rgb;
 
     vout_display_place_t place;
@@ -2324,7 +2325,7 @@ vlc_render_subpicture *spu_Render(spu_t *spu,
     /* wake up prerenderer, we have some video size and chroma */
     spu_PrerenderWake(sys, fmt_dst, fmt_src, spu_in_full_window, video_position, chroma_list);
 
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
 
     size_t subpicture_count;
 
@@ -2334,7 +2335,7 @@ vlc_render_subpicture *spu_Render(spu_t *spu,
                              ignore_osd, &subpicture_count);
     if (!subpicture_array)
     {
-        vlc_mutex_unlock(&sys->lock);
+        heimdall_mutex_unlock(&sys->lock);
         return NULL;
     }
 
@@ -2375,7 +2376,7 @@ vlc_render_subpicture *spu_Render(spu_t *spu,
     qsort(subpicture_array, subpicture_count, sizeof(*subpicture_array), SpuRenderCmp);
 
     /* Render the subpictures */
-    vlc_render_subpicture *render = SpuRenderSubpictures(spu,
+    heimdall_render_subpicture *render = SpuRenderSubpictures(spu,
                                                 subpicture_count, subpicture_array,
                                                 chroma_list,
                                                 fmt_dst,
@@ -2386,17 +2387,17 @@ vlc_render_subpicture *spu_Render(spu_t *spu,
                                                 render_subtitle_date,
                                                 external_scale);
     free(subpicture_array);
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
 
     return render;
 }
 
-ssize_t spu_RegisterChannelInternal(spu_t *spu, vlc_clock_t *clock,
-                                    enum vlc_vout_order *order)
+ssize_t spu_RegisterChannelInternal(spu_t *spu, heimdall_clock_t *clock,
+                                    enum heimdall_vout_order *order)
 {
     spu_private_t *sys = container_of(spu, spu_private_t, spu);
 
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
 
     ssize_t channel_id = spu_GetFreeChannelId(spu, order);
 
@@ -2404,15 +2405,15 @@ ssize_t spu_RegisterChannelInternal(spu_t *spu, vlc_clock_t *clock,
     {
         struct spu_channel channel;
         spu_channel_Init(&channel, channel_id,
-                         order ? *order : VLC_VOUT_ORDER_PRIMARY, clock);
-        if (vlc_vector_push(&sys->channels, channel))
+                         order ? *order : HEIMDALL_VOUT_ORDER_PRIMARY, clock);
+        if (heimdall_vector_push(&sys->channels, channel))
         {
-            vlc_mutex_unlock(&sys->lock);
+            heimdall_mutex_unlock(&sys->lock);
             return channel_id;
         }
     }
 
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
 
     return VOUT_SPU_CHANNEL_INVALID;
 }
@@ -2426,36 +2427,36 @@ ssize_t spu_RegisterChannel(spu_t *spu)
 void spu_ClearChannel(spu_t *spu, size_t channel_id)
 {
     spu_private_t *sys = container_of(spu, spu_private_t, spu);
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     struct spu_channel *channel = spu_GetChannel(spu, channel_id, NULL);
     spu_channel_Clean(sys, channel);
     if (channel->clock)
     {
-        vlc_clock_Lock(channel->clock);
-        vlc_clock_Reset(channel->clock);
-        vlc_clock_SetDelay(channel->clock, channel->delay);
-        vlc_clock_Unlock(channel->clock);
+        heimdall_clock_Lock(channel->clock);
+        heimdall_clock_Reset(channel->clock);
+        heimdall_clock_SetDelay(channel->clock, channel->delay);
+        heimdall_clock_Unlock(channel->clock);
     }
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
 }
 
 void spu_UnregisterChannel(spu_t *spu, size_t channel_id)
 {
     spu_private_t *sys = container_of(spu, spu_private_t, spu);
 
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     size_t channel_index = 0;
     struct spu_channel *channel = spu_GetChannel(spu, channel_id, &channel_index);
     spu_channel_Clean(sys, channel);
-    vlc_vector_remove(&sys->channels, channel_index);
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_vector_remove(&sys->channels, channel_index);
+    heimdall_mutex_unlock(&sys->lock);
 }
 
 void spu_ChangeSources(spu_t *spu, const char *filters)
 {
     spu_private_t *sys = container_of(spu, spu_private_t, spu);
 
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
 
     free(sys->source_chain_update);
     if (filters)
@@ -2467,14 +2468,14 @@ void spu_ChangeSources(spu_t *spu, const char *filters)
     else if (sys->source_chain_current)
         sys->source_chain_update = strdup(sys->source_chain_current);
 
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
 }
 
 void spu_ChangeFilters(spu_t *spu, const char *filters)
 {
     spu_private_t *sys = container_of(spu, spu_private_t, spu);
 
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
 
     free(sys->filter_chain_update);
     if (filters)
@@ -2486,33 +2487,33 @@ void spu_ChangeFilters(spu_t *spu, const char *filters)
     else if (sys->filter_chain_current)
         sys->filter_chain_update = strdup(sys->filter_chain_current);
 
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
 }
 
-void spu_ChangeChannelOrderMargin(spu_t *spu, enum vlc_vout_order order,
+void spu_ChangeChannelOrderMargin(spu_t *spu, enum heimdall_vout_order order,
                                   int margin)
 {
     spu_private_t *sys = container_of(spu, spu_private_t, spu);
 
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     switch (order)
     {
-        case VLC_VOUT_ORDER_PRIMARY:
+        case HEIMDALL_VOUT_ORDER_PRIMARY:
             sys->margin = margin;
             break;
-        case VLC_VOUT_ORDER_SECONDARY:
+        case HEIMDALL_VOUT_ORDER_SECONDARY:
             sys->secondary_margin = margin;
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
 }
 
-void spu_SetHighlight(spu_t *spu, const vlc_spu_highlight_t *hl)
+void spu_SetHighlight(spu_t *spu, const heimdall_spu_highlight_t *hl)
 {
     spu_private_t *sys = container_of(spu, spu_private_t, spu);
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     SetHighlights(spu, hl);
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
 }

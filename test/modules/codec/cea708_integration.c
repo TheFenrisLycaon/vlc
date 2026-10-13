@@ -2,6 +2,7 @@
  * cea708_integration.c: CEA-708 decoder integration tests
  *****************************************************************************
  * Copyright (C) 2025 VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,19 +23,19 @@
 # include "config.h"
 #endif
 
-#include "../../libvlc/test.h"
-#include "../../../lib/libvlc_internal.h"
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_modules.h>
-#include <vlc_codec.h>
-#include <vlc_subpicture.h>
-#include <vlc_es.h>
-#include <vlc_interface.h>
+#include "../../libheimdall/test.h"
+#include "../../../lib/libheimdall_internal.h"
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_modules.h>
+#include <heimdall_codec.h>
+#include <heimdall_subpicture.h>
+#include <heimdall_es.h>
+#include <heimdall_interface.h>
 
 #include "../../../modules/codec/substext.h"
 
-static libvlc_instance_t *libvlc;
+static libheimdall_instance_t *libheimdall;
 
 struct cea708_test_owner {
     decoder_t dec;
@@ -43,21 +44,21 @@ struct cea708_test_owner {
 
 static decoder_t *create_cea708_decoder_test(const char *video_dimensions)
 {
-    vlc_object_t *obj = VLC_OBJECT(libvlc->p_libvlc_int);
-    struct cea708_test_owner *owner = vlc_object_create(obj, sizeof(*owner));
+    heimdall_object_t *obj = HEIMDALL_OBJECT(libheimdall->p_libheimdall_int);
+    struct cea708_test_owner *owner = heimdall_object_create(obj, sizeof(*owner));
     if (!owner)
         return NULL;
     decoder_t *dec = &owner->dec;
 
     es_format_t fmt;
-    es_format_Init(&fmt, SPU_ES, VLC_CODEC_CEA708);
+    es_format_Init(&fmt, SPU_ES, HEIMDALL_CODEC_CEA708);
     fmt.subs.cc.i_channel = 1;
     fmt.subs.cc.i_reorder_depth = 4;
 
     decoder_Init(dec, &owner->fmt_in, &fmt);
     es_format_Clean(&fmt);
 
-    dec->fmt_out.i_codec = VLC_CODEC_TEXT;
+    dec->fmt_out.i_codec = HEIMDALL_CODEC_TEXT;
 
     /* Set up video format for aspect ratio testing */
     if (strcmp(video_dimensions, "4:3") == 0) {
@@ -94,7 +95,7 @@ static void destroy_cea708_decoder_test(decoder_t *dec)
         container_of(dec, struct cea708_test_owner, dec);
     decoder_Clean(dec);
     es_format_Clean(&owner->fmt_in);
-    vlc_object_delete(dec);
+    heimdall_object_delete(dec);
 }
 
 /* Test basic CEA-708 decoder loading */
@@ -148,14 +149,14 @@ static void test_cea708_subtitle_text_output(void)
         0x00                                 /* End of data */
     };
 
-    vlc_frame_t *frame = vlc_frame_Alloc(sizeof(test_data));
+    heimdall_frame_t *frame = heimdall_frame_Alloc(sizeof(test_data));
     assert(frame != NULL);
     memcpy(frame->p_buffer, test_data, sizeof(test_data));
 
     assert(dec->pf_decode != NULL);
     int result = dec->pf_decode(dec, frame);
     test_log("CEA-708 decode result: %d\n", result);
-    assert(result == VLCDEC_SUCCESS);
+    assert(result == HEIMDALLDEC_SUCCESS);
 
     destroy_cea708_decoder_test(dec);
 }
@@ -205,16 +206,16 @@ static void test_cea708_real_positioning_data(void)
     assert(dec != NULL);
     assert(dec->p_module != NULL);
 
-    vlc_frame_t *frame = vlc_frame_Alloc(sizeof(cea708_window_positioning_data));
+    heimdall_frame_t *frame = heimdall_frame_Alloc(sizeof(cea708_window_positioning_data));
     assert(frame != NULL);
     memcpy(frame->p_buffer, cea708_window_positioning_data, sizeof(cea708_window_positioning_data));
-    frame->i_pts = VLC_TICK_0;
-    frame->i_dts = VLC_TICK_0;
+    frame->i_pts = HEIMDALL_TICK_0;
+    frame->i_dts = HEIMDALL_TICK_0;
 
     assert(dec->pf_decode != NULL);
     int result = dec->pf_decode(dec, frame);
     test_log("CEA-708 positioning data decode result: %d\n", result);
-    assert(result == VLCDEC_SUCCESS);
+    assert(result == HEIMDALLDEC_SUCCESS);
 
     test_log("Positioning data processed (complies with CEA-708-E Section 8.2)\n");
     destroy_cea708_decoder_test(dec);
@@ -258,18 +259,18 @@ static void test_end_to_end_aspect_ratio_flow(void)
         test_log("\n--- Testing %s ---\n", integration_tests[i].scenario);
 
         /* Step 1: Create decoder with specific video format */
-        vlc_object_t *obj = VLC_OBJECT(libvlc->p_libvlc_int);
-        struct cea708_test_owner *owner = vlc_object_create(obj, sizeof(*owner));
+        heimdall_object_t *obj = HEIMDALL_OBJECT(libheimdall->p_libheimdall_int);
+        struct cea708_test_owner *owner = heimdall_object_create(obj, sizeof(*owner));
         assert(owner != NULL);
         decoder_t *dec = &owner->dec;
 
         /* Step 2: Set up video format for DAR calculation */
         es_format_t fmt;
-        es_format_Init(&fmt, SPU_ES, VLC_CODEC_CEA708);
+        es_format_Init(&fmt, SPU_ES, HEIMDALL_CODEC_CEA708);
         decoder_Init(dec, &owner->fmt_in, &fmt);
         es_format_Clean(&fmt);
 
-        dec->fmt_out.i_codec = VLC_CODEC_TEXT;
+        dec->fmt_out.i_codec = HEIMDALL_CODEC_TEXT;
         dec->fmt_out.video.i_visible_width = integration_tests[i].width;
         dec->fmt_out.video.i_visible_height = integration_tests[i].height;
         dec->fmt_out.video.i_sar_num = integration_tests[i].sar_num;
@@ -308,16 +309,16 @@ static void test_end_to_end_aspect_ratio_flow(void)
                 integration_tests[i].test_anchor_h, integration_tests[i].expected_position_ratio);
 
         /* Step 6: Decode the positioning command */
-        vlc_frame_t *frame = vlc_frame_Alloc(sizeof(cea708_positioning_data));
+        heimdall_frame_t *frame = heimdall_frame_Alloc(sizeof(cea708_positioning_data));
         assert(frame != NULL);
         memcpy(frame->p_buffer, cea708_positioning_data, sizeof(cea708_positioning_data));
-        frame->i_pts = VLC_TICK_0;
-        frame->i_dts = VLC_TICK_0;
+        frame->i_pts = HEIMDALL_TICK_0;
+        frame->i_dts = HEIMDALL_TICK_0;
 
         assert(dec->pf_decode != NULL);
         int decode_result = dec->pf_decode(dec, frame);
         test_log("Decode result: %d (0=success)\n", decode_result);
-        assert(decode_result == VLCDEC_SUCCESS);
+        assert(decode_result == HEIMDALLDEC_SUCCESS);
 
         /* Step 7: Verify grid selection matches expectations */
         assert(expected_grid == integration_tests[i].expected_grid_cols);
@@ -334,7 +335,7 @@ static void test_end_to_end_aspect_ratio_flow(void)
         /* Cleanup */
         decoder_Clean(dec);
         es_format_Clean(&owner->fmt_in);
-        vlc_object_delete(dec);
+        heimdall_object_delete(dec);
     }
 
     test_log("\nAll end-to-end integration tests passed\n");
@@ -345,8 +346,8 @@ int main(void)
 {
     test_init();
 
-    libvlc = libvlc_new(test_defaults_nargs, test_defaults_args);
-    assert(libvlc != NULL);
+    libheimdall = libheimdall_new(test_defaults_nargs, test_defaults_args);
+    assert(libheimdall != NULL);
 
     test_substext_infrastructure_with_aspect_ratio_positioning();
     test_cea708_decoder_loading();
@@ -355,7 +356,7 @@ int main(void)
     test_cea708_real_positioning_data();
     test_end_to_end_aspect_ratio_flow();
 
-    libvlc_release(libvlc);
+    libheimdall_release(libheimdall);
 
     return 0;
 }

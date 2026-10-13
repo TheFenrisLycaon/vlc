@@ -3,8 +3,9 @@
  *****************************************************************************
  * Copyright (C) 2008-2018 VLC authors and VideoLAN
  * Copyright (C) 2008 Laurent Aimar
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Laurent Aimar < fenrir _AT_ videolan _DOT_ org >
+ * Authors: Laurent Aimar < fenrir _AT_ lycaria _DOT_ org >
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -21,44 +22,44 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef LIBVLC_VOUT_INTERNAL_H
-#define LIBVLC_VOUT_INTERNAL_H 1
+#ifndef LIBHEIMDALL_VOUT_INTERNAL_H
+#define LIBHEIMDALL_VOUT_INTERNAL_H 1
 
-#include <vlc_vout_display.h>
-#include <vlc_clock.h>
+#include <heimdall_vout_display.h>
+#include <heimdall_clock.h>
 
 typedef struct input_thread_t input_thread_t;
-typedef struct vlc_spu_highlight_t vlc_spu_highlight_t;
+typedef struct heimdall_spu_highlight_t heimdall_spu_highlight_t;
 
 ///< Use the aspect ratio from the source video format
-#define VLC_DAR_FROM_SOURCE  ((vlc_rational_t){0, 0})
+#define HEIMDALL_DAR_FROM_SOURCE  ((heimdall_rational_t){0, 0})
 ///< Use the whole display area to show the video
-#define VLC_DAR_FILL_DISPLAY ((vlc_rational_t){1, 0})
+#define HEIMDALL_DAR_FILL_DISPLAY ((heimdall_rational_t){1, 0})
 
-#define VLC_DAR_IS_FROM_SOURCE(r) \
-    ((r).num == VLC_DAR_FROM_SOURCE.num && (r).den == VLC_DAR_FROM_SOURCE.den)
+#define HEIMDALL_DAR_IS_FROM_SOURCE(r) \
+    ((r).num == HEIMDALL_DAR_FROM_SOURCE.num && (r).den == HEIMDALL_DAR_FROM_SOURCE.den)
 
-#define VLC_DAR_IS_FILL_DISPLAY(r) \
-    ((r).num == VLC_DAR_FILL_DISPLAY.num && (r).den == VLC_DAR_FILL_DISPLAY.den)
+#define HEIMDALL_DAR_IS_FILL_DISPLAY(r) \
+    ((r).num == HEIMDALL_DAR_FILL_DISPLAY.num && (r).den == HEIMDALL_DAR_FILL_DISPLAY.den)
 
 /**
  * Vout configuration
  */
 typedef struct {
     vout_thread_t        *vout;
-    vlc_clock_t          *clock;
+    heimdall_clock_t          *clock;
     const char           *str_id;
     const video_format_t *fmt;
-    vlc_mouse_event      mouse_event;
+    heimdall_mouse_event      mouse_event;
     void                 *mouse_opaque;
 } vout_configuration_t;
 
 /**
  * Creates a video output.
  */
-vout_thread_t *vout_Create(vlc_object_t *obj) VLC_USED;
+vout_thread_t *vout_Create(heimdall_object_t *obj) HEIMDALL_USED;
 
-vout_thread_t *vout_CreateDummy(vlc_object_t *obj) VLC_USED;
+vout_thread_t *vout_CreateDummy(heimdall_object_t *obj) HEIMDALL_USED;
 
 /**
  * Setup the vout for the given configuration and get an associated decoder device.
@@ -66,7 +67,7 @@ vout_thread_t *vout_CreateDummy(vlc_object_t *obj) VLC_USED;
  * \param vout the video configuration requested.
  * \return pointer to a decoder device reference to use with the vout or NULL
  */
-vlc_decoder_device *vout_GetDevice(vout_thread_t *vout);
+heimdall_decoder_device *vout_GetDevice(vout_thread_t *vout);
 
 /**
  * Returns a suitable vout or release the given one.
@@ -83,7 +84,7 @@ vlc_decoder_device *vout_GetDevice(vout_thread_t *vout);
  * \retval 0 on success
  * \retval -1 on error
  */
-int vout_Request(const vout_configuration_t *cfg, vlc_video_context *vctx, input_thread_t *input);
+int vout_Request(const vout_configuration_t *cfg, heimdall_video_context *vctx, input_thread_t *input);
 
 /**
  * Disables a vout.
@@ -104,7 +105,7 @@ void vout_StopDisplay(vout_thread_t *);
  * \retval -1 on error, the vout needs to be restarted to handle the format
  */
 int vout_ChangeSource( vout_thread_t *p_vout, const video_format_t *fmt,
-                       const vlc_video_context * );
+                       const heimdall_video_context * );
 
 enum vout_crop_mode {
     VOUT_CROP_NONE, VOUT_CROP_RATIO, VOUT_CROP_WINDOW, VOUT_CROP_BORDER,
@@ -113,7 +114,7 @@ enum vout_crop_mode {
 struct vout_crop {
     enum vout_crop_mode mode;
     union {
-        vlc_rational_t ratio;
+        heimdall_rational_t ratio;
         struct {
             unsigned x;
             unsigned y;
@@ -145,31 +146,31 @@ static inline bool vout_CropEqual(const struct vout_crop *a,
         case VOUT_CROP_BORDER:
             return memcmp(&a->border, &b->border, sizeof (a->border)) == 0;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 }
 
 bool vout_ParseCrop(struct vout_crop *, const char *crop_str);
-bool vout_ParseDisplayAspectRatio(vlc_rational_t *ar, const char *ar_str);
+bool vout_ParseDisplayAspectRatio(heimdall_rational_t *ar, const char *ar_str);
 
-/* TODO to move them to vlc_vout.h */
+/* TODO to move them to heimdall_vout.h */
 void vout_ChangeFullscreen(vout_thread_t *, const char *id);
 void vout_ChangeWindowed(vout_thread_t *);
 void vout_ChangeWindowState(vout_thread_t *, unsigned state);
 void vout_ChangeDisplaySize(vout_thread_t *, unsigned width, unsigned height,
                             void (*ack_cb)(void *), void *opaque);
-void vout_ChangeDisplayFitting(vout_thread_t *, enum vlc_video_fitting);
+void vout_ChangeDisplayFitting(vout_thread_t *, enum heimdall_video_fitting);
 void vout_ChangeZoom(vout_thread_t *, unsigned num, unsigned den);
-void vout_ChangeDisplayAspectRatio(vout_thread_t *, vlc_rational_t dar);
+void vout_ChangeDisplayAspectRatio(vout_thread_t *, heimdall_rational_t dar);
 void vout_ChangeCrop(vout_thread_t *, const struct vout_crop *);
 void vout_ControlChangeFilters(vout_thread_t *, const char *);
 void vout_ControlChangeInterlacing(vout_thread_t *, bool);
 void vout_ControlChangeSubSources(vout_thread_t *, const char *);
 void vout_ControlChangeSubFilters(vout_thread_t *, const char *);
-void vout_ChangeSpuChannelMargin(vout_thread_t *, enum vlc_vout_order order, int);
-void vout_ChangeViewpoint( vout_thread_t *, const vlc_viewpoint_t *);
-void vout_ControlChangeStereo(vout_thread_t *vout, vlc_stereoscopic_mode_t);
-void vout_ChangeIccProfile(vout_thread_t *, vlc_icc_profile_t *);
+void vout_ChangeSpuChannelMargin(vout_thread_t *, enum heimdall_vout_order order, int);
+void vout_ChangeViewpoint( vout_thread_t *, const heimdall_viewpoint_t *);
+void vout_ControlChangeStereo(vout_thread_t *vout, heimdall_stereoscopic_mode_t);
+void vout_ChangeIccProfile(vout_thread_t *, heimdall_icc_profile_t *);
 void vout_ChangeProjection(vout_thread_t *, video_projection_mode_t projection);
 void vout_ToggleProjection(vout_thread_t *, bool enabled);
 void vout_ResetProjection(vout_thread_t *);
@@ -179,32 +180,32 @@ void vout_ResetProjection(vout_thread_t *);
  *
  * \return true if any filter in the chain consumed the mouse event, false otherwise.
  */
-bool vout_FilterMouse(vout_thread_t *vout, vlc_mouse_t *mouse);
+bool vout_FilterMouse(vout_thread_t *vout, heimdall_mouse_t *mouse);
 
 /* */
 void vout_CreateVars( vout_thread_t * );
 void vout_IntfInit( vout_thread_t * );
 void vout_IntfReinit( vout_thread_t * );
-void vout_IntfDeinit(vlc_object_t *);
-enum vlc_video_fitting var_InheritFit(vlc_object_t *);
+void vout_IntfDeinit(heimdall_object_t *);
+enum heimdall_video_fitting var_InheritFit(heimdall_object_t *);
 
 /* */
 ssize_t vout_RegisterSubpictureChannelInternal( vout_thread_t *,
-                                                vlc_clock_t *clock,
-                                                enum vlc_vout_order *out_order );
-ssize_t spu_RegisterChannelInternal( spu_t *, vlc_clock_t *, enum vlc_vout_order * );
+                                                heimdall_clock_t *clock,
+                                                enum heimdall_vout_order *out_order );
+ssize_t spu_RegisterChannelInternal( spu_t *, heimdall_clock_t *, enum heimdall_vout_order * );
 void spu_Attach( spu_t *, input_thread_t *input );
 void spu_Detach( spu_t * );
-void spu_SetClockDelay(spu_t *spu, size_t channel_id, vlc_tick_t delay);
+void spu_SetClockDelay(spu_t *spu, size_t channel_id, heimdall_tick_t delay);
 void spu_SetClockRate(spu_t *spu, size_t channel_id, float rate);
-void spu_ChangeChannelOrderMargin(spu_t *, enum vlc_vout_order, int);
-void spu_SetHighlight(spu_t *, const vlc_spu_highlight_t*);
+void spu_ChangeChannelOrderMargin(spu_t *, enum heimdall_vout_order, int);
+void spu_SetHighlight(spu_t *, const heimdall_spu_highlight_t*);
 
 /**
  * This function will (un)pause the display of pictures.
  * It is thread safe
  */
-void vout_ChangePause( vout_thread_t *, bool b_paused, vlc_tick_t i_date );
+void vout_ChangePause( vout_thread_t *, bool b_paused, heimdall_tick_t i_date );
 
 /**
  * This function will change the rate of the vout
@@ -216,7 +217,7 @@ void vout_ChangeRate( vout_thread_t *, float rate );
  * This function will change the delay of the vout
  * It is thread safe
  */
-void vout_ChangeDelay( vout_thread_t *, vlc_tick_t delay );
+void vout_ChangeDelay( vout_thread_t *, heimdall_tick_t delay );
 
 /**
  * This function will change the rate of the spu channel
@@ -227,7 +228,7 @@ void vout_ChangeSpuRate( vout_thread_t *, size_t channel_id, float rate );
  * This function will change the delay of the spu channel
  * It is thread safe
  */
-void vout_ChangeSpuDelay( vout_thread_t *, size_t channel_id, vlc_tick_t delay );
+void vout_ChangeSpuDelay( vout_thread_t *, size_t channel_id, heimdall_tick_t delay );
 
 
 /**
@@ -255,6 +256,6 @@ void vout_DisplayTitle( vout_thread_t *p_vout, const char *psz_title );
  */
 bool vout_IsEmpty( vout_thread_t *p_vout );
 
-void vout_SetSpuHighlight( vout_thread_t *p_vout, const vlc_spu_highlight_t * );
+void vout_SetSpuHighlight( vout_thread_t *p_vout, const heimdall_spu_highlight_t * );
 
-#endif // LIBVLC_VOUT_INTERNAL_H
+#endif // LIBHEIMDALL_VOUT_INTERNAL_H

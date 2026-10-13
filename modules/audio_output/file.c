@@ -2,6 +2,7 @@
  * file.c : audio output which writes the samples to a file
  *****************************************************************************
  * Copyright (C) 2002 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Christophe Massiot <massiot@via.ecp.fr>
  *          Gildas Bazin <gbazin@netcourrier.com>
@@ -32,11 +33,11 @@
 #include <stdio.h>
 #include <errno.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_aout.h>
-#include <vlc_codecs.h> /* WAVEHEADER */
-#include <vlc_fs.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_aout.h>
+#include <heimdall_codecs.h> /* WAVEHEADER */
+#include <heimdall_fs.h>
 
 #define A52_FRAME_NB 1536
 
@@ -72,9 +73,9 @@ static const int pi_channels_maps[CHANNELS_MAX+1] =
 /*****************************************************************************
  * Local prototypes.
  *****************************************************************************/
-static int     Open        ( vlc_object_t * );
-static void    Play        ( audio_output_t *, block_t *, vlc_tick_t );
-static void    Pause       ( audio_output_t *, bool, vlc_tick_t );
+static int     Open        ( heimdall_object_t * );
+static void    Play        ( audio_output_t *, block_t *, heimdall_tick_t );
+static void    Pause       ( audio_output_t *, bool, heimdall_tick_t );
 static void    Flush       ( audio_output_t * );
 
 /*****************************************************************************
@@ -98,17 +99,17 @@ static const char *const format_list[] = {
     "spdif",
 };
 static const int format_int[] = {
-    VLC_CODEC_U8, VLC_CODEC_S16N,
+    HEIMDALL_CODEC_U8, HEIMDALL_CODEC_S16N,
 #ifndef WORDS_BIGENDIAN
-    VLC_CODEC_FL32,
+    HEIMDALL_CODEC_FL32,
 #endif
-    VLC_CODEC_SPDIFL,
+    HEIMDALL_CODEC_SPDIFL,
 };
 
 #define FILE_TEXT N_("Output file")
 #define FILE_LONGTEXT N_("File to which the audio samples will be written to (\"-\" for stdout).")
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("File audio output") )
     set_shortname( N_("File") )
     set_subcategory( SUBCAT_AUDIO_AOUT )
@@ -125,7 +126,7 @@ vlc_module_begin ()
     set_capability( "audio output", 0 )
     add_shortcut( "file", "audiofile" )
     set_callback( Open )
-vlc_module_end ()
+heimdall_module_end ()
 
 static int Start( audio_output_t *p_aout, audio_sample_format_t *restrict fmt )
 {
@@ -133,13 +134,13 @@ static int Start( audio_output_t *p_aout, audio_sample_format_t *restrict fmt )
     int i_channels;
 
     if( aout_FormatNbChannels( fmt ) == 0 )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     psz_name = var_InheritString( p_aout, "audiofile-file" );
     if( !psz_name )
     {
         msg_Err( p_aout, "you need to specify an output file name" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Allocate structure */
@@ -147,20 +148,20 @@ static int Start( audio_output_t *p_aout, audio_sample_format_t *restrict fmt )
     if( p_sys == NULL )
     {
         free( psz_name );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
     p_aout->sys = p_sys;
 
     if( !strcmp( psz_name, "-" ) )
         p_sys->p_file = stdout;
     else
-        p_sys->p_file = vlc_fopen( psz_name, "wb" );
+        p_sys->p_file = heimdall_fopen( psz_name, "wb" );
 
     free( psz_name );
     if ( p_sys->p_file == NULL )
     {
         free( p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     p_aout->play = Play;
@@ -174,7 +175,7 @@ static int Start( audio_output_t *p_aout, audio_sample_format_t *restrict fmt )
         if( p_sys->p_file != stdout )
             fclose( p_sys->p_file );
         free( p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     fmt->i_format = 0;
@@ -196,7 +197,7 @@ static int Start( audio_output_t *p_aout, audio_sample_format_t *restrict fmt )
             fclose( p_sys->p_file );
         free( p_sys );
         free( psz_format );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     free( psz_format );
 
@@ -226,12 +227,12 @@ static int Start( audio_output_t *p_aout, audio_sample_format_t *restrict fmt )
         switch( fmt->i_format )
         {
 #ifndef WORDS_BIGENDIAN
-        case VLC_CODEC_FL32:
+        case HEIMDALL_CODEC_FL32:
             wh->Format     = WAVE_FORMAT_IEEE_FLOAT;
             wh->BitsPerSample = sizeof(float) * 8;
             break;
 #endif
-        case VLC_CODEC_U8:
+        case HEIMDALL_CODEC_U8:
             wh->Format     = WAVE_FORMAT_PCM;
             wh->BitsPerSample = 8;
             break;
@@ -241,10 +242,10 @@ static int Start( audio_output_t *p_aout, audio_sample_format_t *restrict fmt )
             break;
         }
 
-        wh->MainChunkID = VLC_FOURCC('R', 'I', 'F', 'F');
+        wh->MainChunkID = HEIMDALL_FOURCC('R', 'I', 'F', 'F');
         wh->Length = 0;                    /* temp, to be filled in as we go */
-        wh->ChunkTypeID = VLC_FOURCC('W', 'A', 'V', 'E');
-        wh->SubChunkID = VLC_FOURCC('f', 'm', 't', ' ');
+        wh->ChunkTypeID = HEIMDALL_FOURCC('W', 'A', 'V', 'E');
+        wh->SubChunkID = HEIMDALL_FOURCC('f', 'm', 't', ' ');
         wh->SubChunkLength = 16;
 
         wh->Modus = aout_FormatNbChannels( fmt );
@@ -252,7 +253,7 @@ static int Start( audio_output_t *p_aout, audio_sample_format_t *restrict fmt )
         wh->BytesPerSample = wh->Modus * ( wh->BitsPerSample / 8 );
         wh->BytesPerSec = wh->BytesPerSample * wh->SampleFreq;
 
-        wh->DataChunkID = VLC_FOURCC('d', 'a', 't', 'a');
+        wh->DataChunkID = HEIMDALL_FOURCC('d', 'a', 't', 'a');
         wh->DataLength = 0;                /* temp, to be filled in as we go */
 
         /* Header -> little endian format */
@@ -267,7 +268,7 @@ static int Start( audio_output_t *p_aout, audio_sample_format_t *restrict fmt )
         if( fwrite( wh, sizeof(WAVEHEADER), 1,
                     p_sys->p_file ) != 1 )
         {
-            msg_Err( p_aout, "write error: %s", vlc_strerror_c(errno) );
+            msg_Err( p_aout, "write error: %s", heimdall_strerror_c(errno) );
         }
     }
 
@@ -291,7 +292,7 @@ static void Stop( audio_output_t *p_aout )
         /* Write Wave Header */
         if( fseek( p_sys->p_file, 0, SEEK_SET ) )
         {
-            msg_Err( p_aout, "seek error: %s", vlc_strerror_c(errno) );
+            msg_Err( p_aout, "seek error: %s", heimdall_strerror_c(errno) );
         }
 
         /* Header -> little endian format */
@@ -303,7 +304,7 @@ static void Stop( audio_output_t *p_aout )
         if( fwrite( &p_sys->waveh, sizeof(WAVEHEADER), 1,
                     p_sys->p_file ) != 1 )
         {
-            msg_Err( p_aout, "write error: %s", vlc_strerror_c(errno) );
+            msg_Err( p_aout, "write error: %s", heimdall_strerror_c(errno) );
         }
     }
 
@@ -315,13 +316,13 @@ static void Stop( audio_output_t *p_aout )
 /*****************************************************************************
  * Play: pretend to play a sound
  *****************************************************************************/
-static void Play( audio_output_t * p_aout, block_t *p_buffer, vlc_tick_t date )
+static void Play( audio_output_t * p_aout, block_t *p_buffer, heimdall_tick_t date )
 {
     aout_sys_t *p_sys = p_aout->sys;
     if( fwrite( p_buffer->p_buffer, p_buffer->i_buffer, 1,
                 p_sys->p_file ) != 1 )
     {
-        msg_Err( p_aout, "write error: %s", vlc_strerror_c(errno) );
+        msg_Err( p_aout, "write error: %s", heimdall_strerror_c(errno) );
     }
 
     if( p_sys->b_add_wav_header )
@@ -334,7 +335,7 @@ static void Play( audio_output_t * p_aout, block_t *p_buffer, vlc_tick_t date )
     (void) date;
 }
 
-static void Pause( audio_output_t *aout, bool paused, vlc_tick_t date )
+static void Pause( audio_output_t *aout, bool paused, heimdall_tick_t date )
 {
     (void) aout; (void) paused; (void) date;
 }
@@ -343,10 +344,10 @@ static void Flush( audio_output_t *aout )
 {
     aout_sys_t *p_sys = aout->sys;
     if( fflush( p_sys->p_file ) )
-        msg_Err( aout, "flush error: %s", vlc_strerror_c(errno) );
+        msg_Err( aout, "flush error: %s", heimdall_strerror_c(errno) );
 }
 
-static int Open(vlc_object_t *obj)
+static int Open(heimdall_object_t *obj)
 {
     audio_output_t *aout = (audio_output_t *)obj;
 
@@ -354,5 +355,5 @@ static int Open(vlc_object_t *obj)
     aout->stop = Stop;
     aout->volume_set = NULL;
     aout->mute_set = NULL;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

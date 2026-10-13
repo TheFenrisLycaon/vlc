@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,7 +20,7 @@
 
 #include <QSGRectangleNode>
 #include <QThreadPool>
-#include <vlc_window.h>
+#include <heimdall_window.h>
 
 #include <QQuickRenderControl>
 #ifdef QT_DECLARATIVE_PRIVATE
@@ -44,7 +45,7 @@ bool VideoSurfaceProvider::hasVideoEmbed() const
     return m_videoEmbed;
 }
 
-void VideoSurfaceProvider::enable(vlc_window_t* voutWindow)
+void VideoSurfaceProvider::enable(heimdall_window_t* voutWindow)
 {
     assert(voutWindow);
     m_voutWindow = voutWindow;
@@ -67,45 +68,45 @@ void VideoSurfaceProvider::setVideoEmbed(bool embed)
 void VideoSurfaceProvider::onWindowClosed()
 {
     if (m_voutWindow)
-        vlc_window_ReportClose(m_voutWindow);
+        heimdall_window_ReportClose(m_voutWindow);
 }
 
-void VideoSurfaceProvider::onMousePressed(int vlcButton)
+void VideoSurfaceProvider::onMousePressed(int heimdallButton)
 {
     if (m_voutWindow)
-        vlc_window_ReportMousePressed(m_voutWindow, vlcButton);
+        heimdall_window_ReportMousePressed(m_voutWindow, heimdallButton);
 }
 
-void VideoSurfaceProvider::onMouseReleased(int vlcButton)
+void VideoSurfaceProvider::onMouseReleased(int heimdallButton)
 {
     if (m_voutWindow)
-        vlc_window_ReportMouseReleased(m_voutWindow, vlcButton);
+        heimdall_window_ReportMouseReleased(m_voutWindow, heimdallButton);
 }
 
-void VideoSurfaceProvider::onMouseDoubleClick(int vlcButton)
+void VideoSurfaceProvider::onMouseDoubleClick(int heimdallButton)
 {
     if (m_voutWindow)
-        vlc_window_ReportMouseDoubleClick(m_voutWindow, vlcButton);
+        heimdall_window_ReportMouseDoubleClick(m_voutWindow, heimdallButton);
 }
 
 void VideoSurfaceProvider::onMouseMoved(float x, float y)
 {
     if (m_voutWindow)
-        vlc_window_ReportMouseMoved(m_voutWindow, x, y);
+        heimdall_window_ReportMouseMoved(m_voutWindow, x, y);
 }
 
-void VideoSurfaceProvider::onMouseWheeled(int vlcButton)
+void VideoSurfaceProvider::onMouseWheeled(int heimdallButton)
 {
     if (m_voutWindow)
-        vlc_window_ReportKeyPress(m_voutWindow, vlcButton);
+        heimdall_window_ReportKeyPress(m_voutWindow, heimdallButton);
 }
 
 void VideoSurfaceProvider::onKeyPressed(int key, Qt::KeyboardModifiers modifiers)
 {
     QKeyEvent event(QEvent::KeyPress, key, modifiers);
-    int vlckey = qtEventToVLCKey(&event);
+    int heimdallkey = qtEventToHeimdallKey(&event);
     if (m_voutWindow)
-        vlc_window_ReportKeyPress(m_voutWindow, vlckey);
+        heimdall_window_ReportKeyPress(m_voutWindow, heimdallkey);
 }
 
 void VideoSurfaceProvider::onSurfacePropertiesChanged(const std::optional<QSizeF>& size,
@@ -114,7 +115,7 @@ void VideoSurfaceProvider::onSurfacePropertiesChanged(const std::optional<QSizeF
 {
     emit surfacePropertiesChanged(size, position, scale);
     if (m_voutWindow && size)
-        vlc_window_ReportSize(m_voutWindow, std::ceil(size->width()), std::ceil(size->height()));
+        heimdall_window_ReportSize(m_voutWindow, std::ceil(size->width()), std::ceil(size->height()));
 }
 
 
@@ -132,7 +133,7 @@ VideoSurface::VideoSurface(QQuickItem* parent)
     }
 }
 
-int VideoSurface::qtMouseButton2VLC( Qt::MouseButton qtButton )
+int VideoSurface::qtMouseButton2Heimdall( Qt::MouseButton qtButton )
 {
     switch( qtButton )
     {
@@ -149,10 +150,10 @@ int VideoSurface::qtMouseButton2VLC( Qt::MouseButton qtButton )
 
 void VideoSurface::mousePressEvent(QMouseEvent* event)
 {
-    int vlc_button = qtMouseButton2VLC( event->button() );
-    if( vlc_button >= 0 )
+    int heimdall_button = qtMouseButton2Heimdall( event->button() );
+    if( heimdall_button >= 0 )
     {
-        emit mousePressed(vlc_button);
+        emit mousePressed(heimdall_button);
         event->accept();
     }
     else
@@ -161,10 +162,10 @@ void VideoSurface::mousePressEvent(QMouseEvent* event)
 
 void VideoSurface::mouseReleaseEvent(QMouseEvent* event)
 {
-    int vlc_button = qtMouseButton2VLC( event->button() );
-    if( vlc_button >= 0 )
+    int heimdall_button = qtMouseButton2Heimdall( event->button() );
+    if( heimdall_button >= 0 )
     {
-        emit mouseReleased(vlc_button);
+        emit mouseReleased(heimdall_button);
         event->accept();
     }
     else
@@ -199,10 +200,10 @@ void VideoSurface::hoverMoveEvent(QHoverEvent* event)
 
 void VideoSurface::mouseDoubleClickEvent(QMouseEvent* event)
 {
-    int vlc_button = qtMouseButton2VLC( event->button() );
-    if( vlc_button >= 0 )
+    int heimdall_button = qtMouseButton2Heimdall( event->button() );
+    if( heimdall_button >= 0 )
     {
-        emit mouseDblClicked(vlc_button);
+        emit mouseDblClicked(heimdall_button);
         event->accept();
     }
     else
@@ -375,7 +376,7 @@ void VideoSurface::setVideoSurfaceProvider(VideoSurfaceProvider *newVideoSurface
             }
         });
 
-        connect(&m_wheelEventConverter, &WheelToVLCConverter::vlcWheelKey, m_provider, &VideoSurfaceProvider::onMouseWheeled);
+        connect(&m_wheelEventConverter, &WheelToHeimdallConverter::heimdallWheelKey, m_provider, &VideoSurfaceProvider::onMouseWheeled);
 
         assert(!m_provider->videoSurface());
         m_provider->setVideoSurface(this);

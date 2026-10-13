@@ -2,8 +2,9 @@
  * demux_chained.c
  *****************************************************************************
  * Copyright (C) 1999-2016 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Laurent Aimar <fenrir _AT_ videolan _DOT_ org>
+ * Authors: Laurent Aimar <fenrir _AT_ lycaria _DOT_ org>
  *          Rémi Denis-Courmont
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -28,39 +29,39 @@
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
-#include <vlc_common.h>
-#include <vlc_demux.h>
+#include <heimdall_common.h>
+#include <heimdall_demux.h>
 #include "demux.h"
 
-struct vlc_demux_chained_t
+struct heimdall_demux_chained_t
 {
-    vlc_stream_fifo_t *writer;
+    heimdall_stream_fifo_t *writer;
     stream_t *reader;
 
-    vlc_thread_t thread;
-    vlc_mutex_t  lock;
+    heimdall_thread_t thread;
+    heimdall_mutex_t  lock;
 
     struct
     {
         double  position;
-        vlc_tick_t length;
-        vlc_tick_t time;
+        heimdall_tick_t length;
+        heimdall_tick_t time;
     } stats;
 
     es_out_t *out;
     char name[];
 };
 
-static void *vlc_demux_chained_Thread(void *data)
+static void *heimdall_demux_chained_Thread(void *data)
 {
-    vlc_thread_set_name("vlc-demux-chain");
+    heimdall_thread_set_name("heimdall-demux-chain");
 
-    vlc_demux_chained_t *dc = data;
-    demux_t *demux = demux_New(VLC_OBJECT(dc->reader), dc->name, "vlc://nop",
+    heimdall_demux_chained_t *dc = data;
+    demux_t *demux = demux_New(HEIMDALL_OBJECT(dc->reader), dc->name, "heimdall://nop",
                                dc->reader, dc->out);
     if (demux == NULL)
     {
-        vlc_stream_Delete(dc->reader);
+        heimdall_stream_Delete(dc->reader);
         return NULL;
     }
 
@@ -69,14 +70,14 @@ static void *vlc_demux_chained_Thread(void *data)
     demux_Control(demux, DEMUX_SET_GROUP_ALL);
 
     /* Main loop */
-    vlc_tick_t next_update = 0;
+    heimdall_tick_t next_update = 0;
 
     do
-        if (demux_TestAndClearFlags(demux, UINT_MAX) || vlc_tick_now() >= next_update)
+        if (demux_TestAndClearFlags(demux, UINT_MAX) || heimdall_tick_now() >= next_update)
         {
             double newpos;
-            vlc_tick_t newlen;
-            vlc_tick_t newtime;
+            heimdall_tick_t newlen;
+            heimdall_tick_t newtime;
 
             if (demux_Control(demux, DEMUX_GET_POSITION, &newpos))
                 newpos = 0.;
@@ -85,13 +86,13 @@ static void *vlc_demux_chained_Thread(void *data)
             if (demux_Control(demux, DEMUX_GET_TIME, &newtime))
                 newtime = 0;
 
-            vlc_mutex_lock(&dc->lock);
+            heimdall_mutex_lock(&dc->lock);
             dc->stats.position = newpos;
             dc->stats.length = newlen;
             dc->stats.time = newtime;
-            vlc_mutex_unlock(&dc->lock);
+            heimdall_mutex_unlock(&dc->lock);
 
-            next_update = vlc_tick_now() + VLC_TICK_FROM_MS(250);
+            next_update = heimdall_tick_now() + HEIMDALL_TICK_FROM_MS(250);
         }
     while (demux_Demux(demux) > 0);
 
@@ -99,14 +100,14 @@ static void *vlc_demux_chained_Thread(void *data)
     return NULL;
 }
 
-vlc_demux_chained_t *vlc_demux_chained_New(vlc_object_t *parent,
+heimdall_demux_chained_t *heimdall_demux_chained_New(heimdall_object_t *parent,
                                            const char *name, es_out_t *out)
 {
-    vlc_demux_chained_t *dc = malloc(sizeof (*dc) + strlen(name) + 1);
+    heimdall_demux_chained_t *dc = malloc(sizeof (*dc) + strlen(name) + 1);
     if (unlikely(dc == NULL))
         return NULL;
 
-    dc->writer = vlc_stream_fifo_New(parent, &dc->reader);
+    dc->writer = heimdall_stream_fifo_New(parent, &dc->reader);
     if (dc->writer == NULL)
     {
         free(dc);
@@ -119,51 +120,51 @@ vlc_demux_chained_t *vlc_demux_chained_New(vlc_object_t *parent,
     dc->out = out;
     strcpy(dc->name, name);
 
-    vlc_mutex_init(&dc->lock);
+    heimdall_mutex_init(&dc->lock);
 
-    if (vlc_clone(&dc->thread, vlc_demux_chained_Thread, dc))
+    if (heimdall_clone(&dc->thread, heimdall_demux_chained_Thread, dc))
     {
-        vlc_stream_Delete(dc->reader);
-        vlc_stream_fifo_Close(dc->writer);
+        heimdall_stream_Delete(dc->reader);
+        heimdall_stream_fifo_Close(dc->writer);
         free(dc);
         dc = NULL;
     }
     return dc;
 }
 
-void vlc_demux_chained_Send(vlc_demux_chained_t *dc, block_t *block)
+void heimdall_demux_chained_Send(heimdall_demux_chained_t *dc, block_t *block)
 {
-    vlc_stream_fifo_Queue(dc->writer, block);
+    heimdall_stream_fifo_Queue(dc->writer, block);
 }
 
-int vlc_demux_chained_ControlVa(vlc_demux_chained_t *dc, int query, va_list ap)
+int heimdall_demux_chained_ControlVa(heimdall_demux_chained_t *dc, int query, va_list ap)
 {
     switch (query)
     {
         case DEMUX_GET_POSITION:
-            vlc_mutex_lock(&dc->lock);
+            heimdall_mutex_lock(&dc->lock);
             *va_arg(ap, double *) = dc->stats.position;
-            vlc_mutex_unlock(&dc->lock);
+            heimdall_mutex_unlock(&dc->lock);
             break;
         case DEMUX_GET_LENGTH:
-            vlc_mutex_lock(&dc->lock);
-            *va_arg(ap, vlc_tick_t *) = dc->stats.length;
-            vlc_mutex_unlock(&dc->lock);
+            heimdall_mutex_lock(&dc->lock);
+            *va_arg(ap, heimdall_tick_t *) = dc->stats.length;
+            heimdall_mutex_unlock(&dc->lock);
             break;
         case DEMUX_GET_TIME:
-            vlc_mutex_lock(&dc->lock);
-            *va_arg(ap, vlc_tick_t *) = dc->stats.time;
-            vlc_mutex_unlock(&dc->lock);
+            heimdall_mutex_lock(&dc->lock);
+            *va_arg(ap, heimdall_tick_t *) = dc->stats.time;
+            heimdall_mutex_unlock(&dc->lock);
             break;
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-void vlc_demux_chained_Delete(vlc_demux_chained_t *dc)
+void heimdall_demux_chained_Delete(heimdall_demux_chained_t *dc)
 {
-    vlc_stream_fifo_Close(dc->writer);
-    vlc_join(dc->thread, NULL);
+    heimdall_stream_fifo_Close(dc->writer);
+    heimdall_join(dc->thread, NULL);
     free(dc);
 }

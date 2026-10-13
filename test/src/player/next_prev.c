@@ -3,6 +3,7 @@
  * tracks_ids.c: tracks IDs player test
  *****************************************************************************
  * Copyright (C) 2018-2025 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *****************************************************************************/
 
 #include "common.h"
@@ -15,7 +16,7 @@ struct np_ctx
     size_t timers_count;
     size_t prev_status_idx;
     size_t next_status_idx;
-    struct vlc_player_timer_smpte_timecode tc;
+    struct heimdall_player_timer_smpte_timecode tc;
 };
 
 static unsigned
@@ -33,7 +34,7 @@ wait_prev_frame_status(struct np_ctx *np_ctx, size_t count, int status)
     size_t idx = np_ctx->prev_status_idx;
     vec_on_prev_frame_status *vec = &ctx->report.on_prev_frame_status;
     while (vec->size < idx + count)
-        vlc_player_CondWait(ctx->player, &ctx->wait);
+        heimdall_player_CondWait(ctx->player, &ctx->wait);
     for (size_t i = idx; i < idx + count; ++i)
         assert(vec->data[i] == status);
     idx += count;
@@ -47,7 +48,7 @@ wait_next_frame_status(struct np_ctx *np_ctx, size_t count, int status)
     size_t idx = np_ctx->next_status_idx;
     vec_on_next_frame_status *vec = &ctx->report.on_next_frame_status;
     while (vec->size < idx + count)
-        vlc_player_CondWait(ctx->player, &ctx->wait);
+        heimdall_player_CondWait(ctx->player, &ctx->wait);
     for (size_t i = idx; i < idx + count; ++i)
         assert(vec->data[i] == status);
     idx += count;
@@ -58,7 +59,7 @@ static void
 decrease_tc(struct np_ctx *np_ctx)
 {
     unsigned fps = get_fps(np_ctx->ctx);
-    struct vlc_player_timer_smpte_timecode *tc = &np_ctx->tc;
+    struct heimdall_player_timer_smpte_timecode *tc = &np_ctx->tc;
 
     if (tc->frames == 0)
     {
@@ -76,7 +77,7 @@ static void
 increase_tc(struct np_ctx *np_ctx)
 {
     unsigned fps = get_fps(np_ctx->ctx);
-    struct vlc_player_timer_smpte_timecode *tc = &np_ctx->tc;
+    struct heimdall_player_timer_smpte_timecode *tc = &np_ctx->tc;
 
     tc->frames++;
     if (tc->frames == fps)
@@ -90,7 +91,7 @@ static void
 wait_type_timer(struct np_ctx *np_ctx, unsigned type)
 {
     struct ctx *ctx = np_ctx->ctx;
-    vlc_player_t *player = ctx->player;
+    heimdall_player_t *player = ctx->player;
 
     for (size_t i = 0; i < np_ctx->timers_count; ++i)
     {
@@ -120,9 +121,9 @@ static void
 wait_next_tc(struct np_ctx *np_ctx)
 {
     struct ctx *ctx = np_ctx->ctx;
-    vlc_player_t *player = ctx->player;
+    heimdall_player_t *player = ctx->player;
     struct timer_state *timer = &np_ctx->timers[0];
-    struct vlc_player_timer_smpte_timecode *tc = &np_ctx->tc;
+    struct heimdall_player_timer_smpte_timecode *tc = &np_ctx->tc;
 
     player_lock_timer(player, timer);
     struct report_timer *r = timer_state_wait_next_report(timer);
@@ -147,17 +148,17 @@ check_resumed_timer(struct np_ctx *np_ctx)
 
     /* Check that the player can be resumed and paused again after
      * next/prev frame */
-    vlc_player_t *player = ctx->player;
-    assert_state(ctx, VLC_PLAYER_STATE_PAUSED);
-    vlc_player_Resume(player);
-    wait_state(ctx, VLC_PLAYER_STATE_PLAYING);
+    heimdall_player_t *player = ctx->player;
+    assert_state(ctx, HEIMDALL_PLAYER_STATE_PAUSED);
+    heimdall_player_Resume(player);
+    wait_state(ctx, HEIMDALL_PLAYER_STATE_PLAYING);
 
     /* Wait that a video frame is rendered */
     wait_next_tc(np_ctx);
 
-    vlc_player_Pause(player);
+    heimdall_player_Pause(player);
 
-    wait_state(ctx, VLC_PLAYER_STATE_PAUSED);
+    wait_state(ctx, HEIMDALL_PLAYER_STATE_PAUSED);
 
     wait_type_timer(np_ctx, REPORT_TIMER_PAUSED);
 }
@@ -168,11 +169,11 @@ check_seek_timer(struct np_ctx *np_ctx)
     /* Check that the player can be resumed and paused again after
      * next/prev frame */
     struct ctx *ctx = np_ctx->ctx;
-    vlc_player_t *player = ctx->player;
+    heimdall_player_t *player = ctx->player;
 
-    assert_state(ctx, VLC_PLAYER_STATE_PAUSED);
-    vlc_player_SetTime(player, ctx->params.length / 2);
-    assert_state(ctx, VLC_PLAYER_STATE_PAUSED);
+    assert_state(ctx, HEIMDALL_PLAYER_STATE_PAUSED);
+    heimdall_player_SetTime(player, ctx->params.length / 2);
+    assert_state(ctx, HEIMDALL_PLAYER_STATE_PAUSED);
 
     /* Wait for the seek */
     wait_type_timer(np_ctx, REPORT_TIMER_SEEK);
@@ -180,7 +181,7 @@ check_seek_timer(struct np_ctx *np_ctx)
     /* Wait that a video frame is rendered */
     wait_next_tc(np_ctx);
 
-    assert_state(ctx, VLC_PLAYER_STATE_PAUSED);
+    assert_state(ctx, HEIMDALL_PLAYER_STATE_PAUSED);
 }
 
 static void
@@ -189,12 +190,12 @@ check_next_frame_timer(struct np_ctx *np_ctx)
     /* Check that the player can go next frame after a prev frame */
     struct ctx *ctx = np_ctx->ctx;
     struct timer_state *timer = &np_ctx->timers[0];
-    vlc_player_t *player = ctx->player;
-    struct vlc_player_timer_smpte_timecode *tc = &np_ctx->tc;
+    heimdall_player_t *player = ctx->player;
+    struct heimdall_player_timer_smpte_timecode *tc = &np_ctx->tc;
 
-    assert_state(ctx, VLC_PLAYER_STATE_PAUSED);
+    assert_state(ctx, HEIMDALL_PLAYER_STATE_PAUSED);
 
-    vlc_player_NextVideoFrame(player);
+    heimdall_player_NextVideoFrame(player);
     wait_next_frame_status(np_ctx, 1, 0);
 
     increase_tc(np_ctx);
@@ -223,8 +224,8 @@ get_frame_count_to_start(struct np_ctx *np_ctx)
 {
     unsigned fps = get_fps(np_ctx->ctx);
 
-    return np_ctx->tc.frames + VLC_TICK_FROM_SEC(np_ctx->tc.seconds)
-        / vlc_tick_rate_duration(fps);
+    return np_ctx->tc.frames + HEIMDALL_TICK_FROM_SEC(np_ctx->tc.seconds)
+        / heimdall_tick_rate_duration(fps);
 }
 
 static void check_normal_timer(struct np_ctx *np_ctx, size_t count, bool next)
@@ -233,10 +234,10 @@ static void check_normal_timer(struct np_ctx *np_ctx, size_t count, bool next)
         return;
     struct ctx *ctx = np_ctx->ctx;
     struct timer_state *normal_timer = &np_ctx->timers[1];
-    vlc_player_t *player = ctx->player;
+    heimdall_player_t *player = ctx->player;
 
     player_lock_timer(player, normal_timer);
-    vlc_tick_t last_ts = next ? VLC_TICK_0 : VLC_TICK_MAX;
+    heimdall_tick_t last_ts = next ? HEIMDALL_TICK_0 : HEIMDALL_TICK_MAX;
     for (size_t i = 0; i < count; ++i)
     {
         struct report_timer *r = timer_state_wait_next_report(normal_timer);
@@ -255,8 +256,8 @@ go_start(struct np_ctx *np_ctx, bool extra_checks)
 {
     struct ctx *ctx = np_ctx->ctx;
     struct timer_state *timer = &np_ctx->timers[0];
-    vlc_player_t *player = ctx->player;
-    struct vlc_player_timer_smpte_timecode *tc = &np_ctx->tc;
+    heimdall_player_t *player = ctx->player;
+    struct heimdall_player_timer_smpte_timecode *tc = &np_ctx->tc;
     struct report_timer *r = NULL;
 
     size_t frame_prev_count_total = get_frame_count_to_start(np_ctx);
@@ -278,7 +279,7 @@ go_start(struct np_ctx *np_ctx, bool extra_checks)
 
         /* Send burst */
         for (size_t i = 0; i < frame_prev_count; ++i)
-            vlc_player_PreviousVideoFrame(player);
+            heimdall_player_PreviousVideoFrame(player);
 
         /* Wait for all prev-frame status */
         wait_prev_frame_status(np_ctx, frame_prev_count, 0);
@@ -337,7 +338,7 @@ go_start(struct np_ctx *np_ctx, bool extra_checks)
     assert(tc->frames == 0);
 
     /* Ensure start of File is handled */
-    vlc_player_PreviousVideoFrame(player);
+    heimdall_player_PreviousVideoFrame(player);
     wait_prev_frame_status(np_ctx, 1, -EAGAIN);
 }
 
@@ -346,8 +347,8 @@ go_eof(struct np_ctx *np_ctx)
 {
     struct ctx *ctx = np_ctx->ctx;
     struct timer_state *timer = &np_ctx->timers[0];
-    vlc_player_t *player = ctx->player;
-    struct vlc_player_timer_smpte_timecode *tc = &np_ctx->tc;
+    heimdall_player_t *player = ctx->player;
+    struct heimdall_player_timer_smpte_timecode *tc = &np_ctx->tc;
     struct report_timer *r = NULL;
 
     unsigned fps = get_fps(ctx);
@@ -370,7 +371,7 @@ go_eof(struct np_ctx *np_ctx)
 
         /* Send burst */
         for (size_t i = 0; i < frame_next_count; ++i)
-            vlc_player_NextVideoFrame(player);
+            heimdall_player_NextVideoFrame(player);
 
         /* Wait for all next-frame status */
         wait_next_frame_status(np_ctx, frame_next_count, 0);
@@ -392,7 +393,7 @@ go_eof(struct np_ctx *np_ctx)
         check_normal_timer(np_ctx, frame_next_count, true);
     }
 
-    vlc_player_NextVideoFrame(player);
+    heimdall_player_NextVideoFrame(player);
     wait_next_frame_status(np_ctx, 1, -EAGAIN);
 
     decrease_tc(np_ctx);
@@ -402,11 +403,11 @@ static void
 resume(struct np_ctx *np_ctx)
 {
     struct ctx *ctx = np_ctx->ctx;
-    vlc_player_t *player = ctx->player;
+    heimdall_player_t *player = ctx->player;
 
     /* Resume player */
-    vlc_player_Resume(player);
-    wait_state(ctx, VLC_PLAYER_STATE_PLAYING);
+    heimdall_player_Resume(player);
+    wait_state(ctx, HEIMDALL_PLAYER_STATE_PLAYING);
 
     /* Wait for the forced frame after resume and next/prev frame */
     wait_next_tc(np_ctx);
@@ -419,20 +420,20 @@ static void
 burst_unpaused(struct np_ctx *np_ctx)
 {
     struct ctx *ctx = np_ctx->ctx;
-    vlc_player_t *player = ctx->player;
+    heimdall_player_t *player = ctx->player;
     struct timer_state *timer = &np_ctx->timers[0];
-    struct vlc_player_timer_smpte_timecode *tc = &np_ctx->tc;
+    struct heimdall_player_timer_smpte_timecode *tc = &np_ctx->tc;
     struct report_timer *r = NULL;
     const unsigned burst = 6;
 
-    assert_state(ctx, VLC_PLAYER_STATE_PLAYING);
+    assert_state(ctx, HEIMDALL_PLAYER_STATE_PLAYING);
 
     for (size_t i = 0; i < burst + 1 /* pause */; i++)
-        vlc_player_NextVideoFrame(player);
+        heimdall_player_NextVideoFrame(player);
 
     /* First request is pausing the video */
     wait_next_frame_status(np_ctx, 1, -EAGAIN);
-    assert_state(ctx, VLC_PLAYER_STATE_PAUSED);
+    assert_state(ctx, HEIMDALL_PLAYER_STATE_PAUSED);
     wait_type_timer(np_ctx, REPORT_TIMER_PAUSED);
 
     /* Wait all status events */
@@ -460,11 +461,11 @@ burst_unpaused(struct np_ctx *np_ctx)
     resume(np_ctx);
 
     for (size_t i = 0; i < burst + 1 /* pause */; i++)
-        vlc_player_PreviousVideoFrame(player);
+        heimdall_player_PreviousVideoFrame(player);
 
     /* First request is pausing the video */
     wait_prev_frame_status(np_ctx, 1, -EAGAIN);
-    assert_state(ctx, VLC_PLAYER_STATE_PAUSED);
+    assert_state(ctx, HEIMDALL_PLAYER_STATE_PAUSED);
     wait_type_timer(np_ctx, REPORT_TIMER_PAUSED);
 
     /* Wait all status events */
@@ -498,7 +499,7 @@ test_prev(struct ctx *ctx, const struct media_params *params, bool extra_checks)
     test_log("prev-frame (fps: %u/%u pts-delay: %"PRId64" with_audio: %zu)\n",
              params->video_frame_rate, params->video_frame_rate_base,
              params->pts_delay, params->track_count[AUDIO_ES]);
-    vlc_player_t *player = ctx->player;
+    heimdall_player_t *player = ctx->player;
     struct np_ctx np_ctx = {
         .ctx = ctx,
         .prev_status_idx = 0,
@@ -507,14 +508,14 @@ test_prev(struct ctx *ctx, const struct media_params *params, bool extra_checks)
 
     player_set_current_mock_media(ctx, "media1", params, false);
 
-    player_add_timer(player, &np_ctx.timers[0], true, VLC_TICK_INVALID);
+    player_add_timer(player, &np_ctx.timers[0], true, HEIMDALL_TICK_INVALID);
     np_ctx.timers_count = 1;
 
     /* Normal timer can't be tested reliably with audio as it will take the
      * lead */
     if (params->track_count[AUDIO_ES] == 0)
     {
-        player_add_timer(player, &np_ctx.timers[1], false, VLC_TICK_INVALID);
+        player_add_timer(player, &np_ctx.timers[1], false, HEIMDALL_TICK_INVALID);
         np_ctx.timers_count++;
     }
 
@@ -524,8 +525,8 @@ test_prev(struct ctx *ctx, const struct media_params *params, bool extra_checks)
     {
         vec_on_vout_changed *vec = &ctx->report.on_vout_changed;
         while (vec->size == 0)
-            vlc_player_CondWait(ctx->player, &ctx->wait);
-        assert(vec->data[0].action == VLC_PLAYER_VOUT_STARTED);
+            heimdall_player_CondWait(ctx->player, &ctx->wait);
+        assert(vec->data[0].action == HEIMDALL_PLAYER_VOUT_STARTED);
     }
 
     /* Wait for a first frame */
@@ -535,7 +536,7 @@ test_prev(struct ctx *ctx, const struct media_params *params, bool extra_checks)
      * in a burst */
     burst_unpaused(&np_ctx);
 
-    vlc_player_SetTime(player, params->length / 2);
+    heimdall_player_SetTime(player, params->length / 2);
 
     /* Wait for a first frame */
     wait_type_timer(&np_ctx, REPORT_TIMER_SEEK);
@@ -543,11 +544,11 @@ test_prev(struct ctx *ctx, const struct media_params *params, bool extra_checks)
     /* Wait for a first frame after seek */
     wait_next_tc(&np_ctx);
 
-    vlc_player_NextVideoFrame(player);
+    heimdall_player_NextVideoFrame(player);
 
     /* First request is pausing the video */
     wait_next_frame_status(&np_ctx, 1, -EAGAIN);
-    assert_state(ctx, VLC_PLAYER_STATE_PAUSED);
+    assert_state(ctx, HEIMDALL_PLAYER_STATE_PAUSED);
     wait_type_timer(&np_ctx, REPORT_TIMER_PAUSED);
 
     /* Go EOF, via next-frame */
@@ -557,7 +558,7 @@ test_prev(struct ctx *ctx, const struct media_params *params, bool extra_checks)
     go_start(&np_ctx, extra_checks);
 
     /* Check start of file a second time */
-    vlc_player_PreviousVideoFrame(player);
+    heimdall_player_PreviousVideoFrame(player);
     wait_prev_frame_status(&np_ctx, 1, -EAGAIN);
 
     if (extra_checks)
@@ -587,7 +588,7 @@ test_fail(struct ctx *ctx, const struct media_params *params, int error)
     test_log("prev-frame fail (can_seek: %d can_pause: %d)\n",
              params->can_seek, params->can_pause);
 
-    vlc_player_t *player = ctx->player;
+    heimdall_player_t *player = ctx->player;
 
     player_set_current_mock_media(ctx, "media1", params, false);
 
@@ -596,7 +597,7 @@ test_fail(struct ctx *ctx, const struct media_params *params, int error)
         .prev_status_idx = 0,
         .next_status_idx = 0,
     };
-    player_add_timer(player, &np_ctx.timers[0], true, VLC_TICK_INVALID);
+    player_add_timer(player, &np_ctx.timers[0], true, HEIMDALL_TICK_INVALID);
     np_ctx.timers_count = 1;
     struct timer_state *timer = &np_ctx.timers[0];
 
@@ -605,8 +606,8 @@ test_fail(struct ctx *ctx, const struct media_params *params, int error)
     {
         vec_on_vout_changed *vec = &ctx->report.on_vout_changed;
         while (vec->size == 0)
-            vlc_player_CondWait(ctx->player, &ctx->wait);
-        assert(vec->data[0].action == VLC_PLAYER_VOUT_STARTED);
+            heimdall_player_CondWait(ctx->player, &ctx->wait);
+        assert(vec->data[0].action == HEIMDALL_PLAYER_VOUT_STARTED);
     }
 
     struct report_timer *r = NULL;
@@ -615,7 +616,7 @@ test_fail(struct ctx *ctx, const struct media_params *params, int error)
     assert(r->type == REPORT_TIMER_TC);
     player_unlock_timer(player, timer);
 
-    vlc_player_PreviousVideoFrame(player);
+    heimdall_player_PreviousVideoFrame(player);
 
     wait_prev_frame_status(&np_ctx, 1, error);
 
@@ -628,7 +629,7 @@ test_vout_fail(struct ctx *ctx, const struct media_params *params)
 {
     test_log("prev-frame fail (no vout)\n");
 
-    vlc_player_t *player = ctx->player;
+    heimdall_player_t *player = ctx->player;
 
     player_set_current_mock_media(ctx, "media1", params, false);
 
@@ -637,7 +638,7 @@ test_vout_fail(struct ctx *ctx, const struct media_params *params)
         .prev_status_idx = 0,
         .next_status_idx = 0,
     };
-    player_add_timer(player, &np_ctx.timers[0], false, VLC_TICK_INVALID);
+    player_add_timer(player, &np_ctx.timers[0], false, HEIMDALL_TICK_INVALID);
     np_ctx.timers_count = 1;
     struct timer_state *timer = &np_ctx.timers[0];
 
@@ -649,10 +650,10 @@ test_vout_fail(struct ctx *ctx, const struct media_params *params)
     assert(r->type == REPORT_TIMER_POINT);
     player_unlock_timer(player, timer);
 
-    vlc_player_PreviousVideoFrame(player);
+    heimdall_player_PreviousVideoFrame(player);
     wait_prev_frame_status(&np_ctx, 1, -EAGAIN);
 
-    vlc_player_PreviousVideoFrame(player);
+    heimdall_player_PreviousVideoFrame(player);
     wait_prev_frame_status(&np_ctx, 1, -EBUSY);
 
     test_end(ctx);
@@ -662,7 +663,7 @@ test_vout_fail(struct ctx *ctx, const struct media_params *params)
 int
 main(void)
 {
-    struct media_params params = DEFAULT_MEDIA_PARAMS(VLC_TICK_FROM_SEC(5));
+    struct media_params params = DEFAULT_MEDIA_PARAMS(HEIMDALL_TICK_FROM_SEC(5));
     params.track_count[VIDEO_ES] = 1;
     params.track_count[AUDIO_ES] = 1;
     params.track_count[SPU_ES] = 1;
@@ -672,7 +673,7 @@ main(void)
     ctx_init(&ctx, 0);
 
     /* 25 fps + pts-delay lower than frame duration */
-    params.pts_delay = VLC_TICK_FROM_MS(20);
+    params.pts_delay = HEIMDALL_TICK_FROM_MS(20);
     params.video_frame_rate = 25;
     test_prev(&ctx, &params, true);
     params.pts_delay = DEFAULT_PTS_DELAY;
@@ -692,7 +693,7 @@ main(void)
     test_prev(&ctx, &params, true);
 
     /* 1 fps */
-    params.length = VLC_TICK_FROM_SEC(20);
+    params.length = HEIMDALL_TICK_FROM_SEC(20);
     params.video_frame_rate = 1;
     /* Don't do extra checks for 1fps, as the check_resumed_timer() might take
      * a longer time than expected due to a bug on the clock: resuming a 1fps

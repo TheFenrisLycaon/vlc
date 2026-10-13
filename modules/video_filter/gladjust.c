@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
  * Copyright (C) 2020 Videolabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -24,20 +25,20 @@
 #endif
 
 #include <stdatomic.h>
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_modules.h>
-#include <vlc_opengl.h>
-#include <vlc_filter.h>
-#include <vlc_opengl_filter.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_modules.h>
+#include <heimdall_opengl.h>
+#include <heimdall_filter.h>
+#include <heimdall_opengl_filter.h>
 #include "video_output/opengl/gl_api.h"
 #include "video_output/opengl/gl_common.h"
 #include "video_output/opengl/gl_util.h"
 #include "video_output/opengl/sampler.h"
 
 struct sys {
-    struct vlc_gl_api api;
-    struct vlc_gl_sampler *sampler;
+    struct heimdall_gl_api api;
+    struct heimdall_gl_sampler *sampler;
 
     GLuint program_id;
 
@@ -54,7 +55,7 @@ struct sys {
     } loc;
 
     /* Outer filter_t where "contrast"/... live. */
-    vlc_object_t *outer;
+    heimdall_object_t *outer;
 
     _Atomic float contrast;
     _Atomic float brightness;
@@ -63,19 +64,19 @@ struct sys {
     _Atomic float gamma;
 };
 
-static int varFloatCallback(vlc_object_t *p_this, char const *psz_variable,
-                            vlc_value_t oldvalue, vlc_value_t newvalue,
+static int varFloatCallback(heimdall_object_t *p_this, char const *psz_variable,
+                            heimdall_value_t oldvalue, heimdall_value_t newvalue,
                             void *p_data)
 {
     _Atomic float *atom = p_data;
     atomic_store_explicit(atom, newvalue.f_float, memory_order_relaxed);
     (void) p_this; (void) psz_variable; (void) oldvalue;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int
-Draw(struct vlc_gl_filter *filter, const struct vlc_gl_picture *pic,
-     const struct vlc_gl_input_meta *meta)
+Draw(struct heimdall_gl_filter *filter, const struct heimdall_gl_picture *pic,
+     const struct heimdall_gl_input_meta *meta)
 {
     (void) meta;
 
@@ -85,9 +86,9 @@ Draw(struct vlc_gl_filter *filter, const struct vlc_gl_picture *pic,
 
     vt->UseProgram(sys->program_id);
 
-    struct vlc_gl_sampler *sampler = sys->sampler;
-    vlc_gl_sampler_Update(sampler, pic);
-    vlc_gl_sampler_Load(sampler);
+    struct heimdall_gl_sampler *sampler = sys->sampler;
+    heimdall_gl_sampler_Update(sampler, pic);
+    heimdall_gl_sampler_Load(sampler);
 
     vt->BindBuffer(GL_ARRAY_BUFFER, sys->vbo);
 
@@ -101,7 +102,7 @@ Draw(struct vlc_gl_filter *filter, const struct vlc_gl_picture *pic,
         };
 
         /* Transform coordinates in place */
-        vlc_gl_picture_ToTexCoords(pic, 4, coords, coords);
+        heimdall_gl_picture_ToTexCoords(pic, 4, coords, coords);
 
         const float data[] = {
             -1,  1, coords[0], coords[1],
@@ -137,11 +138,11 @@ Draw(struct vlc_gl_filter *filter, const struct vlc_gl_picture *pic,
     vt->Clear(GL_COLOR_BUFFER_BIT);
     vt->DrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void
-Close(struct vlc_gl_filter *filter) {
+Close(struct heimdall_gl_filter *filter) {
     struct sys *sys = filter->sys;
 
     var_DelCallback(sys->outer, "contrast",   varFloatCallback, &sys->contrast);
@@ -158,26 +159,26 @@ Close(struct vlc_gl_filter *filter) {
 }
 
 #define GLADJUST_OUTER_MARKER "gladjust-outer"
-static vlc_object_t *FindOuterFilter(struct vlc_gl_filter *filter)
+static heimdall_object_t *FindOuterFilter(struct heimdall_gl_filter *filter)
 {
-    vlc_object_t *obj = VLC_OBJECT(filter);
-    while ((obj = vlc_object_parent(obj)) != NULL)
+    heimdall_object_t *obj = HEIMDALL_OBJECT(filter);
+    while ((obj = heimdall_object_parent(obj)) != NULL)
         if (var_Type(obj, GLADJUST_OUTER_MARKER) != 0)
             return obj;
     return NULL;
 }
 
-static vlc_gl_filter_open_fn Open;
+static heimdall_gl_filter_open_fn Open;
 static int
-Open(struct vlc_gl_filter *filter, const config_chain_t *config,
-     struct vlc_gl_sampler *sampler, struct vlc_gl_tex_size *size_out)
+Open(struct heimdall_gl_filter *filter, const config_chain_t *config,
+     struct heimdall_gl_sampler *sampler, struct heimdall_gl_tex_size *size_out)
 {
     (void) config;
     (void) size_out;
 
-    vlc_object_t *outer = FindOuterFilter(filter);
+    heimdall_object_t *outer = FindOuterFilter(filter);
     if (outer == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     filter->config.filter_planes = false;
     filter->config.blend = false;
@@ -185,17 +186,17 @@ Open(struct vlc_gl_filter *filter, const config_chain_t *config,
 
     struct sys *sys = malloc(sizeof(*sys));
     if (!sys)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     sys->sampler = sampler;
     sys->outer = outer;
     filter->sys = sys;
 
-    int ret = vlc_gl_api_Init(&sys->api, filter->gl);
-    if (ret != VLC_SUCCESS)
+    int ret = heimdall_gl_api_Init(&sys->api, filter->gl);
+    if (ret != HEIMDALL_SUCCESS)
     {
         free(sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     atomic_init(&sys->contrast,
@@ -286,7 +287,7 @@ Open(struct vlc_gl_filter *filter, const config_chain_t *config,
         "}\n"
         "\n"
         "void main() {\n"
-        "  vec3 color = vlc_texture(tex_coords).rgb;\n"
+        "  vec3 color = heimdall_texture(tex_coords).rgb;\n"
         "  color = rgb_to_hsl(color.r, color.g, color.b);\n"
         "  color = hsl_to_rgb(\n"
         "    mod(color.r - hue + 360.0, 360.0),\n"
@@ -315,14 +316,14 @@ Open(struct vlc_gl_filter *filter, const config_chain_t *config,
     };
 
     GLuint program_id =
-        vlc_gl_BuildProgram(VLC_OBJECT(filter), vt,
+        heimdall_gl_BuildProgram(HEIMDALL_OBJECT(filter), vt,
                             ARRAY_SIZE(vertex_shader), vertex_shader,
                             ARRAY_SIZE(fragment_shader), fragment_shader);
 
     if (!program_id)
         goto error;
 
-    vlc_gl_sampler_FetchLocations(sampler, program_id);
+    heimdall_gl_sampler_FetchLocations(sampler, program_id);
 
     sys->program_id = program_id;
 
@@ -349,17 +350,17 @@ Open(struct vlc_gl_filter *filter, const config_chain_t *config,
 
     vt->GenBuffers(1, &sys->vbo);
 
-    static const struct vlc_gl_filter_ops ops = {
+    static const struct heimdall_gl_filter_ops ops = {
         .draw = Draw,
         .close = Close,
     };
     filter->ops = &ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     free(sys);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 
@@ -379,15 +380,15 @@ static int OpenVideoFilter(filter_t *filter)
     /* For SW chromas, only use the OpenGL filter if explicitly requested */
     if (filter->vctx_in == NULL
      && !var_InheritBool(filter, "video-filter-opengl"))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    var_Create(filter, GLADJUST_OUTER_MARKER, VLC_VAR_VOID);
+    var_Create(filter, GLADJUST_OUTER_MARKER, HEIMDALL_VAR_VOID);
 
-    module_t *module = vlc_gl_WrapOpenGLFilter(filter, "gladjust");
-    return module ? VLC_SUCCESS : VLC_EGENERIC;
+    module_t *module = heimdall_gl_WrapOpenGLFilter(filter, "gladjust");
+    return module ? HEIMDALL_SUCCESS : HEIMDALL_EGENERIC;
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname("gladjust")
     set_description("OpenGL Adjust Filter")
     set_subcategory(SUBCAT_VIDEO_VFILTER)
@@ -407,4 +408,4 @@ vlc_module_begin()
         set_capability("opengl filter", 0)
         set_callback(Open)
         add_shortcut("gladjust")
-vlc_module_end()
+heimdall_module_end()

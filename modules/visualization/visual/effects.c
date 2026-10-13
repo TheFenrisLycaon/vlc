@@ -2,6 +2,7 @@
  * effects.c : Effects for the visualization system
  *****************************************************************************
  * Copyright (C) 2002-2009 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Clément Stenac <zorglub@via.ecp.fr>
  *          Adrien Maglo <magsoft@videolan.org>
@@ -28,9 +29,9 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_picture.h>
-#include <vlc_block.h>
+#include <heimdall_common.h>
+#include <heimdall_picture.h>
+#include <heimdall_block.h>
 
 #include "visual.h"
 #include <math.h>
@@ -50,17 +51,17 @@
 /*****************************************************************************
  * dummy_Run
  *****************************************************************************/
-static int dummy_Run( visual_effect_t * p_effect, vlc_object_t *p_aout,
+static int dummy_Run( visual_effect_t * p_effect, heimdall_object_t *p_aout,
                       const block_t * p_buffer , picture_t * p_picture)
 {
-    VLC_UNUSED(p_effect); VLC_UNUSED(p_aout); VLC_UNUSED(p_buffer);
-    VLC_UNUSED(p_picture);
+    HEIMDALL_UNUSED(p_effect); HEIMDALL_UNUSED(p_aout); HEIMDALL_UNUSED(p_buffer);
+    HEIMDALL_UNUSED(p_picture);
     return 0;
 }
 
 static void dummy_Free( void *data )
 {
-    VLC_UNUSED(data);
+    HEIMDALL_UNUSED(data);
 }
 
 
@@ -78,7 +79,7 @@ typedef struct spectrum_data
     window_param wind_param;
 } spectrum_data;
 
-static int spectrum_Run(visual_effect_t * p_effect, vlc_object_t *p_aout,
+static int spectrum_Run(visual_effect_t * p_effect, heimdall_object_t *p_aout,
                         const block_t * p_buffer , picture_t * p_picture)
 {
     spectrum_data *p_data = p_effect->p_data;
@@ -147,7 +148,7 @@ static int spectrum_Run(visual_effect_t * p_effect, vlc_object_t *p_aout,
     if( p_buffer->i_nb_samples != p_data->i_prev_nb_samples )
     {
         free( p_data->p_prev_s16_buff );
-        p_data->p_prev_s16_buff = vlc_alloc( p_buffer->i_nb_samples *
+        p_data->p_prev_s16_buff = heimdall_alloc( p_buffer->i_nb_samples *
                                              p_effect->i_nb_chans,
                                              sizeof(int16_t));
         p_data->i_prev_nb_samples = p_buffer->i_nb_samples;
@@ -170,7 +171,7 @@ static int spectrum_Run(visual_effect_t * p_effect, vlc_object_t *p_aout,
         i_nb_bands = 20;
     }
 
-    height = vlc_alloc( i_nb_bands, sizeof(int) );
+    height = heimdall_alloc( i_nb_bands, sizeof(int) );
     if( !height )
     {
         return -1;
@@ -400,7 +401,7 @@ typedef struct
     window_param wind_param;
 } spectrometer_data;
 
-static int spectrometer_Run(visual_effect_t * p_effect, vlc_object_t *p_aout,
+static int spectrometer_Run(visual_effect_t * p_effect, heimdall_object_t *p_aout,
                             const block_t * p_buffer , picture_t * p_picture)
 {
 #define Y(R,G,B) ((uint8_t)( (R * .299) + (G * .587) + (B * .114) ))
@@ -490,7 +491,7 @@ static int spectrometer_Run(visual_effect_t * p_effect, vlc_object_t *p_aout,
     if( p_buffer->i_nb_samples != p_data->i_prev_nb_samples )
     {
         free( p_data->p_prev_s16_buff );
-        p_data->p_prev_s16_buff = vlc_alloc( p_buffer->i_nb_samples *
+        p_data->p_prev_s16_buff = heimdall_alloc( p_buffer->i_nb_samples *
                                              p_effect->i_nb_chans,
                                              sizeof(int16_t));
         p_data->i_prev_nb_samples = p_buffer->i_nb_samples;
@@ -523,7 +524,7 @@ static int spectrometer_Run(visual_effect_t * p_effect, vlc_object_t *p_aout,
         i_nb_bands = 20;
     }
 
-    height = vlc_alloc( i_nb_bands, sizeof(int) );
+    height = heimdall_alloc( i_nb_bands, sizeof(int) );
     if( !height)
         return -1;
 
@@ -574,7 +575,7 @@ static int spectrometer_Run(visual_effect_t * p_effect, vlc_object_t *p_aout,
     i_nb_bands *= i_sections;
 
     if( i_sections <= 0 )
-        vlc_assert_unreachable();
+        heimdall_assert_unreachable();
 
     for ( i = 0 ; i< i_nb_bands/i_sections ;i++)
     {
@@ -889,10 +890,10 @@ static void spectrometer_Free( void *data )
 /*****************************************************************************
  * scope_Run: scope effect
  *****************************************************************************/
-static int scope_Run(visual_effect_t * p_effect, vlc_object_t *p_aout,
+static int scope_Run(visual_effect_t * p_effect, heimdall_object_t *p_aout,
                      const block_t * p_buffer , picture_t * p_picture)
 {
-    VLC_UNUSED(p_aout);
+    HEIMDALL_UNUSED(p_aout);
 
     int i_index;
     float *p_sample ;
@@ -946,10 +947,10 @@ static int scope_Run(visual_effect_t * p_effect, vlc_object_t *p_aout,
 /*****************************************************************************
  * vuMeter_Run: vu meter effect
  *****************************************************************************/
-static int vuMeter_Run(visual_effect_t * p_effect, vlc_object_t *p_aout,
+static int vuMeter_Run(visual_effect_t * p_effect, heimdall_object_t *p_aout,
                        const block_t * p_buffer , picture_t * p_picture)
 {
-    VLC_UNUSED(p_aout);
+    HEIMDALL_UNUSED(p_aout);
     float i_value_l = 0;
     float i_value_r = 0;
 
@@ -984,7 +985,7 @@ static int vuMeter_Run(visual_effect_t * p_effect, vlc_object_t *p_aout,
     if( !p_effect->p_data )
     {
         /* Allocate memory to save hand positions */
-        p_effect->p_data = vlc_alloc( 2, sizeof(float) );
+        p_effect->p_data = heimdall_alloc( 2, sizeof(float) );
         i_value = p_effect->p_data;
         i_value[0] = i_value_l;
         i_value[1] = i_value_r;

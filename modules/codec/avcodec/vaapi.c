@@ -4,8 +4,9 @@
  * Copyright (C) 2017 VLC authors and VideoLAN
  * Copyright (C) 2009-2010 Laurent Aimar
  * Copyright (C) 2012-2014 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Laurent Aimar <fenrir_AT_ videolan _DOT_ org>
+ * Authors: Laurent Aimar <fenrir_AT_ lycaria _DOT_ org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -28,25 +29,25 @@
 
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_fourcc.h>
-#include <vlc_picture.h>
-#include <vlc_picture_pool.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_fourcc.h>
+#include <heimdall_picture.h>
+#include <heimdall_picture_pool.h>
 
 #include <libavcodec/avcodec.h>
 #include <libavutil/hwcontext_vaapi.h>
 
 #include "avcodec.h"
 #include "va.h"
-#include "../../hw/vaapi/vlc_vaapi.h"
+#include "../../hw/vaapi/heimdall_vaapi.h"
 #include "va_surface.h"
 
 struct vaapi_vctx
 {
     VADisplay va_dpy;
     AVBufferRef *hwframes_ref;
-    vlc_sem_t pool_sem;
+    heimdall_sem_t pool_sem;
     bool dynamic_pool;
 };
 
@@ -61,12 +62,12 @@ static void vaapi_dec_pic_context_destroy(picture_context_t *context)
     vaapi_dec_pic_context *pic_ctx = container_of(context, vaapi_dec_pic_context, ctx.s);
 
     struct vaapi_vctx *vaapi_vctx =
-        vlc_video_context_GetPrivate(pic_ctx->ctx.s.vctx, VLC_VIDEO_CONTEXT_VAAPI);
+        heimdall_video_context_GetPrivate(pic_ctx->ctx.s.vctx, HEIMDALL_VIDEO_CONTEXT_VAAPI);
 
     av_frame_free(&pic_ctx->avframe);
 
     if (!pic_ctx->cloned && !vaapi_vctx->dynamic_pool)
-        vlc_sem_post(&vaapi_vctx->pool_sem);
+        heimdall_sem_post(&vaapi_vctx->pool_sem);
 
     free(pic_ctx);
 }
@@ -88,26 +89,26 @@ static picture_context_t *vaapi_dec_pic_context_copy(picture_context_t *src)
     }
     pic_ctx->cloned = true;
 
-    vlc_video_context_Hold(pic_ctx->ctx.s.vctx);
+    heimdall_video_context_Hold(pic_ctx->ctx.s.vctx);
     return &pic_ctx->ctx.s;
 }
 
-static int Get(vlc_va_t *va, picture_t *pic, AVCodecContext *ctx, AVFrame *frame)
+static int Get(heimdall_va_t *va, picture_t *pic, AVCodecContext *ctx, AVFrame *frame)
 {
-    vlc_video_context *vctx = va->sys;
+    heimdall_video_context *vctx = va->sys;
     struct vaapi_vctx *vaapi_vctx =
-        vlc_video_context_GetPrivate(vctx, VLC_VIDEO_CONTEXT_VAAPI);
+        heimdall_video_context_GetPrivate(vctx, HEIMDALL_VIDEO_CONTEXT_VAAPI);
 
     /* If all frames are out, wait for a frame to be released. */
     if(!vaapi_vctx->dynamic_pool)
-        vlc_sem_wait(&vaapi_vctx->pool_sem);
+        heimdall_sem_wait(&vaapi_vctx->pool_sem);
 
     int ret = av_hwframe_get_buffer(ctx->hw_frames_ctx, frame, 0);
     if (ret)
     {
         msg_Err(va, "vaapi_va: av_hwframe_get_buffer failed: %d\n", ret);
         if(!vaapi_vctx->dynamic_pool)
-            vlc_sem_post(&vaapi_vctx->pool_sem);
+            heimdall_sem_post(&vaapi_vctx->pool_sem);
         return ret;
     }
 
@@ -115,8 +116,8 @@ static int Get(vlc_va_t *va, picture_t *pic, AVCodecContext *ctx, AVFrame *frame
     if (unlikely(vaapi_pic_ctx == NULL))
     {
         if(!vaapi_vctx->dynamic_pool)
-            vlc_sem_post(&vaapi_vctx->pool_sem);
-        return VLC_ENOMEM;
+            heimdall_sem_post(&vaapi_vctx->pool_sem);
+        return HEIMDALL_ENOMEM;
     }
 
     vaapi_pic_ctx->ctx.s = (picture_context_t) {
@@ -132,16 +133,16 @@ static int Get(vlc_va_t *va, picture_t *pic, AVCodecContext *ctx, AVFrame *frame
     av_buffer_unref(&vaapi_pic_ctx->avframe->opaque_ref);
     vaapi_pic_ctx->avframe->opaque = NULL;
     vaapi_pic_ctx->cloned = false;
-    vlc_vaapi_PicSetContext(pic, &vaapi_pic_ctx->ctx);
+    heimdall_vaapi_PicSetContext(pic, &vaapi_pic_ctx->ctx);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void Delete(vlc_va_t *va, AVCodecContext* ctx)
+static void Delete(heimdall_va_t *va, AVCodecContext* ctx)
 {
     if (ctx)
         av_buffer_unref(&ctx->hw_frames_ctx);
-    vlc_video_context_Release(va->sys);
+    heimdall_video_context_Release(va->sys);
 }
 
 static void vaapi_ctx_destroy(void *priv)
@@ -151,24 +152,24 @@ static void vaapi_ctx_destroy(void *priv)
     av_buffer_unref(&vaapi_vctx->hwframes_ref);
 }
 
-static const struct vlc_va_operations ops =
+static const struct heimdall_va_operations ops =
 {
     .get = Get,
     .close = Delete,
 };
 
-static const struct vlc_video_context_operations vaapi_ctx_ops =
+static const struct heimdall_video_context_operations vaapi_ctx_ops =
 {
     .destroy = vaapi_ctx_destroy,
 };
 
-static int CheckCodecConfig(vlc_va_t *va, AVCodecContext *ctx, VADisplay va_dpy,
+static int CheckCodecConfig(heimdall_va_t *va, AVCodecContext *ctx, VADisplay va_dpy,
                             const AVPixFmtDescriptor *sw_desc)
 {
     assert(ctx->codec_id == AV_CODEC_ID_AV1);
 
     if (sw_desc->nb_components < 2)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     int va_rt_format, vc_fourcc;
     switch (sw_desc->comp[0].depth)
@@ -182,7 +183,7 @@ static int CheckCodecConfig(vlc_va_t *va, AVCodecContext *ctx, VADisplay va_dpy,
             vc_fourcc = VA_FOURCC_P010;
             break;
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 
     VAProfile profile;
@@ -195,14 +196,14 @@ static int CheckCodecConfig(vlc_va_t *va, AVCodecContext *ctx, VADisplay va_dpy,
             profile = VAProfileAV1Profile1;
             break;
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 
     VAConfigID config_id = VA_INVALID_ID;
     VASurfaceID render_target = VA_INVALID_ID;
     VAContextID context_id = VA_INVALID_ID;
 
-    config_id = vlc_vaapi_CreateConfigChecked(VLC_OBJECT(va), va_dpy, profile,
+    config_id = heimdall_vaapi_CreateConfigChecked(HEIMDALL_OBJECT(va), va_dpy, profile,
                                               VAEntrypointVLD, 0);
     if (config_id == VA_INVALID_ID)
         goto error;
@@ -216,27 +217,27 @@ static int CheckCodecConfig(vlc_va_t *va, AVCodecContext *ctx, VADisplay va_dpy,
         }
     };
 
-    VA_CALL(VLC_OBJECT(va), vaCreateSurfaces, va_dpy, va_rt_format,
+    VA_CALL(HEIMDALL_OBJECT(va), vaCreateSurfaces, va_dpy, va_rt_format,
             ctx->coded_width, ctx->coded_height, &render_target, 1,
             fourcc_attribs, 1);
 
-    context_id = vlc_vaapi_CreateContext(VLC_OBJECT(va), va_dpy, config_id,
+    context_id = heimdall_vaapi_CreateContext(HEIMDALL_OBJECT(va), va_dpy, config_id,
                                          ctx->coded_width, ctx->coded_height,
                                          VA_PROGRESSIVE, &render_target, 1);
 
 error:
     if (render_target != VA_INVALID_ID)
-        VA_CALL(VLC_OBJECT(va), vaDestroySurfaces, va_dpy, &render_target, 1);
+        VA_CALL(HEIMDALL_OBJECT(va), vaDestroySurfaces, va_dpy, &render_target, 1);
 
     if (config_id != VA_INVALID_ID)
-        vlc_vaapi_DestroyConfig(VLC_OBJECT(va), va_dpy, config_id);
+        heimdall_vaapi_DestroyConfig(HEIMDALL_OBJECT(va), va_dpy, config_id);
 
     if (context_id != VA_INVALID_ID)
     {
-        vlc_vaapi_DestroyContext(VLC_OBJECT(va), va_dpy, context_id);
-        return VLC_SUCCESS;
+        heimdall_vaapi_DestroyContext(HEIMDALL_OBJECT(va), va_dpy, context_id);
+        return HEIMDALL_SUCCESS;
     }
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 static int AVHWFramesContextCompare(const AVHWFramesContext *c1,
@@ -247,14 +248,14 @@ static int AVHWFramesContextCompare(const AVHWFramesContext *c1,
            c1->initial_pool_size == c2->initial_pool_size ? 0 : 1;
 }
 
-static vlc_video_context *
-ReuseVideoContext(vlc_video_context *vctx, AVBufferRef *hwframes_ref_new)
+static heimdall_video_context *
+ReuseVideoContext(heimdall_video_context *vctx, AVBufferRef *hwframes_ref_new)
 {
     if (vctx == NULL)
         return NULL;
 
     struct vaapi_vctx *vaapi_vctx =
-    vlc_video_context_GetPrivate(vctx, VLC_VIDEO_CONTEXT_VAAPI);
+    heimdall_video_context_GetPrivate(vctx, HEIMDALL_VIDEO_CONTEXT_VAAPI);
 
     AVHWFramesContext *hwframes_ctx_prev =
         (AVHWFramesContext*)vaapi_vctx->hwframes_ref->data;
@@ -265,22 +266,22 @@ ReuseVideoContext(vlc_video_context *vctx, AVBufferRef *hwframes_ref_new)
     if (AVHWFramesContextCompare(hwframes_ctx_prev, hwframes_ctx_new) != 0)
         return NULL;
 
-    vctx = vlc_video_context_Hold(vctx);
+    vctx = heimdall_video_context_Hold(vctx);
     av_buffer_unref(&vaapi_vctx->hwframes_ref);
     vaapi_vctx->hwframes_ref = hwframes_ref_new;
     return vctx;
 }
 
-static int Create(vlc_va_t *va, struct vlc_va_cfg *cfg)
+static int Create(heimdall_va_t *va, struct heimdall_va_cfg *cfg)
 {
     AVCodecContext *ctx = cfg->avctx;
     enum AVPixelFormat hwfmt = cfg->hwfmt;
-    vlc_decoder_device *dec_device = cfg->dec_device;
+    heimdall_decoder_device *dec_device = cfg->dec_device;
     video_format_t *fmt_out = cfg->video_fmt_out;
 
     if ( hwfmt != AV_PIX_FMT_VAAPI || dec_device == NULL ||
-        dec_device->type != VLC_DECODER_DEVICE_VAAPI)
-        return VLC_EGENERIC;
+        dec_device->type != HEIMDALL_DECODER_DEVICE_VAAPI)
+        return HEIMDALL_EGENERIC;
 
     VADisplay va_dpy = dec_device->opaque;
 
@@ -294,7 +295,7 @@ static int Create(vlc_va_t *va, struct vlc_va_cfg *cfg)
             cfg->extra_pictures = 10;
 
             int ret = CheckCodecConfig(va, ctx, va_dpy, cfg->desc);
-            if (ret != VLC_SUCCESS)
+            if (ret != HEIMDALL_SUCCESS)
                 return ret;
             break;
         }
@@ -304,7 +305,7 @@ static int Create(vlc_va_t *va, struct vlc_va_cfg *cfg)
 
     AVBufferRef *hwdev_ref = av_hwdevice_ctx_alloc(AV_HWDEVICE_TYPE_VAAPI);
     if (hwdev_ref == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     AVHWDeviceContext *hwdev_ctx = (void *) hwdev_ref->data;
     AVVAAPIDeviceContext *vadev_ctx = hwdev_ctx->hwctx;
@@ -313,7 +314,7 @@ static int Create(vlc_va_t *va, struct vlc_va_cfg *cfg)
     if (av_hwdevice_ctx_init(hwdev_ref) < 0)
     {
         av_buffer_unref(&hwdev_ref);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     AVBufferRef *hwframes_ref;
@@ -322,7 +323,7 @@ static int Create(vlc_va_t *va, struct vlc_va_cfg *cfg)
     if (ret < 0)
     {
         msg_Err(va, "avcodec_get_hw_frames_parameters failed: %d", ret);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     AVHWFramesContext *hwframes_ctx = (AVHWFramesContext*)hwframes_ref->data;
@@ -340,49 +341,49 @@ static int Create(vlc_va_t *va, struct vlc_va_cfg *cfg)
     {
         msg_Err(va, "av_hwframe_ctx_init failed: %d", ret);
         av_buffer_unref(&hwframes_ref);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    int vlc_chroma = 0;
+    int heimdall_chroma = 0;
     if (hwframes_ctx->format == AV_PIX_FMT_VAAPI)
     {
         switch (hwframes_ctx->sw_format)
         {
             case AV_PIX_FMT_YUV420P:
             case AV_PIX_FMT_NV12:
-                vlc_chroma = VLC_CODEC_VAAPI_420;
+                heimdall_chroma = HEIMDALL_CODEC_VAAPI_420;
                 break;
             case AV_PIX_FMT_P010LE:
             case AV_PIX_FMT_P010BE:
             case AV_PIX_FMT_YUV420P10BE:
             case AV_PIX_FMT_YUV420P10LE:
-                vlc_chroma = VLC_CODEC_VAAPI_420_10BPP;
+                heimdall_chroma = HEIMDALL_CODEC_VAAPI_420_10BPP;
                 break;
 #if LIBAVUTIL_VERSION_CHECK( 57, 34, 100 )
             case AV_PIX_FMT_VUYX:
-                vlc_chroma = VLC_CODEC_VAAPI_444;
+                heimdall_chroma = HEIMDALL_CODEC_VAAPI_444;
                 break;
 #endif
 #if LIBAVUTIL_VERSION_CHECK( 57, 36, 100 )
             case AV_PIX_FMT_P012LE:
             case AV_PIX_FMT_P012BE:
-                vlc_chroma = VLC_CODEC_VAAPI_420_12BPP;
+                heimdall_chroma = HEIMDALL_CODEC_VAAPI_420_12BPP;
                 break;
             case AV_PIX_FMT_Y210BE:
             case AV_PIX_FMT_Y210LE:
-                vlc_chroma = VLC_CODEC_VAAPI_422_10BPP;
+                heimdall_chroma = HEIMDALL_CODEC_VAAPI_422_10BPP;
                 break;
             case AV_PIX_FMT_Y212BE:
             case AV_PIX_FMT_Y212LE:
-                vlc_chroma = VLC_CODEC_VAAPI_422_12BPP;
+                heimdall_chroma = HEIMDALL_CODEC_VAAPI_422_12BPP;
                 break;
             case AV_PIX_FMT_XV30BE:
             case AV_PIX_FMT_XV30LE:
-                vlc_chroma = VLC_CODEC_VAAPI_444_10BPP;
+                heimdall_chroma = HEIMDALL_CODEC_VAAPI_444_10BPP;
                 break;
             case AV_PIX_FMT_XV36BE:
             case AV_PIX_FMT_XV36LE:
-                vlc_chroma = VLC_CODEC_VAAPI_444_12BPP;
+                heimdall_chroma = HEIMDALL_CODEC_VAAPI_444_12BPP;
                 break;
 #endif
             default:
@@ -390,58 +391,58 @@ static int Create(vlc_va_t *va, struct vlc_va_cfg *cfg)
         }
     }
 
-    if (vlc_chroma == 0)
+    if (heimdall_chroma == 0)
     {
-        msg_Warn(va, "ffmpeg chroma not compatible with vlc: hw: %s, sw: %s",
+        msg_Warn(va, "ffmpeg chroma not compatible with heimdall: hw: %s, sw: %s",
                  av_get_pix_fmt_name(hwframes_ctx->format),
                  av_get_pix_fmt_name(hwframes_ctx->sw_format));
         av_buffer_unref(&hwframes_ref);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     ctx->hw_frames_ctx = av_buffer_ref(hwframes_ref);
     if (!ctx->hw_frames_ctx)
     {
         av_buffer_unref(&hwframes_ref);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    vlc_video_context *vctx = ReuseVideoContext(cfg->vctx_prev, hwframes_ref);
+    heimdall_video_context *vctx = ReuseVideoContext(cfg->vctx_prev, hwframes_ref);
     if (vctx == NULL)
     {
         vctx = 
-            vlc_video_context_Create(dec_device, VLC_VIDEO_CONTEXT_VAAPI,
+            heimdall_video_context_Create(dec_device, HEIMDALL_VIDEO_CONTEXT_VAAPI,
                                     sizeof(struct vaapi_vctx), &vaapi_ctx_ops);
         if (vctx == NULL)
         {
             av_buffer_unref(&hwframes_ref);
             av_buffer_unref(&ctx->hw_frames_ctx);
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         struct vaapi_vctx *vaapi_vctx =
-            vlc_video_context_GetPrivate(vctx, VLC_VIDEO_CONTEXT_VAAPI);
+            heimdall_video_context_GetPrivate(vctx, HEIMDALL_VIDEO_CONTEXT_VAAPI);
 
         vaapi_vctx->va_dpy = va_dpy;
         vaapi_vctx->hwframes_ref = hwframes_ref;
-        vlc_sem_init(&vaapi_vctx->pool_sem, hwframes_ctx->initial_pool_size);
+        heimdall_sem_init(&vaapi_vctx->pool_sem, hwframes_ctx->initial_pool_size);
         vaapi_vctx->dynamic_pool = hwframes_ctx->initial_pool_size < 1;
     }
 
     msg_Info(va, "Using %s", vaQueryVendorString(va_dpy));
 
-    fmt_out->i_chroma = vlc_chroma;
+    fmt_out->i_chroma = heimdall_chroma;
 
     va->ops = &ops;
     va->sys = vctx;
     cfg->vctx_out = vctx;
     cfg->use_hwframes = true;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("VA-API video decoder") )
     set_va_callback( Create, 100 )
     add_shortcut( "vaapi" )
     set_subcategory( SUBCAT_INPUT_VCODEC )
-vlc_module_end ()
+heimdall_module_end ()

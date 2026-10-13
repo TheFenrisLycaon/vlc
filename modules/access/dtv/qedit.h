@@ -1,7 +1,8 @@
 /*****************************************************************************
- * qedit.h : DirectShow BDA headers for vlc
+ * qedit.h : DirectShow BDA headers for heimdall
  *****************************************************************************
  * Copyright (C) 2007 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Ken Self <kenself(at)optusnet(dot)com(dot)au>
  *

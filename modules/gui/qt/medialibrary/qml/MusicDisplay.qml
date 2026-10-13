@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,12 +19,12 @@
 import QtQuick
 import QtQuick.Layouts
 
-import VLC.MainInterface
-import VLC.MediaLibrary
+import Heimdall.MainInterface
+import Heimdall.MediaLibrary
 
-import VLC.Widgets as Widgets
-import VLC.Style
-import VLC.Util
+import Heimdall.Widgets as Widgets
+import Heimdall.Style
+import Heimdall.Util
 
 
 Widgets.PageLoader {
@@ -37,23 +38,23 @@ Widgets.PageLoader {
             displayText: qsTr("Artists"),
             name: "artists",
             default: true,
-            url: "qrc:///qt/qml/VLC/MediaLibrary/MusicArtistsDisplay.qml"
+            url: "qrc:///qt/qml/Heimdall/MediaLibrary/MusicArtistsDisplay.qml"
         }, {
             displayText: qsTr("Albums"),
             name: "albums",
-            url: "qrc:///qt/qml/VLC/MediaLibrary/MusicAlbumsDisplay.qml"
+            url: "qrc:///qt/qml/Heimdall/MediaLibrary/MusicAlbumsDisplay.qml"
         }, {
             displayText: qsTr("Tracks"),
             name: "tracks" ,
-            url: "qrc:///qt/qml/VLC/MediaLibrary/MusicTracksDisplay.qml"
+            url: "qrc:///qt/qml/Heimdall/MediaLibrary/MusicTracksDisplay.qml"
         }, {
             displayText: qsTr("Genres"),
             name: "genres" ,
-            url: "qrc:///qt/qml/VLC/MediaLibrary/MusicGenresDisplay.qml"
+            url: "qrc:///qt/qml/Heimdall/MediaLibrary/MusicGenresDisplay.qml"
         }, {
             displayText: qsTr("Playlists"),
             name: "playlists" ,
-            url: "qrc:///qt/qml/VLC/MediaLibrary/MusicPlaylistsDisplay.qml"
+            url: "qrc:///qt/qml/Heimdall/MediaLibrary/MusicPlaylistsDisplay.qml"
         }
     ]
 

@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 2006-2012 VLC authors and VideoLAN
  * Copyright (C) 2012 Edward Wang
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Dugal Harris <dugalh@protoclea.co.za>
  *          Edward Wang <edward.c.wang@compdigitec.com>
@@ -32,13 +33,13 @@
 
 #include <new>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_vout.h>
-#include <vlc_modules.h>
-#include <vlc_picture.h>
-#include <vlc_filter.h>
-#include <vlc_image.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_vout.h>
+#include <heimdall_modules.h>
+#include <heimdall_picture.h>
+#include <heimdall_filter.h>
+#include <heimdall_image.h>
 #include "filter_picture.h"
 
 #include <opencv2/core/core_c.h>
@@ -53,7 +54,7 @@ static void Destroy   ( filter_t * );
 static picture_t* Filter( filter_t*, picture_t* );
 
 static void ReleaseImages( filter_t* p_filter );
-static void VlcPictureToIplImage( filter_t* p_filter, picture_t* p_in );
+static void HeimdallPictureToIplImage( filter_t* p_filter, picture_t* p_in );
 
 /*****************************************************************************
  * Module descriptor
@@ -67,7 +68,7 @@ static const char *const output_list[] = { "none", "input", "processed"};
 static const char *const output_list_text[] = { N_("Don't display any video"),
   N_("Display the input video"), N_("Display the processed video")};
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("OpenCV video filter wrapper") )
     set_shortname( N_("OpenCV" ))
     set_subcategory( SUBCAT_VIDEO_VFILTER )
@@ -87,7 +88,7 @@ vlc_module_begin ()
     add_string( "opencv-filter-name", "none",
                           N_("OpenCV internal filter name"),
                           N_("Name of internal OpenCV plugin filter to use"))
-vlc_module_end ()
+heimdall_module_end ()
 
 
 namespace {
@@ -154,7 +155,7 @@ static int Create( filter_t* p_filter )
     /* Allocate structure */
     p_sys = new (std::nothrow) filter_sys_t;
     if( !p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     /* Load the internal OpenCV filter.
      *
@@ -165,10 +166,10 @@ static int Create( filter_t* p_filter )
      * We don't need to set up video formats for this filter as it not
      * actually using a picture_t.
      */
-    p_sys->p_opencv = vlc_object_create<filter_t>( p_filter );
+    p_sys->p_opencv = heimdall_object_create<filter_t>( p_filter );
     if( !p_sys->p_opencv ) {
         delete p_sys;
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     char *psz_inner_name = var_InheritString( p_filter, "opencv-filter-name" );
@@ -183,10 +184,10 @@ static int Create( filter_t* p_filter )
     {
         msg_Err( p_filter, "can't open internal opencv filter: %s", psz_inner_name );
         free( psz_inner_name );
-        vlc_object_delete(p_sys->p_opencv);
+        heimdall_object_delete(p_sys->p_opencv);
         delete p_sys;
 
-        return VLC_ENOENT;
+        return HEIMDALL_ENOENT;
     }
     assert( p_sys->p_opencv->ops != NULL );
 
@@ -252,7 +253,7 @@ static int Create( filter_t* p_filter )
 #endif
 
     static const struct FilterOperationInitializer {
-        struct vlc_filter_operations ops {};
+        struct heimdall_filter_operations ops {};
         FilterOperationInitializer()
         {
             ops.filter_video = Filter;
@@ -262,7 +263,7 @@ static int Create( filter_t* p_filter )
     p_filter->ops = &filter_ops.ops;
     p_filter->p_sys = p_sys;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -276,7 +277,7 @@ static void Destroy( filter_t* p_filter )
     ReleaseImages( p_filter );
 
     // Release the internal OpenCV filter.
-    vlc_filter_Delete( p_sys->p_opencv );
+    heimdall_filter_Delete( p_sys->p_opencv );
 
     delete p_sys;
 }
@@ -311,12 +312,12 @@ static void ReleaseImages( filter_t* p_filter )
 }
 
 /*****************************************************************************
- * VlcPictureToIplImage: Convert picture_t to IplImage
+ * HeimdallPictureToIplImage: Convert picture_t to IplImage
  *****************************************************************************
  * Converts given picture_t into IplImage(s) according to module config.
  * IplImage(s) are stored in vout_sys_t.
  *****************************************************************************/
-static void VlcPictureToIplImage( filter_t* p_filter, picture_t* p_in )
+static void HeimdallPictureToIplImage( filter_t* p_filter, picture_t* p_in )
 {
     int planes = p_in->i_planes;    //num input video planes
     // input video size
@@ -340,13 +341,13 @@ static void VlcPictureToIplImage( filter_t* p_filter, picture_t* p_in )
             //rgb2 gives 3 separate planes, this gives 1 interleaved plane
             //rv24 gives is about 20% faster but gives r&b the wrong way round
             //and I can't think of an easy way to fix this
-            fmt_out.i_chroma = VLC_CODEC_RGB24;
+            fmt_out.i_chroma = HEIMDALL_CODEC_RGB24;
         }
         else if (p_sys->i_internal_chroma == GREY)
         {
             //take the I (gray) plane (video seems to commonly be in this fmt so usually the
             //conversion does nothing)
-            fmt_out.i_chroma = VLC_CODEC_I420;
+            fmt_out.i_chroma = HEIMDALL_CODEC_I420;
         }
 
         //convert from the input image
@@ -395,7 +396,7 @@ static void VlcPictureToIplImage( filter_t* p_filter, picture_t* p_in )
     p_sys->hacked_pic.format.i_chroma = fmt_out.i_chroma;
 
 #ifndef NDEBUG
-    msg_Dbg( p_filter, "VlcPictureToIplImageRgb() completed" );
+    msg_Dbg( p_filter, "HeimdallPictureToIplImageRgb() completed" );
 #endif
 }
 
@@ -419,7 +420,7 @@ static picture_t* Filter( filter_t* p_filter, picture_t* p_pic )
     if (p_sys->i_wrapper_output == VINPUT)
         picture_Copy( p_outpic, p_pic );
 
-    VlcPictureToIplImage( p_filter, p_pic );
+    HeimdallPictureToIplImage( p_filter, p_pic );
     // Pass the image (as a pointer to the first IplImage*) to the
     // internal OpenCV filter for processing.
     p_sys->p_opencv->ops->filter_video( p_sys->p_opencv, (picture_t*)&(p_sys->p_cv_image[0]) );
@@ -429,7 +430,7 @@ static picture_t* Filter( filter_t* p_filter, picture_t* p_pic )
         if( (p_sys->p_proc_image) &&
             (p_sys->p_proc_image->i_planes > 0) &&
             (p_sys->i_internal_chroma != CINPUT) ) {
-            //p_sys->p_proc_image->format.i_chroma = VLC_CODEC_RGB24;
+            //p_sys->p_proc_image->format.i_chroma = HEIMDALL_CODEC_RGB24;
 
             video_format_t fmt_out = p_pic->format;
             //picture_Release( p_outpic );

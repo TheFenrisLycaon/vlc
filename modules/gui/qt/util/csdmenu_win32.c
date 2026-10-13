@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2024 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -75,11 +76,11 @@ static bool Popup(struct qt_csd_menu_t* menu, qt_csd_menu_event* event)
 int QtWin32CSDMenuOpen(qt_csd_menu_t* p_this, qt_csd_menu_info* info)
 {
     if (info->platform != QT_CSD_PLATFORM_WINDOWS)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    qt_csd_menu_priv_t* sys = vlc_obj_malloc(p_this, sizeof(qt_csd_menu_priv_t));
+    qt_csd_menu_priv_t* sys = heimdall_obj_malloc(p_this, sizeof(qt_csd_menu_priv_t));
     if (!sys)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     sys->isRtl = info->isRtl;
 
@@ -88,5 +89,5 @@ int QtWin32CSDMenuOpen(qt_csd_menu_t* p_this, qt_csd_menu_info* info)
 
     p_this->p_sys = sys;
     p_this->popup = Popup;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

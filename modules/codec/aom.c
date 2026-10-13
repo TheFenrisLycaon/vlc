@@ -2,6 +2,7 @@
  * aom.c: libaom encoder and decoder (AV1) module
  *****************************************************************************
  * Copyright (C) 2016 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Tristan Matthews <tmatth@videolan.org>
  * Based on vpx.c by: Rafaël Carré <funman@videolan.org>
@@ -28,9 +29,9 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
 
 #include <aom/aom_decoder.h>
 #include <aom/aomdx.h>
@@ -58,10 +59,10 @@
 /****************************************************************************
  * Local prototypes
  ****************************************************************************/
-static int OpenDecoder(vlc_object_t *);
-static void CloseDecoder(vlc_object_t *);
+static int OpenDecoder(heimdall_object_t *);
+static void CloseDecoder(heimdall_object_t *);
 #ifdef ENABLE_SOUT
-static int OpenEncoder(vlc_object_t *);
+static int OpenEncoder(heimdall_object_t *);
 static void CloseEncoder(encoder_t *);
 static block_t *Encode(encoder_t *p_enc, picture_t *p_pict);
 
@@ -97,7 +98,7 @@ static const char *const ppsz_rc_end_usage_text [] =
 
 #define CPU_USED_LONGTEXT "CPU speed setting. Ranges differ depending upon usage mode (good quality: 0-5, realtime: 6-10, all-intra: 7-9)."
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname("aom")
     set_description(N_("AOM video decoder"))
     set_capability("video decoder", 100)
@@ -134,9 +135,9 @@ vlc_module_begin ()
         add_bool( SOUT_CFG_PREFIX "row-mt", false, "Row Multithreading", NULL )
 #endif
 #endif
-vlc_module_end ()
+heimdall_module_end ()
 
-static void aom_err_msg(vlc_object_t *this, aom_codec_ctx_t *ctx,
+static void aom_err_msg(heimdall_object_t *this, aom_codec_ctx_t *ctx,
                         const char *msg)
 {
     const char *error  = aom_codec_error(ctx);
@@ -146,7 +147,7 @@ static void aom_err_msg(vlc_object_t *this, aom_codec_ctx_t *ctx,
     msg_Err(this, msg, error, detail);
 }
 
-#define AOM_ERR(this, ctx, msg) aom_err_msg(VLC_OBJECT(this), ctx, msg ": %s (%s)")
+#define AOM_ERR(this, ctx, msg) aom_err_msg(HEIMDALL_OBJECT(this), ctx, msg ": %s (%s)")
 #define AOM_MAX_FRAMES_DEPTH 64
 
 /*****************************************************************************
@@ -154,7 +155,7 @@ static void aom_err_msg(vlc_object_t *this, aom_codec_ctx_t *ctx,
  *****************************************************************************/
 struct frame_priv_s
 {
-    vlc_tick_t pts;
+    heimdall_tick_t pts;
 };
 
 typedef struct
@@ -166,7 +167,7 @@ typedef struct
 
 static const struct
 {
-    vlc_fourcc_t     i_chroma;
+    heimdall_fourcc_t     i_chroma;
     enum aom_img_fmt i_chroma_id;
     uint8_t          i_bitdepth;
     enum aom_transfer_characteristics transfer_characteristics;
@@ -175,28 +176,28 @@ static const struct
 } chroma_table[] =
 {
     /* Transfer characteristic-dependent mappings must come first */
-    { VLC_CODEC_GBR_PLANAR, AOM_IMG_FMT_I444, 8, AOM_CICP_TC_SRGB, AOM_CICP_CP_BT_709, AOM_CICP_MC_IDENTITY },
-    { VLC_CODEC_GBR_PLANAR_10L, AOM_IMG_FMT_I44416, 10, AOM_CICP_TC_SRGB , AOM_CICP_CP_BT_709, AOM_CICP_MC_IDENTITY },
-    { VLC_CODEC_GBR_PLANAR_12L, AOM_IMG_FMT_I44416, 12, AOM_CICP_TC_SRGB , AOM_CICP_CP_BT_709, AOM_CICP_MC_IDENTITY },
+    { HEIMDALL_CODEC_GBR_PLANAR, AOM_IMG_FMT_I444, 8, AOM_CICP_TC_SRGB, AOM_CICP_CP_BT_709, AOM_CICP_MC_IDENTITY },
+    { HEIMDALL_CODEC_GBR_PLANAR_10L, AOM_IMG_FMT_I44416, 10, AOM_CICP_TC_SRGB , AOM_CICP_CP_BT_709, AOM_CICP_MC_IDENTITY },
+    { HEIMDALL_CODEC_GBR_PLANAR_12L, AOM_IMG_FMT_I44416, 12, AOM_CICP_TC_SRGB , AOM_CICP_CP_BT_709, AOM_CICP_MC_IDENTITY },
 
-    { VLC_CODEC_I420, AOM_IMG_FMT_I420, 8, AOM_CICP_TC_UNSPECIFIED, AOM_CICP_CP_UNSPECIFIED, AOM_CICP_MC_UNSPECIFIED },
-    { VLC_CODEC_I422, AOM_IMG_FMT_I422, 8, AOM_CICP_TC_UNSPECIFIED, AOM_CICP_CP_UNSPECIFIED, AOM_CICP_MC_UNSPECIFIED },
-    { VLC_CODEC_I444, AOM_IMG_FMT_I444, 8, AOM_CICP_TC_UNSPECIFIED, AOM_CICP_CP_UNSPECIFIED, AOM_CICP_MC_UNSPECIFIED },
+    { HEIMDALL_CODEC_I420, AOM_IMG_FMT_I420, 8, AOM_CICP_TC_UNSPECIFIED, AOM_CICP_CP_UNSPECIFIED, AOM_CICP_MC_UNSPECIFIED },
+    { HEIMDALL_CODEC_I422, AOM_IMG_FMT_I422, 8, AOM_CICP_TC_UNSPECIFIED, AOM_CICP_CP_UNSPECIFIED, AOM_CICP_MC_UNSPECIFIED },
+    { HEIMDALL_CODEC_I444, AOM_IMG_FMT_I444, 8, AOM_CICP_TC_UNSPECIFIED, AOM_CICP_CP_UNSPECIFIED, AOM_CICP_MC_UNSPECIFIED },
 
-    { VLC_CODEC_YV12, AOM_IMG_FMT_YV12, 8, AOM_CICP_TC_UNSPECIFIED, AOM_CICP_CP_UNSPECIFIED, AOM_CICP_MC_UNSPECIFIED },
+    { HEIMDALL_CODEC_YV12, AOM_IMG_FMT_YV12, 8, AOM_CICP_TC_UNSPECIFIED, AOM_CICP_CP_UNSPECIFIED, AOM_CICP_MC_UNSPECIFIED },
 
-    { VLC_CODEC_I420_10L, AOM_IMG_FMT_I42016, 10, AOM_CICP_TC_UNSPECIFIED, AOM_CICP_CP_UNSPECIFIED, AOM_CICP_MC_UNSPECIFIED },
-    { VLC_CODEC_I422_10L, AOM_IMG_FMT_I42216, 10, AOM_CICP_TC_UNSPECIFIED, AOM_CICP_CP_UNSPECIFIED, AOM_CICP_MC_UNSPECIFIED },
-    { VLC_CODEC_I444_10L, AOM_IMG_FMT_I44416, 10, AOM_CICP_TC_UNSPECIFIED, AOM_CICP_CP_UNSPECIFIED, AOM_CICP_MC_UNSPECIFIED },
+    { HEIMDALL_CODEC_I420_10L, AOM_IMG_FMT_I42016, 10, AOM_CICP_TC_UNSPECIFIED, AOM_CICP_CP_UNSPECIFIED, AOM_CICP_MC_UNSPECIFIED },
+    { HEIMDALL_CODEC_I422_10L, AOM_IMG_FMT_I42216, 10, AOM_CICP_TC_UNSPECIFIED, AOM_CICP_CP_UNSPECIFIED, AOM_CICP_MC_UNSPECIFIED },
+    { HEIMDALL_CODEC_I444_10L, AOM_IMG_FMT_I44416, 10, AOM_CICP_TC_UNSPECIFIED, AOM_CICP_CP_UNSPECIFIED, AOM_CICP_MC_UNSPECIFIED },
 
-    { VLC_CODEC_I420_12L, AOM_IMG_FMT_I42016, 12, AOM_CICP_TC_UNSPECIFIED, AOM_CICP_CP_UNSPECIFIED, AOM_CICP_MC_UNSPECIFIED },
-    { VLC_CODEC_I422_12L, AOM_IMG_FMT_I42216, 12, AOM_CICP_TC_UNSPECIFIED, AOM_CICP_CP_UNSPECIFIED, AOM_CICP_MC_UNSPECIFIED },
-    { VLC_CODEC_I444_12L, AOM_IMG_FMT_I44416, 12, AOM_CICP_TC_UNSPECIFIED, AOM_CICP_CP_UNSPECIFIED, AOM_CICP_MC_UNSPECIFIED },
+    { HEIMDALL_CODEC_I420_12L, AOM_IMG_FMT_I42016, 12, AOM_CICP_TC_UNSPECIFIED, AOM_CICP_CP_UNSPECIFIED, AOM_CICP_MC_UNSPECIFIED },
+    { HEIMDALL_CODEC_I422_12L, AOM_IMG_FMT_I42216, 12, AOM_CICP_TC_UNSPECIFIED, AOM_CICP_CP_UNSPECIFIED, AOM_CICP_MC_UNSPECIFIED },
+    { HEIMDALL_CODEC_I444_12L, AOM_IMG_FMT_I44416, 12, AOM_CICP_TC_UNSPECIFIED, AOM_CICP_CP_UNSPECIFIED, AOM_CICP_MC_UNSPECIFIED },
 
-    { VLC_CODEC_I444_16L, AOM_IMG_FMT_I44416, 16, AOM_CICP_TC_UNSPECIFIED, AOM_CICP_CP_UNSPECIFIED, AOM_CICP_MC_UNSPECIFIED },
+    { HEIMDALL_CODEC_I444_16L, AOM_IMG_FMT_I44416, 16, AOM_CICP_TC_UNSPECIFIED, AOM_CICP_CP_UNSPECIFIED, AOM_CICP_MC_UNSPECIFIED },
 };
 
-static vlc_fourcc_t FindVlcChroma( struct aom_image *img )
+static heimdall_fourcc_t FindHeimdallChroma( struct aom_image *img )
 {
     for( unsigned int i = 0; i < ARRAY_SIZE(chroma_table); i++ )
         if( chroma_table[i].i_chroma_id == img->fmt &&
@@ -236,7 +237,7 @@ static int PushFrame(decoder_t *dec, block_t *block)
     {
         p_buffer = block->p_buffer;
         i_buffer = block->i_buffer;
-        p_sys->frame_priv[priv_index].pts = (block->i_pts != VLC_TICK_INVALID) ? block->i_pts : block->i_dts;
+        p_sys->frame_priv[priv_index].pts = (block->i_pts != HEIMDALL_TICK_INVALID) ? block->i_pts : block->i_dts;
     }
     else
     {
@@ -253,9 +254,9 @@ static int PushFrame(decoder_t *dec, block_t *block)
     if (err != AOM_CODEC_OK) {
         AOM_ERR(dec, ctx, "Failed to decode frame");
         if (err == AOM_CODEC_UNSUP_BITSTREAM)
-            return VLCDEC_ECRITICAL;
+            return HEIMDALLDEC_ECRITICAL;
     }
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }
 
 static void OutputFrame(decoder_t *dec, const struct aom_image *img)
@@ -276,9 +277,9 @@ static void OutputFrame(decoder_t *dec, const struct aom_image *img)
 
     if(dec->fmt_in->video.primaries == COLOR_PRIMARIES_UNDEF)
     {
-        v->primaries = iso_23001_8_cp_to_vlc_primaries(img->cp);
-        v->transfer = iso_23001_8_tc_to_vlc_xfer(img->tc);
-        v->space = iso_23001_8_mc_to_vlc_coeffs(img->mc);
+        v->primaries = iso_23001_8_cp_to_heimdall_primaries(img->cp);
+        v->transfer = iso_23001_8_tc_to_heimdall_xfer(img->tc);
+        v->space = iso_23001_8_mc_to_heimdall_coeffs(img->mc);
         v->color_range = img->range == AOM_CR_FULL_RANGE ? COLOR_RANGE_FULL : COLOR_RANGE_LIMITED;
     }
 
@@ -316,7 +317,7 @@ static int PopFrames(decoder_t *dec,
         if (!img)
             break;
 
-        dec->fmt_out.i_codec = FindVlcChroma(img);
+        dec->fmt_out.i_codec = FindHeimdallChroma(img);
         if (dec->fmt_out.i_codec == 0) {
             msg_Err(dec, "Unsupported output colorspace %d", img->fmt);
             continue;
@@ -325,7 +326,7 @@ static int PopFrames(decoder_t *dec,
         pf_output(dec, img);
     }
 
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }
 
 /****************************************************************************
@@ -333,8 +334,8 @@ static int PopFrames(decoder_t *dec,
  ****************************************************************************/
 static void DropFrame(decoder_t *dec, const struct aom_image *img)
 {
-    VLC_UNUSED(dec);
-    VLC_UNUSED(img);
+    HEIMDALL_UNUSED(dec);
+    HEIMDALL_UNUSED(img);
     /* do nothing for now */
 }
 
@@ -343,7 +344,7 @@ static void FlushDecoder(decoder_t *dec)
     decoder_sys_t *p_sys = dec->p_sys;
     aom_codec_ctx_t *ctx = &p_sys->ctx;
 
-    if(PushFrame(dec, NULL) != VLCDEC_SUCCESS)
+    if(PushFrame(dec, NULL) != HEIMDALLDEC_SUCCESS)
         AOM_ERR(dec, ctx, "Failed to flush decoder");
     else
         PopFrames(dec, DropFrame);
@@ -357,7 +358,7 @@ static int Decode(decoder_t *dec, block_t *block)
     if (block && block->i_flags & (BLOCK_FLAG_CORRUPTED))
     {
         block_Release(block);
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
     }
 
     int i_ret = PushFrame(dec, block);
@@ -370,27 +371,27 @@ static int Decode(decoder_t *dec, block_t *block)
 /*****************************************************************************
  * OpenDecoder: probe the decoder
  *****************************************************************************/
-static int OpenDecoder(vlc_object_t *p_this)
+static int OpenDecoder(heimdall_object_t *p_this)
 {
     decoder_t *dec = (decoder_t *)p_this;
     const aom_codec_iface_t *iface;
     int av_version;
 
-    if (dec->fmt_in->i_codec != VLC_CODEC_AV1)
-        return VLC_EGENERIC;
+    if (dec->fmt_in->i_codec != HEIMDALL_CODEC_AV1)
+        return HEIMDALL_EGENERIC;
 
     iface = &aom_codec_av1_dx_algo;
     av_version = 1;
 
     decoder_sys_t *sys = malloc(sizeof(*sys));
     if (!sys)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     dec->p_sys = sys;
 
     sys->i_next_frame_priv = 0;
 
     struct aom_codec_dec_cfg deccfg = {
-        .threads = __MIN(vlc_GetCPUCount(), 16),
+        .threads = __MIN(heimdall_GetCPUCount(), 16),
         .allow_lowbitdepth = 1
     };
 
@@ -400,7 +401,7 @@ static int OpenDecoder(vlc_object_t *p_this)
     if (aom_codec_dec_init(&sys->ctx, iface, &deccfg, 0) != AOM_CODEC_OK) {
         AOM_ERR(p_this, &sys->ctx, "Failed to initialize decoder");
         free(sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     dec->pf_decode = Decode;
@@ -408,7 +409,7 @@ static int OpenDecoder(vlc_object_t *p_this)
 
     dec->fmt_out.video.i_width = dec->fmt_in->video.i_width;
     dec->fmt_out.video.i_height = dec->fmt_in->video.i_height;
-    dec->fmt_out.i_codec = VLC_CODEC_I420;
+    dec->fmt_out.i_codec = HEIMDALL_CODEC_I420;
 
     if (dec->fmt_in->video.i_sar_num > 0 && dec->fmt_in->video.i_sar_den > 0) {
         dec->fmt_out.video.i_sar_num = dec->fmt_in->video.i_sar_num;
@@ -419,10 +420,10 @@ static int OpenDecoder(vlc_object_t *p_this)
     dec->fmt_out.video.space       = dec->fmt_in->video.space;
     dec->fmt_out.video.color_range = dec->fmt_in->video.color_range;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void destroy_context(vlc_object_t *p_this, aom_codec_ctx_t *context)
+static void destroy_context(heimdall_object_t *p_this, aom_codec_ctx_t *context)
 {
     if (aom_codec_destroy(context))
         AOM_ERR(p_this, context, "Failed to destroy codec context");
@@ -431,7 +432,7 @@ static void destroy_context(vlc_object_t *p_this, aom_codec_ctx_t *context)
 /*****************************************************************************
  * CloseDecoder: decoder destruction
  *****************************************************************************/
-static void CloseDecoder(vlc_object_t *p_this)
+static void CloseDecoder(heimdall_object_t *p_this)
 {
     decoder_t *dec = (decoder_t *)p_this;
     decoder_sys_t *sys = dec->p_sys;
@@ -461,18 +462,18 @@ typedef struct
 /*****************************************************************************
  * OpenEncoder: probe the encoder
  *****************************************************************************/
-static int OpenEncoder(vlc_object_t *p_this)
+static int OpenEncoder(heimdall_object_t *p_this)
 {
     encoder_t *p_enc = (encoder_t *)p_this;
     encoder_sys_t *p_sys;
 
-    if (p_enc->fmt_out.i_codec != VLC_CODEC_AV1)
-        return VLC_EGENERIC;
+    if (p_enc->fmt_out.i_codec != HEIMDALL_CODEC_AV1)
+        return HEIMDALL_EGENERIC;
 
     /* Allocate the memory needed to store the encoder's structure */
     p_sys = malloc(sizeof(*p_sys));
     if (p_sys == NULL)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_enc->p_sys = p_sys;
 
@@ -484,7 +485,7 @@ static int OpenEncoder(vlc_object_t *p_this)
     enccfg.g_pass = AOM_RC_ONE_PASS;
     enccfg.g_timebase.num = p_enc->fmt_in.video.i_frame_rate_base;
     enccfg.g_timebase.den = p_enc->fmt_in.video.i_frame_rate;
-    enccfg.g_threads = __MIN(vlc_GetCPUCount(), 4);
+    enccfg.g_threads = __MIN(heimdall_GetCPUCount(), 4);
     enccfg.g_w = p_enc->fmt_in.video.i_visible_width;
     enccfg.g_h = p_enc->fmt_in.video.i_visible_height;
     enccfg.rc_end_usage = var_InheritInteger( p_enc, SOUT_CFG_PREFIX "rc-end-usage" );
@@ -515,11 +516,11 @@ static int OpenEncoder(vlc_object_t *p_this)
             switch( i_bit_depth )
             {
                 case 10:
-                    p_enc->fmt_in.i_codec = VLC_CODEC_I420_10L;
+                    p_enc->fmt_in.i_codec = HEIMDALL_CODEC_I420_10L;
                     enc_flags = AOM_CODEC_USE_HIGHBITDEPTH;
                     break;
                 case 8:
-                    p_enc->fmt_in.i_codec = VLC_CODEC_I420;
+                    p_enc->fmt_in.i_codec = HEIMDALL_CODEC_I420;
                     enc_flags = 0;
                     break;
                 default:
@@ -580,7 +581,7 @@ static int OpenEncoder(vlc_object_t *p_this)
         goto error;
     }
 
-    static const struct vlc_encoder_operations ops =
+    static const struct heimdall_encoder_operations ops =
     {
         .close = CloseEncoder,
         .encode_video = Encode,
@@ -622,13 +623,13 @@ static int OpenEncoder(vlc_object_t *p_this)
         goto error;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     destroy_context(p_this, ctx);
 error_nocontext:
     free(p_sys);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /****************************************************************************
@@ -644,7 +645,7 @@ static block_t *Encode(encoder_t *p_enc, picture_t *p_pict)
     aom_image_t img = { 0 };
     unsigned i_w = p_enc->fmt_in.video.i_visible_width;
     unsigned i_h = p_enc->fmt_in.video.i_visible_height;
-    const aom_img_fmt_t img_fmt = p_enc->fmt_in.i_codec == VLC_CODEC_I420_10L ?
+    const aom_img_fmt_t img_fmt = p_enc->fmt_in.i_codec == HEIMDALL_CODEC_I420_10L ?
         AOM_IMG_FMT_I42016 : AOM_IMG_FMT_I420;
 
     /* Create and initialize the aom_image (use 1 and correct later to avoid getting
@@ -661,7 +662,7 @@ static block_t *Encode(encoder_t *p_enc, picture_t *p_pict)
         img.stride[plane] = p_pict->p[plane].i_pitch;
     }
 
-    aom_codec_err_t res = aom_codec_encode(ctx, &img, US_FROM_VLC_TICK(p_pict->date), 1, 0);
+    aom_codec_err_t res = aom_codec_encode(ctx, &img, US_FROM_HEIMDALL_TICK(p_pict->date), 1, 0);
     if (res != AOM_CODEC_OK) {
         AOM_ERR(p_enc, ctx, "Failed to encode frame");
         aom_img_free(&img);
@@ -684,7 +685,7 @@ static block_t *Encode(encoder_t *p_enc, picture_t *p_pict)
 
             /* FIXME: do this in-place */
             memcpy(p_block->p_buffer, pkt->data.frame.buf, pkt->data.frame.sz);
-            p_block->i_dts = p_block->i_pts = VLC_TICK_FROM_US(pkt->data.frame.pts);
+            p_block->i_dts = p_block->i_pts = HEIMDALL_TICK_FROM_US(pkt->data.frame.pts);
 
             if (pkt->data.frame.flags & AOM_FRAME_IS_KEY)
                 p_block->i_flags |= BLOCK_FLAG_TYPE_I;

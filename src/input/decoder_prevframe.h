@@ -2,6 +2,7 @@
  * decoder_prevframe.h: decoder previous frame helpers
  *****************************************************************************
  * Copyright (C) 2025 VLC authors, VideoLAN and Videolabs SAS
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -23,10 +24,10 @@
 
 #include <limits.h>
 
-#include <vlc_common.h>
-#include <vlc_tick.h>
-#include <vlc_atomic.h>
-#include <vlc_threads.h>
+#include <heimdall_common.h>
+#include <heimdall_tick.h>
+#include <heimdall_atomic.h>
+#include <heimdall_threads.h>
 
 /* Steps as x frames behind displayed pts */
 #define DEC_PF_SEEK_STEPS_NONE INT_MAX
@@ -85,6 +86,6 @@ decoder_prevframe_IsActive(struct decoder_prevframe *pf)
  */
 picture_t *
 decoder_prevframe_AddPic(struct decoder_prevframe *pf, picture_t *pic,
-                         vlc_tick_t *inout_pts, int *seek_steps);
+                         heimdall_tick_t *inout_pts, int *seek_steps);
 
 #endif /* DECODER_PREVFRAME_H */

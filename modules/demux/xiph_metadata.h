@@ -2,8 +2,9 @@
  * xiph_metadata.h: Vorbis Comment parser
  *****************************************************************************
  * Copyright © 2008-2013 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Laurent Aimar <fenrir _AT_ videolan _DOT_ org>
+ * Authors: Laurent Aimar <fenrir _AT_ lycaria _DOT_ org>
  *          Jean-Baptiste Kempf <jb@videolan.org>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -21,8 +22,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#include <vlc_charset.h>
-#include <vlc_strings.h>
+#include <heimdall_charset.h>
+#include <heimdall_strings.h>
 
 # ifdef __cplusplus
 extern "C" {
@@ -31,7 +32,7 @@ extern "C" {
 input_attachment_t* ParseFlacPicture( const uint8_t *p_data, size_t i_data,
     int i_attachments, int *i_cover_score, int *i_cover_idx );
 
-void vorbis_ParseComment( es_format_t *p_fmt, vlc_meta_t **pp_meta,
+void vorbis_ParseComment( es_format_t *p_fmt, heimdall_meta_t **pp_meta,
         const uint8_t *p_data, size_t i_data,
         int *i_attachments, input_attachment_t ***attachments,
         int *i_cover_score, int *i_cover_idx,

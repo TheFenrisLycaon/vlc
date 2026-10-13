@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,9 +38,9 @@ void MLVideoModel::setItemPlayed(const QModelIndex & index, bool played)
     int64_t id = video->getId().id;
 
     // ML thread
-    m_mediaLib->runOnMLThread(this, [id, played] (vlc_medialibrary_t * ml)
+    m_mediaLib->runOnMLThread(this, [id, played] (heimdall_medialibrary_t * ml)
     {
-        vlc_ml_media_set_played(ml, id, played);
+        heimdall_ml_media_set_played(ml, id, played);
     });
 
     // NOTE: We want the change to be visible right away.
@@ -97,25 +98,25 @@ QHash<int, QByteArray> MLVideoModel::roleNames() const
     return hash;
 }
 
-vlc_ml_sorting_criteria_t MLVideoModel::nameToCriteria(QByteArray name) const
+heimdall_ml_sorting_criteria_t MLVideoModel::nameToCriteria(QByteArray name) const
 {
-    return QHash<QByteArray, vlc_ml_sorting_criteria_t> {
-        {QByteArrayLiteral("title"), VLC_ML_SORTING_ALPHA},
-        {QByteArrayLiteral("duration"), VLC_ML_SORTING_DURATION},
-        {QByteArrayLiteral("playcount"), VLC_ML_SORTING_PLAYCOUNT},
-        {QByteArrayLiteral("insertion"), VLC_ML_SORTING_INSERTIONDATE},
-    }.value(name, VLC_ML_SORTING_DEFAULT);
+    return QHash<QByteArray, heimdall_ml_sorting_criteria_t> {
+        {QByteArrayLiteral("title"), HEIMDALL_ML_SORTING_ALPHA},
+        {QByteArrayLiteral("duration"), HEIMDALL_ML_SORTING_DURATION},
+        {QByteArrayLiteral("playcount"), HEIMDALL_ML_SORTING_PLAYCOUNT},
+        {QByteArrayLiteral("insertion"), HEIMDALL_ML_SORTING_INSERTIONDATE},
+    }.value(name, HEIMDALL_ML_SORTING_DEFAULT);
 }
 
 // Protected MLBaseModel reimplementation
 
-void MLVideoModel::onVlcMlEvent(const MLEvent &event)
+void MLVideoModel::onHeimdallMlEvent(const MLEvent &event)
 {
     switch (event.i_type)
     {
-        case VLC_ML_EVENT_MEDIA_ADDED:
+        case HEIMDALL_ML_EVENT_MEDIA_ADDED:
         {
-            if (event.creation.media.i_type == VLC_ML_MEDIA_TYPE_VIDEO)
+            if (event.creation.media.i_type == HEIMDALL_ML_MEDIA_TYPE_VIDEO)
             {
                 emit resetRequested();
 
@@ -124,16 +125,16 @@ void MLVideoModel::onVlcMlEvent(const MLEvent &event)
 
             break;
         }
-        case VLC_ML_EVENT_MEDIA_UPDATED:
+        case HEIMDALL_ML_EVENT_MEDIA_UPDATED:
         {
-            MLItemId itemId(event.modification.i_entity_id, VLC_ML_PARENT_UNKNOWN);
+            MLItemId itemId(event.modification.i_entity_id, HEIMDALL_ML_PARENT_UNKNOWN);
             updateItemInCache(itemId);
 
             return;
         }
-        case VLC_ML_EVENT_MEDIA_DELETED:
+        case HEIMDALL_ML_EVENT_MEDIA_DELETED:
         {
-            MLItemId itemId(event.deletion.i_entity_id, VLC_ML_PARENT_UNKNOWN);
+            MLItemId itemId(event.deletion.i_entity_id, HEIMDALL_ML_PARENT_UNKNOWN);
             deleteItemInCache(itemId);
 
             return;
@@ -142,10 +143,10 @@ void MLVideoModel::onVlcMlEvent(const MLEvent &event)
             break;
     }
 
-    MLBaseModel::onVlcMlEvent(event);
+    MLBaseModel::onHeimdallMlEvent(event);
 }
 
-void MLVideoModel::thumbnailUpdated(const QModelIndex& idx, MLItem* mlitem, const QString& mrl, vlc_ml_thumbnail_status_t status)
+void MLVideoModel::thumbnailUpdated(const QModelIndex& idx, MLItem* mlitem, const QString& mrl, heimdall_ml_thumbnail_status_t status)
 {
     auto videoItem = static_cast<MLVideo*>(mlitem);
     videoItem->setSmallCover(status, mrl);
@@ -156,8 +157,8 @@ void MLVideoModel::generateThumbnail(uint64_t id) const
 {
     m_mediaLib->runOnMLThread(this,
     //ML thread
-    [id](vlc_medialibrary_t* ml){
-        vlc_ml_media_generate_thumbnail(ml, id, VLC_ML_THUMBNAIL_SMALL, 512, 320, .15 );
+    [id](heimdall_medialibrary_t* ml){
+        heimdall_ml_media_generate_thumbnail(ml, id, HEIMDALL_ML_THUMBNAIL_SMALL, 512, 320, .15 );
     });
 }
 
@@ -167,34 +168,34 @@ MLVideoModel::createMLLoader() const
     return std::make_unique<MLListCacheLoader>(m_mediaLib, std::make_shared<MLVideoModel::Loader>(*this));
 }
 
-size_t MLVideoModel::Loader::count(vlc_medialibrary_t* ml, const vlc_ml_query_params_t* queryParams) const /* override */
+size_t MLVideoModel::Loader::count(heimdall_medialibrary_t* ml, const heimdall_ml_query_params_t* queryParams) const /* override */
 {
     int64_t id = m_parent.id;
 
     if (id <= 0)
-        return vlc_ml_count_video_media(ml, queryParams);
+        return heimdall_ml_count_video_media(ml, queryParams);
     else
-        return vlc_ml_count_video_of(ml, queryParams, m_parent.type, id);
+        return heimdall_ml_count_video_of(ml, queryParams, m_parent.type, id);
 }
 
 std::vector<std::unique_ptr<MLItem>>
-MLVideoModel::Loader::load(vlc_medialibrary_t* ml, const vlc_ml_query_params_t* queryParams) const /* override */
+MLVideoModel::Loader::load(heimdall_medialibrary_t* ml, const heimdall_ml_query_params_t* queryParams) const /* override */
 {
-    ml_unique_ptr<vlc_ml_media_list_t> list;
+    ml_unique_ptr<heimdall_ml_media_list_t> list;
 
     int64_t id = m_parent.id;
 
     if (id <= 0)
-        list.reset(vlc_ml_list_video_media(ml, queryParams));
+        list.reset(heimdall_ml_list_video_media(ml, queryParams));
     else
-        list.reset(vlc_ml_list_video_of(ml, queryParams, m_parent.type, id));
+        list.reset(heimdall_ml_list_video_of(ml, queryParams, m_parent.type, id));
 
     if (list == nullptr)
         return {};
 
     std::vector<std::unique_ptr<MLItem>> result;
 
-    for (const vlc_ml_media_t & media : ml_range_iterate<vlc_ml_media_t>(list))
+    for (const heimdall_ml_media_t & media : ml_range_iterate<heimdall_ml_media_t>(list))
     {
         result.emplace_back(std::make_unique<MLVideo>( &media));
     }
@@ -203,10 +204,10 @@ MLVideoModel::Loader::load(vlc_medialibrary_t* ml, const vlc_ml_query_params_t* 
 }
 
 std::unique_ptr<MLItem>
-MLVideoModel::Loader::loadItemById(vlc_medialibrary_t* ml, MLItemId itemId) const
+MLVideoModel::Loader::loadItemById(heimdall_medialibrary_t* ml, MLItemId itemId) const
 {
-    assert(itemId.type == VLC_ML_PARENT_UNKNOWN);
-    ml_unique_ptr<vlc_ml_media_t> media(vlc_ml_get_media(ml, itemId.id));
+    assert(itemId.type == HEIMDALL_ML_PARENT_UNKNOWN);
+    ml_unique_ptr<heimdall_ml_media_t> media(heimdall_ml_get_media(ml, itemId.id));
     if (!media)
         return nullptr;
     return std::make_unique<MLVideo>(media.get());

@@ -2,6 +2,7 @@
  * util.h: Media library utils
  *****************************************************************************
  * Copyright (C) 2018 VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -23,7 +24,7 @@
 
 #include <string>
 
-namespace vlc {
+namespace heimdall {
   namespace medialibrary {
     namespace utils {
 
@@ -33,6 +34,6 @@ std::string directory(const std::string& fileName);
 
     } /* namespace utils */
   } /* namespace medialibrary */
-} /* namespace vlc */
+} /* namespace heimdall */
 
 #endif

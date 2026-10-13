@@ -2,6 +2,7 @@
  * preferences.cpp : Preferences
  *****************************************************************************
  * Copyright (C) 2006-2007 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Clément Stenac <zorglub@videolan.org>
  *          Jean-Baptiste Kempf <jb@videolan.org>
@@ -33,7 +34,7 @@
 #include "dialogs/dialogs/dialogmodel.hpp"
 #include "dialogs/dialogs_provider.hpp"
 #include "widgets/native/searchlineedit.hpp"
-#include "widgets/native/qvlcframe.hpp"
+#include "widgets/native/qheimdallframe.hpp"
 #include "maininterface/mainctx.hpp"
 
 #include <QHBoxLayout>
@@ -46,14 +47,14 @@
 #include <QSplitter>
 #include <QShortcut>
 
-#include <vlc_configuration.h>
-#include <vlc_modules.h>
+#include <heimdall_configuration.h>
+#include <heimdall_modules.h>
 
 PrefsDialog::PrefsDialog( QWindow *parent, qt_intf_t *_p_intf )
-            : QVLCDialog( parent, _p_intf )
+            : QHeimdallDialog( parent, _p_intf )
 {
     setWindowTitle( qtr( "Preferences" ) );
-    setWindowRole( "vlc-preferences" );
+    setWindowRole( "heimdall-preferences" );
     setWindowModality( Qt::WindowModal );
 
     /* Whether we want it or not, we need to destroy on close to get
@@ -182,7 +183,7 @@ PrefsDialog::PrefsDialog( QWindow *parent, qt_intf_t *_p_intf )
     BUTTONACT( all, &PrefsDialog::setAdvanced );
     BUTTONACT( expert, &PrefsDialog::setExpert );
 
-    QVLCTools::restoreWidgetPosition( p_intf, "Preferences", this, QSize( 850, 700 ) );
+    QHeimdallTools::restoreWidgetPosition( p_intf, "Preferences", this, QSize( 850, 700 ) );
 }
 
 PrefsDialog::~PrefsDialog()
@@ -374,20 +375,20 @@ void PrefsDialog::save()
 
     // Don't save widget position if reset is pending
     if( !p_intf->preferencesResetPending )
-        QVLCTools::saveWidgetPosition( p_intf, "Preferences", this );
+        QHeimdallTools::saveWidgetPosition( p_intf, "Preferences", this );
 
     if( p_intf->preferencesResetPending )
     {
         int restart = QMessageBox::question(
                           this,
                           qtr( "Restart Required" ),
-                          qtr( "VLC needs to be restarted for the reset to take full effect.\n\nRestart now?" ),
+                          qtr( "Heimdall needs to be restarted for the reset to take full effect.\n\nRestart now?" ),
                           QMessageBox::Yes | QMessageBox::No,
                           QMessageBox::Yes);
         
         if( restart == QMessageBox::Yes )
         {
-            // Quit VLC
+            // Quit Heimdall
             emit p_intf->p_mi->askToQuit();
         }
         else
@@ -408,7 +409,7 @@ void PrefsDialog::cancel()
     p_intf->preferencesResetPending = false;
     
     if( !wasResetting )
-        QVLCTools::saveWidgetPosition( p_intf, "Preferences", this );
+        QHeimdallTools::saveWidgetPosition( p_intf, "Preferences", this );
     reject();
 }
 
@@ -418,7 +419,7 @@ void PrefsDialog::reset()
     int ret = QMessageBox::question(
                  this,
                  qtr( "Reset Preferences" ),
-                 qtr( "Are you sure you want to reset your VLC media player preferences?" ),
+                 qtr( "Are you sure you want to reset your Heimdall media player preferences?" ),
                  QMessageBox::Ok | QMessageBox::Cancel,
                  QMessageBox::Ok);
 

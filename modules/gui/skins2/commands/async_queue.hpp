@@ -2,6 +2,7 @@
  * async_queue.hpp
  *****************************************************************************
  * Copyright (C) 2003 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cyril Deguet     <asmax@via.ecp.fr>
  *          Olivier Teulière <ipkiss@via.ecp.fr>
@@ -30,8 +31,8 @@
 #include <string>
 #include <memory>
 
-#include <vlc_threads.h>
-#include <vlc_cxx_helpers.hpp>
+#include <heimdall_threads.h>
+#include <heimdall_cxx_helpers.hpp>
 
 class OSTimer;
 
@@ -64,7 +65,7 @@ private:
     /// Timer
     std::unique_ptr<OSTimer> m_pTimer;
     /// Mutex
-    vlc::threads::mutex m_lock;
+    heimdall::threads::mutex m_lock;
 
     // Private because it is a singleton
     AsyncQueue( intf_thread_t *pIntf );

@@ -1,19 +1,19 @@
 ;;---------------------------------------------------------------------------
 ;;
-;; Emacs-Options for Videolan CodingStyle programming
+;; Emacs-Options for Lycaria CodingStyle programming
 ;;
 ;; paste the following lines in your .emacs file
 ;;
 ;;---------------------------------------------------------------------------
 
-;; associate c-mode with file extension '.c' or '.h' in vlc trunk tree
+;; associate c-mode with file extension '.c' or '.h' in heimdall trunk tree
 (setq auto-mode-alist
       (append
-       '((".*vlc-trunk.*/.*\\.[ch]$" . c-mode)
+       '((".*heimdall-trunk.*/.*\\.[ch]$" . c-mode)
 	  ) auto-mode-alist))
 
-;; define videolan c style settings
-(defconst videolan-c-style
+;; define lycaria c style settings
+(defconst lycaria-c-style
   '((c-tab-always-indent           . t)
     (c-comment-only-line-offset    . 4)
     (c-hanging-braces-alist        . ((substatement-open before after)
@@ -76,13 +76,13 @@
     (c-basic-offset . 4)
     (c-echo-syntactic-information-p . t)
     )
-  "Videolan C Programming Style")
+  "Lycaria C Programming Style")
 
 ;; Customizations for c-mode
-(defun videolan-mode-hook ()
-  ;; add the Videolan c style and set it for the current buffer
+(defun lycaria-mode-hook ()
+  ;; add the Lycaria c style and set it for the current buffer
   (local-set-key "\r" 'newline-and-indent)
-  (c-add-style "vlc" videolan-c-style t)
+  (c-add-style "heimdall" lycaria-c-style t)
   (c-set-offset 'member-init-intro '++)
 
   ;; other customizations
@@ -95,4 +95,4 @@
    '(c-hanging-semi&comma-criteria nil))
   )
 
-(add-hook 'c-mode-hook 'videolan-mode-hook)
+(add-hook 'c-mode-hook 'lycaria-mode-hook)

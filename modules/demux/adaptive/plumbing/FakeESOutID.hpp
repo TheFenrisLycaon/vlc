@@ -2,6 +2,7 @@
  * FakeESOutID.hpp
  *****************************************************************************
  * Copyright © 2015 VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -23,8 +24,8 @@
 #include "../ID.hpp"
 #include "../tools/Macros.hpp"
 
-#include <vlc_common.h>
-#include <vlc_es.h>
+#include <heimdall_common.h>
+#include <heimdall_es.h>
 
 namespace adaptive
 {

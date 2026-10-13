@@ -2,6 +2,7 @@
  * subsusf.c : USF subtitles decoder
  *****************************************************************************
  * Copyright (C) 2000-2006 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Bernie Purcell <bitmap@videolan.org>
  *
@@ -24,35 +25,35 @@
 #endif
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_arrays.h>
-#include <vlc_plugin.h>
-#include <vlc_modules.h>
-#include <vlc_codec.h>
-#include <vlc_input.h>
-#include <vlc_charset.h>
-#include <vlc_image.h>
-#include <vlc_xml.h>
-#include <vlc_stream.h>
+#include <heimdall_common.h>
+#include <heimdall_arrays.h>
+#include <heimdall_plugin.h>
+#include <heimdall_modules.h>
+#include <heimdall_codec.h>
+#include <heimdall_input.h>
+#include <heimdall_charset.h>
+#include <heimdall_image.h>
+#include <heimdall_xml.h>
+#include <heimdall_stream.h>
 
 /*****************************************************************************
  * Module descriptor.
  *****************************************************************************/
-static int  OpenDecoder   ( vlc_object_t * );
-static void CloseDecoder  ( vlc_object_t * );
+static int  OpenDecoder   ( heimdall_object_t * );
+static void CloseDecoder  ( heimdall_object_t * );
 
 #define FORMAT_TEXT N_("Formatted Subtitles")
 #define FORMAT_LONGTEXT N_("Some subtitle formats allow for text formatting. " \
- "VLC partly implements this, but you can choose to disable all formatting.")
+ "Heimdall partly implements this, but you can choose to disable all formatting.")
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_capability( "spu decoder", 40 )
     set_shortname( N_("USFSubs"))
     set_description( N_("USF subtitles decoder") )
     set_callbacks( OpenDecoder, CloseDecoder )
     set_subcategory( SUBCAT_INPUT_SCODEC )
     add_bool( "subsdec-formatted", true, FORMAT_TEXT, FORMAT_LONGTEXT )
-vlc_module_end ()
+heimdall_module_end ()
 
 
 /*****************************************************************************
@@ -105,7 +106,7 @@ static int           ParseImageAttachments( decoder_t *p_dec );
 
 static subpicture_t        *ParseText     ( decoder_t *, block_t * );
 static void                 ParseUSFHeader( decoder_t * );
-static void ParseUSFString( decoder_t *, char *, vlc_spu_regions * );
+static void ParseUSFString( decoder_t *, char *, heimdall_spu_regions * );
 static subpicture_region_t *LoadEmbeddedImage( decoder_t *p_dec, const char *psz_filename, int i_transparent_color );
 
 /*****************************************************************************
@@ -114,17 +115,17 @@ static subpicture_region_t *LoadEmbeddedImage( decoder_t *p_dec, const char *psz
  * Tries to launch a decoder and return score so that the interface is able
  * to chose.
  *****************************************************************************/
-static int OpenDecoder( vlc_object_t *p_this )
+static int OpenDecoder( heimdall_object_t *p_this )
 {
     decoder_t     *p_dec = (decoder_t*)p_this;
     decoder_sys_t *p_sys;
 
-    if( p_dec->fmt_in->i_codec != VLC_CODEC_USF )
-        return VLC_EGENERIC;
+    if( p_dec->fmt_in->i_codec != HEIMDALL_CODEC_USF )
+        return HEIMDALL_EGENERIC;
 
     /* Allocate the memory needed to store the decoder's structure */
     if( ( p_dec->p_sys = p_sys = calloc(1, sizeof(decoder_sys_t)) ) == NULL )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_dec->pf_decode = DecodeBlock;
     p_dec->fmt_out.i_codec = 0;
@@ -133,7 +134,7 @@ static int OpenDecoder( vlc_object_t *p_this )
     TAB_INIT( p_sys->i_ssa_styles, p_sys->pp_ssa_styles );
     TAB_INIT( p_sys->i_images, p_sys->pp_images );
 
-    /* USF subtitles are mandated to be UTF-8, so don't need vlc_iconv */
+    /* USF subtitles are mandated to be UTF-8, so don't need heimdall_iconv */
 
     p_sys->i_align = var_CreateGetInteger( p_dec, "subsdec-align" );
 
@@ -145,7 +146,7 @@ static int OpenDecoder( vlc_object_t *p_this )
             ParseUSFHeader( p_dec );
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /****************************************************************************
@@ -158,20 +159,20 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
     subpicture_t *p_spu;
 
     if( p_block == NULL ) /* No Drain */
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
 
     p_spu = ParseText( p_dec, p_block );
 
     block_Release( p_block );
     if( p_spu != NULL )
         decoder_QueueSub( p_dec, p_spu );
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }
 
 /*****************************************************************************
  * CloseDecoder: clean up the decoder
  *****************************************************************************/
-static void CloseDecoder( vlc_object_t *p_this )
+static void CloseDecoder( heimdall_object_t *p_this )
 {
     decoder_t *p_dec = (decoder_t *)p_this;
     decoder_sys_t *p_sys = p_dec->p_sys;
@@ -221,7 +222,7 @@ static subpicture_t *ParseText( decoder_t *p_dec, block_t *p_block )
         return NULL;
 
     /* We cannot display a subpicture with no date */
-    if( p_block->i_pts == VLC_TICK_INVALID )
+    if( p_block->i_pts == HEIMDALL_TICK_INVALID )
     {
         msg_Warn( p_dec, "subtitle without a date" );
         return NULL;
@@ -408,7 +409,7 @@ static void SetupPositions( subpicture_region_t *p_region, char *psz_subtitle )
         p_region->i_align = i_align;
 
     /* TODO: Setup % based offsets properly, without adversely affecting
-     *       everything else in vlc. Will address with separate patch, to
+     *       everything else in heimdall. Will address with separate patch, to
      *       prevent this one being any more complicated.
      */
     if( i_mask & ATTRIBUTE_X )
@@ -459,7 +460,7 @@ static subpicture_region_t *CreateTextRegion( decoder_t *p_dec,
         msg_Dbg( p_dec, "style is: %s", p_ssa_style->psz_stylename );
 
         /* TODO: Setup % based offsets properly, without adversely affecting
-         *       everything else in vlc. Will address with separate patch,
+         *       everything else in heimdall. Will address with separate patch,
          *       to prevent this one being any more complicated.
 
                  * p_ssa_style->i_margin_percent_h;
@@ -489,14 +490,14 @@ static int ParseImageAttachments( decoder_t *p_dec )
     input_attachment_t  **pp_attachments;
     int                   i_attachments_cnt;
 
-    if( VLC_SUCCESS != decoder_GetInputAttachments( p_dec, &pp_attachments, &i_attachments_cnt ))
-        return VLC_EGENERIC;
+    if( HEIMDALL_SUCCESS != decoder_GetInputAttachments( p_dec, &pp_attachments, &i_attachments_cnt ))
+        return HEIMDALL_EGENERIC;
 
     for( int k = 0; k < i_attachments_cnt; k++ )
     {
         input_attachment_t *p_attach = pp_attachments[k];
 
-        vlc_fourcc_t type = image_Mime2Fourcc( p_attach->psz_mime );
+        heimdall_fourcc_t type = image_Mime2Fourcc( p_attach->psz_mime );
 
         if( ( type != 0 ) &&
             ( p_attach->i_data > 0 ) &&
@@ -521,7 +522,7 @@ static int ParseImageAttachments( decoder_t *p_dec )
 
                     es_format_Init( &es_in, VIDEO_ES, type );
                     es_in.video.i_chroma = type;
-                    video_format_Init( &fmt_out, VLC_CODEC_YUVA );
+                    video_format_Init( &fmt_out, HEIMDALL_CODEC_YUVA );
 
                     p_pic = image_Read( p_image, p_block, &es_in, &fmt_out );
                     es_format_Clean( &es_in );
@@ -543,11 +544,11 @@ static int ParseImageAttachments( decoder_t *p_dec )
                 }
             }
         }
-        vlc_input_attachment_Release( pp_attachments[ k ] );
+        heimdall_input_attachment_Release( pp_attachments[ k ] );
     }
     free( pp_attachments );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void ParseUSFHeaderTags( decoder_t *p_dec, xml_reader_t *p_xml_reader )
@@ -814,7 +815,7 @@ static void ParseUSFHeaderTags( decoder_t *p_dec, xml_reader_t *p_xml_reader )
 
 static void ParseUSFString( decoder_t *p_dec,
                             char *psz_subtitle,
-                            vlc_spu_regions *regions )
+                            heimdall_spu_regions *regions )
 {
     decoder_sys_t        *p_sys = p_dec->p_sys;
 
@@ -865,7 +866,7 @@ static void ParseUSFString( decoder_t *p_dec,
              * required by the USF spec but is also recommended that if the
              * creator really wants a transparent colour that they use a
              * type like PNG that properly supports it; this goes doubly
-             * for VLC because the pictures are stored internally in YUV
+             * for Heimdall because the pictures are stored internally in YUV
              * and the resulting colour-matching may not produce the
              * desired results.)
              */
@@ -907,7 +908,7 @@ static void ParseUSFString( decoder_t *p_dec,
 
         if( p_region )
         {
-            vlc_spu_regions_push(regions, p_region);
+            heimdall_spu_regions_push(regions, p_region);
 
             /* Look for position arguments which may override the style-based
             * defaults.
@@ -933,7 +934,7 @@ static void ParseUSFHeader( decoder_t *p_dec )
     stream_t      *p_sub = NULL;
     xml_reader_t  *p_xml_reader = NULL;
 
-    p_sub = vlc_stream_MemoryNew( VLC_OBJECT(p_dec),
+    p_sub = heimdall_stream_MemoryNew( HEIMDALL_OBJECT(p_dec),
                               p_dec->fmt_in->p_extra,
                               p_dec->fmt_in->i_extra,
                               true );
@@ -952,7 +953,7 @@ static void ParseUSFHeader( decoder_t *p_dec )
 
         xml_ReaderDelete( p_xml_reader );
     }
-    vlc_stream_Delete( p_sub );
+    heimdall_stream_Delete( p_sub );
 }
 
 /* Function now handles tags which has attribute values, and tries
@@ -1094,7 +1095,7 @@ static subpicture_region_t *LoadEmbeddedImage( decoder_t *p_dec,
     /* Display the feed's image */
     memset( &fmt_out, 0, sizeof( video_format_t));
 
-    fmt_out.i_chroma = VLC_CODEC_YUVA;
+    fmt_out.i_chroma = HEIMDALL_CODEC_YUVA;
     fmt_out.i_sar_num = fmt_out.i_sar_den = 1;
     fmt_out.i_width =
         fmt_out.i_visible_width = p_pic->format.i_visible_width;
@@ -1109,7 +1110,7 @@ static subpicture_region_t *LoadEmbeddedImage( decoder_t *p_dec,
     }
     p_region->i_x = 0;
     p_region->i_y = 0;
-    assert( p_pic->format.i_chroma == VLC_CODEC_YUVA );
+    assert( p_pic->format.i_chroma == HEIMDALL_CODEC_YUVA );
     /* FIXME the copy is probably not needed anymore */
     picture_CopyPixels( p_region->p_picture, p_pic );
 

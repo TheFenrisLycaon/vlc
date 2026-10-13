@@ -2,6 +2,7 @@
  * ttml.c : TTML helpers
  *****************************************************************************
  * Copyright (C) 2017 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -21,11 +22,11 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_xml.h>
-#include <vlc_strings.h>
-#include <vlc_charset.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_xml.h>
+#include <heimdall_strings.h>
+#include <heimdall_charset.h>
 
 #include <assert.h>
 #include <stdlib.h>
@@ -40,7 +41,7 @@
  * Modules descriptor.
  *****************************************************************************/
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_capability( "spu decoder", 10 )
     set_shortname( N_("TTML decoder"))
     set_description( N_("TTML subtitles decoder") )
@@ -63,19 +64,19 @@ vlc_module_begin ()
         set_subcategory( SUBCAT_INPUT_SCODEC )
         set_callbacks( tt_OpenEncoder, NULL )
 #endif
-vlc_module_end ()
+heimdall_module_end ()
 
 struct tt_namespace_s
 {
     char *psz_prefix;
     char *psz_uri;
-    struct vlc_list links;
+    struct heimdall_list links;
 };
 
 void tt_namespaces_Clean( tt_namespaces_t *nss )
 {
     struct tt_namespace_s *ns;
-    vlc_list_foreach( ns, &nss->nodes, links )
+    heimdall_list_foreach( ns, &nss->nodes, links )
     {
         free( ns->psz_prefix );
         free( ns->psz_uri );
@@ -85,14 +86,14 @@ void tt_namespaces_Clean( tt_namespaces_t *nss )
 
 void tt_namespaces_Init( tt_namespaces_t *nss )
 {
-    vlc_list_init( &nss->nodes );
+    heimdall_list_init( &nss->nodes );
 }
 
 const char * tt_namespaces_GetURI( const tt_namespaces_t *nss,
                                    const char *psz_qn )
 {
     const struct tt_namespace_s *ns;
-    vlc_list_foreach_const( ns, &nss->nodes, links )
+    heimdall_list_foreach_const( ns, &nss->nodes, links )
     {
         /* compares prefixed name against raw prefix */
         for( size_t i=0; ; i++ )
@@ -118,7 +119,7 @@ const char * tt_namespaces_GetPrefix( const tt_namespaces_t *nss,
                                       const char *psz_uri )
 {
     const struct tt_namespace_s *ns;
-    vlc_list_foreach_const( ns, &nss->nodes, links )
+    heimdall_list_foreach_const( ns, &nss->nodes, links )
     {
         if( !strcmp( ns->psz_uri, psz_uri ) )
             return ns->psz_prefix;
@@ -147,7 +148,7 @@ void tt_namespaces_Register( tt_namespaces_t *nss, const char *psz_prefix,
             free( ns );
             return;
         }
-        vlc_list_append( &ns->links, &nss->nodes );
+        heimdall_list_append( &ns->links, &nss->nodes );
     }
 }
 
@@ -190,9 +191,9 @@ const char * tt_node_GetAttribute( tt_namespaces_t *p_nss, const tt_node_t *p_no
             return NULL;
         psz_name = alloc;
     }
-    value = vlc_dictionary_value_for_key( &p_node->attr_dict, psz_name );
+    value = heimdall_dictionary_value_for_key( &p_node->attr_dict, psz_name );
     free( alloc );
-    return value != kVLCDictionaryNotFound ? (const char *)value : NULL;
+    return value != kHeimdallDictionaryNotFound ? (const char *)value : NULL;
 }
 
 bool tt_node_HasChild( const tt_node_t *p_node )
@@ -219,13 +220,13 @@ static tt_time_t tt_ParseTime( const char *s )
         sscanf( s, "%u:%2u:%2u",         &h1, &m1, &s1          ) == 3 ||
                            tt_ScanReset( &h1, &m1, &s1, &c, &d1 ) )
     {
-        t.base = vlc_tick_from_sec(h1 * 3600 + m1 * 60 + s1);
+        t.base = heimdall_tick_from_sec(h1 * 3600 + m1 * 60 + s1);
         if( c == '.' && d1 > 0 )
         {
             unsigned i_den = 1;
             for( const char *p = strchr( s, '.' ) + 1; *p && (i_den < UINT_MAX / 10); p++ )
                 i_den *= 10;
-            t.base += vlc_tick_from_samples(d1, i_den);
+            t.base += heimdall_tick_from_samples(d1, i_den);
         }
         else if( c == ':' )
         {
@@ -235,23 +236,23 @@ static tt_time_t tt_ParseTime( const char *s )
     else /* Offset Time */
     {
         char *psz_end = (char *) s;
-        double v = vlc_strtod_c( s, &psz_end );
+        double v = heimdall_strtod_c( s, &psz_end );
         if( psz_end != s && *psz_end )
         {
             if( *psz_end == 'm' )
             {
                 if( *(psz_end + 1) == 's' )
-                    t.base = VLC_TICK_FROM_MS(v);
+                    t.base = HEIMDALL_TICK_FROM_MS(v);
                 else
-                    t.base = vlc_tick_from_sec(60 * v);
+                    t.base = heimdall_tick_from_sec(60 * v);
             }
             else if( *psz_end == 's' )
             {
-                t.base = vlc_tick_from_sec(v);
+                t.base = heimdall_tick_from_sec(v);
             }
             else if( *psz_end == 'h' )
             {
-                t.base = vlc_tick_from_sec(v * 3600);
+                t.base = heimdall_tick_from_sec(v * 3600);
             }
             else if( *psz_end == 'f' )
             {
@@ -286,7 +287,7 @@ static void tt_textnode_Delete( tt_textnode_t *p_node )
 
 static void tt_node_FreeDictValue( void* p_value, void* p_obj )
 {
-    VLC_UNUSED( p_obj );
+    HEIMDALL_UNUSED( p_obj );
     free( p_value );
 }
 
@@ -294,7 +295,7 @@ static void tt_node_Delete( tt_node_t *p_node )
 {
     free( p_node->psz_node_name );
     free( p_node->psz_namespace );
-    vlc_dictionary_clear( &p_node->attr_dict, tt_node_FreeDictValue, NULL );
+    heimdall_dictionary_clear( &p_node->attr_dict, tt_node_FreeDictValue, NULL );
     free( p_node );
 }
 
@@ -315,7 +316,7 @@ void tt_node_RecursiveDelete( tt_node_t *p_node )
 
 void tt_node_RemoveAttribute( tt_node_t *p_node, const char *key )
 {
-    vlc_dictionary_remove_value_for_key( &p_node->attr_dict, key,
+    heimdall_dictionary_remove_value_for_key( &p_node->attr_dict, key,
                                         tt_node_FreeDictValue, NULL );
 }
 
@@ -323,8 +324,8 @@ int tt_node_AddAttribute( tt_node_t *p_node, const char *key, const char *value 
 {
     char *p_dup = strdup( value );
     if( p_dup )
-        vlc_dictionary_insert( &p_node->attr_dict, key, p_dup );
-    return p_dup ? VLC_SUCCESS : VLC_EGENERIC;
+        heimdall_dictionary_insert( &p_node->attr_dict, key, p_dup );
+    return p_dup ? HEIMDALL_SUCCESS : HEIMDALL_EGENERIC;
 }
 
 static void tt_node_ParentAddChild( tt_node_t* p_parent, tt_basenode_t *p_child )
@@ -385,7 +386,7 @@ tt_node_t * tt_node_New( tt_node_t* p_parent,
         free( p_node );
         return NULL;
     }
-    vlc_dictionary_init( &p_node->attr_dict, 0 );
+    heimdall_dictionary_init( &p_node->attr_dict, 0 );
     tt_time_Init( &p_node->timings.begin );
     tt_time_Init( &p_node->timings.end );
     tt_time_Init( &p_node->timings.dur );
@@ -414,7 +415,7 @@ tt_node_t * tt_node_NewRead( xml_reader_t* reader,
         char *psz_val = strdup( psz_value );
         if( psz_val )
         {
-            vlc_dictionary_insert( &p_node->attr_dict, psz_key, psz_val );
+            heimdall_dictionary_insert( &p_node->attr_dict, psz_key, psz_val );
 
             if( !strcasecmp( psz_key, "begin" ) )
                 p_node->timings.begin = tt_ParseTime( psz_val );
@@ -438,7 +439,7 @@ static int tt_node_Skip( xml_reader_t *p_reader, const char *psz_skipped )
     /* need a copy as psz_skipped would point to next node after NextNode */
     char *psz_skip = strdup( psz_skipped );
     if(!psz_skip)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     for( ;; )
     {
@@ -449,7 +450,7 @@ static int tt_node_Skip( xml_reader_t *p_reader, const char *psz_skipped )
                 if( i_depth == SIZE_MAX )
                 {
                     free( psz_skip );
-                    return VLC_EGENERIC;
+                    return HEIMDALL_EGENERIC;
                 }
                 if( !xml_ReaderIsEmptyElement( p_reader ) )
                     i_depth++;
@@ -460,15 +461,15 @@ static int tt_node_Skip( xml_reader_t *p_reader, const char *psz_skipped )
                 {
                     free( psz_skip );
                     if( i_depth != 1 )
-                        return VLC_EGENERIC;
-                    return VLC_SUCCESS;
+                        return HEIMDALL_EGENERIC;
+                    return HEIMDALL_SUCCESS;
                 }
                 else
                 {
                     if( i_depth == 1 )
                     {
                         free( psz_skip );
-                        return VLC_EGENERIC;
+                        return HEIMDALL_EGENERIC;
                     }
                     i_depth--;
                 }
@@ -478,13 +479,13 @@ static int tt_node_Skip( xml_reader_t *p_reader, const char *psz_skipped )
                 if( i_type <= XML_READER_NONE )
                 {
                     free( psz_skip );
-                    return VLC_EGENERIC;
+                    return HEIMDALL_EGENERIC;
                 }
                 break;
         }
     }
-    vlc_assert_unreachable();
-    return VLC_EGENERIC;
+    heimdall_assert_unreachable();
+    return HEIMDALL_EGENERIC;
 }
 #endif
 int tt_nodes_Read( xml_reader_t *p_reader, tt_namespaces_t *p_nss, tt_node_t *p_root_node )
@@ -514,7 +515,7 @@ int tt_nodes_Read( xml_reader_t *p_reader, tt_namespaces_t *p_nss, tt_node_t *p_
                                                         psz_node_name,
                                                         psz_node_namespace );
                 if( !p_newnode )
-                    return VLC_EGENERIC;
+                    return HEIMDALL_EGENERIC;
                 if( !b_empty )
                 {
                     p_node = p_newnode;
@@ -526,19 +527,19 @@ int tt_nodes_Read( xml_reader_t *p_reader, tt_namespaces_t *p_nss, tt_node_t *p_
             case XML_READER_TEXT:
             {
                 tt_textnode_t *p_textnode = tt_textnode_New( p_node, psz_node_name );
-                VLC_UNUSED(p_textnode);
+                HEIMDALL_UNUSED(p_textnode);
             }
             break;
 
             case XML_READER_ENDELEM:
             {
                 if( !tt_node_Match( p_node, psz_node_name, psz_node_namespace ) )
-                    return VLC_EGENERIC;
+                    return HEIMDALL_EGENERIC;
 
                 if( i_depth == 0 )
                 {
                     if( p_node != p_root_node )
-                        return VLC_EGENERIC;
+                        return HEIMDALL_EGENERIC;
                     break; /* END */
                 }
                 i_depth--;
@@ -548,7 +549,7 @@ int tt_nodes_Read( xml_reader_t *p_reader, tt_namespaces_t *p_nss, tt_node_t *p_
         }
     } while( 1 );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 

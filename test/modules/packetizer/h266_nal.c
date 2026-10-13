@@ -2,6 +2,7 @@
  * h266_nal.c tests NAL conversions
  *****************************************************************************
  * Copyright (C) 2024 VideoLabs, VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -27,7 +28,7 @@
 #endif
 
 #include <assert.h>
-#include <vlc_common.h>
+#include <heimdall_common.h>
 #include "../modules/packetizer/h266_nal.h"
 #include "../modules/packetizer/hxxx_nal.h"
 

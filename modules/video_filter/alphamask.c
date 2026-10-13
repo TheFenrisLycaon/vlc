@@ -1,9 +1,10 @@
 /*****************************************************************************
- * alphamask.c : Alpha layer mask video filter for vlc
+ * alphamask.c : Alpha layer mask video filter for heimdall
  *****************************************************************************
  * Copyright (C) 2007 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Antoine Cellerier <dionoea at videolan tod org>
+ * Authors: Antoine Cellerier <dionoea at lycaria tod org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -28,14 +29,14 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
 
-#include <vlc_image.h>
-#include <vlc_filter.h>
-#include <vlc_picture.h>
-#include <vlc_url.h>
+#include <heimdall_image.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
+#include <heimdall_url.h>
 
 #define ALPHAMASK_HELP N_( \
     "Use an image's alpha channel as a transparency mask." )
@@ -54,13 +55,13 @@ static void Destroy     ( filter_t * );
 
 static picture_t *Filter( filter_t *, picture_t * );
 static void LoadMask( filter_t *, const char * );
-static int MaskCallback( vlc_object_t *, char const *,
-                         vlc_value_t, vlc_value_t, void * );
+static int MaskCallback( heimdall_object_t *, char const *,
+                         heimdall_value_t, heimdall_value_t, void * );
 
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("Alpha mask video filter") )
     set_shortname( N_("Alpha mask" ))
     set_help( ALPHAMASK_HELP )
@@ -69,7 +70,7 @@ vlc_module_begin ()
     set_callback_video_filter( Create )
 
     add_loadfile(CFG_PREFIX "mask", NULL, MASK_TEXT, MASK_LONGTEXT)
-vlc_module_end ()
+heimdall_module_end ()
 
 static const char *const ppsz_filter_options[] = {
     "mask", NULL
@@ -78,10 +79,10 @@ static const char *const ppsz_filter_options[] = {
 typedef struct
 {
     picture_t *p_mask;
-    vlc_mutex_t mask_lock;
+    heimdall_mutex_t mask_lock;
 } filter_sys_t;
 
-static const struct vlc_filter_operations filter_ops =
+static const struct heimdall_filter_operations filter_ops =
 {
     .filter_video = Filter, .close = Destroy,
 };
@@ -91,19 +92,19 @@ static int Create( filter_t *p_filter )
     filter_sys_t *p_sys;
     char *psz_string;
 
-    if( p_filter->fmt_in.video.i_chroma != VLC_CODEC_YUVA )
+    if( p_filter->fmt_in.video.i_chroma != HEIMDALL_CODEC_YUVA )
     {
         msg_Err( p_filter,
                  "Unsupported input chroma \"%4.4s\". "
                  "Alphamask can only use \"YUVA\".",
                  (char*)&p_filter->fmt_in.video.i_chroma );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Allocate structure */
     p_filter->p_sys = malloc( sizeof( filter_sys_t ) );
     if( p_filter->p_sys == NULL )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     p_sys = p_filter->p_sys;
 
     config_ChainParse( p_filter, CFG_PREFIX, ppsz_filter_options,
@@ -122,12 +123,12 @@ static int Create( filter_t *p_filter )
        p_sys->p_mask = NULL;
     free( psz_string );
 
-    vlc_mutex_init( &p_sys->mask_lock );
+    heimdall_mutex_init( &p_sys->mask_lock );
     var_AddCallback( p_filter, CFG_PREFIX "mask", MaskCallback,
                      p_filter );
     p_filter->ops = &filter_ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void Destroy( filter_t *p_filter )
@@ -147,7 +148,7 @@ static picture_t *Filter( filter_t *p_filter, picture_t *p_pic )
 {
     filter_sys_t *p_sys = p_filter->p_sys;
 
-    vlc_mutex_lock( &p_sys->mask_lock );
+    heimdall_mutex_lock( &p_sys->mask_lock );
     plane_t *p_mask = p_sys->p_mask->p+A_PLANE;
     plane_t *p_apic = p_pic->p+A_PLANE;
     if(    p_mask->i_visible_pitch
@@ -167,7 +168,7 @@ static picture_t *Filter( filter_t *p_filter, picture_t *p_pic )
     {
         plane_CopyPixels( p_apic, p_mask );
     }
-    vlc_mutex_unlock( &p_sys->mask_lock );
+    heimdall_mutex_unlock( &p_sys->mask_lock );
     return p_pic;
 }
 
@@ -177,11 +178,11 @@ static void LoadMask( filter_t *p_filter, const char *psz_filename )
     filter_sys_t *p_sys = p_filter->p_sys;
     image_handler_t *p_image;
     video_format_t fmt_out;
-    video_format_Init( &fmt_out, VLC_CODEC_YUVA );
+    video_format_Init( &fmt_out, HEIMDALL_CODEC_YUVA );
     if( p_sys->p_mask )
         picture_Release( p_sys->p_mask );
     p_image = image_HandlerCreate( p_filter );
-    char *psz_url = vlc_path2uri( psz_filename, NULL );
+    char *psz_url = heimdall_path2uri( psz_filename, NULL );
     p_sys->p_mask =
         image_ReadUrl( p_image, psz_url, &fmt_out );
     free( psz_url );
@@ -192,19 +193,19 @@ static void LoadMask( filter_t *p_filter, const char *psz_filename )
 /*****************************************************************************
 * Callback to update params on the fly
 *****************************************************************************/
-static int MaskCallback( vlc_object_t *p_this, char const *psz_var,
-                         vlc_value_t oldval, vlc_value_t newval,
+static int MaskCallback( heimdall_object_t *p_this, char const *psz_var,
+                         heimdall_value_t oldval, heimdall_value_t newval,
                          void *p_data )
 {
-    VLC_UNUSED(p_this); VLC_UNUSED(oldval);
+    HEIMDALL_UNUSED(p_this); HEIMDALL_UNUSED(oldval);
     filter_t *p_filter = (filter_t *)p_data;
     filter_sys_t *p_sys = p_filter->p_sys;
-    int i_ret = VLC_SUCCESS;
+    int i_ret = HEIMDALL_SUCCESS;
 
 #define VAR_IS( a ) !strcmp( psz_var, CFG_PREFIX a )
     if( VAR_IS( "mask" ) )
     {
-        vlc_mutex_lock( &p_sys->mask_lock );
+        heimdall_mutex_lock( &p_sys->mask_lock );
         if( newval.psz_string && *newval.psz_string )
         {
             LoadMask( p_filter, newval.psz_string );
@@ -212,7 +213,7 @@ static int MaskCallback( vlc_object_t *p_this, char const *psz_var,
             {
                 msg_Err( p_filter, "Error while loading mask (%s).",
                          newval.psz_string );
-                i_ret = VLC_EGENERIC;
+                i_ret = HEIMDALL_EGENERIC;
             }
         }
         else if( p_sys->p_mask )
@@ -220,7 +221,7 @@ static int MaskCallback( vlc_object_t *p_this, char const *psz_var,
             picture_Release( p_sys->p_mask );
             p_sys->p_mask = NULL;
         }
-        vlc_mutex_unlock( &p_sys->mask_lock );
+        heimdall_mutex_unlock( &p_sys->mask_lock );
     }
 #undef VAR_IS
 

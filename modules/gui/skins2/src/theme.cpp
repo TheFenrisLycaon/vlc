@@ -2,6 +2,7 @@
  * theme.cpp
  *****************************************************************************
  * Copyright (C) 2003 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cyril Deguet     <asmax@via.ecp.fr>
  *          Olivier Teulière <ipkiss@via.ecp.fr>
@@ -23,7 +24,7 @@
 
 #include "theme.hpp"
 #include "top_window.hpp"
-#include <vlc_configuration.h>
+#include <heimdall_configuration.h>
 #include <sstream>
 
 
@@ -45,7 +46,7 @@ void Theme::loadConfig()
 {
     msg_Dbg( getIntf(), "loading theme configuration");
 
-    if( readConfig() == VLC_SUCCESS )
+    if( readConfig() == HEIMDALL_SUCCESS )
     {
         applyConfig();
     }
@@ -97,12 +98,12 @@ int Theme::readConfig()
 {
     msg_Dbg( getIntf(), "reading theme configuration");
 
-    // Get config from vlcrc file
+    // Get config from heimdallrc file
     char *save = config_GetPsz( "skins2-config" );
     if( !save || !*save )
     {
         free( save );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     std::istringstream inStream( save );
@@ -164,12 +165,12 @@ int Theme::readConfig()
     if( !somethingVisible )
         goto invalid;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 invalid:
     msg_Dbg( getIntf(), "invalid config: %s", inStream.str().c_str() );
     m_saved.clear();
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 

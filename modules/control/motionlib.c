@@ -2,6 +2,7 @@
  * motion.c: laptop built-in motion sensors
  *****************************************************************************
  * Copyright (C) 2006 - 2012 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Sam Hocevar <sam@zoy.org>
  *         Jérôme Decoodt <djc@videolan.org> (unimotion integration)
@@ -29,7 +30,7 @@
 #include <math.h>
 #include <unistd.h>
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
 #include "motionlib.h"
 
@@ -43,7 +44,7 @@ struct motion_sensors_t
     int i_sum;
 };
 
-motion_sensors_t *motion_create( vlc_object_t *obj )
+motion_sensors_t *motion_create( heimdall_object_t *obj )
 {
     FILE *f;
     int i_x = 0, i_y = 0;
@@ -155,7 +156,7 @@ static int GetOrientation( motion_sensors_t *motion )
             return ( i_x - motion->i_calibrate ) * 10;
 
     default:
-        vlc_assert_unreachable();
+        heimdall_assert_unreachable();
     }
 }
 

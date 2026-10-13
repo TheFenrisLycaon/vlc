@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2022 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,7 +21,7 @@ import QtQuick
 import QtQuick.Controls.Basic
 
 
-import VLC.Style
+import Heimdall.Style
 
 TextField {
     id: control
@@ -39,7 +40,7 @@ TextField {
     color : theme.fg.primary
     placeholderTextColor: theme.fg.secondary
 
-    font.pixelSize: VLCStyle.fontSize_normal
+    font.pixelSize: HeimdallStyle.fontSize_normal
 
     verticalAlignment: Text.AlignVCenter
 
@@ -48,7 +49,7 @@ TextField {
     background: Rectangle {
         implicitWidth: 200
         implicitHeight: 40
-        border.width: control.enabled ? VLCStyle.dp(2, VLCStyle.scale) : 0
+        border.width: control.enabled ? HeimdallStyle.dp(2, HeimdallStyle.scale) : 0
         color: theme.bg.primary
         border.color: theme.border
         border.pixelAligned: (radius < Number.EPSILON)

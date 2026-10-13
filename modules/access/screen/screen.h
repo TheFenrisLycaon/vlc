@@ -2,9 +2,10 @@
  * screen.h: Screen capture module.
  *****************************************************************************
  * Copyright (C) 2004-2008 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gildas Bazin <gbazin@videolan.org>
- *          Antoine Cellerier <dionoea at videolan dot org>
+ *          Antoine Cellerier <dionoea at lycaria dot org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -21,9 +22,9 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#include <vlc_input.h>
-#include <vlc_access.h>
-#include <vlc_demux.h>
+#include <heimdall_input.h>
+#include <heimdall_access.h>
+#include <heimdall_demux.h>
 
 #define SCREEN_SUBSCREEN
 #ifdef _WIN32
@@ -46,10 +47,10 @@ typedef struct
     es_out_id_t *es;
 
     float f_fps;
-    vlc_tick_t i_next_date;
-    vlc_tick_t i_incr;
+    heimdall_tick_t i_next_date;
+    heimdall_tick_t i_incr;
 
-    vlc_tick_t i_start;
+    heimdall_tick_t i_start;
 
 #ifdef SCREEN_SUBSCREEN
     bool b_follow_mouse;

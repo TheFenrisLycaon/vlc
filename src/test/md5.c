@@ -2,6 +2,7 @@
  * md5.c: test md5
  *****************************************************************************
  * Copyright (C) 2011 VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Jean-Bapstiste Kempf <jb@videolan.org>
  *
@@ -27,9 +28,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <vlc_common.h>
-#include <vlc_strings.h>
-#include <vlc_hash.h>
+#include <heimdall_common.h>
+#include <heimdall_strings.h>
+#include <heimdall_hash.h>
 
 typedef struct
 {
@@ -52,15 +53,15 @@ static const md5_sample_t md5_samples[] =
     { NULL,         NULL            }
 };
 
-static void test_vlc_hash_md5( void )
+static void test_heimdall_hash_md5( void )
 {
     for( int i = 0; md5_samples[i].psz_string; i++ )
     {
-        char psz_hash[VLC_HASH_MD5_DIGEST_HEX_SIZE];
-        vlc_hash_md5_t md5;
-        vlc_hash_md5_Init( &md5 );
-        vlc_hash_md5_Update( &md5, md5_samples[i].psz_string, strlen( md5_samples[i].psz_string ) );
-        vlc_hash_FinishHex( &md5, psz_hash );
+        char psz_hash[HEIMDALL_HASH_MD5_DIGEST_HEX_SIZE];
+        heimdall_hash_md5_t md5;
+        heimdall_hash_md5_Init( &md5 );
+        heimdall_hash_md5_Update( &md5, md5_samples[i].psz_string, strlen( md5_samples[i].psz_string ) );
+        heimdall_hash_FinishHex( &md5, psz_hash );
 
         if( strcmp( psz_hash, md5_samples[i].psz_md5 ) )
         {
@@ -73,7 +74,7 @@ static void test_vlc_hash_md5( void )
 
 int main( void )
 {
-    test_vlc_hash_md5();
+    test_heimdall_hash_md5();
 
     return 0;
 }

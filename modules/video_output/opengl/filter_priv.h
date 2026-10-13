@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
  * Copyright (C) 2020 Videolabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -19,27 +20,27 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_GL_FILTER_PRIV_H
-#define VLC_GL_FILTER_PRIV_H
+#ifndef HEIMDALL_GL_FILTER_PRIV_H
+#define HEIMDALL_GL_FILTER_PRIV_H
 
-#include <vlc_common.h>
-#include <vlc_list.h>
-#include <vlc_picture.h>
-#include <vlc_opengl_filter.h>
+#include <heimdall_common.h>
+#include <heimdall_list.h>
+#include <heimdall_picture.h>
+#include <heimdall_opengl_filter.h>
 
 #include "gl_api.h"
 #include "picture.h"
 
-struct vlc_gl_filter_priv {
-    struct vlc_gl_filter filter;
+struct heimdall_gl_filter_priv {
+    struct heimdall_gl_filter filter;
 
-    struct vlc_gl_api api;
+    struct heimdall_gl_api api;
 
     /* For a blend filter, must be the same as the size_out of the previous
      * filter */
-    struct vlc_gl_tex_size size_out;
+    struct heimdall_gl_tex_size size_out;
 
-    struct vlc_gl_format glfmt_in;
+    struct heimdall_gl_format glfmt_in;
 
     /* Describe the output planes, independently of whether textures are
      * created for this filter (the last filter does not own any textures). */
@@ -61,44 +62,44 @@ struct vlc_gl_filter_priv {
     GLuint renderbuffer_msaa; /* owned (attached to framebuffer_msaa) */
     /* } */
 
-    struct vlc_list node; /**< node of vlc_gl_filters.list */
+    struct heimdall_list node; /**< node of heimdall_gl_filters.list */
 
     /* Blend filters are attached to their non-blend "parent" instead of the
      * filter chain to simplify the rendering code */
-    struct vlc_list blend_subfilters; /**< list of vlc_gl_filter_priv.node */
+    struct heimdall_list blend_subfilters; /**< list of heimdall_gl_filter_priv.node */
 
     bool has_picture;
 };
 
-static inline struct vlc_gl_filter_priv *
-vlc_gl_filter_PRIV(struct vlc_gl_filter *filter)
+static inline struct heimdall_gl_filter_priv *
+heimdall_gl_filter_PRIV(struct heimdall_gl_filter *filter)
 {
-    return container_of(filter, struct vlc_gl_filter_priv, filter);
+    return container_of(filter, struct heimdall_gl_filter_priv, filter);
 }
 
-struct vlc_gl_filter *
-vlc_gl_filter_New(struct vlc_gl_t *gl);
+struct heimdall_gl_filter *
+heimdall_gl_filter_New(struct heimdall_gl_t *gl);
 
 int
-vlc_gl_filter_LoadModule(vlc_object_t *parent, const char *name,
-                         struct vlc_gl_filter *filter,
+heimdall_gl_filter_LoadModule(heimdall_object_t *parent, const char *name,
+                         struct heimdall_gl_filter *filter,
                          const config_chain_t *config,
-                         struct vlc_gl_sampler *sampler,
-                         struct vlc_gl_tex_size *size_out);
-#define vlc_gl_filter_LoadModule(o, a, b, c, d, e) \
-    vlc_gl_filter_LoadModule(VLC_OBJECT(o), a, b, c, d, e)
+                         struct heimdall_gl_sampler *sampler,
+                         struct heimdall_gl_tex_size *size_out);
+#define heimdall_gl_filter_LoadModule(o, a, b, c, d, e) \
+    heimdall_gl_filter_LoadModule(HEIMDALL_OBJECT(o), a, b, c, d, e)
 
 void
-vlc_gl_filter_Delete(struct vlc_gl_filter *filter);
+heimdall_gl_filter_Delete(struct heimdall_gl_filter *filter);
 
 int
-vlc_gl_filter_InitFramebuffers(struct vlc_gl_filter *filter, bool is_last);
+heimdall_gl_filter_InitFramebuffers(struct heimdall_gl_filter *filter, bool is_last);
 
 /** Recompute plane count, widths and heights after size_out have changed */
 void
-vlc_gl_filter_InitPlaneSizes(struct vlc_gl_filter *filter);
+heimdall_gl_filter_InitPlaneSizes(struct heimdall_gl_filter *filter);
 
 void
-vlc_gl_filter_ApplyOutputSize(struct vlc_gl_filter *filter);
+heimdall_gl_filter_ApplyOutputSize(struct heimdall_gl_filter *filter);
 
 #endif

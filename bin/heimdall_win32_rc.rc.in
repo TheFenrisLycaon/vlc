@@ -1,0 +1,35 @@
+#define VERSION_NUMBER @VERSION_MAJOR@,@VERSION_MINOR@,@VERSION_REVISION@,@VERSION_EXTRA@
+#define VERSION_NUMBER_STR "@VERSION_MAJOR@,@VERSION_MINOR@,@VERSION_REVISION@,@VERSION_EXTRA@"
+
+#include <winuser.h>
+
+HEIMDALL_ICON ICON "heimdall.ico"
+
+1 VERSIONINFO
+FILETYPE 1
+FILEOS 4
+PRODUCTVERSION VERSION_NUMBER
+FILEVERSION VERSION_NUMBER
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "040904E4"
+    BEGIN
+      VALUE "CompanyName", "Lycaria"
+      VALUE "ProductName", "Heimdall media player"
+      VALUE "ProductVersion", VERSION_NUMBER_STR
+      VALUE "InternalName", "heimdall"
+      VALUE "OriginalFilename", "heimdall.exe"
+      VALUE "FileVersion", "@VERSION@"
+      VALUE "FileDescription", "Heimdall media player"
+      VALUE "LegalCopyright", "Copyright \251 @COPYRIGHT_YEARS@ VideoLAN and VLC Authors"
+      VALUE "LegalTrademarks", "Heimdall media player, Lycaria and x264 are registered trademarks from Lycaria"
+    END
+  END
+  BLOCK "VarFileInfo"
+  BEGIN
+    VALUE "Translation", 0x409, 1252
+  END
+END
+
+CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST "heimdall.exe.manifest"

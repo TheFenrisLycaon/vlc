@@ -1,9 +1,10 @@
 /**
  * \file pulse.c
- * \brief PulseAudio input plugin for vlc
+ * \brief PulseAudio input plugin for heimdall
  */
 /*****************************************************************************
  * Copyright (C) 2011 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -24,21 +25,21 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_aout.h>
-#include <vlc_demux.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_aout.h>
+#include <heimdall_demux.h>
+#include <heimdall_plugin.h>
 #include <pulse/pulseaudio.h>
-#include "audio_output/vlcpulse.h"
+#include "audio_output/heimdallpulse.h"
 
 #define HELP_TEXT N_( \
     "Pass pulse:// to open the default PulseAudio source, " \
     "or pulse://SOURCE to open a specific source named SOURCE.")
 
-static int Open(vlc_object_t *);
-static void Close(vlc_object_t *);
+static int Open(heimdall_object_t *);
+static void Close(heimdall_object_t *);
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname (N_("PulseAudio"))
     set_description (N_("PulseAudio input"))
     set_capability ("access", 0)
@@ -47,7 +48,7 @@ vlc_module_begin ()
 
     add_shortcut ("pulse", "pulseaudio", "pa")
     set_callbacks (Open, Close)
-vlc_module_end ()
+heimdall_module_end ()
 
 typedef struct
 {
@@ -58,7 +59,7 @@ typedef struct
     es_out_id_t *es;
     bool discontinuity; /**< The next block will not follow the last one */
     unsigned framesize; /**< Byte size of a sample */
-    vlc_tick_t caching; /**< Caching value */
+    heimdall_tick_t caching; /**< Caching value */
 } demux_sys_t;
 
 /* Stream helpers */
@@ -156,22 +157,22 @@ static void stream_read_cb(pa_stream *s, size_t length, void *userdata)
     unsigned samples = length / sys->framesize;
 
     if (pa_stream_peek(s, &ptr, &length) < 0) {
-        vlc_pa_error(demux, "cannot peek stream", sys->context);
+        heimdall_pa_error(demux, "cannot peek stream", sys->context);
         return;
     }
 
-    vlc_tick_t pts = vlc_tick_now();
+    heimdall_tick_t pts = heimdall_tick_now();
     pa_usec_t latency;
     int negative;
 
     if (pa_stream_get_latency(s, &latency, &negative) < 0) {
-        vlc_pa_error(demux, "cannot determine latency", sys->context);
+        heimdall_pa_error(demux, "cannot determine latency", sys->context);
         return;
     }
     if (negative)
-        pts += VLC_TICK_FROM_US(latency);
+        pts += HEIMDALL_TICK_FROM_US(latency);
     else
-        pts -= VLC_TICK_FROM_US(latency);
+        pts -= HEIMDALL_TICK_FROM_US(latency);
 
     es_out_SetPCR(demux->out, pts);
     if (unlikely(sys->es == NULL))
@@ -205,8 +206,8 @@ static int Control(demux_t *demux, int query, va_list ap)
             pa_usec_t us;
 
             if (pa_stream_get_time(sys->stream, &us) < 0)
-                return VLC_EGENERIC;
-            *(va_arg(ap, vlc_tick_t *)) = VLC_TICK_FROM_US(us);
+                return HEIMDALL_EGENERIC;
+            *(va_arg(ap, heimdall_tick_t *)) = HEIMDALL_TICK_FROM_US(us);
             break;
         }
 
@@ -214,7 +215,7 @@ static int Control(demux_t *demux, int query, va_list ap)
         //case DEMUX_GET_META TODO
 
         case DEMUX_GET_PTS_DELAY:
-            *(va_arg(ap, vlc_tick_t *)) = sys->caching;
+            *(va_arg(ap, heimdall_tick_t *)) = sys->caching;
             break;
 
         case DEMUX_HAS_UNSUPPORTED_META:
@@ -227,48 +228,48 @@ static int Control(demux_t *demux, int query, va_list ap)
             break;
 
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-/** PulseAudio sample (PCM) format to VLC codec */
-static const vlc_fourcc_t fourccs[] = {
-    [PA_SAMPLE_U8] =        VLC_CODEC_U8,
-    [PA_SAMPLE_ALAW] =      VLC_CODEC_ALAW,
-    [PA_SAMPLE_ULAW] =      VLC_CODEC_MULAW,
-    [PA_SAMPLE_S16LE] =     VLC_CODEC_S16L,
-    [PA_SAMPLE_S16BE] =     VLC_CODEC_S16B,
-    [PA_SAMPLE_FLOAT32LE] = VLC_CODEC_F32L,
-    [PA_SAMPLE_FLOAT32BE] = VLC_CODEC_F32B,
-    [PA_SAMPLE_S32LE] =     VLC_CODEC_S32L,
-    [PA_SAMPLE_S32BE] =     VLC_CODEC_S32B,
-    [PA_SAMPLE_S24LE] =     VLC_CODEC_S24L,
-    [PA_SAMPLE_S24BE] =     VLC_CODEC_S24B,
-    [PA_SAMPLE_S24_32LE] =  VLC_CODEC_S24L32,
-    [PA_SAMPLE_S24_32BE] =  VLC_CODEC_S24B32,
+/** PulseAudio sample (PCM) format to Heimdall codec */
+static const heimdall_fourcc_t fourccs[] = {
+    [PA_SAMPLE_U8] =        HEIMDALL_CODEC_U8,
+    [PA_SAMPLE_ALAW] =      HEIMDALL_CODEC_ALAW,
+    [PA_SAMPLE_ULAW] =      HEIMDALL_CODEC_MULAW,
+    [PA_SAMPLE_S16LE] =     HEIMDALL_CODEC_S16L,
+    [PA_SAMPLE_S16BE] =     HEIMDALL_CODEC_S16B,
+    [PA_SAMPLE_FLOAT32LE] = HEIMDALL_CODEC_F32L,
+    [PA_SAMPLE_FLOAT32BE] = HEIMDALL_CODEC_F32B,
+    [PA_SAMPLE_S32LE] =     HEIMDALL_CODEC_S32L,
+    [PA_SAMPLE_S32BE] =     HEIMDALL_CODEC_S32B,
+    [PA_SAMPLE_S24LE] =     HEIMDALL_CODEC_S24L,
+    [PA_SAMPLE_S24BE] =     HEIMDALL_CODEC_S24B,
+    [PA_SAMPLE_S24_32LE] =  HEIMDALL_CODEC_S24L32,
+    [PA_SAMPLE_S24_32BE] =  HEIMDALL_CODEC_S24B32,
 };
 
-static int Open(vlc_object_t *obj)
+static int Open(heimdall_object_t *obj)
 {
     demux_t *demux = (demux_t *)obj;
 
     if (demux->out == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    demux_sys_t *sys = vlc_obj_malloc(obj, sizeof (*sys));
+    demux_sys_t *sys = heimdall_obj_malloc(obj, sizeof (*sys));
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    sys->context = vlc_pa_connect(obj, &sys->mainloop);
+    sys->context = heimdall_pa_connect(obj, &sys->mainloop);
     if (sys->context == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     sys->stream = NULL;
     sys->es = NULL;
     sys->discontinuity = false;
-    sys->caching = VLC_TICK_FROM_MS( var_InheritInteger(obj, "live-caching") );
+    sys->caching = HEIMDALL_TICK_FROM_MS( var_InheritInteger(obj, "live-caching") );
     demux->p_sys = sys;
 
     /* Stream parameters */
@@ -323,7 +324,7 @@ static int Open(vlc_object_t *obj)
 
     if (pa_stream_connect_record(s, dev, &attr, flags) < 0
      || stream_wait(s, sys->mainloop)) {
-        vlc_pa_error(obj, "cannot connect record stream", sys->context);
+        heimdall_pa_error(obj, "cannot connect record stream", sys->context);
         goto error;
     }
 
@@ -335,7 +336,7 @@ static int Open(vlc_object_t *obj)
         goto error;
     }
 
-    vlc_fourcc_t format = fourccs[pss->format];
+    heimdall_fourcc_t format = fourccs[pss->format];
     if (format == 0) { /* FIXME: should renegotiate something else */
         msg_Err(obj, "unsupported PulseAudio sample format %u",
                 (unsigned)pss->format);
@@ -365,15 +366,15 @@ static int Open(vlc_object_t *obj)
 
     demux->pf_demux = NULL;
     demux->pf_control = Control;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     pa_threaded_mainloop_unlock(sys->mainloop);
     Close(obj);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
-static void Close (vlc_object_t *obj)
+static void Close (heimdall_object_t *obj)
 {
     demux_t *demux = (demux_t *)obj;
     demux_sys_t *sys = demux->p_sys;
@@ -394,5 +395,5 @@ static void Close (vlc_object_t *obj)
         pa_threaded_mainloop_unlock(sys->mainloop);
     }
 
-    vlc_pa_disconnect(obj, sys->context, sys->mainloop);
+    heimdall_pa_disconnect(obj, sys->context, sys->mainloop);
 }

@@ -41,15 +41,15 @@
 #include "util/imageluminanceextractor.hpp"
 #include "util/keyhelper.hpp"
 #include "style/systempalette.hpp"
-#include "style/vlcicons.hpp"
+#include "style/heimdallicons.hpp"
 #include "util/navigation_history.hpp"
 #include "util/flickable_scroll_handler.hpp"
 #include "util/kirigamiwheelhandler.hpp"
 #include "util/color_svg_image_provider.hpp"
 #include "util/effects_image_provider.hpp"
-#include "util/vlcaccess_image_provider.hpp"
+#include "util/heimdallaccess_image_provider.hpp"
 #include "util/csdbuttonmodel.hpp"
-#include "util/vlctick.hpp"
+#include "util/heimdalltick.hpp"
 #include "util/list_selection_model.hpp"
 #include "util/ui_notifier.hpp"
 #include "util/textureproviderobserver.hpp"
@@ -64,7 +64,7 @@
 #ifdef UPDATE_CHECK
 #include "dialogs/help/help.hpp" // UpdateModel
 #endif
-#include "util/vlchotkeyconverter.hpp"
+#include "util/heimdallhotkeyconverter.hpp"
 
 #include "network/networkmediamodel.hpp"
 #include "network/networkdevicemodel.hpp"
@@ -94,7 +94,7 @@
 
 static bool g_qmlTypesAreRegistered = false;
 
-using  namespace vlc::playlist;
+using  namespace heimdall::playlist;
 
 MainUI::MainUI(qt_intf_t *p_intf, MainCtx *mainCtx, QWindow* interfaceWindow,  QObject *parent)
     : QObject(parent)
@@ -162,9 +162,9 @@ bool MainUI::setup(QQmlEngine* engine)
     if (!EffectsImageProvider::instance(engine, engine))
         new EffectsImageProvider(engine);
     engine->addImageProvider(QStringLiteral("svgcolor"), new SVGColorImageImageProvider());
-    engine->addImageProvider(QStringLiteral("vlcaccess"), new VLCAccessImageProvider());
+    engine->addImageProvider(QStringLiteral("heimdallaccess"), new HeimdallAccessImageProvider());
 
-    m_component  = new QQmlComponent(engine, QStringLiteral("qrc:/qt/qml/VLC/MainInterface/MainInterface.qml"), QQmlComponent::PreferSynchronous, engine);
+    m_component  = new QQmlComponent(engine, QStringLiteral("qrc:/qt/qml/Heimdall/MainInterface/MainInterface.qml"), QQmlComponent::PreferSynchronous, engine);
     if (m_component->isLoading())
     {
         msg_Warn(m_intf, "component is still loading");
@@ -222,11 +222,11 @@ void MainUI::registerQMLTypes()
     assert(!g_qmlTypesAreRegistered);
 
     {
-        const char* uri = "VLC.MainInterface";
+        const char* uri = "Heimdall.MainInterface";
         const int versionMajor = 1;
         const int versionMinor = 0;
 
-        // @uri VLC.MainInterface
+        // @uri Heimdall.MainInterface
         qmlRegisterSingletonInstance<MainCtx>(uri, versionMajor, versionMinor, "MainCtx", m_mainCtx);
 #ifdef _WIN32
         assert(dynamic_cast<MainCtxWin32*>(m_mainCtx));
@@ -239,7 +239,7 @@ void MainUI::registerQMLTypes()
         qmlRegisterSingletonInstance<NavigationHistory>(uri, versionMajor, versionMinor, "History", new NavigationHistory(this));
         qmlRegisterType<VideoSurface>(uri, versionMajor, versionMinor, "VideoSurface");
         qmlRegisterUncreatableType<BaseModel>( uri, versionMajor, versionMinor, "BaseModel", "Base Model is uncreatable." );
-        qmlRegisterUncreatableType<VLCVarChoiceModel>(uri, versionMajor, versionMinor, "VLCVarChoiceModel", "generic variable with choice model" );
+        qmlRegisterUncreatableType<HeimdallVarChoiceModel>(uri, versionMajor, versionMinor, "HeimdallVarChoiceModel", "generic variable with choice model" );
         qmlRegisterUncreatableType<CSDButton>(uri, versionMajor, versionMinor, "CSDButton", "");
         qmlRegisterUncreatableType<CSDButtonModel>(uri, versionMajor, versionMinor, "CSDButtonModel", "has CSD buttons and provides for communicating CSD events between UI and backend");
         qmlRegisterTypesAndRevisions<CSDMenu>( uri, versionMajor);
@@ -253,13 +253,13 @@ void MainUI::registerQMLTypes()
         qmlRegisterTypesAndRevisions<NavigationBarContextMenu>( uri, versionMajor );
 
         // Foreign types:
-        qmlRegisterTypesAndRevisions<vlc::QAbstractProxyModelForeign>(uri, versionMajor);
-        qmlRegisterTypesAndRevisions<vlc::QWindowForeign>(uri, versionMajor);
-        qmlRegisterTypesAndRevisions<vlc::QScreenForeign>(uri, versionMajor);
-        qmlRegisterTypesAndRevisions<vlc::QSortFilterProxyModelForeign>( uri, versionMajor );
-        qmlRegisterTypesAndRevisions<vlc::QMessageBoxForeign>( uri, versionMajor );
+        qmlRegisterTypesAndRevisions<heimdall::QAbstractProxyModelForeign>(uri, versionMajor);
+        qmlRegisterTypesAndRevisions<heimdall::QWindowForeign>(uri, versionMajor);
+        qmlRegisterTypesAndRevisions<heimdall::QScreenForeign>(uri, versionMajor);
+        qmlRegisterTypesAndRevisions<heimdall::QSortFilterProxyModelForeign>( uri, versionMajor );
+        qmlRegisterTypesAndRevisions<heimdall::QMessageBoxForeign>( uri, versionMajor );
 #if QT_VERSION < QT_VERSION_CHECK(6, 5, 0)
-        qmlRegisterTypesAndRevisions<vlc::QAbstractItemModelForeign>(uri, versionMajor); // Qt >= 6.5.0, import `QtQml.Models`.
+        qmlRegisterTypesAndRevisions<heimdall::QAbstractItemModelForeign>(uri, versionMajor); // Qt >= 6.5.0, import `QtQml.Models`.
 #endif
 
         qmlRegisterModule(uri, versionMajor, versionMinor);
@@ -267,14 +267,14 @@ void MainUI::registerQMLTypes()
     }
 
     {
-        const char* uri = "VLC.Dialogs";
+        const char* uri = "Heimdall.Dialogs";
         const int versionMajor = 1;
         const int versionMinor = 0;
 
-        // @uri VLC.Dialogs
-        qmlRegisterType<VLCDialog>( uri, versionMajor, versionMinor, "VLCDialog" );
-        assert(VLCDialogModel::getInstance<false>());
-        qmlRegisterSingletonInstance<VLCDialogModel>(uri, versionMajor, versionMinor, "VLCDialogModel", VLCDialogModel::getInstance<false>());
+        // @uri Heimdall.Dialogs
+        qmlRegisterType<HeimdallDialog>( uri, versionMajor, versionMinor, "HeimdallDialog" );
+        assert(HeimdallDialogModel::getInstance<false>());
+        qmlRegisterSingletonInstance<HeimdallDialogModel>(uri, versionMajor, versionMinor, "HeimdallDialogModel", HeimdallDialogModel::getInstance<false>());
         qmlRegisterUncreatableType<DialogId>( uri, versionMajor, versionMinor, "dialogId", "");
         assert(DialogsProvider::getInstance());
         qmlRegisterSingletonInstance<DialogsProvider>(uri, versionMajor, versionMinor, "DialogsProvider", DialogsProvider::getInstance());
@@ -286,11 +286,11 @@ void MainUI::registerQMLTypes()
     }
 
     {
-        const char* uri = "VLC.Menus";
+        const char* uri = "Heimdall.Menus";
         const int versionMajor = 1;
         const int versionMinor = 0;
 
-        // @uri VLC.Menus
+        // @uri Heimdall.Menus
         qmlRegisterType<StringListMenu>( uri, versionMajor, versionMinor, "StringListMenu" );
         qmlRegisterType<SortMenu>( uri, versionMajor, versionMinor, "SortMenu" );
         qmlRegisterType<SortMenuVideo>( uri, versionMajor, versionMinor, "SortMenuVideo" );
@@ -303,11 +303,11 @@ void MainUI::registerQMLTypes()
     }
 
     {
-        const char* uri = "VLC.Player";
+        const char* uri = "Heimdall.Player";
         const int versionMajor = 1;
         const int versionMinor = 0;
 
-        // @uri VLC.Player
+        // @uri Heimdall.Player
         qmlRegisterUncreatableType<TrackListModel>(uri, versionMajor, versionMinor, "TrackListModel", "available tracks of a media (audio/video/sub)" );
         qmlRegisterUncreatableType<TitleListModel>(uri, versionMajor, versionMinor, "TitleListModel", "available titles of a media" );
         qmlRegisterUncreatableType<ChapterListModel>(uri, versionMajor, versionMinor, "ChapterListModel", "available chapters of a media" );
@@ -316,9 +316,9 @@ void MainUI::registerQMLTypes()
         qmlRegisterSingletonInstance<PlayerController>(uri, versionMajor, versionMinor, "Player", m_intf->p_mainPlayerController);
         qmlRegisterTypesAndRevisions<TimedText>(uri, versionMajor);
         qmlRegisterType<PlayerHighResolutionTimeUpdater>(uri, versionMajor, versionMinor, "HighResolutionTimeUpdater");
-        qmlRegisterUncreatableMetaObject(VLCTickForeign::staticMetaObject, uri, versionMajor, versionMinor, "VLCTick", "Not Instantiable" );
-        qmlRegisterTypesAndRevisions<VLCDuration>(uri, versionMajor);
-        qmlRegisterTypesAndRevisions<VLCTime>(uri, versionMajor);
+        qmlRegisterUncreatableMetaObject(HeimdallTickForeign::staticMetaObject, uri, versionMajor, versionMinor, "HeimdallTick", "Not Instantiable" );
+        qmlRegisterTypesAndRevisions<HeimdallDuration>(uri, versionMajor);
+        qmlRegisterTypesAndRevisions<HeimdallTime>(uri, versionMajor);
 
         qmlRegisterType<QmlBookmarkMenu>( uri, versionMajor, versionMinor, "QmlBookmarkMenu" );
         qmlRegisterType<QmlProgramMenu>( uri, versionMajor, versionMinor, "QmlProgramMenu" );
@@ -332,11 +332,11 @@ void MainUI::registerQMLTypes()
     }
 
     {
-        const char* uri = "VLC.PlayerControls";
+        const char* uri = "Heimdall.PlayerControls";
         const int versionMajor = 1;
         const int versionMinor = 0;
 
-        // @uri VLC.PlayerControls
+        // @uri Heimdall.PlayerControls
         qmlRegisterUncreatableType<ControlbarProfileModel>(uri, versionMajor, versionMinor, "ControlbarProfileModel", "");
         qmlRegisterUncreatableType<ControlbarProfile>(uri, versionMajor, versionMinor, "ControlbarProfile", "");
         qmlRegisterUncreatableType<PlayerControlbarModel>(uri, versionMajor, versionMinor, "PlayerControlbarModel", "");
@@ -350,11 +350,11 @@ void MainUI::registerQMLTypes()
     }
 
     {
-        const char* uri = "VLC.Playlist";
+        const char* uri = "Heimdall.Playlist";
         const int versionMajor = 1;
         const int versionMinor = 0;
 
-        // @uri VLC.Playlist
+        // @uri Heimdall.Playlist
         qmlRegisterUncreatableType<PlaylistItem>(uri, versionMajor, versionMinor, "playlistItem", "");
         qmlRegisterType<PlaylistListModel>( uri, versionMajor, versionMinor, "PlaylistListModel" );
         qmlRegisterType<PlaylistController>( uri, versionMajor, versionMinor, "PlaylistController" );
@@ -367,11 +367,11 @@ void MainUI::registerQMLTypes()
     }
 
     {
-        const char* uri = "VLC.Network";
+        const char* uri = "Heimdall.Network";
         const int versionMajor = 1;
         const int versionMinor = 0;
 
-        // @uri VLC.Network
+        // @uri Heimdall.Network
         qmlRegisterType<NetworkMediaModel>( uri, versionMajor, versionMinor, "NetworkMediaModel");
         qmlRegisterType<NetworkDeviceModel>( uri, versionMajor, versionMinor, "NetworkDeviceModel");
         qmlRegisterType<NetworkSourcesModel>( uri, versionMajor, versionMinor, "NetworkSourcesModel");
@@ -387,41 +387,41 @@ void MainUI::registerQMLTypes()
     }
 
     {
-        const char* uri = "VLC.Style";
+        const char* uri = "Heimdall.Style";
         const int versionMajor = 1;
         const int versionMinor = 0;
 
-        // @uri VLC.Style
+        // @uri Heimdall.Style
         qmlRegisterUncreatableType<ColorSchemeModel>(uri, versionMajor, versionMinor, "ColorSchemeModel", "");
         qmlRegisterType<ColorContext>(uri, versionMajor, versionMinor, "ColorContext");
         qmlRegisterUncreatableType<ColorProperty>(uri, versionMajor, versionMinor, "colorProperty", "");
         qmlRegisterType<SystemPalette>(uri, versionMajor, versionMinor, "SystemPalette");
-        qmlRegisterTypesAndRevisions<VLCIcons>( uri, versionMajor );
+        qmlRegisterTypesAndRevisions<HeimdallIcons>( uri, versionMajor );
 
         qmlRegisterModule(uri, versionMajor, versionMinor);
         qmlProtectModule(uri, versionMajor);
     }
 
     {
-        const char* uri = "VLC.Util";
+        const char* uri = "Heimdall.Util";
         const int versionMajor = 1;
         const int versionMinor = 0;
 
-        // @uri VLC.Util
+        // @uri Heimdall.Util
         qmlRegisterSingletonInstance<QmlKeyHelper>(uri, versionMajor, versionMinor, "KeyHelper", new QmlKeyHelper(this));
         qmlRegisterSingletonType<EffectsImageProvider>(uri, versionMajor, versionMinor, "Effects", EffectsImageProvider::instance);
         qmlRegisterUncreatableType<SVGColorImageBuilder>(uri, versionMajor, versionMinor, "SVGColorImageBuilder", "");
         qmlRegisterSingletonInstance<SVGColorImage>(uri, versionMajor, versionMinor, "SVGColorImage", new SVGColorImage(this));
-        qmlRegisterSingletonInstance<VLCAccessImage>(uri, versionMajor, versionMinor, "VLCAccessImage", new VLCAccessImage(this));
+        qmlRegisterSingletonInstance<HeimdallAccessImage>(uri, versionMajor, versionMinor, "HeimdallAccessImage", new HeimdallAccessImage(this));
         qmlRegisterType<DelayEstimator>( uri, versionMajor, versionMinor, "DelayEstimator" );
-        qmlRegisterTypesAndRevisions<WheelToVLCConverter>( uri, versionMajor );
+        qmlRegisterTypesAndRevisions<WheelToHeimdallConverter>( uri, versionMajor );
 
         qmlRegisterType<ImageLuminanceExtractor>( uri, versionMajor, versionMinor, "ImageLuminanceExtractor");
 
         qmlRegisterType<ItemKeyEventFilter>( uri, versionMajor, versionMinor, "KeyEventFilter" );
 
         // WARNING: This type is deprecated, do not use it.
-        qmlRegisterType<FlickableScrollHandler>( uri, versionMajor, versionMinor, "VLCFlickableScrollHandler" );
+        qmlRegisterType<FlickableScrollHandler>( uri, versionMajor, versionMinor, "HeimdallFlickableScrollHandler" );
 
         {
             auto funcRegisterScrollHandler = qmlRegisterType<DummyFlickableScrollHandler>;
@@ -443,11 +443,11 @@ void MainUI::registerQMLTypes()
     }
 
     {
-        const char* uri = "VLC.Widgets";
+        const char* uri = "Heimdall.Widgets";
         const int versionMajor = 1;
         const int versionMinor = 0;
 
-        // @uri VLC.Widgets
+        // @uri Heimdall.Widgets
         qmlRegisterType<CSDThemeImage>(uri, versionMajor, versionMinor, "CSDThemeImage");
         qmlRegisterType<ViewBlockingRectangle>( uri, versionMajor, versionMinor, "ViewBlockingRectangle" );
         qmlRegisterTypesAndRevisions<PointingToolTipAttached>( uri, versionMajor );
@@ -458,11 +458,11 @@ void MainUI::registerQMLTypes()
 
     if (m_mainCtx->hasMediaLibrary())
     {
-        const char* uri = "VLC.MediaLibrary";
+        const char* uri = "Heimdall.MediaLibrary";
         const int versionMajor = 1;
         const int versionMinor = 0;
 
-        // @uri VLC.MediaLibrary
+        // @uri Heimdall.MediaLibrary
         assert(m_mainCtx->getMediaLibrary());
         qmlRegisterSingletonInstance<MediaLib>(uri, versionMajor, versionMinor, "MediaLib", m_mainCtx->getMediaLibrary());
 

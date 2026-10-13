@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,10 +20,10 @@ import QtQuick
 import QtQuick.Layouts
 
 
-import VLC.MainInterface
-import VLC.Widgets as Widgets
-import VLC.Style
-import VLC.Network
+import Heimdall.MainInterface
+import Heimdall.Widgets as Widgets
+import Heimdall.Style
+import Heimdall.Network
 
 Widgets.PageExt {
     id: root
@@ -69,14 +70,14 @@ Widgets.PageExt {
             }
         }
 
-        topMargin: VLCStyle.margin_large
-        leftMargin: VLCStyle.margin_large
-        rightMargin: VLCStyle.margin_large
-        spacing: VLCStyle.margin_xsmall
+        topMargin: HeimdallStyle.margin_large
+        leftMargin: HeimdallStyle.margin_large
+        rightMargin: HeimdallStyle.margin_large
+        spacing: HeimdallStyle.margin_xsmall
 
         delegate: Rectangle {
-            width: servicesView.width - VLCStyle.margin_large * 2
-            height: row.implicitHeight + VLCStyle.margin_small * 2
+            width: servicesView.width - HeimdallStyle.margin_large * 2
+            height: row.implicitHeight + HeimdallStyle.margin_small * 2
             color: servicesView.colorContext.bg.secondary
 
             onActiveFocusChanged: if (activeFocus) action_btn.forceActiveFocus()
@@ -84,14 +85,14 @@ Widgets.PageExt {
             RowLayout {
                 id: row
 
-                spacing: VLCStyle.margin_xsmall
+                spacing: HeimdallStyle.margin_xsmall
                 anchors.fill: parent
-                anchors.margins: VLCStyle.margin_small
+                anchors.margins: HeimdallStyle.margin_small
 
                 Image {
 
-                    width: VLCStyle.icon_large
-                    height: VLCStyle.icon_large
+                    width: HeimdallStyle.icon_large
+                    height: HeimdallStyle.icon_large
                     fillMode: Image.PreserveAspectFit
                     source: model.artwork
 
@@ -125,7 +126,7 @@ Widgets.PageExt {
                                 color: servicesView.colorContext.fg.primary
                                 textFormat: Text.StyledText
                                 text: model.author ? qsTr("by <b>%1</b>").arg(model.author) : qsTr("by <b>Unknown</b>")
-                                topPadding: VLCStyle.margin_xxxsmall
+                                topPadding: HeimdallStyle.margin_xxxsmall
                                 width: parent.width
                             }
                         }
@@ -134,7 +135,7 @@ Widgets.PageExt {
                             id: action_btn
 
                             focus: true
-                            iconTxt: model.state === ServicesDiscoveryModel.STATE_INSTALLED ? VLCIcons.del : VLCIcons.add
+                            iconTxt: model.state === ServicesDiscoveryModel.STATE_INSTALLED ? HeimdallIcons.del : HeimdallIcons.add
                             busy: model.state === ServicesDiscoveryModel.STATE_INSTALLING || model.state === ServicesDiscoveryModel.STATE_UNINSTALLING
                             text: {
                                 switch(model.state) {
@@ -162,7 +163,7 @@ Widgets.PageExt {
                         elide: Text.ElideRight
                         text:  model.description || model.summary || qsTr("No information available")
                         color: servicesView.colorContext.fg.secondary
-                        topPadding: VLCStyle.margin_xsmall
+                        topPadding: HeimdallStyle.margin_xsmall
                         wrapMode: Text.WordWrap
                         Layout.fillWidth: true
                         Layout.preferredHeight: implicitHeight
@@ -172,7 +173,7 @@ Widgets.PageExt {
                         text: qsTr("Score: %1/5  Downloads: %2")
                             .arg( (5 * model.score / discoveryModel.maxScore).toFixed(1) )
                             .arg(model.downloads)
-                        topPadding: VLCStyle.margin_xsmall
+                        topPadding: HeimdallStyle.margin_xsmall
                         color: servicesView.colorContext.fg.secondary
                         Layout.fillWidth: true
                     }

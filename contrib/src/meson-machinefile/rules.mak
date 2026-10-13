@@ -1,7 +1,7 @@
 # Generate external meson machine file
 
 # This cross or native file is meant to be used to easiy
-# use the contribs with VLCs meson build system by using
+# use the contribs with Heimdalls meson build system by using
 # either the --cross-file or --native-file option
 # respectively.
 

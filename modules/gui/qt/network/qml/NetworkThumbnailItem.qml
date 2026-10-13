@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,10 +20,10 @@
 import QtQuick
 import QtQml.Models
 
-import VLC.Widgets as Widgets
-import VLC.Style
-import VLC.Network
-import VLC.Util
+import Heimdall.Widgets as Widgets
+import Heimdall.Style
+import Heimdall.Network
+import Heimdall.Util
 
 Widgets.TableRowDelegate {
     id: root
@@ -57,7 +58,7 @@ Widgets.TableRowDelegate {
 
             const value = rowModel[criteria]
 
-            if (value.toString() === "vlc://nop")
+            if (value.toString() === "heimdall://nop")
                 continue
 
             if (i) string += " • "
@@ -70,15 +71,15 @@ Widgets.TableRowDelegate {
 
     Row {
         anchors.fill: parent
-        spacing: VLCStyle.margin_normal
+        spacing: HeimdallStyle.margin_normal
 
         Widgets.MediaCover {
             id: cover
 
             anchors.verticalCenter: parent.verticalCenter
 
-            width: VLCStyle.listAlbumCover_width
-            height: VLCStyle.listAlbumCover_height
+            width: HeimdallStyle.listAlbumCover_width
+            height: HeimdallStyle.listAlbumCover_height
 
             pictureWidth: 0 // preserve aspect ratio
             pictureHeight: height
@@ -87,7 +88,7 @@ Widgets.TableRowDelegate {
 
             source: {
                 if (root.rowModel?.artwork && root.rowModel.artwork.length > 0)
-                    return VLCAccessImage.uri(root.rowModel.artwork)
+                    return HeimdallAccessImage.uri(root.rowModel.artwork)
 
                 return ""
             }
@@ -109,7 +110,7 @@ Widgets.TableRowDelegate {
             color: root.colorContext.bg.secondary
 
             playCoverShowPlay: root._showPlayCover
-            playIconSize: VLCStyle.play_cover_small
+            playIconSize: HeimdallStyle.play_cover_small
 
             onPlayIconClicked: () => {
                 root.playClicked(root.index)
@@ -124,8 +125,8 @@ Widgets.TableRowDelegate {
             anchors.top: parent.top
             anchors.bottom: parent.bottom
 
-            anchors.topMargin: VLCStyle.margin_xxsmall
-            anchors.bottomMargin: VLCStyle.margin_xxsmall
+            anchors.topMargin: HeimdallStyle.margin_xxsmall
+            anchors.bottomMargin: HeimdallStyle.margin_xxsmall
 
             width: Math.max(0, parent.width - x)
 

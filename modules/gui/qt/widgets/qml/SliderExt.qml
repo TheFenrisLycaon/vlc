@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2023 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Prince Gupta <guptaprince8832@gmail.com>
  *
@@ -21,9 +22,9 @@
 import QtQuick
 import QtQuick.Templates as T
 
-import VLC.Widgets as Widgets
-import VLC.Style
-import VLC.Util
+import Heimdall.Widgets as Widgets
+import Heimdall.Style
+import Heimdall.Util
 
 T.Slider {
     id: control
@@ -43,9 +44,9 @@ T.Slider {
     property color color: theme.fg.primary
     property color bgColor: theme.bg.primary
 
-    property real handleWidth: VLCStyle.icon_xsmall
+    property real handleWidth: HeimdallStyle.icon_xsmall
 
-    property real radius: VLCStyle.dp(3, VLCStyle.scale)
+    property real radius: HeimdallStyle.dp(3, HeimdallStyle.scale)
 
     // when set the tooltip will follow the mouse when control is hoverred
     // else tooltip will always be shown at current value.
@@ -107,8 +108,8 @@ T.Slider {
         x: control.leftPadding + (control.horizontal ? 0 : (control.availableWidth - width) / 2)
         y: control.topPadding + (control.horizontal ? (control.availableHeight - height) / 2 : 0)
 
-        implicitWidth: control.horizontal ? VLCStyle.heightBar_xlarge : VLCStyle.heightBar_xxsmall
-        implicitHeight: control.horizontal ? VLCStyle.heightBar_xxsmall : VLCStyle.heightBar_xlarge
+        implicitWidth: control.horizontal ? HeimdallStyle.heightBar_xlarge : HeimdallStyle.heightBar_xxsmall
+        implicitHeight: control.horizontal ? HeimdallStyle.heightBar_xxsmall : HeimdallStyle.heightBar_xlarge
 
         width: control.horizontal ? control.availableWidth : implicitWidth
         height: control.horizontal ? implicitHeight : control.availableHeight

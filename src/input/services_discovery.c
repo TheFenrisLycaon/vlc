@@ -2,6 +2,7 @@
  * services_discovery.c : Manage playlist services_discovery modules
  *****************************************************************************
  * Copyright (C) 1999-2004 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Clément Stenac <zorglub@videolan.org>
  *
@@ -24,44 +25,44 @@
 #endif
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_services_discovery.h>
-#include <vlc_probe.h>
-#include <vlc_modules.h>
-#include "../libvlc.h"
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_services_discovery.h>
+#include <heimdall_probe.h>
+#include <heimdall_modules.h>
+#include "../libheimdall.h"
 
 typedef struct
 {
     char *name;
     char *longname;
     int category;
-} vlc_sd_probe_t;
+} heimdall_sd_probe_t;
 
-int vlc_sd_probe_Add (vlc_probe_t *probe, const char *name,
+int heimdall_sd_probe_Add (heimdall_probe_t *probe, const char *name,
                       const char *longname, int category)
 {
-    vlc_sd_probe_t names = { strdup(name), strdup(longname), category };
+    heimdall_sd_probe_t names = { strdup(name), strdup(longname), category };
 
     if (unlikely (names.name == NULL || names.longname == NULL
-               || vlc_probe_add (probe, &names, sizeof (names))))
+               || heimdall_probe_add (probe, &names, sizeof (names))))
     {
         free (names.name);
         free (names.longname);
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
-    return VLC_PROBE_CONTINUE;
+    return HEIMDALL_PROBE_CONTINUE;
 }
 
-#undef vlc_sd_GetNames
+#undef heimdall_sd_GetNames
 
 /**
  * Gets the list of available services discovery plugins.
  */
-char **vlc_sd_GetNames (vlc_object_t *obj, char ***pppsz_longnames, int **pp_categories)
+char **heimdall_sd_GetNames (heimdall_object_t *obj, char ***pppsz_longnames, int **pp_categories)
 {
     size_t count;
-    vlc_sd_probe_t *tab = vlc_probe (obj, "services probe", &count);
+    heimdall_sd_probe_t *tab = heimdall_probe (obj, "services probe", &count);
 
     if (count == 0)
     {
@@ -69,9 +70,9 @@ char **vlc_sd_GetNames (vlc_object_t *obj, char ***pppsz_longnames, int **pp_cat
         return NULL;
     }
 
-    char **names = vlc_alloc (count + 1, sizeof(char *));
-    char **longnames = vlc_alloc (count + 1, sizeof(char *));
-    int *categories = vlc_alloc (count + 1, sizeof(int));
+    char **names = heimdall_alloc (count + 1, sizeof(char *));
+    char **longnames = heimdall_alloc (count + 1, sizeof(char *));
+    int *categories = heimdall_alloc (count + 1, sizeof(int));
 
     if (unlikely (names == NULL || longnames == NULL || categories == NULL))
     {
@@ -103,11 +104,11 @@ char **vlc_sd_GetNames (vlc_object_t *obj, char ***pppsz_longnames, int **pp_cat
  * That's how the playlist gets Service Discovery information
  */
 
-#undef vlc_sd_Create
-services_discovery_t *vlc_sd_Create(vlc_object_t *parent, const char *cfg,
+#undef heimdall_sd_Create
+services_discovery_t *heimdall_sd_Create(heimdall_object_t *parent, const char *cfg,
     const struct services_discovery_owner_t *restrict owner)
 {
-    services_discovery_t *sd = vlc_custom_create(parent, sizeof (*sd),
+    services_discovery_t *sd = heimdall_custom_create(parent, sizeof (*sd),
                                                  "services discovery");
     if (unlikely(sd == NULL))
         return NULL;
@@ -121,18 +122,18 @@ services_discovery_t *vlc_sd_Create(vlc_object_t *parent, const char *cfg,
     if (sd->p_module == NULL)
     {
         msg_Err(sd, "no suitable services discovery module");
-        vlc_sd_Destroy(sd);
+        heimdall_sd_Destroy(sd);
         sd = NULL;
     }
 
     return sd;
 }
 
-void vlc_sd_Destroy(services_discovery_t *sd)
+void heimdall_sd_Destroy(services_discovery_t *sd)
 {
     if (sd->p_module != NULL)
         module_unneed(sd, sd->p_module);
     config_ChainDestroy(sd->p_cfg);
     free(sd->psz_name);
-    vlc_object_delete(sd);
+    heimdall_object_delete(sd);
 }

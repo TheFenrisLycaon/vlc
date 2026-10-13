@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,10 +21,10 @@ import QtQuick.Templates as T
 import QtQuick.Window
 import QtQuick.Layouts
 
-import VLC.MainInterface
-import VLC.Style
-import VLC.Util
-import VLC.Widgets
+import Heimdall.MainInterface
+import Heimdall.Style
+import Heimdall.Util
+import Heimdall.Widgets
 
 ListView {
     id: root
@@ -69,7 +70,7 @@ ListView {
     // Settings
 
     pixelAligned: (MainCtx.qtVersion() >= MainCtx.qtVersionCheck(6, 2, 5)) // QTBUG-103996
-                  && (Screen.pixelDensity >= VLCStyle.highPixelDensityThreshold) // no need for sub-pixel alignment with high pixel density
+                  && (Screen.pixelDensity >= HeimdallStyle.highPixelDensityThreshold) // no need for sub-pixel alignment with high pixel density
 
     focus: true
 
@@ -232,7 +233,7 @@ ListView {
             id: footerItem
 
             implicitWidth: root.contentWidth
-            implicitHeight: Math.max(VLCStyle.icon_normal, root.height - y - (root.headerItem?.height ?? 0))
+            implicitHeight: Math.max(HeimdallStyle.icon_normal, root.height - y - (root.headerItem?.height ?? 0))
 
             property alias firstItemIndicatorVisible: firstItemIndicator.visible
 
@@ -256,9 +257,9 @@ ListView {
                 id: firstItemIndicator
 
                 anchors.fill: parent
-                anchors.margins: VLCStyle.margin_small
+                anchors.margins: HeimdallStyle.margin_small
 
-                border.width: VLCStyle.dp(2, VLCStyle.scale)
+                border.width: HeimdallStyle.dp(2, HeimdallStyle.scale)
                 border.color: theme.accent
                 border.pixelAligned: (radius < Number.EPSILON)
 
@@ -271,9 +272,9 @@ ListView {
                 IconLabel {
                     anchors.centerIn: parent
 
-                    text: VLCIcons.add
+                    text: HeimdallIcons.add
 
-                    font.pixelSize: VLCStyle.fontHeight_xxxlarge
+                    font.pixelSize: HeimdallStyle.fontHeight_xxxlarge
 
                     color: theme.accent
                 }
@@ -329,7 +330,7 @@ ListView {
         // WARNING: Do not use `OpacityAnimator` here, it is bugged.
         NumberAnimation {
             property: "opacity"
-            duration: VLCStyle.duration_long
+            duration: HeimdallStyle.duration_long
             easing.type: Easing.OutSine
         }
 
@@ -369,7 +370,7 @@ ListView {
         NumberAnimation {
             // TODO: Use YAnimator >= Qt 6.0 (QTBUG-66475)
             property: (view.orientation === ListView.Vertical) ? "y" : "x"
-            duration: VLCStyle.duration_long
+            duration: HeimdallStyle.duration_long
             easing.type: Easing.OutSine
         }
     }
@@ -482,7 +483,7 @@ ListView {
 
         // NOTE: Usage of `SmoothedAnimation` is intentional here.
         SmoothedAnimation {
-            duration: VLCStyle.duration_veryLong
+            duration: HeimdallStyle.duration_veryLong
             easing.type: Easing.InOutSine
         }
     }
@@ -707,7 +708,7 @@ ListView {
 
             Text {
                 text: section
-                font.pixelSize: VLCStyle.fontSize_xlarge
+                font.pixelSize: HeimdallStyle.fontSize_xlarge
                 color: theme.accent
             }
 
@@ -840,7 +841,7 @@ ListView {
             }
         }
 
-        implicitHeight: VLCStyle.dp(1, VLCStyle.scale)
+        implicitHeight: HeimdallStyle.dp(1, HeimdallStyle.scale)
 
         visible: !!parent
         color: theme.accent

@@ -2,6 +2,7 @@
  * rootwrap.c
  *****************************************************************************
  * Copyright © 2005-2008 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -225,7 +226,7 @@ int main (int argc, char *argv[])
 
     char buf[21];
     snprintf (buf, sizeof (buf), "%d", pair[0]);
-    setenv ("VLC_ROOTWRAP_SOCK", buf, 1);
+    setenv ("HEIMDALL_ROOTWRAP_SOCK", buf, 1);
 
     /* Support for real-time priorities */
 #ifdef RLIMIT_RTPRIO
@@ -243,7 +244,7 @@ int main (int argc, char *argv[])
     }
     if (uid == 0)
     {
-        fputs("Cannot determine unprivileged user for VLC!\n", stderr);
+        fputs("Cannot determine unprivileged user for Heimdall!\n", stderr);
         exit (1);
     }
     setuid (uid);

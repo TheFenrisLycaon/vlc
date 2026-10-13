@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright © 2018 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -18,11 +19,11 @@
 
 #include <stdint.h>
 
-struct vlc_window;
+struct heimdall_window;
 struct wl_registry;
 struct output_list;
 
-struct output_list *output_list_create(struct vlc_window *wnd);
+struct output_list *output_list_create(struct heimdall_window *wnd);
 void output_list_destroy(struct output_list *);
 
 struct wl_output *output_create(struct output_list *, struct wl_registry *,

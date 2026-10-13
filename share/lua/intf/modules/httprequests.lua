@@ -2,8 +2,9 @@
  httprequests.lua: code for processing httprequests commands and output
 --[==========================================================================[
  Copyright (C) 2007 the VideoLAN team
+ Copyright (C) 2026 TheFenrisLycaon
 
- Authors: Antoine Cellerier <dionoea at videolan dot org>
+ Authors: Antoine Cellerier <dionoea at lycaria dot org>
  Rob Jonson <rob at hobbyistsoftware.com>
 
  This program is free software; you can redistribute it and/or modify
@@ -84,62 +85,62 @@ processcommands = function ()
 
     if command == "in_play" then
         --[[
-        vlc.msg.err( "<options>" )
+        heimdall.msg.err( "<options>" )
         for a,b in ipairs(options) do
-        vlc.msg.err(b)
+        heimdall.msg.err(b)
         end
-        vlc.msg.err( "</options>" )
+        heimdall.msg.err( "</options>" )
         --]]
-        vlc.playlist.add({{path=vlc.strings.make_uri(input),options=options,name=name,duration=duration}})
+        heimdall.playlist.add({{path=heimdall.strings.make_uri(input),options=options,name=name,duration=duration}})
     elseif command == "addsubtitle" then
-        vlc.player.add_subtitle(val)
+        heimdall.player.add_subtitle(val)
     elseif command == "in_enqueue" then
-        vlc.playlist.enqueue({{path=vlc.strings.make_uri(input),options=options,name=name,duration=duration}})
+        heimdall.playlist.enqueue({{path=heimdall.strings.make_uri(input),options=options,name=name,duration=duration}})
     elseif command == "pl_play" then
         if id == -1 then
-            vlc.playlist.play()
+            heimdall.playlist.play()
         else
-            vlc.playlist.gotoitem(id)
+            heimdall.playlist.gotoitem(id)
         end
     elseif command == "pl_pause" then
-        if vlc.playlist.status() == "stopped" then
+        if heimdall.playlist.status() == "stopped" then
             if id == -1 then
-                vlc.playlist.play()
+                heimdall.playlist.play()
             else
-                vlc.playlist.gotoitem(id)
+                heimdall.playlist.gotoitem(id)
             end
         else
-            vlc.playlist.pause()
+            heimdall.playlist.pause()
         end
     elseif command == "pl_forcepause" then
-        if vlc.playlist.status() == "playing" then
-            vlc.playlist.pause()
+        if heimdall.playlist.status() == "playing" then
+            heimdall.playlist.pause()
         end
     elseif command == "pl_forceresume" then
-        if vlc.playlist.status() == "paused" then
-            vlc.playlist.pause()
+        if heimdall.playlist.status() == "paused" then
+            heimdall.playlist.pause()
         end
     elseif command == "pl_stop" then
-        vlc.playlist.stop()
+        heimdall.playlist.stop()
     elseif command == "pl_next" then
-        vlc.playlist.next()
+        heimdall.playlist.next()
     elseif command == "pl_previous" then
-        vlc.playlist.prev()
+        heimdall.playlist.prev()
     elseif command == "pl_delete" then
-        vlc.playlist.delete(id)
+        heimdall.playlist.delete(id)
     elseif command == "pl_empty" then
-        vlc.playlist.clear()
+        heimdall.playlist.clear()
     elseif command == "pl_sort" then
-        vlc.playlist.sort( val, id > 0 )
+        heimdall.playlist.sort( val, id > 0 )
     elseif command == "pl_random" then
-        vlc.playlist.random()
+        heimdall.playlist.random()
     elseif command == "pl_loop" then
-        vlc.playlist.loop()
+        heimdall.playlist.loop()
     elseif command == "pl_repeat" then
-        vlc.playlist.repeat_()
+        heimdall.playlist.repeat_()
     elseif command == "fullscreen" then
-        if vlc.object.vout() then
-            vlc.video.fullscreen()
+        if heimdall.object.vout() then
+            heimdall.video.fullscreen()
         end
     elseif command == "snapshot" then
         common.snapshot()
@@ -151,39 +152,39 @@ processcommands = function ()
         common.hotkey("key-"..val)
     elseif command == "audiodelay" then
         val = common.us_tonumber(val)
-        vlc.player.set_audio_delay(val)
+        heimdall.player.set_audio_delay(val)
     elseif command == "rate" then
         val = common.us_tonumber(val)
         if val >= 0 then
-            vlc.player.set_rate(val)
+            heimdall.player.set_rate(val)
         end
     elseif command == "subdelay" then
         val = common.us_tonumber(val)
-        vlc.player.set_subtitle_delay(val)
+        heimdall.player.set_subtitle_delay(val)
     elseif command == "aspectratio" then
-        if vlc.object.vout() then
-            vlc.var.set(vlc.object.vout(),"aspect-ratio",val)
+        if heimdall.object.vout() then
+            heimdall.var.set(heimdall.object.vout(),"aspect-ratio",val)
         end
     elseif command == "preamp" then
         val = common.us_tonumber(val)
-        vlc.equalizer.preampset(val)
+        heimdall.equalizer.preampset(val)
     elseif command == "equalizer" then
         val = common.us_tonumber(val)
-        vlc.equalizer.equalizerset(band,val)
+        heimdall.equalizer.equalizerset(band,val)
     elseif command == "enableeq" then
-        if val == '0' then vlc.equalizer.enable(false) else vlc.equalizer.enable(true) end
+        if val == '0' then heimdall.equalizer.enable(false) else heimdall.equalizer.enable(true) end
     elseif command == "setpreset" then
-        vlc.equalizer.setpreset(val)
+        heimdall.equalizer.setpreset(val)
     elseif command == "title" then
-        vlc.player.title_goto(val)
+        heimdall.player.title_goto(val)
     elseif command == "chapter" then
-        vlc.player.chapter_goto(val)
+        heimdall.player.chapter_goto(val)
     elseif command == "audio_track" then
-        vlc.player.toggle_audio_track(val)
+        heimdall.player.toggle_audio_track(val)
     elseif command == "video_track" then
-        vlc.player.toggle_video_track(val)
+        heimdall.player.toggle_video_track(val)
     elseif command == "subtitle_track" then
-        vlc.player.toggle_spu_track(val)
+        heimdall.player.toggle_spu_track(val)
     elseif command == "set_renderer" then
         local rd = get_renderer_discovery()
         if not rd then
@@ -206,7 +207,7 @@ httprequests.processcommands = processcommands
 
 function xmlString(s)
     if (type(s)=="string") then
-        return vlc.strings.convert_xml_special_chars(s)
+        return heimdall.strings.convert_xml_special_chars(s)
     elseif (type(s)=="number") then
         return common.us_tostring(s)
     else
@@ -281,7 +282,7 @@ httprequests.printTableAsXml = printTableAsXml
 function logTable(t,pre)
 local pre = pre or ""
 for k,v in pairs(t) do
-vlc.msg.err(pre..tostring(k).." : "..tostring(v))
+heimdall.msg.err(pre..tostring(k).." : "..tostring(v))
 if type(v) == "table" then
 a(v,pre.."  ")
 end
@@ -299,10 +300,10 @@ getplaylist = function ()
         else
             _G.search_key = nil
         end
-        local key = vlc.strings.decode_uri(_GET["search"])
-        p = vlc.playlist.search(key)
+        local key = heimdall.strings.decode_uri(_GET["search"])
+        p = heimdall.playlist.search(key)
     else
-        p = vlc.playlist.list()
+        p = heimdall.playlist.list()
     end
 
     --logTable(p) --Uncomment to debug
@@ -313,7 +314,7 @@ httprequests.getplaylist = getplaylist
 
 parseplaylist = function (list)
     local playlist = {}
-    local current_item_id = vlc.playlist.current()
+    local current_item_id = heimdall.playlist.current()
     for i, item in ipairs(list) do
         local result={}
 
@@ -361,7 +362,7 @@ getbrowsetable = function ()
             if not string.match(uri, "/$") then
                 uri = uri.."/"
             end
-            dir = vlc.strings.make_path(common.realpath(uri))
+            dir = heimdall.strings.make_path(common.realpath(uri))
         end
     elseif _GET["dir"] then
         dir = _GET["dir"]
@@ -383,10 +384,10 @@ getbrowsetable = function ()
     end
 
     if dir == "~" then
-        dir = vlc.config.homedir().."/"
+        dir = heimdall.config.homedir().."/"
     end
 
-    local d = vlc.net.opendir(dir)
+    local d = heimdall.net.opendir(dir)
     table.sort(d)
 
     --FIXME: this is the wrong place to do this, but this still offers
@@ -400,7 +401,7 @@ getbrowsetable = function ()
             local path = dir..f
             local element={}
 
-            local s = vlc.net.stat(path)
+            local s = heimdall.net.stat(path)
             if (s) then
                 for k,v in pairs(s) do
                     element[k]=v
@@ -411,7 +412,7 @@ getbrowsetable = function ()
             element["path"]=path
             element["name"]=f
 
-            local uri=vlc.strings.make_uri(path)
+            local uri=heimdall.strings.make_uri(path)
             if uri then
                 element["uri"]=common.realpath(uri)
             end
@@ -428,25 +429,25 @@ httprequests.getbrowsetable = getbrowsetable
 getstatus = function (includecategories)
 
 
-    local item = vlc.player.item()
-    local playlist = vlc.object.playlist()
-    local vout = vlc.object.vout()
-    local aout = vlc.object.aout()
+    local item = heimdall.player.item()
+    local playlist = heimdall.object.playlist()
+    local vout = heimdall.object.vout()
+    local aout = heimdall.object.aout()
 
     local s ={}
 
     --update api version when new data/commands added
     s.apiversion=4
-    s.version=vlc.misc.version()
-    s.volume=vlc.volume.get()
-    s.seek_sec = vlc.config.get("short-jump-size")
+    s.version=heimdall.misc.version()
+    s.volume=heimdall.volume.get()
+    s.seek_sec = heimdall.config.get("short-jump-size")
 
-    s.time = vlc.player.get_time() / 1000000
-    s.position = vlc.player.get_position()
-    s.currentplid = vlc.playlist.current()
-    s.audiodelay = vlc.player.get_audio_delay()
-    s.rate = vlc.player.get_rate()
-    s.subtitledelay = vlc.player.get_subtitle_delay()
+    s.time = heimdall.player.get_time() / 1000000
+    s.position = heimdall.player.get_position()
+    s.currentplid = heimdall.playlist.current()
+    s.audiodelay = heimdall.player.get_audio_delay()
+    s.rate = heimdall.player.get_rate()
+    s.subtitledelay = heimdall.player.get_subtitle_delay()
 
     if item then
         s.length=math.floor(item:duration())
@@ -455,15 +456,15 @@ getstatus = function (includecategories)
     end
 
     if vout then
-        s.fullscreen=vlc.var.get(vout,"fullscreen")
-        s.aspectratio=vlc.var.get(vout,"aspect-ratio");
+        s.fullscreen=heimdall.var.get(vout,"fullscreen")
+        s.aspectratio=heimdall.var.get(vout,"aspect-ratio");
         if s.aspectratio=="" then s.aspectratio = "default" end
     else
         s.fullscreen=0
     end
 
     if aout then
-        local filters=vlc.var.get(aout,"audio-filter")
+        local filters=heimdall.var.get(aout,"audio-filter")
         local temp=strsplit(filters,":")
         s.audiofilters={}
         local id=0
@@ -474,23 +475,23 @@ getstatus = function (includecategories)
     end
 
     s.videoeffects={}
-    s.videoeffects.hue=round(vlc.config.get("hue"),2)
-    s.videoeffects.brightness=round(vlc.config.get("brightness"),2)
-    s.videoeffects.contrast=round(vlc.config.get("contrast"),2)
-    s.videoeffects.saturation=round(vlc.config.get("saturation"),2)
-    s.videoeffects.gamma=round(vlc.config.get("gamma"),2)
+    s.videoeffects.hue=round(heimdall.config.get("hue"),2)
+    s.videoeffects.brightness=round(heimdall.config.get("brightness"),2)
+    s.videoeffects.contrast=round(heimdall.config.get("contrast"),2)
+    s.videoeffects.saturation=round(heimdall.config.get("saturation"),2)
+    s.videoeffects.gamma=round(heimdall.config.get("gamma"),2)
 
-    s.state=vlc.playlist.status()
-    s.random = vlc.playlist.get_random()
-    s.loop = vlc.playlist.get_loop()
-    s["repeat"] = vlc.playlist.get_repeat()
+    s.state=heimdall.playlist.status()
+    s.random = heimdall.playlist.get_random()
+    s.loop = heimdall.playlist.get_loop()
+    s["repeat"] = heimdall.playlist.get_repeat()
 
     s.equalizer={}
-    s.equalizer.preamp=round(vlc.equalizer.preampget(),2)
-    s.equalizer.bands=vlc.equalizer.equalizerget()
+    s.equalizer.preamp=round(heimdall.equalizer.preampget(),2)
+    s.equalizer.bands=heimdall.equalizer.equalizerget()
     if s.equalizer.bands ~= null then
         for k,i in pairs(s.equalizer.bands) do s.equalizer.bands[k]=round(i,2) end
-        s.equalizer.presets=vlc.equalizer.presets()
+        s.equalizer.presets=heimdall.equalizer.presets()
     end
 
     if (includecategories and item) then
@@ -517,11 +518,11 @@ getstatus = function (includecategories)
             s.stats[tag]=v
         end
 
-        s.information.chapter = vlc.player.get_chapter_index()
-        s.information.title = vlc.player.get_title_index()
+        s.information.chapter = heimdall.player.get_chapter_index()
+        s.information.title = heimdall.player.get_title_index()
 
-        s.information.chapters_count = vlc.player.get_chapters_count()
-        s.information.titles_count = vlc.player.get_titles_count()
+        s.information.chapters_count = heimdall.player.get_chapters_count()
+        s.information.titles_count = heimdall.player.get_titles_count()
 
     end
     return s

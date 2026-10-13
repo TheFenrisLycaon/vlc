@@ -2,6 +2,7 @@
  * medialib.c: Player/Media Library interractions
  *****************************************************************************
  * Copyright © 2018-2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,63 +23,63 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 #include "player.h"
 #include "misc/variables.h"
 
 void
-vlc_player_input_RestoreMlStates(struct vlc_player_input* input, bool force_pos)
+heimdall_player_input_RestoreMlStates(struct heimdall_player_input* input, bool force_pos)
 {
-    vlc_player_t* player = input->player;
-    vlc_player_assert_locked(player);
+    heimdall_player_t* player = input->player;
+    heimdall_player_assert_locked(player);
 
     int restore_pos;
     if (force_pos)
-        restore_pos = VLC_PLAYER_RESTORE_PLAYBACK_POS_ALWAYS;
+        restore_pos = HEIMDALL_PLAYER_RESTORE_PLAYBACK_POS_ALWAYS;
     else
         restore_pos = var_InheritInteger(input->thread, "restore-playback-pos");
 
     const bool restore_states = var_InheritBool(input->thread, "restore-playback-states");
 
-    vlc_medialibrary_t* ml = vlc_ml_instance_get(input->player);
+    heimdall_medialibrary_t* ml = heimdall_ml_instance_get(input->player);
     if (!ml)
         return;
     input_item_t* item = input_GetItem(input->thread);
-    vlc_ml_media_t* media = vlc_ml_get_media_by_mrl( ml, item->psz_uri);
+    heimdall_ml_media_t* media = heimdall_ml_get_media_by_mrl( ml, item->psz_uri);
     if (!media)
         return;
-    if (media->i_type != VLC_ML_MEDIA_TYPE_VIDEO ||
-        vlc_ml_media_get_all_playback_pref(ml, media->i_id,
-                                           &input->ml.states) != VLC_SUCCESS)
+    if (media->i_type != HEIMDALL_ML_MEDIA_TYPE_VIDEO ||
+        heimdall_ml_media_get_all_playback_pref(ml, media->i_id,
+                                           &input->ml.states) != HEIMDALL_SUCCESS)
     {
-        vlc_ml_release(media);
+        heimdall_ml_release(media);
         return;
     }
 
-    input->ml.restore = (restore_pos == VLC_PLAYER_RESTORE_PLAYBACK_POS_ALWAYS) ?
-                            VLC_RESTOREPOINT_TITLE : VLC_RESTOREPOINT_NONE;
+    input->ml.restore = (restore_pos == HEIMDALL_PLAYER_RESTORE_PLAYBACK_POS_ALWAYS) ?
+                            HEIMDALL_RESTOREPOINT_TITLE : HEIMDALL_RESTOREPOINT_NONE;
     input->ml.restore_states = restore_states;
     /* If we are aiming at a specific title, wait for it to be added, and
      * only then select it & set the position.
      * If we're not aiming at a specific title, just set the position now.
      */
-    if (restore_pos == VLC_PLAYER_RESTORE_PLAYBACK_POS_ALWAYS &&
+    if (restore_pos == HEIMDALL_PLAYER_RESTORE_PLAYBACK_POS_ALWAYS &&
             input->ml.states.current_title == -1 &&
             media->f_progress > .0f)
         input_SetPosition(input->thread, media->f_progress, false);
-    else if (restore_pos == VLC_PLAYER_RESTORE_PLAYBACK_POS_ASK &&
+    else if (restore_pos == HEIMDALL_PLAYER_RESTORE_PLAYBACK_POS_ASK &&
              media->f_progress > .0f)
     {
         input->ml.delay_restore = true;
         input->ml.pos = media->f_progress;
     }
 
-    vlc_ml_release(media);
+    heimdall_ml_release(media);
 
     if (!restore_states)
         return;
     if (input->ml.states.rate != .0f)
-        vlc_player_ChangeRate(player, input->ml.states.rate);
+        heimdall_player_ChangeRate(player, input->ml.states.rate);
 
 
     const char *video_track_ids = input->ml.states.current_video_track;
@@ -86,16 +87,16 @@ vlc_player_input_RestoreMlStates(struct vlc_player_input* input, bool force_pos)
     const char *subtitle_track_ids = input->ml.states.current_subtitle_track;
 
     if (video_track_ids)
-        vlc_player_input_SelectTracksByStringIds(input, VIDEO_ES,
+        heimdall_player_input_SelectTracksByStringIds(input, VIDEO_ES,
                                                  video_track_ids);
     if (audio_track_ids)
-        vlc_player_input_SelectTracksByStringIds(input, AUDIO_ES,
+        heimdall_player_input_SelectTracksByStringIds(input, AUDIO_ES,
                                                  audio_track_ids);
     if (subtitle_track_ids)
-        vlc_player_input_SelectTracksByStringIds(input, SPU_ES,
+        heimdall_player_input_SelectTracksByStringIds(input, SPU_ES,
                                                  subtitle_track_ids);
 
-    vout_thread_t* vout = vlc_player_vout_Hold(player);
+    vout_thread_t* vout = heimdall_player_vout_Hold(player);
     if (vout != NULL)
     {
         if (input->ml.states.zoom >= .0f)
@@ -125,25 +126,25 @@ vlc_player_input_RestoreMlStates(struct vlc_player_input* input, bool force_pos)
 }
 
 static bool
-vlc_player_UpdateMediaType(const struct vlc_player_input* input,
-                           vlc_medialibrary_t* ml, vlc_ml_media_t* media)
+heimdall_player_UpdateMediaType(const struct heimdall_player_input* input,
+                           heimdall_medialibrary_t* ml, heimdall_ml_media_t* media)
 {
-    assert(media->i_type == VLC_ML_MEDIA_TYPE_UNKNOWN);
-    vlc_ml_media_type_t media_type;
+    assert(media->i_type == HEIMDALL_ML_MEDIA_TYPE_UNKNOWN);
+    heimdall_ml_media_type_t media_type;
     if (input->ml.has_video_tracks)
-        media_type = VLC_ML_MEDIA_TYPE_VIDEO;
+        media_type = HEIMDALL_ML_MEDIA_TYPE_VIDEO;
     else if (input->ml.has_audio_tracks)
-        media_type = VLC_ML_MEDIA_TYPE_AUDIO;
+        media_type = HEIMDALL_ML_MEDIA_TYPE_AUDIO;
     else
         return false;
-    if (vlc_ml_media_set_type(ml, media->i_id, media_type) != VLC_SUCCESS)
+    if (heimdall_ml_media_set_type(ml, media->i_id, media_type) != HEIMDALL_SUCCESS)
         return false;
     media->i_type = media_type;
     return true;
 }
 
 static void
-vlc_player_CompareAssignState(char **target_ptr, char **input_ptr)
+heimdall_player_CompareAssignState(char **target_ptr, char **input_ptr)
 {
     /* We only want to save these states if they are different, and not the
      * default values (NULL), so this means that either one is NULL and the
@@ -168,42 +169,42 @@ vlc_player_CompareAssignState(char **target_ptr, char **input_ptr)
 }
 
 void
-vlc_player_UpdateMLStates(vlc_player_t *player, struct vlc_player_input* input)
+heimdall_player_UpdateMLStates(heimdall_player_t *player, struct heimdall_player_input* input)
 {
     /* Do not save states for any secondary player. If this player's parent is
-       the main vlc object, then it's the main player */
-    if (player->obj.priv->parent != (vlc_object_t*)vlc_object_instance(player))
+       the main heimdall object, then it's the main player */
+    if (player->obj.priv->parent != (heimdall_object_t*)heimdall_object_instance(player))
         return;
 
-    vlc_medialibrary_t* ml = vlc_ml_instance_get(player);
+    heimdall_medialibrary_t* ml = heimdall_ml_instance_get(player);
     if (!ml)
         return;
     input_item_t* item = input_GetItem(input->thread);
     if (!item)
         return;
-    vlc_ml_media_t* media = vlc_ml_get_media_by_mrl(ml, item->psz_uri);
+    heimdall_ml_media_t* media = heimdall_ml_get_media_by_mrl(ml, item->psz_uri);
     if (!media)
     {
         /* We don't know this media yet, let's add it as an external media so
          * we can still store its playback preferences
          */
-        media = vlc_ml_new_external_media(ml, item->psz_uri);
+        media = heimdall_ml_new_external_media(ml, item->psz_uri);
         if (media == NULL)
             return;
     }
 
-    if (media->i_type == VLC_ML_MEDIA_TYPE_UNKNOWN)
+    if (media->i_type == HEIMDALL_ML_MEDIA_TYPE_UNKNOWN)
     {
-        if (!vlc_player_UpdateMediaType(input, ml, media))
+        if (!heimdall_player_UpdateMediaType(input, ml, media))
         {
-            vlc_ml_release( media );
+            heimdall_ml_release( media );
             return;
         }
     }
-    assert(media->i_type != VLC_ML_MEDIA_TYPE_UNKNOWN);
+    assert(media->i_type != HEIMDALL_ML_MEDIA_TYPE_UNKNOWN);
 
     if ( var_GetBool( input->thread, "save-recentplay" ) )
-        vlc_ml_media_update_progress( ml, media->i_id, input->position );
+        heimdall_ml_media_update_progress( ml, media->i_id, input->position );
 
     /* If the value changed during the playback, update it in the medialibrary.
      * If not, set each state to their "unset" values, so that they aren't saved
@@ -226,16 +227,16 @@ vlc_player_UpdateMLStates(vlc_player_t *player, struct vlc_player_input* input)
     else
         input->ml.states.rate = -1.f;
 
-    struct vlc_player_track_priv* t;
+    struct heimdall_player_track_priv* t;
     vout_thread_t* vout = NULL;
 
-    vlc_vector_foreach(t, &input->video_track_vector)
+    heimdall_vector_foreach(t, &input->video_track_vector)
     {
         if (!t->t.selected)
             continue;
-        enum vlc_vout_order order;
-        vout = vlc_player_GetEsIdVout(player, t->t.es_id, &order);
-        if (vout != NULL && order == VLC_VOUT_ORDER_PRIMARY)
+        enum heimdall_vout_order order;
+        vout = heimdall_player_GetEsIdVout(player, t->t.es_id, &order);
+        if (vout != NULL && order == HEIMDALL_VOUT_ORDER_PRIMARY)
             break;
         vout = NULL;
     }
@@ -246,10 +247,10 @@ vlc_player_UpdateMLStates(vlc_player_t *player, struct vlc_player_input* input)
         char* deinterlace = var_GetNonEmptyString(vout, "deinterlace-mode");
         char* video_filter = var_GetNonEmptyString(vout, "video-filter");
 
-        vlc_player_CompareAssignState(&input->ml.states.aspect_ratio, &aspect_ratio);
-        vlc_player_CompareAssignState(&input->ml.states.crop, &crop);
-        vlc_player_CompareAssignState(&input->ml.states.deinterlace, &deinterlace);
-        vlc_player_CompareAssignState(&input->ml.states.video_filter, &video_filter);
+        heimdall_player_CompareAssignState(&input->ml.states.aspect_ratio, &aspect_ratio);
+        heimdall_player_CompareAssignState(&input->ml.states.crop, &crop);
+        heimdall_player_CompareAssignState(&input->ml.states.deinterlace, &deinterlace);
+        heimdall_player_CompareAssignState(&input->ml.states.video_filter, &video_filter);
 
         free(video_filter);
         free(deinterlace);
@@ -272,28 +273,28 @@ vlc_player_UpdateMLStates(vlc_player_t *player, struct vlc_player_input* input)
     }
 
     char *video_track_ids =
-        vlc_player_input_GetSelectedTrackStringIds(input, VIDEO_ES);
+        heimdall_player_input_GetSelectedTrackStringIds(input, VIDEO_ES);
     char *audio_track_ids =
-        vlc_player_input_GetSelectedTrackStringIds(input, AUDIO_ES);
+        heimdall_player_input_GetSelectedTrackStringIds(input, AUDIO_ES);
     char *subtitle_track_ids =
-        vlc_player_input_GetSelectedTrackStringIds(input, SPU_ES);
+        heimdall_player_input_GetSelectedTrackStringIds(input, SPU_ES);
 
-    vlc_player_CompareAssignState(&input->ml.states.current_video_track, &video_track_ids);
-    vlc_player_CompareAssignState(&input->ml.states.current_audio_track, &audio_track_ids);
-    vlc_player_CompareAssignState(&input->ml.states.current_subtitle_track, &subtitle_track_ids);
+    heimdall_player_CompareAssignState(&input->ml.states.current_video_track, &video_track_ids);
+    heimdall_player_CompareAssignState(&input->ml.states.current_audio_track, &audio_track_ids);
+    heimdall_player_CompareAssignState(&input->ml.states.current_subtitle_track, &subtitle_track_ids);
 
     free(video_track_ids);
     free(audio_track_ids);
     free(subtitle_track_ids);
 
-    vlc_ml_media_set_all_playback_states(ml, media->i_id, &input->ml.states);
+    heimdall_ml_media_set_all_playback_states(ml, media->i_id, &input->ml.states);
 
-    vlc_ml_release(&input->ml.states);
-    vlc_ml_release(media);
+    heimdall_ml_release(&input->ml.states);
+    heimdall_ml_release(media);
 }
 
 void
-vlc_player_RestorePlaybackPos(vlc_player_t *player)
+heimdall_player_RestorePlaybackPos(heimdall_player_t *player)
 {
-    vlc_player_input_RestoreMlStates(player->input, true);
+    heimdall_player_input_RestoreMlStates(player->input, true);
 }

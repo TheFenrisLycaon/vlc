@@ -2,6 +2,7 @@
  * h26x.c : raw H264 and HEVC Video demuxers
  *****************************************************************************
  * Copyright (C) 2002-2004, 2014-2015 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *          Denis Charmet <typx@videolan.org>
@@ -29,24 +30,24 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_demux.h>
-#include <vlc_codec.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_demux.h>
+#include <heimdall_codec.h>
 #include "../../packetizer/hevc_nal.h" /* definitions, inline helpers */
 #include "../../packetizer/h264_nal.h" /* definitions, inline helpers */
 
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  OpenH264 ( vlc_object_t * );
-static int  OpenHEVC ( vlc_object_t * );
-static void Close( vlc_object_t * );
+static int  OpenH264 ( heimdall_object_t * );
+static int  OpenHEVC ( heimdall_object_t * );
+static void Close( heimdall_object_t * );
 
 #define FPS_TEXT N_("Frames per Second")
 #define FPS_LONGTEXT N_("Desired frame rate for the stream.")
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( "H264")
     set_subcategory( SUBCAT_INPUT_DEMUX )
     set_description( N_("H264 video demuxer" ) )
@@ -67,7 +68,7 @@ vlc_module_begin ()
         set_callbacks( OpenHEVC, Close )
         add_shortcut( "hevc", "h265" )
 
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * Local prototypes
@@ -246,7 +247,7 @@ static inline bool check_Property( demux_t *p_demux, const char **pp_psz,
 }
 
 static int GenericOpen( demux_t *p_demux, const char *psz_module,
-                        vlc_fourcc_t i_codec,
+                        heimdall_fourcc_t i_codec,
                         int(*pf_probe)(const uint8_t *, size_t, void *),
                         void *p_ctx,
                         const char **pp_psz_exts,
@@ -263,11 +264,11 @@ static int GenericOpen( demux_t *p_demux, const char *psz_module,
         !check_Property( p_demux, pp_psz_exts, demux_IsPathExtension ) &&
         !check_Property( p_demux, pp_psz_mimes, demux_IsContentType ) )
     {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* First check for first AnnexB header */
-    if( vlc_stream_Peek( p_demux->s, &p_peek, H26X_MIN_PEEK ) == H26X_MIN_PEEK &&
+    if( heimdall_stream_Peek( p_demux->s, &p_peek, H26X_MIN_PEEK ) == H26X_MIN_PEEK &&
        !memcmp( p_peek, annexb_startcode, 4 ) )
     {
         ssize_t i_peek = H26X_MIN_PEEK;
@@ -285,7 +286,7 @@ static int GenericOpen( demux_t *p_demux, const char *psz_module,
                     i_peek_target + H26X_PEEK_CHUNK <= H26X_MAX_PEEK )
                 {
                     i_peek_target += H26X_PEEK_CHUNK;
-                    i_peek = vlc_stream_Peek( p_demux->s, &p_peek, i_peek_target );
+                    i_peek = heimdall_stream_Peek( p_demux->s, &p_peek, i_peek_target );
                 }
 
                 if( i_probe_offset + H26X_MIN_PEEK >= i_peek )
@@ -319,7 +320,7 @@ static int GenericOpen( demux_t *p_demux, const char *psz_module,
         if( !p_demux->obj.force )
         {
             msg_Warn( p_demux, "%s module discarded (no startcode)", psz_module );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         msg_Err( p_demux, "this doesn't look like a %s ES stream, "
@@ -350,7 +351,7 @@ static int GenericOpen( demux_t *p_demux, const char *psz_module,
     }
     else
         date_Init( &p_sys->feed_dts, 25000, 1000 );
-    date_Set( &p_sys->feed_dts, VLC_TICK_0 );
+    date_Set( &p_sys->feed_dts, HEIMDALL_TICK_0 );
     p_sys->output_dts = p_sys->feed_dts;
 
     /* Load the mpegvideo packetizer */
@@ -360,43 +361,43 @@ static int GenericOpen( demux_t *p_demux, const char *psz_module,
         fmt.video.i_frame_rate = p_sys->feed_dts.i_divider_num;
         fmt.video.i_frame_rate_base = p_sys->feed_dts.i_divider_den;
     }
-    p_sys->p_packetizer = demux_PacketizerNew( VLC_OBJECT(p_demux), &fmt, psz_module );
+    p_sys->p_packetizer = demux_PacketizerNew( HEIMDALL_OBJECT(p_demux), &fmt, psz_module );
     if( !p_sys->p_packetizer )
     {
         free( p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * Open: initializes demux structures
  *****************************************************************************/
-static int OpenH264( vlc_object_t * p_this )
+static int OpenH264( heimdall_object_t * p_this )
 {
     h264_probe_ctx_t ctx = { 0, 0 };
     const char *rgi_psz_ext[] = { ".h264", ".264", ".bin", ".bit", ".raw", NULL };
     const char *rgi_psz_mime[] = { "video/H264", "video/h264", "video/avc", NULL };
 
-    return GenericOpen( (demux_t*)p_this, "h264", VLC_CODEC_H264, ProbeH264,
+    return GenericOpen( (demux_t*)p_this, "h264", HEIMDALL_CODEC_H264, ProbeH264,
                         &ctx, rgi_psz_ext, rgi_psz_mime );
 }
 
-static int OpenHEVC( vlc_object_t * p_this )
+static int OpenHEVC( heimdall_object_t * p_this )
 {
     hevc_probe_ctx_t ctx = { 0, 0, 0 };
     const char *rgi_psz_ext[] = { ".h265", ".265", ".hevc", ".bin", ".bit", ".raw", NULL };
     const char *rgi_psz_mime[] = { "video/h265", "video/hevc", "video/HEVC", NULL };
 
-    return GenericOpen( (demux_t*)p_this, "hevc", VLC_CODEC_HEVC, ProbeHEVC,
+    return GenericOpen( (demux_t*)p_this, "hevc", HEIMDALL_CODEC_HEVC, ProbeHEVC,
                         &ctx, rgi_psz_ext, rgi_psz_mime );
 }
 
 /*****************************************************************************
  * Close: frees unused data
  *****************************************************************************/
-static void Close( vlc_object_t * p_this )
+static void Close( heimdall_object_t * p_this )
 {
     demux_t     *p_demux = (demux_t*)p_this;
     demux_sys_t *p_sys = p_demux->p_sys;
@@ -416,7 +417,7 @@ static int Demux( demux_t *p_demux)
     block_t *p_block_in, *p_block_out;
     bool b_eof = false;
 
-    p_block_in = vlc_stream_Block( p_demux->s, H26X_PACKET_SIZE );
+    p_block_in = heimdall_stream_Block( p_demux->s, H26X_PACKET_SIZE );
     if( p_block_in == NULL )
     {
         b_eof = true;
@@ -447,21 +448,21 @@ static int Demux( demux_t *p_demux)
             }
 
             /* we only want to use the pts-dts offset and length from packetizer */
-            vlc_tick_t dtsdiff = p_block_out->i_pts > p_block_out->i_dts
+            heimdall_tick_t dtsdiff = p_block_out->i_pts > p_block_out->i_dts
                                ? p_block_out->i_pts - p_block_out->i_dts
                                : 0;
             /* Always start frame N=1 so we get PCR on N=0 */
             date_t dtsdate = p_sys->output_dts;
-            vlc_tick_t dts = date_Increment( &dtsdate, 2 );
+            heimdall_tick_t dts = date_Increment( &dtsdate, 2 );
 
             p_block_out->i_dts = dts;
-            if( p_block_out->i_pts != VLC_TICK_INVALID )
+            if( p_block_out->i_pts != HEIMDALL_TICK_INVALID )
                 p_block_out->i_pts = dts + dtsdiff;
 
             if( p_block_in )
             {
                 p_block_in->i_dts = date_Get( &p_sys->feed_dts );
-                p_block_in->i_pts = VLC_TICK_INVALID;
+                p_block_in->i_pts = HEIMDALL_TICK_INVALID;
             }
 
             if( p_sys->p_es == NULL )
@@ -472,21 +473,21 @@ static int Demux( demux_t *p_demux)
                 if( !p_sys->p_es )
                 {
                     block_ChainRelease( p_block_out );
-                    return VLC_DEMUXER_EOF;
+                    return HEIMDALL_DEMUXER_EOF;
                 }
             }
 
             /* h264 packetizer does merge multiple NAL into AU, but slice flag persists */
             bool frame = p_block_out->i_flags & BLOCK_FLAG_TYPE_MASK;
-            const vlc_tick_t i_frame_length = p_block_out->i_length;
+            const heimdall_tick_t i_frame_length = p_block_out->i_length;
 
             /* first output */
-            if( date_Get( &p_sys->output_dts ) == VLC_TICK_0 )
+            if( date_Get( &p_sys->output_dts ) == HEIMDALL_TICK_0 )
                 es_out_SetPCR( p_demux->out, date_Get( &p_sys->output_dts ) );
 
             es_out_Send( p_demux->out, p_sys->p_es, p_block_out );
 
-            vlc_tick_t pcr = b_eof ? dts : date_Get( &p_sys->output_dts );
+            heimdall_tick_t pcr = b_eof ? dts : date_Get( &p_sys->output_dts );
 
             if( frame )
             {
@@ -508,7 +509,7 @@ static int Demux( demux_t *p_demux)
             p_block_out = p_next;
         }
     }
-    return (b_eof) ? VLC_DEMUXER_EOF : VLC_DEMUXER_SUCCESS;
+    return (b_eof) ? HEIMDALL_DEMUXER_EOF : HEIMDALL_DEMUXER_SUCCESS;
 }
 
 /*****************************************************************************
@@ -519,7 +520,7 @@ static int Control( demux_t *p_demux, int i_query, va_list args )
     /* demux_sys_t *p_sys  = p_demux->p_sys; */
     /* FIXME calculate the bitrate */
     if( i_query == DEMUX_SET_TIME )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     else
         return demux_vaControlHelper( p_demux->s,
                                        0, -1,

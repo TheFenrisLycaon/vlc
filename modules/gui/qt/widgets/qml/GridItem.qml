@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,10 +21,10 @@ import QtQuick.Templates as T
 import QtQuick.Layouts
 import QtQml.Models
 
-import VLC.MainInterface
-import VLC.Widgets as Widgets
-import VLC.Util
-import VLC.Style
+import Heimdall.MainInterface
+import Heimdall.Widgets as Widgets
+import Heimdall.Util
+import Heimdall.Style
 
 T.ItemDelegate {
     id: root
@@ -32,13 +33,13 @@ T.ItemDelegate {
 
     required property Item view
 
-    property real pictureWidth: VLCStyle.colWidth(1)
+    property real pictureWidth: HeimdallStyle.colWidth(1)
     property real pictureHeight: pictureWidth
-    property int titleTopMargin: VLCStyle.gridItemTitle_topMargin
-    property int subtitleTopMargin: VLCStyle.gridItemSubtitle_topMargin
+    property int titleTopMargin: HeimdallStyle.gridItemTitle_topMargin
+    property int subtitleTopMargin: HeimdallStyle.gridItemSubtitle_topMargin
     property Item dragItem: null
 
-    readonly property int selectedBorderWidth: VLCStyle.gridItemSelectedBorder
+    readonly property int selectedBorderWidth: HeimdallStyle.gridItemSelectedBorder
 
     property int _modifiersOnLastPress: Qt.NoModifier
 
@@ -143,7 +144,7 @@ T.ItemDelegate {
 
                 NumberAnimation {
                     properties: "opacity"
-                    duration: VLCStyle.duration_long
+                    duration: HeimdallStyle.duration_long
                     easing.type: Easing.InSine
                 }
             }
@@ -161,7 +162,7 @@ T.ItemDelegate {
 
                 NumberAnimation {
                     properties: "opacity"
-                    duration: VLCStyle.duration_long
+                    duration: HeimdallStyle.duration_long
                     easing.type: Easing.OutSine
                 }
             }
@@ -290,7 +291,7 @@ T.ItemDelegate {
             id: picture
 
             implicitPlayCoverShowPlay: false
-            radius: VLCStyle.gridCover_radius
+            radius: HeimdallStyle.gridCover_radius
             color: theme.bg.secondary
 
             Layout.preferredWidth: root.width
@@ -330,11 +331,11 @@ T.ItemDelegate {
                 visible: opacity > 0
                 opacity: 0
 
-                primaryVerticalOffset: VLCStyle.dp(6, VLCStyle.scale)
-                primaryBlurRadius: VLCStyle.dp(18, VLCStyle.scale)
+                primaryVerticalOffset: HeimdallStyle.dp(6, HeimdallStyle.scale)
+                primaryBlurRadius: HeimdallStyle.dp(18, HeimdallStyle.scale)
 
-                secondaryVerticalOffset: VLCStyle.dp(32, VLCStyle.scale)
-                secondaryBlurRadius: VLCStyle.dp(72, VLCStyle.scale)
+                secondaryVerticalOffset: HeimdallStyle.dp(32, HeimdallStyle.scale)
+                secondaryBlurRadius: HeimdallStyle.dp(72, HeimdallStyle.scale)
 
                 z: -1
             }
@@ -377,7 +378,7 @@ T.ItemDelegate {
             Layout.alignment: root.textAlignHCenter ? Qt.AlignCenter : Qt.AlignLeft
             Layout.topMargin: root.subtitleTopMargin
 
-            T.ToolTip.delay: VLCStyle.delayToolTipAppear
+            T.ToolTip.delay: HeimdallStyle.delayToolTipAppear
             T.ToolTip.text: subtitleTxt.text
             T.ToolTip.visible: subtitleTxtMouseHandler.hovered
 

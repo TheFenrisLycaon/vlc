@@ -1,9 +1,10 @@
 /*****************************************************************************
- * mosaic.c : Mosaic video plugin for vlc
+ * mosaic.c : Mosaic video plugin for heimdall
  *****************************************************************************
  * Copyright (C) 2004-2008 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Antoine Cellerier <dionoea at videolan dot org>
+ * Authors: Antoine Cellerier <dionoea at lycaria dot org>
  *          Christophe Massiot <massiot@via.ecp.fr>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -31,34 +32,34 @@
 #include <math.h>
 #include <limits.h> /* INT_MAX */
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_threads.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_image.h>
-#include <vlc_subpicture.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_threads.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_image.h>
+#include <heimdall_subpicture.h>
 
 #include "mosaic.h"
 
-#define BLANK_DELAY  VLC_TICK_FROM_SEC(1)
+#define BLANK_DELAY  HEIMDALL_TICK_FROM_SEC(1)
 
 /*****************************************************************************
  * Local prototypes
  *****************************************************************************/
 static int  CreateFilter    ( filter_t * );
 static void DestroyFilter   ( filter_t * );
-static subpicture_t *Filter ( filter_t *, vlc_tick_t );
+static subpicture_t *Filter ( filter_t *, heimdall_tick_t );
 
-static int MosaicCallback   ( vlc_object_t *, char const *, vlc_value_t,
-                              vlc_value_t, void * );
+static int MosaicCallback   ( heimdall_object_t *, char const *, heimdall_value_t,
+                              heimdall_value_t, void * );
 
 /*****************************************************************************
  * filter_sys_t : filter descriptor
  *****************************************************************************/
 typedef struct
 {
-    vlc_mutex_t lock;         /* Internal filter lock */
+    heimdall_mutex_t lock;         /* Internal filter lock */
 
     image_handler_t *p_image;
 
@@ -79,7 +80,7 @@ typedef struct
     int *pi_y_offsets;        /* List of substreams y offsets */
     int i_offsets_length;
 
-    vlc_tick_t i_delay;
+    heimdall_tick_t i_delay;
 } filter_sys_t;
 
 /*****************************************************************************
@@ -183,7 +184,7 @@ static const char *const ppsz_align_descriptions[] =
 
 #define CFG_PREFIX "mosaic-"
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("Mosaic video sub source") )
     set_shortname( N_("Mosaic") )
     set_subcategory( SUBCAT_VIDEO_SUBPIC)
@@ -231,7 +232,7 @@ vlc_module_begin ()
                 OFFSETS_TEXT, OFFSETS_LONGTEXT )
 
     add_integer_with_range( CFG_PREFIX "delay", 0, 0, INT_MAX, DELAY_TEXT, DELAY_LONGTEXT )
-vlc_module_end ()
+heimdall_module_end ()
 
 static const char *const ppsz_filter_options[] = {
     "alpha", "height", "width", "align", "xoffset", "yoffset",
@@ -245,7 +246,7 @@ static const char *const ppsz_filter_options[] = {
  * parse the "--mosaic-offsets x1,y1,x2,y2,x3,y3" parameter
  * and set the corresponding struct filter_sys_t entries.
  *****************************************************************************/
-static void mosaic_ParseSetOffsets( vlc_object_t *p_this,
+static void mosaic_ParseSetOffsets( heimdall_object_t *p_this,
                                       filter_sys_t *p_sys,
                                       char *psz_offsets )
 {
@@ -278,9 +279,9 @@ static void mosaic_ParseSetOffsets( vlc_object_t *p_this,
     }
 }
 #define mosaic_ParseSetOffsets( a, b, c ) \
-            mosaic_ParseSetOffsets( VLC_OBJECT( a ), b, c )
+            mosaic_ParseSetOffsets( HEIMDALL_OBJECT( a ), b, c )
 
-static const struct vlc_filter_operations filter_ops = {
+static const struct heimdall_filter_operations filter_ops = {
     .source_sub = Filter, .close = DestroyFilter,
 };
 
@@ -298,12 +299,12 @@ static int CreateFilter( filter_t *p_filter )
     /* Allocate structure */
     p_sys = p_filter->p_sys = malloc( sizeof( filter_sys_t ) );
     if( p_sys == NULL )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_filter->ops = &filter_ops;
 
-    vlc_mutex_init( &p_sys->lock );
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_init( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
 
     config_ChainParse( p_filter, CFG_PREFIX, ppsz_filter_options,
                        p_filter->p_cfg );
@@ -331,7 +332,7 @@ static int CreateFilter( filter_t *p_filter )
         p_sys->i_align = SUBPICTURE_ALIGN_TOP | SUBPICTURE_ALIGN_LEFT;
 
     i_command = var_CreateGetIntegerCommand( p_filter, CFG_PREFIX "delay" );
-    p_sys->i_delay = VLC_TICK_FROM_MS( i_command );
+    p_sys->i_delay = HEIMDALL_TICK_FROM_MS( i_command );
     var_AddCallback( p_filter, CFG_PREFIX "delay", MosaicCallback, p_sys );
 
     p_sys->b_ar = var_CreateGetBoolCommand( p_filter,
@@ -380,9 +381,9 @@ static int CreateFilter( filter_t *p_filter )
     free( psz_offsets );
     var_AddCallback( p_filter, CFG_PREFIX "offsets", MosaicCallback, p_sys );
 
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -439,7 +440,7 @@ static void DestroyFilter( filter_t *p_filter )
 /*****************************************************************************
  * Filter
  *****************************************************************************/
-static subpicture_t *Filter( filter_t *p_filter, vlc_tick_t date )
+static subpicture_t *Filter( filter_t *p_filter, heimdall_tick_t date )
 {
     filter_sys_t *p_sys = p_filter->p_sys;
     bridge_t *p_bridge;
@@ -459,21 +460,21 @@ static subpicture_t *Filter( filter_t *p_filter, vlc_tick_t date )
     /* Initialize subpicture */
     p_spu->i_channel = 0;
     p_spu->i_start  = date;
-    p_spu->i_stop = VLC_TICK_INVALID;
+    p_spu->i_stop = HEIMDALL_TICK_INVALID;
     p_spu->b_ephemer = true;
     p_spu->i_alpha = p_sys->i_alpha;
 
     p_spu->i_original_picture_width = p_sys->i_width;
     p_spu->i_original_picture_height = p_sys->i_height;
 
-    vlc_mutex_lock( &p_sys->lock );
-    vlc_global_lock( VLC_MOSAIC_MUTEX );
+    heimdall_mutex_lock( &p_sys->lock );
+    heimdall_global_lock( HEIMDALL_MOSAIC_MUTEX );
 
     p_bridge = GetBridge( p_filter );
     if ( p_bridge == NULL )
     {
-        vlc_global_unlock( VLC_MOSAIC_MUTEX );
-        vlc_mutex_unlock( &p_sys->lock );
+        heimdall_global_unlock( HEIMDALL_MOSAIC_MUTEX );
+        heimdall_mutex_unlock( &p_sys->lock );
         return p_spu;
     }
 
@@ -539,16 +540,16 @@ static subpicture_t *Filter( filter_t *p_filter, vlc_tick_t date )
         if ( p_es->b_empty )
             continue;
 
-        while ( !vlc_picture_chain_IsEmpty( &p_es->pictures ) )
+        while ( !heimdall_picture_chain_IsEmpty( &p_es->pictures ) )
         {
-            picture_t *front = vlc_picture_chain_PeekFront( &p_es->pictures );
+            picture_t *front = heimdall_picture_chain_PeekFront( &p_es->pictures );
             if ( front->date + p_sys->i_delay >= date )
                 break; // front picture not late
 
-            if ( vlc_picture_chain_HasNext( &p_es->pictures ) )
+            if ( heimdall_picture_chain_HasNext( &p_es->pictures ) )
             {
                 // front picture is late and has more pictures chained, skip it
-                front = vlc_picture_chain_PopFront( &p_es->pictures );
+                front = heimdall_picture_chain_PopFront( &p_es->pictures );
                 picture_Release( front );
                 continue;
             }
@@ -556,7 +557,7 @@ static subpicture_t *Filter( filter_t *p_filter, vlc_tick_t date )
             if ( front->date + p_sys->i_delay + BLANK_DELAY < date )
             {
                 // front picture is late and too old, don't display it
-                front = vlc_picture_chain_PopFront( &p_es->pictures );
+                front = heimdall_picture_chain_PopFront( &p_es->pictures );
                 // the picture chain is empty as the front didn't have chained pics
                 picture_Release( front );
                 break;
@@ -571,7 +572,7 @@ static subpicture_t *Filter( filter_t *p_filter, vlc_tick_t date )
             }
         }
 
-        if ( vlc_picture_chain_IsEmpty( &p_es->pictures ) )
+        if ( heimdall_picture_chain_IsEmpty( &p_es->pictures ) )
             continue;
 
         if ( p_sys->i_order_length == 0 )
@@ -596,7 +597,7 @@ static subpicture_t *Filter( filter_t *p_filter, vlc_tick_t date )
         i_row = ( i_real_index / p_sys->i_cols ) % p_sys->i_rows;
         i_col = i_real_index % p_sys->i_cols ;
 
-        p_converted = vlc_picture_chain_PeekFront( &p_es->pictures );
+        p_converted = heimdall_picture_chain_PeekFront( &p_es->pictures );
         if ( !p_sys->b_keep )
         {
             video_format_Init( &fmt_in, 0 );
@@ -606,11 +607,11 @@ static subpicture_t *Filter( filter_t *p_filter, vlc_tick_t date )
             fmt_in.i_height = p_converted->format.i_height;
             fmt_in.i_width = p_converted->format.i_width;
 
-            if( fmt_in.i_chroma == VLC_CODEC_YUVA ||
-                fmt_in.i_chroma == VLC_CODEC_RGBA )
-                fmt_out.i_chroma = VLC_CODEC_YUVA;
+            if( fmt_in.i_chroma == HEIMDALL_CODEC_YUVA ||
+                fmt_in.i_chroma == HEIMDALL_CODEC_RGBA )
+                fmt_out.i_chroma = HEIMDALL_CODEC_YUVA;
             else
-                fmt_out.i_chroma = VLC_CODEC_I420;
+                fmt_out.i_chroma = HEIMDALL_CODEC_I420;
             fmt_out.i_width = col_inner_width;
             fmt_out.i_height = row_inner_height;
 
@@ -652,8 +653,8 @@ static subpicture_t *Filter( filter_t *p_filter, vlc_tick_t date )
         {
             msg_Err( p_filter, "cannot allocate SPU region" );
             subpicture_Delete( p_spu );
-            vlc_global_unlock( VLC_MOSAIC_MUTEX );
-            vlc_mutex_unlock( &p_sys->lock );
+            heimdall_global_unlock( HEIMDALL_MOSAIC_MUTEX );
+            heimdall_mutex_unlock( &p_sys->lock );
             return NULL;
         }
 
@@ -709,11 +710,11 @@ static subpicture_t *Filter( filter_t *p_filter, vlc_tick_t date )
         p_region->i_align = p_sys->i_align;
         p_region->i_alpha = p_es->i_alpha;
 
-        vlc_spu_regions_push(&p_spu->regions, p_region);
+        heimdall_spu_regions_push(&p_spu->regions, p_region);
     }
 
-    vlc_global_unlock( VLC_MOSAIC_MUTEX );
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_global_unlock( HEIMDALL_MOSAIC_MUTEX );
+    heimdall_mutex_unlock( &p_sys->lock );
 
     return p_spu;
 }
@@ -721,58 +722,58 @@ static subpicture_t *Filter( filter_t *p_filter, vlc_tick_t date )
 /*****************************************************************************
 * Callback to update params on the fly
 *****************************************************************************/
-static int MosaicCallback( vlc_object_t *p_this, char const *psz_var,
-                            vlc_value_t oldval, vlc_value_t newval,
+static int MosaicCallback( heimdall_object_t *p_this, char const *psz_var,
+                            heimdall_value_t oldval, heimdall_value_t newval,
                             void *p_data )
 {
-    VLC_UNUSED(oldval);
+    HEIMDALL_UNUSED(oldval);
     filter_sys_t *p_sys = p_data;
 
 #define VAR_IS( a ) !strcmp( psz_var, CFG_PREFIX a )
     if( VAR_IS( "alpha" ) )
     {
-        vlc_mutex_lock( &p_sys->lock );
+        heimdall_mutex_lock( &p_sys->lock );
         msg_Dbg( p_this, "changing alpha from %d/255 to %d/255",
                          p_sys->i_alpha, (int)newval.i_int);
         p_sys->i_alpha = newval.i_int;
-        vlc_mutex_unlock( &p_sys->lock );
+        heimdall_mutex_unlock( &p_sys->lock );
     }
     else if( VAR_IS( "height" ) )
     {
-        vlc_mutex_lock( &p_sys->lock );
+        heimdall_mutex_lock( &p_sys->lock );
         msg_Dbg( p_this, "changing height from %dpx to %dpx",
                           p_sys->i_height, (int)newval.i_int );
         p_sys->i_height = newval.i_int;
-        vlc_mutex_unlock( &p_sys->lock );
+        heimdall_mutex_unlock( &p_sys->lock );
     }
     else if( VAR_IS( "width" ) )
     {
-        vlc_mutex_lock( &p_sys->lock );
+        heimdall_mutex_lock( &p_sys->lock );
         msg_Dbg( p_this, "changing width from %upx to %upx",
                          p_sys->i_width, (unsigned)newval.i_int );
         p_sys->i_width = newval.i_int;
-        vlc_mutex_unlock( &p_sys->lock );
+        heimdall_mutex_unlock( &p_sys->lock );
     }
     else if( VAR_IS( "xoffset" ) )
     {
-        vlc_mutex_lock( &p_sys->lock );
+        heimdall_mutex_lock( &p_sys->lock );
         msg_Dbg( p_this, "changing x offset from %upx to %upx",
                          p_sys->i_xoffset, (unsigned)newval.i_int );
         p_sys->i_xoffset = newval.i_int;
-        vlc_mutex_unlock( &p_sys->lock );
+        heimdall_mutex_unlock( &p_sys->lock );
     }
     else if( VAR_IS( "yoffset" ) )
     {
-        vlc_mutex_lock( &p_sys->lock );
+        heimdall_mutex_lock( &p_sys->lock );
         msg_Dbg( p_this, "changing y offset from %dpx to %dpx",
                          p_sys->i_yoffset, (int)newval.i_int );
         p_sys->i_yoffset = newval.i_int;
-        vlc_mutex_unlock( &p_sys->lock );
+        heimdall_mutex_unlock( &p_sys->lock );
     }
     else if( VAR_IS( "align" ) )
     {
         int i_old = 0, i_new = 0;
-        vlc_mutex_lock( &p_sys->lock );
+        heimdall_mutex_lock( &p_sys->lock );
         if( newval.i_int == (SUBPICTURE_ALIGN_RIGHT|SUBPICTURE_ALIGN_LEFT) ||
             newval.i_int == (SUBPICTURE_ALIGN_RIGHT|SUBPICTURE_ALIGN_LEFT|SUBPICTURE_ALIGN_TOP) )
             newval.i_int = SUBPICTURE_ALIGN_TOP | SUBPICTURE_ALIGN_LEFT;
@@ -782,54 +783,54 @@ static int MosaicCallback( vlc_object_t *p_this, char const *psz_var,
                      p_sys->i_align, ppsz_align_descriptions[i_old],
                      (int)newval.i_int, ppsz_align_descriptions[i_new] );
         p_sys->i_align = newval.i_int;
-        vlc_mutex_unlock( &p_sys->lock );
+        heimdall_mutex_unlock( &p_sys->lock );
     }
     else if( VAR_IS( "borderw" ) )
     {
-        vlc_mutex_lock( &p_sys->lock );
+        heimdall_mutex_lock( &p_sys->lock );
         msg_Dbg( p_this, "changing border width from %dpx to %dpx",
                          p_sys->i_borderw, (int)newval.i_int );
         p_sys->i_borderw = newval.i_int;
-        vlc_mutex_unlock( &p_sys->lock );
+        heimdall_mutex_unlock( &p_sys->lock );
     }
     else if( VAR_IS( "borderh" ) )
     {
-        vlc_mutex_lock( &p_sys->lock );
+        heimdall_mutex_lock( &p_sys->lock );
         msg_Dbg( p_this, "changing border height from %dpx to %dpx",
                          p_sys->i_borderh, (int)newval.i_int );
         p_sys->i_borderh = newval.i_int;
-        vlc_mutex_unlock( &p_sys->lock );
+        heimdall_mutex_unlock( &p_sys->lock );
     }
     else if( VAR_IS( "position" ) )
     {
-        vlc_mutex_lock( &p_sys->lock );
+        heimdall_mutex_lock( &p_sys->lock );
         msg_Dbg( p_this, "changing position method from %d (%s) to %d (%s)",
                 p_sys->i_position, ppsz_pos_descriptions[p_sys->i_position],
                  (int)newval.i_int, ppsz_pos_descriptions[newval.i_int]);
         p_sys->i_position = newval.i_int;
-        vlc_mutex_unlock( &p_sys->lock );
+        heimdall_mutex_unlock( &p_sys->lock );
     }
     else if( VAR_IS( "rows" ) )
     {
-        vlc_mutex_lock( &p_sys->lock );
+        heimdall_mutex_lock( &p_sys->lock );
         msg_Dbg( p_this, "changing number of rows from %d to %d",
                          p_sys->i_rows, (int)newval.i_int );
         p_sys->i_rows = newval.i_int;
-        vlc_mutex_unlock( &p_sys->lock );
+        heimdall_mutex_unlock( &p_sys->lock );
     }
     else if( VAR_IS( "cols" ) )
     {
-        vlc_mutex_lock( &p_sys->lock );
+        heimdall_mutex_lock( &p_sys->lock );
         msg_Dbg( p_this, "changing number of columns from %d to %d",
                          p_sys->i_cols, (int)newval.i_int );
         p_sys->i_cols = newval.i_int;
-        vlc_mutex_unlock( &p_sys->lock );
+        heimdall_mutex_unlock( &p_sys->lock );
     }
     else if( VAR_IS( "order" ) )
     {
         char *psz_order;
         int i_index;
-        vlc_mutex_lock( &p_sys->lock );
+        heimdall_mutex_lock( &p_sys->lock );
         msg_Dbg( p_this, "Changing mosaic order to %s", newval.psz_string );
 
         psz_order = newval.psz_string;
@@ -858,11 +859,11 @@ static int MosaicCallback( vlc_object_t *p_this, char const *psz_var,
             p_sys->i_order_length = i_index;
         }
 
-        vlc_mutex_unlock( &p_sys->lock );
+        heimdall_mutex_unlock( &p_sys->lock );
     }
     else if( VAR_IS( "offsets" ) )
     {
-        vlc_mutex_lock( &p_sys->lock );
+        heimdall_mutex_lock( &p_sys->lock );
         msg_Info( p_this, "Changing mosaic-offsets to %s", newval.psz_string );
 
         if( p_sys->i_offsets_length != 0 )
@@ -876,11 +877,11 @@ static int MosaicCallback( vlc_object_t *p_this, char const *psz_var,
 
         mosaic_ParseSetOffsets( p_this, p_sys, newval.psz_string );
 
-        vlc_mutex_unlock( &p_sys->lock );
+        heimdall_mutex_unlock( &p_sys->lock );
     }
     else if( VAR_IS( "keep-aspect-ratio" ) )
     {
-        vlc_mutex_lock( &p_sys->lock );
+        heimdall_mutex_lock( &p_sys->lock );
         if( newval.i_int )
         {
             msg_Dbg( p_this, "keeping aspect ratio" );
@@ -891,18 +892,18 @@ static int MosaicCallback( vlc_object_t *p_this, char const *psz_var,
             msg_Dbg( p_this, "won't keep aspect ratio" );
             p_sys->b_ar = 0;
         }
-        vlc_mutex_unlock( &p_sys->lock );
+        heimdall_mutex_unlock( &p_sys->lock );
     }
     else if( VAR_IS( "keep-picture" ) )
     {
-        vlc_mutex_lock( &p_sys->lock );
+        heimdall_mutex_lock( &p_sys->lock );
         p_sys->b_keep = newval.b_bool;
         if ( !p_sys->b_keep && !p_sys->p_image )
         {
             p_sys->p_image = image_HandlerCreate( p_this );
         }
-        vlc_mutex_unlock( &p_sys->lock );
+        heimdall_mutex_unlock( &p_sys->lock );
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

@@ -1,7 +1,8 @@
 /*****************************************************************************
- * algo_x.c : "X" algorithm for vlc deinterlacer
+ * algo_x.c : "X" algorithm for heimdall deinterlacer
  *****************************************************************************
  * Copyright (C) 2000-2011 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Laurent Aimar <fenrir@videolan.org>
  *
@@ -26,9 +27,9 @@
 
 #include <stdint.h>
 
-#include <vlc_common.h>
-#include <vlc_cpu.h>
-#include <vlc_picture.h>
+#include <heimdall_common.h>
+#include <heimdall_cpu.h>
+#include <heimdall_picture.h>
 
 #include "deinterlace.h" /* filter_sys_t */
 
@@ -297,7 +298,7 @@ static inline void XDeintBand8x8C( uint8_t *dst, int i_dst,
 
 int RenderX( filter_t *p_filter, picture_t *p_outpic, picture_t *p_pic )
 {
-    VLC_UNUSED(p_filter);
+    HEIMDALL_UNUSED(p_filter);
     int i_plane;
 
     /* Copy image and skip lines */
@@ -341,5 +342,5 @@ int RenderX( filter_t *p_filter, picture_t *p_outpic, picture_t *p_pic )
         }
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

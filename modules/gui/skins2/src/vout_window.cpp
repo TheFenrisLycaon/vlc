@@ -2,6 +2,7 @@
  * vout_window.cpp
  *****************************************************************************
  * Copyright (C) 2003 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cyril Deguet     <asmax@via.ecp.fr>
  *
@@ -22,7 +23,7 @@
 
 #include "vout_window.hpp"
 #include "vout_manager.hpp"
-#include "vlcproc.hpp"
+#include "heimdallproc.hpp"
 #include "theme.hpp"
 #include "os_factory.hpp"
 #include "os_graphics.hpp"
@@ -32,10 +33,10 @@
 #include "../events/evt_motion.hpp"
 #include "../events/evt_mouse.hpp"
 
-#include <vlc_actions.h>
+#include <heimdall_actions.h>
 
 
-VoutWindow::VoutWindow( intf_thread_t *pIntf, vlc_window_t* pWnd,
+VoutWindow::VoutWindow( intf_thread_t *pIntf, heimdall_window_t* pWnd,
                         int width, int height, GenericWindow* pParent ) :
       GenericWindow( pIntf, 0, 0, false, false, pParent,
                      GenericWindow::VoutWindow ),
@@ -50,12 +51,12 @@ VoutWindow::VoutWindow( intf_thread_t *pIntf, vlc_window_t* pWnd,
     updateWindowConfiguration( m_pWnd );
 
     m_pTimer.reset(pOsFactory->createOSTimer( m_cmdHideMouse ));
-    vlc_wasync_resize_compressor_init(&m_compressor, m_pWnd);
+    heimdall_wasync_resize_compressor_init(&m_compressor, m_pWnd);
 }
 
 VoutWindow::~VoutWindow()
 {
-    vlc_wasync_resize_compressor_destroy(&m_compressor);
+    heimdall_wasync_resize_compressor_destroy(&m_compressor);
 }
 
 void VoutWindow::setCtrlVideo( CtrlVideo* pCtrlVideo )
@@ -92,7 +93,7 @@ void VoutWindow::resize( int width, int height )
 {
     GenericWindow::resize( width, height );
 
-    vlc_wasync_resize_compressor_reportSize(&m_compressor, width, height);
+    heimdall_wasync_resize_compressor_reportSize(&m_compressor, width, height);
 }
 
 
@@ -118,7 +119,7 @@ void VoutWindow::processEvent( EvtMotion &rEvtMotion )
     int x = rEvtMotion.getXPos() - m_pParentWindow->getLeft() - getLeft();
     int y = rEvtMotion.getYPos() - m_pParentWindow->getTop() - getTop();
 
-    vlc_window_ReportMouseMoved( m_pWnd, x, y );
+    heimdall_window_ReportMouseMoved( m_pWnd, x, y );
     showMouse();
 }
 
@@ -134,11 +135,11 @@ void VoutWindow::processEvent( EvtMouse &rEvtMouse )
         button = 2;
 
     if( rEvtMouse.getAction() == EvtMouse::kDown )
-        vlc_window_ReportMousePressed( m_pWnd, button );
+        heimdall_window_ReportMousePressed( m_pWnd, button );
     else if( rEvtMouse.getAction() == EvtMouse::kUp )
-        vlc_window_ReportMouseReleased( m_pWnd, button );
+        heimdall_window_ReportMouseReleased( m_pWnd, button );
     else if( rEvtMouse.getAction() == EvtMouse::kDblClick )
-        vlc_window_ReportMouseDoubleClick( m_pWnd, button );
+        heimdall_window_ReportMouseDoubleClick( m_pWnd, button );
     showMouse();
 }
 

@@ -2,6 +2,7 @@
  * rawdv.h : raw DV helpers
  *****************************************************************************
  * Copyright (C) 2001-2011 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gildas Bazin <gbazin@netcourrier.com>
  *          Paul Corke <paul dot corke at datatote dot co dot uk>
@@ -79,7 +80,7 @@ static inline void dv_get_audio_format( es_format_t *p_fmt,
                                         const uint8_t *p_aaux_src )
 {
     /* 12 bits non-linear will be converted to 16 bits linear */
-    es_format_Init( p_fmt, AUDIO_ES, VLC_CODEC_S16L );
+    es_format_Init( p_fmt, AUDIO_ES, HEIMDALL_CODEC_S16L );
 
     p_fmt->audio.i_bitspersample = 16;
     p_fmt->audio.i_channels = 2;
@@ -201,7 +202,7 @@ static inline block_t *dv_extract_audio( block_t *p_frame_block )
         }
     }
 
-    p_block->i_pts = p_frame_block->i_pts != VLC_TICK_INVALID ? p_frame_block->i_pts
+    p_block->i_pts = p_frame_block->i_pts != HEIMDALL_TICK_INVALID ? p_frame_block->i_pts
                                                            : p_frame_block->i_dts;
     p_block->i_dts = p_frame_block->i_dts;
     return p_block;

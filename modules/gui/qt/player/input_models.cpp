@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,7 +24,7 @@
 //  track list model
 //***************************
 
-TrackListModel::TrackListModel(vlc_player_t *player, QObject *parent)
+TrackListModel::TrackListModel(heimdall_player_t *player, QObject *parent)
     : QAbstractListModel(parent)
     , m_player(player)
 {
@@ -61,26 +62,26 @@ bool TrackListModel::setData(const QModelIndex &index, const QVariant &value, in
     if (!value.canConvert<bool>())
         return false;
     bool select = value.toBool();
-    vlc_player_locker lock{ m_player };
+    heimdall_player_locker lock{ m_player };
 
     if (select)
     {
-        vlc_es_id_t *es_id = m_data[row].m_id.get();
-        const enum es_format_category_e cat = vlc_es_id_GetCat(es_id);
-        enum vlc_player_select_policy policy =
-            ( cat ==  VIDEO_ES ) || m_multiSelect ? VLC_PLAYER_SELECT_SIMULTANEOUS
-                                                  : VLC_PLAYER_SELECT_EXCLUSIVE;
-        vlc_player_SelectEsId(m_player, es_id, policy);
+        heimdall_es_id_t *es_id = m_data[row].m_id.get();
+        const enum es_format_category_e cat = heimdall_es_id_GetCat(es_id);
+        enum heimdall_player_select_policy policy =
+            ( cat ==  VIDEO_ES ) || m_multiSelect ? HEIMDALL_PLAYER_SELECT_SIMULTANEOUS
+                                                  : HEIMDALL_PLAYER_SELECT_EXCLUSIVE;
+        heimdall_player_SelectEsId(m_player, es_id, policy);
     }
     else
-        vlc_player_UnselectEsId(m_player, m_data[row].m_id.get());
+        heimdall_player_UnselectEsId(m_player, m_data[row].m_id.get());
     return true;
 }
 
-void TrackListModel::updateTracks(vlc_player_list_action action, const vlc_player_track *track_info)
+void TrackListModel::updateTracks(heimdall_player_list_action action, const heimdall_player_track *track_info)
 {
     switch (action) {
-    case VLC_PLAYER_LIST_ADDED:
+    case HEIMDALL_PLAYER_LIST_ADDED:
     {
         beginInsertRows({}, m_data.size(), m_data.size());
         m_data.append(Data{ track_info });
@@ -88,7 +89,7 @@ void TrackListModel::updateTracks(vlc_player_list_action action, const vlc_playe
         emit countChanged();
         break;
     }
-    case VLC_PLAYER_LIST_REMOVED:
+    case HEIMDALL_PLAYER_LIST_REMOVED:
     {
         auto it = std::find_if(m_data.begin(), m_data.end(), [&](const Data& t) {
             return t.m_id.get() == track_info->es_id;
@@ -103,7 +104,7 @@ void TrackListModel::updateTracks(vlc_player_list_action action, const vlc_playe
         emit countChanged();
         break;
     }
-    case VLC_PLAYER_LIST_UPDATED:
+    case HEIMDALL_PLAYER_LIST_UPDATED:
     {
         int pos = 0;
         bool found = false;
@@ -126,7 +127,7 @@ void TrackListModel::updateTracks(vlc_player_list_action action, const vlc_playe
     }
 }
 
-void TrackListModel::updateTrackSelection(vlc_es_id_t *trackid, bool selected)
+void TrackListModel::updateTrackSelection(heimdall_es_id_t *trackid, bool selected)
 {
     if (trackid == NULL)
         return;
@@ -182,14 +183,14 @@ void TrackListModel::setMultiSelect(bool multiSelect)
     emit multiSelectChanged(m_multiSelect);
 }
 
-TrackListModel::Data::Data(const vlc_player_track *track_info)
+TrackListModel::Data::Data(const heimdall_player_track *track_info)
     : m_title( qfu(track_info->name) )
     , m_id( track_info->es_id, true )
     , m_selected( track_info->selected )
 {
 }
 
-void TrackListModel::Data::update(const vlc_player_track *track_info)
+void TrackListModel::Data::update(const heimdall_player_track *track_info)
 {
     m_id.reset(track_info->es_id, true);
     m_title = qfu(track_info->name);
@@ -202,7 +203,7 @@ void TrackListModel::Data::update(const vlc_player_track *track_info)
 //***************************
 
 
-TitleListModel::TitleListModel(vlc_player_t *player, QObject *parent)
+TitleListModel::TitleListModel(heimdall_player_t *player, QObject *parent)
     : QAbstractListModel(parent)
     , m_player(player)
 {
@@ -223,7 +224,7 @@ QVariant TitleListModel::data(const QModelIndex &index, int role) const
     int row = index.row();
     if (row >= m_count)
         return QVariant{};
-    const vlc_player_title* title = getTitleAt(row);
+    const heimdall_player_title* title = getTitleAt(row);
 
     if (role == Qt::DisplayRole)
         return qfu(title->name);
@@ -244,11 +245,11 @@ bool TitleListModel::setData(const QModelIndex &index, const QVariant &value, in
     bool select = value.toBool();
     if (select)
     {
-        vlc_player_locker lock{ m_player };
-        const vlc_player_title* title = getTitleAt(row);
+        heimdall_player_locker lock{ m_player };
+        const heimdall_player_title* title = getTitleAt(row);
         if (!title)
             return false;
-        vlc_player_SelectTitle(m_player, title);
+        heimdall_player_SelectTitle(m_player, title);
     }
     return true;
 }
@@ -269,18 +270,18 @@ void TitleListModel::setCurrent(int current)
         emit dataChanged(currentIndex, currentIndex, { Qt::CheckStateRole });
 }
 
-const vlc_player_title *TitleListModel::getTitleAt(size_t index) const
+const heimdall_player_title *TitleListModel::getTitleAt(size_t index) const
 {
-    return vlc_player_title_list_GetAt(m_titleList.get(), index);
+    return heimdall_player_title_list_GetAt(m_titleList.get(), index);
 }
 
-void TitleListModel::resetTitles(vlc_player_title_list *newTitleList)
+void TitleListModel::resetTitles(heimdall_player_title_list *newTitleList)
 {
     beginResetModel();
     m_titleList.reset(newTitleList, true);
     m_current = -1;
     if (m_titleList)
-        m_count = vlc_player_title_list_GetCount(m_titleList.get());
+        m_count = heimdall_player_title_list_GetCount(m_titleList.get());
     else
         m_count = 0;
     endResetModel();
@@ -298,7 +299,7 @@ QHash<int, QByteArray> TitleListModel::roleNames() const
 //  ChapterListModel
 //***************************
 
-ChapterListModel::ChapterListModel(vlc_player_t *player, QObject *parent)
+ChapterListModel::ChapterListModel(heimdall_player_t *player, QObject *parent)
     : QAbstractListModel(parent)
     , m_player(player)
 {
@@ -319,14 +320,14 @@ QVariant ChapterListModel::data(const QModelIndex &index, int role) const
     int row = index.row();
     if (m_title == nullptr || row < 0 || (size_t)row >= m_title->chapter_count)
         return QVariant{};
-    const vlc_player_chapter& chapter = m_title->chapters[row];
+    const heimdall_player_chapter& chapter = m_title->chapters[row];
 
     if (role == Qt::DisplayRole)
         return qfu(chapter.name);
     else if (role == Qt::CheckStateRole)
         return QVariant::fromValue<bool>(row == m_current);
     else if (role == ChapterListRoles::TimeRole )
-        return QVariant::fromValue<VLCTime>(chapter.time);
+        return QVariant::fromValue<HeimdallTime>(chapter.time);
     else if (role == ChapterListRoles::StartPositionRole && (m_title->length != 0))
         return QVariant::fromValue<float>(chapter.time / (float) m_title->length);
     else if (role == ChapterListRoles::EndPositionRole && (m_title->length != 0))
@@ -349,8 +350,8 @@ bool ChapterListModel::setData(const QModelIndex &index, const QVariant &value, 
     bool select = value.toBool();
     if (select)
     {
-        vlc_player_locker lock{ m_player };
-        vlc_player_SelectChapter(m_player, m_title, row);
+        heimdall_player_locker lock{ m_player };
+        heimdall_player_SelectChapter(m_player, m_title, row);
     }
     return true;
 }
@@ -382,7 +383,7 @@ void ChapterListModel::setCurrent(int current)
         emit dataChanged(currentIndex, currentIndex, { Qt::CheckStateRole });
 }
 
-void ChapterListModel::resetTitle(const vlc_player_title *newTitle)
+void ChapterListModel::resetTitle(const heimdall_player_title *newTitle)
 {
     beginResetModel();
     m_title =newTitle;
@@ -396,8 +397,8 @@ void ChapterListModel::selectChapter(int index)
     if (!m_title || index < 0 || static_cast<size_t>(index) >= m_title->chapter_count)
         return;
     {
-        vlc_player_locker lock{ m_player };
-        vlc_player_SelectChapter(m_player, m_title, index);
+        heimdall_player_locker lock{ m_player };
+        heimdall_player_SelectChapter(m_player, m_title, index);
     }
 }
 
@@ -405,12 +406,12 @@ QString ChapterListModel::getNameAtPosition(float pos) const
 {
     if(m_title != nullptr){
 
-        vlc_tick_t posTime = pos * m_title->length;
+        heimdall_tick_t posTime = pos * m_title->length;
         int prevChapterIndex = 0;
 
         for(unsigned int i=0;i<m_title->chapter_count;i++){
 
-            vlc_tick_t currentChapterTime = m_title->chapters[i].time;
+            heimdall_tick_t currentChapterTime = m_title->chapters[i].time;
 
             if(currentChapterTime > posTime)
                 return qfu(m_title->chapters[prevChapterIndex].name);
@@ -429,16 +430,16 @@ int ChapterListModel::getClosestChapterFromPos(float pos, float threshold) const
     if(m_title == nullptr)
         return -1;
 
-    vlc_tick_t posTime = pos * m_title->length;
-    vlc_tick_t closestTime = VLC_TICK_INVALID;
+    heimdall_tick_t posTime = pos * m_title->length;
+    heimdall_tick_t closestTime = HEIMDALL_TICK_INVALID;
     int chapterIndex = -1;
 
     for(size_t i=0; i<m_title->chapter_count; i++){
 
-        vlc_tick_t currentChapterTime = m_title->chapters[i].time;
-        if (currentChapterTime == VLC_TICK_INVALID)
+        heimdall_tick_t currentChapterTime = m_title->chapters[i].time;
+        if (currentChapterTime == HEIMDALL_TICK_INVALID)
             continue;
-        if (closestTime == VLC_TICK_INVALID
+        if (closestTime == HEIMDALL_TICK_INVALID
             || qAbs(currentChapterTime - posTime) < qAbs(closestTime - posTime))
         {
             closestTime = currentChapterTime;
@@ -448,7 +449,7 @@ int ChapterListModel::getClosestChapterFromPos(float pos, float threshold) const
             break;
     }
 
-    if (closestTime == VLC_TICK_INVALID)
+    if (closestTime == HEIMDALL_TICK_INVALID)
         return -1;
     else
     {
@@ -467,7 +468,7 @@ int ChapterListModel::getClosestChapterFromPos(float pos, float threshold) const
 //***************************
 
 
-ProgramListModel::ProgramListModel(vlc_player_t *player, QObject *parent)
+ProgramListModel::ProgramListModel(heimdall_player_t *player, QObject *parent)
     : QAbstractListModel(parent)
     , m_player(player)
 {
@@ -505,25 +506,25 @@ bool ProgramListModel::setData(const QModelIndex &index, const QVariant &value, 
     if (!value.canConvert<bool>())
         return false;
     bool select = value.toBool();
-    vlc_player_locker lock{ m_player };
+    heimdall_player_locker lock{ m_player };
 
     if (select)
-        vlc_player_SelectProgram(m_player, m_data[row].m_id);
+        heimdall_player_SelectProgram(m_player, m_data[row].m_id);
     return true;
 }
 
-void ProgramListModel::updatePrograms(vlc_player_list_action action, const vlc_player_program *program)
+void ProgramListModel::updatePrograms(heimdall_player_list_action action, const heimdall_player_program *program)
 {
     assert(program);
     switch (action) {
-    case VLC_PLAYER_LIST_ADDED:
+    case HEIMDALL_PLAYER_LIST_ADDED:
         beginInsertRows({}, m_data.size(), m_data.size());
         m_data.append(Data{ program });
         endInsertRows();
         emit countChanged();
         break;
 
-    case VLC_PLAYER_LIST_REMOVED:
+    case HEIMDALL_PLAYER_LIST_REMOVED:
     {
         auto it = std::find_if(m_data.begin(), m_data.end(), [&](const Data& t) {
             return t.m_id == program->group_id;
@@ -537,7 +538,7 @@ void ProgramListModel::updatePrograms(vlc_player_list_action action, const vlc_p
         emit countChanged();
         break;
     }
-    case VLC_PLAYER_LIST_UPDATED:
+    case HEIMDALL_PLAYER_LIST_UPDATED:
     {
         int pos = 0;
         bool found = false;
@@ -587,7 +588,7 @@ QHash<int, QByteArray> ProgramListModel::roleNames() const
     return roleNames;
 }
 
-ProgramListModel::Data::Data(const vlc_player_program *program)
+ProgramListModel::Data::Data(const heimdall_player_program *program)
     : m_title(qfu(program->name))
     , m_id( program->group_id )
     , m_selected( program->selected )
@@ -596,7 +597,7 @@ ProgramListModel::Data::Data(const vlc_player_program *program)
     assert(program);
 }
 
-void ProgramListModel::Data::update(const vlc_player_program *program)
+void ProgramListModel::Data::update(const heimdall_player_program *program)
 {
     assert(program);
     m_title = qfu(program->name);

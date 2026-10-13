@@ -2,6 +2,7 @@
  * StreamFormat.cpp
  *****************************************************************************
  * Copyright (C) 2015 - VideoLAN and VLC authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -24,7 +25,7 @@
 
 #include "StreamFormat.hpp"
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
 extern "C"
 {
@@ -105,7 +106,7 @@ StreamFormat::StreamFormat( const std::string &mimetype )
 
 static int ID3Callback(uint32_t, const uint8_t *, size_t, void *)
 {
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 static bool IsWebVTT(const char *p, size_t sz)
@@ -136,12 +137,12 @@ StreamFormat::StreamFormat(const void *data_, size_t sz)
         while(sz >= 12)
         {
             uint32_t chunk = GetDWBE(data);
-            vlc_fourcc_t cktype = VLC_FOURCC(data[4], data[5], data[6], data[7]);
+            heimdall_fourcc_t cktype = HEIMDALL_FOURCC(data[4], data[5], data[6], data[7]);
             if(chunk > sz - 12)
                 break;
             sz -= chunk + 12;
             data += chunk + 12;
-            if(cktype == VLC_FOURCC('I','E','N','D'))
+            if(cktype == HEIMDALL_FOURCC('I','E','N','D'))
                 break;
         }
     }

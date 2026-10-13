@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
  * Copyright (C) 2020 Videolabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -19,20 +20,20 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_GL_FILTERS_H
-#define VLC_GL_FILTERS_H
+#ifndef HEIMDALL_GL_FILTERS_H
+#define HEIMDALL_GL_FILTERS_H
 
-#include <vlc_common.h>
-#include <vlc_list.h>
-#include <vlc_opengl.h>
-#include <vlc_tick.h>
+#include <heimdall_common.h>
+#include <heimdall_list.h>
+#include <heimdall_opengl.h>
+#include <heimdall_tick.h>
 
 #include "gl_api.h"
 #include "interop.h"
 #include "sampler.h"
 
-struct vlc_gl_filters;
-struct vlc_gl_filter;
+struct heimdall_gl_filters;
+struct heimdall_gl_filter;
 
 /**
  * Create a new OpenGL filter chain
@@ -41,9 +42,9 @@ struct vlc_gl_filter;
  * \param api the OpenGL api
  * \param interop the interop to use for the sampler of the first filter
  */
-struct vlc_gl_filters *
-vlc_gl_filters_New(struct vlc_gl_t *gl, const struct vlc_gl_api *api,
-                   struct vlc_gl_interop *interop,
+struct heimdall_gl_filters *
+heimdall_gl_filters_New(struct heimdall_gl_t *gl, const struct heimdall_gl_api *api,
+                   struct heimdall_gl_interop *interop,
                    video_orientation_t orientation);
 
 /**
@@ -52,7 +53,7 @@ vlc_gl_filters_New(struct vlc_gl_t *gl, const struct vlc_gl_api *api,
  * \param filters the filter chain
  */
 void
-vlc_gl_filters_Delete(struct vlc_gl_filters *filters);
+heimdall_gl_filters_Delete(struct heimdall_gl_filters *filters);
 
 /**
  * Create and append a filter loaded from a module to the filter chain
@@ -64,13 +65,13 @@ vlc_gl_filters_Delete(struct vlc_gl_filters *filters);
  * \param config the module configuration
  * \return a weak reference to the filter (NULL on error)
  */
-struct vlc_gl_filter *
-vlc_gl_filters_Append(struct vlc_gl_filters *filters, const char *name,
+struct heimdall_gl_filter *
+heimdall_gl_filters_Append(struct heimdall_gl_filters *filters, const char *name,
                       const config_chain_t *config);
 
-struct vlc_gl_filter *
-vlc_gl_filters_Replace(struct vlc_gl_filters *filters,
-                       struct vlc_gl_filter *filter,
+struct heimdall_gl_filter *
+heimdall_gl_filters_Replace(struct heimdall_gl_filters *filters,
+                       struct heimdall_gl_filter *filter,
                        const char *name,
                        const config_chain_t *config);
 
@@ -78,46 +79,46 @@ vlc_gl_filters_Replace(struct vlc_gl_filters *filters,
  * Init the framebuffers for the appended filters.
  *
  * This function must be called once after all filters have been appended. It
- * is an error to call vlc_gl_filters_Append() after this function.
+ * is an error to call heimdall_gl_filters_Append() after this function.
  *
  * \param filters the filter chain
- * \return VLC_SUCCESS on success, another value on error
+ * \return HEIMDALL_SUCCESS on success, another value on error
  */
 int
-vlc_gl_filters_InitFramebuffers(struct vlc_gl_filters *filters);
+heimdall_gl_filters_InitFramebuffers(struct heimdall_gl_filters *filters);
 
 /**
  * Update the input picture to pass to the first filter
  *
  * \param filters the filter chain
  * \param picture the new input picture
- * \return VLC_SUCCESS on success, another value on error
+ * \return HEIMDALL_SUCCESS on success, another value on error
  */
 int
-vlc_gl_filters_UpdatePicture(struct vlc_gl_filters *filters,
+heimdall_gl_filters_UpdatePicture(struct heimdall_gl_filters *filters,
                              picture_t *picture);
 
 /**
  * Draw by executing all the filters
  *
  * \param filters the filter chain
- * \return VLC_SUCCESS on success, another value on error
+ * \return HEIMDALL_SUCCESS on success, another value on error
  */
 int
-vlc_gl_filters_Draw(struct vlc_gl_filters *filters);
+heimdall_gl_filters_Draw(struct heimdall_gl_filters *filters);
 
 /**
  * Set the viewport.
  */
 void
-vlc_gl_filters_SetViewport(struct vlc_gl_filters *filters, int x, int y,
+heimdall_gl_filters_SetViewport(struct heimdall_gl_filters *filters, int x, int y,
                            unsigned width, unsigned height);
 
 /**
  * Change the output size
  */
 int
-vlc_gl_filters_SetOutputSize(struct vlc_gl_filters *filters, unsigned width,
+heimdall_gl_filters_SetOutputSize(struct heimdall_gl_filters *filters, unsigned width,
                              unsigned height);
 
 #endif

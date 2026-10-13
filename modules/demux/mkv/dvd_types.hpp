@@ -2,6 +2,7 @@
  * dvd_types.hpp : matroska demuxer
  *****************************************************************************
  * Copyright (C) 2003-2004 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *          Steve Lhomme <steve.lhomme@free.fr>
@@ -21,8 +22,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_MKV_DVD_TYPES_HPP
-#define VLC_MKV_DVD_TYPES_HPP
+#ifndef HEIMDALL_MKV_DVD_TYPES_HPP
+#define HEIMDALL_MKV_DVD_TYPES_HPP
 
 #include <cstdint>
 

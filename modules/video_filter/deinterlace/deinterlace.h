@@ -1,7 +1,8 @@
 /*****************************************************************************
- * deinterlace.h : deinterlacer plugin for vlc
+ * deinterlace.h : deinterlacer plugin for heimdall
  *****************************************************************************
  * Copyright (C) 2000-2011 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Sam Hocevar <sam@zoy.org>
  *         Christophe Massiot <massiot@via.ecp.fr>
@@ -24,16 +25,16 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_DEINTERLACE_H
-#define VLC_DEINTERLACE_H 1
+#ifndef HEIMDALL_DEINTERLACE_H
+#define HEIMDALL_DEINTERLACE_H 1
 
 /* Forward declarations */
 struct filter_t;
 struct picture_t;
-struct vlc_object_t;
+struct heimdall_object_t;
 
-#include <vlc_common.h>
-#include <vlc_mouse.h>
+#include <heimdall_common.h>
+#include <heimdall_mouse.h>
 
 /* Local algorithm headers */
 #include "algo_basic.h"
@@ -66,7 +67,7 @@ static const char *const mode_list_text[] = {
  */
 typedef struct
 {
-    const vlc_chroma_description_t *chroma;
+    const heimdall_chroma_description_t *chroma;
 
     /** Merge routine: C, SSE, ALTIVEC, NEON, ... */
     void (*pf_merge) ( void *, const void *, const void *, size_t );

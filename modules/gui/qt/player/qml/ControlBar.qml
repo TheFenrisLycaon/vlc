@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,11 +23,11 @@ import QtQuick.Layouts
 import QtQml.Models
 
 
-import VLC.MainInterface
-import VLC.Style
-import VLC.Widgets as Widgets
-import VLC.Player
-import VLC.Util
+import Heimdall.MainInterface
+import Heimdall.Style
+import Heimdall.Widgets as Widgets
+import Heimdall.Player
+import Heimdall.Util
 
 T.Pane {
     id: root
@@ -44,13 +45,13 @@ T.Pane {
 
     topInset: sliderY
 
-    bottomPadding: VLCStyle.margin_xsmall
+    bottomPadding: HeimdallStyle.margin_xsmall
 
     readonly property real sliderY: mapFromItem(contentItem, 0, contentItem.sliderY).y
     property int textPosition: ControlBar.TimeTextPosition.AboveSlider
     property int identifier: -1
-    property real sliderHeight: VLCStyle.heightBar_xxsmall
-    property real bookmarksHeight: VLCStyle.controlBarBookmarksHeight
+    property real sliderHeight: HeimdallStyle.heightBar_xxsmall
+    property real bookmarksHeight: HeimdallStyle.controlBarBookmarksHeight
     property bool showRemainingTime: true
 
     property var menu: undefined
@@ -101,8 +102,8 @@ T.Pane {
 
     TextMetrics {
         id: timeTextMetrics
-        font.pixelSize: (textPosition === ControlBar.TimeTextPosition.LeftRightSlider) ? VLCStyle.fontSize_small
-                                                                                       : VLCStyle.fontSize_normal
+        font.pixelSize: (textPosition === ControlBar.TimeTextPosition.LeftRightSlider) ? HeimdallStyle.fontSize_small
+                                                                                       : HeimdallStyle.fontSize_normal
         text: {
             // This text metrics is used for both the time and length, as we want them to have the same width.
             // Length might not be reported in some cases, for that reason we should check both and use the bigger one.
@@ -117,7 +118,7 @@ T.Pane {
     }
 
     contentItem: ColumnLayout {
-        spacing: VLCStyle.margin_xsmall
+        spacing: HeimdallStyle.margin_xsmall
 
         readonly property real sliderY: row2.y
 
@@ -135,7 +136,7 @@ T.Pane {
 
                 text: {
                     const length = Player.length
-                    return Player.time.formatHMS(length.isSubSecond() ? VLCTick.SubSecondFormattedAsMS : 0)
+                    return Player.time.formatHMS(length.isSubSecond() ? HeimdallTick.SubSecondFormattedAsMS : 0)
                 }
                 color: theme.fg.primary
                 font: timeTextMetrics.font
@@ -196,7 +197,7 @@ T.Pane {
                     colorContext.palette: theme.palette
 
                     visible: mediaRemainingTimeHover.hovered && MainCtx.showRemainingTime && Player.rate !== 1
-                    delay: VLCStyle.delayToolTipAppear
+                    delay: HeimdallStyle.delayToolTipAppear
                     text: {
                         if (!visible)
                             return ""
@@ -242,16 +243,16 @@ T.Pane {
 
                 parent: root
                 active: MainCtx.mediaLibraryAvailable
-                source: "qrc:///qt/qml/VLC/MediaLibrary/Bookmarks.qml"
+                source: "qrc:///qt/qml/Heimdall/MediaLibrary/Bookmarks.qml"
 
                 x: root.leftPadding + trackPositionSlider.x + row2.Layout.leftMargin
-                y: row2.y + row2.height + VLCStyle.margin_xxsmall
+                y: row2.y + row2.height + HeimdallStyle.margin_xxsmall
                 width: trackPositionSlider.width
 
                 onLoaded: {
                    item.barHeight = Qt.binding(function() { return bookmarksHeight })
                    item.controlBarHovered = Qt.binding(function() { return root.hovered })
-                   item.yShift = Qt.binding(function() { return row2.height + VLCStyle.margin_xxsmall })
+                   item.yShift = Qt.binding(function() { return row2.height + HeimdallStyle.margin_xxsmall })
                 }
             }
         ]
@@ -265,8 +266,8 @@ T.Pane {
             id: pseudoRow
             Layout.fillWidth: true
             Layout.fillHeight: false
-            Layout.leftMargin: VLCStyle.margin_normal
-            Layout.rightMargin: VLCStyle.margin_normal
+            Layout.leftMargin: HeimdallStyle.margin_normal
+            Layout.rightMargin: HeimdallStyle.margin_normal
 
             implicitHeight: visible ? Math.max(mediaTime.implicitHeight, mediaRemainingTime.implicitHeight) : 0
 
@@ -301,11 +302,11 @@ T.Pane {
 
             visible: children.length > 0
 
-            spacing: VLCStyle.margin_xsmall
+            spacing: HeimdallStyle.margin_xsmall
 
             Layout.fillWidth: true
             Layout.fillHeight: false
-            Layout.leftMargin: (textPosition === ControlBar.TimeTextPosition.LeftRightSlider) ? VLCStyle.margin_xsmall
+            Layout.leftMargin: (textPosition === ControlBar.TimeTextPosition.LeftRightSlider) ? HeimdallStyle.margin_xsmall
                                                                                               : 0
 
             Layout.rightMargin: Layout.leftMargin
@@ -316,13 +317,13 @@ T.Pane {
 
             Layout.fillWidth: true
             Layout.fillHeight: true
-            Layout.leftMargin: VLCStyle.margin_large
-            Layout.rightMargin: VLCStyle.margin_large
+            Layout.leftMargin: HeimdallStyle.margin_large
+            Layout.rightMargin: HeimdallStyle.margin_large
 
             identifier: root.identifier
 
-            implicitHeight: MainCtx.pinVideoControls ? VLCStyle.controlLayoutHeightPinned
-                                                     : VLCStyle.controlLayoutHeight
+            implicitHeight: MainCtx.pinVideoControls ? HeimdallStyle.controlLayoutHeightPinned
+                                                     : HeimdallStyle.controlLayoutHeight
 
             visible: !model?.empty ?? false
 

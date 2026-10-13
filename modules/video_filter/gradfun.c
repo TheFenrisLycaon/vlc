@@ -2,8 +2,9 @@
  * gradfun.c: wrapper for the gradfun filter from libav
  *****************************************************************************
  * Copyright (C) 2010 Laurent Aimar
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Laurent Aimar <fenrir _AT_ videolan _DOT_ org>
+ * Authors: Laurent Aimar <fenrir _AT_ lycaria _DOT_ org>
  *
  * Based on the work of: Nolan Lum and Loren Merritt
  *
@@ -30,11 +31,11 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_cpu.h>
-#include <vlc_filter.h>
-#include <vlc_picture.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_cpu.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
 
 /*****************************************************************************
  * Module descriptor
@@ -53,7 +54,7 @@ static int  Open (filter_t *);
 #define STRENGTH_TEXT N_("Strength")
 #define STRENGTH_LONGTEXT N_("Strength used to modify the value of a pixel")
 
-vlc_module_begin()
+heimdall_module_begin()
     set_description(N_("Gradfun video filter"))
     set_shortname(N_("Gradfun"))
     set_help(N_("Debanding algorithm"))
@@ -64,7 +65,7 @@ vlc_module_begin()
                          STRENGTH_TEXT, STRENGTH_LONGTEXT)
 
     set_callback_video_filter(Open)
-vlc_module_end()
+heimdall_module_end()
 
 /*****************************************************************************
  * Local prototypes
@@ -86,38 +87,38 @@ vlc_module_end()
 #else
 #   define HAVE_6REGS 0
 #endif
-#define av_clip_uint8 clip_uint8_vlc
+#define av_clip_uint8 clip_uint8_heimdall
 #include <stdalign.h>
 #include "gradfun.h"
 
-static int Callback(vlc_object_t *, char const *, vlc_value_t, vlc_value_t, void *);
+static int Callback(heimdall_object_t *, char const *, heimdall_value_t, heimdall_value_t, void *);
 VIDEO_FILTER_WRAPPER_CLOSE(Filter, Close)
 
 typedef struct
 {
-    vlc_mutex_t      lock;
+    heimdall_mutex_t      lock;
     float            strength;
     int              radius;
-    const vlc_chroma_description_t *chroma;
+    const heimdall_chroma_description_t *chroma;
     struct vf_priv_s cfg;
 } filter_sys_t;
 
 static int Open(filter_t *filter)
 {
-    const vlc_fourcc_t fourcc = filter->fmt_in.video.i_chroma;
+    const heimdall_fourcc_t fourcc = filter->fmt_in.video.i_chroma;
 
-    const vlc_chroma_description_t *chroma = vlc_fourcc_GetChromaDescription(fourcc);
+    const heimdall_chroma_description_t *chroma = heimdall_fourcc_GetChromaDescription(fourcc);
     assert( chroma != NULL );
     if (chroma->plane_count < 3 || chroma->pixel_size != 1) {
         msg_Err(filter, "Unsupported chroma (%4.4s)", (char*)&fourcc);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     filter_sys_t *sys = malloc(sizeof(*sys));
     if (!sys)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    vlc_mutex_init(&sys->lock);
+    heimdall_mutex_init(&sys->lock);
     sys->chroma   = chroma;
     sys->strength = var_CreateGetFloatCommand(filter,   CFG_PREFIX "strength");
     sys->radius   = var_CreateGetIntegerCommand(filter, CFG_PREFIX "radius");
@@ -131,13 +132,13 @@ static int Open(filter_t *filter)
     cfg->buf         = NULL;
 
 #if HAVE_SSE2 && HAVE_6REGS
-    if (vlc_CPU_SSE2())
+    if (heimdall_CPU_SSE2())
         cfg->blur_line = blur_line_sse2;
     else
 #endif
         cfg->blur_line   = blur_line_c;
 #if HAVE_SSSE3
-    if (vlc_CPU_SSSE3())
+    if (heimdall_CPU_SSSE3())
         cfg->filter_line = filter_line_ssse3;
     else
 #endif
@@ -145,7 +146,7 @@ static int Open(filter_t *filter)
 
     filter->p_sys = sys;
     filter->ops   = &Filter_ops;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void Close(filter_t *filter)
@@ -162,10 +163,10 @@ static void Filter(filter_t *filter, picture_t *src, picture_t *dst)
 {
     filter_sys_t *sys = filter->p_sys;
 
-    vlc_mutex_lock(&sys->lock);
-    float strength = VLC_CLIP(sys->strength, STRENGTH_MIN, STRENGTH_MAX);
-    int   radius   = VLC_CLIP((sys->radius + 1) & ~1, RADIUS_MIN, RADIUS_MAX);
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
+    float strength = HEIMDALL_CLIP(sys->strength, STRENGTH_MIN, STRENGTH_MAX);
+    int   radius   = HEIMDALL_CLIP((sys->radius + 1) & ~1, RADIUS_MIN, RADIUS_MAX);
+    heimdall_mutex_unlock(&sys->lock);
 
     const video_format_t *fmt = &filter->fmt_in.video;
     struct vf_priv_s *cfg = &sys->cfg;
@@ -181,12 +182,12 @@ static void Filter(filter_t *filter, picture_t *src, picture_t *dst)
         const plane_t *srcp = &src->p[i];
         plane_t       *dstp = &dst->p[i];
 
-        const vlc_chroma_description_t *chroma = sys->chroma;
+        const heimdall_chroma_description_t *chroma = sys->chroma;
         int w = fmt->i_width  * chroma->p[i].w.num / chroma->p[i].w.den;
         int h = fmt->i_height * chroma->p[i].h.num / chroma->p[i].h.den;
         int r = (cfg->radius  * chroma->p[i].w.num / chroma->p[i].w.den +
                  cfg->radius  * chroma->p[i].h.num / chroma->p[i].h.den) / 2;
-        r = VLC_CLIP((r + 1) & ~1, RADIUS_MIN, RADIUS_MAX);
+        r = HEIMDALL_CLIP((r + 1) & ~1, RADIUS_MIN, RADIUS_MAX);
         if (__MIN(w, h) > 2 * r && cfg->buf) {
             filter_plane(cfg, dstp->p_pixels, srcp->p_pixels,
                          w, h, dstp->i_pitch, srcp->i_pitch, r);
@@ -196,19 +197,19 @@ static void Filter(filter_t *filter, picture_t *src, picture_t *dst)
     }
 }
 
-static int Callback(vlc_object_t *object, char const *cmd,
-                    vlc_value_t oldval, vlc_value_t newval, void *data)
+static int Callback(heimdall_object_t *object, char const *cmd,
+                    heimdall_value_t oldval, heimdall_value_t newval, void *data)
 {
     filter_t     *filter = (filter_t *)object;
     filter_sys_t *sys = filter->p_sys;
-    VLC_UNUSED(oldval); VLC_UNUSED(data);
+    HEIMDALL_UNUSED(oldval); HEIMDALL_UNUSED(data);
 
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     if (!strcmp(cmd, CFG_PREFIX "strength"))
         sys->strength = newval.f_float;
     else
         sys->radius    = newval.i_int;
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

@@ -1,7 +1,8 @@
 /*****************************************************************************
- * algo_ivtc.c : IVTC (inverse telecine) algorithm for the VLC deinterlacer
+ * algo_ivtc.c : IVTC (inverse telecine) algorithm for the Heimdall deinterlacer
  *****************************************************************************
  * Copyright (C) 2010-2011 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Juha Jeronen <juha.jeronen@jyu.fi>
  *
@@ -27,10 +28,10 @@
 #include <stdint.h>
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_cpu.h>
-#include <vlc_picture.h>
-#include <vlc_filter.h>
+#include <heimdall_common.h>
+#include <heimdall_cpu.h>
+#include <heimdall_picture.h>
+#include <heimdall_filter.h>
 
 #include "deinterlace.h" /* filter_sys_t */
 #include "helpers.h"
@@ -1210,7 +1211,7 @@ static bool IVTCOutputOrDropFrame( filter_t *p_filter, picture_t *p_dst )
 
     filter_sys_t *p_sys = p_filter->p_sys;
     ivtc_sys_t *p_ivtc  = &p_sys->ivtc;
-    vlc_tick_t t_final = VLC_TICK_INVALID; /* for custom timestamp mangling */
+    heimdall_tick_t t_final = HEIMDALL_TICK_INVALID; /* for custom timestamp mangling */
 
     picture_t *p_curr = p_sys->context.pp_history[1];
     picture_t *p_next = p_sys->context.pp_history[2];
@@ -1406,7 +1407,7 @@ static bool IVTCOutputOrDropFrame( filter_t *p_filter, picture_t *p_dst )
         {
             /* Approximate field duration from the PTS difference. */
             /* FIXME: use field length as measured by Deinterlace()? */
-            vlc_tick_t i_half_field_dur = ( (p_next->date - p_curr->date)/3 ) / 2;
+            heimdall_tick_t i_half_field_dur = ( (p_next->date - p_curr->date)/3 ) / 2;
             t_final = p_curr->date + i_half_field_dur;
         }
         else /* Otherwise, use original PTS of the outgoing frame. */
@@ -1452,7 +1453,7 @@ static bool IVTCOutputOrDropFrame( filter_t *p_filter, picture_t *p_dst )
     /* Note that picture_Copy() copies the PTS, too. Apply timestamp mangling
        now, if any was needed.
     */
-    if( t_final != VLC_TICK_INVALID )
+    if( t_final != HEIMDALL_TICK_INVALID )
         p_dst->date = t_final;
 
     return true;
@@ -1465,7 +1466,7 @@ static bool IVTCOutputOrDropFrame( filter_t *p_filter, picture_t *p_dst )
 /* See function doc in header. */
 int RenderIVTC( filter_t *p_filter, picture_t *p_dst, picture_t *p_pic )
 {
-    VLC_UNUSED(p_pic);
+    HEIMDALL_UNUSED(p_pic);
     assert( p_filter != NULL );
     assert( p_dst != NULL );
 
@@ -1478,7 +1479,7 @@ int RenderIVTC( filter_t *p_filter, picture_t *p_dst, picture_t *p_pic )
 
     /* If the history mechanism has failed, we have nothing to do. */
     if( !p_next )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* Slide algorithm-specific histories */
     IVTCFrameInit( p_filter );
@@ -1516,9 +1517,9 @@ int RenderIVTC( filter_t *p_filter, picture_t *p_dst, picture_t *p_pic )
         bool b_have_output_frame = IVTCOutputOrDropFrame( p_filter, p_dst );
 
         if( b_have_output_frame )
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         else
-            return VLC_EGENERIC; /* Signal the caller not to expect a frame */
+            return HEIMDALL_EGENERIC; /* Signal the caller not to expect a frame */
     }
     else if( !p_prev && !p_curr ) /* first frame */
     {
@@ -1533,7 +1534,7 @@ int RenderIVTC( filter_t *p_filter, picture_t *p_dst, picture_t *p_pic )
         p_ivtc->pi_final_scores[0]         = i_score;
 
         picture_Copy( p_dst, p_next );
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
     else /* second frame */
     {
@@ -1561,7 +1562,7 @@ int RenderIVTC( filter_t *p_filter, picture_t *p_dst, picture_t *p_pic )
         p_ivtc->pi_final_scores[1] = p_ivtc->pi_scores[FIELD_PAIR_TNBN];
 
         picture_Copy( p_dst, p_next );
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 }
 

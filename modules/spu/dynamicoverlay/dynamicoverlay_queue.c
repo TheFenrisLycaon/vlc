@@ -2,6 +2,7 @@
  * dynamicoverlay_queue.c : dynamic overlay plugin commands
  *****************************************************************************
  * Copyright (C) 2008-2009 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Søren Bøg <avacore@videolan.org>
  *         Jean-Paul Saman <jpsaman@videolan.org>
@@ -25,7 +26,7 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
 #include "dynamicoverlay.h"
 
@@ -39,7 +40,7 @@ int QueueInit( queue_t *p_queue )
     p_queue->p_head = NULL;
     p_queue->p_tail = NULL;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 int QueueDestroy( queue_t *p_queue )
@@ -54,7 +55,7 @@ int QueueDestroy( queue_t *p_queue )
     p_queue->p_head = NULL;
     p_queue->p_tail = NULL;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 int QueueEnqueue( queue_t *p_queue, command_t *p_cmd )
@@ -70,7 +71,7 @@ int QueueEnqueue( queue_t *p_queue, command_t *p_cmd )
     p_queue->p_tail = p_cmd;
     p_cmd->p_next = NULL;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 command_t *QueueDequeue( queue_t *p_queue )
@@ -97,7 +98,7 @@ command_t *QueueDequeue( queue_t *p_queue )
 int QueueTransfer( queue_t *p_sink, queue_t *p_source )
 {
     if( p_source->p_head == NULL ) {
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
     if( p_sink->p_head == NULL ) {
@@ -109,5 +110,5 @@ int QueueTransfer( queue_t *p_sink, queue_t *p_source )
     }
     p_source->p_head = p_source->p_tail = NULL;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

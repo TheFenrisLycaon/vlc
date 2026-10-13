@@ -2,6 +2,7 @@
  * dynamicoverlay_commands.c : dynamic overlay plugin commands
  *****************************************************************************
  * Copyright (C) 2008 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Søren Bøg <avacore@videolan.org>
  *         Jean-Paul Saman <jpsaman@videolan.org>
@@ -25,10 +26,10 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_arrays.h>
-#include <vlc_vout.h>
-#include <vlc_filter.h>
+#include <heimdall_common.h>
+#include <heimdall_arrays.h>
+#include <heimdall_vout.h>
+#include <heimdall_filter.h>
 
 #include <limits.h>
 #include <string.h>
@@ -84,10 +85,10 @@ static int skip_space( char **psz_command )
     }
     if( psz_temp == *psz_command )
     {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     *psz_command = psz_temp;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int parse_digit( char **psz_command, int32_t *value )
@@ -97,24 +98,24 @@ static int parse_digit( char **psz_command, int32_t *value )
 
     if( psz_temp == *psz_command )
     {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 #if LONG_MAX > INT32_MAX
     if( l > INT32_MAX || l < INT32_MIN )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 #endif
     *value = l;
     *psz_command = psz_temp;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int parse_param_id(char **psz_command, size_t *value)
 {
     int32_t digit;
-    if (parse_digit(psz_command, &digit) == VLC_EGENERIC || digit < 0)
-        return VLC_EGENERIC;
+    if (parse_digit(psz_command, &digit) == HEIMDALL_EGENERIC || digit < 0)
+        return HEIMDALL_EGENERIC;
     *value = digit;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int parse_char( char **psz_command, char **psz_end,
@@ -122,11 +123,11 @@ static int parse_char( char **psz_command, char **psz_end,
 {
     if( *psz_end - *psz_command < count )
     {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     memcpy( psz_value, *psz_command, count );
     *psz_command += count;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int parser_DataSharedMem( char *psz_command,
@@ -137,198 +138,198 @@ static int parser_DataSharedMem( char *psz_command,
     skip_space( &psz_command );
     if( isdigit( (unsigned char)*psz_command ) )
     {
-        if (parse_param_id( &psz_command, &p_params->i_id) == VLC_EGENERIC)
-            return VLC_EGENERIC;
+        if (parse_param_id( &psz_command, &p_params->i_id) == HEIMDALL_EGENERIC)
+            return HEIMDALL_EGENERIC;
     }
     skip_space( &psz_command );
     if( isdigit( (unsigned char)*psz_command ) )
     {
-        if( parse_digit( &psz_command, &p_params->i_width ) == VLC_EGENERIC )
-            return VLC_EGENERIC;
+        if( parse_digit( &psz_command, &p_params->i_width ) == HEIMDALL_EGENERIC )
+            return HEIMDALL_EGENERIC;
     }
     skip_space( &psz_command );
     if( isdigit( (unsigned char)*psz_command ) )
     {
-        if( parse_digit( &psz_command, &p_params->i_height ) == VLC_EGENERIC )
-            return VLC_EGENERIC;
+        if( parse_digit( &psz_command, &p_params->i_height ) == HEIMDALL_EGENERIC )
+            return HEIMDALL_EGENERIC;
     }
     skip_space( &psz_command );
     if( isascii( (unsigned char)*psz_command ) )
     {
         if( parse_char( &psz_command, &psz_end, 4, (char*)&p_params->fourcc )
-            == VLC_EGENERIC )
-            return VLC_EGENERIC;
+            == HEIMDALL_EGENERIC )
+            return HEIMDALL_EGENERIC;
     }
     skip_space( &psz_command );
     if( isdigit( (unsigned char)*psz_command ) )
     {
-        if( parse_digit( &psz_command, &p_params->i_shmid ) == VLC_EGENERIC )
-            return VLC_EGENERIC;
+        if( parse_digit( &psz_command, &p_params->i_shmid ) == HEIMDALL_EGENERIC )
+            return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int parser_Id( char *psz_command, char *psz_end,
                       commandparams_t *p_params )
 {
-    VLC_UNUSED(psz_end);
+    HEIMDALL_UNUSED(psz_end);
     skip_space( &psz_command );
     if( isdigit( (unsigned char)*psz_command ) )
     {
-        if (parse_param_id( &psz_command, &p_params->i_id) == VLC_EGENERIC)
-            return VLC_EGENERIC;
+        if (parse_param_id( &psz_command, &p_params->i_id) == HEIMDALL_EGENERIC)
+            return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int parser_None( char *psz_command, char *psz_end,
                         commandparams_t *p_params )
 {
-    VLC_UNUSED(psz_command);
-    VLC_UNUSED(psz_end);
-    VLC_UNUSED(p_params);
-    return VLC_SUCCESS;
+    HEIMDALL_UNUSED(psz_command);
+    HEIMDALL_UNUSED(psz_end);
+    HEIMDALL_UNUSED(p_params);
+    return HEIMDALL_SUCCESS;
 }
 
 static int parser_SetAlpha( char *psz_command, char *psz_end,
                             commandparams_t *p_params )
 {
-    VLC_UNUSED(psz_end);
+    HEIMDALL_UNUSED(psz_end);
     skip_space( &psz_command );
     if( isdigit( (unsigned char)*psz_command ) )
     {
-        if (parse_param_id( &psz_command, &p_params->i_id) == VLC_EGENERIC)
-            return VLC_EGENERIC;
+        if (parse_param_id( &psz_command, &p_params->i_id) == HEIMDALL_EGENERIC)
+            return HEIMDALL_EGENERIC;
     }
     skip_space( &psz_command );
     if( isdigit( (unsigned char)*psz_command ) )
     {
-        if( parse_digit( &psz_command, &p_params->i_alpha ) == VLC_EGENERIC )
-            return VLC_EGENERIC;
+        if( parse_digit( &psz_command, &p_params->i_alpha ) == HEIMDALL_EGENERIC )
+            return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int parser_SetPosition( char *psz_command, char *psz_end,
                                commandparams_t *p_params )
 {
-    VLC_UNUSED(psz_end);
+    HEIMDALL_UNUSED(psz_end);
     skip_space( &psz_command );
     if( isdigit( (unsigned char)*psz_command ) )
     {
-        if (parse_param_id( &psz_command, &p_params->i_id) == VLC_EGENERIC)
-            return VLC_EGENERIC;
+        if (parse_param_id( &psz_command, &p_params->i_id) == HEIMDALL_EGENERIC)
+            return HEIMDALL_EGENERIC;
     }
     skip_space( &psz_command );
     if( isdigit( (unsigned char)*psz_command ) )
     {
-        if( parse_digit( &psz_command, &p_params->i_x ) == VLC_EGENERIC )
-            return VLC_EGENERIC;
+        if( parse_digit( &psz_command, &p_params->i_x ) == HEIMDALL_EGENERIC )
+            return HEIMDALL_EGENERIC;
     }
     skip_space( &psz_command );
     if( isdigit( (unsigned char)*psz_command ) )
     {
-        if( parse_digit( &psz_command, &p_params->i_y ) == VLC_EGENERIC )
-            return VLC_EGENERIC;
+        if( parse_digit( &psz_command, &p_params->i_y ) == HEIMDALL_EGENERIC )
+            return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int parser_SetTextAlpha( char *psz_command, char *psz_end,
                                 commandparams_t *p_params )
 {
-    VLC_UNUSED(psz_end);
+    HEIMDALL_UNUSED(psz_end);
     skip_space( &psz_command );
     if( isdigit( (unsigned char)*psz_command ) )
     {
-        if (parse_param_id( &psz_command, &p_params->i_id) == VLC_EGENERIC)
-            return VLC_EGENERIC;
+        if (parse_param_id( &psz_command, &p_params->i_id) == HEIMDALL_EGENERIC)
+            return HEIMDALL_EGENERIC;
     }
     skip_space( &psz_command );
     if( isdigit( (unsigned char)*psz_command ) )
     {
         int32_t value;
 
-        if( parse_digit( &psz_command, &value ) == VLC_EGENERIC )
-            return VLC_EGENERIC;
+        if( parse_digit( &psz_command, &value ) == HEIMDALL_EGENERIC )
+            return HEIMDALL_EGENERIC;
 
         p_params->fontstyle.i_font_alpha = value;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int parser_SetTextColor( char *psz_command, char *psz_end,
                                 commandparams_t *p_params )
 {
     int r = 0, g = 0, b = 0;
-    VLC_UNUSED(psz_end);
+    HEIMDALL_UNUSED(psz_end);
 
     skip_space( &psz_command );
     if( isdigit( (unsigned char)*psz_command ) )
     {
-        if (parse_param_id( &psz_command, &p_params->i_id) == VLC_EGENERIC)
-            return VLC_EGENERIC;
+        if (parse_param_id( &psz_command, &p_params->i_id) == HEIMDALL_EGENERIC)
+            return HEIMDALL_EGENERIC;
     }
     skip_space( &psz_command );
     if( isdigit( (unsigned char)*psz_command ) )
     {
-        if( parse_digit( &psz_command, &r ) == VLC_EGENERIC )
-            return VLC_EGENERIC;
+        if( parse_digit( &psz_command, &r ) == HEIMDALL_EGENERIC )
+            return HEIMDALL_EGENERIC;
     }
     skip_space( &psz_command );
     if( isdigit( (unsigned char)*psz_command ) )
     {
-        if( parse_digit( &psz_command, &g ) == VLC_EGENERIC )
-            return VLC_EGENERIC;
+        if( parse_digit( &psz_command, &g ) == HEIMDALL_EGENERIC )
+            return HEIMDALL_EGENERIC;
     }
     skip_space( &psz_command );
     if( isdigit( (unsigned char)*psz_command ) )
     {
-        if( parse_digit( &psz_command, &b ) == VLC_EGENERIC )
-            return VLC_EGENERIC;
+        if( parse_digit( &psz_command, &b ) == HEIMDALL_EGENERIC )
+            return HEIMDALL_EGENERIC;
     }
     p_params->fontstyle.i_font_color = (r<<16) | (g<<8) | (b<<0);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int parser_SetTextSize( char *psz_command, char *psz_end,
                                commandparams_t *p_params )
 {
-    VLC_UNUSED(psz_end);
+    HEIMDALL_UNUSED(psz_end);
     skip_space( &psz_command );
     if( isdigit( (unsigned char)*psz_command ) )
     {
-        if (parse_param_id( &psz_command, &p_params->i_id) == VLC_EGENERIC)
-            return VLC_EGENERIC;
+        if (parse_param_id( &psz_command, &p_params->i_id) == HEIMDALL_EGENERIC)
+            return HEIMDALL_EGENERIC;
     }
     skip_space( &psz_command );
     if( isdigit( (unsigned char)*psz_command ) )
     {
-        if( parse_digit( &psz_command, &p_params->fontstyle.i_font_size ) == VLC_EGENERIC )
-            return VLC_EGENERIC;
+        if( parse_digit( &psz_command, &p_params->fontstyle.i_font_size ) == HEIMDALL_EGENERIC )
+            return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int parser_SetVisibility( char *psz_command, char *psz_end,
                                  commandparams_t *p_params )
 {
-    VLC_UNUSED(psz_end);
+    HEIMDALL_UNUSED(psz_end);
     skip_space( &psz_command );
     if( isdigit( (unsigned char)*psz_command ) )
     {
-        if (parse_param_id( &psz_command, &p_params->i_id) == VLC_EGENERIC)
-            return VLC_EGENERIC;
+        if (parse_param_id( &psz_command, &p_params->i_id) == HEIMDALL_EGENERIC)
+            return HEIMDALL_EGENERIC;
     }
     skip_space( &psz_command );
     if( isdigit( (unsigned char)*psz_command ) )
     {
         int32_t i_vis = 0;
-        if( parse_digit( &psz_command, &i_vis ) == VLC_EGENERIC )
-            return VLC_EGENERIC;
+        if( parse_digit( &psz_command, &i_vis ) == HEIMDALL_EGENERIC )
+            return HEIMDALL_EGENERIC;
         p_params->b_visible = (i_vis == 1) ? true : false;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -338,91 +339,91 @@ static int parser_SetVisibility( char *psz_command, char *psz_end,
 static int unparse_default( const commandparams_t *p_results,
                             buffer_t *p_output )
 {
-    VLC_UNUSED(p_results);
-    VLC_UNUSED(p_output);
-    return VLC_SUCCESS;
+    HEIMDALL_UNUSED(p_results);
+    HEIMDALL_UNUSED(p_output);
+    return HEIMDALL_SUCCESS;
 }
 
 static int unparse_GenImage( const commandparams_t *p_results,
                              buffer_t *p_output )
 {
     int ret = BufferPrintf( p_output, " %zu", p_results->i_id );
-    if( ret != VLC_SUCCESS )
+    if( ret != HEIMDALL_SUCCESS )
         return ret;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int unparse_GetAlpha( const commandparams_t *p_results,
                              buffer_t *p_output )
 {
     int ret = BufferPrintf( p_output, " %d", p_results->i_alpha );
-    if( ret != VLC_SUCCESS )
+    if( ret != HEIMDALL_SUCCESS )
         return ret;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int unparse_GetPosition( const commandparams_t *p_results,
                                 buffer_t *p_output )
 {
     int ret = BufferPrintf( p_output, " %d", p_results->i_x );
-    if( ret != VLC_SUCCESS )
+    if( ret != HEIMDALL_SUCCESS )
         return ret;
 
     ret = BufferPrintf( p_output, " %d", p_results->i_y );
-    if( ret != VLC_SUCCESS )
+    if( ret != HEIMDALL_SUCCESS )
         return ret;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int unparse_GetTextAlpha( const commandparams_t *p_results,
                                  buffer_t *p_output )
 {
     int ret = BufferPrintf( p_output, " %d", p_results->fontstyle.i_font_alpha );
-    if( ret != VLC_SUCCESS )
+    if( ret != HEIMDALL_SUCCESS )
         return ret;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int unparse_GetTextColor( const commandparams_t *p_results,
                                  buffer_t *p_output )
 {
     int ret = BufferPrintf( p_output, " %"PRIu32, (p_results->fontstyle.i_font_color & 0xff0000)>>16 );
-    if( ret != VLC_SUCCESS )
+    if( ret != HEIMDALL_SUCCESS )
         return ret;
 
     ret = BufferPrintf( p_output, " %"PRIu32, (p_results->fontstyle.i_font_color & 0x00ff00)>>8 );
-    if( ret != VLC_SUCCESS )
+    if( ret != HEIMDALL_SUCCESS )
         return ret;
 
     ret = BufferPrintf( p_output, " %"PRIu32, (p_results->fontstyle.i_font_color & 0x0000ff) );
-    if( ret != VLC_SUCCESS )
+    if( ret != HEIMDALL_SUCCESS )
         return ret;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int unparse_GetTextSize( const commandparams_t *p_results,
                                 buffer_t *p_output )
 {
     int ret = BufferPrintf( p_output, " %d", p_results->fontstyle.i_font_size );
-    if( ret != VLC_SUCCESS )
+    if( ret != HEIMDALL_SUCCESS )
         return ret;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int unparse_GetVisibility( const commandparams_t *p_results,
                              buffer_t *p_output )
 {
     int ret = BufferPrintf( p_output, " %d", (p_results->b_visible ? 1 : 0) );
-    if( ret != VLC_SUCCESS ) {
+    if( ret != HEIMDALL_SUCCESS ) {
         return ret;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static inline overlay_t *ListGet( list_t *p_list, size_t i_idx )
@@ -445,23 +446,23 @@ static int exec_DataSharedMem( filter_t *p_filter,
     overlay_t *p_ovl;
     size_t i_size;
 
-    VLC_UNUSED(p_results);
+    HEIMDALL_UNUSED(p_results);
 
     p_ovl = ListGet( &p_sys->overlays, p_params->i_id );
     if( p_ovl == NULL )
     {
         msg_Err( p_filter, "Invalid overlay: %zu", p_params->i_id );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( shmctl( p_params->i_shmid, IPC_STAT, &shminfo ) == -1 )
     {
         msg_Err( p_filter, "Unable to access shared memory" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     i_size = shminfo.shm_segsz;
 
-    if( p_params->fourcc == VLC_CODEC_TEXT )
+    if( p_params->fourcc == HEIMDALL_CODEC_TEXT )
     {
         char *p_data;
 
@@ -471,7 +472,7 @@ static int exec_DataSharedMem( filter_t *p_filter,
                      "Invalid width and/or height. when specifying text height "
                      "must be 1 and width the number of bytes in the string, "
                      "including the null terminator" );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         if( (size_t)p_params->i_width > i_size )
@@ -479,13 +480,13 @@ static int exec_DataSharedMem( filter_t *p_filter,
             msg_Err( p_filter,
                      "Insufficient data in shared memory. need %d, got %zu",
                      p_params->i_width, i_size );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         p_ovl->data.p_text = malloc( p_params->i_width );
         if( p_ovl->data.p_text == NULL )
         {
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         }
 
         p_ovl->type = OVERLAY_IS_TEXT;
@@ -496,7 +497,7 @@ static int exec_DataSharedMem( filter_t *p_filter,
             msg_Err( p_filter, "Unable to attach to shared memory" );
             free( p_ovl->data.p_text );
             p_ovl->data.p_text = NULL;
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         }
         memcpy( p_ovl->data.p_text, p_data, p_params->i_width );
 
@@ -514,7 +515,7 @@ static int exec_DataSharedMem( filter_t *p_filter,
                                          p_params->i_width, p_params->i_height,
                                          1, 1 );
         if( p_ovl->data.p_pic == NULL )
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
 
         p_ovl->type = OVERLAY_IS_PICTURE;
 
@@ -532,7 +533,7 @@ static int exec_DataSharedMem( filter_t *p_filter,
                      i_neededsize, i_size );
             picture_Release( p_ovl->data.p_pic );
             p_ovl->data.p_pic = NULL;
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         p_data = shmat( p_params->i_shmid, NULL, SHM_RDONLY );
@@ -541,7 +542,7 @@ static int exec_DataSharedMem( filter_t *p_filter,
             msg_Err( p_filter, "Unable to attach to shared memory" );
             picture_Release( p_ovl->data.p_pic );
             p_ovl->data.p_pic = NULL;
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         }
 
         p_in = p_data;
@@ -563,13 +564,13 @@ static int exec_DataSharedMem( filter_t *p_filter,
     }
     p_sys->b_updated = p_ovl->b_active;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 #else
-    VLC_UNUSED(p_params);
-    VLC_UNUSED(p_results);
+    HEIMDALL_UNUSED(p_params);
+    HEIMDALL_UNUSED(p_results);
 
     msg_Err( p_filter, "system doesn't support shared memory" );
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 #endif
 }
 
@@ -577,47 +578,47 @@ static int exec_DeleteImage( filter_t *p_filter,
                              const commandparams_t *p_params,
                              commandparams_t *p_results )
 {
-    VLC_UNUSED(p_results);
+    HEIMDALL_UNUSED(p_results);
     filter_sys_t *p_sys = p_filter->p_sys;
     p_sys->b_updated = true;
 
     if ( p_params->i_id >= p_sys->overlays.size)
-        return VLC_EINVAL;
+        return HEIMDALL_EINVAL;
 
     overlay_t *p_del = p_sys->overlays.data[p_params->i_id];
-    vlc_vector_remove(&p_sys->overlays, p_params->i_id);
+    heimdall_vector_remove(&p_sys->overlays, p_params->i_id);
     OverlayDestroy( p_del );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int exec_EndAtomic( filter_t *p_filter,
                            const commandparams_t *p_params,
                            commandparams_t *p_results )
 {
-    VLC_UNUSED(p_params);
-    VLC_UNUSED(p_results);
+    HEIMDALL_UNUSED(p_params);
+    HEIMDALL_UNUSED(p_results);
     filter_sys_t *p_sys = p_filter->p_sys;
     QueueTransfer( &p_sys->pending, &p_sys->atomic );
     p_sys->b_atomic = false;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int exec_GenImage( filter_t *p_filter,
                           const commandparams_t *p_params,
                           commandparams_t *p_results )
 {
-    VLC_UNUSED(p_params);
+    HEIMDALL_UNUSED(p_params);
     filter_sys_t *p_sys = p_filter->p_sys;
 
     overlay_t *p_ovl = OverlayCreate();
     if( p_ovl == NULL )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    if (!vlc_vector_push(&p_sys->overlays, p_ovl))
-        return VLC_ENOMEM;
+    if (!heimdall_vector_push(&p_sys->overlays, p_ovl))
+        return HEIMDALL_ENOMEM;
 
     p_results->i_id = p_sys->overlays.size - 1;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int exec_GetAlpha( filter_t *p_filter,
@@ -627,10 +628,10 @@ static int exec_GetAlpha( filter_t *p_filter,
     filter_sys_t *p_sys = p_filter->p_sys;
     overlay_t *p_ovl = ListGet( &p_sys->overlays, p_params->i_id );
     if( p_ovl == NULL )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     p_results->i_alpha = p_ovl->i_alpha;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int exec_GetPosition( filter_t *p_filter,
@@ -640,11 +641,11 @@ static int exec_GetPosition( filter_t *p_filter,
     filter_sys_t *p_sys = p_filter->p_sys;
     overlay_t *p_ovl = ListGet( &p_sys->overlays, p_params->i_id );
     if( p_ovl == NULL )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     p_results->i_x = p_ovl->i_x;
     p_results->i_y = p_ovl->i_y;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int exec_GetTextAlpha( filter_t *p_filter,
@@ -654,11 +655,11 @@ static int exec_GetTextAlpha( filter_t *p_filter,
     filter_sys_t *p_sys = p_filter->p_sys;
     overlay_t *p_ovl = ListGet( &p_sys->overlays, p_params->i_id );
     if( p_ovl == NULL )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     p_results->fontstyle.i_font_alpha = p_ovl->p_fontstyle->i_font_alpha;
     p_results->fontstyle.i_features |= STYLE_HAS_FONT_ALPHA;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int exec_GetTextColor( filter_t *p_filter,
@@ -668,11 +669,11 @@ static int exec_GetTextColor( filter_t *p_filter,
     filter_sys_t *p_sys = p_filter->p_sys;
     overlay_t *p_ovl = ListGet( &p_sys->overlays, p_params->i_id );
     if( p_ovl == NULL )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     p_results->fontstyle.i_font_color = p_ovl->p_fontstyle->i_font_color;
     p_results->fontstyle.i_features |= STYLE_HAS_FONT_COLOR;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int exec_GetTextSize( filter_t *p_filter,
@@ -682,10 +683,10 @@ static int exec_GetTextSize( filter_t *p_filter,
     filter_sys_t *p_sys = p_filter->p_sys;
     overlay_t *p_ovl = ListGet( &p_sys->overlays, p_params->i_id );
     if( p_ovl == NULL )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     p_results->fontstyle.i_font_size = p_ovl->p_fontstyle->i_font_size;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int exec_GetVisibility( filter_t *p_filter,
@@ -696,110 +697,110 @@ static int exec_GetVisibility( filter_t *p_filter,
 
     overlay_t *p_ovl = ListGet( &p_sys->overlays, p_params->i_id );
     if( p_ovl == NULL )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     p_results->b_visible = p_ovl->b_active ? 1 : 0;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int exec_SetAlpha( filter_t *p_filter,
                           const commandparams_t *p_params,
                           commandparams_t *p_results )
 {
-    VLC_UNUSED(p_results);
+    HEIMDALL_UNUSED(p_results);
     filter_sys_t *p_sys = p_filter->p_sys;
 
     overlay_t *p_ovl = ListGet( &p_sys->overlays, p_params->i_id );
     if( p_ovl == NULL )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     p_ovl->i_alpha = p_params->i_alpha;
     p_sys->b_updated = p_ovl->b_active;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int exec_SetPosition( filter_t *p_filter,
                              const commandparams_t *p_params,
                              commandparams_t *p_results )
 {
-    VLC_UNUSED(p_results);
+    HEIMDALL_UNUSED(p_results);
     filter_sys_t *p_sys = p_filter->p_sys;
 
     overlay_t *p_ovl = ListGet( &p_sys->overlays, p_params->i_id );
     if( p_ovl == NULL )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     p_ovl->i_x = p_params->i_x;
     p_ovl->i_y = p_params->i_y;
 
     p_sys->b_updated = p_ovl->b_active;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int exec_SetTextAlpha( filter_t *p_filter,
                               const commandparams_t *p_params,
                               commandparams_t *p_results )
 {
-    VLC_UNUSED(p_results);
+    HEIMDALL_UNUSED(p_results);
     filter_sys_t *p_sys = p_filter->p_sys;
 
     overlay_t *p_ovl = ListGet( &p_sys->overlays, p_params->i_id );
     if( p_ovl == NULL )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     p_ovl->p_fontstyle->i_font_alpha = p_params->fontstyle.i_font_alpha;
     p_ovl->p_fontstyle->i_features |= STYLE_HAS_FONT_ALPHA;
     p_sys->b_updated = p_ovl->b_active;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int exec_SetTextColor( filter_t *p_filter,
                               const commandparams_t *p_params,
                               commandparams_t *p_results )
 {
-    VLC_UNUSED(p_results);
+    HEIMDALL_UNUSED(p_results);
     filter_sys_t *p_sys = p_filter->p_sys;
 
     overlay_t *p_ovl = ListGet( &p_sys->overlays, p_params->i_id );
     if( p_ovl == NULL )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     p_ovl->p_fontstyle->i_font_color = p_params->fontstyle.i_font_color;
     p_ovl->p_fontstyle->i_features |= STYLE_HAS_FONT_COLOR;
     p_sys->b_updated = p_ovl->b_active;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int exec_SetTextSize( filter_t *p_filter,
                               const commandparams_t *p_params,
                               commandparams_t *p_results )
 {
-    VLC_UNUSED(p_results);
+    HEIMDALL_UNUSED(p_results);
     filter_sys_t *p_sys = p_filter->p_sys;
 
     overlay_t *p_ovl = ListGet( &p_sys->overlays, p_params->i_id );
     if( p_ovl == NULL )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     p_ovl->p_fontstyle->i_font_size = p_params->fontstyle.i_font_size;
     p_sys->b_updated = p_ovl->b_active;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int exec_SetVisibility( filter_t *p_filter,
                                const commandparams_t *p_params,
                                commandparams_t *p_results )
 {
-    VLC_UNUSED(p_results);
+    HEIMDALL_UNUSED(p_results);
     filter_sys_t *p_sys = p_filter->p_sys;
 
     overlay_t *p_ovl = ListGet( &p_sys->overlays, p_params->i_id );
     if( p_ovl == NULL )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     p_ovl->b_active = p_params->b_visible;// ? false : true;
     p_sys->b_updated = true;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int exec_StartAtomic( filter_t *p_filter,
@@ -807,11 +808,11 @@ static int exec_StartAtomic( filter_t *p_filter,
                              commandparams_t *p_results )
 {
     filter_sys_t *p_sys = p_filter->p_sys;
-    VLC_UNUSED(p_params);
-    VLC_UNUSED(p_results);
+    HEIMDALL_UNUSED(p_params);
+    HEIMDALL_UNUSED(p_results);
 
     p_sys->b_atomic = true;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************

@@ -2,6 +2,7 @@
  * dialogs_provider.cpp : Dialog Provider
  *****************************************************************************
  * Copyright (C) 2006-2009 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Clément Stenac <zorglub@videolan.org>
  *          Jean-Baptiste Kempf <jb@videolan.org>
@@ -25,10 +26,10 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_interface.h>
-#include <vlc_intf_strings.h>
-#include <vlc_preparser.h>
+#include <heimdall_common.h>
+#include <heimdall_interface.h>
+#include <heimdall_intf_strings.h>
+#include <heimdall_preparser.h>
 
 #include "qt.hpp"
 #include "dialogs_provider.hpp"
@@ -36,7 +37,7 @@
 #include "playlist/playlist_controller.hpp"
 #include "menus/menus.hpp"
 #include "util/qt_dirs.hpp"
-#include "util/vlchotkeyconverter.hpp"
+#include "util/heimdallhotkeyconverter.hpp"
 #include "maininterface/mainctx.hpp"
 
 /* The dialogs */
@@ -58,7 +59,7 @@
 #include "dialogs/playlists/playlists.hpp"
 #include "dialogs/firstrun/firstrunwizard.hpp"
 
-#include <vlc_url.h>
+#include <heimdall_url.h>
 
 #include <QEvent>
 #include <QApplication>
@@ -107,7 +108,7 @@ DialogsProvider::DialogsProvider( qt_intf_t *_p_intf )
 DialogsProvider::~DialogsProvider()
 {
     /* free parentless menus  */
-    VLCMenuBar::freeRendererMenu();
+    HeimdallMenuBar::freeRendererMenu();
 }
 
 QString DialogsProvider::getSaveFileName( QWidget *parent,
@@ -157,7 +158,7 @@ void DialogsProvider::quit()
     b_isDying = true;
     assert(qApp);
     qApp->setProperty("isDying", true);
-    libvlc_Quit( vlc_object_instance(p_intf) );
+    libheimdall_Quit( heimdall_object_instance(p_intf) );
 }
 
 void DialogsProvider::customEvent( QEvent *event )
@@ -212,7 +213,7 @@ void DialogsProvider::customEvent( QEvent *event )
               //popping a QMenu prevents mouse release events to be received,
               //this ensures the coherency of the vout mouse state.
               emit releaseMouseEvents();
-              popupMenu.reset(VLCMenuBar::PopupMenu( p_intf, true ));
+              popupMenu.reset(HeimdallMenuBar::PopupMenu( p_intf, true ));
            }
            break;
         }
@@ -221,7 +222,7 @@ void DialogsProvider::customEvent( QEvent *event )
            audioPopupMenu.reset();
            bool show = (de->i_arg != 0);
            if( show )
-               audioPopupMenu.reset(VLCMenuBar::AudioPopupMenu( p_intf, show ));
+               audioPopupMenu.reset(HeimdallMenuBar::AudioPopupMenu( p_intf, show ));
            break;
         }
         case INTF_DIALOG_VIDEOPOPUPMENU:
@@ -229,7 +230,7 @@ void DialogsProvider::customEvent( QEvent *event )
            videoPopupMenu.reset();
            bool show = (de->i_arg != 0);
            if( show )
-               videoPopupMenu.reset(VLCMenuBar::VideoPopupMenu( p_intf, show ));
+               videoPopupMenu.reset(HeimdallMenuBar::VideoPopupMenu( p_intf, show ));
            break;
         }
         case INTF_DIALOG_MISCPOPUPMENU:
@@ -237,14 +238,14 @@ void DialogsProvider::customEvent( QEvent *event )
            miscPopupMenu.reset();
            bool show = (de->i_arg != 0);
            if( show )
-               miscPopupMenu.reset(VLCMenuBar::MiscPopupMenu( p_intf, show ));
+               miscPopupMenu.reset(HeimdallMenuBar::MiscPopupMenu( p_intf, show ));
            break;
         }
         case INTF_DIALOG_WIZARD:
         case INTF_DIALOG_STREAMWIZARD:
             openAndStreamingDialogs(); break;
 #ifdef UPDATE_CHECK
-        case INTF_DIALOG_UPDATEVLC:
+        case INTF_DIALOG_UPDATEHEIMDALL:
             updateDialog(); break;
 #endif
         case INTF_DIALOG_EXIT:
@@ -305,7 +306,7 @@ void DialogsProvider::prefsDialog()
 void DialogsProvider::firstRunDialog()
 {
     ensureDialog(m_firstRunDialog);
-    QVLCDialog::setWindowTransientParent(m_firstRunDialog.get(), nullptr, p_intf);
+    QHeimdallDialog::setWindowTransientParent(m_firstRunDialog.get(), nullptr, p_intf);
     m_firstRunDialog->show();
 }
 
@@ -404,11 +405,11 @@ void DialogsProvider::mediaInfoDialog( const PlaylistItem& pItem )
 {
     input_item_t *p_input = nullptr;
 
-    vlc_playlist_item_t * const playlistItem = pItem.raw();
+    heimdall_playlist_item_t * const playlistItem = pItem.raw();
 
     if( playlistItem )
     {
-        p_input = vlc_playlist_item_GetMedia(playlistItem);
+        p_input = heimdall_playlist_item_GetMedia(playlistItem);
     }
 
     if( p_input )
@@ -421,10 +422,10 @@ void DialogsProvider::mediaInfoDialog( const MLItemId& itemId )
 {
     assert( p_intf );
 
-    vlc_medialibrary_t* const ml = vlc_ml_instance_get( p_intf );
+    heimdall_medialibrary_t* const ml = heimdall_ml_instance_get( p_intf );
     assert( ml );
 
-    input_item_t * const inputItem = vlc_ml_get_input_item( ml, itemId.id );
+    input_item_t * const inputItem = heimdall_ml_get_input_item( ml, itemId.id );
     assert( inputItem );
 
     const SharedInputItem sharedInputItem { inputItem, false };
@@ -439,7 +440,7 @@ void DialogsProvider::mediaInfoDialog( const MLItemId& itemId )
             []( input_item_t * const item, int status, void * const userData ) {
                 const auto dp = static_cast<DialogsProvider *>( userData );
 
-                if ( status != VLC_SUCCESS )
+                if ( status != HEIMDALL_SUCCESS )
                     qWarning( "Could not preparse input item %p. Status %i", item, status );
 
                 const SharedInputItem sharedInputItem{ item };
@@ -462,7 +463,7 @@ void DialogsProvider::mediaInfoDialog( const MLItemId& itemId )
             .interact = false,
         };
 
-        m_parser = vlc::wrap_cptr( input_item_Parse( VLC_OBJECT( p_intf ),
+        m_parser = heimdall::wrap_cptr( input_item_Parse( HEIMDALL_OBJECT( p_intf ),
                                    inputItem, &cfg ),
                                    &input_item_parser_id_Release );
     }
@@ -478,7 +479,7 @@ bool DialogsProvider::questionDialog(const QString& text, const QString &title) 
     messageBox.setStandardButtons(QMessageBox::StandardButtons(QMessageBox::Yes | QMessageBox::No));
     messageBox.setDefaultButton(QMessageBox::No);
 
-    QVLCDialog::setWindowTransientParent(&messageBox, nullptr, p_intf);
+    QHeimdallDialog::setWindowTransientParent(&messageBox, nullptr, p_intf);
 
     int result = messageBox.exec();
     return result == QMessageBox::Yes;
@@ -516,7 +517,7 @@ QMessageBox::StandardButton DialogsProvider::messageDialog(const QString &text,
     if (defaultButton != QMessageBox::NoButton)
         messageBox.setDefaultButton(defaultButton);
 
-    QVLCDialog::setWindowTransientParent(&messageBox, nullptr, p_intf);
+    QHeimdallDialog::setWindowTransientParent(&messageBox, nullptr, p_intf);
 
     return static_cast<QMessageBox::StandardButton>(messageBox.exec());
 }
@@ -550,7 +551,7 @@ void DialogsProvider::epgDialog()
 
 void DialogsProvider::setPopupMenu()
 {
-    popupMenu.reset(VLCMenuBar::PopupMenu( p_intf, true ));
+    popupMenu.reset(HeimdallMenuBar::PopupMenu( p_intf, true ));
 }
 
 void DialogsProvider::destroyPopupMenu()
@@ -589,7 +590,7 @@ void DialogsProvider::openFileGenericDialog( intf_dialog_args_t *p_arg )
         if( !file.isEmpty() )
         {
             p_arg->i_results = 1;
-            p_arg->psz_results = (char **)vlc_alloc( p_arg->i_results, sizeof( char * ) );
+            p_arg->psz_results = (char **)heimdall_alloc( p_arg->i_results, sizeof( char * ) );
             p_arg->psz_results[0] = strdup( qtu( toNativeSepNoSlash( std::move(file) ) ) );
         }
         else
@@ -600,7 +601,7 @@ void DialogsProvider::openFileGenericDialog( intf_dialog_args_t *p_arg )
         QList<QUrl> urls = QFileDialog::getOpenFileUrls( NULL, qfu( p_arg->psz_title ),
                                        p_intf->p_mi->getDialogFilePath(), extensions );
         p_arg->i_results = urls.count();
-        p_arg->psz_results = (char **)vlc_alloc( p_arg->i_results, sizeof( char * ) );
+        p_arg->psz_results = (char **)heimdall_alloc( p_arg->i_results, sizeof( char * ) );
         i = 0;
         foreach( const QUrl &uri, urls )
             p_arg->psz_results[i++] = strdup( uri.toEncoded().constData() );
@@ -708,9 +709,9 @@ void DialogsProvider::simpleOpenDialog(bool start)
     QStringList urls = DialogsProvider::showSimpleOpen();
 
     urls.sort();
-    QVector<vlc::playlist::Media> medias;
+    QVector<heimdall::playlist::Media> medias;
     for( const QString& mrl : urls)
-        medias.push_back( vlc::playlist::Media{mrl, QString {}} );
+        medias.push_back( heimdall::playlist::Media{mrl, QString {}} );
     if (!medias.empty())
         THEMPL->append(medias, start);
 }
@@ -733,9 +734,9 @@ void DialogsProvider::openUrlDialog()
     char *uri;
     if( !url.contains( qfu( "://" ) ) )
     {
-        uri = vlc_path2uri( qtu( url ), NULL );
+        uri = heimdall_path2uri( qtu( url ), NULL );
     } else {
-        uri = vlc_uri_fixup( qtu( url ) );
+        uri = heimdall_uri_fixup( qtu( url ) );
     }
 
     if( uri == NULL )
@@ -743,7 +744,7 @@ void DialogsProvider::openUrlDialog()
     url = qfu(uri);
     free( uri );
 
-    QVector<vlc::playlist::Media> medias = { {url, QString {}} };
+    QVector<heimdall::playlist::Media> medias = { {url, QString {}} };
     THEMPL->append(medias, !oud.shouldEnqueue());
 }
 
@@ -758,7 +759,7 @@ static void openDirectory( qt_intf_t *p_intf, bool go )
     QString uri = DialogsProvider::getDirectoryDialog( p_intf );
     if( !uri.isEmpty() )
     {
-        QVector<vlc::playlist::Media> medias = { {uri, QString {}} };
+        QVector<heimdall::playlist::Media> medias = { {uri, QString {}} };
         THEMPL->append(medias, go);
     }
 }
@@ -784,7 +785,7 @@ QString DialogsProvider::getDirectoryDialog( qt_intf_t *p_intf )
         dir.remove( "BDMV" );
     }
 
-    char *uri = vlc_path2uri( qtu( toNativeSeparators( dir ) ), scheme );
+    char *uri = heimdall_path2uri( qtu( toNativeSeparators( dir ) ), scheme );
     if( unlikely(uri == NULL) )
         return QString();
 
@@ -873,11 +874,11 @@ void DialogsProvider::savePlayingToPlaylist()
 
     if ( psz_selected_module )
     {
-        vlc_playlist_Lock( p_intf->p_playlist  );
-        vlc_playlist_Export( p_intf->p_playlist,
+        heimdall_playlist_Lock( p_intf->p_playlist  );
+        heimdall_playlist_Export( p_intf->p_playlist,
                              qtu( toNativeSeparators( file ) ),
                              psz_selected_module );
-        vlc_playlist_Unlock( p_intf->p_playlist  );
+        heimdall_playlist_Unlock( p_intf->p_playlist  );
         getSettings()->setValue( "last-playlist-ext", psz_last_playlist_ext );
     }
 }
@@ -928,13 +929,13 @@ void DialogsProvider::streamingDialog( QWindow *parent,
     }
 
     /* Get SoutChain(s) */
-    QVector<vlc::playlist::Media> outputMedias;
+    QVector<heimdall::playlist::Media> outputMedias;
 
     for( auto it = outputMRLs.cbegin(); it != outputMRLs.cend(); ++it )
     {
         const QString &mrl = mrls[std::distance(outputMRLs.cbegin(), it)];
         QString title = "Converting " + mrl;
-        outputMedias.append(vlc::playlist::Media(mrl, title, options + (*it).split(" :")));
+        outputMedias.append(heimdall::playlist::Media(mrl, title, options + (*it).split(" :")));
     }
 
     if( !outputMedias.empty() )
@@ -1017,13 +1018,13 @@ void DialogsProvider::loadVideoFile()
 
 void DialogsProvider::sendKey( int key )
 {
-     // translate from a vlc keycode into a Qt sequence
-     QKeySequence kseq0( VLCKeyToString( key, true ) );
+     // translate from a heimdall keycode into a Qt sequence
+     QKeySequence kseq0( HeimdallKeyToString( key, true ) );
 
      if( !popupMenu )
      {
          // make sure at least a non visible popupmenu is available
-         popupMenu.reset(VLCMenuBar::PopupMenu( p_intf, false ));
+         popupMenu.reset(HeimdallMenuBar::PopupMenu( p_intf, false ));
          if( unlikely( !popupMenu ) )
              return;
      }
@@ -1041,8 +1042,8 @@ void DialogsProvider::sendKey( int key )
          }
      }
 
-     // forward key to vlc core when not a key accelerator
-     var_SetInteger( vlc_object_instance(p_intf), "key-pressed", key );
+     // forward key to heimdall core when not a key accelerator
+     var_SetInteger( heimdall_object_instance(p_intf), "key-pressed", key );
 }
 
 

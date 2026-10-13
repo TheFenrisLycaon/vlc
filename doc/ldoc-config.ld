@@ -1,6 +1,6 @@
-project = "VLC"
-title = "VLC Lua scripting"
-description = "The VLC Lua scripting reference documentation"
+project = "Heimdall"
+title = "Heimdall Lua scripting"
+description = "The Heimdall Lua scripting reference documentation"
 format = 'markdown'
 style = "!new"
 merge = true

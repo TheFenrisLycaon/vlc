@@ -1,7 +1,8 @@
 /*****************************************************************************
- * i420_rgb16_x86.c : YUV to bitmap RGB conversion module for vlc
+ * i420_rgb16_x86.c : YUV to bitmap RGB conversion module for heimdall
  *****************************************************************************
  * Copyright (C) 2000 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Samuel Hocevar <sam@zoy.org>
  *          Damien Fouilleul <damienf@videolan.org>
@@ -25,15 +26,15 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_filter.h>
-#include <vlc_picture.h>
-#include <vlc_cpu.h>
+#include <heimdall_common.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
+#include <heimdall_cpu.h>
 
 #include "i420_rgb.h"
 #ifdef PLUGIN_SSE2
 # include "i420_rgb_sse2.h"
-# define VLC_TARGET VLC_SSE
+# define HEIMDALL_TARGET HEIMDALL_SSE
 #endif
 
 /*****************************************************************************
@@ -96,7 +97,7 @@ static void SetOffset( int i_width, int i_height, int i_pic_width,
         *pi_vscale = -1;
 }
 
-VLC_TARGET
+HEIMDALL_TARGET
 void I420_R5G5B5( filter_t *p_filter, picture_t *p_src, picture_t *p_dest )
 {
     filter_sys_t *p_sys = p_filter->p_sys;
@@ -280,7 +281,7 @@ void I420_R5G5B5( filter_t *p_filter, picture_t *p_src, picture_t *p_dest )
 #endif
 }
 
-VLC_TARGET
+HEIMDALL_TARGET
 void I420_R5G6B5( filter_t *p_filter, picture_t *p_src, picture_t *p_dest )
 {
     filter_sys_t *p_sys = p_filter->p_sys;
@@ -464,7 +465,7 @@ void I420_R5G6B5( filter_t *p_filter, picture_t *p_src, picture_t *p_dest )
 #endif
 }
 
-VLC_TARGET
+HEIMDALL_TARGET
 void I420_A8R8G8B8( filter_t *p_filter, picture_t *p_src,
                                             picture_t *p_dest )
 {
@@ -648,7 +649,7 @@ void I420_A8R8G8B8( filter_t *p_filter, picture_t *p_src,
 #endif
 }
 
-VLC_TARGET
+HEIMDALL_TARGET
 void I420_R8G8B8A8( filter_t *p_filter, picture_t *p_src, picture_t *p_dest )
 {
     filter_sys_t *p_sys = p_filter->p_sys;
@@ -831,7 +832,7 @@ void I420_R8G8B8A8( filter_t *p_filter, picture_t *p_src, picture_t *p_dest )
 #endif
 }
 
-VLC_TARGET
+HEIMDALL_TARGET
 void I420_B8G8R8A8( filter_t *p_filter, picture_t *p_src, picture_t *p_dest )
 {
     filter_sys_t *p_sys = p_filter->p_sys;
@@ -1014,7 +1015,7 @@ void I420_B8G8R8A8( filter_t *p_filter, picture_t *p_src, picture_t *p_dest )
 #endif
 }
 
-VLC_TARGET
+HEIMDALL_TARGET
 void I420_A8B8G8R8( filter_t *p_filter, picture_t *p_src, picture_t *p_dest )
 {
     filter_sys_t *p_sys = p_filter->p_sys;

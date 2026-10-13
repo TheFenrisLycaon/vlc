@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,13 +25,13 @@
 #include "mlthreadpool.hpp"
 #include "mlqmltypes.hpp"
 
-namespace vlc {
+namespace heimdall {
 namespace playlist {
 class Media;
 }
 }
 
-struct vlc_medialibrary_t;
+struct heimdall_medialibrary_t;
 
 class MediaLib : public QObject
 {
@@ -43,7 +44,7 @@ public:
     Q_PROPERTY(bool idle READ idle NOTIFY idleChanged FINAL)
 
 public:
-    MediaLib(qt_intf_t* _intf, vlc::playlist::PlaylistController* playlistController, QObject* _parent = nullptr );
+    MediaLib(qt_intf_t* _intf, heimdall::playlist::PlaylistController* playlistController, QObject* _parent = nullptr );
     ~MediaLib();
 
     Q_INVOKABLE static MLItemId deserializeMlItemIdFromString(const QString& serialized_id);
@@ -68,13 +69,13 @@ public:
     inline QString discoveryEntryPoint() const { return m_discoveryEntryPoint; }
     inline int parsingProgress() const { return m_parsingProgress; }
 
-    vlc_ml_event_callback_t* registerEventListener(void (*callback)(void*, const vlc_ml_event_t*), void* data);
-    void unregisterEventListener(vlc_ml_event_callback_t*);
+    heimdall_ml_event_callback_t* registerEventListener(void (*callback)(void*, const heimdall_ml_event_t*), void* data);
+    void unregisterEventListener(heimdall_ml_event_callback_t*);
 
     /**
      * this function allows to run lambdas on the ML thread,
-     * this should be used to perform operation that requires to call vlc_ml_xxx functions
-     * as vlc_ml_xxx should *not* be called from the UI thread
+     * this should be used to perform operation that requires to call heimdall_ml_xxx functions
+     * as heimdall_ml_xxx should *not* be called from the UI thread
      *
      * @param Ctx is the type of context, this context is created by the runner and passed sequentially to
      *     the ML callback then to UI callback, the ML callback may modify its properties as a way to pass
@@ -113,8 +114,8 @@ public:
      * };
      * runOnMLThread<Ctx>(this,
      * //run on ML thread
-     * [](vlc_medialibrary_t* ml, Ctx& ctx){
-     *    ctx.result = vlc_ml_xxx(ml, &ctx.mydata):
+     * [](heimdall_medialibrary_t* ml, Ctx& ctx){
+     *    ctx.result = heimdall_ml_xxx(ml, &ctx.mydata):
      * },
      * //run on UI thread
      * [this](quint64 taskId, Ctx& ctx) {
@@ -125,7 +126,7 @@ public:
      */
     template<typename Ctx>
     quint64 runOnMLThread(const QObject* obj,
-                    std::function< void(vlc_medialibrary_t* ml, Ctx& ctx)> mlCb,
+                    std::function< void(heimdall_medialibrary_t* ml, Ctx& ctx)> mlCb,
                     std::function< void(quint64 taskId, Ctx& ctx)> uiCB,
                     const char* queue = nullptr);
 
@@ -133,14 +134,14 @@ public:
      * same as runOnMLThread<Ctx> when no context passing is required
      */
     quint64 runOnMLThread(const QObject* obj,
-                    std::function< void(vlc_medialibrary_t* ml)> mlCb,
+                    std::function< void(heimdall_medialibrary_t* ml)> mlCb,
                     std::function< void()> uiCB,
                     const char* queue = nullptr);
     /**
      * same as runOnMLThread<Ctx> when no context passing is required
      */
     quint64 runOnMLThread(const QObject* obj,
-                    std::function< void(vlc_medialibrary_t* ml)> mlCb,
+                    std::function< void(heimdall_medialibrary_t* ml)> mlCb,
                     std::function< void(quint64 taskId)> uiCB,
                     const char* queue = nullptr);
 
@@ -148,7 +149,7 @@ public:
      * same as runOnMLThread<Ctx> when no ui callback is required
      */
    quint64 runOnMLThread(const QObject* obj,
-                    std::function< void(vlc_medialibrary_t* ml)> mlCb,
+                    std::function< void(heimdall_medialibrary_t* ml)> mlCb,
                     const char* queue = nullptr);
 
 
@@ -174,11 +175,11 @@ signals:
     void idleChanged();
 
 private:
-    static void onMediaLibraryEvent( void* data, const vlc_ml_event_t* event );
+    static void onMediaLibraryEvent( void* data, const heimdall_ml_event_t* event );
 
 private:
     qt_intf_t* m_intf;
-    vlc::playlist::PlaylistController* m_playlistController = nullptr;
+    heimdall::playlist::PlaylistController* m_playlistController = nullptr;
 
     bool m_idle = false;
     bool m_discoveryPending = false;
@@ -186,8 +187,8 @@ private:
     QString m_discoveryEntryPoint;
 
     /* Medialibrary */
-    vlc_medialibrary_t* m_ml;
-    std::unique_ptr<vlc_ml_event_callback_t, std::function<void(vlc_ml_event_callback_t*)>> m_event_cb;
+    heimdall_medialibrary_t* m_ml;
+    std::unique_ptr<heimdall_ml_event_callback_t, std::function<void(heimdall_ml_event_callback_t*)>> m_event_cb;
     ThreadRunner* m_runner = nullptr;
 
     QMap<QVector<MLItemId>, QVector<QJSValue>> m_inputItemQuery;
@@ -195,7 +196,7 @@ private:
 
 template<typename Ctx>
 quint64 MediaLib::runOnMLThread(const QObject* obj,
-                                    std::function<void (vlc_medialibrary_t*, Ctx&)> mlFun,
+                                    std::function<void (heimdall_medialibrary_t*, Ctx&)> mlFun,
                                     std::function<void (quint64 taskId, Ctx&)> uiFun,
                                     const char* queue)
 {

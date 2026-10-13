@@ -2,6 +2,7 @@
  * lib.c : libv4l2 run-time
  *****************************************************************************
  * Copyright (C) 2012 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -27,7 +28,7 @@
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
 #include "v4l2.h"
 

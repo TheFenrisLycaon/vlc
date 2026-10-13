@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,11 +20,11 @@ import QtQuick
 import QtQuick.Layouts
 
 
-import VLC.Util
-import VLC.Widgets as Widgets
-import VLC.MainInterface
-import VLC.Style
-import VLC.Network
+import Heimdall.Util
+import Heimdall.Widgets as Widgets
+import Heimdall.MainInterface
+import Heimdall.Style
+import Heimdall.Network
 
 Widgets.PageExt {
 
@@ -49,8 +50,8 @@ Widgets.PageExt {
         path: root.headerPath
         providerModel: root.model
 
-        leftPadding: VLCStyle.dynamicAppMargins(width) + VLCStyle.layout_left_margin + root.leftPadding
-        rightPadding: VLCStyle.dynamicAppMargins(width) + VLCStyle.layout_right_margin + root.rightPadding
+        leftPadding: HeimdallStyle.dynamicAppMargins(width) + HeimdallStyle.layout_left_margin + root.leftPadding
+        rightPadding: HeimdallStyle.dynamicAppMargins(width) + HeimdallStyle.layout_right_margin + root.rightPadding
 
         sort: root.sort
         search: root.search
@@ -152,8 +153,8 @@ Widgets.PageExt {
             Widgets.ExpandGridItemView {
                 id: gridView
 
-                basePictureWidth: VLCStyle.gridCover_network_width
-                basePictureHeight: VLCStyle.gridCover_network_height
+                basePictureWidth: HeimdallStyle.gridCover_network_width
+                basePictureHeight: HeimdallStyle.gridCover_network_height
                 subtitleHeight: 0
 
                 maxNbItemPerRow: 12
@@ -282,7 +283,7 @@ Widgets.PageExt {
 
                 dragItem: networkDragItem
 
-                sortModel: (_availableRowWidth < VLCStyle.colWidth(4)) ? _modelSmall
+                sortModel: (_availableRowWidth < HeimdallStyle.colWidth(4)) ? _modelSmall
                                                                        : _modelMedium
 
                 model: root.model
@@ -293,7 +294,7 @@ Widgets.PageExt {
                 Navigation.parentItem: root
                 Navigation.upItem: browseTreeHeader.networkAddressbar
 
-                rowHeight: VLCStyle.tableCoverRow_height
+                rowHeight: HeimdallStyle.tableCoverRow_height
 
                 rowContextMenu: root.contextMenu
 
@@ -307,8 +308,8 @@ Widgets.PageExt {
                 Widgets.TableColumns {
                     id: tableColumns
 
-                    titleCover_width: VLCStyle.listAlbumCover_width
-                    titleCover_height: VLCStyle.listAlbumCover_height
+                    titleCover_width: HeimdallStyle.listAlbumCover_width
+                    titleCover_height: HeimdallStyle.listAlbumCover_height
 
                     showTitleText: tableView.sortModel === tableView._modelSmall
                 }
@@ -325,19 +326,19 @@ Widgets.PageExt {
                     // NOTE: This is necessary because MainViewLoader may position this indicator over the shown header when height is small.
                     border.color: emptyLabel.colorContext.border
                     border.pixelAligned: (radius < Number.EPSILON)
-                    radius: VLCStyle.dp(6, VLCStyle.scale)
+                    radius: HeimdallStyle.dp(6, HeimdallStyle.scale)
                     color: emptyLabel.colorContext.bg.primary
                     opacity: 0.8
                 }
 
                 // FIXME: find better cover
-                cover: VLCStyle.noArtVideoCover
-                coverWidth : VLCStyle.dp(182, VLCStyle.scale)
-                coverHeight: VLCStyle.dp(114, VLCStyle.scale)
+                cover: HeimdallStyle.noArtVideoCover
+                coverWidth : HeimdallStyle.dp(182, HeimdallStyle.scale)
+                coverHeight: HeimdallStyle.dp(114, HeimdallStyle.scale)
 
                 text: qsTr("Nothing to see here, go back.")
 
-                button.iconTxt: VLCIcons.back
+                button.iconTxt: HeimdallIcons.back
                 button.text: qsTr("Back")
                 button.enabled: !History.previousEmpty
                 button.width: button.implicitWidth

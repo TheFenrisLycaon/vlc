@@ -2,10 +2,11 @@
  * subsdec.c : text subtitle decoder
  *****************************************************************************
  * Copyright (C) 2000-2006 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gildas Bazin <gbazin@videolan.org>
  *          Samuel Hocevar <sam@zoy.org>
- *          Derk-Jan Hartman <hartman at videolan dot org>
+ *          Derk-Jan Hartman <hartman at lycaria dot org>
  *          Bernie Purcell <bitmap@videolan.org>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -34,11 +35,11 @@
 #include <errno.h>
 #include <ctype.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
-#include <vlc_charset.h>
-#include <vlc_xml.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
+#include <heimdall_charset.h>
+#include <heimdall_xml.h>
 
 #include "substext.h"
 
@@ -174,10 +175,10 @@ static const char *const ppsz_justification_text[] = {
 #define AUTODETECT_UTF8_LONGTEXT N_("This enables automatic detection of " \
             "UTF-8 encoding within subtitle files.")
 
-static int  OpenDecoder   ( vlc_object_t * );
-static void CloseDecoder  ( vlc_object_t * );
+static int  OpenDecoder   ( heimdall_object_t * );
+static void CloseDecoder  ( heimdall_object_t * );
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( N_("Subtitles"))
     set_description( N_("Text subtitle decoder") )
     set_capability( "spu decoder", 50 )
@@ -191,7 +192,7 @@ vlc_module_begin ()
         change_string_list( ppsz_encodings, ppsz_encoding_names )
     add_bool( "subsdec-autodetect-utf8", true,
               AUTODETECT_UTF8_TEXT, AUTODETECT_UTF8_LONGTEXT )
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * Local prototypes
@@ -202,7 +203,7 @@ typedef struct
 {
     int                 i_align;          /* Subtitles alignment on the vout */
 
-    vlc_iconv_t         iconv_handle;            /* handle to iconv instance */
+    heimdall_iconv_t         iconv_handle;            /* handle to iconv instance */
     bool                b_autodetect_utf8;
 } decoder_sys_t;
 
@@ -217,38 +218,38 @@ static text_segment_t *ParseSubtitles(int *pi_align, const char * );
  * Tries to launch a decoder and return score so that the interface is able
  * to chose.
  *****************************************************************************/
-static int OpenDecoder( vlc_object_t *p_this )
+static int OpenDecoder( heimdall_object_t *p_this )
 {
     decoder_t     *p_dec = (decoder_t*)p_this;
     decoder_sys_t *p_sys;
 
     switch( p_dec->fmt_in->i_codec )
     {
-        case VLC_CODEC_SUBT:
-        case VLC_CODEC_ITU_T140:
+        case HEIMDALL_CODEC_SUBT:
+        case HEIMDALL_CODEC_ITU_T140:
             break;
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 
     /* Allocate the memory needed to store the decoder's structure */
     p_dec->p_sys = p_sys = calloc( 1, sizeof( *p_sys ) );
     if( p_sys == NULL )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_dec->pf_decode = DecodeBlock;
     p_dec->fmt_out.i_codec = 0;
 
     /* init of p_sys */
     p_sys->i_align = -1;
-    p_sys->iconv_handle = (vlc_iconv_t)-1;
+    p_sys->iconv_handle = (heimdall_iconv_t)-1;
     p_sys->b_autodetect_utf8 = false;
 
     const char *encoding;
     char *var = NULL;
 
     /* First try demux-specified encoding */
-    if( p_dec->fmt_in->i_codec == VLC_CODEC_ITU_T140 )
+    if( p_dec->fmt_in->i_codec == HEIMDALL_CODEC_ITU_T140 )
         encoding = "UTF-8"; /* IUT T.140 is always using UTF-8 */
     else
     if( p_dec->fmt_in->subs.psz_encoding && *p_dec->fmt_in->subs.psz_encoding )
@@ -278,15 +279,15 @@ static int OpenDecoder( vlc_object_t *p_this )
         {
         /* xgettext:
            The Windows ANSI code page most commonly used for this language.
-           VLC uses this as a guess of the subtitle files character set
+           Heimdall uses this as a guess of the subtitle files character set
            (if UTF-8 and UTF-16 autodetection fails).
            Western European languages normally use "CP1252", which is a
            Microsoft-variant of ISO 8859-1. That suits the Latin alphabet.
            Other scripts use other code pages.
 
            This MUST be a valid iconv character set. If unsure, please refer
-           the VideoLAN translators mailing list. */
-            encoding = vlc_pgettext("GetACP", "CP1252");
+           the Lycaria translators mailing list. */
+            encoding = heimdall_pgettext("GetACP", "CP1252");
             msg_Dbg (p_dec, "trying default character encoding: %s", encoding);
         }
 
@@ -300,16 +301,16 @@ static int OpenDecoder( vlc_object_t *p_this )
 
     if (strcasecmp (encoding, "UTF-8") && strcasecmp (encoding, "utf8"))
     {
-        p_sys->iconv_handle = vlc_iconv_open ("UTF-8", encoding);
-        if (p_sys->iconv_handle == (vlc_iconv_t)(-1))
+        p_sys->iconv_handle = heimdall_iconv_open ("UTF-8", encoding);
+        if (p_sys->iconv_handle == (heimdall_iconv_t)(-1))
             msg_Err (p_dec, "cannot convert from %s: %s", encoding,
-                     vlc_strerror_c(errno));
+                     heimdall_strerror_c(errno));
     }
     free (var);
 
     p_sys->i_align = var_InheritInteger( p_dec, "subsdec-align" );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /****************************************************************************
@@ -322,12 +323,12 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
     subpicture_t *p_spu;
 
     if( p_block == NULL ) /* No Drain */
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
 
     if( p_block->i_flags & BLOCK_FLAG_CORRUPTED )
     {
         block_Release( p_block );
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
     }
 
     p_spu = ParseText( p_dec, p_block );
@@ -335,19 +336,19 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
     block_Release( p_block );
     if( p_spu != NULL )
         decoder_QueueSub( p_dec, p_spu );
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }
 
 /*****************************************************************************
  * CloseDecoder: clean up the decoder
  *****************************************************************************/
-static void CloseDecoder( vlc_object_t *p_this )
+static void CloseDecoder( heimdall_object_t *p_this )
 {
     decoder_t *p_dec = (decoder_t *)p_this;
     decoder_sys_t *p_sys = p_dec->p_sys;
 
-    if( p_sys->iconv_handle != (vlc_iconv_t)-1 )
-        vlc_iconv_close( p_sys->iconv_handle );
+    if( p_sys->iconv_handle != (heimdall_iconv_t)-1 )
+        heimdall_iconv_close( p_sys->iconv_handle );
 
     free( p_sys );
 }
@@ -364,7 +365,7 @@ static subpicture_t *ParseText( decoder_t *p_dec, block_t *p_block )
         return NULL;
 
     /* We cannot display a subpicture with no date */
-    if( p_block->i_pts == VLC_TICK_INVALID )
+    if( p_block->i_pts == HEIMDALL_TICK_INVALID )
     {
         msg_Warn( p_dec, "subtitle without a date" );
         return NULL;
@@ -382,7 +383,7 @@ static subpicture_t *ParseText( decoder_t *p_dec, block_t *p_block )
     char *psz_subtitle = NULL;
 
     /* Should be resiliant against bad subtitles */
-    if( p_sys->iconv_handle == (vlc_iconv_t)-1 ||
+    if( p_sys->iconv_handle == (heimdall_iconv_t)-1 ||
         p_sys->b_autodetect_utf8 )
     {
         psz_subtitle = malloc( p_block->i_buffer + 1 );
@@ -392,7 +393,7 @@ static subpicture_t *ParseText( decoder_t *p_dec, block_t *p_block )
         psz_subtitle[p_block->i_buffer] = '\0';
     }
 
-    if( p_sys->iconv_handle == (vlc_iconv_t)-1 )
+    if( p_sys->iconv_handle == (heimdall_iconv_t)-1 )
     {
         if (EnsureUTF8( psz_subtitle ) == NULL)
         {
@@ -422,7 +423,7 @@ static subpicture_t *ParseText( decoder_t *p_dec, block_t *p_block )
             const char *psz_convert_buffer_in =
                     psz_subtitle ? psz_subtitle : (char *)p_block->p_buffer;
 
-            size_t ret = vlc_iconv( p_sys->iconv_handle,
+            size_t ret = heimdall_iconv( p_sys->iconv_handle,
                                     &psz_convert_buffer_in, &inbytes_left,
                                     &psz_convert_buffer_out, &outbytes_left );
 
@@ -604,7 +605,7 @@ static char* GetTag( const char** ppsz_subtitle, bool b_closing )
     size_t tag_size = 1;
     while ( isalnum( psz_subtitle[tag_size] ) || psz_subtitle[tag_size] == '_' )
         tag_size++;
-    char* psz_tagname = vlc_alloc( tag_size + 1, sizeof( *psz_tagname ) );
+    char* psz_tagname = heimdall_alloc( tag_size + 1, sizeof( *psz_tagname ) );
     if ( unlikely( !psz_tagname ) )
         return NULL;
     strncpy( psz_tagname, psz_subtitle, tag_size );
@@ -832,17 +833,17 @@ static text_segment_t* ParseSubtitles( int *pi_align, const char *psz_subtitle )
                         }
                         else if ( !strcasecmp( psz_attribute_name, "color" ) )
                         {
-                            p_segment->style->i_font_color = vlc_html_color( psz_attribute_value, NULL );
+                            p_segment->style->i_font_color = heimdall_html_color( psz_attribute_value, NULL );
                             p_segment->style->i_features |= STYLE_HAS_FONT_COLOR;
                         }
                         else if ( !strcasecmp( psz_attribute_name, "outline-color" ) )
                         {
-                            p_segment->style->i_outline_color = vlc_html_color( psz_attribute_value, NULL );
+                            p_segment->style->i_outline_color = heimdall_html_color( psz_attribute_value, NULL );
                             p_segment->style->i_features |= STYLE_HAS_OUTLINE_COLOR;
                         }
                         else if ( !strcasecmp( psz_attribute_name, "shadow-color" ) )
                         {
-                            p_segment->style->i_shadow_color = vlc_html_color( psz_attribute_value, NULL );
+                            p_segment->style->i_shadow_color = heimdall_html_color( psz_attribute_value, NULL );
                             p_segment->style->i_features |= STYLE_HAS_SHADOW_COLOR;
                         }
                         else if ( !strcasecmp( psz_attribute_name, "outline-level" ) )
@@ -855,7 +856,7 @@ static text_segment_t* ParseSubtitles( int *pi_align, const char *psz_subtitle )
                         }
                         else if ( !strcasecmp( psz_attribute_name, "back-color" ) )
                         {
-                            p_segment->style->i_background_color = vlc_html_color( psz_attribute_value, NULL );
+                            p_segment->style->i_background_color = heimdall_html_color( psz_attribute_value, NULL );
                             p_segment->style->i_features |= STYLE_HAS_BACKGROUND_COLOR;
                         }
                         else if ( !strcasecmp( psz_attribute_name, "alpha" ) )
@@ -1012,7 +1013,7 @@ static text_segment_t* ParseSubtitles( int *pi_align, const char *psz_subtitle )
                 psz_color[4] = psz_subtitle[4]; psz_color[5] = psz_subtitle[5];
                 psz_color[6] = '\0';
                 p_segment = NewTextSegmentPushStyle( p_segment, &p_stack );
-                p_segment->style->i_font_color = vlc_html_color( psz_color, NULL );
+                p_segment->style->i_font_color = heimdall_html_color( psz_color, NULL );
                 p_segment->style->i_features |= STYLE_HAS_FONT_COLOR;
             }
             else if( psz_subtitle[1] == 'F' || psz_subtitle[1] == 'f' )

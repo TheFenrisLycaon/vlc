@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 2001-2010 VLC authors and VideoLAN
  * Copyright © 2007-2012 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gildas Bazin <gbazin@videolan.org>
  *
@@ -28,10 +29,10 @@
 #define COBJMACROS
 #define INITGUID
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 #include "../config/configuration.h"
 
-#include <vlc_charset.h>
+#include <heimdall_charset.h>
 
 #include <assert.h>
 
@@ -96,7 +97,7 @@ static char * GetFolderName(IStorageFolder *folder)
     return result;
 }
 
-static char *config_GetShellDir(vlc_userdir_t csidl)
+static char *config_GetShellDir(heimdall_userdir_t csidl)
 {
     HRESULT hr;
     IStorageFolder *folder = NULL;
@@ -124,19 +125,19 @@ static char *config_GetShellDir(vlc_userdir_t csidl)
     knownFoldersStatics = pv;
 
     switch (csidl) {
-    case VLC_HOME_DIR:
+    case HEIMDALL_HOME_DIR:
         hr = IKnownFoldersStatics_get_DocumentsLibrary(knownFoldersStatics, &folder);
         break;
-    case VLC_MUSIC_DIR:
+    case HEIMDALL_MUSIC_DIR:
         hr = IKnownFoldersStatics_get_MusicLibrary(knownFoldersStatics, &folder);
         break;
-    case VLC_PICTURES_DIR:
+    case HEIMDALL_PICTURES_DIR:
         hr = IKnownFoldersStatics_get_PicturesLibrary(knownFoldersStatics, &folder);
         break;
-    case VLC_VIDEOS_DIR:
+    case HEIMDALL_VIDEOS_DIR:
         hr = IKnownFoldersStatics_get_VideosLibrary(knownFoldersStatics, &folder);
         break;
-    default: vlc_assert_unreachable();
+    default: heimdall_assert_unreachable();
     }
 
 end_other:
@@ -195,7 +196,7 @@ static char *config_GetAppDir (void)
     {
         char *psz_parent = GetFolderName(folder);
         if (psz_parent == NULL
-         || asprintf (&psz_dir, "%s\\vlc", psz_parent) == -1)
+         || asprintf (&psz_dir, "%s\\heimdall", psz_parent) == -1)
             psz_dir = NULL;
         free(psz_parent);
     }
@@ -270,30 +271,30 @@ end_appdata:
     return GetFolderName(folder);
 }
 
-char *platform_GetUserDir (vlc_userdir_t type)
+char *platform_GetUserDir (heimdall_userdir_t type)
 {
     switch (type)
     {
-        case VLC_HOME_DIR:
-        case VLC_DESKTOP_DIR:
-        case VLC_DOWNLOAD_DIR:
-        case VLC_TEMPLATES_DIR:
-        case VLC_PUBLICSHARE_DIR:
-        case VLC_DOCUMENTS_DIR:
-            return config_GetShellDir (VLC_HOME_DIR);
-        case VLC_CONFIG_DIR:
-        case VLC_USERDATA_DIR:
+        case HEIMDALL_HOME_DIR:
+        case HEIMDALL_DESKTOP_DIR:
+        case HEIMDALL_DOWNLOAD_DIR:
+        case HEIMDALL_TEMPLATES_DIR:
+        case HEIMDALL_PUBLICSHARE_DIR:
+        case HEIMDALL_DOCUMENTS_DIR:
+            return config_GetShellDir (HEIMDALL_HOME_DIR);
+        case HEIMDALL_CONFIG_DIR:
+        case HEIMDALL_USERDATA_DIR:
             return config_GetAppDir ();
-        case VLC_CACHE_DIR:
+        case HEIMDALL_CACHE_DIR:
             return config_GetCacheDir ();
-        case VLC_MUSIC_DIR:
-            return config_GetShellDir (VLC_MUSIC_DIR);
-        case VLC_SNAPSHOTS_DIR: // FIXME GetFolderForUserAsync / UserDataPath
-        case VLC_PICTURES_DIR:
-            return config_GetShellDir (VLC_PICTURES_DIR);
-        case VLC_VIDEOS_DIR:
-            return config_GetShellDir (VLC_VIDEOS_DIR);
+        case HEIMDALL_MUSIC_DIR:
+            return config_GetShellDir (HEIMDALL_MUSIC_DIR);
+        case HEIMDALL_SNAPSHOTS_DIR: // FIXME GetFolderForUserAsync / UserDataPath
+        case HEIMDALL_PICTURES_DIR:
+            return config_GetShellDir (HEIMDALL_PICTURES_DIR);
+        case HEIMDALL_VIDEOS_DIR:
+            return config_GetShellDir (HEIMDALL_VIDEOS_DIR);
         default:
-            vlc_assert_unreachable ();
+            heimdall_assert_unreachable ();
     }
 }

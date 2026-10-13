@@ -2,6 +2,7 @@
  * mpg123.c: MPEG-1 & 2 audio layer I, II, III + MPEG 2.5 decoder
  *****************************************************************************
  * Copyright (C) 2001-2016 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Ludovic Fauvet <etix@videolan.org>
  *
@@ -32,20 +33,20 @@
 
 #include <mpg123.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_aout.h>
-#include <vlc_block.h>
-#include <vlc_codec.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_aout.h>
+#include <heimdall_block.h>
+#include <heimdall_codec.h>
 
 /*****************************************************************************
  * Local prototypes
  *****************************************************************************/
-static int      OpenDecoder( vlc_object_t * );
-static void     CloseDecoder( vlc_object_t * );
+static int      OpenDecoder( heimdall_object_t * );
+static void     CloseDecoder( heimdall_object_t * );
 
 static unsigned int mpg123_refcount = 0;
-static vlc_mutex_t mpg123_mutex = VLC_STATIC_MUTEX;
+static heimdall_mutex_t mpg123_mutex = HEIMDALL_STATIC_MUTEX;
 
 /*****************************************************************************
  * Local structures
@@ -61,13 +62,13 @@ typedef struct
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-vlc_module_begin ()
+heimdall_module_begin ()
     set_subcategory( SUBCAT_INPUT_ACODEC )
     set_description( N_("MPEG audio decoder using mpg123") )
     set_capability( "audio decoder", 100 )
     set_shortname( "mpg123" )
     set_callbacks( OpenDecoder, CloseDecoder )
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * MPG123Open
@@ -80,7 +81,7 @@ static int MPG123Open( decoder_t *p_dec )
     if( ( p_sys->p_handle = mpg123_new( NULL, NULL ) ) == NULL )
     {
         msg_Err( p_dec, "mpg123 error: can't create handle" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Open a new bitstream */
@@ -88,7 +89,7 @@ static int MPG123Open( decoder_t *p_dec )
     {
         msg_Err( p_dec, "mpg123 error: can't open feed" );
         mpg123_delete( p_sys->p_handle );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Disable resync stream after error */
@@ -124,11 +125,11 @@ static int MPG123Open( decoder_t *p_dec )
                  mpg123_strerror( p_sys->p_handle ) );
         mpg123_close( p_sys->p_handle );
         mpg123_delete( p_sys->p_handle );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     p_sys->b_opened = true;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -138,7 +139,7 @@ static void Flush( decoder_t *p_dec )
 {
     decoder_sys_t *p_sys = p_dec->p_sys;
 
-    date_Set( &p_sys->end_date, VLC_TICK_INVALID );
+    date_Set( &p_sys->end_date, HEIMDALL_TICK_INVALID );
 
     mpg123_close( p_sys->p_handle );
     mpg123_delete( p_sys->p_handle );
@@ -158,7 +159,7 @@ static int UpdateAudioFormat( decoder_t *p_dec )
     {
         msg_Err( p_dec, "mpg123_info failed: %s",
                  mpg123_plain_strerror( i_err ) );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     p_dec->fmt_out.i_bitrate = frame_info.bitrate * 1000;
@@ -177,7 +178,7 @@ static int UpdateAudioFormat( decoder_t *p_dec )
             p_dec->fmt_out.audio.i_physical_channels = AOUT_CHAN_CENTER;
             break;
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 
     aout_FormatPrepare( &p_dec->fmt_out.audio );
@@ -199,19 +200,19 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
 {
     int i_err;
     decoder_sys_t *p_sys = p_dec->p_sys;
-    vlc_tick_t i_pts = VLC_TICK_INVALID;
+    heimdall_tick_t i_pts = HEIMDALL_TICK_INVALID;
 
     if( !p_sys->b_opened )
     {
         if( p_block )
             block_Release( p_block );
-        return VLCDEC_ECRITICAL;
+        return HEIMDALLDEC_ECRITICAL;
     }
 
     /* Feed input block */
     if( p_block != NULL )
     {
-        i_pts = p_block->i_pts != VLC_TICK_INVALID ? p_block->i_pts : p_block->i_dts;
+        i_pts = p_block->i_pts != HEIMDALL_TICK_INVALID ? p_block->i_pts : p_block->i_dts;
 
         if( p_block->i_flags & (BLOCK_FLAG_DISCONTINUITY|BLOCK_FLAG_CORRUPTED) )
         {
@@ -219,17 +220,17 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
             if( p_block->i_flags & BLOCK_FLAG_CORRUPTED )
             {
                 block_Release( p_block );
-                return VLCDEC_SUCCESS;
+                return HEIMDALLDEC_SUCCESS;
             }
         }
 
-        if( i_pts == VLC_TICK_INVALID &&
-            date_Get( &p_sys->end_date ) == VLC_TICK_INVALID )
+        if( i_pts == HEIMDALL_TICK_INVALID &&
+            date_Get( &p_sys->end_date ) == HEIMDALL_TICK_INVALID )
         {
             /* We've just started the stream, wait for the first PTS. */
             msg_Dbg( p_dec, "waiting for PTS" );
             block_Release( p_block );
-            return VLCDEC_SUCCESS;
+            return HEIMDALLDEC_SUCCESS;
         }
 
         /* Feed mpg123 with raw data */
@@ -240,7 +241,7 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
         {
             msg_Err( p_dec, "mpg123_feed failed: %s",
                      mpg123_plain_strerror( i_err ) );
-            return VLCDEC_SUCCESS;
+            return HEIMDALLDEC_SUCCESS;
         }
     }
 
@@ -258,13 +259,13 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
             p_sys->p_out = block_Alloc( mpg123_outblock( p_sys->p_handle ) );
 
             if( unlikely( !p_sys->p_out ) )
-                return VLCDEC_SUCCESS;
+                return HEIMDALLDEC_SUCCESS;
         }
 
         /* Do the actual decoding now */
         size_t i_bytes = 0;
 
-        /* Make mpg123 write directly into the VLC output buffer */
+        /* Make mpg123 write directly into the Heimdall output buffer */
         i_err = mpg123_replace_buffer( p_sys->p_handle, p_sys->p_out->p_buffer,
                                        p_sys->p_out->i_buffer );
         if( i_err != MPG123_OK )
@@ -287,7 +288,7 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
             {
                 msg_Err( p_dec, "mpg123_decode_frame error: %s",
                          mpg123_plain_strerror( i_err ) );
-                date_Set( &p_sys->end_date, VLC_TICK_INVALID );
+                date_Set( &p_sys->end_date, HEIMDALL_TICK_INVALID );
                 break;
             }
         }
@@ -297,9 +298,9 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
 
         if( p_dec->fmt_out.audio.i_rate == 0 )
         {
-            if( UpdateAudioFormat( p_dec ) != VLC_SUCCESS )
+            if( UpdateAudioFormat( p_dec ) != HEIMDALL_SUCCESS )
             {
-                date_Set( &p_sys->end_date, VLC_TICK_INVALID );
+                date_Set( &p_sys->end_date, HEIMDALL_TICK_INVALID );
                 break;
             }
         }
@@ -307,9 +308,9 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
         block_t *p_out = p_sys->p_out;
         p_sys->p_out = NULL;
 
-        if( date_Get( &p_sys->end_date ) == VLC_TICK_INVALID )
+        if( date_Get( &p_sys->end_date ) == HEIMDALL_TICK_INVALID )
         {
-            if( i_pts != VLC_TICK_INVALID )
+            if( i_pts != HEIMDALL_TICK_INVALID )
             {
                 date_Set( &p_sys->end_date, i_pts );
             }
@@ -336,7 +337,7 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
         }
     }
 
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }
 
 
@@ -346,16 +347,16 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
 static int InitMPG123( void )
 {
     int i_ret;
-    vlc_mutex_lock( &mpg123_mutex );
+    heimdall_mutex_lock( &mpg123_mutex );
     if( mpg123_refcount > 0 )
     {
         mpg123_refcount++;
-        vlc_mutex_unlock( &mpg123_mutex );
+        heimdall_mutex_unlock( &mpg123_mutex );
         return MPG123_OK;
     }
     if( ( i_ret = mpg123_init() ) == MPG123_OK )
         mpg123_refcount++;
-    vlc_mutex_unlock( &mpg123_mutex );
+    heimdall_mutex_unlock( &mpg123_mutex );
     return i_ret;
 }
 
@@ -364,42 +365,42 @@ static int InitMPG123( void )
  *****************************************************************************/
 static void ExitMPG123( void )
 {
-    vlc_mutex_lock( &mpg123_mutex );
+    heimdall_mutex_lock( &mpg123_mutex );
     mpg123_refcount--;
     if( mpg123_refcount == 0 )
         mpg123_exit();
-    vlc_mutex_unlock( &mpg123_mutex );
+    heimdall_mutex_unlock( &mpg123_mutex );
 }
 
 /*****************************************************************************
  * OpenDecoder :
  *****************************************************************************/
-static int OpenDecoder( vlc_object_t *p_this )
+static int OpenDecoder( heimdall_object_t *p_this )
 {
     decoder_t *p_dec = (decoder_t *)p_this;
     decoder_sys_t *p_sys;
 
-    if( p_dec->fmt_in->i_codec != VLC_CODEC_MPGA &&
-        p_dec->fmt_in->i_codec != VLC_CODEC_MP2 &&
-        p_dec->fmt_in->i_codec != VLC_CODEC_MP3 )
-        return VLC_EGENERIC;
+    if( p_dec->fmt_in->i_codec != HEIMDALL_CODEC_MPGA &&
+        p_dec->fmt_in->i_codec != HEIMDALL_CODEC_MP2 &&
+        p_dec->fmt_in->i_codec != HEIMDALL_CODEC_MP3 )
+        return HEIMDALL_EGENERIC;
 
     /* Initialize libmpg123 */
     if( InitMPG123() != MPG123_OK )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* Allocate the memory needed to store the module's structure */
     p_sys = p_dec->p_sys = malloc( sizeof(decoder_sys_t) );
     if( p_sys == NULL )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_sys->p_out = NULL;
-    date_Set( &p_sys->end_date, VLC_TICK_INVALID );
+    date_Set( &p_sys->end_date, HEIMDALL_TICK_INVALID );
 
     if( MPG123Open( p_dec ) )
         goto error;
 
-    p_dec->fmt_out.i_codec = VLC_CODEC_FL32;
+    p_dec->fmt_out.i_codec = HEIMDALL_CODEC_FL32;
     p_dec->fmt_out.audio.i_rate = 0; /* So end_date gets initialized */
     p_dec->fmt_out.audio.i_format = p_dec->fmt_out.i_codec;
     p_dec->pf_decode = DecodeBlock;
@@ -410,17 +411,17 @@ static int OpenDecoder( vlc_object_t *p_this )
              (char *)&p_dec->fmt_out.i_codec,
              aout_BitsPerSample( p_dec->fmt_out.i_codec ) );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 error:
     ExitMPG123();
     free( p_sys );
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /*****************************************************************************
  * CloseDecoder : deallocate data structures
  *****************************************************************************/
-static void CloseDecoder( vlc_object_t *p_this )
+static void CloseDecoder( heimdall_object_t *p_this )
 {
     decoder_t *p_dec = (decoder_t *)p_this;
     decoder_sys_t *p_sys = p_dec->p_sys;

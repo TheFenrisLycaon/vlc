@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2024 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,15 +27,15 @@
 #include <QVector>
 #include <QHash>
 
-#include <vlc_common.h>
-#include <vlc_renderer_discovery.h>
-#include <vlc_player.h>
-#include <vlc_cxx_helpers.hpp>
+#include <heimdall_common.h>
+#include <heimdall_renderer_discovery.h>
+#include <heimdall_player.h>
+#include <heimdall_cxx_helpers.hpp>
 
-static void player_renderer_changed(vlc_player_t *, vlc_renderer_item_t *new_item, void *data);
+static void player_renderer_changed(heimdall_player_t *, heimdall_renderer_item_t *new_item, void *data);
 
-using RendererItemPtr = ::vlc::vlc_shared_data_ptr<vlc_renderer_item_t, &vlc_renderer_item_hold, &vlc_renderer_item_release>;
-using vlc_player_locker = vlc_locker<vlc_player_t, vlc_player_Lock, vlc_player_Unlock>;
+using RendererItemPtr = ::heimdall::heimdall_shared_data_ptr<heimdall_renderer_item_t, &heimdall_renderer_item_hold, &heimdall_renderer_item_release>;
+using heimdall_player_locker = heimdall_locker<heimdall_player_t, heimdall_player_Lock, heimdall_player_Unlock>;
 
 struct ItemEntry
 {
@@ -58,7 +59,7 @@ struct ItemEntry
 class RendererManagerPrivate
 {
 public:
-    RendererManagerPrivate(RendererManager* pub, qt_intf_t* const intf, vlc_player_t* const player)
+    RendererManagerPrivate(RendererManager* pub, qt_intf_t* const intf, heimdall_player_t* const player)
         : p_intf(intf)
         , m_player(player)
         , q_ptr(pub)
@@ -66,11 +67,11 @@ public:
         assert(m_player);
         QObject::connect( &m_stop_scan_timer, &QTimer::timeout, q_ptr, [this](){ timerCountdown(); });
 
-        static struct vlc_player_cbs cbs = {};
+        static struct heimdall_player_cbs cbs = {};
         cbs.on_renderer_changed = &player_renderer_changed;
         {
-            vlc_player_locker lock{ m_player };
-            m_playerListener = vlc_player_AddListener(m_player, &cbs, this);
+            heimdall_player_locker lock{ m_player };
+            m_playerListener = heimdall_player_AddListener(m_player, &cbs, this);
         }
     }
 
@@ -78,8 +79,8 @@ public:
     {
         if (m_playerListener)
         {
-            vlc_player_locker lock{ m_player };
-            vlc_player_RemoveListener(m_player, m_playerListener);
+            heimdall_player_locker lock{ m_player };
+            heimdall_player_RemoveListener(m_player, m_playerListener);
         }
     }
 
@@ -187,8 +188,8 @@ public:
 
     QString getItemKey(const RendererItemPtr& item) const
     {
-        const char* type = vlc_renderer_item_type(item.get());
-        const char* sout = vlc_renderer_item_sout(item.get());
+        const char* type = heimdall_renderer_item_type(item.get());
+        const char* sout = heimdall_renderer_item_sout(item.get());
         return QString("%1-%2").arg(type).arg(sout);
     }
 
@@ -199,13 +200,13 @@ public:
     }
 
     qt_intf_t* const p_intf;
-    vlc_player_t* const m_player;
+    heimdall_player_t* const m_player;
 
-    vlc_player_listener_id* m_playerListener = nullptr;
+    heimdall_player_listener_id* m_playerListener = nullptr;
 
     RendererManager::RendererStatus m_status = RendererManager::IDLE;
 
-    std::vector<vlc_renderer_discovery_t*> m_rds;
+    std::vector<heimdall_renderer_discovery_t*> m_rds;
 
 
     //the elements of the model (in model order), the string is the key of m_items
@@ -232,9 +233,9 @@ void RendererManager::disableRenderer()
         return;
 
     {
-        vlc_player_locker lock{ d->m_player };
-        //vlc_player synchronously report the renderer change
-        vlc_player_SetRenderer( d->m_player, nullptr );
+        heimdall_player_locker lock{ d->m_player };
+        //heimdall_player synchronously report the renderer change
+        heimdall_player_SetRenderer( d->m_player, nullptr );
     }
 }
 
@@ -245,25 +246,25 @@ QVariant RendererManager::data(const QModelIndex &index, int role) const
         return {};
 
     const ItemEntry& entry = d->m_items.value(d->m_itemsIndex[index.row()]);
-    vlc_renderer_item_t* item = entry.renderItem.get();
+    heimdall_renderer_item_t* item = entry.renderItem.get();
     switch (role)
     {
     case Qt::DisplayRole:
     case NAME:
-        return QString(vlc_renderer_item_name(item));
+        return QString(heimdall_renderer_item_name(item));
     case TYPE:
-        return QString(vlc_renderer_item_type(item));
+        return QString(heimdall_renderer_item_type(item));
     case DEMUX_FILTER:
-        return QString(vlc_renderer_item_demux_filter(item));
+        return QString(heimdall_renderer_item_demux_filter(item));
     case SOUT:
-        return QString(vlc_renderer_item_sout(item));
+        return QString(heimdall_renderer_item_sout(item));
     case ICON_URI:
     case Qt::DecorationRole:
     {
-        const char* iconUri = vlc_renderer_item_icon_uri(item);
+        const char* iconUri = heimdall_renderer_item_icon_uri(item);
         if (!iconUri)
         {
-            if (vlc_renderer_item_flags( item ) & VLC_RENDERER_CAN_VIDEO)
+            if (heimdall_renderer_item_flags( item ) & HEIMDALL_RENDERER_CAN_VIDEO)
                 return QString("qrc://menu/movie.svg");
             else
                 return QString("qrc://menu/music.svg");
@@ -271,7 +272,7 @@ QVariant RendererManager::data(const QModelIndex &index, int role) const
         return QString(iconUri);
     }
     case FLAGS:
-        return vlc_renderer_item_flags(entry.renderItem.get());
+        return heimdall_renderer_item_flags(entry.renderItem.get());
     case SELECTED:
         return entry.renderItem == d->m_selectedItem;
     case Qt::CheckStateRole:
@@ -301,9 +302,9 @@ bool RendererManager::setData(const QModelIndex &index, const QVariant &value, i
             return false;
 
         {
-            vlc_player_locker lock{ d->m_player };
-            //vlc_player synchronously report the renderer change
-            vlc_player_SetRenderer(
+            heimdall_player_locker lock{ d->m_player };
+            //heimdall_player synchronously report the renderer change
+            heimdall_player_SetRenderer(
                 d->m_player,
                 enableRenderer ? entry.renderItem.get() : nullptr
             );
@@ -334,7 +335,7 @@ int RendererManager::rowCount(const QModelIndex&) const
 }
 
 
-static void renderer_event_item_added( vlc_renderer_discovery_t* p_rd, vlc_renderer_item_t *p_item )
+static void renderer_event_item_added( heimdall_renderer_discovery_t* p_rd, heimdall_renderer_item_t *p_item )
 {
     RendererManagerPrivate *self = reinterpret_cast<RendererManagerPrivate*>( p_rd->owner.sys );
     RendererItemPtr renderItem(p_item);
@@ -343,8 +344,8 @@ static void renderer_event_item_added( vlc_renderer_discovery_t* p_rd, vlc_rende
     });
 }
 
-static void renderer_event_item_removed( vlc_renderer_discovery_t *p_rd,
-                                 vlc_renderer_item_t *p_item )
+static void renderer_event_item_removed( heimdall_renderer_discovery_t *p_rd,
+                                 heimdall_renderer_item_t *p_item )
 {
     RendererManagerPrivate *self = reinterpret_cast<RendererManagerPrivate*>( p_rd->owner.sys );
     RendererItemPtr renderItem(p_item);
@@ -353,7 +354,7 @@ static void renderer_event_item_removed( vlc_renderer_discovery_t *p_rd,
     });
 }
 
-static void player_renderer_changed(vlc_player_t *, vlc_renderer_item_t *new_item, void *data)
+static void player_renderer_changed(heimdall_player_t *, heimdall_renderer_item_t *new_item, void *data)
 {
     RendererManagerPrivate *self = reinterpret_cast<RendererManagerPrivate*>( data);
     RendererItemPtr renderItem(new_item);
@@ -362,7 +363,7 @@ static void player_renderer_changed(vlc_player_t *, vlc_renderer_item_t *new_ite
     });
 }
 
-RendererManager::RendererManager( qt_intf_t *p_intf_, vlc_player_t* player )
+RendererManager::RendererManager( qt_intf_t *p_intf_, heimdall_player_t* player )
     : d_ptr(new RendererManagerPrivate(this, p_intf_, player))
 {
 }
@@ -399,13 +400,13 @@ void RendererManager::StartScan()
     /* SD subnodes */
     char **ppsz_longnames;
     char **ppsz_names;
-    if( vlc_rd_get_names( d->p_intf, &ppsz_names, &ppsz_longnames ) != VLC_SUCCESS )
+    if( heimdall_rd_get_names( d->p_intf, &ppsz_names, &ppsz_longnames ) != HEIMDALL_SUCCESS )
     {
         d->setStatus( RendererManager::RendererStatus::FAILED );
         return;
     }
 
-    struct vlc_renderer_discovery_owner owner =
+    struct heimdall_renderer_discovery_owner owner =
     {
         d,
         renderer_event_item_added,
@@ -416,7 +417,7 @@ void RendererManager::StartScan()
     for( ; *ppsz_name; ppsz_name++, ppsz_longname++ )
     {
         msg_Dbg( d->p_intf, "starting renderer discovery service %s", *ppsz_longname );
-        vlc_renderer_discovery_t* p_rd = vlc_rd_new( VLC_OBJECT(d->p_intf), *ppsz_name, &owner );
+        heimdall_renderer_discovery_t* p_rd = heimdall_rd_new( HEIMDALL_OBJECT(d->p_intf), *ppsz_name, &owner );
         if( p_rd != NULL )
             d->m_rds.push_back( p_rd );
         free( *ppsz_name );
@@ -437,8 +438,8 @@ void RendererManager::StopScan()
     Q_D(RendererManager);
     d->m_stop_scan_timer.stop();
 
-    for ( vlc_renderer_discovery_t* p_rd : d->m_rds )
-        vlc_rd_release( p_rd );
+    for ( heimdall_renderer_discovery_t* p_rd : d->m_rds )
+        heimdall_rd_release( p_rd );
     d->m_rds.clear();
 
     /* Cleanup of outdated items, and notify removal */

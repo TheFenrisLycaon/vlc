@@ -2,6 +2,7 @@
  * common.c
  *****************************************************************************
  * Copyright (C) 2017 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,7 +23,7 @@
 # include "config.h"
 #endif
 
-#include "../lib/libvlc_internal.h"
+#include "../lib/libheimdall_internal.h"
 
 #include "common.h"
 
@@ -32,24 +33,24 @@ static inline int getenv_atoi(const char *name)
     return env ? atoi(env) : 0;
 }
 
-void vlc_run_args_init(struct vlc_run_args *args)
+void heimdall_run_args_init(struct heimdall_run_args *args)
 {
-    memset(args, 0, sizeof(struct vlc_run_args));
+    memset(args, 0, sizeof(struct heimdall_run_args));
     args->verbose = getenv_atoi("V");
     if (args->verbose >= 10)
         args->verbose = 9;
 
-    args->name = getenv("VLC_TARGET");
-    args->test_demux_controls = getenv_atoi("VLC_DEMUX_CONTROLS");
+    args->name = getenv("HEIMDALL_TARGET");
+    args->test_demux_controls = getenv_atoi("HEIMDALL_DEMUX_CONTROLS");
 }
 
-libvlc_instance_t *libvlc_create(const struct vlc_run_args *args)
+libheimdall_instance_t *libheimdall_create(const struct heimdall_run_args *args)
 {
 #ifdef TOP_BUILDDIR
 # ifndef HAVE_STATIC_MODULES
-    setenv("VLC_PLUGIN_PATH", TOP_BUILDDIR"/modules", 1);
+    setenv("HEIMDALL_PLUGIN_PATH", TOP_BUILDDIR"/modules", 1);
 # endif
-    setenv("VLC_DATA_PATH", TOP_SRCDIR"/share", 1);
+    setenv("HEIMDALL_DATA_PATH", TOP_SRCDIR"/share", 1);
 #endif
 
     /* Override argc/argv with "--verbose lvl" or "--quiet" depending on the V
@@ -67,9 +68,9 @@ libvlc_instance_t *libvlc_create(const struct vlc_run_args *args)
     else
         argv[0] = "--quiet";
 
-    libvlc_instance_t *vlc = libvlc_new(argc, argv);
-    if (vlc == NULL)
-        fprintf(stderr, "Error: cannot initialize LibVLC.\n");
+    libheimdall_instance_t *heimdall = libheimdall_new(argc, argv);
+    if (heimdall == NULL)
+        fprintf(stderr, "Error: cannot initialize LibHeimdall.\n");
 
-    return vlc;
+    return heimdall;
 }

@@ -2,6 +2,7 @@
  * vout_manager.hpp
  *****************************************************************************
  * Copyright (C) 2009 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Erwan Tulou < brezhoneg1 at yahoo.fr r>
  *
@@ -25,8 +26,8 @@
 
 #include <vector>
 
-#include <vlc_vout.h>
-#include <vlc_actions.h>
+#include <heimdall_vout.h>
+#include <heimdall_actions.h>
 #include "../utils/position.hpp"
 #include "../commands/cmd_generic.hpp"
 #include "../controls/ctrl_video.hpp"
@@ -37,20 +38,20 @@
 class VarBool;
 class GenericWindow;
 class FscWindow;
-struct vlc_window;
+struct heimdall_window;
 
 #include <stdio.h>
 
 class SavedWnd
 {
 public:
-    SavedWnd( struct vlc_window *pWnd, VoutWindow* pVoutWindow = NULL,
+    SavedWnd( struct heimdall_window *pWnd, VoutWindow* pVoutWindow = NULL,
                CtrlVideo* pCtrlVideo = NULL, int height = -1, int width = -1 )
             : pWnd( pWnd ), pVoutWindow( pVoutWindow ),
               pCtrlVideo( pCtrlVideo ), height( height ), width( width ) { }
     ~SavedWnd() { }
 
-    struct vlc_window *pWnd;
+    struct heimdall_window *pWnd;
     VoutWindow *pVoutWindow;
     CtrlVideo *pCtrlVideo;
     int height;
@@ -82,19 +83,19 @@ public:
     virtual void processEvent( EvtScroll &rEvtScroll )
     {
         // scroll events sent to core as hotkeys
-        int i_vlck = 0;
-        i_vlck |= rEvtScroll.getMod();
-        i_vlck |= ( rEvtScroll.getDirection() == EvtScroll::kUp ) ?
+        int i_heimdallk = 0;
+        i_heimdallk |= rEvtScroll.getMod();
+        i_heimdallk |= ( rEvtScroll.getDirection() == EvtScroll::kUp ) ?
                   KEY_MOUSEWHEELUP : KEY_MOUSEWHEELDOWN;
 
-        getIntf()->p_sys->p_dialogs->sendKey( i_vlck );
+        getIntf()->p_sys->p_dialogs->sendKey( i_heimdallk );
     }
 
 #endif
 };
 
 
-/// Singleton object handling VLC internal state and playlist
+/// Singleton object handling Heimdall internal state and playlist
 class VoutManager: public SkinObject, public Observer<VarBool>
 {
 public:
@@ -106,19 +107,19 @@ public:
     static void destroy( intf_thread_t *pIntf );
 
     /// accept window request (vout window provider)
-    void acceptWnd( struct vlc_window *pWnd, int width, int height );
+    void acceptWnd( struct heimdall_window *pWnd, int width, int height );
 
     // release window (vout window provider)
-    void releaseWnd( struct vlc_window *pWnd );
+    void releaseWnd( struct heimdall_window *pWnd );
 
     /// set window size (vout window provider)
-    void setSizeWnd( struct vlc_window *pWnd, int width, int height );
+    void setSizeWnd( struct heimdall_window *pWnd, int width, int height );
 
     /// set fullscreen mode (vout window provider)
-    void setFullscreenWnd( struct vlc_window *pWnd, bool b_fullscreen );
+    void setFullscreenWnd( struct heimdall_window *pWnd, bool b_fullscreen );
 
     /// hide mouse (vout window provider)
-    void hideMouseWnd( struct vlc_window *pWnd, bool hide );
+    void hideMouseWnd( struct heimdall_window *pWnd, bool hide );
 
     // Register Video Controls (when building theme)
     void registerCtrlVideo( CtrlVideo* p_CtrlVideo );

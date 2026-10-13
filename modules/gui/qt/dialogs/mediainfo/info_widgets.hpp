@@ -2,6 +2,7 @@
  * info_widgets.hpp : Widgets for info panels
  ****************************************************************************
  * Copyright (C) 2013 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,12 +27,12 @@ class QGraphicsScene;
 class QGraphicsPolygonItem;
 class QGraphicsLineItem;
 
-class VLCStatsView: public QGraphicsView
+class HeimdallStatsView: public QGraphicsView
 {
     Q_OBJECT
 
 public:
-    VLCStatsView( QWidget * );
+    HeimdallStatsView( QWidget * );
     void addValue( float );
     void reset();
 

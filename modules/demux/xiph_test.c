@@ -2,6 +2,7 @@
  * xiph_test.c: Xiph unit tests
  *****************************************************************************
  * Copyright (C) 2019 VideoLabs, VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -21,8 +22,8 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_codec.h>
+#include <heimdall_common.h>
+#include <heimdall_codec.h>
 
 #include "xiph.h"
 
@@ -47,7 +48,7 @@ struct params_s
     size_t packets_sizes[XIPH_MAX_HEADER_COUNT];
     size_t packets_count;
     bool lavc;
-    vlc_fourcc_t codec;
+    heimdall_fourcc_t codec;
     void *p_append;
     size_t i_append;
 };
@@ -97,7 +98,7 @@ static int SplitCompare(const char *run,
         EXPECT(source->packets[i] == packet[i]);
         EXPECT(source->packets_sizes[i] == packet_size[i]);
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int test_xiph_SplitHeaders(const char *run,
@@ -109,7 +110,7 @@ static int test_xiph_SplitHeaders(const char *run,
     size_t packet_count;
     int ret = xiph_SplitHeaders(packet_sizes, packets, &packet_count,
                                 i_extra, p_extra);
-    if(ret == VLC_SUCCESS)
+    if(ret == HEIMDALL_SUCCESS)
         ret = SplitCompare(run, packet_sizes, packets, packet_count, source);
     return ret;
 }
@@ -123,7 +124,7 @@ static int test_xiph_SplitLavcHeaders(const char *run,
     size_t packet_count;
     int ret = xiph_SplitLavcHeaders(packet_sizes, packets, &packet_count,
                                     i_extra, p_extra);
-    if(ret == VLC_SUCCESS)
+    if(ret == HEIMDALL_SUCCESS)
         ret = SplitCompare(run, packet_sizes, packets, packet_count, source);
     return ret;
 }
@@ -138,7 +139,7 @@ static int test_xiph_PackHeaders(const char *run,
     int ret = xiph_PackHeaders(&i_result, &p_result,
                                source->packets_sizes,
                                source->packets, source->packets_count);
-    if(ret == VLC_SUCCESS)
+    if(ret == HEIMDALL_SUCCESS)
     {
         EXPECT_CLEANUP((i_extra == (unsigned)i_result), free(p_result));
         EXPECT_CLEANUP(!memcmp(p_extra, p_result, i_extra), free(p_result));
@@ -153,7 +154,7 @@ static int test_xiph_AppendHeaders(const char *run,
 {
     int ret = xiph_AppendHeaders(&source->i_append, &source->p_append,
                                  source->packets_sizes[0], source->packets[0]);
-    if(ret == VLC_SUCCESS)
+    if(ret == HEIMDALL_SUCCESS)
     {
         EXPECT_CLEANUP((i_extra == (unsigned)source->i_append),
                        free(source->p_append));
@@ -168,7 +169,7 @@ int main(void)
     struct params_s params;
 
     params.lavc = false;
-    params.codec = VLC_CODEC_VORBIS;
+    params.codec = HEIMDALL_CODEC_VORBIS;
 
     /* check if we can detect lavc format */
     PASS("0", test_xiph_IsLavcFormat, xiph0, 0);
@@ -196,7 +197,7 @@ int main(void)
 
     /* check lavc only valid with count == 3 */
     params.packets_count = 3;
-    params.codec = VLC_CODEC_VORBIS;
+    params.codec = HEIMDALL_CODEC_VORBIS;
     PASS("lavc0", test_xiph_CountLavcHeaders, xiphlavc0, 37);
     params.packets_count = 0;
     PASS("lavc1", test_xiph_CountLavcHeaders, xiphlavc0, 35);

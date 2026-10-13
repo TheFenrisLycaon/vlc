@@ -1,6 +1,7 @@
 --[[
 
  Copyright © 2009 the VideoLAN team
+ Copyright (C) 2026 TheFenrisLycaon
 
  Authors: Konstantin Pavlov (thresh@videolan.org)
 
@@ -21,8 +22,8 @@
 
 -- Probe function.
 function probe()
-    return ( vlc.access == "http" or vlc.access == "https" )
-        and string.match( vlc.path, "^mpora%.com/videos/" )
+    return ( heimdall.access == "http" or heimdall.access == "https" )
+        and string.match( heimdall.path, "^mpora%.com/videos/" )
 end
 
 -- Parse function.
@@ -30,7 +31,7 @@ function parse()
     p = {}
     while true do
         -- Try to find the video's title
-        line = vlc.readline()
+        line = heimdall.readline()
         if not line then break end
         if string.match( line, "meta name=\"title\"" ) then
             _,_,name = string.find( line, "content=\"(.*)\" />" )
@@ -47,7 +48,7 @@ function parse()
     if not name or not arturl or not video then return nil end
 
     -- Try and get URL for SD video.
-    sd = vlc.stream("http://api.mpora.com/tv/player/playlist/vid/"..video.."/")
+    sd = heimdall.stream("http://api.mpora.com/tv/player/playlist/vid/"..video.."/")
     if not sd then return nil end
     page = sd:read( 65653 )
     sdurl = string.match( page, "url=\"(.*)\" />")
@@ -56,14 +57,14 @@ function parse()
     table.insert( p, { path = sdurl; name = name; arturl = arturl; } )
 
     -- Try and check if HD video is available.
-    checkhd = vlc.stream("http://api.mpora.com/tv/player/load/vid/"..video.."/platform/video/domain/video.mpora.com/" )
+    checkhd = heimdall.stream("http://api.mpora.com/tv/player/load/vid/"..video.."/platform/video/domain/video.mpora.com/" )
     if not checkhd then return nil end
     page = checkhd:read( 65653 )
     hashd = tonumber( string.match( page, "<has_hd>(%d)</has_hd>" ) )
     page = nil
 
     if hashd then
-        hd = vlc.stream("http://api.mpora.com/tv/player/playlist/vid/"..video.."/hd/true/")
+        hd = heimdall.stream("http://api.mpora.com/tv/player/playlist/vid/"..video.."/hd/true/")
         page = hd:read( 65653 )
         hdurl = string.match( page, "url=\"(.*)\" />")
         table.insert( p, { path = hdurl; name = name.." (HD)"; arturl = arturl; } )

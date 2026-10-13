@@ -2,6 +2,7 @@
  * m3u.c : M3U playlist format import
  *****************************************************************************
  * Copyright (C) 2004 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Clément Stenac <zorglub@videolan.org>
  *          Sigmund Augdal Helberg <dnumgis@videolan.org>
@@ -29,11 +30,11 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_arrays.h>
-#include <vlc_access.h>
-#include <vlc_charset.h>
-#include <vlc_strings.h>
+#include <heimdall_common.h>
+#include <heimdall_arrays.h>
+#include <heimdall_access.h>
+#include <heimdall_charset.h>
+#include <heimdall_strings.h>
 
 #include "playlist.h"
 
@@ -56,16 +57,16 @@ static char *CheckUnicode (const char *str)
 /*****************************************************************************
  * Import_M3U: main import function
  *****************************************************************************/
-int Import_M3U( vlc_object_t *p_this )
+int Import_M3U( heimdall_object_t *p_this )
 {
     stream_t *p_stream = (stream_t *)p_this;
     const uint8_t *p_peek;
     ssize_t i_peek;
     unsigned int offset = 0;
 
-    i_peek = vlc_stream_Peek( p_stream->s, &p_peek, 1024 );
+    i_peek = heimdall_stream_Peek( p_stream->s, &p_peek, 1024 );
     if( i_peek < 8 )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* Encoding: UTF-8 or unspecified */
     char *(*pf_dup) (const char *) = GuessEncoding;
@@ -73,7 +74,7 @@ int Import_M3U( vlc_object_t *p_this )
     if (memcmp( p_peek, "\xef\xbb\xbf", 3) == 0) /* UTF-8 Byte Order Mark */
     {
         if( i_peek < 12 )
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         pf_dup = CheckUnicode;
         offset = 3;
         p_peek += offset;
@@ -91,14 +92,14 @@ int Import_M3U( vlc_object_t *p_this )
     if (!p_stream->obj.force
      && memcmp(p_peek, "#EXTM3U", 7 ) != 0
      && (type == NULL
-      || (vlc_ascii_strcasecmp(type, "application/mpegurl") != 0
-       && vlc_ascii_strcasecmp(type, "application/x-mpegurl") != 0
-       && vlc_ascii_strcasecmp(type, "audio/mpegurl") != 0
-       && vlc_ascii_strcasecmp(type, "vnd.apple.mpegURL") != 0
-       && vlc_ascii_strcasecmp(type, "audio/x-mpegurl") != 0))
+      || (heimdall_ascii_strcasecmp(type, "application/mpegurl") != 0
+       && heimdall_ascii_strcasecmp(type, "application/x-mpegurl") != 0
+       && heimdall_ascii_strcasecmp(type, "audio/mpegurl") != 0
+       && heimdall_ascii_strcasecmp(type, "vnd.apple.mpegURL") != 0
+       && heimdall_ascii_strcasecmp(type, "audio/x-mpegurl") != 0))
      && !stream_HasExtension(p_stream, ".m3u8")
      && !stream_HasExtension(p_stream, ".m3u")
-     && !stream_HasExtension(p_stream, ".vlc")
+     && !stream_HasExtension(p_stream, ".heimdall")
      && strncasecmp((const char *)p_peek, "RTSPtext", 8) != 0
      && !ContainsURL(p_peek, i_peek))
         match = false;
@@ -108,17 +109,17 @@ int Import_M3U( vlc_object_t *p_this )
     free(type);
 
     if (!match)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    if (offset && vlc_stream_Read(p_stream->s, NULL, offset) != offset)
-        return VLC_EGENERIC;
+    if (offset && heimdall_stream_Read(p_stream->s, NULL, offset) != offset)
+        return HEIMDALL_EGENERIC;
 
     msg_Dbg( p_stream, "found valid M3U playlist" );
     p_stream->p_sys = pf_dup;
     p_stream->pf_readdir = ReadDir;
     p_stream->pf_control = PlaylistControl;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static bool ContainsURL(const uint8_t *p_peek, size_t i_peek)
@@ -192,17 +193,17 @@ struct entry_meta_s
     char *psz_language;
     char *psz_tvgid;
     char *psz_grouptitle;
-    vlc_tick_t i_duration;
+    heimdall_tick_t i_duration;
     const char**ppsz_options;
     int   i_options;
-    vlc_meta_priority_t priority;
+    heimdall_meta_priority_t priority;
 };
 
 static void entry_meta_Init( struct entry_meta_s *e )
 {
     memset(e, 0, sizeof(*e));
     e->i_duration = INPUT_DURATION_INDEFINITE;
-    e->priority = VLC_META_PRIORITY_BASIC;
+    e->priority = HEIMDALL_META_PRIORITY_BASIC;
 }
 
 static void entry_meta_Clean( struct entry_meta_s *e )
@@ -223,35 +224,35 @@ static void parseEXTINF( char *, char *(*)(const char *), struct entry_meta_s * 
 static int CreateEntry( input_item_node_t *p_node, const struct entry_meta_s *meta )
 {
     if( !meta->psz_mrl )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     input_item_t *p_input =
         input_item_NewExt( meta->psz_mrl, meta->psz_name, meta->i_duration,
                            ITEM_TYPE_UNKNOWN, ITEM_NET_UNKNOWN );
     if( !p_input )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     input_item_AddOptions( p_input, meta->i_options, meta->ppsz_options, 0 );
 
-    vlc_mutex_lock( &p_input->lock );
+    heimdall_mutex_lock( &p_input->lock );
     if( meta->psz_artist )
-        vlc_meta_SetWithPriority( p_input->p_meta, vlc_meta_Artist, meta->psz_artist, meta->priority );
+        heimdall_meta_SetWithPriority( p_input->p_meta, heimdall_meta_Artist, meta->psz_artist, meta->priority );
     if( meta->psz_name )
-        vlc_meta_SetWithPriority( p_input->p_meta, vlc_meta_Title, meta->psz_name, meta->priority );
+        heimdall_meta_SetWithPriority( p_input->p_meta, heimdall_meta_Title, meta->psz_name, meta->priority );
     if( meta->psz_album_art )
-        vlc_meta_SetWithPriority( p_input->p_meta, vlc_meta_ArtworkURL, meta->psz_album_art, meta->priority );
+        heimdall_meta_SetWithPriority( p_input->p_meta, heimdall_meta_ArtworkURL, meta->psz_album_art, meta->priority );
     if( meta->psz_language )
-        vlc_meta_SetWithPriority( p_input->p_meta, vlc_meta_Language, meta->psz_language, meta->priority );
+        heimdall_meta_SetWithPriority( p_input->p_meta, heimdall_meta_Language, meta->psz_language, meta->priority );
     if( meta->psz_grouptitle )
-        vlc_meta_SetWithPriority( p_input->p_meta, vlc_meta_Publisher, meta->psz_grouptitle, meta->priority );
-    vlc_mutex_unlock( &p_input->lock );
+        heimdall_meta_SetWithPriority( p_input->p_meta, heimdall_meta_Publisher, meta->psz_grouptitle, meta->priority );
+    heimdall_mutex_unlock( &p_input->lock );
     if( meta->psz_tvgid )
         input_item_AddInfo( p_input, "XMLTV", "tvg-id", "%s", meta->psz_tvgid );
 
     input_item_node_AppendItem( p_node, p_input );
     input_item_Release( p_input );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int ReadDir( stream_t *p_demux, input_item_node_t *p_subitems )
@@ -262,7 +263,7 @@ static int ReadDir( stream_t *p_demux, input_item_node_t *p_subitems )
     entry_meta_Init( &meta );
     char *    (*pf_dup) (const char *) = p_demux->p_sys;
 
-    psz_line = vlc_stream_ReadLine( p_demux->s );
+    psz_line = heimdall_stream_ReadLine( p_demux->s );
     while( psz_line )
     {
         char *psz_parse = psz_line;
@@ -288,7 +289,7 @@ static int ReadDir( stream_t *p_demux, input_item_node_t *p_subitems )
                 psz_parse += sizeof("EXTINF:") - 1;
                 meta.i_duration = INPUT_DURATION_INDEFINITE;
                 parseEXTINF( psz_parse, pf_dup, &meta );
-                meta.priority = VLC_META_PRIORITY_PLAYLIST;
+                meta.priority = HEIMDALL_META_PRIORITY_PLAYLIST;
             }
             else if( !strncasecmp( psz_parse, "EXTGRP:", sizeof("EXTGRP:") -1 ) )
             {
@@ -299,12 +300,12 @@ static int ReadDir( stream_t *p_demux, input_item_node_t *p_subitems )
                     psz_group = pf_dup( psz_parse );
                 }
             }
-            else if( !strncasecmp( psz_parse, "EXTVLCOPT:",
-                                   sizeof("EXTVLCOPT:") -1 ) )
+            else if( !strncasecmp( psz_parse, "EXTHEIMDALLOPT:",
+                                   sizeof("EXTHEIMDALLOPT:") -1 ) )
             {
-                /* VLC Option */
+                /* Heimdall Option */
                 char *psz_option;
-                psz_parse += sizeof("EXTVLCOPT:") -1;
+                psz_parse += sizeof("EXTHEIMDALLOPT:") -1;
                 if( !*psz_parse ) goto nextline;
 
                 psz_option = pf_dup( psz_parse );
@@ -320,7 +321,7 @@ static int ReadDir( stream_t *p_demux, input_item_node_t *p_subitems )
                 {
                     free( meta.psz_album_art );
                     meta.psz_album_art = pf_dup( psz_parse );
-                    meta.priority = VLC_META_PRIORITY_PLAYLIST;
+                    meta.priority = HEIMDALL_META_PRIORITY_PLAYLIST;
                 }
             }
             else if ( !strncasecmp( psz_parse, "PLAYLIST:",
@@ -356,7 +357,7 @@ static int ReadDir( stream_t *p_demux, input_item_node_t *p_subitems )
  nextline:
         /* Fetch another line */
         free( psz_line );
-        psz_line = vlc_stream_ReadLine( p_demux->s );
+        psz_line = heimdall_stream_ReadLine( p_demux->s );
         if( !psz_line )
         {
             /* Cleanup state */
@@ -365,7 +366,7 @@ static int ReadDir( stream_t *p_demux, input_item_node_t *p_subitems )
             free( psz_group );
         }
     }
-    return VLC_SUCCESS; /* Needed for correct operation of go back */
+    return HEIMDALL_SUCCESS; /* Needed for correct operation of go back */
 }
 
 static void parseEXTINFTitle( char *psz_string,
@@ -539,9 +540,9 @@ static void parseEXTINF( char *psz_string,
 
     /* Parse duration */
     char *psz_end = NULL;
-    float i_parsed_duration = vlc_strtof_c( psz_string, &psz_end );
+    float i_parsed_duration = heimdall_strtof_c( psz_string, &psz_end );
     if( i_parsed_duration > 0 )
-        meta->i_duration = vlc_tick_from_sec( (double)i_parsed_duration );
+        meta->i_duration = heimdall_tick_from_sec( (double)i_parsed_duration );
 
     /* skip to first unmatched */
     if( psz_end )

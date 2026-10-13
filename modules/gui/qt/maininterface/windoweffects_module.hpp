@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2024 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,7 +19,7 @@
 #ifndef WINDOWEFFECTSMODULE_HPP
 #define WINDOWEFFECTSMODULE_HPP
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
 #include <QRegion>
 
@@ -30,7 +31,7 @@ struct WindowEffectsModule
         BlurBehind
     };
 
-    vlc_object_t obj;
+    heimdall_object_t obj;
 
     module_t *p_module = nullptr;
     void *p_sys = nullptr;

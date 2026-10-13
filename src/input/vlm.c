@@ -2,6 +2,7 @@
  * vlm.c: VLM interface plugin
  *****************************************************************************
  * Copyright (C) 2000-2005 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Simon Latapie <garf@videolan.org>
  *          Laurent Aimar <fenrir@videolan.org>
@@ -29,8 +30,8 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_arrays.h>
+#include <heimdall_common.h>
+#include <heimdall_arrays.h>
 
 #include <stdio.h>
 #include <ctype.h>                                              /* tolower() */
@@ -38,17 +39,17 @@
 #include <limits.h>
 #include <assert.h>
 
-#include <vlc_vlm.h>
-#include <vlc_modules.h>
+#include <heimdall_vlm.h>
+#include <heimdall_modules.h>
 
-#include <vlc_player.h>
-#include <vlc_stream.h>
+#include <heimdall_player.h>
+#include <heimdall_stream.h>
 #include "vlm_internal.h"
 #include "vlm_event.h"
-#include <vlc_sout.h>
-#include <vlc_url.h>
+#include <heimdall_sout.h>
+#include <heimdall_url.h>
 #include "../misc/threads.h"
-#include "../libvlc.h"
+#include "../libheimdall.h"
 
 /*****************************************************************************
  * Local prototypes.
@@ -56,8 +57,8 @@
 
 static void* Manage( void * );
 
-static void player_on_state_changed(vlc_player_t *player,
-                                    enum vlc_player_state new_state, void *data)
+static void player_on_state_changed(heimdall_player_t *player,
+                                    enum heimdall_player_state new_state, void *data)
 {
     vlm_media_sys_t *p_media = data;
     vlm_t *p_vlm = p_media->vlm;
@@ -77,51 +78,51 @@ static void player_on_state_changed(vlc_player_t *player,
     enum vlm_state_e vlm_state;
     switch (new_state)
     {
-        case VLC_PLAYER_STATE_STOPPED:
-            vlm_state = vlc_player_GetError(player) ? VLM_ERROR_S : VLM_INIT_S;
+        case HEIMDALL_PLAYER_STATE_STOPPED:
+            vlm_state = heimdall_player_GetError(player) ? VLM_ERROR_S : VLM_INIT_S;
             break;
-        case VLC_PLAYER_STATE_STARTED:
+        case HEIMDALL_PLAYER_STATE_STARTED:
             vlm_state = VLM_OPENING_S;
             break;
-        case VLC_PLAYER_STATE_PLAYING:
+        case HEIMDALL_PLAYER_STATE_PLAYING:
             vlm_state = VLM_PLAYING_S;
             break;
-        case VLC_PLAYER_STATE_PAUSED:
+        case HEIMDALL_PLAYER_STATE_PAUSED:
             vlm_state = VLM_PAUSE_S;
             break;
-        case VLC_PLAYER_STATE_STOPPING:
-            vlm_state = vlc_player_GetError(player) ? VLM_ERROR_S : VLM_END_S;
+        case HEIMDALL_PLAYER_STATE_STOPPING:
+            vlm_state = heimdall_player_GetError(player) ? VLM_ERROR_S : VLM_END_S;
             if (instance != NULL)
             {
-                vlc_mutex_lock(&p_vlm->lock);
+                heimdall_mutex_lock(&p_vlm->lock);
                 instance->finished = true;
-                vlc_mutex_unlock(&p_vlm->lock);
+                heimdall_mutex_unlock(&p_vlm->lock);
             }
 
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
     vlm_SendEventMediaInstanceState( p_vlm, p_media->cfg.id, p_media->cfg.psz_name, psz_instance_name, vlm_state );
 
-    vlc_mutex_lock( &p_vlm->lock_manage );
+    heimdall_mutex_lock( &p_vlm->lock_manage );
     p_vlm->input_state_changed = true;
-    vlc_cond_signal( &p_vlm->wait_manage );
-    vlc_mutex_unlock( &p_vlm->lock_manage );
+    heimdall_cond_signal( &p_vlm->wait_manage );
+    heimdall_mutex_unlock( &p_vlm->lock_manage );
 }
 
-static vlc_mutex_t vlm_mutex = VLC_STATIC_MUTEX;
+static heimdall_mutex_t vlm_mutex = HEIMDALL_STATIC_MUTEX;
 
 /*****************************************************************************
  * vlm_New:
  *****************************************************************************/
-vlm_t *vlm_New( libvlc_int_t *libvlc, const char *psz_vlmconf )
+vlm_t *vlm_New( libheimdall_int_t *libheimdall, const char *psz_vlmconf )
 {
-    vlm_t *p_vlm = NULL, **pp_vlm = &(libvlc_priv(libvlc)->p_vlm);
-    vlc_object_t *p_this = VLC_OBJECT(libvlc);
+    vlm_t *p_vlm = NULL, **pp_vlm = &(libheimdall_priv(libheimdall)->p_vlm);
+    heimdall_object_t *p_this = HEIMDALL_OBJECT(libheimdall);
 
     /* Avoid multiple creation */
-    vlc_mutex_lock( &vlm_mutex );
+    heimdall_mutex_lock( &vlm_mutex );
 
     p_vlm = *pp_vlm;
     if( p_vlm )
@@ -130,39 +131,39 @@ vlm_t *vlm_New( libvlc_int_t *libvlc, const char *psz_vlmconf )
             p_vlm->users++;
         else
             p_vlm = NULL;
-        vlc_mutex_unlock( &vlm_mutex );
+        heimdall_mutex_unlock( &vlm_mutex );
         return p_vlm;
     }
 
     msg_Dbg( p_this, "creating VLM" );
 
-    p_vlm = vlc_custom_create( p_this, sizeof( *p_vlm ), "vlm daemon" );
+    p_vlm = heimdall_custom_create( p_this, sizeof( *p_vlm ), "vlm daemon" );
     if( !p_vlm )
     {
-        vlc_mutex_unlock( &vlm_mutex );
+        heimdall_mutex_unlock( &vlm_mutex );
         return NULL;
     }
 
-    vlc_mutex_init( &p_vlm->lock );
-    vlc_mutex_init( &p_vlm->lock_manage );
-    vlc_cond_init( &p_vlm->wait_manage );
+    heimdall_mutex_init( &p_vlm->lock );
+    heimdall_mutex_init( &p_vlm->lock_manage );
+    heimdall_cond_init( &p_vlm->wait_manage );
     p_vlm->users = 1;
     p_vlm->input_state_changed = false;
     p_vlm->exiting = false;
     p_vlm->i_id = 1;
     TAB_INIT( p_vlm->i_media, p_vlm->media );
-    var_Create( p_vlm, "intf-event", VLC_VAR_ADDRESS );
+    var_Create( p_vlm, "intf-event", HEIMDALL_VAR_ADDRESS );
 
-    if( vlc_clone( &p_vlm->thread, Manage, p_vlm ) )
+    if( heimdall_clone( &p_vlm->thread, Manage, p_vlm ) )
     {
-        vlc_object_delete(p_vlm);
-        vlc_mutex_unlock( &vlm_mutex );
+        heimdall_object_delete(p_vlm);
+        heimdall_mutex_unlock( &vlm_mutex );
         return NULL;
     }
 
     *pp_vlm = p_vlm; /* for future reference */
 
-    vlc_mutex_unlock( &vlm_mutex );
+    heimdall_mutex_unlock( &vlm_mutex );
 
     /* Load our configuration file */
     if( psz_vlmconf != NULL )
@@ -191,35 +192,35 @@ vlm_t *vlm_New( libvlc_int_t *libvlc, const char *psz_vlmconf )
 void vlm_Delete( vlm_t *p_vlm )
 {
     /* vlm_Delete() is serialized against itself, and against vlm_New().
-     * This mutex protects libvlc_priv->p_vlm and p_vlm->users. */
-    vlc_mutex_lock( &vlm_mutex );
+     * This mutex protects libheimdall_priv->p_vlm and p_vlm->users. */
+    heimdall_mutex_lock( &vlm_mutex );
     assert( p_vlm->users > 0 );
     if( --p_vlm->users == 0 )
-        assert( libvlc_priv(vlc_object_instance(p_vlm))->p_vlm == p_vlm );
+        assert( libheimdall_priv(heimdall_object_instance(p_vlm))->p_vlm == p_vlm );
     else
         p_vlm = NULL;
 
     if( p_vlm == NULL )
     {
-        vlc_mutex_unlock( &vlm_mutex );
+        heimdall_mutex_unlock( &vlm_mutex );
         return;
     }
 
     /* Destroy and release VLM */
-    vlc_mutex_lock( &p_vlm->lock );
+    heimdall_mutex_lock( &p_vlm->lock );
     vlm_ControlInternal( p_vlm, VLM_CLEAR_MEDIAS );
     TAB_CLEAN( p_vlm->i_media, p_vlm->media );
 
-    vlc_mutex_lock( &p_vlm->lock_manage );
+    heimdall_mutex_lock( &p_vlm->lock_manage );
     p_vlm->exiting = true;
-    vlc_cond_signal( &p_vlm->wait_manage );
-    vlc_mutex_unlock( &p_vlm->lock_manage );
+    heimdall_cond_signal( &p_vlm->wait_manage );
+    heimdall_mutex_unlock( &p_vlm->lock_manage );
 
-    libvlc_priv(vlc_object_instance(p_vlm))->p_vlm = NULL;
-    vlc_mutex_unlock( &vlm_mutex );
+    libheimdall_priv(heimdall_object_instance(p_vlm))->p_vlm = NULL;
+    heimdall_mutex_unlock( &vlm_mutex );
 
-    vlc_join( p_vlm->thread, NULL );
-    vlc_object_delete(p_vlm);
+    heimdall_join( p_vlm->thread, NULL );
+    heimdall_object_delete(p_vlm);
 }
 
 /*****************************************************************************
@@ -230,9 +231,9 @@ int vlm_ExecuteCommand( vlm_t *p_vlm, const char *psz_command,
 {
     int i_result;
 
-    vlc_mutex_lock( &p_vlm->lock );
+    heimdall_mutex_lock( &p_vlm->lock );
     i_result = ExecuteCommand( p_vlm, psz_command, pp_message );
-    vlc_mutex_unlock( &p_vlm->lock );
+    heimdall_mutex_unlock( &p_vlm->lock );
 
     return i_result;
 }
@@ -242,7 +243,7 @@ int vlm_ExecuteCommand( vlm_t *p_vlm, const char *psz_command,
  *****************************************************************************/
 static void* Manage( void* p_object )
 {
-    vlc_thread_set_name("vlc-vlm");
+    heimdall_thread_set_name("heimdall-vlm");
 
     vlm_t *vlm = (vlm_t*)p_object;
     bool exiting;
@@ -250,7 +251,7 @@ static void* Manage( void* p_object )
     do
     {
         /* destroy the inputs that wants to die, and launch the next input */
-        vlc_mutex_lock( &vlm->lock );
+        heimdall_mutex_lock( &vlm->lock );
         for( int i = 0; i < vlm->i_media; i++ )
         {
             vlm_media_sys_t *p_media = vlm->media[i];
@@ -282,14 +283,14 @@ static void* Manage( void* p_object )
             }
         }
 
-        vlc_mutex_unlock( &vlm->lock );
+        heimdall_mutex_unlock( &vlm->lock );
 
-        vlc_mutex_lock( &vlm->lock_manage );
+        heimdall_mutex_lock( &vlm->lock_manage );
 
         while( !vlm->input_state_changed && !(exiting = vlm->exiting) )
-            vlc_cond_wait( &vlm->wait_manage, &vlm->lock_manage );
+            heimdall_cond_wait( &vlm->wait_manage, &vlm->lock_manage );
         vlm->input_state_changed = false;
-        vlc_mutex_unlock( &vlm->lock_manage );
+        heimdall_mutex_unlock( &vlm->lock_manage );
     }
     while( !exiting );
 
@@ -334,16 +335,16 @@ static int vlm_MediaDescriptionCheck( vlm_t *p_vlm, vlm_media_t *p_cfg )
 {
     if( !p_cfg || !p_cfg->psz_name ||
         !strcmp( p_cfg->psz_name, "all" ) || !strcmp( p_cfg->psz_name, "media" ))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     for( int i = 0; i < p_vlm->i_media; i++ )
     {
         if( p_vlm->media[i]->cfg.id == p_cfg->id )
             continue;
         if( !strcmp( p_vlm->media[i]->cfg.psz_name, p_cfg->psz_name ) )
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 
@@ -357,7 +358,7 @@ static int vlm_OnMediaUpdate( vlm_t *p_vlm, vlm_media_sys_t *p_media )
     /* TODO add support of var vlm_media_broadcast */
 
     vlm_SendEventMediaChanged( p_vlm, p_cfg->id, p_cfg->psz_name );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 static int vlm_ControlMediaChange( vlm_t *p_vlm, vlm_media_t *p_cfg )
 {
@@ -365,7 +366,7 @@ static int vlm_ControlMediaChange( vlm_t *p_vlm, vlm_media_t *p_cfg )
 
     /* */
     if( !p_media || vlm_MediaDescriptionCheck( p_vlm, p_cfg ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if( 0 )
     {
@@ -385,12 +386,12 @@ static int vlm_ControlMediaAdd( vlm_t *p_vlm, vlm_media_t *p_cfg, int64_t *p_id 
     if( vlm_MediaDescriptionCheck( p_vlm, p_cfg ) || vlm_ControlMediaGetByName( p_vlm, p_cfg->psz_name ) )
     {
         msg_Err( p_vlm, "invalid media description" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     p_media = malloc(sizeof(*p_media));
     if( !p_media )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_media->vlm = p_vlm;
 
@@ -416,7 +417,7 @@ static int vlm_ControlMediaDel( vlm_t *p_vlm, int64_t id )
     vlm_media_sys_t *p_media = vlm_ControlMediaGetById( p_vlm, id );
 
     if( !p_media )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     while( p_media->i_instance > 0 )
         vlm_ControlInternal( p_vlm, VLM_STOP_MEDIA_INSTANCE, id, p_media->instance[0]->psz_name );
@@ -429,7 +430,7 @@ static int vlm_ControlMediaDel( vlm_t *p_vlm, int64_t id )
     TAB_REMOVE( p_vlm->i_media, p_vlm->media, p_media );
     free(p_media);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int vlm_ControlMediaGets( vlm_t *p_vlm, vlm_media_t ***ppp_dsc, int *pi_dsc )
@@ -447,32 +448,32 @@ static int vlm_ControlMediaGets( vlm_t *p_vlm, vlm_media_t ***ppp_dsc, int *pi_d
     *ppp_dsc = pp_dsc;
     *pi_dsc = i_dsc;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 static int vlm_ControlMediaClear( vlm_t *p_vlm )
 {
     while( p_vlm->i_media > 0 )
         vlm_ControlMediaDel( p_vlm, p_vlm->media[0]->cfg.id );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 static int vlm_ControlMediaGet( vlm_t *p_vlm, int64_t id, vlm_media_t **pp_dsc )
 {
     vlm_media_sys_t *p_media = vlm_ControlMediaGetById( p_vlm, id );
     if( !p_media )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     *pp_dsc = vlm_media_Duplicate( &p_media->cfg );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 static int vlm_ControlMediaGetId( vlm_t *p_vlm, const char *psz_name, int64_t *p_id )
 {
     vlm_media_sys_t *p_media = vlm_ControlMediaGetByName( p_vlm, psz_name );
     if( !p_media )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     *p_id = p_media->cfg.id;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static vlm_media_instance_sys_t *vlm_ControlMediaInstanceGetByName( vlm_media_sys_t *p_media, const char *psz_id )
@@ -503,18 +504,18 @@ static vlm_media_instance_sys_t *vlm_MediaInstanceNew( vlm_media_sys_t *p_media,
 
     p_instance->i_index = 0;
 
-    p_instance->player = vlc_player_New(VLC_OBJECT(p_media->vlm),
-                                        VLC_PLAYER_LOCK_NORMAL);
+    p_instance->player = heimdall_player_New(HEIMDALL_OBJECT(p_media->vlm),
+                                        HEIMDALL_PLAYER_LOCK_NORMAL);
     if (!p_instance->player)
         goto error;
 
-    static struct vlc_player_cbs cbs = {
+    static struct heimdall_player_cbs cbs = {
         .on_state_changed = player_on_state_changed,
     };
-    vlc_player_Lock(p_instance->player);
+    heimdall_player_Lock(p_instance->player);
     p_instance->listener =
-        vlc_player_AddListener(p_instance->player, &cbs, p_media);
-    vlc_player_Unlock(p_instance->player);
+        heimdall_player_AddListener(p_instance->player, &cbs, p_media);
+    heimdall_player_Unlock(p_instance->player);
 
     if (!p_instance->listener)
         goto error;
@@ -522,7 +523,7 @@ static vlm_media_instance_sys_t *vlm_MediaInstanceNew( vlm_media_sys_t *p_media,
 
 error:
     if (p_instance->player)
-        vlc_player_Delete(p_instance->player);
+        heimdall_player_Delete(p_instance->player);
     if (p_instance->p_item)
         input_item_Release(p_instance->p_item);
     free(p_instance->psz_name);
@@ -531,14 +532,14 @@ error:
 }
 static void vlm_MediaInstanceDelete( vlm_t *p_vlm, int64_t id, vlm_media_instance_sys_t *p_instance, vlm_media_sys_t *p_media )
 {
-    vlc_player_t *player = p_instance->player;
+    heimdall_player_t *player = p_instance->player;
 
-    vlc_player_Lock(player);
-    vlc_player_RemoveListener(player, p_instance->listener);
-    vlc_player_Stop(player);
-    bool had_media = vlc_player_GetCurrentMedia(player);
-    vlc_player_Unlock(player);
-    vlc_player_Delete(player);
+    heimdall_player_Lock(player);
+    heimdall_player_RemoveListener(player, p_instance->listener);
+    heimdall_player_Stop(player);
+    bool had_media = heimdall_player_GetCurrentMedia(player);
+    heimdall_player_Unlock(player);
+    heimdall_player_Delete(player);
 
     if (had_media)
         vlm_SendEventMediaInstanceStopped( p_vlm, id, p_media->cfg.psz_name );
@@ -556,10 +557,10 @@ static int vlm_ControlMediaInstanceStart( vlm_t *p_vlm, int64_t id, const char *
     vlm_media_instance_sys_t *p_instance;
 
     if( !p_media || !p_media->cfg.b_enabled || p_media->cfg.i_input <= 0 )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if( i_input_index < 0 || i_input_index >= p_media->cfg.i_input )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     p_instance = vlm_ControlMediaInstanceGetByName( p_media, psz_id );
     if( !p_instance )
@@ -568,46 +569,46 @@ static int vlm_ControlMediaInstanceStart( vlm_t *p_vlm, int64_t id, const char *
 
         p_instance = vlm_MediaInstanceNew( p_media, psz_id );
         if( !p_instance )
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
 
         if( p_cfg->psz_output != NULL )
         {
             char *psz_buffer;
             if( asprintf( &psz_buffer, "sout=%s", p_cfg->psz_output ) != -1 )
             {
-                input_item_AddOption( p_instance->p_item, psz_buffer, VLC_INPUT_OPTION_TRUSTED );
+                input_item_AddOption( p_instance->p_item, psz_buffer, HEIMDALL_INPUT_OPTION_TRUSTED );
                 free( psz_buffer );
             }
         }
 
         for( int i = 0; i < p_cfg->i_option; i++ )
-            input_item_AddOption( p_instance->p_item, p_cfg->ppsz_option[i], VLC_INPUT_OPTION_TRUSTED );
+            input_item_AddOption( p_instance->p_item, p_cfg->ppsz_option[i], HEIMDALL_INPUT_OPTION_TRUSTED );
         TAB_APPEND( p_media->i_instance, p_media->instance, p_instance );
     }
 
     /* Stop old instance */
-    vlc_player_t *player = p_instance->player;
-    vlc_player_Lock(player);
-    if (vlc_player_GetCurrentMedia(player))
+    heimdall_player_t *player = p_instance->player;
+    heimdall_player_Lock(player);
+    if (heimdall_player_GetCurrentMedia(player))
     {
         if( p_instance->i_index == i_input_index )
         {
-            if (vlc_player_IsPaused(player))
-                vlc_player_Resume(player);
-            return VLC_SUCCESS;
+            if (heimdall_player_IsPaused(player))
+                heimdall_player_Resume(player);
+            return HEIMDALL_SUCCESS;
         }
 
-        vlc_player_Stop(player);
-        vlc_player_Unlock(player);
+        heimdall_player_Stop(player);
+        heimdall_player_Unlock(player);
         vlm_SendEventMediaInstanceStopped( p_vlm, id, p_media->cfg.psz_name );
-        vlc_player_Lock(player);
+        heimdall_player_Lock(player);
     }
 
     /* Start new one */
     p_instance->i_index = i_input_index;
     if( strstr( p_media->cfg.ppsz_input[p_instance->i_index], "://" ) == NULL )
     {
-        char *psz_uri = vlc_path2uri(
+        char *psz_uri = heimdall_path2uri(
                           p_media->cfg.ppsz_input[p_instance->i_index], NULL );
         input_item_SetURI( p_instance->p_item, psz_uri ) ;
         free( psz_uri );
@@ -615,14 +616,14 @@ static int vlm_ControlMediaInstanceStart( vlm_t *p_vlm, int64_t id, const char *
     else
         input_item_SetURI( p_instance->p_item, p_media->cfg.ppsz_input[p_instance->i_index] ) ;
 
-    vlc_player_SetCurrentMedia(player, p_instance->p_item);
-    vlc_player_Start(player);
-    vlc_player_Unlock(player);
+    heimdall_player_SetCurrentMedia(player, p_instance->p_item);
+    heimdall_player_Start(player);
+    heimdall_player_Unlock(player);
     p_instance->finished = false;
 
     vlm_SendEventMediaInstanceStarted( p_vlm, id, p_media->cfg.psz_name );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int vlm_ControlMediaInstanceStop( vlm_t *p_vlm, int64_t id, const char *psz_id )
@@ -631,32 +632,32 @@ static int vlm_ControlMediaInstanceStop( vlm_t *p_vlm, int64_t id, const char *p
     vlm_media_instance_sys_t *p_instance;
 
     if( !p_media )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     p_instance = vlm_ControlMediaInstanceGetByName( p_media, psz_id );
     if( !p_instance )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     vlm_MediaInstanceDelete( p_vlm, id, p_instance, p_media );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 static int vlm_ControlMediaInstancePause( vlm_t *p_vlm, int64_t id, const char *psz_id )
 {
     vlm_media_sys_t *p_media = vlm_ControlMediaGetById( p_vlm, id );
     vlm_media_instance_sys_t *p_instance;
     if( !p_media )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     p_instance = vlm_ControlMediaInstanceGetByName( p_media, psz_id );
     if( !p_instance )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    vlc_player_Lock(p_instance->player);
-    vlc_player_TogglePause(p_instance->player);
-    vlc_player_Unlock(p_instance->player);
+    heimdall_player_Lock(p_instance->player);
+    heimdall_player_TogglePause(p_instance->player);
+    heimdall_player_Unlock(p_instance->player);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 static int vlm_ControlMediaInstanceGetTimePosition( vlm_t *p_vlm, int64_t id, const char *psz_id, int64_t *pi_time, double *pd_position )
 {
@@ -664,19 +665,19 @@ static int vlm_ControlMediaInstanceGetTimePosition( vlm_t *p_vlm, int64_t id, co
     vlm_media_instance_sys_t *p_instance;
 
     if( !p_media )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     p_instance = vlm_ControlMediaInstanceGetByName( p_media, psz_id );
     if( !p_instance )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    vlc_player_Lock(p_instance->player);
+    heimdall_player_Lock(p_instance->player);
     if( pi_time )
-        *pi_time = US_FROM_VLC_TICK(vlc_player_GetTime(p_instance->player));
+        *pi_time = US_FROM_HEIMDALL_TICK(heimdall_player_GetTime(p_instance->player));
     if( pd_position )
-        *pd_position = vlc_player_GetPosition(p_instance->player);
-    vlc_player_Unlock(p_instance->player);
-    return VLC_SUCCESS;
+        *pd_position = heimdall_player_GetPosition(p_instance->player);
+    heimdall_player_Unlock(p_instance->player);
+    return HEIMDALL_SUCCESS;
 }
 static int vlm_ControlMediaInstanceSetTimePosition( vlm_t *p_vlm, int64_t id, const char *psz_id, int64_t i_time, double d_position )
 {
@@ -684,19 +685,19 @@ static int vlm_ControlMediaInstanceSetTimePosition( vlm_t *p_vlm, int64_t id, co
     vlm_media_instance_sys_t *p_instance;
 
     if( !p_media )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     p_instance = vlm_ControlMediaInstanceGetByName( p_media, psz_id );
     if( !p_instance )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    vlc_player_Lock(p_instance->player);
+    heimdall_player_Lock(p_instance->player);
     if( i_time >= 0 )
-        vlc_player_SetTime(p_instance->player, VLC_TICK_FROM_US(i_time));
+        heimdall_player_SetTime(p_instance->player, HEIMDALL_TICK_FROM_US(i_time));
     else if( d_position >= 0 && d_position <= 100 )
-        vlc_player_SetPosition(p_instance->player, d_position);
-    vlc_player_Unlock(p_instance->player);
-    return VLC_SUCCESS;
+        heimdall_player_SetPosition(p_instance->player, d_position);
+    heimdall_player_Unlock(p_instance->player);
+    return HEIMDALL_SUCCESS;
 }
 
 static int vlm_ControlMediaInstanceGets( vlm_t *p_vlm, int64_t id, vlm_media_instance_t ***ppp_idsc, int *pi_instance )
@@ -706,7 +707,7 @@ static int vlm_ControlMediaInstanceGets( vlm_t *p_vlm, int64_t id, vlm_media_ins
     int                              i_idsc;
 
     if( !p_media )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     TAB_INIT( i_idsc, pp_idsc );
     for( int i = 0; i < p_media->i_instance; i++ )
@@ -715,19 +716,19 @@ static int vlm_ControlMediaInstanceGets( vlm_t *p_vlm, int64_t id, vlm_media_ins
         vlm_media_instance_t *p_idsc = vlm_media_instance_New();
         if( p_instance->psz_name )
             p_idsc->psz_name = strdup( p_instance->psz_name );
-        vlc_player_Lock(p_instance->player);
-        p_idsc->i_time = US_FROM_VLC_TICK(vlc_player_GetTime(p_instance->player));
-        p_idsc->i_length = US_FROM_VLC_TICK(vlc_player_GetLength(p_instance->player));
-        p_idsc->d_position = vlc_player_GetPosition(p_instance->player);
-        p_idsc->b_paused = vlc_player_IsPaused(p_instance->player);
-        p_idsc->f_rate = vlc_player_GetRate(p_instance->player);
-        vlc_player_Unlock(p_instance->player);
+        heimdall_player_Lock(p_instance->player);
+        p_idsc->i_time = US_FROM_HEIMDALL_TICK(heimdall_player_GetTime(p_instance->player));
+        p_idsc->i_length = US_FROM_HEIMDALL_TICK(heimdall_player_GetLength(p_instance->player));
+        p_idsc->d_position = heimdall_player_GetPosition(p_instance->player);
+        p_idsc->b_paused = heimdall_player_IsPaused(p_instance->player);
+        p_idsc->f_rate = heimdall_player_GetRate(p_instance->player);
+        heimdall_player_Unlock(p_instance->player);
 
         TAB_APPEND( i_idsc, pp_idsc, p_idsc );
     }
     *ppp_idsc = pp_idsc;
     *pi_instance = i_idsc;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int vlm_ControlMediaInstanceClear( vlm_t *p_vlm, int64_t id )
@@ -735,12 +736,12 @@ static int vlm_ControlMediaInstanceClear( vlm_t *p_vlm, int64_t id )
     vlm_media_sys_t *p_media = vlm_ControlMediaGetById( p_vlm, id );
 
     if( !p_media )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     while( p_media->i_instance > 0 )
         vlm_ControlMediaInstanceStop( p_vlm, id, p_media->instance[0]->psz_name );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int vlm_vaControlInternal( vlm_t *p_vlm, int i_query, va_list args )
@@ -847,7 +848,7 @@ static int vlm_vaControlInternal( vlm_t *p_vlm, int i_query, va_list args )
 
     default:
         msg_Err( p_vlm, "unknown VLM query" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 }
 
@@ -870,9 +871,9 @@ int vlm_Control( vlm_t *p_vlm, int i_query, ... )
 
     va_start( args, i_query );
 
-    vlc_mutex_lock( &p_vlm->lock );
+    heimdall_mutex_lock( &p_vlm->lock );
     i_result = vlm_vaControlInternal( p_vlm, i_query, args );
-    vlc_mutex_unlock( &p_vlm->lock );
+    heimdall_mutex_unlock( &p_vlm->lock );
 
     va_end( args );
 

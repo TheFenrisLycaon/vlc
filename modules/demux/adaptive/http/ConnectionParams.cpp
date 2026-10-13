@@ -2,6 +2,7 @@
  * ConnectionParams.cpp
  *****************************************************************************
  * Copyright (C) 2016 - VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -23,7 +24,7 @@
 
 #include "ConnectionParams.hpp"
 
-#include <vlc_url.h>
+#include <heimdall_url.h>
 #include <ctype.h>
 #include <algorithm>
 
@@ -61,7 +62,7 @@ const std::string & ConnectionParams::getPath() const
 
 void ConnectionParams::setPath(const std::string &path_)
 {
-    vlc_url_t url_components{};
+    heimdall_url_t url_components{};
     char *uri_str;
 
     url_components.psz_protocol = const_cast<char *>(scheme.c_str());
@@ -75,7 +76,7 @@ void ConnectionParams::setPath(const std::string &path_)
             url_components.i_port = port;
     }
 
-    uri_str = vlc_uri_compose(&url_components);
+    uri_str = heimdall_uri_compose(&url_components);
     if (uri_str != nullptr) {
         path = path_;
         uri.assign(uri_str);
@@ -95,8 +96,8 @@ bool ConnectionParams::isLocal() const
 
 void ConnectionParams::parse()
 {
-    vlc_url_t url_components;
-    vlc_UrlParse(&url_components, uri.c_str());
+    heimdall_url_t url_components;
+    heimdall_UrlParse(&url_components, uri.c_str());
 
     if(url_components.psz_protocol)
     {
@@ -115,5 +116,5 @@ void ConnectionParams::parse()
     if(url_components.psz_host)
         hostname = url_components.psz_host;
 
-    vlc_UrlClean(&url_components);
+    heimdall_UrlClean(&url_components);
 }

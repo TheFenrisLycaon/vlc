@@ -2,6 +2,7 @@
  * EPGView.cpp: EPGView
  ****************************************************************************
  * Copyright © 2009-2010 VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Ludovic Fauvet <etix@l0cal.com>
  *
@@ -22,7 +23,7 @@
 
 #include "qt.hpp"
 
-#include <vlc_epg.h>
+#include <heimdall_epg.h>
 
 #include "EPGView.hpp"
 #include "EPGItem.hpp"
@@ -120,13 +121,13 @@ bool EPGView::hasValidData() const
     return !programs.isEmpty();
 }
 
-bool EPGView::updateEPG( const vlc_epg_t * const *pp_epg, size_t i_epg )
+bool EPGView::updateEPG( const heimdall_epg_t * const *pp_epg, size_t i_epg )
 {
     m_updtMinTime = QDateTime();
 
     for ( size_t i = 0; i < i_epg; ++i )
     {
-        const vlc_epg_t *p_epg = pp_epg[i];
+        const heimdall_epg_t *p_epg = pp_epg[i];
 
         EPGProgram *program;
 

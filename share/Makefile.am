@@ -56,24 +56,24 @@ LUA_MODULES_PKGDATA = \
 
 desktopdir = $(datadir)/applications
 if KDE_SOLID
-desktop_DATA = vlc.desktop vlc-openbd.desktop vlc-opendvd.desktop vlc-openvcd.desktop vlc-opencda.desktop
+desktop_DATA = heimdall.desktop heimdall-openbd.desktop heimdall-opendvd.desktop heimdall-openvcd.desktop heimdall-opencda.desktop
 appdatadir = $(datarootdir)/metainfo
-appdata_DATA = org.videolan.vlc.appdata.xml
+appdata_DATA = com.lycaria.heimdall.appdata.xml
 endif
 
-EXTRA_DIST += vlc.desktop.in vlc.desktop.mimetypes
-EXTRA_DIST += vlc-openbd.desktop.in vlc-opendvd.desktop.in vlc-openvcd.desktop.in vlc-opencda.desktop.in
+EXTRA_DIST += heimdall.desktop.in heimdall.desktop.mimetypes
+EXTRA_DIST += heimdall-openbd.desktop.in heimdall-opendvd.desktop.in heimdall-openvcd.desktop.in heimdall-opencda.desktop.in
 CLEANFILES += $(desktop_DATA) $(appdata_DATA)
 
 %.desktop: %.desktop.in $(top_builddir)/config.status
-	$(AM_V_GEN)mimetypes="$$(sed 's/\s*#.*$$//g' $(srcdir)/vlc.desktop.mimetypes | $(EGREP) -v '^$$' | tr "\n" ';')"; \
+	$(AM_V_GEN)mimetypes="$$(sed 's/\s*#.*$$//g' $(srcdir)/heimdall.desktop.mimetypes | $(EGREP) -v '^$$' | tr "\n" ';')"; \
 	sed \
 		-e 's,\@bindir\@,$(bindir),g' \
 		 -e "s,\@MIMETYPES\@,$$mimetypes,g" < "$<" > tmp-$@
 	$(AM_V_at)$(DESKTOP_FILE_VALIDATE) tmp-$@
 	$(AM_V_at)mv -f tmp-$@ $@
 
-org.videolan.vlc.appdata.xml: org.videolan.vlc.appdata.xml.in
+com.lycaria.heimdall.appdata.xml: com.lycaria.heimdall.appdata.xml.in
 	$(AM_V_GEN)$(MSGFMT) --xml --template "$<" -d "$(top_srcdir)/po" \
 			-o "$@.tmp" || \
 		cp $< $@.tmp
@@ -87,21 +87,21 @@ icons128dir = $(iconsdatadir)/128x128/apps
 icons256dir = $(iconsdatadir)/256x256/apps
 
 if !HAVE_WIN32
-dist_pkgdata_DATA = icons/vlc.ico
-dist_icons16_DATA = icons/16x16/vlc.png icons/16x16/vlc.xpm
-dist_icons32_DATA = icons/32x32/vlc.png icons/32x32/vlc.xpm \
-			icons/32x32/vlc-xmas.xpm \
-			icons/32x32/vlc-aprilfools.xpm
-dist_icons48_DATA = icons/48x48/vlc.png icons/48x48/vlc-xmas.png \
-			icons/48x48/vlc-aprilfools.png
-dist_icons128_DATA = icons/128x128/vlc.png icons/128x128/vlc-xmas.png \
-                     icons/128x128/vlc-kb.png \
-                     icons/128x128/vlc-aprilfools.png
-dist_icons256_DATA = icons/256x256/vlc.png
+dist_pkgdata_DATA = icons/heimdall.ico
+dist_icons16_DATA = icons/16x16/heimdall.png icons/16x16/heimdall.xpm
+dist_icons32_DATA = icons/32x32/heimdall.png icons/32x32/heimdall.xpm \
+			icons/32x32/heimdall-xmas.xpm \
+			icons/32x32/heimdall-aprilfools.xpm
+dist_icons48_DATA = icons/48x48/heimdall.png icons/48x48/heimdall-xmas.png \
+			icons/48x48/heimdall-aprilfools.png
+dist_icons128_DATA = icons/128x128/heimdall.png icons/128x128/heimdall-xmas.png \
+                     icons/128x128/heimdall-kb.png \
+                     icons/128x128/heimdall-aprilfools.png
+dist_icons256_DATA = icons/256x256/heimdall.png
 
 nobase_dist_pkgdata_SCRIPTS = \
-	utils/audio-vlc-default.sh \
-	utils/video-vlc-default.sh \
+	utils/audio-heimdall-default.sh \
+	utils/video-heimdall-default.sh \
 	$(NULL)
 endif
 
@@ -123,7 +123,7 @@ soliddata_DATA = $(DIST_solid)
 endif
 
 DIST_icons = \
-	vlc512x512.png
+	heimdall512x512.png
 
 DIST_skins2 = \
 	skins2/fonts/FreeSans.ttf \
@@ -210,13 +210,13 @@ nobase_dist_pkgdata_DATA += \
 	lua/http/vlm.html \
 	lua/http/images/buttons.png \
 	lua/http/images/speaker-32.png \
-	lua/http/images/vlc-48.png \
+	lua/http/images/heimdall-48.png \
 	lua/http/images/Audio-48.png \
 	lua/http/images/Folder-48.png \
 	lua/http/images/Other-48.png \
 	lua/http/images/Back-48.png \
 	lua/http/images/Video-48.png \
-	lua/http/images/vlc16x16.png \
+	lua/http/images/heimdall16x16.png \
 	lua/http/mobile_equalizer.html \
 	lua/http/vlm_export.html \
 	lua/http/mobile_browse.html \
@@ -278,10 +278,10 @@ EXTRA_DIST += \
 	$(NULL)
 
 DIST_solid = \
-	solid/vlc-openbd.desktop \
-	solid/vlc-opencda.desktop \
-	solid/vlc-opendvd.desktop \
-	solid/vlc-openvcd.desktop
+	solid/heimdall-openbd.desktop \
+	solid/heimdall-opencda.desktop \
+	solid/heimdall-opendvd.desktop \
+	solid/heimdall-openvcd.desktop
 
 EXTRA_DIST += \
         hrtfs/dodeca_and_7channel_3DSL_HRTF.sofa

@@ -2,6 +2,7 @@
  * BaseAdaptationSet.cpp
  *****************************************************************************
  * Copyright (C) 2010 - 2011 Klagenfurt University
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Created on: Aug 10, 2010
  * Authors: Christopher Mueller <christopher.mueller@itec.uni-klu.ac.at>
@@ -29,8 +30,8 @@
 #include "BaseAdaptationSet.h"
 #include "BaseRepresentation.h"
 
-#include <vlc_common.h>
-#include <vlc_arrays.h>
+#include <heimdall_common.h>
+#include <heimdall_arrays.h>
 
 #include "SegmentTemplate.h"
 #include "BasePeriod.h"
@@ -49,7 +50,7 @@ BaseAdaptationSet::BaseAdaptationSet(BasePeriod *period) :
 
 BaseAdaptationSet::~BaseAdaptationSet   ()
 {
-    vlc_delete_all( representations );
+    heimdall_delete_all( representations );
     childs.clear();
 }
 
@@ -130,7 +131,7 @@ const Role & BaseAdaptationSet::getRole() const
     return role;
 }
 
-void BaseAdaptationSet::debug(vlc_object_t *obj, int indent) const
+void BaseAdaptationSet::debug(heimdall_object_t *obj, int indent) const
 {
     std::string text(indent, ' ');
     text.append("BaseAdaptationSet ");

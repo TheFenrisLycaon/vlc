@@ -5,7 +5,7 @@
         <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="10117"/>
     </dependencies>
     <objects>
-        <customObject id="-2" userLabel="File's Owner" customClass="VLCPopupPanelController">
+        <customObject id="-2" userLabel="File's Owner" customClass="HeimdallPopupPanelController">
             <connections>
                 <outlet property="cancelButton" destination="15" id="55"/>
                 <outlet property="okButton" destination="16" id="56"/>
@@ -87,14 +87,14 @@ Gw
                 </subviews>
                 <constraints>
                     <constraint firstItem="16" firstAttribute="leading" secondItem="15" secondAttribute="trailing" constant="12" id="0xF-7k-lNe"/>
-                    <constraint firstAttribute="trailing" relation="greaterThanOrEqual" secondItem="17" secondAttribute="trailing" constant="16" id="2rI-pv-u6N" customClass="VLCSpacingConstraint">
+                    <constraint firstAttribute="trailing" relation="greaterThanOrEqual" secondItem="17" secondAttribute="trailing" constant="16" id="2rI-pv-u6N" customClass="HeimdallSpacingConstraint">
                         <userDefinedRuntimeAttributes>
                             <userDefinedRuntimeAttribute type="number" keyPath="spacingToken">
                                 <integer value="3"/>
                             </userDefinedRuntimeAttribute>
                         </userDefinedRuntimeAttributes>
                     </constraint>
-                    <constraint firstItem="17" firstAttribute="top" secondItem="18" secondAttribute="bottom" constant="8" id="48p-Px-NO6" customClass="VLCSpacingConstraint">
+                    <constraint firstItem="17" firstAttribute="top" secondItem="18" secondAttribute="bottom" constant="8" id="48p-Px-NO6" customClass="HeimdallSpacingConstraint">
                         <userDefinedRuntimeAttributes>
                             <userDefinedRuntimeAttribute type="number" keyPath="spacingToken">
                                 <integer value="2"/>
@@ -102,7 +102,7 @@ Gw
                         </userDefinedRuntimeAttributes>
                     </constraint>
                     <constraint firstItem="17" firstAttribute="leading" secondItem="18" secondAttribute="leading" id="EUc-zh-2bg"/>
-                    <constraint firstItem="18" firstAttribute="leading" secondItem="14" secondAttribute="leading" constant="16" id="IeJ-Jq-PC1" customClass="VLCSpacingConstraint">
+                    <constraint firstItem="18" firstAttribute="leading" secondItem="14" secondAttribute="leading" constant="16" id="IeJ-Jq-PC1" customClass="HeimdallSpacingConstraint">
                         <userDefinedRuntimeAttributes>
                             <userDefinedRuntimeAttribute type="number" keyPath="spacingToken">
                                 <integer value="3"/>
@@ -110,7 +110,7 @@ Gw
                         </userDefinedRuntimeAttributes>
                     </constraint>
                     <constraint firstItem="16" firstAttribute="top" secondItem="15" secondAttribute="bottom" constant="-21" id="RxG-QG-83V"/>
-                    <constraint firstAttribute="bottom" secondItem="16" secondAttribute="bottom" constant="16" id="Zsd-2P-O34" customClass="VLCSpacingConstraint">
+                    <constraint firstAttribute="bottom" secondItem="16" secondAttribute="bottom" constant="16" id="Zsd-2P-O34" customClass="HeimdallSpacingConstraint">
                         <userDefinedRuntimeAttributes>
                             <userDefinedRuntimeAttribute type="number" keyPath="spacingToken">
                                 <integer value="3"/>
@@ -119,7 +119,7 @@ Gw
                     </constraint>
                     <constraint firstItem="16" firstAttribute="centerY" secondItem="15" secondAttribute="centerY" id="ajf-qO-uAB"/>
                     <constraint firstItem="17" firstAttribute="leading" secondItem="19" secondAttribute="leading" id="ohp-23-GRk"/>
-                    <constraint firstAttribute="trailing" secondItem="19" secondAttribute="trailing" constant="16" id="s0H-w9-ufO" customClass="VLCSpacingConstraint">
+                    <constraint firstAttribute="trailing" secondItem="19" secondAttribute="trailing" constant="16" id="s0H-w9-ufO" customClass="HeimdallSpacingConstraint">
                         <userDefinedRuntimeAttributes>
                             <userDefinedRuntimeAttribute type="number" keyPath="spacingToken">
                                 <integer value="3"/>
@@ -127,21 +127,21 @@ Gw
                         </userDefinedRuntimeAttributes>
                     </constraint>
                     <constraint firstItem="16" firstAttribute="trailing" secondItem="19" secondAttribute="trailing" id="u6M-dv-Ew9"/>
-                    <constraint firstItem="19" firstAttribute="top" secondItem="17" secondAttribute="bottom" constant="8" id="uOa-iI-ZVT" customClass="VLCSpacingConstraint">
+                    <constraint firstItem="19" firstAttribute="top" secondItem="17" secondAttribute="bottom" constant="8" id="uOa-iI-ZVT" customClass="HeimdallSpacingConstraint">
                         <userDefinedRuntimeAttributes>
                             <userDefinedRuntimeAttribute type="number" keyPath="spacingToken">
                                 <integer value="2"/>
                             </userDefinedRuntimeAttribute>
                         </userDefinedRuntimeAttributes>
                     </constraint>
-                    <constraint firstAttribute="trailing" relation="greaterThanOrEqual" secondItem="18" secondAttribute="trailing" constant="16" id="uxm-Yf-FZs" customClass="VLCSpacingConstraint">
+                    <constraint firstAttribute="trailing" relation="greaterThanOrEqual" secondItem="18" secondAttribute="trailing" constant="16" id="uxm-Yf-FZs" customClass="HeimdallSpacingConstraint">
                         <userDefinedRuntimeAttributes>
                             <userDefinedRuntimeAttribute type="number" keyPath="spacingToken">
                                 <integer value="3"/>
                             </userDefinedRuntimeAttribute>
                         </userDefinedRuntimeAttributes>
                     </constraint>
-                    <constraint firstItem="18" firstAttribute="top" secondItem="14" secondAttribute="top" constant="16" id="xkV-Dp-NIO" customClass="VLCSpacingConstraint">
+                    <constraint firstItem="18" firstAttribute="top" secondItem="14" secondAttribute="top" constant="16" id="xkV-Dp-NIO" customClass="HeimdallSpacingConstraint">
                         <userDefinedRuntimeAttributes>
                             <userDefinedRuntimeAttribute type="number" keyPath="spacingToken">
                                 <integer value="3"/>

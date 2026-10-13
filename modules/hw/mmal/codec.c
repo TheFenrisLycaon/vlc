@@ -2,6 +2,7 @@
  * mmal.c: MMAL-based decoder plugin for Raspberry Pi
  *****************************************************************************
  * Copyright © 2014 jusst technologies GmbH
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Dennis Hamester <dennis.hamester@gmail.com>
  *          Julian Scheel <julian@jusst.de>
@@ -28,9 +29,9 @@
 
 #include <stdatomic.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
 
 #include <interface/mmal/mmal.h>
 #include <interface/mmal/util/mmal_util.h>
@@ -44,10 +45,10 @@
 #define NUM_EXTRA_BUFFERS 5
 //#define NUM_EXTRA_BUFFERS 10
 
-static int OpenDecoder(vlc_object_t *);
-static void CloseDecoder(vlc_object_t *);
+static int OpenDecoder(heimdall_object_t *);
+static void CloseDecoder(heimdall_object_t *);
 
-vlc_module_begin()
+heimdall_module_begin()
     set_subcategory( SUBCAT_INPUT_VCODEC )
     set_shortname(N_("MMAL decoder"))
     set_description(N_("MMAL-based decoder plugin for Raspberry Pi"))
@@ -55,7 +56,7 @@ vlc_module_begin()
     add_shortcut("mmal_decoder")
     add_obsolete_bool("mmal-opaque") /* since 4.0.0 */
     set_callbacks(OpenDecoder, CloseDecoder)
-vlc_module_end()
+heimdall_module_end()
 
 typedef struct
 {
@@ -71,12 +72,12 @@ typedef struct
 
     bool b_flushed;
 
-    vlc_video_context *vctx;
+    heimdall_video_context *vctx;
 
     // Lock to avoid pic update & allocate happening simultaneously
     // * We should be able to arrange life s.t. this isn't needed
     //   but while we are confused apply belt & braces
-    vlc_mutex_t pic_lock;
+    heimdall_mutex_t pic_lock;
 
     /* statistics */
     bool started;
@@ -112,7 +113,7 @@ static bool is_enc_supported(const supported_mmal_enc_t * const support, const M
     return false;
 }
 
-static bool set_and_test_enc_supported(vlc_object_t *obj, supported_mmal_enc_t * const support,
+static bool set_and_test_enc_supported(heimdall_object_t *obj, supported_mmal_enc_t * const support,
                                        MMAL_PORT_T * port, const MMAL_FOURCC_T fcc)
 {
     if (support->n == -1)
@@ -132,37 +133,37 @@ static bool set_and_test_enc_supported(vlc_object_t *obj, supported_mmal_enc_t *
     return is_enc_supported(support, fcc);
 }
 
-static MMAL_FOURCC_T vlc_to_mmal_es_fourcc(const es_format_t *es)
+static MMAL_FOURCC_T heimdall_to_mmal_es_fourcc(const es_format_t *es)
 {
     switch (es->i_codec){
-    case VLC_CODEC_MJPG:
+    case HEIMDALL_CODEC_MJPG:
         return MMAL_ENCODING_MJPEG;
-    case VLC_CODEC_MP1V:
+    case HEIMDALL_CODEC_MP1V:
         return MMAL_ENCODING_MP1V;
-    case VLC_CODEC_MPGV:
-    case VLC_CODEC_MP2V:
+    case HEIMDALL_CODEC_MPGV:
+    case HEIMDALL_CODEC_MP2V:
         return MMAL_ENCODING_MP2V;
-    case VLC_CODEC_H263:
+    case HEIMDALL_CODEC_H263:
         return MMAL_ENCODING_H263;
-    case VLC_CODEC_MP4V:
+    case HEIMDALL_CODEC_MP4V:
         return MMAL_ENCODING_MP4V;
-    case VLC_CODEC_H264:
+    case HEIMDALL_CODEC_H264:
         return MMAL_ENCODING_H264;
-    case VLC_CODEC_VP6:
+    case HEIMDALL_CODEC_VP6:
         return MMAL_ENCODING_VP6;
-    case VLC_CODEC_VP8:
+    case HEIMDALL_CODEC_VP8:
         if (es_format_HasVpxAlpha(es)) // contains alpha extradata
             return 0;
         return MMAL_ENCODING_VP8;
-    case VLC_CODEC_WMV1:
+    case HEIMDALL_CODEC_WMV1:
         return MMAL_ENCODING_WMV1;
-    case VLC_CODEC_WMV2:
+    case HEIMDALL_CODEC_WMV2:
         return MMAL_ENCODING_WMV2;
-    case VLC_CODEC_WMV3:
+    case HEIMDALL_CODEC_WMV3:
         return MMAL_ENCODING_WMV3;
-    case VLC_CODEC_VC1:
+    case HEIMDALL_CODEC_VC1:
         return MMAL_ENCODING_WVC1;
-    case VLC_CODEC_THEORA:
+    case HEIMDALL_CODEC_THEORA:
         return MMAL_ENCODING_THEORA;
     default:
         break;
@@ -175,9 +176,9 @@ static picture_t * alloc_opaque_pic(decoder_t * const dec, MMAL_BUFFER_HEADER_T 
 {
     decoder_sys_t *const dec_sys = dec->p_sys;
 
-    vlc_mutex_lock(&dec_sys->pic_lock);
+    heimdall_mutex_lock(&dec_sys->pic_lock);
     picture_t * const pic = decoder_NewPicture(dec);
-    vlc_mutex_unlock(&dec_sys->pic_lock);
+    heimdall_mutex_unlock(&dec_sys->pic_lock);
 
     if (pic == NULL)
         goto fail1;
@@ -368,9 +369,9 @@ apply_fmt:
     }
 
     // Tell the rest of the world we have changed format
-    vlc_mutex_lock(&sys->pic_lock);
+    heimdall_mutex_lock(&sys->pic_lock);
     ret = decoder_UpdateVideoOutput(dec, sys->vctx);
-    vlc_mutex_unlock(&sys->pic_lock);
+    heimdall_mutex_unlock(&sys->pic_lock);
 
     return ret;
 }
@@ -390,7 +391,7 @@ set_extradata_and_commit(decoder_t * const dec, decoder_sys_t * const sys)
 
 static MMAL_STATUS_T decoder_send_extradata(decoder_t * const dec, decoder_sys_t *const sys)
 {
-    if (dec->fmt_in->i_codec == VLC_CODEC_H264 &&
+    if (dec->fmt_in->i_codec == HEIMDALL_CODEC_H264 &&
         dec->fmt_in->i_extra > 0)
     {
         MMAL_BUFFER_HEADER_T * const buf = mmal_queue_wait(sys->input_pool->queue);
@@ -440,7 +441,7 @@ static int decode(decoder_t *dec, block_t *block)
     if (sys->err_stream != MMAL_SUCCESS) {
         msg_Err(dec, "MMAL error reported by ctrl");
         flush_decoder(dec);
-        return VLCDEC_ECRITICAL;  /// I think they are all fatal
+        return HEIMDALLDEC_ECRITICAL;  /// I think they are all fatal
     }
 
     /*
@@ -454,7 +455,7 @@ static int decode(decoder_t *dec, block_t *block)
     }
 
     if (block == NULL)
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
 
     /*
      * Check whether full flush is required
@@ -466,7 +467,7 @@ static int decode(decoder_t *dec, block_t *block)
     if (block->i_buffer == 0)
     {
         block_Release(block);
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
     }
 
     // Re-enable stuff if the last thing we did was flush
@@ -514,8 +515,8 @@ static int decode(decoder_t *dec, block_t *block)
 
         mmal_buffer_header_reset(buffer);
         buffer->cmd = 0;
-        buffer->pts = block->i_pts != VLC_TICK_INVALID ? block->i_pts :
-            block->i_dts != VLC_TICK_INVALID ? block->i_dts : MMAL_TIME_UNKNOWN;
+        buffer->pts = block->i_pts != HEIMDALL_TICK_INVALID ? block->i_pts :
+            block->i_dts != HEIMDALL_TICK_INVALID ? block->i_dts : MMAL_TIME_UNKNOWN;
         buffer->dts = block->i_dts;
         buffer->alloc_size = sys->input->buffer_size;
         buffer->user_data = NULL;
@@ -544,15 +545,15 @@ static int decode(decoder_t *dec, block_t *block)
         // Reset flushed flag once we have sent a buf
         sys->b_flushed = false;
     }
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 
 fail:
     flush_decoder(dec);
-    return VLCDEC_ECRITICAL;
+    return HEIMDALLDEC_ECRITICAL;
 
 }
 
-static void CloseDecoder(vlc_object_t *p_this)
+static void CloseDecoder(heimdall_object_t *p_this)
 {
     decoder_t *dec = (decoder_t*)p_this;
     decoder_sys_t *sys = dec->p_sys;
@@ -585,45 +586,45 @@ static void CloseDecoder(vlc_object_t *p_this)
     hw_mmal_port_pool_ref_release(sys->ppr, false);
 
     if (sys->vctx)
-        vlc_video_context_Release(sys->vctx);
+        heimdall_video_context_Release(sys->vctx);
 
     free(sys);
 }
 
-static int OpenDecoder(vlc_object_t *p_this)
+static int OpenDecoder(heimdall_object_t *p_this)
 {
     decoder_t *dec = (decoder_t*)p_this;
-    int ret = VLC_EGENERIC;
+    int ret = HEIMDALL_EGENERIC;
     decoder_sys_t *sys;
     MMAL_STATUS_T status;
-    const MMAL_FOURCC_T in_fcc = vlc_to_mmal_es_fourcc(dec->fmt_in);
+    const MMAL_FOURCC_T in_fcc = heimdall_to_mmal_es_fourcc(dec->fmt_in);
     if (in_fcc == 0) {
         msg_Dbg(p_this, "codec %4.4s not supported", (const char*)&dec->fmt_in->i_codec);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if (!is_enc_supported(&supported_decode_in_enc, in_fcc)) {
         msg_Dbg(p_this, "codec %4.4s (MMAL %4.4s) not supported",
                 (const char*)&dec->fmt_in->i_codec, (const char*)&in_fcc);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     sys = calloc(1, sizeof(decoder_sys_t));
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    vlc_decoder_device *dec_dev = decoder_GetDecoderDevice(dec);
+    heimdall_decoder_device *dec_dev = decoder_GetDecoderDevice(dec);
     mmal_decoder_device_t *devsys = GetMMALDeviceOpaque(dec_dev);
     if (devsys == NULL)
     {
         msg_Err(dec, "Could not find a MMAL decoder device");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
-    sys->vctx = vlc_video_context_Create(dec_dev, VLC_VIDEO_CONTEXT_MMAL, 0, NULL);
-    vlc_decoder_device_Release(dec_dev);
+    sys->vctx = heimdall_video_context_Create(dec_dev, HEIMDALL_VIDEO_CONTEXT_MMAL, 0, NULL);
+    heimdall_decoder_device_Release(dec_dev);
 
     dec->p_sys = sys;
-    vlc_mutex_init(&sys->pic_lock);
+    heimdall_mutex_init(&sys->pic_lock);
 
     sys->err_stream = MMAL_SUCCESS;
 
@@ -666,7 +667,7 @@ static int OpenDecoder(vlc_object_t *p_this)
         goto fail;
     }
 
-    if ((status = hw_mmal_opaque_output(VLC_OBJECT(dec), &sys->ppr,
+    if ((status = hw_mmal_opaque_output(HEIMDALL_OBJECT(dec), &sys->ppr,
                                         sys->output, NUM_EXTRA_BUFFERS, decoder_output_cb)) != MMAL_SUCCESS)
         goto fail;
 
@@ -684,8 +685,8 @@ static int OpenDecoder(vlc_object_t *p_this)
     }
 
     sys->b_flushed = true;
-    dec->fmt_out.i_codec = VLC_CODEC_MMAL_OPAQUE;
-    dec->fmt_out.video.i_chroma = VLC_CODEC_MMAL_OPAQUE;
+    dec->fmt_out.i_codec = HEIMDALL_CODEC_MMAL_OPAQUE;
+    dec->fmt_out.video.i_chroma = HEIMDALL_CODEC_MMAL_OPAQUE;
 
     if ((status = decoder_send_extradata(dec, sys)) != MMAL_SUCCESS)
         goto fail;

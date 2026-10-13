@@ -2,6 +2,7 @@
  * ForgedInitSegment.cpp
  *****************************************************************************
  * Copyright (C) 2015 - VideoLAN Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -27,7 +28,7 @@
 #include "QualityLevel.hpp"
 #include "CodecParameters.hpp"
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
 #include <cstdlib>
 
@@ -45,7 +46,7 @@ using namespace smooth::http;
 ForgedInitSegment::ForgedInitSegment(ICanonicalUrl *parent,
                                      const std::string &type_,
                                      uint64_t timescale_,
-                                     vlc_tick_t duration_) :
+                                     heimdall_tick_t duration_) :
     InitSegment(parent)
 {
     type = type_;
@@ -94,7 +95,7 @@ block_t * ForgedInitSegment::buildMoovBox(const CodecParameters &codecparameters
     mp4mux_handle_t *muxh = mp4mux_New(FRAGMENTED);
     if(muxh)
     {
-        if(mp4mux_CanMux(nullptr, &fmt, VLC_FOURCC('s', 'm', 'o', 'o'), true ))
+        if(mp4mux_CanMux(nullptr, &fmt, HEIMDALL_FOURCC('s', 'm', 'o', 'o'), true ))
         {
             mp4mux_trackinfo_t *p_track = mp4mux_track_Add(muxh,
                                      0x01, /* Will always be 1st and unique track; tfhd patched on block read */

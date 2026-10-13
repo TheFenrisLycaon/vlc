@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,14 +38,14 @@
 #include "compositor_x11_uisurface.hpp"
 #include "compositor_x11_utils.hpp"
 
-#include <vlc_cxx_helpers.hpp>
+#include <heimdall_cxx_helpers.hpp>
 
 #include "qt.hpp"
 #include "mainctx.hpp"
 
 #define _GTK_FRAME_EXTENTS "_GTK_FRAME_EXTENTS"
 
-using namespace vlc;
+using namespace heimdall;
 
 namespace
 {
@@ -147,8 +148,8 @@ void RenderTask::onWindowSizeChanged(const QSize& newSize)
     }
     else
     {
-        m_renderSize.setWidth(vlc_align(newSize.width(), 128));
-        m_renderSize.setHeight(vlc_align(newSize.height(), 128));
+        m_renderSize.setWidth(heimdall_align(newSize.width(), 128));
+        m_renderSize.setHeight(heimdall_align(newSize.height(), 128));
     }
 
     // paint function takes uint16

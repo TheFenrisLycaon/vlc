@@ -1,7 +1,7 @@
 # Access output plugins
 
 # Dummy
-vlc_modules += {
+heimdall_modules += {
     'name' : 'access_output_dummy',
     'sources' : files('dummy.c'),
     'shortname' : 'a_o_dumm',
@@ -9,7 +9,7 @@ vlc_modules += {
 }
 
 # File
-vlc_modules += {
+heimdall_modules += {
     'name' : 'access_output_file',
     'sources' : files('file.c'),
     'shortname' : 'a_o_file',
@@ -17,7 +17,7 @@ vlc_modules += {
 }
 
 # HTTP
-vlc_modules += {
+heimdall_modules += {
     'name' : 'access_output_http',
     'sources' : files('http.c'),
     'shortname' : 'a_o_http',
@@ -25,7 +25,7 @@ vlc_modules += {
 }
 
 # liveHTTP
-vlc_modules += {
+heimdall_modules += {
     'name' : 'access_output_livehttp',
     'sources' : files('livehttp.c'),
     'dependencies' : [ gcrypt_dep ],
@@ -37,7 +37,7 @@ vlc_modules += {
 # Shout (Icecast and old Shoutcast)
 shout_dep = dependency('shout', version: '>= 2.1', required: get_option('shout'))
 if shout_dep.found()
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'access_output_shout',
         'sources' : files('shout.c'),
         'dependencies' : [shout_dep, socket_libs],
@@ -47,18 +47,18 @@ if shout_dep.found()
 endif
 
 # HTTP PUT
-vlc_modules += {
+heimdall_modules += {
     'name' : 'access_http_put',
     'sources' : files('http-put.c'),
     'include_directories' : include_directories('../access/http'),
-    'link_with' : [vlc_http_lib],
+    'link_with' : [heimdall_http_lib],
     'shortname' : 'a_http_p',
     'plugin_dir' : 'access_output',
 }
 
 # SRT
 if srt_dep.found()
-    vlc_modules += {
+    heimdall_modules += {
 	'name' : 'access_output_srt',
 	'sources' : files('srt.c', '../access/srt_common.c'),
 	'include_directories' : include_directories('../access/'),
@@ -70,7 +70,7 @@ endif
 
 # RIST
 if librist_dep.found()
-    vlc_modules += {
+    heimdall_modules += {
 	'name' : 'access_output_rist',
 	'sources' : files('rist.c'),
 	'include_directories' : include_directories('../access/'),

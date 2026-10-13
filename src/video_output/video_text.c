@@ -2,9 +2,10 @@
  * video_text.c : OSD text manipulation functions
  *****************************************************************************
  * Copyright (C) 1999-2010 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Sigmund Augdal Helberg <dnumgis@videolan.org>
- *         Laurent Aimar <fenrir _AT_ videolan _DOT_ org>
+ *         Laurent Aimar <fenrir _AT_ lycaria _DOT_ org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -26,11 +27,11 @@
 #endif
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_threads.h>
-#include <vlc_vout.h>
-#include <vlc_vout_osd.h>
-#include <vlc_subpicture.h>
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
+#include <heimdall_vout.h>
+#include <heimdall_vout_osd.h>
+#include <heimdall_subpicture.h>
 
 typedef struct {
     int  position;
@@ -38,7 +39,7 @@ typedef struct {
 } osd_spu_updater_sys_t;
 
 static void OSDTextUpdate(subpicture_t *subpic,
-                          const struct vlc_spu_updater_configuration *cfg)
+                          const struct heimdall_spu_updater_configuration *cfg)
 {
     osd_spu_updater_sys_t *sys = subpic->updater.sys;
     const video_format_t *fmt_dst = cfg->current.video_dst;
@@ -46,7 +47,7 @@ static void OSDTextUpdate(subpicture_t *subpic,
     if (video_format_IsSimilar(cfg->previous.video_dst, fmt_dst))
         return;
 
-    vlc_spu_regions_Clear( &subpic->regions );
+    heimdall_spu_regions_Clear( &subpic->regions );
 
     assert(fmt_dst->i_sar_den && fmt_dst->i_sar_num);
 
@@ -56,7 +57,7 @@ static void OSDTextUpdate(subpicture_t *subpic,
     subpicture_region_t *r = subpicture_region_NewText();
     if (!r)
         return;
-    vlc_spu_regions_push(&subpic->regions, r);
+    heimdall_spu_regions_push(&subpic->regions, r);
 
     r->fmt.i_sar_num = 1;
     r->fmt.i_sar_den = 1;
@@ -93,7 +94,7 @@ static void OSDTextDestroy(subpicture_t *subpic)
 }
 
 void vout_OSDText(vout_thread_t *vout, int channel,
-                   int position, vlc_tick_t duration, const char *text)
+                   int position, heimdall_tick_t duration, const char *text)
 {
     assert( (position & ~SUBPICTURE_ALIGN_MASK) == 0);
     if (!var_InheritBool(vout, "osd") || duration <= 0)
@@ -105,7 +106,7 @@ void vout_OSDText(vout_thread_t *vout, int channel,
     sys->position = position;
     sys->text     = strdup(text);
 
-    static const struct vlc_spu_updater_ops spu_ops =
+    static const struct heimdall_spu_updater_ops spu_ops =
     {
         .update   = OSDTextUpdate,
         .destroy  = OSDTextDestroy,
@@ -123,7 +124,7 @@ void vout_OSDText(vout_thread_t *vout, int channel,
     }
 
     subpic->i_channel  = channel;
-    subpic->i_start    = vlc_tick_now();
+    subpic->i_start    = heimdall_tick_now();
     subpic->i_stop     = subpic->i_start + duration;
     subpic->b_ephemer  = true;
     subpic->b_fade     = true;
@@ -137,7 +138,7 @@ void vout_OSDMessageVa(vout_thread_t *vout, int channel,
     char *string;
     if (vasprintf(&string, format, args) != -1) {
         vout_OSDText(vout, channel,
-                     SUBPICTURE_ALIGN_TOP|SUBPICTURE_ALIGN_RIGHT, VLC_TICK_FROM_SEC(1),
+                     SUBPICTURE_ALIGN_TOP|SUBPICTURE_ALIGN_RIGHT, HEIMDALL_TICK_FROM_SEC(1),
                      string);
         free(string);
     }

@@ -2,6 +2,7 @@
  * upnp.cpp :  UPnP discovery module (libupnp)
  *****************************************************************************
  * Copyright (C) 2004-2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Rémi Denis-Courmont (original plugin)
  *          Christian Henz <henz # c-lab.de>
@@ -34,12 +35,12 @@
 
 #include "upnp.hpp"
 
-#include <vlc_access.h>
-#include <vlc_arrays.h>
-#include <vlc_plugin.h>
-#include <vlc_interrupt.h>
-#include <vlc_services_discovery.h>
-#include <vlc_renderer_discovery.h>
+#include <heimdall_access.h>
+#include <heimdall_arrays.h>
+#include <heimdall_plugin.h>
+#include <heimdall_interrupt.h>
+#include <heimdall_services_discovery.h>
+#include <heimdall_renderer_discovery.h>
 
 #include <cassert>
 #include <limits.h>
@@ -77,13 +78,13 @@ const char* SATIP_SERVER_DEVICE_TYPE = "urn:ses-com:device:SatIPServer:1";
 namespace {
 
 /*
- * VLC handle
+ * Heimdall handle
  */
 struct services_discovery_sys_t
 {
     UpnpInstanceWrapper* p_upnp;
     std::shared_ptr<SD::MediaServerList> p_server_list;
-    vlc_thread_t         thread;
+    heimdall_thread_t         thread;
 };
 
 
@@ -91,7 +92,7 @@ struct renderer_discovery_sys_t
 {
     UpnpInstanceWrapper* p_upnp;
     std::shared_ptr<RD::MediaRendererList> p_renderer_list;
-    vlc_thread_t thread;
+    heimdall_thread_t thread;
 };
 
 struct access_sys_t
@@ -102,33 +103,33 @@ struct access_sys_t
 } // namespace
 
 /*
- * VLC callback prototypes
+ * Heimdall callback prototypes
  */
 namespace SD
 {
-    static int OpenSD( vlc_object_t* );
-    static void CloseSD( vlc_object_t* );
+    static int OpenSD( heimdall_object_t* );
+    static void CloseSD( heimdall_object_t* );
 }
 
 namespace Access
 {
-    static int OpenAccess( vlc_object_t* );
-    static void CloseAccess( vlc_object_t* );
+    static int OpenAccess( heimdall_object_t* );
+    static void CloseAccess( heimdall_object_t* );
 }
 
 namespace RD
 {
-    static int OpenRD( vlc_object_t*);
-    static void CloseRD( vlc_object_t* );
+    static int OpenRD( heimdall_object_t*);
+    static void CloseRD( heimdall_object_t* );
 }
 
-VLC_SD_PROBE_HELPER( "upnp", N_("Universal Plug'n'Play"), SD_CAT_LAN )
-VLC_RD_PROBE_HELPER( "upnp_renderer", N_("UPnP Renderer Discovery") )
+HEIMDALL_SD_PROBE_HELPER( "upnp", N_("Universal Plug'n'Play"), SD_CAT_LAN )
+HEIMDALL_RD_PROBE_HELPER( "upnp_renderer", N_("UPnP Renderer Discovery") )
 
 /*
  * Module descriptor
  */
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname( "UPnP" )
     set_description( N_( "Universal Plug'n'Play" ) )
     set_subcategory( SUBCAT_PLAYLIST_SD )
@@ -145,7 +146,7 @@ vlc_module_begin()
         set_capability( "access", 0 )
         add_shortcut( "upnp", "upnps" )
 
-    VLC_SD_PROBE_SUBMODULE
+    HEIMDALL_SD_PROBE_SUBMODULE
 
     add_submodule()
         set_description( N_( "UPnP Renderer Discovery" ) )
@@ -154,7 +155,7 @@ vlc_module_begin()
         set_capability( "renderer_discovery", 0 )
         add_shortcut( "upnp_renderer" )
 
-    VLC_RD_PROBE_SUBMODULE
+    HEIMDALL_RD_PROBE_SUBMODULE
 
     add_submodule()
         set_shortname("dlna")
@@ -185,7 +186,7 @@ vlc_module_begin()
             change_volatile();
 #endif
 
-vlc_module_end()
+heimdall_module_end()
 
 /*
  * Extracts the result document from a SOAP response
@@ -272,7 +273,7 @@ namespace SD
 static void *
 SearchThread( void *p_data )
 {
-    vlc_thread_set_name("vlc-upnp-servis");
+    heimdall_thread_set_name("heimdall-upnp-servis");
 
     services_discovery_t *p_sd = ( services_discovery_t* )p_data;
     services_discovery_sys_t *p_sys = reinterpret_cast<services_discovery_sys_t *>( p_sd->p_sys );
@@ -297,13 +298,13 @@ SearchThread( void *p_data )
 /*
  * Initializes UPNP instance.
  */
-static int OpenSD( vlc_object_t *p_this )
+static int OpenSD( heimdall_object_t *p_this )
 {
     services_discovery_t *p_sd = ( services_discovery_t* )p_this;
     services_discovery_sys_t *p_sys = new (std::nothrow) services_discovery_sys_t();
 
     if( !( p_sd->p_sys = p_sys ) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_sd->description = _("Universal Plug'n'Play");
 
@@ -311,7 +312,7 @@ static int OpenSD( vlc_object_t *p_this )
     if ( !p_sys->p_upnp )
     {
         delete p_sys;
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     try
@@ -323,33 +324,33 @@ static int OpenSD( vlc_object_t *p_this )
         msg_Err( p_sd, "Failed to create a MediaServerList");
         p_sys->p_upnp->release();
         delete p_sys;
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     p_sys->p_upnp->addListener( p_sys->p_server_list );
 
     /* XXX: Contrary to what the libupnp doc states, UpnpSearchAsync is
      * blocking (select() and send() are called). Therefore, Call
      * UpnpSearchAsync from an other thread. */
-    if ( vlc_clone( &p_sys->thread, SearchThread, p_this ) )
+    if ( heimdall_clone( &p_sys->thread, SearchThread, p_this ) )
     {
         p_sys->p_upnp->removeListener( p_sys->p_server_list );
         p_sys->p_upnp->release();
         delete p_sys;
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*
  * Releases resources.
  */
-static void CloseSD( vlc_object_t *p_this )
+static void CloseSD( heimdall_object_t *p_this )
 {
     services_discovery_t *p_sd = ( services_discovery_t* )p_this;
     services_discovery_sys_t *p_sys = reinterpret_cast<services_discovery_sys_t *>( p_sd->p_sys );
 
-    vlc_join( p_sys->thread, NULL );
+    heimdall_join( p_sys->thread, NULL );
     p_sys->p_upnp->removeListener( p_sys->p_server_list );
     p_sys->p_upnp->release();
     delete p_sys;
@@ -382,7 +383,7 @@ MediaServerList::MediaServerList( services_discovery_t* p_sd )
 
 MediaServerList::~MediaServerList()
 {
-    vlc_delete_all(m_list);
+    heimdall_delete_all(m_list);
 }
 
 bool MediaServerList::addServer( MediaServerDesc* desc )
@@ -646,8 +647,8 @@ std::string MediaServerList::getIconURL( IXML_Element* p_device_elem, const char
 
     if ( res.empty() == false )
     {
-        vlc_url_t url;
-        vlc_UrlParse( &url, psz_base_url );
+        heimdall_url_t url;
+        heimdall_UrlParse( &url, psz_base_url );
         char* psz_url;
         if ( asprintf( &psz_url, "%s://%s:%u%s", url.psz_protocol, url.psz_host, url.i_port, res.c_str() ) < 0 )
             res.clear();
@@ -656,7 +657,7 @@ std::string MediaServerList::getIconURL( IXML_Element* p_device_elem, const char
             res = psz_url;
             free( psz_url );
         }
-        vlc_UrlClean( &url );
+        heimdall_UrlClean( &url );
     }
     return res;
 }
@@ -666,8 +667,8 @@ MediaServerList::parseSatipServer( IXML_Element* p_device_element, const char *p
 {
     SD::MediaServerDesc* p_server = NULL;
 
-    vlc_url_t url;
-    vlc_UrlParse( &url, psz_base_url );
+    heimdall_url_t url;
+    heimdall_UrlParse( &url, psz_base_url );
 
     /* Part 1: a user may have provided a custom playlist url */
     char *psz_satip_playlist_url = var_InheritString( m_sd, "satip-channellist-url" );
@@ -684,7 +685,7 @@ MediaServerList::parseSatipServer( IXML_Element* p_device_element, const char *p
 
         /* to comply with the SAT>IP specification, we don't fall back on another channel list if this path failed */
         free( psz_satip_playlist_url );
-        vlc_UrlClean( &url );
+        heimdall_UrlClean( &url );
         return;
     }
 
@@ -705,7 +706,7 @@ MediaServerList::parseSatipServer( IXML_Element* p_device_element, const char *p
         }
 
         if ( unlikely( !p_server ) ) {
-            vlc_UrlClean( &url );
+            heimdall_UrlClean( &url );
             return;
         }
 
@@ -718,7 +719,7 @@ MediaServerList::parseSatipServer( IXML_Element* p_device_element, const char *p
         }
 
         /* to comply with the SAT>IP specifications, we don't fallback on another channel list if this path failed */
-        vlc_UrlClean( &url );
+        heimdall_UrlClean( &url );
     }
 }
 
@@ -934,7 +935,7 @@ namespace
 
         input_item_t *createNewItem(IXML_Element *p_resource)
         {
-            vlc_tick_t i_duration = INPUT_DURATION_INDEFINITE;
+            heimdall_tick_t i_duration = INPUT_DURATION_INDEFINITE;
             const char* psz_resource_url = xml_getChildElementValue( p_resource, "res" );
             if( !psz_resource_url )
                 return NULL;
@@ -943,7 +944,7 @@ namespace
             {
                 int i_hours, i_minutes, i_seconds;
                 if( sscanf( psz_duration, "%d:%02d:%02d", &i_hours, &i_minutes, &i_seconds ) )
-                    i_duration = vlc_tick_from_sec( i_hours * 3600 + i_minutes * 60 +
+                    i_duration = heimdall_tick_from_sec( i_hours * 3600 + i_minutes * 60 +
                                                 i_seconds );
             }
             return input_item_NewExt( psz_resource_url, title, i_duration,
@@ -955,7 +956,7 @@ namespace
             if ( objectID == NULL || title == NULL )
                 return NULL;
 
-            char *encoded_id = vlc_uri_encode( objectID );
+            char *encoded_id = heimdall_uri_encode( objectID );
             if ( unlikely(encoded_id == NULL) )
                 return NULL;
 
@@ -989,7 +990,7 @@ void Upnp_i11e_cb::waitAndRelease( void )
 
     int refCount;
     {
-        vlc::threads::mutex_locker lock( m_lock );
+        heimdall::threads::mutex_locker lock( m_lock );
         refCount = --m_refCount;
     }
     if ( refCount == 0 )
@@ -1034,7 +1035,7 @@ MediaServer::MediaServer( stream_t *p_access, input_item_node_t *node )
         // Remove this parameter from the URL, since it might cause some servers to fail
         // Keep in mind that we added a '&' or a '?' to the URL, so remove it as well
         *( psz_objectid - 1) = 0;
-        m_psz_objectId = vlc_uri_decode( &psz_objectid[strlen("ObjectID=")] );
+        m_psz_objectId = heimdall_uri_decode( &psz_objectid[strlen("ObjectID=")] );
     }
 
     m_original_url = std::string( m_psz_root ).replace(0, 4, "http");
@@ -1163,7 +1164,7 @@ IXML_Document* MediaServer::_browseAction( const char* psz_object_id_,
 
     int i_res;
 
-    if ( vlc_killed() )
+    if ( heimdall_killed() )
         return NULL;
 
     i_res = UpnpAddToAction( &p_action, "Browse",
@@ -1226,7 +1227,7 @@ IXML_Document* MediaServer::_browseAction( const char* psz_object_id_,
     }
 
     /* Setup an interruptible callback that will call sendActionCb if not
-     * interrupted by vlc_interrupt_kill */
+     * interrupted by heimdall_interrupt_kill */
     i11eCb = new Upnp_i11e_cb( sendActionCb, &p_response );
     i_res = UpnpSendActionAsync( sys->p_upnp->handle(),
               m_original_url.c_str(),
@@ -1326,32 +1327,32 @@ static int ReadDirectory( stream_t *p_access, input_item_node_t* p_node )
     MediaServer server( p_access, p_node );
 
     if ( !server.fetchContents() )
-        return VLC_EGENERIC;
-    return VLC_SUCCESS;
+        return HEIMDALL_EGENERIC;
+    return HEIMDALL_SUCCESS;
 }
 
-static int OpenAccess( vlc_object_t *p_this )
+static int OpenAccess( heimdall_object_t *p_this )
 {
     stream_t* p_access = (stream_t*)p_this;
     access_sys_t* p_sys = new(std::nothrow) access_sys_t;
     if ( unlikely( !p_sys ) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_access->p_sys = p_sys;
     p_sys->p_upnp = UpnpInstanceWrapper::get( p_this );
     if ( !p_sys->p_upnp )
     {
         delete p_sys;
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     p_access->pf_readdir = ReadDirectory;
     p_access->pf_control = access_vaDirectoryControlHelper;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void CloseAccess( vlc_object_t* p_this )
+static void CloseAccess( heimdall_object_t* p_this )
 {
     stream_t* p_access = (stream_t*)p_this;
     access_sys_t *sys = (access_sys_t *)p_access->p_sys;
@@ -1374,15 +1375,15 @@ namespace RD
 const char *getUrl(const char *psz_location)
 {
     char *psz_res;
-    vlc_url_t url;
+    heimdall_url_t url;
 
-    vlc_UrlParse(&url, psz_location);
+    heimdall_UrlParse(&url, psz_location);
     if (asprintf(&psz_res, "dlna://%s:%d", url.psz_host, url.i_port) < 0)
     {
-        vlc_UrlClean(&url);
+        heimdall_UrlClean(&url);
         return NULL;
     }
-    vlc_UrlClean(&url);
+    heimdall_UrlClean(&url);
     return psz_res;
 }
 
@@ -1401,17 +1402,17 @@ MediaRendererDesc::MediaRendererDesc( const std::string& udn,
 MediaRendererDesc::~MediaRendererDesc()
 {
     if (inputItem)
-        vlc_renderer_item_release(inputItem);
+        heimdall_renderer_item_release(inputItem);
 }
 
-MediaRendererList::MediaRendererList(vlc_renderer_discovery_t *p_rd)
+MediaRendererList::MediaRendererList(heimdall_renderer_discovery_t *p_rd)
     : m_rd( p_rd )
 {
 }
 
 MediaRendererList::~MediaRendererList()
 {
-    vlc_delete_all(m_list);
+    heimdall_delete_all(m_list);
 }
 
 bool MediaRendererList::addRenderer(MediaRendererDesc *desc)
@@ -1423,7 +1424,7 @@ bool MediaRendererList::addRenderer(MediaRendererDesc *desc)
     if (asprintf(&extra_sout, "base_url=%s,url=%s", desc->base_url.c_str(),
                         desc->location.c_str()) < 0)
         return false;
-    desc->inputItem = vlc_renderer_item_new("stream_out_dlna",
+    desc->inputItem = heimdall_renderer_item_new("stream_out_dlna",
                                             desc->friendlyName.c_str(),
                                             psz_url,
                                             extra_sout,
@@ -1434,7 +1435,7 @@ bool MediaRendererList::addRenderer(MediaRendererDesc *desc)
     msg_Dbg( m_rd, "Adding renderer '%s' with uuid %s",
                         desc->friendlyName.c_str(),
                         desc->UDN.c_str() );
-    vlc_rd_add_item(m_rd, desc->inputItem);
+    heimdall_rd_add_item(m_rd, desc->inputItem);
     m_list.push_back(desc);
     return true;
 }
@@ -1581,9 +1582,9 @@ int MediaRendererList::onEvent( Upnp_EventType event_type,
 
 void *SearchThread(void *data)
 {
-    vlc_thread_set_name("vlc-upnp-render");
+    heimdall_thread_set_name("heimdall-upnp-render");
 
-    vlc_renderer_discovery_t *p_rd = (vlc_renderer_discovery_t*)data;
+    heimdall_renderer_discovery_t *p_rd = (heimdall_renderer_discovery_t*)data;
     renderer_discovery_sys_t *p_sys = (renderer_discovery_sys_t*)p_rd->p_sys;
     int i_res;
 
@@ -1597,49 +1598,49 @@ void *SearchThread(void *data)
     return data;
 }
 
-static int OpenRD( vlc_object_t *p_this )
+static int OpenRD( heimdall_object_t *p_this )
 try
 {
-    vlc_renderer_discovery_t *p_rd = ( vlc_renderer_discovery_t* )p_this;
+    heimdall_renderer_discovery_t *p_rd = ( heimdall_renderer_discovery_t* )p_this;
     auto p_sys = std::make_unique<renderer_discovery_sys_t>();
 
     p_rd->p_sys = p_sys.get();
     p_sys->p_upnp = UpnpInstanceWrapper::get( p_this );
 
     if ( !p_sys->p_upnp )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     p_sys->p_renderer_list = std::make_shared<RD::MediaRendererList>( p_rd );
     p_sys->p_upnp->addListener( p_sys->p_renderer_list );
 
-    if( vlc_clone( &p_sys->thread, SearchThread, (void*)p_rd ) )
+    if( heimdall_clone( &p_sys->thread, SearchThread, (void*)p_rd ) )
         {
             msg_Err( p_rd, "Can't run the lookup thread" );
             p_sys->p_upnp->removeListener( p_sys->p_renderer_list );
             p_sys->p_upnp->release();
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
     /* Release ownership of std::unique_ptr */
     p_sys.release();
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 catch ( const std::bad_alloc& )
 {
-    vlc_renderer_discovery_t *p_rd = (vlc_renderer_discovery_t*)p_this;
+    heimdall_renderer_discovery_t *p_rd = (heimdall_renderer_discovery_t*)p_this;
     renderer_discovery_sys_t *p_sys = static_cast<renderer_discovery_sys_t *>(p_rd->p_sys);
     if (p_sys && p_sys->p_upnp)
         p_sys->p_upnp->release();
-    return VLC_ENOMEM;
+    return HEIMDALL_ENOMEM;
 }
 
-static void CloseRD( vlc_object_t *p_this )
+static void CloseRD( heimdall_object_t *p_this )
 {
-    vlc_renderer_discovery_t *p_rd = ( vlc_renderer_discovery_t* )p_this;
+    heimdall_renderer_discovery_t *p_rd = ( heimdall_renderer_discovery_t* )p_this;
     renderer_discovery_sys_t *p_sys = (renderer_discovery_sys_t*)p_rd->p_sys;
 
-    vlc_join(p_sys->thread, NULL);
+    heimdall_join(p_sys->thread, NULL);
     p_sys->p_upnp->removeListener( p_sys->p_renderer_list );
     p_sys->p_upnp->release();
     delete p_sys;

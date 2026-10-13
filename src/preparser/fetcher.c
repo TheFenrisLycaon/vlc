@@ -2,6 +2,7 @@
  * fetcher.c
  *****************************************************************************
  * Copyright © 2017-2017 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,47 +23,47 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_atomic.h>
-#include <vlc_stream.h>
-#include <vlc_modules.h>
-#include <vlc_interrupt.h>
-#include <vlc_arrays.h>
-#include <vlc_threads.h>
-#include <vlc_memstream.h>
-#include <vlc_meta_fetcher.h>
-#include <vlc_executor.h>
+#include <heimdall_common.h>
+#include <heimdall_atomic.h>
+#include <heimdall_stream.h>
+#include <heimdall_modules.h>
+#include <heimdall_interrupt.h>
+#include <heimdall_arrays.h>
+#include <heimdall_threads.h>
+#include <heimdall_memstream.h>
+#include <heimdall_meta_fetcher.h>
+#include <heimdall_executor.h>
 
 #include "art.h"
-#include "../libvlc.h"
+#include "../libheimdall.h"
 #include "fetcher.h"
 #include "input/input_interface.h"
 #include "misc/interrupt.h"
 
 struct input_fetcher_t {
-    vlc_executor_t *executor_local;
-    vlc_executor_t *executor_network;
-    vlc_executor_t *executor_downloader;
+    heimdall_executor_t *executor_local;
+    heimdall_executor_t *executor_network;
+    heimdall_executor_t *executor_downloader;
 
-    vlc_dictionary_t album_cache;
-    vlc_object_t* owner;
+    heimdall_dictionary_t album_cache;
+    heimdall_object_t* owner;
 
-    vlc_mutex_t lock;
-    struct vlc_list submitted_tasks; /**< list of struct task */
+    heimdall_mutex_t lock;
+    struct heimdall_list submitted_tasks; /**< list of struct task */
 };
 
 struct task {
     input_fetcher_t *fetcher;
-    vlc_executor_t *executor;
+    heimdall_executor_t *executor;
     input_item_t* item;
     int options;
     const input_fetcher_callbacks_t *cbs;
     void *userdata;
 
-    vlc_interrupt_t interrupt;
+    heimdall_interrupt_t interrupt;
 
-    struct vlc_runnable runnable; /**< to be passed to the executor */
-    struct vlc_list node; /**< node of input_fetcher_t.submitted_tasks */
+    struct heimdall_runnable runnable; /**< to be passed to the executor */
+    struct heimdall_list node; /**< node of input_fetcher_t.submitted_tasks */
 };
 
 static void RunDownloader(void *);
@@ -70,7 +71,7 @@ static void RunSearchLocal(void *);
 static void RunSearchNetwork(void *);
 
 static struct task *
-TaskNew(input_fetcher_t *fetcher, vlc_executor_t *executor, input_item_t *item,
+TaskNew(input_fetcher_t *fetcher, heimdall_executor_t *executor, input_item_t *item,
         int options,
         const input_fetcher_callbacks_t *cbs, void *userdata)
 {
@@ -85,7 +86,7 @@ TaskNew(input_fetcher_t *fetcher, vlc_executor_t *executor, input_item_t *item,
     task->cbs = cbs;
     task->userdata = userdata;
 
-    vlc_interrupt_init(&task->interrupt);
+    heimdall_interrupt_init(&task->interrupt);
 
     input_item_Hold(item);
 
@@ -105,55 +106,55 @@ static void
 TaskDelete(struct task *task)
 {
     input_item_Release(task->item);
-    vlc_interrupt_deinit(&task->interrupt);
+    heimdall_interrupt_deinit(&task->interrupt);
     free(task);
 }
 
 static void
 FetcherAddTask(input_fetcher_t *fetcher, struct task *task)
 {
-    vlc_mutex_lock(&fetcher->lock);
-    vlc_list_append(&task->node, &fetcher->submitted_tasks);
-    vlc_mutex_unlock(&fetcher->lock);
+    heimdall_mutex_lock(&fetcher->lock);
+    heimdall_list_append(&task->node, &fetcher->submitted_tasks);
+    heimdall_mutex_unlock(&fetcher->lock);
 }
 
 static void
 FetcherRemoveTask(input_fetcher_t *fetcher, struct task *task)
 {
-    vlc_mutex_lock(&fetcher->lock);
-    vlc_list_remove(&task->node);
-    vlc_mutex_unlock(&fetcher->lock);
+    heimdall_mutex_lock(&fetcher->lock);
+    heimdall_list_remove(&task->node);
+    heimdall_mutex_unlock(&fetcher->lock);
 }
 
 static int
-Submit(input_fetcher_t *fetcher, vlc_executor_t *executor, input_item_t *item,
+Submit(input_fetcher_t *fetcher, heimdall_executor_t *executor, input_item_t *item,
        int options,
        const input_fetcher_callbacks_t *cbs, void *userdata)
 {
     struct task *task =
         TaskNew(fetcher, executor, item, options, cbs, userdata);
     if (!task)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     FetcherAddTask(fetcher, task);
-    vlc_executor_Submit(task->executor, &task->runnable);
+    heimdall_executor_Submit(task->executor, &task->runnable);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static char* CreateCacheKey( input_item_t* item )
 {
-    vlc_mutex_lock( &item->lock );
+    heimdall_mutex_lock( &item->lock );
 
     if( !item->p_meta )
     {
-        vlc_mutex_unlock( &item->lock );
+        heimdall_mutex_unlock( &item->lock );
         return NULL;
     }
 
-    char const* artist = vlc_meta_Get( item->p_meta, vlc_meta_Artist );
-    char const* album = vlc_meta_Get( item->p_meta, vlc_meta_Album );
-    char const *date = vlc_meta_Get( item->p_meta, vlc_meta_Date );
+    char const* artist = heimdall_meta_Get( item->p_meta, heimdall_meta_Artist );
+    char const* album = heimdall_meta_Get( item->p_meta, heimdall_meta_Album );
+    char const *date = heimdall_meta_Get( item->p_meta, heimdall_meta_Date );
     char* key;
 
     /**
@@ -166,7 +167,7 @@ static char* CreateCacheKey( input_item_t* item )
     {
         key = NULL;
     }
-    vlc_mutex_unlock( &item->lock );
+    heimdall_mutex_unlock( &item->lock );
 
     return key;
 }
@@ -174,7 +175,7 @@ static char* CreateCacheKey( input_item_t* item )
 static void FreeCacheEntry( void* data, void* obj )
 {
     free( data );
-    VLC_UNUSED( obj );
+    HEIMDALL_UNUSED( obj );
 }
 
 static int ReadAlbumCache( input_fetcher_t* fetcher, input_item_t* item )
@@ -182,17 +183,17 @@ static int ReadAlbumCache( input_fetcher_t* fetcher, input_item_t* item )
     char* key = CreateCacheKey( item );
 
     if( key == NULL )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    vlc_mutex_lock( &fetcher->lock );
-    char const* art = vlc_dictionary_value_for_key( &fetcher->album_cache,
+    heimdall_mutex_lock( &fetcher->lock );
+    char const* art = heimdall_dictionary_value_for_key( &fetcher->album_cache,
                                                     key );
     if( art )
         input_item_SetArtURL( item, art );
-    vlc_mutex_unlock( &fetcher->lock );
+    heimdall_mutex_unlock( &fetcher->lock );
 
     free( key );
-    return art ? VLC_SUCCESS : VLC_EGENERIC;
+    return art ? HEIMDALL_SUCCESS : HEIMDALL_EGENERIC;
 }
 
 static void AddAlbumCache( input_fetcher_t* fetcher, input_item_t* item,
@@ -203,13 +204,13 @@ static void AddAlbumCache( input_fetcher_t* fetcher, input_item_t* item,
 
     if( key && art && strncasecmp( art, "attachment://", 13 ) )
     {
-        vlc_mutex_lock( &fetcher->lock );
-        if( overwrite || !vlc_dictionary_has_key( &fetcher->album_cache, key ) )
+        heimdall_mutex_lock( &fetcher->lock );
+        if( overwrite || !heimdall_dictionary_has_key( &fetcher->album_cache, key ) )
         {
-            vlc_dictionary_insert( &fetcher->album_cache, key, art );
+            heimdall_dictionary_insert( &fetcher->album_cache, key, art );
             art = NULL;
         }
-        vlc_mutex_unlock( &fetcher->lock );
+        heimdall_mutex_unlock( &fetcher->lock );
     }
 
     free( art );
@@ -219,10 +220,10 @@ static void AddAlbumCache( input_fetcher_t* fetcher, input_item_t* item,
 static int InvokeModule( input_fetcher_t* fetcher, input_item_t* item,
                          int scope, char const* type )
 {
-    meta_fetcher_t* mf = vlc_custom_create( fetcher->owner,
+    meta_fetcher_t* mf = heimdall_custom_create( fetcher->owner,
                                             sizeof( *mf ), type );
     if( unlikely( !mf ) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     mf->e_scope = scope;
     mf->p_item = item;
@@ -232,28 +233,28 @@ static int InvokeModule( input_fetcher_t* fetcher, input_item_t* item,
     if( mf_module )
         module_unneed( mf, mf_module );
 
-    vlc_object_delete(mf);
+    heimdall_object_delete(mf);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int CheckMeta( input_item_t* item )
 {
-    vlc_mutex_lock( &item->lock );
+    heimdall_mutex_lock( &item->lock );
     bool error = !item->p_meta ||
-                 !vlc_meta_Get( item->p_meta, vlc_meta_Title ) ||
-                 !vlc_meta_Get( item->p_meta, vlc_meta_Artist ) ||
-                 !vlc_meta_Get( item->p_meta, vlc_meta_Album );
-    vlc_mutex_unlock( &item->lock );
+                 !heimdall_meta_Get( item->p_meta, heimdall_meta_Title ) ||
+                 !heimdall_meta_Get( item->p_meta, heimdall_meta_Artist ) ||
+                 !heimdall_meta_Get( item->p_meta, heimdall_meta_Album );
+    heimdall_mutex_unlock( &item->lock );
     return error;
 }
 
 static int CheckArt( input_item_t* item )
 {
-    vlc_mutex_lock( &item->lock );
+    heimdall_mutex_lock( &item->lock );
     bool error = !item->p_meta ||
-                 !vlc_meta_Get( item->p_meta, vlc_meta_ArtworkURL );
-    vlc_mutex_unlock( &item->lock );
+                 !heimdall_meta_Get( item->p_meta, heimdall_meta_ArtworkURL );
+    heimdall_mutex_unlock( &item->lock );
     return error;
 }
 
@@ -271,7 +272,7 @@ static int SearchByScope(struct task *task, int scope)
     if( CheckMeta( item ) &&
         InvokeModule( fetcher, item, scope, "meta fetcher" ) )
     {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( ! CheckArt( item )                         ||
@@ -283,11 +284,11 @@ static int SearchByScope(struct task *task, int scope)
         AddAlbumCache( fetcher, task->item, false );
         int ret = Submit(fetcher, fetcher->executor_downloader, item,
                          task->options, task->cbs, task->userdata);
-        if (ret == VLC_SUCCESS)
-            return VLC_SUCCESS;
+        if (ret == HEIMDALL_SUCCESS)
+            return HEIMDALL_SUCCESS;
     }
 
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 static void NotifyArtFetchEnded(struct task *task, bool fetched)
@@ -298,13 +299,13 @@ static void NotifyArtFetchEnded(struct task *task, bool fetched)
 
 static void RunDownloader(void *userdata)
 {
-    vlc_thread_set_name("vlc-run-fetcher");
+    heimdall_thread_set_name("heimdall-run-fetcher");
 
     bool fetched = false;
     struct task *task = userdata;
     input_fetcher_t *fetcher = task->fetcher;
 
-    vlc_interrupt_set(&task->interrupt);
+    heimdall_interrupt_set(&task->interrupt);
 
     ReadAlbumCache( fetcher, task->item );
 
@@ -319,32 +320,32 @@ static void RunDownloader(void *userdata)
         goto out; /* no fetch required */
     }
 
-    stream_t* source = vlc_stream_NewURL( fetcher->owner, psz_arturl );
+    stream_t* source = heimdall_stream_NewURL( fetcher->owner, psz_arturl );
 
     if( !source )
         goto out;
 
-    struct vlc_memstream output_stream;
-    vlc_memstream_open( &output_stream );
+    struct heimdall_memstream output_stream;
+    heimdall_memstream_open( &output_stream );
 
     for( ;; )
     {
         char buffer[2048];
 
-        int read = vlc_stream_Read( source, buffer, sizeof( buffer ) );
+        int read = heimdall_stream_Read( source, buffer, sizeof( buffer ) );
         if( read <= 0 )
             break;
 
-        if( (int)vlc_memstream_write( &output_stream, buffer, read ) < read )
+        if( (int)heimdall_memstream_write( &output_stream, buffer, read ) < read )
             break;
     }
 
-    vlc_stream_Delete( source );
+    heimdall_stream_Delete( source );
 
-    if( vlc_memstream_close( &output_stream ) )
+    if( heimdall_memstream_close( &output_stream ) )
         goto out;
 
-    if( vlc_killed() )
+    if( heimdall_killed() )
     {
         free( output_stream.ptr );
         goto out;
@@ -358,7 +359,7 @@ static void RunDownloader(void *userdata)
     fetched = true;
 
 out:
-    vlc_interrupt_set(NULL);
+    heimdall_interrupt_set(NULL);
 
     if( fetched )
         input_item_SetArtFetched( task->item, true );
@@ -370,21 +371,21 @@ out:
 
 static void RunSearchLocal(void *userdata)
 {
-    vlc_thread_set_name("vlc-run-searchl");
+    heimdall_thread_set_name("heimdall-run-searchl");
 
     struct task *task = userdata;
     input_fetcher_t *fetcher = task->fetcher;
 
-    vlc_interrupt_set(&task->interrupt);
+    heimdall_interrupt_set(&task->interrupt);
 
-    if( SearchByScope( task, FETCHER_SCOPE_LOCAL ) == VLC_SUCCESS )
+    if( SearchByScope( task, FETCHER_SCOPE_LOCAL ) == HEIMDALL_SUCCESS )
         goto end; /* done */
 
-    if( task->options & VLC_PREPARSER_TYPE_FETCHMETA_NET )
+    if( task->options & HEIMDALL_PREPARSER_TYPE_FETCHMETA_NET )
     {
         int ret = Submit(fetcher, fetcher->executor_network, task->item,
                          task->options, task->cbs, task->userdata);
-        if (ret != VLC_SUCCESS)
+        if (ret != HEIMDALL_SUCCESS)
             NotifyArtFetchEnded(task, false);
     }
     else
@@ -394,7 +395,7 @@ static void RunSearchLocal(void *userdata)
     }
 
 end:
-    vlc_interrupt_set(NULL);
+    heimdall_interrupt_set(NULL);
 
     FetcherRemoveTask(fetcher, task);
     TaskDelete(task);
@@ -402,29 +403,29 @@ end:
 
 static void RunSearchNetwork(void *userdata)
 {
-    vlc_thread_set_name("vlc-run-searchn");
+    heimdall_thread_set_name("heimdall-run-searchn");
 
     struct task *task = userdata;
 
-    vlc_interrupt_set(&task->interrupt);
+    heimdall_interrupt_set(&task->interrupt);
 
-    if( SearchByScope( task, FETCHER_SCOPE_NETWORK ) != VLC_SUCCESS )
+    if( SearchByScope( task, FETCHER_SCOPE_NETWORK ) != HEIMDALL_SUCCESS )
     {
         input_item_SetArtNotFound( task->item, true );
         NotifyArtFetchEnded(task, false);
     }
 
-    vlc_interrupt_set(NULL);
+    heimdall_interrupt_set(NULL);
 
     input_fetcher_t *fetcher = task->fetcher;
     FetcherRemoveTask(fetcher, task);
     TaskDelete(task);
 }
 
-input_fetcher_t* input_fetcher_New( vlc_object_t* owner,
+input_fetcher_t* input_fetcher_New( heimdall_object_t* owner,
                                     int request_type )
 {
-    assert(request_type & VLC_PREPARSER_TYPE_FETCHMETA_ALL);
+    assert(request_type & HEIMDALL_PREPARSER_TYPE_FETCHMETA_ALL);
     input_fetcher_t* fetcher = malloc( sizeof( *fetcher ) );
 
     if( unlikely( !fetcher ) )
@@ -434,9 +435,9 @@ input_fetcher_t* input_fetcher_New( vlc_object_t* owner,
     if (max_threads < 1)
         max_threads = 1;
 
-    if (request_type & VLC_PREPARSER_TYPE_FETCHMETA_LOCAL)
+    if (request_type & HEIMDALL_PREPARSER_TYPE_FETCHMETA_LOCAL)
     {
-        fetcher->executor_local = vlc_executor_New(max_threads);
+        fetcher->executor_local = heimdall_executor_New(max_threads);
         if (!fetcher->executor_local)
         {
             free(fetcher);
@@ -446,13 +447,13 @@ input_fetcher_t* input_fetcher_New( vlc_object_t* owner,
     else
         fetcher->executor_local = NULL;
 
-    if (request_type & VLC_PREPARSER_TYPE_FETCHMETA_NET)
+    if (request_type & HEIMDALL_PREPARSER_TYPE_FETCHMETA_NET)
     {
-        fetcher->executor_network = vlc_executor_New(max_threads);
+        fetcher->executor_network = heimdall_executor_New(max_threads);
         if (!fetcher->executor_network)
         {
             if (fetcher->executor_local)
-                vlc_executor_Delete(fetcher->executor_local);
+                heimdall_executor_Delete(fetcher->executor_local);
             free(fetcher);
             return NULL;
         }
@@ -461,23 +462,23 @@ input_fetcher_t* input_fetcher_New( vlc_object_t* owner,
     else
         fetcher->executor_network = NULL;
 
-    fetcher->executor_downloader = vlc_executor_New(max_threads);
+    fetcher->executor_downloader = heimdall_executor_New(max_threads);
     if (!fetcher->executor_downloader)
     {
         if (fetcher->executor_network)
-            vlc_executor_Delete(fetcher->executor_network);
+            heimdall_executor_Delete(fetcher->executor_network);
         if (fetcher->executor_local)
-            vlc_executor_Delete(fetcher->executor_local);
+            heimdall_executor_Delete(fetcher->executor_local);
         free(fetcher);
         return NULL;
     }
 
     fetcher->owner = owner;
 
-    vlc_mutex_init(&fetcher->lock);
-    vlc_list_init(&fetcher->submitted_tasks);
+    heimdall_mutex_init(&fetcher->lock);
+    heimdall_list_init(&fetcher->submitted_tasks);
 
-    vlc_dictionary_init( &fetcher->album_cache, 0 );
+    heimdall_dictionary_init( &fetcher->album_cache, 0 );
 
     return fetcher;
 }
@@ -486,13 +487,13 @@ int input_fetcher_Push(input_fetcher_t* fetcher, input_item_t* item,
                        int options,
                        const input_fetcher_callbacks_t *cbs, void *cbs_userdata)
 {
-    assert(options & VLC_PREPARSER_TYPE_FETCHMETA_ALL);
-    if (options & VLC_PREPARSER_TYPE_FETCHMETA_LOCAL)
+    assert(options & HEIMDALL_PREPARSER_TYPE_FETCHMETA_ALL);
+    if (options & HEIMDALL_PREPARSER_TYPE_FETCHMETA_LOCAL)
         assert(fetcher->executor_local != NULL);
-    if (options & VLC_PREPARSER_TYPE_FETCHMETA_NET)
+    if (options & HEIMDALL_PREPARSER_TYPE_FETCHMETA_NET)
         assert(fetcher->executor_network != NULL);
 
-    vlc_executor_t *executor = options & VLC_PREPARSER_TYPE_FETCHMETA_LOCAL
+    heimdall_executor_t *executor = options & HEIMDALL_PREPARSER_TYPE_FETCHMETA_LOCAL
                              ? fetcher->executor_local
                              : fetcher->executor_network;
 
@@ -502,22 +503,22 @@ int input_fetcher_Push(input_fetcher_t* fetcher, input_item_t* item,
 static void
 CancelAllTasks(input_fetcher_t *fetcher)
 {
-    vlc_mutex_lock(&fetcher->lock);
+    heimdall_mutex_lock(&fetcher->lock);
 
     struct task *task;
-    vlc_list_foreach(task, &fetcher->submitted_tasks, node)
+    heimdall_list_foreach(task, &fetcher->submitted_tasks, node)
     {
-        bool canceled = vlc_executor_Cancel(task->executor, &task->runnable);
+        bool canceled = heimdall_executor_Cancel(task->executor, &task->runnable);
         if (canceled)
         {
             NotifyArtFetchEnded(task, false);
-            vlc_list_remove(&task->node);
+            heimdall_list_remove(&task->node);
             TaskDelete(task);
         }
         /* Otherwise, the task will be finished and destroyed after run() */
     }
 
-    vlc_mutex_unlock(&fetcher->lock);
+    heimdall_mutex_unlock(&fetcher->lock);
 }
 
 void input_fetcher_Delete( input_fetcher_t* fetcher )
@@ -525,12 +526,12 @@ void input_fetcher_Delete( input_fetcher_t* fetcher )
     CancelAllTasks(fetcher);
 
     if (fetcher->executor_local)
-        vlc_executor_Delete(fetcher->executor_local);
+        heimdall_executor_Delete(fetcher->executor_local);
     if (fetcher->executor_network)
-        vlc_executor_Delete(fetcher->executor_network);
+        heimdall_executor_Delete(fetcher->executor_network);
     assert(fetcher->executor_downloader);
-    vlc_executor_Delete(fetcher->executor_downloader);
+    heimdall_executor_Delete(fetcher->executor_downloader);
 
-    vlc_dictionary_clear( &fetcher->album_cache, FreeCacheEntry, NULL );
+    heimdall_dictionary_clear( &fetcher->album_cache, FreeCacheEntry, NULL );
     free( fetcher );
 }

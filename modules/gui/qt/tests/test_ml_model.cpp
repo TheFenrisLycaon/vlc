@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2024 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,7 +22,7 @@
 #endif
 
 #include "../medialibrary/mlbasemodel.hpp"
-#include "vlc_stub_modules.hpp"
+#include "heimdall_stub_modules.hpp"
 
 #include <memory>
 #include <vector>
@@ -29,7 +30,7 @@
 #include <QCoreApplication>
 #include <QTest>
 
-struct vlc_medialibrary_t;
+struct heimdall_medialibrary_t;
 
 class MLTestModel : public MLBaseModel
 {
@@ -38,7 +39,7 @@ class MLTestModel : public MLBaseModel
 public:
     virtual QVariant itemRoleData(const MLItem *item, int role) const override
     {
-        VLC_UNUSED(role);
+        HEIMDALL_UNUSED(role);
         if (!item)
             return {};
 
@@ -48,13 +49,13 @@ public:
     void appendRange(int64_t min, int64_t max)
     {
         for (int64_t i = min; i <= max; ++i)
-            m_items.emplace_back(i, VLC_ML_PARENT_UNKNOWN);
+            m_items.emplace_back(i, HEIMDALL_ML_PARENT_UNKNOWN);
         emit resetRequested();
     }
 
     void updateItem(size_t position, int64_t id)
     {
-        MLItemId itemId{id, VLC_ML_PARENT_UNKNOWN};
+        MLItemId itemId{id, HEIMDALL_ML_PARENT_UNKNOWN};
         m_items[position] = itemId;
         updateItemInCache(itemId);
     }
@@ -73,16 +74,16 @@ protected:
             , m_mlTestModel(parent)
         {}
 
-        size_t count(vlc_medialibrary_t* ml, const vlc_ml_query_params_t* queryParams) const override
+        size_t count(heimdall_medialibrary_t* ml, const heimdall_ml_query_params_t* queryParams) const override
         {
-            VLC_UNUSED(ml);
-            VLC_UNUSED(queryParams);
+            HEIMDALL_UNUSED(ml);
+            HEIMDALL_UNUSED(queryParams);
             return m_mlTestModel.m_items.size();
         }
 
-        std::vector<std::unique_ptr<MLItem>> load(vlc_medialibrary_t* ml, const vlc_ml_query_params_t* queryParams) const override
+        std::vector<std::unique_ptr<MLItem>> load(heimdall_medialibrary_t* ml, const heimdall_ml_query_params_t* queryParams) const override
         {
-            VLC_UNUSED(ml);
+            HEIMDALL_UNUSED(ml);
 
             if (m_mlTestModel.m_items.empty())
                 return {};
@@ -99,9 +100,9 @@ protected:
             return ret;
         }
 
-        std::unique_ptr<MLItem> loadItemById(vlc_medialibrary_t* ml, MLItemId itemId) const override
+        std::unique_ptr<MLItem> loadItemById(heimdall_medialibrary_t* ml, MLItemId itemId) const override
         {
-            VLC_UNUSED(ml);
+            HEIMDALL_UNUSED(ml);
             return std::make_unique<MLItem>(itemId);
         }
 
@@ -112,13 +113,13 @@ protected:
     std::vector<MLItemId> m_items;
 };
 
-class TestVLCMLModel : public QObject
+class TestHeimdallMLModel : public QObject
 {
     Q_OBJECT
 
 private slots:
     void initTestCase() {
-        m_env = std::make_unique<VLCTestingEnv>();
+        m_env = std::make_unique<HeimdallTestingEnv>();
         QVERIFY(m_env->init());
     }
 
@@ -186,33 +187,33 @@ private slots:
         };
 
         // bug of MR6926, here model tries to get index for data outside the initial chunk size
-        m_model->getIndexFromId2(MLItemId{high, VLC_ML_PARENT_UNKNOWN}, cb);
+        m_model->getIndexFromId2(MLItemId{high, HEIMDALL_ML_PARENT_UNKNOWN}, cb);
 
         // NOTE: CI fails with QTRY_COMPARE_WITH_TIMEOUT
         QVERIFY(QTest::qWaitFor([&row]() { return row != -1; }));
         QCOMPARE(row, high - 1);
 
         // above we must have loaded all the data, following this we should not need to wait for results
-        m_model->getIndexFromId2(MLItemId{low - 1, VLC_ML_PARENT_UNKNOWN}, cb);
+        m_model->getIndexFromId2(MLItemId{low - 1, HEIMDALL_ML_PARENT_UNKNOWN}, cb);
         QCOMPARE(row, std::nullopt);
 
-        m_model->getIndexFromId2(MLItemId{low, VLC_ML_PARENT_UNKNOWN}, cb);
+        m_model->getIndexFromId2(MLItemId{low, HEIMDALL_ML_PARENT_UNKNOWN}, cb);
         QCOMPARE(row, low - 1);
 
-        m_model->getIndexFromId2(MLItemId{high + 1, VLC_ML_PARENT_UNKNOWN}, cb);
+        m_model->getIndexFromId2(MLItemId{high + 1, HEIMDALL_ML_PARENT_UNKNOWN}, cb);
         QCOMPARE(row, std::nullopt);
 
         const int mid = (low + high) / 2;
-        m_model->getIndexFromId2(MLItemId{mid, VLC_ML_PARENT_UNKNOWN}, cb);
+        m_model->getIndexFromId2(MLItemId{mid, HEIMDALL_ML_PARENT_UNKNOWN}, cb);
         QCOMPARE(row, mid - 1);
     }
 
 private:
-    std::unique_ptr<VLCTestingEnv> m_env;
+    std::unique_ptr<HeimdallTestingEnv> m_env;
     std::unique_ptr<MediaLib> m_medialib;
     std::unique_ptr<MLTestModel> m_model;
 };
 
 
-QTEST_GUILESS_MAIN(TestVLCMLModel)
+QTEST_GUILESS_MAIN(TestHeimdallMLModel)
 #include "test_ml_model.moc"

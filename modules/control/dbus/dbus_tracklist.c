@@ -5,9 +5,10 @@
  * Copyright © 2007-2011 Mirsal Ennaime
  * Copyright © 2009-2011 The VideoLAN team
  * Copyright © 2013      Alex Merry
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors:    Mirsal Ennaime <mirsal at mirsal fr>
- *             Rafaël Carré <funman at videolanorg>
+ *             Rafaël Carré <funman at lycariaorg>
  *             Alex Merry <dev at randomguy3 me uk>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -29,7 +30,7 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
 #include <assert.h>
 
@@ -37,15 +38,15 @@
 #include "dbus_common.h"
 
 
-tracklist_append_event_t *tracklist_append_event_create(vlc_playlist_item_t *after_track, vlc_playlist_item_t *const items[], size_t count) {
-    tracklist_append_event_t* result = malloc(sizeof(tracklist_append_event_t) + sizeof(vlc_playlist_item_t *[count]));
+tracklist_append_event_t *tracklist_append_event_create(heimdall_playlist_item_t *after_track, heimdall_playlist_item_t *const items[], size_t count) {
+    tracklist_append_event_t* result = malloc(sizeof(tracklist_append_event_t) + sizeof(heimdall_playlist_item_t *[count]));
     if (!result)
         return result;
 
     bool has_previous = after_track != NULL;
     uint64_t after_id = 0;
     if( has_previous )
-        after_id = vlc_playlist_item_GetId( after_track );
+        after_id = heimdall_playlist_item_GetId( after_track );
 
     *result = (tracklist_append_event_t) {
         .change_ev = { .count = count },
@@ -54,12 +55,12 @@ tracklist_append_event_t *tracklist_append_event_create(vlc_playlist_item_t *aft
     };
     for (size_t i = 0; i < count; ++i) {
         result->items[i] = items[i];
-        vlc_playlist_item_Hold(items[i]);
+        heimdall_playlist_item_Hold(items[i]);
     }
     return result;
 }
 
-tracklist_remove_event_t *tracklist_remove_event_create(vlc_playlist_t *playlist, size_t first_index, size_t count) {
+tracklist_remove_event_t *tracklist_remove_event_create(heimdall_playlist_t *playlist, size_t first_index, size_t count) {
     tracklist_remove_event_t* result = malloc(sizeof(tracklist_remove_event_t) + count * sizeof(uint64_t));
     if (!result)
         return result;
@@ -67,8 +68,8 @@ tracklist_remove_event_t *tracklist_remove_event_create(vlc_playlist_t *playlist
     *result = (tracklist_remove_event_t) { .change_ev = { .count = count } };
 
     for (size_t i = 0; i < count; ++i) {
-        vlc_playlist_item_t *item = vlc_playlist_Get( playlist, first_index + i );
-        result->removed_tracks[i] = vlc_playlist_item_GetId( item );
+        heimdall_playlist_item_t *item = heimdall_playlist_Get( playlist, first_index + i );
+        result->removed_tracks[i] = heimdall_playlist_item_GetId( item );
     }
 
     return result;
@@ -79,7 +80,7 @@ void tracklist_append_event_destroy(tracklist_append_event_t *event) {
         return;
 
     for (size_t i = 0; i < event->change_ev.count; ++i) {
-        vlc_playlist_item_Release(event->items[i]);
+        heimdall_playlist_item_Release(event->items[i]);
     }
     free(event);
 }
@@ -92,7 +93,7 @@ static DBusHandlerResult InvalidTrackId(DBusConnection *p_conn,
                                         DBusMessage *p_from,
                                         const char *trackId,
                                         void *p_this) {
-  msg_Err((vlc_object_t *)p_this, "Invalid track id: %s", trackId);
+  msg_Err((heimdall_object_t *)p_this, "Invalid track id: %s", trackId);
 
   DBusMessage *p_msg = dbus_message_new_error_printf(
       p_from, DBUS_ERROR_UNKNOWN_OBJECT, "Invalid track id: %s", trackId);
@@ -104,7 +105,7 @@ static DBusHandlerResult InvalidTrackId(DBusConnection *p_conn,
 static DBusHandlerResult InvalidArguments(DBusConnection *p_conn,
                                           DBusMessage *p_from,
                                           void *p_this) {
-  msg_Err((vlc_object_t *)p_this, "Invalid arguments");
+  msg_Err((heimdall_object_t *)p_this, "Invalid arguments");
 
   DBusMessage *p_msg = dbus_message_new_error(p_from, DBUS_ERROR_INVALID_ARGS,
                                               "Invalid arguments");
@@ -137,7 +138,7 @@ DBUS_METHOD( AddTrack )
 
     if( dbus_error_is_set( &error ) )
     {
-        msg_Err( (vlc_object_t*) p_this, "D-Bus message reading : %s",
+        msg_Err( (heimdall_object_t*) p_this, "D-Bus message reading : %s",
                 error.message );
 
         dbus_error_free( &error );
@@ -152,7 +153,7 @@ DBUS_METHOD( AddTrack )
         ;
     else
     {
-        msg_Warn( (vlc_object_t *) p_this,
+        msg_Warn( (heimdall_object_t *) p_this,
                 "AfterTrack: Invalid track ID \"%s\", appending instead",
                 psz_aftertrack );
         b_append = true;
@@ -162,15 +163,15 @@ DBUS_METHOD( AddTrack )
     if( unlikely(item == NULL) )
         return DBUS_HANDLER_RESULT_NEED_MEMORY;
 
-    vlc_playlist_t *playlist = PL;
-    vlc_playlist_Lock(playlist);
-    size_t count = vlc_playlist_Count(playlist);
+    heimdall_playlist_t *playlist = PL;
+    heimdall_playlist_Lock(playlist);
+    size_t count = heimdall_playlist_Count(playlist);
     if (b_append || i_pos > count)
         i_pos = count;
-    vlc_playlist_InsertOne(playlist, i_pos, item);
+    heimdall_playlist_InsertOne(playlist, i_pos, item);
     if (b_play)
-        vlc_playlist_PlayAt(playlist, i_pos);
-    vlc_playlist_Unlock(playlist);
+        heimdall_playlist_PlayAt(playlist, i_pos);
+    heimdall_playlist_Unlock(playlist);
 
     input_item_Release( item );
 
@@ -185,7 +186,7 @@ DBUS_METHOD( GetTracksMetadata )
     uint64_t i_track_id;
     const char *psz_track_id = NULL;
 
-    vlc_playlist_t *playlist = PL;
+    heimdall_playlist_t *playlist = PL;
 
     DBusMessageIter in_args, track_ids, meta;
     dbus_message_iter_init( p_from, &in_args );
@@ -209,22 +210,22 @@ DBUS_METHOD( GetTracksMetadata )
             break;
         }
 
-        vlc_playlist_item_t *item = NULL;
+        heimdall_playlist_item_t *item = NULL;
 
-        vlc_playlist_Lock(playlist);
-        track_index = vlc_playlist_IndexOfId( playlist, i_track_id );
+        heimdall_playlist_Lock(playlist);
+        track_index = heimdall_playlist_IndexOfId( playlist, i_track_id );
         if( track_index != -1 )
         {
-            item = vlc_playlist_Get( playlist, track_index );
-            vlc_playlist_item_Hold(item);
+            item = heimdall_playlist_Get( playlist, track_index );
+            heimdall_playlist_item_Hold(item);
         }
-        vlc_playlist_Unlock(playlist);
+        heimdall_playlist_Unlock(playlist);
 
         if( track_index == -1 )
             break;
 
         GetInputMeta(item, &meta);
-        vlc_playlist_item_Release(item);
+        heimdall_playlist_item_Release(item);
 
         dbus_message_iter_next( &track_ids );
     }
@@ -256,7 +257,7 @@ DBUS_METHOD( GoTo )
 
     if( dbus_error_is_set( &error ) )
     {
-        msg_Err( (vlc_object_t*) p_this, "D-Bus message reading : %s",
+        msg_Err( (heimdall_object_t*) p_this, "D-Bus message reading : %s",
                 error.message );
         dbus_error_free( &error );
         return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
@@ -265,12 +266,12 @@ DBUS_METHOD( GoTo )
     if( 1 != sscanf( psz_track_id, MPRIS_TRACKID_FORMAT, &i_track_id ) )
         goto invalid_track_id;
 
-    vlc_playlist_t *playlist = PL;
-    vlc_playlist_Lock(playlist);
-    ssize_t track_index = vlc_playlist_IndexOfId( playlist, i_track_id );
+    heimdall_playlist_t *playlist = PL;
+    heimdall_playlist_Lock(playlist);
+    ssize_t track_index = heimdall_playlist_IndexOfId( playlist, i_track_id );
     if ( track_index != -1 )
-        vlc_playlist_PlayAt(playlist, track_index );
-    vlc_playlist_Unlock(playlist);
+        heimdall_playlist_PlayAt(playlist, track_index );
+    heimdall_playlist_Unlock(playlist);
     if ( track_index == -1 )
         goto invalid_track_id;
 
@@ -296,7 +297,7 @@ DBUS_METHOD( RemoveTrack )
 
     if( dbus_error_is_set( &error ) )
     {
-        msg_Err( (vlc_object_t*) p_this, "D-Bus message reading : %s",
+        msg_Err( (heimdall_object_t*) p_this, "D-Bus message reading : %s",
                 error.message );
         dbus_error_free( &error );
         return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
@@ -305,12 +306,12 @@ DBUS_METHOD( RemoveTrack )
     if( 1 != sscanf( psz_id, MPRIS_TRACKID_FORMAT, &i_track_id ) )
         goto invalid_track_id;
 
-    vlc_playlist_t *playlist = PL;
-    vlc_playlist_Lock(playlist);
-    ssize_t track_index = vlc_playlist_IndexOfId( playlist, i_track_id );
+    heimdall_playlist_t *playlist = PL;
+    heimdall_playlist_Lock(playlist);
+    ssize_t track_index = heimdall_playlist_IndexOfId( playlist, i_track_id );
     if ( track_index != -1 )
-        vlc_playlist_RemoveOne(playlist, track_index);
-    vlc_playlist_Unlock(playlist);
+        heimdall_playlist_RemoveOne(playlist, track_index);
+    heimdall_playlist_Unlock(playlist);
     if ( track_index == -1 )
         goto invalid_track_id;
 
@@ -323,19 +324,19 @@ invalid_track_id:
 static int MarshalTrack( DBusMessageIter *iter, bool id_valid, uint64_t id )
 {
     char *psz_track_id = NULL;
-    int ret = VLC_SUCCESS;
+    int ret = HEIMDALL_SUCCESS;
 
     const char *format = id_valid? MPRIS_TRACKID_FORMAT : DBUS_MPRIS_NOTRACK;
     if (asprintf(&psz_track_id, format, id) == -1) {
-        ret = VLC_ENOMEM;
+        ret = HEIMDALL_ENOMEM;
     }
 
-    if (ret == VLC_SUCCESS &&
+    if (ret == HEIMDALL_SUCCESS &&
         !dbus_message_iter_append_basic( iter,
                                          DBUS_TYPE_OBJECT_PATH,
                                          &psz_track_id ) )
     {
-       ret = VLC_ENOMEM;
+       ret = HEIMDALL_ENOMEM;
     }
     free( psz_track_id );
     return ret;
@@ -345,28 +346,28 @@ static int
 MarshalTracks( intf_thread_t *p_intf, DBusMessageIter *container )
 {
     DBusMessageIter tracks;
-    vlc_playlist_t *playlist = p_intf->p_sys->playlist;
+    heimdall_playlist_t *playlist = p_intf->p_sys->playlist;
 
     dbus_message_iter_open_container( container, DBUS_TYPE_ARRAY, "o",
                                       &tracks );
 
-    int err = VLC_SUCCESS;
-    vlc_playlist_Lock(playlist);
-    size_t pl_size = vlc_playlist_Count(playlist);
+    int err = HEIMDALL_SUCCESS;
+    heimdall_playlist_Lock(playlist);
+    size_t pl_size = heimdall_playlist_Count(playlist);
     for (size_t i = 0; i < pl_size; i++)
     {
-        vlc_playlist_item_t *item = vlc_playlist_Get( playlist, i );
-        uint64_t track_id = vlc_playlist_item_GetId( item );
+        heimdall_playlist_item_t *item = heimdall_playlist_Get( playlist, i );
+        uint64_t track_id = heimdall_playlist_item_GetId( item );
         err = MarshalTrack( &tracks, true, track_id );
-        if (err !=  VLC_SUCCESS)
+        if (err !=  HEIMDALL_SUCCESS)
             break;
     }
-    vlc_playlist_Unlock(playlist);
+    heimdall_playlist_Unlock(playlist);
 
-    if( err != VLC_SUCCESS )
+    if( err != HEIMDALL_SUCCESS )
         dbus_message_iter_abandon_container( container, &tracks );
     else if( !dbus_message_iter_close_container( container, &tracks ) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     return err;
 }
@@ -374,13 +375,13 @@ MarshalTracks( intf_thread_t *p_intf, DBusMessageIter *container )
 static int
 MarshalCanEditTracks( intf_thread_t *p_intf, DBusMessageIter *container )
 {
-    VLC_UNUSED( p_intf );
+    HEIMDALL_UNUSED( p_intf );
     const dbus_bool_t b_ret = TRUE;
 
     if( !dbus_message_iter_append_basic( container, DBUS_TYPE_BOOLEAN, &b_ret ) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 #define PROPERTY_MAPPING_BEGIN if( 0 ) {}
@@ -388,7 +389,7 @@ MarshalCanEditTracks( intf_thread_t *p_intf, DBusMessageIter *container )
     else if( !strcmp( psz_property_name,  #prop ) ) { \
         if( !dbus_message_iter_open_container( &args, DBUS_TYPE_VARIANT, signature, &v ) ) \
             return DBUS_HANDLER_RESULT_NEED_MEMORY; \
-        if( VLC_SUCCESS != Marshal##prop( p_this, &v ) ) { \
+        if( HEIMDALL_SUCCESS != Marshal##prop( p_this, &v ) ) { \
             dbus_message_iter_abandon_container( &args, &v ); \
             return DBUS_HANDLER_RESULT_NEED_MEMORY; \
         } \
@@ -418,13 +419,13 @@ DBUS_METHOD( GetProperty )
 
     if( dbus_error_is_set( &error ) )
     {
-        msg_Err( (vlc_object_t*) p_this, "D-Bus message reading : %s",
+        msg_Err( (heimdall_object_t*) p_this, "D-Bus message reading : %s",
                                          error.message );
         dbus_error_free( &error );
         return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
     }
 
-    msg_Dbg( (vlc_object_t*) p_this, "Getting property %s",
+    msg_Dbg( (heimdall_object_t*) p_this, "Getting property %s",
                                      psz_property_name );
 
     if( strcmp( psz_interface_name, DBUS_MPRIS_TRACKLIST_INTERFACE ) ) {
@@ -449,10 +450,10 @@ DBUS_METHOD( GetProperty )
 #undef PROPERTY_MAPPING_END
 
 #define ADD_PROPERTY( prop, signature ) \
-    if( VLC_SUCCESS != AddProperty( (intf_thread_t*) p_this, \
+    if( HEIMDALL_SUCCESS != AddProperty( (intf_thread_t*) p_this, \
                 &dict, #prop, signature, Marshal##prop ) ) { \
         dbus_message_iter_abandon_container( &args, &dict ); \
-        return VLC_ENOMEM; \
+        return HEIMDALL_ENOMEM; \
     }
 
 DBUS_METHOD( GetAllProperties )
@@ -472,7 +473,7 @@ DBUS_METHOD( GetAllProperties )
 
     if( dbus_error_is_set( &error ) )
     {
-        msg_Err( (vlc_object_t*) p_this, "D-Bus message reading : %s",
+        msg_Err( (heimdall_object_t*) p_this, "D-Bus message reading : %s",
                                          error.message );
         dbus_error_free( &error );
         return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
@@ -523,7 +524,7 @@ handle_tracklist ( DBusConnection *p_conn, DBusMessage *p_from, void *p_this )
  */
 static DBusHandlerResult
 PropertiesChangedSignal( intf_thread_t    *p_intf,
-                         vlc_dictionary_t *p_changed_properties )
+                         heimdall_dictionary_t *p_changed_properties )
 {
     DBusConnection  *p_conn = p_intf->p_sys->p_conn;
     DBusMessageIter changed_properties, invalidated_properties;
@@ -550,7 +551,7 @@ PropertiesChangedSignal( intf_thread_t    *p_intf,
         return DBUS_HANDLER_RESULT_NEED_MEMORY;
 
 
-    if( vlc_dictionary_has_key( p_changed_properties, "Tracks" ) )
+    if( heimdall_dictionary_has_key( p_changed_properties, "Tracks" ) )
         dbus_message_iter_append_basic( &invalidated_properties,
                                         DBUS_TYPE_STRING,
                                         &(char const*){ "Tracks" } );
@@ -570,7 +571,7 @@ static DBusHandlerResult
 TrackAddedSignal( intf_thread_t    *p_intf,
                   bool has_previous,
                   uint64_t previous_item_id,
-                  vlc_playlist_item_t *item )
+                  heimdall_playlist_item_t *item )
 {
     DBusConnection  *p_conn = p_intf->p_sys->p_conn;
 
@@ -582,7 +583,7 @@ TrackAddedSignal( intf_thread_t    *p_intf,
 
     GetInputMeta(item, &args);
 
-    if( MarshalTrack( &args, has_previous, previous_item_id ) !=  VLC_SUCCESS )
+    if( MarshalTrack( &args, has_previous, previous_item_id ) !=  HEIMDALL_SUCCESS )
         return DBUS_HANDLER_RESULT_NEED_MEMORY;
 
     SIGNAL_SEND;
@@ -603,7 +604,7 @@ TrackRemovedSignal( intf_thread_t    *p_intf, uint64_t id )
 
     OUT_ARGUMENTS;
 
-    if ( MarshalTrack( &args, true, id ) !=  VLC_SUCCESS )
+    if ( MarshalTrack( &args, true, id ) !=  HEIMDALL_SUCCESS )
         return DBUS_HANDLER_RESULT_NEED_MEMORY;
 
     SIGNAL_SEND;
@@ -615,35 +616,35 @@ TrackRemovedSignal( intf_thread_t    *p_intf, uint64_t id )
  * - org.mpris.MediaPlayer2.TrackList.TrackRemoved
  */
 int TrackListPropertiesChangedEmit( intf_thread_t    * p_intf,
-                                    vlc_dictionary_t * p_changed_properties )
+                                    heimdall_dictionary_t * p_changed_properties )
 {
     if( p_intf->p_sys->b_dead )
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
     PropertiesChangedSignal( p_intf, p_changed_properties );
 
-    if( vlc_dictionary_has_key( p_changed_properties, "TrackAdded" ) ) {
+    if( heimdall_dictionary_has_key( p_changed_properties, "TrackAdded" ) ) {
         tracklist_append_event_t *added_tracks =
-            vlc_dictionary_value_for_key( p_changed_properties, "TrackAdded" );
+            heimdall_dictionary_value_for_key( p_changed_properties, "TrackAdded" );
 
         while ( added_tracks ) {
             bool has_previous = added_tracks->has_previous;
             uint64_t previous_id = added_tracks->after_track;
             for (size_t i = 0; i < added_tracks->change_ev.count; ++i) {
-                vlc_playlist_item_t *item = added_tracks->items[i];
+                heimdall_playlist_item_t *item = added_tracks->items[i];
                 TrackAddedSignal( p_intf, has_previous, previous_id, item );
 
                 has_previous = true;
-                previous_id = vlc_playlist_item_GetId( item );
+                previous_id = heimdall_playlist_item_GetId( item );
             }
             tracklist_append_event_t *next = tracklist_append_event_next( added_tracks );
             added_tracks = next;
         }
     }
 
-    if( vlc_dictionary_has_key( p_changed_properties, "TrackRemoved" ) ) {
+    if( heimdall_dictionary_has_key( p_changed_properties, "TrackRemoved" ) ) {
         tracklist_remove_event_t *removed_tracks =
-            vlc_dictionary_value_for_key( p_changed_properties, "TrackRemoved" );
+            heimdall_dictionary_value_for_key( p_changed_properties, "TrackRemoved" );
 
         while ( removed_tracks ) {
             for (size_t i = 0; i < removed_tracks->change_ev.count; ++i) {
@@ -655,5 +656,5 @@ int TrackListPropertiesChangedEmit( intf_thread_t    * p_intf,
 
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

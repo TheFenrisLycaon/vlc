@@ -2,6 +2,7 @@
  * d3d11_quad.c: Direct3D11 Quad handling
  *****************************************************************************
  * Copyright (C) 2017-2018 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Steve Lhomme <robux4@gmail.com>
  *
@@ -25,7 +26,7 @@
 #endif
 
 #include <cassert>
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
 #include "d3d11_quad.h"
 #include "common.h"
@@ -87,7 +88,7 @@ void D3D11_RenderQuad(d3d11_device_t *d3d_dev, d3d11_quad_t *quad, d3d11_vertex_
     }
 }
 
-static bool AllocQuadVertices(vlc_object_t *o, d3d11_device_t *d3d_dev, d3d11_quad_t *quad, video_projection_mode_t projection)
+static bool AllocQuadVertices(heimdall_object_t *o, d3d11_device_t *d3d_dev, d3d11_quad_t *quad, video_projection_mode_t projection)
 {
     HRESULT hr;
 
@@ -139,7 +140,7 @@ void d3d11_quad_t::Reset()
 }
 
 #undef D3D11_UpdateQuadPosition
-bool D3D11_UpdateQuadPosition( vlc_object_t *o, d3d11_device_t *d3d_dev, d3d11_quad_t *quad,
+bool D3D11_UpdateQuadPosition( heimdall_object_t *o, d3d11_device_t *d3d_dev, d3d11_quad_t *quad,
                                video_transform_t orientation )
 {
     bool result = true;
@@ -180,7 +181,7 @@ bool D3D11_UpdateQuadPosition( vlc_object_t *o, d3d11_device_t *d3d_dev, d3d11_q
     return result;
 }
 
-static bool ShaderUpdateConstants(vlc_object_t *o, d3d11_device_t *d3d_dev, d3d11_quad_t *quad, int type, void *new_buf)
+static bool ShaderUpdateConstants(heimdall_object_t *o, d3d11_device_t *d3d_dev, d3d11_quad_t *quad, int type, void *new_buf)
 {
     ID3D11Resource *res;
     switch (type)
@@ -214,7 +215,7 @@ static bool ShaderUpdateConstants(vlc_object_t *o, d3d11_device_t *d3d_dev, d3d1
     return true;
 }
 
-void (D3D11_UpdateQuadOpacity)(vlc_object_t *o, d3d11_device_t *d3d_dev, d3d11_quad_t *quad, float opacity)
+void (D3D11_UpdateQuadOpacity)(heimdall_object_t *o, d3d11_device_t *d3d_dev, d3d11_quad_t *quad, float opacity)
 {
     float old = quad->generic.shaderConstants->Opacity;
     if (!D3D_UpdateQuadOpacity(&quad->generic, opacity))
@@ -224,7 +225,7 @@ void (D3D11_UpdateQuadOpacity)(vlc_object_t *o, d3d11_device_t *d3d_dev, d3d11_q
         D3D_UpdateQuadOpacity(&quad->generic, old);
 }
 
-void (D3D11_UpdateQuadLuminanceScale)(vlc_object_t *o, d3d11_device_t *d3d_dev, d3d11_quad_t *quad, float luminanceScale)
+void (D3D11_UpdateQuadLuminanceScale)(heimdall_object_t *o, d3d11_device_t *d3d_dev, d3d11_quad_t *quad, float luminanceScale)
 {
     float old = quad->generic.shaderConstants->LuminanceScale;
     if (!D3D_UpdateQuadLuminanceScale(&quad->generic, luminanceScale))
@@ -234,8 +235,8 @@ void (D3D11_UpdateQuadLuminanceScale)(vlc_object_t *o, d3d11_device_t *d3d_dev, 
         D3D_UpdateQuadLuminanceScale(&quad->generic, old);
 }
 
-void (D3D11_UpdateViewpoint)(vlc_object_t *o, d3d11_device_t *d3d_dev, d3d11_quad_t *quad,
-                             const vlc_viewpoint_t *viewpoint, float f_sar)
+void (D3D11_UpdateViewpoint)(heimdall_object_t *o, d3d11_device_t *d3d_dev, d3d11_quad_t *quad,
+                             const heimdall_viewpoint_t *viewpoint, float f_sar)
 {
     if (!quad->viewpointShaderConstant.Get())
         return;
@@ -246,7 +247,7 @@ void (D3D11_UpdateViewpoint)(vlc_object_t *o, d3d11_device_t *d3d_dev, d3d11_qua
 }
 
 #undef D3D11_AllocateQuad
-int D3D11_AllocateQuad(vlc_object_t *o, d3d11_device_t *d3d_dev,
+int D3D11_AllocateQuad(heimdall_object_t *o, d3d11_device_t *d3d_dev,
                        video_projection_mode_t projection, d3d11_quad_t *quad)
 {
     quad->generic.vertexConstants = &quad->vConstants;
@@ -279,15 +280,15 @@ int D3D11_AllocateQuad(vlc_object_t *o, d3d11_device_t *d3d_dev,
     if (!AllocQuadVertices(o, d3d_dev, quad, projection))
         goto error;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     quad->Reset();
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 #undef D3D11_SetupQuad
-int D3D11_SetupQuad(vlc_object_t *o, d3d11_device_t *d3d_dev, const video_format_t *fmt, d3d11_quad_t *quad,
+int D3D11_SetupQuad(heimdall_object_t *o, d3d11_device_t *d3d_dev, const video_format_t *fmt, d3d11_quad_t *quad,
                     const display_info_t *displayFormat)
 {
     D3D_SetupQuad(o, fmt, &quad->generic, displayFormat);
@@ -301,7 +302,7 @@ int D3D11_SetupQuad(vlc_object_t *o, d3d11_device_t *d3d_dev, const video_format
     }
     quad->resourceCount = DxgiResourceCount(quad->generic.textureFormat);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 void d3d11_quad_t::UpdateViewport(const vout_display_place_t *place, const d3d_format_t *display)
@@ -342,10 +343,10 @@ void d3d11_quad_t::UpdateViewport(const vout_display_place_t *place, const d3d_f
     case DXGI_FORMAT_UNKNOWN:
         switch ( generic.textureFormat->fourcc )
         {
-        case VLC_CODEC_I444_16L:
-        case VLC_CODEC_I444_12L:
-        case VLC_CODEC_I444_10L:
-        case VLC_CODEC_I444:
+        case HEIMDALL_CODEC_I444_16L:
+        case HEIMDALL_CODEC_I444_12L:
+        case HEIMDALL_CODEC_I444_10L:
+        case HEIMDALL_CODEC_I444:
             if ( display->formatTexture != DXGI_FORMAT_NV12 &&
                  display->formatTexture != DXGI_FORMAT_P010 )
             {
@@ -353,7 +354,7 @@ void d3d11_quad_t::UpdateViewport(const vout_display_place_t *place, const d3d_f
                 break;
             }
             break;
-        case VLC_CODEC_YUVA:
+        case HEIMDALL_CODEC_YUVA:
             if ( display->formatTexture != DXGI_FORMAT_NV12 &&
                  display->formatTexture != DXGI_FORMAT_P010 )
             {
@@ -361,9 +362,9 @@ void d3d11_quad_t::UpdateViewport(const vout_display_place_t *place, const d3d_f
                 break;
             }
             /* fallthrough */
-        case VLC_CODEC_I420_10L:
-        case VLC_CODEC_I420:
-        case VLC_CODEC_YUV420A:
+        case HEIMDALL_CODEC_I420_10L:
+        case HEIMDALL_CODEC_I420:
+        case HEIMDALL_CODEC_YUV420A:
             cropViewport[1].TopLeftX = place->x / 2;
             cropViewport[1].TopLeftY = place->y / 2;
             cropViewport[1].Width    = place->width  / 2;
@@ -372,7 +373,7 @@ void d3d11_quad_t::UpdateViewport(const vout_display_place_t *place, const d3d_f
         }
         break;
     default:
-        vlc_assert_unreachable();
+        heimdall_assert_unreachable();
     }
 }
 
@@ -425,7 +426,7 @@ int D3D11_WaitFence(d3d11_gpu_fence & fence)
         fence.d3dcontext4->Signal(fence.d3dRenderFence.Get(), fence.renderFence);
 
         WaitForSingleObject(fence.renderFinished, INFINITE);
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
-    return VLC_ENOTSUP;
+    return HEIMDALL_ENOTSUP;
 }

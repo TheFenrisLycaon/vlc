@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 1998-2008 VLC authors and VideoLAN
  * Copyright (C) 2008 Laurent Aimar
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *
@@ -21,29 +22,29 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef LIBVLC_INPUT_STREAM_H
-#define LIBVLC_INPUT_STREAM_H 1
+#ifndef LIBHEIMDALL_INPUT_STREAM_H
+#define LIBHEIMDALL_INPUT_STREAM_H 1
 
-#include <vlc_common.h>
-#include <vlc_stream.h>
+#include <heimdall_common.h>
+#include <heimdall_stream.h>
 #include "input_internal.h"
 #include "mrl_helpers.h"
 
-stream_t *vlc_stream_CustomNew(vlc_object_t *parent,
+stream_t *heimdall_stream_CustomNew(heimdall_object_t *parent,
                                void (*destroy)(stream_t *), size_t extra_size,
                                const char *type_name);
-void *vlc_stream_Private(stream_t *stream);
+void *heimdall_stream_Private(stream_t *stream);
 
 /* */
 void stream_CommonDelete( stream_t *s );
 
-stream_t *vlc_stream_AttachmentNew(vlc_object_t *p_this,
+stream_t *heimdall_stream_AttachmentNew(heimdall_object_t *p_this,
                                    input_attachment_t *attachment);
 
 /**
  * This function creates a raw stream_t from an URL.
  */
-stream_t *stream_AccessNew(vlc_object_t *, input_thread_t *, es_out_t *, bool,
+stream_t *stream_AccessNew(heimdall_object_t *, input_thread_t *, es_out_t *, bool,
                            const char *);
 
 /**
@@ -67,10 +68,10 @@ stream_t *stream_AccessNew(vlc_object_t *, input_thread_t *, es_out_t *, bool,
  *
  * @return the last, most downstream stream object.
  *
- * @note The return value must be freed with vlc_stream_Delete() after use.
+ * @note The return value must be freed with heimdall_stream_Delete() after use.
  * This will automatically free the whole chain and the underlying stream.
  */
-stream_t *stream_FilterAutoNew( stream_t *source ) VLC_USED;
+stream_t *stream_FilterAutoNew( stream_t *source ) HEIMDALL_USED;
 
 /**
  * Builds an explicit chain of stream filters.
@@ -90,7 +91,7 @@ stream_t *stream_FilterAutoNew( stream_t *source ) VLC_USED;
  * @return The last stream (filter) in the chain.
  * The return value is always a valid (non-NULL) stream pointer.
  */
-stream_t *stream_FilterChainNew( stream_t *source, const char *list ) VLC_USED;
+stream_t *stream_FilterChainNew( stream_t *source, const char *list ) HEIMDALL_USED;
 
 /**
  * \addtogroup stream_extractor_Internals
@@ -109,7 +110,7 @@ stream_t *stream_FilterChainNew( stream_t *source, const char *list ) VLC_USED;
  *          the caller to free the resource referred to by `*stream`, no matter
  *          what this function returns.
  *
- * \warning Please see \ref vlc_stream_extractor_Attach for a function that
+ * \warning Please see \ref heimdall_stream_extractor_Attach for a function that
  *          will not modify the passed stream upon failure. \ref
  *          stream_extractor_AttachParsed shall only be used when the caller
  *          only cares about the stream on successful attachment of **all**
@@ -122,7 +123,7 @@ stream_t *stream_FilterChainNew( stream_t *source, const char *list ) VLC_USED;
  * \param      data the fragment data string to parse.
  * \param[out] out_extra `*out_extra` will point to any additional data
  *             in `psz_data` that does not specify an entity (if any).
- * \return VLC_SUCCESS on success, an error-code on failure
+ * \return HEIMDALL_SUCCESS on success, an error-code on failure
  **/
 int stream_extractor_AttachParsed( stream_t** stream, const struct mrl_info * );
 

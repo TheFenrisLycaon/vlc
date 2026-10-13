@@ -2,6 +2,7 @@
  * xml.c: XML parser wrapper for XML modules
  *****************************************************************************
  * Copyright (C) 2004-2010 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gildas Bazin <gbazin@videolan.org>
  *
@@ -24,10 +25,10 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_xml.h>
-#include <vlc_modules.h>
-#include "../libvlc.h"
+#include <heimdall_common.h>
+#include <heimdall_xml.h>
+#include <heimdall_modules.h>
+#include "../libheimdall.h"
 
 #undef xml_Create
 /*****************************************************************************
@@ -36,16 +37,16 @@
  * Create an instance of an XML parser.
  * Returns NULL on error.
  *****************************************************************************/
-xml_t *xml_Create( vlc_object_t *p_this )
+xml_t *xml_Create( heimdall_object_t *p_this )
 {
     xml_t *p_xml;
 
-    p_xml = vlc_custom_create( p_this, sizeof( *p_xml ), "xml" );
+    p_xml = heimdall_custom_create( p_this, sizeof( *p_xml ), "xml" );
 
     p_xml->p_module = module_need( p_xml, "xml", NULL, false );
     if( !p_xml->p_module )
     {
-        vlc_object_delete(p_xml);
+        heimdall_object_delete(p_xml);
         msg_Err( p_this, "XML provider not found" );
         return NULL;
     }
@@ -59,29 +60,29 @@ xml_t *xml_Create( vlc_object_t *p_this )
 void xml_Delete( xml_t *p_xml )
 {
     module_unneed( p_xml, p_xml->p_module );
-    vlc_object_delete(p_xml);
+    heimdall_object_delete(p_xml);
 }
 
 
 #undef xml_ReaderCreate
 /**
  * Creates an XML reader.
- * @param obj parent VLC object
+ * @param obj parent Heimdall object
  * @param stream stream to read XML from
  * @return NULL on error.
  */
-xml_reader_t *xml_ReaderCreate(vlc_object_t *obj, stream_t *stream)
+xml_reader_t *xml_ReaderCreate(heimdall_object_t *obj, stream_t *stream)
 {
     xml_reader_t *reader;
 
-    reader = vlc_custom_create(obj, sizeof(*reader), "xml reader");
+    reader = heimdall_custom_create(obj, sizeof(*reader), "xml reader");
 
     reader->p_stream = stream;
     reader->p_module = module_need(reader, "xml reader", NULL, false);
     if (unlikely(reader->p_module == NULL))
     {
         msg_Err(reader, "XML reader not found");
-        vlc_object_delete(reader);
+        heimdall_object_delete(reader);
         return NULL;
     }
     return reader;
@@ -95,5 +96,5 @@ xml_reader_t *xml_ReaderCreate(vlc_object_t *obj, stream_t *stream)
 void xml_ReaderDelete(xml_reader_t *reader)
 {
     module_unneed(reader, reader->p_module);
-    vlc_object_delete(reader);
+    heimdall_object_delete(reader);
 }

@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2024 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,7 +19,7 @@
 
 import QtQuick
 
-import VLC.Widgets as Widgets
+import Heimdall.Widgets as Widgets
 
 // This item can be used as a layer effect.
 // Make sure that the sampler name is set to "source" (default).

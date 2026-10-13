@@ -1,24 +1,24 @@
 # muxer modules
 
-vlc_modules += {
+heimdall_modules += {
     'name': 'mux_dummy',
     'sources': files('dummy.c'),
     'plugin_dir' : 'mux',
 }
 
-vlc_modules += {
+heimdall_modules += {
     'name': 'mux_asf',
     'sources': files('asf.c'),
     'plugin_dir' : 'mux',
 }
 
-vlc_modules += {
+heimdall_modules += {
     'name': 'mux_avi',
     'sources': files('avi.c'),
     'plugin_dir' : 'mux',
 }
 
-vlc_modules += {
+heimdall_modules += {
     'name': 'mux_mp4',
     'sources': files(
         'mp4/mp4.c',
@@ -30,13 +30,13 @@ vlc_modules += {
     'plugin_dir' : 'mux',
 }
 
-vlc_modules += {
+heimdall_modules += {
     'name': 'mux_mpjpeg',
     'sources': files('mpjpeg.c'),
     'plugin_dir' : 'mux',
 }
 
-vlc_modules += {
+heimdall_modules += {
     'name': 'mux_ogg',
     'sources': files('ogg.c'),
     'dependencies': [ ogg_dep ],
@@ -44,7 +44,7 @@ vlc_modules += {
     'enabled': ogg_dep.found(),
 }
 
-vlc_modules += {
+heimdall_modules += {
     'name': 'mux_ps',
     'sources': files(
         'mpeg/pes.c',
@@ -53,7 +53,7 @@ vlc_modules += {
     'plugin_dir' : 'mux',
 }
 
-vlc_modules += {
+heimdall_modules += {
     'name': 'mux_ts',
     'sources': files(
         'mpeg/pes.c',
@@ -68,7 +68,7 @@ vlc_modules += {
     'enabled': libdvbpsi_dep.found(),
 }
 
-vlc_modules += {
+heimdall_modules += {
     'name': 'mux_wav',
     'sources': files('wav.c'),
     'plugin_dir' : 'mux',

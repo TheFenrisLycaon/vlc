@@ -2,6 +2,7 @@
  * Chunk.cpp
  *****************************************************************************
  * Copyright (C) 2010 - 2011 Klagenfurt University
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Created on: Aug 10, 2010
  * Authors: Christopher Mueller <christopher.mueller@itec.uni-klu.ac.at>
@@ -30,13 +31,13 @@
 #include "HTTPConnectionManager.h"
 #include "Downloader.hpp"
 
-#include <vlc_common.h>
-#include <vlc_block.h>
+#include <heimdall_common.h>
+#include <heimdall_block.h>
 
 #include <algorithm>
 
 using namespace adaptive::http;
-using vlc::threads::mutex_locker;
+using heimdall::threads::mutex_locker;
 
 static std::string EmptyStr = "";
 
@@ -231,7 +232,7 @@ block_t * HTTPChunkSource::read(size_t readsize)
         block_Release(p_block);
         p_block = nullptr;
         eof = true;
-        downloadEndTime = vlc_tick_now();
+        downloadEndTime = heimdall_tick_now();
     }
     else
     {
@@ -240,7 +241,7 @@ block_t * HTTPChunkSource::read(size_t readsize)
         if((size_t)ret < readsize)
         {
             eof = true;
-            downloadEndTime = vlc_tick_now();
+            downloadEndTime = heimdall_tick_now();
         }
         if(ret && connection->getBytesRead() &&
            downloadEndTime > requestStartTime && type == ChunkType::Segment)
@@ -289,7 +290,7 @@ bool HTTPChunkSource::prepare()
 
     ConnectionParams connparams = params; /* can be changed on 301 */
 
-    requestStartTime = vlc_tick_now();
+    requestStartTime = heimdall_tick_now();
 
     unsigned int i_redirects = 0;
     while(i_redirects++ < http::MAX_REDIRECTS)
@@ -319,7 +320,7 @@ bool HTTPChunkSource::prepare()
                from content length */
         contentLength = connection->getContentLength();
         prepared = true;
-        responseTime = vlc_tick_now();
+        responseTime = heimdall_tick_now();
         return true;
     }
 
@@ -415,8 +416,8 @@ void HTTPChunkBufferedSource::bufferize(size_t readsize)
     struct
     {
         size_t size;
-        vlc_tick_t time;
-        vlc_tick_t latency;
+        heimdall_tick_t time;
+        heimdall_tick_t latency;
     } rate = {0,0,0};
 
     ssize_t ret = connection->read(p_block->p_buffer, readsize);
@@ -426,7 +427,7 @@ void HTTPChunkBufferedSource::bufferize(size_t readsize)
         p_block = nullptr;
         mutex_locker locker {lock};
         done = true;
-        downloadEndTime = vlc_tick_now();
+        downloadEndTime = heimdall_tick_now();
         rate.size = buffered;
         rate.time = downloadEndTime - requestStartTime;
         rate.latency = responseTime - requestStartTime;
@@ -446,7 +447,7 @@ void HTTPChunkBufferedSource::bufferize(size_t readsize)
         if((size_t) ret < readsize)
         {
             done = true;
-            downloadEndTime = vlc_tick_now();
+            downloadEndTime = heimdall_tick_now();
             rate.size = buffered;
             rate.time = downloadEndTime - requestStartTime;
             rate.latency = responseTime - requestStartTime;

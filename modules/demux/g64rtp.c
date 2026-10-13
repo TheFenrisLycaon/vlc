@@ -1,7 +1,8 @@
 /*****************************************************************************
- * g64rtp.c : G64 raw RTP input module for vlc
+ * g64rtp.c : G64 raw RTP input module for heimdall
  *****************************************************************************
  * Copyright (C) 2023 VideoLabs, VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -25,14 +26,14 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_demux.h>
-#include <vlc_plugin.h>
-#include <vlc_modules.h>
-#include <vlc_vector.h>
-#include <vlc_charset.h>
-#include <vlc_meta.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_demux.h>
+#include <heimdall_plugin.h>
+#include <heimdall_modules.h>
+#include <heimdall_vector.h>
+#include <heimdall_charset.h>
+#include <heimdall_meta.h>
 
 #include "../access/rtp/rtp.h"
 #include "../access/rtp/sdp.h"
@@ -45,29 +46,29 @@
 
 typedef struct
 {
-    vlc_tick_t time;
+    heimdall_tick_t time;
     uint64_t offset;
 } index_t;
 
-typedef struct VLC_VECTOR(index_t) vec_index_t;
+typedef struct HEIMDALL_VECTOR(index_t) vec_index_t;
 
 typedef struct
 {
     es_out_id_t *es;
-    struct vlc_rtp_es dummy_es;
-    vlc_fourcc_t fcc;
+    struct heimdall_rtp_es dummy_es;
+    heimdall_fourcc_t fcc;
     uint8_t i_type;
 
-    struct vlc_rtp_pt pt;
+    struct heimdall_rtp_pt pt;
     void *ptpriv;
 
-    vlc_tick_t pcr;
+    heimdall_tick_t pcr;
 
     vec_index_t index;
     uint64_t i_start_offset;
 
-    vlc_tick_t i_first_pts;
-    vlc_tick_t i_duration;
+    heimdall_tick_t i_first_pts;
+    heimdall_tick_t i_duration;
     char *psz_title;
 
 } demux_sys_t;
@@ -124,12 +125,12 @@ Epoch + sub 10⁷ with Offset 0x2B61082F0 ?
 
 */
 
-static vlc_tick_t make_vlc_timestamp( uint64_t ts )
+static heimdall_tick_t make_heimdall_timestamp( uint64_t ts )
 {
     if( ts == 0xFFFFFFFFFFFFFFFFU ) /* This is All 0xFF */
-        return VLC_TICK_INVALID;
+        return HEIMDALL_TICK_INVALID;
     ts = (ts % 10000000) + ((ts / 10000000) - 0x2B61082F0) * 10000000;
-    return VLC_TICK_0 + ts / 10;
+    return HEIMDALL_TICK_0 + ts / 10;
 }
 
 /*
@@ -206,80 +207,80 @@ static vlc_tick_t make_vlc_timestamp( uint64_t ts )
 #if 0
 static int parse_framemetadata_payload( stream_t *s, uint32_t payloadsize )
 {
-    fprintf(stderr," parse_framemetadata_unitpayload @%"PRIu64"\n", vlc_stream_Tell(s));
-    if( vlc_stream_Read( s, NULL, 6 ) != 6 )
-        return VLC_EGENERIC;
+    fprintf(stderr," parse_framemetadata_unitpayload @%"PRIu64"\n", heimdall_stream_Tell(s));
+    if( heimdall_stream_Read( s, NULL, 6 ) != 6 )
+        return HEIMDALL_EGENERIC;
     payloadsize -= 6;
     while( payloadsize >= 51 )
     {
         uint8_t unitheader[51];
-        if( vlc_stream_Read( s, unitheader, 51 ) != 51 )
-            return VLC_EGENERIC;
-        uint64_t ts = make_vlc_timestamp( GetQWLE( &unitheader[18] ) );
+        if( heimdall_stream_Read( s, unitheader, 51 ) != 51 )
+            return HEIMDALL_EGENERIC;
+        uint64_t ts = make_heimdall_timestamp( GetQWLE( &unitheader[18] ) );
         fprintf(stderr,"dump index %"PRId64" %u %u\n", ts,
                 GetDWLE( &unitheader[22] ), GetDWLE( &unitheader[26] ));
         payloadsize -= 51;
     }
     assert(payloadsize == 0);
-    return payloadsize == 0 ? VLC_SUCCESS : VLC_EGENERIC;
+    return payloadsize == 0 ? HEIMDALL_SUCCESS : HEIMDALL_EGENERIC;
 }
 #endif
 
 static int parse_iframeindex_payload( stream_t *s, uint32_t payloadsize, vec_index_t *index )
 {
-    msg_Dbg( s, "parsing index @%" PRIu64, vlc_stream_Tell(s) );
+    msg_Dbg( s, "parsing index @%" PRIu64, heimdall_stream_Tell(s) );
 
-    if( index && !vlc_vector_reserve( index, payloadsize / 18 ) )
-        return VLC_EGENERIC;
+    if( index && !heimdall_vector_reserve( index, payloadsize / 18 ) )
+        return HEIMDALL_EGENERIC;
 
     while( payloadsize > 18 )
     {
         uint8_t unitheader[18];
-        if( vlc_stream_Read( s, unitheader, 18 ) != 18 )
-            return VLC_EGENERIC;
+        if( heimdall_stream_Read( s, unitheader, 18 ) != 18 )
+            return HEIMDALL_EGENERIC;
 
         index_t entry;
-        entry.time = make_vlc_timestamp( GetQWLE( &unitheader[0] ) );
+        entry.time = make_heimdall_timestamp( GetQWLE( &unitheader[0] ) );
         entry.offset = GetQWLE( &unitheader[8] );
         if( index )
-            vlc_vector_push( index, entry );
+            heimdall_vector_push( index, entry );
 
         payloadsize -= 18;
     }
 
     if( payloadsize == 2 )
-        if( vlc_stream_Read( s, NULL, 2 ) != 2 )
-            return VLC_EGENERIC;
+        if( heimdall_stream_Read( s, NULL, 2 ) != 2 )
+            return HEIMDALL_EGENERIC;
 
-    return payloadsize == 2 ? VLC_SUCCESS : VLC_EGENERIC;
+    return payloadsize == 2 ? HEIMDALL_SUCCESS : HEIMDALL_EGENERIC;
 }
 
 static int parse_metadata( stream_t *s, char **ppsz )
 {
     uint8_t header[20];
-    if( vlc_stream_Read( s, header, 20 ) != 20 )
-        return VLC_EGENERIC;
+    if( heimdall_stream_Read( s, header, 20 ) != 20 )
+        return HEIMDALL_EGENERIC;
     uint32_t sz = GetDWLE( &header[16] ) * 2;
     void *buf;
     if( ppsz && (buf = malloc( sz )) )
     {
         int i_ret;
-        if( vlc_stream_Read( s, buf, sz ) == sz )
+        if( heimdall_stream_Read( s, buf, sz ) == sz )
         {
             *ppsz = FromCharset( "UTF-16LE", buf, sz );
-             i_ret = *ppsz ? VLC_SUCCESS : VLC_EGENERIC;
+             i_ret = *ppsz ? HEIMDALL_SUCCESS : HEIMDALL_EGENERIC;
         }
         else
-            i_ret = VLC_EGENERIC;
+            i_ret = HEIMDALL_EGENERIC;
         free( buf );
         return i_ret;
     }
     else
     {
-        if( vlc_stream_Read( s, NULL, sz ) != sz )
-            return VLC_EGENERIC;
+        if( heimdall_stream_Read( s, NULL, sz ) != sz )
+            return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int parse_file_header( stream_t *s, char **ppsz_title )
@@ -288,22 +289,22 @@ static int parse_file_header( stream_t *s, char **ppsz_title )
     uint8_t prevoffset[4];
     char *psz_title = NULL, **pp_meta = &psz_title;
 
-    if( vlc_stream_Peek( s, &p_peek, 27 ) != 27 ||
+    if( heimdall_stream_Peek( s, &p_peek, 27 ) != 27 ||
         memcmp( p_peek, "Genetec", 7 ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* Version */
     const uint8_t version = p_peek[26] - '0';
     int uuidtextcount = version < 5 ? 1 : 2;
     int uuidcount = version < 5 ? 0 : 3;
 
-    if( vlc_stream_Seek( s, 30 + 60 ) != VLC_SUCCESS )
-        return VLC_EGENERIC;
+    if( heimdall_stream_Seek( s, 30 + 60 ) != HEIMDALL_SUCCESS )
+        return HEIMDALL_EGENERIC;
 
     /* Parse UUID+text entries */
     for( ; uuidtextcount; uuidtextcount-- )
     {
-        if( parse_metadata( s, pp_meta ) != VLC_SUCCESS )
+        if( parse_metadata( s, pp_meta ) != HEIMDALL_SUCCESS )
             goto error;
         pp_meta = NULL;
     }
@@ -311,23 +312,23 @@ static int parse_file_header( stream_t *s, char **ppsz_title )
     /* Parse UUID entries */
     for( ; uuidcount; uuidcount-- )
     {
-        if( vlc_stream_Read( s, NULL, 16 ) != 16 )
+        if( heimdall_stream_Read( s, NULL, 16 ) != 16 )
             goto error;
     }
 
     ssize_t toread = version < 5 ? 10 : 12;
-    if (vlc_stream_Read( s, NULL, toread ) != toread ||
-        vlc_stream_Read( s, prevoffset, 4 ) != 4 ||
+    if (heimdall_stream_Read( s, NULL, toread ) != toread ||
+        heimdall_stream_Read( s, prevoffset, 4 ) != 4 ||
         GetDWLE( prevoffset ) != 0xFFFFFFFFU )
         goto error;
 
     *ppsz_title = psz_title;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     free( psz_title );
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 static int parse_wrapper_header( const uint8_t p[G64_WRAP_HEADER_BYTES], dump_unit_wrapper_t *unit )
@@ -340,38 +341,38 @@ static int parse_wrapper_header( const uint8_t p[G64_WRAP_HEADER_BYTES], dump_un
     if( p[G64_WRAP_HEADER_BYTES - 1] == 0x30 && p[13] == 0x80 )
     {
         unit->type = UNIT_RTP;
-        unit->pts = make_vlc_timestamp( GetQWLE(&p[0]) );
+        unit->pts = make_heimdall_timestamp( GetQWLE(&p[0]) );
         unit->flags = p[8];
         unit->size = GetDWLE(&p[9]);
 #ifdef G64_DEBUG
         fprintf(stderr, "%"PRId64" %u %2.2x\n", unit->pts, unit->size, unit->flags);
 #endif
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
-static int g64_rtp_pt_instantiate( vlc_object_t *obj, struct vlc_rtp_pt *restrict pt,
-                               const struct vlc_sdp_pt *restrict desc, const char *mime )
+static int g64_rtp_pt_instantiate( heimdall_object_t *obj, struct heimdall_rtp_pt *restrict pt,
+                               const struct heimdall_sdp_pt *restrict desc, const char *mime )
 {
-    int ret = VLC_ENOTSUP;
+    int ret = HEIMDALL_ENOTSUP;
 
     module_t **mods;
-    ssize_t n = vlc_module_match( "rtp parser", mime, true, &mods, NULL );
+    ssize_t n = heimdall_module_match( "rtp parser", mime, true, &mods, NULL );
 
     for ( ssize_t i = 0; i < n; i++ )
     {
-        vlc_rtp_parser_cb cb = vlc_module_map( vlc_object_logger(obj), mods[i] );
+        heimdall_rtp_parser_cb cb = heimdall_module_map( heimdall_object_logger(obj), mods[i] );
         if ( cb == NULL )
             continue;
 
         ret = cb(obj, pt, desc);
-        if ( ret == VLC_SUCCESS )
+        if ( ret == HEIMDALL_SUCCESS )
         {
             msg_Dbg( obj, "- module \"%s\"", module_get_name(mods[i], true) );
             assert( pt->ops != NULL );
-            ret = VLC_SUCCESS;
+            ret = HEIMDALL_SUCCESS;
             break;
         }
     }
@@ -380,36 +381,36 @@ static int g64_rtp_pt_instantiate( vlc_object_t *obj, struct vlc_rtp_pt *restric
     return ret;
 }
 
-static void g64_dummy_es_destroy( struct vlc_rtp_es *es )
+static void g64_dummy_es_destroy( struct heimdall_rtp_es *es )
 {
-    VLC_UNUSED(es);
+    HEIMDALL_UNUSED(es);
 }
 
-static void g64_dummy_es_decode( struct vlc_rtp_es *es, block_t *block )
+static void g64_dummy_es_decode( struct heimdall_rtp_es *es, block_t *block )
 {
-    VLC_UNUSED(es);
+    HEIMDALL_UNUSED(es);
     block_Release( block );
 }
 
-static const struct vlc_rtp_es_operations g64_dummy_es_ops =
+static const struct heimdall_rtp_es_operations g64_dummy_es_ops =
 {
     g64_dummy_es_destroy, g64_dummy_es_decode,
 };
 
 struct g64_es_id {
-    struct vlc_rtp_es es;
+    struct heimdall_rtp_es es;
     es_out_t *out;
     es_out_id_t *id;
-    vlc_tick_t *ppts;
+    heimdall_tick_t *ppts;
 };
 
-static void g64_es_id_destroy( struct vlc_rtp_es *es )
+static void g64_es_id_destroy( struct heimdall_rtp_es *es )
 {
     struct g64_es_id *ei = container_of(es, struct g64_es_id, es);
     free( ei );
 }
 
-static void g64_es_id_send( struct vlc_rtp_es *es, block_t *block )
+static void g64_es_id_send( struct heimdall_rtp_es *es, block_t *block )
 {
     struct g64_es_id *ei = container_of(es, struct g64_es_id, es);
     block->i_pts = *ei->ppts;
@@ -417,16 +418,16 @@ static void g64_es_id_send( struct vlc_rtp_es *es, block_t *block )
     es_out_Send( ei->out, ei->id, block );
 }
 
-static const struct vlc_rtp_es_operations g64_es_id_ops = {
+static const struct heimdall_rtp_es_operations g64_es_id_ops = {
     g64_es_id_destroy, g64_es_id_send,
 };
 
-static struct vlc_rtp_es *g64_rtp_es_request( struct vlc_rtp_pt *pt,
+static struct heimdall_rtp_es *g64_rtp_es_request( struct heimdall_rtp_pt *pt,
                                               const es_format_t *restrict fmt )
 {
     demux_t *demux = pt->owner.data;
     demux_sys_t *p_sys  = demux->p_sys;
-    VLC_UNUSED(fmt);
+    HEIMDALL_UNUSED(fmt);
     assert(fmt->i_codec == p_sys->fcc);
 
     struct g64_es_id *ei = malloc(sizeof (*ei));
@@ -440,42 +441,42 @@ static struct vlc_rtp_es *g64_rtp_es_request( struct vlc_rtp_pt *pt,
     return &ei->es;
 }
 
-static struct vlc_rtp_es *g64_rtp_mux_request( struct vlc_rtp_pt *pt,
+static struct heimdall_rtp_es *g64_rtp_mux_request( struct heimdall_rtp_pt *pt,
                                                const char *name )
 {
-    VLC_UNUSED(pt);
-    VLC_UNUSED(name);
+    HEIMDALL_UNUSED(pt);
+    HEIMDALL_UNUSED(name);
     return NULL;
 }
 
-static void g64_rtp_pt_clear( struct vlc_rtp_pt *pt, void **pptriv )
+static void g64_rtp_pt_clear( struct heimdall_rtp_pt *pt, void **pptriv )
 {
-    vlc_rtp_pt_end( pt, *pptriv );
+    heimdall_rtp_pt_end( pt, *pptriv );
     if (pt->ops->release != NULL)
         pt->ops->release( pt );
     *pptriv = NULL;
 }
 
-static const struct vlc_rtp_pt_owner_operations g64_pt_owner_ops = {
+static const struct heimdall_rtp_pt_owner_operations g64_pt_owner_ops = {
     g64_rtp_es_request,
     g64_rtp_mux_request,
 };
 
-static int g64_rtp_pt_init( demux_t *p_demux, struct vlc_rtp_pt *pt, vlc_fourcc_t fcc )
+static int g64_rtp_pt_init( demux_t *p_demux, struct heimdall_rtp_pt *pt, heimdall_fourcc_t fcc )
 {
-    struct vlc_rtp_pt_owner owner = {
+    struct heimdall_rtp_pt_owner owner = {
         &g64_pt_owner_ops, p_demux
     };
 
     static const struct
     {
-        vlc_fourcc_t fcc;
+        heimdall_fourcc_t fcc;
         const char *mime;
         const char *parameters;
     } payloads[] = {
-        { VLC_CODEC_H264, "video/H264", "packetization-mode=1;" },
-        { VLC_CODEC_HEVC, "video/H265", NULL },
-        { VLC_CODEC_MULAW, "audio/PCMU", NULL },
+        { HEIMDALL_CODEC_H264, "video/H264", "packetization-mode=1;" },
+        { HEIMDALL_CODEC_HEVC, "video/H265", NULL },
+        { HEIMDALL_CODEC_MULAW, "audio/PCMU", NULL },
     };
 
     for(unsigned i=0;i<ARRAY_SIZE(payloads); i++)
@@ -485,7 +486,7 @@ static int g64_rtp_pt_init( demux_t *p_demux, struct vlc_rtp_pt *pt, vlc_fourcc_
 
         /* we mostly don't care about SDP values here,
            we just need correct mime and parameters to open the pt */
-        struct vlc_sdp_pt sdp = {0};
+        struct heimdall_sdp_pt sdp = {0};
         sdp.channel_count = 2;
         sdp.clock_rate = 90000;
         strcat(sdp.name, strchr(payloads[i].mime,'/') + 1);
@@ -495,14 +496,14 @@ static int g64_rtp_pt_init( demux_t *p_demux, struct vlc_rtp_pt *pt, vlc_fourcc_
         pt->channel_count = 2;
         pt->number = 96;
 
-        if ( g64_rtp_pt_instantiate( VLC_OBJECT(p_demux), pt, &sdp,
-                                     payloads[i].mime ) == VLC_SUCCESS )
-            return VLC_SUCCESS;
+        if ( g64_rtp_pt_instantiate( HEIMDALL_OBJECT(p_demux), pt, &sdp,
+                                     payloads[i].mime ) == HEIMDALL_SUCCESS )
+            return HEIMDALL_SUCCESS;
 
         break;
     }
 
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 static int LoadIndex( stream_t *s, vec_index_t *index )
@@ -510,21 +511,21 @@ static int LoadIndex( stream_t *s, vec_index_t *index )
     uint64_t i_size;
     const uint8_t *p_peek;
 
-    if( vlc_stream_GetSize( s, &i_size ) != VLC_SUCCESS ||
-        vlc_stream_Seek( s, i_size - 4 ) != VLC_SUCCESS ||
-        vlc_stream_Peek( s, &p_peek, 4 ) != 4 )
-        return VLC_EGENERIC;
+    if( heimdall_stream_GetSize( s, &i_size ) != HEIMDALL_SUCCESS ||
+        heimdall_stream_Seek( s, i_size - 4 ) != HEIMDALL_SUCCESS ||
+        heimdall_stream_Peek( s, &p_peek, 4 ) != 4 )
+        return HEIMDALL_EGENERIC;
 
     uint32_t i_offset = GetDWLE( p_peek );
     if( i_offset < 14 + 18 ||
         i_offset > i_size - 4 - 4 ||
-        vlc_stream_Seek( s, i_size - i_offset - 4 - 4 ) != VLC_SUCCESS )
-        return VLC_EGENERIC;
+        heimdall_stream_Seek( s, i_size - i_offset - 4 - 4 ) != HEIMDALL_SUCCESS )
+        return HEIMDALL_EGENERIC;
 
     uint8_t header[12];
-    if( vlc_stream_Read( s, header, 12 ) != 12 ||
+    if( heimdall_stream_Read( s, header, 12 ) != 12 ||
         GetQWLE( &header[4] ) != 0xFFFFFFFFFFFFFFFFU )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     return parse_iframeindex_payload( s, i_offset + 4 - 12, index );
 }
@@ -533,30 +534,30 @@ static int BuildIndex( stream_t *s, vec_index_t *index )
 {
     for( ;; )
     {
-        index_t entry = { 0, vlc_stream_Tell(s) };
+        index_t entry = { 0, heimdall_stream_Tell(s) };
 
         uint8_t unit_header[G64_WRAP_HEADER_BYTES];
-        if( vlc_stream_Read( s, unit_header, G64_WRAP_HEADER_BYTES )
+        if( heimdall_stream_Read( s, unit_header, G64_WRAP_HEADER_BYTES )
                 != G64_WRAP_HEADER_BYTES )
             break;
 
         dump_unit_wrapper_t unit;
-        if( parse_wrapper_header(unit_header, &unit) != VLC_SUCCESS ||
+        if( parse_wrapper_header(unit_header, &unit) != HEIMDALL_SUCCESS ||
             unit.size < 12 || unit.type != UNIT_RTP )
             break;
 
         if( unit.flags & G64_FLAG_RANDOM_ACCESS )
         {
             entry.time = unit.pts;
-            if( !vlc_vector_push( index, entry ) )
+            if( !heimdall_vector_push( index, entry ) )
                 break;
         }
 
-        if( vlc_stream_Seek( s, vlc_stream_Tell(s) + unit.size - 8 ) != VLC_SUCCESS )
-            return VLC_EGENERIC;
+        if( heimdall_stream_Seek( s, heimdall_stream_Tell(s) + unit.size - 8 ) != HEIMDALL_SUCCESS )
+            return HEIMDALL_EGENERIC;
     }
 
-    return index->size ? VLC_SUCCESS : VLC_EGENERIC;
+    return index->size ? HEIMDALL_SUCCESS : HEIMDALL_EGENERIC;
 }
 
 static void parse_rtp( demux_t *p_demux, block_t *p_block )
@@ -610,8 +611,8 @@ static void parse_rtp( demux_t *p_demux, block_t *p_block )
         p_block->i_buffer -= 4 + extlen * 4;
     }
 
-    const struct vlc_rtp_pktinfo pktinfo = { .m = mbit };
-    vlc_rtp_pt_decode( &p_sys->pt, p_sys->ptpriv, p_block, &pktinfo );
+    const struct heimdall_rtp_pktinfo pktinfo = { .m = mbit };
+    heimdall_rtp_pt_decode( &p_sys->pt, p_sys->ptpriv, p_block, &pktinfo );
 
     return;
 
@@ -627,7 +628,7 @@ static int parse_rtp_dumps( demux_t *p_demux, uint32_t size )
     {
         /* Process one packet dump */
         uint8_t header[6];
-        if( vlc_stream_Read( p_demux->s, header, 6 ) != 6 )
+        if( heimdall_stream_Read( p_demux->s, header, 6 ) != 6 )
             break;
 
         if( header[0] != 0x00 || header[1] != p_sys->i_type )
@@ -638,7 +639,7 @@ static int parse_rtp_dumps( demux_t *p_demux, uint32_t size )
         if( sz > size + 6 )
             break;
 
-        block_t *p_block = vlc_stream_Block( p_demux->s, sz );
+        block_t *p_block = heimdall_stream_Block( p_demux->s, sz );
         if( p_block == NULL )
             break;
 
@@ -647,7 +648,7 @@ static int parse_rtp_dumps( demux_t *p_demux, uint32_t size )
         size -= 6 + sz;
     }
 
-    return (size != 0) ? VLC_DEMUXER_EOF : VLC_DEMUXER_SUCCESS;
+    return (size != 0) ? HEIMDALL_DEMUXER_EOF : HEIMDALL_DEMUXER_SUCCESS;
 }
 
 /*****************************************************************************
@@ -660,55 +661,55 @@ static int Demux( demux_t *p_demux )
     demux_sys_t *p_sys  = p_demux->p_sys;
 
     uint8_t unit_header[G64_WRAP_HEADER_BYTES];
-    if( vlc_stream_Read( p_demux->s, unit_header, G64_WRAP_HEADER_BYTES )
+    if( heimdall_stream_Read( p_demux->s, unit_header, G64_WRAP_HEADER_BYTES )
             != G64_WRAP_HEADER_BYTES )
-        return VLC_DEMUXER_EOF;
+        return HEIMDALL_DEMUXER_EOF;
 
     dump_unit_wrapper_t unit;
-    if( parse_wrapper_header( unit_header, &unit ) != VLC_SUCCESS ||
+    if( parse_wrapper_header( unit_header, &unit ) != HEIMDALL_SUCCESS ||
         unit.size < 12 || unit.type != UNIT_RTP )
-        return VLC_DEMUXER_EOF;
+        return HEIMDALL_DEMUXER_EOF;
 
-    if ( p_sys->pcr == VLC_TICK_INVALID && unit.pts != VLC_TICK_INVALID )
+    if ( p_sys->pcr == HEIMDALL_TICK_INVALID && unit.pts != HEIMDALL_TICK_INVALID )
         es_out_SetPCR( p_demux->out, unit.pts );
     p_sys->pcr = unit.pts;
 
     int ret = parse_rtp_dumps( p_demux, unit.size - 12 );
     uint8_t wrappersize[4];
-    if(ret != VLC_DEMUXER_SUCCESS)
+    if(ret != HEIMDALL_DEMUXER_SUCCESS)
     {
         msg_Err( p_demux, "Invalid wrapper bytes @%"PRIu64,
-                vlc_stream_Tell(p_demux->s) - 6);
-        ret = VLC_DEMUXER_EOF;
+                heimdall_stream_Tell(p_demux->s) - 6);
+        ret = HEIMDALL_DEMUXER_EOF;
     }
-    else if( vlc_stream_Read( p_demux->s, wrappersize, 4 ) != 4 ||
+    else if( heimdall_stream_Read( p_demux->s, wrappersize, 4 ) != 4 ||
         GetDWLE(wrappersize) != unit.size + 13 )
     {
         msg_Err( p_demux, "Invalid end of wrapper @%"PRIu64,
-                 vlc_stream_Tell(p_demux->s) );
-        ret = VLC_DEMUXER_EOF;
+                 heimdall_stream_Tell(p_demux->s) );
+        ret = HEIMDALL_DEMUXER_EOF;
     }
 
-    if( p_sys->pcr != VLC_TICK_INVALID )
+    if( p_sys->pcr != HEIMDALL_TICK_INVALID )
         es_out_SetPCR( p_demux->out, p_sys->pcr );
 
     return ret;
 }
 
-static int SeekTo( demux_t *p_demux, vlc_tick_t ts, bool b_precise )
+static int SeekTo( demux_t *p_demux, heimdall_tick_t ts, bool b_precise )
 {
     demux_sys_t *p_sys  = p_demux->p_sys;
 
     if( p_sys->index.size == 0 )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* delete and replace session first as we can't reset */
-    struct vlc_rtp_pt newpt = {0};
-    if( g64_rtp_pt_init( p_demux, &newpt, p_sys->fcc ) != VLC_SUCCESS )
-        return VLC_EGENERIC;
+    struct heimdall_rtp_pt newpt = {0};
+    if( g64_rtp_pt_init( p_demux, &newpt, p_sys->fcc ) != HEIMDALL_SUCCESS )
+        return HEIMDALL_EGENERIC;
     g64_rtp_pt_clear( &p_sys->pt, &p_sys->ptpriv );
     p_sys->pt = newpt;
-    p_sys->ptpriv = vlc_rtp_pt_begin( &p_sys->pt );
+    p_sys->ptpriv = heimdall_rtp_pt_begin( &p_sys->pt );
 
     uint64_t offset = p_sys->i_start_offset;
     for( size_t i=0; i<p_sys->index.size; i++ )
@@ -718,9 +719,9 @@ static int SeekTo( demux_t *p_demux, vlc_tick_t ts, bool b_precise )
         offset = p_sys->index.data[i].offset;
     }
 
-    p_sys->pcr = VLC_TICK_INVALID;
-    int ret = vlc_stream_Seek( p_demux->s, offset );
-    if( ret == VLC_SUCCESS && b_precise )
+    p_sys->pcr = HEIMDALL_TICK_INVALID;
+    int ret = heimdall_stream_Seek( p_demux->s, offset );
+    if( ret == HEIMDALL_SUCCESS && b_precise )
         b_precise = es_out_SetNextDisplayTime( p_demux->out, ts );
     return ret;
 }
@@ -735,45 +736,45 @@ static int Control( demux_t *p_demux, int i_query, va_list args )
     {
         case DEMUX_GET_LENGTH:
         {
-            *va_arg(args, vlc_tick_t *) = p_sys->i_duration;
-            return VLC_SUCCESS;
+            *va_arg(args, heimdall_tick_t *) = p_sys->i_duration;
+            return HEIMDALL_SUCCESS;
         }
 
         case DEMUX_GET_NORMAL_TIME:
         {
-            if( p_sys->i_first_pts != VLC_TICK_INVALID )
+            if( p_sys->i_first_pts != HEIMDALL_TICK_INVALID )
             {
-                *va_arg(args, vlc_tick_t *) = p_sys->i_first_pts;
-                return VLC_SUCCESS;
+                *va_arg(args, heimdall_tick_t *) = p_sys->i_first_pts;
+                return HEIMDALL_SUCCESS;
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         case DEMUX_GET_TIME:
-            if( p_sys->pcr == VLC_TICK_INVALID )
-                return VLC_EGENERIC;
-            *va_arg(args, vlc_tick_t *) = p_sys->pcr;
-            return VLC_SUCCESS;
+            if( p_sys->pcr == HEIMDALL_TICK_INVALID )
+                return HEIMDALL_EGENERIC;
+            *va_arg(args, heimdall_tick_t *) = p_sys->pcr;
+            return HEIMDALL_SUCCESS;
 
         case DEMUX_SET_TIME:
         {
-            vlc_tick_t ts = va_arg(args, vlc_tick_t);
+            heimdall_tick_t ts = va_arg(args, heimdall_tick_t);
             bool b_precise = va_arg( args, int );
             return SeekTo( p_demux, p_sys->i_first_pts + ts, b_precise );
         }
 
         case DEMUX_GET_POSITION:
         {
-            if( p_sys->i_duration == 0 || p_sys->pcr == VLC_TICK_INVALID )
-                return VLC_EGENERIC;
+            if( p_sys->i_duration == 0 || p_sys->pcr == HEIMDALL_TICK_INVALID )
+                return HEIMDALL_EGENERIC;
             *va_arg(args, double *) = (p_sys->pcr - p_sys->i_first_pts) / (double) p_sys->i_duration;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
 
         case DEMUX_SET_POSITION:
         {
             if( p_sys->i_duration == 0 )
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             double f = va_arg(args, double);
             bool b_precise = va_arg( args, int );
             return SeekTo( p_demux, p_sys->i_first_pts + p_sys->i_duration * f, b_precise );
@@ -781,13 +782,13 @@ static int Control( demux_t *p_demux, int i_query, va_list args )
 
         case DEMUX_GET_META:
         {
-            vlc_meta_t *p_meta;
-            if ( p_sys->psz_title && (p_meta = va_arg(args, vlc_meta_t *)) )
+            heimdall_meta_t *p_meta;
+            if ( p_sys->psz_title && (p_meta = va_arg(args, heimdall_meta_t *)) )
             {
-                vlc_meta_Set( p_meta, vlc_meta_Title, p_sys->psz_title );
-                return VLC_SUCCESS;
+                heimdall_meta_Set( p_meta, heimdall_meta_Title, p_sys->psz_title );
+                return HEIMDALL_SUCCESS;
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         default:
@@ -799,7 +800,7 @@ static int Control( demux_t *p_demux, int i_query, va_list args )
 /*****************************************************************************
  * Close:
  *****************************************************************************/
-static void Close( vlc_object_t *p_this )
+static void Close( heimdall_object_t *p_this )
 {
     demux_t *p_demux = (demux_t*) p_this;
     demux_sys_t *p_sys  = p_demux->p_sys;
@@ -807,7 +808,7 @@ static void Close( vlc_object_t *p_this )
         g64_rtp_pt_clear( &p_sys->pt, &p_sys->ptpriv );
     if( p_sys->es )
         es_out_Del( p_demux->out, p_sys->es );
-    vlc_vector_clear( &p_sys->index );
+    heimdall_vector_clear( &p_sys->index );
     free( p_sys->psz_title );
     free( p_sys );
 }
@@ -816,22 +817,22 @@ static void Close( vlc_object_t *p_this )
  * Open:
  *****************************************************************************/
 
-static int Open( vlc_object_t * p_this )
+static int Open( heimdall_object_t * p_this )
 {
     demux_t *p_demux = (demux_t*) p_this;
     demux_sys_t *p_sys;
     es_format_t fmt;
     char *psz_title = NULL;
 
-    if( parse_file_header( p_demux->s, &psz_title ) != VLC_SUCCESS )
-        return VLC_EGENERIC;
+    if( parse_file_header( p_demux->s, &psz_title ) != HEIMDALL_SUCCESS )
+        return HEIMDALL_EGENERIC;
 
     const uint8_t *p_peek;
-    if( vlc_stream_Peek( p_demux->s, &p_peek, G64_WRAP_HEADER_BYTES + 6 ) !=
+    if( heimdall_stream_Peek( p_demux->s, &p_peek, G64_WRAP_HEADER_BYTES + 6 ) !=
         G64_WRAP_HEADER_BYTES + 6 )
     {
         free( psz_title );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     switch( p_peek[G64_WRAP_HEADER_BYTES + 1] )
@@ -841,34 +842,34 @@ static int Open( vlc_object_t * p_this )
         case 0x21:
         case 0x31:
         case 0x34:
-            es_format_Init( &fmt, VIDEO_ES, VLC_CODEC_H264 );
+            es_format_Init( &fmt, VIDEO_ES, HEIMDALL_CODEC_H264 );
             break;
         case 0x3D:
         case 0x41:
         case 0x43:
-            es_format_Init( &fmt, VIDEO_ES, VLC_CODEC_HEVC );
+            es_format_Init( &fmt, VIDEO_ES, HEIMDALL_CODEC_HEVC );
             break;
         case 0xD2:
-            es_format_Init( &fmt, AUDIO_ES, VLC_CODEC_MULAW );
+            es_format_Init( &fmt, AUDIO_ES, HEIMDALL_CODEC_MULAW );
             fmt.audio.i_channels = 1;
             fmt.audio.i_rate = 8000;
             break;
         default:
             msg_Err(p_this, "unknown %2.2x", p_peek[G64_WRAP_HEADER_BYTES + 1]);
             free( psz_title );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 
     p_demux->p_sys = p_sys = calloc( 1, sizeof(demux_sys_t) );
     if( !p_sys )
     {
         free( psz_title );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     p_sys->i_type = p_peek[G64_WRAP_HEADER_BYTES + 1];
-    vlc_vector_init( &p_sys->index );
-    p_sys->i_start_offset = vlc_stream_Tell( p_demux->s );
+    heimdall_vector_init( &p_sys->index );
+    p_sys->i_start_offset = heimdall_stream_Tell( p_demux->s );
     p_sys->psz_title = psz_title;
 
     p_sys->fcc = fmt.i_codec;
@@ -878,39 +879,39 @@ static int Open( vlc_object_t * p_this )
     if( !p_sys->es )
     {
         Close( p_this );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     p_sys->dummy_es.ops = &g64_dummy_es_ops;
 
     /* Build RTP pt */
-    if( g64_rtp_pt_init( p_demux, &p_sys->pt, fmt.i_codec ) != VLC_SUCCESS )
+    if( g64_rtp_pt_init( p_demux, &p_sys->pt, fmt.i_codec ) != HEIMDALL_SUCCESS )
     {
         Close( p_this );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    p_sys->ptpriv = vlc_rtp_pt_begin( &p_sys->pt );
+    p_sys->ptpriv = heimdall_rtp_pt_begin( &p_sys->pt );
 
-    if( !p_demux->b_preparsing && vlc_stream_CanSeek( p_demux->s ) )
+    if( !p_demux->b_preparsing && heimdall_stream_CanSeek( p_demux->s ) )
     {
         /* Load native index from end of file */
          int ret = LoadIndex( p_demux->s, &p_sys->index );
-         if( vlc_stream_Seek( p_demux->s, p_sys->i_start_offset ) )
+         if( heimdall_stream_Seek( p_demux->s, p_sys->i_start_offset ) )
          {
              Close( p_this );
-             return VLC_EGENERIC;
+             return HEIMDALL_EGENERIC;
          }
 
          /* Build Index if file is truncated */
-         if( ret != VLC_SUCCESS && vlc_stream_CanFastSeek( p_demux->s ) )
+         if( ret != HEIMDALL_SUCCESS && heimdall_stream_CanFastSeek( p_demux->s ) )
          {
              msg_Warn( p_demux, "Can't load index. Trying to rebuild" );
-                if( BuildIndex( p_demux->s, &p_sys->index ) != VLC_SUCCESS )
+                if( BuildIndex( p_demux->s, &p_sys->index ) != HEIMDALL_SUCCESS )
                     msg_Warn( p_demux, "Can't build index. Won't be able to seek" );
-                if( vlc_stream_Seek( p_demux->s, p_sys->i_start_offset ) )
+                if( heimdall_stream_Seek( p_demux->s, p_sys->i_start_offset ) )
                 {
                     Close( p_this );
-                    return VLC_EGENERIC;
+                    return HEIMDALL_EGENERIC;
                 }
          }
     }
@@ -922,13 +923,13 @@ static int Open( vlc_object_t * p_this )
     }
     else
     {
-        p_sys->i_first_pts = VLC_TICK_INVALID;
+        p_sys->i_first_pts = HEIMDALL_TICK_INVALID;
         p_sys->i_duration = 0;
     }
 
     p_demux->pf_demux   = Demux;
     p_demux->pf_control = Control;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 
@@ -936,10 +937,10 @@ static int Open( vlc_object_t * p_this )
  * Module descriptor
  *****************************************************************************/
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( "G64 raw RTP" )
     set_description( N_("G64 Raw RTP") )
     set_capability( "demux", 10 )
     set_subcategory( SUBCAT_INPUT_DEMUX )
     set_callbacks( Open, Close )
-vlc_module_end ()
+heimdall_module_end ()

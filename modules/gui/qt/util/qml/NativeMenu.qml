@@ -1,6 +1,7 @@
 
 /*****************************************************************************
  * Copyright (C) 2022 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,8 +19,8 @@
  *****************************************************************************/
 import QtQml
 
-import VLC.MainInterface
-import VLC.Menus
+import Heimdall.MainInterface
+import Heimdall.Menus
 
 // @brief - a class that can be used to create native menus with support
 // to asyncronously retreive data from MLBaseModel like model

@@ -3,13 +3,14 @@
  *****************************************************************************
  * Copyright (C) 2004-2020 VLC authors and VideoLAN
  * Copyright (C) 2009, 2011 Laurent Aimar
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Laurent Aimar <fenrir _AT_ videolan _DOT_ org>
+ * Authors: Laurent Aimar <fenrir _AT_ lycaria _DOT_ org>
  *          Ilkka Ollakka <ileoo@videolan.org>
  *          Rémi Denis-Courmont
- *          Adrien Maglo <magsoft at videolan dot org>
- *          Felix Paul Kühne <fkuehne at videolan dot org>
- *          Pierre d'Herbemont <pdherbemont at videolan dot org>
+ *          Adrien Maglo <magsoft at lycaria dot org>
+ *          Felix Paul Kühne <fkuehne at lycaria dot org>
+ *          Pierre d'Herbemont <pdherbemont at lycaria dot org>
  *          Alexandre Janniaux <ajanni@videolabs.io>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -34,11 +35,11 @@
 #include "renderer.h"
 
 #include <assert.h>
-#include <vlc_common.h>
-#include <vlc_es.h>
-#include <vlc_picture.h>
-#include <vlc_opengl_filter.h>
-#include <vlc_configuration.h>
+#include <heimdall_common.h>
+#include <heimdall_es.h>
+#include <heimdall_picture.h>
+#include <heimdall_opengl_filter.h>
+#include <heimdall_configuration.h>
 
 #include "gl_util.h"
 #include "sampler.h"
@@ -76,7 +77,7 @@ static void getProjectionMatrix(float sar, float fovy, GLfloat matrix[static 16]
      memcpy(matrix, m, sizeof(m));
 }
 
-static void getViewpointMatrixes(struct vlc_gl_renderer *renderer,
+static void getViewpointMatrixes(struct heimdall_gl_renderer *renderer,
                                  video_projection_mode_t projection_mode)
 {
     if ((projection_mode == PROJECTION_MODE_EQUIRECTANGULAR
@@ -88,7 +89,7 @@ static void getViewpointMatrixes(struct vlc_gl_renderer *renderer,
         getZoomMatrix(renderer->f_z, renderer->var.ZoomMatrix);
 
         /* renderer->vp has been reversed and is a world transform */
-        vlc_viewpoint_to_4x4(&renderer->vp, renderer->var.ViewMatrix);
+        heimdall_viewpoint_to_4x4(&renderer->vp, renderer->var.ViewMatrix);
     }
     else
     {
@@ -104,7 +105,7 @@ static void getViewpointMatrixes(struct vlc_gl_renderer *renderer,
 
 static void
 InitStereoMatrix(GLfloat matrix_out[static 3*3],
-                 vlc_stereoscopic_mode_t stereo_mode,
+                 heimdall_stereoscopic_mode_t stereo_mode,
                  video_multiview_mode_t multiview_mode)
 {
     /*
@@ -180,10 +181,10 @@ InitStereoMatrix(GLfloat matrix_out[static 3*3],
 }
 
 static int
-opengl_link_program(struct vlc_gl_filter *filter)
+opengl_link_program(struct heimdall_gl_filter *filter)
 {
-    struct vlc_gl_renderer *renderer = filter->sys;
-    struct vlc_gl_sampler *sampler = renderer->sampler;
+    struct heimdall_gl_renderer *renderer = filter->sys;
+    struct heimdall_gl_sampler *sampler = renderer->sampler;
     const opengl_vtable_t *vt = renderer->vt;
 
     static const char *const VERTEX_SHADER_BODY =
@@ -216,7 +217,7 @@ opengl_link_program(struct vlc_gl_filter *filter)
           "out vec4 FragColor;\n"
         "#endif\n"
         "void main() {\n"
-        " FragColor = vlc_texture(PicCoords);\n"
+        " FragColor = heimdall_texture(PicCoords);\n"
         "}\n";
 
     const char *extensions = sampler->shader.extensions
@@ -254,11 +255,11 @@ opengl_link_program(struct vlc_gl_filter *filter)
            sampler->ops->load);
 
     GLuint program_id =
-        vlc_gl_BuildProgram(VLC_OBJECT(filter), vt,
+        heimdall_gl_BuildProgram(HEIMDALL_OBJECT(filter), vt,
                             ARRAY_SIZE(vertex_shader), vertex_shader,
                             ARRAY_SIZE(fragment_shader), fragment_shader);
     if (!program_id)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* Fetch UniformLocations and AttribLocations */
 #define GET_LOC(type, x, str) do { \
@@ -283,22 +284,22 @@ opengl_link_program(struct vlc_gl_filter *filter)
 #undef GET_ULOC
 #undef GET_ALOC
 
-    vlc_gl_sampler_FetchLocations(sampler, program_id);
+    heimdall_gl_sampler_FetchLocations(sampler, program_id);
 
     renderer->program_id = program_id;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     vt->DeleteProgram(program_id);
     renderer->program_id = 0;
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 static void
-Close(struct vlc_gl_filter *filter)
+Close(struct heimdall_gl_filter *filter)
 {
-    struct vlc_gl_renderer *renderer = filter->sys;
+    struct heimdall_gl_renderer *renderer = filter->sys;
     const opengl_vtable_t *vt = renderer->vt;
 
     vt->DeleteBuffers(1, &renderer->vertex_buffer_object);
@@ -312,7 +313,7 @@ Close(struct vlc_gl_filter *filter)
     free(renderer);
 }
 
-static void UpdateZ(struct vlc_gl_renderer *renderer)
+static void UpdateZ(struct heimdall_gl_renderer *renderer)
 {
     /* Do trigonometry to calculate the minimal z value
      * that will allow us to zoom out without seeing the outside of the
@@ -336,18 +337,18 @@ static void UpdateZ(struct vlc_gl_renderer *renderer)
     }
 }
 
-static void UpdateFOVy(struct vlc_gl_renderer *renderer)
+static void UpdateFOVy(struct heimdall_gl_renderer *renderer)
 {
     renderer->f_fovy = 2 * atanf(tanf(renderer->f_fovx / 2) / renderer->f_sar);
 }
 
 int
-vlc_gl_renderer_SetViewpoint(struct vlc_gl_renderer *renderer,
-                             const vlc_viewpoint_t *p_vp)
+heimdall_gl_renderer_SetViewpoint(struct heimdall_gl_renderer *renderer,
+                             const heimdall_viewpoint_t *p_vp)
 {
     if (p_vp->fov > FIELD_OF_VIEW_DEGREES_MAX
             || p_vp->fov < FIELD_OF_VIEW_DEGREES_MIN)
-        return VLC_EINVAL;
+        return HEIMDALL_EINVAL;
 
     // Convert degree into radian
     float f_fovx = p_vp->fov * (float)M_PI / 180.f;
@@ -364,11 +365,11 @@ vlc_gl_renderer_SetViewpoint(struct vlc_gl_renderer *renderer,
     }
     getViewpointMatrixes(renderer, renderer->projection_mode);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void
-vlc_gl_renderer_SetOutputSize(struct vlc_gl_renderer *renderer, unsigned width,
+heimdall_gl_renderer_SetOutputSize(struct heimdall_gl_renderer *renderer, unsigned width,
                               unsigned height)
 {
     float f_sar = (float) width / height;
@@ -386,20 +387,20 @@ vlc_gl_renderer_SetOutputSize(struct vlc_gl_renderer *renderer, unsigned width,
 }
 
 static int
-RequestOutputSize(struct vlc_gl_filter *filter,
-                  struct vlc_gl_tex_size *req,
-                  struct vlc_gl_tex_size *optimal_in)
+RequestOutputSize(struct heimdall_gl_filter *filter,
+                  struct heimdall_gl_tex_size *req,
+                  struct heimdall_gl_tex_size *optimal_in)
 {
-    struct vlc_gl_renderer *renderer = filter->sys;
+    struct heimdall_gl_renderer *renderer = filter->sys;
 
-    vlc_gl_renderer_SetOutputSize(renderer, req->width, req->height);
+    heimdall_gl_renderer_SetOutputSize(renderer, req->width, req->height);
 
     /* The optimal input size is the size for which the renderer do not need to
      * scale */
     optimal_in->width = renderer->target_width;
     optimal_in->height = renderer->target_height;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int BuildSphere(GLfloat **vertexCoord, GLfloat **textureCoord, unsigned *nbVertices,
@@ -411,21 +412,21 @@ static int BuildSphere(GLfloat **vertexCoord, GLfloat **textureCoord, unsigned *
     *nbVertices = (nbLatBands + 1) * (nbLonBands + 1);
     *nbIndices = nbLatBands * nbLonBands * 3 * 2;
 
-    *vertexCoord = vlc_alloc(*nbVertices * 3, sizeof(GLfloat));
+    *vertexCoord = heimdall_alloc(*nbVertices * 3, sizeof(GLfloat));
     if (*vertexCoord == NULL)
-        return VLC_ENOMEM;
-    *textureCoord = vlc_alloc(*nbVertices * 2, sizeof(GLfloat));
+        return HEIMDALL_ENOMEM;
+    *textureCoord = heimdall_alloc(*nbVertices * 2, sizeof(GLfloat));
     if (*textureCoord == NULL)
     {
         free(*vertexCoord);
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
-    *indices = vlc_alloc(*nbIndices, sizeof(GLushort));
+    *indices = heimdall_alloc(*nbIndices, sizeof(GLushort));
     if (*indices == NULL)
     {
         free(*textureCoord);
         free(*vertexCoord);
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     for (unsigned lat = 0; lat <= nbLatBands; lat++) {
@@ -487,7 +488,7 @@ static int BuildSphere(GLfloat **vertexCoord, GLfloat **textureCoord, unsigned *
         }
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 
@@ -502,15 +503,15 @@ static int BuildCube(float padW, float padH,
     *textureCoord = NULL;
     *indices = NULL;
 
-    *vertexCoord = vlc_alloc(*nbVertices * 3, sizeof(GLfloat));
+    *vertexCoord = heimdall_alloc(*nbVertices * 3, sizeof(GLfloat));
     if (*vertexCoord == NULL)
         goto error;
 
-    *textureCoord = vlc_alloc(*nbVertices * 2, sizeof(GLfloat));
+    *textureCoord = heimdall_alloc(*nbVertices * 2, sizeof(GLfloat));
     if (*textureCoord == NULL)
         goto error;
 
-    *indices = vlc_alloc(*nbIndices, sizeof(GLushort));
+    *indices = heimdall_alloc(*nbIndices, sizeof(GLushort));
     if (*indices == NULL)
         goto error;
 
@@ -589,12 +590,12 @@ static int BuildCube(float padW, float padH,
 
     memcpy(*indices, ind, *nbIndices * sizeof(GLushort));
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     free(*vertexCoord);
     free(*textureCoord);
-    return VLC_ENOMEM;
+    return HEIMDALL_ENOMEM;
 }
 
 static int BuildRectangle(
@@ -604,21 +605,21 @@ static int BuildRectangle(
     *nbVertices = 4;
     *nbIndices = 6;
 
-    *vertexCoord = vlc_alloc(*nbVertices * 3, sizeof(GLfloat));
+    *vertexCoord = heimdall_alloc(*nbVertices * 3, sizeof(GLfloat));
     if (*vertexCoord == NULL)
-        return VLC_ENOMEM;
-    *textureCoord = vlc_alloc(*nbVertices * 2, sizeof(GLfloat));
+        return HEIMDALL_ENOMEM;
+    *textureCoord = heimdall_alloc(*nbVertices * 2, sizeof(GLfloat));
     if (*textureCoord == NULL)
     {
         free(*vertexCoord);
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
-    *indices = vlc_alloc(*nbIndices, sizeof(GLushort));
+    *indices = heimdall_alloc(*nbIndices, sizeof(GLushort));
     if (*indices == NULL)
     {
         free(*textureCoord);
         free(*vertexCoord);
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     static const GLfloat coord[] = {
@@ -663,15 +664,15 @@ static int BuildRectangle(
 
     memcpy(*indices, ind, *nbIndices * sizeof(GLushort));
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int SetupCoords(struct vlc_gl_renderer *renderer,
-                       const struct vlc_gl_picture *pic,
+static int SetupCoords(struct heimdall_gl_renderer *renderer,
+                       const struct heimdall_gl_picture *pic,
                        video_orientation_t orientation)
 {
     const opengl_vtable_t *vt = renderer->vt;
-    struct vlc_gl_sampler *sampler = renderer->sampler;
+    struct heimdall_gl_sampler *sampler = renderer->sampler;
     const video_format_t *fmt = &sampler->fmt_in;
 
     GLfloat *vertexCoord, *textureCoord;
@@ -700,15 +701,15 @@ static int SetupCoords(struct vlc_gl_renderer *renderer,
                           &indices, &nbIndices);
         break;
     default:
-        i_ret = VLC_EGENERIC;
+        i_ret = HEIMDALL_EGENERIC;
         break;
     }
 
-    if (i_ret != VLC_SUCCESS)
+    if (i_ret != HEIMDALL_SUCCESS)
         return i_ret;
 
     /* Transform picture-to-texture coordinates in place */
-    vlc_gl_picture_ToTexCoords(pic, nbVertices, textureCoord, textureCoord);
+    heimdall_gl_picture_ToTexCoords(pic, nbVertices, textureCoord, textureCoord);
 
     vt->BindBuffer(GL_ARRAY_BUFFER, renderer->texture_buffer_object);
     vt->BufferData(GL_ARRAY_BUFFER, nbVertices * 2 * sizeof(GLfloat),
@@ -728,16 +729,16 @@ static int SetupCoords(struct vlc_gl_renderer *renderer,
 
     renderer->nb_indices = nbIndices;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int
-Draw(struct vlc_gl_filter *filter, const struct vlc_gl_picture *pic,
-     const struct vlc_gl_input_meta *meta)
+Draw(struct heimdall_gl_filter *filter, const struct heimdall_gl_picture *pic,
+     const struct heimdall_gl_input_meta *meta)
 {
     (void) meta;
 
-    struct vlc_gl_renderer *renderer = filter->sys;
+    struct heimdall_gl_renderer *renderer = filter->sys;
 
     const opengl_vtable_t *vt = renderer->vt;
 
@@ -747,9 +748,9 @@ Draw(struct vlc_gl_filter *filter, const struct vlc_gl_picture *pic,
 
     vt->UseProgram(renderer->program_id);
 
-    struct vlc_gl_sampler *sampler = renderer->sampler;
-    vlc_gl_sampler_Update(sampler, pic);
-    vlc_gl_sampler_Load(sampler);
+    struct heimdall_gl_sampler *sampler = renderer->sampler;
+    heimdall_gl_sampler_Update(sampler, pic);
+    heimdall_gl_sampler_Load(sampler);
 
     if (pic->mtx_has_changed)
         renderer->valid_coords = false;
@@ -757,7 +758,7 @@ Draw(struct vlc_gl_filter *filter, const struct vlc_gl_picture *pic,
     if (!renderer->valid_coords)
     {
         int ret = SetupCoords(renderer, pic, meta->orientation);
-        if (ret != VLC_SUCCESS)
+        if (ret != HEIMDALL_SUCCESS)
             return ret;
 
         renderer->valid_coords = true;
@@ -766,9 +767,9 @@ Draw(struct vlc_gl_filter *filter, const struct vlc_gl_picture *pic,
     float orientation_matrix[ARRAY_SIZE(MATRIX4_IDENTITY)];
     if (meta->orientation != ORIENT_NORMAL)
     {
-        vlc_viewpoint_t orient_vp;
-        vlc_viewpoint_from_orientation(&orient_vp, meta->orientation);
-        vlc_viewpoint_to_4x4(&orient_vp, orientation_matrix);
+        heimdall_viewpoint_t orient_vp;
+        heimdall_viewpoint_from_orientation(&orient_vp, meta->orientation);
+        heimdall_viewpoint_to_4x4(&orient_vp, orientation_matrix);
     }
     else memcpy(orientation_matrix, MATRIX4_IDENTITY, sizeof(MATRIX4_IDENTITY));
 
@@ -797,32 +798,32 @@ Draw(struct vlc_gl_filter *filter, const struct vlc_gl_picture *pic,
     vt->DrawElements(GL_TRIANGLES, renderer->nb_indices, GL_UNSIGNED_SHORT, 0);
     GL_ASSERT_NOERROR(vt);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 int
-vlc_gl_renderer_Open(struct vlc_gl_filter *filter,
+heimdall_gl_renderer_Open(struct heimdall_gl_filter *filter,
                      const config_chain_t *config,
-                     struct vlc_gl_sampler *sampler,
-                     struct vlc_gl_tex_size *size_out)
+                     struct heimdall_gl_sampler *sampler,
+                     struct heimdall_gl_tex_size *size_out)
 {
     (void) size_out;
 
     const char * const options[] = { "projection-mode", "video-stereo-mode", NULL };
     config_ChainParse(filter, "", options, config);
 
-    struct vlc_gl_renderer *renderer = calloc(1, sizeof(*renderer));
+    struct heimdall_gl_renderer *renderer = calloc(1, sizeof(*renderer));
     if (!renderer)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    int ret = vlc_gl_api_Init(&renderer->api, filter->gl);
-    if (ret != VLC_SUCCESS)
+    int ret = heimdall_gl_api_Init(&renderer->api, filter->gl);
+    if (ret != HEIMDALL_SUCCESS)
     {
         free(renderer);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    static const struct vlc_gl_filter_ops filter_ops = {
+    static const struct heimdall_gl_filter_ops filter_ops = {
         .draw = Draw,
         .close = Close,
         .request_output_size = RequestOutputSize,
@@ -875,7 +876,7 @@ vlc_gl_renderer_Open(struct vlc_gl_filter *filter,
     }
 
     ret = opengl_link_program(filter);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
     {
         msg_Dbg(&filter->obj, "Could not link shaders");
         free(renderer);
@@ -896,5 +897,5 @@ vlc_gl_renderer_Open(struct vlc_gl_filter *filter,
     /* The coords will be initialized on first draw */
     renderer->valid_coords = false;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

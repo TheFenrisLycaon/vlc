@@ -2,6 +2,7 @@
  * jack.c : JACK audio output module
  *****************************************************************************
  * Copyright (C) 2006-2023 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cyril Deguet <asmax _at_ videolan.org>
  *          Jon Griffiths <jon_p_griffiths _At_ yahoo _DOT_ com>
@@ -33,10 +34,10 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_aout.h>
-#include <vlc_configuration.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_aout.h>
+#include <heimdall_configuration.h>
 
 #include <jack/jack.h>
 #include <jack/ringbuffer.h>
@@ -64,16 +65,16 @@ typedef struct
     jack_nframes_t latency;
     float soft_gain;
     bool soft_mute;
-    vlc_tick_t paused; /**< Time when (last) paused */
+    heimdall_tick_t paused; /**< Time when (last) paused */
 } aout_sys_t;
 
 /*****************************************************************************
  * Local prototypes
  *****************************************************************************/
-static int  Open         ( vlc_object_t * );
-static void Close        ( vlc_object_t * );
-static void Play         ( audio_output_t * p_aout, block_t *, vlc_tick_t );
-static void Pause        ( audio_output_t *aout, bool paused, vlc_tick_t date );
+static int  Open         ( heimdall_object_t * );
+static void Close        ( heimdall_object_t * );
+static void Play         ( audio_output_t * p_aout, block_t *, heimdall_tick_t );
+static void Pause        ( audio_output_t *aout, bool paused, heimdall_tick_t date );
 static void Flush        ( audio_output_t *p_aout );
 static int  Process      ( jack_nframes_t i_frames, void *p_arg );
 static int  Buffer_ch    ( jack_nframes_t nframes, void *p_arg );
@@ -96,7 +97,7 @@ static int  GraphChange  ( void *p_arg );
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( "JACK" )
     set_description( N_("JACK audio output") )
     set_capability( "audio output", 100 )
@@ -112,30 +113,30 @@ vlc_module_begin ()
         change_float_range(0., 8.)
 
     set_callbacks( Open, Close )
-vlc_module_end ()
+heimdall_module_end ()
 
 
 static int Start( audio_output_t *p_aout, audio_sample_format_t *restrict fmt )
 {
     char *psz_name;
     aout_sys_t *p_sys = p_aout->sys;
-    int status = VLC_SUCCESS;
+    int status = HEIMDALL_SUCCESS;
     unsigned int i;
     int i_error;
 
     if( aout_FormatNbChannels( fmt ) == 0 )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     p_sys->latency = 0;
-    p_sys->paused = VLC_TICK_INVALID;
+    p_sys->paused = HEIMDALL_TICK_INVALID;
 
     /* Connect to the JACK server */
     psz_name = var_InheritString( p_aout, "jack-name" );
     if( !psz_name || !*psz_name )
     {
         free( psz_name );
-        if( asprintf( &psz_name, "vlc_%d", getpid()) == -1 )
-            return VLC_ENOMEM;
+        if( asprintf( &psz_name, "heimdall_%d", getpid()) == -1 )
+            return HEIMDALL_ENOMEM;
     }
 
     p_sys->p_jack_client = jack_client_open( psz_name,
@@ -144,7 +145,7 @@ static int Start( audio_output_t *p_aout, audio_sample_format_t *restrict fmt )
     if( p_sys->p_jack_client == NULL )
     {
         msg_Err( p_aout, "failed to connect to JACK server" );
-        status = VLC_EGENERIC;
+        status = HEIMDALL_EGENERIC;
         goto error_out;
     }
 
@@ -153,7 +154,7 @@ static int Start( audio_output_t *p_aout, audio_sample_format_t *restrict fmt )
     jack_set_graph_order_callback ( p_sys->p_jack_client, GraphChange, p_aout );
 
     /* JACK only supports fl32 format */
-    fmt->i_format = VLC_CODEC_FL32;
+    fmt->i_format = HEIMDALL_CODEC_FL32;
 
     p_sys->i_rate = fmt->i_rate = jack_get_sample_rate( p_sys->p_jack_client );
 
@@ -164,25 +165,25 @@ static int Start( audio_output_t *p_aout, audio_sample_format_t *restrict fmt )
     p_sys->i_channels = aout_FormatNbChannels( fmt );
     aout_FormatPrepare(fmt);
 
-    p_sys->p_jack_ports = vlc_alloc( p_sys->i_channels, sizeof(jack_port_t *) );
+    p_sys->p_jack_ports = heimdall_alloc( p_sys->i_channels, sizeof(jack_port_t *) );
     if( p_sys->p_jack_ports == NULL )
     {
-        status = VLC_ENOMEM;
+        status = HEIMDALL_ENOMEM;
         goto error_out;
     }
 
-    p_sys->p_jack_buffers = vlc_alloc( p_sys->i_channels, sizeof(jack_sample_t *) );
+    p_sys->p_jack_buffers = heimdall_alloc( p_sys->i_channels, sizeof(jack_sample_t *) );
     if( p_sys->p_jack_buffers == NULL )
     {
-        status = VLC_ENOMEM;
+        status = HEIMDALL_ENOMEM;
         goto error_out;
     }
 
     jack_nframes_t jack_buf_size = jack_get_buffer_size( p_sys->p_jack_client );
-    p_sys->read_buffer = vlc_alloc( p_sys->i_channels * jack_buf_size, sizeof(jack_sample_t) );
+    p_sys->read_buffer = heimdall_alloc( p_sys->i_channels * jack_buf_size, sizeof(jack_sample_t) );
     if( p_sys->read_buffer == NULL )
     {
-        status = VLC_ENOMEM;
+        status = HEIMDALL_ENOMEM;
         goto error_out;
     }
 
@@ -190,17 +191,17 @@ static int Start( audio_output_t *p_aout, audio_sample_format_t *restrict fmt )
     if( buf_cb_set != 0 )
     {
         msg_Err( p_aout, "jack_set_buffer_size_callback failed");
-        status = VLC_EGENERIC;
+        status = HEIMDALL_EGENERIC;
         goto error_out;
     }
 
     const size_t buf_sz =
-        samples_from_vlc_tick(AOUT_MAX_ADVANCE_TIME, fmt->i_rate * fmt->i_bytes_per_frame);
+        samples_from_heimdall_tick(AOUT_MAX_ADVANCE_TIME, fmt->i_rate * fmt->i_bytes_per_frame);
     p_sys->p_jack_ringbuffer = jack_ringbuffer_create( buf_sz );
 
     if( p_sys->p_jack_ringbuffer == NULL )
     {
-        status = VLC_ENOMEM;
+        status = HEIMDALL_ENOMEM;
         goto error_out;
     }
 
@@ -223,7 +224,7 @@ static int Start( audio_output_t *p_aout, audio_sample_format_t *restrict fmt )
         if( p_sys->p_jack_ports[i] == NULL )
         {
             msg_Err( p_aout, "failed to register a JACK port" );
-            status = VLC_EGENERIC;
+            status = HEIMDALL_EGENERIC;
             goto error_out;
         }
     }
@@ -233,7 +234,7 @@ static int Start( audio_output_t *p_aout, audio_sample_format_t *restrict fmt )
     if( i_error )
     {
         msg_Err( p_aout, "failed to activate JACK client (error %d)", i_error );
-        status = VLC_EGENERIC;
+        status = HEIMDALL_EGENERIC;
         goto error_out;
     }
 
@@ -280,7 +281,7 @@ static int Start( audio_output_t *p_aout, audio_sample_format_t *restrict fmt )
 
 error_out:
     /* Clean up, if an error occurred */
-    if( status != VLC_SUCCESS )
+    if( status != HEIMDALL_SUCCESS )
     {
         if( p_sys->p_jack_client )
         {
@@ -298,7 +299,7 @@ error_out:
     return status;
 }
 
-static void Play(audio_output_t * p_aout, block_t * p_block, vlc_tick_t date)
+static void Play(audio_output_t * p_aout, block_t * p_block, heimdall_tick_t date)
 {
     aout_sys_t *p_sys = p_aout->sys;
     jack_ringbuffer_t *rb = p_sys->p_jack_ringbuffer;
@@ -331,7 +332,7 @@ static void Play(audio_output_t * p_aout, block_t * p_block, vlc_tick_t date)
 /**
  * Pause or unpause playback
  */
-static void Pause(audio_output_t *aout, bool paused, vlc_tick_t date)
+static void Pause(audio_output_t *aout, bool paused, heimdall_tick_t date)
 {
     aout_sys_t *sys = aout->sys;
 
@@ -340,7 +341,7 @@ static void Pause(audio_output_t *aout, bool paused, vlc_tick_t date)
     } else {
         date -= sys->paused;
         msg_Dbg(aout, "resuming after %"PRId64" us", date);
-        sys->paused = VLC_TICK_INVALID;
+        sys->paused = HEIMDALL_TICK_INVALID;
     }
 }
 
@@ -373,14 +374,14 @@ static int MuteSet(audio_output_t *p_aout, bool mute)
 
 #if 0
 // FIXME: port to aout_TimingReport()
-static int TimeGet(audio_output_t *p_aout, vlc_tick_t *delay)
+static int TimeGet(audio_output_t *p_aout, heimdall_tick_t *delay)
 {
     aout_sys_t * p_sys = p_aout->sys;
     jack_ringbuffer_t *rb = p_sys->p_jack_ringbuffer;
     const size_t bytes_per_frame = p_sys->i_channels * sizeof(jack_sample_t);
 
     *delay = p_sys->latency +
-            vlc_tick_from_samples(jack_ringbuffer_read_space(rb) / bytes_per_frame,
+            heimdall_tick_from_samples(jack_ringbuffer_read_space(rb) / bytes_per_frame,
                                   p_sys->i_rate);
 
     return 0;
@@ -401,7 +402,7 @@ int Process( jack_nframes_t i_frames, void *p_arg )
 
     /* Get the next audio data buffer unless paused */
 
-    if( p_sys->paused == VLC_TICK_INVALID )
+    if( p_sys->paused == HEIMDALL_TICK_INVALID )
         frames_from_rb = i_frames;
 
     /* Read audio data from buffer */
@@ -442,7 +443,7 @@ static int Buffer_ch( jack_nframes_t nframes, void *p_arg )
     aout_sys_t *p_sys = p_aout->sys;
 
     jack_sample_t *orig_buffer = p_sys->read_buffer;
-    p_sys->read_buffer = vlc_reallocarray( p_sys->read_buffer, p_sys->i_channels * nframes, sizeof(jack_sample_t) );
+    p_sys->read_buffer = heimdall_reallocarray( p_sys->read_buffer, p_sys->i_channels * nframes, sizeof(jack_sample_t) );
     int status = 0;
     if( p_sys->read_buffer == NULL )
     {
@@ -507,13 +508,13 @@ static void Stop( audio_output_t *p_aout )
     jack_ringbuffer_free( p_sys->p_jack_ringbuffer );
 }
 
-static int Open(vlc_object_t *obj)
+static int Open(heimdall_object_t *obj)
 {
     audio_output_t *aout = (audio_output_t *)obj;
     aout_sys_t *sys = calloc(1, sizeof (*sys));
 
     if( unlikely( sys == NULL ) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     sys->soft_gain = var_InheritFloat(aout, "jack-gain");
     sys->soft_mute = var_InheritBool(aout, "mute");
@@ -525,10 +526,10 @@ static int Open(vlc_object_t *obj)
     aout->stop = Stop;
     aout->volume_set = VolumeSet;
     aout->mute_set = MuteSet;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void Close(vlc_object_t *obj)
+static void Close(heimdall_object_t *obj)
 {
     audio_output_t *aout = (audio_output_t *)obj;
     aout_sys_t *sys = aout->sys;

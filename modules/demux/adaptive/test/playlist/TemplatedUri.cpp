@@ -2,6 +2,7 @@
  * dashuri.cpp
  *****************************************************************************
  * Copyright (C) 2018 VideoLabs, VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -26,7 +27,7 @@
 #include "../../../dash/mpd/TemplatedUri.hpp"
 
 #include <cstring>
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
 using namespace dash::mpd;
 

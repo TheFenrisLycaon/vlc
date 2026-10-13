@@ -2,6 +2,7 @@
  * FileHandler.hpp : UPnP server module header
  *****************************************************************************
  * Copyright © 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Alaric Senat <alaric@videolabs.io>
  *
@@ -31,7 +32,7 @@
 #include <upnp/FileInfo.h>
 #endif
 
-struct vlc_object_t;
+struct heimdall_object_t;
 
 namespace ml
 {
@@ -45,7 +46,7 @@ class FileHandler
 {
   public:
     virtual bool get_info(UpnpFileInfo &info) = 0;
-    virtual bool open(vlc_object_t *) = 0;
+    virtual bool open(heimdall_object_t *) = 0;
     virtual size_t read(uint8_t[], size_t) noexcept = 0;
 
     enum class SeekType : int

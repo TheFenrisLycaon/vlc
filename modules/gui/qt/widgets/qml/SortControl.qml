@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,10 +20,10 @@
 import QtQuick
 
 
-import VLC.MainInterface
-import VLC.Style
-import VLC.Menus
-import VLC.Widgets as Widgets
+import Heimdall.MainInterface
+import Heimdall.Style
+import Heimdall.Menus
+import Heimdall.Widgets as Widgets
 
 Widgets.IconToolButton {
     id: root
@@ -33,7 +34,7 @@ Widgets.IconToolButton {
 
     property bool popupAbove: false
 
-    property real listWidth: VLCStyle.widthSortBox
+    property real listWidth: HeimdallStyle.widthSortBox
 
     // NOTE: This allows us provide a custom menu and override sortMenu.
     property SortMenu menu
@@ -57,13 +58,13 @@ Widgets.IconToolButton {
     signal sortOrderSelected(int type)
 
 
-    font.pixelSize: VLCStyle.icon_normal
+    font.pixelSize: HeimdallStyle.icon_normal
 
     focus: true
 
     description: qsTr("Sort")
 
-    text: VLCIcons.topbar_sort
+    text: HeimdallIcons.topbar_sort
 
     checked: _menu && _menu.shown
 
@@ -111,9 +112,9 @@ Widgets.IconToolButton {
         let point
 
         if (root.popupAbove)
-            point = root.mapToGlobal(0, - VLCStyle.margin_xxsmall)
+            point = root.mapToGlobal(0, - HeimdallStyle.margin_xxsmall)
         else
-            point = root.mapToGlobal(0, root.height + VLCStyle.margin_xxsmall)
+            point = root.mapToGlobal(0, root.height + HeimdallStyle.margin_xxsmall)
 
         root._menu.popup(point, root.popupAbove, model)
     }

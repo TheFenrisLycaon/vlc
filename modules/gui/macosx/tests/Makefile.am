@@ -3,53 +3,53 @@ if ENABLE_MACOSX_UI
 if ENABLE_MACOSX_XCTESTS
 
 macosx_gui_xctest_frameworks_dir = $(shell $(XCRUN) --sdk macosx --show-sdk-platform-path)/Developer/Library/Frameworks
-macosx_gui_xctest_bundles = VLCMacOSXTests.xctest
+macosx_gui_xctest_bundles = HeimdallMacOSXTests.xctest
 
-check_PROGRAMS += VLCMacOSXTests
+check_PROGRAMS += HeimdallMacOSXTests
 TESTS += $(macosx_gui_xctest_bundles)
 
-VLCMacOSXTests_SOURCES = \
-	gui/macosx/tests/VLCHexNumberFormatterTest.m \
+HeimdallMacOSXTests_SOURCES = \
+	gui/macosx/tests/HeimdallHexNumberFormatterTest.m \
 	gui/macosx/tests/NSStringHelpersTest.m \
-	gui/macosx/tests/VLCLibraryDataTypesTest.m \
-	gui/macosx/tests/VLCLibraryDataTypesTestSupport.m \
-	gui/macosx/tests/VLCInputItemTest.m \
-	gui/macosx/tests/VLCInputItemTestSupport.m \
-	gui/macosx/tests/VLCInputNodeTest.m \
-	gui/macosx/tests/VLCLibraryDataTypesIntegrationTest.m \
-	gui/macosx/tests/VLCLibraryDataTypesIntegrationTestSupport.m \
-	gui/macosx/tests/VLCLogMessageTest.m \
-	gui/macosx/tests/VLCPositionFormatterTest.m \
-	gui/macosx/tests/VLCTimeFormatterTest.m \
-	gui/macosx/extensions/VLCHexNumberFormatter.m \
-	gui/macosx/extensions/VLCPositionFormatter.m \
+	gui/macosx/tests/HeimdallLibraryDataTypesTest.m \
+	gui/macosx/tests/HeimdallLibraryDataTypesTestSupport.m \
+	gui/macosx/tests/HeimdallInputItemTest.m \
+	gui/macosx/tests/HeimdallInputItemTestSupport.m \
+	gui/macosx/tests/HeimdallInputNodeTest.m \
+	gui/macosx/tests/HeimdallLibraryDataTypesIntegrationTest.m \
+	gui/macosx/tests/HeimdallLibraryDataTypesIntegrationTestSupport.m \
+	gui/macosx/tests/HeimdallLogMessageTest.m \
+	gui/macosx/tests/HeimdallPositionFormatterTest.m \
+	gui/macosx/tests/HeimdallTimeFormatterTest.m \
+	gui/macosx/extensions/HeimdallHexNumberFormatter.m \
+	gui/macosx/extensions/HeimdallPositionFormatter.m \
 	gui/macosx/extensions/NSString+Helpers.m \
-	gui/macosx/library/VLCLibraryDataTypes.m \
-	gui/macosx/library/VLCInputItem.m \
-	gui/macosx/library/VLCInputNode.m \
-	gui/macosx/windows/logging/VLCLogMessage.m \
-	gui/macosx/views/VLCTimeFormatter.m
+	gui/macosx/library/HeimdallLibraryDataTypes.m \
+	gui/macosx/library/HeimdallInputItem.m \
+	gui/macosx/library/HeimdallInputNode.m \
+	gui/macosx/windows/logging/HeimdallLogMessage.m \
+	gui/macosx/views/HeimdallTimeFormatter.m
 
 noinst_HEADERS += \
-	gui/macosx/tests/VLCInputItemTestSupport.h \
-	gui/macosx/tests/VLCLibraryDataTypesTestSupport.h \
-	gui/macosx/tests/VLCLibraryDataTypesIntegrationTestSupport.h
+	gui/macosx/tests/HeimdallInputItemTestSupport.h \
+	gui/macosx/tests/HeimdallLibraryDataTypesTestSupport.h \
+	gui/macosx/tests/HeimdallLibraryDataTypesIntegrationTestSupport.h
 
-VLCMacOSXTests_CPPFLAGS = \
+HeimdallMacOSXTests_CPPFLAGS = \
 	$(AM_CPPFLAGS) \
-	-DVLC_MACOSX_TEST_SOURCE_DIR=\"$(abs_top_srcdir)\" \
+	-DHEIMDALL_MACOSX_TEST_SOURCE_DIR=\"$(abs_top_srcdir)\" \
 	-F"$(macosx_gui_xctest_frameworks_dir)" \
 	-I$(srcdir)/gui/macosx \
 	-I$(top_srcdir)
 
-VLCMacOSXTests_OBJCFLAGS = \
+HeimdallMacOSXTests_OBJCFLAGS = \
 	$(AM_OBJCFLAGS) \
 	-fblocks \
 	-fobjc-arc \
 	-fobjc-exceptions \
 	-fmodules
 
-VLCMacOSXTests_LDFLAGS = \
+HeimdallMacOSXTests_LDFLAGS = \
 	-bundle \
 	-F"$(macosx_gui_xctest_frameworks_dir)" \
 	-Wl,-rpath,"$(macosx_gui_xctest_frameworks_dir)" \
@@ -60,31 +60,31 @@ VLCMacOSXTests_LDFLAGS = \
 	-Wl,-framework,Cocoa \
 	-Wl,-framework,IOKit
 
-VLCMacOSXTests_LDADD = \
-	$(top_builddir)/lib/libvlc.la \
-	$(top_builddir)/src/libvlccore.la \
+HeimdallMacOSXTests_LDADD = \
+	$(top_builddir)/lib/libheimdall.la \
+	$(top_builddir)/src/libheimdallcore.la \
 	-lsqlite3
 
-VLCMacOSXTests_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
+HeimdallMacOSXTests_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
 	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(OBJCLD) \
-	$(VLCMacOSXTests_OBJCFLAGS) $(OBJCFLAGS) \
-	$(VLCMacOSXTests_LDFLAGS) $(LDFLAGS) -o $@
+	$(HeimdallMacOSXTests_OBJCFLAGS) $(OBJCFLAGS) \
+	$(HeimdallMacOSXTests_LDFLAGS) $(LDFLAGS) -o $@
 
-VLCMacOSXTests.xctest: VLCMacOSXTests$(EXEEXT) $(srcdir)/gui/macosx/tests/VLCMacOSXTests-Info.plist
+HeimdallMacOSXTests.xctest: HeimdallMacOSXTests$(EXEEXT) $(srcdir)/gui/macosx/tests/HeimdallMacOSXTests-Info.plist
 	$(AM_V_GEN)rm -rf $@
 	$(AM_V_at)$(MKDIR_P) $@/Contents/MacOS
 	$(AM_V_at)$(LIBTOOL) $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=install \
-		$(INSTALL_PROGRAM) VLCMacOSXTests$(EXEEXT) \
-		$(abs_builddir)/$@/Contents/MacOS/VLCMacOSXTests
-	$(AM_V_at)$(INSTALL_DATA) $(srcdir)/gui/macosx/tests/VLCMacOSXTests-Info.plist $@/Contents/Info.plist
+		$(INSTALL_PROGRAM) HeimdallMacOSXTests$(EXEEXT) \
+		$(abs_builddir)/$@/Contents/MacOS/HeimdallMacOSXTests
+	$(AM_V_at)$(INSTALL_DATA) $(srcdir)/gui/macosx/tests/HeimdallMacOSXTests-Info.plist $@/Contents/Info.plist
 
-EXTRA_DIST += gui/macosx/tests/VLCMacOSXTests-Info.plist
+EXTRA_DIST += gui/macosx/tests/HeimdallMacOSXTests-Info.plist
 
 mostlyclean-local: mostlyclean-local-macosx-xctest
 mostlyclean-local-macosx-xctest:
 	rm -rf $(macosx_gui_xctest_bundles)
 
-check-macosx: VLCMacOSXTests.xctest
+check-macosx: HeimdallMacOSXTests.xctest
 	$(XCTEST_LOG_COMPILER) $<
 
 else

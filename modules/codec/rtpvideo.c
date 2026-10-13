@@ -2,6 +2,7 @@
  * rtpvideo.c: video encoder for raw video for RTP (see RFC 4175)
  *****************************************************************************
  * Copyright (C) 2015 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Tristan Matthews <tmatth@videolan.org>
  *
@@ -27,46 +28,46 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
 
 /****************************************************************************
  * Local prototypes
  ****************************************************************************/
-static int  OpenEncoder( vlc_object_t * );
+static int  OpenEncoder( heimdall_object_t * );
 static block_t *Encode( encoder_t *p_enc, picture_t *p_pict );
 
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("Raw video encoder for RTP") )
     set_capability( "video encoder", 50 )
     set_subcategory( SUBCAT_INPUT_VCODEC )
     set_callback( OpenEncoder )
     add_shortcut( "rtpvideo" )
-vlc_module_end ()
+heimdall_module_end ()
 
-static int OpenEncoder( vlc_object_t *p_this )
+static int OpenEncoder( heimdall_object_t *p_this )
 {
     encoder_t *p_enc = (encoder_t *)p_this;
-    if( p_enc->fmt_out.i_codec != VLC_CODEC_R420 && !p_enc->obj.force )
-        return VLC_EGENERIC;
+    if( p_enc->fmt_out.i_codec != HEIMDALL_CODEC_R420 && !p_enc->obj.force )
+        return HEIMDALL_EGENERIC;
 
-    p_enc->fmt_in.i_codec = p_enc->fmt_in.video.i_chroma = VLC_CODEC_I420;
-    p_enc->fmt_out.i_codec = VLC_CODEC_R420;
+    p_enc->fmt_in.i_codec = p_enc->fmt_in.video.i_chroma = HEIMDALL_CODEC_I420;
+    p_enc->fmt_out.i_codec = HEIMDALL_CODEC_R420;
 
-    static const struct vlc_encoder_operations ops =
+    static const struct heimdall_encoder_operations ops =
         { .encode_video = Encode };
 
     p_enc->ops = &ops;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static block_t *Encode( encoder_t *p_enc, picture_t *p_pict )
 {
-    VLC_UNUSED( p_enc );
+    HEIMDALL_UNUSED( p_enc );
     if( !p_pict ) return NULL;
 
     const int i_length = p_pict->p[0].i_visible_lines * p_pict->p[0].i_visible_pitch +

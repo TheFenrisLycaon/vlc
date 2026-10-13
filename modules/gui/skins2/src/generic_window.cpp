@@ -2,6 +2,7 @@
  * generic_window.cpp
  *****************************************************************************
  * Copyright (C) 2003 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cyril Deguet     <asmax@via.ecp.fr>
  *          Olivier Teulière <ipkiss@via.ecp.fr>
@@ -167,7 +168,7 @@ void GenericWindow::innerHide()
 }
 
 
-void GenericWindow::updateWindowConfiguration( struct vlc_window *pWnd ) const
+void GenericWindow::updateWindowConfiguration( struct heimdall_window *pWnd ) const
 {
     m_pOsWindow->setOSHandle( pWnd );
 }

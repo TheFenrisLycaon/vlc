@@ -9,7 +9,7 @@ usage()
 cat << EOF
 usage: $0 [options]
 
-Build vlc snap package
+Build heimdall snap package
 
 OPTIONS:
    -h            Show some help

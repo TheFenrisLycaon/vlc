@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,17 +23,17 @@
 
 #include "playlist_controller.hpp"
 #include "playlist_controller_p.hpp"
-#include <vlc_player.h>
-#include <vlc_url.h>
+#include <heimdall_player.h>
+#include <heimdall_url.h>
 #include "util/shared_input_item.hpp"
 #include <algorithm>
 #include <QVariant>
 #include <QDesktopServices>
 
-namespace vlc {
+namespace heimdall {
   namespace playlist {
 
-static QVector<PlaylistItem> toVec(vlc_playlist_item_t *const items[],
+static QVector<PlaylistItem> toVec(heimdall_playlist_item_t *const items[],
                                    size_t len)
 {
     QVector<PlaylistItem> vec;
@@ -81,7 +82,7 @@ QVector<Media> toMediaList(const QVariantList &sources)
             {
                 // Assume input is a path (only if the input is plain text):
                 assert(input);
-                mrl = QString::fromUtf8(vlc::wrap_cptr(vlc_path2uri(input->toUtf8().cbegin(), nullptr)).get()); // tolerant mode
+                mrl = QString::fromUtf8(heimdall::wrap_cptr(heimdall_path2uri(input->toUtf8().cbegin(), nullptr)).get()); // tolerant mode
 
                 if (!mrl.isValid())
                     return Media();
@@ -113,13 +114,13 @@ QVector<Media> toMediaList(const QVariantList &sources)
 extern "C" { // for C callbacks
 
 static void
-on_playlist_items_reset(vlc_playlist_t *playlist,
-                        vlc_playlist_item_t *const items[],
+on_playlist_items_reset(heimdall_playlist_t *playlist,
+                        heimdall_playlist_item_t *const items[],
                         size_t len, void *userdata)
 {
     PlaylistControllerPrivate *that = static_cast<PlaylistControllerPrivate *>(userdata);
     auto vec = toVec(items, len);
-    size_t totalCount = vlc_playlist_Count(playlist);
+    size_t totalCount = heimdall_playlist_Count(playlist);
 
     that->callAsync([=](){
         if (that->m_playlist != playlist)
@@ -142,13 +143,13 @@ on_playlist_items_reset(vlc_playlist_t *playlist,
 }
 
 static void
-on_playlist_items_added(vlc_playlist_t *playlist, size_t index,
-                        vlc_playlist_item_t *const items[], size_t len,
+on_playlist_items_added(heimdall_playlist_t *playlist, size_t index,
+                        heimdall_playlist_item_t *const items[], size_t len,
                         void *userdata)
 {
     PlaylistControllerPrivate *that = static_cast<PlaylistControllerPrivate *>(userdata);
     auto vec = toVec(items, len);
-    size_t totalCount = vlc_playlist_Count(playlist);
+    size_t totalCount = heimdall_playlist_Count(playlist);
     that->callAsync([=](){
         if (that->m_playlist != playlist)
             return;
@@ -169,7 +170,7 @@ on_playlist_items_added(vlc_playlist_t *playlist, size_t index,
 }
 
 static void
-on_playlist_items_moved(vlc_playlist_t *playlist, size_t index, size_t count,
+on_playlist_items_moved(heimdall_playlist_t *playlist, size_t index, size_t count,
                         size_t target, void *userdata)
 {
     PlaylistControllerPrivate *that = static_cast<PlaylistControllerPrivate *>(userdata);
@@ -181,11 +182,11 @@ on_playlist_items_moved(vlc_playlist_t *playlist, size_t index, size_t count,
 }
 
 static void
-on_playlist_items_removed(vlc_playlist_t *playlist, size_t index, size_t count,
+on_playlist_items_removed(heimdall_playlist_t *playlist, size_t index, size_t count,
                           void *userdata)
 {
     PlaylistControllerPrivate *that = static_cast<PlaylistControllerPrivate *>(userdata);
-    size_t totalCount = vlc_playlist_Count(playlist);
+    size_t totalCount = heimdall_playlist_Count(playlist);
     bool empty = (totalCount == 0);
     that->callAsync([=](){
         if (that->m_playlist != playlist)
@@ -206,8 +207,8 @@ on_playlist_items_removed(vlc_playlist_t *playlist, size_t index, size_t count,
 }
 
 static void
-on_playlist_items_updated(vlc_playlist_t *playlist, size_t index,
-                          vlc_playlist_item_t *const items[], size_t len,
+on_playlist_items_updated(heimdall_playlist_t *playlist, size_t index,
+                          heimdall_playlist_item_t *const items[], size_t len,
                           void *userdata)
 {
     PlaylistControllerPrivate *that = static_cast<PlaylistControllerPrivate *>(userdata);
@@ -222,7 +223,7 @@ on_playlist_items_updated(vlc_playlist_t *playlist, size_t index,
             {
                 const auto newCurrentItem = vec[currentIndex - index];
                 const auto currentItem = that->m_currentItem.raw();
-                // Even if vlc_playlist_item_t is the same, assign unconditionally to
+                // Even if heimdall_playlist_item_t is the same, assign unconditionally to
                 // update the data:
                 that->m_currentItem = newCurrentItem;
                 if (currentItem != newCurrentItem.raw())
@@ -233,8 +234,8 @@ on_playlist_items_updated(vlc_playlist_t *playlist, size_t index,
 }
 
 static void
-on_playlist_playback_repeat_changed(vlc_playlist_t *playlist,
-                                    enum vlc_playlist_playback_repeat repeat,
+on_playlist_playback_repeat_changed(heimdall_playlist_t *playlist,
+                                    enum heimdall_playlist_playback_repeat repeat,
                                     void *userdata)
 {
     PlaylistControllerPrivate *that = static_cast<PlaylistControllerPrivate *>(userdata);
@@ -251,15 +252,15 @@ on_playlist_playback_repeat_changed(vlc_playlist_t *playlist,
 }
 
 static void
-on_playlist_playback_order_changed(vlc_playlist_t *playlist,
-                                   enum vlc_playlist_playback_order order,
+on_playlist_playback_order_changed(heimdall_playlist_t *playlist,
+                                   enum heimdall_playlist_playback_order order,
                                    void *userdata)
 {
     PlaylistControllerPrivate *that = static_cast<PlaylistControllerPrivate *>(userdata);
     that->callAsync([=](){
         if (that->m_playlist != playlist)
             return;
-        bool isRandom = order == VLC_PLAYLIST_PLAYBACK_ORDER_RANDOM;
+        bool isRandom = order == HEIMDALL_PLAYLIST_PLAYBACK_ORDER_RANDOM;
         if (that->m_random != isRandom)
         {
             that->m_random = isRandom;
@@ -269,15 +270,15 @@ on_playlist_playback_order_changed(vlc_playlist_t *playlist,
 }
 
 static void
-on_playlist_current_index_changed(vlc_playlist_t *playlist, ssize_t index,
+on_playlist_current_index_changed(heimdall_playlist_t *playlist, ssize_t index,
                                  void *userdata)
 {
     PlaylistControllerPrivate *that = static_cast<PlaylistControllerPrivate *>(userdata);
 
 
-    vlc_playlist_item_t* playlistItem = nullptr;
+    heimdall_playlist_item_t* playlistItem = nullptr;
     if (index >= 0)
-        playlistItem = vlc_playlist_Get(playlist, index);
+        playlistItem = heimdall_playlist_Get(playlist, index);
     PlaylistItem newItem{ playlistItem };
 
     that->callAsync([=](){
@@ -303,7 +304,7 @@ on_playlist_current_index_changed(vlc_playlist_t *playlist, ssize_t index,
 }
 
 static void
-on_playlist_has_prev_changed(vlc_playlist_t *playlist, bool has_prev,
+on_playlist_has_prev_changed(heimdall_playlist_t *playlist, bool has_prev,
                              void *userdata)
 {
     PlaylistControllerPrivate *that = static_cast<PlaylistControllerPrivate *>(userdata);
@@ -319,7 +320,7 @@ on_playlist_has_prev_changed(vlc_playlist_t *playlist, bool has_prev,
 }
 
 static void
-on_playlist_has_next_changed(vlc_playlist_t *playlist, bool has_next,
+on_playlist_has_next_changed(heimdall_playlist_t *playlist, bool has_next,
                              void *userdata)
 {
     PlaylistControllerPrivate *that = static_cast<PlaylistControllerPrivate *>(userdata);
@@ -335,8 +336,8 @@ on_playlist_has_next_changed(vlc_playlist_t *playlist, bool has_next,
 }
 
 static void
-on_media_stopped_action_changed(vlc_playlist_t *playlist,
-                          enum vlc_playlist_media_stopped_action new_action,
+on_media_stopped_action_changed(heimdall_playlist_t *playlist,
+                          enum heimdall_playlist_media_stopped_action new_action,
                           void *userdata)
 {
     PlaylistControllerPrivate *that = static_cast<PlaylistControllerPrivate *>(userdata);
@@ -353,8 +354,8 @@ on_media_stopped_action_changed(vlc_playlist_t *playlist,
 
 } // extern "C"
 
-static const struct vlc_playlist_callbacks playlist_callbacks = []{
-    struct vlc_playlist_callbacks cbs {};
+static const struct heimdall_playlist_callbacks playlist_callbacks = []{
+    struct heimdall_playlist_callbacks cbs {};
     cbs.on_items_reset = on_playlist_items_reset;
     cbs.on_items_added = on_playlist_items_added;
     cbs.on_items_moved = on_playlist_items_moved;
@@ -372,7 +373,7 @@ static const struct vlc_playlist_callbacks playlist_callbacks = []{
 
 //private API
 
-PlaylistControllerPrivate::PlaylistControllerPrivate(PlaylistController* playlistController, vlc_playlist_t *playlist)
+PlaylistControllerPrivate::PlaylistControllerPrivate(PlaylistController* playlistController, heimdall_playlist_t *playlist)
     : q_ptr(playlistController)
     , m_playlist(playlist)
 {
@@ -383,14 +384,14 @@ PlaylistControllerPrivate::~PlaylistControllerPrivate()
 {
     if (m_playlist && m_listener)
     {
-        vlc_playlist_locker lock(m_playlist);
-        vlc_playlist_RemoveListener(m_playlist, m_listener);
+        heimdall_playlist_locker lock(m_playlist);
+        heimdall_playlist_RemoveListener(m_playlist, m_listener);
     }
 }
 
 //public API
 
-PlaylistController::PlaylistController(vlc_playlist_t *playlist, QObject *parent)
+PlaylistController::PlaylistController(heimdall_playlist_t *playlist, QObject *parent)
     : QObject(parent)
     , d_ptr( new PlaylistControllerPrivate(this, playlist) )
 {
@@ -402,12 +403,12 @@ PlaylistController::PlaylistController(vlc_playlist_t *playlist, QObject *parent
     connect(this, &PlaylistController::isEmptyChanged, [this](bool isEmpty) {if (isEmpty) emit resetSortKey();});
 
     {
-        vlc_playlist_locker locker(d->m_playlist);
-        d->m_listener = vlc_playlist_AddListener(d->m_playlist, &playlist_callbacks, d, true);
+        heimdall_playlist_locker locker(d->m_playlist);
+        d->m_listener = heimdall_playlist_AddListener(d->m_playlist, &playlist_callbacks, d, true);
     }
     /*
      * Queue a playlistInitialized to be sent after the initial state callbacks
-     * vlc_playlist_AddListener will synchronously call each callback in
+     * heimdall_playlist_AddListener will synchronously call each callback in
      * playlist_callbacks, which will in turn queue an async call on the Qt
      * main thread
      */
@@ -450,23 +451,23 @@ PlaylistController::append(const QVector<Media> &media, bool startPlaying)
     if (Q_UNLIKELY(media.isEmpty()))
         return;
 
-    vlc_playlist_locker locker(d->m_playlist);
+    heimdall_playlist_locker locker(d->m_playlist);
 
     auto rawMedia = toRaw<input_item_t *>(media);
     /* We can't append an empty media. */
     assert(rawMedia.size() > 0);
 
-    int ret = vlc_playlist_Append(d->m_playlist,
+    int ret = heimdall_playlist_Append(d->m_playlist,
                                   rawMedia.constData(), rawMedia.size());
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
         throw std::bad_alloc();
     if (startPlaying)
     {
-        ssize_t playIndex = (ssize_t)vlc_playlist_Count( d->m_playlist ) - rawMedia.size();
-        ret = vlc_playlist_GoTo(d->m_playlist, playIndex);
-        if (ret != VLC_SUCCESS)
+        ssize_t playIndex = (ssize_t)heimdall_playlist_Count( d->m_playlist ) - rawMedia.size();
+        ret = heimdall_playlist_GoTo(d->m_playlist, playIndex);
+        if (ret != HEIMDALL_SUCCESS)
             return;
-        vlc_playlist_Start(d->m_playlist);
+        heimdall_playlist_Start(d->m_playlist);
     }
 }
 
@@ -478,22 +479,22 @@ PlaylistController::insert(size_t index, const QVector<Media> &media, bool start
     if (Q_UNLIKELY(media.isEmpty()))
         return;
 
-    vlc_playlist_locker locker(d->m_playlist);
+    heimdall_playlist_locker locker(d->m_playlist);
 
     auto rawMedia = toRaw<input_item_t *>(media);
     /* We can't insert an empty media. */
     assert(rawMedia.size() > 0);
 
-    int ret = vlc_playlist_RequestInsert(d->m_playlist, index,
+    int ret = heimdall_playlist_RequestInsert(d->m_playlist, index,
                                          rawMedia.constData(), rawMedia.size());
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
         throw std::bad_alloc();
     if (startPlaying)
     {
-        ret = vlc_playlist_GoTo(d->m_playlist, index);
-        if (ret != VLC_SUCCESS)
+        ret = heimdall_playlist_GoTo(d->m_playlist, index);
+        if (ret != HEIMDALL_SUCCESS)
             return;
-        vlc_playlist_Start(d->m_playlist);
+        heimdall_playlist_Start(d->m_playlist);
     }
 }
 
@@ -502,12 +503,12 @@ PlaylistController::move(const QVector<PlaylistItem> &items, size_t target,
                ssize_t indexHint)
 {
     Q_D(PlaylistController);
-    vlc_playlist_locker locker(d->m_playlist);
+    heimdall_playlist_locker locker(d->m_playlist);
 
-    auto rawItems = toRaw<vlc_playlist_item_t *>(items);
-    int ret = vlc_playlist_RequestMove(d->m_playlist, rawItems.constData(),
+    auto rawItems = toRaw<heimdall_playlist_item_t *>(items);
+    int ret = heimdall_playlist_RequestMove(d->m_playlist, rawItems.constData(),
                                        rawItems.size(), target, indexHint);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
         throw std::bad_alloc();
 }
 
@@ -515,11 +516,11 @@ void
 PlaylistController::remove(const QVector<PlaylistItem> &items, ssize_t indexHint)
 {
     Q_D(PlaylistController);
-    vlc_playlist_locker locker(d->m_playlist);
-    auto rawItems = toRaw<vlc_playlist_item_t *>(items);
-    int ret = vlc_playlist_RequestRemove(d->m_playlist, rawItems.constData(),
+    heimdall_playlist_locker locker(d->m_playlist);
+    auto rawItems = toRaw<heimdall_playlist_item_t *>(items);
+    int ret = heimdall_playlist_RequestRemove(d->m_playlist, rawItems.constData(),
                                          rawItems.size(), indexHint);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
         throw std::bad_alloc();
 }
 
@@ -527,16 +528,16 @@ void
 PlaylistController::shuffle()
 {
     Q_D(PlaylistController);
-    vlc_playlist_locker locker(d->m_playlist);
-    vlc_playlist_Shuffle(d->m_playlist);
+    heimdall_playlist_locker locker(d->m_playlist);
+    heimdall_playlist_Shuffle(d->m_playlist);
 }
 
 void
-PlaylistController::sort(const QVector<vlc_playlist_sort_criterion> &criteria)
+PlaylistController::sort(const QVector<heimdall_playlist_sort_criterion> &criteria)
 {
     Q_D(PlaylistController);
-    vlc_playlist_locker locker(d->m_playlist);
-    vlc_playlist_Sort(d->m_playlist, criteria.constData(), criteria.size());
+    heimdall_playlist_locker locker(d->m_playlist);
+    heimdall_playlist_Sort(d->m_playlist, criteria.constData(), criteria.size());
 }
 
 void PlaylistController::sort(PlaylistController::SortKey key, PlaylistController::SortOrder order)
@@ -573,25 +574,25 @@ void PlaylistController::sort(void)
     if (d->m_sortKey == SortKey::SORT_KEY_NONE)
         return;
 
-    vlc_playlist_sort_criterion crit = {
-        static_cast<vlc_playlist_sort_key>(d->m_sortKey),
-        static_cast<vlc_playlist_sort_order>(d->m_sortOrder)
+    heimdall_playlist_sort_criterion crit = {
+        static_cast<heimdall_playlist_sort_key>(d->m_sortKey),
+        static_cast<heimdall_playlist_sort_order>(d->m_sortOrder)
     };
-    QVector<vlc_playlist_sort_criterion> criteria { crit };
+    QVector<heimdall_playlist_sort_criterion> criteria { crit };
     sort( criteria );
 }
 
 void PlaylistController::explore(const PlaylistItem& pItem)
 {
-    vlc_playlist_item_t * const playlistItem = pItem.raw();
+    heimdall_playlist_item_t * const playlistItem = pItem.raw();
     if( playlistItem )
     {
-        input_item_t * const p_input = vlc_playlist_item_GetMedia(playlistItem);
-        auto uri = vlc::wrap_cptr( input_item_GetURI(p_input) );
+        input_item_t * const p_input = heimdall_playlist_item_GetMedia(playlistItem);
+        auto uri = heimdall::wrap_cptr( input_item_GetURI(p_input) );
 
         if( uri && uri.get()[0] != '\0')
         {
-            auto path = vlc::wrap_cptr( vlc_uri2path( uri.get() ) );
+            auto path = heimdall::wrap_cptr( heimdall_uri2path( uri.get() ) );
 
             if( !path )
                 return;
@@ -612,8 +613,8 @@ void PlaylistController::explore(const PlaylistItem& pItem)
 int PlaylistController::serialize(const QString &fileName)
 {
     Q_D(PlaylistController);
-    vlc_playlist_locker lock{d->m_playlist};
-    return vlc_playlist_Export(d->m_playlist, qtu(fileName), "export-m3u8");
+    heimdall_playlist_locker lock{d->m_playlist};
+    return heimdall_playlist_Export(d->m_playlist, qtu(fileName), "export-m3u8");
 }
 
 int PlaylistController::currentIndex() const
@@ -625,101 +626,101 @@ int PlaylistController::currentIndex() const
 void PlaylistController::play()
 {
     Q_D(PlaylistController);
-    vlc_playlist_locker lock{ d->m_playlist };
-    vlc_playlist_Start( d->m_playlist );
+    heimdall_playlist_locker lock{ d->m_playlist };
+    heimdall_playlist_Start( d->m_playlist );
 }
 
 void PlaylistController::pause()
 {
     Q_D(PlaylistController);
-    vlc_playlist_locker lock{ d->m_playlist };
-    vlc_playlist_Pause( d->m_playlist );
+    heimdall_playlist_locker lock{ d->m_playlist };
+    heimdall_playlist_Pause( d->m_playlist );
 }
 
 void PlaylistController::stop()
 {
     Q_D(PlaylistController);
-    vlc_playlist_locker lock{ d->m_playlist };
-    vlc_playlist_Stop( d->m_playlist );
+    heimdall_playlist_locker lock{ d->m_playlist };
+    heimdall_playlist_Stop( d->m_playlist );
 }
 
 void PlaylistController::next()
 {
     Q_D(PlaylistController);
-    vlc_playlist_locker lock{ d->m_playlist };
-    vlc_playlist_Next( d->m_playlist );
+    heimdall_playlist_locker lock{ d->m_playlist };
+    heimdall_playlist_Next( d->m_playlist );
 }
 
 void PlaylistController::prev()
 {
     Q_D(PlaylistController);
-    vlc_playlist_locker lock{ d->m_playlist };
-    vlc_playlist_Prev( d->m_playlist );
+    heimdall_playlist_locker lock{ d->m_playlist };
+    heimdall_playlist_Prev( d->m_playlist );
 }
 
 void PlaylistController::prevOrReset()
 {
     Q_D(PlaylistController);
-    vlc_playlist_locker lock{ d->m_playlist };
+    heimdall_playlist_locker lock{ d->m_playlist };
     bool seek = false;
-    vlc_player_t* player = vlc_playlist_GetPlayer( d->m_playlist );
+    heimdall_player_t* player = heimdall_playlist_GetPlayer( d->m_playlist );
     Q_ASSERT(player);
-    if( !vlc_player_IsStarted(player) || vlc_player_GetTime(player) < VLC_TICK_FROM_MS(10) )
+    if( !heimdall_player_IsStarted(player) || heimdall_player_GetTime(player) < HEIMDALL_TICK_FROM_MS(10) )
     {
-        int ret = vlc_playlist_Prev( d->m_playlist );
-        if (ret == VLC_SUCCESS)
-            vlc_playlist_Start( d->m_playlist );
+        int ret = heimdall_playlist_Prev( d->m_playlist );
+        if (ret == HEIMDALL_SUCCESS)
+            heimdall_playlist_Start( d->m_playlist );
     }
     else
         seek = true;
     if (seek)
-        vlc_player_JumpPos( player, 0.f );
+        heimdall_player_JumpPos( player, 0.f );
 }
 
 void PlaylistController::togglePlayPause()
 {
     Q_D(PlaylistController);
-    vlc_playlist_locker lock{ d->m_playlist };
-    vlc_player_t* player = vlc_playlist_GetPlayer( d->m_playlist );
-    if ( vlc_player_IsStarted(player) )
-        vlc_player_TogglePause( player );
+    heimdall_playlist_locker lock{ d->m_playlist };
+    heimdall_player_t* player = heimdall_playlist_GetPlayer( d->m_playlist );
+    if ( heimdall_player_IsStarted(player) )
+        heimdall_player_TogglePause( player );
     else
-        vlc_playlist_Start( d->m_playlist );
+        heimdall_playlist_Start( d->m_playlist );
 }
 
 void PlaylistController::toggleRandom()
 {
     Q_D(PlaylistController);
-    vlc_playlist_playback_order new_order;
-    vlc_playlist_locker lock{ d->m_playlist };
+    heimdall_playlist_playback_order new_order;
+    heimdall_playlist_locker lock{ d->m_playlist };
     if ( d->m_random )
-        new_order = VLC_PLAYLIST_PLAYBACK_ORDER_NORMAL;
+        new_order = HEIMDALL_PLAYLIST_PLAYBACK_ORDER_NORMAL;
     else
-        new_order = VLC_PLAYLIST_PLAYBACK_ORDER_RANDOM;
-    vlc_playlist_SetPlaybackOrder( d->m_playlist, new_order );
+        new_order = HEIMDALL_PLAYLIST_PLAYBACK_ORDER_RANDOM;
+    heimdall_playlist_SetPlaybackOrder( d->m_playlist, new_order );
     config_PutInt( "random", new_order );
 }
 
 void PlaylistController::toggleRepeatMode()
 {
     Q_D(PlaylistController);
-    vlc_playlist_playback_repeat new_repeat;
+    heimdall_playlist_playback_repeat new_repeat;
     /* Toggle Normal -> Loop -> Repeat -> Normal ... */
     switch ( d->m_repeat ) {
     case PlaybackRepeat::PLAYBACK_REPEAT_NONE:
-        new_repeat = VLC_PLAYLIST_PLAYBACK_REPEAT_ALL;
+        new_repeat = HEIMDALL_PLAYLIST_PLAYBACK_REPEAT_ALL;
         break;
     case PlaybackRepeat::PLAYBACK_REPEAT_ALL:
-        new_repeat = VLC_PLAYLIST_PLAYBACK_REPEAT_CURRENT;
+        new_repeat = HEIMDALL_PLAYLIST_PLAYBACK_REPEAT_CURRENT;
         break;
     case PlaybackRepeat::PLAYBACK_REPEAT_CURRENT:
     default:
-        new_repeat = VLC_PLAYLIST_PLAYBACK_REPEAT_NONE;
+        new_repeat = HEIMDALL_PLAYLIST_PLAYBACK_REPEAT_NONE;
         break;
     }
     {
-        vlc_playlist_locker lock{ d->m_playlist };
-        vlc_playlist_SetPlaybackRepeat( d->m_playlist, new_repeat );
+        heimdall_playlist_locker lock{ d->m_playlist };
+        heimdall_playlist_SetPlaybackRepeat( d->m_playlist, new_repeat );
     }
     config_PutInt( "repeat", new_repeat );
 }
@@ -727,20 +728,20 @@ void PlaylistController::toggleRepeatMode()
 void PlaylistController::clear()
 {
     Q_D(PlaylistController);
-    vlc_playlist_locker lock{ d->m_playlist };
-    vlc_playlist_Clear( d->m_playlist );
+    heimdall_playlist_locker lock{ d->m_playlist };
+    heimdall_playlist_Clear( d->m_playlist );
 }
 
 void PlaylistController::goTo(uint index, bool startPlaying)
 {
     Q_D(PlaylistController);
-    vlc_playlist_locker lock{ d->m_playlist };
-    size_t count = vlc_playlist_Count( d->m_playlist );
+    heimdall_playlist_locker lock{ d->m_playlist };
+    size_t count = heimdall_playlist_Count( d->m_playlist );
     if (count == 0 || index > count-1)
         return;
-    vlc_playlist_GoTo( d->m_playlist, index );
+    heimdall_playlist_GoTo( d->m_playlist, index );
     if (startPlaying)
-        vlc_playlist_Start( d->m_playlist );
+        heimdall_playlist_Start( d->m_playlist );
 }
 
 bool PlaylistController::isRandom() const
@@ -752,8 +753,8 @@ bool PlaylistController::isRandom() const
 void PlaylistController::setRandom(bool random)
 {
     Q_D(const PlaylistController);
-    vlc_playlist_locker lock{ d->m_playlist };
-    vlc_playlist_SetPlaybackOrder( d->m_playlist, random ? VLC_PLAYLIST_PLAYBACK_ORDER_RANDOM : VLC_PLAYLIST_PLAYBACK_ORDER_NORMAL );
+    heimdall_playlist_locker lock{ d->m_playlist };
+    heimdall_playlist_SetPlaybackOrder( d->m_playlist, random ? HEIMDALL_PLAYLIST_PLAYBACK_ORDER_RANDOM : HEIMDALL_PLAYLIST_PLAYBACK_ORDER_NORMAL );
 }
 
 Playlist PlaylistController::getPlaylist() const
@@ -778,8 +779,8 @@ PlaylistController::PlaybackRepeat PlaylistController::getRepeatMode() const
 void PlaylistController::setRepeatMode(PlaylistController::PlaybackRepeat mode)
 {
     Q_D(const PlaylistController);
-    vlc_playlist_locker lock{ d->m_playlist };
-    vlc_playlist_SetPlaybackRepeat( d->m_playlist, static_cast<vlc_playlist_playback_repeat>(mode) );
+    heimdall_playlist_locker lock{ d->m_playlist };
+    heimdall_playlist_SetPlaybackRepeat( d->m_playlist, static_cast<heimdall_playlist_playback_repeat>(mode) );
 }
 
 PlaylistController::MediaStopAction PlaylistController::getMediaStopAction() const
@@ -791,8 +792,8 @@ PlaylistController::MediaStopAction PlaylistController::getMediaStopAction() con
 void PlaylistController::setMediaStopAction(PlaylistController::MediaStopAction action)
 {
     Q_D(PlaylistController);
-    vlc_playlist_locker lock{ d->m_playlist };
-    vlc_playlist_SetMediaStoppedAction(d->m_playlist, static_cast<vlc_playlist_media_stopped_action>(action) );
+    heimdall_playlist_locker lock{ d->m_playlist };
+    heimdall_playlist_SetMediaStoppedAction(d->m_playlist, static_cast<heimdall_playlist_media_stopped_action>(action) );
 }
 
 bool PlaylistController::isEmpty() const
@@ -885,4 +886,4 @@ bool PlaylistController::isInitialized() const
 }
 
   } // namespace playlist
-} // namespace vlc
+} // namespace heimdall

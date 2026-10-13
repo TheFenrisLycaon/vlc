@@ -2,6 +2,7 @@
  * jpeg.c: jpeg decoder module making use of libjpeg.
  *****************************************************************************
  * Copyright (C) 2013-2014,2016 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Maxim Bublis <b@codemonkey.ru>
  *
@@ -24,12 +25,12 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
-#include <vlc_charset.h>
-#include <vlc_ancillary.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
+#include <heimdall_charset.h>
+#include <heimdall_ancillary.h>
 
 #include <jpeglib.h>
 #include <setjmp.h>
@@ -52,7 +53,7 @@ struct jpeg_sys_t
     /* setjmp buffer for internal libjpeg error handling */
     jmp_buf setjmp_buffer;
 
-    vlc_object_t *p_obj;
+    heimdall_object_t *p_obj;
 };
 
 /*
@@ -66,8 +67,8 @@ typedef struct
     struct jpeg_decompress_struct p_jpeg;
 } decoder_sys_t;
 
-static int  OpenDecoder(vlc_object_t *);
-static void CloseDecoder(vlc_object_t *);
+static int  OpenDecoder(heimdall_object_t *);
+static void CloseDecoder(heimdall_object_t *);
 
 static int DecodeBlock(decoder_t *, block_t *);
 
@@ -89,7 +90,7 @@ static const char * const ppsz_enc_options[] = {
     NULL
 };
 
-static int  OpenEncoder(vlc_object_t *);
+static int  OpenEncoder(heimdall_object_t *);
 static void CloseEncoder(encoder_t *);
 
 static block_t *EncodeBlock(encoder_t *, picture_t *);
@@ -97,7 +98,7 @@ static block_t *EncodeBlock(encoder_t *, picture_t *);
 /*
  * Module descriptor
  */
-vlc_module_begin()
+heimdall_module_begin()
     set_subcategory(SUBCAT_INPUT_VCODEC)
     /* decoder main module */
     set_description(N_("JPEG image decoder"))
@@ -123,7 +124,7 @@ vlc_module_begin()
     set_description(N_("JPEG image encoder"))
     set_capability("image encoder", 1000)
     set_callback(OpenEncoder)
-vlc_module_end()
+heimdall_module_end()
 
 
 /*
@@ -151,20 +152,20 @@ static void user_error_message(j_common_ptr p_jpeg)
 /*
  * Probe the decoder and return score
  */
-static int OpenDecoder(vlc_object_t *p_this)
+static int OpenDecoder(heimdall_object_t *p_this)
 {
     decoder_t *p_dec = (decoder_t *)p_this;
 
-    if (p_dec->fmt_in->i_codec != VLC_CODEC_JPEG)
+    if (p_dec->fmt_in->i_codec != HEIMDALL_CODEC_JPEG)
     {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Allocate the memory needed to store the decoder's structure */
     decoder_sys_t *p_sys = malloc(sizeof(decoder_sys_t));
     if (p_sys == NULL)
     {
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     p_dec->p_sys = p_sys;
@@ -180,13 +181,13 @@ static int OpenDecoder(vlc_object_t *p_this)
     p_dec->pf_decode = DecodeBlock;
 
     p_dec->fmt_out.i_codec =
-    p_dec->fmt_out.video.i_chroma = VLC_CODEC_RGB24;
+    p_dec->fmt_out.video.i_chroma = HEIMDALL_CODEC_RGB24;
     p_dec->fmt_out.video.transfer  = TRANSFER_FUNC_SRGB;
     p_dec->fmt_out.video.space     = COLOR_SPACE_SRGB;
     p_dec->fmt_out.video.primaries = COLOR_PRIMARIES_SRGB;
     p_dec->fmt_out.video.color_range = COLOR_RANGE_FULL;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*
@@ -203,7 +204,7 @@ static int OpenDecoder(vlc_object_t *p_this)
  * Case Big Endian EXIF tag / Big Endian machine
  *   - just memcpy the tag structure into the value to return
  *
- * While there are byte manipulation functions in vlc_common.h, none of them
+ * While there are byte manipulation functions in heimdall_common.h, none of them
  * address that format of the data supplied may be either big or little endian.
  *
  * The claim is made that this is the best way to do it. Can you do better?
@@ -248,7 +249,7 @@ static bool getRDFFloat(const char *psz_rdf, float *out, const char *psz_var)
     if (unlikely(p_end == NULL || p_end == p_start + 1))
         return false;
 
-    *out = vlc_strtof_c(p_start, NULL);
+    *out = heimdall_strtof_c(p_start, NULL);
     return true;
 }
 
@@ -297,7 +298,7 @@ static bool jpeg_ParseXMP(const uint8_t *p_buf, size_t i_buf,
         value >= FIELD_OF_VIEW_DEGREES_MIN && value <= FIELD_OF_VIEW_DEGREES_MAX)
         fmt->pose.fov = value;
 
-    vlc_viewpoint_from_euler(&fmt->pose, yaw, pitch, roll);
+    heimdall_viewpoint_from_euler(&fmt->pose, yaw, pitch, roll);
 
     free(psz_rdf);
 
@@ -470,12 +471,12 @@ static int DecodeBlock(decoder_t *p_dec, block_t *p_block)
     p_sys->p_row_pointers = NULL;
 
     if (!p_block) /* No Drain */
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
 
     if (p_block->i_flags & BLOCK_FLAG_CORRUPTED )
     {
         block_Release(p_block);
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
     }
 
     /* libjpeg longjmp's there in case of error */
@@ -530,8 +531,8 @@ static int DecodeBlock(decoder_t *p_dec, block_t *p_block)
     unsigned int icc_len;
     if (jpeg_read_icc_profile(&p_sys->p_jpeg, &p_icc, &icc_len))
     {
-        vlc_icc_profile_t *icc;
-        icc = picture_AttachNewAncillary(p_pic, VLC_ANCILLARY_ID_ICC, sizeof(*icc) + icc_len);
+        heimdall_icc_profile_t *icc;
+        icc = picture_AttachNewAncillary(p_pic, HEIMDALL_ANCILLARY_ID_ICC, sizeof(*icc) + icc_len);
         if (!icc) {
             free(p_icc);
             goto error;
@@ -543,7 +544,7 @@ static int DecodeBlock(decoder_t *p_dec, block_t *p_block)
 #endif /* LIBJPEG_TURBO_VERSION_NUMBER */
 
     /* Decode picture */
-    p_sys->p_row_pointers = vlc_alloc(p_sys->p_jpeg.output_height, sizeof(JSAMPROW));
+    p_sys->p_row_pointers = heimdall_alloc(p_sys->p_jpeg.output_height, sizeof(JSAMPROW));
     if (!p_sys->p_row_pointers)
     {
         goto error;
@@ -563,11 +564,11 @@ static int DecodeBlock(decoder_t *p_dec, block_t *p_block)
     jpeg_destroy_decompress(&p_sys->p_jpeg);
     free(p_sys->p_row_pointers);
 
-    p_pic->date = p_block->i_pts != VLC_TICK_INVALID ? p_block->i_pts : p_block->i_dts;
+    p_pic->date = p_block->i_pts != HEIMDALL_TICK_INVALID ? p_block->i_pts : p_block->i_dts;
 
     block_Release(p_block);
     decoder_QueueVideo( p_dec, p_pic );
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 
 error:
 
@@ -577,13 +578,13 @@ error:
     free(p_sys->p_row_pointers);
 
     block_Release(p_block);
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }
 
 /*
  * jpeg decoder destruction
  */
-static void CloseDecoder(vlc_object_t *p_this)
+static void CloseDecoder(heimdall_object_t *p_this)
 {
     decoder_t *p_dec = (decoder_t *)p_this;
     decoder_sys_t *p_sys = p_dec->p_sys;
@@ -594,22 +595,22 @@ static void CloseDecoder(vlc_object_t *p_this)
 /*
  * Probe the encoder and return score
  */
-static int OpenEncoder(vlc_object_t *p_this)
+static int OpenEncoder(heimdall_object_t *p_this)
 {
     encoder_t *p_enc = (encoder_t *)p_this;
 
     config_ChainParse(p_enc, ENC_CFG_PREFIX, ppsz_enc_options, p_enc->p_cfg);
 
-    if (p_enc->fmt_out.i_codec != VLC_CODEC_JPEG)
+    if (p_enc->fmt_out.i_codec != HEIMDALL_CODEC_JPEG)
     {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Allocate the memory needed to store encoder's structure */
     encoder_sys_t *p_sys = malloc(sizeof(encoder_sys_t));
     if (p_sys == NULL)
     {
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     p_enc->p_sys = p_sys;
@@ -627,20 +628,20 @@ static int OpenEncoder(vlc_object_t *p_this)
         ckd_mul( &p_sys->i_blocksize, p_sys->i_blocksize, p_enc->fmt_in.video.i_visible_height ) )
     {
         free( p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    p_enc->fmt_in.i_codec = p_enc->fmt_in.video.i_chroma = VLC_CODEC_I420;
+    p_enc->fmt_in.i_codec = p_enc->fmt_in.video.i_chroma = HEIMDALL_CODEC_I420;
     p_enc->fmt_in.video.color_range = COLOR_RANGE_FULL;
 
-    static const struct vlc_encoder_operations ops =
+    static const struct heimdall_encoder_operations ops =
     {
         .close = CloseEncoder,
         .encode_video = EncodeBlock,
     };
     p_enc->ops = &ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*
@@ -705,7 +706,7 @@ static block_t *EncodeBlock(encoder_t *p_enc, picture_t *p_pic)
     jpeg_write_marker(&p_sys->p_jpeg, JPEG_APP0 + 1, exif, sizeof(exif) - 1);
 
     /* Encode picture */
-    p_row_pointers = vlc_alloc(p_pic->i_planes, sizeof(JSAMPARRAY));
+    p_row_pointers = heimdall_alloc(p_pic->i_planes, sizeof(JSAMPARRAY));
     if (p_row_pointers == NULL)
     {
         goto error;
@@ -713,7 +714,7 @@ static block_t *EncodeBlock(encoder_t *p_enc, picture_t *p_pic)
 
     for (int i = 0; i < p_pic->i_planes; i++)
     {
-        p_row_pointers[i] = vlc_alloc(p_sys->p_jpeg.comp_info[i].v_samp_factor, sizeof(JSAMPROW) * DCTSIZE);
+        p_row_pointers[i] = heimdall_alloc(p_sys->p_jpeg.comp_info[i].v_samp_factor, sizeof(JSAMPROW) * DCTSIZE);
     }
 
     while (p_sys->p_jpeg.next_scanline < p_sys->p_jpeg.image_height)

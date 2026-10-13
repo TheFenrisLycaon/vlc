@@ -2,6 +2,7 @@
  * musicbrainz.c : Musicbrainz API lookup
  *****************************************************************************
  * Copyright (C) 2019 VideoLabs, VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -24,8 +25,8 @@
 #include <string.h>
 #include <limits.h>
 
-#include <vlc_common.h>
-#include <vlc_messages.h>
+#include <heimdall_common.h>
+#include <heimdall_messages.h>
 
 #include "json_helper.h"
 #include "musicbrainz.h"
@@ -46,7 +47,7 @@ static musicbrainz_lookup_t * musicbrainz_lookup_new(void)
     return calloc(1, sizeof(musicbrainz_lookup_t));
 }
 
-static musicbrainz_lookup_t * musicbrainz_lookup(vlc_object_t *p_obj, const char *psz_url)
+static musicbrainz_lookup_t * musicbrainz_lookup(heimdall_object_t *p_obj, const char *psz_url)
 {
     msg_Dbg(p_obj, "Querying MB for %s", psz_url);
     size_t i_buffer;
@@ -230,7 +231,7 @@ void musicbrainz_recording_release(musicbrainz_recording_t *mbr)
     free(mbr);
 }
 
-static musicbrainz_recording_t *musicbrainz_lookup_recording_by_apiurl(vlc_object_t *obj,
+static musicbrainz_recording_t *musicbrainz_lookup_recording_by_apiurl(heimdall_object_t *obj,
                                                                        const char *psz_url)
 {
     musicbrainz_recording_t *r = calloc(1, sizeof(*r));

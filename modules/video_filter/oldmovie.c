@@ -2,8 +2,9 @@
  * oldmovie.c : Old movie effect video filter
  *****************************************************************************
  * Copyright (C) 2013      Vianney Boyer
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Vianney Boyer <vlcvboyer -at- gmail -dot- com>
+ * Authors: Vianney Boyer <heimdallvboyer -at- gmail -dot- com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -30,12 +31,12 @@
 
 #include <math.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_picture.h>
-#include <vlc_rand.h>
-#include <vlc_tick.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
+#include <heimdall_rand.h>
+#include <heimdall_tick.h>
 
 #include "filter_picture.h"
 
@@ -88,7 +89,7 @@ typedef struct {
     int32_t  i_offset;
     int32_t  i_width;
     uint16_t i_intensity;
-    vlc_tick_t  i_stop_trigger;
+    heimdall_tick_t  i_stop_trigger;
 } scratch_t;
 
 typedef struct {
@@ -98,14 +99,14 @@ typedef struct {
     int32_t  i_length;
     int32_t  i_curve;
     uint16_t i_intensity;
-    vlc_tick_t  i_stop_trigger;
+    heimdall_tick_t  i_stop_trigger;
 } hair_t;
 
 typedef struct {
     int32_t  i_x, i_y;
     int32_t  i_width;
     uint16_t i_intensity;
-    vlc_tick_t  i_stop_trigger;
+    heimdall_tick_t  i_stop_trigger;
 } dust_t;
 
 typedef struct
@@ -117,31 +118,31 @@ typedef struct
     int32_t i_height[VOUT_MAX_PLANES];
     int32_t i_width[VOUT_MAX_PLANES];
     int32_t i_visible_pitch[VOUT_MAX_PLANES];
-    vlc_tick_t i_start_time;
-    vlc_tick_t i_last_time;
-    vlc_tick_t i_cur_time;
+    heimdall_tick_t i_start_time;
+    heimdall_tick_t i_last_time;
+    heimdall_tick_t i_cur_time;
 
     /* sliding & offset effect */
-    vlc_tick_t  i_offset_trigger;
-    vlc_tick_t  i_sliding_trigger;
-    vlc_tick_t  i_sliding_stop_trig;
+    heimdall_tick_t  i_offset_trigger;
+    heimdall_tick_t  i_sliding_trigger;
+    heimdall_tick_t  i_sliding_stop_trig;
     int32_t  i_offset_ofs;
     int32_t  i_sliding_ofs;
     int32_t  i_sliding_speed;
 
     /* scratch on film */
-    vlc_tick_t i_scratch_trigger;
+    heimdall_tick_t i_scratch_trigger;
     scratch_t *p_scratch[MAX_SCRATCH];
 
     /* hair on lens */
-    vlc_tick_t i_hair_trigger;
+    heimdall_tick_t i_hair_trigger;
     hair_t    *p_hair[MAX_HAIR];
 
     /* blotch on film */
-    vlc_tick_t i_blotch_trigger;
+    heimdall_tick_t i_blotch_trigger;
 
     /* dust on lens */
-    vlc_tick_t i_dust_trigger;
+    heimdall_tick_t i_dust_trigger;
     dust_t    *p_dust[MAX_DUST];
 } filter_sys_t;
 
@@ -175,13 +176,13 @@ static int  oldmovie_sliding_offset_apply( filter_t *p_filter, picture_t *p_pic_
 static int  Open ( filter_t * );
 static void Close( filter_t * );
 
-vlc_module_begin()
+heimdall_module_begin()
     set_description( N_("Old movie effect video filter") )
     set_shortname( N_( "Old movie" ))
     set_subcategory( SUBCAT_VIDEO_VFILTER )
 
     set_callback_video_filter( Open )
-vlc_module_end()
+heimdall_module_end()
 
 /**
  * Open the filter
@@ -192,36 +193,36 @@ static int Open( filter_t *p_filter ) {
     /* Assert video in match with video out */
     if( !es_format_IsSimilar( &p_filter->fmt_in, &p_filter->fmt_out ) ) {
         msg_Err( p_filter, "Input and output format does not match" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Reject 0 bpp and unsupported chroma */
-    const vlc_fourcc_t fourcc = p_filter->fmt_in.video.i_chroma;
-    const vlc_chroma_description_t *p_chroma =
-        vlc_fourcc_GetChromaDescription( fourcc );
+    const heimdall_fourcc_t fourcc = p_filter->fmt_in.video.i_chroma;
+    const heimdall_chroma_description_t *p_chroma =
+        heimdall_fourcc_GetChromaDescription( fourcc );
     assert( p_chroma != NULL );
     if( p_chroma->pixel_size == 0
         || p_chroma->plane_count < 3 || p_chroma->pixel_size > 1
-        || !vlc_fourcc_IsYUV( fourcc ) ) {
+        || !heimdall_fourcc_IsYUV( fourcc ) ) {
 
         msg_Err( p_filter, "Unsupported chroma (%4.4s)", (char*)&fourcc );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Allocate structure */
     p_filter->p_sys = p_sys = calloc( 1, sizeof(*p_sys) );
     if( unlikely( !p_sys ) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     /* init data */
-    static const struct vlc_filter_operations filter_ops =
+    static const struct heimdall_filter_operations filter_ops =
     {
         .filter_video = Filter, .close = Close,
     };
     p_filter->ops = &filter_ops;
-    p_sys->i_start_time = p_sys->i_cur_time = p_sys->i_last_time = vlc_tick_now();
+    p_sys->i_start_time = p_sys->i_cur_time = p_sys->i_last_time = heimdall_tick_now();
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /**
@@ -254,13 +255,13 @@ static picture_t *Filter( filter_t *p_filter, picture_t *p_pic_in ) {
     * manage time
     */
     p_sys->i_last_time = p_sys->i_cur_time;
-    p_sys->i_cur_time  = vlc_tick_now();
+    p_sys->i_cur_time  = heimdall_tick_now();
 
    /*
     * allocate data
     */
     if ( unlikely( !p_sys->b_init ) )
-        if ( unlikely( oldmovie_allocate_data( p_filter, p_pic_in ) != VLC_SUCCESS ) ) {
+        if ( unlikely( oldmovie_allocate_data( p_filter, p_pic_in ) != HEIMDALL_SUCCESS ) ) {
             picture_Release( p_pic_in );
             return NULL;
         }
@@ -279,20 +280,20 @@ static picture_t *Filter( filter_t *p_filter, picture_t *p_pic_in ) {
     /* simulates projector shutter blinking effect */
     oldmovie_shutter_effect(p_filter, p_pic_out);
 
-    if ( unlikely( oldmovie_sliding_offset_effect( p_filter, p_pic_out ) != VLC_SUCCESS ) )
+    if ( unlikely( oldmovie_sliding_offset_effect( p_filter, p_pic_out ) != HEIMDALL_SUCCESS ) )
         return CopyInfoAndRelease( p_pic_out, p_pic_in );
 
     oldmovie_dark_border_effect( p_filter, p_pic_out );
 
-    if ( unlikely( oldmovie_film_scratch_effect(p_filter, p_pic_out) != VLC_SUCCESS ) )
+    if ( unlikely( oldmovie_film_scratch_effect(p_filter, p_pic_out) != HEIMDALL_SUCCESS ) )
         return CopyInfoAndRelease( p_pic_out, p_pic_in );
 
     oldmovie_film_blotch_effect(p_filter, p_pic_out);
 
-    if ( unlikely( oldmovie_lens_hair_effect( p_filter, p_pic_out ) != VLC_SUCCESS ) )
+    if ( unlikely( oldmovie_lens_hair_effect( p_filter, p_pic_out ) != HEIMDALL_SUCCESS ) )
         return CopyInfoAndRelease( p_pic_out, p_pic_in );
 
-    if ( unlikely( oldmovie_lens_dust_effect( p_filter, p_pic_out ) != VLC_SUCCESS ) )
+    if ( unlikely( oldmovie_lens_dust_effect( p_filter, p_pic_out ) != HEIMDALL_SUCCESS ) )
         return CopyInfoAndRelease( p_pic_out, p_pic_in );
 
     oldmovie_film_dust_effect( p_filter, p_pic_out );
@@ -319,7 +320,7 @@ static int oldmovie_allocate_data( filter_t *p_filter, picture_t *p_pic_in ) {
         p_sys->i_width [i_p]         = (int) p_pic_in->p[i_p].i_visible_pitch
                                      / p_pic_in->p[i_p].i_pixel_pitch;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /**
@@ -357,12 +358,12 @@ static void oldmovie_shutter_effect( filter_t *p_filter, picture_t *p_pic_out ) 
    /*
     * depending on current time: define shutter location on picture
     */
-    int32_t i_shutter_sup = VLC_CLIP((int64_t)SUB_FRAME
+    int32_t i_shutter_sup = HEIMDALL_CLIP((int64_t)SUB_FRAME
                                       * p_pic_out->p[Y_PLANE].i_visible_lines
                                       * SHUTTER_SPEED / CLOCK_FREQ,
                                       0, p_pic_out->p[Y_PLANE].i_visible_lines);
 
-    int32_t i_shutter_inf = VLC_CLIP((int64_t)SUB_FRAME
+    int32_t i_shutter_inf = HEIMDALL_CLIP((int64_t)SUB_FRAME
                                       * p_pic_out->p[Y_PLANE].i_visible_lines
                                       * SHUTTER_SPEED / CLOCK_FREQ
                                       - SHUTTER_HEIGHT * p_pic_out->p[Y_PLANE].i_visible_lines,
@@ -379,9 +380,9 @@ static void oldmovie_shutter_effect( filter_t *p_filter, picture_t *p_pic_out ) 
             DARKEN_PIXEL( i_x, i_y, SHUTTER_INTENSITY, &p_pic_out->p[Y_PLANE] );
 }
 
-static vlc_tick_t RandomEnd(filter_sys_t *p_sys, vlc_tick_t modulo)
+static heimdall_tick_t RandomEnd(filter_sys_t *p_sys, heimdall_tick_t modulo)
 {
-    return p_sys->i_cur_time + (uint64_t)vlc_mrand48() % modulo + modulo / 2;
+    return p_sys->i_cur_time + (uint64_t)heimdall_mrand48() % modulo + modulo / 2;
 }
 
 /**
@@ -395,7 +396,7 @@ static int oldmovie_sliding_offset_effect( filter_t *p_filter, picture_t *p_pic_
     * one shot offset section
     */
 
-#define OFFSET_AVERAGE_PERIOD   VLC_TICK_FROM_SEC(10)
+#define OFFSET_AVERAGE_PERIOD   HEIMDALL_TICK_FROM_SEC(10)
 
     /* start trigger to be (re)initialized */
     if ( p_sys->i_offset_trigger == 0
@@ -406,7 +407,7 @@ static int oldmovie_sliding_offset_effect( filter_t *p_filter, picture_t *p_pic_
     } else if ( p_sys->i_offset_trigger <= p_sys->i_cur_time ) {
         /* trigger for offset effect */
         p_sys->i_offset_trigger = 0;
-        p_sys->i_offset_ofs = MOD( ( (uint32_t)vlc_mrand48() ),
+        p_sys->i_offset_ofs = MOD( ( (uint32_t)heimdall_mrand48() ),
                                   p_sys->i_height[Y_PLANE] ) * 100;
     } else
         p_sys->i_offset_ofs = 0;
@@ -416,8 +417,8 @@ static int oldmovie_sliding_offset_effect( filter_t *p_filter, picture_t *p_pic_
     * sliding section
     */
 
-#define SLIDING_AVERAGE_PERIOD   VLC_TICK_FROM_SEC(20)
-#define SLIDING_AVERAGE_DURATION VLC_TICK_FROM_SEC(3)
+#define SLIDING_AVERAGE_PERIOD   HEIMDALL_TICK_FROM_SEC(20)
+#define SLIDING_AVERAGE_DURATION HEIMDALL_TICK_FROM_SEC(3)
 
     /* start trigger to be (re)initialized */
     if (    ( p_sys->i_sliding_stop_trig  == 0 )
@@ -435,7 +436,7 @@ static int oldmovie_sliding_offset_effect( filter_t *p_filter, picture_t *p_pic_
         p_sys->i_sliding_stop_trig = RandomEnd(p_sys, SLIDING_AVERAGE_DURATION);
         p_sys->i_sliding_ofs = 0;
         /* note: sliding speed unit = image per 100 s */
-        p_sys->i_sliding_speed = MOD(((int32_t) vlc_mrand48() ), 201) - 100;
+        p_sys->i_sliding_speed = MOD(((int32_t) heimdall_mrand48() ), 201) - 100;
     }
     /* stop trigger disabling sliding effect */
     else if (   ( p_sys->i_sliding_stop_trig  <= p_sys->i_cur_time )
@@ -447,7 +448,7 @@ static int oldmovie_sliding_offset_effect( filter_t *p_filter, picture_t *p_pic_
 
         long long i_position = p_sys->i_sliding_speed
              * p_sys->i_height[Y_PLANE]
-             * SEC_FROM_VLC_TICK( p_sys->i_cur_time - p_sys->i_last_time );
+             * SEC_FROM_HEIMDALL_TICK( p_sys->i_cur_time - p_sys->i_last_time );
 
         /* check if offset is close to 0 and then ready to stop */
         if ( abs( p_sys->i_sliding_ofs ) < llabs( i_position )
@@ -461,7 +462,7 @@ static int oldmovie_sliding_offset_effect( filter_t *p_filter, picture_t *p_pic_
 
     /* update offset */
     p_sys->i_sliding_ofs += p_sys->i_sliding_speed * p_sys->i_height[Y_PLANE]
-                      * SEC_FROM_VLC_TICK( p_sys->i_cur_time - p_sys->i_last_time );
+                      * SEC_FROM_HEIMDALL_TICK( p_sys->i_cur_time - p_sys->i_last_time );
 
     p_sys->i_sliding_ofs = MOD( p_sys->i_sliding_ofs,
                                 p_sys->i_height[Y_PLANE] * 100 );
@@ -485,7 +486,7 @@ static int oldmovie_sliding_offset_apply( filter_t *p_filter, picture_t *p_pic_o
         uint8_t *p_temp_buf = calloc( p_pic_out->p[i_p].i_lines * p_pic_out->p[i_p].i_pitch,
                                       1 );
         if ( unlikely( !p_temp_buf ) )
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         memcpy( p_temp_buf,p_pic_out->p[i_p].p_pixels,
                 p_pic_out->p[i_p].i_lines * p_pic_out->p[i_p].i_pitch );
 
@@ -506,7 +507,7 @@ static int oldmovie_sliding_offset_apply( filter_t *p_filter, picture_t *p_pic_o
         free( p_temp_buf );
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /**
@@ -563,7 +564,7 @@ static int oldmovie_dark_border_effect( filter_t *p_filter, picture_t *p_pic_out
                      i_border_dist * 255 / BORDER_DIST, 0 );
         }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /**
@@ -573,8 +574,8 @@ static int oldmovie_film_scratch_effect( filter_t *p_filter, picture_t *p_pic_ou
 {
     filter_sys_t *p_sys = p_filter->p_sys;
 
-#define SCRATCH_GENERATOR_PERIOD VLC_TICK_FROM_SEC(2)
-#define SCRATCH_DURATION         VLC_TICK_FROM_MS(500)
+#define SCRATCH_GENERATOR_PERIOD HEIMDALL_TICK_FROM_SEC(2)
+#define SCRATCH_DURATION         HEIMDALL_TICK_FROM_MS(500)
 
     /* generate new scratch */
     if ( p_sys->i_scratch_trigger <= p_sys->i_cur_time ) {
@@ -583,16 +584,16 @@ static int oldmovie_film_scratch_effect( filter_t *p_filter, picture_t *p_pic_ou
                 /* allocate data */
                 p_sys->p_scratch[i_s] = calloc( 1, sizeof(scratch_t) );
                 if ( unlikely( !p_sys->p_scratch[i_s] ) )
-                    return VLC_ENOMEM;
+                    return HEIMDALL_ENOMEM;
 
                 /* set random parameters */
-                p_sys->p_scratch[i_s]->i_offset = ( ( (unsigned)vlc_mrand48() )
+                p_sys->p_scratch[i_s]->i_offset = ( ( (unsigned)heimdall_mrand48() )
                                                 % __MAX( p_sys->i_width[Y_PLANE] - 10, 1 ) )
                                                 + 5;
-                p_sys->p_scratch[i_s]->i_width  = ( ( (unsigned)vlc_mrand48() )
+                p_sys->p_scratch[i_s]->i_width  = ( ( (unsigned)heimdall_mrand48() )
                                                 % __MAX( p_sys->i_width[Y_PLANE] / 500, 1 ) )
                                                 + 1;
-                p_sys->p_scratch[i_s]->i_intensity = (unsigned) vlc_mrand48() % 50 + 10;
+                p_sys->p_scratch[i_s]->i_intensity = (unsigned) heimdall_mrand48() % 50 + 10;
                 p_sys->p_scratch[i_s]->i_stop_trigger = RandomEnd(p_sys, SCRATCH_DURATION);
 
                 break;
@@ -619,7 +620,7 @@ static int oldmovie_film_scratch_effect( filter_t *p_filter, picture_t *p_pic_ou
                                   &p_pic_out->p[Y_PLANE] );
         }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /**
@@ -630,17 +631,17 @@ static void oldmovie_film_blotch_effect( filter_t *p_filter, picture_t *p_pic_ou
 {
     filter_sys_t *p_sys = p_filter->p_sys;
 
-#define BLOTCH_GENERATOR_PERIOD VLC_TICK_FROM_SEC(5)
+#define BLOTCH_GENERATOR_PERIOD HEIMDALL_TICK_FROM_SEC(5)
 
     /* generate blotch */
     if ( p_sys->i_blotch_trigger <= p_sys->i_cur_time ) {
         /* set random parameters */
-        int32_t i_bx =        (unsigned)vlc_mrand48() % p_sys->i_width[Y_PLANE];
-        int32_t i_by =        (unsigned)vlc_mrand48() % p_sys->i_height[Y_PLANE];
-        int32_t i_width =     (unsigned)vlc_mrand48() % __MAX( 1, p_sys->i_width[Y_PLANE] / 10 ) + 1;
-        int32_t i_intensity = (unsigned)vlc_mrand48() % 50 + 20;
+        int32_t i_bx =        (unsigned)heimdall_mrand48() % p_sys->i_width[Y_PLANE];
+        int32_t i_by =        (unsigned)heimdall_mrand48() % p_sys->i_height[Y_PLANE];
+        int32_t i_width =     (unsigned)heimdall_mrand48() % __MAX( 1, p_sys->i_width[Y_PLANE] / 10 ) + 1;
+        int32_t i_intensity = (unsigned)heimdall_mrand48() % 50 + 20;
 
-        if ( (unsigned)vlc_mrand48() & 0x01 ) {
+        if ( (unsigned)heimdall_mrand48() & 0x01 ) {
             /* draw dark blotch */
             for ( int32_t i_y = -i_width + 1; i_y < i_width; i_y++ )
                 for ( int32_t i_x = -i_width + 1; i_x < i_width; i_x++ )
@@ -671,13 +672,13 @@ static void oldmovie_film_dust_effect( filter_t *p_filter, picture_t *p_pic_out 
     for ( int32_t i_dust = 0;
           i_dust < p_sys->i_width[Y_PLANE] * p_sys->i_height[Y_PLANE] / ONESHOT_DUST_RATIO;
           i_dust++)
-        if ( (unsigned)vlc_mrand48() % 5 < 3 )
-            DARKEN_PIXEL( (unsigned)vlc_mrand48() % p_sys->i_width[Y_PLANE],
-                          (unsigned)vlc_mrand48() % p_sys->i_height[Y_PLANE],
+        if ( (unsigned)heimdall_mrand48() % 5 < 3 )
+            DARKEN_PIXEL( (unsigned)heimdall_mrand48() % p_sys->i_width[Y_PLANE],
+                          (unsigned)heimdall_mrand48() % p_sys->i_height[Y_PLANE],
                           150, &p_pic_out->p[Y_PLANE] );
         else
-            LIGHTEN_PIXEL( (unsigned)vlc_mrand48() % p_sys->i_width[Y_PLANE],
-                           (unsigned)vlc_mrand48() % p_sys->i_height[Y_PLANE],
+            LIGHTEN_PIXEL( (unsigned)heimdall_mrand48() % p_sys->i_width[Y_PLANE],
+                           (unsigned)heimdall_mrand48() % p_sys->i_height[Y_PLANE],
                            50, &p_pic_out->p[Y_PLANE] );
 }
 
@@ -685,10 +686,10 @@ static void oldmovie_film_dust_effect( filter_t *p_filter, picture_t *p_pic_out 
  * Hair and dust on projector lens
  *
  */
-#define HAIR_GENERATOR_PERIOD VLC_TICK_FROM_SEC(50)
-#define HAIR_DURATION         VLC_TICK_FROM_SEC(50)
-#define DUST_GENERATOR_PERIOD VLC_TICK_FROM_SEC(100)
-#define DUST_DURATION         VLC_TICK_FROM_SEC(4)
+#define HAIR_GENERATOR_PERIOD HEIMDALL_TICK_FROM_SEC(50)
+#define HAIR_DURATION         HEIMDALL_TICK_FROM_SEC(50)
+#define DUST_GENERATOR_PERIOD HEIMDALL_TICK_FROM_SEC(100)
+#define DUST_DURATION         HEIMDALL_TICK_FROM_SEC(4)
 
 /**
  * Define hair location on the lens and timeout
@@ -697,9 +698,9 @@ static void oldmovie_film_dust_effect( filter_t *p_filter, picture_t *p_pic_out 
 static void oldmovie_define_hair_location( filter_t *p_filter, hair_t* ps_hair ) {
     filter_sys_t *p_sys = p_filter->p_sys;
 
-    ps_hair->i_x = (unsigned)vlc_mrand48() % p_sys->i_width[Y_PLANE];
-    ps_hair->i_y = (unsigned)vlc_mrand48() % p_sys->i_height[Y_PLANE];
-    ps_hair->i_rotation = (unsigned)vlc_mrand48() % 200;
+    ps_hair->i_x = (unsigned)heimdall_mrand48() % p_sys->i_width[Y_PLANE];
+    ps_hair->i_y = (unsigned)heimdall_mrand48() % p_sys->i_height[Y_PLANE];
+    ps_hair->i_rotation = (unsigned)heimdall_mrand48() % 200;
 
     ps_hair->i_stop_trigger = RandomEnd(p_sys, HAIR_DURATION);
 }
@@ -718,15 +719,15 @@ static int oldmovie_lens_hair_effect( filter_t *p_filter, picture_t *p_pic_out )
                 /* allocate data */
                 p_sys->p_hair[i_h] = calloc( 1, sizeof(hair_t) );
                 if ( unlikely( !p_sys->p_hair[i_h] ) )
-                    return VLC_ENOMEM;
+                    return HEIMDALL_ENOMEM;
 
                 /* set random parameters */
-                p_sys->p_hair[i_h]->i_length = (unsigned)vlc_mrand48()
+                p_sys->p_hair[i_h]->i_length = (unsigned)heimdall_mrand48()
                                              % ( p_sys->i_width[Y_PLANE] / 3 ) + 5;
-                p_sys->p_hair[i_h]->i_curve  = MOD( (int32_t)vlc_mrand48(), 80 ) - 40;
-                p_sys->p_hair[i_h]->i_width  = (unsigned)vlc_mrand48()
+                p_sys->p_hair[i_h]->i_curve  = MOD( (int32_t)heimdall_mrand48(), 80 ) - 40;
+                p_sys->p_hair[i_h]->i_width  = (unsigned)heimdall_mrand48()
                                              % __MAX( 1, p_sys->i_width[Y_PLANE] / 1500 ) + 1;
-                p_sys->p_hair[i_h]->i_intensity = (unsigned)vlc_mrand48() % 50 + 20;
+                p_sys->p_hair[i_h]->i_intensity = (unsigned)heimdall_mrand48() % 50 + 20;
 
                 oldmovie_define_hair_location( p_filter, p_sys->p_hair[i_h] );
 
@@ -741,7 +742,7 @@ static int oldmovie_lens_hair_effect( filter_t *p_filter, picture_t *p_pic_out )
             /* remove outdated ones */
             if ( p_sys->p_hair[i_h]->i_stop_trigger <= p_sys->i_cur_time ) {
                 /* select between moving or removing hair */
-                if ( (unsigned)vlc_mrand48() % 2 == 0 )
+                if ( (unsigned)heimdall_mrand48() % 2 == 0 )
                     /* move hair */
                     oldmovie_define_hair_location( p_filter, p_sys->p_hair[i_h] );
                 else {
@@ -773,7 +774,7 @@ static int oldmovie_lens_hair_effect( filter_t *p_filter, picture_t *p_pic_out )
             }
         }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /**
@@ -783,14 +784,14 @@ static int oldmovie_lens_hair_effect( filter_t *p_filter, picture_t *p_pic_out )
 static void oldmovie_define_dust_location( filter_t *p_filter, dust_t* ps_dust ) {
     filter_sys_t *p_sys = p_filter->p_sys;
 
-    ps_dust->i_x = (unsigned)vlc_mrand48() % p_sys->i_width[Y_PLANE];
-    ps_dust->i_y = (unsigned)vlc_mrand48() % p_sys->i_height[Y_PLANE];
+    ps_dust->i_x = (unsigned)heimdall_mrand48() % p_sys->i_width[Y_PLANE];
+    ps_dust->i_y = (unsigned)heimdall_mrand48() % p_sys->i_height[Y_PLANE];
 
     ps_dust->i_stop_trigger = RandomEnd(p_sys, HAIR_DURATION);
 
 
-    ps_dust->i_x = MOD( (int32_t)vlc_mrand48(), p_sys->i_width[Y_PLANE]  );
-    ps_dust->i_y = MOD( (int32_t)vlc_mrand48(), p_sys->i_height[Y_PLANE] );
+    ps_dust->i_x = MOD( (int32_t)heimdall_mrand48(), p_sys->i_width[Y_PLANE]  );
+    ps_dust->i_y = MOD( (int32_t)heimdall_mrand48(), p_sys->i_height[Y_PLANE] );
 
     ps_dust->i_stop_trigger = RandomEnd(p_sys, DUST_DURATION);
 }
@@ -809,12 +810,12 @@ static int oldmovie_lens_dust_effect( filter_t *p_filter, picture_t *p_pic_out )
                 /* allocate data */
                 p_sys->p_dust[i_d] = calloc( 1, sizeof(dust_t) );
                 if ( unlikely( !p_sys->p_dust[i_d] ) )
-                    return VLC_ENOMEM;
+                    return HEIMDALL_ENOMEM;
 
                 /* set random parameters */
                 oldmovie_define_dust_location( p_filter, p_sys->p_dust[i_d] );
-                p_sys->p_dust[i_d]->i_width = MOD( (int32_t)vlc_mrand48(), 5 ) + 1;
-                p_sys->p_dust[i_d]->i_intensity = (unsigned)vlc_mrand48() % 30 + 30;
+                p_sys->p_dust[i_d]->i_width = MOD( (int32_t)heimdall_mrand48(), 5 ) + 1;
+                p_sys->p_dust[i_d]->i_intensity = (unsigned)heimdall_mrand48() % 30 + 30;
 
                 break;
             }
@@ -827,7 +828,7 @@ static int oldmovie_lens_dust_effect( filter_t *p_filter, picture_t *p_pic_out )
             /* remove outdated ones */
             if ( p_sys->p_dust[i_d]->i_stop_trigger <= p_sys->i_cur_time ) {
                 /* select between moving or removing dust */
-                if ( (unsigned)vlc_mrand48() % 2 == 0 )
+                if ( (unsigned)heimdall_mrand48() % 2 == 0 )
                     /* move dust */
                     oldmovie_define_dust_location( p_filter, p_sys->p_dust[i_d] );
                 else {
@@ -847,5 +848,5 @@ static int oldmovie_lens_dust_effect( filter_t *p_filter, picture_t *p_pic_out )
                                               &p_pic_out->p[Y_PLANE] );
         }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

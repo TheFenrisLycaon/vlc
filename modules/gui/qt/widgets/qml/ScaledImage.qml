@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2022 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Prince Gupta <guptaprince8832@gmail.com>
  *
@@ -21,7 +22,7 @@
 import QtQuick
 import QtQuick.Window
 
-import VLC.MainInterface
+import Heimdall.MainInterface
 
 Image {
     id: root

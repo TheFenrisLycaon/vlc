@@ -2,6 +2,7 @@
  * MPD.h
  *****************************************************************************
  * Copyright (C) 2010 - 2011 Klagenfurt University
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Created on: Aug 10, 2010
  * Authors: Christopher Mueller <christopher.mueller@itec.uni-klu.ac.at>
@@ -43,7 +44,7 @@ namespace dash
             friend class IsoffMainParser;
 
             public:
-                MPD(vlc_object_t *, Profile);
+                MPD(heimdall_object_t *, Profile);
                 virtual ~MPD();
 
                 Profile                         getProfile() const;

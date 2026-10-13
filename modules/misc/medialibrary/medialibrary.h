@@ -2,6 +2,7 @@
  * medialibrary.h: medialibrary module common declarations
  *****************************************************************************
  * Copyright © 2015-2016 VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -29,29 +30,29 @@
 #include <medialibrary/ILabel.h>
 #include <medialibrary/IThumbnailer.h>
 
-#include <vlc_common.h>
-#include <vlc_threads.h>
-#include <vlc_input_item.h>
-#include <vlc_input.h>
-#include <vlc_media_library.h>
-#include <vlc_cxx_helpers.hpp>
-#include <vlc_preparser.h>
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
+#include <heimdall_input_item.h>
+#include <heimdall_input.h>
+#include <heimdall_media_library.h>
+#include <heimdall_cxx_helpers.hpp>
+#include <heimdall_preparser.h>
 
 #include <cstdarg>
 #include <type_traits>
 
 #include "LazyPreparser.h"
 
-struct vlc_event_t;
-struct vlc_object_t;
-struct vlc_preparser_t;
+struct heimdall_event_t;
+struct heimdall_object_t;
+struct heimdall_preparser_t;
 
 class Logger;
 
 class EmbeddedThumbnail : public medialibrary::parser::IEmbeddedThumbnail
 {
 public:
-    EmbeddedThumbnail( input_attachment_t* a, vlc_fourcc_t fcc );
+    EmbeddedThumbnail( input_attachment_t* a, heimdall_fourcc_t fcc );
     virtual ~EmbeddedThumbnail();
     bool save(const std::string& path) override;
     size_t size() const override;
@@ -59,7 +60,7 @@ public:
     std::string extension() const override;
 private:
     input_attachment_t* m_attachment;
-    vlc_fourcc_t m_fcc;
+    heimdall_fourcc_t m_fcc;
 };
 
 class MetadataExtractor : public medialibrary::parser::IParserService
@@ -81,7 +82,7 @@ private:
     };
 
 public:
-    MetadataExtractor( vlc_object_t* parent );
+    MetadataExtractor( heimdall_object_t* parent );
     virtual ~MetadataExtractor() = default;
 
     // All methods are meant to be accessed through IParserService, not directly
@@ -97,16 +98,16 @@ private:
 
     void populateItem( medialibrary::parser::IItem& item, input_item_t* inputItem );
 
-    static void onParserEnded(vlc_preparser_req *, int status, void *user_data);
-    static void onParserSubtreeAdded( vlc_preparser_req *, input_item_node_t *subtree,
+    static void onParserEnded(heimdall_preparser_req *, int status, void *user_data);
+    static void onParserSubtreeAdded( heimdall_preparser_req *, input_item_node_t *subtree,
                                       void *user_data );
-    static void onAttachmentsAdded( vlc_preparser_req *,
+    static void onAttachmentsAdded( heimdall_preparser_req *,
                                     input_attachment_t *const *array,
                                     size_t count, void *data );
 
 private:
-    vlc::threads::condition_variable m_cond;
-    vlc::threads::mutex m_mutex;
+    heimdall::threads::condition_variable m_cond;
+    heimdall::threads::mutex m_mutex;
     ParseContext* m_currentCtx;
     LazyPreparser m_parser;
 };
@@ -118,23 +119,23 @@ class Thumbnailer : public medialibrary::IThumbnailer
         Thumbnailer* thumbnailer;
         bool done;
         bool error;
-        vlc_preparser_req *req;
+        heimdall_preparser_req *req;
     };
 public:
-    Thumbnailer(vlc_medialibrary_module_t* ml);
+    Thumbnailer(heimdall_medialibrary_module_t* ml);
     bool generate( const medialibrary::IMedia&, const std::string& mrl,
                    uint32_t desiredWidth, uint32_t desiredHeight,
                    float position, const std::string& dest ) override;
     void stop() override;
 
 private:
-    static void onThumbnailToFilesComplete(vlc_preparser_req *req, int status,
+    static void onThumbnailToFilesComplete(heimdall_preparser_req *req, int status,
                                            const bool *result_array,
                                            size_t result_count, void *data);
 
 private:
-    vlc::threads::mutex m_mutex;
-    vlc::threads::condition_variable m_cond;
+    heimdall::threads::mutex m_mutex;
+    heimdall::threads::condition_variable m_cond;
     ThumbnailerCtx* m_currentContext;
     LazyPreparser m_thumbnailer;
 };
@@ -142,19 +143,19 @@ private:
 class MediaLibrary : public medialibrary::IMediaLibraryCb
 {
 public:
-    static MediaLibrary* create( vlc_medialibrary_module_t* ml );
+    static MediaLibrary* create( heimdall_medialibrary_module_t* ml );
 
     bool Init();
     int Control( int query, va_list args );
-    int List( int query, const vlc_ml_query_params_t* params, va_list args );
+    int List( int query, const heimdall_ml_query_params_t* params, va_list args );
     void* Get( int query, va_list args );
 
 private:
     int controlMedia( int query, va_list args );
     int getMeta( const medialibrary::IMedia& media, int meta, char** result );
-    int getMeta( const medialibrary::IMedia& media, vlc_ml_playback_states_all* result );
+    int getMeta( const medialibrary::IMedia& media, heimdall_ml_playback_states_all* result );
     int setMeta( medialibrary::IMedia& media, int meta, const char* value );
-    int setMeta( medialibrary::IMedia& media, const vlc_ml_playback_states_all* values );
+    int setMeta( medialibrary::IMedia& media, const heimdall_ml_playback_states_all* values );
     int filterListChildrenQuery( int query, int parentType );
     int listAlbums( int listQuery, const medialibrary::QueryParameters* paramsPtr,
                     const char* pattern, uint32_t nbItems, uint32_t offset, va_list args );
@@ -179,12 +180,12 @@ private:
     static medialibrary::SortingCriteria sortingCriteria( int sort );
 
 private:
-    MediaLibrary( vlc_medialibrary_module_t* vlc_ml, medialibrary::IMediaLibrary* ml );
+    MediaLibrary( heimdall_medialibrary_module_t* heimdall_ml, medialibrary::IMediaLibrary* ml );
 
-    vlc_medialibrary_module_t* m_vlc_ml;
+    heimdall_medialibrary_module_t* m_heimdall_ml;
     std::unique_ptr<medialibrary::IMediaLibrary> m_ml;
 
-    vlc::threads::mutex m_mutex;
+    heimdall::threads::mutex m_mutex;
     bool m_initialized = false; /* protected by m_mutex */
 
     std::atomic_flag m_started = ATOMIC_FLAG_INIT;
@@ -240,19 +241,19 @@ public:
     void onCacheIdleChanged( bool ) override {}
 };
 
-bool Convert( const medialibrary::IMedia* input, vlc_ml_media_t& output );
-bool Convert( const medialibrary::IFile* input, vlc_ml_file_t& output );
-bool Convert( const medialibrary::IMovie* input, vlc_ml_movie_t& output );
-bool Convert( const medialibrary::IShowEpisode* input, vlc_ml_show_episode_t& output );
-bool Convert( const medialibrary::IAlbum* input, vlc_ml_album_t& output );
-bool Convert( const medialibrary::IArtist* input, vlc_ml_artist_t& output );
-bool Convert( const medialibrary::IGenre* input, vlc_ml_genre_t& output );
-bool Convert( const medialibrary::IShow* input, vlc_ml_show_t& output );
-bool Convert( const medialibrary::ILabel* input, vlc_ml_label_t& output );
-bool Convert( const medialibrary::IMediaGroup* input, vlc_ml_group_t& output );
-bool Convert( const medialibrary::IPlaylist* input, vlc_ml_playlist_t& output );
-bool Convert( const medialibrary::IFolder* input, vlc_ml_folder_t& output );
-bool Convert( const medialibrary::IBookmark* input, vlc_ml_bookmark_t& output );
+bool Convert( const medialibrary::IMedia* input, heimdall_ml_media_t& output );
+bool Convert( const medialibrary::IFile* input, heimdall_ml_file_t& output );
+bool Convert( const medialibrary::IMovie* input, heimdall_ml_movie_t& output );
+bool Convert( const medialibrary::IShowEpisode* input, heimdall_ml_show_episode_t& output );
+bool Convert( const medialibrary::IAlbum* input, heimdall_ml_album_t& output );
+bool Convert( const medialibrary::IArtist* input, heimdall_ml_artist_t& output );
+bool Convert( const medialibrary::IGenre* input, heimdall_ml_genre_t& output );
+bool Convert( const medialibrary::IShow* input, heimdall_ml_show_t& output );
+bool Convert( const medialibrary::ILabel* input, heimdall_ml_label_t& output );
+bool Convert( const medialibrary::IMediaGroup* input, heimdall_ml_group_t& output );
+bool Convert( const medialibrary::IPlaylist* input, heimdall_ml_playlist_t& output );
+bool Convert( const medialibrary::IFolder* input, heimdall_ml_folder_t& output );
+bool Convert( const medialibrary::IBookmark* input, heimdall_ml_bookmark_t& output );
 input_item_t* MediaToInputItem( const medialibrary::IMedia* media );
 
 template <typename To, typename ItemType, typename From>
@@ -268,9 +269,9 @@ To* ml_convert_list( const std::vector<std::shared_ptr<From>>& input )
                         ItemType>::value ), "Invalid/mismatching list/item types" );
 
     // Allocate the ml_*_list_t
-    auto list = vlc::wrap_cptr(
+    auto list = heimdall::wrap_cptr(
         static_cast<To*>( calloc( 1, sizeof( To ) + input.size() * sizeof( ItemType ) ) ),
-        static_cast<void(*)(To*)>( &vlc_ml_release ) );
+        static_cast<void(*)(To*)>( &heimdall_ml_release ) );
     if ( unlikely( list == nullptr ) )
         return nullptr;
 
@@ -290,9 +291,9 @@ T* CreateAndConvert( const Input* input )
 {
     if ( input == nullptr )
         return nullptr;
-    auto res = vlc::wrap_cptr(
+    auto res = heimdall::wrap_cptr(
                 static_cast<T*>( calloc( 1, sizeof( T ) ) ),
-                static_cast<void(*)(T*)>( &vlc_ml_release ) );
+                static_cast<void(*)(T*)>( &heimdall_ml_release ) );
     if ( unlikely( res == nullptr ) )
         return nullptr;
     if ( Convert( input, *res ) == false )

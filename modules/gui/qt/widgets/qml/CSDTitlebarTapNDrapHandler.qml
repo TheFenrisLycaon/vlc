@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,7 +20,7 @@
 //CSD is only supported on Qt 5.15
 import QtQuick
 
-import VLC.MainInterface
+import Heimdall.MainInterface
 
 Item {
     property alias csdMenuVisible: csdMenu.menuVisible

@@ -1,9 +1,10 @@
 /**
  * @file pulse.c
- * @brief List of PulseAudio sources for VLC media player
+ * @brief List of PulseAudio sources for Heimdall media player
  */
 /*****************************************************************************
  * Copyright © 2011 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -27,18 +28,18 @@
 #include <search.h>
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_services_discovery.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_services_discovery.h>
 #include <pulse/pulseaudio.h>
-#include "audio_output/vlcpulse.h"
+#include "audio_output/heimdallpulse.h"
 
-static int Open (vlc_object_t *);
-static void Close (vlc_object_t *);
+static int Open (heimdall_object_t *);
+static void Close (heimdall_object_t *);
 
-VLC_SD_PROBE_HELPER("pulse", N_("Audio capture"), SD_CAT_DEVICES);
+HEIMDALL_SD_PROBE_HELPER("pulse", N_("Audio capture"), SD_CAT_DEVICES);
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname (N_("Audio capture"))
     set_description (N_("Audio capture (PulseAudio)"))
     set_subcategory (SUBCAT_PLAYLIST_SD)
@@ -46,8 +47,8 @@ vlc_module_begin ()
     set_callbacks (Open, Close)
     add_shortcut ("pulse", "pa", "pulseaudio", "audio")
 
-    VLC_SD_PROBE_SUBMODULE
-vlc_module_end ()
+    HEIMDALL_SD_PROBE_SUBMODULE
+heimdall_module_end ()
 
 typedef struct
 {
@@ -61,7 +62,7 @@ static void SourceCallback(pa_context *, const pa_source_info *, int, void *);
 static void ContextCallback(pa_context *, pa_subscription_event_type_t,
                             uint32_t, void *);
 
-static int Open (vlc_object_t *obj)
+static int Open (heimdall_object_t *obj)
 {
     services_discovery_t *sd = (services_discovery_t *)obj;
     pa_operation *op;
@@ -69,13 +70,13 @@ static int Open (vlc_object_t *obj)
 
     services_discovery_sys_t *sys = malloc (sizeof (*sys));
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    ctx = vlc_pa_connect (obj, &sys->mainloop);
+    ctx = heimdall_pa_connect (obj, &sys->mainloop);
     if (ctx == NULL)
     {
         free (sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     sd->p_sys = sys;
@@ -101,13 +102,13 @@ static int Open (vlc_object_t *obj)
         pa_operation_unref (op);
     }
     pa_threaded_mainloop_unlock (sys->mainloop);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 /*
 error:
     pa_threaded_mainloop_unlock (sys->mainloop);
-    vlc_pa_disconnect (obj, ctx, sys->mainloop);
+    heimdall_pa_disconnect (obj, ctx, sys->mainloop);
     free (sys);
-    return VLC_EGENERIC;*/
+    return HEIMDALL_EGENERIC;*/
 }
 
 struct device
@@ -186,7 +187,7 @@ static input_item_t *AddCard (services_discovery_t *sd, const pa_source_info *in
         return c->item;
     }
 
-    c->item = input_item_NewExt("vlc://nop", c->name,
+    c->item = input_item_NewExt("heimdall://nop", c->name,
                                 INPUT_DURATION_INDEFINITE,
                                 ITEM_TYPE_NODE, ITEM_LOCAL);
 
@@ -301,12 +302,12 @@ static void ContextCallback(pa_context *ctx, pa_subscription_event_type_t type,
     }
 }
 
-static void Close (vlc_object_t *obj)
+static void Close (heimdall_object_t *obj)
 {
     services_discovery_t *sd = (services_discovery_t *)obj;
     services_discovery_sys_t *sys = sd->p_sys;
 
-    vlc_pa_disconnect (obj, sys->context, sys->mainloop);
+    heimdall_pa_disconnect (obj, sys->context, sys->mainloop);
     tdestroy (sys->root, DestroySource);
     tdestroy (sys->root_card, DestroyCard);
     free (sys);

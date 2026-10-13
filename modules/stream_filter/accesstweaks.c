@@ -2,6 +2,7 @@
  * accesstweaks.c Access controls tweaking stream filter
  *****************************************************************************
  * Copyright (C) 2015 VideoLAN Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -25,14 +26,14 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_stream.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_stream.h>
 #include <assert.h>
 
-static int  Open(vlc_object_t *);
+static int  Open(heimdall_object_t *);
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname("accesstweaks")
     set_subcategory (SUBCAT_INPUT_STREAM_FILTER)
     set_capability ("stream_filter", 301)
@@ -47,7 +48,7 @@ vlc_module_begin ()
     add_bool("stream-size", true, "Expose stream size if known", NULL)
         change_volatile()
     add_shortcut("tweaks")
-vlc_module_end ()
+heimdall_module_end ()
 
 typedef struct
 {
@@ -69,30 +70,30 @@ static int Control( stream_t *p_stream, int i_query, va_list args )
         if( !p_sys->b_fastseek || !p_sys->b_seek )
         {
             *va_arg( args, bool* ) = false;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
         break;
     case STREAM_CAN_SEEK:
         if( !p_sys->b_seek )
         {
             *va_arg( args, bool* ) = false;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
         break;
     case STREAM_GET_SIZE:
         if (!p_sys->b_size)
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         break;
     default:
         break;
     }
 
-    return vlc_stream_vaControl( p_stream->s, i_query, args );
+    return heimdall_stream_vaControl( p_stream->s, i_query, args );
 }
 
 static ssize_t Read( stream_t *s, void *buffer, size_t i_read )
 {
-    return vlc_stream_Read( s->s, buffer, i_read );
+    return heimdall_stream_Read( s->s, buffer, i_read );
 }
 
 static int Seek( stream_t *s, uint64_t offset )
@@ -100,15 +101,15 @@ static int Seek( stream_t *s, uint64_t offset )
     stream_sys_t *p_sys = s->p_sys;
 
     assert( p_sys->b_seek );
-    return vlc_stream_Seek( s->s, offset );
+    return heimdall_stream_Seek( s->s, offset );
 }
 
-static int Open( vlc_object_t *p_object )
+static int Open( heimdall_object_t *p_object )
 {
     stream_t *p_stream = (stream_t *) p_object;
-    stream_sys_t *p_sys = vlc_obj_malloc(p_object, sizeof (*p_sys));
+    stream_sys_t *p_sys = heimdall_obj_malloc(p_object, sizeof (*p_sys));
     if (unlikely(p_sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     uint64_t size;
     bool b;
@@ -119,7 +120,7 @@ static int Open( vlc_object_t *p_object )
 
     if (!p_sys->b_seek)
     {
-        if (vlc_stream_Control(p_stream->s, STREAM_CAN_SEEK, &b) == 0)
+        if (heimdall_stream_Control(p_stream->s, STREAM_CAN_SEEK, &b) == 0)
             used = b;
 
         p_sys->b_fastseek = false;
@@ -128,21 +129,21 @@ static int Open( vlc_object_t *p_object )
     {
         p_sys->b_fastseek = var_InheritBool(p_stream, "fastseek");
         if (!p_sys->b_fastseek
-         && vlc_stream_Control(p_stream->s, STREAM_CAN_FASTSEEK,
+         && heimdall_stream_Control(p_stream->s, STREAM_CAN_FASTSEEK,
                                &b) == 0)
             used = b;
     }
 
-    if (!p_sys->b_size && vlc_stream_GetSize(p_stream->s, &size) == 0)
+    if (!p_sys->b_size && heimdall_stream_GetSize(p_stream->s, &size) == 0)
         used = true;
 
     if (!used) /* Nothing to do: skip this filter */
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     p_stream->p_sys = p_sys;
     p_stream->pf_read = Read;
     p_stream->pf_seek = p_sys->b_seek ? Seek : NULL;
     p_stream->pf_control = Control;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

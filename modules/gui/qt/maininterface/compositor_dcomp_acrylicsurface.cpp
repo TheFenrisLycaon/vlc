@@ -1,5 +1,6 @@
 ﻿/*****************************************************************************
  * Copyright (C) 2021 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Prince Gupta <guptaprince8832@gmail.com>
  *
@@ -65,7 +66,7 @@ bool isTransparencyEnabled()
 template <typename F>
 F loadFunction(QLibrary &library, const char *symbol)
 {
-    vlc_assert(library.isLoaded());
+    heimdall_assert(library.isLoaded());
 
     auto f = library.resolve(symbol);
     if (!f)
@@ -98,7 +99,7 @@ bool isWinPreIron()
 
 }
 
-namespace vlc
+namespace heimdall
 {
 
 CompositorDCompositionAcrylicSurface::CompositorDCompositionAcrylicSurface(qt_intf_t *intf, CompositorDirectComposition *compositor, MainCtx *mainCtx, IDCompositionDevice *device, QObject *parent)
@@ -285,7 +286,7 @@ catch (const DXError &err)
 bool CompositorDCompositionAcrylicSurface::createDesktopVisual()
 try
 {
-    vlc_assert(!m_desktopVisual);
+    heimdall_assert(!m_desktopVisual);
     auto desktopWindow = GetShellWindow();
     if (!desktopWindow)
         throw DXError("failed to get desktop window",  static_cast<HRESULT>(GetLastError()));
@@ -316,7 +317,7 @@ catch (const DXError &err)
 bool CompositorDCompositionAcrylicSurface::createBackHostVisual()
 try
 {
-    vlc_assert(!m_dummyWindow);
+    heimdall_assert(!m_dummyWindow);
     // lDwmpCreateSharedMultiWindowVisual requires a window with disabled live (thumbnail) preview
     // use a hidden dummy window to avoid disabling live preview of main window
     m_dummyWindow = ::CreateWindowExA(WS_EX_TOOLWINDOW, "STATIC", "dummy", 0, 0, 0, 0, 0, NULL, NULL, NULL, NULL);
@@ -333,7 +334,7 @@ try
     CompositionAttribute.cbData = sizeof(BOOL);
     lSetWindowCompositionAttribute(m_dummyWindow, &CompositionAttribute);
 
-    vlc_assert(!m_backHostVisual);
+    heimdall_assert(!m_backHostVisual);
     HR(lDwmpCreateSharedMultiWindowVisual(m_dummyWindow, m_dcompDevice.Get(), &m_backHostVisual, &m_backHostThumbnail)
        , "failed to create shared multi visual");
 
@@ -411,7 +412,7 @@ void CompositorDCompositionAcrylicSurface::updateVisual()
     else if (lDwmpUpdateSharedMultiWindowVisual)
         hr = lDwmpUpdateSharedMultiWindowVisual(m_backHostThumbnail, NULL, 0, hwndExclusionList, 2, &sourceRect, &destinationSize, 1);
     else
-        vlc_assert_unreachable();
+        heimdall_assert_unreachable();
 
     if (FAILED(hr))
         qDebug("failed to update shared multi window visual");

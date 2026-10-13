@@ -1,11 +1,12 @@
 /*****************************************************************************
- * controls.c : Video4Linux2 device controls for vlc
+ * controls.c : Video4Linux2 device controls for heimdall
  *****************************************************************************
  * Copyright (C) 2002-2011 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Benjamin Pracht <bigben at videolan dot org>
+ * Authors: Benjamin Pracht <bigben at lycaria dot org>
  *          Richard Hosking <richard at hovis dot net>
- *          Antoine Cellerier <dionoea at videolan d.t org>
+ *          Antoine Cellerier <dionoea at lycaria d.t org>
  *          Dennis Lou <dlou99 at yahoo dot com>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -33,18 +34,18 @@
 #include <errno.h>
 #include <sys/ioctl.h>
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
 #include "v4l2.h"
 
-typedef struct vlc_v4l2_ctrl_name
+typedef struct heimdall_v4l2_ctrl_name
 {
     const char name[28];
     uint32_t cid;
-} vlc_v4l2_ctrl_name_t;
+} heimdall_v4l2_ctrl_name_t;
 
 /* NOTE: must be sorted by ID */
-static const vlc_v4l2_ctrl_name_t controls[] =
+static const heimdall_v4l2_ctrl_name_t controls[] =
 {
     { "brightness", V4L2_CID_BRIGHTNESS },
     { "contrast", V4L2_CID_CONTRAST },
@@ -86,17 +87,17 @@ static const vlc_v4l2_ctrl_name_t controls[] =
         <= (V4L2_CID_BAND_STOP_FILTER - V4L2_CID_BRIGHTNESS))
 };
 
-struct vlc_v4l2_ctrl
+struct heimdall_v4l2_ctrl
 {
     int                   fd;
     uint32_t              id;
     uint8_t               type;
     char                  name[32];
     int32_t               default_value;
-    struct vlc_v4l2_ctrl *next;
+    struct heimdall_v4l2_ctrl *next;
 };
 
-static int ControlSet (const vlc_v4l2_ctrl_t *c, int_fast32_t value)
+static int ControlSet (const heimdall_v4l2_ctrl_t *c, int_fast32_t value)
 {
     struct v4l2_control ctrl = {
         .id = c->id,
@@ -107,7 +108,7 @@ static int ControlSet (const vlc_v4l2_ctrl_t *c, int_fast32_t value)
     return 0;
 }
 
-static int ControlSet64 (const vlc_v4l2_ctrl_t *c, int64_t value)
+static int ControlSet64 (const heimdall_v4l2_ctrl_t *c, int64_t value)
 {
     struct v4l2_ext_control ext_ctrl = {
         .id = c->id,
@@ -126,7 +127,7 @@ static int ControlSet64 (const vlc_v4l2_ctrl_t *c, int64_t value)
     return 0;
 }
 
-static int ControlSetStr (const vlc_v4l2_ctrl_t *c, const char *restrict value)
+static int ControlSetStr (const heimdall_v4l2_ctrl_t *c, const char *restrict value)
 {
     struct v4l2_ext_control ext_ctrl = {
         .id = c->id,
@@ -145,10 +146,10 @@ static int ControlSetStr (const vlc_v4l2_ctrl_t *c, const char *restrict value)
     return 0;
 }
 
-static int ControlSetCallback (vlc_object_t *obj, const char *var,
-                               vlc_value_t old, vlc_value_t cur, void *data)
+static int ControlSetCallback (heimdall_object_t *obj, const char *var,
+                               heimdall_value_t old, heimdall_value_t cur, void *data)
 {
-    const vlc_v4l2_ctrl_t *ctrl = data;
+    const heimdall_v4l2_ctrl_t *ctrl = data;
     int ret;
 
     switch (ctrl->type)
@@ -172,19 +173,19 @@ static int ControlSetCallback (vlc_object_t *obj, const char *var,
             ret = ControlSetStr (ctrl, cur.psz_string);
             break;
         default:
-            vlc_assert_unreachable ();
+            heimdall_assert_unreachable ();
     }
 
     if (ret)
     {
-        msg_Err (obj, "cannot set control %s: %s", var, vlc_strerror_c(errno));
-        return VLC_EGENERIC;
+        msg_Err (obj, "cannot set control %s: %s", var, heimdall_strerror_c(errno));
+        return HEIMDALL_EGENERIC;
     }
     (void) old;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void ControlsReset (vlc_object_t *obj, vlc_v4l2_ctrl_t *list)
+static void ControlsReset (heimdall_object_t *obj, heimdall_v4l2_ctrl_t *list)
 {
     while (list != NULL)
     {
@@ -204,16 +205,16 @@ static void ControlsReset (vlc_object_t *obj, vlc_v4l2_ctrl_t *list)
     }
 }
 
-static int ControlsResetCallback (vlc_object_t *obj, const char *var,
-                                  vlc_value_t old, vlc_value_t cur, void *data)
+static int ControlsResetCallback (heimdall_object_t *obj, const char *var,
+                                  heimdall_value_t old, heimdall_value_t cur, void *data)
 {
     ControlsReset (obj, data);
     (void) var; (void) old; (void) cur;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void ControlsSetFromString (vlc_object_t *obj,
-                                   const vlc_v4l2_ctrl_t *list)
+static void ControlsSetFromString (heimdall_object_t *obj,
+                                   const heimdall_v4l2_ctrl_t *list)
 {
     char *buf = var_InheritString (obj, CFG_PREFIX"set-ctrls");
     if (buf == NULL)
@@ -249,7 +250,7 @@ next:
         *(end++) = '\0';
         value = end;
 
-        for (const vlc_v4l2_ctrl_t *c = list; c != NULL; c = c->next)
+        for (const heimdall_v4l2_ctrl_t *c = list; c != NULL; c = c->next)
             if (!strcasecmp (name, c->name))
                 switch (c->type)
                 {
@@ -312,21 +313,21 @@ next:
 static int cidcmp (const void *a, const void *b)
 {
     const uint32_t *id = a;
-    const vlc_v4l2_ctrl_name_t *name = b;
+    const heimdall_v4l2_ctrl_name_t *name = b;
 
     return (int32_t)(*id - name->cid);
 }
 
 /**
- * Creates a VLC-V4L2 control structure:
- * In particular, determines a name suitable for a VLC object variable.
+ * Creates a Heimdall-V4L2 control structure:
+ * In particular, determines a name suitable for a Heimdall object variable.
  * \param query V4L2 control query structure [IN]
  * \return NULL on error
  */
-static vlc_v4l2_ctrl_t *ControlCreate (int fd,
+static heimdall_v4l2_ctrl_t *ControlCreate (int fd,
                                        const struct v4l2_queryctrl *query)
 {
-    vlc_v4l2_ctrl_t *ctrl = malloc (sizeof (*ctrl));
+    heimdall_v4l2_ctrl_t *ctrl = malloc (sizeof (*ctrl));
     if (unlikely(ctrl == NULL))
         return NULL;
 
@@ -335,7 +336,7 @@ static vlc_v4l2_ctrl_t *ControlCreate (int fd,
     ctrl->type = query->type;
 
     /* Search for a well-known control */
-    const vlc_v4l2_ctrl_name_t *known;
+    const heimdall_v4l2_ctrl_name_t *known;
     known = bsearch (&query->id, controls, ARRAY_SIZE(controls),
                      sizeof (*known), cidcmp);
     if (known != NULL)
@@ -366,24 +367,24 @@ static vlc_v4l2_ctrl_t *ControlCreate (int fd,
     |V4L2_CTRL_FLAG_READ_ONLY /* value is constant */ \
     |V4L2_CTRL_FLAG_VOLATILE /* value is (variable but) read-only */)
 
-static vlc_v4l2_ctrl_t *ControlAddInteger (vlc_object_t *obj, int fd,
+static heimdall_v4l2_ctrl_t *ControlAddInteger (heimdall_object_t *obj, int fd,
                                            const struct v4l2_queryctrl *query)
 {
     msg_Dbg (obj, " integer  %s (%08"PRIX32")", query->name, query->id);
     if (query->flags & CTRL_FLAGS_IGNORE)
         return NULL;
 
-    vlc_v4l2_ctrl_t *c = ControlCreate (fd, query);
+    heimdall_v4l2_ctrl_t *c = ControlCreate (fd, query);
     if (unlikely(c == NULL))
         return NULL;
 
-    if (var_Create (obj, c->name, VLC_VAR_INTEGER | VLC_VAR_ISCOMMAND))
+    if (var_Create (obj, c->name, HEIMDALL_VAR_INTEGER | HEIMDALL_VAR_ISCOMMAND))
     {
         free (c);
         return NULL;
     }
 
-    vlc_value_t val;
+    heimdall_value_t val;
     struct v4l2_control ctrl = { .id = query->id };
 
     if (v4l2_ioctl (fd, VIDIOC_G_CTRL, &ctrl) >= 0)
@@ -391,37 +392,37 @@ static vlc_v4l2_ctrl_t *ControlAddInteger (vlc_object_t *obj, int fd,
         msg_Dbg (obj, "  current: %3"PRId32", default: %3"PRId32,
                  ctrl.value, query->default_value);
         val.i_int = ctrl.value;
-        var_Change(obj, c->name, VLC_VAR_SETVALUE, val);
+        var_Change(obj, c->name, HEIMDALL_VAR_SETVALUE, val);
     }
-    var_Change (obj, c->name, VLC_VAR_SETMINMAX,
-        (vlc_value_t){ .i_int = query->minimum },
-        (vlc_value_t){ .i_int = query->maximum } );
+    var_Change (obj, c->name, HEIMDALL_VAR_SETMINMAX,
+        (heimdall_value_t){ .i_int = query->minimum },
+        (heimdall_value_t){ .i_int = query->maximum } );
     if (query->step != 1)
     {
         val.i_int = query->step;
-        var_Change(obj, c->name, VLC_VAR_SETSTEP, val);
+        var_Change(obj, c->name, HEIMDALL_VAR_SETSTEP, val);
     }
     return c;
 }
 
-static vlc_v4l2_ctrl_t *ControlAddBoolean (vlc_object_t *obj, int fd,
+static heimdall_v4l2_ctrl_t *ControlAddBoolean (heimdall_object_t *obj, int fd,
                                            const struct v4l2_queryctrl *query)
 {
     msg_Dbg (obj, " boolean  %s (%08"PRIX32")", query->name, query->id);
     if (query->flags & CTRL_FLAGS_IGNORE)
         return NULL;
 
-    vlc_v4l2_ctrl_t *c = ControlCreate (fd, query);
+    heimdall_v4l2_ctrl_t *c = ControlCreate (fd, query);
     if (unlikely(c == NULL))
         return NULL;
 
-    if (var_Create (obj, c->name, VLC_VAR_BOOL | VLC_VAR_ISCOMMAND))
+    if (var_Create (obj, c->name, HEIMDALL_VAR_BOOL | HEIMDALL_VAR_ISCOMMAND))
     {
         free (c);
         return NULL;
     }
 
-    vlc_value_t val;
+    heimdall_value_t val;
     struct v4l2_control ctrl = { .id = query->id };
 
     if (v4l2_ioctl (fd, VIDIOC_G_CTRL, &ctrl) >= 0)
@@ -430,29 +431,29 @@ static vlc_v4l2_ctrl_t *ControlAddBoolean (vlc_object_t *obj, int fd,
                  ctrl.value ? " true" : "false",
                  query->default_value ? " true" : "false");
         val.b_bool = ctrl.value;
-        var_Change(obj, c->name, VLC_VAR_SETVALUE, val);
+        var_Change(obj, c->name, HEIMDALL_VAR_SETVALUE, val);
     }
     return c;
 }
 
-static vlc_v4l2_ctrl_t *ControlAddMenu (vlc_object_t *obj, int fd,
+static heimdall_v4l2_ctrl_t *ControlAddMenu (heimdall_object_t *obj, int fd,
                                         const struct v4l2_queryctrl *query)
 {
     msg_Dbg (obj, " menu     %s (%08"PRIX32")", query->name, query->id);
     if (query->flags & CTRL_FLAGS_IGNORE)
         return NULL;
 
-    vlc_v4l2_ctrl_t *c = ControlCreate (fd, query);
+    heimdall_v4l2_ctrl_t *c = ControlCreate (fd, query);
     if (unlikely(c == NULL))
         return NULL;
 
-    if (var_Create (obj, c->name, VLC_VAR_INTEGER | VLC_VAR_ISCOMMAND))
+    if (var_Create (obj, c->name, HEIMDALL_VAR_INTEGER | HEIMDALL_VAR_ISCOMMAND))
     {
         free (c);
         return NULL;
     }
 
-    vlc_value_t val;
+    heimdall_value_t val;
     struct v4l2_control ctrl = { .id = query->id };
 
     if (v4l2_ioctl (fd, VIDIOC_G_CTRL, &ctrl) >= 0)
@@ -460,11 +461,11 @@ static vlc_v4l2_ctrl_t *ControlAddMenu (vlc_object_t *obj, int fd,
         msg_Dbg (obj, "  current: %"PRId32", default: %"PRId32,
                  ctrl.value, query->default_value);
         val.i_int = ctrl.value;
-        var_Change(obj, c->name, VLC_VAR_SETVALUE, val);
+        var_Change(obj, c->name, HEIMDALL_VAR_SETVALUE, val);
     }
-    var_Change (obj, c->name, VLC_VAR_SETMINMAX,
-        (vlc_value_t){ .i_int = query->minimum },
-        (vlc_value_t){ .i_int = query->maximum } );
+    var_Change (obj, c->name, HEIMDALL_VAR_SETMINMAX,
+        (heimdall_value_t){ .i_int = query->minimum },
+        (heimdall_value_t){ .i_int = query->maximum } );
 
     /* Import menu choices */
     for (uint_fast32_t idx = query->minimum;
@@ -478,24 +479,24 @@ static vlc_v4l2_ctrl_t *ControlAddMenu (vlc_object_t *obj, int fd,
         msg_Dbg (obj, "  choice %"PRIu32") %s", menu.index, menu.name);
 
         val.i_int = menu.index;
-        var_Change(obj, c->name, VLC_VAR_ADDCHOICE, val,
+        var_Change(obj, c->name, HEIMDALL_VAR_ADDCHOICE, val,
                    (const char *)menu.name);
     }
     return c;
 }
 
-static vlc_v4l2_ctrl_t *ControlAddButton (vlc_object_t *obj, int fd,
+static heimdall_v4l2_ctrl_t *ControlAddButton (heimdall_object_t *obj, int fd,
                                           const struct v4l2_queryctrl *query)
 {
     msg_Dbg (obj, " button   %s (%08"PRIX32")", query->name, query->id);
     if (query->flags & CTRL_FLAGS_IGNORE)
         return NULL;
 
-    vlc_v4l2_ctrl_t *c = ControlCreate (fd, query);
+    heimdall_v4l2_ctrl_t *c = ControlCreate (fd, query);
     if (unlikely(c == NULL))
         return NULL;
 
-    if (var_Create (obj, c->name, VLC_VAR_VOID | VLC_VAR_ISCOMMAND))
+    if (var_Create (obj, c->name, HEIMDALL_VAR_VOID | HEIMDALL_VAR_ISCOMMAND))
     {
         free (c);
         return NULL;
@@ -503,18 +504,18 @@ static vlc_v4l2_ctrl_t *ControlAddButton (vlc_object_t *obj, int fd,
     return c;
 }
 
-static vlc_v4l2_ctrl_t *ControlAddInteger64 (vlc_object_t *obj, int fd,
+static heimdall_v4l2_ctrl_t *ControlAddInteger64 (heimdall_object_t *obj, int fd,
                                             const struct v4l2_queryctrl *query)
 {
     msg_Dbg (obj, " 64-bits  %s (%08"PRIX32")", query->name, query->id);
     if (query->flags & CTRL_FLAGS_IGNORE)
         return NULL;
 
-    vlc_v4l2_ctrl_t *c = ControlCreate (fd, query);
+    heimdall_v4l2_ctrl_t *c = ControlCreate (fd, query);
     if (unlikely(c == NULL))
         return NULL;
 
-    if (var_Create (obj, c->name, VLC_VAR_INTEGER | VLC_VAR_ISCOMMAND))
+    if (var_Create (obj, c->name, HEIMDALL_VAR_INTEGER | HEIMDALL_VAR_ISCOMMAND))
     {
         free (c);
         return NULL;
@@ -530,16 +531,16 @@ static vlc_v4l2_ctrl_t *ControlAddInteger64 (vlc_object_t *obj, int fd,
 
     if (v4l2_ioctl (c->fd, VIDIOC_G_EXT_CTRLS, &ext_ctrls) >= 0)
     {
-        vlc_value_t val = { .i_int = ext_ctrl.value64 };
+        heimdall_value_t val = { .i_int = ext_ctrl.value64 };
 
         msg_Dbg (obj, "  current: %"PRId64, val.i_int);
-        var_Change(obj, c->name, VLC_VAR_SETVALUE, val);
+        var_Change(obj, c->name, HEIMDALL_VAR_SETVALUE, val);
     }
 
     return c;
 }
 
-static vlc_v4l2_ctrl_t *ControlAddClass (vlc_object_t *obj, int fd,
+static heimdall_v4l2_ctrl_t *ControlAddClass (heimdall_object_t *obj, int fd,
                                          const struct v4l2_queryctrl *query)
 {
     msg_Dbg (obj, "control class %s:", query->name);
@@ -547,18 +548,18 @@ static vlc_v4l2_ctrl_t *ControlAddClass (vlc_object_t *obj, int fd,
     return NULL;
 }
 
-static vlc_v4l2_ctrl_t *ControlAddString (vlc_object_t *obj, int fd,
+static heimdall_v4l2_ctrl_t *ControlAddString (heimdall_object_t *obj, int fd,
                                           const struct v4l2_queryctrl *query)
 {
     msg_Dbg (obj, " string   %s (%08"PRIX32")", query->name, query->id);
     if ((query->flags & CTRL_FLAGS_IGNORE) || query->maximum > 65535)
         return NULL;
 
-    vlc_v4l2_ctrl_t *c = ControlCreate (fd, query);
+    heimdall_v4l2_ctrl_t *c = ControlCreate (fd, query);
     if (unlikely(c == NULL))
         return NULL;
 
-    if (var_Create (obj, c->name, VLC_VAR_STRING | VLC_VAR_ISCOMMAND))
+    if (var_Create (obj, c->name, HEIMDALL_VAR_STRING | HEIMDALL_VAR_ISCOMMAND))
     {
         free (c);
         return NULL;
@@ -582,10 +583,10 @@ static vlc_v4l2_ctrl_t *ControlAddString (vlc_object_t *obj, int fd,
 
         if (v4l2_ioctl (c->fd, VIDIOC_G_EXT_CTRLS, &ext_ctrls) >= 0)
         {
-            vlc_value_t val = { .psz_string = buf };
+            heimdall_value_t val = { .psz_string = buf };
 
             msg_Dbg (obj, "  current: \"%s\"", buf);
-            var_Change(obj, c->name, VLC_VAR_SETVALUE, val);
+            var_Change(obj, c->name, HEIMDALL_VAR_SETVALUE, val);
         }
         free (buf);
     }
@@ -593,24 +594,24 @@ static vlc_v4l2_ctrl_t *ControlAddString (vlc_object_t *obj, int fd,
     return c;
 }
 
-static vlc_v4l2_ctrl_t *ControlAddBitMask (vlc_object_t *obj, int fd,
+static heimdall_v4l2_ctrl_t *ControlAddBitMask (heimdall_object_t *obj, int fd,
                                            const struct v4l2_queryctrl *query)
 {
     msg_Dbg (obj, " bit mask %s (%08"PRIX32")", query->name, query->id);
     if (query->flags & CTRL_FLAGS_IGNORE)
         return NULL;
 
-    vlc_v4l2_ctrl_t *c = ControlCreate (fd, query);
+    heimdall_v4l2_ctrl_t *c = ControlCreate (fd, query);
     if (unlikely(c == NULL))
         return NULL;
 
-    if (var_Create (obj, c->name, VLC_VAR_INTEGER | VLC_VAR_ISCOMMAND))
+    if (var_Create (obj, c->name, HEIMDALL_VAR_INTEGER | HEIMDALL_VAR_ISCOMMAND))
     {
         free (c);
         return NULL;
     }
 
-    vlc_value_t val;
+    heimdall_value_t val;
     struct v4l2_control ctrl = { .id = query->id };
 
     if (v4l2_ioctl (fd, VIDIOC_G_CTRL, &ctrl) >= 0)
@@ -618,32 +619,32 @@ static vlc_v4l2_ctrl_t *ControlAddBitMask (vlc_object_t *obj, int fd,
         msg_Dbg (obj, "  current: 0x%08"PRIX32", default: 0x%08"PRIX32,
                  ctrl.value, query->default_value);
         val.i_int = ctrl.value;
-        var_Change(obj, c->name, VLC_VAR_SETVALUE, val);
+        var_Change(obj, c->name, HEIMDALL_VAR_SETVALUE, val);
     }
-    var_Change (obj, c->name, VLC_VAR_SETMINMAX,
-        (vlc_value_t){ .i_int = 0 },
-        (vlc_value_t){ .i_int = (uint32_t)query->maximum } );
+    var_Change (obj, c->name, HEIMDALL_VAR_SETMINMAX,
+        (heimdall_value_t){ .i_int = 0 },
+        (heimdall_value_t){ .i_int = (uint32_t)query->maximum } );
     return c;
 }
 
-static vlc_v4l2_ctrl_t *ControlAddIntMenu (vlc_object_t *obj, int fd,
+static heimdall_v4l2_ctrl_t *ControlAddIntMenu (heimdall_object_t *obj, int fd,
                                            const struct v4l2_queryctrl *query)
 {
     msg_Dbg (obj, " int menu %s (%08"PRIX32")", query->name, query->id);
     if (query->flags & CTRL_FLAGS_IGNORE)
         return NULL;
 
-    vlc_v4l2_ctrl_t *c = ControlCreate (fd, query);
+    heimdall_v4l2_ctrl_t *c = ControlCreate (fd, query);
     if (unlikely(c == NULL))
         return NULL;
 
-    if (var_Create (obj, c->name, VLC_VAR_INTEGER | VLC_VAR_ISCOMMAND))
+    if (var_Create (obj, c->name, HEIMDALL_VAR_INTEGER | HEIMDALL_VAR_ISCOMMAND))
     {
         free (c);
         return NULL;
     }
 
-    vlc_value_t val;
+    heimdall_value_t val;
     struct v4l2_control ctrl = { .id = query->id };
 
     if (v4l2_ioctl (fd, VIDIOC_G_CTRL, &ctrl) >= 0)
@@ -651,11 +652,11 @@ static vlc_v4l2_ctrl_t *ControlAddIntMenu (vlc_object_t *obj, int fd,
         msg_Dbg (obj, "  current: %"PRId32", default: %"PRId32,
                  ctrl.value, query->default_value);
         val.i_int = ctrl.value;
-        var_Change(obj, c->name, VLC_VAR_SETVALUE, &val);
+        var_Change(obj, c->name, HEIMDALL_VAR_SETVALUE, &val);
     }
-    var_Change (obj, c->name, VLC_VAR_SETMINMAX,
-        (vlc_value_t){ .i_int = query->minimum },
-        (vlc_value_t){ .i_int = query->maximum } );
+    var_Change (obj, c->name, HEIMDALL_VAR_SETMINMAX,
+        (heimdall_value_t){ .i_int = query->minimum },
+        (heimdall_value_t){ .i_int = query->maximum } );
 
     /* Import menu choices */
     for (uint_fast32_t idx = query->minimum;
@@ -672,13 +673,13 @@ static vlc_v4l2_ctrl_t *ControlAddIntMenu (vlc_object_t *obj, int fd,
 
         val.i_int = menu.index;
         sprintf(name, "%"PRId64, (int64_t)menu.value);
-        var_Change(obj, c->name, VLC_VAR_ADDCHOICE, val,
+        var_Change(obj, c->name, HEIMDALL_VAR_ADDCHOICE, val,
                    (const char *)name);
     }
     return c;
 }
 
-static vlc_v4l2_ctrl_t *ControlAddUnknown (vlc_object_t *obj, int fd,
+static heimdall_v4l2_ctrl_t *ControlAddUnknown (heimdall_object_t *obj, int fd,
                                            const struct v4l2_queryctrl *query)
 {
     msg_Dbg (obj, " unknown %s (%08"PRIX32")", query->name, query->id);
@@ -687,18 +688,18 @@ static vlc_v4l2_ctrl_t *ControlAddUnknown (vlc_object_t *obj, int fd,
     return NULL;
 }
 
-typedef vlc_v4l2_ctrl_t *(*ctrl_type_cb) (vlc_object_t *, int,
+typedef heimdall_v4l2_ctrl_t *(*ctrl_type_cb) (heimdall_object_t *, int,
                                           const struct v4l2_queryctrl *);
 
 /**
  * Lists all user-class v4l2 controls, sets them to the user specified
  * value and create the relevant variables to enable run-time changes.
  */
-vlc_v4l2_ctrl_t *ControlsInit (vlc_object_t *obj, int fd)
+heimdall_v4l2_ctrl_t *ControlsInit (heimdall_object_t *obj, int fd)
 {
     /* A list of controls that can be modified at run-time is stored in the
      * "controls" variable. The V4L2 controls dialog can be built from this. */
-    var_Create (obj, "controls", VLC_VAR_INTEGER);
+    var_Create (obj, "controls", HEIMDALL_VAR_INTEGER);
 
     static const ctrl_type_cb handlers[] =
     {
@@ -713,7 +714,7 @@ vlc_v4l2_ctrl_t *ControlsInit (vlc_object_t *obj, int fd)
         [V4L2_CTRL_TYPE_INTEGER_MENU] = ControlAddIntMenu,
     };
 
-    vlc_v4l2_ctrl_t *list = NULL;
+    heimdall_v4l2_ctrl_t *list = NULL;
     struct v4l2_queryctrl query;
 
     query.id = V4L2_CTRL_FLAG_NEXT_CTRL;
@@ -725,16 +726,16 @@ vlc_v4l2_ctrl_t *ControlsInit (vlc_object_t *obj, int fd)
         if (handler == NULL)
             handler = ControlAddUnknown;
 
-        vlc_v4l2_ctrl_t *c = handler (obj, fd, &query);
+        heimdall_v4l2_ctrl_t *c = handler (obj, fd, &query);
         if (c != NULL)
         {
-            vlc_value_t val;
+            heimdall_value_t val;
 
             var_AddCallback (obj, c->name, ControlSetCallback, c);
-            var_Change(obj, c->name, VLC_VAR_SETTEXT,
+            var_Change(obj, c->name, HEIMDALL_VAR_SETTEXT,
                        (const char *)query.name);
             val.i_int = query.id;
-            var_Change(obj, "controls", VLC_VAR_ADDCHOICE, val,
+            var_Change(obj, "controls", HEIMDALL_VAR_ADDCHOICE, val,
                        (const char *)c->name);
 
             c->next = list;
@@ -743,8 +744,8 @@ vlc_v4l2_ctrl_t *ControlsInit (vlc_object_t *obj, int fd)
         query.id |= V4L2_CTRL_FLAG_NEXT_CTRL;
     }
 
-    /* Set well-known controls from VLC configuration */
-    for (vlc_v4l2_ctrl_t *ctrl = list; ctrl != NULL; ctrl = ctrl->next)
+    /* Set well-known controls from Heimdall configuration */
+    for (heimdall_v4l2_ctrl_t *ctrl = list; ctrl != NULL; ctrl = ctrl->next)
     {
         if (!CTRL_CID_KNOWN (ctrl->id))
             continue;
@@ -754,22 +755,22 @@ vlc_v4l2_ctrl_t *ControlsInit (vlc_object_t *obj, int fd)
 
         int64_t val = var_InheritInteger (obj, varname);
         if (val == -1)
-            continue; /* the VLC default value: "do not modify" */
+            continue; /* the Heimdall default value: "do not modify" */
         ControlSet (ctrl, val); /* NOTE: all known are integers or booleans */
     }
 
-    /* Set any control from the VLC configuration control string */
+    /* Set any control from the Heimdall configuration control string */
     ControlsSetFromString (obj, list);
 
     /* Add a control to reset all controls to their default values */
     {
-        vlc_value_t val;
+        heimdall_value_t val;
 
-        var_Create (obj, "reset", VLC_VAR_VOID | VLC_VAR_ISCOMMAND);
-        var_Change(obj, "reset", VLC_VAR_SETTEXT, _("Reset defaults"));
+        var_Create (obj, "reset", HEIMDALL_VAR_VOID | HEIMDALL_VAR_ISCOMMAND);
+        var_Change(obj, "reset", HEIMDALL_VAR_SETTEXT, _("Reset defaults"));
         val.i_int = -1;
 
-        var_Change(obj, "controls", VLC_VAR_ADDCHOICE, val, "reset");
+        var_Change(obj, "controls", HEIMDALL_VAR_ADDCHOICE, val, "reset");
         var_AddCallback (obj, "reset", ControlsResetCallback, list);
     }
     if (var_InheritBool (obj, CFG_PREFIX"controls-reset"))
@@ -778,14 +779,14 @@ vlc_v4l2_ctrl_t *ControlsInit (vlc_object_t *obj, int fd)
     return list;
 }
 
-void ControlsDeinit (vlc_object_t *obj, vlc_v4l2_ctrl_t *list)
+void ControlsDeinit (heimdall_object_t *obj, heimdall_v4l2_ctrl_t *list)
 {
     var_DelCallback (obj, "reset", ControlsResetCallback, list);
     var_Destroy (obj, "reset");
 
     while (list != NULL)
     {
-        vlc_v4l2_ctrl_t *next = list->next;
+        heimdall_v4l2_ctrl_t *next = list->next;
 
         var_DelCallback (obj, list->name, ControlSetCallback, list);
         var_Destroy (obj, list->name);

@@ -2,6 +2,7 @@
  * time.hpp
  *****************************************************************************
  * Copyright (C) 2003 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cyril Deguet     <asmax@via.ecp.fr>
  *          Olivier Teulière <ipkiss@via.ecp.fr>
@@ -27,14 +28,14 @@
 #include "../utils/var_percent.hpp"
 #include <string>
 
-/// Variable for VLC stream time
+/// Variable for Heimdall stream time
 class StreamTime: public VarPercent
 {
 public:
     StreamTime( intf_thread_t *pIntf ): VarPercent( pIntf ) { }
     virtual ~StreamTime() { }
 
-    virtual void set( float percentage, bool updateVLC );
+    virtual void set( float percentage, bool updateHeimdall );
 
     virtual void set( float percentage ) { set( percentage, true ); }
 

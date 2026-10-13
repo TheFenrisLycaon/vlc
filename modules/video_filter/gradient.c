@@ -1,10 +1,11 @@
 /*****************************************************************************
- * gradient.c : Gradient and edge detection video effects plugin for vlc
+ * gradient.c : Gradient and edge detection video effects plugin for heimdall
  *****************************************************************************
  * Copyright (C) 2000-2008 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Samuel Hocevar <sam@zoy.org>
- *          Antoine Cellerier <dionoea -at- videolan -dot- org>
+ *          Antoine Cellerier <dionoea -at- lycaria -dot- org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -31,12 +32,12 @@
 
 #include <math.h>                                            /* sin(), cos() */
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_sout.h>
-#include <vlc_filter.h>
-#include <vlc_picture.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_sout.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
 #include "filter_picture.h"
 
 enum { GRADIENT, EDGE, HOUGH };
@@ -46,8 +47,8 @@ enum { GRADIENT, EDGE, HOUGH };
  *****************************************************************************/
 static int  Create    ( filter_t * );
 
-static int GradientCallback( vlc_object_t *, char const *,
-                             vlc_value_t, vlc_value_t,
+static int GradientCallback( heimdall_object_t *, char const *,
+                             heimdall_value_t, heimdall_value_t,
                              void * );
 VIDEO_FILTER_WRAPPER_CLOSE(Filter, Destroy)
 
@@ -75,7 +76,7 @@ static const char *const mode_list_text[] = { N_("Gradient"), N_("Edge"), N_("Ho
 
 #define FILTER_PREFIX "gradient-"
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("Gradient video filter") )
     set_shortname( N_( "Gradient" ))
     set_help(GRADIENT_HELP)
@@ -93,7 +94,7 @@ vlc_module_begin ()
 
     add_shortcut( "gradient" )
     set_callback_video_filter( Create )
-vlc_module_end ()
+heimdall_module_end ()
 
 static const char *const ppsz_filter_options[] = {
     "mode", "color", "cartoon", NULL
@@ -107,7 +108,7 @@ static const char *const ppsz_filter_options[] = {
  *****************************************************************************/
 typedef struct
 {
-    vlc_mutex_t lock;
+    heimdall_mutex_t lock;
     int i_mode;
 
     /* For the gradient mode */
@@ -139,13 +140,13 @@ static int Create( filter_t *p_filter )
         default:
              msg_Err( p_filter, "Unsupported input chroma (%4.4s)",
                       (char*)&(p_filter->fmt_in.video.i_chroma) );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 
     /* Allocate structure */
     filter_sys_t *p_sys = malloc( sizeof( filter_sys_t ) );
     if( p_sys == NULL )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     p_filter->p_sys = p_sys;
 
     p_filter->ops = &Filter_ops;
@@ -189,7 +190,7 @@ static int Create( filter_t *p_filter )
     p_sys->b_cartoon =
         var_CreateGetBoolCommand( p_filter, FILTER_PREFIX "cartoon" );
 
-    vlc_mutex_init( &p_sys->lock );
+    heimdall_mutex_init( &p_sys->lock );
     var_AddCallback( p_filter, FILTER_PREFIX "mode",
                      GradientCallback, p_sys );
     var_AddCallback( p_filter, FILTER_PREFIX "color",
@@ -201,7 +202,7 @@ static int Create( filter_t *p_filter )
     p_sys->p_buf32_bis = NULL;
     p_sys->p_buf8 = NULL;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -239,7 +240,7 @@ static void Filter( filter_t *p_filter, picture_t *p_pic, picture_t *p_outpic )
 {
     filter_sys_t *p_sys = p_filter->p_sys;
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     switch( p_sys->i_mode )
     {
         case EDGE:
@@ -257,7 +258,7 @@ static void Filter( filter_t *p_filter, picture_t *p_pic, picture_t *p_outpic )
         default:
             break;
     }
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 }
 
 /*****************************************************************************
@@ -337,7 +338,7 @@ static void FilterGradient( filter_t *p_filter, picture_t *p_inpic,
     uint32_t *p_smooth;
     if( !p_sys->p_buf32 )
         p_sys->p_buf32 =
-            vlc_alloc( i_num_lines * i_src_visible, sizeof(*p_sys->p_buf32));
+            heimdall_alloc( i_num_lines * i_src_visible, sizeof(*p_sys->p_buf32));
     p_smooth = p_sys->p_buf32;
 
     if( !p_smooth ) return;
@@ -411,7 +412,7 @@ static void FilterGradient( filter_t *p_filter, picture_t *p_inpic,
         else
         {
             FOR
-            p_outpix[y*i_dst_pitch+x] = clip_uint8_vlc( a );
+            p_outpix[y*i_dst_pitch+x] = clip_uint8_heimdall( a );
             }}
         }
     }
@@ -461,16 +462,16 @@ static void FilterEdge( filter_t *p_filter, picture_t *p_inpic,
 
     if( !p_sys->p_buf32 )
         p_sys->p_buf32 =
-            vlc_alloc( i_num_lines * i_src_visible, sizeof(*p_sys->p_buf32));
+            heimdall_alloc( i_num_lines * i_src_visible, sizeof(*p_sys->p_buf32));
     p_smooth = p_sys->p_buf32;
 
     if( !p_sys->p_buf32_bis )
         p_sys->p_buf32_bis =
-            vlc_alloc( i_num_lines * i_src_visible, sizeof(*p_sys->p_buf32_bis));
+            heimdall_alloc( i_num_lines * i_src_visible, sizeof(*p_sys->p_buf32_bis));
     p_grad = p_sys->p_buf32_bis;
 
     if( !p_sys->p_buf8 )
-        p_sys->p_buf8 = vlc_alloc( i_num_lines * i_src_visible, 1);
+        p_sys->p_buf8 = heimdall_alloc( i_num_lines * i_src_visible, 1);
     p_theta = p_sys->p_buf8;
 
     if( !p_smooth || !p_grad || !p_theta ) return;
@@ -621,10 +622,10 @@ static void FilterHough( filter_t *p_filter, picture_t *p_inpic,
     double d_cos;
     uint32_t *p_smooth;
 
-    int *p_hough = vlc_alloc( i_diag * i_nb_steps, sizeof(int) );
+    int *p_hough = heimdall_alloc( i_diag * i_nb_steps, sizeof(int) );
     if( ! p_hough ) return;
 
-    p_smooth = vlc_alloc( i_num_lines * i_src_visible, sizeof(*p_smooth));
+    p_smooth = heimdall_alloc( i_num_lines * i_src_visible, sizeof(*p_smooth));
     if( !p_smooth )
     {
         free( p_hough );
@@ -634,7 +635,7 @@ static void FilterHough( filter_t *p_filter, picture_t *p_inpic,
     if( ! p_pre_hough )
     {
         msg_Dbg(p_filter, "Starting precalculation");
-        p_pre_hough = vlc_alloc( i_num_lines*i_src_visible*i_nb_steps,sizeof(int));
+        p_pre_hough = heimdall_alloc( i_num_lines*i_src_visible*i_nb_steps,sizeof(int));
         if( ! p_pre_hough )
         {
             free( p_smooth );
@@ -723,14 +724,14 @@ static void FilterHough( filter_t *p_filter, picture_t *p_inpic,
 #undef p_pre_hough
 
 
-static int GradientCallback( vlc_object_t *p_this, char const *psz_var,
-                             vlc_value_t oldval, vlc_value_t newval,
+static int GradientCallback( heimdall_object_t *p_this, char const *psz_var,
+                             heimdall_value_t oldval, heimdall_value_t newval,
                              void *p_data )
 {
-    VLC_UNUSED(oldval);
+    HEIMDALL_UNUSED(oldval);
     filter_sys_t *p_sys = p_data;
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     if( !strcmp( psz_var, FILTER_PREFIX "mode" ) )
     {
         if( !strcmp( newval.psz_string, "gradient" ) )
@@ -759,7 +760,7 @@ static int GradientCallback( vlc_object_t *p_this, char const *psz_var,
     {
         p_sys->b_cartoon = newval.b_bool;
     }
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

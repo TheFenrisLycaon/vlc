@@ -2,6 +2,7 @@
  * microdns.c: mDNS services discovery module
  *****************************************************************************
  * Copyright © 2016 VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Steve Lhomme <robux4@videolabs.io>
  *          Thomas Guillem <thomas@gllm.fr>
@@ -28,48 +29,48 @@
 #include <stdatomic.h>
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_arrays.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_modules.h>
-#include <vlc_services_discovery.h>
-#include <vlc_renderer_discovery.h>
+#include <heimdall_common.h>
+#include <heimdall_arrays.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_modules.h>
+#include <heimdall_services_discovery.h>
+#include <heimdall_renderer_discovery.h>
 
 #include <microdns/microdns.h>
 
-static int OpenSD( vlc_object_t * );
-static void CloseSD( vlc_object_t * );
-static int OpenRD( vlc_object_t * );
-static void CloseRD( vlc_object_t * );
+static int OpenSD( heimdall_object_t * );
+static void CloseSD( heimdall_object_t * );
+static int OpenRD( heimdall_object_t * );
+static void CloseRD( heimdall_object_t * );
 
-VLC_SD_PROBE_HELPER( "microdns", N_("mDNS Network Discovery"), SD_CAT_LAN )
-VLC_RD_PROBE_HELPER( "microdns_renderer", "mDNS renderer Discovery" )
+HEIMDALL_SD_PROBE_HELPER( "microdns", N_("mDNS Network Discovery"), SD_CAT_LAN )
+HEIMDALL_RD_PROBE_HELPER( "microdns_renderer", "mDNS renderer Discovery" )
 
 #define CFG_PREFIX "sd-microdns-"
 
-#define LISTEN_INTERVAL VLC_TICK_FROM_SEC(15) /* 15 seconds */
-#define TIMEOUT (3 * LISTEN_INTERVAL + VLC_TICK_FROM_SEC(5)) /* 3 * interval + 5 seconds */
+#define LISTEN_INTERVAL HEIMDALL_TICK_FROM_SEC(15) /* 15 seconds */
+#define TIMEOUT (3 * LISTEN_INTERVAL + HEIMDALL_TICK_FROM_SEC(5)) /* 3 * interval + 5 seconds */
 
 /*
  * Module descriptor
  */
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname( "mDNS" )
     set_description( N_( "mDNS Network Discovery" ) )
     set_subcategory( SUBCAT_PLAYLIST_SD )
     set_capability( "services_discovery", 0 )
     set_callbacks( OpenSD, CloseSD )
     add_shortcut( "mdns", "microdns" )
-    VLC_SD_PROBE_SUBMODULE
+    HEIMDALL_SD_PROBE_SUBMODULE
     add_submodule() \
         set_description( N_( "mDNS Renderer Discovery" ) )
         set_subcategory( SUBCAT_SOUT_RENDERER )
         set_capability( "renderer_discovery", 0 )
         set_callbacks( OpenRD, CloseRD )
         add_shortcut( "mdns_renderer", "microdns_renderer" )
-        VLC_RD_PROBE_SUBMODULE
-vlc_module_end ()
+        HEIMDALL_RD_PROBE_SUBMODULE
+heimdall_module_end ()
 
 static const struct
 {
@@ -86,27 +87,27 @@ static const struct
     { "webdav", "_webdav._tcp.local", ITEM_TYPE_DIRECTORY, false, 0 },
     { "webdavs", "_webdavs._tcp.local", ITEM_TYPE_DIRECTORY, false, 0 },
     { "rtsp", "_rtsp._tcp.local", ITEM_TYPE_DIRECTORY, false, 0 },
-    { "chromecast", "_googlecast._tcp.local", ITEM_TYPE_DIRECTORY, true, VLC_RENDERER_CAN_AUDIO },
+    { "chromecast", "_googlecast._tcp.local", ITEM_TYPE_DIRECTORY, true, HEIMDALL_RENDERER_CAN_AUDIO },
     { "ndi", "_ndi._tcp.local", ITEM_TYPE_STREAM, false, 0 },
 };
 
 
 struct discovery_sys
 {
-    vlc_thread_t        thread;
+    heimdall_thread_t        thread;
     atomic_bool         stop;
     struct mdns_ctx *   p_microdns;
     const char *        ppsz_service_names[ARRAY_SIZE(protocols)];
     unsigned int        i_nb_service_names;
-    vlc_array_t         items;
+    heimdall_array_t         items;
 };
 
 struct item
 {
     char *              psz_uri;
     input_item_t *      p_input_item;
-    vlc_renderer_item_t*p_renderer_item;
-    vlc_tick_t          i_last_seen;
+    heimdall_renderer_item_t*p_renderer_item;
+    heimdall_tick_t          i_last_seen;
 };
 
 struct srv
@@ -129,7 +130,7 @@ static const char *const ppsz_options[] = {
 };
 
 static void
-print_error( vlc_object_t *p_obj, const char *psz_what, int i_status )
+print_error( heimdall_object_t *p_obj, const char *psz_what, int i_status )
 {
     char psz_err_str[128];
 
@@ -159,7 +160,7 @@ items_add_input( struct discovery_sys *p_sys, services_discovery_t *p_sd,
     if( p_item == NULL )
     {
         free( psz_uri );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     input_item_t *p_input_item = NULL;
@@ -171,49 +172,49 @@ items_add_input( struct discovery_sys *p_sys, services_discovery_t *p_sd,
     {
         free( psz_uri );
         free( p_item );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     p_item->psz_uri = psz_uri;
     p_item->p_input_item = p_input_item;
     p_item->p_renderer_item = NULL;
-    p_item->i_last_seen = vlc_tick_now();
-    vlc_array_append_or_abort( &p_sys->items, p_item );
+    p_item->i_last_seen = heimdall_tick_now();
+    heimdall_array_append_or_abort( &p_sys->items, p_item );
     services_discovery_AddItem( p_sd, p_input_item );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int
-items_add_renderer( struct discovery_sys *p_sys, vlc_renderer_discovery_t *p_rd,
+items_add_renderer( struct discovery_sys *p_sys, heimdall_renderer_discovery_t *p_rd,
                     const char *psz_name, char *psz_uri,
                     const char *psz_demux_filter, const char *psz_icon_uri,
                     int i_flags )
 {
     struct item *p_item = malloc( sizeof(struct item) );
     if( p_item == NULL )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    const char *psz_extra_uri = i_flags & VLC_RENDERER_CAN_VIDEO ? NULL : "no-video";
+    const char *psz_extra_uri = i_flags & HEIMDALL_RENDERER_CAN_VIDEO ? NULL : "no-video";
 
-    vlc_renderer_item_t *p_renderer_item =
-        vlc_renderer_item_new( "chromecast", psz_name, psz_uri, psz_extra_uri,
+    heimdall_renderer_item_t *p_renderer_item =
+        heimdall_renderer_item_new( "chromecast", psz_name, psz_uri, psz_extra_uri,
                                psz_demux_filter, psz_icon_uri, i_flags );
     if( p_renderer_item == NULL )
     {
         free( psz_uri );
         free( p_item );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     p_item->psz_uri = psz_uri;
     p_item->p_input_item = NULL;
     p_item->p_renderer_item = p_renderer_item;
-    p_item->i_last_seen = vlc_tick_now();
-    vlc_array_append_or_abort( &p_sys->items, p_item );
-    vlc_rd_add_item( p_rd, p_renderer_item );
+    p_item->i_last_seen = heimdall_tick_now();
+    heimdall_array_append_or_abort( &p_sys->items, p_item );
+    heimdall_rd_add_item( p_rd, p_renderer_item );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void
@@ -227,7 +228,7 @@ items_release( struct discovery_sys *p_sys, struct item *p_item )
     else
     {
         assert( p_item->p_renderer_item != NULL );
-        vlc_renderer_item_release( p_item->p_renderer_item );
+        heimdall_renderer_item_release( p_item->p_renderer_item );
     }
 
     free( p_item->psz_uri );
@@ -237,12 +238,12 @@ items_release( struct discovery_sys *p_sys, struct item *p_item )
 static bool
 items_exists( struct discovery_sys *p_sys, const char *psz_uri )
 {
-    for( size_t i = 0; i < vlc_array_count( &p_sys->items ); ++i )
+    for( size_t i = 0; i < heimdall_array_count( &p_sys->items ); ++i )
     {
-        struct item *p_item = vlc_array_item_at_index( &p_sys->items, i );
+        struct item *p_item = heimdall_array_item_at_index( &p_sys->items, i );
         if( strcmp( p_item->psz_uri, psz_uri ) == 0 )
         {
-            p_item->i_last_seen = vlc_tick_now();
+            p_item->i_last_seen = heimdall_tick_now();
             return true;
         }
     }
@@ -251,23 +252,23 @@ items_exists( struct discovery_sys *p_sys, const char *psz_uri )
 
 static void
 items_timeout( struct discovery_sys *p_sys, services_discovery_t *p_sd,
-               vlc_renderer_discovery_t *p_rd )
+               heimdall_renderer_discovery_t *p_rd )
 {
     assert( p_rd != NULL || p_sd != NULL );
-    vlc_tick_t i_now = vlc_tick_now();
+    heimdall_tick_t i_now = heimdall_tick_now();
 
     /* Remove items that are not seen since TIMEOUT */
-    for( size_t i = 0; i < vlc_array_count( &p_sys->items ); ++i )
+    for( size_t i = 0; i < heimdall_array_count( &p_sys->items ); ++i )
     {
-        struct item *p_item = vlc_array_item_at_index( &p_sys->items, i );
+        struct item *p_item = heimdall_array_item_at_index( &p_sys->items, i );
         if( i_now - p_item->i_last_seen > TIMEOUT )
         {
             if( p_sd != NULL )
                 services_discovery_RemoveItem( p_sd, p_item->p_input_item );
             else
-                vlc_rd_remove_item( p_rd, p_item->p_renderer_item );
+                heimdall_rd_remove_item( p_rd, p_item->p_renderer_item );
             items_release( p_sys, p_item );
-            vlc_array_remove( &p_sys->items, i-- );
+            heimdall_array_remove( &p_sys->items, i-- );
         }
     }
 }
@@ -275,12 +276,12 @@ items_timeout( struct discovery_sys *p_sys, services_discovery_t *p_sd,
 static void
 items_clear( struct discovery_sys *p_sys )
 {
-    for( size_t i = 0; i < vlc_array_count( &p_sys->items ); ++i )
+    for( size_t i = 0; i < heimdall_array_count( &p_sys->items ); ++i )
     {
-        struct item *p_item = vlc_array_item_at_index( &p_sys->items, i );
+        struct item *p_item = heimdall_array_item_at_index( &p_sys->items, i );
         items_release( p_sys, p_item );
     }
-    vlc_array_clear( &p_sys->items );
+    heimdall_array_clear( &p_sys->items );
 }
 
 static void clear_srvs( struct srv *p_srvs, unsigned int i_nb_srv )
@@ -308,11 +309,11 @@ parse_entries( const struct rr_entry *p_entries, bool b_renderer,
             i_nb_srv++;
     }
     if( i_nb_srv == 0 )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     struct srv *p_srvs = calloc(i_nb_srv, sizeof(struct srv));
     if( p_srvs == NULL )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* There is one ip for several srvs, fetch them */
     const char *psz_ip = NULL;
@@ -373,9 +374,9 @@ parse_entries( const struct rr_entry *p_entries, bool b_renderer,
                          * 0x04 to indivate audio support
                          */
                         if ( ( ca & 0x01 ) != 0 )
-                            p_srv->renderer.i_renderer_flags |= VLC_RENDERER_CAN_VIDEO;
+                            p_srv->renderer.i_renderer_flags |= HEIMDALL_RENDERER_CAN_VIDEO;
                         if ( ( ca & 0x04 ) != 0 )
-                            p_srv->renderer.i_renderer_flags |= VLC_RENDERER_CAN_AUDIO;
+                            p_srv->renderer.i_renderer_flags |= HEIMDALL_RENDERER_CAN_AUDIO;
                     }
                     else if( !strncmp("md=", p_txt->txt, 3) )
                     {
@@ -394,13 +395,13 @@ parse_entries( const struct rr_entry *p_entries, bool b_renderer,
     if( psz_ip == NULL || i_nb_srv == 0 )
     {
         clear_srvs( p_srvs, i_nb_srv );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     *pp_srvs = p_srvs;
     *p_nb_srv = i_nb_srv;
     *ppsz_ip = psz_ip;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static char *
@@ -421,7 +422,7 @@ new_entries_sd_cb( void *p_this, int i_status, const struct rr_entry *p_entries 
     struct discovery_sys *p_sys = p_sd->p_sys;
     if( i_status < 0 )
     {
-        print_error( VLC_OBJECT( p_sd ), "entry callback", i_status );
+        print_error( HEIMDALL_OBJECT( p_sd ), "entry callback", i_status );
         return;
     }
 
@@ -430,7 +431,7 @@ new_entries_sd_cb( void *p_this, int i_status, const struct rr_entry *p_entries 
     const char *psz_ip;
     bool b_ipv6 = false;
     if( parse_entries( p_entries, false, &p_srvs, &i_nb_srv,
-                       &psz_ip, &b_ipv6 ) != VLC_SUCCESS )
+                       &psz_ip, &b_ipv6 ) != HEIMDALL_SUCCESS )
         return;
 
     /* send new input items (if they don't already exist) */
@@ -473,7 +474,7 @@ stop_sd_cb( void *p_this )
 static void *
 RunSD( void *p_this )
 {
-    vlc_thread_set_name("vlc-mdns-servis");
+    heimdall_thread_set_name("heimdall-mdns-servis");
 
     services_discovery_t *p_sd = ( services_discovery_t* )p_this;
     struct discovery_sys *p_sys = p_sd->p_sys;
@@ -481,11 +482,11 @@ RunSD( void *p_this )
     int i_status = mdns_listen( p_sys->p_microdns,
                                 p_sys->ppsz_service_names,
                                 p_sys->i_nb_service_names,
-                                RR_PTR, SEC_FROM_VLC_TICK(LISTEN_INTERVAL),
+                                RR_PTR, SEC_FROM_HEIMDALL_TICK(LISTEN_INTERVAL),
                                 stop_sd_cb, new_entries_sd_cb, p_sd );
 
     if( i_status < 0 )
-        print_error( VLC_OBJECT( p_sd ), "listen", i_status );
+        print_error( HEIMDALL_OBJECT( p_sd ), "listen", i_status );
 
     return NULL;
 }
@@ -493,11 +494,11 @@ RunSD( void *p_this )
 static void
 new_entries_rd_cb( void *p_this, int i_status, const struct rr_entry *p_entries )
 {
-    vlc_renderer_discovery_t *p_rd = (vlc_renderer_discovery_t *)p_this;
+    heimdall_renderer_discovery_t *p_rd = (heimdall_renderer_discovery_t *)p_this;
     struct discovery_sys *p_sys = p_rd->p_sys;
     if( i_status < 0 )
     {
-        print_error( VLC_OBJECT( p_rd ), "entry callback", i_status );
+        print_error( HEIMDALL_OBJECT( p_rd ), "entry callback", i_status );
         return;
     }
 
@@ -506,7 +507,7 @@ new_entries_rd_cb( void *p_this, int i_status, const struct rr_entry *p_entries 
     const char *psz_ip;
     bool b_ipv6 = false;
     if( parse_entries( p_entries, true, &p_srvs, &i_nb_srv,
-                       &psz_ip, &b_ipv6 ) != VLC_SUCCESS )
+                       &psz_ip, &b_ipv6 ) != HEIMDALL_SUCCESS )
         return;
 
     /* send new input items (if they don't already exist) */
@@ -560,7 +561,7 @@ new_entries_rd_cb( void *p_this, int i_status, const struct rr_entry *p_entries 
 static bool
 stop_rd_cb( void *p_this )
 {
-    vlc_renderer_discovery_t *p_rd = p_this;
+    heimdall_renderer_discovery_t *p_rd = p_this;
     struct discovery_sys *p_sys = p_rd->p_sys;
 
     if( atomic_load( &p_sys->stop ) )
@@ -575,31 +576,31 @@ stop_rd_cb( void *p_this )
 static void *
 RunRD( void *p_this )
 {
-    vlc_thread_set_name("vlc-mdns-render");
+    heimdall_thread_set_name("heimdall-mdns-render");
 
-    vlc_renderer_discovery_t *p_rd = p_this;
+    heimdall_renderer_discovery_t *p_rd = p_this;
     struct discovery_sys *p_sys = p_rd->p_sys;
 
     int i_status = mdns_listen( p_sys->p_microdns,
                                 p_sys->ppsz_service_names,
                                 p_sys->i_nb_service_names,
-                                RR_PTR, SEC_FROM_VLC_TICK(LISTEN_INTERVAL),
+                                RR_PTR, SEC_FROM_HEIMDALL_TICK(LISTEN_INTERVAL),
                                 stop_rd_cb, new_entries_rd_cb, p_rd );
 
     if( i_status < 0 )
-        print_error( VLC_OBJECT( p_rd ), "listen", i_status );
+        print_error( HEIMDALL_OBJECT( p_rd ), "listen", i_status );
 
     return NULL;
 }
 
 static int
-OpenCommon( vlc_object_t *p_obj, struct discovery_sys *p_sys, bool b_renderer )
+OpenCommon( heimdall_object_t *p_obj, struct discovery_sys *p_sys, bool b_renderer )
 {
-    int i_ret = VLC_EGENERIC;
+    int i_ret = HEIMDALL_EGENERIC;
     atomic_init( &p_sys->stop, false );
-    vlc_array_init( &p_sys->items );
+    heimdall_array_init( &p_sys->items );
 
-    /* Listen to protocols that are handled by VLC */
+    /* Listen to protocols that are handled by Heimdall */
     for (size_t i = 0; i < ARRAY_SIZE(protocols); ++i)
     {
         if( protocols[i].b_renderer == b_renderer )
@@ -624,13 +625,13 @@ OpenCommon( vlc_object_t *p_obj, struct discovery_sys *p_sys, bool b_renderer )
         goto error;
     }
 
-    if( vlc_clone( &p_sys->thread, b_renderer ? RunRD : RunSD, p_obj) )
+    if( heimdall_clone( &p_sys->thread, b_renderer ? RunRD : RunSD, p_obj) )
     {
         msg_Err( p_obj, "Can't run the lookup thread" );
         goto error;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 error:
     if( p_sys->p_microdns != NULL )
         mdns_destroy( p_sys->p_microdns );
@@ -642,7 +643,7 @@ static void
 CleanCommon( struct discovery_sys *p_sys )
 {
     atomic_store( &p_sys->stop, true );
-    vlc_join( p_sys->thread, NULL );
+    heimdall_join( p_sys->thread, NULL );
 
     items_clear( p_sys );
     mdns_destroy( p_sys->p_microdns );
@@ -650,13 +651,13 @@ CleanCommon( struct discovery_sys *p_sys )
 }
 
 static int
-OpenSD( vlc_object_t *p_obj )
+OpenSD( heimdall_object_t *p_obj )
 {
     services_discovery_t *p_sd = (services_discovery_t *)p_obj;
 
     struct discovery_sys *p_sys = calloc( 1, sizeof(struct discovery_sys) );
     if( !p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     p_sd->p_sys = p_sys;
 
     p_sd->description = _("mDNS Network Discovery");
@@ -666,7 +667,7 @@ OpenSD( vlc_object_t *p_obj )
 }
 
 static void
-CloseSD( vlc_object_t *p_this )
+CloseSD( heimdall_object_t *p_this )
 {
     services_discovery_t *p_sd = (services_discovery_t *) p_this;
     struct discovery_sys *p_sys = p_sd->p_sys;
@@ -675,13 +676,13 @@ CloseSD( vlc_object_t *p_this )
 }
 
 static int
-OpenRD( vlc_object_t *p_obj )
+OpenRD( heimdall_object_t *p_obj )
 {
-    vlc_renderer_discovery_t *p_rd = (vlc_renderer_discovery_t *)p_obj;
+    heimdall_renderer_discovery_t *p_rd = (heimdall_renderer_discovery_t *)p_obj;
 
     struct discovery_sys *p_sys = calloc( 1, sizeof(struct discovery_sys) );
     if( !p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     p_rd->p_sys = p_sys;
 
     config_ChainParse( p_rd, CFG_PREFIX, ppsz_options, p_rd->p_cfg );
@@ -690,9 +691,9 @@ OpenRD( vlc_object_t *p_obj )
 }
 
 static void
-CloseRD( vlc_object_t *p_this )
+CloseRD( heimdall_object_t *p_this )
 {
-    vlc_renderer_discovery_t *p_rd = (vlc_renderer_discovery_t *) p_this;
+    heimdall_renderer_discovery_t *p_rd = (heimdall_renderer_discovery_t *) p_this;
     struct discovery_sys *p_sys = p_rd->p_sys;
 
     CleanCommon( p_sys );

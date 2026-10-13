@@ -2,6 +2,7 @@
  * d3d11_swapchain.c: Direct3D11 swapchain handled by the display module
  *****************************************************************************
  * Copyright (C) 2014-2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Martell Malone <martellmalone@gmail.com>
  *          Steve Lhomme <robux4@gmail.com>
@@ -25,11 +26,11 @@
 # include "config.h"
 #endif
 
-#include <vlc/libvlc.h>
-#include <vlc/libvlc_picture.h>
-#include <vlc/libvlc_media.h>
-#include <vlc/libvlc_renderer_discoverer.h>
-#include <vlc/libvlc_media_player.h>
+#include <heimdall/libheimdall.h>
+#include <heimdall/libheimdall_picture.h>
+#include <heimdall/libheimdall_media.h>
+#include <heimdall/libheimdall_renderer_discoverer.h>
+#include <heimdall/libheimdall_media_player.h>
 
 #include <cassert>
 
@@ -47,14 +48,14 @@ struct d3d11_local_swapchain
 {
     struct dxgi_swapchain *sys = nullptr;
 
-    vlc_object_t           *obj = nullptr;
+    heimdall_object_t           *obj = nullptr;
     d3d11_device_t         *d3d_dev = nullptr;
     bool                   match_display = true;
 
     ComPtr<ID3D11RenderTargetView> swapchainTargetView[DXGI_MAX_RENDER_TARGET];
 };
 
-static bool UpdateSwapchain( d3d11_local_swapchain *display, const libvlc_video_render_cfg_t *cfg )
+static bool UpdateSwapchain( d3d11_local_swapchain *display, const libheimdall_video_render_cfg_t *cfg )
 {
     HRESULT hr;
 
@@ -145,7 +146,7 @@ void D3D11_LocalSwapchainCleanupDevice( void *opaque )
     delete display;
 }
 
-bool D3D11_LocalSwapchainUpdateOutput( void *opaque, const libvlc_video_render_cfg_t *cfg, libvlc_video_output_cfg_t *out )
+bool D3D11_LocalSwapchainUpdateOutput( void *opaque, const libheimdall_video_render_cfg_t *cfg, libheimdall_video_output_cfg_t *out )
 {
     d3d11_local_swapchain *display = static_cast<d3d11_local_swapchain *>(opaque);
     if ( !UpdateSwapchain( display, cfg ) )
@@ -160,7 +161,7 @@ void D3D11_LocalSwapchainSwap( void *opaque )
     DXGI_LocalSwapchainSwap( display->sys );
 }
 
-void D3D11_LocalSwapchainSetMetadata( void *opaque, libvlc_video_metadata_type_t type, const void *metadata )
+void D3D11_LocalSwapchainSetMetadata( void *opaque, libheimdall_video_metadata_type_t type, const void *metadata )
 {
     d3d11_local_swapchain *display = static_cast<d3d11_local_swapchain *>(opaque);
     DXGI_LocalSwapchainSetMetadata( display->sys, type, metadata );
@@ -186,7 +187,7 @@ bool D3D11_LocalSwapchainSelectPlane( void *opaque, size_t plane, void *out )
     return true;
 }
 
-void *D3D11_CreateLocalSwapchain(vlc_object_t *o, d3d11_device_t *d3d_dev, dxgi_swapchain *sys, bool match_display)
+void *D3D11_CreateLocalSwapchain(heimdall_object_t *o, d3d11_device_t *d3d_dev, dxgi_swapchain *sys, bool match_display)
 {
     d3d11_local_swapchain *display = new (std::nothrow) d3d11_local_swapchain();
     if (unlikely(display == NULL))

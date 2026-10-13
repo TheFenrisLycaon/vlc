@@ -2,6 +2,7 @@
  * subsdec.c : text subtitle decoder
  *****************************************************************************
  * Copyright © 2011-2015 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimer <fenrir@videolan.org>
  *          Jean-Baptiste Kempf <jb@videolan.org>
@@ -21,9 +22,9 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#include <vlc_strings.h>
-#include <vlc_text_style.h>
-#include <vlc_subpicture.h>
+#include <heimdall_strings.h>
+#include <heimdall_text_style.h>
+#include <heimdall_subpicture.h>
 
 #include <stdint.h>
 
@@ -68,7 +69,7 @@ typedef struct
     /* styling */
     text_style_t *p_default_style; /* decoder (full or partial) defaults */
     float margin_ratio;
-    vlc_tick_t i_next_update;
+    heimdall_tick_t i_next_update;
     bool b_blink_even;
 } subtext_updater_sys_t;
 
@@ -115,7 +116,7 @@ static uint64_t GetScalingModesAsFlags(const substext_updater_region_t *r)
 }
 
 static void SubpictureTextUpdate(subpicture_t *subpic,
-                                 const struct vlc_spu_updater_configuration *cfg)
+                                 const struct heimdall_spu_updater_configuration *cfg)
 {
     subtext_updater_sys_t *sys = subpic->updater.sys;
     const video_format_t *fmt_src = cfg->current.video_src;
@@ -142,18 +143,18 @@ static void SubpictureTextUpdate(subpicture_t *subpic,
         render_fmt.i_visible_height == prev_render_fmt.i_visible_height &&
         video_format_IsSimilar(cfg->previous.video_dst, fmt_dst) &&
         sys->scaling_modes_flags == scaling_modes_flags &&
-        (sys->i_next_update == VLC_TICK_INVALID || sys->i_next_update > cfg->pts))
+        (sys->i_next_update == HEIMDALL_TICK_INVALID || sys->i_next_update > cfg->pts))
         return;
 
     sys->scaling_modes_flags = scaling_modes_flags;
 
     if (!(p_updtregion->flags & UPDT_REGION_FIXED_DONE) &&
-        p_updtregion->b_absolute && !vlc_spu_regions_is_empty(&subpic->regions) &&
+        p_updtregion->b_absolute && !heimdall_spu_regions_is_empty(&subpic->regions) &&
         subpic->i_original_picture_width > 0 &&
         subpic->i_original_picture_height > 0)
     {
         subpicture_region_t *p_region =
-            vlc_spu_regions_first_or_null(&subpic->regions);
+            heimdall_spu_regions_first_or_null(&subpic->regions);
         p_updtregion->flags |= UPDT_REGION_FIXED_DONE;
         p_updtregion->origin.x = p_region->i_x;
         p_updtregion->origin.y = p_region->i_y;
@@ -162,11 +163,11 @@ static void SubpictureTextUpdate(subpicture_t *subpic,
         p_updtregion->flags &= ~(UPDT_REGION_ORIGIN_X_IS_RATIO|UPDT_REGION_ORIGIN_Y_IS_RATIO|
                                  UPDT_REGION_EXTENT_X_IS_RATIO|UPDT_REGION_EXTENT_Y_IS_RATIO);
     }
-    vlc_spu_regions_Clear( &subpic->regions );
+    heimdall_spu_regions_Clear( &subpic->regions );
 
     assert(render_fmt.i_sar_num && render_fmt.i_sar_den);
 
-    vlc_rational_t sar;
+    heimdall_rational_t sar;
 
     /* NOTE about fmt_dst:
      * fmt_dst area and A/R will change to display once WxH of the
@@ -213,7 +214,7 @@ static void SubpictureTextUpdate(subpicture_t *subpic,
         subpicture_region_t *r = subpicture_region_NewText();
         if (!r)
             return;
-        vlc_spu_regions_push(&subpic->regions, r);
+        heimdall_spu_regions_push(&subpic->regions, r);
         r->fmt.i_sar_num = sar.num;
         r->fmt.i_sar_den = sar.den;
 
@@ -223,10 +224,10 @@ static void SubpictureTextUpdate(subpicture_t *subpic,
         r->i_align = update_region->align;
         r->text_flags |= update_region->inner_align & SUBPICTURE_ALIGN_MASK;
         if (update_region->flags & UPDT_REGION_IGNORE_BACKGROUND)
-            r->text_flags |= VLC_SUBPIC_TEXT_FLAG_NO_REGION_BG;
+            r->text_flags |= HEIMDALL_SUBPIC_TEXT_FLAG_NO_REGION_BG;
         bool b_gridmode = (update_region->flags & UPDT_REGION_USES_GRID_COORDINATES) != 0;
         if (b_gridmode)
-            r->text_flags |= VLC_SUBPIC_TEXT_FLAG_GRID_MODE;
+            r->text_flags |= HEIMDALL_SUBPIC_TEXT_FLAG_GRID_MODE;
 
         if (!(update_region->flags & UPDT_REGION_FIXED_DONE))
         {
@@ -319,9 +320,9 @@ static void SubpictureTextUpdate(subpicture_t *subpic,
     }
 
     if( b_schedule_blink_update &&
-        (sys->i_next_update == VLC_TICK_INVALID || sys->i_next_update < cfg->pts) )
+        (sys->i_next_update == HEIMDALL_TICK_INVALID || sys->i_next_update < cfg->pts) )
     {
-        sys->i_next_update = cfg->pts + VLC_TICK_FROM_SEC(1);
+        sys->i_next_update = cfg->pts + HEIMDALL_TICK_FROM_SEC(1);
         sys->b_blink_even = !sys->b_blink_even;
     }
 }
@@ -346,7 +347,7 @@ static inline subpicture_t *decoder_NewSubpictureText(decoder_t *decoder)
 {
     subtext_updater_sys_t *sys = calloc(1, sizeof(*sys));
 
-    static const struct vlc_spu_updater_ops spu_ops =
+    static const struct heimdall_spu_updater_ops spu_ops =
     {
         .update   = SubpictureTextUpdate,
         .destroy  = SubpictureTextDestroy,
@@ -373,6 +374,6 @@ static inline subpicture_t *decoder_NewSubpictureText(decoder_t *decoder)
         return NULL;
     }
     sys->region.b_absolute = true; sys->region.b_in_window = false;
-    sys->i_next_update = VLC_TICK_INVALID;
+    sys->i_next_update = HEIMDALL_TICK_INVALID;
     return subpic;
 }

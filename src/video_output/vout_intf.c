@@ -2,6 +2,7 @@
  * vout_intf.c : video output interface
  *****************************************************************************
  * Copyright (C) 2000-2007 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gildas Bazin <gbazin@videolan.org>
  *
@@ -28,21 +29,21 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
 #include <stdio.h>
 #include <stdlib.h>                                                /* free() */
 #include <assert.h>
 
-#include <vlc_block.h>
-#include <vlc_modules.h>
+#include <heimdall_block.h>
+#include <heimdall_modules.h>
 
-#include <vlc_vout.h>
-#include <vlc_vout_osd.h>
-#include <vlc_strings.h>
-#include <vlc_charset.h>
-#include <vlc_spu.h>
-#include <vlc_subpicture.h>
+#include <heimdall_vout.h>
+#include <heimdall_vout_osd.h>
+#include <heimdall_strings.h>
+#include <heimdall_charset.h>
+#include <heimdall_spu.h>
+#include <heimdall_subpicture.h>
 #include "vout_internal.h"
 #include "snapshot.h"
 
@@ -50,46 +51,46 @@
  * Local prototypes
  *****************************************************************************/
 /* Object variables callbacks */
-static int CropCallback( vlc_object_t *, char const *,
-                         vlc_value_t, vlc_value_t, void * );
-static int CropBorderCallback( vlc_object_t *, char const *,
-                               vlc_value_t, vlc_value_t, void * );
-static int AspectCallback( vlc_object_t *, char const *,
-                           vlc_value_t, vlc_value_t, void * );
-static int AutoScaleCallback( vlc_object_t *, char const *,
-                              vlc_value_t, vlc_value_t, void * );
-static int FitCallback( vlc_object_t *, char const *,
-                        vlc_value_t, vlc_value_t, void * );
-static int ZoomCallback( vlc_object_t *, char const *,
-                         vlc_value_t, vlc_value_t, void * );
-static int AboveCallback( vlc_object_t *, char const *,
-                          vlc_value_t, vlc_value_t, void * );
-static int WallPaperCallback( vlc_object_t *, char const *,
-                              vlc_value_t, vlc_value_t, void * );
-static int FullscreenCallback( vlc_object_t *, char const *,
-                               vlc_value_t, vlc_value_t, void * );
-static int SnapshotCallback( vlc_object_t *, char const *,
-                             vlc_value_t, vlc_value_t, void * );
-static int VideoFilterCallback( vlc_object_t *, char const *,
-                                vlc_value_t, vlc_value_t, void * );
-static int SubSourceCallback( vlc_object_t *, char const *,
-                              vlc_value_t, vlc_value_t, void * );
-static int SubFilterCallback( vlc_object_t *, char const *,
-                              vlc_value_t, vlc_value_t, void * );
-static int SubMarginCallback( vlc_object_t *, char const *,
-                              vlc_value_t, vlc_value_t, void * );
-static int SecondarySubMarginCallback( vlc_object_t *, char const *,
-                                       vlc_value_t, vlc_value_t, void * );
-static int ViewpointCallback( vlc_object_t *, char const *,
-                              vlc_value_t, vlc_value_t, void * );
-static int Stereo3DCallback( vlc_object_t *, char const *,
-                             vlc_value_t, vlc_value_t, void * );
+static int CropCallback( heimdall_object_t *, char const *,
+                         heimdall_value_t, heimdall_value_t, void * );
+static int CropBorderCallback( heimdall_object_t *, char const *,
+                               heimdall_value_t, heimdall_value_t, void * );
+static int AspectCallback( heimdall_object_t *, char const *,
+                           heimdall_value_t, heimdall_value_t, void * );
+static int AutoScaleCallback( heimdall_object_t *, char const *,
+                              heimdall_value_t, heimdall_value_t, void * );
+static int FitCallback( heimdall_object_t *, char const *,
+                        heimdall_value_t, heimdall_value_t, void * );
+static int ZoomCallback( heimdall_object_t *, char const *,
+                         heimdall_value_t, heimdall_value_t, void * );
+static int AboveCallback( heimdall_object_t *, char const *,
+                          heimdall_value_t, heimdall_value_t, void * );
+static int WallPaperCallback( heimdall_object_t *, char const *,
+                              heimdall_value_t, heimdall_value_t, void * );
+static int FullscreenCallback( heimdall_object_t *, char const *,
+                               heimdall_value_t, heimdall_value_t, void * );
+static int SnapshotCallback( heimdall_object_t *, char const *,
+                             heimdall_value_t, heimdall_value_t, void * );
+static int VideoFilterCallback( heimdall_object_t *, char const *,
+                                heimdall_value_t, heimdall_value_t, void * );
+static int SubSourceCallback( heimdall_object_t *, char const *,
+                              heimdall_value_t, heimdall_value_t, void * );
+static int SubFilterCallback( heimdall_object_t *, char const *,
+                              heimdall_value_t, heimdall_value_t, void * );
+static int SubMarginCallback( heimdall_object_t *, char const *,
+                              heimdall_value_t, heimdall_value_t, void * );
+static int SecondarySubMarginCallback( heimdall_object_t *, char const *,
+                                       heimdall_value_t, heimdall_value_t, void * );
+static int ViewpointCallback( heimdall_object_t *, char const *,
+                              heimdall_value_t, heimdall_value_t, void * );
+static int Stereo3DCallback( heimdall_object_t *, char const *,
+                             heimdall_value_t, heimdall_value_t, void * );
 
-static int OverrideProjectionCallback( vlc_object_t *, char const *,
-                              vlc_value_t, vlc_value_t, void * );
+static int OverrideProjectionCallback( heimdall_object_t *, char const *,
+                              heimdall_value_t, heimdall_value_t, void * );
 
-static int ChangeProjectionCallback( vlc_object_t *, char const *,
-                              vlc_value_t, vlc_value_t, void * );
+static int ChangeProjectionCallback( heimdall_object_t *, char const *,
+                              heimdall_value_t, heimdall_value_t, void * );
 
 /*****************************************************************************
  * vout_IntfInit: called during the vout creation to initialise misc things.
@@ -142,14 +143,14 @@ static const struct
 
 static const struct
 {
-    enum vlc_video_fitting fit;
+    enum heimdall_video_fitting fit;
     char psz_label[15];
 } p_fit_values[] = {
-    { VLC_VIDEO_FIT_NONE,    N_("None") },
-    { VLC_VIDEO_FIT_SMALLER, N_("Inside Window") },
-    { VLC_VIDEO_FIT_LARGER,  N_("Outside Window") },
-    { VLC_VIDEO_FIT_WIDTH,   N_("Window Width") },
-    { VLC_VIDEO_FIT_HEIGHT,  N_("Window Height") },
+    { HEIMDALL_VIDEO_FIT_NONE,    N_("None") },
+    { HEIMDALL_VIDEO_FIT_SMALLER, N_("Inside Window") },
+    { HEIMDALL_VIDEO_FIT_LARGER,  N_("Outside Window") },
+    { HEIMDALL_VIDEO_FIT_WIDTH,   N_("Window Width") },
+    { HEIMDALL_VIDEO_FIT_HEIGHT,  N_("Window Height") },
 };
 
 static const struct
@@ -173,7 +174,7 @@ static void AddCustomRatios( vout_thread_t *p_vout, const char *psz_var,
     char *psz_next;
     while( psz_cur && *psz_cur )
     {
-        vlc_value_t val;
+        heimdall_value_t val;
         psz_next = strchr( psz_cur, ',' );
         if( psz_next )
         {
@@ -181,82 +182,82 @@ static void AddCustomRatios( vout_thread_t *p_vout, const char *psz_var,
             psz_next++;
         }
         val.psz_string = psz_cur;
-        var_Change( p_vout, psz_var, VLC_VAR_ADDCHOICE, val,
+        var_Change( p_vout, psz_var, HEIMDALL_VAR_ADDCHOICE, val,
                     (const char *)psz_cur );
         psz_cur = psz_next;
     }
 }
 
-enum vlc_video_fitting var_InheritFit(vlc_object_t *obj)
+enum heimdall_video_fitting var_InheritFit(heimdall_object_t *obj)
 {
     int64_t v = var_InheritInteger(obj, "fit");
     /* Safe variable => paranoid checks */
     switch (v) {
-        case VLC_VIDEO_FIT_SMALLER:
-        case VLC_VIDEO_FIT_LARGER:
-        case VLC_VIDEO_FIT_WIDTH:
-        case VLC_VIDEO_FIT_HEIGHT:
+        case HEIMDALL_VIDEO_FIT_SMALLER:
+        case HEIMDALL_VIDEO_FIT_LARGER:
+        case HEIMDALL_VIDEO_FIT_WIDTH:
+        case HEIMDALL_VIDEO_FIT_HEIGHT:
             return v;
         default:
-            return VLC_VIDEO_FIT_SMALLER;
+            return HEIMDALL_VIDEO_FIT_SMALLER;
     }
 }
 
 void vout_CreateVars( vout_thread_t *p_vout )
 {
-    vlc_value_t val;
+    heimdall_value_t val;
     char *psz_buf;
 
     /* Create a few object variables we'll need later on */
-    var_Create( p_vout, "snapshot-num", VLC_VAR_INTEGER );
+    var_Create( p_vout, "snapshot-num", HEIMDALL_VAR_INTEGER );
     var_SetInteger( p_vout, "snapshot-num", 1 );
 
-    var_Create( p_vout, "width", VLC_VAR_INTEGER | VLC_VAR_DOINHERIT );
-    var_Create( p_vout, "height", VLC_VAR_INTEGER | VLC_VAR_DOINHERIT );
-    var_Create( p_vout, "align", VLC_VAR_INTEGER | VLC_VAR_DOINHERIT );
+    var_Create( p_vout, "width", HEIMDALL_VAR_INTEGER | HEIMDALL_VAR_DOINHERIT );
+    var_Create( p_vout, "height", HEIMDALL_VAR_INTEGER | HEIMDALL_VAR_DOINHERIT );
+    var_Create( p_vout, "align", HEIMDALL_VAR_INTEGER | HEIMDALL_VAR_DOINHERIT );
 
     var_Create( p_vout, "mouse-hide-timeout",
-                VLC_VAR_INTEGER | VLC_VAR_DOINHERIT );
+                HEIMDALL_VAR_INTEGER | HEIMDALL_VAR_DOINHERIT );
 
     /* Add variables to manage scaling video */
-    var_Create( p_vout, "autoscale", VLC_VAR_BOOL | VLC_VAR_DOINHERIT
-                | VLC_VAR_ISCOMMAND );
+    var_Create( p_vout, "autoscale", HEIMDALL_VAR_BOOL | HEIMDALL_VAR_DOINHERIT
+                | HEIMDALL_VAR_ISCOMMAND );
 
-    var_Create( p_vout, "zoom", VLC_VAR_FLOAT | VLC_VAR_ISCOMMAND |
-                VLC_VAR_DOINHERIT );
-    var_Change( p_vout, "zoom", VLC_VAR_SETTEXT, _("Zoom") );
+    var_Create( p_vout, "zoom", HEIMDALL_VAR_FLOAT | HEIMDALL_VAR_ISCOMMAND |
+                HEIMDALL_VAR_DOINHERIT );
+    var_Change( p_vout, "zoom", HEIMDALL_VAR_SETTEXT, _("Zoom") );
     for( size_t i = 0; i < ARRAY_SIZE(p_zoom_values); i++ )
     {
         val.f_float = p_zoom_values[i].f_value;
-        var_Change( p_vout, "zoom", VLC_VAR_ADDCHOICE, val,
-                    vlc_gettext( p_zoom_values[i].psz_label ) );
+        var_Change( p_vout, "zoom", HEIMDALL_VAR_ADDCHOICE, val,
+                    heimdall_gettext( p_zoom_values[i].psz_label ) );
     }
 
-    var_Create( p_vout, "video-stereo-mode", VLC_VAR_INTEGER | VLC_VAR_DOINHERIT );
-    var_Change( p_vout, "video-stereo-mode", VLC_VAR_SETTEXT, _("video-stereo-output"), NULL );
+    var_Create( p_vout, "video-stereo-mode", HEIMDALL_VAR_INTEGER | HEIMDALL_VAR_DOINHERIT );
+    var_Change( p_vout, "video-stereo-mode", HEIMDALL_VAR_SETTEXT, _("video-stereo-output"), NULL );
 
     for( size_t i = 0; i < ARRAY_SIZE(p_3D_output_format_values); i++ )
     {
         val.i_int = p_3D_output_format_values[i].i_value;
-        var_Change( p_vout, "video-stereo-mode", VLC_VAR_ADDCHOICE, val,
-                    vlc_gettext( p_3D_output_format_values[i].psz_label ) );
+        var_Change( p_vout, "video-stereo-mode", HEIMDALL_VAR_ADDCHOICE, val,
+                    heimdall_gettext( p_3D_output_format_values[i].psz_label ) );
     }
 
     /* Crop offset vars */
-    var_Create( p_vout, "crop-left", VLC_VAR_INTEGER | VLC_VAR_ISCOMMAND );
-    var_Create( p_vout, "crop-top", VLC_VAR_INTEGER | VLC_VAR_ISCOMMAND );
-    var_Create( p_vout, "crop-right", VLC_VAR_INTEGER | VLC_VAR_ISCOMMAND );
-    var_Create( p_vout, "crop-bottom", VLC_VAR_INTEGER | VLC_VAR_ISCOMMAND );
+    var_Create( p_vout, "crop-left", HEIMDALL_VAR_INTEGER | HEIMDALL_VAR_ISCOMMAND );
+    var_Create( p_vout, "crop-top", HEIMDALL_VAR_INTEGER | HEIMDALL_VAR_ISCOMMAND );
+    var_Create( p_vout, "crop-right", HEIMDALL_VAR_INTEGER | HEIMDALL_VAR_ISCOMMAND );
+    var_Create( p_vout, "crop-bottom", HEIMDALL_VAR_INTEGER | HEIMDALL_VAR_ISCOMMAND );
 
     /* Crop object var */
-    var_Create( p_vout, "crop", VLC_VAR_STRING | VLC_VAR_ISCOMMAND |
-                VLC_VAR_DOINHERIT );
-    var_Change( p_vout, "crop", VLC_VAR_SETTEXT, _("Crop") );
+    var_Create( p_vout, "crop", HEIMDALL_VAR_STRING | HEIMDALL_VAR_ISCOMMAND |
+                HEIMDALL_VAR_DOINHERIT );
+    var_Change( p_vout, "crop", HEIMDALL_VAR_SETTEXT, _("Crop") );
 
     for( size_t i = 0; i < ARRAY_SIZE(p_crop_values); i++ )
     {
         val.psz_string = (char*)p_crop_values[i].psz_value;
-        var_Change( p_vout, "crop", VLC_VAR_ADDCHOICE, val,
+        var_Change( p_vout, "crop", HEIMDALL_VAR_ADDCHOICE, val,
                     p_crop_values[i].psz_label );
     }
 
@@ -269,18 +270,18 @@ void vout_CreateVars( vout_thread_t *p_vout )
     }
 
     /* Monitor pixel aspect-ratio */
-    var_Create( p_vout, "monitor-par", VLC_VAR_STRING | VLC_VAR_DOINHERIT );
+    var_Create( p_vout, "monitor-par", HEIMDALL_VAR_STRING | HEIMDALL_VAR_DOINHERIT );
 
     /* Aspect-ratio object var */
-    var_Create( p_vout, "aspect-ratio", VLC_VAR_STRING | VLC_VAR_ISCOMMAND |
-                VLC_VAR_DOINHERIT );
-    var_Change( p_vout, "aspect-ratio", VLC_VAR_SETTEXT, _("Aspect ratio") );
+    var_Create( p_vout, "aspect-ratio", HEIMDALL_VAR_STRING | HEIMDALL_VAR_ISCOMMAND |
+                HEIMDALL_VAR_DOINHERIT );
+    var_Change( p_vout, "aspect-ratio", HEIMDALL_VAR_SETTEXT, _("Aspect ratio") );
 
     for( size_t i = 0; i < ARRAY_SIZE(p_aspect_ratio_values); i++ )
     {
         val.psz_string = (char*)p_aspect_ratio_values[i].psz_value;
-        var_Change( p_vout, "aspect-ratio", VLC_VAR_ADDCHOICE, val,
-                    vlc_gettext(p_aspect_ratio_values[i].psz_label) );
+        var_Change( p_vout, "aspect-ratio", HEIMDALL_VAR_ADDCHOICE, val,
+                    heimdall_gettext(p_aspect_ratio_values[i].psz_label) );
     }
 
     /* Add custom aspect ratios */
@@ -292,78 +293,78 @@ void vout_CreateVars( vout_thread_t *p_vout )
     }
 
     /* display fit */
-    var_Create( p_vout, "fit", VLC_VAR_INTEGER | VLC_VAR_ISCOMMAND |
-                VLC_VAR_DOINHERIT );
-    var_Change( p_vout, "fit", VLC_VAR_SETTEXT, _("Fit Mode") );
+    var_Create( p_vout, "fit", HEIMDALL_VAR_INTEGER | HEIMDALL_VAR_ISCOMMAND |
+                HEIMDALL_VAR_DOINHERIT );
+    var_Change( p_vout, "fit", HEIMDALL_VAR_SETTEXT, _("Fit Mode") );
 
     for( size_t i = 0; i < ARRAY_SIZE(p_fit_values); i++ )
     {
         val.i_int = p_fit_values[i].fit;
-        var_Change( p_vout, "fit", VLC_VAR_ADDCHOICE, val,
+        var_Change( p_vout, "fit", HEIMDALL_VAR_ADDCHOICE, val,
                     p_fit_values[i].psz_label );
     }
 
     /* Add a variable to indicate if the window should be on top of others */
-    var_Create( p_vout, "video-on-top", VLC_VAR_BOOL | VLC_VAR_DOINHERIT
-                | VLC_VAR_ISCOMMAND );
-    var_Change( p_vout, "video-on-top", VLC_VAR_SETTEXT,
+    var_Create( p_vout, "video-on-top", HEIMDALL_VAR_BOOL | HEIMDALL_VAR_DOINHERIT
+                | HEIMDALL_VAR_ISCOMMAND );
+    var_Change( p_vout, "video-on-top", HEIMDALL_VAR_SETTEXT,
                 _("Always on top") );
 
     /* Add a variable to indicate if the window should be below all others */
-    var_Create( p_vout, "video-wallpaper", VLC_VAR_BOOL | VLC_VAR_DOINHERIT );
+    var_Create( p_vout, "video-wallpaper", HEIMDALL_VAR_BOOL | HEIMDALL_VAR_DOINHERIT );
 
     /* Add a variable to indicate whether we want window decoration or not */
-    var_Create( p_vout, "video-deco", VLC_VAR_BOOL | VLC_VAR_DOINHERIT );
+    var_Create( p_vout, "video-deco", HEIMDALL_VAR_BOOL | HEIMDALL_VAR_DOINHERIT );
 
     /* Add a fullscreen variable */
     var_Create( p_vout, "fullscreen",
-                VLC_VAR_BOOL | VLC_VAR_DOINHERIT | VLC_VAR_ISCOMMAND );
-    var_Change( p_vout, "fullscreen", VLC_VAR_SETTEXT, _("Fullscreen") );
+                HEIMDALL_VAR_BOOL | HEIMDALL_VAR_DOINHERIT | HEIMDALL_VAR_ISCOMMAND );
+    var_Change( p_vout, "fullscreen", HEIMDALL_VAR_SETTEXT, _("Fullscreen") );
 
     /* Add a snapshot variable */
-    var_Create( p_vout, "video-snapshot", VLC_VAR_VOID | VLC_VAR_ISCOMMAND );
-    var_Change( p_vout, "video-snapshot", VLC_VAR_SETTEXT, _("Snapshot") );
+    var_Create( p_vout, "video-snapshot", HEIMDALL_VAR_VOID | HEIMDALL_VAR_ISCOMMAND );
+    var_Change( p_vout, "video-snapshot", HEIMDALL_VAR_SETTEXT, _("Snapshot") );
 
     /* Add a video-filter variable */
     var_Create( p_vout, "video-filter",
-                VLC_VAR_STRING | VLC_VAR_DOINHERIT | VLC_VAR_ISCOMMAND );
+                HEIMDALL_VAR_STRING | HEIMDALL_VAR_DOINHERIT | HEIMDALL_VAR_ISCOMMAND );
 
     /* Add a sub-source variable */
     var_Create( p_vout, "sub-source",
-                VLC_VAR_STRING | VLC_VAR_DOINHERIT | VLC_VAR_ISCOMMAND );
+                HEIMDALL_VAR_STRING | HEIMDALL_VAR_DOINHERIT | HEIMDALL_VAR_ISCOMMAND );
 
     /* Add a sub-filter variable */
     var_Create( p_vout, "sub-filter",
-                VLC_VAR_STRING | VLC_VAR_DOINHERIT | VLC_VAR_ISCOMMAND );
+                HEIMDALL_VAR_STRING | HEIMDALL_VAR_DOINHERIT | HEIMDALL_VAR_ISCOMMAND );
 
     /* Add sub-margin variable */
     var_Create( p_vout, "sub-margin",
-                VLC_VAR_INTEGER | VLC_VAR_DOINHERIT | VLC_VAR_ISCOMMAND );
+                HEIMDALL_VAR_INTEGER | HEIMDALL_VAR_DOINHERIT | HEIMDALL_VAR_ISCOMMAND );
 
     /* Add secondary-sub-margin variable (dual subtitles) */
     var_Create( p_vout, "secondary-sub-margin",
-                VLC_VAR_INTEGER | VLC_VAR_DOINHERIT | VLC_VAR_ISCOMMAND );
+                HEIMDALL_VAR_INTEGER | HEIMDALL_VAR_DOINHERIT | HEIMDALL_VAR_ISCOMMAND );
     var_AddCallback( p_vout, "secondary-sub-margin", SecondarySubMarginCallback, NULL );
 
     /* Mouse coordinates */
-    var_Create( p_vout, "mouse-button-down", VLC_VAR_INTEGER );
-    var_Create( p_vout, "mouse-moved", VLC_VAR_COORDS );
+    var_Create( p_vout, "mouse-button-down", HEIMDALL_VAR_INTEGER );
+    var_Create( p_vout, "mouse-moved", HEIMDALL_VAR_COORDS );
 
     /* Device orientation */
-    var_Create( p_vout, "viewpoint-moved", VLC_VAR_ADDRESS );
+    var_Create( p_vout, "viewpoint-moved", HEIMDALL_VAR_ADDRESS );
 
     /* Viewpoint */
-    var_Create( p_vout, "viewpoint", VLC_VAR_ADDRESS  );
-    var_Create( p_vout, "viewpoint-changeable", VLC_VAR_BOOL );
+    var_Create( p_vout, "viewpoint", HEIMDALL_VAR_ADDRESS  );
+    var_Create( p_vout, "viewpoint-changeable", HEIMDALL_VAR_BOOL );
 
     /* SPU in full window */
-    var_Create( p_vout, "spu-fill", VLC_VAR_BOOL | VLC_VAR_DOINHERIT
-                | VLC_VAR_ISCOMMAND );
+    var_Create( p_vout, "spu-fill", HEIMDALL_VAR_BOOL | HEIMDALL_VAR_DOINHERIT
+                | HEIMDALL_VAR_ISCOMMAND );
 
-    var_Create(p_vout, "override-projection", VLC_VAR_BOOL);
+    var_Create(p_vout, "override-projection", HEIMDALL_VAR_BOOL);
     var_SetBool(p_vout, "override-projection", false);
 
-    var_Create(p_vout, "projection-mode", VLC_VAR_INTEGER | VLC_VAR_DOINHERIT);
+    var_Create(p_vout, "projection-mode", HEIMDALL_VAR_INTEGER | HEIMDALL_VAR_DOINHERIT);
 }
 
 void vout_IntfInit( vout_thread_t *p_vout )
@@ -399,7 +400,7 @@ void vout_IntfReinit( vout_thread_t *p_vout )
     var_TriggerCallback( p_vout, "video-filter" );
     var_TriggerCallback( p_vout, "sub-source" );
     var_TriggerCallback( p_vout, "sub-filter" );
-    /* !Warn those will trigger also vlc_player_vout_OSDCallback and
+    /* !Warn those will trigger also heimdall_player_vout_OSDCallback and
         cause unwanted OSD on vout start. Filter out it there. */
     var_TriggerCallback( p_vout, "sub-margin" );
     var_TriggerCallback( p_vout, "secondary-sub-margin" );
@@ -408,7 +409,7 @@ void vout_IntfReinit( vout_thread_t *p_vout )
     var_TriggerCallback(p_vout, "video-stereo-mode");
 }
 
-void vout_IntfDeinit(vlc_object_t *obj)
+void vout_IntfDeinit(heimdall_object_t *obj)
 {
     var_DelCallback(obj, "viewpoint", ViewpointCallback, NULL);
     var_DelCallback(obj, "sub-margin", SubMarginCallback, NULL);
@@ -443,16 +444,16 @@ void vout_IntfDeinit(vlc_object_t *obj)
  */
 static int VoutSnapshotPip( vout_thread_t *p_vout, picture_t *p_pic )
 {
-    subpicture_t *p_subpic = subpicture_NewFromPicture( VLC_OBJECT(p_vout),
-                                                        p_pic, VLC_CODEC_YUVA );
+    subpicture_t *p_subpic = subpicture_NewFromPicture( HEIMDALL_OBJECT(p_vout),
+                                                        p_pic, HEIMDALL_CODEC_YUVA );
     if( !p_subpic )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* FIXME SPU_DEFAULT_CHANNEL is not good (used by the text) but
      * hardcoded 0 doesn't seem right */
     p_subpic->i_channel = 0;
-    p_subpic->i_start = vlc_tick_now();
-    p_subpic->i_stop  = p_subpic->i_start + VLC_TICK_FROM_SEC(4);
+    p_subpic->i_start = heimdall_tick_now();
+    p_subpic->i_stop  = p_subpic->i_start + HEIMDALL_TICK_FROM_SEC(4);
     p_subpic->b_ephemer = true;
     p_subpic->b_fade = true;
 
@@ -461,7 +462,7 @@ static int VoutSnapshotPip( vout_thread_t *p_vout, picture_t *p_pic )
     p_subpic->i_original_picture_height *= 4;
 
     vout_PutSubpicture( p_vout, p_subpic );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /**
@@ -494,7 +495,7 @@ static void VoutSaveSnapshot( vout_thread_t *p_vout )
 
     /* 500ms timeout
      * XXX it will cause trouble with low fps video (< 2fps) */
-    if( vout_GetSnapshot( p_vout, &p_image, &p_picture, NULL, psz_format, VLC_TICK_FROM_MS(500) ) )
+    if( vout_GetSnapshot( p_vout, &p_image, &p_picture, NULL, psz_format, HEIMDALL_TICK_FROM_MS(500) ) )
     {
         p_picture = NULL;
         p_image = NULL;
@@ -530,7 +531,7 @@ static void VoutSaveSnapshot( vout_thread_t *p_vout )
     VoutOsdSnapshot( p_vout, p_picture, psz_filename );
 
     /* signal creation of a new snapshot file */
-    var_SetString( vlc_object_instance(p_vout), "snapshot-file", psz_filename );
+    var_SetString( heimdall_object_instance(p_vout), "snapshot-file", psz_filename );
 
     free( psz_filename );
 
@@ -561,7 +562,7 @@ bool vout_ParseCrop(struct vout_crop *restrict cfg, const char *crop_str)
                       &cfg->border.left, &cfg->border.top,
                       &cfg->border.right, &cfg->border.bottom) == 4) {
         cfg->mode = VOUT_CROP_BORDER;
-    } else if (vlc_sscanf_c(crop_str, "%f:%f", &fnum, &fden) == 2) {
+    } else if (heimdall_sscanf_c(crop_str, "%f:%f", &fnum, &fden) == 2) {
         long num = lroundf(ldexp(fnum, 24/*-bit mantissa */));
         long den = lroundf(ldexp(fden, 24));
         long gcd = GCD(num, den);
@@ -580,11 +581,11 @@ bool vout_ParseCrop(struct vout_crop *restrict cfg, const char *crop_str)
 /*****************************************************************************
  * Object variables callbacks
  *****************************************************************************/
-static int CropCallback( vlc_object_t *object, char const *cmd,
-                         vlc_value_t oldval, vlc_value_t newval, void *data )
+static int CropCallback( heimdall_object_t *object, char const *cmd,
+                         heimdall_value_t oldval, heimdall_value_t newval, void *data )
 {
     vout_thread_t *vout = (vout_thread_t *)object;
-    VLC_UNUSED(cmd); VLC_UNUSED(oldval); VLC_UNUSED(data);
+    HEIMDALL_UNUSED(cmd); HEIMDALL_UNUSED(oldval); HEIMDALL_UNUSED(data);
     struct vout_crop crop;
 
     if (vout_ParseCrop(&crop, newval.psz_string))
@@ -592,11 +593,11 @@ static int CropCallback( vlc_object_t *object, char const *cmd,
     else
         msg_Err(object, "Unknown crop format (%s)", newval.psz_string);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int CropBorderCallback(vlc_object_t *object, char const *cmd,
-                              vlc_value_t oldval, vlc_value_t newval, void *data)
+static int CropBorderCallback(heimdall_object_t *object, char const *cmd,
+                              heimdall_value_t oldval, heimdall_value_t newval, void *data)
 {
     char buf[4 * 21];
 
@@ -607,18 +608,18 @@ static int CropBorderCallback(vlc_object_t *object, char const *cmd,
              var_GetInteger(object, "crop-bottom"));
     var_SetString(object, "crop", buf);
 
-    VLC_UNUSED(cmd); VLC_UNUSED(oldval); VLC_UNUSED(data); VLC_UNUSED(newval);
-    return VLC_SUCCESS;
+    HEIMDALL_UNUSED(cmd); HEIMDALL_UNUSED(oldval); HEIMDALL_UNUSED(data); HEIMDALL_UNUSED(newval);
+    return HEIMDALL_SUCCESS;
 }
 
-bool vout_ParseDisplayAspectRatio(vlc_rational_t *ar, const char *ar_str)
+bool vout_ParseDisplayAspectRatio(heimdall_rational_t *ar, const char *ar_str)
 {
     if (*ar_str == '\0') {
-        *ar = VLC_DAR_FROM_SOURCE;
+        *ar = HEIMDALL_DAR_FROM_SOURCE;
         return true;
     }
     if (strcmp(ar_str,"fill")==0) {
-        *ar = VLC_DAR_FILL_DISPLAY;
+        *ar = HEIMDALL_DAR_FILL_DISPLAY;
         return true;
     }
     if (sscanf(ar_str, "%u:%u", &ar->num, &ar->den) == 2 &&
@@ -627,56 +628,56 @@ bool vout_ParseDisplayAspectRatio(vlc_rational_t *ar, const char *ar_str)
     return false;
 }
 
-static int AspectCallback( vlc_object_t *object, char const *cmd,
-                         vlc_value_t oldval, vlc_value_t newval, void *data )
+static int AspectCallback( heimdall_object_t *object, char const *cmd,
+                         heimdall_value_t oldval, heimdall_value_t newval, void *data )
 {
     vout_thread_t *vout = (vout_thread_t *)object;
-    VLC_UNUSED(cmd); VLC_UNUSED(oldval); VLC_UNUSED(data);
-    vlc_rational_t ar;
+    HEIMDALL_UNUSED(cmd); HEIMDALL_UNUSED(oldval); HEIMDALL_UNUSED(data);
+    heimdall_rational_t ar;
 
     if (vout_ParseDisplayAspectRatio(&ar, newval.psz_string))
         vout_ChangeDisplayAspectRatio(vout, ar);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int AutoScaleCallback( vlc_object_t *obj, char const *name,
-                              vlc_value_t prev, vlc_value_t cur, void *data )
+static int AutoScaleCallback( heimdall_object_t *obj, char const *name,
+                              heimdall_value_t prev, heimdall_value_t cur, void *data )
 {
     vout_thread_t *p_vout = (vout_thread_t *)obj;
-    enum vlc_video_fitting fit = cur.b_bool ? var_InheritFit(obj)
-                                            : VLC_VIDEO_FIT_NONE;
+    enum heimdall_video_fitting fit = cur.b_bool ? var_InheritFit(obj)
+                                            : HEIMDALL_VIDEO_FIT_NONE;
 
     (void) name; (void) prev; (void) data;
     vout_ChangeDisplayFitting(p_vout, fit);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int FitCallback( vlc_object_t *obj, char const *name,
-                        vlc_value_t prev, vlc_value_t cur, void *data )
+static int FitCallback( heimdall_object_t *obj, char const *name,
+                        heimdall_value_t prev, heimdall_value_t cur, void *data )
 {
     vout_thread_t *p_vout = (vout_thread_t *)obj;
-    enum vlc_video_fitting fit = cur.i_int;
+    enum heimdall_video_fitting fit = cur.i_int;
 
     (void) name; (void) prev; (void) data;
     vout_ChangeDisplayFitting(p_vout, fit);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int OverrideProjectionCallback( vlc_object_t *obj, char const *name,
-                              vlc_value_t prev, vlc_value_t cur, void *data )
+static int OverrideProjectionCallback( heimdall_object_t *obj, char const *name,
+                              heimdall_value_t prev, heimdall_value_t cur, void *data )
 {
-    VLC_UNUSED(name); VLC_UNUSED(prev); VLC_UNUSED(data);
+    HEIMDALL_UNUSED(name); HEIMDALL_UNUSED(prev); HEIMDALL_UNUSED(data);
     vout_thread_t *vout = (vout_thread_t *)obj;
 
     vout_OSDMessage(vout, VOUT_SPU_CHANNEL_OSD, "Projection: %s", cur.b_bool ? "disabled" : "enabled");
     vout_ToggleProjection(vout, !cur.b_bool);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int ChangeProjectionCallback( vlc_object_t *obj, char const *name,
-                              vlc_value_t prev, vlc_value_t cur, void *data )
+static int ChangeProjectionCallback( heimdall_object_t *obj, char const *name,
+                              heimdall_value_t prev, heimdall_value_t cur, void *data )
 {
-    VLC_UNUSED(name); VLC_UNUSED(prev); VLC_UNUSED(data);
+    HEIMDALL_UNUSED(name); HEIMDALL_UNUSED(prev); HEIMDALL_UNUSED(data);
     vout_thread_t *vout = (vout_thread_t *)obj;
 
     const char *projection;
@@ -695,53 +696,53 @@ static int ChangeProjectionCallback( vlc_object_t *obj, char const *name,
     if (cur.i_int == -1)
     {
         vout_ResetProjection(vout);
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
     else if (cur.i_int < 0 || cur.i_int > (int)PROJECTION_MODE_CUBEMAP_LAYOUT_STANDARD)
     {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     vout_ChangeProjection(vout, cur.i_int);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int ZoomCallback( vlc_object_t *obj, char const *name,
-                         vlc_value_t prev, vlc_value_t cur, void *data )
+static int ZoomCallback( heimdall_object_t *obj, char const *name,
+                         heimdall_value_t prev, heimdall_value_t cur, void *data )
 {
     vout_thread_t *p_vout = (vout_thread_t *)obj;
 
     (void) name; (void) prev; (void) data;
     vout_ChangeZoom(p_vout, 1000 * cur.f_float, 1000);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int Stereo3DCallback( vlc_object_t *obj, char const *name,
-                         vlc_value_t prev, vlc_value_t cur, void *data )
+static int Stereo3DCallback( heimdall_object_t *obj, char const *name,
+                         heimdall_value_t prev, heimdall_value_t cur, void *data )
 {
     vout_thread_t *p_vout = (vout_thread_t *)obj;
     (void) name; (void) prev; (void) data;
     vout_ControlChangeStereo( p_vout, cur.i_int );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int AboveCallback( vlc_object_t *obj, char const *name,
-                          vlc_value_t prev, vlc_value_t cur, void *data )
+static int AboveCallback( heimdall_object_t *obj, char const *name,
+                          heimdall_value_t prev, heimdall_value_t cur, void *data )
 {
     vout_ChangeWindowState((vout_thread_t *)obj,
-        cur.b_bool ? VLC_WINDOW_STATE_ABOVE : VLC_WINDOW_STATE_NORMAL);
+        cur.b_bool ? HEIMDALL_WINDOW_STATE_ABOVE : HEIMDALL_WINDOW_STATE_NORMAL);
     (void) name; (void) prev; (void) data;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int WallPaperCallback( vlc_object_t *obj, char const *name,
-                              vlc_value_t prev, vlc_value_t cur, void *data )
+static int WallPaperCallback( heimdall_object_t *obj, char const *name,
+                              heimdall_value_t prev, heimdall_value_t cur, void *data )
 {
     vout_thread_t *vout = (vout_thread_t *)obj;
 
     if( cur.b_bool )
     {
-        vout_ChangeWindowState(vout, VLC_WINDOW_STATE_BELOW);
+        vout_ChangeWindowState(vout, HEIMDALL_WINDOW_STATE_BELOW);
         vout_ChangeFullscreen(vout, NULL);
     }
     else
@@ -750,11 +751,11 @@ static int WallPaperCallback( vlc_object_t *obj, char const *name,
         var_TriggerCallback( obj, "video-on-top" );
     }
     (void) name; (void) prev; (void) data;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int FullscreenCallback( vlc_object_t *p_this, char const *psz_cmd,
-                       vlc_value_t oldval, vlc_value_t newval, void *p_data )
+static int FullscreenCallback( heimdall_object_t *p_this, char const *psz_cmd,
+                       heimdall_value_t oldval, heimdall_value_t newval, void *p_data )
 {
     vout_thread_t *p_vout = (vout_thread_t *)p_this;
     (void)psz_cmd; (void) oldval; (void)p_data;
@@ -763,77 +764,77 @@ static int FullscreenCallback( vlc_object_t *p_this, char const *psz_cmd,
         vout_ChangeFullscreen(p_vout, NULL);
     else
         vout_ChangeWindowed(p_vout);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int SnapshotCallback( vlc_object_t *p_this, char const *psz_cmd,
-                       vlc_value_t oldval, vlc_value_t newval, void *p_data )
+static int SnapshotCallback( heimdall_object_t *p_this, char const *psz_cmd,
+                       heimdall_value_t oldval, heimdall_value_t newval, void *p_data )
 {
     vout_thread_t *p_vout = (vout_thread_t *)p_this;
-    VLC_UNUSED(psz_cmd); VLC_UNUSED(oldval);
-    VLC_UNUSED(newval); VLC_UNUSED(p_data);
+    HEIMDALL_UNUSED(psz_cmd); HEIMDALL_UNUSED(oldval);
+    HEIMDALL_UNUSED(newval); HEIMDALL_UNUSED(p_data);
 
     VoutSaveSnapshot( p_vout );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int VideoFilterCallback( vlc_object_t *p_this, char const *psz_cmd,
-                                vlc_value_t oldval, vlc_value_t newval, void *p_data)
+static int VideoFilterCallback( heimdall_object_t *p_this, char const *psz_cmd,
+                                heimdall_value_t oldval, heimdall_value_t newval, void *p_data)
 {
     vout_thread_t *p_vout = (vout_thread_t *)p_this;
-    VLC_UNUSED(psz_cmd); VLC_UNUSED(oldval); VLC_UNUSED(p_data);
+    HEIMDALL_UNUSED(psz_cmd); HEIMDALL_UNUSED(oldval); HEIMDALL_UNUSED(p_data);
 
     vout_ControlChangeFilters( p_vout, newval.psz_string );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int SubSourceCallback( vlc_object_t *p_this, char const *psz_cmd,
-                              vlc_value_t oldval, vlc_value_t newval, void *p_data)
+static int SubSourceCallback( heimdall_object_t *p_this, char const *psz_cmd,
+                              heimdall_value_t oldval, heimdall_value_t newval, void *p_data)
 {
     vout_thread_t *p_vout = (vout_thread_t *)p_this;
-    VLC_UNUSED(psz_cmd); VLC_UNUSED(oldval); VLC_UNUSED(p_data);
+    HEIMDALL_UNUSED(psz_cmd); HEIMDALL_UNUSED(oldval); HEIMDALL_UNUSED(p_data);
 
     vout_ControlChangeSubSources( p_vout, newval.psz_string );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int SubFilterCallback( vlc_object_t *p_this, char const *psz_cmd,
-                              vlc_value_t oldval, vlc_value_t newval, void *p_data)
+static int SubFilterCallback( heimdall_object_t *p_this, char const *psz_cmd,
+                              heimdall_value_t oldval, heimdall_value_t newval, void *p_data)
 {
     vout_thread_t *p_vout = (vout_thread_t *)p_this;
-    VLC_UNUSED(psz_cmd); VLC_UNUSED(oldval); VLC_UNUSED(p_data);
+    HEIMDALL_UNUSED(psz_cmd); HEIMDALL_UNUSED(oldval); HEIMDALL_UNUSED(p_data);
 
     vout_ControlChangeSubFilters( p_vout, newval.psz_string );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int SubMarginCallback( vlc_object_t *p_this, char const *psz_cmd,
-                              vlc_value_t oldval, vlc_value_t newval, void *p_data)
+static int SubMarginCallback( heimdall_object_t *p_this, char const *psz_cmd,
+                              heimdall_value_t oldval, heimdall_value_t newval, void *p_data)
 {
     vout_thread_t *p_vout = (vout_thread_t *)p_this;
-    VLC_UNUSED(psz_cmd); VLC_UNUSED(oldval); VLC_UNUSED(p_data);
+    HEIMDALL_UNUSED(psz_cmd); HEIMDALL_UNUSED(oldval); HEIMDALL_UNUSED(p_data);
 
-    vout_ChangeSpuChannelMargin(p_vout, VLC_VOUT_ORDER_PRIMARY, newval.i_int);
-    return VLC_SUCCESS;
+    vout_ChangeSpuChannelMargin(p_vout, HEIMDALL_VOUT_ORDER_PRIMARY, newval.i_int);
+    return HEIMDALL_SUCCESS;
 }
 
-static int SecondarySubMarginCallback( vlc_object_t *p_this, char const *psz_cmd,
-                              vlc_value_t oldval, vlc_value_t newval, void *p_data)
+static int SecondarySubMarginCallback( heimdall_object_t *p_this, char const *psz_cmd,
+                              heimdall_value_t oldval, heimdall_value_t newval, void *p_data)
 {
     vout_thread_t *p_vout = (vout_thread_t *)p_this;
-    VLC_UNUSED(psz_cmd); VLC_UNUSED(oldval); VLC_UNUSED(p_data);
+    HEIMDALL_UNUSED(psz_cmd); HEIMDALL_UNUSED(oldval); HEIMDALL_UNUSED(p_data);
 
-    vout_ChangeSpuChannelMargin(p_vout, VLC_VOUT_ORDER_SECONDARY, newval.i_int);
-    return VLC_SUCCESS;
+    vout_ChangeSpuChannelMargin(p_vout, HEIMDALL_VOUT_ORDER_SECONDARY, newval.i_int);
+    return HEIMDALL_SUCCESS;
 }
 
-static int ViewpointCallback( vlc_object_t *p_this, char const *psz_cmd,
-                              vlc_value_t oldval, vlc_value_t newval, void *p_data)
+static int ViewpointCallback( heimdall_object_t *p_this, char const *psz_cmd,
+                              heimdall_value_t oldval, heimdall_value_t newval, void *p_data)
 {
     vout_thread_t *p_vout = (vout_thread_t *)p_this;
-    VLC_UNUSED(psz_cmd); VLC_UNUSED(oldval); VLC_UNUSED(p_data);
+    HEIMDALL_UNUSED(psz_cmd); HEIMDALL_UNUSED(oldval); HEIMDALL_UNUSED(p_data);
 
     if( newval.p_address != NULL )
         vout_ChangeViewpoint(p_vout, newval.p_address);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

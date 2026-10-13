@@ -2,6 +2,7 @@
  * matroska_segment_parse.cpp : matroska demuxer
  *****************************************************************************
  * Copyright (C) 2003-2010 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *          Steve Lhomme <steve.lhomme@free.fr>
@@ -37,10 +38,10 @@ extern "C" {
 #include "../mp4/libmp4.h"
 }
 
-#include "vlc_colors.h"
+#include "heimdall_colors.h"
 
-#include <vlc_iso_lang.h>
-#include <vlc_codecs.h>
+#include <heimdall_iso_lang.h>
+#include <heimdall_codecs.h>
 #include <stdexcept>
 #include <limits>
 #include <algorithm>
@@ -49,9 +50,9 @@ namespace mkv {
 
 /* GetFourCC helper */
 #define GetFOURCC( p )  __GetFOURCC( (uint8_t*)p )
-static vlc_fourcc_t __GetFOURCC( uint8_t *p )
+static heimdall_fourcc_t __GetFOURCC( uint8_t *p )
 {
-    return VLC_FOURCC( p[0], p[1], p[2], p[3] );
+    return HEIMDALL_FOURCC( p[0], p[1], p[2], p[3] );
 }
 
 static inline void fill_extra_data_alac( mkv_track_t *p_tk )
@@ -279,7 +280,7 @@ void matroska_segment_c::ParseTrackEntry( const KaxTrackEntry *m )
     {
         MKV_SWITCH_INIT();
 
-        static void debug (MetaDataCapture const& vars, char const * fmt, ...) VLC_FORMAT( 2, 3 )
+        static void debug (MetaDataCapture const& vars, char const * fmt, ...) HEIMDALL_FORMAT( 2, 3 )
         {
             va_list args; va_start( args, fmt );
             MkvTree_va( *vars.p_demuxer, vars.level, fmt, args);
@@ -349,7 +350,7 @@ void matroska_segment_c::ParseTrackEntry( const KaxTrackEntry *m )
         }
         E_CASE( KaxTrackDefaultDuration, defd )
         {
-            vars.tk->i_default_duration = VLC_TICK_FROM_NS(static_cast<uint64_t>(defd));
+            vars.tk->i_default_duration = HEIMDALL_TICK_FROM_NS(static_cast<uint64_t>(defd));
             debug( vars, "Track Default Duration=%" PRId64, vars.tk->i_default_duration );
         }
         E_CASE( KaxTrackTimestampScale, ttcs )
@@ -425,13 +426,13 @@ void matroska_segment_c::ParseTrackEntry( const KaxTrackEntry *m )
 #if LIBMATROSKA_VERSION >= 0x010401
         E_CASE( KaxCodecDelay, codecdelay )
         {
-            vars.tk->i_codec_delay = VLC_TICK_FROM_NS(static_cast<uint64_t>( codecdelay ));
+            vars.tk->i_codec_delay = HEIMDALL_TICK_FROM_NS(static_cast<uint64_t>( codecdelay ));
             msg_Dbg( vars.p_demuxer, "|   |   |   + Track Codec Delay=%" PRIu64,
                      vars.tk->i_codec_delay );
         }
         E_CASE( KaxSeekPreRoll, spr )
         {
-            vars.tk->i_seek_preroll = VLC_TICK_FROM_NS(static_cast<uint64_t>( spr ));
+            vars.tk->i_seek_preroll = HEIMDALL_TICK_FROM_NS(static_cast<uint64_t>( spr ));
             debug( vars, "Track Seek Preroll=%" PRIu64, vars.tk->i_seek_preroll );
         }
 #endif
@@ -603,12 +604,12 @@ void matroska_segment_c::ParseTrackEntry( const KaxTrackEntry *m )
                     case 0: // pixels
                     case 1: // centimeters
                     case 2: // inches
-                        vlc_ureduce( &tk->fmt.video.i_sar_num, &tk->fmt.video.i_sar_den,
+                        heimdall_ureduce( &tk->fmt.video.i_sar_num, &tk->fmt.video.i_sar_den,
                                      i_display_width * tk->fmt.video.i_visible_height,
                                      i_display_height * tk->fmt.video.i_visible_width, 0);
                         break;
                     case 3: // display aspect ratio
-                        vlc_ureduce( &tk->fmt.video.i_sar_den, &tk->fmt.video.i_sar_num,
+                        heimdall_ureduce( &tk->fmt.video.i_sar_den, &tk->fmt.video.i_sar_num,
                                      i_display_height * tk->fmt.video.i_visible_width,
                                      i_display_width * tk->fmt.video.i_visible_height, 0);
                         break;
@@ -822,7 +823,7 @@ void matroska_segment_c::ParseTrackEntry( const KaxTrackEntry *m )
         E_CASE( KaxVideoColourTransferCharacter, transfer )
         {
             ONLY_FMT(VIDEO);
-            vars.tk->fmt.video.transfer = iso_23001_transfer_to_vlc( static_cast<uint8_t>(transfer) );
+            vars.tk->fmt.video.transfer = iso_23001_transfer_to_heimdall( static_cast<uint8_t>(transfer) );
             const char *name = nullptr;
             switch( static_cast<uint8_t>(transfer) )
             {
@@ -864,7 +865,7 @@ void matroska_segment_c::ParseTrackEntry( const KaxTrackEntry *m )
         E_CASE( KaxVideoColourPrimaries, primaries )
         {
             ONLY_FMT(VIDEO);
-            vars.tk->fmt.video.primaries = iso_23001_primaries_to_vlc( static_cast<uint8_t>(primaries) );
+            vars.tk->fmt.video.primaries = iso_23001_primaries_to_heimdall( static_cast<uint8_t>(primaries) );
             const char *name = nullptr;
             switch( static_cast<uint8_t>(primaries) )
             {
@@ -896,7 +897,7 @@ void matroska_segment_c::ParseTrackEntry( const KaxTrackEntry *m )
         E_CASE( KaxVideoColourMatrix, matrix )
         {
             ONLY_FMT(VIDEO);
-            vars.tk->fmt.video.space = iso_23001_matrix_coeffs_to_vlc( static_cast<uint8_t>(matrix) );
+            vars.tk->fmt.video.space = iso_23001_matrix_coeffs_to_heimdall( static_cast<uint8_t>(matrix) );
             const char *name = nullptr;
             switch( static_cast<uint8_t>(matrix) )
             {
@@ -1080,7 +1081,7 @@ void matroska_segment_c::ParseTrackEntry( const KaxTrackEntry *m )
             debug( vars, "abits=%u", vars.tk->fmt.audio.i_bitspersample);
         }
         E_CASE ( EbmlVoid, ) {
-          VLC_UNUSED( vars );
+          HEIMDALL_UNUSED( vars );
         }
         E_CASE_DEFAULT(element) {
             debug( vars, "Unknown (%s)", EBML_NAME(&element) );
@@ -1098,13 +1099,13 @@ void matroska_segment_c::ParseTrackEntry( const KaxTrackEntry *m )
 
     if ( bSupported )
     {
-        auto *iso_lang = vlc_find_iso639(metadata_payload.lang.c_str(), false);
+        auto *iso_lang = heimdall_find_iso639(metadata_payload.lang.c_str(), false);
         if (iso_lang == nullptr)
             msg_Dbg( &sys.demuxer, "Unknown language '%s'!", metadata_payload.lang.c_str() );
         free(p_track->fmt.psz_language);
         p_track->fmt.psz_language = strdup(metadata_payload.lang.c_str());
 
-        vlc_viewpoint_from_euler( &p_track->fmt.video.pose,
+        heimdall_viewpoint_from_euler( &p_track->fmt.video.pose,
                                   metadata_payload.pose.yaw,
                                   metadata_payload.pose.pitch,
                                   metadata_payload.pose.roll);
@@ -1180,7 +1181,7 @@ void matroska_segment_c::ParseTracks( KaxTracks *tracks )
             vars.obj->ParseTrackEntry( &track_number );
         }
         E_CASE( EbmlVoid, ) {
-            VLC_UNUSED( vars );
+            HEIMDALL_UNUSED( vars );
         }
         E_CASE_DEFAULT(element) {
             MkvTree( *vars.p_demuxer, 2, "Unknown (%s)", EBML_NAME(&element) );
@@ -1217,7 +1218,7 @@ void matroska_segment_c::ParseInfo( KaxInfo *info )
     {
         MKV_SWITCH_INIT();
 
-        static void debug (InfoHandlerPayload& vars, char const * fmt, ...) VLC_FORMAT( 2, 3 )
+        static void debug (InfoHandlerPayload& vars, char const * fmt, ...) HEIMDALL_FORMAT( 2, 3 )
         {
             va_list args; va_start( args, fmt );
             MkvTree_va( *vars.p_demuxer, 2, fmt, args);
@@ -1342,7 +1343,7 @@ void matroska_segment_c::ParseInfo( KaxInfo *info )
         }
         E_CASE( EbmlVoid, )
         {
-            VLC_UNUSED( vars );
+            HEIMDALL_UNUSED( vars );
         }
         E_CASE_DEFAULT(element)
         {
@@ -1353,7 +1354,7 @@ void matroska_segment_c::ParseInfo( KaxInfo *info )
     InfoHandlers::Dispatcher().iterate( m->begin(), m->end(), &captures );
 
     if( captures.f_duration != -1. )
-        i_duration = VLC_TICK_FROM_NS( captures.f_duration * i_timescale );
+        i_duration = HEIMDALL_TICK_FROM_NS( captures.f_duration * i_timescale );
 }
 
 
@@ -1381,7 +1382,7 @@ void matroska_segment_c::ParseChapterAtom( int i_level, KaxChapterAtom *ca, chap
     {
         MKV_SWITCH_INIT();
 
-        static void debug (ChapterPayload const& vars, char const * fmt, ...) VLC_FORMAT( 2, 3 )
+        static void debug (ChapterPayload const& vars, char const * fmt, ...) HEIMDALL_FORMAT( 2, 3 )
         {
             va_list args; va_start( args, fmt );
             MkvTree_va( *vars.p_demuxer, vars.level, fmt, args);
@@ -1420,12 +1421,12 @@ void matroska_segment_c::ParseChapterAtom( int i_level, KaxChapterAtom *ca, chap
         }
         E_CASE( KaxChapterTimeStart, start )
         {
-            vars.chapters.i_start_time = VLC_TICK_FROM_NS(static_cast<uint64_t>( start ));
+            vars.chapters.i_start_time = HEIMDALL_TICK_FROM_NS(static_cast<uint64_t>( start ));
             debug( vars, "ChapterTimeStart=%" PRId64, vars.chapters.i_start_time );
         }
         E_CASE( KaxChapterTimeEnd, end )
         {
-            vars.chapters.i_end_time = VLC_TICK_FROM_NS(static_cast<uint64_t>( end ));
+            vars.chapters.i_end_time = HEIMDALL_TICK_FROM_NS(static_cast<uint64_t>( end ));
             debug( vars, "ChapterTimeEnd=%" PRId64, *vars.chapters.i_end_time );
         }
         E_CASE( KaxChapterDisplay, chapter_display )
@@ -1478,7 +1479,7 @@ void matroska_segment_c::ParseChapterAtom( int i_level, KaxChapterAtom *ca, chap
                             debug( vars, "failed to get the Matroska Script interpreter ");
                        else
                             p_ccodec = new matroska_script_codec_c(
-                            vlc_object_logger( &vars.obj->sys.demuxer ),
+                            heimdall_object_logger( &vars.obj->sys.demuxer ),
                             vars.obj->sys, *interpreter
                             );
                     }
@@ -1488,7 +1489,7 @@ void matroska_segment_c::ParseChapterAtom( int i_level, KaxChapterAtom *ca, chap
                         if (unlikely(interepreter == nullptr))
                             debug( vars, "failed to get the DVD interpreter ");
                         else
-                            p_ccodec = new dvd_chapter_codec_c( vlc_object_logger( &vars.obj->sys.demuxer ), vars.obj->sys, *interepreter );
+                            p_ccodec = new dvd_chapter_codec_c( heimdall_object_logger( &vars.obj->sys.demuxer ), vars.obj->sys, *interepreter );
                     }
                     break;
                 }
@@ -1539,7 +1540,7 @@ void matroska_segment_c::ParseAttachments( KaxAttachments *attachments )
         try {
             KaxFileData  &img_data     = GetMandatoryChild<KaxFileData>( *attachedFile );
             std::string attached_filename( UTFstring( GetMandatoryChild<KaxFileName>( *attachedFile ) ).GetUTF8() );
-            auto new_attachment = vlc_input_attachment_New( attached_filename.c_str(),
+            auto new_attachment = heimdall_input_attachment_New( attached_filename.c_str(),
                                                             GetMandatoryChild<KaxMimeType>( *attachedFile ).GetValue().c_str(),
                                                             nullptr,
                                                             img_data.GetBuffer(),
@@ -1556,13 +1557,13 @@ void matroska_segment_c::ParseAttachments( KaxAttachments *attachments )
                                 new_attachment->psz_name ) >= 0 )
                     {
                         if( !sys.meta )
-                            sys.meta = vlc_meta_New();
-                        vlc_meta_SetArtURL( sys.meta, psz_url );
+                            sys.meta = heimdall_meta_New();
+                        heimdall_meta_SetArtURL( sys.meta, psz_url );
                         free( psz_url );
                     }
                 }
-                sys.stored_attachments.push_back( vlc::wrap_cptr( new_attachment,
-                                                                &vlc_input_attachment_Release ) );
+                sys.stored_attachments.push_back( heimdall::wrap_cptr( new_attachment,
+                                                                &heimdall_input_attachment_Release ) );
             }
         } catch (const MissingMandatory & err) {
             msg_Dbg( &sys.demuxer, "%s", err.what());
@@ -1619,8 +1620,8 @@ void matroska_segment_c::ParseChapters( KaxChapters *chapters )
                 }
                 E_CASE( EbmlVoid, el )
                 {
-                    VLC_UNUSED( el );
-                    VLC_UNUSED( vars );
+                    HEIMDALL_UNUSED( el );
+                    HEIMDALL_UNUSED( vars );
                 }
                 E_CASE_DEFAULT( el )
                 {
@@ -1632,8 +1633,8 @@ void matroska_segment_c::ParseChapters( KaxChapters *chapters )
             data.obj->stored_editions.push_back( data.p_edition );
         }
         E_CASE( EbmlVoid, el ) {
-            VLC_UNUSED( el );
-            VLC_UNUSED( vars );
+            HEIMDALL_UNUSED( el );
+            HEIMDALL_UNUSED( vars );
         }
         E_CASE_DEFAULT( el )
         {
@@ -1663,7 +1664,7 @@ bool matroska_segment_c::ParseCluster( KaxCluster *cluster, bool b_update_start_
     _seeker.add_cluster( cluster );
 
     if( b_update_start_time )
-        i_mk_start_time = VLC_TICK_FROM_NS( cluster->GlobalTimestamp() );
+        i_mk_start_time = HEIMDALL_TICK_FROM_NS( cluster->GlobalTimestamp() );
 
     return true;
 }
@@ -1676,7 +1677,7 @@ bool matroska_segment_c::TrackInit( mkv_track_t * p_tk )
     if( p_tk->codec.empty() )
     {
         msg_Err( &sys.demuxer, "Empty codec id" );
-        p_tk->fmt.i_codec = VLC_CODEC_UNKNOWN;
+        p_tk->fmt.i_codec = HEIMDALL_CODEC_UNKNOWN;
         return true;
     }
 
@@ -1694,15 +1695,15 @@ bool matroska_segment_c::TrackInit( mkv_track_t * p_tk )
         MKV_SWITCH_INIT();
 
         S_CASE("V_MS/VFW/FOURCC") {
-            if( vars.p_tk->i_extra_data < (int)sizeof( VLC_BITMAPINFOHEADER ) )
+            if( vars.p_tk->i_extra_data < (int)sizeof( HEIMDALL_BITMAPINFOHEADER ) )
             {
-                msg_Err(vars.p_demuxer, "missing/invalid VLC_BITMAPINFOHEADER" );
-                vars.p_fmt->i_codec = VLC_CODEC_UNKNOWN;
+                msg_Err(vars.p_demuxer, "missing/invalid HEIMDALL_BITMAPINFOHEADER" );
+                vars.p_fmt->i_codec = HEIMDALL_CODEC_UNKNOWN;
             }
             else
             {
                 ONLY_FMT(VIDEO);
-                VLC_BITMAPINFOHEADER *p_bih = (VLC_BITMAPINFOHEADER*)vars.p_tk->p_extra_data;
+                HEIMDALL_BITMAPINFOHEADER *p_bih = (HEIMDALL_BITMAPINFOHEADER*)vars.p_tk->p_extra_data;
 
                 vars.p_fmt->video.i_width = GetDWLE( &p_bih->biWidth );
                 vars.p_fmt->video.i_height= GetDWLE( &p_bih->biHeight );
@@ -1711,16 +1712,16 @@ bool matroska_segment_c::TrackInit( mkv_track_t * p_tk )
                 /* Very unlikely yet possible: bug #5659*/
                 const size_t min_extra = std::min(static_cast<size_t>(GetDWLE(&p_bih->biSize)),
                                                   vars.p_tk->i_extra_data);
-                if ( min_extra > sizeof( VLC_BITMAPINFOHEADER ))
+                if ( min_extra > sizeof( HEIMDALL_BITMAPINFOHEADER ))
                 {
-                    vars.p_fmt->i_extra = min_extra - sizeof( VLC_BITMAPINFOHEADER );
+                    vars.p_fmt->i_extra = min_extra - sizeof( HEIMDALL_BITMAPINFOHEADER );
                     vars.p_fmt->p_extra = xmalloc( vars.p_fmt->i_extra );
                     if (likely(vars.p_fmt->p_extra != NULL))
                         memcpy( vars.p_fmt->p_extra, &p_bih[1], vars.p_fmt->i_extra );
                     else
                         vars.p_fmt->i_extra = 0;
                 }
-                else if( vars.p_fmt->i_codec == VLC_FOURCC('W','V','C','1') )
+                else if( vars.p_fmt->i_codec == HEIMDALL_FOURCC('W','V','C','1') )
                 {
                     vars.p_fmt->video.i_width = 0;
                     vars.p_fmt->video.i_height = 0;
@@ -1730,22 +1731,22 @@ bool matroska_segment_c::TrackInit( mkv_track_t * p_tk )
             vars.p_tk->b_dts_only = true;
         }
         S_CASE("V_MPEG1") {
-            vars.p_fmt->i_codec = VLC_CODEC_MPGV;
+            vars.p_fmt->i_codec = HEIMDALL_CODEC_MPGV;
             fill_extra_data( vars.p_tk, 0 );
         }
         S_CASE("V_MPEG2") {
-            vars.p_fmt->i_codec = VLC_CODEC_MPGV;
+            vars.p_fmt->i_codec = HEIMDALL_CODEC_MPGV;
             if (vars.obj->psz_muxing_application != NULL &&
                     strstr(vars.obj->psz_muxing_application,"libmakemkv"))
                 vars.p_fmt->b_packetized = false;
             fill_extra_data( vars.p_tk, 0 );
         }
         S_CASE("V_THEORA") {
-            vars.p_fmt->i_codec = VLC_CODEC_THEORA;
+            vars.p_fmt->i_codec = HEIMDALL_CODEC_THEORA;
             vars.p_tk->b_pts_only = true;
             fill_extra_data( vars.p_tk, 0 );
         }
-        static void v_real_helper (vlc_fourcc_t codec, HandlerPayload& vars)
+        static void v_real_helper (heimdall_fourcc_t codec, HandlerPayload& vars)
         {
             vars.p_fmt->i_codec   = codec;
 
@@ -1762,21 +1763,21 @@ bool matroska_segment_c::TrackInit( mkv_track_t * p_tk )
 
             fill_extra_data( vars.p_tk, 26 );
         }
-        S_CASE("V_REAL/RV10") { v_real_helper (VLC_CODEC_RV10, vars ); }
-        S_CASE("V_REAL/RV20") { v_real_helper (VLC_CODEC_RV20, vars ); }
-        S_CASE("V_REAL/RV30") { v_real_helper (VLC_CODEC_RV30, vars ); }
-        S_CASE("V_REAL/RV40") { v_real_helper (VLC_CODEC_RV40, vars ); }
+        S_CASE("V_REAL/RV10") { v_real_helper (HEIMDALL_CODEC_RV10, vars ); }
+        S_CASE("V_REAL/RV20") { v_real_helper (HEIMDALL_CODEC_RV20, vars ); }
+        S_CASE("V_REAL/RV30") { v_real_helper (HEIMDALL_CODEC_RV30, vars ); }
+        S_CASE("V_REAL/RV40") { v_real_helper (HEIMDALL_CODEC_RV40, vars ); }
         S_CASE("V_DIRAC")     {
-            vars.p_fmt->i_codec = VLC_CODEC_DIRAC;
+            vars.p_fmt->i_codec = HEIMDALL_CODEC_DIRAC;
         }
         S_CASE("V_VP8") {
-            vars.p_fmt->i_codec = VLC_CODEC_VP8;
+            vars.p_fmt->i_codec = HEIMDALL_CODEC_VP8;
             if (vars.p_tk->b_has_alpha)
                 vars.p_fmt->i_level = 0x1000; // mark as containing alpha data
             vars.p_tk->b_pts_only = true;
         }
         S_CASE("V_VP9") {
-            vars.p_fmt->i_codec = VLC_CODEC_VP9;
+            vars.p_fmt->i_codec = HEIMDALL_CODEC_VP9;
             if (vars.p_tk->b_has_alpha)
                 vars.p_fmt->i_level = 0x1000; // mark as containing alpha data
             vars.p_tk->b_pts_only = true;
@@ -1816,7 +1817,7 @@ bool matroska_segment_c::TrackInit( mkv_track_t * p_tk )
             }
         }
         S_CASE("V_AV1") {
-            vars.p_fmt->i_codec = VLC_CODEC_AV1;
+            vars.p_fmt->i_codec = HEIMDALL_CODEC_AV1;
             vars.p_tk->b_pts_only = true;
 
             fill_extra_data( vars.p_tk, 0 );
@@ -1824,27 +1825,27 @@ bool matroska_segment_c::TrackInit( mkv_track_t * p_tk )
                 vars.p_fmt->b_packetized = false; // force full extradata by the packetizer
         }
         S_CASE("V_CAVS") {
-            vars.p_fmt->i_codec = VLC_CODEC_CAVS;
+            vars.p_fmt->i_codec = HEIMDALL_CODEC_CAVS;
         }
         S_CASE("V_AVS2") {
-            vars.p_fmt->i_codec = VLC_CODEC_CAVS2;
+            vars.p_fmt->i_codec = HEIMDALL_CODEC_CAVS2;
         }
         S_CASE("V_AVS3") {
-            vars.p_fmt->i_codec = VLC_CODEC_CAVS3;
+            vars.p_fmt->i_codec = HEIMDALL_CODEC_CAVS3;
         }
         S_CASE("V_MPEG4/MS/V3") {
-            vars.p_fmt->i_codec = VLC_CODEC_DIV3;
+            vars.p_fmt->i_codec = HEIMDALL_CODEC_DIV3;
         }
         S_CASE("V_MPEG4/ISO/AVC") {
-            vars.p_fmt->i_codec = VLC_FOURCC( 'a','v','c','1' );
+            vars.p_fmt->i_codec = HEIMDALL_FOURCC( 'a','v','c','1' );
             fill_extra_data( vars.p_tk, 0 );
         }
         S_CASE_GLOB("V_MPEG4/ISO*") {
-            vars.p_fmt->i_codec = VLC_CODEC_MP4V;
+            vars.p_fmt->i_codec = HEIMDALL_CODEC_MP4V;
             fill_extra_data( vars.p_tk, 0 );
         }
         S_CASE("V_MPEGH/ISO/HEVC") {
-            vars.p_tk->fmt.i_codec = VLC_CODEC_HEVC;
+            vars.p_tk->fmt.i_codec = HEIMDALL_CODEC_HEVC;
 
             uint8_t* p_extra = (uint8_t*) vars.p_tk->p_extra_data;
 
@@ -1863,7 +1864,7 @@ bool matroska_segment_c::TrackInit( mkv_track_t * p_tk )
             fill_extra_data( vars.p_tk, 0 );
         }
         S_CASE("V_MPEGI/ISO/VVC") {
-            vars.p_tk->fmt.i_codec = VLC_CODEC_VVC;
+            vars.p_tk->fmt.i_codec = HEIMDALL_CODEC_VVC;
             fill_extra_data( vars.p_tk, 0 );
         }
         S_CASE("V_QUICKTIME") {
@@ -1873,7 +1874,7 @@ bool matroska_segment_c::TrackInit( mkv_track_t * p_tk )
                 MP4_Box_t *p_box = MP4_BoxNew(ATOM_root);
                 if( p_box )
                 {
-                    stream_t *p_mp4_stream = vlc_stream_MemoryNew( VLC_OBJECT(vars.p_demuxer),
+                    stream_t *p_mp4_stream = heimdall_stream_MemoryNew( HEIMDALL_OBJECT(vars.p_demuxer),
                                                                    vars.p_tk->p_extra_data,
                                                                    vars.p_tk->i_extra_data,
                                                                    true );
@@ -1898,7 +1899,7 @@ bool matroska_segment_c::TrackInit( mkv_track_t * p_tk )
                                         p_sample->p_qt_image_description, vars.p_fmt->i_extra );
                             }
                         }
-                        vlc_stream_Delete( p_mp4_stream );
+                        heimdall_stream_Delete( p_mp4_stream );
                     }
                     MP4_BoxFree( p_box );
                 }
@@ -1906,7 +1907,7 @@ bool matroska_segment_c::TrackInit( mkv_track_t * p_tk )
             else throw std::runtime_error ("invalid extradata when handling V_QUICKTIME/*");
         }
         S_CASE("V_MJPEG") {
-            vars.p_fmt->i_codec = VLC_CODEC_MJPG;
+            vars.p_fmt->i_codec = HEIMDALL_CODEC_MJPG;
             vars.p_tk->b_pts_only = true;
         }
         S_CASE("V_UNCOMPRESSED") {
@@ -1914,7 +1915,7 @@ bool matroska_segment_c::TrackInit( mkv_track_t * p_tk )
                 msg_Dbg( vars.p_demuxer, "uncompressed format with no FourCC");
             else
             {
-                const char *desc = vlc_fourcc_GetDescription(VIDEO_ES, vars.p_tk->uncompressed_fourcc);
+                const char *desc = heimdall_fourcc_GetDescription(VIDEO_ES, vars.p_tk->uncompressed_fourcc);
                 if (desc[0])
                 {
                     vars.p_fmt->i_codec = vars.p_tk->uncompressed_fourcc;
@@ -1927,11 +1928,11 @@ bool matroska_segment_c::TrackInit( mkv_track_t * p_tk )
             }
         }
         S_CASE("V_FFV1") {
-            vars.p_fmt->i_codec = VLC_CODEC_FFV1;
+            vars.p_fmt->i_codec = HEIMDALL_CODEC_FFV1;
             fill_extra_data( vars.p_tk, 0 );
         }
         S_CASE("V_PRORES") {
-            vars.p_fmt->i_codec = VLC_CODEC_PRORES;
+            vars.p_fmt->i_codec = HEIMDALL_CODEC_PRORES;
             fill_extra_data( vars.p_tk, 0 );
         }
         S_CASE("A_MS/ACM") {
@@ -1941,7 +1942,7 @@ bool matroska_segment_c::TrackInit( mkv_track_t * p_tk )
             if( p_tk->i_extra_data < sizeof( WAVEFORMATEX ) )
             {
                 msg_Err( vars.p_demuxer, "missing/invalid WAVEFORMATEX" );
-                p_tk->fmt.i_codec = VLC_CODEC_UNKNOWN;
+                p_tk->fmt.i_codec = HEIMDALL_CODEC_UNKNOWN;
             }
             else
             {
@@ -1976,7 +1977,7 @@ bool matroska_segment_c::TrackInit( mkv_track_t * p_tk )
                     /* FIXME should we use Samples */
 
                     if( p_tk->fmt.audio.i_channels > 2 &&
-                        ( p_tk->fmt.i_codec != VLC_CODEC_UNKNOWN ) )
+                        ( p_tk->fmt.i_codec != HEIMDALL_CODEC_UNKNOWN ) )
                     {
                         unsigned i_channel_mask = 0;
                         uint32_t wfextcm = GetDWLE( p_tk->p_extra_data + offsetof(WAVEFORMATEXTENSIBLE, dwChannelMask) );
@@ -2046,8 +2047,8 @@ bool matroska_segment_c::TrackInit( mkv_track_t * p_tk )
 
                         if( i_channel_mask )
                         {
-                            if ( p_tk->fmt.i_codec == VLC_FOURCC('a','r','a','w') ||
-                                 p_tk->fmt.i_codec == VLC_FOURCC('a','f','l','t') )
+                            if ( p_tk->fmt.i_codec == HEIMDALL_FOURCC('a','r','a','w') ||
+                                 p_tk->fmt.i_codec == HEIMDALL_FOURCC('a','f','l','t') )
                             {
                                 p_tk->i_chans_to_reorder = aout_CheckChannelReorder(
                                     pi_channels_aout, NULL,
@@ -2058,7 +2059,7 @@ bool matroska_segment_c::TrackInit( mkv_track_t * p_tk )
                             p_tk->fmt.audio.i_physical_channels = i_channel_mask;
                         }
 
-                        p_tk->fmt.i_codec = vlc_fourcc_GetCodecAudio( p_tk->fmt.i_codec,
+                        p_tk->fmt.i_codec = heimdall_fourcc_GetCodecAudio( p_tk->fmt.i_codec,
                                                                       p_tk->fmt.audio.i_bitspersample );
                     }
                 }
@@ -2067,21 +2068,21 @@ bool matroska_segment_c::TrackInit( mkv_track_t * p_tk )
                     wf_tag_to_fourcc( wFormatTag, &p_tk->fmt.i_codec, NULL );
                     if( wFormatTag == WAVE_FORMAT_AAC_LATM )
                     {
-                        p_tk->fmt.i_original_fourcc = VLC_FOURCC('L','A','T','M');
+                        p_tk->fmt.i_original_fourcc = HEIMDALL_FOURCC('L','A','T','M');
                     }
                     else if( wFormatTag == WAVE_FORMAT_AAC_ADTS )
                     {
-                        p_tk->fmt.i_original_fourcc = VLC_FOURCC('A','D','T','S');
+                        p_tk->fmt.i_original_fourcc = HEIMDALL_FOURCC('A','D','T','S');
                     }
                 }
 
-                if( p_tk->fmt.i_codec == VLC_CODEC_UNKNOWN )
+                if( p_tk->fmt.i_codec == HEIMDALL_CODEC_UNKNOWN )
                     msg_Err( vars.p_demuxer, "Unrecognized wf tag: 0x%x", wFormatTag );
             }
             p_fmt->b_packetized = !p_fmt->audio.i_blockalign;
         }
         static void A_MPEG_helper_ (HandlerPayload& vars) {
-            vars.p_tk->fmt.i_codec = VLC_CODEC_MPGA;
+            vars.p_tk->fmt.i_codec = HEIMDALL_CODEC_MPGA;
             vars.p_fmt->b_packetized = false;
         }
         S_CASE("A_MPEG/L3") { A_MPEG_helper_(vars); }
@@ -2096,38 +2097,38 @@ bool matroska_segment_c::TrackInit( mkv_track_t * p_tk )
                 vars.p_tk->i_default_duration = 0;
             }
 
-            vars.p_fmt->i_codec = VLC_CODEC_A52;
+            vars.p_fmt->i_codec = HEIMDALL_CODEC_A52;
             vars.p_fmt->b_packetized = false;
         }
         S_CASE("A_ATRAC/AT1") {
             ONLY_FMT(AUDIO);
-            vars.p_fmt->i_codec = VLC_CODEC_ATRAC1;
+            vars.p_fmt->i_codec = HEIMDALL_CODEC_ATRAC1;
             vars.p_tk->fmt.audio.i_blockalign = vars.p_tk->fmt.audio.i_channels * 212;
         }
         S_CASE("A_EAC3") {
-            vars.p_fmt->i_codec = VLC_CODEC_EAC3;
+            vars.p_fmt->i_codec = HEIMDALL_CODEC_EAC3;
             vars.p_fmt->b_packetized = false;
         }
         S_CASE("A_DTS")  {
-            vars.p_fmt->i_codec = VLC_CODEC_DTS;
+            vars.p_fmt->i_codec = HEIMDALL_CODEC_DTS;
             vars.p_fmt->b_packetized = false;
         }
-        S_CASE("A_MLP")  { vars.p_fmt->i_codec = VLC_CODEC_MLP; }
+        S_CASE("A_MLP")  { vars.p_fmt->i_codec = HEIMDALL_CODEC_MLP; }
         S_CASE("A_TRUEHD") { /* FIXME when more samples arrive */
-            vars.p_fmt->i_codec = VLC_CODEC_TRUEHD;
+            vars.p_fmt->i_codec = HEIMDALL_CODEC_TRUEHD;
             vars.p_fmt->b_packetized = false;
         }
         S_CASE("A_FLAC") {
-            vars.p_fmt->i_codec = VLC_CODEC_FLAC;
+            vars.p_fmt->i_codec = HEIMDALL_CODEC_FLAC;
             fill_extra_data( vars.p_tk, 0 );
         }
         S_CASE("A_VORBIS") {
-            vars.p_fmt->i_codec = VLC_CODEC_VORBIS;
+            vars.p_fmt->i_codec = HEIMDALL_CODEC_VORBIS;
             fill_extra_data( vars.p_tk, 0 );
         }
         static void A_OPUS__helper(HandlerPayload& vars) {
             ONLY_FMT(AUDIO);
-            vars.p_fmt->i_codec = VLC_CODEC_OPUS;
+            vars.p_fmt->i_codec = HEIMDALL_CODEC_OPUS;
             vars.p_tk->b_no_duration = true;
             if( !vars.p_tk->fmt.audio.i_rate )
             {
@@ -2159,7 +2160,7 @@ bool matroska_segment_c::TrackInit( mkv_track_t * p_tk )
                 16000, 12000, 11025,  8000,  7350,     0,     0,     0
             };
 
-            p_tk->fmt.i_codec = VLC_CODEC_MP4A;
+            p_tk->fmt.i_codec = HEIMDALL_CODEC_MP4A;
 
             for( i_srate = 0; i_srate < 13; i_srate++ )
             {
@@ -2198,15 +2199,15 @@ bool matroska_segment_c::TrackInit( mkv_track_t * p_tk )
         S_CASE("A_AAC/MPEG4/") { A_AAC_MPEG__helper( vars, 3 ); } // see #4250
         S_CASE("A_AAC/MPEG2/") { A_AAC_MPEG__helper( vars, 3 ); } // backward compatibility
         S_CASE("A_AAC") {
-            vars.p_tk->fmt.i_codec = VLC_CODEC_MP4A;
+            vars.p_tk->fmt.i_codec = HEIMDALL_CODEC_MP4A;
             fill_extra_data( vars.p_tk, 0 );
         }
         S_CASE("A_ALAC") {
-            vars.p_tk->fmt.i_codec = VLC_CODEC_ALAC;
+            vars.p_tk->fmt.i_codec = HEIMDALL_CODEC_ALAC;
             fill_extra_data_alac( vars.p_tk );
         }
         S_CASE("A_WAVPACK4") {
-            vars.p_tk->fmt.i_codec = VLC_CODEC_WAVPACK;
+            vars.p_tk->fmt.i_codec = HEIMDALL_CODEC_WAVPACK;
             fill_extra_data( vars.p_tk, 0);
         }
         S_CASE("A_TTA1") {
@@ -2214,7 +2215,7 @@ bool matroska_segment_c::TrackInit( mkv_track_t * p_tk )
             mkv_track_t * p_tk  = vars.p_tk;
             es_format_t * p_fmt = vars.p_fmt;
 
-            p_fmt->i_codec = VLC_CODEC_TTA;
+            p_fmt->i_codec = HEIMDALL_CODEC_TTA;
             if( p_tk->i_extra_data > 0 )
             {
                 fill_extra_data( p_tk, 0 );
@@ -2233,18 +2234,18 @@ bool matroska_segment_c::TrackInit( mkv_track_t * p_tk )
                 memset( &p_extra[18], 0, 30  - 18 );
             }
         }
-        static void A_PCM__helper (HandlerPayload& vars, vlc_fourcc_t i_codec) {
+        static void A_PCM__helper (HandlerPayload& vars, heimdall_fourcc_t i_codec) {
             ONLY_FMT(AUDIO);
             vars.p_fmt->i_codec = i_codec;
             vars.p_fmt->audio.i_blockalign = ( vars.p_fmt->audio.i_bitspersample + 7 ) / 8 * vars.p_fmt->audio.i_channels;
 
         }
-        S_CASE("A_PCM/INT/BIG")    { A_PCM__helper ( vars, VLC_FOURCC( 't','w','o','s' ) ); }
-        S_CASE("A_PCM/INT/LIT")    { A_PCM__helper ( vars, VLC_FOURCC( 'a','r','a','w' ) ); }
-        S_CASE("A_PCM/FLOAT/IEEE") { A_PCM__helper ( vars, VLC_FOURCC( 'a','f','l','t' ) ) ;}
+        S_CASE("A_PCM/INT/BIG")    { A_PCM__helper ( vars, HEIMDALL_FOURCC( 't','w','o','s' ) ); }
+        S_CASE("A_PCM/INT/LIT")    { A_PCM__helper ( vars, HEIMDALL_FOURCC( 'a','r','a','w' ) ); }
+        S_CASE("A_PCM/FLOAT/IEEE") { A_PCM__helper ( vars, HEIMDALL_FOURCC( 'a','f','l','t' ) ) ;}
         S_CASE("A_REAL/14_4") {
             ONLY_FMT(AUDIO);
-            vars.p_fmt->i_codec = VLC_CODEC_RA_144;
+            vars.p_fmt->i_codec = HEIMDALL_CODEC_RA_144;
             vars.p_fmt->audio.i_channels = 1;
             vars.p_fmt->audio.i_rate = 8000;
             vars.p_fmt->audio.i_blockalign = 0x14;
@@ -2258,13 +2259,13 @@ bool matroska_segment_c::TrackInit( mkv_track_t * p_tk )
 
             if( memcmp( p, ".ra", 3 ) ) {
                 msg_Err( vars.p_demuxer, "Invalid Real ExtraData 0x%4.4s", (char *)p );
-                vars.p_tk->fmt.i_codec = VLC_CODEC_UNKNOWN;
+                vars.p_tk->fmt.i_codec = HEIMDALL_CODEC_UNKNOWN;
                 return false;
             }
 
             return true;
         }
-        static void A_REAL__helper (HandlerPayload& vars, vlc_fourcc_t i_codec) {
+        static void A_REAL__helper (HandlerPayload& vars, heimdall_fourcc_t i_codec) {
             mkv_track_t        * p_tk = vars.p_tk;
 
             p_tk->fmt.i_codec = i_codec;
@@ -2281,9 +2282,9 @@ bool matroska_segment_c::TrackInit( mkv_track_t * p_tk )
             if( unlikely( !p_realaudio->Init() ) )
                 throw std::runtime_error ("Cook_PrivateTrackData::Init() failed when handling A_REAL/28_8");
 
-            if (i_codec == VLC_CODEC_COOK || i_codec == VLC_CODEC_ATRAC3)
+            if (i_codec == HEIMDALL_CODEC_COOK || i_codec == HEIMDALL_CODEC_ATRAC3)
                 p_tk->fmt.audio.i_blockalign = p_realaudio->i_subpacket_size;
-            else // VLC_CODEC_RA_288
+            else // HEIMDALL_CODEC_RA_288
                 p_tk->fmt.audio.i_blockalign = p_realaudio->coded_frame_size;
 
             p_tk->fmt.audio.i_rate          = p_realaudio->i_rate;
@@ -2291,35 +2292,35 @@ bool matroska_segment_c::TrackInit( mkv_track_t * p_tk )
             p_tk->fmt.audio.i_channels      = p_realaudio->i_channels;
             msg_Dbg(vars.p_demuxer, "%d channels %d bits %d Hz",p_tk->fmt.audio.i_channels, p_tk->fmt.audio.i_bitspersample, p_tk->fmt.audio.i_rate);
 
-            fill_extra_data( p_tk, p_tk->fmt.i_codec == VLC_CODEC_RA_288 ? 0 : 78);
+            fill_extra_data( p_tk, p_tk->fmt.i_codec == HEIMDALL_CODEC_RA_288 ? 0 : 78);
         }
         S_CASE("A_REAL/COOK") {
             if (!A_REAL__is_valid (vars))
                 return;
 
-            A_REAL__helper (vars, VLC_CODEC_COOK);
+            A_REAL__helper (vars, HEIMDALL_CODEC_COOK);
         }
         S_CASE("A_REAL/ATRC") {
             if (!A_REAL__is_valid (vars))
                 return;
 
-            A_REAL__helper (vars, VLC_CODEC_ATRAC3);
+            A_REAL__helper (vars, HEIMDALL_CODEC_ATRAC3);
         }
         S_CASE("A_REAL/28_8") {
             if (!A_REAL__is_valid (vars))
                 return;
 
-            A_REAL__helper (vars, VLC_CODEC_RA_288);
+            A_REAL__helper (vars, HEIMDALL_CODEC_RA_288);
         }
         S_CASE("A_QUICKTIME/QDM2") {
             vars.p_fmt->i_cat   = AUDIO_ES;
-            vars.p_fmt->i_codec = VLC_CODEC_QDM2;
+            vars.p_fmt->i_codec = HEIMDALL_CODEC_QDM2;
 
             fill_extra_data( vars.p_tk, 0 );
         }
         S_CASE("A_QUICKTIME/QDMC") {
             vars.p_fmt->i_cat   = AUDIO_ES;
-            vars.p_fmt->i_codec = VLC_CODEC_QDMC;
+            vars.p_fmt->i_codec = HEIMDALL_CODEC_QDMC;
 
             fill_extra_data( vars.p_tk, 0 );
         }
@@ -2334,30 +2335,30 @@ bool matroska_segment_c::TrackInit( mkv_track_t * p_tk )
         }
         S_CASE("S_KATE") {
             ONLY_FMT(SPU);
-            vars.p_fmt->i_codec = VLC_CODEC_KATE;
+            vars.p_fmt->i_codec = HEIMDALL_CODEC_KATE;
             vars.p_fmt->subs.psz_encoding = strdup( "UTF-8" );
 
             fill_extra_data( vars.p_tk, 0 );
         }
         S_CASE("S_TEXT/ASCII") {
             ONLY_FMT(SPU);
-            vars.p_fmt->i_codec = VLC_CODEC_SUBT;
+            vars.p_fmt->i_codec = HEIMDALL_CODEC_SUBT;
             vars.p_fmt->subs.psz_encoding = strdup( "ASCII" );
         }
         S_CASE("S_TEXT/UTF8") {
             ONLY_FMT(SPU);
-            vars.p_tk->fmt.i_codec = VLC_CODEC_SUBT;
+            vars.p_tk->fmt.i_codec = HEIMDALL_CODEC_SUBT;
             vars.p_tk->fmt.subs.psz_encoding = strdup( "UTF-8" );
         }
         S_CASE("S_TEXT/USF") {
             ONLY_FMT(SPU);
-            vars.p_tk->fmt.i_codec = VLC_CODEC_USF;
+            vars.p_tk->fmt.i_codec = HEIMDALL_CODEC_USF;
             vars.p_tk->fmt.subs.psz_encoding = strdup( "UTF-8" );
             fill_extra_data( vars.p_tk, 0 );
         }
         static void SSA__helper (HandlerPayload& vars) {
             ONLY_FMT(SPU);
-            vars.p_tk->fmt.i_codec = VLC_CODEC_SSA;
+            vars.p_tk->fmt.i_codec = HEIMDALL_CODEC_SSA;
             vars.p_tk->fmt.subs.psz_encoding = strdup( "UTF-8" );
             fill_extra_data( vars.p_tk, 0 );
         }
@@ -2369,18 +2370,18 @@ bool matroska_segment_c::TrackInit( mkv_track_t * p_tk )
             ONLY_FMT(SPU);
             mkv_track_t * p_tk = vars.p_tk;
 
-            p_tk->fmt.i_codec = VLC_CODEC_SPU;
+            p_tk->fmt.i_codec = HEIMDALL_CODEC_SPU;
             p_tk->b_no_duration = true;
             if( likely( p_tk->i_extra_data && p_tk->fmt.i_cat == SPU_ES ) )
             {
-                vobsub_extra_parse( VLC_OBJECT(vars.p_demuxer), &p_tk->fmt.subs,
+                vobsub_extra_parse( HEIMDALL_OBJECT(vars.p_demuxer), &p_tk->fmt.subs,
                                     p_tk->p_extra_data, p_tk->i_extra_data );
             }
         }
         S_CASE("S_DVBSUB")
         {
             ONLY_FMT(SPU);
-            vars.p_fmt->i_codec = VLC_CODEC_DVBS;
+            vars.p_fmt->i_codec = HEIMDALL_CODEC_DVBS;
 
             if( vars.p_tk->i_extra_data < 4 )
                 throw std::runtime_error( "not enough codec data for S_DVBSUB" );
@@ -2391,19 +2392,19 @@ bool matroska_segment_c::TrackInit( mkv_track_t * p_tk )
             vars.p_fmt->subs.dvb.i_id = ( ancillary_id << 16 ) | page_id;
         }
         S_CASE("S_HDMV/PGS") {
-            vars.p_fmt->i_codec = VLC_CODEC_BD_PG;
+            vars.p_fmt->i_codec = HEIMDALL_CODEC_BD_PG;
         }
         S_CASE("S_HDMV/TEXTST") {
-            vars.p_fmt->i_codec = VLC_CODEC_BD_TEXT;
+            vars.p_fmt->i_codec = HEIMDALL_CODEC_BD_TEXT;
         }
         S_CASE("D_WEBVTT/SUBTITLES") {
             ONLY_FMT(SPU);
-            vars.p_fmt->i_codec = VLC_CODEC_WEBVTT;
+            vars.p_fmt->i_codec = HEIMDALL_CODEC_WEBVTT;
             vars.p_fmt->subs.psz_encoding = strdup( "UTF-8");
         }
         S_CASE("S_TEXT/WEBVTT") {
             ONLY_FMT(SPU);
-            vars.p_fmt->i_codec = VLC_CODEC_WEBVTT;
+            vars.p_fmt->i_codec = HEIMDALL_CODEC_WEBVTT;
             vars.p_fmt->subs.psz_encoding = strdup( "UTF-8");
             fill_extra_data( vars.p_tk, 0 );
         }
@@ -2412,7 +2413,7 @@ bool matroska_segment_c::TrackInit( mkv_track_t * p_tk )
         }
         S_CASE_DEFAULT(str) {
             msg_Err( vars.p_demuxer, "unknown codec id=`%s'", str );
-            vars.p_tk->fmt.i_codec = VLC_CODEC_UNKNOWN;
+            vars.p_tk->fmt.i_codec = HEIMDALL_CODEC_UNKNOWN;
         }
     };
 

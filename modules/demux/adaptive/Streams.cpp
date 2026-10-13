@@ -2,6 +2,7 @@
  * Streams.cpp
  *****************************************************************************
  * Copyright (C) 2014 - VideoLAN and VLC authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -32,7 +33,7 @@
 #include "plumbing/SourceStream.hpp"
 #include "plumbing/CommandsQueue.hpp"
 #include "tools/Debug.hpp"
-#include <vlc_demux.h>
+#include <heimdall_demux.h>
 
 #include <algorithm>
 
@@ -62,7 +63,7 @@ AbstractStream::AbstractStream(demux_t * demux_)
     last_buffer_status = BufferingStatus::Lessthanmin;
     currentrep.width = 0;
     currentrep.height = 0;
-    vlc_mutex_init(&lock);
+    heimdall_mutex_init(&lock);
 }
 
 bool AbstractStream::init(const StreamFormat &format_, SegmentTracker *tracker)
@@ -71,7 +72,7 @@ bool AbstractStream::init(const StreamFormat &format_, SegmentTracker *tracker)
     if(format_ == StreamFormat::Type::Unsupported || demuxersource)
         return false;
 
-    demuxersource = new (std::nothrow) BufferedChunksSourceStream( VLC_OBJECT(p_realdemux), this );
+    demuxersource = new (std::nothrow) BufferedChunksSourceStream( HEIMDALL_OBJECT(p_realdemux), this );
     if(demuxersource)
     {
         CommandsFactory *factory = new (std::nothrow) CommandsFactory();
@@ -94,7 +95,7 @@ bool AbstractStream::init(const StreamFormat &format_, SegmentTracker *tracker)
                 segmentTracker->registerListener(this);
                 segmentTracker->notifyBufferingState(true);
                 if(mightalwaysstartfromzero)
-                    fakeesout->setExpectedTimestamp(VLC_TICK_0 + segmentTracker->getPlaybackTime());
+                    fakeesout->setExpectedTimestamp(HEIMDALL_TICK_0 + segmentTracker->getPlaybackTime());
                 declaredCodecs();
                 return true;
             }
@@ -139,7 +140,7 @@ void AbstractStream::prepareRestart(bool b_discontinuity)
     }
 }
 
-bool AbstractStream::resetForNewPosition(vlc_tick_t seekMediaTime)
+bool AbstractStream::resetForNewPosition(heimdall_tick_t seekMediaTime)
 {
     // clear eof flag before restartDemux() to prevent readNextBlock() fail
     eof = false;
@@ -164,7 +165,7 @@ bool AbstractStream::resetForNewPosition(vlc_tick_t seekMediaTime)
         prevEndTimeContext = SegmentTimes();
         currentChunk = getNextChunk();
         if(mightalwaysstartfromzero)
-            fakeEsOut()->setExpectedTimestamp(VLC_TICK_0 + seekMediaTime);
+            fakeEsOut()->setExpectedTimestamp(HEIMDALL_TICK_0 + seekMediaTime);
         if( !restartDemux() )
         {
             msg_Info(p_realdemux, "Restart demux failed");
@@ -191,7 +192,7 @@ void AbstractStream::setDescription(const std::string &desc)
     description = desc;
 }
 
-vlc_tick_t AbstractStream::getMinAheadTime() const
+heimdall_tick_t AbstractStream::getMinAheadTime() const
 {
     if(!segmentTracker)
         return 0;
@@ -200,13 +201,13 @@ vlc_tick_t AbstractStream::getMinAheadTime() const
 
 Times AbstractStream::getFirstTimes() const
 {
-    vlc_mutex_locker locker(&lock);
+    heimdall_mutex_locker locker(&lock);
 
     if(!valid || disabled)
         return Times();
 
     Times times = fakeEsOut()->commandsQueue()->getFirstTimes();
-    if(times.continuous == VLC_TICK_INVALID)
+    if(times.continuous == HEIMDALL_TICK_INVALID)
         times = fakeEsOut()->commandsQueue()->getPCR();
     return times;
 }
@@ -250,7 +251,7 @@ AbstractStream::StreamPosition::StreamPosition()
 
 bool AbstractStream::reactivate(const StreamPosition &pos)
 {
-    vlc_mutex_locker locker(&lock);
+    heimdall_mutex_locker locker(&lock);
     if(setPosition(pos, false))
     {
         setDisabled(false);
@@ -323,19 +324,19 @@ void AbstractStream::setDisabled(bool b)
 
 bool AbstractStream::isValid() const
 {
-    vlc_mutex_locker locker(&lock);
+    heimdall_mutex_locker locker(&lock);
     return valid;
 }
 
 bool AbstractStream::isDisabled() const
 {
-    vlc_mutex_locker locker(&lock);
+    heimdall_mutex_locker locker(&lock);
     return disabled;
 }
 
 void AbstractStream::setLivePause(bool b)
 {
-    vlc_mutex_locker locker(&lock);
+    heimdall_mutex_locker locker(&lock);
     if(!b)
     {
         segmentTracker->setPosition(segmentTracker->getStartPosition(),
@@ -343,21 +344,21 @@ void AbstractStream::setLivePause(bool b)
     }
 }
 
-vlc_tick_t AbstractStream::getDemuxedAmount(Times from) const
+heimdall_tick_t AbstractStream::getDemuxedAmount(Times from) const
 {
-    vlc_tick_t i_demuxed = fakeEsOut()->commandsQueue()->getDemuxedAmount(from).continuous;
+    heimdall_tick_t i_demuxed = fakeEsOut()->commandsQueue()->getDemuxedAmount(from).continuous;
     if(contiguous)
     {
-        vlc_tick_t i_media_demuxed = fakeEsOut()->commandsQueue()->getDemuxedMediaAmount(from).segment.media;
+        heimdall_tick_t i_media_demuxed = fakeEsOut()->commandsQueue()->getDemuxedMediaAmount(from).segment.media;
         if(i_media_demuxed > i_demuxed)
             i_demuxed = i_media_demuxed;
     }
     return i_demuxed;
 }
 
-bool AbstractStream::isBufferingSufficient(Times from, vlc_tick_t minimum) const
+bool AbstractStream::isBufferingSufficient(Times from, heimdall_tick_t minimum) const
 {
-    vlc_mutex_locker locker(&lock);
+    heimdall_mutex_locker locker(&lock);
 
     if(!valid || disabled || fakeEsOut()->commandsQueue()->isEOF())
         return true;
@@ -367,9 +368,9 @@ bool AbstractStream::isBufferingSufficient(Times from, vlc_tick_t minimum) const
 
 AbstractStream::BufferingStatus
 AbstractStream::getBufferAndStatus(const Times &deadline,
-                                   vlc_tick_t i_min_buffering,
-                                   vlc_tick_t i_max_buffering,
-                                   vlc_tick_t *pi_demuxed)
+                                   heimdall_tick_t i_min_buffering,
+                                   heimdall_tick_t i_max_buffering,
+                                   heimdall_tick_t *pi_demuxed)
 {
     if(last_buffer_status == BufferingStatus::End)
         return BufferingStatus::End;
@@ -386,9 +387,9 @@ AbstractStream::getBufferAndStatus(const Times &deadline,
 }
 
 AbstractStream::BufferingStatus AbstractStream::bufferize(Times deadline,
-                                                           vlc_tick_t i_min_buffering,
-                                                           vlc_tick_t i_extra_buffering,
-                                                           vlc_tick_t i_target_buffering,
+                                                           heimdall_tick_t i_min_buffering,
+                                                           heimdall_tick_t i_extra_buffering,
+                                                           heimdall_tick_t i_target_buffering,
                                                            bool b_keep_alive)
 {
     last_buffer_status = doBufferize(deadline, i_min_buffering, i_extra_buffering,
@@ -397,17 +398,17 @@ AbstractStream::BufferingStatus AbstractStream::bufferize(Times deadline,
 }
 
 AbstractStream::BufferingStatus AbstractStream::doBufferize(Times deadline,
-                                                             vlc_tick_t i_min_buffering,
-                                                             vlc_tick_t i_max_buffering,
-                                                             vlc_tick_t i_target_buffering,
+                                                             heimdall_tick_t i_min_buffering,
+                                                             heimdall_tick_t i_max_buffering,
+                                                             heimdall_tick_t i_target_buffering,
                                                              bool b_keep_alive)
 {
-    vlc_mutex_lock(&lock);
+    heimdall_mutex_lock(&lock);
 
     /* Ensure it is configured */
     if(!segmentTracker || !valid)
     {
-        vlc_mutex_unlock(&lock);
+        heimdall_mutex_unlock(&lock);
         return BufferingStatus::End;
     }
 
@@ -419,13 +420,13 @@ AbstractStream::BufferingStatus AbstractStream::doBufferize(Times deadline,
         fakeEsOut()->commandsQueue()->Abort(false);
         msg_Dbg(p_realdemux, "deactivating %s stream %s",
                 format.str().c_str(), description.c_str());
-        vlc_mutex_unlock(&lock);
+        heimdall_mutex_unlock(&lock);
         return BufferingStatus::End;
     }
 
     if(fakeEsOut()->commandsQueue()->isDraining())
     {
-        vlc_mutex_unlock(&lock);
+        heimdall_mutex_unlock(&lock);
         return BufferingStatus::Suspended;
     }
 
@@ -434,7 +435,7 @@ AbstractStream::BufferingStatus AbstractStream::doBufferize(Times deadline,
     /* Reached end of live playlist */
     if(!segmentTracker->bufferingAvailable())
     {
-        vlc_mutex_unlock(&lock);
+        heimdall_mutex_unlock(&lock);
         return BufferingStatus::Suspended;
     }
 
@@ -450,7 +451,7 @@ AbstractStream::BufferingStatus AbstractStream::doBufferize(Times deadline,
                     currentChunk = getNextChunk();
                     if(!currentChunk)
                     {
-                        vlc_mutex_unlock(&lock);
+                        heimdall_mutex_unlock(&lock);
                         return BufferingStatus::End;
                     }
                     segmentgap = false;
@@ -466,7 +467,7 @@ AbstractStream::BufferingStatus AbstractStream::doBufferize(Times deadline,
             else
             {
                 msg_Dbg(p_realdemux, "Waiting sync reference for seq %" PRIu64, currentSequence);
-                vlc_mutex_unlock(&lock);
+                heimdall_mutex_unlock(&lock);
                 return BufferingStatus::Suspended;
             }
         }
@@ -478,16 +479,16 @@ AbstractStream::BufferingStatus AbstractStream::doBufferize(Times deadline,
         {
             valid = false; /* Prevent further retries */
             fakeEsOut()->commandsQueue()->setEOF(true);
-            vlc_mutex_unlock(&lock);
+            heimdall_mutex_unlock(&lock);
             return BufferingStatus::End;
         }
     }
 
-    vlc_tick_t i_demuxed = fakeEsOut()->commandsQueue()->getDemuxedAmount(deadline).continuous;
-    if(!contiguous && prevEndTimeContext.media != VLC_TICK_INVALID
-       && deadline.segment.media != VLC_TICK_INVALID)
+    heimdall_tick_t i_demuxed = fakeEsOut()->commandsQueue()->getDemuxedAmount(deadline).continuous;
+    if(!contiguous && prevEndTimeContext.media != HEIMDALL_TICK_INVALID
+       && deadline.segment.media != HEIMDALL_TICK_INVALID)
     {
-        vlc_tick_t i_mediaamount = fakeEsOut()->commandsQueue()->getDemuxedMediaAmount(deadline).segment.media;
+        heimdall_tick_t i_mediaamount = fakeEsOut()->commandsQueue()->getDemuxedMediaAmount(deadline).segment.media;
         if(i_mediaamount > i_demuxed)
             i_demuxed = i_mediaamount;
     }
@@ -499,7 +500,7 @@ AbstractStream::BufferingStatus AbstractStream::doBufferize(Times deadline,
         extdeadline.offsetBy((i_max_buffering - i_demuxed) / 4);
 
         Times newdeadline = deadline;
-        newdeadline.offsetBy(VLC_TICK_FROM_SEC(1));
+        newdeadline.offsetBy(HEIMDALL_TICK_FROM_SEC(1));
 
         if(extdeadline.continuous < newdeadline.continuous)
             deadline = extdeadline;
@@ -507,10 +508,10 @@ AbstractStream::BufferingStatus AbstractStream::doBufferize(Times deadline,
             deadline = newdeadline;
 
         /* need to read, demuxer still buffering, ... */
-        vlc_mutex_unlock(&lock);
+        heimdall_mutex_unlock(&lock);
         Demuxer::Status demuxStatus = demuxer->demux(deadline.continuous);
         fakeEsOut()->scheduleNecessaryMilestone();
-        vlc_mutex_lock(&lock);
+        heimdall_mutex_lock(&lock);
         if(demuxStatus != Demuxer::Status::Success)
         {
             if(discontinuity || needrestart)
@@ -534,15 +535,15 @@ AbstractStream::BufferingStatus AbstractStream::doBufferize(Times deadline,
                 }
                 discontinuity = false;
                 needrestart = false;
-                vlc_mutex_unlock(&lock);
+                heimdall_mutex_unlock(&lock);
                 return BufferingStatus::Ongoing;
             }
             fakeEsOut()->commandsQueue()->setEOF(true);
-            vlc_mutex_unlock(&lock);
+            heimdall_mutex_unlock(&lock);
             return BufferingStatus::End;
         }
 
-        if(deadline.continuous != VLC_TICK_INVALID)
+        if(deadline.continuous != HEIMDALL_TICK_INVALID)
         {
             i_demuxed = fakeEsOut()->commandsQueue()->getDemuxedAmount(deadline).continuous;
             segmentTracker->notifyBufferingLevel(i_min_buffering, i_max_buffering, i_demuxed, i_target_buffering);
@@ -550,14 +551,14 @@ AbstractStream::BufferingStatus AbstractStream::doBufferize(Times deadline,
         else
         {
             /* On initial pass, there's no demux time known, we need to fake it */
-            if(fakeEsOut()->commandsQueue()->getBufferingLevel().continuous != VLC_TICK_INVALID)
+            if(fakeEsOut()->commandsQueue()->getBufferingLevel().continuous != HEIMDALL_TICK_INVALID)
                 i_demuxed = i_min_buffering;
         }
     }
-    vlc_mutex_unlock(&lock);
+    heimdall_mutex_unlock(&lock);
 
     Times first = fakeEsOut()->commandsQueue()->getFirstTimes();
-    if(contiguous && first.continuous != VLC_TICK_INVALID && first.segment.demux != VLC_TICK_INVALID)
+    if(contiguous && first.continuous != HEIMDALL_TICK_INVALID && first.segment.demux != HEIMDALL_TICK_INVALID)
         segmentTracker->updateSynchronizationReference(currentSequence, first);
 
     if(i_demuxed < i_max_buffering) /* need to read more */
@@ -571,13 +572,13 @@ AbstractStream::BufferingStatus AbstractStream::doBufferize(Times deadline,
 
 AbstractStream::Status AbstractStream::dequeue(Times deadline, Times *times)
 {
-    vlc_mutex_locker locker(&lock);
+    heimdall_mutex_locker locker(&lock);
 
     if(fakeEsOut()->commandsQueue()->isDraining())
     {
-        AdvDebug(vlc_tick_t pcrvalue = fakeEsOut()->commandsQueue()->getPCR().continuous;
-                 vlc_tick_t dtsvalue = fakeEsOut()->commandsQueue()->getFirstTimes().continuous;
-                 vlc_tick_t bufferingLevel = fakeEsOut()->commandsQueue()->getBufferingLevel().continuous;
+        AdvDebug(heimdall_tick_t pcrvalue = fakeEsOut()->commandsQueue()->getPCR().continuous;
+                 heimdall_tick_t dtsvalue = fakeEsOut()->commandsQueue()->getFirstTimes().continuous;
+                 heimdall_tick_t bufferingLevel = fakeEsOut()->commandsQueue()->getBufferingLevel().continuous;
                  msg_Dbg(p_realdemux, "Stream pcr %" PRId64 " dts %" PRId64 " deadline %" PRId64 " buflevel %" PRId64 "(+%" PRId64 ") [DRAINING] :%s",
                          pcrvalue, dtsvalue, deadline.continuous, bufferingLevel,
                          pcrvalue ? bufferingLevel - pcrvalue : 0,
@@ -600,9 +601,9 @@ AbstractStream::Status AbstractStream::dequeue(Times deadline, Times *times)
         return Status::Eof;
     }
 
-    vlc_tick_t bufferingLevel = fakeEsOut()->commandsQueue()->getBufferingLevel().continuous;
-    AdvDebug(vlc_tick_t pcrvalue = fakeEsOut()->commandsQueue()->getPCR().continuous;
-             vlc_tick_t dtsvalue = fakeEsOut()->commandsQueue()->getFirstTimes().continuous;
+    heimdall_tick_t bufferingLevel = fakeEsOut()->commandsQueue()->getBufferingLevel().continuous;
+    AdvDebug(heimdall_tick_t pcrvalue = fakeEsOut()->commandsQueue()->getPCR().continuous;
+             heimdall_tick_t dtsvalue = fakeEsOut()->commandsQueue()->getFirstTimes().continuous;
              msg_Dbg(p_realdemux, "Stream pcr %" PRId64 " dts %" PRId64 " deadline %" PRId64 " buflevel %" PRId64 "(+%" PRId64 "): %s",
                      pcrvalue, dtsvalue, deadline.continuous, bufferingLevel,
                      pcrvalue ? bufferingLevel - pcrvalue : 0,
@@ -715,20 +716,20 @@ bool AbstractStream::setPosition(const StreamPosition &pos, bool tryonly)
     {
 // in some cases, media time seek != sent dts
 //        es_out_Control(p_realdemux->out, ES_OUT_SET_NEXT_DISPLAY_TIME,
-//                       VLC_TICK_0 + time);
+//                       HEIMDALL_TICK_0 + time);
     }
     return ret;
 }
 
-bool AbstractStream::getMediaPlaybackTimes(vlc_tick_t *start, vlc_tick_t *end,
-                                           vlc_tick_t *length) const
+bool AbstractStream::getMediaPlaybackTimes(heimdall_tick_t *start, heimdall_tick_t *end,
+                                           heimdall_tick_t *length) const
 {
     return segmentTracker->getMediaPlaybackRange(start, end, length);
 }
 
-bool AbstractStream::getMediaAdvanceAmount(vlc_tick_t *duration) const
+bool AbstractStream::getMediaAdvanceAmount(heimdall_tick_t *duration) const
 {
-    if(startTimeContext.media == VLC_TICK_INVALID)
+    if(startTimeContext.media == HEIMDALL_TICK_INVALID)
         return false;
     *duration = currentTimeContext.media - startTimeContext.media;
     return true;
@@ -765,7 +766,7 @@ block_t *AbstractStream::checkBlock(block_t *p_block, bool)
 
 AbstractDemuxer * AbstractStream::createDemux(const StreamFormat &format)
 {
-    AbstractDemuxer *ret = newDemux( VLC_OBJECT(p_realdemux), format,
+    AbstractDemuxer *ret = newDemux( HEIMDALL_OBJECT(p_realdemux), format,
                                      (es_out_t *)fakeEsOut(), demuxersource );
     if(ret && !ret->create())
     {
@@ -777,7 +778,7 @@ AbstractDemuxer * AbstractStream::createDemux(const StreamFormat &format)
     return ret;
 }
 
-AbstractDemuxer *AbstractStream::newDemux(vlc_object_t *p_obj, const StreamFormat &format,
+AbstractDemuxer *AbstractStream::newDemux(heimdall_object_t *p_obj, const StreamFormat &format,
                                           es_out_t *out, AbstractSourceStream *source) const
 {
     AbstractDemuxer *ret = nullptr;
@@ -896,7 +897,7 @@ void AbstractStream::trackerEvent(const TrackerEvent &ev)
             currentTimeContext.display = event.displaytime;
             currentSequence = event.sequence;
             currentDuration = event.duration;
-            if(startTimeContext.media == VLC_TICK_INVALID)
+            if(startTimeContext.media == HEIMDALL_TICK_INVALID)
                 startTimeContext = currentTimeContext;
         }
             break;

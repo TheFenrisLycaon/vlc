@@ -2,8 +2,9 @@
  * magnify.c : Magnify/Zoom interactive effect
  *****************************************************************************
  * Copyright (C) 2005-2009 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Antoine Cellerier <dionoea -at- videolan -dot- org>
+ * Authors: Antoine Cellerier <dionoea -at- lycaria -dot- org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -30,12 +31,12 @@
 #include <math.h>
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_image.h>
-#include <vlc_filter.h>
-#include <vlc_mouse.h>
-#include <vlc_picture.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_image.h>
+#include <heimdall_filter.h>
+#include <heimdall_mouse.h>
+#include <heimdall_picture.h>
 #include "filter_picture.h"
 
 /*****************************************************************************
@@ -44,20 +45,20 @@
 static int  Create    ( filter_t * );
 static void Destroy   ( filter_t * );
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("Magnify/Zoom interactive video filter") )
     set_shortname( N_( "Magnify" ))
     set_subcategory( SUBCAT_VIDEO_VFILTER )
 
     set_callback_video_filter( Create )
-vlc_module_end ()
+heimdall_module_end ()
 
 
 /*****************************************************************************
  * Local prototypes
  *****************************************************************************/
 static picture_t *Filter( filter_t *, picture_t * );
-static int Mouse( filter_t *, vlc_mouse_t *, const vlc_mouse_t * );
+static int Mouse( filter_t *, heimdall_mouse_t *, const heimdall_mouse_t * );
 
 /* */
 static void DrawZoomStatus( uint8_t *, int i_pitch, int i_width, int i_height,
@@ -70,14 +71,14 @@ typedef struct
 {
     image_handler_t *p_image;
 
-    vlc_tick_t i_hide_timeout;
+    heimdall_tick_t i_hide_timeout;
 
     int i_zoom; /* zoom level in percent */
     int i_x, i_y; /* top left corner coordinates in original image */
 
     bool b_visible; /* is "interface" visible ? */
 
-    vlc_tick_t i_last_activity;
+    heimdall_tick_t i_last_activity;
 } filter_sys_t;
 
 #define VIS_ZOOM 4
@@ -94,46 +95,46 @@ static int Create( filter_t *p_filter )
     switch( p_filter->fmt_in.i_codec )
     {
     CASE_PLANAR_YUV
-    case VLC_CODEC_GREY:
+    case HEIMDALL_CODEC_GREY:
         break;
     default:
         msg_Err( p_filter, "Unsupported chroma %4.4s", (char *)&p_filter->fmt_in.i_codec );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     if( !es_format_IsSimilar( &p_filter->fmt_in, &p_filter->fmt_out ) )
     {
         msg_Err( p_filter, "Input and output format does not match" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Allocate structure */
     p_filter->p_sys = p_sys = malloc( sizeof( *p_sys ) );
     if( !p_filter->p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_sys->p_image = image_HandlerCreate( p_filter );
     if( !p_sys->p_image )
     {
         free( p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     p_sys->i_x = 0;
     p_sys->i_y = 0;
     p_sys->i_zoom = 2*ZOOM_FACTOR;
     p_sys->b_visible = true;
-    p_sys->i_last_activity = vlc_tick_now();
-    p_sys->i_hide_timeout = VLC_TICK_FROM_MS( var_InheritInteger( p_filter, "mouse-hide-timeout" ) );
+    p_sys->i_last_activity = heimdall_tick_now();
+    p_sys->i_hide_timeout = HEIMDALL_TICK_FROM_MS( var_InheritInteger( p_filter, "mouse-hide-timeout" ) );
 
     /* */
-    static const struct vlc_filter_operations filter_ops =
+    static const struct heimdall_filter_operations filter_ops =
     {
         .filter_video = Filter,
         .video_mouse = Mouse,
         .close = Destroy,
     };
     p_filter->ops = &filter_ops;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -255,7 +256,7 @@ static picture_t *Filter( filter_t *p_filter, picture_t *p_pic )
 
     /* print a small hide/show toggle text control */
 
-    if( b_visible || p_sys->i_last_activity + p_sys->i_hide_timeout > vlc_tick_now() )
+    if( b_visible || p_sys->i_last_activity + p_sys->i_hide_timeout > heimdall_tick_now() )
         DrawZoomStatus( p_oyp->p_pixels, p_oyp->i_pitch, p_oyp->i_visible_pitch, p_oyp->i_lines,
                         1, v_h, b_visible );
 
@@ -338,14 +339,14 @@ static void DrawRectangle( uint8_t *pb_dst, int i_pitch, int i_width, int i_heig
     memset( &pb_dst[(y+i_h-1) * i_pitch + x], 0xff, i_w );
 }
 
-static int Mouse( filter_t *p_filter, vlc_mouse_t *p_new, const vlc_mouse_t *p_old )
+static int Mouse( filter_t *p_filter, heimdall_mouse_t *p_new, const heimdall_mouse_t *p_old )
 {
     filter_sys_t *p_sys = p_filter->p_sys;
     const video_format_t *p_fmt = &p_filter->fmt_in.video;
 
     /* */
-    const bool b_click = vlc_mouse_HasPressed( p_old, p_new, MOUSE_BUTTON_LEFT );
-    const bool b_pressed = vlc_mouse_IsLeftPressed( p_new );
+    const bool b_click = heimdall_mouse_HasPressed( p_old, p_new, MOUSE_BUTTON_LEFT );
+    const bool b_pressed = heimdall_mouse_IsLeftPressed( p_new );
 
     bool b_grab = false;
 
@@ -364,9 +365,9 @@ static int Mouse( filter_t *p_filter, vlc_mouse_t *p_new, const vlc_mouse_t *p_o
                 const int v_w = p_fmt->i_visible_width  * ZOOM_FACTOR / p_sys->i_zoom;
                 const int v_h = p_fmt->i_visible_height * ZOOM_FACTOR / p_sys->i_zoom;
 
-                p_sys->i_x = VLC_CLIP( p_new->i_x * VIS_ZOOM - v_w/2, 0,
+                p_sys->i_x = HEIMDALL_CLIP( p_new->i_x * VIS_ZOOM - v_w/2, 0,
                                            (int)p_fmt->i_visible_width  - v_w - 1);
-                p_sys->i_y = VLC_CLIP( p_new->i_y * VIS_ZOOM - v_h/2, 0,
+                p_sys->i_y = HEIMDALL_CLIP( p_new->i_y * VIS_ZOOM - v_h/2, 0,
                                            (int)p_fmt->i_visible_height - v_h - 1);
 
                 b_grab = true;
@@ -398,8 +399,8 @@ static int Mouse( filter_t *p_filter, vlc_mouse_t *p_new, const vlc_mouse_t *p_o
 
                 const int v_w = p_fmt->i_visible_width  * ZOOM_FACTOR / p_sys->i_zoom;
                 const int v_h = p_fmt->i_visible_height * ZOOM_FACTOR / p_sys->i_zoom;
-                p_sys->i_x = VLC_CLIP( p_sys->i_x, 0, (int)p_fmt->i_visible_width  - v_w - 1 );
-                p_sys->i_y = VLC_CLIP( p_sys->i_y, 0, (int)p_fmt->i_visible_height - v_h - 1 );
+                p_sys->i_x = HEIMDALL_CLIP( p_sys->i_x, 0, (int)p_fmt->i_visible_width  - v_w - 1 );
+                p_sys->i_y = HEIMDALL_CLIP( p_sys->i_y, 0, (int)p_fmt->i_visible_height - v_h - 1 );
 
                 b_grab = true;
             }
@@ -419,14 +420,14 @@ static int Mouse( filter_t *p_filter, vlc_mouse_t *p_new, const vlc_mouse_t *p_o
         }
     }
 
-    if( vlc_mouse_HasMoved( p_old, p_new ) )
-        p_sys->i_last_activity = vlc_tick_now();
+    if( heimdall_mouse_HasMoved( p_old, p_new ) )
+        p_sys->i_last_activity = heimdall_tick_now();
 
     if( b_grab )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* */
     p_new->i_x = p_sys->i_x + p_new->i_x * ZOOM_FACTOR / p_sys->i_zoom;
     p_new->i_y = p_sys->i_y + p_new->i_y * ZOOM_FACTOR / p_sys->i_zoom;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

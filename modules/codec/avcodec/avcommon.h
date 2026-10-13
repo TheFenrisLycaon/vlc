@@ -2,8 +2,9 @@
  * avcommon.h: common code for libav*
  *****************************************************************************
  * Copyright (C) 2012 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Rafaël Carré <funman@videolanorg>
+ * Authors: Rafaël Carré <funman@lycariaorg>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -27,10 +28,10 @@
 # include "config.h"
 #endif
 
-#include <vlc_avcodec.h>
-#include <vlc_configuration.h>
-#include <vlc_variables.h>
-#include <vlc_es.h>
+#include <heimdall_avcodec.h>
+#include <heimdall_configuration.h>
+#include <heimdall_variables.h>
+#include <heimdall_es.h>
 
 #include <limits.h>
 
@@ -41,12 +42,12 @@
 # include <libavutil/cpu.h>
 # include <libavutil/log.h>
 
-#define VLC_TIME_BASE_Q     (AVRational){1, CLOCK_FREQ}
+#define HEIMDALL_TIME_BASE_Q     (AVRational){1, CLOCK_FREQ}
 
 #define FROM_AVSCALE(x, scale) \
-    av_rescale_q((x), (scale), VLC_TIME_BASE_Q)
+    av_rescale_q((x), (scale), HEIMDALL_TIME_BASE_Q)
 #define TO_AVSCALE(x, scale)\
-    av_rescale_q((x), VLC_TIME_BASE_Q, (scale))
+    av_rescale_q((x), HEIMDALL_TIME_BASE_Q, (scale))
 
 #if (CLOCK_FREQ == AV_TIME_BASE)
 #define FROM_AV_TS_NZ(x)     (x)
@@ -56,8 +57,8 @@
 #define TO_AV_TS_NZ(x)    TO_AVSCALE((x), AV_TIME_BASE_Q)
 #endif
 
-#define FROM_AV_TS(x)     (FROM_AV_TS_NZ(x) + VLC_TICK_0)
-#define TO_AV_TS(x)       (TO_AV_TS_NZ((x) - VLC_TICK_0))
+#define FROM_AV_TS(x)     (FROM_AV_TS_NZ(x) + HEIMDALL_TICK_0)
+#define TO_AV_TS(x)       (TO_AV_TS_NZ((x) - HEIMDALL_TICK_0))
 
 #define AV_OPTIONS_TEXT     N_("Advanced options")
 #define AV_OPTIONS_LONGTEXT N_("Advanced options, in the form {opt=val,opt2=val2}.")
@@ -65,7 +66,7 @@
 #define AV_RESET_TS_TEXT     N_("Reset timestamps")
 #define AV_RESET_TS_LONGTEXT N_("The muxed content will start near a 0 timestamp.")
 
-static inline void vlc_av_get_options(const char *psz_opts, AVDictionary** pp_dict)
+static inline void heimdall_av_get_options(const char *psz_opts, AVDictionary** pp_dict)
 {
     config_chain_t *cfg = NULL;
     config_ChainParseOptions(&cfg, psz_opts);
@@ -76,22 +77,22 @@ static inline void vlc_av_get_options(const char *psz_opts, AVDictionary** pp_di
         config_ChainDestroy(cfg);
 }
 
-static inline void vlc_init_avutil(vlc_object_t *obj)
+static inline void heimdall_init_avutil(heimdall_object_t *obj)
 {
     int level = AV_LOG_QUIET;
 
     int64_t verbose = var_InheritInteger(obj, "verbose");
-    if (verbose >= 0) switch(verbose + VLC_MSG_ERR) {
-    case VLC_MSG_ERR:
+    if (verbose >= 0) switch(verbose + HEIMDALL_MSG_ERR) {
+    case HEIMDALL_MSG_ERR:
         level = AV_LOG_ERROR;
         break;
-    case VLC_MSG_WARN:
+    case HEIMDALL_MSG_WARN:
         level = AV_LOG_WARNING;
         break;
-    case VLC_MSG_INFO:
+    case HEIMDALL_MSG_INFO:
         level = AV_LOG_INFO;
         break;
-    case VLC_MSG_DBG:
+    case HEIMDALL_MSG_DBG:
         level = AV_LOG_VERBOSE;
         break;
     default:
@@ -107,37 +108,37 @@ static inline void vlc_init_avutil(vlc_object_t *obj)
 #ifdef HAVE_LIBAVFORMAT_AVFORMAT_H
 # include <libavformat/avformat.h>
 # include <libavformat/version.h>
-static inline void vlc_init_avformat(vlc_object_t *obj)
+static inline void heimdall_init_avformat(heimdall_object_t *obj)
 {
-    vlc_avcodec_lock();
+    heimdall_avcodec_lock();
 
-    vlc_init_avutil(obj);
+    heimdall_init_avutil(obj);
 
     avformat_network_init();
 
-    vlc_avcodec_unlock();
+    heimdall_avcodec_unlock();
 }
 #endif
 
 # include <libavcodec/avcodec.h>
 # include <libavcodec/version.h>
-static inline void vlc_init_avcodec(vlc_object_t *obj)
+static inline void heimdall_init_avcodec(heimdall_object_t *obj)
 {
-    vlc_avcodec_lock();
+    heimdall_avcodec_lock();
 
-    vlc_init_avutil(obj);
+    heimdall_init_avutil(obj);
 
 
-    vlc_avcodec_unlock();
+    heimdall_avcodec_unlock();
 }
 
 #ifndef AV_ERROR_MAX_STRING_SIZE
  #define AV_ERROR_MAX_STRING_SIZE 64
 #endif
 
-static inline vlc_rational_t FromAVRational(const AVRational rat)
+static inline heimdall_rational_t FromAVRational(const AVRational rat)
 {
-    return (vlc_rational_t){.num = rat.num, .den = rat.den};
+    return (heimdall_rational_t){.num = rat.num, .den = rat.den};
 }
 
 static inline void set_video_color_settings( const video_format_t *p_fmt, AVCodecContext *p_context )

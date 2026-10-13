@@ -2,6 +2,7 @@
    Parse CUE files
 
  Copyright (C) 2009 Laurent Aimar
+ Copyright (C) 2026 TheFenrisLycaon
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -20,10 +21,10 @@
 
 -- Probe function.
 function probe()
-    if( not string.match( vlc.path, "%.[cC][uU][eE]$" ) ) then
+    if( not string.match( heimdall.path, "%.[cC][uU][eE]$" ) ) then
         return false
     end
-    header = vlc.peek( 2048 )
+    header = heimdall.peek( 2048 )
     return string.match( header, "FILE.*WAVE%s*[\r\n]+" ) or
            string.match( header, "FILE.*AIFF%s*[\r\n]+" ) or
            string.match( header, "FILE.*MP3%s*[\r\n]+" )
@@ -31,13 +32,13 @@ end
 
 -- Helpers
 function is_utf8( src )
-    return vlc.strings.from_charset( "UTF-8", src ) == src
+    return heimdall.strings.from_charset( "UTF-8", src ) == src
 end
 
 function cue_string( src )
     if not is_utf8( src ) then
         -- Convert to UTF-8 since it's probably Latin1
-        src = vlc.strings.from_charset( "ISO_8859-1", src )
+        src = heimdall.strings.from_charset( "ISO_8859-1", src )
     end
     local sub = string.match( src, "^\"(.*)\".*$" );
     if( sub ) then
@@ -50,13 +51,13 @@ function cue_path( src )
     if( string.match( src, "^/" ) or
         string.match( src, "^\\" ) or
         string.match( src, "^[%l%u]:\\" ) ) then
-        return vlc.strings.make_uri(src)
+        return heimdall.strings.make_uri(src)
     end
 
-    local slash = string.find( string.reverse( vlc.path ), '/' )
-        local prefix = vlc.access .. "://" .. string.sub( vlc.path, 1, -slash )
+    local slash = string.find( string.reverse( heimdall.path ), '/' )
+        local prefix = heimdall.access .. "://" .. string.sub( heimdall.path, 1, -slash )
         -- FIXME: postfix may not be encoded correctly (esp. slashes)
-        local postfix = vlc.strings.encode_uri_component(src)
+        local postfix = heimdall.strings.encode_uri_component(src)
     return prefix .. postfix
 end
 
@@ -100,7 +101,7 @@ function parse()
 
     while true
     do 
-        line = vlc.readline()
+        line = heimdall.readline()
         if not line then break end
 
         cmd, arg = string.match( line, "^%s*(%S+)%s*(.*)$" )

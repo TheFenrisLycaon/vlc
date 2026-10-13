@@ -2,6 +2,7 @@
  * volume.hpp
  *****************************************************************************
  * Copyright (C) 2003 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cyril Deguet     <asmax@via.ecp.fr>
  *          Olivier Teulière <ipkiss@via.ecp.fr>
@@ -29,18 +30,18 @@
 #include <string>
 
 
-/// Variable for VLC volume
+/// Variable for Heimdall volume
 class Volume: public VarPercent
 {
 public:
     Volume( intf_thread_t *pIntf );
     virtual ~Volume() { }
 
-    virtual void set( float percentage, bool updateVLC );
+    virtual void set( float percentage, bool updateHeimdall );
     virtual void set( float percentage ) { set( percentage, true ); }
 
     virtual float getVolume() const;
-    virtual void setVolume( float volume, bool updateVLC );
+    virtual void setVolume( float volume, bool updateHeimdall );
 
     virtual float getStep() const { return m_step; }
 

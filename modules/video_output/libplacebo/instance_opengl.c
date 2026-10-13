@@ -4,6 +4,7 @@
  */
 /*****************************************************************************
  * Copyright © 2021 Niklas Haas
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -24,20 +25,20 @@
 # include <config.h>
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_opengl.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_opengl.h>
 
 #include <libplacebo/opengl.h>
 
 #include "instance.h"
 #include "utils.h"
 
-static int InitInstance(vlc_placebo_t *pl, const vout_display_cfg_t *cfg);
-static void CloseInstance(vlc_placebo_t *pl);
-static int MakeCurrent(vlc_placebo_t *pl);
-static void ReleaseCurrent(vlc_placebo_t *pl);
-static void Resize(vlc_placebo_t *pl, unsigned width, unsigned height);
+static int InitInstance(heimdall_placebo_t *pl, const vout_display_cfg_t *cfg);
+static void CloseInstance(heimdall_placebo_t *pl);
+static int MakeCurrent(heimdall_placebo_t *pl);
+static void ReleaseCurrent(heimdall_placebo_t *pl);
+static void Resize(heimdall_placebo_t *pl, unsigned width, unsigned height);
 static void SwapBuffers(void *);
 
 #define GL_TEXT N_("OpenGL extension")
@@ -49,21 +50,21 @@ static void SwapBuffers(void *);
 #define ALLOWSW_LONGTEXT "If enabled, allow the use of OpenGL contexts detected as software rasterizers (e.g. llvmpipe, swrast)."
 
 #define SWAP_DEPTH_TEXT "Maximum frame latency"
-#define SWAP_DEPTH_LONGTEXT "Attempt limiting the maximum frame latency. The true frame latency may be lower than this setting, depending on OpenGL driver internals and the VLC clock settings."
+#define SWAP_DEPTH_LONGTEXT "Attempt limiting the maximum frame latency. The true frame latency may be lower than this setting, depending on OpenGL driver internals and the Heimdall clock settings."
 
-vlc_module_begin()
+heimdall_module_begin()
     set_subcategory(SUBCAT_VIDEO_VOUT)
     set_capability("libplacebo gpu", 40)
     set_callback(InitInstance)
 #ifdef USE_OPENGL_ES2
-# define API VLC_OPENGL_ES2
+# define API HEIMDALL_OPENGL_ES2
 # define MODULE_VARNAME "pl-gles2"
     set_shortname("libplacebo OpenGL ES2")
     set_description(N_("OpenGL ES2 based GPU instance"))
     add_shortcut("pl_opengles2", "pl_gles2")
     add_module(MODULE_VARNAME, "opengl es2", "any", GLES2_TEXT, PROVIDER_LONGTEXT)
 #else // !USE_OPENGL_ES2
-# define API VLC_OPENGL
+# define API HEIMDALL_OPENGL
 # define MODULE_VARNAME "pl-gl"
     set_shortname("libplacebo OpenGL")
     set_description(N_("OpenGL based GPU instance"))
@@ -75,14 +76,14 @@ vlc_module_begin()
     add_bool("gl-allow-sw", false, ALLOWSW_TEXT, ALLOWSW_LONGTEXT)
     add_integer_with_range("gl-swap-depth", 0,
             0, 4, SWAP_DEPTH_TEXT, SWAP_DEPTH_LONGTEXT)
-vlc_module_end()
+heimdall_module_end()
 
-struct vlc_placebo_system_t {
-    vlc_gl_t *gl;
+struct heimdall_placebo_system_t {
+    heimdall_gl_t *gl;
     pl_opengl opengl;
 };
 
-static const struct vlc_placebo_operations instance_opts =
+static const struct heimdall_placebo_operations instance_opts =
 {
     .close = CloseInstance,
     .make_current = MakeCurrent,
@@ -93,24 +94,24 @@ static const struct vlc_placebo_operations instance_opts =
 #if PL_API_VER >= 215
 static pl_voidfunc_t get_proc_addr_wrapper(void *ctx, const char *procname)
 {
-    vlc_gl_t *gl = ctx;
+    heimdall_gl_t *gl = ctx;
     return gl->ops->get_proc_address(gl, procname);
 }
 #endif
 
-static int InitInstance(vlc_placebo_t *pl, const vout_display_cfg_t *cfg)
+static int InitInstance(heimdall_placebo_t *pl, const vout_display_cfg_t *cfg)
 {
-    vlc_placebo_system_t *sys = pl->sys =
-        vlc_obj_calloc(VLC_OBJECT(pl), 1, sizeof (*sys));
+    heimdall_placebo_system_t *sys = pl->sys =
+        heimdall_obj_calloc(HEIMDALL_OBJECT(pl), 1, sizeof (*sys));
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     bool current = false;
 
     char *name = var_InheritString(pl, MODULE_VARNAME);
-    sys->gl = vlc_gl_Create(cfg, API, name, NULL);
+    sys->gl = heimdall_gl_Create(cfg, API, name, NULL);
     free(name);
-    if (!sys->gl || vlc_gl_MakeCurrent(sys->gl) != VLC_SUCCESS)
+    if (!sys->gl || heimdall_gl_MakeCurrent(sys->gl) != HEIMDALL_SUCCESS)
         goto error;
 
     current = true;
@@ -139,57 +140,57 @@ static int InitInstance(vlc_placebo_t *pl, const vout_display_cfg_t *cfg)
     if (!pl->swapchain)
         goto error;
 
-    vlc_gl_ReleaseCurrent(sys->gl);
+    heimdall_gl_ReleaseCurrent(sys->gl);
     current = false;
 
     pl->gpu = sys->opengl->gpu;
     pl->ops = &instance_opts;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     if (current)
-        vlc_gl_ReleaseCurrent(sys->gl);
+        heimdall_gl_ReleaseCurrent(sys->gl);
     CloseInstance(pl);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
-static void CloseInstance(vlc_placebo_t *pl)
+static void CloseInstance(heimdall_placebo_t *pl)
 {
-    vlc_placebo_system_t *sys = pl->sys;
+    heimdall_placebo_system_t *sys = pl->sys;
 
     if (sys->gl != NULL) {
-        if (vlc_gl_MakeCurrent(sys->gl) == VLC_SUCCESS) {
+        if (heimdall_gl_MakeCurrent(sys->gl) == HEIMDALL_SUCCESS) {
             pl_swapchain_destroy(&pl->swapchain);
             pl_opengl_destroy(&sys->opengl);
-            vlc_gl_ReleaseCurrent(sys->gl);
+            heimdall_gl_ReleaseCurrent(sys->gl);
         }
 
-        vlc_gl_Delete(sys->gl);
+        heimdall_gl_Delete(sys->gl);
     }
 
-    vlc_obj_free(VLC_OBJECT(pl), sys);
+    heimdall_obj_free(HEIMDALL_OBJECT(pl), sys);
     pl->sys = NULL;
 }
 
-static int MakeCurrent(vlc_placebo_t *pl)
+static int MakeCurrent(heimdall_placebo_t *pl)
 {
-    vlc_placebo_system_t *sys = pl->sys;
-    return vlc_gl_MakeCurrent(sys->gl);
+    heimdall_placebo_system_t *sys = pl->sys;
+    return heimdall_gl_MakeCurrent(sys->gl);
 }
 
-static void ReleaseCurrent(vlc_placebo_t *pl)
+static void ReleaseCurrent(heimdall_placebo_t *pl)
 {
-    vlc_placebo_system_t *sys = pl->sys;
-    vlc_gl_ReleaseCurrent(sys->gl);
+    heimdall_placebo_system_t *sys = pl->sys;
+    heimdall_gl_ReleaseCurrent(sys->gl);
 }
 
-static void Resize(vlc_placebo_t *pl, unsigned width, unsigned height)
+static void Resize(heimdall_placebo_t *pl, unsigned width, unsigned height)
 {
-    vlc_placebo_system_t *sys = pl->sys;
-    vlc_gl_Resize(sys->gl, width, height);
+    heimdall_placebo_system_t *sys = pl->sys;
+    heimdall_gl_Resize(sys->gl, width, height);
 }
 
 static void SwapBuffers(void *opaque)
 {
-    vlc_gl_Swap(opaque);
+    heimdall_gl_Swap(opaque);
 }

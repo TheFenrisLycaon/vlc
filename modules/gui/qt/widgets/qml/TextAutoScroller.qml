@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,7 +18,7 @@
  *****************************************************************************/
 import QtQuick
 
-import VLC.Style
+import Heimdall.Style
 
 Item {
     id: root
@@ -61,7 +62,7 @@ Item {
         }
 
         PauseAnimation {
-            duration: VLCStyle.duration_veryLong
+            duration: HeimdallStyle.duration_veryLong
         }
 
         SmoothedAnimation {
@@ -75,7 +76,7 @@ Item {
         }
 
         PauseAnimation {
-            duration: VLCStyle.duration_veryLong
+            duration: HeimdallStyle.duration_veryLong
         }
 
         PropertyAction {

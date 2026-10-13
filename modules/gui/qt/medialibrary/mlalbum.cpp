@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,14 +19,14 @@
 #include <cassert>
 #include "mlalbum.hpp"
 
-#include "util/vlctick.hpp"
+#include "util/heimdalltick.hpp"
 
-MLAlbum::MLAlbum(const vlc_ml_album_t *_data)
-    : MLItem        ( MLItemId( _data->i_id, VLC_ML_PARENT_ALBUM ) )
+MLAlbum::MLAlbum(const heimdall_ml_album_t *_data)
+    : MLItem        ( MLItemId( _data->i_id, HEIMDALL_ML_PARENT_ALBUM ) )
     , m_title       ( QString::fromUtf8( _data->psz_title ) )
     , m_releaseYear ( _data->i_year )
     , m_shortSummary( QString::fromUtf8( _data->psz_summary ) )
-    , m_cover       ( QString::fromUtf8( _data->thumbnails[VLC_ML_THUMBNAIL_SMALL].psz_mrl ) )
+    , m_cover       ( QString::fromUtf8( _data->thumbnails[HEIMDALL_ML_THUMBNAIL_SMALL].psz_mrl ) )
     , m_mainArtist  ( QString::fromUtf8( _data->psz_artist ) )
     , m_nbTracks    ( _data->i_nb_tracks )
     , m_duration    ( _data->i_duration )
@@ -64,7 +65,7 @@ unsigned int MLAlbum::getNbTracks() const
     return m_nbTracks;
 }
 
-VLCDuration MLAlbum::getDuration() const
+HeimdallDuration MLAlbum::getDuration() const
 {
-    return VLCDuration::fromMS(m_duration);
+    return HeimdallDuration::fromMS(m_duration);
 }

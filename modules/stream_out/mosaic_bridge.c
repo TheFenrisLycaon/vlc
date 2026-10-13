@@ -2,6 +2,7 @@
  * mosaic_bridge.c:
  *****************************************************************************
  * Copyright (C) 2004-2007 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Antoine Cellerier <dionoea@videolan.org>
  *          Christophe Massiot <massiot@via.ecp.fr>
@@ -29,16 +30,16 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_threads.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_sout.h>
-#include <vlc_codec.h>
-#include <vlc_meta.h>
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_sout.h>
+#include <heimdall_codec.h>
+#include <heimdall_meta.h>
 
-#include <vlc_filter.h>
-#include <vlc_modules.h>
+#include <heimdall_filter.h>
+#include <heimdall_modules.h>
 
 #include "../spu/mosaic.h"
 
@@ -51,8 +52,8 @@ struct decoder_owner
     decoder_t dec;
     es_format_t fmt_in;
     es_format_t fmt_out;
-    vlc_decoder_device *dec_dev;
-    vlc_video_context *vctx;
+    heimdall_decoder_device *dec_dev;
+    heimdall_video_context *vctx;
     sout_stream_t *p_stream;
 
     filter_chain_t *filters;
@@ -68,11 +69,11 @@ typedef struct
     unsigned int i_sar_num, i_sar_den;
     char *psz_id;
 
-    vlc_fourcc_t i_chroma; /* force image format chroma */
+    heimdall_fourcc_t i_chroma; /* force image format chroma */
 
     char *filters_config;
 
-    vlc_mutex_t var_lock;
+    heimdall_mutex_t var_lock;
 } sout_stream_sys_t;
 
 #define CFG_PREFIX "sout-mosaic-bridge-"
@@ -87,7 +88,7 @@ static inline struct decoder_owner *dec_get_owner( decoder_t *p_dec )
  *****************************************************************************/
 
 static void decoder_queue_video( decoder_t *p_dec, picture_t *p_pic );
-static int video_update_format_decoder( decoder_t *p_dec, vlc_video_context * );
+static int video_update_format_decoder( decoder_t *p_dec, heimdall_video_context * );
 static picture_t *video_new_buffer_filter( filter_t * );
 
 static int Control(sout_stream_t *stream, int query, va_list args)
@@ -101,10 +102,10 @@ static int Control(sout_stream_t *stream, int query, va_list args)
             break;
 
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void Flush( sout_stream_t *stream, void *id)
@@ -116,16 +117,16 @@ static void Flush( sout_stream_t *stream, void *id)
     (void)stream;
 }
 
-static vlc_decoder_device * MosaicHoldDecoderDevice( struct decoder_owner *p_owner )
+static heimdall_decoder_device * MosaicHoldDecoderDevice( struct decoder_owner *p_owner )
 {
     if ( p_owner->dec_dev == NULL )
     {
-        p_owner->dec_dev = vlc_decoder_device_Create(&p_owner->dec.obj, NULL);
+        p_owner->dec_dev = heimdall_decoder_device_Create(&p_owner->dec.obj, NULL);
     }
-    return p_owner->dec_dev ? vlc_decoder_device_Hold(p_owner->dec_dev) : NULL;
+    return p_owner->dec_dev ? heimdall_decoder_device_Hold(p_owner->dec_dev) : NULL;
 }
 
-static vlc_decoder_device * video_get_decoder_device( decoder_t *p_dec )
+static heimdall_decoder_device * video_get_decoder_device( decoder_t *p_dec )
 {
     if( !var_InheritBool( p_dec, "hw-dec" ) )
         return NULL;
@@ -139,7 +140,7 @@ static void ReleaseDecoder( decoder_t *p_dec )
     struct decoder_owner *p_owner = dec_get_owner( p_dec );
     if ( p_owner->dec_dev )
     {
-        vlc_decoder_device_Release( p_owner->dec_dev );
+        heimdall_decoder_device_Release( p_owner->dec_dev );
         p_owner->dec_dev = NULL;
     }
     decoder_Clean( p_dec );
@@ -148,14 +149,14 @@ static void ReleaseDecoder( decoder_t *p_dec )
     if ( p_owner->filters != NULL )
         filter_chain_Delete( p_owner->filters );
     if ( p_owner->vctx != NULL )
-        vlc_video_context_Release( p_owner->vctx );
-    vlc_object_delete( p_dec );
+        heimdall_video_context_Release( p_owner->vctx );
+    heimdall_object_delete( p_dec );
 }
 
 
-static vlc_decoder_device * video_filter_hold_device(vlc_object_t *o, void *sys)
+static heimdall_decoder_device * video_filter_hold_device(heimdall_object_t *o, void *sys)
 {
-    VLC_UNUSED(o);
+    HEIMDALL_UNUSED(o);
     struct decoder_owner *p_owner = sys;
     return MosaicHoldDecoderDevice(p_owner);
 }
@@ -172,7 +173,7 @@ Add( sout_stream_t *p_stream, const es_format_t *p_fmt, const char *es_id )
         return NULL;
 
     /* Create decoder object */
-    struct decoder_owner *p_owner = vlc_object_create( p_stream, sizeof( *p_owner ) );
+    struct decoder_owner *p_owner = heimdall_object_create( p_stream, sizeof( *p_owner ) );
     if( !p_owner )
         return NULL;
     decoder_Init( &p_owner->dec, &p_owner->fmt_in, p_fmt );
@@ -223,19 +224,19 @@ Add( sout_stream_t *p_stream, const es_format_t *p_fmt, const char *es_id )
         return NULL;
     }
 
-    vlc_global_lock( VLC_MOSAIC_MUTEX );
+    heimdall_global_lock( HEIMDALL_MOSAIC_MUTEX );
 
     p_bridge = GetBridge( p_stream );
     if ( p_bridge == NULL )
     {
-        vlc_object_t *p_libvlc = VLC_OBJECT( vlc_object_instance(p_stream) );
-        vlc_value_t val;
+        heimdall_object_t *p_libheimdall = HEIMDALL_OBJECT( heimdall_object_instance(p_stream) );
+        heimdall_value_t val;
 
         p_bridge = xmalloc( sizeof( bridge_t ) );
 
-        var_Create( p_libvlc, "mosaic-struct", VLC_VAR_ADDRESS );
+        var_Create( p_libheimdall, "mosaic-struct", HEIMDALL_VAR_ADDRESS );
         val.p_address = p_bridge;
-        var_Set( p_libvlc, "mosaic-struct", val );
+        var_Set( p_libheimdall, "mosaic-struct", val );
 
         p_bridge->i_es_num = 0;
         p_bridge->pp_es = NULL;
@@ -256,9 +257,9 @@ Add( sout_stream_t *p_stream, const es_format_t *p_fmt, const char *es_id )
     }
 
     p_owner->p_es = p_es = p_bridge->pp_es[i];
-    vlc_mutex_lock( &p_sys->var_lock );
+    heimdall_mutex_lock( &p_sys->var_lock );
     p_sys->decoder_ref = p_owner;
-    vlc_mutex_unlock( &p_sys->var_lock );
+    heimdall_mutex_unlock( &p_sys->var_lock );
 
     p_es->i_alpha = var_GetInteger( p_stream, CFG_PREFIX "alpha" );
     p_es->i_x = var_GetInteger( p_stream, CFG_PREFIX "x" );
@@ -266,10 +267,10 @@ Add( sout_stream_t *p_stream, const es_format_t *p_fmt, const char *es_id )
 
     //p_es->fmt = *p_fmt;
     p_es->psz_id = p_sys->psz_id;
-    vlc_picture_chain_Init( &p_es->pictures );
+    heimdall_picture_chain_Init( &p_es->pictures );
     p_es->b_empty = false;
 
-    vlc_global_unlock( VLC_MOSAIC_MUTEX );
+    heimdall_global_unlock( HEIMDALL_MOSAIC_MUTEX );
 
     msg_Dbg( p_stream, "mosaic bridge id=%s pos=%d", p_es->psz_id, i );
 
@@ -286,15 +287,15 @@ static void Del( sout_stream_t *p_stream, void *id )
     bool b_last_es = true;
     int i;
 
-    vlc_global_lock( VLC_MOSAIC_MUTEX );
+    heimdall_global_lock( HEIMDALL_MOSAIC_MUTEX );
 
     p_bridge = GetBridge( p_stream );
     p_es = owner->p_es;
 
     p_es->b_empty = true;
-    while ( !vlc_picture_chain_IsEmpty( &p_es->pictures ) )
+    while ( !heimdall_picture_chain_IsEmpty( &p_es->pictures ) )
     {
-        picture_t *es_picture = vlc_picture_chain_PopFront( &p_es->pictures );
+        picture_t *es_picture = heimdall_picture_chain_PopFront( &p_es->pictures );
         picture_Release( es_picture );
     }
 
@@ -309,20 +310,20 @@ static void Del( sout_stream_t *p_stream, void *id )
 
     if ( b_last_es )
     {
-        vlc_object_t *p_libvlc = VLC_OBJECT( vlc_object_instance(p_stream) );
+        heimdall_object_t *p_libheimdall = HEIMDALL_OBJECT( heimdall_object_instance(p_stream) );
         for ( i = 0; i < p_bridge->i_es_num; i++ )
             free( p_bridge->pp_es[i] );
         free( p_bridge->pp_es );
         free( p_bridge );
-        var_Destroy( p_libvlc, "mosaic-struct" );
+        var_Destroy( p_libheimdall, "mosaic-struct" );
     }
 
-    vlc_mutex_lock( &p_sys->var_lock );
+    heimdall_mutex_lock( &p_sys->var_lock );
     p_sys->decoder_ref = NULL;
-    vlc_mutex_unlock( &p_sys->var_lock );
+    heimdall_mutex_unlock( &p_sys->var_lock );
     ReleaseDecoder( &owner->dec );
 
-    vlc_global_unlock( VLC_MOSAIC_MUTEX );
+    heimdall_global_unlock( HEIMDALL_MOSAIC_MUTEX );
 }
 
 static void ApplyRescale( video_format_t *dst,
@@ -371,7 +372,7 @@ static int ResetFilterChain(struct decoder_owner *owner)
         owner->filters, &owner->fmt_out, owner->vctx, &rescaled );
 
     int status = filter_chain_AppendConverter( owner->filters, &rescaled );
-    if ( status != VLC_SUCCESS )
+    if ( status != HEIMDALL_SUCCESS )
         goto end;
 
     if ( sys->filters_config != NULL )
@@ -380,7 +381,7 @@ static int ResetFilterChain(struct decoder_owner *owner)
     if ( status >= 0 )
     {
         owner->need_filter_reset = false;
-        status = VLC_SUCCESS;
+        status = HEIMDALL_SUCCESS;
     }
 
 end:
@@ -393,15 +394,15 @@ static void decoder_queue_video( decoder_t *p_dec, picture_t *p_pic )
     struct decoder_owner *p_owner = dec_get_owner( p_dec );
     sout_stream_sys_t *sys = p_owner->p_stream->p_sys;
 
-    int status = VLC_SUCCESS;
-    vlc_mutex_lock( &sys->var_lock );
+    int status = HEIMDALL_SUCCESS;
+    heimdall_mutex_lock( &sys->var_lock );
     if ( p_owner->need_filter_reset )
     {
         status = ResetFilterChain( p_owner );
     }
-    vlc_mutex_unlock( &sys->var_lock );
+    heimdall_mutex_unlock( &sys->var_lock );
 
-    if ( status != VLC_SUCCESS )
+    if ( status != HEIMDALL_SUCCESS )
     {
         picture_Release( p_pic );
         return;
@@ -411,43 +412,43 @@ static void decoder_queue_video( decoder_t *p_dec, picture_t *p_pic )
 
     /* push the picture in the mosaic-struct structure */
     bridged_es_t *p_es = p_owner->p_es;
-    vlc_global_lock( VLC_MOSAIC_MUTEX );
-    vlc_picture_chain_Append( &p_es->pictures, p_pic );
-    vlc_global_unlock( VLC_MOSAIC_MUTEX );
+    heimdall_global_lock( HEIMDALL_MOSAIC_MUTEX );
+    heimdall_picture_chain_Append( &p_es->pictures, p_pic );
+    heimdall_global_unlock( HEIMDALL_MOSAIC_MUTEX );
 }
 
-static int Send( sout_stream_t *p_stream, void *id, vlc_frame_t *frame )
+static int Send( sout_stream_t *p_stream, void *id, heimdall_frame_t *frame )
 {
     struct decoder_owner *owner = id;
 
     int ret = owner->dec.pf_decode( &owner->dec, frame );
-    return ret == VLCDEC_SUCCESS ? VLC_SUCCESS : VLC_EGENERIC;
+    return ret == HEIMDALLDEC_SUCCESS ? HEIMDALL_SUCCESS : HEIMDALL_EGENERIC;
     (void)p_stream;
 }
 
-static int video_update_format_decoder( decoder_t *p_dec, vlc_video_context *vctx )
+static int video_update_format_decoder( decoder_t *p_dec, heimdall_video_context *vctx )
 {
     struct decoder_owner *p_owner = dec_get_owner( p_dec );
 
     if ( video_format_IsSimilar(&p_dec->fmt_out.video,
                                 &p_owner->fmt_out.video) &&
          vctx == p_owner->vctx )
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
     es_format_Clean( &p_owner->fmt_out );
     es_format_Copy( &p_owner->fmt_out, &p_dec->fmt_out );
 
     sout_stream_sys_t *sys = p_owner->p_stream->p_sys;
-    vlc_mutex_lock( &sys->var_lock );
+    heimdall_mutex_lock( &sys->var_lock );
     if ( p_owner->vctx != NULL )
     {
-        vlc_video_context_Release( p_owner->vctx );
+        heimdall_video_context_Release( p_owner->vctx );
         p_owner->vctx = NULL;
     }
     if ( vctx != NULL )
-        p_owner->vctx = vlc_video_context_Hold( vctx );
+        p_owner->vctx = heimdall_video_context_Hold( vctx );
     const int status = ResetFilterChain( p_owner );
-    vlc_mutex_unlock( &sys->var_lock );
+    heimdall_mutex_unlock( &sys->var_lock );
     return status;
 }
 
@@ -459,88 +460,88 @@ static picture_t *video_new_buffer_filter( filter_t *p_filter )
 /**********************************************************************
  * Callback to update (some) params on the fly
  **********************************************************************/
-static int HeightCallback( vlc_object_t *p_this, char const *psz_var,
-                           vlc_value_t oldval, vlc_value_t newval,
+static int HeightCallback( heimdall_object_t *p_this, char const *psz_var,
+                           heimdall_value_t oldval, heimdall_value_t newval,
                            void *p_data )
 {
-    VLC_UNUSED(p_this); VLC_UNUSED(oldval); VLC_UNUSED(psz_var);
+    HEIMDALL_UNUSED(p_this); HEIMDALL_UNUSED(oldval); HEIMDALL_UNUSED(psz_var);
     sout_stream_t *p_stream = (sout_stream_t *)p_data;
     sout_stream_sys_t *p_sys = p_stream->p_sys;
 
-    vlc_mutex_lock( &p_sys->var_lock );
+    heimdall_mutex_lock( &p_sys->var_lock );
     struct decoder_owner *owner = p_sys->decoder_ref;
     if ( p_sys->i_height != newval.i_int && owner != NULL )
         owner->need_filter_reset = true;
     p_sys->i_height = newval.i_int;
-    vlc_mutex_unlock( &p_sys->var_lock );
+    heimdall_mutex_unlock( &p_sys->var_lock );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int WidthCallback( vlc_object_t *p_this, char const *psz_var,
-                           vlc_value_t oldval, vlc_value_t newval,
+static int WidthCallback( heimdall_object_t *p_this, char const *psz_var,
+                           heimdall_value_t oldval, heimdall_value_t newval,
                            void *p_data )
 {
-    VLC_UNUSED(p_this); VLC_UNUSED(oldval); VLC_UNUSED(psz_var);
+    HEIMDALL_UNUSED(p_this); HEIMDALL_UNUSED(oldval); HEIMDALL_UNUSED(psz_var);
     sout_stream_t *p_stream = (sout_stream_t *)p_data;
     sout_stream_sys_t *p_sys = p_stream->p_sys;
 
-    vlc_mutex_lock( &p_sys->var_lock );
+    heimdall_mutex_lock( &p_sys->var_lock );
     struct decoder_owner *owner = p_sys->decoder_ref;
     if ( p_sys->i_width != newval.i_int && owner != NULL )
         owner->need_filter_reset = true;
     p_sys->i_width = newval.i_int;
-    vlc_mutex_unlock( &p_sys->var_lock );
+    heimdall_mutex_unlock( &p_sys->var_lock );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int alphaCallback( vlc_object_t *p_this, char const *psz_var,
-                          vlc_value_t oldval, vlc_value_t newval,
+static int alphaCallback( heimdall_object_t *p_this, char const *psz_var,
+                          heimdall_value_t oldval, heimdall_value_t newval,
                           void *p_data )
 {
-    VLC_UNUSED(p_this); VLC_UNUSED(oldval); VLC_UNUSED(psz_var);
+    HEIMDALL_UNUSED(p_this); HEIMDALL_UNUSED(oldval); HEIMDALL_UNUSED(psz_var);
     sout_stream_t *p_stream = (sout_stream_t *)p_data;
     sout_stream_sys_t *p_sys = p_stream->p_sys;
 
-    vlc_global_lock( VLC_MOSAIC_MUTEX );
+    heimdall_global_lock( HEIMDALL_MOSAIC_MUTEX );
     if( p_sys->decoder_ref && p_sys->decoder_ref->p_es )
         p_sys->decoder_ref->p_es->i_alpha = newval.i_int;
-    vlc_global_unlock( VLC_MOSAIC_MUTEX );
+    heimdall_global_unlock( HEIMDALL_MOSAIC_MUTEX );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int xCallback( vlc_object_t *p_this, char const *psz_var,
-                      vlc_value_t oldval, vlc_value_t newval,
+static int xCallback( heimdall_object_t *p_this, char const *psz_var,
+                      heimdall_value_t oldval, heimdall_value_t newval,
                       void *p_data )
 {
-    VLC_UNUSED(p_this); VLC_UNUSED(oldval); VLC_UNUSED(psz_var);
+    HEIMDALL_UNUSED(p_this); HEIMDALL_UNUSED(oldval); HEIMDALL_UNUSED(psz_var);
     sout_stream_t *p_stream = (sout_stream_t *)p_data;
     sout_stream_sys_t *p_sys = p_stream->p_sys;
 
-    vlc_global_lock( VLC_MOSAIC_MUTEX );
+    heimdall_global_lock( HEIMDALL_MOSAIC_MUTEX );
     if( p_sys->decoder_ref && p_sys->decoder_ref->p_es )
         p_sys->decoder_ref->p_es->i_x = newval.i_int;
-    vlc_global_unlock( VLC_MOSAIC_MUTEX );
+    heimdall_global_unlock( HEIMDALL_MOSAIC_MUTEX );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int yCallback( vlc_object_t *p_this, char const *psz_var,
-                      vlc_value_t oldval, vlc_value_t newval,
+static int yCallback( heimdall_object_t *p_this, char const *psz_var,
+                      heimdall_value_t oldval, heimdall_value_t newval,
                       void *p_data )
 {
-    VLC_UNUSED(p_this); VLC_UNUSED(oldval); VLC_UNUSED(psz_var);
+    HEIMDALL_UNUSED(p_this); HEIMDALL_UNUSED(oldval); HEIMDALL_UNUSED(psz_var);
     sout_stream_t *p_stream = (sout_stream_t *)p_data;
     sout_stream_sys_t *p_sys = p_stream->p_sys;
 
-    vlc_global_lock( VLC_MOSAIC_MUTEX );
+    heimdall_global_lock( HEIMDALL_MOSAIC_MUTEX );
     if( p_sys->decoder_ref && p_sys->decoder_ref->p_es )
         p_sys->decoder_ref->p_es->i_y = newval.i_int;
-    vlc_global_unlock( VLC_MOSAIC_MUTEX );
+    heimdall_global_unlock( HEIMDALL_MOSAIC_MUTEX );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -579,18 +580,18 @@ static const char *const ppsz_sout_options[] = {
 /*****************************************************************************
  * Open
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     sout_stream_t        *p_stream = (sout_stream_t *)p_this;
     sout_stream_sys_t    *p_sys;
-    vlc_value_t           val;
+    heimdall_value_t           val;
 
     config_ChainParse( p_stream, CFG_PREFIX, ppsz_sout_options,
                        p_stream->p_cfg );
 
     p_sys = malloc( sizeof( sout_stream_sys_t ) );
     if( !p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_stream->p_sys = p_sys;
 
@@ -616,7 +617,7 @@ static int Open( vlc_object_t *p_this )
             *psz_parser++ = '\0';
             p_sys->i_sar_num = atoi( val.psz_string );
             p_sys->i_sar_den = atoi( psz_parser );
-            vlc_ureduce( &p_sys->i_sar_num, &p_sys->i_sar_den,
+            heimdall_ureduce( &p_sys->i_sar_num, &p_sys->i_sar_den,
                          p_sys->i_sar_num, p_sys->i_sar_den, 0 );
         }
         else
@@ -632,29 +633,29 @@ static int Open( vlc_object_t *p_this )
         p_sys->i_sar_num = p_sys->i_sar_den = 1;
     }
 
-    p_sys->i_chroma = VLC_CODEC_I420;
+    p_sys->i_chroma = HEIMDALL_CODEC_I420;
     val.psz_string = var_GetNonEmptyString( p_stream, CFG_PREFIX "chroma" );
     if( val.psz_string && strlen( val.psz_string ) >= 4 )
     {
         memcpy( &p_sys->i_chroma, val.psz_string, 4 );
         msg_Dbg( p_stream, "Forcing image chroma to 0x%.8x (%4.4s)", p_sys->i_chroma, (char*)&p_sys->i_chroma );
-        if ( vlc_fourcc_GetChromaDescription( p_sys->i_chroma ) == NULL )
+        if ( heimdall_fourcc_GetChromaDescription( p_sys->i_chroma ) == NULL )
         {
             msg_Err( p_stream, "Unknown chroma" );
             free( val.psz_string );
             free( p_sys );
-            return VLC_EINVAL;
+            return HEIMDALL_EINVAL;
         }
     }
     free( val.psz_string );
 
     p_sys->filters_config = var_GetNonEmptyString( p_stream, CFG_PREFIX "vfilter" );
 
-    vlc_mutex_init( &p_sys->var_lock );
+    heimdall_mutex_init( &p_sys->var_lock );
 
 #define INT_COMMAND( a ) do { \
     var_Create( p_stream, CFG_PREFIX #a, \
-                VLC_VAR_INTEGER | VLC_VAR_DOINHERIT | VLC_VAR_ISCOMMAND ); \
+                HEIMDALL_VAR_INTEGER | HEIMDALL_VAR_DOINHERIT | HEIMDALL_VAR_ISCOMMAND ); \
     var_AddCallback( p_stream, CFG_PREFIX #a, a ## Callback, \
                      p_stream ); } while(0)
     INT_COMMAND( alpha );
@@ -664,7 +665,7 @@ static int Open( vlc_object_t *p_this )
 #undef INT_COMMAND
 
     p_stream->ops = &ops;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -705,7 +706,7 @@ static int Open( vlc_object_t *p_this )
 #define Y_LONGTEXT N_( \
     "Y coordinate of the upper left corner in the mosaic if non negative." )
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( N_( "Mosaic bridge" ) )
     set_description(N_("Mosaic bridge stream output") )
     set_capability( "sout output", 0 )
@@ -731,4 +732,4 @@ vlc_module_begin ()
     add_integer( CFG_PREFIX "y", -1, Y_TEXT, Y_LONGTEXT )
 
     set_callback( Open )
-vlc_module_end ()
+heimdall_module_end ()

@@ -2,6 +2,7 @@
  * nvdec.c: NVDEC hw video decoder
  *****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Jai Luthra <me@jailuthra.in>
  *          Steve Lhomme <robux4@videolabs.io>
@@ -24,11 +25,11 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_threads.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
-#include <vlc_messages.h>
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
+#include <heimdall_messages.h>
 
 #include "../../codec/hxxx_helper.h"
 #include "nvdec_fmt.h"
@@ -47,9 +48,9 @@
  */
 #define NVDEC_PRIORITY 71
 
-static int OpenDecoder(vlc_object_t *);
-static void CloseDecoder(vlc_object_t *);
-static int DecoderContextOpen(vlc_decoder_device *, vlc_window_t *);
+static int OpenDecoder(heimdall_object_t *);
+static void CloseDecoder(heimdall_object_t *);
+static int DecoderContextOpen(heimdall_decoder_device *, heimdall_window_t *);
 
 #define DEINTERLACE_MODULE_TEXT N_("Integrated deinterlacing")
 #define DEINTERLACE_MODULE_LONGTEXT N_( "Specify the deinterlace mode to use." )
@@ -65,7 +66,7 @@ static const int ppsi_deinterlace_type[] = {
     cudaVideoDeinterlaceMode_Adaptive,
 };
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description(N_("NVDEC video decoder"))
     set_shortname("nvdec")
     set_capability("video decoder", NVDEC_PRIORITY)
@@ -77,7 +78,7 @@ vlc_module_begin ()
     add_submodule()
         set_callback_dec_device(DecoderContextOpen, 3)
         add_shortcut("nvdec")
-vlc_module_end ()
+heimdall_module_end ()
 
 /* */
 #define MAX_HXXX_SURFACES (16 + 1)
@@ -112,16 +113,16 @@ struct nvdec_ctx {
     size_t                      decoderHeight;
 
     unsigned int                outputPitch;
-    const vlc_chroma_description_t *chroma_desc;
+    const heimdall_chroma_description_t *chroma_desc;
     hw_pool_t                   *out_pool;
     hw_pool_owner_t             pool_owner;
 
-    vlc_video_context           *vctx_out;
+    heimdall_video_context           *vctx_out;
 };
 
-#define CALL_CUDA_DEC(func, ...) CudaCheckErr(VLC_OBJECT(p_dec),  devsys->cudaFunctions, devsys->cudaFunctions->func(__VA_ARGS__), #func)
-#define CALL_CUDA_DEV(func, ...) CudaCheckErr(VLC_OBJECT(device), p_sys->cudaFunctions, p_sys->cudaFunctions->func(__VA_ARGS__), #func)
-#define CALL_CUVID(func, ...)    CudaCheckErr(VLC_OBJECT(p_dec),  p_sys->devsys->cudaFunctions, p_sys->cuvidFunctions->func(__VA_ARGS__), #func)
+#define CALL_CUDA_DEC(func, ...) CudaCheckErr(HEIMDALL_OBJECT(p_dec),  devsys->cudaFunctions, devsys->cudaFunctions->func(__VA_ARGS__), #func)
+#define CALL_CUDA_DEV(func, ...) CudaCheckErr(HEIMDALL_OBJECT(device), p_sys->cudaFunctions, p_sys->cudaFunctions->func(__VA_ARGS__), #func)
+#define CALL_CUVID(func, ...)    CudaCheckErr(HEIMDALL_OBJECT(p_dec),  p_sys->devsys->cudaFunctions, p_sys->cuvidFunctions->func(__VA_ARGS__), #func)
 
 #define NVDEC_PICPOOLCTX_FROM_PICCTX(pic_ctx)  \
     container_of(NVDEC_PICCONTEXT_FROM_PICCTX(pic_ctx), pic_pool_context_nvdec_t, ctx)
@@ -150,7 +151,7 @@ static struct picture_context_t *nvdec_picture_CtxClone(struct picture_context_t
     pic_pool_context_nvdec_t *srcpic = NVDEC_PICPOOLCTX_FROM_PICCTX(srcctx);
 
     *clonectx = *srcpic;
-    vlc_video_context_Hold(clonectx->ctx.ctx.vctx);
+    heimdall_video_context_Hold(clonectx->ctx.ctx.vctx);
     hw_pool_AddRef(clonectx->pool);
     return &clonectx->ctx.ctx;
 }
@@ -167,7 +168,7 @@ static picture_context_t * PoolAttachPicture(hw_pool_owner_t *owner, hw_pool_t *
         nvdec_picture_CtxClone,
         p_sys->vctx_out,
     };
-    vlc_video_context_Hold(picctx->ctx.ctx.vctx);
+    heimdall_video_context_Hold(picctx->ctx.ctx.vctx);
 
     picctx->ctx.devicePtr = (CUdeviceptr)surface;
     picctx->pool = pool;
@@ -176,60 +177,60 @@ static picture_context_t * PoolAttachPicture(hw_pool_owner_t *owner, hw_pool_t *
     return &picctx->ctx.ctx;
 }
 
-static vlc_fourcc_t MapSurfaceChroma(cudaVideoChromaFormat chroma, unsigned bitDepth)
+static heimdall_fourcc_t MapSurfaceChroma(cudaVideoChromaFormat chroma, unsigned bitDepth)
 {
     switch (chroma) {
         case cudaVideoChromaFormat_420:
             if (bitDepth <= 8)
-                return VLC_CODEC_NV12;
+                return HEIMDALL_CODEC_NV12;
             if (bitDepth <= 10)
-                return VLC_CODEC_P010;
-            return VLC_CODEC_P016;
+                return HEIMDALL_CODEC_P010;
+            return HEIMDALL_CODEC_P016;
         case cudaVideoChromaFormat_444:
             if (bitDepth <= 8)
-                return VLC_CODEC_I444;
-            return VLC_CODEC_I444_16L;
+                return HEIMDALL_CODEC_I444;
+            return HEIMDALL_CODEC_I444_16L;
         default:
             return 0;
     }
 }
 
-static vlc_fourcc_t MapSurfaceOpaqueChroma(cudaVideoChromaFormat chroma, unsigned bitDepth)
+static heimdall_fourcc_t MapSurfaceOpaqueChroma(cudaVideoChromaFormat chroma, unsigned bitDepth)
 {
     switch (chroma) {
         case cudaVideoChromaFormat_420:
             if (bitDepth <= 8)
-                return VLC_CODEC_NVDEC_OPAQUE;
+                return HEIMDALL_CODEC_NVDEC_OPAQUE;
             if (bitDepth <= 10)
-                return VLC_CODEC_NVDEC_OPAQUE_10B;
-            return VLC_CODEC_NVDEC_OPAQUE_16B;
+                return HEIMDALL_CODEC_NVDEC_OPAQUE_10B;
+            return HEIMDALL_CODEC_NVDEC_OPAQUE_16B;
         case cudaVideoChromaFormat_444:
             if (bitDepth <= 8)
-                return VLC_CODEC_NVDEC_OPAQUE_444;
-            return VLC_CODEC_NVDEC_OPAQUE_444_16B;
+                return HEIMDALL_CODEC_NVDEC_OPAQUE_444;
+            return HEIMDALL_CODEC_NVDEC_OPAQUE_444_16B;
         default:
             return 0;
     }
 }
 
-static cudaVideoSurfaceFormat MapSurfaceFmt(int i_vlc_fourcc)
+static cudaVideoSurfaceFormat MapSurfaceFmt(int i_heimdall_fourcc)
 {
-    switch (i_vlc_fourcc) {
-        case VLC_CODEC_NVDEC_OPAQUE_10B:
-        case VLC_CODEC_NVDEC_OPAQUE_16B:
-        case VLC_CODEC_P010:
-        case VLC_CODEC_P016:
+    switch (i_heimdall_fourcc) {
+        case HEIMDALL_CODEC_NVDEC_OPAQUE_10B:
+        case HEIMDALL_CODEC_NVDEC_OPAQUE_16B:
+        case HEIMDALL_CODEC_P010:
+        case HEIMDALL_CODEC_P016:
             return cudaVideoSurfaceFormat_P016;
-        case VLC_CODEC_NVDEC_OPAQUE:
-        case VLC_CODEC_NV12:
+        case HEIMDALL_CODEC_NVDEC_OPAQUE:
+        case HEIMDALL_CODEC_NV12:
             return cudaVideoSurfaceFormat_NV12;
-        case VLC_CODEC_NVDEC_OPAQUE_444:
-        case VLC_CODEC_I444:
+        case HEIMDALL_CODEC_NVDEC_OPAQUE_444:
+        case HEIMDALL_CODEC_I444:
             return cudaVideoSurfaceFormat_YUV444;
-        case VLC_CODEC_NVDEC_OPAQUE_444_16B:
-        case VLC_CODEC_I444_16L:
+        case HEIMDALL_CODEC_NVDEC_OPAQUE_444_16B:
+        case HEIMDALL_CODEC_I444_16L:
              return cudaVideoSurfaceFormat_YUV444_16Bit;
-        default:             vlc_assert_unreachable();
+        default:             heimdall_assert_unreachable();
     }
 }
 
@@ -237,13 +238,13 @@ static int CUtoFMT(video_format_t *fmt, const CUVIDEOFORMAT *p_format,
                    unsigned int i_bpp)
 {
     // bit depth and chroma
-    vlc_fourcc_t i_chroma;
+    heimdall_fourcc_t i_chroma;
     if (is_nvdec_opaque(fmt->i_chroma))
         i_chroma = MapSurfaceOpaqueChroma(p_format->chroma_format, i_bpp);
     else
         i_chroma = MapSurfaceChroma(p_format->chroma_format, i_bpp);
     if (i_chroma == 0)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     fmt->i_chroma = i_chroma;
     // use the real padded size when we know it fmt->i_width = p_format->coded_width;
@@ -255,7 +256,7 @@ static int CUtoFMT(video_format_t *fmt, const CUVIDEOFORMAT *p_format,
     // frame rate
     fmt->i_frame_rate = p_format->frame_rate.numerator;
     fmt->i_frame_rate_base = p_format->frame_rate.denominator;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int CUDAAPI HandleVideoSequence(void *p_opaque, CUVIDEOFORMAT *p_format)
@@ -275,9 +276,9 @@ static int CUDAAPI HandleVideoSequence(void *p_opaque, CUVIDEOFORMAT *p_format)
     }
 
     unsigned int i_bpp = p_format->bit_depth_luma_minus8 + 8;
-    // update vlc's output format using NVDEC parser's output
+    // update heimdall's output format using NVDEC parser's output
     ret = CUtoFMT(&p_dec->fmt_out.video, p_format, i_bpp);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
     {
         msg_Dbg(p_dec, "unsupported Chroma %d + BitDepth %d", p_format->chroma_format, p_format->bit_depth_luma_minus8 + 8);
         goto error;
@@ -285,7 +286,7 @@ static int CUDAAPI HandleVideoSequence(void *p_opaque, CUVIDEOFORMAT *p_format)
     p_dec->fmt_out.i_codec = p_dec->fmt_out.video.i_chroma;
 
     ret = CALL_CUDA_DEC(cuCtxPushCurrent, p_sys->devsys->cuCtx);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
         goto error;
 
     if (p_sys->cudecoder)
@@ -296,24 +297,24 @@ static int CUDAAPI HandleVideoSequence(void *p_opaque, CUVIDEOFORMAT *p_format)
 
     int i_nb_surface;
     switch (p_dec->fmt_in->i_codec) {
-        case VLC_CODEC_H264:
-        case VLC_CODEC_HEVC:
-        case VLC_CODEC_VC1:
-        case VLC_CODEC_WMV3:
+        case HEIMDALL_CODEC_H264:
+        case HEIMDALL_CODEC_HEVC:
+        case HEIMDALL_CODEC_VC1:
+        case HEIMDALL_CODEC_WMV3:
             i_nb_surface = MAX_HXXX_SURFACES;
             break;
-        case VLC_CODEC_MP1V:
-        case VLC_CODEC_MP2V:
-        case VLC_CODEC_MPGV:
-        case VLC_CODEC_MP4V:
-        case VLC_CODEC_VP8:
+        case HEIMDALL_CODEC_MP1V:
+        case HEIMDALL_CODEC_MP2V:
+        case HEIMDALL_CODEC_MPGV:
+        case HEIMDALL_CODEC_MP4V:
+        case HEIMDALL_CODEC_VP8:
             i_nb_surface = 3;
             break;
-        case VLC_CODEC_VP9:
+        case HEIMDALL_CODEC_VP9:
             i_nb_surface = 10;
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 
     CUVIDDECODECREATEINFO dparams = {
@@ -330,7 +331,7 @@ static int CUDAAPI HandleVideoSequence(void *p_opaque, CUVIDEOFORMAT *p_format)
         .DeinterlaceMode     = p_sys->deintMode
     };
     ret = CALL_CUVID(cuvidCreateDecoder, &p_sys->cudecoder, &dparams);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
         goto cuda_error;
 
     // ensure the output surfaces have the same pitch so copies can work properly
@@ -339,11 +340,11 @@ static int CUDAAPI HandleVideoSequence(void *p_opaque, CUVIDEOFORMAT *p_format)
         int tex_alignment;
         CUdevice cuDev;
         ret = CALL_CUDA_DEC(cuDeviceGet, &cuDev, 0); // this should come from devsys
-        if (ret != VLC_SUCCESS)
+        if (ret != HEIMDALL_SUCCESS)
             goto cuda_error;
 
         ret = CALL_CUDA_DEC(cuDeviceGetAttribute, &tex_alignment, CU_DEVICE_ATTRIBUTE_TEXTURE_ALIGNMENT, cuDev);
-        if (ret != VLC_SUCCESS || tex_alignment <= 0)
+        if (ret != HEIMDALL_SUCCESS || tex_alignment <= 0)
             goto cuda_error;
 
         unsigned int bytes_per_sample = i_bpp > 8 ? 2 : 1;
@@ -351,9 +352,9 @@ static int CUDAAPI HandleVideoSequence(void *p_opaque, CUVIDEOFORMAT *p_format)
                             + tex_alignment - 1) / tex_alignment * tex_alignment;
 
         unsigned int ByteWidth = p_sys->outputPitch;
-        vlc_fourcc_t sw_chroma = NVDECToVlcChroma(p_dec->fmt_out.video.i_chroma);
-        p_sys->chroma_desc = vlc_fourcc_GetChromaDescription(sw_chroma);
-        const vlc_chroma_description_t *desc = p_sys->chroma_desc;
+        heimdall_fourcc_t sw_chroma = NVDECToHeimdallChroma(p_dec->fmt_out.video.i_chroma);
+        p_sys->chroma_desc = heimdall_fourcc_GetChromaDescription(sw_chroma);
+        const heimdall_chroma_description_t *desc = p_sys->chroma_desc;
         if (desc == NULL)
             goto cuda_error;
         unsigned int Height = p_dec->fmt_out.video.i_height;
@@ -425,13 +426,13 @@ static int CUDAAPI HandlePictureDecode(void *p_opaque, CUVIDPICPARAMS *p_picpara
     int ret;
 
     ret = CALL_CUDA_DEC(cuCtxPushCurrent, devsys->cuCtx);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
         return 0;
 
     ret = CALL_CUVID(cuvidDecodePicture, p_sys->cudecoder, p_picparams);
     CALL_CUDA_DEC(cuCtxPopCurrent, NULL);
 
-    return (ret == VLC_SUCCESS);
+    return (ret == HEIMDALL_SUCCESS);
 }
 
 static int CUDAAPI HandlePictureDisplay(void *p_opaque, CUVIDPARSERDISPINFO *p_dispinfo)
@@ -457,7 +458,7 @@ static int CUDAAPI HandlePictureDisplay(void *p_opaque, CUVIDPARSERDISPINFO *p_d
         pic_context_nvdec_t *picctx = NVDEC_PICCONTEXT_FROM_PICCTX(p_pic->context);
 
         result = CALL_CUDA_DEC(cuCtxPushCurrent, p_sys->devsys->cuCtx);
-        if (unlikely(result != VLC_SUCCESS))
+        if (unlikely(result != HEIMDALL_SUCCESS))
         {
             picture_Release(p_pic);
             return 0;
@@ -468,7 +469,7 @@ static int CUDAAPI HandlePictureDisplay(void *p_opaque, CUVIDPARSERDISPINFO *p_d
         // Map decoded frame to a device pointer
         result = CALL_CUVID( cuvidMapVideoFrame, p_sys->cudecoder, p_dispinfo->picture_index,
                             &frameDevicePtr, &i_pitch, &params );
-        if (result != VLC_SUCCESS)
+        if (result != HEIMDALL_SUCCESS)
             goto error;
 
         picctx->bufferPitch = p_sys->outputPitch;
@@ -476,7 +477,7 @@ static int CUDAAPI HandlePictureDisplay(void *p_opaque, CUVIDPARSERDISPINFO *p_d
 
         size_t srcY = 0;
         size_t dstY = 0;
-        const vlc_chroma_description_t *desc = p_sys->chroma_desc;
+        const heimdall_chroma_description_t *desc = p_sys->chroma_desc;
         assert(desc != NULL);
         for (unsigned i_plane = 0; i_plane < desc->plane_count; i_plane++)
         {
@@ -494,7 +495,7 @@ static int CUDAAPI HandlePictureDisplay(void *p_opaque, CUVIDPARSERDISPINFO *p_d
             };
             cu_cpy.Height = cu_cpy.Height * desc->p[i_plane].h.num / desc->p[i_plane].h.den;
             result = CALL_CUDA_DEC(cuMemcpy2DAsync, &cu_cpy, 0);
-            if (unlikely(result != VLC_SUCCESS))
+            if (unlikely(result != HEIMDALL_SUCCESS))
                 goto error;
 
             srcY += picctx->bufferHeight;
@@ -508,7 +509,7 @@ static int CUDAAPI HandlePictureDisplay(void *p_opaque, CUVIDPARSERDISPINFO *p_d
             return 0;
 
         result = CALL_CUDA_DEC(cuCtxPushCurrent, p_sys->devsys->cuCtx);
-        if (unlikely(result != VLC_SUCCESS))
+        if (unlikely(result != HEIMDALL_SUCCESS))
         {
             picture_Release(p_pic);
             return 0;
@@ -519,10 +520,10 @@ static int CUDAAPI HandlePictureDisplay(void *p_opaque, CUVIDPARSERDISPINFO *p_d
         // Map decoded frame to a device pointer
         result = CALL_CUVID( cuvidMapVideoFrame, p_sys->cudecoder, p_dispinfo->picture_index,
                             &frameDevicePtr, &i_pitch, &params );
-        if (result != VLC_SUCCESS)
+        if (result != HEIMDALL_SUCCESS)
             goto error;
 
-        // Copy decoded frame into a new VLC picture
+        // Copy decoded frame into a new Heimdall picture
         size_t srcY = 0;
         for (int i_plane = 0; i_plane < p_pic->i_planes; i_plane++) {
             plane_t plane = p_pic->p[i_plane];
@@ -538,7 +539,7 @@ static int CUDAAPI HandlePictureDisplay(void *p_opaque, CUVIDPARSERDISPINFO *p_d
                 .Height         = plane.i_visible_lines,
             };
             result = CALL_CUDA_DEC(cuMemcpy2DAsync, &cu_cpy, 0);
-            if (result != VLC_SUCCESS)
+            if (result != HEIMDALL_SUCCESS)
                 goto error;
             srcY += p_sys->decoderHeight;
         }
@@ -546,12 +547,12 @@ static int CUDAAPI HandlePictureDisplay(void *p_opaque, CUVIDPARSERDISPINFO *p_d
 
     // Wait until copies are finished
     result = CALL_CUDA_DEC(cuStreamSynchronize, 0);
-    if (unlikely(result != VLC_SUCCESS))
+    if (unlikely(result != HEIMDALL_SUCCESS))
         goto error;
 
     // Release surface on GPU
     result = CALL_CUVID(cuvidUnmapVideoFrame, p_sys->cudecoder, frameDevicePtr);
-    if (unlikely(result != VLC_SUCCESS))
+    if (unlikely(result != HEIMDALL_SUCCESS))
         goto error;
 
     CALL_CUDA_DEC(cuCtxPopCurrent, NULL);
@@ -608,7 +609,7 @@ static int CuvidPushBlock(decoder_t *p_dec, block_t *p_block)
     cupacket.flags |= CUVID_PKT_TIMESTAMP;
     cupacket.payload_size = p_block->i_buffer;
     cupacket.payload = p_block->p_buffer;
-    cupacket.timestamp = p_block->i_pts == VLC_TICK_INVALID ? p_block->i_dts : p_block->i_pts;
+    cupacket.timestamp = p_block->i_pts == HEIMDALL_TICK_INVALID ? p_block->i_dts : p_block->i_pts;
 
     int ret = CALL_CUVID(cuvidParseVideoData, p_sys->cuparser, &cupacket);
     block_Release(p_block);
@@ -675,7 +676,7 @@ static int DecodeBlock(decoder_t *p_dec, block_t *p_block)
         if (p_block != NULL) {
             block_Release(p_block);
         }
-        return VLCDEC_ECRITICAL;
+        return HEIMDALLDEC_ECRITICAL;
     }
     if (p_block == NULL) {
         // Flush stream
@@ -685,26 +686,26 @@ static int DecodeBlock(decoder_t *p_dec, block_t *p_block)
         p_block = p_sys->process_block(p_dec, p_block);
         if (p_block == NULL) {
             // try next block
-            return VLCDEC_SUCCESS;
+            return HEIMDALLDEC_SUCCESS;
         }
     }
     return CuvidPushBlock(p_dec, p_block);
 }
 
-static int MapCodecID(int i_vlc_fourcc)
+static int MapCodecID(int i_heimdall_fourcc)
 {
-    switch (i_vlc_fourcc) {
-        case VLC_CODEC_H264: return cudaVideoCodec_H264;
-        case VLC_CODEC_HEVC: return cudaVideoCodec_HEVC;
-        case VLC_CODEC_VC1:  return cudaVideoCodec_VC1;
-        case VLC_CODEC_WMV3: return cudaVideoCodec_VC1;
-        case VLC_CODEC_MP1V: return cudaVideoCodec_MPEG1;
-        case VLC_CODEC_MP2V: return cudaVideoCodec_MPEG2;
-        case VLC_CODEC_MPGV: return cudaVideoCodec_MPEG2;
-        case VLC_CODEC_MP4V: return cudaVideoCodec_MPEG4;
-        case VLC_CODEC_VP8:  return cudaVideoCodec_VP8;
-        case VLC_CODEC_VP9:  return cudaVideoCodec_VP9;
-        default:             vlc_assert_unreachable();
+    switch (i_heimdall_fourcc) {
+        case HEIMDALL_CODEC_H264: return cudaVideoCodec_H264;
+        case HEIMDALL_CODEC_HEVC: return cudaVideoCodec_HEVC;
+        case HEIMDALL_CODEC_VC1:  return cudaVideoCodec_VC1;
+        case HEIMDALL_CODEC_WMV3: return cudaVideoCodec_VC1;
+        case HEIMDALL_CODEC_MP1V: return cudaVideoCodec_MPEG1;
+        case HEIMDALL_CODEC_MP2V: return cudaVideoCodec_MPEG2;
+        case HEIMDALL_CODEC_MPGV: return cudaVideoCodec_MPEG2;
+        case HEIMDALL_CODEC_MP4V: return cudaVideoCodec_MPEG4;
+        case HEIMDALL_CODEC_VP8:  return cudaVideoCodec_VP8;
+        case HEIMDALL_CODEC_VP9:  return cudaVideoCodec_VP9;
+        default:             heimdall_assert_unreachable();
     }
 }
 
@@ -716,7 +717,7 @@ static cudaVideoChromaFormat MapChomaIDC(uint8_t chroma_idc)
         case 1: return cudaVideoChromaFormat_420;
         case 2: return cudaVideoChromaFormat_422;
         case 3: return cudaVideoChromaFormat_444;
-        default: vlc_assert_unreachable();
+        default: heimdall_assert_unreachable();
     }
 }
 
@@ -725,7 +726,7 @@ static int ProbeDecoder(decoder_t *p_dec, uint8_t bitDepth, cudaVideoChromaForma
     nvdec_ctx_t *p_sys = p_dec->p_sys;
     decoder_device_nvdec_t *devsys = p_sys->devsys;
     int result = CALL_CUDA_DEC(cuCtxPushCurrent, devsys->cuCtx);
-    if (unlikely(result != VLC_SUCCESS))
+    if (unlikely(result != HEIMDALL_SUCCESS))
         return result;
 
     p_sys->selectedDecoder.eCodecType         = MapCodecID(p_dec->fmt_in->i_codec);
@@ -736,40 +737,40 @@ static int ProbeDecoder(decoder_t *p_dec, uint8_t bitDepth, cudaVideoChromaForma
     if (!p_sys->selectedDecoder.bIsSupported) {
         msg_Err(p_dec, "Codec %d Chroma %d not supported!", p_sys->selectedDecoder.eCodecType,
                                                             p_sys->selectedDecoder.eChromaFormat);
-        result = VLC_EGENERIC;
+        result = HEIMDALL_EGENERIC;
         goto error;
     }
-    if (result != VLC_SUCCESS) {
+    if (result != HEIMDALL_SUCCESS) {
         msg_Err(p_dec, "No hardware for Codec %d Chroma %d", p_sys->selectedDecoder.eCodecType,
                                                              p_sys->selectedDecoder.eChromaFormat);
         goto error;
     }
-    result = VLC_SUCCESS;
+    result = HEIMDALL_SUCCESS;
 
 error:
     CALL_CUDA_DEC(cuCtxPopCurrent, NULL);
     return result;
 }
 
-static int OpenDecoder(vlc_object_t *p_this)
+static int OpenDecoder(heimdall_object_t *p_this)
 {
     decoder_t *p_dec = (decoder_t *) p_this;
     int result;
 
     /* Check early if has nvdec support */
-    vlc_decoder_device *dec_device = NULL;
+    heimdall_decoder_device *dec_device = NULL;
     decoder_device_nvdec_t *devsys = NULL;
     switch (p_dec->fmt_in->i_codec) {
-        case VLC_CODEC_H264:
-        case VLC_CODEC_HEVC:
-        case VLC_CODEC_VC1:
-        case VLC_CODEC_WMV3:
-        case VLC_CODEC_MP1V:
-        case VLC_CODEC_MP2V:
-        case VLC_CODEC_MPGV:
-        case VLC_CODEC_MP4V:
-        case VLC_CODEC_VP8:
-        case VLC_CODEC_VP9:
+        case HEIMDALL_CODEC_H264:
+        case HEIMDALL_CODEC_HEVC:
+        case HEIMDALL_CODEC_VC1:
+        case HEIMDALL_CODEC_WMV3:
+        case HEIMDALL_CODEC_MP1V:
+        case HEIMDALL_CODEC_MP2V:
+        case HEIMDALL_CODEC_MPGV:
+        case HEIMDALL_CODEC_MP4V:
+        case HEIMDALL_CODEC_VP8:
+        case HEIMDALL_CODEC_VP9:
             dec_device = decoder_GetDecoderDevice( p_dec );
             if (dec_device != NULL)
                 devsys = GetNVDECOpaqueDevice(dec_device);
@@ -779,8 +780,8 @@ static int OpenDecoder(vlc_object_t *p_this)
     {
         msg_Dbg(p_this, "Missing decoder device");
         if (dec_device != NULL)
-            vlc_decoder_device_Release(dec_device);
-        return VLC_EGENERIC;
+            heimdall_decoder_device_Release(dec_device);
+        return HEIMDALL_EGENERIC;
     }
 
     nvdec_ctx_t *p_sys = calloc(1, sizeof(*p_sys));
@@ -790,22 +791,22 @@ static int OpenDecoder(vlc_object_t *p_this)
     p_dec->p_sys = p_sys;
 
     switch (p_dec->fmt_in->i_codec) {
-        case VLC_CODEC_H264:
-        case VLC_CODEC_HEVC:
+        case HEIMDALL_CODEC_H264:
+        case HEIMDALL_CODEC_HEVC:
             p_sys->b_is_hxxx = true;
-            hxxx_helper_init(&p_sys->hh, VLC_OBJECT(p_dec),
+            hxxx_helper_init(&p_sys->hh, HEIMDALL_OBJECT(p_dec),
                              p_dec->fmt_in->i_codec, 0, 0);
             result = hxxx_helper_set_extra(&p_sys->hh, p_dec->fmt_in->p_extra,
                                            p_dec->fmt_in->i_extra);
-            if (result != VLC_SUCCESS) {
+            if (result != HEIMDALL_SUCCESS) {
                 msg_Dbg(p_this, "missing/invalid HEVC/H264 extradata");
                 hxxx_helper_clean(&p_sys->hh);
                 goto early_exit;
             }
             p_sys->process_block = HXXXProcessBlock;
             break;
-        case VLC_CODEC_VC1:
-        case VLC_CODEC_WMV3:
+        case HEIMDALL_CODEC_VC1:
+        case HEIMDALL_CODEC_WMV3:
             if (p_dec->fmt_in->i_extra >= 4)
             {
                 uint8_t *p_extra = p_dec->fmt_in->p_extra;
@@ -825,16 +826,16 @@ static int OpenDecoder(vlc_object_t *p_this)
             }
             msg_Dbg(p_this, "missing/invalid VC1/WMV3 extradata");
             goto early_exit;
-        case VLC_CODEC_MP1V:
-        case VLC_CODEC_MP2V:
-        case VLC_CODEC_MPGV:
-        case VLC_CODEC_MP4V:
+        case HEIMDALL_CODEC_MP1V:
+        case HEIMDALL_CODEC_MP2V:
+        case HEIMDALL_CODEC_MPGV:
+        case HEIMDALL_CODEC_MP4V:
             break;
-        case VLC_CODEC_VP8:
+        case HEIMDALL_CODEC_VP8:
             if (es_format_HasVpxAlpha(p_dec->fmt_in)) // contains alpha extradata
                 goto early_exit;
             break;
-        case VLC_CODEC_VP9:
+        case HEIMDALL_CODEC_VP9:
             if (p_dec->fmt_in->i_profile != 0 && p_dec->fmt_in->i_profile != 2)
             {
                 msg_Warn(p_dec, "Unsupported VP9 profile %d", p_dec->fmt_in->i_profile);
@@ -849,8 +850,8 @@ static int OpenDecoder(vlc_object_t *p_this)
     }
 
     p_sys->devsys = devsys;
-    p_sys->vctx_out = vlc_video_context_Create( dec_device, VLC_VIDEO_CONTEXT_NVDEC, 0, NULL );
-    vlc_decoder_device_Release(dec_device);
+    p_sys->vctx_out = heimdall_video_context_Create( dec_device, HEIMDALL_VIDEO_CONTEXT_NVDEC, 0, NULL );
+    heimdall_decoder_device_Release(dec_device);
     dec_device = NULL;
     if (unlikely(p_sys->vctx_out == NULL))
     {
@@ -861,7 +862,7 @@ static int OpenDecoder(vlc_object_t *p_this)
     }
 
     result = cuvid_load_functions(&p_sys->cuvidFunctions, p_dec);
-    if (result != VLC_SUCCESS)
+    if (result != HEIMDALL_SUCCESS)
         goto error;
 
     CUVIDPARSERPARAMS pparams = {
@@ -875,7 +876,7 @@ static int OpenDecoder(vlc_object_t *p_this)
         .pfnDisplayPicture       = HandlePictureDisplay,
     };
     result = CALL_CUVID(cuvidCreateVideoParser, &p_sys->cuparser, &pparams);
-    if (result != VLC_SUCCESS) {
+    if (result != HEIMDALL_SUCCESS) {
         msg_Err(p_dec, "Unable to create NVDEC video parser");
         goto error;
     }
@@ -891,13 +892,13 @@ static int OpenDecoder(vlc_object_t *p_this)
         uint8_t i_chroma_idc, i_depth_chroma;
         result = hxxx_helper_get_chroma_chroma(&p_sys->hh, &i_chroma_idc,
                                             &i_depth_luma, &i_depth_chroma);
-        if (result != VLC_SUCCESS)
+        if (result != HEIMDALL_SUCCESS)
             goto error;
         cudaChroma = MapChomaIDC(i_chroma_idc);
 
         unsigned i_ox, i_oy, i_w, i_h, i_vw, i_vh;
         result = hxxx_helper_get_current_picture_size(&p_sys->hh, &i_ox, &i_oy, &i_w, &i_h, &i_vw, &i_vh);
-        if (result != VLC_SUCCESS)
+        if (result != HEIMDALL_SUCCESS)
             goto error;
 
         if(p_dec->fmt_in->video.primaries == COLOR_PRIMARIES_UNDEF)
@@ -910,7 +911,7 @@ static int OpenDecoder(vlc_object_t *p_this)
                                             &primaries,
                                             &transfer,
                                             &colorspace,
-                                            &full_range) == VLC_SUCCESS)
+                                            &full_range) == HEIMDALL_SUCCESS)
             {
                 p_dec->fmt_out.video.primaries = primaries;
                 p_dec->fmt_out.video.transfer = transfer;
@@ -919,7 +920,7 @@ static int OpenDecoder(vlc_object_t *p_this)
             }
         }
 
-        p_dec->fmt_out.video.i_width = vlc_align(i_w, OUTPUT_WIDTH_ALIGN);
+        p_dec->fmt_out.video.i_width = heimdall_align(i_w, OUTPUT_WIDTH_ALIGN);
         p_dec->fmt_out.video.i_height = i_h;
 
         p_dec->fmt_out.video.i_x_offset = i_ox;
@@ -931,7 +932,7 @@ static int OpenDecoder(vlc_object_t *p_this)
             p_dec->fmt_out.video.i_visible_height = i_vh;
         }
 
-        if (VLC_SUCCESS !=
+        if (HEIMDALL_SUCCESS !=
             hxxx_helper_get_current_sar(&p_sys->hh, &i_sar_num, &i_sar_den))
         {
             i_sar_den = 0;
@@ -939,11 +940,11 @@ static int OpenDecoder(vlc_object_t *p_this)
     }
     else
     {
-        p_dec->fmt_out.video.i_width = vlc_align(p_dec->fmt_in->video.i_width, OUTPUT_WIDTH_ALIGN);
+        p_dec->fmt_out.video.i_width = heimdall_align(p_dec->fmt_in->video.i_width, OUTPUT_WIDTH_ALIGN);
         p_dec->fmt_out.video.i_height = p_dec->fmt_in->video.i_height;
         cudaChroma = cudaVideoChromaFormat_420;
         i_depth_luma = 8;
-        if (p_dec->fmt_in->i_codec == VLC_CODEC_VP9)
+        if (p_dec->fmt_in->i_codec == HEIMDALL_CODEC_VP9)
         {
             switch (p_dec->fmt_in->i_profile)
             {
@@ -981,7 +982,7 @@ static int OpenDecoder(vlc_object_t *p_this)
     p_dec->fmt_out.video.i_frame_rate_base = p_dec->fmt_in->video.i_frame_rate_base;
 
     result = ProbeDecoder(p_dec, i_depth_luma, cudaChroma);
-    if (result != VLC_SUCCESS)
+    if (result != HEIMDALL_SUCCESS)
         goto error;
 
     if ( p_dec->fmt_out.video.i_width < p_sys->selectedDecoder.nMinWidth ||
@@ -1002,7 +1003,7 @@ static int OpenDecoder(vlc_object_t *p_this)
         goto error;
     }
 
-    vlc_fourcc_t output_chromas[3];
+    heimdall_fourcc_t output_chromas[3];
     size_t chroma_idx = 0;
     output_chromas[chroma_idx++] = MapSurfaceOpaqueChroma(cudaChroma, i_depth_luma);
     output_chromas[chroma_idx++] = MapSurfaceChroma(cudaChroma, i_depth_luma);
@@ -1035,19 +1036,19 @@ static int OpenDecoder(vlc_object_t *p_this)
 
     p_sys->b_nvparser_success = true;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     CloseDecoder(p_this);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 early_exit:
     if (dec_device != NULL)
-        vlc_decoder_device_Release(dec_device);
+        heimdall_decoder_device_Release(dec_device);
     free(p_sys);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
-static void CloseDecoder(vlc_object_t *p_this)
+static void CloseDecoder(heimdall_object_t *p_this)
 {
     decoder_t *p_dec = (decoder_t *) p_this;
     nvdec_ctx_t *p_sys = p_dec->p_sys;
@@ -1060,7 +1061,7 @@ static void CloseDecoder(vlc_object_t *p_this)
     if (p_sys->cuparser)
         CALL_CUVID(cuvidDestroyVideoParser, p_sys->cuparser);
     if (p_sys->vctx_out)
-        vlc_video_context_Release(p_sys->vctx_out);
+        heimdall_video_context_Release(p_sys->vctx_out);
     if (p_sys->b_is_hxxx)
         hxxx_helper_clean(&p_sys->hh);
     if (p_sys->out_pool)
@@ -1073,7 +1074,7 @@ static void CloseDecoder(vlc_object_t *p_this)
 }
 
 /** Decoder Device **/
-static void DecoderContextClose(vlc_decoder_device *device)
+static void DecoderContextClose(heimdall_decoder_device *device)
 {
     decoder_device_nvdec_t *p_sys = GetNVDECOpaqueDevice(device);
     if (p_sys->cuCtx)
@@ -1081,53 +1082,53 @@ static void DecoderContextClose(vlc_decoder_device *device)
     cuda_free_functions(&p_sys->cudaFunctions);
 }
 
-static const struct vlc_decoder_device_operations dev_ops = {
+static const struct heimdall_decoder_device_operations dev_ops = {
     .close = DecoderContextClose,
 };
 
 static int cudaInitialized;
 static void initCuda(void *opaque)
 {
-    vlc_decoder_device *device = opaque;
+    heimdall_decoder_device *device = opaque;
     decoder_device_nvdec_t *p_sys = device->opaque;
     cudaInitialized = CALL_CUDA_DEV(cuInit, 0);
 }
 
 static int
-DecoderContextOpen(vlc_decoder_device *device, vlc_window_t *window)
+DecoderContextOpen(heimdall_decoder_device *device, heimdall_window_t *window)
 {
-    VLC_UNUSED(window);
+    HEIMDALL_UNUSED(window);
 
-    decoder_device_nvdec_t *p_sys = vlc_obj_malloc(VLC_OBJECT(device), sizeof(*p_sys));
+    decoder_device_nvdec_t *p_sys = heimdall_obj_malloc(HEIMDALL_OBJECT(device), sizeof(*p_sys));
     if (unlikely(p_sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     device->opaque = p_sys;
     device->ops = &dev_ops;
-    device->type = VLC_DECODER_DEVICE_NVDEC;
+    device->type = HEIMDALL_DECODER_DEVICE_NVDEC;
     p_sys->cudaFunctions = NULL;
     p_sys->cuCtx = NULL;
 
     int result = cuda_load_functions(&p_sys->cudaFunctions, device);
-    if (result != VLC_SUCCESS) {
-        return VLC_EGENERIC;
+    if (result != HEIMDALL_SUCCESS) {
+        return HEIMDALL_EGENERIC;
     }
 
     /* Use the current device functions if not initialized yet. */
-    static vlc_once_t init_once = VLC_STATIC_ONCE;
-    vlc_once(&init_once, initCuda, device);
+    static heimdall_once_t init_once = HEIMDALL_STATIC_ONCE;
+    heimdall_once(&init_once, initCuda, device);
 
     if (cudaInitialized != CUDA_SUCCESS)
     {
         DecoderContextClose(device);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     result = CALL_CUDA_DEV(cuCtxCreate, &p_sys->cuCtx, 0, 0);
-    if (result != VLC_SUCCESS)
+    if (result != HEIMDALL_SUCCESS)
     {
         DecoderContextClose(device);
         return result;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

@@ -2,6 +2,7 @@
  * linux/thread.c: Linux specifics for threading
  *****************************************************************************
  * Copyright (C) 2016 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -38,11 +39,11 @@
 #define FUTEX_WAIT_BITSET_PRIVATE FUTEX_WAIT_BITSET
 #endif
 
-#include <vlc_common.h>
-#include <vlc_threads.h>
-#include <vlc_atomic.h>
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
+#include <heimdall_atomic.h>
 
-unsigned long vlc_thread_id(void)
+unsigned long heimdall_thread_id(void)
 {
      static __thread pid_t tid = 0;
 
@@ -52,7 +53,7 @@ unsigned long vlc_thread_id(void)
      return tid;
 }
 
-void (vlc_thread_set_name)(const char *name)
+void (heimdall_thread_set_name)(const char *name)
 {
     prctl(PR_SET_NAME, name);
 }
@@ -83,38 +84,38 @@ static int sys_futex(void *addr, int op, unsigned val,
     return syscall(num, addr, op, val, to, addr2, val3);
 }
 
-static int vlc_futex_wake(void *addr, int nr)
+static int heimdall_futex_wake(void *addr, int nr)
 {
     return sys_futex(addr, FUTEX_WAKE_PRIVATE, nr, NULL, NULL, 0);
 }
 
-static int vlc_futex_wait(void *addr, unsigned flags,
+static int heimdall_futex_wait(void *addr, unsigned flags,
                           unsigned val, const struct timespec *to)
 {
     return sys_futex(addr, FUTEX_WAIT_BITSET_PRIVATE | flags, val, to, NULL,
                      FUTEX_BITSET_MATCH_ANY);
 }
 
-void vlc_atomic_notify_one(void *addr)
+void heimdall_atomic_notify_one(void *addr)
 {
-    vlc_futex_wake(addr, 1);
+    heimdall_futex_wake(addr, 1);
 }
 
-void vlc_atomic_notify_all(void *addr)
+void heimdall_atomic_notify_all(void *addr)
 {
-    vlc_futex_wake(addr, INT_MAX);
+    heimdall_futex_wake(addr, INT_MAX);
 }
 
-void vlc_atomic_wait(void *addr, unsigned val)
+void heimdall_atomic_wait(void *addr, unsigned val)
 {
-    vlc_futex_wait(addr, 0, val, NULL);
+    heimdall_futex_wait(addr, 0, val, NULL);
 }
 
-int vlc_atomic_timedwait(void *addr, unsigned val, vlc_tick_t deadline)
+int heimdall_atomic_timedwait(void *addr, unsigned val, heimdall_tick_t deadline)
 {
     struct timespec ts;
 
-    if (vlc_futex_wait(addr, 0, val, vlc_tick_to_timespec(&ts, deadline)) == 0)
+    if (heimdall_futex_wait(addr, 0, val, heimdall_tick_to_timespec(&ts, deadline)) == 0)
         return 0;
 
     switch (errno) {
@@ -123,7 +124,7 @@ int vlc_atomic_timedwait(void *addr, unsigned val, vlc_tick_t deadline)
             return 0;
         case EFAULT:
         case EINVAL:
-            vlc_assert_unreachable(); /* BUG! */
+            heimdall_assert_unreachable(); /* BUG! */
         default:
             break;
      }

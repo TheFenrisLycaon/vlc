@@ -1,9 +1,10 @@
 /*****************************************************************************
- * variables.h: Generic lua<->vlc variables interface
+ * variables.h: Generic lua<->heimdall variables interface
  *****************************************************************************
  * Copyright (C) 2007-2008 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Antoine Cellerier <dionoea at videolan tod org>
+ * Authors: Antoine Cellerier <dionoea at lycaria tod org>
  *          Pierre d'Herbemont <pdherbemont # videolan.org>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -21,13 +22,13 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_LUA_VARIABLES_H
-#define VLC_LUA_VARIABLES_H
+#ifndef HEIMDALL_LUA_VARIABLES_H
+#define HEIMDALL_LUA_VARIABLES_H
 
-int vlclua_var_toggle_or_set( lua_State *, vlc_object_t *, const char * );
+int heimdalllua_var_toggle_or_set( lua_State *, heimdall_object_t *, const char * );
 
-#define vlclua_var_toggle_or_set( a, b, c ) \
-        vlclua_var_toggle_or_set( a, VLC_OBJECT( b ), c )
+#define heimdalllua_var_toggle_or_set( a, b, c ) \
+        heimdalllua_var_toggle_or_set( a, HEIMDALL_OBJECT( b ), c )
 
 #endif
 

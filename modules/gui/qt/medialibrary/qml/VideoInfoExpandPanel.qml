@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,12 +21,12 @@ import QtQuick.Window
 import QtQml.Models
 import QtQuick.Layouts
 
-import VLC.MainInterface
-import VLC.MediaLibrary
+import Heimdall.MainInterface
+import Heimdall.MediaLibrary
 
-import VLC.Widgets as Widgets
-import VLC.Util
-import VLC.Style
+import Heimdall.Widgets as Widgets
+import Heimdall.Util
+import Heimdall.Style
 
 FocusScope {
     id: root
@@ -57,7 +58,7 @@ FocusScope {
         id: contentRect
 
         anchors.fill: parent
-        implicitHeight: contentLayout.implicitHeight + ( VLCStyle.margin_normal * 2 )
+        implicitHeight: contentLayout.implicitHeight + ( HeimdallStyle.margin_normal * 2 )
         color: theme.bg.secondary
 
         Rectangle {
@@ -67,7 +68,7 @@ FocusScope {
                 right: parent.right
             }
             color: theme.border
-            height: VLCStyle.expandDelegate_border
+            height: HeimdallStyle.expandDelegate_border
         }
 
         Rectangle {
@@ -77,16 +78,16 @@ FocusScope {
                 right: parent.right
             }
             color: theme.border
-            height: VLCStyle.expandDelegate_border
+            height: HeimdallStyle.expandDelegate_border
         }
 
         RowLayout {
             id: contentLayout
 
             anchors.fill: parent
-            anchors.margins: VLCStyle.margin_normal
+            anchors.margins: HeimdallStyle.margin_normal
             implicitHeight: artAndControl.implicitHeight
-            spacing: VLCStyle.margin_normal
+            spacing: HeimdallStyle.margin_normal
 
             FocusScope {
                 id: artAndControl
@@ -103,20 +104,20 @@ FocusScope {
                 Column {
                     id: artAndControlLayout
 
-                    spacing: VLCStyle.margin_normal
+                    spacing: HeimdallStyle.margin_normal
 
                     Item {
-                        height: VLCStyle.gridCover_video_height
-                        width: VLCStyle.gridCover_video_width
+                        height: HeimdallStyle.gridCover_video_height
+                        width: HeimdallStyle.gridCover_video_width
 
                         /* A bigger cover for the album */
                         Widgets.ImageExt {
                             id: expand_cover_id
 
                             anchors.fill: parent
-                            source: model.thumbnail || VLCStyle.noArtVideoCover
+                            source: model.thumbnail || HeimdallStyle.noArtVideoCover
                             sourceSize: Qt.size(width * eDPR, height * eDPR)
-                            radius: VLCStyle.gridCover_radius
+                            radius: HeimdallStyle.gridCover_radius
                             backgroundColor: theme.bg.primary
 
                             readonly property real eDPR: MainCtx.effectiveDevicePixelRatio(Window.window)
@@ -131,14 +132,14 @@ FocusScope {
                         id: actionButtons
 
                         focus: true
-                        spacing: VLCStyle.margin_large
+                        spacing: HeimdallStyle.margin_large
 
                         Widgets.ActionButtonPrimary {
                             id: playActionBtn
 
                             AccessibleCompat.id: "videoInfoPlayButton"
 
-                            iconTxt: VLCIcons.play
+                            iconTxt: HeimdallIcons.play
                             text: qsTr("Play")
                             onClicked: MediaLib.addAndPlay( model.id )
                         }
@@ -148,7 +149,7 @@ FocusScope {
 
                             AccessibleCompat.id: "videoInfoEnqueueButton"
 
-                            iconTxt: VLCIcons.enqueue
+                            iconTxt: HeimdallIcons.enqueue
                             text: qsTr("Enqueue")
                             onClicked: MediaLib.addToPlaylist( model.id )
                         }
@@ -182,7 +183,7 @@ FocusScope {
 
                         AccessibleCompat.id: "videoInfoCloseButton"
 
-                        text: VLCIcons.close
+                        text: HeimdallIcons.close
 
                         description: qsTr("Close")
 
@@ -200,7 +201,7 @@ FocusScope {
                 }
 
                 Widgets.MenuCaption {
-                    topPadding: VLCStyle.margin_normal
+                    topPadding: HeimdallStyle.margin_normal
                     text: "<b>" + qsTr("File Name:") + "</b> " + root.model.fileName
                     width: parent.width
                     color: theme.fg.secondary
@@ -223,8 +224,8 @@ FocusScope {
 
                     linkColor: theme.fg.link
                     color: theme.fg.secondary
-                    topPadding: VLCStyle.margin_xsmall
-                    bottomPadding: VLCStyle.margin_large
+                    topPadding: HeimdallStyle.margin_xsmall
+                    bottomPadding: HeimdallStyle.margin_large
                     width: parent.width
                     textFormat: Text.StyledText
 
@@ -239,14 +240,14 @@ FocusScope {
                     AccessibleCompat.id: "videoInfoShowMoreButton"
 
                     text: root._showMoreInfo ? qsTr("View Less") : qsTr("View More")
-                    iconTxt: VLCIcons.expand
+                    iconTxt: HeimdallIcons.expand
                     iconRotation: root._showMoreInfo ? -180 : 0
                     visible: (root.model.audioDesc?.length > 0)
                              || (root.model.videoDesc?.length > 0)
 
                     Behavior on iconRotation {
                         NumberAnimation {
-                            duration: VLCStyle.duration_short
+                            duration: HeimdallStyle.duration_short
                         }
                     }
 
@@ -260,9 +261,9 @@ FocusScope {
                 Row {
                     width: parent.width
 
-                    topPadding: VLCStyle.margin_normal
+                    topPadding: HeimdallStyle.margin_normal
 
-                    spacing: VLCStyle.margin_xlarge
+                    spacing: HeimdallStyle.margin_xlarge
 
                     visible: root._showMoreInfo
 
@@ -270,7 +271,7 @@ FocusScope {
 
                     Behavior on opacity {
                         OpacityAnimator {
-                            duration: VLCStyle.duration_long
+                            duration: HeimdallStyle.duration_long
                         }
                     }
 
@@ -328,7 +329,7 @@ FocusScope {
 
             color: theme.fg.secondary
             font.bold: true
-            bottomPadding: VLCStyle.margin_small
+            bottomPadding: HeimdallStyle.margin_small
         }
 
         Repeater {
@@ -351,9 +352,9 @@ FocusScope {
 
                     visible: !!description
                     text: modelData.text + " " + description
-                    topPadding: (!delegateRepeater.isFirst) && (index === 0) ? VLCStyle.margin_small : 0
+                    topPadding: (!delegateRepeater.isFirst) && (index === 0) ? HeimdallStyle.margin_small : 0
                     color: theme.fg.secondary
-                    bottomPadding: VLCStyle.margin_xsmall
+                    bottomPadding: HeimdallStyle.margin_xsmall
                 }
             }
         }

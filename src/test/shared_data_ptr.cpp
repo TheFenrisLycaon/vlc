@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <random>
 #include <vector>
-#include <vlc_cxx_helpers.hpp>
+#include <heimdall_cxx_helpers.hpp>
 
 struct mockrc
 {
@@ -21,7 +21,7 @@ static void mockrc_Release(mockrc *p)
     p->count--;
 }
 
-using MockRcPtr = ::vlc::vlc_shared_data_ptr<mockrc, &mockrc_Hold, &mockrc_Release>;
+using MockRcPtr = ::heimdall::heimdall_shared_data_ptr<mockrc, &mockrc_Hold, &mockrc_Release>;
 
 static void test_raii()
 {

@@ -2,6 +2,7 @@
  * BasePeriod.cpp
  *****************************************************************************
  * Copyright (C) 2010 - 2011 Klagenfurt University
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Created on: Aug 10, 2010
  * Authors: Christopher Mueller <christopher.mueller@itec.uni-klu.ac.at>
@@ -31,8 +32,8 @@
 #include "SegmentBaseType.hpp"
 #include "../Streams.hpp"
 
-#include <vlc_common.h>
-#include <vlc_arrays.h>
+#include <heimdall_common.h>
+#include <heimdall_arrays.h>
 #include <algorithm>
 #include <cassert>
 
@@ -48,7 +49,7 @@ BasePeriod::BasePeriod(BasePlaylist *playlist_) :
 
 BasePeriod::~BasePeriod ()
 {
-    vlc_delete_all( adaptationSets );
+    heimdall_delete_all( adaptationSets );
     childs.clear();
 }
 
@@ -81,7 +82,7 @@ BaseAdaptationSet *BasePeriod::getAdaptationSetByID(const adaptive::ID &id) cons
     return nullptr;
 }
 
-void BasePeriod::debug(vlc_object_t *obj, int indent) const
+void BasePeriod::debug(heimdall_object_t *obj, int indent) const
 {
     std::string text(indent, ' ');
     text.append("Period");
@@ -94,12 +95,12 @@ void BasePeriod::debug(vlc_object_t *obj, int indent) const
         (*k)->debug(obj, indent + 1);
 }
 
-vlc_tick_t BasePeriod::getPeriodStart() const
+heimdall_tick_t BasePeriod::getPeriodStart() const
 {
     return startTime;
 }
 
-vlc_tick_t BasePeriod::getPeriodDuration() const
+heimdall_tick_t BasePeriod::getPeriodDuration() const
 {
     return duration;
 }

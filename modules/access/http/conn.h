@@ -2,6 +2,7 @@
  * conn.h: HTTP connections
  *****************************************************************************
  * Copyright (C) 2015 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -25,49 +26,49 @@
  * @{
  */
 
-struct vlc_tls;
-struct vlc_http_conn;
-struct vlc_http_msg;
-struct vlc_http_stream;
+struct heimdall_tls;
+struct heimdall_http_conn;
+struct heimdall_http_msg;
+struct heimdall_http_stream;
 
-struct vlc_http_conn_cbs
+struct heimdall_http_conn_cbs
 {
-    struct vlc_http_stream *(*stream_open)(struct vlc_http_conn *,
-                                           const struct vlc_http_msg *,
+    struct heimdall_http_stream *(*stream_open)(struct heimdall_http_conn *,
+                                           const struct heimdall_http_msg *,
                                            bool has_data);
-    void (*release)(struct vlc_http_conn *);
+    void (*release)(struct heimdall_http_conn *);
 };
 
-struct vlc_http_conn
+struct heimdall_http_conn
 {
-    const struct vlc_http_conn_cbs *cbs;
-    struct vlc_tls *tls;
+    const struct heimdall_http_conn_cbs *cbs;
+    struct heimdall_tls *tls;
 };
 
-static inline struct vlc_http_stream *
-vlc_http_stream_open(struct vlc_http_conn *conn, const struct vlc_http_msg *m,
+static inline struct heimdall_http_stream *
+heimdall_http_stream_open(struct heimdall_http_conn *conn, const struct heimdall_http_msg *m,
                      bool has_data)
 {
     return conn->cbs->stream_open(conn, m, has_data);
 }
 
-static inline void vlc_http_conn_release(struct vlc_http_conn *conn)
+static inline void heimdall_http_conn_release(struct heimdall_http_conn *conn)
 {
     conn->cbs->release(conn);
 }
 
-void vlc_http_err(void *, const char *msg, ...) VLC_FORMAT(2, 3);
-void vlc_http_dbg(void *, const char *msg, ...) VLC_FORMAT(2, 3);
+void heimdall_http_err(void *, const char *msg, ...) HEIMDALL_FORMAT(2, 3);
+void heimdall_http_dbg(void *, const char *msg, ...) HEIMDALL_FORMAT(2, 3);
 
 /**
  * \defgroup http1 HTTP/1.x
  * @{
  */
-struct vlc_http_conn *vlc_h1_conn_create(void *ctx, struct vlc_tls *,
+struct heimdall_http_conn *heimdall_h1_conn_create(void *ctx, struct heimdall_tls *,
                                          bool proxy);
-struct vlc_http_stream *vlc_chunked_open(struct vlc_http_stream *,
-                                         struct vlc_tls *);
-ssize_t vlc_https_chunked_write(struct vlc_tls *, const void *base, size_t len,
+struct heimdall_http_stream *heimdall_chunked_open(struct heimdall_http_stream *,
+                                         struct heimdall_tls *);
+ssize_t heimdall_https_chunked_write(struct heimdall_tls *, const void *base, size_t len,
                                 bool eos);
 
 /**
@@ -101,11 +102,11 @@ ssize_t vlc_https_chunked_write(struct vlc_tls *, const void *base, size_t len,
  * \return an HTTP stream on success, NULL on error
  * \note *connp is undefined on error.
  */
-struct vlc_http_stream *vlc_h1_request(void *ctx, const char *hostname,
+struct heimdall_http_stream *heimdall_h1_request(void *ctx, const char *hostname,
                                        unsigned port, bool proxy,
-                                       const struct vlc_http_msg *req,
+                                       const struct heimdall_http_msg *req,
                                        bool idempotent, bool has_data,
-                                       struct vlc_http_conn **restrict connp);
+                                       struct heimdall_http_conn **restrict connp);
 
 /** @} */
 
@@ -113,7 +114,7 @@ struct vlc_http_stream *vlc_h1_request(void *ctx, const char *hostname,
  * \defgroup h2 HTTP/2.0
  * @{
  */
-struct vlc_http_conn *vlc_h2_conn_create(void *ctx, struct vlc_tls *);
+struct heimdall_http_conn *heimdall_h2_conn_create(void *ctx, struct heimdall_tls *);
 
 /** @} */
 

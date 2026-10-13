@@ -3,6 +3,7 @@
  * es_selection.c: ES selection override player test
  *****************************************************************************
  * Copyright (C) 2018-2025 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *****************************************************************************/
 
 #include "common.h"
@@ -12,9 +13,9 @@ test_es_selection_override(struct ctx *ctx)
 {
     test_log("test_es_selection_override\n");
 
-    vlc_player_t *player = ctx->player;
+    heimdall_player_t *player = ctx->player;
 
-    struct media_params params = DEFAULT_MEDIA_PARAMS(VLC_TICK_FROM_SEC(2));
+    struct media_params params = DEFAULT_MEDIA_PARAMS(HEIMDALL_TICK_FROM_SEC(2));
     params.track_count[VIDEO_ES] = 1;
     params.track_count[AUDIO_ES] = 1;
     params.track_count[SPU_ES] = 0;
@@ -27,9 +28,9 @@ test_es_selection_override(struct ctx *ctx)
     /* Wait that all tracks are added */
     {
         vec_on_track_list_changed *vec = &ctx->report.on_track_list_changed;
-        while (vec_on_track_list_get_action_count(vec, VLC_PLAYER_LIST_ADDED)
+        while (vec_on_track_list_get_action_count(vec, HEIMDALL_PLAYER_LIST_ADDED)
                != 2)
-            vlc_player_CondWait(player, &ctx->wait);
+            heimdall_player_CondWait(player, &ctx->wait);
     }
 
     /* Wait that all tracks are selected */
@@ -37,31 +38,31 @@ test_es_selection_override(struct ctx *ctx)
         vec_on_track_selection_changed *vec =
                 &ctx->report.on_track_selection_changed;
         while (vec->size < 1)
-            vlc_player_CondWait(player, &ctx->wait);
+            heimdall_player_CondWait(player, &ctx->wait);
     }
 
-    assert(vlc_player_GetTrackCount(player, VIDEO_ES) == 1);
-    assert(vlc_player_GetTrackCount(player, AUDIO_ES) == 1);
-    const struct vlc_player_track *track = vlc_player_GetTrackAt(player, AUDIO_ES, 0);
+    assert(heimdall_player_GetTrackCount(player, VIDEO_ES) == 1);
+    assert(heimdall_player_GetTrackCount(player, AUDIO_ES) == 1);
+    const struct heimdall_player_track *track = heimdall_player_GetTrackAt(player, AUDIO_ES, 0);
     assert(track);
     assert(track->selected);
-    track = vlc_player_GetTrackAt(player, VIDEO_ES, 0);
+    track = heimdall_player_GetTrackAt(player, VIDEO_ES, 0);
     assert(track);
     assert(!track->selected);
 
     /* Select video track */
-    vlc_player_SelectTrack(player, track, VLC_PLAYER_SELECT_EXCLUSIVE);
+    heimdall_player_SelectTrack(player, track, HEIMDALL_PLAYER_SELECT_EXCLUSIVE);
     {
         vec_on_track_selection_changed *vec =
                 &ctx->report.on_track_selection_changed;
         while (vec->size < 2)
-            vlc_player_CondWait(player, &ctx->wait);
+            heimdall_player_CondWait(player, &ctx->wait);
     }
-    track = vlc_player_GetTrackAt(player, VIDEO_ES, 0);
+    track = heimdall_player_GetTrackAt(player, VIDEO_ES, 0);
     assert(track);
     assert(track->selected);
 
-    wait_state(ctx, VLC_PLAYER_STATE_STOPPED);
+    wait_state(ctx, HEIMDALL_PLAYER_STATE_STOPPED);
     assert_normal_state(ctx);
 
     test_end(ctx);

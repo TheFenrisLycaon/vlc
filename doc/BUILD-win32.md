@@ -1,6 +1,6 @@
-# Compile VLC for Windows
+# Compile Heimdall for Windows
 
-There are multiple ways to compile VLC for Windows. All of them involve `gcc` or `llvm` with `mingw-w64`.
+There are multiple ways to compile Heimdall for Windows. All of them involve `gcc` or `llvm` with `mingw-w64`.
 Compilation with MSVC or clang-cl is currently not supported.
 
 # UNIX Shell
@@ -13,7 +13,7 @@ or on [Windows](https://docs.docker.com/desktop/install/windows-install/).
 The choice of which is best depends on your goals. In terms of build times, Docker is the fastest
 then WSL and msys2 is the slowest.
 
-Unless you use a Docker image, you will need to install multiple development packages that VLC
+Unless you use a Docker image, you will need to install multiple development packages that Heimdall
 needs to build itself and its contribs.
 
 * On Ubuntu/Debian (or WSL), they are the same tools installed in our [Docker Images](https://code.videolan.org/videolan/docker-images/-/blob/master/vlc-debian-win64/Dockerfile#L27):
@@ -43,14 +43,14 @@ pacman -S --needed git wget bzip2 file unzip libtool pkg-config \
 
 # Toolchains
 
-There are 2 toolchains supported to build VLC for Windows:
+There are 2 toolchains supported to build Heimdall for Windows:
 * mingw-w64 with gcc
 * mingw-w64 with llvm
 
 The `gcc` is the most common one as it comes as packages in Linux distributions and msys2.
 The problem with the gcc toolchain is that if you need to debug your build with `gdb`.
 It is very slow when you use breakpoints because for each of the 200+ DLLs loaded
-during the VLC launch, it looks for your breakpoints.
+during the Heimdall launch, it looks for your breakpoints.
 
 The 'llvm' toolchain solves this issue by producing .pdb files. You then debug your
 code with the Windows Debugger, even within Visual Studio.
@@ -63,7 +63,7 @@ place where you decompressed it, followed by `/bin`, in your `PATH`.
 
 You also have a choice between `ucrt` and `msvcrt`. `ucrt` is the one you should use if you don't care about
 support on Windows versions older than Windows 10. If you need to support older Windows versions you
-should go with the `msvcrt` version. The official VLC builds use `msvcrt` for desktop builds, and
+should go with the `msvcrt` version. The official Heimdall builds use `msvcrt` for desktop builds, and
 `ucrt` for Universal Windows Platform (UWP) builds.
 
 * On Linux:
@@ -71,7 +71,7 @@ should go with the `msvcrt` version. The official VLC builds use `msvcrt` for de
 wget https://github.com/mstorsjo/llvm-mingw/releases/download/20220906/llvm-mingw-20220906-msvcrt-ubuntu-18.04-x86_64.tar.xz
 tar xvf llvm-mingw-20220906-msvcrt-ubuntu-18.04-x86_64.tar.xz -C /opt
 ```
-Every time you build VLC, you will need to have the toolchain in your PATH.
+Every time you build Heimdall, you will need to have the toolchain in your PATH.
 We recommend creating a script file to do this, so that you can call
 it when you start your build session:
 
@@ -91,7 +91,7 @@ wget https://github.com/mstorsjo/llvm-mingw/releases/download/20220906/llvm-ming
 unzip llvm-mingw-20220906-msvcrt-x86_64.zip -d /opt
 ```
 
-Every time you build VLC, you will need to have the toolchain in your PATH.
+Every time you build Heimdall, you will need to have the toolchain in your PATH.
 We recommend creating a script file to do this, so that you can call
 it when you start your build session:
 
@@ -114,7 +114,7 @@ You can find the latest Docker images we use in [extras/ci/gitlab-ci.yml](/extra
 
 ## Install mingw-w64 gcc
 
-This is the default build environment of VLC when cross-compiling. This is also
+This is the default build environment of Heimdall when cross-compiling. This is also
 the environment used to produce the official builds that everyone uses. The mingw-w64
 toolchain is usually found in all Linux distributions and in msys2.
 You can install it this way:
@@ -143,7 +143,7 @@ Type enter to select "all"
 You can find the latest Docker images we use in [extras/ci/gitlab-ci.yml](/extras/ci/gitlab-ci.yml)
 
 
-# Getting VLC
+# Getting Heimdall
 
 This is the easy part. In your UNIX Shell type:
 
@@ -152,24 +152,24 @@ git config --global core.autocrlf false
 git clone https://code.videolan.org/videolan/vlc.git
 ```
 
-This will download the VLC source code into the `vlc` folder, in your current directory.
+This will download the Heimdall source code into the `heimdall` folder, in your current directory.
 
-# Building VLC
+# Building Heimdall
 
 Fully build in a separate folder `build`:
 
 ```sh
 mkdir build
 cd build
-../vlc/extras/package/win32/build.sh -a x86_64
+../heimdall/extras/package/win32/build.sh -a x86_64
 ```
 
 This will build
-* VLC "extra tools" in case you are missing some in your environment.
-* VLC "contribs", a hundred different libraries that VLC uses like FFmpeg, Qt, etc.
-* VLC "core" (libvlccore.dll) the heart of VLC.
-* VLC "modules" which contains all the possible extensions to add functionality to VLC.
-* libvlc.dll a DLL to use VLC from external code with a stable API.
+* Heimdall "extra tools" in case you are missing some in your environment.
+* Heimdall "contribs", a hundred different libraries that Heimdall uses like FFmpeg, Qt, etc.
+* Heimdall "core" (libheimdallcore.dll) the heart of Heimdall.
+* Heimdall "modules" which contains all the possible extensions to add functionality to Heimdall.
+* libheimdall.dll a DLL to use Heimdall from external code with a stable API.
 
 ## Prebuilt contribs
 
@@ -184,40 +184,40 @@ section](#debugging) below for more information.
 
 ## Building with gcc (11) prebuilt contribs
 
-If your mingw-w64 compiler/toolchain is gcc 11 you can use these commands to build VLC
+If your mingw-w64 compiler/toolchain is gcc 11 you can use these commands to build Heimdall
 and reuse prebuilt contribs:
 
 ```sh
 mkdir build
 cd build
-export VLC_CONTRIB_SHA="$(cd ../vlc; extras/ci/get-contrib-sha.sh win32)"
-export VLC_PREBUILT_CONTRIBS_URL="https://artifacts.videolan.org/vlc/win64/vlc-contrib-x86_64-w64-mingw32-${VLC_CONTRIB_SHA}.tar.bz2"
-../vlc/extras/package/win32/build.sh -a x86_64 -p
+export HEIMDALL_CONTRIB_SHA="$(cd ../heimdall; extras/ci/get-contrib-sha.sh win32)"
+export HEIMDALL_PREBUILT_CONTRIBS_URL="https://artifacts.videolan.org/vlc/win64/vlc-contrib-x86_64-w64-mingw32-${VLC_CONTRIB_SHA}.tar.bz2"
+../heimdall/extras/package/win32/build.sh -a x86_64 -p
 ```
 
 ## Building with LLVM (13) prebuilt contribs
 
-If your mingw-w64 compiler/toolchain is LLVM 13 you can use these commands to build VLC
+If your mingw-w64 compiler/toolchain is LLVM 13 you can use these commands to build Heimdall
 and reuse prebuilt contribs. The name of the prebuilt tarball is the same, but the folder is different:
 
 ```sh
 mkdir build
 cd build
-export VLC_CONTRIB_SHA="$(cd ../vlc; extras/ci/get-contrib-sha.sh win32)"
-export VLC_PREBUILT_CONTRIBS_URL="https://artifacts.videolan.org/vlc/win64-llvm/vlc-contrib-x86_64-w64-mingw32-$VLC_CONTRIB_SHA.tar.bz2"
-time ../vlc/extras/package/win32/build.sh -a x86_64 -p
+export HEIMDALL_CONTRIB_SHA="$(cd ../heimdall; extras/ci/get-contrib-sha.sh win32)"
+export HEIMDALL_PREBUILT_CONTRIBS_URL="https://artifacts.videolan.org/vlc/win64-llvm/vlc-contrib-x86_64-w64-mingw32-$VLC_CONTRIB_SHA.tar.bz2"
+time ../heimdall/extras/package/win32/build.sh -a x86_64 -p
 ```
 
-## libvlc
+## libheimdall
 
-You may be interested in just building libvlc without the desktop app. In that case
+You may be interested in just building libheimdall without the desktop app. In that case
 you can add `-z` to you build.sh call. It will save you some building time, especially
 if you build contribs. And it will also avoid creating the Qt gui plugins you will never use.
 
 ```sh
 mkdir build
 cd build
-../vlc/extras/package/win32/build.sh -a x86_64 -z
+../heimdall/extras/package/win32/build.sh -a x86_64 -z
 ```
 
 # Other options
@@ -235,17 +235,17 @@ CPU thread to each Meson contrib with the `MESON_BUILD` environment variable.
 Here is an example limit the build to 8 threads and 1 per Meson/ninja contrib.
 
 ```sh
-JOBS=8 MESON_BUILD="-j 1" ../vlc/extras/package/win32/build.sh -a x86_64
+JOBS=8 MESON_BUILD="-j 1" ../heimdall/extras/package/win32/build.sh -a x86_64
 ```
 
 ## Config Flags
 
-When building VLC manually, it's possible to enable/disable certain features of
-VLC or select/unselect some compilation configurations.
+When building Heimdall manually, it's possible to enable/disable certain features of
+Heimdall or select/unselect some compilation configurations.
 You can find the list of options when running :
 
 ```sh
-../vlc/configure -h
+../heimdall/configure -h
 ```
 
 You can pass all these options to `build.sh` using the `CONFIGFLAGS` environment
@@ -253,17 +253,17 @@ variable.
 For example you can enable the address sanitizer with:
 
 ```sh
-CONFIGFLAGS="--with-sanitizer=address" ../vlc/extras/package/win32/build.sh -a x86_64
+CONFIGFLAGS="--with-sanitizer=address" ../heimdall/extras/package/win32/build.sh -a x86_64
 ```
 
 ## Contrib Flags
 
-When building VLC manually, it's possible to select/unselect certain contribs or
+When building Heimdall manually, it's possible to select/unselect certain contribs or
 enable/disable some features.
 You can find the list of options when running:
 
 ```sh
-../vlc/contribs/bootstrap -h
+../heimdall/contribs/bootstrap -h
 ```
 
 You can pass all these options to `build.sh` using the `CONTRIBFLAGS` environment
@@ -271,27 +271,27 @@ variable.
 For example you can disable bluray building with:
 
 ```sh
-CONTRIBFLAGS="--disable-bluray" ../vlc/extras/package/win32/build.sh -a x86_64
+CONTRIBFLAGS="--disable-bluray" ../heimdall/extras/package/win32/build.sh -a x86_64
 ```
 
 # Debugging
 
-Most of the time, if you need to build VLC yourself, you will also need to debug it.
-The way to debug VLC on Windows depends on the toolchain you are using. When building
+Most of the time, if you need to build Heimdall yourself, you will also need to debug it.
+The way to debug Heimdall on Windows depends on the toolchain you are using. When building
 with gcc you need to use `gdb`. When building with LLVM, you can use `gdb` or
 the `Windows Debugger`.
 
 The latter is much faster than gdb which is very slow to pick breakpoints in the
-hundred of VLC DLL's.
+hundred of Heimdall DLL's.
 
 ## Debugging with Windows Debugger
 
-By default VLC is built with debug symbols. But if you want to use the **`Windows Debugger`
+By default Heimdall is built with debug symbols. But if you want to use the **`Windows Debugger`
 with LLVM**, you need to build with `.pdb` files. You can do that by adding `-d` to
 the `build.sh` call.
 
 ```sh
-../vlc/extras/package/win32/build.sh -a x86_64 -d
+../heimdall/extras/package/win32/build.sh -a x86_64 -d
 ```
 
 This will create PDB files, but since we are building in a UNIX environment, the
@@ -302,57 +302,57 @@ if you want to debug properly the code you are editing, it needs to be visible
 in Windows. It's always the case in msys2. It can be the case with WSL also it's
 faster in a WSL1 environment than in WSL2. In Docker it's also possible by
 mapping a Windows folder to make it accessible in your Docker. In the end your
-VLC source code **should be on a partition/drive that Windows can see**,
+Heimdall source code **should be on a partition/drive that Windows can see**,
 and thus the Windows Debugger.
 
 You can set the UNIX to Windows mapping when enabling PDB's in `build.sh`. You need
-to set the Windows path where the VLC sources are this way:
+to set the Windows path where the Heimdall sources are this way:
 
 ```sh
-../vlc/extras/package/win32/build.sh -a x86_64 -D "c:/path/to/sources/vlc"
+../heimdall/extras/package/win32/build.sh -a x86_64 -D "c:/path/to/sources/heimdall"
 ```
 
 You can also set it in your environment `CFLAGS` and `CXXFLAGS` which you can also add
 in your `toolchain.sh` described [above](#install-mingw-w64-llvm):
 
 ```sh
-CFLAGS="-fdebug-prefix-map='/mnt/c/'='c:/'" CXXFLAGS="-fdebug-prefix-map='/mnt/c/'='c:/'" ../vlc/extras/package/win32/build.sh -a x86_64 -d
+CFLAGS="-fdebug-prefix-map='/mnt/c/'='c:/'" CXXFLAGS="-fdebug-prefix-map='/mnt/c/'='c:/'" ../heimdall/extras/package/win32/build.sh -a x86_64 -d
 ```
 
-## VLC desktop debug
+## Heimdall desktop debug
 
-The VLC you download has all plugins structured in different folders, all in a `"plugins"` folder.
-But when you build VLC this is not the case. VLC cannot be used that way. It needs to be
+The Heimdall you download has all plugins structured in different folders, all in a `"plugins"` folder.
+But when you build Heimdall this is not the case. Heimdall cannot be used that way. It needs to be
 either *installed* with the following command:
 
 ```sh
 cd win64; make package-win-common
 ```
 
-You will end up with a `vlc-4.0.0-dev` folder with the vlc EXE's and DLL's in the
+You will end up with a `heimdall-4.0.0-dev` folder with the heimdall EXE's and DLL's in the
 proper place. You can debug from there. But this way of building is much slower than
 just building the files that have been modified.
 
 A faster way to debug is to just build with `build.sh` or even just calling make
 in the `win64` folder. In that case you need to setup your debugging environment to
-pick `libvlccore.dll`, `libvlc.dll` and plugins that you built. `libvlccore.dll` is
-found in `win64/src/.libs` and `libvlc.dll` is found in `win64/lib/.libs`. You need to
+pick `libheimdallcore.dll`, `libheimdall.dll` and plugins that you built. `libheimdallcore.dll` is
+found in `win64/src/.libs` and `libheimdall.dll` is found in `win64/lib/.libs`. You need to
 add these paths to your `PATH`.
 
 ```
-PATH="c:\path\to\sources\vlc\win64\lib\.libs;c:\path\to\sources\vlc\win64\src\.libs;C:\Windows\System32;C:\Windows;C:\Windows\System32\downlevel"
+PATH="c:\path\to\sources\heimdall\win64\lib\.libs;c:\path\to\sources\heimdall\win64\src\.libs;C:\Windows\System32;C:\Windows;C:\Windows\System32\downlevel"
 ```
 
-And when you run vlc.exe, you also need to set the `VLC_PLUGIN_PATH` environment variable
+And when you run heimdall.exe, you also need to set the `HEIMDALL_PLUGIN_PATH` environment variable
 to the folder with all the plugins you built:
 
 ```
-VLC_PLUGIN_PATH=c:\path\to\sources\vlc\win64\modules
+HEIMDALL_PLUGIN_PATH=c:\path\to\sources\heimdall\win64\modules
 ```
 
 # Future
 
-In the future it might be possible to build VLC with Meson. With a native Windows toolchain it might
+In the future it might be possible to build Heimdall with Meson. With a native Windows toolchain it might
 be possible to have proper Windows paths when compiling, which makes it even easier to
 develop (click on the file path on compilation error). It will also avoid mapping the
 PDB paths of UNIX paths to Windows paths.

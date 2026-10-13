@@ -1,7 +1,8 @@
 /*****************************************************************************
- * macosx.c: minimal Mac OS X module for vlc
+ * macosx.c: minimal Mac OS X module for heimdall
  *****************************************************************************
  * Copyright (C) 2001-2012 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Colin Delacroix <colin@zoy.org>
  *          Eugenio Jarosiewicz <ej0@cise.ufl.edu>
@@ -32,23 +33,23 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_window.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_window.h>
 
 /*****************************************************************************
  * External prototypes
  *****************************************************************************/
-int  OpenIntf     ( vlc_object_t * );
-void CloseIntf    ( vlc_object_t * );
+int  OpenIntf     ( heimdall_object_t * );
+void CloseIntf    ( heimdall_object_t * );
 
-int  WindowOpen   ( vlc_window_t * );
+int  WindowOpen   ( heimdall_window_t * );
 
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
 
-vlc_module_begin ()
+heimdall_module_begin ()
     /* Minimal interface. see intf.m */
     set_shortname( "Minimal Macosx" )
     add_shortcut( "minimal_macosx", "miosx" )
@@ -62,5 +63,5 @@ vlc_module_begin ()
         set_description( "Minimal Mac OS X Video Output Provider" )
         set_capability( "vout window", 50 )
         set_callback( WindowOpen )
-vlc_module_end ()
+heimdall_module_end ()
 

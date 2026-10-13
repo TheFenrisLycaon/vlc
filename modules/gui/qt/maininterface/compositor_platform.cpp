@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2024 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,13 +24,13 @@
 
 #include "maininterface/interface_window_handler.hpp"
 
-#include <vlc_window.h>
+#include <heimdall_window.h>
 
 #ifdef __APPLE__
 #include <objc/runtime.h>
 #endif
 
-using namespace vlc;
+using namespace heimdall;
 
 
 CompositorPlatform::CompositorPlatform(qt_intf_t *p_intf, QObject *parent)
@@ -131,7 +132,7 @@ void CompositorPlatform::unloadGUI()
     commonGUIDestroy();
 }
 
-bool CompositorPlatform::setupVoutWindow(vlc_window_t *p_wnd, VoutDestroyCb destroyCb)
+bool CompositorPlatform::setupVoutWindow(heimdall_window_t *p_wnd, VoutDestroyCb destroyCb)
 {
     if (m_wnd)
         return false;
@@ -139,20 +140,20 @@ bool CompositorPlatform::setupVoutWindow(vlc_window_t *p_wnd, VoutDestroyCb dest
     commonSetupVoutWindow(p_wnd, destroyCb);
 
 #ifdef __WIN32
-    p_wnd->type = VLC_WINDOW_TYPE_HWND;
+    p_wnd->type = HEIMDALL_WINDOW_TYPE_HWND;
     p_wnd->handle.hwnd = reinterpret_cast<void*>(m_videoWindow->winId());
 
     return true;
 #endif
 
 #ifdef __APPLE__
-    p_wnd->type = VLC_WINDOW_TYPE_NSOBJECT;
+    p_wnd->type = HEIMDALL_WINDOW_TYPE_NSOBJECT;
     p_wnd->handle.nsobject = reinterpret_cast<id>(m_videoWindow->winId());
 
     return true;
 #endif
 
-    vlc_assert_unreachable();
+    heimdall_assert_unreachable();
 }
 
 QWindow *CompositorPlatform::interfaceMainWindow() const
@@ -225,10 +226,10 @@ void CompositorPlatform::commitSurface()
     }
 }
 
-int CompositorPlatform::windowEnable(const vlc_window_cfg_t *)
+int CompositorPlatform::windowEnable(const heimdall_window_cfg_t *)
 {
     commonWindowEnable();
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 void CompositorPlatform::windowDisable()

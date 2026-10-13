@@ -2,6 +2,7 @@
  * cmd_resize.hpp
  *****************************************************************************
  * Copyright (C) 2003 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cyril Deguet     <asmax@via.ecp.fr>
  *          Olivier Teulière <ipkiss@via.ecp.fr>
@@ -29,7 +30,7 @@
 class WindowManager;
 class GenericLayout;
 class CtrlVideo;
-struct vlc_window;
+struct heimdall_window;
 
 
 /// Command to resize a layout
@@ -55,14 +56,14 @@ class CmdResizeVout: public CmdGeneric
 {
 public:
     /// Resize the given layout
-    CmdResizeVout( intf_thread_t *pIntf, struct vlc_window *pWnd,
+    CmdResizeVout( intf_thread_t *pIntf, struct heimdall_window *pWnd,
                    int width, int height );
     virtual ~CmdResizeVout() { }
     virtual void execute();
     virtual std::string getType() const { return "resize vout"; }
 
 private:
-    struct vlc_window *m_pWnd;
+    struct heimdall_window *m_pWnd;
     int m_width, m_height;
 };
 
@@ -72,14 +73,14 @@ class CmdSetFullscreen: public CmdGeneric
 {
 public:
     /// Resize the given layout
-    CmdSetFullscreen( intf_thread_t *pIntf, struct vlc_window *pWnd,
+    CmdSetFullscreen( intf_thread_t *pIntf, struct heimdall_window *pWnd,
                       bool fullscreen );
     virtual ~CmdSetFullscreen() { }
     virtual void execute();
     virtual std::string getType() const { return "toggle fullscreen"; }
 
 private:
-    struct vlc_window *m_pWnd;
+    struct heimdall_window *m_pWnd;
     bool m_bFullscreen;
 };
 #endif

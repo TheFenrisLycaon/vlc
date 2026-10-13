@@ -2,6 +2,7 @@
  * demux.hpp : matroska demuxer
  *****************************************************************************
  * Copyright (C) 2003-2004 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *          Steve Lhomme <steve.lhomme@free.fr>
@@ -21,8 +22,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_MKV_DEMUX_HPP_
-#define VLC_MKV_DEMUX_HPP_
+#ifndef HEIMDALL_MKV_DEMUX_HPP_
+#define HEIMDALL_MKV_DEMUX_HPP_
 
 #include "mkv.hpp"
 
@@ -33,7 +34,7 @@
 
 #include <memory>
 
-#include <vlc_threads.h>
+#include <heimdall_threads.h>
 
 namespace mkv {
 
@@ -47,9 +48,9 @@ public:
         :demuxer(demux)
         ,b_seekable(false)
         ,b_fastseekable(false)
-        ,i_pts(VLC_TICK_INVALID)
-        ,i_pcr(VLC_TICK_INVALID)
-        ,i_start_pts(VLC_TICK_0)
+        ,i_pts(HEIMDALL_TICK_INVALID)
+        ,i_pcr(HEIMDALL_TICK_INVALID)
+        ,i_start_pts(HEIMDALL_TICK_0)
         ,i_mk_chapter_time(0)
         ,meta(NULL)
         ,i_current_title(0)
@@ -59,7 +60,7 @@ public:
         ,trust_cues(trust_cues)
         ,ev(&demux)
     {
-        vlc_mutex_init( &lock_demuxer );
+        heimdall_mutex_init( &lock_demuxer );
     }
 
     virtual ~demux_sys_t();
@@ -69,12 +70,12 @@ public:
     bool                    b_seekable;
     bool                    b_fastseekable;
 
-    vlc_tick_t              i_pts;
-    vlc_tick_t              i_pcr;
-    vlc_tick_t              i_start_pts;
-    vlc_tick_t              i_mk_chapter_time;
+    heimdall_tick_t              i_pts;
+    heimdall_tick_t              i_pcr;
+    heimdall_tick_t              i_start_pts;
+    heimdall_tick_t              i_mk_chapter_time;
 
-    vlc_meta_t              *meta;
+    heimdall_meta_t              *meta;
 
     std::vector<input_title_t*>      titles; // matroska editions
     size_t                           i_current_title;
@@ -88,7 +89,7 @@ public:
     std::vector<virtual_segment_c*>  used_vsegments;
 
     /* duration of the stream */
-    vlc_tick_t              i_duration;
+    heimdall_tick_t              i_duration;
 
     const bool              trust_cues;
 
@@ -104,7 +105,7 @@ public:
         return p_current_vsegment;
     }
     virtual_chapter_c *FindVChapter( chapter_uid i_find_uid, virtual_segment_c * & p_vsegment_found ) override;
-    void SetHighlight( vlc_spu_highlight_t & ) override;
+    void SetHighlight( heimdall_spu_highlight_t & ) override;
 
     void PreloadFamily( const matroska_segment_c & of_segment );
     bool PreloadLinked();
@@ -117,7 +118,7 @@ public:
         if (!dvd_interpretor)
         {
             try {
-                dvd_interpretor = std::make_unique<dvd_command_interpretor_c>( vlc_object_logger( &demuxer ), *this );
+                dvd_interpretor = std::make_unique<dvd_command_interpretor_c>( heimdall_object_logger( &demuxer ), *this );
             } catch ( const std::bad_alloc & ) {
             }
         }
@@ -129,7 +130,7 @@ public:
         if (!ms_interpreter)
         {
             try {
-                ms_interpreter = std::make_unique<matroska_script_interpretor_c> ( vlc_object_logger( &demuxer ), *this );
+                ms_interpreter = std::make_unique<matroska_script_interpretor_c> ( heimdall_object_logger( &demuxer ), *this );
             } catch ( const std::bad_alloc & ) {
             }
         }
@@ -138,7 +139,7 @@ public:
     }
 
     uint8_t        palette[4][4];
-    vlc_mutex_t    lock_demuxer;
+    heimdall_mutex_t    lock_demuxer;
 
     /* event */
     event_thread_t ev;

@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2023 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,9 +19,9 @@
 import QtQuick
 import QtQuick.Window
 
-import VLC.MainInterface
-import VLC.Style
-import VLC.Util
+import Heimdall.MainInterface
+import Heimdall.Style
+import Heimdall.Util
 
 Item {
     id: root
@@ -45,7 +46,7 @@ Item {
     property bool enableBeginningFade: true
     property bool enableEndFade: true
 
-    property real fadeSize: VLCStyle.margin_normal
+    property real fadeSize: HeimdallStyle.margin_normal
 
     // Display scale may be a fractional size, but textures can not. Pixel aligned
     // aligns the visual size to the nearest multiple of number, depending on
@@ -129,7 +130,7 @@ Item {
             enabled: false
 
             OpacityAnimator {
-                duration: VLCStyle.duration_short
+                duration: HeimdallStyle.duration_short
                 easing.type: Easing.InOutSine
             }
         }
@@ -306,7 +307,7 @@ Item {
                 // Qt Bug: UniformAnimator does not work...
                 // FIXME: Is it fixed with Qt 6?
                 NumberAnimation {
-                    duration: VLCStyle.duration_veryShort
+                    duration: HeimdallStyle.duration_veryShort
                     easing.type: Easing.InOutSine
                 }
             }

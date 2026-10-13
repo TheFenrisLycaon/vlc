@@ -2,9 +2,10 @@
  * services_discovery.c : Services discovery using lua scripts
  *****************************************************************************
  * Copyright (C) 2010 VideoLAN and AUTHORS
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Fabio Ritrovato <sephiroth87 at videolan dot org>
- *          Rémi Duraffort <ivoire at videolan -dot- org>
+ * Authors: Fabio Ritrovato <sephiroth87 at lycaria dot org>
+ *          Rémi Duraffort <ivoire at lycaria -dot- org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,12 +27,12 @@
 #endif
 
 #include <assert.h>
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_services_discovery.h>
-#include <vlc_queue.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_services_discovery.h>
+#include <heimdall_queue.h>
 
-#include "vlc.h"
+#include "heimdall.h"
 #include "libs.h"
 
 /*****************************************************************************
@@ -44,7 +45,7 @@ static int Control( services_discovery_t *p_sd, int i_command, va_list args );
 
 // When successful, the returned string is stored on top of the lua
 // stack and remains valid as long as it is kept in the stack.
-static const char *vlclua_sd_description( vlc_object_t *obj, lua_State *L,
+static const char *heimdalllua_sd_description( heimdall_object_t *obj, lua_State *L,
                                           const char *filename )
 {
     lua_getglobal( L, "descriptor" );
@@ -76,17 +77,17 @@ static const char *vlclua_sd_description( vlc_object_t *obj, lua_State *L,
     return lua_tostring( L, -1 );
 }
 
-int vlclua_probe_sd( vlc_object_t *obj, const char *name )
+int heimdalllua_probe_sd( heimdall_object_t *obj, const char *name )
 {
-    vlc_probe_t *probe = (vlc_probe_t *)obj;
+    heimdall_probe_t *probe = (heimdall_probe_t *)obj;
 
-    char *filename = vlclua_find_file( "sd", name );
+    char *filename = heimdalllua_find_file( "sd", name );
     if( filename == NULL )
     {
         // File suddenly disappeared - maybe a race condition, no problem
         msg_Err( probe, "Couldn't probe lua services discovery script \"%s\".",
                  name );
-        return VLC_PROBE_CONTINUE;
+        return HEIMDALL_PROBE_CONTINUE;
     }
 
     lua_State *L = luaL_newstate();
@@ -94,35 +95,35 @@ int vlclua_probe_sd( vlc_object_t *obj, const char *name )
     {
         msg_Err( probe, "Could not create new Lua State" );
         free( filename );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
     luaL_openlibs( L );
-    if( vlclua_add_modules_path( L, filename ) )
+    if( heimdalllua_add_modules_path( L, filename ) )
     {
         msg_Err( probe, "Error while setting the module search path for %s",
                  filename );
         lua_close( L );
         free( filename );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
-    if( vlclua_dofile( obj, L, filename ) )
+    if( heimdalllua_dofile( obj, L, filename ) )
     {
         msg_Err( probe, "Error loading script %s: %s", filename,
                  lua_tostring( L, -1 ) );
         lua_close( L );
         free( filename );
-        return VLC_PROBE_CONTINUE;
+        return HEIMDALL_PROBE_CONTINUE;
     }
-    const char *description = vlclua_sd_description( obj, L, filename );
+    const char *description = heimdalllua_sd_description( obj, L, filename );
     if( description == NULL )
         description = name;
 
-    int r = VLC_ENOMEM;
+    int r = HEIMDALL_ENOMEM;
     char *name_esc = config_StringEscape( name );
     char *chain;
     if( asprintf( &chain, "lua{sd='%s'}", name_esc ) != -1 )
     {
-        r = vlc_sd_probe_Add( probe, chain, description, SD_CAT_INTERNET );
+        r = heimdall_sd_probe_Add( probe, chain, description, SD_CAT_INTERNET );
         free( chain );
     }
     free( name_esc );
@@ -142,8 +143,8 @@ typedef struct
     lua_State *L;
     char *psz_filename;
 
-    vlc_thread_t thread;
-    vlc_queue_t queue;
+    heimdall_thread_t thread;
+    heimdall_queue_t queue;
     bool dead;
 } services_discovery_sys_t;
 
@@ -156,10 +157,10 @@ struct sd_query
 /*****************************************************************************
  * Open: initialize and create stuff
  *****************************************************************************/
-int Open_LuaSD( vlc_object_t *p_this )
+int Open_LuaSD( heimdall_object_t *p_this )
 {
     if( lua_Disabled( p_this ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     services_discovery_t *p_sd = ( services_discovery_t * )p_this;
     services_discovery_sys_t *p_sys;
@@ -167,7 +168,7 @@ int Open_LuaSD( vlc_object_t *p_this )
     char *psz_name;
 
     if( !( p_sys = malloc( sizeof( services_discovery_sys_t ) ) ) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     if( !strcmp( p_sd->psz_name, "lua" ) ||
         !strcmp( p_sd->psz_name, "luasd" ) )
@@ -186,7 +187,7 @@ int Open_LuaSD( vlc_object_t *p_this )
 
     p_sd->p_sys = p_sys;
     p_sd->pf_control = Control;
-    p_sys->psz_filename = vlclua_find_file( "sd", psz_name );
+    p_sys->psz_filename = heimdalllua_find_file( "sd", psz_name );
     if( !p_sys->psz_filename )
     {
         msg_Err( p_sd, "Couldn't find lua services discovery script \"%s\".",
@@ -201,11 +202,11 @@ int Open_LuaSD( vlc_object_t *p_this )
         msg_Err( p_sd, "Could not create new Lua State" );
         goto error;
     }
-    vlclua_set_this( L, p_sd );
+    heimdalllua_set_this( L, p_sd );
     luaL_openlibs( L );
 
     static const luaL_Reg p_reg[] = { { NULL, NULL } };
-    luaL_register_namespace( L, "vlc", p_reg );
+    luaL_register_namespace( L, "heimdall", p_reg );
     luaopen_input( L );
     luaopen_msg( L );
     luaopen_object( L );
@@ -217,13 +218,13 @@ int Open_LuaSD( vlc_object_t *p_this )
     luaopen_xml( L );
     lua_pop( L, 1 );
 
-    if( vlclua_add_modules_path( L, p_sys->psz_filename ) )
+    if( heimdalllua_add_modules_path( L, p_sys->psz_filename ) )
     {
         msg_Warn( p_sd, "Error while setting the module search path for %s",
                   p_sys->psz_filename );
         goto error;
     }
-    if( vlclua_dofile( VLC_OBJECT(p_sd), L, p_sys->psz_filename ) )
+    if( heimdalllua_dofile( HEIMDALL_OBJECT(p_sd), L, p_sys->psz_filename ) )
     {
         msg_Err( p_sd, "Error loading script %s: %s", p_sys->psz_filename,
                   lua_tostring( L, lua_gettop( L ) ) );
@@ -232,39 +233,39 @@ int Open_LuaSD( vlc_object_t *p_this )
     }
 
     // No strdup(), just don't remove the string from the lua stack
-    p_sd->description = vlclua_sd_description( VLC_OBJECT(p_sd), L,
+    p_sd->description = heimdalllua_sd_description( HEIMDALL_OBJECT(p_sd), L,
                                                p_sys->psz_filename );
     if( p_sd->description == NULL )
         p_sd->description = p_sd->psz_name;
 
     p_sys->L = L;
     p_sys->dead = false;
-    vlc_queue_Init( &p_sys->queue, offsetof (struct sd_query, next) );
+    heimdall_queue_Init( &p_sys->queue, offsetof (struct sd_query, next) );
 
-    if( vlc_clone( &p_sys->thread, Run, p_sd ) )
+    if( heimdall_clone( &p_sys->thread, Run, p_sd ) )
     {
         goto error;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     if( L )
         lua_close( L );
     free( p_sys->psz_filename );
     free( p_sys );
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /*****************************************************************************
  * Close: cleanup
  *****************************************************************************/
-void Close_LuaSD( vlc_object_t *p_this )
+void Close_LuaSD( heimdall_object_t *p_this )
 {
     services_discovery_t *p_sd = ( services_discovery_t * )p_this;
     services_discovery_sys_t *p_sys = p_sd->p_sys;
 
-    vlc_queue_Kill( &p_sys->queue, &p_sys->dead );
-    vlc_join( p_sys->thread, NULL );
+    heimdall_queue_Kill( &p_sys->queue, &p_sys->dead );
+    heimdall_join( p_sys->thread, NULL );
     free( p_sys->psz_filename );
     lua_close( p_sys->L );
     free( p_sys );
@@ -275,7 +276,7 @@ void Close_LuaSD( vlc_object_t *p_this )
  ****************************************************************************/
 static void* Run( void *data )
 {
-    vlc_thread_set_name("vlc-lua-service");
+    heimdall_thread_set_name("heimdall-lua-service");
 
     services_discovery_t *p_sd = ( services_discovery_t * )data;
     services_discovery_sys_t *p_sys = p_sd->p_sys;
@@ -299,7 +300,7 @@ static void* Run( void *data )
     /* Main loop to handle search requests */
     struct sd_query *query;
 
-    while( (query = vlc_queue_DequeueKillable( &p_sys->queue,
+    while( (query = heimdall_queue_DequeueKillable( &p_sys->queue,
                                                &p_sys->dead )) != NULL )
     {
         /* Execute one query */
@@ -328,11 +329,11 @@ static int Control( services_discovery_t *p_sd, int i_command, va_list args )
         struct sd_query *query = malloc(sizeof (*query) + len);
 
         if (unlikely(query == NULL))
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
 
         query->next = NULL;
         memcpy(query->query, psz_query, len);
-        vlc_queue_Enqueue(&p_sys->queue, query);
+        heimdall_queue_Enqueue(&p_sys->queue, query);
         break;
     }
 
@@ -344,7 +345,7 @@ static int Control( services_discovery_t *p_sd, int i_command, va_list args )
     }
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -362,7 +363,7 @@ static int DoSearch( services_discovery_t *p_sd, const char *psz_query )
         msg_Err( p_sd, "The script '%s' does not define any 'search' function",
                  p_sys->psz_filename );
         lua_pop( L, 1 );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Push the query */
@@ -374,10 +375,10 @@ static int DoSearch( services_discovery_t *p_sd, const char *psz_query )
         msg_Err( p_sd, "Error while running the script '%s': %s",
                  p_sys->psz_filename, lua_tostring( L, lua_gettop( L ) ) );
         lua_pop( L, 1 );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /** List of capabilities */
@@ -393,12 +394,12 @@ static int FillDescriptor( services_discovery_t *p_sd,
                            services_discovery_descriptor_t *p_desc )
 {
     services_discovery_sys_t *p_sys = p_sd->p_sys;
-    int i_ret = VLC_EGENERIC;
+    int i_ret = HEIMDALL_EGENERIC;
 
     /* Create a new lua thread */
     lua_State *L = luaL_newstate();
 
-    if( vlclua_dofile( VLC_OBJECT(p_sd), L, p_sys->psz_filename ) )
+    if( heimdalllua_dofile( HEIMDALL_OBJECT(p_sd), L, p_sys->psz_filename ) )
     {
         msg_Err( p_sd, "Error loading script %s: %s", p_sys->psz_filename,
                  lua_tostring( L, -1 ) );
@@ -458,7 +459,7 @@ static int FillDescriptor( services_discovery_t *p_sd,
     }
 
     lua_pop( L, 1 );
-    i_ret = VLC_SUCCESS;
+    i_ret = HEIMDALL_SUCCESS;
 
 end:
     lua_close( L );

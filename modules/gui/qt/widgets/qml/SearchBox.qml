@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,9 +21,9 @@ import QtQuick.Templates as T
 import QtQuick.Layouts
 
 
-import VLC.MainInterface
-import VLC.Style
-import VLC.Widgets as Widgets
+import Heimdall.MainInterface
+import Heimdall.Style
+import Heimdall.Widgets as Widgets
 
 FocusScope {
     id: root
@@ -73,9 +74,9 @@ FocusScope {
 
         anchors.fill: parent
 
-        font.pixelSize: VLCStyle.icon_banner
+        font.pixelSize: HeimdallStyle.icon_banner
 
-        text: VLCIcons.search
+        text: HeimdallIcons.search
         description: qsTr("Filter")
 
         focus: true
@@ -134,7 +135,7 @@ FocusScope {
 
                     property: "height"
                     easing.type: Easing.InOutSine
-                    duration: VLCStyle.duration_long
+                    duration: HeimdallStyle.duration_long
                 }
 
                 onRunningChanged: {
@@ -162,10 +163,10 @@ FocusScope {
 
                 colorContext.palette: theme.palette
 
-                implicitWidth: VLCStyle.widthSearchInput
+                implicitWidth: HeimdallStyle.widthSearchInput
 
-                padding: VLCStyle.dp(6, VLCStyle.scale)
-                leftPadding: padding + VLCStyle.dp(4, VLCStyle.scale)
+                padding: HeimdallStyle.dp(6, HeimdallStyle.scale)
+                leftPadding: padding + HeimdallStyle.dp(4, HeimdallStyle.scale)
                 rightPadding: leftPadding + (insideRow.visible ? insideRow.width : 0.0)
 
                 radius: clearButton.radius
@@ -226,9 +227,9 @@ FocusScope {
 
                     anchors.verticalCenter: parent.verticalCenter
                     anchors.right: parent.right
-                    anchors.rightMargin: VLCStyle.margin_xxsmall
+                    anchors.rightMargin: HeimdallStyle.margin_xxsmall
 
-                    spacing: VLCStyle.margin_xxsmall
+                    spacing: HeimdallStyle.margin_xxsmall
 
                     visible: parent.height > height
 
@@ -240,7 +241,7 @@ FocusScope {
                         // Animating font properties with native rendering is probably not a good idea:
                         font.pixelSize: 0.6 * (contentItem.renderType === Text.QtRendering ? textField.height
                                                                                            : textField.implicitHeight)
-                        text: VLCIcons.ic_fluent_text_change_case_24_regular
+                        text: HeimdallIcons.ic_fluent_text_change_case_24_regular
 
                         description: qsTr("Case sensitive")
 
@@ -261,7 +262,7 @@ FocusScope {
                         // Animating font properties with native rendering is probably not a good idea:
                         font.pixelSize: 0.6 * (contentItem.renderType === Text.QtRendering ? textField.height
                                                                                            : textField.implicitHeight)
-                        text: VLCIcons.regex
+                        text: HeimdallIcons.regex
 
                         description: qsTr("Use regular expression")
 
@@ -282,7 +283,7 @@ FocusScope {
                         // Animating font properties with native rendering is probably not a good idea:
                         font.pixelSize: 0.6 * (contentItem.renderType === Text.QtRendering ? textField.height
                                                                                            : textField.implicitHeight)
-                        text: VLCIcons.close
+                        text: HeimdallIcons.close
 
                         description: qsTr("Clear")
 

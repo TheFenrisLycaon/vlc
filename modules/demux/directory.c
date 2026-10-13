@@ -2,6 +2,7 @@
  * directory.c : Use access readdir to output folder content to playlist
  *****************************************************************************
  * Copyright (C) 2014 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Julien 'Lta' BALLET <contact # lta . io >
  *
@@ -24,14 +25,14 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_demux.h>
-#include <vlc_input_item.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_demux.h>
+#include <heimdall_input_item.h>
+#include <heimdall_plugin.h>
 
 static int ReadDir(demux_t *demux, input_item_node_t *node)
 {
-    return vlc_stream_ReadDir(demux->s, node);
+    return heimdall_stream_ReadDir(demux->s, node);
 }
 
 static int Control(demux_t *demux, int query, va_list args)
@@ -41,38 +42,38 @@ static int Control(demux_t *demux, int query, va_list args)
         case DEMUX_GET_META:
         case DEMUX_GET_TYPE:
         {
-            return vlc_stream_vaControl(demux->s, query, args);
+            return heimdall_stream_vaControl(demux->s, query, args);
         }
         case DEMUX_HAS_UNSUPPORTED_META:
         {
             *(va_arg( args, bool * )) = false;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
     }
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
-static int Import_Dir( vlc_object_t *p_this )
+static int Import_Dir( heimdall_object_t *p_this )
 {
     demux_t *p_demux = (demux_t *)p_this;
 
     if( p_demux->s->pf_readdir == NULL )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     if( p_demux->p_input_item == NULL )
-        return VLC_ETIMEOUT;
+        return HEIMDALL_ETIMEOUT;
 
     p_demux->pf_readdir = ReadDir;
     p_demux->pf_control = Control;
     assert(p_demux->pf_demux == NULL);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_subcategory( SUBCAT_INPUT_DEMUX )
     set_shortname( N_("Directory") )
     set_description( N_("Directory import") )
     add_shortcut( "directory" )
     set_capability( "demux", 10 )
     set_callback( Import_Dir )
-vlc_module_end()
+heimdall_module_end()

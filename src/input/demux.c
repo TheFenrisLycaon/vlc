@@ -2,6 +2,7 @@
  * demux.c
  *****************************************************************************
  * Copyright (C) 1999-2004 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Laurent Aimar <fenrir@via.ecp.fr>
  *
@@ -28,13 +29,13 @@
 #include <limits.h>
 
 #include "demux.h"
-#include "../libvlc.h"
-#include <vlc_codec.h>
-#include <vlc_configuration.h>
-#include <vlc_meta.h>
-#include <vlc_url.h>
-#include <vlc_modules.h>
-#include <vlc_strings.h>
+#include "../libheimdall.h"
+#include <heimdall_codec.h>
+#include <heimdall_configuration.h>
+#include <heimdall_meta.h>
+#include <heimdall_url.h>
+#include <heimdall_modules.h>
+#include <heimdall_strings.h>
 #include "input_internal.h"
 
 typedef const struct
@@ -47,7 +48,7 @@ typedef const struct
 static int demux_mapping_cmp( const void *k, const void *v )
 {
     demux_mapping* entry = v;
-    return vlc_ascii_strcasecmp( k, entry->key );
+    return heimdall_ascii_strcasecmp( k, entry->key );
 }
 
 static const char *demux_NameFromMimeType(const char *mime)
@@ -70,52 +71,52 @@ static const char *demux_NameFromMimeType(const char *mime)
     return (type != NULL) ? type->name : "any";
 }
 
-demux_t *demux_New( vlc_object_t *p_obj, const char *module, const char *url,
+demux_t *demux_New( heimdall_object_t *p_obj, const char *module, const char *url,
                     stream_t *s, es_out_t *out )
 {
     assert(s != NULL );
     return demux_NewAdvanced( p_obj, NULL, module, url, s, out, false );
 }
 
-struct vlc_demux_private
+struct heimdall_demux_private
 {
     module_t *module;
 };
 
 static void demux_DestroyDemux(demux_t *demux)
 {
-    struct vlc_demux_private *priv = vlc_stream_Private(demux);
+    struct heimdall_demux_private *priv = heimdall_stream_Private(demux);
 
     module_unneed(demux, priv->module);
     free(demux->psz_filepath);
     free(demux->psz_name);
 
     assert(demux->s != NULL);
-    vlc_stream_Delete(demux->s);
+    heimdall_stream_Delete(demux->s);
 }
 
 static int demux_Probe(void *func, bool forced, va_list ap)
 {
-    int (*probe)(vlc_object_t *) = func;
+    int (*probe)(heimdall_object_t *) = func;
     demux_t *demux = va_arg(ap, demux_t *);
 
     /* Restore input stream offset (in case previous probed demux failed to
      * to do so). */
-    if (vlc_stream_Tell(demux->s) != 0 && vlc_stream_Seek(demux->s, 0))
+    if (heimdall_stream_Tell(demux->s) != 0 && heimdall_stream_Seek(demux->s, 0))
     {
         msg_Err(demux, "seek failure before probing");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     demux->obj.force = forced;
 
-    int ret = probe(VLC_OBJECT(demux));
+    int ret = probe(HEIMDALL_OBJECT(demux));
     if (ret)
-        vlc_objres_clear(VLC_OBJECT(demux));
+        heimdall_objres_clear(HEIMDALL_OBJECT(demux));
     return ret;
 }
 
-demux_t *demux_NewAdvanced( vlc_object_t *p_obj, input_thread_t *p_input,
+demux_t *demux_NewAdvanced( heimdall_object_t *p_obj, input_thread_t *p_input,
                             const char *module, const char *url,
                             stream_t *s, es_out_t *out, bool b_preparsing )
 {
@@ -125,15 +126,15 @@ demux_t *demux_NewAdvanced( vlc_object_t *p_obj, input_thread_t *p_input,
         return NULL;
     }
 
-    struct vlc_demux_private *priv;
-    demux_t *p_demux = vlc_stream_CustomNew(p_obj, demux_DestroyDemux,
+    struct heimdall_demux_private *priv;
+    demux_t *p_demux = heimdall_stream_CustomNew(p_obj, demux_DestroyDemux,
                                             sizeof (*priv), "demux");
 
     if (unlikely(p_demux == NULL))
         return NULL;
 
     assert(s != NULL);
-    priv = vlc_stream_Private(p_demux);
+    priv = heimdall_stream_Private(p_demux);
 
     p_demux->p_input_item = p_input ? input_GetItem(p_input) : NULL;
     p_demux->psz_name = strdup(module);
@@ -147,7 +148,7 @@ demux_t *demux_NewAdvanced( vlc_object_t *p_obj, input_thread_t *p_input,
     p_demux->psz_location = p_demux->psz_url + 1 + (p - url);
     if (strncmp(p_demux->psz_location, "//", 2) == 0)
         p_demux->psz_location += 2;
-    p_demux->psz_filepath = vlc_uri2path(url); /* parse URL */
+    p_demux->psz_filepath = heimdall_uri2path(url); /* parse URL */
 
     if( !b_preparsing )
         msg_Dbg( p_obj, "creating demux \"%s\", URL: %s, path: %s",
@@ -182,7 +183,7 @@ demux_t *demux_NewAdvanced( vlc_object_t *p_obj, input_thread_t *p_input,
         const char *ext = strrchr(p_demux->psz_filepath, '.');
 
         if (ext != NULL) {
-            if (b_preparsing && !vlc_ascii_strcasecmp(ext, ".mp3"))
+            if (b_preparsing && !heimdall_ascii_strcasecmp(ext, ".mp3"))
                 module = "mpga";
             else
             if (likely(asprintf(&modbuf, "ext-%s", ext + 1) >= 0))
@@ -193,14 +194,14 @@ demux_t *demux_NewAdvanced( vlc_object_t *p_obj, input_thread_t *p_input,
         strict = false;
     }
 
-    priv->module = vlc_module_load(vlc_object_logger(p_demux), "demux", module,
+    priv->module = heimdall_module_load(heimdall_object_logger(p_demux), "demux", module,
                                    strict, demux_Probe, p_demux);
     free(modbuf);
 
     if (priv->module == NULL)
         goto error;
 
-    var_Create(p_demux, "module-name", VLC_VAR_STRING);
+    var_Create(p_demux, "module-name", HEIMDALL_VAR_STRING);
     var_SetString(p_demux, "module-name", module_get_object(priv->module));
 
     return p_demux;
@@ -226,19 +227,19 @@ int demux_Demux(demux_t *demux)
         input_item_node_t *node = input_item_node_Create(demux->p_input_item);
 
         if (unlikely(node == NULL))
-            return VLC_DEMUXER_EGENERIC;
+            return HEIMDALL_DEMUXER_EGENERIC;
 
         if (demux_ReadDir(demux, node)) {
              input_item_node_Delete(node);
-             return VLC_DEMUXER_EGENERIC;
+             return HEIMDALL_DEMUXER_EGENERIC;
         }
 
         if (es_out_Control(demux->out, ES_OUT_POST_SUBNODE, node))
             input_item_node_Delete(node);
-        return VLC_DEMUXER_EOF;
+        return HEIMDALL_DEMUXER_EOF;
     }
 
-    return VLC_DEMUXER_SUCCESS;
+    return HEIMDALL_DEMUXER_SUCCESS;
 }
 
 #define static_control_match(foo) \
@@ -258,7 +259,7 @@ int demux_vaControl( demux_t *demux, int query, va_list args )
             } else {
                 *can_seek = false;
             }
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
         case DEMUX_CAN_PAUSE:
         {
@@ -268,7 +269,7 @@ int demux_vaControl( demux_t *demux, int query, va_list args )
             } else {
                 *can_pause = false;
             }
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
         case DEMUX_CAN_RECORD:
         {
@@ -278,7 +279,7 @@ int demux_vaControl( demux_t *demux, int query, va_list args )
             } else {
                 *can_record = false;
             }
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
         case DEMUX_CAN_CONTROL_PACE:
         {
@@ -288,7 +289,7 @@ int demux_vaControl( demux_t *demux, int query, va_list args )
             } else {
                 *can_control_pace = false;
             }
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
         case DEMUX_CAN_CONTROL_RATE:
         {
@@ -298,7 +299,7 @@ int demux_vaControl( demux_t *demux, int query, va_list args )
             } else {
                 *can_control_rate = false;
             }
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
         case DEMUX_HAS_UNSUPPORTED_META:
         {
@@ -308,14 +309,14 @@ int demux_vaControl( demux_t *demux, int query, va_list args )
             } else {
                 *has_unsupported_meta = false;
             }
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
         case DEMUX_GET_PTS_DELAY:
             if (demux->ops->demux.get_pts_delay != NULL) {
-                vlc_tick_t *pts_delay = va_arg(args, vlc_tick_t *);
+                heimdall_tick_t *pts_delay = va_arg(args, heimdall_tick_t *);
                 return demux->ops->demux.get_pts_delay(demux, pts_delay);
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         case DEMUX_GET_TITLE_INFO:
             if (demux->ops->demux.get_title_info != NULL) {
                 input_title_t ***title_info = va_arg(args, input_title_t ***);
@@ -324,92 +325,92 @@ int demux_vaControl( demux_t *demux, int query, va_list args )
                 int *pi_seekpoint_offset = va_arg(args, int *);
                 return demux->ops->demux.get_title_info(demux, title_info, size, pi_title_offset, pi_seekpoint_offset);
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         case DEMUX_GET_TITLE:
             if (demux->ops->demux.get_title != NULL) {
                 int *title = va_arg(args, int *);
                 return demux->ops->demux.get_title(demux, title);
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         case DEMUX_GET_SEEKPOINT:
             if (demux->ops->demux.get_seekpoint != NULL) {
                 int *seekpoint = va_arg(args, int *);
                 return demux->ops->demux.get_seekpoint(demux, seekpoint);
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         case DEMUX_GET_META:
             if (demux->ops->get_meta != NULL) {
-                vlc_meta_t *meta = va_arg(args, vlc_meta_t *);
+                heimdall_meta_t *meta = va_arg(args, heimdall_meta_t *);
                 return demux->ops->get_meta(demux, meta);
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         case DEMUX_GET_SIGNAL:
             if (demux->ops->get_signal != NULL) {
                 double *quality = va_arg(args, double *);
                 double *strength = va_arg(args, double *);
                 return demux->ops->get_signal(demux, quality, strength);
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         case DEMUX_GET_TYPE:
             if (demux->ops->get_type != NULL) {
                 int *type = va_arg(args, int *);
                 return demux->ops->get_type(demux, type);
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         case DEMUX_GET_POSITION:
             if (demux->ops->demux.get_position != NULL) {
                 *va_arg(args, double *) = demux->ops->demux.get_position(demux);
-                return VLC_SUCCESS;
+                return HEIMDALL_SUCCESS;
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         case DEMUX_GET_LENGTH:
             if (demux->ops->demux.get_length != NULL) {
-                *va_arg(args, vlc_tick_t *) = demux->ops->demux.get_length(demux);
-                return VLC_SUCCESS;
+                *va_arg(args, heimdall_tick_t *) = demux->ops->demux.get_length(demux);
+                return HEIMDALL_SUCCESS;
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         case DEMUX_GET_TIME:
             if (demux->ops->demux.get_time != NULL) {
-                *va_arg(args, vlc_tick_t *) = demux->ops->demux.get_time(demux);
-                return VLC_SUCCESS;
+                *va_arg(args, heimdall_tick_t *) = demux->ops->demux.get_time(demux);
+                return HEIMDALL_SUCCESS;
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         case DEMUX_GET_NORMAL_TIME:
             if (demux->ops->demux.get_normal_time != NULL) {
-                vlc_tick_t *normal_time = va_arg(args, vlc_tick_t *);
+                heimdall_tick_t *normal_time = va_arg(args, heimdall_tick_t *);
                 return demux->ops->demux.get_normal_time(demux, normal_time);
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         case DEMUX_GET_FPS:
             if (demux->ops->demux.get_fps != NULL) {
                 double *fps = va_arg(args, double *);
                 return demux->ops->demux.get_fps(demux, fps);
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         case DEMUX_GET_ATTACHMENTS:
             if (demux->ops->demux.get_attachments != NULL) {
                 input_attachment_t ***attachments = va_arg(args, input_attachment_t ***);
                 return demux->ops->demux.get_attachments(demux, attachments);
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         case DEMUX_SET_SEEKPOINT:
             if (demux->ops->set_seek_point != NULL) {
                 int seekpoint = va_arg(args, int);
                 return demux->ops->set_seek_point(demux, seekpoint);
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         case DEMUX_SET_TITLE:
             if (demux->ops->set_title != NULL) {
                 int title = va_arg(args, int);
                 return demux->ops->set_title(demux, title);
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         case DEMUX_SET_PAUSE_STATE:
             if (demux->ops->set_pause_state != NULL) {
                 bool pause_state = (bool)va_arg(args, int);
                 return demux->ops->set_pause_state(demux, pause_state);
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         case DEMUX_SET_RECORD_STATE:
             if (demux->ops->demux.set_record_state != NULL) {
                 bool record_state = (bool)va_arg(args, int);
@@ -419,7 +420,7 @@ int demux_vaControl( demux_t *demux, int query, va_list args )
                 }
                 return demux->ops->demux.set_record_state(demux, record_state, dir_path);
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         case DEMUX_SET_POSITION:
         {
             if (demux->ops->demux.set_position != NULL) {
@@ -427,112 +428,112 @@ int demux_vaControl( demux_t *demux, int query, va_list args )
                 bool precise = (bool)va_arg(args, int);
                 return demux->ops->demux.set_position(demux, position, precise);
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
         case DEMUX_SET_TIME:
         {
             if (demux->ops->demux.set_time != NULL) {
-                vlc_tick_t time = va_arg(args, vlc_tick_t);
+                heimdall_tick_t time = va_arg(args, heimdall_tick_t);
                 bool precise = (bool)va_arg(args, int);
                 return demux->ops->demux.set_time(demux, time, precise);
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
         case DEMUX_SET_NEXT_DEMUX_TIME:
             if (demux->ops->demux.set_next_demux_time != NULL) {
-                vlc_tick_t next_demux_time = va_arg(args, vlc_tick_t);
+                heimdall_tick_t next_demux_time = va_arg(args, heimdall_tick_t);
                 return demux->ops->demux.set_next_demux_time(demux, next_demux_time);
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         case DEMUX_SET_RATE:
             if (demux->ops->demux.set_next_demux_time != NULL) {
                 float *rate = va_arg(args, float *);
                 return demux->ops->demux.set_rate(demux, rate);
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         case DEMUX_SET_GROUP_DEFAULT:
             if (demux->ops->demux.set_group_default != NULL) {
                 return demux->ops->demux.set_group_default(demux);
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         case DEMUX_SET_GROUP_ALL:
             if (demux->ops->demux.set_group_all != NULL) {
                 return demux->ops->demux.set_group_all(demux);
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         case DEMUX_SET_GROUP_LIST:
             if (demux->ops->demux.set_group_list != NULL) {
                 size_t size = va_arg(args, size_t);
                 const int *idx = va_arg(args, const int *);
                 return demux->ops->demux.set_group_list(demux, size, idx);
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         case DEMUX_SET_ES:
             if (demux->ops->demux.set_es != NULL) {
                 int es = va_arg(args, int);
                 return demux->ops->demux.set_es(demux, es);
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         case DEMUX_SET_ES_LIST:
             if (demux->ops->demux.set_es_list != NULL) {
                 size_t size = va_arg(args, size_t);
                 const int *idx = va_arg(args, const int *);
                 return demux->ops->demux.set_es_list(demux, size, idx);
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         case DEMUX_NAV_ACTIVATE:
             if (demux->ops->demux.nav_activate != NULL) {
                 return demux->ops->demux.nav_activate(demux);
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         case DEMUX_NAV_UP:
             if (demux->ops->demux.nav_up != NULL) {
                 return demux->ops->demux.nav_up(demux);
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         case DEMUX_NAV_DOWN:
             if (demux->ops->demux.nav_down != NULL) {
                 return demux->ops->demux.nav_down(demux);
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         case DEMUX_NAV_LEFT:
             if (demux->ops->demux.nav_left != NULL) {
                 return demux->ops->demux.nav_left(demux);
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         case DEMUX_NAV_RIGHT:
             if (demux->ops->demux.nav_right != NULL) {
                 return demux->ops->demux.nav_right(demux);
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         case DEMUX_NAV_POPUP:
             if (demux->ops->demux.nav_popup != NULL) {
                 return demux->ops->demux.nav_popup(demux);
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         case DEMUX_NAV_MENU:
             if (demux->ops->demux.nav_menu != NULL) {
                 return demux->ops->demux.nav_menu(demux);
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         case DEMUX_FILTER_ENABLE:
             if (demux->ops->demux.filter_enable != NULL) {
                 return demux->ops->demux.filter_enable(demux);
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         case DEMUX_FILTER_DISABLE:
             if (demux->ops->demux.filter_disable != NULL) {
                 return demux->ops->demux.filter_disable(demux);
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         case DEMUX_TEST_AND_CLEAR_FLAGS:
             if (demux->ops->demux.test_and_clear_flags != NULL) {
                 unsigned *flags = va_arg(args, unsigned *);
                 return demux->ops->demux.test_and_clear_flags(demux, flags);
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 }
 
@@ -546,12 +547,12 @@ int demux_vaControlHelper( stream_t *s,
 {
     int64_t i_tell;
     double  f, *pf;
-    vlc_tick_t i64;
+    heimdall_tick_t i64;
 
     if( i_end < 0 )    i_end   = stream_Size( s );
     if( i_start < 0 )  i_start = 0;
     if( i_align <= 0 ) i_align = 1;
-    i_tell = vlc_stream_Tell( s );
+    i_tell = heimdall_stream_Tell( s );
 
     static_control_match(CAN_PAUSE);
     static_control_match(CAN_CONTROL_PACE);
@@ -567,7 +568,7 @@ int demux_vaControlHelper( stream_t *s,
             bool *b = va_arg( args, bool * );
 
             if( (i_bitrate <= 0 && i_start >= i_end)
-             || vlc_stream_Control( s, STREAM_CAN_SEEK, b ) )
+             || heimdall_stream_Control( s, STREAM_CAN_SEEK, b ) )
                 *b = false;
             break;
         }
@@ -579,23 +580,23 @@ int demux_vaControlHelper( stream_t *s,
         case DEMUX_GET_SIGNAL:
         case DEMUX_GET_TYPE:
         case DEMUX_SET_PAUSE_STATE:
-            return vlc_stream_vaControl( s, i_query, args );
+            return heimdall_stream_vaControl( s, i_query, args );
 
         case DEMUX_GET_LENGTH:
             if( i_bitrate > 0 && i_end > i_start )
             {
-                *va_arg( args, vlc_tick_t * ) = vlc_tick_from_samples((i_end - i_start) * 8, i_bitrate);
-                return VLC_SUCCESS;
+                *va_arg( args, heimdall_tick_t * ) = heimdall_tick_from_samples((i_end - i_start) * 8, i_bitrate);
+                return HEIMDALL_SUCCESS;
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
         case DEMUX_GET_TIME:
             if( i_bitrate > 0 && i_tell >= i_start )
             {
-                *va_arg( args, vlc_tick_t * ) = vlc_tick_from_samples((i_tell - i_start) * 8, i_bitrate);
-                return VLC_SUCCESS;
+                *va_arg( args, heimdall_tick_t * ) = heimdall_tick_from_samples((i_tell - i_start) * 8, i_bitrate);
+                return HEIMDALL_SUCCESS;
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
         case DEMUX_GET_POSITION:
             pf = va_arg( args, double * );
@@ -603,11 +604,11 @@ int demux_vaControlHelper( stream_t *s,
             {
                 *pf = (double)( i_tell - i_start ) /
                       (double)( i_end  - i_start );
-                return VLC_SUCCESS;
+                return HEIMDALL_SUCCESS;
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         case DEMUX_GET_NORMAL_TIME:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
         case DEMUX_SET_POSITION:
             f = va_arg( args, double );
@@ -615,26 +616,26 @@ int demux_vaControlHelper( stream_t *s,
             {
                 int64_t i_block = (f * ( i_end - i_start )) / i_align;
 
-                if( vlc_stream_Seek( s, i_start + i_block * i_align ) )
+                if( heimdall_stream_Seek( s, i_start + i_block * i_align ) )
                 {
-                    return VLC_EGENERIC;
+                    return HEIMDALL_EGENERIC;
                 }
-                return VLC_SUCCESS;
+                return HEIMDALL_SUCCESS;
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
         case DEMUX_SET_TIME:
-            i64 = va_arg( args, vlc_tick_t );
+            i64 = va_arg( args, heimdall_tick_t );
             if( i_bitrate > 0 && i64 >= 0 )
             {
-                int64_t i_block = samples_from_vlc_tick( i64, i_bitrate ) / (8 * i_align);
-                if( vlc_stream_Seek( s, i_start + i_block * i_align ) )
+                int64_t i_block = samples_from_heimdall_tick( i64, i_bitrate ) / (8 * i_align);
+                if( heimdall_stream_Seek( s, i_start + i_block * i_align ) )
                 {
-                    return VLC_EGENERIC;
+                    return HEIMDALL_EGENERIC;
                 }
-                return VLC_SUCCESS;
+                return HEIMDALL_SUCCESS;
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
         case DEMUX_GET_FPS:
         case DEMUX_HAS_UNSUPPORTED_META:
@@ -659,7 +660,7 @@ int demux_vaControlHelper( stream_t *s,
         case DEMUX_NAV_MENU:
         case DEMUX_FILTER_ENABLE:
         case DEMUX_FILTER_DISABLE:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
         case DEMUX_SET_TITLE:
         case DEMUX_SET_SEEKPOINT:
@@ -667,9 +668,9 @@ int demux_vaControlHelper( stream_t *s,
             assert(0);
         default:
             msg_Err( s, "unknown query 0x%x in %s", i_query, __func__ );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 struct packetizer_owner
@@ -681,9 +682,9 @@ struct packetizer_owner
 /****************************************************************************
  * Utility functions
  ****************************************************************************/
-decoder_t *demux_PacketizerNew( vlc_object_t *p_demux, es_format_t *p_fmt, const char *psz_msg )
+decoder_t *demux_PacketizerNew( heimdall_object_t *p_demux, es_format_t *p_fmt, const char *psz_msg )
 {
-    struct packetizer_owner *owner = vlc_custom_create( p_demux, sizeof( *owner ),
+    struct packetizer_owner *owner = heimdall_custom_create( p_demux, sizeof( *owner ),
                                       "demux packetizer" );
     if( !owner )
     {
@@ -704,7 +705,7 @@ decoder_t *demux_PacketizerNew( vlc_object_t *p_demux, es_format_t *p_fmt, const
     if( !p_packetizer->p_module )
     {
         es_format_Clean( p_fmt );
-        vlc_object_delete(p_packetizer);
+        heimdall_object_delete(p_packetizer);
         msg_Err( p_demux, "cannot find packetizer for %s", psz_msg );
         return NULL;
     }
@@ -720,8 +721,8 @@ void demux_PacketizerDestroy( decoder_t *p_packetizer )
     es_format_Clean( &owner->fmt_in );
     es_format_Clean( &p_packetizer->fmt_out );
     if( p_packetizer->p_description )
-        vlc_meta_Delete( p_packetizer->p_description );
-    vlc_object_delete(p_packetizer);
+        heimdall_meta_Delete( p_packetizer->p_description );
+    heimdall_object_delete(p_packetizer);
 }
 
 unsigned demux_TestAndClearFlags( demux_t *p_demux, unsigned flags )
@@ -753,14 +754,14 @@ int demux_GetSeekpoint( demux_t *p_demux )
 
 static demux_t *demux_FilterNew( demux_t *p_next, const char *p_name )
 {
-    struct vlc_demux_private *priv;
-    demux_t *p_demux = vlc_stream_CustomNew(VLC_OBJECT(p_next),
+    struct heimdall_demux_private *priv;
+    demux_t *p_demux = heimdall_stream_CustomNew(HEIMDALL_OBJECT(p_next),
                                             demux_DestroyDemux, sizeof (*priv),
                                             "demux filter");
     if (unlikely(p_demux == NULL))
         return NULL;
 
-    priv = vlc_stream_Private(p_demux);
+    priv = heimdall_stream_Private(p_demux);
     p_demux->s            = p_next;
     p_demux->p_input_item = NULL;
     p_demux->p_sys        = NULL;
@@ -813,7 +814,7 @@ demux_t *demux_FilterChainNew( demux_t *p_demux, const char *psz_chain )
 static bool demux_filter_enable_disable(demux_t *p_demux,
                                         const char *psz_demux, bool b_enable)
 {
-    struct vlc_demux_private *priv = vlc_stream_Private(p_demux);
+    struct heimdall_demux_private *priv = heimdall_stream_Private(p_demux);
 
     if ( psz_demux &&
         (strcmp(module_GetShortName(priv->module), psz_demux) == 0

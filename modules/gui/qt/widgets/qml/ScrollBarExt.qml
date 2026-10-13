@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2025 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,7 +20,7 @@
 import QtQuick
 import QtQuick.Templates as T
 
-import VLC.Style
+import Heimdall.Style
 
 T.ScrollBar {
     id: control
@@ -29,7 +30,7 @@ T.ScrollBar {
     implicitHeight: Math.max(implicitBackgroundHeight + topInset + bottomInset,
                              implicitContentHeight + topPadding + bottomPadding)
 
-    padding: VLCStyle.dp(2, VLCStyle.scale)
+    padding: HeimdallStyle.dp(2, HeimdallStyle.scale)
     visible: policy !== T.ScrollBar.AlwaysOff && ((background && background.opacity > 0.0) || (contentItem && contentItem.opacity > 0.0))
     minimumSize: horizontal ? (height / width) : (width / height)
 
@@ -61,8 +62,8 @@ T.ScrollBar {
     }
 
     contentItem: Rectangle {
-        implicitWidth: control.interacting ? VLCStyle.scrollBarInteractingSize : VLCStyle.scrollBarNonInteractingSize
-        implicitHeight: control.interacting ? VLCStyle.scrollBarInteractingSize : VLCStyle.scrollBarNonInteractingSize
+        implicitWidth: control.interacting ? HeimdallStyle.scrollBarInteractingSize : HeimdallStyle.scrollBarNonInteractingSize
+        implicitHeight: control.interacting ? HeimdallStyle.scrollBarInteractingSize : HeimdallStyle.scrollBarNonInteractingSize
 
         radius: (control.horizontal ? height : width) / 2
         color: theme.fg.secondary
@@ -72,7 +73,7 @@ T.ScrollBar {
         component SizeBehavior : Behavior {
             NumberAnimation {
                 easing.type: Easing.OutSine
-                duration: VLCStyle.duration_veryShort
+                duration: HeimdallStyle.duration_veryShort
             }
         }
 

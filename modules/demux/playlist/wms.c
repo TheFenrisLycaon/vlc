@@ -2,6 +2,7 @@
  * wms.c : Windows Media Server metafile format
  *****************************************************************************
  * Copyright (C) 2004-2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Clément Stenac <zorglub@videolan.org>
  * Authors: Sigmund Augdal Helberg <dnumgis@videolan.org>
@@ -25,9 +26,9 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_access.h>
-#include <vlc_charset.h>
+#include <heimdall_common.h>
+#include <heimdall_access.h>
+#include <heimdall_charset.h>
 
 #include "playlist.h"
 
@@ -35,7 +36,7 @@ static int ReadDir(stream_t *demux, input_item_node_t *subitems)
 {
     char *line;
 
-    while ((line = vlc_stream_ReadLine(demux->s)) != NULL)
+    while ((line = heimdall_stream_ReadLine(demux->s)) != NULL)
     {
         if (!IsUTF8(line))
             goto skip;
@@ -65,20 +66,20 @@ static int ReadDir(stream_t *demux, input_item_node_t *subitems)
 skip:
         free(line);
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-int Import_WMS(vlc_object_t *obj)
+int Import_WMS(heimdall_object_t *obj)
 {
     stream_t *demux = (stream_t *)obj;
     const uint8_t *peek;
 
-    if (vlc_stream_Peek(demux->s, &peek, 10) < 10
+    if (heimdall_stream_Peek(demux->s, &peek, 10) < 10
      || strncmp((const char *)peek, "[Reference]", 11))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     msg_Dbg(demux, "found WMS metafile");
     demux->pf_readdir = ReadDir;
     demux->pf_control = PlaylistControl;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

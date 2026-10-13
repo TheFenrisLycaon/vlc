@@ -2,6 +2,7 @@
  * xwd.c: X Window system raster image dump pseudo-decoder
  *****************************************************************************
  * Copyright (C) 2012 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -28,18 +29,18 @@
 #endif
 #include <X11/XWDFile.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
 
 static int Decode (decoder_t *dec, block_t *block)
 {
     picture_t *pic = NULL;
 
     if (block == NULL) /* No Drain */
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
 
-    if (block->i_pts == VLC_TICK_INVALID)
+    if (block->i_pts == HEIMDALL_TICK_INVALID)
         goto drop; /* undated block, should never happen */
     if (block->i_buffer < sz_XWDheader)
         goto drop;
@@ -59,33 +60,33 @@ static int Decode (decoder_t *dec, block_t *block)
     block->i_buffer -= hdrlen;
 
     /* Parse XWD header */
-    vlc_fourcc_t chroma = 0;
+    heimdall_fourcc_t chroma = 0;
     switch (ntohl(hdr->pixmap_depth))
     {
         case 8:
             if (ntohl(hdr->bits_per_pixel) == 8)
-                chroma = VLC_CODEC_RGB233;
+                chroma = HEIMDALL_CODEC_RGB233;
             break;
         case 15:
             if (ntohl(hdr->bits_per_pixel) == 16)
                 chroma = ntohl(hdr->byte_order) == 0 /* LSBFirst */ ?
-                    VLC_CODEC_RGB555LE : VLC_CODEC_RGB555BE;
+                    HEIMDALL_CODEC_RGB555LE : HEIMDALL_CODEC_RGB555BE;
             break;
         case 16:
             if (ntohl(hdr->bits_per_pixel) == 16)
                 chroma = ntohl(hdr->byte_order) == 0 /* LSBFirst */ ?
-                    VLC_CODEC_RGB565LE : VLC_CODEC_RGB565BE;
+                    HEIMDALL_CODEC_RGB565LE : HEIMDALL_CODEC_RGB565BE;
             break;
         case 24:
             switch (ntohl(hdr->bits_per_pixel))
             {
-                case 32: chroma = VLC_CODEC_XRGB; break;
-                case 24: chroma = VLC_CODEC_RGB24; break;
+                case 32: chroma = HEIMDALL_CODEC_XRGB; break;
+                case 24: chroma = HEIMDALL_CODEC_RGB24; break;
             }
             break;
         case 32:
             if (ntohl(hdr->bits_per_pixel) == 32)
-                chroma = VLC_CODEC_ARGB;
+                chroma = HEIMDALL_CODEC_ARGB;
             break;
     }
     /* TODO: check image endianness, set RGB mask */
@@ -116,25 +117,25 @@ static int Decode (decoder_t *dec, block_t *block)
 drop:
     block_Release(block);
     decoder_QueueVideo(dec, pic);
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }
 
-static int Open(vlc_object_t *obj)
+static int Open(heimdall_object_t *obj)
 {
     decoder_t *dec = (decoder_t *)obj;
 
-    if (dec->fmt_in->i_codec != VLC_CODEC_XWD)
-        return VLC_EGENERIC;
+    if (dec->fmt_in->i_codec != HEIMDALL_CODEC_XWD)
+        return HEIMDALL_EGENERIC;
 
     dec->pf_decode = Decode;
     es_format_Copy(&dec->fmt_out, dec->fmt_in);
-    dec->fmt_out.i_codec = VLC_CODEC_XRGB;
-    return VLC_SUCCESS;
+    dec->fmt_out.i_codec = HEIMDALL_CODEC_XRGB;
+    return HEIMDALL_SUCCESS;
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_description(N_("XWD image decoder"))
     set_capability("video decoder", 50)
     set_subcategory(SUBCAT_INPUT_VCODEC)
     set_callback(Open)
-vlc_module_end()
+heimdall_module_end()

@@ -1,7 +1,8 @@
 /*****************************************************************************
- * algo_phosphor.c : Phosphor algorithm for the VLC deinterlacer
+ * algo_phosphor.c : Phosphor algorithm for the Heimdall deinterlacer
  *****************************************************************************
  * Copyright (C) 2011 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Juha Jeronen <juha.jeronen@jyu.fi>
  *
@@ -27,10 +28,10 @@
 #include <stdint.h>
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_cpu.h>
-#include <vlc_picture.h>
-#include <vlc_filter.h>
+#include <heimdall_common.h>
+#include <heimdall_cpu.h>
+#include <heimdall_picture.h>
+#include <heimdall_filter.h>
 
 #include "deinterlace.h" /* filter_sys_t */
 #include "helpers.h"     /* ComposeFrame() */
@@ -152,7 +153,7 @@ int RenderPhosphor( filter_t *p_filter,
                     picture_t *p_dst, picture_t *p_pic,
                     int i_order, int i_field )
 {
-    VLC_UNUSED(p_pic);
+    HEIMDALL_UNUSED(p_pic);
     assert( p_filter != NULL );
     assert( p_dst != NULL );
     assert( i_order >= 0 && i_order <= 2 ); /* 2 = soft field repeat */
@@ -170,7 +171,7 @@ int RenderPhosphor( filter_t *p_filter,
 
     /* If the history mechanism has failed, we can't do anything. */
     if( !p_in )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     assert( p_old != NULL );
     assert( p_in != NULL );
@@ -212,11 +213,11 @@ int RenderPhosphor( filter_t *p_filter,
             break;
         default:
             /* The above are the only possibilities, if there are no bugs. */
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
             break;
         }
     }
-    ComposeFrame( p_filter, p_dst, p_in_top, p_in_bottom, cc, p_filter->fmt_in.video.i_chroma == VLC_CODEC_YV12 );
+    ComposeFrame( p_filter, p_dst, p_in_top, p_in_bottom, cc, p_filter->fmt_in.video.i_chroma == HEIMDALL_CODEC_YV12 );
 
     /* Simulate phosphor light output decay for the old field.
 
@@ -233,5 +234,5 @@ int RenderPhosphor( filter_t *p_filter,
                 p_sys->chroma->p[1].h.num == p_sys->chroma->p[1].h.den &&
                 p_sys->chroma->p[2].h.num == p_sys->chroma->p[2].h.den );
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

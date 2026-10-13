@@ -2,6 +2,7 @@
  * opus.c: opus decoder/encoder module making use of libopus.
  *****************************************************************************
  * Copyright (C) 2003-2009, 2012 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gregory Maxwell <greg@xiph.org>
  * Based on speex.c by: Gildas Bazin <gbazin@videolan.org>
@@ -28,10 +29,10 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
-#include <vlc_aout.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
+#include <heimdall_aout.h>
 #include "../demux/xiph.h"
 
 #include <ogg/ogg.h>
@@ -50,14 +51,14 @@
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  OpenDecoder   ( vlc_object_t * );
-static void CloseDecoder  ( vlc_object_t * );
+static int  OpenDecoder   ( heimdall_object_t * );
+static void CloseDecoder  ( heimdall_object_t * );
 #ifdef ENABLE_SOUT
-static int  OpenEncoder   ( vlc_object_t * );
+static int  OpenEncoder   ( heimdall_object_t * );
 static void CloseEncoder  ( encoder_t * );
 #endif
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_subcategory( SUBCAT_INPUT_ACODEC )
 
     set_description( N_("Opus audio decoder") )
@@ -73,7 +74,7 @@ vlc_module_begin ()
     set_callback( OpenEncoder )
 #endif
 
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * decoder_sys_t : opus decoder descriptor
@@ -164,7 +165,7 @@ static int  ProcessHeaders( decoder_t * );
 static int  ProcessInitialHeader ( decoder_t *, ogg_packet * );
 static block_t *ProcessPacket( decoder_t *, ogg_packet *, block_t * );
 
-static block_t *DecodePacket( decoder_t *, ogg_packet *, int, vlc_tick_t );
+static block_t *DecodePacket( decoder_t *, ogg_packet *, int, heimdall_tick_t );
 /*****************************************************************************
  * Implementation Wrappers
  *****************************************************************************/
@@ -194,16 +195,16 @@ static int SetDecoderGain( decoder_sys_t *p_sys, int gain )
     {
         if( opus_projection_decoder_ctl(
                     p_sys->p_pr, OPUS_SET_GAIN(gain) ) != OPUS_OK )
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
     else
 # endif
     {
         if( opus_multistream_decoder_ctl(
                     p_sys->p_st, OPUS_SET_GAIN(gain) ) != OPUS_OK )
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 #endif
 
@@ -261,30 +262,30 @@ static int DecoderCreate( decoder_sys_t *p_sys )
                         p_header->nb_streams, p_header->nb_coupled,
                         p_stream_map, &err );
     }
-    return err == OPUS_OK ? VLC_SUCCESS : VLC_EGENERIC;
+    return err == OPUS_OK ? HEIMDALL_SUCCESS : HEIMDALL_EGENERIC;
 }
 
 /*****************************************************************************
  * OpenDecoder: probe the decoder and return score
  *****************************************************************************/
-static int OpenDecoder( vlc_object_t *p_this )
+static int OpenDecoder( heimdall_object_t *p_this )
 {
     decoder_t *p_dec = (decoder_t*)p_this;
     decoder_sys_t *p_sys;
 
-    if( p_dec->fmt_in->i_codec != VLC_CODEC_OPUS )
-        return VLC_EGENERIC;
+    if( p_dec->fmt_in->i_codec != HEIMDALL_CODEC_OPUS )
+        return HEIMDALL_EGENERIC;
 
     /* Allocate the memory needed to store the decoder's structure */
     if( ( p_dec->p_sys = p_sys = malloc(sizeof(decoder_sys_t)) ) == NULL )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     p_sys->b_has_headers = false;
     opus_header_init(&p_sys->header);
 
-    date_Set( &p_sys->end_date, VLC_TICK_INVALID );
+    date_Set( &p_sys->end_date, HEIMDALL_TICK_INVALID );
 
     /* Set output properties */
-    p_dec->fmt_out.i_codec = VLC_CODEC_FL32;
+    p_dec->fmt_out.i_codec = HEIMDALL_CODEC_FL32;
 
     p_dec->pf_decode    = DecodeAudio;
     p_dec->pf_flush     = Flush;
@@ -294,7 +295,7 @@ static int OpenDecoder( vlc_object_t *p_this )
     p_sys->p_pr = NULL;
 #endif
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /****************************************************************************
@@ -333,12 +334,12 @@ static block_t *DecodeBlock( decoder_t *p_dec, block_t *p_block )
 static int DecodeAudio( decoder_t *p_dec, block_t *p_block )
 {
     if( p_block == NULL ) /* No Drain */
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
 
     p_block = DecodeBlock( p_dec, p_block );
     if( p_block != NULL )
         decoder_QueueAudio( p_dec, p_block );
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }
 
 /*****************************************************************************
@@ -365,7 +366,7 @@ static int ProcessHeaders( decoder_t *p_dec )
         {
             /* Borked Xiph headers */
             free( p_alloc );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         oggpacket.bytes  = pi_size[0];
@@ -395,7 +396,7 @@ static int ProcessHeaders( decoder_t *p_dec )
         if(ret != 0 || i_extra < 21)
         {
             free( p_alloc );
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         }
         oggpacket.bytes  = p_alloc[1]; /* Xiph header is type8/size8 */
         oggpacket.packet = (unsigned char *) p_alloc + 2; /* Point directly to opus header start */
@@ -413,7 +414,7 @@ static int ProcessHeaders( decoder_t *p_dec )
     oggpacket.b_o_s = 1; /* yes this actually is a b_o_s packet :) */
     int ret = ProcessInitialHeader( p_dec, &oggpacket );
 
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
     {
         msg_Err( p_dec, "initial Opus header is corrupted" );
         opus_header_clean( &p_sys->header );
@@ -436,7 +437,7 @@ static int ProcessInitialHeader( decoder_t *p_dec, ogg_packet *p_oggpacket )
     if( !opus_header_parse((unsigned char *)p_oggpacket->packet,p_oggpacket->bytes,p_header) )
     {
         msg_Err( p_dec, "cannot read Opus header" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     msg_Dbg( p_dec, "Opus audio with %d channels, %d samples preskip, %d samplerate",
@@ -448,7 +449,7 @@ static int ProcessInitialHeader( decoder_t *p_dec, ogg_packet *p_oggpacket )
         (p_header->channels>18 && p_header->channel_mapping==3))
     {
         msg_Err( p_dec, "Unsupported channel mapping" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     if (p_header->channel_mapping >= 2)
     {
@@ -459,7 +460,7 @@ static int ProcessInitialHeader( decoder_t *p_dec, ogg_packet *p_oggpacket )
         if (i_nondiegetic != 0 && i_nondiegetic != 2)
         {
             msg_Err( p_dec, "Unsupported ambisonic channel mapping" );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
 
@@ -478,24 +479,24 @@ static int ProcessInitialHeader( decoder_t *p_dec, ogg_packet *p_oggpacket )
     }
 
     /* Opus decoder init */
-    if( DecoderCreate( p_sys ) != VLC_SUCCESS )
+    if( DecoderCreate( p_sys ) != HEIMDALL_SUCCESS )
     {
         msg_Err( p_dec, "decoder initialization failed" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
 #ifdef OPUS_SET_GAIN
-    if( SetDecoderGain( p_sys, p_header->gain ) != VLC_SUCCESS )
+    if( SetDecoderGain( p_sys, p_header->gain ) != HEIMDALL_SUCCESS )
     {
         msg_Err( p_dec, "OPUS_SET_GAIN failed" );
         DecoderDestroy( p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 #endif
 
     date_Init( &p_sys->end_date, 48000, 1 );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -505,7 +506,7 @@ static void Flush( decoder_t *p_dec )
 {
     decoder_sys_t *p_sys = p_dec->p_sys;
 
-    date_Set( &p_sys->end_date, VLC_TICK_INVALID );
+    date_Set( &p_sys->end_date, HEIMDALL_TICK_INVALID );
 }
 
 /*****************************************************************************
@@ -527,13 +528,13 @@ static block_t *ProcessPacket( decoder_t *p_dec, ogg_packet *p_oggpacket,
     }
 
     /* Date management */
-    if( p_block->i_pts != VLC_TICK_INVALID &&
+    if( p_block->i_pts != HEIMDALL_TICK_INVALID &&
         p_block->i_pts != date_Get( &p_sys->end_date ) )
     {
         date_Set( &p_sys->end_date, p_block->i_pts );
     }
 
-    if( date_Get( &p_sys->end_date ) == VLC_TICK_INVALID )
+    if( date_Get( &p_sys->end_date ) == HEIMDALL_TICK_INVALID )
     {
         /* We've just started the stream, wait for the first PTS. */
         block_Release( p_block );
@@ -541,7 +542,7 @@ static block_t *ProcessPacket( decoder_t *p_dec, ogg_packet *p_oggpacket,
     }
 
     /* trimming info */
-    vlc_tick_t i_max_duration = (p_block->i_flags & BLOCK_FLAG_END_OF_SEQUENCE) ?
+    heimdall_tick_t i_max_duration = (p_block->i_flags & BLOCK_FLAG_END_OF_SEQUENCE) ?
                              p_block->i_length : 0;
 
     block_t *p_aout_buffer = DecodePacket( p_dec, p_oggpacket,
@@ -556,7 +557,7 @@ static block_t *ProcessPacket( decoder_t *p_dec, ogg_packet *p_oggpacket,
  * DecodePacket: decodes a Opus packet.
  *****************************************************************************/
 static block_t *DecodePacket( decoder_t *p_dec, ogg_packet *p_oggpacket,
-                              int i_nb_samples, vlc_tick_t i_duration )
+                              int i_nb_samples, heimdall_tick_t i_duration )
 {
     decoder_sys_t *p_sys = p_dec->p_sys;
 
@@ -586,9 +587,9 @@ static block_t *DecodePacket( decoder_t *p_dec, ogg_packet *p_oggpacket,
 
     int i_end_trim = 0;
     if( i_duration > 0 && spp > 0 &&
-        i_duration < vlc_tick_from_samples(i_nb_samples, 48000) )
+        i_duration < heimdall_tick_from_samples(i_nb_samples, 48000) )
     {
-        i_end_trim = spp - VLC_CLIP(samples_from_vlc_tick(i_duration, 48000), 0, spp);
+        i_end_trim = spp - HEIMDALL_CLIP(samples_from_heimdall_tick(i_duration, 48000), 0, spp);
     }
 
     if( spp < 0 || i_nb_samples <= 0 || i_end_trim >= i_nb_samples)
@@ -630,7 +631,7 @@ static block_t *DecodePacket( decoder_t *p_dec, ogg_packet *p_oggpacket,
 /*****************************************************************************
  * CloseDecoder: Opus decoder destruction
  *****************************************************************************/
-static void CloseDecoder( vlc_object_t *p_this )
+static void CloseDecoder( heimdall_object_t *p_this )
 {
     decoder_t * p_dec = (decoder_t *)p_this;
     decoder_sys_t *p_sys = p_dec->p_sys;
@@ -684,8 +685,8 @@ static block_t *Encode(encoder_t *enc, block_t *buf)
     if (!buf)
         return NULL;
 
-    vlc_tick_t i_pts = buf->i_pts -
-                vlc_tick_from_samples( sys->i_samples_delay,
+    heimdall_tick_t i_pts = buf->i_pts -
+                heimdall_tick_from_samples( sys->i_samples_delay,
                              enc->fmt_in.audio.i_rate );
 
     sys->i_samples_delay += buf->i_nb_samples;
@@ -736,7 +737,7 @@ static block_t *Encode(encoder_t *enc, block_t *buf)
         }
         else
         {
-            out_block->i_length = vlc_tick_from_samples( OPUS_FRAME_SIZE,
+            out_block->i_length = heimdall_tick_from_samples( OPUS_FRAME_SIZE,
                                                          enc->fmt_in.audio.i_rate );
 
             out_block->i_dts = out_block->i_pts = i_pts;
@@ -759,22 +760,22 @@ static block_t *Encode(encoder_t *enc, block_t *buf)
     return result;
 }
 
-static int OpenEncoder(vlc_object_t *p_this)
+static int OpenEncoder(heimdall_object_t *p_this)
 {
     encoder_t *enc = (encoder_t *)p_this;
 
-    if (enc->fmt_out.i_codec != VLC_CODEC_OPUS)
-        return VLC_EGENERIC;
+    if (enc->fmt_out.i_codec != HEIMDALL_CODEC_OPUS)
+        return HEIMDALL_EGENERIC;
 
     encoder_sys_t *sys = malloc(sizeof(*sys));
     if (!sys)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    int status = VLC_SUCCESS;
+    int status = HEIMDALL_SUCCESS;
     sys->buffer = NULL;
     sys->enc = NULL;
 
-    enc->fmt_in.i_codec = VLC_CODEC_FL32;
+    enc->fmt_in.i_codec = HEIMDALL_CODEC_FL32;
     enc->fmt_in.audio.i_rate = /* Only 48kHz */
     enc->fmt_out.audio.i_rate = 48000;
     enc->fmt_out.audio.i_channels = enc->fmt_in.audio.i_channels;
@@ -799,7 +800,7 @@ static int OpenEncoder(vlc_object_t *p_this)
     {
         msg_Err(enc, "Could not create encoder: error %d", err);
         sys->enc = NULL;
-        status = VLC_EGENERIC;
+        status = HEIMDALL_EGENERIC;
         goto error;
     }
 
@@ -810,9 +811,9 @@ static int OpenEncoder(vlc_object_t *p_this)
 
     /* Buffer for incoming audio, since opus only accepts frame sizes that are
        multiples of 2.5ms */
-    sys->buffer = vlc_alloc(header.channels, sizeof(float) * OPUS_FRAME_SIZE);
+    sys->buffer = heimdall_alloc(header.channels, sizeof(float) * OPUS_FRAME_SIZE);
     if (!sys->buffer) {
-        status = VLC_ENOMEM;
+        status = HEIMDALL_ENOMEM;
         goto error;
     }
 
@@ -831,7 +832,7 @@ static int OpenEncoder(vlc_object_t *p_this)
     if (opus_write_header((uint8_t **) &enc->fmt_out.p_extra,
                           &enc->fmt_out.i_extra, &header, opus_get_version_string()))
     {
-        status = VLC_ENOMEM;
+        status = HEIMDALL_ENOMEM;
         goto error;
     }
 
@@ -841,7 +842,7 @@ static int OpenEncoder(vlc_object_t *p_this)
             enc->fmt_out.audio.i_channels;
         sys->padding = block_Alloc(padding_samples * sizeof(float));
         if (!sys->padding) {
-            status = VLC_ENOMEM;
+            status = HEIMDALL_ENOMEM;
             goto error;
         }
         sys->padding->i_nb_samples = sys->i_samples_delay;
@@ -855,7 +856,7 @@ static int OpenEncoder(vlc_object_t *p_this)
 
     opus_header_clean(&header);
 
-    static const struct vlc_encoder_operations ops =
+    static const struct heimdall_encoder_operations ops =
     {
         .close = CloseEncoder,
         .encode_audio = Encode,
@@ -863,7 +864,7 @@ static int OpenEncoder(vlc_object_t *p_this)
     enc->ops = &ops;
     enc->p_sys = sys;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     opus_header_clean(&header);

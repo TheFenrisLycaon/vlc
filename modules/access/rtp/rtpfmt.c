@@ -4,6 +4,7 @@
 /*****************************************************************************
  * Copyright (C) 2001-2005 VLC authors and VideoLAN
  * Copyright © 2007-2009 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License
@@ -27,8 +28,8 @@
 #include <stdlib.h>
 #include <errno.h>
 
-#include <vlc_common.h>
-#include <vlc_aout.h> /* aout_FormatPrepare() */
+#include <heimdall_common.h>
+#include <heimdall_aout.h> /* aout_FormatPrepare() */
 
 #include "rtp.h"
 #include "sdp.h"
@@ -37,19 +38,19 @@
  * Generic packet handlers
  */
 
-static void codec_destroy(struct vlc_rtp_pt *pt, void *data)
+static void codec_destroy(struct heimdall_rtp_pt *pt, void *data)
 {
     (void) pt;
-    vlc_rtp_es_destroy(data);
+    heimdall_rtp_es_destroy(data);
 }
 
 /* Send a packet to ES */
-static void codec_decode(struct vlc_rtp_pt *pt, void *data, block_t *block,
-                         const struct vlc_rtp_pktinfo *restrict info)
+static void codec_decode(struct heimdall_rtp_pt *pt, void *data, block_t *block,
+                         const struct heimdall_rtp_pktinfo *restrict info)
 {
     (void) pt; (void) info;
-    block->i_dts = VLC_TICK_INVALID;
-    vlc_rtp_es_send(data, block);
+    block->i_dts = HEIMDALL_TICK_INVALID;
+    heimdall_rtp_es_send(data, block);
 }
 
 /*
@@ -59,60 +60,60 @@ static void codec_decode(struct vlc_rtp_pt *pt, void *data, block_t *block,
 /* PT=3
  * GSM
  */
-static void *gsm_init(struct vlc_rtp_pt *pt)
+static void *gsm_init(struct heimdall_rtp_pt *pt)
 {
     es_format_t fmt;
 
-    es_format_Init (&fmt, AUDIO_ES, VLC_CODEC_GSM);
+    es_format_Init (&fmt, AUDIO_ES, HEIMDALL_CODEC_GSM);
     fmt.audio.i_rate = 8000;
     fmt.audio.i_physical_channels = AOUT_CHAN_CENTER;
-    return vlc_rtp_pt_request_es(pt, &fmt);
+    return heimdall_rtp_pt_request_es(pt, &fmt);
 }
 
-static const struct vlc_rtp_pt_operations rtp_audio_gsm = {
+static const struct heimdall_rtp_pt_operations rtp_audio_gsm = {
     NULL, gsm_init, codec_destroy, codec_decode,
 };
 
 /* PT=12
  * QCELP
  */
-static void *qcelp_init(struct vlc_rtp_pt *pt)
+static void *qcelp_init(struct heimdall_rtp_pt *pt)
 {
     es_format_t fmt;
 
-    es_format_Init (&fmt, AUDIO_ES, VLC_CODEC_QCELP);
+    es_format_Init (&fmt, AUDIO_ES, HEIMDALL_CODEC_QCELP);
     fmt.audio.i_rate = 8000;
     fmt.audio.i_physical_channels = AOUT_CHAN_CENTER;
-    return vlc_rtp_pt_request_es(pt, &fmt);
+    return heimdall_rtp_pt_request_es(pt, &fmt);
 }
 
-static const struct vlc_rtp_pt_operations rtp_audio_qcelp = {
+static const struct heimdall_rtp_pt_operations rtp_audio_qcelp = {
     NULL, qcelp_init, codec_destroy, codec_decode,
 };
 
 /* Not using SDP, we need to guess the payload format used */
 /* see http://www.iana.org/assignments/rtp-parameters */
-void rtp_autodetect(vlc_object_t *obj, rtp_session_t *session,
-                    const struct vlc_rtp_pt_owner *restrict owner)
+void rtp_autodetect(heimdall_object_t *obj, rtp_session_t *session,
+                    const struct heimdall_rtp_pt_owner *restrict owner)
 {
     char type[] = "audio", proto[] = "RTP/AVP";
     char format[] = "0 3 8 10 11 12 14";
-    struct vlc_sdp_media media = {
+    struct heimdall_sdp_media media = {
         .type = type, .port_count = 1, .proto = proto, .format = format };
 
-    vlc_rtp_add_media_types(obj, session, &media, owner);
+    heimdall_rtp_add_media_types(obj, session, &media, owner);
     strcpy(type, "video");
     strcpy(format, "32 33");
-    vlc_rtp_add_media_types(obj, session, &media, owner);
+    heimdall_rtp_add_media_types(obj, session, &media, owner);
 }
 
 /*
  * Dynamic payload type handlers
  */
 
-static struct vlc_rtp_pt *vlc_rtp_pt_create(vlc_object_t *obj,
-                                            const struct vlc_sdp_pt *desc,
-                                 const struct vlc_rtp_pt_owner *restrict owner)
+static struct heimdall_rtp_pt *heimdall_rtp_pt_create(heimdall_object_t *obj,
+                                            const struct heimdall_sdp_pt *desc,
+                                 const struct heimdall_rtp_pt_owner *restrict owner)
 {
     if (desc->clock_rate == 0) {
         /* Dynamic payload type not defined in the SDP */
@@ -120,7 +121,7 @@ static struct vlc_rtp_pt *vlc_rtp_pt_create(vlc_object_t *obj,
         return NULL;
     }
 
-    struct vlc_rtp_pt *pt = malloc(sizeof (*pt));
+    struct heimdall_rtp_pt *pt = malloc(sizeof (*pt));
     if (unlikely(pt == NULL))
         return NULL;
 
@@ -128,7 +129,7 @@ static struct vlc_rtp_pt *vlc_rtp_pt_create(vlc_object_t *obj,
     pt->frequency = desc->clock_rate;
     pt->channel_count = desc->channel_count;
 
-    if (vlc_rtp_pt_instantiate(obj, pt, desc) == 0)
+    if (heimdall_rtp_pt_instantiate(obj, pt, desc) == 0)
         return pt;
 
     pt->ops = NULL;
@@ -151,14 +152,14 @@ static struct vlc_rtp_pt *vlc_rtp_pt_create(vlc_object_t *obj,
     return pt;
 }
 
-void vlc_rtp_pt_release(struct vlc_rtp_pt *pt)
+void heimdall_rtp_pt_release(struct heimdall_rtp_pt *pt)
 {
     if (pt->ops->release != NULL)
         pt->ops->release(pt);
     free(pt);
 }
 
-struct vlc_sdp_pt_default {
+struct heimdall_sdp_pt_default {
     unsigned char number;
     char subtype[6];
     unsigned char channel_count;
@@ -168,11 +169,11 @@ struct vlc_sdp_pt_default {
 /**
  * Sets the static payload types.
  */
-static void vlc_rtp_set_default_types(struct vlc_sdp_pt *restrict types,
-                                      const struct vlc_sdp_media *media)
+static void heimdall_rtp_set_default_types(struct heimdall_sdp_pt *restrict types,
+                                      const struct heimdall_sdp_media *media)
 {
     /* Implicit payload type mappings (RFC3551 section 6) */
-    static const struct vlc_sdp_pt_default audio_defaults[] = {
+    static const struct heimdall_sdp_pt_default audio_defaults[] = {
         {  0, "PCMU",  1,  8000, },
         {  3, "GSM",   1,  8000, },
         {  4, "G723",  1,  8000, },
@@ -192,7 +193,7 @@ static void vlc_rtp_set_default_types(struct vlc_sdp_pt *restrict types,
         { 18, "G729",  1,  8000, },
         { 33, "MP2T",  0, 90000, },
     };
-    static const struct vlc_sdp_pt_default video_defaults[] = {
+    static const struct heimdall_sdp_pt_default video_defaults[] = {
         { 25, "CelB",  0, 90000, },
         { 26, "JPEG",  0, 90000, },
         { 28, "nv",    0, 90000, },
@@ -201,7 +202,7 @@ static void vlc_rtp_set_default_types(struct vlc_sdp_pt *restrict types,
         { 33, "MP2T",  0, 90000, },
         { 34, "H263",  0, 90000, },
     };
-    const struct vlc_sdp_pt_default *defs = NULL;
+    const struct heimdall_sdp_pt_default *defs = NULL;
     size_t def_size = 0;
 
     if (strcmp(media->type, "audio") == 0) {
@@ -213,8 +214,8 @@ static void vlc_rtp_set_default_types(struct vlc_sdp_pt *restrict types,
     }
 
     for (size_t i = 0; i < def_size; i++) {
-        const struct vlc_sdp_pt_default *def = defs + i;
-        struct vlc_sdp_pt *pt = types + def->number;
+        const struct heimdall_sdp_pt_default *def = defs + i;
+        struct heimdall_sdp_pt *pt = types + def->number;
 
         pt->media = media;
         strcpy(pt->name, def->subtype);
@@ -226,16 +227,16 @@ static void vlc_rtp_set_default_types(struct vlc_sdp_pt *restrict types,
 /**
  * Registers all payload types declared in an SDP media.
  */
-int vlc_rtp_add_media_types(vlc_object_t *obj, rtp_session_t *session,
-                            const struct vlc_sdp_media *media,
-                            const struct vlc_rtp_pt_owner *restrict owner)
+int heimdall_rtp_add_media_types(heimdall_object_t *obj, rtp_session_t *session,
+                            const struct heimdall_sdp_media *media,
+                            const struct heimdall_rtp_pt_owner *restrict owner)
 {
-    struct vlc_sdp_pt types[128] = { };
+    struct heimdall_sdp_pt types[128] = { };
 
-    vlc_rtp_set_default_types(types, media);
+    heimdall_rtp_set_default_types(types, media);
 
     /* Parse the a=rtpmap and extract a=fmtp lines */
-    for (const struct vlc_sdp_attr *a = media->attrs; a != NULL; a = a->next) {
+    for (const struct heimdall_sdp_attr *a = media->attrs; a != NULL; a = a->next) {
         if (a->value == NULL)
             continue;
         else if (strcmp(a->name, "rtpmap") == 0) {
@@ -286,7 +287,7 @@ int vlc_rtp_add_media_types(vlc_object_t *obj, rtp_session_t *session,
         if (number >= ARRAY_SIZE(types))
             continue;
 
-        struct vlc_sdp_pt *const type = types + number;
+        struct heimdall_sdp_pt *const type = types + number;
 
         if (type->media == NULL) /* not defined or already used */
             continue;
@@ -298,11 +299,11 @@ int vlc_rtp_add_media_types(vlc_object_t *obj, rtp_session_t *session,
         if (type->parameters != NULL)
             msg_Dbg(obj, " - parameters: %s", type->parameters);
 
-        struct vlc_rtp_pt *pt = vlc_rtp_pt_create(obj, type, owner);
+        struct heimdall_rtp_pt *pt = heimdall_rtp_pt_create(obj, type, owner);
         if (pt != NULL) {
             pt->number = number;
             if (rtp_add_type(session, pt))
-                vlc_rtp_pt_release(pt);
+                heimdall_rtp_pt_release(pt);
         } else
             errors++;
 
@@ -312,23 +313,23 @@ int vlc_rtp_add_media_types(vlc_object_t *obj, rtp_session_t *session,
     return errors;
 }
 
-static void es_dummy_destroy(struct vlc_rtp_es *es)
+static void es_dummy_destroy(struct heimdall_rtp_es *es)
 {
-    assert(es == vlc_rtp_es_dummy);
+    assert(es == heimdall_rtp_es_dummy);
 }
 
-static void es_dummy_decode(struct vlc_rtp_es *es, block_t *block)
+static void es_dummy_decode(struct heimdall_rtp_es *es, block_t *block)
 {
-    assert(es == vlc_rtp_es_dummy);
+    assert(es == heimdall_rtp_es_dummy);
     block_Release(block);
 }
 
-static const struct vlc_rtp_es_operations vlc_rtp_es_dummy_ops = {
+static const struct heimdall_rtp_es_operations heimdall_rtp_es_dummy_ops = {
     es_dummy_destroy, es_dummy_decode,
 };
 
-static struct vlc_rtp_es vlc_rtp_es_dummy_instance = {
-    &vlc_rtp_es_dummy_ops,
+static struct heimdall_rtp_es heimdall_rtp_es_dummy_instance = {
+    &heimdall_rtp_es_dummy_ops,
 };
 
-struct vlc_rtp_es *const vlc_rtp_es_dummy = &vlc_rtp_es_dummy_instance;
+struct heimdall_rtp_es *const heimdall_rtp_es_dummy = &heimdall_rtp_es_dummy_instance;

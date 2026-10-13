@@ -2,6 +2,7 @@
  * es_out_source.c: Es Out Source handle
  *****************************************************************************
  * Copyright (C) 2020 VLC authors, VideoLAN and Videolabs SAS
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -27,26 +28,26 @@
 
 #include <stdio.h>
 #include <assert.h>
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
-#include <vlc_atomic.h>
-#include <vlc_es_out.h>
-#include <vlc_block.h>
+#include <heimdall_atomic.h>
+#include <heimdall_es_out.h>
+#include <heimdall_block.h>
 
 #include "input_internal.h"
 #include "es_out.h"
 
 struct es_out_source
 {
-    struct vlc_input_es_out out;
+    struct heimdall_input_es_out out;
     input_source_t *in;
-    struct vlc_input_es_out *parent_out;
+    struct heimdall_input_es_out *parent_out;
 } ;
 
 static struct es_out_source *
 PRIV(es_out_t *out)
 {
-    struct vlc_input_es_out *parent = container_of(out, struct vlc_input_es_out, out);
+    struct heimdall_input_es_out *parent = container_of(out, struct heimdall_input_es_out, out);
     struct es_out_source *source = container_of(parent, struct es_out_source, out);
     return source;
 }
@@ -79,7 +80,7 @@ static int EsOutSourceControl(es_out_t *out, input_source_t *in, int query,
     return sys->parent_out->out.cbs->control(&sys->parent_out->out, sys->in, query, args);
 }
 
-static int EsOutSourcePrivControl(struct vlc_input_es_out *out, input_source_t *in, int query,
+static int EsOutSourcePrivControl(struct heimdall_input_es_out *out, input_source_t *in, int query,
                                   va_list args)
 {
     assert(in == NULL);
@@ -93,8 +94,8 @@ static void EsOutSourceDestroy(es_out_t *out)
     free(sys);
 }
 
-struct vlc_input_es_out *
-input_EsOutSourceNew(struct vlc_input_es_out *parent_out, input_source_t *in)
+struct heimdall_input_es_out *
+input_EsOutSourceNew(struct heimdall_input_es_out *parent_out, input_source_t *in)
 {
     assert(parent_out && in);
 
@@ -115,7 +116,7 @@ input_EsOutSourceNew(struct vlc_input_es_out *parent_out, input_source_t *in)
     };
     sys->out.out.cbs = &es_out_cbs;
 
-    static const struct vlc_input_es_out_ops ops =
+    static const struct heimdall_input_es_out_ops ops =
     {
         .priv_control = EsOutSourcePrivControl,
     };

@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 2001-2006 VLC authors and VideoLAN
  * Copyright © 2006-2007 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Christophe Massiot <massiot@via.ecp.fr>
  *          Rémi Denis-Courmont
@@ -26,11 +27,11 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 #include "fs.h"
-#include <vlc_plugin.h>
+#include <heimdall_plugin.h>
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("File input") )
     set_shortname( N_("File") )
     set_subcategory( SUBCAT_INPUT_ACCESS )
@@ -51,4 +52,4 @@ vlc_module_begin ()
     add_bool("list-special-files", false, N_("List special files"),
              N_("Include devices and pipes when listing directories"))
     add_obsolete_string("directory-sort") /* since 3.0.0 */
-vlc_module_end ()
+heimdall_module_end ()

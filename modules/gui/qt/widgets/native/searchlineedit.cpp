@@ -2,6 +2,7 @@
  * searchlineedit.cpp: Custom widgets
  ****************************************************************************
  * Copyright (C) 2006 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Clément Stenac <zorglub@videolan.org>
  *
@@ -32,7 +33,7 @@
 #include <QStyle>
 #include <QStyleOption>
 
-#include <vlc_intf_strings.h>
+#include <heimdall_intf_strings.h>
 
 SearchLineEdit::SearchLineEdit( QWidget *parent ) : QLineEdit( parent )
 {
@@ -40,7 +41,7 @@ SearchLineEdit::SearchLineEdit( QWidget *parent ) : QLineEdit( parent )
     clearButton->setIcon( QIcon( ":/menu/search_clear.svg" ) );
     clearButton->setIconSize( QSize( 16, 16 ) );
     clearButton->setCursor( Qt::ArrowCursor );
-    clearButton->setToolTip( qfu(vlc_pgettext("Tooltip|Clear", "Clear")) );
+    clearButton->setToolTip( qfu(heimdall_pgettext("Tooltip|Clear", "Clear")) );
     clearButton->hide();
 
     connect( clearButton, &QFramelessButton::clicked, this, &SearchLineEdit::clear );

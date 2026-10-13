@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 2004-2005 Laurent Aimar
  * Copyright (C) the deCSA authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *          Jean-Paul Saman <jpsaman #_at_# m2x.nl>
@@ -27,7 +28,7 @@
 #endif
 
 #include <assert.h>
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
 #include "csa.h"
 
@@ -73,7 +74,7 @@ void csa_Delete( csa_t *c )
 /*****************************************************************************
  * csa_SetCW:
  *****************************************************************************/
-int csa_SetCW( vlc_object_t *p_caller, csa_t *c, char *psz_ck, bool set_odd )
+int csa_SetCW( heimdall_object_t *p_caller, csa_t *c, char *psz_ck, bool set_odd )
 {
     assert(c != NULL);
 
@@ -85,7 +86,7 @@ int csa_SetCW( vlc_object_t *p_caller, csa_t *c, char *psz_ck, bool set_odd )
     if( strlen( psz_ck ) != 16 )
     {
         msg_Warn( p_caller, "invalid csa ck (it must be 16 chars long)" );
-        return VLC_EINVAL;
+        return HEIMDALL_EINVAL;
     }
     else
     {
@@ -105,14 +106,14 @@ int csa_SetCW( vlc_object_t *p_caller, csa_t *c, char *psz_ck, bool set_odd )
 
         dvbcsa_key_set( ck, c->keys[set_odd ? 1 : 0] );
 
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 }
 
 /*****************************************************************************
  * csa_UseKey:
  *****************************************************************************/
-void csa_UseKey( vlc_object_t *p_caller, csa_t *c, bool use_odd )
+void csa_UseKey( heimdall_object_t *p_caller, csa_t *c, bool use_odd )
 {
     assert(c != NULL);
     c->use_odd = use_odd;
@@ -206,37 +207,37 @@ csa_t *csa_New( void )
 
 void csa_Delete( csa_t *c )
 {
-    VLC_UNUSED(c);
+    HEIMDALL_UNUSED(c);
 }
 
-int csa_SetCW( vlc_object_t *p_caller, csa_t *c, char *psz_ck, bool set_odd )
+int csa_SetCW( heimdall_object_t *p_caller, csa_t *c, char *psz_ck, bool set_odd )
 {
-    VLC_UNUSED(p_caller);
-    VLC_UNUSED(c);
-    VLC_UNUSED(psz_ck);
-    VLC_UNUSED(set_odd);
-    return VLC_EGENERIC;
+    HEIMDALL_UNUSED(p_caller);
+    HEIMDALL_UNUSED(c);
+    HEIMDALL_UNUSED(psz_ck);
+    HEIMDALL_UNUSED(set_odd);
+    return HEIMDALL_EGENERIC;
 }
 
-void csa_UseKey( vlc_object_t *p_caller, csa_t *c, bool use_odd )
+void csa_UseKey( heimdall_object_t *p_caller, csa_t *c, bool use_odd )
 {
-    VLC_UNUSED(p_caller);
-    VLC_UNUSED(c);
-    VLC_UNUSED(use_odd);
+    HEIMDALL_UNUSED(p_caller);
+    HEIMDALL_UNUSED(c);
+    HEIMDALL_UNUSED(use_odd);
 }
 
 void csa_Decrypt( csa_t *c, uint8_t *pkt, int i_pkt_size )
 {
-    VLC_UNUSED(c);
-    VLC_UNUSED(pkt);
-    VLC_UNUSED(i_pkt_size);
+    HEIMDALL_UNUSED(c);
+    HEIMDALL_UNUSED(pkt);
+    HEIMDALL_UNUSED(i_pkt_size);
 }
 
 void csa_Encrypt( csa_t *c, uint8_t *pkt, int i_pkt_size )
 {
-    VLC_UNUSED(c);
-    VLC_UNUSED(pkt);
-    VLC_UNUSED(i_pkt_size);
+    HEIMDALL_UNUSED(c);
+    HEIMDALL_UNUSED(pkt);
+    HEIMDALL_UNUSED(i_pkt_size);
 }
 
 #endif

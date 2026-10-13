@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2022 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,9 +22,9 @@ import QtQuick.Layouts
 import QtQuick.Window
 
 
-import VLC.MainInterface
-import VLC.Widgets
-import VLC.Style
+import Heimdall.MainInterface
+import Heimdall.Widgets
+import Heimdall.Style
 
 T.AbstractButton {
     id: control
@@ -45,7 +46,7 @@ T.AbstractButton {
 
         bannerHeight: control.bannerHeight
 
-        theme: VLCStyle.palette
+        theme: HeimdallStyle.palette
 
         windowMaximized: MainCtx.intfMainWindow.visibility === Window.Maximized
         windowActive: MainCtx.intfMainWindow.active

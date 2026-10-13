@@ -1,7 +1,8 @@
 /*****************************************************************************
- * crossbar.cpp : DirectShow access module for vlc
+ * crossbar.cpp : DirectShow access module for heimdall
  *****************************************************************************
  * Copyright (C) 2002, 2004, 2009 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Damien Fouilleul <damien dot fouilleul at laposte dot net>
  *
@@ -28,7 +29,7 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
 #include <cassert>
 
@@ -161,7 +162,7 @@ static HRESULT GetCrossbarIndexFromIPin( ComPtr<IAMCrossbar> & pXbar, LONG * Pin
 /*****************************************************************************
  * FindCrossbarRoutes
  *****************************************************************************/
-HRESULT FindCrossbarRoutes( vlc_object_t *p_this, access_sys_t *p_sys,
+HRESULT FindCrossbarRoutes( heimdall_object_t *p_this, access_sys_t *p_sys,
                             ComPtr<IPin> & p_input_pin, LONG physicalType, int depth )
 {
     HRESULT result = S_FALSE;

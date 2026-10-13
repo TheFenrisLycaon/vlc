@@ -2,6 +2,7 @@
  * cea708.c: CEA-708 decoder unit tests
  *****************************************************************************
  * Copyright (C) 2026 VideoLabs, VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -21,14 +22,14 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_codec.h>
+#include <heimdall_common.h>
+#include <heimdall_codec.h>
 
 #include "../../../modules/codec/cea708.h"
 
-#include "../../libvlc/test.h"
+#include "../../libheimdall/test.h"
 
-const char vlc_module_name[] = "cea708_test";
+const char heimdall_module_name[] = "cea708_test";
 
 /*
  * Regression test for BT-direction scroll i_lastrow underflow.

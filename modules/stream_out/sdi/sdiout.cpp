@@ -1,8 +1,9 @@
 /*****************************************************************************
- * sdiout.cpp: SDI sout module for vlc
+ * sdiout.cpp: SDI sout module for heimdall
  *****************************************************************************
  * Copyright © 2014-2016 VideoLAN and VideoLAN Authors
  *                  2018 VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -30,9 +31,9 @@
 
 #include "DBMSDIOutput.hpp"
 
-#include <vlc_common.h>
-#include <vlc_sout.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_sout.h>
+#include <heimdall_plugin.h>
 
 #define NOSIGNAL_INDEX_TEXT N_("Timelength after which we assume there is no signal.")
 #define NOSIGNAL_INDEX_LONGTEXT N_(\
@@ -184,26 +185,26 @@ static const sout_stream_operations ops = [] {
     return ops;
 }();
 
-static int OpenSDIOutput(vlc_object_t *p_this)
+static int OpenSDIOutput(heimdall_object_t *p_this)
 {
     sout_stream_t *p_stream = reinterpret_cast<sout_stream_t*>(p_this);
     sdi_sout::DBMSDIOutput *output = new sdi_sout::DBMSDIOutput(p_stream);
 
-    if(output->Open() != VLC_SUCCESS && !FAKE_DRIVER)
+    if(output->Open() != HEIMDALL_SUCCESS && !FAKE_DRIVER)
     {
         delete output;
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     p_stream->p_sys = output;
     p_stream->ops = &ops;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
 
-vlc_module_begin ()
+heimdall_module_begin ()
 
     set_shortname(N_("SDI output"))
     set_description(N_("SDI stream output"))
@@ -242,4 +243,4 @@ vlc_module_begin ()
                 CHANNELS_TEXT, CHANNELS_LONGTEXT)
     add_string(CFG_PREFIX "audio", "", AUDIO_TEXT, AUDIO_LONGTEXT)
 
-vlc_module_end ()
+heimdall_module_end ()

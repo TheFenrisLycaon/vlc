@@ -2,8 +2,9 @@
  * uleaddvaudio.c
  *****************************************************************************
  * Copyright (C) 2012 Laurent Aimar
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Laurent Aimar <fenrir _AT_ videolan _DOT_ org>
+ * Authors: Laurent Aimar <fenrir _AT_ lycaria _DOT_ org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -24,23 +25,23 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
 
 #include "../demux/rawdv.h"
 
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  Open(vlc_object_t *);
+static int  Open(heimdall_object_t *);
 
-vlc_module_begin()
+heimdall_module_begin()
     set_description(N_("Ulead DV audio decoder"))
     set_capability("audio decoder", 50)
     set_subcategory(SUBCAT_INPUT_ACODEC)
     set_callback(Open)
-vlc_module_end()
+heimdall_module_end()
 
 typedef struct
 {
@@ -55,7 +56,7 @@ static void Flush(decoder_t *dec)
 {
     decoder_sys_t *sys = dec->p_sys;
 
-    date_Set(&sys->end_date, VLC_TICK_INVALID);
+    date_Set(&sys->end_date, HEIMDALL_TICK_INVALID);
 }
 
 static block_t *DecodeBlock(decoder_t *dec, block_t *block)
@@ -70,11 +71,11 @@ static block_t *DecodeBlock(decoder_t *dec, block_t *block)
         }
     }
 
-    if (block->i_pts != VLC_TICK_INVALID &&
+    if (block->i_pts != HEIMDALL_TICK_INVALID &&
         block->i_pts != date_Get(&sys->end_date))
         date_Set(&sys->end_date, block->i_pts);
-    block->i_pts = VLC_TICK_INVALID;
-    if (date_Get(&sys->end_date) == VLC_TICK_INVALID) {
+    block->i_pts = HEIMDALL_TICK_INVALID;
+    if (date_Get(&sys->end_date) == HEIMDALL_TICK_INVALID) {
         /* We've just started the stream, wait for the first PTS. */
         goto done;
     }
@@ -116,33 +117,33 @@ done:
 static int DecodeAudio(decoder_t *dec, block_t *block)
 {
     if (block == NULL) /* No Drain */
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
 
     block_t *out;
     while ((out = DecodeBlock(dec, block)) != NULL)
         decoder_QueueAudio(dec,out);
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }
 
-static int Open(vlc_object_t *object)
+static int Open(heimdall_object_t *object)
 {
     decoder_t *dec = (decoder_t*)object;
 
-    if (dec->fmt_in->i_codec != VLC_CODEC_ULEAD_DV_AUDIO_NTSC &&
-        dec->fmt_in->i_codec != VLC_CODEC_ULEAD_DV_AUDIO_PAL)
-        return VLC_EGENERIC;
+    if (dec->fmt_in->i_codec != HEIMDALL_CODEC_ULEAD_DV_AUDIO_NTSC &&
+        dec->fmt_in->i_codec != HEIMDALL_CODEC_ULEAD_DV_AUDIO_PAL)
+        return HEIMDALL_EGENERIC;
     if (dec->fmt_in->audio.i_bitspersample != 12 && dec->fmt_in->audio.i_bitspersample != 16)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     if (dec->fmt_in->audio.i_channels != 2)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     if (dec->fmt_in->audio.i_rate <= 0)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    decoder_sys_t *sys = dec->p_sys = vlc_obj_malloc(object, sizeof(*sys));
+    decoder_sys_t *sys = dec->p_sys = heimdall_obj_malloc(object, sizeof(*sys));
     if (!sys)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    sys->is_pal = dec->fmt_in->i_codec == VLC_CODEC_ULEAD_DV_AUDIO_PAL;
+    sys->is_pal = dec->fmt_in->i_codec == HEIMDALL_CODEC_ULEAD_DV_AUDIO_PAL;
     sys->is_12bit = dec->fmt_in->audio.i_bitspersample == 12;
 
     date_Init(&sys->end_date, dec->fmt_in->audio.i_rate, 1);
@@ -154,7 +155,7 @@ static int Open(vlc_object_t *object)
                           (2 + sys->is_12bit) * (i / b) + 8;
     }
 
-    dec->fmt_out.i_codec = VLC_CODEC_S16N;
+    dec->fmt_out.i_codec = HEIMDALL_CODEC_S16N;
     dec->fmt_out.audio.i_rate = dec->fmt_in->audio.i_rate;
     dec->fmt_out.audio.i_channels = 2;
     dec->fmt_out.audio.i_physical_channels = AOUT_CHAN_LEFT | AOUT_CHAN_RIGHT;
@@ -162,5 +163,5 @@ static int Open(vlc_object_t *object)
     dec->pf_decode = DecodeAudio;
     dec->pf_flush  = Flush;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

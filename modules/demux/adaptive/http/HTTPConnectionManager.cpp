@@ -2,6 +2,7 @@
  * HTTPConnectionManager.cpp
  *****************************************************************************
  * Copyright (C) 2010 - 2011 Klagenfurt University
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Created on: Aug 10, 2010
  * Authors: Christopher Mueller <christopher.mueller@itec.uni-klu.ac.at>
@@ -30,14 +31,14 @@
 #include "ConnectionParams.hpp"
 #include "Downloader.hpp"
 #include "../tools/Debug.hpp"
-#include <vlc_url.h>
-#include <vlc_http.h>
+#include <heimdall_url.h>
+#include <heimdall_http.h>
 
 #include <cassert>
 
 using namespace adaptive::http;
 
-AbstractConnectionManager::AbstractConnectionManager(vlc_object_t *p_object_)
+AbstractConnectionManager::AbstractConnectionManager(heimdall_object_t *p_object_)
     : IDownloadRateObserver()
 {
     p_object = p_object_;
@@ -50,13 +51,13 @@ AbstractConnectionManager::~AbstractConnectionManager()
 }
 
 void AbstractConnectionManager::updateDownloadRate(const adaptive::ID &sourceid, size_t size,
-                                                   vlc_tick_t time, vlc_tick_t latency)
+                                                   heimdall_tick_t time, heimdall_tick_t latency)
 {
     if(rateObserver)
     {
         BwDebug(msg_Dbg(p_object,
                 "%" PRId64 "Kbps downloaded %zuKBytes in %" PRId64 "ms latency %" PRId64 "ms [%s]",
-                INT64_C(1000) * size * 8 / (time ? time : 1), size / 1024, MS_FROM_VLC_TICK(time),
+                INT64_C(1000) * size * 8 / (time ? time : 1), size / 1024, MS_FROM_HEIMDALL_TICK(time),
                 latency / 1000, sourceid.str().c_str()));
         rateObserver->updateDownloadRate(sourceid, size, time, latency);
     }
@@ -72,11 +73,11 @@ void AbstractConnectionManager::deleteSource(AbstractChunkSource *source)
     delete source;
 }
 
-HTTPConnectionManager::HTTPConnectionManager    (vlc_object_t *p_object_)
+HTTPConnectionManager::HTTPConnectionManager    (heimdall_object_t *p_object_)
     : AbstractConnectionManager( p_object_ ),
       localAllowed(false)
 {
-    vlc_mutex_init(&lock);
+    heimdall_mutex_init(&lock);
     downloader = new Downloader();
     downloaderhp = new Downloader();
     downloader->start();
@@ -109,9 +110,9 @@ HTTPConnectionManager::~HTTPConnectionManager   ()
 
 void HTTPConnectionManager::closeAllConnections      ()
 {
-    vlc_mutex_locker locker(&lock);
+    heimdall_mutex_locker locker(&lock);
     releaseAllConnections();
-    vlc_delete_all(this->connectionPool);
+    heimdall_delete_all(this->connectionPool);
 }
 
 void HTTPConnectionManager::releaseAllConnections()
@@ -144,7 +145,7 @@ AbstractConnection * HTTPConnectionManager::getConnection(ConnectionParams &para
             return nullptr;
     }
 
-    vlc_mutex_locker locker(&lock);
+    heimdall_mutex_locker locker(&lock);
     AbstractConnection *conn = reuseConnection(params);
     if(!conn)
     {

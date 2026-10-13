@@ -2,11 +2,12 @@
  * NSString+Helpers.m: Category with helper functions for NSStrings
  *****************************************************************************
  * Copyright (C) 2002-2025 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Jon Lech Johansen <jon-vl@nanocrew.net>
  *          Christophe Massiot <massiot@via.ecp.fr>
- *          Derk-Jan Hartman <hartman at videolan dot org>
- *          Felix Paul Kühne <fkuehne at videolan dot org>
+ *          Derk-Jan Hartman <hartman at lycaria dot org>
+ *          Felix Paul Kühne <fkuehne at lycaria dot org>
  *          Marvin Scholz <epirat07@gmail.com>
  *          David Fuhrmann <dfuhrmann # videolan.org>
  *
@@ -27,9 +28,9 @@
 
 #import "NSString+Helpers.h"
 
-#import <vlc_configuration.h>
-#import <vlc_strings.h>
-#import <vlc_actions.h>
+#import <heimdall_configuration.h>
+#import <heimdall_strings.h>
+#import <heimdall_actions.h>
 
 #import <sys/param.h>
 #import <sys/mount.h>
@@ -39,15 +40,15 @@
 #import <IOKit/storage/IODVDMedia.h>
 #import <IOKit/storage/IOBDMedia.h>
 
-NSString *const kVLCMediaAudioCD = @"AudioCD";
-NSString *const kVLCMediaDVD = @"DVD";
-NSString *const kVLCMediaAudioDVD = @"AudioDVD";
-NSString *const kVLCMediaVCD = @"VCD";
-NSString *const kVLCMediaSVCD = @"SVCD";
-NSString *const kVLCMediaBD = @"Blu-ray";
-NSString *const kVLCMediaVideoTSFolder = @"VIDEO_TS";
-NSString *const kVLCMediaBDMVFolder = @"BDMV";
-NSString *const kVLCMediaUnknown = @"Unknown";
+NSString *const kHeimdallMediaAudioCD = @"AudioCD";
+NSString *const kHeimdallMediaDVD = @"DVD";
+NSString *const kHeimdallMediaAudioDVD = @"AudioDVD";
+NSString *const kHeimdallMediaVCD = @"VCD";
+NSString *const kHeimdallMediaSVCD = @"SVCD";
+NSString *const kHeimdallMediaBD = @"Blu-ray";
+NSString *const kHeimdallMediaVideoTSFolder = @"VIDEO_TS";
+NSString *const kHeimdallMediaBDMVFolder = @"BDMV";
+NSString *const kHeimdallMediaUnknown = @"Unknown";
 
 NSString * flagEmojiStringForCountryCode(NSString *countryCode)
 {
@@ -89,28 +90,28 @@ NSString * flagEmojiStringForCountryCode(NSString *countryCode)
     return [firstString isEqualToString:secondString];
 }
 
-+ (instancetype)stringWithDuration:(vlc_tick_t)duration
-                       currentTime:(vlc_tick_t)time
++ (instancetype)stringWithDuration:(heimdall_tick_t)duration
+                       currentTime:(heimdall_tick_t)time
                           negative:(BOOL)negative
 {
     char psz_time[MSTRTIME_MAX_SIZE];
 
     if (negative && duration > 0) {
-        vlc_tick_t remaining = (duration > time) ? (duration - time) : 0;
+        heimdall_tick_t remaining = (duration > time) ? (duration - time) : 0;
 
         return [NSString stringWithFormat:@"-%s",
-                vlc_tick_to_str(psz_time, remaining)];
+                heimdall_tick_to_str(psz_time, remaining)];
     } else {
         return [NSString stringWithUTF8String:
-                vlc_tick_to_str(psz_time, time)];
+                heimdall_tick_to_str(psz_time, time)];
     }
 }
 
-+ (instancetype)stringWithTimeFromTicks:(vlc_tick_t)time
++ (instancetype)stringWithTimeFromTicks:(heimdall_tick_t)time
 {
     char psz_time[MSTRTIME_MAX_SIZE];
     return [NSString stringWithUTF8String:
-            vlc_tick_to_str(psz_time, time)];
+            heimdall_tick_to_str(psz_time, time)];
 }
 
 + (instancetype)stringWithTimeFromMilliseconds:(int64_t)time
@@ -119,7 +120,7 @@ NSString * flagEmojiStringForCountryCode(NSString *countryCode)
         return @"--:--";
     }
 
-    return [NSString stringWithTimeFromTicks:VLC_TICK_FROM_MS(time)];
+    return [NSString stringWithTimeFromTicks:HEIMDALL_TICK_FROM_MS(time)];
 }
 
 + (instancetype)stringWithTime:(long long int)time
@@ -169,7 +170,7 @@ NSString * flagEmojiStringForCountryCode(NSString *countryCode)
     if (cstring == NULL)
         return nil;
 
-    char *encoded_cstring = vlc_b64_encode(cstring);
+    char *encoded_cstring = heimdall_b64_encode(cstring);
     if (encoded_cstring == NULL)
         return nil;
 
@@ -181,7 +182,7 @@ NSString * flagEmojiStringForCountryCode(NSString *countryCode)
 
 - (NSString *)base64EncodedString
 {
-    char *encoded_cstring = vlc_b64_encode(self.UTF8String);
+    char *encoded_cstring = heimdall_b64_encode(self.UTF8String);
     if (encoded_cstring == NULL)
         return nil;
 
@@ -193,7 +194,7 @@ NSString * flagEmojiStringForCountryCode(NSString *countryCode)
 
 - (NSString *)base64DecodedString
 {
-    char *decoded_cstring = vlc_b64_decode(self.UTF8String);
+    char *decoded_cstring = heimdall_b64_decode(self.UTF8String);
     if (decoded_cstring == NULL)
         return nil;
 
@@ -278,7 +279,7 @@ NSString * flagEmojiStringForCountryCode(NSString *countryCode)
     return result.copy;
 }
 
-+ (NSArray<NSString *> *)extensionsArrayFromVLCStyleString:(const char *)extensionsString
++ (NSArray<NSString *> *)extensionsArrayFromHeimdallStyleString:(const char *)extensionsString
 {
     if (extensionsString == NULL) {
         return @[];
@@ -297,8 +298,8 @@ NSString * flagEmojiStringForCountryCode(NSString *countryCode)
 static struct
 {
     unichar i_nskey;
-    unsigned int i_vlckey;
-} nskeys_to_vlckeys[] =
+    unsigned int i_heimdallkey;
+} nskeys_to_heimdallkeys[] =
 {
     { NSUpArrowFunctionKey, KEY_UP },
     { NSDownArrowFunctionKey, KEY_DOWN },
@@ -330,13 +331,13 @@ static struct
     {0,0}
 };
 
-unsigned int CocoaKeyToVLC(unichar i_key)
+unsigned int CocoaKeyToHeimdall(unichar i_key)
 {
     unsigned int i;
 
-    for (i = 0; nskeys_to_vlckeys[i].i_nskey != 0; i++) {
-        if (nskeys_to_vlckeys[i].i_nskey == i_key) {
-            return nskeys_to_vlckeys[i].i_vlckey;
+    for (i = 0; nskeys_to_heimdallkeys[i].i_nskey != 0; i++) {
+        if (nskeys_to_heimdallkeys[i].i_nskey == i_key) {
+            return nskeys_to_heimdallkeys[i].i_heimdallkey;
         }
     }
     return (unsigned int)i_key;
@@ -399,9 +400,9 @@ NSString * getVolumeTypeFromMountPath(NSString *mountPath)
     io_service_t service = IOServiceGetMatchingService(kIOMasterPortDefault, matchingDict);
     if (IO_OBJECT_NULL != service) {
         if (IOObjectConformsTo(service, kIOCDMediaClass)) {
-            returnValue = kVLCMediaAudioCD;
+            returnValue = kHeimdallMediaAudioCD;
         } else if (IOObjectConformsTo(service, kIODVDMediaClass)) {
-            returnValue = kVLCMediaDVD;
+            returnValue = kHeimdallMediaDVD;
 
             // NSFileManager is not thread-safe, don't use defaultManager outside of the main thread
             NSFileManager *fileManager = [[NSFileManager alloc] init];
@@ -417,13 +418,13 @@ NSString * getVolumeTypeFromMountPath(NSString *mountPath)
                 for (NSString *fileItem in audioTSFolderItems) {
                     NSString *fileItemExtension = fileItem.pathExtension.lowercaseString;
                     if ([audioExtensions containsObject:fileItemExtension]) {
-                        returnValue = kVLCMediaAudioDVD;
+                        returnValue = kHeimdallMediaAudioDVD;
                         break;
                     }
                 }
             }
         } else if (IOObjectConformsTo(service, kIOBDMediaClass)) {
-            returnValue = kVLCMediaBD;
+            returnValue = kHeimdallMediaBD;
         }
         IOObjectRelease(service);
 
@@ -433,9 +434,9 @@ NSString * getVolumeTypeFromMountPath(NSString *mountPath)
     }
 
     if ([mountPath rangeOfString:@"VIDEO_TS" options:NSCaseInsensitiveSearch | NSBackwardsSearch].location != NSNotFound) {
-        returnValue = kVLCMediaVideoTSFolder;
+        returnValue = kHeimdallMediaVideoTSFolder;
     } else if ([mountPath rangeOfString:@"BDMV" options:NSCaseInsensitiveSearch | NSBackwardsSearch].location != NSNotFound) {
-        returnValue = kVLCMediaBDMVFolder;
+        returnValue = kHeimdallMediaBDMVFolder;
     } else {
         // NSFileManager is not thread-safe, don't use defaultManager outside of the main thread
         NSFileManager *fileManager = [[NSFileManager alloc] init];
@@ -448,26 +449,26 @@ NSString * getVolumeTypeFromMountPath(NSString *mountPath)
             if ([fileManager fileExistsAtPath:fullPath isDirectory:&isDirectory] && isDirectory)
             {
                 if ([currentFile caseInsensitiveCompare:@"SVCD"] == NSOrderedSame) {
-                    returnValue = kVLCMediaSVCD;
+                    returnValue = kHeimdallMediaSVCD;
                     break;
                 }
                 if ([currentFile caseInsensitiveCompare:@"VCD"] == NSOrderedSame) {
-                    returnValue = kVLCMediaVCD;
+                    returnValue = kHeimdallMediaVCD;
                     break;
                 }
                 if ([currentFile caseInsensitiveCompare:@"BDMV"] == NSOrderedSame) {
-                    returnValue = kVLCMediaBDMVFolder;
+                    returnValue = kHeimdallMediaBDMVFolder;
                     break;
                 }
                 if ([currentFile caseInsensitiveCompare:@"VIDEO_TS"] == NSOrderedSame) {
-                    returnValue = kVLCMediaVideoTSFolder;
+                    returnValue = kHeimdallMediaVideoTSFolder;
                     break;
                 }
             }
         }
 
         if (!returnValue)
-            returnValue = kVLCMediaVideoTSFolder;
+            returnValue = kHeimdallMediaVideoTSFolder;
     }
 
     return returnValue;
@@ -526,7 +527,7 @@ NSString * OSXStringKeyToString(NSString *theString)
     return theString;
 }
 
-NSString * VLCKeyToString(char *theChar)
+NSString * HeimdallKeyToString(char *theChar)
 {
     if (theChar == NULL) {
         return @"";
@@ -619,7 +620,7 @@ NSString * VLCKeyToString(char *theChar)
     return theString;
 }
 
-unsigned int VLCModifiersToCocoa(char *theChar)
+unsigned int HeimdallModifiersToCocoa(char *theChar)
 {
     unsigned int new = 0;
 

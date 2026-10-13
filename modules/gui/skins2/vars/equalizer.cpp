@@ -2,6 +2,7 @@
  * equalizer.cpp
  *****************************************************************************
  * Copyright (C) 2003 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cyril Deguet     <asmax@via.ecp.fr>
  *
@@ -24,9 +25,9 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_aout.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_aout.h>
 #include "equalizer.hpp"
 #include "../utils/var_percent.hpp"
 #include <ios>
@@ -82,8 +83,8 @@ VariablePtr EqualizerBands::getBand( int band )
 void EqualizerBands::onUpdate( Subject<VarPercent> &rBand, void *arg )
 {
     (void)rBand; (void)arg;
-    vlc_player_t* player = vlc_playlist_GetPlayer( getPL() );
-    audio_output_t* pAout = vlc_player_aout_Hold( player );
+    heimdall_player_t* player = heimdall_playlist_GetPlayer( getPL() );
+    audio_output_t* pAout = heimdall_player_aout_Hold( player );
 
     // Make sure we are not called from set()
     if( !m_isUpdating )
@@ -124,15 +125,15 @@ EqualizerPreamp::EqualizerPreamp( intf_thread_t *pIntf ): VarPercent( pIntf )
 }
 
 
-void EqualizerPreamp::set( float percentage, bool updateVLC )
+void EqualizerPreamp::set( float percentage, bool updateHeimdall )
 {
-    vlc_player_t* player = vlc_playlist_GetPlayer( getPL() );
-    audio_output_t* pAout = vlc_player_aout_Hold( player );
+    heimdall_player_t* player = heimdall_playlist_GetPlayer( getPL() );
+    audio_output_t* pAout = heimdall_player_aout_Hold( player );
 
     VarPercent::set( percentage );
 
     // Avoid infinite loop
-    if( updateVLC )
+    if( updateHeimdall )
     {
         float val = 40 * percentage - 20;
 

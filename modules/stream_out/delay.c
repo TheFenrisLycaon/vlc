@@ -2,6 +2,7 @@
  * delay.c: delay a stream
  *****************************************************************************
  * Copyright © 2009-2011 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Christophe Massiot <massiot@via.ecp.fr>
  *
@@ -27,11 +28,11 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_sout.h>
-#include <vlc_block.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_sout.h>
+#include <heimdall_block.h>
 
 #define SOUT_CFG_PREFIX "sout-delay-"
 
@@ -39,7 +40,7 @@ typedef struct
 {
     void *id;
     int i_id;
-    vlc_tick_t i_delay;
+    heimdall_tick_t i_delay;
 } sout_stream_sys_t;
 
 static void *
@@ -68,13 +69,13 @@ static void Del( sout_stream_t *p_stream, void *id )
     sout_StreamIdDel( p_stream->p_next, id );
 }
 
-static void block_ChainApplyDelay( block_t *chain, vlc_tick_t delay )
+static void block_ChainApplyDelay( block_t *chain, heimdall_tick_t delay )
 {
     for ( block_t *frame = chain; frame != NULL; frame = frame->p_next )
     {
-        if ( frame->i_dts != VLC_TICK_INVALID )
+        if ( frame->i_dts != HEIMDALL_TICK_INVALID )
             frame->i_dts += delay;
-        if ( frame->i_pts != VLC_TICK_INVALID )
+        if ( frame->i_pts != HEIMDALL_TICK_INVALID )
             frame->i_pts += delay;
     }
 }
@@ -96,7 +97,7 @@ static int Send( sout_stream_t *p_stream, void *id, block_t *p_buffer )
     return sout_StreamIdSend( p_stream->p_next, id, p_buffer );
 }
 
-static void SetPCR( sout_stream_t *stream, vlc_tick_t pcr )
+static void SetPCR( sout_stream_t *stream, heimdall_tick_t pcr )
 {
     sout_StreamSetPCR( stream->p_next, pcr );
 }
@@ -124,25 +125,25 @@ static const char *ppsz_sout_options[] = {
 /*****************************************************************************
  * Open:
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     sout_stream_t     *p_stream = (sout_stream_t*)p_this;
     sout_stream_sys_t *p_sys;
 
     p_sys = calloc( 1, sizeof( sout_stream_sys_t ) );
     if( !p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
 
     config_ChainParse( p_stream, SOUT_CFG_PREFIX, ppsz_sout_options,
                    p_stream->p_cfg );
 
     p_sys->i_id = var_GetInteger( p_stream, SOUT_CFG_PREFIX "id" );
-    p_sys->i_delay = VLC_TICK_FROM_MS(var_GetInteger( p_stream, SOUT_CFG_PREFIX "delay" ));
+    p_sys->i_delay = HEIMDALL_TICK_FROM_MS(var_GetInteger( p_stream, SOUT_CFG_PREFIX "delay" ));
 
     p_stream->ops = &ops;
     p_stream->p_sys = p_sys;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -157,7 +158,7 @@ static int Open( vlc_object_t *p_this )
     "Specify a delay (in ms) for this elementary stream. " \
     "Positive means delay and negative means advance." )
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname(N_("Delay"))
     set_description(N_("Delay a stream"))
     set_capability("sout filter", 50)
@@ -166,4 +167,4 @@ vlc_module_begin()
     set_callback(Open)
     add_integer(SOUT_CFG_PREFIX "id", 0, ID_TEXT, ID_LONGTEXT)
     add_integer(SOUT_CFG_PREFIX "delay", 0, DELAY_TEXT, DELAY_LONGTEXT)
-vlc_module_end()
+heimdall_module_end()

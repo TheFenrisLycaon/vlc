@@ -1,6 +1,7 @@
 
 /*****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,9 +23,9 @@ import QtQuick.Layouts
 import QtQml.Models
 
 
-import VLC.Style
-import VLC.Widgets as Widgets
-import VLC.Util
+import Heimdall.Style
+import Heimdall.Widgets as Widgets
+import Heimdall.Util
 
 // FIXME: Keyboard navigation needs to be fixed for this Popup.
 T.Popup {
@@ -37,13 +38,13 @@ T.Popup {
                           ? preferredWidth : Number.MAX_VALUE
                     , root.parent.width)
 
-    height: VLCStyle.dp(296, VLCStyle.scale)
+    height: HeimdallStyle.dp(296, HeimdallStyle.scale)
 
     // Animations
 
     Behavior on width {
         SmoothedAnimation {
-            duration: VLCStyle.duration_veryShort
+            duration: HeimdallStyle.duration_veryShort
             easing.type: Easing.InOutSine
         }
     }
@@ -63,7 +64,7 @@ T.Popup {
             anchors.left: parent.left
             anchors.right: parent.right
 
-            height: VLCStyle.margin_xxxsmall
+            height: HeimdallStyle.margin_xxxsmall
 
             color: popupTheme.border
         }
@@ -91,28 +92,28 @@ T.Popup {
             OpacityAnimator {
                 from: 0
                 to: 1
-                duration: VLCStyle.duration_long
+                duration: HeimdallStyle.duration_long
             }
         }
         pushExit: Transition {
             OpacityAnimator {
                 from: 1
                 to: 0
-                duration: VLCStyle.duration_long
+                duration: HeimdallStyle.duration_long
             }
         }
         popEnter: Transition {
             OpacityAnimator {
                 from: 0
                 to: 1
-                duration: VLCStyle.duration_long
+                duration: HeimdallStyle.duration_long
             }
         }
         popExit: Transition {
             OpacityAnimator {
                 from: 1
                 to: 0
-                duration: VLCStyle.duration_long
+                duration: HeimdallStyle.duration_long
             }
         }
     }
@@ -130,15 +131,15 @@ T.Popup {
       }
 
       onRequestAudioPage: {
-          stackView.push("qrc:///qt/qml/VLC/Player/TracksPageAudio.qml", {"trackMenuController": trackMenuController})
+          stackView.push("qrc:///qt/qml/Heimdall/Player/TracksPageAudio.qml", {"trackMenuController": trackMenuController})
       }
 
       onRequestSubtitlePage: {
-          stackView.push("qrc:///qt/qml/VLC/Player/TracksPageSubtitle.qml", {"trackMenuController": trackMenuController})
+          stackView.push("qrc:///qt/qml/Heimdall/Player/TracksPageSubtitle.qml", {"trackMenuController": trackMenuController})
       }
 
       onRequestPlaybackSpeedPage: {
-          stackView.push("qrc:///qt/qml/VLC/Player/TracksPageSpeed.qml", {"trackMenuController": trackMenuController})
+          stackView.push("qrc:///qt/qml/Heimdall/Player/TracksPageSpeed.qml", {"trackMenuController": trackMenuController})
       }
     }
 }

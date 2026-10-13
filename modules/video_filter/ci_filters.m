@@ -2,6 +2,7 @@
  * ci_filters.m: Video filters for MacOSX OpenGL video output
  *****************************************************************************
  * Copyright © 2017 VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Victorien Le Couviour--Tuffet <victorien.lecouviour.tuffet@gmail.com>
  *
@@ -27,11 +28,11 @@
 #include <assert.h>
 #include <stdatomic.h>
 
-#include <vlc_common.h>
-#include <vlc_filter.h>
-#include <vlc_picture.h>
-#include <vlc_plugin.h>
-#include <vlc_mouse.h>
+#include <heimdall_common.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
+#include <heimdall_plugin.h>
+#include <heimdall_mouse.h>
 #include "filter_picture.h"
 #include "vt_utils.h"
 
@@ -53,7 +54,7 @@ enum    filter_type
     FILTER_PSYCHEDELIC,
     FILTER_CUSTOM,
     NUM_FILTERS,
-    NUM_MAX_EQUIVALENT_VLC_FILTERS = 3
+    NUM_MAX_EQUIVALENT_HEIMDALL_FILTERS = 3
 };
 
 #define NUM_FILTER_PARAM_MAX    4
@@ -95,8 +96,8 @@ typedef struct filter_sys_t
 {
     char const *                psz_filter;
     bool                        mouse_moved;
-    vlc_mouse_t                 old_mouse;
-    vlc_mouse_t                 mouse;
+    heimdall_mouse_t                 old_mouse;
+    heimdall_mouse_t                 mouse;
     struct ci_filters_ctx *     ctx;
 } filter_sys_t;
 
@@ -110,20 +111,20 @@ struct  filter_desc
 {
     struct
     {
-        char const *            vlc;
+        char const *            heimdall;
         NSString *              ci;
     } const             name_desc;
 
     struct      filter_param_desc
     {
-        char const *            vlc;
+        char const *            heimdall;
         NSString *              ci;
         struct
         {
-            struct range    vlc;
+            struct range    heimdall;
             struct range    ci;
         }                       ranges[2];
-        int                     vlc_type;
+        int                     heimdall_type;
     } const             param_descs[NUM_FILTER_PARAM_MAX];
     void (*pf_init)(filter_t *filter, struct filter_chain *fchain);
     void (*pf_control)(filter_t *filter, struct filter_chain *fchain);
@@ -138,7 +139,7 @@ static struct filter_desc       filter_desc_table[] =
     {
         { "adjust", @"CIHueAdjust" },
         {
-            { "hue", @"inputAngle", {{{-180.f, +180.f}, {+3.f, -3.f}}}, VLC_VAR_FLOAT }
+            { "hue", @"inputAngle", {{{-180.f, +180.f}, {+3.f, -3.f}}}, HEIMDALL_VAR_FLOAT }
         },
         NULL, NULL
     },
@@ -146,9 +147,9 @@ static struct filter_desc       filter_desc_table[] =
     {
         { "adjust", @"CIColorControls" },
         {
-            { "contrast",   @"inputContrast",   {{{.0f, 2.f}, {.0f, 2.f}}},   VLC_VAR_FLOAT },
-            { "brightness", @"inputBrightness", {{{.0f, 2.f}, {-1.f, +1.f}}}, VLC_VAR_FLOAT },
-            { "saturation", @"inputSaturation", {{{.0f, 3.f}, {.0f, 2.7f}}},  VLC_VAR_FLOAT }
+            { "contrast",   @"inputContrast",   {{{.0f, 2.f}, {.0f, 2.f}}},   HEIMDALL_VAR_FLOAT },
+            { "brightness", @"inputBrightness", {{{.0f, 2.f}, {-1.f, +1.f}}}, HEIMDALL_VAR_FLOAT },
+            { "saturation", @"inputSaturation", {{{.0f, 3.f}, {.0f, 2.7f}}},  HEIMDALL_VAR_FLOAT }
         },
         NULL, NULL
     },
@@ -156,7 +157,7 @@ static struct filter_desc       filter_desc_table[] =
     {
         { "adjust", @"CIGammaAdjust" },
         {
-            { "gamma", @"inputPower", {{{.01f, 1.f}, {10.f, 1.f}}, {{1.f, 10.f}, {1.f, .01f}}}, VLC_VAR_FLOAT }
+            { "gamma", @"inputPower", {{{.01f, 1.f}, {10.f, 1.f}}, {{1.f, 10.f}, {1.f, .01f}}}, HEIMDALL_VAR_FLOAT }
         },
         NULL, NULL
     },
@@ -169,7 +170,7 @@ static struct filter_desc       filter_desc_table[] =
     {
         { "posterize", @"CIColorPosterize" },
         {
-            { "posterize-level", @"inputLevels", {{{2.f, 256.f}, {2.f, 256.f}}}, VLC_VAR_INTEGER }
+            { "posterize-level", @"inputLevels", {{{2.f, 256.f}, {2.f, 256.f}}}, HEIMDALL_VAR_INTEGER }
         },
         NULL, NULL
     },
@@ -177,7 +178,7 @@ static struct filter_desc       filter_desc_table[] =
     {
         { "sepia", @"CISepiaTone" },
         {
-            { "sepia-intensity", @"inputIntensity", {{{.0f, 255.f}, {.0f, 1.f}}}, VLC_VAR_INTEGER }
+            { "sepia-intensity", @"inputIntensity", {{{.0f, 255.f}, {.0f, 1.f}}}, HEIMDALL_VAR_INTEGER }
         },
         NULL, NULL
     },
@@ -185,7 +186,7 @@ static struct filter_desc       filter_desc_table[] =
     {
         { "sharpen", @"CISharpenLuminance" },
         {
-            { "sharpen-sigma", @"inputSharpness", {{{.0f, 2.f}, {.0f, 5.f}}}, VLC_VAR_FLOAT }
+            { "sharpen-sigma", @"inputSharpness", {{{.0f, 2.f}, {.0f, 5.f}}}, HEIMDALL_VAR_FLOAT }
         },
         NULL, NULL
     },
@@ -203,9 +204,9 @@ static struct filter_desc       filter_desc_table[] =
     },
 };
 
-#define GET_CI_VALUE(vlc_value, vlc_range, ci_range)               \
-    ((vlc_value - vlc_range.min) * (ci_range.max - ci_range.min) / \
-     (vlc_range.max - vlc_range.min) + ci_range.min)
+#define GET_CI_VALUE(heimdall_value, heimdall_range, ci_range)               \
+    ((heimdall_value - heimdall_range.min) * (ci_range.max - ci_range.min) / \
+     (heimdall_range.max - heimdall_range.min) + ci_range.min)
 
 static struct filter_chain *
 filter_chain_AddFilter(struct filter_chain **fchain, enum filter_type filter)
@@ -248,18 +249,18 @@ filter_chain_RemoveFilter(struct filter_chain **fchain,
 
 static void
 filter_desc_table_GetFilterTypes
-(char const *vlc_filter_name,
- enum filter_type filter_types[NUM_MAX_EQUIVALENT_VLC_FILTERS])
+(char const *heimdall_filter_name,
+ enum filter_type filter_types[NUM_MAX_EQUIVALENT_HEIMDALL_FILTERS])
 {
     int j = 0;
     for (int i = 0; i < NUM_FILTERS; ++i)
-        if (!strcmp(filter_desc_table[i].name_desc.vlc, vlc_filter_name))
+        if (!strcmp(filter_desc_table[i].name_desc.heimdall, heimdall_filter_name))
         {
-            assert(j < NUM_MAX_EQUIVALENT_VLC_FILTERS);
+            assert(j < NUM_MAX_EQUIVALENT_HEIMDALL_FILTERS);
             filter_types[j++] = i;
         }
     assert(j);
-    while (j < NUM_MAX_EQUIVALENT_VLC_FILTERS)
+    while (j < NUM_MAX_EQUIVALENT_HEIMDALL_FILTERS)
         filter_types[j++] = FILTER_NONE;
 }
 
@@ -270,56 +271,56 @@ filter_desc_table_GetFilterName(enum filter_type type)
 }
 
 static float
-filter_ConvertParam(float f_vlc_val,
+filter_ConvertParam(float f_heimdall_val,
                     struct filter_param_desc const *param_desc)
 {
-    struct range clip_range = { param_desc->ranges[0].vlc.min,
-                                param_desc->ranges[1].vlc.max
-                                ? param_desc->ranges[1].vlc.max
-                                : param_desc->ranges[0].vlc.max };
-    f_vlc_val = VLC_CLIP(f_vlc_val, clip_range.min, clip_range.max);
+    struct range clip_range = { param_desc->ranges[0].heimdall.min,
+                                param_desc->ranges[1].heimdall.max
+                                ? param_desc->ranges[1].heimdall.max
+                                : param_desc->ranges[0].heimdall.max };
+    f_heimdall_val = HEIMDALL_CLIP(f_heimdall_val, clip_range.min, clip_range.max);
 
     unsigned int range_idx;
     for (range_idx = 0; range_idx < 2; ++range_idx)
-        if (f_vlc_val >= param_desc->ranges[range_idx].vlc.min &&
-            f_vlc_val <= param_desc->ranges[range_idx].vlc.max)
+        if (f_heimdall_val >= param_desc->ranges[range_idx].heimdall.min &&
+            f_heimdall_val <= param_desc->ranges[range_idx].heimdall.max)
             break;
     assert(range_idx < 2);
 
-    return GET_CI_VALUE(f_vlc_val,
-                        param_desc->ranges[range_idx].vlc,
+    return GET_CI_VALUE(f_heimdall_val,
+                        param_desc->ranges[range_idx].heimdall,
                         param_desc->ranges[range_idx].ci);
 }
 
 static int
-ParamsCallback(vlc_object_t *obj,
+ParamsCallback(heimdall_object_t *obj,
                char const *psz_var,
-               vlc_value_t oldval, vlc_value_t newval,
+               heimdall_value_t oldval, heimdall_value_t newval,
                void *p_data)
 {
-    VLC_UNUSED(obj); VLC_UNUSED(oldval);
+    HEIMDALL_UNUSED(obj); HEIMDALL_UNUSED(oldval);
     struct filter_chain *filter = p_data;
     struct filter_param_desc const *filter_param_descs =
         filter_desc_table[filter->filter].param_descs;
 
     unsigned int i = 0;
     while (i < NUM_FILTER_PARAM_MAX &&
-           strcmp(filter_param_descs[i].vlc, psz_var))
+           strcmp(filter_param_descs[i].heimdall, psz_var))
         ++i;
     assert(i < NUM_FILTER_PARAM_MAX);
 
-    float new_vlc_val;
-    if (filter_param_descs[i].vlc_type == VLC_VAR_FLOAT)
-        new_vlc_val = newval.f_float;
-    else if (filter_param_descs[i].vlc_type == VLC_VAR_INTEGER)
-        new_vlc_val = newval.i_int;
+    float new_heimdall_val;
+    if (filter_param_descs[i].heimdall_type == HEIMDALL_VAR_FLOAT)
+        new_heimdall_val = newval.f_float;
+    else if (filter_param_descs[i].heimdall_type == HEIMDALL_VAR_INTEGER)
+        new_heimdall_val = newval.i_int;
     else
-        vlc_assert_unreachable();
+        heimdall_assert_unreachable();
 
     atomic_store(filter->ci_params + i,
-                 filter_ConvertParam(new_vlc_val, filter_param_descs + i));
+                 filter_ConvertParam(new_heimdall_val, filter_param_descs + i));
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void filter_PsychedelicInit(filter_t *filter, struct filter_chain *fchain)
@@ -363,7 +364,7 @@ Filter(filter_t *filter, picture_t *src)
 {
     filter_sys_t *p_sys = filter->p_sys;
     struct ci_filters_ctx *ctx = p_sys->ctx;
-    enum filter_type filter_types[NUM_MAX_EQUIVALENT_VLC_FILTERS];
+    enum filter_type filter_types[NUM_MAX_EQUIVALENT_HEIMDALL_FILTERS];
 
     filter_desc_table_GetFilterTypes(p_sys->psz_filter, filter_types);
     if (ctx->fchain->filter != filter_types[0])
@@ -405,7 +406,7 @@ Filter(filter_t *filter, picture_t *src)
                                  forKey: kCIInputImageKey];
 
             for (unsigned int i = 0; i < NUM_FILTER_PARAM_MAX &&
-                     filter_desc_table[fchain->filter].param_descs[i].vlc; ++i)
+                     filter_desc_table[fchain->filter].param_descs[i].heimdall; ++i)
             {
                 NSString *ci_param_name =
                     filter_desc_table[fchain->filter].param_descs[i].ci;
@@ -446,14 +447,14 @@ error:
 }
 
 static int
-Mouse(filter_t *filter, struct vlc_mouse_t *new,
-      const struct vlc_mouse_t *old)
+Mouse(filter_t *filter, struct heimdall_mouse_t *new,
+      const struct heimdall_mouse_t *old)
 {
     filter_sys_t *sys = filter->p_sys;
     sys->old_mouse = *old;
     sys->mouse = *new;
     sys->mouse_moved = true;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int
@@ -475,58 +476,58 @@ Open_FilterInit(filter_t *filter, struct filter_chain *fchain)
     {
         msg_Warn(filter, "filter '%s' could not be created",
                  [ci_filter_name UTF8String]);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    for (int i = 0; i < NUM_FILTER_PARAM_MAX && filter_param_descs[i].vlc; ++i)
+    for (int i = 0; i < NUM_FILTER_PARAM_MAX && filter_param_descs[i].heimdall; ++i)
     {
-        char const *vlc_param_name = filter_param_descs[i].vlc;
+        char const *heimdall_param_name = filter_param_descs[i].heimdall;
 
-        float vlc_param_val;
-        if (filter_param_descs[i].vlc_type == VLC_VAR_FLOAT)
-            vlc_param_val = var_CreateGetFloatCommand(filter, vlc_param_name);
-        else if (filter_param_descs[i].vlc_type == VLC_VAR_INTEGER)
-            vlc_param_val =
-                (float)var_CreateGetIntegerCommand(filter, vlc_param_name);
+        float heimdall_param_val;
+        if (filter_param_descs[i].heimdall_type == HEIMDALL_VAR_FLOAT)
+            heimdall_param_val = var_CreateGetFloatCommand(filter, heimdall_param_name);
+        else if (filter_param_descs[i].heimdall_type == HEIMDALL_VAR_INTEGER)
+            heimdall_param_val =
+                (float)var_CreateGetIntegerCommand(filter, heimdall_param_name);
         else
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
 
         atomic_init(fchain->ci_params + i,
-                    filter_ConvertParam(vlc_param_val,
+                    filter_ConvertParam(heimdall_param_val,
                                         filter_param_descs + i));
 
-        var_AddCallback(filter, filter_param_descs[i].vlc,
+        var_AddCallback(filter, filter_param_descs[i].heimdall,
                         ParamsCallback, fchain);
     }
     if (filter_desc_table[fchain->filter].pf_init)
         filter_desc_table[fchain->filter].pf_init(filter, fchain);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int
 Open_CreateFilters(filter_t *filter, struct filter_chain **p_last_filter,
-                   enum filter_type filter_types[NUM_MAX_EQUIVALENT_VLC_FILTERS])
+                   enum filter_type filter_types[NUM_MAX_EQUIVALENT_HEIMDALL_FILTERS])
 {
     struct filter_chain *new_filter;
 
     for (unsigned int i = 0;
-         i < NUM_MAX_EQUIVALENT_VLC_FILTERS
+         i < NUM_MAX_EQUIVALENT_HEIMDALL_FILTERS
              && filter_types[i] != FILTER_NONE; ++i)
     {
         new_filter = filter_chain_AddFilter(p_last_filter, filter_types[i]);
         if (!new_filter)
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         p_last_filter = &new_filter;
-        if (Open_FilterInit(filter, new_filter) != VLC_SUCCESS)
+        if (Open_FilterInit(filter, new_filter) != HEIMDALL_SUCCESS)
         {
             for (unsigned int j = 0; j < i ; ++j)
                 filter_chain_RemoveFilter(p_last_filter, filter_types[i]);
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void
@@ -536,11 +537,11 @@ cvpx_video_context_Destroy(void *priv)
 
     if (ctx->src_converter)
     {
-        vlc_filter_Delete( ctx->src_converter );
+        heimdall_filter_Delete( ctx->src_converter );
     }
     if (ctx->dst_converter)
     {
-        vlc_filter_Delete( ctx->dst_converter );
+        heimdall_filter_Delete( ctx->dst_converter );
     }
 
     if (ctx->cvpx_pool)
@@ -550,7 +551,7 @@ cvpx_video_context_Destroy(void *priv)
 static filter_t *
 CVPX_to_CVPX_converter_Create(filter_t *filter, bool to_rgba)
 {
-    filter_t *converter = vlc_object_create(filter, sizeof(filter_t));
+    filter_t *converter = heimdall_object_create(filter, sizeof(filter_t));
     if (!converter)
         return NULL;
 
@@ -560,18 +561,18 @@ CVPX_to_CVPX_converter_Create(filter_t *filter, bool to_rgba)
     if (to_rgba)
     {
         converter->fmt_out.video.i_chroma =
-        converter->fmt_out.i_codec = VLC_CODEC_CVPX_BGRA;
+        converter->fmt_out.i_codec = HEIMDALL_CODEC_CVPX_BGRA;
     }
     else
     {
         converter->fmt_in.video.i_chroma =
-        converter->fmt_in.i_codec = VLC_CODEC_CVPX_BGRA;
+        converter->fmt_in.i_codec = HEIMDALL_CODEC_CVPX_BGRA;
     }
 
-    converter->p_module = vlc_filter_LoadModule(converter, "video converter", NULL, false);
+    converter->p_module = heimdall_filter_LoadModule(converter, "video converter", NULL, false);
     if (!converter->p_module)
     {
-        vlc_object_delete(converter);
+        heimdall_object_delete(converter);
         return NULL;
     }
     assert( converter->ops != NULL );
@@ -584,19 +585,19 @@ Close(filter_t *filter)
 {
     filter_sys_t *p_sys = filter->p_sys;
     struct ci_filters_ctx *ctx = p_sys->ctx;
-    enum filter_type filter_types[NUM_MAX_EQUIVALENT_VLC_FILTERS];
+    enum filter_type filter_types[NUM_MAX_EQUIVALENT_HEIMDALL_FILTERS];
 
     filter_desc_table_GetFilterTypes(p_sys->psz_filter, filter_types);
     for (unsigned int i = 0;
-         i < NUM_MAX_EQUIVALENT_VLC_FILTERS && filter_types[i] != FILTER_NONE;
+         i < NUM_MAX_EQUIVALENT_HEIMDALL_FILTERS && filter_types[i] != FILTER_NONE;
          ++i)
         filter_chain_RemoveFilter(&ctx->fchain, filter_types[i]);
 
-    vlc_video_context_Release(filter->vctx_out);
+    heimdall_video_context_Release(filter->vctx_out);
     free(p_sys);
 }
 
-static const struct vlc_filter_operations filter_ops =
+static const struct heimdall_filter_operations filter_ops =
 {
     .filter_video = Filter,
     .video_mouse = Mouse,
@@ -608,53 +609,53 @@ Open(filter_t *filter, char const *psz_filter)
 {
     switch (filter->fmt_in.video.i_chroma)
     {
-        case VLC_CODEC_CVPX_NV12:
-        case VLC_CODEC_CVPX_P010:
-        case VLC_CODEC_CVPX_UYVY:
-        case VLC_CODEC_CVPX_I420:
-        case VLC_CODEC_CVPX_BGRA:
+        case HEIMDALL_CODEC_CVPX_NV12:
+        case HEIMDALL_CODEC_CVPX_P010:
+        case HEIMDALL_CODEC_CVPX_UYVY:
+        case HEIMDALL_CODEC_CVPX_I420:
+        case HEIMDALL_CODEC_CVPX_BGRA:
             break;
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 
     if (filter->vctx_in == NULL ||
-        vlc_video_context_GetType(filter->vctx_in) != VLC_VIDEO_CONTEXT_CVPX)
-        return VLC_EGENERIC;
+        heimdall_video_context_GetType(filter->vctx_in) != HEIMDALL_VIDEO_CONTEXT_CVPX)
+        return HEIMDALL_EGENERIC;
 
     filter_sys_t *p_sys = filter->p_sys = calloc(1, sizeof(filter_sys_t));
     if (!filter->p_sys)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    enum filter_type filter_types[NUM_MAX_EQUIVALENT_VLC_FILTERS];
+    enum filter_type filter_types[NUM_MAX_EQUIVALENT_HEIMDALL_FILTERS];
     filter_desc_table_GetFilterTypes(psz_filter, filter_types);
 
     struct ci_filters_ctx *ctx =
-        vlc_video_context_GetCVPXPrivate(filter->vctx_in, CVPX_VIDEO_CONTEXT_CIFILTERS);
+        heimdall_video_context_GetCVPXPrivate(filter->vctx_in, CVPX_VIDEO_CONTEXT_CIFILTERS);
 
     if (ctx)
-        filter->vctx_out = vlc_video_context_Hold(filter->vctx_in);
+        filter->vctx_out = heimdall_video_context_Hold(filter->vctx_in);
     else
     {
-        static const struct vlc_video_context_operations ops = {
+        static const struct heimdall_video_context_operations ops = {
             cvpx_video_context_Destroy,
         };
-        vlc_decoder_device *dec_dev =
+        heimdall_decoder_device *dec_dev =
             filter_HoldDecoderDeviceType(filter,
-                                         VLC_DECODER_DEVICE_VIDEOTOOLBOX);
+                                         HEIMDALL_DECODER_DEVICE_VIDEOTOOLBOX);
         if (!dec_dev)
         {
             msg_Err(filter, "Missing decoder device");
             goto error;
         }
         filter->vctx_out =
-            vlc_video_context_CreateCVPX(dec_dev, CVPX_VIDEO_CONTEXT_CIFILTERS,
+            heimdall_video_context_CreateCVPX(dec_dev, CVPX_VIDEO_CONTEXT_CIFILTERS,
                                          sizeof(struct ci_filters_ctx), &ops);
-        vlc_decoder_device_Release(dec_dev);
+        heimdall_decoder_device_Release(dec_dev);
         if (!filter->vctx_out)
             goto error;
 
-        ctx = vlc_video_context_GetCVPXPrivate(filter->vctx_out,
+        ctx = heimdall_video_context_GetCVPXPrivate(filter->vctx_out,
                                                CVPX_VIDEO_CONTEXT_CIFILTERS);
         assert(ctx);
 
@@ -663,8 +664,8 @@ Open(filter_t *filter, char const *psz_filter)
         ctx->cvpx_pool = nil;
         ctx->cvpx_pool_fmt = filter->fmt_out.video;
 
-        if (filter->fmt_in.video.i_chroma != VLC_CODEC_CVPX_NV12
-         && filter->fmt_in.video.i_chroma != VLC_CODEC_CVPX_BGRA)
+        if (filter->fmt_in.video.i_chroma != HEIMDALL_CODEC_CVPX_NV12
+         && filter->fmt_in.video.i_chroma != HEIMDALL_CODEC_CVPX_BGRA)
         {
             ctx->src_converter =
                     CVPX_to_CVPX_converter_Create(filter, true);
@@ -672,7 +673,7 @@ Open(filter_t *filter, char const *psz_filter)
                     CVPX_to_CVPX_converter_Create(filter, false) : NULL;
             if (!ctx->src_converter || !ctx->dst_converter)
                 goto error;
-            ctx->cvpx_pool_fmt.i_chroma = VLC_CODEC_CVPX_BGRA;
+            ctx->cvpx_pool_fmt.i_chroma = HEIMDALL_CODEC_CVPX_BGRA;
         }
 
 #if !TARGET_OS_IPHONE
@@ -716,7 +717,7 @@ Open(filter_t *filter, char const *psz_filter)
 
     filter->ops = &filter_ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
 #if !TARGET_OS_IPHONE
@@ -728,9 +729,9 @@ error:
 #endif
 
     if (filter->vctx_out)
-        vlc_video_context_Release(filter->vctx_out);
+        heimdall_video_context_Release(filter->vctx_out);
     free(p_sys);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 static int
@@ -779,7 +780,7 @@ OpenCustom(filter_t *filter)
 #define CI_CUSTOM_FILTER_LONGTEXT N_( \
     "Example: 'CICrystallize', 'CIBumpDistortion', 'CIThermal', 'CIComicEffect'")
 
-vlc_module_begin()
+heimdall_module_begin()
     set_subcategory(SUBCAT_VIDEO_VFILTER)
     set_description(N_("Mac OS X hardware video filters"))
 
@@ -811,4 +812,4 @@ vlc_module_begin()
     set_callback_video_filter_priority(OpenCustom, 2)
     add_shortcut("ci")
     add_string("ci-filter", "CIComicEffect", CI_CUSTOM_FILTER_TEXT, CI_CUSTOM_FILTER_LONGTEXT)
-vlc_module_end()
+heimdall_module_end()

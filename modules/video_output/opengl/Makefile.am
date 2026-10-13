@@ -30,25 +30,25 @@ OPENGL_VOUT_COMMONSOURCES = \
     video_output/opengl/vout_helper.h
 
 # Convenience library for OpenGL components -- OpenGL only
-libvlc_opengl_la_SOURCES = $(OPENGL_COMMONSOURCES)
-libvlc_opengl_la_CFLAGS = $(OPENGL_COMMONCFLAGS) $(GL_CFLAGS)
-libvlc_opengl_la_CPPFLAGS =
-libvlc_opengl_la_LIBADD = $(OPENGL_COMMONLIBS) $(LIBM)
-libvlc_opengl_la_LDFLAGS = -static -no-undefined
+libheimdall_opengl_la_SOURCES = $(OPENGL_COMMONSOURCES)
+libheimdall_opengl_la_CFLAGS = $(OPENGL_COMMONCFLAGS) $(GL_CFLAGS)
+libheimdall_opengl_la_CPPFLAGS =
+libheimdall_opengl_la_LIBADD = $(OPENGL_COMMONLIBS) $(LIBM)
+libheimdall_opengl_la_LDFLAGS = -static -no-undefined
 
 if HAVE_GL
-noinst_LTLIBRARIES += libvlc_opengl.la
+noinst_LTLIBRARIES += libheimdall_opengl.la
 endif
 
 # Convenience library for OpenGL components -- OpenGL ES only
-libvlc_opengles_la_SOURCES = $(OPENGL_COMMONSOURCES)
-libvlc_opengles_la_CFLAGS = $(OPENGL_COMMONCFLAGS) -DUSE_OPENGL_ES2
-libvlc_opengles_la_LIBADD = $(OPENGL_COMMONLIBS) $(LIBM)
-libvlc_opengles_la_LDFLAGS = -static -no-undefined
+libheimdall_opengles_la_SOURCES = $(OPENGL_COMMONSOURCES)
+libheimdall_opengles_la_CFLAGS = $(OPENGL_COMMONCFLAGS) -DUSE_OPENGL_ES2
+libheimdall_opengles_la_LIBADD = $(OPENGL_COMMONLIBS) $(LIBM)
+libheimdall_opengles_la_LDFLAGS = -static -no-undefined
 
-libvlc_opengles_la_CFLAGS += $(GLES2_CFLAGS)
+libheimdall_opengles_la_CFLAGS += $(GLES2_CFLAGS)
 if HAVE_GLES2
-noinst_LTLIBRARIES += libvlc_opengles.la
+noinst_LTLIBRARIES += libheimdall_opengles.la
 endif
 
 # Plugins that adapt to either backend link against $(GL_PLUGIN_LIBADD)
@@ -58,11 +58,11 @@ endif
 # they need only the common convenience library, not the GL/GLES2 link
 # libraries.
 if HAVE_GL
-GL_PLUGIN_LIBADD = libvlc_opengl.la
+GL_PLUGIN_LIBADD = libheimdall_opengl.la
 GL_PLUGIN_CFLAGS = $(GL_CFLAGS)
 else
 if HAVE_GLES2
-GL_PLUGIN_LIBADD = libvlc_opengles.la
+GL_PLUGIN_LIBADD = libheimdall_opengles.la
 GL_PLUGIN_CFLAGS = $(GLES2_CFLAGS) -DUSE_OPENGL_ES2=1
 endif
 endif
@@ -90,7 +90,7 @@ endif
 libgles2_plugin_la_SOURCES = video_output/opengl/display.c \
     $(OPENGL_VOUT_COMMONSOURCES)
 libgles2_plugin_la_CFLAGS = $(AM_CFLAGS) $(GLES2_CFLAGS) -DUSE_OPENGL_ES2
-libgles2_plugin_la_LIBADD = libvlc_opengles.la $(GLES2_LIBS)
+libgles2_plugin_la_LIBADD = libheimdall_opengles.la $(GLES2_LIBS)
 libgles2_plugin_la_LDFLAGS = $(AM_LDFLAGS) $(vout_RPATH)
 if HAVE_GLES2
 vout_PLUGINS += libgles2_plugin.la
@@ -100,7 +100,7 @@ libgl_plugin_la_SOURCES = video_output/opengl/display.c \
     $(OPENGL_VOUT_COMMONSOURCES)
 libgl_plugin_la_CFLAGS = $(AM_CFLAGS) $(GL_CFLAGS) $(OPENGL_COMMONCFLAGS)
 libgl_plugin_la_CPPFLAGS = $(AM_CPPFLAGS)
-libgl_plugin_la_LIBADD = libvlc_opengl.la
+libgl_plugin_la_LIBADD = libheimdall_opengl.la
 if HAVE_GL
 vout_PLUGINS += libgl_plugin.la
 endif # HAVE_GL
@@ -186,7 +186,7 @@ libopengl_win_offscreen_plugin_la_SOURCES = video_filter/opengl_win_offscreen.c
 if HAVE_WIN32
 if HAVE_GL
 libopengl_win_offscreen_plugin_la_CFLAGS = $(AM_CFLAGS) $(OPENGL_COMMONCFLAGS) $(GL_CFLAGS)
-libopengl_win_offscreen_plugin_la_LIBADD = libvlc_opengl.la $(GL_LIBS) -lgdi32
+libopengl_win_offscreen_plugin_la_LIBADD = libheimdall_opengl.la $(GL_LIBS) -lgdi32
 vout_PLUGINS += libopengl_win_offscreen_plugin.la
 endif
 endif

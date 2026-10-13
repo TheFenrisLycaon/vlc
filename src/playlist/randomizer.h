@@ -2,6 +2,7 @@
  * randomizer.h
  *****************************************************************************
  * Copyright (C) 2018 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -21,10 +22,10 @@
 #ifndef RANDOMIZER_H
 #define RANDOMIZER_H
 
-#include <vlc_common.h>
-#include <vlc_vector.h>
+#include <heimdall_common.h>
+#include <heimdall_vector.h>
 
-typedef struct vlc_playlist_item vlc_playlist_item_t;
+typedef struct heimdall_playlist_item heimdall_playlist_item_t;
 
 /**
  * \defgroup playlist_randomizer Playlist randomizer helper
@@ -37,7 +38,7 @@ typedef struct vlc_playlist_item vlc_playlist_item_t;
  * See randomizer.c for implementation details.
  */
 struct randomizer {
-    struct VLC_VECTOR(vlc_playlist_item_t *) items;
+    struct HEIMDALL_VECTOR(heimdall_playlist_item_t *) items;
     unsigned short xsubi[3]; /* random state */
     bool loop;
     size_t head;
@@ -95,25 +96,25 @@ randomizer_HasNext(struct randomizer *randomizer);
 /**
  * Peek the previous item (without changing the current one).
  */
-vlc_playlist_item_t *
+heimdall_playlist_item_t *
 randomizer_PeekPrev(struct randomizer *randomizer);
 
 /**
  * Peek the next item (without changing the current one).
  */
-vlc_playlist_item_t *
+heimdall_playlist_item_t *
 randomizer_PeekNext(struct randomizer *randomizer);
 
 /**
  * Go back to the previous item.
  */
-vlc_playlist_item_t *
+heimdall_playlist_item_t *
 randomizer_Prev(struct randomizer *randomizer);
 
 /**
  * Go back to the next item.
  */
-vlc_playlist_item_t *
+heimdall_playlist_item_t *
 randomizer_Next(struct randomizer *randomizer);
 
 /**
@@ -124,7 +125,7 @@ randomizer_Next(struct randomizer *randomizer);
  */
 void
 randomizer_Select(struct randomizer *randomizer,
-                  const vlc_playlist_item_t *item);
+                  const heimdall_playlist_item_t *item);
 
 /**
  * Add items to the randomizer.
@@ -132,7 +133,7 @@ randomizer_Select(struct randomizer *randomizer,
  * This function should be called when items are added to the playlist.
  */
 bool
-randomizer_Add(struct randomizer *randomizer, vlc_playlist_item_t *items[],
+randomizer_Add(struct randomizer *randomizer, heimdall_playlist_item_t *items[],
                size_t count);
 
 /**
@@ -142,7 +143,7 @@ randomizer_Add(struct randomizer *randomizer, vlc_playlist_item_t *items[],
  */
 void
 randomizer_Remove(struct randomizer *randomizer,
-                  vlc_playlist_item_t *const items[], size_t count);
+                  heimdall_playlist_item_t *const items[], size_t count);
 
 /**
  * Clear the randomizer.

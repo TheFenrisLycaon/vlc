@@ -2,6 +2,7 @@
  * hxxx_helper.h: AnnexB / avcC helper for dumb decoders
  *****************************************************************************
  * Copyright (C) 2017 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,8 +23,8 @@
 # include "config.h"
 #endif
 
-#include <vlc_block.h>
-#include <vlc_fourcc.h>
+#include <heimdall_block.h>
+#include <heimdall_fourcc.h>
 
 #include "../packetizer/h264_nal.h"
 #include "../packetizer/hevc_nal.h"
@@ -46,8 +47,8 @@ struct hxxx_helper_nal
 
 struct hxxx_helper
 {
-    vlc_object_t *p_obj; /* for logs */
-    vlc_fourcc_t i_codec;
+    heimdall_object_t *p_obj; /* for logs */
+    heimdall_fourcc_t i_codec;
     uint8_t i_input_nal_length_size;
     uint8_t i_output_nal_length_size;
     uint8_t i_config_version_prev;
@@ -81,8 +82,8 @@ struct hxxx_helper
 /* Init:
  * i_input_length_size set xvcC nal length or 0 for AnnexB (overridden by extradata)
  * i_output_length_size set xvcC nal length or 0 for AnnexB */
-void hxxx_helper_init(struct hxxx_helper *hh, vlc_object_t *p_obj,
-                      vlc_fourcc_t i_codec, uint8_t i_input_length_size,
+void hxxx_helper_init(struct hxxx_helper *hh, heimdall_object_t *p_obj,
+                      heimdall_fourcc_t i_codec, uint8_t i_input_length_size,
                       uint8_t i_output_length_size);
 
 void hxxx_helper_clean(struct hxxx_helper *hh);

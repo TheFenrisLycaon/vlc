@@ -2,6 +2,7 @@
  * Container.hpp : CDS Container interface
  *****************************************************************************
  * Copyright © 2024 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Alaric Senat <alaric@videolabs.io>
  *
@@ -24,7 +25,7 @@
 
 #include "Object.hpp"
 
-#include <vlc_media_library.h>
+#include <heimdall_media_library.h>
 namespace cds
 {
 /// Opaque CDS container type
@@ -38,8 +39,8 @@ class Container : public Object
         uint32_t offset;
         uint32_t requested;
 
-        vlc_ml_query_params_t to_query_params() const {
-            vlc_ml_query_params_t query_params = vlc_ml_query_params_create();
+        heimdall_ml_query_params_t to_query_params() const {
+            heimdall_ml_query_params_t query_params = heimdall_ml_query_params_create();
             query_params.i_nbResults = requested;
             query_params.i_offset = offset;
             return query_params;

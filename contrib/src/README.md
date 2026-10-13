@@ -20,7 +20,7 @@ is correct, e.g.:
 	# This will use the default rule: check SHA-512
 	.sum-foo: libfoo-$(FOO_VERSION).tar.bz2
 
-NOTE: contrary to the previous VLC contribs, this system always uses
+NOTE: contrary to the previous Heimdall contribs, this system always uses
 a source tarball, even if the source code is downloaded from a VCS.
 This serves two purposes:
  - offline builds (or behind a firewall),
@@ -50,7 +50,7 @@ source code is fully ready. Otherwise Makefile dependencies will break
 ### Conditional builds
 
 As far as possible, build rules should determine automatically whether
-a package is useful (for VLC media player) or not. Useful packages
+a package is useful (for Heimdall media player) or not. Useful packages
 should be listed in the PKGS special variable. See some examples:
 
 	# FFmpeg is always useful
@@ -67,7 +67,7 @@ should be listed in the PKGS special variable. See some examples:
 	endif
 
 If a package is a dependency of another package, but it is not a
-direct dependency of VLC, then it should NOT be added to PKGS. The
+direct dependency of Heimdall, then it should NOT be added to PKGS. The
 build system will automatically build it via dependencies (see below).
 
 Some packages may be provided by the target system. This is especially

@@ -1,9 +1,10 @@
 /**
  * \file wasapi.c
- * \brief Windows Audio Session API capture plugin for VLC
+ * \brief Windows Audio Session API capture plugin for Heimdall
  */
 /*****************************************************************************
  * Copyright (C) 2014-2015 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -35,10 +36,10 @@
 
 #define _DECL_DLLMAIN
 #include <process.h>
-#include <vlc_common.h>
-#include <vlc_aout.h>
-#include <vlc_demux.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_aout.h>
+#include <heimdall_demux.h>
+#include <heimdall_plugin.h>
 #include <mmdeviceapi.h>
 #include <audioclient.h>
 
@@ -150,7 +151,7 @@ static IAudioClient *GetClient(demux_t *demux, bool *restrict loopbackp)
     return pv;
 }
 
-static int vlc_FromWave(const WAVEFORMATEX *restrict wf,
+static int heimdall_FromWave(const WAVEFORMATEX *restrict wf,
                         audio_sample_format_t *restrict fmt)
 {
     fmt->i_rate = wf->nSamplesPerSec;
@@ -181,10 +182,10 @@ static int vlc_FromWave(const WAVEFORMATEX *restrict wf,
                 switch (wfe->Samples.wValidBitsPerSample)
                 {
                     case 32:
-                        fmt->i_format = VLC_CODEC_S32N;
+                        fmt->i_format = HEIMDALL_CODEC_S32N;
                         break;
                     case 24:
-                        fmt->i_format = VLC_CODEC_S24L32;
+                        fmt->i_format = HEIMDALL_CODEC_S24L32;
                         break;
                     default:
                         return -1;
@@ -192,19 +193,19 @@ static int vlc_FromWave(const WAVEFORMATEX *restrict wf,
                 break;
             case 24:
                 if (wfe->Samples.wValidBitsPerSample == 24)
-                    fmt->i_format = VLC_CODEC_S24N;
+                    fmt->i_format = HEIMDALL_CODEC_S24N;
                 else
                     return -1;
                 break;
             case 16:
                 if (wfe->Samples.wValidBitsPerSample == 16)
-                    fmt->i_format = VLC_CODEC_S16N;
+                    fmt->i_format = HEIMDALL_CODEC_S16N;
                 else
                     return -1;
                 break;
             case 8:
                 if (wfe->Samples.wValidBitsPerSample == 8)
-                    fmt->i_format = VLC_CODEC_S8;
+                    fmt->i_format = HEIMDALL_CODEC_S8;
                 else
                     return -1;
                 break;
@@ -220,10 +221,10 @@ static int vlc_FromWave(const WAVEFORMATEX *restrict wf,
         switch (wf->wBitsPerSample)
         {
             case 64:
-                fmt->i_format = VLC_CODEC_FL64;
+                fmt->i_format = HEIMDALL_CODEC_FL64;
                 break;
             case 32:
-                fmt->i_format = VLC_CODEC_FL32;
+                fmt->i_format = HEIMDALL_CODEC_FL32;
                 break;
             default:
                 return -1;
@@ -231,11 +232,11 @@ static int vlc_FromWave(const WAVEFORMATEX *restrict wf,
     }
     /*else if (IsEqualIID(&wfe->Subformat, &KSDATAFORMAT_SUBTYPE_DRM)) {} */
     else if (IsEqualIID(&wfe->SubFormat, &KSDATAFORMAT_SUBTYPE_ALAW))
-        fmt->i_format = VLC_CODEC_ALAW;
+        fmt->i_format = HEIMDALL_CODEC_ALAW;
     else if (IsEqualIID(&wfe->SubFormat, &KSDATAFORMAT_SUBTYPE_MULAW))
-        fmt->i_format = VLC_CODEC_MULAW;
+        fmt->i_format = HEIMDALL_CODEC_MULAW;
     else if (IsEqualIID(&wfe->SubFormat, &KSDATAFORMAT_SUBTYPE_ADPCM))
-        fmt->i_format = VLC_CODEC_ADPCM_MS;
+        fmt->i_format = HEIMDALL_CODEC_ADPCM_MS;
     else
         return -1;
 
@@ -247,7 +248,7 @@ static int vlc_FromWave(const WAVEFORMATEX *restrict wf,
 }
 
 static es_out_id_t *CreateES(demux_t *demux, IAudioClient *client, bool loop,
-                             vlc_tick_t caching, size_t *restrict frame_size)
+                             heimdall_tick_t caching, size_t *restrict frame_size)
 {
     es_format_t fmt;
     WAVEFORMATEX *pwf;
@@ -261,7 +262,7 @@ static es_out_id_t *CreateES(demux_t *demux, IAudioClient *client, bool loop,
     }
 
     es_format_Init(&fmt, AUDIO_ES, 0);
-    if (vlc_FromWave(pwf, &fmt.audio))
+    if (heimdall_FromWave(pwf, &fmt.audio))
     {
         msg_Err(demux, "unsupported mix format");
         CoTaskMemFree(pwf);
@@ -278,7 +279,7 @@ static es_out_id_t *CreateES(demux_t *demux, IAudioClient *client, bool loop,
         flags |= AUDCLNT_STREAMFLAGS_LOOPBACK;
 
     /* Request at least thrice the PTS delay */
-    REFERENCE_TIME bufsize = MSFTIME_FROM_VLC_TICK( caching ) * 3;
+    REFERENCE_TIME bufsize = MSFTIME_FROM_HEIMDALL_TICK( caching ) * 3;
 
     if (flags == AUDCLNT_STREAMFLAGS_EVENTCALLBACK)
         bufsize = 0;
@@ -300,8 +301,8 @@ typedef struct
     es_out_id_t *es;
 
     size_t frame_size;
-    vlc_tick_t caching;
-    vlc_tick_t start_time;
+    heimdall_tick_t caching;
+    heimdall_tick_t start_time;
 
     HANDLE events[2];
     union {
@@ -345,14 +346,14 @@ static unsigned __stdcall Thread(void *data)
         UINT32 frames;
         DWORD flags;
         UINT64 qpc;
-        vlc_tick_t pts;
+        heimdall_tick_t pts;
 
         hr = IAudioCaptureClient_GetBuffer(capture, &buf, &frames, &flags,
                                            NULL, &qpc);
         if (hr != S_OK)
             continue;
 
-        pts = vlc_tick_now() - VLC_TICK_FROM_MSFTIME(get_qpc() - qpc);
+        pts = heimdall_tick_now() - HEIMDALL_TICK_FROM_MSFTIME(get_qpc() - qpc);
 
         es_out_SetPCR(demux->out, pts);
 
@@ -383,11 +384,11 @@ static int Control(demux_t *demux, int query, va_list ap)
     switch (query)
     {
         case DEMUX_GET_TIME:
-            *(va_arg(ap, vlc_tick_t *)) = vlc_tick_now() - sys->start_time;
+            *(va_arg(ap, heimdall_tick_t *)) = heimdall_tick_now() - sys->start_time;
             break;
 
         case DEMUX_GET_PTS_DELAY:
-            *(va_arg(ap, vlc_tick_t *)) = sys->caching;
+            *(va_arg(ap, heimdall_tick_t *)) = sys->caching;
             break;
 
         case DEMUX_HAS_UNSUPPORTED_META:
@@ -400,31 +401,31 @@ static int Control(demux_t *demux, int query, va_list ap)
             break;
 
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int Open(vlc_object_t *obj)
+static int Open(heimdall_object_t *obj)
 {
     demux_t *demux = (demux_t *)obj;
     HRESULT hr;
 
     if (demux->out == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if (demux->psz_location != NULL && *demux->psz_location != '\0')
-        return VLC_EGENERIC; /* TODO non-default device */
+        return HEIMDALL_EGENERIC; /* TODO non-default device */
 
-    demux_sys_t *sys = vlc_obj_malloc(obj, sizeof (*sys));
+    demux_sys_t *sys = heimdall_obj_malloc(obj, sizeof (*sys));
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     sys->client = NULL;
     sys->es = NULL;
-    sys->caching = VLC_TICK_FROM_MS( var_InheritInteger(obj, "live-caching") );
-    sys->start_time = vlc_tick_now();
+    sys->caching = HEIMDALL_TICK_FROM_MS( var_InheritInteger(obj, "live-caching") );
+    sys->start_time = heimdall_tick_now();
     for (unsigned i = 0; i < 2; i++)
         sys->events[i] = NULL;
 
@@ -476,7 +477,7 @@ static int Open(vlc_object_t *obj)
 
     demux->pf_demux = NULL;
     demux->pf_control = Control;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     if (sys->es != NULL)
@@ -489,10 +490,10 @@ error:
     for (unsigned i = 0; i < 2; i++)
         if (sys->events[i] != NULL)
             CloseHandle(sys->events[i]);
-    return VLC_ENOMEM;
+    return HEIMDALL_ENOMEM;
 }
 
-static void Close (vlc_object_t *obj)
+static void Close (heimdall_object_t *obj)
 {
     demux_t *demux = (demux_t *)obj;
     demux_sys_t *sys = demux->p_sys;
@@ -515,7 +516,7 @@ static void Close (vlc_object_t *obj)
 #define LOOPBACK_TEXT N_("Loopback mode")
 #define LOOPBACK_LONGTEXT N_("Record an audio rendering endpoint.")
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname(N_("WASAPI"))
     set_description(N_("Windows Audio Session API input"))
     set_capability("access", 0)
@@ -525,4 +526,4 @@ vlc_module_begin()
 
     add_shortcut("wasapi")
     set_callbacks(Open, Close)
-vlc_module_end()
+heimdall_module_end()

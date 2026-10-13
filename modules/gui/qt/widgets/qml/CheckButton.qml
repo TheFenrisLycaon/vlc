@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Benjamin Arnaud <bunjee@omega.gg>
  *
@@ -22,15 +23,15 @@ import QtQuick
 import QtQuick.Templates as T
 
 
-import VLC.MainInterface
-import VLC.Style
+import Heimdall.MainInterface
+import Heimdall.Style
 
 T.Switch {
     id: root
 
     // Style
 
-    property int animationDuration: VLCStyle.duration_long
+    property int animationDuration: HeimdallStyle.duration_long
 
     property color color: (checked) ? theme.bg.secondary
                                     : theme.bg.primary
@@ -48,14 +49,14 @@ T.Switch {
 
     // Settings
 
-    width : VLCStyle.checkButton_width
-    height: VLCStyle.checkButton_height
+    width : HeimdallStyle.checkButton_width
+    height: HeimdallStyle.checkButton_height
 
     T.ToolTip.visible: (T.ToolTip.text && (hovered || visualFocus))
 
     T.ToolTip.text: text
 
-    T.ToolTip.delay: VLCStyle.delayToolTipAppear
+    T.ToolTip.delay: HeimdallStyle.delayToolTipAppear
 
     // Keys
 
@@ -138,7 +139,7 @@ T.Switch {
 
         property: "x"
 
-        duration: VLCStyle.duration_short
+        duration: HeimdallStyle.duration_short
 
         easing.type: Easing.OutQuad
     }
@@ -163,20 +164,20 @@ T.Switch {
     indicator: Rectangle {
         anchors.fill: parent
 
-        anchors.margins: VLCStyle.checkButton_margins
+        anchors.margins: HeimdallStyle.checkButton_margins
 
         radius: height / 2
 
         color: root.color
 
         border.color: root.colorBorder
-        border.width: VLCStyle.border
+        border.width: HeimdallStyle.border
         border.pixelAligned: (radius < Number.EPSILON)
 
         MouseArea {
             id: handle
 
-            width: Math.round(root.height - VLCStyle.checkButton_margins * 2)
+            width: Math.round(root.height - HeimdallStyle.checkButton_margins * 2)
             height: width
 
             drag.target: handle
@@ -193,7 +194,7 @@ T.Switch {
             Rectangle {
                 anchors.fill: parent
 
-                anchors.margins: VLCStyle.checkButton_handle_margins
+                anchors.margins: HeimdallStyle.checkButton_handle_margins
 
                 radius: height / 2
 

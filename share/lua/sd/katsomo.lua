@@ -1,8 +1,9 @@
 --[[
 
  Copyright © 2010 VideoLAN and AUTHORS
+ Copyright (C) 2026 TheFenrisLycaon
 
- Authors: Ilkka Ollakka <ileoo at videolan dot org >
+ Authors: Ilkka Ollakka <ileoo at lycaria dot org >
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -29,8 +30,8 @@ function find( haystack, needle )
 end
 
 function main()
-    vlc.sd.add_item( {title="Uutiset ja fakta", path="http://www.katsomo.fi/?treeId=1"} )
-    vlc.sd.add_item( {title="Urheilu", path="http://www.katsomo.fi/?treeId=2000021"} )
-    vlc.sd.add_item( {title="Viihde ja sarjat", path="http://www.katsomo.fi/?treeId=3"} )
-    vlc.sd.add_item( {title="Lifestyle", path="http://www.katsomo.fi/?treeId=8"} )
+    heimdall.sd.add_item( {title="Uutiset ja fakta", path="http://www.katsomo.fi/?treeId=1"} )
+    heimdall.sd.add_item( {title="Urheilu", path="http://www.katsomo.fi/?treeId=2000021"} )
+    heimdall.sd.add_item( {title="Viihde ja sarjat", path="http://www.katsomo.fi/?treeId=3"} )
+    heimdall.sd.add_item( {title="Lifestyle", path="http://www.katsomo.fi/?treeId=8"} )
 end

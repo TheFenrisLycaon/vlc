@@ -1,5 +1,5 @@
 -- make xgettext fetch strings from html code
-function gettext(text) print(vlc.gettext._(text)) end
+function gettext(text) print(heimdall.gettext._(text)) end
 
 local _G = _G
 
@@ -16,13 +16,13 @@ _G.dialogs = function(...)
     end
 end
 
-_G.vlm = vlc.vlm()
+_G.vlm = heimdall.vlm()
 
 local _rd = nil
 
 _G.get_renderer_discovery = function()
     if not _rd then
-        _rd = vlc.rd.create("mdns_renderer")
+        _rd = heimdall.rd.create("mdns_renderer")
     end
     return _rd
 end

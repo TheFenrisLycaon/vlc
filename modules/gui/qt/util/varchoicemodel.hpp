@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,8 +17,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_VAR_CHOICE_MODEL_HPP
-#define VLC_VAR_CHOICE_MODEL_HPP
+#ifndef HEIMDALL_VAR_CHOICE_MODEL_HPP
+#define HEIMDALL_VAR_CHOICE_MODEL_HPP
 
 #ifdef HAVE_CONFIG_H
 # include "config.h"
@@ -25,30 +26,30 @@
 
 #include "qt.hpp"
 #include <QAbstractListModel>
-#include <vlc_cxx_helpers.hpp>
+#include <heimdall_cxx_helpers.hpp>
 #include "varcommon_p.hpp"
 
 extern "C" {
-int VLCVarChoiceModel_on_variable_callback( vlc_object_t * object, char const * , vlc_value_t oldvalue, vlc_value_t newvalue, void * data);
-int VLCVarChoiceModel_on_variable_list_callback( vlc_object_t * object, char const * , int action, vlc_value_t* value, void * data);
+int HeimdallVarChoiceModel_on_variable_callback( heimdall_object_t * object, char const * , heimdall_value_t oldvalue, heimdall_value_t newvalue, void * data);
+int HeimdallVarChoiceModel_on_variable_list_callback( heimdall_object_t * object, char const * , int action, heimdall_value_t* value, void * data);
 }
 
 /**
- * @brief The VLCVarChoiceModel class construct an Abstract List Model from a
- * vlc_var with the VLC_VAR_HASCHOICE flag and a type amongst string, int, float, bool
+ * @brief The HeimdallVarChoiceModel class construct an Abstract List Model from a
+ * heimdall_var with the HEIMDALL_VAR_HASCHOICE flag and a type amongst string, int, float, bool
  *
  * available roles are DisplayRole and CheckStateRole
  */
-class VLCVarChoiceModel : public QAbstractListModel
+class HeimdallVarChoiceModel : public QAbstractListModel
 {
     Q_OBJECT
 public:
     Q_PROPERTY(bool hasCurrent READ hasCurrent NOTIFY hasCurrentChanged FINAL)
 
     template<typename T>
-    VLCVarChoiceModel(T *p_object, const char* varName, QObject *parent = nullptr);
+    HeimdallVarChoiceModel(T *p_object, const char* varName, QObject *parent = nullptr);
 
-    ~VLCVarChoiceModel();
+    ~HeimdallVarChoiceModel();
 
     //QAbstractListModel overridden functions
     Qt::ItemFlags flags(const QModelIndex &) const  override;
@@ -68,30 +69,30 @@ public:
     bool hasCurrent() const;
     int currentRow() const;
 
-    static int on_variable_callback( vlc_object_t * object, char const * , vlc_value_t oldvalue, vlc_value_t newvalue, void * data);
-    static int on_variable_list_callback( vlc_object_t * object, char const * , int action, vlc_value_t* value, void * data);
+    static int on_variable_callback( heimdall_object_t * object, char const * , heimdall_value_t oldvalue, heimdall_value_t newvalue, void * data);
+    static int on_variable_list_callback( heimdall_object_t * object, char const * , int action, heimdall_value_t* value, void * data);
 
 public slots:
     Q_INVOKABLE void toggleIndex(int index);
 
 private slots:
-    void onDataUpdated(const vlc_object_t* object, QVariant oldvalue, QVariant newvalue);
-    void onListUpdated(const vlc_object_t* object, int action, QVariant newvalue);
+    void onDataUpdated(const heimdall_object_t* object, QVariant oldvalue, QVariant newvalue);
+    void onListUpdated(const heimdall_object_t* object, int action, QVariant newvalue);
 
 signals:
-    void dataUpdated(const vlc_object_t* object, QVariant oldvalue, QVariant newvalue, QPrivateSignal);
-    void listUpdated(const vlc_object_t* object, int action, QVariant newvalue, QPrivateSignal);
+    void dataUpdated(const heimdall_object_t* object, QVariant oldvalue, QVariant newvalue, QPrivateSignal);
+    void listUpdated(const heimdall_object_t* object, int action, QVariant newvalue, QPrivateSignal);
     void hasCurrentChanged( bool );
 
 private:
-    int updateData(const vlc_object_t* object, const vlc_value_t& oldvalue, const vlc_value_t& newvalue);
-    int updateList(const vlc_object_t* object, int action, const vlc_value_t* p_newvalue);
+    int updateData(const heimdall_object_t* object, const heimdall_value_t& oldvalue, const heimdall_value_t& newvalue);
+    int updateList(const heimdall_object_t* object, int action, const heimdall_value_t* p_newvalue);
 
-    QString vlcValToString(const vlc_value_t& value);
-    QVariant vlcValToVariant(const vlc_value_t& a);
+    QString heimdallValToString(const heimdall_value_t& value);
+    QVariant heimdallValToVariant(const heimdall_value_t& a);
 
     //reference to the observed object. Can only be modified from the UI thread
-    std::unique_ptr<VLCObjectHolder> m_object;
+    std::unique_ptr<HeimdallObjectHolder> m_object;
     int m_type;
     QString m_varname;
 
@@ -99,32 +100,32 @@ private:
     QStringList m_titles;
     int m_current = -1;
 
-    friend int VLCVarChoiceModel_on_variable_callback( vlc_object_t * object, char const * , vlc_value_t oldvalue, vlc_value_t newvalue, void * data);
-    friend int VLCVarChoiceModel_on_variable_list_callback( vlc_object_t * object, char const * , int action, vlc_value_t* value, void * data);
+    friend int HeimdallVarChoiceModel_on_variable_callback( heimdall_object_t * object, char const * , heimdall_value_t oldvalue, heimdall_value_t newvalue, void * data);
+    friend int HeimdallVarChoiceModel_on_variable_list_callback( heimdall_object_t * object, char const * , int action, heimdall_value_t* value, void * data);
 };
 
 
 template<typename T>
-VLCVarChoiceModel::VLCVarChoiceModel(T *p_object, const char* varName, QObject *parent)
+HeimdallVarChoiceModel::HeimdallVarChoiceModel(T *p_object, const char* varName, QObject *parent)
     : QAbstractListModel(parent)
-    , m_object(new VLCObjectHolderImpl<T>(nullptr))
+    , m_object(new HeimdallObjectHolderImpl<T>(nullptr))
     , m_varname(qfu(varName))
 {
-    connect(this, &VLCVarChoiceModel::dataUpdated, this, &VLCVarChoiceModel::onDataUpdated);
-    connect(this, &VLCVarChoiceModel::listUpdated, this, &VLCVarChoiceModel::onListUpdated);
+    connect(this, &HeimdallVarChoiceModel::dataUpdated, this, &HeimdallVarChoiceModel::onDataUpdated);
+    connect(this, &HeimdallVarChoiceModel::listUpdated, this, &HeimdallVarChoiceModel::onListUpdated);
     resetObject(p_object);
 }
 
 template<typename T>
-bool VLCVarChoiceModel::resetObject(T* p_object)
+bool HeimdallVarChoiceModel::resetObject(T* p_object)
 {
     beginResetModel();
 
     //clear the old model
     if (m_object->get())
     {
-        var_DelCallback(m_object->get(), qtu(m_varname), VLCVarChoiceModel::on_variable_callback, this);
-        var_DelListCallback(m_object->get(), qtu(m_varname), VLCVarChoiceModel::on_variable_list_callback, this);
+        var_DelCallback(m_object->get(), qtu(m_varname), HeimdallVarChoiceModel::on_variable_callback, this);
+        var_DelListCallback(m_object->get(), qtu(m_varname), HeimdallVarChoiceModel::on_variable_list_callback, this);
         var_Destroy(m_object->get(), qtu(m_varname));
     }
     m_object->reset(p_object, true);
@@ -140,7 +141,7 @@ bool VLCVarChoiceModel::resetObject(T* p_object)
 
     m_type = var_Type( m_object->get(), qtu(m_varname) );
     //we only handle variables with choice here
-    if ( ! (m_type & VLC_VAR_HASCHOICE) )
+    if ( ! (m_type & HEIMDALL_VAR_HASCHOICE) )
     {
         m_object->reset((T*)nullptr, false);
         endResetModel();
@@ -148,12 +149,12 @@ bool VLCVarChoiceModel::resetObject(T* p_object)
     }
 
 
-    switch( m_type & VLC_VAR_CLASS )
+    switch( m_type & HEIMDALL_VAR_CLASS )
     {
-        case VLC_VAR_BOOL:
-        case VLC_VAR_STRING:
-        case VLC_VAR_INTEGER:
-        case VLC_VAR_FLOAT:
+        case HEIMDALL_VAR_BOOL:
+        case HEIMDALL_VAR_STRING:
+        case HEIMDALL_VAR_INTEGER:
+        case HEIMDALL_VAR_FLOAT:
             break;
         default:
             /* Variable doesn't exist or isn't handled */
@@ -162,27 +163,27 @@ bool VLCVarChoiceModel::resetObject(T* p_object)
     }
 
     size_t count = 0;
-    vlc_value_t* val_list = nullptr;
+    heimdall_value_t* val_list = nullptr;
     char** val_title = nullptr;
-    if( var_Change( m_object->get(), qtu(m_varname), VLC_VAR_GETCHOICES, &count, &val_list, &val_title ) < 0 )
+    if( var_Change( m_object->get(), qtu(m_varname), HEIMDALL_VAR_GETCHOICES, &count, &val_list, &val_title ) < 0 )
     {
         endResetModel();
         return false;
     }
-    vlc_value_t currentValue;
-    if (var_Get( m_object->get(), qtu(m_varname), &currentValue) != VLC_SUCCESS)
+    heimdall_value_t currentValue;
+    if (var_Get( m_object->get(), qtu(m_varname), &currentValue) != HEIMDALL_SUCCESS)
     {
         endResetModel();
         return false;
     }
-    QVariant currentValueVar = vlcValToVariant(currentValue);
-    if ( (m_type & VLC_VAR_CLASS) == VLC_VAR_STRING )
+    QVariant currentValueVar = heimdallValToVariant(currentValue);
+    if ( (m_type & HEIMDALL_VAR_CLASS) == HEIMDALL_VAR_STRING )
         free( currentValue.psz_string );
 
     int newCurrent = -1;
     for (size_t i = 0; i < count; i++)
     {
-        QVariant var = vlcValToVariant( val_list[i] );
+        QVariant var = heimdallValToVariant( val_list[i] );
         if (currentValueVar == var)
             newCurrent = i;
         m_values.append( var );
@@ -195,9 +196,9 @@ bool VLCVarChoiceModel::resetObject(T* p_object)
         else
         {
             //print the value otherwise
-            m_titles.append( vlcValToString(val_list[i]) );
+            m_titles.append( heimdallValToString(val_list[i]) );
         }
-        if ( (m_type & VLC_VAR_CLASS) == VLC_VAR_STRING )
+        if ( (m_type & HEIMDALL_VAR_CLASS) == HEIMDALL_VAR_STRING )
             free( val_list[i].psz_string );
     }
     if (m_current != newCurrent)
@@ -210,11 +211,11 @@ bool VLCVarChoiceModel::resetObject(T* p_object)
     free(val_title);
 
     var_Create(m_object->get(), qtu(m_varname), m_type);
-    var_AddCallback(m_object->get(), qtu(m_varname), VLCVarChoiceModel::on_variable_callback, this);
-    var_AddListCallback(m_object->get(), qtu(m_varname), VLCVarChoiceModel::on_variable_list_callback, this);
+    var_AddCallback(m_object->get(), qtu(m_varname), HeimdallVarChoiceModel::on_variable_callback, this);
+    var_AddListCallback(m_object->get(), qtu(m_varname), HeimdallVarChoiceModel::on_variable_list_callback, this);
 
     endResetModel();
     return true;
 }
 
-#endif // VLC_VAR_CHOICE_MODEL_HPP
+#endif // HEIMDALL_VAR_CHOICE_MODEL_HPP

@@ -2,6 +2,7 @@
  * matroska_segment.hpp : matroska demuxer
  *****************************************************************************
  * Copyright (C) 2016 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Filip Roséen <filip@videolabs.io>
  *
@@ -62,7 +63,7 @@ class SegmentSeeker
                 DISABLED = -1,
             };
 
-            Seekpoint( fptr_t fpos, vlc_tick_t pts, TrustLevel trust_level = TRUSTED )
+            Seekpoint( fptr_t fpos, heimdall_tick_t pts, TrustLevel trust_level = TRUSTED )
                 : fpos( fpos ), pts( pts ), trust_level( trust_level )
             { }
 
@@ -76,14 +77,14 @@ class SegmentSeeker
             }
 
             fptr_t fpos;
-            vlc_tick_t pts;
+            heimdall_tick_t pts;
             TrustLevel trust_level;
         };
 
         struct Cluster {
             fptr_t  fpos;
-            vlc_tick_t pts;
-            vlc_tick_t duration;
+            heimdall_tick_t pts;
+            heimdall_tick_t duration;
             fptr_t  size;
         };
 
@@ -95,26 +96,26 @@ class SegmentSeeker
 
         typedef std::map<track_id_t, Seekpoint> tracks_seekpoint_t;
         typedef std::map<track_id_t, seekpoints_t> tracks_seekpoints_t;
-        typedef std::map<vlc_tick_t, Cluster> cluster_map_t;
+        typedef std::map<heimdall_tick_t, Cluster> cluster_map_t;
 
         typedef std::pair<Seekpoint, Seekpoint> seekpoint_pair_t;
 
         void add_seekpoint( track_id_t, Seekpoint );
 
-        seekpoint_pair_t get_seekpoints_around( vlc_tick_t, seekpoints_t const& );
-        Seekpoint get_first_seekpoint_around( vlc_tick_t, seekpoints_t const&, Seekpoint::TrustLevel = Seekpoint::TRUSTED );
-        seekpoint_pair_t get_seekpoints_around( vlc_tick_t, track_ids_t const& );
+        seekpoint_pair_t get_seekpoints_around( heimdall_tick_t, seekpoints_t const& );
+        Seekpoint get_first_seekpoint_around( heimdall_tick_t, seekpoints_t const&, Seekpoint::TrustLevel = Seekpoint::TRUSTED );
+        seekpoint_pair_t get_seekpoints_around( heimdall_tick_t, track_ids_t const& );
 
-        tracks_seekpoint_t get_seekpoints( matroska_segment_c&, vlc_tick_t, track_ids_t const&, track_ids_t const& );
-        tracks_seekpoint_t find_greatest_seekpoints_in_range( fptr_t , vlc_tick_t, track_ids_t const& filter_tracks );
+        tracks_seekpoint_t get_seekpoints( matroska_segment_c&, heimdall_tick_t, track_ids_t const&, track_ids_t const& );
+        tracks_seekpoint_t find_greatest_seekpoints_in_range( fptr_t , heimdall_tick_t, track_ids_t const& filter_tracks );
 
         cluster_positions_t::iterator add_cluster_position( fptr_t pos );
         cluster_map_t      ::iterator add_cluster( KaxCluster * const );
 
         void mkv_jump_to( matroska_segment_c&, fptr_t );
 
-        void index_range( matroska_segment_c& matroska_segment, Range search_area, vlc_tick_t max_pts );
-        void index_unsearched_range( matroska_segment_c& matroska_segment, Range search_area, vlc_tick_t max_pts );
+        void index_range( matroska_segment_c& matroska_segment, Range search_area, heimdall_tick_t max_pts );
+        void index_unsearched_range( matroska_segment_c& matroska_segment, Range search_area, heimdall_tick_t max_pts );
 
         void mark_range_as_searched( Range );
         ranges_t get_search_areas( fptr_t start, fptr_t end ) const;

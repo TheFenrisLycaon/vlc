@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,9 +20,9 @@
 import QtQuick
 import QtQuick.Templates as T
 
-import VLC.Widgets
-import VLC.MediaLibrary
-import VLC.Style
+import Heimdall.Widgets
+import Heimdall.MediaLibrary
+import Heimdall.Style
 
 ProgressBarExt {
     id: control
@@ -43,7 +44,7 @@ ProgressBarExt {
 
         elide: Text.ElideMiddle
 
-        font.pixelSize: VLCStyle.fontSize_large
+        font.pixelSize: HeimdallStyle.fontSize_large
         font.weight: Font.Normal
         color: theme.fg.primary
     }

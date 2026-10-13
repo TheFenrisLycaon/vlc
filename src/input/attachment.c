@@ -2,6 +2,7 @@
  * attachment.c: Input attachments
  *****************************************************************************
  * Copyright (C) 1999-2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,14 +23,14 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_input.h>
-#include <vlc_atomic.h>
+#include <heimdall_common.h>
+#include <heimdall_input.h>
+#include <heimdall_atomic.h>
 
 struct input_attachment_priv
 {
     input_attachment_t a;
-    vlc_atomic_rc_t rc;
+    heimdall_atomic_rc_t rc;
 };
 
 static struct input_attachment_priv* input_attachment_priv( input_attachment_t* a )
@@ -37,14 +38,14 @@ static struct input_attachment_priv* input_attachment_priv( input_attachment_t* 
     return container_of( a, struct input_attachment_priv, a );
 }
 
-void vlc_input_attachment_Release( input_attachment_t *a )
+void heimdall_input_attachment_Release( input_attachment_t *a )
 {
     if( !a )
         return;
 
     struct input_attachment_priv* p = input_attachment_priv( a );
 
-    if( !vlc_atomic_rc_dec( &p->rc ) )
+    if( !heimdall_atomic_rc_dec( &p->rc ) )
         return;
 
     free( a->p_data );
@@ -54,7 +55,7 @@ void vlc_input_attachment_Release( input_attachment_t *a )
     free( p );
 }
 
-input_attachment_t *vlc_input_attachment_New( const char *psz_name,
+input_attachment_t *heimdall_input_attachment_New( const char *psz_name,
                                               const char *psz_mime,
                                               const char *psz_description,
                                               const void *p_data,
@@ -64,7 +65,7 @@ input_attachment_t *vlc_input_attachment_New( const char *psz_name,
     if( unlikely(a == NULL) )
         return NULL;
 
-    vlc_atomic_rc_init( &a->rc );
+    heimdall_atomic_rc_init( &a->rc );
     a->a.psz_name = strdup( psz_name ? psz_name : "" );
     a->a.psz_mime = strdup( psz_mime ? psz_mime : "" );
     a->a.psz_description = strdup( psz_description ? psz_description : "" );
@@ -76,15 +77,15 @@ input_attachment_t *vlc_input_attachment_New( const char *psz_name,
     if( unlikely(a->a.psz_name == NULL || a->a.psz_mime == NULL
               || a->a.psz_description == NULL || (i_data > 0 && a->a.p_data == NULL)) )
     {
-        vlc_input_attachment_Release( &a->a );
+        heimdall_input_attachment_Release( &a->a );
         return NULL;
     }
     return &a->a;
 }
 
-input_attachment_t *vlc_input_attachment_Hold( input_attachment_t *a )
+input_attachment_t *heimdall_input_attachment_Hold( input_attachment_t *a )
 {
     struct input_attachment_priv* p = input_attachment_priv( a );
-    vlc_atomic_rc_inc( &p->rc );
+    heimdall_atomic_rc_inc( &p->rc );
     return a;
 }

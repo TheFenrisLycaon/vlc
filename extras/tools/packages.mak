@@ -1,7 +1,7 @@
 GNU=https://ftpmirror.gnu.org/gnu
 APACHE=https://downloads.apache.org/
 SF=https://downloads.sourceforge.net/project
-VIDEOLAN=https://downloads.videolan.org/pub/contrib
+LYCARIA=https://downloads.videolan.org/pub/contrib
 
 NASM_VERSION=2.16.03
 NASM_URL=https://www.nasm.us/pub/nasm/releasebuilds/$(NASM_VERSION)/nasm-$(NASM_VERSION).tar.gz

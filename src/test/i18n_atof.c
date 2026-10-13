@@ -1,7 +1,8 @@
 /*****************************************************************************
- * i18n_atof.c: Test for vlc_atof_c()
+ * i18n_atof.c: Test for heimdall_atof_c()
  *****************************************************************************
  * Copyright (C) 2006 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,8 +23,8 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include "vlc_charset.h"
+#include <heimdall_common.h>
+#include "heimdall_charset.h"
 
 #undef NDEBUG
 #include <assert.h>
@@ -35,19 +36,19 @@ int main (void)
     const char sharp9[] = "999999#999999";
     char *end;
 
-    assert(vlc_atof_c("0") == 0.);
-    assert(vlc_atof_c("1") == 1.);
-    assert(vlc_atof_c("1.") == 1.);
-    assert(vlc_atof_c("1,") == 1.);
-    assert(vlc_atof_c("1#") == 1.);
-    assert(vlc_atof_c(dot9) == 999999.999999);
-    assert(vlc_atof_c(comma9) == 999999.);
-    assert(vlc_atof_c(sharp9) == 999999.);
-    assert(vlc_atof_c("invalid") == 0.);
+    assert(heimdall_atof_c("0") == 0.);
+    assert(heimdall_atof_c("1") == 1.);
+    assert(heimdall_atof_c("1.") == 1.);
+    assert(heimdall_atof_c("1,") == 1.);
+    assert(heimdall_atof_c("1#") == 1.);
+    assert(heimdall_atof_c(dot9) == 999999.999999);
+    assert(heimdall_atof_c(comma9) == 999999.);
+    assert(heimdall_atof_c(sharp9) == 999999.);
+    assert(heimdall_atof_c("invalid") == 0.);
 
-    assert((vlc_strtod_c(dot9, &end ) == 999999.999999) && (*end == '\0'));
-    assert((vlc_strtod_c(comma9, &end ) == 999999.) && (*end == ','));
-    assert((vlc_strtod_c(sharp9, &end ) == 999999.) && (*end == '#'));
+    assert((heimdall_strtod_c(dot9, &end ) == 999999.999999) && (*end == '\0'));
+    assert((heimdall_strtod_c(comma9, &end ) == 999999.) && (*end == ','));
+    assert((heimdall_strtod_c(sharp9, &end ) == 999999.) && (*end == '#'));
 
     return 0;
 }

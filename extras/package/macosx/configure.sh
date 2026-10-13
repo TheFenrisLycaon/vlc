@@ -23,6 +23,6 @@ OPTIONS="
         --without-x
 "
 
-vlcSetSymbolEnvironment
+heimdallSetSymbolEnvironment
 
 sh "$(dirname $0)"/../../../configure ${OPTIONS} "$@"

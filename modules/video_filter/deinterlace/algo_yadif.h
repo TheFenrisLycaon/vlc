@@ -2,6 +2,7 @@
  * algo_yadif.h : Wrapper for FFmpeg's Yadif algorithm
  *****************************************************************************
  * Copyright (C) 2000-2011 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Laurent Aimar <fenrir@videolan.org>
  *         Juha Jeronen  <juha.jeronen@jyu.fi> (soft field repeat hack)
@@ -21,13 +22,13 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_DEINTERLACE_ALGO_YADIF_H
-#define VLC_DEINTERLACE_ALGO_YADIF_H 1
+#ifndef HEIMDALL_DEINTERLACE_ALGO_YADIF_H
+#define HEIMDALL_DEINTERLACE_ALGO_YADIF_H 1
 
 /**
  * \file
  * Adapter to fit the Yadif (Yet Another DeInterlacing Filter) algorithm
- * from FFmpeg into VLC. The algorithm itself is implemented in yadif.h.
+ * from FFmpeg into Heimdall. The algorithm itself is implemented in yadif.h.
  */
 
 /* Forward declarations */
@@ -77,9 +78,9 @@ struct picture_t;
  * @param p_src Input frame. Must exist.
  * @param i_order Temporal field number: 0 = first, 1 = second, 2 = rep. first.
  * @param i_field Keep which field? 0 = top field, 1 = bottom field.
- * @return VLC error code (int).
- * @retval VLC_SUCCESS The requested field was rendered into p_dst.
- * @retval VLC_EGENERIC Frame dropped; only occurs at the second frame after start.
+ * @return Heimdall error code (int).
+ * @retval HEIMDALL_SUCCESS The requested field was rendered into p_dst.
+ * @retval HEIMDALL_EGENERIC Frame dropped; only occurs at the second frame after start.
  * @see Deinterlace()
  */
 int RenderYadif( filter_t *p_filter, picture_t *p_dst, picture_t *p_src,

@@ -2,6 +2,7 @@
  * ctrl_video.cpp
  *****************************************************************************
  * Copyright (C) 2004 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cyril Deguet     <asmax@via.ecp.fr>
  *
@@ -24,7 +25,7 @@
 #include "../src/theme.hpp"
 #include "../src/vout_window.hpp"
 #include "../src/os_graphics.hpp"
-#include "../src/vlcproc.hpp"
+#include "../src/heimdallproc.hpp"
 #include "../src/vout_manager.hpp"
 #include "../src/window_manager.hpp"
 #include "../commands/async_queue.hpp"
@@ -38,7 +39,7 @@ CtrlVideo::CtrlVideo( intf_thread_t *pIntf, GenericLayout &rLayout,
     m_bAutoResize( autoResize ), m_xShift( 0 ), m_yShift( 0 ),
     m_pVoutWindow( NULL )
 {
-    VarBool &rFullscreen = VlcProc::instance( getIntf() )->getFullscreenVar();
+    VarBool &rFullscreen = HeimdallProc::instance( getIntf() )->getFullscreenVar();
     rFullscreen.addObserver( this );
 
     // if global parameter set to no resize, override skins behavior
@@ -50,7 +51,7 @@ CtrlVideo::CtrlVideo( intf_thread_t *pIntf, GenericLayout &rLayout,
 
 CtrlVideo::~CtrlVideo()
 {
-    VarBool &rFullscreen = VlcProc::instance( getIntf() )->getFullscreenVar();
+    VarBool &rFullscreen = HeimdallProc::instance( getIntf() )->getFullscreenVar();
     rFullscreen.delObserver( this );
 }
 
@@ -164,7 +165,7 @@ void CtrlVideo::resizeControl( int width, int height )
 void CtrlVideo::onUpdate( Subject<VarBool> &rVariable, void *arg  )
 {
     (void)arg;
-    VarBool &rFullscreen = VlcProc::instance( getIntf() )->getFullscreenVar();
+    VarBool &rFullscreen = HeimdallProc::instance( getIntf() )->getFullscreenVar();
 
     if( &rVariable == m_pVisible )
     {
@@ -233,7 +234,7 @@ void CtrlVideo::detachVoutWindow( )
 
 bool CtrlVideo::isUseable( ) const
 {
-    VarBool &rFullscreen = VlcProc::instance( getIntf() )->getFullscreenVar();
+    VarBool &rFullscreen = HeimdallProc::instance( getIntf() )->getFullscreenVar();
 
     return isVisible()                           // video control is visible
            && m_pLayout->getActiveVar().get()    // layout is active

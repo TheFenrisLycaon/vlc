@@ -1,9 +1,10 @@
 /**
  * @file xkb.c
- * @brief XKeyboard symbols mapping for VLC
+ * @brief XKeyboard symbols mapping for Heimdall
  */
 /*****************************************************************************
  * Copyright © 2009-2018 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -29,9 +30,9 @@
 #include <wctype.h>
 #include <X11/keysym.h>
 #include <X11/XF86keysym.h>
-#include <vlc_common.h>
-#include <vlc_actions.h>
-#include "video_output/xcb/vlc_xkb.h"
+#include <heimdall_common.h>
+#include <heimdall_actions.h>
+#include "video_output/xcb/heimdall_xkb.h"
 
 static int keysymcmp (const void *pa, const void *pb)
 {
@@ -45,12 +46,12 @@ static int keysymcmp (const void *pa, const void *pb)
     return -1;
 }
 
-static uint_fast32_t vlc_xkb_convert_keysym(uint_fast32_t sym)
+static uint_fast32_t heimdall_xkb_convert_keysym(uint_fast32_t sym)
 {
     static const struct
     {
         uint32_t x11;
-        uint32_t vlc;
+        uint32_t heimdall;
     } *res, tab[] = {
 #include "xcb_keysym.h"
     }, old[] = {
@@ -84,11 +85,11 @@ static uint_fast32_t vlc_xkb_convert_keysym(uint_fast32_t sym)
     /* Special keys */
     res = bsearch (&sym, tab, ARRAY_SIZE(tab), sizeof (tab[0]), keysymcmp);
     if (res != NULL)
-        return res->vlc;
+        return res->heimdall;
     /* Legacy X11 symbols outside the Unicode range */
     res = bsearch (&sym, old, ARRAY_SIZE(old), sizeof (old[0]), keysymcmp);
     if (res != NULL)
-        return res->vlc;
+        return res->heimdall;
 
     return KEY_UNSET;
 }
@@ -110,10 +111,10 @@ static const struct modifiers modifiers[] =
     { XKB_MOD_NAME_LOGO,  KEY_MODIFIER_META },
 };
 
-uint_fast32_t vlc_xkb_get_one(struct xkb_state *state, uint_fast32_t keycode)
+uint_fast32_t heimdall_xkb_get_one(struct xkb_state *state, uint_fast32_t keycode)
 {
     xkb_keysym_t keysym = xkb_state_key_get_one_sym(state, keycode);
-    uint_fast32_t vk = vlc_xkb_convert_keysym(keysym);
+    uint_fast32_t vk = heimdall_xkb_convert_keysym(keysym);
 
     if (vk != KEY_UNSET) {
         if (vk < 0x110000)

@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,9 +23,9 @@ import QtQuick.Layouts
 import QtQml.Models
 
 
-import VLC.Player
-import VLC.Widgets as Widgets
-import VLC.Style
+import Heimdall.Player
+import Heimdall.Widgets as Widgets
+import Heimdall.Style
 
 T.Control {
     id: control
@@ -86,8 +87,8 @@ T.Control {
 
         onPressed: (mouse) => {
             const pos = mapToItem(control.contentItem.target.parent, mouseX, mouseY)
-            control.contentItem.target.y = pos.y + VLCStyle.dragDelta
-            control.contentItem.target.x = pos.x + VLCStyle.dragDelta
+            control.contentItem.target.y = pos.y + HeimdallStyle.dragDelta
+            control.contentItem.target.x = pos.x + HeimdallStyle.dragDelta
         }
     }
 
@@ -131,8 +132,8 @@ T.Control {
 
         z: 1
 
-        implicitWidth: VLCStyle.dp(2, VLCStyle.scale)
-        implicitHeight: VLCStyle.icon_medium
+        implicitWidth: HeimdallStyle.dp(2, HeimdallStyle.scale)
+        implicitHeight: HeimdallStyle.icon_medium
 
         visible: dropArea.containsDrag
         color: theme.accent
@@ -141,7 +142,7 @@ T.Control {
     background: Rectangle {
         color: "transparent"
 
-        border.width: VLCStyle.dp(1, VLCStyle.scale)
+        border.width: HeimdallStyle.dp(1, HeimdallStyle.scale)
         border.color: theme.border
         border.pixelAligned: (radius < Number.EPSILON)
     }

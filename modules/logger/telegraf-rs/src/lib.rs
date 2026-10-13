@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: LGPL-2.1-or-later
 // Copyright (C) 2024-2025 Alexandre Janniaux <ajanni@videolabs.io>
+// Copyright (C) 2026 TheFenrisLycaon
 //
 // This program is free software; you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -17,8 +18,8 @@
 
 use std::sync::Mutex;
 use telegraf::{Client, IntoFieldData};
-use vlcrs_core::tracer::{TraceValue, TracerCapability, TracerModuleLoader};
-use vlcrs_macros::module;
+use heimdallrs_core::tracer::{TraceValue, TracerCapability, TracerModuleLoader};
+use heimdallrs_macros::module;
 
 struct TraceValueWrapper<'a>(TraceValue<'a>);
 
@@ -38,19 +39,19 @@ struct TelegrafTracer {
 }
 
 impl TracerCapability for TelegrafTracer {
-    fn open(_obj: &mut vlcrs_core::object::Object) -> Option<impl TracerCapability>
+    fn open(_obj: &mut heimdallrs_core::object::Object) -> Option<impl TracerCapability>
     where
         Self: Sized,
     {
         let endpoint_address =
-            std::env::var("VLC_TELEGRAF_ENDPOINT").unwrap_or(String::from("tcp://localhost:8094"));
+            std::env::var("HEIMDALL_TELEGRAF_ENDPOINT").unwrap_or(String::from("tcp://localhost:8094"));
         let endpoint = Client::new(&endpoint_address)
             .map(Mutex::new)
             .unwrap();
         Some(Self { endpoint })
     }
 
-    fn trace(&self, _tick: vlcrs_core::tracer::Tick, trace: &vlcrs_core::tracer::Trace) {
+    fn trace(&self, _tick: heimdallrs_core::tracer::Tick, trace: &heimdallrs_core::tracer::Trace) {
         let (tags, records) = trace.entries().fold(
             (Vec::new(), Vec::new()),
             |(mut tags, mut records), entry| {

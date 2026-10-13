@@ -2,6 +2,7 @@
  * direct3d11.cpp: Windows Direct3D11 video output module
  *****************************************************************************
  * Copyright (C) 2014-2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Martell Malone <martellmalone@gmail.com>
  *          Steve Lhomme <robux4@gmail.com>
@@ -26,15 +27,15 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_vout_display.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_vout_display.h>
 
-#include <vlc/libvlc.h>
-#include <vlc/libvlc_picture.h>
-#include <vlc/libvlc_media.h>
-#include <vlc/libvlc_renderer_discoverer.h>
-#include <vlc/libvlc_media_player.h>
+#include <heimdall/libheimdall.h>
+#include <heimdall/libheimdall_picture.h>
+#include <heimdall/libheimdall_media.h>
+#include <heimdall/libheimdall_renderer_discoverer.h>
+#include <heimdall/libheimdall_media_player.h>
 
 #include <cassert>
 #include <math.h>
@@ -59,9 +60,9 @@
 using Microsoft::WRL::ComPtr;
 
 static int  OpenDisplay(vout_display_t *,
-                 video_format_t *, vlc_video_context *);
+                 video_format_t *, heimdall_video_context *);
 static int  OpenDrawable(vout_display_t *,
-                 video_format_t *, vlc_video_context *);
+                 video_format_t *, heimdall_video_context *);
 static void Close(vout_display_t *);
 
 #define D3D11_HELP N_("Recommended video output for Windows 8 and later versions")
@@ -85,7 +86,7 @@ static const char *const ppsz_hdr_mode[] = {
 static const char *const ppsz_hdr_mode_text[] = {
     N_("Auto"), N_("Never out HDR"), N_("Always output HDR"), N_("Generate HDR from SDR") };
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname("Direct3D11")
     set_description(N_("Direct3D11 video output"))
     set_help(D3D11_HELP)
@@ -106,7 +107,7 @@ vlc_module_begin ()
         set_callback_display(OpenDrawable, 0)
         add_shortcut("d3d11drawable")
 
-vlc_module_end ()
+heimdall_module_end ()
 
 enum d3d11_upscale
 {
@@ -159,18 +160,18 @@ typedef struct vout_display_sys_t
     d3d11_vertex_shader_t    flatVShader = {};
 
     // SPU
-    vlc_fourcc_t             pSubpictureChromas[2] = {};
+    heimdall_fourcc_t             pSubpictureChromas[2] = {};
     d3d11_quad_t             regionQuad = {};
     int                      d3dregion_count = 0;
     picture_t                **d3dregions = nullptr;
 
     /* outside rendering */
     void *outside_opaque = nullptr;
-    libvlc_video_update_output_cb            updateOutputCb = nullptr;
-    libvlc_video_swap_cb                     swapCb = nullptr;
-    libvlc_video_makeCurrent_cb              startEndRenderingCb = nullptr;
-    libvlc_video_frameMetadata_cb            sendMetadataCb = nullptr;
-    libvlc_video_output_select_plane_cb      selectPlaneCb = nullptr;
+    libheimdall_video_update_output_cb            updateOutputCb = nullptr;
+    libheimdall_video_swap_cb                     swapCb = nullptr;
+    libheimdall_video_makeCurrent_cb              startEndRenderingCb = nullptr;
+    libheimdall_video_frameMetadata_cb            sendMetadataCb = nullptr;
+    libheimdall_video_output_select_plane_cb      selectPlaneCb = nullptr;
 
     // upscaling
     enum d3d11_upscale       upscaleMode = upscale_LinearSampler;
@@ -182,19 +183,19 @@ typedef struct vout_display_sys_t
     d3d11_tonemapper         *tonemapProc = nullptr;
 } vout_display_sys_t;
 
-static void Prepare(vout_display_t *, picture_t *, const vlc_render_subpicture *, vlc_tick_t);
+static void Prepare(vout_display_t *, picture_t *, const heimdall_render_subpicture *, heimdall_tick_t);
 static void Display(vout_display_t *, picture_t *);
 
-static int  Direct3D11Open (vout_display_t *, video_format_t *, vlc_video_context *);
+static int  Direct3D11Open (vout_display_t *, video_format_t *, heimdall_video_context *);
 static void Direct3D11Close(vout_display_t *);
 
-static int SetupOutputFormat(vout_display_t *, video_format_t *, vlc_video_context *, video_format_t *quad);
+static int SetupOutputFormat(vout_display_t *, video_format_t *, heimdall_video_context *, video_format_t *quad);
 static int  Direct3D11CreateFormatResources (vout_display_t *, const video_format_t *);
 static int  Direct3D11CreateGenericResources(vout_display_t *);
 static void Direct3D11DestroyResources(vout_display_t *);
 
 static void Direct3D11DeleteRegions(int, picture_t **);
-static int Direct3D11MapSubpicture(vout_display_t *, int *, picture_t ***, const vlc_render_subpicture *);
+static int Direct3D11MapSubpicture(vout_display_t *, int *, picture_t ***, const heimdall_render_subpicture *);
 
 static int UpdateSource(vout_display_t *, bool force_placement);
 static int SetDisplaySize(vout_display_t *, unsigned width, unsigned height);
@@ -202,7 +203,7 @@ static int SetDisplaySize(vout_display_t *, unsigned width, unsigned height);
 static int UpdateDisplayFormat(vout_display_t *vd, const video_format_t *fmt)
 {
     vout_display_sys_t *sys = static_cast<vout_display_sys_t *>(vd->sys);
-    libvlc_video_render_cfg_t cfg;
+    libheimdall_video_render_cfg_t cfg;
 
     cfg.width  = vd->cfg->display.width;
     cfg.height = vd->cfg->display.height;
@@ -213,38 +214,38 @@ static int UpdateDisplayFormat(vout_display_t *vd, const video_format_t *fmt)
         // corresponds to DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020
         cfg.bitdepth = 10;
         cfg.full_range = true;
-        cfg.primaries  = libvlc_video_primaries_BT2020;
-        cfg.colorspace = libvlc_video_colorspace_BT2020;
-        cfg.transfer   = libvlc_video_transfer_func_PQ;
+        cfg.primaries  = libheimdall_video_primaries_BT2020;
+        cfg.colorspace = libheimdall_video_colorspace_BT2020;
+        cfg.transfer   = libheimdall_video_transfer_func_PQ;
     }
     else if (sys->hdrMode == hdr_Never)
     {
         // corresponds to DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709
         cfg.bitdepth = 8;
         cfg.full_range = true;
-        cfg.primaries  = libvlc_video_primaries_BT709;
-        cfg.colorspace = libvlc_video_colorspace_BT709;
-        cfg.transfer   = libvlc_video_transfer_func_BT709;
+        cfg.primaries  = libheimdall_video_primaries_BT709;
+        cfg.colorspace = libheimdall_video_colorspace_BT709;
+        cfg.transfer   = libheimdall_video_transfer_func_BT709;
     }
     else
     {
     switch (fmt->i_chroma)
     {
-    case VLC_CODEC_D3D11_OPAQUE:
-    case VLC_CODEC_D3D11_OPAQUE_ALPHA:
+    case HEIMDALL_CODEC_D3D11_OPAQUE:
+    case HEIMDALL_CODEC_D3D11_OPAQUE_ALPHA:
         cfg.bitdepth = 8;
         break;
-    case VLC_CODEC_D3D11_OPAQUE_RGBA:
-    case VLC_CODEC_D3D11_OPAQUE_BGRA:
+    case HEIMDALL_CODEC_D3D11_OPAQUE_RGBA:
+    case HEIMDALL_CODEC_D3D11_OPAQUE_BGRA:
         cfg.bitdepth = 8;
         break;
-    case VLC_CODEC_RGBA10LE:
-    case VLC_CODEC_D3D11_OPAQUE_10B:
+    case HEIMDALL_CODEC_RGBA10LE:
+    case HEIMDALL_CODEC_D3D11_OPAQUE_10B:
         cfg.bitdepth = 10;
         break;
     default:
         {
-            const auto *p_format = vlc_fourcc_GetChromaDescription(fmt->i_chroma);
+            const auto *p_format = heimdall_fourcc_GetChromaDescription(fmt->i_chroma);
             if (p_format == NULL)
             {
                 cfg.bitdepth = 8;
@@ -260,22 +261,22 @@ static int UpdateDisplayFormat(vout_display_t *vd, const video_format_t *fmt)
     cfg.full_range = sys->picQuad.quad_fmt.color_range == COLOR_RANGE_FULL ||
                      /* the YUV->RGB conversion already output full range */
                      is_d3d11_opaque(sys->picQuad.quad_fmt.i_chroma) ||
-                     vlc_fourcc_IsYUV(sys->picQuad.quad_fmt.i_chroma);
-    cfg.primaries  = (libvlc_video_color_primaries_t) sys->picQuad.quad_fmt.primaries;
-    cfg.colorspace = (libvlc_video_color_space_t)     sys->picQuad.quad_fmt.space;
-    cfg.transfer   = (libvlc_video_transfer_func_t)   sys->picQuad.quad_fmt.transfer;
+                     heimdall_fourcc_IsYUV(sys->picQuad.quad_fmt.i_chroma);
+    cfg.primaries  = (libheimdall_video_color_primaries_t) sys->picQuad.quad_fmt.primaries;
+    cfg.colorspace = (libheimdall_video_color_space_t)     sys->picQuad.quad_fmt.space;
+    cfg.transfer   = (libheimdall_video_transfer_func_t)   sys->picQuad.quad_fmt.transfer;
     }
 
-    libvlc_video_output_cfg_t out;
+    libheimdall_video_output_cfg_t out;
     if (!sys->updateOutputCb( sys->outside_opaque, &cfg, &out ))
     {
         msg_Err(vd, "Failed to set format %dx%d %d bits on output", cfg.width, cfg.height, cfg.bitdepth);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if (sys->upscaleMode == upscale_VideoProcessor || sys->upscaleMode == upscale_SuperResolution)
     {
-        D3D11_UpscalerUpdate(VLC_OBJECT(vd), sys->scaleProc, sys->d3d_dev,
+        D3D11_UpscalerUpdate(HEIMDALL_OBJECT(vd), sys->scaleProc, sys->d3d_dev,
                              vd->source, &sys->picQuad.quad_fmt,
                              vd->cfg->display.width, vd->cfg->display.height,
                              vd->place);
@@ -307,7 +308,7 @@ static int UpdateDisplayFormat(vout_display_t *vd, const video_format_t *fmt)
     if (unlikely(new_display.pixelFormat == NULL))
     {
         msg_Err(vd, "Could not find the output format.");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     new_display.color     = (video_color_space_t)     out.colorspace;
@@ -344,11 +345,11 @@ static int UpdateDisplayFormat(vout_display_t *vd, const video_format_t *fmt)
         /* TODO release the pixel shaders if the format changed */
         if (Direct3D11CreateFormatResources(vd, fmt)) {
             msg_Err(vd, "Failed to allocate format resources");
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void UpdateSize(vout_display_t *vd)
@@ -385,7 +386,7 @@ static void UpdateSize(vout_display_t *vd)
 #endif
 }
 
-static int SetViewpoint(vout_display_t *vd, const vlc_viewpoint_t *viewpoint)
+static int SetViewpoint(vout_display_t *vd, const heimdall_viewpoint_t *viewpoint)
 {
     vout_display_sys_t *sys = static_cast<vout_display_sys_t *>(vd->sys);
     if ( sys->picQuad.viewpointShaderConstant.Get() )
@@ -395,14 +396,14 @@ static int SetViewpoint(vout_display_t *vd, const vlc_viewpoint_t *viewpoint)
                                 (float) vd->cfg->display.width / vd->cfg->display.height );
         d3d11_device_unlock( sys->d3d_dev );
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int UpdateStaging(vout_display_t *vd, const video_format_t *fmt)
 {
     vout_display_sys_t *sys = static_cast<vout_display_sys_t *>(vd->sys);
     if (!sys->use_staging_texture)
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
     /* we need a staging texture */
     ID3D11Texture2D *textures[DXGI_MAX_SHADER_VIEW] = {0};
@@ -418,14 +419,14 @@ static int UpdateStaging(vout_display_t *vd, const video_format_t *fmt)
                             false, textures, sys->stagingPlanes))
     {
         msg_Err(vd, "Failed to allocate the staging texture");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    if (D3D11_AllocateResourceView(vlc_object_logger(vd), sys->d3d_dev->d3ddevice, sys->picQuad.generic.textureFormat,
+    if (D3D11_AllocateResourceView(heimdall_object_logger(vd), sys->d3d_dev->d3ddevice, sys->picQuad.generic.textureFormat,
                                 textures, 0, sys->stagingSys.renderSrc))
     {
         msg_Err(vd, "Failed to allocate the staging shader view");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     for (unsigned plane = 0; plane < DXGI_MAX_SHADER_VIEW; plane++)
@@ -446,13 +447,13 @@ static int UpdateStaging(vout_display_t *vd, const video_format_t *fmt)
         if (FAILED(hr))
         {
             msg_Dbg(vd,"Failed to create processor output. (hr=0x%lX)", hr);
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static enum d3d11_hdr HdrModeFromString(vlc_logger *logger, const char *psz_hdr)
+static enum d3d11_hdr HdrModeFromString(heimdall_logger *logger, const char *psz_hdr)
 {
     if (strcmp("auto", psz_hdr) == 0)
         return hdr_Auto;
@@ -463,7 +464,7 @@ static enum d3d11_hdr HdrModeFromString(vlc_logger *logger, const char *psz_hdr)
     if (strcmp("generate", psz_hdr) == 0)
         return hdr_Fake;
 
-    vlc_warning(logger, "unknown HDR mode %s, using auto mode", psz_hdr);
+    heimdall_warning(logger, "unknown HDR mode %s, using auto mode", psz_hdr);
     return hdr_Auto;
 }
 
@@ -506,7 +507,7 @@ static void InitTonemapProcessor(vout_display_t *vd, const video_format_t *fmt_i
     }
     }
 
-    sys->tonemapProc = D3D11_TonemapperCreate(VLC_OBJECT(vd), sys->d3d_dev, fmt_in);
+    sys->tonemapProc = D3D11_TonemapperCreate(HEIMDALL_OBJECT(vd), sys->d3d_dev, fmt_in);
     if (sys->tonemapProc != NULL)
     {
         msg_Dbg(vd, "Using tonemapper");
@@ -525,7 +526,7 @@ static int ChangeSourceProjection(vout_display_t *vd, video_projection_mode_t pr
     return Direct3D11CreateFormatResources(vd, vd->source);
 }
 
-static int UpdateFormat(vout_display_t *vd, const video_format_t *fmtp, vlc_video_context *vctx)
+static int UpdateFormat(vout_display_t *vd, const video_format_t *fmtp, heimdall_video_context *vctx)
 {
     vout_display_sys_t *sys = static_cast<vout_display_sys_t *>(vd->sys);
 
@@ -534,19 +535,19 @@ static int UpdateFormat(vout_display_t *vd, const video_format_t *fmtp, vlc_vide
     video_format_Copy(&sys->picQuad.quad_fmt, &fmt);
 
     int err = SetupOutputFormat(vd, &fmt, vctx, &sys->picQuad.quad_fmt);
-    if (err != VLC_SUCCESS)
+    if (err != HEIMDALL_SUCCESS)
         goto error;
 
     err = UpdateDisplayFormat(vd, &sys->picQuad.quad_fmt);
-    if (err != VLC_SUCCESS)
+    if (err != HEIMDALL_SUCCESS)
         goto error;
 
     err = Direct3D11CreateFormatResources(vd, &fmt);
-    if (err != VLC_SUCCESS)
+    if (err != HEIMDALL_SUCCESS)
         goto error;
 
     video_format_Clean(&fmt);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     video_format_Clean(&fmt);
@@ -555,18 +556,18 @@ error:
 
 static int PlacementChanged(vout_display_t *vd, const vout_display_place_t *place)
 {
-    VLC_UNUSED(place);
+    HEIMDALL_UNUSED(place);
     return UpdateSource(vd, true);
 }
 
 static int AspectChanged(vout_display_t *vd, const video_format_t *source)
 {
-    VLC_UNUSED(source);
+    HEIMDALL_UNUSED(source);
     return UpdateSource(vd, false);
 }
 
 static constexpr const auto ops = []{
-    struct vlc_display_operations ops {};
+    struct heimdall_display_operations ops {};
     ops.close = Close;
     ops.prepare = Prepare;
     ops.display = Display;
@@ -581,25 +582,25 @@ static constexpr const auto ops = []{
 }();
 
 static int OpenGeneric(vout_display_t *vd,
-                video_format_t *fmtp, vlc_video_context *context)
+                video_format_t *fmtp, heimdall_video_context *context)
 {
     vout_display_sys_t *sys = new (std::nothrow) vout_display_sys_t();
     if (!sys)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     vd->sys = sys;
 
     char *psz_hdr = var_InheritString(vd, "d3d11-hdr-mode");
-    sys->hdrMode = HdrModeFromString(vlc_object_logger(vd), psz_hdr);
+    sys->hdrMode = HdrModeFromString(heimdall_object_logger(vd), psz_hdr);
     free(psz_hdr);
 
     d3d11_decoder_device_t *dev_sys = NULL;
 
     sys->outside_opaque = var_InheritAddress( vd, "vout-cb-opaque" );
-    sys->updateOutputCb      = (libvlc_video_update_output_cb)var_InheritAddress( vd, "vout-cb-update-output" );
-    sys->swapCb              = (libvlc_video_swap_cb)var_InheritAddress( vd, "vout-cb-swap" );
-    sys->startEndRenderingCb = (libvlc_video_makeCurrent_cb)var_InheritAddress( vd, "vout-cb-make-current" );
-    sys->sendMetadataCb      = (libvlc_video_frameMetadata_cb)var_InheritAddress( vd, "vout-cb-metadata" );
-    sys->selectPlaneCb       = (libvlc_video_output_select_plane_cb)var_InheritAddress( vd, "vout-cb-select-plane" );
+    sys->updateOutputCb      = (libheimdall_video_update_output_cb)var_InheritAddress( vd, "vout-cb-update-output" );
+    sys->swapCb              = (libheimdall_video_swap_cb)var_InheritAddress( vd, "vout-cb-swap" );
+    sys->startEndRenderingCb = (libheimdall_video_makeCurrent_cb)var_InheritAddress( vd, "vout-cb-make-current" );
+    sys->sendMetadataCb      = (libheimdall_video_frameMetadata_cb)var_InheritAddress( vd, "vout-cb-metadata" );
+    sys->selectPlaneCb       = (libheimdall_video_output_select_plane_cb)var_InheritAddress( vd, "vout-cb-select-plane" );
 
     dev_sys = GetD3D11OpaqueContext( context );
     if ( dev_sys == NULL )
@@ -623,7 +624,7 @@ static int OpenGeneric(vout_display_t *vd,
         msg_Err(vd, "UWP apps needs to set an external rendering target");
         goto error;
 #else // WINAPI_PARTITION_DESKTOP
-        if (vd->cfg->window->type == VLC_WINDOW_TYPE_HWND)
+        if (vd->cfg->window->type == HEIMDALL_WINDOW_TYPE_HWND)
         {
             if (CommonWindowInit(vd, &sys->video_wnd,
                        sys->projection_mode != PROJECTION_MODE_RECTANGULAR))
@@ -632,16 +633,16 @@ static int OpenGeneric(vout_display_t *vd,
 
         /* use our internal swapchain callbacks */
         dxgi_swapchain *swap = nullptr;
-        if (vd->cfg->window->type == VLC_WINDOW_TYPE_DCOMP)
-            swap = DXGI_CreateLocalSwapchainHandleDComp(VLC_OBJECT(vd),
+        if (vd->cfg->window->type == HEIMDALL_WINDOW_TYPE_DCOMP)
+            swap = DXGI_CreateLocalSwapchainHandleDComp(HEIMDALL_OBJECT(vd),
                                                         vd->cfg->window->display.dcomp_device,
                                                         vd->cfg->window->handle.dcomp_visual);
         else
-            swap = DXGI_CreateLocalSwapchainHandleHwnd(VLC_OBJECT(vd), CommonVideoHWND(sys->video_wnd));
+            swap = DXGI_CreateLocalSwapchainHandleHwnd(HEIMDALL_OBJECT(vd), CommonVideoHWND(sys->video_wnd));
         if (unlikely(swap == NULL))
             goto error;
 
-        sys->outside_opaque = D3D11_CreateLocalSwapchain(VLC_OBJECT(vd), sys->d3d_dev, swap,
+        sys->outside_opaque = D3D11_CreateLocalSwapchain(HEIMDALL_OBJECT(vd), sys->d3d_dev, swap,
                                                          sys->hdrMode != hdr_Never && sys->hdrMode != hdr_Always);
         if (unlikely(sys->outside_opaque == NULL))
         {
@@ -662,7 +663,7 @@ static int OpenGeneric(vout_display_t *vd,
         goto error;
     }
 
-    vlc_window_SetTitle(vd->cfg->window, VOUT_TITLE " (Direct3D11 output)");
+    heimdall_window_SetTitle(vd->cfg->window, VOUT_TITLE " (Direct3D11 output)");
     msg_Dbg(vd, "Direct3D11 display adapter successfully initialized");
 
     if (var_InheritBool(vd, "direct3d11-hw-blending") &&
@@ -679,28 +680,28 @@ static int OpenGeneric(vout_display_t *vd,
 
     msg_Dbg(vd, "Direct3D11 Open Succeeded");
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     Close(vd);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 static int OpenDisplay(vout_display_t *vd,
-                       video_format_t *fmtp, vlc_video_context *context)
+                       video_format_t *fmtp, heimdall_video_context *context)
 {
-    if (vd->cfg->window->type != VLC_WINDOW_TYPE_HWND &&
-        vd->cfg->window->type != VLC_WINDOW_TYPE_DCOMP)
-        return VLC_ENOTSUP;
+    if (vd->cfg->window->type != HEIMDALL_WINDOW_TYPE_HWND &&
+        vd->cfg->window->type != HEIMDALL_WINDOW_TYPE_DCOMP)
+        return HEIMDALL_ENOTSUP;
 
     return OpenGeneric(vd, fmtp, context);
 }
 
 static int OpenDrawable(vout_display_t *vd,
-                        video_format_t *fmtp, vlc_video_context *context)
+                        video_format_t *fmtp, heimdall_video_context *context)
 {
-    if (vd->cfg->window->type != VLC_WINDOW_TYPE_DUMMY)
-        return VLC_ENOTSUP;
+    if (vd->cfg->window->type != HEIMDALL_WINDOW_TYPE_DUMMY)
+        return HEIMDALL_ENOTSUP;
 
     /* TODO: other checks for callback validity should be there. */
 
@@ -724,7 +725,7 @@ static int SetDisplaySize(vout_display_t *vd, unsigned width, unsigned height)
     bool use_scaler = false;
     if (sys->upscaleMode == upscale_VideoProcessor || sys->upscaleMode == upscale_SuperResolution)
     {
-        D3D11_UpscalerUpdate(VLC_OBJECT(vd), sys->scaleProc, sys->d3d_dev,
+        D3D11_UpscalerUpdate(HEIMDALL_OBJECT(vd), sys->scaleProc, sys->d3d_dev,
                              vd->source, &sys->picQuad.quad_fmt,
                              width, height,
                              vd->place);
@@ -763,7 +764,7 @@ static int SetDisplaySize(vout_display_t *vd, unsigned width, unsigned height)
     {
         UpdateSize(vd);
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int UpdateSource(vout_display_t *vd, bool force_placement)
@@ -773,7 +774,7 @@ static int UpdateSource(vout_display_t *vd, bool force_placement)
     bool use_scaler = false;
     if (sys->upscaleMode == upscale_VideoProcessor || sys->upscaleMode == upscale_SuperResolution)
     {
-        D3D11_UpscalerUpdate(VLC_OBJECT(vd), sys->scaleProc, sys->d3d_dev,
+        D3D11_UpscalerUpdate(HEIMDALL_OBJECT(vd), sys->scaleProc, sys->d3d_dev,
                              vd->source, &sys->picQuad.quad_fmt,
                              vd->cfg->display.width, vd->cfg->display.height,
                              vd->place);
@@ -822,7 +823,7 @@ static int UpdateSource(vout_display_t *vd, bool force_placement)
         UpdateSize(vd);
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static bool SelectRenderPlane(void *opaque, size_t plane, ID3D11RenderTargetView **targetView)
@@ -859,18 +860,18 @@ static int assert_ProcessorInput(vout_display_t *vd, picture_sys_d3d11_t *p_sys_
 #ifndef NDEBUG
             msg_Dbg(vd,"Failed to create processor input for slice %d. (hr=0x%lX)", p_sys_src->slice_index, hr);
 #endif
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 
 static void PreparePicture(vout_display_t *vd, picture_t *picture,
-                           const vlc_render_subpicture *subpicture,
-                           vlc_tick_t date)
+                           const heimdall_render_subpicture *subpicture,
+                           heimdall_tick_t date)
 {
-    VLC_UNUSED(date);
+    HEIMDALL_UNUSED(date);
     vout_display_sys_t *sys = static_cast<vout_display_sys_t *>(vd->sys);
 
     if (sys->picQuad.generic.textureFormat->formatTexture == DXGI_FORMAT_UNKNOWN)
@@ -941,12 +942,12 @@ static void PreparePicture(vout_display_t *vd, picture_t *picture,
 
         if (sys->tonemapProc)
         {
-            if (FAILED(D3D11_TonemapperProcess(VLC_OBJECT(vd), sys->tonemapProc, p_sys)))
+            if (FAILED(D3D11_TonemapperProcess(HEIMDALL_OBJECT(vd), sys->tonemapProc, p_sys)))
                 return;
         }
         else if (sys->scaleProc && D3D11_UpscalerUsed(sys->scaleProc))
         {
-            if (D3D11_UpscalerScale(VLC_OBJECT(vd), sys->scaleProc, p_sys) != VLC_SUCCESS)
+            if (D3D11_UpscalerScale(HEIMDALL_OBJECT(vd), sys->scaleProc, p_sys) != HEIMDALL_SUCCESS)
                 return;
             uint32_t witdh, height;
             D3D11_UpscalerGetSize(sys->scaleProc, &witdh, &height);
@@ -957,7 +958,7 @@ static void PreparePicture(vout_display_t *vd, picture_t *picture,
         {
             if (sys->old_feature.processor)
             {
-                if (assert_ProcessorInput(vd, p_sys) != VLC_SUCCESS)
+                if (assert_ProcessorInput(vd, p_sys) != HEIMDALL_SUCCESS)
                 {
                     msg_Err(vd, "fail to create upscaler input");
                 }
@@ -1023,7 +1024,7 @@ static void PreparePicture(vout_display_t *vd, picture_t *picture,
 
     if (picture->format.mastering.max_luminance)
     {
-        D3D11_UpdateQuadLuminanceScale(vd, sys->d3d_dev, &sys->picQuad, (float)sys->display.luminance_peak / D3D_GetFormatLuminance(VLC_OBJECT(vd), &picture->format));
+        D3D11_UpdateQuadLuminanceScale(vd, sys->d3d_dev, &sys->picQuad, (float)sys->display.luminance_peak / D3D_GetFormatLuminance(HEIMDALL_OBJECT(vd), &picture->format));
     }
 
     /* Render the quad */
@@ -1060,9 +1061,9 @@ static void PreparePicture(vout_display_t *vd, picture_t *picture,
 
     if (sys->log_level >= 4)
     {
-        vlc_tick_t render_start = vlc_tick_now();
+        heimdall_tick_t render_start = heimdall_tick_now();
         D3D11_WaitFence(sys->fence);
-        msg_Dbg(vd, "waited %" PRId64 " ms for the render fence", MS_FROM_VLC_TICK(vlc_tick_now() - render_start));
+        msg_Dbg(vd, "waited %" PRId64 " ms for the render fence", MS_FROM_HEIMDALL_TICK(heimdall_tick_now() - render_start));
     }
     else
     {
@@ -1071,7 +1072,7 @@ static void PreparePicture(vout_display_t *vd, picture_t *picture,
 }
 
 static void Prepare(vout_display_t *vd, picture_t *picture,
-                    const vlc_render_subpicture *subpicture, vlc_tick_t date)
+                    const heimdall_render_subpicture *subpicture, heimdall_tick_t date)
 {
     vout_display_sys_t *sys = static_cast<vout_display_sys_t *>(vd->sys);
 
@@ -1080,7 +1081,7 @@ static void Prepare(vout_display_t *vd, picture_t *picture,
     {
         if ( sys->sendMetadataCb && picture->format.mastering.max_luminance )
         {
-            libvlc_video_frame_hdr10_metadata_t hdr10;
+            libheimdall_video_frame_hdr10_metadata_t hdr10;
             hdr10.GreenPrimary[0] = picture->format.mastering.primaries[0];
             hdr10.GreenPrimary[1] = picture->format.mastering.primaries[1];
             hdr10.BluePrimary[0]  = picture->format.mastering.primaries[2];
@@ -1094,7 +1095,7 @@ static void Prepare(vout_display_t *vd, picture_t *picture,
             hdr10.MaxContentLightLevel = picture->format.lighting.MaxCLL;
             hdr10.MaxFrameAverageLightLevel = picture->format.lighting.MaxFALL;
 
-            sys->sendMetadataCb( sys->outside_opaque, libvlc_video_metadata_frame_hdr10, &hdr10 );
+            sys->sendMetadataCb( sys->outside_opaque, libheimdall_video_metadata_frame_hdr10, &hdr10 );
         }
 
         PreparePicture(vd, picture, subpicture, date);
@@ -1107,14 +1108,14 @@ static void Prepare(vout_display_t *vd, picture_t *picture,
 static void Display(vout_display_t *vd, picture_t *picture)
 {
     vout_display_sys_t *sys = static_cast<vout_display_sys_t *>(vd->sys);
-    VLC_UNUSED(picture);
+    HEIMDALL_UNUSED(picture);
 
     d3d11_device_lock( sys->d3d_dev );
     sys->swapCb(sys->outside_opaque);
     d3d11_device_unlock( sys->d3d_dev );
 }
 
-static const d3d_format_t *GetDirectRenderingFormat(vout_display_t *vd, vlc_fourcc_t i_src_chroma)
+static const d3d_format_t *GetDirectRenderingFormat(vout_display_t *vd, heimdall_fourcc_t i_src_chroma)
 {
     vout_display_sys_t *sys = static_cast<vout_display_sys_t *>(vd->sys);
 
@@ -1154,7 +1155,7 @@ static const d3d_format_t *GetDisplayFormatByDepth(vout_display_t *vd, uint8_t b
     return res;
 }
 
-static const d3d_format_t *GetBlendableFormat(vout_display_t *vd, vlc_fourcc_t i_src_chroma)
+static const d3d_format_t *GetBlendableFormat(vout_display_t *vd, heimdall_fourcc_t i_src_chroma)
 {
     vout_display_sys_t *sys = static_cast<vout_display_sys_t *>(vd->sys);
 
@@ -1168,7 +1169,7 @@ static void InitScaleProcessor(vout_display_t *vd)
     if (sys->upscaleMode != upscale_VideoProcessor && sys->upscaleMode != upscale_SuperResolution)
         return;
 
-    sys->scaleProc = D3D11_UpscalerCreate(VLC_OBJECT(vd), sys->d3d_dev, sys->picQuad.quad_fmt.i_chroma,
+    sys->scaleProc = D3D11_UpscalerCreate(HEIMDALL_OBJECT(vd), sys->d3d_dev, sys->picQuad.quad_fmt.i_chroma,
                                           sys->upscaleMode == upscale_SuperResolution, &sys->picQuad.generic.textureFormat);
     if (sys->scaleProc == NULL)
     {
@@ -1179,7 +1180,7 @@ static void InitScaleProcessor(vout_display_t *vd)
     msg_Dbg(vd, "Using %s scaler", ppsz_upscale_mode_text[sys->upscaleMode]);
 }
 
-static int Direct3D11Open(vout_display_t *vd, video_format_t *fmtp, vlc_video_context *vctx)
+static int Direct3D11Open(vout_display_t *vd, video_format_t *fmtp, heimdall_video_context *vctx)
 {
     vout_display_sys_t *sys = static_cast<vout_display_sys_t *>(vd->sys);
     video_format_t fmt;
@@ -1187,7 +1188,7 @@ static int Direct3D11Open(vout_display_t *vd, video_format_t *fmtp, vlc_video_co
     video_format_Copy(&fmt, vd->source);
     video_format_Copy(&sys->picQuad.quad_fmt, &fmt);
     int err = SetupOutputFormat(vd, &fmt, vctx, &sys->picQuad.quad_fmt);
-    if (err != VLC_SUCCESS)
+    if (err != HEIMDALL_SUCCESS)
     {
         if (!is_d3d11_opaque(vd->source->i_chroma)
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
@@ -1195,7 +1196,7 @@ static int Direct3D11Open(vout_display_t *vd, video_format_t *fmtp, vlc_video_co
 #endif
                 )
         {
-            vlc_fourcc_t *list = vlc_fourcc_GetFallback(vd->source->i_chroma);
+            heimdall_fourcc_t *list = heimdall_fourcc_GetFallback(vd->source->i_chroma);
             if (list != NULL)
             {
                 for (unsigned i = 0; list[i] != 0; i++) {
@@ -1203,13 +1204,13 @@ static int Direct3D11Open(vout_display_t *vd, video_format_t *fmtp, vlc_video_co
                         continue;
                     fmt.i_chroma = list[i];
                     err = SetupOutputFormat(vd, &fmt, nullptr, &sys->picQuad.quad_fmt);
-                    if (err == VLC_SUCCESS)
+                    if (err == HEIMDALL_SUCCESS)
                         break;
                 }
                 free(list);
             }
         }
-        if (err != VLC_SUCCESS)
+        if (err != HEIMDALL_SUCCESS)
         {
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
             if ( sys->swapCb == D3D11_LocalSwapchainSwap && sys->outside_opaque )
@@ -1262,7 +1263,7 @@ static int Direct3D11Open(vout_display_t *vd, video_format_t *fmtp, vlc_video_co
     sys->place_changed = true;
 
     err = UpdateDisplayFormat(vd, &sys->picQuad.quad_fmt);
-    if (err != VLC_SUCCESS) {
+    if (err != HEIMDALL_SUCCESS) {
         msg_Err(vd, "Could not update the backbuffer");
         return err;
     }
@@ -1276,7 +1277,7 @@ static int Direct3D11Open(vout_display_t *vd, video_format_t *fmtp, vlc_video_co
             sys->outside_opaque = nullptr;
         }
 #endif // WINAPI_PARTITION_DESKTOP
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     video_format_Clean(fmtp);
@@ -1284,10 +1285,10 @@ static int Direct3D11Open(vout_display_t *vd, video_format_t *fmtp, vlc_video_co
 
     sys->log_level = var_InheritInteger(vd, "verbose");
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static const d3d_format_t *SelectOutputFormat(vout_display_t *vd, const video_format_t *fmt, vlc_video_context *vctx)
+static const d3d_format_t *SelectOutputFormat(vout_display_t *vd, const video_format_t *fmt, heimdall_video_context *vctx)
 {
     vout_display_sys_t *sys = static_cast<vout_display_sys_t *>(vd->sys);
     bool allow_processor = false;
@@ -1331,15 +1332,15 @@ static const d3d_format_t *SelectOutputFormat(vout_display_t *vd, const video_fo
     uint8_t bits_per_channel;
     uint8_t widthDenominator, heightDenominator;
     uint8_t alpha_bits = 0;
-    vlc_fourcc_t cpu_chroma;
+    heimdall_fourcc_t cpu_chroma;
     if (is_d3d11_opaque(fmt->i_chroma))
         cpu_chroma = DxgiFormatFourcc(vtcx_sys->format);
     else if (is_nvdec_opaque(fmt->i_chroma))
-        cpu_chroma = NVDECToVlcChroma(fmt->i_chroma);
+        cpu_chroma = NVDECToHeimdallChroma(fmt->i_chroma);
     else
         cpu_chroma = fmt->i_chroma;
 
-    const auto *p_format = vlc_fourcc_GetChromaDescription(cpu_chroma);
+    const auto *p_format = heimdall_fourcc_GetChromaDescription(cpu_chroma);
     if (unlikely(p_format == NULL || p_format->plane_count == 0))
     {
         bits_per_channel = 8;
@@ -1360,38 +1361,38 @@ static const d3d_format_t *SelectOutputFormat(vout_display_t *vd, const video_fo
 
         switch (cpu_chroma) // FIXME get this info from the core
         {
-        case VLC_CODEC_YUVA:
-        case VLC_CODEC_YUV422A:
-        case VLC_CODEC_YUV420A:
-        case VLC_CODEC_VUYA:
-        case VLC_CODEC_RGBA:
-        case VLC_CODEC_ARGB:
-        case VLC_CODEC_BGRA:
-        case VLC_CODEC_ABGR:
-        case VLC_CODEC_D3D11_OPAQUE_RGBA:
-        case VLC_CODEC_D3D11_OPAQUE_BGRA:
-        case VLC_CODEC_D3D11_OPAQUE_ALPHA:
+        case HEIMDALL_CODEC_YUVA:
+        case HEIMDALL_CODEC_YUV422A:
+        case HEIMDALL_CODEC_YUV420A:
+        case HEIMDALL_CODEC_VUYA:
+        case HEIMDALL_CODEC_RGBA:
+        case HEIMDALL_CODEC_ARGB:
+        case HEIMDALL_CODEC_BGRA:
+        case HEIMDALL_CODEC_ABGR:
+        case HEIMDALL_CODEC_D3D11_OPAQUE_RGBA:
+        case HEIMDALL_CODEC_D3D11_OPAQUE_BGRA:
+        case HEIMDALL_CODEC_D3D11_OPAQUE_ALPHA:
             alpha_bits = 8;
             break;
-        case VLC_CODEC_YUVA_444_10L:
-        case VLC_CODEC_YUVA_444_10B:
+        case HEIMDALL_CODEC_YUVA_444_10L:
+        case HEIMDALL_CODEC_YUVA_444_10B:
             alpha_bits = 10;
             break;
-        case VLC_CODEC_RGBA10LE:
+        case HEIMDALL_CODEC_RGBA10LE:
             bits_per_channel = 10;
             alpha_bits = 2;
             break;
-        case VLC_CODEC_YUVA_444_12L:
-        case VLC_CODEC_YUVA_444_12B:
+        case HEIMDALL_CODEC_YUVA_444_12L:
+        case HEIMDALL_CODEC_YUVA_444_12B:
             alpha_bits = 12;
             break;
-        case VLC_CODEC_RGBA64:
+        case HEIMDALL_CODEC_RGBA64:
             alpha_bits = 16;
             break;
         }
     }
 
-    bool is_rgb = !vlc_fourcc_IsYUV(fmt->i_chroma);
+    bool is_rgb = !heimdall_fourcc_IsYUV(fmt->i_chroma);
     res = GetDisplayFormatByDepth(vd, bits_per_channel,
                                   widthDenominator, heightDenominator, alpha_bits,
                                   allow_processor,
@@ -1474,7 +1475,7 @@ static HRESULT SetupInternalConverter(vout_display_t *vd, video_format_t *fmt)
     return S_OK;
 }
 
-static int SetupOutputFormat(vout_display_t *vd, video_format_t *fmt, vlc_video_context *vctx, video_format_t *quad_fmt)
+static int SetupOutputFormat(vout_display_t *vd, video_format_t *fmt, heimdall_video_context *vctx, video_format_t *quad_fmt)
 {
     vout_display_sys_t *sys = static_cast<vout_display_sys_t *>(vd->sys);
     const d3d_format_t *decoder_format = nullptr;
@@ -1498,7 +1499,7 @@ static int SetupOutputFormat(vout_display_t *vd, video_format_t *fmt, vlc_video_
         else
         {
             msg_Err(vd, "Could not use R10G10B10A2 in shaders!");
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
     else
@@ -1506,7 +1507,7 @@ static int SetupOutputFormat(vout_display_t *vd, video_format_t *fmt, vlc_video_
     if ( !sys->picQuad.generic.textureFormat )
     {
        msg_Err(vd, "Could not get a suitable texture pixel format");
-       return VLC_EGENERIC;
+       return HEIMDALL_EGENERIC;
     }
 
     if (vctx)
@@ -1522,7 +1523,7 @@ static int SetupOutputFormat(vout_display_t *vd, video_format_t *fmt, vlc_video_
             if (FAILED(hr))
             {
                 msg_Err(vd, "Failed to initialize internal converter. (hr=0x%lX)", hr);
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             }
         }
     }
@@ -1533,11 +1534,11 @@ static int SetupOutputFormat(vout_display_t *vd, video_format_t *fmt, vlc_video_
     fmt->i_chroma = decoder_format ? decoder_format->fourcc : sys->picQuad.generic.textureFormat->fourcc;
 
     /* select the subpicture region pixel format */
-    sys->regionQuad.generic.textureFormat = GetBlendableFormat(vd, VLC_CODEC_RGBA);
+    sys->regionQuad.generic.textureFormat = GetBlendableFormat(vd, HEIMDALL_CODEC_RGBA);
     if (!sys->regionQuad.generic.textureFormat)
-        sys->regionQuad.generic.textureFormat = GetBlendableFormat(vd, VLC_CODEC_BGRA);
+        sys->regionQuad.generic.textureFormat = GetBlendableFormat(vd, HEIMDALL_CODEC_BGRA);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void Direct3D11Close(vout_display_t *vd)
@@ -1584,33 +1585,33 @@ static int Direct3D11CreateFormatResources(vout_display_t *vd, const video_forma
     if (FAILED(hr))
     {
         msg_Err(vd, "Failed to compile the pixel shader. (hr=0x%lX)", hr);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
-    hr = D3D11_SetQuadPixelShader(VLC_OBJECT(vd), sys->d3d_dev, sys->upscaleMode != upscale_LinearSampler,
+    hr = D3D11_SetQuadPixelShader(HEIMDALL_OBJECT(vd), sys->d3d_dev, sys->upscaleMode != upscale_LinearSampler,
                                   &sys->picQuad, pPSBlob);
     if (FAILED(hr))
     {
         msg_Err(vd, "Failed to set the pixel shader. (hr=0x%lX)", hr);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    if (D3D11_AllocateQuad(vd, sys->d3d_dev, sys->projection_mode, &sys->picQuad) != VLC_SUCCESS)
+    if (D3D11_AllocateQuad(vd, sys->d3d_dev, sys->projection_mode, &sys->picQuad) != HEIMDALL_SUCCESS)
     {
         msg_Err(vd, "Could not allocate quad buffers.");
-       return VLC_EGENERIC;
+       return HEIMDALL_EGENERIC;
     }
 
-    if (D3D11_SetupQuad( vd, sys->d3d_dev, &sys->picQuad.quad_fmt, &sys->picQuad, &sys->display) != VLC_SUCCESS)
+    if (D3D11_SetupQuad( vd, sys->d3d_dev, &sys->picQuad.quad_fmt, &sys->picQuad, &sys->display) != HEIMDALL_SUCCESS)
     {
         msg_Err(vd, "Could not Create the main quad picture.");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if (!D3D11_UpdateQuadPosition(vd, sys->d3d_dev, &sys->picQuad,
                                   video_format_GetTransform(sys->picQuad.quad_fmt.orientation, sys->display.orientation)))
     {
         msg_Err(vd, "Could not set quad picture position.");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if ( sys->projection_mode == PROJECTION_MODE_EQUIRECTANGULAR ||
@@ -1655,7 +1656,7 @@ static int Direct3D11CreateGenericResources(vout_display_t *vd)
     hr = sys->d3d_dev->d3ddevice->CreateBlendState(&spuBlendDesc, &pSpuBlendState);
     if (FAILED(hr)) {
        msg_Err(vd, "Could not create SPU blend state. (hr=0x%lX)", hr);
-       return VLC_EGENERIC;
+       return HEIMDALL_EGENERIC;
     }
     sys->d3d_dev->d3dcontext->OMSetBlendState(pSpuBlendState.Get(), NULL, 0xFFFFFFFF);
 
@@ -1679,39 +1680,39 @@ static int Direct3D11CreateGenericResources(vout_display_t *vd)
         if (FAILED(hr))
         {
             msg_Err(vd, "Failed to create the SPU pixel shader. (hr=0x%lX)", hr);
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
-        hr = D3D11_SetQuadPixelShader(VLC_OBJECT(vd), sys->d3d_dev, true,
+        hr = D3D11_SetQuadPixelShader(HEIMDALL_OBJECT(vd), sys->d3d_dev, true,
                                       &sys->regionQuad, pPSBlob);
         if (FAILED(hr))
         {
             msg_Err(vd, "Failed to create the SPU pixel shader. (hr=0x%lX)", hr);
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
 
     d3d_shader_blob VSBlob = { };
-    hr = D3D11_CompileVertexShaderBlob(VLC_OBJECT(vd), sys->d3d_dev, true, &VSBlob);
+    hr = D3D11_CompileVertexShaderBlob(HEIMDALL_OBJECT(vd), sys->d3d_dev, true, &VSBlob);
     if(FAILED(hr)) {
       msg_Err(vd, "Failed to compile the flat vertex shader. (hr=0x%lX)", hr);
-      return VLC_EGENERIC;
+      return HEIMDALL_EGENERIC;
     }
     hr = D3D11_CreateVertexShader(vd, &VSBlob, sys->d3d_dev, &sys->flatVShader);
     if(FAILED(hr)) {
       msg_Err(vd, "Failed to create the vertex input layout. (hr=0x%lX)", hr);
-      return VLC_EGENERIC;
+      return HEIMDALL_EGENERIC;
     }
 
 
-    hr = D3D11_CompileVertexShaderBlob(VLC_OBJECT(vd), sys->d3d_dev, false, &VSBlob);
+    hr = D3D11_CompileVertexShaderBlob(HEIMDALL_OBJECT(vd), sys->d3d_dev, false, &VSBlob);
     if(FAILED(hr)) {
       msg_Err(vd, "Failed to compile the 360 vertex shader. (hr=0x%lX)", hr);
-      return VLC_EGENERIC;
+      return HEIMDALL_EGENERIC;
     }
     hr = D3D11_CreateVertexShader(vd, &VSBlob, sys->d3d_dev, &sys->projectionVShader);
     if(FAILED(hr)) {
       msg_Err(vd, "Failed to create the projection vertex shader. (hr=0x%lX)", hr);
-      return VLC_EGENERIC;
+      return HEIMDALL_EGENERIC;
     }
 
     const vout_display_place_t *quad_place;
@@ -1731,7 +1732,7 @@ static int Direct3D11CreateGenericResources(vout_display_t *vd)
                           (float) vd->cfg->display.width / vd->cfg->display.height );
 
     msg_Dbg(vd, "Direct3D11 resources created");
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void Direct3D11DestroyResources(vout_display_t *vd)
@@ -1781,7 +1782,7 @@ static void DestroyPictureQuad(picture_t *p_picture)
 }
 
 static int Direct3D11MapSubpicture(vout_display_t *vd, int *subpicture_region_count,
-                                   picture_t ***region, const vlc_render_subpicture *subpicture)
+                                   picture_t ***region, const heimdall_render_subpicture *subpicture)
 {
     vout_display_sys_t *sys = static_cast<vout_display_sys_t *>(vd->sys);
     D3D11_MAPPED_SUBRESOURCE mappedResource;
@@ -1790,7 +1791,7 @@ static int Direct3D11MapSubpicture(vout_display_t *vd, int *subpicture_region_co
     int err;
 
     if (sys->regionQuad.generic.textureFormat == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     const auto render_orientation = video_format_GetTransform(ORIENT_NORMAL, sys->display.orientation);
 
@@ -1799,11 +1800,11 @@ static int Direct3D11MapSubpicture(vout_display_t *vd, int *subpicture_region_co
 
     *region = static_cast<picture_t**>(calloc(count, sizeof(picture_t *)));
     if (unlikely(*region==NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     *subpicture_region_count = count;
 
     int i = 0;
-    vlc_vector_foreach(r, &subpicture->regions) {
+    heimdall_vector_foreach(r, &subpicture->regions) {
         if (!r->place.width || !r->place.height)
         {
             i++;
@@ -1854,7 +1855,7 @@ static int Direct3D11MapSubpicture(vout_display_t *vd, int *subpicture_region_co
                 continue;
             }
 
-            if (D3D11_AllocateResourceView(vlc_object_logger(vd), sys->d3d_dev->d3ddevice, sys->regionQuad.generic.textureFormat,
+            if (D3D11_AllocateResourceView(heimdall_object_logger(vd), sys->d3d_dev->d3ddevice, sys->regionQuad.generic.textureFormat,
                                            d3dquad->picSys.texture, 0,
                                            d3dquad->picSys.renderSrc)) {
                 msg_Err(vd, "Failed to create %dx%d shader view for OSD",
@@ -1869,7 +1870,7 @@ static int Direct3D11MapSubpicture(vout_display_t *vd, int *subpicture_region_co
 
             d3dquad->generic.textureFormat = sys->regionQuad.generic.textureFormat;
             err = D3D11_AllocateQuad(vd, sys->d3d_dev, PROJECTION_MODE_RECTANGULAR, d3dquad);
-            if (err != VLC_SUCCESS)
+            if (err != HEIMDALL_SUCCESS)
             {
                 msg_Err(vd, "Failed to allocate %dx%d quad for OSD",
                              r->p_picture->format.i_width, r->p_picture->format.i_height);
@@ -1879,7 +1880,7 @@ static int Direct3D11MapSubpicture(vout_display_t *vd, int *subpicture_region_co
             }
 
             err = D3D11_SetupQuad( vd, sys->d3d_dev, &r->p_picture->format, d3dquad, &sys->display );
-            if (err != VLC_SUCCESS) {
+            if (err != HEIMDALL_SUCCESS) {
                 msg_Err(vd, "Failed to setup %dx%d quad for OSD",
                         r->p_picture->format.i_width, r->p_picture->format.i_height);
                 delete d3dquad;
@@ -1961,5 +1962,5 @@ static int Direct3D11MapSubpicture(vout_display_t *vd, int *subpicture_region_co
         D3D11_UpdateQuadOpacity(vd, sys->d3d_dev, quad, r->i_alpha / 255.0f );
         i++;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

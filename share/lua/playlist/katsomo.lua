@@ -3,6 +3,7 @@
    movie URL
 
  Copyright © 2009 the VideoLAN team
+ Copyright (C) 2026 TheFenrisLycaon
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -21,9 +22,9 @@
 
 -- Probe function.
 function probe()
-    return vlc.access == "http"
-        and string.match( vlc.path, "^www%.katsomo%.fi/" )
-        and ( string.match( vlc.path, "treeId" ) or string.match( vlc.path, "progId" ) )
+    return heimdall.access == "http"
+        and string.match( heimdall.path, "^www%.katsomo%.fi/" )
+        and ( string.match( heimdall.path, "treeId" ) or string.match( heimdall.path, "progId" ) )
 end
 
 function find( haystack, needle )
@@ -34,9 +35,9 @@ end
 -- Parse function.
 function parse()
     p = {}
-    if string.match( vlc.path, "progId" )
+    if string.match( heimdall.path, "progId" )
     then
-       programid = string.match( vlc.path, "progId=(%d+)")
+       programid = string.match( heimdall.path, "progId=(%d+)")
        path = "http://www.katsomo.fi/metafile.asx?p="..programid.."&bw=800"
        table.insert(p, { path = path; } )
        return p
@@ -45,26 +46,26 @@ function parse()
     arturl="http://www.katsomo.fi/multimedia/template/logos/katsomo_logo_2.gif"
     while true
     do
-        line = vlc.readline()
+        line = heimdall.readline()
         if not line then break end
         if string.match( line, "<title>" )
         then
-            title = vlc.strings.decode_uri( find( line, "<title>(.-)<" ) )
-            title = vlc.strings.from_charset( "ISO_8859-1", title )
+            title = heimdall.strings.decode_uri( find( line, "<title>(.-)<" ) )
+            title = heimdall.strings.from_charset( "ISO_8859-1", title )
         end
         if( find( line, "img class=\"pngImg\" src=\"/multimedia/template/logos" ) )
         then
             arturl = "http://www.katsomo.fi"..find( line, " src=\"(.-)\" alt=" )
         end
         for treeid,name in string.gmatch( line, '/%?treeId=(%d+)">([^<]+)</a') do
-            name = vlc.strings.resolve_xml_special_chars( name )
-            name = vlc.strings.from_charset( "ISO_8859-1", name )
+            name = heimdall.strings.resolve_xml_special_chars( name )
+            name = heimdall.strings.from_charset( "ISO_8859-1", name )
             path = "http://www.katsomo.fi/?treeId="..treeid
             table.insert( p, { path = path; name = name; arturl=arturl; } )
         end
         for programid in string.gmatch( line, "<li class=\"program.*\" id=\"program(%d+)\" title=\".+\"" ) do
-           description = vlc.strings.resolve_xml_special_chars( find( line, "title=\"(.+)\"" ) )
-           description = vlc.strings.from_charset( "ISO_8859-1", description )
+           description = heimdall.strings.resolve_xml_special_chars( find( line, "title=\"(.+)\"" ) )
+           description = heimdall.strings.from_charset( "ISO_8859-1", description )
            path = "http://www.katsomo.fi/metafile.asx?p="..programid.."&bw=800"
            table.insert( p, { path = path; name = description; arturl=arturl; } )
         end

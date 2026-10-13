@@ -2,6 +2,7 @@
  * qsv.c: mpeg4-part10/mpeg2 video encoder using Intel Media SDK
  *****************************************************************************
  * Copyright (C) 2013 VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Julien 'Lta' BALLET <contact@lta.io>
  *
@@ -27,13 +28,13 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_picture.h>
-#include <vlc_codec.h>
-#include <vlc_picture_pool.h>
-#include <vlc_list.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_picture.h>
+#include <heimdall_codec.h>
+#include <heimdall_picture_pool.h>
+#include <heimdall_list.h>
 
 
 #include <vpl/mfxvideo.h>
@@ -49,14 +50,14 @@
 /* Default wait on libavcodec */
 #define QSV_SYNCPOINT_WAIT  (1000)
 /* Encoder input synchronization busy wait loop time */
-#define QSV_BUSYWAIT_TIME   VLC_HARD_MIN_SLEEP
+#define QSV_BUSYWAIT_TIME   HEIMDALL_HARD_MIN_SLEEP
 /* The SDK doesn't have a default bitrate, so here's one. */
 #define QSV_BITRATE_DEFAULT (842)
 
 /*****************************************************************************
  * Modules descriptor
  *****************************************************************************/
-static int      Open(vlc_object_t *);
+static int      Open(heimdall_object_t *);
 static void     Close(encoder_t *);
 
 #define SW_IMPL_TEXT N_("Enable software mode")
@@ -196,7 +197,7 @@ static const int rc_method_list[] =
 static const char *const rc_method_text[] =
     { "cbr", "vbr", "qp", "avbr" };
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_subcategory(SUBCAT_INPUT_VCODEC)
     set_description(N_("Intel QuickSync Video encoder for MPEG4-Part10/MPEG2 (aka H.264/H.262)"))
     set_shortname("qsv")
@@ -249,7 +250,7 @@ vlc_module_begin ()
     add_integer(SOUT_CFG_PREFIX "async-depth", 4, ASYNC_DEPTH_TEXT, ASYNC_DEPTH_LONGTEXT)
         change_integer_range(1, 32)
 
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * Local prototypes
@@ -274,10 +275,10 @@ typedef struct _QSVFrame
 
 typedef struct async_task_t
 {
-    struct vlc_list  fifo;
+    struct heimdall_list  fifo;
     mfxBitstream     bs;                  // Intel's bitstream structure.
     mfxSyncPoint     *syncp;              // Async Task Sync Point.
-    block_t          *block;              // VLC's block structure to be returned by Encode.
+    block_t          *block;              // Heimdall's block structure to be returned by Encode.
 } async_task_t;
 
 typedef struct
@@ -291,9 +292,9 @@ typedef struct
     uint64_t         dts_warn_counter;    // DTS warning counter for rate-limiting of msg;
     uint64_t         busy_warn_counter;   // Device Busy warning counter for rate-limiting of msg;
     uint64_t         async_depth;         // Number of parallel encoding operations.
-    struct vlc_list  packets;             // FIFO of queued packets
-    vlc_tick_t       offset_pts;          // The pts of the first frame, to avoid conversion overflow.
-    vlc_tick_t       last_dts;            // The dts of the last frame, to interpolate over buggy dts
+    struct heimdall_list  packets;             // FIFO of queued packets
+    heimdall_tick_t       offset_pts;          // The pts of the first frame, to avoid conversion overflow.
+    heimdall_tick_t       last_dts;            // The dts of the last frame, to interpolate over buggy dts
 
     picture_pool_t   *input_pool;         // pool of pictures to feed the decoder
                                           //  as it doesn't like constantly changing buffers
@@ -331,7 +332,7 @@ static int get_free_frame(encoder_sys_t *sys, QSVFrame **out)
         if (!frame->used) {
             *out = frame;
             frame->used = 1;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
 
         last  = &frame->next;
@@ -340,13 +341,13 @@ static int get_free_frame(encoder_sys_t *sys, QSVFrame **out)
 
     frame = calloc(1,sizeof(QSVFrame));
     if (unlikely(frame==NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     *last = frame;
 
     *out = frame;
     frame->used = 1;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static uint64_t qsv_params_get_value(const char *const *text,
@@ -378,7 +379,7 @@ static void delete_sys(encoder_sys_t *sys)
     MFXUnload(sys->loader);
 #endif
 
-    assert(vlc_list_is_empty(&sys->packets));
+    assert(heimdall_list_is_empty(&sys->packets));
 
     if (sys->input_pool)
         picture_pool_Release(sys->input_pool);
@@ -386,7 +387,7 @@ static void delete_sys(encoder_sys_t *sys)
     free(sys);
 }
 
-static int Open(vlc_object_t *this)
+static int Open(heimdall_object_t *this)
 {
     encoder_t *enc = (encoder_t *)this;
     encoder_sys_t *sys = NULL;
@@ -427,20 +428,20 @@ static int Open(vlc_object_t *this)
     uint8_t *p_extra;
     size_t i_extra;
 
-    if (enc->fmt_out.i_codec != VLC_CODEC_H264 &&
-        enc->fmt_out.i_codec != VLC_CODEC_MPGV && !enc->obj.force)
-        return VLC_EGENERIC;
+    if (enc->fmt_out.i_codec != HEIMDALL_CODEC_H264 &&
+        enc->fmt_out.i_codec != HEIMDALL_CODEC_MPGV && !enc->obj.force)
+        return HEIMDALL_EGENERIC;
 
     if (!enc->fmt_in.video.i_visible_height || !enc->fmt_in.video.i_visible_width ||
         !enc->fmt_in.video.i_frame_rate || !enc->fmt_in.video.i_frame_rate_base) {
         msg_Err(enc, "Framerate and picture dimensions must be non-zero");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Allocate the memory needed to store the decoder's structure */
     sys = calloc(1, sizeof(encoder_sys_t));
     if (unlikely(!sys))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     /* Initialize dispatcher, it will loads the actual SW/HW Implementation */
 #if MFX_VERSION_MAJOR > 1
@@ -448,7 +449,7 @@ static int Open(vlc_object_t *this)
     if (sys->loader == NULL) {
         msg_Err(enc, "Unable to find an Intel Media SDK implementation.");
         free(sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     mfxConfig cfg = NULL;
@@ -459,7 +460,7 @@ static int Open(vlc_object_t *this)
             msg_Err(enc, "Unable to create hardware-only implementation.");
             MFXUnload(sys->loader);
             free(sys);
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
         mfxVariant implValue;
         implValue.Type     = MFX_VARIANT_TYPE_U32;
@@ -482,10 +483,10 @@ static int Open(vlc_object_t *this)
         MFXUnload(sys->loader);
 #endif
         free(sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    vlc_list_init(&sys->packets);
+    heimdall_list_init(&sys->packets);
 
     config_ChainParse(enc, SOUT_CFG_PREFIX, sout_options, enc->p_cfg);
 
@@ -506,15 +507,15 @@ static int Open(vlc_object_t *this)
     sys->params.mfx.FrameInfo.FrameRateExtD = enc->fmt_in.video.i_frame_rate_base;
     sys->params.mfx.FrameInfo.FourCC        = MFX_FOURCC_NV12;
     sys->params.mfx.FrameInfo.ChromaFormat  = MFX_CHROMAFORMAT_YUV420;
-    sys->params.mfx.FrameInfo.Width         = vlc_align(enc->fmt_in.video.i_width, 16);
-    sys->params.mfx.FrameInfo.Height        = vlc_align(enc->fmt_in.video.i_height, 32);
+    sys->params.mfx.FrameInfo.Width         = heimdall_align(enc->fmt_in.video.i_width, 16);
+    sys->params.mfx.FrameInfo.Height        = heimdall_align(enc->fmt_in.video.i_height, 32);
     sys->params.mfx.FrameInfo.CropW         = enc->fmt_in.video.i_visible_width;
     sys->params.mfx.FrameInfo.CropH         = enc->fmt_in.video.i_visible_height;
     sys->params.mfx.FrameInfo.PicStruct     = MFX_PICSTRUCT_PROGRESSIVE;
     sys->params.mfx.FrameInfo.AspectRatioH  = enc->fmt_in.video.i_sar_num;
     sys->params.mfx.FrameInfo.AspectRatioW  = enc->fmt_in.video.i_sar_den;
-    sys->params.mfx.FrameInfo.BitDepthChroma = 8; /* for VLC_CODEC_NV12 */
-    sys->params.mfx.FrameInfo.BitDepthLuma   = 8; /* for VLC_CODEC_NV12 */
+    sys->params.mfx.FrameInfo.BitDepthChroma = 8; /* for HEIMDALL_CODEC_NV12 */
+    sys->params.mfx.FrameInfo.BitDepthLuma   = 8; /* for HEIMDALL_CODEC_NV12 */
 
     /* Parsing options common to all RC methods and codecs */
     sys->params.IOPattern = MFX_IOPATTERN_OUT_SYSTEM_MEMORY;
@@ -530,7 +531,7 @@ static int Open(vlc_object_t *this)
         target_usage_list, ARRAY_SIZE(target_usage_list),
         var_InheritString(enc, SOUT_CFG_PREFIX "target-usage"));
 
-    if (enc->fmt_out.i_codec == VLC_CODEC_H264) {
+    if (enc->fmt_out.i_codec == HEIMDALL_CODEC_H264) {
         sys->params.mfx.CodecId = MFX_CODEC_AVC;
         sys->params.mfx.CodecProfile = qsv_params_get_value(profile_h264_text,
             profile_h264_list, ARRAY_SIZE(profile_h264_list),
@@ -657,9 +658,9 @@ static int Open(vlc_object_t *this)
 
     sys->async_depth = sys->params.AsyncDepth;
 
-    /* Vlc module configuration */
+    /* Heimdall module configuration */
     enc->fmt_in.i_codec =
-    enc->fmt_in.video.i_chroma  = VLC_CODEC_NV12; // Intel Media SDK requirement
+    enc->fmt_in.video.i_chroma  = HEIMDALL_CODEC_NV12; // Intel Media SDK requirement
     // require aligned pictures on input, a filter may be added before the encoder
     enc->fmt_in.video.i_width          = sys->params.mfx.FrameInfo.Width;
     enc->fmt_in.video.i_height         = sys->params.mfx.FrameInfo.Height;
@@ -671,7 +672,7 @@ static int Open(vlc_object_t *this)
         goto nomem;
     }
 
-    static const struct vlc_encoder_operations ops =
+    static const struct heimdall_encoder_operations ops =
     {
         .close = Close,
         .encode_video = Encode,
@@ -679,14 +680,14 @@ static int Open(vlc_object_t *this)
     enc->ops = &ops;
     enc->p_sys = sys;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
  error:
     delete_sys(sys);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
  nomem:
     delete_sys(sys);
-    return VLC_ENOMEM;
+    return HEIMDALL_ENOMEM;
 }
 
 static void Close(encoder_t *enc)
@@ -710,7 +711,7 @@ static void qsv_set_block_flags(block_t *block, uint16_t frame_type)
 }
 
 /*
- * Convert the Intel Media SDK's timestamps into VLC's format.
+ * Convert the Intel Media SDK's timestamps into Heimdall's format.
  */
 static void qsv_set_block_ts(encoder_t *enc, encoder_sys_t *sys, block_t *block, mfxBitstream *bs)
 {
@@ -758,7 +759,7 @@ static block_t *qsv_synchronize_block(encoder_t *enc, async_task_t *task)
     /*         task->bs.FrameType, task->bs.TimeStamp, block->i_pts, task->bs.DecodeTimeStamp, *task->syncp); */
 
     /* Copied from x264.c: This isn't really valid for streams with B-frames */
-    block->i_length = vlc_tick_from_samples( enc->fmt_in.video.i_frame_rate_base,
+    block->i_length = heimdall_tick_from_samples( enc->fmt_in.video.i_frame_rate_base,
                                              enc->fmt_in.video.i_frame_rate );
 
     // Buggy DTS (value comes from experiments)
@@ -775,7 +776,7 @@ static int submit_frame(encoder_t *enc, picture_t *pic, QSVFrame **new_frame)
     encoder_sys_t *sys = enc->p_sys;
     QSVFrame *qf = NULL;
     int ret = get_free_frame(sys, &qf);
-    if (ret != VLC_SUCCESS) {
+    if (ret != HEIMDALL_SUCCESS) {
         msg_Warn(enc, "Unable to find an unlocked surface in the pool");
         return ret;
     }
@@ -801,7 +802,7 @@ static int submit_frame(encoder_t *enc, picture_t *pic, QSVFrame **new_frame)
     else
         qf->surface.Info.PicStruct = MFX_PICSTRUCT_FIELD_BFF;
 
-    //qf->surface.Data.Pitch = vlc_align(qf->surface.Info.Width, 16);
+    //qf->surface.Data.Pitch = heimdall_align(qf->surface.Info.Width, 16);
 
     qf->surface.Data.PitchLow  = qf->pic->p[0].i_pitch;
     qf->surface.Data.Y         = qf->pic->p[0].p_pixels;
@@ -811,7 +812,7 @@ static int submit_frame(encoder_t *enc, picture_t *pic, QSVFrame **new_frame)
 
     *new_frame = qf;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static async_task_t *encode_frame(encoder_t *enc, picture_t *pic)
@@ -825,13 +826,13 @@ static async_task_t *encode_frame(encoder_t *enc, picture_t *pic)
         goto done;
 
     if (pic) {
-        /* To avoid qsv -> vlc timestamp conversion overflow, we use timestamp relative
-           to the first picture received. That way, vlc will overflow before us.
+        /* To avoid qsv -> heimdall timestamp conversion overflow, we use timestamp relative
+           to the first picture received. That way, heimdall will overflow before us.
            (Thanks to funman for the idea) */
         if (!sys->offset_pts) // First frame
             sys->offset_pts = pic->date;
 
-        if (submit_frame(enc, pic, &qsv_frame) != VLC_SUCCESS)
+        if (submit_frame(enc, pic, &qsv_frame) != HEIMDALL_SUCCESS)
         {
             msg_Warn(enc, "Unable to find an unlocked surface in the pool");
             goto done;
@@ -863,7 +864,7 @@ static async_task_t *encode_frame(encoder_t *enc, picture_t *pic)
         if (sys->busy_warn_counter++ % 16 == 0)
             msg_Dbg(enc, "Device is busy, let's wait and retry %d", sts);
         if (sts == MFX_WRN_DEVICE_BUSY)
-            vlc_tick_sleep(QSV_BUSYWAIT_TIME);
+            heimdall_tick_sleep(QSV_BUSYWAIT_TIME);
     }
 
     // msg_Dbg(enc, "Encode async status: %d, Syncpoint = %tx", sts, (ptrdiff_t)task->syncp);
@@ -906,19 +907,19 @@ static block_t *Encode(encoder_t *this, picture_t *pic)
     {
         task = encode_frame( enc, pic );
         if (likely(task != NULL))
-            vlc_list_append(&sys->packets, &task->fifo);
+            heimdall_list_append(&sys->packets, &task->fifo);
     }
 
     size_t fifo_count = 0;
-    vlc_list_foreach( task, &sys->packets, fifo )
+    heimdall_list_foreach( task, &sys->packets, fifo )
         fifo_count++;
 
     if ( fifo_count == (sys->async_depth + 1) ||
          (!pic && fifo_count))
     {
-        task = vlc_list_first_entry_or_null(&sys->packets, async_task_t, fifo);
+        task = heimdall_list_first_entry_or_null(&sys->packets, async_task_t, fifo);
         assert(task->syncp != 0);
-        vlc_list_remove(&task->fifo);
+        heimdall_list_remove(&task->fifo);
         block = qsv_synchronize_block( enc, task );
         free(task->syncp);
         free(task);

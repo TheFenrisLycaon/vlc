@@ -1,7 +1,8 @@
 /*****************************************************************************
- * dmo.c : DirectMedia Object decoder module for vlc
+ * dmo.c : DirectMedia Object decoder module for heimdall
  *****************************************************************************
  * Copyright (C) 2002, 2003 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Gildas Bazin <gbazin@videolan.org>
  *
@@ -31,16 +32,16 @@
 #include <assert.h>
 
 #define COBJMACROS
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
 
 #include <objbase.h>
 #include <strmif.h>
 #include <amvideo.h>
 #include <mmreg.h>
 
-#include <vlc_codecs.h> // fourcc_to_wf_tag
+#include <heimdall_codecs.h> // fourcc_to_wf_tag
 #include "dmo.h"
 #include "../../video_chroma/copy.h"
 
@@ -53,18 +54,18 @@ typedef long (STDCALL *GETCLASS) ( const GUID*, const GUID*, void** );
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  DecoderOpen  ( vlc_object_t * );
-static void DecoderClose ( vlc_object_t * );
+static int  DecoderOpen  ( heimdall_object_t * );
+static void DecoderClose ( heimdall_object_t * );
 static int DecodeBlock ( decoder_t *, block_t * );
 static void *DecoderThread( void * );
 #ifdef ENABLE_SOUT
 static void EncoderClose ( encoder_t * );
 static block_t *EncodeBlock( encoder_t *, void * );
 
-static int  EncOpen  ( vlc_object_t * );
+static int  EncOpen  ( heimdall_object_t * );
 #endif // !ENABLE_SOUT
 
-static int LoadDMO( vlc_object_t *, HINSTANCE *, IMediaObject **,
+static int LoadDMO( heimdall_object_t *, HINSTANCE *, IMediaObject **,
                     const es_format_t *, bool );
 static void CopyPicture( picture_t *, uint8_t * );
 
@@ -85,9 +86,9 @@ typedef struct
 
     date_t end_date;
 
-    vlc_thread_t thread;
-    vlc_mutex_t  lock;
-    vlc_cond_t   wait_input, wait_output;
+    heimdall_thread_t thread;
+    heimdall_mutex_t  lock;
+    heimdall_cond_t   wait_input, wait_output;
     bool         b_ready, b_works;
     block_t     *p_input;
 } decoder_sys_t;
@@ -129,7 +130,7 @@ static const GUID guid_wmv9_enc = { 0xd23b90d0, 0x144f, 0x46bd,{ 0x84, 0x1d, 0x5
 
 typedef struct
 {
-    vlc_fourcc_t i_fourcc;
+    heimdall_fourcc_t i_fourcc;
     const WCHAR  *psz_dll;
     const GUID   *p_guid;
 
@@ -138,30 +139,30 @@ typedef struct
 static const codec_dll decoders_table[] =
 {
     /* WVC1 */
-    { VLC_CODEC_VC1,    TEXT("wvc1dmod.dll"), &guid_wvc1 },
+    { HEIMDALL_CODEC_VC1,    TEXT("wvc1dmod.dll"), &guid_wvc1 },
     /* WMV3 */
-    { VLC_CODEC_WMV3,   TEXT("wmv9dmod.dll"), &guid_wmv9 },
+    { HEIMDALL_CODEC_WMV3,   TEXT("wmv9dmod.dll"), &guid_wmv9 },
     /* WMV2 */
-    { VLC_CODEC_WMV2,   TEXT("wmvdmod.dll"), &guid_wmv },
+    { HEIMDALL_CODEC_WMV2,   TEXT("wmvdmod.dll"), &guid_wmv },
     /* WMV1 */
-    { VLC_CODEC_WMV1,   TEXT("wmvdmod.dll"), &guid_wmv },
+    { HEIMDALL_CODEC_WMV1,   TEXT("wmvdmod.dll"), &guid_wmv },
     /* Screen codecs */
-    { VLC_CODEC_MSS2,   TEXT("WMVSDECD.DLL"), &guid_wms },
-    { VLC_CODEC_MSS2,   TEXT("wmsdmod.dll"),  &guid_wms },
-    { VLC_CODEC_MSS1,   TEXT("WMVSDECD.DLL"), &guid_wms },
-    { VLC_CODEC_MSS1,   TEXT("wmsdmod.dll"),  &guid_wms },
+    { HEIMDALL_CODEC_MSS2,   TEXT("WMVSDECD.DLL"), &guid_wms },
+    { HEIMDALL_CODEC_MSS2,   TEXT("wmsdmod.dll"),  &guid_wms },
+    { HEIMDALL_CODEC_MSS1,   TEXT("WMVSDECD.DLL"), &guid_wms },
+    { HEIMDALL_CODEC_MSS1,   TEXT("wmsdmod.dll"),  &guid_wms },
     /* Windows Media Video Adv */
-    { VLC_CODEC_WMVA,   TEXT("wmvadvd.dll"), &guid_wmva },
+    { HEIMDALL_CODEC_WMVA,   TEXT("wmvadvd.dll"), &guid_wmva },
 
     /* WMA 3 */
-    { VLC_CODEC_WMAP,   TEXT("wma9dmod.dll"), &guid_wma9 },
-    { VLC_CODEC_WMAL,   TEXT("wma9dmod.dll"), &guid_wma9 },
+    { HEIMDALL_CODEC_WMAP,   TEXT("wma9dmod.dll"), &guid_wma9 },
+    { HEIMDALL_CODEC_WMAL,   TEXT("wma9dmod.dll"), &guid_wma9 },
 
     /* WMA 2 */
-    { VLC_CODEC_WMA2,   TEXT("wma9dmod.dll"), &guid_wma9 },
+    { HEIMDALL_CODEC_WMA2,   TEXT("wma9dmod.dll"), &guid_wma9 },
 
     /* WMA Speech */
-    { VLC_CODEC_WMAS,   TEXT("wmspdmod.dll"), &guid_wma },
+    { HEIMDALL_CODEC_WMAS,   TEXT("wmspdmod.dll"), &guid_wma },
 
     /* */
     { 0, NULL, NULL }
@@ -170,23 +171,23 @@ static const codec_dll decoders_table[] =
 static const codec_dll encoders_table[] =
 {
     /* WMV3 */
-    { VLC_CODEC_WMV3, TEXT("wmvdmoe2.dll"), &guid_wmv_enc2 },
+    { HEIMDALL_CODEC_WMV3, TEXT("wmvdmoe2.dll"), &guid_wmv_enc2 },
     /* WMV2 */
-    { VLC_CODEC_WMV2, TEXT("wmvdmoe2.dll"), &guid_wmv_enc2 },
+    { HEIMDALL_CODEC_WMV2, TEXT("wmvdmoe2.dll"), &guid_wmv_enc2 },
     /* WMV1 */
-    { VLC_CODEC_WMV1, TEXT("wmvdmoe2.dll"), &guid_wmv_enc2 },
+    { HEIMDALL_CODEC_WMV1, TEXT("wmvdmoe2.dll"), &guid_wmv_enc2 },
 
     /* WMA 3 */
-    { VLC_CODEC_WMAP, TEXT("wmadmoe.dll"), &guid_wma_enc },
+    { HEIMDALL_CODEC_WMAP, TEXT("wmadmoe.dll"), &guid_wma_enc },
     /* WMA 2 */
-    { VLC_CODEC_WMA2, TEXT("wmadmoe.dll"), &guid_wma_enc },
+    { HEIMDALL_CODEC_WMA2, TEXT("wmadmoe.dll"), &guid_wma_enc },
 
     /* WMV3 v11 */
-    { VLC_CODEC_WMV3, TEXT("wmvencod.dll"), &guid_wmv9_enc },
+    { HEIMDALL_CODEC_WMV3, TEXT("wmvencod.dll"), &guid_wmv9_enc },
     /* WMV2 v11 */
-    { VLC_CODEC_WMV2, TEXT("wmvxencd.dll"), &guid_wmv8_enc },
+    { HEIMDALL_CODEC_WMV2, TEXT("wmvxencd.dll"), &guid_wmv8_enc },
     /* WMV1 v11 */
-    { VLC_CODEC_WMV1, TEXT("wmvxencd.dll"), &guid_wmv8_enc },
+    { HEIMDALL_CODEC_WMV1, TEXT("wmvxencd.dll"), &guid_wmv8_enc },
 
     /* */
     { 0, NULL, NULL }
@@ -204,7 +205,7 @@ static void WINAPI DMOFreeMediaType( DMO_MEDIA_TYPE *mt )
 /*****************************************************************************
  * DecoderOpen: open dmo codec
  *****************************************************************************/
-static int DecoderOpen( vlc_object_t *p_this )
+static int DecoderOpen( heimdall_object_t *p_this )
 {
     decoder_t *p_dec = (decoder_t*)p_this;
     decoder_sys_t *p_sys;
@@ -222,54 +223,54 @@ static int DecoderOpen( vlc_object_t *p_this )
             goto found;
         }
     }
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 
 found:
     p_sys = p_dec->p_sys = malloc(sizeof(*p_sys));
     if( !p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     /* Set callbacks */
     p_dec->pf_decode = DecodeBlock;
 
-    vlc_mutex_init( &p_sys->lock );
-    vlc_cond_init( &p_sys->wait_input );
-    vlc_cond_init( &p_sys->wait_output );
+    heimdall_mutex_init( &p_sys->lock );
+    heimdall_cond_init( &p_sys->wait_input );
+    heimdall_cond_init( &p_sys->wait_output );
     p_sys->b_works =
     p_sys->b_ready = false;
     p_sys->p_input = NULL;
 
-    if( vlc_clone( &p_sys->thread, DecoderThread, p_dec ) )
+    if( heimdall_clone( &p_sys->thread, DecoderThread, p_dec ) )
         goto error;
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     while( !p_sys->b_ready )
-        vlc_cond_wait( &p_sys->wait_output, &p_sys->lock );
-    vlc_mutex_unlock( &p_sys->lock );
+        heimdall_cond_wait( &p_sys->wait_output, &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 
     if( p_sys->b_works )
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
-    vlc_join( p_sys->thread, NULL );
+    heimdall_join( p_sys->thread, NULL );
 error:
     free( p_sys );
-    return VLC_ENOMEM;
+    return HEIMDALL_ENOMEM;
 }
 
 /*****************************************************************************
  * DecoderClose: close codec
  *****************************************************************************/
-static void DecoderClose( vlc_object_t *p_this )
+static void DecoderClose( heimdall_object_t *p_this )
 {
     decoder_t *p_dec = (decoder_t*)p_this;
     decoder_sys_t *p_sys = p_dec->p_sys;
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     p_sys->b_ready = false;
-    vlc_cond_signal( &p_sys->wait_input );
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_cond_signal( &p_sys->wait_input );
+    heimdall_mutex_unlock( &p_sys->lock );
 
-    vlc_join( p_sys->thread, NULL );
+    heimdall_join( p_sys->thread, NULL );
     free( p_sys );
 }
 
@@ -278,16 +279,16 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
     decoder_sys_t *p_sys = p_dec->p_sys;
 
     if( p_block == NULL ) /* No Drain */
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     while( p_sys->p_input )
-        vlc_cond_wait( &p_sys->wait_output, &p_sys->lock );
+        heimdall_cond_wait( &p_sys->wait_output, &p_sys->lock );
     p_sys->p_input = p_block;
-    vlc_cond_signal( &p_sys->wait_input );
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_cond_signal( &p_sys->wait_input );
+    heimdall_mutex_unlock( &p_sys->lock );
 
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }
 
 /*****************************************************************************
@@ -304,14 +305,14 @@ static int DecOpen( decoder_t *p_dec )
     VIDEOINFOHEADER *p_vih = NULL;
     WAVEFORMATEX *p_wf = NULL;
 
-    int i_ret = VLC_EGENERIC;
+    int i_ret = HEIMDALL_EGENERIC;
 
     /* Initialize OLE/COM */
     if( FAILED(CoInitializeEx( NULL, COINIT_MULTITHREADED | COINIT_DISABLE_OLE1DDE )) )
-        vlc_assert_unreachable();
+        heimdall_assert_unreachable();
 
-    if( LoadDMO( VLC_OBJECT(p_dec), &hmsdmo_dll, &p_dmo, p_dec->fmt_in, false )
-        != VLC_SUCCESS )
+    if( LoadDMO( HEIMDALL_OBJECT(p_dec), &hmsdmo_dll, &p_dmo, p_dec->fmt_in, false )
+        != HEIMDALL_SUCCESS )
     {
         hmsdmo_dll = 0;
         p_dmo = NULL;
@@ -369,14 +370,14 @@ static int DecOpen( decoder_t *p_dec )
         if( p_dec->fmt_in->i_extra )
             memcpy( &p_vih[1], p_dec->fmt_in->p_extra, p_dec->fmt_in->i_extra );
 
-        vlc_fourcc_t fcc = p_dec->fmt_in->i_original_fourcc ?
+        heimdall_fourcc_t fcc = p_dec->fmt_in->i_original_fourcc ?
                            p_dec->fmt_in->i_original_fourcc : p_dec->fmt_in->i_codec;
 
         p_bih = &p_vih->bmiHeader;
         p_bih->biCompression = fcc;
         p_bih->biWidth = p_dec->fmt_in->video.i_width;
         p_bih->biHeight = p_dec->fmt_in->video.i_height;
-        p_bih->biBitCount = vlc_fourcc_GetChromaBPP(fcc);
+        p_bih->biBitCount = heimdall_fourcc_GetChromaBPP(fcc);
         if ( p_bih->biBitCount == 0 &&
              p_dec->fmt_in->i_profile == -1 && p_dec->fmt_in->i_level != -1 )
             // HACK: the bits per sample was stored in the i_level
@@ -413,14 +414,14 @@ static int DecOpen( decoder_t *p_dec )
     if( p_dec->fmt_in->i_cat == AUDIO_ES )
     {
         /* Setup the format */
-        p_dec->fmt_out.i_codec = VLC_CODEC_S16N;
+        p_dec->fmt_out.i_codec = HEIMDALL_CODEC_S16N;
         p_dec->fmt_out.audio.i_rate     = p_dec->fmt_in->audio.i_rate;
         p_dec->fmt_out.audio.i_channels = p_dec->fmt_in->audio.i_channels;
         p_dec->fmt_out.audio.i_bitspersample = 16;//p_dec->fmt_in->audio.i_bitspersample; We request 16
         if( p_dec->fmt_in->audio.i_channels > 8 )
             goto error;
         p_dec->fmt_out.audio.i_physical_channels =
-            vlc_chan_maps[p_dec->fmt_out.audio.i_channels];
+            heimdall_chan_maps[p_dec->fmt_out.audio.i_channels];
 
         p_wf->wFormatTag = WAVE_FORMAT_PCM;
         p_wf->nSamplesPerSec = p_dec->fmt_out.audio.i_rate;
@@ -445,29 +446,29 @@ static int DecOpen( decoder_t *p_dec )
     {
         BITMAPINFOHEADER *p_bih;
         DMO_MEDIA_TYPE mt;
-        unsigned i_chroma = VLC_CODEC_YUYV;
+        unsigned i_chroma = HEIMDALL_CODEC_YUYV;
         int i = 0;
 
         /* Find out which chroma to use */
         while( !IMediaObject_GetOutputType( p_dmo, 0, i++, &mt ) )
         {
-            if( mt.subtype.Data1 == VLC_CODEC_YV12 )
+            if( mt.subtype.Data1 == HEIMDALL_CODEC_YV12 )
             {
                 i_chroma = mt.subtype.Data1;
                 DMOFreeMediaType( &mt );
                 break;
             }
-            else if( (p_dec->fmt_in->i_codec == VLC_CODEC_MSS1 ||
-                      p_dec->fmt_in->i_codec == VLC_CODEC_MSS2 ) &&
+            else if( (p_dec->fmt_in->i_codec == HEIMDALL_CODEC_MSS1 ||
+                      p_dec->fmt_in->i_codec == HEIMDALL_CODEC_MSS2 ) &&
                       IsEqualGUID( &mt.subtype, &MEDIASUBTYPE_RGB24 ) )
             {
-                i_chroma = VLC_CODEC_BGR24;
+                i_chroma = HEIMDALL_CODEC_BGR24;
             }
 
             DMOFreeMediaType( &mt );
         }
 
-        p_dec->fmt_out.i_codec = i_chroma == VLC_CODEC_YV12 ? VLC_CODEC_I420 : i_chroma;
+        p_dec->fmt_out.i_codec = i_chroma == HEIMDALL_CODEC_YV12 ? HEIMDALL_CODEC_I420 : i_chroma;
         p_dec->fmt_out.video.i_width = p_dec->fmt_in->video.i_width;
         p_dec->fmt_out.video.i_height = p_dec->fmt_in->video.i_height;
 
@@ -485,9 +486,9 @@ static int DecOpen( decoder_t *p_dec )
         }
 
         p_bih = &p_vih->bmiHeader;
-        p_bih->biCompression = i_chroma == VLC_CODEC_RGB24 ? BI_RGB : i_chroma;
+        p_bih->biCompression = i_chroma == HEIMDALL_CODEC_RGB24 ? BI_RGB : i_chroma;
         p_bih->biHeight *= -1;
-        p_bih->biBitCount = vlc_fourcc_GetChromaBPP(i_chroma);
+        p_bih->biBitCount = heimdall_fourcc_GetChromaBPP(i_chroma);
         p_bih->biSizeImage = p_dec->fmt_in->video.i_width *
             p_dec->fmt_in->video.i_height *
             ((p_bih->biBitCount + 7) / 8);
@@ -497,7 +498,7 @@ static int DecOpen( decoder_t *p_dec )
 
         dmo_output_type.majortype = MEDIATYPE_Video;
         dmo_output_type.formattype = FORMAT_VideoInfo;
-        if( i_chroma == VLC_CODEC_BGR24 )
+        if( i_chroma == HEIMDALL_CODEC_BGR24 )
         {
             dmo_output_type.subtype = MEDIASUBTYPE_RGB24;
         }
@@ -566,21 +567,21 @@ static int DecOpen( decoder_t *p_dec )
         date_Init( &p_sys->end_date, p_dec->fmt_in->audio.i_rate, 1 );
     else
         date_Init( &p_sys->end_date, 25 /* FIXME */, 1 );
-    date_Set( &p_sys->end_date, VLC_TICK_0 );
+    date_Set( &p_sys->end_date, HEIMDALL_TICK_0 );
 
     free( p_vih );
     free( p_wf );
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     p_sys->b_ready =
     p_sys->b_works = true;
-    vlc_cond_signal( &p_sys->wait_output );
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_cond_signal( &p_sys->wait_output );
+    heimdall_mutex_unlock( &p_sys->lock );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 allocation_failure:
-    i_ret = VLC_ENOMEM;
+    i_ret = HEIMDALL_ENOMEM;
 
 error:
     if( p_dmo ) IMediaObject_Release( p_dmo );
@@ -592,17 +593,17 @@ error:
     free( p_vih );
     free( p_wf );
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     p_sys->b_ready = true;
-    vlc_cond_signal( &p_sys->wait_output );
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_cond_signal( &p_sys->wait_output );
+    heimdall_mutex_unlock( &p_sys->lock );
     return i_ret;
 }
 
 /*****************************************************************************
  * LoadDMO: Load the DMO object
  *****************************************************************************/
-static int LoadDMO( vlc_object_t *p_this, HINSTANCE *p_hmsdmo_dll,
+static int LoadDMO( heimdall_object_t *p_this, HINSTANCE *p_hmsdmo_dll,
                     IMediaObject **pp_dmo, const es_format_t *p_fmt,
                     bool b_out )
 {
@@ -652,7 +653,7 @@ static int LoadDMO( vlc_object_t *p_this, HINSTANCE *p_hmsdmo_dll,
     }
     if( i_err )
     {
-        /* return VLC_EGENERIC; */
+        /* return HEIMDALL_EGENERIC; */
         /* Try loading the dll directly */
         goto loader;
     }
@@ -682,12 +683,12 @@ static int LoadDMO( vlc_object_t *p_this, HINSTANCE *p_hmsdmo_dll,
 
     if( !*pp_dmo )
     {
-        /* return VLC_EGENERIC; */
+        /* return HEIMDALL_EGENERIC; */
         /* Try loading the dll directly */
         goto loader;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 loader:
 
@@ -697,13 +698,13 @@ loader:
             break;
     }
     if( codecs_table[i_codec].i_fourcc == 0 )
-        return VLC_EGENERIC;    /* Can't happen */
+        return HEIMDALL_EGENERIC;    /* Can't happen */
 
     *p_hmsdmo_dll = LoadLibrary( codecs_table[i_codec].psz_dll );
     if( *p_hmsdmo_dll == NULL )
     {
         msg_Dbg( p_this, "failed loading '%ls'", codecs_table[i_codec].psz_dll );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     GetClass = (GETCLASS)GetProcAddress( *p_hmsdmo_dll, "DllGetClassObject" );
@@ -711,7 +712,7 @@ loader:
     {
         msg_Dbg( p_this, "GetProcAddress failed to find DllGetClassObject()" );
         FreeLibrary( *p_hmsdmo_dll );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     i_err = GetClass( codecs_table[i_codec].p_guid, &IID_IClassFactory, &pv );
@@ -720,7 +721,7 @@ loader:
     {
         msg_Dbg( p_this, "no such class object" );
         FreeLibrary( *p_hmsdmo_dll );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     cFactory = pv;
 
@@ -730,7 +731,7 @@ loader:
     {
         msg_Dbg( p_this, "class factory failure" );
         FreeLibrary( *p_hmsdmo_dll );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     i_err = IUnknown_QueryInterface( cObject, &IID_IMediaObject, &pv );
     IUnknown_Release( cObject );
@@ -738,11 +739,11 @@ loader:
     {
         msg_Dbg( p_this, "QueryInterface failure" );
         FreeLibrary( *p_hmsdmo_dll );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     *pp_dmo = pv;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void DecClose( decoder_t *p_dec )
@@ -776,18 +777,18 @@ static int DecBlock( decoder_t *p_dec, block_t **pp_block )
     p_block = *pp_block;
 
     /* Won't work with streams with B-frames, but do we have any ? */
-    if( p_block && p_block->i_pts == VLC_TICK_INVALID )
+    if( p_block && p_block->i_pts == HEIMDALL_TICK_INVALID )
         p_block->i_pts = p_block->i_dts;
 
     /* Date management */
-    if( p_block && p_block->i_pts != VLC_TICK_INVALID &&
+    if( p_block && p_block->i_pts != HEIMDALL_TICK_INVALID &&
         p_block->i_pts != date_Get( &p_sys->end_date ) )
     {
         date_Set( &p_sys->end_date, p_block->i_pts );
     }
 
 #if 0 /* Breaks the video decoding */
-    if( date_Get( &p_sys->end_date ) == VLC_TICK_INVALID )
+    if( date_Get( &p_sys->end_date ) == HEIMDALL_TICK_INVALID )
     {
         /* We've just started the stream, wait for the first PTS. */
         if( p_block ) block_Release( p_block );
@@ -952,16 +953,16 @@ static void *DecoderThread( void *data )
     decoder_t *p_dec = data;
     decoder_sys_t *p_sys = p_dec->p_sys;
 
-    vlc_thread_set_name("vlc-dmo");
+    heimdall_thread_set_name("heimdall-dmo");
 
     if( DecOpen( p_dec ) )
         return NULL; /* failed */
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     for( ;; )
     {
         while( p_sys->b_ready && !p_sys->p_input )
-            vlc_cond_wait( &p_sys->wait_input, &p_sys->lock );
+            heimdall_cond_wait( &p_sys->wait_input, &p_sys->lock );
         if( !p_sys->b_ready )
             break;
 
@@ -971,9 +972,9 @@ static void *DecoderThread( void *data )
             block_Release( p_sys->p_input );
         p_sys->p_input = NULL;
 
-        vlc_cond_signal( &p_sys->wait_output );
+        heimdall_cond_signal( &p_sys->wait_output );
     }
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 
     DecClose( p_dec );
     return NULL;
@@ -1004,42 +1005,42 @@ static block_t *EncodeAudio( encoder_t *p_enc, block_t *samples )
 /*****************************************************************************
  * EncoderOpenAudio: open audio dmo codec
  *****************************************************************************/
-static int EncoderOpenAudio(vlc_object_t *p_this)
+static int EncoderOpenAudio(heimdall_object_t *p_this)
 {
     encoder_t *p_enc = (encoder_t*)p_this;
 
     int i_ret = EncOpen( p_this );
-    if( i_ret != VLC_SUCCESS ) return i_ret;
+    if( i_ret != HEIMDALL_SUCCESS ) return i_ret;
 
 
-    static const struct vlc_encoder_operations audio_ops =
+    static const struct heimdall_encoder_operations audio_ops =
     {
         .close = EncoderClose,
         .encode_audio = EncodeAudio,
     };
     p_enc->ops = &audio_ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * EncoderOpenVideo: open video dmo codec
  *****************************************************************************/
-static int EncoderOpenVideo(vlc_object_t *p_this)
+static int EncoderOpenVideo(heimdall_object_t *p_this)
 {
     encoder_t *p_enc = (encoder_t*)p_this;
 
     int i_ret = EncOpen( p_this );
-    if( i_ret != VLC_SUCCESS ) return i_ret;
+    if( i_ret != HEIMDALL_SUCCESS ) return i_ret;
 
-    static const struct vlc_encoder_operations video_ops =
+    static const struct heimdall_encoder_operations video_ops =
     {
         .close = EncoderClose,
         .encode_video = EncodeVideo,
     };
     p_enc->ops = &video_ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -1071,10 +1072,10 @@ static int EncoderSetVideoType( encoder_t *p_enc, IMediaObject *p_dmo )
     memset( &vih, 0, sizeof(VIDEOINFOHEADER) );
 
     p_bih = &vih.bmiHeader;
-    p_bih->biCompression = VLC_CODEC_I420;
+    p_bih->biCompression = HEIMDALL_CODEC_I420;
     p_bih->biWidth = p_enc->fmt_in.video.i_visible_width;
     p_bih->biHeight = p_enc->fmt_in.video.i_visible_height;
-    p_bih->biBitCount = vlc_fourcc_GetChromaBPP(VLC_CODEC_I420);
+    p_bih->biBitCount = heimdall_fourcc_GetChromaBPP(HEIMDALL_CODEC_I420);
     p_bih->biSizeImage = p_enc->fmt_in.video.i_visible_width *
         p_enc->fmt_in.video.i_visible_height * ((p_bih->biBitCount + 7) /8);
     p_bih->biPlanes = 3;
@@ -1101,7 +1102,7 @@ static int EncoderSetVideoType( encoder_t *p_enc, IMediaObject *p_dmo )
     if( ( i_err = IMediaObject_SetInputType( p_dmo, 0, &dmo_type, 0 ) ) )
     {
         msg_Err( p_enc, "can't set DMO input type: %x", i_err );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     msg_Dbg( p_enc, "successfully set input type" );
@@ -1129,7 +1130,7 @@ static int EncoderSetVideoType( encoder_t *p_enc, IMediaObject *p_dmo )
     {
         msg_Err( p_enc, "couldn't find codec: %4.4s",
                  (char *)&p_enc->fmt_out.i_codec );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     IMediaObject_GetOutputType( p_dmo, 0, i_selected, &dmo_type );
@@ -1169,7 +1170,7 @@ static int EncoderSetVideoType( encoder_t *p_enc, IMediaObject *p_dmo )
         if (p_data == NULL)
         {
             DMOFreeMediaType( &dmo_type );
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         }
         i_err = p_privdata->vt->GetPrivateData( p_privdata, p_data, &i_data );
 
@@ -1190,17 +1191,17 @@ static int EncoderSetVideoType( encoder_t *p_enc, IMediaObject *p_dmo )
 
     i_err = IMediaObject_SetOutputType( p_dmo, 0, &dmo_type, 0 );
 
-    p_enc->fmt_in.video.i_chroma = p_enc->fmt_in.i_codec = VLC_CODEC_I420;
+    p_enc->fmt_in.video.i_chroma = p_enc->fmt_in.i_codec = HEIMDALL_CODEC_I420;
 
     DMOFreeMediaType( &dmo_type );
     if( i_err )
     {
         msg_Err( p_enc, "can't set DMO output type for encoder: 0x%x", i_err );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     msg_Dbg( p_enc, "successfully set output type for encoder" );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -1216,9 +1217,9 @@ static int EncoderSetAudioType( encoder_t *p_enc, IMediaObject *p_dmo )
 
     /* Setup the format structure */
     fourcc_to_wf_tag( p_enc->fmt_out.i_codec, &i_tag );
-    if( i_tag == 0 ) return VLC_EGENERIC;
+    if( i_tag == 0 ) return HEIMDALL_EGENERIC;
 
-    p_enc->fmt_in.i_codec = VLC_CODEC_S16N;
+    p_enc->fmt_in.i_codec = HEIMDALL_CODEC_S16N;
     p_enc->fmt_in.audio.i_bitspersample = 16;
 
     /* We first need to choose an output type from the predefined
@@ -1255,7 +1256,7 @@ static int EncoderSetAudioType( encoder_t *p_enc, IMediaObject *p_dmo )
     if( i_selected < 0 )
     {
         msg_Err( p_enc, "couldn't find a matching output" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     IMediaObject_GetOutputType( p_dmo, 0, i_selected, &dmo_type );
@@ -1279,7 +1280,7 @@ static int EncoderSetAudioType( encoder_t *p_enc, IMediaObject *p_dmo )
         p_enc->fmt_out.i_extra = p_wf->cbSize;
         p_enc->fmt_out.p_extra = malloc( p_enc->fmt_out.i_extra );
         if( p_enc->fmt_out.p_extra == NULL)
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
         memcpy( p_enc->fmt_out.p_extra, &p_wf[1], p_enc->fmt_out.i_extra );
     }
@@ -1290,7 +1291,7 @@ static int EncoderSetAudioType( encoder_t *p_enc, IMediaObject *p_dmo )
     if( i_err )
     {
         msg_Err( p_enc, "can't set DMO output type: %i", i_err );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     msg_Dbg( p_enc, "successfully set output type" );
@@ -1320,7 +1321,7 @@ static int EncoderSetAudioType( encoder_t *p_enc, IMediaObject *p_dmo )
     if( i_selected < 0 )
     {
         msg_Err( p_enc, "couldn't find a matching input" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     IMediaObject_GetInputType( p_dmo, 0, i_selected, &dmo_type );
@@ -1329,17 +1330,17 @@ static int EncoderSetAudioType( encoder_t *p_enc, IMediaObject *p_dmo )
     if( i_err )
     {
         msg_Err( p_enc, "can't set DMO input type: 0x%x", i_err );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     msg_Dbg( p_enc, "successfully set input type" );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * EncOpen: open dmo codec
  *****************************************************************************/
-static int EncOpen( vlc_object_t *p_this )
+static int EncOpen( heimdall_object_t *p_this )
 {
     encoder_t *p_enc = (encoder_t*)p_this;
     encoder_sys_t *p_sys = NULL;
@@ -1348,10 +1349,10 @@ static int EncOpen( vlc_object_t *p_this )
 
     /* Initialize OLE/COM */
     if( FAILED(CoInitializeEx( NULL, COINIT_MULTITHREADED | COINIT_DISABLE_OLE1DDE )) )
-        vlc_assert_unreachable();
+        heimdall_assert_unreachable();
 
     if( LoadDMO( p_this, &hmsdmo_dll, &p_dmo, &p_enc->fmt_out, true )
-        != VLC_SUCCESS )
+        != HEIMDALL_SUCCESS )
     {
         hmsdmo_dll = 0;
         p_dmo = 0;
@@ -1360,11 +1361,11 @@ static int EncOpen( vlc_object_t *p_this )
 
     if( p_enc->fmt_in.i_cat == VIDEO_ES )
     {
-        if( EncoderSetVideoType( p_enc, p_dmo ) != VLC_SUCCESS ) goto error;
+        if( EncoderSetVideoType( p_enc, p_dmo ) != HEIMDALL_SUCCESS ) goto error;
     }
     else
     {
-        if( EncoderSetAudioType( p_enc, p_dmo ) != VLC_SUCCESS ) goto error;
+        if( EncoderSetAudioType( p_enc, p_dmo ) != HEIMDALL_SUCCESS ) goto error;
     }
 
     /* Allocate the memory needed to store the decoder's structure */
@@ -1412,7 +1413,7 @@ static int EncOpen( vlc_object_t *p_this )
     else
         date_Init( &p_sys->end_date, 25 /* FIXME */, 1 );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
  error:
 
@@ -1424,7 +1425,7 @@ static int EncOpen( vlc_object_t *p_this )
 
     free( p_sys );
 
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /****************************************************************************
@@ -1438,7 +1439,7 @@ static block_t *EncodeBlock( encoder_t *p_enc, void *p_data )
     block_t *p_block_in;
     DWORD i_status;
     int i_result;
-    vlc_tick_t i_pts;
+    heimdall_tick_t i_pts;
 
     if( !p_data ) return NULL;
 
@@ -1448,7 +1449,7 @@ static block_t *EncodeBlock( encoder_t *p_enc, void *p_data )
         picture_t *p_pic = (picture_t *)p_data;
         uint8_t *p_dst;
 
-        const vlc_chroma_description_t *dsc = vlc_fourcc_GetChromaDescription(p_pic->format.i_chroma);
+        const heimdall_chroma_description_t *dsc = heimdall_fourcc_GetChromaDescription(p_pic->format.i_chroma);
         assert(dsc != NULL);
         size_t i_buffer = 0;
         plane_t dst_planes[PICTURE_PLANE_MAX];
@@ -1488,7 +1489,7 @@ static block_t *EncodeBlock( encoder_t *p_enc, void *p_data )
     /* Feed input to the DMO */
     p_in = CMediaBufferCreate( p_block_in, p_block_in->i_buffer, true );
     i_result = IMediaObject_ProcessInput( p_sys->p_dmo, 0,
-       &p_in->intf, DMO_INPUT_DATA_BUFFERF_TIME, MSFTIME_FROM_VLC_TICK(i_pts), 0 );
+       &p_in->intf, DMO_INPUT_DATA_BUFFERF_TIME, MSFTIME_FROM_HEIMDALL_TICK(i_pts), 0 );
 
     IMediaBuffer_Release( &p_in->intf );
     if( i_result == S_FALSE )
@@ -1558,14 +1559,14 @@ static block_t *EncodeBlock( encoder_t *p_enc, void *p_data )
         {
 #ifdef DMO_DEBUG
             msg_Dbg( p_enc, "ProcessOutput(): pts: %"PRId64", %"PRId64,
-                     i_pts, VLC_TICK_FROM_MSFTIME(db.rtTimestamp) );
+                     i_pts, HEIMDALL_TICK_FROM_MSFTIME(db.rtTimestamp) );
 #endif
-            i_pts = VLC_TICK_FROM_MSFTIME(db.rtTimestamp);
+            i_pts = HEIMDALL_TICK_FROM_MSFTIME(db.rtTimestamp);
         }
 
         if( db.dwStatus & DMO_OUTPUT_DATA_BUFFERF_TIMELENGTH )
         {
-            p_block_out->i_length = VLC_TICK_FROM_MSFTIME(db.rtTimelength);
+            p_block_out->i_length = HEIMDALL_TICK_FROM_MSFTIME(db.rtTimelength);
 #ifdef DMO_DEBUG
             msg_Dbg( p_enc, "ProcessOutput(): length: %"PRId64,
                      p_block_out->i_length );
@@ -1604,7 +1605,7 @@ void EncoderClose( encoder_t *p_enc )
 }
 #endif // !ENABLE_SOUT
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("DirectMedia Object decoder") )
     add_shortcut( "dmo" )
     set_capability( "video decoder", 1 )
@@ -1629,4 +1630,4 @@ vlc_module_begin ()
     set_capability( "audio encoder", 10 )
     set_callback( EncoderOpenAudio )
 #endif
-vlc_module_end ()
+heimdall_module_end ()

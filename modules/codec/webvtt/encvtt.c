@@ -2,6 +2,7 @@
  * encvtt.c: Encoder for WEBVTT as ISO1446-30 payload
  *****************************************************************************
  * Copyright (C) 2018 VideoLabs, VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -21,29 +22,29 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
-#include <vlc_subpicture.h>
-#include <vlc_boxes.h>
-#include <vlc_charset.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
+#include <heimdall_subpicture.h>
+#include <heimdall_boxes.h>
+#include <heimdall_charset.h>
 #include "webvtt.h"
 
 static block_t *Encode ( encoder_t *, subpicture_t * );
 
-int webvtt_OpenEncoder( vlc_object_t *p_this )
+int webvtt_OpenEncoder( heimdall_object_t *p_this )
 {
     encoder_t *p_enc = (encoder_t *)p_this;
 
-    if( p_enc->fmt_out.i_codec != VLC_CODEC_WEBVTT )
-        return VLC_EGENERIC;
+    if( p_enc->fmt_out.i_codec != HEIMDALL_CODEC_WEBVTT )
+        return HEIMDALL_EGENERIC;
 
 
-    static const struct vlc_encoder_operations ops =
+    static const struct heimdall_encoder_operations ops =
         { .encode_sub = Encode };
     p_enc->ops = &ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void bo_add_escaped( bo_t *box, size_t len, const char *psz )
@@ -104,7 +105,7 @@ static void WriteText( const char *psz, bo_t *box, char *c_last )
 
 static block_t *Encode( encoder_t *p_enc, subpicture_t *p_spu )
 {
-    VLC_UNUSED( p_enc );
+    HEIMDALL_UNUSED( p_enc );
 
     if( p_spu == NULL )
         return NULL;
@@ -114,7 +115,7 @@ static block_t *Encode( encoder_t *p_enc, subpicture_t *p_spu )
         return NULL;
 
     const subpicture_region_t *p_region;
-    vlc_spu_regions_foreach_const(p_region, &p_spu->regions)
+    heimdall_spu_regions_foreach_const(p_region, &p_spu->regions)
     {
         if(!subpicture_region_IsText( p_region )||
             p_region->p_text == NULL ||
@@ -209,7 +210,7 @@ static block_t *Encode( encoder_t *p_enc, subpicture_t *p_spu )
                 if( bo_size( &box ) != i_start + 8 )
                     bo_add_8( &box, ' ' );
                 char *psz;
-                int i_printed = vlc_asprintf_c( &psz, "line:%2.2f%%", offset );
+                int i_printed = heimdall_asprintf_c( &psz, "line:%2.2f%%", offset );
                 if( i_printed >= 0 )
                 {
                     if( i_printed > 0 )
@@ -237,7 +238,7 @@ static block_t *Encode( encoder_t *p_enc, subpicture_t *p_spu )
     if( p_block )
     {
         p_block->i_pts = p_block->i_dts = p_spu->i_start;
-        if( p_spu->i_stop != VLC_TICK_INVALID && p_spu->i_stop > p_spu->i_start )
+        if( p_spu->i_stop != HEIMDALL_TICK_INVALID && p_spu->i_stop > p_spu->i_start )
             p_block->i_length = p_spu->i_stop - p_spu->i_start;
     }
 

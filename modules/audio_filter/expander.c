@@ -2,6 +2,7 @@
  * expander.c: Dynamic range expander module
  *****************************************************************************
  * Copyright (C) 2026 VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Brandon Li <brandonli2006ma@gmail.com>
  *
@@ -24,8 +25,8 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
 
 #include "dynamics.h"
 
@@ -39,14 +40,14 @@ static float ExpanderGain( float f_env,
 
     if( f_env > f_kn_lo )
     {
-        const float f_x = ( f_threshold + f_knee - vlc_dynamics_Lin2Db( f_env, p_sys ) ) / f_knee;
-        return vlc_dynamics_Db2Lin( -f_knee * f_rs * f_x * f_x * 0.25f, p_sys );
+        const float f_x = ( f_threshold + f_knee - heimdall_dynamics_Lin2Db( f_env, p_sys ) ) / f_knee;
+        return heimdall_dynamics_Db2Lin( -f_knee * f_rs * f_x * f_x * 0.25f, p_sys );
     }
 
-    return vlc_dynamics_Db2Lin( ( vlc_dynamics_Lin2Db( f_env, p_sys ) - f_threshold ) * f_rs, p_sys );
+    return heimdall_dynamics_Db2Lin( ( heimdall_dynamics_Lin2Db( f_env, p_sys ) - f_threshold ) * f_rs, p_sys );
 }
 
-static const vlc_dynamics_varnames_t expander_varnames = {
+static const heimdall_dynamics_varnames_t expander_varnames = {
     .rms_peak    = "expander-rms-peak",
     .attack      = "expander-attack",
     .release     = "expander-release",
@@ -56,12 +57,12 @@ static const vlc_dynamics_varnames_t expander_varnames = {
     .makeup_gain = "expander-makeup-gain",
 };
 
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
-    return vlc_dynamics_OpenCommon( (filter_t*)p_this, &expander_varnames, ExpanderGain, -60.0f );
+    return heimdall_dynamics_OpenCommon( (filter_t*)p_this, &expander_varnames, ExpanderGain, -60.0f );
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname( N_("Expander") )
     set_description( N_("Dynamic range expander") )
     set_capability( "audio filter", 0 )
@@ -75,4 +76,4 @@ vlc_module_begin()
     add_float_with_range( expander_varnames.makeup_gain, 0.0, 0.0,  24.0, MAKEUP_GAIN_TEXT, MAKEUP_GAIN_LONGTEXT )
     set_callback( Open )
     add_shortcut( "expander" )
-vlc_module_end()
+heimdall_module_end()

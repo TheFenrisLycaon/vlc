@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,12 +20,12 @@
 import QtQuick
 import QtQml.Models
 
-import VLC.MediaLibrary
+import Heimdall.MediaLibrary
 
-import VLC.Widgets as Widgets
-import VLC.MainInterface
-import VLC.Util
-import VLC.Style
+import Heimdall.Widgets as Widgets
+import Heimdall.MainInterface
+import Heimdall.Util
+import Heimdall.Style
 
 Widgets.TableViewExt {
     id: root
@@ -60,7 +61,7 @@ Widgets.TableViewExt {
             headerDelegate: table.titleHeaderDelegate,
             colDelegate   : table.titleDelegate,
 
-            placeHolder: VLCStyle.noArtAlbumCover
+            placeHolder: HeimdallStyle.noArtAlbumCover
         }
     }]
 
@@ -77,7 +78,7 @@ Widgets.TableViewExt {
             headerDelegate: table.titleHeaderDelegate,
             colDelegate   : table.titleDelegate,
 
-            placeHolder: VLCStyle.noArtAlbumCover
+            placeHolder: HeimdallStyle.noArtAlbumCover
         }
     }, {
         size: 1,
@@ -98,9 +99,9 @@ Widgets.TableViewExt {
     // Settings
     //---------------------------------------------------------------------------------------------
 
-    rowHeight: VLCStyle.tableCoverRow_height
+    rowHeight: HeimdallStyle.tableCoverRow_height
 
-    sortModel: (_availableRowWidth < VLCStyle.colWidth(4)) ? _modelSmall
+    sortModel: (_availableRowWidth < HeimdallStyle.colWidth(4)) ? _modelSmall
                                                            : _modelMedium
 
 
@@ -179,12 +180,12 @@ Widgets.TableViewExt {
     MLTableColumns {
         id: table
 
-        titleCover_width: isMusic ? VLCStyle.trackListAlbumCover_width
-                                  : VLCStyle.listAlbumCover_width
-        titleCover_height: isMusic ? VLCStyle.trackListAlbumCover_heigth
-                                   : VLCStyle.listAlbumCover_height
-        titleCover_radius: isMusic ? VLCStyle.trackListAlbumCover_radius
-                                   : VLCStyle.listAlbumCover_radius
+        titleCover_width: isMusic ? HeimdallStyle.trackListAlbumCover_width
+                                  : HeimdallStyle.listAlbumCover_width
+        titleCover_height: isMusic ? HeimdallStyle.trackListAlbumCover_heigth
+                                   : HeimdallStyle.listAlbumCover_height
+        titleCover_radius: isMusic ? HeimdallStyle.trackListAlbumCover_radius
+                                   : HeimdallStyle.listAlbumCover_radius
 
         showCriterias: (root.sortModel === root._modelSmall)
 
@@ -207,7 +208,7 @@ Widgets.TableViewExt {
         anchors.left : parent.left
         anchors.right: parent.right
 
-        height: VLCStyle.dp(1, VLCStyle.scale)
+        height: HeimdallStyle.dp(1, HeimdallStyle.scale)
 
         visible: root._item !== null
 

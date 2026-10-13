@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,11 +22,11 @@ import QtQuick.Layouts
 import QtQuick.Templates as T
 
 
-import VLC.MainInterface
-import VLC.Player
-import VLC.Style
-import VLC.Widgets as Widgets
-import VLC.Util
+import Heimdall.MainInterface
+import Heimdall.Player
+import Heimdall.Style
+import Heimdall.Widgets as Widgets
+import Heimdall.Util
 
 FocusScope {
     id: resumePanel
@@ -106,12 +107,12 @@ FocusScope {
     T.Label {
         id: label
 
-        anchors.topMargin: VLCStyle.margin_small
+        anchors.topMargin: HeimdallStyle.margin_small
         anchors.top: parent.top
         anchors.left: parent.left
 
         color: theme.fg.primary
-        font.pixelSize: VLCStyle.fontSize_normal
+        font.pixelSize: HeimdallStyle.fontSize_normal
         font.bold: true
         wrapMode: Text.Wrap
 
@@ -123,7 +124,7 @@ FocusScope {
 
         anchors.verticalCenter: label.verticalCenter
         anchors.left: label.right
-        anchors.leftMargin: VLCStyle.margin_xsmall
+        anchors.leftMargin: HeimdallStyle.margin_xsmall
 
         text: qsTr("Continue")
 
@@ -176,7 +177,7 @@ FocusScope {
             PropertyChanges {
                 target: continueBtn
 
-                anchors.leftMargin: -VLCStyle.margin_xsmall
+                anchors.leftMargin: -HeimdallStyle.margin_xsmall
             }
 
             AnchorChanges {
@@ -196,6 +197,6 @@ FocusScope {
         }
     ]
 
-    state: (textMetrics.width + VLCStyle.margin_xsmall + continueBtn.width + closeBtn.width
+    state: (textMetrics.width + HeimdallStyle.margin_xsmall + continueBtn.width + closeBtn.width
             > maxWidth) ? "small" : ""
 }

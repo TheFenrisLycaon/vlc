@@ -2,8 +2,9 @@
  * input.c
  *****************************************************************************
  * Copyright (C) 2007-2008 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Antoine Cellerier <dionoea at videolan tod org>
+ * Authors: Antoine Cellerier <dionoea at lycaria tod org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,46 +32,46 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_es.h>
-#include <vlc_meta.h>
-#include <vlc_url.h>
-#include <vlc_playlist.h>
-#include <vlc_player.h>
+#include <heimdall_common.h>
+#include <heimdall_es.h>
+#include <heimdall_meta.h>
+#include <heimdall_url.h>
+#include <heimdall_playlist.h>
+#include <heimdall_player.h>
 
 #include <assert.h>
 
-#include "../vlc.h"
+#include "../heimdall.h"
 #include "input.h"
 #include "../libs.h"
 #include "../extension.h"
 
-vout_thread_t *vlclua_get_vout_internal(lua_State *L)
+vout_thread_t *heimdalllua_get_vout_internal(lua_State *L)
 {
-    vlc_player_t *player = vlclua_get_player_internal(L);
-    return vlc_player_vout_Hold(player);
+    heimdall_player_t *player = heimdalllua_get_player_internal(L);
+    return heimdall_player_vout_Hold(player);
 }
 
-audio_output_t *vlclua_get_aout_internal(lua_State *L)
+audio_output_t *heimdalllua_get_aout_internal(lua_State *L)
 {
-    vlc_player_t *player = vlclua_get_player_internal(L);
-    return vlc_player_aout_Hold(player);
+    heimdall_player_t *player = heimdalllua_get_player_internal(L);
+    return heimdall_player_aout_Hold(player);
 }
 
-static input_item_t* vlclua_input_item_get_internal( lua_State *L );
+static input_item_t* heimdalllua_input_item_get_internal( lua_State *L );
 
-static int vlclua_input_item_info( lua_State *L )
+static int heimdalllua_input_item_info( lua_State *L )
 {
-    input_item_t *p_item = vlclua_input_item_get_internal( L );
+    input_item_t *p_item = heimdalllua_input_item_get_internal( L );
     int i_cat = 0;
 
     info_category_t *p_category;
-    vlc_list_foreach( p_category, &p_item->categories, node )
+    heimdall_list_foreach( p_category, &p_item->categories, node )
         i_cat++;
 
     lua_createtable( L, 0, i_cat );
 
-    vlc_list_foreach( p_category, &p_item->categories, node )
+    heimdall_list_foreach( p_category, &p_item->categories, node )
     {
         info_t *p_info;
 
@@ -90,231 +91,231 @@ static int vlclua_input_item_info( lua_State *L )
     return 1;
 }
 
-static int vlclua_input_is_playing( lua_State *L )
+static int heimdalllua_input_is_playing( lua_State *L )
 {
-    vlc_player_t *player = vlclua_get_player_internal(L);
+    heimdall_player_t *player = heimdalllua_get_player_internal(L);
 
-    vlc_player_Lock(player);
-    bool started = vlc_player_IsStarted(player);
-    vlc_player_Unlock(player);
+    heimdall_player_Lock(player);
+    bool started = heimdall_player_IsStarted(player);
+    heimdall_player_Unlock(player);
     lua_pushboolean(L, started);
     return 1;
 }
 
-static int vlclua_player_get_title_index(lua_State *L)
+static int heimdalllua_player_get_title_index(lua_State *L)
 {
-    vlc_player_t *player = vlclua_get_player_internal(L);
+    heimdall_player_t *player = heimdalllua_get_player_internal(L);
 
-    vlc_player_Lock(player);
-    ssize_t idx = vlc_player_GetSelectedTitleIdx(player);
-    vlc_player_Unlock(player);
+    heimdall_player_Lock(player);
+    ssize_t idx = heimdall_player_GetSelectedTitleIdx(player);
+    heimdall_player_Unlock(player);
 
     lua_pushinteger(L, idx);
     return 1;
 }
 
-static int vlclua_player_get_titles_count(lua_State *L)
+static int heimdalllua_player_get_titles_count(lua_State *L)
 {
-    vlc_player_t *player = vlclua_get_player_internal(L);
+    heimdall_player_t *player = heimdalllua_get_player_internal(L);
 
-    vlc_player_Lock(player);
-    struct vlc_player_title_list *titles = vlc_player_GetTitleList(player);
-    size_t count = titles ? vlc_player_title_list_GetCount(titles) : 0;
-    vlc_player_Unlock(player);
+    heimdall_player_Lock(player);
+    struct heimdall_player_title_list *titles = heimdall_player_GetTitleList(player);
+    size_t count = titles ? heimdall_player_title_list_GetCount(titles) : 0;
+    heimdall_player_Unlock(player);
 
     lua_pushinteger(L, count);
     return 1;
 }
 
-static int vlclua_player_title_next(lua_State *L)
+static int heimdalllua_player_title_next(lua_State *L)
 {
-    vlc_player_t *player = vlclua_get_player_internal(L);
+    heimdall_player_t *player = heimdalllua_get_player_internal(L);
 
-    vlc_player_Lock(player);
-    vlc_player_SelectNextTitle(player);
-    vlc_player_Unlock(player);
+    heimdall_player_Lock(player);
+    heimdall_player_SelectNextTitle(player);
+    heimdall_player_Unlock(player);
 
     return 0;
 }
 
-static int vlclua_player_title_prev(lua_State *L)
+static int heimdalllua_player_title_prev(lua_State *L)
 {
-    vlc_player_t *player = vlclua_get_player_internal(L);
+    heimdall_player_t *player = heimdalllua_get_player_internal(L);
 
-    vlc_player_Lock(player);
-    vlc_player_SelectPrevTitle(player);
-    vlc_player_Unlock(player);
+    heimdall_player_Lock(player);
+    heimdall_player_SelectPrevTitle(player);
+    heimdall_player_Unlock(player);
 
     return 0;
 }
 
-static int vlclua_player_title_goto(lua_State *L)
+static int heimdalllua_player_title_goto(lua_State *L)
 {
     int idx = luaL_checkinteger(L, 1);
 
-    vlc_player_t *player = vlclua_get_player_internal(L);
+    heimdall_player_t *player = heimdalllua_get_player_internal(L);
 
-    vlc_player_Lock(player);
-    vlc_player_SelectTitleIdx(player, idx);
-    vlc_player_Unlock(player);
+    heimdall_player_Lock(player);
+    heimdall_player_SelectTitleIdx(player, idx);
+    heimdall_player_Unlock(player);
 
     return 0;
 }
 
-static int vlclua_player_get_chapter_index(lua_State *L)
+static int heimdalllua_player_get_chapter_index(lua_State *L)
 {
-    vlc_player_t *player = vlclua_get_player_internal(L);
+    heimdall_player_t *player = heimdalllua_get_player_internal(L);
 
-    vlc_player_Lock(player);
-    ssize_t idx = vlc_player_GetSelectedChapterIdx(player);
-    vlc_player_Unlock(player);
+    heimdall_player_Lock(player);
+    ssize_t idx = heimdall_player_GetSelectedChapterIdx(player);
+    heimdall_player_Unlock(player);
 
     lua_pushinteger(L, idx);
     return 1;
 }
 
-static int vlclua_player_get_chapters_count(lua_State *L)
+static int heimdalllua_player_get_chapters_count(lua_State *L)
 {
-    vlc_player_t *player = vlclua_get_player_internal(L);
+    heimdall_player_t *player = heimdalllua_get_player_internal(L);
 
-    vlc_player_Lock(player);
-    const struct vlc_player_title *current_title =
-        vlc_player_GetSelectedTitle(player);
+    heimdall_player_Lock(player);
+    const struct heimdall_player_title *current_title =
+        heimdall_player_GetSelectedTitle(player);
 
     size_t count = current_title ? current_title->chapter_count : 0;
-    vlc_player_Unlock(player);
+    heimdall_player_Unlock(player);
 
     lua_pushinteger(L, count);
     return 1;
 }
 
-static int vlclua_player_chapter_next(lua_State *L)
+static int heimdalllua_player_chapter_next(lua_State *L)
 {
-    vlc_player_t *player = vlclua_get_player_internal(L);
+    heimdall_player_t *player = heimdalllua_get_player_internal(L);
 
-    vlc_player_Lock(player);
-    vlc_player_SelectNextChapter(player);
-    vlc_player_Unlock(player);
+    heimdall_player_Lock(player);
+    heimdall_player_SelectNextChapter(player);
+    heimdall_player_Unlock(player);
 
     return 0;
 }
 
-static int vlclua_player_chapter_prev(lua_State *L)
+static int heimdalllua_player_chapter_prev(lua_State *L)
 {
-    vlc_player_t *player = vlclua_get_player_internal(L);
+    heimdall_player_t *player = heimdalllua_get_player_internal(L);
 
-    vlc_player_Lock(player);
-    vlc_player_SelectPrevChapter(player);
-    vlc_player_Unlock(player);
+    heimdall_player_Lock(player);
+    heimdall_player_SelectPrevChapter(player);
+    heimdall_player_Unlock(player);
 
     return 0;
 }
 
-static int vlclua_player_chapter_goto(lua_State *L)
+static int heimdalllua_player_chapter_goto(lua_State *L)
 {
     int idx = luaL_checkinteger(L, 1);
 
-    vlc_player_t *player = vlclua_get_player_internal(L);
+    heimdall_player_t *player = heimdalllua_get_player_internal(L);
 
-    vlc_player_Lock(player);
-    vlc_player_SelectChapterIdx(player, idx);
-    vlc_player_Unlock(player);
+    heimdall_player_Lock(player);
+    heimdall_player_SelectChapterIdx(player, idx);
+    heimdall_player_Unlock(player);
 
     return 0;
 }
 
-static int vlclua_player_get_time(lua_State *L)
+static int heimdalllua_player_get_time(lua_State *L)
 {
-    vlc_player_t *player = vlclua_get_player_internal(L);
+    heimdall_player_t *player = heimdalllua_get_player_internal(L);
 
-    vlc_player_Lock(player);
-    vlc_tick_t time = vlc_player_GetTime(player);
-    vlc_player_Unlock(player);
+    heimdall_player_Lock(player);
+    heimdall_tick_t time = heimdall_player_GetTime(player);
+    heimdall_player_Unlock(player);
 
-    lua_pushinteger(L, US_FROM_VLC_TICK(time));
+    lua_pushinteger(L, US_FROM_HEIMDALL_TICK(time));
     return 1;
 }
 
-static int vlclua_player_get_position(lua_State *L)
+static int heimdalllua_player_get_position(lua_State *L)
 {
-    vlc_player_t *player = vlclua_get_player_internal(L);
+    heimdall_player_t *player = heimdalllua_get_player_internal(L);
 
-    vlc_player_Lock(player);
-    float pos = vlc_player_GetPosition(player);
-    vlc_player_Unlock(player);
+    heimdall_player_Lock(player);
+    float pos = heimdall_player_GetPosition(player);
+    heimdall_player_Unlock(player);
 
     lua_pushnumber(L, pos);
     return 1;
 }
 
-static int vlclua_player_get_rate(lua_State *L)
+static int heimdalllua_player_get_rate(lua_State *L)
 {
-    vlc_player_t *player = vlclua_get_player_internal(L);
+    heimdall_player_t *player = heimdalllua_get_player_internal(L);
 
-    vlc_player_Lock(player);
-    float rate = vlc_player_GetRate(player);
-    vlc_player_Unlock(player);
+    heimdall_player_Lock(player);
+    float rate = heimdall_player_GetRate(player);
+    heimdall_player_Unlock(player);
 
     lua_pushnumber(L, rate);
     return 1;
 }
 
-static int vlclua_player_set_rate(lua_State *L)
+static int heimdalllua_player_set_rate(lua_State *L)
 {
-    vlc_player_t *player = vlclua_get_player_internal(L);
+    heimdall_player_t *player = heimdalllua_get_player_internal(L);
 
     float rate = luaL_checknumber(L, 1);
 
-    vlc_player_Lock(player);
-    vlc_player_ChangeRate(player, rate);
-    vlc_player_Unlock(player);
+    heimdall_player_Lock(player);
+    heimdall_player_ChangeRate(player, rate);
+    heimdall_player_Unlock(player);
 
     return 0;
 }
 
-static int vlclua_player_increment_rate(lua_State *L)
+static int heimdalllua_player_increment_rate(lua_State *L)
 {
-    vlc_player_t *player = vlclua_get_player_internal(L);
+    heimdall_player_t *player = heimdalllua_get_player_internal(L);
 
-    vlc_player_Lock(player);
-    vlc_player_IncrementRate(player);
-    vlc_player_Unlock(player);
+    heimdall_player_Lock(player);
+    heimdall_player_IncrementRate(player);
+    heimdall_player_Unlock(player);
 
     return 0;
 }
 
-static int vlclua_player_decrement_rate(lua_State *L)
+static int heimdalllua_player_decrement_rate(lua_State *L)
 {
-    vlc_player_t *player = vlclua_get_player_internal(L);
+    heimdall_player_t *player = heimdalllua_get_player_internal(L);
 
-    vlc_player_Lock(player);
-    vlc_player_DecrementRate(player);
-    vlc_player_Unlock(player);
+    heimdall_player_Lock(player);
+    heimdall_player_DecrementRate(player);
+    heimdall_player_Unlock(player);
 
     return 0;
 }
 
-static int vlclua_player_get_tracks_(lua_State *L,
+static int heimdalllua_player_get_tracks_(lua_State *L,
                                      enum es_format_category_e cat)
 {
-    vlc_player_t *player = vlclua_get_player_internal(L);
+    heimdall_player_t *player = heimdalllua_get_player_internal(L);
 
-    vlc_player_Lock(player);
+    heimdall_player_Lock(player);
 
-    size_t count = vlc_player_GetTrackCount(player, cat);
+    size_t count = heimdall_player_GetTrackCount(player, cat);
     lua_createtable(L, count, 0);
 
     for (size_t i = 0; i < count; ++i)
     {
-        const struct vlc_player_track *track =
-                vlc_player_GetTrackAt(player, cat, i);
+        const struct heimdall_player_track *track =
+                heimdall_player_GetTrackAt(player, cat, i);
         if (!track) {
             continue;
         }
 
         lua_newtable(L);
 
-        lua_pushinteger(L, vlc_es_id_GetInputId(track->es_id));
+        lua_pushinteger(L, heimdall_es_id_GetInputId(track->es_id));
         lua_setfield(L, -2, "id");
 
         lua_pushstring(L, track->name);
@@ -326,201 +327,201 @@ static int vlclua_player_get_tracks_(lua_State *L,
         lua_rawseti(L, -2, i + 1);
     }
 
-    vlc_player_Unlock(player);
+    heimdall_player_Unlock(player);
 
     return 1;
 }
 
-static int vlclua_player_get_video_tracks(lua_State *L)
+static int heimdalllua_player_get_video_tracks(lua_State *L)
 {
-    return vlclua_player_get_tracks_(L, VIDEO_ES);
+    return heimdalllua_player_get_tracks_(L, VIDEO_ES);
 }
 
-static int vlclua_player_get_audio_tracks(lua_State *L)
+static int heimdalllua_player_get_audio_tracks(lua_State *L)
 {
-    return vlclua_player_get_tracks_(L, AUDIO_ES);
+    return heimdalllua_player_get_tracks_(L, AUDIO_ES);
 }
 
-static int vlclua_player_get_spu_tracks(lua_State *L)
+static int heimdalllua_player_get_spu_tracks(lua_State *L)
 {
-    return vlclua_player_get_tracks_(L, SPU_ES);
+    return heimdalllua_player_get_tracks_(L, SPU_ES);
 }
 
-static const struct vlc_player_track *
-FindTrack(vlc_player_t *player, enum es_format_category_e cat, int id)
+static const struct heimdall_player_track *
+FindTrack(heimdall_player_t *player, enum es_format_category_e cat, int id)
 {
-    size_t count = vlc_player_GetTrackCount(player, cat);
+    size_t count = heimdall_player_GetTrackCount(player, cat);
     for (size_t i = 0; i < count; ++i)
     {
-        const struct vlc_player_track *track =
-                vlc_player_GetTrackAt(player, cat, i);
-        if (id == vlc_es_id_GetInputId(track->es_id))
+        const struct heimdall_player_track *track =
+                heimdall_player_GetTrackAt(player, cat, i);
+        if (id == heimdall_es_id_GetInputId(track->es_id))
             return track;
     }
     return NULL;
 }
 
-static int vlclua_player_toggle_track_(lua_State *L,
+static int heimdalllua_player_toggle_track_(lua_State *L,
                                        enum es_format_category_e cat,
                                        int id)
 {
-    vlc_player_t *player = vlclua_get_player_internal(L);
+    heimdall_player_t *player = heimdalllua_get_player_internal(L);
 
-    vlc_player_Lock(player);
+    heimdall_player_Lock(player);
 
     if (id != -1) {
-        const struct vlc_player_track *track = FindTrack(player, cat, id);
+        const struct heimdall_player_track *track = FindTrack(player, cat, id);
 
         if (track != NULL) {
             if (track->selected)
-                vlc_player_UnselectTrack(player, track);
+                heimdall_player_UnselectTrack(player, track);
             else
-                vlc_player_SelectTrack(player, track,
-                                       VLC_PLAYER_SELECT_EXCLUSIVE);
+                heimdall_player_SelectTrack(player, track,
+                                       HEIMDALL_PLAYER_SELECT_EXCLUSIVE);
         }
     } else
-        vlc_player_UnselectTrackCategory(player, cat);
+        heimdall_player_UnselectTrackCategory(player, cat);
 
-    vlc_player_Unlock(player);
-
-    return 0;
-}
-
-static int vlclua_player_toggle_video_track(lua_State *L)
-{
-    int id = luaL_checkinteger(L, 1);
-    return vlclua_player_toggle_track_(L, VIDEO_ES, id);
-}
-
-static int vlclua_player_toggle_audio_track(lua_State *L)
-{
-    int id = luaL_checkinteger(L, 1);
-    return vlclua_player_toggle_track_(L, AUDIO_ES, id);
-}
-
-static int vlclua_player_toggle_spu_track(lua_State *L)
-{
-    int id = luaL_checkinteger(L, 1);
-    return vlclua_player_toggle_track_(L, SPU_ES, id);
-}
-
-static int vlclua_player_next_video_frame(lua_State *L)
-{
-    vlc_player_t *player = vlclua_get_player_internal(L);
-
-    vlc_player_Lock(player);
-    vlc_player_NextVideoFrame(player);
-    vlc_player_Unlock(player);
+    heimdall_player_Unlock(player);
 
     return 0;
 }
 
-static int vlclua_player_seek_by_pos_(lua_State *L,
-                                      enum vlc_player_whence whence)
+static int heimdalllua_player_toggle_video_track(lua_State *L)
+{
+    int id = luaL_checkinteger(L, 1);
+    return heimdalllua_player_toggle_track_(L, VIDEO_ES, id);
+}
+
+static int heimdalllua_player_toggle_audio_track(lua_State *L)
+{
+    int id = luaL_checkinteger(L, 1);
+    return heimdalllua_player_toggle_track_(L, AUDIO_ES, id);
+}
+
+static int heimdalllua_player_toggle_spu_track(lua_State *L)
+{
+    int id = luaL_checkinteger(L, 1);
+    return heimdalllua_player_toggle_track_(L, SPU_ES, id);
+}
+
+static int heimdalllua_player_next_video_frame(lua_State *L)
+{
+    heimdall_player_t *player = heimdalllua_get_player_internal(L);
+
+    heimdall_player_Lock(player);
+    heimdall_player_NextVideoFrame(player);
+    heimdall_player_Unlock(player);
+
+    return 0;
+}
+
+static int heimdalllua_player_seek_by_pos_(lua_State *L,
+                                      enum heimdall_player_whence whence)
 {
     float position = luaL_checknumber(L, 1);
 
-    vlc_player_t *player = vlclua_get_player_internal(L);
+    heimdall_player_t *player = heimdalllua_get_player_internal(L);
 
-    vlc_player_Lock(player);
-    vlc_player_SeekByPos(player, position, VLC_PLAYER_SEEK_PRECISE, whence);
-    vlc_player_Unlock(player);
+    heimdall_player_Lock(player);
+    heimdall_player_SeekByPos(player, position, HEIMDALL_PLAYER_SEEK_PRECISE, whence);
+    heimdall_player_Unlock(player);
 
     return 0;
 }
 
-static int vlclua_player_seek_by_pos_absolute(lua_State *L)
+static int heimdalllua_player_seek_by_pos_absolute(lua_State *L)
 {
-    return vlclua_player_seek_by_pos_(L, VLC_PLAYER_WHENCE_ABSOLUTE);
+    return heimdalllua_player_seek_by_pos_(L, HEIMDALL_PLAYER_WHENCE_ABSOLUTE);
 }
 
-static int vlclua_player_seek_by_pos_relative(lua_State *L)
+static int heimdalllua_player_seek_by_pos_relative(lua_State *L)
 {
-    return vlclua_player_seek_by_pos_(L, VLC_PLAYER_WHENCE_RELATIVE);
+    return heimdalllua_player_seek_by_pos_(L, HEIMDALL_PLAYER_WHENCE_RELATIVE);
 }
 
-static int vlclua_player_seek_by_time_(lua_State *L,
-                                       enum vlc_player_whence whence)
+static int heimdalllua_player_seek_by_time_(lua_State *L,
+                                       enum heimdall_player_whence whence)
 {
     int usec = luaL_checkinteger(L, 1);
-    vlc_tick_t time = VLC_TICK_FROM_US(usec);
+    heimdall_tick_t time = HEIMDALL_TICK_FROM_US(usec);
 
-    vlc_player_t *player = vlclua_get_player_internal(L);
+    heimdall_player_t *player = heimdalllua_get_player_internal(L);
 
-    vlc_player_Lock(player);
-    vlc_player_SeekByTime(player, time, VLC_PLAYER_SEEK_PRECISE, whence);
-    vlc_player_Unlock(player);
+    heimdall_player_Lock(player);
+    heimdall_player_SeekByTime(player, time, HEIMDALL_PLAYER_SEEK_PRECISE, whence);
+    heimdall_player_Unlock(player);
 
     return 0;
 }
 
-static int vlclua_player_seek_by_time_absolute(lua_State *L)
+static int heimdalllua_player_seek_by_time_absolute(lua_State *L)
 {
-    return vlclua_player_seek_by_time_(L, VLC_PLAYER_WHENCE_ABSOLUTE);
+    return heimdalllua_player_seek_by_time_(L, HEIMDALL_PLAYER_WHENCE_ABSOLUTE);
 }
 
-static int vlclua_player_seek_by_time_relative(lua_State *L)
+static int heimdalllua_player_seek_by_time_relative(lua_State *L)
 {
-    return vlclua_player_seek_by_time_(L, VLC_PLAYER_WHENCE_RELATIVE);
+    return heimdalllua_player_seek_by_time_(L, HEIMDALL_PLAYER_WHENCE_RELATIVE);
 }
 
-static int vlclua_player_get_audio_delay(lua_State *L)
+static int heimdalllua_player_get_audio_delay(lua_State *L)
 {
-    vlc_player_t *player = vlclua_get_player_internal(L);
+    heimdall_player_t *player = heimdalllua_get_player_internal(L);
 
-    vlc_player_Lock(player);
-    vlc_tick_t delay = vlc_player_GetAudioDelay(player);
-    vlc_player_Unlock(player);
+    heimdall_player_Lock(player);
+    heimdall_tick_t delay = heimdall_player_GetAudioDelay(player);
+    heimdall_player_Unlock(player);
 
-    double delay_sec = secf_from_vlc_tick(delay);
+    double delay_sec = secf_from_heimdall_tick(delay);
 
     lua_pushnumber(L, delay_sec);
     return 1;
 }
 
-static int vlclua_player_set_audio_delay(lua_State *L)
+static int heimdalllua_player_set_audio_delay(lua_State *L)
 {
-    vlc_player_t *player = vlclua_get_player_internal(L);
+    heimdall_player_t *player = heimdalllua_get_player_internal(L);
 
     double delay_sec = luaL_checknumber(L, 1);
-    vlc_tick_t delay = vlc_tick_from_sec(delay_sec);
+    heimdall_tick_t delay = heimdall_tick_from_sec(delay_sec);
 
-    vlc_player_Lock(player);
-    vlc_player_SetAudioDelay(player, delay, VLC_PLAYER_WHENCE_ABSOLUTE);
-    vlc_player_Unlock(player);
+    heimdall_player_Lock(player);
+    heimdall_player_SetAudioDelay(player, delay, HEIMDALL_PLAYER_WHENCE_ABSOLUTE);
+    heimdall_player_Unlock(player);
 
     return 0;
 }
 
-static int vlclua_player_get_subtitle_delay(lua_State *L)
+static int heimdalllua_player_get_subtitle_delay(lua_State *L)
 {
-    vlc_player_t *player = vlclua_get_player_internal(L);
+    heimdall_player_t *player = heimdalllua_get_player_internal(L);
 
-    vlc_player_Lock(player);
-    vlc_tick_t delay = vlc_player_GetSubtitleDelay(player);
-    vlc_player_Unlock(player);
+    heimdall_player_Lock(player);
+    heimdall_tick_t delay = heimdall_player_GetSubtitleDelay(player);
+    heimdall_player_Unlock(player);
 
-    double delay_sec = secf_from_vlc_tick(delay);
+    double delay_sec = secf_from_heimdall_tick(delay);
 
     lua_pushnumber(L, delay_sec);
     return 1;
 }
 
-static int vlclua_player_set_subtitle_delay(lua_State *L)
+static int heimdalllua_player_set_subtitle_delay(lua_State *L)
 {
-    vlc_player_t *player = vlclua_get_player_internal(L);
+    heimdall_player_t *player = heimdalllua_get_player_internal(L);
 
     double delay_sec = luaL_checknumber(L, 1);
-    vlc_tick_t delay = vlc_tick_from_sec(delay_sec);
+    heimdall_tick_t delay = heimdall_tick_from_sec(delay_sec);
 
-    vlc_player_Lock(player);
-    vlc_player_SetSubtitleDelay(player, delay, VLC_PLAYER_WHENCE_ABSOLUTE);
-    vlc_player_Unlock(player);
+    heimdall_player_Lock(player);
+    heimdall_player_SetSubtitleDelay(player, delay, HEIMDALL_PLAYER_WHENCE_ABSOLUTE);
+    heimdall_player_Unlock(player);
 
     return 0;
 }
 
-static int vlclua_input_metas_internal( lua_State *L, input_item_t *p_item )
+static int heimdalllua_input_metas_internal( lua_State *L, input_item_t *p_item )
 {
     if( !p_item )
     {
@@ -544,7 +545,7 @@ static int vlclua_input_metas_internal( lua_State *L, input_item_t *p_item )
     if( psz_filename )
     {
         /* url decode, without leading slash */
-        psz_filename = vlc_uri_decode( psz_filename + 1 );
+        psz_filename = heimdall_uri_decode( psz_filename + 1 );
     }
 
     lua_pushstring( L, psz_filename );
@@ -553,11 +554,11 @@ static int vlclua_input_metas_internal( lua_State *L, input_item_t *p_item )
     free( psz_uri );
 
 #define PUSH_META( n, m ) \
-    psz_meta = vlc_meta_Get( p_item->p_meta, vlc_meta_ ## n ); \
+    psz_meta = heimdall_meta_Get( p_item->p_meta, heimdall_meta_ ## n ); \
     lua_pushstring( L, psz_meta ); \
     lua_setfield( L, -2, m )
 
-    vlc_mutex_lock(&p_item->lock);
+    heimdall_mutex_lock(&p_item->lock);
 
     if (p_item->p_meta)
     {
@@ -587,29 +588,29 @@ static int vlclua_input_metas_internal( lua_State *L, input_item_t *p_item )
 
 #undef PUSH_META
 
-        char **names = vlc_meta_CopyExtraNames(p_item->p_meta);
+        char **names = heimdall_meta_CopyExtraNames(p_item->p_meta);
         for(int i = 0; names[i]; i++)
         {
-            const char *meta = vlc_meta_GetExtra(p_item->p_meta, names[i]);
+            const char *meta = heimdall_meta_GetExtra(p_item->p_meta, names[i]);
             lua_pushstring( L, meta );
             lua_setfield( L, -2, names[i] );
             free(names[i]);
         }
         free(names);
     }
-    vlc_mutex_unlock(&p_item->lock);
+    heimdall_mutex_unlock(&p_item->lock);
 
     return 1;
 }
 
-static int vlclua_input_item_stats( lua_State *L )
+static int heimdalllua_input_item_stats( lua_State *L )
 {
-    input_item_t *p_item = vlclua_input_item_get_internal( L );
+    input_item_t *p_item = heimdalllua_input_item_get_internal( L );
     lua_newtable( L );
     if( p_item == NULL )
         return 1;
 
-    vlc_mutex_lock( &p_item->lock );
+    heimdall_mutex_lock( &p_item->lock );
     input_stats_t *p_stats = p_item->p_stats;
     if( p_stats != NULL )
     {
@@ -635,16 +636,16 @@ static int vlclua_input_item_stats( lua_State *L )
 #undef STATS_INT
 #undef STATS_FLOAT
     }
-    vlc_mutex_unlock( &p_item->lock );
+    heimdall_mutex_unlock( &p_item->lock );
     return 1;
 }
 
-static int vlclua_input_add_subtitle(lua_State *L, bool b_path)
+static int heimdalllua_input_add_subtitle(lua_State *L, bool b_path)
 {
-    vlc_player_t *player = vlclua_get_player_internal(L);
+    heimdall_player_t *player = heimdalllua_get_player_internal(L);
 
     if (!lua_isstring(L, 1))
-        return luaL_error( L, "vlc.player.add_subtitle() usage: (path, autoselect=false)" );
+        return luaL_error( L, "heimdall.player.add_subtitle() usage: (path, autoselect=false)" );
 
     bool autoselect = false;
     if (lua_gettop(L) >= 2)
@@ -653,33 +654,33 @@ static int vlclua_input_add_subtitle(lua_State *L, bool b_path)
     const char *sub = luaL_checkstring(L, 1);
     char *mrl;
     if (b_path)
-        mrl = vlc_path2uri(sub, NULL);
+        mrl = heimdall_path2uri(sub, NULL);
 
     const char *uri = b_path ? mrl : sub;
-    vlc_player_Lock(player);
-    vlc_player_AddAssociatedMedia(player, SPU_ES, uri, autoselect, true, false);
-    vlc_player_Unlock(player);
+    heimdall_player_Lock(player);
+    heimdall_player_AddAssociatedMedia(player, SPU_ES, uri, autoselect, true, false);
+    heimdall_player_Unlock(player);
     if (b_path)
         free(mrl);
 
     return 1;
 }
 
-static int vlclua_input_add_subtitle_path( lua_State *L )
+static int heimdalllua_input_add_subtitle_path( lua_State *L )
 {
-    return vlclua_input_add_subtitle( L, true );
+    return heimdalllua_input_add_subtitle( L, true );
 }
 
-static int vlclua_input_add_subtitle_mrl( lua_State *L )
+static int heimdalllua_input_add_subtitle_mrl( lua_State *L )
 {
-    return vlclua_input_add_subtitle( L, false );
+    return heimdalllua_input_add_subtitle( L, false );
 }
 
 /*****************************************************************************
  * Input items
  *****************************************************************************/
 
-static input_item_t* vlclua_input_item_get_internal( lua_State *L )
+static input_item_t* heimdalllua_input_item_get_internal( lua_State *L )
 {
     input_item_t **pp_item = luaL_checkudata( L, 1, "input_item" );
     input_item_t *p_item = *pp_item;
@@ -691,7 +692,7 @@ static input_item_t* vlclua_input_item_get_internal( lua_State *L )
 }
 
 /* Garbage collection of an input_item_t */
-static int vlclua_input_item_delete( lua_State *L )
+static int heimdalllua_input_item_delete( lua_State *L )
 {
     input_item_t **pp_item = luaL_checkudata( L, 1, "input_item" );
     input_item_t *p_item = *pp_item;
@@ -705,64 +706,64 @@ static int vlclua_input_item_delete( lua_State *L )
     return 1;
 }
 
-static int vlclua_input_item_get_current( lua_State *L )
+static int heimdalllua_input_item_get_current( lua_State *L )
 {
-    vlc_player_t *player = vlclua_get_player_internal(L);
+    heimdall_player_t *player = heimdalllua_get_player_internal(L);
 
-    vlc_player_Lock(player);
-    input_item_t *media = vlc_player_GetCurrentMedia(player);
+    heimdall_player_Lock(player);
+    input_item_t *media = heimdall_player_GetCurrentMedia(player);
     if (media)
-        vlclua_input_item_get(L, media);
+        heimdalllua_input_item_get(L, media);
     else
         lua_pushnil(L);
-    vlc_player_Unlock(player);
+    heimdall_player_Unlock(player);
 
     return 1;
 }
 
-static int vlclua_input_item_metas( lua_State *L )
+static int heimdalllua_input_item_metas( lua_State *L )
 {
-    vlclua_input_metas_internal( L, vlclua_input_item_get_internal( L ) );
+    heimdalllua_input_metas_internal( L, heimdalllua_input_item_get_internal( L ) );
     return 1;
 }
 
-static int vlclua_input_item_is_preparsed( lua_State *L )
+static int heimdalllua_input_item_is_preparsed( lua_State *L )
 {
-    lua_pushboolean( L, input_item_IsPreparsed( vlclua_input_item_get_internal( L ) ) );
+    lua_pushboolean( L, input_item_IsPreparsed( heimdalllua_input_item_get_internal( L ) ) );
     return 1;
 }
 
-static int vlclua_input_item_uri( lua_State *L )
+static int heimdalllua_input_item_uri( lua_State *L )
 {
-    char *uri = input_item_GetURI( vlclua_input_item_get_internal( L ) );
+    char *uri = input_item_GetURI( heimdalllua_input_item_get_internal( L ) );
     lua_pushstring( L, uri );
     free( uri );
     return 1;
 }
 
-static int vlclua_input_item_name( lua_State *L )
+static int heimdalllua_input_item_name( lua_State *L )
 {
-    char *name = input_item_GetName( vlclua_input_item_get_internal( L ) );
+    char *name = input_item_GetName( heimdalllua_input_item_get_internal( L ) );
     lua_pushstring( L, name );
     free( name );
     return 1;
 }
 
-static int vlclua_input_item_duration( lua_State *L )
+static int heimdalllua_input_item_duration( lua_State *L )
 {
-    vlc_tick_t duration = input_item_GetDuration( vlclua_input_item_get_internal( L ) );
-    lua_pushnumber( L, secf_from_vlc_tick(duration) );
+    heimdall_tick_t duration = input_item_GetDuration( heimdalllua_input_item_get_internal( L ) );
+    lua_pushnumber( L, secf_from_heimdall_tick(duration) );
     return 1;
 }
 
-static int vlclua_input_item_set_meta( lua_State *L )
+static int heimdalllua_input_item_set_meta( lua_State *L )
 {
-    input_item_t *p_item = vlclua_input_item_get_internal( L );
+    input_item_t *p_item = heimdalllua_input_item_get_internal( L );
     lua_settop( L, 1 + 2 ); // two arguments
     const char *psz_name = luaL_checkstring( L, 2 ),
                *psz_value = luaL_checkstring( L, 3 );
 
-#define META_TYPE( n, s ) { s, vlc_meta_ ## n },
+#define META_TYPE( n, s ) { s, heimdall_meta_ ## n },
     static const struct
     {
         const char psz_name[15];
@@ -800,10 +801,10 @@ static int vlclua_input_item_set_meta( lua_State *L )
 #undef META_TYPE
 
     static_assert( sizeof(pp_meta_types)
-                      == VLC_META_TYPE_COUNT * sizeof(pp_meta_types[0]),
+                      == HEIMDALL_META_TYPE_COUNT * sizeof(pp_meta_types[0]),
                    "Inconsistent meta data types" );
-    vlc_meta_type_t type = vlc_meta_Title;
-    for( unsigned i = 0; i < VLC_META_TYPE_COUNT; i++ )
+    heimdall_meta_type_t type = heimdall_meta_Title;
+    for( unsigned i = 0; i < HEIMDALL_META_TYPE_COUNT; i++ )
     {
         if( !strcasecmp( pp_meta_types[i].psz_name, psz_name ) )
         {
@@ -813,72 +814,72 @@ static int vlclua_input_item_set_meta( lua_State *L )
         }
     }
 
-    vlc_meta_SetExtra( p_item->p_meta, psz_name, psz_value );
+    heimdall_meta_SetExtra( p_item->p_meta, psz_name, psz_value );
     return 1;
 }
 
 /*****************************************************************************
  * Lua bindings
  *****************************************************************************/
-static const luaL_Reg vlclua_input_reg[] = {
-    { "is_playing", vlclua_input_is_playing },
-    { "item", vlclua_input_item_get_current },
-    { "add_subtitle", vlclua_input_add_subtitle_path },
-    { "add_subtitle_mrl", vlclua_input_add_subtitle_mrl },
-    { "get_title_index", vlclua_player_get_title_index },
-    { "get_titles_count", vlclua_player_get_titles_count },
-    { "title_next", vlclua_player_title_next },
-    { "title_prev", vlclua_player_title_prev },
-    { "title_goto", vlclua_player_title_goto },
-    { "get_chapter_index", vlclua_player_get_chapter_index },
-    { "get_chapters_count", vlclua_player_get_chapters_count },
-    { "chapter_next", vlclua_player_chapter_next },
-    { "chapter_prev", vlclua_player_chapter_prev },
-    { "chapter_goto", vlclua_player_chapter_goto },
-    { "get_time", vlclua_player_get_time },
-    { "get_position", vlclua_player_get_position },
-    { "get_rate", vlclua_player_get_rate },
-    { "set_rate", vlclua_player_set_rate },
-    { "increment_rate", vlclua_player_increment_rate },
-    { "decrement_rate", vlclua_player_decrement_rate },
-    { "get_video_tracks", vlclua_player_get_video_tracks },
-    { "get_audio_tracks", vlclua_player_get_audio_tracks },
-    { "get_spu_tracks", vlclua_player_get_spu_tracks },
-    { "toggle_video_track", vlclua_player_toggle_video_track },
-    { "toggle_audio_track", vlclua_player_toggle_audio_track },
-    { "toggle_spu_track", vlclua_player_toggle_spu_track },
-    { "next_video_frame", vlclua_player_next_video_frame },
-    { "seek_by_pos_absolute", vlclua_player_seek_by_pos_absolute },
-    { "seek_by_pos_relative", vlclua_player_seek_by_pos_relative },
-    { "seek_by_time_absolute", vlclua_player_seek_by_time_absolute },
-    { "seek_by_time_relative", vlclua_player_seek_by_time_relative },
-    { "get_audio_delay", vlclua_player_get_audio_delay },
-    { "set_audio_delay", vlclua_player_set_audio_delay },
-    { "get_subtitle_delay", vlclua_player_get_subtitle_delay },
-    { "set_subtitle_delay", vlclua_player_set_subtitle_delay },
+static const luaL_Reg heimdalllua_input_reg[] = {
+    { "is_playing", heimdalllua_input_is_playing },
+    { "item", heimdalllua_input_item_get_current },
+    { "add_subtitle", heimdalllua_input_add_subtitle_path },
+    { "add_subtitle_mrl", heimdalllua_input_add_subtitle_mrl },
+    { "get_title_index", heimdalllua_player_get_title_index },
+    { "get_titles_count", heimdalllua_player_get_titles_count },
+    { "title_next", heimdalllua_player_title_next },
+    { "title_prev", heimdalllua_player_title_prev },
+    { "title_goto", heimdalllua_player_title_goto },
+    { "get_chapter_index", heimdalllua_player_get_chapter_index },
+    { "get_chapters_count", heimdalllua_player_get_chapters_count },
+    { "chapter_next", heimdalllua_player_chapter_next },
+    { "chapter_prev", heimdalllua_player_chapter_prev },
+    { "chapter_goto", heimdalllua_player_chapter_goto },
+    { "get_time", heimdalllua_player_get_time },
+    { "get_position", heimdalllua_player_get_position },
+    { "get_rate", heimdalllua_player_get_rate },
+    { "set_rate", heimdalllua_player_set_rate },
+    { "increment_rate", heimdalllua_player_increment_rate },
+    { "decrement_rate", heimdalllua_player_decrement_rate },
+    { "get_video_tracks", heimdalllua_player_get_video_tracks },
+    { "get_audio_tracks", heimdalllua_player_get_audio_tracks },
+    { "get_spu_tracks", heimdalllua_player_get_spu_tracks },
+    { "toggle_video_track", heimdalllua_player_toggle_video_track },
+    { "toggle_audio_track", heimdalllua_player_toggle_audio_track },
+    { "toggle_spu_track", heimdalllua_player_toggle_spu_track },
+    { "next_video_frame", heimdalllua_player_next_video_frame },
+    { "seek_by_pos_absolute", heimdalllua_player_seek_by_pos_absolute },
+    { "seek_by_pos_relative", heimdalllua_player_seek_by_pos_relative },
+    { "seek_by_time_absolute", heimdalllua_player_seek_by_time_absolute },
+    { "seek_by_time_relative", heimdalllua_player_seek_by_time_relative },
+    { "get_audio_delay", heimdalllua_player_get_audio_delay },
+    { "set_audio_delay", heimdalllua_player_set_audio_delay },
+    { "get_subtitle_delay", heimdalllua_player_get_subtitle_delay },
+    { "set_subtitle_delay", heimdalllua_player_set_subtitle_delay },
     { NULL, NULL }
 };
 
 void luaopen_input( lua_State *L )
 {
     lua_newtable( L );
-    luaL_register( L, NULL, vlclua_input_reg );
+    luaL_register( L, NULL, heimdalllua_input_reg );
     lua_setfield( L, -2, "player" );
 }
 
-static const luaL_Reg vlclua_input_item_reg[] = {
-    { "is_preparsed", vlclua_input_item_is_preparsed },
-    { "metas", vlclua_input_item_metas },
-    { "set_meta", vlclua_input_item_set_meta },
-    { "uri", vlclua_input_item_uri },
-    { "name", vlclua_input_item_name },
-    { "duration", vlclua_input_item_duration },
-    { "stats", vlclua_input_item_stats },
-    { "info", vlclua_input_item_info },
+static const luaL_Reg heimdalllua_input_item_reg[] = {
+    { "is_preparsed", heimdalllua_input_item_is_preparsed },
+    { "metas", heimdalllua_input_item_metas },
+    { "set_meta", heimdalllua_input_item_set_meta },
+    { "uri", heimdalllua_input_item_uri },
+    { "name", heimdalllua_input_item_name },
+    { "duration", heimdalllua_input_item_duration },
+    { "stats", heimdalllua_input_item_stats },
+    { "info", heimdalllua_input_item_info },
     { NULL, NULL }
 };
 
-int vlclua_input_item_get( lua_State *L, input_item_t *p_item )
+int heimdalllua_input_item_get( lua_State *L, input_item_t *p_item )
 {
     input_item_Hold( p_item );
     input_item_t **pp = lua_newuserdata( L, sizeof( input_item_t* ) );
@@ -887,9 +888,9 @@ int vlclua_input_item_get( lua_State *L, input_item_t *p_item )
     if( luaL_newmetatable( L, "input_item" ) )
     {
         lua_newtable( L );
-        luaL_register( L, NULL, vlclua_input_item_reg );
+        luaL_register( L, NULL, heimdalllua_input_item_reg );
         lua_setfield( L, -2, "__index" );
-        lua_pushcfunction( L, vlclua_input_item_delete );
+        lua_pushcfunction( L, heimdalllua_input_item_delete );
         lua_setfield( L, -2, "__gc" );
     }
 
@@ -902,6 +903,6 @@ int vlclua_input_item_get( lua_State *L, input_item_t *p_item )
 void luaopen_input_item( lua_State *L, input_item_t *item )
 {
     assert(item);
-    vlclua_input_item_get( L, item );
+    heimdalllua_input_item_get( L, item );
     lua_setfield( L, -2, "item" );
 }

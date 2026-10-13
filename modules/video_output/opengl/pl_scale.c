@@ -2,6 +2,7 @@
  * pl_scale.c
  *****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -24,14 +25,14 @@
 
 #include "limits.h"
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_picture.h>
-#include <vlc_plugin.h>
-#include <vlc_modules.h>
-#include <vlc_opengl.h>
-#include <vlc_filter.h>
-#include <vlc_opengl_filter.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_picture.h>
+#include <heimdall_plugin.h>
+#include <heimdall_modules.h>
+#include <heimdall_opengl.h>
+#include <heimdall_filter.h>
+#include <heimdall_opengl_filter.h>
 
 #include <libplacebo/log.h>
 #include <libplacebo/gpu.h>
@@ -53,7 +54,7 @@ static const char *const filter_options[] = {
 
 struct sys
 {
-    struct vlc_gl_api api;
+    struct heimdall_gl_api api;
     GLuint id;
     GLuint vbo;
 
@@ -98,11 +99,11 @@ WrapTextures(pl_gpu gpu, unsigned count, const GLuint textures[],
         {
             if (i)
                 DestroyTextures(gpu, i - 1, out);
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static pl_tex
@@ -119,14 +120,14 @@ WrapFramebuffer(pl_gpu gpu, GLuint framebuffer, unsigned width, unsigned height)
 }
 
 static int
-Draw(struct vlc_gl_filter *filter, const struct vlc_gl_picture *pic,
-     const struct vlc_gl_input_meta *meta)
+Draw(struct heimdall_gl_filter *filter, const struct heimdall_gl_picture *pic,
+     const struct heimdall_gl_input_meta *meta)
 {
     (void) meta;
 
     struct sys *sys = filter->sys;
     const opengl_vtable_t *vt = &sys->api.vt;
-    struct vlc_gl_sampler *sampler = filter->sampler;
+    struct heimdall_gl_sampler *sampler = filter->sampler;
     pl_gpu gpu = sys->pl_opengl->gpu;
     struct pl_frame *frame_in = &sys->frame_in;
     struct pl_frame *frame_out = &sys->frame_out;
@@ -160,7 +161,7 @@ Draw(struct vlc_gl_filter *filter, const struct vlc_gl_picture *pic,
             rotated90 ? 0 : 1, 1,
         };
 
-        vlc_gl_picture_ToTexCoords(pic, 2, coords, coords);
+        heimdall_gl_picture_ToTexCoords(pic, 2, coords, coords);
 
         unsigned w = sampler->tex_widths[0];
         unsigned h = sampler->tex_heights[0];
@@ -172,7 +173,7 @@ Draw(struct vlc_gl_filter *filter, const struct vlc_gl_picture *pic,
     }
 
     if (frame_in->repr.dovi && meta->dovi_rpu) {
-        vlc_placebo_DoviMetadata(meta->dovi_rpu, &sys->dovi_metadata);
+        heimdall_placebo_DoviMetadata(meta->dovi_rpu, &sys->dovi_metadata);
         struct pl_hdr_metadata *hdr = &frame_in->color.hdr;
         const float scale = 1.0f / ((1 << 12) - 1);
         hdr->min_luma = pl_hdr_rescale(PL_HDR_PQ, PL_HDR_NITS,
@@ -189,7 +190,7 @@ Draw(struct vlc_gl_filter *filter, const struct vlc_gl_picture *pic,
     int ret = WrapTextures(gpu, sampler->tex_count, pic->textures,
                            sampler->tex_widths, sampler->tex_heights,
                            sampler->tex_target, texs_in);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
         goto end;
 
     /* Only changes the plane textures from the cached pl_frame */
@@ -206,7 +207,7 @@ Draw(struct vlc_gl_filter *filter, const struct vlc_gl_picture *pic,
     bool ok = pl_render_image(sys->pl_renderer, frame_in, frame_out,
                               render_params);
     if (!ok)
-        ret = VLC_EGENERIC;
+        ret = HEIMDALL_EGENERIC;
 
     DestroyTextures(gpu, 1, &tex_out);
 destroy_texs_in:
@@ -219,9 +220,9 @@ end:
 }
 
 static int
-RequestOutputSize(struct vlc_gl_filter *filter,
-                  struct vlc_gl_tex_size *req,
-                  struct vlc_gl_tex_size *optimal_in)
+RequestOutputSize(struct heimdall_gl_filter *filter,
+                  struct heimdall_gl_tex_size *req,
+                  struct heimdall_gl_tex_size *optimal_in)
 {
     struct sys *sys = filter->sys;
 
@@ -231,11 +232,11 @@ RequestOutputSize(struct vlc_gl_filter *filter,
     /* Do not propagate resizing to previous filters */
     (void) optimal_in;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void
-Close(struct vlc_gl_filter *filter)
+Close(struct heimdall_gl_filter *filter)
 {
     struct sys *sys = filter->sys;
 
@@ -246,10 +247,10 @@ Close(struct vlc_gl_filter *filter)
     free(sys);
 }
 
-static vlc_gl_filter_open_fn Open;
+static heimdall_gl_filter_open_fn Open;
 static int
-Open(struct vlc_gl_filter *filter, const config_chain_t *config,
-     struct vlc_gl_sampler *sampler, struct vlc_gl_tex_size *size_out)
+Open(struct heimdall_gl_filter *filter, const config_chain_t *config,
+     struct heimdall_gl_sampler *sampler, struct heimdall_gl_tex_size *size_out)
 {
     (void) config;
 
@@ -266,28 +267,28 @@ Open(struct vlc_gl_filter *filter, const config_chain_t *config,
             || upscaler == SCALE_CUSTOM)
     {
         msg_Err(filter, "Unsupported upscaler: %d", upscaler);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if (downscaler < 0 || (size_t) downscaler >= ARRAY_SIZE(scale_values)
             || downscaler == SCALE_CUSTOM)
     {
         msg_Err(filter, "Unsupported downscaler: %d", downscaler);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     struct sys *sys = filter->sys = calloc(1, sizeof(*sys));
     if (!sys)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    int ret = vlc_gl_api_Init(&sys->api, filter->gl);
-    if (ret != VLC_SUCCESS)
+    int ret = heimdall_gl_api_Init(&sys->api, filter->gl);
+    if (ret != HEIMDALL_SUCCESS)
     {
         free(sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    sys->pl_log = vlc_placebo_CreateLog(VLC_OBJECT(filter));
+    sys->pl_log = heimdall_placebo_CreateLog(HEIMDALL_OBJECT(filter));
 
     struct pl_opengl_params opengl_params = {
         .debug = true,
@@ -304,8 +305,8 @@ Open(struct vlc_gl_filter *filter, const config_chain_t *config,
 
     sys->frame_in = (struct pl_frame) {
         .num_planes = sampler->tex_count,
-        .repr = vlc_placebo_ColorRepr(&sampler->fmt_in),
-        .color = vlc_placebo_ColorSpace(&sampler->fmt_in),
+        .repr = heimdall_placebo_ColorRepr(&sampler->fmt_in),
+        .color = heimdall_placebo_ColorSpace(&sampler->fmt_in),
     };
 
     if (sampler->fmt_in.dovi.rpu_present && !sampler->fmt_in.dovi.el_present) {
@@ -317,7 +318,7 @@ Open(struct vlc_gl_filter *filter, const config_chain_t *config,
 
     /* Initialize frame_in.planes */
     int plane_count =
-        vlc_placebo_PlaneComponents(&sampler->fmt_in, sys->frame_in.planes);
+        heimdall_placebo_PlaneComponents(&sampler->fmt_in, sys->frame_in.planes);
     if ((unsigned) plane_count != sampler->tex_count) {
         msg_Err(filter, "Unexpected plane count (%d) != tex count (%u)",
                         plane_count, sampler->tex_count);
@@ -347,7 +348,7 @@ Open(struct vlc_gl_filter *filter, const config_chain_t *config,
     int downscaler_idx = libplacebo_scale_map[downscaler];
     sys->render_params.downscaler = scale_config[downscaler_idx];
 
-    static const struct vlc_gl_filter_ops ops = {
+    static const struct heimdall_gl_filter_ops ops = {
         .draw = Draw,
         .close = Close,
         .request_output_size = RequestOutputSize,
@@ -357,7 +358,7 @@ Open(struct vlc_gl_filter *filter, const config_chain_t *config,
     sys->out_width = size_out->width = width;
     sys->out_height = size_out->height = height;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     pl_renderer_destroy(&sys->pl_renderer);
@@ -365,10 +366,10 @@ error:
     pl_log_destroy(&sys->pl_log);
     free(sys);
 
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname("pl_scale")
     set_description("OpenGL scaler")
     set_subcategory(SUBCAT_VIDEO_VFILTER)
@@ -387,4 +388,4 @@ vlc_module_begin()
     add_integer(CFG_PREFIX "downscaler", SCALE_BUILTIN, DOWNSCALER_TEXT, \
                 DOWNSCALER_LONGTEXT) \
         change_integer_list(scale_values, scale_text) \
-vlc_module_end()
+heimdall_module_end()

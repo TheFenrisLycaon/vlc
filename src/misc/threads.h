@@ -1,8 +1,9 @@
 /*****************************************************************************
- * threads.h : core internal threads implementation for the VideoLAN client
+ * threads.h : core internal threads implementation for the Lycaria client
  *****************************************************************************
  * Copyright (C) 1999, 2002 VLC authors and VideoLAN
  * Copyright © 2007-2016 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Jean-Marc Dressler <polux@via.ecp.fr>
  *          Samuel Hocevar <sam@via.ecp.fr>
@@ -24,10 +25,10 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_CORE_THREADS_H_
-#define VLC_CORE_THREADS_H_
+#ifndef HEIMDALL_CORE_THREADS_H_
+#define HEIMDALL_CORE_THREADS_H_
 
-#include <vlc_threads.h>
+#include <heimdall_threads.h>
 
 /*
  * Queued mutex
@@ -35,7 +36,7 @@
  * A queued mutex is a type of thread-safe mutual exclusion lock that is
  * acquired in strict FIFO order.
  *
- * In most cases, a regular mutex (\ref vlc_mutex_t) should be used instead.
+ * In most cases, a regular mutex (\ref heimdall_mutex_t) should be used instead.
  * There are important differences:
  * - A queued mutex is generally slower, especially on the fast path.
  * - A queued mutex cannot be combined with a condition variable.
@@ -47,15 +48,15 @@ typedef struct {
     atomic_uint head;
     atomic_uint tail;
     atomic_ulong owner;
-} vlc_queuedmutex_t;
+} heimdall_queuedmutex_t;
 
-#define VLC_STATIC_QUEUEDMUTEX { 0, 0, 0 }
+#define HEIMDALL_STATIC_QUEUEDMUTEX { 0, 0, 0 }
 
-void vlc_queuedmutex_init(vlc_queuedmutex_t *m);
+void heimdall_queuedmutex_init(heimdall_queuedmutex_t *m);
 
-void vlc_queuedmutex_lock(vlc_queuedmutex_t *m);
+void heimdall_queuedmutex_lock(heimdall_queuedmutex_t *m);
 
-void vlc_queuedmutex_unlock(vlc_queuedmutex_t *m);
+void heimdall_queuedmutex_unlock(heimdall_queuedmutex_t *m);
 
 /**
  * Checks if a queued mutex is locked.
@@ -65,13 +66,13 @@ void vlc_queuedmutex_unlock(vlc_queuedmutex_t *m);
  * run-time debugging.
  *
  * @note To assert that the calling thread holds a lock, the helper macro
- * vlc_queuedmutex_assert() should be used instead of this function.
+ * heimdall_queuedmutex_assert() should be used instead of this function.
  *
  * @retval false the mutex is not locked by the calling thread
  * @retval true the mutex is locked by the calling thread
  */
-bool vlc_queuedmutex_held(vlc_queuedmutex_t *m);
+bool heimdall_queuedmutex_held(heimdall_queuedmutex_t *m);
 
-#define vlc_queuedmutex_assert(m) assert(vlc_queuedmutex_held(m))
+#define heimdall_queuedmutex_assert(m) assert(heimdall_queuedmutex_held(m))
 
-#endif /* !VLC_CORE_THREADS_H_ */
+#endif /* !HEIMDALL_CORE_THREADS_H_ */

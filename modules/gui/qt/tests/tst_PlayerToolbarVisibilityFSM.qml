@@ -17,8 +17,8 @@
  *****************************************************************************/
 import QtQuick
 import QtTest
-import VLC.MainInterface
-import VLC.Player
+import Heimdall.MainInterface
+import Heimdall.Player
 
 // Safety net: when the player's top and bottom bars show and hide.
 TestCase {

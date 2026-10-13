@@ -2,6 +2,7 @@
  * timestamps_filter.c:
  *****************************************************************************
  * Copyright © 2019 VideoLabs, VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -25,9 +26,9 @@
 #undef NDEBUG
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_es.h>
-#include <vlc_block.h>
+#include <heimdall_common.h>
+#include <heimdall_es.h>
+#include <heimdall_block.h>
 #include "../../../modules/demux/moving_avg.h"
 #define DEBUG_TIMESTAMPS_FILTER
 #include "../../../modules/demux/timestamps_filter.h"
@@ -37,38 +38,38 @@
 
 static int trash_es_out_Control(es_out_t *out, input_source_t *in, int i_query, va_list va_list)
 {
-    VLC_UNUSED(i_query);
-    VLC_UNUSED(out);
-    VLC_UNUSED(in);
-    VLC_UNUSED(va_list);
-    return VLC_EGENERIC;
+    HEIMDALL_UNUSED(i_query);
+    HEIMDALL_UNUSED(out);
+    HEIMDALL_UNUSED(in);
+    HEIMDALL_UNUSED(va_list);
+    return HEIMDALL_EGENERIC;
 }
 
 static int trash_es_out_Send(es_out_t *out, es_out_id_t *id, block_t *p_block)
 {
-    VLC_UNUSED(out);
-    VLC_UNUSED(id);
-    VLC_UNUSED(p_block); /* We will reuse it ! */
-    return VLC_SUCCESS;
+    HEIMDALL_UNUSED(out);
+    HEIMDALL_UNUSED(id);
+    HEIMDALL_UNUSED(p_block); /* We will reuse it ! */
+    return HEIMDALL_SUCCESS;
 }
 
 static void trash_es_out_Delete(es_out_t *out)
 {
-    VLC_UNUSED(out);
+    HEIMDALL_UNUSED(out);
 }
 
 static es_out_id_t *trash_es_out_Add(es_out_t *out, input_source_t *in, const es_format_t *fmt)
 {
-    VLC_UNUSED(out);
-    VLC_UNUSED(in);
-    VLC_UNUSED(fmt);
+    HEIMDALL_UNUSED(out);
+    HEIMDALL_UNUSED(in);
+    HEIMDALL_UNUSED(fmt);
     return ESID(fmt->i_id);
 }
 
 static void trash_es_out_Del(es_out_t *out, es_out_id_t *id)
 {
-    VLC_UNUSED(out);
-    VLC_UNUSED(id);
+    HEIMDALL_UNUSED(out);
+    HEIMDALL_UNUSED(id);
 }
 
 static const struct es_out_callbacks trash_es_out_cbs =
@@ -99,7 +100,7 @@ int main(void)
     es_format_t fmt;
     int64_t i_pcrtime;
 
-    es_format_Init(&fmt, VIDEO_ES, VLC_FOURCC('V','I','D','E'));
+    es_format_Init(&fmt, VIDEO_ES, HEIMDALL_FOURCC('V','I','D','E'));
     fmt.i_id = 0;
     assert(es_out_Add(out, &fmt) == ESID(0));
     p_block->i_dts = TIMELINE_0 + 0;
@@ -113,13 +114,13 @@ int main(void)
     p_block->i_dts = TIMELINE_0 +300;
     es_out_Send(out, ESID(0), p_block);
     es_out_SetPCR(out, TIMELINE_0 +300);
-    assert(es_out_Control(out, ES_OUT_TF_FILTER_GET_TIME, &i_pcrtime) == VLC_SUCCESS);
+    assert(es_out_Control(out, ES_OUT_TF_FILTER_GET_TIME, &i_pcrtime) == HEIMDALL_SUCCESS);
     assert(i_pcrtime == TIMELINE_0 + 300);
 
     /* New Timeline: Handle PTS jump in the future */
     p_block->i_dts = TIMELINE_1 + 0;
     es_out_SetPCR(out, p_block->i_dts);
-    assert(es_out_Control(out, ES_OUT_TF_FILTER_GET_TIME, &i_pcrtime) == VLC_SUCCESS);
+    assert(es_out_Control(out, ES_OUT_TF_FILTER_GET_TIME, &i_pcrtime) == HEIMDALL_SUCCESS);
     assert(i_pcrtime == TIMELINE_0 + 300);
 
     es_out_Send(out, ESID(0), p_block);
@@ -131,12 +132,12 @@ int main(void)
     /* New Timeline: Handle PTS jump in the past */
     p_block->i_dts = TIMELINE_2 + 0;
     es_out_SetPCR(out, p_block->i_dts);
-    assert(es_out_Control(out, ES_OUT_TF_FILTER_GET_TIME, &i_pcrtime) == VLC_SUCCESS);
+    assert(es_out_Control(out, ES_OUT_TF_FILTER_GET_TIME, &i_pcrtime) == HEIMDALL_SUCCESS);
     assert(i_pcrtime == TIMELINE_0 + 300);
     es_out_Send(out, ESID(0), p_block);
     assert(p_block->i_dts == TIMELINE_0 + 600);
 
-    es_format_Init(&fmt, VIDEO_ES, VLC_FOURCC('V','I','D','2'));
+    es_format_Init(&fmt, VIDEO_ES, HEIMDALL_FOURCC('V','I','D','2'));
     fmt.i_id = 1;
     assert(es_out_Add(out, &fmt) == ESID(1));
     p_block->i_dts = TIMELINE_2 + 333;
@@ -150,7 +151,7 @@ int main(void)
         assert(p_block->i_dts == i_pcrtime + i * 333);
     }
 
-    es_format_Init(&fmt, SPU_ES, VLC_FOURCC('S','P','U','0'));
+    es_format_Init(&fmt, SPU_ES, HEIMDALL_FOURCC('S','P','U','0'));
     fmt.i_id = 2;
     assert(es_out_Add(out, &fmt) == ESID(2));
     p_block->i_dts = TIMELINE_2;
@@ -161,12 +162,12 @@ int main(void)
     assert(p_block->i_dts == i_pcrtime + CLOCK_FREQ);
 
     /* Test Reset */
-    assert(es_out_Control(out, ES_OUT_TF_FILTER_RESET) == VLC_SUCCESS);
-    assert(es_out_Control(out, ES_OUT_TF_FILTER_GET_TIME, &i_pcrtime) == VLC_SUCCESS);
-    assert(i_pcrtime == VLC_TICK_INVALID);
+    assert(es_out_Control(out, ES_OUT_TF_FILTER_RESET) == HEIMDALL_SUCCESS);
+    assert(es_out_Control(out, ES_OUT_TF_FILTER_GET_TIME, &i_pcrtime) == HEIMDALL_SUCCESS);
+    assert(i_pcrtime == HEIMDALL_TICK_INVALID);
 
     /* Test PCR interpolation */
-    es_format_Init(&fmt, VIDEO_ES, VLC_FOURCC('V','I','D','E'));
+    es_format_Init(&fmt, VIDEO_ES, HEIMDALL_FOURCC('V','I','D','E'));
     fmt.i_id = 0;
     assert(es_out_Add(out, &fmt) == ESID(0));
     p_block->i_dts = TIMELINE_0 + 0;
@@ -181,18 +182,18 @@ int main(void)
     es_out_SetPCR(out, TIMELINE_0 +300);
     es_out_SetPCR(out, TIMELINE_0 +400);
     es_out_SetPCR(out, TIMELINE_0 +500);
-    assert(es_out_Control(out, ES_OUT_TF_FILTER_GET_TIME, &i_pcrtime) == VLC_SUCCESS);
+    assert(es_out_Control(out, ES_OUT_TF_FILTER_GET_TIME, &i_pcrtime) == HEIMDALL_SUCCESS);
     assert(i_pcrtime == TIMELINE_0 +500);
 
-    assert(es_out_Control(out, ES_OUT_TF_FILTER_DISCONTINUITY) == VLC_SUCCESS);
-    assert(es_out_Control(out, ES_OUT_TF_FILTER_GET_TIME, &i_pcrtime) == VLC_SUCCESS);
+    assert(es_out_Control(out, ES_OUT_TF_FILTER_DISCONTINUITY) == HEIMDALL_SUCCESS);
+    assert(es_out_Control(out, ES_OUT_TF_FILTER_GET_TIME, &i_pcrtime) == HEIMDALL_SUCCESS);
     assert(i_pcrtime == TIMELINE_0 +500);
 
     es_out_SetPCR(out, TIMELINE_1 +0);
-    assert(es_out_Control(out, ES_OUT_TF_FILTER_GET_TIME, &i_pcrtime) == VLC_SUCCESS);
+    assert(es_out_Control(out, ES_OUT_TF_FILTER_GET_TIME, &i_pcrtime) == HEIMDALL_SUCCESS);
     assert(i_pcrtime == TIMELINE_0 +600);
 
-    es_format_Init(&fmt, SPU_ES, VLC_FOURCC('S','P','U','0'));
+    es_format_Init(&fmt, SPU_ES, HEIMDALL_FOURCC('S','P','U','0'));
     fmt.i_id = 2;
     assert(es_out_Add(out, &fmt) == ESID(2));
     p_block->i_dts = TIMELINE_1 + 100;
@@ -200,7 +201,7 @@ int main(void)
     assert(p_block->i_dts == TIMELINE_0 + 700);
 
     es_out_SetPCR(out, TIMELINE_2 +0);
-    assert(es_out_Control(out, ES_OUT_TF_FILTER_GET_TIME, &i_pcrtime) == VLC_SUCCESS);
+    assert(es_out_Control(out, ES_OUT_TF_FILTER_GET_TIME, &i_pcrtime) == HEIMDALL_SUCCESS);
     assert(i_pcrtime == TIMELINE_0 +700);
     p_block->i_dts = TIMELINE_2 + 300;
     es_out_Send(out, ESID(2), p_block);

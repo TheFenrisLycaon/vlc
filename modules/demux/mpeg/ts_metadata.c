@@ -2,6 +2,7 @@
  * ts_metadata.c : TS demuxer metadata handling
  *****************************************************************************
  * Copyright (C) 2016 - VideoLAN Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -20,10 +21,10 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_meta.h>
-#include <vlc_es_out.h>
-#include <vlc_block.h>
+#include <heimdall_common.h>
+#include <heimdall_meta.h>
+#include <heimdall_es_out.h>
+#include <heimdall_block.h>
 
 #include "ts_pid.h"
 #include "ts_streams.h"
@@ -38,11 +39,11 @@
 static int ID3TAG_Parse_Handler( uint32_t i_tag, const uint8_t *p_payload,
                                  size_t i_payload, void *p_priv )
 {
-    vlc_meta_t *p_meta = (vlc_meta_t *) p_priv;
+    heimdall_meta_t *p_meta = (heimdall_meta_t *) p_priv;
 
     (void) ID3HandleTag( p_payload, i_payload, i_tag, p_meta, NULL );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 typedef struct
@@ -176,12 +177,12 @@ static block_t * Metadata_stream_processor_Push( ts_stream_processor_t *h, uint8
     if( i_stream_id == 0xbd && /* Transport in PES packets, 2.12.3 */
         p_es->metadata.i_format_identifier == METADATA_IDENTIFIER_ID3 )
     {
-        vlc_meta_t *p_meta = vlc_meta_New();
+        heimdall_meta_t *p_meta = heimdall_meta_New();
         if( p_meta )
         {
             (void) ID3TAG_Parse( p_block->p_buffer, p_block->i_buffer, ID3TAG_Parse_Handler, p_meta );
             es_out_Control( ctx->out, ES_OUT_SET_GROUP_META, p_es->p_program->i_number, p_meta );
-            vlc_meta_Delete( p_meta );
+            heimdall_meta_Delete( p_meta );
         }
     }
 

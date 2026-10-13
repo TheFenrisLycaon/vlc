@@ -19,6 +19,7 @@
 // original code from the Chromium project
 
 // Copyright 2017 The Chromium Authors. All rights reserved.
+ * Copyright (C) 2026 TheFenrisLycaon
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -53,14 +54,14 @@ const int kNavButtonIconSize = 16;
 const int kHeaderSpacing = 6;
 
 const char* ButtonStyleClassFromButtonType(
-        vlc_qt_theme_csd_button_type type) {
+        heimdall_qt_theme_csd_button_type type) {
     switch (type) {
-    case VLC_QT_THEME_BUTTON_MINIMIZE:
+    case HEIMDALL_QT_THEME_BUTTON_MINIMIZE:
         return "minimize";
-    case VLC_QT_THEME_BUTTON_MAXIMIZE:
-    case VLC_QT_THEME_BUTTON_RESTORE:
+    case HEIMDALL_QT_THEME_BUTTON_MAXIMIZE:
+    case HEIMDALL_QT_THEME_BUTTON_RESTORE:
         return "maximize";
-    case VLC_QT_THEME_BUTTON_CLOSE:
+    case HEIMDALL_QT_THEME_BUTTON_CLOSE:
         return "close";
     default:
         assert("unreachable" == 0);
@@ -68,16 +69,16 @@ const char* ButtonStyleClassFromButtonType(
     }
 }
 
-GtkStateFlags GtkStateFlagsFromButtonState(vlc_qt_theme_csd_button_state state) {
+GtkStateFlags GtkStateFlagsFromButtonState(heimdall_qt_theme_csd_button_state state) {
     switch (state) {
-    case VLC_QT_THEME_BUTTON_STATE_NORMAL:
+    case HEIMDALL_QT_THEME_BUTTON_STATE_NORMAL:
         return GTK_STATE_FLAG_NORMAL;
-    case VLC_QT_THEME_BUTTON_STATE_HOVERED:
+    case HEIMDALL_QT_THEME_BUTTON_STATE_HOVERED:
         return GTK_STATE_FLAG_PRELIGHT;
-    case VLC_QT_THEME_BUTTON_STATE_PRESSED:
+    case HEIMDALL_QT_THEME_BUTTON_STATE_PRESSED:
         return static_cast<GtkStateFlags>(GTK_STATE_FLAG_PRELIGHT |
                                           GTK_STATE_FLAG_ACTIVE);
-    case VLC_QT_THEME_BUTTON_STATE_DISABLED:
+    case HEIMDALL_QT_THEME_BUTTON_STATE_DISABLED:
         return GTK_STATE_FLAG_INSENSITIVE;
     default:
         assert("unreachable" == 0);
@@ -85,15 +86,15 @@ GtkStateFlags GtkStateFlagsFromButtonState(vlc_qt_theme_csd_button_state state) 
     }
 }
 
-const char* IconNameFromButtonType(vlc_qt_theme_csd_button_type type) {
+const char* IconNameFromButtonType(heimdall_qt_theme_csd_button_type type) {
     switch (type) {
-    case VLC_QT_THEME_BUTTON_MINIMIZE:
+    case HEIMDALL_QT_THEME_BUTTON_MINIMIZE:
         return "window-minimize-symbolic";
-    case VLC_QT_THEME_BUTTON_MAXIMIZE:
+    case HEIMDALL_QT_THEME_BUTTON_MAXIMIZE:
         return "window-maximize-symbolic";
-    case VLC_QT_THEME_BUTTON_RESTORE:
+    case HEIMDALL_QT_THEME_BUTTON_RESTORE:
         return "window-restore-symbolic";
-    case VLC_QT_THEME_BUTTON_CLOSE:
+    case HEIMDALL_QT_THEME_BUTTON_CLOSE:
         return "window-close-symbolic";
     default:
         assert("unreachable" == 0);
@@ -102,7 +103,7 @@ const char* IconNameFromButtonType(vlc_qt_theme_csd_button_type type) {
 }
 
 MySize LoadNavButtonIcon(
-        vlc_qt_theme_csd_button_type type,
+        heimdall_qt_theme_csd_button_type type,
         GtkStyleContext* button_context,
         int scale,
         NavButtonIcon* icon = nullptr) {
@@ -216,7 +217,7 @@ GtkCssContext CreateWindowControlsContext(bool maximized) {
 }
 
 void CalculateUnscaledButtonSize(
-        vlc_qt_theme_csd_button_type type,
+        heimdall_qt_theme_csd_button_type type,
         bool maximized,
         MySize* button_size,
         MyInset* button_margin) {
@@ -245,8 +246,8 @@ void CalculateUnscaledButtonSize(
 
 class NavButtonImageSource {
 public:
-    NavButtonImageSource(vlc_qt_theme_csd_button_type type,
-                         vlc_qt_theme_csd_button_state state,
+    NavButtonImageSource(heimdall_qt_theme_csd_button_type type,
+                         heimdall_qt_theme_csd_button_state state,
                          bool maximized,
                          bool active,
                          MySize button_size)
@@ -259,7 +260,7 @@ public:
 
     ~NavButtonImageSource() = default;
 
-    VLCPicturePtr GetImageForScale(float scale) {
+    HeimdallPicturePtr GetImageForScale(float scale) {
         // gfx::ImageSkia kindly caches the result of this function, so
         // RenderNavButton() is called at most once for each needed scale
         // factor.  Additionally, buttons in the HOVERED or PRESSED states
@@ -343,8 +344,8 @@ public:
         auto icon_size =
                 LoadNavButtonIcon(type_, icon_context, pixbuf_scale, &icon);
 
-        VLCPicturePtr bitmap(
-                    VLC_CODEC_ARGB,
+        HeimdallPicturePtr bitmap(
+                    HEIMDALL_CODEC_ARGB,
                     scale * button_size_.width(),
                     scale * button_size_.height());
 
@@ -386,8 +387,8 @@ public:
     bool HasRepresentationAtAllScales() const { return true; }
 
 private:
-    vlc_qt_theme_csd_button_type type_;
-    vlc_qt_theme_csd_button_state state_;
+    heimdall_qt_theme_csd_button_type type_;
+    heimdall_qt_theme_csd_button_state state_;
     bool maximized_;
     bool active_;
     MySize button_size_;
@@ -407,15 +408,15 @@ void NavButtonProviderGtk::RedrawImages(int top_area_height,
     MyInset header_padding = GtkStyleContextGetPadding(header_context);
 
     double scale = 1.0f;
-    std::map<vlc_qt_theme_csd_button_type, MySize>
+    std::map<heimdall_qt_theme_csd_button_type, MySize>
             button_sizes;
-    std::map<vlc_qt_theme_csd_button_type, MyInset>
+    std::map<heimdall_qt_theme_csd_button_type, MyInset>
             button_margins;
-    std::vector<vlc_qt_theme_csd_button_type> display_types{
-        VLC_QT_THEME_BUTTON_MINIMIZE,
-        maximized ? VLC_QT_THEME_BUTTON_RESTORE
-                  : VLC_QT_THEME_BUTTON_MAXIMIZE,
-        VLC_QT_THEME_BUTTON_CLOSE,
+    std::vector<heimdall_qt_theme_csd_button_type> display_types{
+        HEIMDALL_QT_THEME_BUTTON_MINIMIZE,
+        maximized ? HEIMDALL_QT_THEME_BUTTON_RESTORE
+                  : HEIMDALL_QT_THEME_BUTTON_MAXIMIZE,
+        HEIMDALL_QT_THEME_BUTTON_CLOSE,
     };
     for (auto type : display_types) {
         CalculateUnscaledButtonSize(type, maximized, &button_sizes[type],
@@ -459,8 +460,8 @@ void NavButtonProviderGtk::RedrawImages(int top_area_height,
 
         button_margins_[type] = margin;
 
-        for (size_t state = 0; state < VLC_QT_THEME_BUTTON_STATE_COUNT; state++) {
-            auto buttonState = static_cast<vlc_qt_theme_csd_button_state>(state);
+        for (size_t state = 0; state < HEIMDALL_QT_THEME_BUTTON_STATE_COUNT; state++) {
+            auto buttonState = static_cast<heimdall_qt_theme_csd_button_state>(state);
             std::unique_ptr<NavButtonImageSource> source = std::make_unique<NavButtonImageSource>(
                                     type, buttonState,
                                     maximized, active, size);
@@ -469,9 +470,9 @@ void NavButtonProviderGtk::RedrawImages(int top_area_height,
     }
 }
 
-VLCPicturePtr NavButtonProviderGtk::GetImage(
-        vlc_qt_theme_csd_button_type type,
-        vlc_qt_theme_csd_button_state state) const {
+HeimdallPicturePtr NavButtonProviderGtk::GetImage(
+        heimdall_qt_theme_csd_button_type type,
+        heimdall_qt_theme_csd_button_state state) const {
     auto it = button_images_.find(type);
     assert(it != button_images_.end());
     auto picIt = it->second.find(state);
@@ -480,7 +481,7 @@ VLCPicturePtr NavButtonProviderGtk::GetImage(
 }
 
 MyInset NavButtonProviderGtk::GetNavButtonMargin(
-        vlc_qt_theme_csd_button_type type) const {
+        heimdall_qt_theme_csd_button_type type) const {
     auto it = button_margins_.find(type);
     assert(it != button_margins_.end());
     return it->second;

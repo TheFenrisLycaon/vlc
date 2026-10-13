@@ -2,6 +2,7 @@
  * imageupdater.h : TTML image to SPU updater
  *****************************************************************************
  * Copyright © 2018 Videolabs, VideoLAN and VLC authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -16,7 +17,7 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
-#include <vlc_subpicture.h>
+#include <heimdall_subpicture.h>
 
 typedef struct ttml_image_updater_region_t ttml_image_updater_region_t;
 
@@ -74,7 +75,7 @@ static void TTML_ImageSpuAppendRegion(ttml_image_updater_sys_t *p_sys,
 }
 
 static void TTML_ImageSpuUpdate(subpicture_t *p_spu,
-                                const struct vlc_spu_updater_configuration *cfg)
+                                const struct heimdall_spu_updater_configuration *cfg)
 {
     ttml_image_updater_sys_t *p_sys = p_spu->updater.sys;
     const video_format_t *p_fmt_dst = cfg->current.video_dst;
@@ -83,7 +84,7 @@ static void TTML_ImageSpuUpdate(subpicture_t *p_spu,
         p_fmt_dst->i_visible_height == cfg->previous.video_dst->i_visible_height)
         return;
 
-    vlc_spu_regions_Clear( &p_spu->regions );
+    heimdall_spu_regions_Clear( &p_spu->regions );
 
     /* !WARN: SMPTE-TT image profile requires no scaling, and even it
               would, it does not store the necessary original pic size */
@@ -108,7 +109,7 @@ static void TTML_ImageSpuUpdate(subpicture_t *p_spu,
         else
             r->i_y = p_updtregion->origin.y;
 
-        vlc_spu_regions_push(&p_spu->regions, r);
+        heimdall_spu_regions_push(&p_spu->regions, r);
     }
 }
 
@@ -130,7 +131,7 @@ static inline subpicture_t *decoder_NewTTML_ImageSpu(decoder_t *p_dec)
     if(!p_sys)
         return NULL;
 
-    static const struct vlc_spu_updater_ops spu_ops =
+    static const struct heimdall_spu_updater_ops spu_ops =
     {
         .update   = TTML_ImageSpuUpdate,
         .destroy  = TTML_ImageSpuDestroy,

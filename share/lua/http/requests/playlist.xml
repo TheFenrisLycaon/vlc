@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes" ?>
-<?vlc --[[
+<?heimdall --[[
 vim:syntax=lua
 <!--  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - >
-<  playlist.xml: VLC media player web interface
+<  playlist.xml: Heimdall media player web interface
 < - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - >
 <  Copyright (C) 2005-2006 the VideoLAN team
 <
-<  Authors: Antoine Cellerier <dionoea -at- videolan -dot- org>
+<  Authors: Antoine Cellerier <dionoea -at- lycaria -dot- org>
 <  Authors: Rob Jonson <rob -at- hobbyistsoftware -dot- com>
 <
 <  This program is free software; you can redistribute it and/or modify
@@ -25,7 +25,7 @@ vim:syntax=lua
 < - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
 ]] ?>
 
-<?vlc
+<?heimdall
 
 --package.loaded.httprequests = nil --uncomment to debug changes
 local httprequests = require "httprequests"

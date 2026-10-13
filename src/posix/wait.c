@@ -1,7 +1,8 @@
 /*****************************************************************************
- * wait.c : pthread back-end for vlc_atomic_wait
+ * wait.c : pthread back-end for heimdall_atomic_wait
  *****************************************************************************
  * Copyright (C) 2019-2020 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,7 +23,7 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
 #include <stdalign.h>
 #include <stdatomic.h>
@@ -32,9 +33,9 @@
 #include <sys/types.h>
 #include <pthread.h>
 
-#include <vlc_atomic.h>
+#include <heimdall_atomic.h>
 
-static clockid_t vlc_clock_id = CLOCK_REALTIME;
+static clockid_t heimdall_clock_id = CLOCK_REALTIME;
 
 #define WAIT_BUCKET_INIT \
      { PTHREAD_MUTEX_INITIALIZER, PTHREAD_COND_INITIALIZER, 0 }
@@ -74,7 +75,7 @@ static void wait_bucket_leave(struct wait_bucket *bucket)
     pthread_mutex_unlock(&bucket->lock);
 }
 
-void vlc_atomic_wait(void *addr, unsigned value)
+void heimdall_atomic_wait(void *addr, unsigned value)
 {
     atomic_uint *futex = addr;
     struct wait_bucket *bucket = wait_bucket_enter(futex);
@@ -90,7 +91,7 @@ void vlc_atomic_wait(void *addr, unsigned value)
     wait_bucket_leave(bucket);
 }
 
-static int vlc_atomic_timedwait_timespec(void *addr, unsigned value,
+static int heimdall_atomic_timedwait_timespec(void *addr, unsigned value,
                                          const struct timespec *restrict ts)
 {
     atomic_uint *futex = addr;
@@ -109,16 +110,16 @@ static int vlc_atomic_timedwait_timespec(void *addr, unsigned value,
     return ret;
 }
 
-static void vlc_timespec_adjust(clockid_t cid, struct timespec *restrict ts)
+static void heimdall_timespec_adjust(clockid_t cid, struct timespec *restrict ts)
 {
     struct timespec now_from, now_to;
     lldiv_t d;
 
-    if (vlc_clock_id == cid)
+    if (heimdall_clock_id == cid)
         return;
 
     clock_gettime(cid, &now_from);
-    clock_gettime(vlc_clock_id, &now_to);
+    clock_gettime(heimdall_clock_id, &now_to);
 
     d = lldiv((ts->tv_sec - now_from.tv_sec + now_to.tv_sec) * 1000000000LL
               + ts->tv_nsec - now_from.tv_nsec + now_to.tv_nsec, 1000000000LL);
@@ -127,21 +128,21 @@ static void vlc_timespec_adjust(clockid_t cid, struct timespec *restrict ts)
     ts->tv_nsec = d.rem;
 }
 
-int vlc_atomic_timedwait(void *addr, unsigned value, vlc_tick_t deadline)
+int heimdall_atomic_timedwait(void *addr, unsigned value, heimdall_tick_t deadline)
 {
     struct timespec ts;
 
-    vlc_tick_to_timespec(&ts, deadline);
-    vlc_timespec_adjust(CLOCK_MONOTONIC, &ts);
-    return vlc_atomic_timedwait_timespec(addr, value, &ts);
+    heimdall_tick_to_timespec(&ts, deadline);
+    heimdall_timespec_adjust(CLOCK_MONOTONIC, &ts);
+    return heimdall_atomic_timedwait_timespec(addr, value, &ts);
 }
 
-void vlc_atomic_notify_one(void *addr)
+void heimdall_atomic_notify_one(void *addr)
 {
-    vlc_atomic_notify_all(addr);
+    heimdall_atomic_notify_all(addr);
 }
 
-void vlc_atomic_notify_all(void *addr)
+void heimdall_atomic_notify_all(void *addr)
 {
     struct wait_bucket *bucket = wait_bucket_get(addr);
 
@@ -153,7 +154,7 @@ void vlc_atomic_notify_all(void *addr)
 
 #ifdef __ELF__
 __attribute__((constructor))
-static void vlc_atomic_clock_select(void)
+static void heimdall_atomic_clock_select(void)
 {
     pthread_condattr_t attr;
 
@@ -164,11 +165,11 @@ static void vlc_atomic_clock_select(void)
         pthread_cond_init(&wait_buckets[i].wait, &attr);
 
     pthread_condattr_destroy(&attr);
-    vlc_clock_id = CLOCK_MONOTONIC;
+    heimdall_clock_id = CLOCK_MONOTONIC;
 }
 
 __attribute__((destructor))
-static void vlc_atomic_clock_deselect(void)
+static void heimdall_atomic_clock_deselect(void)
 {
     for (size_t i = 0; i < ARRAY_SIZE(wait_buckets); i++)
         pthread_cond_destroy(&wait_buckets[i].wait);

@@ -2,8 +2,9 @@
  * avio.h: access using libavformat library
  *****************************************************************************
  * Copyright (C) 2009 Laurent Aimar
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Laurent Aimar <fenrir _AT_ videolan _DOT_ org>
+ * Authors: Laurent Aimar <fenrir _AT_ lycaria _DOT_ org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -23,10 +24,10 @@
 #include <libavformat/avformat.h>
 #include <libavformat/avio.h>
 
-int  OpenAvio (vlc_object_t *);
-void CloseAvio(vlc_object_t *);
-int  OutOpenAvio (vlc_object_t *);
-void OutCloseAvio(vlc_object_t *);
+int  OpenAvio (heimdall_object_t *);
+void CloseAvio(heimdall_object_t *);
+int  OutOpenAvio (heimdall_object_t *);
+void OutCloseAvio(heimdall_object_t *);
 
 #define AVIO_MODULE \
     set_shortname(N_("AVIO"))                                                    \

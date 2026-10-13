@@ -2,6 +2,7 @@
  * repack.c: Codec specific formatting for AnnexB multiplexers
  *****************************************************************************
  * Copyright (C) 2021 VideoLabs, VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -21,8 +22,8 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_block.h>
+#include <heimdall_common.h>
+#include <heimdall_block.h>
 
 #include "repack.h"
 #include "../../packetizer/h266_nal.h"
@@ -210,7 +211,7 @@ static void PES_RepackMP4V(block_t **pp_pes,
     AnnexBInject(pp_pes, p_extra, i_extra, NULL, 0);
 }
 
-block_t * PES_Repack(vlc_fourcc_t i_codec,
+block_t * PES_Repack(heimdall_fourcc_t i_codec,
                      const uint8_t *p_extra, size_t i_extra,
                      block_t **pp_pes)
 {
@@ -222,16 +223,16 @@ block_t * PES_Repack(vlc_fourcc_t i_codec,
 
     switch(i_codec)
     {
-        case VLC_CODEC_VVC:
+        case HEIMDALL_CODEC_VVC:
             PES_RepackVVC(pp_pes, p_extra, i_extra);
             break;
-        case VLC_CODEC_HEVC:
+        case HEIMDALL_CODEC_HEVC:
             PES_RepackHEVC(pp_pes, p_extra, i_extra);
             break;
-        case VLC_CODEC_H264:
+        case HEIMDALL_CODEC_H264:
             PES_RepackH264(pp_pes, p_extra, i_extra);
             break;
-        case VLC_CODEC_MP4V:
+        case HEIMDALL_CODEC_MP4V:
             PES_RepackMP4V(pp_pes, p_extra, i_extra);
             break;
         default:

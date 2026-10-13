@@ -2,6 +2,7 @@
  * ctrl_video.hpp
  *****************************************************************************
  * Copyright (C) 2004 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cyril Deguet     <asmax@via.ecp.fr>
  *
@@ -26,7 +27,7 @@
 #include "ctrl_generic.hpp"
 #include "../utils/position.hpp"
 #include "../src/vout_window.hpp"
-#include <vlc_vout.h>
+#include <heimdall_vout.h>
 
 
 /// Control video

@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,10 +21,10 @@ import QtQuick
 import QtQuick.Window
 
 
-import VLC.MainInterface
-import VLC.Player
-import VLC.Widgets as Widgets
-import VLC.Style
+import Heimdall.MainInterface
+import Heimdall.Player
+import Heimdall.Widgets as Widgets
+import Heimdall.Style
 
 
 Control {
@@ -31,7 +32,7 @@ Control {
 
     property bool paintOnly: false
 
-    padding: VLCStyle.focus_border
+    padding: HeimdallStyle.focus_border
 
     Keys.priority: Keys.AfterItem
     Keys.onPressed: (event) => Navigation.defaultKeyAction(event)

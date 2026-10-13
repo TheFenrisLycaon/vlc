@@ -1,6 +1,7 @@
 --[[
 
  Copyright © 2009 the VideoLAN team
+ Copyright (C) 2026 TheFenrisLycaon
 
  Authors: Konstantin Pavlov (thresh@videolan.org)
 
@@ -21,8 +22,8 @@
 
 -- Probe function.
 function probe()
-    local path = vlc.path:gsub("^www%.", "")
-    return vlc.access == "http"
+    local path = heimdall.path:gsub("^www%.", "")
+    return heimdall.access == "http"
         and string.match( path, "^pinkbike%.com/video/%d+" )
 end
 
@@ -30,9 +31,9 @@ end
 function parse()
     p = {}
 
-	if string.match ( vlc.path, "pinkbike.com/video/%d+" ) then
+	if string.match ( heimdall.path, "pinkbike.com/video/%d+" ) then
 		while true do
-			line = vlc.readline()
+			line = heimdall.readline()
 			if not line then break end
 			-- Try to find video id
 			if string.match( line, "video_src.+swf.id=(.*)\"") then

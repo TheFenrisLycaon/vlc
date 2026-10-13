@@ -1,7 +1,8 @@
 /*****************************************************************************
- * cachegen.c: LibVLC plugins cache generator
+ * cachegen.c: LibHeimdall plugins cache generator
  *****************************************************************************
  * Copyright (C) 2010 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,7 +23,7 @@
 # include "config.h"
 #endif
 
-#include <vlc/vlc.h>
+#include <heimdall/heimdall.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -32,14 +33,14 @@
 
 static void version (void)
 {
-    puts ("LibVLC plugins cache generation version "VERSION);
+    puts ("LibHeimdall plugins cache generation version "VERSION);
 }
 
 static void usage (const char *path)
 {
     printf (
 "Usage: %s <path>\n"
-"Generate the LibVLC plugins cache for the specified plugins directory.\n",
+"Generate the LibHeimdall plugins cache for the specified plugins directory.\n",
             path);
 }
 
@@ -76,21 +77,21 @@ int main (int argc, char *argv[])
     {
         const char *path = argv[i];
 
-        if (setenv ("VLC_PLUGIN_PATH", path, 1))
+        if (setenv ("HEIMDALL_PLUGIN_PATH", path, 1))
             abort ();
 
-        const char *vlc_argv[4];
-        int vlc_argc = 0;
+        const char *heimdall_argv[4];
+        int heimdall_argc = 0;
 
-        vlc_argv[vlc_argc++] = "--quiet";
-        vlc_argv[vlc_argc++] = "--reset-plugins-cache";
-        vlc_argv[vlc_argc++] = "--"; /* end of options */
-        vlc_argv[vlc_argc] = NULL;
+        heimdall_argv[heimdall_argc++] = "--quiet";
+        heimdall_argv[heimdall_argc++] = "--reset-plugins-cache";
+        heimdall_argv[heimdall_argc++] = "--"; /* end of options */
+        heimdall_argv[heimdall_argc] = NULL;
 
-        libvlc_instance_t *vlc = libvlc_new (vlc_argc, vlc_argv);
-        if (vlc == NULL)
+        libheimdall_instance_t *heimdall = libheimdall_new (heimdall_argc, heimdall_argv);
+        if (heimdall == NULL)
             return 1;
-        libvlc_release(vlc);
+        libheimdall_release(heimdall);
     }
 
     return 0;

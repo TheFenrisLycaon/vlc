@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright © 2010-2014 VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Jean-Baptiste Kempf <jb@videolan.org>
  *
@@ -28,9 +29,9 @@
 #include "hxxx_ep3b.h"
 #include "iso_color_tables.h"
 
-#include <vlc_bits.h>
-#include <vlc_boxes.h>
-#include <vlc_es.h>
+#include <heimdall_bits.h>
+#include <heimdall_boxes.h>
+#include <heimdall_es.h>
 #include <limits.h>
 #include <stdckdint.h>
 
@@ -301,7 +302,7 @@ static bool h264_parse_sequence_parameter_set_rbsp( bs_t *p_bs,
         i_profile_idc == PROFILE_H264_HIGH_422 ||
         i_profile_idc == PROFILE_H264_HIGH_444 || /* Old one, no longer on spec */
         i_profile_idc == PROFILE_H264_HIGH_444_PREDICTIVE ||
-        i_profile_idc == PROFILE_H264_CAVLC_INTRA ||
+        i_profile_idc == PROFILE_H264_CAHEIMDALL_INTRA ||
         i_profile_idc == PROFILE_H264_SVC_BASELINE ||
         i_profile_idc == PROFILE_H264_SVC_HIGH ||
         i_profile_idc == PROFILE_H264_MVC_MULTIVIEW_HIGH ||
@@ -856,7 +857,7 @@ bool h264_get_dpb_values( const h264_sequence_parameter_set_t *p_sps,
             case PROFILE_H264_BASELINE:
                 i_max_num_reorder_frames = 0; /* only I & P */
                 break;
-            case PROFILE_H264_CAVLC_INTRA:
+            case PROFILE_H264_CAHEIMDALL_INTRA:
             case PROFILE_H264_SVC_HIGH:
             case PROFILE_H264_HIGH:
             case PROFILE_H264_HIGH_10:
@@ -994,11 +995,11 @@ bool h264_get_colorimetry( const h264_sequence_parameter_set_t *p_sps,
     if( !p_sps->vui_parameters_present_flag )
         return false;
     *p_primaries =
-        iso_23001_8_cp_to_vlc_primaries( p_sps->vui.colour.i_colour_primaries );
+        iso_23001_8_cp_to_heimdall_primaries( p_sps->vui.colour.i_colour_primaries );
     *p_transfer =
-        iso_23001_8_tc_to_vlc_xfer( p_sps->vui.colour.i_transfer_characteristics );
+        iso_23001_8_tc_to_heimdall_xfer( p_sps->vui.colour.i_transfer_characteristics );
     *p_colorspace =
-        iso_23001_8_mc_to_vlc_coeffs( p_sps->vui.colour.i_matrix_coefficients );
+        iso_23001_8_mc_to_heimdall_coeffs( p_sps->vui.colour.i_matrix_coefficients );
     *p_full_range = p_sps->vui.colour.b_full_range ? COLOR_RANGE_FULL : COLOR_RANGE_LIMITED;
     return true;
 }

@@ -2,6 +2,7 @@
  * input_internal.h: Internal input structures
  *****************************************************************************
  * Copyright (C) 1998-2006 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *
@@ -20,12 +21,12 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef LIBVLC_INPUT_INTERNAL_H
-#define LIBVLC_INPUT_INTERNAL_H 1
+#ifndef LIBHEIMDALL_INPUT_INTERNAL_H
+#define LIBHEIMDALL_INPUT_INTERNAL_H 1
 
-#include <vlc_demux.h>
-#include <vlc_input.h>
-#include <vlc_mouse.h>
+#include <heimdall_demux.h>
+#include <heimdall_input.h>
+#include <heimdall_mouse.h>
 #include "input_interface.h"
 #include "../misc/interrupt.h"
 #include "./source.h"
@@ -42,7 +43,7 @@ struct input_stats;
  */
 typedef struct input_thread_t
 {
-    struct vlc_object_t obj;
+    struct heimdall_object_t obj;
 } input_thread_t;
 
 /*****************************************************************************
@@ -169,48 +170,48 @@ typedef enum input_event_type_e
 /**
  * Mouse Pause Policy
  */
-enum vlc_mouse_pause_policy {
-    VLC_MOUSE_PAUSE_DISABLED,
-    VLC_MOUSE_IMMEDIATE_PAUSE_ON_RELEASED
+enum heimdall_mouse_pause_policy {
+    HEIMDALL_MOUSE_PAUSE_DISABLED,
+    HEIMDALL_MOUSE_IMMEDIATE_PAUSE_ON_RELEASED
 };
 
-#define VLC_INPUT_CAPABILITIES_SEEKABLE (1<<0)
-#define VLC_INPUT_CAPABILITIES_PAUSEABLE (1<<1)
-#define VLC_INPUT_CAPABILITIES_CHANGE_RATE (1<<2)
-#define VLC_INPUT_CAPABILITIES_REWINDABLE (1<<3)
+#define HEIMDALL_INPUT_CAPABILITIES_SEEKABLE (1<<0)
+#define HEIMDALL_INPUT_CAPABILITIES_PAUSEABLE (1<<1)
+#define HEIMDALL_INPUT_CAPABILITIES_CHANGE_RATE (1<<2)
+#define HEIMDALL_INPUT_CAPABILITIES_REWINDABLE (1<<3)
 
-struct vlc_input_event_state
+struct heimdall_input_event_state
 {
     input_state_e value;
     /* Only valid for PAUSE_S and PLAYING_S states */
-    vlc_tick_t date;
+    heimdall_tick_t date;
 };
 
-struct vlc_input_event_times
+struct heimdall_input_event_times
 {
     double position;
-    vlc_tick_t time;
-    vlc_tick_t normal_time;
-    vlc_tick_t length;
+    heimdall_tick_t time;
+    heimdall_tick_t normal_time;
+    heimdall_tick_t length;
     bool live;
 };
 
-struct vlc_input_event_output_clock
+struct heimdall_input_event_output_clock
 {
-    vlc_es_id_t *id;
+    heimdall_es_id_t *id;
     bool master;
-    vlc_tick_t system_ts;
-    vlc_tick_t ts;
+    heimdall_tick_t system_ts;
+    heimdall_tick_t ts;
     double rate;
     unsigned frame_rate;
     unsigned frame_rate_base;
 };
 
-struct vlc_input_event_title
+struct heimdall_input_event_title
 {
     enum {
-        VLC_INPUT_TITLE_NEW_LIST,
-        VLC_INPUT_TITLE_SELECTED,
+        HEIMDALL_INPUT_TITLE_NEW_LIST,
+        HEIMDALL_INPUT_TITLE_SELECTED,
     } action;
     union
     {
@@ -223,19 +224,19 @@ struct vlc_input_event_title
     };
 };
 
-struct vlc_input_event_chapter
+struct heimdall_input_event_chapter
 {
     int title;
     int seekpoint;
 };
 
-struct vlc_input_event_program {
+struct heimdall_input_event_program {
     enum {
-        VLC_INPUT_PROGRAM_ADDED,
-        VLC_INPUT_PROGRAM_DELETED,
-        VLC_INPUT_PROGRAM_UPDATED,
-        VLC_INPUT_PROGRAM_SELECTED,
-        VLC_INPUT_PROGRAM_SCRAMBLED,
+        HEIMDALL_INPUT_PROGRAM_ADDED,
+        HEIMDALL_INPUT_PROGRAM_DELETED,
+        HEIMDALL_INPUT_PROGRAM_UPDATED,
+        HEIMDALL_INPUT_PROGRAM_SELECTED,
+        HEIMDALL_INPUT_PROGRAM_SCRAMBLED,
     } action;
     int id;
     union {
@@ -244,108 +245,108 @@ struct vlc_input_event_program {
     };
 };
 
-struct vlc_input_event_es {
+struct heimdall_input_event_es {
     enum {
-        VLC_INPUT_ES_ADDED,
-        VLC_INPUT_ES_DELETED,
-        VLC_INPUT_ES_UPDATED,
-        VLC_INPUT_ES_SELECTED,
-        VLC_INPUT_ES_UNSELECTED,
+        HEIMDALL_INPUT_ES_ADDED,
+        HEIMDALL_INPUT_ES_DELETED,
+        HEIMDALL_INPUT_ES_UPDATED,
+        HEIMDALL_INPUT_ES_SELECTED,
+        HEIMDALL_INPUT_ES_UNSELECTED,
     } action;
     /**
      * ES track id: only valid from the event callback, unless the id is held
-     * by the user with vlc_es_Hold(). */
-    vlc_es_id_t *id;
+     * by the user with heimdall_es_Hold(). */
+    heimdall_es_id_t *id;
     /**
-     * Title of ES track, can be updated after the VLC_INPUT_ES_UPDATED event.
+     * Title of ES track, can be updated after the HEIMDALL_INPUT_ES_UPDATED event.
      */
     const char *title;
     /**
-     * ES track information, can be updated after the VLC_INPUT_ES_UPDATED event.
+     * ES track information, can be updated after the HEIMDALL_INPUT_ES_UPDATED event.
      */
     const es_format_t *fmt;
     /**
-     * Only valid with VLC_INPUT_ES_SELECTED, true if the track was selected by
+     * Only valid with HEIMDALL_INPUT_ES_SELECTED, true if the track was selected by
      * the user.
      */
     bool forced;
 
-    enum vlc_vout_order vout_order;
+    enum heimdall_vout_order vout_order;
 };
 
-struct vlc_input_event_signal {
+struct heimdall_input_event_signal {
     float quality;
     float strength;
 };
 
-struct vlc_input_event_vout
+struct heimdall_input_event_vout
 {
     enum {
-        VLC_INPUT_EVENT_VOUT_STARTED,
-        VLC_INPUT_EVENT_VOUT_STOPPED,
+        HEIMDALL_INPUT_EVENT_VOUT_STARTED,
+        HEIMDALL_INPUT_EVENT_VOUT_STOPPED,
     } action;
     vout_thread_t *vout;
-    enum vlc_vout_order order;
-    vlc_es_id_t *id;
+    enum heimdall_vout_order order;
+    heimdall_es_id_t *id;
 };
 
-struct vlc_input_event_output_state
+struct heimdall_input_event_output_state
 {
     enum {
-        VLC_INPUT_EVENT_OUTPUT_STATE_RESUMED,
-        VLC_INPUT_EVENT_OUTPUT_STATE_PAUSED,
+        HEIMDALL_INPUT_EVENT_OUTPUT_STATE_RESUMED,
+        HEIMDALL_INPUT_EVENT_OUTPUT_STATE_PAUSED,
     } action;
-    vlc_tick_t paused_date;
-    vlc_es_id_t *id;
+    heimdall_tick_t paused_date;
+    heimdall_es_id_t *id;
 };
 
-struct vlc_input_event_attachments
+struct heimdall_input_event_attachments
 {
     input_attachment_t *const* array;
     size_t count;
 };
 
-struct vlc_input_event_mouse
+struct heimdall_input_event_mouse
 {
-    vlc_mouse_t oldmouse;
-    vlc_mouse_t newmouse;
+    heimdall_mouse_t oldmouse;
+    heimdall_mouse_t newmouse;
 };
 
-struct vlc_input_event
+struct heimdall_input_event
 {
     input_event_type_e type;
 
     union {
         /* INPUT_EVENT_STATE */
-        struct vlc_input_event_state state;
+        struct heimdall_input_event_state state;
         /* INPUT_EVENT_RATE */
         float rate;
         /* INPUT_EVENT_CAPABILITIES */
-        int capabilities; /**< cf. VLC_INPUT_CAPABILITIES_* bitwise flags */
+        int capabilities; /**< cf. HEIMDALL_INPUT_CAPABILITIES_* bitwise flags */
         /* INPUT_EVENT_TIMES */
-        struct vlc_input_event_times times;
+        struct heimdall_input_event_times times;
         /* INPUT_EVENT_OUTPUT_CLOCK */
-        struct vlc_input_event_output_clock output_clock;
+        struct heimdall_input_event_output_clock output_clock;
         /* INPUT_EVENT_TITLE */
-        struct vlc_input_event_title title;
+        struct heimdall_input_event_title title;
         /* INPUT_EVENT_CHAPTER */
-        struct vlc_input_event_chapter chapter;
+        struct heimdall_input_event_chapter chapter;
         /* INPUT_EVENT_PROGRAM */
-        struct vlc_input_event_program program;
+        struct heimdall_input_event_program program;
         /* INPUT_EVENT_ES */
-        struct vlc_input_event_es es;
+        struct heimdall_input_event_es es;
         /* INPUT_EVENT_RECORD */
         bool record;
         /* INPUT_EVENT_STATISTICS */
         const struct input_stats_t *stats;
         /* INPUT_EVENT_SIGNAL */
-        struct vlc_input_event_signal signal;
+        struct heimdall_input_event_signal signal;
         /* INPUT_EVENT_CACHE */
         float cache;
         /* INPUT_EVENT_VOUT */
-        struct vlc_input_event_vout vout;
+        struct heimdall_input_event_vout vout;
         /* INPUT_EVENT_OUTPUT_STATE */
-        struct vlc_input_event_output_state output_state;
+        struct heimdall_input_event_output_state output_state;
         /* INPUT_EVENT_SUBITEMS */
         input_item_node_t *subitems;
         /* INPUT_EVENT_VBI_PAGE */
@@ -357,7 +358,7 @@ struct vlc_input_event
         /* INPUT_EVENT_THUMBNAIL_READY */
         picture_t *thumbnail;
         /* INPUT_EVENT_ATTACHMENTS */
-        struct vlc_input_event_attachments attachments;
+        struct heimdall_input_event_attachments attachments;
         /* INPUT_EVENT_NAV_FAILED */
         int nav_type;
         /* INPUT_EVENT_FRAME_NEXT_STATUS */
@@ -367,13 +368,13 @@ struct vlc_input_event
     };
 };
 
-struct vlc_input_thread_callbacks
+struct heimdall_input_thread_callbacks
 {
-    bool (*on_event)(input_thread_t *input, const struct vlc_input_event *event,
+    bool (*on_event)(input_thread_t *input, const struct heimdall_input_event *event,
                      void *userdata);
 };
 
-struct vlc_input_thread_cfg
+struct heimdall_input_thread_cfg
 {
     enum input_type type;
     enum
@@ -383,8 +384,8 @@ struct vlc_input_thread_cfg
         INPUT_CFG_HW_DEC_ENABLED,
     } hw_dec;
     input_resource_t *resource;
-    vlc_renderer_item_t *renderer;
-    const struct vlc_input_thread_callbacks *cbs;
+    heimdall_renderer_item_t *renderer;
+    const struct heimdall_input_thread_callbacks *cbs;
     void *cbs_data;
 
     struct {
@@ -398,14 +399,14 @@ struct vlc_input_thread_cfg
  * You need to call input_Start on it when you are done
  * adding callback on the variables/events you want to monitor.
  *
- * \param p_parent a vlc_object
+ * \param p_parent a heimdall_object
  * \param p_item an input item
  * \param cfg pointer to a configuration struct, mandatory
  * \return a pointer to the spawned input thread
  */
-input_thread_t * input_Create( vlc_object_t *p_parent, input_item_t *item,
-                               const struct vlc_input_thread_cfg *cfg ) VLC_USED;
-#define input_Create(a,b,c) input_Create(VLC_OBJECT(a),b,c)
+input_thread_t * input_Create( heimdall_object_t *p_parent, input_item_t *item,
+                               const struct heimdall_input_thread_cfg *cfg ) HEIMDALL_USED;
+#define input_Create(a,b,c) input_Create(HEIMDALL_OBJECT(a),b,c)
 
 int input_Start( input_thread_t * );
 
@@ -413,15 +414,15 @@ void input_Stop( input_thread_t * );
 
 void input_Close( input_thread_t * );
 
-void input_SetTime( input_thread_t *, vlc_tick_t i_time, bool b_fast );
+void input_SetTime( input_thread_t *, heimdall_tick_t i_time, bool b_fast );
 
 void input_SetPosition( input_thread_t *, double f_position, bool b_fast );
 
 /**
  * Set the delay of an ES identifier
  */
-void input_SetEsIdDelay(input_thread_t *input, vlc_es_id_t *es_id,
-                        vlc_tick_t delay);
+void input_SetEsIdDelay(input_thread_t *input, heimdall_es_id_t *es_id,
+                        heimdall_tick_t delay);
 
 /**
  * Get the input item for an input thread
@@ -429,7 +430,7 @@ void input_SetEsIdDelay(input_thread_t *input, vlc_es_id_t *es_id,
  * You have to keep a reference to the input or to the input_item_t until
  * you do not need it anymore.
  */
-input_item_t* input_GetItem( input_thread_t * ) VLC_USED;
+input_item_t* input_GetItem( input_thread_t * ) HEIMDALL_USED;
 
 /*****************************************************************************
  *  Private input fields
@@ -439,16 +440,16 @@ input_item_t* input_GetItem( input_thread_t * ) VLC_USED;
 
 typedef union
 {
-    vlc_value_t val;
-    vlc_viewpoint_t viewpoint;
-    vlc_es_id_t *id;
+    heimdall_value_t val;
+    heimdall_viewpoint_t viewpoint;
+    heimdall_es_id_t *id;
     struct {
         enum es_format_category_e cat;
-        vlc_es_id_t **ids;
+        heimdall_es_id_t **ids;
     } list;
     struct {
         bool b_fast_seek;
-        vlc_tick_t i_val;
+        heimdall_tick_t i_val;
     } time;
     struct {
         bool b_fast_seek;
@@ -457,7 +458,7 @@ typedef union
     struct
     {
         enum es_format_category_e cat;
-        vlc_tick_t delay;
+        heimdall_tick_t delay;
     } cat_delay;
     struct
     {
@@ -466,15 +467,15 @@ typedef union
     } cat_ids;
     struct
     {
-        vlc_es_id_t *id;
-        vlc_tick_t delay;
+        heimdall_es_id_t *id;
+        heimdall_tick_t delay;
     } es_delay;
     struct {
-        vlc_es_id_t *id;
+        heimdall_es_id_t *id;
         unsigned page;
     } vbi_page;
     struct {
-        vlc_es_id_t *id;
+        heimdall_es_id_t *id;
         bool enabled;
     } vbi_transparency;
     struct {
@@ -483,7 +484,7 @@ typedef union
     } record_state;
     struct
     {
-        vlc_tick_t pts;
+        heimdall_tick_t pts;
         unsigned frame_rate;
         unsigned frame_rate_base;
         int steps;
@@ -502,7 +503,7 @@ typedef struct input_thread_private_t
 {
     struct input_thread_t input;
 
-    const struct vlc_input_thread_callbacks *cbs;
+    const struct heimdall_input_thread_callbacks *cbs;
     void *cbs_data;
 
     enum input_type type;
@@ -518,21 +519,21 @@ typedef struct input_thread_private_t
     float       rate;
 
     /* Playtime configuration and state */
-    vlc_tick_t  i_start;    /* :start-time,0 by default */
-    vlc_tick_t  i_stop;     /* :stop-time, 0 if none */
+    heimdall_tick_t  i_start;    /* :start-time,0 by default */
+    heimdall_tick_t  i_stop;     /* :stop-time, 0 if none */
 
     /* Delays */
     bool        b_low_delay;
-    vlc_tick_t  i_jitter_max;
+    heimdall_tick_t  i_jitter_max;
 
     /* Output */
     bool            b_out_pace_control; /* XXX Move it ot es_sout ? */
     sout_stream_t   *p_sout;            /* Idem ? */
-    struct vlc_input_es_out *p_es_out;
-    struct vlc_input_es_out *p_es_out_display;
-    vlc_viewpoint_t viewpoint;
+    struct heimdall_input_es_out *p_es_out;
+    struct heimdall_input_es_out *p_es_out_display;
+    heimdall_viewpoint_t viewpoint;
     bool            viewpoint_changed;
-    vlc_renderer_item_t *p_renderer;
+    heimdall_renderer_item_t *p_renderer;
 
 
     int i_title_offset;
@@ -561,16 +562,16 @@ typedef struct input_thread_private_t
     struct input_stats *stats;
 
     /* Buffer of pending actions */
-    vlc_mutex_t lock_control;
-    vlc_cond_t  wait_control;
+    heimdall_mutex_t lock_control;
+    heimdall_cond_t  wait_control;
     size_t i_control;
     input_control_t control[INPUT_CONTROL_FIFO_SIZE];
 
-    vlc_thread_t thread;
-    vlc_interrupt_t interrupt;
+    heimdall_thread_t thread;
+    heimdall_interrupt_t interrupt;
 
     struct {
-        vlc_tick_t last_pts;
+        heimdall_tick_t last_pts;
         bool enabled;
         bool end;
     } prev_frame;
@@ -654,7 +655,7 @@ int input_ControlPush( input_thread_t *, int, const input_control_param_t * );
 /* XXX for string value you have to allocate it before calling
  * input_ControlPushHelper
  */
-static inline int input_ControlPushHelper( input_thread_t *p_input, int i_type, vlc_value_t *val )
+static inline int input_ControlPushHelper( input_thread_t *p_input, int i_type, heimdall_value_t *val )
 {
     if( val != NULL )
     {
@@ -668,12 +669,12 @@ static inline int input_ControlPushHelper( input_thread_t *p_input, int i_type, 
 }
 
 static inline int input_ControlPushEsHelper( input_thread_t *p_input, int i_type,
-                                             vlc_es_id_t *id )
+                                             heimdall_es_id_t *id )
 {
     assert( i_type == INPUT_CONTROL_SET_ES || i_type == INPUT_CONTROL_UNSET_ES ||
             i_type == INPUT_CONTROL_RESTART_ES );
     return input_ControlPush( p_input, i_type, &(input_control_param_t) {
-        .id = vlc_es_id_Hold( id ),
+        .id = heimdall_es_id_Hold( id ),
     } );
 }
 
@@ -697,14 +698,14 @@ void input_SetProgramId(input_thread_t *input, int group_id);
  * @param cat The ES category to apply the delay to.
  * @param delay The delay to apply to the category, a positive delay shifting
  *              the track to the future.
- * @return VLC_SUCCESS when the delay has been applied, or signal an error
+ * @return HEIMDALL_SUCCESS when the delay has been applied, or signal an error
  *         otherwise.
  *
  * @note This function can be called before start or while running.
  * @note This function is not thread-safe, the caller should handle the locking.
  */
 int input_SetEsCatDelay(input_thread_t *input, enum es_format_category_e cat,
-                        vlc_tick_t delay);
+                        heimdall_tick_t delay);
 
 /**
  * Set the list of string ids to enable for a category
@@ -738,10 +739,10 @@ bool input_CanPaceControl(input_thread_t *input);
  *
  * @return The calculated duration based on the start and stop times.
  */
-vlc_tick_t input_GetItemDuration(input_thread_t *input, vlc_tick_t duration);
+heimdall_tick_t input_GetItemDuration(input_thread_t *input, heimdall_tick_t duration);
 
 /* Bound pts_delay */
-#define INPUT_PTS_DELAY_MAX VLC_TICK_FROM_SEC(60)
+#define INPUT_PTS_DELAY_MAX HEIMDALL_TICK_FROM_SEC(60)
 
 /**********************************************************************
  * Item metadata
@@ -756,7 +757,7 @@ void input_ExtractAttachmentAndCacheArt( input_thread_t *, const char *name );
 
 /* var.c */
 
-void vlc_object_InitInputConfig(vlc_object_t *obj,
+void heimdall_object_InitInputConfig(heimdall_object_t *obj,
                                 bool playback, bool do_inherit);
 
 /* Subtitles */
@@ -766,13 +767,13 @@ int subtitles_Filter( const char *);
 /* stats.c */
 typedef struct input_rate_t
 {
-    vlc_mutex_t lock;
+    heimdall_mutex_t lock;
     uintmax_t updates;
     uintmax_t value;
     struct
     {
         uintmax_t  value;
-        vlc_tick_t date;
+        heimdall_tick_t date;
     } samples[2];
 } input_rate_t;
 

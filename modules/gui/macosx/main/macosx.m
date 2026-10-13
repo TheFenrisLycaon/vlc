@@ -1,9 +1,10 @@
 /*****************************************************************************
- * macosx.m: Mac OS X module for vlc
+ * macosx.m: Mac OS X module for heimdall
  *****************************************************************************
  * Copyright (C) 2001-2014 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Felix Paul Kühne <fkuehne at videolan dot org>
+ * Authors: Felix Paul Kühne <fkuehne at lycaria dot org>
  *          David Fuhrmann <david dot fuhrmann at googlemail dot com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -30,18 +31,18 @@
 # include "config.h"
 #endif
 
-#define VLC_MODULE_LICENSE VLC_LICENSE_GPL_2_PLUS
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_window.h>
+#define HEIMDALL_MODULE_LICENSE HEIMDALL_LICENSE_GPL_2_PLUS
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_window.h>
 
 /*****************************************************************************
  * External prototypes
  *****************************************************************************/
-int  OpenIntf     (vlc_object_t *);
-void CloseIntf    (vlc_object_t *);
+int  OpenIntf     (heimdall_object_t *);
+void CloseIntf    (heimdall_object_t *);
 
-int  WindowOpen   (vlc_window_t *);
+int  WindowOpen   (heimdall_window_t *);
 
 /*****************************************************************************
  * Module descriptor
@@ -64,27 +65,27 @@ int  WindowOpen   (vlc_window_t *);
                                  "once they were added.")
 
 #define RECENT_ITEMS_TEXT N_("Keep Recent Items")
-#define RECENT_ITEMS_LONGTEXT N_("By default, VLC keeps a list of the last 10 items. " \
+#define RECENT_ITEMS_LONGTEXT N_("By default, Heimdall keeps a list of the last 10 items. " \
                                  "This feature can be disabled here.")
 
 #define USE_APPLE_REMOTE_TEXT N_("Control playback with the Apple Remote")
-#define USE_APPLE_REMOTE_LONGTEXT N_("By default, VLC can be remotely controlled with the Apple Remote.")
+#define USE_APPLE_REMOTE_LONGTEXT N_("By default, Heimdall can be remotely controlled with the Apple Remote.")
 
 #define USE_APPLE_REMOTE_VOLUME_TEXT N_("Control system volume with the Apple Remote")
-#define USE_APPLE_REMOTE_VOLUME_LONGTEXT N_("By default, VLC will control its own volume with the Apple Remote. However, you can choose to control the global system volume instead.")
+#define USE_APPLE_REMOTE_VOLUME_LONGTEXT N_("By default, Heimdall will control its own volume with the Apple Remote. However, you can choose to control the global system volume instead.")
 
-#define DISPLAY_STATUS_ICONMENU_TEXT N_("Display VLC status menu icon")
-#define DISPLAY_STATUS_ICONMENU_LONGTEXT N_("By default, VLC will show the statusbar icon menu. However, you can choose to disable it (restart required).")
+#define DISPLAY_STATUS_ICONMENU_TEXT N_("Display Heimdall status menu icon")
+#define DISPLAY_STATUS_ICONMENU_LONGTEXT N_("By default, Heimdall will show the statusbar icon menu. However, you can choose to disable it (restart required).")
 
 #define USE_APPLE_REMOTE_PREVNEXT_TEXT N_("Control play queue items with the Apple Remote")
-#define USE_APPLE_REMOTE_PREVNEXT_LONGTEXT N_("By default, VLC will allow you to switch to the next or previous item with the Apple Remote. You can disable this behavior with this option.")
+#define USE_APPLE_REMOTE_PREVNEXT_LONGTEXT N_("By default, Heimdall will allow you to switch to the next or previous item with the Apple Remote. You can disable this behavior with this option.")
 
 #define USE_MEDIAKEYS_TEXT N_("Control playback with media keys")
-#define USE_MEDIAKEYS_LONGTEXT N_("By default, VLC can be controlled using the media keys on modern Apple " \
+#define USE_MEDIAKEYS_LONGTEXT N_("By default, Heimdall can be controlled using the media keys on modern Apple " \
                                   "keyboards.")
 
 #define NATIVE_FULLSCREEN_MODE_ON_LION_TEXT N_("Use the native fullscreen mode")
-#define NATIVE_FULLSCREEN_MODE_ON_LION_LONGTEXT N_("By default, VLC uses the fullscreen mode known from previous Mac OS X releases. It can also use the native fullscreen mode on Mac OS X 10.7 and later.")
+#define NATIVE_FULLSCREEN_MODE_ON_LION_LONGTEXT N_("By default, Heimdall uses the fullscreen mode known from previous Mac OS X releases. It can also use the native fullscreen mode on Mac OS X 10.7 and later.")
 
 #define KEEPSIZE_TEXT N_("Resize interface to the native video size")
 #define KEEPSIZE_LONGTEXT N_("You have two choices:\n" \
@@ -105,10 +106,10 @@ int  WindowOpen   (vlc_window_t *);
 #define DIM_KEYBOARD_PLAYBACK_LONGTEXT N_("Turn off the MacBook keyboard backlight while a video is playing in fullscreen. Automatic brightness adjustment should be disabled in System Preferences.")
 
 #define ITUNES_TEXT N_("Control external music players")
-#define ITUNES_LONGTEXT N_("VLC will pause and resume supported music players on playback.")
+#define ITUNES_LONGTEXT N_("Heimdall will pause and resume supported music players on playback.")
 
 #define AUTOLOAD_EXTENSIONS_TEXT N_("Automatically load extensions on startup")
-#define AUTOLOAD_EXTENSIONS_LONGTEXT N_("Automatically load and enable VLC extensions when the application starts.")
+#define AUTOLOAD_EXTENSIONS_LONGTEXT N_("Automatically load and enable Heimdall extensions when the application starts.")
 
 static const int itunes_list[] =
     { 0, 1, 2 };
@@ -117,7 +118,7 @@ static const char *const itunes_list_text[] = {
 };
 
 #define CONTINUE_PLAYBACK_TEXT N_("Continue playback where you left off")
-#define CONTINUE_PLAYBACK_LONGTEXT N_("VLC will store playback positions of the last 30 items you played. If you re-open one of those, playback will continue.")
+#define CONTINUE_PLAYBACK_LONGTEXT N_("Heimdall will store playback positions of the last 30 items you played. If you re-open one of those, playback will continue.")
 
 static const int continue_playback_list[] =
 { 0, 1, 2 };
@@ -128,7 +129,7 @@ static const char *const continue_playback_list_text[] = {
 #define VOLUME_MAX_TEXT N_("Maximum Volume displayed")
 
 
-vlc_module_begin()
+heimdall_module_begin()
     set_description(N_("Mac OS X interface"))
     set_capability("interface", 200)
     set_callbacks(OpenIntf, CloseIntf)
@@ -176,11 +177,11 @@ vlc_module_begin()
         add_integer("macosx-vdev", 0, VDEV_TEXT, VDEV_LONGTEXT)
         add_float_with_range("macosx-opaqueness", 1, 0, 1, OPAQUENESS_TEXT, OPAQUENESS_LONGTEXT)
         add_bool("macosx-black", false, BLACK_TEXT, BLACK_LONGTEXT)
-vlc_module_end()
+heimdall_module_end()
 
-/* the following is fake code to make the pseudo VLC target for the macOS module compile and link */
-#ifdef MACOS_PSEUDO_VLC
-const char vlc_module_name[] = "macos-pseudo-vlc";
+/* the following is fake code to make the pseudo Heimdall target for the macOS module compile and link */
+#ifdef MACOS_PSEUDO_HEIMDALL
+const char heimdall_module_name[] = "macos-pseudo-heimdall";
 
 int main(int argc, char *argv[])
 {

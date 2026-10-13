@@ -24,25 +24,25 @@ HOST_ARCH=`get_buildsystem_arch $ACTUAL_HOST_ARCH`
 ACTUAL_BUILD_ARCH=`uname -m | cut -d. -f1`
 BUILD_ARCH=`get_buildsystem_arch $ACTUAL_BUILD_ARCH`
 
-vlcGetOSXKernelVersion() {
+heimdallGetOSXKernelVersion() {
     local OSX_KERNELVERSION=$(uname -r | cut -d. -f1)
-    if [ ! -z "$VLC_FORCE_KERNELVERSION" ]; then
-        OSX_KERNELVERSION="$VLC_FORCE_KERNELVERSION"
+    if [ ! -z "$HEIMDALL_FORCE_KERNELVERSION" ]; then
+        OSX_KERNELVERSION="$HEIMDALL_FORCE_KERNELVERSION"
     fi
 
     echo "$OSX_KERNELVERSION"
 }
 
-vlcGetBuildTriplet() {
-    echo "$BUILD_ARCH-apple-darwin$(vlcGetOSXKernelVersion)"
+heimdallGetBuildTriplet() {
+    echo "$BUILD_ARCH-apple-darwin$(heimdallGetOSXKernelVersion)"
 }
 
-vlcGetHostTriplet() {
-    echo "$HOST_ARCH-apple-darwin$(vlcGetOSXKernelVersion)"
+heimdallGetHostTriplet() {
+    echo "$HOST_ARCH-apple-darwin$(heimdallGetOSXKernelVersion)"
 }
 
-# Gets VLCs root dir based on location of this file, also follow symlinks
-vlcGetRootDir() {
+# Gets Heimdalls root dir based on location of this file, also follow symlinks
+heimdallGetRootDir() {
     local SOURCE="${BASH_SOURCE[0]}"
     while [ -h "$SOURCE" ]; do
         local DIR="$(cd -P "$( dirname "$SOURCE" )" && pwd)"
@@ -52,19 +52,19 @@ vlcGetRootDir() {
     echo "$(cd -P "$(dirname "$SOURCE")/../../../" && pwd)"
 }
 
-# If VLC_CCACHE_BINS_PATH is set, it is assumed it contains
+# If HEIMDALL_CCACHE_BINS_PATH is set, it is assumed it contains
 # clang and clang++ symlinks to the ccache binary which will
 # then act as a compiler wrapper
-vlcSetBaseEnvironment() {
+heimdallSetBaseEnvironment() {
     local LOCAL_BUILD_TRIPLET="$BUILD_TRIPLET"
     if [ -z "$LOCAL_BUILD_TRIPLET" ]; then
-        LOCAL_BUILD_TRIPLET="$(vlcGetBuildTriplet)"
+        LOCAL_BUILD_TRIPLET="$(heimdallGetBuildTriplet)"
     fi
 
-    local VLC_ROOT_DIR="$(vlcGetRootDir)"
+    local HEIMDALL_ROOT_DIR="$(heimdallGetRootDir)"
 
     echo "Setting base environment"
-    echo "Using VLC root dir $VLC_ROOT_DIR, build triplet $LOCAL_BUILD_TRIPLET and host triplet $(vlcGetHostTriplet)"
+    echo "Using Heimdall root dir $HEIMDALL_ROOT_DIR, build triplet $LOCAL_BUILD_TRIPLET and host triplet $(heimdallGetHostTriplet)"
 
     export AR="$(xcrun --find ar)"
     export CC="$(xcrun --find clang)"
@@ -75,15 +75,15 @@ vlcSetBaseEnvironment() {
     export RANLIB="$(xcrun --find ranlib)"
     export STRIP="$(xcrun --find strip)"
 
-    if [ -n "${VLC_CCACHE_BINS_PATH}" ]; then
-        if [ -d "${VLC_CCACHE_BINS_PATH}" ]; then
-            echo "Using ccache compiler wrappers in '${VLC_CCACHE_BINS_PATH}'"
-            export CC="${VLC_CCACHE_BINS_PATH}/cc"
-            export CXX="${VLC_CCACHE_BINS_PATH}/c++"
-            export OBJC="${VLC_CCACHE_BINS_PATH}/cc"
-            export OBJCXX="${VLC_CCACHE_BINS_PATH}/c++"
+    if [ -n "${HEIMDALL_CCACHE_BINS_PATH}" ]; then
+        if [ -d "${HEIMDALL_CCACHE_BINS_PATH}" ]; then
+            echo "Using ccache compiler wrappers in '${HEIMDALL_CCACHE_BINS_PATH}'"
+            export CC="${HEIMDALL_CCACHE_BINS_PATH}/cc"
+            export CXX="${HEIMDALL_CCACHE_BINS_PATH}/c++"
+            export OBJC="${HEIMDALL_CCACHE_BINS_PATH}/cc"
+            export OBJCXX="${HEIMDALL_CCACHE_BINS_PATH}/c++"
         else
-            echo "Invalid VLC_CCACHE_BINS_PATH given, directory not found: '${VLC_CCACHE_BINS_PATH}'"
+            echo "Invalid HEIMDALL_CCACHE_BINS_PATH given, directory not found: '${HEIMDALL_CCACHE_BINS_PATH}'"
             echo "Proceeding without ccache wrappers"
         fi
     fi
@@ -93,10 +93,10 @@ vlcSetBaseEnvironment() {
         python3Path=""
     fi
 
-    export PATH="${VLC_ROOT_DIR}/extras/tools/build/bin:$python3Path:${VLC_PATH}:/bin:/sbin:/usr/bin:/usr/sbin"
+    export PATH="${HEIMDALL_ROOT_DIR}/extras/tools/build/bin:$python3Path:${HEIMDALL_PATH}:/bin:/sbin:/usr/bin:/usr/sbin"
 }
 
-vlcSetSymbolEnvironment() {
+heimdallSetSymbolEnvironment() {
     # If the command is called without argument, default to exporting
     # all the ac_cv_* symbols to the environment. Else we'll pass the
     # symbol values to the command in the first argument, after the
@@ -150,7 +150,7 @@ vlcSetSymbolEnvironment() {
     ac_cv_func_timespec_get=no
 }
 
-vlcSetContribEnvironment() {
+heimdallSetContribEnvironment() {
     if [ -z "$1" ]; then
         return 1
     fi
@@ -164,7 +164,7 @@ vlcSetContribEnvironment() {
 
     echo "Setting contrib environment with minimum macOS version $MINIMAL_OSX_VERSION and SDK $SDK_VERSION at $SDKROOT using $XCODE_VERSION"
 
-    # Usually, VLCs contrib libraries do not support partial availability at runtime.
+    # Usually, Heimdalls contrib libraries do not support partial availability at runtime.
     # Forcing those errors has two reasons:
     # - Some custom configure scripts include the right header for testing availability.
     #   Those configure checks fail (correctly) with those errors, and replacements are
@@ -176,13 +176,13 @@ vlcSetContribEnvironment() {
     export OBJCFLAGS="-Werror=partial-availability"
     export OBJCXXFLAGS="-Werror=partial-availability"
 
-    export VLC_DEPLOYMENT_TARGET="$MINIMAL_OSX_VERSION"
+    export HEIMDALL_DEPLOYMENT_TARGET="$MINIMAL_OSX_VERSION"
     export EXTRA_CFLAGS="-isysroot $SDKROOT -mmacosx-version-min=$MINIMAL_OSX_VERSION -DMACOSX_DEPLOYMENT_TARGET=$MINIMAL_OSX_VERSION -arch $ACTUAL_HOST_ARCH"
     export EXTRA_LDFLAGS="-isysroot $SDKROOT -mmacosx-version-min=$MINIMAL_OSX_VERSION -DMACOSX_DEPLOYMENT_TARGET=$MINIMAL_OSX_VERSION -arch $ACTUAL_HOST_ARCH"
     export XCODE_FLAGS="MACOSX_DEPLOYMENT_TARGET=$MINIMAL_OSX_VERSION -sdk $SDKROOT WARNING_CFLAGS=-Werror=partial-availability"
 }
 
-vlcUnsetContribEnvironment() {
+heimdallUnsetContribEnvironment() {
     echo "Unsetting contrib flags"
 
     unset CFLAGS
@@ -195,8 +195,8 @@ vlcUnsetContribEnvironment() {
     unset XCODE_FLAGS
 }
 
-vlcSetLibVLCEnvironment() {
-    echo "Setting libVLC flags"
+heimdallSetLibHeimdallEnvironment() {
+    echo "Setting libHeimdall flags"
 
     # Enable debug symbols by default
     export CFLAGS="-g -arch $ACTUAL_HOST_ARCH -Werror=incompatible-function-pointer-types"
@@ -206,8 +206,8 @@ vlcSetLibVLCEnvironment() {
     export LDFLAGS="-arch $ACTUAL_HOST_ARCH"
 }
 
-vlcUnsetLibVLCEnvironment() {
-    echo "Unsetting libVLC flags"
+heimdallUnsetLibHeimdallEnvironment() {
+    echo "Unsetting libHeimdall flags"
 
     unset CFLAGS
     unset CXXFLAGS
@@ -220,25 +220,25 @@ vlcUnsetLibVLCEnvironment() {
 
 
 # First parameter: mode to use this script:
-# vlc (default): auto-setup environment suitable for building vlc itself
-# contrib: auto-setup environment suitable for building vlc contribs
+# heimdall (default): auto-setup environment suitable for building heimdall itself
+# contrib: auto-setup environment suitable for building heimdall contribs
 # none: do not perform any auto-setup (used for scripts)
-VLC_ENV_MODE="vlc"
+HEIMDALL_ENV_MODE="heimdall"
 if [ "$1" = "contrib" ]; then
-    VLC_ENV_MODE="contrib"
+    HEIMDALL_ENV_MODE="contrib"
 fi
 if [ "$1" = "none" ]; then
-    VLC_ENV_MODE="none"
+    HEIMDALL_ENV_MODE="none"
 fi
 
-if [ "$VLC_ENV_MODE" = "contrib" ]; then
-    vlcSetBaseEnvironment
-    vlcSetSymbolEnvironment
-    vlcUnsetLibVLCEnvironment
-    vlcSetContribEnvironment "$MINIMAL_OSX_VERSION"
-elif [ "$VLC_ENV_MODE" = "vlc" ]; then
-    vlcSetBaseEnvironment
-    vlcSetSymbolEnvironment
-    vlcUnsetContribEnvironment
-    vlcSetLibVLCEnvironment
+if [ "$HEIMDALL_ENV_MODE" = "contrib" ]; then
+    heimdallSetBaseEnvironment
+    heimdallSetSymbolEnvironment
+    heimdallUnsetLibHeimdallEnvironment
+    heimdallSetContribEnvironment "$MINIMAL_OSX_VERSION"
+elif [ "$HEIMDALL_ENV_MODE" = "heimdall" ]; then
+    heimdallSetBaseEnvironment
+    heimdallSetSymbolEnvironment
+    heimdallUnsetContribEnvironment
+    heimdallSetLibHeimdallEnvironment
 fi

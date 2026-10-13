@@ -2,6 +2,7 @@
  * storage.c
  *****************************************************************************
  * Copyright (C) 2023 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -26,10 +27,10 @@
 
 #include <unistd.h>     /* close() */
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
-#include <vlc_block.h>
-#include <vlc_fs.h>
+#include <heimdall_block.h>
+#include <heimdall_fs.h>
 
 #include "hls.h"
 #include "storage.h"
@@ -140,7 +141,7 @@ static ssize_t fs_storage_GetContent(const hls_storage_t *storage,
     const struct storage_priv *priv =
         container_of(storage, struct storage_priv, storage);
 
-    const int fd = vlc_open(priv->fs.path, O_RDONLY);
+    const int fd = heimdall_open(priv->fs.path, O_RDONLY);
     if (fd == -1)
         return -1;
 
@@ -165,7 +166,7 @@ static int fs_storage_Write(int fd, const uint8_t *data, size_t len)
     size_t written = 0;
     while (written < len)
     {
-        const ssize_t n = vlc_write(fd, data + written, len - written);
+        const ssize_t n = heimdall_write(fd, data + written, len - written);
         if (n == -1)
         {
             if (errno == EINTR || errno == EAGAIN)
@@ -216,7 +217,7 @@ fs_storage_FromBlock(block_t *content,
         goto err;
     }
 
-    const int fd = vlc_open(priv->fs.path, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+    const int fd = heimdall_open(priv->fs.path, O_WRONLY | O_CREAT | O_TRUNC, 0666);
     if (fd == -1)
     {
         ret = -errno;
@@ -274,7 +275,7 @@ fs_storage_FromBytes(void *bytes,
         goto err;
     }
 
-    const int fd = vlc_open(priv->fs.path, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+    const int fd = heimdall_open(priv->fs.path, O_WRONLY | O_CREAT | O_TRUNC, 0666);
     if (fd == -1)
     {
         ret = -errno;

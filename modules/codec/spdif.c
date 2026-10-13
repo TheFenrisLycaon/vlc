@@ -2,6 +2,7 @@
  * spdif.c: S/PDIF pass-though decoder
  *****************************************************************************
  * Copyright (C) 2016 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,54 +23,54 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_aout.h>
-#include <vlc_codec.h>
-#include <vlc_modules.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_aout.h>
+#include <heimdall_codec.h>
+#include <heimdall_modules.h>
 
-static int OpenDecoder(vlc_object_t *);
+static int OpenDecoder(heimdall_object_t *);
 
-vlc_module_begin()
+heimdall_module_begin()
     set_subcategory(SUBCAT_INPUT_ACODEC)
     set_description(N_("S/PDIF pass-through decoder"))
     set_capability("audio decoder", 120)
     set_callback(OpenDecoder)
-vlc_module_end()
+heimdall_module_end()
 
 static int
 DecodeBlock(decoder_t *p_dec, block_t *p_block)
 {
     if (p_block != NULL)
         decoder_QueueAudio( p_dec, p_block );
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }
 
 static int
-OpenDecoder(vlc_object_t *p_this)
+OpenDecoder(heimdall_object_t *p_this)
 {
     decoder_t *p_dec = (decoder_t*)p_this;
 
     switch (p_dec->fmt_in->i_codec)
     {
-    case VLC_CODEC_MPGA:
-    case VLC_CODEC_MP2:
-    case VLC_CODEC_MP3:
+    case HEIMDALL_CODEC_MPGA:
+    case HEIMDALL_CODEC_MP2:
+    case HEIMDALL_CODEC_MP3:
         /* Disabled by default */
         if (!p_dec->obj.force)
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         break;
-    case VLC_CODEC_A52:
-    case VLC_CODEC_EAC3:
-    case VLC_CODEC_MLP:
-    case VLC_CODEC_TRUEHD:
-    case VLC_CODEC_DTS:
-    case VLC_CODEC_SPDIFL:
-    case VLC_CODEC_SPDIFB:
+    case HEIMDALL_CODEC_A52:
+    case HEIMDALL_CODEC_EAC3:
+    case HEIMDALL_CODEC_MLP:
+    case HEIMDALL_CODEC_TRUEHD:
+    case HEIMDALL_CODEC_DTS:
+    case HEIMDALL_CODEC_SPDIFL:
+    case HEIMDALL_CODEC_SPDIFB:
         /* Enabled by default */
         break;
     default:
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Set output properties */
@@ -79,10 +80,10 @@ OpenDecoder(vlc_object_t *p_this)
     p_dec->fmt_out.audio.i_format = p_dec->fmt_out.i_codec;
 
     if (decoder_UpdateAudioFormat(p_dec))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     p_dec->pf_decode = DecodeBlock;
     p_dec->pf_flush  = NULL;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

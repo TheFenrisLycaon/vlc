@@ -2,6 +2,7 @@
  * mock.c: mock OpenGL filter
  *****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -21,39 +22,39 @@
 /**
  * This mock draws a triangle, by default in blend mode:
  *
- *     ./vlc file.mkv --video-filter='opengl{filter=mock}'
+ *     ./heimdall file.mkv --video-filter='opengl{filter=mock}'
  *
  * The filter configuration may be passed as a separate parameter:
  *
- *    ./vlc file.mkv --video-filter=opengl --opengl-filter=mock
+ *    ./heimdall file.mkv --video-filter=opengl --opengl-filter=mock
  *
  * It can be configured as a non-blend filter, to mask the video with the
  * triangle instead:
  *
- *     ./vlc file.mkv --video-filter='opengl{filter=mock{mask}}'
+ *     ./heimdall file.mkv --video-filter='opengl{filter=mock{mask}}'
  *
  * The triangle may be rotated (the value is in degrees):
  *
- *     ./vlc file.mkv --video-filter='opengl{filter=mock{angle=45}}'
- *     ./vlc file.mkv --video-filter='opengl{filter=mock{mask,angle=45}}'
+ *     ./heimdall file.mkv --video-filter='opengl{filter=mock{angle=45}}'
+ *     ./heimdall file.mkv --video-filter='opengl{filter=mock{mask,angle=45}}'
  *
  * If a speed is specified, the triangle automatically rotates with the video
  * timestamps:
  *
- *     ./vlc file.mkv --video-filter='opengl{filter=mock{speed=1}}'
+ *     ./heimdall file.mkv --video-filter='opengl{filter=mock{speed=1}}'
  *
  * Multi-sampling anti-aliasing level can be specified (default is 4):
  *
- *     ./vlc file.mkv --video-filter='opengl{filter=mock{msaa=0}}'
+ *     ./heimdall file.mkv --video-filter='opengl{filter=mock{msaa=0}}'
  *
  * Several instances may be combined:
  *
- *     ./vlc file.mkv --video-filter='opengl{filter="mock{mask,speed=1}:mock{angle=180,speed=-1}"}'
+ *     ./heimdall file.mkv --video-filter='opengl{filter="mock{mask,speed=1}:mock{angle=180,speed=-1}"}'
  *
  * It can also be used to filter planes separately, drawing each one with a
  * small offset:
  *
- *     ./vlc file.mkv --video-filter='opengl{filter=mock{plane}}'
+ *     ./heimdall file.mkv --video-filter='opengl{filter=mock{plane}}'
  */
 #ifdef HAVE_CONFIG_H
 # include "config.h"
@@ -61,12 +62,12 @@
 
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_modules.h>
-#include <vlc_opengl.h>
-#include <vlc_opengl_filter.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_modules.h>
+#include <heimdall_opengl.h>
+#include <heimdall_opengl_filter.h>
 
 #include <math.h>
 
@@ -83,8 +84,8 @@ static const char *const filter_options[] = {
 };
 
 struct sys {
-    struct vlc_gl_api api;
-    struct vlc_gl_sampler *sampler;
+    struct heimdall_gl_api api;
+    struct heimdall_gl_sampler *sampler;
 
     GLuint program_id;
 
@@ -107,9 +108,9 @@ struct sys {
 };
 
 static void
-InitMatrix(struct sys *sys, vlc_tick_t pts)
+InitMatrix(struct sys *sys, heimdall_tick_t pts)
 {
-    float time_sec = secf_from_vlc_tick(pts);
+    float time_sec = secf_from_heimdall_tick(pts);
     /* Full cycle in 60 seconds if speed = 1 */
     float theta = sys->theta0 + sys->speed * time_sec * 2 * 3.141592f / 60;
     float cos_theta = cos(theta);
@@ -126,8 +127,8 @@ InitMatrix(struct sys *sys, vlc_tick_t pts)
 }
 
 static int
-DrawBlend(struct vlc_gl_filter *filter, const struct vlc_gl_picture *pic,
-          const struct vlc_gl_input_meta *meta)
+DrawBlend(struct heimdall_gl_filter *filter, const struct heimdall_gl_picture *pic,
+          const struct heimdall_gl_input_meta *meta)
 {
     struct sys *sys = filter->sys;
 
@@ -173,12 +174,12 @@ DrawBlend(struct vlc_gl_filter *filter, const struct vlc_gl_picture *pic,
     vt->Disable(GL_BLEND);
     GL_ASSERT_NOERROR(vt);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int
-DrawMask(struct vlc_gl_filter *filter, const struct vlc_gl_picture *pic,
-         const struct vlc_gl_input_meta *meta)
+DrawMask(struct heimdall_gl_filter *filter, const struct heimdall_gl_picture *pic,
+         const struct heimdall_gl_input_meta *meta)
 {
     struct sys *sys = filter->sys;
 
@@ -186,9 +187,9 @@ DrawMask(struct vlc_gl_filter *filter, const struct vlc_gl_picture *pic,
 
     vt->UseProgram(sys->program_id);
 
-    struct vlc_gl_sampler *sampler = sys->sampler;
-    vlc_gl_sampler_Update(sampler, pic);
-    vlc_gl_sampler_Load(sampler);
+    struct heimdall_gl_sampler *sampler = sys->sampler;
+    heimdall_gl_sampler_Update(sampler, pic);
+    heimdall_gl_sampler_Load(sampler);
 
     vt->BindBuffer(GL_ARRAY_BUFFER, sys->vbo);
     vt->EnableVertexAttribArray(sys->loc.vertex_pos);
@@ -212,12 +213,12 @@ DrawMask(struct vlc_gl_filter *filter, const struct vlc_gl_picture *pic,
     vt->DrawArrays(GL_TRIANGLES, 0, 3);
     GL_ASSERT_NOERROR(vt);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int
-DrawPlane(struct vlc_gl_filter *filter, const struct vlc_gl_picture *pic,
-          const struct vlc_gl_input_meta *meta)
+DrawPlane(struct heimdall_gl_filter *filter, const struct heimdall_gl_picture *pic,
+          const struct heimdall_gl_input_meta *meta)
 {
     (void) pic; /* TODO not used yet */
 
@@ -227,10 +228,10 @@ DrawPlane(struct vlc_gl_filter *filter, const struct vlc_gl_picture *pic,
 
     vt->UseProgram(sys->program_id);
 
-    struct vlc_gl_sampler *sampler = sys->sampler;
-    vlc_gl_sampler_Update(sampler, pic);
-    vlc_gl_sampler_SelectPlane(sampler, meta->plane);
-    vlc_gl_sampler_Load(sampler);
+    struct heimdall_gl_sampler *sampler = sys->sampler;
+    heimdall_gl_sampler_Update(sampler, pic);
+    heimdall_gl_sampler_SelectPlane(sampler, meta->plane);
+    heimdall_gl_sampler_Load(sampler);
 
     vt->Uniform1f(sys->loc.offset, 0.02 * meta->plane);
 
@@ -246,7 +247,7 @@ DrawPlane(struct vlc_gl_filter *filter, const struct vlc_gl_picture *pic,
         };
 
         /* Transform coordinates in place */
-        vlc_gl_picture_ToTexCoords(pic, 4, coords, coords);
+        heimdall_gl_picture_ToTexCoords(pic, 4, coords, coords);
 
         const float data[] = {
             -1,  1, coords[0], coords[1],
@@ -272,11 +273,11 @@ DrawPlane(struct vlc_gl_filter *filter, const struct vlc_gl_picture *pic,
     vt->DrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     GL_ASSERT_NOERROR(vt);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void
-Close(struct vlc_gl_filter *filter)
+Close(struct heimdall_gl_filter *filter)
 {
     struct sys *sys = filter->sys;
 
@@ -288,7 +289,7 @@ Close(struct vlc_gl_filter *filter)
 }
 
 static int
-InitBlend(struct vlc_gl_filter *filter)
+InitBlend(struct heimdall_gl_filter *filter)
 {
     struct sys *sys = filter->sys;
     const opengl_vtable_t *vt = &sys->api.vt;
@@ -333,12 +334,12 @@ InitBlend(struct vlc_gl_filter *filter)
     };
 
     GLuint program_id =
-        vlc_gl_BuildProgram(VLC_OBJECT(filter), vt,
+        heimdall_gl_BuildProgram(HEIMDALL_OBJECT(filter), vt,
                             ARRAY_SIZE(vertex_shader), vertex_shader,
                             ARRAY_SIZE(fragment_shader), fragment_shader);
 
     if (!program_id)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     sys->program_id = program_id;
 
@@ -367,17 +368,17 @@ InitBlend(struct vlc_gl_filter *filter)
 
     filter->config.blend = true;
 
-    static const struct vlc_gl_filter_ops ops = {
+    static const struct heimdall_gl_filter_ops ops = {
         .draw = DrawBlend,
         .close = Close,
     };
     filter->ops = &ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int
-InitMask(struct vlc_gl_filter *filter, struct vlc_gl_sampler *sampler)
+InitMask(struct heimdall_gl_filter *filter, struct heimdall_gl_sampler *sampler)
 {
     struct sys *sys = filter->sys;
     const opengl_vtable_t *vt = &sys->api.vt;
@@ -399,7 +400,7 @@ InitMask(struct vlc_gl_filter *filter, struct vlc_gl_sampler *sampler)
     static const char *const FRAGMENT_SHADER_BODY =
         "varying vec2 tex_coords;\n"
         "void main() {\n"
-        "  gl_FragColor = vlc_texture(tex_coords);\n"
+        "  gl_FragColor = heimdall_texture(tex_coords);\n"
         "}\n";
 
     const char *extensions = sampler->shader.extensions
@@ -418,15 +419,15 @@ InitMask(struct vlc_gl_filter *filter, struct vlc_gl_sampler *sampler)
     };
 
     GLuint program_id =
-        vlc_gl_BuildProgram(VLC_OBJECT(filter), vt,
+        heimdall_gl_BuildProgram(HEIMDALL_OBJECT(filter), vt,
                             ARRAY_SIZE(vertex_shader), vertex_shader,
                             ARRAY_SIZE(fragment_shader), fragment_shader);
     if (!program_id)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     sys->program_id = program_id;
 
-    vlc_gl_sampler_FetchLocations(sampler, program_id);
+    heimdall_gl_sampler_FetchLocations(sampler, program_id);
 
     sys->loc.vertex_pos = vt->GetAttribLocation(sys->program_id, "vertex_pos");
     assert(sys->loc.vertex_pos != -1);
@@ -453,17 +454,17 @@ InitMask(struct vlc_gl_filter *filter, struct vlc_gl_sampler *sampler)
 
     filter->config.blend = false;
 
-    static const struct vlc_gl_filter_ops ops = {
+    static const struct heimdall_gl_filter_ops ops = {
         .draw = DrawMask,
         .close = Close,
     };
     filter->ops = &ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int
-InitPlane(struct vlc_gl_filter *filter, struct vlc_gl_sampler *sampler)
+InitPlane(struct heimdall_gl_filter *filter, struct heimdall_gl_sampler *sampler)
 {
     struct sys *sys = filter->sys;
     const opengl_vtable_t *vt = &sys->api.vt;
@@ -485,7 +486,7 @@ InitPlane(struct vlc_gl_filter *filter, struct vlc_gl_sampler *sampler)
     static const char *const FRAGMENT_SHADER_BODY =
         "varying vec2 tex_coords;\n"
         "void main() {\n"
-        "  gl_FragColor = vlc_texture(fract(tex_coords));\n"
+        "  gl_FragColor = heimdall_texture(fract(tex_coords));\n"
         "}\n";
 
     const char *extensions = sampler->shader.extensions
@@ -504,15 +505,15 @@ InitPlane(struct vlc_gl_filter *filter, struct vlc_gl_sampler *sampler)
     };
 
     GLuint program_id =
-        vlc_gl_BuildProgram(VLC_OBJECT(filter), vt,
+        heimdall_gl_BuildProgram(HEIMDALL_OBJECT(filter), vt,
                             ARRAY_SIZE(vertex_shader), vertex_shader,
                             ARRAY_SIZE(fragment_shader), fragment_shader);
     if (!program_id)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     sys->program_id = program_id;
 
-    vlc_gl_sampler_FetchLocations(sampler, program_id);
+    heimdall_gl_sampler_FetchLocations(sampler, program_id);
 
     sys->loc.vertex_pos = vt->GetAttribLocation(sys->program_id, "vertex_pos");
     assert(sys->loc.vertex_pos != -1);
@@ -526,18 +527,18 @@ InitPlane(struct vlc_gl_filter *filter, struct vlc_gl_sampler *sampler)
 
     vt->BindBuffer(GL_ARRAY_BUFFER, sys->vbo);
 
-    static const struct vlc_gl_filter_ops ops = {
+    static const struct heimdall_gl_filter_ops ops = {
         .draw = DrawPlane,
         .close = Close,
     };
     filter->ops = &ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int
-Open(struct vlc_gl_filter *filter, const config_chain_t *config,
-     struct vlc_gl_sampler *sampler, struct vlc_gl_tex_size *size_out)
+Open(struct heimdall_gl_filter *filter, const config_chain_t *config,
+     struct heimdall_gl_sampler *sampler, struct heimdall_gl_tex_size *size_out)
 {
     config_ChainParse(filter, MOCK_CFG_PREFIX, filter_options, config);
 
@@ -549,15 +550,15 @@ Open(struct vlc_gl_filter *filter, const config_chain_t *config,
 
     struct sys *sys = filter->sys = malloc(sizeof(*sys));
     if (!sys)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     sys->sampler = NULL;
 
-    int ret = vlc_gl_api_Init(&sys->api, filter->gl);
-    if (ret != VLC_SUCCESS)
+    int ret = heimdall_gl_api_Init(&sys->api, filter->gl);
+    if (ret != HEIMDALL_SUCCESS)
     {
         free(sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if (plane)
@@ -567,7 +568,7 @@ Open(struct vlc_gl_filter *filter, const config_chain_t *config,
     else
         ret = InitBlend(filter);
 
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
         goto error;
 
     sys->ar = (float) size_out->width / size_out->height;
@@ -577,14 +578,14 @@ Open(struct vlc_gl_filter *filter, const config_chain_t *config,
     /* MSAA is not supported for plane filters */
     filter->config.msaa_level = plane ? 0 : msaa;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     free(sys);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname("mock")
     set_description("mock OpenGL filter")
     set_subcategory(SUBCAT_VIDEO_VFILTER)
@@ -601,4 +602,4 @@ vlc_module_begin()
         change_volatile()
     add_integer(MOCK_CFG_PREFIX "msaa", 4, NULL, NULL)
         change_volatile()
-vlc_module_end()
+heimdall_module_end()

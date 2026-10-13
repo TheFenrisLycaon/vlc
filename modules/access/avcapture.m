@@ -2,6 +2,7 @@
  * avcapture.m: AVFoundation (Mac OS X) based video capture module
  *****************************************************************************
  * Copyright © 2008-2013 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Michael Feurstein <michael.feurstein@gmail.com>
  *
@@ -31,13 +32,13 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_input.h>
-#include <vlc_demux.h>
-#include <vlc_interface.h>
-#include <vlc_dialog.h>
-#include <vlc_access.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_input.h>
+#include <heimdall_demux.h>
+#include <heimdall_interface.h>
+#include <heimdall_dialog.h>
+#include <heimdall_access.h>
 
 #import <AvailabilityMacros.h>
 #import <AVFoundation/AVFoundation.h>
@@ -54,44 +55,44 @@
 /*****************************************************************************
 * Local prototypes
 *****************************************************************************/
-static int Open(vlc_object_t *p_this);
-static void Close(vlc_object_t *p_this);
+static int Open(heimdall_object_t *p_this);
+static void Close(heimdall_object_t *p_this);
 static int Demux(demux_t *p_demux);
 static int Control(demux_t *, int, va_list);
 
 /*****************************************************************************
 * Module descriptor
 *****************************************************************************/
-vlc_module_begin ()
+heimdall_module_begin ()
    set_shortname(N_("AVFoundation Video Capture"))
    set_description(N_("AVFoundation video capture module."))
    set_subcategory(SUBCAT_INPUT_ACCESS)
    add_shortcut("avcapture")
    set_capability("access", 0)
    set_callbacks(Open, Close)
-vlc_module_end ()
+heimdall_module_end ()
 
-static vlc_tick_t vlc_CMTime_to_tick(CMTime timestamp)
+static heimdall_tick_t heimdall_CMTime_to_tick(CMTime timestamp)
 {
     CMTime scaled = CMTimeConvertScale(
             timestamp, CLOCK_FREQ,
             kCMTimeRoundingMethod_Default);
 
-    return VLC_TICK_0 + scaled.value;
+    return HEIMDALL_TICK_0 + scaled.value;
 }
 
 /*****************************************************************************
 * AVFoundation Bridge
 *****************************************************************************/
-@interface VLCAVDecompressedVideoOutput :
+@interface HeimdallAVDecompressedVideoOutput :
     AVCaptureVideoDataOutput <AVCaptureVideoDataOutputSampleBufferDelegate>
 {
     demux_t             *p_avcapture;
 
     CVImageBufferRef    currentImageBuffer;
 
-    vlc_tick_t          currentPts;
-    vlc_tick_t          previousPts;
+    heimdall_tick_t          currentPts;
+    heimdall_tick_t          previousPts;
     size_t              bytesPerRow;
 
     long                timeScale;
@@ -104,12 +105,12 @@ static vlc_tick_t vlc_CMTime_to_tick(CMTime timestamp)
 - (int)width;
 - (int)height;
 - (void)getVideoDimensions:(CMSampleBufferRef)sampleBuffer;
-- (vlc_tick_t)currentPts;
+- (heimdall_tick_t)currentPts;
 - (void)captureOutput:(AVCaptureOutput *)captureOutput didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer fromConnection:(AVCaptureConnection *)connection;
-- (vlc_tick_t)copyCurrentFrameToBuffer:(void *)buffer;
+- (heimdall_tick_t)copyCurrentFrameToBuffer:(void *)buffer;
 @end
 
-@implementation VLCAVDecompressedVideoOutput : AVCaptureVideoDataOutput
+@implementation HeimdallAVDecompressedVideoOutput : AVCaptureVideoDataOutput
 
 - (id)initWithDemux:(demux_t *)p_demux
 {
@@ -169,14 +170,14 @@ static vlc_tick_t vlc_CMTime_to_tick(CMTime timestamp)
     }
 }
 
-- (vlc_tick_t)currentPts
+- (heimdall_tick_t)currentPts
 {
-    vlc_tick_t pts;
+    heimdall_tick_t pts;
 
     @synchronized (self)
     {
        if ( !currentImageBuffer || currentPts == previousPts )
-           return VLC_TICK_INVALID;
+           return HEIMDALL_TICK_INVALID;
         pts = previousPts = currentPts;
     }
 
@@ -198,7 +199,7 @@ didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer
         @synchronized (self) {
             imageBufferToRelease = currentImageBuffer;
             currentImageBuffer = videoFrame;
-            currentPts = vlc_CMTime_to_tick(presentationtimestamp);
+            currentPts = heimdall_CMTime_to_tick(presentationtimestamp);
             timeScale = (long)presentationtimestamp.timescale;
         }
 
@@ -206,7 +207,7 @@ didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer
     }
 }
 
-- (vlc_tick_t)copyCurrentFrameToBuffer:(void *)buffer
+- (heimdall_tick_t)copyCurrentFrameToBuffer:(void *)buffer
 {
     CVImageBufferRef imageBuffer;
     void *pixels = NULL;
@@ -243,52 +244,52 @@ didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer
 * Struct
 *****************************************************************************/
 
-@interface VLCAVCaptureDemux : NSObject {
+@interface HeimdallAVCaptureDemux : NSObject {
     demux_t                         *_demux;
     AVCaptureSession                *_session;
     AVCaptureDevice                 *_device;
-    VLCAVDecompressedVideoOutput    *_output;
+    HeimdallAVDecompressedVideoOutput    *_output;
     es_out_id_t                     *_es_video;
     es_format_t                     _fmt;
     int                             _height, _width;
 }
 
-- (VLCAVCaptureDemux*)init:(demux_t *)demux;
+- (HeimdallAVCaptureDemux*)init:(demux_t *)demux;
 - (int)demux;
-- (vlc_tick_t)pts;
+- (heimdall_tick_t)pts;
 - (void)dealloc;
 @end
 
 /*****************************************************************************
 * Open:
 *****************************************************************************/
-static int Open(vlc_object_t *p_this)
+static int Open(heimdall_object_t *p_this)
 {
     demux_t                 *p_demux = (demux_t*)p_this;
 
     if (p_demux->out == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     @autoreleasepool {
-        VLCAVCaptureDemux *demux = [[VLCAVCaptureDemux alloc] init:p_demux];
+        HeimdallAVCaptureDemux *demux = [[HeimdallAVCaptureDemux alloc] init:p_demux];
         if (demux == nil)
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         p_demux->p_sys = (__bridge_retained void*)demux;
     }
     p_demux->pf_demux = Demux;
     p_demux->pf_control = Control;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
 * Close:
 *****************************************************************************/
-static void Close(vlc_object_t *p_this)
+static void Close(heimdall_object_t *p_this)
 {
     demux_t *p_demux = (demux_t*)p_this;
-    VLCAVCaptureDemux *demux =
-        (__bridge_transfer VLCAVCaptureDemux*)p_demux->p_sys;
+    HeimdallAVCaptureDemux *demux =
+        (__bridge_transfer HeimdallAVCaptureDemux*)p_demux->p_sys;
 
     /* Signal ARC we won't use those references anymore. */
     p_demux->p_sys = nil;
@@ -300,7 +301,7 @@ static void Close(vlc_object_t *p_this)
 *****************************************************************************/
 static int Demux(demux_t *p_demux)
 {
-    VLCAVCaptureDemux *demux = (__bridge VLCAVCaptureDemux *)p_demux->p_sys;
+    HeimdallAVCaptureDemux *demux = (__bridge HeimdallAVCaptureDemux *)p_demux->p_sys;
     return [demux demux];
 }
 
@@ -309,7 +310,7 @@ static int Demux(demux_t *p_demux)
 *****************************************************************************/
 static int Control(demux_t *p_demux, int i_query, va_list args)
 {
-    VLCAVCaptureDemux *demux = (__bridge VLCAVCaptureDemux *)p_demux->p_sys;
+    HeimdallAVCaptureDemux *demux = (__bridge HeimdallAVCaptureDemux *)p_demux->p_sys;
     bool        *pb;
 
     switch( i_query )
@@ -321,25 +322,25 @@ static int Control(demux_t *p_demux, int i_query, va_list args)
         case DEMUX_CAN_CONTROL_PACE:
            pb = va_arg(args, bool *);
            *pb = false;
-           return VLC_SUCCESS;
+           return HEIMDALL_SUCCESS;
 
         case DEMUX_GET_PTS_DELAY:
-           *va_arg(args, vlc_tick_t *) =
-               VLC_TICK_FROM_MS(var_InheritInteger(p_demux, "live-caching"));
-           return VLC_SUCCESS;
+           *va_arg(args, heimdall_tick_t *) =
+               HEIMDALL_TICK_FROM_MS(var_InheritInteger(p_demux, "live-caching"));
+           return HEIMDALL_SUCCESS;
 
         case DEMUX_GET_TIME:
-            *va_arg(args, vlc_tick_t *) = [demux pts];
-            return VLC_SUCCESS;
+            *va_arg(args, heimdall_tick_t *) = [demux pts];
+            return HEIMDALL_SUCCESS;
 
         default:
-           return VLC_EGENERIC;
+           return HEIMDALL_EGENERIC;
     }
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
-@implementation VLCAVCaptureDemux
-- (VLCAVCaptureDemux *)init:(demux_t *)p_demux
+@implementation HeimdallAVCaptureDemux
+- (HeimdallAVCaptureDemux *)init:(demux_t *)p_demux
 {
     NSString                *avf_currdevice_uid;
     NSArray                 *myVideoDevices;
@@ -363,7 +364,7 @@ static int Control(demux_t *p_demux, int i_query, va_list args)
                        arrayByAddingObjectsFromArray:[AVCaptureDevice devicesWithMediaType:AVMediaTypeMuxed]];
     if ( [myVideoDevices count] == 0 )
     {
-        vlc_dialog_display_error(_demux, _("No video devices found"),
+        heimdall_dialog_display_error(_demux, _("No video devices found"),
             _("Your Mac does not seem to be equipped with a suitable video input device. "
             "Please check your connectors and drivers."));
         msg_Err(_demux, "Can't find any suitable video device");
@@ -393,7 +394,7 @@ static int Control(demux_t *p_demux, int i_query, va_list args)
 
     if ( !_device )
     {
-        vlc_dialog_display_error(_demux, _("No video devices found"),
+        heimdall_dialog_display_error(_demux, _("No video devices found"),
             _("Your Mac does not seem to be equipped with a suitable input device. "
             "Please check your connectors and drivers."));
         msg_Err(_demux, "Can't find any suitable video device");
@@ -421,9 +422,9 @@ static int Control(demux_t *p_demux, int i_query, va_list args)
         dispatch_release(sema);
         if (!accessGranted) {
             msg_Err(_demux, "Can't use the video device as access has not been granted by the user");
-            vlc_dialog_display_error(_demux, _("Problem accessing a system resource"),
+            heimdall_dialog_display_error(_demux, _("Problem accessing a system resource"),
                 _("Please open \"System Preferences\" -> \"Security & Privacy\" "
-                  "and allow VLC to access your camera."));
+                  "and allow Heimdall to access your camera."));
 
             return nil;
         }
@@ -437,7 +438,7 @@ static int Control(demux_t *p_demux, int i_query, va_list args)
         return nil;
     }
 
-    int chroma = VLC_CODEC_BGRA;
+    int chroma = HEIMDALL_CODEC_BGRA;
 
     memset(&_fmt, 0, sizeof(es_format_t));
     es_format_Init(&_fmt, VIDEO_ES, chroma);
@@ -446,7 +447,7 @@ static int Control(demux_t *p_demux, int i_query, va_list args)
 
     [_session addInput:input];
 
-    _output = [[VLCAVDecompressedVideoOutput alloc] initWithDemux:_demux];
+    _output = [[HeimdallAVDecompressedVideoOutput alloc] initWithDemux:_demux];
 
     [_session addOutput:_output];
 
@@ -485,7 +486,7 @@ static int Control(demux_t *p_demux, int i_query, va_list args)
             {
                 /* Nothing to display yet, just forget */
                 block_Release(p_block);
-                vlc_tick_sleep(VLC_HARD_MIN_SLEEP);
+                heimdall_tick_sleep(HEIMDALL_HARD_MIN_SLEEP);
                 return 1;
             }
             else if ( !_es_video )
@@ -514,7 +515,7 @@ static int Control(demux_t *p_demux, int i_query, va_list args)
     return 1;
 }
 
-- (vlc_tick_t)pts
+- (heimdall_tick_t)pts
 {
     return [_output currentPts];
 }

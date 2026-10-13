@@ -2,8 +2,9 @@
  * anaglyph.c : Create an image compatible with anaglyph glasses from a 3D video
  *****************************************************************************
  * Copyright (C) 2000-2012 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Antoine Cellerier <dionoea .t videolan d@t org>
+ * Authors: Antoine Cellerier <dionoea .t lycaria d@t org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -24,11 +25,11 @@
 #   include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_picture.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
 #include "filter_picture.h"
 
 static int Create(filter_t *);
@@ -65,14 +66,14 @@ static const char *const ppsz_scheme_descriptions[] = {
     N_("magenta (left)  cyan (right)"),
     };
 
-vlc_module_begin()
+heimdall_module_begin()
     set_description(N_("Convert 3D picture to anaglyph image video filter"))
     set_shortname(N_("Anaglyph"))
     set_subcategory(SUBCAT_VIDEO_VFILTER)
     add_string(FILTER_PREFIX "scheme", "red-cyan", SCHEME_TEXT, SCHEME_LONGTEXT)
         change_string_list(ppsz_scheme_values, ppsz_scheme_descriptions)
     set_callback_video_filter(Create)
-vlc_module_end()
+heimdall_module_end()
 
 static const char *const ppsz_filter_options[] = {
     "scheme", NULL
@@ -89,19 +90,19 @@ static int Create(filter_t *p_filter)
 {
     switch (p_filter->fmt_in.video.i_chroma)
     {
-        case VLC_CODEC_I420:
-        case VLC_CODEC_YV12:
+        case HEIMDALL_CODEC_I420:
+        case HEIMDALL_CODEC_YV12:
             break;
 
         default:
             msg_Err(p_filter, "Unsupported input chroma (%4.4s)",
                     (char*)&(p_filter->fmt_in.video.i_chroma));
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 
-    p_filter->p_sys = vlc_obj_malloc(VLC_OBJECT(p_filter), sizeof(filter_sys_t));
+    p_filter->p_sys = heimdall_obj_malloc(HEIMDALL_OBJECT(p_filter), sizeof(filter_sys_t));
     if (unlikely(!p_filter->p_sys))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     filter_sys_t *p_sys = p_filter->p_sys;
 
     config_ChainParse(p_filter, FILTER_PREFIX, ppsz_filter_options,
@@ -152,7 +153,7 @@ static int Create(filter_t *p_filter)
     }
 
     p_filter->ops = &Filter_ops;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void Filter(filter_t *p_filter, picture_t *p_pic, picture_t *p_outpic)
@@ -161,14 +162,14 @@ static void Filter(filter_t *p_filter, picture_t *p_pic, picture_t *p_outpic)
 
     switch (p_pic->format.i_chroma)
     {
-        case VLC_CODEC_I420:
-        case VLC_CODEC_YV12:
+        case HEIMDALL_CODEC_I420:
+        case HEIMDALL_CODEC_YV12:
             combine_side_by_side_yuv420(p_pic, p_outpic,
                                         p_sys->left, p_sys->right);
             break;
 
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 }
 

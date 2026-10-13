@@ -2,6 +2,7 @@
  * playtree.hpp
  *****************************************************************************
  * Copyright (C) 2005 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Antoine Cellerier <dionoea@videolan.org>
  *          Clément Stenac <zorglub@videolan.org>
@@ -25,11 +26,11 @@
 #define PLAYTREE_HPP
 
 #include "../utils/var_tree.hpp"
-#include <vlc_playlist.h>
+#include <heimdall_playlist.h>
 
 #include <map>
 
-/// Variable for VLC playlist (new tree format)
+/// Variable for Heimdall playlist (new tree format)
 class Playtree: public VarTree
 {
 public:
@@ -67,11 +68,11 @@ private:
     /// Current index being played back
     int m_currentIndex;
 
-    /// Build the list from the VLC playlist
+    /// Build the list from the Heimdall playlist
     void buildTree();
 
-    /// Retrieve an iterator from vlc_playlist_item_t
-    //Iterator findById( vlc_playlist_item_t *item );
+    /// Retrieve an iterator from heimdall_playlist_item_t
+    //Iterator findById( heimdall_playlist_item_t *item );
 
     /// Update Node's children
     void buildNode( int pos, VarTree &m_pNode );

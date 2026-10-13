@@ -2,6 +2,7 @@
  * davs2.c: AVS2-P2 video decoder using libdavs2
  *****************************************************************************
  * Copyright © 2021 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -35,25 +36,25 @@
 #include <stdlib.h>
 #include <davs2.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_frame.h>
-#include <vlc_codec.h>
-#include <vlc_cpu.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_frame.h>
+#include <heimdall_codec.h>
+#include <heimdall_cpu.h>
 
 static void UpdateFormat(decoder_t *dec, const davs2_seq_info_t *info)
 {
-    vlc_fourcc_t chroma = 0;
+    heimdall_fourcc_t chroma = 0;
     video_format_t *fmt = &dec->fmt_out.video;
 
     switch (info->output_bit_depth) {
          case 8:
              switch (info->chroma_format) {
                  case 1:
-                     chroma = VLC_CODEC_I420;
+                     chroma = HEIMDALL_CODEC_I420;
                      break;
                  case 2:
-                     chroma = VLC_CODEC_I422;
+                     chroma = HEIMDALL_CODEC_I422;
                      break;
                  default:
                      msg_Err(dec, "unsupported chromatic sampling: %"PRIu32,
@@ -64,17 +65,17 @@ static void UpdateFormat(decoder_t *dec, const davs2_seq_info_t *info)
              switch (info->chroma_format) {
 #ifdef WORDS_BIGENDIAN
                  case 1:
-                     chroma = VLC_CODEC_I420_10B;
+                     chroma = HEIMDALL_CODEC_I420_10B;
                      break;
                  case 2:
-                     chroma = VLC_CODEC_I422_10B;
+                     chroma = HEIMDALL_CODEC_I422_10B;
                      break;
 #else
                  case 1:
-                     chroma = VLC_CODEC_I420_10L;
+                     chroma = HEIMDALL_CODEC_I420_10L;
                      break;
                  case 2:
-                     chroma = VLC_CODEC_I422_10L;
+                     chroma = HEIMDALL_CODEC_I422_10L;
                      break;
 #endif
                  default:
@@ -183,14 +184,14 @@ static int Dequeue(decoder_t *dec,
             break;
 
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 
     davs2_decoder_frame_unref(dec->p_sys, &frame);
     return ret;
 }
 
-static int Decode(decoder_t *dec, vlc_frame_t *block)
+static int Decode(decoder_t *dec, heimdall_frame_t *block)
 {
     if (block == NULL) {
         /* Drain */
@@ -200,7 +201,7 @@ static int Decode(decoder_t *dec, vlc_frame_t *block)
             ret = Dequeue(dec, davs2_decoder_flush);
         while (ret != DAVS2_ERROR && ret != DAVS2_END);
 
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
     }
 
     if (!(block->i_flags & BLOCK_FLAG_CORRUPTED)) {
@@ -220,25 +221,25 @@ static int Decode(decoder_t *dec, vlc_frame_t *block)
     block_Release(block);
 
     Dequeue(dec, davs2_decoder_recv_frame);
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }
 
-static void Close(vlc_object_t *obj)
+static void Close(heimdall_object_t *obj)
 {
     decoder_t *dec = (decoder_t *)obj;
 
     davs2_decoder_close(dec->p_sys);
 }
 
-static int Open(vlc_object_t *obj)
+static int Open(heimdall_object_t *obj)
 {
     decoder_t *dec = (decoder_t *)obj;
 
-    if (dec->fmt_in->i_codec != VLC_CODEC_CAVS2)
-        return VLC_EGENERIC;
+    if (dec->fmt_in->i_codec != HEIMDALL_CODEC_CAVS2)
+        return HEIMDALL_EGENERIC;
 
     davs2_param_t params = {
-        .threads = vlc_GetCPUCount(),
+        .threads = heimdall_GetCPUCount(),
     };
 
     if (params.threads > 8)
@@ -247,18 +248,18 @@ static int Open(vlc_object_t *obj)
     dec->p_sys = davs2_decoder_open(&params);
     if (dec->p_sys == NULL) {
         msg_Err(obj, "decoder opening error");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     dec->pf_decode = Decode;
     dec->pf_flush = Flush;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname("davs2")
     set_description(N_("AVS2 decoder (using davs2)"))
     set_capability("video decoder", 200)
     set_callbacks(Open, Close)
     set_subcategory(SUBCAT_INPUT_VCODEC)
-vlc_module_end()
+heimdall_module_end()

@@ -1,7 +1,8 @@
 /*****************************************************************************
- * wall.c : Wall video plugin for vlc
+ * wall.c : Wall video plugin for heimdall
  *****************************************************************************
  * Copyright (C) 2000-2009 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Samuel Hocevar <sam@zoy.org>
  *
@@ -29,11 +30,11 @@
 #endif
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_video_splitter.h>
-#include <vlc_window.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_video_splitter.h>
+#include <heimdall_window.h>
 
 #define ROW_MAX (15)
 #define COL_MAX (15)
@@ -55,10 +56,10 @@
 
 #define CFG_PREFIX "wall-"
 
-static int  Open ( vlc_object_t * );
-static void Close( vlc_object_t * );
+static int  Open ( heimdall_object_t * );
+static void Close( heimdall_object_t * );
 
-vlc_module_begin()
+heimdall_module_begin()
     set_description( N_("Wall video filter") )
     set_shortname( N_("Image wall" ))
     set_capability( "video splitter", 0 )
@@ -73,7 +74,7 @@ vlc_module_begin()
 
     add_shortcut( "wall" )
     set_callbacks( Open, Close )
-vlc_module_end()
+heimdall_module_end()
 
 /*****************************************************************************
  * Local prototypes
@@ -102,34 +103,34 @@ typedef struct
 } video_splitter_sys_t;
 
 static int Filter( video_splitter_t *, picture_t *pp_dst[], picture_t * );
-static int Mouse( video_splitter_t *, int, vlc_window_mouse_event_t * );
+static int Mouse( video_splitter_t *, int, heimdall_window_mouse_event_t * );
 
 /**
  * This function allocates and initializes a Wall splitter module.
  */
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     video_splitter_t *p_splitter = (video_splitter_t*)p_this;
     video_splitter_sys_t *p_sys;
 
-    const vlc_chroma_description_t *p_chroma =
-        vlc_fourcc_GetChromaDescription( p_splitter->fmt.i_chroma );
+    const heimdall_chroma_description_t *p_chroma =
+        heimdall_fourcc_GetChromaDescription( p_splitter->fmt.i_chroma );
     if( p_chroma == NULL || p_chroma->plane_count == 0 )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     p_splitter->p_sys = p_sys = malloc( sizeof(*p_sys) );
     if( !p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     config_ChainParse( p_splitter, CFG_PREFIX, ppsz_filter_options,
                        p_splitter->p_cfg );
 
     /* */
     p_sys->i_col = var_CreateGetInteger( p_splitter, CFG_PREFIX "cols" );
-    p_sys->i_col = VLC_CLIP( p_sys->i_col, 1, COL_MAX );
+    p_sys->i_col = HEIMDALL_CLIP( p_sys->i_col, 1, COL_MAX );
 
     p_sys->i_row = var_CreateGetInteger( p_splitter, CFG_PREFIX "rows" );
-    p_sys->i_row = VLC_CLIP( p_sys->i_row, 1, ROW_MAX );
+    p_sys->i_row = HEIMDALL_CLIP( p_sys->i_row, 1, ROW_MAX );
 
     msg_Dbg( p_splitter, "opening a %i x %i wall",
              p_sys->i_col, p_sys->i_row );
@@ -193,7 +194,7 @@ static int Open( vlc_object_t *p_this )
     {
         msg_Err( p_splitter, "No active video output" );
         free( p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Setup output configuration */
@@ -203,7 +204,7 @@ static int Open( vlc_object_t *p_this )
     if( !p_splitter->p_output )
     {
         free( p_sys );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
     for( int y = 0, i_output = 0; y < p_sys->i_row; y++ )
     {
@@ -232,13 +233,13 @@ static int Open( vlc_object_t *p_this )
     p_splitter->pf_filter = Filter;
     p_splitter->mouse = Mouse;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /**
  * Terminate a splitter module.
  */
-static void Close( vlc_object_t *p_this )
+static void Close( heimdall_object_t *p_this )
 {
     video_splitter_t *p_splitter = (video_splitter_t*)p_this;
     video_splitter_sys_t *p_sys = p_splitter->p_sys;
@@ -254,7 +255,7 @@ static int Filter( video_splitter_t *p_splitter, picture_t *pp_dst[], picture_t 
     if( video_splitter_NewPicture( p_splitter, pp_dst ) )
     {
         picture_Release( p_src );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     for( int y = 0; y < p_sys->i_row; y++ )
@@ -285,10 +286,10 @@ static int Filter( video_splitter_t *p_splitter, picture_t *pp_dst[], picture_t 
     }
 
     picture_Release( p_src );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 static int Mouse( video_splitter_t *p_splitter, int i_index,
-                  vlc_window_mouse_event_t *restrict ev )
+                  heimdall_window_mouse_event_t *restrict ev )
 {
     video_splitter_sys_t *p_sys = p_splitter->p_sys;
 
@@ -302,11 +303,11 @@ static int Mouse( video_splitter_t *p_splitter, int i_index,
             {
                 ev->x += p_output->i_left;
                 ev->y += p_output->i_top;
-                return VLC_SUCCESS;
+                return HEIMDALL_SUCCESS;
             }
         }
     }
-    vlc_assert_unreachable();
-    return VLC_EGENERIC;
+    heimdall_assert_unreachable();
+    return HEIMDALL_EGENERIC;
 }
 

@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright © 2014-2016 VideoLAN and VideoLAN Authors
  *             2018-2019 VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,8 +23,8 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_es.h>
+#include <heimdall_common.h>
+#include <heimdall_es.h>
 
 #include "DBMHelper.hpp"
 
@@ -38,7 +39,7 @@
 
 using namespace Decklink;
 
-IDeckLinkDisplayMode * Helper::MatchDisplayMode(vlc_object_t *p_obj,
+IDeckLinkDisplayMode * Helper::MatchDisplayMode(heimdall_object_t *p_obj,
                                                 IDeckLinkOutput *p_output,
                                                 const video_format_t *fmt,
                                                 BMDDisplayMode forcedmode)
@@ -120,8 +121,8 @@ IDeckLinkDisplayMode * Helper::MatchDisplayMode(vlc_object_t *p_obj,
                     {
                         unsigned int num_deck, den_deck;
                         unsigned int num_stream, den_stream;
-                        vlc_ureduce(&num_deck, &den_deck, timescale, frameduration, 0);
-                        vlc_ureduce(&num_stream, &den_stream,
+                        heimdall_ureduce(&num_deck, &den_deck, timescale, frameduration, 0);
+                        heimdall_ureduce(&num_stream, &den_stream,
                                     fmt->i_frame_rate, fmt->i_frame_rate_base, 0);
 
                         if (num_deck == num_stream && den_deck == den_stream)

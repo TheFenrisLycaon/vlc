@@ -2,6 +2,7 @@
  * picture.c
  *****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -25,7 +26,7 @@
 #include "picture.h"
 
 void
-vlc_gl_picture_ToTexCoords(const struct vlc_gl_picture *pic,
+heimdall_gl_picture_ToTexCoords(const struct heimdall_gl_picture *pic,
                            unsigned coords_count, const float *pic_coords,
                            float *tex_coords_out)
 {
@@ -47,7 +48,7 @@ vlc_gl_picture_ToTexCoords(const struct vlc_gl_picture *pic,
 }
 
 void
-vlc_gl_picture_ComputeDirectionMatrix(const struct vlc_gl_picture *pic,
+heimdall_gl_picture_ComputeDirectionMatrix(const struct heimdall_gl_picture *pic,
                                       float direction[static 2*2])
 {
     /**

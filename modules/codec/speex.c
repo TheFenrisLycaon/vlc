@@ -2,6 +2,7 @@
  * speex.c: speex decoder/packetizer/encoder module making use of libspeex.
  *****************************************************************************
  * Copyright (C) 2003-2009 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gildas Bazin <gbazin@videolan.org>
  *
@@ -27,11 +28,11 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_input_item.h>
-#include <vlc_codec.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_input_item.h>
+#include <heimdall_codec.h>
 #include "../demux/xiph.h"
 
 #include <ogg/ogg.h>
@@ -45,12 +46,12 @@
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  OpenDecoder   ( vlc_object_t * );
-static int  OpenPacketizer( vlc_object_t * );
-static void CloseDecoder  ( vlc_object_t * );
+static int  OpenDecoder   ( heimdall_object_t * );
+static int  OpenPacketizer( heimdall_object_t * );
+static void CloseDecoder  ( heimdall_object_t * );
 
 #ifdef ENABLE_SOUT
-static int OpenEncoder   ( vlc_object_t * );
+static int OpenEncoder   ( heimdall_object_t * );
 static void CloseEncoder ( encoder_t * );
 #endif
 
@@ -91,7 +92,7 @@ static const char * const ppsz_enc_mode_descriptions[] = {
     N_("Narrow-band (8kHz)"), N_("Wide-band (16kHz)"), N_("Ultra-wideband (32kHz)")
 };
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_subcategory( SUBCAT_INPUT_ACODEC )
 
     set_description( N_("Speex audio decoder") )
@@ -137,7 +138,7 @@ vlc_module_begin ()
     /* TODO agc, noise suppression, */
 #endif
 
-vlc_module_end ()
+heimdall_module_end ()
 
 static const char *const ppsz_enc_options[] = {
     "mode", "complexity", "cbr", "quality", "max-bitrate", "vad", "dtx", NULL
@@ -196,34 +197,34 @@ static block_t *SendPacket( decoder_t *, block_t * );
 
 static void ParseSpeexComments( decoder_t *, ogg_packet * );
 
-static int OpenCommon( vlc_object_t *p_this, bool b_packetizer )
+static int OpenCommon( heimdall_object_t *p_this, bool b_packetizer )
 {
     decoder_t *p_dec = (decoder_t*)p_this;
     decoder_sys_t *p_sys;
 
-    if( p_dec->fmt_in->i_codec != VLC_CODEC_SPEEX )
-        return VLC_EGENERIC;
+    if( p_dec->fmt_in->i_codec != HEIMDALL_CODEC_SPEEX )
+        return HEIMDALL_EGENERIC;
 
     /* Allocate the memory needed to store the decoder's structure */
     if( ( p_dec->p_sys = p_sys = malloc(sizeof(decoder_sys_t)) ) == NULL )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     p_sys->bits.buf_size = 0;
     p_sys->b_packetizer = b_packetizer;
     p_sys->rtp_rate = p_dec->fmt_in->audio.i_rate;
     p_sys->b_has_headers = false;
     p_sys->p_tempbuffer = NULL;
 
-    date_Set( &p_sys->end_date, VLC_TICK_INVALID );
+    date_Set( &p_sys->end_date, HEIMDALL_TICK_INVALID );
 
     if( b_packetizer )
     {
-        p_dec->fmt_out.i_codec = VLC_CODEC_SPEEX;
+        p_dec->fmt_out.i_codec = HEIMDALL_CODEC_SPEEX;
         p_dec->pf_packetize    = Packetize;
     }
     else
     {
         /* Set output properties */
-        p_dec->fmt_out.i_codec = VLC_CODEC_S16N;
+        p_dec->fmt_out.i_codec = HEIMDALL_CODEC_S16N;
 
         /*
           Set callbacks
@@ -231,7 +232,7 @@ static int OpenCommon( vlc_object_t *p_this, bool b_packetizer )
           being invoked on a Speex stream arriving via RTP.
           A special decoder callback is used.
         */
-        if (p_dec->fmt_in->i_original_fourcc == VLC_FOURCC('s', 'p', 'x', 'r'))
+        if (p_dec->fmt_in->i_original_fourcc == HEIMDALL_FOURCC('s', 'p', 'x', 'r'))
         {
             msg_Dbg( p_dec, "Using RTP version of Speex decoder @ rate %d.",
             p_dec->fmt_in->audio.i_rate );
@@ -248,18 +249,18 @@ static int OpenCommon( vlc_object_t *p_this, bool b_packetizer )
     p_sys->p_header = NULL;
     p_sys->i_frame_in_packet = 0;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * OpenDecoder: probe the decoder and return score
  *****************************************************************************/
-static int OpenDecoder( vlc_object_t *p_this )
+static int OpenDecoder( heimdall_object_t *p_this )
 {
     return OpenCommon( p_this, false );
 }
 
-static int OpenPacketizer( vlc_object_t *p_this )
+static int OpenPacketizer( heimdall_object_t *p_this )
 {
     return OpenCommon( p_this, true );
 }
@@ -269,13 +270,13 @@ static int CreateDefaultHeader( decoder_t *p_dec )
     ogg_packet oggpacket;
     SpeexHeader *p_header = malloc( sizeof(SpeexHeader) );
     if( !p_header )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     const int rate = p_dec->fmt_in->audio.i_rate;
     const unsigned i_mode = (rate / 8000) >> 1;
 
     const SpeexMode *mode;
-    int ret = VLC_SUCCESS;
+    int ret = HEIMDALL_SUCCESS;
     char *p_header_alloc = NULL;
 
     switch( rate )
@@ -287,7 +288,7 @@ static int CreateDefaultHeader( decoder_t *p_dec )
             break;
         default:
             msg_Err( p_dec, "Unexpected rate %d", rate );
-            ret = VLC_EGENERIC;
+            ret = HEIMDALL_EGENERIC;
             goto cleanup;
     }
 
@@ -298,7 +299,7 @@ static int CreateDefaultHeader( decoder_t *p_dec )
     p_header_alloc = speex_header_to_packet( p_header, &i_tmp );
     if( !p_header_alloc )
     {
-        ret = VLC_ENOMEM;
+        ret = HEIMDALL_ENOMEM;
         goto cleanup;
     }
 
@@ -312,7 +313,7 @@ static int CreateDefaultHeader( decoder_t *p_dec )
 
     ret = ProcessInitialHeader( p_dec, &oggpacket );
 
-    if( ret != VLC_SUCCESS )
+    if( ret != HEIMDALL_SUCCESS )
     {
         msg_Err( p_dec, "default Speex header is corrupted" );
     }
@@ -396,12 +397,12 @@ static block_t *DecodeBlock( decoder_t *p_dec, block_t **pp_block )
 static int DecodeAudio( decoder_t *p_dec, block_t *p_block )
 {
     if( p_block == NULL ) /* No Drain */
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
 
     block_t **pp_block = &p_block, *p_out;
     while( ( p_out = DecodeBlock( p_dec, pp_block ) ) != NULL )
         decoder_QueueAudio( p_dec, p_out );
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }
 
 static block_t *Packetize( decoder_t *p_dec, block_t **pp_block )
@@ -417,8 +418,8 @@ static int BuildExtradata( es_format_t *fmtout, bool b_packetizer,
     size_t i_xiph_headers_size;
     void *p_xiph_headers;
     if( xiph_PackHeaders( &i_xiph_headers_size, &p_xiph_headers,
-                          pi_size, pp_data, 2 ) != VLC_SUCCESS )
-        return VLC_ENOMEM;
+                          pi_size, pp_data, 2 ) != HEIMDALL_SUCCESS )
+        return HEIMDALL_ENOMEM;
 
     fmtout->i_extra = i_xiph_headers_size;
     fmtout->p_extra = p_xiph_headers;
@@ -427,7 +428,7 @@ static int BuildExtradata( es_format_t *fmtout, bool b_packetizer,
     if( b_packetizer )
         SetDWLE( &((uint8_t *)p_xiph_headers)[2 /* xiph */ + SPEEX_HEADER_FRAMES_PER_PACKET_OFFSET], 1 );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -469,12 +470,12 @@ static int ProcessHeaders( decoder_t *p_dec )
         if( !p_header )
         {
             msg_Err( p_dec, "Speex header missing" );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         size_t i_header = i_extra - (p_header - p_extra);
         if( i_header < SPEEX_HEADER_SIZE )
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
         pp_data[0] = p_header;
         pi_size[0] = SPEEX_HEADER_SIZE;
@@ -490,10 +491,10 @@ static int ProcessHeaders( decoder_t *p_dec )
     oggpacket.b_o_s = 1; /* yes this actually is a b_o_s packet :) */
     oggpacket.bytes  = pi_size[0];
     oggpacket.packet = (void *)pp_data[0];
-    if( ProcessInitialHeader( p_dec, &oggpacket ) != VLC_SUCCESS )
+    if( ProcessInitialHeader( p_dec, &oggpacket ) != HEIMDALL_SUCCESS )
     {
         msg_Err( p_dec, "initial Speex header is corrupted" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* The next packet in order is the comments header */
@@ -505,7 +506,7 @@ static int ProcessHeaders( decoder_t *p_dec )
     if( p_sys->b_packetizer )
         BuildExtradata( &p_dec->fmt_out, true, pi_size, pp_data );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -526,36 +527,36 @@ static int ProcessInitialHeader( decoder_t *p_dec, ogg_packet *p_oggpacket )
     if( !p_header )
     {
         msg_Err( p_dec, "cannot read Speex header" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     if( p_header->mode >= SPEEX_NB_MODES || p_header->mode < 0 )
     {
         msg_Err( p_dec, "mode number %d does not (yet/any longer) exist in "
                  "this version of libspeex.", p_header->mode );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     p_mode = speex_mode_list[p_header->mode];
     if( p_mode == NULL )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if( p_header->speex_version_id > 1 )
     {
         msg_Err( p_dec, "this file was encoded with Speex bit-stream "
                  "version %d which is not supported by this decoder.",
                  p_header->speex_version_id );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( p_mode->bitstream_version < p_header->mode_bitstream_version )
     {
         msg_Err( p_dec, "file encoded with a newer version of Speex." );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     if( p_mode->bitstream_version > p_header->mode_bitstream_version )
     {
         msg_Err( p_dec, "file encoded with an older version of Speex." );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     msg_Dbg( p_dec, "Speex %d Hz audio using %s mode %s%s",
@@ -569,7 +570,7 @@ static int ProcessInitialHeader( decoder_t *p_dec, ogg_packet *p_oggpacket )
     if( !p_state )
     {
         msg_Err( p_dec, "decoder initialization failed" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( p_header->nb_channels == 2 )
@@ -586,18 +587,18 @@ static int ProcessInitialHeader( decoder_t *p_dec, ogg_packet *p_oggpacket )
     {
         msg_Err( p_dec, "invalid number of channels (not between 1 and 5): %i",
                  p_header->nb_channels );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Setup the format */
     p_dec->fmt_out.audio.i_physical_channels =
-        vlc_chan_maps[p_header->nb_channels];
+        heimdall_chan_maps[p_header->nb_channels];
     p_dec->fmt_out.audio.i_channels = p_header->nb_channels;
     p_dec->fmt_out.audio.i_rate = p_header->rate;
 
     date_Init( &p_sys->end_date, p_header->rate, 1 );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -609,7 +610,7 @@ static void Flush( decoder_t *p_dec )
 
     speex_bits_reset( &p_sys->bits );
 
-    date_Set( &p_sys->end_date, VLC_TICK_INVALID );
+    date_Set( &p_sys->end_date, HEIMDALL_TICK_INVALID );
 }
 
 /*****************************************************************************
@@ -622,8 +623,8 @@ static block_t *ProcessPacket( decoder_t *p_dec, ogg_packet *p_oggpacket,
     block_t *p_block = *pp_block;
 
     /* Date management */
-    if( p_block && p_block->i_pts != VLC_TICK_INVALID &&
-        ( date_Get( &p_sys->end_date ) == VLC_TICK_INVALID ||
+    if( p_block && p_block->i_pts != HEIMDALL_TICK_INVALID &&
+        ( date_Get( &p_sys->end_date ) == HEIMDALL_TICK_INVALID ||
          ( p_block->i_pts != date_Get( &p_sys->end_date ) &&
            speex_bits_remaining( &p_sys->bits ) == 0 ) ) )
     {
@@ -632,7 +633,7 @@ static block_t *ProcessPacket( decoder_t *p_dec, ogg_packet *p_oggpacket,
 
     *pp_block = NULL; /* To avoid being fed the same packet again */
 
-    if( date_Get( &p_sys->end_date ) == VLC_TICK_INVALID )
+    if( date_Get( &p_sys->end_date ) == HEIMDALL_TICK_INVALID )
     {
         /* We've just started the stream, wait for the first PTS. */
         if( p_block ) block_Release( p_block );
@@ -766,11 +767,11 @@ static int DecodeRtpSpeexPacket( decoder_t *p_dec, block_t *p_speex_bit_block )
     int i_decode_ret;
     unsigned int i_speex_frame_size;
 
-    if ( !p_speex_bit_block || p_speex_bit_block->i_pts == VLC_TICK_INVALID )
+    if ( !p_speex_bit_block || p_speex_bit_block->i_pts == HEIMDALL_TICK_INVALID )
     {
         if( p_speex_bit_block )
             block_Release( p_speex_bit_block );
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
     }
 
     /*
@@ -783,7 +784,7 @@ static int DecodeRtpSpeexPacket( decoder_t *p_dec, block_t *p_speex_bit_block )
         if( p_sys->bits.buf_size==0 )
         {
             block_Release( p_speex_bit_block );
-            return VLCDEC_SUCCESS;
+            return HEIMDALLDEC_SUCCESS;
         }
 
         p_sys->p_header = calloc(1, sizeof(SpeexHeader));
@@ -791,7 +792,7 @@ static int DecodeRtpSpeexPacket( decoder_t *p_dec, block_t *p_speex_bit_block )
         {
             msg_Err( p_dec, "Could not allocate a Speex header.");
             block_Release( p_speex_bit_block );
-            return VLCDEC_SUCCESS;
+            return HEIMDALLDEC_SUCCESS;
         }
 
         const SpeexMode *mode = speex_lib_get_mode((p_sys->rtp_rate / 8000) >> 1);
@@ -802,7 +803,7 @@ static int DecodeRtpSpeexPacket( decoder_t *p_dec, block_t *p_speex_bit_block )
         {
             msg_Err( p_dec, "Could not allocate a Speex decoder." );
             block_Release( p_speex_bit_block );
-            return VLCDEC_SUCCESS;
+            return HEIMDALLDEC_SUCCESS;
         }
 
         /*
@@ -814,7 +815,7 @@ static int DecodeRtpSpeexPacket( decoder_t *p_dec, block_t *p_speex_bit_block )
 
         p_dec->fmt_out.audio.i_channels = p_sys->p_header->nb_channels;
         p_dec->fmt_out.audio.i_physical_channels =
-            vlc_chan_maps[p_sys->p_header->nb_channels];
+            heimdall_chan_maps[p_sys->p_header->nb_channels];
         p_dec->fmt_out.audio.i_rate = p_sys->p_header->rate;
 
         if ( speex_mode_query( &speex_nb_mode,
@@ -823,7 +824,7 @@ static int DecodeRtpSpeexPacket( decoder_t *p_dec, block_t *p_speex_bit_block )
         {
             msg_Err( p_dec, "Could not determine the frame size." );
             block_Release( p_speex_bit_block );
-            return VLCDEC_SUCCESS;
+            return HEIMDALLDEC_SUCCESS;
         }
         p_dec->fmt_out.audio.i_bytes_per_frame = i_speex_frame_size;
 
@@ -838,10 +839,10 @@ static int DecodeRtpSpeexPacket( decoder_t *p_dec, block_t *p_speex_bit_block )
     {
         msg_Err( p_dec, "There is no valid Speex header found." );
         block_Release( p_speex_bit_block );
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
     }
 
-    if ( date_Get( &p_sys->end_date ) == VLC_TICK_INVALID )
+    if ( date_Get( &p_sys->end_date ) == HEIMDALL_TICK_INVALID )
         date_Set( &p_sys->end_date, p_speex_bit_block->i_dts );
 
     assert( p_sys->p_header->frame_size > 0 );
@@ -858,7 +859,7 @@ static int DecodeRtpSpeexPacket( decoder_t *p_dec, block_t *p_speex_bit_block )
     {
         msg_Err(p_dec, "Oops: No new buffer was returned!");
         block_Release( p_speex_bit_block );
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
     }
 
     /*
@@ -880,7 +881,7 @@ static int DecodeRtpSpeexPacket( decoder_t *p_dec, block_t *p_speex_bit_block )
     {
         block_Release( p_aout_buffer );
         msg_Err( p_dec, "Decoding failed. Perhaps we have a bad stream?" );
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
     }
 
     /*
@@ -891,7 +892,7 @@ static int DecodeRtpSpeexPacket( decoder_t *p_dec, block_t *p_speex_bit_block )
         p_sys->p_header->frame_size ) - p_aout_buffer->i_pts;
 
     decoder_QueueAudio( p_dec, p_aout_buffer );
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }
 
 /*****************************************************************************
@@ -1000,7 +1001,7 @@ static void ParseSpeexComments( decoder_t *p_dec, ogg_packet *p_oggpacket )
 
     if( !p_dec->p_description )
     {
-        p_dec->p_description = vlc_meta_New();
+        p_dec->p_description = heimdall_meta_New();
         if( !p_dec->p_description )
             return;
     }
@@ -1008,18 +1009,18 @@ static void ParseSpeexComments( decoder_t *p_dec, ogg_packet *p_oggpacket )
     char *psz_mode;
     if( asprintf( &psz_mode, "%s%s", p_mode->modeName, p_sys->p_header->vbr ? " VBR" : "" ) >= 0 )
     {
-        vlc_meta_SetExtra( p_dec->p_description, _("Mode"), psz_mode );
+        heimdall_meta_SetExtra( p_dec->p_description, _("Mode"), psz_mode );
         free( psz_mode );
     }
 
     /* TODO: finish comments parsing */
-    VLC_UNUSED( p_oggpacket );
+    HEIMDALL_UNUSED( p_oggpacket );
 }
 
 /*****************************************************************************
  * CloseDecoder: speex decoder destruction
  *****************************************************************************/
-static void CloseDecoder( vlc_object_t *p_this )
+static void CloseDecoder( heimdall_object_t *p_this )
 {
     decoder_t * p_dec = (decoder_t *)p_this;
     decoder_sys_t *p_sys = p_dec->p_sys;
@@ -1068,7 +1069,7 @@ static block_t *Encode   ( encoder_t *, block_t * );
 /*****************************************************************************
  * OpenEncoder: probe the encoder and return score
  *****************************************************************************/
-static int OpenEncoder( vlc_object_t *p_this )
+static int OpenEncoder( heimdall_object_t *p_this )
 {
     encoder_t *p_enc = (encoder_t *)p_this;
     encoder_sys_t *p_sys;
@@ -1077,10 +1078,10 @@ static int OpenEncoder( vlc_object_t *p_this )
     const void *pp_header[2];
     size_t pi_header[2];
 
-    if( p_enc->fmt_out.i_codec != VLC_CODEC_SPEEX &&
+    if( p_enc->fmt_out.i_codec != HEIMDALL_CODEC_SPEEX &&
         !p_enc->obj.force )
     {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     config_ChainParse( p_enc, ENC_CFG_PREFIX, ppsz_enc_options, p_enc->p_cfg );
@@ -1102,10 +1103,10 @@ static int OpenEncoder( vlc_object_t *p_this )
 
     /* Allocate the memory needed to store the decoder's structure */
     if( ( p_sys = (encoder_sys_t *)malloc(sizeof(encoder_sys_t)) ) == NULL )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     p_enc->p_sys = p_sys;
-    p_enc->fmt_in.i_codec = VLC_CODEC_S16N;
-    p_enc->fmt_out.i_codec = VLC_CODEC_SPEEX;
+    p_enc->fmt_in.i_codec = HEIMDALL_CODEC_S16N;
+    p_enc->fmt_out.i_codec = HEIMDALL_CODEC_SPEEX;
 
     speex_init_header( &p_sys->header, p_enc->fmt_in.audio.i_rate,
                        1, p_speex_mode );
@@ -1167,26 +1168,26 @@ static int OpenEncoder( vlc_object_t *p_this )
     if( !p_sys->p_buffer )
     {
         CloseEncoder( p_enc );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     /* Create and store headers */
     char *p_header_alloc;
     pp_header[0] = p_header_alloc = speex_header_to_packet( &p_sys->header, &i_tmp );
     pi_header[0] = i_tmp;
-    pp_header[1] = "ENCODER=VLC media player";
-    pi_header[1] = sizeof("ENCODER=VLC media player");
+    pp_header[1] = "ENCODER=Heimdall media player";
+    pi_header[1] = sizeof("ENCODER=Heimdall media player");
 
     if( !p_header_alloc ||
-        BuildExtradata( &p_enc->fmt_out, false, pi_header, pp_header ) != VLC_SUCCESS )
+        BuildExtradata( &p_enc->fmt_out, false, pi_header, pp_header ) != HEIMDALL_SUCCESS )
     {
         speex_header_free( p_header_alloc );
         CloseEncoder( p_enc );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
     speex_header_free( p_header_alloc );
 
-    static const struct vlc_encoder_operations ops =
+    static const struct heimdall_encoder_operations ops =
     {
         .close = CloseEncoder,
         .encode_audio = Encode,
@@ -1197,7 +1198,7 @@ static int OpenEncoder( vlc_object_t *p_this )
              p_sys->i_frame_size, p_enc->fmt_in.audio.i_channels,
              p_enc->fmt_in.audio.i_rate );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /****************************************************************************
@@ -1217,8 +1218,8 @@ static block_t *Encode( encoder_t *p_enc, block_t *p_aout_buf )
     unsigned i_samples = p_aout_buf->i_nb_samples;
     int i_samples_delay = p_sys->i_samples_delay;
 
-    vlc_tick_t i_pts = p_aout_buf->i_pts -
-                vlc_tick_from_samples( p_sys->i_samples_delay,
+    heimdall_tick_t i_pts = p_aout_buf->i_pts -
+                heimdall_tick_from_samples( p_sys->i_samples_delay,
                             p_enc->fmt_in.audio.i_rate );
 
     p_sys->i_samples_delay += i_samples;
@@ -1282,8 +1283,8 @@ static block_t *Encode( encoder_t *p_enc, block_t *p_aout_buf )
 
         speex_bits_reset( &p_sys->bits );
 
-        p_block->i_length = vlc_tick_from_samples(
-            p_sys->i_frame_length * (vlc_tick_t)p_sys->header.frames_per_packet,
+        p_block->i_length = heimdall_tick_from_samples(
+            p_sys->i_frame_length * (heimdall_tick_t)p_sys->header.frames_per_packet,
             p_enc->fmt_in.audio.i_rate );
 
         p_block->i_dts = p_block->i_pts = i_pts;

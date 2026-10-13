@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,9 +21,9 @@ import QtQuick.Window
 import QtQuick.Layouts
 
 
-import VLC.MainInterface
-import VLC.Style
-import VLC.Widgets
+import Heimdall.MainInterface
+import Heimdall.Style
+import Heimdall.Widgets
 
 Rectangle {
     id: root
@@ -35,9 +36,9 @@ Rectangle {
         return false
     }
 
-    readonly property int _frameMarginLeft: VLCStyle.palette.csdMetrics?.csdFrameMarginLeft ?? 0
-    readonly property int _frameMarginRight: VLCStyle.palette.csdMetrics?.csdFrameMarginRight ?? 0
-    readonly property int _interNavButtonSpacing: VLCStyle.palette.csdMetrics?.interNavButtonSpacing ?? 0
+    readonly property int _frameMarginLeft: HeimdallStyle.palette.csdMetrics?.csdFrameMarginLeft ?? 0
+    readonly property int _frameMarginRight: HeimdallStyle.palette.csdMetrics?.csdFrameMarginRight ?? 0
+    readonly property int _interNavButtonSpacing: HeimdallStyle.palette.csdMetrics?.interNavButtonSpacing ?? 0
 
     implicitWidth: layout.implicitWidth + _frameMarginLeft + _frameMarginRight
     implicitHeight: layout.implicitHeight

@@ -2,6 +2,7 @@
  * mpeg4systems.h: MPEG4 ISO-14496-1 definitions
  *****************************************************************************
  * Copyright (C) 2001-2024 VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -20,7 +21,7 @@
 #ifndef MP4_MPEG4SYSTEMS_H
 #define MP4_MPEG4SYSTEMS_H
 
-#include <vlc_codec.h>
+#include <heimdall_codec.h>
 #include "dts_header.h"
 
 /* See 14496-1 and http://mp4ra.org/#/object_types */
@@ -111,28 +112,28 @@ enum MPEG4_streamType
 static inline bool MPEG4_get_codec_by_ObjectType(uint8_t oti,
                                                  const uint8_t *p_dsi,
                                                  size_t i_dsi,
-                                                 vlc_fourcc_t *pi_codec,
+                                                 heimdall_fourcc_t *pi_codec,
                                                  int *pi_profile)
 {
     switch(oti)
     {
     case MPEG4_OT_VISUAL_ISO_IEC_14496_2: /* MPEG4 VIDEO */
-        *pi_codec = VLC_CODEC_MP4V;
+        *pi_codec = HEIMDALL_CODEC_MP4V;
         break;
     case MPEG4_OT_VISUAL_ISO_IEC_14496_10_H264: /* H.264 */
-        *pi_codec = VLC_CODEC_H264;
+        *pi_codec = HEIMDALL_CODEC_H264;
         break;
     case MPEG4_OT_VISUAL_ISO_IEC_23008_2_H265: /* H.265 */
-        *pi_codec = VLC_CODEC_HEVC;
+        *pi_codec = HEIMDALL_CODEC_HEVC;
         break;
     case 0x33: /* H.266 */
-        *pi_codec = VLC_CODEC_VVC;
+        *pi_codec = HEIMDALL_CODEC_VVC;
         break;
     case MPEG4_OT_AUDIO_ISO_IEC_14496_3:
     case 0x41:
-        *pi_codec = VLC_CODEC_MP4A;
+        *pi_codec = HEIMDALL_CODEC_MP4A;
         if(i_dsi >= 2 && p_dsi[0] == 0xF8 && (p_dsi[1]&0xE0)== 0x80)
-            *pi_codec = VLC_CODEC_ALS;
+            *pi_codec = HEIMDALL_CODEC_ALS;
         break;
          /* MPEG2 video */
     case MPEG4_OT_VISUAL_ISO_IEC_13818_2_SIMPLE_PROFILE:
@@ -141,68 +142,68 @@ static inline bool MPEG4_get_codec_by_ObjectType(uint8_t oti,
     case MPEG4_OT_VISUAL_ISO_IEC_13818_2_SPATIAL_PROFILE:
     case MPEG4_OT_VISUAL_ISO_IEC_13818_2_HIGH_PROFILE:
     case MPEG4_OT_VISUAL_ISO_IEC_13818_2_422_PROFILE:
-        *pi_codec = VLC_CODEC_MPGV;
+        *pi_codec = HEIMDALL_CODEC_MPGV;
         break;
         /* Theses are MPEG2-AAC */
     case MPEG4_OT_AUDIO_ISO_IEC_13818_7_MAIN_PROFILE: /* main profile */
     case MPEG4_OT_AUDIO_ISO_IEC_13818_7_LC_PROFILE: /* Low complexity profile */
     case MPEG4_OT_AUDIO_ISO_IEC_13818_7_SSR_PROFILE: /* Scalable Sampling rate profile */
-        *pi_codec = VLC_CODEC_MP4A;
+        *pi_codec = HEIMDALL_CODEC_MP4A;
         break;
         /* True MPEG 2 audio */
     case MPEG4_OT_AUDIO_ISO_IEC_13818_3:
-        *pi_codec = VLC_CODEC_MPGA;
+        *pi_codec = HEIMDALL_CODEC_MPGA;
         break;
     case MPEG4_OT_VISUAL_ISO_IEC_11172_2: /* MPEG1 video */
-        *pi_codec = VLC_CODEC_MPGV;
+        *pi_codec = HEIMDALL_CODEC_MPGV;
         break;
     case MPEG4_OT_AUDIO_ISO_IEC_11172_3: /* MPEG1 audio */
-        *pi_codec = VLC_CODEC_MPGA;
+        *pi_codec = HEIMDALL_CODEC_MPGA;
         break;
     case MPEG4_OT_VISUAL_ISO_IEC_10918_1_JPEG: /* jpeg */
-        *pi_codec = VLC_CODEC_JPEG;
+        *pi_codec = HEIMDALL_CODEC_JPEG;
         break;
     case MPEG4_OT_PORTABLE_NETWORK_GRAPHICS: /* png */
-        *pi_codec = VLC_CODEC_PNG;
+        *pi_codec = HEIMDALL_CODEC_PNG;
         break;
     case MPEG4_OT_VISUAL_ISO_IEC_15444_1_JPEG2000: /* jpeg2000 */
-        *pi_codec = VLC_FOURCC('M','J','2','C');
+        *pi_codec = HEIMDALL_FOURCC('M','J','2','C');
         break;
     case MPEG4_OT_SMPTE_VC1_VIDEO: /* vc-1 */
-        *pi_codec = VLC_CODEC_VC1;
+        *pi_codec = HEIMDALL_CODEC_VC1;
         break;
     case MPEG4_OT_DIRAC_VIDEO_CODER:
-        *pi_codec = VLC_CODEC_DIRAC;
+        *pi_codec = HEIMDALL_CODEC_DIRAC;
         break;
     case MPEG4_OT_DEPRECATED_AC3:
-        *pi_codec = VLC_CODEC_A52;
+        *pi_codec = HEIMDALL_CODEC_A52;
         break;
     case MPEG4_OT_DEPRECATED_EAC3:
-        *pi_codec = VLC_CODEC_EAC3;
+        *pi_codec = HEIMDALL_CODEC_EAC3;
         break;
     case MPEG4_OT_DTSHD_CORE_SUBSTREAM: /* DTS */
-        *pi_codec = VLC_CODEC_DTS;
+        *pi_codec = HEIMDALL_CODEC_DTS;
         break;
     case MPEG4_OT_DTSHD_CORE_SUBSTREAM_PLUS_EXTENSION: /* DTS-HD HRA */
     case MPEG4_OT_DTSHD_EXTENSION_SUBSTREAM_ONLY_XLL:  /* DTS-HD Master Audio */
         *pi_profile = PROFILE_DTS_HD;
-        *pi_codec = VLC_CODEC_DTS;
+        *pi_codec = HEIMDALL_CODEC_DTS;
         break;
     case MPEG4_OT_DTSHD_EXTENSION_SUBSTREAM_ONLY_LBR:
         *pi_profile = PROFILE_DTS_EXPRESS;
-        *pi_codec = VLC_CODEC_DTS;
+        *pi_codec = HEIMDALL_CODEC_DTS;
         break;
     case MPEG4_OT_OPUS_AUDIO:
-        *pi_codec = VLC_CODEC_OPUS;
+        *pi_codec = HEIMDALL_CODEC_OPUS;
         break;
     case MPEG4_OT_VP9_VIDEO:
-        *pi_codec = VLC_CODEC_VP9;
+        *pi_codec = HEIMDALL_CODEC_VP9;
         break;
     case 0xDD:
-        *pi_codec = VLC_CODEC_VORBIS;
+        *pi_codec = HEIMDALL_CODEC_VORBIS;
         break;
     case MPEG4_OT_3GPP2_13K_VOICE:
-        *pi_codec = VLC_CODEC_QCELP;
+        *pi_codec = HEIMDALL_CODEC_QCELP;
         break;
     default:
         return false;

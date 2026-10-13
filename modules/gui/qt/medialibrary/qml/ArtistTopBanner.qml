@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,12 +21,12 @@ import QtQuick.Layouts
 import QtQuick.Window
 import QtQml.Models
 
-import VLC.MainInterface
-import VLC.MediaLibrary
+import Heimdall.MainInterface
+import Heimdall.MediaLibrary
 
-import VLC.Widgets as Widgets
-import VLC.Style
-import VLC.Util
+import Heimdall.Widgets as Widgets
+import Heimdall.Style
+import Heimdall.Util
 
 FocusScope {
     id: root
@@ -34,7 +35,7 @@ FocusScope {
 
     required property var artist
 
-    implicitHeight: VLCStyle.artistBanner_height
+    implicitHeight: HeimdallStyle.artistBanner_height
 
     Accessible.role: Accessible.Pane
     Accessible.name: qsTr("Artist banner")
@@ -47,7 +48,7 @@ FocusScope {
     readonly property ColorContext colorContext: ColorContext {
         id: theme
         ////force the dark theme in the header
-        palette: VLCStyle.darkPalette
+        palette: HeimdallStyle.darkPalette
         colorSet: ColorContext.View
     }
 
@@ -58,7 +59,7 @@ FocusScope {
         anchors.fill: parent
 
         asynchronous: true
-        source: root.artist.id ? (root.artist.cover || VLCStyle.noArtArtist) : "" // do not load the fallback image during initialization
+        source: root.artist.id ? (root.artist.cover || HeimdallStyle.noArtArtist) : "" // do not load the fallback image during initialization
         sourceSize: artist.cover ? Qt.size(Helpers.alignUp(Screen.desktopAvailableWidth / 2, 32), 0)
                                  : undefined
 
@@ -86,7 +87,7 @@ FocusScope {
         fillMode: artist.cover ? Image.PreserveAspectCrop : Image.Tile
 
         visible: !blurEffect.visible
-        cache: (source === VLCStyle.noArtArtist)
+        cache: (source === HeimdallStyle.noArtArtist)
 
         // In fact, since layering is not used blur effect
         // would not care about the opacity here. Still,
@@ -163,16 +164,16 @@ FocusScope {
         id: col
 
         anchors.fill: parent
-        anchors.topMargin: VLCStyle.margin_xxlarge
-        anchors.bottomMargin: VLCStyle.margin_xxlarge
-        anchors.leftMargin: VLCStyle.margin_xlarge
+        anchors.topMargin: HeimdallStyle.margin_xxlarge
+        anchors.bottomMargin: HeimdallStyle.margin_xxlarge
+        anchors.leftMargin: HeimdallStyle.margin_xlarge
         anchors.rightMargin: root.rightPadding
 
-        spacing: VLCStyle.margin_normal
+        spacing: HeimdallStyle.margin_normal
 
         Item {
-            implicitHeight: VLCStyle.cover_normal
-            implicitWidth: VLCStyle.cover_normal
+            implicitHeight: HeimdallStyle.cover_normal
+            implicitWidth: HeimdallStyle.cover_normal
 
             // Since the source image may be mip mapped, we need to use
             // `TextureProviderIndirection` here which contains a fixup
@@ -181,13 +182,13 @@ FocusScope {
             // implicitly, so we can simply use it here:
             Widgets.EnhancedImageExt {
                 id: roundImage
-                source: root.artist.id ? (root.artist.cover || VLCStyle.noArtArtist) : "" // do not load the fallback image during initialization
+                source: root.artist.id ? (root.artist.cover || HeimdallStyle.noArtArtist) : "" // do not load the fallback image during initialization
                 targetTextureProvider: background
                 sourceSize: Qt.size(width * eDPR, height * eDPR)
                 anchors.fill: parent
-                radius: VLCStyle.cover_normal
+                radius: HeimdallStyle.cover_normal
                 borderColor: theme.border
-                borderWidth: VLCStyle.dp(1, VLCStyle.scale)
+                borderWidth: HeimdallStyle.dp(1, HeimdallStyle.scale)
                 fillMode: Image.PreserveAspectCrop
                 readonly property real eDPR: MainCtx.effectiveDevicePixelRatio(Window.window)
             }
@@ -199,7 +200,7 @@ FocusScope {
             // NOTE: The layout can be resized to zero to hide the text entirely.
             Layout.minimumWidth: 0
 
-            Layout.rightMargin: VLCStyle.margin_small
+            Layout.rightMargin: HeimdallStyle.margin_small
 
             spacing: 0
 
@@ -215,7 +216,7 @@ FocusScope {
             Widgets.MenuCaption {
                 Layout.fillWidth: true
 
-                Layout.topMargin: VLCStyle.margin_xxxsmall
+                Layout.topMargin: HeimdallStyle.margin_xxxsmall
 
                 text: qsTr("%1 Song", "%1 Songs", Number(artist.nb_tracks)).arg(artist.nb_tracks)
                 color: theme.fg.secondary
@@ -226,10 +227,10 @@ FocusScope {
 
                 focus: true
                 Navigation.parentItem: root
-                spacing: VLCStyle.margin_large
+                spacing: HeimdallStyle.margin_large
 
                 Layout.fillWidth: true
-                Layout.topMargin: VLCStyle.margin_large
+                Layout.topMargin: HeimdallStyle.margin_large
 
 
                 Widgets.ActionButtonPrimary {
@@ -237,14 +238,14 @@ FocusScope {
 
                     AccessibleCompat.id: "artistPlayButton"
 
-                    iconTxt: VLCIcons.play
+                    iconTxt: HeimdallIcons.play
                     text: qsTr("Play all")
                     focus: true
 
                     //we probably want to keep this button like the other action buttons
-                    colorContext.palette: VLCStyle.palette
+                    colorContext.palette: HeimdallStyle.palette
 
-                    showText: actionButtons.width > VLCStyle.colWidth(2)
+                    showText: actionButtons.width > HeimdallStyle.colWidth(2)
 
                     onClicked: MediaLib.addAndPlay( artist.id )
                 }
@@ -254,11 +255,11 @@ FocusScope {
 
                     AccessibleCompat.id: "artistEnqueueButton"
 
-                    iconTxt: VLCIcons.enqueue
+                    iconTxt: HeimdallIcons.enqueue
                     text: qsTr("Enqueue all")
                     onClicked: MediaLib.addToPlaylist( artist.id )
 
-                    showText: actionButtons.width > VLCStyle.colWidth(2)
+                    showText: actionButtons.width > HeimdallStyle.colWidth(2)
                 }
 
             }

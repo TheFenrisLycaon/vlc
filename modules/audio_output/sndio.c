@@ -1,7 +1,8 @@
 /*****************************************************************************
- * sndio.c : sndio plugin for VLC
+ * sndio.c : sndio plugin for Heimdall
  *****************************************************************************
  * Copyright (C) 2012 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -25,24 +26,24 @@
 #include <math.h>
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_aout.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_aout.h>
 
 #include <sndio.h>
 
-static int Open (vlc_object_t *);
-static void Close (vlc_object_t *);
+static int Open (heimdall_object_t *);
+static void Close (heimdall_object_t *);
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname ("sndio")
     set_description (N_("OpenBSD sndio audio output"))
     set_subcategory (SUBCAT_AUDIO_AOUT)
     set_capability ("audio output", 120)
     set_callbacks (Open, Close)
-vlc_module_end ()
+heimdall_module_end ()
 
-static void Play(audio_output_t *, block_t *, vlc_tick_t);
+static void Play(audio_output_t *, block_t *, heimdall_tick_t);
 static void Flush (audio_output_t *);
 static int VolumeSet (audio_output_t *, float);
 static int MuteSet (audio_output_t *, bool);
@@ -65,30 +66,30 @@ static int Start (audio_output_t *aout, audio_sample_format_t *restrict fmt)
     aout_sys_t *sys = aout->sys;
 
     if (aout_FormatNbChannels(fmt) == 0)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     sys->hdl = sio_open (NULL, SIO_PLAY, 0 /* blocking */);
     if (sys->hdl == NULL)
     {
         msg_Err (aout, "cannot create audio playback stream");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     struct sio_par par;
     sio_initpar (&par);
     switch (fmt->i_format) {
-    case VLC_CODEC_U8:
+    case HEIMDALL_CODEC_U8:
         par.bits = 8;
         par.sig = 0;
         break;
-    case VLC_CODEC_S16N:
+    case HEIMDALL_CODEC_S16N:
         par.bits = 16;
         par.sig = 1;
         par.le = SIO_LE_NATIVE;
         break;
-    case VLC_CODEC_S32N:
-    case VLC_CODEC_FL32:
-    case VLC_CODEC_FL64:
+    case HEIMDALL_CODEC_S32N:
+    case HEIMDALL_CODEC_FL32:
+    case HEIMDALL_CODEC_FL64:
         par.bits = 32;
         par.sig = 1;
         par.le = SIO_LE_NATIVE;
@@ -131,13 +132,13 @@ static int Start (audio_output_t *aout, audio_sample_format_t *restrict fmt)
     switch (par.bits)
     {
         case 8:
-            fmt->i_format = VLC_CODEC_U8;
+            fmt->i_format = HEIMDALL_CODEC_U8;
             break;
         case 16:
-            fmt->i_format = VLC_CODEC_S16N;
+            fmt->i_format = HEIMDALL_CODEC_S16N;
             break;
         case 32:
-            fmt->i_format = VLC_CODEC_S32N;
+            fmt->i_format = HEIMDALL_CODEC_S32N;
             break;
         default:
             msg_Err (aout, "unsupported audio sample format (%u bits)",
@@ -194,11 +195,11 @@ static int Start (audio_output_t *aout, audio_sample_format_t *restrict fmt)
     sys->delay = 0;
     sio_onmove (sys->hdl, PositionChanged, aout);
     sio_start (sys->hdl);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     sio_close (sys->hdl);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 static void Stop (audio_output_t *aout)
@@ -219,7 +220,7 @@ static void PositionChanged (void *arg, int delta)
     sys->started = 1;
 }
 
-static void Play(audio_output_t *aout, block_t *block, vlc_tick_t date)
+static void Play(audio_output_t *aout, block_t *block, heimdall_tick_t date)
 {
     aout_sys_t *sys = aout->sys;
 
@@ -278,21 +279,21 @@ static int MuteSet (audio_output_t *aout, bool mute)
     return 0;
 }
 
-static int Open (vlc_object_t *obj)
+static int Open (heimdall_object_t *obj)
 {
     audio_output_t *aout = (audio_output_t *)obj;
     aout_sys_t *sys = malloc (sizeof (*sys));
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     aout->sys = sys;
     aout->start = Start;
     aout->stop = Stop;
     /* FIXME: set volume/mute here */
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void Close (vlc_object_t *obj)
+static void Close (heimdall_object_t *obj)
 {
     audio_output_t *aout = (audio_output_t *)obj;
     aout_sys_t *sys = aout->sys;

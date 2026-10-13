@@ -2,6 +2,7 @@
  * center.c : Central channel filter
  *****************************************************************************
  * Copyright © 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Vedanta Nayak <vedantnayak2@gmail.com>
  *
@@ -23,10 +24,10 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_aout.h>
-#include <vlc_filter.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_aout.h>
+#include <heimdall_filter.h>
+#include <heimdall_plugin.h>
 
 static block_t *Process ( filter_t *filter, block_t *in_buf )
 {
@@ -60,34 +61,34 @@ static block_t *Process ( filter_t *filter, block_t *in_buf )
     return out_buf;
 }
 
-static int Open (vlc_object_t *in)
+static int Open (heimdall_object_t *in)
 {
     filter_t *filter = (filter_t *)in;
     if (filter->fmt_in.audio.i_physical_channels != AOUT_CHANS_STEREO)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     static_assert(AOUT_CHANIDX_CENTER > AOUT_CHANIDX_RIGHT &&
         AOUT_CHANIDX_RIGHT > AOUT_CHANIDX_LEFT, "Change in channel order.");
 
-    filter->fmt_out.audio.i_format = VLC_CODEC_FL32;
-    filter->fmt_in.audio.i_format = VLC_CODEC_FL32;
+    filter->fmt_out.audio.i_format = HEIMDALL_CODEC_FL32;
+    filter->fmt_in.audio.i_format = HEIMDALL_CODEC_FL32;
     filter->fmt_out.audio.i_physical_channels = AOUT_CHANS_STEREO | AOUT_CHAN_CENTER;
     filter->fmt_out.audio.i_rate = filter->fmt_in.audio.i_rate;
     aout_FormatPrepare(&filter->fmt_in.audio);
     aout_FormatPrepare(&filter->fmt_out.audio);
 
-    static const struct vlc_filter_operations filter_ops =
+    static const struct heimdall_filter_operations filter_ops =
     {
         .filter_audio = Process,
     };
     filter->ops = &filter_ops;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname (N_("Center"))
     set_description (N_("Create a central channel"))
     set_subcategory (SUBCAT_AUDIO_AFILTER)
     set_capability ("audio filter",0)
     set_callback (Open)
-vlc_module_end ()
+heimdall_module_end ()

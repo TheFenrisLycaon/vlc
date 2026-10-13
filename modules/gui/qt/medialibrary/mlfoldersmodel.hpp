@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,9 +34,9 @@
 #include <maininterface/mainctx.hpp>
 
 extern "C" {
-    struct vlc_medialibrary_t;
-    typedef struct vlc_ml_folder_t vlc_ml_folder_t;
-    typedef struct vlc_ml_event_t vlc_ml_event_t;
+    struct heimdall_medialibrary_t;
+    typedef struct heimdall_ml_folder_t heimdall_ml_folder_t;
+    typedef struct heimdall_ml_event_t heimdall_ml_event_t;
 };
 
 class MLFoldersBaseModel : public QAbstractListModel
@@ -84,19 +85,19 @@ signals:
 protected:
     struct EntryPoint
     {
-        EntryPoint(const vlc_ml_folder_t &entryPoint );
+        EntryPoint(const heimdall_ml_folder_t &entryPoint );
         QString mrl;
         bool banned;
     };
 
-    virtual bool failed( const vlc_ml_event_t* event ) const = 0; // will be called outside the main thread
+    virtual bool failed( const heimdall_ml_event_t* event ) const = 0; // will be called outside the main thread
 
 protected:
-    static void onMlEvent( void* data , const vlc_ml_event_t* event );
+    static void onMlEvent( void* data , const heimdall_ml_event_t* event );
     virtual void update() = 0;
-    void updateImpl(vlc_ml_folder_list_t* (*folderListFunc)( vlc_medialibrary_t* p_ml, const vlc_ml_query_params_t* params));
+    void updateImpl(heimdall_ml_folder_list_t* (*folderListFunc)( heimdall_medialibrary_t* p_ml, const heimdall_ml_query_params_t* params));
 
-    using EventCallbackPtr = std::unique_ptr<vlc_ml_event_callback_t, std::function<void( vlc_ml_event_callback_t* )>>;
+    using EventCallbackPtr = std::unique_ptr<heimdall_ml_event_callback_t, std::function<void( heimdall_ml_event_callback_t* )>>;
 
     std::vector<EntryPoint> m_mrls;
     MediaLib *m_mediaLib = nullptr;
@@ -115,7 +116,7 @@ public:
 
 private:
     void update() override final;
-    bool failed( const vlc_ml_event_t* event ) const override;
+    bool failed( const heimdall_ml_event_t* event ) const override;
 };
 
 class MLBannedFoldersModel : public MLFoldersBaseModel
@@ -128,7 +129,7 @@ public:
 
 private:
     void update() override final;
-    bool failed( const vlc_ml_event_t* event ) const override;
+    bool failed( const heimdall_ml_event_t* event ) const override;
 };
 
 #endif // ML_FOLDERS_MODEL_HPP

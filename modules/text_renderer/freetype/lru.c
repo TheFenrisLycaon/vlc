@@ -2,6 +2,7 @@
  * lru.c : Last recently used cache implementation
  *****************************************************************************
  * Copyright (C) 2020 - VideoLabs, VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -21,87 +22,87 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_arrays.h>
-#include <vlc_list.h>
+#include <heimdall_common.h>
+#include <heimdall_arrays.h>
+#include <heimdall_list.h>
 #include "lru.h"
 
-struct vlc_lru_entry
+struct heimdall_lru_entry
 {
     char *psz_key;
     void *value;
-    struct vlc_list node;
+    struct heimdall_list node;
 };
 
-struct vlc_lru
+struct heimdall_lru
 {
     void (*releaseValue)(void *, void *);
     void *priv;
     unsigned max;
-    vlc_dictionary_t dict;
-    struct vlc_list list;
-    struct vlc_lru_entry *last;
+    heimdall_dictionary_t dict;
+    struct heimdall_list list;
+    struct heimdall_lru_entry *last;
 };
 
-static void vlc_lru_releaseentry( void *value, void *priv )
+static void heimdall_lru_releaseentry( void *value, void *priv )
 {
-    struct vlc_lru_entry *entry = value;
-    struct vlc_lru *lru = priv;
+    struct heimdall_lru_entry *entry = value;
+    struct heimdall_lru *lru = priv;
     free(entry->psz_key);
     if( lru->releaseValue )
         lru->releaseValue( lru->priv, entry->value );
     free(entry);
 }
 
-vlc_lru * vlc_lru_New( unsigned max,
+heimdall_lru * heimdall_lru_New( unsigned max,
                        void(*releaseValue)(void *, void *), void *priv )
 {
-    vlc_lru *lru = malloc(sizeof(*lru));
+    heimdall_lru *lru = malloc(sizeof(*lru));
     if( lru )
     {
         lru->priv = priv;
         lru->max = max;
-        vlc_dictionary_init( &lru->dict, max );
-        vlc_list_init( &lru->list );
+        heimdall_dictionary_init( &lru->dict, max );
+        heimdall_list_init( &lru->list );
         lru->releaseValue = releaseValue;
         lru->last = NULL;
     }
     return lru;
 }
 
-void vlc_lru_Release( vlc_lru *lru )
+void heimdall_lru_Release( heimdall_lru *lru )
 {
-    vlc_dictionary_clear( &lru->dict, vlc_lru_releaseentry, lru );
+    heimdall_dictionary_clear( &lru->dict, heimdall_lru_releaseentry, lru );
     free( lru );
 }
 
-bool vlc_lru_HasKey( vlc_lru *lru, const char *psz_key )
+bool heimdall_lru_HasKey( heimdall_lru *lru, const char *psz_key )
 {
-    return vlc_dictionary_has_key( &lru->dict, psz_key );
+    return heimdall_dictionary_has_key( &lru->dict, psz_key );
 }
 
-void * vlc_lru_Get( vlc_lru *lru, const char *psz_key )
+void * heimdall_lru_Get( heimdall_lru *lru, const char *psz_key )
 {
-    struct vlc_lru_entry *entry = vlc_dictionary_value_for_key( &lru->dict, psz_key );
+    struct heimdall_lru_entry *entry = heimdall_dictionary_value_for_key( &lru->dict, psz_key );
     if( entry )
     {
-        if( !vlc_list_is_first( &entry->node, &lru->list ) )
+        if( !heimdall_list_is_first( &entry->node, &lru->list ) )
         {
-            if( vlc_list_is_last( &entry->node, &lru->list ) )
+            if( heimdall_list_is_last( &entry->node, &lru->list ) )
             {
-                lru->last = vlc_list_entry(entry->node.prev, struct vlc_lru_entry, node);
+                lru->last = heimdall_list_entry(entry->node.prev, struct heimdall_lru_entry, node);
             }
-            vlc_list_remove( &entry->node );
-            vlc_list_add_after( &entry->node, &lru->list );
+            heimdall_list_remove( &entry->node );
+            heimdall_list_add_after( &entry->node, &lru->list );
         }
         return entry->value;
     }
     return NULL;
 }
 
-void vlc_lru_Insert( vlc_lru *lru, const char *psz_key, void *value )
+void heimdall_lru_Insert( heimdall_lru *lru, const char *psz_key, void *value )
 {
-    struct vlc_lru_entry *entry = calloc(1, sizeof(*entry));
+    struct heimdall_lru_entry *entry = calloc(1, sizeof(*entry));
     if(!entry)
     {
         lru->releaseValue(lru->priv, value);
@@ -115,28 +116,28 @@ void vlc_lru_Insert( vlc_lru *lru, const char *psz_key, void *value )
         return;
     }
     entry->value = value;
-    vlc_list_init( &entry->node );
+    heimdall_list_init( &entry->node );
 
-    if( vlc_list_is_empty( &lru->list ) )
+    if( heimdall_list_is_empty( &lru->list ) )
         lru->last = entry;
-    vlc_dictionary_insert( &lru->dict, psz_key, entry );
-    vlc_list_add_after( &entry->node, &lru->list );
+    heimdall_dictionary_insert( &lru->dict, psz_key, entry );
+    heimdall_list_add_after( &entry->node, &lru->list );
 
-    if( (unsigned)vlc_dictionary_keys_count(&lru->dict) >= lru->max )
+    if( (unsigned)heimdall_dictionary_keys_count(&lru->dict) >= lru->max )
     {
-        struct vlc_lru_entry *toremove = lru->last;
-        lru->last = vlc_list_entry(toremove->node.prev, struct vlc_lru_entry, node);
-        vlc_list_remove(&toremove->node);
-        vlc_dictionary_remove_value_for_key(&lru->dict, toremove->psz_key, NULL, NULL);
-        vlc_lru_releaseentry(toremove, lru);
+        struct heimdall_lru_entry *toremove = lru->last;
+        lru->last = heimdall_list_entry(toremove->node.prev, struct heimdall_lru_entry, node);
+        heimdall_list_remove(&toremove->node);
+        heimdall_dictionary_remove_value_for_key(&lru->dict, toremove->psz_key, NULL, NULL);
+        heimdall_lru_releaseentry(toremove, lru);
     }
 }
 
-void vlc_lru_Apply( vlc_lru *lru,
+void heimdall_lru_Apply( heimdall_lru *lru,
                     void(*func)(void *, const char *, void *),
                     void *priv )
 {
-    struct vlc_lru_entry *entry;
-    vlc_list_foreach( entry, &lru->list, node )
+    struct heimdall_lru_entry *entry;
+    heimdall_list_foreach( entry, &lru->list, node )
         func( priv, entry->psz_key, entry->value );
 }

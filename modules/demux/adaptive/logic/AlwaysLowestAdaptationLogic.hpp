@@ -2,6 +2,7 @@
  * AlwaysLowestAdaptationLogic.hpp
  *****************************************************************************
  * Copyright (C) 2014 - VideoLAN and VLC authors
+ * Copyright (C) 2026 TheFenrisLycaon
   *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -29,7 +30,7 @@ namespace adaptive
         class AlwaysLowestAdaptationLogic : public AbstractAdaptationLogic
         {
             public:
-                AlwaysLowestAdaptationLogic(vlc_object_t *);
+                AlwaysLowestAdaptationLogic(heimdall_object_t *);
                 virtual ~AlwaysLowestAdaptationLogic() = default;
 
                 BaseRepresentation* getNextRepresentation(BaseAdaptationSet *,

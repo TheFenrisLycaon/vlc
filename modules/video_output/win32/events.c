@@ -2,6 +2,7 @@
  * events.c: Windows video output events handler
  *****************************************************************************
  * Copyright (C) 2001-2009 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gildas Bazin <gbazin@videolan.org>
  *          Martell Malone <martellmalone@gmail.com>
@@ -32,9 +33,9 @@
 
 #include "win32touch.h"
 
-#include <vlc_common.h>
-#include <vlc_threads.h>
-#include <vlc_vout_display.h>
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
+#include <heimdall_vout_display.h>
 
 #include <stdatomic.h>
 #include <windows.h>
@@ -51,12 +52,12 @@
  *****************************************************************************/
 struct event_thread_t
 {
-    vlc_object_t *obj;
+    heimdall_object_t *obj;
 
     /* */
-    vlc_thread_t thread;
-    vlc_mutex_t  lock;
-    vlc_cond_t   wait;
+    heimdall_thread_t thread;
+    heimdall_mutex_t  lock;
+    heimdall_cond_t   wait;
     bool         b_ready; // the thread was started
     bool         b_error;
     atomic_bool  b_done;
@@ -73,7 +74,7 @@ struct event_thread_t
     unsigned init_width, init_height;
 
     /* */
-    vlc_window_t *parent_window;
+    heimdall_window_t *parent_window;
     WCHAR class_video[256];
     HWND hparent;
     HWND hvideownd;
@@ -96,7 +97,7 @@ void EventThreadDestroy( struct event_thread_t *p_event )
     if( p_event->hvideownd )
         PostMessage( p_event->hvideownd, WM_NULL, 0, 0);
 
-    vlc_join( p_event->thread, NULL );
+    heimdall_join( p_event->thread, NULL );
 
 #ifdef HAVE_WIN32_SENSORS
     if (p_event->p_sensors)
@@ -129,7 +130,7 @@ static LRESULT CALLBACK VideoEventProc( HWND hwnd, UINT message,
     {
     /* the user wants to close the window */
     case WM_CLOSE:
-        vlc_window_ReportClose(p_event->parent_window);
+        heimdall_window_ReportClose(p_event->parent_window);
         return 0;
 
     /* the window has been closed so shut down everything now */
@@ -181,7 +182,7 @@ static int Win32VoutCreateWindow( struct event_thread_t *p_event )
     hInstance = GetModuleHandle(NULL);
 
     /* If an external window was specified, we'll draw in it. */
-    assert( p_event->parent_window->type == VLC_WINDOW_TYPE_HWND );
+    assert( p_event->parent_window->type == HEIMDALL_WINDOW_TYPE_HWND );
     p_event->hparent = p_event->parent_window->handle.hwnd;
 
     /* Fill in the window class structure */
@@ -200,7 +201,7 @@ static int Win32VoutCreateWindow( struct event_thread_t *p_event )
     if( !RegisterClass(&wc) )
     {
         msg_Err( p_event->obj, "Win32VoutCreateWindow RegisterClass FAILED (err=%lu)", GetLastError() );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     i_style = WS_VISIBLE|WS_CLIPCHILDREN|WS_CHILD|WS_DISABLED;
@@ -209,7 +210,7 @@ static int Win32VoutCreateWindow( struct event_thread_t *p_event )
     p_event->hvideownd =
         CreateWindowEx( WS_EX_NOPARENTNOTIFY | WS_EX_NOACTIVATE,
                     p_event->class_video,            /* name of window class */
-                    TEXT(VOUT_TITLE) TEXT(" (VLC Video Output)"),/* window title */
+                    TEXT(VOUT_TITLE) TEXT(" (Heimdall Video Output)"),/* window title */
                     i_style,                                 /* window style */
                     CW_USEDEFAULT,                   /* default X coordinate */
                     CW_USEDEFAULT,                   /* default Y coordinate */
@@ -223,7 +224,7 @@ static int Win32VoutCreateWindow( struct event_thread_t *p_event )
     if( !p_event->hvideownd )
     {
         msg_Warn( p_event->obj, "Win32VoutCreateWindow create window FAILED (err=%lu)", GetLastError() );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     msg_Dbg( p_event->obj, "created video window" );
 
@@ -240,7 +241,7 @@ static int Win32VoutCreateWindow( struct event_thread_t *p_event )
     /* Now display the window */
     ShowWindow( p_event->hvideownd, SW_SHOWNOACTIVATE );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -270,14 +271,14 @@ static void Win32VoutCloseWindow( struct event_thread_t *p_event )
  *****************************************************************************/
 static void *EventThread( void *p_this )
 {
-    vlc_thread_set_name("vlc-vout-hwnd");
+    heimdall_thread_set_name("heimdall-vout-hwnd");
 
     struct event_thread_t *p_event = p_this;
     MSG msg;
-    int canc = vlc_savecancel ();
+    int canc = heimdall_savecancel ();
 
 
-    vlc_mutex_lock( &p_event->lock );
+    heimdall_mutex_lock( &p_event->lock );
     /* Create a window for the video */
     /* Creating a window under Windows also initializes the thread's event
      * message queue */
@@ -285,14 +286,14 @@ static void *EventThread( void *p_this )
         p_event->b_error = true;
 
     p_event->b_ready = true;
-    vlc_cond_signal( &p_event->wait );
+    heimdall_cond_signal( &p_event->wait );
 
     const bool b_error = p_event->b_error;
-    vlc_mutex_unlock( &p_event->lock );
+    heimdall_mutex_unlock( &p_event->lock );
 
     if( b_error )
     {
-        vlc_restorecancel( canc );
+        heimdall_restorecancel( canc );
         return NULL;
     }
 
@@ -315,20 +316,20 @@ static void *EventThread( void *p_this )
     msg_Dbg( p_event->obj, "Win32 Vout EventThread terminating" );
 
     Win32VoutCloseWindow( p_event );
-    vlc_restorecancel(canc);
+    heimdall_restorecancel(canc);
     return NULL;
 }
 
-struct event_thread_t *EventThreadCreate( vlc_object_t *obj, vlc_window_t *parent_window,
+struct event_thread_t *EventThreadCreate( heimdall_object_t *obj, heimdall_window_t *parent_window,
                                    const struct vout_display_placement *display,
                                    const vout_display_owner_t *owner )
 {
-    if (parent_window->type != VLC_WINDOW_TYPE_HWND)
+    if (parent_window->type != HEIMDALL_WINDOW_TYPE_HWND)
         return NULL;
      /* Create the Vout EventThread, this thread is created by us to isolate
      * the Win32 PeekMessage function calls. We want to do this because
      * Windows can stay blocked inside this call for a long time, and when
-     * this happens it thus blocks vlc's video_output thread.
+     * this happens it thus blocks heimdall's video_output thread.
      * Vout EventThread will take care of the creation of the video
      * window (because PeekMessage has to be called from the same thread which
      * created the window). */
@@ -338,8 +339,8 @@ struct event_thread_t *EventThreadCreate( vlc_object_t *obj, vlc_window_t *paren
         return NULL;
 
     p_event->obj = obj;
-    vlc_mutex_init( &p_event->lock );
-    vlc_cond_init( &p_event->wait );
+    heimdall_mutex_init( &p_event->lock );
+    heimdall_cond_init( &p_event->wait );
     atomic_init( &p_event->b_done, false );
     p_event->b_ready = false;
     p_event->b_error = false;
@@ -347,40 +348,40 @@ struct event_thread_t *EventThreadCreate( vlc_object_t *obj, vlc_window_t *paren
     p_event->parent_window = parent_window;
 
     _snwprintf( p_event->class_video, ARRAY_SIZE(p_event->class_video),
-                TEXT("VLC video output %p"), (void *)p_event );
+                TEXT("Heimdall video output %p"), (void *)p_event );
 
 #ifdef HAVE_WIN32_SENSORS
     p_event->init_move = owner;
     p_event->p_sensors = NULL;
 #else
-    VLC_UNUSED(owner);
+    HEIMDALL_UNUSED(owner);
 #endif
     p_event->init_width  = display->width;
     p_event->init_height = display->height;
 
-    if( vlc_clone( &p_event->thread, EventThread, p_event ) )
+    if( heimdall_clone( &p_event->thread, EventThread, p_event ) )
     {
         msg_Err( obj, "cannot create Vout EventThread" );
         free(p_event);
         return NULL;
     }
 
-    vlc_mutex_lock( &p_event->lock );
+    heimdall_mutex_lock( &p_event->lock );
     while( !p_event->b_ready )
-        vlc_cond_wait( &p_event->wait, &p_event->lock );
+        heimdall_cond_wait( &p_event->wait, &p_event->lock );
     const bool b_error = p_event->b_error;
-    vlc_mutex_unlock( &p_event->lock );
+    heimdall_mutex_unlock( &p_event->lock );
 
     if( b_error )
     {
-        vlc_join( p_event->thread, NULL );
+        heimdall_join( p_event->thread, NULL );
         free(p_event);
         return NULL;
     }
 
 #ifdef HAVE_WIN32_SENSORS
     if (owner != NULL)
-        p_event->p_sensors = HookWindowsSensors(vlc_object_logger(obj), owner, p_event->hvideownd);
+        p_event->p_sensors = HookWindowsSensors(heimdall_object_logger(obj), owner, p_event->hvideownd);
 #endif
     msg_Dbg( obj, "Vout EventThread running" );
 

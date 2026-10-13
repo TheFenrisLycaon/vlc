@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,30 +20,30 @@ import QtQuick
 import QtQuick.Templates as T
 import QtQuick.Layouts
 
-import VLC.Player
-import VLC.Widgets as Widgets
-import VLC.Style
-import VLC.Util
-import VLC.MainInterface
+import Heimdall.Player
+import Heimdall.Widgets as Widgets
+import Heimdall.Style
+import Heimdall.Util
+import Heimdall.MainInterface
 
 T.ProgressBar {
     id: control
 
     readonly property real _hoveredScalingFactor: 1.8
-    property int barHeight: VLCStyle.dp(5, VLCStyle.scale)
+    property int barHeight: HeimdallStyle.dp(5, HeimdallStyle.scale)
     readonly property real _scaledBarHeight: control.barHeight * _hoveredScalingFactor
     readonly property real _scaledY: (-control.barHeight / 2) * (control._hoveredScalingFactor - 1)
 
     property bool _isSeekPointsShown: true
-    readonly property int _seekPointsDistance: VLCStyle.dp(2, VLCStyle.scale)
-    readonly property int _seekPointsRadius: VLCStyle.dp(0.5, VLCStyle.scale)
+    readonly property int _seekPointsDistance: HeimdallStyle.dp(2, HeimdallStyle.scale)
+    readonly property int _seekPointsRadius: HeimdallStyle.dp(0.5, HeimdallStyle.scale)
     readonly property real _scaledSeekPointsRadius: _seekPointsRadius * _hoveredScalingFactor
 
     property bool _currentChapterHovered: false
     property real _tooltipPosition: (Widgets.PointingToolTipAttached.instance?.pos.x ?? 0.0) / width
 
     property color backgroundColor: theme.bg.primary
-    property real touchHandlerMargin: VLCStyle.touchHandlerMargin
+    property real touchHandlerMargin: HeimdallStyle.touchHandlerMargin
 
     Keys.onRightPressed: Player.jumpFwd()
     Keys.onLeftPressed: Player.jumpBwd()
@@ -85,7 +86,7 @@ T.ProgressBar {
         else
             _text = Player.time
 
-        _text = _text.formatHMS(length.isSubSecond() ? VLCTick.SubSecondFormattedAsMS : 0)
+        _text = _text.formatHMS(length.isSubSecond() ? HeimdallTick.SubSecondFormattedAsMS : 0)
 
         if (Player.hasChapters)
             _text += " - " + Player.chapters.getNameAtPosition(control._tooltipPosition)
@@ -145,7 +146,7 @@ T.ProgressBar {
                 "pressControl": {
                     action: (position, forcePrecise) => {
                         control.forceActiveFocus()
-                        fsm._seekToPosition(position, VLCStyle.dp(4, VLCStyle.scale) / control.width, forcePrecise)
+                        fsm._seekToPosition(position, HeimdallStyle.dp(4, HeimdallStyle.scale) / control.width, forcePrecise)
                     },
                     target: fsmHeld
                 }
@@ -158,7 +159,7 @@ T.ProgressBar {
             transitions: ({
                 "moveControl": {
                     action: (position, forcePrecise) => {
-                        fsm._seekToPosition(position, VLCStyle.dp(2, VLCStyle.scale) / control.width, forcePrecise)
+                        fsm._seekToPosition(position, HeimdallStyle.dp(2, HeimdallStyle.scale) / control.width, forcePrecise)
                     }
                 },
                 "releaseControl": {
@@ -285,13 +286,13 @@ T.ProgressBar {
             acceptedDevices: PointerDevice.AllDevices
 
             onWheel: (wheel) => {
-                wheelToVLC.qmlWheelEvent(wheel)
+                wheelToHeimdall.qmlWheelEvent(wheel)
                 wheel.accepted = true
             }
         }
 
-        WheelToVLCConverter {
-            id: wheelToVLC
+        WheelToHeimdallConverter {
+            id: wheelToHeimdall
 
             function handleVertical(steps: int) {
                 if (steps > 0)
@@ -308,8 +309,8 @@ T.ProgressBar {
             }
 
             Component.onCompleted: {
-                wheelUpDown.connect(wheelToVLC, wheelToVLC.handleVertical)
-                wheelLeftRight.connect(wheelToVLC, wheelToVLC.handleHorizontal)
+                wheelUpDown.connect(wheelToHeimdall, wheelToHeimdall.handleVertical)
+                wheelLeftRight.connect(wheelToHeimdall, wheelToHeimdall.handleHorizontal)
             }
         }
     }
@@ -392,7 +393,7 @@ T.ProgressBar {
                             PropertyAction { targets: control; property: "_currentChapterHovered" }
                             NumberAnimation {
                                 targets: [seekpointsRect, progressRepRect]; properties: "height, y, radius"
-                                duration: VLCStyle.duration_short; easing.type: Easing.InSine
+                                duration: HeimdallStyle.duration_short; easing.type: Easing.InSine
                             }
                         }
                     }
@@ -449,7 +450,7 @@ T.ProgressBar {
 
         Rectangle {
             id: bufferRect
-            property int bufferAnimWidth: VLCStyle.dp(100, VLCStyle.scale)
+            property int bufferAnimWidth: HeimdallStyle.dp(100, HeimdallStyle.scale)
             property int bufferAnimPosition: 0
             property int bufferFrames: 1000
             property alias animateLoading: loadingAnim.running
@@ -472,7 +473,7 @@ T.ProgressBar {
 
             Timer {
                 id: bufferingTimer
-                interval: VLCStyle.duration_humanMoment
+                interval: HeimdallStyle.duration_humanMoment
                 repeat: false
                 running: false
                 onTriggered: {
@@ -546,20 +547,20 @@ T.ProgressBar {
                 PropertyAnimation {
                     from: 0.0
                     to: bufferRect.bufferFrames
-                    duration: VLCStyle.durationSliderBouncing
+                    duration: HeimdallStyle.durationSliderBouncing
                     easing.type: "OutBounce"
                 }
                 PauseAnimation {
-                    duration: VLCStyle.duration_veryLong
+                    duration: HeimdallStyle.duration_veryLong
                 }
                 PropertyAnimation {
                     from: bufferRect.bufferFrames
                     to: 0.0
-                    duration: VLCStyle.durationSliderBouncing
+                    duration: HeimdallStyle.durationSliderBouncing
                     easing.type: "OutBounce"
                 }
                 PauseAnimation {
-                    duration: VLCStyle.duration_veryLong
+                    duration: HeimdallStyle.duration_veryLong
                 }
             }
         }
@@ -575,7 +576,7 @@ T.ProgressBar {
 
         implicitWidth: sliderHandle._size
         implicitHeight: sliderHandle._size
-        radius: VLCStyle.margin_small
+        radius: HeimdallStyle.margin_small
         color: theme.fg.primary
 
         // We use dynamic mutability group because time interpolation
@@ -596,7 +597,7 @@ T.ProgressBar {
                     NumberAnimation {
                         target: sliderHandle; properties: "implicitWidth,implicitHeight"
                         to: 0
-                        duration: VLCStyle.duration_short; easing.type: Easing.OutSine
+                        duration: HeimdallStyle.duration_short; easing.type: Easing.OutSine
                     }
                     PropertyAction { target: sliderHandle; property: "visible"; value: false; }
                 }
@@ -608,7 +609,7 @@ T.ProgressBar {
                     NumberAnimation {
                         target: sliderHandle; properties: "implicitWidth,implicitHeight"
                         to: sliderHandle._size
-                        duration: VLCStyle.duration_short; easing.type: Easing.InSine
+                        duration: HeimdallStyle.duration_short; easing.type: Easing.InSine
                     }
                 }
             },
@@ -619,7 +620,7 @@ T.ProgressBar {
                     NumberAnimation {
                         target: sliderHandle; properties: "implicitWidth,implicitHeight"
                         to: sliderHandle._size * (0.8 * control._hoveredScalingFactor)
-                        duration: VLCStyle.duration_short; easing.type: Easing.InSine
+                        duration: HeimdallStyle.duration_short; easing.type: Easing.InSine
                     }
                 }
             }

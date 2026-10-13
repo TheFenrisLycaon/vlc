@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,12 +20,12 @@ import QtQuick
 import QtQml.Models
 
 
-import VLC.MainInterface
-import VLC.Util
-import VLC.Widgets as Widgets
-import VLC.Style
-import VLC.Playlist
-import VLC.Network
+import Heimdall.MainInterface
+import Heimdall.Util
+import Heimdall.Widgets as Widgets
+import Heimdall.Style
+import Heimdall.Playlist
+import Heimdall.Network
 
 Widgets.PageExt {
     id: root
@@ -57,7 +58,7 @@ Widgets.PageExt {
                 AccessibleCompat.id: "networkUrlSearchField"
 
                 width: parent.width
-                height: searchField.height + VLCStyle.margin_normal * 2
+                height: searchField.height + HeimdallStyle.margin_normal * 2
                 focus: true
 
                 Navigation.parentItem:  root
@@ -68,7 +69,7 @@ Widgets.PageExt {
 
                     focus: true
                     anchors.centerIn: parent
-                    height: VLCStyle.dp(32, VLCStyle.scale)
+                    height: HeimdallStyle.dp(32, HeimdallStyle.scale)
                     width: parent.width * .6
                     placeholderText: qsTr("Paste or write the URL here")
                     selectByMouse: true
@@ -101,7 +102,7 @@ Widgets.PageExt {
                 height: parent.height - searchFieldContainer.height
 
                 active: MainCtx.mediaLibraryAvailable
-                source: "qrc:///qt/qml/VLC/MediaLibrary/UrlListDisplay.qml"
+                source: "qrc:///qt/qml/Heimdall/MediaLibrary/UrlListDisplay.qml"
 
                 onLoaded: {
                     item.leftPadding = Qt.binding(function() {

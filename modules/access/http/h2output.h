@@ -2,6 +2,7 @@
  * h2output.h: HTTP/2 send queue declarations
  *****************************************************************************
  * Copyright (C) 2015 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -24,14 +25,14 @@
  * @{
  */
 
-struct vlc_h2_output;
-struct vlc_h2_frame;
-struct vlc_tls;
+struct heimdall_h2_output;
+struct heimdall_h2_frame;
+struct heimdall_tls;
 
-int vlc_h2_output_send_prio(struct vlc_h2_output *, struct vlc_h2_frame *);
-int vlc_h2_output_send(struct vlc_h2_output *, struct vlc_h2_frame *);
+int heimdall_h2_output_send_prio(struct heimdall_h2_output *, struct heimdall_h2_frame *);
+int heimdall_h2_output_send(struct heimdall_h2_output *, struct heimdall_h2_frame *);
 
-struct vlc_h2_output *vlc_h2_output_create(struct vlc_tls *, bool client);
-void vlc_h2_output_destroy(struct vlc_h2_output *);
+struct heimdall_h2_output *heimdall_h2_output_create(struct heimdall_tls *, bool client);
+void heimdall_h2_output_destroy(struct heimdall_h2_output *);
 
 /** @} */

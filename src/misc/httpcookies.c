@@ -2,6 +2,7 @@
  * httpcookies.c: HTTP cookie utilities
  *****************************************************************************
  * Copyright (C) 2014 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Antti Ajanki <antti.ajanki@iki.fi>
  *
@@ -29,12 +30,12 @@
 #include <string.h>
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_arrays.h>
-#include <vlc_messages.h>
-#include <vlc_strings.h>
-#include <vlc_http.h>
-#include <vlc_threads.h>
+#include <heimdall_common.h>
+#include <heimdall_arrays.h>
+#include <heimdall_messages.h>
+#include <heimdall_strings.h>
+#include <heimdall_http.h>
+#include <heimdall_threads.h>
 
 typedef struct http_cookie_t
 {
@@ -56,7 +57,7 @@ static char *cookie_get_attribute_value( const char *cookie, const char *attr )
         str++;
         str = str + strspn( str, " " );
 
-        if( !vlc_ascii_strncasecmp( str, attr, attrlen )
+        if( !heimdall_ascii_strncasecmp( str, attr, attrlen )
          && (str[attrlen] == '=') )
         {
             str += attrlen + 1;
@@ -79,7 +80,7 @@ static bool cookie_has_attribute( const char *cookie, const char *attr )
         str++;
         str += strspn( str, " " );
 
-        if( !vlc_ascii_strncasecmp( str, attr, attrlen )
+        if( !heimdall_ascii_strncasecmp( str, attr, attrlen )
          && (str[attrlen] == '=' || str[attrlen] == ';' || str[attrlen] == '\0') )
             return true;
 
@@ -110,7 +111,7 @@ static bool cookie_domain_matches( const http_cookie_t *cookie,
 
     if (host == NULL)
         return false;
-    if ( vlc_ascii_strcasecmp(cookie->psz_domain, host) == 0 )
+    if ( heimdall_ascii_strcasecmp(cookie->psz_domain, host) == 0 )
         return true;
     else if ( cookie->b_host_only )
         return false;
@@ -123,7 +124,7 @@ static bool cookie_domain_matches( const http_cookie_t *cookie,
     {
         size_t i = host_len - cookie_domain_len;
 
-        is_suffix = vlc_ascii_strcasecmp( &host[i], cookie->psz_domain ) == 0;
+        is_suffix = heimdall_ascii_strcasecmp( &host[i], cookie->psz_domain ) == 0;
         has_dot_before_suffix = host[i-1] == '.';
     }
 
@@ -196,7 +197,7 @@ static void cookie_destroy(http_cookie_t *cookie)
     free(cookie);
 }
 
-VLC_MALLOC VLC_USED
+HEIMDALL_MALLOC HEIMDALL_USED
 static http_cookie_t *cookie_parse(const char *value,
                                    const char *host, const char *path)
 {
@@ -264,38 +265,38 @@ error:
     return NULL;
 }
 
-struct vlc_http_cookie_jar_t
+struct heimdall_http_cookie_jar_t
 {
-    vlc_array_t cookies;
-    vlc_mutex_t lock;
+    heimdall_array_t cookies;
+    heimdall_mutex_t lock;
 };
 
-vlc_http_cookie_jar_t * vlc_http_cookies_new(void)
+heimdall_http_cookie_jar_t * heimdall_http_cookies_new(void)
 {
-    vlc_http_cookie_jar_t * jar = malloc( sizeof( vlc_http_cookie_jar_t ) );
+    heimdall_http_cookie_jar_t * jar = malloc( sizeof( heimdall_http_cookie_jar_t ) );
     if ( unlikely(jar == NULL) )
         return NULL;
 
-    vlc_array_init( &jar->cookies );
-    vlc_mutex_init( &jar->lock );
+    heimdall_array_init( &jar->cookies );
+    heimdall_mutex_init( &jar->lock );
 
     return jar;
 }
 
-void vlc_http_cookies_destroy( vlc_http_cookie_jar_t * p_jar )
+void heimdall_http_cookies_destroy( heimdall_http_cookie_jar_t * p_jar )
 {
     if ( !p_jar )
         return;
 
-    for( size_t i = 0; i < vlc_array_count( &p_jar->cookies ); i++ )
-        cookie_destroy( vlc_array_item_at_index( &p_jar->cookies, i ) );
+    for( size_t i = 0; i < heimdall_array_count( &p_jar->cookies ); i++ )
+        cookie_destroy( heimdall_array_item_at_index( &p_jar->cookies, i ) );
 
-    vlc_array_clear( &p_jar->cookies );
+    heimdall_array_clear( &p_jar->cookies );
 
     free( p_jar );
 }
 
-bool vlc_http_cookies_store(vlc_http_cookie_jar_t *p_jar, const char *cookies,
+bool heimdall_http_cookies_store(heimdall_http_cookie_jar_t *p_jar, const char *cookies,
                             const char *host, const char *path)
 {
     assert(host != NULL);
@@ -318,48 +319,48 @@ bool vlc_http_cookies_store(vlc_http_cookie_jar_t *p_jar, const char *cookies,
         return false;
     }
 
-    vlc_mutex_lock( &p_jar->lock );
+    heimdall_mutex_lock( &p_jar->lock );
 
-    for( size_t i = 0; i < vlc_array_count( &p_jar->cookies ); i++ )
+    for( size_t i = 0; i < heimdall_array_count( &p_jar->cookies ); i++ )
     {
-        http_cookie_t *iter = vlc_array_item_at_index( &p_jar->cookies, i );
+        http_cookie_t *iter = heimdall_array_item_at_index( &p_jar->cookies, i );
 
         assert( iter->psz_name );
         assert( iter->psz_domain );
         assert( iter->psz_path );
 
         bool domains_match =
-            vlc_ascii_strcasecmp( cookie->psz_domain, iter->psz_domain ) == 0;
+            heimdall_ascii_strcasecmp( cookie->psz_domain, iter->psz_domain ) == 0;
         bool paths_match = strcmp( cookie->psz_path, iter->psz_path ) == 0;
         bool names_match = strcmp( cookie->psz_name, iter->psz_name ) == 0;
         if( domains_match && paths_match && names_match )
         {
             /* Remove previous value for this cookie */
-            vlc_array_remove( &p_jar->cookies, i );
+            heimdall_array_remove( &p_jar->cookies, i );
             cookie_destroy(iter);
             break;
         }
     }
 
-    bool b_ret = (vlc_array_append( &p_jar->cookies, cookie ) == 0);
+    bool b_ret = (heimdall_array_append( &p_jar->cookies, cookie ) == 0);
     if( !b_ret )
         cookie_destroy( cookie );
 
-    vlc_mutex_unlock( &p_jar->lock );
+    heimdall_mutex_unlock( &p_jar->lock );
 
     return b_ret;
 }
 
-char *vlc_http_cookies_fetch(vlc_http_cookie_jar_t *p_jar, bool secure,
+char *heimdall_http_cookies_fetch(heimdall_http_cookie_jar_t *p_jar, bool secure,
                              const char *host, const char *path)
 {
     char *psz_cookiebuf = NULL;
 
-    vlc_mutex_lock( &p_jar->lock );
+    heimdall_mutex_lock( &p_jar->lock );
 
-    for( size_t i = 0; i < vlc_array_count( &p_jar->cookies ); i++ )
+    for( size_t i = 0; i < heimdall_array_count( &p_jar->cookies ); i++ )
     {
-        const http_cookie_t * cookie = vlc_array_item_at_index( &p_jar->cookies, i );
+        const http_cookie_t * cookie = heimdall_array_item_at_index( &p_jar->cookies, i );
         if (cookie_should_be_sent(cookie, secure, host, path))
         {
             char *psz_updated_buf = NULL;
@@ -371,7 +372,7 @@ char *vlc_http_cookies_fetch(vlc_http_cookie_jar_t *p_jar, bool secure,
             {
                 // TODO: report error
                 free( psz_cookiebuf );
-                vlc_mutex_unlock( &p_jar->lock );
+                heimdall_mutex_unlock( &p_jar->lock );
                 return NULL;
             }
             free( psz_cookiebuf );
@@ -379,7 +380,7 @@ char *vlc_http_cookies_fetch(vlc_http_cookie_jar_t *p_jar, bool secure,
         }
     }
 
-    vlc_mutex_unlock( &p_jar->lock );
+    heimdall_mutex_unlock( &p_jar->lock );
 
     return psz_cookiebuf;
 }

@@ -2,6 +2,7 @@
  * tunnel_test.c: HTTP CONNECT
  *****************************************************************************
  * Copyright (C) 2015 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -47,12 +48,12 @@
 #include <arpa/inet.h>
 #endif
 
-#include <vlc_common.h>
-#include <vlc_threads.h>
-#include <vlc_tls.h>
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
+#include <heimdall_tls.h>
 #include "transport.h"
 
-const char vlc_module_name[] = "test_http_tunnel";
+const char heimdall_module_name[] = "test_http_tunnel";
 
 static void proxy_client_process(int fd)
 {
@@ -107,13 +108,13 @@ static void *proxy_thread(void *data)
         if (cfd == -1)
             continue;
 
-        int canc = vlc_savecancel();
+        int canc = heimdall_savecancel();
         proxy_client_process(cfd);
-        vlc_close(cfd);
+        heimdall_close(cfd);
         connection_count++;
-        vlc_restorecancel(canc);
+        heimdall_restorecancel(canc);
     }
-    vlc_assert_unreachable();
+    heimdall_assert_unreachable();
 }
 
 static int server_socket(unsigned *port)
@@ -122,7 +123,7 @@ static int server_socket(unsigned *port)
     if (fd == -1)
         return -1;
 
-    vlc_sockaddr addr = {
+    heimdall_sockaddr addr = {
         .sin6.sin6_family = AF_INET6,
 #ifdef HAVE_SA_LEN
         .sin6.sin6_len = sizeof (addr),
@@ -134,7 +135,7 @@ static int server_socket(unsigned *port)
     if (bind(fd, &addr.sa, addrlen)
      || getsockname(fd, &addr.sa, &addrlen))
     {
-        vlc_close(fd);
+        heimdall_close(fd);
         return -1;
     }
 
@@ -149,9 +150,9 @@ int main(void)
     bool two = false;
 
     /* Test bad URLs */
-    vlc_https_connect_proxy(NULL, NULL, "www.example.com", 0, &two,
+    heimdall_https_connect_proxy(NULL, NULL, "www.example.com", 0, &two,
                             "/test");
-    vlc_https_connect_proxy(NULL, NULL, "www.example.com", 0, &two,
+    heimdall_https_connect_proxy(NULL, NULL, "www.example.com", 0, &two,
                             "ftp://proxy.example.com/");
 
     int *lfd = malloc(sizeof (int));
@@ -166,26 +167,26 @@ int main(void)
     assert(url != NULL);
 
     /* Test connection failure */
-    vlc_https_connect_proxy(NULL, NULL, "www.example.com", 0, &two, url);
+    heimdall_https_connect_proxy(NULL, NULL, "www.example.com", 0, &two, url);
 
     if (listen(*lfd, 255))
     {
-        vlc_close(*lfd);
+        heimdall_close(*lfd);
         return 77;
     }
 
-    vlc_thread_t th;
-    if (vlc_clone(&th, proxy_thread, lfd))
+    heimdall_thread_t th;
+    if (heimdall_clone(&th, proxy_thread, lfd))
         assert(!"Thread error");
 
     /* Test proxy error */
-    vlc_https_connect_proxy(NULL, NULL, "www.example.com", 0, &two, url);
+    heimdall_https_connect_proxy(NULL, NULL, "www.example.com", 0, &two, url);
 
-    vlc_cancel(th);
-    vlc_join(th, NULL);
+    heimdall_cancel(th);
+    heimdall_join(th, NULL);
     assert(connection_count > 0);
     free(url);
-    vlc_close(*lfd);
+    heimdall_close(*lfd);
     free(lfd);
     return 0;
 }

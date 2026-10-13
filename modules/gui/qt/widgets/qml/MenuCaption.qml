@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,11 +18,11 @@
  *****************************************************************************/
 import QtQuick
 import QtQuick.Templates as T
-import VLC.Style
+import Heimdall.Style
 
 T.Label {
     elide: Text.ElideRight
-    font.pixelSize: VLCStyle.fontSize_normal
+    font.pixelSize: HeimdallStyle.fontSize_normal
     verticalAlignment: Text.AlignVCenter
     textFormat: Text.PlainText
 }

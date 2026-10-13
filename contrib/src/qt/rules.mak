@@ -124,7 +124,7 @@ ifdef QT_USES_SYSTEM_TOOLS
 QTBASE_CONFIG += -DQT_NO_PACKAGE_VERSION_CHECK=TRUE
 endif
 
-.qt-tools: BUILD_DIR=$</vlc_native
+.qt-tools: BUILD_DIR=$</heimdall_native
 .qt-tools: qt
 	$(CMAKECLEAN)
 	$(BUILDVARS) $(CMAKE_NATIVE) $(QTBASE_NATIVE_CONFIG)

@@ -2,6 +2,7 @@
  * FakeESOut.hpp
  *****************************************************************************
  * Copyright © 2014-2015 VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -20,12 +21,12 @@
 #ifndef FAKEESOUT_HPP
 #define FAKEESOUT_HPP
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 #include <list>
 #include "../tools/Macros.hpp"
 #include "../Time.hpp"
 #include "../ID.hpp"
-#include <vlc_threads.h>
+#include <heimdall_threads.h>
 
 namespace adaptive
 {
@@ -57,7 +58,7 @@ namespace adaptive
             virtual void createOrRecycleRealEsID( AbstractFakeESOutID * ) = 0;
             virtual void setPriority(int) = 0;
             virtual void sendData( AbstractFakeESOutID *, block_t * ) = 0;
-            virtual void sendMeta( int, const vlc_meta_t * ) = 0;
+            virtual void sendMeta( int, const heimdall_meta_t * ) = 0;
 
         private:
             void *esoutpriv;
@@ -88,17 +89,17 @@ namespace adaptive
             LockedFakeEsOut WithLock();
             AbstractCommandsQueue * commandsQueue();
             CommandsFactory *commandsFactory() const;
-            void setAssociatedTimestamp( vlc_tick_t );
-            void setAssociatedTimestamp( vlc_tick_t, vlc_tick_t );
-            void setExpectedTimestamp( vlc_tick_t );
+            void setAssociatedTimestamp( heimdall_tick_t );
+            void setAssociatedTimestamp( heimdall_tick_t, heimdall_tick_t );
+            void setExpectedTimestamp( heimdall_tick_t );
             void resetTimestamps();
             size_t esCount() const;
             bool hasSelectedEs() const;
             bool hasSelectedEs(const AbstractFakeESOutID *) const;
             bool restarting() const;
             void setExtraInfoProvider( ExtraFMTInfoInterface * );
-            vlc_tick_t fixTimestamp(vlc_tick_t);
-            vlc_tick_t applyTimestampContinuity(vlc_tick_t);
+            heimdall_tick_t fixTimestamp(heimdall_tick_t);
+            heimdall_tick_t applyTimestampContinuity(heimdall_tick_t);
             void declareEs( const es_format_t * );
 
             void milestoneReached() override;
@@ -108,7 +109,7 @@ namespace adaptive
             void createOrRecycleRealEsID( AbstractFakeESOutID * ) override;
             void setPriority(int) override;
             void sendData( AbstractFakeESOutID *, block_t * ) override;
-            void sendMeta( int, const vlc_meta_t * ) override;
+            void sendMeta( int, const heimdall_meta_t * ) override;
 
             /**/
             void scheduleNecessaryMilestone();
@@ -126,7 +127,7 @@ namespace adaptive
 
         private:
             friend class LockedFakeESOut;
-            vlc_mutex_t lock;
+            heimdall_mutex_t lock;
             es_out_id_t *esOutAdd( const es_format_t * ) override;
             int esOutSend( es_out_id_t *, block_t * ) override;
             void esOutDel( es_out_id_t * ) override;
@@ -139,11 +140,11 @@ namespace adaptive
             CommandsFactory *commandsfactory;
             struct
             {
-                vlc_tick_t timestamp;
+                heimdall_tick_t timestamp;
                 bool b_timestamp_set;
                 bool b_offset_calculated;
             } associated, expected;
-            vlc_tick_t timestamps_offset;
+            heimdall_tick_t timestamps_offset;
             int priority;
             bool b_in_commands_group;
             enum class PcrStatus
@@ -153,7 +154,7 @@ namespace adaptive
                 Valid,
                 Broken,
             } pcrstatus;
-            vlc_tick_t pcrcomparison;
+            heimdall_tick_t pcrcomparison;
             std::list<FakeESOutID *> fakeesidlist;
             std::list<FakeESOutID *> recycle_candidates;
             std::list<FakeESOutID *> declared;

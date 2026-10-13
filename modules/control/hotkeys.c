@@ -1,7 +1,8 @@
 /*****************************************************************************
- * hotkeys.c: Hotkey handling for vlc
+ * hotkeys.c: Hotkey handling for heimdall
  *****************************************************************************
  * Copyright (C) 2005-2009 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Sigmund Augdal Helberg <dnumgis@videolan.org>
  *          Jean-Paul Saman <jpsaman #_at_# m2x.nl>
@@ -26,28 +27,28 @@
 # include "config.h"
 #endif
 
-#define VLC_MODULE_LICENSE VLC_LICENSE_GPL_2_PLUS
-#include <vlc_common.h>
-#include <vlc_arrays.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_interface.h>
-#include <vlc_input_item.h>
-#include <vlc_mouse.h>
-#include <vlc_viewpoint.h>
-#include <vlc_player.h>
-#include <vlc_playlist.h>
-#include <vlc_actions.h>
-#include <vlc_spu.h>
-#include <vlc_executor.h>
-#include <vlc_vout_osd.h>
+#define HEIMDALL_MODULE_LICENSE HEIMDALL_LICENSE_GPL_2_PLUS
+#include <heimdall_common.h>
+#include <heimdall_arrays.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_interface.h>
+#include <heimdall_input_item.h>
+#include <heimdall_mouse.h>
+#include <heimdall_viewpoint.h>
+#include <heimdall_player.h>
+#include <heimdall_playlist.h>
+#include <heimdall_actions.h>
+#include <heimdall_spu.h>
+#include <heimdall_executor.h>
+#include <heimdall_vout_osd.h>
 #include "math.h"
 
 struct intf_sys_t
 {
-    vlc_playlist_t *playlist;
-    vlc_player_listener_id *player_listener;
-    vlc_array_t vouts;
+    heimdall_playlist_t *playlist;
+    heimdall_player_listener_id *player_listener;
+    heimdall_array_t vouts;
     struct
     {
         bool btn_pressed;
@@ -56,15 +57,15 @@ struct intf_sys_t
 
     struct
     {
-        vlc_tick_t audio_time;
-        vlc_tick_t subtitle_time;
+        heimdall_tick_t audio_time;
+        heimdall_tick_t subtitle_time;
     } subsync;
-    enum vlc_vout_order spu_channel_order;
+    enum heimdall_vout_order spu_channel_order;
 
-    vlc_executor_t *executor;
+    heimdall_executor_t *executor;
 };
 
-static void handle_action(intf_thread_t *, vlc_action_id_t);
+static void handle_action(intf_thread_t *, heimdall_action_id_t);
 
 /*****************************
  * interface action handling *
@@ -72,7 +73,7 @@ static void handle_action(intf_thread_t *, vlc_action_id_t);
 
 #define INTF_ACTION_HANDLER(name) \
 static inline void \
-action_handler_Intf##name(intf_thread_t *intf, vlc_action_id_t action_id)
+action_handler_Intf##name(intf_thread_t *intf, heimdall_action_id_t action_id)
 
 INTF_ACTION_HANDLER()
 {
@@ -80,7 +81,7 @@ INTF_ACTION_HANDLER()
     switch (action_id)
     {
         case ACTIONID_QUIT:
-            libvlc_Quit(vlc_object_instance(intf));
+            libheimdall_Quit(heimdall_object_instance(intf));
             return;
         case ACTIONID_INTF_TOGGLE_FSC:
         case ACTIONID_INTF_HIDE:
@@ -93,15 +94,15 @@ INTF_ACTION_HANDLER()
             varname = "intf-popupmenu";
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
-    var_TriggerCallback(vlc_object_instance(intf), varname);
+    var_TriggerCallback(heimdall_object_instance(intf), varname);
 }
 
 INTF_ACTION_HANDLER(ActionCombo)
 {
-    vlc_player_t *player = vlc_playlist_GetPlayer(intf->p_sys->playlist);
-    vout_thread_t *vout = vlc_player_vout_Hold(player);
+    heimdall_player_t *player = heimdall_playlist_GetPlayer(intf->p_sys->playlist);
+    vout_thread_t *vout = heimdall_player_vout_Hold(player);
     bool vrnav = var_GetBool(vout, "viewpoint-changeable");
     vout_Release(vout);
     switch (action_id)
@@ -117,7 +118,7 @@ INTF_ACTION_HANDLER(ActionCombo)
                 : ACTIONID_VIEWPOINT_FOV_IN;
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
     handle_action(intf, action_id);
 }
@@ -128,75 +129,75 @@ INTF_ACTION_HANDLER(ActionCombo)
 
 #define PLAYLIST_ACTION_HANDLER(name) \
 static inline void \
-action_handler_Playlist##name(intf_thread_t *intf, vlc_playlist_t *playlist, \
-                              vlc_action_id_t action_id)
+action_handler_Playlist##name(intf_thread_t *intf, heimdall_playlist_t *playlist, \
+                              heimdall_action_id_t action_id)
 
 PLAYLIST_ACTION_HANDLER(Interact)
 {
-    VLC_UNUSED(intf);
+    HEIMDALL_UNUSED(intf);
     switch (action_id)
     {
         case ACTIONID_PLAY_CLEAR:
-            vlc_playlist_Clear(playlist);
+            heimdall_playlist_Clear(playlist);
             break;
         case ACTIONID_PREV:
-            vlc_playlist_Prev(playlist);
+            heimdall_playlist_Prev(playlist);
             break;
         case ACTIONID_NEXT:
-            vlc_playlist_Next(playlist);
+            heimdall_playlist_Next(playlist);
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 }
 
 PLAYLIST_ACTION_HANDLER(Playback)
 {
-    VLC_UNUSED(intf);
+    HEIMDALL_UNUSED(intf);
     switch (action_id)
     {
         case ACTIONID_LOOP:
         {
-            enum vlc_playlist_playback_repeat repeat_mode =
-                vlc_playlist_GetPlaybackRepeat(playlist);
+            enum heimdall_playlist_playback_repeat repeat_mode =
+                heimdall_playlist_GetPlaybackRepeat(playlist);
             switch (repeat_mode)
             {
-                case VLC_PLAYLIST_PLAYBACK_REPEAT_NONE:
-                    repeat_mode = VLC_PLAYLIST_PLAYBACK_REPEAT_ALL;
+                case HEIMDALL_PLAYLIST_PLAYBACK_REPEAT_NONE:
+                    repeat_mode = HEIMDALL_PLAYLIST_PLAYBACK_REPEAT_ALL;
                     break;
-                case VLC_PLAYLIST_PLAYBACK_REPEAT_ALL:
-                    repeat_mode = VLC_PLAYLIST_PLAYBACK_REPEAT_CURRENT;
+                case HEIMDALL_PLAYLIST_PLAYBACK_REPEAT_ALL:
+                    repeat_mode = HEIMDALL_PLAYLIST_PLAYBACK_REPEAT_CURRENT;
                     break;
-                case VLC_PLAYLIST_PLAYBACK_REPEAT_CURRENT:
-                    repeat_mode = VLC_PLAYLIST_PLAYBACK_REPEAT_NONE;
+                case HEIMDALL_PLAYLIST_PLAYBACK_REPEAT_CURRENT:
+                    repeat_mode = HEIMDALL_PLAYLIST_PLAYBACK_REPEAT_NONE;
                     break;
             }
-            vlc_playlist_SetPlaybackRepeat(playlist, repeat_mode);
+            heimdall_playlist_SetPlaybackRepeat(playlist, repeat_mode);
             break;
         }
         case ACTIONID_RANDOM:
         {
-            enum vlc_playlist_playback_order order_mode =
-                vlc_playlist_GetPlaybackOrder(playlist);
+            enum heimdall_playlist_playback_order order_mode =
+                heimdall_playlist_GetPlaybackOrder(playlist);
             order_mode =
-                order_mode == VLC_PLAYLIST_PLAYBACK_ORDER_NORMAL
-                    ? VLC_PLAYLIST_PLAYBACK_ORDER_RANDOM
-                    : VLC_PLAYLIST_PLAYBACK_ORDER_NORMAL;
-            vlc_playlist_SetPlaybackOrder(playlist, order_mode);
+                order_mode == HEIMDALL_PLAYLIST_PLAYBACK_ORDER_NORMAL
+                    ? HEIMDALL_PLAYLIST_PLAYBACK_ORDER_RANDOM
+                    : HEIMDALL_PLAYLIST_PLAYBACK_ORDER_NORMAL;
+            heimdall_playlist_SetPlaybackOrder(playlist, order_mode);
             break;
         }
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 }
 
 static inline void
 playlist_bookmark_Set(intf_thread_t *intf,
-                      vlc_playlist_t *playlist, char *name, int id)
+                      heimdall_playlist_t *playlist, char *name, int id)
 {
-    var_Create(intf, name, VLC_VAR_STRING | VLC_VAR_DOINHERIT);
-    vlc_player_t *player = vlc_playlist_GetPlayer(playlist);
-    input_item_t *item = vlc_player_GetCurrentMedia(player);
+    var_Create(intf, name, HEIMDALL_VAR_STRING | HEIMDALL_VAR_DOINHERIT);
+    heimdall_player_t *player = heimdall_playlist_GetPlayer(playlist);
+    input_item_t *item = heimdall_player_GetCurrentMedia(player);
     if (item)
     {
         char *uri = input_item_GetURI(item);
@@ -208,22 +209,22 @@ playlist_bookmark_Set(intf_thread_t *intf,
 
 static inline void
 playlist_bookmark_Play(intf_thread_t *intf,
-                       vlc_playlist_t *playlist, char *name)
+                       heimdall_playlist_t *playlist, char *name)
 {
     char *bookmark_uri = var_CreateGetString(intf, name);
-    size_t count = vlc_playlist_Count(playlist);
+    size_t count = heimdall_playlist_Count(playlist);
     size_t i;
     for (i = 0; i < count; ++i)
     {
-        vlc_playlist_item_t *plitem = vlc_playlist_Get(playlist, i);
-        input_item_t *item = vlc_playlist_item_GetMedia(plitem);
+        heimdall_playlist_item_t *plitem = heimdall_playlist_Get(playlist, i);
+        input_item_t *item = heimdall_playlist_item_GetMedia(plitem);
         char *item_uri = input_item_GetURI(item);
         if (!strcmp(bookmark_uri, item_uri))
             break;
         free(item_uri);
     }
     if (i != count)
-        vlc_playlist_PlayAt(playlist, i);
+        heimdall_playlist_PlayAt(playlist, i);
     free(bookmark_uri);
 }
 
@@ -236,7 +237,7 @@ INTF_ACTION_HANDLER(PlaylistBookmark)
     char *bookmark_name;
     if (asprintf(&bookmark_name, "bookmark%i", id) == -1)
         return;
-    vlc_playlist_t *playlist = intf->p_sys->playlist;
+    heimdall_playlist_t *playlist = intf->p_sys->playlist;
     if (set)
         playlist_bookmark_Set(intf, playlist, bookmark_name, id);
     else
@@ -250,47 +251,47 @@ INTF_ACTION_HANDLER(PlaylistBookmark)
 
 #define PLAYER_ACTION_HANDLER(name) \
 static inline void action_handler_Player##name(intf_thread_t *intf, \
-                                               vlc_player_t *player, \
-                                               vlc_action_id_t action_id)
+                                               heimdall_player_t *player, \
+                                               heimdall_action_id_t action_id)
 
 PLAYER_ACTION_HANDLER(State)
 {
-    VLC_UNUSED(intf);
+    HEIMDALL_UNUSED(intf);
     switch (action_id)
     {
         case ACTIONID_PLAY_PAUSE:
         {
-            enum vlc_player_state state = vlc_player_GetState(player);
-            if (state == VLC_PLAYER_STATE_PAUSED)
-                vlc_player_Resume(player);
+            enum heimdall_player_state state = heimdall_player_GetState(player);
+            if (state == HEIMDALL_PLAYER_STATE_PAUSED)
+                heimdall_player_Resume(player);
             else
-                vlc_player_Pause(player);
+                heimdall_player_Pause(player);
             break;
         }
         case ACTIONID_PLAY:
-            vlc_player_Start(player);
+            heimdall_player_Start(player);
             break;
         case ACTIONID_PAUSE:
-            vlc_player_Pause(player);
+            heimdall_player_Pause(player);
             break;
         case ACTIONID_STOP:
-            vlc_player_Stop(player);
+            heimdall_player_Stop(player);
             break;
         case ACTIONID_FRAME_NEXT:
-            vlc_player_NextVideoFrame(player);
+            heimdall_player_NextVideoFrame(player);
             break;
         case ACTIONID_FRAME_PREVIOUS:
-            vlc_player_PreviousVideoFrame(player);
+            heimdall_player_PreviousVideoFrame(player);
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 }
 
 INTF_ACTION_HANDLER(PlayerSeek)
 {
-    vlc_player_t *player = vlc_playlist_GetPlayer(intf->p_sys->playlist);
-    if (!vlc_player_CanSeek(player))
+    heimdall_player_t *player = heimdall_playlist_GetPlayer(intf->p_sys->playlist);
+    if (!heimdall_player_CanSeek(player))
         return;
     char const *varname;
     int sign = +1;
@@ -321,51 +322,51 @@ INTF_ACTION_HANDLER(PlayerSeek)
             varname = "long-jump-size";
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
-    int jmpsz = var_InheritInteger(vlc_object_instance(intf), varname);
+    int jmpsz = var_InheritInteger(heimdall_object_instance(intf), varname);
     if (jmpsz >= 0)
-        vlc_player_JumpTime(player, vlc_tick_from_sec(jmpsz * sign));
+        heimdall_player_JumpTime(player, heimdall_tick_from_sec(jmpsz * sign));
 }
 
 PLAYER_ACTION_HANDLER(Position)
 {
-    VLC_UNUSED(action_id); VLC_UNUSED(intf);
-    vout_thread_t *vout = vlc_player_vout_Hold(player);
-    input_item_t* item = vlc_player_GetCurrentMedia(player);
+    HEIMDALL_UNUSED(action_id); HEIMDALL_UNUSED(intf);
+    vout_thread_t *vout = heimdall_player_vout_Hold(player);
+    input_item_t* item = heimdall_player_GetCurrentMedia(player);
     if (item && vout_OSDEpg(vout, item))
-        vlc_player_DisplayPosition(player);
+        heimdall_player_DisplayPosition(player);
     vout_Release(vout);
 }
 
 PLAYER_ACTION_HANDLER(NavigateMedia)
 {
-    VLC_UNUSED(intf);
+    HEIMDALL_UNUSED(intf);
     switch (action_id)
     {
         case ACTIONID_PROGRAM_SID_PREV:
-            vlc_player_SelectPrevProgram(player);
+            heimdall_player_SelectPrevProgram(player);
             break;
         case ACTIONID_PROGRAM_SID_NEXT:
-            vlc_player_SelectNextProgram(player);
+            heimdall_player_SelectNextProgram(player);
             break;
         case ACTIONID_TITLE_PREV:
-            vlc_player_SelectPrevTitle(player);
+            heimdall_player_SelectPrevTitle(player);
             break;
         case ACTIONID_TITLE_NEXT:
-            vlc_player_SelectNextTitle(player);
+            heimdall_player_SelectNextTitle(player);
             break;
         case ACTIONID_CHAPTER_PREV:
-            vlc_player_SelectPrevChapter(player);
+            heimdall_player_SelectPrevChapter(player);
             break;
         case ACTIONID_CHAPTER_NEXT:
-            vlc_player_SelectNextChapter(player);
+            heimdall_player_SelectNextChapter(player);
             break;
         case ACTIONID_DISC_MENU:
-            vlc_player_Navigate(player, VLC_PLAYER_NAV_MENU);
+            heimdall_player_Navigate(player, HEIMDALL_PLAYER_NAV_MENU);
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 }
 
@@ -374,15 +375,15 @@ PLAYER_ACTION_HANDLER(Track)
     switch (action_id)
     {
         case ACTIONID_AUDIO_TRACK:
-            vlc_player_SelectNextTrack(player, AUDIO_ES, VLC_VOUT_ORDER_PRIMARY);
+            heimdall_player_SelectNextTrack(player, AUDIO_ES, HEIMDALL_VOUT_ORDER_PRIMARY);
             break;
         case ACTIONID_SUBTITLE_REVERSE_TRACK:
         case ACTIONID_SUBTITLE_TRACK:
-            vlc_player_CycleTrack(player, SPU_ES, intf->p_sys->spu_channel_order,
+            heimdall_player_CycleTrack(player, SPU_ES, intf->p_sys->spu_channel_order,
                                   action_id == ACTIONID_SUBTITLE_TRACK);
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 }
 
@@ -406,29 +407,29 @@ PLAYER_ACTION_HANDLER(Delay)
             type = SUBDELAY;
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
-    enum vlc_player_whence whence = VLC_PLAYER_WHENCE_RELATIVE;
-    delta = VLC_TICK_FROM_MS(delta);
+    enum heimdall_player_whence whence = HEIMDALL_PLAYER_WHENCE_RELATIVE;
+    delta = HEIMDALL_TICK_FROM_MS(delta);
     if (type == AUDIODELAY)
-        vlc_player_SetAudioDelay(player, delta, whence);
+        heimdall_player_SetAudioDelay(player, delta, whence);
     else
     {
-        if (sys->spu_channel_order == VLC_VOUT_ORDER_PRIMARY)
-            vlc_player_SetSubtitleDelay(player, delta, whence);
+        if (sys->spu_channel_order == HEIMDALL_VOUT_ORDER_PRIMARY)
+            heimdall_player_SetSubtitleDelay(player, delta, whence);
         else
         {
-            size_t count = vlc_player_GetTrackCount(player, SPU_ES);
+            size_t count = heimdall_player_GetTrackCount(player, SPU_ES);
             for (size_t i = 0; i < count; ++i)
             {
-                const struct vlc_player_track *track =
-                    vlc_player_GetTrackAt(player, SPU_ES, i);
+                const struct heimdall_player_track *track =
+                    heimdall_player_GetTrackAt(player, SPU_ES, i);
 
-                enum vlc_vout_order order;
-                if (vlc_player_GetEsIdVout(player, track->es_id, &order)
-                 && order == VLC_VOUT_ORDER_SECONDARY)
+                enum heimdall_vout_order order;
+                if (heimdall_player_GetEsIdVout(player, track->es_id, &order)
+                 && order == HEIMDALL_VOUT_ORDER_SECONDARY)
                 {
-                    vlc_player_SetEsIdDelay(player, track->es_id, delta, whence);
+                    heimdall_player_SetEsIdDelay(player, track->es_id, delta, whence);
                     break;
                 }
             }
@@ -452,14 +453,14 @@ AdjustRateFine(float rate, int const dir)
 
 PLAYER_ACTION_HANDLER(Rate)
 {
-    VLC_UNUSED(intf);
+    HEIMDALL_UNUSED(intf);
     switch (action_id)
     {
         case ACTIONID_RATE_SLOWER:
-            vlc_player_DecrementRate(player);
+            heimdall_player_DecrementRate(player);
             break;
         case ACTIONID_RATE_FASTER:
-            vlc_player_IncrementRate(player);
+            heimdall_player_IncrementRate(player);
             break;
         default:
         {
@@ -474,14 +475,14 @@ PLAYER_ACTION_HANDLER(Rate)
                 {
                     int const dir = action_id == ACTIONID_RATE_SLOWER_FINE ?
                         -1 : +1;
-                    rate = vlc_player_GetRate(player);
+                    rate = heimdall_player_GetRate(player);
                     rate = AdjustRateFine(rate, dir);
                     break;
                 }
                 default:
-                    vlc_assert_unreachable();
+                    heimdall_assert_unreachable();
             }
-            vlc_player_ChangeRate(player, rate);
+            heimdall_player_ChangeRate(player, rate);
             break;
         }
     }
@@ -489,21 +490,21 @@ PLAYER_ACTION_HANDLER(Rate)
 
 PLAYER_ACTION_HANDLER(ToggleSubtitle)
 {
-    VLC_UNUSED(action_id); VLC_UNUSED(intf);
-    vlc_player_ToggleSubtitle(player);
+    HEIMDALL_UNUSED(action_id); HEIMDALL_UNUSED(intf);
+    heimdall_player_ToggleSubtitle(player);
 }
 
 PLAYER_ACTION_HANDLER(ControlSubtitleSecondary)
 {
-    VLC_UNUSED(action_id);
+    HEIMDALL_UNUSED(action_id);
     intf_sys_t *sys = intf->p_sys;
 
     sys->spu_channel_order =
-        sys->spu_channel_order == VLC_VOUT_ORDER_PRIMARY ?
-        VLC_VOUT_ORDER_SECONDARY : VLC_VOUT_ORDER_PRIMARY;
+        sys->spu_channel_order == HEIMDALL_VOUT_ORDER_PRIMARY ?
+        HEIMDALL_VOUT_ORDER_SECONDARY : HEIMDALL_VOUT_ORDER_PRIMARY;
 
-    vlc_player_osd_Message(player, _("%s subtitle control"),
-        sys->spu_channel_order == VLC_VOUT_ORDER_PRIMARY ? "Primary" : "Secondary");
+    heimdall_player_osd_Message(player, _("%s subtitle control"),
+        sys->spu_channel_order == HEIMDALL_VOUT_ORDER_PRIMARY ? "Primary" : "Secondary");
 }
 
 PLAYER_ACTION_HANDLER(SyncSubtitle)
@@ -513,56 +514,56 @@ PLAYER_ACTION_HANDLER(SyncSubtitle)
     switch (action_id)
     {
         case ACTIONID_SUBSYNC_MARKAUDIO:
-            sys->subsync.audio_time = vlc_tick_now();
-            vlc_player_osd_Message(player, _("Sub sync: bookmarked audio time"));
+            sys->subsync.audio_time = heimdall_tick_now();
+            heimdall_player_osd_Message(player, _("Sub sync: bookmarked audio time"));
             break;
         case ACTIONID_SUBSYNC_MARKSUB:
-            sys->subsync.subtitle_time = vlc_tick_now();
-            vlc_player_osd_Message(player, _("Sub sync: bookmarked subtitle time"));
+            sys->subsync.subtitle_time = heimdall_tick_now();
+            heimdall_player_osd_Message(player, _("Sub sync: bookmarked subtitle time"));
             break;
         case ACTIONID_SUBSYNC_APPLY:
         {
-            if (sys->subsync.audio_time == VLC_TICK_INVALID ||
-                sys->subsync.subtitle_time == VLC_TICK_INVALID)
+            if (sys->subsync.audio_time == HEIMDALL_TICK_INVALID ||
+                sys->subsync.subtitle_time == HEIMDALL_TICK_INVALID)
             {
-                vlc_player_osd_Message(player, _("Sub sync: set bookmarks first!"));
+                heimdall_player_osd_Message(player, _("Sub sync: set bookmarks first!"));
                 break;
             }
-            vlc_tick_t delay =
+            heimdall_tick_t delay =
                 sys->subsync.audio_time - sys->subsync.subtitle_time;
-            sys->subsync.audio_time = VLC_TICK_INVALID;
-            sys->subsync.subtitle_time = VLC_TICK_INVALID;
+            sys->subsync.audio_time = HEIMDALL_TICK_INVALID;
+            sys->subsync.subtitle_time = HEIMDALL_TICK_INVALID;
 
-            vlc_tick_t previous_delay = vlc_player_GetSubtitleDelay(player);
-            vlc_player_SetSubtitleDelay(player, delay, VLC_PLAYER_WHENCE_RELATIVE);
+            heimdall_tick_t previous_delay = heimdall_player_GetSubtitleDelay(player);
+            heimdall_player_SetSubtitleDelay(player, delay, HEIMDALL_PLAYER_WHENCE_RELATIVE);
 
-            long long delay_ms = MS_FROM_VLC_TICK(delay);
-            long long totdelay_ms =  MS_FROM_VLC_TICK(previous_delay + delay);
-            vlc_player_osd_Message(player, _("Sub sync: corrected %"PRId64
+            long long delay_ms = MS_FROM_HEIMDALL_TICK(delay);
+            long long totdelay_ms =  MS_FROM_HEIMDALL_TICK(previous_delay + delay);
+            heimdall_player_osd_Message(player, _("Sub sync: corrected %"PRId64
                                    " ms (total delay = %"PRId64" ms)"),
                                        delay_ms, totdelay_ms);
             break;
         }
         case ACTIONID_SUBSYNC_RESET:
-            sys->subsync.audio_time = VLC_TICK_INVALID;
-            sys->subsync.subtitle_time = VLC_TICK_INVALID;
-            vlc_player_SetSubtitleDelay(player, 0, VLC_PLAYER_WHENCE_ABSOLUTE);
-            vlc_player_osd_Message(player, _("Sub sync: delay reset"));
+            sys->subsync.audio_time = HEIMDALL_TICK_INVALID;
+            sys->subsync.subtitle_time = HEIMDALL_TICK_INVALID;
+            heimdall_player_SetSubtitleDelay(player, 0, HEIMDALL_PLAYER_WHENCE_ABSOLUTE);
+            heimdall_player_osd_Message(player, _("Sub sync: delay reset"));
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 }
 
 PLAYER_ACTION_HANDLER(Navigate)
 {
-    VLC_UNUSED(intf);
-    enum vlc_player_nav nav;
+    HEIMDALL_UNUSED(intf);
+    enum heimdall_player_nav nav;
     switch (action_id)
     {
 #define PLAYER_NAV_FROM_ACTION(navval) \
         case ACTIONID_NAV_##navval: \
-            nav = VLC_PLAYER_NAV_##navval; \
+            nav = HEIMDALL_PLAYER_NAV_##navval; \
             break;
         PLAYER_NAV_FROM_ACTION(ACTIVATE)
         PLAYER_NAV_FROM_ACTION(UP)
@@ -571,15 +572,15 @@ PLAYER_ACTION_HANDLER(Navigate)
         PLAYER_NAV_FROM_ACTION(RIGHT)
 #undef PLAYER_NAV_FROM_ACTION
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
-    vlc_player_Navigate(player, nav);
+    heimdall_player_Navigate(player, nav);
 }
 
 PLAYER_ACTION_HANDLER(Viewpoint)
 {
-    VLC_UNUSED(intf);
-    vlc_viewpoint_t viewpoint = { .fov = 0.f };
+    HEIMDALL_UNUSED(intf);
+    heimdall_viewpoint_t viewpoint = { .fov = 0.f };
     switch (action_id)
     {
         case ACTIONID_VIEWPOINT_FOV_IN:
@@ -589,25 +590,25 @@ PLAYER_ACTION_HANDLER(Viewpoint)
             viewpoint.fov = +1.f;
             break;
         case ACTIONID_VIEWPOINT_ROLL_CLOCK:
-            vlc_viewpoint_from_euler(&viewpoint,
+            heimdall_viewpoint_from_euler(&viewpoint,
                                      0.f, 0.f, -1.f);
             break;
         case ACTIONID_VIEWPOINT_ROLL_ANTICLOCK:
-            vlc_viewpoint_from_euler(&viewpoint,
+            heimdall_viewpoint_from_euler(&viewpoint,
                                      0.f, 0.f, 1.f);
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
-    vlc_player_UpdateViewpoint(player, &viewpoint,
-                               VLC_PLAYER_WHENCE_RELATIVE);
+    heimdall_player_UpdateViewpoint(player, &viewpoint,
+                               HEIMDALL_PLAYER_WHENCE_RELATIVE);
 }
 
 PLAYER_ACTION_HANDLER(Record)
 {
-    VLC_UNUSED(intf);
-    VLC_UNUSED(action_id);
-    vlc_player_ToggleRecording(player);
+    HEIMDALL_UNUSED(intf);
+    HEIMDALL_UNUSED(action_id);
+    heimdall_player_ToggleRecording(player);
 }
 
 static int
@@ -651,40 +652,40 @@ end:
 
 PLAYER_ACTION_HANDLER(Aout)
 {
-    VLC_UNUSED(intf);
+    HEIMDALL_UNUSED(intf);
     switch (action_id)
     {
         case ACTIONID_VOL_DOWN:
-            vlc_player_aout_DecrementVolume(player, 1, NULL);
+            heimdall_player_aout_DecrementVolume(player, 1, NULL);
             break;
         case ACTIONID_VOL_UP:
-            vlc_player_aout_IncrementVolume(player, 1, NULL);
+            heimdall_player_aout_IncrementVolume(player, 1, NULL);
             break;
         case ACTIONID_VOL_MUTE:
-            vlc_player_aout_ToggleMute(player);
+            heimdall_player_aout_ToggleMute(player);
             break;
         case ACTIONID_AUDIODEVICE_CYCLE:
         {
-            audio_output_t *aout = vlc_player_aout_Hold(player);
+            audio_output_t *aout = heimdall_player_aout_Hold(player);
             if (!aout)
                 break;
             char *devname;
             if (!AudioDeviceCycle(aout, &devname))
             {
-                vlc_player_osd_Message(player, _("Audio device: %s"), devname);
+                heimdall_player_osd_Message(player, _("Audio device: %s"), devname);
                 free(devname);
             }
             aout_Release(aout);
             break;
         }
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 }
 
 struct snapshot_task
 {
-    struct vlc_runnable runnable;
+    struct heimdall_runnable runnable;
     vout_thread_t *vout;
 };
 
@@ -698,12 +699,12 @@ static void RunSnapshot(void *userdata)
     free(task);
 }
 
-static void TakeSnapshotAsync(struct intf_sys_t *sys, vlc_player_t *player)
+static void TakeSnapshotAsync(struct intf_sys_t *sys, heimdall_player_t *player)
 {
     if (!sys->executor)
     {
         /* Create the executor only on the first request */
-        sys->executor = vlc_executor_New(1);
+        sys->executor = heimdall_executor_New(1);
         if (!sys->executor)
             return;
     }
@@ -712,31 +713,31 @@ static void TakeSnapshotAsync(struct intf_sys_t *sys, vlc_player_t *player)
     if (!task)
         return;
 
-    task->vout = vlc_player_vout_Hold(player);
+    task->vout = heimdall_player_vout_Hold(player);
     task->runnable.run = RunSnapshot;
     task->runnable.userdata = task;
-    vlc_executor_Submit(sys->executor, &task->runnable);
+    heimdall_executor_Submit(sys->executor, &task->runnable);
 }
 
 PLAYER_ACTION_HANDLER(Vouts)
 {
-    VLC_UNUSED(intf);
+    HEIMDALL_UNUSED(intf);
     switch (action_id)
     {
         case ACTIONID_TOGGLE_FULLSCREEN:
-            vlc_player_vout_ToggleFullscreen(player);
+            heimdall_player_vout_ToggleFullscreen(player);
             break;
         case ACTIONID_LEAVE_FULLSCREEN:
-            vlc_player_vout_SetFullscreen(player, false);
+            heimdall_player_vout_SetFullscreen(player, false);
             break;
         case ACTIONID_SNAPSHOT:
             TakeSnapshotAsync(intf->p_sys, player);
             break;
         case ACTIONID_WALLPAPER:
-            vlc_player_vout_ToggleWallpaperMode(player);
+            heimdall_player_vout_ToggleWallpaperMode(player);
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 }
 
@@ -746,27 +747,27 @@ PLAYER_ACTION_HANDLER(Vouts)
 
 #define VOUT_ACTION_HANDLER(name) \
 static inline void \
-action_handler_Vout##name(intf_thread_t *intf, vout_thread_t *vout, vlc_action_id_t action_id)
+action_handler_Vout##name(intf_thread_t *intf, vout_thread_t *vout, heimdall_action_id_t action_id)
 
 static inline void
 vout_CycleVariable(vout_thread_t *vout,
                    char const *varname, int vartype, bool next)
 {
-    vlc_value_t val;
+    heimdall_value_t val;
 
-    if (var_Get(vout, varname, &val) != VLC_SUCCESS)
+    if (var_Get(vout, varname, &val) != HEIMDALL_SUCCESS)
         return;
 
     size_t num_choices;
-    vlc_value_t *choices;
-    var_Change(vout, varname, VLC_VAR_GETCHOICES,
+    heimdall_value_t *choices;
+    var_Change(vout, varname, HEIMDALL_VAR_GETCHOICES,
                &num_choices, &choices, NULL);
 
-    vlc_value_t *choice = choices;
+    heimdall_value_t *choice = choices;
     for (size_t curidx = 0; curidx < num_choices; ++curidx, ++choice)
-        if ((vartype == VLC_VAR_FLOAT &&
+        if ((vartype == HEIMDALL_VAR_FLOAT &&
              choice->f_float == val.f_float) ||
-            (vartype == VLC_VAR_STRING &&
+            (vartype == HEIMDALL_VAR_STRING &&
              !strcmp(choice->psz_string, val.psz_string)))
         {
             curidx += next ? +1 : -1;
@@ -779,12 +780,12 @@ vout_CycleVariable(vout_thread_t *vout,
         }
     if (choice == choices + num_choices)
         choice = choices;
-    if (vartype == VLC_VAR_FLOAT)
+    if (vartype == HEIMDALL_VAR_FLOAT)
         var_SetFloat(vout, varname, choice->f_float);
-    else if (vartype == VLC_VAR_STRING)
+    else if (vartype == HEIMDALL_VAR_STRING)
         var_SetString(vout, varname, choice->psz_string);
 
-    if (vartype == VLC_VAR_STRING)
+    if (vartype == HEIMDALL_VAR_STRING)
     {
         free(val.psz_string);
         for (size_t i = 0; i < num_choices; ++i)
@@ -796,24 +797,24 @@ vout_CycleVariable(vout_thread_t *vout,
 #define vout_CycleVariable(vout, varname, vartype, next) \
     do \
     { \
-        static_assert(vartype == VLC_VAR_FLOAT || \
-                      vartype == VLC_VAR_STRING, \
-                      "vartype must be either VLC_VAR_FLOAT or VLC_VAR_STRING"); \
+        static_assert(vartype == HEIMDALL_VAR_FLOAT || \
+                      vartype == HEIMDALL_VAR_STRING, \
+                      "vartype must be either HEIMDALL_VAR_FLOAT or HEIMDALL_VAR_STRING"); \
         vout_CycleVariable(vout, varname, vartype, next); \
     } while (0)
 
 VOUT_ACTION_HANDLER(AspectRatio)
 {
-    VLC_UNUSED(action_id); VLC_UNUSED(intf);
-    vout_CycleVariable(vout, "aspect-ratio", VLC_VAR_STRING, true);
+    HEIMDALL_UNUSED(action_id); HEIMDALL_UNUSED(intf);
+    vout_CycleVariable(vout, "aspect-ratio", HEIMDALL_VAR_STRING, true);
 }
 
 VOUT_ACTION_HANDLER(Crop)
 {
-    VLC_UNUSED(intf);
+    HEIMDALL_UNUSED(intf);
     if (action_id == ACTIONID_CROP)
     {
-        vout_CycleVariable(vout, "crop", VLC_VAR_STRING, true);
+        vout_CycleVariable(vout, "crop", HEIMDALL_VAR_STRING, true);
         return;
     }
     char const *varname;
@@ -832,7 +833,7 @@ VOUT_ACTION_HANDLER(Crop)
                 CASE_CROP(RIGHT, right)
 #undef CASE_CROP
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
     int crop = var_GetInteger(vout, varname);
     var_SetInteger(vout, varname, crop + delta);
@@ -840,7 +841,7 @@ VOUT_ACTION_HANDLER(Crop)
 
 VOUT_ACTION_HANDLER(Zoom)
 {
-    VLC_UNUSED(intf);
+    HEIMDALL_UNUSED(intf);
     char const *varname = "zoom";
     switch (action_id)
     {
@@ -862,7 +863,7 @@ VOUT_ACTION_HANDLER(Zoom)
         }
         case ACTIONID_ZOOM:
         case ACTIONID_UNZOOM:
-            vout_CycleVariable(vout, varname, VLC_VAR_FLOAT,
+            vout_CycleVariable(vout, varname, HEIMDALL_VAR_FLOAT,
                                action_id == ACTIONID_ZOOM);
             break;
         default:
@@ -877,18 +878,18 @@ VOUT_ACTION_HANDLER(Zoom)
 
 VOUT_ACTION_HANDLER(Deinterlace)
 {
-    VLC_UNUSED(intf);
+    HEIMDALL_UNUSED(intf);
     if (action_id == ACTIONID_DEINTERLACE)
         var_SetInteger(vout, "deinterlace",
                        var_GetInteger(vout, "deinterlace") ? 0 : 1);
     else if (action_id == ACTIONID_DEINTERLACE_MODE)
-        vout_CycleVariable(vout, "deinterlace-mode", VLC_VAR_STRING, true);
+        vout_CycleVariable(vout, "deinterlace-mode", HEIMDALL_VAR_STRING, true);
 }
 
 VOUT_ACTION_HANDLER(SubtitleDisplay)
 {
     intf_sys_t *sys = intf->p_sys;
-    const char* psz_sub_margin = sys->spu_channel_order == VLC_VOUT_ORDER_PRIMARY ?
+    const char* psz_sub_margin = sys->spu_channel_order == HEIMDALL_VOUT_ORDER_PRIMARY ?
         "sub-margin" : "secondary-sub-margin";
     switch (action_id)
     {
@@ -901,22 +902,22 @@ VOUT_ACTION_HANDLER(SubtitleDisplay)
         default:
         {
             // FIXME all vouts
-            vlc_player_t *player = vlc_playlist_GetPlayer(sys->playlist);
+            heimdall_player_t *player = heimdall_playlist_GetPlayer(sys->playlist);
             int scale;
             if (action_id == ACTIONID_SUBTITLE_TEXT_SCALE_NORMAL)
                 scale = 100;
             else
             {
-                scale = vlc_player_GetSubtitleTextScale(player);
+                scale = heimdall_player_GetSubtitleTextScale(player);
                 int delta = (scale > 100 ? scale - 100 : 100 - scale) / 25;
                 delta = delta <= 1 ? 10 : 25;
                 if (action_id == ACTIONID_SUBTITLE_TEXT_SCALE_DOWN)
                     delta = -delta;
                 scale += delta;
                 scale -= scale % delta;
-                scale = VLC_CLIP(scale, 25, 500);
+                scale = HEIMDALL_CLIP(scale, 25, 500);
             }
-            vlc_player_SetSubtitleTextScale(player, scale);
+            heimdall_player_SetSubtitleTextScale(player, scale);
             break;
         }
     }
@@ -932,7 +933,7 @@ VOUT_ACTION_HANDLER(Projection)
  * action table *
  ****************/
 
-struct vlc_action
+struct heimdall_action
 {
     enum
     {
@@ -944,82 +945,82 @@ struct vlc_action
     } type;
     struct
     {
-        vlc_action_id_t first;
-        vlc_action_id_t last;
+        heimdall_action_id_t first;
+        heimdall_action_id_t last;
     } range;
     union
     {
         void *fptr;
-        void (*pf_intf)(intf_thread_t *, vlc_action_id_t);
-        void (*pf_playlist)(intf_thread_t *, vlc_playlist_t *, vlc_action_id_t);
-        void (*pf_player)(intf_thread_t *, vlc_player_t *, vlc_action_id_t);
-        void (*pf_vout)(intf_thread_t *, vout_thread_t *vout, vlc_action_id_t);
+        void (*pf_intf)(intf_thread_t *, heimdall_action_id_t);
+        void (*pf_playlist)(intf_thread_t *, heimdall_playlist_t *, heimdall_action_id_t);
+        void (*pf_player)(intf_thread_t *, heimdall_player_t *, heimdall_action_id_t);
+        void (*pf_vout)(intf_thread_t *, vout_thread_t *vout, heimdall_action_id_t);
     } handler;
     bool pl_need_lock;
 };
 
-static struct vlc_action const actions[] =
+static struct heimdall_action const actions[] =
 {
-#define VLC_ACTION(typeval, first, last, name, lock) \
+#define HEIMDALL_ACTION(typeval, first, last, name, lock) \
     { \
         .type = typeval, \
         .range = { ACTIONID_##first, ACTIONID_##last }, \
         .handler.fptr = action_handler_##name, \
         .pl_need_lock = lock \
     },
-#define VLC_ACTION_INTF(first, last, name, lock) \
-    VLC_ACTION(INTF_ACTION, first, last, Intf ## name, lock)
-#define VLC_ACTION_PLAYLIST(first, last, name) \
-    VLC_ACTION(PLAYLIST_ACTION, first, last, Playlist ## name, true)
-#define VLC_ACTION_PLAYER(first, last, name, lock) \
-    VLC_ACTION(PLAYER_ACTION, first, last, Player ## name, lock)
-#define VLC_ACTION_VOUT(first, last, name) \
-    VLC_ACTION(VOUT_ACTION, first, last, Vout ## name, false)
+#define HEIMDALL_ACTION_INTF(first, last, name, lock) \
+    HEIMDALL_ACTION(INTF_ACTION, first, last, Intf ## name, lock)
+#define HEIMDALL_ACTION_PLAYLIST(first, last, name) \
+    HEIMDALL_ACTION(PLAYLIST_ACTION, first, last, Playlist ## name, true)
+#define HEIMDALL_ACTION_PLAYER(first, last, name, lock) \
+    HEIMDALL_ACTION(PLAYER_ACTION, first, last, Player ## name, lock)
+#define HEIMDALL_ACTION_VOUT(first, last, name) \
+    HEIMDALL_ACTION(VOUT_ACTION, first, last, Vout ## name, false)
 
     /* interface actions */
-    VLC_ACTION_INTF(QUIT, INTF_POPUP_MENU, , false)
-    VLC_ACTION_INTF(COMBO_VOL_FOV_DOWN, COMBO_VOL_FOV_UP, ActionCombo, false)
+    HEIMDALL_ACTION_INTF(QUIT, INTF_POPUP_MENU, , false)
+    HEIMDALL_ACTION_INTF(COMBO_VOL_FOV_DOWN, COMBO_VOL_FOV_UP, ActionCombo, false)
     /* playlist actions */
-    VLC_ACTION_PLAYLIST(PLAY_CLEAR, NEXT, Interact)
-    VLC_ACTION_PLAYLIST(LOOP, RANDOM, Playback)
-    VLC_ACTION_INTF(SET_BOOKMARK1, PLAY_BOOKMARK10, PlaylistBookmark, true)
+    HEIMDALL_ACTION_PLAYLIST(PLAY_CLEAR, NEXT, Interact)
+    HEIMDALL_ACTION_PLAYLIST(LOOP, RANDOM, Playback)
+    HEIMDALL_ACTION_INTF(SET_BOOKMARK1, PLAY_BOOKMARK10, PlaylistBookmark, true)
     /* player actions */
-    VLC_ACTION_PLAYER(PLAY_PAUSE, FRAME_NEXT, State, true)
-    VLC_ACTION_PLAYER(PLAY_PAUSE, FRAME_PREVIOUS, State, true)
-    VLC_ACTION_INTF(JUMP_BACKWARD_EXTRASHORT, JUMP_FORWARD_LONG, PlayerSeek, true)
-    VLC_ACTION_PLAYER(POSITION, POSITION, Position, true)
-    VLC_ACTION_PLAYER(PROGRAM_SID_PREV, DISC_MENU, NavigateMedia, true)
-    VLC_ACTION_PLAYER(AUDIO_TRACK, SUBTITLE_TRACK, Track, true)
-    VLC_ACTION_PLAYER(AUDIODELAY_DOWN, SUBDELAY_UP, Delay, true)
-    VLC_ACTION_PLAYER(RATE_NORMAL, RATE_FASTER_FINE, Rate, true)
-    VLC_ACTION_PLAYER(SUBTITLE_TOGGLE, SUBTITLE_TOGGLE, ToggleSubtitle, true)
-    VLC_ACTION_PLAYER(SUBTITLE_CONTROL_SECONDARY, SUBTITLE_CONTROL_SECONDARY,
+    HEIMDALL_ACTION_PLAYER(PLAY_PAUSE, FRAME_NEXT, State, true)
+    HEIMDALL_ACTION_PLAYER(PLAY_PAUSE, FRAME_PREVIOUS, State, true)
+    HEIMDALL_ACTION_INTF(JUMP_BACKWARD_EXTRASHORT, JUMP_FORWARD_LONG, PlayerSeek, true)
+    HEIMDALL_ACTION_PLAYER(POSITION, POSITION, Position, true)
+    HEIMDALL_ACTION_PLAYER(PROGRAM_SID_PREV, DISC_MENU, NavigateMedia, true)
+    HEIMDALL_ACTION_PLAYER(AUDIO_TRACK, SUBTITLE_TRACK, Track, true)
+    HEIMDALL_ACTION_PLAYER(AUDIODELAY_DOWN, SUBDELAY_UP, Delay, true)
+    HEIMDALL_ACTION_PLAYER(RATE_NORMAL, RATE_FASTER_FINE, Rate, true)
+    HEIMDALL_ACTION_PLAYER(SUBTITLE_TOGGLE, SUBTITLE_TOGGLE, ToggleSubtitle, true)
+    HEIMDALL_ACTION_PLAYER(SUBTITLE_CONTROL_SECONDARY, SUBTITLE_CONTROL_SECONDARY,
                       ControlSubtitleSecondary, true)
-    VLC_ACTION_PLAYER(SUBSYNC_MARKAUDIO, SUBSYNC_RESET, SyncSubtitle, true)
-    VLC_ACTION_PLAYER(NAV_ACTIVATE, NAV_RIGHT, Navigate, true)
-    VLC_ACTION_PLAYER(VIEWPOINT_FOV_IN, VIEWPOINT_ROLL_ANTICLOCK, Viewpoint, true)
-    VLC_ACTION_PLAYER(RECORD, RECORD, Record, true)
-    VLC_ACTION_PLAYER(VOL_DOWN, AUDIODEVICE_CYCLE, Aout, false)
-    VLC_ACTION_PLAYER(TOGGLE_FULLSCREEN, WALLPAPER, Vouts, false)
+    HEIMDALL_ACTION_PLAYER(SUBSYNC_MARKAUDIO, SUBSYNC_RESET, SyncSubtitle, true)
+    HEIMDALL_ACTION_PLAYER(NAV_ACTIVATE, NAV_RIGHT, Navigate, true)
+    HEIMDALL_ACTION_PLAYER(VIEWPOINT_FOV_IN, VIEWPOINT_ROLL_ANTICLOCK, Viewpoint, true)
+    HEIMDALL_ACTION_PLAYER(RECORD, RECORD, Record, true)
+    HEIMDALL_ACTION_PLAYER(VOL_DOWN, AUDIODEVICE_CYCLE, Aout, false)
+    HEIMDALL_ACTION_PLAYER(TOGGLE_FULLSCREEN, WALLPAPER, Vouts, false)
     /* vout actions */
-    VLC_ACTION_VOUT(ASPECT_RATIO, ASPECT_RATIO, AspectRatio)
-    VLC_ACTION_VOUT(CROP, UNCROP_RIGHT, Crop)
-    VLC_ACTION_VOUT(TOGGLE_AUTOSCALE, ZOOM_DOUBLE, Zoom)
-    VLC_ACTION_VOUT(DEINTERLACE, DEINTERLACE_MODE, Deinterlace)
-    VLC_ACTION_VOUT(SUBPOS_DOWN, SUBTITLE_TEXT_SCALE_UP, SubtitleDisplay)
-    VLC_ACTION_VOUT(PROJECTION_TOGGLE, PROJECTION_TOGGLE, Projection)
+    HEIMDALL_ACTION_VOUT(ASPECT_RATIO, ASPECT_RATIO, AspectRatio)
+    HEIMDALL_ACTION_VOUT(CROP, UNCROP_RIGHT, Crop)
+    HEIMDALL_ACTION_VOUT(TOGGLE_AUTOSCALE, ZOOM_DOUBLE, Zoom)
+    HEIMDALL_ACTION_VOUT(DEINTERLACE, DEINTERLACE_MODE, Deinterlace)
+    HEIMDALL_ACTION_VOUT(SUBPOS_DOWN, SUBTITLE_TEXT_SCALE_UP, SubtitleDisplay)
+    HEIMDALL_ACTION_VOUT(PROJECTION_TOGGLE, PROJECTION_TOGGLE, Projection)
     /* null action */
     { .type = NULL_ACTION }
 
-#undef VLC_ACTION_VOUT
-#undef VLC_ACTION_PLAYER
-#undef VLC_ACTION_PLAYLIST
-#undef VLC_ACTION_INTF
-#undef VLC_ACTION
+#undef HEIMDALL_ACTION_VOUT
+#undef HEIMDALL_ACTION_PLAYER
+#undef HEIMDALL_ACTION_PLAYLIST
+#undef HEIMDALL_ACTION_INTF
+#undef HEIMDALL_ACTION
 };
 
 static void
-handle_action(intf_thread_t *intf, vlc_action_id_t action_id)
+handle_action(intf_thread_t *intf, heimdall_action_id_t action_id)
 {
     size_t action_idx;
     for (action_idx = 0; actions[action_idx].type != NULL_ACTION; ++action_idx)
@@ -1031,11 +1032,11 @@ handle_action(intf_thread_t *intf, vlc_action_id_t action_id)
         msg_Warn(intf, "no handler for action %d", action_id);
         return;
     }
-    struct vlc_action const *action = actions + action_idx;
+    struct heimdall_action const *action = actions + action_idx;
 
-    vlc_playlist_t *playlist = intf->p_sys->playlist;
+    heimdall_playlist_t *playlist = intf->p_sys->playlist;
     if (action->pl_need_lock)
-        vlc_playlist_Lock(playlist);
+        heimdall_playlist_Lock(playlist);
 
     switch (action->type)
     {
@@ -1048,23 +1049,23 @@ handle_action(intf_thread_t *intf, vlc_action_id_t action_id)
         case PLAYER_ACTION:
         case VOUT_ACTION:
         {
-            vlc_player_t *player = vlc_playlist_GetPlayer(playlist);
+            heimdall_player_t *player = heimdall_playlist_GetPlayer(playlist);
             if (action->type == PLAYER_ACTION)
                 action->handler.pf_player(intf, player, action_id);
             else
             {
-                vout_thread_t *vout = vlc_player_vout_Hold(player);
+                vout_thread_t *vout = heimdall_player_vout_Hold(player);
                 action->handler.pf_vout(intf, vout, action_id);
                 vout_Release(vout);
             }
             break;
         }
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 
     if (action->pl_need_lock)
-        vlc_playlist_Unlock(playlist);
+        heimdall_playlist_Unlock(playlist);
 }
 
 /******************
@@ -1072,10 +1073,10 @@ handle_action(intf_thread_t *intf, vlc_action_id_t action_id)
  ******************/
 
 static int
-MouseButtonCallback(vlc_object_t *obj, char const *var,
-                    vlc_value_t oldval, vlc_value_t newval, void *data)
+MouseButtonCallback(heimdall_object_t *obj, char const *var,
+                    heimdall_value_t oldval, heimdall_value_t newval, void *data)
 {
-    VLC_UNUSED(var);
+    HEIMDALL_UNUSED(var);
 
     intf_thread_t *intf = data;
     intf_sys_t *sys = intf->p_sys;
@@ -1095,72 +1096,72 @@ MouseButtonCallback(vlc_object_t *obj, char const *var,
 
     unsigned pressed = newval.i_int & ~oldval.i_int;
     if (pressed & (1 << MOUSE_BUTTON_LEFT))
-        var_SetBool(vlc_object_instance(intf), "intf-popupmenu", false);
+        var_SetBool(heimdall_object_instance(intf), "intf-popupmenu", false);
     if (pressed & (1 << MOUSE_BUTTON_CENTER))
-        var_TriggerCallback(vlc_object_instance(intf), "intf-toggle-fscontrol");
+        var_TriggerCallback(heimdall_object_instance(intf), "intf-toggle-fscontrol");
 #ifndef _WIN32
     if (pressed & (1 << MOUSE_BUTTON_RIGHT))
 #else
     if ((oldval.i_int & (1 << MOUSE_BUTTON_RIGHT))
      && !(newval.i_int & (1 << MOUSE_BUTTON_RIGHT)))
 #endif
-        var_SetBool(vlc_object_instance(intf), "intf-popupmenu", true);
+        var_SetBool(heimdall_object_instance(intf), "intf-popupmenu", true);
     for (int i = MOUSE_BUTTON_WHEEL_UP; i <= MOUSE_BUTTON_WHEEL_RIGHT; i++)
         if (pressed & (1 << i))
         {
             int keycode = KEY_MOUSEWHEEL_FROM_BUTTON(i);
-            var_SetInteger(vlc_object_instance(intf), "key-pressed", keycode);
+            var_SetInteger(heimdall_object_instance(intf), "key-pressed", keycode);
         }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int
-MouseMovedCallback(vlc_object_t *obj, char const *var,
-                   vlc_value_t ov, vlc_value_t newval, void *data)
+MouseMovedCallback(heimdall_object_t *obj, char const *var,
+                   heimdall_value_t ov, heimdall_value_t newval, void *data)
 {
-    VLC_UNUSED(obj); VLC_UNUSED(var); VLC_UNUSED(ov);
+    HEIMDALL_UNUSED(obj); HEIMDALL_UNUSED(var); HEIMDALL_UNUSED(ov);
     intf_sys_t *sys = data;
-    vlc_player_t *player = vlc_playlist_GetPlayer(sys->playlist);
+    heimdall_player_t *player = heimdall_playlist_GetPlayer(sys->playlist);
     if (sys->vrnav.btn_pressed)
     {
         int i_horizontal = newval.coords.x - sys->vrnav.x;
         int i_vertical   = newval.coords.y - sys->vrnav.y;
-        vlc_viewpoint_t viewpoint = { .fov = 0.f };
-        vlc_viewpoint_from_euler(&viewpoint,
+        heimdall_viewpoint_t viewpoint = { .fov = 0.f };
+        heimdall_viewpoint_from_euler(&viewpoint,
             -i_horizontal * 0.05f, /* yaw */
             -i_vertical   * 0.05f, /* pitch */
             0);                    /* roll */
-        vlc_player_Lock(player);
-        vlc_player_UpdateViewpoint(player, &viewpoint,
-                                   VLC_PLAYER_WHENCE_RELATIVE);
-        vlc_player_Unlock(player);
+        heimdall_player_Lock(player);
+        heimdall_player_UpdateViewpoint(player, &viewpoint,
+                                   HEIMDALL_PLAYER_WHENCE_RELATIVE);
+        heimdall_player_Unlock(player);
         sys->vrnav.x = newval.coords.x;
         sys->vrnav.y = newval.coords.y;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int
-ViewpointMovedCallback(vlc_object_t *obj, char const *var,
-                       vlc_value_t ov, vlc_value_t newval, void *data)
+ViewpointMovedCallback(heimdall_object_t *obj, char const *var,
+                       heimdall_value_t ov, heimdall_value_t newval, void *data)
 {
-    VLC_UNUSED(obj); VLC_UNUSED(var); VLC_UNUSED(ov);
-    vlc_player_t *player = data;
-    vlc_player_Lock(player);
-    vlc_player_UpdateViewpoint(player, (vlc_viewpoint_t *)newval.p_address,
-                               VLC_PLAYER_WHENCE_RELATIVE);
-    vlc_player_Unlock(player);
-    return VLC_SUCCESS;
+    HEIMDALL_UNUSED(obj); HEIMDALL_UNUSED(var); HEIMDALL_UNUSED(ov);
+    heimdall_player_t *player = data;
+    heimdall_player_Lock(player);
+    heimdall_player_UpdateViewpoint(player, (heimdall_viewpoint_t *)newval.p_address,
+                               HEIMDALL_PLAYER_WHENCE_RELATIVE);
+    heimdall_player_Unlock(player);
+    return HEIMDALL_SUCCESS;
 }
 
 static void
-player_on_vout_started(vlc_player_t *player, vout_thread_t *vout, void *data)
+player_on_vout_started(heimdall_player_t *player, vout_thread_t *vout, void *data)
 {
     intf_thread_t *intf = data;
     intf_sys_t *sys = intf->p_sys;
 
-    if (unlikely(vlc_array_append(&sys->vouts, vout) != 0))
+    if (unlikely(heimdall_array_append(&sys->vouts, vout) != 0))
         return;
 
     var_AddCallback(vout, "mouse-button-down", MouseButtonCallback, intf);
@@ -1172,16 +1173,16 @@ player_on_vout_started(vlc_player_t *player, vout_thread_t *vout, void *data)
 }
 
 static void
-player_on_vout_stopped(vlc_player_t *player, vout_thread_t *vout, void *data)
+player_on_vout_stopped(heimdall_player_t *player, vout_thread_t *vout, void *data)
 {
     intf_thread_t *intf = data;
     intf_sys_t *sys = intf->p_sys;
-    ssize_t idx = vlc_array_index_of_item(&sys->vouts, vout);
+    ssize_t idx = heimdall_array_index_of_item(&sys->vouts, vout);
 
     if (unlikely(idx < 0))
         return;
 
-    vlc_array_remove(&sys->vouts, idx);
+    heimdall_array_remove(&sys->vouts, idx);
 
     if (var_GetBool(vout, "viewpoint-changeable"))
         var_DelCallback(vout, "viewpoint-moved",
@@ -1192,36 +1193,36 @@ player_on_vout_stopped(vlc_player_t *player, vout_thread_t *vout, void *data)
 }
 
 static void
-player_on_vout_changed(vlc_player_t *player,
-                       enum vlc_player_vout_action action, vout_thread_t *vout,
-                       enum vlc_vout_order order, vlc_es_id_t *es_id,
+player_on_vout_changed(heimdall_player_t *player,
+                       enum heimdall_player_vout_action action, vout_thread_t *vout,
+                       enum heimdall_vout_order order, heimdall_es_id_t *es_id,
                        void *data)
 {
-    VLC_UNUSED(order);
+    HEIMDALL_UNUSED(order);
 
-    if (vlc_es_id_GetCat(es_id) != VIDEO_ES)
+    if (heimdall_es_id_GetCat(es_id) != VIDEO_ES)
         return;
 
     switch (action)
     {
-        case VLC_PLAYER_VOUT_STARTED:
+        case HEIMDALL_PLAYER_VOUT_STARTED:
             player_on_vout_started(player, vout, data);
             break;
-        case VLC_PLAYER_VOUT_STOPPED:
+        case HEIMDALL_PLAYER_VOUT_STOPPED:
             player_on_vout_stopped(player, vout, data);
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 }
 
 static int
-ActionCallback(vlc_object_t *obj, char const *var,
-               vlc_value_t ov, vlc_value_t newval, void *data)
+ActionCallback(heimdall_object_t *obj, char const *var,
+               heimdall_value_t ov, heimdall_value_t newval, void *data)
 {
-    VLC_UNUSED(obj); VLC_UNUSED(var); VLC_UNUSED(ov);
+    HEIMDALL_UNUSED(obj); HEIMDALL_UNUSED(var); HEIMDALL_UNUSED(ov);
     handle_action(data, newval.i_int);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /****************************
@@ -1229,69 +1230,69 @@ ActionCallback(vlc_object_t *obj, char const *var,
  ****************************/
 
 static int
-Open(vlc_object_t *this)
+Open(heimdall_object_t *this)
 {
     intf_thread_t *intf = (intf_thread_t *)this;
     intf_sys_t *sys = malloc(sizeof(intf_sys_t));
     if (!sys)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     sys->vrnav.btn_pressed = false;
-    sys->playlist = vlc_intf_GetMainPlaylist(intf);
-    vlc_array_init(&sys->vouts);
-    sys->subsync.audio_time = sys->subsync.subtitle_time = VLC_TICK_INVALID;
-    sys->spu_channel_order = VLC_VOUT_ORDER_PRIMARY;
-    static struct vlc_player_cbs const player_cbs =
+    sys->playlist = heimdall_intf_GetMainPlaylist(intf);
+    heimdall_array_init(&sys->vouts);
+    sys->subsync.audio_time = sys->subsync.subtitle_time = HEIMDALL_TICK_INVALID;
+    sys->spu_channel_order = HEIMDALL_VOUT_ORDER_PRIMARY;
+    static struct heimdall_player_cbs const player_cbs =
     {
         .on_vout_changed = player_on_vout_changed,
     };
-    vlc_player_t *player = vlc_playlist_GetPlayer(sys->playlist);
-    vlc_player_Lock(player);
-    sys->player_listener = vlc_player_AddListener(player, &player_cbs, intf);
-    vlc_player_Unlock(player);
+    heimdall_player_t *player = heimdall_playlist_GetPlayer(sys->playlist);
+    heimdall_player_Lock(player);
+    sys->player_listener = heimdall_player_AddListener(player, &player_cbs, intf);
+    heimdall_player_Unlock(player);
     if (!sys->player_listener)
     {
         free(sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
-    var_AddCallback(vlc_object_instance(intf), "key-action", ActionCallback, intf);
+    var_AddCallback(heimdall_object_instance(intf), "key-action", ActionCallback, intf);
 
     sys->executor = NULL;
 
     intf->p_sys = sys;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void
-Close(vlc_object_t *this)
+Close(heimdall_object_t *this)
 {
     intf_thread_t *intf = (intf_thread_t *)this;
     intf_sys_t *sys = intf->p_sys;
-    vlc_player_t *player = vlc_playlist_GetPlayer(sys->playlist);
-    vlc_player_Lock(player);
-    vlc_player_RemoveListener(player, sys->player_listener);
+    heimdall_player_t *player = heimdall_playlist_GetPlayer(sys->playlist);
+    heimdall_player_Lock(player);
+    heimdall_player_RemoveListener(player, sys->player_listener);
 
     while (sys->vouts.i_count > 0)
-        player_on_vout_stopped(player, vlc_array_item_at_index(&sys->vouts, 0),
+        player_on_vout_stopped(player, heimdall_array_item_at_index(&sys->vouts, 0),
                                intf);
-    vlc_player_Unlock(player);
+    heimdall_player_Unlock(player);
 
-    var_DelCallback(vlc_object_instance(intf), "key-action", ActionCallback, intf);
+    var_DelCallback(heimdall_object_instance(intf), "key-action", ActionCallback, intf);
 
     if (sys->executor)
     {
-        vlc_executor_WaitIdle(sys->executor);
-        vlc_executor_Delete(sys->executor);
+        heimdall_executor_WaitIdle(sys->executor);
+        heimdall_executor_Delete(sys->executor);
     }
 
     free(sys);
 }
 
-static void AutoRun(libvlc_int_t *libvlc)
+static void AutoRun(libheimdall_int_t *libheimdall)
 {
-    intf_Create(libvlc, MODULE_STRING);
+    intf_Create(libheimdall, MODULE_STRING);
 }
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname(N_("Hotkeys"))
     set_description(N_("Hotkeys management interface"))
     set_capability("interface", 0)
@@ -1301,4 +1302,4 @@ vlc_module_begin ()
     add_submodule()
     set_capability("autorun", 20)
     set_callback(AutoRun)
-vlc_module_end ()
+heimdall_module_end ()

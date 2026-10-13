@@ -2,6 +2,7 @@
  * skin_main.cpp
  *****************************************************************************
  * Copyright (C) 2003 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cyril Deguet     <asmax@via.ecp.fr>
  *          Olivier Teulière <ipkiss@via.ecp.fr>
@@ -25,22 +26,22 @@
 # include "config.h"
 #endif
 
-#define VLC_MODULE_LICENSE VLC_LICENSE_GPL_2_PLUS
+#define HEIMDALL_MODULE_LICENSE HEIMDALL_LICENSE_GPL_2_PLUS
 
 #include <atomic>
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_playlist.h>
-#include <vlc_threads.h>
-#include <vlc_window.h>
-#include <vlc_cxx_helpers.hpp>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_playlist.h>
+#include <heimdall_threads.h>
+#include <heimdall_window.h>
+#include <heimdall_cxx_helpers.hpp>
 
 #include "dialogs.hpp"
 #include "os_factory.hpp"
 #include "os_loop.hpp"
 #include "var_manager.hpp"
-#include "vlcproc.hpp"
+#include "heimdallproc.hpp"
 #include "theme_loader.hpp"
 #include "theme.hpp"
 #include "theme_repository.hpp"
@@ -61,26 +62,26 @@
 //---------------------------------------------------------------------------
 // Local prototypes
 //---------------------------------------------------------------------------
-static int  Open  ( vlc_object_t * );
-static void Close ( vlc_object_t * );
+static int  Open  ( heimdall_object_t * );
+static void Close ( heimdall_object_t * );
 static void *Run  ( void * );
 
 static std::atomic<intf_thread_t *> skin_load_intf;
-static vlc::threads::mutex skin_load_lock;
-static vlc::threads::condition_variable skin_load_wait;
+static heimdall::threads::mutex skin_load_lock;
+static heimdall::threads::condition_variable skin_load_wait;
 static uintptr_t skin_load_rc = 0;
 
 //---------------------------------------------------------------------------
 // Open: initialize interface
 //---------------------------------------------------------------------------
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     intf_thread_t *p_intf = (intf_thread_t *)p_this;
 
     // Allocate instance and initialize some members
     p_intf->p_sys = (intf_sys_t *) calloc( 1, sizeof( intf_sys_t ) );
     if( p_intf->p_sys == NULL )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     // Initialize "singleton" objects
     p_intf->p_sys->p_logger = NULL;
@@ -90,53 +91,53 @@ static int Open( vlc_object_t *p_this )
     p_intf->p_sys->p_osFactory = NULL;
     p_intf->p_sys->p_varManager = NULL;
     p_intf->p_sys->p_voutManager = NULL;
-    p_intf->p_sys->p_vlcProc = NULL;
+    p_intf->p_sys->p_heimdallProc = NULL;
     p_intf->p_sys->p_repository = NULL;
 
     // No theme yet
     p_intf->p_sys->p_theme = NULL;
 
-    vlc_sem_init( &p_intf->p_sys->init_wait, 0 );
+    heimdall_sem_init( &p_intf->p_sys->init_wait, 0 );
     p_intf->p_sys->b_error = false;
 
-    if( vlc_clone( &p_intf->p_sys->thread, Run, p_intf ) )
+    if( heimdall_clone( &p_intf->p_sys->thread, Run, p_intf ) )
     {
         free( p_intf->p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    vlc_sem_wait( &p_intf->p_sys->init_wait );
+    heimdall_sem_wait( &p_intf->p_sys->init_wait );
 
     if( p_intf->p_sys->b_error )
     {
-        vlc_join( p_intf->p_sys->thread, NULL );
+        heimdall_join( p_intf->p_sys->thread, NULL );
 
         free( p_intf->p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    vlc::threads::mutex_locker guard {skin_load_lock};
+    heimdall::threads::mutex_locker guard {skin_load_lock};
     skin_load_intf = p_intf;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 //---------------------------------------------------------------------------
 // Close: destroy interface
 //---------------------------------------------------------------------------
-static void Close( vlc_object_t *p_this )
+static void Close( heimdall_object_t *p_this )
 {
     intf_thread_t *p_intf = (intf_thread_t *)p_this;
 
     msg_Dbg( p_intf, "closing skins2 module" );
 
     // ensure the playlist is stopped
-    vlc_playlist_t *playlist = vlc_intf_GetMainPlaylist( p_intf );
-    vlc_playlist_Lock( playlist );
-    vlc_playlist_Stop ( playlist );
-    vlc_playlist_Unlock( playlist );
+    heimdall_playlist_t *playlist = heimdall_intf_GetMainPlaylist( p_intf );
+    heimdall_playlist_Lock( playlist );
+    heimdall_playlist_Stop ( playlist );
+    heimdall_playlist_Unlock( playlist );
 
     {
-        vlc::threads::mutex_locker guard {skin_load_lock};
+        heimdall::threads::mutex_locker guard {skin_load_lock};
         while (skin_load_rc != 0)
             skin_load_wait.wait(skin_load_lock);
 
@@ -157,7 +158,7 @@ static void Close( vlc_object_t *p_this )
         msg_Err( p_intf, "thread found already stopped (weird!)" );
     }
 
-    vlc_join( p_intf->p_sys->thread, NULL );
+    heimdall_join( p_intf->p_sys->thread, NULL );
 
     // Destroy structure
     free( p_intf->p_sys );
@@ -169,7 +170,7 @@ static void Close( vlc_object_t *p_this )
 //---------------------------------------------------------------------------
 static void *Run( void * p_obj )
 {
-    vlc_thread_set_name("vlc-skins2");
+    heimdall_thread_set_name("heimdall-skins2");
 
     intf_thread_t *p_intf = (intf_thread_t *)p_obj;
 
@@ -203,9 +204,9 @@ static void *Run( void * p_obj )
         b_error = true;
         goto end;
     }
-    if( VlcProc::instance( p_intf ) == NULL )
+    if( HeimdallProc::instance( p_intf ) == NULL )
     {
-        msg_Err( p_intf, "cannot initialize VLCProc" );
+        msg_Err( p_intf, "cannot initialize HeimdallProc" );
         b_error = true;
         goto end;
     }
@@ -255,7 +256,7 @@ static void *Run( void * p_obj )
 
     // Signal the main thread this thread is now ready
     p_intf->p_sys->b_error = false;
-    vlc_sem_post( &p_intf->p_sys->init_wait );
+    heimdall_sem_post( &p_intf->p_sys->init_wait );
 
     // Enter the main event loop
     loop->run();
@@ -280,7 +281,7 @@ end:
     ThemeRepository::destroy( p_intf );
     ArtManager::destroy( p_intf );
     VoutManager::destroy( p_intf );
-    VlcProc::destroy( p_intf );
+    HeimdallProc::destroy( p_intf );
     VarManager::destroy( p_intf );
     Interpreter::destroy( p_intf );
     AsyncQueue::destroy( p_intf );
@@ -289,24 +290,24 @@ end:
     if( b_error )
     {
         p_intf->p_sys->b_error = true;
-        vlc_sem_post( &p_intf->p_sys->init_wait );
+        heimdall_sem_post( &p_intf->p_sys->init_wait );
     }
 
     return NULL;
 }
 
-static int  WindowOpen( vlc_window_t * );
-static void WindowClose( vlc_window_t * );
+static int  WindowOpen( heimdall_window_t * );
+static void WindowClose( heimdall_window_t * );
 
 typedef struct
 {
     intf_thread_t*     pIntf;
-    vlc_window_cfg_t  cfg;
+    heimdall_window_cfg_t  cfg;
 } vout_window_skins_t;
 
-static void WindowOpenLocal( intf_thread_t* pIntf, vlc_object_t *pObj )
+static void WindowOpenLocal( intf_thread_t* pIntf, heimdall_object_t *pObj )
 {
-    vlc_window_t* pWnd = (vlc_window_t*)pObj;
+    heimdall_window_t* pWnd = (heimdall_window_t*)pObj;
     vout_window_skins_t* sys = (vout_window_skins_t *)pWnd->sys;
     int width = sys->cfg.width;
     int height = sys->cfg.height;
@@ -314,38 +315,38 @@ static void WindowOpenLocal( intf_thread_t* pIntf, vlc_object_t *pObj )
     VoutManager::instance( pIntf )->acceptWnd( pWnd, width, height );
 }
 
-static void WindowCloseLocal( intf_thread_t* pIntf, vlc_object_t *pObj )
+static void WindowCloseLocal( intf_thread_t* pIntf, heimdall_object_t *pObj )
 {
-    vlc_window_t* pWnd = (vlc_window_t*)pObj;
+    heimdall_window_t* pWnd = (heimdall_window_t*)pObj;
     VoutManager::instance( pIntf )->releaseWnd( pWnd );
 }
 
-static void WindowSetFullscreen( vlc_window_t *pWnd, const char * );
+static void WindowSetFullscreen( heimdall_window_t *pWnd, const char * );
 
-static int WindowEnable( vlc_window_t *pWnd, const vlc_window_cfg_t *cfg )
+static int WindowEnable( heimdall_window_t *pWnd, const heimdall_window_cfg_t *cfg )
 {
     vout_window_skins_t* sys = static_cast<vout_window_skins_t*>(pWnd->sys);
 
     /* Protect from races against the main interface closing. */
-    vlc::threads::mutex_locker guard {skin_load_lock};
+    heimdall::threads::mutex_locker guard {skin_load_lock};
 
     /* If the interface has already been closed, we cannot enable the window
      * anymore and we need to report that. */
     if (skin_load_intf == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     intf_thread_t *pIntf = skin_load_intf;
 
     sys->cfg = *cfg;
 
     // force execution in the skins2 thread context
-    CmdExecuteBlock* cmd = new CmdExecuteBlock( pIntf, VLC_OBJECT( pWnd ),
+    CmdExecuteBlock* cmd = new CmdExecuteBlock( pIntf, HEIMDALL_OBJECT( pWnd ),
                                                 WindowOpenLocal );
     CmdExecuteBlock::executeWait( CmdGenericPtr( cmd ) );
 
-    if( pWnd->type == VLC_WINDOW_TYPE_DUMMY )
+    if( pWnd->type == HEIMDALL_WINDOW_TYPE_DUMMY )
     {
         msg_Dbg( pIntf, "Vout window creation failed" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if (cfg->is_fullscreen)
@@ -353,28 +354,28 @@ static int WindowEnable( vlc_window_t *pWnd, const vlc_window_cfg_t *cfg )
 
     /* Prevent the interface from closing before we get disabled. */
     skin_load_rc++;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void WindowDisable( vlc_window_t *pWnd )
+static void WindowDisable( heimdall_window_t *pWnd )
 {
     /* Protect from races against the main interface closing. */
-    vlc::threads::mutex_locker guard {skin_load_lock};
+    heimdall::threads::mutex_locker guard {skin_load_lock};
     intf_thread_t *pIntf = skin_load_intf;
 
     // force execution in the skins2 thread context
-    CmdExecuteBlock* cmd = new CmdExecuteBlock( pIntf, VLC_OBJECT( pWnd ),
+    CmdExecuteBlock* cmd = new CmdExecuteBlock( pIntf, HEIMDALL_OBJECT( pWnd ),
                                                 WindowCloseLocal );
     CmdExecuteBlock::executeWait( CmdGenericPtr( cmd ) );
 
-    pWnd->type = VLC_WINDOW_TYPE_DUMMY;
+    pWnd->type = HEIMDALL_WINDOW_TYPE_DUMMY;
 
     /* Now the interface can be closed. */
     skin_load_rc--;
     skin_load_wait.signal();
 }
 
-static void WindowResize( vlc_window_t *pWnd,
+static void WindowResize( heimdall_window_t *pWnd,
                           unsigned i_width, unsigned i_height )
 {
     vout_window_skins_t* sys = (vout_window_skins_t *)pWnd->sys;
@@ -390,19 +391,19 @@ static void WindowResize( vlc_window_t *pWnd,
     pQueue->push( CmdGenericPtr( pCmd ) );
 }
 
-static void WindowSetState( vlc_window_t *pWnd, unsigned i_arg )
+static void WindowSetState( heimdall_window_t *pWnd, unsigned i_arg )
 {
     vout_window_skins_t* sys = (vout_window_skins_t *)pWnd->sys;
     intf_thread_t *pIntf = sys->pIntf;
     AsyncQueue *pQueue = AsyncQueue::instance( pIntf );
-    bool on_top = i_arg & VLC_WINDOW_STATE_ABOVE;
+    bool on_top = i_arg & HEIMDALL_WINDOW_STATE_ABOVE;
 
     // Post a SetOnTop command
     CmdSetOnTop* pCmd = new CmdSetOnTop( pIntf, on_top );
     pQueue->push( CmdGenericPtr( pCmd ) );
 }
 
-static void WindowUnsetFullscreen( vlc_window_t *pWnd )
+static void WindowUnsetFullscreen( heimdall_window_t *pWnd )
 {
     vout_window_skins_t* sys = (vout_window_skins_t *)pWnd->sys;
     intf_thread_t *pIntf = sys->pIntf;
@@ -412,7 +413,7 @@ static void WindowUnsetFullscreen( vlc_window_t *pWnd )
     pQueue->push( CmdGenericPtr( pCmd ) );
 }
 
-static void WindowSetFullscreen( vlc_window_t *pWnd, const char * )
+static void WindowSetFullscreen( heimdall_window_t *pWnd, const char * )
 {
     vout_window_skins_t* sys = (vout_window_skins_t *)pWnd->sys;
     intf_thread_t *pIntf = sys->pIntf;
@@ -424,7 +425,7 @@ static void WindowSetFullscreen( vlc_window_t *pWnd, const char * )
 }
 
 static const auto window_ops = []{
-    struct vlc_window_operations ops {};
+    struct heimdall_window_operations ops {};
     ops.enable = WindowEnable;
     ops.disable = WindowDisable;
     ops.resize = WindowResize;
@@ -435,36 +436,36 @@ static const auto window_ops = []{
     return ops;
 }();
 
-static int WindowOpen( vlc_window_t *pWnd )
+static int WindowOpen( heimdall_window_t *pWnd )
 {
     if( var_InheritBool( pWnd, "video-wallpaper" )
      || !var_InheritBool( pWnd, "embedded-video" ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     vout_window_skins_t* sys;
 
     /* Prevent the interface from closing behind our back. */
-    vlc::threads::mutex_locker guard {skin_load_lock};
+    heimdall::threads::mutex_locker guard {skin_load_lock};
     if (skin_load_intf == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     intf_thread_t *pIntf = skin_load_intf;
 
     if( !var_InheritBool( pIntf, "skinned-video") )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     sys = new (std::nothrow) vout_window_skins_t;
     if( !sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     pWnd->sys = sys;
     sys->pIntf = pIntf;
     pWnd->ops = &window_ops;
-    pWnd->type = VLC_WINDOW_TYPE_DUMMY;
-    return VLC_SUCCESS;
+    pWnd->type = HEIMDALL_WINDOW_TYPE_DUMMY;
+    return HEIMDALL_SUCCESS;
 }
 
-static void WindowClose( vlc_window_t *pWnd )
+static void WindowClose( heimdall_window_t *pWnd )
 {
     vout_window_skins_t* sys = (vout_window_skins_t *)pWnd->sys;
 
@@ -480,8 +481,8 @@ static void WindowClose( vlc_window_t *pWnd )
 #define SKINS2_CONFIG_LONG N_("Windows configuration of the last skin used. " \
         "This option is updated automatically, do not touch it." )
 #define SKINS2_SYSTRAY      N_("Systray icon")
-#define SKINS2_SYSTRAY_LONG N_("Show a systray icon for VLC")
-#define SKINS2_TASKBAR      N_("Show VLC on the taskbar")
+#define SKINS2_SYSTRAY_LONG N_("Show a systray icon for Heimdall")
+#define SKINS2_TASKBAR      N_("Show Heimdall on the taskbar")
 #define SKINS2_TRANSPARENCY      N_("Enable transparency effects")
 #define SKINS2_TRANSPARENCY_LONG N_("You can disable all transparency effects"\
     " if you want. This is mainly useful when moving windows does not behave" \
@@ -492,7 +493,7 @@ static void WindowClose( vlc_window_t *pWnd )
     "When set to 'no', this parameter is intended to give old skins a chance" \
     " to play back video even though no video tag is implemented")
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_subcategory( SUBCAT_INTERFACE_MAIN )
     add_loadfile("skins2-last", "", SKINS2_LAST, SKINS2_LAST_LONG)
     add_string( "skins2-config", "", SKINS2_CONFIG, SKINS2_CONFIG_LONG )
@@ -520,4 +521,4 @@ vlc_module_begin ()
         set_capability( "vout window", 51 )
         set_callback( WindowOpen )
 
-vlc_module_end ()
+heimdall_module_end ()

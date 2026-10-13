@@ -2,6 +2,7 @@
  * mft_d3d11.cpp : Media Foundation Transform audio/video decoder D3D11 helpers
  *****************************************************************************
  * Copyright (C) 2023 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Steve Lhomme <slhomme@videolabs.io>
  *
@@ -41,7 +42,7 @@ struct mf_d3d11_pic_ctx
 {
     struct d3d11_pic_context ctx;
     IMFDXGIBuffer *out_media;
-    vlc_mft_ref  *mfdec;
+    heimdall_mft_ref  *mfdec;
 };
 #define MF_D3D11_PICCONTEXT_FROM_PICCTX(pic_ctx)  \
     container_of(pic_ctx, mf_d3d11_pic_ctx, ctx.s)
@@ -49,7 +50,7 @@ struct mf_d3d11_pic_ctx
 static void d3d11mf_pic_context_destroy(picture_context_t *ctx)
 {
     mf_d3d11_pic_ctx *pic_ctx = MF_D3D11_PICCONTEXT_FROM_PICCTX(ctx);
-    vlc_mft_ref *mfdec = pic_ctx->mfdec;
+    heimdall_mft_ref *mfdec = pic_ctx->mfdec;
     pic_ctx->out_media->Release();
     static_assert(offsetof(mf_d3d11_pic_ctx, ctx.s) == 0, "Cast assumption failure");
     d3d11_pic_context_destroy(ctx);
@@ -63,7 +64,7 @@ static picture_context_t *d3d11mf_pic_context_copy(picture_context_t *ctx)
     if (unlikely(pic_ctx==nullptr))
         return nullptr;
     *pic_ctx = *src_ctx;
-    vlc_video_context_Hold(pic_ctx->ctx.s.vctx);
+    heimdall_video_context_Hold(pic_ctx->ctx.s.vctx);
     pic_ctx->out_media->AddRef();
     pic_ctx->mfdec->AddRef();
     for (int i=0;i<DXGI_MAX_SHADER_VIEW; i++)
@@ -77,9 +78,9 @@ static picture_context_t *d3d11mf_pic_context_copy(picture_context_t *ctx)
 
 static picture_context_t *NewPicContext(ComPtr<ID3D11Texture2D> & texture, UINT slice,
                                         ComPtr<IMFDXGIBuffer> &spDXGIBuffer,
-                                        vlc_mft_ref *mfdec,
+                                        heimdall_mft_ref *mfdec,
                                         ID3D11ShaderResourceView *renderSrc[DXGI_MAX_SHADER_VIEW],
-                                        vlc_video_context *vctx)
+                                        heimdall_video_context *vctx)
 {
     mf_d3d11_pic_ctx *pic_ctx = static_cast<mf_d3d11_pic_ctx *>(calloc(1, sizeof(*pic_ctx)));
     if (unlikely(pic_ctx==nullptr))
@@ -91,7 +92,7 @@ static picture_context_t *NewPicContext(ComPtr<ID3D11Texture2D> & texture, UINT 
 
     pic_ctx->ctx.s.copy = d3d11mf_pic_context_copy;
     pic_ctx->ctx.s.destroy = d3d11mf_pic_context_destroy;
-    pic_ctx->ctx.s.vctx = vlc_video_context_Hold(vctx);
+    pic_ctx->ctx.s.vctx = heimdall_video_context_Hold(vctx);
 
     pic_ctx->ctx.picsys.slice_index = slice;
     pic_ctx->ctx.picsys.sharedHandle = INVALID_HANDLE_VALUE;
@@ -104,7 +105,7 @@ static picture_context_t *NewPicContext(ComPtr<ID3D11Texture2D> & texture, UINT 
     return &pic_ctx->ctx.s;
 }
 
-HRESULT MFHW_d3d11::SetupVideoContext(vlc_logger *logger, ComPtr<IMFDXGIBuffer> &spDXGIBuffer,
+HRESULT MFHW_d3d11::SetupVideoContext(heimdall_logger *logger, ComPtr<IMFDXGIBuffer> &spDXGIBuffer,
                                       es_format_t & fmt_out)
 {
     HRESULT hr;
@@ -112,7 +113,7 @@ HRESULT MFHW_d3d11::SetupVideoContext(vlc_logger *logger, ComPtr<IMFDXGIBuffer> 
     hr = spDXGIBuffer->GetResource(IID_GRAPHICS_PPV_ARGS(d3d11Res.GetAddressOf()));
     if (FAILED(hr))
     {
-        vlc_warning(logger, "DXGI buffer is a not D3D11");
+        heimdall_warning(logger, "DXGI buffer is a not D3D11");
         return hr;
     }
 
@@ -124,7 +125,7 @@ HRESULT MFHW_d3d11::SetupVideoContext(vlc_logger *logger, ComPtr<IMFDXGIBuffer> 
     vctx_out = D3D11CreateVideoContext( dec_dev, desc.Format, DXGI_FORMAT_UNKNOWN );
     if (unlikely(vctx_out == NULL))
     {
-        vlc_error(logger, "failed to create a video context");
+        heimdall_error(logger, "failed to create a video context");
         return E_OUTOFMEMORY;
     }
     fmt_out.video.i_width = desc.Width;
@@ -143,7 +144,7 @@ HRESULT MFHW_d3d11::SetupVideoContext(vlc_logger *logger, ComPtr<IMFDXGIBuffer> 
         };
 
         if (D3D11_AllocateResourceView(logger, dev_sys->d3d_dev.d3ddevice, cfg,
-                                        tex, slice, cachedSRV[slice]) != VLC_SUCCESS)
+                                        tex, slice, cachedSRV[slice]) != HEIMDALL_SUCCESS)
         {
             return E_OUTOFMEMORY;
         }
@@ -153,8 +154,8 @@ HRESULT MFHW_d3d11::SetupVideoContext(vlc_logger *logger, ComPtr<IMFDXGIBuffer> 
     return S_OK;
 }
 
-picture_context_t *MFHW_d3d11::CreatePicContext(vlc_logger *logger, ComPtr<IMFDXGIBuffer> &spDXGIBuffer,
-                                                vlc_mft_ref *mfdec)
+picture_context_t *MFHW_d3d11::CreatePicContext(heimdall_logger *logger, ComPtr<IMFDXGIBuffer> &spDXGIBuffer,
+                                                heimdall_mft_ref *mfdec)
 {
     assert(vctx_out != nullptr);
     HRESULT hr;
@@ -188,32 +189,32 @@ picture_context_t *MFHW_d3d11::CreatePicContext(vlc_logger *logger, ComPtr<IMFDX
         };
 
         if (D3D11_AllocateResourceView(logger, dev_sys->d3d_dev.d3ddevice, cfg,
-                                        tex, sliceIndex, cachedSRV[sliceIndex]) != VLC_SUCCESS)
+                                        tex, sliceIndex, cachedSRV[sliceIndex]) != HEIMDALL_SUCCESS)
         {
             return nullptr;
         }
     }
     else if (cached_tex != d3d11Res)
     {
-        vlc_error(logger, "separate texture not supported");
+        heimdall_error(logger, "separate texture not supported");
         return nullptr;
     }
 
     return NewPicContext(d3d11Res, sliceIndex, spDXGIBuffer, mfdec, cachedSRV[sliceIndex], vctx_out);
 }
 
-HRESULT MFHW_d3d11::SetD3D(vlc_logger *logger, vlc_decoder_device & dec_dev, ComPtr<IMFTransform> & mft)
+HRESULT MFHW_d3d11::SetD3D(heimdall_logger *logger, heimdall_decoder_device & dec_dev, ComPtr<IMFTransform> & mft)
 {
     auto *devsys = GetD3D11OpaqueDevice(&dec_dev);
     if (unlikely(devsys == nullptr))
     {
-        vlc_warning(logger, "invalid D3D11 decoder device");
+        heimdall_warning(logger, "invalid D3D11 decoder device");
         return E_INVALIDARG;
     }
 
     if (!(devsys->d3d_dev.d3ddevice->GetCreationFlags() & D3D11_CREATE_DEVICE_VIDEO_SUPPORT))
     {
-        vlc_warning(logger, "the provided D3D11 device doesn't support decoding");
+        heimdall_warning(logger, "the provided D3D11 device doesn't support decoding");
         return E_NOINTERFACE;
     }
 

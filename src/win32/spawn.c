@@ -2,6 +2,7 @@
  * spawn.c
  *****************************************************************************
  * Copyright (C) 2022 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -26,11 +27,11 @@
 #include <assert.h>
 #include <fcntl.h>
 
-#include <vlc_common.h>
-#include <vlc_fs.h>
-#include <vlc_spawn.h>
-#include <vlc_memstream.h>
-#include <vlc_charset.h>
+#include <heimdall_common.h>
+#include <heimdall_fs.h>
+#include <heimdall_spawn.h>
+#include <heimdall_memstream.h>
+#include <heimdall_charset.h>
 
 static LPPROC_THREAD_ATTRIBUTE_LIST allow_hstd_inherit(HANDLE *handles)
 {
@@ -74,15 +75,15 @@ error:
 
 static HANDLE dup_handle_from_fd(const int fd)
 {
-    intptr_t vlc_handle = _get_osfhandle(fd);
-    if (vlc_handle == (intptr_t)INVALID_HANDLE_VALUE)
+    intptr_t heimdall_handle = _get_osfhandle(fd);
+    if (heimdall_handle == (intptr_t)INVALID_HANDLE_VALUE)
         return INVALID_HANDLE_VALUE;
 
-    if (vlc_handle == -2)
+    if (heimdall_handle == -2)
         return INVALID_HANDLE_VALUE;
 
     HANDLE dup_inheritable_handle;
-    BOOL result = DuplicateHandle(GetCurrentProcess(), (HANDLE)vlc_handle, GetCurrentProcess(),
+    BOOL result = DuplicateHandle(GetCurrentProcess(), (HANDLE)heimdall_handle, GetCurrentProcess(),
                                   &dup_inheritable_handle, 0, TRUE, DUPLICATE_SAME_ACCESS);
     if (!result)
         return INVALID_HANDLE_VALUE;
@@ -90,7 +91,7 @@ static HANDLE dup_handle_from_fd(const int fd)
     return dup_inheritable_handle;
 }
 
-static int vlc_spawn_inner(pid_t *restrict pid, const char *path,
+static int heimdall_spawn_inner(pid_t *restrict pid, const char *path,
                            const int fdv[4], const char *const *argv,
                            bool search)
 {
@@ -185,13 +186,13 @@ static int vlc_spawn_inner(pid_t *restrict pid, const char *path,
     }
 
     if (likely(argv[0])) {
-        struct vlc_memstream cmdline_s;
-        if (unlikely(vlc_memstream_open(&cmdline_s) != 0))
+        struct heimdall_memstream cmdline_s;
+        if (unlikely(heimdall_memstream_open(&cmdline_s) != 0))
             goto error;
-        vlc_memstream_printf(&cmdline_s, "%s", argv[0]);
+        heimdall_memstream_printf(&cmdline_s, "%s", argv[0]);
         for (int argc = 1; argv[argc]; ++argc)
-            vlc_memstream_printf(&cmdline_s, " %s", argv[argc]);
-        if (vlc_memstream_close(&cmdline_s) != 0)
+            heimdall_memstream_printf(&cmdline_s, " %s", argv[argc]);
+        if (heimdall_memstream_close(&cmdline_s) != 0)
             goto error;
         cmdline = ToWide(cmdline_s.ptr);
         free(cmdline_s.ptr);
@@ -217,7 +218,7 @@ static int vlc_spawn_inner(pid_t *restrict pid, const char *path,
 
 error:
     if (nulfd != -1)
-        vlc_close(nulfd);
+        heimdall_close(nulfd);
     if (nul_handle != INVALID_HANDLE_VALUE)
         CloseHandle(nul_handle);
 
@@ -241,19 +242,19 @@ error:
     return ret;
 }
 
-int vlc_spawnp(pid_t *restrict pid, const char *path,
+int heimdall_spawnp(pid_t *restrict pid, const char *path,
                const int *fdv, const char *const *argv)
 {
-    return vlc_spawn_inner(pid, path, fdv, argv, true);
+    return heimdall_spawn_inner(pid, path, fdv, argv, true);
 }
 
-int vlc_spawn(pid_t *restrict pid, const char *file,
+int heimdall_spawn(pid_t *restrict pid, const char *file,
               const int *fdv, const char *const *argv)
 {
-    return vlc_spawn_inner(pid, file, fdv, argv, false);
+    return heimdall_spawn_inner(pid, file, fdv, argv, false);
 }
 
-int vlc_waitpid(pid_t pid)
+int heimdall_waitpid(pid_t pid)
 {
     HANDLE process = OpenProcess(SYNCHRONIZE | PROCESS_QUERY_INFORMATION, FALSE, pid);
     if (!process)

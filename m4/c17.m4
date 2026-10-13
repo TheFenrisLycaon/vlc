@@ -1,4 +1,5 @@
 # Copyright © 2015 Rémi Denis-Courmont
+# Copyright (C) 2026 TheFenrisLycaon
 # This file (c17.m4) is free software; unlimited permission to
 # copy and/or distribute it , with or without modifications, as long
 # as this notice is preserved.
@@ -9,7 +10,7 @@
 # PARTICULAR PURPOSE.
 
 
-AC_DEFUN([VLC_PROG_CC_C17], [
+AC_DEFUN([HEIMDALL_PROG_CC_C17], [
   AC_LANG_ASSERT(C)
 
     for opt in "" -std=gnu17 -std=c17 -c17

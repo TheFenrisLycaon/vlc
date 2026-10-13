@@ -2,6 +2,7 @@
  * win32_popup.cpp
  *****************************************************************************
  * Copyright (C) 2003 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Olivier Teulière <ipkiss@via.ecp.fr>
  *
@@ -25,7 +26,7 @@
 #include "win32_popup.hpp"
 #include "win32_factory.hpp"
 
-#include <vlc_charset.h>
+#include <heimdall_charset.h>
 
 #ifndef TPM_NOANIMATION
 const UINT TPM_NOANIMATION = 0x4000L;

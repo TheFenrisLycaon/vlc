@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,7 +22,7 @@
 #include <QApplication>
 #include <QScreen>
 
-#include <vlc_window.h>
+#include <heimdall_window.h>
 #include "compositor.hpp"
 
 VideoWindowHandler::VideoWindowHandler(qt_intf_t* intf, QObject *parent)
@@ -80,7 +81,7 @@ void VideoWindowHandler::requestVideoFullScreen(const char * )
 
 void VideoWindowHandler::requestVideoState(  unsigned i_arg )
 {
-    bool on_top = (i_arg & VLC_WINDOW_STATE_ABOVE) != 0;
+    bool on_top = (i_arg & HEIMDALL_WINDOW_STATE_ABOVE) != 0;
     emit askVideoOnTop( on_top );
 }
 
@@ -93,7 +94,7 @@ void VideoWindowHandler::setVideoSize(unsigned int w, unsigned int h, Qt::Window
     // This slot is queued, so by the time it is called
     // the window states reflect the final states.
     // `qt-video-autoresize` should not apply during state
-    // transition, that was also the behavior in VLC 3.
+    // transition, that was also the behavior in Heimdall 3.
     // Otherwise, when getting disengaged from fullscreen
     // the interface/video would forget its old (overridden)
     // size.
@@ -105,7 +106,7 @@ void VideoWindowHandler::setVideoSize(unsigned int w, unsigned int h, Qt::Window
     if ((states & (Qt::WindowFullScreen | Qt::WindowMaximized)) == 0)
     {
         /* Resize video widget to video size, or keep it at the same
-         * size. Call setSize() either way so that vlc_window_ReportSize
+         * size. Call setSize() either way so that heimdall_window_ReportSize
          * will always get called.
          * If the video size is too large for the screen, resize it
          * to the screen size.

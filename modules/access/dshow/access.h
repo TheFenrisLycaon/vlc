@@ -1,8 +1,9 @@
 /*****************************************************************************
- * access.h : DirectShow access module for vlc
+ * access.h : DirectShow access module for heimdall
  * access_sys_t definition
  *****************************************************************************
  * Copyright (C) 2002, 2004, 2010-2011 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Gildas Bazin <gbazin@videolan.org>
  *
@@ -35,7 +36,7 @@
 
 #include <vector>
 
-#include <vlc_threads.h>
+#include <heimdall_threads.h>
 
 #include <wrl/client.h>
 using Microsoft::WRL::ComPtr;
@@ -61,7 +62,7 @@ struct CrossbarRoute
 struct access_sys_t;
 
 void DeleteCrossbarRoutes( access_sys_t * );
-HRESULT FindCrossbarRoutes( vlc_object_t *, access_sys_t *,
+HRESULT FindCrossbarRoutes( heimdall_object_t *, access_sys_t *,
                             ComPtr<IPin> &, LONG, int = 0 );
 
 /****************************************************************************
@@ -70,8 +71,8 @@ HRESULT FindCrossbarRoutes( vlc_object_t *, access_sys_t *,
 struct access_sys_t
 {
     /* These 2 must be left at the beginning */
-    vlc_mutex_t lock;
-    vlc_cond_t  wait;
+    heimdall_mutex_t lock;
+    heimdall_cond_t  wait;
 
     ComPtr<IFilterGraph>            p_graph;
     ComPtr<ICaptureGraphBuilder2>   p_capture_graph_builder2;
@@ -87,8 +88,8 @@ struct access_sys_t
     /* misc properties */
     int            i_width;
     int            i_height;
-    vlc_fourcc_t   i_chroma;
-    vlc_tick_t     i_start;
+    heimdall_fourcc_t   i_chroma;
+    heimdall_tick_t     i_start;
 };
 
 }

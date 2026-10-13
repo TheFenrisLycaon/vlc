@@ -2,8 +2,9 @@
  * update_crypto.c: OpenPGP related functions used for updating
  *****************************************************************************
  * Copyright © 2008-2009 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Rafaël Carré <funman@videolanorg>
+ * Authors: Rafaël Carré <funman@lycariaorg>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,7 +23,7 @@
 
 /**
  *   \file
- *   This file contains functions related to OpenPGP in VLC update management
+ *   This file contains functions related to OpenPGP in Heimdall update management
  */
 
 /*****************************************************************************
@@ -37,10 +38,10 @@
 #include <assert.h>
 #include <limits.h>
 
-#include "vlc_common.h"
-#include <vlc_stream.h>
-#include <vlc_strings.h>
-#include <vlc_fs.h>
+#include "heimdall_common.h"
+#include <heimdall_stream.h>
+#include <heimdall_strings.h>
+#include <heimdall_fs.h>
 
 #include "update.h"
 
@@ -108,13 +109,13 @@ static int parse_public_key_packet( public_key_packet_t *p_key,
                                     const uint8_t *p_buf, size_t i_packet_len )
 {
     if( i_packet_len < 6 )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     size_t i_read = 0;
 
     p_key->version   = *p_buf++; i_read++;
     if( p_key->version != 4 )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* XXX: warn when timestamp is > date ? */
     memcpy( p_key->timestamp, p_buf, 4 ); p_buf += 4; i_read += 4;
@@ -129,15 +130,15 @@ static int parse_public_key_packet( public_key_packet_t *p_key,
         READ_MPI(p_key->sig.rsa.n, 4096);
         READ_MPI(p_key->sig.rsa.e, 4096);
     } else
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if( i_read == i_packet_len )
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
     /* some extra data eh ? */
 
 error:
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 
@@ -281,7 +282,7 @@ static int parse_signature_packet( signature_packet_t *p_sig,
                                    const uint8_t *p_buf, size_t i_packet_len )
 {
     if( !i_packet_len ) /* 1st sanity check, we need at least the version */
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     p_sig->version = *p_buf++;
 
@@ -297,7 +298,7 @@ static int parse_signature_packet( signature_packet_t *p_sig,
             i_read = parse_signature_v4_packet( p_sig, p_buf, i_packet_len );
             break;
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 
     if( i_read == 0 ) /* signature packet parsing has failed */
@@ -334,7 +335,7 @@ static int parse_signature_packet( signature_packet_t *p_sig,
     if( i_read < i_packet_len ) /* some extra data, hm ? */
         goto error;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
 
@@ -346,7 +347,7 @@ error:
         p_sig->specific.v4.unhashed_data = NULL;
     }
 
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 
@@ -419,7 +420,7 @@ static int pgp_unarmor( const char *p_ibuf, size_t i_ibuf_len,
             i_end = 1;
         }
 
-        p_opos += vlc_b64_decode_binary_to_buffer(  p_opos,
+        p_opos += heimdall_b64_decode_binary_to_buffer(  p_opos,
                         p_obuf - p_opos + i_obuf_len, p_ipos );
         p_ipos += i_line_len + 1;
     }
@@ -429,7 +430,7 @@ static int pgp_unarmor( const char *p_ibuf, size_t i_ibuf_len,
         return 0;
 
     uint8_t p_crc[3];
-    if( vlc_b64_decode_binary_to_buffer( p_crc, 3, p_ipos ) != 3 )
+    if( heimdall_b64_decode_binary_to_buffer( p_crc, 3, p_ipos ) != 3 )
         return 0;
 
     long l_crc = crc_octets( p_obuf, p_opos - p_obuf );
@@ -448,10 +449,10 @@ static int rsa_pkcs1_encode_sig(gcry_mpi_t *r_result, size_t size,
     size_t hashlen = gcry_md_get_algo_dlen(algo);
 
     if (gcry_md_algo_info(algo, GCRYCTL_GET_ASNOID, asn, &asnlen))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if (!hashlen || hashlen + asnlen + 4 > size)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     frame[0] = 0;
     frame[1] = 1; /* block type */
@@ -462,8 +463,8 @@ static int rsa_pkcs1_encode_sig(gcry_mpi_t *r_result, size_t size,
     memcpy(&frame[3+pad+asnlen], hash, hashlen);
 
     if (gcry_mpi_scan(r_result, GCRYMPI_FMT_USG, frame, size, &size))
-        return VLC_EGENERIC;
-    return VLC_SUCCESS;
+        return HEIMDALL_EGENERIC;
+    return HEIMDALL_SUCCESS;
 }
 
 /*
@@ -472,7 +473,7 @@ static int rsa_pkcs1_encode_sig(gcry_mpi_t *r_result, size_t size,
 static int verify_signature_rsa( signature_packet_t *sign, public_key_packet_t *p_key,
                       uint8_t *p_hash )
 {
-    int ret = VLC_EGENERIC;
+    int ret = HEIMDALL_EGENERIC;
     /* the data to be verified (a hash) */
     const char *hash_sexp_s = "(data(flags raw)(value %m))";
     /* the public key */
@@ -506,7 +507,7 @@ static int verify_signature_rsa( signature_packet_t *sign, public_key_packet_t *
     if( gcry_pk_verify( sig_sexp, hash_sexp, key_sexp ) )
         goto out;
 
-    ret = VLC_SUCCESS;
+    ret = HEIMDALL_SUCCESS;
 
 out:
     if( n ) gcry_mpi_release( n );
@@ -525,7 +526,7 @@ out:
 static int verify_signature_dsa( signature_packet_t *sign, public_key_packet_t *p_key,
                       uint8_t *p_hash )
 {
-    int ret = VLC_EGENERIC;
+    int ret = HEIMDALL_EGENERIC;
 
     /* the data to be verified (a hash) */
     const char *hash_sexp_s = "(data(flags raw)(value %m))";
@@ -570,7 +571,7 @@ static int verify_signature_dsa( signature_packet_t *sign, public_key_packet_t *
     if( gcry_pk_verify( sig_sexp, hash_sexp, key_sexp ) )
         goto out;
 
-    ret = VLC_SUCCESS;
+    ret = HEIMDALL_SUCCESS;
 
 out:
     if( p ) gcry_mpi_release( p );
@@ -594,14 +595,14 @@ int verify_signature( signature_packet_t *sign, public_key_packet_t *p_key,
                       uint8_t *p_hash )
 {
     if( sign->public_key_algo != p_key->algo )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if (sign->public_key_algo == GCRY_PK_DSA)
         return verify_signature_dsa(sign, p_key, p_hash);
     else if (sign->public_key_algo == GCRY_PK_RSA)
         return verify_signature_rsa(sign, p_key, p_hash);
     else
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 }
 
 
@@ -632,7 +633,7 @@ int parse_public_key( const uint8_t *p_key_data, size_t i_key_len,
     {   /* first byte is ASCII, unarmoring */
         p_key_unarmored = (uint8_t*)malloc( i_key_len );
         if( !p_key_unarmored )
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         int i_len = pgp_unarmor( (char*)p_key_data, i_key_len,
                                  p_key_unarmored, i_key_len );
 
@@ -665,7 +666,7 @@ int parse_public_key( const uint8_t *p_key_data, size_t i_key_len,
         {
             case PUBLIC_KEY_PACKET:
                 i_status |= PUBLIC_KEY_FOUND;
-                if( parse_public_key_packet( &p_key->key, pos, i_packet_len ) != VLC_SUCCESS )
+                if( parse_public_key_packet( &p_key->key, pos, i_packet_len ) != HEIMDALL_SUCCESS )
                     goto error;
                 break;
 
@@ -674,7 +675,7 @@ int parse_public_key( const uint8_t *p_key_data, size_t i_key_len,
                     break;
                 int i_ret = parse_signature_packet( &p_key->sig, pos,
                                                     i_packet_len );
-                if( i_ret == VLC_SUCCESS )
+                if( i_ret == HEIMDALL_SUCCESS )
                 {
                     if( p_key->sig.version != 4 )
                         break;
@@ -710,12 +711,12 @@ int parse_public_key( const uint8_t *p_key_data, size_t i_key_len,
     free( p_key_unarmored );
 
     if( !( i_status & ( PUBLIC_KEY_FOUND | USER_ID_FOUND ) ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if( p_sig_issuer && !( i_status & SIGNATURE_FOUND ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     if( p_key->sig.version == 4 )
@@ -727,7 +728,7 @@ error:
     }
     free( p_key->psz_username );
     free( p_key_unarmored );
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 
@@ -737,7 +738,7 @@ static int hash_from_binary_file( const char *psz_file, gcry_md_hd_t hd )
     uint8_t buffer[4096];
     size_t i_read;
 
-    FILE *f = vlc_fopen( psz_file, "r" );
+    FILE *f = heimdall_fopen( psz_file, "r" );
     if( !f )
         return -1;
 
@@ -936,9 +937,9 @@ uint8_t *hash_from_public_key( public_key_t *p_pkey )
 
 
 /*
- * download a public key (the last one) from videolan server, and parse it
+ * download a public key (the last one) from lycaria server, and parse it
  */
-public_key_t *download_key( vlc_object_t *p_this,
+public_key_t *download_key( heimdall_object_t *p_this,
                     const uint8_t *p_longid, const uint8_t *p_signature_issuer )
 {
     char *psz_url;
@@ -947,27 +948,27 @@ public_key_t *download_key( vlc_object_t *p_this,
                     p_longid[4], p_longid[5], p_longid[6], p_longid[7] ) == -1 )
         return NULL;
 
-    stream_t *p_stream = vlc_stream_NewURL( p_this, psz_url );
+    stream_t *p_stream = heimdall_stream_NewURL( p_this, psz_url );
     free( psz_url );
     if( !p_stream )
         return NULL;
 
     uint64_t i_size;
-    if( vlc_stream_GetSize( p_stream, &i_size ) || i_size > INT_MAX )
+    if( heimdall_stream_GetSize( p_stream, &i_size ) || i_size > INT_MAX )
     {
-        vlc_stream_Delete( p_stream );
+        heimdall_stream_Delete( p_stream );
         return NULL;
     }
 
     uint8_t *p_buf = (uint8_t*)malloc( i_size + 1 );
     if( !p_buf )
     {
-        vlc_stream_Delete( p_stream );
+        heimdall_stream_Delete( p_stream );
         return NULL;
     }
 
-    int i_read = vlc_stream_Read( p_stream, p_buf, (int)i_size );
-    vlc_stream_Delete( p_stream );
+    int i_read = heimdall_stream_Read( p_stream, p_buf, (int)i_size );
+    heimdall_stream_Delete( p_stream );
 
     if( i_read != (int)i_size )
     {
@@ -990,7 +991,7 @@ public_key_t *download_key( vlc_object_t *p_this,
     int i_error = parse_public_key( p_buf, i_read, p_pkey, p_signature_issuer );
     free( p_buf );
 
-    if( i_error != VLC_SUCCESS )
+    if( i_error != HEIMDALL_SUCCESS )
     {
         msg_Dbg( p_this, "Couldn't parse GPG key" );
         free( p_pkey );
@@ -1005,47 +1006,47 @@ public_key_t *download_key( vlc_object_t *p_this,
  * Download the signature associated to a document or a binary file.
  * We're given the file's url, we just append ".asc" to it and download
  */
-int download_signature( vlc_object_t *p_this, signature_packet_t *p_sig,
+int download_signature( heimdall_object_t *p_this, signature_packet_t *p_sig,
                         const char *psz_url )
 {
     char *psz_sig = (char*) malloc( strlen( psz_url ) + 4 + 1 ); /* ".asc" + \0 */
     if( !psz_sig )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     strcpy( psz_sig, psz_url );
     strcat( psz_sig, ".asc" );
 
-    stream_t *p_stream = vlc_stream_NewURL( p_this, psz_sig );
+    stream_t *p_stream = heimdall_stream_NewURL( p_this, psz_sig );
     free( psz_sig );
 
     if( !p_stream )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     uint64_t i_size;
-    if( vlc_stream_GetSize( p_stream, &i_size ) || i_size > INT_MAX )
+    if( heimdall_stream_GetSize( p_stream, &i_size ) || i_size > INT_MAX )
     {
-        vlc_stream_Delete( p_stream );
-        return VLC_EGENERIC;
+        heimdall_stream_Delete( p_stream );
+        return HEIMDALL_EGENERIC;
     }
 
     msg_Dbg( p_this, "Downloading signature (%"PRIu64" bytes)", i_size );
     uint8_t *p_buf = (uint8_t*)malloc( i_size + 1 );
     if( !p_buf )
     {
-        vlc_stream_Delete( p_stream );
-        return VLC_ENOMEM;
+        heimdall_stream_Delete( p_stream );
+        return HEIMDALL_ENOMEM;
     }
 
-    int i_read = vlc_stream_Read( p_stream, p_buf, (int)i_size );
+    int i_read = heimdall_stream_Read( p_stream, p_buf, (int)i_size );
 
-    vlc_stream_Delete( p_stream );
+    heimdall_stream_Delete( p_stream );
 
     if( i_read != (int)i_size )
     {
         msg_Dbg( p_this,
             "Couldn't download full signature (only %d bytes)", i_read );
         free( p_buf );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     p_buf[i_size] = '\0';
@@ -1058,7 +1059,7 @@ int download_signature( vlc_object_t *p_this, signature_packet_t *p_sig,
         if( !p_unarmored )
         {
             free( p_buf );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         int i_bytes = pgp_unarmor( (char*)p_buf, i_size, p_unarmored, i_size );
@@ -1071,7 +1072,7 @@ int download_signature( vlc_object_t *p_this, signature_packet_t *p_sig,
         {
             free( p_buf );
             msg_Dbg( p_this, "Unarmoring failed : corrupted signature ?" );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
 
@@ -1079,7 +1080,7 @@ int download_signature( vlc_object_t *p_this, signature_packet_t *p_sig,
     {
         msg_Dbg( p_this, "Not a signature: %d", *p_buf );
         free( p_buf );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     size_t i_header_len = packet_header_len( *p_buf );
@@ -1088,7 +1089,7 @@ int download_signature( vlc_object_t *p_this, signature_packet_t *p_sig,
     {
         free( p_buf );
         msg_Dbg( p_this, "Invalid signature packet header" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     size_t i_len = scalar_number( p_buf+1, i_header_len );
@@ -1096,12 +1097,12 @@ int download_signature( vlc_object_t *p_this, signature_packet_t *p_sig,
     {
         free( p_buf );
         msg_Dbg( p_this, "Invalid signature packet" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     int i_ret = parse_signature_packet( p_sig, p_buf+1+i_header_len, i_len );
     free( p_buf );
-    if( i_ret != VLC_SUCCESS )
+    if( i_ret != HEIMDALL_SUCCESS )
     {
         msg_Dbg( p_this, "Couldn't parse signature" );
         return i_ret;
@@ -1115,8 +1116,8 @@ int download_signature( vlc_object_t *p_this, signature_packet_t *p_sig,
             free( p_sig->specific.v4.hashed_data );
             free( p_sig->specific.v4.unhashed_data );
         }
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

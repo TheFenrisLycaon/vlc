@@ -2,6 +2,7 @@
  * subpic.h:
  *****************************************************************************
  * Copyright © 2018-2020 John Cox
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: John Cox <jc@kynesim.co.uk>
  *
@@ -20,8 +21,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_HW_MMAL_SUBPIC_H_
-#define VLC_HW_MMAL_SUBPIC_H_
+#ifndef HEIMDALL_HW_MMAL_SUBPIC_H_
+#define HEIMDALL_HW_MMAL_SUBPIC_H_
 
 typedef struct subpic_reg_stash_s
 {
@@ -35,7 +36,7 @@ typedef struct subpic_reg_stash_s
     unsigned int seq;
 } subpic_reg_stash_t;
 
-int hw_mmal_subpic_update(vlc_object_t * const p_filter,
+int hw_mmal_subpic_update(heimdall_object_t * const p_filter,
                           MMAL_BUFFER_HEADER_T * const sub_buf,
                           subpic_reg_stash_t * const spe,
                           const video_format_t * const fmt,
@@ -47,7 +48,7 @@ void hw_mmal_subpic_flush(subpic_reg_stash_t * const spe);
 void hw_mmal_subpic_close(subpic_reg_stash_t * const spe);
 
 // If display id is -1 it will be unset
-MMAL_STATUS_T hw_mmal_subpic_open(vlc_object_t * const, subpic_reg_stash_t * const spe, MMAL_PORT_T * const port,
+MMAL_STATUS_T hw_mmal_subpic_open(heimdall_object_t * const, subpic_reg_stash_t * const spe, MMAL_PORT_T * const port,
                                   const int display_id, const unsigned int layer);
 
 #endif

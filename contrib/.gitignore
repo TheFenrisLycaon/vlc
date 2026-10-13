@@ -10,7 +10,7 @@ mkspecs
 modules
 plugins
 python-venv
-vlc-contrib-*.tar.xz
-vlc-contrib-*.tar.bz2
+heimdall-contrib-*.tar.xz
+heimdall-contrib-*.tar.bz2
 qml
 /*-*-*/

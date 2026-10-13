@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2024 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,11 +26,11 @@
 #include "playlist/playlist_controller.hpp"
 #include "player/player_controller.hpp"
 #include "dialogs/dialogs_provider.hpp"
-#include "widgets/native/qvlcframe.hpp"
+#include "widgets/native/qheimdallframe.hpp"
 
-using namespace vlc::playlist;
+using namespace heimdall::playlist;
 
-VLCSystray::VLCSystray(MainCtx* ctx, QObject* parent)
+HeimdallSystray::HeimdallSystray(MainCtx* ctx, QObject* parent)
     : QSystemTrayIcon(parent)
     , m_ctx(ctx)
     , m_intf(ctx->getIntf())
@@ -39,60 +40,60 @@ VLCSystray::VLCSystray(MainCtx* ctx, QObject* parent)
 
     m_notificationSetting = var_InheritInteger(m_intf, "qt-notification");
 
-    QIcon iconVLC;
+    QIcon iconHeimdall;
     if( m_ctx->useXmasCone() )
-        iconVLC = QIcon::fromTheme( "vlc-xmas", QIcon( ":/logo/vlc128-xmas.png" ) );
+        iconHeimdall = QIcon::fromTheme( "heimdall-xmas", QIcon( ":/logo/heimdall128-xmas.png" ) );
     else
-        iconVLC = QIcon::fromTheme( "vlc", QIcon( ":/logo/vlc256.png" ) );
+        iconHeimdall = QIcon::fromTheme( "heimdall", QIcon( ":/logo/heimdall256.png" ) );
 
-    setIcon(iconVLC);
-    setToolTip( qtr( "VLC media player" ));
+    setIcon(iconHeimdall);
+    setToolTip( qtr( "Heimdall media player" ));
 
-    m_menu = std::make_unique<VLCMenu>( qtr( "VLC media player"), m_intf );
-    m_menu->setIcon( iconVLC );
+    m_menu = std::make_unique<HeimdallMenu>( qtr( "Heimdall media player"), m_intf );
+    m_menu->setIcon( iconHeimdall );
     setContextMenu(m_menu.get());
     update();
     show();
 
     connect( this, &QSystemTrayIcon::activated,
-            this, &VLCSystray::handleClick );
+            this, &HeimdallSystray::handleClick );
 
     /* Connects on nameChanged() */
     connect( m_intf->p_mainPlayerController, &PlayerController::nameChanged,
-            this, &VLCSystray::updateTooltipName );
+            this, &HeimdallSystray::updateTooltipName );
     /* Connect PLAY_STATUS on the systray */
     connect( m_intf->p_mainPlayerController, &PlayerController::playingStateChanged,
-            this, &VLCSystray::update );
+            this, &HeimdallSystray::update );
 }
 
-VLCSystray::~VLCSystray()
+HeimdallSystray::~HeimdallSystray()
 {}
 
 /**
- * Updates the VLCSystray Icon's menu and toggle the main interface
+ * Updates the HeimdallSystray Icon's menu and toggle the main interface
  */
-void VLCSystray::toggleUpdateMenu()
+void HeimdallSystray::toggleUpdateMenu()
 {
     m_ctx->toggleWindowVisibility(true);
     update();
 }
 
 /* First Item of the systray menu */
-void VLCSystray::showUpdateMenu()
+void HeimdallSystray::showUpdateMenu()
 {
     m_ctx->setInterfaceVisibible(true, true);
     update();
 }
 
 /* First Item of the systray menu */
-void VLCSystray::hideUpdateMenu()
+void HeimdallSystray::hideUpdateMenu()
 {
     m_ctx->setInterfaceVisibible(false);
     update();
 }
 
 /* Click on systray Icon */
-void VLCSystray::handleClick(
+void HeimdallSystray::handleClick(
     QSystemTrayIcon::ActivationReason reason )
 {
     switch( reason )
@@ -114,11 +115,11 @@ void VLCSystray::handleClick(
  * Updates the name of the systray Icon tooltip.
  * Doesn't check if the systray exists, check before you call it.
  **/
-void VLCSystray::updateTooltipName( const QString& name )
+void HeimdallSystray::updateTooltipName( const QString& name )
 {
     if( name.isEmpty() )
     {
-        setToolTip( qtr( "VLC media player" ) );
+        setToolTip( qtr( "Heimdall media player" ) );
     }
     else
     {
@@ -128,7 +129,7 @@ void VLCSystray::updateTooltipName( const QString& name )
             ( m_notificationSetting == NOTIFICATION_MINIMIZED && (windowVisiblity == QWindow::Hidden || windowVisiblity == QWindow::Minimized)))
         {
             const auto showMessageTemplate = [this, &name](const auto &icon) {
-                showMessage( qtr( "VLC media player" ), name, icon, 3000 );
+                showMessage( qtr( "Heimdall media player" ), name, icon, 3000 );
             };
 
             assert(m_intf);
@@ -160,7 +161,7 @@ void VLCSystray::updateTooltipName( const QString& name )
     update();
 }
 
-void VLCSystray::update()
+void HeimdallSystray::update()
 {
     // explictly delete submenus, see QTBUG-11070
     for (QAction *action : m_menu->actions()) {
@@ -171,26 +172,26 @@ void VLCSystray::update()
     m_menu->clear();
 
 #ifndef Q_OS_MAC
-    /* Hide / Show VLC and cone */
+    /* Hide / Show Heimdall and cone */
     if( m_ctx->interfaceVisibility() != QWindow::Hidden )
     {
         m_menu->addAction(
-            QIcon( ":/logo/vlc16.png" ), qtr( "&Hide VLC media player in taskbar" ),
-            this, &VLCSystray::hideUpdateMenu);
+            QIcon( ":/logo/heimdall16.png" ), qtr( "&Hide Heimdall media player in taskbar" ),
+            this, &HeimdallSystray::hideUpdateMenu);
     }
     else
     {
         m_menu->addAction(
-            QIcon( ":/logo/vlc16.png" ), qtr( "Sho&w VLC media player" ),
-            this, &VLCSystray::showUpdateMenu);
+            QIcon( ":/logo/heimdall16.png" ), qtr( "Sho&w Heimdall media player" ),
+            this, &HeimdallSystray::showUpdateMenu);
     }
     m_menu->addSeparator();
 #endif
 
-    VLCMenuBar::PopupMenuPlaylistEntries( m_menu.get(), m_intf );
-    VLCMenuBar::PopupMenuControlEntries( m_menu.get(), m_intf, false );
+    HeimdallMenuBar::PopupMenuPlaylistEntries( m_menu.get(), m_intf );
+    HeimdallMenuBar::PopupMenuControlEntries( m_menu.get(), m_intf, false );
 
-    VLCMenuBar::VolumeEntries( m_intf, m_menu.get() );
+    HeimdallMenuBar::VolumeEntries( m_intf, m_menu.get() );
     m_menu->addSeparator();
     m_menu->addAction(
         QIcon(":/menu/file.svg"), qtr( "&Open Media" ),

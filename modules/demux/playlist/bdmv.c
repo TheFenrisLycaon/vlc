@@ -2,6 +2,7 @@
  * bdmv.c: Dummy bdmv demux - opens BluRays rips via index.bdmv
  *****************************************************************************
  * Copyright (C) 2018 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Shaya Potter <spotter@gmail.com>
  *
@@ -27,9 +28,9 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_access.h>
-#include <vlc_url.h>
+#include <heimdall_common.h>
+#include <heimdall_access.h>
+#include <heimdall_url.h>
 #include <assert.h>
 
 #include "playlist.h"
@@ -47,20 +48,20 @@ static const char *StreamLocation( const stream_t *s )
 /*****************************************************************************
  * Import_BDMV: main import function
  *****************************************************************************/
-int Import_BDMV( vlc_object_t *p_this )
+int Import_BDMV( heimdall_object_t *p_this )
 {
     stream_t *p_stream = (stream_t *)p_this;
 
     if( !stream_HasExtension( p_stream, ".BDMV" ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     const char *psz_location = StreamLocation( p_stream );
     if( psz_location == NULL )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     size_t len = strlen( psz_location );
     if( len < 15 )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     const char *psz_probe;
     const char *psz_file = &psz_location[len - 10];
@@ -73,16 +74,16 @@ int Import_BDMV( vlc_object_t *p_this )
         p_stream->pf_readdir = ReadBR;
     }
     else
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     const uint8_t *p_peek;
-    ssize_t i_peek = vlc_stream_Peek( p_stream->s, &p_peek, 8 );
+    ssize_t i_peek = heimdall_stream_Peek( p_stream->s, &p_peek, 8 );
     if( i_peek < 8 || memcmp( p_peek, psz_probe, 8 ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     p_stream->pf_control = PlaylistControl;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int ReadBR( stream_t *p_stream, input_item_node_t *node )
@@ -92,14 +93,14 @@ static int ReadBR( stream_t *p_stream, input_item_node_t *node )
     // 10 character in INDEX.BDMV, 5 character in BDMV/, subtract 15
     char *psz_url = strndup( psz_loc, strlen( psz_loc) - 15 );
     if( !psz_url )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     input_item_t *p_input = input_item_New( psz_url, psz_url );
-    input_item_AddOption( p_input, "demux=bluray", VLC_INPUT_OPTION_TRUSTED );
+    input_item_AddOption( p_input, "demux=bluray", HEIMDALL_INPUT_OPTION_TRUSTED );
     input_item_node_AppendItem( node, p_input );
     input_item_Release( p_input );
 
     free( psz_url );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

@@ -2,6 +2,7 @@
  * scan.c: DVB scanner helpers
  *****************************************************************************
  * Copyright (C) 2008,2010 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@videolan.org>
  *          David Kaplan <david@2of1.org>
@@ -29,10 +30,10 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_block.h>
-#include <vlc_dialog.h>
-#include <vlc_charset.h>
+#include <heimdall_common.h>
+#include <heimdall_block.h>
+#include <heimdall_dialog.h>
+#include <heimdall_charset.h>
 
 #include <sys/types.h>
 
@@ -118,7 +119,7 @@ typedef struct
 
 struct scan_t
 {
-    vlc_object_t *p_obj;
+    heimdall_object_t *p_obj;
     scan_frontend_tune_cb pf_tune;
     scan_demux_filter_cb pf_filter;
     scan_frontend_stats_cb pf_stats;
@@ -126,7 +127,7 @@ struct scan_t
     scan_service_notify_cb pf_notify_service;
     void *p_cbdata;
 
-    vlc_dialog_id *p_dialog_id;
+    heimdall_dialog_id *p_dialog_id;
 
     scan_parameter_t parameter;
     int64_t i_time_start;
@@ -146,7 +147,7 @@ struct scan_t
 
 typedef struct
 {
-    vlc_object_t *p_obj;
+    heimdall_object_t *p_obj;
 
     scan_tuner_config_t cfg;
     int i_snr;
@@ -343,7 +344,7 @@ static void scan_parameter_Copy( const scan_parameter_t *p_src, scan_parameter_t
         p_dst->psz_scanlist_file = strdup( p_src->psz_scanlist_file );
 }
 
-static void scan_Prepare( vlc_object_t *p_obj, const scan_parameter_t *p_parameter, scan_t *p_scan )
+static void scan_Prepare( heimdall_object_t *p_obj, const scan_parameter_t *p_parameter, scan_t *p_scan )
 {
     if( p_parameter->type == SCAN_DVB_S &&
         p_parameter->psz_scanlist_file && p_parameter->scanlist_format == FORMAT_DVBv3 )
@@ -365,7 +366,7 @@ static void scan_Prepare( vlc_object_t *p_obj, const scan_parameter_t *p_paramet
     }
 }
 
-static void scan_Debug_Parameters( vlc_object_t *p_obj, const scan_parameter_t *p_parameter )
+static void scan_Debug_Parameters( heimdall_object_t *p_obj, const scan_parameter_t *p_parameter )
 {
     const char rgc_types[3] = {'T', 'S', 'C' };
     if( !p_parameter->type )
@@ -393,7 +394,7 @@ static void scan_Debug_Parameters( vlc_object_t *p_obj, const scan_parameter_t *
 }
 
 /* */
-scan_t *scan_New( vlc_object_t *p_obj, const scan_parameter_t *p_parameter,
+scan_t *scan_New( heimdall_object_t *p_obj, const scan_parameter_t *p_parameter,
                   scan_frontend_tune_cb pf_frontend,
                   scan_frontend_stats_cb pf_status,
                   scan_demux_filter_cb pf_filter,
@@ -407,7 +408,7 @@ scan_t *scan_New( vlc_object_t *p_obj, const scan_parameter_t *p_parameter,
     if( unlikely(p_scan == NULL) )
         return NULL;
 
-    p_scan->p_obj = VLC_OBJECT(p_obj);
+    p_scan->p_obj = HEIMDALL_OBJECT(p_obj);
     p_scan->pf_tune = pf_frontend;
     p_scan->pf_stats = pf_status;
     p_scan->pf_read = pf_read;
@@ -421,7 +422,7 @@ scan_t *scan_New( vlc_object_t *p_obj, const scan_parameter_t *p_parameter,
     p_scan->b_multiplexes_from_nit = false;
     scan_parameter_Init( &p_scan->parameter );
     scan_parameter_Copy( p_parameter, &p_scan->parameter );
-    p_scan->i_time_start = vlc_tick_now();
+    p_scan->i_time_start = heimdall_tick_now();
     p_scan->p_scanlist = NULL;
     p_scan->i_scanlist = 0;
 
@@ -442,7 +443,7 @@ void scan_Destroy( scan_t *p_scan )
     if( !p_scan )
         return;
     if( p_scan->p_dialog_id != NULL )
-        vlc_dialog_release( p_scan->p_obj, p_scan->p_dialog_id );
+        heimdall_dialog_release( p_scan->p_obj, p_scan->p_dialog_id );
 
     scan_parameter_Clean( &p_scan->parameter );
 
@@ -523,7 +524,7 @@ static int Scan_Next_DVB_SpectrumExhaustive( const scan_parameter_t *p_params, s
     unsigned i_frequency_count = (p_params->frequency.i_max - p_params->frequency.i_min) / p_params->frequency.i_step;
 
     if( p_spectrum->i_index > i_frequency_count * i_bandwidth_count )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     const int i_bi = p_spectrum->i_index % i_bandwidth_count;
     const int i_fi = p_spectrum->i_index / i_bandwidth_count;
@@ -535,7 +536,7 @@ static int Scan_Next_DVB_SpectrumExhaustive( const scan_parameter_t *p_params, s
 
     p_spectrum->i_index++;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int Scan_Next_DVBC( const scan_parameter_t *p_params, scan_enumeration_t *p_spectrum,
@@ -613,7 +614,7 @@ static int Scan_Next_DVBC( const scan_parameter_t *p_params, scan_enumeration_t 
     enum { num_frequencies = (sizeof(frequencies)/sizeof(*frequencies)) };
 
     if( p_spectrum->i_index >= num_frequencies )
-        return VLC_EGENERIC; /* End */
+        return HEIMDALL_EGENERIC; /* End */
 
     p_cfg->i_frequency = 10000 * ( frequencies[ p_spectrum->i_index ] );
     *pf_pos = (double)(p_spectrum->i_index * 1000 +
@@ -624,7 +625,7 @@ static int Scan_Next_DVBC( const scan_parameter_t *p_params, scan_enumeration_t 
     if( b_rotate )
         p_spectrum->i_index++;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int Scan_Next_DVBT( const scan_parameter_t *p_params, scan_enumeration_t *p_spectrum,
@@ -677,7 +678,7 @@ static int Scan_Next_DVBT( const scan_parameter_t *p_params, scan_enumeration_t 
             if( i_fi > band[i_band_count-1].i_max )
             {
                 p_spectrum->i_index++;
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             }
             continue;
         }
@@ -704,14 +705,14 @@ static int Scan_Next_DVBT( const scan_parameter_t *p_params, scan_enumeration_t 
 
             *pf_pos = (double)( i_current + (double)i_oi / i_offset_count ) / i_total;
             p_spectrum->i_index++;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
     }
 }
 
 static int Scan_GetNextSpectrumTunerConfig( scan_t *p_scan, scan_tuner_config_t *p_cfg, double *pf_pos )
 {
-    int i_ret = VLC_EGENERIC;
+    int i_ret = HEIMDALL_EGENERIC;
     switch( p_scan->parameter.type )
     {
         case SCAN_DVB_T:
@@ -764,7 +765,7 @@ static int Scan_GetNextTunerConfig( scan_t *p_scan, scan_tuner_config_t *p_cfg, 
         p_scan->p_current = p_scan->p_current->p_next;
         *pf_pos = (double) p_scan->spectrum.i_index++ / p_scan->i_scanlist;
 
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
     if( p_scan->p_scanlist == NULL &&
@@ -772,7 +773,7 @@ static int Scan_GetNextTunerConfig( scan_t *p_scan, scan_tuner_config_t *p_cfg, 
          (p_scan->parameter.b_use_nit && !p_scan->b_multiplexes_from_nit) ) )
     {
         int i_ret = Scan_GetNextSpectrumTunerConfig( p_scan, p_cfg, pf_pos );
-        if( i_ret == VLC_SUCCESS )
+        if( i_ret == HEIMDALL_SUCCESS )
             return i_ret;
     }
 
@@ -785,12 +786,12 @@ static int Scan_GetNextTunerConfig( scan_t *p_scan, scan_tuner_config_t *p_cfg, 
                 scan_SetMultiplexScanStatus( p_scan, p_scan->pp_multiplex[i], true );
                 *p_cfg = p_scan->pp_multiplex[i]->cfg;
                 *pf_pos = (double) 1.0 - (p_scan->i_multiplex / p_scan->i_multiplex_toscan);
-                return VLC_SUCCESS;
+                return HEIMDALL_SUCCESS;
             }
         }
     }
 
-    return VLC_ENOENT;
+    return HEIMDALL_ENOENT;
 }
 
 static int scan_Next( scan_t *p_scan, scan_tuner_config_t *p_cfg )
@@ -799,7 +800,7 @@ static int scan_Next( scan_t *p_scan, scan_tuner_config_t *p_cfg )
     int i_ret;
 
     if( scan_IsCancelled( p_scan ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     //do
     {
@@ -812,10 +813,10 @@ static int scan_Next( scan_t *p_scan, scan_tuner_config_t *p_cfg )
     //while( !scan_tuner_config_ParametersValidate( &p_scan->parameter, p_cfg ) );
 
     const size_t i_total_services = scan_CountServices( p_scan );
-    const vlc_tick_t i_eta = f_position > 0.005 ? (vlc_tick_now() - p_scan->i_time_start) * ( 1.0 / f_position - 1.0 ) : -1;
+    const heimdall_tick_t i_eta = f_position > 0.005 ? (heimdall_tick_now() - p_scan->i_time_start) * ( 1.0 / f_position - 1.0 ) : -1;
     char psz_eta[MSTRTIME_MAX_SIZE];
     const char *psz_fmt = _("%.1f MHz (%d services)\n~%s remaining");
-    vlc_tick_to_str( psz_eta, i_eta );
+    heimdall_tick_to_str( psz_eta, i_eta );
 
     if( i_eta >= 0 )
         msg_Info( p_scan->p_obj, "Scan ETA %s | %f", psz_eta, f_position * 100 );
@@ -823,7 +824,7 @@ static int scan_Next( scan_t *p_scan, scan_tuner_config_t *p_cfg )
     if( p_scan->p_dialog_id == NULL )
     {
         p_scan->p_dialog_id =
-            vlc_dialog_display_progress( p_scan->p_obj, false,
+            heimdall_dialog_display_progress( p_scan->p_obj, false,
                                          f_position, _("Cancel"),
                                          _("Scanning DVB"), psz_fmt,
                                          (double)p_cfg->i_frequency / 1000000,
@@ -832,37 +833,37 @@ static int scan_Next( scan_t *p_scan, scan_tuner_config_t *p_cfg )
     }
     else
     {
-        vlc_dialog_update_progress_text( p_scan->p_obj, p_scan->p_dialog_id,
+        heimdall_dialog_update_progress_text( p_scan->p_obj, p_scan->p_dialog_id,
                                          f_position, psz_fmt,
                                          (double)p_cfg->i_frequency / 1000000,
                                          i_total_services,
                                          psz_eta );
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 bool scan_IsCancelled( scan_t *p_scan )
 {
     if( p_scan->p_dialog_id == NULL )
         return false;
-    return vlc_dialog_is_cancelled( p_scan->p_obj, p_scan->p_dialog_id );
+    return heimdall_dialog_is_cancelled( p_scan->p_obj, p_scan->p_dialog_id );
 }
 
 int scan_Run( scan_t *p_scan )
 {
     scan_tuner_config_t cfg;
     if( scan_Next( p_scan, &cfg ) )
-        return VLC_ENOENT;
+        return HEIMDALL_ENOENT;
 
     scan_session_t *session = scan_session_New( p_scan, &cfg );
     if( unlikely(session == NULL) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    if( p_scan->pf_tune( p_scan, p_scan->p_cbdata, &cfg ) != VLC_SUCCESS )
+    if( p_scan->pf_tune( p_scan, p_scan->p_cbdata, &cfg ) != HEIMDALL_SUCCESS )
     {
         scan_session_Destroy( p_scan, session );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     p_scan->pf_filter( p_scan, p_scan->p_cbdata, PSI_PAT_PID, true );
@@ -872,12 +873,12 @@ int scan_Run( scan_t *p_scan )
 
     /* */
     uint8_t packet[TS_PACKET_SIZE * SCAN_READ_BUFFER_COUNT];
-    int64_t i_scan_start = vlc_tick_now();
+    int64_t i_scan_start = heimdall_tick_now();
 
     for( ;; )
     {
         unsigned i_timeout = scan_session_GetTablesTimeout( session );
-        vlc_tick_t i_remaining = vlc_tick_now() - i_scan_start;
+        heimdall_tick_t i_remaining = heimdall_tick_now() - i_scan_start;
         if( i_remaining > i_timeout )
             break;
 
@@ -890,7 +891,7 @@ int scan_Run( scan_t *p_scan )
         if( p_scan->pf_stats )
             p_scan->pf_stats( p_scan, p_scan->p_cbdata, &session->i_snr );
 
-        if ( i_ret != VLC_SUCCESS )
+        if ( i_ret != HEIMDALL_SUCCESS )
             break;
 
         for( size_t i=0; i< i_packet_count; i++ )
@@ -903,7 +904,7 @@ int scan_Run( scan_t *p_scan )
 
     scan_session_Destroy( p_scan, session );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void scan_NotifyService( scan_t *p_scan, scan_service_t *p_service, bool b_updated )
@@ -948,7 +949,7 @@ static bool GetOtherTsSDT( scan_session_t *p_session, uint16_t i_ts_id,
     return false;
 }
 
-static void ParsePAT( vlc_object_t *p_obj, scan_t *p_scan,
+static void ParsePAT( heimdall_object_t *p_obj, scan_t *p_scan,
                       const dvbpsi_pat_t *p_pat, const scan_tuner_config_t *p_cfg,
                       int i_snr )
 {
@@ -994,7 +995,7 @@ static void ParsePAT( vlc_object_t *p_obj, scan_t *p_scan,
 static void PATCallBack( void *opaque, dvbpsi_pat_t *p_pat )
 {
     scan_session_t *p_session = opaque;
-    vlc_object_t *p_obj = p_session->p_obj;
+    heimdall_object_t *p_obj = p_session->p_obj;
 
     /* */
     if( p_session->local.p_pat && p_session->local.p_pat->b_current_next )
@@ -1024,9 +1025,9 @@ static void PATCallBack( void *opaque, dvbpsi_pat_t *p_pat )
     }
 }
 
-static void ParseSDT( vlc_object_t *p_obj, scan_t *p_scan, const dvbpsi_sdt_t *p_sdt )
+static void ParseSDT( heimdall_object_t *p_obj, scan_t *p_scan, const dvbpsi_sdt_t *p_sdt )
 {
-    VLC_UNUSED(p_obj);
+    HEIMDALL_UNUSED(p_obj);
     /* SDT must not create new service without proper config ( local )
        or it must has been created by another network NIT (providing freq).
        Guaranteed by parsing order( PAT, current ts SDT ) or ( NIT, SDT ) */
@@ -1069,10 +1070,10 @@ static void ParseSDT( vlc_object_t *p_obj, scan_t *p_scan, const dvbpsi_sdt_t *p
             if( pD )
             {
                 if( !s->psz_name )
-                    s->psz_name = vlc_from_EIT( pD->i_service_name,
+                    s->psz_name = heimdall_from_EIT( pD->i_service_name,
                                                 pD->i_service_name_length );
                 free( s->psz_provider );
-                s->psz_provider = vlc_from_EIT( pD->i_service_provider_name,
+                s->psz_provider = heimdall_from_EIT( pD->i_service_provider_name,
                                                 pD->i_service_provider_name_length );
 
                 s->type = pD->i_service_type;
@@ -1086,7 +1087,7 @@ static void ParseSDT( vlc_object_t *p_obj, scan_t *p_scan, const dvbpsi_sdt_t *p
 static void SDTCallBack( void *opaque, dvbpsi_sdt_t *p_sdt )
 {
     scan_session_t *p_session = opaque;
-    vlc_object_t *p_obj = p_session->p_obj;
+    heimdall_object_t *p_obj = p_session->p_obj;
     dvbpsi_sdt_t **pp_stored_sdt = NULL;
     if( p_sdt->i_table_id == SDT_OTHER_TS_TABLE_ID )
     {
@@ -1189,7 +1190,7 @@ static scan_coderate_t ConvertDelDrCodeRate( uint8_t v )
         return ConvertDelDrInnerFec( v + 1 );
 }
 
-static void ParseNIT( vlc_object_t *p_obj, scan_t *p_scan,
+static void ParseNIT( heimdall_object_t *p_obj, scan_t *p_scan,
                       const dvbpsi_nit_t *p_nit, const scan_tuner_config_t *p_cfg )
 {
     for( const dvbpsi_nit_ts_t *p_ts = p_nit->p_first_ts;
@@ -1440,7 +1441,7 @@ static void ParseNIT( vlc_object_t *p_obj, scan_t *p_scan,
 static void NITCallBack( void * opaque, dvbpsi_nit_t *p_nit )
 {
     scan_session_t *p_session = opaque;
-    vlc_object_t *p_obj = p_session->p_obj;
+    heimdall_object_t *p_obj = p_session->p_obj;
     dvbpsi_nit_t **pp_stored_nit = NULL;
 
     if( p_nit->i_table_id == NIT_OTHER_NETWORK_TABLE_ID )
@@ -1709,14 +1710,14 @@ char * scan_service_GetUri( const scan_service_t *s )
 
 block_t *scan_GetM3U( scan_t *p_scan )
 {
-    vlc_object_t *p_obj = p_scan->p_obj;
+    heimdall_object_t *p_obj = p_scan->p_obj;
     block_t *p_playlist = BlockString( "#EXTM3U\n\n" );
     if( !p_playlist )
         return NULL;
 
     const size_t i_total_services = scan_CountServices( p_scan );
     size_t i_filtered_count = 0;
-    const scan_service_t **pp_filtered_list = vlc_alloc( i_total_services, sizeof(scan_service_t *) );
+    const scan_service_t **pp_filtered_list = heimdall_alloc( i_total_services, sizeof(scan_service_t *) );
     if( !pp_filtered_list )
     {
         block_Release( p_playlist );
@@ -1770,7 +1771,7 @@ block_t *scan_GetM3U( scan_t *p_scan )
 
         char *psz;
         int i_ret = asprintf( &psz, "#EXTINF:,,%s\n"
-                                    "#EXTVLCOPT:program=%d\n"
+                                    "#EXTHEIMDALLOPT:program=%d\n"
                                     "%s\n\n",
                           s->psz_name && * s->psz_name ? s->psz_name : "Unknown",
                           s->i_program,

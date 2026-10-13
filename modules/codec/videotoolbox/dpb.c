@@ -2,6 +2,7 @@
  * dpb.c: decoder picture output pacing
  *****************************************************************************
  * Copyright © 2015-2023 VideoLabs, VideoLAN and VLC authors
+ * Copyright (C) 2026 TheFenrisLycaon
   *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -97,14 +98,14 @@ picture_t * DPBOutputFrame(struct dpb_s *dpb, date_t *ptsdate, frame_info_t *p_i
         return NULL;
 
     /* Asynchronous fallback time init */
-    if(date_Get(ptsdate) == VLC_TICK_INVALID)
+    if(date_Get(ptsdate) == HEIMDALL_TICK_INVALID)
     {
-        date_Set(ptsdate, p_info->pts != VLC_TICK_INVALID ?
+        date_Set(ptsdate, p_info->pts != HEIMDALL_TICK_INVALID ?
                               p_info->pts : p_info->dts );
     }
 
     /* Compute time from output if missing */
-    if (p_info->pts == VLC_TICK_INVALID)
+    if (p_info->pts == HEIMDALL_TICK_INVALID)
         p_info->pts = date_Get(ptsdate);
     else
         date_Set(ptsdate, p_info->pts);
@@ -129,7 +130,7 @@ picture_t * DPBOutputFrame(struct dpb_s *dpb, date_t *ptsdate, frame_info_t *p_i
     picture_t *p_output = p_info->p_picture;
     if( p_info->p_picture ) /* Can have no picture attached to entry on error */
     {
-        if( p_info->p_picture->date == VLC_TICK_INVALID )
+        if( p_info->p_picture->date == HEIMDALL_TICK_INVALID )
             p_info->p_picture->date = p_info->pts;
         p_info->p_picture = NULL; /* detach picture from DPB storage */
     }

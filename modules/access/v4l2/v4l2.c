@@ -1,12 +1,13 @@
 /*****************************************************************************
- * v4l2.c : Video4Linux2 input module for VLC
+ * v4l2.c : Video4Linux2 input module for Heimdall
  *****************************************************************************
  * Copyright (C) 2002-2009 VLC authors and VideoLAN
  * Copyright (C) 2011-2012 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Benjamin Pracht <bigben at videolan dot org>
+ * Authors: Benjamin Pracht <bigben at lycaria dot org>
  *          Richard Hosking <richard at hovis dot net>
- *          Antoine Cellerier <dionoea at videolan d.t org>
+ *          Antoine Cellerier <dionoea at lycaria d.t org>
  *          Dennis Lou <dlou99 at yahoo dot com>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -35,9 +36,9 @@
 #include <sys/types.h>
 #include <fcntl.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_fs.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_fs.h>
 
 #include "v4l2.h"
 
@@ -127,7 +128,7 @@
 #define POWER_FREQ_TEXT N_( "Power line frequency" )
 #define POWER_FREQ_LONGTEXT N_( \
     "Power line frequency anti-flicker filter." )
-static const int power_freq_vlc[] = { -1,
+static const int power_freq_heimdall[] = { -1,
     V4L2_CID_POWER_LINE_FREQUENCY_DISABLED,
     V4L2_CID_POWER_LINE_FREQUENCY_50HZ,
     V4L2_CID_POWER_LINE_FREQUENCY_60HZ,
@@ -155,7 +156,7 @@ static const char *const power_freq_user[] = { N_("Unspecified"),
     "whenever the signal is weak." )
 #define COLOR_EFFECT_TEXT N_( "Color effect" )
 #define COLOR_EFFECT_LONGTEXT N_( "Select a color effect." )
-static const int colorfx_vlc[] = { -1, V4L2_COLORFX_NONE,
+static const int colorfx_heimdall[] = { -1, V4L2_COLORFX_NONE,
     V4L2_COLORFX_BW, V4L2_COLORFX_SEPIA, V4L2_COLORFX_NEGATIVE,
     V4L2_COLORFX_EMBOSS, V4L2_COLORFX_SKETCH, V4L2_COLORFX_SKY_BLUE,
     V4L2_COLORFX_GRASS_GREEN, V4L2_COLORFX_SKIN_WHITEN, V4L2_COLORFX_VIVID,
@@ -196,7 +197,7 @@ static const char *const colorfx_user[] = { N_("Unspecified"), N_("None"),
 #define ASPECT_TEXT N_("Picture aspect-ratio n:m")
 #define ASPECT_LONGTEXT N_("Define input picture aspect-ratio to use. Default is 4:3" )
 
-static const int tristate_vlc[] = { -1, 0, 1 };
+static const int tristate_heimdall[] = { -1, 0, 1 };
 static const char *const tristate_user[] = {
     N_("Unspecified"), N_("Off"), N_("On") };
 
@@ -218,7 +219,7 @@ static const v4l2_std_id standards_v4l2[] = { V4L2_STD_UNKNOWN, V4L2_STD_ALL,
     V4L2_STD_SECAM_K, V4L2_STD_SECAM_K1, V4L2_STD_SECAM_L,  V4L2_STD_SECAM_LC,
     V4L2_STD_ATSC_8_VSB, V4L2_STD_ATSC_16_VSB,
 };
-static const char *const standards_vlc[] = { "", "ALL",
+static const char *const standards_heimdall[] = { "", "ALL",
     /* Pseudo standards */
     "PAL", "PAL_BG", "PAL_DK",
     "NTSC",
@@ -271,7 +272,7 @@ static const char *const psz_tuner_audio_modes_list_text[] = {
       N_("Dual mono" )
 };
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( N_("V4L") )
     set_description( N_("Video4Linux input") )
     set_subcategory( SUBCAT_INPUT_ACCESS )
@@ -286,7 +287,7 @@ vlc_module_begin ()
 #endif
     add_string( CFG_PREFIX "standard", "",
                 STANDARD_TEXT, STANDARD_LONGTEXT )
-        change_string_list( standards_vlc, standards_user )
+        change_string_list( standards_heimdall, standards_user )
         change_safe()
     add_string( CFG_PREFIX "chroma", NULL, CHROMA_TEXT, CHROMA_LONGTEXT )
         change_safe()
@@ -332,7 +333,7 @@ vlc_module_begin ()
                  BRIGHTNESS_LONGTEXT )
     add_integer( CFG_PREFIX "brightness-auto", -1,
                  BRIGHTNESS_AUTO_TEXT, BRIGHTNESS_AUTO_LONGTEXT )
-        change_integer_list( tristate_vlc, tristate_user )
+        change_integer_list( tristate_heimdall, tristate_user )
     add_integer( CFG_PREFIX "contrast", -1, CONTRAST_TEXT,
                  CONTRAST_LONGTEXT )
     add_integer( CFG_PREFIX "saturation", -1, SATURATION_TEXT,
@@ -341,14 +342,14 @@ vlc_module_begin ()
                  HUE_LONGTEXT )
     add_integer( CFG_PREFIX "hue-auto", -1,
                  HUE_AUTO_TEXT, HUE_AUTO_LONGTEXT )
-        change_integer_list( tristate_vlc, tristate_user )
+        change_integer_list( tristate_heimdall, tristate_user )
     add_integer( CFG_PREFIX "white-balance-temperature", -1,
                  WHITE_BALANCE_TEMP_TEXT, WHITE_BALANCE_TEMP_LONGTEXT )
         /* Ideally, the range should be 2800-6500 */
         change_integer_range( -1, 6500 )
     add_integer( CFG_PREFIX "auto-white-balance", -1,
                  AUTOWHITEBALANCE_TEXT, AUTOWHITEBALANCE_LONGTEXT )
-        change_integer_list( tristate_vlc, tristate_user )
+        change_integer_list( tristate_heimdall, tristate_user )
     add_integer( CFG_PREFIX "red-balance", -1, REDBALANCE_TEXT,
                  REDBALANCE_LONGTEXT )
     add_integer( CFG_PREFIX "blue-balance", -1, BLUEBALANCE_TEXT,
@@ -357,7 +358,7 @@ vlc_module_begin ()
                  GAMMA_LONGTEXT )
     add_integer( CFG_PREFIX "autogain", -1, AUTOGAIN_TEXT,
                  AUTOGAIN_LONGTEXT )
-        change_integer_list( tristate_vlc, tristate_user )
+        change_integer_list( tristate_heimdall, tristate_user )
     add_integer( CFG_PREFIX "gain", -1, GAIN_TEXT,
                  GAIN_LONGTEXT )
     add_integer( CFG_PREFIX "sharpness", -1,
@@ -368,7 +369,7 @@ vlc_module_begin ()
                  CHROMA_GAIN_AUTO_TEXT, CHROMA_GAIN_AUTO_LONGTEXT )
     add_integer( CFG_PREFIX"power-line-frequency", -1,
                  POWER_FREQ_TEXT, POWER_FREQ_LONGTEXT )
-        change_integer_list( power_freq_vlc, power_freq_user )
+        change_integer_list( power_freq_heimdall, power_freq_user )
     add_integer( CFG_PREFIX"backlight-compensation", -1,
                  BKLT_COMPENSATE_TEXT, BKLT_COMPENSATE_LONGTEXT )
     add_integer( CFG_PREFIX "band-stop-filter", -1,
@@ -379,10 +380,10 @@ vlc_module_begin ()
         change_integer_range( -1, 359 )
     add_integer( CFG_PREFIX"color-killer", -1,
                  COLOR_KILLER_TEXT, COLOR_KILLER_LONGTEXT )
-        change_integer_list( tristate_vlc, tristate_user )
+        change_integer_list( tristate_heimdall, tristate_user )
     add_integer( CFG_PREFIX"color-effect", -1,
                  COLOR_EFFECT_TEXT, COLOR_EFFECT_LONGTEXT )
-        change_integer_list( colorfx_vlc, colorfx_user )
+        change_integer_list( colorfx_heimdall, colorfx_user )
 
     add_integer( CFG_PREFIX "audio-volume", -1, AUDIO_VOLUME_TEXT,
                 AUDIO_VOLUME_LONGTEXT )
@@ -408,7 +409,7 @@ vlc_module_begin ()
     add_shortcut( "v4l", "v4l2", "v4l2c" )
     set_description( N_("Video4Linux compressed A/V input") )
     set_capability( "access", 0 )
-    /* use these when open as access_demux fails; VLC will use another demux */
+    /* use these when open as access_demux fails; Heimdall will use another demux */
     set_callbacks( AccessOpen, AccessClose )
 
     add_submodule ()
@@ -417,12 +418,12 @@ vlc_module_begin ()
     set_capability ("access", 1)
     set_callbacks (RadioOpen, RadioClose)
 
-vlc_module_end ()
+heimdall_module_end ()
 
 /**
- * Parses a V4L2 MRL into VLC object variables.
+ * Parses a V4L2 MRL into Heimdall object variables.
  */
-void ParseMRL( vlc_object_t *obj, const char *mrl )
+void ParseMRL( heimdall_object_t *obj, const char *mrl )
 {
     const char *p = strchr( mrl, ':' );
     char *dev = NULL;
@@ -441,21 +442,21 @@ void ParseMRL( vlc_object_t *obj, const char *mrl )
 
     if( dev != NULL )
     {
-        var_Create( obj, CFG_PREFIX"dev", VLC_VAR_STRING );
+        var_Create( obj, CFG_PREFIX"dev", HEIMDALL_VAR_STRING );
         var_SetString( obj, CFG_PREFIX"dev", dev );
         free( dev );
     }
 }
 
-int OpenDevice (vlc_object_t *obj, const char *path, uint32_t *restrict caps)
+int OpenDevice (heimdall_object_t *obj, const char *path, uint32_t *restrict caps)
 {
     msg_Dbg (obj, "opening device '%s'", path);
 
-    int rawfd = vlc_open (path, O_RDWR);
+    int rawfd = heimdall_open (path, O_RDWR);
     if (rawfd == -1)
     {
         msg_Err (obj, "cannot open device '%s': %s", path,
-                 vlc_strerror_c(errno));
+                 heimdall_strerror_c(errno));
         return -1;
     }
 
@@ -463,7 +464,7 @@ int OpenDevice (vlc_object_t *obj, const char *path, uint32_t *restrict caps)
     if (fd == -1)
     {
         msg_Warn (obj, "cannot initialize user-space library: %s",
-                  vlc_strerror_c(errno));
+                  heimdall_strerror_c(errno));
         /* fallback to direct kernel mode anyway */
         fd = rawfd;
     }
@@ -473,7 +474,7 @@ int OpenDevice (vlc_object_t *obj, const char *path, uint32_t *restrict caps)
     if (v4l2_ioctl (fd, VIDIOC_QUERYCAP, &cap) < 0)
     {
         msg_Err (obj, "cannot get device capabilities: %s",
-                 vlc_strerror_c(errno));
+                 heimdall_strerror_c(errno));
         v4l2_close (fd);
         return -1;
     }
@@ -497,21 +498,21 @@ int OpenDevice (vlc_object_t *obj, const char *path, uint32_t *restrict caps)
     return fd;
 }
 
-v4l2_std_id var_InheritStandard (vlc_object_t *obj, const char *varname)
+v4l2_std_id var_InheritStandard (heimdall_object_t *obj, const char *varname)
 {
     char *name = var_InheritString (obj, varname);
     if (name == NULL)
         return V4L2_STD_UNKNOWN;
 
-    const size_t n = ARRAY_SIZE(standards_vlc);
+    const size_t n = ARRAY_SIZE(standards_heimdall);
 
-    static_assert (ARRAY_SIZE(standards_vlc) == ARRAY_SIZE(standards_v4l2),
+    static_assert (ARRAY_SIZE(standards_heimdall) == ARRAY_SIZE(standards_v4l2),
                    "Inconsistent standards tables");
-    static_assert (ARRAY_SIZE(standards_vlc) == ARRAY_SIZE(standards_user),
+    static_assert (ARRAY_SIZE(standards_heimdall) == ARRAY_SIZE(standards_user),
                    "Inconsistent standards tables");
 
     for (size_t i = 0; i < n; i++)
-        if (strcasecmp (name, standards_vlc[i]) == 0)
+        if (strcasecmp (name, standards_heimdall[i]) == 0)
         {
             free (name);
             return standards_v4l2[i];

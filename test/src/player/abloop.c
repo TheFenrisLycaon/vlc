@@ -3,6 +3,7 @@
  * abloop.c: abloop player test
  *****************************************************************************
  * Copyright (C) 2018-2025 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *****************************************************************************/
 
 #include "common.h"
@@ -16,9 +17,9 @@ struct abloop_scenario
     bool nolength_report;
     bool wait_stopped;
     bool check_prev_ts;
-    vlc_tick_t length;
-    vlc_tick_t a_time;
-    vlc_tick_t b_time;
+    heimdall_tick_t length;
+    heimdall_tick_t a_time;
+    heimdall_tick_t b_time;
     double a_pos;
     double b_pos;
     size_t seek_count;
@@ -27,7 +28,7 @@ struct abloop_scenario
 static void
 test_abloop_scenario(struct ctx *ctx, const struct abloop_scenario *scenario)
 {
-    vlc_player_t *player = ctx->player;
+    heimdall_player_t *player = ctx->player;
 
     struct media_params params = DEFAULT_MEDIA_PARAMS(scenario->length);
     params.can_seek = scenario->can_seek;
@@ -38,7 +39,7 @@ test_abloop_scenario(struct ctx *ctx, const struct abloop_scenario *scenario)
     player_set_next_mock_media(ctx, "media1", &params);
 
     struct timer_state timer;
-    player_add_timer(player, &timer, false, VLC_TICK_INVALID);
+    player_add_timer(player, &timer, false, HEIMDALL_TICK_INVALID);
 
     player_start(ctx);
 
@@ -47,33 +48,33 @@ test_abloop_scenario(struct ctx *ctx, const struct abloop_scenario *scenario)
     {
         /* Wait for 1st buffering */
         while (get_buffering_count(ctx) < 1)
-            vlc_player_CondWait(ctx->player, &ctx->wait);
+            heimdall_player_CondWait(ctx->player, &ctx->wait);
         expected_buffering_count++;
     }
 
-    if (scenario->a_time != VLC_TICK_INVALID)
+    if (scenario->a_time != HEIMDALL_TICK_INVALID)
     {
-        assert(scenario->b_time != VLC_TICK_INVALID);
-        int ret = vlc_player_SetAtoBLoopTime(ctx->player, scenario->a_time,
+        assert(scenario->b_time != HEIMDALL_TICK_INVALID);
+        int ret = heimdall_player_SetAtoBLoopTime(ctx->player, scenario->a_time,
                                              scenario->b_time);
-        assert(ret == VLC_SUCCESS);
+        assert(ret == HEIMDALL_SUCCESS);
     }
     else
     {
-        int ret = vlc_player_SetAtoBLoopPosition(ctx->player, scenario->a_pos,
+        int ret = heimdall_player_SetAtoBLoopPosition(ctx->player, scenario->a_pos,
                                                  scenario->b_pos);
-        assert(ret == VLC_SUCCESS);
+        assert(ret == HEIMDALL_SUCCESS);
     }
 
     if (!scenario->wait_stopped)
     {
         /* Wait all seek request */
         while (get_buffering_count(ctx) < expected_buffering_count)
-            vlc_player_CondWait(ctx->player, &ctx->wait);
+            heimdall_player_CondWait(ctx->player, &ctx->wait);
 
-        vlc_player_Stop(player);
+        heimdall_player_Stop(player);
     }
-    wait_state(ctx, VLC_PLAYER_STATE_STOPPED);
+    wait_state(ctx, HEIMDALL_PLAYER_STATE_STOPPED);
 
     vec_report_timer *vec = &timer.vec;
     size_t seek_count = 0;
@@ -84,16 +85,16 @@ test_abloop_scenario(struct ctx *ctx, const struct abloop_scenario *scenario)
             continue;
         if (report->seek.finished)
             continue;
-        struct vlc_player_timer_point *point = &report->seek.point;
+        struct heimdall_player_timer_point *point = &report->seek.point;
 
-        if (scenario->a_time != VLC_TICK_INVALID)
+        if (scenario->a_time != HEIMDALL_TICK_INVALID)
             assert(point->ts == scenario->a_time);
         else
             assert(point->position == scenario->a_pos);
 
         if (seek_count > 0 && scenario->check_prev_ts)
         {
-            assert(scenario->a_time != VLC_TICK_INVALID);
+            assert(scenario->a_time != HEIMDALL_TICK_INVALID);
             assert(i > 0);
             bool checked = false;
             for (size_t j = i - 1; j > 0; --j)
@@ -101,9 +102,9 @@ test_abloop_scenario(struct ctx *ctx, const struct abloop_scenario *scenario)
                 struct report_timer *time_report = &vec->data[j];
                 if (time_report->type != REPORT_TIMER_POINT)
                     continue;
-                struct vlc_player_timer_point *time_point = &time_report->point;
+                struct heimdall_player_timer_point *time_point = &time_report->point;
 
-                vlc_tick_t end_ts = scenario->b_time;
+                heimdall_tick_t end_ts = scenario->b_time;
                 if (end_ts > params.length)
                     end_ts = params.length;
                 assert(time_point->ts >= scenario->a_time);
@@ -135,36 +136,36 @@ test_abloop(struct ctx *ctx)
             .title = "Check that b_time past length is handled",
             .can_seek = true, .after_1st_buferring = false,
             .check_prev_ts = true,
-            .length = VLC_TICK_FROM_MS(20000),
-            .a_time = VLC_TICK_FROM_MS(19800), .b_time = VLC_TICK_FROM_MS(30000),
+            .length = HEIMDALL_TICK_FROM_MS(20000),
+            .a_time = HEIMDALL_TICK_FROM_MS(19800), .b_time = HEIMDALL_TICK_FROM_MS(30000),
             .seek_count = 2,
         },
         {
             .title  = "Check we have the same result if called after buffering",
             .can_seek = true, .after_1st_buferring = true,
             .check_prev_ts = true,
-            .length = VLC_TICK_FROM_MS(20000),
-            .a_time = VLC_TICK_FROM_MS(19800), .b_time = VLC_TICK_FROM_MS(30000),
+            .length = HEIMDALL_TICK_FROM_MS(20000),
+            .a_time = HEIMDALL_TICK_FROM_MS(19800), .b_time = HEIMDALL_TICK_FROM_MS(30000),
             .seek_count = 2,
         },
         {
             .title = "Check small A->B loop values",
             .can_seek = true, .after_1st_buferring = true,
-            .length = VLC_TICK_FROM_MS(3000),
-            .a_time = VLC_TICK_FROM_MS(1), .b_time = VLC_TICK_FROM_MS(2),
+            .length = HEIMDALL_TICK_FROM_MS(3000),
+            .a_time = HEIMDALL_TICK_FROM_MS(1), .b_time = HEIMDALL_TICK_FROM_MS(2),
             .seek_count = 4,
         },
         {
             .title = "Check with positions",
             .can_seek = true, .after_1st_buferring = true,
-            .length = VLC_TICK_FROM_MS(3000),
+            .length = HEIMDALL_TICK_FROM_MS(3000),
             .a_pos = 0.9, .b_pos = 1.0f,
             .seek_count = 1,
         },
         {
             .title = "Check we have the same result if called after buffering",
             .can_seek = true, .after_1st_buferring = false,
-            .length = VLC_TICK_FROM_MS(3000),
+            .length = HEIMDALL_TICK_FROM_MS(3000),
             .a_pos = 0.9, .b_pos = 1.0f,
             .seek_count = 2,
         },
@@ -172,7 +173,7 @@ test_abloop(struct ctx *ctx)
             .title = "Check that seek is triggered by EOF (no reported length)",
             .can_seek = true, .after_1st_buferring = false,
             .nolength_report = true,
-            .length = VLC_TICK_FROM_MS(1000),
+            .length = HEIMDALL_TICK_FROM_MS(1000),
             .a_pos = 0.9, .b_pos = 1.0f,
             .seek_count = 2,
         },
@@ -180,7 +181,7 @@ test_abloop(struct ctx *ctx)
             .title= "Check that A->B loop is not triggered",
             .can_seek = false, .after_1st_buferring = false,
             .nolength_report = true, .wait_stopped = true,
-            .length = VLC_TICK_FROM_MS(100),
+            .length = HEIMDALL_TICK_FROM_MS(100),
             .a_pos = 0.1, .b_pos = 1.0f,
             .seek_count = 1, /* Caused by the A seek request that fails */
         },
@@ -198,11 +199,11 @@ struct abloop_initial_position_scenario
     const char* title;
     bool can_seek;
     bool nolength_report;
-    vlc_tick_t initial_time;
-    vlc_tick_t expected_initial_time;
-    vlc_tick_t length;
-    vlc_tick_t a_time;
-    vlc_tick_t b_time;
+    heimdall_tick_t initial_time;
+    heimdall_tick_t expected_initial_time;
+    heimdall_tick_t length;
+    heimdall_tick_t a_time;
+    heimdall_tick_t b_time;
     double initial_pos;
     double expected_initial_pos;
     double a_pos;
@@ -213,7 +214,7 @@ struct abloop_initial_position_scenario
 static void
 test_abloop_initial_position_scenario(struct ctx *ctx, const struct abloop_initial_position_scenario *scenario)
 {
-    vlc_player_t *player = ctx->player;
+    heimdall_player_t *player = ctx->player;
 
     struct media_params params = DEFAULT_MEDIA_PARAMS(scenario->length);
     params.can_seek = scenario->can_seek;
@@ -226,58 +227,58 @@ test_abloop_initial_position_scenario(struct ctx *ctx, const struct abloop_initi
     player_start(ctx);
 
     while (get_buffering_count(ctx) < 1)
-        vlc_player_CondWait(player, &ctx->wait);
+        heimdall_player_CondWait(player, &ctx->wait);
 
-    if (scenario->initial_time != VLC_TICK_INVALID)
+    if (scenario->initial_time != HEIMDALL_TICK_INVALID)
     {
-        vlc_player_SetTime(player, scenario->initial_time);
+        heimdall_player_SetTime(player, scenario->initial_time);
 
         vec_on_position_changed *vec = &ctx->report.on_position_changed;
         while (vec->size == 0)
-            vlc_player_CondWait(player, &ctx->wait);
+            heimdall_player_CondWait(player, &ctx->wait);
 
-        vlc_tick_t current_time = VEC_LAST(vec).time;
+        heimdall_tick_t current_time = VEC_LAST(vec).time;
 
         assert(current_time >= scenario->initial_time);
-        assert(current_time - scenario->initial_time < VLC_TICK_FROM_MS(1000));
+        assert(current_time - scenario->initial_time < HEIMDALL_TICK_FROM_MS(1000));
 
-        assert(scenario->b_time != VLC_TICK_INVALID);
-        int ret = vlc_player_SetAtoBLoopTime(player, scenario->a_time,
+        assert(scenario->b_time != HEIMDALL_TICK_INVALID);
+        int ret = heimdall_player_SetAtoBLoopTime(player, scenario->a_time,
                                              scenario->b_time);
-        assert(ret == VLC_SUCCESS);
+        assert(ret == HEIMDALL_SUCCESS);
 
 
         //wait for the next position report
         while (vec->size == 1)
-            vlc_player_CondWait(player, &ctx->wait);
+            heimdall_player_CondWait(player, &ctx->wait);
 
 
         current_time = VEC_LAST(vec).time;
 
         assert(current_time >= scenario->expected_initial_time);
-        assert(current_time - scenario->expected_initial_time < VLC_TICK_FROM_MS(1000));
+        assert(current_time - scenario->expected_initial_time < HEIMDALL_TICK_FROM_MS(1000));
     }
     else
     {
-        vlc_player_SetPosition(player, scenario->initial_pos);
+        heimdall_player_SetPosition(player, scenario->initial_pos);
 
         vec_on_position_changed *vec = &ctx->report.on_position_changed;
         while (vec->size == 0)
-            vlc_player_CondWait(player, &ctx->wait);
+            heimdall_player_CondWait(player, &ctx->wait);
 
         double current_pos = VEC_LAST(vec).pos;
 
         assert(current_pos >= scenario->initial_pos);
         assert((current_pos - scenario->initial_pos) < 0.1);
 
-        int ret = vlc_player_SetAtoBLoopPosition(player, scenario->a_pos,
+        int ret = heimdall_player_SetAtoBLoopPosition(player, scenario->a_pos,
                                                  scenario->b_pos);
-        assert(ret == VLC_SUCCESS);
+        assert(ret == HEIMDALL_SUCCESS);
 
 
         //wait for the next position report
         while (vec->size == 1)
-            vlc_player_CondWait(player, &ctx->wait);
+            heimdall_player_CondWait(player, &ctx->wait);
 
 
         current_pos = VEC_LAST(vec).pos;
@@ -297,42 +298,42 @@ test_abloop_initial_position(struct ctx *ctx)
         {
             .title = "Current time before the interval should seek to beginning",
             .can_seek = true,
-            .length = VLC_TICK_FROM_MS(30000),
-            .initial_time = VLC_TICK_FROM_MS(5000), .expected_initial_time = VLC_TICK_FROM_MS(10000),
-            .a_time = VLC_TICK_FROM_MS(10000), .b_time = VLC_TICK_FROM_MS(20000),
+            .length = HEIMDALL_TICK_FROM_MS(30000),
+            .initial_time = HEIMDALL_TICK_FROM_MS(5000), .expected_initial_time = HEIMDALL_TICK_FROM_MS(10000),
+            .a_time = HEIMDALL_TICK_FROM_MS(10000), .b_time = HEIMDALL_TICK_FROM_MS(20000),
         },
         {
             .title = "Current time in the interval should not seek",
             .can_seek = true,
-            .length = VLC_TICK_FROM_MS(30000),
-            .initial_time = VLC_TICK_FROM_MS(15000), .expected_initial_time = VLC_TICK_FROM_MS(15000),
-            .a_time = VLC_TICK_FROM_MS(10000), .b_time = VLC_TICK_FROM_MS(20000),
+            .length = HEIMDALL_TICK_FROM_MS(30000),
+            .initial_time = HEIMDALL_TICK_FROM_MS(15000), .expected_initial_time = HEIMDALL_TICK_FROM_MS(15000),
+            .a_time = HEIMDALL_TICK_FROM_MS(10000), .b_time = HEIMDALL_TICK_FROM_MS(20000),
         },
         {
             .title = "Current time after the interval should seek to beginning",
             .can_seek = true,
-            .length = VLC_TICK_FROM_MS(30000),
-            .initial_time = VLC_TICK_FROM_MS(25000), .expected_initial_time = VLC_TICK_FROM_MS(10000),
-            .a_time = VLC_TICK_FROM_MS(10000), .b_time = VLC_TICK_FROM_MS(20000),
+            .length = HEIMDALL_TICK_FROM_MS(30000),
+            .initial_time = HEIMDALL_TICK_FROM_MS(25000), .expected_initial_time = HEIMDALL_TICK_FROM_MS(10000),
+            .a_time = HEIMDALL_TICK_FROM_MS(10000), .b_time = HEIMDALL_TICK_FROM_MS(20000),
         },
         {
             .title = "Current pos before the interval should seek to beginning",
             .can_seek = true,
-            .length = VLC_TICK_FROM_MS(30000),
+            .length = HEIMDALL_TICK_FROM_MS(30000),
             .initial_pos = 0.1, .expected_initial_pos = 0.3,
             .a_pos = 0.3, .b_pos = 0.6,
         },
         {
             .title = "Current pos in the interval should not seek",
             .can_seek = true,
-            .length = VLC_TICK_FROM_MS(30000),
+            .length = HEIMDALL_TICK_FROM_MS(30000),
             .initial_pos = 0.4, .expected_initial_pos = 0.4,
             .a_pos = 0.3, .b_pos = 0.6,
         },
         {
             .title = "Current pos after the interval should seek to beginning",
             .can_seek = true,
-            .length = VLC_TICK_FROM_MS(30000),
+            .length = HEIMDALL_TICK_FROM_MS(30000),
             .initial_pos = 0.8, .expected_initial_pos = 0.3,
             .a_pos = 0.3, .b_pos = 0.6,
         },

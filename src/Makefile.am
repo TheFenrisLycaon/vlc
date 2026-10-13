@@ -6,7 +6,7 @@ AUTOMAKE_OPTIONS = subdir-objects
 
 NULL =
 EXTRA_DIST = \
-	vlc-plugin.pc.in \
+	heimdall-plugin.pc.in \
 	revision.txt
 
 BUILT_SOURCES = $(nodist_pluginsinclude_HEADERS)
@@ -22,135 +22,135 @@ TEST_EXTENSIONS =
 pluginsincludedir = $(pkgincludedir)/plugins
 
 pluginsinclude_HEADERS.h = \
-	../include/vlc_access.h \
-	../include/vlc_actions.h \
-	../include/vlc_addons.h \
-	../include/vlc_ancillary.h \
-	../include/vlc_aout.h \
-	../include/vlc_aout_volume.h \
-	../include/vlc_arrays.h \
-	../include/vlc_atomic.h \
-	../include/vlc_avcodec.h \
-	../include/vlc_bits.h \
-	../include/vlc_block.h \
-	../include/vlc_block_helper.h \
-	../include/vlc_boxes.h \
-	../include/vlc_charset.h \
-	../include/vlc_codec.h \
-	../include/vlc_common.h \
-	../include/vlc_config.h \
-	../include/vlc_config_cat.h \
-	../include/vlc_configuration.h \
-	../include/vlc_cpu.h \
-	../include/vlc_clock.h \
-	../include/vlc_chroma_probe.h \
-	../include/vlc_decoder.h \
-	../include/vlc_demux.h \
-	../include/vlc_dialog.h \
-	../include/vlc_diffutil.h \
-	../include/vlc_epg.h \
-	../include/vlc_es.h \
-	../include/vlc_es_out.h \
-	../include/vlc_executor.h \
-	../include/vlc_filter.h \
-	../include/vlc_fingerprinter.h \
-	../include/vlc_fourcc.h \
-	../include/vlc_frame.h \
-	../include/vlc_fs.h \
-	../include/vlc_gcrypt.h \
-	../include/vlc_hash.h \
-	../include/vlc_http.h \
-	../include/vlc_httpd.h \
-	../include/vlc_image.h \
-	../include/vlc_inhibit.h \
-	../include/vlc_input.h \
-	../include/vlc_input_item.h \
-	../include/vlc_interface.h \
-	../include/vlc_interrupt.h \
-	../include/vlc_keystore.h \
-	../include/vlc_list.h \
-	../include/vlc_media_library.h \
-	../include/vlc_media_source.h \
-	../include/vlc_memstream.h \
-	../include/vlc_messages.h \
-	../include/vlc_tracer.h \
-	../include/vlc_meta.h \
-	../include/vlc_meta_fetcher.h \
-	../include/vlc_mime.h \
-	../include/vlc_modules.h \
-	../include/vlc_mouse.h \
-	../include/vlc_network.h \
-	../include/vlc_objects.h \
-	../include/vlc_opengl.h \
-	../include/vlc_opengl_interop.h \
-	../include/vlc_opengl_filter.h \
-	../include/vlc_opengl_picture.h \
-	../include/vlc_opengl_sampler.h \
-	../include/vlc_picture.h \
-	../include/vlc_picture_fifo.h \
-	../include/vlc_picture_pool.h \
-	../include/vlc_player.h \
-	../include/vlc_playlist.h \
-	../include/vlc_playlist_export.h \
-	../include/vlc_plugin.h \
-	../include/vlc_poll.h \
-	../include/vlc_probe.h \
-	../include/vlc_preparser.h \
-	../include/vlc_process.h \
-	../include/vlc_preparser_ipc.h \
-	../include/vlc_queue.h \
-	../include/vlc_rand.h \
-	../include/vlc_renderer_discovery.h \
-	../include/vlc_replay_gain.h \
-	../include/vlc_services_discovery.h \
-	../include/vlc_sort.h \
-	../include/vlc_sout.h \
-	../include/vlc_spawn.h \
-	../include/vlc_spu.h \
-	../include/vlc_stream.h \
-	../include/vlc_stream_extractor.h \
-	../include/vlc_strings.h \
-	../include/vlc_subpicture.h \
-	../include/vlc_text_style.h \
-	../include/vlc_threads.h \
-	../include/vlc_tick.h \
-	../include/vlc_timestamp_helper.h \
-	../include/vlc_tls.h \
-	../include/vlc_url.h \
-	../include/vlc_variables.h \
-	../include/vlc_vector.h \
-	../include/vlc_video_splitter.h \
-	../include/vlc_viewpoint.h \
-	../include/vlc_vlm.h \
-	../include/vlc_vout.h \
-	../include/vlc_vout_display.h \
-	../include/vlc_vout_osd.h \
-	../include/vlc_window.h \
-	../include/vlc_xlib.h \
-	../include/vlc_xml.h \
+	../include/heimdall_access.h \
+	../include/heimdall_actions.h \
+	../include/heimdall_addons.h \
+	../include/heimdall_ancillary.h \
+	../include/heimdall_aout.h \
+	../include/heimdall_aout_volume.h \
+	../include/heimdall_arrays.h \
+	../include/heimdall_atomic.h \
+	../include/heimdall_avcodec.h \
+	../include/heimdall_bits.h \
+	../include/heimdall_block.h \
+	../include/heimdall_block_helper.h \
+	../include/heimdall_boxes.h \
+	../include/heimdall_charset.h \
+	../include/heimdall_codec.h \
+	../include/heimdall_common.h \
+	../include/heimdall_config.h \
+	../include/heimdall_config_cat.h \
+	../include/heimdall_configuration.h \
+	../include/heimdall_cpu.h \
+	../include/heimdall_clock.h \
+	../include/heimdall_chroma_probe.h \
+	../include/heimdall_decoder.h \
+	../include/heimdall_demux.h \
+	../include/heimdall_dialog.h \
+	../include/heimdall_diffutil.h \
+	../include/heimdall_epg.h \
+	../include/heimdall_es.h \
+	../include/heimdall_es_out.h \
+	../include/heimdall_executor.h \
+	../include/heimdall_filter.h \
+	../include/heimdall_fingerprinter.h \
+	../include/heimdall_fourcc.h \
+	../include/heimdall_frame.h \
+	../include/heimdall_fs.h \
+	../include/heimdall_gcrypt.h \
+	../include/heimdall_hash.h \
+	../include/heimdall_http.h \
+	../include/heimdall_httpd.h \
+	../include/heimdall_image.h \
+	../include/heimdall_inhibit.h \
+	../include/heimdall_input.h \
+	../include/heimdall_input_item.h \
+	../include/heimdall_interface.h \
+	../include/heimdall_interrupt.h \
+	../include/heimdall_keystore.h \
+	../include/heimdall_list.h \
+	../include/heimdall_media_library.h \
+	../include/heimdall_media_source.h \
+	../include/heimdall_memstream.h \
+	../include/heimdall_messages.h \
+	../include/heimdall_tracer.h \
+	../include/heimdall_meta.h \
+	../include/heimdall_meta_fetcher.h \
+	../include/heimdall_mime.h \
+	../include/heimdall_modules.h \
+	../include/heimdall_mouse.h \
+	../include/heimdall_network.h \
+	../include/heimdall_objects.h \
+	../include/heimdall_opengl.h \
+	../include/heimdall_opengl_interop.h \
+	../include/heimdall_opengl_filter.h \
+	../include/heimdall_opengl_picture.h \
+	../include/heimdall_opengl_sampler.h \
+	../include/heimdall_picture.h \
+	../include/heimdall_picture_fifo.h \
+	../include/heimdall_picture_pool.h \
+	../include/heimdall_player.h \
+	../include/heimdall_playlist.h \
+	../include/heimdall_playlist_export.h \
+	../include/heimdall_plugin.h \
+	../include/heimdall_poll.h \
+	../include/heimdall_probe.h \
+	../include/heimdall_preparser.h \
+	../include/heimdall_process.h \
+	../include/heimdall_preparser_ipc.h \
+	../include/heimdall_queue.h \
+	../include/heimdall_rand.h \
+	../include/heimdall_renderer_discovery.h \
+	../include/heimdall_replay_gain.h \
+	../include/heimdall_services_discovery.h \
+	../include/heimdall_sort.h \
+	../include/heimdall_sout.h \
+	../include/heimdall_spawn.h \
+	../include/heimdall_spu.h \
+	../include/heimdall_stream.h \
+	../include/heimdall_stream_extractor.h \
+	../include/heimdall_strings.h \
+	../include/heimdall_subpicture.h \
+	../include/heimdall_text_style.h \
+	../include/heimdall_threads.h \
+	../include/heimdall_tick.h \
+	../include/heimdall_timestamp_helper.h \
+	../include/heimdall_tls.h \
+	../include/heimdall_url.h \
+	../include/heimdall_variables.h \
+	../include/heimdall_vector.h \
+	../include/heimdall_video_splitter.h \
+	../include/heimdall_viewpoint.h \
+	../include/heimdall_vlm.h \
+	../include/heimdall_vout.h \
+	../include/heimdall_vout_display.h \
+	../include/heimdall_vout_osd.h \
+	../include/heimdall_window.h \
+	../include/heimdall_xlib.h \
+	../include/heimdall_xml.h \
 	$(NULL)
 
 pluginsinclude_HEADERS.hpp = \
-	../include/vlc_cxx_helpers.hpp \
-	../include/vlc_list.hpp \
+	../include/heimdall_cxx_helpers.hpp \
+	../include/heimdall_list.hpp \
 	$(NULL)
 
 pluginsinclude_HEADERS = \
 	$(pluginsinclude_HEADERS.h) \
 	$(pluginsinclude_HEADERS.hpp)
-nodist_pluginsinclude_HEADERS = ../include/vlc_about.h
+nodist_pluginsinclude_HEADERS = ../include/heimdall_about.h
 
 noinst_HEADERS = \
-	../include/vlc_codecs.h \
-	../include/vlc_extensions.h \
-	../include/vlc_fixups.h \
-	../include/vlc_intf_strings.h \
-	../include/vlc_iso_lang.h \
-	../include/vlc_pgpkey.h \
-	../include/vlc_update.h \
+	../include/heimdall_codecs.h \
+	../include/heimdall_extensions.h \
+	../include/heimdall_fixups.h \
+	../include/heimdall_intf_strings.h \
+	../include/heimdall_iso_lang.h \
+	../include/heimdall_pgpkey.h \
+	../include/heimdall_update.h \
 	$(NULL)
 
-../include/vlc_about.h: Makefile.am $(top_srcdir)/COPYING $(top_srcdir)/THANKS $(top_srcdir)/AUTHORS
+../include/heimdall_about.h: Makefile.am $(top_srcdir)/COPYING $(top_srcdir)/THANKS $(top_srcdir)/AUTHORS
 	$(AM_V_at)rm -f -- "$@.tmp"
 	$(AM_V_at)$(MKDIR_P) "../include"
 	$(AM_V_GEN)(echo "/* Automatically generated file - DO NOT EDIT */" && \
@@ -172,10 +172,10 @@ noinst_HEADERS = \
 ###############################################################################
 
 pkgconfigdir = $(libdir)/pkgconfig
-pkgconfig_DATA = vlc-plugin.pc
+pkgconfig_DATA = heimdall-plugin.pc
 CLEANFILES += $(pkgconfig_DATA)
 
-vlc-plugin.pc: vlc-plugin.pc.in $(top_builddir)/config.status
+heimdall-plugin.pc: heimdall-plugin.pc.in $(top_builddir)/config.status
 	$(AM_V_GEN)cd "$(top_builddir)" && \
 	$(SHELL) ./config.status --file="src/$@"
 
@@ -184,19 +184,19 @@ vlc-plugin.pc: vlc-plugin.pc.in $(top_builddir)/config.status
 ##############################################################################
 
 if HAVE_WIN32
-noinst_DATA = libvlccore_win32_rc.rc
+noinst_DATA = libheimdallcore_win32_rc.rc
 endif
-EXTRA_DIST += libvlccore_win32_rc.rc.in
+EXTRA_DIST += libheimdallcore_win32_rc.rc.in
 
-libvlccore_win32_rc.rc: libvlccore_win32_rc.rc.in $(top_builddir)/config.status
+libheimdallcore_win32_rc.rc: libheimdallcore_win32_rc.rc.in $(top_builddir)/config.status
 	$(AM_V_GEN)cd "$(top_builddir)" && \
 	$(SHELL) ./config.status --file="src/$@"
 
 ###############################################################################
-# Building libvlc
+# Building libheimdall
 ###############################################################################
 
-lib_LTLIBRARIES = libvlccore.la
+lib_LTLIBRARIES = libheimdallcore.la
 
 AM_CPPFLAGS = $(INCICONV) $(IDN_CFLAGS) \
 	-DMODULE_STRING=\"core\" \
@@ -207,11 +207,11 @@ AM_CPPFLAGS = $(INCICONV) $(IDN_CFLAGS) \
 	-DPKGDATADIR=\"$(pkgdatadir)\" \
 	-DPKGLIBDIR=\"$(pkglibdir)\" \
 	-DPKGLIBEXECDIR=\"$(pkglibexecdir)\"
-AM_CFLAGS = $(CFLAGS_libvlccore)
+AM_CFLAGS = $(CFLAGS_libheimdallcore)
 if HAVE_DYNAMIC_PLUGINS
 AM_CPPFLAGS += -DHAVE_DYNAMIC_PLUGINS
 if HAVE_WIN32
-AM_CPPFLAGS += -DVLC_DLL_EXPORT
+AM_CPPFLAGS += -DHEIMDALL_DLL_EXPORT
 endif
 endif
 if HAVE_DBUS
@@ -219,10 +219,10 @@ AM_CPPFLAGS += -DHAVE_DBUS
 AM_CFLAGS += $(DBUS_CFLAGS)
 endif
 
-libvlccore_la_SOURCES = \
-	libvlc.c \
-	libvlc.h \
-	libvlc-module.c \
+libheimdallcore_la_SOURCES = \
+	libheimdall.c \
+	libheimdall.h \
+	libheimdall-module.c \
 	missing.c \
 	revision.c \
 	version.c \
@@ -237,9 +237,9 @@ libvlccore_la_SOURCES = \
 	config/intf.c \
 	config/cmdline.c \
 	config/getopt.c \
-	config/vlc_getopt.h \
+	config/heimdall_getopt.h \
 	config/jaro_winkler.c \
-	config/vlc_jaro_winkler.h \
+	config/heimdall_jaro_winkler.h \
 	extras/libc.c \
 	media_source/media_source.c \
 	media_source/media_source.h \
@@ -441,15 +441,15 @@ libvlccore_la_SOURCES = \
 	misc/subpicture.h \
 	misc/medialibrary.c \
 	misc/viewpoint.c
-libvlccore_la_LIBADD = $(LIBS_libvlccore) \
+libheimdallcore_la_LIBADD = $(LIBS_libheimdallcore) \
 	../compat/libcompat.la \
 	$(LTLIBINTL) $(LTLIBICONV) \
 	$(IDN_LIBS) $(SOCKET_LIBS) $(LIBRT) $(LIBDL) $(LIBM)
 
-libvlccore_la_CPPFLAGS = $(AM_CPPFLAGS) $(CPPFLAGS_libvlccore)
+libheimdallcore_la_CPPFLAGS = $(AM_CPPFLAGS) $(CPPFLAGS_libheimdallcore)
 
 if HAVE_WIN32
-libvlccore_la_SOURCES += \
+libheimdallcore_la_SOURCES += \
 	win32/dirs-common.c \
 	win32/error.c \
 	win32/filesystem.c \
@@ -460,16 +460,16 @@ libvlccore_la_SOURCES += \
 	win32/thread.c \
 	win32/process.c
 if HAVE_WINSTORE
-libvlccore_la_SOURCES += posix/timer.c win32/dirs-uap.c
+libheimdallcore_la_SOURCES += posix/timer.c win32/dirs-uap.c
 else
-libvlccore_la_SOURCES += win32/timer.c win32/dirs.c win32/spawn.c
-libvlccore_la_LIBADD += -lwinmm -lole32 -luuid
+libheimdallcore_la_SOURCES += win32/timer.c win32/dirs.c win32/spawn.c
+libheimdallcore_la_LIBADD += -lwinmm -lole32 -luuid
 endif
-libvlccore_la_LIBADD += -lbcrypt
+libheimdallcore_la_LIBADD += -lbcrypt
 endif
 
 if HAVE_OS2
-libvlccore_la_SOURCES += \
+libheimdallcore_la_SOURCES += \
 	os2/dirs.c \
 	darwin/error.c \
 	os2/filesystem.c \
@@ -482,49 +482,49 @@ libvlccore_la_SOURCES += \
 endif
 
 if HAVE_EMSCRIPTEN
-libvlccore_la_SOURCES += \
+libheimdallcore_la_SOURCES += \
 	emscripten/netconf.c \
 	emscripten/thread.c
 endif
 
 if HAVE_DARWIN
-libvlccore_la_SOURCES += \
+libheimdallcore_la_SOURCES += \
 	darwin/error.c \
 	darwin/specific.c \
 	darwin/thread.c
-libvlccore_objc_la_SOURCES = \
+libheimdallcore_objc_la_SOURCES = \
 	darwin/dirs.m \
 	darwin/netconf.m
-noinst_LTLIBRARIES = libvlccore_objc.la
+noinst_LTLIBRARIES = libheimdallcore_objc.la
 endif
 
 if HAVE_FREEBSD
-libvlccore_la_SOURCES += \
+libheimdallcore_la_SOURCES += \
 	freebsd/cpu.c \
 	freebsd/thread.c
 endif
 
 if HAVE_NETBSD
-libvlccore_la_SOURCES += \
+libheimdallcore_la_SOURCES += \
         netbsd/thread.c
 endif
 
 if HAVE_OPENBSD
-libvlccore_la_SOURCES += \
+libheimdallcore_la_SOURCES += \
         openbsd/cpu.c \
         openbsd/thread.c
 endif
 
 if HAVE_LINUX
-libvlccore_la_SOURCES += \
+libheimdallcore_la_SOURCES += \
 	linux/cpu.c \
 	linux/dirs.c \
 	linux/thread.c
 if !HAVE_ANDROID
-libvlccore_la_SOURCES += \
+libheimdallcore_la_SOURCES += \
 	linux/filesystem.c
 else
-libvlccore_la_SOURCES += \
+libheimdallcore_la_SOURCES += \
 	android/error.c \
 	android/specific.c \
 	android/thread.c
@@ -533,44 +533,44 @@ endif
 
 if !HAVE_WIN32
 if HAVE_PROCESS_SPAWN
-libvlccore_la_SOURCES += posix/process.c
+libheimdallcore_la_SOURCES += posix/process.c
 endif
 if !HAVE_OS2
-libvlccore_la_SOURCES += \
+libheimdallcore_la_SOURCES += \
 	posix/filesystem.c \
 	posix/plugin.c \
 	posix/rand.c \
 	posix/timer.c
 if !HAVE_LINUX
-libvlccore_la_SOURCES += posix/wait.c
+libheimdallcore_la_SOURCES += posix/wait.c
 endif
 if !HAVE_ANDROID
 if HAVE_QSORT_R
-libvlccore_la_SOURCES += posix/sort.c
+libheimdallcore_la_SOURCES += posix/sort.c
 endif
-libvlccore_la_SOURCES += \
+libheimdallcore_la_SOURCES += \
 	posix/thread.c
-libvlccore_la_LIBADD += $(LIBEXECINFO)
+libheimdallcore_la_LIBADD += $(LIBEXECINFO)
 if HAVE_OSX
-libvlccore_la_SOURCES += \
+libheimdallcore_la_SOURCES += \
 	posix/spawn.c
 endif
 if !HAVE_DARWIN
 if !HAVE_EMSCRIPTEN
-libvlccore_la_SOURCES += posix/netconf.c
+libheimdallcore_la_SOURCES += posix/netconf.c
 endif
-libvlccore_la_SOURCES += \
+libheimdallcore_la_SOURCES += \
 	posix/dirs.c \
 	posix/error.c \
 	posix/picture.c \
 	posix/spawn.c \
 	posix/specific.c
 if HAVE_LIBANL
-libvlccore_la_SOURCES += \
+libheimdallcore_la_SOURCES += \
 	linux/getaddrinfo.c
-libvlccore_la_LIBADD += -lanl
+libheimdallcore_la_LIBADD += -lanl
 else
-libvlccore_la_SOURCES += \
+libheimdallcore_la_SOURCES += \
 	posix/getaddrinfo.c
 endif
 endif
@@ -578,60 +578,60 @@ endif
 endif
 endif
 
-libvlccore_la_SOURCES += \
+libheimdallcore_la_SOURCES += \
 	stream_output/sap.c \
 	stream_output/stream_output.c stream_output/stream_output.h
 if ENABLE_VLM
-libvlccore_la_SOURCES += input/vlm.c input/vlm_event.c input/vlmshell.c
+libheimdallcore_la_SOURCES += input/vlm.c input/vlm_event.c input/vlmshell.c
 endif
 
 if UPDATE_CHECK
-libvlccore_la_SOURCES += \
+libheimdallcore_la_SOURCES += \
 	misc/update.h misc/update.c \
 	misc/update_crypto.c
 AM_CPPFLAGS += -DUPDATE_CHECK
 AM_CFLAGS += $(GCRYPT_CFLAGS)
-libvlccore_la_LIBADD += $(GCRYPT_LIBS)
+libheimdallcore_la_LIBADD += $(GCRYPT_LIBS)
 endif
 
-libvlccore_la_LDFLAGS = \
-	$(LDFLAGS_libvlccore) \
+libheimdallcore_la_LDFLAGS = \
+	$(LDFLAGS_libheimdallcore) \
 	-no-undefined \
-	-export-symbols $(srcdir)/libvlccore.sym \
+	-export-symbols $(srcdir)/libheimdallcore.sym \
 	-version-info 9:0:0
-libvlccore_la_SOURCES += libvlccore.sym
-EXTRA_libvlccore_la_DEPENDENCIES = libvlccore.sym
+libheimdallcore_la_SOURCES += libheimdallcore.sym
+EXTRA_libheimdallcore_la_DEPENDENCIES = libheimdallcore.sym
 
 if HAVE_WIN32
-EXTRA_libvlccore_la_DEPENDENCIES += libvlccore_win32_rc.$(OBJEXT)
-libvlccore_la_LDFLAGS += -Wl,libvlccore_win32_rc.$(OBJEXT) -avoid-version -Wc,-static
+EXTRA_libheimdallcore_la_DEPENDENCIES += libheimdallcore_win32_rc.$(OBJEXT)
+libheimdallcore_la_LDFLAGS += -Wl,libheimdallcore_win32_rc.$(OBJEXT) -avoid-version -Wc,-static
 endif
 if HAVE_OS2
-libvlccore_la_LDFLAGS += -avoid-version
+libheimdallcore_la_LDFLAGS += -avoid-version
 endif
 if HAVE_DBUS
-libvlccore_la_LIBADD += $(DBUS_LIBS)
+libheimdallcore_la_LIBADD += $(DBUS_LIBS)
 endif
 if HAVE_DARWIN
-libvlccore_objc_la_OBJCFLAGS = $(AM_OBJCFLAGS) -fobjc-arc
-libvlccore_objc_la_LDFLAGS = -static
-libvlccore_la_LIBADD += libvlccore_objc.la
-libvlccore_la_LDFLAGS +=  -Wl,-framework,Foundation -Xlinker -install_name -Xlinker @rpath/libvlccore.dylib
+libheimdallcore_objc_la_OBJCFLAGS = $(AM_OBJCFLAGS) -fobjc-arc
+libheimdallcore_objc_la_LDFLAGS = -static
+libheimdallcore_la_LIBADD += libheimdallcore_objc.la
+libheimdallcore_la_LDFLAGS +=  -Wl,-framework,Foundation -Xlinker -install_name -Xlinker @rpath/libheimdallcore.dylib
 endif
 
 # iOS and tvOS applications cannot install global shared libraries and
 # dylibs must be in frameworks so there's no need for libtool versioning.
 if HAVE_IOS
-libvlccore_la_LDFLAGS += -avoid-version
+libheimdallcore_la_LDFLAGS += -avoid-version
 endif
 if HAVE_TVOS
-libvlccore_la_LDFLAGS += -avoid-version
+libheimdallcore_la_LDFLAGS += -avoid-version
 endif
 if HAVE_ANDROID
-libvlccore_la_LDFLAGS += -avoid-version
+libheimdallcore_la_LDFLAGS += -avoid-version
 endif
 
-libvlccore_win32_rc.$(OBJEXT): libvlccore_win32_rc.rc $(top_srcdir)/extras/package/win32/libvlccore.dll.manifest
+libheimdallcore_win32_rc.$(OBJEXT): libheimdallcore_win32_rc.rc $(top_srcdir)/extras/package/win32/libheimdallcore.dll.manifest
 	$(WINDRES) --include-dir $(top_srcdir)/share --include-dir $(top_srcdir)/extras/package/win32 -i $< -o $@
 
 # FourCC tables
@@ -639,7 +639,7 @@ BUILT_SOURCES += fourcc_tables.h
 EXTRA_DIST += misc/fourcc_gen.c
 MOSTLYCLEANFILES = fourcc_gen$(BUILDEXEEXT)
 
-fourcc_gen$(BUILDEXEEXT): misc/fourcc_gen.c misc/fourcc_list.h ../include/vlc_fourcc.h
+fourcc_gen$(BUILDEXEEXT): misc/fourcc_gen.c misc/fourcc_list.h ../include/heimdall_fourcc.h
 	$(AM_V_at)rm -f -- $@
 	$(AM_V_CC)$(BUILDCC) -I$(srcdir) -o $@ $<
 
@@ -682,12 +682,12 @@ check_PROGRAMS = \
 TESTS = $(check_PROGRAMS) check_symbols
 
 test_block_SOURCES = test/block_test.c
-test_block_LDADD = $(LDADD) $(LIBS_libvlccore)
+test_block_LDADD = $(LDADD) $(LIBS_libheimdallcore)
 test_dictionary_SOURCES = test/dictionary.c
 test_executor_SOURCES = test/executor.c
 test_i18n_atof_SOURCES = test/i18n_atof.c
 test_interrupt_SOURCES = test/interrupt.c
-test_interrupt_LDADD = $(LDADD) $(LIBS_libvlccore)
+test_interrupt_LDADD = $(LDADD) $(LIBS_libheimdallcore)
 test_jaro_winkler_SOURCES = test/jaro_winkler.c config/jaro_winkler.c
 test_list_SOURCES = test/list.c
 test_md5_SOURCES = test/md5.c
@@ -720,7 +720,7 @@ test_playlist_SOURCES = playlist/test.c \
 test_playlist_CFLAGS = -DTEST_PLAYLIST
 test_randomizer_SOURCES = playlist/randomizer.c
 test_randomizer_CFLAGS = -DTEST_RANDOMIZER
-test_media_source_LDADD = $(LDADD) $(LIBS_libvlccore)
+test_media_source_LDADD = $(LDADD) $(LIBS_libheimdallcore)
 test_media_source_CFLAGS = -DTEST_MEDIA_SOURCE
 test_media_source_SOURCES = media_source/test.c \
 	media_source/media_source.c \
@@ -744,7 +744,7 @@ test_input_clock_SOURCES = clock/test/input_clock.c \
 	clock/clock.c clock/clock.h
 check_PROGRAMS += test_input_clock
 
-LDADD = libvlccore.la \
+LDADD = libheimdallcore.la \
 	../compat/libcompat.la
 
 ###############################################################################
@@ -756,7 +756,7 @@ MAINTAINERCLEANFILES = $(srcdir)/revision.txt $(srcdir)/revision.c
 
 $(srcdir)/revision.c: $(srcdir)/revision.txt
 	$(AM_V_at)rm -f -- $@
-	$(AM_V_GEN)echo "const char psz_vlc_changeset[] = \"$$(cat $<)\";" \
+	$(AM_V_GEN)echo "const char psz_heimdall_changeset[] = \"$$(cat $<)\";" \
 		> $@
 
 $(srcdir)/revision.txt:
@@ -804,7 +804,7 @@ checkheader_%.check:
 	$(checkheader_verbose) \
 	sourcefile="$@.$(CHECKHEADER_SOURCE_EXT)"; exec 3>$${sourcefile} && \
 	echo "#include <stdbool.h>" >&3 && \
-	echo "#include <vlc_common.h>" >&3 && \
+	echo "#include <heimdall_common.h>" >&3 && \
 	echo "#include <$*>" >&3 && \
 	$(CHECKCOMPILE) $(CHECK_CFLAGS) -c $${sourcefile} -o $@.lo
 $(checkheaders.h): CHECKHEADER_SOURCE_EXT=c
@@ -813,13 +813,13 @@ $(checkheaders.hpp): CHECKHEADER_SOURCE_EXT=cpp
 $(checkheaders.hpp): CHECKCOMPILE=$(LTCXXCOMPILE)
 
 # Some exceptions for headers depending on other libraries
-checkheader_vlc_gcrypt.h.check: CHECK_CFLAGS = "-Dgcry_check_version(x)="
-checkheader_vlc_xlib.h.check: CHECK_CFLAGS = $(X_CFLAGS)
-checkheader_vlc_list.hpp.check: CHECK_CFLAGS = "-Drestrict="
+checkheader_heimdall_gcrypt.h.check: CHECK_CFLAGS = "-Dgcry_check_version(x)="
+checkheader_heimdall_xlib.h.check: CHECK_CFLAGS = $(X_CFLAGS)
+checkheader_heimdall_list.hpp.check: CHECK_CFLAGS = "-Drestrict="
 
 SKIPPED_CHECKHEADERS =
 if !HAVE_X
-SKIPPED_CHECKHEADERS += vlc_xlib.h
+SKIPPED_CHECKHEADERS += heimdall_xlib.h
 endif
 
 $(SKIPPED_CHECKHEADERS:%=checkheader_%.check): checkheader_verbose_0 = $(skip_checkheader_verbose_0)

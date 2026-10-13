@@ -1,7 +1,8 @@
 /*****************************************************************************
- * helpers.h : Generic helper functions for the VLC deinterlacer
+ * helpers.h : Generic helper functions for the Heimdall deinterlacer
  *****************************************************************************
  * Copyright (C) 2011 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Juha Jeronen <juha.jeronen@jyu.fi>
  *
@@ -20,12 +21,12 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_DEINTERLACE_HELPERS_H
-#define VLC_DEINTERLACE_HELPERS_H 1
+#ifndef HEIMDALL_DEINTERLACE_HELPERS_H
+#define HEIMDALL_DEINTERLACE_HELPERS_H 1
 
 /**
  * \file
- * Generic helper functions for the VLC deinterlacer, used in
+ * Generic helper functions for the Heimdall deinterlacer, used in
  * some of the advanced algorithms.
  */
 

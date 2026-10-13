@@ -2,6 +2,7 @@
  * blend.h :
  *****************************************************************************
  * Copyright (C) 2002 - 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -17,8 +18,8 @@
  * along with this program; if not, write to the Free Software Foundation, Inc.,
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
-#ifndef VLC_FREETYPE_BLEND_H
-#define VLC_FREETYPE_BLEND_H
+#ifndef HEIMDALL_FREETYPE_BLEND_H
+#define HEIMDALL_FREETYPE_BLEND_H
 
 typedef void (*ft_glyph_blender)( picture_t *, int, int,
                                   int, int, int, int, FT_BitmapGlyph );
@@ -100,4 +101,4 @@ static void BlendAXYZLine( picture_t *p_picture,
                i_line_width, p_current->i_line_thickness );
 }
 
-#endif // VLC_FREETYPE_BLEND_H
+#endif // HEIMDALL_FREETYPE_BLEND_H

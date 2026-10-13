@@ -2,6 +2,7 @@
  * playlist.h:  Playlist import module common functions
  *****************************************************************************
  * Copyright (C) 2004 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Sigmund Augdal Helberg <dnumgis@videolan.org>
  *
@@ -20,48 +21,48 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#include <vlc_input.h>
+#include <heimdall_input.h>
 
 char *ProcessMRL( const char *, const char * );
 
 int PlaylistControl( stream_t *p_access, int i_query, va_list args );
 
-int Import_M3U ( vlc_object_t * );
+int Import_M3U ( heimdall_object_t * );
 
-int Import_RAM ( vlc_object_t * );
+int Import_RAM ( heimdall_object_t * );
 
-int Import_PLS ( vlc_object_t * );
+int Import_PLS ( heimdall_object_t * );
 
-int Import_B4S ( vlc_object_t * );
+int Import_B4S ( heimdall_object_t * );
 
-int Import_DVB ( vlc_object_t * );
+int Import_DVB ( heimdall_object_t * );
 
-int Import_podcast ( vlc_object_t * );
+int Import_podcast ( heimdall_object_t * );
 
-int Import_xspf ( vlc_object_t * );
-void Close_xspf ( vlc_object_t * );
+int Import_xspf ( heimdall_object_t * );
+void Close_xspf ( heimdall_object_t * );
 
-int Import_Shoutcast ( vlc_object_t * );
+int Import_Shoutcast ( heimdall_object_t * );
 
-int Import_ASX ( vlc_object_t * );
+int Import_ASX ( heimdall_object_t * );
 
-int Import_SGIMB ( vlc_object_t * );
-void Close_SGIMB ( vlc_object_t * );
+int Import_SGIMB ( heimdall_object_t * );
+void Close_SGIMB ( heimdall_object_t * );
 
-int Import_QTL ( vlc_object_t * );
+int Import_QTL ( heimdall_object_t * );
 
-int Import_IFO ( vlc_object_t * );
-void Close_IFO ( vlc_object_t * );
+int Import_IFO ( heimdall_object_t * );
+void Close_IFO ( heimdall_object_t * );
 
-int Import_BDMV ( vlc_object_t * );
-void Close_BDMV ( vlc_object_t * );
+int Import_BDMV ( heimdall_object_t * );
+void Close_BDMV ( heimdall_object_t * );
 
-int Import_iTML ( vlc_object_t * );
+int Import_iTML ( heimdall_object_t * );
 
-int Import_WMS(vlc_object_t *);
+int Import_WMS(heimdall_object_t *);
 
-int Import_WPL ( vlc_object_t * );
-void Close_WPL ( vlc_object_t * );
+int Import_WPL ( heimdall_object_t * );
+void Close_WPL ( heimdall_object_t * );
 
 #define GetCurrentItem(obj) ((obj)->p_input_item)
 #define GetSource(obj) ((obj)->s)

@@ -1,6 +1,7 @@
 --[[
 
  Copyright © 2010 VideoLAN and AUTHORS
+ Copyright (C) 2026 TheFenrisLycaon
 
  Authors: Julien 'Lta' BALLET <contact at lta dot io>
 
@@ -28,13 +29,13 @@ local roots  = nil
 function json_init()
     if json ~= nil then return false end
 
-    vlc.msg.dbg("JSON parser lazy initialization")
+    heimdall.msg.dbg("JSON parser lazy initialization")
     json = require ("dkjson")
 
-    -- Use vlc.stream to grab a remote json file, place it in a string,
+    -- Use heimdall.stream to grab a remote json file, place it in a string,
     -- decode it and return the decoded data.
     json["parse_url"] = function(url)
-        local stream = vlc.stream(url)
+        local stream = heimdall.stream(url)
         local string = ""
         local line   = ""
 
@@ -48,7 +49,7 @@ function json_init()
     end
 end
 
--- VLC SD mandatory method, return the name and capabilities of this SD.
+-- Heimdall SD mandatory method, return the name and capabilities of this SD.
 function descriptor()
     return { title = "iCast Stream Directory", capabilities = {"search"} }
 end
@@ -62,8 +63,8 @@ function roots_init()
     if roots ~= nil then return nil end
 
     roots = {
-        locals  = vlc.sd.add_node({title="Local Streams"}),
-        cats    = vlc.sd.add_node({title="Categories"}),
+        locals  = heimdall.sd.add_node({title="Local Streams"}),
+        cats    = heimdall.sd.add_node({title="Categories"}),
         search  = nil
     }
 end
@@ -102,7 +103,7 @@ end
 -- to the list of discovered medias.
 function stations_fetch(node, url)
     json_init()
-    vlc.msg.info("Fetching stations from API ("..url..")")
+    heimdall.msg.info("Fetching stations from API ("..url..")")
 
     local result = json.parse_url(config.api_base_url..url)
 
@@ -115,22 +116,22 @@ function stations_fetch(node, url)
     end
 end
 
--- VLC SD API - Search entry point
+-- Heimdall SD API - Search entry point
 function search(query)
-    if roots.search then vlc.sd.remove_node(roots.search) end
+    if roots.search then heimdall.sd.remove_node(roots.search) end
 
-    roots.search = vlc.sd.add_node({title="Search Results"})
+    roots.search = heimdall.sd.add_node({title="Search Results"})
 
     stations_fetch(roots.search, "/stations/search.json?q="..query.."*")
 end
 
--- VLC SD API - Main listing entry point
+-- Heimdall SD API - Main listing entry point
 function main()
     roots_init()
 
     stations_fetch(roots.locals, "/stations/local.json")
 
-    vlc.msg.dbg("Fetching list of genre from API (/genres.json)")
+    heimdall.msg.dbg("Fetching list of genre from API (/genres.json)")
     local result = json.parse_url(config.api_base_url.."/genres.json")
     for genre, sub_genres in pairs(result.genres) do
         local node = roots.cats:add_subnode({title=genre})

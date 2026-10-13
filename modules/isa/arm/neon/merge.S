@@ -35,7 +35,7 @@
 #define	SIZE	r3
 
 	.align 2
-	@ NOTE: Offset and pitch must be multiple of 16-bytes in VLC.
+	@ NOTE: Offset and pitch must be multiple of 16-bytes in Heimdall.
 function merge8_arm_neon
 	cmp		SIZE,	#64
 	blo		2f

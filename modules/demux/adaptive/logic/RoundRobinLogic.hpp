@@ -13,7 +13,7 @@ namespace adaptive
         class RoundRobinLogic : public AbstractAdaptationLogic
         {
             public:
-                RoundRobinLogic(vlc_object_t *);
+                RoundRobinLogic(heimdall_object_t *);
                 virtual ~RoundRobinLogic() = default;
 
                 BaseRepresentation* getNextRepresentation(BaseAdaptationSet *,

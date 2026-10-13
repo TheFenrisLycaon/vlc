@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,10 +20,10 @@ import QtQuick
 import QtQml.Models
 import QtQuick.Layouts
 
-import VLC.MainInterface
-import VLC.Util
-import VLC.Widgets as Widgets
-import VLC.Style
+import Heimdall.MainInterface
+import Heimdall.Util
+import Heimdall.Widgets as Widgets
+import Heimdall.Style
 
 ListViewExt {
     id: root
@@ -80,9 +81,9 @@ ListViewExt {
     property int leftPadding: 0
     property int rightPadding: 0
 
-    readonly property real _extraPadding: VLCStyle.dynamicAppMargins(width)
-    property real contentLeftPadding: _extraPadding + leftPadding + VLCStyle.layout_left_margin
-    property real contentRightPadding: _extraPadding + rightPadding + VLCStyle.layout_right_margin
+    readonly property real _extraPadding: HeimdallStyle.dynamicAppMargins(width)
+    property real contentLeftPadding: _extraPadding + leftPadding + HeimdallStyle.layout_left_margin
+    property real contentRightPadding: _extraPadding + rightPadding + HeimdallStyle.layout_right_margin
 
     // These are "extra" margins because `ListView`'s own `margins` is also considered for the header.
     property real defaultHeaderExtraLeftMargin: contentLeftPadding
@@ -93,7 +94,7 @@ ListViewExt {
     readonly property int contentLeftMargin: contentLeftPadding
     readonly property int contentRightMargin: contentRightPadding
 
-    property real baseColumnWidth: VLCStyle.column_width
+    property real baseColumnWidth: HeimdallStyle.column_width
 
     readonly property int _fixedColumnSize: {
        let size = 0
@@ -115,7 +116,7 @@ ListViewExt {
     readonly property int _availableSpaceForWeightedColumns: (_availableRowWidth - ( _totalSpacerSize + _fixedColumnSize))
     readonly property int _weightedColumnsSize: _availableSpaceForWeightedColumns / _totalColumnWeights
 
-    readonly property int _totalSpacerSize: VLCStyle.column_spacing * Math.max(0, (sortModel.length - 1))
+    readonly property int _totalSpacerSize: HeimdallStyle.column_spacing * Math.max(0, (sortModel.length - 1))
 
     property Component preferredHeader
     readonly property Item preferredHeaderItem: headerItem?.loadedHeader ?? null
@@ -131,7 +132,7 @@ ListViewExt {
     property color headerColor: (interactive && (headerPositioning !== ListView.InlineHeader)) ? colorContext.bg.primary : "transparent"
     property int headerTopPadding: 0
 
-    property real rowHeight: VLCStyle.tableRow_height
+    property real rowHeight: HeimdallStyle.tableRow_height
 
     property real _availableRowWidth: 0
 
@@ -145,7 +146,7 @@ ListViewExt {
 
     readonly property real _currentAvailableRowWidth: width - leftMargin - contentLeftPadding - rightMargin - contentRightPadding
                                                       // contextButton is implemented as fixed column
-                                                      - VLCStyle.contextButton_width - (VLCStyle.contextButton_margin * 2)
+                                                      - HeimdallStyle.contextButton_width - (HeimdallStyle.contextButton_margin * 2)
 
     property bool sortingFromHeader: true
     property bool useCurrentSectionLabel: true
@@ -245,10 +246,10 @@ ListViewExt {
 
             Widgets.ListLabel {
                 // NOTE: We want the section label to be slightly shifted to the left.
-                x: row.x - VLCStyle.margin_small
+                x: row.x - HeimdallStyle.margin_small
                 y: row.y + root.headerTopPadding
 
-                height: VLCStyle.tableHeaderText_height
+                height: HeimdallStyle.tableHeaderText_height
                 verticalAlignment: Text.AlignVCenter
 
                 text: root.currentSection
@@ -271,9 +272,9 @@ ListViewExt {
                 }
 
                 topPadding: root.headerTopPadding
-                bottomPadding: VLCStyle.margin_xsmall
+                bottomPadding: HeimdallStyle.margin_xsmall
 
-                spacing: VLCStyle.column_spacing
+                spacing: HeimdallStyle.column_spacing
 
                 // If there is a specific header, obey to its visibility otherwise hide the header if model is empty:
                 visible: headerLoader.item ? headerLoader.item.visible : (root.count > 0)
@@ -292,7 +293,7 @@ ListViewExt {
                             colModel: modelData.model
                         }
 
-                        height: VLCStyle.tableHeaderText_height
+                        height: HeimdallStyle.tableHeaderText_height
                         width: {
                             if (!!modelData.size)
                                 return modelData.size * root.baseColumnWidth
@@ -317,15 +318,15 @@ ListViewExt {
                         Text {
                             text: (root.model.sortOrder === Qt.AscendingOrder) ? "▼" : "▲"
                             visible: root.model.sortCriteria === modelData.model.criteria
-                            font.pixelSize: VLCStyle.fontSize_normal
+                            font.pixelSize: HeimdallStyle.fontSize_normal
                             color: root.colorContext.accent
 
                             anchors {
                                 top: parent.top
                                 bottom: parent.bottom
                                 right: parent.right
-                                leftMargin: VLCStyle.margin_xsmall
-                                rightMargin: VLCStyle.margin_xsmall
+                                leftMargin: HeimdallStyle.margin_xsmall
+                                rightMargin: HeimdallStyle.margin_xsmall
                             }
                         }
 
@@ -347,7 +348,7 @@ ListViewExt {
                 Item {
                     // placeholder for context button
 
-                    width: VLCStyle.icon_normal
+                    width: HeimdallStyle.icon_normal
 
                     height: 1
                 }
@@ -357,9 +358,9 @@ ListViewExt {
 
     section.delegate: Widgets.ListLabel {
         // NOTE: We want the section label to be slightly shifted to the left.
-        leftPadding: root.contentLeftPadding - VLCStyle.margin_small
+        leftPadding: root.contentLeftPadding - HeimdallStyle.margin_small
 
-        topPadding: VLCStyle.margin_xsmall
+        topPadding: HeimdallStyle.margin_xsmall
 
         text: section
         color: root.colorContext.accent

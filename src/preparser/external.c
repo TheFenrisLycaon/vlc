@@ -3,6 +3,7 @@
  * external.c: preparser with external process
  *****************************************************************************
  * Copyright © 2025 Videolabs, VideoLAN and VLC authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gabriel Lafond Thenaille <gabriel@videolabs.io>
  *****************************************************************************/
@@ -17,55 +18,55 @@
 
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_fs.h>
-#include <vlc_input_item.h>
-#include <vlc_preparser.h>
-#include <vlc_preparser_ipc.h>
-#include <vlc_spawn.h>
-#include <vlc_threads.h>
-#include <vlc_interrupt.h>
-#include <vlc_list.h>
-#include <vlc_memstream.h>
-#include <vlc_vector.h>
-#include <vlc_arrays.h>
-#include <vlc_executor.h>
-#include <vlc_tick.h>
-#include <vlc_process.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_fs.h>
+#include <heimdall_input_item.h>
+#include <heimdall_preparser.h>
+#include <heimdall_preparser_ipc.h>
+#include <heimdall_spawn.h>
+#include <heimdall_threads.h>
+#include <heimdall_interrupt.h>
+#include <heimdall_list.h>
+#include <heimdall_memstream.h>
+#include <heimdall_vector.h>
+#include <heimdall_arrays.h>
+#include <heimdall_executor.h>
+#include <heimdall_tick.h>
+#include <heimdall_process.h>
 
 #include "preparser.h"
 
-#define VLC_PREPARSER_PATH "vlc-preparser"
+#define HEIMDALL_PREPARSER_PATH "heimdall-preparser"
 
 /*****************************************************************************
  * Preparser serdes callbacks functions
  *****************************************************************************/
 
 struct preparser_serdes_cbs_ctx {
-    vlc_tick_t timeout;
-    vlc_tick_t start;
-    struct vlc_process *process;
+    heimdall_tick_t timeout;
+    heimdall_tick_t start;
+    struct heimdall_process *process;
 };
 
 static ssize_t
 write_cbs(const void *data, size_t size, void *userdata)
 {
     struct preparser_serdes_cbs_ctx *ctx = userdata;
-    assert(ctx->start != VLC_TICK_INVALID);
+    assert(ctx->start != HEIMDALL_TICK_INVALID);
     assert(ctx->process != NULL);
 
     int timeout_ms = -1;
-    if (ctx->timeout != VLC_TICK_INVALID) {
-        vlc_tick_t time_elapsed = (vlc_tick_now() - ctx->start);
+    if (ctx->timeout != HEIMDALL_TICK_INVALID) {
+        heimdall_tick_t time_elapsed = (heimdall_tick_now() - ctx->start);
         if (time_elapsed >= ctx->timeout) {
             errno = ETIMEDOUT;
             return -1;
         }
-        timeout_ms = MS_FROM_VLC_TICK(ctx->timeout - time_elapsed);
+        timeout_ms = MS_FROM_HEIMDALL_TICK(ctx->timeout - time_elapsed);
     }
 
-    int ret = vlc_process_fd_Write(ctx->process, data, size, timeout_ms);
+    int ret = heimdall_process_fd_Write(ctx->process, data, size, timeout_ms);
     return ret;
 }
 
@@ -73,20 +74,20 @@ static ssize_t
 read_cbs(void *data, size_t size, void *userdata)
 {
     struct preparser_serdes_cbs_ctx *ctx = userdata;
-    assert(ctx->start != VLC_TICK_INVALID);
+    assert(ctx->start != HEIMDALL_TICK_INVALID);
     assert(ctx->process != NULL);
 
     int timeout_ms = -1;
-    if (ctx->timeout != VLC_TICK_INVALID) {
-        vlc_tick_t time_elapsed = (vlc_tick_now() - ctx->start);
+    if (ctx->timeout != HEIMDALL_TICK_INVALID) {
+        heimdall_tick_t time_elapsed = (heimdall_tick_now() - ctx->start);
         if (time_elapsed >= ctx->timeout) {
             errno = ETIMEDOUT;
             return -1;
         }
-        timeout_ms = MS_FROM_VLC_TICK(ctx->timeout - time_elapsed);
+        timeout_ms = MS_FROM_HEIMDALL_TICK(ctx->timeout - time_elapsed);
     }
 
-    int ret = vlc_process_fd_Read(ctx->process, data, size, timeout_ms);
+    int ret = heimdall_process_fd_Read(ctx->process, data, size, timeout_ms);
     return ret;
 }
 
@@ -95,7 +96,7 @@ read_cbs(void *data, size_t size, void *userdata)
  *****************************************************************************/
 
 struct preparser_sys {
-    vlc_object_t *parent;
+    heimdall_object_t *parent;
 
     /* shared data */
     atomic_size_t current_id; 
@@ -113,16 +114,16 @@ struct preparser_sys {
 
 struct preparser_process_thread {
     /* Node of the process_pool.thread list */
-    struct vlc_list node;
+    struct heimdall_list node;
 
     /* The system thread */
-    vlc_thread_t thread;
+    heimdall_thread_t thread;
 
     /* The process_pool owning the thread */
     struct preparser_process_pool *owner;
 
     /* The current process running */
-    struct vlc_process *process;
+    struct heimdall_process *process;
     bool process_running;
 
     /* Status of the current thread */
@@ -132,7 +133,7 @@ struct preparser_process_thread {
     struct preparser_task *task;
 
     /* The thread serializer */
-    struct vlc_preparser_msg_serdes *serdes;
+    struct heimdall_preparser_msg_serdes *serdes;
 };
 
 /*****************************************************************************
@@ -142,27 +143,27 @@ struct preparser_process_thread {
 
 union preparser_task_cbs
 {
-    const struct vlc_preparser_cbs *parser;
-    const struct vlc_thumbnailer_cbs *thumbnailer;
-    const struct vlc_thumbnailer_to_files_cbs *thumbnailer_to_files;
+    const struct heimdall_preparser_cbs *parser;
+    const struct heimdall_thumbnailer_cbs *thumbnailer;
+    const struct heimdall_thumbnailer_to_files_cbs *thumbnailer_to_files;
 };
 
 struct preparser_task {
     /** Request message */
-    struct vlc_preparser_msg req_msg;
+    struct heimdall_preparser_msg req_msg;
 
     /** Response message */
-    struct vlc_preparser_msg res_msg;
+    struct heimdall_preparser_msg res_msg;
 
     /** The preparser request */
-    struct vlc_preparser_req req;
-    vlc_atomic_rc_t rc;
+    struct heimdall_preparser_req req;
+    heimdall_atomic_rc_t rc;
 
     /** Input item used for the request */
     input_item_t *item;
 
     /* Thread interrupt */
-    vlc_interrupt_t *interrupt;
+    heimdall_interrupt_t *interrupt;
 
     /** Preparser callbacks */
     union preparser_task_cbs cbs;
@@ -170,11 +171,11 @@ struct preparser_task {
 
     struct preparser_sys *owner;
 
-    struct vlc_list node; /**< node of vlc_preparser_t.submitted_tasks */
+    struct heimdall_list node; /**< node of heimdall_preparser_t.submitted_tasks */
 };
 
 static struct preparser_task *
-preparser_task_get_req_owner(struct vlc_preparser_req *req)
+preparser_task_get_req_owner(struct heimdall_preparser_req *req)
 {
     return container_of(req, struct preparser_task, req);
 }
@@ -187,10 +188,10 @@ preparser_task_ExecCallback(struct preparser_task *task, int status)
 {
     assert(task != NULL);
     assert(task->item != NULL);
-    assert(task->req_msg.type == VLC_PREPARSER_MSG_TYPE_REQ);
-    struct vlc_preparser_msg *res_msg = &task->res_msg;
+    assert(task->req_msg.type == HEIMDALL_PREPARSER_MSG_TYPE_REQ);
+    struct heimdall_preparser_msg *res_msg = &task->res_msg;
     if (status != 0) {
-        vlc_preparser_msg_Init(res_msg, VLC_PREPARSER_MSG_TYPE_RES,
+        heimdall_preparser_msg_Init(res_msg, HEIMDALL_PREPARSER_MSG_TYPE_RES,
                                task->req_msg.req_type);
         res_msg->res.item = input_item_Hold(task->item);
         res_msg->res.status = status;
@@ -200,7 +201,7 @@ preparser_task_ExecCallback(struct preparser_task *task, int status)
     }
 
     switch (task->req_msg.req_type) {
-        case VLC_PREPARSER_MSG_REQ_TYPE_PARSE:
+        case HEIMDALL_PREPARSER_MSG_REQ_TYPE_PARSE:
             assert(task->cbs.parser != NULL);
             if (task->cbs.parser->on_subtree_added != NULL
                     && res_msg->res.subtree != NULL) {
@@ -220,14 +221,14 @@ preparser_task_ExecCallback(struct preparser_task *task, int status)
             task->cbs.parser->on_ended(&task->req, res_msg->res.status,
                                        task->cbs_userdata);
             break;
-        case VLC_PREPARSER_MSG_REQ_TYPE_THUMBNAIL:
+        case HEIMDALL_PREPARSER_MSG_REQ_TYPE_THUMBNAIL:
             assert(task->cbs.thumbnailer->on_ended != NULL);
             task->cbs.thumbnailer->on_ended(&task->req,
                                             res_msg->res.status,
                                             res_msg->res.pic,
                                             task->cbs_userdata);
             break;
-        case VLC_PREPARSER_MSG_REQ_TYPE_THUMBNAIL_TO_FILES:
+        case HEIMDALL_PREPARSER_MSG_REQ_TYPE_THUMBNAIL_TO_FILES:
             assert(task->cbs.thumbnailer_to_files->on_ended != NULL);
             task->cbs.thumbnailer_to_files->on_ended(&task->req,
                                                 res_msg->res.status,
@@ -236,7 +237,7 @@ preparser_task_ExecCallback(struct preparser_task *task, int status)
                                                 task->cbs_userdata);
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 }
 
@@ -244,9 +245,9 @@ preparser_task_ExecCallback(struct preparser_task *task, int status)
  * Execute a task: Send a request and wait for a response then call callbacks.
  */
 static int
-preparser_task_Run(struct preparser_process_thread *thread, vlc_tick_t timeout)
+preparser_task_Run(struct preparser_process_thread *thread, heimdall_tick_t timeout)
 {
-    vlc_thread_set_name("vlc-task-run");
+    heimdall_thread_set_name("heimdall-task-run");
 
     assert(thread != NULL);
     assert(thread->process != NULL);
@@ -256,22 +257,22 @@ preparser_task_Run(struct preparser_process_thread *thread, vlc_tick_t timeout)
     assert(task->item != NULL);
 
     struct preparser_serdes_cbs_ctx serdes_ctx = {
-        .start = vlc_tick_now(),
+        .start = heimdall_tick_now(),
         .timeout = timeout,
         .process = thread->process,
     };
 
-    int status = VLC_SUCCESS;
-    int ret = vlc_preparser_msg_serdes_Serialize(thread->serdes,
+    int status = HEIMDALL_SUCCESS;
+    int ret = heimdall_preparser_msg_serdes_Serialize(thread->serdes,
                                                  &task->req_msg, &serdes_ctx);
-    if (ret != VLC_SUCCESS) {
+    if (ret != HEIMDALL_SUCCESS) {
         status = ret;
         goto end;
     }
 
-    ret = vlc_preparser_msg_serdes_Deserialize(thread->serdes, &task->res_msg,
+    ret = heimdall_preparser_msg_serdes_Deserialize(thread->serdes, &task->res_msg,
                                                &serdes_ctx);
-    if (ret != VLC_SUCCESS) {
+    if (ret != HEIMDALL_SUCCESS) {
         status = ret;
     }
 
@@ -280,17 +281,17 @@ end:
     return status;
 }
 
-static struct vlc_preparser_req *
-preparser_task_req_Hold(struct vlc_preparser_req *req)
+static struct heimdall_preparser_req *
+preparser_task_req_Hold(struct heimdall_preparser_req *req)
 {
     assert(req != NULL);
     struct preparser_task *task = preparser_task_get_req_owner(req);
-    vlc_atomic_rc_inc(&task->rc);
+    heimdall_atomic_rc_inc(&task->rc);
     return req;
 }
 
 static input_item_t *
-preparser_task_req_GetItem(struct vlc_preparser_req *req)
+preparser_task_req_GetItem(struct heimdall_preparser_req *req)
 {
     assert(req != NULL);
     struct preparser_task *task = preparser_task_get_req_owner(req);
@@ -298,19 +299,19 @@ preparser_task_req_GetItem(struct vlc_preparser_req *req)
 }
 
 static void
-preparser_task_req_Release(struct vlc_preparser_req *req)
+preparser_task_req_Release(struct heimdall_preparser_req *req)
 {
     assert(req != NULL);
     struct preparser_task *task = preparser_task_get_req_owner(req);
     assert(task->item != NULL);
 
-    if (!vlc_atomic_rc_dec(&task->rc)) {
+    if (!heimdall_atomic_rc_dec(&task->rc)) {
         return;
     }
 
-    vlc_interrupt_destroy(task->interrupt);
-    vlc_preparser_msg_Clean(&task->req_msg);
-    vlc_preparser_msg_Clean(&task->res_msg);
+    heimdall_interrupt_destroy(task->interrupt);
+    heimdall_preparser_msg_Clean(&task->req_msg);
+    heimdall_preparser_msg_Clean(&task->res_msg);
     input_item_Release(task->item);
 
     free(task);
@@ -321,27 +322,27 @@ preparser_task_req_Release(struct vlc_preparser_req *req)
  */
 static struct preparser_task*
 preparser_task_New(input_item_t *item,
-                   enum vlc_preparser_msg_req_type req_type)
+                   enum heimdall_preparser_msg_req_type req_type)
 {
     assert(item != NULL);
-    assert(req_type == VLC_PREPARSER_MSG_REQ_TYPE_PARSE ||
-           req_type == VLC_PREPARSER_MSG_REQ_TYPE_THUMBNAIL ||
-           req_type == VLC_PREPARSER_MSG_REQ_TYPE_THUMBNAIL_TO_FILES);
+    assert(req_type == HEIMDALL_PREPARSER_MSG_REQ_TYPE_PARSE ||
+           req_type == HEIMDALL_PREPARSER_MSG_REQ_TYPE_THUMBNAIL ||
+           req_type == HEIMDALL_PREPARSER_MSG_REQ_TYPE_THUMBNAIL_TO_FILES);
 
     struct preparser_task *task = malloc(sizeof(*task));
     if (task == NULL) {
         return NULL;
     }
-    vlc_preparser_msg_Init(&task->req_msg, VLC_PREPARSER_MSG_TYPE_REQ,
+    heimdall_preparser_msg_Init(&task->req_msg, HEIMDALL_PREPARSER_MSG_TYPE_REQ,
                            req_type);
 
-    vlc_preparser_msg_Init(&task->res_msg, VLC_PREPARSER_MSG_TYPE_RES,
+    heimdall_preparser_msg_Init(&task->res_msg, HEIMDALL_PREPARSER_MSG_TYPE_RES,
                            req_type);
 
-    task->interrupt = vlc_interrupt_create();
+    task->interrupt = heimdall_interrupt_create();
     if (task->interrupt == NULL) {
-        vlc_preparser_msg_Clean(&task->req_msg);
-        vlc_preparser_msg_Clean(&task->res_msg);
+        heimdall_preparser_msg_Clean(&task->req_msg);
+        heimdall_preparser_msg_Clean(&task->res_msg);
         free(task);
         return NULL;
     }
@@ -349,9 +350,9 @@ preparser_task_New(input_item_t *item,
     if (item->psz_uri != NULL) {
         task->req_msg.req.uri = strdup(item->psz_uri);
         if (task->req_msg.req.uri == NULL) {
-            vlc_interrupt_destroy(task->interrupt);
-            vlc_preparser_msg_Clean(&task->req_msg);
-            vlc_preparser_msg_Clean(&task->res_msg);
+            heimdall_interrupt_destroy(task->interrupt);
+            heimdall_preparser_msg_Clean(&task->req_msg);
+            heimdall_preparser_msg_Clean(&task->res_msg);
             free(task);
             return NULL;
         }
@@ -359,15 +360,15 @@ preparser_task_New(input_item_t *item,
 
     task->item = input_item_Hold(item);
     task->cbs_userdata = NULL;
-    vlc_list_init(&task->node);
+    heimdall_list_init(&task->node);
 
-    static const struct vlc_preparser_req_operations ops = {
+    static const struct heimdall_preparser_req_operations ops = {
         .get_item = preparser_task_req_GetItem,
         .release = preparser_task_req_Release,
     };
     task->req.ops = &ops;
     task->req.submitted = false;
-    vlc_atomic_rc_init(&task->rc);
+    heimdall_atomic_rc_init(&task->rc);
 
     return task;
 }
@@ -380,10 +381,10 @@ preparser_task_InitPush(struct preparser_task *task, int options,
                         const union preparser_task_cbs *cbs, void *userdata)
 {
     assert(task != NULL);
-    struct vlc_preparser_msg *msg = &task->req_msg;
+    struct heimdall_preparser_msg *msg = &task->req_msg;
     assert(msg != NULL);
-    assert(msg->type == VLC_PREPARSER_MSG_TYPE_REQ);
-    assert(msg->req_type == VLC_PREPARSER_MSG_REQ_TYPE_PARSE);
+    assert(msg->type == HEIMDALL_PREPARSER_MSG_TYPE_REQ);
+    assert(msg->req_type == HEIMDALL_PREPARSER_MSG_REQ_TYPE_PARSE);
     assert(cbs != NULL);
 
     msg->req.options = options;
@@ -397,19 +398,19 @@ preparser_task_InitPush(struct preparser_task *task, int options,
  */
 static void
 preparser_task_InitThumbnail(struct preparser_task *task,
-                             const struct vlc_thumbnailer_arg *arg,
+                             const struct heimdall_thumbnailer_arg *arg,
                              const union preparser_task_cbs *cbs,
                              void *userdata)
 {
     assert(task != NULL);
-    struct vlc_preparser_msg *msg = &task->req_msg;
+    struct heimdall_preparser_msg *msg = &task->req_msg;
     assert(msg != NULL);
-    assert(msg->type == VLC_PREPARSER_MSG_TYPE_REQ);
-    assert(msg->req_type == VLC_PREPARSER_MSG_REQ_TYPE_THUMBNAIL);
+    assert(msg->type == HEIMDALL_PREPARSER_MSG_TYPE_REQ);
+    assert(msg->req_type == HEIMDALL_PREPARSER_MSG_REQ_TYPE_THUMBNAIL);
     assert(cbs != NULL);
 
     if (arg == NULL) {
-        msg->req.arg.seek.type = VLC_THUMBNAILER_SEEK_NONE;
+        msg->req.arg.seek.type = HEIMDALL_THUMBNAILER_SEEK_NONE;
         msg->req.arg.hw_dec = false;
     } else {
         msg->req.arg = *arg;
@@ -424,28 +425,28 @@ preparser_task_InitThumbnail(struct preparser_task *task,
  */
 static void
 preparser_task_InitThumbnailToFile(struct preparser_task *task,
-                                const struct vlc_thumbnailer_arg *arg,
-                                const struct vlc_thumbnailer_output *outputs,
+                                const struct heimdall_thumbnailer_arg *arg,
+                                const struct heimdall_thumbnailer_output *outputs,
                                 size_t output_count,
                                 const union preparser_task_cbs *cbs,
                                 void *userdata)
 {
     assert(task != NULL);
-    struct vlc_preparser_msg *msg = &task->req_msg;
+    struct heimdall_preparser_msg *msg = &task->req_msg;
     assert(msg != NULL);
-    assert(msg->type == VLC_PREPARSER_MSG_TYPE_REQ);
-    assert(msg->req_type == VLC_PREPARSER_MSG_REQ_TYPE_THUMBNAIL_TO_FILES);
+    assert(msg->type == HEIMDALL_PREPARSER_MSG_TYPE_REQ);
+    assert(msg->req_type == HEIMDALL_PREPARSER_MSG_REQ_TYPE_THUMBNAIL_TO_FILES);
     assert(output_count == 0 || outputs != NULL);
     assert(cbs != NULL);
 
     if (arg == NULL) {
-        msg->req.arg.seek.type = VLC_THUMBNAILER_SEEK_NONE;
+        msg->req.arg.seek.type = HEIMDALL_THUMBNAILER_SEEK_NONE;
         msg->req.arg.hw_dec = false;
     } else {
         msg->req.arg = *arg;
     }
     if (output_count != 0) {
-        vlc_vector_push_all(&msg->req.outputs, outputs, output_count);
+        heimdall_vector_push_all(&msg->req.outputs, outputs, output_count);
     }
 
     task->cbs = *cbs;
@@ -457,13 +458,13 @@ preparser_task_InitThumbnailToFile(struct preparser_task *task,
  *****************************************************************************/
 
 struct preparser_process_pool {
-    vlc_mutex_t lock;
+    heimdall_mutex_t lock;
 
     /** Maximum number of threads to run the tasks */
     unsigned max_threads;
 
     /** List of active preparser_process_thread */
-    struct vlc_list threads;
+    struct heimdall_list threads;
 
     /** Number of running thread */
     size_t nthreads;
@@ -475,26 +476,26 @@ struct preparser_process_pool {
     size_t unfinished;
 
     /** List of running preparser_task */
-    struct vlc_list running;
+    struct heimdall_list running;
 
     /** Queue of preparser_task */
-    struct vlc_list queue;
+    struct heimdall_list queue;
 
     /** Wait for the queue to be non-empty */
-    vlc_cond_t queue_wait;
+    heimdall_cond_t queue_wait;
 
     /** True if pool deletion is requested */
     bool closing;
 
     /** Preparser process arguments */
-    vlc_tick_t timeout;
+    heimdall_tick_t timeout;
     int types;
 
     char **argv;
     int argc;
 
     /** Parent object */
-    vlc_object_t *parent;
+    heimdall_object_t *parent;
 };
 
 /**
@@ -505,11 +506,11 @@ preparser_pool_QueuePush(struct preparser_process_pool *pool,
                          struct preparser_task *task)
 {
     assert(pool != NULL);
-    vlc_mutex_assert(&pool->lock);
+    heimdall_mutex_assert(&pool->lock);
     assert(task != NULL);
 
-    vlc_list_append(&task->node, &pool->queue);
-    vlc_cond_signal(&pool->queue_wait);
+    heimdall_list_append(&task->node, &pool->queue);
+    heimdall_cond_signal(&pool->queue_wait);
 }
 
 /**
@@ -519,10 +520,10 @@ static struct preparser_task*
 preparser_pool_QueueTake(struct preparser_process_pool *pool)
 {
     assert(pool != NULL);
-    vlc_mutex_assert(&pool->lock);
+    heimdall_mutex_assert(&pool->lock);
 
-    while (!pool->closing && vlc_list_is_empty(&pool->queue)) {
-        vlc_cond_wait(&pool->queue_wait, &pool->lock);
+    while (!pool->closing && heimdall_list_is_empty(&pool->queue)) {
+        heimdall_cond_wait(&pool->queue_wait, &pool->lock);
     }
 
     if (pool->closing) {
@@ -530,10 +531,10 @@ preparser_pool_QueueTake(struct preparser_process_pool *pool)
     }
 
     struct preparser_task *task = NULL;
-    task = vlc_list_first_entry_or_null(&pool->queue, struct preparser_task,
+    task = heimdall_list_first_entry_or_null(&pool->queue, struct preparser_task,
                                         node);
     assert(task != NULL);
-    vlc_list_remove(&task->node);
+    heimdall_list_remove(&task->node);
 
     return task;
 }
@@ -542,17 +543,17 @@ static int
 preparser_pool_SpawnProcess(struct preparser_process_thread *thread)
 {
     assert(thread != NULL);
-    vlc_mutex_assert(&thread->owner->lock);
+    heimdall_mutex_assert(&thread->owner->lock);
     struct preparser_process_pool *pool = thread->owner;
 
     char *str_timeout = NULL;
     if (asprintf(&str_timeout, "%" PRId64, pool->timeout) < 0) {
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
     char *str_types = NULL;
     if (asprintf(&str_types, "%" PRId32, pool->types) < 0) {
         free(str_timeout);
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     const char *argv[] = {
@@ -567,17 +568,17 @@ preparser_pool_SpawnProcess(struct preparser_process_thread *thread)
 
     char *path = NULL;
 #ifdef _WIN32
-    const char *name = VLC_PREPARSER_PATH ".exe";
-    const char *static_name = VLC_PREPARSER_PATH "-static.exe";
+    const char *name = HEIMDALL_PREPARSER_PATH ".exe";
+    const char *static_name = HEIMDALL_PREPARSER_PATH "-static.exe";
 #else
-    const char *name = VLC_PREPARSER_PATH;
-    const char *static_name = VLC_PREPARSER_PATH "-static";
+    const char *name = HEIMDALL_PREPARSER_PATH;
+    const char *static_name = HEIMDALL_PREPARSER_PATH "-static";
 #endif
 
-    /* When running from build directory (vlc-static), VLC_LIB_PATH points to
+    /* When running from build directory (heimdall-static), HEIMDALL_LIB_PATH points to
      * TOP_BUILDDIR/modules, so we need to construct TOP_BUILDDIR/bin to
-     * start vlc-preparser-static */
-    const char *lib_path = getenv("VLC_LIB_PATH");
+     * start heimdall-preparser-static */
+    const char *lib_path = getenv("HEIMDALL_LIB_PATH");
     if (lib_path != NULL) {
         size_t len = strlen(lib_path);
         if (len > 8 && strcmp(lib_path + len - 8, "/modules") == 0) {
@@ -585,29 +586,29 @@ preparser_pool_SpawnProcess(struct preparser_process_thread *thread)
                          lib_path, static_name) < 0) {
                 free(str_timeout);
                 free(str_types);
-                return VLC_ENOMEM;
+                return HEIMDALL_ENOMEM;
             }
         }
     }
 
     /* If not in build directory, use the standard installed location */
     if (path == NULL) {
-        path = config_GetSysPath(VLC_PKG_LIBEXEC_DIR, name);
+        path = config_GetSysPath(HEIMDALL_PKG_LIBEXEC_DIR, name);
     }
 
     if (path == NULL) {
-        thread->process = vlc_process_Spawn(name, argc, argv);
+        thread->process = heimdall_process_Spawn(name, argc, argv);
     } else {
-        thread->process = vlc_process_Spawn(path, argc, argv);
+        thread->process = heimdall_process_Spawn(path, argc, argv);
     }
     free(path);
     free(str_timeout);
     free(str_types);
 
     if (thread->process == NULL) {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /**
@@ -623,26 +624,26 @@ preparser_pool_Run(void *data)
     assert(thread->owner != NULL);
     assert(thread->process != NULL);
 
-    vlc_thread_set_name("vlc-pool-runner");
+    heimdall_thread_set_name("heimdall-pool-runner");
 
 
-    vlc_mutex_lock(&thread->owner->lock);
+    heimdall_mutex_lock(&thread->owner->lock);
     struct preparser_task *task = NULL;
     while ((task = preparser_pool_QueueTake(thread->owner))) {
         thread->task = task;
-        vlc_list_append(&task->node, &thread->owner->running);
+        heimdall_list_append(&task->node, &thread->owner->running);
 
-        vlc_tick_t timeout = thread->owner->timeout;
-        vlc_interrupt_t *old = vlc_interrupt_set(task->interrupt);
+        heimdall_tick_t timeout = thread->owner->timeout;
+        heimdall_interrupt_t *old = heimdall_interrupt_set(task->interrupt);
 
-        vlc_mutex_unlock(&thread->owner->lock);
+        heimdall_mutex_unlock(&thread->owner->lock);
         int status = preparser_task_Run(thread, timeout);
-        vlc_mutex_lock(&thread->owner->lock);
+        heimdall_mutex_lock(&thread->owner->lock);
 
-        vlc_thread_set_name("vlc-pool-runner");
-        vlc_interrupt_set(old);
+        heimdall_thread_set_name("heimdall-pool-runner");
+        heimdall_interrupt_set(old);
 
-        vlc_list_remove(&task->node);
+        heimdall_list_remove(&task->node);
         preparser_task_req_Release(&task->req);
         thread->task = NULL;
 
@@ -653,7 +654,7 @@ preparser_pool_Run(void *data)
             break;
         }
 
-        if (status == VLC_SUCCESS) {
+        if (status == HEIMDALL_SUCCESS) {
             continue;
         }
 
@@ -662,9 +663,9 @@ preparser_pool_Run(void *data)
          * stopped and deleted. Since the thread is not supposed to exit on
          * its own, it repeatedly attempts to restart the process every second
          * until it succeeds or the pool is shutting down. */
-        vlc_process_Terminate(thread->process, true);
+        heimdall_process_Terminate(thread->process, true);
         thread->process_running = false;
-        if (preparser_pool_SpawnProcess(thread) != VLC_SUCCESS) {
+        if (preparser_pool_SpawnProcess(thread) != HEIMDALL_SUCCESS) {
             goto end;
         }
         thread->process_running = true;
@@ -673,7 +674,7 @@ end:
     thread->owner->nthreads--;
     thread->owner->nthreads_stopped++;
     thread->stopped = true;
-    vlc_mutex_unlock(&thread->owner->lock);
+    heimdall_mutex_unlock(&thread->owner->lock);
     return NULL;
 }
 
@@ -684,7 +685,7 @@ static int
 preparser_pool_SpawnThreadLocked(struct preparser_process_pool *pool)
 {
     assert(pool != NULL);
-    vlc_mutex_assert(&pool->lock);
+    heimdall_mutex_assert(&pool->lock);
     assert(pool->nthreads < pool->max_threads);
 
     struct preparser_process_thread *thread = malloc(sizeof(*thread));
@@ -696,35 +697,35 @@ preparser_pool_SpawnThreadLocked(struct preparser_process_pool *pool)
     thread->task = NULL;
     thread->stopped = false;
 
-    static struct vlc_preparser_msg_serdes_cbs cbs = {
+    static struct heimdall_preparser_msg_serdes_cbs cbs = {
         .write = write_cbs,
         .read = read_cbs,
     };
-    thread->serdes = vlc_preparser_msg_serdes_Create(pool->parent, &cbs, true);
+    thread->serdes = heimdall_preparser_msg_serdes_Create(pool->parent, &cbs, true);
     if (thread->serdes == NULL) {
         free(thread);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    if (preparser_pool_SpawnProcess(thread) != VLC_SUCCESS) {
+    if (preparser_pool_SpawnProcess(thread) != HEIMDALL_SUCCESS) {
         msg_Err(pool->parent, "Fail to create Process in process_pool");
-        vlc_preparser_msg_serdes_Delete(thread->serdes);
+        heimdall_preparser_msg_serdes_Delete(thread->serdes);
         free(thread);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     thread->process_running = true;
 
-    int ret = vlc_clone(&thread->thread, preparser_pool_Run, thread);
+    int ret = heimdall_clone(&thread->thread, preparser_pool_Run, thread);
     if (ret != 0) {
-        vlc_process_Terminate(thread->process, false);
-        vlc_preparser_msg_serdes_Delete(thread->serdes);
+        heimdall_process_Terminate(thread->process, false);
+        heimdall_preparser_msg_serdes_Delete(thread->serdes);
         free(thread);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     pool->nthreads++;
-    vlc_list_append(&thread->node, &pool->threads);
+    heimdall_list_append(&thread->node, &pool->threads);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int
@@ -732,9 +733,9 @@ preparser_pool_SpawnThread(struct preparser_process_pool *pool)
 {
     assert(pool != NULL);
 
-    vlc_mutex_lock(&pool->lock);
+    heimdall_mutex_lock(&pool->lock);
     int ret = preparser_pool_SpawnThreadLocked(pool);
-    vlc_mutex_unlock(&pool->lock);
+    heimdall_mutex_unlock(&pool->lock);
 
     return ret;
 }
@@ -747,39 +748,39 @@ preparser_pool_SpawnThread(struct preparser_process_pool *pool)
 static void
 preparser_pool_JoinStoppedThreadsLocked(struct preparser_process_pool *pool)
 {
-    vlc_mutex_assert(&pool->lock);
+    heimdall_mutex_assert(&pool->lock);
 
     assert(pool->nthreads_stopped == 0);
 
     /* Move all stopped threads to a local list while holding the lock */
-    struct vlc_list to_join;
-    vlc_list_init(&to_join);
+    struct heimdall_list to_join;
+    heimdall_list_init(&to_join);
 
     struct preparser_process_thread *t;
-    vlc_list_foreach(t, &pool->threads, node) {
+    heimdall_list_foreach(t, &pool->threads, node) {
         if (t->stopped) {
-            vlc_list_remove(&t->node);
-            vlc_list_append(&t->node, &to_join);
+            heimdall_list_remove(&t->node);
+            heimdall_list_append(&t->node, &to_join);
             pool->nthreads_stopped--;
         }
     }
 
-    vlc_mutex_unlock(&pool->lock);
-    vlc_list_foreach(t, &to_join, node) {
-        vlc_join(t->thread, NULL);
+    heimdall_mutex_unlock(&pool->lock);
+    heimdall_list_foreach(t, &to_join, node) {
+        heimdall_join(t->thread, NULL);
         if (t->process != NULL)
-            vlc_process_Terminate(t->process, false);
-        vlc_preparser_msg_serdes_Delete(t->serdes);
+            heimdall_process_Terminate(t->process, false);
+        heimdall_preparser_msg_serdes_Delete(t->serdes);
         free(t);
     }
-    vlc_mutex_lock(&pool->lock);
+    heimdall_mutex_lock(&pool->lock);
 }
 
 /**
  * Push a new task in the queue and check if a new process thread can be spawn.
  * If there is more unfinished task than spawned process thread and that the
  * max number of process thread is not reached, then a new thread is spwaned.
- * Return VLC_SUCCESS, or VLC_EGENERIC if no thread is available and a new one could
+ * Return HEIMDALL_SUCCESS, or HEIMDALL_EGENERIC if no thread is available and a new one could
  * not be spawned. On failure nothing takes ownership of the task, the caller
  * keeps its reference and no callback is fired.
  */
@@ -790,7 +791,7 @@ preparser_pool_Submit(struct preparser_process_pool *pool,
     assert(pool != NULL);
     assert(task != NULL);
 
-    vlc_mutex_lock(&pool->lock);
+    heimdall_mutex_lock(&pool->lock);
 
     assert(!pool->closing);
 
@@ -799,9 +800,9 @@ preparser_pool_Submit(struct preparser_process_pool *pool,
     }
 
     if (pool->nthreads == 0) {
-        if (preparser_pool_SpawnThreadLocked(pool) != VLC_SUCCESS) {
-            vlc_mutex_unlock(&pool->lock);
-            return VLC_EGENERIC;
+        if (preparser_pool_SpawnThreadLocked(pool) != HEIMDALL_SUCCESS) {
+            heimdall_mutex_unlock(&pool->lock);
+            return HEIMDALL_EGENERIC;
         }
     }
 
@@ -816,8 +817,8 @@ preparser_pool_Submit(struct preparser_process_pool *pool,
         /* If it fails, this is not an error, there is at least one thread */
         preparser_pool_SpawnThreadLocked(pool);
 
-    vlc_mutex_unlock(&pool->lock);
-    return VLC_SUCCESS;
+    heimdall_mutex_unlock(&pool->lock);
+    return HEIMDALL_SUCCESS;
 }
 
 /**
@@ -825,41 +826,41 @@ preparser_pool_Submit(struct preparser_process_pool *pool,
  */
 static size_t
 preparser_pool_Cancel(struct preparser_process_pool *pool,
-                      struct vlc_preparser_req *req)
+                      struct heimdall_preparser_req *req)
 {
     assert(pool != NULL);
 
-    vlc_mutex_lock(&pool->lock);
+    heimdall_mutex_lock(&pool->lock);
     size_t count = 0;
     struct preparser_task *task = NULL;
-    vlc_list_foreach(task, &pool->queue, node) {
+    heimdall_list_foreach(task, &pool->queue, node) {
         if (req == NULL || req == &task->req) {
             count++;
             --pool->unfinished;
-            vlc_list_remove(&task->node);
+            heimdall_list_remove(&task->node);
             preparser_task_ExecCallback(task, -EINTR);
             preparser_task_req_Release(&task->req);
 
             if (req != NULL) {
-                vlc_mutex_unlock(&pool->lock);
+                heimdall_mutex_unlock(&pool->lock);
                 return count;
             }
         }
     }
-    vlc_list_foreach(task, &pool->running, node) {
+    heimdall_list_foreach(task, &pool->running, node) {
         if (req == NULL || req == &task->req) {
             count++;
             if (task->interrupt != NULL) {
-                vlc_interrupt_raise(task->interrupt);
+                heimdall_interrupt_raise(task->interrupt);
             }
 
             if (req != NULL) {
-                vlc_mutex_unlock(&pool->lock);
+                heimdall_mutex_unlock(&pool->lock);
                 return count;
             }
         }
     }
-    vlc_mutex_unlock(&pool->lock);
+    heimdall_mutex_unlock(&pool->lock);
     return count;
 }
 
@@ -871,38 +872,38 @@ preparser_pool_Delete(struct preparser_process_pool *pool)
 {
     assert(pool != NULL);
 
-    vlc_mutex_lock(&pool->lock);
+    heimdall_mutex_lock(&pool->lock);
 
     /* All the tasks must be canceled on delete */
-    assert(vlc_list_is_empty(&pool->queue));
+    assert(heimdall_list_is_empty(&pool->queue));
 
     pool->closing = true;
     /* "closing" is now true, this will wake up threads */
-    vlc_cond_broadcast(&pool->queue_wait);
+    heimdall_cond_broadcast(&pool->queue_wait);
 
     struct preparser_process_thread *thread = NULL;
-    vlc_list_foreach(thread, &pool->threads, node) {
+    heimdall_list_foreach(thread, &pool->threads, node) {
         if (thread->process != NULL) {
-            vlc_process_Kill(thread->process);
+            heimdall_process_Kill(thread->process);
         }
     }
 
-    vlc_mutex_unlock(&pool->lock);
+    heimdall_mutex_unlock(&pool->lock);
 
     /* The threads list may not be written at this point, so it is safe to read
      * it without mutex locked (the mutex must be released to join the
      * threads). */
-    vlc_list_foreach(thread, &pool->threads, node) {
-        vlc_join(thread->thread, NULL);
+    heimdall_list_foreach(thread, &pool->threads, node) {
+        heimdall_join(thread->thread, NULL);
         if (thread->process != NULL) {
-            vlc_process_Terminate(thread->process, false);
+            heimdall_process_Terminate(thread->process, false);
         }
-        vlc_preparser_msg_serdes_Delete(thread->serdes);
+        heimdall_preparser_msg_serdes_Delete(thread->serdes);
         free(thread);
     }
 
     /* The queue must still be empty (no runnable submitted a new runnable) */
-    assert(vlc_list_is_empty(&pool->queue));
+    assert(heimdall_list_is_empty(&pool->queue));
 
     /* There are no tasks anymore */
     assert(!pool->unfinished);
@@ -914,7 +915,7 @@ preparser_pool_Delete(struct preparser_process_pool *pool)
  * Create a new process pool with `max` maximum process.
  */
 static struct preparser_process_pool*
-preparser_pool_New(vlc_object_t *obj, size_t max, vlc_tick_t timeout,
+preparser_pool_New(heimdall_object_t *obj, size_t max, heimdall_tick_t timeout,
                    int types)
 {
     assert(obj != NULL);
@@ -925,7 +926,7 @@ preparser_pool_New(vlc_object_t *obj, size_t max, vlc_tick_t timeout,
         return NULL;
     }
 
-    vlc_mutex_init(&pool->lock);
+    heimdall_mutex_init(&pool->lock);
 
     pool->max_threads = max;
     pool->nthreads = 0;
@@ -934,18 +935,18 @@ preparser_pool_New(vlc_object_t *obj, size_t max, vlc_tick_t timeout,
     pool->timeout = timeout;
     pool->types = types;
 
-    vlc_list_init(&pool->threads);
-    vlc_list_init(&pool->queue);
-    vlc_list_init(&pool->running);
+    heimdall_list_init(&pool->threads);
+    heimdall_list_init(&pool->queue);
+    heimdall_list_init(&pool->running);
 
-    vlc_cond_init(&pool->queue_wait);
+    heimdall_cond_init(&pool->queue_wait);
 
     pool->closing = false;
     pool->parent = obj;
 
     /* Spawn one thread so sumbit will never fail */
     int ret = preparser_pool_SpawnThread(pool);
-    if (ret != VLC_SUCCESS) {
+    if (ret != HEIMDALL_SUCCESS) {
         free(pool);
         return NULL;
     }
@@ -961,11 +962,11 @@ preparser_pool_New(vlc_object_t *obj, size_t max, vlc_tick_t timeout,
 
 /**
  * Preparser request creation for a parse request.
- * (see `vlc_preparser_req_NewParse`)
+ * (see `heimdall_preparser_req_NewParse`)
  */
-static struct vlc_preparser_req *
+static struct heimdall_preparser_req *
 preparser_req_NewParse(void *opaque, input_item_t *item, int options,
-                       const struct vlc_preparser_cbs *cbs, void *cbs_userdata)
+                       const struct heimdall_preparser_cbs *cbs, void *cbs_userdata)
 {
     struct preparser_sys *sys = opaque;
 
@@ -979,7 +980,7 @@ preparser_req_NewParse(void *opaque, input_item_t *item, int options,
     };
 
     struct preparser_task *task = NULL;
-    task = preparser_task_New(item, VLC_PREPARSER_MSG_REQ_TYPE_PARSE);
+    task = preparser_task_New(item, HEIMDALL_PREPARSER_MSG_REQ_TYPE_PARSE);
     if (task == NULL) {
         return NULL;
     }
@@ -990,12 +991,12 @@ preparser_req_NewParse(void *opaque, input_item_t *item, int options,
 
 /**
  * Preparser request creation for a thumbnail request.
- * (see `vlc_preparser_req_NewThumbnail`)
+ * (see `heimdall_preparser_req_NewThumbnail`)
  */
-static struct vlc_preparser_req *
+static struct heimdall_preparser_req *
 preparser_req_NewThumbnail(void *opaque, input_item_t *item,
-                           const struct vlc_thumbnailer_arg *thumb_arg,
-                           const struct vlc_thumbnailer_cbs *cbs,
+                           const struct heimdall_thumbnailer_arg *thumb_arg,
+                           const struct heimdall_thumbnailer_cbs *cbs,
                            void *cbs_userdata)
 {
     struct preparser_sys *sys = opaque;
@@ -1010,7 +1011,7 @@ preparser_req_NewThumbnail(void *opaque, input_item_t *item,
     };
 
     struct preparser_task *task = NULL;
-    task = preparser_task_New(item, VLC_PREPARSER_MSG_REQ_TYPE_THUMBNAIL);
+    task = preparser_task_New(item, HEIMDALL_PREPARSER_MSG_REQ_TYPE_THUMBNAIL);
     if (task == NULL) {
         return NULL;
     }
@@ -1021,14 +1022,14 @@ preparser_req_NewThumbnail(void *opaque, input_item_t *item,
 
 /**
  * Preparser request creation for a thumbnail-to-files request.
- * (see `vlc_preparser_req_NewThumbnailToFiles`)
+ * (see `heimdall_preparser_req_NewThumbnailToFiles`)
  */
-static struct vlc_preparser_req *
+static struct heimdall_preparser_req *
 preparser_req_NewThumbnailToFiles(void *opaque, input_item_t *item,
-                                  const struct vlc_thumbnailer_arg *thumb_arg,
-                                  const struct vlc_thumbnailer_output *outputs,
+                                  const struct heimdall_thumbnailer_arg *thumb_arg,
+                                  const struct heimdall_thumbnailer_output *outputs,
                                   size_t output_count,
-                                  const struct vlc_thumbnailer_to_files_cbs *cbs,
+                                  const struct heimdall_thumbnailer_to_files_cbs *cbs,
                                   void *cbs_userdata)
 {
     struct preparser_sys *sys = opaque;
@@ -1044,7 +1045,7 @@ preparser_req_NewThumbnailToFiles(void *opaque, input_item_t *item,
 
     struct preparser_task *task = NULL;
     task = preparser_task_New(item,
-                              VLC_PREPARSER_MSG_REQ_TYPE_THUMBNAIL_TO_FILES);
+                              HEIMDALL_PREPARSER_MSG_REQ_TYPE_THUMBNAIL_TO_FILES);
     if (task == NULL) {
         return NULL;
     }
@@ -1056,10 +1057,10 @@ preparser_req_NewThumbnailToFiles(void *opaque, input_item_t *item,
 
 /**
  * Preparser submit operation.
- * (see `vlc_preparser_Submit`)
+ * (see `heimdall_preparser_Submit`)
  */
 static int
-preparser_Submit(void *opaque, struct vlc_preparser_req *req)
+preparser_Submit(void *opaque, struct heimdall_preparser_req *req)
 {
     struct preparser_sys *sys = opaque;
     assert(sys != NULL);
@@ -1067,15 +1068,15 @@ preparser_Submit(void *opaque, struct vlc_preparser_req *req)
 
     struct preparser_process_pool *pool = NULL;
     switch (task->req_msg.req_type) {
-        case VLC_PREPARSER_MSG_REQ_TYPE_PARSE:
+        case HEIMDALL_PREPARSER_MSG_REQ_TYPE_PARSE:
             pool = sys->pool_preparser;
             break;
-        case VLC_PREPARSER_MSG_REQ_TYPE_THUMBNAIL:
-        case VLC_PREPARSER_MSG_REQ_TYPE_THUMBNAIL_TO_FILES:
+        case HEIMDALL_PREPARSER_MSG_REQ_TYPE_THUMBNAIL:
+        case HEIMDALL_PREPARSER_MSG_REQ_TYPE_THUMBNAIL_TO_FILES:
             pool = sys->pool_thumbnailer;
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
     assert(pool != NULL);
 
@@ -1084,9 +1085,9 @@ preparser_Submit(void *opaque, struct vlc_preparser_req *req)
 
 /**
  * Preparser Cancel operation.
- * (see `vlc_preparser_Cancel`)
+ * (see `heimdall_preparser_Cancel`)
  */
-static size_t preparser_Cancel(void *opaque, struct vlc_preparser_req *req)
+static size_t preparser_Cancel(void *opaque, struct heimdall_preparser_req *req)
 {
     struct preparser_sys *sys = opaque;
     assert(sys != NULL);
@@ -1105,7 +1106,7 @@ static size_t preparser_Cancel(void *opaque, struct vlc_preparser_req *req)
 
 /**
  * Preparser Delete operation.
- * (see `vlc_preparser_Delete`)
+ * (see `heimdall_preparser_Delete`)
  */
 static void preparser_Delete(void *opaque)
 {
@@ -1133,10 +1134,10 @@ static void preparser_Delete(void *opaque)
 
 /**
  * Create a new preparser with an external process.
- * (see `vlc_preparser_New`)
+ * (see `heimdall_preparser_New`)
  */
-void *vlc_preparser_external_New(vlc_preparser_t *owner, vlc_object_t *parent,
-                                 const struct vlc_preparser_cfg *cfg)
+void *heimdall_preparser_external_New(heimdall_preparser_t *owner, heimdall_object_t *parent,
+                                 const struct heimdall_preparser_cfg *cfg)
 {
     assert(owner != NULL);
     assert(parent != NULL);
@@ -1151,7 +1152,7 @@ void *vlc_preparser_external_New(vlc_preparser_t *owner, vlc_object_t *parent,
     sys->pool_preparser = NULL;
     sys->pool_thumbnailer = NULL;
 
-    if (cfg->types & VLC_PREPARSER_TYPE_PARSE) {
+    if (cfg->types & HEIMDALL_PREPARSER_TYPE_PARSE) {
         size_t nprocess = cfg->max_parser_threads;
         if (nprocess == 0) {
             nprocess = 1;
@@ -1164,8 +1165,8 @@ void *vlc_preparser_external_New(vlc_preparser_t *owner, vlc_object_t *parent,
         }
     }
 
-    if (cfg->types & (VLC_PREPARSER_TYPE_THUMBNAIL|
-                      VLC_PREPARSER_TYPE_THUMBNAIL_TO_FILES)) {
+    if (cfg->types & (HEIMDALL_PREPARSER_TYPE_THUMBNAIL|
+                      HEIMDALL_PREPARSER_TYPE_THUMBNAIL_TO_FILES)) {
         size_t nprocess = cfg->max_thumbnailer_threads;
         if (nprocess == 0) {
             nprocess = 1;
@@ -1178,7 +1179,7 @@ void *vlc_preparser_external_New(vlc_preparser_t *owner, vlc_object_t *parent,
         }
     }
 
-    static const struct vlc_preparser_operations ops = {
+    static const struct heimdall_preparser_operations ops = {
         .req_new_parse = preparser_req_NewParse,
         .req_new_thumbnail = preparser_req_NewThumbnail,
         .req_new_thumbnail_to_files = preparser_req_NewThumbnailToFiles,

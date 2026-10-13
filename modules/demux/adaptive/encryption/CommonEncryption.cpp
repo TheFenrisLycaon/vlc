@@ -2,6 +2,7 @@
  * CommonEncryption.cpp
  *****************************************************************************
  * Copyright (C) 2015-2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -26,11 +27,11 @@
 #include "Keyring.hpp"
 #include "../SharedResources.hpp"
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
 #ifdef HAVE_GCRYPT
  #include <gcrypt.h>
- #include <vlc_gcrypt.h>
+ #include <heimdall_gcrypt.h>
 #endif
 
 using namespace adaptive::encryption;
@@ -70,7 +71,7 @@ bool CommonEncryptionSession::start(SharedResources *res, const CommonEncryption
     encryption = enc;
 #ifndef HAVE_GCRYPT
     /* We don't use the SharedResources */
-    VLC_UNUSED(res);
+    HEIMDALL_UNUSED(res);
 #else
     if(encryption.method == CommonEncryption::Method::AES_128)
     {
@@ -82,7 +83,7 @@ bool CommonEncryptionSession::start(SharedResources *res, const CommonEncryption
                 return false;
         }
 
-        vlc_gcrypt_init();
+        heimdall_gcrypt_init();
         gcry_cipher_hd_t handle;
         if( gcry_cipher_open(&handle, GCRY_CIPHER_AES, GCRY_CIPHER_MODE_CBC, 0) ||
                 gcry_cipher_setkey(handle, &key[0], 16) ||
@@ -111,8 +112,8 @@ void CommonEncryptionSession::close()
 size_t CommonEncryptionSession::decrypt(void *inputdata, size_t inputbytes, bool last)
 {
 #ifndef HAVE_GCRYPT
-    VLC_UNUSED(inputdata);
-    VLC_UNUSED(last);
+    HEIMDALL_UNUSED(inputdata);
+    HEIMDALL_UNUSED(last);
 #else
     gcry_cipher_hd_t handle = reinterpret_cast<gcry_cipher_hd_t>(ctx);
     if(encryption.method == CommonEncryption::Method::AES_128 && ctx)

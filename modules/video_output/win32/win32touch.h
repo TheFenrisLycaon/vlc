@@ -2,6 +2,7 @@
  * win32touch.c: touch gestures recognition
  *****************************************************************************
  * Copyright © 2013-2014 VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Ludovic Fauvet <etix@videolan.org>
  *          Jean-Baptiste Kempf <jb@videolan.org>
@@ -21,8 +22,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_GESTURE_H_
-#define VLC_GESTURE_H_
+#ifndef HEIMDALL_GESTURE_H_
+#define HEIMDALL_GESTURE_H_
 
 # include <windows.h>
 # include <winuser.h>
@@ -31,7 +32,7 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
 #ifndef WM_GESTURE
 # define WM_GESTURE 0x0119
@@ -45,7 +46,7 @@ struct win32_gesture_sys_t;
 
 struct win32_gesture_sys_t *InitGestures( HWND hwnd, bool b_isProjected );
 
-bool DecodeGesture( vlc_object_t *, struct win32_gesture_sys_t *, HGESTUREINFO );
+bool DecodeGesture( heimdall_object_t *, struct win32_gesture_sys_t *, HGESTUREINFO );
 
 void CloseGestures( struct win32_gesture_sys_t * );
 

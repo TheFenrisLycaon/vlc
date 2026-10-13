@@ -2,8 +2,9 @@
  * audiounit_ios.m: AudioUnit output plugin for iOS
  *****************************************************************************
  * Copyright (C) 2012 - 2017 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Felix Paul Kühne <fkuehne at videolan dot org>
+ * Authors: Felix Paul Kühne <fkuehne at lycaria dot org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -24,7 +25,7 @@
 
 #import "coreaudio_common.h"
 
-#import <vlc_plugin.h>
+#import <heimdall_plugin.h>
 
 #import <CoreAudio/CoreAudioTypes.h>
 #import <Foundation/Foundation.h>
@@ -76,8 +77,8 @@ typedef struct
     enum au_dev au_dev;
 
     /* For debug purpose, to print when specific latency changed */
-    vlc_tick_t output_latency_ticks;
-    vlc_tick_t io_buffer_duration_ticks;
+    heimdall_tick_t output_latency_ticks;
+    heimdall_tick_t io_buffer_duration_ticks;
 
     /* sw gain */
     float               soft_gain;
@@ -87,17 +88,17 @@ typedef struct
 /* Soft volume helper */
 #include "audio_output/volume.h"
 
-static vlc_tick_t
+static heimdall_tick_t
 GetLatency(audio_output_t *p_aout)
 {
     @autoreleasepool {
         aout_sys_t *p_sys = p_aout->sys;
 
         Float64 unit_s;
-        vlc_tick_t latency_us = 0, us;
+        heimdall_tick_t latency_us = 0, us;
         bool changed = false;
 
-        us = vlc_tick_from_sec([p_sys->avInstance outputLatency]);
+        us = heimdall_tick_from_sec([p_sys->avInstance outputLatency]);
         if (us != p_sys->output_latency_ticks)
         {
             msg_Dbg(p_aout, "Current device has a new outputLatency of %" PRId64 "us", us);
@@ -106,7 +107,7 @@ GetLatency(audio_output_t *p_aout)
         }
         latency_us += us;
 
-        us = vlc_tick_from_sec([p_sys->avInstance IOBufferDuration]);
+        us = heimdall_tick_from_sec([p_sys->avInstance IOBufferDuration]);
         if (us != p_sys->io_buffer_duration_ticks)
         {
             msg_Dbg(p_aout, "Current device has a new IOBufferDuration of %" PRId64 "us", us);
@@ -177,7 +178,7 @@ GetLatency(audio_output_t *p_aout)
 #pragma mark actual playback
 
 static void
-Pause (audio_output_t *p_aout, bool pause, vlc_tick_t date)
+Pause (audio_output_t *p_aout, bool pause, heimdall_tick_t date)
 {
     aout_sys_t * p_sys = p_aout->sys;
 
@@ -200,7 +201,7 @@ Pause (audio_output_t *p_aout, bool pause, vlc_tick_t date)
     }
     else
     {
-        if (avas_SetActive(p_aout, p_sys->avInstance, true, 0) == VLC_SUCCESS)
+        if (avas_SetActive(p_aout, p_sys->avInstance, true, 0) == HEIMDALL_SUCCESS)
         {
             err = AudioOutputUnitStart(p_sys->au_unit);
             if (err != noErr)
@@ -223,11 +224,11 @@ MuteSet(audio_output_t *p_aout, bool mute)
     ca_MuteSet(p_aout, mute);
     aout_MuteReport(p_aout, mute);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void
-Play(audio_output_t * p_aout, block_t * p_block, vlc_tick_t date)
+Play(audio_output_t * p_aout, block_t * p_block, heimdall_tick_t date)
 {
     ca_Play(p_aout, p_block, date);
 }
@@ -267,13 +268,13 @@ Start(audio_output_t *p_aout, audio_sample_format_t *restrict fmt)
     OSStatus status;
 
     if (aout_FormatNbChannels(fmt) == 0 || AOUT_FMT_HDMI(fmt))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* XXX: No more passthrough since iOS 11 */
     if (AOUT_FMT_SPDIF(fmt))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    aout_FormatPrint(p_aout, "VLC is looking for:", fmt);
+    aout_FormatPrint(p_aout, "Heimdall is looking for:", fmt);
 
     p_sys->au_unit = NULL;
     p_sys->output_latency_ticks = 0;
@@ -290,17 +291,17 @@ Start(audio_output_t *p_aout, audio_sample_format_t *restrict fmt)
                              object:nil];
 
     /* Activate the AVAudioSession */
-    if (avas_SetActive(p_aout, p_sys->avInstance, true, 0) != VLC_SUCCESS)
+    if (avas_SetActive(p_aout, p_sys->avInstance, true, 0) != HEIMDALL_SUCCESS)
     {
         [[NSNotificationCenter defaultCenter] removeObserver:p_sys->aoutWrapper];
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     avas_PrepareFormat(p_aout, p_sys->avInstance, fmt, false);
 
     enum port_type port_type;
     int ret = avas_GetPortType(p_aout, p_sys->avInstance, &port_type);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
         goto error;
 
     msg_Dbg(p_aout, "Output on %s, channel count: %ld",
@@ -323,7 +324,7 @@ Start(audio_output_t *p_aout, audio_sample_format_t *restrict fmt)
         ca_LogWarn("failed to set IO mode");
 
     ret = au_Initialize(p_aout, p_sys->au_unit, fmt, NULL, 0, GetLatency, NULL);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
         goto error;
 
     p_aout->play = Play;
@@ -343,7 +344,7 @@ Start(audio_output_t *p_aout, audio_sample_format_t *restrict fmt)
 
     msg_Dbg(p_aout, "analog AudioUnit output successfully opened for %4.4s %s",
             (const char *)&fmt->i_format, aout_FormatPrintChannels(fmt));
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     if (p_sys->au_unit != NULL)
@@ -352,7 +353,7 @@ error:
                    AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation);
     [[NSNotificationCenter defaultCenter] removeObserver:p_sys->aoutWrapper];
     msg_Err(p_aout, "opening AudioUnit output failed");
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 static int DeviceSelect(audio_output_t *p_aout, const char *psz_id)
@@ -379,11 +380,11 @@ static int DeviceSelect(audio_output_t *p_aout, const char *psz_id)
         msg_Dbg(p_aout, "selected audiounit device: %s", psz_id);
     }
     aout_DeviceReport(p_aout, psz_id);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void
-Close(vlc_object_t *obj)
+Close(heimdall_object_t *obj)
 {
     audio_output_t *aout = (audio_output_t *)obj;
     aout_sys_t *sys = aout->sys;
@@ -394,18 +395,18 @@ Close(vlc_object_t *obj)
 }
 
 static int
-Open(vlc_object_t *obj)
+Open(heimdall_object_t *obj)
 {
     audio_output_t *aout = (audio_output_t *)obj;
 
     aout_sys_t *sys = aout->sys = calloc(1, sizeof (*sys));
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    if (ca_Open(aout) != VLC_SUCCESS)
+    if (ca_Open(aout) != HEIMDALL_SUCCESS)
     {
         free(sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     sys->avInstance = [AVAudioSession sharedInstance];
@@ -415,7 +416,7 @@ Open(vlc_object_t *obj)
     if (sys->aoutWrapper == NULL)
     {
         free(sys);
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     sys->b_muted = false;
@@ -430,17 +431,17 @@ Open(vlc_object_t *obj)
     for (unsigned int i = 0; i< ARRAY_SIZE(au_devs); ++i)
         aout_HotplugReport(aout, au_devs[i].psz_id, au_devs[i].psz_name);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 #pragma mark -
 #pragma mark module descriptor
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname("audiounit_ios")
     set_description("AudioUnit output for iOS")
     set_capability("audio output", 99)
     set_subcategory(SUBCAT_AUDIO_AOUT)
     add_sw_gain()
     set_callbacks(Open, Close)
-vlc_module_end ()
+heimdall_module_end ()

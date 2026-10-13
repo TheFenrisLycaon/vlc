@@ -1,12 +1,12 @@
-#include <vlc_configuration.h>
-#include <vlc_picture_fifo.h>
-#include <vlc_filter.h>
-#include <vlc_codec.h>
+#include <heimdall_configuration.h>
+#include <heimdall_picture_fifo.h>
+#include <heimdall_filter.h>
+#include <heimdall_codec.h>
 #include "encoder/encoder.h"
 #include "pcr_helper.h"
 
 /*100ms is around the limit where people are noticing lipsync issues*/
-#define MASTER_SYNC_MAX_DRIFT VLC_TICK_FROM_MS(100)
+#define MASTER_SYNC_MAX_DRIFT HEIMDALL_TICK_FROM_MS(100)
 
 typedef struct
 {
@@ -59,7 +59,7 @@ typedef struct
     transcode_encoder_config_t senc_cfg;
 
     /* Shared between streams */
-    vlc_mutex_t     lock;
+    heimdall_mutex_t     lock;
     /* Sync */
     bool            b_master_sync;
     sout_stream_id_sys_t *id_master_sync;
@@ -67,7 +67,7 @@ typedef struct
     sout_stream_id_sys_t *id_video;
 
     bool pcr_forwarding_enabled;
-    vlc_pcr_sync_t *pcr_sync;
+    heimdall_pcr_sync_t *pcr_sync;
     bool first_pcr_sent;
     bool pcr_sync_has_input;
     unsigned int transcoded_stream_nb;
@@ -87,14 +87,14 @@ struct sout_stream_id_sys_t
                                           const es_format_t *current,
                                           const char *es_id );
 
-    vlc_fifo_t *output_fifo;
+    heimdall_fifo_t *output_fifo;
 
     /* Decoder */
     decoder_t       *p_decoder;
 
     struct
     {
-        vlc_mutex_t lock;
+        heimdall_mutex_t lock;
         union
         {
             struct {
@@ -112,13 +112,13 @@ struct sout_stream_id_sys_t
     {
         struct
         {
-            int (*pf_drift_validate)(void *cbdata, vlc_tick_t);
+            int (*pf_drift_validate)(void *cbdata, heimdall_tick_t);
         };
         struct
         {
             void (*pf_send_subpicture)(void *cbdata, subpicture_t *);
             int (*pf_get_output_dimensions)(void *cbdata, unsigned *, unsigned *);
-            vlc_tick_t (*pf_get_master_drift)(void *cbdata);
+            heimdall_tick_t (*pf_get_master_drift)(void *cbdata);
         };
     };
     void *callback_data;
@@ -130,10 +130,10 @@ struct sout_stream_id_sys_t
              filter_chain_t  *p_f_chain; /**< deinterlace & fps video filters */
              filter_chain_t  *p_uf_chain; /**< User-specified video filters */
              filter_chain_t  *p_final_conv_static; /**< converter to adapt filtered pics to the encoder */
-             vlc_blender_t   *p_spu_blender;
+             heimdall_blender_t   *p_spu_blender;
              spu_t           *p_spu;
-             vlc_decoder_device *dec_dev;
-             vlc_video_context *enc_vctx_in;
+             heimdall_decoder_device *dec_dev;
+             heimdall_video_context *enc_vctx_in;
          };
          struct
          {
@@ -153,7 +153,7 @@ struct sout_stream_id_sys_t
 
     /* Sync */
     date_t          next_input_pts; /**< Incoming calculated PTS */
-    vlc_tick_t      i_drift; /** how much buffer is ahead of calculated PTS */
+    heimdall_tick_t      i_drift; /** how much buffer is ahead of calculated PTS */
 
     const char *es_id;
 
@@ -182,7 +182,7 @@ static inline void dec_Delete( decoder_t *p_dec )
 
     decoder_Clean(p_dec);
     es_format_Clean( &p_owner->fmt_in );
-    vlc_object_delete(p_dec);
+    heimdall_object_delete(p_dec);
 }
 
 static inline void es_format_SetMeta( es_format_t *p_dst, const es_format_t *p_src )

@@ -2,6 +2,7 @@
  * messages.hpp : Information about a stream
  ****************************************************************************
  * Copyright (C) 2006-2007 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Jean-Baptiste Kempf <jb (at) videolan.org>
  *
@@ -20,10 +21,10 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef QVLC_MESSAGES_DIALOG_H_
-#define QVLC_MESSAGES_DIALOG_H_ 1
+#ifndef QHEIMDALL_MESSAGES_DIALOG_H_
+#define QHEIMDALL_MESSAGES_DIALOG_H_ 1
 
-#include "widgets/native/qvlcframe.hpp"
+#include "widgets/native/qheimdallframe.hpp"
 
 /* Auto-generated from .ui files */
 #include "ui_messages_panel.h"
@@ -34,7 +35,7 @@ class QTreeWidget;
 class QTreeWidgetItem;
 class MsgEvent;
 
-class MessagesDialog : public QVLCFrame
+class MessagesDialog : public QHeimdallFrame
 {
     Q_OBJECT
 
@@ -44,13 +45,13 @@ public:
 
 private:
     Ui::messagesPanelWidget ui;
-    static void sinkMessage( void *, vlc_log_t *, unsigned );
+    static void sinkMessage( void *, heimdall_log_t *, unsigned );
     void customEvent( QEvent * );
     void sinkMessage( const MsgEvent * );
     bool matchFilter( const QString& );
 
     std::atomic<int> verbosity;
-    static void MsgCallback( void *, int, const vlc_log_t *, const char *,
+    static void MsgCallback( void *, int, const heimdall_log_t *, const char *,
                              va_list );
 
 private slots:
@@ -64,7 +65,7 @@ private slots:
     void errorsCountChanged();
 
 private:
-    void buildTree( QTreeWidgetItem *, vlc_object_t * );
+    void buildTree( QTreeWidgetItem *, heimdall_object_t * );
 
     QToolButton *updateButton;
     QMutex messageLocker;

@@ -2,6 +2,7 @@
  * fourcc.c: fourcc helpers functions
  *****************************************************************************
  * Copyright © 2009-2011 Laurent Aimar
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@videolan.org>
  *          Jean-Baptiste Kempf <jb@videolan.org>
@@ -23,15 +24,15 @@
 
 static const staticentry_t p_list_video[] = {
 
-    B(VLC_CODEC_MP1V, "MPEG-1 Video"),
+    B(HEIMDALL_CODEC_MP1V, "MPEG-1 Video"),
         A("mp1v"),
         A("m1v "),
         A("mpg1"),
         A("BW10"),
         E("XMPG", "Xing MPEG-1 Intra"),
 
-    B(VLC_CODEC_MPGV, "MPEG-1/2 Video"),
-    B(VLC_CODEC_MP2V, "MPEG-2 Video"),
+    B(HEIMDALL_CODEC_MPGV, "MPEG-1/2 Video"),
+    B(HEIMDALL_CODEC_MP2V, "MPEG-2 Video"),
         A("mpeg"),
         A("mp2v"),
         A("MPEG"),
@@ -98,7 +99,7 @@ static const staticentry_t p_list_video[] = {
 
         E("VCR2", "ATI VCR-2"),
 
-    B(VLC_CODEC_MP4V, "MPEG-4 Video"),
+    B(HEIMDALL_CODEC_MP4V, "MPEG-4 Video"),
         A("mp4v"),
         A("DIVX"),
         A("divx"),
@@ -169,7 +170,7 @@ static const staticentry_t p_list_video[] = {
         //E("3iv1", "3ivx delta 3.5 MPEG-4 Video"),
 
     /* MSMPEG4 v1 */
-    B(VLC_CODEC_DIV1, "MS MPEG-4 Video v1"),
+    B(HEIMDALL_CODEC_DIV1, "MS MPEG-4 Video v1"),
         A("DIV1"),
         A("div1"),
         A("MPG4"),
@@ -177,14 +178,14 @@ static const staticentry_t p_list_video[] = {
         A("mp41"),
 
     /* MSMPEG4 v2 */
-    B(VLC_CODEC_DIV2, "MS MPEG-4 Video v2"),
+    B(HEIMDALL_CODEC_DIV2, "MS MPEG-4 Video v2"),
         A("DIV2"),
         A("div2"),
         A("MP42"),
         A("mp42"),
 
     /* MSMPEG4 v3 / M$ mpeg4 v3 */
-    B(VLC_CODEC_DIV3, "MS MPEG-4 Video v3"),
+    B(HEIMDALL_CODEC_DIV3, "MS MPEG-4 Video v3"),
         A("DIV3"),
         A("MPG3"),
         A("mpg3"),
@@ -217,21 +218,21 @@ static const staticentry_t p_list_video[] = {
         A("DVX3"),
 
     /* Sorenson v1 */
-    B(VLC_CODEC_SVQ1, "SVQ-1 (Sorenson Video v1)"),
+    B(HEIMDALL_CODEC_SVQ1, "SVQ-1 (Sorenson Video v1)"),
         A("SVQ1"),
         A("svq1"),
         A("svqi"),
 
     /* Sorenson v3 */
-    B(VLC_CODEC_SVQ3, "SVQ-3 (Sorenson Video v3)"),
+    B(HEIMDALL_CODEC_SVQ3, "SVQ-3 (Sorenson Video v3)"),
         A("SVQ3"),
 
     /* VVC / H.266 */
-    B(VLC_CODEC_VVC, "MPEG-I Part3/VVC (H.266)"),
+    B(HEIMDALL_CODEC_VVC, "MPEG-I Part3/VVC (H.266)"),
         A("vvc1"),
 
     /* HEVC / H.265 */
-    B(VLC_CODEC_HEVC, "MPEG-H Part2/HEVC (H.265)"),
+    B(HEIMDALL_CODEC_HEVC, "MPEG-H Part2/HEVC (H.265)"),
         A("hevc"),
         A("HEVC"),
         A("h265"),
@@ -246,7 +247,7 @@ static const staticentry_t p_list_video[] = {
         /* E("dvh1", "Dolby Vision HEVC (H.265)"), Collides with DV */
 
     /* h264 */
-    B(VLC_CODEC_H264, "H264 - MPEG-4 AVC (part 10)"),
+    B(HEIMDALL_CODEC_H264, "H264 - MPEG-4 AVC (part 10)"),
         A("H264"),
         A("h264"),
         A("x264"),
@@ -290,7 +291,7 @@ static const staticentry_t p_list_video[] = {
     /* H263(+) is also known as Real Video 1.0 */
 
     /* H263 */
-    B(VLC_CODEC_H263, "H263"),
+    B(HEIMDALL_CODEC_H263, "H263"),
         A("H263"),
         A("h263"),
         A("VX1K"),
@@ -309,12 +310,12 @@ static const staticentry_t p_list_video[] = {
         A("HAVI"),
 
     /* H263i */
-    B(VLC_CODEC_H263I, "I263.I"),
+    B(HEIMDALL_CODEC_H263I, "I263.I"),
         A("I263"),
         A("i263"),
 
     /* H263P */
-    B(VLC_CODEC_H263P, "ITU H263+"),
+    B(HEIMDALL_CODEC_H263P, "ITU H263+"),
         E("ILVR", "ITU H263+"),
         E("viv1", "H263+"),
         E("vivO", "H263+"),
@@ -323,21 +324,21 @@ static const staticentry_t p_list_video[] = {
         E("U263", "UB H263+"),
 
     /* Flash (H263) variant */
-    B(VLC_CODEC_FLV1, "Flash Video"),
+    B(HEIMDALL_CODEC_FLV1, "Flash Video"),
         A("FLV1"),
         A("flv "),
 
     /* H261 */
-    B(VLC_CODEC_H261, "H.261"),
+    B(HEIMDALL_CODEC_H261, "H.261"),
         A("H261"),
         A("h261"),
 
-    B(VLC_CODEC_FLIC, "Flic Video"),
+    B(HEIMDALL_CODEC_FLIC, "Flic Video"),
         A("FLIC"),
         A("AFLC"),
 
     /* MJPEG */
-    B(VLC_CODEC_MJPG, "Motion JPEG Video"),
+    B(HEIMDALL_CODEC_MJPG, "Motion JPEG Video"),
         A("MJPG"),
         A("MJPx"),
         A("mjpg"),
@@ -362,14 +363,14 @@ static const staticentry_t p_list_video[] = {
         E("ACDV", "ACD Systems Digital"),
         E("SLMJ", "SL M-JPEG"),
 
-    B(VLC_CODEC_MJPGB, "Motion JPEG B Video"),
+    B(HEIMDALL_CODEC_MJPGB, "Motion JPEG B Video"),
         A("mjpb"),
 
-    B(VLC_CODEC_LJPG, "Lead Motion JPEG Video"),
+    B(HEIMDALL_CODEC_LJPG, "Lead Motion JPEG Video"),
         E("Ljpg", "Lead Motion JPEG"),
 
     /* SP5x */
-    B(VLC_CODEC_SP5X, "Sunplus Motion JPEG Video"),
+    B(HEIMDALL_CODEC_SP5X, "Sunplus Motion JPEG Video"),
         A("SP5X"),
         A("SP53"),
         A("SP54"),
@@ -379,7 +380,7 @@ static const staticentry_t p_list_video[] = {
         A("SP58"),
 
     /* DV */
-    B(VLC_CODEC_DV, "DV Video"),
+    B(HEIMDALL_CODEC_DV, "DV Video"),
         A("dv  "),
         A("dvsl"),
         A("DVSD"),
@@ -425,41 +426,41 @@ static const staticentry_t p_list_video[] = {
         E("SLDV", "SoftLab DVCAM codec"),
 
     /* Windows Media Video */
-    B(VLC_CODEC_WMV1, "Windows Media Video 7"),
+    B(HEIMDALL_CODEC_WMV1, "Windows Media Video 7"),
         A("WMV1"),
         A("wmv1"),
 
-    B(VLC_CODEC_WMV2, "Windows Media Video 8"),
+    B(HEIMDALL_CODEC_WMV2, "Windows Media Video 8"),
         A("WMV2"),
         A("wmv2"),
         A("GXVE"),
 
-    B(VLC_CODEC_WMV3, "Windows Media Video 9"),
+    B(HEIMDALL_CODEC_WMV3, "Windows Media Video 9"),
         A("WMV3"),
         A("wmv3"),
 
     /* WMVA is the VC-1 codec before the standardization process,
      * it is not bitstream compatible and deprecated  */
-    B(VLC_CODEC_WMVA, "Windows Media Video Advanced Profile"),
+    B(HEIMDALL_CODEC_WMVA, "Windows Media Video Advanced Profile"),
         A("WMVA"),
         A("wmva"),
 
-    B(VLC_CODEC_VC1, "Windows Media Video VC1"),
+    B(HEIMDALL_CODEC_VC1, "Windows Media Video VC1"),
         A("WVC1"),
         A("wvc1"),
         A("vc-1"),
         A("VC-1"),
 
-    B(VLC_CODEC_WMVP, "Windows Media Video Presentation"),
+    B(HEIMDALL_CODEC_WMVP, "Windows Media Video Presentation"),
         A("WMVP"),
         A("wmvp"),
 
-    B(VLC_CODEC_WMVP2, "Windows Media Video Presentation, v2"),
+    B(HEIMDALL_CODEC_WMVP2, "Windows Media Video Presentation, v2"),
         A("WVP2"),
         A("wvp2"),
 
     /* Microsoft Video 1 */
-    B(VLC_CODEC_MSVIDEO1, "Microsoft Video 1"),
+    B(HEIMDALL_CODEC_MSVIDEO1, "Microsoft Video 1"),
         A("MSVC"),
         A("msvc"),
         A("CRAM"),
@@ -468,28 +469,28 @@ static const staticentry_t p_list_video[] = {
         A("wham"),
 
     /* Microsoft RLE */
-    B(VLC_CODEC_MSRLE, "Microsoft RLE Video"),
+    B(HEIMDALL_CODEC_MSRLE, "Microsoft RLE Video"),
         A("mrle"),
         A("WRLE"),
         A("\x01\x00\x00\x00"),
         A("\x02\x00\x00\x00"),
 
     /* Indeo Video Codecs (Quality of this decoder on ppc is not good) */
-    B(VLC_CODEC_INDEO3, "Indeo Video v3"),
+    B(HEIMDALL_CODEC_INDEO3, "Indeo Video v3"),
         A("IV31"),
         A("iv31"),
         A("IV32"),
         A("iv32"),
 
     /* Huff YUV */
-    B(VLC_CODEC_HUFFYUV, "Huff YUV Video"),
+    B(HEIMDALL_CODEC_HUFFYUV, "Huff YUV Video"),
         A("HFYU"),
 
-    B(VLC_CODEC_FFVHUFF, "Huff YUV Video"),
+    B(HEIMDALL_CODEC_FFVHUFF, "Huff YUV Video"),
         A("FFVH"),
 
     /* On2 VP3 Video Codecs */
-    B(VLC_CODEC_VP3, "On2's VP3 Video"),
+    B(HEIMDALL_CODEC_VP3, "On2's VP3 Video"),
         A("VP3 "),
         A("VP30"),
         A("vp30"),
@@ -497,237 +498,237 @@ static const staticentry_t p_list_video[] = {
         A("vp31"),
 
     /* On2 VP4 Video Codec */
-    B(VLC_CODEC_VP4, "On2's VP4 Video"),
+    B(HEIMDALL_CODEC_VP4, "On2's VP4 Video"),
         A("VP40"),
 
     /* On2  VP5, VP6 codecs */
-    B(VLC_CODEC_VP5, "On2's VP5 Video"),
+    B(HEIMDALL_CODEC_VP5, "On2's VP5 Video"),
         A("VP5 "),
         A("VP50"),
 
-    B(VLC_CODEC_VP6, "On2's VP6.2 Video"),
+    B(HEIMDALL_CODEC_VP6, "On2's VP6.2 Video"),
         A("VP62"),
         A("vp62"),
         E("VP60", "On2's VP6.0 Video"),
         E("VP61", "On2's VP6.1 Video"),
 
-    B(VLC_CODEC_VP6F, "On2's VP6.2 Video (Flash)"),
+    B(HEIMDALL_CODEC_VP6F, "On2's VP6.2 Video (Flash)"),
         A("VP6F"),
         A("FLV4"),
 
-    B(VLC_CODEC_VP6A, "On2's VP6 A Video"),
+    B(HEIMDALL_CODEC_VP6A, "On2's VP6 A Video"),
         A("VP6A"),
 
-    B(VLC_CODEC_VP7, "Google/On2's VP7 Video"),
+    B(HEIMDALL_CODEC_VP7, "Google/On2's VP7 Video"),
         A("VP70"),
         A("VP71"),
 
-    B(VLC_CODEC_VP8, "Google/On2's VP8 Video"),
+    B(HEIMDALL_CODEC_VP8, "Google/On2's VP8 Video"),
         A("VP80"),
 
-    B(VLC_CODEC_VP8ALPHA_ES, "Google/On2's VP8 Alpha"),
+    B(HEIMDALL_CODEC_VP8ALPHA_ES, "Google/On2's VP8 Alpha"),
         A("VP8a"),
 
-    B(VLC_CODEC_VP9, "Google/On2's VP9 Video"),
+    B(HEIMDALL_CODEC_VP9, "Google/On2's VP9 Video"),
         A("VP90"),
 
-    B(VLC_CODEC_VP9ALPHA_ES, "Google/On2's VP9 Alpha"),
+    B(HEIMDALL_CODEC_VP9ALPHA_ES, "Google/On2's VP9 Alpha"),
         A("VP9a"),
 
-    B(VLC_CODEC_AV1, "AOMedia's AV1 Video"),
+    B(HEIMDALL_CODEC_AV1, "AOMedia's AV1 Video"),
         A("av10"),
         A("AV01"),
 
     /* Xiph.org theora */
-    B(VLC_CODEC_THEORA, "Xiph.org's Theora Video"),
+    B(HEIMDALL_CODEC_THEORA, "Xiph.org's Theora Video"),
         A("theo"),
         A("THEO"),
         A("Thra"),
 
     /* Xiph.org tarkin */
-    B(VLC_CODEC_TARKIN, "Xiph.org's Tarkin Video"),
+    B(HEIMDALL_CODEC_TARKIN, "Xiph.org's Tarkin Video"),
         A("tark"),
 
     /* Asus Video (Another thing that doesn't work on PPC) */
-    B(VLC_CODEC_ASV1, "Asus V1 Video"),
+    B(HEIMDALL_CODEC_ASV1, "Asus V1 Video"),
         A("ASV1"),
-    B(VLC_CODEC_ASV2, "Asus V2 Video"),
+    B(HEIMDALL_CODEC_ASV2, "Asus V2 Video"),
         A("ASV2"),
 
     /* FF video codec 1 (lossless codec) */
-    B(VLC_CODEC_FFV1, "FF video codec 1"),
+    B(HEIMDALL_CODEC_FFV1, "FF video codec 1"),
         A("FFV1"),
 
     /* ATI VCR1 */
-    B(VLC_CODEC_VCR1, "ATI VCR1 Video"),
+    B(HEIMDALL_CODEC_VCR1, "ATI VCR1 Video"),
         A("VCR1"),
 
     /* Cirrus Logic AccuPak */
-    B(VLC_CODEC_CLJR, "Creative Logic AccuPak"),
+    B(HEIMDALL_CODEC_CLJR, "Creative Logic AccuPak"),
         A("CLJR"),
 
     /* Real Video */
-    B(VLC_CODEC_RV10, "RealVideo 1.0"),
+    B(HEIMDALL_CODEC_RV10, "RealVideo 1.0"),
         A("RV10"),
         A("rv10"),
 
-    B(VLC_CODEC_RV13, "RealVideo 1.3"),
+    B(HEIMDALL_CODEC_RV13, "RealVideo 1.3"),
         A("RV13"),
         A("rv13"),
 
-    B(VLC_CODEC_RV20, "RealVideo G2 (2.0)"),
+    B(HEIMDALL_CODEC_RV20, "RealVideo G2 (2.0)"),
         A("RV20"),
         A("rv20"),
 
-    B(VLC_CODEC_RV30, "RealVideo 8 (3.0)"),
+    B(HEIMDALL_CODEC_RV30, "RealVideo 8 (3.0)"),
         A("RV30"),
         A("rv30"),
 
-    B(VLC_CODEC_RV40, "RealVideo 9/10 (4.0)"),
+    B(HEIMDALL_CODEC_RV40, "RealVideo 9/10 (4.0)"),
         A("RV40"),
         A("rv40"),
 
     /* Apple Video */
-    B(VLC_CODEC_RPZA, "Apple Video"),
+    B(HEIMDALL_CODEC_RPZA, "Apple Video"),
         A("rpza"),
         A("azpr"),
         A("RPZA"),
         A("AZPR"),
 
-    B(VLC_CODEC_SMC, "Apple graphics"),
+    B(HEIMDALL_CODEC_SMC, "Apple graphics"),
         A("smc "),
 
-    B(VLC_CODEC_CINEPAK, "Cinepak Video"),
+    B(HEIMDALL_CODEC_CINEPAK, "Cinepak Video"),
         A("CVID"),
         A("cvid"),
 
     /* Screen Capture Video Codecs */
-    B(VLC_CODEC_TSCC, "TechSmith Camtasia Screen Capture"),
+    B(HEIMDALL_CODEC_TSCC, "TechSmith Camtasia Screen Capture"),
         A("TSCC"),
         A("tscc"),
 
-    B(VLC_CODEC_CSCD, "CamStudio Screen Codec"),
+    B(HEIMDALL_CODEC_CSCD, "CamStudio Screen Codec"),
         A("CSCD"),
         A("cscd"),
 
-    B(VLC_CODEC_ZMBV, "DosBox Capture Codec"),
+    B(HEIMDALL_CODEC_ZMBV, "DosBox Capture Codec"),
         A("ZMBV"),
 
-    B(VLC_CODEC_VMNC, "VMware Video"),
+    B(HEIMDALL_CODEC_VMNC, "VMware Video"),
         A("VMnc"),
 
-    B(VLC_CODEC_FMVC, "FM Screen Capture Codec"),
+    B(HEIMDALL_CODEC_FMVC, "FM Screen Capture Codec"),
         A("FMVC"),
 
-    B(VLC_CODEC_FRAPS, "FRAPS: Realtime Video Capture"),
+    B(HEIMDALL_CODEC_FRAPS, "FRAPS: Realtime Video Capture"),
         A("FPS1"),
         A("fps1"),
 
     /* Duck TrueMotion */
-    B(VLC_CODEC_TRUEMOTION1, "Duck TrueMotion v1 Video"),
+    B(HEIMDALL_CODEC_TRUEMOTION1, "Duck TrueMotion v1 Video"),
         A("DUCK"),
         A("PVEZ"),
-    B(VLC_CODEC_TRUEMOTION2, "Duck TrueMotion v2.0 Video"),
+    B(HEIMDALL_CODEC_TRUEMOTION2, "Duck TrueMotion v2.0 Video"),
         A("TM20"),
 
-    B(VLC_CODEC_QTRLE, "Apple QuickTime RLE Video"),
+    B(HEIMDALL_CODEC_QTRLE, "Apple QuickTime RLE Video"),
         A("rle "),
 
-    B(VLC_CODEC_QDRAW, "Apple QuickDraw Video"),
+    B(HEIMDALL_CODEC_QDRAW, "Apple QuickDraw Video"),
         A("qdrw"),
 
-    B(VLC_CODEC_QOI, "Quite OK Image Format"),
+    B(HEIMDALL_CODEC_QOI, "Quite OK Image Format"),
         A("qoif"),
 
-    B(VLC_CODEC_QPEG, "QPEG Video"),
+    B(HEIMDALL_CODEC_QPEG, "QPEG Video"),
         A("QPEG"),
         A("Q1.0"),
         A("Q1.1"),
 
-    B(VLC_CODEC_ULTI, "IBM Ultimotion Video"),
+    B(HEIMDALL_CODEC_ULTI, "IBM Ultimotion Video"),
         A("ULTI"),
 
-    B(VLC_CODEC_VIXL, "Miro/Pinnacle VideoXL Video"),
+    B(HEIMDALL_CODEC_VIXL, "Miro/Pinnacle VideoXL Video"),
         A("VIXL"),
         A("XIXL"),
         E("PIXL", "Pinnacle VideoXL Video"),
 
-    B(VLC_CODEC_LOCO, "LOCO Video"),
+    B(HEIMDALL_CODEC_LOCO, "LOCO Video"),
         A("LOCO"),
 
-    B(VLC_CODEC_WNV1, "Winnov WNV1 Video"),
+    B(HEIMDALL_CODEC_WNV1, "Winnov WNV1 Video"),
         A("WNV1"),
         A("YUV8"),
 
-    B(VLC_CODEC_AASC, "Autodesc RLE Video"),
+    B(HEIMDALL_CODEC_AASC, "Autodesc RLE Video"),
         A("AASC"),
         E("AAS4", "Autodesc RLE Video 24bit"),
 
-    B(VLC_CODEC_INDEO2, "Indeo Video v2"),
+    B(HEIMDALL_CODEC_INDEO2, "Indeo Video v2"),
         A("IV20"),
         E("RT21", "Indeo Video 2.1" ),
 
     /* Flash Screen Video */
-    B(VLC_CODEC_FLASHSV, "Flash Screen Video"),
+    B(HEIMDALL_CODEC_FLASHSV, "Flash Screen Video"),
         A("FSV1"),
-    B(VLC_CODEC_FLASHSV2, "Flash Screen Video 2"),
+    B(HEIMDALL_CODEC_FLASHSV2, "Flash Screen Video 2"),
         A("FSV2"),
 
-    B(VLC_CODEC_KMVC, "Karl Morton's Video Codec (Worms)"),
+    B(HEIMDALL_CODEC_KMVC, "Karl Morton's Video Codec (Worms)"),
         A("KMVC"),
 
-    B(VLC_CODEC_NUV, "Nuppel Video"),
+    B(HEIMDALL_CODEC_NUV, "Nuppel Video"),
         A("RJPG"),
         A("NUV1"),
 
     /* CODEC_ID_SMACKVIDEO */
-    B(VLC_CODEC_SMACKVIDEO, "Smacker Video"),
+    B(HEIMDALL_CODEC_SMACKVIDEO, "Smacker Video"),
         A("SMK2"),
         A("SMK4"),
 
     /* Chinese AVS - Untested */
-    B(VLC_CODEC_CAVS, "Chinese AVS"),
+    B(HEIMDALL_CODEC_CAVS, "Chinese AVS"),
         A("CAVS"),
         A("AVs2"),
         A("avs2"),
 
-    B(VLC_CODEC_CAVS2, "AVS2-P2 video (IEEE 1857.4)"),
+    B(HEIMDALL_CODEC_CAVS2, "AVS2-P2 video (IEEE 1857.4)"),
         A("AVS2"),
 
-    B(VLC_CODEC_CAVS3, "AVS3-P2 video (IEEE 1857.10)"),
+    B(HEIMDALL_CODEC_CAVS3, "AVS3-P2 video (IEEE 1857.10)"),
 
-    B(VLC_CODEC_AMV, "AMV"),
+    B(HEIMDALL_CODEC_AMV, "AMV"),
 
-    B(VLC_CODEC_BINKVIDEO, "Bink Video"),
+    B(HEIMDALL_CODEC_BINKVIDEO, "Bink Video"),
 
-    B(VLC_CODEC_BINKAUDIO_DCT, "Bink Audio (DCT)"),
+    B(HEIMDALL_CODEC_BINKAUDIO_DCT, "Bink Audio (DCT)"),
 
-    B(VLC_CODEC_BINKAUDIO_RDFT, "Bink Audio (RDFT)"),
+    B(HEIMDALL_CODEC_BINKAUDIO_RDFT, "Bink Audio (RDFT)"),
 
     /* */
-    B(VLC_CODEC_DNXHD, "DNxHD"),
+    B(HEIMDALL_CODEC_DNXHD, "DNxHD"),
         A("AVdn"),
         E("AVdh", "DNxHR"),
-    B(VLC_CODEC_8BPS, "8BPS"),
+    B(HEIMDALL_CODEC_8BPS, "8BPS"),
         A("8BPS"),
-    B(VLC_CODEC_MIMIC, "Mimic"),
+    B(HEIMDALL_CODEC_MIMIC, "Mimic"),
         A("ML2O"),
 
-    B(VLC_CODEC_CDG, "CD-G Video"),
+    B(HEIMDALL_CODEC_CDG, "CD-G Video"),
         A("CDG "),
 
-    B(VLC_CODEC_FRWU, "Forward Uncompressed" ),
+    B(HEIMDALL_CODEC_FRWU, "Forward Uncompressed" ),
         A("FRWU"),
 
-    B(VLC_CODEC_INDEO4, "Indeo Video v4"),
+    B(HEIMDALL_CODEC_INDEO4, "Indeo Video v4"),
         A("IV41"),
         A("iv41"),
 
-    B(VLC_CODEC_INDEO5, "Indeo Video v5"),
+    B(HEIMDALL_CODEC_INDEO5, "Indeo Video v5"),
         A("IV50"),
         A("iv50"),
 
-    B(VLC_CODEC_PRORES, "Apple ProRes"),
+    B(HEIMDALL_CODEC_PRORES, "Apple ProRes"),
         E("apcn", "Apple ProRes 422 Standard"),
         E("apch", "Apple ProRes 422 HQ"),
         E("apcs", "Apple ProRes 422 LT"),
@@ -736,147 +737,147 @@ static const staticentry_t p_list_video[] = {
         E("ap4h", "Apple ProRes 4444"),
         E("ap4x", "Apple ProRes 4444 XQ"),
 
-    B(VLC_CODEC_ICOD, "Apple Intermediate Codec"),
+    B(HEIMDALL_CODEC_ICOD, "Apple Intermediate Codec"),
         A("icod"),
 
-    B(VLC_CODEC_G2M2, "GoTo Meeting Codec 2"),
+    B(HEIMDALL_CODEC_G2M2, "GoTo Meeting Codec 2"),
         A("G2M2"),
 
-    B(VLC_CODEC_G2M3, "GoTo Meeting Codec 3"),
+    B(HEIMDALL_CODEC_G2M3, "GoTo Meeting Codec 3"),
         A("G2M3"),
 
-    B(VLC_CODEC_G2M4, "GoTo Meeting Codec 4"),
+    B(HEIMDALL_CODEC_G2M4, "GoTo Meeting Codec 4"),
         A("G2M4"),
         A("G2M5"),
 
-    B(VLC_CODEC_FIC, "Mirillis FIC video"),
+    B(HEIMDALL_CODEC_FIC, "Mirillis FIC video"),
         A("FICV"),
 
-    B(VLC_CODEC_TDSC, "TDSC"),
+    B(HEIMDALL_CODEC_TDSC, "TDSC"),
 
-    B(VLC_CODEC_HQX, "Canopus HQX"),
+    B(HEIMDALL_CODEC_HQX, "Canopus HQX"),
 
-    B(VLC_CODEC_HQ_HQA, "Canopus HQ"),
+    B(HEIMDALL_CODEC_HQ_HQA, "Canopus HQ"),
 
-    B(VLC_CODEC_HAP, "Vidvox Hap"),
+    B(HEIMDALL_CODEC_HAP, "Vidvox Hap"),
         A("Hap1"),
         E("Hap5", "Vidvox Hap Alpha"),
         E("HapY", "Vidvox Hap Q"),
         E("HapA", "Vidvox Hap Alpha-Only"),
         E("HapM", "Vidvox Hap Q Alpha"),
 
-    B(VLC_CODEC_DXV, "Resolume DXV"),
+    B(HEIMDALL_CODEC_DXV, "Resolume DXV"),
         A("DXDI"),
         E("DXD3", "Resolume DXV version 3"),
 
     /* */
-    B(VLC_CODEC_YV12, "Planar 4:2:0 YVU"),
+    B(HEIMDALL_CODEC_YV12, "Planar 4:2:0 YVU"),
         A("YV12"),
         A("yv12"),
-    B(VLC_CODEC_I410, "Planar 4:1:0 YUV"),
+    B(HEIMDALL_CODEC_I410, "Planar 4:1:0 YUV"),
         A("I410"),
-    B(VLC_CODEC_I411, "Planar 4:1:1 YUV"),
+    B(HEIMDALL_CODEC_I411, "Planar 4:1:1 YUV"),
         A("I411"),
         A("Y41B"),
-    B(VLC_CODEC_I420, "Planar 4:2:0 YUV"),
+    B(HEIMDALL_CODEC_I420, "Planar 4:2:0 YUV"),
         A("I420"),
         A("IYUV"),
-    B(VLC_CODEC_I422, "Planar 4:2:2 YUV"),
+    B(HEIMDALL_CODEC_I422, "Planar 4:2:2 YUV"),
         A("I422"),
         A("Y42B"),
-    B(VLC_CODEC_I440, "Planar 4:4:0 YUV"),
+    B(HEIMDALL_CODEC_I440, "Planar 4:4:0 YUV"),
         A("I440"),
-    B(VLC_CODEC_I444, "Planar 4:4:4 YUV"),
+    B(HEIMDALL_CODEC_I444, "Planar 4:4:4 YUV"),
         A("I444"),
 
-    B(VLC_CODEC_YUVP, "Palettized YUV with palette element Y:U:V:A"),
+    B(HEIMDALL_CODEC_YUVP, "Palettized YUV with palette element Y:U:V:A"),
         A("YUVP"),
 
-    B(VLC_CODEC_YUVA, "Planar YUV 4:4:4 Y:U:V:A"),
+    B(HEIMDALL_CODEC_YUVA, "Planar YUV 4:4:4 Y:U:V:A"),
         A("YUVA"),
-    B(VLC_CODEC_YUV420A, "Planar YUV 4:2:0 Y:U:V:A"),
+    B(HEIMDALL_CODEC_YUV420A, "Planar YUV 4:2:0 Y:U:V:A"),
         A("I40A"),
-    B(VLC_CODEC_YUV422A, "Planar YUV 4:2:2 Y:U:V:A"),
+    B(HEIMDALL_CODEC_YUV422A, "Planar YUV 4:2:2 Y:U:V:A"),
         A("I42A"),
-    B(VLC_CODEC_YUVA_444_10L, "Planar YUV 4:4:4 Y:U:V:A 10bits LE"),
-    B(VLC_CODEC_YUVA_444_10B, "Planar YUV 4:4:4 Y:U:V:A 10bits BE"),
-    B(VLC_CODEC_YUVA_444_12L, "Planar YUV 4:4:4 Y:U:V:A 12bits LE"),
-    B(VLC_CODEC_YUVA_444_12B, "Planar YUV 4:4:4 Y:U:V:A 12bits BE"),
+    B(HEIMDALL_CODEC_YUVA_444_10L, "Planar YUV 4:4:4 Y:U:V:A 10bits LE"),
+    B(HEIMDALL_CODEC_YUVA_444_10B, "Planar YUV 4:4:4 Y:U:V:A 10bits BE"),
+    B(HEIMDALL_CODEC_YUVA_444_12L, "Planar YUV 4:4:4 Y:U:V:A 12bits LE"),
+    B(HEIMDALL_CODEC_YUVA_444_12B, "Planar YUV 4:4:4 Y:U:V:A 12bits BE"),
 
-    B(VLC_CODEC_RGBP, "Palettized RGB with palette element R:G:B:A"),
+    B(HEIMDALL_CODEC_RGBP, "Palettized RGB with palette element R:G:B:A"),
         A("RGBP"),
 
-    B(VLC_CODEC_RGB233, "8 bits RGB 2:3:3"),
+    B(HEIMDALL_CODEC_RGB233, "8 bits RGB 2:3:3"),
         A("RGB8"),
-    B(VLC_CODEC_RGB332, "8 bits RGB 3:3:2"),
+    B(HEIMDALL_CODEC_RGB332, "8 bits RGB 3:3:2"),
         A("R332"),
-    B(VLC_CODEC_BGR233, "8 bits BGR 2:3:3"),
+    B(HEIMDALL_CODEC_BGR233, "8 bits BGR 2:3:3"),
         A("B233"),
-    B(VLC_CODEC_RGBA, "32 bits RGBA"),
+    B(HEIMDALL_CODEC_RGBA, "32 bits RGBA"),
         A("RGBA"),
-    B(VLC_CODEC_ARGB, "32 bits ARGB"),
+    B(HEIMDALL_CODEC_ARGB, "32 bits ARGB"),
         A("ARGB"),
         A("AV32"),
-    B(VLC_CODEC_BGRA, "32 bits BGRA"),
+    B(HEIMDALL_CODEC_BGRA, "32 bits BGRA"),
         A("BGRA"),
-    B(VLC_CODEC_ABGR, "32 bits ABGR"),
-    B(VLC_CODEC_RGBA10LE, "32 bits RGB 10bits A 2bits LE"),
+    B(HEIMDALL_CODEC_ABGR, "32 bits ABGR"),
+    B(HEIMDALL_CODEC_RGBA10LE, "32 bits RGB 10bits A 2bits LE"),
         A("RGA0"),
-    B(VLC_CODEC_RGBA64, "64 bits RGBA"),
+    B(HEIMDALL_CODEC_RGBA64, "64 bits RGBA"),
         A("RGA4"),
-    B(VLC_CODEC_XRGB, "32 bits xRGB"),
+    B(HEIMDALL_CODEC_XRGB, "32 bits xRGB"),
         A("RV32"),
-    B(VLC_CODEC_RGBX, "32 bits RGBx"),
+    B(HEIMDALL_CODEC_RGBX, "32 bits RGBx"),
         A("RGBX"),
-    B(VLC_CODEC_XBGR, "32 bits xBGR"),
+    B(HEIMDALL_CODEC_XBGR, "32 bits xBGR"),
         A("XBGR"),
-    B(VLC_CODEC_BGRX, "32 bits BGRx"),
+    B(HEIMDALL_CODEC_BGRX, "32 bits BGRx"),
         A("BGRX"),
-    B(VLC_CODEC_RGB24, "24 bits RGB"),
+    B(HEIMDALL_CODEC_RGB24, "24 bits RGB"),
         A("RV24"),
-    B(VLC_CODEC_BGR24, "24 bits BGR"),
+    B(HEIMDALL_CODEC_BGR24, "24 bits BGR"),
         A("BGR3"),
-    B(VLC_CODEC_RGB565LE, "16 bits R5G6G5 LE"),
+    B(HEIMDALL_CODEC_RGB565LE, "16 bits R5G6G5 LE"),
         A("RV16"),
-    B(VLC_CODEC_RGB565BE, "16 bits R5G6G5 BE"),
+    B(HEIMDALL_CODEC_RGB565BE, "16 bits R5G6G5 BE"),
         A("RB16"),
-    B(VLC_CODEC_BGR565LE, "16 bits B5G6R5 LE"),
+    B(HEIMDALL_CODEC_BGR565LE, "16 bits B5G6R5 LE"),
         A("BL16"),
-    B(VLC_CODEC_BGR565BE, "16 bits B5G6R5 BE"),
+    B(HEIMDALL_CODEC_BGR565BE, "16 bits B5G6R5 BE"),
         A("BB16"),
-    B(VLC_CODEC_RGB555LE, "15 bits R5G5G5 LE"),
+    B(HEIMDALL_CODEC_RGB555LE, "15 bits R5G5G5 LE"),
         A("RV15"),
-    B(VLC_CODEC_RGB555BE, "15 bits R5G5G5 BE"),
+    B(HEIMDALL_CODEC_RGB555BE, "15 bits R5G5G5 BE"),
         A("RB15"),
-    B(VLC_CODEC_BGR555LE, "15 bits B5G5R5 LE"),
+    B(HEIMDALL_CODEC_BGR555LE, "15 bits B5G5R5 LE"),
         A("BL15"),
-    B(VLC_CODEC_BGR555LE, "15 bits B5G5R5 BE"),
+    B(HEIMDALL_CODEC_BGR555LE, "15 bits B5G5R5 BE"),
         A("BB15"),
 
-    B(VLC_CODEC_GREY, "8 bits greyscale"),
+    B(HEIMDALL_CODEC_GREY, "8 bits greyscale"),
         A("GREY"),
         A("Y800"),
         A("Y8  "),
 
-    B(VLC_CODEC_GREY_10L, "10 bits greyscale LE"),
+    B(HEIMDALL_CODEC_GREY_10L, "10 bits greyscale LE"),
         A("G0FL"),
 
-    B(VLC_CODEC_GREY_10B, "10 bits greyscale BE"),
+    B(HEIMDALL_CODEC_GREY_10B, "10 bits greyscale BE"),
         A("G0FB"),
 
-    B(VLC_CODEC_GREY_12L, "12 bits greyscale LE"),
+    B(HEIMDALL_CODEC_GREY_12L, "12 bits greyscale LE"),
         A("G2FL"),
 
-    B(VLC_CODEC_GREY_12B, "12 bits greyscale BE"),
+    B(HEIMDALL_CODEC_GREY_12B, "12 bits greyscale BE"),
         A("G2FB"),
 
-    B(VLC_CODEC_GREY_16L, "16 bits greyscale LE"),
+    B(HEIMDALL_CODEC_GREY_16L, "16 bits greyscale LE"),
         A("GRFL"),
 
-    B(VLC_CODEC_GREY_16B, "16 bits greyscale BE"),
+    B(HEIMDALL_CODEC_GREY_16B, "16 bits greyscale BE"),
         A("GRFB"),
 
-    B(VLC_CODEC_UYVY, "Packed YUV 4:2:2, U:Y:V:Y"),
+    B(HEIMDALL_CODEC_UYVY, "Packed YUV 4:2:2, U:Y:V:Y"),
         A("UYVY"),
         A("UYNV"),
         A("UYNY"),
@@ -887,208 +888,208 @@ static const staticentry_t p_list_video[] = {
         A("2vuy"),
         A("2Vuy"),
         A("2Vu1"),
-    B(VLC_CODEC_VYUY, "Packed YUV 4:2:2, V:Y:U:Y"),
+    B(HEIMDALL_CODEC_VYUY, "Packed YUV 4:2:2, V:Y:U:Y"),
         A("VYUY"),
-    B(VLC_CODEC_YUYV, "Packed YUV 4:2:2, Y:U:Y:V"),
+    B(HEIMDALL_CODEC_YUYV, "Packed YUV 4:2:2, Y:U:Y:V"),
         A("YUY2"),
         A("YUYV"),
         A("YUNV"),
         A("V422"),
 
-    B(VLC_CODEC_YUV2, "Packed YUV 4:2:2, Y:U:Y:V signed"),
+    B(HEIMDALL_CODEC_YUV2, "Packed YUV 4:2:2, Y:U:Y:V signed"),
         A("yuv2"),
         A("yuvu"),
 
-    B(VLC_CODEC_YVYU, "Packed YUV 4:2:2, Y:V:Y:U"),
+    B(HEIMDALL_CODEC_YVYU, "Packed YUV 4:2:2, Y:V:Y:U"),
         A("YVYU"),
 
-    B(VLC_CODEC_Y211, "Packed YUV 2:1:1, Y:U:Y:V "),
+    B(HEIMDALL_CODEC_Y211, "Packed YUV 2:1:1, Y:U:Y:V "),
         A("Y211"),
-    B(VLC_CODEC_CYUV, "Creative Packed YUV 4:2:2, U:Y:V:Y, reverted"),
+    B(HEIMDALL_CODEC_CYUV, "Creative Packed YUV 4:2:2, U:Y:V:Y, reverted"),
         A("cyuv"),
         A("CYUV"),
 
-    B(VLC_CODEC_V210, "10-bit 4:2:2 Component YCbCr"),
+    B(HEIMDALL_CODEC_V210, "10-bit 4:2:2 Component YCbCr"),
         A("v210"),
 
-    B(VLC_CODEC_Y210, "Packed 10-bit YUV 4:2:2"),
+    B(HEIMDALL_CODEC_Y210, "Packed 10-bit YUV 4:2:2"),
         A("Y210"),
-    B(VLC_CODEC_Y212, "Packed 12-bit YUV 4:2:2"),
+    B(HEIMDALL_CODEC_Y212, "Packed 12-bit YUV 4:2:2"),
         A("Y212"),
-    B(VLC_CODEC_VUYA, "Packed YUV 4:4:4, V:U:Y:A"),
+    B(HEIMDALL_CODEC_VUYA, "Packed YUV 4:4:4, V:U:Y:A"),
         A("VUYA"),
-    B(VLC_CODEC_VUYX, "Packed YUV 4:4:4, V:U:Y:X"),
+    B(HEIMDALL_CODEC_VUYX, "Packed YUV 4:4:4, V:U:Y:X"),
         A("VUYX"),
-    B(VLC_CODEC_Y410, "Packed 10-bit YUV 4:4:4"),
+    B(HEIMDALL_CODEC_Y410, "Packed 10-bit YUV 4:4:4"),
         A("Y410"),
-    B(VLC_CODEC_Y412, "Packed 12-bit YUV 4:4:4"),
+    B(HEIMDALL_CODEC_Y412, "Packed 12-bit YUV 4:4:4"),
         A("Y412"),
 
-    B(VLC_CODEC_NV12, "Biplanar 4:2:0 Y/UV"),
+    B(HEIMDALL_CODEC_NV12, "Biplanar 4:2:0 Y/UV"),
         A("NV12"),
-    B(VLC_CODEC_NV21, "Biplanar 4:2:0 Y/VU"),
+    B(HEIMDALL_CODEC_NV21, "Biplanar 4:2:0 Y/VU"),
         A("NV21"),
-    B(VLC_CODEC_P010, "Biplanar 4:2:0 Y/VU 10-bit LE"),
+    B(HEIMDALL_CODEC_P010, "Biplanar 4:2:0 Y/VU 10-bit LE"),
         A("P010"),
-    B(VLC_CODEC_P012, "Biplanar 4:2:0 Y/VU 12-bit LE"),
+    B(HEIMDALL_CODEC_P012, "Biplanar 4:2:0 Y/VU 12-bit LE"),
         A("P012"),
-    B(VLC_CODEC_P016, "Biplanar 4:2:0 Y/VU 16-bit LE"),
+    B(HEIMDALL_CODEC_P016, "Biplanar 4:2:0 Y/VU 16-bit LE"),
         A("P016"),
-    B(VLC_CODEC_NV16, "Biplanar 4:2:2 Y/UV"),
+    B(HEIMDALL_CODEC_NV16, "Biplanar 4:2:2 Y/UV"),
         A("NV16"),
-    B(VLC_CODEC_NV61, "Biplanar 4:2:2 Y/VU"),
+    B(HEIMDALL_CODEC_NV61, "Biplanar 4:2:2 Y/VU"),
         A("NV61"),
-    B(VLC_CODEC_NV24, "Biplanar 4:4:4 Y/UV"),
+    B(HEIMDALL_CODEC_NV24, "Biplanar 4:4:4 Y/UV"),
         A("NV24"),
-    B(VLC_CODEC_NV42, "Biplanar 4:4:4 Y/VU"),
+    B(HEIMDALL_CODEC_NV42, "Biplanar 4:4:4 Y/VU"),
         A("NV42"),
 
-    B(VLC_CODEC_I420_9L, "Planar 4:2:0 YUV 9-bit LE"),
+    B(HEIMDALL_CODEC_I420_9L, "Planar 4:2:0 YUV 9-bit LE"),
         A("I09L"),
-    B(VLC_CODEC_I420_9B, "Planar 4:2:0 YUV 9-bit BE"),
+    B(HEIMDALL_CODEC_I420_9B, "Planar 4:2:0 YUV 9-bit BE"),
         A("I09B"),
-    B(VLC_CODEC_I422_9L, "Planar 4:2:2 YUV 9-bit LE"),
+    B(HEIMDALL_CODEC_I422_9L, "Planar 4:2:2 YUV 9-bit LE"),
         A("I29L"),
-    B(VLC_CODEC_I422_9B, "Planar 4:2:2 YUV 9-bit BE"),
+    B(HEIMDALL_CODEC_I422_9B, "Planar 4:2:2 YUV 9-bit BE"),
         A("I29B"),
-    B(VLC_CODEC_I444_9L, "Planar 4:4:4 YUV 9-bit LE"),
+    B(HEIMDALL_CODEC_I444_9L, "Planar 4:4:4 YUV 9-bit LE"),
         A("I49L"),
-    B(VLC_CODEC_I444_9B, "Planar 4:4:4 YUV 9-bit BE"),
+    B(HEIMDALL_CODEC_I444_9B, "Planar 4:4:4 YUV 9-bit BE"),
         A("I49B"),
 
-    B(VLC_CODEC_I420_10L, "Planar 4:2:0 YUV 10-bit LE"),
+    B(HEIMDALL_CODEC_I420_10L, "Planar 4:2:0 YUV 10-bit LE"),
         A("I0AL"),
-    B(VLC_CODEC_I420_10B, "Planar 4:2:0 YUV 10-bit BE"),
+    B(HEIMDALL_CODEC_I420_10B, "Planar 4:2:0 YUV 10-bit BE"),
         A("I0AB"),
-    B(VLC_CODEC_I422_10L, "Planar 4:2:2 YUV 10-bit LE"),
+    B(HEIMDALL_CODEC_I422_10L, "Planar 4:2:2 YUV 10-bit LE"),
         A("I2AL"),
-    B(VLC_CODEC_I422_10B, "Planar 4:2:2 YUV 10-bit BE"),
+    B(HEIMDALL_CODEC_I422_10B, "Planar 4:2:2 YUV 10-bit BE"),
         A("I2AB"),
-    B(VLC_CODEC_I444_10L, "Planar 4:4:4 YUV 10-bit LE"),
+    B(HEIMDALL_CODEC_I444_10L, "Planar 4:4:4 YUV 10-bit LE"),
         A("I4AL"),
-    B(VLC_CODEC_I444_10B, "Planar 4:4:4 YUV 10-bit BE"),
+    B(HEIMDALL_CODEC_I444_10B, "Planar 4:4:4 YUV 10-bit BE"),
         A("I4AB"),
 
-    B(VLC_CODEC_I420_12L, "Planar 4:2:0 YUV 12-bit LE"),
+    B(HEIMDALL_CODEC_I420_12L, "Planar 4:2:0 YUV 12-bit LE"),
         A("I0CL"),
-    B(VLC_CODEC_I420_12B, "Planar 4:2:0 YUV 12-bit BE"),
+    B(HEIMDALL_CODEC_I420_12B, "Planar 4:2:0 YUV 12-bit BE"),
         A("I0CB"),
-    B(VLC_CODEC_I422_12L, "Planar 4:2:2 YUV 12-bit LE"),
+    B(HEIMDALL_CODEC_I422_12L, "Planar 4:2:2 YUV 12-bit LE"),
         A("I2CL"),
-    B(VLC_CODEC_I422_12B, "Planar 4:2:2 YUV 12-bit BE"),
+    B(HEIMDALL_CODEC_I422_12B, "Planar 4:2:2 YUV 12-bit BE"),
         A("I2CB"),
-    B(VLC_CODEC_I444_12L, "Planar 4:4:4 YUV 12-bit LE"),
+    B(HEIMDALL_CODEC_I444_12L, "Planar 4:4:4 YUV 12-bit LE"),
         A("I4CL"),
-    B(VLC_CODEC_I444_12B, "Planar 4:4:4 YUV 12-bit BE"),
+    B(HEIMDALL_CODEC_I444_12B, "Planar 4:4:4 YUV 12-bit BE"),
         A("I4CB"),
 
-    B(VLC_CODEC_I420_16L, "Planar 4:2:0 YUV 16-bit LE"),
+    B(HEIMDALL_CODEC_I420_16L, "Planar 4:2:0 YUV 16-bit LE"),
         A("I0FL"),
-    B(VLC_CODEC_I420_16B, "Planar 4:2:0 YUV 16-bit BE"),
+    B(HEIMDALL_CODEC_I420_16B, "Planar 4:2:0 YUV 16-bit BE"),
         A("I0FB"),
-    B(VLC_CODEC_I444_16L, "Planar 4:4:4 YUV 16-bit LE"),
+    B(HEIMDALL_CODEC_I444_16L, "Planar 4:4:4 YUV 16-bit LE"),
         A("I4FL"),
-    B(VLC_CODEC_I444_16B, "Planar 4:4:4 YUV 16-bit BE"),
+    B(HEIMDALL_CODEC_I444_16B, "Planar 4:4:4 YUV 16-bit BE"),
         A("I4FB"),
 
 
     /* XYZ color space */
-    B(VLC_CODEC_XYZ_12L, "Packed XYZ 12-bit LE"),
+    B(HEIMDALL_CODEC_XYZ_12L, "Packed XYZ 12-bit LE"),
 
-    B(VLC_CODEC_XYZ_12B, "Packed XYZ 12-bit BE"),
+    B(HEIMDALL_CODEC_XYZ_12B, "Packed XYZ 12-bit BE"),
         A("XY12"),
 
     /* Videogames Codecs */
 
     /* Interplay MVE */
-    B(VLC_CODEC_INTERPLAY, "Interplay MVE Video"),
+    B(HEIMDALL_CODEC_INTERPLAY, "Interplay MVE Video"),
         A("imve"),
         A("INPV"),
 
     /* Id Quake II CIN */
-    B(VLC_CODEC_IDCIN, "Id Quake II CIN Video"),
+    B(HEIMDALL_CODEC_IDCIN, "Id Quake II CIN Video"),
         A("IDCI"),
 
     /* 4X Technologies */
-    B(VLC_CODEC_4XM, "4X Technologies Video"),
+    B(HEIMDALL_CODEC_4XM, "4X Technologies Video"),
         A("4XMV"),
         A("4xmv"),
 
     /* Id RoQ */
-    B(VLC_CODEC_ROQ, "Id RoQ Video"),
+    B(HEIMDALL_CODEC_ROQ, "Id RoQ Video"),
         A("RoQv"),
 
     /* Sony Playstation MDEC */
-    B(VLC_CODEC_MDEC, "PSX MDEC Video"),
+    B(HEIMDALL_CODEC_MDEC, "PSX MDEC Video"),
         A("MDEC"),
 
     /* Sierra VMD */
-    B(VLC_CODEC_VMDVIDEO, "Sierra VMD Video"),
+    B(HEIMDALL_CODEC_VMDVIDEO, "Sierra VMD Video"),
         A("VMDV"),
         A("vmdv"),
 
-    B(VLC_CODEC_DIRAC, "Dirac" ),
+    B(HEIMDALL_CODEC_DIRAC, "Dirac" ),
         A("drac"),
 
     /* Image */
-    B(VLC_CODEC_PNG, "PNG Image"),
+    B(HEIMDALL_CODEC_PNG, "PNG Image"),
         A("png "),
 
-    B(VLC_CODEC_PPM, "PPM Image"),
+    B(HEIMDALL_CODEC_PPM, "PPM Image"),
         A("ppm "),
 
-    B(VLC_CODEC_PGM, "PGM Image"),
+    B(HEIMDALL_CODEC_PGM, "PGM Image"),
         A("pgm "),
 
-    B(VLC_CODEC_PGMYUV, "PGM YUV Image"),
+    B(HEIMDALL_CODEC_PGMYUV, "PGM YUV Image"),
         A("pgmy"),
 
-    B(VLC_CODEC_PAM, "PAM Image"),
+    B(HEIMDALL_CODEC_PAM, "PAM Image"),
         A("pam "),
 
-    B(VLC_CODEC_JPEGLS, "JPEG-LS"),
+    B(HEIMDALL_CODEC_JPEGLS, "JPEG-LS"),
         A("MJLS"),
 
-    B(VLC_CODEC_JPEG, "JPEG"),
+    B(HEIMDALL_CODEC_JPEG, "JPEG"),
         A("jpeg"),
         A("JPEG"),
 
-    B(VLC_CODEC_BPG, "BPG Image"),
+    B(HEIMDALL_CODEC_BPG, "BPG Image"),
         A("BPG "),
 
-    B(VLC_CODEC_BMP, "BMP Image"),
+    B(HEIMDALL_CODEC_BMP, "BMP Image"),
         A("bmp "),
 
-    B(VLC_CODEC_FARBFELD, "Farbfeld Image"),
+    B(HEIMDALL_CODEC_FARBFELD, "Farbfeld Image"),
         A("farb"),
 
-    B(VLC_CODEC_TIFF, "TIFF Image"),
+    B(HEIMDALL_CODEC_TIFF, "TIFF Image"),
         A("tiff"),
 
-    B(VLC_CODEC_GIF, "GIF Image"),
+    B(HEIMDALL_CODEC_GIF, "GIF Image"),
         A("gif "),
 
 
-    B(VLC_CODEC_TARGA, "Truevision Targa Image"),
+    B(HEIMDALL_CODEC_TARGA, "Truevision Targa Image"),
         A("tga "),
         A("mtga"),
         A("MTGA"),
 
-    B(VLC_CODEC_SGI, "SGI Image"),
+    B(HEIMDALL_CODEC_SGI, "SGI Image"),
         A("sgi "),
 
-    B(VLC_CODEC_SVG, "SVG Scalable Vector Graphics Image"),
+    B(HEIMDALL_CODEC_SVG, "SVG Scalable Vector Graphics Image"),
         A("svg "),
 
-    B(VLC_CODEC_PNM, "Portable Anymap Image"),
+    B(HEIMDALL_CODEC_PNM, "Portable Anymap Image"),
         A("pnm "),
 
-    B(VLC_CODEC_PCX, "Personal Computer Exchange Image"),
+    B(HEIMDALL_CODEC_PCX, "Personal Computer Exchange Image"),
         A("pcx "),
 
-    B(VLC_CODEC_XWD, "X Window system raster image"),
+    B(HEIMDALL_CODEC_XWD, "X Window system raster image"),
 
-    B(VLC_CODEC_JPEG2000, "JPEG 2000 Image"),
+    B(HEIMDALL_CODEC_JPEG2000, "JPEG 2000 Image"),
         A("JP2K"),
         A("mjp2"),
         A("MJP2"),
@@ -1096,22 +1097,22 @@ static const staticentry_t p_list_video[] = {
         A("LJ2C"),
         A("LJ2K"),
 
-    B(VLC_CODEC_WEBP, "WebP Image"),
+    B(HEIMDALL_CODEC_WEBP, "WebP Image"),
         A("WEBP"),
 
-    B(VLC_CODEC_LAGARITH, "Lagarith Lossless"),
+    B(HEIMDALL_CODEC_LAGARITH, "Lagarith Lossless"),
         A("LAGS"),
 
-    B(VLC_CODEC_MXPEG, "Mxpeg"),
+    B(HEIMDALL_CODEC_MXPEG, "Mxpeg"),
         A("MXPG"),
 
-    B(VLC_CODEC_CDXL, "Commodore CDXL video format"),
+    B(HEIMDALL_CODEC_CDXL, "Commodore CDXL video format"),
         A("CDXL"),
 
-    B(VLC_CODEC_BMVVIDEO, "Discworld II BMV video"),
+    B(HEIMDALL_CODEC_BMVVIDEO, "Discworld II BMV video"),
         A("BMVV"),
 
-    B(VLC_CODEC_UTVIDEO, "Ut Video"),
+    B(HEIMDALL_CODEC_UTVIDEO, "Ut Video"),
         A("ULRA"),
         A("ULRG"),
         A("ULY0"),
@@ -1124,104 +1125,104 @@ static const staticentry_t p_list_video[] = {
         A("UQRA"),
         A("UQRG"),
 
-    B(VLC_CODEC_VBLE, "VBLE Lossless"),
+    B(HEIMDALL_CODEC_VBLE, "VBLE Lossless"),
         A("VBLE"),
 
-    B(VLC_CODEC_DXTORY, "Dxtory capture format"),
+    B(HEIMDALL_CODEC_DXTORY, "Dxtory capture format"),
         A("xtor"),
 
-    B(VLC_CODEC_MSS1, "Windows Media Video 7 Screen"),
+    B(HEIMDALL_CODEC_MSS1, "Windows Media Video 7 Screen"),
         A("MSS1"),
         A("mss1"),
 
-    B(VLC_CODEC_MSS2, "Windows Media Video 9 Screen"),
+    B(HEIMDALL_CODEC_MSS2, "Windows Media Video 9 Screen"),
         A("MSS2"),
         A("mss2"),
 
-    B(VLC_CODEC_MSA1, "Microsoft Application Screen Decoder 1"),
+    B(HEIMDALL_CODEC_MSA1, "Microsoft Application Screen Decoder 1"),
         A("MSA1"),
 
-    B(VLC_CODEC_TSC2, "TechSmith Screen Codec 2"),
+    B(HEIMDALL_CODEC_TSC2, "TechSmith Screen Codec 2"),
         A("tsc2"),
 
-    B(VLC_CODEC_MTS2, "Microsoft Expression Encoder Screen"),
+    B(HEIMDALL_CODEC_MTS2, "Microsoft Expression Encoder Screen"),
         A("MTS2"),
 
-    B(VLC_CODEC_XAN_WC4, "Wing Commander IV Xan video"),
+    B(HEIMDALL_CODEC_XAN_WC4, "Wing Commander IV Xan video"),
         A("Xxan"),
 
-    B(VLC_CODEC_LCL_MSZH, "Loss-Less Codec Library AVImszh"),
+    B(HEIMDALL_CODEC_LCL_MSZH, "Loss-Less Codec Library AVImszh"),
         A("MSZH"),
 
-    B(VLC_CODEC_LCL_ZLIB, "Loss-Less Codec Library AVIzlib"),
+    B(HEIMDALL_CODEC_LCL_ZLIB, "Loss-Less Codec Library AVIzlib"),
         A("ZLIB"),
 
-    B(VLC_CODEC_THP, "GameCube THP video"),
+    B(HEIMDALL_CODEC_THP, "GameCube THP video"),
 
-    B(VLC_CODEC_TXD, "RenderWare TXD"),
+    B(HEIMDALL_CODEC_TXD, "RenderWare TXD"),
 
-    B(VLC_CODEC_ESCAPE124, "Escape 124 video"),
+    B(HEIMDALL_CODEC_ESCAPE124, "Escape 124 video"),
 
-    B(VLC_CODEC_KGV1, "Kega Game Video (KGV1)"),
+    B(HEIMDALL_CODEC_KGV1, "Kega Game Video (KGV1)"),
         A("KGV1"),
 
-    B(VLC_CODEC_CLLC, "Canopus Lossless"),
+    B(HEIMDALL_CODEC_CLLC, "Canopus Lossless"),
         A("CLLC"),
 
-    B(VLC_CODEC_AURA, "Auravision Aura"),
+    B(HEIMDALL_CODEC_AURA, "Auravision Aura"),
         A("AURA"),
 
-    B(VLC_CODEC_TMV, "8088flex TMV"),
+    B(HEIMDALL_CODEC_TMV, "8088flex TMV"),
 
-    B(VLC_CODEC_XAN_WC3, "Wing Commander III video"),
+    B(HEIMDALL_CODEC_XAN_WC3, "Wing Commander III video"),
 
-    B(VLC_CODEC_WS_VQA, "Westwood Studios VQA"),
+    B(HEIMDALL_CODEC_WS_VQA, "Westwood Studios VQA"),
 
-    B(VLC_CODEC_MMVIDEO, "American Laser Games MM Video"),
+    B(HEIMDALL_CODEC_MMVIDEO, "American Laser Games MM Video"),
 
-    B(VLC_CODEC_AVS, "Creature Shock AVS"),
+    B(HEIMDALL_CODEC_AVS, "Creature Shock AVS"),
 
-    B(VLC_CODEC_DSICINVIDEO, "Delphine CIN video"),
+    B(HEIMDALL_CODEC_DSICINVIDEO, "Delphine CIN video"),
 
-    B(VLC_CODEC_TIERTEXSEQVIDEO, "Tiertex Limited SEQ video"),
+    B(HEIMDALL_CODEC_TIERTEXSEQVIDEO, "Tiertex Limited SEQ video"),
 
-    B(VLC_CODEC_DXA, "Feeble Files/ScummVM DXA"),
+    B(HEIMDALL_CODEC_DXA, "Feeble Files/ScummVM DXA"),
 
-    B(VLC_CODEC_C93, "Interplay C93"),
+    B(HEIMDALL_CODEC_C93, "Interplay C93"),
 
-    B(VLC_CODEC_BETHSOFTVID, "Bethesda VID"),
+    B(HEIMDALL_CODEC_BETHSOFTVID, "Bethesda VID"),
 
-    B(VLC_CODEC_VB, "Beam Software VB"),
+    B(HEIMDALL_CODEC_VB, "Beam Software VB"),
 
-    B(VLC_CODEC_RL2, "RL2 video"),
+    B(HEIMDALL_CODEC_RL2, "RL2 video"),
 
-    B(VLC_CODEC_BFI, "Brute Force & Ignorance (BFI) video"),
+    B(HEIMDALL_CODEC_BFI, "Brute Force & Ignorance (BFI) video"),
 
-    B(VLC_CODEC_CMV, "Electronic Arts CMV"),
+    B(HEIMDALL_CODEC_CMV, "Electronic Arts CMV"),
 
-    B(VLC_CODEC_MOTIONPIXELS, "Sirius Publishing Motion Pixels"),
+    B(HEIMDALL_CODEC_MOTIONPIXELS, "Sirius Publishing Motion Pixels"),
 
-    B(VLC_CODEC_TGV, "Electronic Arts TGV"),
+    B(HEIMDALL_CODEC_TGV, "Electronic Arts TGV"),
 
-    B(VLC_CODEC_TGQ, "Electronic Arts TGQ"),
+    B(HEIMDALL_CODEC_TGQ, "Electronic Arts TGQ"),
 
-    B(VLC_CODEC_TQI, "Electronic Arts TQI"),
+    B(HEIMDALL_CODEC_TQI, "Electronic Arts TQI"),
 
-    B(VLC_CODEC_MAD, "Electronic Arts MAD"),
+    B(HEIMDALL_CODEC_MAD, "Electronic Arts MAD"),
 
-    B(VLC_CODEC_ANM, "DeluxePaint animation"),
+    B(HEIMDALL_CODEC_ANM, "DeluxePaint animation"),
 
-    B(VLC_CODEC_YOP, "Psygnosis YOP"),
+    B(HEIMDALL_CODEC_YOP, "Psygnosis YOP"),
 
-    B(VLC_CODEC_JV, "Bitmap Brothers JV"),
+    B(HEIMDALL_CODEC_JV, "Bitmap Brothers JV"),
 
-    B(VLC_CODEC_DFA, "Chronomaster DFA"),
+    B(HEIMDALL_CODEC_DFA, "Chronomaster DFA"),
 
-    B(VLC_CODEC_HNM4_VIDEO, "Cryo Interactive Entertainment HNM4"),
+    B(HEIMDALL_CODEC_HNM4_VIDEO, "Cryo Interactive Entertainment HNM4"),
 
-    B(VLC_CODEC_CINEFORM, "CineForm" ),
+    B(HEIMDALL_CODEC_CINEFORM, "CineForm" ),
 
-    B(VLC_CODEC_SPEEDHQ, "NewTek SpeedHQ" ),
+    B(HEIMDALL_CODEC_SPEEDHQ, "NewTek SpeedHQ" ),
         A("SHQ0"),
         A("SHQ1"),
         A("SHQ2"),
@@ -1231,10 +1232,10 @@ static const staticentry_t p_list_video[] = {
         A("SHQ7"),
         A("SHQ9"),
 
-    B(VLC_CODEC_PIXLET, "Apple Pixlet" ),
+    B(HEIMDALL_CODEC_PIXLET, "Apple Pixlet" ),
         A("pxlt"),
 
-    B(VLC_CODEC_MAGICYUV, "MagicYUV lossless" ),
+    B(HEIMDALL_CODEC_MAGICYUV, "MagicYUV lossless" ),
         A("M8RG"),
         A("M8RA"),
         A("M8G0"),
@@ -1243,83 +1244,83 @@ static const staticentry_t p_list_video[] = {
         A("M8Y4"),
         A("M8YA"),
 
-    B(VLC_CODEC_IMM4, "Infinity IMM4"),
+    B(HEIMDALL_CODEC_IMM4, "Infinity IMM4"),
         A("IMM4"),
 
-    B(VLC_CODEC_IMM5, "Infinity IMM5"),
+    B(HEIMDALL_CODEC_IMM5, "Infinity IMM5"),
         A("IMM5"),
 
-    B(VLC_CODEC_VDPAU_VIDEO, "VDPAU video"),
+    B(HEIMDALL_CODEC_VDPAU_VIDEO, "VDPAU video"),
 
-    B(VLC_CODEC_VDPAU_OUTPUT, "VDPAU output"),
+    B(HEIMDALL_CODEC_VDPAU_OUTPUT, "VDPAU output"),
 
-    B(VLC_CODEC_VAAPI_420, "4:2:0 VAAPI opaque"),
+    B(HEIMDALL_CODEC_VAAPI_420, "4:2:0 VAAPI opaque"),
         A("VAOP"),
 
-    B(VLC_CODEC_VAAPI_420_10BPP, "4:2:0 10bits VAAPI opaque"),
+    B(HEIMDALL_CODEC_VAAPI_420_10BPP, "4:2:0 10bits VAAPI opaque"),
         A("VAO0"),
 
-    B(VLC_CODEC_VAAPI_420_12BPP, "4:2:0 12bits VAAPI opaque"),
+    B(HEIMDALL_CODEC_VAAPI_420_12BPP, "4:2:0 12bits VAAPI opaque"),
         A("VAO2"),
 
-    B(VLC_CODEC_VAAPI_422_10BPP, "4:2:2 10bits VAAPI opaque"),
+    B(HEIMDALL_CODEC_VAAPI_422_10BPP, "4:2:2 10bits VAAPI opaque"),
         A("VA20"),
 
-    B(VLC_CODEC_VAAPI_422_12BPP, "4:2:2 12bits VAAPI opaque"),
+    B(HEIMDALL_CODEC_VAAPI_422_12BPP, "4:2:2 12bits VAAPI opaque"),
         A("VA22"),
 
-    B(VLC_CODEC_VAAPI_444,       "4:4:4 8bits VAAPI opaque"),
+    B(HEIMDALL_CODEC_VAAPI_444,       "4:4:4 8bits VAAPI opaque"),
         A("VA4P"),
 
-    B(VLC_CODEC_VAAPI_444_10BPP, "4:4:4 10bits VAAPI opaque"),
+    B(HEIMDALL_CODEC_VAAPI_444_10BPP, "4:4:4 10bits VAAPI opaque"),
         A("VA40"),
 
-    B(VLC_CODEC_VAAPI_444_12BPP, "4:4:4 12bits VAAPI opaque"),
+    B(HEIMDALL_CODEC_VAAPI_444_12BPP, "4:4:4 12bits VAAPI opaque"),
         A("VA42"),
 
-    B(VLC_CODEC_ANDROID_OPAQUE, "Android opaque"),
+    B(HEIMDALL_CODEC_ANDROID_OPAQUE, "Android opaque"),
         A("ANOP"),
 
-    B(VLC_CODEC_MMAL_OPAQUE, "MMAL opaque"),
+    B(HEIMDALL_CODEC_MMAL_OPAQUE, "MMAL opaque"),
         A("MMAL"),
 
-    B(VLC_CODEC_D3D9_OPAQUE, "4:2:0 D3D9 opaque"),
+    B(HEIMDALL_CODEC_D3D9_OPAQUE, "4:2:0 D3D9 opaque"),
         A("DXA9"),
 
-    B(VLC_CODEC_D3D9_OPAQUE_10B, "4:2:0 10bits D3D9 opaque"),
+    B(HEIMDALL_CODEC_D3D9_OPAQUE_10B, "4:2:0 10bits D3D9 opaque"),
         A("DXA0"),
 
-    B(VLC_CODEC_D3D11_OPAQUE, "4:2:0 D3D11 opaque"),
+    B(HEIMDALL_CODEC_D3D11_OPAQUE, "4:2:0 D3D11 opaque"),
         A("DX11"),
 
-    B(VLC_CODEC_D3D11_OPAQUE_10B, "4:2:0 10bits D3D11 opaque"),
+    B(HEIMDALL_CODEC_D3D11_OPAQUE_10B, "4:2:0 10bits D3D11 opaque"),
         A("DX10"),
 
-    B(VLC_CODEC_D3D11_OPAQUE_RGBA, "RGBA D3D11 opaque"),
+    B(HEIMDALL_CODEC_D3D11_OPAQUE_RGBA, "RGBA D3D11 opaque"),
         A("DXRG"),
 
-    B(VLC_CODEC_D3D11_OPAQUE_BGRA, "BGRA D3D11 opaque"),
+    B(HEIMDALL_CODEC_D3D11_OPAQUE_BGRA, "BGRA D3D11 opaque"),
         A("DAGR"),
 
-    B(VLC_CODEC_D3D11_OPAQUE_ALPHA, "4:2:0 D3D11 opaque with alpha"),
+    B(HEIMDALL_CODEC_D3D11_OPAQUE_ALPHA, "4:2:0 D3D11 opaque with alpha"),
         A("DA11"),
 
-    B(VLC_CODEC_NVDEC_OPAQUE, "4:2:0 NVDEC opaque"),
+    B(HEIMDALL_CODEC_NVDEC_OPAQUE, "4:2:0 NVDEC opaque"),
         A("NVD8"),
 
-    B(VLC_CODEC_NVDEC_OPAQUE_10B, "4:2:0 10bits NVDEC opaque"),
+    B(HEIMDALL_CODEC_NVDEC_OPAQUE_10B, "4:2:0 10bits NVDEC opaque"),
         A("NVD0"),
 
-    B(VLC_CODEC_NVDEC_OPAQUE_16B, "4:2:0 16bits NVDEC opaque"),
+    B(HEIMDALL_CODEC_NVDEC_OPAQUE_16B, "4:2:0 16bits NVDEC opaque"),
         A("NVD6"),
 
-    B(VLC_CODEC_NVDEC_OPAQUE_444, "4:4:4 NVDEC opaque"),
+    B(HEIMDALL_CODEC_NVDEC_OPAQUE_444, "4:4:4 NVDEC opaque"),
         A("NV48"),
 
-    B(VLC_CODEC_NVDEC_OPAQUE_444_16B, "4:4:4 16bits NVDEC opaque"),
+    B(HEIMDALL_CODEC_NVDEC_OPAQUE_444_16B, "4:4:4 16bits NVDEC opaque"),
         A("NV46"),
 
-    B(VLC_CODEC_AGM, "AmuseGraphics Movie"),
+    B(HEIMDALL_CODEC_AGM, "AmuseGraphics Movie"),
         A("AGM0"),
         A("AGM1"),
         A("AGM2"),
@@ -1329,79 +1330,79 @@ static const staticentry_t p_list_video[] = {
         A("AGM6"),
         A("AGM7"),
 
-    B(VLC_CODEC_NOTCHLC, "NotchLC"),
+    B(HEIMDALL_CODEC_NOTCHLC, "NotchLC"),
 
-    B(VLC_CODEC_RTP_VIDEO_RAW, "RTP raw video"),
+    B(HEIMDALL_CODEC_RTP_VIDEO_RAW, "RTP raw video"),
 
-    B(VLC_CODEC_APV, "Advanced Professional Video (APV)"),
+    B(HEIMDALL_CODEC_APV, "Advanced Professional Video (APV)"),
 };
 
 static const staticentry_t p_list_audio[] = {
 
     /* Windows Media Audio 1 */
-    B(VLC_CODEC_WMA1, "Windows Media Audio 1"),
+    B(HEIMDALL_CODEC_WMA1, "Windows Media Audio 1"),
         A("WMA1"),
         A("wma1"),
 
     /* Windows Media Audio 2 */
-    B(VLC_CODEC_WMA2, "Windows Media Audio 2"),
+    B(HEIMDALL_CODEC_WMA2, "Windows Media Audio 2"),
         A("WMA2"),
         A("wma2"),
         A("wma "),
 
     /* Windows Media Audio Professional */
-    B(VLC_CODEC_WMAP, "Windows Media Audio Professional"),
+    B(HEIMDALL_CODEC_WMAP, "Windows Media Audio Professional"),
         A("WMAP"),
         A("wmap"),
 
     /* Windows Media Audio Lossless */
-    B(VLC_CODEC_WMAL, "Windows Media Audio Lossless"),
+    B(HEIMDALL_CODEC_WMAL, "Windows Media Audio Lossless"),
         A("WMAL"),
         A("wmal"),
 
     /* Windows Media Audio Speech */
-    B(VLC_CODEC_WMAS, "Windows Media Audio Voice (Speech)"),
+    B(HEIMDALL_CODEC_WMAS, "Windows Media Audio Voice (Speech)"),
         A("WMAS"),
         A("wmas"),
 
     /* DV Audio */
-    B(VLC_CODEC_DVAUDIO, "DV Audio"),
+    B(HEIMDALL_CODEC_DVAUDIO, "DV Audio"),
         A("dvau"),
         A("vdva"),
         A("dvca"),
         A("RADV"),
 
     /* MACE-3 Audio */
-    B(VLC_CODEC_MACE3, "MACE-3 Audio"),
+    B(HEIMDALL_CODEC_MACE3, "MACE-3 Audio"),
         A("MAC3"),
 
     /* MACE-6 Audio */
-    B(VLC_CODEC_MACE6, "MACE-6 Audio"),
+    B(HEIMDALL_CODEC_MACE6, "MACE-6 Audio"),
         A("MAC6"),
 
     /* MUSEPACK7 Audio */
-    B(VLC_CODEC_MUSEPACK7, "MUSEPACK7 Audio"),
+    B(HEIMDALL_CODEC_MUSEPACK7, "MUSEPACK7 Audio"),
         A("MPC "),
 
     /* MUSEPACK8 Audio */
-    B(VLC_CODEC_MUSEPACK8, "MUSEPACK8 Audio"),
+    B(HEIMDALL_CODEC_MUSEPACK8, "MUSEPACK8 Audio"),
         A("MPCK"),
         A("MPC8"),
 
     /* RealAudio 1.0 */
-    B(VLC_CODEC_RA_144, "RealAudio 1.0"),
+    B(HEIMDALL_CODEC_RA_144, "RealAudio 1.0"),
         A("14_4"),
         A("lpcJ"),
 
     /* RealAudio 2.0 */
-    B(VLC_CODEC_RA_288, "RealAudio 2.0"),
+    B(HEIMDALL_CODEC_RA_288, "RealAudio 2.0"),
         A("28_8"),
 
-    B(VLC_CODEC_SIPR, "RealAudio Sipr"),
+    B(HEIMDALL_CODEC_SIPR, "RealAudio Sipr"),
         A("sipr"),
 
     /* MPEG Audio layer 1/2 */
-    B(VLC_CODEC_MPGA, "MPEG Audio layer 1/2"),
+    B(HEIMDALL_CODEC_MPGA, "MPEG Audio layer 1/2"),
         A("mpga"),
         A("mp2a"),
         A(".mp1"),
@@ -1411,26 +1412,26 @@ static const staticentry_t p_list_audio[] = {
         A("ms\x00\x55"),
 
     /* MPEG Audio layer 3 */
-    B(VLC_CODEC_MP3, "MPEG Audio layer 3"),
+    B(HEIMDALL_CODEC_MP3, "MPEG Audio layer 3"),
         A("mp3 "),
         A(".mp3"),
         A("MP3 "),
 
     /* A52 Audio (aka AC3) */
-    B(VLC_CODEC_A52, "Audio Coding 3 (AC-3)"),
+    B(HEIMDALL_CODEC_A52, "Audio Coding 3 (AC-3)"),
         A("a52 "),
         A("a52b"),
         A("ac-3"),
         A("sac3"),
         A("ms\x20\x00"),
 
-    B(VLC_CODEC_EAC3, "Enhanced Audio Coding 3 (E-AC-3)"),
+    B(HEIMDALL_CODEC_EAC3, "Enhanced Audio Coding 3 (E-AC-3)"),
         A("ec-3"),
 
-    B(VLC_CODEC_AC4,  "Audio Coding 4 (AC-4)"),
+    B(HEIMDALL_CODEC_AC4,  "Audio Coding 4 (AC-4)"),
 
     /* DTS Audio */
-    B(VLC_CODEC_DTS, "DTS Audio"),
+    B(HEIMDALL_CODEC_DTS, "DTS Audio"),
         A("dts "),
         A("DTS "),
         A("dtsb"),
@@ -1441,425 +1442,425 @@ static const staticentry_t p_list_audio[] = {
         A("ms\x20\x01"),
 
     /* AAC audio */
-    B(VLC_CODEC_MP4A, "MPEG AAC Audio"),
+    B(HEIMDALL_CODEC_MP4A, "MPEG AAC Audio"),
         A("mp4a"),
         A("aac "),
         A("AACL"),
         A("AACH"),
         A("AACP"), /* smooth streaming alias */
 
-    B(VLC_CODEC_MPEGH, "MPEG-H Audio"),
+    B(HEIMDALL_CODEC_MPEGH, "MPEG-H Audio"),
         A("mha1"),
         A("mha2"),
         A("mhm1"),
         A("mhm2"),
 
     /* ALS audio */
-    B(VLC_CODEC_ALS, "MPEG-4 Audio Lossless (ALS)"),
+    B(HEIMDALL_CODEC_ALS, "MPEG-4 Audio Lossless (ALS)"),
         A("als "),
 
     /* 4X Technologies */
-    B(VLC_CODEC_ADPCM_4XM, "4X Technologies Audio"),
+    B(HEIMDALL_CODEC_ADPCM_4XM, "4X Technologies Audio"),
         A("4xma"),
 
     /* EA ADPCM */
-    B(VLC_CODEC_ADPCM_EA, "EA ADPCM Audio"),
+    B(HEIMDALL_CODEC_ADPCM_EA, "EA ADPCM Audio"),
         A("ADEA"),
 
     /* Interplay DPCM */
-    B(VLC_CODEC_INTERPLAY_DPCM, "Interplay DPCM Audio"),
+    B(HEIMDALL_CODEC_INTERPLAY_DPCM, "Interplay DPCM Audio"),
         A("idpc"),
 
     /* Id RoQ */
-    B(VLC_CODEC_ROQ_DPCM, "Id RoQ DPCM Audio"),
+    B(HEIMDALL_CODEC_ROQ_DPCM, "Id RoQ DPCM Audio"),
         A("RoQa"),
 
     /* DCIN Audio */
-    B(VLC_CODEC_DSICINAUDIO, "Delphine CIN Audio"),
+    B(HEIMDALL_CODEC_DSICINAUDIO, "Delphine CIN Audio"),
         A("DCIA"),
 
     /* Sony Playstation XA ADPCM */
-    B(VLC_CODEC_ADPCM_XA, "PSX XA ADPCM Audio"),
+    B(HEIMDALL_CODEC_ADPCM_XA, "PSX XA ADPCM Audio"),
         A("xa  "),
 
     /* ADX ADPCM */
-    B(VLC_CODEC_ADPCM_ADX, "ADX ADPCM Audio"),
+    B(HEIMDALL_CODEC_ADPCM_ADX, "ADX ADPCM Audio"),
         A("adx "),
 
     /* Westwood ADPCM */
-    B(VLC_CODEC_ADPCM_IMA_WS, "Westwood IMA ADPCM audio"),
+    B(HEIMDALL_CODEC_ADPCM_IMA_WS, "Westwood IMA ADPCM audio"),
         A("AIWS"),
 
     /* MS ADPCM */
-    B(VLC_CODEC_ADPCM_MS, "MS ADPCM audio"),
+    B(HEIMDALL_CODEC_ADPCM_MS, "MS ADPCM audio"),
         A("ms\x00\x02"),
 
     /* Sierra VMD */
-    B(VLC_CODEC_VMDAUDIO, "Sierra VMD Audio"),
+    B(HEIMDALL_CODEC_VMDAUDIO, "Sierra VMD Audio"),
         A("vmda"),
 
     /* G.726 ADPCM */
-    B(VLC_CODEC_ADPCM_G726, "G.726 ADPCM Audio"),
+    B(HEIMDALL_CODEC_ADPCM_G726, "G.726 ADPCM Audio"),
         A("g726"),
 
     /* G.726 ADPCM */
-    B(VLC_CODEC_ADPCM_G726_LE, "G.726 ADPCM Audio (little-endian)"),
+    B(HEIMDALL_CODEC_ADPCM_G726_LE, "G.726 ADPCM Audio (little-endian)"),
         A("g72s"),
 
     /* G.722 ADPCM */
-    B(VLC_CODEC_ADPCM_G722, "G.722 ADPCM Audio"),
+    B(HEIMDALL_CODEC_ADPCM_G722, "G.722 ADPCM Audio"),
         A("g722"),
 
     /* Flash ADPCM */
-    B(VLC_CODEC_ADPCM_SWF, "Flash ADPCM Audio"),
+    B(HEIMDALL_CODEC_ADPCM_SWF, "Flash ADPCM Audio"),
         A("SWFa"),
 
-    B(VLC_CODEC_ADPCM_IMA_WAV, "IMA WAV ADPCM Audio"),
+    B(HEIMDALL_CODEC_ADPCM_IMA_WAV, "IMA WAV ADPCM Audio"),
         A("ms\x00\x11"),
 
-    B(VLC_CODEC_ADPCM_IMA_AMV, "IMA AMV ADPCM Audio"),
+    B(HEIMDALL_CODEC_ADPCM_IMA_AMV, "IMA AMV ADPCM Audio"),
         A("imav"),
 
-    B(VLC_CODEC_ADPCM_IMA_QT, "IMA QT ADPCM Audio"),
+    B(HEIMDALL_CODEC_ADPCM_IMA_QT, "IMA QT ADPCM Audio"),
         A("ima4"),
 
-    B(VLC_CODEC_ADPCM_YAMAHA, "Yamaha ADPCM Audio" ),
+    B(HEIMDALL_CODEC_ADPCM_YAMAHA, "Yamaha ADPCM Audio" ),
         A("ms\x00\x20"),
 
-    B(VLC_CODEC_ADPCM_DK3, "Duck DK3 ADPCM"),
+    B(HEIMDALL_CODEC_ADPCM_DK3, "Duck DK3 ADPCM"),
         A("ms\x00\x62"),
 
-    B(VLC_CODEC_ADPCM_DK4, "Duck DK4 ADPCM"),
+    B(HEIMDALL_CODEC_ADPCM_DK4, "Duck DK4 ADPCM"),
         A("ms\x00\x61"),
 
-    B(VLC_CODEC_ADPCM_THP, "GameCube THP ADPCM"),
+    B(HEIMDALL_CODEC_ADPCM_THP, "GameCube THP ADPCM"),
 
-    B(VLC_CODEC_ADPCM_XA_EA, "EA-XA ADPCM"),
+    B(HEIMDALL_CODEC_ADPCM_XA_EA, "EA-XA ADPCM"),
         A("XAJ\x00"),
 
     /* AMR */
-    B(VLC_CODEC_AMR_NB, "AMR narrow band"),
+    B(HEIMDALL_CODEC_AMR_NB, "AMR narrow band"),
         A("samr"),
 
-    B(VLC_CODEC_AMR_WB, "AMR wide band"),
+    B(HEIMDALL_CODEC_AMR_WB, "AMR wide band"),
         A("sawb"),
 
     /* FLAC */
-    B(VLC_CODEC_FLAC, "FLAC (Free Lossless Audio Codec)"),
+    B(HEIMDALL_CODEC_FLAC, "FLAC (Free Lossless Audio Codec)"),
         A("flac"),
 
     /* ALAC */
-    B(VLC_CODEC_ALAC, "Apple Lossless Audio Codec"),
+    B(HEIMDALL_CODEC_ALAC, "Apple Lossless Audio Codec"),
         A("alac"),
 
     /* QDM2 */
-    B(VLC_CODEC_QDM2, "QDM2 Audio"),
+    B(HEIMDALL_CODEC_QDM2, "QDM2 Audio"),
         A("QDM2"),
 
     /* QDMC */
-    B(VLC_CODEC_QDMC, "QDMC Audio"),
+    B(HEIMDALL_CODEC_QDMC, "QDMC Audio"),
         A("QDMC"),
 
     /* QOA */
-    B(VLC_CODEC_QOA, "Quite OK Audio Format"),
+    B(HEIMDALL_CODEC_QOA, "Quite OK Audio Format"),
         A("qoaf"),
 
     /* COOK */
-    B(VLC_CODEC_COOK, "Cook Audio"),
+    B(HEIMDALL_CODEC_COOK, "Cook Audio"),
         A("cook"),
 
     /* TTA: The Lossless True Audio */
-    B(VLC_CODEC_TTA, "The Lossless True Audio"),
+    B(HEIMDALL_CODEC_TTA, "The Lossless True Audio"),
         A("TTA1"),
 
     /* Shorten */
-    B(VLC_CODEC_SHORTEN, "Shorten Lossless Audio"),
+    B(HEIMDALL_CODEC_SHORTEN, "Shorten Lossless Audio"),
         A("shn "),
         A("shrn"),
 
-    B(VLC_CODEC_WAVPACK, "WavPack"),
+    B(HEIMDALL_CODEC_WAVPACK, "WavPack"),
         A("WVPK"),
         A("wvpk"),
 
-    B(VLC_CODEC_GSM, "GSM Audio"),
+    B(HEIMDALL_CODEC_GSM, "GSM Audio"),
         A("gsm "),
 
-    B(VLC_CODEC_GSM_MS, "Microsoft GSM Audio"),
+    B(HEIMDALL_CODEC_GSM_MS, "Microsoft GSM Audio"),
         A("agsm"),
 
-    B(VLC_CODEC_ATRAC1, "atrac 1"),
+    B(HEIMDALL_CODEC_ATRAC1, "atrac 1"),
         A("atr1"),
 
-    B(VLC_CODEC_ATRAC3, "atrac 3"),
+    B(HEIMDALL_CODEC_ATRAC3, "atrac 3"),
         A("atrc"),
         A("\x70\x02\x00\x00"),
 
-    B(VLC_CODEC_ATRAC3P, "atrac 3+"),
+    B(HEIMDALL_CODEC_ATRAC3P, "atrac 3+"),
         A("atrp"),
 
-    B(VLC_CODEC_ATRAC3AL, "atrac 3 advanced lossless"),
+    B(HEIMDALL_CODEC_ATRAC3AL, "atrac 3 advanced lossless"),
         A("atrl"),
 
-    B(VLC_CODEC_ATRAC3PAL, "atrac 3+ advanced lossless"),
+    B(HEIMDALL_CODEC_ATRAC3PAL, "atrac 3+ advanced lossless"),
         A("atpl"),
 
-    B(VLC_CODEC_ATRAC9, "atrac 9"),
+    B(HEIMDALL_CODEC_ATRAC9, "atrac 9"),
         A("atr9"),
 
-    B(VLC_CODEC_IMC, "IMC" ),
+    B(HEIMDALL_CODEC_IMC, "IMC" ),
         A("\x01\x04\x00\x00"),
 
-    B(VLC_CODEC_TRUESPEECH,"TrueSpeech"),
+    B(HEIMDALL_CODEC_TRUESPEECH,"TrueSpeech"),
         A("\x22\x00\x00\x00"),
 
-    B(VLC_CODEC_NELLYMOSER, "NellyMoser ASAO"),
+    B(HEIMDALL_CODEC_NELLYMOSER, "NellyMoser ASAO"),
         A("NELL"),
         A("nmos"),
 
-    B(VLC_CODEC_APE, "Monkey's Audio"),
+    B(HEIMDALL_CODEC_APE, "Monkey's Audio"),
         A("APE "),
 
-    B(VLC_CODEC_MLP, "MLP/TrueHD Audio"),
+    B(HEIMDALL_CODEC_MLP, "MLP/TrueHD Audio"),
         A("mlp "),
 
-    B(VLC_CODEC_TRUEHD, "TrueHD Audio"),
+    B(HEIMDALL_CODEC_TRUEHD, "TrueHD Audio"),
         A("trhd"),
 
-    B(VLC_CODEC_QCELP, "QCELP Audio"),
+    B(HEIMDALL_CODEC_QCELP, "QCELP Audio"),
         A("Qclp"),
         A("Qclq"),
         A("sqcp"),
 
-    B(VLC_CODEC_CODEC2, "Codec 2 Audio"),
+    B(HEIMDALL_CODEC_CODEC2, "Codec 2 Audio"),
 
-    B(VLC_CODEC_SPEEX, "Speex Audio"),
+    B(HEIMDALL_CODEC_SPEEX, "Speex Audio"),
         A("spx "),
         A("spxr"),
 
-    B(VLC_CODEC_VORBIS, "Vorbis Audio"),
+    B(HEIMDALL_CODEC_VORBIS, "Vorbis Audio"),
         A("vorb"),
         A("vor1"),
 
-    B(VLC_CODEC_OPUS, "Opus Audio"),
+    B(HEIMDALL_CODEC_OPUS, "Opus Audio"),
         A("Opus"),
         A("opus"),
 
-    B(VLC_CODEC_302M, "302M Audio"),
+    B(HEIMDALL_CODEC_302M, "302M Audio"),
         A("302m"),
 
-    B(VLC_CODEC_DVD_LPCM, "DVD LPCM Audio"),
+    B(HEIMDALL_CODEC_DVD_LPCM, "DVD LPCM Audio"),
         A("lpcm"),
 
-    B(VLC_CODEC_DVDA_LPCM, "DVD-Audio LPCM Audio"),
+    B(HEIMDALL_CODEC_DVDA_LPCM, "DVD-Audio LPCM Audio"),
         A("apcm"),
 
-    B(VLC_CODEC_BD_LPCM, "BD LPCM Audio"),
+    B(HEIMDALL_CODEC_BD_LPCM, "BD LPCM Audio"),
         A("bpcm"),
 
-    B(VLC_CODEC_SDDS, "SDDS Audio"),
+    B(HEIMDALL_CODEC_SDDS, "SDDS Audio"),
         A("sdds"),
         A("sddb"),
 
-    B(VLC_CODEC_MIDI, "MIDI Audio"),
+    B(HEIMDALL_CODEC_MIDI, "MIDI Audio"),
         A("MIDI"),
 
-    B(VLC_CODEC_RALF, "RealAudio Lossless"),
+    B(HEIMDALL_CODEC_RALF, "RealAudio Lossless"),
         A("LSD:"),
 
     /* G.723.1 */
-    B(VLC_CODEC_G723_1, "G.723.1 Audio"),
+    B(HEIMDALL_CODEC_G723_1, "G.723.1 Audio"),
         A("g72\x31"),
 
     /* PCM */
-    B(VLC_CODEC_S8, "PCM S8"),
+    B(HEIMDALL_CODEC_S8, "PCM S8"),
         A("s8  "),
 
-    B(VLC_CODEC_U8, "PCM U8"),
+    B(HEIMDALL_CODEC_U8, "PCM U8"),
         A("u8  "),
 
-    B(VLC_CODEC_S16L, "PCM S16 LE"),
+    B(HEIMDALL_CODEC_S16L, "PCM S16 LE"),
         A("s16l"),
 
-    B(VLC_CODEC_S16L_PLANAR, "PCM S16 LE planar"),
+    B(HEIMDALL_CODEC_S16L_PLANAR, "PCM S16 LE planar"),
 
-    B(VLC_CODEC_S16B, "PCM S16 BE"),
+    B(HEIMDALL_CODEC_S16B, "PCM S16 BE"),
         A("s16b"),
 
-    B(VLC_CODEC_U16L, "PCM U16 LE"),
+    B(HEIMDALL_CODEC_U16L, "PCM U16 LE"),
         A("u16l"),
 
-    B(VLC_CODEC_U16B, "PCM U16 BE"),
+    B(HEIMDALL_CODEC_U16B, "PCM U16 BE"),
         A("u16b"),
 
-    B(VLC_CODEC_S20B, "PCM S20 BE"),
+    B(HEIMDALL_CODEC_S20B, "PCM S20 BE"),
 
-    B(VLC_CODEC_S24L, "PCM S24 LE"),
+    B(HEIMDALL_CODEC_S24L, "PCM S24 LE"),
         A("s24l"),
         A("42ni"),  /* Quicktime */
 
-    B(VLC_CODEC_S24B, "PCM S24 BE"),
+    B(HEIMDALL_CODEC_S24B, "PCM S24 BE"),
         A("s24b"),
         A("in24"),  /* Quicktime */
 
-    B(VLC_CODEC_U24L, "PCM U24 LE"),
+    B(HEIMDALL_CODEC_U24L, "PCM U24 LE"),
         A("u24l"),
 
-    B(VLC_CODEC_U24B, "PCM U24 BE"),
+    B(HEIMDALL_CODEC_U24B, "PCM U24 BE"),
         A("u24b"),
 
-    B(VLC_CODEC_S24L32, "PCM S24 in 32 LE"),
+    B(HEIMDALL_CODEC_S24L32, "PCM S24 in 32 LE"),
 
-    B(VLC_CODEC_S24B32, "PCM S24 in 32 BE"),
+    B(HEIMDALL_CODEC_S24B32, "PCM S24 in 32 BE"),
 
-    B(VLC_CODEC_S32L, "PCM S32 LE"),
+    B(HEIMDALL_CODEC_S32L, "PCM S32 LE"),
         A("s32l"),
         A("23ni"),  /* Quicktime */
 
-    B(VLC_CODEC_S32B, "PCM S32 BE"),
+    B(HEIMDALL_CODEC_S32B, "PCM S32 BE"),
         A("s32b"),
         A("in32"),  /* Quicktime */
 
-    B(VLC_CODEC_U32L, "PCM U32 LE"),
+    B(HEIMDALL_CODEC_U32L, "PCM U32 LE"),
         A("u32l"),
 
-    B(VLC_CODEC_U32B, "PCM U32 BE"),
+    B(HEIMDALL_CODEC_U32B, "PCM U32 BE"),
         A("u32b"),
 
-    B(VLC_CODEC_ALAW, "PCM ALAW"),
+    B(HEIMDALL_CODEC_ALAW, "PCM ALAW"),
         A("alaw"),
 
-    B(VLC_CODEC_MULAW, "PCM MU-LAW"),
+    B(HEIMDALL_CODEC_MULAW, "PCM MU-LAW"),
         A("mlaw"),
         A("ulaw"),
 
-    B(VLC_CODEC_DAT12, "12 bits DAT audio"),
+    B(HEIMDALL_CODEC_DAT12, "12 bits DAT audio"),
 
-    B(VLC_CODEC_S24DAUD, "PCM DAUD"),
+    B(HEIMDALL_CODEC_S24DAUD, "PCM DAUD"),
         A("daud"),
 
-    B(VLC_CODEC_F32L, "32 bits float LE"),
+    B(HEIMDALL_CODEC_F32L, "32 bits float LE"),
         A("f32l"),
         A("fl32"),
 
-    B(VLC_CODEC_F32B, "32 bits float BE"),
+    B(HEIMDALL_CODEC_F32B, "32 bits float BE"),
         A("f32b"),
 
-    B(VLC_CODEC_F64L, "64 bits float LE"),
+    B(HEIMDALL_CODEC_F64L, "64 bits float LE"),
         A("f64l"),
 
-    B(VLC_CODEC_F64B, "64 bits float BE"),
+    B(HEIMDALL_CODEC_F64B, "64 bits float BE"),
         A("f64b"),
 
-    B(VLC_CODEC_TWINVQ, "TwinVQ"),
+    B(HEIMDALL_CODEC_TWINVQ, "TwinVQ"),
         A("TWIN"),
 
-    B(VLC_CODEC_BMVAUDIO, "Discworld II BMV audio"),
+    B(HEIMDALL_CODEC_BMVAUDIO, "Discworld II BMV audio"),
         A("BMVA"),
 
-    B(VLC_CODEC_ULEAD_DV_AUDIO_NTSC, "Ulead DV audio NTSC"),
+    B(HEIMDALL_CODEC_ULEAD_DV_AUDIO_NTSC, "Ulead DV audio NTSC"),
         A("ms\x02\x15"),
-    B(VLC_CODEC_ULEAD_DV_AUDIO_PAL, "Ulead DV audio PAL"),
+    B(HEIMDALL_CODEC_ULEAD_DV_AUDIO_PAL, "Ulead DV audio PAL"),
         A("ms\x02\x16"),
 
-    B(VLC_CODEC_INDEO_AUDIO, "Indeo Audio Coder"),
+    B(HEIMDALL_CODEC_INDEO_AUDIO, "Indeo Audio Coder"),
         A("ms\x04\x02"),
 
-    B(VLC_CODEC_TAK, "TAK (Tom's lossless Audio Kompressor)"),
+    B(HEIMDALL_CODEC_TAK, "TAK (Tom's lossless Audio Kompressor)"),
 
-    B(VLC_CODEC_SMACKAUDIO, "Smacker audio"),
+    B(HEIMDALL_CODEC_SMACKAUDIO, "Smacker audio"),
 
-    B(VLC_CODEC_ADPCM_IMA_EA_SEAD, "ADPCM IMA Electronic Arts SEAD"),
+    B(HEIMDALL_CODEC_ADPCM_IMA_EA_SEAD, "ADPCM IMA Electronic Arts SEAD"),
 
-    B(VLC_CODEC_ADPCM_EA_R1, "ADPCM Electronic Arts R1"),
+    B(HEIMDALL_CODEC_ADPCM_EA_R1, "ADPCM Electronic Arts R1"),
 
-    B(VLC_CODEC_ADPCM_EA_R3, "ADPCM Electronic Arts R3"),
+    B(HEIMDALL_CODEC_ADPCM_EA_R3, "ADPCM Electronic Arts R3"),
 
-    B(VLC_CODEC_ADPCM_IMA_APC, "ADPCM APC"),
+    B(HEIMDALL_CODEC_ADPCM_IMA_APC, "ADPCM APC"),
 
-    B(VLC_CODEC_DSD_LSBF, "DSD (Direct Stream Digital) LSB first"),
+    B(HEIMDALL_CODEC_DSD_LSBF, "DSD (Direct Stream Digital) LSB first"),
 
-    B(VLC_CODEC_DSD_MSBF, "DSD (Direct Stream Digital) MSB first"),
+    B(HEIMDALL_CODEC_DSD_MSBF, "DSD (Direct Stream Digital) MSB first"),
 
-    B(VLC_CODEC_DSD_LSBF_PLANAR, "DSD (Direct Stream Digital) LSB first, planar"),
+    B(HEIMDALL_CODEC_DSD_LSBF_PLANAR, "DSD (Direct Stream Digital) LSB first, planar"),
 
-    B(VLC_CODEC_DSD_MSBF_PLANAR, "DSD (Direct Stream Digital) MSB first, planar"),
+    B(HEIMDALL_CODEC_DSD_MSBF_PLANAR, "DSD (Direct Stream Digital) MSB first, planar"),
 
-    B(VLC_CODEC_DFPWM, "DFPWM1a audio"),
+    B(HEIMDALL_CODEC_DFPWM, "DFPWM1a audio"),
 };
 
 static const staticentry_t p_list_spu[] = {
 
-    B(VLC_CODEC_SPU, "DVD Subtitles"),
+    B(HEIMDALL_CODEC_SPU, "DVD Subtitles"),
         A("spu "),
         A("spub"),
 
-    B(VLC_CODEC_DVBS, "DVB Subtitles"),
+    B(HEIMDALL_CODEC_DVBS, "DVB Subtitles"),
         A("dvbs"),
 
-    B(VLC_CODEC_SUBT, "Text subtitles with various tags"),
+    B(HEIMDALL_CODEC_SUBT, "Text subtitles with various tags"),
         A("subt"),
 
-    B(VLC_CODEC_XSUB, "DivX XSUB subtitles"),
+    B(HEIMDALL_CODEC_XSUB, "DivX XSUB subtitles"),
         A("XSUB"),
         A("xsub"),
         A("DXSB"),
         A("DXSA"),
 
-    B(VLC_CODEC_SSA, "SubStation Alpha subtitles"),
+    B(HEIMDALL_CODEC_SSA, "SubStation Alpha subtitles"),
         A("ssa "),
 
-    B(VLC_CODEC_TEXT, "Plain text subtitles"),
+    B(HEIMDALL_CODEC_TEXT, "Plain text subtitles"),
         A("TEXT"),
 
-    B(VLC_CODEC_TELETEXT, "Teletext"),
+    B(HEIMDALL_CODEC_TELETEXT, "Teletext"),
         A("telx"),
 
-    B(VLC_CODEC_KATE, "Kate subtitles"),
+    B(HEIMDALL_CODEC_KATE, "Kate subtitles"),
         A("kate"),
 
-    B(VLC_CODEC_CMML, "CMML annotations/metadata"),
+    B(HEIMDALL_CODEC_CMML, "CMML annotations/metadata"),
         A("cmml"),
 
-    B(VLC_CODEC_ITU_T140, "ITU T.140 subtitles"),
+    B(HEIMDALL_CODEC_ITU_T140, "ITU T.140 subtitles"),
         A("t140"),
 
-    B(VLC_CODEC_USF, "USF subtitles"),
+    B(HEIMDALL_CODEC_USF, "USF subtitles"),
         A("usf "),
 
-    B(VLC_CODEC_OGT, "OGT subtitles"),
+    B(HEIMDALL_CODEC_OGT, "OGT subtitles"),
         A("ogt "),
 
-    B(VLC_CODEC_CVD, "CVD subtitles"),
+    B(HEIMDALL_CODEC_CVD, "CVD subtitles"),
         A("cvd "),
 
-    B(VLC_CODEC_ARIB_A, "ARIB subtitles (A-profile)"),
+    B(HEIMDALL_CODEC_ARIB_A, "ARIB subtitles (A-profile)"),
         A("arba"),
 
-    B(VLC_CODEC_ARIB_C, "ARIB subtitles (C-profile)"),
+    B(HEIMDALL_CODEC_ARIB_C, "ARIB subtitles (C-profile)"),
         A("arbc"),
 
-    B(VLC_CODEC_BD_PG, "BD PGS subtitles"),
+    B(HEIMDALL_CODEC_BD_PG, "BD PGS subtitles"),
         A("bdpg"),
 
-    B(VLC_CODEC_BD_TEXT, "BD Text subtitles"),
+    B(HEIMDALL_CODEC_BD_TEXT, "BD Text subtitles"),
         A("bdtx"),
 
-    B(VLC_CODEC_EBU_STL, "EBU STL subtitles"),
+    B(HEIMDALL_CODEC_EBU_STL, "EBU STL subtitles"),
         A("STL "),
 
-    B(VLC_CODEC_SCTE_27, "SCTE-27 subtitles"),
+    B(HEIMDALL_CODEC_SCTE_27, "SCTE-27 subtitles"),
         A("SC27"),
 
-    B(VLC_CODEC_CEA608,  "EIA-608 subtitles"),
+    B(HEIMDALL_CODEC_CEA608,  "EIA-608 subtitles"),
         A("cc1 "), /* acquisition devices */
         A("cc2 "),
         A("cc3 "),
         A("cc4 "),
 
-    B(VLC_CODEC_TTML, "TTML subtitles"),
+    B(HEIMDALL_CODEC_TTML, "TTML subtitles"),
         A("ttml"),
 
-    B(VLC_CODEC_TTML_TS, "TTML subtitles (EN.303.560)"),
+    B(HEIMDALL_CODEC_TTML_TS, "TTML subtitles (EN.303.560)"),
 
-    B(VLC_CODEC_WEBVTT, "WEBVTT subtitles"),
+    B(HEIMDALL_CODEC_WEBVTT, "WEBVTT subtitles"),
 };

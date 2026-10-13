@@ -4,10 +4,10 @@ identifier fn;
 position lockedfn;
 @@
  fn(...) {
- ...when != vlc_mutex_lock(&lock)
- vlc_mutex_unlock(&lock);
+ ...when != heimdall_mutex_lock(&lock)
+ heimdall_mutex_unlock(&lock);
  ...
- vlc_mutex_lock@lockedfn(&lock);
+ heimdall_mutex_lock@lockedfn(&lock);
  ...
  }
 @ nobrace exists @
@@ -16,11 +16,11 @@ expression condition;
 position p;
 position unlockedfn != alreadylocked.lockedfn;
 @@
- vlc_mutex_lock@unlockedfn(&lock);
- ...when != vlc_mutex_unlock(&lock);
+ heimdall_mutex_lock@unlockedfn(&lock);
+ ...when != heimdall_mutex_unlock(&lock);
  if@p (condition)
 +{
-+    vlc_mutex_unlock(&lock);
++    heimdall_mutex_unlock(&lock);
      return ...;
 +}
 
@@ -30,10 +30,10 @@ expression condition;
 position p != nobrace.p;
 position unlockedfn != alreadylocked.lockedfn;
 @@
- vlc_mutex_lock@unlockedfn(&lock);
- ...when != vlc_mutex_unlock(&lock);
+ heimdall_mutex_lock@unlockedfn(&lock);
+ ...when != heimdall_mutex_unlock(&lock);
  if@p (condition) {
-     ...when != vlc_mutex_unlock(&lock);
-+    vlc_mutex_unlock(&lock);
+     ...when != heimdall_mutex_unlock(&lock);
++    heimdall_mutex_unlock(&lock);
      return ...;
  }

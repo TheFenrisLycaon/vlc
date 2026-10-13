@@ -2,6 +2,7 @@
  * IsoffMainParser.h
  *****************************************************************************
  * Copyright (C) 2010 - 2012 Klagenfurt University
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Created on: Jan 27, 2012
  * Authors: Christopher Mueller <christopher.mueller@itec.uni-klu.ac.at>
@@ -34,7 +35,7 @@
 
 #include <cstdlib>
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
 namespace adaptive
 {
@@ -66,7 +67,7 @@ namespace dash
         class IsoffMainParser
         {
             public:
-                IsoffMainParser             (xml::Node *root, vlc_object_t *p_object,
+                IsoffMainParser             (xml::Node *root, heimdall_object_t *p_object,
                                              stream_t *p_stream, const std::string &);
                 virtual ~IsoffMainParser    ();
                 MPD *   parse();
@@ -95,7 +96,7 @@ namespace dash
                 void    parseCommonAttributesElements(xml::Node *, CommonAttributesElements *);
 
                 xml::Node       *root;
-                vlc_object_t    *p_object;
+                heimdall_object_t    *p_object;
                 stream_t        *p_stream;
                 std::string      playlisturl;
         };

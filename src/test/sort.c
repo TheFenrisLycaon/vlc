@@ -2,6 +2,7 @@
  * sort.c: Test for sorting
  *****************************************************************************
  * Copyright (C) 2017 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -25,10 +26,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <vlc_common.h>
-#include <vlc_strings.h>
+#include <heimdall_common.h>
+#include <heimdall_strings.h>
 
-const char vlc_module_name[] = "test_sort";
+const char heimdall_module_name[] = "test_sort";
 
 static void test_smaller(const char *small, const char *big,
                          int (*cmp)(const char *, const char *))
@@ -54,14 +55,14 @@ static void test_equal(const char *s, int (*cmp)(const char *, const char *))
 
 int main (void)
 {
-    test_smaller("", "a", vlc_filenamecmp);
-    test_smaller("a", "b", vlc_filenamecmp);
-    test_smaller("foo1.ogg", "foo2.ogg", vlc_filenamecmp);
-    test_smaller("foo2.ogg", "foo10.ogg", vlc_filenamecmp);
-    test_smaller("foo1.ogg", "foo10.ogg", vlc_filenamecmp);
-    test_smaller("foo01.ogg", "foo1.ogg", vlc_filenamecmp);
-    test_equal("", vlc_filenamecmp);
-    test_equal("a", vlc_filenamecmp);
-    test_equal("123", vlc_filenamecmp);
+    test_smaller("", "a", heimdall_filenamecmp);
+    test_smaller("a", "b", heimdall_filenamecmp);
+    test_smaller("foo1.ogg", "foo2.ogg", heimdall_filenamecmp);
+    test_smaller("foo2.ogg", "foo10.ogg", heimdall_filenamecmp);
+    test_smaller("foo1.ogg", "foo10.ogg", heimdall_filenamecmp);
+    test_smaller("foo01.ogg", "foo1.ogg", heimdall_filenamecmp);
+    test_equal("", heimdall_filenamecmp);
+    test_equal("a", heimdall_filenamecmp);
+    test_equal("123", heimdall_filenamecmp);
     return 0;
 }

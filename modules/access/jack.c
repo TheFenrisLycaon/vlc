@@ -4,6 +4,7 @@
  * Copyright (C) 2007-2008 VLC authors and VideoLAN
  * Copyright (C) 2007 Société des arts technologiques
  * Copyright (C) 2007 Savoir-faire Linux
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Arnaud Sala <arnaud.sala at savoirfairelinux.com>
  *          Julien Plissonneau Duquene <... at savoirfairelinux.com>
@@ -39,11 +40,11 @@
 
 #include <stdbit.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_demux.h>
-#include <vlc_url.h>
-#include <vlc_strings.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_demux.h>
+#include <heimdall_url.h>
+#include <heimdall_strings.h>
 
 #include <jack/jack.h>
 #include <jack/ringbuffer.h>
@@ -54,30 +55,30 @@
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  Open ( vlc_object_t * );
-static void Close( vlc_object_t * );
+static int  Open ( heimdall_object_t * );
+static void Close( heimdall_object_t * );
 
 #define PACE_TEXT N_( "Pace" )
 #define PACE_LONGTEXT N_( \
-    "Read the audio stream at VLC pace rather than Jack pace." )
+    "Read the audio stream at Heimdall pace rather than Jack pace." )
 #define AUTO_CONNECT_TEXT N_( "Auto connection" )
 #define AUTO_CONNECT_LONGTEXT N_( \
-    "Automatically connect VLC input ports to available output ports." )
+    "Automatically connect Heimdall input ports to available output ports." )
 #define CHANNELS_TEXT N_( "Channels" )
 #define CHANNELS_LONGTEXT N_( \
-    "Number of input channels VLC should expose to the jack server." )
+    "Number of input channels Heimdall should expose to the jack server." )
 #define PORTS_TEXT N_( "Ports" )
 #define PORTS_LONGTEXT N_( \
-    "Output ports in jack that VLC should read from, URI-encoded and " \
+    "Output ports in jack that Heimdall should read from, URI-encoded and " \
     "separated with a comma." )
 
-vlc_module_begin ()
+heimdall_module_begin ()
      set_description( N_("JACK audio input") )
      set_capability( "access", 0 )
      set_shortname( N_( "JACK Input" ) )
      set_subcategory( SUBCAT_INPUT_ACCESS )
 
-     add_bool( "jack-input-use-vlc-pace", false,
+     add_bool( "jack-input-use-heimdall-pace", false,
          PACE_TEXT, PACE_LONGTEXT )
      add_bool( "jack-input-auto-connect", false,
          AUTO_CONNECT_TEXT, AUTO_CONNECT_LONGTEXT )
@@ -94,7 +95,7 @@ vlc_module_begin ()
 
      add_shortcut( "jack" )
      set_callbacks( Open, Close )
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * Local prototypes
@@ -103,7 +104,7 @@ vlc_module_end ()
 typedef struct
 {
     /* Audio properties */
-    vlc_fourcc_t                i_acodec_raw;
+    heimdall_fourcc_t                i_acodec_raw;
     unsigned int                i_channels;
     int                         i_sample_rate;
     int                         i_audio_max_frame_size;
@@ -135,7 +136,7 @@ static block_t *GrabJack( demux_t * );
 /*****************************************************************************
  * Open: Connect to the JACK server
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     demux_t *p_demux = ( demux_t* )p_this;
     demux_sys_t *p_sys;
@@ -143,15 +144,15 @@ static int Open( vlc_object_t *p_this )
     int i_out_ports = 0;
 
     if (p_demux->out == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     p_demux->pf_demux = Demux;
     p_demux->pf_control = Control;
 
     /* Allocate structure */
-    p_demux->p_sys = p_sys = vlc_obj_calloc( p_this, 1, sizeof( demux_sys_t ) );
+    p_demux->p_sys = p_sys = heimdall_obj_calloc( p_this, 1, sizeof( demux_sys_t ) );
     if( !p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     /* Parse MRL */
     var_LocationParse( p_demux, p_demux->psz_location, "jack-input-" );
@@ -159,20 +160,20 @@ static int Open( vlc_object_t *p_this )
     p_sys->psz_ports = var_GetString( p_demux,  "jack-input-ports" );
 
     /* Create var */
-    var_Create( p_demux, "jack-input-use-vlc-pace",
-        VLC_VAR_BOOL | VLC_VAR_DOINHERIT );
+    var_Create( p_demux, "jack-input-use-heimdall-pace",
+        HEIMDALL_VAR_BOOL | HEIMDALL_VAR_DOINHERIT );
     var_Create( p_demux, "jack-input-auto-connect",
-        VLC_VAR_BOOL | VLC_VAR_DOINHERIT );
+        HEIMDALL_VAR_BOOL | HEIMDALL_VAR_DOINHERIT );
 
     /* JACK connections */
     /* define name and connect to jack server */
-    char p_vlc_client_name[32];
-    sprintf( p_vlc_client_name, "vlc-input-%d", getpid() );
-    p_sys->p_jack_client = jack_client_open( p_vlc_client_name, JackNullOption, NULL );
+    char p_heimdall_client_name[32];
+    sprintf( p_heimdall_client_name, "heimdall-input-%d", getpid() );
+    p_sys->p_jack_client = jack_client_open( p_heimdall_client_name, JackNullOption, NULL );
     if( p_sys->p_jack_client == NULL )
     {
         msg_Err( p_demux, "failed to connect to JACK server" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* find some specifics ports if user entered a regexp */
@@ -187,11 +188,11 @@ static int Open( vlc_object_t *p_this )
 
     /* allocate input ports */
     if( p_sys->i_channels == 0 ) p_sys->i_channels = 2 ; /* default number of port */
-    p_sys->pp_jack_port_input = vlc_alloc( p_sys->i_channels, sizeof( jack_port_t* ) );
+    p_sys->pp_jack_port_input = heimdall_alloc( p_sys->i_channels, sizeof( jack_port_t* ) );
     if( p_sys->pp_jack_port_input == NULL )
     {
         jack_client_close( p_sys->p_jack_client );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     /* allocate ringbuffer */
@@ -204,14 +205,14 @@ static int Open( vlc_object_t *p_this )
     {
         free( p_sys->pp_jack_port_input );
         jack_client_close( p_sys->p_jack_client );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     /* register input ports */
     for( unsigned i = 0; i <  p_sys->i_channels; i++ )
     {
         char p_input_name[32];
-        snprintf( p_input_name, 32, "vlc_in_%d", i+1 );
+        snprintf( p_input_name, 32, "heimdall_in_%d", i+1 );
         p_sys->pp_jack_port_input[i] = jack_port_register(
             p_sys->p_jack_client, p_input_name, JACK_DEFAULT_AUDIO_TYPE,
             JackPortIsInput, 0 );
@@ -221,12 +222,12 @@ static int Open( vlc_object_t *p_this )
             jack_ringbuffer_free( p_sys->p_jack_ringbuffer );
             free( p_sys->pp_jack_port_input );
             jack_client_close( p_sys->p_jack_client );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
 
     /* allocate buffer for input ports */
-    p_sys->pp_jack_buffer = vlc_alloc( p_sys->i_channels, sizeof( jack_default_audio_sample_t * ) );
+    p_sys->pp_jack_buffer = heimdall_alloc( p_sys->i_channels, sizeof( jack_default_audio_sample_t * ) );
     if( p_sys->pp_jack_buffer == NULL )
     {
         for( unsigned i = 0; i < p_sys->i_channels; i++ )
@@ -234,7 +235,7 @@ static int Open( vlc_object_t *p_this )
         jack_ringbuffer_free( p_sys->p_jack_ringbuffer );
         free( p_sys->pp_jack_port_input );
         jack_client_close( p_sys->p_jack_client );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     /* set process callback */
@@ -250,10 +251,10 @@ static int Open( vlc_object_t *p_this )
         jack_ringbuffer_free( p_sys->p_jack_ringbuffer );
         free( p_sys->pp_jack_port_input );
         jack_client_close( p_sys->p_jack_client );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    /* connect vlc input to specifics jack output ports if requested */
+    /* connect heimdall input to specifics jack output ports if requested */
    /*  if( var_GetBool( p_demux, "jack-input-auto-connect" ) && p_sys->psz_ports ) */
     if( p_sys->psz_ports )
     {
@@ -265,7 +266,7 @@ static int Open( vlc_object_t *p_this )
         }
     }
 
-    /* connect vlc input to all jack output ports if requested */
+    /* connect heimdall input to all jack output ports if requested */
     if( var_GetBool( p_demux, "jack-input-auto-connect" ) && !p_sys->psz_ports )
     {
         const char **pp_jack_port_output = jack_get_ports( p_sys->p_jack_client,
@@ -295,7 +296,7 @@ static int Open( vlc_object_t *p_this )
     p_sys->jack_sample_size = sizeof( jack_default_audio_sample_t );
 
     /* Define output format */
-    es_format_Init( &fmt, AUDIO_ES, VLC_CODEC_FL32 );
+    es_format_Init( &fmt, AUDIO_ES, HEIMDALL_CODEC_FL32 );
     fmt.audio.i_channels =  p_sys->i_channels;
     fmt.audio.i_rate =  p_sys->jack_sample_rate;
     fmt.audio.i_bitspersample =  p_sys->jack_sample_size * 8;
@@ -305,16 +306,16 @@ static int Open( vlc_object_t *p_this )
 
     p_sys->p_es_audio = es_out_Add( p_demux->out, &fmt );
     date_Init( &p_sys->pts, fmt.audio.i_rate, 1 );
-    date_Set( &p_sys->pts, VLC_TICK_0 );
+    date_Set( &p_sys->pts, HEIMDALL_TICK_0 );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 
 /*****************************************************************************
  * Close: Disconnect from jack server and release associated resources
  *****************************************************************************/
-static void Close( vlc_object_t *p_this )
+static void Close( heimdall_object_t *p_this )
 {
     demux_t    *p_demux = ( demux_t* )p_this;
     demux_sys_t    *p_sys = p_demux->p_sys;
@@ -344,30 +345,30 @@ static int Control( demux_t *p_demux, int i_query, va_list args )
     case DEMUX_CAN_SEEK:
         pb = va_arg( args, bool * );
         *pb = true;
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
     case DEMUX_SET_PAUSE_STATE:
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     case DEMUX_CAN_CONTROL_PACE:
         pb = va_arg( args, bool * );
-        *pb = var_GetBool( p_demux, "jack-input-use-vlc-pace" );
-        return VLC_SUCCESS;
+        *pb = var_GetBool( p_demux, "jack-input-use-heimdall-pace" );
+        return HEIMDALL_SUCCESS;
 
     case DEMUX_GET_PTS_DELAY:
-        *va_arg( args, vlc_tick_t * ) =
-            VLC_TICK_FROM_MS( var_InheritInteger( p_demux, "live-caching" ) );
-        return VLC_SUCCESS;
+        *va_arg( args, heimdall_tick_t * ) =
+            HEIMDALL_TICK_FROM_MS( var_InheritInteger( p_demux, "live-caching" ) );
+        return HEIMDALL_SUCCESS;
 
     case DEMUX_GET_TIME:
-        *va_arg( args, vlc_tick_t * ) = date_Get(&p_sys->pts);
-        return VLC_SUCCESS;
+        *va_arg( args, heimdall_tick_t * ) = date_Get(&p_sys->pts);
+        return HEIMDALL_SUCCESS;
 
     /* TODO implement others */
     default:
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 
@@ -444,10 +445,10 @@ static block_t *GrabJack( demux_t *p_demux )
     size_t i_read = jack_ringbuffer_read_space( p_sys->p_jack_ringbuffer );
 
     if( i_read < 100 ) /* avoid small read */
-    {   /* vlc has too much free time on its hands? */
-#undef vlc_tick_sleep
+    {   /* heimdall has too much free time on its hands? */
+#undef heimdall_tick_sleep
 #warning Hmm.... looks wrong
-        vlc_tick_sleep(1000);
+        heimdall_tick_sleep(1000);
         return NULL;
     }
 
@@ -492,7 +493,7 @@ static void Port_finder( demux_t *p_demux )
     for( token = strtok_r( psz_expr, ",", &state ); token;
             token = strtok_r( NULL, ",", &state ) )
     {
-        psz_uri = vlc_uri_decode_duplicate( token );
+        psz_uri = heimdall_uri_decode_duplicate( token );
         /* get the ports which match the regexp */
         pp_jack_port_output = jack_get_ports( p_sys->p_jack_client,
            psz_uri, NULL, JackPortIsOutput );

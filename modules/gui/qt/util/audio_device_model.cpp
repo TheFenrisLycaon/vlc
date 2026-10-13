@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,8 +19,8 @@
 
 #include "audio_device_model.hpp"
 #include "player/player_controller.hpp"
-#include <vlc_player.h>
-#include <vlc_aout.h>
+#include <heimdall_player.h>
+#include <heimdall_aout.h>
 
 extern "C" {
 
@@ -33,22 +34,22 @@ static void on_player_aout_device_changed(audio_output_t *,const char *device, v
 
 }
 
-static const struct vlc_player_aout_cbs player_aout_cbs = {
+static const struct heimdall_player_aout_cbs player_aout_cbs = {
     nullptr,
     nullptr,
     on_player_aout_device_changed
 };
 
-AudioDeviceModel::AudioDeviceModel(vlc_player_t *player, QObject *parent)
+AudioDeviceModel::AudioDeviceModel(heimdall_player_t *player, QObject *parent)
     : QAbstractListModel(parent)
     , m_player(player)
 {
     {
-        vlc_player_locker locker{m_player};
-        m_player_aout_listener = vlc_player_aout_AddListener(m_player, &player_aout_cbs, this);
+        heimdall_player_locker locker{m_player};
+        m_player_aout_listener = heimdall_player_aout_AddListener(m_player, &player_aout_cbs, this);
     }
 
-    m_aout = vlc_player_aout_Hold(m_player);
+    m_aout = heimdall_player_aout_Hold(m_player);
     if (m_aout)
         m_inputs = aout_DevicesList(m_aout, &m_ids, &m_names);
 }
@@ -64,8 +65,8 @@ AudioDeviceModel::~AudioDeviceModel()
     free(m_ids);
     free(m_names);
 
-    vlc_player_locker locker{m_player};
-    vlc_player_aout_RemoveListener(m_player, m_player_aout_listener);
+    heimdall_player_locker locker{m_player};
+    heimdall_player_aout_RemoveListener(m_player, m_player_aout_listener);
 
     if (m_aout)
         aout_Release(m_aout);

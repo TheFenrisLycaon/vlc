@@ -2,6 +2,7 @@
  * Manifest.cpp
  *****************************************************************************
  * Copyright © 2015 - VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -23,15 +24,15 @@
 
 #include "Manifest.hpp"
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
 using namespace adaptive;
 using namespace smooth::playlist;
 
-Manifest::Manifest (vlc_object_t *p_object) :
+Manifest::Manifest (heimdall_object_t *p_object) :
     BasePlaylist(p_object)
 {
-    minUpdatePeriod = VLC_TICK_FROM_SEC(5);
+    minUpdatePeriod = HEIMDALL_TICK_FROM_SEC(5);
     addAttribute(new TimescaleAttr(Timescale(10000000))); // 100ns
     b_live = false;
 }

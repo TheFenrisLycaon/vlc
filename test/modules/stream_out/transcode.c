@@ -2,6 +2,7 @@
  * transcode.c: test for transcoding pipeline
  *****************************************************************************
  * Copyright (C) 2021-2026 VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Alexandre Janniaux <ajanni@videolabs.io>
  *
@@ -26,56 +27,56 @@
 
 /* Define a builtin module for mocked parts */
 #define MODULE_NAME test_transcode_mock
-#undef VLC_DYNAMIC_PLUGIN
+#undef HEIMDALL_DYNAMIC_PLUGIN
 
-#include "../../libvlc/test.h"
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_access.h>
-#include <vlc_demux.h>
-#include <vlc_codec.h>
-#include <vlc_window.h>
-#include <vlc_interface.h>
-#include <vlc_player.h>
-#include <vlc_filter.h>
-#include <vlc_threads.h>
-#include <vlc_sout.h>
-#include <vlc_frame.h>
+#include "../../libheimdall/test.h"
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_access.h>
+#include <heimdall_demux.h>
+#include <heimdall_codec.h>
+#include <heimdall_window.h>
+#include <heimdall_interface.h>
+#include <heimdall_player.h>
+#include <heimdall_filter.h>
+#include <heimdall_threads.h>
+#include <heimdall_sout.h>
+#include <heimdall_frame.h>
 
 #include <limits.h>
 
 #include "transcode.h"
-#include "../lib/libvlc_internal.h"
+#include "../lib/libheimdall_internal.h"
 
 static const char dec_dev_arg[] = "--dec-dev=" MODULE_STRING;
 
-const char vlc_module_name[] = MODULE_STRING;
+const char heimdall_module_name[] = MODULE_STRING;
 
 static size_t current_scenario = 0;
 
-static vlc_cond_t player_cond = VLC_STATIC_COND;
+static heimdall_cond_t player_cond = HEIMDALL_STATIC_COND;
 
-static void DecoderDeviceClose(struct vlc_decoder_device *device)
-    { VLC_UNUSED(device); }
+static void DecoderDeviceClose(struct heimdall_decoder_device *device)
+    { HEIMDALL_UNUSED(device); }
 
-static const struct vlc_decoder_device_operations decoder_device_ops =
+static const struct heimdall_decoder_device_operations decoder_device_ops =
 {
     .close = DecoderDeviceClose,
 };
 
 static int OpenDecoderDevice(
-        struct vlc_decoder_device *device,
-        vlc_window_t *window
+        struct heimdall_decoder_device *device,
+        heimdall_window_t *window
 ) {
-    VLC_UNUSED(window);
+    HEIMDALL_UNUSED(window);
     device->ops = &decoder_device_ops;
     /* Pick any valid one, we'll not use the module which can make use of
      * the private parts. */
-    device->type = VLC_DECODER_DEVICE_VAAPI;
-    return VLC_SUCCESS;
+    device->type = HEIMDALL_DECODER_DEVICE_VAAPI;
+    return HEIMDALL_SUCCESS;
 }
 
-static int DecoderDecode(decoder_t *dec, vlc_frame_t *frame)
+static int DecoderDecode(decoder_t *dec, heimdall_frame_t *frame)
 {
     if (frame == NULL)
     {
@@ -84,7 +85,7 @@ static int DecoderDecode(decoder_t *dec, vlc_frame_t *frame)
 
         if (drained->decoder_drain != NULL)
             return drained->decoder_drain(dec);
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
     const picture_resource_t resource = {
@@ -93,14 +94,14 @@ static int DecoderDecode(decoder_t *dec, vlc_frame_t *frame)
     picture_t *pic = picture_NewFromResource(&dec->fmt_out.video, &resource);
     assert(pic);
     pic->date = frame->i_pts;
-    vlc_frame_Release(frame);
+    heimdall_frame_Release(frame);
 
     struct transcode_scenario *scenario = &transcode_scenarios[current_scenario];
     assert(scenario->decoder_decode != NULL);
     return scenario->decoder_decode(dec, pic);
 }
 
-static void CloseDecoder(vlc_object_t *obj)
+static void CloseDecoder(heimdall_object_t *obj)
 {
     decoder_t *dec = (decoder_t*)obj;
 
@@ -109,18 +110,18 @@ static void CloseDecoder(vlc_object_t *obj)
     assert(dec->fmt_in->i_cat == VIDEO_ES);
     assert(dec->fmt_in->i_codec != 0);
 
-    struct vlc_video_context *vctx = dec->p_sys;
+    struct heimdall_video_context *vctx = dec->p_sys;
     if (vctx)
-        vlc_video_context_Release(vctx);
+        heimdall_video_context_Release(vctx);
 }
 
-static int OpenDecoder(vlc_object_t *obj)
+static int OpenDecoder(heimdall_object_t *obj)
 {
     decoder_t *dec = (decoder_t*)obj;
 
-    struct vlc_decoder_device *device = decoder_GetDecoderDevice(dec);
+    struct heimdall_decoder_device *device = decoder_GetDecoderDevice(dec);
     assert(device);
-    vlc_decoder_device_Release(device);
+    heimdall_decoder_device_Release(device);
 
     dec->pf_decode = DecoderDecode;
     // Necessary ?
@@ -136,18 +137,18 @@ static int OpenDecoder(vlc_object_t *obj)
             (const char *)&dec->fmt_out.i_codec,
             dec->fmt_out.video.i_width, dec->fmt_out.video.i_height);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int OpenFilter(filter_t *filter)
 {
-    static const struct vlc_filter_operations ops = {
+    static const struct heimdall_filter_operations ops = {
         .filter_video = NULL,
         .close = NULL,
     };
     filter->ops = &ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static picture_t *ConverterFilter(filter_t *filter, picture_t *input)
@@ -169,16 +170,16 @@ static int OpenConverter(filter_t *filter)
     assert(scenario->converter_setup != NULL);
     scenario->converter_setup(filter);
 
-    static const struct vlc_filter_operations ops = {
+    static const struct heimdall_filter_operations ops = {
         .filter_video = ConverterFilter,
         .close = NULL,
     };
     filter->ops = &ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static vlc_frame_t *EncodeVideo(encoder_t *enc, picture_t *pic)
+static heimdall_frame_t *EncodeVideo(encoder_t *enc, picture_t *pic)
 {
     struct transcode_scenario *scenario = &transcode_scenarios[current_scenario];
 
@@ -190,7 +191,7 @@ static vlc_frame_t *EncodeVideo(encoder_t *enc, picture_t *pic)
     }
 
     assert(pic->format.i_chroma == enc->fmt_in.video.i_chroma);
-    vlc_frame_t *frame = vlc_frame_Alloc(sizeof(struct test_output));
+    heimdall_frame_t *frame = heimdall_frame_Alloc(sizeof(struct test_output));
     assert(frame != NULL);
 
     if (scenario->encoder_encode != NULL)
@@ -205,7 +206,7 @@ static void CloseEncoder(encoder_t *enc)
         scenario->encoder_close(enc);
 }
 
-static int OpenEncoder(vlc_object_t *obj)
+static int OpenEncoder(heimdall_object_t *obj)
 {
     encoder_t *enc = (encoder_t *)obj;
     enc->p_sys = NULL;
@@ -220,24 +221,24 @@ static int OpenEncoder(vlc_object_t *obj)
             enc->fmt_in.video.i_width, enc->fmt_in.video.i_height,
             enc->fmt_out.video.i_width, enc->fmt_out.video.i_height);
 
-    static const struct vlc_encoder_operations ops =
+    static const struct heimdall_encoder_operations ops =
     {
         .encode_video = EncodeVideo,
         .close = CloseEncoder,
     };
     enc->ops = &ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int ErrorCheckerSend(sout_stream_t *stream, void *id, vlc_frame_t *f)
+static int ErrorCheckerSend(sout_stream_t *stream, void *id, heimdall_frame_t *f)
 {
     struct transcode_scenario *scenario = &transcode_scenarios[current_scenario];
 
     int ret = sout_StreamIdSend(stream->p_next, id, f);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
         scenario->report_error(stream);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void *ErrorCheckerAdd(sout_stream_t *stream,
@@ -248,7 +249,7 @@ static void *ErrorCheckerAdd(sout_stream_t *stream,
 static void ErrorCheckerDel(sout_stream_t *stream, void *id)
     { sout_StreamIdDel(stream->p_next, id); };
 
-static int OpenErrorChecker(vlc_object_t *obj)
+static int OpenErrorChecker(heimdall_object_t *obj)
 {
     sout_stream_t *stream = (sout_stream_t *)obj;
     static const struct sout_stream_operations ops = {
@@ -257,10 +258,10 @@ static int OpenErrorChecker(vlc_object_t *obj)
         .send = ErrorCheckerSend,
     };
     stream->ops = &ops;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int OutputCheckerSend(sout_stream_t *stream, void *id, vlc_frame_t *f)
+static int OutputCheckerSend(sout_stream_t *stream, void *id, heimdall_frame_t *f)
 {
     (void)stream; (void)id;
     struct transcode_scenario *scenario = &transcode_scenarios[current_scenario];
@@ -268,9 +269,9 @@ static int OutputCheckerSend(sout_stream_t *stream, void *id, vlc_frame_t *f)
     assert(scenario->report_output != NULL);
     scenario->report_output(f);
 
-    vlc_frame_ChainRelease(f);
+    heimdall_frame_ChainRelease(f);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void *OutputCheckerAdd(sout_stream_t *stream, const es_format_t *fmt,
@@ -283,7 +284,7 @@ static void *OutputCheckerAdd(sout_stream_t *stream, const es_format_t *fmt,
 static void OutputCheckerDel(sout_stream_t *stream, void *id)
     { (void)stream; (void)id; }
 
-static int OpenOutputChecker(vlc_object_t *obj)
+static int OpenOutputChecker(heimdall_object_t *obj)
 {
     sout_stream_t *stream = (sout_stream_t *)obj;
 
@@ -293,13 +294,13 @@ static int OpenOutputChecker(vlc_object_t *obj)
         .send = OutputCheckerSend,
     };
     stream->ops = &ops;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void on_state_changed(vlc_player_t *player, enum vlc_player_state state, void *opaque)
+static void on_state_changed(heimdall_player_t *player, enum heimdall_player_state state, void *opaque)
 {
     (void)player; (void)state; (void) opaque;
-    vlc_cond_signal(&player_cond);
+    heimdall_cond_signal(&player_cond);
 }
 
 static void play_scenario(intf_thread_t *intf, struct transcode_scenario *scenario)
@@ -311,53 +312,53 @@ static void play_scenario(intf_thread_t *intf, struct transcode_scenario *scenar
     /* TODO: Codec doesn't seem to have effect in transcode:
      * - add a test that --codec works?
      * - do not use --codec at all here? */
-    input_item_AddOption(media, scenario->sout, VLC_INPUT_OPTION_TRUSTED);
+    input_item_AddOption(media, scenario->sout, HEIMDALL_INPUT_OPTION_TRUSTED);
 
-    var_Create(intf, "codec", VLC_VAR_STRING);
+    var_Create(intf, "codec", HEIMDALL_VAR_STRING);
     var_SetString(intf, "codec", MODULE_STRING);
 
-    var_Create(intf, "sout-transcode-venc", VLC_VAR_STRING);
+    var_Create(intf, "sout-transcode-venc", HEIMDALL_VAR_STRING);
     var_SetString(intf, "sout-transcode-venc", MODULE_STRING);
 
-    var_Create(intf, "sout-transcode-vcodec", VLC_VAR_STRING);
+    var_Create(intf, "sout-transcode-vcodec", HEIMDALL_VAR_STRING);
     var_SetString(intf, "sout-transcode-vcodec", "test");
 
-    vlc_player_t *player = vlc_player_New(&intf->obj,
-        VLC_PLAYER_LOCK_NORMAL);
+    heimdall_player_t *player = heimdall_player_New(&intf->obj,
+        HEIMDALL_PLAYER_LOCK_NORMAL);
     assert(player);
 
-    static const struct vlc_player_cbs player_cbs = {
+    static const struct heimdall_player_cbs player_cbs = {
         .on_state_changed = on_state_changed,
     };
 
-    vlc_player_Lock(player);
-    vlc_player_listener_id *listener =
-        vlc_player_AddListener(player, &player_cbs, NULL);
-    vlc_player_SetCurrentMedia(player, media);
-    vlc_player_Start(player);
-    vlc_player_Unlock(player);
+    heimdall_player_Lock(player);
+    heimdall_player_listener_id *listener =
+        heimdall_player_AddListener(player, &player_cbs, NULL);
+    heimdall_player_SetCurrentMedia(player, media);
+    heimdall_player_Start(player);
+    heimdall_player_Unlock(player);
 
     transcode_scenario_wait(scenario);
 
-    vlc_player_Lock(player);
-    vlc_player_Stop(player);
+    heimdall_player_Lock(player);
+    heimdall_player_Stop(player);
 
-    while (vlc_player_GetState(player) != VLC_PLAYER_STATE_STOPPED)
-        vlc_player_CondWait(player, &player_cond);
+    while (heimdall_player_GetState(player) != HEIMDALL_PLAYER_STATE_STOPPED)
+        heimdall_player_CondWait(player, &player_cond);
 
-    vlc_player_RemoveListener(player, listener);
-    vlc_player_Unlock(player);
+    heimdall_player_RemoveListener(player, listener);
+    heimdall_player_Unlock(player);
 
     transcode_scenario_check(scenario);
 
-    vlc_player_Delete(player);
+    heimdall_player_Delete(player);
     input_item_Release(media);
 
     var_Destroy(intf, "sout-transcode-vcodec");
     var_Destroy(intf, "sout-transcode-venc");
 }
 
-static int OpenIntf(vlc_object_t *obj)
+static int OpenIntf(heimdall_object_t *obj)
 {
     intf_thread_t *intf = (intf_thread_t*)obj;
 
@@ -368,7 +369,7 @@ static int OpenIntf(vlc_object_t *obj)
         current_scenario++;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /**
@@ -378,7 +379,7 @@ static int OpenIntf(vlc_object_t *obj)
  *  - filter for generating video format and context
  *  - encoder to check the previous video format and context
  **/
-vlc_module_begin()
+heimdall_module_begin()
     set_callbacks(OpenDecoder, CloseDecoder)
     set_capability("video decoder", INT_MAX)
 
@@ -409,10 +410,10 @@ vlc_module_begin()
         set_callback(OpenIntf)
         set_capability("interface", 0)
 
-vlc_module_end()
+heimdall_module_end()
 
-VLC_EXPORT const vlc_plugin_cb vlc_static_modules[] = {
-    VLC_SYMBOL(vlc_entry),
+HEIMDALL_EXPORT const heimdall_plugin_cb heimdall_static_modules[] = {
+    HEIMDALL_SYMBOL(heimdall_entry),
     NULL
 };
 
@@ -420,7 +421,7 @@ int main( int argc, char **argv )
 {
     (void)argc; (void)argv;
 #ifndef ENABLE_SOUT
-    (void) libvlc_InternalPlay;
+    (void) libheimdall_InternalPlay;
     return 77;
 #endif
     test_init();
@@ -430,12 +431,12 @@ int main( int argc, char **argv )
         "--no-auto-preparse", dec_dev_arg
     };
 
-    libvlc_instance_t *vlc = libvlc_new(ARRAY_SIZE(args), args);
+    libheimdall_instance_t *heimdall = libheimdall_new(ARRAY_SIZE(args), args);
 
-    libvlc_InternalAddIntf(vlc->p_libvlc_int, MODULE_STRING);
-    libvlc_InternalPlay(vlc->p_libvlc_int);
+    libheimdall_InternalAddIntf(heimdall->p_libheimdall_int, MODULE_STRING);
+    libheimdall_InternalPlay(heimdall->p_libheimdall_int);
 
-    libvlc_release(vlc);
+    libheimdall_release(heimdall);
     assert(transcode_scenarios_count == current_scenario);
     return 0;
 }

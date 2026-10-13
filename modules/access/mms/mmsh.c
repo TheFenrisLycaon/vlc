@@ -2,6 +2,7 @@
  * mmsh.c:
  *****************************************************************************
  * Copyright (C) 2001, 2002 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *
@@ -28,14 +29,14 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_access.h>
-#include <vlc_strings.h>
-#include <vlc_input.h>
+#include <heimdall_common.h>
+#include <heimdall_access.h>
+#include <heimdall_strings.h>
+#include <heimdall_input.h>
 
-#include <vlc_tls.h>
-#include <vlc_url.h>
-#include <vlc_memstream.h>
+#include <heimdall_tls.h>
+#include <heimdall_url.h>
+#include <heimdall_memstream.h>
 #include "asf.h"
 #include "buffer.h"
 
@@ -79,7 +80,7 @@ int MMSHOpen( stream_t *p_access )
     char            *psz_location = NULL;
 
     if( unlikely(p_sys == NULL) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_access->p_sys = p_sys;
     p_sys->i_proto= MMS_PROTO_HTTP;
@@ -90,20 +91,20 @@ int MMSHOpen( stream_t *p_access )
     p_sys->b_proxy = false;
 
     /* Check proxy */
-    char *psz_proxy = vlc_getProxyUrl( p_access->psz_url );
+    char *psz_proxy = heimdall_getProxyUrl( p_access->psz_url );
     if( psz_proxy != NULL )
     {
         p_sys->b_proxy = true;
-        vlc_UrlParse( &p_sys->proxy, psz_proxy );
+        heimdall_UrlParse( &p_sys->proxy, psz_proxy );
         free( psz_proxy );
 
         if( ( p_sys->proxy.psz_host == NULL ) ||
             ( *p_sys->proxy.psz_host == '\0' ) )
         {
             msg_Warn( p_access, "invalid proxy host" );
-            vlc_UrlClean( &p_sys->proxy );
+            heimdall_UrlClean( &p_sys->proxy );
             free( p_sys );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         if( p_sys->proxy.i_port <= 0 )
@@ -113,7 +114,7 @@ int MMSHOpen( stream_t *p_access )
     }
 
     /* open a tcp connection */
-    vlc_UrlParse( &p_sys->url, p_access->psz_url );
+    heimdall_UrlParse( &p_sys->url, p_access->psz_url );
     if( ( p_sys->url.psz_host == NULL ) ||
         ( *p_sys->url.psz_host == '\0' ) )
     {
@@ -132,10 +133,10 @@ int MMSHOpen( stream_t *p_access )
         msg_Dbg( p_access, "redirection to %s", psz_location );
         p_access->psz_url = psz_location;
 
-        vlc_UrlClean( &p_sys->url );
-        vlc_UrlClean( &p_sys->proxy );
+        heimdall_UrlClean( &p_sys->url );
+        heimdall_UrlClean( &p_sys->proxy );
         free( p_sys );
-        return VLC_ACCESS_REDIRECT;
+        return HEIMDALL_ACCESS_REDIRECT;
     }
 
     /* Start playing */
@@ -147,14 +148,14 @@ int MMSHOpen( stream_t *p_access )
     }
 
     ACCESS_SET_CALLBACKS( NULL, Block, Control, Seek );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     if( p_sys->b_proxy )
-        vlc_UrlClean( &p_sys->proxy );
-    vlc_UrlClean( &p_sys->url );
+        heimdall_UrlClean( &p_sys->proxy );
+    heimdall_UrlClean( &p_sys->url );
     free( p_sys );
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /*****************************************************************************
@@ -169,8 +170,8 @@ void  MMSHClose ( stream_t *p_access )
     free( p_sys->p_header );
 
     if( p_sys->b_proxy )
-        vlc_UrlClean( &p_sys->proxy );
-    vlc_UrlClean( &p_sys->url );
+        heimdall_UrlClean( &p_sys->proxy );
+    heimdall_UrlClean( &p_sys->url );
     free( p_sys );
 }
 
@@ -206,14 +207,14 @@ static int Control( stream_t *p_access, int i_query, va_list args )
         {
             uint64_t *s = va_arg( args, uint64_t * );
             if (p_sys->b_broadcast)
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             *s = p_sys->asfh.i_file_size;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
 
         case STREAM_GET_PTS_DELAY:
-            *va_arg( args, vlc_tick_t * ) =
-                VLC_TICK_FROM_MS(var_InheritInteger( p_access, "network-caching" ));
+            *va_arg( args, heimdall_tick_t * ) =
+                HEIMDALL_TICK_FROM_MS(var_InheritInteger( p_access, "network-caching" ));
             break;
 
         case STREAM_GET_PRIVATE_ID_STATE:
@@ -221,7 +222,7 @@ static int Control( stream_t *p_access, int i_query, va_list args )
             pb_bool = va_arg( args, bool * );
 
             if( (i_int < 0) || (i_int > 127) )
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             *pb_bool =  p_sys->asfh.stream[i_int].i_selected ? true : false;
             break;
 
@@ -231,14 +232,14 @@ static int Control( stream_t *p_access, int i_query, va_list args )
             b_bool = (bool)va_arg( args, int );
             int i_cat;
             if( i_int > 127 )
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             else if ( i_int < 0 )
             {
                 /* Deselecting all ES in this category */
                 assert( !b_bool );
                 i_cat = -1 * i_int;
                 if ( i_cat > ES_CATEGORY_COUNT )
-                    return VLC_EGENERIC;
+                    return HEIMDALL_EGENERIC;
             }
             else
             {
@@ -259,7 +260,7 @@ static int Control( stream_t *p_access, int i_query, va_list args )
 
             Stop( p_access );
             Seek( p_access, p_sys->i_position );
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
 
         case STREAM_SET_PAUSE_STATE:
@@ -271,9 +272,9 @@ static int Control( stream_t *p_access, int i_query, va_list args )
             break;
 
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -309,7 +310,7 @@ static int Seek( stream_t *p_access, uint64_t i_pos )
     p_sys->i_position = i_pos;
     p_sys->i_packet_used += i_offset;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -403,7 +404,7 @@ static int Restart( stream_t *p_access )
     if( Describe( p_access, &psz_location ) )
     {
         msg_Err( p_access, "describe failed" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     free( psz_location );
 
@@ -411,9 +412,9 @@ static int Restart( stream_t *p_access )
     if( Start( p_access, 0 ) )
     {
         msg_Err( p_access, "Start failed" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 static int Reset( stream_t *p_access )
 {
@@ -433,7 +434,7 @@ static int Reset( stream_t *p_access )
     /* Get the next header FIXME memory loss ? */
     GetHeader( p_access, -1 );
     if( p_sys->i_header <= 0 )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     asf_HeaderParse ( &p_sys->asfh,
                        p_sys->p_header, p_sys->i_header );
@@ -465,31 +466,31 @@ static int Reset( stream_t *p_access )
     /* */
     p_sys->i_packet_used = 0;
     p_sys->i_packet_length = 0;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void WriteRequestLine( const access_sys_t *sys,
-                              struct vlc_memstream *restrict stream )
+                              struct heimdall_memstream *restrict stream )
 {
-    vlc_memstream_open( stream );
+    heimdall_memstream_open( stream );
 
-    vlc_memstream_puts( stream, "GET " );
+    heimdall_memstream_puts( stream, "GET " );
     if( sys->b_proxy )
-        vlc_memstream_printf( stream, "http://%s:%d", sys->url.psz_host,
+        heimdall_memstream_printf( stream, "http://%s:%d", sys->url.psz_host,
                               sys->url.i_port );
     if( (sys->url.psz_path == NULL) || (sys->url.psz_path[0] == '\0') )
-        vlc_memstream_putc( stream, '/' );
+        heimdall_memstream_putc( stream, '/' );
     else
-        vlc_memstream_puts( stream, sys->url.psz_path );
+        heimdall_memstream_puts( stream, sys->url.psz_path );
     if( sys->url.psz_option != NULL )
-        vlc_memstream_printf( stream, "?%s", sys->url.psz_option );
-    vlc_memstream_puts( stream, " HTTP/1.0\r\n" );
+        heimdall_memstream_printf( stream, "?%s", sys->url.psz_option );
+    heimdall_memstream_puts( stream, " HTTP/1.0\r\n" );
 
-    vlc_memstream_printf( stream, "Host: %s:%d\r\n", sys->url.psz_host,
+    heimdall_memstream_printf( stream, "Host: %s:%d\r\n", sys->url.psz_host,
                           sys->url.i_port );
 
     /* Proxy Authentication */
-    const vlc_url_t *proxy = &sys->proxy;
+    const heimdall_url_t *proxy = &sys->proxy;
 
     if( sys->b_proxy && proxy->psz_username != NULL )
     {
@@ -498,56 +499,56 @@ static void WriteRequestLine( const access_sys_t *sys,
 
         if( asprintf( &buf, "%s:%s", proxy->psz_username, pw ) != -1 )
         {
-            char *b64 = vlc_b64_encode( buf );
+            char *b64 = heimdall_b64_encode( buf );
             free( buf );
             if( b64 != NULL )
             {
-                vlc_memstream_printf( stream, "Proxy-Authorization: "
+                heimdall_memstream_printf( stream, "Proxy-Authorization: "
                                       "Basic %s\r\n", b64 );
                 free( b64 );
             }
         }
     }
 
-    vlc_memstream_puts( stream, "Accept: */*\r\n" );
-    vlc_memstream_printf( stream, "User-Agent: %s\r\n", MMSH_USER_AGENT );
+    heimdall_memstream_puts( stream, "Accept: */*\r\n" );
+    heimdall_memstream_printf( stream, "User-Agent: %s\r\n", MMSH_USER_AGENT );
 }
 
 static int OpenConnection( stream_t *p_access,
-                           struct vlc_memstream *restrict stream )
+                           struct heimdall_memstream *restrict stream )
 {
     access_sys_t *p_sys = p_access->p_sys;
-    const vlc_url_t *srv = p_sys->b_proxy ? &p_sys->proxy : &p_sys->url;
+    const heimdall_url_t *srv = p_sys->b_proxy ? &p_sys->proxy : &p_sys->url;
 
     /* XXX: This is useless: HTTP/1.0 closes connection by default */
-    vlc_memstream_puts( stream, "Connection: Close\r\n" );
+    heimdall_memstream_puts( stream, "Connection: Close\r\n" );
 
-    vlc_memstream_puts( stream, "\r\n" ); /* end of HTTP request header */
+    heimdall_memstream_puts( stream, "\r\n" ); /* end of HTTP request header */
 
-    if( vlc_memstream_close( stream ) )
-        return VLC_ENOMEM;
+    if( heimdall_memstream_close( stream ) )
+        return HEIMDALL_ENOMEM;
 
-    vlc_tls_t *sock = vlc_tls_SocketOpenTCP( VLC_OBJECT(p_access),
+    heimdall_tls_t *sock = heimdall_tls_SocketOpenTCP( HEIMDALL_OBJECT(p_access),
                                              srv->psz_host, srv->i_port );
     if( sock == NULL )
     {
         free( stream->ptr );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     msg_Dbg( p_access, "sending request:\n%s", stream->ptr );
 
-    ssize_t val = vlc_tls_Write( sock, stream->ptr, stream->length );
+    ssize_t val = heimdall_tls_Write( sock, stream->ptr, stream->length );
     free( stream->ptr );
     if( val < (ssize_t)stream->length )
     {
         msg_Err( p_access, "failed to send request" );
-        vlc_tls_Close( sock );
+        heimdall_tls_Close( sock );
         sock = NULL;
     }
 
     p_sys->stream = sock;
-    return (sock != NULL) ? VLC_SUCCESS : VLC_EGENERIC;
+    return (sock != NULL) ? HEIMDALL_SUCCESS : HEIMDALL_EGENERIC;
 }
 
 /*****************************************************************************
@@ -560,7 +561,7 @@ static int Describe( stream_t  *p_access, char **ppsz_location )
     int          i_content_length = -1;
     bool         b_keepalive = false;
     int          i_code;
-    struct vlc_memstream stream;
+    struct heimdall_memstream stream;
 
     /* Reinit context */
     p_sys->b_broadcast = true;
@@ -574,18 +575,18 @@ static int Describe( stream_t  *p_access, char **ppsz_location )
 
     WriteRequestLine( p_sys, &stream );
 
-    vlc_memstream_printf( &stream, "Pragma: no-cache,rate=1.000000,"
+    heimdall_memstream_printf( &stream, "Pragma: no-cache,rate=1.000000,"
                           "stream-time=0,stream-offset=0:0,"
                           "request-context=%d,max-duration=0\r\n",
                           p_sys->i_request_context++ );
-    vlc_memstream_printf( &stream, "Pragma: xClientGUID={"GUID_FMT"}\r\n",
+    heimdall_memstream_printf( &stream, "Pragma: xClientGUID={"GUID_FMT"}\r\n",
                           GUID_PRINT(p_sys->guid) );
 
     if( OpenConnection( p_access, &stream ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* Receive the http header */
-    char *psz = vlc_tls_GetLine( p_sys->stream );
+    char *psz = heimdall_tls_GetLine( p_sys->stream );
     if( psz == NULL )
     {
         msg_Err( p_access, "failed to read answer" );
@@ -610,7 +611,7 @@ static int Describe( stream_t  *p_access, char **ppsz_location )
     free( psz );
     for( ;; )
     {
-        psz = vlc_tls_GetLine( p_sys->stream );
+        psz = heimdall_tls_GetLine( p_sys->stream );
 
         if( psz == NULL )
         {
@@ -663,7 +664,7 @@ static int Describe( stream_t  *p_access, char **ppsz_location )
         else if( !strcasecmp( psz, "Location" ) )
         {
             free( psz_location );
-            psz_location = vlc_uri_resolve( p_access->psz_url, p );
+            psz_location = heimdall_uri_resolve( p_access->psz_url, p );
         }
         else if( !strcasecmp( psz, "Content-Length" ) )
         {
@@ -689,11 +690,11 @@ static int Describe( stream_t  *p_access, char **ppsz_location )
         psz_location )
     {
         msg_Dbg( p_access, "redirection to %s", psz_location );
-        vlc_tls_Close( p_sys->stream );
+        heimdall_tls_Close( p_sys->stream );
         p_sys->stream = NULL;
 
         *ppsz_location = psz_location;
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
     free( psz_location );
 
@@ -705,7 +706,7 @@ static int Describe( stream_t  *p_access, char **ppsz_location )
         goto error;
     }
     /* close this connection */
-    vlc_tls_Close( p_sys->stream );
+    heimdall_tls_Close( p_sys->stream );
     p_sys->stream = NULL;
 
     /* *** parse header and get stream and their id *** */
@@ -727,15 +728,15 @@ static int Describe( stream_t  *p_access, char **ppsz_location )
                        var_InheritBool( p_access, "mms-all" ),
                        var_InheritBool( p_access, "audio" ),
                        var_InheritBool( p_access, "video" ) );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     if( p_sys->stream != NULL )
     {
-        vlc_tls_Close( p_sys->stream  );
+        heimdall_tls_Close( p_sys->stream  );
         p_sys->stream = NULL;
     }
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 static void GetHeader( stream_t *p_access, int i_content_length )
@@ -775,7 +776,7 @@ static int Start( stream_t *p_access, uint64_t i_pos )
     access_sys_t *p_sys = p_access->p_sys;
     int  i_streams = 0;
     int  i_streams_selected = 0;
-    struct vlc_memstream stream;
+    struct heimdall_memstream stream;
 
     msg_Dbg( p_access, "starting stream" );
 
@@ -790,54 +791,54 @@ static int Start( stream_t *p_access, uint64_t i_pos )
     if( i_streams_selected <= 0 )
     {
         msg_Err( p_access, "no stream selected" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     WriteRequestLine( p_sys, &stream );
 
-    vlc_memstream_puts( &stream, "Pragma: no-cache,rate=1.000000" );
+    heimdall_memstream_puts( &stream, "Pragma: no-cache,rate=1.000000" );
     if( !p_sys->b_broadcast )
-        vlc_memstream_printf( &stream, ",stream-time=0,stream-offset="
+        heimdall_memstream_printf( &stream, ",stream-time=0,stream-offset="
                               "%"PRIu32":%"PRIu32, (uint32_t)(i_pos >> 32),
                               (uint32_t)i_pos );
-    vlc_memstream_printf( &stream, ",request-context=%d",
+    heimdall_memstream_printf( &stream, ",request-context=%d",
                           p_sys->i_request_context++ );
     if( !p_sys->b_broadcast )
-        vlc_memstream_puts( &stream, ",max-duration=0" );
-    vlc_memstream_puts( &stream, "\r\n" );
+        heimdall_memstream_puts( &stream, ",max-duration=0" );
+    heimdall_memstream_puts( &stream, "\r\n" );
 
-    vlc_memstream_puts( &stream, "Pragma: xPlayStrm=1\r\n" );
-    vlc_memstream_printf( &stream, "Pragma: xClientGUID={"GUID_FMT"}\r\n",
+    heimdall_memstream_puts( &stream, "Pragma: xPlayStrm=1\r\n" );
+    heimdall_memstream_printf( &stream, "Pragma: xClientGUID={"GUID_FMT"}\r\n",
                           GUID_PRINT(p_sys->guid) );
-    vlc_memstream_printf( &stream, "Pragma: stream-switch-count=%d\r\n",
+    heimdall_memstream_printf( &stream, "Pragma: stream-switch-count=%d\r\n",
                           i_streams );
 
-    vlc_memstream_puts( &stream, "Pragma: stream-switch-entry=" );
+    heimdall_memstream_puts( &stream, "Pragma: stream-switch-entry=" );
     for( unsigned i = 1; i < 128; i++ )
     {
         if( p_sys->asfh.stream[i].i_cat != ASF_CODEC_TYPE_UNKNOWN )
         {
             int i_select = p_sys->asfh.stream[i].i_selected ? 0 : 2;
-            vlc_memstream_printf( &stream, "ffff:%x:%d ", i, i_select );
+            heimdall_memstream_printf( &stream, "ffff:%x:%d ", i, i_select );
         }
     }
-    vlc_memstream_puts( &stream, "\r\n" );
+    heimdall_memstream_puts( &stream, "\r\n" );
 
     if( OpenConnection( p_access, &stream ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    char *psz = vlc_tls_GetLine( p_sys->stream );
+    char *psz = heimdall_tls_GetLine( p_sys->stream );
     if( psz == NULL )
     {
         msg_Err( p_access, "cannot read data 0" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( atoi( &psz[9] ) >= 400 )
     {
         msg_Err( p_access, "error: %s", psz );
         free( psz );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     msg_Dbg( p_access, "HTTP reply '%s'", psz );
     free( psz );
@@ -845,11 +846,11 @@ static int Start( stream_t *p_access, uint64_t i_pos )
     /* FIXME check HTTP code */
     for( ;; )
     {
-        psz = vlc_tls_GetLine( p_sys->stream );
+        psz = heimdall_tls_GetLine( p_sys->stream );
         if( psz == NULL )
         {
             msg_Err( p_access, "cannot read data 1" );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
         if( *psz == '\0' )
         {
@@ -863,7 +864,7 @@ static int Start( stream_t *p_access, uint64_t i_pos )
     p_sys->i_packet_used   = 0;
     p_sys->i_packet_length = 0;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -876,7 +877,7 @@ static void Stop( stream_t *p_access )
     msg_Dbg( p_access, "closing stream" );
     if( p_sys->stream != NULL )
     {
-        vlc_tls_Close( p_sys->stream );
+        heimdall_tls_Close( p_sys->stream );
         p_sys->stream = NULL;
     }
 }
@@ -898,10 +899,10 @@ static int GetPacket( stream_t * p_access, chunk_t *p_ck )
      * (4 bytes), decode and then read up to 8 additional bytes to get the
      * entire header.
      */
-    if( vlc_tls_Read( p_sys->stream, p_sys->buffer, 4, true ) < 4 )
+    if( heimdall_tls_Read( p_sys->stream, p_sys->buffer, 4, true ) < 4 )
     {
        msg_Err( p_access, "cannot read data 2" );
-       return VLC_EGENERIC;
+       return HEIMDALL_EGENERIC;
     }
 
     p_ck->i_type = GetWLE( p_sys->buffer);
@@ -911,10 +912,10 @@ static int GetPacket( stream_t * p_access, chunk_t *p_ck )
     if( restsize > 8 )
         restsize = 8;
 
-    if( vlc_tls_Read( p_sys->stream, p_sys->buffer + 4, restsize, true ) < restsize )
+    if( heimdall_tls_Read( p_sys->stream, p_sys->buffer + 4, restsize, true ) < restsize )
     {
         msg_Err( p_access, "cannot read data 3" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     p_ck->i_sequence  = GetDWLE( p_sys->buffer + 4);
     p_ck->i_unknown   = GetWLE( p_sys->buffer + 8);
@@ -932,7 +933,7 @@ static int GetPacket( stream_t * p_access, chunk_t *p_ck )
          || p_ck->i_size2 - 8 > BUFFER_SIZE - 12 /* Prevent Out Of Bound Write */)
         {
             msg_Err(p_access, "invalid size2: %" PRIu16, p_ck->i_size2);
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
 
@@ -944,19 +945,19 @@ static int GetPacket( stream_t * p_access, chunk_t *p_ck )
         if( p_ck->i_sequence == 0 )
         {
             msg_Warn( p_access, "EOF" );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
         else
         {
             msg_Warn( p_access, "next stream following" );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
     else if( p_ck->i_type == 0x4324 ) // $C (Stream Change Notification) Packet
     {
         /* 0x4324 is CHUNK_TYPE_RESET: a new stream will follow with a sequence of 0 */
         msg_Warn( p_access, "next stream following (reset) seq=%d", p_ck->i_sequence  );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     else if( (p_ck->i_type != 0x4824) && (p_ck->i_type != 0x4424) )
     {
@@ -966,15 +967,15 @@ static int GetPacket( stream_t * p_access, chunk_t *p_ck )
          * $T (Test Data Notification) Packet 0x5424
          */
         msg_Err( p_access, "unrecognized chunk FATAL (0x%x)", p_ck->i_type );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( (p_ck->i_data > 0) &&
-        (vlc_tls_Read( p_sys->stream, &p_sys->buffer[12], p_ck->i_data,
+        (heimdall_tls_Read( p_sys->stream, &p_sys->buffer[12], p_ck->i_data,
                        true ) < p_ck->i_data) )
     {
         msg_Err( p_access, "cannot read data 4" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
 #if 0
@@ -990,5 +991,5 @@ static int GetPacket( stream_t * p_access, chunk_t *p_ck )
     p_sys->i_packet_length = p_ck->i_data;
     p_sys->p_packet        = p_ck->p_data;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

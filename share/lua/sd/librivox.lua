@@ -1,8 +1,9 @@
 --[[
 
  Copyright © 2010 VideoLAN and AUTHORS
+ Copyright (C) 2026 TheFenrisLycaon
 
- Authors: Rémi Duraffort  <ivoire at videolan dot org>
+ Authors: Rémi Duraffort  <ivoire at lycaria dot org>
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -57,7 +58,7 @@ function main()
             -- If the book title is unknown, create a node for it in the sd
             local book_title = item.children_map['itunes:subtitle'][1].children[1]
             if( books[book_title] == nil ) then
-                books[book_title] = vlc.sd.add_node( { title = book_title,
+                books[book_title] = heimdall.sd.add_node( { title = book_title,
                                                        arturl = arturl } )
             end
 

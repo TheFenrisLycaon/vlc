@@ -2,9 +2,10 @@
  * audioscrobbler.c : audioscrobbler submission plugin
  *****************************************************************************
  * Copyright © 2006-2011 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Author: Rafaël Carré <funman at videolanorg>
- *         Ilkka Ollakka <ileoo at videolan org>
+ * Author: Rafaël Carré <funman at lycariaorg>
+ *         Ilkka Ollakka <ileoo at lycaria org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,21 +38,21 @@
 #include <assert.h>
 #include <time.h>
 
-#define VLC_MODULE_LICENSE VLC_LICENSE_GPL_2_PLUS
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_interface.h>
-#include <vlc_input_item.h>
-#include <vlc_dialog.h>
-#include <vlc_meta.h>
-#include <vlc_strings.h>
-#include <vlc_hash.h>
-#include <vlc_memstream.h>
-#include <vlc_stream.h>
-#include <vlc_url.h>
-#include <vlc_tls.h>
-#include <vlc_player.h>
-#include <vlc_playlist.h>
+#define HEIMDALL_MODULE_LICENSE HEIMDALL_LICENSE_GPL_2_PLUS
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_interface.h>
+#include <heimdall_input_item.h>
+#include <heimdall_dialog.h>
+#include <heimdall_meta.h>
+#include <heimdall_strings.h>
+#include <heimdall_hash.h>
+#include <heimdall_memstream.h>
+#include <heimdall_stream.h>
+#include <heimdall_url.h>
+#include <heimdall_tls.h>
+#include <heimdall_player.h>
+#include <heimdall_playlist.h>
 
 /*****************************************************************************
  * Local prototypes
@@ -69,7 +70,7 @@ typedef struct audioscrobbler_song_t
     int         i_l;                /**< track length     */
     char        *psz_m;             /**< musicbrainz id   */
     time_t      date;               /**< date since epoch */
-    vlc_tick_t  i_start;            /**< playing start    */
+    heimdall_tick_t  i_start;            /**< playing start    */
 } audioscrobbler_song_t;
 
 struct intf_sys_t
@@ -77,28 +78,28 @@ struct intf_sys_t
     audioscrobbler_song_t   p_queue[QUEUE_MAX]; /**< songs not submitted yet*/
     int                     i_songs;            /**< number of songs        */
 
-    vlc_playlist_t                  *playlist;
-    struct vlc_playlist_listener_id *playlist_listener;
-    struct vlc_player_listener_id   *player_listener;
+    heimdall_playlist_t                  *playlist;
+    struct heimdall_playlist_listener_id *playlist_listener;
+    struct heimdall_player_listener_id   *player_listener;
 
-    vlc_mutex_t             lock;               /**< p_sys mutex            */
-    vlc_cond_t              wait;               /**< song to submit event   */
-    vlc_sem_t               dead;
-    vlc_thread_t            thread;             /**< thread to submit song  */
+    heimdall_mutex_t             lock;               /**< p_sys mutex            */
+    heimdall_cond_t              wait;               /**< song to submit event   */
+    heimdall_sem_t               dead;
+    heimdall_thread_t            thread;             /**< thread to submit song  */
 
     /* submission of played songs */
-    vlc_url_t               p_submit_url;       /**< where to submit data   */
+    heimdall_url_t               p_submit_url;       /**< where to submit data   */
 
     /* submission of playing song */
-    vlc_url_t               p_nowp_url;         /**< where to submit data   */
+    heimdall_url_t               p_nowp_url;         /**< where to submit data   */
 
     char                    psz_auth_token[33]; /**< Authentication token */
 
     /* data about song currently playing */
     audioscrobbler_song_t   p_current_song;     /**< song being played      */
 
-    vlc_tick_t              time_pause;         /**< time when vlc paused   */
-    vlc_tick_t              time_total_pauses;  /**< total time in pause    */
+    heimdall_tick_t              time_pause;         /**< time when heimdall paused   */
+    heimdall_tick_t              time_total_pauses;  /**< total time in pause    */
 
     bool                    b_submit_nowp;      /**< do we have to submit ? */
 
@@ -106,8 +107,8 @@ struct intf_sys_t
                                                  * metadata already         */
 };
 
-static int  Open            (vlc_object_t *);
-static void Close           (vlc_object_t *);
+static int  Open            (heimdall_object_t *);
+static void Close           (heimdall_object_t *);
 static void *Run            (void *);
 
 /*****************************************************************************
@@ -122,13 +123,13 @@ static void *Run            (void *);
 #define URL_LONGTEXT        N_("The URL set for an alternative scrobbler engine")
 
 /* This error value is used when last.fm plugin has to be unloaded. */
-#define VLC_AUDIOSCROBBLER_EFATAL -69
+#define HEIMDALL_AUDIOSCROBBLER_EFATAL -69
 
 /* last.fm client identifier */
 #define CLIENT_NAME     PACKAGE
 #define CLIENT_VERSION  VERSION
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_subcategory(SUBCAT_INTERFACE_CONTROL)
     set_shortname(N_("Audioscrobbler"))
     set_description(N_("Submission of played songs to last.fm"))
@@ -139,7 +140,7 @@ vlc_module_begin ()
                 URL_TEXT, URL_LONGTEXT)
     set_capability("interface", 0)
     set_callbacks(Open, Close)
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * DeleteSong : Delete the char pointers in a song
@@ -154,25 +155,25 @@ static void DeleteSong(audioscrobbler_song_t* p_song)
 }
 
 /*****************************************************************************
- * ReadMetaData : Read meta data when parsed by vlc
+ * ReadMetaData : Read meta data when parsed by heimdall
  *****************************************************************************/
 static void ReadMetaData(intf_thread_t *p_this)
 {
     intf_sys_t *p_sys = p_this->p_sys;
 
-    vlc_player_t *player = vlc_playlist_GetPlayer(p_sys->playlist);
-    input_item_t *item = vlc_player_GetCurrentMedia(player);
+    heimdall_player_t *player = heimdall_playlist_GetPlayer(p_sys->playlist);
+    input_item_t *item = heimdall_player_GetCurrentMedia(player);
     if (item == NULL)
         return;
 
 #define ALLOC_ITEM_META(a, b) do { \
         char *psz_meta = input_item_Get##b(item); \
         if (psz_meta && *psz_meta) \
-            a = vlc_uri_encode(psz_meta); \
+            a = heimdall_uri_encode(psz_meta); \
         free(psz_meta); \
     } while (0)
 
-    vlc_mutex_lock(&p_sys->lock);
+    heimdall_mutex_lock(&p_sys->lock);
 
     p_sys->b_meta_read = true;
 
@@ -199,16 +200,16 @@ static void ReadMetaData(intf_thread_t *p_this)
     ALLOC_ITEM_META(p_sys->p_current_song.psz_m, TrackID);
     ALLOC_ITEM_META(p_sys->p_current_song.psz_n, TrackNum);
 
-    p_sys->p_current_song.i_l = SEC_FROM_VLC_TICK(input_item_GetDuration(item));
+    p_sys->p_current_song.i_l = SEC_FROM_HEIMDALL_TICK(input_item_GetDuration(item));
 
 #undef ALLOC_ITEM_META
 
     msg_Dbg(p_this, "Meta data registered");
 
-    vlc_cond_signal(&p_sys->wait);
+    heimdall_cond_signal(&p_sys->wait);
 
 end:
-    vlc_mutex_unlock(&p_sys->lock);
+    heimdall_mutex_unlock(&p_sys->lock);
 }
 
 /*****************************************************************************
@@ -219,14 +220,14 @@ static void AddToQueue (intf_thread_t *p_this)
     int64_t                     played_time;
     intf_sys_t                  *p_sys = p_this->p_sys;
 
-    vlc_mutex_lock(&p_sys->lock);
+    heimdall_mutex_lock(&p_sys->lock);
 
     /* Check that we have the mandatory meta data */
     if (!p_sys->p_current_song.psz_t || !p_sys->p_current_song.psz_a)
         goto end;
 
     /* wait for the user to listen enough before submitting */
-    played_time = SEC_FROM_VLC_TICK(vlc_tick_now() - p_sys->p_current_song.i_start -
+    played_time = SEC_FROM_HEIMDALL_TICK(heimdall_tick_now() - p_sys->p_current_song.i_start -
                                     p_sys->time_total_pauses);
 
     /*HACK: it seam that the preparsing sometime fail,
@@ -285,26 +286,26 @@ static void AddToQueue (intf_thread_t *p_this)
     p_sys->i_songs++;
 
     /* signal the main loop we have something to submit */
-    vlc_cond_signal(&p_sys->wait);
+    heimdall_cond_signal(&p_sys->wait);
 
 end:
     DeleteSong(&p_sys->p_current_song);
-    vlc_mutex_unlock(&p_sys->lock);
+    heimdall_mutex_unlock(&p_sys->lock);
 }
 
-static void player_on_state_changed(vlc_player_t *player,
-                                    enum vlc_player_state state, void *data)
+static void player_on_state_changed(heimdall_player_t *player,
+                                    enum heimdall_player_state state, void *data)
 {
     intf_thread_t *intf = data;
     intf_sys_t *sys = intf->p_sys;
 
-    if (vlc_player_GetVideoTrackCount(player))
+    if (heimdall_player_GetVideoTrackCount(player))
     {
         msg_Dbg(intf, "Not an audio-only input, not submitting");
         return;
     }
 
-    if (!sys->b_meta_read && state >= VLC_PLAYER_STATE_PLAYING)
+    if (!sys->b_meta_read && state >= HEIMDALL_PLAYER_STATE_PLAYING)
     {
         ReadMetaData(intf);
         return;
@@ -312,16 +313,16 @@ static void player_on_state_changed(vlc_player_t *player,
 
     switch (state)
     {
-        case VLC_PLAYER_STATE_STOPPED:
+        case HEIMDALL_PLAYER_STATE_STOPPED:
             AddToQueue(intf);
             break;
-        case VLC_PLAYER_STATE_PAUSED:
-            sys->time_pause = vlc_tick_now();
+        case HEIMDALL_PLAYER_STATE_PAUSED:
+            sys->time_pause = heimdall_tick_now();
             break;
-        case VLC_PLAYER_STATE_PLAYING:
+        case HEIMDALL_PLAYER_STATE_PLAYING:
             if (sys->time_pause > 0)
             {
-                sys->time_total_pauses += vlc_tick_now() - sys->time_pause;
+                sys->time_total_pauses += heimdall_tick_now() - sys->time_pause;
                 sys->time_pause = 0;
             }
             break;
@@ -333,22 +334,22 @@ static void player_on_state_changed(vlc_player_t *player,
 /*****************************************************************************
  * ItemChange: Playlist item change callback
  *****************************************************************************/
-static void playlist_on_current_index_changed(vlc_playlist_t *playlist,
+static void playlist_on_current_index_changed(heimdall_playlist_t *playlist,
                                               ssize_t index, void *userdata)
 {
-    VLC_UNUSED(index);
+    HEIMDALL_UNUSED(index);
 
     intf_thread_t *intf = userdata;
     intf_sys_t *sys = intf->p_sys;
 
     sys->b_meta_read = false;
 
-    vlc_player_t *player = vlc_playlist_GetPlayer(playlist);
-    input_item_t *item = vlc_player_GetCurrentMedia(player);
+    heimdall_player_t *player = heimdall_playlist_GetPlayer(playlist);
+    input_item_t *item = heimdall_player_GetCurrentMedia(player);
     if (!item)
         return;
 
-    if (vlc_player_GetVideoTrackCount(player))
+    if (heimdall_player_GetVideoTrackCount(player))
     {
         msg_Dbg(intf, "Not an audio-only input, not submitting");
         return;
@@ -356,75 +357,75 @@ static void playlist_on_current_index_changed(vlc_playlist_t *playlist,
 
     sys->time_total_pauses = 0;
     time(&sys->p_current_song.date);                /* to be sent to last.fm */
-    sys->p_current_song.i_start = vlc_tick_now();   /* only used locally */
+    sys->p_current_song.i_start = heimdall_tick_now();   /* only used locally */
 
     if (input_item_IsPreparsed(item))
         ReadMetaData(intf);
     /* if the input item was not preparsed, we'll do it in player_on_state_changed()
-     * callback, when "state" == VLC_PLAYER_STATE_PLAYING */
+     * callback, when "state" == HEIMDALL_PLAYER_STATE_PLAYING */
 }
 
 /*****************************************************************************
  * Open: initialize and create stuff
  *****************************************************************************/
-static int Open(vlc_object_t *p_this)
+static int Open(heimdall_object_t *p_this)
 {
     intf_thread_t   *p_intf     = (intf_thread_t*) p_this;
     intf_sys_t      *p_sys      = calloc(1, sizeof(intf_sys_t));
-    int             retval      = VLC_EGENERIC;
+    int             retval      = HEIMDALL_EGENERIC;
 
     if (!p_sys)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_intf->p_sys = p_sys;
 
-    static struct vlc_playlist_callbacks const playlist_cbs =
+    static struct heimdall_playlist_callbacks const playlist_cbs =
     {
         .on_current_index_changed = playlist_on_current_index_changed,
     };
-    static struct vlc_player_cbs const player_cbs =
+    static struct heimdall_player_cbs const player_cbs =
     {
         .on_state_changed = player_on_state_changed,
     };
 
-    vlc_playlist_t *playlist = p_sys->playlist = vlc_intf_GetMainPlaylist(p_intf);
-    vlc_player_t *player = vlc_playlist_GetPlayer(playlist);
+    heimdall_playlist_t *playlist = p_sys->playlist = heimdall_intf_GetMainPlaylist(p_intf);
+    heimdall_player_t *player = heimdall_playlist_GetPlayer(playlist);
 
-    vlc_playlist_Lock(playlist);
+    heimdall_playlist_Lock(playlist);
     p_sys->playlist_listener =
-        vlc_playlist_AddListener(playlist, &playlist_cbs, p_intf, false);
+        heimdall_playlist_AddListener(playlist, &playlist_cbs, p_intf, false);
     if (!p_sys->playlist_listener)
     {
-        vlc_playlist_Unlock(playlist);
+        heimdall_playlist_Unlock(playlist);
         goto fail;
     }
 
     p_sys->player_listener =
-        vlc_player_AddListener(player, &player_cbs, p_intf);
-    vlc_playlist_Unlock(playlist);
+        heimdall_player_AddListener(player, &player_cbs, p_intf);
+    heimdall_playlist_Unlock(playlist);
     if (!p_sys->player_listener)
         goto fail;
 
-    vlc_mutex_init(&p_sys->lock);
-    vlc_cond_init(&p_sys->wait);
-    vlc_sem_init(&p_sys->dead, 0);
+    heimdall_mutex_init(&p_sys->lock);
+    heimdall_cond_init(&p_sys->wait);
+    heimdall_sem_init(&p_sys->dead, 0);
 
-    if (vlc_clone(&p_sys->thread, Run, p_intf))
+    if (heimdall_clone(&p_sys->thread, Run, p_intf))
     {
-        retval = VLC_ENOMEM;
+        retval = HEIMDALL_ENOMEM;
         goto fail;
     }
 
-    retval = VLC_SUCCESS;
+    retval = HEIMDALL_SUCCESS;
     goto ret;
 fail:
     if (p_sys->playlist_listener)
     {
-        vlc_playlist_Lock(playlist);
+        heimdall_playlist_Lock(playlist);
         if (p_sys->player_listener)
-            vlc_player_RemoveListener(player, p_sys->player_listener);
-        vlc_playlist_RemoveListener(playlist, p_sys->playlist_listener);
-        vlc_playlist_Unlock(playlist);
+            heimdall_player_RemoveListener(player, p_sys->player_listener);
+        heimdall_playlist_RemoveListener(playlist, p_sys->playlist_listener);
+        heimdall_playlist_Unlock(playlist);
     }
     free(p_sys);
 ret:
@@ -434,29 +435,29 @@ ret:
 /*****************************************************************************
  * Close: destroy interface stuff
  *****************************************************************************/
-static void Close(vlc_object_t *p_this)
+static void Close(heimdall_object_t *p_this)
 {
     intf_thread_t *p_intf = (intf_thread_t*) p_this;
     intf_sys_t *p_sys = p_intf->p_sys;
-    vlc_playlist_t *playlist = p_sys->playlist;
+    heimdall_playlist_t *playlist = p_sys->playlist;
 
-    vlc_mutex_lock(&p_sys->lock);
-    vlc_sem_post(&p_sys->dead);
-    vlc_cond_signal(&p_sys->wait);
-    vlc_mutex_unlock(&p_sys->lock);
-    vlc_join(p_sys->thread, NULL);
+    heimdall_mutex_lock(&p_sys->lock);
+    heimdall_sem_post(&p_sys->dead);
+    heimdall_cond_signal(&p_sys->wait);
+    heimdall_mutex_unlock(&p_sys->lock);
+    heimdall_join(p_sys->thread, NULL);
 
     int i;
     for (i = 0; i < p_sys->i_songs; i++)
         DeleteSong(&p_sys->p_queue[i]);
-    vlc_UrlClean(&p_sys->p_submit_url);
-    vlc_UrlClean(&p_sys->p_nowp_url);
+    heimdall_UrlClean(&p_sys->p_submit_url);
+    heimdall_UrlClean(&p_sys->p_nowp_url);
 
-    vlc_playlist_Lock(playlist);
-    vlc_player_RemoveListener(
-            vlc_playlist_GetPlayer(playlist), p_sys->player_listener);
-    vlc_playlist_RemoveListener(playlist, p_sys->playlist_listener);
-    vlc_playlist_Unlock(playlist);
+    heimdall_playlist_Lock(playlist);
+    heimdall_player_RemoveListener(
+            heimdall_playlist_GetPlayer(playlist), p_sys->player_listener);
+    heimdall_playlist_RemoveListener(playlist, p_sys->playlist_listener);
+    heimdall_playlist_Unlock(playlist);
 
     free(p_sys);
 }
@@ -471,7 +472,7 @@ static int Handshake(intf_thread_t *p_this)
     time_t              timestamp;
     char                psz_timestamp[21];
 
-    vlc_hash_md5_t      struct_md5;
+    heimdall_hash_md5_t      struct_md5;
 
     stream_t            *p_stream;
     char                *psz_handshake_url;
@@ -492,18 +493,18 @@ static int Handshake(intf_thread_t *p_this)
     {
         free(psz_username);
         free(psz_password);
-        return VLC_EINVAL;
+        return HEIMDALL_EINVAL;
     }
 
     time(&timestamp);
 
     /* generates a md5 hash of the password */
-    vlc_hash_md5_Init(&struct_md5);
-    vlc_hash_md5_Update(&struct_md5, psz_password, strlen(psz_password));
+    heimdall_hash_md5_Init(&struct_md5);
+    heimdall_hash_md5_Update(&struct_md5, psz_password, strlen(psz_password));
     free(psz_password);
 
-    char psz_password_md5[VLC_HASH_MD5_DIGEST_HEX_SIZE];
-    vlc_hash_FinishHex(&struct_md5, psz_password_md5);
+    char psz_password_md5[HEIMDALL_HASH_MD5_DIGEST_HEX_SIZE];
+    heimdall_hash_FinishHex(&struct_md5, psz_password_md5);
 
     snprintf(psz_timestamp, sizeof(psz_timestamp), "%"PRIu64,
               (uint64_t)timestamp);
@@ -512,17 +513,17 @@ static int Handshake(intf_thread_t *p_this)
      * - md5 hash of the password, plus
      * - timestamp in clear text
      */
-    vlc_hash_md5_Init(&struct_md5);
-    vlc_hash_md5_Update(&struct_md5, psz_password_md5, sizeof(psz_password_md5) - 1);
-    vlc_hash_md5_Update(&struct_md5, psz_timestamp, strlen(psz_timestamp));
-    char psz_auth_token[VLC_HASH_MD5_DIGEST_HEX_SIZE];
-    vlc_hash_FinishHex(&struct_md5, psz_auth_token);
+    heimdall_hash_md5_Init(&struct_md5);
+    heimdall_hash_md5_Update(&struct_md5, psz_password_md5, sizeof(psz_password_md5) - 1);
+    heimdall_hash_md5_Update(&struct_md5, psz_timestamp, strlen(psz_timestamp));
+    char psz_auth_token[HEIMDALL_HASH_MD5_DIGEST_HEX_SIZE];
+    heimdall_hash_FinishHex(&struct_md5, psz_auth_token);
 
     psz_scrobbler_url = var_InheritString(p_this, "scrobbler-url");
     if (!psz_scrobbler_url)
     {
         free(psz_username);
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     i_ret = asprintf(&psz_handshake_url,
@@ -532,57 +533,57 @@ static int Handshake(intf_thread_t *p_this)
     free(psz_scrobbler_url);
     free(psz_username);
     if (i_ret == -1)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     /* send the http handshake request */
-    p_stream = vlc_stream_NewURL(p_intf, psz_handshake_url);
+    p_stream = heimdall_stream_NewURL(p_intf, psz_handshake_url);
     free(psz_handshake_url);
 
     if (!p_stream)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* read answer */
-    i_ret = vlc_stream_Read(p_stream, p_buffer, sizeof(p_buffer) - 1);
+    i_ret = heimdall_stream_Read(p_stream, p_buffer, sizeof(p_buffer) - 1);
     if (i_ret <= 0)
     {
-        vlc_stream_Delete(p_stream);
-        return VLC_EGENERIC;
+        heimdall_stream_Delete(p_stream);
+        return HEIMDALL_EGENERIC;
     }
     p_buffer[i_ret] = '\0';
-    vlc_stream_Delete(p_stream);
+    heimdall_stream_Delete(p_stream);
 
     p_buffer_pos = strstr((char*) p_buffer, "FAILED ");
     if (p_buffer_pos)
     {
         /* handshake request failed, sorry */
         msg_Err(p_this, "last.fm handshake failed: %s", p_buffer_pos + 7);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if (strstr((char*) p_buffer, "BADAUTH"))
     {
         /* authentication failed, bad username/password combination */
-        vlc_dialog_display_error(p_this,
+        heimdall_dialog_display_error(p_this,
             _("last.fm: Authentication failed"),
             "%s", _("last.fm username or password is incorrect. "
-              "Please verify your settings and relaunch VLC."));
-        return VLC_AUDIOSCROBBLER_EFATAL;
+              "Please verify your settings and relaunch Heimdall."));
+        return HEIMDALL_AUDIOSCROBBLER_EFATAL;
     }
 
     if (strstr((char*) p_buffer, "BANNED"))
     {
-        /* oops, our version of vlc has been banned by last.fm servers */
-        msg_Err(p_intf, "This version of VLC has been banned by last.fm. "
-                         "You should upgrade VLC, or disable the last.fm plugin.");
-        return VLC_AUDIOSCROBBLER_EFATAL;
+        /* oops, our version of heimdall has been banned by last.fm servers */
+        msg_Err(p_intf, "This version of Heimdall has been banned by last.fm. "
+                         "You should upgrade Heimdall, or disable the last.fm plugin.");
+        return HEIMDALL_AUDIOSCROBBLER_EFATAL;
     }
 
     if (strstr((char*) p_buffer, "BADTIME"))
     {
         /* The system clock isn't good */
         msg_Err(p_intf, "last.fm handshake failed because your clock is too "
-                         "much shifted. Please correct it, and relaunch VLC.");
-        return VLC_AUDIOSCROBBLER_EFATAL;
+                         "much shifted. Please correct it, and relaunch Heimdall.");
+        return HEIMDALL_AUDIOSCROBBLER_EFATAL;
     }
 
     p_buffer_pos = strstr((char*) p_buffer, "OK");
@@ -607,12 +608,12 @@ static int Handshake(intf_thread_t *p_this)
     if (!psz_url)
         goto oom;
 
-    vlc_UrlParse(&p_sys->p_nowp_url, psz_url);
+    heimdall_UrlParse(&p_sys->p_nowp_url, psz_url);
     free(psz_url);
     if (p_sys->p_nowp_url.psz_host == NULL ||
         p_sys->p_nowp_url.i_port == 0)
     {
-        vlc_UrlClean(&p_sys->p_nowp_url);
+        heimdall_UrlClean(&p_sys->p_nowp_url);
         goto proto;
     }
     p_buffer_pos += strcspn(p_buffer_pos, "\n");
@@ -620,7 +621,7 @@ static int Handshake(intf_thread_t *p_this)
     p_buffer_pos = strstr(p_buffer_pos, "http://");
     if (!p_buffer_pos || strlen(p_buffer_pos) == 7)
     {
-        vlc_UrlClean(&p_sys->p_nowp_url);
+        heimdall_UrlClean(&p_sys->p_nowp_url);
         goto proto;
     }
 
@@ -628,32 +629,32 @@ static int Handshake(intf_thread_t *p_this)
     psz_url = strndup(p_buffer_pos, strcspn(p_buffer_pos, "\n"));
     if (!psz_url)
     {
-        vlc_UrlClean(&p_sys->p_nowp_url);
+        heimdall_UrlClean(&p_sys->p_nowp_url);
         goto oom;
     }
 
     /* parse the submission url */
-    vlc_UrlParse(&p_sys->p_submit_url, psz_url);
+    heimdall_UrlParse(&p_sys->p_submit_url, psz_url);
     free(psz_url);
     if (p_sys->p_submit_url.psz_host == NULL ||
         p_sys->p_submit_url.i_port == 0)
     {
-        vlc_UrlClean(&p_sys->p_nowp_url);
-        vlc_UrlClean(&p_sys->p_submit_url);
+        heimdall_UrlClean(&p_sys->p_nowp_url);
+        heimdall_UrlClean(&p_sys->p_submit_url);
         goto proto;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 oom:
-    return VLC_ENOMEM;
+    return HEIMDALL_ENOMEM;
 
 proto:
     msg_Err(p_intf, "Handshake: can't recognize server protocol");
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
-static void HandleInterval(vlc_tick_t *next, unsigned int *i_interval)
+static void HandleInterval(heimdall_tick_t *next, unsigned int *i_interval)
 {
     if (*i_interval == 0)
     {
@@ -667,7 +668,7 @@ static void HandleInterval(vlc_tick_t *next, unsigned int *i_interval)
         if (*i_interval > 120)
             *i_interval = 120;
     }
-    *next = vlc_tick_now() + (*i_interval * VLC_TICK_FROM_SEC(60));
+    *next = heimdall_tick_now() + (*i_interval * HEIMDALL_TICK_FROM_SEC(60));
 }
 
 /*****************************************************************************
@@ -675,7 +676,7 @@ static void HandleInterval(vlc_tick_t *next, unsigned int *i_interval)
  *****************************************************************************/
 static void *Run(void *data)
 {
-    vlc_thread_set_name("vlc-scrobbler");
+    heimdall_thread_set_name("heimdall-scrobbler");
 
     intf_thread_t          *p_intf = data;
     uint8_t                 p_buffer[1024];
@@ -683,7 +684,7 @@ static void *Run(void *data)
     bool                    b_nowp_submission_ongoing = false;
 
     /* data about audioscrobbler session */
-    vlc_tick_t              next_exchange = VLC_TICK_INVALID; /**< when can we send data  */
+    heimdall_tick_t              next_exchange = HEIMDALL_TICK_INVALID; /**< when can we send data  */
     unsigned int            i_interval = 0;     /**< waiting interval (secs)*/
 
     intf_sys_t *p_sys = p_intf->p_sys;
@@ -691,24 +692,24 @@ static void *Run(void *data)
     /* main loop */
     for (;;)
     {
-        if (next_exchange != VLC_TICK_INVALID
-         && vlc_sem_timedwait(&p_sys->dead, next_exchange) == 0)
+        if (next_exchange != HEIMDALL_TICK_INVALID
+         && heimdall_sem_timedwait(&p_sys->dead, next_exchange) == 0)
             break;
 
-        vlc_mutex_lock(&p_sys->lock);
+        heimdall_mutex_lock(&p_sys->lock);
 
         while (p_sys->i_songs == 0 && p_sys->b_submit_nowp == false)
         {
-            if (vlc_sem_trywait(&p_sys->dead) == 0)
+            if (heimdall_sem_trywait(&p_sys->dead) == 0)
             {
-                vlc_mutex_unlock(&p_sys->lock);
+                heimdall_mutex_unlock(&p_sys->lock);
                 break;
             }
 
-            vlc_cond_wait(&p_sys->wait, &p_sys->lock);
+            heimdall_cond_wait(&p_sys->wait, &p_sys->lock);
         }
 
-        vlc_mutex_unlock(&p_sys->lock);
+        heimdall_mutex_unlock(&p_sys->lock);
 
         /* handshake if needed */
         if (!b_handshaked)
@@ -717,30 +718,30 @@ static void *Run(void *data)
 
             switch(Handshake(p_intf))
             {
-                case VLC_ENOMEM:
+                case HEIMDALL_ENOMEM:
                     goto out;
 
-                case VLC_EINVAL:
+                case HEIMDALL_EINVAL:
                     /* username not set */
-                    vlc_dialog_display_error(p_intf,
+                    heimdall_dialog_display_error(p_intf,
                         _("Last.fm username not set"),
                         "%s", _("Please set a username or disable the "
-                        "audioscrobbler plugin, and restart VLC.\n"
+                        "audioscrobbler plugin, and restart Heimdall.\n"
                         "Visit https://www.last.fm/join/ to get an account."));
                     goto out;
 
-                case VLC_SUCCESS:
+                case HEIMDALL_SUCCESS:
                     msg_Dbg(p_intf, "Handshake successful :)");
                     b_handshaked = true;
                     i_interval = 0;
-                    next_exchange = VLC_TICK_INVALID;
+                    next_exchange = HEIMDALL_TICK_INVALID;
                     break;
 
-                case VLC_AUDIOSCROBBLER_EFATAL:
+                case HEIMDALL_AUDIOSCROBBLER_EFATAL:
                     msg_Warn(p_intf, "Exiting...");
                     goto out;
 
-                case VLC_EGENERIC:
+                case HEIMDALL_EGENERIC:
                 default:
                     /* protocol error : we'll try later */
                     HandleInterval(&next_exchange, &i_interval);
@@ -752,14 +753,14 @@ static void *Run(void *data)
         }
 
         msg_Dbg(p_intf, "Going to submit some data...");
-        vlc_url_t *url;
-        struct vlc_memstream req, payload;
+        heimdall_url_t *url;
+        struct heimdall_memstream req, payload;
 
-        vlc_memstream_open(&payload);
-        vlc_memstream_printf(&payload, "s=%s", p_sys->psz_auth_token);
+        heimdall_memstream_open(&payload);
+        heimdall_memstream_printf(&payload, "s=%s", p_sys->psz_auth_token);
 
         /* forge the HTTP POST request */
-        vlc_mutex_lock(&p_sys->lock);
+        heimdall_mutex_lock(&p_sys->lock);
 
         if (p_sys->b_submit_nowp)
         {
@@ -768,18 +769,18 @@ static void *Run(void *data)
             b_nowp_submission_ongoing = true;
             url = &p_sys->p_nowp_url;
 
-            vlc_memstream_printf(&payload, "&a=%s", p_song->psz_a);
-            vlc_memstream_printf(&payload, "&t=%s", p_song->psz_t);
-            vlc_memstream_puts(&payload, "&b=");
+            heimdall_memstream_printf(&payload, "&a=%s", p_song->psz_a);
+            heimdall_memstream_printf(&payload, "&t=%s", p_song->psz_t);
+            heimdall_memstream_puts(&payload, "&b=");
             if (p_song->psz_b != NULL)
-                vlc_memstream_puts(&payload, p_song->psz_b);
-            vlc_memstream_printf(&payload, "&l=%d", p_song->i_l);
-            vlc_memstream_puts(&payload, "&n=");
+                heimdall_memstream_puts(&payload, p_song->psz_b);
+            heimdall_memstream_printf(&payload, "&l=%d", p_song->i_l);
+            heimdall_memstream_puts(&payload, "&n=");
             if (p_song->psz_n != NULL)
-                vlc_memstream_puts(&payload, p_song->psz_n);
-            vlc_memstream_puts(&payload, "&m=");
+                heimdall_memstream_puts(&payload, p_song->psz_n);
+            heimdall_memstream_puts(&payload, "&m=");
             if (p_song->psz_m != NULL)
-                vlc_memstream_puts(&payload, p_song->psz_m);
+                heimdall_memstream_puts(&payload, p_song->psz_m);
         }
         else
         {
@@ -789,53 +790,53 @@ static void *Run(void *data)
             {
                 audioscrobbler_song_t *p_song = &p_sys->p_queue[i_song];
 
-                vlc_memstream_printf(&payload, "&a%%5B%d%%5D=%s",
+                heimdall_memstream_printf(&payload, "&a%%5B%d%%5D=%s",
                                      i_song, p_song->psz_a);
-                vlc_memstream_printf(&payload, "&t%%5B%d%%5D=%s",
+                heimdall_memstream_printf(&payload, "&t%%5B%d%%5D=%s",
                                      i_song, p_song->psz_t);
-                vlc_memstream_printf(&payload, "&i%%5B%d%%5D=%"PRIu64,
+                heimdall_memstream_printf(&payload, "&i%%5B%d%%5D=%"PRIu64,
                                      i_song, (uint64_t)p_song->date);
-                vlc_memstream_printf(&payload, "&o%%5B%d%%5D=P", i_song);
-                vlc_memstream_printf(&payload, "&r%%5B%d%%5D=", i_song);
-                vlc_memstream_printf(&payload, "&l%%5B%d%%5D=%d",
+                heimdall_memstream_printf(&payload, "&o%%5B%d%%5D=P", i_song);
+                heimdall_memstream_printf(&payload, "&r%%5B%d%%5D=", i_song);
+                heimdall_memstream_printf(&payload, "&l%%5B%d%%5D=%d",
                                      i_song, p_song->i_l);
-                vlc_memstream_printf(&payload, "&b=%%5B%d%%5D=", i_song);
+                heimdall_memstream_printf(&payload, "&b=%%5B%d%%5D=", i_song);
                 if (p_song->psz_b != NULL)
-                    vlc_memstream_puts(&payload, p_song->psz_b);
-                vlc_memstream_printf(&payload, "&n=%%5B%d%%5D=", i_song);
+                    heimdall_memstream_puts(&payload, p_song->psz_b);
+                heimdall_memstream_printf(&payload, "&n=%%5B%d%%5D=", i_song);
                 if (p_song->psz_n != NULL)
-                    vlc_memstream_puts(&payload, p_song->psz_n);
-                vlc_memstream_printf(&payload, "&m=%%5B%d%%5D=", i_song);
+                    heimdall_memstream_puts(&payload, p_song->psz_n);
+                heimdall_memstream_printf(&payload, "&m=%%5B%d%%5D=", i_song);
                 if (p_song->psz_m != NULL)
-                    vlc_memstream_puts(&payload, p_song->psz_m);
+                    heimdall_memstream_puts(&payload, p_song->psz_m);
             }
         }
 
-        vlc_mutex_unlock(&p_sys->lock);
+        heimdall_mutex_unlock(&p_sys->lock);
 
-        if (vlc_memstream_close(&payload))
+        if (heimdall_memstream_close(&payload))
             break;
 
-        vlc_memstream_open(&req);
-        vlc_memstream_printf(&req, "POST %s HTTP/1.1\r\n", url->psz_path);
-        vlc_memstream_printf(&req, "Host: %s\r\n", url->psz_host);
-        vlc_memstream_puts(&req, "User-Agent:"
+        heimdall_memstream_open(&req);
+        heimdall_memstream_printf(&req, "POST %s HTTP/1.1\r\n", url->psz_path);
+        heimdall_memstream_printf(&req, "Host: %s\r\n", url->psz_host);
+        heimdall_memstream_puts(&req, "User-Agent:"
                                  " "PACKAGE_NAME"/"PACKAGE_VERSION"\r\n");
-        vlc_memstream_puts(&req, "Connection: close\r\n");
-        vlc_memstream_puts(&req, "Accept-Encoding: identity\r\n");
-        vlc_memstream_puts(&req, "Content-Type:"
+        heimdall_memstream_puts(&req, "Connection: close\r\n");
+        heimdall_memstream_puts(&req, "Accept-Encoding: identity\r\n");
+        heimdall_memstream_puts(&req, "Content-Type:"
                                  " application/x-www-form-urlencoded\r\n");
-        vlc_memstream_printf(&req, "Content-Length: %zu\r\n", payload.length);
-        vlc_memstream_puts(&req, "\r\n");
+        heimdall_memstream_printf(&req, "Content-Length: %zu\r\n", payload.length);
+        heimdall_memstream_puts(&req, "\r\n");
         /* Could avoid copying payload with iovec... but efforts */
-        vlc_memstream_write(&req, payload.ptr, payload.length);
-        vlc_memstream_puts(&req, "\r\n\r\n");
+        heimdall_memstream_write(&req, payload.ptr, payload.length);
+        heimdall_memstream_puts(&req, "\r\n\r\n");
         free(payload.ptr);
 
-        if (vlc_memstream_close(&req)) /* Out of memory */
+        if (heimdall_memstream_close(&req)) /* Out of memory */
             break;
 
-        vlc_tls_t *sock = vlc_tls_SocketOpenTCP(VLC_OBJECT(p_intf),
+        heimdall_tls_t *sock = heimdall_tls_SocketOpenTCP(HEIMDALL_OBJECT(p_intf),
                                                 url->psz_host, url->i_port);
         if (sock == NULL)
         {
@@ -847,22 +848,22 @@ static void *Run(void *data)
         }
 
         /* we transmit the data */
-        int i_net_ret = vlc_tls_Write(sock, req.ptr, req.length);
+        int i_net_ret = heimdall_tls_Write(sock, req.ptr, req.length);
         free(req.ptr);
         if (i_net_ret == -1)
         {
             /* If connection fails, we assume we must handshake again */
             HandleInterval(&next_exchange, &i_interval);
             b_handshaked = false;
-            vlc_tls_Close(sock);
+            heimdall_tls_Close(sock);
             continue;
         }
 
         /* FIXME: this might wait forever */
         /* FIXME: With TCP, you should never assume that a single read will
          * return the entire response... */
-        i_net_ret = vlc_tls_Read(sock, p_buffer, sizeof(p_buffer) - 1, false);
-        vlc_tls_Close(sock);
+        i_net_ret = heimdall_tls_Read(sock, p_buffer, sizeof(p_buffer) - 1, false);
+        heimdall_tls_Close(sock);
         if (i_net_ret <= 0)
         {
             /* if we get no answer, something went wrong : try again */
@@ -901,7 +902,7 @@ static void *Run(void *data)
             }
 
             i_interval = 0;
-            next_exchange = VLC_TICK_INVALID;
+            next_exchange = HEIMDALL_TICK_INVALID;
             msg_Dbg(p_intf, "Submission successful!");
         }
         else

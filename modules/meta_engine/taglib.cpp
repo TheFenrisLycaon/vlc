@@ -2,9 +2,10 @@
  * taglib.cpp: Taglib tag parser/writer
  *****************************************************************************
  * Copyright (C) 2003-2016 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Clément Stenac <zorglub@videolan.org>
- *          Rafaël Carré <funman@videolanorg>
+ *          Rafaël Carré <funman@lycariaorg>
  *          Rémi Duraffort <ivoire@videolan.org>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -26,23 +27,23 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_arrays.h>
-#include <vlc_threads.h>
-#include <vlc_plugin.h>
-#include <vlc_demux.h>              /* demux_meta_t */
-#include <vlc_strings.h>            /* vlc_b64_decode_binary */
-#include <vlc_input.h>              /* for attachment_new */
-#include <vlc_url.h>                /* vlc_uri2path */
-#include <vlc_mime.h>               /* mime type */
-#include <vlc_fs.h>
-#include <vlc_charset.h>
-#include <vlc_cxx_helpers.hpp>
+#include <heimdall_common.h>
+#include <heimdall_arrays.h>
+#include <heimdall_threads.h>
+#include <heimdall_plugin.h>
+#include <heimdall_demux.h>              /* demux_meta_t */
+#include <heimdall_strings.h>            /* heimdall_b64_decode_binary */
+#include <heimdall_input.h>              /* for attachment_new */
+#include <heimdall_url.h>                /* heimdall_uri2path */
+#include <heimdall_mime.h>               /* mime type */
+#include <heimdall_fs.h>
+#include <heimdall_charset.h>
+#include <heimdall_cxx_helpers.hpp>
 
 #include <sys/stat.h>
 
 #ifdef _WIN32
-# include <vlc_charset.h>           /* ToWide */
+# include <heimdall_charset.h>           /* ToWide */
 # include <io.h>
 #else
 # include <unistd.h>
@@ -64,7 +65,7 @@
 #include <tbytevector.h>
 
 /* Support for stream-based metadata */
-#include <vlc_access.h>
+#include <heimdall_access.h>
 #include <tiostream.h>
 
 #include <apefile.h>
@@ -102,7 +103,7 @@ using namespace TagLib;
 #define USE_IOSTREAM_RESOLVER 1
 #endif
 
-namespace VLCTagLib
+namespace HeimdallTagLib
 {
     template <class T>
 #ifdef USE_IOSTREAM_RESOLVER
@@ -125,14 +126,14 @@ namespace VLCTagLib
 }
 
 template <class T>
-VLCTagLib::ExtResolver<T>::ExtResolver(const std::string & ext)
+HeimdallTagLib::ExtResolver<T>::ExtResolver(const std::string & ext)
 {
     this->ext = ext;
     std::transform(this->ext.begin(), this->ext.end(), this->ext.begin(), ::toupper);
 }
 
 template <class T>
-File *VLCTagLib::ExtResolver<T>::createFile(FileName fileName, bool, AudioProperties::ReadStyle) const
+File *HeimdallTagLib::ExtResolver<T>::createFile(FileName fileName, bool, AudioProperties::ReadStyle) const
 {
 #if defined(_WIN32) && TAGLIB_VERSION >= VERSION_INT(2, 0, 0)
     std::string filename = fileName.toString().to8Bit(true);
@@ -154,7 +155,7 @@ File *VLCTagLib::ExtResolver<T>::createFile(FileName fileName, bool, AudioProper
 
 #ifdef USE_IOSTREAM_RESOLVER
 template<class T>
-File* VLCTagLib::ExtResolver<T>::createFileFromStream(IOStream* s, bool, AudioProperties::ReadStyle) const
+File* HeimdallTagLib::ExtResolver<T>::createFileFromStream(IOStream* s, bool, AudioProperties::ReadStyle) const
 {
 #if defined(_WIN32) && TAGLIB_VERSION >= VERSION_INT(2, 0, 0)
     std::string filename = s->name().toString().to8Bit(true);
@@ -179,37 +180,37 @@ File* VLCTagLib::ExtResolver<T>::createFileFromStream(IOStream* s, bool, AudioPr
 }
 #endif
 
-static VLCTagLib::ExtResolver<MPEG::File> aacresolver(".aac");
+static HeimdallTagLib::ExtResolver<MPEG::File> aacresolver(".aac");
 static bool b_extensions_registered = false;
 
 // taglib is not thread safe
-static vlc::threads::mutex taglib_lock;
+static heimdall::threads::mutex taglib_lock;
 
 // Local functions
-static int ReadMeta    ( vlc_object_t * );
-static int WriteMeta   ( vlc_object_t * );
+static int ReadMeta    ( heimdall_object_t * );
+static int WriteMeta   ( heimdall_object_t * );
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_capability( "meta reader", 1000 )
     set_callback( ReadMeta )
     add_submodule ()
         set_capability( "meta writer", 50 )
         set_callback( WriteMeta )
-vlc_module_end ()
+heimdall_module_end ()
 
-class VlcIostream : public IOStream
+class HeimdallIostream : public IOStream
 {
 public:
-    VlcIostream(stream_t* p_stream)
+    HeimdallIostream(stream_t* p_stream)
         : m_stream( p_stream )
         , m_previousPos( 0 )
         , m_borked( false )
     {
     }
 
-    ~VlcIostream()
+    ~HeimdallIostream()
     {
-        vlc_stream_Delete( m_stream );
+        heimdall_stream_Delete( m_stream );
     }
 
     FileName name() const override
@@ -234,7 +235,7 @@ public:
         if(m_borked)
             return {};
         ByteVector res(length, 0);
-        ssize_t i_read = vlc_stream_Read( m_stream, res.data(), length);
+        ssize_t i_read = heimdall_stream_Read( m_stream, res.data(), length);
         if (i_read < 0)
             return {};
         else if ((size_t)i_read != length)
@@ -308,7 +309,7 @@ public:
             default:
                 break;
         }
-        m_borked = (vlc_stream_Seek( m_stream, pos + offset ) != 0);
+        m_borked = (heimdall_stream_Seek( m_stream, pos + offset ) != 0);
         if(!m_borked)
             m_previousPos = pos + offset;
     }
@@ -334,7 +335,7 @@ public:
 #endif
     {
         uint64_t i_size;
-        if (vlc_stream_GetSize( m_stream, &i_size ) != VLC_SUCCESS)
+        if (heimdall_stream_GetSize( m_stream, &i_size ) != HEIMDALL_SUCCESS)
             return -1;
         return i_size;
     }
@@ -353,8 +354,8 @@ private:
     bool m_borked;
 };
 
-static int ExtractCoupleNumberValues( vlc_meta_t* p_meta, const char *psz_value,
-        vlc_meta_type_t first, vlc_meta_type_t second)
+static int ExtractCoupleNumberValues( heimdall_meta_t* p_meta, const char *psz_value,
+        heimdall_meta_type_t first, heimdall_meta_type_t second)
 {
     unsigned int i_trknum, i_trktot;
 
@@ -363,12 +364,12 @@ static int ExtractCoupleNumberValues( vlc_meta_t* p_meta, const char *psz_value,
     if( i_ret >= 1 )
     {
         snprintf( psz_trck, sizeof( psz_trck ), "%u", i_trknum );
-        vlc_meta_Set( p_meta, first, psz_trck );
+        heimdall_meta_Set( p_meta, first, psz_trck );
     }
     if( i_ret == 2)
     {
         snprintf( psz_trck, sizeof( psz_trck ), "%u", i_trktot );
-        vlc_meta_Set( p_meta, second, psz_trck );
+        heimdall_meta_Set( p_meta, second, psz_trck );
     }
     return i_ret;
 }
@@ -379,7 +380,7 @@ static int ExtractCoupleNumberValues( vlc_meta_t* p_meta, const char *psz_value,
  * @param p_demux_meta: the demuxer meta
  * @param p_meta: the meta
  */
-static void ReadMetaFromAPE( APE::Tag* tag, demux_meta_t* p_demux_meta, vlc_meta_t* p_meta )
+static void ReadMetaFromAPE( APE::Tag* tag, demux_meta_t* p_demux_meta, heimdall_meta_t* p_meta )
 {
     APE::ItemListMap fields ( tag->itemListMap() );
     APE::ItemListMap::Iterator iter;
@@ -400,14 +401,14 @@ static void ReadMetaFromAPE( APE::Tag* tag, demux_meta_t* p_demux_meta, vlc_meta
         if( desc_len < i_data && IsUTF8( p_data ) )
         {
             const char *psz_name = p_data;
-            const char *psz_mime = vlc_mime_Ext2Mime( psz_name );
+            const char *psz_mime = heimdall_mime_Ext2Mime( psz_name );
             p_data += desc_len + 1; /* '\0' */
             i_data -= desc_len + 1;
 
             msg_Dbg( p_demux_meta, "Found embedded art: %s (%s) is %u bytes",
                      psz_name, psz_mime, i_data );
 
-            p_attachment = vlc_input_attachment_New( psz_name, psz_mime,
+            p_attachment = heimdall_input_attachment_New( psz_name, psz_mime,
                                     psz_name, p_data, i_data );
             if( p_attachment )
             {
@@ -418,7 +419,7 @@ static void ReadMetaFromAPE( APE::Tag* tag, demux_meta_t* p_demux_meta, vlc_meta
                 char *psz_url;
                 if( asprintf( &psz_url, "attachment://%s", p_attachment->psz_name ) != -1 )
                 {
-                    vlc_meta_SetArtURL( p_meta, psz_url );
+                    heimdall_meta_SetArtURL( p_meta, psz_url );
                     free( psz_url );
                 }
             }
@@ -430,14 +431,14 @@ static void ReadMetaFromAPE( APE::Tag* tag, demux_meta_t* p_demux_meta, vlc_meta
 #define SET( keyName, metaName ) \
     iter = fields.find(keyName); \
     if( iter != fields.end() && !iter->second.isEmpty() ) { \
-        vlc_meta_Set##metaName( p_meta, iter->second.toString().toCString( true ) ); \
+        heimdall_meta_Set##metaName( p_meta, iter->second.toString().toCString( true ) ); \
         fields.erase(iter); \
     }
 
 #define SET_EXTRA( keyName, metaName ) \
     iter = fields.find( keyName ); \
     if( iter != fields.end() && !iter->second.isEmpty() ) { \
-        vlc_meta_SetExtra( p_meta, metaName, iter->second.toString().toCString( true ) ); \
+        heimdall_meta_SetExtra( p_meta, metaName, iter->second.toString().toCString( true ) ); \
         fields.erase(iter); \
     }
 
@@ -452,7 +453,7 @@ static void ReadMetaFromAPE( APE::Tag* tag, demux_meta_t* p_demux_meta, vlc_meta
     SET( "MUSICBRAINZ_TRACKID", TrackID );
     SET( "COMPILATION", Compilation );
 
-    SET_EXTRA( "MUSICBRAINZ_ALBUMID", VLC_META_EXTRA_MB_ALBUMID );
+    SET_EXTRA( "MUSICBRAINZ_ALBUMID", HEIMDALL_META_EXTRA_MB_ALBUMID );
 
 #undef SET
 #undef SET_EXTRA
@@ -462,7 +463,7 @@ static void ReadMetaFromAPE( APE::Tag* tag, demux_meta_t* p_demux_meta, vlc_meta
     if( iter != fields.end() && !iter->second.isEmpty() )
     {
         ExtractCoupleNumberValues( p_meta, iter->second.toString().toCString( true ),
-                vlc_meta_TrackNumber, vlc_meta_TrackTotal );
+                heimdall_meta_TrackNumber, heimdall_meta_TrackTotal );
         fields.erase( iter );
     }
 
@@ -475,7 +476,7 @@ static void ReadMetaFromAPE( APE::Tag* tag, demux_meta_t* p_demux_meta, vlc_meta
         if( iter->second.type() != APE::Item::Text )
             continue;
 
-        vlc_meta_SetExtra( p_meta,
+        heimdall_meta_SetExtra( p_meta,
                            iter->first.toCString( true ),
                            iter->second.toString().toCString( true ) );
     }
@@ -488,7 +489,7 @@ static void ReadMetaFromAPE( APE::Tag* tag, demux_meta_t* p_demux_meta, vlc_meta
  * @param p_demux_meta: the demuxer meta
  * @param p_meta: the meta
  */
-static void ReadMetaFromASF( ASF::Tag* tag, demux_meta_t* p_demux_meta, vlc_meta_t* p_meta )
+static void ReadMetaFromASF( ASF::Tag* tag, demux_meta_t* p_demux_meta, heimdall_meta_t* p_meta )
 {
 
     ASF::AttributeList list;
@@ -496,24 +497,24 @@ static void ReadMetaFromASF( ASF::Tag* tag, demux_meta_t* p_demux_meta, vlc_meta
     if( tag->attributeListMap().contains(keyName) )                                  \
     {                                                                                \
         list = tag->attributeListMap()[keyName];                                     \
-        vlc_meta_Set##metaName( p_meta, list.front().toString().toCString( true ) ); \
+        heimdall_meta_Set##metaName( p_meta, list.front().toString().toCString( true ) ); \
     }
 
 #define SET_EXTRA( keyName, metaName )                                                     \
     if( tag->attributeListMap().contains(keyName) )                                  \
     {                                                                                \
         list = tag->attributeListMap()[keyName];                                     \
-        vlc_meta_SetExtra( p_meta, metaName, list.front().toString().toCString( true ) ); \
+        heimdall_meta_SetExtra( p_meta, metaName, list.front().toString().toCString( true ) ); \
     }
 
     SET("MusicBrainz/Track Id", TrackID );
-    SET_EXTRA("MusicBrainz/Album Id", VLC_META_EXTRA_MB_ALBUMID );
+    SET_EXTRA("MusicBrainz/Album Id", HEIMDALL_META_EXTRA_MB_ALBUMID );
 
 #undef SET
 #undef SET_EXTRA
 
     if( tag->attributeListMap().contains("WM/IsCompilation") )
-        vlc_meta_SetCompilation( p_meta,
+        heimdall_meta_SetCompilation( p_meta,
             tag->attributeListMap()["WM/IsCompilation"].front().toBool() ? "1" : "0" );
 
     // List the pictures
@@ -543,7 +544,7 @@ static void ReadMetaFromASF( ASF::Tag* tag, demux_meta_t* p_demux_meta, vlc_meta
         msg_Dbg( p_demux_meta, "Found embedded art: %s (%s) is %u bytes",
                  psz_name, psz_mime, i_data );
 
-        p_attachment = vlc_input_attachment_New( psz_name, psz_mime,
+        p_attachment = heimdall_input_attachment_New( psz_name, psz_mime,
                                 psz_name, p_data, i_data );
         if( p_attachment )
             TAB_APPEND_CAST( (input_attachment_t**),
@@ -552,7 +553,7 @@ static void ReadMetaFromASF( ASF::Tag* tag, demux_meta_t* p_demux_meta, vlc_meta
         char *psz_url;
         if( asprintf( &psz_url, "attachment://%s", psz_name ) != -1 )
         {
-            vlc_meta_SetArtURL( p_meta, psz_url );
+            heimdall_meta_SetArtURL( p_meta, psz_url );
             free( psz_url );
         }
         free( psz_name );
@@ -560,7 +561,7 @@ static void ReadMetaFromASF( ASF::Tag* tag, demux_meta_t* p_demux_meta, vlc_meta
 }
 
 static void AddAPICToAttachments( demux_meta_t* p_demux_meta,
-                                  vlc_meta_t* p_meta,
+                                  heimdall_meta_t* p_meta,
                                   const String &mimeType,
                                   const String &description,
                                   const char *p_data,
@@ -572,7 +573,7 @@ static void AddAPICToAttachments( demux_meta_t* p_demux_meta,
         return;
 
     input_attachment_t *p_attachment =
-        vlc_input_attachment_New( psz_name,
+        heimdall_input_attachment_New( psz_name,
                                   mimeType.toCString(),
                                   description.toCString(),
                                   p_data, i_data );
@@ -593,7 +594,7 @@ static void AddAPICToAttachments( demux_meta_t* p_demux_meta,
         if( asprintf( &psz_url, "attachment://%s",
                       p_attachment->psz_name ) == -1 )
             return;
-        vlc_meta_SetArtURL( p_meta, psz_url );
+        heimdall_meta_SetArtURL( p_meta, psz_url );
         free( psz_url );
     }
 }
@@ -626,7 +627,7 @@ template<class T, class L>
 }
 
 static void ProcessAPICListFromId3v2( const ID3v2::FrameList &list,
-                                      demux_meta_t* p_demux_meta, vlc_meta_t* p_meta )
+                                      demux_meta_t* p_demux_meta, heimdall_meta_t* p_meta )
 {
     const ID3v2::AttachedPictureFrame *defaultPic =
         getDefaultPic<ID3v2::AttachedPictureFrame, ID3v2::FrameList>(list);
@@ -659,7 +660,7 @@ static void ProcessAPICListFromId3v2( const ID3v2::FrameList &list,
 }
 
 static void ProcessAPICListFromFLAC( const List< FLAC::Picture * > &list,
-                                     demux_meta_t* p_demux_meta, vlc_meta_t* p_meta )
+                                     demux_meta_t* p_demux_meta, heimdall_meta_t* p_meta )
 {
     const FLAC::Picture *defaultPic =
         getDefaultPic<FLAC::Picture, List< FLAC::Picture * >>(list);
@@ -676,17 +677,17 @@ static void ProcessAPICListFromFLAC( const List< FLAC::Picture * > &list,
     }
 }
 
-static void ReadMetaFromBasicTag(const Tag* tag, vlc_meta_t *dest)
+static void ReadMetaFromBasicTag(const Tag* tag, heimdall_meta_t *dest)
 {
 #define SET( accessor, meta )                                                  \
     if( !tag->accessor().isEmpty() )                                           \
-        vlc_meta_Set##meta( dest, tag->accessor().toCString(true) )
+        heimdall_meta_Set##meta( dest, tag->accessor().toCString(true) )
 #define SETINT( accessor, meta )                                               \
     if( tag->accessor() )                                                      \
     {                                                                          \
         char tmp[10];                                                          \
         snprintf( tmp, 10, "%d", tag->accessor() );                            \
-        vlc_meta_Set##meta( dest, tmp );                                       \
+        heimdall_meta_Set##meta( dest, tmp );                                       \
     }
 
     SET( title, Title );
@@ -707,7 +708,7 @@ static void ReadMetaFromBasicTag(const Tag* tag, vlc_meta_t *dest)
  * @param p_demux_meta: the demuxer meta
  * @param p_meta: the meta
  */
-static void ReadMetaFromId3v2( ID3v2::Tag* tag, demux_meta_t* p_demux_meta, vlc_meta_t* p_meta )
+static void ReadMetaFromId3v2( ID3v2::Tag* tag, demux_meta_t* p_demux_meta, heimdall_meta_t* p_meta )
 {
     // Get the unique file identifier
     ID3v2::FrameList list = tag->frameListMap()["UFID"];
@@ -728,7 +729,7 @@ static void ReadMetaFromId3v2( ID3v2::Tag* tag, demux_meta_t* p_demux_meta, vlc_
             int max_size = std::min<unsigned>( p_ufid->identifier().size(), 63);
             strncpy( psz_ufid, p_ufid->identifier().data(), max_size );
             psz_ufid[max_size] = '\0';
-            vlc_meta_SetTrackID( p_meta, psz_ufid );
+            heimdall_meta_SetTrackID( p_meta, psz_ufid );
         }
     }
 
@@ -742,15 +743,15 @@ static void ReadMetaFromId3v2( ID3v2::Tag* tag, demux_meta_t* p_demux_meta, vlc_
             continue;
         if( !strcmp( p_txxx->description().toCString( true ), "TRACKTOTAL" ) )
         {
-            vlc_meta_Set( p_meta, vlc_meta_TrackTotal, p_txxx->fieldList().back().toCString( true ) );
+            heimdall_meta_Set( p_meta, heimdall_meta_TrackTotal, p_txxx->fieldList().back().toCString( true ) );
             continue;
         }
         if( !strcmp( p_txxx->description().toCString( true ), "MusicBrainz Album Id" ) )
         {
-            vlc_meta_SetExtra( p_meta, VLC_META_EXTRA_MB_ALBUMID, p_txxx->fieldList().back().toCString( true ) );
+            heimdall_meta_SetExtra( p_meta, HEIMDALL_META_EXTRA_MB_ALBUMID, p_txxx->fieldList().back().toCString( true ) );
             continue;
         }
-        vlc_meta_SetExtra( p_meta, p_txxx->description().toCString( true ),
+        heimdall_meta_SetExtra( p_meta, p_txxx->description().toCString( true ),
                            p_txxx->fieldList().back().toCString( true ) );
     }
 
@@ -758,13 +759,13 @@ static void ReadMetaFromId3v2( ID3v2::Tag* tag, demux_meta_t* p_demux_meta, vlc_
 #define SET( tagName, metaName )                                               \
     list = tag->frameListMap()[tagName];                                       \
     if( !list.isEmpty() )                                                      \
-        vlc_meta_Set##metaName( p_meta,                                        \
+        heimdall_meta_Set##metaName( p_meta,                                        \
                                 (*list.begin())->toString().toCString( true ) );
 
 #define SET_EXTRA( tagName, metaName )\
     list = tag->frameListMap()[tagName];\
     if( !list.isEmpty() )\
-        vlc_meta_SetExtra( p_meta, metaName,\
+        heimdall_meta_SetExtra( p_meta, metaName,\
                            (*list.begin())->toString().toCString( true ) );
 
 
@@ -784,7 +785,7 @@ static void ReadMetaFromId3v2( ID3v2::Tag* tag, demux_meta_t* p_demux_meta, vlc_
     if( !list.isEmpty() )
     {
         ExtractCoupleNumberValues( p_meta, (*list.begin())->toString().toCString( true ),
-                vlc_meta_TrackNumber, vlc_meta_TrackTotal );
+                heimdall_meta_TrackNumber, heimdall_meta_TrackTotal );
     }
 
     /* */
@@ -792,7 +793,7 @@ static void ReadMetaFromId3v2( ID3v2::Tag* tag, demux_meta_t* p_demux_meta, vlc_
     if( !list.isEmpty() )
     {
         ExtractCoupleNumberValues( p_meta, (*list.begin())->toString().toCString( true ),
-                vlc_meta_DiscNumber, vlc_meta_DiscTotal );
+                heimdall_meta_DiscNumber, heimdall_meta_DiscTotal );
     }
 
     // Try now to get embedded art
@@ -807,21 +808,21 @@ static void ReadMetaFromId3v2( ID3v2::Tag* tag, demux_meta_t* p_demux_meta, vlc_
  * @param p_demux_meta: the demuxer meta
  * @param p_meta: the meta
  */
-static void ReadMetaFromXiph( Ogg::XiphComment* tag, demux_meta_t* p_demux_meta, vlc_meta_t* p_meta )
+static void ReadMetaFromXiph( Ogg::XiphComment* tag, demux_meta_t* p_demux_meta, heimdall_meta_t* p_meta )
 {
     bool hasTrackTotal = false;
 #define SET( keyName, metaName ) \
     { \
         StringList tmp_list { tag->fieldListMap()[keyName] }; \
         if( !tmp_list.isEmpty() ) \
-            vlc_meta_Set##metaName( p_meta, (*tmp_list.begin()).toCString( true ) ); \
+            heimdall_meta_Set##metaName( p_meta, (*tmp_list.begin()).toCString( true ) ); \
     }
 
 #define SET_EXTRA( keyName, metaName ) \
     { \
         StringList tmp_list = tag->fieldListMap()[keyName]; \
         if( !tmp_list.isEmpty() ) \
-            vlc_meta_SetExtra( p_meta, keyName, (*tmp_list.begin()).toCString( true ) ); \
+            heimdall_meta_SetExtra( p_meta, keyName, (*tmp_list.begin()).toCString( true ) ); \
     }
 
     SET( "COPYRIGHT", Copyright );
@@ -835,7 +836,7 @@ static void ReadMetaFromXiph( Ogg::XiphComment* tag, demux_meta_t* p_demux_meta,
     SET( "DISCNUMBER", DiscNumber );
     SET( "COMPILATION", Compilation );
 
-    SET_EXTRA( "MUSICBRAINZ_ALBUMID", VLC_META_EXTRA_MB_ALBUMID );
+    SET_EXTRA( "MUSICBRAINZ_ALBUMID", HEIMDALL_META_EXTRA_MB_ALBUMID );
 #undef SET
 #undef SET_EXTRA
 
@@ -843,7 +844,7 @@ static void ReadMetaFromXiph( Ogg::XiphComment* tag, demux_meta_t* p_demux_meta,
     if( !track_number_list.isEmpty() )
     {
         int i_values = ExtractCoupleNumberValues( p_meta, (*track_number_list.begin()).toCString( true ),
-                 vlc_meta_TrackNumber, vlc_meta_TrackTotal );
+                 heimdall_meta_TrackNumber, heimdall_meta_TrackTotal );
         hasTrackTotal = i_values == 2;
     }
     if( !hasTrackTotal )
@@ -853,11 +854,11 @@ static void ReadMetaFromXiph( Ogg::XiphComment* tag, demux_meta_t* p_demux_meta,
         {
             StringList total_tracks_list { tag->fieldListMap()["TOTALTRACKS"] };
             if( !total_tracks_list.isEmpty() )
-                vlc_meta_SetTrackTotal( p_meta, (*total_tracks_list.begin()).toCString( true ) );
+                heimdall_meta_SetTrackTotal( p_meta, (*total_tracks_list.begin()).toCString( true ) );
         }
         else
         {
-            vlc_meta_SetTrackTotal( p_meta, (*track_total_list.begin()).toCString( true ) );
+            heimdall_meta_SetTrackTotal( p_meta, (*track_total_list.begin()).toCString( true ) );
         }
     }
 
@@ -871,30 +872,30 @@ static void ReadMetaFromXiph( Ogg::XiphComment* tag, demux_meta_t* p_demux_meta,
  * @param p_demux_meta: the demuxer meta
  * @param p_meta: the meta
  */
-static void ReadMetaFromMP4( MP4::Tag* tag, demux_meta_t *p_demux_meta, vlc_meta_t* p_meta )
+static void ReadMetaFromMP4( MP4::Tag* tag, demux_meta_t *p_demux_meta, heimdall_meta_t* p_meta )
 {
     MP4::Item list;
 #define SET( keyName, metaName )                                                             \
     if( tag->contains(keyName) )                                                             \
     {                                                                                        \
         list = tag->item(keyName);                                                           \
-        vlc_meta_Set##metaName( p_meta, list.toStringList().front().toCString( true ) );     \
+        heimdall_meta_Set##metaName( p_meta, list.toStringList().front().toCString( true ) );     \
     }
 #define SET_EXTRA( keyName, metaName )                                                   \
     if( tag->contains(keyName) )                                                         \
     {                                                                                    \
         list = tag->item(keyName);                                                       \
-        vlc_meta_SetExtra( p_meta, metaName, list.toStringList().front().toCString( true ) ); \
+        heimdall_meta_SetExtra( p_meta, metaName, list.toStringList().front().toCString( true ) ); \
     }
 
     SET("----:com.apple.iTunes:MusicBrainz Track Id", TrackID );
-    SET_EXTRA("----:com.apple.iTunes:MusicBrainz Album Id", VLC_META_EXTRA_MB_ALBUMID );
+    SET_EXTRA("----:com.apple.iTunes:MusicBrainz Album Id", HEIMDALL_META_EXTRA_MB_ALBUMID );
 
 #undef SET
 #undef SET_EXTRA
 
     if( tag->contains("cpil") )
-        vlc_meta_SetCompilation( p_meta, tag->item("cpil").toBool() ? "1" : "0" );
+        heimdall_meta_SetCompilation( p_meta, tag->item("cpil").toBool() ? "1" : "0" );
 
     if( tag->contains("covr") )
     {
@@ -905,14 +906,14 @@ static void ReadMetaFromMP4( MP4::Tag* tag, demux_meta_t *p_demux_meta, vlc_meta
                  psz_format, cover_list[0].data().size() );
 
         input_attachment_t *p_attachment =
-                vlc_input_attachment_New( "cover", psz_format, "cover",
+                heimdall_input_attachment_New( "cover", psz_format, "cover",
                                           cover_list[0].data().data(), cover_list[0].data().size() );
         if( p_attachment )
         {
             TAB_APPEND_CAST( (input_attachment_t**),
                              p_demux_meta->i_attachments, p_demux_meta->attachments,
                              p_attachment );
-            vlc_meta_SetArtURL( p_meta, "attachment://cover" );
+            heimdall_meta_SetArtURL( p_meta, "attachment://cover" );
         }
     }
 }
@@ -937,11 +938,11 @@ static bool isSchemeCompatible( const char *psz_uri )
 static int ReadWAVMeta( const RIFF::WAV::File *wav, demux_meta_t *demux_meta )
 {
     if( !wav->hasID3v2Tag() && !wav->hasInfoTag() )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    demux_meta->p_meta = vlc_meta_New();
+    demux_meta->p_meta = heimdall_meta_New();
     if( !demux_meta->p_meta )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     TAB_INIT( demux_meta->i_attachments, demux_meta->attachments );
 
@@ -953,30 +954,30 @@ static int ReadWAVMeta( const RIFF::WAV::File *wav, demux_meta_t *demux_meta )
         ReadMetaFromBasicTag( wav->ID3v2Tag(), demux_meta->p_meta );
         ReadMetaFromId3v2( wav->ID3v2Tag(), demux_meta, demux_meta->p_meta );
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /**
  * Get the tags from the file using TagLib
  * @param p_this: the demux object
- * @return VLC_SUCCESS if the operation success
+ * @return HEIMDALL_SUCCESS if the operation success
  */
-static int ReadMeta( vlc_object_t* p_this)
+static int ReadMeta( heimdall_object_t* p_this)
 {
-    vlc::threads::mutex_locker locker(taglib_lock);
+    heimdall::threads::mutex_locker locker(taglib_lock);
     demux_meta_t*   p_demux_meta = (demux_meta_t *)p_this;
-    vlc_meta_t*     p_meta;
+    heimdall_meta_t*     p_meta;
 
     p_demux_meta->p_meta = NULL;
 
     char *psz_uri = input_item_GetURI( p_demux_meta->p_item );
     if( unlikely(psz_uri == NULL) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     if( !isSchemeCompatible( psz_uri ) )
     {
         free( psz_uri );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( !b_extensions_registered )
@@ -985,20 +986,20 @@ static int ReadMeta( vlc_object_t* p_this)
         b_extensions_registered = true;
     }
 
-    stream_t *p_stream = vlc_access_NewMRL( p_this, psz_uri );
+    stream_t *p_stream = heimdall_access_NewMRL( p_this, psz_uri );
     free( psz_uri );
     if( p_stream == NULL )
-        return VLC_EGENERIC;
-    stream_t* p_filter = vlc_stream_FilterNew( p_stream, "prefetch,cache" );
+        return HEIMDALL_EGENERIC;
+    stream_t* p_filter = heimdall_stream_FilterNew( p_stream, "prefetch,cache" );
     if( p_filter )
         p_stream = p_filter;
 
-    VlcIostream s( p_stream );
+    HeimdallIostream s( p_stream );
 
     FileRef f( &s, false, AudioProperties::ReadStyle::Fast );
 
     if( f.isNull() )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     // XXX: Workaround a quirk in TagLib that doesn't merge id3 tags and RIFF
     // INFO tags in `Wav::File::tag()`'s return value.
@@ -1008,11 +1009,11 @@ static int ReadMeta( vlc_object_t* p_this)
         return ReadWAVMeta(riff_wav, p_demux_meta);
 
     if( !f.tag() || f.tag()->isEmpty() )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    p_demux_meta->p_meta = p_meta = vlc_meta_New();
+    p_demux_meta->p_meta = p_meta = heimdall_meta_New();
     if( !p_meta )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     // Read the tags from the file
     ReadMetaFromBasicTag(f.tag(), p_meta);
@@ -1084,7 +1085,7 @@ static int ReadMeta( vlc_object_t* p_this)
             ReadMetaFromAPE( wavpack->APETag(), p_demux_meta, p_meta );
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 
@@ -1181,14 +1182,14 @@ static void WriteMetaToId3v2( ID3v2::Tag* tag, input_item_t* p_item )
     if( psz_url == NULL )
         return;
 
-    char *psz_path = vlc_uri2path( psz_url );
+    char *psz_path = heimdall_uri2path( psz_url );
     free( psz_url );
     if( psz_path == NULL )
         return;
 
-    const char *psz_mime = vlc_mime_Ext2Mime( psz_path );
+    const char *psz_mime = heimdall_mime_Ext2Mime( psz_path );
 
-    FILE *p_file = vlc_fopen( psz_path, "rb" );
+    FILE *p_file = heimdall_fopen( psz_path, "rb" );
     if( p_file == NULL )
     {
         free( psz_path );
@@ -1196,7 +1197,7 @@ static void WriteMetaToId3v2( ID3v2::Tag* tag, input_item_t* p_item )
     }
 
     struct stat st;
-    if( vlc_stat( psz_path, &st ) == -1 )
+    if( heimdall_stat( psz_path, &st ) == -1 )
     {
         free( psz_path );
         fclose( p_file );
@@ -1282,12 +1283,12 @@ static void WriteMetaToXiph( Ogg::XiphComment* tag, input_item_t* p_item )
 /**
  * Set the tags to the file using TagLib
  * @param p_this: the demux object
- * @return VLC_SUCCESS if the operation success
+ * @return HEIMDALL_SUCCESS if the operation success
  */
 
-static int WriteMeta( vlc_object_t *p_this )
+static int WriteMeta( heimdall_object_t *p_this )
 {
-    vlc::threads::mutex_locker locker(taglib_lock);
+    heimdall::threads::mutex_locker locker(taglib_lock);
     meta_export_t *p_export = (meta_export_t *)p_this;
     input_item_t *p_item = p_export->p_item;
     FileRef f;
@@ -1295,13 +1296,13 @@ static int WriteMeta( vlc_object_t *p_this )
     if( !p_item )
     {
         msg_Err( p_this, "Can't save meta data of an empty input" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
 #if defined(_WIN32)
     wchar_t *wpath = ToWide( p_export->psz_file );
     if( wpath == NULL )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     f = FileRef( wpath, false );
     free( wpath );
 #else
@@ -1312,7 +1313,7 @@ static int WriteMeta( vlc_object_t *p_this )
     {
         msg_Err( p_this, "File %s can't be opened for tag writing",
                  p_export->psz_file );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     msg_Dbg( p_this, "Writing metadata for %s", p_export->psz_file );
@@ -1415,5 +1416,5 @@ static int WriteMeta( vlc_object_t *p_this )
     // Save the meta data
     f.save();
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

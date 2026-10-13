@@ -2,6 +2,7 @@
  * omxil_utils.h: helper functions
  *****************************************************************************
  * Copyright (C) 2010 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gildas Bazin <gbazin@videolan.org>
  *
@@ -20,8 +21,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#include <vlc_es.h>
-#include <vlc_threads.h>
+#include <heimdall_es.h>
+#include <heimdall_threads.h>
 
 /*****************************************************************************
  * OMX macros
@@ -83,8 +84,8 @@ static inline OMX_TICKS ToOmxTicks(int64_t value)
  * OMX buffer FIFO macros
  *****************************************************************************/
 #define OMX_FIFO_INIT(p_fifo, next) \
-    do { vlc_mutex_init( &(p_fifo)->lock ); \
-         vlc_cond_init( &(p_fifo)->wait ); \
+    do { heimdall_mutex_init( &(p_fifo)->lock ); \
+         heimdall_cond_init( &(p_fifo)->wait ); \
          (p_fifo)->offset = offsetof(OMX_BUFFERHEADERTYPE, next) / sizeof(void *); \
          (p_fifo)->pp_last = &(p_fifo)->p_first; } while(0)
 
@@ -95,21 +96,21 @@ static inline OMX_TICKS ToOmxTicks(int64_t value)
          p_buffer = (p_fifo)->p_first;
 
 #define OMX_FIFO_GET(p_fifo, p_buffer) \
-    do { vlc_mutex_lock( &(p_fifo)->lock ); \
+    do { heimdall_mutex_lock( &(p_fifo)->lock ); \
          while( !(p_fifo)->p_first ) \
-             vlc_cond_wait( &(p_fifo)->wait, &(p_fifo)->lock ); \
+             heimdall_cond_wait( &(p_fifo)->wait, &(p_fifo)->lock ); \
          p_buffer = (p_fifo)->p_first; \
          OMX_BUFFERHEADERTYPE **pp_next = (OMX_BUFFERHEADERTYPE **) \
              ((void **)p_buffer + (p_fifo)->offset); \
          (p_fifo)->p_first = *pp_next; *pp_next = 0; \
          if( !(p_fifo)->p_first ) (p_fifo)->pp_last = &(p_fifo)->p_first; \
-         vlc_mutex_unlock( &(p_fifo)->lock ); } while(0)
+         heimdall_mutex_unlock( &(p_fifo)->lock ); } while(0)
 
 #define OMX_FIFO_GET_TIMEOUT(p_fifo, p_buffer, timeout) \
-    do { vlc_mutex_lock( &(p_fifo)->lock ); \
-         vlc_tick_t end = vlc_tick_now() + timeout; \
+    do { heimdall_mutex_lock( &(p_fifo)->lock ); \
+         heimdall_tick_t end = heimdall_tick_now() + timeout; \
          if( !(p_fifo)->p_first ) \
-             vlc_cond_timedwait( &(p_fifo)->wait, &(p_fifo)->lock, end ); \
+             heimdall_cond_timedwait( &(p_fifo)->wait, &(p_fifo)->lock, end ); \
          p_buffer = (p_fifo)->p_first; \
          if( p_buffer ) { \
              OMX_BUFFERHEADERTYPE **pp_next = (OMX_BUFFERHEADERTYPE **) \
@@ -117,16 +118,16 @@ static inline OMX_TICKS ToOmxTicks(int64_t value)
              (p_fifo)->p_first = *pp_next; *pp_next = 0; \
              if( !(p_fifo)->p_first ) (p_fifo)->pp_last = &(p_fifo)->p_first; \
          } \
-         vlc_mutex_unlock( &(p_fifo)->lock ); } while(0)
+         heimdall_mutex_unlock( &(p_fifo)->lock ); } while(0)
 
 #define OMX_FIFO_PUT(p_fifo, p_buffer) \
-    do { vlc_mutex_lock (&(p_fifo)->lock);              \
+    do { heimdall_mutex_lock (&(p_fifo)->lock);              \
          OMX_BUFFERHEADERTYPE **pp_next = (OMX_BUFFERHEADERTYPE **) \
              ((void **)p_buffer + (p_fifo)->offset); \
          *(p_fifo)->pp_last = p_buffer; \
          (p_fifo)->pp_last = pp_next; *pp_next = 0; \
-         vlc_cond_signal( &(p_fifo)->wait ); \
-         vlc_mutex_unlock( &(p_fifo)->lock ); } while(0)
+         heimdall_cond_signal( &(p_fifo)->wait ); \
+         heimdall_mutex_unlock( &(p_fifo)->lock ); } while(0)
 
 /*****************************************************************************
  * OMX format parameters
@@ -172,8 +173,8 @@ typedef struct OmxEventQueue
     OmxEvent *p_events;
     OmxEvent **pp_last_event;
 
-    vlc_mutex_t mutex;
-    vlc_cond_t cond;
+    heimdall_mutex_t mutex;
+    heimdall_cond_t cond;
 } OmxEventQueue;
 
 void InitOmxEventQueue(OmxEventQueue *queue);
@@ -185,7 +186,7 @@ OMX_ERRORTYPE WaitForOmxEvent(OmxEventQueue *queue, OMX_EVENTTYPE *event,
 OMX_ERRORTYPE WaitForSpecificOmxEvent(OmxEventQueue *queue,
     OMX_EVENTTYPE specific_event, OMX_U32 *data_1, OMX_U32 *data_2,
     OMX_PTR *event_data);
-void PrintOmxEvent(vlc_object_t *p_this, OMX_EVENTTYPE event, OMX_U32 data_1,
+void PrintOmxEvent(heimdall_object_t *p_this, OMX_EVENTTYPE event, OMX_U32 data_1,
     OMX_U32 data_2, OMX_PTR event_data);
 
 /*****************************************************************************
@@ -195,7 +196,7 @@ void CopyOmxPicture( int i_color_format, picture_t *p_pic,
                      int i_slice_height,
                      int i_src_stride, uint8_t *p_src, int i_chroma_div );
 
-void CopyVlcPicture( decoder_t *, OMX_BUFFERHEADERTYPE *, picture_t * );
+void CopyHeimdallPicture( decoder_t *, OMX_BUFFERHEADERTYPE *, picture_t * );
 
 /*****************************************************************************
  * Logging utility functions
@@ -219,21 +220,21 @@ enum {
     OMXCODEC_VIDEO_QUIRKS_SUPPORT_INTERLACED = 0x4,
     OMXCODEC_AUDIO_QUIRKS_NEED_CHANNELS = 0x8,
 };
-int OMXCodec_GetQuirks( enum es_format_category_e i_cat, vlc_fourcc_t i_codec,
+int OMXCodec_GetQuirks( enum es_format_category_e i_cat, heimdall_fourcc_t i_codec,
                         const char *p_name, unsigned int i_name_len );
 
 /*****************************************************************************
  * fourcc -> omx id mapping
  *****************************************************************************/
 OMX_VIDEO_CODINGTYPE GetOmxVideoFormat( const es_format_t * );
-vlc_fourcc_t GetVlcVideoFormat( OMX_VIDEO_CODINGTYPE i_omx_codec );
-OMX_AUDIO_CODINGTYPE GetOmxAudioFormat( vlc_fourcc_t i_fourcc );
-vlc_fourcc_t OmxToVlcAudioFormat( OMX_AUDIO_CODINGTYPE i_omx_codec );
+heimdall_fourcc_t GetHeimdallVideoFormat( OMX_VIDEO_CODINGTYPE i_omx_codec );
+OMX_AUDIO_CODINGTYPE GetOmxAudioFormat( heimdall_fourcc_t i_fourcc );
+heimdall_fourcc_t OmxToHeimdallAudioFormat( OMX_AUDIO_CODINGTYPE i_omx_codec );
 const char *GetOmxRole( const es_format_t *,
                         bool b_enc );
-OMX_COLOR_FORMATTYPE GetOmxChromaFormat( vlc_fourcc_t i_fourcc );
-vlc_fourcc_t GetVlcChromaFormat( OMX_COLOR_FORMATTYPE i_omx_codec );
-int GetVlcChromaSizes( vlc_fourcc_t i_fourcc,
+OMX_COLOR_FORMATTYPE GetOmxChromaFormat( heimdall_fourcc_t i_fourcc );
+heimdall_fourcc_t GetHeimdallChromaFormat( OMX_COLOR_FORMATTYPE i_omx_codec );
+int GetHeimdallChromaSizes( heimdall_fourcc_t i_fourcc,
                        unsigned int width, unsigned int height,
                        unsigned int *size, unsigned int *pitch,
                        unsigned int *chroma_pitch_div );
@@ -243,7 +244,7 @@ int GetVlcChromaSizes( vlc_fourcc_t i_fourcc,
  *****************************************************************************/
 OMX_ERRORTYPE SetAudioParameters(OMX_HANDLETYPE handle,
     OmxFormatParam *param, OMX_U32 i_port, OMX_AUDIO_CODINGTYPE encoding,
-    vlc_fourcc_t i_codec, uint8_t i_channels, unsigned int i_samplerate,
+    heimdall_fourcc_t i_codec, uint8_t i_channels, unsigned int i_samplerate,
     unsigned int i_bitrate, unsigned int i_bps, unsigned int i_blocksize);
 OMX_ERRORTYPE GetAudioParameters(OMX_HANDLETYPE handle,
     OmxFormatParam *param, OMX_U32 i_port, OMX_AUDIO_CODINGTYPE encoding,
@@ -263,4 +264,4 @@ unsigned int GetAudioParamSize(OMX_INDEXTYPE index);
 /*****************************************************************************
  * H264 specific code
  *****************************************************************************/
-int convert_omx_to_profile_idc(vlc_fourcc_t codec, int profile_type);
+int convert_omx_to_profile_idc(heimdall_fourcc_t codec, int profile_type);

@@ -2,6 +2,7 @@
  * AlwaysLowestAdaptationLogic.cpp
  *****************************************************************************
  * Copyright (C) 2014 - VideoLAN and VLC authors
+ * Copyright (C) 2026 TheFenrisLycaon
   *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -27,7 +28,7 @@
 using namespace adaptive::logic;
 using namespace adaptive::playlist;
 
-AlwaysLowestAdaptationLogic::AlwaysLowestAdaptationLogic(vlc_object_t *obj):
+AlwaysLowestAdaptationLogic::AlwaysLowestAdaptationLogic(heimdall_object_t *obj):
     AbstractAdaptationLogic(obj)
 {
 }

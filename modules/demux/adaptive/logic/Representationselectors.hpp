@@ -2,6 +2,7 @@
  * Representationselectors.hpp
  *****************************************************************************
  * Copyright (C) 2014 - VideoLAN and VLC authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -21,7 +22,7 @@
 #define REPRESENTATIONSELECTORS_HPP
 
 #include <vector>
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
 namespace adaptive
 {

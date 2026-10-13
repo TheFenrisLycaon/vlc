@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 2003-2004 VLC authors and VideoLAN
  * Copyright (C) 2007-2009 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@videolan.org>
  *
@@ -34,15 +35,15 @@
 # include <windows.h>
 #endif
 
-#include <vlc_common.h>
-#include <vlc_atomic.h>
-#include <vlc_frame.h>
-#include <vlc_fs.h>
+#include <heimdall_common.h>
+#include <heimdall_atomic.h>
+#include <heimdall_frame.h>
+#include <heimdall_fs.h>
 
-#include <vlc_ancillary.h>
+#include <heimdall_ancillary.h>
 
 #ifndef NDEBUG
-static void vlc_frame_Check (vlc_frame_t *frame)
+static void heimdall_frame_Check (heimdall_frame_t *frame)
 {
     while (frame != NULL)
     {
@@ -60,12 +61,12 @@ static void vlc_frame_Check (vlc_frame_t *frame)
     }
 }
 #else
-# define vlc_frame_Check(b) ((void)(b))
+# define heimdall_frame_Check(b) ((void)(b))
 #endif
 
-void vlc_frame_CopyProperties(vlc_frame_t *restrict dst, const vlc_frame_t *src)
+void heimdall_frame_CopyProperties(heimdall_frame_t *restrict dst, const heimdall_frame_t *src)
 {
-    vlc_ancillary_array_Merge(&dst->ancillaries,
+    heimdall_ancillary_array_Merge(&dst->ancillaries,
                               &src->ancillaries);
 
     dst->i_flags   = src->i_flags;
@@ -75,17 +76,17 @@ void vlc_frame_CopyProperties(vlc_frame_t *restrict dst, const vlc_frame_t *src)
     dst->i_length  = src->i_length;
 }
 
-vlc_frame_t *vlc_frame_New(const struct vlc_frame_callbacks *cbs,
+heimdall_frame_t *heimdall_frame_New(const struct heimdall_frame_callbacks *cbs,
                            void *buf, size_t size)
 {
-    vlc_frame_t *f = malloc(sizeof (*f));
+    heimdall_frame_t *f = malloc(sizeof (*f));
     if (unlikely(f == NULL))
         return NULL;
 
-    return vlc_frame_Init(f, cbs, buf, size);
+    return heimdall_frame_Init(f, cbs, buf, size);
 }
 
-vlc_frame_t *vlc_frame_Init(vlc_frame_t *restrict f, const struct vlc_frame_callbacks *cbs,
+heimdall_frame_t *heimdall_frame_Init(heimdall_frame_t *restrict f, const struct heimdall_frame_callbacks *cbs,
                             void *buf, size_t size)
 {
     /* Fill all fields to their default */
@@ -97,9 +98,9 @@ vlc_frame_t *vlc_frame_Init(vlc_frame_t *restrict f, const struct vlc_frame_call
     f->i_flags = 0;
     f->i_nb_samples = 0;
     f->i_pts =
-    f->i_dts = VLC_TICK_INVALID;
+    f->i_dts = HEIMDALL_TICK_INVALID;
     f->i_length = 0;
-    vlc_ancillary_array_Init(&f->ancillaries);
+    heimdall_ancillary_array_Init(&f->ancillaries);
     f->cbs = cbs;
     return f;
 }
@@ -107,16 +108,16 @@ vlc_frame_t *vlc_frame_Init(vlc_frame_t *restrict f, const struct vlc_frame_call
 /** Initial memory alignment of data frame.
  * @note This must be a multiple of sizeof(void*) and a power of two.
  * libavcodec AVX optimizations require at least 32-bytes. */
-#define VLC_FRAME_ALIGN        32
+#define HEIMDALL_FRAME_ALIGN        32
 
 /** Initial reserved header and footer size. */
 #ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
-# define VLC_FRAME_PADDING      0 /* Don't hide buffer overflows */
+# define HEIMDALL_FRAME_PADDING      0 /* Don't hide buffer overflows */
 #else
-# define VLC_FRAME_PADDING      32 /* Avoid <= 32 bytes reallocs */
+# define HEIMDALL_FRAME_PADDING      32 /* Avoid <= 32 bytes reallocs */
 #endif
 
-vlc_frame_t *vlc_frame_Alloc (size_t size)
+heimdall_frame_t *heimdall_frame_Alloc (size_t size)
 {
     if (unlikely(size >> 28))
     {
@@ -124,30 +125,30 @@ vlc_frame_t *vlc_frame_Alloc (size_t size)
         return NULL;
     }
 
-    static_assert ((VLC_FRAME_PADDING % VLC_FRAME_ALIGN) == 0,
-                   "VLC_FRAME_PADDING must be a multiple of VLC_FRAME_ALIGN");
+    static_assert ((HEIMDALL_FRAME_PADDING % HEIMDALL_FRAME_ALIGN) == 0,
+                   "HEIMDALL_FRAME_PADDING must be a multiple of HEIMDALL_FRAME_ALIGN");
 
-    /* 2 * VLC_FRAME_PADDING: pre + post padding */
-    size_t capacity = (2 * VLC_FRAME_PADDING) + size;
+    /* 2 * HEIMDALL_FRAME_PADDING: pre + post padding */
+    size_t capacity = (2 * HEIMDALL_FRAME_PADDING) + size;
     unsigned char *buf;
 #ifdef HAVE_ALIGNED_ALLOC
-    capacity += (-size) % VLC_FRAME_ALIGN;
-    buf = aligned_alloc(VLC_FRAME_ALIGN, capacity);
+    capacity += (-size) % HEIMDALL_FRAME_ALIGN;
+    buf = aligned_alloc(HEIMDALL_FRAME_ALIGN, capacity);
 #else
-    capacity += VLC_FRAME_ALIGN;
+    capacity += HEIMDALL_FRAME_ALIGN;
     buf = malloc(capacity);
 #endif
     if (unlikely(buf == NULL))
         return NULL;
 
-    vlc_frame_t *f = vlc_frame_heap_Alloc(buf, capacity);
+    heimdall_frame_t *f = heimdall_frame_heap_Alloc(buf, capacity);
     if (likely(f != NULL)) {
 #ifndef HAVE_ALIGNED_ALLOC
         /* Alignment */
-        buf += (-(uintptr_t)(void *)buf) % (uintptr_t)VLC_FRAME_ALIGN;
+        buf += (-(uintptr_t)(void *)buf) % (uintptr_t)HEIMDALL_FRAME_ALIGN;
 #endif
         /* Header reserve */
-        buf += VLC_FRAME_PADDING;
+        buf += HEIMDALL_FRAME_PADDING;
         f->p_buffer = buf;
         f->i_buffer = size;
     }
@@ -155,20 +156,20 @@ vlc_frame_t *vlc_frame_Alloc (size_t size)
     return f;
 }
 
-void vlc_frame_Release(vlc_frame_t *frame)
+void heimdall_frame_Release(heimdall_frame_t *frame)
 {
 #ifndef NDEBUG
     frame->p_next = NULL;
-    vlc_frame_Check (frame);
+    heimdall_frame_Check (frame);
 #endif
-    vlc_ancillary_array_Clear(&frame->ancillaries);
+    heimdall_ancillary_array_Clear(&frame->ancillaries);
 
     frame->cbs->free(frame);
 }
 
-static vlc_frame_t *vlc_frame_ReallocDup( vlc_frame_t *frame, ssize_t i_prebody, size_t requested )
+static heimdall_frame_t *heimdall_frame_ReallocDup( heimdall_frame_t *frame, ssize_t i_prebody, size_t requested )
 {
-    vlc_frame_t *p_rea = vlc_frame_Alloc( requested );
+    heimdall_frame_t *p_rea = heimdall_frame_Alloc( requested );
     if( p_rea == NULL )
         return NULL;
 
@@ -176,15 +177,15 @@ static vlc_frame_t *vlc_frame_ReallocDup( vlc_frame_t *frame, ssize_t i_prebody,
         memcpy( p_rea->p_buffer + i_prebody, frame->p_buffer, frame->i_buffer );
 
     p_rea->p_next = frame->p_next;
-    vlc_frame_CopyProperties( p_rea, frame );
+    heimdall_frame_CopyProperties( p_rea, frame );
 
-    vlc_frame_Release( frame );
+    heimdall_frame_Release( frame );
     return p_rea;
 }
 
-vlc_frame_t *vlc_frame_TryRealloc (vlc_frame_t *frame, ssize_t i_prebody, size_t i_body)
+heimdall_frame_t *heimdall_frame_TryRealloc (heimdall_frame_t *frame, ssize_t i_prebody, size_t i_body)
 {
-    vlc_frame_Check( frame );
+    heimdall_frame_Check( frame );
 
     /* Corner case: empty frame requested */
     if( i_prebody <= 0 && i_body <= (size_t)(-i_prebody) )
@@ -228,7 +229,7 @@ vlc_frame_t *vlc_frame_TryRealloc (vlc_frame_t *frame, ssize_t i_prebody, size_t
         }
 
         /* Not enough room: allocate a new buffer */
-        return vlc_frame_ReallocDup( frame, i_prebody, requested );
+        return heimdall_frame_ReallocDup( frame, i_prebody, requested );
     }
 
     uint8_t *p_start = frame->p_start;
@@ -238,7 +239,7 @@ vlc_frame_t *vlc_frame_TryRealloc (vlc_frame_t *frame, ssize_t i_prebody, size_t
     assert( i_prebody >= 0 );
     if( (size_t)(frame->p_buffer - p_start) < (size_t)i_prebody
      || (size_t)(p_end - frame->p_buffer) < i_body )
-        return vlc_frame_ReallocDup( frame, i_prebody, requested );
+        return heimdall_frame_ReallocDup( frame, i_prebody, requested );
 
     /* Third, expand payload */
 
@@ -257,28 +258,28 @@ vlc_frame_t *vlc_frame_TryRealloc (vlc_frame_t *frame, ssize_t i_prebody, size_t
     return frame;
 }
 
-vlc_frame_t *vlc_frame_Realloc (vlc_frame_t *frame, ssize_t prebody, size_t body)
+heimdall_frame_t *heimdall_frame_Realloc (heimdall_frame_t *frame, ssize_t prebody, size_t body)
 {
-    vlc_frame_t *rea = vlc_frame_TryRealloc (frame, prebody, body);
+    heimdall_frame_t *rea = heimdall_frame_TryRealloc (frame, prebody, body);
     if (rea == NULL)
-        vlc_frame_Release(frame);
+        heimdall_frame_Release(frame);
     return rea;
 }
 
-static void vlc_frame_heap_Release (vlc_frame_t *frame)
+static void heimdall_frame_heap_Release (heimdall_frame_t *frame)
 {
     free (frame->p_start);
     free (frame);
 }
 
-static const struct vlc_frame_callbacks vlc_frame_heap_cbs =
+static const struct heimdall_frame_callbacks heimdall_frame_heap_cbs =
 {
-    vlc_frame_heap_Release,
+    heimdall_frame_heap_Release,
 };
 
-vlc_frame_t *vlc_frame_heap_Alloc (void *addr, size_t length)
+heimdall_frame_t *heimdall_frame_heap_Alloc (void *addr, size_t length)
 {
-    vlc_frame_t *frame = vlc_frame_New(&vlc_frame_heap_cbs, addr, length);
+    heimdall_frame_t *frame = heimdall_frame_New(&heimdall_frame_heap_cbs, addr, length);
     if (unlikely(frame == NULL))
         free(addr);
     return frame;
@@ -287,18 +288,18 @@ vlc_frame_t *vlc_frame_heap_Alloc (void *addr, size_t length)
 #ifdef HAVE_MMAP
 # include <sys/mman.h>
 
-static void vlc_frame_mmap_Release (vlc_frame_t *frame)
+static void heimdall_frame_mmap_Release (heimdall_frame_t *frame)
 {
     munmap (frame->p_start, frame->i_size);
     free (frame);
 }
 
-static const struct vlc_frame_callbacks vlc_frame_mmap_cbs =
+static const struct heimdall_frame_callbacks heimdall_frame_mmap_cbs =
 {
-    vlc_frame_mmap_Release,
+    heimdall_frame_mmap_Release,
 };
 
-vlc_frame_t *vlc_frame_mmap_Alloc (void *addr, size_t length)
+heimdall_frame_t *heimdall_frame_mmap_Alloc (void *addr, size_t length)
 {
     if (addr == MAP_FAILED)
         return NULL;
@@ -306,7 +307,7 @@ vlc_frame_t *vlc_frame_mmap_Alloc (void *addr, size_t length)
     long page_mask = sysconf(_SC_PAGESIZE) - 1;
     size_t left = ((uintptr_t)addr) & page_mask;
     size_t right = (-length) & page_mask;
-    vlc_frame_t *frame = vlc_frame_New(&vlc_frame_mmap_cbs,
+    heimdall_frame_t *frame = heimdall_frame_New(&heimdall_frame_mmap_cbs,
                                        ((char *)addr) - left,
                                        left + length + right);
     if (likely(frame != NULL)) {
@@ -317,35 +318,35 @@ vlc_frame_t *vlc_frame_mmap_Alloc (void *addr, size_t length)
     return frame;
 }
 #else
-vlc_frame_t *vlc_frame_mmap_Alloc (void *addr, size_t length)
+heimdall_frame_t *heimdall_frame_mmap_Alloc (void *addr, size_t length)
 {
     (void)addr; (void)length; return NULL;
 }
 #endif
 #if defined(_WIN32)
-struct vlc_frame_mv
+struct heimdall_frame_mv
 {
-    vlc_frame_t b;
+    heimdall_frame_t b;
     HANDLE  hMap;
 };
 
-static void vlc_frame_mapview_Release (vlc_frame_t *frame)
+static void heimdall_frame_mapview_Release (heimdall_frame_t *frame)
 {
-    struct vlc_frame_mv *mvframe = container_of(frame, struct vlc_frame_mv, b);
+    struct heimdall_frame_mv *mvframe = container_of(frame, struct heimdall_frame_mv, b);
 
     UnmapViewOfFile(frame->p_start);
     CloseHandle(mvframe->hMap);
     free(mvframe);
 }
 
-static const struct vlc_frame_callbacks vlc_frame_mapview_cbs =
+static const struct heimdall_frame_callbacks heimdall_frame_mapview_cbs =
 {
-    vlc_frame_mapview_Release,
+    heimdall_frame_mapview_Release,
 };
 
-static vlc_frame_t *vlc_frame_mapview_Alloc(HANDLE hMap, void *addr, size_t length)
+static heimdall_frame_t *heimdall_frame_mapview_Alloc(HANDLE hMap, void *addr, size_t length)
 {
-    struct vlc_frame_mv *mvframe = malloc (sizeof (*mvframe));
+    struct heimdall_frame_mv *mvframe = malloc (sizeof (*mvframe));
     if (unlikely(mvframe == NULL))
     {
         UnmapViewOfFile(addr);
@@ -354,8 +355,8 @@ static vlc_frame_t *vlc_frame_mapview_Alloc(HANDLE hMap, void *addr, size_t leng
     }
     mvframe->hMap = hMap;
 
-    vlc_frame_t *frame = &mvframe->b;
-    vlc_frame_Init(frame, &vlc_frame_mapview_cbs, addr, length);
+    heimdall_frame_t *frame = &mvframe->b;
+    heimdall_frame_Init(frame, &heimdall_frame_mapview_cbs, addr, length);
     return frame;
 }
 #endif
@@ -363,27 +364,27 @@ static vlc_frame_t *vlc_frame_mapview_Alloc(HANDLE hMap, void *addr, size_t leng
 #ifdef HAVE_SYS_SHM_H
 # include <sys/shm.h>
 
-static void vlc_frame_shm_Release (vlc_frame_t *frame)
+static void heimdall_frame_shm_Release (heimdall_frame_t *frame)
 {
     shmdt(frame->p_start);
     free(frame);
 }
 
-static const struct vlc_frame_callbacks vlc_frame_shm_cbs =
+static const struct heimdall_frame_callbacks heimdall_frame_shm_cbs =
 {
-    vlc_frame_shm_Release,
+    heimdall_frame_shm_Release,
 };
 
-vlc_frame_t *vlc_frame_shm_Alloc (void *addr, size_t length)
+heimdall_frame_t *heimdall_frame_shm_Alloc (void *addr, size_t length)
 {
-    vlc_frame_t *frame = vlc_frame_New(&vlc_frame_shm_cbs, (uint8_t *)addr,
+    heimdall_frame_t *frame = heimdall_frame_New(&heimdall_frame_shm_cbs, (uint8_t *)addr,
                                        length);
     if (unlikely(frame == NULL))
         shmdt(addr);
     return frame;
 }
 #else
-vlc_frame_t *vlc_frame_shm_Alloc (void *addr, size_t length)
+heimdall_frame_t *heimdall_frame_shm_Alloc (void *addr, size_t length)
 {
     (void) addr; (void) length;
     abort ();
@@ -399,7 +400,7 @@ static void cleanup_hmap(void *opaque)
 }
 #endif
 
-vlc_frame_t *vlc_frame_File(int fd, bool write)
+heimdall_frame_t *heimdall_frame_File(int fd, bool write)
 {
     size_t length;
     struct stat st;
@@ -441,7 +442,7 @@ vlc_frame_t *vlc_frame_File(int fd, bool write)
         void *addr = mmap(NULL, length, prot, flags, fd, 0);
 
         if (addr != MAP_FAILED)
-            return vlc_frame_mmap_Alloc (addr, length);
+            return heimdall_frame_mmap_Alloc (addr, length);
     }
 #elif defined(_WIN32)
     HANDLE handle = INVALID_HANDLE_VALUE;
@@ -469,12 +470,12 @@ vlc_frame_t *vlc_frame_File(int fd, bool write)
         if (hMap != INVALID_HANDLE_VALUE)
             addr = MapViewOfFile(hMap, access, 0, 0, length);
 #endif
-        vlc_cleanup_push(cleanup_hmap, hMap);
-        vlc_testcancel();
-        vlc_cleanup_pop();
+        heimdall_cleanup_push(cleanup_hmap, hMap);
+        heimdall_testcancel();
+        heimdall_cleanup_pop();
 
         if (addr != NULL)
-            return vlc_frame_mapview_Alloc(hMap, addr, length);
+            return heimdall_frame_mapview_Alloc(hMap, addr, length);
 
         CloseHandle(hMap);
     }
@@ -483,16 +484,16 @@ vlc_frame_t *vlc_frame_File(int fd, bool write)
 #endif
 
     /* If mmap() is not implemented by the OS _or_ the filesystem... */
-    vlc_frame_t *frame = vlc_frame_Alloc (length);
+    heimdall_frame_t *frame = heimdall_frame_Alloc (length);
     if (frame == NULL)
         return NULL;
-    vlc_frame_cleanup_push (frame);
+    heimdall_frame_cleanup_push (frame);
 
 #if defined(_WIN32)
     LARGE_INTEGER srcPointer = { 0 };
     if (unlikely(!SetFilePointerEx(handle, srcPointer, &srcPointer, FILE_CURRENT)))
     {
-        vlc_frame_Release (frame);
+        heimdall_frame_Release (frame);
         frame = NULL;
         errno = EIO;
         goto done;
@@ -500,7 +501,7 @@ vlc_frame_t *vlc_frame_File(int fd, bool write)
     LARGE_INTEGER startPointer = { 0 };
     if (unlikely(!SetFilePointerEx(handle, startPointer, NULL, FILE_BEGIN)))
     {
-        vlc_frame_Release (frame);
+        heimdall_frame_Release (frame);
         frame = NULL;
         errno = EIO;
         goto done;
@@ -514,17 +515,17 @@ vlc_frame_t *vlc_frame_File(int fd, bool write)
         DWORD len;
         if (!ReadFile(handle, frame->p_buffer + i, lLength, &len, &olap))
         {
-            vlc_frame_Release (frame);
+            heimdall_frame_Release (frame);
             frame = NULL;
             errno = EIO;
             break;
         }
-        vlc_testcancel();
+        heimdall_testcancel();
         i += len;
     }
     if (frame != NULL && unlikely(!SetFilePointerEx(handle, srcPointer, NULL, FILE_BEGIN)))
     {
-        vlc_frame_Release (frame);
+        heimdall_frame_Release (frame);
         frame = NULL;
         errno = EIO;
     }
@@ -535,26 +536,26 @@ done:
         ssize_t len = pread (fd, frame->p_buffer + i, length - i, i);
         if (len == -1)
         {
-            vlc_frame_Release (frame);
+            heimdall_frame_Release (frame);
             frame = NULL;
             break;
         }
         i += len;
     }
 #endif // !_WIN32
-    vlc_cleanup_pop ();
+    heimdall_cleanup_pop ();
     return frame;
 }
 
-vlc_frame_t *vlc_frame_FilePath(const char *path, bool write)
+heimdall_frame_t *heimdall_frame_FilePath(const char *path, bool write)
 {
     /* NOTE: Writeable shared mappings are not supported here. So there are no
      * needs to open the file for writing (even if the mapping is writable). */
-    int fd = vlc_open (path, O_RDONLY);
+    int fd = heimdall_open (path, O_RDONLY);
     if (fd == -1)
         return NULL;
 
-    vlc_frame_t *frame = vlc_frame_File(fd, write);
-    vlc_close (fd);
+    heimdall_frame_t *frame = heimdall_frame_File(fd, write);
+    heimdall_close (fd);
     return frame;
 }

@@ -1,9 +1,10 @@
 /**
  * @file timecode.c
- * @brief Time code sub-picture generator for VLC media player
+ * @brief Time code sub-picture generator for Heimdall media player
  */
 /*****************************************************************************
  * Copyright © 2013 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -27,18 +28,18 @@
 #include <stdlib.h>
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_demux.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_demux.h>
+#include <heimdall_plugin.h>
 
 #define FPS_TEXT N_("Frame rate")
 
-static int  Open (vlc_object_t *);
+static int  Open (heimdall_object_t *);
 
 static const char *const fps_values[] = { "24/1", "25/1", "30000/1001", "30/1" };
 static const char *const fps_texts[] = { "24", "25", "29.97", "30" };
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname (N_("Time code"))
     set_description (N_("Time code subpicture elementary stream generator"))
     set_subcategory (SUBCAT_INPUT_ACCESS)
@@ -48,23 +49,23 @@ vlc_module_begin ()
     add_string ("timecode-fps", "25/1", FPS_TEXT, NULL)
         change_string_list (fps_values, fps_texts)
         change_safe ()
-vlc_module_end ()
+heimdall_module_end ()
 
 typedef struct
 {
     es_out_id_t *es;
     date_t date;
-    vlc_tick_t next_time;
+    heimdall_tick_t next_time;
 } demux_sys_t;
 
 static int DemuxOnce (demux_t *demux, bool master)
 {
     demux_sys_t *sys = demux->p_sys;
-    vlc_tick_t pts = date_Get (&sys->date);
+    heimdall_tick_t pts = date_Get (&sys->date);
     lldiv_t d;
     unsigned h, m, s, f;
 
-    d = lldiv (pts - VLC_TICK_0, CLOCK_FREQ);
+    d = lldiv (pts - HEIMDALL_TICK_0, CLOCK_FREQ);
     f = d.rem * sys->date.i_divider_num / sys->date.i_divider_den / CLOCK_FREQ;
     d = lldiv (d.quot, 60);
     s = d.rem;
@@ -96,7 +97,7 @@ static int Demux (demux_t *demux)
 {
     demux_sys_t *sys = demux->p_sys;
 
-    if (sys->next_time == VLC_TICK_INVALID) /* Master mode */
+    if (sys->next_time == HEIMDALL_TICK_INVALID) /* Master mode */
         return DemuxOnce (demux, true);
 
     /* Slave mode */
@@ -120,22 +121,22 @@ static int Control (demux_t *demux, int query, va_list args)
             break;
 
         case DEMUX_GET_LENGTH:
-            *va_arg (args, vlc_tick_t *) = INT64_C(0);
+            *va_arg (args, heimdall_tick_t *) = INT64_C(0);
             break;
 
         case DEMUX_GET_TIME:
-            *va_arg (args, vlc_tick_t *) = date_Get (&sys->date);
+            *va_arg (args, heimdall_tick_t *) = date_Get (&sys->date);
             break;
 
         case DEMUX_SET_TIME:
-            date_Set (&sys->date, va_arg (args, vlc_tick_t));
+            date_Set (&sys->date, va_arg (args, heimdall_tick_t));
             break;
 
         case DEMUX_SET_NEXT_DEMUX_TIME:
         {
-            const vlc_tick_t pts = va_arg (args, vlc_tick_t );
+            const heimdall_tick_t pts = va_arg (args, heimdall_tick_t );
 
-            if (sys->next_time == VLC_TICK_INVALID) /* first invocation? */
+            if (sys->next_time == HEIMDALL_TICK_INVALID) /* first invocation? */
             {
                 date_Set (&sys->date, pts);
                 date_Decrement (&sys->date, 1);
@@ -146,8 +147,8 @@ static int Control (demux_t *demux, int query, va_list args)
 
         case DEMUX_GET_PTS_DELAY:
         {
-            *va_arg (args, vlc_tick_t *) =
-                VLC_TICK_FROM_MS( var_InheritInteger (demux, "live-caching") );
+            *va_arg (args, heimdall_tick_t *) =
+                HEIMDALL_TICK_FROM_MS( var_InheritInteger (demux, "live-caching") );
             break;
         }
 
@@ -158,23 +159,23 @@ static int Control (demux_t *demux, int query, va_list args)
             break;
 
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int Open (vlc_object_t *obj)
+static int Open (heimdall_object_t *obj)
 {
     demux_t *demux = (demux_t *)obj;
     if (demux->out == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    demux_sys_t *sys = vlc_obj_malloc(obj, sizeof (*sys));
+    demux_sys_t *sys = heimdall_obj_malloc(obj, sizeof (*sys));
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     es_format_t fmt;
-    es_format_Init (&fmt, SPU_ES, VLC_CODEC_ITU_T140);
+    es_format_Init (&fmt, SPU_ES, HEIMDALL_CODEC_ITU_T140);
     sys->es = es_out_Add (demux->out, &fmt);
 
     unsigned num, den;
@@ -182,15 +183,15 @@ static int Open (vlc_object_t *obj)
      || !num || !den)
     {
         msg_Err (demux, "invalid frame rate");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     date_Init (&sys->date, num, den);
-    date_Set (&sys->date, VLC_TICK_0);
-    sys->next_time = VLC_TICK_INVALID;
+    date_Set (&sys->date, HEIMDALL_TICK_0);
+    sys->next_time = HEIMDALL_TICK_INVALID;
 
     demux->p_sys = sys;
     demux->pf_demux   = Demux;
     demux->pf_control = Control;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

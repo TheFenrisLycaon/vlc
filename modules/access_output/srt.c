@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 2017-2018, Collabora Ltd.
  * Copyright (C) 2018, Haivision Systems Inc.
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Justin Kim <justin.kim@collabora.com>
  *          Roman Diouskine <rdiouskine@haivision.com>
@@ -24,20 +25,20 @@
 
 #include <srt_common.h>
 
-#include <vlc_interrupt.h>
-#include <vlc_fs.h>
-#include <vlc_plugin.h>
-#include <vlc_sout.h>
-#include <vlc_block.h>
-#include <vlc_block_helper.h>
-#include <vlc_network.h>
+#include <heimdall_interrupt.h>
+#include <heimdall_fs.h>
+#include <heimdall_plugin.h>
+#include <heimdall_sout.h>
+#include <heimdall_block.h>
+#include <heimdall_block_helper.h>
+#include <heimdall_network.h>
 
 typedef struct
 {
     SRTSOCKET     sock;
     int           i_poll_id;
     bool          b_interrupted;
-    vlc_mutex_t   lock;
+    heimdall_mutex_t   lock;
     size_t        i_payload_size;
     block_bytestream_t block_stream;
 } sout_access_out_sys_t;
@@ -47,7 +48,7 @@ static void srt_wait_interrupted(void *p_data)
     sout_access_out_t *p_access = p_data;
     sout_access_out_sys_t *p_sys = p_access->p_sys;
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     if ( p_sys->i_poll_id >= 0 &&  p_sys->sock != SRT_INVALID_SOCK )
     {
         p_sys->b_interrupted = true;
@@ -58,12 +59,12 @@ static void srt_wait_interrupted(void *p_data)
          * wakes up SRT's threads. We only have one to remove. */
         srt_epoll_remove_usock( p_sys->i_poll_id, p_sys->sock );
     }
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 }
 
 static bool srt_schedule_reconnect(sout_access_out_t *p_access)
 {
-    vlc_object_t *access_obj = VLC_OBJECT(p_access);
+    heimdall_object_t *access_obj = HEIMDALL_OBJECT(p_access);
     int stat;
     char *psz_dst_addr = NULL;
     int i_dst_port;
@@ -106,7 +107,7 @@ static bool srt_schedule_reconnect(sout_access_out_t *p_access)
         i_dst_port = atoi( psz_parser );
     }
 
-    stat = vlc_getaddrinfo( psz_dst_addr, i_dst_port, &hints, &res );
+    stat = heimdall_getaddrinfo( psz_dst_addr, i_dst_port, &hints, &res );
     if ( stat )
     {
         msg_Err( p_access, "Cannot resolve [%s]:%d (reason: %s)",
@@ -254,7 +255,7 @@ static ssize_t Write( sout_access_out_t *p_access, block_t *p_buffer )
         return 0;
     block_BytestreamPush( &p_sys->block_stream, p_buffer );
 
-    vlc_interrupt_register( srt_wait_interrupted, p_access);
+    heimdall_interrupt_register( srt_wait_interrupted, p_access);
 
     while( true )
     {
@@ -266,10 +267,10 @@ static ssize_t Write( sout_access_out_t *p_access, block_t *p_buffer )
         if ( chunk_size == 0 )
             break;
 
-        if ( vlc_killed() )
+        if ( heimdall_killed() )
         {
             /* We are told to stop. Stop. */
-            i_len = VLC_EGENERIC;
+            i_len = HEIMDALL_EGENERIC;
             goto out;
         }
 
@@ -287,7 +288,7 @@ static ssize_t Write( sout_access_out_t *p_access, block_t *p_buffer )
                 /* Fall-through */
             default:
                 /* Not ready */
-                i_len = VLC_EGENERIC;
+                i_len = HEIMDALL_EGENERIC;
                 goto out;
         }
 
@@ -297,10 +298,10 @@ static ssize_t Write( sout_access_out_t *p_access, block_t *p_buffer )
             0, 0, &ready[0], &readycnt,
             i_poll_timeout, NULL, 0, NULL, 0 ) < 0)
         {
-            if ( vlc_killed() )
+            if ( heimdall_killed() )
             {
                 /* We are told to stop. Stop. */
-                i_len = VLC_EGENERIC;
+                i_len = HEIMDALL_EGENERIC;
                 goto out;
             }
 
@@ -309,7 +310,7 @@ static ssize_t Write( sout_access_out_t *p_access, block_t *p_buffer )
             *  partially. TODO: this delay can be prevented,
             *  possibly with a FIFO and an additional thread.
             */
-            vlc_mutex_lock( &p_sys->lock );
+            heimdall_mutex_lock( &p_sys->lock );
             if ( p_sys->b_interrupted )
             {
                 srt_epoll_add_usock( p_sys->i_poll_id, p_sys->sock,
@@ -317,7 +318,7 @@ static ssize_t Write( sout_access_out_t *p_access, block_t *p_buffer )
                 p_sys->b_interrupted = false;
                 b_interrupted = true;
             }
-            vlc_mutex_unlock( &p_sys->lock );
+            heimdall_mutex_unlock( &p_sys->lock );
 
             if ( !b_interrupted )
             {
@@ -333,13 +334,13 @@ static ssize_t Write( sout_access_out_t *p_access, block_t *p_buffer )
             && srt_getsockstate( p_sys->sock ) == SRTS_CONNECTED)
         {
             if ( block_GetBytes( &p_sys->block_stream, chunk,
-                                 chunk_size ) != VLC_SUCCESS )
+                                 chunk_size ) != HEIMDALL_SUCCESS )
                 break;
             if (srt_sendmsg2( p_sys->sock,
                 (char *)chunk, chunk_size, 0 ) == SRT_ERROR )
             {
                 msg_Warn( p_access, "send error: %s", srt_getlasterror_str() );
-                i_len = VLC_EGENERIC;
+                i_len = HEIMDALL_EGENERIC;
                 goto out;
             }
             else
@@ -351,26 +352,26 @@ static ssize_t Write( sout_access_out_t *p_access, block_t *p_buffer )
 
 out:
     block_BytestreamEmpty( &p_sys->block_stream );
-    vlc_interrupt_unregister();
+    heimdall_interrupt_unregister();
 
     /* Re-add the socket to the poll if we were interrupted */
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     if ( p_sys->b_interrupted )
     {
         srt_epoll_add_usock( p_sys->i_poll_id, p_sys->sock,
             &(int) { SRT_EPOLL_ERR | SRT_EPOLL_OUT } );
         p_sys->b_interrupted = false;
     }
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 
     return i_len;
 }
 
 static int Control( sout_access_out_t *p_access, int i_query, va_list args )
 {
-    VLC_UNUSED( p_access );
+    HEIMDALL_UNUSED( p_access );
 
-    int i_ret = VLC_SUCCESS;
+    int i_ret = HEIMDALL_SUCCESS;
 
     switch( i_query )
     {
@@ -379,34 +380,34 @@ static int Control( sout_access_out_t *p_access, int i_query, va_list args )
             break;
 
         default:
-            i_ret = VLC_EGENERIC;
+            i_ret = HEIMDALL_EGENERIC;
             break;
     }
 
     return i_ret;
 }
 
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     sout_access_out_t       *p_access = (sout_access_out_t*)p_this;
     sout_access_out_sys_t   *p_sys = NULL;
 
-    if (var_Create ( p_access, "dst-port", VLC_VAR_INTEGER )
-     || var_Create ( p_access, "src-port", VLC_VAR_INTEGER )
-     || var_Create ( p_access, "dst-addr", VLC_VAR_STRING )
-     || var_Create ( p_access, "src-addr", VLC_VAR_STRING ) )
+    if (var_Create ( p_access, "dst-port", HEIMDALL_VAR_INTEGER )
+     || var_Create ( p_access, "src-port", HEIMDALL_VAR_INTEGER )
+     || var_Create ( p_access, "dst-addr", HEIMDALL_VAR_STRING )
+     || var_Create ( p_access, "src-addr", HEIMDALL_VAR_STRING ) )
     {
          msg_Err( p_access, "Valid network information is required." );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
-    p_sys = vlc_obj_calloc( p_this, 1, sizeof( *p_sys ) );
+    p_sys = heimdall_obj_calloc( p_this, 1, sizeof( *p_sys ) );
     if( unlikely( p_sys == NULL ) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     srt_startup();
 
-    vlc_mutex_init( &p_sys->lock );
+    heimdall_mutex_init( &p_sys->lock );
     block_BytestreamInit( &p_sys->block_stream );
 
     p_access->p_sys = p_sys;
@@ -430,16 +431,16 @@ static int Open( vlc_object_t *p_this )
     p_access->pf_write = Write;
     p_access->pf_control = Control;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 failed:
     if ( p_sys->sock != -1 ) srt_close( p_sys->sock );
     if ( p_sys->i_poll_id != -1 ) srt_epoll_release( p_sys->i_poll_id );
 
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
-static void Close( vlc_object_t * p_this )
+static void Close( heimdall_object_t * p_this )
 {
     sout_access_out_t     *p_access = (sout_access_out_t*)p_this;
     sout_access_out_sys_t *p_sys = p_access->p_sys;
@@ -453,7 +454,7 @@ static void Close( vlc_object_t * p_this )
 }
 
 /* Module descriptor */
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname( N_( "SRT" ) )
     set_description( N_( "SRT stream output" ) )
     set_subcategory( SUBCAT_SOUT_ACO )
@@ -483,4 +484,4 @@ vlc_module_begin()
     add_shortcut( "srt" )
 
     set_callbacks( Open, Close )
-vlc_module_end ()
+heimdall_module_end ()

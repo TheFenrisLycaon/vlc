@@ -9,27 +9,27 @@
 	<key>NSRequiresAquaSystemAppearance</key>
 	<false/>
 	<key>CFBundleExecutable</key>
-	<string>VLC</string>
+	<string>Heimdall</string>
 	<key>CFBundleIconFile</key>
-	<string>VLC.icns</string>
+	<string>Heimdall.icns</string>
 	<key>CFBundleIdentifier</key>
-	<string>org.videolan.vlc</string>
+	<string>com.lycaria.heimdall</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>VLC</string>
+	<string>Heimdall</string>
 	<key>CFBundleDisplayName</key>
-	<string>VLC</string>
+	<string>Heimdall</string>
 	<key>CFBundleShortVersionString</key>
 	<string>@VERSION@</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleSignature</key>
-	<string>VLC#</string>
+	<string>Heimdall#</string>
 	<key>BreakpadProduct</key>
-	<string>VLC</string>
+	<string>Heimdall</string>
 	<key>BreakpadVendor</key>
-	<string>VideoLAN</string>
+	<string>Lycaria</string>
 	<key>BreakpadRequestComments</key>
 	<string>1</string>
 	<key>BreakpadURL</key>
@@ -52,11 +52,11 @@
 	<key>NSMainNibFile</key>
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
-	<string>VLCApplication</string>
+	<string>HeimdallApplication</string>
 	<key>NSSupportsAutomaticGraphicsSwitching</key>
 	<true/>
 	<key>NSAccentColorName</key>
-	<string>VLCAccentColor</string>
+	<string>HeimdallAccentColor</string>
 	<key>SUFeedURL</key>
 	<string>https://update.videolan.org/vlc/sparkle/vlc-intel64.xml</string>
 	<key>SUPublicDSAKeyFile</key>
@@ -66,21 +66,21 @@
 	<key>NSHumanReadableCopyright</key>
 	<string>Copyright (c) @COPYRIGHT_YEARS@ VLC authors and VideoLAN</string>
 	<key>NSCameraUsageDescription</key>
-	<string>VLC wants to access the camera as requested by the user.</string>
+	<string>Heimdall wants to access the camera as requested by the user.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>VLC wants to access the microphone as requested by the user.</string>
+	<string>Heimdall wants to access the microphone as requested by the user.</string>
 	<key>NSAppleEventsUsageDescription</key>
-	<string>VLC wants to pause and resume external media players.</string>
+	<string>Heimdall wants to pause and resume external media players.</string>
 	<key>NSDesktopFolderUsageDescription</key>
-	<string>VLC wants to access the desktop folder as requested by the user.</string>
+	<string>Heimdall wants to access the desktop folder as requested by the user.</string>
 	<key>NSDocumentsFolderUsageDescription</key>
-	<string>VLC wants to access the documents folder as requested by the user.</string>
+	<string>Heimdall wants to access the documents folder as requested by the user.</string>
 	<key>NSDownloadsFolderUsageDescription</key>
-	<string>VLC wants to access the downloads folder as requested by the user.</string>
+	<string>Heimdall wants to access the downloads folder as requested by the user.</string>
 	<key>NSNetworkVolumesUsageDescription</key>
-	<string>VLC wants to access a network volume as requested by the user.</string>
+	<string>Heimdall wants to access a network volume as requested by the user.</string>
 	<key>NSRemovableVolumesUsageDescription</key>
-	<string>VLC wants to access a removable volume as requested by the user.</string>
+	<string>Heimdall wants to access a removable volume as requested by the user.</string>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>
@@ -208,12 +208,12 @@
 		<dict>
 			<key>LSItemContentTypes</key>
 			<array>
-				<string>org.videolan.vlc</string>
+				<string>com.lycaria.heimdall</string>
 			</array>
 			<key>CFBundleTypeIconFile</key>
 			<string>playlist.icns</string>
 			<key>CFBundleTypeName</key>
-			<string>VLC file</string>
+			<string>Heimdall file</string>
 			<key>CFBundleTypeRole</key>
 			<string>Viewer</string>
 		</dict>
@@ -478,7 +478,7 @@
 			<string>Viewer</string>
 			<key>LSItemContentTypes</key>
 			<array>
-				<string>org.videolan.dav</string>
+				<string>com.lycaria.dav</string>
 			</array>
 		</dict>
 		<dict>
@@ -1657,24 +1657,24 @@
 	<array>
 		<dict>
 			<key>UTTypeDescription</key>
-			<string>VLC playlist file</string>
+			<string>Heimdall playlist file</string>
 			<key>UTTypeConformsTo</key>
 			<array>
 				<string>public.text</string>
 				<string>public.playlist</string>
 			</array>
 			<key>UTTypeIdentifier</key>
-			<string>org.videolan.vlc</string>
+			<string>com.lycaria.heimdall</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.mime-type</key>
 				<array>
-					<string>application/x-videolan-vlc</string>
-					<string>application/videolan-vlc</string>
+					<string>application/x-lycaria-heimdall</string>
+					<string>application/lycaria-heimdall</string>
 				</array>
 				<key>public.filename-extension</key>
 				<array>
-					<string>vlc</string>
+					<string>heimdall</string>
 				</array>
 			</dict>
 		</dict>
@@ -1713,7 +1713,7 @@
 			<key>UTTypeDescription</key>
 			<string>The Sims Audio File</string>
 			<key>UTTypeIdentifier</key>
-			<string>org.videolan.xa</string>
+			<string>com.lycaria.xa</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>
@@ -1730,7 +1730,7 @@
 			<key>UTTypeDescription</key>
 			<string>Expression Encoder Screen Capture File</string>
 			<key>UTTypeIdentifier</key>
-			<string>org.videolan.xesc</string>
+			<string>com.lycaria.xesc</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>
@@ -1747,7 +1747,7 @@
 			<key>UTTypeDescription</key>
 			<string>Monkey&apos;s Audio Lossless Audio</string>
 			<key>UTTypeIdentifier</key>
-			<string>org.videolan.ape</string>
+			<string>com.lycaria.ape</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>
@@ -1785,7 +1785,7 @@
 			<key>UTTypeDescription</key>
 			<string>WavePack Audio File</string>
 			<key>UTTypeIdentifier</key>
-			<string>org.videolan.wv</string>
+			<string>com.lycaria.wv</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>
@@ -1802,7 +1802,7 @@
 			<key>UTTypeDescription</key>
 			<string>True Audio Free Lossless Audio</string>
 			<key>UTTypeIdentifier</key>
-			<string>org.videolan.tta</string>
+			<string>com.lycaria.tta</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>
@@ -1905,7 +1905,7 @@
 			<key>UTTypeDescription</key>
 			<string>Musepack Audio File</string>
 			<key>UTTypeIdentifier</key>
-			<string>org.videolan.mpc</string>
+			<string>com.lycaria.mpc</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>
@@ -1922,7 +1922,7 @@
 			<key>UTTypeDescription</key>
 			<string>MOD Audio File</string>
 			<key>UTTypeIdentifier</key>
-			<string>org.videolan.mod</string>
+			<string>com.lycaria.mod</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>com.apple.ostype</key>
@@ -1950,7 +1950,7 @@
 			<key>UTTypeDescription</key>
 			<string>Impulse Tracker Module File</string>
 			<key>UTTypeIdentifier</key>
-			<string>org.videolan.it</string>
+			<string>com.lycaria.it</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>
@@ -1967,7 +1967,7 @@
 			<key>UTTypeDescription</key>
 			<string>XM audio file</string>
 			<key>UTTypeIdentifier</key>
-			<string>org.videolan.xm</string>
+			<string>com.lycaria.xm</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>
@@ -1984,7 +1984,7 @@
 			<key>UTTypeDescription</key>
 			<string>Adaptive Multi-Rate Codec File</string>
 			<key>UTTypeIdentifier</key>
-			<string>org.videolan.amr</string>
+			<string>com.lycaria.amr</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>
@@ -2001,7 +2001,7 @@
 			<key>UTTypeDescription</key>
 			<string>DVD-Audio Audio Object File</string>
 			<key>UTTypeIdentifier</key>
-			<string>org.videolan.aob</string>
+			<string>com.lycaria.aob</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>
@@ -2018,7 +2018,7 @@
 			<key>UTTypeDescription</key>
 			<string>DTS Encoded Audio File</string>
 			<key>UTTypeIdentifier</key>
-			<string>org.videolan.dts</string>
+			<string>com.lycaria.dts</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>
@@ -2050,7 +2050,7 @@
 			<key>UTTypeDescription</key>
 			<string>Speex Audio File</string>
 			<key>UTTypeIdentifier</key>
-			<string>org.videolan.spx</string>
+			<string>com.lycaria.spx</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>
@@ -2067,7 +2067,7 @@
 			<key>UTTypeDescription</key>
 			<string>VOB File (DVD Video)</string>
 			<key>UTTypeIdentifier</key>
-			<string>org.videolan.vob</string>
+			<string>com.lycaria.vob</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>
@@ -2119,7 +2119,7 @@
 			<key>UTTypeDescription</key>
 			<string>Ogg Audio File</string>
 			<key>UTTypeIdentifier</key>
-			<string>org.videolan.ogg-audio</string>
+			<string>com.lycaria.ogg-audio</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>
@@ -2137,7 +2137,7 @@
 			<key>UTTypeDescription</key>
 			<string>Sony OpenMG Music File</string>
 			<key>UTTypeIdentifier</key>
-			<string>org.videolan.oma</string>
+			<string>com.lycaria.oma</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>
@@ -2158,7 +2158,7 @@
 			<key>UTTypeDescription</key>
 			<string>Creative Labs Audio File</string>
 			<key>UTTypeIdentifier</key>
-			<string>org.videolan.voc</string>
+			<string>com.lycaria.voc</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>
@@ -2175,7 +2175,7 @@
 			<key>UTTypeDescription</key>
 			<string>TwinVQ Audio File</string>
 			<key>UTTypeIdentifier</key>
-			<string>org.videolan.vqf</string>
+			<string>com.lycaria.vqf</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>
@@ -2192,7 +2192,7 @@
 			<key>UTTypeDescription</key>
 			<string>Annodex Audio File</string>
 			<key>UTTypeIdentifier</key>
-			<string>org.videolan.axa</string>
+			<string>com.lycaria.axa</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>
@@ -2209,7 +2209,7 @@
 			<key>UTTypeDescription</key>
 			<string>Annodex Video File</string>
 			<key>UTTypeIdentifier</key>
-			<string>org.videolan.axv</string>
+			<string>com.lycaria.axv</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>
@@ -2226,7 +2226,7 @@
 			<key>UTTypeDescription</key>
 			<string>General eXchange Format File</string>
 			<key>UTTypeIdentifier</key>
-			<string>org.videolan.gxf</string>
+			<string>com.lycaria.gxf</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>
@@ -2243,7 +2243,7 @@
 			<key>UTTypeDescription</key>
 			<string>Material Exchange Format</string>
 			<key>UTTypeIdentifier</key>
-			<string>org.videolan.mxf</string>
+			<string>com.lycaria.mxf</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>
@@ -2260,7 +2260,7 @@
 			<key>UTTypeDescription</key>
 			<string>DivX file</string>
 			<key>UTTypeIdentifier</key>
-			<string>org.videolan.divx</string>
+			<string>com.lycaria.divx</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>
@@ -2277,7 +2277,7 @@
 			<key>UTTypeDescription</key>
 			<string>Windows Recorded TV Show</string>
 			<key>UTTypeIdentifier</key>
-			<string>org.videolan.wtv</string>
+			<string>com.lycaria.wtv</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>
@@ -2294,7 +2294,7 @@
 			<key>UTTypeDescription</key>
 			<string>MPEG-2 Stream</string>
 			<key>UTTypeIdentifier</key>
-			<string>org.videolan.mpeg-stream</string>
+			<string>com.lycaria.mpeg-stream</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>
@@ -2319,7 +2319,7 @@
 			<key>UTTypeDescription</key>
 			<string>Meridian Lossless Packing Audio File</string>
 			<key>UTTypeIdentifier</key>
-			<string>org.videolan.mlp</string>
+			<string>com.lycaria.mlp</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>
@@ -2371,7 +2371,7 @@
 			<key>UTTypeDescription</key>
 			<string>WebM Video File</string>
 			<key>UTTypeIdentifier</key>
-			<string>org.videolan.webm</string>
+			<string>com.lycaria.webm</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>
@@ -2388,7 +2388,7 @@
 			<key>UTTypeDescription</key>
 			<string>Topfield PVR Recording</string>
 			<key>UTTypeIdentifier</key>
-			<string>org.videolan.rec</string>
+			<string>com.lycaria.rec</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>
@@ -2405,7 +2405,7 @@
 			<key>UTTypeDescription</key>
 			<string>RMID MIDI File</string>
 			<key>UTTypeIdentifier</key>
-			<string>org.videolan.rmi</string>
+			<string>com.lycaria.rmi</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>
@@ -2422,7 +2422,7 @@
 			<key>UTTypeDescription</key>
 			<string>ScreamTracker 3 Module</string>
 			<key>UTTypeIdentifier</key>
-			<string>org.videolan.s3m</string>
+			<string>com.lycaria.s3m</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>
@@ -2439,7 +2439,7 @@
 			<key>UTTypeDescription</key>
 			<string>DVD Video Recording Format</string>
 			<key>UTTypeIdentifier</key>
-			<string>org.videolan.vro</string>
+			<string>com.lycaria.vro</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>
@@ -2456,7 +2456,7 @@
 			<key>UTTypeDescription</key>
 			<string>JVC Everio Video Capture File</string>
 			<key>UTTypeIdentifier</key>
-			<string>org.videolan.tod</string>
+			<string>com.lycaria.tod</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>
@@ -2473,7 +2473,7 @@
 			<key>UTTypeDescription</key>
 			<string>Nullsoft Streaming Video</string>
 			<key>UTTypeIdentifier</key>
-			<string>org.videolan.nsv</string>
+			<string>com.lycaria.nsv</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>
@@ -2507,7 +2507,7 @@
 			<key>UTTypeDescription</key>
 			<string>DAV Video File</string>
 			<key>UTTypeIdentifier</key>
-			<string>org.videolan.dav</string>
+			<string>com.lycaria.dav</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>

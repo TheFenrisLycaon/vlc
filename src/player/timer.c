@@ -2,6 +2,7 @@
  * player.c: Player interface
  *****************************************************************************
  * Copyright © 2018 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -27,37 +28,37 @@
 #include "player.h"
 
 void
-vlc_player_ResetTimer(vlc_player_t *player)
+heimdall_player_ResetTimer(heimdall_player_t *player)
 {
-    vlc_mutex_lock(&player->timer.lock);
+    heimdall_mutex_lock(&player->timer.lock);
 
     player->timer.input_live = false;
-    player->timer.input_length = VLC_TICK_INVALID;
-    player->timer.input_normal_time = VLC_TICK_0;
-    player->timer.last_ts = VLC_TICK_INVALID;
+    player->timer.input_length = HEIMDALL_TICK_INVALID;
+    player->timer.input_normal_time = HEIMDALL_TICK_0;
+    player->timer.last_ts = HEIMDALL_TICK_INVALID;
     player->timer.start_offset = 0;
     player->timer.input_position = 0;
     player->timer.smpte_source.smpte.last_framenum = ULONG_MAX;
-    player->timer.seek_ts = VLC_TICK_INVALID;
+    player->timer.seek_ts = HEIMDALL_TICK_INVALID;
     player->timer.seek_position = -1;
     player->timer.update_state = UPDATE_STATE_RESUMED;
-    player->timer.pause_date = VLC_TICK_INVALID;
-    player->timer.last_resume_date = VLC_TICK_INVALID;
+    player->timer.pause_date = HEIMDALL_TICK_INVALID;
+    player->timer.last_resume_date = HEIMDALL_TICK_INVALID;
     player->timer.stopping = false;
 
-    vlc_mutex_unlock(&player->timer.lock);
+    heimdall_mutex_unlock(&player->timer.lock);
 }
 
 static void
-vlc_player_SendTimerSeek(vlc_player_t *player,
-                         struct vlc_player_timer_source *source,
-                         const struct vlc_player_timer_point *point,
+heimdall_player_SendTimerSeek(heimdall_player_t *player,
+                         struct heimdall_player_timer_source *source,
+                         const struct heimdall_player_timer_point *point,
                          bool is_smpte)
 {
     (void) player;
-    vlc_player_timer_id *timer;
+    heimdall_player_timer_id *timer;
 
-    vlc_list_foreach(timer, &source->listeners, node)
+    heimdall_list_foreach(timer, &source->listeners, node)
     {
         if (is_smpte)
         {
@@ -73,14 +74,14 @@ vlc_player_SendTimerSeek(vlc_player_t *player,
 }
 
 static void
-vlc_player_SendTimerPause(vlc_player_t *player,
-                          struct vlc_player_timer_source *source,
-                          vlc_tick_t system_date, bool is_smpte)
+heimdall_player_SendTimerPause(heimdall_player_t *player,
+                          struct heimdall_player_timer_source *source,
+                          heimdall_tick_t system_date, bool is_smpte)
 {
     (void) player;
 
-    vlc_player_timer_id *timer;
-    vlc_list_foreach(timer, &source->listeners, node)
+    heimdall_player_timer_id *timer;
+    heimdall_list_foreach(timer, &source->listeners, node)
     {
         if (is_smpte)
         {
@@ -89,7 +90,7 @@ vlc_player_SendTimerPause(vlc_player_t *player,
         }
         else
         {
-            timer->last_update_date = VLC_TICK_INVALID;
+            timer->last_update_date = HEIMDALL_TICK_INVALID;
             if (timer->cbs->on_paused != NULL)
                 timer->cbs->on_paused(system_date, timer->data);
         }
@@ -97,38 +98,38 @@ vlc_player_SendTimerPause(vlc_player_t *player,
 }
 
 static void
-vlc_player_SendTimerSourceUpdates(vlc_player_t *player,
-                                  struct vlc_player_timer_source *source,
+heimdall_player_SendTimerSourceUpdates(heimdall_player_t *player,
+                                  struct heimdall_player_timer_source *source,
                                   bool force_update,
-                                  const struct vlc_player_timer_point *point)
+                                  const struct heimdall_player_timer_point *point)
 {
     (void) player;
-    vlc_player_timer_id *timer;
+    heimdall_player_timer_id *timer;
 
-    vlc_list_foreach(timer, &source->listeners, node)
+    heimdall_list_foreach(timer, &source->listeners, node)
     {
         /* Respect refresh delay of the timer */
-        if (force_update || timer->period == VLC_TICK_INVALID
-         || timer->last_update_date == VLC_TICK_INVALID
-         || point->system_date == VLC_TICK_MAX /* always update when paused */
+        if (force_update || timer->period == HEIMDALL_TICK_INVALID
+         || timer->last_update_date == HEIMDALL_TICK_INVALID
+         || point->system_date == HEIMDALL_TICK_MAX /* always update when paused */
          || point->system_date - timer->last_update_date >= timer->period)
         {
             timer->cbs->on_update(point, timer->data);
-            timer->last_update_date = point->system_date == VLC_TICK_MAX ?
-                                      VLC_TICK_INVALID : point->system_date;
+            timer->last_update_date = point->system_date == HEIMDALL_TICK_MAX ?
+                                      HEIMDALL_TICK_INVALID : point->system_date;
         }
     }
 }
 
 static void
-vlc_player_SendSmpteTimerSourceUpdates(vlc_player_t *player,
-                                       struct vlc_player_timer_source *source,
-                                       const struct vlc_player_timer_point *point)
+heimdall_player_SendSmpteTimerSourceUpdates(heimdall_player_t *player,
+                                       struct heimdall_player_timer_source *source,
+                                       const struct heimdall_player_timer_point *point)
 {
     (void) player;
-    vlc_player_timer_id *timer;
+    heimdall_player_timer_id *timer;
 
-    struct vlc_player_timer_smpte_timecode tc;
+    struct heimdall_player_timer_smpte_timecode tc;
     unsigned long framenum;
     unsigned frame_rate;
     unsigned frame_rate_base;
@@ -143,7 +144,7 @@ vlc_player_SendSmpteTimerSourceUpdates(vlc_player_t *player,
 
         /* Convert the ts to a frame number */
         framenum = round(point->ts * frame_rate
-                         / (double) frame_rate_base / VLC_TICK_FROM_SEC(1));
+                         / (double) frame_rate_base / HEIMDALL_TICK_FROM_SEC(1));
 
         /* Drop 2 or 4 frames every minutes except every 10 minutes in order to
          * make one hour of timecode match one hour on the clock. */
@@ -168,7 +169,7 @@ vlc_player_SendSmpteTimerSourceUpdates(vlc_player_t *player,
 
         /* Convert the ts to a frame number */
         framenum = round(point->ts * frame_rate
-                         / (double) frame_rate_base / VLC_TICK_FROM_SEC(1));
+                         / (double) frame_rate_base / HEIMDALL_TICK_FROM_SEC(1));
 
         tc.drop_frame = false;
     }
@@ -184,13 +185,13 @@ vlc_player_SendSmpteTimerSourceUpdates(vlc_player_t *player,
 
     tc.frame_resolution = source->smpte.frame_resolution;
 
-    vlc_list_foreach(timer, &source->listeners, node)
+    heimdall_list_foreach(timer, &source->listeners, node)
         timer->smpte_cbs->on_update(&tc, timer->data);
 }
 
 static void
-vlc_player_UpdateSmpteTimerFPS(vlc_player_t *player,
-                               struct vlc_player_timer_source *source,
+heimdall_player_UpdateSmpteTimerFPS(heimdall_player_t *player,
+                               struct heimdall_player_timer_source *source,
                                unsigned frame_rate, unsigned frame_rate_base)
 {
     (void) player;
@@ -227,11 +228,11 @@ vlc_player_UpdateSmpteTimerFPS(vlc_player_t *player,
 }
 
 void
-vlc_player_UpdateTimerEvent(vlc_player_t *player, vlc_es_id_t *es_source,
-                            enum vlc_player_timer_event event,
-                            vlc_tick_t system_date)
+heimdall_player_UpdateTimerEvent(heimdall_player_t *player, heimdall_es_id_t *es_source,
+                            enum heimdall_player_timer_event event,
+                            heimdall_tick_t system_date)
 {
-    vlc_mutex_lock(&player->timer.lock);
+    heimdall_mutex_lock(&player->timer.lock);
 
     /* Discontinuity is signalled by all output clocks and the input.
      * discard the event if it was already signalled or not on the good
@@ -239,11 +240,11 @@ vlc_player_UpdateTimerEvent(vlc_player_t *player, vlc_es_id_t *es_source,
 
     switch (event)
     {
-        case VLC_PLAYER_TIMER_EVENT_DISCONTINUITY:
-            assert(system_date == VLC_TICK_INVALID);
-            for (size_t i = 0; i < VLC_PLAYER_TIMER_TYPE_COUNT; ++i)
+        case HEIMDALL_PLAYER_TIMER_EVENT_DISCONTINUITY:
+            assert(system_date == HEIMDALL_TICK_INVALID);
+            for (size_t i = 0; i < HEIMDALL_PLAYER_TIMER_TYPE_COUNT; ++i)
             {
-                struct vlc_player_timer_source *source = &player->timer.sources[i];
+                struct heimdall_player_timer_source *source = &player->timer.sources[i];
                 if (source->es != es_source)
                     continue;
 
@@ -254,30 +255,30 @@ vlc_player_UpdateTimerEvent(vlc_player_t *player, vlc_es_id_t *es_source,
                 if (source->seeking)
                 {
                     source->seeking = false;
-                    vlc_player_SendTimerSeek(player, source, NULL,
-                                             i == VLC_PLAYER_TIMER_TYPE_SMPTE);
+                    heimdall_player_SendTimerSeek(player, source, NULL,
+                                             i == HEIMDALL_PLAYER_TIMER_TYPE_SMPTE);
                 }
-                source->point.system_date = VLC_TICK_INVALID;
+                source->point.system_date = HEIMDALL_TICK_INVALID;
             }
             break;
 
-        case VLC_PLAYER_TIMER_EVENT_PAUSED:
-            assert(system_date != VLC_TICK_INVALID);
+        case HEIMDALL_PLAYER_TIMER_EVENT_PAUSED:
+            assert(system_date != HEIMDALL_TICK_INVALID);
 
             /* An ES PAUSED event can be delivered after its pause was
              * resumed. It is still reported: per-ES events are delivered
              * in order, but it should not touch player timer state. */
             if (es_source == NULL
-             || player->timer.last_resume_date == VLC_TICK_INVALID
+             || player->timer.last_resume_date == HEIMDALL_TICK_INVALID
              || system_date >= player->timer.last_resume_date)
             {
                 player->timer.update_state = UPDATE_STATE_PAUSED;
                 player->timer.pause_date = system_date;
             }
 
-            for (size_t i = 0; i < VLC_PLAYER_TIMER_TYPE_COUNT; ++i)
+            for (size_t i = 0; i < HEIMDALL_PLAYER_TIMER_TYPE_COUNT; ++i)
             {
-                struct vlc_player_timer_source *source = &player->timer.sources[i];
+                struct heimdall_player_timer_source *source = &player->timer.sources[i];
                 if (source->es != es_source)
                     continue;
 
@@ -286,105 +287,105 @@ vlc_player_UpdateTimerEvent(vlc_player_t *player, vlc_es_id_t *es_source,
                 if (source->reported_pause_date == system_date)
                     continue;
                 source->reported_pause_date = system_date;
-                vlc_player_SendTimerPause(player, source, system_date,
-                                          i == VLC_PLAYER_TIMER_TYPE_SMPTE);
+                heimdall_player_SendTimerPause(player, source, system_date,
+                                          i == HEIMDALL_PLAYER_TIMER_TYPE_SMPTE);
             }
 
             break;
 
-        case VLC_PLAYER_TIMER_EVENT_PLAYING:
+        case HEIMDALL_PLAYER_TIMER_EVENT_PLAYING:
             assert(!player->timer.stopping);
-            if (system_date != VLC_TICK_INVALID)
+            if (system_date != HEIMDALL_TICK_INVALID)
                 player->timer.last_resume_date = system_date;
             player->timer.update_state = UPDATE_STATE_RESUMING;
             break;
 
-        case VLC_PLAYER_TIMER_EVENT_STOPPING:
+        case HEIMDALL_PLAYER_TIMER_EVENT_STOPPING:
             player->timer.stopping = true;
-            for (size_t i = 0; i < VLC_PLAYER_TIMER_TYPE_COUNT; ++i)
+            for (size_t i = 0; i < HEIMDALL_PLAYER_TIMER_TYPE_COUNT; ++i)
             {
-                struct vlc_player_timer_source *source = &player->timer.sources[i];
-                vlc_player_SendTimerPause(player, source, system_date,
-                                          i == VLC_PLAYER_TIMER_TYPE_SMPTE);
+                struct heimdall_player_timer_source *source = &player->timer.sources[i];
+                heimdall_player_SendTimerPause(player, source, system_date,
+                                          i == HEIMDALL_PLAYER_TIMER_TYPE_SMPTE);
             }
             break;
 
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 
-    vlc_mutex_unlock(&player->timer.lock);
+    heimdall_mutex_unlock(&player->timer.lock);
 }
 
 void
-vlc_player_UpdateTimerSeekState(vlc_player_t *player, vlc_tick_t time,
+heimdall_player_UpdateTimerSeekState(heimdall_player_t *player, heimdall_tick_t time,
                                 double position)
 {
-    vlc_mutex_lock(&player->timer.lock);
-    struct vlc_player_timer_source *source = &player->timer.best_source;
+    heimdall_mutex_lock(&player->timer.lock);
+    struct heimdall_player_timer_source *source = &player->timer.best_source;
 
-    if (time == VLC_TICK_INVALID)
+    if (time == HEIMDALL_TICK_INVALID)
     {
         assert(position >= 0);
-        if (source->point.length != VLC_TICK_INVALID)
+        if (source->point.length != HEIMDALL_TICK_INVALID)
             player->timer.seek_ts = position * source->point.length;
         else
-            player->timer.seek_ts = VLC_TICK_INVALID;
+            player->timer.seek_ts = HEIMDALL_TICK_INVALID;
     }
     else
         player->timer.seek_ts = time;
 
     if (position < 0)
     {
-        assert(time != VLC_TICK_INVALID);
-        if (source->point.length != VLC_TICK_INVALID && !source->point.live)
+        assert(time != HEIMDALL_TICK_INVALID);
+        if (source->point.length != HEIMDALL_TICK_INVALID && !source->point.live)
             player->timer.seek_position = time / (double) source->point.length;
     }
     else
         player->timer.seek_position = position;
 
-    const struct vlc_player_timer_point point =
+    const struct heimdall_player_timer_point point =
     {
         .position = player->timer.seek_position,
         .rate = source->point.rate,
         .ts = player->timer.seek_ts,
         .length = source->point.length,
         .live = source->point.live,
-        .system_date = VLC_TICK_MAX,
+        .system_date = HEIMDALL_TICK_MAX,
     };
 
     source->seeking = true;
-    vlc_player_SendTimerSeek(player, source, &point, false);
+    heimdall_player_SendTimerSeek(player, source, &point, false);
 
     source = &player->timer.smpte_source;
     source->seeking = true;
-    vlc_player_SendTimerSeek(player, source, &point, true);
+    heimdall_player_SendTimerSeek(player, source, &point, true);
 
-    vlc_mutex_unlock(&player->timer.lock);
+    heimdall_mutex_unlock(&player->timer.lock);
 }
 
 static void
-vlc_player_UpdateTimerSource(vlc_player_t *player,
-                             struct vlc_player_timer_source *source,
-                             double rate, vlc_tick_t ts, vlc_tick_t system_date)
+heimdall_player_UpdateTimerSource(heimdall_player_t *player,
+                             struct heimdall_player_timer_source *source,
+                             double rate, heimdall_tick_t ts, heimdall_tick_t system_date)
 {
-    assert(ts >= VLC_TICK_0);
-    assert(player->timer.input_normal_time >= VLC_TICK_0);
+    assert(ts >= HEIMDALL_TICK_0);
+    assert(player->timer.input_normal_time >= HEIMDALL_TICK_0);
 
     source->point.rate = rate;
-    source->point.ts = ts - player->timer.input_normal_time - player->timer.start_offset + VLC_TICK_0;
+    source->point.ts = ts - player->timer.input_normal_time - player->timer.start_offset + HEIMDALL_TICK_0;
     source->point.length = player->timer.input_length;
     source->point.live = player->timer.input_live;
 
     /* Put an invalid date for the first point in order to disable
      * interpolation (behave as paused), indeed, we should wait for one more
      * point before starting interpolation (ideally, it should be more) */
-    if (source->point.system_date == VLC_TICK_INVALID)
-        source->point.system_date = VLC_TICK_MAX;
+    if (source->point.system_date == HEIMDALL_TICK_INVALID)
+        source->point.system_date = HEIMDALL_TICK_MAX;
     else
         source->point.system_date = system_date;
 
-    if (source->point.length != VLC_TICK_INVALID && !source->point.live)
+    if (source->point.length != HEIMDALL_TICK_INVALID && !source->point.live)
         source->point.position = (ts - player->timer.input_normal_time - player->timer.start_offset)
                                / (double) source->point.length;
     else
@@ -392,10 +393,10 @@ vlc_player_UpdateTimerSource(vlc_player_t *player,
 }
 
 static void
-vlc_player_UpdateTimerBestSource(vlc_player_t *player, vlc_es_id_t *es_source,
+heimdall_player_UpdateTimerBestSource(heimdall_player_t *player, heimdall_es_id_t *es_source,
                                  bool es_source_is_master,
-                                 const struct vlc_player_timer_point *point,
-                                 vlc_tick_t system_date,
+                                 const struct heimdall_player_timer_point *point,
+                                 heimdall_tick_t system_date,
                                  bool force_update)
 {
     /* Best source priority:
@@ -403,7 +404,7 @@ vlc_player_UpdateTimerBestSource(vlc_player_t *player, vlc_es_id_t *es_source,
      * 2/ es_source != NULL (from the first ES track updated)
      * 3/ es_source == NULL (from the input)
      */
-    struct vlc_player_timer_source *source = &player->timer.best_source;
+    struct heimdall_player_timer_source *source = &player->timer.best_source;
     if (!source->es || es_source_is_master)
         source->es = es_source;
 
@@ -412,17 +413,17 @@ vlc_player_UpdateTimerBestSource(vlc_player_t *player, vlc_es_id_t *es_source,
     {
         if (source->point.rate != point->rate)
         {
-            player->timer.last_ts = VLC_TICK_INVALID;
+            player->timer.last_ts = HEIMDALL_TICK_INVALID;
             force_update = true;
         }
 
-        /* When paused (VLC_TICK_MAX), the same ts can be send more than one
+        /* When paused (HEIMDALL_TICK_MAX), the same ts can be send more than one
          * time from the video source, only send it if different in that case.
          */
         if (point->ts != player->timer.last_ts
-          || (source->point.system_date != system_date && system_date != VLC_TICK_MAX))
+          || (source->point.system_date != system_date && system_date != HEIMDALL_TICK_MAX))
         {
-            vlc_player_UpdateTimerSource(player, source, point->rate, point->ts,
+            heimdall_player_UpdateTimerSource(player, source, point->rate, point->ts,
                                          system_date);
             player->timer.last_ts = point->ts;
 
@@ -433,32 +434,32 @@ vlc_player_UpdateTimerBestSource(vlc_player_t *player, vlc_es_id_t *es_source,
             {
                 /* Reset seek time/position now that we receive a valid point
                  * and seek was processed */
-                player->timer.seek_ts = VLC_TICK_INVALID;
+                player->timer.seek_ts = HEIMDALL_TICK_INVALID;
                 player->timer.seek_position = -1;
             }
 
-            if (!vlc_list_is_empty(&source->listeners))
-                vlc_player_SendTimerSourceUpdates(player, source, force_update,
+            if (!heimdall_list_is_empty(&source->listeners))
+                heimdall_player_SendTimerSourceUpdates(player, source, force_update,
                                                   &source->point);
 
             if (player->timer.update_state == UPDATE_STATE_RESUMING)
             {
                 player->timer.update_state = UPDATE_STATE_RESUMED;
-                player->timer.pause_date = VLC_TICK_INVALID;
+                player->timer.pause_date = HEIMDALL_TICK_INVALID;
             }
         }
     }
 }
 
 static void
-vlc_player_UpdateTimerSmpteSource(vlc_player_t *player, vlc_es_id_t *es_source,
-                                  const struct vlc_player_timer_point *point,
-                                  vlc_tick_t system_date,
+heimdall_player_UpdateTimerSmpteSource(heimdall_player_t *player, heimdall_es_id_t *es_source,
+                                  const struct heimdall_player_timer_point *point,
+                                  heimdall_tick_t system_date,
                                   unsigned frame_rate, unsigned frame_rate_base)
 {
-    struct vlc_player_timer_source *source = &player->timer.smpte_source;
+    struct heimdall_player_timer_source *source = &player->timer.smpte_source;
     /* SMPTE source: only the video source */
-    if (!source->es && es_source && vlc_es_id_GetCat(es_source) == VIDEO_ES)
+    if (!source->es && es_source && heimdall_es_id_GetCat(es_source) == VIDEO_ES)
         source->es = es_source;
 
     /* Notify the SMPTE source, also notify when the video output was rendered
@@ -469,52 +470,52 @@ vlc_player_UpdateTimerSmpteSource(vlc_player_t *player, vlc_es_id_t *es_source,
          || frame_rate_base != source->smpte.frame_rate_base))
         {
             assert(frame_rate_base != 0);
-            vlc_player_UpdateSmpteTimerFPS(player, source, frame_rate,
+            heimdall_player_UpdateSmpteTimerFPS(player, source, frame_rate,
                                            frame_rate_base);
         }
 
         if (source->smpte.frame_rate != 0)
         {
-            vlc_player_UpdateTimerSource(player, source, point->rate, point->ts,
+            heimdall_player_UpdateTimerSource(player, source, point->rate, point->ts,
                                          system_date);
 
-            if (!vlc_list_is_empty(&source->listeners))
-                vlc_player_SendSmpteTimerSourceUpdates(player, source,
+            if (!heimdall_list_is_empty(&source->listeners))
+                heimdall_player_SendSmpteTimerSourceUpdates(player, source,
                                                        &source->point);
         }
     }
 }
 
 void
-vlc_player_UpdateTimer(vlc_player_t *player, vlc_es_id_t *es_source,
+heimdall_player_UpdateTimer(heimdall_player_t *player, heimdall_es_id_t *es_source,
                        bool es_source_is_master,
-                       const struct vlc_player_timer_point *point,
-                       vlc_tick_t normal_time,
+                       const struct heimdall_player_timer_point *point,
+                       heimdall_tick_t normal_time,
                        unsigned frame_rate, unsigned frame_rate_base,
-                       vlc_tick_t start_offset)
+                       heimdall_tick_t start_offset)
 {
     assert(point);
     /* A null source can't be the master */
     assert(es_source == NULL ? !es_source_is_master : true);
 
-    vlc_mutex_lock(&player->timer.lock);
+    heimdall_mutex_lock(&player->timer.lock);
 
     bool force_update = false;
     if (!es_source) /* input source */
     {
         /* Only valid for input sources */
-        if (normal_time != VLC_TICK_INVALID
+        if (normal_time != HEIMDALL_TICK_INVALID
          && player->timer.input_normal_time != normal_time)
         {
             player->timer.input_normal_time = normal_time;
-            player->timer.last_ts = VLC_TICK_INVALID;
+            player->timer.last_ts = HEIMDALL_TICK_INVALID;
             force_update = true;
         }
         if (player->timer.input_length != point->length
-         && point->length >= VLC_TICK_0)
+         && point->length >= HEIMDALL_TICK_0)
         {
             player->timer.input_length = point->length;
-            player->timer.last_ts = VLC_TICK_INVALID;
+            player->timer.last_ts = HEIMDALL_TICK_INVALID;
             force_update = true;
         }
         if (player->timer.input_live != point->live)
@@ -527,85 +528,85 @@ vlc_player_UpdateTimer(vlc_player_t *player, vlc_es_id_t *es_source,
         /* Will likely be overridden by non input source */
         player->timer.input_position = point->position;
 
-        if (point->ts == VLC_TICK_INVALID
-         || point->system_date == VLC_TICK_INVALID)
+        if (point->ts == HEIMDALL_TICK_INVALID
+         || point->system_date == HEIMDALL_TICK_INVALID)
         {
             /* ts can only be invalid from the input source */
-            vlc_mutex_unlock(&player->timer.lock);
+            heimdall_mutex_unlock(&player->timer.lock);
             return;
         }
     }
 
-    assert(point->ts != VLC_TICK_INVALID);
+    assert(point->ts != HEIMDALL_TICK_INVALID);
 
-    vlc_tick_t system_date = point->system_date;
+    heimdall_tick_t system_date = point->system_date;
     if (player->timer.update_state == UPDATE_STATE_PAUSED)
     {
-        if (es_source != NULL && point->system_date == VLC_TICK_MAX)
+        if (es_source != NULL && point->system_date == HEIMDALL_TICK_MAX)
         {
             /* Update was forced, probably a next/prev frame */
             force_update = true;
         }
-        system_date = VLC_TICK_MAX;
+        system_date = HEIMDALL_TICK_MAX;
     }
 
     if (!player->timer.stopping)
-        vlc_player_UpdateTimerBestSource(player, es_source,
+        heimdall_player_UpdateTimerBestSource(player, es_source,
                                          es_source_is_master, point, system_date,
                                          force_update);
 
-    vlc_player_UpdateTimerSmpteSource(player, es_source, point, system_date,
+    heimdall_player_UpdateTimerSmpteSource(player, es_source, point, system_date,
                                       frame_rate, frame_rate_base);
 
-    vlc_mutex_unlock(&player->timer.lock);
+    heimdall_mutex_unlock(&player->timer.lock);
 }
 
 void
-vlc_player_RemoveTimerSource(vlc_player_t *player, vlc_es_id_t *es_source)
+heimdall_player_RemoveTimerSource(heimdall_player_t *player, heimdall_es_id_t *es_source)
 {
-    vlc_mutex_lock(&player->timer.lock);
-    struct vlc_player_timer_source *bestsource = &player->timer.best_source;
-    struct vlc_player_timer_source *smptesource = &player->timer.smpte_source;
+    heimdall_mutex_lock(&player->timer.lock);
+    struct heimdall_player_timer_source *bestsource = &player->timer.best_source;
+    struct heimdall_player_timer_source *smptesource = &player->timer.smpte_source;
 
     /* Unlikely case where the source ES is deleted while seeking */
     if (bestsource->es == es_source && bestsource->seeking)
     {
         bestsource->seeking = false;
-        vlc_player_SendTimerSeek(player, bestsource, NULL, false);
+        heimdall_player_SendTimerSeek(player, bestsource, NULL, false);
     }
     if (smptesource->es == es_source && smptesource->seeking)
     {
         smptesource->seeking = false;
-        vlc_player_SendTimerSeek(player, smptesource, NULL, true);
+        heimdall_player_SendTimerSeek(player, smptesource, NULL, true);
     }
 
-    for (size_t i = 0; i < VLC_PLAYER_TIMER_TYPE_COUNT; ++i)
+    for (size_t i = 0; i < HEIMDALL_PLAYER_TIMER_TYPE_COUNT; ++i)
     {
-        struct vlc_player_timer_source *source = &player->timer.sources[i];
+        struct heimdall_player_timer_source *source = &player->timer.sources[i];
         if (source->es == es_source)
         {
             /* Discontinuity should have been already signaled */
-            assert(source->point.system_date == VLC_TICK_INVALID);
+            assert(source->point.system_date == HEIMDALL_TICK_INVALID);
             source->es = NULL;
         }
     }
-    vlc_mutex_unlock(&player->timer.lock);
+    heimdall_mutex_unlock(&player->timer.lock);
 }
 
 int
-vlc_player_GetTimerPoint(vlc_player_t *player, bool *seeking,
-                         vlc_tick_t system_now,
-                         vlc_tick_t *out_ts, double *out_pos)
+heimdall_player_GetTimerPoint(heimdall_player_t *player, bool *seeking,
+                         heimdall_tick_t system_now,
+                         heimdall_tick_t *out_ts, double *out_pos)
 {
-    int ret = VLC_EGENERIC;
-    vlc_mutex_lock(&player->timer.lock);
-    bool timer_seeking = player->timer.seek_ts != VLC_TICK_INVALID
+    int ret = HEIMDALL_EGENERIC;
+    heimdall_mutex_lock(&player->timer.lock);
+    bool timer_seeking = player->timer.seek_ts != HEIMDALL_TICK_INVALID
                       || player->timer.seek_position >= 0.0f;
     if (*seeking && timer_seeking)
     {
         if (out_ts != NULL)
         {
-            if (player->timer.seek_ts == VLC_TICK_INVALID)
+            if (player->timer.seek_ts == HEIMDALL_TICK_INVALID)
                 goto end;
             *out_ts = player->timer.seek_ts;
         }
@@ -615,122 +616,122 @@ vlc_player_GetTimerPoint(vlc_player_t *player, bool *seeking,
                 goto end;
             *out_pos = player->timer.seek_position;
         }
-        ret = VLC_SUCCESS;
+        ret = HEIMDALL_SUCCESS;
         goto end;
     }
 
-    if (player->timer.best_source.point.system_date == VLC_TICK_INVALID)
+    if (player->timer.best_source.point.system_date == HEIMDALL_TICK_INVALID)
         goto end;
 
-    if (system_now != VLC_TICK_INVALID) /* interpolate */
+    if (system_now != HEIMDALL_TICK_INVALID) /* interpolate */
     {
         /* If paused, force interpolation to the paused date */
-        if (player->timer.pause_date != VLC_TICK_INVALID)
+        if (player->timer.pause_date != HEIMDALL_TICK_INVALID)
             system_now = player->timer.pause_date;
-        ret = vlc_player_timer_point_Interpolate(&player->timer.best_source.point,
+        ret = heimdall_player_timer_point_Interpolate(&player->timer.best_source.point,
                                                  system_now, out_ts, out_pos);
     }
     else
     {
-        const struct vlc_player_timer_point *point =
+        const struct heimdall_player_timer_point *point =
             &player->timer.best_source.point;
         if (out_ts)
             *out_ts = point->ts;
         if (out_pos)
             *out_pos = point->position;
-        ret = VLC_SUCCESS;
+        ret = HEIMDALL_SUCCESS;
     }
 
-    if (ret == VLC_SUCCESS)
+    if (ret == HEIMDALL_SUCCESS)
         *seeking = timer_seeking;
 end:
-    vlc_mutex_unlock(&player->timer.lock);
+    heimdall_mutex_unlock(&player->timer.lock);
     return ret;
 }
 
-vlc_player_timer_id *
-vlc_player_AddTimer(vlc_player_t *player, vlc_tick_t min_period,
-                    const struct vlc_player_timer_cbs *cbs, void *data)
+heimdall_player_timer_id *
+heimdall_player_AddTimer(heimdall_player_t *player, heimdall_tick_t min_period,
+                    const struct heimdall_player_timer_cbs *cbs, void *data)
 {
-    assert(min_period >= VLC_TICK_0 || min_period == VLC_TICK_INVALID);
+    assert(min_period >= HEIMDALL_TICK_0 || min_period == HEIMDALL_TICK_INVALID);
     assert(cbs && cbs->on_update);
 
-    struct vlc_player_timer_id *timer = malloc(sizeof(*timer));
+    struct heimdall_player_timer_id *timer = malloc(sizeof(*timer));
     if (!timer)
         return NULL;
     timer->period = min_period;
-    timer->last_update_date = VLC_TICK_INVALID;
+    timer->last_update_date = HEIMDALL_TICK_INVALID;
     timer->cbs = cbs;
     timer->data = data;
 
-    vlc_mutex_lock(&player->timer.lock);
-    vlc_list_append(&timer->node, &player->timer.best_source.listeners);
-    vlc_mutex_unlock(&player->timer.lock);
+    heimdall_mutex_lock(&player->timer.lock);
+    heimdall_list_append(&timer->node, &player->timer.best_source.listeners);
+    heimdall_mutex_unlock(&player->timer.lock);
 
     return timer;
 }
 
-vlc_player_timer_id *
-vlc_player_AddSmpteTimer(vlc_player_t *player,
-                         const struct vlc_player_timer_smpte_cbs *cbs,
+heimdall_player_timer_id *
+heimdall_player_AddSmpteTimer(heimdall_player_t *player,
+                         const struct heimdall_player_timer_smpte_cbs *cbs,
                          void *data)
 {
     assert(cbs && cbs->on_update);
 
-    struct vlc_player_timer_id *timer = malloc(sizeof(*timer));
+    struct heimdall_player_timer_id *timer = malloc(sizeof(*timer));
     if (!timer)
         return NULL;
-    timer->period = VLC_TICK_INVALID;
-    timer->last_update_date = VLC_TICK_INVALID;
+    timer->period = HEIMDALL_TICK_INVALID;
+    timer->last_update_date = HEIMDALL_TICK_INVALID;
     timer->smpte_cbs = cbs;
     timer->data = data;
 
-    vlc_mutex_lock(&player->timer.lock);
-    vlc_list_append(&timer->node, &player->timer.smpte_source.listeners);
-    vlc_mutex_unlock(&player->timer.lock);
+    heimdall_mutex_lock(&player->timer.lock);
+    heimdall_list_append(&timer->node, &player->timer.smpte_source.listeners);
+    heimdall_mutex_unlock(&player->timer.lock);
 
     return timer;
 }
 
 void
-vlc_player_RemoveTimer(vlc_player_t *player, vlc_player_timer_id *timer)
+heimdall_player_RemoveTimer(heimdall_player_t *player, heimdall_player_timer_id *timer)
 {
     assert(timer);
 
-    vlc_mutex_lock(&player->timer.lock);
-    vlc_list_remove(&timer->node);
-    vlc_mutex_unlock(&player->timer.lock);
+    heimdall_mutex_lock(&player->timer.lock);
+    heimdall_list_remove(&timer->node);
+    heimdall_mutex_unlock(&player->timer.lock);
 
     free(timer);
 }
 
 int
-vlc_player_timer_point_Interpolate(const struct vlc_player_timer_point *point,
-                                   vlc_tick_t system_now,
-                                   vlc_tick_t *out_ts, double *out_pos)
+heimdall_player_timer_point_Interpolate(const struct heimdall_player_timer_point *point,
+                                   heimdall_tick_t system_now,
+                                   heimdall_tick_t *out_ts, double *out_pos)
 {
     assert(point);
     assert(system_now > 0);
     assert(out_ts || out_pos);
 
-    /* A system_date == VLC_TICK_MAX means the clock was paused when it updated
+    /* A system_date == HEIMDALL_TICK_MAX means the clock was paused when it updated
      * this point, so there is nothing to interpolate */
-    const vlc_tick_t drift = point->system_date == VLC_TICK_MAX ? 0
+    const heimdall_tick_t drift = point->system_date == HEIMDALL_TICK_MAX ? 0
                            : (system_now - point->system_date) * point->rate;
-    vlc_tick_t ts = point->ts;
+    heimdall_tick_t ts = point->ts;
     double pos = point->position;
 
-    if (ts != VLC_TICK_INVALID)
+    if (ts != HEIMDALL_TICK_INVALID)
     {
         ts += drift;
-        if (unlikely(ts < VLC_TICK_0))
-            return VLC_EGENERIC;
+        if (unlikely(ts < HEIMDALL_TICK_0))
+            return HEIMDALL_EGENERIC;
     }
-    if (point->length != VLC_TICK_INVALID && !point->live)
+    if (point->length != HEIMDALL_TICK_INVALID && !point->live)
     {
         pos += drift / (double) point->length;
         if (unlikely(pos < 0.f))
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         if (pos > 1.f)
             pos = 1.f;
         if (ts > point->length)
@@ -742,45 +743,45 @@ vlc_player_timer_point_Interpolate(const struct vlc_player_timer_point *point,
     if (out_pos)
         *out_pos = pos;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-vlc_tick_t
-vlc_player_timer_point_GetNextIntervalDate(const struct vlc_player_timer_point *point,
-                                           vlc_tick_t system_now,
-                                           vlc_tick_t interpolated_ts,
-                                           vlc_tick_t next_interval)
+heimdall_tick_t
+heimdall_player_timer_point_GetNextIntervalDate(const struct heimdall_player_timer_point *point,
+                                           heimdall_tick_t system_now,
+                                           heimdall_tick_t interpolated_ts,
+                                           heimdall_tick_t next_interval)
 {
     assert(point);
     assert(system_now > 0);
-    assert(next_interval != VLC_TICK_INVALID);
+    assert(next_interval != HEIMDALL_TICK_INVALID);
 
     const unsigned ts_interval = interpolated_ts / next_interval;
-    const vlc_tick_t ts_next_interval =
+    const heimdall_tick_t ts_next_interval =
         ts_interval * next_interval + next_interval;
 
     return (ts_next_interval - interpolated_ts) / point->rate + system_now;
 }
 
 void
-vlc_player_InitTimer(vlc_player_t *player)
+heimdall_player_InitTimer(heimdall_player_t *player)
 {
-    vlc_mutex_init(&player->timer.lock);
+    heimdall_mutex_init(&player->timer.lock);
 
-    for (size_t i = 0; i < VLC_PLAYER_TIMER_TYPE_COUNT; ++i)
+    for (size_t i = 0; i < HEIMDALL_PLAYER_TIMER_TYPE_COUNT; ++i)
     {
-        vlc_list_init(&player->timer.sources[i].listeners);
-        player->timer.sources[i].point.system_date = VLC_TICK_INVALID;
+        heimdall_list_init(&player->timer.sources[i].listeners);
+        player->timer.sources[i].point.system_date = HEIMDALL_TICK_INVALID;
         player->timer.sources[i].es = NULL;
         player->timer.sources[i].seeking = false;
-        player->timer.sources[i].reported_pause_date = VLC_TICK_INVALID;
+        player->timer.sources[i].reported_pause_date = HEIMDALL_TICK_INVALID;
     }
-    vlc_player_ResetTimer(player);
+    heimdall_player_ResetTimer(player);
 }
 
 void
-vlc_player_DestroyTimer(vlc_player_t *player)
+heimdall_player_DestroyTimer(heimdall_player_t *player)
 {
-    for (size_t i = 0; i < VLC_PLAYER_TIMER_TYPE_COUNT; ++i)
-        assert(vlc_list_is_empty(&player->timer.sources[i].listeners));
+    for (size_t i = 0; i < HEIMDALL_PLAYER_TIMER_TYPE_COUNT; ++i)
+        assert(heimdall_list_is_empty(&player->timer.sources[i].listeners));
 }

@@ -2,8 +2,9 @@
  * avaudiosession_common.m: AVAudioSession common code for iOS aouts
  *****************************************************************************
  * Copyright (C) 2012 - 2024 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Felix Paul Kühne <fkuehne at videolan dot org>
+ * Authors: Felix Paul Kühne <fkuehne at lycaria dot org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,9 +23,9 @@
 
 #import "config.h"
 
-#import <vlc_common.h>
-#import <vlc_aout.h>
-#import <vlc_atomic.h>
+#import <heimdall_common.h>
+#import <heimdall_aout.h>
+#import <heimdall_atomic.h>
 
 #import <AVFoundation/AVFoundation.h>
 #import "avaudiosession_common.h"
@@ -133,7 +134,7 @@ avas_GetPortType(audio_output_t *p_aout, AVAudioSession *instance,
             break;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 struct API_AVAILABLE(ios(11.0), watchos(7.0) VISIONOS_API_AVAILABLE)
@@ -200,7 +201,7 @@ int
 avas_SetActive(audio_output_t *p_aout, AVAudioSession *instance, bool active,
                NSUInteger options)
 {
-    static vlc_atomic_rc_t active_rc = VLC_STATIC_RC;
+    static heimdall_atomic_rc_t active_rc = HEIMDALL_STATIC_RC;
 
     BOOL ret = false;
     NSError *error = nil;
@@ -232,9 +233,9 @@ avas_SetActive(audio_output_t *p_aout, AVAudioSession *instance, bool active,
                                                       error:&error];
 #endif
         if (ret)
-            vlc_atomic_rc_inc(&active_rc);
+            heimdall_atomic_rc_inc(&active_rc);
     } else {
-        if (vlc_atomic_rc_dec(&active_rc))
+        if (heimdall_atomic_rc_dec(&active_rc))
             ret = [instance setActive:NO withOptions:options error:&error];
         else
             ret = true;
@@ -244,8 +245,8 @@ avas_SetActive(audio_output_t *p_aout, AVAudioSession *instance, bool active,
     {
         msg_Err(p_aout, "AVAudioSession playback change failed: %s(%d)",
                 error.domain.UTF8String, (int)error.code);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

@@ -2,6 +2,7 @@
  * es_format.c : es_format_t helpers.
  *****************************************************************************
  * Copyright (C) 2008 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Laurent Aimar <fenrir@videolan.org>
  *
@@ -30,15 +31,15 @@
 
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_es.h>
+#include <heimdall_common.h>
+#include <heimdall_es.h>
 
-void video_format_Setup( video_format_t *p_fmt, vlc_fourcc_t i_chroma,
+void video_format_Setup( video_format_t *p_fmt, heimdall_fourcc_t i_chroma,
                          int i_width, int i_height,
                          int i_visible_width, int i_visible_height,
                          int i_sar_num, int i_sar_den )
 {
-    p_fmt->i_chroma         = vlc_fourcc_GetCodec( VIDEO_ES, i_chroma );
+    p_fmt->i_chroma         = heimdall_fourcc_GetCodec( VIDEO_ES, i_chroma );
     p_fmt->i_width          = i_width;
     p_fmt->i_visible_width  = i_visible_width;
     p_fmt->i_height         = i_height;
@@ -46,7 +47,7 @@ void video_format_Setup( video_format_t *p_fmt, vlc_fourcc_t i_chroma,
     p_fmt->i_x_offset       =
     p_fmt->i_y_offset       = 0;
     p_fmt->orientation      = ORIENT_NORMAL;
-    vlc_ureduce( &p_fmt->i_sar_num, &p_fmt->i_sar_den,
+    heimdall_ureduce( &p_fmt->i_sar_num, &p_fmt->i_sar_den,
                  i_sar_num, i_sar_den, 0 );
 }
 
@@ -67,12 +68,12 @@ void video_format_ScaleCropAr( video_format_t *p_dst, const video_format_t *p_sr
 
     p_dst->i_sar_num *= p_src->i_width;
     p_dst->i_sar_den *= p_dst->i_width;
-    vlc_ureduce(&p_dst->i_sar_num, &p_dst->i_sar_den,
+    heimdall_ureduce(&p_dst->i_sar_num, &p_dst->i_sar_den,
                 p_dst->i_sar_num, p_dst->i_sar_den, 65536);
 
     p_dst->i_sar_num *= p_dst->i_height;
     p_dst->i_sar_den *= p_src->i_height;
-    vlc_ureduce(&p_dst->i_sar_num, &p_dst->i_sar_den,
+    heimdall_ureduce(&p_dst->i_sar_num, &p_dst->i_sar_den,
                 p_dst->i_sar_num, p_dst->i_sar_den, 65536);
 }
 
@@ -102,7 +103,7 @@ static void transform_GetBasicOps( video_transform_t transform,
             *angle = 0;
             break;
         default:
-            vlc_assert_unreachable ();
+            heimdall_assert_unreachable ();
     }
 }
 
@@ -239,33 +240,33 @@ bool video_format_IsSimilar( const video_format_t *f1,
     return true;
 }
 
-void video_format_LogDifferences(struct vlc_logger *log,
+void video_format_LogDifferences(struct heimdall_logger *log,
                                  const char *name_a, const video_format_t *a,
                                  const char *name_b, const video_format_t *b)
 {
     if (a->i_chroma != b->i_chroma)
-        vlc_debug(log, "'%s/%s' i_chroma %4.4s / %4.4s", name_a, name_b, (char*)&a->i_chroma, (char*)&b->i_chroma);
+        heimdall_debug(log, "'%s/%s' i_chroma %4.4s / %4.4s", name_a, name_b, (char*)&a->i_chroma, (char*)&b->i_chroma);
     if( a->i_width != b->i_width )
-        vlc_debug(log, "'%s/%s' i_width %u / %u", name_a, name_b, a->i_width, b->i_width);
+        heimdall_debug(log, "'%s/%s' i_width %u / %u", name_a, name_b, a->i_width, b->i_width);
     if( a->i_height != b->i_height )
-        vlc_debug(log, "'%s/%s' i_height %u / %u", name_a, name_b, a->i_height, b->i_height);
+        heimdall_debug(log, "'%s/%s' i_height %u / %u", name_a, name_b, a->i_height, b->i_height);
     if( a->i_visible_width != b->i_visible_width )
-        vlc_debug(log, "'%s/%s' i_visible_width %u / %u", name_a, name_b, a->i_visible_width, b->i_visible_width);
+        heimdall_debug(log, "'%s/%s' i_visible_width %u / %u", name_a, name_b, a->i_visible_width, b->i_visible_width);
     if( a->i_visible_height != b->i_visible_height )
-        vlc_debug(log, "'%s/%s' i_visible_height %u / %u", name_a, name_b, a->i_visible_height, b->i_visible_height);
+        heimdall_debug(log, "'%s/%s' i_visible_height %u / %u", name_a, name_b, a->i_visible_height, b->i_visible_height);
     if( a->i_x_offset != b->i_x_offset )
-        vlc_debug(log, "'%s/%s' i_x_offset %u / %u", name_a, name_b, a->i_x_offset, b->i_x_offset);
+        heimdall_debug(log, "'%s/%s' i_x_offset %u / %u", name_a, name_b, a->i_x_offset, b->i_x_offset);
     if( a->i_y_offset != b->i_y_offset )
-        vlc_debug(log, "'%s/%s' i_y_offset %u / %u", name_a, name_b, a->i_y_offset, b->i_y_offset);
+        heimdall_debug(log, "'%s/%s' i_y_offset %u / %u", name_a, name_b, a->i_y_offset, b->i_y_offset);
     if( (int64_t)a->i_sar_num * b->i_sar_den !=
         (int64_t)b->i_sar_num * a->i_sar_den )
-        vlc_debug(log, "'%s/%s' SAR %u/%u / %u/%u", name_a, name_b, a->i_sar_den, a->i_sar_num, b->i_sar_den, b->i_sar_num);
+        heimdall_debug(log, "'%s/%s' SAR %u/%u / %u/%u", name_a, name_b, a->i_sar_den, a->i_sar_num, b->i_sar_den, b->i_sar_num);
 
     if( a->orientation != b->orientation)
-        vlc_debug(log, "'%s/%s' orientation %d / %d", name_a, name_b, a->orientation, b->orientation);
+        heimdall_debug(log, "'%s/%s' orientation %d / %d", name_a, name_b, a->orientation, b->orientation);
 
     if( a->multiview_mode!= b->multiview_mode )
-        vlc_debug(log, "'%s/%s' multiview_mode %d / %d", name_a, name_b, a->multiview_mode, b->multiview_mode);
+        heimdall_debug(log, "'%s/%s' multiview_mode %d / %d", name_a, name_b, a->multiview_mode, b->multiview_mode);
 }
 
 static const char *orient_to_string[] =
@@ -280,7 +281,7 @@ static const char *orient_to_string[] =
     [ORIENT_ROTATED_90]         = "90",
 };
 
-void video_format_Print( vlc_object_t *p_this,
+void video_format_Print( heimdall_object_t *p_this,
                          const char *psz_text, const video_format_t *fmt )
 {
     const char *orient;
@@ -299,7 +300,7 @@ void video_format_Print( vlc_object_t *p_this,
 }
 
 void es_format_Init( es_format_t *fmt,
-                     int i_cat, vlc_fourcc_t i_codec )
+                     int i_cat, heimdall_fourcc_t i_codec )
 {
     memset(fmt, 0, sizeof (*fmt));
     fmt->i_cat                  = i_cat;
@@ -327,7 +328,7 @@ void es_format_InitFromVideo( es_format_t *p_es, const video_format_t *p_fmt )
 
 int es_format_Copy(es_format_t *restrict dst, const es_format_t *src)
 {
-    int ret = VLC_SUCCESS;
+    int ret = HEIMDALL_SUCCESS;
 
     *dst = *src;
 
@@ -335,13 +336,13 @@ int es_format_Copy(es_format_t *restrict dst, const es_format_t *src)
     {
         dst->psz_language = strdup(src->psz_language);
         if (unlikely(dst->psz_language == NULL))
-            ret = VLC_ENOMEM;
+            ret = HEIMDALL_ENOMEM;
     }
     if (src->psz_description != NULL)
     {
         dst->psz_description = strdup(src->psz_description);
         if (unlikely(dst->psz_description == NULL))
-            ret = VLC_ENOMEM;
+            ret = HEIMDALL_ENOMEM;
     }
 
     if (src->i_extra > 0)
@@ -354,7 +355,7 @@ int es_format_Copy(es_format_t *restrict dst, const es_format_t *src)
         else
         {
             dst->i_extra = 0;
-            ret = VLC_ENOMEM;
+            ret = HEIMDALL_ENOMEM;
         }
     }
     else
@@ -369,7 +370,7 @@ int es_format_Copy(es_format_t *restrict dst, const es_format_t *src)
         {
             dst->subs.psz_encoding = strdup(src->subs.psz_encoding);
             if (unlikely(dst->subs.psz_encoding == NULL))
-                ret = VLC_ENOMEM;
+                ret = HEIMDALL_ENOMEM;
         }
     }
 
@@ -392,7 +393,7 @@ int es_format_Copy(es_format_t *restrict dst, const es_format_t *src)
         else
         {
             dst->i_extra_languages = 0;
-            ret = VLC_ENOMEM;
+            ret = HEIMDALL_ENOMEM;
         }
     }
     return ret;
@@ -424,8 +425,8 @@ void es_format_Clean(es_format_t *fmt)
 bool es_format_IsSimilar( const es_format_t *p_fmt1, const es_format_t *p_fmt2 )
 {
     if( p_fmt1->i_cat != p_fmt2->i_cat ||
-        vlc_fourcc_GetCodec( p_fmt1->i_cat, p_fmt1->i_codec ) !=
-        vlc_fourcc_GetCodec( p_fmt2->i_cat, p_fmt2->i_codec ) )
+        heimdall_fourcc_GetCodec( p_fmt1->i_cat, p_fmt1->i_codec ) !=
+        heimdall_fourcc_GetCodec( p_fmt2->i_cat, p_fmt2->i_codec ) )
         return false;
 
     switch( p_fmt1->i_cat )
@@ -455,9 +456,9 @@ bool es_format_IsSimilar( const es_format_t *p_fmt1, const es_format_t *p_fmt2 )
         if( p_fmt1->i_profile != p_fmt2->i_profile )
             return false;
         if( !v1.i_chroma )
-            v1.i_chroma = vlc_fourcc_GetCodec( p_fmt1->i_cat, p_fmt1->i_codec );
+            v1.i_chroma = heimdall_fourcc_GetCodec( p_fmt1->i_cat, p_fmt1->i_codec );
         if( !v2.i_chroma )
-            v2.i_chroma = vlc_fourcc_GetCodec( p_fmt2->i_cat, p_fmt2->i_codec );
+            v2.i_chroma = heimdall_fourcc_GetCodec( p_fmt2->i_cat, p_fmt2->i_codec );
         return video_format_IsSimilar( &v1, &v2 );
     }
 
@@ -468,17 +469,17 @@ bool es_format_IsSimilar( const es_format_t *p_fmt1, const es_format_t *p_fmt2 )
 }
 
 
-void es_format_LogDifferences(struct vlc_logger *log,
+void es_format_LogDifferences(struct heimdall_logger *log,
                               const char *name_a, const es_format_t *a,
                               const char *name_b, const es_format_t *b)
 {
     if (a->i_cat != b->i_cat)
-        vlc_debug(log, "'%s/%s' category %d / %d", name_a, name_b, a->i_cat, b->i_cat);
+        heimdall_debug(log, "'%s/%s' category %d / %d", name_a, name_b, a->i_cat, b->i_cat);
     if (a->i_codec != b->i_codec)
     {
-        vlc_fourcc_t a_codec = vlc_fourcc_GetCodec(a->i_cat, a->i_codec);
-        vlc_fourcc_t b_codec = vlc_fourcc_GetCodec(a->i_cat, a->i_codec);
-        vlc_debug(log, "'%s/%s' codec %4.4s(%4.4s) / %4.4s(%4.4s)",
+        heimdall_fourcc_t a_codec = heimdall_fourcc_GetCodec(a->i_cat, a->i_codec);
+        heimdall_fourcc_t b_codec = heimdall_fourcc_GetCodec(a->i_cat, a->i_codec);
+        heimdall_debug(log, "'%s/%s' codec %4.4s(%4.4s) / %4.4s(%4.4s)",
                   name_a, name_b, (char*)&a_codec, (char*)&a->i_codec, (char*)&b_codec, (char*)&b->i_codec);
     }
     switch (a->i_cat)
@@ -489,34 +490,34 @@ void es_format_LogDifferences(struct vlc_logger *log,
         audio_format_t ab = b->audio;
 
         if( aa.i_format && ab.i_format && aa.i_format != ab.i_format )
-            vlc_debug(log, "'%s/%s' format %d / %d", name_a, name_b, aa.i_format, ab.i_format);
+            heimdall_debug(log, "'%s/%s' format %d / %d", name_a, name_b, aa.i_format, ab.i_format);
         if( aa.channel_type != ab.channel_type)
-            vlc_debug(log, "'%s/%s' channel_type %d / %d",
+            heimdall_debug(log, "'%s/%s' channel_type %d / %d",
                       name_a, name_b, aa.channel_type, ab.channel_type);
         if( aa.i_rate != ab.i_rate)
-            vlc_debug(log, "'%s/%s' i_rate %u / %u", name_a, name_b, aa.i_rate, ab.i_rate);
+            heimdall_debug(log, "'%s/%s' i_rate %u / %u", name_a, name_b, aa.i_rate, ab.i_rate);
         if( aa.i_channels != ab.i_channels)
-            vlc_debug(log, "'%s/%s' i_channels %" PRIu8 " / %" PRIu8 ,
+            heimdall_debug(log, "'%s/%s' i_channels %" PRIu8 " / %" PRIu8 ,
                       name_a, name_b, aa.i_channels, ab.i_channels);
         if( aa.i_physical_channels != ab.i_physical_channels)
-            vlc_debug(log, "'%s/%s' i_physical_channels %" PRIu16 " / %" PRIu16 ,
+            heimdall_debug(log, "'%s/%s' i_physical_channels %" PRIu16 " / %" PRIu16 ,
                       name_a, name_b, aa.i_physical_channels, ab.i_physical_channels);
         if( aa.i_chan_mode != ab.i_chan_mode)
-            vlc_debug(log, "'%s/%s' i_chan_mode %" PRIu16 " / %" PRIu16 ,
+            heimdall_debug(log, "'%s/%s' i_chan_mode %" PRIu16 " / %" PRIu16 ,
                       name_a, name_b, aa.i_chan_mode, ab.i_chan_mode);
         if (a->i_profile != b->i_profile)
-            vlc_debug(log, "'%s/%s' profile %d / %d", name_a, name_b, a->i_profile, b->i_profile);
+            heimdall_debug(log, "'%s/%s' profile %d / %d", name_a, name_b, a->i_profile, b->i_profile);
         break;
     }
     case VIDEO_ES:
         if (a->i_profile != b->i_profile)
-            vlc_debug(log, "'%s/%s' profile %d / %d", name_a, name_b, a->i_profile, b->i_profile);
+            heimdall_debug(log, "'%s/%s' profile %d / %d", name_a, name_b, a->i_profile, b->i_profile);
         video_format_t va = a->video;
         video_format_t vb = b->video;
         if( !va.i_chroma )
-            va.i_chroma = vlc_fourcc_GetCodec(a->i_cat, a->i_codec);
+            va.i_chroma = heimdall_fourcc_GetCodec(a->i_cat, a->i_codec);
         if( !vb.i_chroma )
-            vb.i_chroma = vlc_fourcc_GetCodec(b->i_cat, b->i_codec);
+            vb.i_chroma = heimdall_fourcc_GetCodec(b->i_cat, b->i_codec);
         video_format_LogDifferences(log, name_a, &va, name_b, &vb);
         break;
     default:

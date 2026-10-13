@@ -2,6 +2,7 @@
  * file_crypt_android.c: Crypt using AndroidKeyStore
  *****************************************************************************
  * Copyright © 2016 VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -25,16 +26,16 @@
 #include <stdarg.h>
 #include <stdio.h>
 
-#include <vlc_common.h>
-#include <vlc_threads.h>
-#include <vlc_keystore.h>
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
+#include <heimdall_keystore.h>
 
 #include "file_crypt.h"
 
 #include <jni.h>
 
 #include "../video_output/android/env.h"
-#define GET_ENV() android_getEnv(VLC_OBJECT(p_keystore), "android keystore")
+#define GET_ENV() android_getEnv(HEIMDALL_OBJECT(p_keystore), "android keystore")
 
 static struct
 {
@@ -95,7 +96,7 @@ static struct
         jint ENCRYPT_MODE;
         jint DECRYPT_MODE;
     } Cipher;
-    jstring VLC_CIPHER;
+    jstring HEIMDALL_CIPHER;
 } fields;
 static jobject s_jkey = NULL;
 
@@ -133,7 +134,7 @@ static jobject s_jkey = NULL;
     (*p_env)->NewStringUTF(p_env, str)
 
 static bool
-check_expection(vlc_keystore *p_keystore, JNIEnv *p_env)
+check_expection(heimdall_keystore *p_keystore, JNIEnv *p_env)
 {
     jthrowable jex = (*p_env)->ExceptionOccurred(p_env);
     if (jex != NULL)
@@ -168,7 +169,7 @@ check_expection(vlc_keystore *p_keystore, JNIEnv *p_env)
         DEL_LREF(clazz); \
     clazz = (*p_env)->FindClass(p_env, (str)); \
     if (CHECK_EXCEPTION()) \
-        return VLC_EGENERIC; \
+        return HEIMDALL_EGENERIC; \
 } while (0)
 #define GET_GLOBAL_CLASS(id) do { \
     fields.id.clazz = (jclass) NEW_GREF(clazz); \
@@ -176,7 +177,7 @@ check_expection(vlc_keystore *p_keystore, JNIEnv *p_env)
 #define GET_ID(get, id, str, args) do { \
     fields.id = (*p_env)->get(p_env, clazz, (str), (args)); \
     if (CHECK_EXCEPTION()) \
-        return VLC_EGENERIC; \
+        return HEIMDALL_EGENERIC; \
 } while (0)
 #define GET_CONST_INT(id, str) do { \
     jfieldID field = (*p_env)->GetStaticFieldID(p_env, clazz, (str), "I"); \
@@ -184,9 +185,9 @@ check_expection(vlc_keystore *p_keystore, JNIEnv *p_env)
     { \
         fields.id = (*p_env)->GetStaticIntField(p_env, clazz, field); \
         if (CHECK_EXCEPTION()) \
-            return VLC_EGENERIC; \
+            return HEIMDALL_EGENERIC; \
     } else { \
-        return VLC_EGENERIC; \
+        return HEIMDALL_EGENERIC; \
     } \
 } while(0)
 #define GET_CONST_OBJ(id, str, type) do { \
@@ -195,11 +196,11 @@ check_expection(vlc_keystore *p_keystore, JNIEnv *p_env)
     { \
         jobject jobj = (*p_env)->GetStaticObjectField(p_env, clazz, field); \
         if (CHECK_EXCEPTION()) \
-            return VLC_EGENERIC; \
+            return HEIMDALL_EGENERIC; \
         fields.id = NEW_GREF(jobj); \
         DEL_LREF(jobj); \
     } else { \
-        return VLC_EGENERIC; \
+        return HEIMDALL_EGENERIC; \
     } \
 } while(0)
 
@@ -207,7 +208,7 @@ check_expection(vlc_keystore *p_keystore, JNIEnv *p_env)
  * Init JNI fields that will be used to fetch the key and crypt/encrypt
  */
 static int
-InitJni(vlc_keystore *p_keystore, JNIEnv *p_env)
+InitJni(heimdall_keystore *p_keystore, JNIEnv *p_env)
 {
     jclass clazz = NULL;
 
@@ -246,20 +247,20 @@ InitJni(vlc_keystore *p_keystore, JNIEnv *p_env)
 
     DEL_LREF(clazz);
 
-    jstring VLC_CIPHER = NEW_STR("AES/CBC/PKCS7Padding");
+    jstring HEIMDALL_CIPHER = NEW_STR("AES/CBC/PKCS7Padding");
     if (CHECK_EXCEPTION())
-        return VLC_EGENERIC;
-    fields.VLC_CIPHER = NEW_GREF(VLC_CIPHER);
-    DEL_LREF(VLC_CIPHER);
+        return HEIMDALL_EGENERIC;
+    fields.HEIMDALL_CIPHER = NEW_GREF(HEIMDALL_CIPHER);
+    DEL_LREF(HEIMDALL_CIPHER);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*
  * Init JNI fields that will be used by generateKey()
  */
 static int
-InitJniGenKey(vlc_keystore *p_keystore, JNIEnv *p_env)
+InitJniGenKey(heimdall_keystore *p_keystore, JNIEnv *p_env)
 {
     jclass clazz = NULL;
 
@@ -298,14 +299,14 @@ InitJniGenKey(vlc_keystore *p_keystore, JNIEnv *p_env)
            "()Ljavax/crypto/SecretKey;");
 
     DEL_LREF(clazz);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*
  * Encrypt or Decrypt
  */
 static size_t
-Process(vlc_keystore *p_keystore, JNIEnv *p_env, jobject jcipher,
+Process(heimdall_keystore *p_keystore, JNIEnv *p_env, jobject jcipher,
         const uint8_t *p_src, size_t i_src_len,
         const uint8_t *p_iv, uint32_t i_iv_len, uint8_t **pp_dst)
 {
@@ -367,7 +368,7 @@ end:
 }
 
 static size_t
-AndroidEncrypt(vlc_keystore *p_keystore, void *p_ctx, const uint8_t *p_src,
+AndroidEncrypt(heimdall_keystore *p_keystore, void *p_ctx, const uint8_t *p_src,
                size_t i_src_len, uint8_t **pp_dst)
 {
     (void) p_ctx;
@@ -376,7 +377,7 @@ AndroidEncrypt(vlc_keystore *p_keystore, void *p_ctx, const uint8_t *p_src,
         return 0;
 
     jobject jcipher = NULL;
-    jcipher = CALL_STATICOBJ(Cipher, Cipher.getInstance, fields.VLC_CIPHER);
+    jcipher = CALL_STATICOBJ(Cipher, Cipher.getInstance, fields.HEIMDALL_CIPHER);
     if (CHECK_EXCEPTION())
         return 0;
 
@@ -410,7 +411,7 @@ end:
 }
 
 static size_t
-AndroidDecrypt(vlc_keystore *p_keystore, void *p_ctx, const uint8_t *p_src,
+AndroidDecrypt(heimdall_keystore *p_keystore, void *p_ctx, const uint8_t *p_src,
                size_t i_src_len, uint8_t **pp_dst)
 {
     (void) p_ctx;
@@ -420,7 +421,7 @@ AndroidDecrypt(vlc_keystore *p_keystore, void *p_ctx, const uint8_t *p_src,
 
     jobject jivArray = NULL, jiv = NULL, jcipher = NULL;
 
-    jcipher = CALL_STATICOBJ(Cipher, Cipher.getInstance, fields.VLC_CIPHER);
+    jcipher = CALL_STATICOBJ(Cipher, Cipher.getInstance, fields.HEIMDALL_CIPHER);
     if (CHECK_EXCEPTION())
         return 0;
 
@@ -468,10 +469,10 @@ end:
  * Keystore
  */
 static jobject
-GenerateKey(vlc_keystore *p_keystore, JNIEnv *p_env, jstring jstringAlias,
+GenerateKey(heimdall_keystore *p_keystore, JNIEnv *p_env, jstring jstringAlias,
             jstring jstringProvider)
 {
-    if (InitJniGenKey(p_keystore, p_env) != VLC_SUCCESS)
+    if (InitJniGenKey(p_keystore, p_env) != HEIMDALL_SUCCESS)
         return NULL;
 
     jobject jkey = NULL, jbuilder = NULL, jspec = NULL,
@@ -535,19 +536,19 @@ end:
  * Init JNI fields, fetch the key stored by Android or generate a new one
  */
 static void
-AndroidInit(vlc_keystore *p_keystore)
+AndroidInit(heimdall_keystore *p_keystore)
 {
     JNIEnv *p_env = GET_ENV();
     if (p_env == NULL)
         return;
 
-    if (InitJni(p_keystore, p_env) != VLC_SUCCESS)
+    if (InitJni(p_keystore, p_env) != HEIMDALL_SUCCESS)
         return;
 
     jobject jkeystore = NULL, jentry = NULL, jkey = NULL;
     jstring jstringAlias = NULL, jstringProvider = NULL;
 
-    jstringAlias = NEW_STR("LibVLCAndroid");
+    jstringAlias = NEW_STR("LibHeimdallAndroid");
     if (CHECK_EXCEPTION())
         goto end;
 
@@ -595,12 +596,12 @@ end:
 }
 
 int
-CryptInit(vlc_keystore *p_keystore, struct crypt *p_crypt)
+CryptInit(heimdall_keystore *p_keystore, struct crypt *p_crypt)
 {
-    static vlc_mutex_t s_lock = VLC_STATIC_MUTEX;
+    static heimdall_mutex_t s_lock = HEIMDALL_STATIC_MUTEX;
     static bool s_init = false;
 
-    vlc_mutex_lock(&s_lock);
+    heimdall_mutex_lock(&s_lock);
     if (!s_init)
     {
         AndroidInit(p_keystore);
@@ -608,13 +609,13 @@ CryptInit(vlc_keystore *p_keystore, struct crypt *p_crypt)
     }
     if (s_jkey == NULL)
     {
-        vlc_mutex_unlock(&s_lock);
-        return VLC_EGENERIC;
+        heimdall_mutex_unlock(&s_lock);
+        return HEIMDALL_EGENERIC;
     }
-    vlc_mutex_unlock(&s_lock);
+    heimdall_mutex_unlock(&s_lock);
 
     p_crypt->pf_encrypt = AndroidEncrypt;
     p_crypt->pf_decrypt = AndroidDecrypt;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

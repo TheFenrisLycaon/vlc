@@ -2,6 +2,7 @@
  * mjpeg.c: MPEG packetizer
  *****************************************************************************
  * Copyright (C) 2018 VideoLabs, VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -26,11 +27,11 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_block.h>
-#include <vlc_codec.h>
-#include <vlc_block_helper.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_block.h>
+#include <heimdall_codec.h>
+#include <heimdall_block_helper.h>
 #include "packetizer_helper.h"
 
 /*****************************************************************************
@@ -72,7 +73,7 @@ static void PacketizeFlush( decoder_t *p_dec )
 {
     decoder_sys_t *p_sys = p_dec->p_sys;
 
-    date_Set( &p_sys->date, VLC_TICK_INVALID );
+    date_Set( &p_sys->date, HEIMDALL_TICK_INVALID );
     p_sys->i_next_block_flags = BLOCK_FLAG_DISCONTINUITY;
     packetizer_Flush( &p_sys->packetizer );
 }
@@ -82,11 +83,11 @@ static void PacketizeFlush( decoder_t *p_dec )
  *****************************************************************************/
 static void PacketizeReset( void *p_private, bool b_flush )
 {
-    VLC_UNUSED(b_flush);
+    HEIMDALL_UNUSED(b_flush);
     decoder_t *p_dec = p_private;
     decoder_sys_t *p_sys = p_dec->p_sys;
 
-    date_Set( &p_sys->date, VLC_TICK_INVALID );
+    date_Set( &p_sys->date, HEIMDALL_TICK_INVALID );
     p_sys->i_next_block_flags = BLOCK_FLAG_DISCONTINUITY;
 }
 
@@ -122,13 +123,13 @@ static block_t *PacketizeParse( void *p_private, bool *pb_ts_used, block_t *p_bl
         p_buf += i_size;
     }
 
-    if( p_block->i_dts == VLC_TICK_INVALID )
+    if( p_block->i_dts == HEIMDALL_TICK_INVALID )
         p_block->i_dts = p_block->i_pts;
-    else if( p_block->i_pts == VLC_TICK_INVALID )
+    else if( p_block->i_pts == HEIMDALL_TICK_INVALID )
         p_block->i_pts = p_block->i_dts;
 
-    vlc_tick_t i_prev_dts = date_Get( &p_sys->date );
-    if( p_block->i_dts != VLC_TICK_INVALID )
+    heimdall_tick_t i_prev_dts = date_Get( &p_sys->date );
+    if( p_block->i_dts != HEIMDALL_TICK_INVALID )
     {
         date_Set( &p_sys->date, p_block->i_dts );
     }
@@ -139,7 +140,7 @@ static block_t *PacketizeParse( void *p_private, bool *pb_ts_used, block_t *p_bl
         p_block->i_dts = p_block->i_pts = date_Get( &p_sys->date );
     }
 
-    if( i_prev_dts != VLC_TICK_INVALID && p_block->i_dts != VLC_TICK_INVALID )
+    if( i_prev_dts != HEIMDALL_TICK_INVALID && p_block->i_dts != HEIMDALL_TICK_INVALID )
         p_block->i_length = p_block->i_dts - i_prev_dts;
 
     *pb_ts_used = true;
@@ -152,15 +153,15 @@ static block_t *PacketizeParse( void *p_private, bool *pb_ts_used, block_t *p_bl
 
 static int PacketizeValidate( void *p_private, block_t *p_au )
 {
-    VLC_UNUSED(p_private);
-    VLC_UNUSED(p_au);
-    return VLC_SUCCESS;
+    HEIMDALL_UNUSED(p_private);
+    HEIMDALL_UNUSED(p_au);
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * Close:
  *****************************************************************************/
-static void Close( vlc_object_t *p_this )
+static void Close( heimdall_object_t *p_this )
 {
     decoder_t     *p_dec = (decoder_t*)p_this;
     decoder_sys_t *p_sys = p_dec->p_sys;
@@ -173,17 +174,17 @@ static void Close( vlc_object_t *p_this )
 /*****************************************************************************
  * Open:
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     decoder_t *p_dec = (decoder_t*)p_this;
     decoder_sys_t *p_sys;
 
-    if( p_dec->fmt_in->i_codec != VLC_CODEC_MJPG )
-        return VLC_EGENERIC;
+    if( p_dec->fmt_in->i_codec != HEIMDALL_CODEC_MJPG )
+        return HEIMDALL_EGENERIC;
 
     p_dec->p_sys = p_sys = malloc( sizeof( decoder_sys_t ) );
     if( !p_dec->p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_sys->i_next_block_flags = 0;
 
@@ -209,16 +210,16 @@ static int Open( vlc_object_t *p_this )
     p_dec->pf_flush = PacketizeFlush;
     p_dec->pf_get_cc = NULL;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_subcategory( SUBCAT_SOUT_PACKETIZER )
     set_description( N_("MJPEG video packetizer") )
     set_capability( "video packetizer", 50 )
     set_callbacks( Open, Close )
-vlc_module_end ()
+heimdall_module_end ()

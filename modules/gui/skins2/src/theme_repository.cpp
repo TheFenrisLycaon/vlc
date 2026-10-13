@@ -2,6 +2,7 @@
  * theme_repository.cpp
  *****************************************************************************
  * Copyright (C) 2004 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cyril Deguet     <asmax@via.ecp.fr>
  *
@@ -27,8 +28,8 @@
 #include <unistd.h>
 #include <sys/stat.h>
 
-#include <vlc_configuration.h>
-#include <vlc_fs.h>
+#include <heimdall_configuration.h>
+#include <heimdall_fs.h>
 
 
 ThemeRepository *ThemeRepository::instance( intf_thread_t *pIntf )
@@ -51,11 +52,11 @@ void ThemeRepository::destroy( intf_thread_t *pIntf )
 
 ThemeRepository::ThemeRepository( intf_thread_t *pIntf ): SkinObject( pIntf )
 {
-    vlc_value_t val;
+    heimdall_value_t val;
 
     // Create a variable to add items in wxwindows popup menu
-    var_Create( pIntf, "intf-skins", VLC_VAR_STRING | VLC_VAR_ISCOMMAND );
-    var_Change( pIntf, "intf-skins", VLC_VAR_SETTEXT, _("Select skin") );
+    var_Create( pIntf, "intf-skins", HEIMDALL_VAR_STRING | HEIMDALL_VAR_ISCOMMAND );
+    var_Change( pIntf, "intf-skins", HEIMDALL_VAR_SETTEXT, _("Select skin") );
 
     // Scan vlt files in the resource path
     OSFactory *pOsFactory = OSFactory::instance( pIntf );
@@ -74,7 +75,7 @@ ThemeRepository::ThemeRepository( intf_thread_t *pIntf ): SkinObject( pIntf )
         std::string name = itmap->first;
         std::string path = itmap->second;
         val.psz_string = (char*) path.c_str();
-        var_Change( getIntf(), "intf-skins", VLC_VAR_ADDCHOICE, val,
+        var_Change( getIntf(), "intf-skins", HEIMDALL_VAR_ADDCHOICE, val,
                     name.c_str() );
 
         if( name == "Default" )
@@ -91,7 +92,7 @@ ThemeRepository::ThemeRepository( intf_thread_t *pIntf ): SkinObject( pIntf )
 
     // check if skin exists
     struct stat stat;
-    bool b_exists = !vlc_stat( current.c_str(), &stat );
+    bool b_exists = !heimdall_stat( current.c_str(), &stat );
     msg_Dbg( getIntf(), "requested skins %s is %s accessible",
                          current.c_str(), b_exists ? "" : "NOT" );
 
@@ -109,9 +110,9 @@ ThemeRepository::ThemeRepository( intf_thread_t *pIntf ): SkinObject( pIntf )
     var_AddCallback( pIntf, "intf-skins", changeSkin, this );
 
     // variable for opening a dialog box to change skins
-    var_Create( pIntf, "intf-skins-interactive", VLC_VAR_VOID |
-                VLC_VAR_ISCOMMAND );
-    var_Change( pIntf, "intf-skins-interactive", VLC_VAR_SETTEXT,
+    var_Create( pIntf, "intf-skins-interactive", HEIMDALL_VAR_VOID |
+                HEIMDALL_VAR_ISCOMMAND );
+    var_Change( pIntf, "intf-skins-interactive", HEIMDALL_VAR_SETTEXT,
                 _("Open skin...") );
 
     // Set the callback
@@ -139,7 +140,7 @@ void ThemeRepository::parseDirectory( const std::string &rDir )
     const std::string &sep = OSFactory::instance( getIntf() )->getDirSeparator();
 
     // Open the dir
-    vlc_DIR *pDir = vlc_opendir( rDir.c_str() );
+    heimdall_DIR *pDir = heimdall_opendir( rDir.c_str() );
     if( pDir == NULL )
     {
         // An error occurred
@@ -148,7 +149,7 @@ void ThemeRepository::parseDirectory( const std::string &rDir )
     }
 
     // While we still have entries in the directory
-    while( ( pszDirContent = vlc_readdir( pDir ) ) != NULL )
+    while( ( pszDirContent = heimdall_readdir( pDir ) ) != NULL )
     {
         std::string name = pszDirContent;
         std::string extension;
@@ -170,13 +171,13 @@ void ThemeRepository::parseDirectory( const std::string &rDir )
         }
     }
 
-    vlc_closedir( pDir );
+    heimdall_closedir( pDir );
 }
 
 
 
-int ThemeRepository::changeSkin( vlc_object_t *pIntf, char const *pVariable,
-                                 vlc_value_t oldval, vlc_value_t newval,
+int ThemeRepository::changeSkin( heimdall_object_t *pIntf, char const *pVariable,
+                                 heimdall_value_t oldval, heimdall_value_t newval,
                                  void *pData )
 {
     (void)pIntf; (void)oldval;
@@ -196,13 +197,13 @@ int ThemeRepository::changeSkin( vlc_object_t *pIntf, char const *pVariable,
         pQueue->push( CmdGenericPtr( pCmd ) );
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 
 void ThemeRepository::updateRepository()
 {
-    vlc_value_t val;
+    heimdall_value_t val;
 
     // retrieve the current skin
     char* psz_current = config_GetPsz( "skins2-last" );
@@ -221,14 +222,14 @@ void ThemeRepository::updateRepository()
     }
     if( it == m_skinsMap.end() )
     {
-        var_Change( getIntf(), "intf-skins", VLC_VAR_ADDCHOICE, val,
+        var_Change( getIntf(), "intf-skins", HEIMDALL_VAR_ADDCHOICE, val,
                     (const char *)psz_current );
         std::string name = psz_current;
         m_skinsMap[name] = name;
     }
 
     // mark this current skins as 'checked' in list
-    var_Change( getIntf(), "intf-skins", VLC_VAR_SETVALUE, val );
+    var_Change( getIntf(), "intf-skins", HEIMDALL_VAR_SETVALUE, val );
 
     free( psz_current );
 }

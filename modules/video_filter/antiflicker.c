@@ -1,7 +1,8 @@
 /*****************************************************************************
- * antiflicker.c : antiflicker video effect plugin for vlc
+ * antiflicker.c : antiflicker video effect plugin for heimdall
  *****************************************************************************
  * Copyright (C) 2000-2011 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Dharani Prabhu <dharani.prabhu.s@gmail.com>
  *
@@ -30,18 +31,18 @@
 
 #include <stdatomic.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_picture.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
 #include "filter_picture.h"
 
 /*****************************************************************************
  * Local prototypes
  *****************************************************************************/
 static int GetLuminanceAvg( picture_t * p_pic );
-static int AntiFlickerCallback( vlc_object_t *p_this, char const *psz_var,
-                           vlc_value_t oldval, vlc_value_t newval,
+static int AntiFlickerCallback( heimdall_object_t *p_this, char const *psz_var,
+                           heimdall_value_t oldval, heimdall_value_t newval,
                            void *p_data );
 
 static int  Create    ( filter_t * );
@@ -62,7 +63,7 @@ VIDEO_FILTER_WRAPPER_CLOSE( Filter, Destroy )
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("Antiflicker video filter") )
     set_shortname( N_( "antiflicker" ))
     set_subcategory( SUBCAT_VIDEO_VFILTER )
@@ -75,7 +76,7 @@ vlc_module_begin ()
 
     add_shortcut( "antiflicker" )
     set_callback_video_filter( Create )
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * filter_sys_t: Distort video output method descriptor
@@ -107,13 +108,13 @@ static int Create( filter_t *p_filter )
         default:
              msg_Err( p_filter, "Unsupported input chroma (%4.4s)",
                       (char*)&(p_filter->fmt_in.video.i_chroma) );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 
     /* Allocate structure */
     filter_sys_t *p_sys = malloc( sizeof( filter_sys_t ) );
     if( p_sys == NULL )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     p_filter->p_sys = p_sys;
 
     p_filter->ops = &Filter_ops;
@@ -132,7 +133,7 @@ static int Create( filter_t *p_filter )
     if( p_sys->p_old_data == NULL )
     {
         free( p_sys );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     memset( p_sys->ia_luminance_data, 0,
@@ -144,7 +145,7 @@ static int Create( filter_t *p_filter )
     var_AddCallback(p_filter,FILTER_PREFIX "softening-size",
         AntiFlickerCallback, p_sys);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -313,11 +314,11 @@ static void Filter( filter_t *p_filter, picture_t *p_pic, picture_t *p_outpic )
  *****************************************************************************
  * This function sets the parameters necesscary for the filter
  *****************************************************************************/
-static int AntiFlickerCallback( vlc_object_t *p_this, char const *psz_var,
-                           vlc_value_t oldval, vlc_value_t newval,
+static int AntiFlickerCallback( heimdall_object_t *p_this, char const *psz_var,
+                           heimdall_value_t oldval, heimdall_value_t newval,
                            void *p_data )
 {
-    VLC_UNUSED(p_this); VLC_UNUSED(oldval);
+    HEIMDALL_UNUSED(p_this); HEIMDALL_UNUSED(oldval);
     filter_sys_t *p_sys = p_data;
 
     if( !strcmp( psz_var, FILTER_PREFIX "window-size" ) )
@@ -325,5 +326,5 @@ static int AntiFlickerCallback( vlc_object_t *p_this, char const *psz_var,
     else if( !strcmp( psz_var, FILTER_PREFIX "softening-size" ) )
         atomic_store( &p_sys->i_softening, newval.i_int );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

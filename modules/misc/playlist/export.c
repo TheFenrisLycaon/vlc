@@ -2,6 +2,7 @@
  * export.c :  Playlist export module
  *****************************************************************************
  * Copyright (C) 2004-2009 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Clément Stenac <zorglub@videolan.org>
  *
@@ -27,22 +28,22 @@
 # include "config.h"
 #endif
 
-#define VLC_MODULE_LICENSE VLC_LICENSE_GPL_2_PLUS
-#include <vlc_common.h>
-#include <vlc_plugin.h>
+#define HEIMDALL_MODULE_LICENSE HEIMDALL_LICENSE_GPL_2_PLUS
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
 
 /***************************************************************************
  * Prototypes
  ***************************************************************************/
-int Export_M3U    ( vlc_object_t *p_intf );
-int Export_M3U8   ( vlc_object_t *p_intf );
-int Export_HTML   ( vlc_object_t *p_intf );
-int xspf_export_playlist( vlc_object_t *p_intf );
+int Export_M3U    ( heimdall_object_t *p_intf );
+int Export_M3U8   ( heimdall_object_t *p_intf );
+int Export_HTML   ( heimdall_object_t *p_intf );
+int xspf_export_playlist( heimdall_object_t *p_intf );
 
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-vlc_module_begin ()
+heimdall_module_begin ()
 
     set_subcategory( SUBCAT_PLAYLIST_EXPORT )
     add_submodule ()
@@ -69,4 +70,4 @@ vlc_module_begin ()
         set_capability( "playlist export", 0 )
         set_callback( Export_HTML )
 
-vlc_module_end ()
+heimdall_module_end ()

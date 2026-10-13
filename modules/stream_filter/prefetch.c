@@ -1,7 +1,8 @@
 /*****************************************************************************
- * prefetch.c: prefetchinging module for VLC
+ * prefetch.c: prefetchinging module for Heimdall
  *****************************************************************************
  * Copyright © 2015 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -29,11 +30,11 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_stream.h>
-#include <vlc_fs.h>
-#include <vlc_interrupt.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_stream.h>
+#include <heimdall_fs.h>
+#include <heimdall_interrupt.h>
 
 struct stream_ctrl
 {
@@ -51,11 +52,11 @@ struct stream_ctrl
 
 typedef struct
 {
-    vlc_mutex_t  lock;
-    vlc_cond_t   wait_data;
-    vlc_cond_t   wait_space;
-    vlc_thread_t thread;
-    vlc_interrupt_t *interrupt;
+    heimdall_mutex_t  lock;
+    heimdall_cond_t   wait_data;
+    heimdall_cond_t   wait_space;
+    heimdall_thread_t thread;
+    heimdall_interrupt_t *interrupt;
 
     bool         eof;
     bool         error;
@@ -66,7 +67,7 @@ typedef struct
     bool         can_pause;
     uint64_t     size;
     uint64_t     mtime;
-    vlc_tick_t   pts_delay;
+    heimdall_tick_t   pts_delay;
     char        *content_type;
 
     uint64_t     buffer_offset;
@@ -83,12 +84,12 @@ static ssize_t ThreadRead(stream_t *stream, void *buf, size_t length)
 {
     stream_sys_t *sys = stream->p_sys;
 
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
     assert(length > 0);
 
-    ssize_t val = vlc_stream_ReadPartial(stream->s, buf, length);
+    ssize_t val = heimdall_stream_ReadPartial(stream->s, buf, length);
 
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     return val;
 }
 
@@ -96,46 +97,46 @@ static int ThreadSeek(stream_t *stream, uint64_t seek_offset)
 {
     stream_sys_t *sys = stream->p_sys;
 
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
 
-    int val = vlc_stream_Seek(stream->s, seek_offset);
-    if (val != VLC_SUCCESS)
+    int val = heimdall_stream_Seek(stream->s, seek_offset);
+    if (val != HEIMDALL_SUCCESS)
         msg_Err(stream, "cannot seek (to offset %"PRIu64")", seek_offset);
 
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
 
-    return (val == VLC_SUCCESS) ? 0 : -1;
+    return (val == HEIMDALL_SUCCESS) ? 0 : -1;
 }
 
 static int ThreadControl(stream_t *stream, int query, ...)
 {
     stream_sys_t *sys = stream->p_sys;
 
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
 
     va_list ap;
     int ret;
 
     va_start(ap, query);
-    ret = vlc_stream_vaControl(stream->s, query, ap);
+    ret = heimdall_stream_vaControl(stream->s, query, ap);
     va_end(ap);
 
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     return ret;
 }
 
 static void *Thread(void *data)
 {
-    vlc_thread_set_name("vlc-prefetch");
+    heimdall_thread_set_name("heimdall-prefetch");
 
     stream_t *stream = data;
     stream_sys_t *sys = stream->p_sys;
     bool paused = false;
 
-    vlc_interrupt_set(sys->interrupt);
+    heimdall_interrupt_set(sys->interrupt);
 
-    vlc_mutex_lock(&sys->lock);
-    while (!vlc_killed())
+    heimdall_mutex_lock(&sys->lock);
+    while (!heimdall_killed())
     {
         struct stream_ctrl *ctrl = sys->controls;
 
@@ -158,7 +159,7 @@ static void *Thread(void *data)
 
         if (paused || sys->error)
         {   /* Wait for not paused and not failed */
-            vlc_cond_wait(&sys->wait_space, &sys->lock);
+            heimdall_cond_wait(&sys->wait_space, &sys->lock);
             continue;
         }
 
@@ -176,14 +177,14 @@ static void *Thread(void *data)
             else
             {
                 sys->error = true;
-                vlc_cond_signal(&sys->wait_data);
+                heimdall_cond_signal(&sys->wait_data);
             }
             continue;
         }
 
         if (sys->eof)
         {   /* Do not attempt to read at EOF - would busy loop */
-            vlc_cond_wait(&sys->wait_space, &sys->lock);
+            heimdall_cond_wait(&sys->wait_space, &sys->lock);
             continue;
         }
 
@@ -216,7 +217,7 @@ static void *Thread(void *data)
                  * correctly. Furthermore, sys->stream_offset and/or
                  * sys->paused might have changed in the mean time. */
                 sys->error = true;
-                vlc_cond_signal(&sys->wait_data);
+                heimdall_cond_signal(&sys->wait_data);
             }
             continue;
         }
@@ -228,7 +229,7 @@ static void *Thread(void *data)
         {   /* Buffer is full */
             if (history == 0)
             {   /* Wait for data to be read */
-                vlc_cond_wait(&sys->wait_space, &sys->lock);
+                heimdall_cond_wait(&sys->wait_space, &sys->lock);
                 continue;
             }
 
@@ -260,12 +261,12 @@ static void *Thread(void *data)
         assert(sys->buffer_length <= sys->buffer_size);
         //msg_Dbg(stream, "buffer: %zu/%zu", sys->buffer_length,
         //        sys->buffer_size);
-        vlc_cond_signal(&sys->wait_data);
+        heimdall_cond_signal(&sys->wait_data);
     }
 
     sys->error = true;
-    vlc_cond_signal(&sys->wait_data);
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_cond_signal(&sys->wait_data);
+    heimdall_mutex_unlock(&sys->lock);
     return NULL;
 }
 
@@ -273,11 +274,11 @@ static int Seek(stream_t *stream, uint64_t offset)
 {
     stream_sys_t *sys = stream->p_sys;
 
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     sys->stream_offset = offset;
     sys->error = false;
-    vlc_cond_signal(&sys->wait_space);
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_cond_signal(&sys->wait_space);
+    heimdall_mutex_unlock(&sys->lock);
     return 0;
 }
 
@@ -306,12 +307,12 @@ static ssize_t Read(stream_t *stream, void *buf, size_t buflen)
     if (buflen == 0)
         return buflen;
 
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     if (sys->paused)
     {
         msg_Err(stream, "reading while paused (buggy demux?)");
         sys->paused = false;
-        vlc_cond_signal(&sys->wait_space);
+        heimdall_cond_signal(&sys->wait_space);
     }
 
     while ((copy = BufferLevel(stream, &eof)) == 0 && !eof)
@@ -320,13 +321,13 @@ static ssize_t Read(stream_t *stream, void *buf, size_t buflen)
 
         if (sys->error)
         {
-            vlc_mutex_unlock(&sys->lock);
+            heimdall_mutex_unlock(&sys->lock);
             return 0;
         }
 
-        vlc_interrupt_forward_start(sys->interrupt, data);
-        vlc_cond_wait(&sys->wait_data, &sys->lock);
-        vlc_interrupt_forward_stop(data);
+        heimdall_interrupt_forward_start(sys->interrupt, data);
+        heimdall_cond_wait(&sys->wait_data, &sys->lock);
+        heimdall_interrupt_forward_stop(data);
     }
 
     offset = sys->stream_offset % sys->buffer_size;
@@ -338,8 +339,8 @@ static ssize_t Read(stream_t *stream, void *buf, size_t buflen)
 
     memcpy(buf, sys->buffer + offset, copy);
     sys->stream_offset += copy;
-    vlc_cond_signal(&sys->wait_space);
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_cond_signal(&sys->wait_space);
+    heimdall_mutex_unlock(&sys->lock);
     return copy;
 }
 
@@ -363,72 +364,72 @@ static int Control(stream_t *stream, int query, va_list args)
             break;
         case STREAM_GET_SIZE:
             if (sys->size == (uint64_t)-1)
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             *va_arg(args, uint64_t *) = sys->size;
             break;
         case STREAM_GET_MTIME:
             if (sys->mtime == (uint64_t)-1)
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             *va_arg(args, uint64_t *) = sys->mtime;
             break;
         case STREAM_GET_PTS_DELAY:
-            *va_arg(args, vlc_tick_t *) = sys->pts_delay;
+            *va_arg(args, heimdall_tick_t *) = sys->pts_delay;
             break;
         case STREAM_GET_TITLE_INFO:
         case STREAM_GET_TITLE:
         case STREAM_GET_SEEKPOINT:
         case STREAM_GET_META:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         case STREAM_GET_CONTENT_TYPE:
             if (sys->content_type == NULL)
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             *va_arg(args, char **) = strdup(sys->content_type);
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         case STREAM_GET_SIGNAL:
         case STREAM_GET_TAGS:
         case STREAM_GET_TYPE:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         case STREAM_SET_PAUSE_STATE:
         {
             bool paused = va_arg(args, unsigned);
 
-            vlc_mutex_lock(&sys->lock);
+            heimdall_mutex_lock(&sys->lock);
             sys->paused = paused;
-            vlc_cond_signal(&sys->wait_space);
-            vlc_mutex_unlock (&sys->lock);
+            heimdall_cond_signal(&sys->wait_space);
+            heimdall_mutex_unlock (&sys->lock);
             break;
         }
         case STREAM_SET_TITLE:
         case STREAM_SET_SEEKPOINT:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         case STREAM_SET_PRIVATE_ID_STATE:
         {
             struct stream_ctrl *ctrl = malloc(sizeof (*ctrl)), **pp;
             if (unlikely(ctrl == NULL))
-                return VLC_ENOMEM;
+                return HEIMDALL_ENOMEM;
 
             ctrl->next = NULL;
             ctrl->query = query;
             ctrl->id_state.id = va_arg(args, int);
             ctrl->id_state.state = va_arg(args, int);
-            vlc_mutex_lock(&sys->lock);
+            heimdall_mutex_lock(&sys->lock);
             for (pp = &sys->controls; *pp != NULL; pp = &((*pp)->next));
             *pp = ctrl;
-            vlc_cond_signal(&sys->wait_space);
-            vlc_mutex_unlock(&sys->lock);
+            heimdall_cond_signal(&sys->wait_space);
+            heimdall_mutex_unlock(&sys->lock);
             break;
         }
         case STREAM_SET_PRIVATE_ID_CA:
         case STREAM_GET_PRIVATE_ID_STATE:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         default:
             msg_Err(stream, "unimplemented query (%d) in control", query);
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int Open(vlc_object_t *obj)
+static int Open(heimdall_object_t *obj)
 {
     stream_t *stream = (stream_t *)obj;
 
@@ -436,32 +437,32 @@ static int Open(vlc_object_t *obj)
      * caching/prefetching. Also, prefetching with this module could cause
      * undesirable high load at start-up. Lastly, local files may require
      * support for title/seekpoint and meta control requests. */
-    if (vlc_stream_CanFastSeek(stream->s))
-        return VLC_EGENERIC;
+    if (heimdall_stream_CanFastSeek(stream->s))
+        return HEIMDALL_EGENERIC;
 
     /* PID-filtered streams are not suitable for prefetching, as they would
      * suffer excessive latency to enable a PID. DVB would also require support
      * for the signal level and Conditional Access controls.
      * TODO? For seekable streams, a forced could work around the problem. */
-    if (vlc_stream_GetPrivateIdState(stream->s, 0, &(bool){false}) ==
-        VLC_SUCCESS)
-        return VLC_EGENERIC;
+    if (heimdall_stream_GetPrivateIdState(stream->s, 0, &(bool){false}) ==
+        HEIMDALL_SUCCESS)
+        return HEIMDALL_EGENERIC;
 
     stream_sys_t *sys = malloc(sizeof (*sys));
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    sys->can_seek = vlc_stream_CanSeek(stream->s);
-    sys->can_pause = vlc_stream_CanPause(stream->s);
-    sys->can_pace = vlc_stream_CanPace(stream->s);
+    sys->can_seek = heimdall_stream_CanSeek(stream->s);
+    sys->can_pause = heimdall_stream_CanPause(stream->s);
+    sys->can_pace = heimdall_stream_CanPace(stream->s);
 
-    if (vlc_stream_GetSize(stream->s, &sys->size) != VLC_SUCCESS)
+    if (heimdall_stream_GetSize(stream->s, &sys->size) != HEIMDALL_SUCCESS)
         sys->size = -1;
-    if (vlc_stream_GetMTime(stream->s, &sys->mtime) != VLC_SUCCESS)
+    if (heimdall_stream_GetMTime(stream->s, &sys->mtime) != HEIMDALL_SUCCESS)
         sys->mtime = -1;
 
-    sys->pts_delay = vlc_stream_GetPtsDelay(stream->s);
-    if (vlc_stream_GetContentType(stream->s, &sys->content_type) != VLC_SUCCESS)
+    sys->pts_delay = heimdall_stream_GetPtsDelay(stream->s);
+    if (heimdall_stream_GetContentType(stream->s, &sys->content_type) != HEIMDALL_SUCCESS)
         sys->content_type = NULL;
 
     sys->eof = false;
@@ -485,19 +486,19 @@ static int Open(vlc_object_t *obj)
     if (sys->buffer == NULL)
         goto error;
 
-    sys->interrupt = vlc_interrupt_create();
+    sys->interrupt = heimdall_interrupt_create();
     if (unlikely(sys->interrupt == NULL))
         goto error;
 
-    vlc_mutex_init(&sys->lock);
-    vlc_cond_init(&sys->wait_data);
-    vlc_cond_init(&sys->wait_space);
+    heimdall_mutex_init(&sys->lock);
+    heimdall_cond_init(&sys->wait_data);
+    heimdall_cond_init(&sys->wait_space);
 
     stream->p_sys = sys;
 
-    if (vlc_clone(&sys->thread, Thread, stream))
+    if (heimdall_clone(&sys->thread, Thread, stream))
     {
-        vlc_interrupt_destroy(sys->interrupt);
+        heimdall_interrupt_destroy(sys->interrupt);
         goto error;
     }
 
@@ -505,31 +506,31 @@ static int Open(vlc_object_t *obj)
     stream->pf_read = Read;
     stream->pf_seek = Seek;
     stream->pf_control = Control;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     free(sys->buffer);
     free(sys->content_type);
     free(sys);
-    return VLC_ENOMEM;
+    return HEIMDALL_ENOMEM;
 }
 
 
 /**
  * Releases allocate resources.
  */
-static void Close (vlc_object_t *obj)
+static void Close (heimdall_object_t *obj)
 {
     stream_t *stream = (stream_t *)obj;
     stream_sys_t *sys = stream->p_sys;
 
-    vlc_mutex_lock(&sys->lock);
-    vlc_interrupt_kill(sys->interrupt);
-    vlc_cond_signal(&sys->wait_space);
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
+    heimdall_interrupt_kill(sys->interrupt);
+    heimdall_cond_signal(&sys->wait_space);
+    heimdall_mutex_unlock(&sys->lock);
 
-    vlc_join(sys->thread, NULL);
-    vlc_interrupt_destroy(sys->interrupt);
+    heimdall_join(sys->thread, NULL);
+    heimdall_interrupt_destroy(sys->interrupt);
 
     while(sys->controls)
     {
@@ -542,7 +543,7 @@ static void Close (vlc_object_t *obj)
     free(sys);
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_subcategory(SUBCAT_INPUT_STREAM_FILTER)
     set_capability("stream_filter", 0)
 
@@ -556,4 +557,4 @@ vlc_module_begin()
     add_integer("prefetch-seek-threshold", 1 << 14, N_("Seek threshold"),
                 N_("Prefetch forward seek threshold (bytes)"))
         change_integer_range(0, UINT64_C(1) << 60)
-vlc_module_end()
+heimdall_module_end()

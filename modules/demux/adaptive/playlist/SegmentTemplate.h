@@ -2,6 +2,7 @@
  * SegmentTemplate.cpp: Implement the UrlTemplate element.
  *****************************************************************************
  * Copyright (C) 1998-2007 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Hugo Beauzée-Luyssen <hugo@beauzee.fr>
  *
@@ -53,20 +54,20 @@ namespace adaptive
                 SegmentTemplate( SegmentTemplateSegment *, SegmentInformation * = nullptr );
                 virtual ~SegmentTemplate();
                 void setSourceUrl( const std::string &url );
-                uint64_t getLiveTemplateNumber(vlc_tick_t, bool = true) const;
-                void pruneByPlaybackTime(vlc_tick_t);
+                uint64_t getLiveTemplateNumber(heimdall_tick_t, bool = true) const;
+                void pruneByPlaybackTime(heimdall_tick_t);
                 size_t pruneBySequenceNumber(uint64_t);
 
-                vlc_tick_t getMinAheadTime(uint64_t curnum) const override;
+                heimdall_tick_t getMinAheadTime(uint64_t curnum) const override;
                 Segment * getMediaSegment(uint64_t number) const override;
                 Segment * getNextMediaSegment(uint64_t, uint64_t *, bool *) const override;
                 uint64_t getStartSegmentNumber() const override;
 
-                bool getSegmentNumberByTime(vlc_tick_t time, uint64_t *ret) const override;
+                bool getSegmentNumberByTime(heimdall_tick_t time, uint64_t *ret) const override;
                 bool getPlaybackTimeDurationBySegmentNumber(uint64_t number,
-                                            vlc_tick_t *time, vlc_tick_t *duration) const override;
+                                            heimdall_tick_t *time, heimdall_tick_t *duration) const override;
 
-                void debug(vlc_object_t *, int = 0) const override;
+                void debug(heimdall_object_t *, int = 0) const override;
 
             protected:
                 bool getScaledPlaybackTimeDurationBySegmentNumber(uint64_t, stime_t *,

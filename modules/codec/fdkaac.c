@@ -1,7 +1,8 @@
 /*****************************************************************************
- * aac.c: FDK-AAC Encoder plugin for vlc.
+ * aac.c: FDK-AAC Encoder plugin for heimdall.
  *****************************************************************************
  * Copyright (C) 2012 Sergio Ammirata
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Sergio Ammirata <sergio@ammirata.net>
  *
@@ -55,12 +56,12 @@
 
 #include <fdk-aac/aacenc_lib.h>
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
 
-static int OpenEncoder(vlc_object_t *);
+static int OpenEncoder(heimdall_object_t *);
 static void CloseEncoder(encoder_t *);
 
 #define ENC_CFG_PREFIX "sout-fdkaac-"
@@ -102,7 +103,7 @@ static const int pi_aot_values[] = { PROFILE_AAC_LC, PROFILE_AAC_HE, PROFILE_AAC
 static const char *const ppsz_aot_descriptions[] =
 { N_("AAC-LC"), N_("HE-AAC"), N_("HE-AAC-v2"), N_("AAC-LD"), N_("AAC-ELD") };
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname(N_("FDKAAC"))
     set_description(N_("FDK-AAC Audio encoder"))
     set_capability("audio encoder", 150)
@@ -122,7 +123,7 @@ vlc_module_begin ()
     add_integer(ENC_CFG_PREFIX "signaling", SIGNALING_COMPATIBLE, SIGNALING_TEXT,
              SIGNALING_LONGTEXT)
     change_integer_range (0, 2)
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * Local prototypes
@@ -139,7 +140,7 @@ static const char *const ppsz_enc_options[] = {
 typedef struct
 {
     double d_compression_ratio;
-    vlc_tick_t i_pts_last;
+    heimdall_tick_t i_pts_last;
     int i_encoderdelay; /* Samples delay introduced by the profile */
     int i_frame_size;
     int i_maxoutputsize; /* Maximum buffer size for encoded output */
@@ -168,7 +169,7 @@ static const char *fdkaac_error(AACENC_ERROR erraac)
 /*****************************************************************************
  * OpenDecoder: open the encoder.
  *****************************************************************************/
-static int OpenEncoder(vlc_object_t *p_this)
+static int OpenEncoder(heimdall_object_t *p_this)
 {
     encoder_t *p_enc = (encoder_t *)p_this;
 
@@ -176,26 +177,26 @@ static int OpenEncoder(vlc_object_t *p_this)
 
     int i_aot;
     switch (p_enc->fmt_out.i_codec) {
-    case VLC_CODEC_MP4A:
+    case HEIMDALL_CODEC_MP4A:
         i_aot = var_InheritInteger(p_enc, ENC_CFG_PREFIX "profile");
         break;
-    case VLC_FOURCC('l', 'a', 'a', 'c'):
+    case HEIMDALL_FOURCC('l', 'a', 'a', 'c'):
         i_aot = PROFILE_AAC_LC;
         break;
-    case VLC_FOURCC('h', 'a', 'a', 'c'):
+    case HEIMDALL_FOURCC('h', 'a', 'a', 'c'):
         i_aot = PROFILE_AAC_HE;
         break;
-    case VLC_FOURCC('s', 'a', 'a', 'c'):
+    case HEIMDALL_FOURCC('s', 'a', 'a', 'c'):
         i_aot = PROFILE_AAC_HE_v2;
         break;
     default:
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if (p_enc->fmt_in.audio.i_channels != 2)
         if (i_aot == PROFILE_AAC_HE_v2 || i_aot == PROFILE_AAC_ELD) {
             msg_Err(p_enc, "Selected profile %d can only be used with stereo", i_aot);
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
     uint16_t channel_config;
@@ -211,7 +212,7 @@ static int OpenEncoder(vlc_object_t *p_this)
     default:
         msg_Err(p_enc, "we do not support > 8 input channels, this input has %i",
                         p_enc->fmt_in.audio.i_channels);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     p_enc->fmt_in.audio.i_physical_channels = channel_config;
@@ -221,11 +222,11 @@ static int OpenEncoder(vlc_object_t *p_this)
     /* Allocate the memory needed to store the encoder's structure */
     encoder_sys_t *p_sys = (encoder_sys_t *)malloc(sizeof(encoder_sys_t));
     if (unlikely(!p_sys))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     p_enc->p_sys = p_sys;
-    p_enc->fmt_in.i_codec = VLC_CODEC_S16N;
+    p_enc->fmt_in.i_codec = HEIMDALL_CODEC_S16N;
     p_enc->fmt_out.i_cat = AUDIO_ES;
-    p_enc->fmt_out.i_codec = VLC_CODEC_MP4A;
+    p_enc->fmt_out.i_codec = HEIMDALL_CODEC_MP4A;
 
     p_sys->i_pts_last = 0;
 
@@ -234,7 +235,7 @@ static int OpenEncoder(vlc_object_t *p_this)
     if (erraac != AACENC_OK) {
         msg_Err(p_enc, "Unable to open encoder: %s", fdkaac_error(erraac));
         free(p_sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
 #define SET_PARAM(P, V) do { \
@@ -309,7 +310,7 @@ static int OpenEncoder(vlc_object_t *p_this)
         memcpy(p_enc->fmt_out.p_extra, info.confBuf, p_enc->fmt_out.i_extra);
     }
 
-    static const struct vlc_encoder_operations ops =
+    static const struct heimdall_encoder_operations ops =
     {
         .close = CloseEncoder,
         .encode_audio = EncodeAudio,
@@ -321,11 +322,11 @@ static int OpenEncoder(vlc_object_t *p_this)
     msg_Dbg(p_enc, "fmt_out.p_extra = %zu", p_enc->fmt_out.i_extra);
 #endif
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     CloseEncoder(p_enc);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /****************************************************************************
@@ -335,17 +336,17 @@ static block_t *EncodeAudio(encoder_t *p_enc, block_t *p_aout_buf)
 {
     int16_t *p_buffer;
     int i_samples;
-    vlc_tick_t i_pts_out;
+    heimdall_tick_t i_pts_out;
 
     encoder_sys_t *p_sys = p_enc->p_sys;
 
     if (likely(p_aout_buf)) {
         p_buffer = (int16_t *)p_aout_buf->p_buffer;
         i_samples = p_aout_buf->i_nb_samples;
-        i_pts_out = p_aout_buf->i_pts - vlc_tick_from_samples(p_sys->i_encoderdelay,
+        i_pts_out = p_aout_buf->i_pts - heimdall_tick_from_samples(p_sys->i_encoderdelay,
                                                    p_enc->fmt_out.audio.i_rate);
         if (p_sys->i_pts_last == 0)
-            p_sys->i_pts_last = i_pts_out - vlc_tick_from_samples(p_sys->i_frame_size,
+            p_sys->i_pts_last = i_pts_out - heimdall_tick_from_samples(p_sys->i_frame_size,
                                                    p_enc->fmt_out.audio.i_rate);
     } else {
         i_samples = 0;
@@ -416,10 +417,10 @@ static block_t *EncodeAudio(encoder_t *p_enc, block_t *p_aout_buf)
             if (unlikely(i_samples == 0)) {
                 // I only have the numOutBytes so approximate based on compression factor
                 double d_samples_forward = p_sys->d_compression_ratio*(double)out_args.numOutBytes;
-                i_pts_out += (vlc_tick_t)d_samples_forward;
-                p_block->i_length = (vlc_tick_t)d_samples_forward;
+                i_pts_out += (heimdall_tick_t)d_samples_forward;
+                p_block->i_length = (heimdall_tick_t)d_samples_forward;
                 // TODO: It would be more precise (a few microseconds) to use d_samples_forward =
-                // (vlc_tick_t)CLOCK_FREQ * (vlc_tick_t)p_sys->i_frame_size/(vlc_tick_t)p_enc->fmt_out.audio.i_rate
+                // (heimdall_tick_t)CLOCK_FREQ * (heimdall_tick_t)p_sys->i_frame_size/(heimdall_tick_t)p_enc->fmt_out.audio.i_rate
                 // but I am not sure if the lib always outputs a full frame when
                 // emptying the internal buffer in the EOF scenario
             } else {
@@ -428,14 +429,14 @@ static block_t *EncodeAudio(encoder_t *p_enc, block_t *p_aout_buf)
                     // in the library buffer from the prior block
                     double d_samples_delay = (double)p_sys->i_frame_size - (double)out_args.numInSamples /
                                              (double)p_enc->fmt_in.audio.i_channels;
-                    i_pts_out -= vlc_tick_from_samples( d_samples_delay,
+                    i_pts_out -= heimdall_tick_from_samples( d_samples_delay,
                                                    p_enc->fmt_out.audio.i_rate);
-                    p_block->i_length = vlc_tick_from_samples(p_sys->i_frame_size,
+                    p_block->i_length = heimdall_tick_from_samples(p_sys->i_frame_size,
                                 p_enc->fmt_out.audio.i_rate);
                     p_block->i_nb_samples = d_samples_delay;
                     //p_block->i_length = i_pts_out - p_sys->i_pts_last;
                 } else {
-                    vlc_tick_t d_length = vlc_tick_from_samples(out_args.numInSamples,
+                    heimdall_tick_t d_length = heimdall_tick_from_samples(out_args.numInSamples,
                                                     p_enc->fmt_out.audio.i_rate * p_enc->fmt_in.audio.i_channels);
                     i_pts_out += d_length;
                     p_block->i_length = d_length;

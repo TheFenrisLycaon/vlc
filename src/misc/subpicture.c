@@ -2,8 +2,9 @@
  * subpicture.c: Subpicture functions
  *****************************************************************************
  * Copyright (C) 2010 Laurent Aimar <fenrir _AT_ videolan _DOT_ org>
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Laurent Aimar <fenrir _AT_ videolan _DOT_ org>
+ * Authors: Laurent Aimar <fenrir _AT_ lycaria _DOT_ org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -29,9 +30,9 @@
 #endif
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_image.h>
-#include <vlc_subpicture.h>
+#include <heimdall_common.h>
+#include <heimdall_image.h>
+#include <heimdall_subpicture.h>
 #include "subpicture.h"
 
 #include <limits.h>
@@ -54,7 +55,7 @@ subpicture_t *subpicture_New( const subpicture_updater_t *p_upd )
     p_subpic->b_fade     = false;
     p_subpic->b_subtitle = false;
     p_subpic->i_alpha    = 0xFF;
-    vlc_spu_regions_init(&p_subpic->regions);
+    heimdall_spu_regions_init(&p_subpic->regions);
 
     if( p_upd )
     {
@@ -83,7 +84,7 @@ subpicture_t *subpicture_New( const subpicture_updater_t *p_upd )
 
 void subpicture_Delete( subpicture_t *p_subpic )
 {
-    vlc_spu_regions_Clear( &p_subpic->regions );
+    heimdall_spu_regions_Clear( &p_subpic->regions );
 
     if (p_subpic->updater.ops != NULL &&
         p_subpic->updater.ops->destroy != NULL)
@@ -101,29 +102,29 @@ void subpicture_Delete( subpicture_t *p_subpic )
     free( p_subpic );
 }
 
-vlc_render_subpicture *vlc_render_subpicture_New( void )
+heimdall_render_subpicture *heimdall_render_subpicture_New( void )
 {
-    vlc_render_subpicture *p_subpic = malloc( sizeof(*p_subpic) );
+    heimdall_render_subpicture *p_subpic = malloc( sizeof(*p_subpic) );
     if( unlikely(p_subpic == NULL ) )
         return NULL;
-    vlc_vector_init(&p_subpic->regions);
+    heimdall_vector_init(&p_subpic->regions);
     return p_subpic;
 }
 
-void vlc_render_subpicture_Delete( vlc_render_subpicture *p_subpic )
+void heimdall_render_subpicture_Delete( heimdall_render_subpicture *p_subpic )
 {
     struct subpicture_region_rendered *p_region;
-    vlc_vector_foreach(p_region, &p_subpic->regions)
+    heimdall_vector_foreach(p_region, &p_subpic->regions)
     {
         picture_Release( p_region->p_picture );
         free( p_region );
     }
-    vlc_vector_clear( &p_subpic->regions );
+    heimdall_vector_clear( &p_subpic->regions );
     free( p_subpic );
 }
 
-subpicture_t *subpicture_NewFromPicture( vlc_object_t *p_obj,
-                                         picture_t *p_picture, vlc_fourcc_t i_chroma )
+subpicture_t *subpicture_NewFromPicture( heimdall_object_t *p_obj,
+                                         picture_t *p_picture, heimdall_fourcc_t i_chroma )
 {
     /* */
     video_format_t fmt_in = p_picture->format;
@@ -172,7 +173,7 @@ subpicture_t *subpicture_NewFromPicture( vlc_object_t *p_obj,
     p_region->i_x = 0;
     p_region->i_y = 0;
 
-    vlc_spu_regions_push( &p_subpic->regions, p_region );
+    heimdall_spu_regions_push( &p_subpic->regions, p_region );
     return p_subpic;
 }
 
@@ -180,7 +181,7 @@ void subpicture_Update( subpicture_t *p_subpicture,
                         const video_format_t *p_fmt_src,
                         const video_format_t *p_fmt_dst,
                         unsigned display_width, unsigned display_height,
-                        vlc_tick_t i_ts )
+                        heimdall_tick_t i_ts )
 {
     subpicture_updater_t *p_upd = &p_subpicture->updater;
     subpicture_private_t *p_private = p_subpicture->p_private;
@@ -188,7 +189,7 @@ void subpicture_Update( subpicture_t *p_subpicture,
     if (p_upd->ops == NULL)
         return;
 
-    struct vlc_spu_updater_configuration cfg = {
+    struct heimdall_spu_updater_configuration cfg = {
         .current = {
                 .display_width  = display_width,
                 .display_height = display_height,
@@ -254,10 +255,10 @@ void subpicture_region_cache_Invalidate( subpicture_region_t *p_region )
 int subpicture_region_cache_Assign( subpicture_region_t *p_region, picture_t *p_picture )
 {
     subpicture_region_private_t *p_priv = container_of(p_region, subpicture_region_private_t, region);
-    if ( video_format_Copy( &p_priv->fmt, &p_picture->format ) != VLC_SUCCESS )
-        return VLC_EGENERIC;
+    if ( video_format_Copy( &p_priv->fmt, &p_picture->format ) != HEIMDALL_SUCCESS )
+        return HEIMDALL_EGENERIC;
     p_priv->p_picture = p_picture;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static subpicture_region_t * subpicture_region_NewInternal( void )
@@ -276,7 +277,7 @@ static subpicture_region_t * subpicture_region_NewInternal( void )
 
 subpicture_region_t *subpicture_region_New( const video_format_t *p_fmt )
 {
-    assert(p_fmt->i_chroma != VLC_CODEC_TEXT);
+    assert(p_fmt->i_chroma != HEIMDALL_CODEC_TEXT);
     subpicture_region_t *p_region = subpicture_region_NewInternal( );
     if( !p_region )
         return NULL;
@@ -298,7 +299,7 @@ subpicture_region_t *subpicture_region_New( const video_format_t *p_fmt )
         return NULL;
     }
 
-    if ( p_fmt->i_chroma == VLC_CODEC_YUVP || p_fmt->i_chroma == VLC_CODEC_RGBP )
+    if ( p_fmt->i_chroma == HEIMDALL_CODEC_YUVP || p_fmt->i_chroma == HEIMDALL_CODEC_RGBP )
     {
         /* YUVP/RGBP should have a palette */
         if( p_region->p_picture->format.p_palette == NULL )
@@ -327,7 +328,7 @@ subpicture_region_t *subpicture_region_NewText( void )
     if( !p_region )
         return NULL;
 
-    p_region->text_flags |= VLC_SUBPIC_TEXT_FLAG_IS_TEXT;
+    p_region->text_flags |= HEIMDALL_SUBPIC_TEXT_FLAG_IS_TEXT;
 
     video_format_Init( &p_region->fmt, 0 );
     p_region->fmt.transfer = TRANSFER_FUNC_SRGB;
@@ -345,7 +346,7 @@ subpicture_region_t *subpicture_region_ForPicture( picture_t *pic )
         return NULL;
 
     video_format_Copy( &p_region->fmt, &pic->format );
-    if ( pic->format.i_chroma == VLC_CODEC_YUVP || pic->format.i_chroma == VLC_CODEC_RGBP )
+    if ( pic->format.i_chroma == HEIMDALL_CODEC_YUVP || pic->format.i_chroma == HEIMDALL_CODEC_RGBP )
     {
         /* YUVP/RGBP should have a palette */
         if( pic->format.p_palette == NULL )
@@ -386,27 +387,27 @@ void subpicture_region_Delete( subpicture_region_t *p_region )
     free( p_priv );
 }
 
-void vlc_spu_regions_Clear( vlc_spu_regions *regions )
+void heimdall_spu_regions_Clear( heimdall_spu_regions *regions )
 {
     subpicture_region_t *p_head;
-    vlc_spu_regions_foreach(p_head, regions)
+    heimdall_spu_regions_foreach(p_head, regions)
     {
-        vlc_spu_regions_remove( regions, p_head );
+        heimdall_spu_regions_remove( regions, p_head );
         subpicture_region_Delete( p_head );
     }
 }
 
-#include <vlc_filter.h>
+#include <heimdall_filter.h>
 
 unsigned picture_BlendSubpicture(picture_t *dst,
-                                 vlc_blender_t *blend, vlc_render_subpicture *src)
+                                 heimdall_blender_t *blend, heimdall_render_subpicture *src)
 {
     unsigned done = 0;
 
     assert(src);
 
     struct subpicture_region_rendered *r;
-    vlc_vector_foreach(r, &src->regions) {
+    heimdall_vector_foreach(r, &src->regions) {
         assert(r->p_picture);
 
         if (filter_ConfigureBlend(blend, dst->format.i_width,

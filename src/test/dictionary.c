@@ -1,8 +1,9 @@
 
 /*****************************************************************************
- * dictionary.c: Tests for vlc_dictionary_t
+ * dictionary.c: Tests for heimdall_dictionary_t
  *****************************************************************************
  * Copyright (C) 2007 Pierre d'Herbemont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -26,16 +27,16 @@
 #undef NDEBUG
 #include <assert.h>
 
-#include <vlc_common.h>
-#include "vlc_arrays.h"
+#include <heimdall_common.h>
+#include "heimdall_arrays.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 
-static void test_dictionary_validity (vlc_dictionary_t * p_dict, const char ** our_keys, int size )
+static void test_dictionary_validity (heimdall_dictionary_t * p_dict, const char ** our_keys, int size )
 {
     /* Test values and keys now */
-    char ** keys = vlc_dictionary_all_keys( p_dict );
+    char ** keys = heimdall_dictionary_all_keys( p_dict );
     intptr_t i, j;
 
     assert( keys );
@@ -57,7 +58,7 @@ static void test_dictionary_validity (vlc_dictionary_t * p_dict, const char ** o
     free( keys );
 
     for( i = 0; i < size; i++ )
-        assert( vlc_dictionary_value_for_key( p_dict, our_keys[i] ) == (void *)i );
+        assert( heimdall_dictionary_value_for_key( p_dict, our_keys[i] ) == (void *)i );
 }
 
 int main (void)
@@ -69,13 +70,13 @@ int main (void)
     char ** keys;
     intptr_t i = 0;
 
-    vlc_dictionary_t dict;
-    vlc_dictionary_init( &dict, 0 );
+    heimdall_dictionary_t dict;
+    heimdall_dictionary_init( &dict, 0 );
 
-    assert( vlc_dictionary_keys_count( &dict ) == 0 );
-    assert( vlc_dictionary_is_empty( &dict ) );
+    assert( heimdall_dictionary_keys_count( &dict ) == 0 );
+    assert( heimdall_dictionary_is_empty( &dict ) );
 
-    keys = vlc_dictionary_all_keys( &dict );
+    keys = heimdall_dictionary_all_keys( &dict );
     assert( keys && !keys[0] );
     free(keys);
 
@@ -83,22 +84,22 @@ int main (void)
     /* Insert some values */
     for( i = 0; i < size; i++ )
     {
-        vlc_dictionary_insert( &dict, our_keys[i], (void *)i );
-        assert( vlc_dictionary_has_key(&dict, our_keys[i]) );
+        heimdall_dictionary_insert( &dict, our_keys[i], (void *)i );
+        assert( heimdall_dictionary_has_key(&dict, our_keys[i]) );
         for( int j = i + 1; j < size; j++ )
-            assert( !vlc_dictionary_has_key(&dict, our_keys[j]) );
+            assert( !heimdall_dictionary_has_key(&dict, our_keys[j]) );
     }
 
-    assert( !vlc_dictionary_is_empty( &dict ) );
+    assert( !heimdall_dictionary_is_empty( &dict ) );
     test_dictionary_validity( &dict, our_keys, size );
 
-    vlc_dictionary_remove_value_for_key( &dict, our_keys[size-1], NULL, NULL );
+    heimdall_dictionary_remove_value_for_key( &dict, our_keys[size-1], NULL, NULL );
 
     test_dictionary_validity( &dict, our_keys, size-1 );
 
-    vlc_dictionary_clear( &dict, NULL, NULL );
+    heimdall_dictionary_clear( &dict, NULL, NULL );
 
-    assert( vlc_dictionary_keys_count( &dict ) == 0 );
-    assert( vlc_dictionary_is_empty( &dict ) );
+    assert( heimdall_dictionary_keys_count( &dict ) == 0 );
+    assert( heimdall_dictionary_is_empty( &dict ) );
     return 0;
 }

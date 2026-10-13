@@ -2,6 +2,7 @@
  * text_style.c
  *****************************************************************************
  * Copyright (C) 1999-2010 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: basOS G <noxelia 4t gmail , com>
  *
@@ -24,8 +25,8 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_text_style.h>
+#include <heimdall_common.h>
+#include <heimdall_text_style.h>
 
 #include <ctype.h>
 
@@ -473,7 +474,7 @@ text_segment_t *text_segment_Copy( text_segment_t *p_src )
     return p_dst0;
 }
 
-unsigned int vlc_html_color( const char *psz_value, bool* ok )
+unsigned int heimdall_html_color( const char *psz_value, bool* ok )
 {
     unsigned int color = 0;
     char* psz_end;

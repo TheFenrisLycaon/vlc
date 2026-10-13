@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,11 +21,11 @@ import QtQuick
 import QtQuick.Layouts
 import QtQml.Models
 
-import VLC.MainInterface
-import VLC.MediaLibrary
+import Heimdall.MainInterface
+import Heimdall.MediaLibrary
 
-import VLC.Widgets as Widgets
-import VLC.Style
+import Heimdall.Widgets as Widgets
+import Heimdall.Style
 
 Widgets.PageLoader {
     id: root

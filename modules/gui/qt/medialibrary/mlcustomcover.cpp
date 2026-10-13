@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2022 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Prince Gupta <guptaprince8832@gmail.com>
  *
@@ -97,7 +98,7 @@ CoverData fromQuery(const QUrlQuery &query, QString *error)
 
         CoverData data;
         data.id.id = intValue(ID_KEY);
-        data.id.type = static_cast<vlc_ml_parent_type>(intValue(TYPE_KEY));
+        data.id.type = static_cast<heimdall_ml_parent_type>(intValue(TYPE_KEY));
         data.size.setWidth(intValue(WIDTH_KEY));
         data.size.setHeight(intValue(HEIGHT_KEY));
         data.countX = intValue(COUNTX_KEY);
@@ -123,40 +124,40 @@ struct ThumbnailList
     QStringList existing;
 };
 
-QStringList getGenreMediaThumbnails(vlc_medialibrary_t* p_ml, const int count, const int64_t id)
+QStringList getGenreMediaThumbnails(heimdall_medialibrary_t* p_ml, const int count, const int64_t id)
 {
     QStringList thumbnails;
 
-    vlc_ml_query_params_t params = vlc_ml_query_params_create();
+    heimdall_ml_query_params_t params = heimdall_ml_query_params_create();
 
     // NOTE: We retrieve twice the count to maximize our chances to get a valid thumbnail.
     params.i_nbResults = count * 2;
 
-    ml_unique_ptr<vlc_ml_album_list_t> list(vlc_ml_list_genre_albums(p_ml, &params, id));
+    ml_unique_ptr<heimdall_ml_album_list_t> list(heimdall_ml_list_genre_albums(p_ml, &params, id));
 
-    thumbnailCopy(ml_range_iterate<vlc_ml_album_t>(list), std::back_inserter(thumbnails), count);
+    thumbnailCopy(ml_range_iterate<heimdall_ml_album_t>(list), std::back_inserter(thumbnails), count);
 
     return thumbnails;
 }
 
-ThumbnailList extractChildMediaThumbnailsOrIDs(vlc_medialibrary_t *p_ml, const int count, const MLItemId &itemID)
+ThumbnailList extractChildMediaThumbnailsOrIDs(heimdall_medialibrary_t *p_ml, const int count, const MLItemId &itemID)
 {
     ThumbnailList result;
 
-    vlc_ml_query_params_t params = vlc_ml_query_params_create();
+    heimdall_ml_query_params_t params = heimdall_ml_query_params_create();
 
     // NOTE: We retrieve twice the count to maximize our chances to get a valid thumbnail.
     params.i_nbResults = count * 2;
 
-    ml_unique_ptr<vlc_ml_media_list_t> list(vlc_ml_list_media_of(p_ml, &params, itemID.type, itemID.id));
+    ml_unique_ptr<heimdall_ml_media_list_t> list(heimdall_ml_list_media_of(p_ml, &params, itemID.type, itemID.id));
 
-    for (const auto &media : ml_range_iterate<vlc_ml_media_t>(list))
+    for (const auto &media : ml_range_iterate<heimdall_ml_media_t>(list))
     {
-        const bool isThumbnailAvailable = (media.thumbnails[VLC_ML_THUMBNAIL_SMALL].i_status == VLC_ML_THUMBNAIL_STATUS_AVAILABLE);
+        const bool isThumbnailAvailable = (media.thumbnails[HEIMDALL_ML_THUMBNAIL_SMALL].i_status == HEIMDALL_ML_THUMBNAIL_STATUS_AVAILABLE);
         if (isThumbnailAvailable)
         {
-            result.existing.push_back(toValidLocalFile(media.thumbnails[VLC_ML_THUMBNAIL_SMALL].psz_mrl));
-        } else if (media.i_type == VLC_ML_MEDIA_TYPE_VIDEO)
+            result.existing.push_back(toValidLocalFile(media.thumbnails[HEIMDALL_ML_THUMBNAIL_SMALL].psz_mrl));
+        } else if (media.i_type == HEIMDALL_ML_MEDIA_TYPE_VIDEO)
         {
             result.toGenerate.insert(media.i_id);
         }
@@ -229,9 +230,9 @@ private:
 
         m_taskId1 = ml->runOnMLThread<ThumbnailList>(this,
             //ML thread (get child thumbnails or ids)
-            [itemId = data.id, thumbnailCount](vlc_medialibrary_t *p_ml, ThumbnailList &ctx)
+            [itemId = data.id, thumbnailCount](heimdall_medialibrary_t *p_ml, ThumbnailList &ctx)
             {
-                if (itemId.type == VLC_ML_PARENT_GENRE)
+                if (itemId.type == HEIMDALL_ML_PARENT_GENRE)
                     ctx.existing = getGenreMediaThumbnails(p_ml, thumbnailCount, itemId.id);
                 else
                     ctx = extractChildMediaThumbnailsOrIDs(p_ml, thumbnailCount, itemId);
@@ -270,7 +271,7 @@ private:
         m_taskId2 = ml->runOnMLThread<Context>(this,
             //ML thread
             [data = this->data, thumbnails]
-            (vlc_medialibrary_t * , Context & ctx)
+            (heimdall_medialibrary_t * , Context & ctx)
             {
                 CoverGenerator generator;
                 generator.setCountX(data.countX);

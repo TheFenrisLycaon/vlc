@@ -4,6 +4,7 @@
  */
 /*****************************************************************************
  * Copyright © 2021 Niklas Haas
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -24,8 +25,8 @@
 # include <config.h>
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
 
 #include <libplacebo/vulkan.h>
 
@@ -33,28 +34,28 @@
 #include "instance.h"
 #include "utils.h"
 
-struct vlc_placebo_system_t {
-    vlc_vk_platform_t *platform;
+struct heimdall_placebo_system_t {
+    heimdall_vk_platform_t *platform;
     VkSurfaceKHR surface;
     pl_vk_inst instance;
     pl_vulkan vulkan;
 };
 
-static void CloseInstance(vlc_placebo_t *pl);
-static const struct vlc_placebo_operations instance_opts =
+static void CloseInstance(heimdall_placebo_t *pl);
+static const struct heimdall_placebo_operations instance_opts =
 {
     .close = CloseInstance,
 };
 
-static int InitInstance(vlc_placebo_t *pl, const vout_display_cfg_t *cfg)
+static int InitInstance(heimdall_placebo_t *pl, const vout_display_cfg_t *cfg)
 {
-    vlc_placebo_system_t *sys = pl->sys =
-        vlc_obj_calloc(VLC_OBJECT(pl), 1, sizeof (*sys));
+    heimdall_placebo_system_t *sys = pl->sys =
+        heimdall_obj_calloc(HEIMDALL_OBJECT(pl), 1, sizeof (*sys));
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     char *platform_name = var_InheritString(pl, "vk-platform");
-    sys->platform = vlc_vk_platform_Create(cfg->window, platform_name);
+    sys->platform = heimdall_vk_platform_Create(cfg->window, platform_name);
     free(platform_name);
     if (!sys->platform)
         goto error;
@@ -70,13 +71,13 @@ static int InitInstance(vlc_placebo_t *pl, const vout_display_cfg_t *cfg)
     if (!sys->instance)
         goto error;
 
-    vlc_vk_instance_t inst = {
+    heimdall_vk_instance_t inst = {
         .instance = sys->instance->instance,
         .get_proc_address = sys->instance->get_proc_addr,
     };
 
     // Create the platform-specific surface object
-    if (vlc_vk_CreateSurface(sys->platform, &inst, &sys->surface) != VLC_SUCCESS)
+    if (heimdall_vk_CreateSurface(sys->platform, &inst, &sys->surface) != HEIMDALL_SUCCESS)
         goto error;
 
     // Create vulkan device
@@ -107,34 +108,34 @@ static int InitInstance(vlc_placebo_t *pl, const vout_display_cfg_t *cfg)
 
     pl->gpu = sys->vulkan->gpu;
     pl->ops = &instance_opts;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     CloseInstance(pl);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
-static void CloseInstance(vlc_placebo_t *pl)
+static void CloseInstance(heimdall_placebo_t *pl)
 {
-    vlc_placebo_system_t *sys = pl->sys;
+    heimdall_placebo_system_t *sys = pl->sys;
 
     pl_swapchain_destroy(&pl->swapchain);
 
     if (sys->surface) {
-        vlc_vk_instance_t inst = {
+        heimdall_vk_instance_t inst = {
             .instance = sys->instance->instance,
             .get_proc_address = sys->instance->get_proc_addr,
         };
-        vlc_vk_DestroySurface(&inst, sys->surface);
+        heimdall_vk_DestroySurface(&inst, sys->surface);
     }
 
     pl_vulkan_destroy(&sys->vulkan);
     pl_vk_inst_destroy(&sys->instance);
 
     if (sys->platform != NULL)
-        vlc_vk_platform_Release(sys->platform);
+        heimdall_vk_platform_Release(sys->platform);
 
-    vlc_obj_free(VLC_OBJECT(pl), sys);
+    heimdall_obj_free(HEIMDALL_OBJECT(pl), sys);
     pl->sys = NULL;
 }
 
@@ -146,7 +147,7 @@ static void CloseInstance(vlc_placebo_t *pl)
 #define DEBUG_LONGTEXT "This loads the vulkan standard validation layers, which can help catch API usage errors. Comes at a small performance penalty."
 
 #define DEVICE_TEXT "Device name override"
-#define DEVICE_LONGTEXT "If set to something non-empty, only a device with this exact name will be used. To see a list of devices and their names, run vlc -v with this module active."
+#define DEVICE_LONGTEXT "If set to something non-empty, only a device with this exact name will be used. To see a list of devices and their names, run heimdall -v with this module active."
 
 #define ALLOWSW_TEXT "Allow software devices"
 #define ALLOWSW_LONGTEXT "If enabled, allow the use of software emulation devices, which are not real devices and therefore typically very slow. (This option has no effect if forcing a specific device name)"
@@ -161,7 +162,7 @@ static void CloseInstance(vlc_placebo_t *pl)
 #define QUEUE_COUNT_LONGTEXT "How many queues to use on the device. Increasing this might improve rendering throughput for GPUs capable of concurrent scheduling. Increasing this past the driver's limit has no effect."
 
 #define QUEUE_DEPTH_TEXT "Maximum frame latency"
-#define QUEUE_DEPTH_LONGTEXT "Affects how many frames to render/present in advance. Increasing this can improve performance at the cost of latency, by allowing better pipelining between frames. May have no effect, depending on the VLC clock settings."
+#define QUEUE_DEPTH_LONGTEXT "Affects how many frames to render/present in advance. Increasing this can improve performance at the cost of latency, by allowing better pipelining between frames. May have no effect, depending on the Heimdall clock settings."
 
 static const int present_values[] = {
     VK_PRESENT_MODE_IMMEDIATE_KHR,
@@ -178,9 +179,9 @@ static const char * const present_text[] = {
 };
 
 #define PRESENT_MODE_TEXT "Preferred present mode"
-#define PRESENT_MODE_LONGTEXT "Which present mode to use when creating the swapchain. If the chosen mode is not supported, VLC will fall back to using FIFO."
+#define PRESENT_MODE_LONGTEXT "Which present mode to use when creating the swapchain. If the chosen mode is not supported, Heimdall will fall back to using FIFO."
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname("libplacebo Vulkan")
     set_description(N_("Vulkan-based GPU instance"))
     set_subcategory(SUBCAT_VIDEO_VOUT)
@@ -207,4 +208,4 @@ vlc_module_begin()
     add_integer("vk-present-mode", VK_PRESENT_MODE_FIFO_KHR,
             PRESENT_MODE_TEXT, PRESENT_MODE_LONGTEXT)
             change_integer_list(present_values, present_text)
-vlc_module_end()
+heimdall_module_end()

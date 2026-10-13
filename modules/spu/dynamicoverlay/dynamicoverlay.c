@@ -1,7 +1,8 @@
 /*****************************************************************************
- * dynamicoverlay.c : dynamic overlay plugin for vlc
+ * dynamicoverlay.c : dynamic overlay plugin for heimdall
  *****************************************************************************
  * Copyright (C) 2007 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Søren Bøg <avacore@videolan.org>
  *
@@ -27,13 +28,13 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_sout.h>
-#include <vlc_vout.h>
-#include <vlc_filter.h>
-#include <vlc_fs.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_sout.h>
+#include <heimdall_vout.h>
+#include <heimdall_filter.h>
+#include <heimdall_fs.h>
 
 #include <ctype.h>
 #include <fcntl.h>
@@ -47,10 +48,10 @@
  *****************************************************************************/
 static int Create( filter_t * );
 static void Destroy( filter_t * );
-static subpicture_t *Filter( filter_t *, vlc_tick_t );
+static subpicture_t *Filter( filter_t *, heimdall_tick_t );
 
-static int AdjustCallback( vlc_object_t *p_this, char const *psz_var,
-                           vlc_value_t oldval, vlc_value_t newval,
+static int AdjustCallback( heimdall_object_t *p_this, char const *psz_var,
+                           heimdall_value_t oldval, heimdall_value_t newval,
                            void *p_data );
 
 /*****************************************************************************
@@ -63,7 +64,7 @@ static int AdjustCallback( vlc_object_t *p_this, char const *psz_var,
 #define OUTPUT_TEXT N_("Output FIFO")
 #define OUTPUT_LONGTEXT N_("FIFO which will be written to for responses")
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("Dynamic video overlay") )
     set_shortname( N_("Overlay" ))
     set_subcategory( SUBCAT_VIDEO_VFILTER )
@@ -74,13 +75,13 @@ vlc_module_begin ()
 
     add_shortcut( "overlay" )
     set_callback_sub_source( Create, 0 )
-vlc_module_end ()
+heimdall_module_end ()
 
 static const char *const ppsz_filter_options[] = {
     "input", "output", NULL
 };
 
-static const struct vlc_filter_operations filter_ops = {
+static const struct heimdall_filter_operations filter_ops = {
     .source_sub = Filter, .close = Destroy,
 };
 
@@ -96,7 +97,7 @@ static int Create( filter_t *p_filter )
     /* Allocate structure */
     p_filter->p_sys = malloc( sizeof( filter_sys_t ) );
     if( p_filter->p_sys == NULL )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     p_sys = p_filter->p_sys;
 
     BufferInit( &p_sys->input );
@@ -104,13 +105,13 @@ static int Create( filter_t *p_filter )
     QueueInit( &p_sys->atomic );
     QueueInit( &p_sys->pending );
     QueueInit( &p_sys->processed );
-    vlc_vector_init( &p_sys->overlays );
+    heimdall_vector_init( &p_sys->overlays );
 
     p_sys->i_inputfd = -1;
     p_sys->i_outputfd = -1;
     p_sys->b_updated = true;
     p_sys->b_atomic = false;
-    vlc_mutex_init( &p_sys->lock );
+    heimdall_mutex_init( &p_sys->lock );
 
     p_filter->ops = &filter_ops;
 
@@ -126,7 +127,7 @@ static int Create( filter_t *p_filter )
     var_AddCallback( p_filter, "overlay-output", AdjustCallback, p_sys );
 
     RegisterCommand( p_filter );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -144,11 +145,11 @@ static void Destroy( filter_t *p_filter )
     QueueDestroy( &p_sys->pending );
     QueueDestroy( &p_sys->processed );
     overlay_t *p_cur;
-    vlc_vector_foreach(p_cur, &p_sys->overlays)
+    heimdall_vector_foreach(p_cur, &p_sys->overlays)
     {
         OverlayDestroy( p_cur );
     }
-    vlc_vector_destroy( &p_sys->overlays );
+    heimdall_vector_destroy( &p_sys->overlays );
     UnregisterCommand( p_filter );
 
     var_DelCallback( p_filter, "overlay-input", AdjustCallback, p_sys );
@@ -166,19 +167,19 @@ static void Destroy( filter_t *p_filter )
  * waits until it is displayed and switch the two rendering buffers, preparing
  * next frame.
  *****************************************************************************/
-static subpicture_t *Filter( filter_t *p_filter, vlc_tick_t date )
+static subpicture_t *Filter( filter_t *p_filter, heimdall_tick_t date )
 {
     filter_sys_t *p_sys = p_filter->p_sys;
 
     /* We might need to open these at any time. */
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     if( p_sys->i_inputfd == -1 )
     {
-        p_sys->i_inputfd = vlc_open( p_sys->psz_inputfile, O_RDONLY | O_NONBLOCK );
+        p_sys->i_inputfd = heimdall_open( p_sys->psz_inputfile, O_RDONLY | O_NONBLOCK );
         if( p_sys->i_inputfd == -1 )
         {
             msg_Warn( p_filter, "Failed to grab input file: %s (%s)",
-                      p_sys->psz_inputfile, vlc_strerror_c(errno) );
+                      p_sys->psz_inputfile, heimdall_strerror_c(errno) );
         }
         else
         {
@@ -189,14 +190,14 @@ static subpicture_t *Filter( filter_t *p_filter, vlc_tick_t date )
 
     if( p_sys->i_outputfd == -1 )
     {
-        p_sys->i_outputfd = vlc_open( p_sys->psz_outputfile,
+        p_sys->i_outputfd = heimdall_open( p_sys->psz_outputfile,
                                   O_WRONLY | O_NONBLOCK );
         if( p_sys->i_outputfd == -1 )
         {
             if( errno != ENXIO )
             {
                 msg_Warn( p_filter, "Failed to grab output file: %s (%s)",
-                          p_sys->psz_outputfile, vlc_strerror_c(errno) );
+                          p_sys->psz_outputfile, heimdall_strerror_c(errno) );
             }
         }
         else
@@ -205,7 +206,7 @@ static subpicture_t *Filter( filter_t *p_filter, vlc_tick_t date )
                       p_sys->psz_outputfile );
         }
     }
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 
     /* Read any waiting commands */
     if( p_sys->i_inputfd != -1 )
@@ -218,8 +219,8 @@ static subpicture_t *Filter( filter_t *p_filter, vlc_tick_t date )
             if( errno != EAGAIN )
             {
                 msg_Warn( p_filter, "Error on input file: %s",
-                          vlc_strerror_c(errno) );
-                vlc_close( p_sys->i_inputfd );
+                          heimdall_strerror_c(errno) );
+                heimdall_close( p_sys->i_inputfd );
                 p_sys->i_inputfd = -1;
             }
         }
@@ -261,7 +262,7 @@ static subpicture_t *Filter( filter_t *p_filter, vlc_tick_t date )
         {
             /* No matching command */
             msg_Err( p_filter, "Got invalid command: %s", p_cmd );
-            BufferPrintf( &p_sys->output, "FAILURE: %d Invalid Command\n", VLC_EGENERIC );
+            BufferPrintf( &p_sys->output, "FAILURE: %d Invalid Command\n", HEIMDALL_EGENERIC );
         }
         else
         {
@@ -298,7 +299,7 @@ static subpicture_t *Filter( filter_t *p_filter, vlc_tick_t date )
     /* Output any processed commands */
     while( (p_command = QueueDequeue( &p_sys->processed )) )
     {
-        if( p_command->i_status == VLC_SUCCESS )
+        if( p_command->i_status == HEIMDALL_SUCCESS )
         {
             const char *psz_success = "SUCCESS:";
             const char *psz_nl = "\n";
@@ -317,7 +318,7 @@ static subpicture_t *Filter( filter_t *p_filter, vlc_tick_t date )
     /* Try emptying the output buffer */
     if( p_sys->i_outputfd != -1 )
     {
-        ssize_t i_len = vlc_write( p_sys->i_outputfd, p_sys->output.p_begin,
+        ssize_t i_len = heimdall_write( p_sys->i_outputfd, p_sys->output.p_begin,
                                    p_sys->output.i_length );
         if( i_len == -1 )
         {
@@ -325,8 +326,8 @@ static subpicture_t *Filter( filter_t *p_filter, vlc_tick_t date )
             if( errno != EAGAIN )
             {
                 msg_Warn( p_filter, "Error on output file: %s",
-                          vlc_strerror_c(errno) );
-                vlc_close( p_sys->i_outputfd );
+                          heimdall_strerror_c(errno) );
+                heimdall_close( p_sys->i_outputfd );
                 p_sys->i_outputfd = -1;
             }
         }
@@ -347,10 +348,10 @@ static subpicture_t *Filter( filter_t *p_filter, vlc_tick_t date )
         return NULL;
 
     p_spu->i_start = date;
-    p_spu->i_stop = VLC_TICK_INVALID;
+    p_spu->i_stop = HEIMDALL_TICK_INVALID;
     p_spu->b_ephemer = true;
 
-    vlc_vector_foreach(p_overlay, &p_sys->overlays)
+    heimdall_vector_foreach(p_overlay, &p_sys->overlays)
     {
         if (!p_overlay->b_active || p_overlay->type == OVERLAY_UNSET)
             continue;
@@ -382,21 +383,21 @@ static subpicture_t *Filter( filter_t *p_filter, vlc_tick_t date )
         p_region->b_absolute = true; p_region->b_in_window = false;
         p_region->i_align = SUBPICTURE_ALIGN_LEFT | SUBPICTURE_ALIGN_TOP;
         p_region->i_alpha = p_overlay->i_alpha;
-        vlc_spu_regions_push( &p_spu->regions, p_region );
+        heimdall_spu_regions_push( &p_spu->regions, p_region );
     }
 
     p_sys->b_updated = false;
     return p_spu;
 }
 
-static int AdjustCallback( vlc_object_t *p_this, char const *psz_var,
-                           vlc_value_t oldval, vlc_value_t newval,
+static int AdjustCallback( heimdall_object_t *p_this, char const *psz_var,
+                           heimdall_value_t oldval, heimdall_value_t newval,
                            void *p_data )
 {
     filter_sys_t *p_sys = p_data;
-    VLC_UNUSED(p_this); VLC_UNUSED(oldval);
+    HEIMDALL_UNUSED(p_this); HEIMDALL_UNUSED(oldval);
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     if( !strncmp( psz_var, "overlay-input", 13 ) )
     {
         free( p_sys->psz_inputfile );
@@ -407,7 +408,7 @@ static int AdjustCallback( vlc_object_t *p_this, char const *psz_var,
         free( p_sys->psz_outputfile );
         p_sys->psz_outputfile = strdup( newval.psz_string );
     }
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }

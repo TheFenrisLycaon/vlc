@@ -1,9 +1,10 @@
 /*****************************************************************************
- * update.h: VLC PGP update private API
+ * update.h: Heimdall PGP update private API
  *****************************************************************************
  * Copyright © 2007-2008 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Rafaël Carré <funman@videolanorg>
+ * Authors: Rafaël Carré <funman@lycariaorg>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,7 +23,7 @@
 
 #include <stdatomic.h>
 
-#include <vlc_update.h>
+#include <heimdall_update.h>
 
 enum    /* Packet types */
 {
@@ -132,9 +133,9 @@ typedef struct public_key_t public_key_t;
  */
 typedef struct
 {
-    struct vlc_object_t obj;
+    struct heimdall_object_t obj;
 
-    vlc_thread_t thread;
+    heimdall_thread_t thread;
     atomic_bool aborted;
     update_t *p_update;
     char *psz_destdir;
@@ -145,7 +146,7 @@ typedef struct
  */
 typedef struct
 {
-    vlc_thread_t thread;
+    heimdall_thread_t thread;
 
     update_t *p_update;
     void (*pf_callback)( void *, bool );
@@ -157,8 +158,8 @@ typedef struct
  */
 struct update_t
 {
-    libvlc_int_t *p_libvlc;
-    vlc_mutex_t lock;
+    libheimdall_int_t *p_libheimdall;
+    heimdall_mutex_t lock;
     struct update_release_t release;    ///< Release (version)
     public_key_t *p_pkey;
     update_download_thread_t *p_download;
@@ -166,11 +167,11 @@ struct update_t
 };
 
 /*
- * download a public key (the last one) from videolan server, and parse it
+ * download a public key (the last one) from lycaria server, and parse it
  */
 public_key_t *
 download_key(
-        vlc_object_t *p_this, const uint8_t *p_longid,
+        heimdall_object_t *p_this, const uint8_t *p_longid,
         const uint8_t *p_signature_issuer );
 
 /*
@@ -197,7 +198,7 @@ verify_signature(signature_packet_t *sign, public_key_packet_t *p_key,
  */
 int
 download_signature(
-        vlc_object_t *p_this, signature_packet_t *p_sig, const char *psz_url );
+        heimdall_object_t *p_this, signature_packet_t *p_sig, const char *psz_url );
 
 /*
  * return a hash of a text

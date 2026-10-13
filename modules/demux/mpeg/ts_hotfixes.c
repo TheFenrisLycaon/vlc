@@ -2,6 +2,7 @@
  * ts_hotfixes.c : MPEG PMT/PAT less streams fixups
  *****************************************************************************
  * Copyright (C) 2014-2016 - VideoLAN Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -20,9 +21,9 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_demux.h>
-#include <vlc_es.h>
+#include <heimdall_common.h>
+#include <heimdall_demux.h>
+#include <heimdall_es.h>
 
 #ifndef _DVBPSI_DVBPSI_H_
  #include <dvbpsi/dvbpsi.h>
@@ -65,7 +66,7 @@ void ProbePES( demux_t *p_demux, ts_pid_t *pid, const block_t *p_pkt )
 
     ts_pes_header_t pesh;
     ts_pes_header_init( &pesh );
-    if( ParsePESHeader( NULL, p_pes, i_data, &pesh ) != VLC_SUCCESS )
+    if( ParsePESHeader( NULL, p_pes, i_data, &pesh ) != HEIMDALL_SUCCESS )
         return;
 
     if( pesh.i_dts != TS_90KHZ_INVALID )
@@ -84,12 +85,12 @@ void ProbePES( demux_t *p_demux, ts_pid_t *pid, const block_t *p_pkt )
     {
         if( !memcmp( p_data, "\x7F\xFE\x80\x01", 4 ) )
         {
-            pid->probed.i_fourcc = VLC_CODEC_DTS;
+            pid->probed.i_fourcc = HEIMDALL_CODEC_DTS;
             pid->probed.i_cat = AUDIO_ES;
         }
         else if( !memcmp( p_data, "\x0B\x77", 2 ) )
         {
-            pid->probed.i_fourcc = VLC_CODEC_EAC3;
+            pid->probed.i_fourcc = HEIMDALL_CODEC_EAC3;
             pid->probed.i_cat = AUDIO_ES;
         }
     }
@@ -100,12 +101,12 @@ void ProbePES( demux_t *p_demux, ts_pid_t *pid, const block_t *p_pkt )
         if( p_data[0] == 0xFF && (p_data[1] & 0xE0) == 0xE0 &&
            (p_data[1] & 0x18) != 0x08 && (p_data[1] & 0x06) != 0x00 )
         {
-            pid->probed.i_fourcc = VLC_CODEC_MPGA;
+            pid->probed.i_fourcc = HEIMDALL_CODEC_MPGA;
         }
         else if( p_data[0] == 0xFF && (p_data[1] & 0xF6) == 0xF0 )
         {
-            pid->probed.i_fourcc = VLC_CODEC_MP4A; /* ADTS */
-            pid->probed.i_original_fourcc = VLC_FOURCC('A','D','T','S');
+            pid->probed.i_fourcc = HEIMDALL_CODEC_MP4A; /* ADTS */
+            pid->probed.i_original_fourcc = HEIMDALL_FOURCC('A','D','T','S');
         }
     }
     /* VIDEO STREAM */
@@ -114,11 +115,11 @@ void ProbePES( demux_t *p_demux, ts_pid_t *pid, const block_t *p_pkt )
         pid->probed.i_cat = VIDEO_ES;
         if( !memcmp( p_data, "\x00\x00\x00\x01", 4 ) )
         {
-            pid->probed.i_fourcc = VLC_CODEC_H264;
+            pid->probed.i_fourcc = HEIMDALL_CODEC_H264;
         }
         else if( !memcmp( p_data, "\x00\x00\x01", 3 ) )
         {
-            pid->probed.i_fourcc = VLC_CODEC_MPGV;
+            pid->probed.i_fourcc = HEIMDALL_CODEC_MPGV;
         }
     }
 
@@ -273,7 +274,7 @@ void MissingPATPMTFixup( demux_t *p_demux )
             es_format_Init(&esstreams[j].fmt, p_pid->probed.i_cat, p_pid->probed.i_fourcc);
             esstreams[j].fmt.i_original_fourcc = p_pid->probed.i_original_fourcc;
 
-            if( VLC_SUCCESS !=
+            if( HEIMDALL_SUCCESS !=
                 FillPMTESParams(mux_standard, &esstreams[j].fmt, &esstreams[j].ts, &esstreams[j].pes ) )
             {
                 es_format_Clean( &esstreams[j].fmt );
@@ -290,7 +291,7 @@ void MissingPATPMTFixup( demux_t *p_demux )
             j++;
         }
 
-        BuildPMT( handle, VLC_OBJECT(p_demux),
+        BuildPMT( handle, HEIMDALL_OBJECT(p_demux),
                  mux_standard,
                 p_program_pid, BuildPMTCallback,
                 0, 1,

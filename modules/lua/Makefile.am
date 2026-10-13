@@ -14,7 +14,7 @@ liblua_plugin_la_SOURCES = \
 	lua/meta.c \
 	lua/stream_filter.c \
 	lua/services_discovery.c \
-	lua/vlc.c lua/vlc.h \
+	lua/heimdall.c lua/heimdall.h \
 	lua/libs.h \
 	lua/libs/configuration.c \
 	lua/libs/equalizer.c \

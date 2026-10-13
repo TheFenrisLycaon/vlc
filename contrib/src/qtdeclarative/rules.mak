@@ -96,7 +96,7 @@ QT_DECLARATIVE_HOSTVARS += CXXFLAGS="$(patsubst -g,,${CXXFLAGS})" CFLAGS="$(pats
 endif
 endif
 
-.qtdeclarative-tools: BUILD_DIR=$</vlc_native
+.qtdeclarative-tools: BUILD_DIR=$</heimdall_native
 .qtdeclarative-tools: qtdeclarative
 	$(CMAKECLEAN)
 	$(BUILDVARS) $(CMAKE_NATIVE) $(QT_DECLARATIVE_NATIVE_CONFIG)

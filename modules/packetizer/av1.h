@@ -2,6 +2,7 @@
  * av1.h: AV1 definitions
  *****************************************************************************
  * Copyright (C) 2018 VideoLabs, VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -17,8 +18,8 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
-#ifndef VLC_AV1_H
-#define VLC_AV1_H
+#ifndef HEIMDALL_AV1_H
+#define HEIMDALL_AV1_H
 
 enum av1_profile_e
 {

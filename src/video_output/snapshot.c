@@ -2,9 +2,10 @@
  * snapshot.c : vout internal snapshot
  *****************************************************************************
  * Copyright (C) 2009 Laurent Aimar
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Gildas Bazin <gbazin _AT_ videolan _DOT_ org>
- *          Laurent Aimar <fenrir _AT_ videolan _DOT_ org>
+ * Authors: Gildas Bazin <gbazin _AT_ lycaria _DOT_ org>
+ *          Laurent Aimar <fenrir _AT_ lycaria _DOT_ org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -30,23 +31,23 @@
 #include <sys/types.h>
 #include <time.h>
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_fs.h>
-#include <vlc_strings.h>
-#include <vlc_block.h>
-#include <vlc_vout.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_fs.h>
+#include <heimdall_strings.h>
+#include <heimdall_block.h>
+#include <heimdall_vout.h>
 
 #include "snapshot.h"
 #include "vout_internal.h"
 
 struct vout_snapshot {
-    vlc_mutex_t lock;
-    vlc_cond_t  wait;
+    heimdall_mutex_t lock;
+    heimdall_cond_t  wait;
 
     bool        is_available;
     int         request_count;
-    vlc_picture_chain_t pics;
+    heimdall_picture_chain_t pics;
 };
 
 vout_snapshot_t *vout_snapshot_New(void)
@@ -55,12 +56,12 @@ vout_snapshot_t *vout_snapshot_New(void)
     if (unlikely(snap == NULL))
         return NULL;
 
-    vlc_mutex_init(&snap->lock);
-    vlc_cond_init(&snap->wait);
+    heimdall_mutex_init(&snap->lock);
+    heimdall_cond_init(&snap->wait);
 
     snap->is_available = true;
     snap->request_count = 0;
-    vlc_picture_chain_Init( &snap->pics );
+    heimdall_picture_chain_Init( &snap->pics );
     return snap;
 }
 
@@ -69,8 +70,8 @@ void vout_snapshot_Destroy(vout_snapshot_t *snap)
     if (snap == NULL)
         return;
 
-    while ( !vlc_picture_chain_IsEmpty( &snap->pics ) ) {
-        picture_t *picture = vlc_picture_chain_PopFront( &snap->pics );
+    while ( !heimdall_picture_chain_IsEmpty( &snap->pics ) ) {
+        picture_t *picture = heimdall_picture_chain_PopFront( &snap->pics );
         picture_Release(picture);
     }
 
@@ -82,37 +83,37 @@ void vout_snapshot_End(vout_snapshot_t *snap)
     if (snap == NULL)
         return;
 
-    vlc_mutex_lock(&snap->lock);
+    heimdall_mutex_lock(&snap->lock);
 
     snap->is_available = false;
 
-    vlc_cond_broadcast(&snap->wait);
-    vlc_mutex_unlock(&snap->lock);
+    heimdall_cond_broadcast(&snap->wait);
+    heimdall_mutex_unlock(&snap->lock);
 }
 
 /* */
-picture_t *vout_snapshot_Get(vout_snapshot_t *snap, vlc_tick_t timeout)
+picture_t *vout_snapshot_Get(vout_snapshot_t *snap, heimdall_tick_t timeout)
 {
     if (snap == NULL)
         return NULL;
 
-    const vlc_tick_t deadline = vlc_tick_now() + timeout;
+    const heimdall_tick_t deadline = heimdall_tick_now() + timeout;
 
-    vlc_mutex_lock(&snap->lock);
+    heimdall_mutex_lock(&snap->lock);
 
     /* */
     snap->request_count++;
 
     /* */
-    while (snap->is_available && vlc_picture_chain_IsEmpty( &snap->pics ) &&
-        vlc_cond_timedwait(&snap->wait, &snap->lock, deadline) == 0);
+    while (snap->is_available && heimdall_picture_chain_IsEmpty( &snap->pics ) &&
+        heimdall_cond_timedwait(&snap->wait, &snap->lock, deadline) == 0);
 
     /* */
-    picture_t *picture = vlc_picture_chain_PopFront( &snap->pics );
+    picture_t *picture = heimdall_picture_chain_PopFront( &snap->pics );
     if (!picture && snap->request_count > 0)
         snap->request_count--;
 
-    vlc_mutex_unlock(&snap->lock);
+    heimdall_mutex_unlock(&snap->lock);
 
     return picture;
 }
@@ -123,9 +124,9 @@ bool vout_snapshot_IsRequested(vout_snapshot_t *snap)
         return false;
 
     bool has_request = false;
-    if (!vlc_mutex_trylock(&snap->lock)) {
+    if (!heimdall_mutex_trylock(&snap->lock)) {
         has_request = snap->request_count > 0;
-        vlc_mutex_unlock(&snap->lock);
+        heimdall_mutex_unlock(&snap->lock);
     }
     return has_request;
 }
@@ -140,7 +141,7 @@ void vout_snapshot_Set(vout_snapshot_t *snap,
     if (!fmt)
         fmt = &picture->format;
 
-    vlc_mutex_lock(&snap->lock);
+    heimdall_mutex_lock(&snap->lock);
     while (snap->request_count > 0) {
         picture_t *dup = picture_Clone(picture);
         if (!dup)
@@ -148,16 +149,16 @@ void vout_snapshot_Set(vout_snapshot_t *snap,
 
         video_format_CopyCrop( &dup->format, fmt );
 
-        vlc_picture_chain_Append( &snap->pics, dup );
+        heimdall_picture_chain_Append( &snap->pics, dup );
         snap->request_count--;
     }
-    vlc_cond_broadcast(&snap->wait);
-    vlc_mutex_unlock(&snap->lock);
+    heimdall_cond_broadcast(&snap->wait);
+    heimdall_mutex_unlock(&snap->lock);
 }
 /* */
 char *vout_snapshot_GetDirectory(void)
 {
-    return config_GetUserDir(VLC_SNAPSHOTS_DIR);
+    return config_GetUserDir(HEIMDALL_SNAPSHOTS_DIR);
 }
 /* */
 int vout_snapshot_SaveImage(char **name, int *sequential,
@@ -175,7 +176,7 @@ int vout_snapshot_SaveImage(char **name, int *sequential,
     if (prefix)
         filename_sanitize(prefix);
     else {
-        prefix = strdup("vlcsnap-");
+        prefix = strdup("heimdallsnap-");
         if (prefix == NULL)
             goto error;
     }
@@ -183,7 +184,7 @@ int vout_snapshot_SaveImage(char **name, int *sequential,
     struct stat st;
     bool b_is_folder = false;
 
-    if ( vlc_stat( cfg->path, &st ) == 0 )
+    if ( heimdall_stat( cfg->path, &st ) == 0 )
         b_is_folder = S_ISDIR( st.st_mode );
     if ( b_is_folder ) {
         if (cfg->is_sequential) {
@@ -193,7 +194,7 @@ int vout_snapshot_SaveImage(char **name, int *sequential,
                     free(prefix);
                     goto error;
                 }
-                if (vlc_stat(filename, &st)) {
+                if (heimdall_stat(filename, &st)) {
                     *sequential = num;
                     break;
                 }
@@ -225,7 +226,7 @@ int vout_snapshot_SaveImage(char **name, int *sequential,
         goto error;
 
     /* Save the snapshot */
-    FILE *file = vlc_fopen(filename, "wb");
+    FILE *file = heimdall_fopen(filename, "wb");
     if (!file) {
         msg_Err(p_vout, "Failed to open '%s'", filename);
         free(filename);
@@ -245,10 +246,10 @@ int vout_snapshot_SaveImage(char **name, int *sequential,
     else
         free(filename);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     msg_Err(p_vout, "could not save snapshot");
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 

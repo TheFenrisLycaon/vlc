@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2022 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Benjamin Arnaud <bunjee@omega.gg>
  *
@@ -20,7 +21,7 @@
 
 import QtQuick
 
-import VLC.MainInterface
+import Heimdall.MainInterface
 
 TracksPage {
     id: root

@@ -4,6 +4,7 @@
  */
 /*****************************************************************************
  * Copyright © 2021 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -20,8 +21,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_RCU_H_
-#define VLC_RCU_H_
+#ifndef HEIMDALL_RCU_H_
+#define HEIMDALL_RCU_H_
 
 #include <stdatomic.h>
 
@@ -54,7 +55,7 @@
  *   - Objects are read with atomic load-acquire.
  *   - Objects are written with atomic store-release.
  * - There are no writer lock and unlock functions. Instead there is a
- *   synchronisation function, vlc_rcu_synchronize(), which waits for all
+ *   synchronisation function, heimdall_rcu_synchronize(), which waits for all
  *   earlier read-side critical sections to complete.
  * - Synchronisation between concurrent writers is not provided. If multiple
  *   writers can race against each other, a separate mutual exclusion lock
@@ -74,7 +75,7 @@
  *
  * \note Read-side RCU critical section can be nested.
  */
-void vlc_rcu_read_lock(void);
+void heimdall_rcu_read_lock(void);
 
 /**
  * Ends a read-side RCU critical section.
@@ -86,9 +87,9 @@ void vlc_rcu_read_lock(void);
  * \note In the case of nested critical sections, this function notionally ends
  * the inner-most critical section. In practice, this makes no differences, as
  * the calling thread remains in a critical section until the number of
- * vlc_rcu_read_unlock() calls equals that of vlc_rcu_read_lock() calls.
+ * heimdall_rcu_read_unlock() calls equals that of heimdall_rcu_read_lock() calls.
  */
-void vlc_rcu_read_unlock(void);
+void heimdall_rcu_read_unlock(void);
 
 /**
  * Checks if the thread is in an read-side RCU critical section.
@@ -100,8 +101,8 @@ void vlc_rcu_read_unlock(void);
  * \retval true the calling thread is in a read-side RCU critical section.
  * \retval false the calling thread is not in a read-side RCU critical section.
  */
-VLC_USED
-bool vlc_rcu_read_held(void);
+HEIMDALL_USED
+bool heimdall_rcu_read_held(void);
 
 /**
  * Waits for completion of earlier read-side RCU critical section.
@@ -110,7 +111,7 @@ bool vlc_rcu_read_held(void);
  * begun before to complete. Then it is safe to release resources associated
  * with the earlier value(s) of any RCU-protected atomic object.
  */
-void vlc_rcu_synchronize(void);
+void heimdall_rcu_synchronize(void);
 
 /** @} */
-#endif /* !VLC_RCU_H_ */
+#endif /* !HEIMDALL_RCU_H_ */

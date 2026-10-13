@@ -2,6 +2,7 @@
  * test.c: test keystore module
  *****************************************************************************
  * Copyright © 2015-2016 VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -21,25 +22,25 @@
 #ifdef HAVE_CONFIG_H
 # include "config.h"
 #endif
-#include <vlc/vlc.h>
+#include <heimdall/heimdall.h>
 
-#include "../../../lib/libvlc_internal.h"
+#include "../../../lib/libheimdall_internal.h"
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_modules.h>
-#include <vlc_interrupt.h>
-#include <vlc_fs.h>
-#include <vlc_keystore.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_modules.h>
+#include <heimdall_interrupt.h>
+#include <heimdall_fs.h>
+#include <heimdall_keystore.h>
 
 #undef NDEBUG
 #include <assert.h>
 
-#include "libvlc/test.h"
+#include "libheimdall/test.h"
 
 /*
  * Build and exec all keystore tests:
- * $ cd vlc/build-<name>/test
+ * $ cd heimdall/build-<name>/test
  * $ make test_modules_keystore
  * $ ./test_modules_keystore -a
  */
@@ -63,20 +64,20 @@ static const struct
 static void
 values_reinit(const char * ppsz_values[KEY_MAX])
 {
-    VLC_KEYSTORE_VALUES_INIT(ppsz_values);
-    ppsz_values[KEY_REALM] = "libVLC TEST";
+    HEIMDALL_KEYSTORE_VALUES_INIT(ppsz_values);
+    ppsz_values[KEY_REALM] = "libHeimdall TEST";
 }
 
 static unsigned int
-ks_find(vlc_keystore *p_keystore, const char *const ppsz_values[KEY_MAX],
+ks_find(heimdall_keystore *p_keystore, const char *const ppsz_values[KEY_MAX],
         const char* psz_cmp_secret)
 {
-    vlc_keystore_entry *p_entries;
-    unsigned int i_entries = vlc_keystore_find(p_keystore, ppsz_values,
+    heimdall_keystore_entry *p_entries;
+    unsigned int i_entries = heimdall_keystore_find(p_keystore, ppsz_values,
                                                &p_entries);
     for (unsigned int i = 0; i < i_entries; ++i)
     {
-        vlc_keystore_entry *p_entry = &p_entries[i];
+        heimdall_keystore_entry *p_entry = &p_entries[i];
         assert(p_entry->p_secret[p_entry->i_secret_len - 1] == '\0');
         assert(strcmp((const char *)p_entry->p_secret, psz_cmp_secret) == 0);
 
@@ -92,24 +93,24 @@ ks_find(vlc_keystore *p_keystore, const char *const ppsz_values[KEY_MAX],
         }
     }
     if (i_entries > 0)
-        vlc_keystore_release_entries(p_entries, i_entries);
+        heimdall_keystore_release_entries(p_entries, i_entries);
     return i_entries;
 }
 
 static unsigned int
-ks_remove(vlc_keystore *p_keystore, const char *const ppsz_values[KEY_MAX])
+ks_remove(heimdall_keystore *p_keystore, const char *const ppsz_values[KEY_MAX])
 {
-    return vlc_keystore_remove(p_keystore, ppsz_values);
+    return heimdall_keystore_remove(p_keystore, ppsz_values);
 }
 
 static void
-ks_store(vlc_keystore *p_keystore, const char *const ppsz_values[KEY_MAX],
+ks_store(heimdall_keystore *p_keystore, const char *const ppsz_values[KEY_MAX],
          const uint8_t* p_secret, size_t i_secret_len)
 {
-    assert(vlc_keystore_store(p_keystore, ppsz_values,
+    assert(heimdall_keystore_store(p_keystore, ppsz_values,
                               (const uint8_t *)p_secret,
                               i_secret_len,
-                              "libVLC TEST") == VLC_SUCCESS);
+                              "libHeimdall TEST") == HEIMDALL_SUCCESS);
 }
 
 static void
@@ -128,18 +129,18 @@ test_module(const char *psz_module, bool b_test_all, bool b_persistent,
 
     printf("\n== Testing %s keystore module ==\n\n", psz_module);
 
-    printf("creating libvlc\n");
-    libvlc_instance_t *p_libvlc = libvlc_new(argc, argv);
-    assert(p_libvlc != NULL);
+    printf("creating libheimdall\n");
+    libheimdall_instance_t *p_libheimdall = libheimdall_new(argc, argv);
+    assert(p_libheimdall != NULL);
 
-    vlc_interrupt_t *ctx = vlc_interrupt_create();
+    heimdall_interrupt_t *ctx = heimdall_interrupt_create();
     assert(ctx != NULL);
 
     printf("creating %s keystore\n", psz_module);
-    vlc_keystore *p_keystore = vlc_keystore_create(p_libvlc->p_libvlc_int);
+    heimdall_keystore *p_keystore = heimdall_keystore_create(p_libheimdall->p_libheimdall_int);
     assert(p_keystore);
 
-    const char *psz_secret = "libvlc test secret";
+    const char *psz_secret = "libheimdall test secret";
     unsigned int i_entries;
     const char *ppsz_values[KEY_MAX];
 
@@ -160,7 +161,7 @@ test_module(const char *psz_module, bool b_test_all, bool b_persistent,
     assert(i_entries == 1);
 
     printf("testing that we can override the secret of a previous entry\n");
-    psz_secret = "libvlc test secret NEW";
+    psz_secret = "libheimdall test secret NEW";
     KS_STORE();
     KS_FIND();
     assert(i_entries == 1);
@@ -188,8 +189,8 @@ test_module(const char *psz_module, bool b_test_all, bool b_persistent,
     if (b_persistent)
     {
         printf("testing that entries are still present after a module unload\n");
-        vlc_keystore_release(p_keystore);
-        p_keystore = vlc_keystore_create(p_libvlc->p_libvlc_int);
+        heimdall_keystore_release(p_keystore);
+        p_keystore = heimdall_keystore_create(p_libheimdall->p_libheimdall_int);
         assert(p_keystore);
         KS_FIND();
         assert(i_entries == 2);
@@ -208,15 +209,15 @@ test_module(const char *psz_module, bool b_test_all, bool b_persistent,
         KS_FIND();
         assert(i_entries == 0);
 
-        vlc_keystore *old_keystore = p_keystore;
-        p_keystore = vlc_keystore_create(p_libvlc->p_libvlc_int);
+        heimdall_keystore *old_keystore = p_keystore;
+        p_keystore = heimdall_keystore_create(p_libheimdall->p_libheimdall_int);
         assert(p_keystore);
 
         KS_STORE();
         KS_FIND();
         assert(i_entries == 1);
 
-        vlc_keystore_release(p_keystore);
+        heimdall_keystore_release(p_keystore);
         p_keystore = old_keystore;
         KS_FIND();
         assert(i_entries == 1);
@@ -289,11 +290,11 @@ test_module(const char *psz_module, bool b_test_all, bool b_persistent,
     KS_FIND();
     assert(i_entries == 0);
 
-    vlc_keystore_release(p_keystore);
+    heimdall_keystore_release(p_keystore);
 
-    vlc_interrupt_destroy(ctx);
+    heimdall_interrupt_destroy(ctx);
 
-    libvlc_release(p_libvlc);
+    libheimdall_release(p_libheimdall);
 }
 
 int
@@ -307,9 +308,9 @@ main(int i_argc, char *ppsz_argv[])
     if (!b_test_all)
         alarm(3);
 
-    /* Create a dummy libvlc to initialize module bank, needed by module_exists */
-    libvlc_instance_t *p_libvlc = libvlc_new(0, NULL);
-    assert(p_libvlc != NULL);
+    /* Create a dummy libheimdall to initialize module bank, needed by module_exists */
+    libheimdall_instance_t *p_libheimdall = libheimdall_new(0, NULL);
+    assert(p_libheimdall != NULL);
 
     for (unsigned int i = 0; i < ARRAY_SIZE(keystore_args); ++i)
     {
@@ -318,38 +319,38 @@ main(int i_argc, char *ppsz_argv[])
         if ((b_test_all || keystore_args[i].b_test_default)
          && module_exists(psz_module))
         {
-            int i_vlc_argc = 1;
-            char *ppsz_vlc_argv[2] = { 0 };
+            int i_heimdall_argc = 1;
+            char *ppsz_heimdall_argv[2] = { 0 };
             int i_tmp_fd = -1;
-            char psz_tmp_path[] = "/tmp/libvlc_XXXXXX";
+            char psz_tmp_path[] = "/tmp/libheimdall_XXXXXX";
 
-            assert(asprintf(&ppsz_vlc_argv[0], "--keystore=%s,none",
+            assert(asprintf(&ppsz_heimdall_argv[0], "--keystore=%s,none",
                    psz_module) != -1);
 
             if (strcmp(psz_module, "file") == 0)
             {
-                assert((i_tmp_fd = vlc_mkstemp(psz_tmp_path)) != -1);
+                assert((i_tmp_fd = heimdall_mkstemp(psz_tmp_path)) != -1);
                 printf("plaintext tmp file: '%s'\n", psz_tmp_path);
-                assert(asprintf(&ppsz_vlc_argv[1],
+                assert(asprintf(&ppsz_heimdall_argv[1],
                        "--keystore-file=%s", psz_tmp_path) != -1);
-                i_vlc_argc++;
+                i_heimdall_argc++;
             }
 
             test_module(psz_module, b_test_all, keystore_args[i].b_persistent,
-                        i_vlc_argc, (const char * const *)ppsz_vlc_argv);
+                        i_heimdall_argc, (const char * const *)ppsz_heimdall_argv);
 
             if (i_tmp_fd != -1)
             {
-                vlc_close(i_tmp_fd);
+                heimdall_close(i_tmp_fd);
                 unlink(psz_tmp_path);
             }
-            free(ppsz_vlc_argv[0]);
-            free(ppsz_vlc_argv[1]);
+            free(ppsz_heimdall_argv[0]);
+            free(ppsz_heimdall_argv[1]);
         }
         else
             printf("not testing %s\n", psz_module);
     }
-    libvlc_release(p_libvlc);
+    libheimdall_release(p_libheimdall);
 
     return 0;
 }

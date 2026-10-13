@@ -1,4 +1,5 @@
 /* Copyright (C)2012 Xiph.Org Foundation
+/* Copyright (C) 2026 TheFenrisLycaon
    File: opus_header.c
 
    Redistribution and use in source and binary forms, with or without
@@ -34,8 +35,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <vlc_common.h>
-#include <vlc_codec.h>
+#include <heimdall_common.h>
+#include <heimdall_codec.h>
 #include "../demux/xiph.h"
 
 /* Header contents:
@@ -407,7 +408,7 @@ int opus_write_header(uint8_t **p_extra, size_t *i_extra, OpusHeader *header, co
     if (!comments)
         return 1;
     if (comment_add(&comments, &comments_length, "ENCODER=",
-                    "VLC media player"))
+                    "Heimdall media player"))
     {
         free(comments);
         return 1;

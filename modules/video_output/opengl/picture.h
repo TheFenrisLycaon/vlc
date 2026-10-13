@@ -2,6 +2,7 @@
  * picture.h
  *****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -18,22 +19,22 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_GL_PICTURE_PRIV_H
-#define VLC_GL_PICTURE_PRIV_H
+#ifndef HEIMDALL_GL_PICTURE_PRIV_H
+#define HEIMDALL_GL_PICTURE_PRIV_H
 
 #ifdef HAVE_CONFIG_H
 # include "config.h"
 #endif
 
-#include <vlc_es.h>
-#include <vlc_picture.h>
-#include <vlc_opengl_picture.h>
+#include <heimdall_es.h>
+#include <heimdall_picture.h>
+#include <heimdall_opengl_picture.h>
 #include "gl_common.h"
 
 /**
  * Format of an OpenGL picture
  */
-struct vlc_gl_format {
+struct heimdall_gl_format {
     video_format_t fmt;
 
     GLenum tex_target;

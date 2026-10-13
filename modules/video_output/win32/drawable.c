@@ -1,9 +1,10 @@
 /**
  * @file drawable.c
- * @brief Legacy monolithic LibVLC video window provider
+ * @brief Legacy monolithic LibHeimdall video window provider
  */
 /*****************************************************************************
  * Copyright © 2009 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -27,9 +28,9 @@
 #include <stdarg.h>
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_window.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_window.h>
 #include "../wasync_resize_compressor.h"
 
 #include <windows.h>
@@ -39,13 +40,13 @@
     "Video will be embedded in this pre-existing window. " \
     "If zero, a new window will be created.")
 
-static int Open(vlc_window_t *);
-static void Close(vlc_window_t *);
+static int Open(heimdall_window_t *);
+static void Close(heimdall_window_t *);
 
 /*
  * Module descriptor
  */
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname (N_("Drawable"))
     set_description (N_("Embedded window video"))
     set_subcategory (SUBCAT_VIDEO_VOUT)
@@ -55,21 +56,21 @@ vlc_module_begin ()
 
     add_integer ("drawable-hwnd", 0, HWND_TEXT, HWND_LONGTEXT)
         change_volatile ()
-vlc_module_end ()
+heimdall_module_end ()
 
 /* Keep a list of busy drawables, so we don't overlap videos if there are
  * more than one video track in the stream. */
-static vlc_mutex_t serializer = VLC_STATIC_MUTEX;
+static heimdall_mutex_t serializer = HEIMDALL_STATIC_MUTEX;
 static HWND *used = NULL;
 
-static const struct vlc_window_operations ops = {
+static const struct heimdall_window_operations ops = {
     .destroy = Close,
 };
 
 #define RECTWidth(r)   (LONG)((r).right - (r).left)
 #define RECTHeight(r)  (LONG)((r).bottom - (r).top)
 
-static const TCHAR *EMBED_HWND_CLASS = TEXT("VLC embedded HWND");
+static const TCHAR *EMBED_HWND_CLASS = TEXT("Heimdall embedded HWND");
 
 struct drawable_sys
 {
@@ -78,7 +79,7 @@ struct drawable_sys
 
     WNDPROC prev_proc;
 
-    vlc_wasync_resize_compressor_t compressor;
+    heimdall_wasync_resize_compressor_t compressor;
 };
 
 static LRESULT CALLBACK WinVoutEventProc(HWND hwnd, UINT message,
@@ -98,7 +99,7 @@ static LRESULT CALLBACK WinVoutEventProc(HWND hwnd, UINT message,
             {
                 sys->rect_parent = clientRect;
 
-                vlc_wasync_resize_compressor_reportSize(&sys->compressor,
+                heimdall_wasync_resize_compressor_reportSize(&sys->compressor,
                                                         RECTWidth(sys->rect_parent),
                                                         RECTHeight(sys->rect_parent));
             }
@@ -113,7 +114,7 @@ static void RemoveDrawable(HWND val)
     size_t n = 0;
 
     /* Remove this drawable from the list of busy ones */
-    vlc_mutex_lock (&serializer);
+    heimdall_mutex_lock (&serializer);
     assert (used != NULL);
     while (used[n] != val)
     {
@@ -129,60 +130,60 @@ static void RemoveDrawable(HWND val)
         free (used);
         used = NULL;
     }
-    vlc_mutex_unlock (&serializer);
+    heimdall_mutex_unlock (&serializer);
 }
 
 /**
- * Find the drawable set by libvlc application.
+ * Find the drawable set by libheimdall application.
  */
-static int Open(vlc_window_t *wnd)
+static int Open(heimdall_window_t *wnd)
 {
     uintptr_t drawable = var_InheritInteger (wnd, "drawable-hwnd");
     if (drawable == 0)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     HWND val = (HWND)drawable;
 
     HWND *tab;
     size_t n = 0;
 
-    vlc_mutex_lock (&serializer);
+    heimdall_mutex_lock (&serializer);
     if (used != NULL)
         for (/*n = 0*/; used[n]; n++)
             if (used[n] == val)
             {
                 msg_Warn (wnd, "HWND 0x%p is busy", (void*)val);
-                vlc_mutex_unlock (&serializer);
-                return VLC_EGENERIC;
+                heimdall_mutex_unlock (&serializer);
+                return HEIMDALL_EGENERIC;
             }
 
     tab = realloc (used, sizeof (*used) * (n + 2));
     if (unlikely(tab == NULL)) {
-        vlc_mutex_unlock (&serializer);
-        return VLC_ENOMEM;
+        heimdall_mutex_unlock (&serializer);
+        return HEIMDALL_ENOMEM;
     }
     used = tab;
     used[n] = val;
     used[n + 1] = 0;
 
-    vlc_mutex_unlock (&serializer);
+    heimdall_mutex_unlock (&serializer);
 
-    struct drawable_sys *sys = vlc_obj_calloc(VLC_OBJECT(wnd), 1, sizeof(*sys));
+    struct drawable_sys *sys = heimdall_obj_calloc(HEIMDALL_OBJECT(wnd), 1, sizeof(*sys));
     if (unlikely(sys == NULL)) {
         RemoveDrawable(val);
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     sys->embed_hwnd = val;
 
-    if (vlc_wasync_resize_compressor_init(&sys->compressor, wnd))
+    if (heimdall_wasync_resize_compressor_init(&sys->compressor, wnd))
     {
         msg_Err(wnd, "Failed to init async resize compressor");
         RemoveDrawable(val);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     GetClientRect(val, &sys->rect_parent);
-    vlc_wasync_resize_compressor_reportSize(&sys->compressor,
+    heimdall_wasync_resize_compressor_reportSize(&sys->compressor,
                                             RECTWidth(sys->rect_parent),
                                             RECTHeight(sys->rect_parent));
 
@@ -190,17 +191,17 @@ static int Open(vlc_window_t *wnd)
     SetProp(val, EMBED_HWND_CLASS, sys);
     SetWindowLongPtr(val, GWLP_WNDPROC, (LONG_PTR) WinVoutEventProc);
 
-    wnd->type = VLC_WINDOW_TYPE_HWND;
+    wnd->type = HEIMDALL_WINDOW_TYPE_HWND;
     wnd->handle.hwnd = (void *)val;
     wnd->ops = &ops;
     wnd->sys = sys;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /**
  * Release the drawable.
  */
-static void Close (vlc_window_t *wnd)
+static void Close (heimdall_window_t *wnd)
 {
     struct drawable_sys *sys = wnd->sys;
 
@@ -208,7 +209,7 @@ static void Close (vlc_window_t *wnd)
     SetWindowLongPtr(sys->embed_hwnd, GWLP_WNDPROC, (LONG_PTR) sys->prev_proc);
     RemoveProp(sys->embed_hwnd, EMBED_HWND_CLASS);
 
-    vlc_wasync_resize_compressor_destroy(&sys->compressor);
+    heimdall_wasync_resize_compressor_destroy(&sys->compressor);
 
     RemoveDrawable(sys->embed_hwnd);
 }

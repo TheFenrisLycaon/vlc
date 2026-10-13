@@ -1,7 +1,8 @@
 /*****************************************************************************
- * media_discoverer.c: libvlc new API media discoverer functions
+ * media_discoverer.c: libheimdall new API media discoverer functions
  *****************************************************************************
  * Copyright (C) 2007 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Pierre d'Herbemont <pdherbemont # videolan.org>
  *
@@ -26,24 +27,24 @@
 
 #include <assert.h>
 
-#include <vlc/libvlc.h>
-#include <vlc/libvlc_picture.h>
-#include <vlc/libvlc_media.h>
-#include <vlc/libvlc_media_list.h>
-#include <vlc/libvlc_media_discoverer.h>
+#include <heimdall/libheimdall.h>
+#include <heimdall/libheimdall_picture.h>
+#include <heimdall/libheimdall_media.h>
+#include <heimdall/libheimdall_media_list.h>
+#include <heimdall/libheimdall_media_discoverer.h>
 
-#include <vlc_services_discovery.h>
+#include <heimdall_services_discovery.h>
 
-#include "libvlc_internal.h"
-#include "media_internal.h" // libvlc_media_new_from_input_item()
-#include "media_list_internal.h" // libvlc_media_list_internal_add_media()
+#include "libheimdall_internal.h"
+#include "media_internal.h" // libheimdall_media_new_from_input_item()
+#include "media_list_internal.h" // libheimdall_media_list_internal_add_media()
 
-struct libvlc_media_discoverer_t
+struct libheimdall_media_discoverer_t
 {
-    libvlc_instance_t *      p_libvlc_instance;
+    libheimdall_instance_t *      p_libheimdall_instance;
     services_discovery_t *   p_sd;
-    libvlc_media_list_t *    p_mlist;
-    const struct libvlc_media_discoverer_cbs *cbs;
+    libheimdall_media_list_t *    p_mlist;
+    const struct libheimdall_media_discoverer_cbs *cbs;
     void *                   cbs_opaque;
     char                     name[];
 };
@@ -53,74 +54,74 @@ struct libvlc_media_discoverer_t
  */
 
 /**************************************************************************
- *       services_discovery_item_added (Private) (VLC event callback)
+ *       services_discovery_item_added (Private) (Heimdall event callback)
  **************************************************************************/
 
 static void services_discovery_item_added( services_discovery_t *sd,
                                            input_item_t *parent,
                                            input_item_t *p_item )
 {
-    libvlc_media_discoverer_t *p_mdis = sd->owner.sys;
-    libvlc_media_list_t * p_mlist = p_mdis->p_mlist;
+    libheimdall_media_discoverer_t *p_mdis = sd->owner.sys;
+    libheimdall_media_list_t * p_mlist = p_mdis->p_mlist;
 
-    libvlc_media_t *p_md = libvlc_media_new_from_input_item( p_item );
+    libheimdall_media_t *p_md = libheimdall_media_new_from_input_item( p_item );
     if (p_md == NULL)
         return;
 
-    libvlc_media_t *parent_media = parent != NULL
-                                 ? input_item_GetLibvlcOwner( parent ) : NULL;
+    libheimdall_media_t *parent_media = parent != NULL
+                                 ? input_item_GetLibheimdallOwner( parent ) : NULL;
 
-    libvlc_media_list_lock( p_mlist );
-    libvlc_media_list_internal_add_media( p_mlist, p_md );
-    libvlc_media_list_unlock( p_mlist );
+    libheimdall_media_list_lock( p_mlist );
+    libheimdall_media_list_internal_add_media( p_mlist, p_md );
+    libheimdall_media_list_unlock( p_mlist );
 
     if( p_mdis->cbs != NULL && p_mdis->cbs->on_media_added != NULL )
         p_mdis->cbs->on_media_added( p_mdis->cbs_opaque, parent_media, p_md );
 
-    libvlc_media_release( p_md );
+    libheimdall_media_release( p_md );
 }
 
 /**************************************************************************
- *       services_discovery_item_removed (Private) (VLC event callback)
+ *       services_discovery_item_removed (Private) (Heimdall event callback)
  **************************************************************************/
 
 static void services_discovery_item_removed( services_discovery_t *sd,
                                              input_item_t *p_item )
 {
-    libvlc_media_t * p_md;
-    libvlc_media_discoverer_t *p_mdis = sd->owner.sys;
+    libheimdall_media_t * p_md;
+    libheimdall_media_discoverer_t *p_mdis = sd->owner.sys;
 
-    libvlc_media_list_lock( p_mdis->p_mlist );
-    int count = libvlc_media_list_count( p_mdis->p_mlist );
+    libheimdall_media_list_lock( p_mdis->p_mlist );
+    int count = libheimdall_media_list_count( p_mdis->p_mlist );
     for( int i = 0; i < count; i++ )
     {
-        p_md = libvlc_media_list_item_at_index( p_mdis->p_mlist, i );
+        p_md = libheimdall_media_list_item_at_index( p_mdis->p_mlist, i );
         assert(p_md != NULL);
-        if( p_md == input_item_GetLibvlcOwner( p_item ) )
+        if( p_md == input_item_GetLibheimdallOwner( p_item ) )
         {
-            libvlc_media_list_internal_remove_index( p_mdis->p_mlist, i );
-            libvlc_media_list_unlock( p_mdis->p_mlist );
+            libheimdall_media_list_internal_remove_index( p_mdis->p_mlist, i );
+            libheimdall_media_list_unlock( p_mdis->p_mlist );
 
             if( p_mdis->cbs != NULL && p_mdis->cbs->on_media_removed != NULL )
                 p_mdis->cbs->on_media_removed( p_mdis->cbs_opaque, p_md );
-            libvlc_media_release( p_md );
+            libheimdall_media_release( p_md );
             return;
         }
-        libvlc_media_release( p_md );
+        libheimdall_media_release( p_md );
     }
-    vlc_assert_unreachable();
+    heimdall_assert_unreachable();
 }
 
 /*
- * Public libvlc functions
+ * Public libheimdall functions
  */
 
 /**************************************************************************
  *       new (Public)
  **************************************************************************/
-libvlc_media_discoverer_t *
-libvlc_media_discoverer_new( libvlc_instance_t * p_inst, const char * psz_name,
-                             const struct libvlc_media_discoverer_cbs *cbs,
+libheimdall_media_discoverer_t *
+libheimdall_media_discoverer_new( libheimdall_instance_t * p_inst, const char * psz_name,
+                             const struct libheimdall_media_discoverer_cbs *cbs,
                              void *cbs_opaque )
 {
     /* No different versions to handle for now */
@@ -130,23 +131,23 @@ libvlc_media_discoverer_new( libvlc_instance_t * p_inst, const char * psz_name,
     if( !strncasecmp( psz_name, "podcast", 7 ) )
         return NULL;
 
-    libvlc_media_discoverer_t *p_mdis;
+    libheimdall_media_discoverer_t *p_mdis;
 
     p_mdis = malloc(sizeof(*p_mdis) + strlen(psz_name) + 1);
     if( unlikely(p_mdis == NULL) )
     {
-        libvlc_printerr( "Not enough memory" );
+        libheimdall_printerr( "Not enough memory" );
         return NULL;
     }
 
-    p_mdis->p_libvlc_instance = p_inst;
-    p_mdis->p_mlist = libvlc_media_list_new();
+    p_mdis->p_libheimdall_instance = p_inst;
+    p_mdis->p_mlist = libheimdall_media_list_new();
     p_mdis->p_mlist->b_read_only = true;
     p_mdis->p_sd = NULL;
     p_mdis->cbs = cbs;
     p_mdis->cbs_opaque = cbs_opaque;
 
-    libvlc_retain( p_inst );
+    libheimdall_retain( p_inst );
     strcpy( p_mdis->name, psz_name );
     return p_mdis;
 }
@@ -159,8 +160,8 @@ static const struct services_discovery_callbacks sd_cbs = {
 /**************************************************************************
  *       start (Public)
  **************************************************************************/
-LIBVLC_API int
-libvlc_media_discoverer_start( libvlc_media_discoverer_t * p_mdis )
+LIBHEIMDALL_API int
+libheimdall_media_discoverer_start( libheimdall_media_discoverer_t * p_mdis )
 {
     struct services_discovery_owner_t owner = {
         &sd_cbs,
@@ -168,11 +169,11 @@ libvlc_media_discoverer_start( libvlc_media_discoverer_t * p_mdis )
     };
 
     /* Here we go */
-    p_mdis->p_sd = vlc_sd_Create( VLC_OBJECT(p_mdis->p_libvlc_instance->p_libvlc_int),
+    p_mdis->p_sd = heimdall_sd_Create( HEIMDALL_OBJECT(p_mdis->p_libheimdall_instance->p_libheimdall_int),
                                   p_mdis->name, &owner );
     if( p_mdis->p_sd == NULL )
     {
-        libvlc_printerr( "%s: no such discovery module found", p_mdis->name );
+        libheimdall_printerr( "%s: no such discovery module found", p_mdis->name );
         return -1;
     }
 
@@ -182,10 +183,10 @@ libvlc_media_discoverer_start( libvlc_media_discoverer_t * p_mdis )
 /**************************************************************************
  *       stop (Public)
  **************************************************************************/
-LIBVLC_API void
-libvlc_media_discoverer_stop( libvlc_media_discoverer_t * p_mdis )
+LIBHEIMDALL_API void
+libheimdall_media_discoverer_stop( libheimdall_media_discoverer_t * p_mdis )
 {
-    vlc_sd_Destroy( p_mdis->p_sd );
+    heimdall_sd_Destroy( p_mdis->p_sd );
     p_mdis->p_sd = NULL;
 }
 
@@ -194,14 +195,14 @@ libvlc_media_discoverer_stop( libvlc_media_discoverer_t * p_mdis )
  **************************************************************************/
 
 void
-libvlc_media_discoverer_destroy( libvlc_media_discoverer_t * p_mdis )
+libheimdall_media_discoverer_destroy( libheimdall_media_discoverer_t * p_mdis )
 {
     if( p_mdis->p_sd != NULL )
-        libvlc_media_discoverer_stop( p_mdis );
+        libheimdall_media_discoverer_stop( p_mdis );
 
-    libvlc_media_list_release( p_mdis->p_mlist );
+    libheimdall_media_list_release( p_mdis->p_mlist );
 
-    libvlc_release( p_mdis->p_libvlc_instance );
+    libheimdall_release( p_mdis->p_libheimdall_instance );
 
     free( p_mdis );
 }
@@ -209,13 +210,13 @@ libvlc_media_discoverer_destroy( libvlc_media_discoverer_t * p_mdis )
 /**************************************************************************
  * running (Public)
  **************************************************************************/
-bool libvlc_media_discoverer_is_running(libvlc_media_discoverer_t * p_mdis)
+bool libheimdall_media_discoverer_is_running(libheimdall_media_discoverer_t * p_mdis)
 {
     return p_mdis->p_sd != NULL;
 }
 
 void
-libvlc_media_discoverer_list_release( libvlc_media_discoverer_description_t **pp_services,
+libheimdall_media_discoverer_list_release( libheimdall_media_discoverer_description_t **pp_services,
                                       size_t i_count )
 {
     if( i_count > 0 )
@@ -231,29 +232,29 @@ libvlc_media_discoverer_list_release( libvlc_media_discoverer_description_t **pp
 }
 
 size_t
-libvlc_media_discoverer_list_get( libvlc_instance_t *p_inst,
-                                  libvlc_media_discoverer_category_t i_cat,
-                                  libvlc_media_discoverer_description_t ***ppp_services )
+libheimdall_media_discoverer_list_get( libheimdall_instance_t *p_inst,
+                                  libheimdall_media_discoverer_category_t i_cat,
+                                  libheimdall_media_discoverer_description_t ***ppp_services )
 {
     assert( p_inst != NULL && ppp_services != NULL );
 
     int i_core_cat;
     switch( i_cat )
     {
-    case libvlc_media_discoverer_devices:
+    case libheimdall_media_discoverer_devices:
         i_core_cat = SD_CAT_DEVICES;
         break;
-    case libvlc_media_discoverer_lan:
+    case libheimdall_media_discoverer_lan:
         i_core_cat = SD_CAT_LAN;
         break;
-    case libvlc_media_discoverer_podcasts:
+    case libheimdall_media_discoverer_podcasts:
         i_core_cat = SD_CAT_INTERNET;
         break;
-    case libvlc_media_discoverer_localdirs:
+    case libheimdall_media_discoverer_localdirs:
         i_core_cat = SD_CAT_MYCOMPUTER;
         break;
     default:
-        vlc_assert_unreachable();
+        heimdall_assert_unreachable();
         *ppp_services = NULL;
         return 0;
     }
@@ -261,7 +262,7 @@ libvlc_media_discoverer_list_get( libvlc_instance_t *p_inst,
     /* Fetch all sd names, longnames and categories */
     char **ppsz_names, **ppsz_longnames;
     int *p_categories;
-    ppsz_names = vlc_sd_GetNames( p_inst->p_libvlc_int, &ppsz_longnames,
+    ppsz_names = heimdall_sd_GetNames( p_inst->p_libheimdall_int, &ppsz_longnames,
                                   &p_categories );
 
     if( ppsz_names == NULL )
@@ -280,7 +281,7 @@ libvlc_media_discoverer_list_get( libvlc_instance_t *p_inst,
             i_nb_services++;
     }
 
-    libvlc_media_discoverer_description_t **pp_services = NULL, *p_services = NULL;
+    libheimdall_media_discoverer_description_t **pp_services = NULL, *p_services = NULL;
     if( i_nb_services > 0 )
     {
         /* Double alloc here, so that the caller iterates through pointers of
@@ -288,9 +289,9 @@ libvlc_media_discoverer_list_get( libvlc_instance_t *p_inst,
          * without breaking the API. */
 
         pp_services = malloc( i_nb_services
-                              * sizeof(libvlc_media_discoverer_description_t *) );
+                              * sizeof(libheimdall_media_discoverer_description_t *) );
         p_services = malloc( i_nb_services
-                             * sizeof(libvlc_media_discoverer_description_t) );
+                             * sizeof(libheimdall_media_discoverer_description_t) );
         if( pp_services == NULL || p_services == NULL )
         {
             free( pp_services );
@@ -299,7 +300,7 @@ libvlc_media_discoverer_list_get( libvlc_instance_t *p_inst,
             p_services = NULL;
             i_nb_services = 0;
             /* Even if alloc fails, the next loop must be run in order to free
-             * names returned by vlc_sd_GetNames */
+             * names returned by heimdall_sd_GetNames */
         }
     }
 
@@ -308,7 +309,7 @@ libvlc_media_discoverer_list_get( libvlc_instance_t *p_inst,
     ppsz_name = ppsz_names;
     p_category = p_categories;
     unsigned int i_service_idx = 0;
-    libvlc_media_discoverer_description_t *p_service = p_services;
+    libheimdall_media_discoverer_description_t *p_service = p_services;
     for( ; *ppsz_name != NULL; ppsz_name++, ppsz_longname++, p_category++ )
     {
         if( pp_services != NULL && *p_category == i_core_cat )

@@ -2,6 +2,7 @@
  * interop_asurface.c: OpenGL Android Surface interop
  *****************************************************************************
  * Copyright (C) 2016 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -26,8 +27,8 @@
 # error this file must be built from android
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
 #include "interop.h"
 #include "../android/utils.h"
 #include "gl_api.h"
@@ -39,7 +40,7 @@ struct priv
     const float *transform_mtx;
 
     bool stex_attached;
-    struct vlc_asurfacetexture *previous_texture;
+    struct heimdall_asurfacetexture *previous_texture;
     picture_t *current_picture;
 
     struct {
@@ -81,17 +82,17 @@ ReductMatrix(float *mtx_2x3, const float *mtx_4x4)
 }
 
 static int
-tc_anop_allocate_textures(const struct vlc_gl_interop *interop, uint32_t textures[],
+tc_anop_allocate_textures(const struct heimdall_gl_interop *interop, uint32_t textures[],
                           const int32_t tex_width[], const int32_t tex_height[])
 {
     (void) interop; (void) tex_width; (void) tex_height;
     assert(textures[0] != 0); (void) textures;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int
-tc_anop_update(const struct vlc_gl_interop *interop, uint32_t textures[],
+tc_anop_update(const struct heimdall_gl_interop *interop, uint32_t textures[],
                const int32_t tex_width[], const int32_t tex_height[],
                picture_t *pic, const size_t plane_offset[])
 {
@@ -104,19 +105,19 @@ tc_anop_update(const struct vlc_gl_interop *interop, uint32_t textures[],
     picture_t *previous_picture = priv->current_picture;
     priv->current_picture = picture_Hold(pic);
 
-    struct vlc_video_context *vctx = pic->context->vctx;
+    struct heimdall_video_context *vctx = pic->context->vctx;
     android_video_context_t *avctx =
-        vlc_video_context_GetPrivate(vctx, VLC_VIDEO_CONTEXT_AWINDOW);
+        heimdall_video_context_GetPrivate(vctx, HEIMDALL_VIDEO_CONTEXT_AWINDOW);
     if (avctx == NULL)
         goto error;
 
     if (plane_offset != NULL)
         goto error;
 
-    struct vlc_asurfacetexture *texture =
+    struct heimdall_asurfacetexture *texture =
         avctx->get_texture(pic->context);
 
-    struct vlc_asurfacetexture *previous_texture = priv->previous_texture;
+    struct heimdall_asurfacetexture *previous_texture = priv->previous_texture;
 
     if (previous_texture != texture)
     {
@@ -144,7 +145,7 @@ tc_anop_update(const struct vlc_gl_interop *interop, uint32_t textures[],
 
     const float *mtx_4x4;
     if (SurfaceTexture_updateTexImage(texture, &mtx_4x4)
-        != VLC_SUCCESS)
+        != HEIMDALL_SUCCESS)
     {
         priv->transform_mtx = NULL;
         goto error;
@@ -159,23 +160,23 @@ tc_anop_update(const struct vlc_gl_interop *interop, uint32_t textures[],
 success:
     if (previous_picture)
         picture_Release(previous_picture);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     if (previous_picture)
         picture_Release(previous_picture);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 static const float *
-tc_get_transform_matrix(const struct vlc_gl_interop *interop)
+tc_get_transform_matrix(const struct heimdall_gl_interop *interop)
 {
     struct priv *priv = interop->priv;
     return priv->transform_mtx;
 }
 
 static void
-Close(struct vlc_gl_interop *interop)
+Close(struct heimdall_gl_interop *interop)
 {
     struct priv *priv = interop->priv;
 
@@ -192,31 +193,31 @@ Close(struct vlc_gl_interop *interop)
 }
 
 static int
-Open(struct vlc_gl_interop *interop)
+Open(struct heimdall_gl_interop *interop)
 {
-    if (interop->fmt_in.i_chroma != VLC_CODEC_ANDROID_OPAQUE
+    if (interop->fmt_in.i_chroma != HEIMDALL_CODEC_ANDROID_OPAQUE
      || !interop->vctx)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    struct vlc_gl_extension_vt extension_vt;
-    vlc_gl_LoadExtensionFunctions(interop->gl, &extension_vt);
+    struct heimdall_gl_extension_vt extension_vt;
+    heimdall_gl_LoadExtensionFunctions(interop->gl, &extension_vt);
 
-    if (!vlc_gl_HasExtension(&extension_vt, "GL_OES_EGL_image_external"))
+    if (!heimdall_gl_HasExtension(&extension_vt, "GL_OES_EGL_image_external"))
     {
         msg_Warn(&interop->obj, "GL_OES_EGL_image_external is not available,"
                 " disabling android interop.");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     android_video_context_t *avctx =
-        vlc_video_context_GetPrivate(interop->vctx, VLC_VIDEO_CONTEXT_AWINDOW);
+        heimdall_video_context_GetPrivate(interop->vctx, HEIMDALL_VIDEO_CONTEXT_AWINDOW);
 
     if (avctx == NULL || (avctx->texture == NULL && avctx->get_texture == NULL))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     interop->priv = malloc(sizeof(struct priv));
     if (unlikely(interop->priv == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     struct priv *priv = interop->priv;
     priv->transform_mtx = NULL;
@@ -225,14 +226,14 @@ Open(struct vlc_gl_interop *interop)
     priv->stex_attached = false;
 
 #define LOAD_SYMBOL(name) \
-    priv->gl.name = vlc_gl_GetProcAddress(interop->gl, "gl" # name); \
+    priv->gl.name = heimdall_gl_GetProcAddress(interop->gl, "gl" # name); \
     assert(priv->gl.name != NULL);
 
     LOAD_SYMBOL(ActiveTexture);
     LOAD_SYMBOL(BindTexture);
     LOAD_SYMBOL(GenTextures);
 
-    static const struct vlc_gl_interop_ops ops = {
+    static const struct heimdall_gl_interop_ops ops = {
         .allocate_textures = tc_anop_allocate_textures,
         .update_textures = tc_anop_update,
         .get_transform_matrix = tc_get_transform_matrix,
@@ -241,25 +242,25 @@ Open(struct vlc_gl_interop *interop)
     interop->ops = &ops;
 
     interop->tex_target = GL_TEXTURE_EXTERNAL_OES;
-    if (vlc_gl_HasExtension(&extension_vt, "GL_EXT_YUV_target"))
+    if (heimdall_gl_HasExtension(&extension_vt, "GL_EXT_YUV_target"))
     {
         msg_Warn(&interop->obj, "GL_EXT_YUV_target is available,"
                 " using it.");
         /* We represent as Packed YUV 4:4:4 since there is a single
          * texture target available. */
-        interop->fmt_out.i_chroma = VLC_CODEC_V308;
+        interop->fmt_out.i_chroma = HEIMDALL_CODEC_V308;
         interop->fmt_out.space = interop->fmt_in.space;
         interop->fmt_out.primaries = interop->fmt_in.primaries;
         interop->fmt_out.transfer = interop->fmt_in.transfer;
     }
     else
     {
-        interop->fmt_out.i_chroma = VLC_CODEC_RGBA;
+        interop->fmt_out.i_chroma = HEIMDALL_CODEC_RGBA;
         interop->fmt_out.space = COLOR_SPACE_UNDEF;
     }
 
     interop->tex_count = 1;
-    interop->texs[0] = (struct vlc_gl_tex_cfg) {
+    interop->texs[0] = (struct heimdall_gl_tex_cfg) {
         .w = {1, 1},
         .h = {1, 1},
         .internal = GL_RGBA,
@@ -267,12 +268,12 @@ Open(struct vlc_gl_interop *interop)
         .type = GL_UNSIGNED_BYTE,
     };
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description("Android OpenGL SurfaceTexture converter")
     set_capability("glinterop", 1)
     set_callback(Open)
     set_subcategory(SUBCAT_VIDEO_VOUT)
-vlc_module_end ()
+heimdall_module_end ()

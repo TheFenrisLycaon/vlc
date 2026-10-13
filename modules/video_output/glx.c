@@ -4,6 +4,7 @@
  */
 /*****************************************************************************
  * Copyright © 2010-2012 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -29,43 +30,43 @@
 #include <GL/glx.h>
 #include <GL/glxext.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_opengl.h>
-#include <vlc_window.h>
-#include <vlc_xlib.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_opengl.h>
+#include <heimdall_window.h>
+#include <heimdall_xlib.h>
 
 #ifndef GLX_ARB_get_proc_address
 #error GLX_ARB_get_proc_address extension missing
 #endif
 
-typedef struct vlc_gl_sys_t
+typedef struct heimdall_gl_sys_t
 {
     Display *display;
     GLXWindow win;
     GLXContext ctx;
     Window x11_win;
-} vlc_gl_sys_t;
+} heimdall_gl_sys_t;
 
-static int MakeCurrent (vlc_gl_t *gl)
+static int MakeCurrent (heimdall_gl_t *gl)
 {
-    vlc_gl_sys_t *sys = gl->sys;
+    heimdall_gl_sys_t *sys = gl->sys;
 
     if (!glXMakeContextCurrent (sys->display, sys->win, sys->win, sys->ctx))
-        return VLC_EGENERIC;
-    return VLC_SUCCESS;
+        return HEIMDALL_EGENERIC;
+    return HEIMDALL_SUCCESS;
 }
 
-static void ReleaseCurrent (vlc_gl_t *gl)
+static void ReleaseCurrent (heimdall_gl_t *gl)
 {
-    vlc_gl_sys_t *sys = gl->sys;
+    heimdall_gl_sys_t *sys = gl->sys;
 
     glXMakeContextCurrent (sys->display, None, None, NULL);
 }
 
-static void Resize (vlc_gl_t *gl, unsigned width, unsigned height)
+static void Resize (heimdall_gl_t *gl, unsigned width, unsigned height)
 {
-    vlc_gl_sys_t *sys = gl->sys;
+    heimdall_gl_sys_t *sys = gl->sys;
 
     Display* old_display = glXGetCurrentDisplay();
     GLXContext old_ctx = glXGetCurrentContext();
@@ -90,9 +91,9 @@ static void Resize (vlc_gl_t *gl, unsigned width, unsigned height)
         XSync(sys->display, False);
 }
 
-static void SwapBuffers (vlc_gl_t *gl)
+static void SwapBuffers (heimdall_gl_t *gl)
 {
-    vlc_gl_sys_t *sys = gl->sys;
+    heimdall_gl_sys_t *sys = gl->sys;
 
     Display *previous_display = glXGetCurrentDisplay();
     GLXContext previous_context = glXGetCurrentContext();
@@ -110,13 +111,13 @@ static void SwapBuffers (vlc_gl_t *gl)
         glXSwapBuffers (sys->display, sys->win);
 }
 
-static void *GetSymbol(vlc_gl_t *gl, const char *procname)
+static void *GetSymbol(heimdall_gl_t *gl, const char *procname)
 {
     (void) gl;
     return glXGetProcAddressARB ((const GLubyte *)procname);
 }
 
-static bool CheckGLX (vlc_object_t *vd, Display *dpy)
+static bool CheckGLX (heimdall_object_t *vd, Display *dpy)
 {
     int major, minor;
     bool ok = false;
@@ -154,9 +155,9 @@ static bool CheckGLXext (Display *dpy, unsigned snum, const char *ext)
     return false;
 }
 
-static void Close(vlc_gl_t *gl)
+static void Close(heimdall_gl_t *gl)
 {
-    vlc_gl_sys_t *sys = gl->sys;
+    heimdall_gl_sys_t *sys = gl->sys;
     Display *dpy = sys->display;
 
     glXDestroyContext(dpy, sys->ctx);
@@ -165,30 +166,30 @@ static void Close(vlc_gl_t *gl)
     free(sys);
 }
 
-static int Open(vlc_gl_t *gl, unsigned width, unsigned height,
-                const struct vlc_gl_cfg *gl_cfg)
+static int Open(heimdall_gl_t *gl, unsigned width, unsigned height,
+                const struct heimdall_gl_cfg *gl_cfg)
 {
-    vlc_object_t *obj = VLC_OBJECT(gl);
+    heimdall_object_t *obj = HEIMDALL_OBJECT(gl);
 
     if (gl_cfg->need_alpha)
     {
         msg_Err(gl, "Cannot support alpha yet");
-        return VLC_ENOTSUP;
+        return HEIMDALL_ENOTSUP;
     }
 
-    if (gl->surface->type != VLC_WINDOW_TYPE_XID || !vlc_xlib_init (obj))
-        return VLC_EGENERIC;
+    if (gl->surface->type != HEIMDALL_WINDOW_TYPE_XID || !heimdall_xlib_init (obj))
+        return HEIMDALL_EGENERIC;
 
     /* Initialize GLX display */
     Display *dpy = XOpenDisplay (gl->surface->display.x11);
     if (dpy == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    vlc_gl_sys_t *sys = malloc (sizeof (*sys));
+    heimdall_gl_sys_t *sys = malloc (sizeof (*sys));
     if (unlikely(sys == NULL))
     {
         XCloseDisplay (dpy);
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
     gl->sys = sys;
     sys->display = dpy;
@@ -277,7 +278,7 @@ static int Open(vlc_gl_t *gl, unsigned width, unsigned height,
     }
 
     /* Initialize OpenGL callbacks */
-    static const struct vlc_gl_operations gl_ops =
+    static const struct heimdall_gl_operations gl_ops =
     {
         .make_current = MakeCurrent,
         .release_current = ReleaseCurrent,
@@ -321,21 +322,21 @@ static int Open(vlc_gl_t *gl, unsigned width, unsigned height,
     const char *vendor = glXGetClientString(dpy, GLX_VENDOR);
     if (vendor && strncmp(vendor, "NVIDIA", sizeof("NVIDIA") - 1) == 0)
     {
-        var_Create(gl->surface, "gl", VLC_VAR_STRING);
+        var_Create(gl->surface, "gl", HEIMDALL_VAR_STRING);
         var_SetString(gl->surface, "gl", "glx");
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     XCloseDisplay (dpy);
     free (sys);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname (N_("GLX"))
     set_description (N_("GLX extension for OpenGL"))
     set_subcategory (SUBCAT_VIDEO_VOUT)
     set_callback_opengl(Open, 20)
-vlc_module_end ()
+heimdall_module_end ()

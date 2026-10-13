@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,7 +22,7 @@
 #include <QObject>
 #include <QQuickItem>
 
-#define VLC_QT_SIMPLE_PROPERTY(Type, property, defaultValue) \
+#define HEIMDALL_QT_SIMPLE_PROPERTY(Type, property, defaultValue) \
   Q_PROPERTY(Type property READ get##property WRITE set##property NOTIFY property##Changed FINAL) \
 public: \
   inline Type get##property() const { return m_##property; } \
@@ -33,24 +34,24 @@ class NavigationAttached : public QObject
 {
     Q_OBJECT
 
-    VLC_QT_SIMPLE_PROPERTY(bool, navigable, true)
+    HEIMDALL_QT_SIMPLE_PROPERTY(bool, navigable, true)
 
-    VLC_QT_SIMPLE_PROPERTY(QQuickItem*, parentItem, nullptr)
+    HEIMDALL_QT_SIMPLE_PROPERTY(QQuickItem*, parentItem, nullptr)
 
-    VLC_QT_SIMPLE_PROPERTY(QQuickItem*, upItem, nullptr)
-    VLC_QT_SIMPLE_PROPERTY(QJSValue, upAction, QJSValue::UndefinedValue)
+    HEIMDALL_QT_SIMPLE_PROPERTY(QQuickItem*, upItem, nullptr)
+    HEIMDALL_QT_SIMPLE_PROPERTY(QJSValue, upAction, QJSValue::UndefinedValue)
 
-    VLC_QT_SIMPLE_PROPERTY(QQuickItem*, downItem, nullptr)
-    VLC_QT_SIMPLE_PROPERTY(QJSValue, downAction, QJSValue::UndefinedValue)
+    HEIMDALL_QT_SIMPLE_PROPERTY(QQuickItem*, downItem, nullptr)
+    HEIMDALL_QT_SIMPLE_PROPERTY(QJSValue, downAction, QJSValue::UndefinedValue)
 
-    VLC_QT_SIMPLE_PROPERTY(QQuickItem*, leftItem, nullptr)
-    VLC_QT_SIMPLE_PROPERTY(QJSValue, leftAction, QJSValue::UndefinedValue)
+    HEIMDALL_QT_SIMPLE_PROPERTY(QQuickItem*, leftItem, nullptr)
+    HEIMDALL_QT_SIMPLE_PROPERTY(QJSValue, leftAction, QJSValue::UndefinedValue)
 
-    VLC_QT_SIMPLE_PROPERTY(QQuickItem*, rightItem, nullptr)
-    VLC_QT_SIMPLE_PROPERTY(QJSValue, rightAction, QJSValue::UndefinedValue)
+    HEIMDALL_QT_SIMPLE_PROPERTY(QQuickItem*, rightItem, nullptr)
+    HEIMDALL_QT_SIMPLE_PROPERTY(QJSValue, rightAction, QJSValue::UndefinedValue)
 
-    VLC_QT_SIMPLE_PROPERTY(QQuickItem*, cancelItem, nullptr)
-    VLC_QT_SIMPLE_PROPERTY(QJSValue, cancelAction, QJSValue::UndefinedValue)
+    HEIMDALL_QT_SIMPLE_PROPERTY(QQuickItem*, cancelItem, nullptr)
+    HEIMDALL_QT_SIMPLE_PROPERTY(QJSValue, cancelAction, QJSValue::UndefinedValue)
 
     QML_NAMED_ELEMENT(Navigation)
     QML_UNCREATABLE("Navigation is only available via attached properties.")
@@ -93,7 +94,7 @@ signals:
     void cancelActionChanged();
 };
 
-#undef VLC_QT_SIMPLE_PROPERTY
+#undef HEIMDALL_QT_SIMPLE_PROPERTY
 
 QML_DECLARE_TYPEINFO(NavigationAttached, QML_HAS_ATTACHED_PROPERTIES)
 

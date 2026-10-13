@@ -2,6 +2,7 @@
  * file.cpp: Media library network file
  *****************************************************************************
  * Copyright (C) 2018 VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -25,7 +26,7 @@
 #include "file.h"
 #include "util.h"
 
-namespace vlc {
+namespace heimdall {
   namespace medialibrary {
 
 SDFile::SDFile( const std::string mrl, const uint64_t size, const time_t lastModificationDate )
@@ -100,4 +101,4 @@ const std::string &SDFile::linkedWith() const
 }
 
   } /* namespace medialibrary */
-} /* namespace vlc */
+} /* namespace heimdall */

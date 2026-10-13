@@ -1,7 +1,8 @@
-# Main makefile for VLC 3rd party libraries ("contrib")
+# Main makefile for Heimdall 3rd party libraries ("contrib")
 # Copyright (C) 2003-2011 the VideoLAN team
+# Copyright (C) 2026 TheFenrisLycaon
 #
-# This file is under the same license as the vlc package.
+# This file is under the same license as the heimdall package.
 
 all: install
 
@@ -11,7 +12,7 @@ SPACE := $(NULL) #
 SRC := $(TOPSRC)/src
 SRC_BUILT := $(TOPSRC_BUILT)/src
 TARBALLS := $(TOPSRC)/tarballs
-VLC_TOOLS ?= $(TOPSRC)/../extras/tools/build
+HEIMDALL_TOOLS ?= $(TOPSRC)/../extras/tools/build
 
 CMAKE_GENERATOR ?= Ninja
 
@@ -26,9 +27,9 @@ QTBASE_VERSION := $(QTBASE_VERSION_MAJOR).3
 # Common download locations
 GNU ?= https://ftpmirror.gnu.org/gnu
 SF := https://downloads.sourceforge.net/project
-VIDEOLAN := https://downloads.videolan.org/pub/videolan
-CONTRIB_VIDEOLAN := https://downloads.videolan.org/pub/contrib
-VIDEOLAN_GIT := https://code.videolan.org
+LYCARIA := https://downloads.videolan.org/pub/videolan
+CONTRIB_LYCARIA := https://downloads.videolan.org/pub/contrib
+LYCARIA_GIT := https://code.videolan.org
 GITHUB := https://github.com
 GOOGLE_CODE := https://storage.googleapis.com/google-code-archive-downloads/v2/code.google.com
 GNUGPG := https://www.gnupg.org/ftp/gcrypt
@@ -46,7 +47,7 @@ BUILDPREFIX ?= $(PREFIX)/..
 BUILDPREFIX := $(abspath $(BUILDPREFIX))
 BUILDBINDIR ?= $(BUILDPREFIX)/bin
 
-SYSTEM_PATH := $(abspath $(VLC_TOOLS)/bin):$(PATH)
+SYSTEM_PATH := $(abspath $(HEIMDALL_TOOLS)/bin):$(PATH)
 PATH :=$(abspath $(BUILDBINDIR)):$(abspath $(BUILDBINDIR)/../libexec):$(SYSTEM_PATH)
 export PATH
 
@@ -259,7 +260,7 @@ endif
 
 # Do the FPU detection, after we have figured out our compilers and flags.
 ifneq ($(findstring $(ARCH),aarch64 i386 ppc ppc64 ppc64le sparc sparc64 x86_64),)
-# This should be consistent with include/vlc_cpu.h
+# This should be consistent with include/heimdall_cpu.h
 HAVE_FPU = 1
 else ifneq ($(findstring $(ARCH),arm),)
 ifneq ($(call cppcheck, __VFP_FP__)),)
@@ -275,12 +276,12 @@ else ifneq ($(call cppcheck, __mips_hard_float),)
 HAVE_FPU = 1
 endif
 
-ifneq ($(wildcard $(VLC_TOOLS)/share/aclocal/*),)
-VLC_ACLOCAL_PATH := $(PREFIX)/share/aclocal:$(abspath $(VLC_TOOLS)/share/aclocal):${ACLOCAL_PATH}
+ifneq ($(wildcard $(HEIMDALL_TOOLS)/share/aclocal/*),)
+HEIMDALL_ACLOCAL_PATH := $(PREFIX)/share/aclocal:$(abspath $(HEIMDALL_TOOLS)/share/aclocal):${ACLOCAL_PATH}
 else
-VLC_ACLOCAL_PATH := $(PREFIX)/share/aclocal:${ACLOCAL_PATH}
+HEIMDALL_ACLOCAL_PATH := $(PREFIX)/share/aclocal:${ACLOCAL_PATH}
 endif
-export ACLOCAL_PATH=${VLC_ACLOCAL_PATH}
+export ACLOCAL_PATH=${HEIMDALL_ACLOCAL_PATH}
 
 #########
 # Tools #
@@ -338,7 +339,7 @@ else
 download = $(error Neither curl nor wget found)
 endif
 
-download_pkg = $(call download,$(CONTRIB_VIDEOLAN)/$(2)/$(lastword $(subst /, ,$(@)))) || \
+download_pkg = $(call download,$(CONTRIB_LYCARIA)/$(2)/$(lastword $(subst /, ,$(@)))) || \
 	( $(call download,$(1)) && echo "Please upload this package $(lastword $(subst /, ,$(@))) to our FTP" )
 
 ifeq ($(shell command -v xz >/dev/null 2>&1 || echo FAIL),)
@@ -511,18 +512,18 @@ update_autoconfig = \
 		fi; \
 	done
 
-ifneq ($(wildcard $(abspath $(VLC_TOOLS))/share/autoconf-vlc/build-aux),)
-VLC_CONFIG_GUESS := autom4te_buildauxdir=$(abspath $(VLC_TOOLS))/share/autoconf-vlc/build-aux
+ifneq ($(wildcard $(abspath $(HEIMDALL_TOOLS))/share/autoconf-heimdall/build-aux),)
+HEIMDALL_CONFIG_GUESS := autom4te_buildauxdir=$(abspath $(HEIMDALL_TOOLS))/share/autoconf-heimdall/build-aux
 endif
 
 AUTORECONF = GTKDOCIZE=true autoreconf
 RECONF = mkdir -p -- $(PREFIX)/share/aclocal && \
-	cd $< && $(VLC_CONFIG_GUESS) $(AUTORECONF) -fiv
+	cd $< && $(HEIMDALL_CONFIG_GUESS) $(AUTORECONF) -fiv
 
-BUILD_DIR = $</vlc_build
+BUILD_DIR = $</heimdall_build
 BUILD_SRC := ..
 # build directory relative to UNPACK_DIR
-BUILD_DIRUNPACK := vlc_build
+BUILD_DIRUNPACK := heimdall_build
 
 MAKEBUILDDIR = mkdir -p $(BUILD_DIR) && rm -f $(BUILD_DIR)/config.status && test ! -f $</config.status || $(MAKE) -C $< distclean
 MAKEBUILD = $(MAKE) -C $(BUILD_DIR)
@@ -763,10 +764,10 @@ distclean: clean
 
 PREBUILT_URL=https://download.videolan.org/pub/videolan/contrib/$(HOST)/vlc-contrib-$(HOST)-latest.tar.zst
 
-vlc-contrib-$(HOST)-latest.tar.zst:
+heimdall-contrib-$(HOST)-latest.tar.zst:
 	$(call download,$(PREBUILT_URL))
 
-prebuilt: vlc-contrib-$(HOST)-latest.tar.zst
+prebuilt: heimdall-contrib-$(HOST)-latest.tar.zst
 	$(RM) -r $(PREFIX)
 	$(UNPACK)
 	mv $(HOST) $(PREFIX)
@@ -791,7 +792,7 @@ package: install
 ifneq ($(notdir $(PREFIX)),$(HOST))
 	(cd tmp && mv $(notdir $(PREFIX)) $(HOST))
 endif
-	tar -c -C tmp $(HOST)/ | zstd --quiet --force --threads=0 -12 -c > ../vlc-contrib-$(HOST)-$(DATE).tar.zst
+	tar -c -C tmp $(HOST)/ | zstd --quiet --force --threads=0 -12 -c > ../heimdall-contrib-$(HOST)-$(DATE).tar.zst
 
 list:
 	@echo All packages:
@@ -886,8 +887,8 @@ else
 	CMAKE_TOOLCHAIN_ENV += OSX_ARCHITECTURES="$(ARCH)"
 endif
 endif
-ifdef VLC_DEPLOYMENT_TARGET
-	CMAKE_TOOLCHAIN_ENV += OSX_DEPLOYMENT_TARGET="$(VLC_DEPLOYMENT_TARGET)"
+ifdef HEIMDALL_DEPLOYMENT_TARGET
+	CMAKE_TOOLCHAIN_ENV += OSX_DEPLOYMENT_TARGET="$(HEIMDALL_DEPLOYMENT_TARGET)"
 endif
 ifdef HAVE_IOS
 	CMAKE_TOOLCHAIN_ENV += OSX_SYSROOT="$(IOS_SDK)"
@@ -956,25 +957,25 @@ ifdef HAVE_WIN32
 endif
 
 ifdef HAVE_DARWIN_OS
-ifdef VLC_DEPLOYMENT_TARGET_LDFLAG
-	MESON_CROSSFILE_ENV += CFLAGS_BUILTIN="$(VLC_DEPLOYMENT_TARGET_CFLAG)"
-	MESON_CROSSFILE_ENV += CPPFLAGS_BUILTIN="$(VLC_DEPLOYMENT_TARGET_CFLAG)"
-	MESON_CROSSFILE_ENV += OBJCFLAGS_BUILTIN="$(VLC_DEPLOYMENT_TARGET_CFLAG)"
-	MESON_CROSSFILE_ENV += OBJCPPFLAGS_BUILTIN="$(VLC_DEPLOYMENT_TARGET_CFLAG)"
-	MESON_CROSSFILE_ENV += LDFLAGS_C_BUILTIN="$(VLC_DEPLOYMENT_TARGET_LDFLAG)"
-	MESON_CROSSFILE_ENV += LDFLAGS_CPP_BUILTIN="$(VLC_DEPLOYMENT_TARGET_LDFLAG)"
-	MESON_CROSSFILE_ENV += LDFLAGS_OBJC_BUILTIN="$(VLC_DEPLOYMENT_TARGET_LDFLAG)"
-	MESON_CROSSFILE_ENV += LDFLAGS_OBJCPP_BUILTIN="$(VLC_DEPLOYMENT_TARGET_LDFLAG)"
+ifdef HEIMDALL_DEPLOYMENT_TARGET_LDFLAG
+	MESON_CROSSFILE_ENV += CFLAGS_BUILTIN="$(HEIMDALL_DEPLOYMENT_TARGET_CFLAG)"
+	MESON_CROSSFILE_ENV += CPPFLAGS_BUILTIN="$(HEIMDALL_DEPLOYMENT_TARGET_CFLAG)"
+	MESON_CROSSFILE_ENV += OBJCFLAGS_BUILTIN="$(HEIMDALL_DEPLOYMENT_TARGET_CFLAG)"
+	MESON_CROSSFILE_ENV += OBJCPPFLAGS_BUILTIN="$(HEIMDALL_DEPLOYMENT_TARGET_CFLAG)"
+	MESON_CROSSFILE_ENV += LDFLAGS_C_BUILTIN="$(HEIMDALL_DEPLOYMENT_TARGET_LDFLAG)"
+	MESON_CROSSFILE_ENV += LDFLAGS_CPP_BUILTIN="$(HEIMDALL_DEPLOYMENT_TARGET_LDFLAG)"
+	MESON_CROSSFILE_ENV += LDFLAGS_OBJC_BUILTIN="$(HEIMDALL_DEPLOYMENT_TARGET_LDFLAG)"
+	MESON_CROSSFILE_ENV += LDFLAGS_OBJCPP_BUILTIN="$(HEIMDALL_DEPLOYMENT_TARGET_LDFLAG)"
 	MESON_CROSSFILE_ENV += OSX_SYSROOT="$(IOS_SDK)"
 else
-	MESON_CROSSFILE_ENV += CFLAGS_BUILTIN="-mmacosx-version-min=$(VLC_DEPLOYMENT_TARGET)"
-	MESON_CROSSFILE_ENV += CPPFLAGS_BUILTIN="-mmacosx-version-min=$(VLC_DEPLOYMENT_TARGET)"
-	MESON_CROSSFILE_ENV += OBJCFLAGS_BUILTIN="-mmacosx-version-min=$(VLC_DEPLOYMENT_TARGET)"
-	MESON_CROSSFILE_ENV += OBJCPPFLAGS_BUILTIN="-mmacosx-version-min=$(VLC_DEPLOYMENT_TARGET)"
-	MESON_CROSSFILE_ENV += LDFLAGS_C_BUILTIN="-mmacosx-version-min=$(VLC_DEPLOYMENT_TARGET)"
-	MESON_CROSSFILE_ENV += LDFLAGS_CPP_BUILTIN="-mmacosx-version-min=$(VLC_DEPLOYMENT_TARGET)"
-	MESON_CROSSFILE_ENV += LDFLAGS_OBJC_BUILTIN="-mmacosx-version-min=$(VLC_DEPLOYMENT_TARGET)"
-	MESON_CROSSFILE_ENV += LDFLAGS_OBJCPP_BUILTIN="-mmacosx-version-min=$(VLC_DEPLOYMENT_TARGET)"
+	MESON_CROSSFILE_ENV += CFLAGS_BUILTIN="-mmacosx-version-min=$(HEIMDALL_DEPLOYMENT_TARGET)"
+	MESON_CROSSFILE_ENV += CPPFLAGS_BUILTIN="-mmacosx-version-min=$(HEIMDALL_DEPLOYMENT_TARGET)"
+	MESON_CROSSFILE_ENV += OBJCFLAGS_BUILTIN="-mmacosx-version-min=$(HEIMDALL_DEPLOYMENT_TARGET)"
+	MESON_CROSSFILE_ENV += OBJCPPFLAGS_BUILTIN="-mmacosx-version-min=$(HEIMDALL_DEPLOYMENT_TARGET)"
+	MESON_CROSSFILE_ENV += LDFLAGS_C_BUILTIN="-mmacosx-version-min=$(HEIMDALL_DEPLOYMENT_TARGET)"
+	MESON_CROSSFILE_ENV += LDFLAGS_CPP_BUILTIN="-mmacosx-version-min=$(HEIMDALL_DEPLOYMENT_TARGET)"
+	MESON_CROSSFILE_ENV += LDFLAGS_OBJC_BUILTIN="-mmacosx-version-min=$(HEIMDALL_DEPLOYMENT_TARGET)"
+	MESON_CROSSFILE_ENV += LDFLAGS_OBJCPP_BUILTIN="-mmacosx-version-min=$(HEIMDALL_DEPLOYMENT_TARGET)"
 	MESON_CROSSFILE_ENV += OSX_SYSROOT="$(MACOSX_SDK)"
 endif
 endif

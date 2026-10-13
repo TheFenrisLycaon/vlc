@@ -2,6 +2,7 @@
  * convert.cpp : Conversion dialogs
  ****************************************************************************
  * Copyright (C) 2009 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Jean-Baptiste Kempf <jb (at) videolan.org>
  *
@@ -42,11 +43,11 @@
 
 ConvertDialog::ConvertDialog( QWindow *parent, qt_intf_t *_p_intf,
                               const QStringList& inputMRLs )
-              : QVLCDialog( parent, _p_intf ),
+              : QHeimdallDialog( parent, _p_intf ),
                 singleFileSelected( inputMRLs.length() == 1 )
 {
     setWindowTitle( qtr( "Convert" ) );
-    setWindowRole( "vlc-convert" );
+    setWindowRole( "heimdall-convert" );
 
     QGridLayout *mainLayout = new QGridLayout( this );
     SoutInputBox *inputBox = new SoutInputBox( this );
@@ -123,7 +124,7 @@ ConvertDialog::ConvertDialog( QWindow *parent, qt_intf_t *_p_intf,
     deinterBox = new QCheckBox( qtr( "Deinterlace" ) );
     convertLayout->addWidget( deinterBox );
 
-    profile = new VLCProfileSelector( this );
+    profile = new HeimdallProfileSelector( this );
     convertLayout->addWidget( profile );
 
     settingLayout->addWidget( convertPanel, 2, 0 );
@@ -147,7 +148,7 @@ ConvertDialog::ConvertDialog( QWindow *parent, qt_intf_t *_p_intf,
     connect( buttonBox, &QDialogButtonBox::rejected, this, &ConvertDialog::reject );
 
     connect( convertRadio, &QRadioButton::toggled, convertPanel, &QWidget::setEnabled );
-    connect( profile, &VLCProfileSelector::optionsChanged, this, &ConvertDialog::setDestinationFileExtension );
+    connect( profile, &HeimdallProfileSelector::optionsChanged, this, &ConvertDialog::setDestinationFileExtension );
     connect( fileLine, &QLineEdit::editingFinished, this, &ConvertDialog::setDestinationFileExtension );
     connect( fileLine, &QLineEdit::textChanged, this, &ConvertDialog::validate );
 
@@ -246,7 +247,7 @@ void ConvertDialog::accept()
         mrls.append(mrl.to_string());
     }
 
-    QVLCDialog::accept();
+    QHeimdallDialog::accept();
 }
 
 void ConvertDialog::setDestinationFileExtension()

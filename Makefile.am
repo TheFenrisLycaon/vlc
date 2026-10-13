@@ -5,7 +5,7 @@
 # SUBDIRS stores the directories where a "make" is required when building
 # something. DIST_SUBDIRS stores the directories where nothing is built but
 # which have makefiles with distribution information.
-#  - src (libvlccore) is nedeed by modules
+#  - src (libheimdallcore) is nedeed by modules
 SUBDIRS = compat po share src modules lib doc bin test
 DIST_SUBDIRS = m4 $(SUBDIRS)
 
@@ -78,7 +78,7 @@ EXTRA_DIST += \
 ##############################################################################
 EXTRA_DIST += \
 	extras/analyser/emacs.init \
-	extras/analyser/vlc.vim \
+	extras/analyser/heimdall.vim \
 	extras/analyser/valgrind.suppressions \
 	extras/buildsystem/make.pl \
 	extras/misc/mpris.py \
@@ -92,39 +92,39 @@ EXTRA_DIST += \
 	contrib/src
 
 ###############################################################################
-# Building libvlc
+# Building libheimdall
 ###############################################################################
 
 CLEANFILES =
 DISTCLEANFILES = $(BUILT_SOURCES_distclean) compile doltcompile doltlibtool
 MAINTAINERCLEANFILES = ChangeLog
 
-# Shortcut for developers to rebuild the core (libvlc + vlc)
+# Shortcut for developers to rebuild the core (libheimdall + heimdall)
 # Don't use it if you don't know what it is about.
 # Don't complain if it doesn't work. -- Courmisch
 libcompat:
 	cd compat && $(MAKE) $(AM_MAKEFLAGS)
 
-libvlccore: libcompat
-	cd src && $(MAKE) $(AM_MAKEFLAGS) libvlccore.la
+libheimdallcore: libcompat
+	cd src && $(MAKE) $(AM_MAKEFLAGS) libheimdallcore.la
 
-libvlc: libvlccore
-	cd lib && $(MAKE) $(AM_MAKEFLAGS) libvlc.la
+libheimdall: libheimdallcore
+	cd lib && $(MAKE) $(AM_MAKEFLAGS) libheimdall.la
 
-core: libvlc vlc$(EXEEXT)
-	cd bin && $(MAKE) $(AM_MAKEFLAGS) vlc$(EXEEXT) vlc-static$(EXEEXT)
+core: libheimdall heimdall$(EXEEXT)
+	cd bin && $(MAKE) $(AM_MAKEFLAGS) heimdall$(EXEEXT) heimdall-static$(EXEEXT)
 
 doc:
 	cd doc && $(MAKE) $(AM_MAKEFLAGS) doc
 
-.PHONY: libvlc core doc
+.PHONY: libheimdall core doc
 
 ###############################################################################
 # Building aliases
 ###############################################################################
 
-ALL_ALIASES = cvlc rvlc svlc qvlc nvlc
-if BUILD_VLC
+ALL_ALIASES = cheimdall rheimdall sheimdall qheimdall nheimdall
+if BUILD_HEIMDALL
 bin_SCRIPTS = $(ALIASES)
 endif
 CLEANFILES += $(ALIASES) $(noinst_SCRIPTS)
@@ -134,36 +134,36 @@ dist_noinst_SCRIPTS += make-alias
 
 MKALIAS = bindir="$(bindir)" transform="$(transform)" program_prefix="$(program_prefix)" program_suffix="$(program_suffix)" $(top_srcdir)/make-alias $@
 
-cvlc: make-alias Makefile
+cheimdall: make-alias Makefile
 	$(AM_V_GEN)$(MKALIAS) dummy
 
-rvlc: make-alias Makefile
+rheimdall: make-alias Makefile
 	$(AM_V_GEN)$(MKALIAS) rc
 
-svlc: make-alias Makefile
+sheimdall: make-alias Makefile
 	$(AM_V_GEN)$(MKALIAS) skins2
 
-qvlc: make-alias Makefile
+qheimdall: make-alias Makefile
 	$(AM_V_GEN)$(MKALIAS) qt
 
-nvlc: make-alias Makefile
+nheimdall: make-alias Makefile
 	$(AM_V_GEN)$(MKALIAS) ncurses
 
-if BUILD_VLC
-noinst_SCRIPTS = vlc$(EXEEXT)
+if BUILD_HEIMDALL
+noinst_SCRIPTS = heimdall$(EXEEXT)
 endif
 
-vlc$(EXEEXT):
+heimdall$(EXEEXT):
 if HAVE_DARWIN
-	$(AM_V_GEN)$(LN_S) -f bin/vlc-osx-static vlc
+	$(AM_V_GEN)$(LN_S) -f bin/heimdall-osx-static heimdall
 else
-	$(AM_V_GEN)$(LN_S) -f bin/vlc-static$(EXEEXT) vlc$(EXEEXT)
+	$(AM_V_GEN)$(LN_S) -f bin/heimdall-static$(EXEEXT) heimdall$(EXEEXT)
 endif
 
-TESTS = test/run_vlc.sh
-dist_noinst_SCRIPTS += test/run_vlc.sh
+TESTS = test/run_heimdall.sh
+dist_noinst_SCRIPTS += test/run_heimdall.sh
 
-if BUILD_VLC
+if BUILD_HEIMDALL
 ###############################################################################
 # Installing plugins cache
 ###############################################################################
@@ -172,7 +172,7 @@ install-exec-hook:
 		PATH="$(DESTDIR)$(bindir):$$PATH" \
 		LD_LIBRARY_PATH="$(DESTDIR)$(libdir):$$LD_LIBRARY_PATH" \
 		DYLD_LIBRARY_PATH="$(DESTDIR)$(libdir):$$DYLD_LIBRARY_PATH" \
-		"$(DESTDIR)$(pkglibexecdir)/vlc-cache-gen$(EXEEXT)" \
+		"$(DESTDIR)$(pkglibexecdir)/heimdall-cache-gen$(EXEEXT)" \
 			 "$(DESTDIR)$(pkglibdir)/plugins" ; \
 	else \
 		echo "Cross-compilation: cache generation skipped!" ; \
@@ -211,7 +211,7 @@ lcov: lcov.out
 .PHONY: update-po
 
 update-po:
-	cd po && $(MAKE) POTFILES vlc.pot update-po
+	cd po && $(MAKE) POTFILES heimdall.pot update-po
 
 ###############################################################################
 # OS Packaging rules

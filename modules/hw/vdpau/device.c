@@ -1,7 +1,8 @@
 /*****************************************************************************
- * device.c: VDPAU instance management for VLC
+ * device.c: VDPAU instance management for Heimdall
  *****************************************************************************
  * Copyright (C) 2013-2021 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -25,20 +26,20 @@
 #include <errno.h>
 #include <stdlib.h>
 
-#include <vlc_common.h>
-#include <vlc_codec.h>
-#include <vlc_plugin.h>
-#include <vlc_window.h>
-#include <vlc_xlib.h>
-#include "vlc_vdpau.h"
+#include <heimdall_common.h>
+#include <heimdall_codec.h>
+#include <heimdall_plugin.h>
+#include <heimdall_window.h>
+#include <heimdall_xlib.h>
+#include "heimdall_vdpau.h"
 
 typedef struct vdp_instance
 {
     Display *display;
-    struct vlc_vdp_device device;
+    struct heimdall_vdp_device device;
 } vdp_instance_t;
 
-static void Close(vlc_decoder_device *device)
+static void Close(heimdall_decoder_device *device)
 {
     vdp_instance_t *vi = device->sys;
 
@@ -48,7 +49,7 @@ static void Close(vlc_decoder_device *device)
     free(vi);
 }
 
-static const struct vlc_decoder_device_operations ops = {
+static const struct heimdall_decoder_device_operations ops = {
     .close = Close,
 };
 
@@ -65,18 +66,18 @@ static int ScreenNumberOfWindow(Display *dpy, Window w)
     return -1;
 }
 
-static int Open(vlc_decoder_device *device, vlc_window_t *window)
+static int Open(heimdall_decoder_device *device, heimdall_window_t *window)
 {
-    int errCode = VLC_EGENERIC;
+    int errCode = HEIMDALL_EGENERIC;
 
-    if (window == NULL || window->type != VLC_WINDOW_TYPE_XID)
-        return VLC_ENOTSUP;
-    if (!vlc_xlib_init(VLC_OBJECT(device)))
-        return VLC_ENOTSUP;
+    if (window == NULL || window->type != HEIMDALL_WINDOW_TYPE_XID)
+        return HEIMDALL_ENOTSUP;
+    if (!heimdall_xlib_init(HEIMDALL_OBJECT(device)))
+        return HEIMDALL_ENOTSUP;
 
     vdp_instance_t *vi = malloc(sizeof (*vi));
     if (unlikely(vi == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     vi->display = XOpenDisplay(window->display.x11);
     if (vi->display == NULL)
@@ -111,9 +112,9 @@ static int Open(vlc_decoder_device *device, vlc_window_t *window)
 
     device->ops = &ops;
     device->sys = vi;
-    device->type = VLC_DECODER_DEVICE_VDPAU;
+    device->type = HEIMDALL_DECODER_DEVICE_VDPAU;
     device->opaque = &vi->device;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     XCloseDisplay(vi->display);
@@ -121,9 +122,9 @@ error:
     return errCode;
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_description("VDPAU decoder device")
     set_callback_dec_device(Open, 3)
     add_shortcut("vdpau")
     set_subcategory(SUBCAT_VIDEO_VOUT)
-vlc_module_end()
+heimdall_module_end()

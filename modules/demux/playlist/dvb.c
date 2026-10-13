@@ -2,6 +2,7 @@
  * dvb.c: LinuxTV channels list
  *****************************************************************************
  * Copyright (C) 2005-2012 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gildas Bazin <gbazin@videolan.org>
  *
@@ -31,9 +32,9 @@
 #include <limits.h>
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_access.h>
-#include <vlc_charset.h>
+#include <heimdall_common.h>
+#include <heimdall_access.h>
+#include <heimdall_charset.h>
 
 #include "playlist.h"
 
@@ -41,22 +42,22 @@ static int ReadDir(stream_t *, input_item_node_t *);
 static input_item_t *ParseLine(char *line);
 
 /** Detect dvb-utils zap channels.conf format */
-int Import_DVB(vlc_object_t *p_this)
+int Import_DVB(heimdall_object_t *p_this)
 {
     stream_t *demux = (stream_t *)p_this;
 
     if (!stream_HasExtension(demux, ".conf" ) && !demux->obj.force )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* Check if this really is a channels file */
     const uint8_t *peek;
-    int len = vlc_stream_Peek(demux->s, &peek, 1023);
+    int len = heimdall_stream_Peek(demux->s, &peek, 1023);
     if (len <= 0)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     const uint8_t *eol = memchr(peek, '\n', len);
     if (eol == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     len = eol - peek;
 
     char line[len + 1];
@@ -65,14 +66,14 @@ int Import_DVB(vlc_object_t *p_this)
 
     input_item_t *item = ParseLine(line);
     if (item == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     input_item_Release(item);
 
     msg_Dbg(demux, "found valid channels.conf file");
     demux->pf_control = PlaylistControl;
     demux->pf_readdir = ReadDir;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /** Parses the whole channels.conf file */
@@ -80,7 +81,7 @@ static int ReadDir(stream_t *s, input_item_node_t *subitems)
 {
     char *line;
 
-    while ((line = vlc_stream_ReadLine(s->s)) != NULL)
+    while ((line = heimdall_stream_ReadLine(s->s)) != NULL)
     {
         input_item_t *item = ParseLine(line);
         free(line);
@@ -91,7 +92,7 @@ static int ReadDir(stream_t *s, input_item_node_t *subitems)
         input_item_Release(item);
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int cmp(const void *k, const void *e)
@@ -104,7 +105,7 @@ static const char *ParseFEC(const char *str)
      static const struct fec
      {
          char dvb[5];
-         char vlc[5];
+         char heimdall[5];
      } tab[] = {
          { "1_2", "1/2" }, { "2_3", "2/3" }, { "3_4", "3/4" },
          { "4_5", "4/5" }, { "5_6", "5/6" }, { "6_7", "6/7" },
@@ -118,7 +119,7 @@ static const char *ParseFEC(const char *str)
 
      const struct fec *f = bsearch(str, tab, ARRAY_SIZE(tab),
                                    sizeof (tab[0]), cmp);
-     return (f != NULL) ? f->vlc : NULL;
+     return (f != NULL) ? f->heimdall : NULL;
 }
 
 static const char *ParseModulation(const char *str)
@@ -126,7 +127,7 @@ static const char *ParseModulation(const char *str)
      static const struct mod
      {
          char dvb[9];
-         char vlc[7];
+         char heimdall[7];
      } tab[] = {
          { "8VSB", "8VSB" }, { "APSK_16", "16APSK" }, { "APSK_32", "32APSK" },
          { "DQPSK", "DQPSK" }, { "PSK_8", "8PSK" }, { "QPSK", "QPSK" },
@@ -141,7 +142,7 @@ static const char *ParseModulation(const char *str)
 
      const struct mod *m = bsearch(str, tab, ARRAY_SIZE(tab),
                                    sizeof (tab[0]), cmp);
-     return (m != NULL) ? m->vlc : NULL;
+     return (m != NULL) ? m->heimdall : NULL;
 }
 
 static const char *ParseGuard(const char *str)
@@ -149,7 +150,7 @@ static const char *ParseGuard(const char *str)
      static const struct guard
      {
          char dvb[7];
-         char vlc[7];
+         char heimdall[7];
      } tab[] = {
          { "19_128", "19/128" }, { "19_256", "19/256" }, { "1_128", "1/128" },
          { "1_16", "1/16" }, { "1_32", "1/32" }, { "1_4", "1/4" },
@@ -162,7 +163,7 @@ static const char *ParseGuard(const char *str)
 
      const struct guard *g = bsearch(str, tab, ARRAY_SIZE(tab),
                                      sizeof (tab[0]), cmp);
-     return (g != NULL) ? g->vlc : NULL;
+     return (g != NULL) ? g->heimdall : NULL;
 }
 
 /* http://www.linuxtv.org/vdrwiki/index.php/Syntax_of_channels.conf or not...

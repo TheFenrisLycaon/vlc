@@ -1,7 +1,8 @@
 /*****************************************************************************
- * objres.c: vlc_object_t resources
+ * objres.c: heimdall_object_t resources
  *****************************************************************************
  * Copyright (C) 2017 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -29,32 +30,32 @@
 #include <stddef.h>
 #include <string.h>
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
-#include "../libvlc.h"
+#include "../libheimdall.h"
 #include "variables.h"
 
-struct vlc_res
+struct heimdall_res
 {
-    struct vlc_res *prev;
+    struct heimdall_res *prev;
     void (*release)(void *);
     max_align_t payload[];
 };
 
-static struct vlc_res **vlc_obj_res(vlc_object_t *obj)
+static struct heimdall_res **heimdall_obj_res(heimdall_object_t *obj)
 {
-    return &vlc_internals(obj)->resources;
+    return &heimdall_internals(obj)->resources;
 }
 
-void *vlc_objres_new(size_t size, void (*release)(void *))
+void *heimdall_objres_new(size_t size, void (*release)(void *))
 {
-    if (unlikely(ckd_add(&size, sizeof (struct vlc_res), size)))
+    if (unlikely(ckd_add(&size, sizeof (struct heimdall_res), size)))
     {
         errno = ENOMEM;
         return NULL;
     }
 
-    struct vlc_res *res = malloc(size);
+    struct heimdall_res *res = malloc(size);
     if (unlikely(res == NULL))
         return NULL;
 
@@ -62,19 +63,19 @@ void *vlc_objres_new(size_t size, void (*release)(void *))
     return res->payload;
 }
 
-void vlc_objres_push(vlc_object_t *obj, void *data)
+void heimdall_objres_push(heimdall_object_t *obj, void *data)
 {
-    struct vlc_res **restrict pp = vlc_obj_res(obj);
-    struct vlc_res *res = container_of(data, struct vlc_res, payload);
+    struct heimdall_res **restrict pp = heimdall_obj_res(obj);
+    struct heimdall_res *res = container_of(data, struct heimdall_res, payload);
 
     res->prev = *pp;
     *pp = res;
 }
 
-static void *vlc_objres_pop(vlc_object_t *obj)
+static void *heimdall_objres_pop(heimdall_object_t *obj)
 {
-    struct vlc_res **restrict pp = vlc_obj_res(obj);
-    struct vlc_res *res = *pp;
+    struct heimdall_res **restrict pp = heimdall_obj_res(obj);
+    struct heimdall_res *res = *pp;
 
     if (res == NULL)
         return NULL;
@@ -82,34 +83,34 @@ static void *vlc_objres_pop(vlc_object_t *obj)
     return res->payload;
 }
 
-void vlc_objres_clear(vlc_object_t *obj)
+void heimdall_objres_clear(heimdall_object_t *obj)
 {
     void *data;
 
-    while ((data = vlc_objres_pop(obj)) != NULL)
+    while ((data = heimdall_objres_pop(obj)) != NULL)
     {
-        struct vlc_res *res = container_of(data, struct vlc_res, payload);
+        struct heimdall_res *res = container_of(data, struct heimdall_res, payload);
 
         res->release(res->payload);
         free(res);
     }
 }
 
-void vlc_objres_remove(vlc_object_t *obj, void *data,
+void heimdall_objres_remove(heimdall_object_t *obj, void *data,
                        bool (*match)(void *, void *))
 {
-    struct vlc_res **restrict pp = vlc_obj_res(obj);
+    struct heimdall_res **restrict pp = heimdall_obj_res(obj);
 
     /* With a doubly-linked list, this function could have constant complexity.
      * But that would require one more pointer per resource.
      *
      * Any given list should contain a fairly small number of resources,
      * and in most cases, the resources are destroyed implicitly by
-     * vlc_objres_clear().
+     * heimdall_objres_clear().
      */
     for (;;)
     {
-        struct vlc_res *res = *pp;
+        struct heimdall_res *res = *pp;
 
         assert(res != NULL); /* invalid free? */
 
@@ -135,15 +136,15 @@ static bool ptrcmp(void *a, void *b)
     return a == b;
 }
 
-void *(vlc_obj_malloc)(vlc_object_t *obj, size_t size)
+void *(heimdall_obj_malloc)(heimdall_object_t *obj, size_t size)
 {
-    void *ptr = vlc_objres_new(size, dummy_release);
+    void *ptr = heimdall_objres_new(size, dummy_release);
     if (likely(ptr != NULL))
-        vlc_objres_push(obj, ptr);
+        heimdall_objres_push(obj, ptr);
     return ptr;
 }
 
-void *(vlc_obj_calloc)(vlc_object_t *obj, size_t nmemb, size_t size)
+void *(heimdall_obj_calloc)(heimdall_object_t *obj, size_t nmemb, size_t size)
 {
     size_t tabsize;
     if (unlikely(ckd_mul(&tabsize, nmemb, size)))
@@ -152,26 +153,26 @@ void *(vlc_obj_calloc)(vlc_object_t *obj, size_t nmemb, size_t size)
         return NULL;
     }
 
-    void *ptr = vlc_obj_malloc(obj, tabsize);
+    void *ptr = heimdall_obj_malloc(obj, tabsize);
     if (likely(ptr != NULL))
         memset(ptr, 0, tabsize);
     return ptr;
 }
 
-static void *vlc_obj_memdup(vlc_object_t *obj, const void *base, size_t len)
+static void *heimdall_obj_memdup(heimdall_object_t *obj, const void *base, size_t len)
 {
-    void *ptr = vlc_obj_malloc(obj, len);
+    void *ptr = heimdall_obj_malloc(obj, len);
     if (likely(ptr != NULL))
         memcpy(ptr, base, len);
     return ptr;
 }
 
-char *(vlc_obj_strdup)(vlc_object_t *obj, const char *str)
+char *(heimdall_obj_strdup)(heimdall_object_t *obj, const char *str)
 {
-    return vlc_obj_memdup(obj, str, strlen(str) + 1);
+    return heimdall_obj_memdup(obj, str, strlen(str) + 1);
 }
 
-void (vlc_obj_free)(vlc_object_t *obj, void *ptr)
+void (heimdall_obj_free)(heimdall_object_t *obj, void *ptr)
 {
-    vlc_objres_remove(obj, ptr, ptrcmp);
+    heimdall_objres_remove(obj, ptr, ptrcmp);
 }

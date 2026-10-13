@@ -1,7 +1,8 @@
 /*****************************************************************************
- * dvdread.h : DvdRead input module for vlc - shared types and declarations
+ * dvdread.h : DvdRead input module for heimdall - shared types and declarations
  *****************************************************************************
  * Copyright (C) 2001-2025 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Stéphane Borel <stef@via.ecp.fr>
  *          Gildas Bazin <gbazin@videolan.org>
@@ -22,12 +23,12 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_ACCESS_DVDREAD_H
-#define VLC_ACCESS_DVDREAD_H
+#ifndef HEIMDALL_ACCESS_DVDREAD_H
+#define HEIMDALL_ACCESS_DVDREAD_H
 
-#include <vlc_common.h>
-#include <vlc_es.h>
-#include <vlc_tick.h>
+#include <heimdall_common.h>
+#include <heimdall_es.h>
+#include <heimdall_tick.h>
 
 #include "../demux/mpeg/pes.h"
 #include "../demux/mpeg/ps.h"
@@ -72,10 +73,10 @@ typedef struct
     int        (*set_area)( demux_t *, int, int, int );
     int        (*seek)( demux_t *, uint32_t );
     void       (*find_cell)( demux_t * );
-    vlc_tick_t (*title_length)( const demux_sys_t * );
+    heimdall_tick_t (*title_length)( const demux_sys_t * );
     void       (*demux_titles)( demux_t *, int * );
-    bool       (*timeline_base)( const demux_sys_t *, vlc_tick_t * );
-    uint32_t   (*time_to_seek_offset)( const demux_sys_t *, vlc_tick_t, uint32_t );
+    bool       (*timeline_base)( const demux_sys_t *, heimdall_tick_t * );
+    uint32_t   (*time_to_seek_offset)( const demux_sys_t *, heimdall_tick_t, uint32_t );
     int        (*ps_source)( void );
     void       (*adjust_anchor)( demux_sys_t *, block_t * );
     bool       requires_vts;
@@ -154,11 +155,11 @@ struct demux_sys_t
     /* ps/dvd anchor pair for rebasing ps scr/pts onto the disc timeline
      * dvd is accumulated cell playback time from title start
      * ps is the matching scr from the first ps pack of that cell
-     * both are VLC_TICK_INVALID until the first pack of a cell is seen */
+     * both are HEIMDALL_TICK_INVALID until the first pack of a cell is seen */
     struct
     {
-        vlc_tick_t dvd;
-        vlc_tick_t ps;
+        heimdall_tick_t dvd;
+        heimdall_tick_t ps;
     } cell_ts;
 
     /* Track */
@@ -178,13 +179,13 @@ struct demux_sys_t
 
 static inline void DvdReadResetCellTs( demux_sys_t *p_sys )
 {
-    p_sys->cell_ts.dvd = VLC_TICK_INVALID;
-    p_sys->cell_ts.ps = VLC_TICK_INVALID;
+    p_sys->cell_ts.dvd = HEIMDALL_TICK_INVALID;
+    p_sys->cell_ts.ps = HEIMDALL_TICK_INVALID;
 }
 
-int OpenCommonDvdread( vlc_object_t *, dvd_type_t, const dvdread_ops_t * );
-int OpenVideoRecording( vlc_object_t * );
-int OpenAudio( vlc_object_t * );
+int OpenCommonDvdread( heimdall_object_t *, dvd_type_t, const dvdread_ops_t * );
+int OpenVideoRecording( heimdall_object_t * );
+int OpenAudio( heimdall_object_t * );
 
 #ifdef DVDREAD_HAS_DVDVIDEORECORDING
 uint32_t   DvdVRGetProgramSectorSpan( const demux_sys_t *, const vobu_map_t * );
@@ -201,4 +202,4 @@ extern const dvdread_ops_t DvdAudioReadOps;
 extern const dvdread_ops_t DvdVRReadOps;
 #endif
 
-#endif /* VLC_ACCESS_DVDREAD_H */
+#endif /* HEIMDALL_ACCESS_DVDREAD_H */

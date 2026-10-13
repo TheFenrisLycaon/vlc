@@ -1,7 +1,8 @@
 /*****************************************************************************
- * deinterlace.c : deinterlacer plugin for vlc
+ * deinterlace.c : deinterlacer plugin for heimdall
  *****************************************************************************
  * Copyright (C) 2000-2011 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Sam Hocevar <sam@zoy.org>
  *         Christophe Massiot <massiot@via.ecp.fr>
@@ -36,13 +37,13 @@
 #include <stdbit.h>
 #include <stdint.h>
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_picture.h>
-#include <vlc_cpu.h>
-#include <vlc_mouse.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
+#include <heimdall_cpu.h>
+#include <heimdall_mouse.h>
 
 #include "deinterlace.h"
 #include "helpers.h"
@@ -98,7 +99,7 @@ static picture_t *Deinterlace( filter_t *p_filter, picture_t *p_pic );
 /**
  * Reads the configuration, sets up and starts the filter.
  *
- * Possible reasons for returning VLC_EGENERIC:
+ * Possible reasons for returning HEIMDALL_EGENERIC:
  *  - Unsupported input chroma. See IsChromaSupported().
  *  - Caller has set p_filter->b_allow_fmt_out_change to false,
  *    but the algorithm chosen in the configuration
@@ -109,10 +110,10 @@ static picture_t *Deinterlace( filter_t *p_filter, picture_t *p_pic );
  * is left as it was before the call to this function.
  *
  * @param p_filter The filter instance.
- * @return VLC error code
- * @retval VLC_SUCCESS All ok, filter set up and started.
- * @retval VLC_ENOMEM Memory allocation error, initialization aborted.
- * @retval VLC_EGENERIC Something went wrong, initialization aborted.
+ * @return Heimdall error code
+ * @retval HEIMDALL_SUCCESS All ok, filter set up and started.
+ * @retval HEIMDALL_ENOMEM Memory allocation error, initialization aborted.
+ * @retval HEIMDALL_EGENERIC Something went wrong, initialization aborted.
  * @see IsChromaSupported()
  * @see SetFilterMethod()
  */
@@ -148,15 +149,15 @@ static void Flush( filter_t *p_filter );
  * @param[out] p_mouse Updated mouse position data.
  * @param[in] p_old Previous mouse position data. Unused in this filter.
  * @param[in] p_new Latest mouse position data.
- * @return VLC error code; currently always VLC_SUCCESS.
- * @retval VLC_SUCCESS All ok.
+ * @return Heimdall error code; currently always HEIMDALL_SUCCESS.
+ * @retval HEIMDALL_SUCCESS All ok.
  * @see Open()
  * @see filter_t
- * @see vlc_mouse_t
+ * @see heimdall_mouse_t
  */
 static int Mouse( filter_t *p_filter,
-                  vlc_mouse_t *p_mouse,
-                  const vlc_mouse_t *p_old );
+                  heimdall_mouse_t *p_mouse,
+                  const heimdall_mouse_t *p_old );
 
 /*****************************************************************************
  * Extra documentation
@@ -164,7 +165,7 @@ static int Mouse( filter_t *p_filter,
 
 /**
  * \file
- * Deinterlacer plugin for vlc. Data structures and video filter functions.
+ * Deinterlacer plugin for heimdall. Data structures and video filter functions.
  *
  * Note on i_frame_offset:
  *
@@ -296,7 +297,7 @@ static void Probe(void *data)
     funcs->merges[1] = Merge16BitGeneric;
 }
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("Deinterlacing video filter") )
     set_shortname( N_("Deinterlace" ))
     set_subcategory( SUBCAT_VIDEO_VFILTER )
@@ -316,7 +317,7 @@ vlc_module_begin ()
     set_deinterlace_callback( Open )
     add_submodule()
         set_cpu_funcs("deinterlace functions", Probe, 1)
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * Local data
@@ -410,11 +411,11 @@ static int SetFilterMethod( filter_t *p_filter, const char *mode, bool pack )
             msg_Dbg( p_filter, "using %s deinterlace method", mode );
             p_sys->context.settings = filter_mode[i].settings;
             p_sys->context.pf_render_ordered = filter_mode[i].pf_render_ordered;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
     }
 
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /**
@@ -469,14 +470,14 @@ void Flush( filter_t *p_filter )
  *****************************************************************************/
 
 int Mouse( filter_t *p_filter,
-           vlc_mouse_t *p_mouse,
-           const vlc_mouse_t *p_old )
+           heimdall_mouse_t *p_mouse,
+           const heimdall_mouse_t *p_old )
 {
-    VLC_UNUSED(p_old);
+    HEIMDALL_UNUSED(p_old);
     filter_sys_t *p_sys = p_filter->p_sys;
     if( p_sys->context.settings.b_half_height )
         p_mouse->i_y *= 2;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -484,7 +485,7 @@ int Mouse( filter_t *p_filter,
  *****************************************************************************/
 /**
  * Stops and uninitializes the filter, and deallocates memory.
- * @param p_this The filter instance as vlc_object_t.
+ * @param p_this The filter instance as heimdall_object_t.
  */
 static void Close( filter_t *p_filter )
 {
@@ -492,7 +493,7 @@ static void Close( filter_t *p_filter )
     free( p_filter->p_sys );
 }
 
-static const struct vlc_filter_operations filter_ops = {
+static const struct heimdall_filter_operations filter_ops = {
     .filter_video = Deinterlace,
     .flush = Flush,
     .video_mouse = Mouse,
@@ -509,13 +510,13 @@ int Open( filter_t *p_filter )
 {
     filter_sys_t *p_sys;
 
-    const vlc_fourcc_t fourcc = p_filter->fmt_in.video.i_chroma;
-    const vlc_chroma_description_t *chroma = vlc_fourcc_GetChromaDescription( fourcc );
+    const heimdall_fourcc_t fourcc = p_filter->fmt_in.video.i_chroma;
+    const heimdall_chroma_description_t *chroma = heimdall_fourcc_GetChromaDescription( fourcc );
     if( chroma == NULL || chroma->pixel_size > 2 )
     {
 notsupp:
         msg_Dbg( p_filter, "unsupported chroma %4.4s", (char*)&fourcc );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     unsigned pixel_size = chroma->pixel_size;
@@ -525,24 +526,24 @@ notsupp:
         packed = true;
         switch( fourcc )
         {
-            case VLC_CODEC_YUYV:
-            case VLC_CODEC_UYVY:
-            case VLC_CODEC_YVYU:
-            case VLC_CODEC_VYUY:
-            case VLC_CODEC_NV12:
-            case VLC_CODEC_NV21:
+            case HEIMDALL_CODEC_YUYV:
+            case HEIMDALL_CODEC_UYVY:
+            case HEIMDALL_CODEC_YVYU:
+            case HEIMDALL_CODEC_VYUY:
+            case HEIMDALL_CODEC_NV12:
+            case HEIMDALL_CODEC_NV21:
                 pixel_size = 1;
                 break;
             default:
                 goto notsupp;
         }
     }
-    assert( vlc_fourcc_IsYUV( fourcc ) );
+    assert( heimdall_fourcc_IsYUV( fourcc ) );
 
     /* */
     p_sys = p_filter->p_sys = malloc( sizeof( *p_sys ) );
     if( !p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_sys->chroma = chroma;
 
@@ -552,7 +553,7 @@ notsupp:
                        p_filter->p_cfg );
     char *psz_mode = var_InheritString( p_filter, FILTER_CFG_PREFIX "mode" );
     int ret = SetFilterMethod( p_filter, psz_mode, packed );
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
     {
         free(psz_mode);
         free(p_sys);
@@ -562,7 +563,7 @@ notsupp:
     IVTCClearState( p_filter );
 
     {
-        vlc_CPU_functions_init_once("deinterlace functions", &funcs);
+        heimdall_CPU_functions_init_once("deinterlace functions", &funcs);
         p_sys->pf_merge = funcs.merges[stdc_trailing_zeros(pixel_size)];
     }
 
@@ -605,7 +606,7 @@ notsupp:
             2 * chroma->p[2].h.num == chroma->p[2].h.den &&
             i_c420 == PC_UPCONVERT )
         {
-            fmt.i_chroma = VLC_CODEC_I422;
+            fmt.i_chroma = HEIMDALL_CODEC_I422;
         }
     }
     free( psz_mode );
@@ -615,7 +616,7 @@ notsupp:
           fmt.i_height != p_filter->fmt_in.video.i_height ) )
     {
         Close( p_filter );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     p_filter->fmt_out.video = fmt;
     p_filter->fmt_out.i_codec = fmt.i_chroma;
@@ -623,5 +624,5 @@ notsupp:
 
     msg_Dbg( p_filter, "deinterlacing" );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

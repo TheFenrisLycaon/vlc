@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 2010 - 2011 Klagenfurt University
  * Copyright (C) 2015 - 2020 VideoLabs, VideoLAN and VLC authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -39,16 +40,16 @@ namespace adaptive
                              public AttrsNode
         {
             public:
-                BasePlaylist(vlc_object_t *);
+                BasePlaylist(heimdall_object_t *);
                 virtual ~BasePlaylist();
 
                 virtual bool                    isLive() const;
                 virtual bool                    isLowLatency() const;
                 void                            setType(const std::string &);
-                void                            setMinBuffering( vlc_tick_t );
-                void                            setMaxBuffering( vlc_tick_t );
-                vlc_tick_t                      getMinBuffering() const;
-                vlc_tick_t                      getMaxBuffering() const;
+                void                            setMinBuffering( heimdall_tick_t );
+                void                            setMaxBuffering( heimdall_tick_t );
+                heimdall_tick_t                      getMinBuffering() const;
+                heimdall_tick_t                      getMaxBuffering() const;
                 virtual void                    debug() const;
 
                 void    addPeriod               (BasePeriod *period);
@@ -56,7 +57,7 @@ namespace adaptive
                 void    setPlaylistUrl          (const std::string &);
 
                 Url         getUrlSegment() const override;
-                vlc_object_t *      getVLCObject()  const;
+                heimdall_object_t *      getHeimdallObject()  const;
 
                 virtual const std::vector<BasePeriod *>& getPeriods();
                 virtual BasePeriod*                      getFirstPeriod();
@@ -65,24 +66,24 @@ namespace adaptive
                 bool                needsUpdates() const;
                 void                updateWith(BasePlaylist *);
 
-                vlc_tick_t                   duration;
+                heimdall_tick_t                   duration;
                 time_t                       playbackStart;
-                vlc_tick_t                   availabilityEndTime;
-                vlc_tick_t                   availabilityStartTime;
-                vlc_tick_t                   minUpdatePeriod;
-                vlc_tick_t                   maxSegmentDuration;
-                vlc_tick_t                   timeShiftBufferDepth;
-                vlc_tick_t                   suggestedPresentationDelay;
-                vlc_tick_t                   presentationStartOffset;
+                heimdall_tick_t                   availabilityEndTime;
+                heimdall_tick_t                   availabilityStartTime;
+                heimdall_tick_t                   minUpdatePeriod;
+                heimdall_tick_t                   maxSegmentDuration;
+                heimdall_tick_t                   timeShiftBufferDepth;
+                heimdall_tick_t                   suggestedPresentationDelay;
+                heimdall_tick_t                   presentationStartOffset;
 
             protected:
-                vlc_object_t                       *p_object;
+                heimdall_object_t                       *p_object;
                 std::vector<BasePeriod *>           periods;
                 std::vector<std::string>            baseUrls;
                 std::string                         playlistUrl;
                 std::string                         type;
-                vlc_tick_t                          minBufferTime;
-                vlc_tick_t                          maxBufferTime;
+                heimdall_tick_t                          minBufferTime;
+                heimdall_tick_t                          maxBufferTime;
                 bool                                b_needsUpdates;
         };
     }

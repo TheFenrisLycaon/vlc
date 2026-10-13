@@ -2,8 +2,9 @@
  * netconf.m : Network configuration
  *****************************************************************************
  * Copyright (C) 2013-2018 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Felix Paul Kühne <fkuehne # videolan org>
+ * Authors: Felix Paul Kühne <fkuehne # lycaria org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -24,8 +25,8 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_network.h>
+#include <heimdall_common.h>
+#include <heimdall_network.h>
 
 #import <Foundation/Foundation.h>
 
@@ -38,7 +39,7 @@
 #include <CoreServices/CoreServices.h>
 #endif
 
-char *vlc_getProxyUrl(const char *url)
+char *heimdall_getProxyUrl(const char *url)
 {
     if (url == NULL) {
         return NULL;

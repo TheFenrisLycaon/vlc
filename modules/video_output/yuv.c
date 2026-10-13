@@ -2,6 +2,7 @@
  * yuv.c : yuv video output
  *****************************************************************************
  * Copyright (C) 2008, M2X BV
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Jean-Paul Saman <jpsaman@videolan.org>
  *
@@ -28,10 +29,10 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_vout_display.h>
-#include <vlc_fs.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_vout_display.h>
+#include <heimdall_fs.h>
 
 /*****************************************************************************
  * Module descriptor
@@ -50,10 +51,10 @@
 #define CFG_PREFIX "yuv-"
 
 static int Open(vout_display_t *vd,
-                video_format_t *fmtp, vlc_video_context *context);
+                video_format_t *fmtp, heimdall_video_context *context);
 static void Close(vout_display_t *vd);
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname(N_("YUV output"))
     set_description(N_("YUV video output"))
     set_subcategory(SUBCAT_VIDEO_VOUT)
@@ -66,7 +67,7 @@ vlc_module_begin()
                 YUV4MPEG2_TEXT, YUV4MPEG2_LONGTEXT)
 
     set_callback_display(Open, 0)
-vlc_module_end()
+heimdall_module_end()
 
 /*****************************************************************************
  * Local prototypes
@@ -84,43 +85,43 @@ typedef struct vout_display_sys_t {
     bool  is_yuv4mpeg2;
 } vout_display_sys_t;
 
-static const struct vlc_display_operations ops = {
+static const struct heimdall_display_operations ops = {
     .close = Close,
     .display = Display,
 };
 
 /* */
 static int Open(vout_display_t *vd,
-                video_format_t *fmtp, vlc_video_context *context)
+                video_format_t *fmtp, heimdall_video_context *context)
 {
     vout_display_sys_t *sys;
 
     /* Allocate instance and initialize some members */
     vd->sys = sys = malloc(sizeof(*sys));
     if (!sys)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     sys->is_first = false;
     sys->is_yuv4mpeg2 = var_InheritBool(vd, CFG_PREFIX "yuv4mpeg2");
 
     /* */
     char *psz_fcc = var_InheritString(vd, CFG_PREFIX "chroma");
-    const vlc_fourcc_t requested_chroma = vlc_fourcc_GetCodecFromString(VIDEO_ES,
+    const heimdall_fourcc_t requested_chroma = heimdall_fourcc_GetCodecFromString(VIDEO_ES,
                                                                         psz_fcc);
     free(psz_fcc);
 
-    const vlc_fourcc_t chroma = requested_chroma ? requested_chroma :
-                                                   VLC_CODEC_I420;
+    const heimdall_fourcc_t chroma = requested_chroma ? requested_chroma :
+                                                   HEIMDALL_CODEC_I420;
     if (sys->is_yuv4mpeg2) {
         switch (chroma) {
-        case VLC_CODEC_YV12:
-        case VLC_CODEC_I420:
+        case HEIMDALL_CODEC_YV12:
+        case HEIMDALL_CODEC_I420:
             break;
         default:
             msg_Err(vd, "YUV4MPEG2 mode needs chroma YV12 not %4.4s as requested",
                     (char *)&chroma);
             free(sys);
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
     msg_Dbg(vd, "Using chroma %4.4s", (char *)&chroma);
@@ -130,15 +131,15 @@ static int Open(vout_display_t *vd,
     if (!name) {
         msg_Err(vd, "Empty file name");
         free(sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
-    sys->f = vlc_fopen(name, "wb");
+    sys->f = heimdall_fopen(name, "wb");
 
     if (!sys->f) {
         msg_Err(vd, "Failed to open %s", name);
         free(name);
         free(sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     msg_Dbg(vd, "Writing data to %s", name);
     free(name);
@@ -153,7 +154,7 @@ static int Open(vout_display_t *vd,
     vd->ops = &ops;
 
     (void) context;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /* */

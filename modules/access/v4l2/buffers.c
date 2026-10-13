@@ -1,12 +1,13 @@
 /*****************************************************************************
- * buffers.c: Video4Linux2 input module for vlc
+ * buffers.c: Video4Linux2 input module for heimdall
  *****************************************************************************
  * Copyright (C) 2002-2009 VLC authors and VideoLAN
  * Copyright (C) 2011-2012 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Benjamin Pracht <bigben at videolan dot org>
+ * Authors: Benjamin Pracht <bigben at lycaria dot org>
  *          Richard Hosking <richard at hovis dot net>
- *          Antoine Cellerier <dionoea at videolan d.t org>
+ *          Antoine Cellerier <dionoea at lycaria d.t org>
  *          Dennis Lou <dlou99 at yahoo dot com>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -34,37 +35,37 @@
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 
-#include <vlc_common.h>
-#include <vlc_block.h>
+#include <heimdall_common.h>
+#include <heimdall_block.h>
 
 #include "v4l2.h"
 
-vlc_tick_t GetBufferPTS(const struct v4l2_buffer *buf)
+heimdall_tick_t GetBufferPTS(const struct v4l2_buffer *buf)
 {
-    vlc_tick_t pts;
+    heimdall_tick_t pts;
 
     switch (buf->flags & V4L2_BUF_FLAG_TIMESTAMP_MASK)
     {
         case V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC:
-            pts = vlc_tick_from_timeval(&buf->timestamp);
+            pts = heimdall_tick_from_timeval(&buf->timestamp);
             break;
         case V4L2_BUF_FLAG_TIMESTAMP_UNKNOWN:
         default:
-            pts = vlc_tick_now();
+            pts = heimdall_tick_now();
             break;
     }
     return pts;
 }
 
-static void DestroyBuffer(struct vlc_v4l2_buffers *pool,
-                          struct vlc_v4l2_buffer *buf)
+static void DestroyBuffer(struct heimdall_v4l2_buffers *pool,
+                          struct heimdall_v4l2_buffer *buf)
 {
     block_t *block = &buf->block;
 
     v4l2_munmap(block->p_start, block->i_size);
     free(buf);
 
-    if (vlc_atomic_rc_dec(&pool->refs)) {
+    if (heimdall_atomic_rc_dec(&pool->refs)) {
         free(pool->bufs);
         free(pool);
     }
@@ -72,9 +73,9 @@ static void DestroyBuffer(struct vlc_v4l2_buffers *pool,
 
 static void ReleaseBuffer(block_t *block)
 {
-    struct vlc_v4l2_buffer *buf = container_of(block, struct vlc_v4l2_buffer,
+    struct heimdall_v4l2_buffer *buf = container_of(block, struct heimdall_v4l2_buffer,
                                                block);
-    struct vlc_v4l2_buffers *pool = buf->pool;
+    struct heimdall_v4l2_buffers *pool = buf->pool;
     struct v4l2_buffer buf_req = {
         .type = V4L2_BUF_TYPE_VIDEO_CAPTURE,
         .memory = V4L2_MEMORY_MMAP,
@@ -85,7 +86,7 @@ static void ReleaseBuffer(block_t *block)
     assert(buf->index < pool->count);
     assert(pool->bufs[buf->index] == NULL);
 
-    vlc_mutex_lock(&pool->lock);
+    heimdall_mutex_lock(&pool->lock);
     fd = pool->fd;
 
     if (likely(fd >= 0)) {
@@ -93,17 +94,17 @@ static void ReleaseBuffer(block_t *block)
         v4l2_ioctl(pool->fd, VIDIOC_QBUF, &buf_req);
         atomic_fetch_add(&pool->unused, 1);
     }
-    vlc_mutex_unlock(&pool->lock);
+    heimdall_mutex_unlock(&pool->lock);
 
     if (unlikely(fd < 0))
         DestroyBuffer(pool, buf);
 }
 
-static const struct vlc_block_callbacks vlc_v4l2_buffer_cbs = {
+static const struct heimdall_block_callbacks heimdall_v4l2_buffer_cbs = {
     ReleaseBuffer,
 };
 
-static struct vlc_v4l2_buffer *AllocateBuffer(struct vlc_v4l2_buffers *pool,
+static struct heimdall_v4l2_buffer *AllocateBuffer(struct heimdall_v4l2_buffers *pool,
                                               uint32_t index)
 {
     struct v4l2_buffer buf_req = {
@@ -116,7 +117,7 @@ static struct vlc_v4l2_buffer *AllocateBuffer(struct vlc_v4l2_buffers *pool,
     if (v4l2_ioctl(fd, VIDIOC_QUERYBUF, &buf_req) < 0)
         return NULL;
 
-    struct vlc_v4l2_buffer *buf = malloc(sizeof (*buf));
+    struct heimdall_v4l2_buffer *buf = malloc(sizeof (*buf));
     if (unlikely(buf == NULL))
         return NULL;
 
@@ -127,10 +128,10 @@ static struct vlc_v4l2_buffer *AllocateBuffer(struct vlc_v4l2_buffers *pool,
         return NULL;
     }
 
-    block_Init(&buf->block, &vlc_v4l2_buffer_cbs, base, buf_req.length);
+    block_Init(&buf->block, &heimdall_v4l2_buffer_cbs, base, buf_req.length);
     buf->pool = pool;
     buf->index = index;
-    vlc_atomic_rc_inc(&pool->refs);
+    heimdall_atomic_rc_inc(&pool->refs);
 
     assert(buf->index < pool->count);
     assert(pool->bufs[index] == NULL);
@@ -144,7 +145,7 @@ static struct vlc_v4l2_buffer *AllocateBuffer(struct vlc_v4l2_buffers *pool,
     return buf;
 }
 
-block_t *GrabVideo(vlc_object_t *demux, struct vlc_v4l2_buffers *restrict pool)
+block_t *GrabVideo(heimdall_object_t *demux, struct heimdall_v4l2_buffers *restrict pool)
 {
     int fd = pool->fd;
     struct v4l2_buffer buf_req = {
@@ -163,14 +164,14 @@ block_t *GrabVideo(vlc_object_t *demux, struct vlc_v4l2_buffers *restrict pool)
                 /* Could ignore EIO, see spec. */
                 /* fall through */
             default:
-                msg_Err(demux, "dequeue error: %s", vlc_strerror_c(errno));
+                msg_Err(demux, "dequeue error: %s", heimdall_strerror_c(errno));
                 return NULL;
         }
     }
 
     assert(buf_req.index < pool->count);
 
-    struct vlc_v4l2_buffer *const buf = pool->bufs[buf_req.index];
+    struct heimdall_v4l2_buffer *const buf = pool->bufs[buf_req.index];
 
     assert(buf != NULL);
     assert(buf->index == buf_req.index);
@@ -197,9 +198,9 @@ block_t *GrabVideo(vlc_object_t *demux, struct vlc_v4l2_buffers *restrict pool)
  * Allocates memory-mapped buffers, queues them and start streaming.
  * @return array of allocated buffers (use free()), or NULL on error.
  */
-struct vlc_v4l2_buffers *StartMmap(vlc_object_t *obj, int fd)
+struct heimdall_v4l2_buffers *StartMmap(heimdall_object_t *obj, int fd)
 {
-    struct vlc_v4l2_buffers *pool;
+    struct heimdall_v4l2_buffers *pool;
     struct v4l2_requestbuffers req = {
         .count = 16,
         .type = V4L2_BUF_TYPE_VIDEO_CAPTURE,
@@ -208,7 +209,7 @@ struct vlc_v4l2_buffers *StartMmap(vlc_object_t *obj, int fd)
 
     if (v4l2_ioctl(fd, VIDIOC_REQBUFS, &req) < 0)
     {
-        msg_Err(obj, "cannot allocate buffers: %s", vlc_strerror_c(errno));
+        msg_Err(obj, "cannot allocate buffers: %s", heimdall_strerror_c(errno));
         return NULL;
     }
 
@@ -233,16 +234,16 @@ struct vlc_v4l2_buffers *StartMmap(vlc_object_t *obj, int fd)
         pool->bufs[i] = NULL;
 
     pool->fd = fd;
-    vlc_atomic_rc_init(&pool->refs);
-    vlc_mutex_init(&pool->lock);
+    heimdall_atomic_rc_init(&pool->refs);
+    heimdall_mutex_init(&pool->lock);
 
     for (uint32_t index = 0; index < req.count; index++)
     {
-        struct vlc_v4l2_buffer *buf = AllocateBuffer(pool, index);
+        struct heimdall_v4l2_buffer *buf = AllocateBuffer(pool, index);
 
         if (unlikely(buf == NULL)) {
             msg_Err(obj, "cannot allocate buffer %"PRIu32": %s", index,
-                    vlc_strerror_c(errno));
+                    heimdall_strerror_c(errno));
             goto error;
         }
     }
@@ -252,7 +253,7 @@ struct vlc_v4l2_buffers *StartMmap(vlc_object_t *obj, int fd)
     enum v4l2_buf_type type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     if (v4l2_ioctl(fd, VIDIOC_STREAMON, &type) < 0)
     {
-        msg_Err (obj, "cannot start streaming: %s", vlc_strerror_c(errno));
+        msg_Err (obj, "cannot start streaming: %s", heimdall_strerror_c(errno));
         goto error;
     }
     return pool;
@@ -261,27 +262,27 @@ error:
     return NULL;
 }
 
-void StopMmap(struct vlc_v4l2_buffers *pool)
+void StopMmap(struct heimdall_v4l2_buffers *pool)
 {
     enum v4l2_buf_type type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     const size_t count = pool->count;
     int fd = pool->fd;
 
-    vlc_mutex_lock(&pool->lock);
+    heimdall_mutex_lock(&pool->lock);
     pool->fd = -1;
-    vlc_mutex_unlock(&pool->lock);
+    heimdall_mutex_unlock(&pool->lock);
 
     /* STREAMOFF implicitly dequeues all buffers */
     v4l2_ioctl(fd, VIDIOC_STREAMOFF, &type);
 
     for (size_t i = 0; i < count; i++) {
-        struct vlc_v4l2_buffer *const buf = pool->bufs[i];
+        struct heimdall_v4l2_buffer *const buf = pool->bufs[i];
 
         if (buf != NULL)
             DestroyBuffer(pool, buf);
     }
 
-    if (vlc_atomic_rc_dec(&pool->refs)) {
+    if (heimdall_atomic_rc_dec(&pool->refs)) {
         free(pool->bufs);
         free(pool);
     }

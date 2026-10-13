@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,7 +28,7 @@
 
 #include <QUrl>
 
-#include <vlc_media_library.h>
+#include <heimdall_media_library.h>
 #include "mlqmltypes.hpp"
 #include "mlmedia.hpp"
 
@@ -111,11 +112,11 @@ private:
 class MLVideo : public MLMedia
 {
 public:
-    MLVideo(const vlc_ml_media_t *data);
+    MLVideo(const heimdall_ml_media_t *data);
 
     bool isNew() const;
     void setIsNew(bool isNew);
-    void setSmallCover(vlc_ml_thumbnail_status_t status, QString mrl);
+    void setSmallCover(heimdall_ml_thumbnail_status_t status, QString mrl);
     QString getResolutionName() const;
     QString getChannel() const;
     QString getDisplayMRL() const;

@@ -2,6 +2,7 @@
  * intf.c: interface configuration handling
  *****************************************************************************
  * Copyright (C) 2001-2007 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gildas Bazin <gbazin@videolan.org>
  *
@@ -24,8 +25,8 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
 
 #include <assert.h>
 

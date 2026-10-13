@@ -2,6 +2,7 @@
  * instance.h: Vulkan instance abstraction
  *****************************************************************************
  * Copyright (C) 2018 Niklas Haas
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -18,16 +19,16 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_VULKAN_INSTANCE_H
-#define VLC_VULKAN_INSTANCE_H
+#ifndef HEIMDALL_VULKAN_INSTANCE_H
+#define HEIMDALL_VULKAN_INSTANCE_H
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 #include <vulkan/vulkan.h>
 
-typedef struct vlc_vk_instance_t
+typedef struct heimdall_vk_instance_t
 {
     VkInstance instance;
     PFN_vkGetInstanceProcAddr get_proc_address;
-} vlc_vk_instance_t;
+} heimdall_vk_instance_t;
 
-#endif // VLC_VULKAN_INSTANCE_H
+#endif // HEIMDALL_VULKAN_INSTANCE_H

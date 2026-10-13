@@ -2,6 +2,7 @@
  * eject.c: CD/DVD-ROM ejection handling functions
  *****************************************************************************
  * Copyright (C) 2001-2011 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Julien Blache <jb@technologeek.org> for the Linux part
  *                with code taken from the Linux "eject" command
@@ -32,9 +33,9 @@
 # include "config.h"
 #endif*/
 
-#include <vlc_common.h>
-#include <vlc_fs.h>
-#include <vlc_charset.h>
+#include <heimdall_common.h>
+#include <heimdall_fs.h>
+#include <heimdall_charset.h>
 
 #if defined( _WIN32 )
 #   include <mmsystem.h>
@@ -59,10 +60,10 @@
 #if defined(__linux__)
 /**
  * \brief Ejects the CD /DVD using SCSI commands
- * \ingroup vlc_interface
+ * \ingroup heimdall_interface
  * This function is local
  * \param i_fd a device number
- * \return 0 on success, VLC_EGENERIC on failure
+ * \return 0 on success, HEIMDALL_EGENERIC on failure
  */
 static int EjectSCSI( int i_fd )
 {
@@ -82,7 +83,7 @@ static int EjectSCSI( int i_fd )
     scsi_cmd.cmd[4] = 0;
     scsi_cmd.cmd[5] = 0;
     if( ioctl( i_fd, SCSI_IOCTL_SEND_COMMAND, (void *)&scsi_cmd ) < 0 )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     scsi_cmd.inlen  = 0;
     scsi_cmd.outlen = 0;
@@ -93,7 +94,7 @@ static int EjectSCSI( int i_fd )
     scsi_cmd.cmd[4] = 1;
     scsi_cmd.cmd[5] = 0;
     if( ioctl( i_fd, SCSI_IOCTL_SEND_COMMAND, (void *)&scsi_cmd ) < 0 )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     scsi_cmd.inlen  = 0;
     scsi_cmd.outlen = 0;
@@ -104,24 +105,24 @@ static int EjectSCSI( int i_fd )
     scsi_cmd.cmd[4] = 2;
     scsi_cmd.cmd[5] = 0;
     if( ioctl( i_fd, SCSI_IOCTL_SEND_COMMAND, (void *)&scsi_cmd ) < 0 )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* Force kernel to reread partition table when new disc inserted */
     ioctl( i_fd, BLKRRPART );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 #endif
 
 #undef intf_Eject
 /**
  * Ejects the optical disc in a device
- * \param p_this the calling vlc_object_t
+ * \param p_this the calling heimdall_object_t
  * \param psz_device the CD/DVD to eject
- * \return VLC_SUCCESS or VLC_EGENERIC
+ * \return HEIMDALL_SUCCESS or HEIMDALL_EGENERIC
  */
-static int intf_Eject( vlc_object_t *p_this, const char *psz_device )
+static int intf_Eject( heimdall_object_t *p_this, const char *psz_device )
 {
-    VLC_UNUSED(p_this);
+    HEIMDALL_UNUSED(p_this);
 
 #if defined(_WIN32)
     MCI_OPEN_PARMSA op = {};
@@ -138,22 +139,22 @@ static int intf_Eject( vlc_object_t *p_this, const char *psz_device )
               MCI_OPEN_ELEMENT | MCI_OPEN_SHAREABLE;
 
     if( mciSendCommandA( 0, MCI_OPEN, i_flags, (uintptr_t)&op ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* Eject disc */
     mciSendCommand( op.wDeviceID, MCI_SET, MCI_SET_DOOR_OPEN, 0 );
     /* Release access to the device */
     mciSendCommand( op.wDeviceID, MCI_CLOSE, MCI_WAIT, 0 );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 #elif defined (__linux__) || defined (HAVE_DVD_H)
     /* This code could be extended to support CD/DVD-ROM chargers */
-    int fd = vlc_open( psz_device, O_RDONLY | O_NONBLOCK );
+    int fd = heimdall_open( psz_device, O_RDONLY | O_NONBLOCK );
     if( fd == -1 )
     {
         msg_Err( p_this, "could not open device %s", psz_device );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
 # if defined(__linux__)
@@ -165,17 +166,17 @@ static int intf_Eject( vlc_object_t *p_this, const char *psz_device )
 # endif
     {
         msg_Err( p_this, "could not eject %s", psz_device );
-        vlc_close( fd );
-        return VLC_EGENERIC;
+        heimdall_close( fd );
+        return HEIMDALL_EGENERIC;
     }
-    vlc_close( fd );
-    return VLC_SUCCESS;
+    heimdall_close( fd );
+    return HEIMDALL_SUCCESS;
 
 #else
-    VLC_UNUSED( psz_device );
+    HEIMDALL_UNUSED( psz_device );
     msg_Warn( p_this, "CD-Rom ejection unsupported on this platform" );
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 #endif
 }
 
-#define intf_Eject(o, p) intf_Eject(VLC_OBJECT(o), p)
+#define intf_Eject(o, p) intf_Eject(HEIMDALL_OBJECT(o), p)

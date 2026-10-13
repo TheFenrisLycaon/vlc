@@ -2,6 +2,7 @@
  * hxxx_sei.c: AVC/HEVC packetizers SEI handling
  *****************************************************************************
  * Copyright (C) 2001-2016 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -21,9 +22,9 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_block.h>
-#include <vlc_bits.h>
+#include <heimdall_common.h>
+#include <heimdall_block.h>
+#include <heimdall_bits.h>
 
 #include "hxxx_sei.h"
 #include "hxxx_nal.h"
@@ -120,9 +121,9 @@ void HxxxParseSEI(const uint8_t *p_buf, size_t i_buf,
                     if( p_t35[1] == 0x00 && p_t35[2] == 0x31 && /* US provider code for ATSC / DVB1 */
                         i_t35 > 7 )
                     {
-                        switch( VLC_FOURCC(p_t35[3],p_t35[4],p_t35[5],p_t35[6]) )
+                        switch( HEIMDALL_FOURCC(p_t35[3],p_t35[4],p_t35[5],p_t35[6]) )
                         {
-                            case VLC_FOURCC('G', 'A', '9', '4'):
+                            case HEIMDALL_FOURCC('G', 'A', '9', '4'):
                                 if( p_t35[7] == 0x03 )
                                 {
                                     sei_data.itu_t35.type = HXXX_ITU_T35_TYPE_CC;

@@ -2,8 +2,9 @@
  * asx.c : ASX playlist format import
  *****************************************************************************
  * Copyright (C) 2005-2013 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Derk-Jan Hartman <hartman at videolan dot org>
+ * Authors: Derk-Jan Hartman <hartman at lycaria dot org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -31,12 +32,12 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_access.h>
-#include <vlc_xml.h>
-#include <vlc_strings.h>
-#include <vlc_charset.h>
-#include <vlc_memstream.h>
+#include <heimdall_common.h>
+#include <heimdall_access.h>
+#include <heimdall_xml.h>
+#include <heimdall_strings.h>
+#include <heimdall_charset.h>
+#include <heimdall_memstream.h>
 
 #include <assert.h>
 #include <ctype.h>
@@ -49,7 +50,7 @@
  *****************************************************************************/
 static int ReadDir( stream_t *, input_item_node_t * );
 
-static bool ParseTime(xml_reader_t *p_xml_reader, vlc_tick_t* pi_result )
+static bool ParseTime(xml_reader_t *p_xml_reader, heimdall_tick_t* pi_result )
 {
     assert( pi_result );
     char *psz_value = NULL;
@@ -61,7 +62,7 @@ static bool ParseTime(xml_reader_t *p_xml_reader, vlc_tick_t* pi_result )
     int i_subfractions = -1;
 
     int i_subresult = 0;
-    vlc_tick_t i_result = 0;
+    heimdall_tick_t i_result = 0;
 
     do
     {
@@ -112,7 +113,7 @@ static bool ParseTime(xml_reader_t *p_xml_reader, vlc_tick_t* pi_result )
     }
     i_result = i_result * CLOCK_FREQ;
     if( i_subfractions != -1)
-        i_result += VLC_TICK_FROM_US( i_subresult );
+        i_result += HEIMDALL_TICK_FROM_US( i_subresult );
 
     free( psz_start );
     *pi_result = i_result;
@@ -129,7 +130,7 @@ static bool ReadElement( xml_reader_t *p_xml_reader, char **ppsz_txt )
         return false;
     free( *ppsz_txt );
     *ppsz_txt = strdup( psz_node );
-    vlc_xml_decode( *ppsz_txt );
+    heimdall_xml_decode( *ppsz_txt );
 
     /* Read the end element */
     xml_ReaderNextNode( p_xml_reader, &psz_node );
@@ -144,7 +145,7 @@ static bool ReadElement( xml_reader_t *p_xml_reader, char **ppsz_txt )
 static bool PeekASX( stream_t *s )
 {
     const uint8_t *p_peek;
-    return ( vlc_stream_Peek( s->s, &p_peek, 12 ) == 12
+    return ( heimdall_stream_Peek( s->s, &p_peek, 12 ) == 12
              && !strncasecmp( (const char*) p_peek, "<asx version", 12 ) );
 }
 
@@ -152,7 +153,7 @@ static bool PeekASX( stream_t *s )
  * Import_ASX: main import function
  *****************************************************************************/
 
-int Import_ASX( vlc_object_t *p_this )
+int Import_ASX( heimdall_object_t *p_this )
 {
     stream_t *p_demux = (stream_t *)p_this;
     char *type = stream_MimeType( p_demux->s );
@@ -170,12 +171,12 @@ int Import_ASX( vlc_object_t *p_this )
     else
     {
         free(type);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     p_demux->pf_control = PlaylistControl;
     p_demux->pf_readdir = ReadDir;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void ProcessEntry( int *pi_n_entry, xml_reader_t *p_xml_reader,
@@ -198,8 +199,8 @@ static void ProcessEntry( int *pi_n_entry, xml_reader_t *p_xml_reader,
     input_item_t *p_entry = NULL;
 
     int i_options;
-    vlc_tick_t i_start = 0;
-    vlc_tick_t i_duration;
+    heimdall_tick_t i_start = 0;
+    heimdall_tick_t i_duration;
     char *ppsz_options[2];
 
     do
@@ -243,7 +244,7 @@ static void ProcessEntry( int *pi_n_entry, xml_reader_t *p_xml_reader,
                 }
                 else
                     psz_moreinfo = strdup( psz_node );
-                vlc_xml_decode( psz_moreinfo );
+                heimdall_xml_decode( psz_moreinfo );
             }
             else if( !strncasecmp( psz_node, "ABSTRACT", 8 ) )
             {
@@ -286,7 +287,7 @@ static void ProcessEntry( int *pi_n_entry, xml_reader_t *p_xml_reader,
 
                 if( asprintf( &psz_name, "%d. %s", *pi_n_entry, psz_title ) == -1)
                     psz_name = strdup( psz_title );
-                vlc_xml_decode( psz_href );
+                heimdall_xml_decode( psz_href );
                 psz_mrl = ProcessMRL( psz_href, psz_prefix );
 
                 /* Add Time information */
@@ -294,14 +295,14 @@ static void ProcessEntry( int *pi_n_entry, xml_reader_t *p_xml_reader,
                 if( i_start )
                 {
                     if( asprintf( ppsz_options, ":start-time=%"PRId64 ,
-                                  SEC_FROM_VLC_TICK(i_start) ) != -1)
+                                  SEC_FROM_HEIMDALL_TICK(i_start) ) != -1)
                         i_options++;
                 }
                 if( i_duration)
                 {
                     if( asprintf( ppsz_options + i_options,
                                   ":stop-time=%"PRId64,
-                                  SEC_FROM_VLC_TICK(i_start + i_duration) ) != -1)
+                                  SEC_FROM_HEIMDALL_TICK(i_start + i_duration) ) != -1)
                         i_options++;
                 }
 
@@ -313,7 +314,7 @@ static void ProcessEntry( int *pi_n_entry, xml_reader_t *p_xml_reader,
 
                 input_item_AddOptions( p_entry, i_options,
                                        (const char **)ppsz_options,
-                                       VLC_INPUT_OPTION_TRUSTED );
+                                       HEIMDALL_INPUT_OPTION_TRUSTED );
 
                 /* Add the metadata */
                 if( psz_name )
@@ -405,7 +406,7 @@ static bool isXmlEncoded(const char* psz_str)
     return is_escaped;
 }
 
-static void memstream_puts_xmlencoded(struct vlc_memstream* p_stream, const char* psz_begin, const char* psz_end)
+static void memstream_puts_xmlencoded(struct heimdall_memstream* p_stream, const char* psz_begin, const char* psz_end)
 {
     char *psz_tmp = NULL;
     if(psz_end == NULL)
@@ -417,16 +418,16 @@ static void memstream_puts_xmlencoded(struct vlc_memstream* p_stream, const char
         return;
 
     if( isXmlEncoded( psz_tmp ) )
-        vlc_memstream_puts( p_stream, psz_tmp );
+        heimdall_memstream_puts( p_stream, psz_tmp );
     else
     {
-        char *psz_tmp_encoded = vlc_xml_encode( psz_tmp );
+        char *psz_tmp_encoded = heimdall_xml_encode( psz_tmp );
         if ( !psz_tmp_encoded )
         {
             free( psz_tmp );
             return;
         }
-        vlc_memstream_puts( p_stream, psz_tmp_encoded );
+        heimdall_memstream_puts( p_stream, psz_tmp_encoded );
         free( psz_tmp_encoded );
     }
     free(psz_tmp);
@@ -437,15 +438,15 @@ static void memstream_puts_xmlencoded(struct vlc_memstream* p_stream, const char
  *  - make tags and attributes upercase
  *  - escape strings when required
  */
-VLC_MALLOC static char* ASXToXML( char* psz_source )
+HEIMDALL_MALLOC static char* ASXToXML( char* psz_source )
 {
     bool b_in_string= false;
     char *psz_source_cur = psz_source;
     char *psz_source_old = psz_source;
     char c_string_delim;
 
-    struct vlc_memstream stream_out;
-    if( vlc_memstream_open( &stream_out ) != 0 )
+    struct heimdall_memstream stream_out;
+    if( heimdall_memstream_open( &stream_out ) != 0 )
         return NULL;
 
     while ( psz_source_cur != NULL && *psz_source_cur != '\0' )
@@ -455,7 +456,7 @@ VLC_MALLOC static char* ASXToXML( char* psz_source )
         if( ( psz_source_cur = strchr( psz_source_cur, '<' ) ) == NULL )
         {
             memstream_puts_xmlencoded(&stream_out, psz_source_old, NULL);
-            //vlc_memstream_puts( &stream_out, psz_source_old );
+            //heimdall_memstream_puts( &stream_out, psz_source_old );
             break;
         }
 
@@ -477,7 +478,7 @@ VLC_MALLOC static char* ASXToXML( char* psz_source )
         }
         else
         {
-            vlc_memstream_putc( &stream_out, '<' );
+            heimdall_memstream_putc( &stream_out, '<' );
             psz_source_cur++;
         }
 
@@ -487,7 +488,7 @@ VLC_MALLOC static char* ASXToXML( char* psz_source )
             {
                 if( *psz_source_cur == '>')
                 {
-                    vlc_memstream_putc( &stream_out, '>' );
+                    heimdall_memstream_putc( &stream_out, '>' );
                     psz_source_cur++;
                     break;
                 }
@@ -495,12 +496,12 @@ VLC_MALLOC static char* ASXToXML( char* psz_source )
                 {
                     c_string_delim = *psz_source_cur;
                     b_in_string = true;
-                    vlc_memstream_putc( &stream_out, c_string_delim );
+                    heimdall_memstream_putc( &stream_out, c_string_delim );
                 }
                 else
                 {
                     //convert tag and attributes to upper case
-                    vlc_memstream_putc( &stream_out, vlc_ascii_toupper( *psz_source_cur ) );
+                    heimdall_memstream_putc( &stream_out, heimdall_ascii_toupper( *psz_source_cur ) );
                 }
             }
             else
@@ -511,12 +512,12 @@ VLC_MALLOC static char* ASXToXML( char* psz_source )
                     break;
 
                 memstream_puts_xmlencoded(&stream_out, psz_source_old, psz_source_cur);
-                vlc_memstream_putc( &stream_out, c_string_delim );
+                heimdall_memstream_putc( &stream_out, c_string_delim );
                 b_in_string = false;
             }
         }
     }
-    if( vlc_memstream_close( &stream_out ) != 0 )
+    if( heimdall_memstream_close( &stream_out ) != 0 )
         return NULL;
 
     return stream_out.ptr;
@@ -581,7 +582,7 @@ static stream_t* PreparseStream( stream_t *p_demux )
     uint64_t streamSize;
     static const size_t maxsize = 1024 * 1024;
 
-    if( vlc_stream_GetSize( s, &streamSize ) != VLC_SUCCESS)
+    if( heimdall_stream_GetSize( s, &streamSize ) != HEIMDALL_SUCCESS)
         streamSize = maxsize;
 
      // Don't attempt to convert/store huge streams
@@ -593,7 +594,7 @@ static stream_t* PreparseStream( stream_t *p_demux )
      size_t i_read = 0;
      do
      {
-         ssize_t i_ret = vlc_stream_Read( s, psz_source + i_read,
+         ssize_t i_ret = heimdall_stream_Read( s, psz_source + i_read,
                                           streamSize > 1024 ? 1024 : streamSize );
          if ( i_ret <= 0 )
              break;
@@ -639,20 +640,20 @@ static stream_t* PreparseStream( stream_t *p_demux )
     if( psz_source_xml == NULL )
          return NULL;
 
-     stream_t * p_stream = vlc_stream_MemoryNew( p_demux, (uint8_t*)psz_source_xml, strlen(psz_source_xml), false );
+     stream_t * p_stream = heimdall_stream_MemoryNew( p_demux, (uint8_t*)psz_source_xml, strlen(psz_source_xml), false );
      return p_stream;
 }
 
 static int ReadDir( stream_t *p_demux, input_item_node_t *p_subitems )
 {
     if (unlikely(p_demux->psz_url == NULL))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     const char *psz_node = NULL;
     char *psz_txt = NULL;
     char *psz_base = strdup( p_demux->psz_url );
     if (unlikely(psz_base == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     char *psz_title_asx = NULL;
     char *psz_entryref = NULL;
@@ -728,7 +729,7 @@ static int ReadDir( stream_t *p_demux, input_item_node_t *p_subitems )
                 else
                     psz_txt = strdup( psz_node );
 
-                vlc_xml_decode( psz_txt );
+                heimdall_xml_decode( psz_txt );
                 input_item_SetURL( p_current_input, psz_txt );
             }
             else if( !strncasecmp( psz_node, "ABSTRACT", 8 ) )
@@ -760,7 +761,7 @@ static int ReadDir( stream_t *p_demux, input_item_node_t *p_subitems )
                 /* Create new input item */
                 input_item_t *p_input;
                 psz_txt = strdup( psz_node );
-                vlc_xml_decode( psz_txt );
+                heimdall_xml_decode( psz_txt );
                 p_input = input_item_New( psz_txt, psz_title_asx );
                 input_item_node_AppendItem( p_subitems, p_input );
 
@@ -793,7 +794,7 @@ error:
     if( p_xml_reader)
         xml_ReaderDelete( p_xml_reader );
     if( p_stream )
-        vlc_stream_Delete( p_stream );
+        heimdall_stream_Delete( p_stream );
 
     return 0;
 }

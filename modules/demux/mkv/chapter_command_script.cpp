@@ -1,4 +1,5 @@
 // Copyright (C) 2003-2024 VLC authors and VideoLAN
+// Copyright (C) 2026 TheFenrisLycaon
 // SPDX-License-Identifier: LGPL-2.1-or-later
 //
 // chapter_command_script.cpp : Matroska Script Codec for Matroska Chapter Codecs
@@ -28,7 +29,7 @@ bool matroska_script_interpretor_c::Interpret( MatroskaChapterProcessTime time, 
 
     std::string sz_command( reinterpret_cast<const char*> (p_command), i_size );
 
-    vlc_debug( l, "command : %s", sz_command.c_str() );
+    heimdall_debug( l, "command : %s", sz_command.c_str() );
 
     if ( sz_command.compare( 0, CMD_MS_GOTO_AND_PLAY.size(), CMD_MS_GOTO_AND_PLAY ) == 0 )
     {
@@ -65,7 +66,7 @@ bool matroska_script_interpretor_c::Interpret( MatroskaChapterProcessTime time, 
             virtual_chapter_c *p_vchapter = vm.FindVChapter( i_chapter_uid, p_vsegment );
 
             if ( p_vchapter == NULL )
-                vlc_debug( l, "Chapter %" PRId64 " not found", i_chapter_uid);
+                heimdall_debug( l, "Chapter %" PRId64 " not found", i_chapter_uid);
             else
             {
                 auto current_chapter = vm.GetCurrentVSegment()->CurrentChapter();

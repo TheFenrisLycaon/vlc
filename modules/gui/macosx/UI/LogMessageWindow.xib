@@ -5,7 +5,7 @@
         <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="12121"/>
     </dependencies>
     <objects>
-        <customObject id="-2" userLabel="File's Owner" customClass="VLCLogWindowController">
+        <customObject id="-2" userLabel="File's Owner" customClass="HeimdallLogWindowController">
             <connections>
                 <outlet property="arrayController" destination="0Or-bh-QJU" id="Wo9-Rk-Jkb"/>
                 <outlet property="detailView" destination="ESj-Mw-X94" id="YDo-hQ-k1t"/>
@@ -306,28 +306,28 @@ IA
                                 </subviews>
                                 <constraints>
                                     <constraint firstItem="gAc-zn-uSr" firstAttribute="top" secondItem="ESj-Mw-X94" secondAttribute="top" constant="12" id="18d-J7-NTf"/>
-                                    <constraint firstItem="Pfg-HK-E4H" firstAttribute="top" secondItem="hRN-Hm-oJ6" secondAttribute="bottom" constant="8" id="24q-jK-9J7" customClass="VLCSpacingConstraint">
+                                    <constraint firstItem="Pfg-HK-E4H" firstAttribute="top" secondItem="hRN-Hm-oJ6" secondAttribute="bottom" constant="8" id="24q-jK-9J7" customClass="HeimdallSpacingConstraint">
                                         <userDefinedRuntimeAttributes>
                                             <userDefinedRuntimeAttribute type="number" keyPath="spacingToken">
                                                 <integer value="2"/>
                                             </userDefinedRuntimeAttribute>
                                         </userDefinedRuntimeAttributes>
                                     </constraint>
-                                    <constraint firstItem="YjO-49-ed6" firstAttribute="leading" secondItem="hRN-Hm-oJ6" secondAttribute="trailing" constant="8" id="2Tf-Pg-VfZ" customClass="VLCSpacingConstraint">
+                                    <constraint firstItem="YjO-49-ed6" firstAttribute="leading" secondItem="hRN-Hm-oJ6" secondAttribute="trailing" constant="8" id="2Tf-Pg-VfZ" customClass="HeimdallSpacingConstraint">
                                         <userDefinedRuntimeAttributes>
                                             <userDefinedRuntimeAttribute type="number" keyPath="spacingToken">
                                                 <integer value="2"/>
                                             </userDefinedRuntimeAttribute>
                                         </userDefinedRuntimeAttributes>
                                     </constraint>
-                                    <constraint firstAttribute="trailing" secondItem="Pfg-HK-E4H" secondAttribute="trailing" constant="16" id="3Aw-EY-Jgz" customClass="VLCSpacingConstraint">
+                                    <constraint firstAttribute="trailing" secondItem="Pfg-HK-E4H" secondAttribute="trailing" constant="16" id="3Aw-EY-Jgz" customClass="HeimdallSpacingConstraint">
                                         <userDefinedRuntimeAttributes>
                                             <userDefinedRuntimeAttribute type="number" keyPath="spacingToken">
                                                 <integer value="3"/>
                                             </userDefinedRuntimeAttribute>
                                         </userDefinedRuntimeAttributes>
                                     </constraint>
-                                    <constraint firstItem="Pfg-HK-E4H" firstAttribute="leading" secondItem="ESj-Mw-X94" secondAttribute="leading" constant="16" id="70O-DF-o0V" customClass="VLCSpacingConstraint">
+                                    <constraint firstItem="Pfg-HK-E4H" firstAttribute="leading" secondItem="ESj-Mw-X94" secondAttribute="leading" constant="16" id="70O-DF-o0V" customClass="HeimdallSpacingConstraint">
                                         <userDefinedRuntimeAttributes>
                                             <userDefinedRuntimeAttribute type="number" keyPath="spacingToken">
                                                 <integer value="3"/>
@@ -335,14 +335,14 @@ IA
                                         </userDefinedRuntimeAttributes>
                                     </constraint>
                                     <constraint firstItem="hRN-Hm-oJ6" firstAttribute="top" secondItem="yQr-Pj-2OQ" secondAttribute="bottom" constant="1" id="DuB-hS-nqq"/>
-                                    <constraint firstAttribute="bottom" secondItem="Pfg-HK-E4H" secondAttribute="bottom" constant="8" id="Qib-Os-QkT" customClass="VLCSpacingConstraint">
+                                    <constraint firstAttribute="bottom" secondItem="Pfg-HK-E4H" secondAttribute="bottom" constant="8" id="Qib-Os-QkT" customClass="HeimdallSpacingConstraint">
                                         <userDefinedRuntimeAttributes>
                                             <userDefinedRuntimeAttribute type="number" keyPath="spacingToken">
                                                 <integer value="2"/>
                                             </userDefinedRuntimeAttribute>
                                         </userDefinedRuntimeAttributes>
                                     </constraint>
-                                    <constraint firstItem="yQr-Pj-2OQ" firstAttribute="leading" secondItem="ESj-Mw-X94" secondAttribute="leading" constant="16" id="TSY-7b-Iud" customClass="VLCSpacingConstraint">
+                                    <constraint firstItem="yQr-Pj-2OQ" firstAttribute="leading" secondItem="ESj-Mw-X94" secondAttribute="leading" constant="16" id="TSY-7b-Iud" customClass="HeimdallSpacingConstraint">
                                         <userDefinedRuntimeAttributes>
                                             <userDefinedRuntimeAttribute type="number" keyPath="spacingToken">
                                                 <integer value="3"/>
@@ -351,7 +351,7 @@ IA
                                     </constraint>
                                     <constraint firstAttribute="height" relation="greaterThanOrEqual" constant="90" id="ZBi-FO-86D"/>
                                     <constraint firstItem="YjO-49-ed6" firstAttribute="top" secondItem="gAc-zn-uSr" secondAttribute="bottom" constant="1" id="ZEg-Kz-hvV"/>
-                                    <constraint firstItem="gAc-zn-uSr" firstAttribute="leading" secondItem="yQr-Pj-2OQ" secondAttribute="trailing" constant="8" id="ZdG-le-RDN" customClass="VLCSpacingConstraint">
+                                    <constraint firstItem="gAc-zn-uSr" firstAttribute="leading" secondItem="yQr-Pj-2OQ" secondAttribute="trailing" constant="8" id="ZdG-le-RDN" customClass="HeimdallSpacingConstraint">
                                         <userDefinedRuntimeAttributes>
                                             <userDefinedRuntimeAttribute type="number" keyPath="spacingToken">
                                                 <integer value="2"/>
@@ -359,7 +359,7 @@ IA
                                         </userDefinedRuntimeAttributes>
                                     </constraint>
                                     <constraint firstItem="yQr-Pj-2OQ" firstAttribute="top" secondItem="ESj-Mw-X94" secondAttribute="top" constant="12" id="jFW-Cm-1og"/>
-                                    <constraint firstItem="hRN-Hm-oJ6" firstAttribute="leading" secondItem="ESj-Mw-X94" secondAttribute="leading" constant="16" id="lSl-p0-QFt" customClass="VLCSpacingConstraint">
+                                    <constraint firstItem="hRN-Hm-oJ6" firstAttribute="leading" secondItem="ESj-Mw-X94" secondAttribute="leading" constant="16" id="lSl-p0-QFt" customClass="HeimdallSpacingConstraint">
                                         <userDefinedRuntimeAttributes>
                                             <userDefinedRuntimeAttribute type="number" keyPath="spacingToken">
                                                 <integer value="3"/>
@@ -367,21 +367,21 @@ IA
                                         </userDefinedRuntimeAttributes>
                                     </constraint>
                                     <constraint firstAttribute="height" relation="lessThanOrEqual" constant="200" id="ldX-ic-gvG"/>
-                                    <constraint firstAttribute="trailing" secondItem="YjO-49-ed6" secondAttribute="trailing" constant="16" id="qHC-VC-lrB" customClass="VLCSpacingConstraint">
+                                    <constraint firstAttribute="trailing" secondItem="YjO-49-ed6" secondAttribute="trailing" constant="16" id="qHC-VC-lrB" customClass="HeimdallSpacingConstraint">
                                         <userDefinedRuntimeAttributes>
                                             <userDefinedRuntimeAttribute type="number" keyPath="spacingToken">
                                                 <integer value="3"/>
                                             </userDefinedRuntimeAttribute>
                                         </userDefinedRuntimeAttributes>
                                     </constraint>
-                                    <constraint firstItem="YjO-49-ed6" firstAttribute="leading" secondItem="hRN-Hm-oJ6" secondAttribute="trailing" constant="8" id="u6b-x9-u0Q" customClass="VLCSpacingConstraint">
+                                    <constraint firstItem="YjO-49-ed6" firstAttribute="leading" secondItem="hRN-Hm-oJ6" secondAttribute="trailing" constant="8" id="u6b-x9-u0Q" customClass="HeimdallSpacingConstraint">
                                         <userDefinedRuntimeAttributes>
                                             <userDefinedRuntimeAttribute type="number" keyPath="spacingToken">
                                                 <integer value="2"/>
                                             </userDefinedRuntimeAttribute>
                                         </userDefinedRuntimeAttributes>
                                     </constraint>
-                                    <constraint firstAttribute="trailing" secondItem="gAc-zn-uSr" secondAttribute="trailing" constant="16" id="xhv-EZ-pdm" customClass="VLCSpacingConstraint">
+                                    <constraint firstAttribute="trailing" secondItem="gAc-zn-uSr" secondAttribute="trailing" constant="16" id="xhv-EZ-pdm" customClass="HeimdallSpacingConstraint">
                                         <userDefinedRuntimeAttributes>
                                             <userDefinedRuntimeAttribute type="number" keyPath="spacingToken">
                                                 <integer value="3"/>
@@ -411,14 +411,14 @@ IA
                 <allowedToolbarItems>
                     <toolbarItem implicitItemIdentifier="NSToolbarSpaceItem" id="kAx-MM-EeR"/>
                     <toolbarItem implicitItemIdentifier="NSToolbarFlexibleSpaceItem" id="D2F-Ah-mBO"/>
-                    <toolbarItem implicitItemIdentifier="DED22896-62F8-4A8C-87D1-207BDD8C3D12" label="Clear" paletteLabel="Clear" image="VLCClearLogTemplate" id="hpb-18-o94">
+                    <toolbarItem implicitItemIdentifier="DED22896-62F8-4A8C-87D1-207BDD8C3D12" label="Clear" paletteLabel="Clear" image="HeimdallClearLogTemplate" id="hpb-18-o94">
                         <nil key="toolTip"/>
                         <size key="minSize" width="42" height="28"/>
                         <size key="maxSize" width="42" height="32"/>
                         <button key="view" verticalHuggingPriority="750" id="zr5-l7-GjP">
                             <rect key="frame" x="0.0" y="14" width="42" height="28"/>
                             <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
-                            <buttonCell key="cell" type="roundTextured" bezelStyle="texturedRounded" image="VLCClearLogTemplate" imagePosition="only" alignment="center" borderStyle="border" imageScaling="proportionallyDown" inset="2" id="fwS-lM-cr8">
+                            <buttonCell key="cell" type="roundTextured" bezelStyle="texturedRounded" image="HeimdallClearLogTemplate" imagePosition="only" alignment="center" borderStyle="border" imageScaling="proportionallyDown" inset="2" id="fwS-lM-cr8">
                                 <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
                                 <font key="font" metaFont="system"/>
                             </buttonCell>
@@ -449,14 +449,14 @@ IA
                             </connections>
                         </searchField>
                     </toolbarItem>
-                    <toolbarItem implicitItemIdentifier="9A3E885E-18F4-404E-BD7E-276CBAADC258" label="Save..." paletteLabel="Save..." image="VLCSaveTemplate" id="FN6-f1-moV">
+                    <toolbarItem implicitItemIdentifier="9A3E885E-18F4-404E-BD7E-276CBAADC258" label="Save..." paletteLabel="Save..." image="HeimdallSaveTemplate" id="FN6-f1-moV">
                         <nil key="toolTip"/>
                         <size key="minSize" width="42" height="28"/>
                         <size key="maxSize" width="42" height="32"/>
                         <button key="view" verticalHuggingPriority="750" id="wEO-3t-jcc">
                             <rect key="frame" x="1" y="14" width="42" height="28"/>
                             <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
-                            <buttonCell key="cell" type="roundTextured" bezelStyle="texturedRounded" image="VLCSaveTemplate" imagePosition="only" alignment="center" borderStyle="border" imageScaling="proportionallyDown" inset="2" id="iFC-ts-0dh">
+                            <buttonCell key="cell" type="roundTextured" bezelStyle="texturedRounded" image="HeimdallSaveTemplate" imagePosition="only" alignment="center" borderStyle="border" imageScaling="proportionallyDown" inset="2" id="iFC-ts-0dh">
                                 <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
                                 <font key="font" metaFont="system"/>
                             </buttonCell>
@@ -508,7 +508,7 @@ IA
             </toolbar>
             <point key="canvasLocation" x="139" y="192"/>
         </window>
-        <arrayController objectClassName="VLCLogMessage" editable="NO" selectsInsertedObjects="NO" id="0Or-bh-QJU">
+        <arrayController objectClassName="HeimdallLogMessage" editable="NO" selectsInsertedObjects="NO" id="0Or-bh-QJU">
             <connections>
                 <binding destination="-2" name="contentArray" keyPath="self.messagesArray" id="nWK-kZ-4HF"/>
             </connections>
@@ -517,7 +517,7 @@ IA
     <resources>
         <image name="NSQuickLookTemplate" width="19" height="12"/>
         <image name="NSRefreshTemplate" width="11" height="15"/>
-        <image name="VLCClearLogTemplate" width="30" height="30"/>
-        <image name="VLCSaveTemplate" width="30" height="30"/>
+        <image name="HeimdallClearLogTemplate" width="30" height="30"/>
+        <image name="HeimdallSaveTemplate" width="30" height="30"/>
     </resources>
 </document>

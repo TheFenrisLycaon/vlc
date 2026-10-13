@@ -28,26 +28,26 @@ CLEANFILES =
 
 include ../../common.am
 
-# Generate vlc_modules_list for Qt plugins
+# Generate heimdall_modules_list for Qt plugins
 include ../../modulelist.mk
 
 SUFFIXES += .ui .h .hpp .moc.cpp .qml .js .mjs .moc
 TEST_EXTENSIONS = .qml
 EXTRA_DIST = qt6.pro qtest.pro quicktest.pro scripts
-vlc_qt_libs = $(QT_LIBS)
+heimdall_qt_libs = $(QT_LIBS)
 RCC_EXTRA_PARAMS =
 
-all-local: $(VLC_QT_CHECK_DEP) $(QML_MODULE_STAMPS)
+all-local: $(HEIMDALL_QT_CHECK_DEP) $(QML_MODULE_STAMPS)
 
 if !HAVE_QT_ZSTD
 RCC_EXTRA_PARAMS += --no-zstd
 endif
 
-vlc_qt_check_SOURCES = vlc-qt-check.cpp plugins.hpp
-vlc_qt_check_CXXFLAGS = $(AM_CXXFLAGS) $(QT_CFLAGS) -fPIC $(CXXFLAGS_qt)
-vlc_qt_check_CPPFLAGS = $(AM_CPPFLAGS) $(CPPFLAGS_qt)
-vlc_qt_check_LDADD = $(vlc_qt_libs)
-vlc_qt_check_LDFLAGS = $(AM_LDFLAGS) $(QT_LDFLAGS)
+heimdall_qt_check_SOURCES = heimdall-qt-check.cpp plugins.hpp
+heimdall_qt_check_CXXFLAGS = $(AM_CXXFLAGS) $(QT_CFLAGS) -fPIC $(CXXFLAGS_qt)
+heimdall_qt_check_CPPFLAGS = $(AM_CPPFLAGS) $(CPPFLAGS_qt)
+heimdall_qt_check_LDADD = $(heimdall_qt_libs)
+heimdall_qt_check_LDFLAGS = $(AM_LDFLAGS) $(QT_LDFLAGS)
 
 libqt_plugin_la_CPPFLAGS = $(AM_CPPFLAGS) $(CPPFLAGS_qt) \
 	-DQT_STRICT_ITERATORS \
@@ -67,7 +67,7 @@ libqt_plugin_la_CPPFLAGS = $(AM_CPPFLAGS) $(CPPFLAGS_qt) \
 	-I$(builddir)/dialogs/vlm
 
 libqt_plugin_la_CXXFLAGS = $(AM_CXXFLAGS) $(QT_CFLAGS) $(CXXFLAGS_qt) -fPIC
-libqt_plugin_la_LIBADD = $(vlc_qt_libs)
+libqt_plugin_la_LIBADD = $(heimdall_qt_libs)
 if HAVE_LIBATOMIC
 libqt_plugin_la_CXXFLAGS += -DQT_HAS_LIBATOMIC
 libqt_plugin_la_LIBADD += -latomic
@@ -81,7 +81,7 @@ if HAVE_X
 if HAVE_XCB
 libqt_plugin_la_CXXFLAGS += $(XCB_CFLAGS) -DQT_HAS_X11
 libqt_plugin_la_LIBADD += $(XCB_LIBS) $(X_LIBS) $(X_PRE_LIB) -lX11
-vlc_qt_check_CXXFLAGS += $(XCB_CFLAGS) -DQT_HAS_X11
+heimdall_qt_check_CXXFLAGS += $(XCB_CFLAGS) -DQT_HAS_X11
 endif
 endif
 
@@ -277,13 +277,13 @@ libqt_plugin_la_SOURCES = \
 	network/networkmediamodel.hpp \
 	network/standardpathmodel.cpp \
 	network/standardpathmodel.hpp \
-	network/vlcmediasourcewrapper.hpp \
+	network/heimdallmediasourcewrapper.hpp \
 	style/qtthemeprovider.hpp \
 	style/colorcontext.cpp \
 	style/colorcontext.hpp \
 	style/systempalette.cpp \
 	style/systempalette.hpp \
-	style/vlcicons.cpp 	style/vlcicons.hpp \
+	style/heimdallicons.cpp 	style/heimdallicons.hpp \
 	style/defaultthemeproviders.hpp \
 	style/systempalettethemeprovider.cpp \
 	player/input_models.cpp player/input_models.hpp \
@@ -313,7 +313,7 @@ libqt_plugin_la_SOURCES = \
 	util/color_scheme_model.cpp util/color_scheme_model.hpp \
 	util/ui_notifier.cpp util/ui_notifier.hpp \
 	util/color_svg_image_provider.cpp util/color_svg_image_provider.hpp \
-	util/vlcaccess_image_provider.cpp util/vlcaccess_image_provider.hpp \
+	util/heimdallaccess_image_provider.cpp util/heimdallaccess_image_provider.hpp \
 	util/covergenerator.cpp \
 	util/covergenerator.hpp \
 	util/imageluminanceextractor.cpp util/imageluminanceextractor.hpp \
@@ -340,9 +340,9 @@ libqt_plugin_la_SOURCES = \
 	util/varcommon_p.hpp \
 	util/varchoicemodel.cpp  util/varchoicemodel.hpp \
 	util/variables.cpp util/variables.hpp \
-	util/vlchotkeyconverter.cpp util/vlchotkeyconverter.hpp \
-	util/vlctick.cpp \
-	util/vlctick.hpp \
+	util/heimdallhotkeyconverter.cpp util/heimdallhotkeyconverter.hpp \
+	util/heimdalltick.cpp \
+	util/heimdalltick.hpp \
 	util/shared_input_item.hpp \
 	util/fast_gaussian_blur_template.h \
 	util/effects_image_provider.cpp \
@@ -354,8 +354,8 @@ libqt_plugin_la_SOURCES = \
 	util/list_selection_model.cpp \
 	util/list_selection_model.hpp \
 	util/model_recovery_agent.hpp \
-	util/vlcqtmessagehandler.cpp \
-	util/vlcqtmessagehandler.hpp \
+	util/heimdallqtmessagehandler.cpp \
+	util/heimdallqtmessagehandler.hpp \
 	util/colorizedsvgicon.cpp \
 	util/colorizedsvgicon.hpp \
 	util/textureproviderobserver.cpp \
@@ -378,8 +378,8 @@ libqt_plugin_la_SOURCES = \
 	widgets/native/navigation_attached.hpp \
 	widgets/native/mlfolderseditor.cpp \
 	widgets/native/mlfolderseditor.hpp \
-	widgets/native/qvlcframe.cpp \
-	widgets/native/qvlcframe.hpp \
+	widgets/native/qheimdallframe.cpp \
+	widgets/native/qheimdallframe.hpp \
 	widgets/native/searchlineedit.cpp widgets/native/searchlineedit.hpp \
 	widgets/native/viewblockingrectangle.cpp widgets/native/viewblockingrectangle.hpp \
 	widgets/native/doubleclickignoringitem.hpp
@@ -488,7 +488,7 @@ nodist_libqt_plugin_la_SOURCES = \
 	network/standardpathmodel.moc.cpp \
 	style/colorcontext.moc.cpp \
 	style/systempalette.moc.cpp \
-	style/vlcicons.moc.cpp \
+	style/heimdallicons.moc.cpp \
 	player/delay_estimator.moc.cpp \
 	player/input_models.moc.cpp \
 	player/player_controller.moc.cpp \
@@ -506,7 +506,7 @@ nodist_libqt_plugin_la_SOURCES = \
 	util/color_scheme_model.moc.cpp \
 	util/ui_notifier.moc.cpp \
 	util/color_svg_image_provider.moc.cpp \
-	util/vlcaccess_image_provider.moc.cpp \
+	util/heimdallaccess_image_provider.moc.cpp \
 	util/imageluminanceextractor.moc.cpp \
 	util/csdbuttonmodel.moc.cpp \
 	util/csdmenu.moc.cpp \
@@ -521,10 +521,10 @@ nodist_libqt_plugin_la_SOURCES = \
 	util/validators.moc.cpp \
 	util/varchoicemodel.moc.cpp \
 	util/variables.moc.cpp \
-	util/vlctick.moc.cpp \
+	util/heimdalltick.moc.cpp \
 	util/dismiss_popup_event_filter.moc.cpp \
 	util/list_selection_model.moc.cpp \
-	util/vlchotkeyconverter.moc.cpp \
+	util/heimdallhotkeyconverter.moc.cpp \
 	util/qsgtextureview.moc.cpp \
 	util/textureproviderobserver.moc.cpp \
 	util/kirigamiwheelhandler.moc.cpp \
@@ -790,7 +790,7 @@ ui_%.h: %.ui
 # Resources
 
 libqt_plugin_la_RES = \
-	pixmaps/VLCIcons.ttf \
+	pixmaps/HeimdallIcons.ttf \
 	pixmaps/addons/addon_default.svg \
 	pixmaps/addons/addon_broken.svg \
 	pixmaps/addons/addon_blue.svg \
@@ -1008,8 +1008,8 @@ endif
 # Each QML module has a small section below. To add a new module "foo", append
 # a section following this template:
 #
-#   libqml_module_foo_a_Module     = VLC.Foo
-#   libqml_module_foo_a_ModulePath = VLC/Foo
+#   libqml_module_foo_a_Module     = Heimdall.Foo
+#   libqml_module_foo_a_ModulePath = Heimdall/Foo
 #   libqml_module_foo_a_CXXFLAGS   = $(libqt_plugin_la_CXXFLAGS)
 #   libqml_module_foo_a_CPPFLAGS   = $(libqt_plugin_la_CPPFLAGS)
 #   libqml_module_foo_a_SOURCES    = $(QML_MODULE_foo_SRC)
@@ -1030,8 +1030,8 @@ endif
 noinst_LIBRARIES =
 QML_MODULE_LIBS =
 
-libqml_module_dialogs_a_Module = VLC.Dialogs
-libqml_module_dialogs_a_ModulePath = VLC/Dialogs
+libqml_module_dialogs_a_Module = Heimdall.Dialogs
+libqml_module_dialogs_a_ModulePath = Heimdall/Dialogs
 libqml_module_dialogs_a_CXXFLAGS = $(libqt_plugin_la_CXXFLAGS)
 libqml_module_dialogs_a_CPPFLAGS = $(libqt_plugin_la_CPPFLAGS)
 libqml_module_dialogs_a_QML = \
@@ -1051,8 +1051,8 @@ libqml_module_dialogs_a_SOURCES = $(QML_MODULE_dialogs_SRC)
 nodist_libqml_module_dialogs_a_SOURCES = dialogs/qmlassets.cpp $(QML_MODULE_dialogs_NODIST_EXTRA)
 QML_MODULE_LIBS += libqml_module_dialogs.a
 
-libqml_module_maininterface_a_Module = VLC.MainInterface
-libqml_module_maininterface_a_ModulePath = VLC/MainInterface
+libqml_module_maininterface_a_Module = Heimdall.MainInterface
+libqml_module_maininterface_a_ModulePath = Heimdall/MainInterface
 libqml_module_maininterface_a_CXXFLAGS = $(libqt_plugin_la_CXXFLAGS)
 libqml_module_maininterface_a_CPPFLAGS = $(libqt_plugin_la_CPPFLAGS)
 libqml_module_maininterface_a_QML = \
@@ -1074,8 +1074,8 @@ libqml_module_maininterface_a_SOURCES = $(QML_MODULE_maininterface_SRC)
 nodist_libqml_module_maininterface_a_SOURCES = maininterface/qmlassets.cpp $(QML_MODULE_maininterface_NODIST_EXTRA)
 QML_MODULE_LIBS += libqml_module_maininterface.a
 
-libqml_module_medialibrary_a_Module = VLC.MediaLibrary
-libqml_module_medialibrary_a_ModulePath = VLC/MediaLibrary
+libqml_module_medialibrary_a_Module = Heimdall.MediaLibrary
+libqml_module_medialibrary_a_ModulePath = Heimdall/MediaLibrary
 libqml_module_medialibrary_a_CXXFLAGS = $(libqt_plugin_la_CXXFLAGS)
 libqml_module_medialibrary_a_CPPFLAGS = $(libqt_plugin_la_CPPFLAGS)
 libqml_module_medialibrary_a_QML = \
@@ -1124,8 +1124,8 @@ libqml_module_medialibrary_a_SOURCES = $(QML_MODULE_medialibrary_SRC)
 nodist_libqml_module_medialibrary_a_SOURCES = medialibrary/qmlassets.cpp $(QML_MODULE_medialibrary_NODIST_EXTRA)
 QML_MODULE_LIBS += libqml_module_medialibrary.a
 
-libqml_module_menus_a_Module = VLC.Menus
-libqml_module_menus_a_ModulePath = VLC/Menus
+libqml_module_menus_a_Module = Heimdall.Menus
+libqml_module_menus_a_ModulePath = Heimdall/Menus
 libqml_module_menus_a_CXXFLAGS = $(libqt_plugin_la_CXXFLAGS)
 libqml_module_menus_a_CPPFLAGS = $(libqt_plugin_la_CPPFLAGS)
 libqml_module_menus_a_QML = \
@@ -1137,8 +1137,8 @@ libqml_module_menus_a_SOURCES = $(QML_MODULE_menus_SRC)
 nodist_libqml_module_menus_a_SOURCES = menus/qmlassets.cpp $(QML_MODULE_menus_NODIST_EXTRA)
 QML_MODULE_LIBS += libqml_module_menus.a
 
-libqml_module_network_a_Module = VLC.Network
-libqml_module_network_a_ModulePath = VLC/Network
+libqml_module_network_a_Module = Heimdall.Network
+libqml_module_network_a_ModulePath = Heimdall/Network
 libqml_module_network_a_CXXFLAGS = $(libqt_plugin_la_CXXFLAGS)
 libqml_module_network_a_CPPFLAGS = $(libqt_plugin_la_CPPFLAGS)
 libqml_module_network_a_QML = \
@@ -1161,8 +1161,8 @@ libqml_module_network_a_SOURCES = $(QML_MODULE_network_SRC)
 nodist_libqml_module_network_a_SOURCES = network/qmlassets.cpp $(QML_MODULE_network_NODIST_EXTRA)
 QML_MODULE_LIBS += libqml_module_network.a
 
-libqml_module_player_a_Module = VLC.Player
-libqml_module_player_a_ModulePath = VLC/Player
+libqml_module_player_a_Module = Heimdall.Player
+libqml_module_player_a_ModulePath = Heimdall/Player
 libqml_module_player_a_CXXFLAGS = $(libqt_plugin_la_CXXFLAGS)
 libqml_module_player_a_CPPFLAGS = $(libqt_plugin_la_CPPFLAGS)
 libqml_module_player_a_QML = \
@@ -1195,8 +1195,8 @@ libqml_module_player_a_SOURCES = $(QML_MODULE_player_SRC)
 nodist_libqml_module_player_a_SOURCES = player/qmlassets.cpp $(QML_MODULE_player_NODIST_EXTRA)
 QML_MODULE_LIBS += libqml_module_player.a
 
-libqml_module_playercontrols_a_Module = VLC.PlayerControls
-libqml_module_playercontrols_a_ModulePath = VLC/PlayerControls
+libqml_module_playercontrols_a_Module = Heimdall.PlayerControls
+libqml_module_playercontrols_a_ModulePath = Heimdall/PlayerControls
 libqml_module_playercontrols_a_CXXFLAGS = $(libqt_plugin_la_CXXFLAGS)
 libqml_module_playercontrols_a_CPPFLAGS = $(libqt_plugin_la_CPPFLAGS)
 libqml_module_playercontrols_a_QML = \
@@ -1250,8 +1250,8 @@ libqml_module_playercontrols_a_SOURCES = $(QML_MODULE_playercontrols_SRC)
 nodist_libqml_module_playercontrols_a_SOURCES = playercontrols/qmlassets.cpp $(QML_MODULE_playercontrols_NODIST_EXTRA)
 QML_MODULE_LIBS += libqml_module_playercontrols.a
 
-libqml_module_playlist_a_Module = VLC.Playlist
-libqml_module_playlist_a_ModulePath = VLC/Playlist
+libqml_module_playlist_a_Module = Heimdall.Playlist
+libqml_module_playlist_a_ModulePath = Heimdall/Playlist
 libqml_module_playlist_a_CXXFLAGS = $(libqt_plugin_la_CXXFLAGS)
 libqml_module_playlist_a_CPPFLAGS = $(libqt_plugin_la_CPPFLAGS)
 libqml_module_playlist_a_QML = \
@@ -1263,20 +1263,20 @@ libqml_module_playlist_a_SOURCES = $(QML_MODULE_playlist_SRC)
 nodist_libqml_module_playlist_a_SOURCES = playlist/qmlassets.cpp $(QML_MODULE_playlist_NODIST_EXTRA)
 QML_MODULE_LIBS += libqml_module_playlist.a
 
-libqml_module_style_a_Module = VLC.Style
-libqml_module_style_a_ModulePath = VLC/Style
+libqml_module_style_a_Module = Heimdall.Style
+libqml_module_style_a_ModulePath = Heimdall/Style
 libqml_module_style_a_CXXFLAGS = $(libqt_plugin_la_CXXFLAGS)
 libqml_module_style_a_CPPFLAGS = $(libqt_plugin_la_CPPFLAGS)
 libqml_module_style_a_QML =
 libqml_module_style_a_Singleton_QML = \
 	style/AcrylicController.qml \
-	style/VLCStyle.qml
+	style/HeimdallStyle.qml
 libqml_module_style_a_SOURCES = $(QML_MODULE_style_SRC)
 nodist_libqml_module_style_a_SOURCES = style/qmlassets.cpp $(QML_MODULE_style_NODIST_EXTRA)
 QML_MODULE_LIBS += libqml_module_style.a
 
-libqml_module_util_a_Module = VLC.Util
-libqml_module_util_a_ModulePath = VLC/Util
+libqml_module_util_a_Module = Heimdall.Util
+libqml_module_util_a_ModulePath = Heimdall/Util
 libqml_module_util_a_CXXFLAGS = $(libqt_plugin_la_CXXFLAGS)
 libqml_module_util_a_CPPFLAGS = $(libqt_plugin_la_CPPFLAGS)
 libqml_module_util_a_QML = \
@@ -1296,8 +1296,8 @@ libqml_module_util_a_SOURCES = $(QML_MODULE_util_SRC)
 nodist_libqml_module_util_a_SOURCES = util/qmlassets.cpp $(QML_MODULE_util_NODIST_EXTRA)
 QML_MODULE_LIBS += libqml_module_util.a
 
-libqml_module_widgets_a_Module = VLC.Widgets
-libqml_module_widgets_a_ModulePath = VLC/Widgets
+libqml_module_widgets_a_Module = Heimdall.Widgets
+libqml_module_widgets_a_ModulePath = Heimdall/Widgets
 libqml_module_widgets_a_CXXFLAGS = $(libqt_plugin_la_CXXFLAGS)
 libqml_module_widgets_a_CPPFLAGS = $(libqt_plugin_la_CPPFLAGS)
 libqml_module_widgets_a_QML = \
@@ -1729,11 +1729,11 @@ if !HAVE_WIN32
 if !HAVE_OS2
 if !HAVE_IOS_OR_TVOS
 if !HAVE_XROS
-pkglibexec_PROGRAMS = vlc-qt-check
-VLC_QT_CHECK_DEP = $(builddir)/../../vlc-qt-check
+pkglibexec_PROGRAMS = heimdall-qt-check
+HEIMDALL_QT_CHECK_DEP = $(builddir)/../../heimdall-qt-check
 
-$(builddir)/../../vlc-qt-check: vlc-qt-check
-	$(AM_V_GEN)cd ../../ && $(LN_S) -f gui/qt/vlc-qt-check . && chmod +x vlc-qt-check
+$(builddir)/../../heimdall-qt-check: heimdall-qt-check
+	$(AM_V_GEN)cd ../../ && $(LN_S) -f gui/qt/heimdall-qt-check . && chmod +x heimdall-qt-check
 endif
 endif
 endif
@@ -1754,21 +1754,21 @@ TESTS = base_model_test
 
 if HAVE_QT_QTEST
 
-LIBVLC = ../../../lib/libvlc.la
+LIBHEIMDALL = ../../../lib/libheimdall.la
 QT_QTEST_COMMON_cppflags = $(libqt_plugin_la_CPPFLAGS) -I$(builddir)/tests -DTOP_BUILDDIR=\"$(abs_top_builddir)\"
 QT_QTEST_COMMON_cxxflags = $(AM_CXXFLAGS) $(QT_CFLAGS) $(QT_QTEST_CFLAGS) -fPIC $(CXXFLAGS_qt)
-QT_QTEST_COMMON_ldadd = $(QT_LIBS) $(LIBS_qt) $(QT_QTEST_LIBS) $(LIBVLCCORE) $(LIBVLC)
+QT_QTEST_COMMON_ldadd = $(QT_LIBS) $(LIBS_qt) $(QT_QTEST_LIBS) $(LIBHEIMDALLCORE) $(LIBHEIMDALL)
 QT_QTEST_COMMON_ldflags = $(AM_LDFLAGS) $(QT_LDFLAGS) $(QT_QTEST_LDFLAGS)
 
 
 # test_ml_model
 
 test_ml_model_SOURCES = \
-	tests/vlc_stub_modules.cpp tests/vlc_stub_modules.hpp \
+	tests/heimdall_stub_modules.cpp tests/heimdall_stub_modules.hpp \
 	tests/test_ml_model.cpp \
 	util/base_model.hpp util/base_model_p.hpp  util/base_model.cpp \
 	util/listcache.hpp \
-	util/vlctick.cpp util/vlctick.hpp \
+	util/heimdalltick.cpp util/heimdalltick.hpp \
 	util/locallistcacheloader.hpp \
 	medialibrary/mlqmltypes.hpp \
 	medialibrary/mlbasemodel.hpp medialibrary/mlbasemodel.cpp \
@@ -1782,7 +1782,7 @@ nodist_test_ml_model_SOURCES = \
 	util/base_model.moc.cpp \
 	util/listcache.moc.cpp \
 	util/locallistcacheloader.moc.cpp \
-	util/vlctick.moc.cpp \
+	util/heimdalltick.moc.cpp \
 	medialibrary/mlqmltypes.moc.cpp \
 	medialibrary/mlbasemodel.moc.cpp \
 	medialibrary/medialib.moc.cpp \
@@ -1802,7 +1802,7 @@ TESTS += test_ml_model
 # test_renderer_manager_model
 
 test_renderer_manager_model_SOURCES = \
-	tests/vlc_stub_modules.cpp tests/vlc_stub_modules.hpp \
+	tests/heimdall_stub_modules.cpp tests/heimdall_stub_modules.hpp \
 	tests/test_renderer_manager_model.cpp \
     util/renderer_manager.hpp util/renderer_manager.cpp
 
@@ -1838,29 +1838,29 @@ test_thread_runner_LDFLAGS = $(QT_QTEST_COMMON_ldflags)
 check_PROGRAMS += test_thread_runner
 TESTS += test_thread_runner
 
-# test_vlc_dialog_model
+# test_heimdall_dialog_model
 
-test_vlc_dialog_model_SOURCES = \
-	tests/vlc_stub_modules.cpp tests/vlc_stub_modules.hpp \
-	tests/test_vlc_dialog_model.cpp \
+test_heimdall_dialog_model_SOURCES = \
+	tests/heimdall_stub_modules.cpp tests/heimdall_stub_modules.hpp \
+	tests/test_heimdall_dialog_model.cpp \
 	dialogs/dialogs/dialogmodel.cpp
 
-nodist_test_vlc_dialog_model_SOURCES = \
-	tests/test_vlc_dialog_model.moc \
+nodist_test_heimdall_dialog_model_SOURCES = \
+	tests/test_heimdall_dialog_model.moc \
 	dialogs/dialogs/dialogmodel.moc.cpp
 
-BUILT_SOURCES += tests/test_vlc_dialog_model.moc
-CLEANFILES += tests/test_vlc_dialog_model.moc
-test_vlc_dialog_model_CPPFLAGS = $(QT_QTEST_COMMON_cppflags)
-test_vlc_dialog_model_CXXFLAGS = $(QT_QTEST_COMMON_cxxflags)
-test_vlc_dialog_model_LDADD = $(QT_QTEST_COMMON_ldadd)
-test_vlc_dialog_model_LDFLAGS = $(QT_QTEST_COMMON_ldflags)
-check_PROGRAMS += test_vlc_dialog_model
-TESTS += test_vlc_dialog_model
+BUILT_SOURCES += tests/test_heimdall_dialog_model.moc
+CLEANFILES += tests/test_heimdall_dialog_model.moc
+test_heimdall_dialog_model_CPPFLAGS = $(QT_QTEST_COMMON_cppflags)
+test_heimdall_dialog_model_CXXFLAGS = $(QT_QTEST_COMMON_cxxflags)
+test_heimdall_dialog_model_LDADD = $(QT_QTEST_COMMON_ldadd)
+test_heimdall_dialog_model_LDFLAGS = $(QT_QTEST_COMMON_ldflags)
+check_PROGRAMS += test_heimdall_dialog_model
+TESTS += test_heimdall_dialog_model
 
 
 test_qt_navigation_model_SOURCES = \
-	tests/vlc_stub_modules.cpp \
+	tests/heimdall_stub_modules.cpp \
 	tests/test_navigation_model.cpp \
 	maininterface/navigationmodel.hpp \
 	maininterface/navigationmodel.cpp

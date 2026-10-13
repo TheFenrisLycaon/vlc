@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,9 +21,9 @@ import QtQuick
 import QtQuick.Templates as T
 
 
-import VLC.MainInterface
-import VLC.Style
-import VLC.Widgets as Widgets
+import Heimdall.MainInterface
+import Heimdall.Style
+import Heimdall.Widgets as Widgets
 
 T.SpinBox {
     id: control
@@ -30,7 +31,7 @@ T.SpinBox {
     property color textColor: theme.fg.primary
     property color bgColor: theme.bg.primary
     property color borderColor:  theme.border
-    property int borderWidth: VLCStyle.border
+    property int borderWidth: HeimdallStyle.border
 
     readonly property ColorContext colorContext: ColorContext {
         id: theme
@@ -41,7 +42,7 @@ T.SpinBox {
         hovered: control.hovered
     }
 
-    font.pixelSize: VLCStyle.fontSize_large
+    font.pixelSize: HeimdallStyle.fontSize_large
 
     implicitWidth: Math.max(implicitBackgroundWidth + leftInset + rightInset,
                               contentItem.implicitWidth + 2 * padding +
@@ -53,7 +54,7 @@ T.SpinBox {
                            up.implicitIndicatorHeight,
                            down.implicitIndicatorHeight)
 
-    padding: VLCStyle.margin_xxsmall
+    padding: HeimdallStyle.margin_xxsmall
     leftPadding: padding + (control.mirrored ? up.indicator.width : 0) + control.borderWidth
     rightPadding: padding + (control.mirrored ? 0 : up.indicator.width) + control.borderWidth
     topPadding: padding + control.borderWidth
@@ -72,7 +73,7 @@ T.SpinBox {
     }
 
     background: Rectangle {
-        radius: VLCStyle.margin_xxxsmall
+        radius: HeimdallStyle.margin_xxxsmall
         border.color: control.borderColor
         border.width: control.borderWidth
         border.pixelAligned: (radius < Number.EPSILON)
@@ -108,8 +109,8 @@ T.SpinBox {
     up.indicator: Rectangle {
         x: control.mirrored ? control.borderWidth : parent.width - width - control.borderWidth
         height: parent.height / 2
-        implicitWidth: VLCStyle.dp(15, VLCStyle.scale)
-        implicitHeight: VLCStyle.dp(10, VLCStyle.scale)
+        implicitWidth: HeimdallStyle.dp(15, HeimdallStyle.scale)
+        implicitHeight: HeimdallStyle.dp(10, HeimdallStyle.scale)
         anchors.top: parent.top
         anchors.topMargin: control.borderWidth
 
@@ -128,7 +129,7 @@ T.SpinBox {
         }
 
         Widgets.IconLabel {
-            text: VLCIcons.chevron_up
+            text: HeimdallIcons.chevron_up
             font.pixelSize: control.font.pixelSize * 2
             color: upTheme.fg.primary
             font.bold: true
@@ -142,8 +143,8 @@ T.SpinBox {
     down.indicator: Rectangle {
         x: control.mirrored ? control.borderWidth : parent.width - width - control.borderWidth
         height: parent.height / 2
-        implicitWidth: VLCStyle.dp(15, VLCStyle.scale)
-        implicitHeight: VLCStyle.dp(10, VLCStyle.scale)
+        implicitWidth: HeimdallStyle.dp(15, HeimdallStyle.scale)
+        implicitHeight: HeimdallStyle.dp(10, HeimdallStyle.scale)
         anchors.bottom: parent.bottom
         anchors.bottomMargin: control.borderWidth
         color: downTheme.bg.primary
@@ -161,7 +162,7 @@ T.SpinBox {
         }
 
         Widgets.IconLabel {
-            text: VLCIcons.chevron_down
+            text: HeimdallIcons.chevron_down
             font.pixelSize: control.font.pixelSize * 2
             color: downTheme.fg.primary
             font.bold: true

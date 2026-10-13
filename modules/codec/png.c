@@ -2,6 +2,7 @@
  * png.c: png decoder module making use of libpng.
  *****************************************************************************
  * Copyright (C) 1999-2001 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gildas Bazin <gbazin@videolan.org>
  *
@@ -27,11 +28,11 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
-#include <vlc_rand.h>
-#include <vlc_ancillary.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
+#include <heimdall_rand.h>
+#include <heimdall_ancillary.h>
 #include <png.h>
 #include <stdckdint.h>
 
@@ -41,7 +42,7 @@
 #define PNG_SYS_COMMON_MEMBERS                              \
 /**@{*/                                                     \
     bool b_error;                                           \
-    vlc_object_t *p_obj;                                    \
+    heimdall_object_t *p_obj;                                    \
 /**@}*/                                                     \
 
 /*
@@ -65,7 +66,7 @@ typedef struct
 /*****************************************************************************
  * Local prototypes
  *****************************************************************************/
-static int  OpenDecoder   ( vlc_object_t * );
+static int  OpenDecoder   ( heimdall_object_t * );
 
 static int DecodeBlock  ( decoder_t *, block_t * );
 
@@ -78,14 +79,14 @@ typedef struct
     size_t i_blocksize;
 } encoder_sys_t;
 
-static int  OpenEncoder(vlc_object_t *);
+static int  OpenEncoder(heimdall_object_t *);
 
 static block_t *EncodeBlock(encoder_t *, picture_t *);
 
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-vlc_module_begin ()
+heimdall_module_begin ()
     set_subcategory( SUBCAT_INPUT_VCODEC )
     set_description( N_("PNG video decoder") )
     set_capability( "video decoder", 1000 )
@@ -109,31 +110,31 @@ vlc_module_begin ()
     set_description(N_("PNG image encoder"))
     set_capability("image encoder", 1000)
     set_callback(OpenEncoder)
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * OpenDecoder: probe the decoder and return score
  *****************************************************************************/
-static int OpenDecoder( vlc_object_t *p_this )
+static int OpenDecoder( heimdall_object_t *p_this )
 {
     decoder_t *p_dec = (decoder_t*)p_this;
 
-    if( p_dec->fmt_in->i_codec != VLC_CODEC_PNG &&
-        p_dec->fmt_in->i_codec != VLC_FOURCC('M','P','N','G') )
+    if( p_dec->fmt_in->i_codec != HEIMDALL_CODEC_PNG &&
+        p_dec->fmt_in->i_codec != HEIMDALL_FOURCC('M','P','N','G') )
     {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Allocate the memory needed to store the decoder's structure */
-    decoder_sys_t *p_sys = vlc_obj_malloc( p_this, sizeof(decoder_sys_t) );
+    decoder_sys_t *p_sys = heimdall_obj_malloc( p_this, sizeof(decoder_sys_t) );
     if( p_sys == NULL )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     p_dec->p_sys = p_sys;
 
     p_sys->p_obj = p_this;
 
     /* Set output properties */
-    p_dec->fmt_out.i_codec = VLC_CODEC_RGBA;
+    p_dec->fmt_out.i_codec = HEIMDALL_CODEC_RGBA;
     p_dec->fmt_out.video.transfer  = TRANSFER_FUNC_SRGB;
     p_dec->fmt_out.video.space     = COLOR_SPACE_SRGB;
     p_dec->fmt_out.video.primaries = COLOR_PRIMARIES_SRGB;
@@ -142,7 +143,7 @@ static int OpenDecoder( vlc_object_t *p_this )
     /* Set callbacks */
     p_dec->pf_decode = DecodeBlock;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void user_read( png_structp p_png, png_bytep data, png_size_t i_length )
@@ -211,13 +212,13 @@ static void process_text_chunk( decoder_t *p_dec, const png_textp chunk )
 static int make_xmp_packet( const video_format_t *fmt, png_textp chunk )
 {
     unsigned char id[9];
-    vlc_rand_bytes(id, 8);
+    heimdall_rand_bytes(id, 8);
     for(int i=0; i<8; i++)
         id[i] = (id[i] % 26) + 'A';
     id[8] = '\0';
     int len = asprintf( &chunk->text,
             "<?xpacket begin='﻿' id='%s'?>"
-             "<x:xmpmeta xmlns:x='adobe:ns:meta/' x:xmptk='VLC " VERSION "'>"
+             "<x:xmpmeta xmlns:x='adobe:ns:meta/' x:xmptk='Heimdall " VERSION "'>"
               "<rdf:RDF xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#'>"
                "<rdf:Description rdf:about='' xmlns:tiff='http://ns.adobe.com/tiff/1.0/'>"
                 "<tiff:Orientation>%" PRIu8 "</tiff:Orientation>"
@@ -236,7 +237,7 @@ static int make_xmp_packet( const video_format_t *fmt, png_textp chunk )
     chunk->lang_key = NULL;
     chunk->lang = NULL;
     chunk->text_length = 0;
-    return len > 0 ? VLC_SUCCESS : VLC_EGENERIC;
+    return len > 0 ? HEIMDALL_SUCCESS : HEIMDALL_EGENERIC;
 }
 
 #endif
@@ -260,21 +261,21 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
     png_bytep *volatile p_row_pointers = NULL;
 
     if( !p_block ) /* No Drain */
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
 
     p_sys->b_error = false;
 
     if( p_block->i_flags & BLOCK_FLAG_CORRUPTED )
     {
         block_Release( p_block );
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
     }
 
     p_png = png_create_read_struct( PNG_LIBPNG_VER_STRING, 0, 0, 0 );
     if( p_png == NULL )
     {
         block_Release( p_block );
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
     }
 
     p_info = png_create_info_struct( p_png );
@@ -282,7 +283,7 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
     {
         png_destroy_read_struct( &p_png, NULL, NULL );
         block_Release( p_block );
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
     }
 
     p_end_info = png_create_info_struct( p_png );
@@ -290,7 +291,7 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
     {
         png_destroy_read_struct( &p_png, &p_info, NULL );
         block_Release( p_block );
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
     }
 
     /* libpng longjmp's there in case of error */
@@ -309,7 +310,7 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
     if( p_sys->b_error ) goto error;
 
     /* Set output properties */
-    p_dec->fmt_out.i_codec = VLC_CODEC_RGBA;
+    p_dec->fmt_out.i_codec = HEIMDALL_CODEC_RGBA;
     p_dec->fmt_out.video.i_visible_width = p_dec->fmt_out.video.i_width = i_width;
     p_dec->fmt_out.video.i_visible_height = p_dec->fmt_out.video.i_height = i_height;
     p_dec->fmt_out.video.i_sar_num = 1;
@@ -348,7 +349,7 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
     }
     else if( !(i_color_type & PNG_COLOR_MASK_ALPHA) )
     {
-        p_dec->fmt_out.i_codec = VLC_CODEC_RGB24;
+        p_dec->fmt_out.i_codec = HEIMDALL_CODEC_RGB24;
     }
 
     /* Get a new picture */
@@ -362,7 +363,7 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
 #ifdef PNG_iCCP_SUPPORTED
     if (png_get_valid( p_png, p_info, PNG_INFO_iCCP ))
     {
-        vlc_icc_profile_t *icc;
+        heimdall_icc_profile_t *icc;
         png_charp name;
         int compression;
 # if PNG_LIBPNG_VER < 10500
@@ -374,7 +375,7 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
         png_get_iCCP( p_png, p_info, &name, &compression, &iccdata, &icclen);
         if( compression != PNG_COMPRESSION_TYPE_BASE )
             goto error; /* impossible with current libpng */
-        icc = picture_AttachNewAncillary( p_pic, VLC_ANCILLARY_ID_ICC, sizeof(*icc) + icclen );
+        icc = picture_AttachNewAncillary( p_pic, HEIMDALL_ANCILLARY_ID_ICC, sizeof(*icc) + icclen );
         if ( !icc )
             goto error;
         memcpy( icc->data, iccdata, icclen );
@@ -384,7 +385,7 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
 
 
     /* Decode picture */
-    p_row_pointers = vlc_alloc( i_height, sizeof(png_bytep) );
+    p_row_pointers = heimdall_alloc( i_height, sizeof(png_bytep) );
     if( !p_row_pointers )
         goto error;
     for( i = 0; i < (int)i_height; i++ )
@@ -398,11 +399,11 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
     png_destroy_read_struct( &p_png, &p_info, &p_end_info );
     free( p_row_pointers );
 
-    p_pic->date = p_block->i_pts != VLC_TICK_INVALID ? p_block->i_pts : p_block->i_dts;
+    p_pic->date = p_block->i_pts != HEIMDALL_TICK_INVALID ? p_block->i_pts : p_block->i_dts;
 
     block_Release( p_block );
     decoder_QueueVideo( p_dec, p_pic );
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 
  error:
 
@@ -411,37 +412,37 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
     free( p_row_pointers );
     png_destroy_read_struct( &p_png, &p_info, &p_end_info );
     block_Release( p_block );
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }
 
-static int OpenEncoder(vlc_object_t *p_this)
+static int OpenEncoder(heimdall_object_t *p_this)
 {
     encoder_t *p_enc = (encoder_t *) p_this;
 
-    if( p_enc->fmt_out.i_codec != VLC_CODEC_PNG )
-        return VLC_EGENERIC;
+    if( p_enc->fmt_out.i_codec != HEIMDALL_CODEC_PNG )
+        return HEIMDALL_EGENERIC;
 
     /* Allocate the memory needed to store the encoder's structure */
-    encoder_sys_t *p_sys = vlc_obj_malloc(p_this, sizeof(encoder_sys_t));
+    encoder_sys_t *p_sys = heimdall_obj_malloc(p_this, sizeof(encoder_sys_t));
     if( p_sys == NULL )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     p_enc->p_sys = p_sys;
 
     p_sys->p_obj = p_this;
 
     if( ckd_mul( &p_sys->i_blocksize, 3, p_enc->fmt_in.video.i_visible_width ) ||
         ckd_mul( &p_sys->i_blocksize, p_sys->i_blocksize, p_enc->fmt_in.video.i_visible_height ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     p_enc->fmt_in.i_codec =
-    p_enc->fmt_in.video.i_chroma = VLC_CODEC_RGB24;
+    p_enc->fmt_in.video.i_chroma = HEIMDALL_CODEC_RGB24;
 
-    static const struct vlc_encoder_operations ops =
+    static const struct heimdall_encoder_operations ops =
         { .encode_video = EncodeBlock };
 
     p_enc->ops = &ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*
@@ -501,7 +502,7 @@ static block_t *EncodeBlock(encoder_t *p_enc, picture_t *p_pic)
 
 #ifdef PNG_TEXT_SUPPORTED
     png_text text;
-    if( make_xmp_packet( &p_pic->format, &text ) == VLC_SUCCESS )
+    if( make_xmp_packet( &p_pic->format, &text ) == HEIMDALL_SUCCESS )
     {
         png_set_text( p_png, p_info, &text, 1 );
         png_write_info( p_png, p_info );

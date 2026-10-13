@@ -2,6 +2,7 @@
  * macosx_popup.mm
  *****************************************************************************
  * Copyright (C) 2026 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Fletcher Holt <fletcherholt649@gmail.com>
  *          Felix Paul Kühne <fkuehne@videolan.org>
@@ -33,7 +34,7 @@
 #include "../src/os_factory.hpp"
 #include "../src/generic_window.hpp"
 
-@interface VLCPopupMenuTarget : NSObject
+@interface HeimdallPopupMenuTarget : NSObject
 {
     int m_selectedTag;
 }
@@ -41,7 +42,7 @@
 - (void)menuItemSelected:(id)sender;
 @end
 
-@implementation VLCPopupMenuTarget
+@implementation HeimdallPopupMenuTarget
 @synthesize selectedTag = m_selectedTag;
 
 - (instancetype)init
@@ -67,7 +68,7 @@ MacOSXPopup::MacOSXPopup( intf_thread_t *pIntf ):
         // Create the menu
         m_pMenu = [[NSMenu alloc] initWithTitle:@""];
         [m_pMenu setAutoenablesItems:NO];
-        m_pTarget = [[VLCPopupMenuTarget alloc] init];
+        m_pTarget = [[HeimdallPopupMenuTarget alloc] init];
     }
 }
 
@@ -88,7 +89,7 @@ void MacOSXPopup::show( int xPos, int yPos )
             return;
 
         // Reset selected tag
-        [(VLCPopupMenuTarget *)m_pTarget setSelectedTag:-1];
+        [(HeimdallPopupMenuTarget *)m_pTarget setSelectedTag:-1];
 
         // Convert coordinates
         int y = [NSScreen mainScreen].frame.size.height - yPos;
@@ -100,7 +101,7 @@ void MacOSXPopup::show( int xPos, int yPos )
                                    inView:nil];
 
         // After menu dismissal, dispatch EvtMenu if an item was selected
-        int selectedTag = [(VLCPopupMenuTarget *)m_pTarget selectedTag];
+        int selectedTag = [(HeimdallPopupMenuTarget *)m_pTarget selectedTag];
         if( selectedTag >= 0 )
         {
             MacOSXFactory *pFactory = static_cast<MacOSXFactory*>(

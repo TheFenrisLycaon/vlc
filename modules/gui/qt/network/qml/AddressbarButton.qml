@@ -1,6 +1,7 @@
 
 /*****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,10 +20,10 @@
 import QtQuick
 import QtQuick.Templates as T
 
-import VLC.Style
-import VLC.Widgets as Widgets
-import VLC.Network
-import VLC.Util
+import Heimdall.Style
+import Heimdall.Widgets as Widgets
+import Heimdall.Network
+import Heimdall.Util
 
 T.Button {
     id: button
@@ -42,10 +43,10 @@ T.Button {
     baselineOffset: contentItem ? contentItem.y + contentItem.baselineOffset : 0
 
 
-    padding: VLCStyle.margin_xxsmall
+    padding: HeimdallStyle.margin_xxsmall
 
-    font.pixelSize: (display === T.Button.IconOnly) ? VLCStyle.icon_normal
-                                                    : VLCStyle.fontSize_large
+    font.pixelSize: (display === T.Button.IconOnly) ? HeimdallStyle.icon_normal
+                                                    : HeimdallStyle.fontSize_large
 
     // Children
 
@@ -94,7 +95,7 @@ T.Button {
                 delayedEnabled: theme.initialized
 
                 ColorAnimation {
-                    duration: VLCStyle.duration_long
+                    duration: HeimdallStyle.duration_long
                 }
             }
         }

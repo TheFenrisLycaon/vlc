@@ -1,7 +1,8 @@
 /*****************************************************************************
- * chroma.c: VLC picture import into VDPAU
+ * chroma.c: Heimdall picture import into VDPAU
  *****************************************************************************
  * Copyright (C) 2013 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -26,13 +27,13 @@
 #include <inttypes.h>
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_picture.h>
-#include <vlc_picture_pool.h>
-#include <vlc_chroma_probe.h>
-#include "vlc_vdpau.h"
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
+#include <heimdall_picture_pool.h>
+#include <heimdall_chroma_probe.h>
+#include "heimdall_vdpau.h"
 
 /* Picture history as recommended by VDPAU documentation */
 #define MAX_PAST   2
@@ -40,7 +41,7 @@
 
 typedef struct
 {
-    struct vlc_vdp_device *device;
+    struct heimdall_vdp_device *device;
     VdpVideoMixer mixer;
     picture_pool_t *pool;
 
@@ -53,13 +54,13 @@ typedef struct
         float saturation;
         float hue;
     } procamp;
-} vlc_vdp_mixer_t;
+} heimdall_vdp_mixer_t;
 
 /** Initialize the colour space conversion matrix */
 static VdpStatus MixerSetupColors(filter_t *filter, const VdpProcamp *procamp,
                                   VdpCSCMatrix *restrict csc)
 {
-    vlc_vdp_mixer_t *sys = filter->p_sys;
+    heimdall_vdp_mixer_t *sys = filter->p_sys;
     vdp_t *vdp = sys->device->vdp;
     VdpStatus err;
     /* XXX: add some margin for padding... */
@@ -108,7 +109,7 @@ static VdpStatus MixerSetupColors(filter_t *filter, const VdpProcamp *procamp,
 /** Create VDPAU video mixer */
 static VdpVideoMixer MixerCreate(filter_t *filter, VdpChromaType chroma)
 {
-    vlc_vdp_mixer_t *sys = filter->p_sys;
+    heimdall_vdp_mixer_t *sys = filter->p_sys;
     vdp_t *vdp = sys->device->vdp;
     VdpDevice device = sys->device->device;
     VdpVideoMixer mixer;
@@ -280,7 +281,7 @@ static VdpVideoMixer MixerCreate(filter_t *filter, VdpChromaType chroma)
 
 static void Flush(filter_t *filter)
 {
-    vlc_vdp_mixer_t *sys = filter->p_sys;
+    heimdall_vdp_mixer_t *sys = filter->p_sys;
 
     for (unsigned i = 0; i < MAX_PAST + MAX_FUTURE; i++)
         if (sys->history[i] != NULL)
@@ -290,11 +291,11 @@ static void Flush(filter_t *filter)
         }
 }
 
-/** Export a VDPAU video surface picture to a normal VLC picture */
+/** Export a VDPAU video surface picture to a normal Heimdall picture */
 static picture_t *VideoExport(filter_t *filter, picture_t *src, picture_t *dst,
                               VdpYCbCrFormat format)
 {
-    vlc_vdp_video_field_t *field = VDPAU_FIELD_FROM_PICCTX(src->context);
+    heimdall_vdp_video_field_t *field = VDPAU_FIELD_FROM_PICCTX(src->context);
     VdpStatus err;
     VdpVideoSurface surface = field->frame->surface;
     void *planes[3];
@@ -309,9 +310,9 @@ static picture_t *VideoExport(filter_t *filter, picture_t *src, picture_t *dst,
         planes[i] = dst->p[i].p_pixels;
         pitches[i] = dst->p[i].i_pitch;
     }
-    if (dst->format.i_chroma == VLC_CODEC_I420
-     || dst->format.i_chroma == VLC_CODEC_I422
-     || dst->format.i_chroma == VLC_CODEC_I444)
+    if (dst->format.i_chroma == HEIMDALL_CODEC_I420
+     || dst->format.i_chroma == HEIMDALL_CODEC_I422
+     || dst->format.i_chroma == HEIMDALL_CODEC_I444)
     {
         planes[1] = dst->p[2].p_pixels;
         planes[2] = dst->p[1].p_pixels;
@@ -342,13 +343,13 @@ static picture_context_t *OutputSurfaceClone(picture_context_t *ctx)
     if (unlikely(dts_ctx == NULL))
         return NULL;
     *dts_ctx = *ctx;
-    vlc_video_context_Hold(dts_ctx->vctx);
+    heimdall_video_context_Hold(dts_ctx->vctx);
     return dts_ctx;
 }
 
 static picture_t *Render(filter_t *filter, picture_t *src)
 {
-    vlc_vdp_mixer_t *sys = filter->p_sys;
+    heimdall_vdp_mixer_t *sys = filter->p_sys;
     vdp_t *vdp = sys->device->vdp;
     picture_t *dst = NULL;
     VdpStatus err;
@@ -388,7 +389,7 @@ static picture_t *Render(filter_t *filter, picture_t *src)
         pic_f = sys->history[MAX_PAST];
     }
 
-    /* Get a VLC picture for a VDPAU output surface */
+    /* Get a Heimdall picture for a VDPAU output surface */
     dst = picture_pool_Get(sys->pool);
     if (dst == NULL)
         goto skip;
@@ -398,17 +399,17 @@ static picture_t *Render(filter_t *filter, picture_t *src)
 
     *dst->context = (picture_context_t) {
         OutputSurfaceDestroy, OutputSurfaceClone,
-        vlc_video_context_Hold(filter->vctx_out)
+        heimdall_video_context_Hold(filter->vctx_out)
     };
 
-    vlc_vdp_output_surface_t *p_sys = dst->p_sys;
+    heimdall_vdp_output_surface_t *p_sys = dst->p_sys;
     assert(p_sys != NULL && p_sys->vctx == filter->vctx_out);
     dst->date = pic_f->date;
     dst->b_force = pic_f->b_force;
     dst->b_still = pic_f->b_still;
 
     /* Enable/Disable features */
-    vlc_vdp_video_field_t *f = VDPAU_FIELD_FROM_PICCTX(pic_f->context);
+    heimdall_vdp_video_field_t *f = VDPAU_FIELD_FROM_PICCTX(pic_f->context);
     const VdpVideoMixerFeature features[] = {
         VDP_VIDEO_MIXER_FEATURE_SHARPNESS,
     };
@@ -581,7 +582,7 @@ error:
     goto skip;
 }
 
-static int OutputCheckFormat(vlc_object_t *obj, struct vlc_video_context *vctx,
+static int OutputCheckFormat(heimdall_object_t *obj, struct heimdall_video_context *vctx,
                              const video_format_t *fmt,
                              VdpRGBAFormat *restrict rgb_fmt)
 {
@@ -589,7 +590,7 @@ static int OutputCheckFormat(vlc_object_t *obj, struct vlc_video_context *vctx,
         VDP_RGBA_FORMAT_R10G10B10A2, VDP_RGBA_FORMAT_B10G10R10A2,
         VDP_RGBA_FORMAT_B8G8R8A8, VDP_RGBA_FORMAT_R8G8B8A8,
     };
-    struct vlc_vdp_device *device = GetVDPAUOpaqueContext(vctx);
+    struct heimdall_vdp_device *device = GetVDPAUOpaqueContext(vctx);
 
     for (unsigned i = 0; i < ARRAY_SIZE(rgb_fmts); i++)
     {
@@ -615,11 +616,11 @@ static int OutputCheckFormat(vlc_object_t *obj, struct vlc_video_context *vctx,
     }
 
     msg_Err(obj, "no supported output surface format");
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
-static picture_pool_t *OutputPoolAlloc(vlc_object_t *obj,
-    struct vlc_video_context *vctx, const video_format_t *restrict fmt)
+static picture_pool_t *OutputPoolAlloc(heimdall_object_t *obj,
+    struct heimdall_video_context *vctx, const video_format_t *restrict fmt)
 {
     /* Check output surface format */
     VdpRGBAFormat rgb_fmt;
@@ -628,77 +629,77 @@ static picture_pool_t *OutputPoolAlloc(vlc_object_t *obj,
         return NULL;
 
     /* Allocate the pool */
-    return vlc_vdp_output_pool_create(vctx, rgb_fmt, fmt, 3);
+    return heimdall_vdp_output_pool_create(vctx, rgb_fmt, fmt, 3);
 }
 
-const struct vlc_video_context_operations vdpau_vctx_ops = {
+const struct heimdall_video_context_operations vdpau_vctx_ops = {
     NULL,
 };
 
 static void OutputClose(filter_t *filter)
 {
-    vlc_vdp_mixer_t *sys = filter->p_sys;
+    heimdall_vdp_mixer_t *sys = filter->p_sys;
 
     Flush(filter);
     vdp_video_mixer_destroy(sys->device->vdp, sys->mixer);
     picture_pool_Release(sys->pool);
-    vlc_video_context_Release(filter->vctx_out);
+    heimdall_video_context_Release(filter->vctx_out);
 }
 
-static const struct vlc_filter_operations filter_output_opaque_ops = {
+static const struct heimdall_filter_operations filter_output_opaque_ops = {
     .filter_video = Render, .flush = Flush, .close = OutputClose,
 };
 
 static int OutputOpen(filter_t *filter)
 {
-    if (filter->fmt_in.video.i_chroma != VLC_CODEC_VDPAU_VIDEO
-     || filter->fmt_out.video.i_chroma != VLC_CODEC_VDPAU_OUTPUT)
-        return VLC_ENOTSUP;
+    if (filter->fmt_in.video.i_chroma != HEIMDALL_CODEC_VDPAU_VIDEO
+     || filter->fmt_out.video.i_chroma != HEIMDALL_CODEC_VDPAU_OUTPUT)
+        return HEIMDALL_ENOTSUP;
 
     assert(filter->fmt_out.video.orientation == ORIENT_TOP_LEFT
         || filter->fmt_in.video.orientation == filter->fmt_out.video.orientation);
 
-    vlc_decoder_device *dec_device = filter_HoldDecoderDeviceType(filter, VLC_DECODER_DEVICE_VDPAU);
+    heimdall_decoder_device *dec_device = filter_HoldDecoderDeviceType(filter, HEIMDALL_DECODER_DEVICE_VDPAU);
     if (dec_device == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    vlc_vdp_mixer_t *sys = vlc_obj_malloc(VLC_OBJECT(filter), sizeof (*sys));
+    heimdall_vdp_mixer_t *sys = heimdall_obj_malloc(HEIMDALL_OBJECT(filter), sizeof (*sys));
     if (unlikely(sys == NULL))
     {
-        vlc_decoder_device_Release(dec_device);
-        return VLC_ENOMEM;
+        heimdall_decoder_device_Release(dec_device);
+        return HEIMDALL_ENOMEM;
     }
 
     filter->p_sys = sys;
 
     const VdpChromaType *chroma;
-    struct vlc_video_context *vctx_out;
+    struct heimdall_video_context *vctx_out;
 
     sys->device = GetVDPAUOpaqueDevice(dec_device);
-    vctx_out = vlc_video_context_Create(dec_device, VLC_VIDEO_CONTEXT_VDPAU,
+    vctx_out = heimdall_video_context_Create(dec_device, HEIMDALL_VIDEO_CONTEXT_VDPAU,
                                         0, &vdpau_vctx_ops);
-    vlc_decoder_device_Release(dec_device);
+    heimdall_decoder_device_Release(dec_device);
     if (unlikely(vctx_out == NULL))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* Allocate the output surface picture pool */
-    sys->pool = OutputPoolAlloc(VLC_OBJECT(filter), vctx_out,
+    sys->pool = OutputPoolAlloc(HEIMDALL_OBJECT(filter), vctx_out,
                                 &filter->fmt_out.video);
     if (sys->pool == NULL)
     {
-        vlc_video_context_Release(vctx_out);
-        return VLC_EGENERIC;
+        heimdall_video_context_Release(vctx_out);
+        return HEIMDALL_EGENERIC;
     }
 
     /* Create the video-to-output mixer */
-    chroma = vlc_video_context_GetPrivate(filter->vctx_in,
-                                          VLC_VIDEO_CONTEXT_VDPAU);
+    chroma = heimdall_video_context_GetPrivate(filter->vctx_in,
+                                          HEIMDALL_VIDEO_CONTEXT_VDPAU);
     sys->mixer = MixerCreate(filter, *chroma);
     if (sys->mixer == VDP_INVALID_HANDLE)
     {
         picture_pool_Release(sys->pool);
-        vlc_video_context_Release(vctx_out);
-        return VLC_EGENERIC;
+        heimdall_video_context_Release(vctx_out);
+        return HEIMDALL_EGENERIC;
     }
 
     for (unsigned i = 0; i < MAX_PAST + MAX_FUTURE; i++)
@@ -711,17 +712,17 @@ static int OutputOpen(filter_t *filter)
 
     filter->ops = &filter_output_opaque_ops;
     filter->vctx_out = vctx_out;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 typedef struct
 {
     VdpYCbCrFormat format;
-} vlc_vdp_yuv_getter_t;
+} heimdall_vdp_yuv_getter_t;
 
 static picture_t *VideoExport_Filter(filter_t *filter, picture_t *src)
 {
-    vlc_vdp_yuv_getter_t *sys = filter->p_sys;
+    heimdall_vdp_yuv_getter_t *sys = filter->p_sys;
 
     if (unlikely(src->context == NULL))
     {
@@ -737,7 +738,7 @@ static picture_t *VideoExport_Filter(filter_t *filter, picture_t *src)
     return VideoExport(filter, src, dst, sys->format);
 }
 
-static const struct vlc_filter_operations filter_ycbcr_ops = {
+static const struct heimdall_filter_operations filter_ycbcr_ops = {
     .filter_video = VideoExport_Filter,
 };
 
@@ -746,17 +747,17 @@ static int YCbCrOpen(filter_t *filter)
     VdpChromaType type;
     VdpYCbCrFormat format;
 
-    if (filter->fmt_in.video.i_chroma != VLC_CODEC_VDPAU_VIDEO)
-        return VLC_ENOTSUP;
+    if (filter->fmt_in.video.i_chroma != HEIMDALL_CODEC_VDPAU_VIDEO)
+        return HEIMDALL_ENOTSUP;
     if (filter->vctx_in == NULL)
-        return VLC_EINVAL;
+        return HEIMDALL_EINVAL;
 
-    const VdpChromaType *chroma = vlc_video_context_GetPrivate(filter->vctx_in,
-                                                      VLC_VIDEO_CONTEXT_VDPAU);
+    const VdpChromaType *chroma = heimdall_video_context_GetPrivate(filter->vctx_in,
+                                                      HEIMDALL_VIDEO_CONTEXT_VDPAU);
 
-    if (!vlc_fourcc_to_vdp_ycc(filter->fmt_out.video.i_chroma, &type, &format)
+    if (!heimdall_fourcc_to_vdp_ycc(filter->fmt_out.video.i_chroma, &type, &format)
      || type != *chroma)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if (filter->fmt_in.video.i_visible_width
                                        != filter->fmt_out.video.i_visible_width
@@ -766,16 +767,16 @@ static int YCbCrOpen(filter_t *filter)
      || filter->fmt_in.video.i_y_offset != filter->fmt_out.video.i_y_offset
      || (filter->fmt_in.video.i_sar_num * filter->fmt_out.video.i_sar_den
           != filter->fmt_in.video.i_sar_den * filter->fmt_out.video.i_sar_num))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    vlc_vdp_yuv_getter_t *sys = vlc_obj_malloc(VLC_OBJECT(filter), sizeof (*sys));
+    heimdall_vdp_yuv_getter_t *sys = heimdall_obj_malloc(HEIMDALL_OBJECT(filter), sizeof (*sys));
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     sys->format = format;
 
     filter->ops = &filter_ycbcr_ops;
     filter->p_sys = sys;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static const int algo_values[] = {
@@ -788,17 +789,17 @@ static const char *const algo_names[] = {
     N_("Bob"), N_("Temporal"), N_("Temporal-spatial"),
 };
 
-static void ProbeChroma(vlc_chroma_conv_vec *vec)
+static void ProbeChroma(heimdall_chroma_conv_vec *vec)
 {
-    vlc_chroma_conv_add(vec, 0.25, VLC_CODEC_VDPAU_VIDEO,
-        VLC_CODEC_VDPAU_OUTPUT, false);
+    heimdall_chroma_conv_add(vec, 0.25, HEIMDALL_CODEC_VDPAU_VIDEO,
+        HEIMDALL_CODEC_VDPAU_OUTPUT, false);
 
-    vlc_chroma_conv_add_in_outlist(vec, 1.1, VLC_CODEC_VDPAU_VIDEO, VLC_CODEC_I420,
-        VLC_CODEC_YV12, VLC_CODEC_NV12, VLC_CODEC_I422, VLC_CODEC_NV16,
-        VLC_CODEC_YUYV, VLC_CODEC_UYVY, VLC_CODEC_I444, VLC_CODEC_NV24);
+    heimdall_chroma_conv_add_in_outlist(vec, 1.1, HEIMDALL_CODEC_VDPAU_VIDEO, HEIMDALL_CODEC_I420,
+        HEIMDALL_CODEC_YV12, HEIMDALL_CODEC_NV12, HEIMDALL_CODEC_I422, HEIMDALL_CODEC_NV16,
+        HEIMDALL_CODEC_YUYV, HEIMDALL_CODEC_UYVY, HEIMDALL_CODEC_I444, HEIMDALL_CODEC_NV24);
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname(N_("VDPAU"))
     set_description(N_("VDPAU surface conversions"))
     set_subcategory(SUBCAT_VIDEO_VFILTER)
@@ -822,4 +823,4 @@ vlc_module_begin()
     set_callback_video_converter(YCbCrOpen, 10)
     add_submodule()
         set_callback_chroma_conv_probe(ProbeChroma)
-vlc_module_end()
+heimdall_module_end()

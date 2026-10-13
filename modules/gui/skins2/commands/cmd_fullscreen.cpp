@@ -2,6 +2,7 @@
  * cmd_fullscreen.cpp
  *****************************************************************************
  * Copyright (C) 2003-2009 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cyril Deguet     <asmax@via.ecp.fr>
  *          Olivier Teulière <ipkiss@via.ecp.fr>
@@ -25,6 +26,6 @@
 
 void CmdFullscreen::execute()
 {
-    vlc_player_t *player = vlc_playlist_GetPlayer( getPL() );
-    vlc_player_vout_SetFullscreen( player, true );
+    heimdall_player_t *player = heimdall_playlist_GetPlayer( getPL() );
+    heimdall_player_vout_SetFullscreen( player, true );
 }

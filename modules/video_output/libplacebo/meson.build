@@ -8,12 +8,12 @@ if not libplacebo_dep.found()
     libplacebo_utils = disabler()
     subdir_done()
 endif
-libplacebo_utils = static_library('vlc_libplacebo_utils',
+libplacebo_utils = static_library('heimdall_libplacebo_utils',
                                 files('utils.c'),
                                 dependencies: [libplacebo_dep],
-                                include_directories: [vlc_include_dirs])
+                                include_directories: [heimdall_include_dirs])
 
-vlc_modules += {
+heimdall_modules += {
     'name' : 'placebo',
     'sources' : files('instance.c', 'display.c'),
     'link_with' : [libplacebo_utils],
@@ -23,7 +23,7 @@ vlc_modules += {
 
 ## Vulkan
 if vulkan_dep.found()
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'placebo_vk',
         'sources' : files('../vulkan/platform.c', 'instance_vulkan.c'),
         'link_with' : [libplacebo_utils],
@@ -34,7 +34,7 @@ endif
 
 ## OpenGL
 if opengl_dep.found()
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'placebo_gl',
         'sources' : files('instance_opengl.c'),
         'link_with' : [libplacebo_utils],
@@ -44,7 +44,7 @@ if opengl_dep.found()
 endif
 
 if opengles2_dep.found()
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'placebo_gles2',
         'sources' : files('instance_opengl.c'),
         'link_with' : [libplacebo_utils],

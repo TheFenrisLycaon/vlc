@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -52,15 +53,15 @@ protected:
     std::unique_ptr<MLListCacheLoader> createMLLoader() const override;
 
 private:
-    vlc_ml_sorting_criteria_t nameToCriteria(QByteArray name) const override;
-    void onVlcMlEvent(const MLEvent &event) override;
+    heimdall_ml_sorting_criteria_t nameToCriteria(QByteArray name) const override;
+    void onHeimdallMlEvent(const MLEvent &event) override;
 
     struct Loader : public MLListCacheLoader::MLOp
     {
         using MLListCacheLoader::MLOp::MLOp;
-        size_t count(vlc_medialibrary_t* ml, const vlc_ml_query_params_t* queryParam) const override;
-        std::vector<std::unique_ptr<MLItem>> load(vlc_medialibrary_t* ml, const vlc_ml_query_params_t* queryParam) const override;
-        std::unique_ptr<MLItem> loadItemById(vlc_medialibrary_t* ml, MLItemId itemId) const override;
+        size_t count(heimdall_medialibrary_t* ml, const heimdall_ml_query_params_t* queryParam) const override;
+        std::vector<std::unique_ptr<MLItem>> load(heimdall_medialibrary_t* ml, const heimdall_ml_query_params_t* queryParam) const override;
+        std::unique_ptr<MLItem> loadItemById(heimdall_medialibrary_t* ml, MLItemId itemId) const override;
     };
 };
 

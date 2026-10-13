@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,13 +23,13 @@ import QtQuick.Layouts
 import QtQuick.Window
 
 
-import VLC.MainInterface
-import VLC.Style
-import VLC.PlayerControls
-import VLC.Playlist
-import VLC.Widgets as Widgets
-import VLC.Menus as Menus
-import VLC.Util
+import Heimdall.MainInterface
+import Heimdall.Style
+import Heimdall.PlayerControls
+import Heimdall.Playlist
+import Heimdall.Widgets as Widgets
+import Heimdall.Menus as Menus
+import Heimdall.Util
 
 FocusScope{
     id: root
@@ -63,7 +64,7 @@ FocusScope{
 
     property bool _showCenterText: (pinControls && showToolbar === false && showCSD)
 
-    readonly property int _sideMargin: VLCStyle.margin_small + sideMargin
+    readonly property int _sideMargin: HeimdallStyle.margin_small + sideMargin
 
     // Aliases
 
@@ -109,8 +110,8 @@ FocusScope{
 
         if (c2 === csdDecorations) {
             //csdDecorations.implicitHeight gets overwritten when the height is set,
-            //VLCStyle.icon_normal is its initial value
-            c2Height = VLCStyle.icon_normal
+            //HeimdallStyle.icon_normal is its initial value
+            c2Height = HeimdallStyle.icon_normal
         }
 
         const lineHeight = Math.max(c1Height, c2Height)
@@ -136,8 +137,8 @@ FocusScope{
         if (_showCenterText) {
             //place everything on one line
             //csdDecorations.implicitHeight gets overwritten when the height is set,
-            //VLCStyle.icon_normal is its initial value
-            const lineHeight = Math.max(logoOrResume.implicitHeight, playlistGroup.implicitHeight, VLCStyle.icon_normal)
+            //HeimdallStyle.icon_normal is its initial value
+            const lineHeight = Math.max(logoOrResume.implicitHeight, playlistGroup.implicitHeight, HeimdallStyle.icon_normal)
 
             centerTitleText.y = 0
             centerTitleText.height = lineHeight
@@ -207,7 +208,7 @@ FocusScope{
 
         anchors.fill: parent
         active: root.showCSD
-        source: "qrc:///qt/qml/VLC/Widgets/CSDTitlebarTapNDrapHandler.qml"
+        source: "qrc:///qt/qml/Heimdall/Widgets/CSDTitlebarTapNDrapHandler.qml"
 
         Connections {
             target: tapNDrag.item
@@ -269,8 +270,8 @@ FocusScope{
 
             visible: (root._showTopBar && root.resumeVisible === false)
 
-            implicitHeight: VLCStyle.icon_banner + VLCStyle.margin_xxsmall * 2
-            implicitWidth: backBtn.implicitWidth + logo.implicitWidth + VLCStyle.margin_xxsmall
+            implicitHeight: HeimdallStyle.icon_banner + HeimdallStyle.margin_xxsmall * 2
+            implicitWidth: backBtn.implicitWidth + logo.implicitWidth + HeimdallStyle.margin_xxsmall
 
             Widgets.IconToolButton {
                 id: backBtn
@@ -279,8 +280,8 @@ FocusScope{
                 anchors.left: parent.left
 
                 objectName: "IconToolButton"
-                font.pixelSize: VLCStyle.icon_banner
-                text: VLCIcons.back
+                font.pixelSize: HeimdallStyle.icon_banner
+                text: HeimdallIcons.back
                 description: qsTr("Back")
 
                 AccessibleCompat.id: "topBarBackButton"
@@ -299,7 +300,7 @@ FocusScope{
 
                 anchors.verticalCenter: parent.verticalCenter
                 anchors.left: backBtn.right
-                anchors.leftMargin: VLCStyle.margin_xxsmall
+                anchors.leftMargin: HeimdallStyle.margin_xxsmall
 
                 color: theme.accent
             }
@@ -310,11 +311,11 @@ FocusScope{
 
             anchors.fill: parent
             //add aditional margin so it align with menubar text when visible (see MenuBar.qml)
-            anchors.leftMargin: VLCStyle.margin_xsmall
+            anchors.leftMargin: HeimdallStyle.margin_xsmall
 
             maxWidth: ((root.showCSD && !root.pinControls) ? csdDecorations : playlistGroup).x
-                - VLCStyle.applicationHorizontalMargin
-                - VLCStyle.margin_large
+                - HeimdallStyle.applicationHorizontalMargin
+                - HeimdallStyle.margin_large
 
             colorContext.palette: theme.palette
 
@@ -349,12 +350,12 @@ FocusScope{
 
         width: Math.min(centerTitleText._availableWidth, centerTitleText.implicitWidth)
 
-        leftPadding: VLCStyle.margin_small
-        rightPadding: VLCStyle.margin_small
+        leftPadding: HeimdallStyle.margin_small
+        rightPadding: HeimdallStyle.margin_small
 
         text: root.title
         color: theme.fg.primary
-        font.pixelSize: VLCStyle.dp(13, VLCStyle.scale)
+        font.pixelSize: HeimdallStyle.dp(13, HeimdallStyle.scale)
         font.weight: Font.DemiBold
         elide: Text.ElideRight
         verticalAlignment: Text.AlignVCenter
@@ -381,20 +382,20 @@ FocusScope{
         anchors.top: logoOrResume.bottom
         anchors.leftMargin: root._sideMargin
 
-        width: root.textWidth - VLCStyle.margin_normal
+        width: root.textWidth - HeimdallStyle.margin_normal
 
         visible: !root.pinControls
 
         enabled: visible
 
-        topPadding: VLCStyle.margin_large
+        topPadding: HeimdallStyle.margin_large
         leftPadding: logo.x
 
         text: root.title
         horizontalAlignment: Text.AlignLeft
         color: theme.fg.primary
         font.weight: Font.DemiBold
-        font.pixelSize: VLCStyle.dp(18, VLCStyle.scale)
+        font.pixelSize: HeimdallStyle.dp(18, HeimdallStyle.scale)
         elide: Text.ElideRight
     }
 
@@ -405,13 +406,13 @@ FocusScope{
         anchors.right: parent.right
 
         focus: false
-        height: VLCStyle.icon_normal
+        height: HeimdallStyle.icon_normal
         active: root.showCSD
         enabled: root.showCSD
         visible: root.showCSD
-        source:  VLCStyle.palette.hasCSDImage
-            ? "qrc:///qt/qml/VLC/Widgets/CSDThemeButtonSet.qml"
-            : "qrc:///qt/qml/VLC/Widgets/CSDWindowButtonSet.qml"
+        source:  HeimdallStyle.palette.hasCSDImage
+            ? "qrc:///qt/qml/Heimdall/Widgets/CSDThemeButtonSet.qml"
+            : "qrc:///qt/qml/Heimdall/Widgets/CSDWindowButtonSet.qml"
 
         Connections {
             target: csdDecorations.item
@@ -426,7 +427,7 @@ FocusScope{
         property int extraRightMargin: 0
 
         focus: true
-        spacing: VLCStyle.margin_xxsmall
+        spacing: HeimdallStyle.margin_xxsmall
 
         anchors.top: parent.top
         anchors.right: parent.right
@@ -441,12 +442,12 @@ FocusScope{
             visible: !root.showToolbar
             enabled: visible
             focus: visible
-            font.pixelSize: VLCStyle.icon_banner
+            font.pixelSize: HeimdallStyle.icon_banner
 
-            width: VLCStyle.bannerButton_width
-            height: VLCStyle.bannerButton_height
+            width: HeimdallStyle.bannerButton_width
+            height: HeimdallStyle.bannerButton_height
 
-            text: VLCIcons.more
+            text: HeimdallIcons.more
             description: qsTr("Menu")
 
             AccessibleCompat.id: "topBarMenuButton"
@@ -484,16 +485,16 @@ FocusScope{
 
             anchors.verticalCenter: parent.verticalCenter
             objectName: ControlListModel.PLAYLIST_BUTTON
-            font.pixelSize: VLCStyle.icon_banner
-            text: VLCIcons.playlist
+            font.pixelSize: HeimdallStyle.icon_banner
+            text: HeimdallIcons.playlist
             description: qsTr("Play Queue")
 
             AccessibleCompat.id: "topBarPlayqueueButton"
 
             focus: root.showToolbar
 
-            width: VLCStyle.bannerButton_width
-            height: VLCStyle.bannerButton_height
+            width: HeimdallStyle.bannerButton_width
+            height: HeimdallStyle.bannerButton_height
 
             plListView: root.plListView
             

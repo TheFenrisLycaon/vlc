@@ -2,6 +2,7 @@
  * timestamps_filter.h: Seamless timestamps helper
  *****************************************************************************
  * Copyright © 2018 VideoLabs, VideoLAN, VLC authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -17,13 +18,13 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
-#ifndef VLC_TIMESTAMPS_FILTER_H
-#define VLC_TIMESTAMPS_FILTER_H
+#ifndef HEIMDALL_TIMESTAMPS_FILTER_H
+#define HEIMDALL_TIMESTAMPS_FILTER_H
 
-#include <vlc_common.h>
-#include <vlc_arrays.h>
-#include <vlc_es_out.h>
-#include <vlc_frame.h>
+#include <heimdall_common.h>
+#include <heimdall_arrays.h>
+#include <heimdall_es_out.h>
+#include <heimdall_frame.h>
 
 #include "moving_avg.h"
 
@@ -39,13 +40,13 @@ enum
 struct timestamps_filter_s
 {
     struct moving_average_s mva;
-    vlc_tick_t sequence_offset;
-    vlc_tick_t contiguous_last;
+    heimdall_tick_t sequence_offset;
+    heimdall_tick_t contiguous_last;
     /**/
     struct name
     {
-        vlc_tick_t stream;
-        vlc_tick_t contiguous;
+        heimdall_tick_t stream;
+        heimdall_tick_t contiguous;
     } sync;
     /**/
     unsigned sequence;
@@ -54,9 +55,9 @@ struct timestamps_filter_s
 struct tf_es_out_id_s
 {
     es_out_id_t *id;
-    vlc_fourcc_t fourcc;
+    heimdall_fourcc_t fourcc;
     struct timestamps_filter_s tf;
-    vlc_tick_t pcrdiff;
+    heimdall_tick_t pcrdiff;
     unsigned pcrpacket;
     unsigned sequence;
     bool contiguous;
@@ -82,7 +83,7 @@ static void timestamps_filter_init(struct timestamps_filter_s *tf)
 }
 
 static bool timestamps_filter_push(const char *s, struct timestamps_filter_s *tf,
-                                   vlc_tick_t i_dts, vlc_tick_t i_length,
+                                   heimdall_tick_t i_dts, heimdall_tick_t i_length,
                                    bool b_discontinuity, bool b_contiguous)
 {
     bool b_desync = false;
@@ -117,14 +118,14 @@ static bool timestamps_filter_push(const char *s, struct timestamps_filter_s *tf
         }
 
 #ifdef DEBUG_TIMESTAMPS_FILTER
-        vlc_tick_t next = prev->dts + mva_get(&tf->mva);
+        heimdall_tick_t next = prev->dts + mva_get(&tf->mva);
 
         printf("%4.4s expected %" PRId64 " / %" PRId64 " , prev %" PRId64 "+%" PRId64
                " error %lld comp %" PRId64 "\n",
                s, next, i_dts, prev->dts, mva_get(&tf->mva),
                b_contiguous ? llabs(i_dts - next): 0, i_dts + tf->sequence_offset);
 #else
-        VLC_UNUSED(s);
+        HEIMDALL_UNUSED(s);
 #endif
     }
 
@@ -160,7 +161,7 @@ static void timestamps_filter_es_out_Reset(struct tf_es_out_s *out)
 
 static int timestamps_filter_es_out_Control(es_out_t *out, input_source_t *in, int i_query, va_list va_list)
 {
-    VLC_UNUSED(in);
+    HEIMDALL_UNUSED(in);
     struct tf_es_out_s *p_sys = container_of(out, struct tf_es_out_s, es_out);
     switch(i_query)
     {
@@ -180,7 +181,7 @@ static int timestamps_filter_es_out_Control(es_out_t *out, input_source_t *in, i
                 /* Handle special start case, there was 1 single PCR before */
                 if(p_sys->pcrtf.mva.i_packet == 2)
                 {
-                    vlc_tick_t max = 0;
+                    heimdall_tick_t max = 0;
                     for(int i=0; i<p_sys->es_list.i_size; i++)
                     {
                         struct tf_es_out_id_s *cur = (struct tf_es_out_id_s *)p_sys->es_list.p_elems[i];
@@ -225,17 +226,17 @@ static int timestamps_filter_es_out_Control(es_out_t *out, input_source_t *in, i
         case ES_OUT_TF_FILTER_GET_TIME:
         {
             *(va_arg(va_list, int64_t*)) = p_sys->pcrtf.contiguous_last;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
         case ES_OUT_TF_FILTER_DISCONTINUITY:
         {
             p_sys->b_discontinuity = true;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
         case ES_OUT_TF_FILTER_RESET:
         {
             timestamps_filter_es_out_Reset(p_sys);
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
         /* !Private controls */
         default:
@@ -261,7 +262,7 @@ static int timestamps_filter_es_out_Send(es_out_t *out, es_out_id_t *id, block_t
         {
             cur->pcrdiff = mva_getLastDTS(&cur->tf.mva) - mva_getLastDTS(&p_sys->pcrtf.mva);
 
-            vlc_tick_t i_offsetdiff = cur->tf.sequence_offset - p_sys->pcrtf.sequence_offset;
+            heimdall_tick_t i_offsetdiff = cur->tf.sequence_offset - p_sys->pcrtf.sequence_offset;
             if(i_offsetdiff != 0)
                 cur->tf.sequence_offset -= i_offsetdiff;
 #ifdef DEBUG_TIMESTAMPS_FILTER
@@ -308,7 +309,7 @@ static void timestamps_filter_es_out_Delete(es_out_t *out)
 
 static es_out_id_t *timestamps_filter_es_out_Add(es_out_t *out, input_source_t *in, const es_format_t *fmt)
 {
-    VLC_UNUSED(in);
+    HEIMDALL_UNUSED(in);
     struct tf_es_out_s *p_sys = container_of(out, struct tf_es_out_s, es_out);
 
     struct tf_es_out_id_s *tf_es_sys = malloc(sizeof(*tf_es_sys));

@@ -2,6 +2,7 @@
  * viewpoint.c: test for viewpoint
  *****************************************************************************
  * Copyright (C) 2019 VLC Authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,9 +19,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#include <vlc_viewpoint.h>
+#include <heimdall_viewpoint.h>
 #include <math.h>
-#include "../../libvlc/test.h"
+#include "../../libheimdall/test.h"
 
 
 static void mat4x4_for_angles( float *m, float *angles )
@@ -94,11 +95,11 @@ compare_angles(float epsilon, const float a1[3], const float a2[3])
 static bool
 reciprocal_euler(float epsilon, float yaw, float pitch, float roll)
 {
-    vlc_viewpoint_t vp;
-    vlc_viewpoint_from_euler(&vp, yaw, pitch, roll);
+    heimdall_viewpoint_t vp;
+    heimdall_viewpoint_from_euler(&vp, yaw, pitch, roll);
 
     float yaw2, pitch2, roll2;
-    vlc_viewpoint_to_euler(&vp, &yaw2, &pitch2, &roll2);
+    heimdall_viewpoint_to_euler(&vp, &yaw2, &pitch2, &roll2);
 
     fprintf(stderr, "==========================================\n");
     fprintf(stderr, "original:   yaw=%f, pitch=%f, roll=%f\n", yaw, pitch, roll);
@@ -169,7 +170,7 @@ static void
 test_conversion_viewpoint_mat4x4()
 {
     const float epsilon = 0.1f;
-    vlc_viewpoint_t vp;
+    heimdall_viewpoint_t vp;
     float mat[16];
 
 #define MATLINE "[%f %f %f %f]\n"
@@ -185,11 +186,11 @@ test_conversion_viewpoint_mat4x4()
     for (size_t i=0; i<ARRAY_SIZE(examples_mat4x4); ++i)
     {
         struct example_mat4x4 *ex = &examples_mat4x4[i];
-        vlc_viewpoint_from_euler(&vp,
+        heimdall_viewpoint_from_euler(&vp,
                                  ex->angles[0],
                                  ex->angles[1],
                                  ex->angles[2]);
-        vlc_viewpoint_to_4x4(&vp, mat);
+        heimdall_viewpoint_to_4x4(&vp, mat);
         fprintf(stderr, "angles: %f %f %f\n",
                 ex->angles[0], ex->angles[1],
                 ex->angles[2]);

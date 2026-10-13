@@ -2,6 +2,7 @@
  * tdummy.c : dummy text rendering functions
  *****************************************************************************
  * Copyright (C) 2000, 2001 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Sigmund Augdal Helberg <dnumgis@videolan.org>
  *
@@ -24,34 +25,34 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
 
 static int OpenRenderer( filter_t * );
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( N_("Dummy") )
     set_description( N_("Dummy font renderer") )
     set_callback_text_renderer( OpenRenderer, 1 )
-vlc_module_end ()
+heimdall_module_end ()
 
 
 static subpicture_region_t *RenderText( filter_t *p_filter,
                        const subpicture_region_t *p_region_in,
-                       const vlc_fourcc_t *p_chroma_list )
+                       const heimdall_fourcc_t *p_chroma_list )
 {
-    VLC_UNUSED(p_filter); VLC_UNUSED(p_region_in);
-    VLC_UNUSED(p_chroma_list);
+    HEIMDALL_UNUSED(p_filter); HEIMDALL_UNUSED(p_region_in);
+    HEIMDALL_UNUSED(p_chroma_list);
     return NULL;
 }
 
-static const struct vlc_filter_operations filter_ops = {
+static const struct heimdall_filter_operations filter_ops = {
     .render = RenderText,
 };
 
 static int OpenRenderer( filter_t *p_filter )
 {
     p_filter->ops = &filter_ops;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

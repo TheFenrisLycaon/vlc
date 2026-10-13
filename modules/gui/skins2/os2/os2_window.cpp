@@ -2,6 +2,7 @@
  * os2_window.cpp
  *****************************************************************************
  * Copyright (C) 2003, 2013 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cyril Deguet      <asmax@via.ecp.fr>
  *          Olivier Teulière <ipkiss@via.ecp.fr>
@@ -25,7 +26,7 @@
 #ifdef OS2_SKINS
 
 #include "../src/generic_window.hpp"
-#include "../src/vlcproc.hpp"
+#include "../src/heimdallproc.hpp"
 #include "../src/vout_manager.hpp"
 #include "os2_window.hpp"
 #include "os2_dragdrop.hpp"
@@ -43,8 +44,8 @@ OS2Window::OS2Window( intf_thread_t *pIntf, GenericWindow &rWindow,
     (void)hParentWindow;
     OS2Factory *pFactory = (OS2Factory*)OS2Factory::instance( getIntf() );
 
-    PCSZ  vlc_name  = "VlC Media Player";
-    PCSZ  vlc_class = "SkinWindowClass";
+    PCSZ  heimdall_name  = "VlC Media Player";
+    PCSZ  heimdall_class = "SkinWindowClass";
     ULONG flFrame = 0;
 
     // Create the window
@@ -55,8 +56,8 @@ OS2Window::OS2Window( intf_thread_t *pIntf, GenericWindow &rWindow,
         m_hWnd = WinCreateStdWindow( m_hWnd_parent,
                                      WS_CLIPCHILDREN | WS_CLIPSIBLINGS,
                                      &flFrame,
-                                     vlc_class,
-                                     vlc_name,
+                                     heimdall_class,
+                                     heimdall_name,
                                      0,
                                      hInst,
                                      0,
@@ -68,8 +69,8 @@ OS2Window::OS2Window( intf_thread_t *pIntf, GenericWindow &rWindow,
         m_hWnd = WinCreateStdWindow( HWND_DESKTOP,
                                      WS_CLIPCHILDREN,
                                      &flFrame,
-                                     vlc_class,
-                                     vlc_name,
+                                     heimdall_class,
+                                     heimdall_name,
                                      0,
                                      hInst,
                                      0,
@@ -91,8 +92,8 @@ OS2Window::OS2Window( intf_thread_t *pIntf, GenericWindow &rWindow,
         m_hWnd = WinCreateStdWindow( HWND_DESKTOP,
                                      WS_CLIPCHILDREN | WS_CLIPSIBLINGS,
                                      &flFrame,
-                                     vlc_class,
-                                     vlc_name,
+                                     heimdall_class,
+                                     heimdall_name,
                                      0,
                                      hInst,
                                      0,
@@ -107,8 +108,8 @@ OS2Window::OS2Window( intf_thread_t *pIntf, GenericWindow &rWindow,
         m_hWnd = WinCreateStdWindow( HWND_DESKTOP,
                                      WS_CLIPCHILDREN,
                                      &flFrame,
-                                     vlc_class,
-                                     vlc_name,
+                                     heimdall_class,
+                                     heimdall_name,
                                      0,
                                      hInst,
                                      0,

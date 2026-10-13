@@ -2,6 +2,7 @@
  * mpeg4_iod.c: ISO 14496-1 IOD and OD parsers
  *****************************************************************************
  * Copyright (C) 2004-2015 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -26,8 +27,8 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_bits.h>
+#include <heimdall_common.h>
+#include <heimdall_bits.h>
 
 #include "mpeg4_iod.h"
 
@@ -35,16 +36,16 @@
 #include <assert.h>
 
 //#define OD_DEBUG 1
-static void od_debug( vlc_object_t *p_object, const char *format, ... )
+static void od_debug( heimdall_object_t *p_object, const char *format, ... )
 {
 #ifdef OD_DEBUG
     va_list ap;
     va_start(ap, format);
-    msg_GenericVa( p_object, VLC_MSG_DBG, format, ap );
+    msg_GenericVa( p_object, HEIMDALL_MSG_DBG, format, ap );
     va_end(ap);
 #else
-    VLC_UNUSED(format);
-    VLC_UNUSED(p_object);
+    HEIMDALL_UNUSED(format);
+    HEIMDALL_UNUSED(p_object);
 #endif
 }
 
@@ -110,12 +111,12 @@ typedef union
     sl_config_descriptor_t *sl_descr;
 } od_read_params_t;
 
-static uint8_t OD_Desc_Read( vlc_object_t *, unsigned *, const uint8_t **, uint8_t, uint8_t, od_read_params_t params );
+static uint8_t OD_Desc_Read( heimdall_object_t *, unsigned *, const uint8_t **, uint8_t, uint8_t, od_read_params_t params );
 
 #define SL_Predefined_Custom 0x00
 #define SL_Predefined_NULL   0x01
 #define SL_Predefined_MP4    0x02
-static bool OD_SLDesc_Read( vlc_object_t *p_object, unsigned i_data, const uint8_t *p_data,
+static bool OD_SLDesc_Read( heimdall_object_t *p_object, unsigned i_data, const uint8_t *p_data,
                              od_read_params_t params )
 {
     sl_config_descriptor_t *sl_descr = params.sl_descr;
@@ -185,10 +186,10 @@ static bool OD_SLDesc_Read( vlc_object_t *p_object, unsigned i_data, const uint8
     return true;
 }
 
-static bool OD_DecSpecificDesc_Read( vlc_object_t *p_object, unsigned i_data, const uint8_t *p_data,
+static bool OD_DecSpecificDesc_Read( heimdall_object_t *p_object, unsigned i_data, const uint8_t *p_data,
                                       od_read_params_t params )
 {
-    VLC_UNUSED(p_object);
+    HEIMDALL_UNUSED(p_object);
     decoder_config_descriptor_t *p_dec_config = params.p_dec_config;
 
     p_dec_config->p_extra = malloc( i_data );
@@ -202,7 +203,7 @@ static bool OD_DecSpecificDesc_Read( vlc_object_t *p_object, unsigned i_data, co
     return !!p_dec_config->i_extra;
 }
 
-static bool OD_DecConfigDesc_Read( vlc_object_t *p_object, unsigned i_data, const uint8_t *p_data,
+static bool OD_DecConfigDesc_Read( heimdall_object_t *p_object, unsigned i_data, const uint8_t *p_data,
                                     od_read_params_t params )
 {
     decoder_config_descriptor_t *p_dec_config = params.p_dec_config;
@@ -228,7 +229,7 @@ static bool OD_DecConfigDesc_Read( vlc_object_t *p_object, unsigned i_data, cons
     return true;
 }
 
-static bool OD_ESDesc_Read( vlc_object_t *p_object, unsigned i_data, const uint8_t *p_data,
+static bool OD_ESDesc_Read( heimdall_object_t *p_object, unsigned i_data, const uint8_t *p_data,
                              od_read_params_t params )
 {
     es_mpeg4_descriptor_t *es_descr = params.es_descr;
@@ -274,7 +275,7 @@ static bool OD_ESDesc_Read( vlc_object_t *p_object, unsigned i_data, const uint8
     return true;
 }
 
-static bool OD_InitialObjectDesc_Read( vlc_object_t *p_object, unsigned i_data,
+static bool OD_InitialObjectDesc_Read( heimdall_object_t *p_object, unsigned i_data,
                                         const uint8_t *p_data, od_read_params_t params )
 {
     od_descriptor_t *p_iod = params.p_od;
@@ -323,7 +324,7 @@ static bool OD_InitialObjectDesc_Read( vlc_object_t *p_object, unsigned i_data,
     return true;
 }
 
-static bool ODObjectDescriptorRead( vlc_object_t *p_object, unsigned i_data, const uint8_t *p_data,
+static bool ODObjectDescriptorRead( heimdall_object_t *p_object, unsigned i_data, const uint8_t *p_data,
                                   od_read_params_t params )
 {
     od_descriptor_t *p_iod = params.p_od;
@@ -363,7 +364,7 @@ static bool ODObjectDescriptorRead( vlc_object_t *p_object, unsigned i_data, con
     return true;
 }
 
-static uint8_t OD_Desc_Read( vlc_object_t *p_object, unsigned *pi_data, const uint8_t **pp_data,
+static uint8_t OD_Desc_Read( heimdall_object_t *p_object, unsigned *pi_data, const uint8_t **pp_data,
                               uint8_t i_target_tag, uint8_t i_max_desc, od_read_params_t params )
 {
     uint8_t i_read_count = 0;
@@ -453,7 +454,7 @@ static uint8_t OD_Desc_Read( vlc_object_t *p_object, unsigned *pi_data, const ui
 
             default:
                 /* invalid i_target_tag from caller */
-                vlc_assert_unreachable();
+                heimdall_assert_unreachable();
                 return 0;
         }
 
@@ -466,7 +467,7 @@ static uint8_t OD_Desc_Read( vlc_object_t *p_object, unsigned *pi_data, const ui
     return i_read_count;
 }
 
-static uint8_t ODInit( vlc_object_t *p_object, unsigned i_data, const uint8_t *p_data,
+static uint8_t ODInit( heimdall_object_t *p_object, unsigned i_data, const uint8_t *p_data,
                        uint8_t i_start_tag, uint8_t i_min, uint8_t i_max, od_descriptor_t **pp_ods )
 {
     od_read_params_t params;
@@ -481,14 +482,14 @@ static uint8_t ODInit( vlc_object_t *p_object, unsigned i_data, const uint8_t *p
     return i_read;
 }
 
-od_descriptor_t *IODNew( vlc_object_t *p_object, unsigned i_data, const uint8_t *p_data )
+od_descriptor_t *IODNew( heimdall_object_t *p_object, unsigned i_data, const uint8_t *p_data )
 {
     if( i_data < 4 )
         return NULL;
 
     uint8_t i_iod_scope = ODGetBytes( &i_data, &p_data, 1 ); /* scope */
     uint8_t i_iod_label = ODGetBytes( &i_data, &p_data, 1 );
-    if( i_iod_label == 0x02 ) /* old vlc's buggy implementation of the OD_descriptor */
+    if( i_iod_label == 0x02 ) /* old heimdall's buggy implementation of the OD_descriptor */
     {
         i_iod_label = i_iod_scope;
         i_iod_scope = 0x10; /* Add the missing front iod scope byte */
@@ -577,7 +578,7 @@ sl_header_data DecodeSLHeader( unsigned i_data, const uint8_t *p_data,
         struct
         {
             bool *p_b;
-            vlc_tick_t *p_t;
+            heimdall_tick_t *p_t;
         } const timestamps[2] = { { &b_has_dts, &ret.i_dts }, { &b_has_cts, &ret.i_pts } };
 
         bs_skip( &s, sl->i_packet_seqnum_length );
@@ -616,8 +617,8 @@ sl_header_data DecodeSLHeader( unsigned i_data, const uint8_t *p_data,
                     i_read |= bs_read( &s, i_bits );
                 }
                 if( sl->i_timestamp_resolution )
-                    *(timestamps[i].p_t) = VLC_TICK_0 +
-                        vlc_tick_from_samples(i_read, sl->i_timestamp_resolution);
+                    *(timestamps[i].p_t) = HEIMDALL_TICK_0 +
+                        heimdall_tick_from_samples(i_read, sl->i_timestamp_resolution);
             }
 
             bs_skip( &s, sl->i_AU_length );
@@ -662,7 +663,7 @@ static int bsearch_cmp( const void *key_, const void *el_ )
     return 0;
 }
 
-static void ObjectDescrUpdateCommandRead( vlc_object_t *p_object, od_descriptors_t *p_ods,
+static void ObjectDescrUpdateCommandRead( heimdall_object_t *p_object, od_descriptors_t *p_ods,
                                           unsigned i_data, const uint8_t *p_data )
 {
     od_descriptor_t *p_odsread[255];
@@ -689,10 +690,10 @@ static void ObjectDescrUpdateCommandRead( vlc_object_t *p_object, od_descriptors
     }
 }
 
-static void ObjectDescrRemoveCommandRead( vlc_object_t *p_object, od_descriptors_t *p_ods,
+static void ObjectDescrRemoveCommandRead( heimdall_object_t *p_object, od_descriptors_t *p_ods,
                                           unsigned i_data, const uint8_t *p_data )
 {
-    VLC_UNUSED(p_object);
+    HEIMDALL_UNUSED(p_object);
     bs_t s;
     bs_init( &s, p_data, i_data );
     for( unsigned i=0; i< (i_data * 8 / 10); i++ )
@@ -707,7 +708,7 @@ static void ObjectDescrRemoveCommandRead( vlc_object_t *p_object, od_descriptors
     }
 }
 
-void DecodeODCommand( vlc_object_t *p_object, od_descriptors_t *p_ods,
+void DecodeODCommand( heimdall_object_t *p_object, od_descriptors_t *p_ods,
                       unsigned i_data, const uint8_t *p_data )
 {
     while( i_data )

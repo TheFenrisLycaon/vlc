@@ -2,6 +2,7 @@
  * var_tree.hpp
  *****************************************************************************
  * Copyright (C) 2005 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Antoine Cellerier <dionoea@videolan.org>
  *          Clément Stenac <zorglub@videolan.org>
@@ -32,7 +33,7 @@
 #include "ustring.hpp"
 #include "var_percent.hpp"
 
-#include <vlc_input_item.h>
+#include <heimdall_input_item.h>
 
 class VarTree;
 struct tree_update;
@@ -185,7 +186,7 @@ public:
     void removeChild( Iterator it ) { m_children.erase( it ); }
 
     /// Execute the action associated to this item
-    virtual void action( VarTree *pItem ) { VLC_UNUSED(pItem); }
+    virtual void action( VarTree *pItem ) { HEIMDALL_UNUSED(pItem); }
 
     /// Get a reference on the position variable
     VarPercent &getPositionVar() const

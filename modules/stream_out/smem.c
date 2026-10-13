@@ -2,6 +2,7 @@
  * smem.c: stream output to memory buffer module
  *****************************************************************************
  * Copyright (C) 2009 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Christophe Courtaut <christophe.courtaut@gmail.com>
  *
@@ -46,13 +47,13 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_sout.h>
-#include <vlc_block.h>
-#include <vlc_codec.h>
-#include <vlc_aout.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_sout.h>
+#include <heimdall_block.h>
+#include <heimdall_codec.h>
+#include <heimdall_aout.h>
 
 /*****************************************************************************
  * Module descriptor
@@ -85,14 +86,14 @@
                         "If true, stream will render as usual, else " \
                         "it will be rendered as fast as possible.")
 
-static int  Open ( vlc_object_t * );
+static int  Open ( heimdall_object_t * );
 static void Close( sout_stream_t * );
 
 #define SOUT_CFG_PREFIX "sout-smem-"
 #define SOUT_PREFIX_VIDEO SOUT_CFG_PREFIX"video-"
 #define SOUT_PREFIX_AUDIO SOUT_CFG_PREFIX"audio-"
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( N_("Smem"))
     set_description( N_("Stream output to memory buffer") )
     set_capability( "sout output", 0 )
@@ -113,7 +114,7 @@ vlc_module_begin ()
     add_bool( SOUT_CFG_PREFIX "time-sync", true, T_TIME_SYNC, LT_TIME_SYNC )
         change_private()
     set_callback( Open )
-vlc_module_end ()
+heimdall_module_end ()
 
 
 /*****************************************************************************
@@ -152,21 +153,21 @@ typedef struct
 
 typedef struct
 {
-    vlc_mutex_t *p_lock;
+    heimdall_mutex_t *p_lock;
     void ( *pf_video_prerender_callback ) ( void* p_video_data, uint8_t** pp_pixel_buffer, size_t size );
     void ( *pf_audio_prerender_callback ) ( void* p_audio_data, uint8_t** pp_pcm_buffer, size_t size );
-    void ( *pf_video_postrender_callback ) ( void* p_video_data, uint8_t* p_pixel_buffer, int width, int height, int pixel_pitch, size_t size, vlc_tick_t pts );
-    void ( *pf_audio_postrender_callback ) ( void* p_audio_data, uint8_t* p_pcm_buffer, unsigned int channels, unsigned int rate, unsigned int nb_samples, unsigned int bits_per_sample, size_t size, vlc_tick_t pts );
+    void ( *pf_video_postrender_callback ) ( void* p_video_data, uint8_t* p_pixel_buffer, int width, int height, int pixel_pitch, size_t size, heimdall_tick_t pts );
+    void ( *pf_audio_postrender_callback ) ( void* p_audio_data, uint8_t* p_pcm_buffer, unsigned int channels, unsigned int rate, unsigned int nb_samples, unsigned int bits_per_sample, size_t size, heimdall_tick_t pts );
     bool time_sync;
 } sout_stream_sys_t;
 
 void VideoPrerenderDefaultCallback( void* p_video_data, uint8_t** pp_pixel_buffer, size_t size );
 void AudioPrerenderDefaultCallback( void* p_audio_data, uint8_t** pp_pcm_buffer, size_t size );
 void VideoPostrenderDefaultCallback( void* p_video_data, uint8_t* p_pixel_buffer, int width, int height,
-                                     int pixel_pitch, size_t size, vlc_tick_t pts );
+                                     int pixel_pitch, size_t size, heimdall_tick_t pts );
 void AudioPostrenderDefaultCallback( void* p_audio_data, uint8_t* p_pcm_buffer, unsigned int channels,
                                      unsigned int rate, unsigned int nb_samples, unsigned int bits_per_sample,
-                                     size_t size, vlc_tick_t pts );
+                                     size_t size, heimdall_tick_t pts );
 
 /*****************************************************************************
  * Default empty callbacks
@@ -174,29 +175,29 @@ void AudioPostrenderDefaultCallback( void* p_audio_data, uint8_t* p_pcm_buffer, 
 
 void VideoPrerenderDefaultCallback( void* p_video_data, uint8_t** pp_pixel_buffer, size_t size )
 {
-    VLC_UNUSED( p_video_data ); VLC_UNUSED( pp_pixel_buffer ); VLC_UNUSED( size );
+    HEIMDALL_UNUSED( p_video_data ); HEIMDALL_UNUSED( pp_pixel_buffer ); HEIMDALL_UNUSED( size );
 }
 
 void AudioPrerenderDefaultCallback( void* p_audio_data, uint8_t** pp_pcm_buffer, size_t size )
 {
-    VLC_UNUSED( p_audio_data ); VLC_UNUSED( pp_pcm_buffer ); VLC_UNUSED( size );
+    HEIMDALL_UNUSED( p_audio_data ); HEIMDALL_UNUSED( pp_pcm_buffer ); HEIMDALL_UNUSED( size );
 }
 
 void VideoPostrenderDefaultCallback( void* p_video_data, uint8_t* p_pixel_buffer, int width, int height,
-                                     int pixel_pitch, size_t size, vlc_tick_t pts )
+                                     int pixel_pitch, size_t size, heimdall_tick_t pts )
 {
-    VLC_UNUSED( p_video_data ); VLC_UNUSED( p_pixel_buffer );
-    VLC_UNUSED( width ); VLC_UNUSED( height );
-    VLC_UNUSED( pixel_pitch ); VLC_UNUSED( size ); VLC_UNUSED( pts );
+    HEIMDALL_UNUSED( p_video_data ); HEIMDALL_UNUSED( p_pixel_buffer );
+    HEIMDALL_UNUSED( width ); HEIMDALL_UNUSED( height );
+    HEIMDALL_UNUSED( pixel_pitch ); HEIMDALL_UNUSED( size ); HEIMDALL_UNUSED( pts );
 }
 
 void AudioPostrenderDefaultCallback( void* p_audio_data, uint8_t* p_pcm_buffer, unsigned int channels,
                                      unsigned int rate, unsigned int nb_samples, unsigned int bits_per_sample,
-                                     size_t size, vlc_tick_t pts )
+                                     size_t size, heimdall_tick_t pts )
 {
-    VLC_UNUSED( p_audio_data ); VLC_UNUSED( p_pcm_buffer );
-    VLC_UNUSED( channels ); VLC_UNUSED( rate ); VLC_UNUSED( nb_samples );
-    VLC_UNUSED( bits_per_sample ); VLC_UNUSED( size ); VLC_UNUSED( pts );
+    HEIMDALL_UNUSED( p_audio_data ); HEIMDALL_UNUSED( p_pcm_buffer );
+    HEIMDALL_UNUSED( channels ); HEIMDALL_UNUSED( rate ); HEIMDALL_UNUSED( nb_samples );
+    HEIMDALL_UNUSED( bits_per_sample ); HEIMDALL_UNUSED( size ); HEIMDALL_UNUSED( pts );
 }
 
 static int Control(sout_stream_t *stream, int query, va_list args)
@@ -210,10 +211,10 @@ static int Control(sout_stream_t *stream, int query, va_list args)
             break;
 
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static const struct sout_stream_operations ops = {
@@ -227,7 +228,7 @@ static const struct sout_stream_operations ops = {
 /*****************************************************************************
  * Open:
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     char* psz_tmp;
     sout_stream_t *p_stream = (sout_stream_t*)p_this;
@@ -235,7 +236,7 @@ static int Open( vlc_object_t *p_this )
 
     p_sys = calloc( 1, sizeof( sout_stream_sys_t ) );
     if( !p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     p_stream->p_sys = p_sys;
 
     config_ChainParse( p_stream, SOUT_CFG_PREFIX, ppsz_sout_options,
@@ -256,20 +257,20 @@ static int Open( vlc_object_t *p_this )
         p_sys->pf_audio_prerender_callback = AudioPrerenderDefaultCallback;
 
     psz_tmp = var_GetString( p_stream, SOUT_PREFIX_VIDEO "postrender-callback" );
-    p_sys->pf_video_postrender_callback = (void (*) (void*, uint8_t*, int, int, int, size_t, vlc_tick_t))(intptr_t)atoll( psz_tmp );
+    p_sys->pf_video_postrender_callback = (void (*) (void*, uint8_t*, int, int, int, size_t, heimdall_tick_t))(intptr_t)atoll( psz_tmp );
     free( psz_tmp );
     if (p_sys->pf_video_postrender_callback == NULL)
         p_sys->pf_video_postrender_callback = VideoPostrenderDefaultCallback;
 
     psz_tmp = var_GetString( p_stream, SOUT_PREFIX_AUDIO "postrender-callback" );
-    p_sys->pf_audio_postrender_callback = (void (*) (void*, uint8_t*, unsigned int, unsigned int, unsigned int, unsigned int, size_t, vlc_tick_t))(intptr_t)atoll( psz_tmp );
+    p_sys->pf_audio_postrender_callback = (void (*) (void*, uint8_t*, unsigned int, unsigned int, unsigned int, unsigned int, size_t, heimdall_tick_t))(intptr_t)atoll( psz_tmp );
     free( psz_tmp );
     if (p_sys->pf_audio_postrender_callback == NULL)
         p_sys->pf_audio_postrender_callback = AudioPostrenderDefaultCallback;
 
     /* Setting stream out module callbacks */
     p_stream->ops = &ops;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -309,7 +310,7 @@ static void *AddVideo( sout_stream_t *p_stream, const es_format_t *p_fmt )
     id->i_cat = VIDEO_ES;
     id->video.i_width  = p_fmt->video.i_width;
     id->video.i_height = p_fmt->video.i_height;
-    id->i_bitspersample = vlc_fourcc_GetChromaBPP(p_fmt->video.i_chroma);
+    id->i_bitspersample = heimdall_fourcc_GetChromaBPP(p_fmt->video.i_chroma);
     if (id->i_bitspersample == 0)
         msg_Dbg( p_stream, "non raw video format detected (%4.4s), buffers will contain compressed video", (char *)&p_fmt->i_codec );
     return id;
@@ -344,7 +345,7 @@ static void *AddAudio( sout_stream_t *p_stream, const es_format_t *p_fmt )
 
 static void Del( sout_stream_t *p_stream, void *_id )
 {
-    VLC_UNUSED( p_stream );
+    HEIMDALL_UNUSED( p_stream );
     sout_stream_id_sys_t *id = (sout_stream_id_sys_t *)_id;
     free( id );
 }
@@ -356,7 +357,7 @@ static int Send( sout_stream_t *p_stream, void *_id, block_t *p_buffer )
         return SendVideo( p_stream, id, p_buffer );
     if ( id->i_cat == AUDIO_ES )
         return SendAudio( p_stream, id, p_buffer );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int SendVideo( sout_stream_t *p_stream, void *_id, block_t *p_buffer )
@@ -373,7 +374,7 @@ static int SendVideo( sout_stream_t *p_stream, void *_id, block_t *p_buffer )
     {
         msg_Err( p_stream, "No buffer given!" );
         block_ChainRelease( p_buffer );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Copying data into user buffer */
@@ -384,7 +385,7 @@ static int SendVideo( sout_stream_t *p_stream, void *_id, block_t *p_buffer )
                                          id->i_bitspersample,
                                          i_size, p_buffer->i_pts );
     block_ChainRelease( p_buffer );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int SendAudio( sout_stream_t *p_stream, void *_id, block_t *p_buffer )
@@ -400,7 +401,7 @@ static int SendAudio( sout_stream_t *p_stream, void *_id, block_t *p_buffer )
     {
         msg_Warn( p_stream, "No buffer given!" );
         block_ChainRelease( p_buffer );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     i_samples = i_size / ( ( id->i_bitspersample / 8 ) * id->audio.i_channels );
@@ -410,7 +411,7 @@ static int SendAudio( sout_stream_t *p_stream, void *_id, block_t *p_buffer )
     {
         msg_Err( p_stream, "No buffer given!" );
         block_ChainRelease( p_buffer );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Copying data into user buffer */
@@ -420,6 +421,6 @@ static int SendAudio( sout_stream_t *p_stream, void *_id, block_t *p_buffer )
                                          id->audio.i_channels, id->audio.i_rate, i_samples,
                                          id->i_bitspersample, i_size, p_buffer->i_pts );
     block_ChainRelease( p_buffer );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 

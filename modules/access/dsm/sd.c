@@ -4,6 +4,7 @@
  */
 /*****************************************************************************
  * Copyright © 2014 Authors and the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: - Julien 'Lta' BALLET <contact # lta 'dot' io>
  *
@@ -32,9 +33,9 @@
 
 #include <stdatomic.h>
 
-#include <vlc_common.h>
-#include <vlc_arrays.h>
-#include <vlc_services_discovery.h>
+#include <heimdall_common.h>
+#include <heimdall_arrays.h>
+#include <heimdall_services_discovery.h>
 #include <bdsm/bdsm.h>
 
 #if !defined(BDSM_VERSION_CURRENT) || BDSM_VERSION_CURRENT < 2
@@ -43,8 +44,8 @@
 
 #define BROADCAST_TIMEOUT 6 // in seconds
 
-int bdsm_SdOpen( vlc_object_t * );
-void bdsm_SdClose( vlc_object_t * );
+int bdsm_SdOpen( heimdall_object_t * );
+void bdsm_SdClose( heimdall_object_t * );
 
 struct entry_item
 {
@@ -55,7 +56,7 @@ struct entry_item
 typedef struct
 {
     netbios_ns      *p_ns;
-    vlc_array_t      entry_item_list;
+    heimdall_array_t      entry_item_list;
 } services_discovery_sys_t;
 
 static void entry_item_append( services_discovery_t *p_sd,
@@ -70,7 +71,7 @@ static void entry_item_append( services_discovery_t *p_sd,
     p_entry_item->p_entry = p_entry;
     p_entry_item->p_item = p_item;
     input_item_Hold( p_item );
-    vlc_array_append_or_abort( &p_sys->entry_item_list, p_entry_item );
+    heimdall_array_append_or_abort( &p_sys->entry_item_list, p_entry_item );
     services_discovery_AddItem( p_sd, p_item );
 }
 
@@ -79,16 +80,16 @@ static void entry_item_remove( services_discovery_t *p_sd,
 {
     services_discovery_sys_t *p_sys = p_sd->p_sys;
 
-    for( size_t i = 0; i < vlc_array_count( &p_sys->entry_item_list ); i++ )
+    for( size_t i = 0; i < heimdall_array_count( &p_sys->entry_item_list ); i++ )
     {
         struct entry_item *p_entry_item;
 
-        p_entry_item = vlc_array_item_at_index( &p_sys->entry_item_list, i );
+        p_entry_item = heimdall_array_item_at_index( &p_sys->entry_item_list, i );
         if( p_entry_item->p_entry == p_entry  )
         {
             services_discovery_RemoveItem( p_sd, p_entry_item->p_item );
             input_item_Release( p_entry_item->p_item );
-            vlc_array_remove( &p_sys->entry_item_list, i );
+            heimdall_array_remove( &p_sys->entry_item_list, i );
             free( p_entry_item );
             break;
         }
@@ -128,18 +129,18 @@ static void netbios_ns_discover_on_entry_removed( void *p_opaque,
     entry_item_remove( p_sd, p_entry );
 }
 
-int bdsm_SdOpen (vlc_object_t *p_this)
+int bdsm_SdOpen (heimdall_object_t *p_this)
 {
     services_discovery_t *p_sd = (services_discovery_t *)p_this;
     services_discovery_sys_t *p_sys = calloc (1, sizeof (*p_sys));
     netbios_ns_discover_callbacks callbacks;
 
     if( p_sys == NULL )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_sd->description = _("Windows networks");
     p_sd->p_sys = p_sys;
-    vlc_array_init( &p_sys->entry_item_list );
+    heimdall_array_init( &p_sys->entry_item_list );
 
     p_sys->p_ns = netbios_ns_new();
     if( p_sys->p_ns == NULL )
@@ -153,14 +154,14 @@ int bdsm_SdOpen (vlc_object_t *p_this)
                                    &callbacks) != 0 )
         goto error;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
     error:
         bdsm_SdClose( p_this );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 }
 
-void bdsm_SdClose (vlc_object_t *p_this)
+void bdsm_SdClose (heimdall_object_t *p_this)
 {
     services_discovery_t *sd = (services_discovery_t *)p_this;
     services_discovery_sys_t *p_sys = sd->p_sys;
@@ -174,15 +175,15 @@ void bdsm_SdClose (vlc_object_t *p_this)
         netbios_ns_destroy( p_sys->p_ns );
     }
 
-    for( size_t i = 0; i < vlc_array_count( &p_sys->entry_item_list ); i++ )
+    for( size_t i = 0; i < heimdall_array_count( &p_sys->entry_item_list ); i++ )
     {
         struct entry_item *p_entry_item;
 
-        p_entry_item = vlc_array_item_at_index( &p_sys->entry_item_list, i );
+        p_entry_item = heimdall_array_item_at_index( &p_sys->entry_item_list, i );
         input_item_Release( p_entry_item->p_item );
         free( p_entry_item );
     }
-    vlc_array_clear( &p_sys->entry_item_list );
+    heimdall_array_clear( &p_sys->entry_item_list );
 
     free( p_sys );
 }

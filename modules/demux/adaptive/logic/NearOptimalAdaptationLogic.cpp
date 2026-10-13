@@ -2,6 +2,7 @@
  * NearOptimalAdaptationLogic.cpp
  *****************************************************************************
  * Copyright (C) 2017 - VideoLAN Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -39,8 +40,8 @@ using namespace adaptive;
  * http://arxiv.org/abs/1601.06748
  */
 
-#define minimumBufferS VLC_TICK_FROM_SEC(6)  /* Qmin */
-#define bufferTargetS  VLC_TICK_FROM_SEC(30) /* Qmax */
+#define minimumBufferS HEIMDALL_TICK_FROM_SEC(6)  /* Qmin */
+#define bufferTargetS  HEIMDALL_TICK_FROM_SEC(30) /* Qmax */
 
 NearOptimalContext::NearOptimalContext()
     : buffering_min( minimumBufferS )
@@ -49,12 +50,12 @@ NearOptimalContext::NearOptimalContext()
     , last_download_rate( 0 )
 { }
 
-NearOptimalAdaptationLogic::NearOptimalAdaptationLogic(vlc_object_t *obj)
+NearOptimalAdaptationLogic::NearOptimalAdaptationLogic(heimdall_object_t *obj)
     : AbstractAdaptationLogic(obj)
     , currentBps( 0 )
     , usedBps( 0 )
 {
-    vlc_mutex_init(&lock);
+    heimdall_mutex_init(&lock);
 }
 
 NearOptimalAdaptationLogic::~NearOptimalAdaptationLogic()
@@ -98,22 +99,22 @@ BaseRepresentation *NearOptimalAdaptationLogic::getNextRepresentation(BaseAdapta
     const float umin = getUtility(lowest);
     const float umax = getUtility(highest);
 
-    vlc_mutex_lock(&lock);
+    heimdall_mutex_lock(&lock);
 
     std::map<ID, NearOptimalContext>::iterator it = streams.find(adaptSet->getID());
     if(it == streams.end())
     {
-        vlc_mutex_unlock(&lock);
+        heimdall_mutex_unlock(&lock);
         return selector.lowest(adaptSet);
     }
     NearOptimalContext ctxcopy = (*it).second;
 
     const unsigned bps = getAvailableBw(currentBps, prevRep);
 
-    vlc_mutex_unlock(&lock);
+    heimdall_mutex_unlock(&lock);
 
     const float gammaP = 1.0 + (umax - umin) / ((float)ctxcopy.buffering_target / ctxcopy.buffering_min - 1.0);
-    const float Vd = (secf_from_vlc_tick(ctxcopy.buffering_min) - 1.0) / (umin + gammaP);
+    const float Vd = (secf_from_heimdall_tick(ctxcopy.buffering_min) - 1.0) / (umin + gammaP);
 
     BaseRepresentation *m;
     if(prevRep == nullptr) /* Starting */
@@ -131,7 +132,7 @@ BaseRepresentation *NearOptimalAdaptationLogic::getNextRepresentation(BaseAdapta
     {
         /* noted m* */
         m = getNextQualityIndex(adaptSet, selector, gammaP - umin /* umin == Sm, utility = std::log(S/Sm) */,
-                                Vd, secf_from_vlc_tick(ctxcopy.buffering_level));
+                                Vd, secf_from_heimdall_tick(ctxcopy.buffering_level));
         if(m->getBandwidth() < prevRep->getBandwidth()) /* m*[n] < m*[n-1] */
         {
             BaseRepresentation *mp = selector.select(adaptSet, bps); /* m' */
@@ -192,9 +193,9 @@ unsigned NearOptimalAdaptationLogic::getMaxCurrentBw() const
 }
 
 void NearOptimalAdaptationLogic::updateDownloadRate(const ID &id, size_t dlsize,
-                                                    vlc_tick_t time, vlc_tick_t)
+                                                    heimdall_tick_t time, heimdall_tick_t)
 {
-    vlc_mutex_locker locker(&lock);
+    heimdall_mutex_locker locker(&lock);
     std::map<ID, NearOptimalContext>::iterator it = streams.find(id);
     if(it != streams.end())
     {
@@ -212,7 +213,7 @@ void NearOptimalAdaptationLogic::trackerEvent(const TrackerEvent &ev)
         {
             const RepresentationSwitchEvent &event =
                     static_cast<const RepresentationSwitchEvent &>(ev);
-            vlc_mutex_locker locker(&lock);
+            heimdall_mutex_locker locker(&lock);
             if(event.prev)
                 usedBps -= event.prev->getBandwidth();
             if(event.next)
@@ -226,7 +227,7 @@ void NearOptimalAdaptationLogic::trackerEvent(const TrackerEvent &ev)
             const BufferingStateUpdatedEvent &event =
                     static_cast<const BufferingStateUpdatedEvent &>(ev);
             const ID &id = *event.id;
-            vlc_mutex_locker locker(&lock);
+            heimdall_mutex_locker locker(&lock);
             if(event.enabled)
             {
                 if(streams.find(id) == streams.end())
@@ -251,7 +252,7 @@ void NearOptimalAdaptationLogic::trackerEvent(const TrackerEvent &ev)
             const BufferingLevelChangedEvent &event =
                     static_cast<const BufferingLevelChangedEvent &>(ev);
             const ID &id = *event.id;
-            vlc_mutex_locker locker(&lock);
+            heimdall_mutex_locker locker(&lock);
             NearOptimalContext &ctx = streams[id];
             ctx.buffering_level = event.current;
             ctx.buffering_target = event.target;

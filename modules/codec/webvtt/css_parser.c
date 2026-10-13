@@ -2,6 +2,7 @@
  * css_parser.c : CSS parser
  *****************************************************************************
  * Copyright (C) 2017 VideoLabs, VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -21,7 +22,7 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
 #include "css_bridge.h"
 #include "css_parser.h"
@@ -29,11 +30,11 @@
 
 #include <ctype.h>
 
-static void vlc_css_term_Debug( const vlc_css_term_t a, int depth );
-static void vlc_css_expression_Debug( const vlc_css_expr_t *p_expr, int depth );
-static void vlc_css_declarations_Debug( const vlc_css_declaration_t *p_decl, int depth );
-static void vlc_css_selectors_Debug( const vlc_css_selector_t *p_sel, int depth );
-static void vlc_css_rules_Debug( const vlc_css_rule_t *p_rule, int depth );
+static void heimdall_css_term_Debug( const heimdall_css_term_t a, int depth );
+static void heimdall_css_expression_Debug( const heimdall_css_expr_t *p_expr, int depth );
+static void heimdall_css_declarations_Debug( const heimdall_css_declaration_t *p_decl, int depth );
+static void heimdall_css_selectors_Debug( const heimdall_css_selector_t *p_sel, int depth );
+static void heimdall_css_rules_Debug( const heimdall_css_rule_t *p_rule, int depth );
 
 #define CHAIN_APPEND_IMPL(n, t) CHAIN_APPEND_DECL(n ,t)\
 {\
@@ -42,7 +43,7 @@ static void vlc_css_rules_Debug( const vlc_css_rule_t *p_rule, int depth );
     *insert = p_b;\
 }
 
-void vlc_css_term_Clean( vlc_css_term_t a )
+void heimdall_css_term_Clean( heimdall_css_term_t a )
 {
     if( a.type >= TYPE_STRING )
         free( a.psz );
@@ -50,11 +51,11 @@ void vlc_css_term_Clean( vlc_css_term_t a )
     if( a.type == TYPE_FUNCTION )
     {
         if( a.function )
-            vlc_css_expression_Delete( a.function );
+            heimdall_css_expression_Delete( a.function );
     }
 }
 
-static void vlc_css_term_Debug( const vlc_css_term_t a, int depth )
+static void heimdall_css_term_Debug( const heimdall_css_term_t a, int depth )
 {
     for(int i=0;i<depth;i++) printf(" ");
     printf("term: ");
@@ -62,13 +63,13 @@ static void vlc_css_term_Debug( const vlc_css_term_t a, int depth )
     {
         printf("%x %s\n", a.type, a.psz);
         if( a.type == TYPE_FUNCTION && a.function )
-            vlc_css_expression_Debug( a.function, depth + 1 );
+            heimdall_css_expression_Debug( a.function, depth + 1 );
     }
     else printf("%x %f\n", a.type, a.val);
 }
 
-bool vlc_css_expression_AddTerm( vlc_css_expr_t *p_expr,
-                                        char op, vlc_css_term_t a )
+bool heimdall_css_expression_AddTerm( heimdall_css_expr_t *p_expr,
+                                        char op, heimdall_css_term_t a )
 {
     if( p_expr->i_count >= p_expr->i_alloc )
     {
@@ -89,32 +90,32 @@ bool vlc_css_expression_AddTerm( vlc_css_expr_t *p_expr,
     return true;
 }
 
-void vlc_css_expression_Delete( vlc_css_expr_t *p_expr )
+void heimdall_css_expression_Delete( heimdall_css_expr_t *p_expr )
 {
     if( p_expr )
     {
         for(size_t i=0; i<p_expr->i_count; i++)
-            vlc_css_term_Clean( p_expr->seq[i].term );
+            heimdall_css_term_Clean( p_expr->seq[i].term );
         free( p_expr->seq );
     }
     free( p_expr );
 }
 
-static void vlc_css_expression_Debug( const vlc_css_expr_t *p_expr, int depth )
+static void heimdall_css_expression_Debug( const heimdall_css_expr_t *p_expr, int depth )
 {
     if( p_expr )
     {
         for(int i=0;i<depth;i++) printf(" ");
         printf("expression: \n");
         for(size_t i=0; i<p_expr->i_count; i++)
-            vlc_css_term_Debug( p_expr->seq[i].term, depth + 1 );
+            heimdall_css_term_Debug( p_expr->seq[i].term, depth + 1 );
     }
 }
 
-vlc_css_expr_t * vlc_css_expression_New( vlc_css_term_t term )
+heimdall_css_expr_t * heimdall_css_expression_New( heimdall_css_term_t term )
 {
-    vlc_css_expr_t *p_expr = calloc(1, sizeof(*p_expr));
-    if(p_expr && !vlc_css_expression_AddTerm( p_expr, 0, term ))
+    heimdall_css_expr_t *p_expr = calloc(1, sizeof(*p_expr));
+    if(p_expr && !heimdall_css_expression_AddTerm( p_expr, 0, term ))
     {
         free(p_expr);
         p_expr = NULL;
@@ -122,34 +123,34 @@ vlc_css_expr_t * vlc_css_expression_New( vlc_css_term_t term )
     return p_expr;
 }
 
-CHAIN_APPEND_IMPL(vlc_css_declarations_Append, vlc_css_declaration_t)
+CHAIN_APPEND_IMPL(heimdall_css_declarations_Append, heimdall_css_declaration_t)
 
-void vlc_css_declarations_Delete( vlc_css_declaration_t *p_decl )
+void heimdall_css_declarations_Delete( heimdall_css_declaration_t *p_decl )
 {
     while( p_decl )
     {
-        vlc_css_declaration_t *p_next = p_decl->p_next;
-        vlc_css_expression_Delete( p_decl->expr );
+        heimdall_css_declaration_t *p_next = p_decl->p_next;
+        heimdall_css_expression_Delete( p_decl->expr );
         free( p_decl->psz_property );
         free( p_decl );
         p_decl = p_next;
     }
 }
 
-static void vlc_css_declarations_Debug( const vlc_css_declaration_t *p_decl, int depth )
+static void heimdall_css_declarations_Debug( const heimdall_css_declaration_t *p_decl, int depth )
 {
     while( p_decl )
     {
         for(int i=0;i<depth;i++) printf(" ");
         printf("declaration: %s\n", p_decl->psz_property );
-        vlc_css_expression_Debug( p_decl->expr, depth + 1 );
+        heimdall_css_expression_Debug( p_decl->expr, depth + 1 );
         p_decl = p_decl->p_next;
     }
 }
 
-vlc_css_declaration_t * vlc_css_declaration_New( const char *psz )
+heimdall_css_declaration_t * heimdall_css_declaration_New( const char *psz )
 {
-    vlc_css_declaration_t *p_decl = calloc(1, sizeof(*p_decl));
+    heimdall_css_declaration_t *p_decl = calloc(1, sizeof(*p_decl));
     if (likely(p_decl != NULL))
     {
         p_decl->psz_property = strdup(psz);
@@ -162,10 +163,10 @@ vlc_css_declaration_t * vlc_css_declaration_New( const char *psz )
     return p_decl;
 }
 
-CHAIN_APPEND_IMPL(vlc_css_selector_Append, vlc_css_selector_t)
+CHAIN_APPEND_IMPL(heimdall_css_selector_Append, heimdall_css_selector_t)
 
 void
-vlc_css_selector_AddSpecifier( vlc_css_selector_t *p_sel, vlc_css_selector_t *p_spec )
+heimdall_css_selector_AddSpecifier( heimdall_css_selector_t *p_sel, heimdall_css_selector_t *p_spec )
 {
     *p_sel->specifiers.pp_append = p_spec;
     while(p_spec)
@@ -175,33 +176,33 @@ vlc_css_selector_AddSpecifier( vlc_css_selector_t *p_sel, vlc_css_selector_t *p_
     }
 }
 
-void vlc_css_selectors_Delete( vlc_css_selector_t *p_sel )
+void heimdall_css_selectors_Delete( heimdall_css_selector_t *p_sel )
 {
     while( p_sel )
     {
-        vlc_css_selector_t *p_next = p_sel->p_next;
+        heimdall_css_selector_t *p_next = p_sel->p_next;
         free( p_sel->psz_name );
-        vlc_css_selectors_Delete( p_sel->specifiers.p_first );
-        vlc_css_selectors_Delete( p_sel->p_matchsel );
+        heimdall_css_selectors_Delete( p_sel->specifiers.p_first );
+        heimdall_css_selectors_Delete( p_sel->p_matchsel );
         free( p_sel );
         p_sel = p_next;
     }
 }
 
-static void vlc_css_selectors_Debug( const vlc_css_selector_t *p_sel, int depth )
+static void heimdall_css_selectors_Debug( const heimdall_css_selector_t *p_sel, int depth )
 {
     while( p_sel )
     {
         for(int i=0;i<depth;i++) printf(" "); printf("selector %c%s:\n", p_sel->combinator, p_sel->psz_name );
-        vlc_css_selectors_Debug( p_sel->p_matchsel, depth + 1 );
-        vlc_css_selectors_Debug( p_sel->specifiers.p_first, depth + 1 );
+        heimdall_css_selectors_Debug( p_sel->p_matchsel, depth + 1 );
+        heimdall_css_selectors_Debug( p_sel->specifiers.p_first, depth + 1 );
         p_sel = p_sel->p_next;
     }
 }
 
-vlc_css_selector_t * vlc_css_selector_New( int type, const char *psz )
+heimdall_css_selector_t * heimdall_css_selector_New( int type, const char *psz )
 {
-    vlc_css_selector_t *p_sel = calloc(1, sizeof(*p_sel));
+    heimdall_css_selector_t *p_sel = calloc(1, sizeof(*p_sel));
     if (unlikely(p_sel == NULL))
         return NULL;
     p_sel->psz_name = strdup(psz);
@@ -211,60 +212,60 @@ vlc_css_selector_t * vlc_css_selector_New( int type, const char *psz )
     return p_sel;
 }
 
-void vlc_css_rules_Delete( vlc_css_rule_t *p_rule )
+void heimdall_css_rules_Delete( heimdall_css_rule_t *p_rule )
 {
     while(p_rule)
     {
-        vlc_css_rule_t *p_next = p_rule->p_next;
-        vlc_css_selectors_Delete( p_rule->p_selectors );
-        vlc_css_declarations_Delete( p_rule->p_declarations );
+        heimdall_css_rule_t *p_next = p_rule->p_next;
+        heimdall_css_selectors_Delete( p_rule->p_selectors );
+        heimdall_css_declarations_Delete( p_rule->p_declarations );
         free(p_rule);
         p_rule = p_next;
     }
 }
 
-static void vlc_css_rules_Debug( const vlc_css_rule_t *p_rule, int depth )
+static void heimdall_css_rules_Debug( const heimdall_css_rule_t *p_rule, int depth )
 {
     int j = 0;
     while(p_rule)
     {
         for(int i=0;i<depth;i++) printf(" "); printf("rule %d:\n", j++);
-        vlc_css_selectors_Debug( p_rule->p_selectors, depth + 1 );
-        vlc_css_declarations_Debug( p_rule->p_declarations, depth + 1 );
+        heimdall_css_selectors_Debug( p_rule->p_selectors, depth + 1 );
+        heimdall_css_declarations_Debug( p_rule->p_declarations, depth + 1 );
         p_rule = p_rule->p_next;
     }
 }
 
-vlc_css_rule_t * vlc_css_rule_New( void )
+heimdall_css_rule_t * heimdall_css_rule_New( void )
 {
-    vlc_css_rule_t *p_rule = calloc(1, sizeof(*p_rule));
+    heimdall_css_rule_t *p_rule = calloc(1, sizeof(*p_rule));
     return p_rule;
 }
 
-void vlc_css_parser_AddRule( vlc_css_parser_t *p_parser,
-                                           vlc_css_rule_t *p_rule )
+void heimdall_css_parser_AddRule( heimdall_css_parser_t *p_parser,
+                                           heimdall_css_rule_t *p_rule )
 {
     (*p_parser->rules.pp_append) = p_rule;
     p_parser->rules.pp_append = &p_rule->p_next;
 }
 
-void vlc_css_parser_Debug( const vlc_css_parser_t *p_parser )
+void heimdall_css_parser_Debug( const heimdall_css_parser_t *p_parser )
 {
-    vlc_css_rules_Debug( p_parser->rules.p_first, 0 );
+    heimdall_css_rules_Debug( p_parser->rules.p_first, 0 );
 }
 
-void vlc_css_parser_Clean( vlc_css_parser_t *p_parser )
+void heimdall_css_parser_Clean( heimdall_css_parser_t *p_parser )
 {
-    vlc_css_rules_Delete( p_parser->rules.p_first );
+    heimdall_css_rules_Delete( p_parser->rules.p_first );
 }
 
-void vlc_css_parser_Init( vlc_css_parser_t *p_parser )
+void heimdall_css_parser_Init( heimdall_css_parser_t *p_parser )
 {
-    memset(p_parser, 0, sizeof(vlc_css_parser_t));
+    memset(p_parser, 0, sizeof(heimdall_css_parser_t));
     p_parser->rules.pp_append = &p_parser->rules.p_first;
 }
 
-bool vlc_css_parser_ParseBytes( vlc_css_parser_t *p_parser, const uint8_t *p_data, size_t i_data )
+bool heimdall_css_parser_ParseBytes( heimdall_css_parser_t *p_parser, const uint8_t *p_data, size_t i_data )
 {
     yyscan_t yy;
     csslex_init(&yy);
@@ -279,7 +280,7 @@ bool vlc_css_parser_ParseBytes( vlc_css_parser_t *p_parser, const uint8_t *p_dat
     return b_ret;
 }
 
-bool vlc_css_parser_ParseString( vlc_css_parser_t *p_parser, const char *psz_css )
+bool heimdall_css_parser_ParseString( heimdall_css_parser_t *p_parser, const char *psz_css )
 {
     yyscan_t yy;
     csslex_init(&yy);
@@ -344,7 +345,7 @@ static int CodePointToUTF8( uint32_t ucs4, char *p )
     }
 }
 
-void vlc_css_unescape( char *psz )
+void heimdall_css_unescape( char *psz )
 {
     if( !psz )
         return;
@@ -408,14 +409,14 @@ void vlc_css_unescape( char *psz )
     *w = 0;
 }
 
-char * vlc_css_unescaped( const char *psz )
+char * heimdall_css_unescaped( const char *psz )
 {
     char *psz_ret = strdup( psz );
-    vlc_css_unescape( psz_ret );
+    heimdall_css_unescape( psz_ret );
     return psz_ret;
 }
 
-char * vlc_css_unquoted( const char *psz )
+char * heimdall_css_unquoted( const char *psz )
 {
     char *psz_ret;
     if( *psz == '\'' || *psz == '\"' )
@@ -434,18 +435,18 @@ char * vlc_css_unquoted( const char *psz )
 }
 
 
-char * vlc_css_unquotedunescaped( const char *psz )
+char * heimdall_css_unquotedunescaped( const char *psz )
 {
-    char *psz_ret = vlc_css_unquoted( psz );
+    char *psz_ret = heimdall_css_unquoted( psz );
     if( psz_ret )
-        vlc_css_unescape( psz_ret );
+        heimdall_css_unescape( psz_ret );
     return psz_ret;
 }
 
 #ifdef CSS_PARSER_DEBUG
 
 
-static void css_properties_Debug( const vlc_css_declaration_t *p_decl )
+static void css_properties_Debug( const heimdall_css_declaration_t *p_decl )
 {
     printf("set %s to ", p_decl->psz_property);
     for( size_t i=0; i<p_decl->expr->i_count; i++ )
@@ -455,7 +456,7 @@ static void css_properties_Debug( const vlc_css_declaration_t *p_decl )
     printf("\n");
 }
 
-void css_selector_Debug( const vlc_css_selector_t *p_sel )
+void css_selector_Debug( const heimdall_css_selector_t *p_sel )
 {
     printf("select its ");
     switch( p_sel->combinator )
@@ -500,16 +501,16 @@ void css_selector_Debug( const vlc_css_selector_t *p_sel )
     }
 }
 
-void css_rule_Debug( const vlc_css_rule_t *p_rule )
+void css_rule_Debug( const heimdall_css_rule_t *p_rule )
 {
     if( p_rule == NULL )
     return;
     printf("add for rule nodes:\n");
-    for( const vlc_css_selector_t *p_sel = p_rule->p_selectors;
+    for( const heimdall_css_selector_t *p_sel = p_rule->p_selectors;
                                    p_sel; p_sel = p_sel->p_next )
     {
         css_selector_Debug( p_sel );
-        for( const vlc_css_selector_t *p_spec = p_sel->specifiers.p_first;
+        for( const heimdall_css_selector_t *p_spec = p_sel->specifiers.p_first;
                                        p_spec; p_spec = p_spec->p_next )
             css_selector_Debug( p_spec );
 
@@ -517,7 +518,7 @@ void css_rule_Debug( const vlc_css_rule_t *p_rule )
             printf("add nodes\n");
     }
 
-    for( const vlc_css_declaration_t *p_decl = p_rule->p_declarations;
+    for( const heimdall_css_declaration_t *p_decl = p_rule->p_declarations;
                                       p_decl; p_decl = p_decl->p_next )
     {
         css_properties_Debug( p_decl );

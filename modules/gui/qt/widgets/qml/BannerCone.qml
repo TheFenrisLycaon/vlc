@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2023 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,20 +20,20 @@
 import QtQuick
 
 
-import VLC.MainInterface
-import VLC.Widgets as Widgets
-import VLC.Style
-import VLC.Util
+import Heimdall.MainInterface
+import Heimdall.Widgets as Widgets
+import Heimdall.Style
+import Heimdall.Util
 
 Image {
     id: root
 
     required property color color
 
-    sourceSize: Qt.size(VLCStyle.icon_normal, VLCStyle.icon_normal)
+    sourceSize: Qt.size(HeimdallStyle.icon_normal, HeimdallStyle.icon_normal)
 
     mipmap: MainCtx.useXmasCone()
-    source: MainCtx.useXmasCone() ? "qrc:///logo/vlc48-xmas.png" // TODO: new xmas cone for designs?
+    source: MainCtx.useXmasCone() ? "qrc:///logo/heimdall48-xmas.png" // TODO: new xmas cone for designs?
                                   : "qrc:///misc/cone.svg"
 
     focus: false

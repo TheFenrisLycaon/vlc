@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
  * Copyright (C) 2020 Videolabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -25,14 +26,14 @@
 
 #include "gl_util.h"
 
-#include <vlc_filter.h>
-#include <vlc_modules.h>
-#include <vlc_configuration.h>
+#include <heimdall_filter.h>
+#include <heimdall_modules.h>
+#include <heimdall_configuration.h>
 
-#include <vlc_memstream.h>
+#include <heimdall_memstream.h>
 
 static void
-LogShader(vlc_object_t *obj, const char *prefix, const opengl_vtable_t *vt, GLuint id)
+LogShader(heimdall_object_t *obj, const char *prefix, const opengl_vtable_t *vt, GLuint id)
 {
     GLint size;
     vt->GetShaderiv(id, GL_SHADER_SOURCE_LENGTH, &size);
@@ -42,8 +43,8 @@ LogShader(vlc_object_t *obj, const char *prefix, const opengl_vtable_t *vt, GLui
 
     vt->GetShaderSource(id, size + 1, NULL, sources);
 
-    struct vlc_memstream stream;
-    int ret = vlc_memstream_open(&stream);
+    struct heimdall_memstream stream;
+    int ret = heimdall_memstream_open(&stream);
 
     /* This is debugging code, we don't want an hard failure if
      * the allocation failed. */
@@ -60,19 +61,19 @@ LogShader(vlc_object_t *obj, const char *prefix, const opengl_vtable_t *vt, GLui
         const char *end = strchr(cursor, '\n');
         if (end != NULL)
         {
-            vlc_memstream_printf(&stream, "%4zu: %.*s\n", line, (int)(ptrdiff_t)(end - cursor), cursor);
+            heimdall_memstream_printf(&stream, "%4zu: %.*s\n", line, (int)(ptrdiff_t)(end - cursor), cursor);
             cursor = end + 1;
         }
         else
         {
-            vlc_memstream_printf(&stream, "%4zu: %s", line, cursor);
+            heimdall_memstream_printf(&stream, "%4zu: %s", line, cursor);
             break;
         }
         line++;
     }
     free(sources);
 
-    ret = vlc_memstream_close(&stream);
+    ret = heimdall_memstream_close(&stream);
     if (ret != 0)
     {
         return;
@@ -83,7 +84,7 @@ LogShader(vlc_object_t *obj, const char *prefix, const opengl_vtable_t *vt, GLui
 }
 
 static void
-LogShaderErrors(vlc_object_t *obj, const opengl_vtable_t *vt, GLuint id)
+LogShaderErrors(heimdall_object_t *obj, const opengl_vtable_t *vt, GLuint id)
 {
     GLint info_len;
     vt->GetShaderiv(id, GL_INFO_LOG_LENGTH, &info_len);
@@ -104,7 +105,7 @@ LogShaderErrors(vlc_object_t *obj, const opengl_vtable_t *vt, GLuint id)
 }
 
 static void
-LogProgramErrors(vlc_object_t *obj, const opengl_vtable_t *vt, GLuint id)
+LogProgramErrors(heimdall_object_t *obj, const opengl_vtable_t *vt, GLuint id)
 {
     GLint info_len;
     vt->GetProgramiv(id, GL_INFO_LOG_LENGTH, &info_len);
@@ -137,7 +138,7 @@ LogProgramErrors(vlc_object_t *obj, const opengl_vtable_t *vt, GLuint id)
 }
 
 static GLuint
-CreateShader(vlc_object_t *obj, const opengl_vtable_t *vt, GLenum type,
+CreateShader(heimdall_object_t *obj, const opengl_vtable_t *vt, GLenum type,
              GLsizei count, const GLchar **src)
 {
     GLuint shader = vt->CreateShader(type);
@@ -163,7 +164,7 @@ CreateShader(vlc_object_t *obj, const opengl_vtable_t *vt, GLenum type,
 
 
 GLuint
-vlc_gl_BuildProgram(vlc_object_t *obj, const opengl_vtable_t *vt,
+heimdall_gl_BuildProgram(heimdall_object_t *obj, const opengl_vtable_t *vt,
                     GLsizei vstring_count, const GLchar **vstrings,
                     GLsizei fstring_count, const GLchar **fstrings)
 {
@@ -208,14 +209,14 @@ finally_1:
 }
 
 module_t *
-vlc_gl_WrapOpenGLFilter(filter_t *filter, const char *opengl_filter_name)
+heimdall_gl_WrapOpenGLFilter(filter_t *filter, const char *opengl_filter_name)
 {
     const config_chain_t *prev_chain = filter->p_cfg;
-    var_Create(filter, "opengl-filter", VLC_VAR_STRING);
+    var_Create(filter, "opengl-filter", HEIMDALL_VAR_STRING);
     var_SetString(filter, "opengl-filter", opengl_filter_name);
 
     filter->p_cfg = NULL;
-    module_t *module = vlc_filter_LoadModule(filter, "video filter", "opengl", true);
+    module_t *module = heimdall_filter_LoadModule(filter, "video filter", "opengl", true);
     filter->p_cfg = prev_chain;
 
     var_Destroy(filter, "opengl-filter");

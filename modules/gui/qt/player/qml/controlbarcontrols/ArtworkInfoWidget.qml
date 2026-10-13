@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,12 +23,12 @@ import QtQuick.Window
 import QtQuick.Layouts
 
 
-import VLC.MainInterface
-import VLC.Widgets as Widgets
-import VLC.Style
-import VLC.Playlist
-import VLC.Player
-import VLC.Util
+import Heimdall.MainInterface
+import Heimdall.Widgets as Widgets
+import Heimdall.Style
+import Heimdall.Playlist
+import Heimdall.Player
+import Heimdall.Util
 
 T.AbstractButton {
     id: root
@@ -61,7 +62,7 @@ T.AbstractButton {
 
     AccessibleCompat.id: "artworkInfoWidget"
 
-    padding: VLCStyle.focus_border
+    padding: HeimdallStyle.focus_border
 
     Accessible.onPressAction: root.clicked()
 
@@ -108,7 +109,7 @@ T.AbstractButton {
             resolve([{
                 "title": Player.title,
                 "cover": (!!Player.artwork && Player.artwork.toString() !== "") ? Player.artwork
-                                                                                : VLCStyle.noArtAlbumCover,
+                                                                                : HeimdallStyle.noArtAlbumCover,
                 "url": Player.url
             }])
         }
@@ -153,7 +154,7 @@ T.AbstractButton {
     }
 
     contentItem: RowLayout {
-        spacing: VLCStyle.margin_xsmall
+        spacing: HeimdallStyle.margin_xsmall
 
         property alias image: coverImage
 
@@ -165,9 +166,9 @@ T.AbstractButton {
 
             source: {
                 if (!paintOnly && Player.artwork && Player.artwork.toString())
-                    return VLCAccessImage.uri(Player.artwork)
+                    return HeimdallAccessImage.uri(Player.artwork)
                 else
-                    return VLCStyle.noArtAlbumCover
+                    return HeimdallStyle.noArtAlbumCover
             }
 
             sourceSize.height: root.height * MainCtx.effectiveDevicePixelRatio(Window.window)
@@ -181,14 +182,14 @@ T.AbstractButton {
 
             T.ToolTip.visible: infoColumn.width < infoColumn.implicitWidth
                              && (root.hovered || root.visualFocus)
-            T.ToolTip.delay: VLCStyle.delayToolTipAppear
+            T.ToolTip.delay: HeimdallStyle.delayToolTipAppear
             T.ToolTip.text: qsTr("%1\n%2\n%3").arg(titleLabel.text)
                                                 .arg(artistLabel.text)
                                                 .arg(progressIndicator.text)
 
             onStatusChanged: {
-                if (source !== VLCStyle.noArtAlbumCover && status === Image.Error)
-                    source = VLCStyle.noArtAlbumCover
+                if (source !== HeimdallStyle.noArtAlbumCover && status === Image.Error)
+                    source = HeimdallStyle.noArtAlbumCover
             }
 
             Rectangle {
@@ -276,7 +277,7 @@ T.AbstractButton {
                         " -- / -- "
                     else {
                         const length = Player.length
-                        return Player.time.formatHMS(length.isSubSecond() ? VLCTick.SubSecondFormattedAsMS : 0) +
+                        return Player.time.formatHMS(length.isSubSecond() ? HeimdallTick.SubSecondFormattedAsMS : 0) +
                                 " / " +
                                 length.formatHMS()
                     }

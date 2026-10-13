@@ -1,14 +1,14 @@
 /**
  * \defgroup mrl Media Resource Locator (MRL)
  *
- * The \em MRL-specification is a VLC intrinsic extension to <a
+ * The \em MRL-specification is a Heimdall intrinsic extension to <a
  * href="https://tools.ietf.org/html/rfc3986">RFC3986</a>, providing means to
  * associate extra media-related information within the \em resource-identifier.
  *
- * \note \em MRLs are only used when an item is to be played by \em VLC,
+ * \note \em MRLs are only used when an item is to be played by \em Heimdall,
  *       through a direct (or indirect) call to \ref input_Create and \ref
- *       vlc_preparser_Submit, which means that they are not handled by
- *       functions such as \ref vlc_UrlParse and \ref vlc_stream_NewURL (as
+ *       heimdall_preparser_Submit, which means that they are not handled by
+ *       functions such as \ref heimdall_UrlParse and \ref heimdall_stream_NewURL (as
  *       implied by their names).
  *
  * \section mrl_introduction Introduction

@@ -1,6 +1,6 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
 <!--  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - >
-<  index.html: VLC media player web interface - VLM
+<  index.html: Heimdall media player web interface - VLM
 < - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - >
 <  Copyright (C) 2005-2014 VLC authors and VideoLAN
 <
@@ -22,7 +22,7 @@
 < - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
 <html>
 	<head>
-		<title><?vlc gettext("VLC media player - Web Interface") ?></title>
+		<title><?heimdall gettext("Heimdall media player - Web Interface") ?></title>
 		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 		<meta name="referrer" content="no-referrer" />
 		<link href="favicon.ico" type="image/x-icon" rel="shortcut icon" />
@@ -167,14 +167,14 @@
 					width:600,
 					modal: true,
 					buttons:{
-						"<?vlc gettext("Yes") ?>":function(){
+						"<?heimdall gettext("Yes") ?>":function(){
 							$(this).dialog('close');
 							var urlimg = $('#mobileintflink').prop('href');
 							var codeimg = $('<img width="350" height="350" alt="qrcode"/>');
 							codeimg.attr('src', 'https://chart.apis.google.com/chart?cht=qr&chs=350x350&chld=L&choe=UTF-8&chl=' + encodeURIComponent(urlimg));
-							codeimg.dialog({width: 350, height: 350, title: "<?vlc gettext("QR Code") ?>"});
+							codeimg.dialog({width: 350, height: 350, title: "<?heimdall gettext("QR Code") ?>"});
 						},
-						"<?vlc gettext("No") ?>":function(){
+						"<?heimdall gettext("No") ?>":function(){
 							$(this).dialog('close');
 							window.location = $('#mobileintflink').attr('href');
 						}
@@ -185,7 +185,7 @@
 					width:600,
 					modal: true,
 					buttons:{
-						"<?vlc gettext("Yes") ?>":function(){
+						"<?heimdall gettext("Yes") ?>":function(){
 							var file			=	$('[current="current"]','#libraryTree').length>0 ? $('[current="current"]','#libraryTree').first().attr('uri') : ($('.jstree-clicked','#libraryTree').length>0 ? $('.jstree-clicked','#libraryTree').first().parents().first().attr('uri') : ($('#plid_'+current_playlist_id).attr('uri') ? $('#plid_'+current_playlist_id).attr('uri') : false));
 							if(file){
 								if($('#viewContainer').css('display')=='none'){
@@ -199,7 +199,7 @@
 							}
 							$(this).dialog('close');
 						},
-						"<?vlc gettext("No") ?>":function(){
+						"<?heimdall gettext("No") ?>":function(){
 							$(this).dialog('close');
 						}
 					}
@@ -221,21 +221,21 @@
 			<div id="controlContainer" class="ui-widget">
 				<div id="controlTable" class="ui-widget-content">
 					<ul id="controlButtons">
-						<li id="buttonPrev" class="button48  ui-corner-all" title="<?vlc gettext("Previous") ?>"></li>
-						<li id="buttonPlay" class="button48  ui-corner-all paused" title="<?vlc gettext("Play") ?>"></li>
-						<li id="buttonNext" class="button48  ui-corner-all" title="<?vlc gettext("Next") ?>"></li>
-						<li id="buttonOpen" class="button48  ui-corner-all" title="<?vlc gettext("Open Media") ?>"></li>
-						<li id="buttonStop" class="button48  ui-corner-all" title="<?vlc gettext("Stop") ?>"></li>
-						<li id="buttonFull" class="button48  ui-corner-all" title="<?vlc gettext("Full Screen") ?>"></li>
-						<li id="buttonSout" class="button48  ui-corner-all" title="<?vlc gettext("Easy Stream") ?>"></li>
+						<li id="buttonPrev" class="button48  ui-corner-all" title="<?heimdall gettext("Previous") ?>"></li>
+						<li id="buttonPlay" class="button48  ui-corner-all paused" title="<?heimdall gettext("Play") ?>"></li>
+						<li id="buttonNext" class="button48  ui-corner-all" title="<?heimdall gettext("Next") ?>"></li>
+						<li id="buttonOpen" class="button48  ui-corner-all" title="<?heimdall gettext("Open Media") ?>"></li>
+						<li id="buttonStop" class="button48  ui-corner-all" title="<?heimdall gettext("Stop") ?>"></li>
+						<li id="buttonFull" class="button48  ui-corner-all" title="<?heimdall gettext("Full Screen") ?>"></li>
+						<li id="buttonSout" class="button48  ui-corner-all" title="<?heimdall gettext("Easy Stream") ?>"></li>
 					</ul>
 					<ul id="buttonszone2" class="buttonszone">
-						<li id="buttonPlayList" class="button ui-widget ui-state-default ui-corner-all" title="<?vlc gettext("Hide / Show Library") ?>"><span class="ui-icon ui-icon-note"></span><?vlc gettext("Hide / Show Library") ?></li>
-						<li id="buttonViewer" class="button ui-widget ui-state-default ui-corner-all" title="<?vlc gettext("Hide / Show Viewer") ?>"><span class="ui-icon ui-icon-video"></span><?vlc gettext("Hide / Show Viewer") ?></li>
-						<li id="buttonStreams" class="button ui-widget ui-state-default ui-corner-all" title="<?vlc gettext("Manage Streams") ?>"><span class="ui-icon ui-icon-script"></span><?vlc gettext("Manage Streams") ?></li>
-						<li id="buttonOffsets" class="button ui-widget ui-state-default ui-corner-all" title="<?vlc gettext("Track Synchronisation") ?>"><span class="ui-icon ui-icon-transfer-e-w"></span><?vlc gettext("Track Synchronisation") ?></li>
-						<li id="buttonEqualizer" class="button ui-widget ui-state-default ui-corner-all" title="<?vlc gettext("Equalizer") ?>"><span class="ui-icon ui-icon-signal"></span><?vlc gettext("Equalizer") ?></li>
-						<li id="buttonBatch" class="button ui-widget ui-state-default ui-corner-all" title="<?vlc gettext("VLM Batch Commands") ?>"><span class="ui-icon ui-icon-suitcase"></span><?vlc gettext("VLM Batch Commands") ?></li>
+						<li id="buttonPlayList" class="button ui-widget ui-state-default ui-corner-all" title="<?heimdall gettext("Hide / Show Library") ?>"><span class="ui-icon ui-icon-note"></span><?heimdall gettext("Hide / Show Library") ?></li>
+						<li id="buttonViewer" class="button ui-widget ui-state-default ui-corner-all" title="<?heimdall gettext("Hide / Show Viewer") ?>"><span class="ui-icon ui-icon-video"></span><?heimdall gettext("Hide / Show Viewer") ?></li>
+						<li id="buttonStreams" class="button ui-widget ui-state-default ui-corner-all" title="<?heimdall gettext("Manage Streams") ?>"><span class="ui-icon ui-icon-script"></span><?heimdall gettext("Manage Streams") ?></li>
+						<li id="buttonOffsets" class="button ui-widget ui-state-default ui-corner-all" title="<?heimdall gettext("Track Synchronisation") ?>"><span class="ui-icon ui-icon-transfer-e-w"></span><?heimdall gettext("Track Synchronisation") ?></li>
+						<li id="buttonEqualizer" class="button ui-widget ui-state-default ui-corner-all" title="<?heimdall gettext("Equalizer") ?>"><span class="ui-icon ui-icon-signal"></span><?heimdall gettext("Equalizer") ?></li>
+						<li id="buttonBatch" class="button ui-widget ui-state-default ui-corner-all" title="<?heimdall gettext("VLM Batch Commands") ?>"><span class="ui-icon ui-icon-suitcase"></span><?heimdall gettext("VLM Batch Commands") ?></li>
 					</ul>
 					<div id="volumesliderzone">
 						<div id="volumeSlider" title="Volume"><img src="images/speaker-32.png" class="ui-slider-handle" alt="volume"/></div>
@@ -243,11 +243,11 @@
 					</div>
 					<div id="artszone">
 						<img id="albumArt" src="/art" width="141px" height="130px" alt="Album Art"
-     onerror="this.onerror=null; this.src='images/vlc-48.png';"/>
+     onerror="this.onerror=null; this.src='images/heimdall-48.png';"/>
 					</div>
 					<div id="mediaTitle" class="dynamic"></div>
 					<div id="seekContainer">
-						<div id="seekSlider" title="<?vlc gettext("Seek Time") ?>"></div>
+						<div id="seekSlider" title="<?heimdall gettext("Seek Time") ?>"></div>
 						<div id="currentTime" class="dynamic">00:00:00</div>
 						<div id="totalTime" class="dynamic">00:00:00</div>
 					</div>
@@ -255,57 +255,57 @@
 			</div>
 			<div id="libraryContainer" class="ui-widget">
 				<ul id="buttonszone1" align="left" class="buttonszone ui-widget-content" style="overflow:hidden; white-space: nowrap;">
-					<li id="buttonShuffle" class="button ui-widget ui-state-default ui-corner-all" title="<?vlc gettext("Shuffle") ?>"><span class="ui-icon ui-icon-shuffle"></span><?vlc gettext("Shuffle") ?></li>
-					<li id="buttonLoop" class="button ui-widget ui-state-default ui-corner-all" title="<?vlc gettext("Loop") ?>"><span class="ui-icon ui-icon-refresh"></span><?vlc gettext("Loop") ?></li>
-					<li id="buttonRepeat" class="button ui-widget ui-state-default ui-corner-all" title="<?vlc gettext("Repeat") ?>"><span class="ui-icon ui-icon-arrowreturnthick-1-w"></span><?vlc gettext("Repeat") ?></li>
-					<li id="buttonPlEmpty" class="button ui-widget ui-state-default ui-corner-all" title="<?vlc gettext("Empty Playlist") ?>"><span class="ui-icon ui-icon-trash"></span><?vlc gettext("Empty Playlist") ?></li>
-					<li id="buttonPlAdd" class="button ui-widget ui-state-default ui-corner-all" title="<?vlc gettext("Queue Selected") ?>"><span class="ui-icon ui-icon-plus"></span><?vlc gettext("Queue Selected") ?></li>
-					<li id="buttonPlPlay" class="button ui-widget ui-state-default ui-corner-all" title="<?vlc gettext("Play Selected") ?>"><span class="ui-icon ui-icon-play"></span><?vlc gettext("Play Selected") ?></li>
-					<li id="buttonRefresh" class="button ui-widget ui-state-default ui-corner-all" title="<?vlc gettext("Refresh List") ?>"><span class="ui-icon ui-icon-arrowrefresh-1-n"></span><?vlc gettext("Refresh List") ?></li>
+					<li id="buttonShuffle" class="button ui-widget ui-state-default ui-corner-all" title="<?heimdall gettext("Shuffle") ?>"><span class="ui-icon ui-icon-shuffle"></span><?heimdall gettext("Shuffle") ?></li>
+					<li id="buttonLoop" class="button ui-widget ui-state-default ui-corner-all" title="<?heimdall gettext("Loop") ?>"><span class="ui-icon ui-icon-refresh"></span><?heimdall gettext("Loop") ?></li>
+					<li id="buttonRepeat" class="button ui-widget ui-state-default ui-corner-all" title="<?heimdall gettext("Repeat") ?>"><span class="ui-icon ui-icon-arrowreturnthick-1-w"></span><?heimdall gettext("Repeat") ?></li>
+					<li id="buttonPlEmpty" class="button ui-widget ui-state-default ui-corner-all" title="<?heimdall gettext("Empty Playlist") ?>"><span class="ui-icon ui-icon-trash"></span><?heimdall gettext("Empty Playlist") ?></li>
+					<li id="buttonPlAdd" class="button ui-widget ui-state-default ui-corner-all" title="<?heimdall gettext("Queue Selected") ?>"><span class="ui-icon ui-icon-plus"></span><?heimdall gettext("Queue Selected") ?></li>
+					<li id="buttonPlPlay" class="button ui-widget ui-state-default ui-corner-all" title="<?heimdall gettext("Play Selected") ?>"><span class="ui-icon ui-icon-play"></span><?heimdall gettext("Play Selected") ?></li>
+					<li id="buttonRefresh" class="button ui-widget ui-state-default ui-corner-all" title="<?heimdall gettext("Refresh List") ?>"><span class="ui-icon ui-icon-arrowrefresh-1-n"></span><?heimdall gettext("Refresh List") ?></li>
 				</ul>
 				<div id="libraryTree" class="ui-widget-content"></div>
 			</div>
 			<div id="viewContainer" class="ui-widget">
 				<div id="mediaViewer" class="ui-widget-content">
 					<div href="http://localhost:8081/stream.flv" style="display:block; width:100%" id="player">
-						<p><?vlc gettext("Loading flowplayer...") ?><br/><?vlc gettext("If nothing appears, check your internet connection.") ?></p>
+						<p><?heimdall gettext("Loading flowplayer...") ?><br/><?heimdall gettext("If nothing appears, check your internet connection.") ?></p>
 					</div>
 				</div>
 			</div>
 			<div class="footer">
-				VLC <?vlc print(vlc.misc.version() .. ' - Lua Web Interface - <a id="mobileintflink" href="mobile.html">Mobile Interface</a> - ' .. vlc.misc.copyright()) ?>
+				Heimdall <?heimdall print(heimdall.misc.version() .. ' - Lua Web Interface - <a id="mobileintflink" href="mobile.html">Mobile Interface</a> - ' .. heimdall.misc.copyright()) ?>
 			</div>
 		</div>
 		</div>
-		<div id="qrCodeConfirm" title="<?vlc gettext("Generate QR Code") ?>">
+		<div id="qrCodeConfirm" title="<?heimdall gettext("Generate QR Code") ?>">
 			<p>
-				<?vlc gettext("VLC can display a QR code linking to the mobile version of the web interface; the web address of the web interface of your VLC media player instance will be transmitted over the internet to the Google Image Charts web service to generate this QR code.") ?>
+				<?heimdall gettext("Heimdall can display a QR code linking to the mobile version of the web interface; the web address of the web interface of your Heimdall media player instance will be transmitted over the internet to the Google Image Charts web service to generate this QR code.") ?>
 			</p>
 			<p>
-				<?vlc gettext("Do you want to go ahead with this?") ?>
-			</p>
-		</div>
-		<div id="windowStreamConfirm" title="<?vlc gettext("Confirm Stream Settings") ?>">
-			<p>
-				<?vlc gettext("By creating a stream, the <i>Main Controls</i> will operate the stream instead of the main interface.") ?>
-				<?vlc gettext("The stream will be created using default settings, for more advanced configuration, or to modify the default settings, select the button to the right: <i>Manage Streams</i>") ?>
-				<span id="buttonStreams2" class="button ui-widget ui-state-default ui-corner-all" title="<?vlc gettext("Manage Streams") ?>"><span class="ui-icon ui-icon-script"></span></span>
-			</p>
-			<p>
-				<?vlc gettext("Once the stream is created, the <i>Media Viewer</i> window will display the stream.") ?>
-				<?vlc gettext("Volume will be controlled by the player, and not the <i>Main Controls</i>.") ?>
-			</p>
-			<p>
-				<?vlc gettext("The current playing item will be streamed. If there is no currently playing item, the first selected item from the <i>Library</i> will be the subject of the stream.") ?>
-			</p>
-			<p>
-				<?vlc gettext("To stop the stream and resume normal controls, click the <i>Open Stream</i> button again.") ?>
-			</p>
-			<p>
-				<?vlc gettext("Are you sure you wish to create the stream?") ?>
+				<?heimdall gettext("Do you want to go ahead with this?") ?>
 			</p>
 		</div>
-		<?vlc
+		<div id="windowStreamConfirm" title="<?heimdall gettext("Confirm Stream Settings") ?>">
+			<p>
+				<?heimdall gettext("By creating a stream, the <i>Main Controls</i> will operate the stream instead of the main interface.") ?>
+				<?heimdall gettext("The stream will be created using default settings, for more advanced configuration, or to modify the default settings, select the button to the right: <i>Manage Streams</i>") ?>
+				<span id="buttonStreams2" class="button ui-widget ui-state-default ui-corner-all" title="<?heimdall gettext("Manage Streams") ?>"><span class="ui-icon ui-icon-script"></span></span>
+			</p>
+			<p>
+				<?heimdall gettext("Once the stream is created, the <i>Media Viewer</i> window will display the stream.") ?>
+				<?heimdall gettext("Volume will be controlled by the player, and not the <i>Main Controls</i>.") ?>
+			</p>
+			<p>
+				<?heimdall gettext("The current playing item will be streamed. If there is no currently playing item, the first selected item from the <i>Library</i> will be the subject of the stream.") ?>
+			</p>
+			<p>
+				<?heimdall gettext("To stop the stream and resume normal controls, click the <i>Open Stream</i> button again.") ?>
+			</p>
+			<p>
+				<?heimdall gettext("Are you sure you wish to create the stream?") ?>
+			</p>
+		</div>
+		<?heimdall
 		current_page = "index"
 
 		dialogs("browse_window.html","stream_window.html","create_stream.html","offset_window.html","mosaic_window.html","equalizer_window.html","batch_window.html","error_window.html");

@@ -2,6 +2,7 @@
  * internal.c
  *****************************************************************************
  * Copyright © 2017-2025 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -24,41 +25,41 @@
 
 #include <fcntl.h>
 
-#include <vlc_common.h>
-#include <vlc_atomic.h>
-#include <vlc_executor.h>
-#include <vlc_preparser.h>
-#include <vlc_interrupt.h>
-#include <vlc_fs.h>
+#include <heimdall_common.h>
+#include <heimdall_atomic.h>
+#include <heimdall_executor.h>
+#include <heimdall_preparser.h>
+#include <heimdall_interrupt.h>
+#include <heimdall_fs.h>
 
 #include "preparser.h"
 #include "input/input_interface.h"
 #include "input/input_internal.h"
 #include "fetcher.h"
 
-union vlc_preparser_cbs_internal
+union heimdall_preparser_cbs_internal
 {
-    const struct vlc_preparser_cbs *parser;
-    const struct vlc_thumbnailer_cbs *thumbnailer;
-    const struct vlc_thumbnailer_to_files_cbs *thumbnailer_to_files;
+    const struct heimdall_preparser_cbs *parser;
+    const struct heimdall_thumbnailer_cbs *thumbnailer;
+    const struct heimdall_thumbnailer_to_files_cbs *thumbnailer_to_files;
 };
 
 struct preparser_sys
 {
-    vlc_object_t* owner;
+    heimdall_object_t* owner;
     input_fetcher_t* fetcher;
-    vlc_executor_t *parser;
-    vlc_executor_t *thumbnailer;
-    vlc_executor_t *thumbnailer_to_files;
-    vlc_tick_t timeout;
+    heimdall_executor_t *parser;
+    heimdall_executor_t *thumbnailer;
+    heimdall_executor_t *thumbnailer_to_files;
+    heimdall_tick_t timeout;
 
-    vlc_mutex_t lock;
-    struct vlc_list submitted_tasks; /**< list of struct task */
+    heimdall_mutex_t lock;
+    struct heimdall_list submitted_tasks; /**< list of struct task */
 };
 
 struct task_thumbnail_output
 {
-    vlc_fourcc_t fourcc;
+    heimdall_fourcc_t fourcc;
     int width;
     int height;
     bool crop;
@@ -66,52 +67,52 @@ struct task_thumbnail_output
     unsigned int creat_mode;
 };
 
-struct vlc_preparser_req_owner
+struct heimdall_preparser_req_owner
 {
     struct preparser_sys *preparser;
     input_item_t *item;
     int options;
-    struct vlc_thumbnailer_arg thumb_arg;
-    union vlc_preparser_cbs_internal cbs;
+    struct heimdall_thumbnailer_arg thumb_arg;
+    union heimdall_preparser_cbs_internal cbs;
     void *userdata;
 
-    vlc_interrupt_t *i11e_ctx;
+    heimdall_interrupt_t *i11e_ctx;
     picture_t *pic;
     struct task_thumbnail_output *outputs;
     size_t output_count;
 
-    vlc_sem_t preparse_ended;
+    heimdall_sem_t preparse_ended;
     int preparse_status;
     atomic_bool interrupted;
 
-    struct vlc_runnable runnable; /**< to be passed to the executor */
-    vlc_executor_t *executor; /**< executor the runnable was last submitted to */
+    struct heimdall_runnable runnable; /**< to be passed to the executor */
+    heimdall_executor_t *executor; /**< executor the runnable was last submitted to */
 
-    struct vlc_list node; /**< node of vlc_preparser_t.submitted_tasks */
+    struct heimdall_list node; /**< node of heimdall_preparser_t.submitted_tasks */
 
-    vlc_atomic_rc_t rc;
+    heimdall_atomic_rc_t rc;
 
-    struct vlc_preparser_req req;
+    struct heimdall_preparser_req req;
 };
 
-static struct vlc_preparser_req_owner *
-preparser_req_get_owner(struct vlc_preparser_req *req)
+static struct heimdall_preparser_req_owner *
+preparser_req_get_owner(struct heimdall_preparser_req *req)
 {
-    return container_of(req, struct vlc_preparser_req_owner, req);
+    return container_of(req, struct heimdall_preparser_req_owner, req);
 }
 
 static input_item_t *
-preparser_req_GetItem(struct vlc_preparser_req *req)
+preparser_req_GetItem(struct heimdall_preparser_req *req)
 {
     assert(req != NULL);
-    struct vlc_preparser_req_owner *req_owner = preparser_req_get_owner(req);
+    struct heimdall_preparser_req_owner *req_owner = preparser_req_get_owner(req);
     return req_owner->item;
 }
 
 static void
-PreparserRequestDelete(struct vlc_preparser_req *req)
+PreparserRequestDelete(struct heimdall_preparser_req *req)
 {
-    struct vlc_preparser_req_owner *req_owner = preparser_req_get_owner(req);
+    struct heimdall_preparser_req_owner *req_owner = preparser_req_get_owner(req);
     input_item_Release(req_owner->item);
     for (size_t i = 0; i < req_owner->output_count; ++i)
         free(req_owner->outputs[i].file_path);
@@ -119,27 +120,27 @@ PreparserRequestDelete(struct vlc_preparser_req *req)
     if (req_owner->pic != NULL)
         picture_Release(req_owner->pic);
     if (req_owner->i11e_ctx != NULL)
-        vlc_interrupt_destroy(req_owner->i11e_ctx);
+        heimdall_interrupt_destroy(req_owner->i11e_ctx);
     free(req_owner);
 }
 
 static void
-preparser_req_Release(struct vlc_preparser_req *req)
+preparser_req_Release(struct heimdall_preparser_req *req)
 {
     assert(req != NULL);
-    struct vlc_preparser_req_owner *req_owner = preparser_req_get_owner(req);
-    if (!vlc_atomic_rc_dec(&req_owner->rc))
+    struct heimdall_preparser_req_owner *req_owner = preparser_req_get_owner(req);
+    if (!heimdall_atomic_rc_dec(&req_owner->rc))
         return;
 
     PreparserRequestDelete(req);
 }
 
-static struct vlc_preparser_req *
+static struct heimdall_preparser_req *
 PreparserRequestNew(struct preparser_sys *preparser, void (*run)(void *), input_item_t *item,
-                    int options, const struct vlc_thumbnailer_arg *thumb_arg,
-                    union vlc_preparser_cbs_internal cbs, void *userdata)
+                    int options, const struct heimdall_thumbnailer_arg *thumb_arg,
+                    union heimdall_preparser_cbs_internal cbs, void *userdata)
 {
-    struct vlc_preparser_req_owner *req_owner = malloc(sizeof(*req_owner));
+    struct heimdall_preparser_req_owner *req_owner = malloc(sizeof(*req_owner));
     if (!req_owner)
         return NULL;
 
@@ -151,9 +152,9 @@ PreparserRequestNew(struct preparser_sys *preparser, void (*run)(void *), input_
     req_owner->pic = NULL;
     req_owner->outputs = NULL;
     req_owner->output_count = 0;
-    vlc_atomic_rc_init(&req_owner->rc);
+    heimdall_atomic_rc_init(&req_owner->rc);
 
-    static const struct vlc_preparser_req_operations ops = {
+    static const struct heimdall_preparser_req_operations ops = {
         .get_item = preparser_req_GetItem,
         .release = preparser_req_Release,
     };
@@ -161,8 +162,8 @@ PreparserRequestNew(struct preparser_sys *preparser, void (*run)(void *), input_
     req_owner->req.submitted = false;
 
     if (thumb_arg == NULL)
-        req_owner->thumb_arg = (struct vlc_thumbnailer_arg) {
-            .seek.type = VLC_THUMBNAILER_SEEK_NONE,
+        req_owner->thumb_arg = (struct heimdall_thumbnailer_arg) {
+            .seek.type = HEIMDALL_THUMBNAILER_SEEK_NONE,
             .hw_dec = false,
         };
     else
@@ -170,15 +171,15 @@ PreparserRequestNew(struct preparser_sys *preparser, void (*run)(void *), input_
 
     input_item_Hold(item);
 
-    vlc_sem_init(&req_owner->preparse_ended, 0);
-    req_owner->preparse_status = VLC_EGENERIC;
+    heimdall_sem_init(&req_owner->preparse_ended, 0);
+    req_owner->preparse_status = HEIMDALL_EGENERIC;
     atomic_init(&req_owner->interrupted, false);
 
     req_owner->runnable.run = run;
     req_owner->runnable.userdata = &req_owner->req;
     req_owner->executor = NULL;
-    if (options & VLC_PREPARSER_TYPE_THUMBNAIL_TO_FILES)
-        req_owner->i11e_ctx = vlc_interrupt_create();
+    if (options & HEIMDALL_PREPARSER_TYPE_THUMBNAIL_TO_FILES)
+        req_owner->i11e_ctx = heimdall_interrupt_create();
     else
         req_owner->i11e_ctx = NULL;
 
@@ -186,41 +187,41 @@ PreparserRequestNew(struct preparser_sys *preparser, void (*run)(void *), input_
 }
 
 static void
-PreparserQueueTaskLocked(struct vlc_preparser_req_owner *req_owner,
-                         vlc_executor_t *executor)
+PreparserQueueTaskLocked(struct heimdall_preparser_req_owner *req_owner,
+                         heimdall_executor_t *executor)
 {
     req_owner->executor = executor;
-    vlc_executor_Submit(executor, &req_owner->runnable);
+    heimdall_executor_Submit(executor, &req_owner->runnable);
 }
 
 static void
 PreparserSubmitTask(struct preparser_sys *preparser,
-                    struct vlc_preparser_req *req,
-                    vlc_executor_t *executor)
+                    struct heimdall_preparser_req *req,
+                    heimdall_executor_t *executor)
 {
-    struct vlc_preparser_req_owner *req_owner = preparser_req_get_owner(req);
-    vlc_mutex_lock(&preparser->lock);
-    vlc_list_append(&req_owner->node, &preparser->submitted_tasks);
+    struct heimdall_preparser_req_owner *req_owner = preparser_req_get_owner(req);
+    heimdall_mutex_lock(&preparser->lock);
+    heimdall_list_append(&req_owner->node, &preparser->submitted_tasks);
     PreparserQueueTaskLocked(req_owner, executor);
-    vlc_mutex_unlock(&preparser->lock);
+    heimdall_mutex_unlock(&preparser->lock);
 }
 
 static void
-PreparserRemoveTask(struct preparser_sys *preparser, struct vlc_preparser_req *req)
+PreparserRemoveTask(struct preparser_sys *preparser, struct heimdall_preparser_req *req)
 {
-    vlc_mutex_lock(&preparser->lock);
-    struct vlc_preparser_req_owner *req_owner = preparser_req_get_owner(req);
-    vlc_list_remove(&req_owner->node);
-    vlc_mutex_unlock(&preparser->lock);
+    heimdall_mutex_lock(&preparser->lock);
+    struct heimdall_preparser_req_owner *req_owner = preparser_req_get_owner(req);
+    heimdall_list_remove(&req_owner->node);
+    heimdall_mutex_unlock(&preparser->lock);
 }
 
 static void
-NotifyPreparseEnded(struct vlc_preparser_req *req)
+NotifyPreparseEnded(struct heimdall_preparser_req *req)
 {
-    struct vlc_preparser_req_owner *req_owner = preparser_req_get_owner(req);
+    struct heimdall_preparser_req_owner *req_owner = preparser_req_get_owner(req);
     if (atomic_load(&req_owner->interrupted))
         req_owner->preparse_status = -EINTR;
-    else if (req_owner->preparse_status == VLC_SUCCESS)
+    else if (req_owner->preparse_status == HEIMDALL_SUCCESS)
         input_item_SetPreparsed(req_owner->item);
 
     req_owner->cbs.parser->on_ended(req, req_owner->preparse_status,
@@ -230,21 +231,21 @@ NotifyPreparseEnded(struct vlc_preparser_req *req)
 static void
 OnParserEnded(input_item_t *item, int status, void *req_)
 {
-    VLC_UNUSED(item);
-    struct vlc_preparser_req *req = req_;
-    struct vlc_preparser_req_owner *req_owner = preparser_req_get_owner(req);
+    HEIMDALL_UNUSED(item);
+    struct heimdall_preparser_req *req = req_;
+    struct heimdall_preparser_req_owner *req_owner = preparser_req_get_owner(req);
 
     req_owner->preparse_status = status;
-    vlc_sem_post(&req_owner->preparse_ended);
+    heimdall_sem_post(&req_owner->preparse_ended);
 }
 
 static void
 OnParserSubtreeAdded(input_item_t *item, input_item_node_t *subtree,
                      void *req_)
 {
-    VLC_UNUSED(item);
-    struct vlc_preparser_req *req = req_;
-    struct vlc_preparser_req_owner *req_owner = preparser_req_get_owner(req);
+    HEIMDALL_UNUSED(item);
+    struct heimdall_preparser_req *req = req_;
+    struct heimdall_preparser_req_owner *req_owner = preparser_req_get_owner(req);
 
     if (atomic_load(&req_owner->interrupted))
         return;
@@ -259,9 +260,9 @@ OnParserAttachmentsAdded(input_item_t *item,
                          input_attachment_t *const *array,
                          size_t count, void *req_)
 {
-    VLC_UNUSED(item);
-    struct vlc_preparser_req *req = req_;
-    struct vlc_preparser_req_owner *req_owner = preparser_req_get_owner(req);
+    HEIMDALL_UNUSED(item);
+    struct heimdall_preparser_req *req = req_;
+    struct heimdall_preparser_req_owner *req_owner = preparser_req_get_owner(req);
 
     if (atomic_load(&req_owner->interrupted))
         return;
@@ -274,13 +275,13 @@ OnParserAttachmentsAdded(input_item_t *item,
 static void
 OnArtFetchEnded(input_item_t *item, bool fetched, void *userdata)
 {
-    VLC_UNUSED(item);
-    VLC_UNUSED(fetched);
+    HEIMDALL_UNUSED(item);
+    HEIMDALL_UNUSED(fetched);
 
-    struct vlc_preparser_req *req = userdata;
+    struct heimdall_preparser_req *req = userdata;
 
     NotifyPreparseEnded(req);
-    vlc_preparser_req_Release(req);
+    heimdall_preparser_req_Release(req);
 }
 
 static const input_fetcher_callbacks_t input_fetcher_callbacks = {
@@ -288,9 +289,9 @@ static const input_fetcher_callbacks_t input_fetcher_callbacks = {
 };
 
 static void
-Parse(struct vlc_preparser_req *req, vlc_tick_t deadline)
+Parse(struct heimdall_preparser_req *req, heimdall_tick_t deadline)
 {
-    struct vlc_preparser_req_owner *req_owner = preparser_req_get_owner(req);
+    struct heimdall_preparser_req_owner *req_owner = preparser_req_get_owner(req);
 
     static const input_item_parser_cbs_t cbs = {
         .on_ended = OnParserEnded,
@@ -298,29 +299,29 @@ Parse(struct vlc_preparser_req *req, vlc_tick_t deadline)
         .on_attachments_added = OnParserAttachmentsAdded,
     };
 
-    vlc_object_t *obj = req_owner->preparser->owner;
+    heimdall_object_t *obj = req_owner->preparser->owner;
     const struct input_item_parser_cfg cfg = {
         .cbs = &cbs,
         .cbs_data = req,
-        .subitems = req_owner->options & VLC_PREPARSER_OPTION_SUBITEMS,
-        .interact = req_owner->options & VLC_PREPARSER_OPTION_INTERACT,
+        .subitems = req_owner->options & HEIMDALL_PREPARSER_OPTION_SUBITEMS,
+        .interact = req_owner->options & HEIMDALL_PREPARSER_OPTION_INTERACT,
     };
     input_item_parser_id_t *parser =
         input_item_Parse(obj, req_owner->item, &cfg);
     if (parser == NULL)
     {
-        req_owner->preparse_status = VLC_EGENERIC;
+        req_owner->preparse_status = HEIMDALL_EGENERIC;
         return;
     }
 
     /* Wait until the end of parsing */
-    if (deadline == VLC_TICK_INVALID)
-        vlc_sem_wait(&req_owner->preparse_ended);
+    if (deadline == HEIMDALL_TICK_INVALID)
+        heimdall_sem_wait(&req_owner->preparse_ended);
     else
-        if (vlc_sem_timedwait(&req_owner->preparse_ended, deadline))
+        if (heimdall_sem_timedwait(&req_owner->preparse_ended, deadline))
         {
             input_item_parser_id_Release(parser);
-            req_owner->preparse_status = VLC_ETIMEOUT;
+            req_owner->preparse_status = HEIMDALL_ETIMEOUT;
             return;
         }
 
@@ -329,32 +330,32 @@ Parse(struct vlc_preparser_req *req, vlc_tick_t deadline)
 }
 
 static int
-Fetch(struct vlc_preparser_req *req)
+Fetch(struct heimdall_preparser_req *req)
 {
-    struct vlc_preparser_req_owner *req_owner = preparser_req_get_owner(req);
+    struct heimdall_preparser_req_owner *req_owner = preparser_req_get_owner(req);
 
     input_fetcher_t *fetcher = req_owner->preparser->fetcher;
-    if (!fetcher || !(req_owner->options & VLC_PREPARSER_TYPE_FETCHMETA_ALL))
-        return VLC_ENOENT;
+    if (!fetcher || !(req_owner->options & HEIMDALL_PREPARSER_TYPE_FETCHMETA_ALL))
+        return HEIMDALL_ENOENT;
 
     return input_fetcher_Push(fetcher, req_owner->item,
-                              req_owner->options & VLC_PREPARSER_TYPE_FETCHMETA_ALL,
+                              req_owner->options & HEIMDALL_PREPARSER_TYPE_FETCHMETA_ALL,
                               &input_fetcher_callbacks, req);
 }
 
 static void
 ParserRun(void *userdata)
 {
-    vlc_thread_set_name("vlc-run-prepars");
+    heimdall_thread_set_name("heimdall-run-prepars");
 
-    struct vlc_preparser_req *req = userdata;
-    struct vlc_preparser_req_owner *req_owner = preparser_req_get_owner(req);
+    struct heimdall_preparser_req *req = userdata;
+    struct heimdall_preparser_req_owner *req_owner = preparser_req_get_owner(req);
     struct preparser_sys *preparser = req_owner->preparser;
 
-    vlc_tick_t deadline = preparser->timeout ? vlc_tick_now() + preparser->timeout
-                                             : VLC_TICK_INVALID;
+    heimdall_tick_t deadline = preparser->timeout ? heimdall_tick_now() + preparser->timeout
+                                             : HEIMDALL_TICK_INVALID;
 
-    if (req_owner->options & VLC_PREPARSER_TYPE_PARSE)
+    if (req_owner->options & HEIMDALL_PREPARSER_TYPE_PARSE)
     {
         if (atomic_load(&req_owner->interrupted))
         {
@@ -367,38 +368,38 @@ ParserRun(void *userdata)
 
     PreparserRemoveTask(preparser, req);
 
-    if (req_owner->preparse_status == VLC_ETIMEOUT || atomic_load(&req_owner->interrupted))
+    if (req_owner->preparse_status == HEIMDALL_ETIMEOUT || atomic_load(&req_owner->interrupted))
         goto end;
 
     int ret = Fetch(req);
 
-    if (ret == VLC_SUCCESS)
+    if (ret == HEIMDALL_SUCCESS)
         return; /* Remove the task and notify from the fetcher callback */
 
 end:
     NotifyPreparseEnded(req);
-    vlc_preparser_req_Release(req);
+    heimdall_preparser_req_Release(req);
 }
 
 static bool
 on_thumbnailer_input_event( input_thread_t *input,
-                            const struct vlc_input_event *event, void *userdata )
+                            const struct heimdall_input_event *event, void *userdata )
 {
-    VLC_UNUSED(input);
+    HEIMDALL_UNUSED(input);
     if ( event->type != INPUT_EVENT_THUMBNAIL_READY &&
          ( event->type != INPUT_EVENT_STATE || ( event->state.value != ERROR_S &&
                                                  event->state.value != END_S ) ) )
          return false;
 
-    struct vlc_preparser_req *req = userdata;
-    struct vlc_preparser_req_owner *req_owner = preparser_req_get_owner(req);
+    struct heimdall_preparser_req *req = userdata;
+    struct heimdall_preparser_req_owner *req_owner = preparser_req_get_owner(req);
 
     if (event->type == INPUT_EVENT_THUMBNAIL_READY)
     {
         req_owner->pic = picture_Hold(event->thumbnail);
-        req_owner->preparse_status = VLC_SUCCESS;
+        req_owner->preparse_status = HEIMDALL_SUCCESS;
     }
-    vlc_sem_post(&req_owner->preparse_ended);
+    heimdall_sem_post(&req_owner->preparse_ended);
     return true;
 }
 
@@ -412,7 +413,7 @@ WriteToFile(const block_t *block, const char *path, unsigned mode)
         0;
 #endif
 
-    int fd = vlc_open(path, O_WRONLY|O_CREAT|O_TRUNC|O_NONBLOCK|bflags, mode);
+    int fd = heimdall_open(path, O_WRONLY|O_CREAT|O_TRUNC|O_NONBLOCK|bflags, mode);
     if (fd == -1)
         return -errno;
 
@@ -421,7 +422,7 @@ WriteToFile(const block_t *block, const char *path, unsigned mode)
 
     while (size > 0)
     {
-        ssize_t len = vlc_write_i11e(fd, data, size);
+        ssize_t len = heimdall_write_i11e(fd, data, size);
         if (len == -1)
         {
             if (errno == EAGAIN)
@@ -440,16 +441,16 @@ WriteToFile(const block_t *block, const char *path, unsigned mode)
 static void
 ThumbnailerToFilesRun(void *userdata)
 {
-    vlc_thread_set_name("vlc-run-thfil");
+    heimdall_thread_set_name("heimdall-run-thfil");
 
-    struct vlc_preparser_req *req = userdata;
-    struct vlc_preparser_req_owner *req_owner = preparser_req_get_owner(req);
+    struct heimdall_preparser_req *req = userdata;
+    struct heimdall_preparser_req_owner *req_owner = preparser_req_get_owner(req);
     struct preparser_sys *preparser = req_owner->preparser;
     picture_t* pic = req_owner->pic;
 
-    vlc_interrupt_set(req_owner->i11e_ctx);
+    heimdall_interrupt_set(req_owner->i11e_ctx);
 
-    bool *result_array = vlc_alloc(req_owner->output_count, sizeof(bool));
+    bool *result_array = heimdall_alloc(req_owner->output_count, sizeof(bool));
     if (result_array == NULL)
         goto error;
 
@@ -457,7 +458,7 @@ ThumbnailerToFilesRun(void *userdata)
     {
         struct task_thumbnail_output *output = &req_owner->outputs[i];
 
-        if (output->fourcc == VLC_CODEC_UNKNOWN)
+        if (output->fourcc == HEIMDALL_CODEC_UNKNOWN)
         {
             result_array[i] = false;
             continue;
@@ -468,7 +469,7 @@ ThumbnailerToFilesRun(void *userdata)
                                  output->fourcc, output->width, output->height,
                                  output->crop);
 
-        if (ret != VLC_SUCCESS)
+        if (ret != HEIMDALL_SUCCESS)
         {
             result_array[i] = false;
             continue;
@@ -485,10 +486,10 @@ ThumbnailerToFilesRun(void *userdata)
         result_array[i] = ret == 0;
     }
 
-    req_owner->preparse_status = VLC_SUCCESS;
+    req_owner->preparse_status = HEIMDALL_SUCCESS;
 error:
     PreparserRemoveTask(preparser, req);
-    if (req_owner->preparse_status == VLC_SUCCESS)
+    if (req_owner->preparse_status == HEIMDALL_SUCCESS)
         req_owner->cbs.thumbnailer_to_files->on_ended(req, req_owner->preparse_status,
                                                       result_array,
                                                       req_owner->output_count,
@@ -498,24 +499,24 @@ error:
                                                       NULL, 0, req_owner->userdata);
     req_owner->pic = NULL;
     picture_Release(pic);
-    vlc_preparser_req_Release(req);
+    heimdall_preparser_req_Release(req);
     free(result_array);
 }
 
 static void
 ThumbnailerRun(void *userdata)
 {
-    vlc_thread_set_name("vlc-run-thumb");
+    heimdall_thread_set_name("heimdall-run-thumb");
 
-    struct vlc_preparser_req *req = userdata;
-    struct vlc_preparser_req_owner *req_owner = preparser_req_get_owner(req);
+    struct heimdall_preparser_req *req = userdata;
+    struct heimdall_preparser_req_owner *req_owner = preparser_req_get_owner(req);
     struct preparser_sys *preparser = req_owner->preparser;
 
-    static const struct vlc_input_thread_callbacks cbs = {
+    static const struct heimdall_input_thread_callbacks cbs = {
         .on_event = on_thumbnailer_input_event,
     };
 
-    const struct vlc_input_thread_cfg cfg = {
+    const struct heimdall_input_thread_cfg cfg = {
         .type = INPUT_TYPE_THUMBNAILING,
         .hw_dec = req_owner->thumb_arg.hw_dec ? INPUT_CFG_HW_DEC_ENABLED
                                         : INPUT_CFG_HW_DEC_DISABLED,
@@ -523,28 +524,28 @@ ThumbnailerRun(void *userdata)
         .cbs_data = req,
     };
 
-    vlc_tick_t deadline = preparser->timeout != VLC_TICK_INVALID ?
-                          vlc_tick_now() + preparser->timeout :
-                          VLC_TICK_INVALID;
+    heimdall_tick_t deadline = preparser->timeout != HEIMDALL_TICK_INVALID ?
+                          heimdall_tick_now() + preparser->timeout :
+                          HEIMDALL_TICK_INVALID;
 
     input_thread_t* input =
             input_Create( preparser->owner, req_owner->item, &cfg );
     if (!input)
         goto error;
 
-    assert(req_owner->thumb_arg.seek.speed == VLC_THUMBNAILER_SEEK_PRECISE
-        || req_owner->thumb_arg.seek.speed == VLC_THUMBNAILER_SEEK_FAST);
-    bool fast_seek = req_owner->thumb_arg.seek.speed == VLC_THUMBNAILER_SEEK_FAST;
+    assert(req_owner->thumb_arg.seek.speed == HEIMDALL_THUMBNAILER_SEEK_PRECISE
+        || req_owner->thumb_arg.seek.speed == HEIMDALL_THUMBNAILER_SEEK_FAST);
+    bool fast_seek = req_owner->thumb_arg.seek.speed == HEIMDALL_THUMBNAILER_SEEK_FAST;
 
     switch (req_owner->thumb_arg.seek.type)
     {
-        case VLC_THUMBNAILER_SEEK_NONE:
+        case HEIMDALL_THUMBNAILER_SEEK_NONE:
             break;
-        case VLC_THUMBNAILER_SEEK_TIME:
-            if (req_owner->thumb_arg.seek.time >= VLC_TICK_0)
+        case HEIMDALL_THUMBNAILER_SEEK_TIME:
+            if (req_owner->thumb_arg.seek.time >= HEIMDALL_TICK_0)
                 input_SetTime(input, req_owner->thumb_arg.seek.time, fast_seek);
             break;
-        case VLC_THUMBNAILER_SEEK_POS:
+        case HEIMDALL_THUMBNAILER_SEEK_POS:
             if (req_owner->thumb_arg.seek.pos > 0)
             {
                 float pos = req_owner->thumb_arg.seek.pos;
@@ -554,49 +555,49 @@ ThumbnailerRun(void *userdata)
             }
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 
     int ret = input_Start(input);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
     {
         input_Close(input);
         goto error;
     }
 
     bool timeout = false;
-    if (deadline == VLC_TICK_INVALID)
-        vlc_sem_wait(&req_owner->preparse_ended);
+    if (deadline == HEIMDALL_TICK_INVALID)
+        heimdall_sem_wait(&req_owner->preparse_ended);
     else
-        timeout = vlc_sem_timedwait(&req_owner->preparse_ended, deadline) != 0;
+        timeout = heimdall_sem_timedwait(&req_owner->preparse_ended, deadline) != 0;
 
     /* tear the input thread down before reading what it produced to avoid races */
     input_Stop(input);
     input_Close(input);
 
     if (timeout)
-        req_owner->preparse_status = VLC_ETIMEOUT;
+        req_owner->preparse_status = HEIMDALL_ETIMEOUT;
     if (atomic_load(&req_owner->interrupted))
         req_owner->preparse_status = -EINTR;
 
     picture_t* pic = req_owner->pic;
 
-    if (req_owner->options & VLC_PREPARSER_TYPE_THUMBNAIL)
+    if (req_owner->options & HEIMDALL_PREPARSER_TYPE_THUMBNAIL)
     {
-        assert((req_owner->options & VLC_PREPARSER_TYPE_THUMBNAIL_TO_FILES) == 0);
+        assert((req_owner->options & HEIMDALL_PREPARSER_TYPE_THUMBNAIL_TO_FILES) == 0);
 
         PreparserRemoveTask(preparser, req);
         req_owner->cbs.thumbnailer->on_ended(req, req_owner->preparse_status,
-                                             req_owner->preparse_status == VLC_SUCCESS ?
+                                             req_owner->preparse_status == HEIMDALL_SUCCESS ?
                                              pic : NULL, req_owner->userdata);
     }
     else
     {
-        assert(req_owner->options & VLC_PREPARSER_TYPE_THUMBNAIL_TO_FILES);
+        assert(req_owner->options & HEIMDALL_PREPARSER_TYPE_THUMBNAIL_TO_FILES);
 
         bool queued = false;
 
-        if (req_owner->preparse_status == VLC_SUCCESS)
+        if (req_owner->preparse_status == HEIMDALL_SUCCESS)
         {
             /* Export the thumbnail to several files via a new executor in
              * order to not slow down the current thread doing picture
@@ -607,7 +608,7 @@ ThumbnailerRun(void *userdata)
             /* the request stays published while its runnable moves to
                another executor. Re-queue it under the lock so that a
                concurrent cancel never targets the executor it just left. */
-            vlc_mutex_lock(&preparser->lock);
+            heimdall_mutex_lock(&preparser->lock);
             if (atomic_load(&req_owner->interrupted))
                 req_owner->preparse_status = -EINTR;
             else
@@ -616,7 +617,7 @@ ThumbnailerRun(void *userdata)
                 PreparserQueueTaskLocked(req_owner, preparser->thumbnailer_to_files);
                 queued = true;
             }
-            vlc_mutex_unlock(&preparser->lock);
+            heimdall_mutex_unlock(&preparser->lock);
         }
 
         if (queued)
@@ -640,51 +641,51 @@ ThumbnailerRun(void *userdata)
 
 error:
     if (req_owner != NULL)
-        vlc_preparser_req_Release(req);
+        heimdall_preparser_req_Release(req);
 }
 
 static void
-Interrupt(struct vlc_preparser_req *req)
+Interrupt(struct heimdall_preparser_req *req)
 {
-    struct vlc_preparser_req_owner *req_owner = preparser_req_get_owner(req);
+    struct heimdall_preparser_req_owner *req_owner = preparser_req_get_owner(req);
     atomic_store(&req_owner->interrupted, true);
     if (req_owner->i11e_ctx != NULL)
-        vlc_interrupt_kill(req_owner->i11e_ctx);
+        heimdall_interrupt_kill(req_owner->i11e_ctx);
 
-    vlc_sem_post(&req_owner->preparse_ended);
+    heimdall_sem_post(&req_owner->preparse_ended);
 }
 
-static struct vlc_preparser_req *
-PreparserRequestRetain(struct vlc_preparser_req *req)
+static struct heimdall_preparser_req *
+PreparserRequestRetain(struct heimdall_preparser_req *req)
 {
-    struct vlc_preparser_req_owner *req_owner = preparser_req_get_owner(req);
-    vlc_atomic_rc_inc(&req_owner->rc);
+    struct heimdall_preparser_req_owner *req_owner = preparser_req_get_owner(req);
+    heimdall_atomic_rc_inc(&req_owner->rc);
     return req;
 }
 
-static vlc_preparser_req *
+static heimdall_preparser_req *
 preparser_req_NewParse( void *opaque, input_item_t *item,
                         int type_options,
-                        const struct vlc_preparser_cbs *cbs,
+                        const struct heimdall_preparser_cbs *cbs,
                         void *cbs_userdata )
 {
     assert(opaque != NULL);
     struct preparser_sys *preparser = opaque;
 
-    assert((type_options & VLC_PREPARSER_TYPE_THUMBNAIL) == 0);
-    assert((type_options & VLC_PREPARSER_TYPE_THUMBNAIL_TO_FILES) == 0);
+    assert((type_options & HEIMDALL_PREPARSER_TYPE_THUMBNAIL) == 0);
+    assert((type_options & HEIMDALL_PREPARSER_TYPE_THUMBNAIL_TO_FILES) == 0);
 
-    assert(type_options & VLC_PREPARSER_TYPE_PARSE
-        || type_options & VLC_PREPARSER_TYPE_FETCHMETA_ALL);
+    assert(type_options & HEIMDALL_PREPARSER_TYPE_PARSE
+        || type_options & HEIMDALL_PREPARSER_TYPE_FETCHMETA_ALL);
 
-    assert(!(type_options & VLC_PREPARSER_TYPE_PARSE)
+    assert(!(type_options & HEIMDALL_PREPARSER_TYPE_PARSE)
         || preparser->parser != NULL);
-    assert(!(type_options & VLC_PREPARSER_TYPE_FETCHMETA_ALL)
+    assert(!(type_options & HEIMDALL_PREPARSER_TYPE_FETCHMETA_ALL)
         || preparser->fetcher != NULL);
 
     assert(cbs != NULL && cbs->on_ended != NULL);
 
-    union vlc_preparser_cbs_internal req_cbs = {
+    union heimdall_preparser_cbs_internal req_cbs = {
         .parser = cbs,
     };
 
@@ -692,10 +693,10 @@ preparser_req_NewParse( void *opaque, input_item_t *item,
                                NULL, req_cbs, cbs_userdata);
 }
 
-static vlc_preparser_req *
+static heimdall_preparser_req *
 preparser_req_NewThumbnail( void *opaque, input_item_t *item,
-                            const struct vlc_thumbnailer_arg *thumb_arg,
-                            const struct vlc_thumbnailer_cbs *cbs,
+                            const struct heimdall_thumbnailer_arg *thumb_arg,
+                            const struct heimdall_thumbnailer_cbs *cbs,
                             void *cbs_userdata )
 {
     assert(opaque != NULL);
@@ -704,44 +705,44 @@ preparser_req_NewThumbnail( void *opaque, input_item_t *item,
     assert(preparser->thumbnailer != NULL);
     assert(cbs != NULL && cbs->on_ended != NULL);
 
-    union vlc_preparser_cbs_internal req_cbs = {
+    union heimdall_preparser_cbs_internal req_cbs = {
         .thumbnailer = cbs,
     };
 
-    return PreparserRequestNew(preparser, ThumbnailerRun, item, VLC_PREPARSER_TYPE_THUMBNAIL,
+    return PreparserRequestNew(preparser, ThumbnailerRun, item, HEIMDALL_PREPARSER_TYPE_THUMBNAIL,
                                thumb_arg, req_cbs, cbs_userdata);
 }
 
 static int
-CheckThumbnailerFormat(enum vlc_thumbnailer_format format,
-                       enum vlc_thumbnailer_format *out_format,
-                       const char **out_ext, vlc_fourcc_t *out_fourcc)
+CheckThumbnailerFormat(enum heimdall_thumbnailer_format format,
+                       enum heimdall_thumbnailer_format *out_format,
+                       const char **out_ext, heimdall_fourcc_t *out_fourcc)
 {
     static const struct format
     {
-        enum vlc_thumbnailer_format format;
+        enum heimdall_thumbnailer_format format;
         const char *module;
-        vlc_fourcc_t fourcc;
+        heimdall_fourcc_t fourcc;
         const char *ext;
     } formats[] = {
         {
-            .format = VLC_THUMBNAILER_FORMAT_PNG, .fourcc = VLC_CODEC_PNG,
+            .format = HEIMDALL_THUMBNAILER_FORMAT_PNG, .fourcc = HEIMDALL_CODEC_PNG,
             .module = "png", .ext = "png",
         },
         {
-            .format = VLC_THUMBNAILER_FORMAT_WEBP, .fourcc = VLC_CODEC_WEBP,
+            .format = HEIMDALL_THUMBNAILER_FORMAT_WEBP, .fourcc = HEIMDALL_CODEC_WEBP,
             .module = "vpx", .ext = "webp",
         },
         {
-            .format = VLC_THUMBNAILER_FORMAT_JPEG, .fourcc = VLC_CODEC_JPEG,
+            .format = HEIMDALL_THUMBNAILER_FORMAT_JPEG, .fourcc = HEIMDALL_CODEC_JPEG,
             .module = "jpeg", .ext = "jpg",
         },
         {
-            .format = VLC_THUMBNAILER_FORMAT_RGBA, .fourcc = VLC_CODEC_RGBA,
+            .format = HEIMDALL_THUMBNAILER_FORMAT_RGBA, .fourcc = HEIMDALL_CODEC_RGBA,
             .module = "avcodec", .ext = "rgba",
         },
         {
-            .format = VLC_THUMBNAILER_FORMAT_ARGB, .fourcc = VLC_CODEC_ARGB,
+            .format = HEIMDALL_THUMBNAILER_FORMAT_ARGB, .fourcc = HEIMDALL_CODEC_ARGB,
             .module = "avcodec", .ext = "argb",
         },
     };
@@ -766,28 +767,28 @@ CheckThumbnailerFormat(enum vlc_thumbnailer_format format,
         return 0;
     }
 
-    return VLC_ENOENT;
+    return HEIMDALL_ENOENT;
 }
 
 int
-vlc_preparser_GetBestThumbnailerFormat(enum vlc_thumbnailer_format *format,
+heimdall_preparser_GetBestThumbnailerFormat(enum heimdall_thumbnailer_format *format,
                                        const char **out_ext)
 {
     return CheckThumbnailerFormat(0, format, out_ext, NULL);
 }
 
 int
-vlc_preparser_CheckThumbnailerFormat(enum vlc_thumbnailer_format format)
+heimdall_preparser_CheckThumbnailerFormat(enum heimdall_thumbnailer_format format)
 {
     return CheckThumbnailerFormat(format, NULL, NULL, NULL);
 }
 
-static vlc_preparser_req *
+static heimdall_preparser_req *
 preparser_req_NewThumbnailToFiles( void *opaque, input_item_t *item,
-                                   const struct vlc_thumbnailer_arg *thumb_arg,
-                                   const struct vlc_thumbnailer_output *outputs,
+                                   const struct heimdall_thumbnailer_arg *thumb_arg,
+                                   const struct heimdall_thumbnailer_output *outputs,
                                    size_t output_count,
-                                   const struct vlc_thumbnailer_to_files_cbs *cbs,
+                                   const struct heimdall_thumbnailer_to_files_cbs *cbs,
                                    void *cbs_userdata )
 {
     assert(opaque != NULL);
@@ -798,20 +799,20 @@ preparser_req_NewThumbnailToFiles( void *opaque, input_item_t *item,
     assert(cbs != NULL && cbs->on_ended != NULL);
     assert(outputs != NULL && output_count > 0);
 
-    union vlc_preparser_cbs_internal req_cbs = {
+    union heimdall_preparser_cbs_internal req_cbs = {
         .thumbnailer_to_files = cbs,
     };
 
-    struct vlc_preparser_req *req =
+    struct heimdall_preparser_req *req =
         PreparserRequestNew(preparser, ThumbnailerRun, item,
-                            VLC_PREPARSER_TYPE_THUMBNAIL_TO_FILES, thumb_arg,
+                            HEIMDALL_PREPARSER_TYPE_THUMBNAIL_TO_FILES, thumb_arg,
                             req_cbs, cbs_userdata);
     if (req == NULL)
         return NULL;
 
-    struct vlc_preparser_req_owner *req_owner = preparser_req_get_owner(req);
+    struct heimdall_preparser_req_owner *req_owner = preparser_req_get_owner(req);
 
-    req_owner->outputs = vlc_alloc(output_count, sizeof(*outputs));
+    req_owner->outputs = heimdall_alloc(output_count, sizeof(*outputs));
     if (unlikely(req_owner->outputs == NULL))
     {
         PreparserRequestDelete(req);
@@ -822,13 +823,13 @@ preparser_req_NewThumbnailToFiles( void *opaque, input_item_t *item,
     for (size_t i = 0; i < output_count; ++i)
     {
         struct task_thumbnail_output *dst = &req_owner->outputs[i];
-        const struct vlc_thumbnailer_output *src = &outputs[i];
+        const struct heimdall_thumbnailer_output *src = &outputs[i];
         assert(src->file_path != NULL);
 
-        enum vlc_thumbnailer_format format = src->format;
+        enum heimdall_thumbnailer_format format = src->format;
         int ret = CheckThumbnailerFormat(format, NULL, NULL, &dst->fourcc);
         if (ret != 0)
-            dst->fourcc = VLC_CODEC_UNKNOWN;
+            dst->fourcc = HEIMDALL_CODEC_UNKNOWN;
         else
             valid_output_count++;
 
@@ -857,50 +858,50 @@ preparser_req_NewThumbnailToFiles( void *opaque, input_item_t *item,
 }
 
 static int
-preparser_Submit( void *opaque, struct vlc_preparser_req *req )
+preparser_Submit( void *opaque, struct heimdall_preparser_req *req )
 {
     assert(opaque != NULL);
     struct preparser_sys *preparser = opaque;
 
-    struct vlc_preparser_req_owner *req_owner = preparser_req_get_owner(req);
+    struct heimdall_preparser_req_owner *req_owner = preparser_req_get_owner(req);
     assert(req_owner->preparser == preparser);
 
     /* the task's reference */
     PreparserRequestRetain(req);
 
-    if (req_owner->options & (VLC_PREPARSER_TYPE_THUMBNAIL |
-                              VLC_PREPARSER_TYPE_THUMBNAIL_TO_FILES))
+    if (req_owner->options & (HEIMDALL_PREPARSER_TYPE_THUMBNAIL |
+                              HEIMDALL_PREPARSER_TYPE_THUMBNAIL_TO_FILES))
     {
         assert(preparser->thumbnailer != NULL);
         PreparserSubmitTask(preparser, req, preparser->thumbnailer);
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
     if (preparser->parser != NULL)
     {
         PreparserSubmitTask(preparser, req, preparser->parser);
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
-    if (Fetch(req) != VLC_SUCCESS)
+    if (Fetch(req) != HEIMDALL_SUCCESS)
     {
-        vlc_preparser_req_Release(req); /* task ref only; caller keeps theirs */
-        return VLC_EGENERIC;
+        heimdall_preparser_req_Release(req); /* task ref only; caller keeps theirs */
+        return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static size_t preparser_Cancel( void *opaque, vlc_preparser_req *req )
+static size_t preparser_Cancel( void *opaque, heimdall_preparser_req *req )
 {
     assert(opaque != NULL);
     struct preparser_sys *preparser = opaque;
 
-    vlc_mutex_lock(&preparser->lock);
+    heimdall_mutex_lock(&preparser->lock);
 
-    struct vlc_preparser_req_owner *req_itr;
+    struct heimdall_preparser_req_owner *req_itr;
     size_t count = 0;
-    vlc_list_foreach(req_itr, &preparser->submitted_tasks, node)
+    heimdall_list_foreach(req_itr, &preparser->submitted_tasks, node)
     {
         if (req == NULL || req_itr == preparser_req_get_owner(req))
         {
@@ -908,43 +909,43 @@ static size_t preparser_Cancel( void *opaque, vlc_preparser_req *req )
 
             /* TODO: the fetcher should be cancellable too */
             bool canceled = req_itr->executor != NULL &&
-                            vlc_executor_Cancel(req_itr->executor,
+                            heimdall_executor_Cancel(req_itr->executor,
                                                 &req_itr->runnable);
 
             if (canceled)
             {
-                vlc_list_remove(&req_itr->node);
-                vlc_mutex_unlock(&preparser->lock);
+                heimdall_list_remove(&req_itr->node);
+                heimdall_mutex_unlock(&preparser->lock);
                 req_itr->preparse_status = -EINTR;
-                if (req_itr->options & (VLC_PREPARSER_TYPE_PARSE |
-                                        VLC_PREPARSER_TYPE_FETCHMETA_ALL))
+                if (req_itr->options & (HEIMDALL_PREPARSER_TYPE_PARSE |
+                                        HEIMDALL_PREPARSER_TYPE_FETCHMETA_ALL))
                 {
-                    assert((req_itr->options & VLC_PREPARSER_TYPE_THUMBNAIL) == 0);
+                    assert((req_itr->options & HEIMDALL_PREPARSER_TYPE_THUMBNAIL) == 0);
                     req_itr->cbs.parser->on_ended(&req_itr->req, req_itr->preparse_status,
                                                   req_itr->userdata);
                 }
-                else if (req_itr->options & VLC_PREPARSER_TYPE_THUMBNAIL)
+                else if (req_itr->options & HEIMDALL_PREPARSER_TYPE_THUMBNAIL)
                 {
-                    assert((req_itr->options & VLC_PREPARSER_TYPE_THUMBNAIL_TO_FILES) == 0);
+                    assert((req_itr->options & HEIMDALL_PREPARSER_TYPE_THUMBNAIL_TO_FILES) == 0);
                     req_itr->cbs.thumbnailer->on_ended(&req_itr->req,
                                                        req_itr->preparse_status, NULL,
                                                        req_itr->userdata);
                 }
                 else
                 {
-                    assert(req_itr->options & VLC_PREPARSER_TYPE_THUMBNAIL_TO_FILES);
+                    assert(req_itr->options & HEIMDALL_PREPARSER_TYPE_THUMBNAIL_TO_FILES);
                     req_itr->cbs.thumbnailer_to_files->on_ended(&req_itr->req,
                                                                 req_itr->preparse_status,
                                                                 NULL, 0,
                                                                 req_itr->userdata);
                 }
-                vlc_preparser_req_Release(&req_itr->req);
+                heimdall_preparser_req_Release(&req_itr->req);
 
                 /* Small optimisation in the likely case where the user cancel
                  * only one task */
                 if (req != NULL)
                     return count;
-                vlc_mutex_lock(&preparser->lock);
+                heimdall_mutex_lock(&preparser->lock);
             }
             else
                 /* The task will be finished and destroyed after run() */
@@ -952,7 +953,7 @@ static size_t preparser_Cancel( void *opaque, vlc_preparser_req *req )
         }
     }
 
-    vlc_mutex_unlock(&preparser->lock);
+    heimdall_mutex_unlock(&preparser->lock);
 
     return count;
 }
@@ -962,35 +963,35 @@ static void preparser_Delete(void *opaque)
     assert(opaque != NULL);
     struct preparser_sys *preparser = opaque;
 
-    /* In case vlc_preparser_Deactivate() has not been called */
+    /* In case heimdall_preparser_Deactivate() has not been called */
     preparser_Cancel(preparser, NULL);
 
     if (preparser->parser != NULL)
-        vlc_executor_Delete(preparser->parser);
+        heimdall_executor_Delete(preparser->parser);
 
     if( preparser->fetcher )
         input_fetcher_Delete( preparser->fetcher );
 
     if (preparser->thumbnailer != NULL)
-        vlc_executor_Delete(preparser->thumbnailer);
+        heimdall_executor_Delete(preparser->thumbnailer);
 
     if (preparser->thumbnailer_to_files != NULL)
-        vlc_executor_Delete(preparser->thumbnailer_to_files);
+        heimdall_executor_Delete(preparser->thumbnailer_to_files);
 
     free( preparser );
 }
 
 void*
-vlc_preparser_internal_New(vlc_preparser_t *owner, vlc_object_t *parent,
-                           const struct vlc_preparser_cfg *cfg)
+heimdall_preparser_internal_New(heimdall_preparser_t *owner, heimdall_object_t *parent,
+                           const struct heimdall_preparser_cfg *cfg)
 {
     assert(cfg->timeout >= 0);
 
     int request_type = cfg->types;
-    assert(request_type & (VLC_PREPARSER_TYPE_FETCHMETA_ALL|
-                           VLC_PREPARSER_TYPE_PARSE|
-                           VLC_PREPARSER_TYPE_THUMBNAIL|
-                           VLC_PREPARSER_TYPE_THUMBNAIL_TO_FILES));
+    assert(request_type & (HEIMDALL_PREPARSER_TYPE_FETCHMETA_ALL|
+                           HEIMDALL_PREPARSER_TYPE_PARSE|
+                           HEIMDALL_PREPARSER_TYPE_THUMBNAIL|
+                           HEIMDALL_PREPARSER_TYPE_THUMBNAIL_TO_FILES));
 
     unsigned parser_threads = cfg->max_parser_threads == 0 ? 1 :
                               cfg->max_parser_threads;
@@ -1004,16 +1005,16 @@ vlc_preparser_internal_New(vlc_preparser_t *owner, vlc_object_t *parent,
     preparser->timeout = cfg->timeout;
     preparser->owner = parent;
 
-    if (request_type & VLC_PREPARSER_TYPE_PARSE)
+    if (request_type & HEIMDALL_PREPARSER_TYPE_PARSE)
     {
-        preparser->parser = vlc_executor_New(parser_threads);
+        preparser->parser = heimdall_executor_New(parser_threads);
         if (!preparser->parser)
             goto error_parser;
     }
     else
         preparser->parser = NULL;
 
-    if (request_type & VLC_PREPARSER_TYPE_FETCHMETA_ALL)
+    if (request_type & HEIMDALL_PREPARSER_TYPE_FETCHMETA_ALL)
     {
         preparser->fetcher = input_fetcher_New(parent, request_type);
         if (unlikely(preparser->fetcher == NULL))
@@ -1022,29 +1023,29 @@ vlc_preparser_internal_New(vlc_preparser_t *owner, vlc_object_t *parent,
     else
         preparser->fetcher = NULL;
 
-    if (request_type & (VLC_PREPARSER_TYPE_THUMBNAIL |
-                        VLC_PREPARSER_TYPE_THUMBNAIL_TO_FILES))
+    if (request_type & (HEIMDALL_PREPARSER_TYPE_THUMBNAIL |
+                        HEIMDALL_PREPARSER_TYPE_THUMBNAIL_TO_FILES))
     {
-        preparser->thumbnailer = vlc_executor_New(thumbnailer_threads);
+        preparser->thumbnailer = heimdall_executor_New(thumbnailer_threads);
         if (!preparser->thumbnailer)
             goto error_thumbnail;
     }
     else
         preparser->thumbnailer = NULL;
 
-    if (request_type & VLC_PREPARSER_TYPE_THUMBNAIL_TO_FILES)
+    if (request_type & HEIMDALL_PREPARSER_TYPE_THUMBNAIL_TO_FILES)
     {
-        preparser->thumbnailer_to_files = vlc_executor_New(1);
+        preparser->thumbnailer_to_files = heimdall_executor_New(1);
         if (preparser->thumbnailer_to_files == NULL)
             goto error_thumbnail_to_files;
     }
     else
         preparser->thumbnailer_to_files = NULL;
 
-    vlc_mutex_init(&preparser->lock);
-    vlc_list_init(&preparser->submitted_tasks);
+    heimdall_mutex_init(&preparser->lock);
+    heimdall_list_init(&preparser->submitted_tasks);
 
-    static const struct vlc_preparser_operations ops = {
+    static const struct heimdall_preparser_operations ops = {
         .req_new_parse = preparser_req_NewParse,
         .req_new_thumbnail = preparser_req_NewThumbnail,
         .req_new_thumbnail_to_files = preparser_req_NewThumbnailToFiles,
@@ -1059,13 +1060,13 @@ vlc_preparser_internal_New(vlc_preparser_t *owner, vlc_object_t *parent,
 
 error_thumbnail_to_files:
     if (preparser->thumbnailer != NULL)
-        vlc_executor_Delete(preparser->thumbnailer);
+        heimdall_executor_Delete(preparser->thumbnailer);
 error_thumbnail:
     if (preparser->fetcher != NULL)
         input_fetcher_Delete(preparser->fetcher);
 error_fetcher:
     if (preparser->parser != NULL)
-        vlc_executor_Delete(preparser->parser);
+        heimdall_executor_Delete(preparser->parser);
 error_parser:
     free(preparser);
     return NULL;

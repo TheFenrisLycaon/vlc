@@ -2,6 +2,7 @@
  * av1.c: AV1 video packetizer
  *****************************************************************************
  * Copyright (C) 2018 VideoLabs, VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -26,13 +27,13 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
-#include <vlc_block.h>
-#include <vlc_bits.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
+#include <heimdall_block.h>
+#include <heimdall_bits.h>
 
-#include <vlc_block_helper.h>
+#include <heimdall_block_helper.h>
 
 #include "av1.h"
 #include "av1_obu.h"
@@ -61,8 +62,8 @@ typedef struct
             block_t *p_chain;
             block_t **pp_chain_last;
         } pre, frame, post;
-        vlc_tick_t dts;
-        vlc_tick_t pts;
+        heimdall_tick_t dts;
+        heimdall_tick_t pts;
     } tu;
     uint32_t i_seen;
     int i_next_block_flags;
@@ -90,7 +91,7 @@ static bool block_Differs(const block_t *a, const block_t *b)
 #define PUSHQ(name,b) \
 {\
     block_ChainLastAppend(&p_sys->name.pp_chain_last, b);\
-    if(p_sys->tu.dts == VLC_TICK_INVALID)\
+    if(p_sys->tu.dts == HEIMDALL_TICK_INVALID)\
     {\
         p_sys->tu.dts = b->i_dts;\
         p_sys->tu.pts = b->i_pts;\
@@ -216,8 +217,8 @@ static block_t * OutputQueues(decoder_t *p_dec, bool b_valid)
     }
 
     p_sys->tu.b_has_visible_frame = false;
-    p_sys->tu.dts = VLC_TICK_INVALID;
-    p_sys->tu.pts = VLC_TICK_INVALID;
+    p_sys->tu.dts = HEIMDALL_TICK_INVALID;
+    p_sys->tu.pts = HEIMDALL_TICK_INVALID;
     p_sys->i_seen = 0;
 
     return p_output;
@@ -230,7 +231,7 @@ static block_t *GatherAndValidateChain(decoder_t *p_dec, block_t *p_outputchain)
 {
     block_t *p_output = NULL;
     av1_sys_t *p_sys = p_dec->p_sys;
-    VLC_UNUSED(p_sys);
+    HEIMDALL_UNUSED(p_sys);
 
     if(p_outputchain)
     {
@@ -418,8 +419,8 @@ static void PacketizeFlush(decoder_t *p_dec)
     block_ChainRelease(p_sys->obus.p_chain);
     INITQ(obus);
 
-    p_sys->tu.dts = VLC_TICK_INVALID;
-    p_sys->tu.pts = VLC_TICK_INVALID;
+    p_sys->tu.dts = HEIMDALL_TICK_INVALID;
+    p_sys->tu.pts = HEIMDALL_TICK_INVALID;
     p_sys->tu.b_has_visible_frame = false;
     p_sys->i_seen = 0;
     p_sys->i_next_block_flags = BLOCK_FLAG_DISCONTINUITY;
@@ -503,8 +504,8 @@ static block_t *PacketizeOBU(decoder_t *p_dec, block_t **pp_block)
             p_obublock->i_pts = p_frag->i_pts;
             p_obublock->i_flags = p_frag->i_flags;
             p_frag->i_flags = 0;
-            p_frag->i_dts = VLC_TICK_INVALID;
-            p_frag->i_pts = VLC_TICK_INVALID;
+            p_frag->i_dts = HEIMDALL_TICK_INVALID;
+            p_frag->i_pts = HEIMDALL_TICK_INVALID;
         }
 
         p_output = ParseOBUBlock(p_dec, p_obublock);
@@ -528,7 +529,7 @@ static block_t *PacketizeOBU(decoder_t *p_dec, block_t **pp_block)
 /*****************************************************************************
  * Close
  *****************************************************************************/
-static void Close(vlc_object_t *p_this)
+static void Close(heimdall_object_t *p_this)
 {
     decoder_t *p_dec = (decoder_t*)p_this;
     av1_sys_t *p_sys = p_dec->p_sys;
@@ -541,25 +542,25 @@ static void Close(vlc_object_t *p_this)
 /*****************************************************************************
  * Open
  *****************************************************************************/
-static int Open(vlc_object_t *p_this)
+static int Open(heimdall_object_t *p_this)
 {
     decoder_t *p_dec = (decoder_t*)p_this;
     av1_sys_t *p_sys;
 
-    if (p_dec->fmt_in->i_codec != VLC_CODEC_AV1)
-        return VLC_EGENERIC;
+    if (p_dec->fmt_in->i_codec != HEIMDALL_CODEC_AV1)
+        return HEIMDALL_EGENERIC;
 
     p_dec->p_sys = p_sys = calloc(1, sizeof(av1_sys_t));
     if (!p_dec->p_sys)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     INITQ(obus);
     p_sys->p_sequence_header_block = NULL;
     p_sys->p_sequence_header = NULL;
     p_sys->b_sequence_header_changed = false;
     p_sys->tu.b_has_visible_frame = false;
-    p_sys->tu.dts = VLC_TICK_INVALID;
-    p_sys->tu.pts = VLC_TICK_INVALID;
+    p_sys->tu.dts = HEIMDALL_TICK_INVALID;
+    p_sys->tu.pts = HEIMDALL_TICK_INVALID;
     p_sys->i_seen = 0;
     p_sys->i_next_block_flags = 0;
     INITQ(tu.pre);
@@ -573,16 +574,16 @@ static int Open(vlc_object_t *p_this)
     p_dec->pf_packetize = PacketizeOBU;
     p_dec->pf_flush = PacketizeFlush;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_subcategory(SUBCAT_SOUT_PACKETIZER)
     set_description(N_("AV1 video packetizer"))
     set_capability("video packetizer", 50)
     set_callbacks(Open, Close)
-vlc_module_end ()
+heimdall_module_end ()

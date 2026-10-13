@@ -2,6 +2,7 @@
  * channel_layout.h: Common Channel Layout code for iOS and macOS
  *****************************************************************************
  * Copyright (C) 2024 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -21,5 +22,5 @@
 typedef struct AudioChannelLayout AudioChannelLayout;
 
 int
-channel_layout_MapFromVLC(audio_output_t *p_aout, const audio_sample_format_t *fmt,
+channel_layout_MapFromHeimdall(audio_output_t *p_aout, const audio_sample_format_t *fmt,
                           AudioChannelLayout **inlayoutp, size_t *inlayout_size);

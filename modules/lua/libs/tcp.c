@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 2004-2005 VLC authors and VideoLAN
  * Copyright (C) 2005-2006 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@videolan.org>
  *          Rémi Denis-Courmont
@@ -29,12 +30,12 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
 #include <unistd.h>
 
-#include <vlc_network.h>
-#include <vlc_interrupt.h>
+#include <heimdall_network.h>
+#include <heimdall_interrupt.h>
 #include "../libs.h"
 
 /*****************************************************************************
@@ -42,7 +43,7 @@
  *****************************************************************************
  * Negotiate authentication with a SOCKS server.
  *****************************************************************************/
-static int SocksNegotiate( vlc_object_t *p_obj,
+static int SocksNegotiate( heimdall_object_t *p_obj,
                            int fd, int i_socks_version,
                            const char *psz_socks_user,
                            const char *psz_socks_passwd )
@@ -52,7 +53,7 @@ static int SocksNegotiate( vlc_object_t *p_obj,
     bool b_auth = false;
 
     if( i_socks_version != 5 )
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
     /* We negotiate authentication */
     buffer[0] = i_socks_version;    /* SOCKS version */
@@ -72,9 +73,9 @@ static int SocksNegotiate( vlc_object_t *p_obj,
     }
 
     if( net_Write( p_obj, fd, buffer, i_len ) != i_len )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     if( net_Read( p_obj, fd, buffer, 2) != 2 )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     msg_Dbg( p_obj, "socks: v=%d method=%x", buffer[0], buffer[1] );
 
@@ -88,7 +89,7 @@ static int SocksNegotiate( vlc_object_t *p_obj,
         {
             msg_Err( p_obj, "socks: server mandates authentication but "
                             "a username and/or password was not supplied" );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         int const i_user = strlen( psz_socks_user );
@@ -98,7 +99,7 @@ static int SocksNegotiate( vlc_object_t *p_obj,
         {
             msg_Err( p_obj, "socks: rejecting username and/or password due to "
                             "violation of RFC1929 (longer than 255 bytes)" );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         msg_Dbg( p_obj, "socks: username/password authentication" );
@@ -112,16 +113,16 @@ static int SocksNegotiate( vlc_object_t *p_obj,
         i_len = 3 + i_user + i_pasw;
 
         if( net_Write( p_obj, fd, buffer, i_len ) != i_len )
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
         if( net_Read( p_obj, fd, buffer, 2 ) != 2 )
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
         msg_Dbg( p_obj, "socks: v=%d status=%x", buffer[0], buffer[1] );
         if( buffer[1] != 0x00 )
         {
             msg_Err( p_obj, "socks: authentication rejected" );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
     else
@@ -131,10 +132,10 @@ static int SocksNegotiate( vlc_object_t *p_obj,
                      buffer[0] );
         else
             msg_Err( p_obj, "socks: authentication needed" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -142,7 +143,7 @@ static int SocksNegotiate( vlc_object_t *p_obj,
  *****************************************************************************
  * Open a TCP connection using a SOCKS server and return a handle (RFC 1928)
  *****************************************************************************/
-static int SocksHandshakeTCP( vlc_object_t *p_obj,
+static int SocksHandshakeTCP( heimdall_object_t *p_obj,
                               int fd,
                               int i_socks_version,
                               const char *psz_user, const char *psz_passwd,
@@ -159,7 +160,7 @@ static int SocksHandshakeTCP( vlc_object_t *p_obj,
     if( i_socks_version == 5 &&
         SocksNegotiate( p_obj, fd, i_socks_version,
                         psz_user, psz_passwd ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if( i_socks_version == 4 )
     {
@@ -172,8 +173,8 @@ static int SocksHandshakeTCP( vlc_object_t *p_obj,
         };
         struct addrinfo *res;
 
-        if (vlc_getaddrinfo_i11e(psz_host, 0, &hints, &res))
-            return VLC_EGENERIC;
+        if (heimdall_getaddrinfo_i11e(psz_host, 0, &hints, &res))
+            return HEIMDALL_EGENERIC;
 
         buffer[0] = i_socks_version;
         buffer[1] = 0x01;               /* CONNECT */
@@ -185,15 +186,15 @@ static int SocksHandshakeTCP( vlc_object_t *p_obj,
         buffer[8] = 0;                  /* Empty user id */
 
         if( net_Write( p_obj, fd, buffer, 9 ) != 9 )
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         if( net_Read( p_obj, fd, buffer, 8 ) != 8 )
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
         msg_Dbg( p_obj, "socks: v=%d cd=%d",
                  buffer[0], buffer[1] );
 
         if( buffer[1] != 90 )
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
     else if( i_socks_version == 5 )
     {
@@ -213,11 +214,11 @@ static int SocksHandshakeTCP( vlc_object_t *p_obj,
 
 
         if( net_Write( p_obj, fd, buffer, i_len ) != i_len )
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
         /* Read the header */
         if( net_Read( p_obj, fd, buffer, 5 ) != 5 )
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
         msg_Dbg( p_obj, "socks: v=%d rep=%d atyp=%d",
                  buffer[0], buffer[1], buffer[3] );
@@ -225,7 +226,7 @@ static int SocksHandshakeTCP( vlc_object_t *p_obj,
         if( buffer[1] != 0x00 )
         {
             msg_Err( p_obj, "socks: CONNECT request failed" );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         /* Read the remaining bytes */
@@ -236,16 +237,16 @@ static int SocksHandshakeTCP( vlc_object_t *p_obj,
         else if( buffer[3] == 0x04 )
             i_len = 16-1+2;
         else
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
         if( net_Read( p_obj, fd, buffer, i_len ) != i_len )
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-int (net_ConnectTCP)(vlc_object_t *obj, const char *host, int serv)
+int (net_ConnectTCP)(heimdall_object_t *obj, const char *host, int serv)
 {
     const char *realhost;
     int realserv;

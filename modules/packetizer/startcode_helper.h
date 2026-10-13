@@ -2,6 +2,7 @@
  * startcode_helper.h: Startcodes helpers
  *****************************************************************************
  * Copyright (C) 2016 VideoLAN Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -17,10 +18,10 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
-#ifndef VLC_STARTCODE_HELPER_H_
-#define VLC_STARTCODE_HELPER_H_
+#ifndef HEIMDALL_STARTCODE_HELPER_H_
+#define HEIMDALL_STARTCODE_HELPER_H_
 
-#include <vlc_cpu.h>
+#include <heimdall_cpu.h>
 
 #ifdef CAN_COMPILE_SSE2
 #  if defined __has_attribute
@@ -154,7 +155,7 @@ static inline const uint8_t * startcode_FindAnnexB_Bits( const uint8_t *p, const
 #ifdef CAN_COMPILE_SSE2
 static inline const uint8_t * startcode_FindAnnexB( const uint8_t *p, const uint8_t *end )
 {
-    if (vlc_CPU_SSE2())
+    if (heimdall_CPU_SSE2())
         return startcode_FindAnnexB_SSE2(p, end);
     else
         return startcode_FindAnnexB_Bits(p, end);

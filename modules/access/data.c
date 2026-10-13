@@ -2,6 +2,7 @@
  * data.c: data URL scheme
  *****************************************************************************
  * Copyright (C) 2021 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -27,11 +28,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_access.h>
-#include <vlc_strings.h>
-#include <vlc_url.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_access.h>
+#include <heimdall_strings.h>
+#include <heimdall_url.h>
 
 struct access_data {
     size_t type_length;
@@ -60,7 +61,7 @@ static int Seek(stream_t *access, uint64_t position)
     struct access_data *sys = access->p_sys;
 
     sys->offset = (position <= sys->length) ? position : sys->length;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int Control(stream_t *access, int query, va_list args)
@@ -74,50 +75,50 @@ static int Control(stream_t *access, int query, va_list args)
         case STREAM_CAN_PAUSE:
         case STREAM_CAN_CONTROL_PACE:
             *va_arg(args, bool *) = true;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
 
         case STREAM_GET_SIZE:
             *va_arg(args, uint64_t *) = sys->length;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
 
         case STREAM_GET_PTS_DELAY:
-            *va_arg(args, vlc_tick_t *) =  DEFAULT_PTS_DELAY;
-            return VLC_SUCCESS;
+            *va_arg(args, heimdall_tick_t *) =  DEFAULT_PTS_DELAY;
+            return HEIMDALL_SUCCESS;
 
         case STREAM_GET_CONTENT_TYPE: {
             char *type = strndup(access->psz_url + 5, sys->type_length);
 
             *va_arg(args, char **) = type;
-            return likely(type != NULL) ? VLC_SUCCESS : VLC_ENOMEM;
+            return likely(type != NULL) ? HEIMDALL_SUCCESS : HEIMDALL_ENOMEM;
         }
     
         case STREAM_SET_PAUSE_STATE:
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
     }
-    return VLC_ENOTSUP;
+    return HEIMDALL_ENOTSUP;
 }
 
-static int Open(vlc_object_t *obj)
+static int Open(heimdall_object_t *obj)
 {
     stream_t *access = (stream_t *)obj;
     const char *url = access->psz_url;
 
     if (strncmp(url, "data:", 5))
-        return VLC_ENOTSUP;
+        return HEIMDALL_ENOTSUP;
 
     url += 5;
 
-    struct access_data *sys = vlc_obj_malloc(obj, sizeof (*sys));
+    struct access_data *sys = heimdall_obj_malloc(obj, sizeof (*sys));
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     const char *data = strchr(url, ',');
     if (unlikely(data == NULL)) {
         msg_Err(obj, "invalid data URL");
-        return VLC_EINVAL;
+        return HEIMDALL_EINVAL;
     }
 
-    sys->data = vlc_uri_decode_duplicate(data + 1);
+    sys->data = heimdall_uri_decode_duplicate(data + 1);
     if (unlikely(sys->data == NULL))
         return -errno;
 
@@ -132,12 +133,12 @@ static int Open(vlc_object_t *obj)
         char *d = malloc(size);
 
         if (likely(d != NULL))
-            sys->length = vlc_b64_decode_binary_to_buffer(d, size, sys->data);
+            sys->length = heimdall_b64_decode_binary_to_buffer(d, size, sys->data);
         free(sys->data);
         sys->data = d;
 
         if (unlikely(d == NULL))
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
     }
 
     access->pf_read = Read;
@@ -145,10 +146,10 @@ static int Open(vlc_object_t *obj)
     access->pf_seek = Seek;
     access->pf_control = Control;
     access->p_sys = sys;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void Close(vlc_object_t *obj)
+static void Close(heimdall_object_t *obj)
 {
     stream_t *access = (stream_t *)obj;
     struct access_data *sys = access->p_sys;
@@ -156,7 +157,7 @@ static void Close(vlc_object_t *obj)
     free(sys->data);
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname(N_("data"))
     set_description(N_("data URI scheme"))
     set_subcategory(SUBCAT_INPUT_ACCESS)
@@ -164,4 +165,4 @@ vlc_module_begin()
     set_capability("access", 0)
     set_callbacks(Open, Close)
     add_shortcut("data")
-vlc_module_end()
+heimdall_module_end()

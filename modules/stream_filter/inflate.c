@@ -1,7 +1,8 @@
 /*****************************************************************************
- * inflate.c: zlib decompression module for VLC
+ * inflate.c: zlib decompression module for Heimdall
  *****************************************************************************
  * Copyright © 2016 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -26,9 +27,9 @@
 #include <string.h>
 #include <zlib.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_stream.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_stream.h>
 
 typedef struct
 {
@@ -56,7 +57,7 @@ static ssize_t Read(stream_t *stream, void *buf, size_t buflen)
 
     if (val > 0)
     {   /* Fill input buffer if there is space left */
-        val = vlc_stream_Read(stream->s,
+        val = heimdall_stream_Read(stream->s,
                           sys->zstream.next_in + sys->zstream.avail_in, val);
         if (val >= 0)
             sys->zstream.avail_in += val;
@@ -116,7 +117,7 @@ static int Control(stream_t *stream, int query, va_list args)
         case STREAM_GET_SIGNAL:
         case STREAM_SET_PAUSE_STATE:
         case STREAM_GET_MTIME:
-            return vlc_stream_vaControl(stream->s, query, args);
+            return heimdall_stream_vaControl(stream->s, query, args);
         case STREAM_GET_SIZE:
         case STREAM_GET_TITLE_INFO:
         case STREAM_GET_TITLE:
@@ -126,23 +127,23 @@ static int Control(stream_t *stream, int query, va_list args)
         case STREAM_SET_PRIVATE_ID_STATE:
         case STREAM_SET_PRIVATE_ID_CA:
         case STREAM_GET_PRIVATE_ID_STATE:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         default:
             msg_Err(stream, "unimplemented query (%d) in control", query);
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int Open(vlc_object_t *obj)
+static int Open(heimdall_object_t *obj)
 {
     stream_t *stream = (stream_t *)obj;
     const uint8_t *peek;
     int bits;
 
     /* See IETF RFC6713 */
-    if (vlc_stream_Peek(stream->s, &peek, 2) < 2)
-        return VLC_EGENERIC;
+    if (heimdall_stream_Peek(stream->s, &peek, 2) < 2)
+        return HEIMDALL_EGENERIC;
 
     if ((peek[0] & 0xF) == 8 && (peek[0] >> 4) < 8 && (U16_AT(peek) % 31) == 0)
         bits = 15; /* zlib */
@@ -150,11 +151,11 @@ static int Open(vlc_object_t *obj)
     if (!memcmp(peek, "\x1F\x8B", 2))
         bits = 15 + 32; /* gzip */
     else
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     stream_sys_t *sys = malloc(sizeof (*sys));
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     sys->zstream.next_in = sys->buffer;
     sys->zstream.avail_in = 0;
@@ -167,17 +168,17 @@ static int Open(vlc_object_t *obj)
     if (ret != Z_OK)
     {
         free(sys);
-        return (ret == Z_MEM_ERROR) ? VLC_ENOMEM : VLC_EGENERIC;
+        return (ret == Z_MEM_ERROR) ? HEIMDALL_ENOMEM : HEIMDALL_EGENERIC;
     }
 
     stream->p_sys = sys;
     stream->pf_read = Read;
     stream->pf_seek = Seek;
     stream->pf_control = Control;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void Close (vlc_object_t *obj)
+static void Close (heimdall_object_t *obj)
 {
     stream_t *stream = (stream_t *)obj;
     stream_sys_t *sys = stream->p_sys;
@@ -186,10 +187,10 @@ static void Close (vlc_object_t *obj)
     free(sys);
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_subcategory(SUBCAT_INPUT_STREAM_FILTER)
     set_capability("stream_filter", 330)
 
     set_description(N_("Zlib decompression filter"))
     set_callbacks(Open, Close)
-vlc_module_end()
+heimdall_module_end()

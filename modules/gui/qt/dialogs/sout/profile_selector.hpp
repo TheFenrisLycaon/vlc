@@ -2,6 +2,7 @@
  * profile_selector.hpp : A small profile selector and editor
  ****************************************************************************
  * Copyright (C) 2009 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Jean-Baptiste Kempf <jb@videolan.org>
  *
@@ -20,8 +21,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_QT_PROFILE_SELECTOR_HPP_
-#define VLC_QT_PROFILE_SELECTOR_HPP_
+#ifndef HEIMDALL_QT_PROFILE_SELECTOR_HPP_
+#define HEIMDALL_QT_PROFILE_SELECTOR_HPP_
 
 #include "qt.hpp"
 
@@ -29,7 +30,7 @@
 #include <QSet>
 #include <QHash>
 
-#include "widgets/native/qvlcframe.hpp"
+#include "widgets/native/qheimdallframe.hpp"
 #include "util/soutchain.hpp"
 
 /* Auto-generated from .ui files */
@@ -37,13 +38,13 @@
 
 class QComboBox;
 
-class VLCProfileSelector : public QWidget
+class HeimdallProfileSelector : public QWidget
 {
     Q_OBJECT
 
 public:
-    VLCProfileSelector( QWidget *_parent );
-    ~VLCProfileSelector();
+    HeimdallProfileSelector( QWidget *_parent );
+    ~HeimdallProfileSelector();
     QString getMux() { return mux; }
     SoutChain getTranscode() { return transcode; }
 private:
@@ -63,13 +64,13 @@ signals:
     void optionsChanged();
 };
 
-class VLCProfileEditor : public QVLCDialog
+class HeimdallProfileEditor : public QHeimdallDialog
 {
     Q_OBJECT
 
     Ui::Profiles ui;
 public:
-    VLCProfileEditor(const QString&, const QString&, QWindow * );
+    HeimdallProfileEditor(const QString&, const QString&, QWindow * );
 
     QString name;
     QString muxValue;

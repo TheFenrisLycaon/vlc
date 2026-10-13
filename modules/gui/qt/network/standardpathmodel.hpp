@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Benjamin Arnaud <bunjee@omega.gg>
  *
@@ -25,7 +26,7 @@
 #include "config.h"
 #endif
 
-// VLC includes
+// Heimdall includes
 #include "networkbasemodel.hpp"
 
 class StandardPathModelPrivate;

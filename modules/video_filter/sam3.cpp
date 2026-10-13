@@ -2,6 +2,7 @@
 * sam3.cpp : Segment Anything Model 3 (SAM3) interactive filter
 *****************************************************************************
 * Copyright (C) 2025 VideoLAN
+* Copyright (C) 2026 TheFenrisLycaon
 *
 * Authors: Brandon Li <brandonli2006ma@gmail.com>
 *
@@ -28,13 +29,13 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_picture.h>
-#include <vlc_block.h>
-#include <vlc_mouse.h>
-#include <vlc_fs.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
+#include <heimdall_block.h>
+#include <heimdall_mouse.h>
+#include <heimdall_fs.h>
 
 #include <opencv2/opencv.hpp>
 
@@ -93,7 +94,7 @@ struct filter_sys_t
     std::atomic<bool> atom_was_paused{};
     int i_outline_thickness{};
     cv::Scalar scalar_outline_color;
-    vlc_tick_t i_last_pic_date{};
+    heimdall_tick_t i_last_pic_date{};
     char* psz_export_path{};
     std::condition_variable cv_work;
     std::mutex mtx_work;
@@ -104,13 +105,13 @@ struct filter_sys_t
 };
 
 static picture_t* Filter( filter_t* p_filter, picture_t* p_pic );
-static int Mouse( filter_t* p_filter, vlc_mouse_t* p_mouse, const vlc_mouse_t* p_oldmouse );
+static int Mouse( filter_t* p_filter, heimdall_mouse_t* p_mouse, const heimdall_mouse_t* p_oldmouse );
 static int Open( filter_t* p_filter );
 static void Close( filter_t* p_filter );
 static void Process( filter_t* p_filter );
 static void Export( filter_t* p_filter, const segmented_object_t& obj, const cv::Mat& mat_frame );
 
-static constexpr vlc_filter_operations st_filter_ops = {
+static constexpr heimdall_filter_operations st_filter_ops = {
     .filter_video = Filter,
     .drain_audio = nullptr,
     .flush = nullptr,
@@ -123,7 +124,7 @@ static constexpr vlc_filter_operations st_filter_ops = {
 * Module descriptor
 *****************************************************************************/
 
-vlc_module_begin( )
+heimdall_module_begin( )
     set_description( N_ ( "Segment Anything Model 3 (SAM3) interactive filter" ) )
     add_shortcut( "sam3" )
     set_shortname( N_ ( "SAM Filter " ) )
@@ -141,13 +142,13 @@ vlc_module_begin( )
                   N_ ( "Directory where masks will be automatically exported" ) )
     add_string( "sam-text-prompt", nullptr, N_ ( "SAM3 text prompt" ),
                N_ ( "Natural-language concept to segment" ) )
-vlc_module_end( )
+heimdall_module_end( )
 
 /*****************************************************************************
 * WriteMatAsImage: Encodes a Mat and writes to disk
 *****************************************************************************/
 static bool WriteMatAsImage( filter_t* p_filter, const cv::Mat& mat_bgr,
-                              const char* psz_path, vlc_fourcc_t i_codec )
+                              const char* psz_path, heimdall_fourcc_t i_codec )
 {
     if ( mat_bgr.empty( ) || mat_bgr.type( ) != CV_8UC3 )
     {
@@ -155,8 +156,8 @@ static bool WriteMatAsImage( filter_t* p_filter, const cv::Mat& mat_bgr,
     }
 
     video_format_t fmt_in;
-    video_format_Init( &fmt_in, VLC_CODEC_BGR24 );
-    video_format_Setup( &fmt_in, VLC_CODEC_BGR24,
+    video_format_Init( &fmt_in, HEIMDALL_CODEC_BGR24 );
+    video_format_Setup( &fmt_in, HEIMDALL_CODEC_BGR24,
                         mat_bgr.cols, mat_bgr.rows,
                         mat_bgr.cols, mat_bgr.rows, 1, 1 );
 
@@ -176,16 +177,16 @@ static bool WriteMatAsImage( filter_t* p_filter, const cv::Mat& mat_bgr,
     }
 
     block_t* p_block = nullptr;
-    const int i_ret = picture_Export( VLC_OBJECT( p_filter ), &p_block, nullptr,
+    const int i_ret = picture_Export( HEIMDALL_OBJECT( p_filter ), &p_block, nullptr,
                                        p_pic, i_codec, 0, 0, false );
     picture_Release( p_pic );
 
-    if ( i_ret != VLC_SUCCESS || !p_block )
+    if ( i_ret != HEIMDALL_SUCCESS || !p_block )
     {
         return false;
     }
 
-    FILE* p_file = vlc_fopen( psz_path, "wb" );
+    FILE* p_file = heimdall_fopen( psz_path, "wb" );
     bool b_ok = false;
     if ( p_file )
     {
@@ -227,7 +228,7 @@ static void Export( filter_t* p_filter, const segmented_object_t& obj, const cv:
     // export the original frame as a 3-channel PNG
     std::string frame_filename = std::string( p_sys->psz_export_path ) + "/frame_" +
         psz_timestamp + "_id" + std::to_string( obj.i_id ) + ".png";
-    if ( !WriteMatAsImage( p_filter, mat_frame, frame_filename.c_str( ), VLC_CODEC_PNG ) )
+    if ( !WriteMatAsImage( p_filter, mat_frame, frame_filename.c_str( ), HEIMDALL_CODEC_PNG ) )
     {
         msg_Err( p_filter, "Failed to export frame to %s", frame_filename.c_str( ) );
         return;
@@ -239,7 +240,7 @@ static void Export( filter_t* p_filter, const segmented_object_t& obj, const cv:
     cv::cvtColor( mat_mask_scaled, mat_mask_bgr, cv::COLOR_GRAY2BGR );
     std::string mask_filename = std::string( p_sys->psz_export_path ) + "/mask_" +
         psz_timestamp + "_id" + std::to_string( obj.i_id ) + ".png";
-    if ( !WriteMatAsImage( p_filter, mat_mask_bgr, mask_filename.c_str( ), VLC_CODEC_PNG ) )
+    if ( !WriteMatAsImage( p_filter, mat_mask_bgr, mask_filename.c_str( ), HEIMDALL_CODEC_PNG ) )
     {
         msg_Err( p_filter, "Failed to export mask to %s", mask_filename.c_str( ) );
         return;
@@ -273,7 +274,7 @@ static void Export( filter_t* p_filter, const segmented_object_t& obj, const cv:
     // export the visualization as JPEG
     std::string vis_filename = std::string( p_sys->psz_export_path ) + "/visualization_" +
         psz_timestamp + "_id" + std::to_string( obj.i_id ) + ".jpg";
-    if ( !WriteMatAsImage( p_filter, mat_visualization, vis_filename.c_str( ), VLC_CODEC_JPEG ) )
+    if ( !WriteMatAsImage( p_filter, mat_visualization, vis_filename.c_str( ), HEIMDALL_CODEC_JPEG ) )
     {
         msg_Err( p_filter, "Failed to export visualization to %s", vis_filename.c_str( ) );
         return;
@@ -793,7 +794,7 @@ static picture_t* Filter( filter_t* p_filter, picture_t* p_pic )
 /*****************************************************************************
 * Mouse: Handles mouse clicks
 *****************************************************************************/
-static int Mouse( filter_t* p_filter, vlc_mouse_t* p_mouse, const vlc_mouse_t* p_oldmouse )
+static int Mouse( filter_t* p_filter, heimdall_mouse_t* p_mouse, const heimdall_mouse_t* p_oldmouse )
 {
     auto* p_sys = static_cast<filter_sys_t*>( p_filter->p_sys );
 
@@ -803,7 +804,7 @@ static int Mouse( filter_t* p_filter, vlc_mouse_t* p_mouse, const vlc_mouse_t* p
     {
         if ( !p_sys->atom_paused )
         {
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
 
         const video_format_t fmt_out = p_filter->fmt_out.video;
@@ -877,7 +878,7 @@ static int Mouse( filter_t* p_filter, vlc_mouse_t* p_mouse, const vlc_mouse_t* p
             }
             if ( b_post_event )
                 p_sys->cv_work.notify_one( );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         // Find target object
@@ -929,7 +930,7 @@ static int Mouse( filter_t* p_filter, vlc_mouse_t* p_mouse, const vlc_mouse_t* p
         }
         p_sys->cv_work.notify_one( );
 
-        return VLC_EGENERIC; // don't open menu
+        return HEIMDALL_EGENERIC; // don't open menu
     }
 
     // Right click handling
@@ -938,7 +939,7 @@ static int Mouse( filter_t* p_filter, vlc_mouse_t* p_mouse, const vlc_mouse_t* p
         if ( !p_sys->atom_paused )
         {
             msg_Info( p_filter, "Segmentation only works when video is paused" );
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
 
         const video_format_t fmt_out = p_filter->fmt_out.video;
@@ -987,7 +988,7 @@ static int Mouse( filter_t* p_filter, vlc_mouse_t* p_mouse, const vlc_mouse_t* p
         if ( i_target_id <= 0 )
         {
             msg_Info( p_filter, "Right-click on an existing mask to add negative points" );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         {
@@ -1001,7 +1002,7 @@ static int Mouse( filter_t* p_filter, vlc_mouse_t* p_mouse, const vlc_mouse_t* p
         p_sys->cv_work.notify_one( );
 
 
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     // Middle click handling
@@ -1035,10 +1036,10 @@ static int Mouse( filter_t* p_filter, vlc_mouse_t* p_mouse, const vlc_mouse_t* p
             msg_Info( p_filter, "Removed object ID: %d", i_removed_id );
         }
 
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -1050,9 +1051,9 @@ static int Open( filter_t* p_filter )
     msg_Info( p_filter, "Open SAM segmentation filter" );
 
     // Only support BGR24 (fast)
-    if ( const vlc_fourcc_t i_fourcc = p_filter->fmt_in.video.i_chroma; i_fourcc != VLC_CODEC_BGR24 )
+    if ( const heimdall_fourcc_t i_fourcc = p_filter->fmt_in.video.i_chroma; i_fourcc != HEIMDALL_CODEC_BGR24 )
     {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     // Argument sanitization
@@ -1117,7 +1118,7 @@ static int Open( filter_t* p_filter )
             free( psz_export_path );
             free( psz_text_prompt );
             delete p_sys;
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         sam3_params sam_params;
@@ -1135,7 +1136,7 @@ static int Open( filter_t* p_filter )
             free( psz_export_path );
             free( psz_text_prompt );
             delete p_sys;
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         p_sys->ptr_sam_state = sam3_create_state( *p_sys->ptr_sam_model, sam_params );
@@ -1146,7 +1147,7 @@ static int Open( filter_t* p_filter )
             free( psz_export_path );
             free( psz_text_prompt );
             delete p_sys;
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
         p_sys->sz_input_size = cv::Size( 1008, 1008 );
     }
@@ -1157,7 +1158,7 @@ static int Open( filter_t* p_filter )
         free( psz_export_path );
         free( psz_text_prompt );
         delete p_sys;
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     catch ( ... )
     {
@@ -1166,7 +1167,7 @@ static int Open( filter_t* p_filter )
         free( psz_export_path );
         free( psz_text_prompt );
         delete p_sys;
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     free( psz_sam_model );
 
@@ -1174,7 +1175,7 @@ static int Open( filter_t* p_filter )
     p_filter->ops = &st_filter_ops;
     p_sys->thrd_processing = std::thread( Process, p_filter );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************

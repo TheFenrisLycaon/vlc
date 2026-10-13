@@ -4,6 +4,7 @@
  */
 /*****************************************************************************
  * Copyright © 2009-2013 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -34,11 +35,11 @@
 #include <xcb/xcb.h>
 #include <xcb/shm.h>
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
 #include "pictures.h"
 
-const xcb_format_t *vlc_xcb_DepthToPixmapFormat(const xcb_setup_t *setup,
+const xcb_format_t *heimdall_xcb_DepthToPixmapFormat(const xcb_setup_t *setup,
                                                 uint_fast8_t depth)
 {
     const xcb_format_t *fmt = xcb_setup_pixmap_formats(setup);
@@ -54,14 +55,14 @@ const xcb_format_t *vlc_xcb_DepthToPixmapFormat(const xcb_setup_t *setup,
     return NULL; /* should never happen, buggy server */
 }
 
-/** Convert X11 visual to VLC video format */
-bool vlc_xcb_VisualToFormat(const xcb_setup_t *setup, uint_fast8_t depth,
+/** Convert X11 visual to Heimdall video format */
+bool heimdall_xcb_VisualToFormat(const xcb_setup_t *setup, uint_fast8_t depth,
                             const xcb_visualtype_t *vt,
                             video_format_t *restrict f)
 {
     if (vt->_class == XCB_VISUAL_CLASS_TRUE_COLOR)
     {
-        /* Check that VLC supports the TrueColor visual. */
+        /* Check that Heimdall supports the TrueColor visual. */
         switch (depth)
         {
             /* TODO: 30 bits HDR RGB */
@@ -80,7 +81,7 @@ bool vlc_xcb_VisualToFormat(const xcb_setup_t *setup, uint_fast8_t depth,
                     break; /* 16-bits or 15-bits RGB */
                 return false;
             case 8:
-                /* XXX: VLC does not use masks for 8-bits. Untested. */
+                /* XXX: Heimdall does not use masks for 8-bits. Untested. */
                 break;
             default:
                 return false;
@@ -95,11 +96,11 @@ bool vlc_xcb_VisualToFormat(const xcb_setup_t *setup, uint_fast8_t depth,
     else
         return false; /* unsupported visual class */
 
-    const xcb_format_t *fmt = vlc_xcb_DepthToPixmapFormat(setup, depth);
+    const xcb_format_t *fmt = heimdall_xcb_DepthToPixmapFormat(setup, depth);
     if (unlikely(fmt == NULL))
         return false;
 
-    /* Check that VLC supports the pixel format. */
+    /* Check that Heimdall supports the pixel format. */
     switch (fmt->depth)
     {
         case 32:
@@ -114,7 +115,7 @@ bool vlc_xcb_VisualToFormat(const xcb_setup_t *setup, uint_fast8_t depth,
                     vt->blue_mask  == 0x000000ff)
                 {
                     f->i_chroma = setup->image_byte_order == XCB_IMAGE_ORDER_MSB_FIRST ?
-                                  VLC_CODEC_XRGB : VLC_CODEC_BGRX;
+                                  HEIMDALL_CODEC_XRGB : HEIMDALL_CODEC_BGRX;
                 }
                 else
                 if (vt->red_mask   == 0x000000ff &&
@@ -122,7 +123,7 @@ bool vlc_xcb_VisualToFormat(const xcb_setup_t *setup, uint_fast8_t depth,
                     vt->blue_mask  == 0x00ff0000)
                 {
                     f->i_chroma = setup->image_byte_order == XCB_IMAGE_ORDER_MSB_FIRST ?
-                                  VLC_CODEC_XBGR : VLC_CODEC_RGBX;
+                                  HEIMDALL_CODEC_XBGR : HEIMDALL_CODEC_RGBX;
                 }
                 else
                 if (vt->red_mask   == 0xff000000 &&
@@ -130,7 +131,7 @@ bool vlc_xcb_VisualToFormat(const xcb_setup_t *setup, uint_fast8_t depth,
                     vt->blue_mask  == 0x0000ff00)
                 {
                     f->i_chroma = setup->image_byte_order == XCB_IMAGE_ORDER_MSB_FIRST ?
-                                  VLC_CODEC_RGBX : VLC_CODEC_XBGR;
+                                  HEIMDALL_CODEC_RGBX : HEIMDALL_CODEC_XBGR;
                 }
                 else
                 if (vt->red_mask   == 0x0000ff00 &&
@@ -138,7 +139,7 @@ bool vlc_xcb_VisualToFormat(const xcb_setup_t *setup, uint_fast8_t depth,
                     vt->blue_mask  == 0xff000000)
                 {
                     f->i_chroma = setup->image_byte_order == XCB_IMAGE_ORDER_MSB_FIRST ?
-                                  VLC_CODEC_BGRX : VLC_CODEC_XRGB;
+                                  HEIMDALL_CODEC_BGRX : HEIMDALL_CODEC_XRGB;
                 }
                 else
                     return false;
@@ -150,7 +151,7 @@ bool vlc_xcb_VisualToFormat(const xcb_setup_t *setup, uint_fast8_t depth,
                     vt->blue_mask  == 0x0000ff)
                 {
                     f->i_chroma = setup->image_byte_order == XCB_IMAGE_ORDER_MSB_FIRST ?
-                                  VLC_CODEC_RGB24 : VLC_CODEC_BGR24;
+                                  HEIMDALL_CODEC_RGB24 : HEIMDALL_CODEC_BGR24;
                 }
                 else
                 if (vt->red_mask   == 0x0000ff &&
@@ -158,7 +159,7 @@ bool vlc_xcb_VisualToFormat(const xcb_setup_t *setup, uint_fast8_t depth,
                     vt->blue_mask  == 0xff0000)
                 {
                     f->i_chroma = setup->image_byte_order == XCB_IMAGE_ORDER_MSB_FIRST ?
-                                  VLC_CODEC_BGR24 : VLC_CODEC_RGB24;
+                                  HEIMDALL_CODEC_BGR24 : HEIMDALL_CODEC_RGB24;
                 }
                 else
                     return false;
@@ -174,7 +175,7 @@ bool vlc_xcb_VisualToFormat(const xcb_setup_t *setup, uint_fast8_t depth,
                 vt->blue_mask  == 0x001f)
             {
                 f->i_chroma = setup->image_byte_order == XCB_IMAGE_ORDER_MSB_FIRST ?
-                              VLC_CODEC_RGB565BE : VLC_CODEC_RGB565LE;
+                              HEIMDALL_CODEC_RGB565BE : HEIMDALL_CODEC_RGB565LE;
             }
             else
             if (vt->red_mask   == 0x001f &&
@@ -182,7 +183,7 @@ bool vlc_xcb_VisualToFormat(const xcb_setup_t *setup, uint_fast8_t depth,
                 vt->blue_mask  == 0xf800)
             {
                 f->i_chroma = setup->image_byte_order == XCB_IMAGE_ORDER_MSB_FIRST ?
-                              VLC_CODEC_BGR565BE : VLC_CODEC_BGR565LE;
+                              HEIMDALL_CODEC_BGR565BE : HEIMDALL_CODEC_BGR565LE;
             }
             else
                 return false;
@@ -195,7 +196,7 @@ bool vlc_xcb_VisualToFormat(const xcb_setup_t *setup, uint_fast8_t depth,
                 vt->blue_mask  == 0x001f)
             {
                 f->i_chroma = setup->image_byte_order == XCB_IMAGE_ORDER_MSB_FIRST ?
-                              VLC_CODEC_RGB555BE : VLC_CODEC_RGB555LE;
+                              HEIMDALL_CODEC_RGB555BE : HEIMDALL_CODEC_RGB555LE;
             }
             else
             if (vt->red_mask   == 0x001f &&
@@ -203,7 +204,7 @@ bool vlc_xcb_VisualToFormat(const xcb_setup_t *setup, uint_fast8_t depth,
                 vt->blue_mask  == 0x7c00)
             {
                 f->i_chroma = setup->image_byte_order == XCB_IMAGE_ORDER_MSB_FIRST ?
-                              VLC_CODEC_BGR555BE : VLC_CODEC_BGR555LE;
+                              HEIMDALL_CODEC_BGR555BE : HEIMDALL_CODEC_BGR555LE;
             }
             else
                 return false;
@@ -212,19 +213,19 @@ bool vlc_xcb_VisualToFormat(const xcb_setup_t *setup, uint_fast8_t depth,
             if (fmt->bits_per_pixel != 8)
                 return false;
             if (vt->_class == XCB_VISUAL_CLASS_TRUE_COLOR)
-                f->i_chroma = VLC_CODEC_RGB233;
+                f->i_chroma = HEIMDALL_CODEC_RGB233;
             else
-                f->i_chroma = VLC_CODEC_GREY;
+                f->i_chroma = HEIMDALL_CODEC_GREY;
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 
     return true;
 }
 
 /** Check MIT-SHM shared memory support */
-bool XCB_shm_Check (vlc_object_t *obj, xcb_connection_t *conn)
+bool XCB_shm_Check (heimdall_object_t *obj, xcb_connection_t *conn)
 {
     xcb_shm_query_version_cookie_t ck;
     xcb_shm_query_version_reply_t *r;

@@ -2,6 +2,7 @@
  * dispatcher.hpp : matroska demuxer
  *****************************************************************************
  * Copyright (C) 2016 VLC authors, VideoLAN, Videolabs SAS
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Filip Roseen <filip@videolabs.io>
  *
@@ -19,11 +20,11 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
-#ifndef VLC_MKV_DISPATCHER_HPP_
-#define VLC_MKV_DISPATCHER_HPP_
+#ifndef HEIMDALL_MKV_DISPATCHER_HPP_
+#define HEIMDALL_MKV_DISPATCHER_HPP_
 
-#include <vlc_threads.h>
-#include <vlc_cxx_helpers.hpp>
+#include <heimdall_threads.h>
+#include <heimdall_cxx_helpers.hpp>
 
 // ----------------------------------------------------------------------------
 // This header contains helpers to simulate lambdas in C++03.
@@ -62,14 +63,14 @@ namespace {
   template<class T, class DispatcherType>
   class DispatchContainer {
     public:    static DispatcherType dispatcher;
-    protected: static vlc::threads::mutex _dispatcher_lock;
+    protected: static heimdall::threads::mutex _dispatcher_lock;
   };
 
   template<class T, class DT>
   DT DispatchContainer<T, DT>::dispatcher;
 
   template<class T, class DT>
-  vlc::threads::mutex DispatchContainer<T, DT>::_dispatcher_lock;
+  heimdall::threads::mutex DispatchContainer<T, DT>::_dispatcher_lock;
 }
 
 // ----------------------------------------------------------------------------

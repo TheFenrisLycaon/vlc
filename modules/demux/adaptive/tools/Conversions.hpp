@@ -2,6 +2,7 @@
  * Conversions.hpp
  *****************************************************************************
  * Copyright © 2015 - VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -20,8 +21,8 @@
 #ifndef CONVERSIONS_HPP
 #define CONVERSIONS_HPP
 
-#include <vlc_common.h>
-#include <vlc_tick.h>
+#include <heimdall_common.h>
+#include <heimdall_tick.h>
 #include <string>
 #include <sstream>
 
@@ -29,20 +30,20 @@ class IsoTime
 {
     public:
         IsoTime(const std::string&);
-        operator vlc_tick_t() const;
+        operator heimdall_tick_t() const;
 
     private:
-        vlc_tick_t time;
+        heimdall_tick_t time;
 };
 
 class UTCTime
 {
     public:
         UTCTime(const std::string&);
-        operator vlc_tick_t() const;
+        operator heimdall_tick_t() const;
 
     private:
-        vlc_tick_t t;
+        heimdall_tick_t t;
 };
 
 template<typename T> class Integer

@@ -2,6 +2,7 @@
  * dxgi_swapchain.c: DXGI swapchain handled by the display module
  *****************************************************************************
  * Copyright (C) 2014-2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Martell Malone <martellmalone@gmail.com>
  *          Steve Lhomme <robux4@gmail.com>
@@ -27,7 +28,7 @@
 
 #include <cassert>
 
-#include <vlc_es.h>
+#include <heimdall_es.h>
 
 #include <windows.h>
 #include <dcomp.h>
@@ -67,7 +68,7 @@ typedef struct {
 
 struct dxgi_swapchain
 {
-    vlc_object_t           *obj = nullptr;
+    heimdall_object_t           *obj = nullptr;
 
     const d3d_format_t     *pixelFormat = nullptr;
     const dxgi_color_space *colorspace = nullptr;
@@ -139,7 +140,7 @@ static bool canHandleConversion(const dxgi_color_space *src, const dxgi_color_sp
     return false; /* let Windows do the rest */
 }
 
-void DXGI_SelectSwapchainColorspace(dxgi_swapchain *display, const libvlc_video_render_cfg_t *cfg, bool match_display)
+void DXGI_SelectSwapchainColorspace(dxgi_swapchain *display, const libheimdall_video_render_cfg_t *cfg, bool match_display)
 {
     HRESULT hr;
     int best = 0;
@@ -170,7 +171,7 @@ void DXGI_SelectSwapchainColorspace(dxgi_swapchain *display, const libvlc_video_
                 score += 2; /* we don't want to translate color spaces */
             if (color_spaces[i].transfer == (video_transfer_func_t) cfg->transfer ||
                 /* favor 2084 output for HLG source */
-                (color_spaces[i].transfer == TRANSFER_FUNC_SMPTE_ST2084 && cfg->transfer == libvlc_video_transfer_func_HLG))
+                (color_spaces[i].transfer == TRANSFER_FUNC_SMPTE_ST2084 && cfg->transfer == libheimdall_video_transfer_func_HLG))
                 score++;
             if (color_spaces[i].b_full_range == cfg->full_range)
                 score++;
@@ -278,7 +279,7 @@ static void DXGI_CreateSwapchainHwnd(dxgi_swapchain *display,
                               IDXGIAdapter *dxgiadapter, IUnknown *pFactoryDevice,
                               UINT width, UINT height)
 {
-    vlc_assert(display->swapchainSurfaceType == SWAPCHAIN_SURFACE_HWND);
+    heimdall_assert(display->swapchainSurfaceType == SWAPCHAIN_SURFACE_HWND);
     if (display->swapchainSurface.hwnd == NULL)
     {
         msg_Err(display->obj, "missing a HWND to create the swapchain");
@@ -316,7 +317,7 @@ static void DXGI_CreateSwapchainDComp(dxgi_swapchain *display,
                                IDXGIAdapter *dxgiadapter, IUnknown *pFactoryDevice,
                                UINT width, UINT height)
 {
-    vlc_assert(display->swapchainSurfaceType == SWAPCHAIN_SURFACE_DCOMP);
+    heimdall_assert(display->swapchainSurfaceType == SWAPCHAIN_SURFACE_DCOMP);
     if (!display->swapchainSurface.dcomp.device || !display->swapchainSurface.dcomp.visual)
     {
         msg_Err(display->obj, "missing a HWND to create the swapchain");
@@ -365,13 +366,13 @@ void DXGI_LocalSwapchainSwap( dxgi_swapchain *display )
     }
 }
 
-void DXGI_LocalSwapchainSetMetadata( dxgi_swapchain *display, libvlc_video_metadata_type_t type, const void *metadata )
+void DXGI_LocalSwapchainSetMetadata( dxgi_swapchain *display, libheimdall_video_metadata_type_t type, const void *metadata )
 {
-    assert(type == libvlc_video_metadata_frame_hdr10);
-    if ( type == libvlc_video_metadata_frame_hdr10 && metadata &&
+    assert(type == libheimdall_video_metadata_frame_hdr10);
+    if ( type == libheimdall_video_metadata_frame_hdr10 && metadata &&
          display->send_metadata && display->dxgiswapChain4.Get() )
     {
-        const libvlc_video_frame_hdr10_metadata_t *p_hdr10 = static_cast<const libvlc_video_frame_hdr10_metadata_t *>(metadata);
+        const libheimdall_video_frame_hdr10_metadata_t *p_hdr10 = static_cast<const libheimdall_video_frame_hdr10_metadata_t *>(metadata);
         DXGI_HDR_METADATA_HDR10 hdr10 = { };
         hdr10.GreenPrimary[0] = p_hdr10->GreenPrimary[0];
         hdr10.GreenPrimary[1] = p_hdr10->GreenPrimary[1];
@@ -394,7 +395,7 @@ void DXGI_LocalSwapchainSetMetadata( dxgi_swapchain *display, libvlc_video_metad
     }
 }
 
-dxgi_swapchain *DXGI_CreateLocalSwapchainHandleHwnd(vlc_object_t *o, HWND hwnd)
+dxgi_swapchain *DXGI_CreateLocalSwapchainHandleHwnd(heimdall_object_t *o, HWND hwnd)
 {
     dxgi_swapchain *display = new (std::nothrow) dxgi_swapchain();
     if (unlikely(display == NULL))
@@ -407,7 +408,7 @@ dxgi_swapchain *DXGI_CreateLocalSwapchainHandleHwnd(vlc_object_t *o, HWND hwnd)
     return display;
 }
 
-dxgi_swapchain *DXGI_CreateLocalSwapchainHandleDComp(vlc_object_t *o, void* dcompDevice, void* dcompVisual)
+dxgi_swapchain *DXGI_CreateLocalSwapchainHandleDComp(heimdall_object_t *o, void* dcompDevice, void* dcompVisual)
 {
     dxgi_swapchain *display = new (std::nothrow) dxgi_swapchain();
     if (unlikely(display == NULL))
@@ -426,19 +427,19 @@ void DXGI_LocalSwapchainCleanupDevice( dxgi_swapchain *display )
     delete display;
 }
 
-void DXGI_SwapchainUpdateOutput( dxgi_swapchain *display, libvlc_video_output_cfg_t *out )
+void DXGI_SwapchainUpdateOutput( dxgi_swapchain *display, libheimdall_video_output_cfg_t *out )
 {
     out->u.dxgi_format    = display->pixelFormat->formatTexture;
     out->full_range     = display->colorspace->b_full_range;
-    out->colorspace     = (libvlc_video_color_space_t)     display->colorspace->color;
-    out->primaries      = (libvlc_video_color_primaries_t) display->colorspace->primaries;
-    out->transfer       = (libvlc_video_transfer_func_t)   display->colorspace->transfer;
-    out->orientation    = libvlc_video_orient_top_left;
+    out->colorspace     = (libheimdall_video_color_space_t)     display->colorspace->color;
+    out->primaries      = (libheimdall_video_color_primaries_t) display->colorspace->primaries;
+    out->transfer       = (libheimdall_video_transfer_func_t)   display->colorspace->transfer;
+    out->orientation    = libheimdall_video_orient_top_left;
 }
 
 bool DXGI_UpdateSwapChain( dxgi_swapchain *display, IDXGIAdapter *dxgiadapter,
                            IUnknown *pFactoryDevice,
-                           const d3d_format_t *newPixelFormat, const libvlc_video_render_cfg_t *cfg,
+                           const d3d_format_t *newPixelFormat, const libheimdall_video_render_cfg_t *cfg,
                            bool match_display )
 {
     // 0 dimensions are not allowed, a value of 8 is used otherwise

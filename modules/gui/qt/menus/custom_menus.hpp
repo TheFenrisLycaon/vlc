@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright © 2006-2018 VideoLAN authors
  *                  2018 VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -164,7 +165,7 @@ class BookmarkMenu : public QMenu
     Q_OBJECT
 
 public:
-    BookmarkMenu(MediaLib * mediaLib, vlc_player_t * player, QWidget * parent = nullptr);
+    BookmarkMenu(MediaLib * mediaLib, heimdall_player_t * player, QWidget * parent = nullptr);
 };
 
 #endif // CUSTOM_MENUS_HPP

@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,10 +20,10 @@
 import QtQuick
 
 
-import VLC.Widgets as Widgets
-import VLC.Style
-import VLC.Player
-import VLC.Util
+import Heimdall.Widgets as Widgets
+import Heimdall.Style
+import Heimdall.Player
+import Heimdall.Util
 
 Widgets.IconToolButton {
     id: root
@@ -43,7 +44,7 @@ Widgets.IconToolButton {
 
     // Settings
 
-    text: VLCIcons.audiosub
+    text: HeimdallIcons.audiosub
 
     enabled: menuLoader.status === Loader.Ready
 

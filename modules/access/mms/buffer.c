@@ -2,6 +2,7 @@
  * buffer.c: MMS access plug-in
  *****************************************************************************
  * Copyright (C) 2001-2004 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *
@@ -28,9 +29,9 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_access.h>
-#include <vlc_charset.h>
+#include <heimdall_common.h>
+#include <heimdall_access.h>
+#include <heimdall_charset.h>
 
 #include "asf.h"
 #include "buffer.h"
@@ -212,7 +213,7 @@ int var_buffer_readempty( const var_buffer_t *p_buf )
     return( ( p_buf->i_data >= p_buf->i_size ) ? 1 : 0 );
 }
 
-void var_buffer_getguid( var_buffer_t *p_buf, vlc_guid_t *p_guid )
+void var_buffer_getguid( var_buffer_t *p_buf, heimdall_guid_t *p_guid )
 {
     p_guid->Data1 = var_buffer_get32( p_buf );
     p_guid->Data2 = var_buffer_get16( p_buf );

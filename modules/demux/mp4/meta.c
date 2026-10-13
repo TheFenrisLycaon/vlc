@@ -2,6 +2,7 @@
  * meta.c: mp4 meta handling
  *****************************************************************************
  * Copyright (C) 2001-2004, 2010, 2014 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -25,8 +26,8 @@
 #include "../../meta_engine/ID3Genres.h"  /* for ATOM_gnre */
 #include "languages.h"
 
-#include <vlc_meta.h>
-#include <vlc_charset.h>
+#include <heimdall_meta.h>
+#include <heimdall_charset.h>
 
 #include "meta.h"
 
@@ -38,28 +39,28 @@
 static const struct
 {
     const uint32_t xa9_type;
-    const vlc_meta_type_t meta_type;
+    const heimdall_meta_type_t meta_type;
 } xa9typetometa[] = {
-    { ATOM_0x40PRM, vlc_meta_EncodedBy }, /* Adobe Premiere */
-    { ATOM_0x40PRQ, vlc_meta_EncodedBy }, /* Adobe Qt */
-    { ATOM_0xa9nam, vlc_meta_Title }, /* Full name */
-    { ATOM_0xa9aut, vlc_meta_Artist },
-    { ATOM_0xa9ART, vlc_meta_Artist },
-    { ATOM_0xa9cpy, vlc_meta_Copyright },
-    { ATOM_0xa9day, vlc_meta_Date }, /* Creation Date */
-    { ATOM_0xa9des, vlc_meta_Description }, /* Description */
-    { ATOM_0xa9gen, vlc_meta_Genre }, /* Genre */
-    { ATOM_0xa9alb, vlc_meta_Album }, /* Album */
-    { ATOM_0xa9trk, vlc_meta_TrackNumber }, /* Track */
-    { ATOM_0xa9cmt, vlc_meta_Description }, /* Comment */
-    { ATOM_0xa9url, vlc_meta_URL }, /* URL */
-    { ATOM_0xa9too, vlc_meta_EncodedBy }, /* Encoder Tool */
-    { ATOM_0xa9enc, vlc_meta_EncodedBy }, /* Encoded By */
-    { ATOM_0xa9pub, vlc_meta_Publisher },
-    { ATOM_0xa9dir, vlc_meta_Director },
-    { ATOM_desc,    vlc_meta_Description },
-    { ATOM_MCPS,    vlc_meta_EncodedBy }, /* Cleaner Pro */
-    { ATOM_aART,    vlc_meta_AlbumArtist },
+    { ATOM_0x40PRM, heimdall_meta_EncodedBy }, /* Adobe Premiere */
+    { ATOM_0x40PRQ, heimdall_meta_EncodedBy }, /* Adobe Qt */
+    { ATOM_0xa9nam, heimdall_meta_Title }, /* Full name */
+    { ATOM_0xa9aut, heimdall_meta_Artist },
+    { ATOM_0xa9ART, heimdall_meta_Artist },
+    { ATOM_0xa9cpy, heimdall_meta_Copyright },
+    { ATOM_0xa9day, heimdall_meta_Date }, /* Creation Date */
+    { ATOM_0xa9des, heimdall_meta_Description }, /* Description */
+    { ATOM_0xa9gen, heimdall_meta_Genre }, /* Genre */
+    { ATOM_0xa9alb, heimdall_meta_Album }, /* Album */
+    { ATOM_0xa9trk, heimdall_meta_TrackNumber }, /* Track */
+    { ATOM_0xa9cmt, heimdall_meta_Description }, /* Comment */
+    { ATOM_0xa9url, heimdall_meta_URL }, /* URL */
+    { ATOM_0xa9too, heimdall_meta_EncodedBy }, /* Encoder Tool */
+    { ATOM_0xa9enc, heimdall_meta_EncodedBy }, /* Encoded By */
+    { ATOM_0xa9pub, heimdall_meta_Publisher },
+    { ATOM_0xa9dir, heimdall_meta_Director },
+    { ATOM_desc,    heimdall_meta_Description },
+    { ATOM_MCPS,    heimdall_meta_EncodedBy }, /* Cleaner Pro */
+    { ATOM_aART,    heimdall_meta_AlbumArtist },
 };
 
 static const struct
@@ -116,20 +117,20 @@ static const struct
 static const struct
 {
     const char *psz_naming;
-    const vlc_meta_type_t meta_type;
+    const heimdall_meta_type_t meta_type;
 } com_apple_quicktime_tometa[] = {
-    { "displayname",     vlc_meta_NowPlaying },
-    { "software",        vlc_meta_EncodedBy },
-    { "Encoded_With",    vlc_meta_EncodedBy },
-    { "album",           vlc_meta_Album },
-    { "artist",          vlc_meta_Artist },
-    { "comment",         vlc_meta_Description },
-    { "description",     vlc_meta_Description },
-    { "copyright",       vlc_meta_Copyright },
-    { "creationdate",    vlc_meta_Date },
-    { "director",        vlc_meta_Director },
-    { "genre",           vlc_meta_Genre },
-    { "publisher",       vlc_meta_Publisher },
+    { "displayname",     heimdall_meta_NowPlaying },
+    { "software",        heimdall_meta_EncodedBy },
+    { "Encoded_With",    heimdall_meta_EncodedBy },
+    { "album",           heimdall_meta_Album },
+    { "artist",          heimdall_meta_Artist },
+    { "comment",         heimdall_meta_Description },
+    { "description",     heimdall_meta_Description },
+    { "copyright",       heimdall_meta_Copyright },
+    { "creationdate",    heimdall_meta_Date },
+    { "director",        heimdall_meta_Director },
+    { "genre",           heimdall_meta_Genre },
+    { "publisher",       heimdall_meta_Publisher },
 };
 
 static const struct
@@ -183,7 +184,7 @@ static char * ExtractString( const MP4_Box_t *p_box )
 }
 
 static bool AppleNameToMeta( char const* name,
-    vlc_meta_type_t const** meta_type, char const** meta_key )
+    heimdall_meta_type_t const** meta_type, char const** meta_key )
 {
     *meta_type = NULL;
     *meta_key = NULL;
@@ -206,7 +207,7 @@ static bool AppleNameToMeta( char const* name,
 }
 
 static bool AtomXA9ToMeta( uint32_t i_type,
-    vlc_meta_type_t const** meta_type, char const** meta_key )
+    heimdall_meta_type_t const** meta_type, char const** meta_key )
 {
     *meta_type = NULL;
     *meta_key = NULL;
@@ -222,9 +223,9 @@ static bool AtomXA9ToMeta( uint32_t i_type,
     return *meta_type || *meta_key;
 }
 
-static bool SetMeta( vlc_meta_t* p_meta, int i_type, char const* name, const MP4_Box_t* p_box )
+static bool SetMeta( heimdall_meta_t* p_meta, int i_type, char const* name, const MP4_Box_t* p_box )
 {
-    vlc_meta_type_t const* type;
+    heimdall_meta_type_t const* type;
     char const* key;
 
     if( name != NULL)
@@ -242,8 +243,8 @@ static bool SetMeta( vlc_meta_t* p_meta, int i_type, char const* name, const MP4
 
     if( psz_utf )
     {
-        if( type ) vlc_meta_Set( p_meta, *type, psz_utf );
-        else       vlc_meta_SetExtra( p_meta, key, psz_utf );
+        if( type ) heimdall_meta_Set( p_meta, *type, psz_utf );
+        else       heimdall_meta_SetExtra( p_meta, key, psz_utf );
 
         free( psz_utf );
     }
@@ -251,12 +252,12 @@ static bool SetMeta( vlc_meta_t* p_meta, int i_type, char const* name, const MP4
     return true;
 }
 
-static int ExtractIntlStrings( vlc_meta_t *p_meta, const MP4_Box_t *p_box )
+static int ExtractIntlStrings( heimdall_meta_t *p_meta, const MP4_Box_t *p_box )
 {
     if( MP4_BoxGet( p_box, "data" ) )
         return false;
 
-    vlc_meta_type_t const* meta_type;
+    heimdall_meta_type_t const* meta_type;
     char const* meta_key;
 
     if( AtomXA9ToMeta( p_box->i_type, &meta_type, &meta_key ) == false )
@@ -270,7 +271,7 @@ static int ExtractIntlStrings( vlc_meta_t *p_meta, const MP4_Box_t *p_box )
         return false;
     }
 
-    vlc_meta_t* p_meta_intl = vlc_meta_New();
+    heimdall_meta_t* p_meta_intl = heimdall_meta_New();
 
     if( unlikely( !p_meta_intl ) )
         return false;
@@ -303,9 +304,9 @@ static int ExtractIntlStrings( vlc_meta_t *p_meta, const MP4_Box_t *p_box )
         {
             if( meta_type )
             {
-                vlc_meta_Set( p_meta_intl, *meta_type, data );
+                heimdall_meta_Set( p_meta_intl, *meta_type, data );
 
-                meta_key = vlc_meta_TypeToLocalizedString( *meta_type );
+                meta_key = heimdall_meta_TypeToLocalizedString( *meta_type );
                 meta_type = NULL;
             }
             else
@@ -313,7 +314,7 @@ static int ExtractIntlStrings( vlc_meta_t *p_meta, const MP4_Box_t *p_box )
                 char* key;
                 if( asprintf( &key, "%s (%s)", meta_key, charset+11 ) != -1 )
                 {
-                    vlc_meta_SetExtra( p_meta_intl, key, data );
+                    heimdall_meta_SetExtra( p_meta_intl, key, data );
                     free( key );
                 }
             }
@@ -325,9 +326,9 @@ static int ExtractIntlStrings( vlc_meta_t *p_meta, const MP4_Box_t *p_box )
     }
 
     if( i_read == 0 )
-        vlc_meta_Merge( p_meta, p_meta_intl );
+        heimdall_meta_Merge( p_meta, p_meta_intl );
 
-    vlc_meta_Delete( p_meta_intl );
+    heimdall_meta_Delete( p_meta_intl );
     return i_read == 0;
 }
 
@@ -366,7 +367,7 @@ static void ParseTriplet( const MP4_Box_t *p_box,
 
 struct itunprivcallbackctx
 {
-    vlc_meta_t *p_meta;
+    heimdall_meta_t *p_meta;
     qt_itunes_callback ituncb;
     void *priv;
 };
@@ -429,12 +430,12 @@ static void iTUNTripletCallback( const char *psz_key,
     {
         char *psz_val = StringConvert( p_data );
         if( psz_val )
-            vlc_meta_SetExtra( ctx->p_meta, psz_key, psz_val );
+            heimdall_meta_SetExtra( ctx->p_meta, psz_key, psz_val );
         free( psz_val );
     }
 }
 
-static void SetupmdirMeta( vlc_meta_t *p_meta, const MP4_Box_t *p_box, void *priv )
+static void SetupmdirMeta( heimdall_meta_t *p_meta, const MP4_Box_t *p_box, void *priv )
 {
     const MP4_Box_t *p_data = MP4_BoxGet( p_box, "data" );
 
@@ -458,7 +459,7 @@ static void SetupmdirMeta( vlc_meta_t *p_meta, const MP4_Box_t *p_box, void *pri
             char psz_utf[11];
             snprintf( psz_utf, sizeof( psz_utf ), "%"PRId32,
                       GetDWBE(BOXDATA(p_data)->p_blob) );
-            vlc_meta_SetExtra( p_meta, "iTunes Account ID", psz_utf );
+            heimdall_meta_SetExtra( p_meta, "iTunes Account ID", psz_utf );
         }
         break;
     }
@@ -470,7 +471,7 @@ static void SetupmdirMeta( vlc_meta_t *p_meta, const MP4_Box_t *p_box, void *pri
             char psz_utf[11];
             snprintf( psz_utf, sizeof( psz_utf ), "%"PRId32,
                       GetDWBE(BOXDATA(p_data)->p_blob) );
-            vlc_meta_SetExtra( p_meta, "iTunes Catalog ID", psz_utf );
+            heimdall_meta_SetExtra( p_meta, "iTunes Catalog ID", psz_utf );
         }
         break;
     }
@@ -479,7 +480,7 @@ static void SetupmdirMeta( vlc_meta_t *p_meta, const MP4_Box_t *p_box, void *pri
         if ( BOXDATA(p_data)->i_blob >= 1 &&
              BOXDATA(p_data)->e_wellknowntype == DATA_WKT_BE_SIGNED )
         {
-            vlc_meta_SetCompilation( p_meta,
+            heimdall_meta_SetCompilation( p_meta,
                                      *BOXDATA(p_data)->p_blob ? "1" : "0" );
         }
         break;
@@ -491,9 +492,9 @@ static void SetupmdirMeta( vlc_meta_t *p_meta, const MP4_Box_t *p_box, void *pri
         {
             char psz_number[6];
             snprintf( psz_number, sizeof( psz_number ), "%"PRIu16, GetWBE(&BOXDATA(p_data)->p_blob[2]) );
-            vlc_meta_Set( p_meta, vlc_meta_DiscNumber, psz_number );
+            heimdall_meta_Set( p_meta, heimdall_meta_DiscNumber, psz_number );
             snprintf( psz_number, sizeof( psz_number ), "%"PRIu16, GetWBE(&BOXDATA(p_data)->p_blob[4]) );
-            vlc_meta_Set( p_meta, vlc_meta_DiscTotal, psz_number );
+            heimdall_meta_Set( p_meta, heimdall_meta_DiscTotal, psz_number );
         }
         break;
     }
@@ -504,7 +505,7 @@ static void SetupmdirMeta( vlc_meta_t *p_meta, const MP4_Box_t *p_box, void *pri
         {
             const uint16_t i_genre = GetWBE(BOXDATA(p_data)->p_blob);
             if( i_genre && i_genre <= ID3_GENRES_COUNT )
-                vlc_meta_SetGenre( p_meta, ID3_ppsz_genres[i_genre - 1] );
+                heimdall_meta_SetGenre( p_meta, ID3_ppsz_genres[i_genre - 1] );
         }
         break;
     }
@@ -526,7 +527,7 @@ static void SetupmdirMeta( vlc_meta_t *p_meta, const MP4_Box_t *p_box, void *pri
                 psz_rating = N_("None");
                 break;
             }
-            vlc_meta_SetExtra( p_meta, N_("Rating"), psz_rating );
+            heimdall_meta_SetExtra( p_meta, N_("Rating"), psz_rating );
         }
         break;
     }
@@ -537,11 +538,11 @@ static void SetupmdirMeta( vlc_meta_t *p_meta, const MP4_Box_t *p_box, void *pri
         {
             char psz_trck[6];
             snprintf( psz_trck, sizeof( psz_trck ), "%"PRIu16, GetWBE(&BOXDATA(p_data)->p_blob[2]) );
-            vlc_meta_SetTrackNum( p_meta, psz_trck );
+            heimdall_meta_SetTrackNum( p_meta, psz_trck );
             if( BOXDATA(p_data)->i_blob >= 8 && GetWBE(&BOXDATA(p_data)->p_blob[4]) )
             {
                 snprintf( psz_trck, sizeof( psz_trck ), "%"PRIu16, GetWBE(&BOXDATA(p_data)->p_blob[4]) );
-                vlc_meta_Set( p_meta, vlc_meta_TrackTotal, psz_trck );
+                heimdall_meta_Set( p_meta, heimdall_meta_TrackTotal, psz_trck );
             }
         }
         break;
@@ -555,7 +556,7 @@ static void SetupmdirMeta( vlc_meta_t *p_meta, const MP4_Box_t *p_box, void *pri
     }
 }
 
-static void SetupmdtaMeta( vlc_meta_t *p_meta, const MP4_Box_t *p_box, const MP4_Box_t *p_keys )
+static void SetupmdtaMeta( heimdall_meta_t *p_meta, const MP4_Box_t *p_box, const MP4_Box_t *p_keys )
 {
     if ( !p_keys || !BOXDATA(p_keys) || BOXDATA(p_keys)->i_entry_count == 0 )
         return;
@@ -579,7 +580,7 @@ static void SetupmdtaMeta( vlc_meta_t *p_meta, const MP4_Box_t *p_box, const MP4
             if ( strlen(psz_utf) == 4 )
             {
                 SetMeta( p_meta,
-                         VLC_FOURCC(psz_utf[0],psz_utf[1],psz_utf[2],psz_utf[3]),
+                         HEIMDALL_FOURCC(psz_utf[0],psz_utf[1],psz_utf[2],psz_utf[3]),
                          NULL, p_box );
             }
             free( psz_utf );
@@ -590,14 +591,14 @@ static void SetupmdtaMeta( vlc_meta_t *p_meta, const MP4_Box_t *p_box, const MP4
 static int ID3TAG_Parse_Handler( uint32_t i_tag, const uint8_t *p_payload,
                                  size_t i_payload, void *p_priv )
 {
-    vlc_meta_t *p_meta = (vlc_meta_t *) p_priv;
+    heimdall_meta_t *p_meta = (heimdall_meta_t *) p_priv;
 
     (void) ID3HandleTag( p_payload, i_payload, i_tag, p_meta, NULL );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void SetupID3v2Meta( vlc_meta_t *p_meta, const MP4_Box_t *p_box )
+static void SetupID3v2Meta( heimdall_meta_t *p_meta, const MP4_Box_t *p_box )
 {
     const MP4_Box_t *p_binary = MP4_BoxGet( p_box, "ID32" );
     if( p_binary == NULL || !BOXDATA(p_binary) || BOXDATA(p_binary)->i_blob < 6 + 20 + 1 )
@@ -608,7 +609,7 @@ static void SetupID3v2Meta( vlc_meta_t *p_meta, const MP4_Box_t *p_box )
                   ID3TAG_Parse_Handler, p_meta );
 }
 
-void SetupMeta( vlc_meta_t *p_meta, const MP4_Box_t *p_udta,
+void SetupMeta( heimdall_meta_t *p_meta, const MP4_Box_t *p_udta,
                 qt_itunes_callback ituncb, void *priv )
 {
     uint32_t i_handler = 0;

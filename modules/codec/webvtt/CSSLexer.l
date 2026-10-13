@@ -2,6 +2,7 @@
  * CSSLexer.l : lexer for simplified CSS, based on W3C spec
  *****************************************************************************
  * Copyright (C) 2017 VideoLabs, VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -31,8 +32,8 @@
 #ifdef HAVE_CONFIG_H
 # include "config.h"
 #endif
-#include <vlc_common.h>
-#include <vlc_charset.h>
+#include <heimdall_common.h>
+#include <heimdall_charset.h>
 #include "css_parser.h"
 #include "CSSGrammar.h"
 #define VAL(a, b) { yylval->term.val = (a); yylval->term.type = TYPE_ ## b; }
@@ -71,38 +72,38 @@ range		\?{1,6}|{h}(\?{0,5}|{h}(\?{0,4}|{h}(\?{0,3}|{h}(\?{0,2}|{h}(\??|{h})))))
 "$="			{return ENDSWITH;}
 "*="			{return CONTAINS;}
 
-{string}		{ return (yylval->string = vlc_css_unquotedunescaped(yytext)) ? STRING : MEMERROR; }
+{string}		{ return (yylval->string = heimdall_css_unquotedunescaped(yytext)) ? STRING : MEMERROR; }
 
-{ident}			{ return (yylval->string = vlc_css_unquotedunescaped(yytext)) ? IDENT : MEMERROR; }
+{ident}			{ return (yylval->string = heimdall_css_unquotedunescaped(yytext)) ? IDENT : MEMERROR; }
 
 "@font-face"		{return FONT_FACE_SYM;}
 
 "!"{w}important		{return IMPORTANT_SYM;}
 
-{num}em			{ VAL( vlc_strtof_c(yytext, &d), EMS ); return LENGTH;}
+{num}em			{ VAL( heimdall_strtof_c(yytext, &d), EMS ); return LENGTH;}
 {num}ex			{ VAL( atoi(yytext), EXS ); return LENGTH;}
 {num}px			{ VAL( atoi(yytext), PIXELS ); return LENGTH;}
-{num}cm			{ VAL( vlc_strtof_c(yytext, &d) * 10, MILLIMETERS ); return LENGTH;}
+{num}cm			{ VAL( heimdall_strtof_c(yytext, &d) * 10, MILLIMETERS ); return LENGTH;}
 {num}mm			{ VAL( atoi(yytext), MILLIMETERS ); return LENGTH;}
-{num}in			{ VAL( vlc_strtof_c(yytext, &d) * 25.4, MILLIMETERS ); return LENGTH;}
-{num}pt			{ VAL( vlc_strtof_c(yytext, &d), POINTS ); return LENGTH;}
-{num}pc			{ VAL( vlc_strtof_c(yytext, &d), POINTS ); return LENGTH;}
-{num}deg		{ VAL( vlc_strtof_c(yytext, &d), DEGREES ); return ANGLE;}
-{num}rad		{ VAL( vlc_strtof_c(yytext, &d) * 0.0174533, DEGREES ); return ANGLE;}
-{num}grad		{ VAL( vlc_strtof_c(yytext, &d) * 1.1111111, DEGREES ); return ANGLE;}
+{num}in			{ VAL( heimdall_strtof_c(yytext, &d) * 25.4, MILLIMETERS ); return LENGTH;}
+{num}pt			{ VAL( heimdall_strtof_c(yytext, &d), POINTS ); return LENGTH;}
+{num}pc			{ VAL( heimdall_strtof_c(yytext, &d), POINTS ); return LENGTH;}
+{num}deg		{ VAL( heimdall_strtof_c(yytext, &d), DEGREES ); return ANGLE;}
+{num}rad		{ VAL( heimdall_strtof_c(yytext, &d) * 0.0174533, DEGREES ); return ANGLE;}
+{num}grad		{ VAL( heimdall_strtof_c(yytext, &d) * 1.1111111, DEGREES ); return ANGLE;}
 {num}ms			{ VAL( atoi(yytext), MILLISECONDS ); return TIME;}
 {num}s			{ VAL( atoi(yytext) * 1000, MILLISECONDS ); return TIME;}
 {num}Hz			{ VAL( atoi(yytext), HERTZ ); return FREQ;}
 {num}kHz		{ VAL( atoi(yytext) * 1000, HERTZ ); return FREQ;}
 {num}{ident}	{ VAL( 0, DIMENSION ); return DIMEN;}
 {num}%			{ VAL( atoi(yytext), PERCENT ); return PERCENTAGE;}
-{num}			{ VAL( vlc_strtof_c(yytext, &d), NONE ); return NUMBER;}
+{num}			{ VAL( heimdall_strtof_c(yytext, &d), NONE ); return NUMBER;}
 
-"url("{w}{string}{w}")"	{ return (yylval->string = vlc_css_unquotedunescaped(yytext)) ? URI : MEMERROR; }
-"url("{w}{url}{w}")"	{ return (yylval->string = vlc_css_unquotedunescaped(yytext)) ? URI : MEMERROR; }
-{ident}"("		{ return (yylval->string = vlc_css_unquotedunescaped(yytext)) ? FUNCTION : MEMERROR; }
-"#"{ident}      { return (yylval->string = vlc_css_unquotedunescaped(yytext)) ? IDSEL : MEMERROR; }
-"#"{name}       { return (yylval->string = vlc_css_unquotedunescaped(yytext)) ? HASH : MEMERROR; }
+"url("{w}{string}{w}")"	{ return (yylval->string = heimdall_css_unquotedunescaped(yytext)) ? URI : MEMERROR; }
+"url("{w}{url}{w}")"	{ return (yylval->string = heimdall_css_unquotedunescaped(yytext)) ? URI : MEMERROR; }
+{ident}"("		{ return (yylval->string = heimdall_css_unquotedunescaped(yytext)) ? FUNCTION : MEMERROR; }
+"#"{ident}      { return (yylval->string = heimdall_css_unquotedunescaped(yytext)) ? IDSEL : MEMERROR; }
+"#"{name}       { return (yylval->string = heimdall_css_unquotedunescaped(yytext)) ? HASH : MEMERROR; }
 
 U\+{range}		{ return (yylval->string = strdup(yytext)) ? UNICODERANGE : MEMERROR; }
 U\+{h}{1,6}-{h}{1,6}	{ return (yylval->string = strdup(yytext)) ? UNICODERANGE : MEMERROR; }

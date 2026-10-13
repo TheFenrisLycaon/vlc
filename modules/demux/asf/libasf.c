@@ -1,7 +1,8 @@
 /*****************************************************************************
- * libasf.c : asf stream demux module for vlc
+ * libasf.c : asf stream demux module for heimdall
  *****************************************************************************
  * Copyright © 2001-2004, 2006-2008 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *          Gildas Bazin <gbazin@videolan.org>
@@ -27,8 +28,8 @@
 
 #include <limits.h>
 
-#include <vlc_demux.h>
-#include <vlc_charset.h>          /* FromCharset */
+#include <heimdall_demux.h>
+#include <heimdall_charset.h>          /* FromCharset */
 
 #include "libasf.h"
 
@@ -120,12 +121,12 @@ static int ASF_ReadObjectCommon( stream_t *s, asf_object_t *p_obj, unsigned i_le
     asf_object_common_t *p_common = &p_obj->common;
     const uint8_t *p_peek;
 
-    if( vlc_stream_Peek( s, &p_peek, ASF_OBJECT_COMMON_SIZE ) < ASF_OBJECT_COMMON_SIZE )
-        return VLC_EGENERIC;
+    if( heimdall_stream_Peek( s, &p_peek, ASF_OBJECT_COMMON_SIZE ) < ASF_OBJECT_COMMON_SIZE )
+        return HEIMDALL_EGENERIC;
 
     ASF_GetGUID( &p_common->i_object_id, p_peek );
     p_common->i_object_size = GetQWLE( p_peek + 16 );
-    p_common->i_object_pos  = vlc_stream_Tell( s );
+    p_common->i_object_pos  = heimdall_stream_Tell( s );
     p_common->p_next = NULL;
     p_common->i_level = i_level;
 
@@ -136,32 +137,32 @@ static int ASF_ReadObjectCommon( stream_t *s, asf_object_t *p_obj, unsigned i_le
              p_common->i_object_size, p_common->i_object_pos );
 #endif
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int ASF_NextObject( stream_t *s, asf_object_t *p_obj, uint64_t i_boundary )
 {
     asf_object_t obj;
 
-    int64_t i_pos = vlc_stream_Tell( s );
+    int64_t i_pos = heimdall_stream_Tell( s );
     if ( i_boundary && i_pos >= 0 && (uint64_t) i_pos >= i_boundary )
     {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( p_obj == NULL )
     {
         if( ASF_ReadObjectCommon( s, &obj, 0 ) )
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
         p_obj = &obj;
     }
 
     if( p_obj->common.i_object_size <= 0 )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if( ( UINT64_MAX - p_obj->common.i_object_pos ) < p_obj->common.i_object_size )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if( p_obj->common.p_father &&
         p_obj->common.p_father->common.i_object_size != 0 )
@@ -171,18 +172,18 @@ static int ASF_NextObject( stream_t *s, asf_object_t *p_obj, uint64_t i_boundary
                 p_obj->common.i_object_pos + p_obj->common.i_object_size + ASF_OBJECT_COMMON_SIZE )
                                 /* ASF_OBJECT_COMMON_SIZE is min size of an object */
         {
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
     }
 
-    return vlc_stream_Seek( s, p_obj->common.i_object_pos +
+    return heimdall_stream_Seek( s, p_obj->common.i_object_pos +
                         p_obj->common.i_object_size );
 }
 
 static void ASF_FreeObject_Null( asf_object_t *pp_obj )
 {
-    VLC_UNUSED(pp_obj);
+    HEIMDALL_UNUSED(pp_obj);
 }
 
 static int  ASF_ReadObject_Header( stream_t *s, asf_object_t *p_obj )
@@ -191,8 +192,8 @@ static int  ASF_ReadObject_Header( stream_t *s, asf_object_t *p_obj )
     asf_object_t        *p_subobj;
     const uint8_t       *p_peek;
 
-    if( vlc_stream_Peek( s, &p_peek, 30 ) < 30 )
-       return VLC_EGENERIC;
+    if( heimdall_stream_Peek( s, &p_peek, 30 ) < 30 )
+       return HEIMDALL_EGENERIC;
 
     p_hdr->i_sub_object_count = GetDWLE( p_peek + ASF_OBJECT_COMMON_SIZE );
     p_hdr->i_reserved1 = p_peek[28];
@@ -208,8 +209,8 @@ static int  ASF_ReadObject_Header( stream_t *s, asf_object_t *p_obj )
              p_hdr->i_reserved2 );
 #endif
 
-    if( vlc_stream_Read( s, NULL, 30 ) != 30 )
-        return VLC_EGENERIC;
+    if( heimdall_stream_Read( s, NULL, 30 ) != 30 )
+        return HEIMDALL_EGENERIC;
 
     /* Now load sub object */
     for( ; ; )
@@ -224,7 +225,7 @@ static int  ASF_ReadObject_Header( stream_t *s, asf_object_t *p_obj )
         if( ASF_NextObject( s, p_subobj, 0 ) ) /* Go to the next object */
             break;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int ASF_ReadObject_Data( stream_t *s, asf_object_t *p_obj )
@@ -232,8 +233,8 @@ static int ASF_ReadObject_Data( stream_t *s, asf_object_t *p_obj )
     asf_object_data_t *p_data = &p_obj->data;
     const uint8_t     *p_peek;
 
-    if( vlc_stream_Peek( s, &p_peek, 50 ) < 50 )
-       return VLC_EGENERIC;
+    if( heimdall_stream_Peek( s, &p_peek, 50 ) < 50 )
+       return HEIMDALL_EGENERIC;
 
     ASF_GetGUID( &p_data->i_file_id, p_peek + ASF_OBJECT_COMMON_SIZE );
     p_data->i_total_data_packets = GetQWLE( p_peek + 40 );
@@ -248,7 +249,7 @@ static int ASF_ReadObject_Data( stream_t *s, asf_object_t *p_obj )
              p_data->i_reserved );
 #endif
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int ASF_ReadObject_Index( stream_t *s, asf_object_t *p_obj )
@@ -260,9 +261,9 @@ static int ASF_ReadObject_Index( stream_t *s, asf_object_t *p_obj )
     /* We just ignore error on the index */
     if( p_index->i_object_size < 56
      || p_index->i_object_size > INT32_MAX
-     || vlc_stream_Peek( s, &p_peek, p_index->i_object_size )
+     || heimdall_stream_Peek( s, &p_peek, p_index->i_object_size )
         < (int64_t)p_index->i_object_size )
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
     ASF_GetGUID( &p_index->i_file_id, p_peek + ASF_OBJECT_COMMON_SIZE );
     p_index->i_index_entry_time_interval = GetQWLE( p_peek + 40 );
@@ -286,7 +287,7 @@ static int ASF_ReadObject_Index( stream_t *s, asf_object_t *p_obj )
     {
         /* We can't use this index if it has an invalid time interval */
         p_index->i_index_entry_count = 0;
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
     if( p_index->i_index_entry_count > (p_index->i_object_size - 56) / 6 )
         p_index->i_index_entry_count = (p_index->i_object_size - 56) / 6;
@@ -296,7 +297,7 @@ static int ASF_ReadObject_Index( stream_t *s, asf_object_t *p_obj )
     if( !p_index->index_entry )
     {
         p_index->i_index_entry_count = 0;
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     for( i = 0, p_peek += 56; i < p_index->i_index_entry_count; i++, p_peek += 6 )
@@ -305,7 +306,7 @@ static int ASF_ReadObject_Index( stream_t *s, asf_object_t *p_obj )
         p_index->index_entry[i].i_packet_count = GetWLE( p_peek + 4 );
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void ASF_FreeObject_Index( asf_object_t *p_obj )
@@ -320,8 +321,8 @@ static int ASF_ReadObject_file_properties( stream_t *s, asf_object_t *p_obj )
     asf_object_file_properties_t *p_fp = &p_obj->file_properties;
     const uint8_t *p_peek;
 
-    if( vlc_stream_Peek( s, &p_peek,  104 ) < 104 )
-       return VLC_EGENERIC;
+    if( heimdall_stream_Peek( s, &p_peek,  104 ) < 104 )
+       return HEIMDALL_EGENERIC;
 
     ASF_GetGUID( &p_fp->i_file_id, p_peek + ASF_OBJECT_COMMON_SIZE );
     p_fp->i_file_size = GetQWLE( p_peek + 40 );
@@ -331,8 +332,8 @@ static int ASF_ReadObject_file_properties( stream_t *s, asf_object_t *p_obj )
     p_fp->i_send_duration = GetQWLE( p_peek + 72 );
     uint64_t preroll = GetQWLE( p_peek + 80 );
     if (unlikely(preroll > INT32_MAX)) // sanity check on "appropriate" value
-        return VLC_EINVAL;
-    p_fp->i_preroll = VLC_TICK_FROM_MS(preroll);
+        return HEIMDALL_EINVAL;
+    p_fp->i_preroll = HEIMDALL_TICK_FROM_MS(preroll);
     p_fp->i_flags = GetDWLE( p_peek + 88 );
     p_fp->i_min_data_packet_size = __MAX( GetDWLE( p_peek + 92 ), (uint32_t) 1 );
     p_fp->i_max_data_packet_size = __MAX( GetDWLE( p_peek + 96 ), (uint32_t) 1 );
@@ -353,7 +354,7 @@ static int ASF_ReadObject_file_properties( stream_t *s, asf_object_t *p_obj )
             p_fp->i_max_bitrate );
 #endif
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void ASF_FreeObject_metadata( asf_object_t *p_obj )
@@ -376,11 +377,11 @@ static int ASF_ReadObject_metadata( stream_t *s, asf_object_t *p_obj )
     const uint8_t *p_peek, *p_data;
 
     if( p_meta->i_object_size < 26 || p_meta->i_object_size > INT32_MAX )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    ssize_t i_peek = vlc_stream_Peek( s, &p_peek, p_meta->i_object_size );
+    ssize_t i_peek = heimdall_stream_Peek( s, &p_peek, p_meta->i_object_size );
     if( i_peek < (int64_t)p_meta->i_object_size )
-       return VLC_EGENERIC;
+       return HEIMDALL_EGENERIC;
 
     p_meta->i_record_entries_count = GetWLE( p_peek + ASF_OBJECT_COMMON_SIZE );
 
@@ -391,7 +392,7 @@ static int ASF_ReadObject_metadata( stream_t *s, asf_object_t *p_obj )
     if( !p_meta->record )
     {
         p_meta->i_record_entries_count = 0;
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     for( i = 0; i < p_meta->i_record_entries_count; i++ )
@@ -480,7 +481,7 @@ static int ASF_ReadObject_metadata( stream_t *s, asf_object_t *p_obj )
     }
 #endif
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int ASF_ReadObject_header_extension( stream_t *s, asf_object_t *p_obj )
@@ -489,11 +490,11 @@ static int ASF_ReadObject_header_extension( stream_t *s, asf_object_t *p_obj )
     const uint8_t *p_peek;
 
     if( p_he->i_object_size > INT32_MAX )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    ssize_t i_peek = vlc_stream_Peek( s, &p_peek, p_he->i_object_size );
+    ssize_t i_peek = heimdall_stream_Peek( s, &p_peek, p_he->i_object_size );
     if( i_peek < 46 )
-       return VLC_EGENERIC;
+       return HEIMDALL_EGENERIC;
 
     ASF_GetGUID( &p_he->i_reserved1, p_peek + ASF_OBJECT_COMMON_SIZE );
     p_he->i_reserved2 = GetWLE( p_peek + 40 );
@@ -501,12 +502,12 @@ static int ASF_ReadObject_header_extension( stream_t *s, asf_object_t *p_obj )
     if( p_he->i_header_extension_size )
     {
         if( (unsigned int)(i_peek-46) < p_he->i_header_extension_size )
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
         p_he->p_header_extension_data =
             malloc( p_he->i_header_extension_size );
         if( !p_he->p_header_extension_data )
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
 
         memcpy( p_he->p_header_extension_data, p_peek + 46,
                 p_he->i_header_extension_size );
@@ -525,13 +526,13 @@ static int ASF_ReadObject_header_extension( stream_t *s, asf_object_t *p_obj )
             p_he->i_header_extension_size );
 #endif
 
-    if( !p_he->i_header_extension_size ) return VLC_SUCCESS;
+    if( !p_he->i_header_extension_size ) return HEIMDALL_SUCCESS;
 
     /* Read the extension objects */
-    if( vlc_stream_Read( s, NULL, 46 ) != 46 )
+    if( heimdall_stream_Read( s, NULL, 46 ) != 46 )
     {
         free( p_he->p_header_extension_data );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     for( ; ; )
@@ -551,7 +552,7 @@ static int ASF_ReadObject_header_extension( stream_t *s, asf_object_t *p_obj )
         }
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void ASF_FreeObject_header_extension( asf_object_t *p_obj )
@@ -570,16 +571,16 @@ static int ASF_ReadObject_stream_properties( stream_t *s, asf_object_t *p_obj )
     if( p_sp->i_object_size > SSIZE_MAX )
     {
         msg_Err( s, "unable to peek: object size is too large" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 #endif
 
     if( p_sp->i_object_size > INT32_MAX )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    ssize_t i_peek = vlc_stream_Peek( s, &p_peek, p_sp->i_object_size );
+    ssize_t i_peek = heimdall_stream_Peek( s, &p_peek, p_sp->i_object_size );
     if( i_peek < 78 )
-       return VLC_EGENERIC;
+       return HEIMDALL_EGENERIC;
 
     ASF_GetGUID( &p_sp->i_stream_type, p_peek + ASF_OBJECT_COMMON_SIZE );
     ASF_GetGUID( &p_sp->i_error_correction_type, p_peek + 40 );
@@ -589,19 +590,19 @@ static int ASF_ReadObject_stream_properties( stream_t *s, asf_object_t *p_obj )
     p_sp->i_flags = GetWLE( p_peek + 72 );
     p_sp->i_stream_number = p_sp->i_flags&0x07f;
     if ( p_sp->i_stream_number > ASF_MAX_STREAMNUMBER )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     p_sp->i_reserved = GetDWLE( p_peek + 74 );
     i_peek -= 78;
 
     if( p_sp->i_type_specific_data_length )
     {
         if( i_peek < p_sp->i_type_specific_data_length )
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
         p_sp->p_type_specific_data =
             malloc( p_sp->i_type_specific_data_length );
         if( !p_sp->p_type_specific_data )
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
 
         memcpy( p_sp->p_type_specific_data, p_peek + 78,
                 p_sp->i_type_specific_data_length );
@@ -613,7 +614,7 @@ static int ASF_ReadObject_stream_properties( stream_t *s, asf_object_t *p_obj )
         if( i_peek < p_sp->i_error_correction_data_length )
         {
             free( p_sp->p_type_specific_data );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         p_sp->p_error_correction_data =
@@ -621,7 +622,7 @@ static int ASF_ReadObject_stream_properties( stream_t *s, asf_object_t *p_obj )
         if( !p_sp->p_error_correction_data )
         {
             free( p_sp->p_type_specific_data );
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         }
         memcpy( p_sp->p_error_correction_data,
                 p_peek + 78 + p_sp->i_type_specific_data_length,
@@ -643,7 +644,7 @@ static int ASF_ReadObject_stream_properties( stream_t *s, asf_object_t *p_obj )
             p_sp->i_stream_number );
 
 #endif
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void ASF_FreeObject_stream_properties( asf_object_t *p_obj )
@@ -676,11 +677,11 @@ static int ASF_ReadObject_codec_list( stream_t *s, asf_object_t *p_obj )
     const uint8_t *p_peek, *p_data;
 
     if( p_cl->i_object_size > INT32_MAX )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    ssize_t i_peek = vlc_stream_Peek( s, &p_peek, p_cl->i_object_size );
+    ssize_t i_peek = heimdall_stream_Peek( s, &p_peek, p_cl->i_object_size );
     if( i_peek < 44 )
-       return VLC_EGENERIC;
+       return HEIMDALL_EGENERIC;
 
     ASF_GetGUID( &p_cl->i_reserved, p_peek + ASF_OBJECT_COMMON_SIZE );
     uint32_t count = GetDWLE( p_peek + 40 );
@@ -743,11 +744,11 @@ static int ASF_ReadObject_codec_list( stream_t *s, asf_object_t *p_obj )
     }
 
     *pp = NULL;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     ASF_FreeObject_codec_list( p_obj );
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 static inline char *get_wstring( const uint8_t **pp_data, size_t i_size )
@@ -766,11 +767,11 @@ static int ASF_ReadObject_content_description(stream_t *s, asf_object_t *p_obj)
     uint16_t i_title, i_artist, i_copyright, i_description, i_rating;
 
     if( p_cd->i_object_size > INT32_MAX )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    ssize_t i_peek = vlc_stream_Peek( s, &p_peek, p_cd->i_object_size );
+    ssize_t i_peek = heimdall_stream_Peek( s, &p_peek, p_cd->i_object_size );
     if( i_peek < 34 )
-       return VLC_EGENERIC;
+       return HEIMDALL_EGENERIC;
 
     p_data = p_peek + ASF_OBJECT_COMMON_SIZE;
 
@@ -781,7 +782,7 @@ static int ASF_ReadObject_content_description(stream_t *s, asf_object_t *p_obj)
     i_rating        = ASF_READ2();
 
     if( !ASF_HAVE( i_title+i_artist+i_copyright+i_description+i_rating ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     p_cd->psz_title = get_wstring( &p_data, i_title );
     p_cd->psz_artist = get_wstring( &p_data, i_artist );
@@ -799,7 +800,7 @@ static int ASF_ReadObject_content_description(stream_t *s, asf_object_t *p_obj)
              p_cd->psz_rating );
 #endif
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void ASF_FreeObject_content_description( asf_object_t *p_obj)
@@ -821,11 +822,11 @@ static int ASF_ReadObject_language_list(stream_t *s, asf_object_t *p_obj)
     uint16_t i;
 
     if( p_ll->i_object_size > INT32_MAX )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    ssize_t i_peek = vlc_stream_Peek( s, &p_peek, p_ll->i_object_size );
+    ssize_t i_peek = heimdall_stream_Peek( s, &p_peek, p_ll->i_object_size );
     if( i_peek < 26 )
-       return VLC_EGENERIC;
+       return HEIMDALL_EGENERIC;
 
     p_data = &p_peek[ASF_OBJECT_COMMON_SIZE];
 
@@ -834,7 +835,7 @@ static int ASF_ReadObject_language_list(stream_t *s, asf_object_t *p_obj)
     {
         p_ll->ppsz_language = calloc( p_ll->i_language, sizeof( char *) );
         if( !p_ll->ppsz_language )
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
 
         for( i = 0; i < p_ll->i_language; i++ )
         {
@@ -852,7 +853,7 @@ static int ASF_ReadObject_language_list(stream_t *s, asf_object_t *p_obj)
         msg_Dbg( s, "  - '%s'",
                  p_ll->ppsz_language[i] );
 #endif
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void ASF_FreeObject_language_list( asf_object_t *p_obj)
@@ -874,11 +875,11 @@ static int ASF_ReadObject_stream_bitrate_properties( stream_t *s,
     uint16_t i;
 
     if( p_sb->i_object_size > INT32_MAX )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    ssize_t i_peek = vlc_stream_Peek( s, &p_peek, p_sb->i_object_size );
+    ssize_t i_peek = heimdall_stream_Peek( s, &p_peek, p_sb->i_object_size );
     if( i_peek < 26 )
-       return VLC_EGENERIC;
+       return HEIMDALL_EGENERIC;
 
     p_data = &p_peek[ASF_OBJECT_COMMON_SIZE];
 
@@ -891,7 +892,7 @@ static int ASF_ReadObject_stream_bitrate_properties( stream_t *s,
             break;
         p_sb->bitrate[i].i_stream_number = (uint8_t) ASF_READ2()& 0x7f;
         if ( p_sb->bitrate[i].i_stream_number > ASF_MAX_STREAMNUMBER )
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         p_sb->bitrate[i].i_avg_bitrate = ASF_READ4();
     }
     p_sb->i_bitrate = i;
@@ -905,11 +906,11 @@ static int ASF_ReadObject_stream_bitrate_properties( stream_t *s,
                  p_sb->bitrate[i].i_avg_bitrate );
     }
 #endif
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 static void ASF_FreeObject_stream_bitrate_properties( asf_object_t *p_obj)
 {
-    VLC_UNUSED(p_obj);
+    HEIMDALL_UNUSED(p_obj);
 }
 
 static void ASF_FreeObject_extended_stream_properties( asf_object_t *p_obj)
@@ -936,11 +937,11 @@ static int ASF_ReadObject_extended_stream_properties( stream_t *s,
     uint16_t i;
 
     if( p_esp->i_object_size > INT32_MAX )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    ssize_t i_peek = vlc_stream_Peek( s, &p_peek, p_esp->i_object_size );
+    ssize_t i_peek = heimdall_stream_Peek( s, &p_peek, p_esp->i_object_size );
     if( i_peek < 88 )
-       return VLC_EGENERIC;
+       return HEIMDALL_EGENERIC;
 
     p_data = &p_peek[ASF_OBJECT_COMMON_SIZE];
 
@@ -956,7 +957,7 @@ static int ASF_ReadObject_extended_stream_properties( stream_t *s,
     p_esp->i_flags = GetDWLE( &p_data[44] );
     p_esp->i_stream_number = GetWLE( &p_data[48] );
     if ( p_esp->i_stream_number > ASF_MAX_STREAMNUMBER )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     p_esp->i_language_index = GetWLE( &p_data[50] );
     p_esp->i_average_time_per_frame= GetQWLE( &p_data[52] );
     p_esp->i_stream_name_count = GetWLE( &p_data[60] );
@@ -973,7 +974,7 @@ static int ASF_ReadObject_extended_stream_properties( stream_t *s,
     {
         free( p_esp->pi_stream_name_language );
         free( p_esp->ppsz_stream_name );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
     for( i = 0; i < p_esp->i_stream_name_count; i++ )
     {
@@ -1013,10 +1014,10 @@ static int ASF_ReadObject_extended_stream_properties( stream_t *s,
     /* Read tail objects */
     if( p_data < &p_peek[i_peek] )
     {
-        if( vlc_stream_Read( s, NULL, p_data - p_peek ) != (p_data - p_peek) )
+        if( heimdall_stream_Read( s, NULL, p_data - p_peek ) != (p_data - p_peek) )
         {
             ASF_FreeObject_extended_stream_properties( p_obj );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         asf_object_t *p_sp = malloc( sizeof( asf_object_t ) );
@@ -1061,7 +1062,7 @@ static int ASF_ReadObject_extended_stream_properties( stream_t *s,
         msg_Dbg( s, "  - %u  - payload extension: " GUID_FMT, i,
                  GUID_PRINT( p_esp->p_ext[i].i_extension_id ) );
 #endif
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int ASF_ReadObject_advanced_mutual_exclusion( stream_t *s,
@@ -1072,20 +1073,20 @@ static int ASF_ReadObject_advanced_mutual_exclusion( stream_t *s,
     uint16_t i;
 
     if( p_ae->i_object_size > INT32_MAX )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    ssize_t i_peek = vlc_stream_Peek( s, &p_peek, p_ae->i_object_size );
+    ssize_t i_peek = heimdall_stream_Peek( s, &p_peek, p_ae->i_object_size );
     if( i_peek < 42 )
-       return VLC_EGENERIC;
+       return HEIMDALL_EGENERIC;
 
     p_data = &p_peek[ASF_OBJECT_COMMON_SIZE];
 
     if( !ASF_HAVE( 16 + 2 + 2 ) ) /* at least one entry */
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    if ( guidcmp( (const vlc_guid_t *) p_data, &asf_guid_mutex_language ) )
+    if ( guidcmp( (const heimdall_guid_t *) p_data, &asf_guid_mutex_language ) )
         p_ae->exclusion_type = LANGUAGE;
-    else if ( guidcmp( (const vlc_guid_t *) p_data, &asf_guid_mutex_bitrate ) )
+    else if ( guidcmp( (const heimdall_guid_t *) p_data, &asf_guid_mutex_bitrate ) )
         p_ae->exclusion_type = BITRATE;
     ASF_SKIP( 16 );
 
@@ -1094,7 +1095,7 @@ static int ASF_ReadObject_advanced_mutual_exclusion( stream_t *s,
     if ( !p_ae->pi_stream_number )
     {
         p_ae->i_stream_number_count = 0;
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     for( i = 0; i < p_ae->i_stream_number_count; i++ )
@@ -1115,7 +1116,7 @@ static int ASF_ReadObject_advanced_mutual_exclusion( stream_t *s,
     for( i = 0; i < p_ae->i_stream_number_count; i++ )
         msg_Dbg( s, "  - stream=%u", p_ae->pi_stream_number[i] );
 #endif
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 static void ASF_FreeObject_advanced_mutual_exclusion( asf_object_t *p_obj)
 {
@@ -1133,11 +1134,11 @@ static int ASF_ReadObject_stream_prioritization( stream_t *s,
     uint16_t i;
 
     if( p_sp->i_object_size > INT32_MAX )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    ssize_t i_peek = vlc_stream_Peek( s, &p_peek, p_sp->i_object_size );
+    ssize_t i_peek = heimdall_stream_Peek( s, &p_peek, p_sp->i_object_size );
     if( i_peek < 26 )
-       return VLC_EGENERIC;
+       return HEIMDALL_EGENERIC;
 
     p_data = &p_peek[ASF_OBJECT_COMMON_SIZE];
 
@@ -1152,7 +1153,7 @@ static int ASF_ReadObject_stream_prioritization( stream_t *s,
     {
         free( p_sp->pi_priority_flag );
         free( p_sp->pi_priority_stream_number );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     for( i = 0; i < p_sp->i_priority_count; i++ )
@@ -1171,7 +1172,7 @@ static int ASF_ReadObject_stream_prioritization( stream_t *s,
                  p_sp->pi_priority_stream_number[i],
                  p_sp->pi_priority_flag[i] );
 #endif
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 static void ASF_FreeObject_stream_prioritization( asf_object_t *p_obj)
 {
@@ -1187,20 +1188,20 @@ static int ASF_ReadObject_bitrate_mutual_exclusion( stream_t *s, asf_object_t *p
     const uint8_t *p_peek, *p_data;
 
     if( p_ex->i_object_size > INT32_MAX )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    ssize_t i_peek = vlc_stream_Peek( s, &p_peek, p_ex->i_object_size );
+    ssize_t i_peek = heimdall_stream_Peek( s, &p_peek, p_ex->i_object_size );
     if( i_peek < 42 )
-       return VLC_EGENERIC;
+       return HEIMDALL_EGENERIC;
 
     p_data = &p_peek[ASF_OBJECT_COMMON_SIZE];
 
     if( !ASF_HAVE( 16 + 2 + 2 ) ) /* at least one entry */
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    if ( guidcmp( (const vlc_guid_t *) p_data, &asf_guid_mutex_language ) )
+    if ( guidcmp( (const heimdall_guid_t *) p_data, &asf_guid_mutex_language ) )
         p_ex->exclusion_type = LANGUAGE;
-    else if ( guidcmp( (const vlc_guid_t *) p_data, &asf_guid_mutex_bitrate ) )
+    else if ( guidcmp( (const heimdall_guid_t *) p_data, &asf_guid_mutex_bitrate ) )
         p_ex->exclusion_type = BITRATE;
     ASF_SKIP( 16 );
 
@@ -1209,7 +1210,7 @@ static int ASF_ReadObject_bitrate_mutual_exclusion( stream_t *s, asf_object_t *p
     if ( ! p_ex->pi_stream_numbers )
     {
         p_ex->i_stream_number_count = 0;
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     for( uint16_t i = 0; i < p_ex->i_stream_number_count; i++ )
@@ -1220,7 +1221,7 @@ static int ASF_ReadObject_bitrate_mutual_exclusion( stream_t *s, asf_object_t *p
         if ( p_ex->pi_stream_numbers[i] > ASF_MAX_STREAMNUMBER )
         {
             free( p_ex->pi_stream_numbers );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
 
@@ -1233,7 +1234,7 @@ static int ASF_ReadObject_bitrate_mutual_exclusion( stream_t *s, asf_object_t *p
         msg_Dbg( s, "  - stream=%u", p_ex->pi_stream_numbers[i] );
 #endif
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 static void ASF_FreeObject_bitrate_mutual_exclusion( asf_object_t *p_obj)
 {
@@ -1252,11 +1253,11 @@ static int ASF_ReadObject_extended_content_description( stream_t *s,
     uint16_t i;
 
     if( p_ec->i_object_size > INT32_MAX )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    ssize_t i_peek = vlc_stream_Peek( s, &p_peek, p_ec->i_object_size );
+    ssize_t i_peek = heimdall_stream_Peek( s, &p_peek, p_ec->i_object_size );
     if( i_peek < 26 )
-       return VLC_EGENERIC;
+       return HEIMDALL_EGENERIC;
 
     p_data = &p_peek[ASF_OBJECT_COMMON_SIZE];
 
@@ -1267,7 +1268,7 @@ static int ASF_ReadObject_extended_content_description( stream_t *s,
     {
         free( p_ec->ppsz_name );
         free( p_ec->ppsz_value );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
     for( i = 0; i < p_ec->i_count; i++ )
     {
@@ -1346,7 +1347,7 @@ static int ASF_ReadObject_extended_content_description( stream_t *s,
                  p_ec->ppsz_name[i],
                  p_ec->ppsz_value[i] );
 #endif
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 static void ASF_FreeObject_extended_content_description( asf_object_t *p_obj)
 {
@@ -1368,16 +1369,16 @@ static int ASF_ReadObject_marker(stream_t *s, asf_object_t *p_obj)
     const uint8_t *p_peek, *p_data;
 
     if( p_mk->i_object_size > INT32_MAX )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    ssize_t i_peek = vlc_stream_Peek( s, &p_peek, p_mk->i_object_size );
+    ssize_t i_peek = heimdall_stream_Peek( s, &p_peek, p_mk->i_object_size );
     if( i_peek < ASF_OBJECT_COMMON_SIZE )
-       return VLC_EGENERIC;
+       return HEIMDALL_EGENERIC;
 
     p_data = &p_peek[ASF_OBJECT_COMMON_SIZE];
 
     if( !ASF_HAVE( 16+4+2+2 ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     ASF_GetGUID( &p_mk->i_reserved1, p_data );
     ASF_SKIP( 16 );
@@ -1392,7 +1393,7 @@ static int ASF_ReadObject_marker(stream_t *s, asf_object_t *p_obj)
         if( !p_mk->marker )
         {
             free( p_mk->name );
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         }
 
         for( uint32_t i = 0; i < p_mk->i_count; i++ )
@@ -1421,7 +1422,7 @@ static int ASF_ReadObject_marker(stream_t *s, asf_object_t *p_obj)
     for( unsigned i = 0; i < p_mk->i_count; i++ )
         msg_Dbg( s, "New chapter named: %s", p_mk->marker[i].p_marker_description );
 #endif
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 static void ASF_FreeObject_marker( asf_object_t *p_obj)
 {
@@ -1443,9 +1444,9 @@ static int ASF_ReadObject_timecode_index(stream_t *s, asf_object_t *p_obj)
     /* minimum: 24 common + 24 specific header = 48 bytes */
     if( p_tc_index->i_object_size < 48
      || p_tc_index->i_object_size > INT32_MAX
-     || vlc_stream_Peek( s, &p_peek, p_tc_index->i_object_size )
+     || heimdall_stream_Peek( s, &p_peek, p_tc_index->i_object_size )
         < (int64_t)p_tc_index->i_object_size )
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
     /* specific header fields at offset 24 (after common GUID+size):
      *   +0  DWORD index_entry_count (meaning unclear, not entry count)
@@ -1472,14 +1473,14 @@ static int ASF_ReadObject_timecode_index(stream_t *s, asf_object_t *p_obj)
 #endif
 
     if( !p_tc_index->i_index_entry_count )
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
     p_tc_index->timecode_entry = calloc( p_tc_index->i_index_entry_count,
                                          sizeof(asf_timecode_entry_t) );
     if( !p_tc_index->timecode_entry )
     {
         p_tc_index->i_index_entry_count = 0;
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     const uint8_t *p_data = p_peek + 48;
@@ -1490,7 +1491,7 @@ static int ASF_ReadObject_timecode_index(stream_t *s, asf_object_t *p_obj)
         p_tc_index->timecode_entry[i].i_packet_number = GetDWLE( p_data + 4 );
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int ASF_ReadObject_timecode_index_parameters(stream_t *s, asf_object_t *p_obj)
@@ -1500,9 +1501,9 @@ static int ASF_ReadObject_timecode_index_parameters(stream_t *s, asf_object_t *p
 
     if( p_tc_params->i_object_size < 40
      || p_tc_params->i_object_size > INT32_MAX
-     || vlc_stream_Peek( s, &p_peek, p_tc_params->i_object_size )
+     || heimdall_stream_Peek( s, &p_peek, p_tc_params->i_object_size )
         < (int64_t)p_tc_params->i_object_size )
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
     p_tc_params->i_index_entry_time_interval = GetDWLE( p_peek + ASF_OBJECT_COMMON_SIZE );
     p_tc_params->i_max_packet_count = GetDWLE( p_peek + ASF_OBJECT_COMMON_SIZE + 8 );
@@ -1518,7 +1519,7 @@ static int ASF_ReadObject_timecode_index_parameters(stream_t *s, asf_object_t *p
             p_tc_params->i_index_entry_count );
 #endif
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void ASF_FreeObject_timecode_index( asf_object_t *p_obj )
@@ -1530,15 +1531,15 @@ static void ASF_FreeObject_timecode_index( asf_object_t *p_obj )
 
 static int ASF_ReadObject_Raw(stream_t *s, asf_object_t *p_obj)
 {
-    VLC_UNUSED(s);
-    VLC_UNUSED(p_obj);
-    return VLC_SUCCESS;
+    HEIMDALL_UNUSED(s);
+    HEIMDALL_UNUSED(p_obj);
+    return HEIMDALL_SUCCESS;
 }
 
 /* */
 static const struct ASF_Object_Function_entry
 {
-    const vlc_guid_t  *p_id;
+    const heimdall_guid_t  *p_id;
     int     i_type;
     int     (*ASF_ReadObject_function)( stream_t *, asf_object_t *p_obj );
     void    (*ASF_FreeObject_function)( asf_object_t *p_obj );
@@ -1615,7 +1616,7 @@ static void ASF_ParentObject( asf_object_t *p_father, asf_object_t *p_obj )
     }
 }
 
-static const struct ASF_Object_Function_entry * ASF_GetObject_Function( const vlc_guid_t *id )
+static const struct ASF_Object_Function_entry * ASF_GetObject_Function( const heimdall_guid_t *id )
 {
     for( size_t i = 0; i < ARRAY_SIZE(ASF_Object_Function); i++ )
     {
@@ -1636,20 +1637,20 @@ static int ASF_ReadObject( stream_t *s, asf_object_t *p_obj,
 static int ASF_ReadObjectExpDepth( stream_t *s, asf_object_t *p_obj,
                                    asf_object_t *p_father, unsigned i_depth )
 {
-    int i_result = VLC_SUCCESS;
+    int i_result = HEIMDALL_SUCCESS;
 
     if( !p_obj )
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
     if( i_depth >= ASF_MAX_DEPTH )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     memset( p_obj, 0, sizeof( *p_obj ) );
 
     if( ASF_ReadObjectCommon( s, p_obj, i_depth ) )
     {
-        msg_Warn( s, "cannot read one asf object at %"PRIu64, vlc_stream_Tell(s) );
-        return VLC_EGENERIC;
+        msg_Warn( s, "cannot read one asf object at %"PRIu64, heimdall_stream_Tell(s) );
+        return HEIMDALL_EGENERIC;
     }
     p_obj->common.p_father = p_father;
     p_obj->common.p_first = NULL;
@@ -1659,8 +1660,8 @@ static int ASF_ReadObjectExpDepth( stream_t *s, asf_object_t *p_obj,
 
     if( p_obj->common.i_object_size < ASF_OBJECT_COMMON_SIZE )
     {
-        msg_Warn( s, "found a corrupted asf object (size<24) at %"PRIu64, vlc_stream_Tell(s) );
-        return VLC_EGENERIC;
+        msg_Warn( s, "found a corrupted asf object (size<24) at %"PRIu64, heimdall_stream_Tell(s) );
+        return HEIMDALL_EGENERIC;
     }
 
     const struct ASF_Object_Function_entry *p_reader =
@@ -1680,7 +1681,7 @@ static int ASF_ReadObjectExpDepth( stream_t *s, asf_object_t *p_obj,
     }
 
     /* link this object with father */
-    if ( i_result == VLC_SUCCESS )
+    if ( i_result == HEIMDALL_SUCCESS )
         ASF_ParentObject( p_father, p_obj );
 
     return i_result;
@@ -1725,11 +1726,11 @@ static void ASF_FreeObject( stream_t *s, asf_object_t *p_obj )
  *****************************************************************************/
 static const struct
 {
-    const vlc_guid_t *p_id;
+    const heimdall_guid_t *p_id;
     const char *psz_name;
 } ASF_ObjectDumpDebugInfo[] =
 {
-    { &vlc_object_root_guid, "Root" },
+    { &heimdall_object_root_guid, "Root" },
     { &asf_object_header_guid, "Header" },
     { &asf_object_data_guid, "Data" },
     { &asf_object_index_guid, "Index" },
@@ -1765,7 +1766,7 @@ static const struct
 };
 
 
-static void ASF_ObjectDumpDebug( vlc_object_t *p_obj,
+static void ASF_ObjectDumpDebug( heimdall_object_t *p_obj,
                                  asf_object_common_t *p_node, unsigned i_level )
 {
     unsigned i;
@@ -1829,8 +1830,8 @@ asf_object_root_t *ASF_ReadObjectRoot( stream_t *s, int b_seekable )
         return NULL;
 
     p_root->i_type = ASF_OBJECT_ROOT;
-    memcpy( &p_root->i_object_id, &vlc_object_root_guid, sizeof( vlc_guid_t ) );
-    p_root->i_object_pos = vlc_stream_Tell( s );
+    memcpy( &p_root->i_object_id, &heimdall_object_root_guid, sizeof( heimdall_guid_t ) );
+    p_root->i_object_pos = heimdall_stream_Tell( s );
     p_root->i_object_size = 0;
     p_root->i_level = 0;
     p_root->p_first = NULL;
@@ -1921,7 +1922,7 @@ asf_object_root_t *ASF_ReadObjectRoot( stream_t *s, int b_seekable )
                                     &asf_object_timecode_index_parameters_guid, 0 );
             }
 
-            ASF_ObjectDumpDebug( VLC_OBJECT(s),
+            ASF_ObjectDumpDebug( HEIMDALL_OBJECT(s),
                                  &p_obj_root->common, 0 );
             return p_root;
         }
@@ -1948,7 +1949,7 @@ void ASF_FreeObjectRoot( stream_t *s, asf_object_root_t *p_root )
     free( p_root );
 }
 
-int ASF_CountObject( void *_p_obj, const vlc_guid_t *p_guid )
+int ASF_CountObject( void *_p_obj, const heimdall_guid_t *p_guid )
 {
     int i_count;
     asf_object_t *p_child, *p_obj;
@@ -1969,7 +1970,7 @@ int ASF_CountObject( void *_p_obj, const vlc_guid_t *p_guid )
     return i_count;
 }
 
-void *ASF_FindObject( void *_p_obj, const vlc_guid_t *p_guid,
+void *ASF_FindObject( void *_p_obj, const heimdall_guid_t *p_guid,
                         int i_number )
 {
     asf_object_t *p_child, *p_obj;

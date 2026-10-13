@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 2001-2010 VLC authors and VideoLAN
  * Copyright © 2007-2012 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gildas Bazin <gbazin@videolan.org>
  *
@@ -25,11 +26,11 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
 #include <shlobj.h>
 
-#include <vlc_charset.h>
+#include <heimdall_charset.h>
 #include "../config/configuration.h"
 
 #include <assert.h>
@@ -75,44 +76,44 @@ static char *config_GetAppDir (void)
     char *psz_parent = config_GetKnownFolder (FOLDERID_RoamingAppData);
 
     if (psz_parent == NULL
-     ||  asprintf (&psz_dir, "%s\\vlc", psz_parent) == -1)
+     ||  asprintf (&psz_dir, "%s\\heimdall", psz_parent) == -1)
         psz_dir = NULL;
     free (psz_parent);
     return psz_dir;
 }
 
-char *platform_GetUserDir (vlc_userdir_t type)
+char *platform_GetUserDir (heimdall_userdir_t type)
 {
     switch (type)
     {
-        case VLC_HOME_DIR:
+        case HEIMDALL_HOME_DIR:
             return config_GetKnownFolder (FOLDERID_Documents);
-        case VLC_CONFIG_DIR:
-        case VLC_USERDATA_DIR:
+        case HEIMDALL_CONFIG_DIR:
+        case HEIMDALL_USERDATA_DIR:
             return config_GetAppDir ();
-        case VLC_CACHE_DIR:
+        case HEIMDALL_CACHE_DIR:
             return config_GetAppDir ();
-        case VLC_DESKTOP_DIR:
+        case HEIMDALL_DESKTOP_DIR:
             return config_GetKnownFolder (FOLDERID_Desktop);
-        case VLC_DOWNLOAD_DIR:
+        case HEIMDALL_DOWNLOAD_DIR:
             return config_GetKnownFolder (FOLDERID_Downloads);
-        case VLC_TEMPLATES_DIR:
-        case VLC_PUBLICSHARE_DIR:
-        case VLC_DOCUMENTS_DIR:
-            return config_GetUserDir(VLC_HOME_DIR);
-        case VLC_MUSIC_DIR:
+        case HEIMDALL_TEMPLATES_DIR:
+        case HEIMDALL_PUBLICSHARE_DIR:
+        case HEIMDALL_DOCUMENTS_DIR:
+            return config_GetUserDir(HEIMDALL_HOME_DIR);
+        case HEIMDALL_MUSIC_DIR:
             return config_GetKnownFolder (FOLDERID_Music);
-        case VLC_SNAPSHOTS_DIR:
+        case HEIMDALL_SNAPSHOTS_DIR:
         {
             char *folder = config_GetKnownFolder (FOLDERID_Screenshots);
             if (folder != NULL)
                 return folder;
             /* fall through */
         }
-        case VLC_PICTURES_DIR:
+        case HEIMDALL_PICTURES_DIR:
             return config_GetKnownFolder (FOLDERID_Pictures);
-        case VLC_VIDEOS_DIR:
+        case HEIMDALL_VIDEOS_DIR:
             return config_GetKnownFolder (FOLDERID_Videos);
     }
-    vlc_assert_unreachable ();
+    heimdall_assert_unreachable ();
 }

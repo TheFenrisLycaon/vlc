@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Benjamin Arnaud <bunjee@omega.gg>
  *
@@ -20,8 +21,8 @@
 
 #include "dialogmodel.hpp"
 
-// VLC includes
-#include <vlc_dialog.h>
+// Heimdall includes
+#include <heimdall_dialog.h>
 #include "qt.hpp"
 #include <QThread>
 
@@ -35,12 +36,12 @@ DialogErrorModel::DialogErrorModel(qt_intf_t * intf, QObject * parent)
     : QAbstractListModel(parent)
     , m_intf(intf)
 {
-    vlc_dialog_provider_set_error_callback(intf, &DialogErrorModel::onError, this);
+    heimdall_dialog_provider_set_error_callback(intf, &DialogErrorModel::onError, this);
 }
 
 DialogErrorModel::~DialogErrorModel()
 {
-    vlc_dialog_provider_set_error_callback(m_intf, nullptr, nullptr);
+    heimdall_dialog_provider_set_error_callback(m_intf, nullptr, nullptr);
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
     assert(qGuiApp);
@@ -185,79 +186,79 @@ void DialogErrorModel::resetRepeatedMessageCount()
 //static functions
 namespace {
 
-void onDialogLogin(void * p_data, vlc_dialog_id * dialogId,
+void onDialogLogin(void * p_data, heimdall_dialog_id * dialogId,
                                        const char * psz_title, const char * psz_text,
                                        const char * psz_default_username, bool b_ask_store)
 {
-    VLCDialogModel * model = static_cast<VLCDialogModel *>(p_data);
-    model->dialogCallback(dialogId, [=](VLCDialog* provider){
+    HeimdallDialogModel * model = static_cast<HeimdallDialogModel *>(p_data);
+    model->dialogCallback(dialogId, [=](HeimdallDialog* provider){
         emit provider->login(dialogId, psz_title, psz_text, psz_default_username, b_ask_store);
     });
 
 }
 
-void onDialogQuestion(void * p_data, vlc_dialog_id * dialogId,
+void onDialogQuestion(void * p_data, heimdall_dialog_id * dialogId,
                                           const char * psz_title, const char * psz_text,
-                                          vlc_dialog_question_type i_type,
+                                          heimdall_dialog_question_type i_type,
                                           const char * psz_cancel, const char * psz_action1,
                                           const char * psz_action2)
 {
-    auto model = static_cast<VLCDialogModel *>(p_data);
-    model->dialogCallback(dialogId, [=](VLCDialog* provider){
+    auto model = static_cast<HeimdallDialogModel *>(p_data);
+    model->dialogCallback(dialogId, [=](HeimdallDialog* provider){
         emit provider->question(
             dialogId, psz_title, psz_text,
-            static_cast<VLCDialog::QuestionType>(i_type), psz_cancel,
+            static_cast<HeimdallDialog::QuestionType>(i_type), psz_cancel,
             psz_action1, psz_action2);
     });
 }
 
-void onDialogProgress(void * p_data, vlc_dialog_id * dialogId,
+void onDialogProgress(void * p_data, heimdall_dialog_id * dialogId,
                                           const char * psz_title, const char * psz_text,
                                           bool b_indeterminate, float f_position,
                                           const char * psz_cancel)
 {
-    auto model = static_cast<VLCDialogModel*>(p_data);
-    model->dialogCallback(dialogId, [=](VLCDialog* provider){
+    auto model = static_cast<HeimdallDialogModel*>(p_data);
+    model->dialogCallback(dialogId, [=](HeimdallDialog* provider){
         emit provider->progress(dialogId, psz_title, psz_text, b_indeterminate, f_position, psz_cancel);
     });
 }
 
-void onDialogProgressUpdated(void * p_data, vlc_dialog_id * dialogId,
+void onDialogProgressUpdated(void * p_data, heimdall_dialog_id * dialogId,
                                                  float f_value, const char * psz_text)
 {
-    auto model = static_cast<VLCDialogModel*>(p_data);
-    model->dialogCallback(dialogId, [=](VLCDialog* provider){
+    auto model = static_cast<HeimdallDialogModel*>(p_data);
+    model->dialogCallback(dialogId, [=](HeimdallDialog* provider){
         emit provider->progressUpdated(dialogId, f_value, psz_text);
     });
 }
 
-void onDialogCancelled(void * p_data, vlc_dialog_id * dialogId)
+void onDialogCancelled(void * p_data, heimdall_dialog_id * dialogId)
 {
-    auto model = static_cast<VLCDialogModel*>(p_data);
-    model->dialogCallback(dialogId, [=](VLCDialog* provider){
+    auto model = static_cast<HeimdallDialogModel*>(p_data);
+    model->dialogCallback(dialogId, [=](HeimdallDialog* provider){
         emit provider->cancelled(dialogId);
     });
 }
 
 }
 
-VLCDialogModel::VLCDialogModel(qt_intf_t* intf, QObject* parent)
+HeimdallDialogModel::HeimdallDialogModel(qt_intf_t* intf, QObject* parent)
     : QObject(parent)
     , m_intf(intf)
 {
-    const vlc_dialog_cbs cbs =
+    const heimdall_dialog_cbs cbs =
         {
             onDialogLogin, onDialogQuestion, onDialogProgress,
             onDialogCancelled, onDialogProgressUpdated
         };
-    vlc_dialog_provider_set_callbacks(intf, &cbs, this);
+    heimdall_dialog_provider_set_callbacks(intf, &cbs, this);
 }
 
-VLCDialogModel::~VLCDialogModel()
+HeimdallDialogModel::~HeimdallDialogModel()
 {
     m_shuttingDown = true;
     m_providerWait.wakeAll();
-    vlc_dialog_provider_set_callbacks(m_intf, nullptr, nullptr);
+    heimdall_dialog_provider_set_callbacks(m_intf, nullptr, nullptr);
 
     //ensure that we are not destroying ourselve before
     {
@@ -267,12 +268,12 @@ VLCDialogModel::~VLCDialogModel()
     }
 }
 
-VLCDialog* VLCDialogModel::getProvider() const
+HeimdallDialog* HeimdallDialogModel::getProvider() const
 {
     return m_provider;
 }
 
-void VLCDialogModel::setProvider(VLCDialog* provider)
+void HeimdallDialogModel::setProvider(HeimdallDialog* provider)
 {
     if (m_provider == provider)
         return;
@@ -283,22 +284,22 @@ void VLCDialogModel::setProvider(VLCDialog* provider)
     m_provider = provider;
     if (m_provider)
     {
-        connect(m_provider, &VLCDialog::post_login,
+        connect(m_provider, &HeimdallDialog::post_login,
                 this, [](DialogId dialogId, const QString & username,
                         const QString & password, bool store){
-                    vlc_dialog_id_post_login(dialogId.m_id, qtu(username), qtu(password), store);
+                    heimdall_dialog_id_post_login(dialogId.m_id, qtu(username), qtu(password), store);
                 });
-        connect(m_provider, &VLCDialog::post_action1,
+        connect(m_provider, &HeimdallDialog::post_action1,
                 this, [](DialogId dialogId){
-                    vlc_dialog_id_post_action(dialogId.m_id, 1);
+                    heimdall_dialog_id_post_action(dialogId.m_id, 1);
                 });
-        connect(m_provider, &VLCDialog::post_action2,
+        connect(m_provider, &HeimdallDialog::post_action2,
                 this, [](DialogId dialogId){
-                    vlc_dialog_id_post_action(dialogId.m_id, 2);
+                    heimdall_dialog_id_post_action(dialogId.m_id, 2);
                 });
-        connect(m_provider, &VLCDialog::dismiss,
+        connect(m_provider, &HeimdallDialog::dismiss,
                 this, [](DialogId dialogId){
-                    vlc_dialog_id_dismiss(dialogId.m_id);
+                    heimdall_dialog_id_dismiss(dialogId.m_id);
                 });
 
     }
@@ -307,7 +308,7 @@ void VLCDialogModel::setProvider(VLCDialog* provider)
 }
 
 
-void VLCDialogModel::dialogCallback(vlc_dialog_id * dialogId, std::function<void(VLCDialog* provider)> callback)
+void HeimdallDialogModel::dialogCallback(heimdall_dialog_id * dialogId, std::function<void(HeimdallDialog* provider)> callback)
 {
     QMutexLocker lock(&m_lock);
     m_pendingDialog++;
@@ -315,7 +316,7 @@ void VLCDialogModel::dialogCallback(vlc_dialog_id * dialogId, std::function<void
     //(which shouldn't happen), we can't wait for m_provider
     if (QThread::currentThread() == this->thread() && m_provider == nullptr)
     {
-        vlc_dialog_id_dismiss(dialogId);
+        heimdall_dialog_id_dismiss(dialogId);
         m_pendingDialog--;
         m_pendingDialogCond.wakeOne();
         return;
@@ -326,7 +327,7 @@ void VLCDialogModel::dialogCallback(vlc_dialog_id * dialogId, std::function<void
 
     if (m_shuttingDown)
     {
-        vlc_dialog_id_dismiss(dialogId);
+        heimdall_dialog_id_dismiss(dialogId);
         m_pendingDialog--;
         m_pendingDialogCond.wakeOne();
         return;

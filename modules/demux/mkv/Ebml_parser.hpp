@@ -3,6 +3,7 @@
  * mkv.cpp : matroska demuxer
  *****************************************************************************
  * Copyright (C) 2003-2004 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *          Steve Lhomme <steve.lhomme@free.fr>
@@ -21,8 +22,8 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
-#ifndef VLC_MKV_EBML_PARSER_HPP_
-#define VLC_MKV_EBML_PARSER_HPP_
+#ifndef HEIMDALL_MKV_EBML_PARSER_HPP_
+#define HEIMDALL_MKV_EBML_PARSER_HPP_
 
 #include "mkv.hpp"
 

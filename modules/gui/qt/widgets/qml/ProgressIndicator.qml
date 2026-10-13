@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2024 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,13 +19,13 @@
 import QtQuick
 import QtQuick.Controls.Basic
 
-import VLC.Style
+import Heimdall.Style
 
 Control {
     id: root
 
-    padding: VLCStyle.margin_xxxsmall
-    font.pixelSize: VLCStyle.fontSize_normal
+    padding: HeimdallStyle.margin_xxxsmall
+    font.pixelSize: HeimdallStyle.fontSize_normal
 
     hoverEnabled: false
 
@@ -38,13 +39,13 @@ Control {
     background: Rectangle {
         border.color: theme.border
         border.pixelAligned: (radius < Number.EPSILON)
-        radius: VLCStyle.dp(6, VLCStyle.scale)
+        radius: HeimdallStyle.dp(6, HeimdallStyle.scale)
         color: theme.bg.primary
         opacity: 0.8
     }
 
     contentItem: Row {
-        spacing: VLCStyle.margin_xxxsmall
+        spacing: HeimdallStyle.margin_xxxsmall
 
         Text {
             anchors.verticalCenter: parent.verticalCenter

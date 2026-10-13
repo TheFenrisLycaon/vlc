@@ -2,6 +2,7 @@
  * iso_lang.c: function to decode language code (in dvd or a52 for instance).
  *****************************************************************************
  * Copyright (C) 1998-2004 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Stéphane Borel <stef@via.ecp.fr>
  *         Arnaud de Bossoreille de Ribou <bozo@via.ecp.fr>
@@ -31,9 +32,9 @@
 
 #include <stdio.h>
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
-#include "vlc_iso_lang.h"
+#include "heimdall_iso_lang.h"
 
 /*****************************************************************************
  * Local tables
@@ -84,7 +85,7 @@ static const iso639_lang_t * GetLang_name( const char * psz_lang )
     return NULL;
 }
 
-const iso639_lang_t * vlc_find_iso639( const char *code, bool try_name )
+const iso639_lang_t * heimdall_find_iso639( const char *code, bool try_name )
 {
     const iso639_lang_t *result = NULL;
     size_t len = strlen(code);

@@ -5,9 +5,10 @@
  * Copyright © 2007-2010 Mirsal Ennaime
  * Copyright © 2009-2010 The VideoLAN team
  * Copyright © 2013      Alex Merry
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors:    Mirsal Ennaime <mirsal dot ennaime at gmailcom>
- *             Rafaël Carré <funman at videolanorg>
+ *             Rafaël Carré <funman at lycariaorg>
  *             Alex Merry <dev at randomguy3 me uk>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -25,14 +26,14 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_DBUS_DBUS_COMMON_H_
-#define VLC_DBUS_DBUS_COMMON_H_
+#ifndef HEIMDALL_DBUS_DBUS_COMMON_H_
+#define HEIMDALL_DBUS_DBUS_COMMON_H_
 
-#include <vlc_common.h>
-#include <vlc_arrays.h>
-#include <vlc_interface.h>
-#include <vlc_player.h>
-#include <vlc_playlist.h>
+#include <heimdall_common.h>
+#include <heimdall_arrays.h>
+#include <heimdall_interface.h>
+#include <heimdall_player.h>
+#include <heimdall_playlist.h>
 #include <dbus/dbus.h>
 
 #define DBUS_MPRIS_OBJECT_PATH "/org/mpris/MediaPlayer2"
@@ -88,16 +89,16 @@
 #define ADD_INT64( i ) DBUS_ADD( DBUS_TYPE_INT64, i )
 #define ADD_BYTE( b ) DBUS_ADD( DBUS_TYPE_BYTE, b )
 
-#define MPRIS_TRACKID_FORMAT "/org/videolan/vlc/playlist/%" PRIu64
+#define MPRIS_TRACKID_FORMAT "/org/lycaria/heimdall/playlist/%" PRIu64
 
 struct intf_sys_t
 {
-    vlc_playlist_t              *playlist;
-    vlc_playlist_listener_id    *playlist_listener;
-    vlc_player_listener_id      *player_listener;
-    vlc_player_aout_listener_id *player_aout_listener;
-    vlc_player_vout_listener_id *player_vout_listener;
-    vlc_player_timer_id         *player_timer;
+    heimdall_playlist_t              *playlist;
+    heimdall_playlist_listener_id    *playlist_listener;
+    heimdall_player_listener_id      *player_listener;
+    heimdall_player_aout_listener_id *player_aout_listener;
+    heimdall_player_vout_listener_id *player_vout_listener;
+    heimdall_player_timer_id         *player_timer;
 
     DBusConnection *p_conn;
     bool            b_meta_read;
@@ -105,12 +106,12 @@ struct intf_sys_t
     dbus_int32_t    i_playing_state;
     bool            b_can_play;
     bool            b_dead;
-    vlc_array_t     events;
-    vlc_array_t     timeouts;
-    vlc_array_t     watches;
+    heimdall_array_t     events;
+    heimdall_array_t     timeouts;
+    heimdall_array_t     watches;
     int             p_pipe_fds[2];
-    vlc_mutex_t     lock;
-    vlc_thread_t    thread;
+    heimdall_mutex_t     lock;
+    heimdall_thread_t    thread;
     bool            has_input;
 };
 
@@ -145,7 +146,7 @@ enum
 };
 
 int DemarshalSetPropertyValue( DBusMessage *p_msg, void *p_arg );
-int GetInputMeta( vlc_playlist_item_t *,
+int GetInputMeta( heimdall_playlist_item_t *,
                   DBusMessageIter *args );
 int AddProperty ( intf_thread_t *p_intf,
                   DBusMessageIter *p_container,

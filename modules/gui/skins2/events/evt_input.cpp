@@ -2,6 +2,7 @@
  * evt_input.cpp
  *****************************************************************************
  * Copyright (C) 2003 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cyril Deguet     <asmax@via.ecp.fr>
  *          Olivier Teulière <ipkiss@via.ecp.fr>
@@ -22,7 +23,7 @@
  *****************************************************************************/
 
 #include "evt_input.hpp"
-#include "vlc_actions.h"
+#include "heimdall_actions.h"
 
 const int
     EvtInput::kModNone=0,

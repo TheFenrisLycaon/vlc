@@ -1,7 +1,8 @@
 /*****************************************************************************
- * libvlc_audio.c: New libvlc audio control API
+ * libheimdall_audio.c: New libheimdall audio control API
  *****************************************************************************
  * Copyright (C) 2006 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Filippo Carone <filippo@carone.org>
  *          Jean-Paul Saman <jpsaman _at_ m2x _dot_ nl>
@@ -28,42 +29,42 @@
 #include <assert.h>
 #include <math.h>
 
-#include <vlc/libvlc.h>
-#include <vlc/libvlc_renderer_discoverer.h>
-#include <vlc/libvlc_picture.h>
-#include <vlc/libvlc_media.h>
-#include <vlc/libvlc_media_player.h>
+#include <heimdall/libheimdall.h>
+#include <heimdall/libheimdall_renderer_discoverer.h>
+#include <heimdall/libheimdall_picture.h>
+#include <heimdall/libheimdall_media.h>
+#include <heimdall/libheimdall_media_player.h>
 
-#include <vlc_common.h>
-#include <vlc_aout.h>
-#include <vlc_modules.h>
+#include <heimdall_common.h>
+#include <heimdall_aout.h>
+#include <heimdall_modules.h>
 
-#include "libvlc_internal.h"
+#include "libheimdall_internal.h"
 #include "media_player_internal.h"
 
 /*
  * Remember to release the returned audio_output_t since it is locked at
  * the end of this function.
  */
-static audio_output_t *GetAOut( libvlc_media_player_t *mp )
+static audio_output_t *GetAOut( libheimdall_media_player_t *mp )
 {
     assert( mp != NULL );
 
-    audio_output_t *p_aout = vlc_player_aout_Hold(mp->player);
+    audio_output_t *p_aout = heimdall_player_aout_Hold(mp->player);
     if( p_aout == NULL )
-        libvlc_printerr( "No active audio output" );
+        libheimdall_printerr( "No active audio output" );
     return p_aout;
 }
 
 /*****************************************
  * Get the list of available audio outputs
  *****************************************/
-libvlc_audio_output_t *
-        libvlc_audio_output_list_get( libvlc_instance_t *p_instance )
+libheimdall_audio_output_t *
+        libheimdall_audio_output_list_get( libheimdall_instance_t *p_instance )
 {
     size_t count;
     module_t **module_list = module_list_get( &count );
-    libvlc_audio_output_t *list = NULL;
+    libheimdall_audio_output_t *list = NULL;
 
     for (size_t i = 0; i < count; i++)
     {
@@ -72,12 +73,12 @@ libvlc_audio_output_t *
         if( !module_provides( module, "audio output" ) )
             continue;
 
-        libvlc_audio_output_t *item = malloc( sizeof( *item ) );
+        libheimdall_audio_output_t *item = malloc( sizeof( *item ) );
         if( unlikely(item == NULL) )
         {
     error:
-            libvlc_printerr( "Not enough memory" );
-            libvlc_audio_output_list_release( list );
+            libheimdall_printerr( "Not enough memory" );
+            libheimdall_audio_output_list_release( list );
             list = NULL;
             break;
         }
@@ -96,18 +97,18 @@ libvlc_audio_output_t *
     }
     module_list_free( module_list );
 
-    VLC_UNUSED( p_instance );
+    HEIMDALL_UNUSED( p_instance );
     return list;
 }
 
 /********************************************
  * Free the list of available audio outputs
  ***********************************************/
-void libvlc_audio_output_list_release( libvlc_audio_output_t *list )
+void libheimdall_audio_output_list_release( libheimdall_audio_output_t *list )
 {
     while( list != NULL )
     {
-        libvlc_audio_output_t *next = list->p_next;
+        libheimdall_audio_output_t *next = list->p_next;
 
         free( list->psz_name );
         free( list->psz_description );
@@ -120,7 +121,7 @@ void libvlc_audio_output_list_release( libvlc_audio_output_t *list )
 /***********************
  * Set the audio output.
  ***********************/
-int libvlc_audio_output_set( libvlc_media_player_t *mp, const char *psz_name )
+int libheimdall_audio_output_set( libheimdall_media_player_t *mp, const char *psz_name )
 {
     char *value;
 
@@ -130,18 +131,18 @@ int libvlc_audio_output_set( libvlc_media_player_t *mp, const char *psz_name )
     var_SetString( mp, "aout", value );
     free( value );
 
-    vlc_player_aout_Reset(mp->player);
+    heimdall_player_aout_Reset(mp->player);
     return 0;
 }
 
-libvlc_audio_output_device_t *
-libvlc_audio_output_device_enum( libvlc_media_player_t *mp )
+libheimdall_audio_output_device_t *
+libheimdall_audio_output_device_enum( libheimdall_media_player_t *mp )
 {
     audio_output_t *aout = GetAOut( mp );
     if( aout == NULL )
         return NULL;
 
-    libvlc_audio_output_device_t *list, **pp = &list;
+    libheimdall_audio_output_device_t *list, **pp = &list;
     char **values, **texts;
 
     int n = aout_DevicesList( aout, &values, &texts );
@@ -151,7 +152,7 @@ libvlc_audio_output_device_enum( libvlc_media_player_t *mp )
 
     for (int i = 0; i < n; i++)
     {
-        libvlc_audio_output_device_t *item = malloc( sizeof(*item) );
+        libheimdall_audio_output_device_t *item = malloc( sizeof(*item) );
         if( unlikely(item == NULL) )
         {
             free( texts[i] );
@@ -172,11 +173,11 @@ err:
     return list;
 }
 
-void libvlc_audio_output_device_list_release( libvlc_audio_output_device_t *l )
+void libheimdall_audio_output_device_list_release( libheimdall_audio_output_device_t *l )
 {
     while( l != NULL )
     {
-        libvlc_audio_output_device_t *next = l->p_next;
+        libheimdall_audio_output_device_t *next = l->p_next;
 
         free( l->psz_description );
         free( l->psz_device );
@@ -188,7 +189,7 @@ void libvlc_audio_output_device_list_release( libvlc_audio_output_device_t *l )
 /*****************************
  * Set device for using
  *****************************/
-int libvlc_audio_output_device_set( libvlc_media_player_t *mp,
+int libheimdall_audio_output_device_set( libheimdall_media_player_t *mp,
                                     const char *devid )
 {
     if( devid == NULL )
@@ -203,7 +204,7 @@ int libvlc_audio_output_device_set( libvlc_media_player_t *mp,
     return ret;
 }
 
-char *libvlc_audio_output_device_get( libvlc_media_player_t *mp )
+char *libheimdall_audio_output_device_get( libheimdall_media_player_t *mp )
 {
     audio_output_t *aout = GetAOut( mp );
     if( aout == NULL )
@@ -216,14 +217,14 @@ char *libvlc_audio_output_device_get( libvlc_media_player_t *mp )
     return devid;
 }
 
-void libvlc_audio_toggle_mute( libvlc_media_player_t *mp )
+void libheimdall_audio_toggle_mute( libheimdall_media_player_t *mp )
 {
-    int mute = libvlc_audio_get_mute( mp );
+    int mute = libheimdall_audio_get_mute( mp );
     if( mute != -1 )
-        libvlc_audio_set_mute( mp, !mute );
+        libheimdall_audio_set_mute( mp, !mute );
 }
 
-int libvlc_audio_get_mute( libvlc_media_player_t *mp )
+int libheimdall_audio_get_mute( libheimdall_media_player_t *mp )
 {
     int mute = -1;
 
@@ -236,7 +237,7 @@ int libvlc_audio_get_mute( libvlc_media_player_t *mp )
     return mute;
 }
 
-void libvlc_audio_set_mute( libvlc_media_player_t *mp, int mute )
+void libheimdall_audio_set_mute( libheimdall_media_player_t *mp, int mute )
 {
     audio_output_t *aout = GetAOut( mp );
     if( aout != NULL )
@@ -246,7 +247,7 @@ void libvlc_audio_set_mute( libvlc_media_player_t *mp, int mute )
     }
 }
 
-int libvlc_audio_get_volume( libvlc_media_player_t *mp )
+int libheimdall_audio_get_volume( libheimdall_media_player_t *mp )
 {
     int volume = -1;
 
@@ -260,12 +261,12 @@ int libvlc_audio_get_volume( libvlc_media_player_t *mp )
     return volume;
 }
 
-int libvlc_audio_set_volume( libvlc_media_player_t *mp, int volume )
+int libheimdall_audio_set_volume( libheimdall_media_player_t *mp, int volume )
 {
     float vol = volume / 100.f;
     if (!isgreaterequal(vol, 0.f))
     {
-        libvlc_printerr( "Volume out of range" );
+        libheimdall_printerr( "Volume out of range" );
         return -1;
     }
 
@@ -280,13 +281,13 @@ int libvlc_audio_set_volume( libvlc_media_player_t *mp, int volume )
 }
 
 /*****************************************************************************
- * libvlc_audio_get_stereomode : Get the current audio stereo-mode
+ * libheimdall_audio_get_stereomode : Get the current audio stereo-mode
  *****************************************************************************/
-libvlc_audio_output_stereomode_t libvlc_audio_get_stereomode( libvlc_media_player_t *mp )
+libheimdall_audio_output_stereomode_t libheimdall_audio_get_stereomode( libheimdall_media_player_t *mp )
 {
     audio_output_t *p_aout = GetAOut( mp );
     if( !p_aout )
-        return libvlc_AudioStereoMode_Unset;
+        return libheimdall_AudioStereoMode_Unset;
 
     int val = var_GetInteger( p_aout, "stereo-mode" );
     aout_Release(p_aout);
@@ -294,18 +295,18 @@ libvlc_audio_output_stereomode_t libvlc_audio_get_stereomode( libvlc_media_playe
 }
 
 /*****************************************************************************
- * libvlc_audio_set_stereomode : Set the current audio stereo-mode
+ * libheimdall_audio_set_stereomode : Set the current audio stereo-mode
  *****************************************************************************/
-int libvlc_audio_set_stereomode( libvlc_media_player_t *mp, libvlc_audio_output_stereomode_t mode )
+int libheimdall_audio_set_stereomode( libheimdall_media_player_t *mp, libheimdall_audio_output_stereomode_t mode )
 {
-    static_assert(libvlc_AudioStereoMode_Unset == AOUT_VAR_CHAN_UNSET &&
-                  libvlc_AudioStereoMode_Stereo == AOUT_VAR_CHAN_STEREO &&
-                  libvlc_AudioStereoMode_RStereo == AOUT_VAR_CHAN_RSTEREO &&
-                  libvlc_AudioStereoMode_Left == AOUT_VAR_CHAN_LEFT &&
-                  libvlc_AudioStereoMode_Right == AOUT_VAR_CHAN_RIGHT &&
-                  libvlc_AudioStereoMode_Dolbys == AOUT_VAR_CHAN_DOLBYS &&
-                  libvlc_AudioStereoMode_Mono == AOUT_VAR_CHAN_MONO,
-                  "Mismatch with stereo-mode LibVLC/VLC enums");
+    static_assert(libheimdall_AudioStereoMode_Unset == AOUT_VAR_CHAN_UNSET &&
+                  libheimdall_AudioStereoMode_Stereo == AOUT_VAR_CHAN_STEREO &&
+                  libheimdall_AudioStereoMode_RStereo == AOUT_VAR_CHAN_RSTEREO &&
+                  libheimdall_AudioStereoMode_Left == AOUT_VAR_CHAN_LEFT &&
+                  libheimdall_AudioStereoMode_Right == AOUT_VAR_CHAN_RIGHT &&
+                  libheimdall_AudioStereoMode_Dolbys == AOUT_VAR_CHAN_DOLBYS &&
+                  libheimdall_AudioStereoMode_Mono == AOUT_VAR_CHAN_MONO,
+                  "Mismatch with stereo-mode LibHeimdall/Heimdall enums");
 
     audio_output_t *p_aout = GetAOut( mp );
     int ret = 0;
@@ -315,7 +316,7 @@ int libvlc_audio_set_stereomode( libvlc_media_player_t *mp, libvlc_audio_output_
 
     if( var_SetInteger( p_aout, "stereo-mode", mode ) < 0 )
     {
-        libvlc_printerr( "Audio stereo-mode out of range" );
+        libheimdall_printerr( "Audio stereo-mode out of range" );
         ret = -1;
     }
     aout_Release(p_aout);
@@ -323,13 +324,13 @@ int libvlc_audio_set_stereomode( libvlc_media_player_t *mp, libvlc_audio_output_
 }
 
 /*****************************************************************************
- * libvlc_audio_get_mixmode : Get the current audio mix-mode
+ * libheimdall_audio_get_mixmode : Get the current audio mix-mode
  *****************************************************************************/
-libvlc_audio_output_mixmode_t libvlc_audio_get_mixmode( libvlc_media_player_t *mp )
+libheimdall_audio_output_mixmode_t libheimdall_audio_get_mixmode( libheimdall_media_player_t *mp )
 {
     audio_output_t *p_aout = GetAOut( mp );
     if( !p_aout )
-        return libvlc_AudioMixMode_Unset;
+        return libheimdall_AudioMixMode_Unset;
 
     int val = var_GetInteger( p_aout, "mix-mode" );
     aout_Release(p_aout);
@@ -337,17 +338,17 @@ libvlc_audio_output_mixmode_t libvlc_audio_get_mixmode( libvlc_media_player_t *m
 }
 
 /*****************************************************************************
- * libvlc_audio_set_mixmode : Set the current audio mix-mode
+ * libheimdall_audio_set_mixmode : Set the current audio mix-mode
  *****************************************************************************/
-int libvlc_audio_set_mixmode( libvlc_media_player_t *mp, libvlc_audio_output_mixmode_t mode )
+int libheimdall_audio_set_mixmode( libheimdall_media_player_t *mp, libheimdall_audio_output_mixmode_t mode )
 {
-    static_assert(libvlc_AudioMixMode_Unset == AOUT_VAR_CHAN_UNSET &&
-                  libvlc_AudioMixMode_Stereo == AOUT_MIX_MODE_STEREO &&
-                  libvlc_AudioMixMode_Binaural == AOUT_MIX_MODE_BINAURAL &&
-                  libvlc_AudioMixMode_4_0 == AOUT_MIX_MODE_4_0 &&
-                  libvlc_AudioMixMode_5_1 == AOUT_MIX_MODE_5_1 &&
-                  libvlc_AudioMixMode_7_1 == AOUT_MIX_MODE_7_1,
-                  "Mismatch with mix-mode LibVLC/VLC enums");
+    static_assert(libheimdall_AudioMixMode_Unset == AOUT_VAR_CHAN_UNSET &&
+                  libheimdall_AudioMixMode_Stereo == AOUT_MIX_MODE_STEREO &&
+                  libheimdall_AudioMixMode_Binaural == AOUT_MIX_MODE_BINAURAL &&
+                  libheimdall_AudioMixMode_4_0 == AOUT_MIX_MODE_4_0 &&
+                  libheimdall_AudioMixMode_5_1 == AOUT_MIX_MODE_5_1 &&
+                  libheimdall_AudioMixMode_7_1 == AOUT_MIX_MODE_7_1,
+                  "Mismatch with mix-mode LibHeimdall/Heimdall enums");
 
     audio_output_t *p_aout = GetAOut( mp );
     int ret = 0;
@@ -357,7 +358,7 @@ int libvlc_audio_set_mixmode( libvlc_media_player_t *mp, libvlc_audio_output_mix
 
     if( var_SetInteger( p_aout, "mix-mode", mode ) < 0 )
     {
-        libvlc_printerr( "Audio mix-mode out of range" );
+        libheimdall_printerr( "Audio mix-mode out of range" );
         ret = -1;
     }
     aout_Release(p_aout);
@@ -365,48 +366,48 @@ int libvlc_audio_set_mixmode( libvlc_media_player_t *mp, libvlc_audio_output_mix
 }
 
 /*****************************************************************************
- * libvlc_audio_get_delay : Get the current audio delay
+ * libheimdall_audio_get_delay : Get the current audio delay
  *****************************************************************************/
-libvlc_time_t libvlc_audio_get_delay( libvlc_media_player_t *p_mi )
+libheimdall_time_t libheimdall_audio_get_delay( libheimdall_media_player_t *p_mi )
 {
-    vlc_player_t *player = p_mi->player;
-    vlc_player_Lock(player);
+    heimdall_player_t *player = p_mi->player;
+    heimdall_player_Lock(player);
 
-    vlc_tick_t delay = vlc_player_GetAudioDelay(player);
+    heimdall_tick_t delay = heimdall_player_GetAudioDelay(player);
 
-    vlc_player_Unlock(player);
+    heimdall_player_Unlock(player);
 
-    return US_FROM_VLC_TICK(delay);
+    return US_FROM_HEIMDALL_TICK(delay);
 }
 
 /*****************************************************************************
- * libvlc_audio_set_delay : Set the current audio delay
+ * libheimdall_audio_set_delay : Set the current audio delay
  *****************************************************************************/
-int libvlc_audio_set_delay( libvlc_media_player_t *p_mi, libvlc_time_t i_delay )
+int libheimdall_audio_set_delay( libheimdall_media_player_t *p_mi, libheimdall_time_t i_delay )
 {
-    vlc_player_t *player = p_mi->player;
-    vlc_player_Lock(player);
+    heimdall_player_t *player = p_mi->player;
+    heimdall_player_Lock(player);
 
-    vlc_player_SetAudioDelay(player, VLC_TICK_FROM_US(i_delay),
-                             VLC_PLAYER_WHENCE_ABSOLUTE);
+    heimdall_player_SetAudioDelay(player, HEIMDALL_TICK_FROM_US(i_delay),
+                             HEIMDALL_PLAYER_WHENCE_ABSOLUTE);
 
-    vlc_player_Unlock(player);
+    heimdall_player_Unlock(player);
     /* may not fail anymore, keep int not to break the API */
     return 0;
 }
 
 /*****************************************************************************
- * libvlc_audio_equalizer_get_preset_count : Get the number of equalizer presets
+ * libheimdall_audio_equalizer_get_preset_count : Get the number of equalizer presets
  *****************************************************************************/
-unsigned libvlc_audio_equalizer_get_preset_count( void )
+unsigned libheimdall_audio_equalizer_get_preset_count( void )
 {
     return NB_PRESETS;
 }
 
 /*****************************************************************************
- * libvlc_audio_equalizer_get_preset_name : Get the name for a preset
+ * libheimdall_audio_equalizer_get_preset_name : Get the name for a preset
  *****************************************************************************/
-const char *libvlc_audio_equalizer_get_preset_name( unsigned u_index )
+const char *libheimdall_audio_equalizer_get_preset_name( unsigned u_index )
 {
     if ( u_index >= NB_PRESETS )
         return NULL;
@@ -415,17 +416,17 @@ const char *libvlc_audio_equalizer_get_preset_name( unsigned u_index )
 }
 
 /*****************************************************************************
- * libvlc_audio_equalizer_get_band_count : Get the number of equalizer frequency bands
+ * libheimdall_audio_equalizer_get_band_count : Get the number of equalizer frequency bands
  *****************************************************************************/
-unsigned libvlc_audio_equalizer_get_band_count( void )
+unsigned libheimdall_audio_equalizer_get_band_count( void )
 {
     return EQZ_BANDS_MAX;
 }
 
 /*****************************************************************************
- * libvlc_audio_equalizer_get_band_frequency : Get the frequency for a band
+ * libheimdall_audio_equalizer_get_band_frequency : Get the frequency for a band
  *****************************************************************************/
-float libvlc_audio_equalizer_get_band_frequency( unsigned u_index )
+float libheimdall_audio_equalizer_get_band_frequency( unsigned u_index )
 {
     if ( u_index >= EQZ_BANDS_MAX )
         return -1.f;
@@ -434,11 +435,11 @@ float libvlc_audio_equalizer_get_band_frequency( unsigned u_index )
 }
 
 /*****************************************************************************
- * libvlc_audio_equalizer_new : Create a new audio equalizer with zeroed values
+ * libheimdall_audio_equalizer_new : Create a new audio equalizer with zeroed values
  *****************************************************************************/
-libvlc_equalizer_t *libvlc_audio_equalizer_new( void )
+libheimdall_equalizer_t *libheimdall_audio_equalizer_new( void )
 {
-    libvlc_equalizer_t *p_equalizer;
+    libheimdall_equalizer_t *p_equalizer;
     p_equalizer = malloc( sizeof( *p_equalizer ) );
     if ( unlikely( p_equalizer == NULL ) )
         return NULL;
@@ -451,11 +452,11 @@ libvlc_equalizer_t *libvlc_audio_equalizer_new( void )
 }
 
 /*****************************************************************************
- * libvlc_audio_equalizer_new_from_preset : Create a new audio equalizer based on a preset
+ * libheimdall_audio_equalizer_new_from_preset : Create a new audio equalizer based on a preset
  *****************************************************************************/
-libvlc_equalizer_t *libvlc_audio_equalizer_new_from_preset( unsigned u_index )
+libheimdall_equalizer_t *libheimdall_audio_equalizer_new_from_preset( unsigned u_index )
 {
-    libvlc_equalizer_t *p_equalizer;
+    libheimdall_equalizer_t *p_equalizer;
 
     if ( u_index >= NB_PRESETS )
         return NULL;
@@ -473,17 +474,17 @@ libvlc_equalizer_t *libvlc_audio_equalizer_new_from_preset( unsigned u_index )
 }
 
 /*****************************************************************************
- * libvlc_audio_equalizer_release : Release a previously created equalizer
+ * libheimdall_audio_equalizer_release : Release a previously created equalizer
  *****************************************************************************/
-void libvlc_audio_equalizer_release( libvlc_equalizer_t *p_equalizer )
+void libheimdall_audio_equalizer_release( libheimdall_equalizer_t *p_equalizer )
 {
     free( p_equalizer );
 }
 
 /*****************************************************************************
- * libvlc_audio_equalizer_set_preamp : Set the preamp value for an equalizer
+ * libheimdall_audio_equalizer_set_preamp : Set the preamp value for an equalizer
  *****************************************************************************/
-int libvlc_audio_equalizer_set_preamp( libvlc_equalizer_t *p_equalizer, float f_preamp )
+int libheimdall_audio_equalizer_set_preamp( libheimdall_equalizer_t *p_equalizer, float f_preamp )
 {
     if( isnan(f_preamp) )
         return -1;
@@ -497,17 +498,17 @@ int libvlc_audio_equalizer_set_preamp( libvlc_equalizer_t *p_equalizer, float f_
 }
 
 /*****************************************************************************
- * libvlc_audio_equalizer_get_preamp : Get the preamp value for an equalizer
+ * libheimdall_audio_equalizer_get_preamp : Get the preamp value for an equalizer
  *****************************************************************************/
-float libvlc_audio_equalizer_get_preamp( libvlc_equalizer_t *p_equalizer )
+float libheimdall_audio_equalizer_get_preamp( libheimdall_equalizer_t *p_equalizer )
 {
     return p_equalizer->f_preamp;
 }
 
 /*****************************************************************************
- * libvlc_audio_equalizer_set_amp_at_index : Set the amplification value for an equalizer band
+ * libheimdall_audio_equalizer_set_amp_at_index : Set the amplification value for an equalizer band
  *****************************************************************************/
-int libvlc_audio_equalizer_set_amp_at_index( libvlc_equalizer_t *p_equalizer, float f_amp, unsigned u_band )
+int libheimdall_audio_equalizer_set_amp_at_index( libheimdall_equalizer_t *p_equalizer, float f_amp, unsigned u_band )
 {
     if( u_band >= EQZ_BANDS_MAX || isnan(f_amp) )
         return -1;
@@ -523,9 +524,9 @@ int libvlc_audio_equalizer_set_amp_at_index( libvlc_equalizer_t *p_equalizer, fl
 }
 
 /*****************************************************************************
- * libvlc_audio_equalizer_get_amp_at_index : Get the amplification value for an equalizer band
+ * libheimdall_audio_equalizer_get_amp_at_index : Get the amplification value for an equalizer band
  *****************************************************************************/
-float libvlc_audio_equalizer_get_amp_at_index( libvlc_equalizer_t *p_equalizer, unsigned u_band )
+float libheimdall_audio_equalizer_get_amp_at_index( libheimdall_equalizer_t *p_equalizer, unsigned u_band )
 {
     if ( u_band >= EQZ_BANDS_MAX )
         return nanf("");

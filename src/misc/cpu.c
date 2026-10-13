@@ -2,6 +2,7 @@
  * cpu.c: CPU detection code
  *****************************************************************************
  * Copyright (C) 1998-2004 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Samuel Hocevar <sam@zoy.org>
  *          Christophe Massiot <massiot@via.ecp.fr>
@@ -31,11 +32,11 @@
 
 #include <stdatomic.h>
 
-#include <vlc_common.h>
-#include <vlc_cpu.h>
-#include <vlc_memstream.h>
-#include <vlc_modules.h>
-#include "../libvlc.h"
+#include <heimdall_common.h>
+#include <heimdall_cpu.h>
+#include <heimdall_memstream.h>
+#include <heimdall_modules.h>
+#include "../libheimdall.h"
 
 #include <assert.h>
 
@@ -52,7 +53,7 @@
 /**
  * Determines the CPU capabilities.
  */
-VLC_WEAK unsigned vlc_CPU_raw(void)
+HEIMDALL_WEAK unsigned heimdall_CPU_raw(void)
 {
     uint32_t i_capabilities = 0;
 
@@ -108,13 +109,13 @@ VLC_WEAK unsigned vlc_CPU_raw(void)
     cpuid( 0x00000001 );
 
     if (i_edx & 0x04000000)
-        i_capabilities |= VLC_CPU_SSE2;
+        i_capabilities |= HEIMDALL_CPU_SSE2;
     if (i_ecx & 0x00000001)
-        i_capabilities |= VLC_CPU_SSE3;
+        i_capabilities |= HEIMDALL_CPU_SSE3;
     if (i_ecx & 0x00000200)
-        i_capabilities |= VLC_CPU_SSSE3;
+        i_capabilities |= HEIMDALL_CPU_SSSE3;
     if (i_ecx & 0x00080000)
-        i_capabilities |= VLC_CPU_SSE4_1;
+        i_capabilities |= HEIMDALL_CPU_SSE4_1;
 
     /* test for additional capabilities */
     cpuid( 0x80000000 );
@@ -137,7 +138,7 @@ out:
     int i_error = sysctl( selectors, 2, &i_has_altivec, &i_length, NULL, 0);
 
     if( i_error == 0 && i_has_altivec != 0 )
-        i_capabilities |= VLC_CPU_ALTIVEC;
+        i_capabilities |= HEIMDALL_CPU_ALTIVEC;
 #   endif
 
 #endif
@@ -146,78 +147,78 @@ out:
 
 static atomic_uint cpu_flags = -1U;
 
-unsigned vlc_CPU(void)
+unsigned heimdall_CPU(void)
 {
     unsigned flags = atomic_load_explicit(&cpu_flags, memory_order_relaxed);
 
     if (unlikely(flags == -1U)) {
-        flags = vlc_CPU_raw();
+        flags = heimdall_CPU_raw();
         atomic_store_explicit(&cpu_flags, flags, memory_order_relaxed);
     }
 
     return flags;
 }
 
-void vlc_CPU_set(unsigned mask)
+void heimdall_CPU_set(unsigned mask)
 {
-    atomic_store_explicit(&cpu_flags, vlc_CPU_raw() & mask, memory_order_relaxed);
+    atomic_store_explicit(&cpu_flags, heimdall_CPU_raw() & mask, memory_order_relaxed);
 }
 
-void vlc_CPU_dump (vlc_object_t *obj)
+void heimdall_CPU_dump (heimdall_object_t *obj)
 {
-    struct vlc_memstream stream;
+    struct heimdall_memstream stream;
 
-    vlc_memstream_open(&stream);
+    heimdall_memstream_open(&stream);
 
 #if defined (__i386__) || defined (__x86_64__)
-    if (vlc_CPU_SSE2())
-        vlc_memstream_puts(&stream, "SSE2 ");
-    if (vlc_CPU_SSE3())
-        vlc_memstream_puts(&stream, "SSE3 ");
-    if (vlc_CPU_SSSE3())
-        vlc_memstream_puts(&stream, "SSSE3 ");
-    if (vlc_CPU_SSE4_1())
-        vlc_memstream_puts(&stream, "SSE4.1 ");
-    if (vlc_CPU_AVX())
-        vlc_memstream_puts(&stream, "AVX ");
-    if (vlc_CPU_AVX2())
-        vlc_memstream_puts(&stream, "AVX2 ");
+    if (heimdall_CPU_SSE2())
+        heimdall_memstream_puts(&stream, "SSE2 ");
+    if (heimdall_CPU_SSE3())
+        heimdall_memstream_puts(&stream, "SSE3 ");
+    if (heimdall_CPU_SSSE3())
+        heimdall_memstream_puts(&stream, "SSSE3 ");
+    if (heimdall_CPU_SSE4_1())
+        heimdall_memstream_puts(&stream, "SSE4.1 ");
+    if (heimdall_CPU_AVX())
+        heimdall_memstream_puts(&stream, "AVX ");
+    if (heimdall_CPU_AVX2())
+        heimdall_memstream_puts(&stream, "AVX2 ");
 
 #elif defined (__powerpc__) || defined (__ppc__) || defined (__ppc64__)
-    if (vlc_CPU_ALTIVEC())
-        vlc_memstream_puts(&stream, "AltiVec");
+    if (heimdall_CPU_ALTIVEC())
+        heimdall_memstream_puts(&stream, "AltiVec");
 
 #elif defined (__arm__)
-    if (vlc_CPU_ARM_NEON())
-        vlc_memstream_puts(&stream, "ARM_NEON ");
+    if (heimdall_CPU_ARM_NEON())
+        heimdall_memstream_puts(&stream, "ARM_NEON ");
 
 #elif defined (__riscv)
-    if (vlc_CPU_RV_B())
-        vlc_memstream_puts(&stream, "B ");
-    if (vlc_CPU_RV_V())
-        vlc_memstream_puts(&stream, "V ");
+    if (heimdall_CPU_RV_B())
+        heimdall_memstream_puts(&stream, "B ");
+    if (heimdall_CPU_RV_V())
+        heimdall_memstream_puts(&stream, "V ");
 
 #endif
 
 #if HAVE_FPU
-    vlc_memstream_puts(&stream, "FPU ");
+    heimdall_memstream_puts(&stream, "FPU ");
 #endif
 
-    if (vlc_memstream_close(&stream) == 0)
+    if (heimdall_memstream_close(&stream) == 0)
     {
         msg_Dbg (obj, "CPU has capabilities %s", stream.ptr);
         free(stream.ptr);
     }
 }
 
-void vlc_CPU_functions_init(const char *capability, void *restrict funcs)
+void heimdall_CPU_functions_init(const char *capability, void *restrict funcs)
 {
     module_t **mods;
-    ssize_t n = vlc_module_match(capability, NULL, false, &mods, NULL);
+    ssize_t n = heimdall_module_match(capability, NULL, false, &mods, NULL);
 
     /* Descending order so higher priorities override the lower ones */
     for (ssize_t i = n - 1; i >= 0; i--) {
-        void (*init)(void *) = vlc_module_map(NULL, mods[i]);
+        void (*init)(void *) = heimdall_module_map(NULL, mods[i]);
         if (likely(init != NULL))
             init(funcs);
     }

@@ -2,8 +2,9 @@
  * gaussianblur.c : gaussian blur video filter
  *****************************************************************************
  * Copyright (C) 2000-2007 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Antoine Cellerier <dionoea -at- videolan -dot- org>
+ * Authors: Antoine Cellerier <dionoea -at- lycaria -dot- org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -28,12 +29,12 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_arrays.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_picture.h>
+#include <heimdall_common.h>
+#include <heimdall_arrays.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
 
 #include <math.h>                                          /* exp(), sqrt() */
 #include <stdckdint.h>
@@ -55,7 +56,7 @@ static int  Create    ( filter_t * );
 
 #define FILTER_PREFIX "gaussianblur-"
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("Gaussian blur video filter") )
     set_shortname( N_( "Gaussian Blur" ))
     set_help(GAUSSIAN_HELP)
@@ -65,7 +66,7 @@ vlc_module_begin ()
                           SIGMA_TEXT, SIGMA_LONGTEXT )
 
     set_callback_video_filter( Create )
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * Local prototypes
@@ -103,9 +104,9 @@ static int gaussianblur_InitDistribution( filter_sys_t *p_sys )
 {
     double f_sigma = p_sys->f_sigma;
     int i_dim = (int)(3.*f_sigma);
-    type_t *pt_distribution = vlc_alloc( 2*i_dim+1, sizeof( type_t ) );
+    type_t *pt_distribution = heimdall_alloc( 2*i_dim+1, sizeof( type_t ) );
     if( pt_distribution == NULL )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     for( int x = -i_dim; x <= i_dim; x++ )
     {
@@ -122,33 +123,33 @@ static int gaussianblur_InitDistribution( filter_sys_t *p_sys )
     p_sys->i_dim = i_dim;
     p_sys->pt_distribution = pt_distribution;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int Create( filter_t *p_filter )
 {
-    if(   p_filter->fmt_in.video.i_chroma != VLC_CODEC_I420
-       && p_filter->fmt_in.video.i_chroma != VLC_CODEC_YV12
+    if(   p_filter->fmt_in.video.i_chroma != HEIMDALL_CODEC_I420
+       && p_filter->fmt_in.video.i_chroma != HEIMDALL_CODEC_YV12
 
-       && p_filter->fmt_in.video.i_chroma != VLC_CODEC_I422
+       && p_filter->fmt_in.video.i_chroma != HEIMDALL_CODEC_I422
       )
     {
         /* We only want planar YUV 4:2:0 or 4:2:2 */
         msg_Err( p_filter, "Unsupported input chroma (%4.4s)",
                  (char*)&(p_filter->fmt_in.video.i_chroma) );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( !video_format_IsSameChroma( &p_filter->fmt_in.video,
                                     &p_filter->fmt_out.video ) )
     {
         msg_Err( p_filter, "Input and output chromas don't match" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     filter_sys_t *p_sys = malloc( sizeof( filter_sys_t ) );
     if( p_sys == NULL )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     p_filter->p_sys = p_sys;
 
     config_ChainParse( p_filter, FILTER_PREFIX, ppsz_filter_options,
@@ -161,12 +162,12 @@ static int Create( filter_t *p_filter )
     if( p_sys->f_sigma <= 0. )
     {
         msg_Err( p_filter, "sigma must be greater than zero" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
-    if( gaussianblur_InitDistribution( p_sys ) != VLC_SUCCESS )
+    if( gaussianblur_InitDistribution( p_sys ) != HEIMDALL_SUCCESS )
     {
         free( p_sys );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
     msg_Dbg( p_filter, "gaussian distribution is %d pixels wide",
              p_sys->i_dim*2+1 );
@@ -174,7 +175,7 @@ static int Create( filter_t *p_filter )
     p_sys->pt_buffer = NULL;
     p_sys->pt_scale = NULL;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void Destroy( filter_t *p_filter )

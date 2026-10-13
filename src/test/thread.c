@@ -2,6 +2,7 @@
  * thread.c: Test for thread API
  *****************************************************************************
  * Copyright (C) 2020 Marvin Scholz
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -28,8 +29,8 @@
 #undef NDEBUG
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_threads.h>
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
 
 static int thread_data_magic = 0x1234;
 static int thread_return_magic = 0x4321;
@@ -38,15 +39,15 @@ static int thread_return_magic = 0x4321;
 #define TEST_THREAD_JOIN(th, eret)  \
     do {                            \
         void *r;                    \
-        vlc_join(th, &r);           \
+        heimdall_join(th, &r);           \
         assert(r == eret);          \
     } while (0)
 
 // Cancels thread, joins and verifies return
 #define TEST_THREAD_CANCEL_JOIN(th)                 \
     do {                                            \
-        vlc_cancel(th);                             \
-        TEST_THREAD_JOIN(th, VLC_THREAD_CANCELED);  \
+        heimdall_cancel(th);                             \
+        TEST_THREAD_JOIN(th, HEIMDALL_THREAD_CANCELED);  \
     } while (0)
 
 // Join thread and verify magic return value
@@ -55,7 +56,7 @@ static int thread_return_magic = 0x4321;
 
 // Spawn thread
 #define TEST_THREAD_CLONE(th, f, data) \
-    assert(vlc_clone(th, f, data) == 0)
+    assert(heimdall_clone(th, f, data) == 0)
 
 // Spawn thread with magic data
 #define TEST_THREAD_CLONE_MAGIC(th, f) \
@@ -66,9 +67,9 @@ static int thread_return_magic = 0x4321;
 struct cond_data
 {
     int state; // Count of threads starting, or -1 when threads may exit
-    vlc_mutex_t mutex;
-    vlc_cond_t  cond_started;  // Signalled when a thread started
-    vlc_cond_t  cond_end;      // Waited on by thread before terminating
+    heimdall_mutex_t mutex;
+    heimdall_cond_t  cond_started;  // Signalled when a thread started
+    heimdall_cond_t  cond_end;      // Waited on by thread before terminating
 };
 
 static void cond_data_init(struct cond_data *data, int count)
@@ -76,9 +77,9 @@ static void cond_data_init(struct cond_data *data, int count)
     assert(count > 0);
 
     data->state = count;
-    vlc_mutex_init(&data->mutex);
-    vlc_cond_init(&data->cond_started);
-    vlc_cond_init(&data->cond_end);
+    heimdall_mutex_init(&data->mutex);
+    heimdall_cond_init(&data->cond_started);
+    heimdall_cond_init(&data->cond_end);
 }
 
 
@@ -93,7 +94,7 @@ static void *thread_func_noop(void *data)
 
 static void test__thread_create(void)
 {
-    vlc_thread_t th;
+    heimdall_thread_t th;
     TEST_THREAD_CLONE_MAGIC(&th, thread_func_noop);
     TEST_THREAD_JOIN_MAGIC(th);
 }
@@ -113,7 +114,7 @@ static void *thread_func_loop(void *data)
 
 static void test__thread_cancelation(void)
 {
-    vlc_thread_t th;
+    heimdall_thread_t th;
     TEST_THREAD_CLONE_MAGIC(&th, thread_func_loop);
     TEST_THREAD_CANCEL_JOIN(th);
 }
@@ -134,18 +135,18 @@ static void *thread_func_loop_cleanup(void *data)
     int *cleanup_state = data;
     assert(*cleanup_state == 0);
 
-    vlc_cleanup_push(thread_func_cleanup, data);
+    heimdall_cleanup_push(thread_func_cleanup, data);
     while(1) {
-        vlc_testcancel();
+        heimdall_testcancel();
     }
-    vlc_cleanup_pop();
+    heimdall_cleanup_pop();
 
     return &thread_return_magic;
 }
 
 static void test__thread_cancelation_with_cleanup(void)
 {
-    vlc_thread_t th;
+    heimdall_thread_t th;
     int th_cleanup_state = 0;
 
     TEST_THREAD_CLONE(&th, thread_func_loop_cleanup, &th_cleanup_state);
@@ -163,16 +164,16 @@ static void *thread_func_cond(void *ptr)
     struct cond_data *data = ptr;
 
     // Decrement state and signal start of thread
-    vlc_mutex_lock(&data->mutex);
+    heimdall_mutex_lock(&data->mutex);
     data->state -= 1;
-    vlc_cond_signal(&data->cond_started);
-    vlc_mutex_unlock(&data->mutex);
+    heimdall_cond_signal(&data->cond_started);
+    heimdall_mutex_unlock(&data->mutex);
 
     // Wait until termination is allowed
-    vlc_mutex_lock(&data->mutex);
+    heimdall_mutex_lock(&data->mutex);
     while (data->state != -1)
-        vlc_cond_wait(&data->cond_end, &data->mutex);
-    vlc_mutex_unlock(&data->mutex);
+        heimdall_cond_wait(&data->cond_end, &data->mutex);
+    heimdall_mutex_unlock(&data->mutex);
 
     return &thread_return_magic;
 }
@@ -180,7 +181,7 @@ static void *thread_func_cond(void *ptr)
 static void test__cond_broadcast(void)
 {
     struct cond_data data;
-    vlc_thread_t threads[20];
+    heimdall_thread_t threads[20];
 
     cond_data_init(&data, ARRAY_SIZE(threads));
 
@@ -190,17 +191,17 @@ static void test__cond_broadcast(void)
     }
 
     // Wait for all threads to start
-    vlc_mutex_lock(&data.mutex);
+    heimdall_mutex_lock(&data.mutex);
     while(data.state > 0) {
-        vlc_cond_wait(&data.cond_started, &data.mutex);
+        heimdall_cond_wait(&data.cond_started, &data.mutex);
     }
-    vlc_mutex_unlock(&data.mutex);
+    heimdall_mutex_unlock(&data.mutex);
 
     // Broadcast threads-may-end condition to all threads
-    vlc_mutex_lock(&data.mutex);
+    heimdall_mutex_lock(&data.mutex);
     data.state = -1;
-    vlc_cond_broadcast(&data.cond_end);
-    vlc_mutex_unlock(&data.mutex);
+    heimdall_cond_broadcast(&data.cond_end);
+    heimdall_mutex_unlock(&data.mutex);
 
     // Wait for all threads to exit
     for (size_t i = 0; i < ARRAY_SIZE(threads); ++i) {
@@ -213,21 +214,21 @@ static void test__cond_wait(void)
     struct cond_data data;
     cond_data_init(&data, 1);
 
-    vlc_thread_t th;
+    heimdall_thread_t th;
     TEST_THREAD_CLONE(&th, thread_func_cond, &data);
 
     // Wait for thread to start
-    vlc_mutex_lock(&data.mutex);
+    heimdall_mutex_lock(&data.mutex);
     while(data.state != 0) {
-        vlc_cond_wait(&data.cond_started, &data.mutex);
+        heimdall_cond_wait(&data.cond_started, &data.mutex);
     }
-    vlc_mutex_unlock(&data.mutex);
+    heimdall_mutex_unlock(&data.mutex);
 
     // Signal threads-may-end condition to thread
-    vlc_mutex_lock(&data.mutex);
+    heimdall_mutex_lock(&data.mutex);
     data.state = -1;
-    vlc_cond_signal(&data.cond_end);
-    vlc_mutex_unlock(&data.mutex);
+    heimdall_cond_signal(&data.cond_end);
+    heimdall_mutex_unlock(&data.mutex);
 
     // Wait for thread to exit
     TEST_THREAD_JOIN_MAGIC(th);
@@ -242,23 +243,23 @@ static void *thread_func_cond_timeout(void *ptr)
     struct cond_data *data = ptr;
 
     // Decrement state and signal start of thread
-    vlc_mutex_lock(&data->mutex);
+    heimdall_mutex_lock(&data->mutex);
     data->state -= 1;
-    vlc_cond_signal(&data->cond_started);
-    vlc_mutex_unlock(&data->mutex);
+    heimdall_cond_signal(&data->cond_started);
+    heimdall_mutex_unlock(&data->mutex);
 
-    vlc_mutex_lock(&data->mutex);
+    heimdall_mutex_lock(&data->mutex);
 
     // Wait until termination is allowed (which is never signalled)
-    vlc_tick_t now = vlc_tick_now();
-    vlc_tick_t deadline = now + VLC_TICK_FROM_MS(25);
-    int ret = vlc_cond_timedwait(&data->cond_end, &data->mutex, deadline);
+    heimdall_tick_t now = heimdall_tick_now();
+    heimdall_tick_t deadline = now + HEIMDALL_TICK_FROM_MS(25);
+    int ret = heimdall_cond_timedwait(&data->cond_end, &data->mutex, deadline);
     assert(ret == ETIMEDOUT);
 
-    vlc_tick_t elapsed = vlc_tick_now() - now;
-    assert(elapsed >= VLC_TICK_FROM_MS(25));
+    heimdall_tick_t elapsed = heimdall_tick_now() - now;
+    assert(elapsed >= HEIMDALL_TICK_FROM_MS(25));
 
-    vlc_mutex_unlock(&data->mutex);
+    heimdall_mutex_unlock(&data->mutex);
 
     return &thread_return_magic;
 }
@@ -268,15 +269,15 @@ static void test__cond_wait_timeout(void)
     struct cond_data data;
     cond_data_init(&data, 1);
 
-    vlc_thread_t th;
+    heimdall_thread_t th;
     TEST_THREAD_CLONE(&th, thread_func_cond_timeout, &data);
 
     // Wait for thread to start
-    vlc_mutex_lock(&data.mutex);
+    heimdall_mutex_lock(&data.mutex);
     while(data.state != 0) {
-        vlc_cond_wait(&data.cond_started, &data.mutex);
+        heimdall_cond_wait(&data.cond_started, &data.mutex);
     }
-    vlc_mutex_unlock(&data.mutex);
+    heimdall_mutex_unlock(&data.mutex);
 
     // Never signal that the thread may end, on purpose
     // as it should timeout.
@@ -290,69 +291,69 @@ static void test__cond_wait_timeout(void)
  */
 static void *thread_latch(void *data)
 {
-    vlc_latch_t *l = data;
+    heimdall_latch_t *l = data;
 
-    assert(!vlc_latch_is_ready(l));
-    vlc_latch_count_down(l, 1);
-    vlc_latch_wait(l);
-    assert(vlc_latch_is_ready(l));
+    assert(!heimdall_latch_is_ready(l));
+    heimdall_latch_count_down(l, 1);
+    heimdall_latch_wait(l);
+    assert(heimdall_latch_is_ready(l));
     return NULL;
 }
 
 static void test__latch(void)
 {
-    vlc_latch_t l;
-    vlc_thread_t th;
+    heimdall_latch_t l;
+    heimdall_thread_t th;
 
-    vlc_latch_init(&l, 0);
-    assert(vlc_latch_is_ready(&l));
-    vlc_latch_wait(&l);
-    assert(vlc_latch_is_ready(&l));
+    heimdall_latch_init(&l, 0);
+    assert(heimdall_latch_is_ready(&l));
+    heimdall_latch_wait(&l);
+    assert(heimdall_latch_is_ready(&l));
 
-    vlc_latch_init(&l, 5);
-    assert(!vlc_latch_is_ready(&l));
-    vlc_latch_count_down(&l, 3);
-    assert(!vlc_latch_is_ready(&l));
-    vlc_latch_count_down_and_wait(&l, 2);
-    assert(vlc_latch_is_ready(&l));
-    vlc_latch_wait(&l);
-    assert(vlc_latch_is_ready(&l));
+    heimdall_latch_init(&l, 5);
+    assert(!heimdall_latch_is_ready(&l));
+    heimdall_latch_count_down(&l, 3);
+    assert(!heimdall_latch_is_ready(&l));
+    heimdall_latch_count_down_and_wait(&l, 2);
+    assert(heimdall_latch_is_ready(&l));
+    heimdall_latch_wait(&l);
+    assert(heimdall_latch_is_ready(&l));
 
-    vlc_latch_init(&l, 2);
+    heimdall_latch_init(&l, 2);
     TEST_THREAD_CLONE(&th, thread_latch, &l);
-    vlc_latch_count_down_and_wait(&l, 1);
+    heimdall_latch_count_down_and_wait(&l, 1);
     TEST_THREAD_JOIN(th, NULL);
 }
 
 /*
- * Test cancelling vlc_tick_sleep
+ * Test cancelling heimdall_tick_sleep
  */
 static void *thread_func_tick_sleep(void *data)
 {
     assert(data == &thread_data_magic);
-    (vlc_tick_sleep)(VLC_TICK_FROM_SEC(10));
+    (heimdall_tick_sleep)(HEIMDALL_TICK_FROM_SEC(10));
     return &thread_return_magic;
 }
 
-static void test__vlc_tick_sleep_cancelation(void)
+static void test__heimdall_tick_sleep_cancelation(void)
 {
-    vlc_thread_t th;
+    heimdall_thread_t th;
     TEST_THREAD_CLONE_MAGIC(&th, thread_func_tick_sleep);
     TEST_THREAD_CANCEL_JOIN(th);
 }
 
 
 /*
- * Test sleeping for delay with vlc_tick_sleep
+ * Test sleeping for delay with heimdall_tick_sleep
  */
-static void test__vlc_tick_sleep(void)
+static void test__heimdall_tick_sleep(void)
 {
-    vlc_tick_t now = vlc_tick_now();
+    heimdall_tick_t now = heimdall_tick_now();
 
-    (vlc_tick_sleep)(VLC_TICK_FROM_MS(25));
+    (heimdall_tick_sleep)(HEIMDALL_TICK_FROM_MS(25));
 
-    vlc_tick_t elapsed = vlc_tick_now() - now;
-    assert(elapsed >= VLC_TICK_FROM_MS(25));
+    heimdall_tick_t elapsed = heimdall_tick_now() - now;
+    assert(elapsed >= HEIMDALL_TICK_FROM_MS(25));
 }
 
 
@@ -370,8 +371,8 @@ int main(void)
     test__cond_wait_timeout();
     test__cond_broadcast();
     test__latch();
-    test__vlc_tick_sleep_cancelation();
-    test__vlc_tick_sleep();
+    test__heimdall_tick_sleep_cancelation();
+    test__heimdall_tick_sleep();
 
     return 0;
 }

@@ -1,21 +1,21 @@
-# Building vlc
+# Building heimdall
 #
-if BUILD_VLC
+if BUILD_HEIMDALL
 if HAVE_OSX
-bin_PROGRAMS = vlc-osx
-noinst_PROGRAMS = vlc-osx-static
+bin_PROGRAMS = heimdall-osx
+noinst_PROGRAMS = heimdall-osx-static
 else
-bin_PROGRAMS = vlc
-noinst_PROGRAMS = vlc-static
+bin_PROGRAMS = heimdall
+noinst_PROGRAMS = heimdall-static
 endif
 endif
-EXTRA_DIST = vlc_win32_rc.rc.in
-CLEANFILES = vlc_win32_rc.rc
+EXTRA_DIST = heimdall_win32_rc.rc.in
+CLEANFILES = heimdall_win32_rc.rc
 
 SUFFIXES = .rc.in .rc
 
-AM_CPPFLAGS = $(CPPFLAGS_vlc)
-AM_CFLAGS = $(CFLAGS_vlc)
+AM_CPPFLAGS = $(CPPFLAGS_heimdall)
+AM_CFLAGS = $(CFLAGS_heimdall)
 noinst_LTLIBRARIES =
 if HAVE_DBUS
 AM_CPPFLAGS += -DHAVE_DBUS
@@ -25,116 +25,116 @@ AM_CFLAGS += -sMAIN_MODULE=1
 endif
 
 #
-# Main VLC executable
+# Main Heimdall executable
 #
-vlc_LDADD = ../lib/libvlc.la ../src/libvlccore.la
-vlc_CPPFLAGS = $(AM_CPPFLAGS)
+heimdall_LDADD = ../lib/libheimdall.la ../src/libheimdallcore.la
+heimdall_CPPFLAGS = $(AM_CPPFLAGS)
 if !HAVE_WIN32
-vlc_SOURCES = vlc.c override.c
-vlc_LDADD += $(LIBDL)
+heimdall_SOURCES = heimdall.c override.c
+heimdall_LDADD += $(LIBDL)
 else
-vlc_SOURCES = winvlc.c
-EXTRA_vlc_DEPENDENCIES = vlc_win32_rc.$(OBJEXT)
-vlc_LDFLAGS = -mwindows -Wc,-static
-vlc_LDADD += -lole32 vlc_win32_rc.$(OBJEXT)
+heimdall_SOURCES = winheimdall.c
+EXTRA_heimdall_DEPENDENCIES = heimdall_win32_rc.$(OBJEXT)
+heimdall_LDFLAGS = -mwindows -Wc,-static
+heimdall_LDADD += -lole32 heimdall_win32_rc.$(OBJEXT)
 libbreakpad_wrapper_la_SOURCES = breakpad.cpp
 libbreakpad_wrapper_la_LIBADD = $(BREAKPAD_LIBS)
 libbreakpad_wrapper_la_LDFLAGS = -static
 libbreakpad_wrapper_la_CXXFLAGS = $(AM_CXXFLAGS) $(BREAKPAD_CFLAGS) -DBREAKPAD_URL=\"@BREAKPAD_URL@\"
 if HAVE_BREAKPAD
 noinst_LTLIBRARIES += libbreakpad_wrapper.la
-vlc_LDADD += libbreakpad_wrapper.la -lstdc++ -lwininet
-EXTRA_vlc_DEPENDENCIES += libbreakpad_wrapper.la
-vlc_CPPFLAGS += -DHAVE_BREAKPAD
+heimdall_LDADD += libbreakpad_wrapper.la -lstdc++ -lwininet
+EXTRA_heimdall_DEPENDENCIES += libbreakpad_wrapper.la
+heimdall_CPPFLAGS += -DHAVE_BREAKPAD
 endif
 endif
 
-vlc_osx_SOURCES = darwinvlc.m
-vlc_osx_CPPFLAGS = $(AM_CPPFLAGS)
-vlc_osx_LDFLAGS = $(LDFLAGS_vlc) -Wl,-framework,CoreFoundation,-framework,Cocoa
-vlc_osx_LDFLAGS += -Xlinker -rpath -Xlinker "$(libdir)"
+heimdall_osx_SOURCES = darwinheimdall.m
+heimdall_osx_CPPFLAGS = $(AM_CPPFLAGS)
+heimdall_osx_LDFLAGS = $(LDFLAGS_heimdall) -Wl,-framework,CoreFoundation,-framework,Cocoa
+heimdall_osx_LDFLAGS += -Xlinker -rpath -Xlinker "$(libdir)"
 if HAVE_BREAKPAD
-vlc_osx_LDFLAGS += -Wl,-framework,Breakpad
-vlc_osx_OBJCFLAGS = -F$(CONTRIB_DIR)/Frameworks
-vlc_osx_CPPFLAGS += -DHAVE_BREAKPAD
+heimdall_osx_LDFLAGS += -Wl,-framework,Breakpad
+heimdall_osx_OBJCFLAGS = -F$(CONTRIB_DIR)/Frameworks
+heimdall_osx_CPPFLAGS += -DHAVE_BREAKPAD
 endif
-vlc_osx_LDADD = ../lib/libvlc.la
+heimdall_osx_LDADD = ../lib/libheimdall.la
 
-vlc_osx_static_SOURCES = $(vlc_osx_SOURCES)
-vlc_osx_static_CPPFLAGS = $(vlc_osx_CPPFLAGS)
-vlc_osx_static_OBJCFLAGS = $(AM_OBJCFLAGS) \
+heimdall_osx_static_SOURCES = $(heimdall_osx_SOURCES)
+heimdall_osx_static_CPPFLAGS = $(heimdall_osx_CPPFLAGS)
+heimdall_osx_static_OBJCFLAGS = $(AM_OBJCFLAGS) \
 	-DTOP_BUILDDIR=\"$(abs_top_builddir)\" \
 	-DTOP_SRCDIR=\"$(abs_top_srcdir)\" \
 	$(NULL)
-vlc_osx_static_LDFLAGS = $(vlc_osx_LDFLAGS) -static
-vlc_osx_static_LDFLAGS += -Xlinker -rpath -Xlinker "@executable_path/../lib/.libs/"
-vlc_osx_static_LDFLAGS += -Xlinker -rpath -Xlinker "@executable_path/../src/.libs/"
-vlc_osx_static_LDFLAGS += -Xlinker -rpath -Xlinker "@executable_path/../Frameworks/"
-vlc_osx_static_LDADD = $(vlc_osx_LDADD)
+heimdall_osx_static_LDFLAGS = $(heimdall_osx_LDFLAGS) -static
+heimdall_osx_static_LDFLAGS += -Xlinker -rpath -Xlinker "@executable_path/../lib/.libs/"
+heimdall_osx_static_LDFLAGS += -Xlinker -rpath -Xlinker "@executable_path/../src/.libs/"
+heimdall_osx_static_LDFLAGS += -Xlinker -rpath -Xlinker "@executable_path/../Frameworks/"
+heimdall_osx_static_LDADD = $(heimdall_osx_LDADD)
 if HAVE_BREAKPAD
-vlc_osx_static_LDFLAGS += -Wl,-framework,Breakpad
-vlc_osx_static_OBJCFLAGS += -F$(CONTRIB_DIR)/Frameworks
+heimdall_osx_static_LDFLAGS += -Wl,-framework,Breakpad
+heimdall_osx_static_OBJCFLAGS += -F$(CONTRIB_DIR)/Frameworks
 endif
 
 
 #
-# Static (debug) VLC executable
+# Static (debug) Heimdall executable
 #
-vlc_static_SOURCES = $(vlc_SOURCES)
-vlc_static_CFLAGS = $(AM_CFLAGS) \
+heimdall_static_SOURCES = $(heimdall_SOURCES)
+heimdall_static_CFLAGS = $(AM_CFLAGS) \
 	-DTOP_BUILDDIR=\"$(abs_top_builddir)\" \
 	-DTOP_SRCDIR=\"$(abs_top_srcdir)\" \
 	$(NULL)
-vlc_static_CPPFLAGS = $(vlc_CPPFLAGS)
-EXTRA_vlc_static_DEPENDENCIES = $(EXTRA_vlc_DEPENDENCIES)
-vlc_static_LDADD = $(vlc_LDADD)
-vlc_static_LDFLAGS = $(vlc_LDFLAGS) -no-install -static
+heimdall_static_CPPFLAGS = $(heimdall_CPPFLAGS)
+EXTRA_heimdall_static_DEPENDENCIES = $(EXTRA_heimdall_DEPENDENCIES)
+heimdall_static_LDADD = $(heimdall_LDADD)
+heimdall_static_LDFLAGS = $(heimdall_LDFLAGS) -no-install -static
 
 #
 # Root wrapper
 #
-if BUILD_VLC
+if BUILD_HEIMDALL
 if !HAVE_WIN32
 if !HAVE_OS2
-bin_PROGRAMS += vlc-wrapper
+bin_PROGRAMS += heimdall-wrapper
 endif
 endif
 endif
-vlc_wrapper_SOURCES = rootwrap.c
-vlc_wrapper_LDADD = $(SOCKET_LIBS)
+heimdall_wrapper_SOURCES = rootwrap.c
+heimdall_wrapper_LDADD = $(SOCKET_LIBS)
 
-vlc_win32_rc.rc: $(top_builddir)/config.status vlc_win32_rc.rc.in
+heimdall_win32_rc.rc: $(top_builddir)/config.status heimdall_win32_rc.rc.in
 	cd "$(top_builddir)" && \
 	$(SHELL) ./config.status --file="bin/$@"
 
-vlc_win32_rc.$(OBJEXT): vlc_win32_rc.rc $(top_srcdir)/extras/package/win32/vlc.exe.manifest
+heimdall_win32_rc.$(OBJEXT): heimdall_win32_rc.rc $(top_srcdir)/extras/package/win32/heimdall.exe.manifest
 	$(WINDRES) --include-dir $(top_srcdir)/share/icons --include-dir $(top_srcdir)/extras/package/win32 -i $< -o $@
 
 #
 # Plug-ins cache generator
 #
 if HAVE_DYNAMIC_PLUGINS
-pkglibexec_PROGRAMS = vlc-cache-gen
+pkglibexec_PROGRAMS = heimdall-cache-gen
 endif
-vlc_cache_gen_SOURCES = cachegen.c
-vlc_cache_gen_LDADD = \
+heimdall_cache_gen_SOURCES = cachegen.c
+heimdall_cache_gen_LDADD = \
 	$(GNUGETOPT_LIBS) \
 	../compat/libcompat.la \
-	../lib/libvlc.la
+	../lib/libheimdall.la
 if HAVE_WIN32
-vlc_cache_gen_LDADD += vlc_win32_rc.$(OBJEXT)
-vlc_cache_gen_LDFLAGS = -Wc,-static
-EXTRA_vlc_cache_gen_DEPENDENCIES = vlc_win32_rc.$(OBJEXT)
+heimdall_cache_gen_LDADD += heimdall_win32_rc.$(OBJEXT)
+heimdall_cache_gen_LDFLAGS = -Wc,-static
+EXTRA_heimdall_cache_gen_DEPENDENCIES = heimdall_win32_rc.$(OBJEXT)
 endif
 
 if HAVE_PARTIAL_LINKING
-AM_CPPFLAGS += -DVLC_PARTIAL_LINKING -I $(builddir)/../modules/
+AM_CPPFLAGS += -DHEIMDALL_PARTIAL_LINKING -I $(builddir)/../modules/
 if !HAVE_WIN32
-vlc_SOURCES += vlc_static_modules.c
+heimdall_SOURCES += heimdall_static_modules.c
 endif
-vlc_osx_SOURCES += vlc_static_modules.c
-vlc_LDADD += ../modules/libvlc_static_modules.la
-vlc_osx_LDADD += ../modules/libvlc_static_modules.la
+heimdall_osx_SOURCES += heimdall_static_modules.c
+heimdall_LDADD += ../modules/libheimdall_static_modules.la
+heimdall_osx_LDADD += ../modules/libheimdall_static_modules.la
 endif
 
 #
@@ -146,19 +146,19 @@ endif
 MOSTLYCLEANFILES = $(noinst_DATA)
 
 if HAVE_OSX
-if BUILD_VLC
+if BUILD_HEIMDALL
 install-data-local:
-	cd "$(DESTDIR)$(bindir)"; mv vlc-osx vlc
+	cd "$(DESTDIR)$(bindir)"; mv heimdall-osx heimdall
 
 endif
 endif
 
 .PHONY: ../modules/plugins.dat
 
-../modules/plugins.dat: vlc-cache-gen$(EXEEXT)
+../modules/plugins.dat: heimdall-cache-gen$(EXEEXT)
 	$(AM_V_at)rm -f ../modules/plugins.dat
 	$(AM_V_GEN)if test "$(build)" = "$(host)"; then \
-		./vlc-cache-gen$(EXEEXT) `cd "../modules" ; pwd -P` ; \
+		./heimdall-cache-gen$(EXEEXT) `cd "../modules" ; pwd -P` ; \
 	else \
 		echo "Cross-compilation: cache generation skipped!" ; \
 	fi

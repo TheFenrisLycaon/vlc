@@ -2,6 +2,7 @@
  * BaseRepresentation.cpp
  *****************************************************************************
  * Copyright (C) 2010 - 2011 Klagenfurt University
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Created on: Aug 10, 2010
  * Authors: Christopher Mueller <christopher.mueller@itec.uni-klu.ac.at>
@@ -148,14 +149,14 @@ bool BaseRepresentation::canNoLongerUpdate() const
     return false;
 }
 
-void BaseRepresentation::pruneByPlaybackTime(vlc_tick_t time)
+void BaseRepresentation::pruneByPlaybackTime(heimdall_tick_t time)
 {
     uint64_t num;
     if(getSegmentNumberByTime(time, &num))
         pruneBySegmentNumber(num);
 }
 
-vlc_tick_t BaseRepresentation::getMinAheadTime(uint64_t curnum) const
+heimdall_tick_t BaseRepresentation::getMinAheadTime(uint64_t curnum) const
 {
     AbstractSegmentBaseType *profile = inheritSegmentTemplate();
     if(!profile)
@@ -166,7 +167,7 @@ vlc_tick_t BaseRepresentation::getMinAheadTime(uint64_t curnum) const
     return profile ? profile->getMinAheadTime(curnum) : 0;
 }
 
-void BaseRepresentation::debug(vlc_object_t *obj, int indent) const
+void BaseRepresentation::debug(heimdall_object_t *obj, int indent) const
 {
     std::string text(indent, ' ');
     text.append("Representation ");
@@ -207,14 +208,14 @@ uint64_t BaseRepresentation::translateSegmentNumber(uint64_t num, const BaseRepr
     return num;
 }
 
-bool BaseRepresentation::getSegmentNumberByTime(vlc_tick_t time, uint64_t *ret) const
+bool BaseRepresentation::getSegmentNumberByTime(heimdall_tick_t time, uint64_t *ret) const
 {
     const AbstractSegmentBaseType *profile = inheritSegmentProfile();
     return profile && profile->getSegmentNumberByTime(time, ret);
 }
 
 bool BaseRepresentation::getPlaybackTimeDurationBySegmentNumber(uint64_t number,
-                                                                vlc_tick_t *time, vlc_tick_t *duration) const
+                                                                heimdall_tick_t *time, heimdall_tick_t *duration) const
 {
     if(number == std::numeric_limits<uint64_t>::max())
         return false;
@@ -223,9 +224,9 @@ bool BaseRepresentation::getPlaybackTimeDurationBySegmentNumber(uint64_t number,
     return profile && profile->getPlaybackTimeDurationBySegmentNumber(number, time, duration);
 }
 
-bool BaseRepresentation::getMediaPlaybackRange(vlc_tick_t *rangeBegin,
-                                               vlc_tick_t *rangeEnd,
-                                               vlc_tick_t *rangeLength) const
+bool BaseRepresentation::getMediaPlaybackRange(heimdall_tick_t *rangeBegin,
+                                               heimdall_tick_t *rangeEnd,
+                                               heimdall_tick_t *rangeLength) const
 {
     SegmentTemplate *mediaSegmentTemplate = inheritSegmentTemplate();
     if( mediaSegmentTemplate )

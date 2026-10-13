@@ -2,6 +2,7 @@
  * probe.c : run-time service listing
  *****************************************************************************
  * Copyright © 2009 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,16 +23,16 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_probe.h>
-#include <vlc_modules.h>
-#include "../libvlc.h"
+#include <heimdall_common.h>
+#include <heimdall_probe.h>
+#include <heimdall_modules.h>
+#include "../libheimdall.h"
 
-#undef vlc_probe
-void *vlc_probe (vlc_object_t *obj,
+#undef heimdall_probe
+void *heimdall_probe (heimdall_object_t *obj,
                  const char *capability, size_t *restrict pcount)
 {
-    vlc_probe_t *probe = vlc_custom_create (obj, sizeof(*probe), "probe");
+    heimdall_probe_t *probe = heimdall_custom_create (obj, sizeof(*probe), "probe");
     if (unlikely(probe == NULL))
     {
         *pcount = 0;
@@ -49,6 +50,6 @@ void *vlc_probe (vlc_object_t *obj,
 
     void *ret = probe->list;
     *pcount = probe->count;
-    vlc_object_delete(probe);
+    heimdall_object_delete(probe);
     return ret;
 }

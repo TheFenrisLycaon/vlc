@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 2007 Vincent Penne
  * Some code converted from ProjectX java dvb decoder (c) 2001-2005 by dvb.matt
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -30,11 +31,11 @@
 #include <assert.h>
 #include <stdint.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
 
-#include <vlc_bits.h>
-#include <vlc_codec.h>
+#include <heimdall_bits.h>
+#include <heimdall_codec.h>
 
 /* #define TELX_DEBUG */
 #ifdef TELX_DEBUG
@@ -46,7 +47,7 @@
 /*****************************************************************************
  * Module descriptor.
  *****************************************************************************/
-static int  Open ( vlc_object_t * );
+static int  Open ( heimdall_object_t * );
 static int  Decode( decoder_t *, block_t * );
 
 #define OVERRIDE_PAGE_TEXT N_("Override page")
@@ -65,7 +66,7 @@ static int  Decode( decoder_t *, block_t * );
         "interpretation mistake. Try using this wrong interpretation if " \
         "your subtitles don't appear.")
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("Teletext subtitles decoder") )
     set_shortname( "Teletext" )
     set_capability( "spu decoder", 50 )
@@ -79,7 +80,7 @@ vlc_module_begin ()
     add_bool( "telx-french-workaround", false,
               FRENCH_WORKAROUND_TEXT, FRENCH_WORKAROUND_LONGTEXT )
 
-vlc_module_end ()
+heimdall_module_end ()
 
 /****************************************************************************
  * Local structures
@@ -91,7 +92,7 @@ typedef struct
   bool        b_is_subtitle[9];
   char        ppsz_lines[32][128];
   char        psz_prev_text[512];
-  vlc_tick_t  prev_pts;
+  heimdall_tick_t  prev_pts;
   int         i_page[9];
   bool        b_erase[9];
   const uint16_t *  pi_active_national_set[9];
@@ -177,21 +178,21 @@ enum
  * Tries to launch a decoder and return score so that the interface is able
  * to chose.
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     decoder_t     *p_dec = (decoder_t *) p_this;
     decoder_sys_t *p_sys = NULL;
     int            i_val;
 
-    if( p_dec->fmt_in->i_codec != VLC_CODEC_TELETEXT)
+    if( p_dec->fmt_in->i_codec != HEIMDALL_CODEC_TELETEXT)
     {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     p_dec->pf_decode = Decode;
-    p_sys = p_dec->p_sys = vlc_obj_calloc( p_this, 1, sizeof(*p_sys) );
+    p_sys = p_dec->p_sys = heimdall_obj_calloc( p_this, 1, sizeof(*p_sys) );
     if( p_sys == NULL )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     p_dec->fmt_out.i_codec = 0;
 
     p_sys->i_align = 0;
@@ -236,14 +237,14 @@ static int Open( vlc_object_t *p_this )
              p_sys->i_wanted_magazine, p_sys->i_wanted_page,
              p_sys->b_ignore_sub_flag );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 /*  error: */
 /*     if (p_sys) { */
 /*       free(p_sys); */
 /*       p_sys = NULL; */
 /*     } */
-/*     return VLC_EGENERIC; */
+/*     return HEIMDALL_EGENERIC; */
 }
 
 /**************************
@@ -512,7 +513,7 @@ static bool DecodePageHeaderPacket( decoder_t *p_dec, const uint8_t *packet,
 }
 
 static bool DecodePacketX1_X23( decoder_t *p_dec, const uint8_t *packet,
-                                int magazine, int row, vlc_tick_t pts )
+                                int magazine, int row, heimdall_tick_t pts )
 {
     decoder_sys_t *p_sys = p_dec->p_sys;
 
@@ -595,7 +596,7 @@ static bool DecodePacketX25( decoder_t *p_dec, const uint8_t *packet,
 }
 
 static bool DecodeNormalPacket( decoder_t *p_dec, const uint8_t *packet,
-                                int magazine, int row, vlc_tick_t pts )
+                                int magazine, int row, heimdall_tick_t pts )
 {
     decoder_sys_t *p_sys = p_dec->p_sys;
 
@@ -631,7 +632,7 @@ static int Decode( decoder_t *p_dec, block_t *p_block )
     int total;
 
     if( p_block == NULL ) /* No Drain */
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
 
 //    dbg((p_dec, "start of telx packet with header %2x",
 //                * (uint8_t *) p_block->p_buffer));
@@ -735,7 +736,7 @@ static int Decode( decoder_t *p_dec, block_t *p_block )
         msg_Err( p_dec, "cannot allocate SPU region" );
         goto error;
     }
-    vlc_spu_regions_push( &p_spu->regions, p_region );
+    heimdall_spu_regions_push( &p_spu->regions, p_region );
 
     /* Normal text subs, easy markup */
     p_region->b_absolute = false; p_region->b_in_window = false;
@@ -752,7 +753,7 @@ static int Decode( decoder_t *p_dec, block_t *p_block )
     block_Release( p_block );
     if( p_spu != NULL )
         decoder_QueueSub( p_dec, p_spu );
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 
 error:
     if ( p_spu != NULL )
@@ -762,5 +763,5 @@ error:
     }
 
     block_Release( p_block );
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }

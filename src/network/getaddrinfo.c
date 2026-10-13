@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 2005 VLC authors and VideoLAN
  * Copyright (C) 2002-2007 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Rémi Denis-Courmont
  *
@@ -25,7 +26,7 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
 #include <stddef.h> /* size_t */
 #include <string.h> /* strlen(), memcpy(), memset(), strchr() */
@@ -34,9 +35,9 @@
 #include <assert.h>
 
 #include <sys/types.h>
-#include <vlc_network.h>
+#include <heimdall_network.h>
 
-int vlc_getnameinfo( const struct sockaddr *sa, int salen,
+int heimdall_getnameinfo( const struct sockaddr *sa, int salen,
                      char *host, int hostlen, int *portnum, int flags )
 {
     char psz_servbuf[6], *psz_serv;
@@ -62,13 +63,13 @@ int vlc_getnameinfo( const struct sockaddr *sa, int salen,
     return i_val;
 }
 
-int vlc_getaddrinfo (const char *node, unsigned port,
+int heimdall_getaddrinfo (const char *node, unsigned port,
                      const struct addrinfo *hints, struct addrinfo **res)
 {
     char hostbuf[NI_MAXHOST], portbuf[6], *servname;
 
     /*
-     * In VLC, we always use port number as integer rather than strings
+     * In Heimdall, we always use port number as integer rather than strings
      * for historical reasons (and portability).
      */
     if (port != 0)
@@ -83,7 +84,7 @@ int vlc_getaddrinfo (const char *node, unsigned port,
         servname = NULL;
 
     /*
-     * VLC extensions :
+     * Heimdall extensions :
      * - accept the empty string as unspecified host (i.e. NULL)
      * - ignore square brackets (for IPv6 numerals)
      */
@@ -109,10 +110,10 @@ int vlc_getaddrinfo (const char *node, unsigned port,
 
 #if defined (_WIN32) || defined (__OS2__) \
  || defined (__ANDROID__) || defined (__APPLE__)
-#warning vlc_getaddrinfo_i11e() not implemented!
-int vlc_getaddrinfo_i11e(const char *node, unsigned port,
+#warning heimdall_getaddrinfo_i11e() not implemented!
+int heimdall_getaddrinfo_i11e(const char *node, unsigned port,
                          const struct addrinfo *hints, struct addrinfo **res)
 {
-    return vlc_getaddrinfo(node, port, hints, res);
+    return heimdall_getaddrinfo(node, port, hints, res);
 }
 #endif

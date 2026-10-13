@@ -2,6 +2,7 @@
  * adummy.c : dummy audio output plugin
  *****************************************************************************
  * Copyright (C) 2002 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Christophe Massiot <massiot@via.ecp.fr>
  *
@@ -24,50 +25,50 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_aout.h>
-#include <vlc_cpu.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_aout.h>
+#include <heimdall_cpu.h>
 
-static int Open(vlc_object_t *);
-static void Close(vlc_object_t *);
+static int Open(heimdall_object_t *);
+static void Close(heimdall_object_t *);
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( N_("Dummy") )
     set_description( N_("Dummy audio output") )
     set_capability( "audio output", 0 )
     set_callbacks( Open, Close )
     add_shortcut( "dummy" )
-vlc_module_end ()
+heimdall_module_end ()
 
 struct aout_sys
 {
-    vlc_tick_t first_pts;
-    vlc_tick_t first_play_date;
-    vlc_tick_t last_timing_date;
-    vlc_tick_t paused_date;
+    heimdall_tick_t first_pts;
+    heimdall_tick_t first_play_date;
+    heimdall_tick_t last_timing_date;
+    heimdall_tick_t paused_date;
 };
 
-static void Play(audio_output_t *aout, block_t *block, vlc_tick_t date)
+static void Play(audio_output_t *aout, block_t *block, heimdall_tick_t date)
 {
     struct aout_sys *sys = aout->sys;
 
-    if (unlikely(sys->first_play_date == VLC_TICK_INVALID))
+    if (unlikely(sys->first_play_date == HEIMDALL_TICK_INVALID))
     {
-        assert(sys->first_pts == VLC_TICK_INVALID);
+        assert(sys->first_pts == HEIMDALL_TICK_INVALID);
         sys->first_play_date = date;
         sys->first_pts = block->i_pts;
     }
 
     block_Release( block );
 
-    vlc_tick_t now = vlc_tick_now();
+    heimdall_tick_t now = heimdall_tick_now();
 
     if (now < sys->first_play_date)
         return;
 
-    if (sys->last_timing_date == VLC_TICK_INVALID ||
-        now - sys->last_timing_date >= VLC_TICK_FROM_SEC(1))
+    if (sys->last_timing_date == HEIMDALL_TICK_INVALID ||
+        now - sys->last_timing_date >= HEIMDALL_TICK_FROM_SEC(1))
     {
         sys->last_timing_date = now;
         aout_TimingReport(aout, now,
@@ -75,7 +76,7 @@ static void Play(audio_output_t *aout, block_t *block, vlc_tick_t date)
     }
 }
 
-static void Pause(audio_output_t *aout, bool paused, vlc_tick_t date)
+static void Pause(audio_output_t *aout, bool paused, heimdall_tick_t date)
 {
     struct aout_sys *sys = aout->sys;
     if (paused)
@@ -83,7 +84,7 @@ static void Pause(audio_output_t *aout, bool paused, vlc_tick_t date)
     else
     {
         sys->first_play_date -= sys->paused_date - date;
-        sys->paused_date = VLC_TICK_INVALID;
+        sys->paused_date = HEIMDALL_TICK_INVALID;
     }
 }
 
@@ -91,9 +92,9 @@ static void Flush(audio_output_t *aout)
 {
     struct aout_sys *sys = aout->sys;
 
-    sys->first_play_date = sys->last_timing_date = VLC_TICK_INVALID;
-    sys->first_pts = VLC_TICK_INVALID;
-    sys->paused_date = VLC_TICK_INVALID;
+    sys->first_play_date = sys->last_timing_date = HEIMDALL_TICK_INVALID;
+    sys->first_pts = HEIMDALL_TICK_INVALID;
+    sys->paused_date = HEIMDALL_TICK_INVALID;
 }
 
 static int Start(audio_output_t *aout, audio_sample_format_t *restrict fmt)
@@ -102,17 +103,17 @@ static int Start(audio_output_t *aout, audio_sample_format_t *restrict fmt)
 
     switch (fmt->i_format)
     {
-        case VLC_CODEC_A52:
-        case VLC_CODEC_EAC3:
-            fmt->i_format = VLC_CODEC_SPDIFL;
+        case HEIMDALL_CODEC_A52:
+        case HEIMDALL_CODEC_EAC3:
+            fmt->i_format = HEIMDALL_CODEC_SPDIFL;
             fmt->i_bytes_per_frame = 4;
             fmt->i_frame_length = 1;
             break;
-        case VLC_CODEC_DTS:
-        case VLC_CODEC_DTSHD:
-        case VLC_CODEC_TRUEHD:
-        case VLC_CODEC_MLP:
-            fmt->i_format = VLC_CODEC_SPDIFL;
+        case HEIMDALL_CODEC_DTS:
+        case HEIMDALL_CODEC_DTSHD:
+        case HEIMDALL_CODEC_TRUEHD:
+        case HEIMDALL_CODEC_MLP:
+            fmt->i_format = HEIMDALL_CODEC_SPDIFL;
             fmt->i_rate = 768000;
             fmt->i_bytes_per_frame = 16;
             fmt->i_frame_length = 1;
@@ -120,30 +121,30 @@ static int Start(audio_output_t *aout, audio_sample_format_t *restrict fmt)
         default:
             assert(AOUT_FMT_LINEAR(fmt));
             assert(aout_FormatNbChannels(fmt) > 0);
-            fmt->i_format = HAVE_FPU ? VLC_CODEC_FL32 : VLC_CODEC_S16N;
+            fmt->i_format = HAVE_FPU ? HEIMDALL_CODEC_FL32 : HEIMDALL_CODEC_S16N;
             fmt->channel_type = AUDIO_CHANNEL_TYPE_BITMAP;
             break;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void Close(vlc_object_t *obj)
+static void Close(heimdall_object_t *obj)
 {
     audio_output_t *aout = (audio_output_t *)obj;
     free(aout->sys);
 }
 
-static int Open(vlc_object_t *obj)
+static int Open(heimdall_object_t *obj)
 {
     audio_output_t *aout = (audio_output_t *)obj;
 
     struct aout_sys *sys = aout->sys = malloc(sizeof(*sys));
     if (!sys)
-        return VLC_ENOMEM;
-    sys->first_play_date = sys->last_timing_date = VLC_TICK_INVALID;
-    sys->first_pts = VLC_TICK_INVALID;
-    sys->paused_date = VLC_TICK_INVALID;
+        return HEIMDALL_ENOMEM;
+    sys->first_play_date = sys->last_timing_date = HEIMDALL_TICK_INVALID;
+    sys->first_pts = HEIMDALL_TICK_INVALID;
+    sys->paused_date = HEIMDALL_TICK_INVALID;
 
     aout->start = Start;
     aout->play = Play;
@@ -152,5 +153,5 @@ static int Open(vlc_object_t *obj)
     aout->stop = Flush;
     aout->volume_set = NULL;
     aout->mute_set = NULL;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

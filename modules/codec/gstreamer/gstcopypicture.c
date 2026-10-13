@@ -2,6 +2,7 @@
  * gstcopypicture.h: copy GStreamer frames into pictures
  *****************************************************************************
  * Copyright (C) 2022 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Yann Lochet <yann@l0chet.fr>
  *
@@ -20,7 +21,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#include <vlc_picture.h>
+#include <heimdall_picture.h>
 
 #include <gst/gst.h>
 #include <gst/video/video.h>
@@ -28,7 +29,7 @@
 #include "gstcopypicture.h"
 
 /* Copy the frame data from the GstBuffer (from decoder)
- * to the picture obtained from downstream in VLC.
+ * to the picture obtained from downstream in Heimdall.
  * This function should be avoided as much
  * as possible, since it involves a complete frame copy. */
 void gst_CopyPicture( picture_t *p_pic, GstVideoFrame *p_frame )

@@ -2,6 +2,7 @@
  * setid.c: set ID/lang on a stream
  *****************************************************************************
  * Copyright © 2009-2011 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Christophe Massiot <massiot@via.ecp.fr>
  *
@@ -31,10 +32,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_sout.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_sout.h>
 
 /*****************************************************************************
  * Module descriptor
@@ -51,14 +52,14 @@
 #define LANG_LONGTEXT N_( \
     "Specify an ISO-639 code (three characters) for this elementary stream" )
 
-static int  OpenId    ( vlc_object_t * );
-static int  OpenLang  ( vlc_object_t * );
+static int  OpenId    ( heimdall_object_t * );
+static int  OpenLang  ( heimdall_object_t * );
 static void Close     ( sout_stream_t * );
 
 #define SOUT_CFG_PREFIX_ID   "sout-setid-"
 #define SOUT_CFG_PREFIX_LANG "sout-setlang-"
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname( N_("Set ID"))
     set_section( N_("Set ES id"), NULL )
     set_description( N_("Change the id of an elementary stream"))
@@ -79,7 +80,7 @@ vlc_module_begin()
     add_integer( SOUT_CFG_PREFIX_LANG "id", 0, ID_TEXT, ID_LONGTEXT )
     add_string( SOUT_CFG_PREFIX_LANG "lang", "eng", LANG_TEXT, LANG_LONGTEXT )
 
-vlc_module_end()
+heimdall_module_end()
 
 
 /*****************************************************************************
@@ -97,7 +98,7 @@ static void *AddId  ( sout_stream_t *, const es_format_t *, const char * );
 static void *AddLang( sout_stream_t *, const es_format_t *, const char * );
 static void  Del    ( sout_stream_t *, void * );
 static int   Send   ( sout_stream_t *, void *, block_t * );
-static void  SetPCR ( sout_stream_t *, vlc_tick_t );
+static void  SetPCR ( sout_stream_t *, heimdall_tick_t );
 
 typedef struct
 {
@@ -109,18 +110,18 @@ typedef struct
 /*****************************************************************************
  * Open:
  *****************************************************************************/
-static int OpenCommon( vlc_object_t *p_this )
+static int OpenCommon( heimdall_object_t *p_this )
 {
     sout_stream_t     *p_stream = (sout_stream_t*)p_this;
     sout_stream_sys_t *p_sys;
 
     p_sys = malloc( sizeof( sout_stream_sys_t ) );
     if( unlikely( !p_sys ) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_stream->p_sys     = p_sys;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static const struct sout_stream_operations id_ops = {
@@ -130,10 +131,10 @@ static const struct sout_stream_operations id_ops = {
     .set_pcr = SetPCR,
 };
 
-static int OpenId( vlc_object_t *p_this )
+static int OpenId( heimdall_object_t *p_this )
 {
     int i_ret = OpenCommon( p_this );
-    if( i_ret != VLC_SUCCESS )
+    if( i_ret != HEIMDALL_SUCCESS )
         return i_ret;
 
     sout_stream_t *p_stream = (sout_stream_t*)p_this;
@@ -148,7 +149,7 @@ static int OpenId( vlc_object_t *p_this )
 
     p_stream->ops = &id_ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static const struct sout_stream_operations lang_ops = {
@@ -159,10 +160,10 @@ static const struct sout_stream_operations lang_ops = {
     .close = Close,
 };
 
-static int OpenLang( vlc_object_t *p_this )
+static int OpenLang( heimdall_object_t *p_this )
 {
     int i_ret = OpenCommon( p_this );
-    if( i_ret != VLC_SUCCESS )
+    if( i_ret != HEIMDALL_SUCCESS )
         return i_ret;
 
     sout_stream_t *p_stream = (sout_stream_t*)p_this;
@@ -177,7 +178,7 @@ static int OpenLang( vlc_object_t *p_this )
 
     p_stream->ops = &lang_ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -240,7 +241,7 @@ static int Send( sout_stream_t *p_stream, void *id, block_t *p_buffer )
     return sout_StreamIdSend( p_stream->p_next, id, p_buffer );
 }
 
-static void SetPCR( sout_stream_t *stream, vlc_tick_t pcr )
+static void SetPCR( sout_stream_t *stream, heimdall_tick_t pcr )
 {
     sout_StreamSetPCR( stream->p_next, pcr );
 }

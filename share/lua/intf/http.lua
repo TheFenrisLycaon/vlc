@@ -1,9 +1,10 @@
 --[==========================================================================[
- http.lua: HTTP interface module for VLC
+ http.lua: HTTP interface module for Heimdall
 --[==========================================================================[
  Copyright (C) 2007-2009 the VideoLAN team
+ Copyright (C) 2026 TheFenrisLycaon
 
- Authors: Antoine Cellerier <dionoea at videolan dot org>
+ Authors: Antoine Cellerier <dionoea at lycaria dot org>
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -31,12 +32,12 @@ Configuration options:
 
 local common = require "common"
 
-vlc.msg.info("Lua HTTP interface")
+heimdall.msg.info("Lua HTTP interface")
 
-open_tag = "<?vlc"
+open_tag = "<?heimdall"
 close_tag = "?>"
 
--- TODO: use internal VLC mime lookup function for mimes not included here
+-- TODO: use internal Heimdall mime lookup function for mimes not included here
 mimes = {
     txt = "text/plain",
     json = "text/plain",
@@ -54,7 +55,7 @@ function escape(s)
     return (string.gsub(s,"([%^%$%%%.%[%]%*%+%-%?])","%%%1"))
 end
 
-function my_vlc_load(code, filename)
+function my_heimdall_load(code, filename)
     if _VERSION == "Lua 5.1" then
         return loadstring(code, filename)
     else
@@ -81,20 +82,20 @@ function process_raw(filename)
     io.write("\n")
     end
     --]]
-    return assert(my_vlc_load(code,filename))
+    return assert(my_heimdall_load(code,filename))
 end
 
 function process(filename)
-    local mtime = 0    -- vlc.net.stat(filename).modification_time
+    local mtime = 0    -- heimdall.net.stat(filename).modification_time
     local func = false -- process_raw(filename)
     return function(...)
-        local new_mtime = vlc.net.stat(filename).modification_time
+        local new_mtime = heimdall.net.stat(filename).modification_time
         if func == false or new_mtime ~= mtime then
             -- Re-read the file if it changed
             if func == false then
-                vlc.msg.dbg("Loading `"..filename.."'")
+                heimdall.msg.dbg("Loading `"..filename.."'")
             else
-                vlc.msg.dbg("Reloading `"..filename.."'")
+                heimdall.msg.dbg("Reloading `"..filename.."'")
             end
             func = process_raw(filename)
             mtime = new_mtime
@@ -121,9 +122,9 @@ function callback_error(path,url,msg)
 </head>
 <body>
 <h1>Error loading ]]..url..[[</h1><pre>]]..(config.no_error_detail and "Remove configuration option `no_error_detail' on the server to get more information."
-or vlc.strings.convert_xml_special_chars(tostring(msg)))..[[</pre>
+or heimdall.strings.convert_xml_special_chars(tostring(msg)))..[[</pre>
 <p>
-<a href="https://www.videolan.org/">VideoLAN</a><br/>
+<a href="https://www.videolan.org/">Lycaria</a><br/>
 <a href="https://www.lua.org/manual/5.1/">Lua 5.1 Reference Manual</a>
 </p>
 </body>
@@ -163,14 +164,14 @@ function callback_art(data, request, args)
         end
         local pl_item
         if num then
-            pl_item = vlc.playlist.get(num)
+            pl_item = heimdall.playlist.get(num)
         else
-            pl_item = vlc.playlist.current_item()
+            pl_item = heimdall.playlist.current_item()
         end
         local item = pl_item.item
         local metas = item:metas()
-        local filename = vlc.strings.make_path(metas["artwork_url"])
-        local size = vlc.net.stat(filename).size
+        local filename = heimdall.strings.make_path(metas["artwork_url"])
+        local size = heimdall.net.stat(filename).size
         local ext = string.match(filename,"%.([^%.]-)$")
         local raw = io.open(filename, 'rb'):read("*a")
         local content = [[Content-Type: ]]..(mimes[ext] or "application/octet-stream")..[[
@@ -227,16 +228,16 @@ end
 
 function rawfile(h,path,url)
     local filename = path
-    local mtime = 0    -- vlc.net.stat(filename).modification_time
+    local mtime = 0    -- heimdall.net.stat(filename).modification_time
     local page = false -- io.open(filename):read("*a")
     local callback = function(data,request)
-        local new_mtime = vlc.net.stat(filename).modification_time
+        local new_mtime = heimdall.net.stat(filename).modification_time
         if page == false or new_mtime ~= mtime then
             -- Re-read the file if it changed
             if page == false then
-                vlc.msg.dbg("Loading `"..filename.."'")
+                heimdall.msg.dbg("Loading `"..filename.."'")
             else
-                vlc.msg.dbg("Reloading `"..filename.."'")
+                heimdall.msg.dbg("Reloading `"..filename.."'")
             end
             page = io.open(filename,"rb"):read("*a")
             mtime = new_mtime
@@ -250,8 +251,8 @@ function parse_url_request(request)
     if not request then return {} end
     local t = {}
     for k,v in string.gmatch(request,"([^=&]+)=?([^=&]*)") do
-        local k_ = vlc.strings.decode_uri(k)
-        local v_ = vlc.strings.decode_uri(v)
+        local k_ = heimdall.strings.decode_uri(k)
+        local v_ = heimdall.strings.decode_uri(v)
         if t[k_] ~= nil then
             local t2
             if type(t[k_]) ~= "table" then
@@ -270,9 +271,9 @@ function parse_url_request(request)
 end
 
 local function find_datadir(name)
-    local list = vlc.config.datadir_list(name)
+    local list = heimdall.config.datadir_list(name)
     for _, l in ipairs(list) do
-        local s = vlc.net.stat(l)
+        local s = heimdall.net.stat(l)
         if s then
             return l
         end
@@ -286,9 +287,9 @@ do
     package.path = http_dir.."/?.lua"
     local ok, err = pcall(require,"custom")
     if not ok then
-        vlc.msg.warn("Couldn't load "..http_dir.."/custom.lua",err)
+        heimdall.msg.warn("Couldn't load "..http_dir.."/custom.lua",err)
     else
-        vlc.msg.dbg("Loaded "..http_dir.."/custom.lua")
+        heimdall.msg.dbg("Loaded "..http_dir.."/custom.lua")
     end
     package.path = oldpath
 end
@@ -296,10 +297,10 @@ files = {}
 local function load_dir(dir,root)
     local root = root or "/"
     local has_index = false
-    local d = vlc.net.opendir(dir)
+    local d = heimdall.net.opendir(dir)
     for _,f in ipairs(d) do
         if not string.match(f,"^%.") then
-            local s = vlc.net.stat(dir.."/"..f)
+            local s = heimdall.net.stat(dir.."/"..f)
             if s.type == "file" then
                 local url
                 if f == "index.html" then
@@ -328,17 +329,17 @@ local function load_dir(dir,root)
 end
 
 if config.host then
-    vlc.msg.err("\""..config.host.."\" HTTP host ignored")
+    heimdall.msg.err("\""..config.host.."\" HTTP host ignored")
     local port = string.match(config.host, ":(%d+)[^]]*$")
-    vlc.msg.info("Pass --http-host=IP "..(port and "and --http-port="..port.." " or "").."on the command line instead.")
+    heimdall.msg.info("Pass --http-host=IP "..(port and "and --http-port="..port.." " or "").."on the command line instead.")
 end
 
-password = vlc.var.inherit(nil,"http-password")
+password = heimdall.var.inherit(nil,"http-password")
 
-h = vlc.httpd()
+h = heimdall.httpd()
 if password == "" then
-    vlc.msg.err("Password unset, insecure web interface disabled")
-    vlc.msg.info("Set --http-password on the command line if you want to enable the web interface.")
+    heimdall.msg.err("Password unset, insecure web interface disabled")
+    heimdall.msg.info("Set --http-password on the command line if you want to enable the web interface.")
     p = h:handler("/",nil,nil,callback_nopassword,nil)
 else
     load_dir( http_dir )

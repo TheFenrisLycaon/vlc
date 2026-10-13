@@ -20,9 +20,9 @@ macos-install:
 	DESTDIR="$(macos_destdir)" $(MAKE) install
 	touch "$(macos_destdir)"
 
-# VLC.app for packaging and giving it to your friends
+# Heimdall.app for packaging and giving it to your friends
 # use package-macosx to get a nice dmg
-VLC.app: macos-install
+Heimdall.app: macos-install
 	rm -Rf $@
 	## Copy Contents
 	cp -R "$(macos_destdir)$(datadir)/macosx/" $@
@@ -68,94 +68,94 @@ if HAVE_NLS
 	## Copy translations
 	-cp -a "$(macos_destdir)$(datadir)/locale" $@/Contents/Resources/share/
 endif
-	printf "APPLVLC#" >| $@/Contents/PkgInfo
+	printf "APPLHEIMDALL#" >| $@/Contents/PkgInfo
 	## Copy libs
-	cp -a "$(macos_destdir)$(libdir)"/libvlc*.dylib $@/Contents/Frameworks/
+	cp -a "$(macos_destdir)$(libdir)"/libheimdall*.dylib $@/Contents/Frameworks/
 	## Copy plugins
 	mkdir -p $@/Contents/Frameworks/plugins
 	find "$(macos_destdir)$(pkglibdir)/plugins" -name 'lib*_plugin.dylib' -maxdepth 3 -exec cp -a {} $@/Contents/Frameworks/plugins \;
 	## Copy libbluray jar
 	-cp -a "$(CONTRIB_DIR)"/share/java/libbluray*.jar $@/Contents/Frameworks/plugins/
 	## Install binary
-	cp "$(macos_destdir)$(prefix)/bin/vlc" $@/Contents/MacOS/VLC
-	install_name_tool -rpath "$(libdir)" "@executable_path/../Frameworks/" $@/Contents/MacOS/VLC
-	cp "$(macos_destdir)$(pkglibexecdir)/vlc-preparser" $@/Contents/MacOS/
-	install_name_tool -rpath "$(libdir)" "@executable_path/../Frameworks/" $@/Contents/MacOS/vlc-preparser
+	cp "$(macos_destdir)$(prefix)/bin/heimdall" $@/Contents/MacOS/Heimdall
+	install_name_tool -rpath "$(libdir)" "@executable_path/../Frameworks/" $@/Contents/MacOS/Heimdall
+	cp "$(macos_destdir)$(pkglibexecdir)/heimdall-preparser" $@/Contents/MacOS/
+	install_name_tool -rpath "$(libdir)" "@executable_path/../Frameworks/" $@/Contents/MacOS/heimdall-preparser
 	## Generate plugin cache
 	if test "$(build)" = "$(host)"; then \
-		VLC_LIB_PATH="$@/Contents/Frameworks" bin/vlc-cache-gen $@/Contents/Frameworks/plugins ; \
+		HEIMDALL_LIB_PATH="$@/Contents/Frameworks" bin/heimdall-cache-gen $@/Contents/Frameworks/plugins ; \
 	else \
 		echo "Cross-compilation: cache generation skipped!" ; \
 	fi
 	find $@ -type d -exec chmod ugo+rx '{}' \;
 	find $@ -type f -exec chmod ugo+r '{}' \;
 	## Ad-hoc sign the bundle
-	VLC_LIB_PATH="$@/Contents/Frameworks" "$(srcdir)/extras/package/macosx/codesign.sh" -i -
+	HEIMDALL_LIB_PATH="$@/Contents/Frameworks" "$(srcdir)/extras/package/macosx/codesign.sh" -i -
 
 package-macosx-sdk: macos-install
-	rm -f "$(top_builddir)/vlc-macos-sdk-$(VERSION).tar.gz"
+	rm -f "$(top_builddir)/heimdall-macos-sdk-$(VERSION).tar.gz"
 	tar -cf - --exclude "share/macosx" -C "$(macos_destdir)" . \
-		| gzip -c > "$(top_builddir)/vlc-macos-sdk-$(VERSION).tar.gz"
+		| gzip -c > "$(top_builddir)/heimdall-macos-sdk-$(VERSION).tar.gz"
 
-package-macosx: VLC.app
-	rm -f "$(top_builddir)/vlc-$(VERSION).dmg"
+package-macosx: Heimdall.app
+	rm -f "$(top_builddir)/heimdall-$(VERSION).dmg"
 if HAVE_DMGBUILD
 	@echo "Packaging fancy DMG using dmgbuild"
 	cd "$(top_srcdir)/extras/package/macosx/dmg" && dmgbuild -s "dmg_settings.py" \
-		-D app="$(abs_top_builddir)/VLC.app" "VLC Media Player" "$(abs_top_builddir)/vlc-$(VERSION).dmg"
+		-D app="$(abs_top_builddir)/Heimdall.app" "Heimdall Media Player" "$(abs_top_builddir)/heimdall-$(VERSION).dmg"
 else !HAVE_DMGBUILD
 	@echo "Packaging non-fancy DMG"
 	## Create directory for DMG contents
-	mkdir -p "$(top_builddir)/vlc-$(VERSION)"
+	mkdir -p "$(top_builddir)/heimdall-$(VERSION)"
 	## Copy contents
-	cp -Rp "$(top_builddir)/VLC.app" "$(top_builddir)/vlc-$(VERSION)/VLC.app"
+	cp -Rp "$(top_builddir)/Heimdall.app" "$(top_builddir)/heimdall-$(VERSION)/Heimdall.app"
 	## Symlink to Applications so users can easily drag-and-drop the App to it
-	$(LN_S) -f /Applications "$(top_builddir)/vlc-$(VERSION)/"
+	$(LN_S) -f /Applications "$(top_builddir)/heimdall-$(VERSION)/"
 	## Create DMG
-	hdiutil create -srcfolder "$(top_builddir)/vlc-$(VERSION)" -volname "VLC Media Player" \
-		-format UDBZ -fs HFS+ -o "$(top_builddir)/vlc-$(VERSION).dmg"
+	hdiutil create -srcfolder "$(top_builddir)/heimdall-$(VERSION)" -volname "Heimdall Media Player" \
+		-format UDBZ -fs HFS+ -o "$(top_builddir)/heimdall-$(VERSION).dmg"
 	## Cleanup
-	rm -rf "$(top_builddir)/vlc-$(VERSION)"
+	rm -rf "$(top_builddir)/heimdall-$(VERSION)"
 endif
 
-package-macosx-zip: VLC.app
-	rm -f "$(top_builddir)/vlc-$(VERSION).zip"
-	mkdir -p $(top_builddir)/vlc-$(VERSION)/Goodies/
-	cp -Rp $(top_builddir)/VLC.app $(top_builddir)/vlc-$(VERSION)/VLC.app
-	cd $(srcdir); cp -R AUTHORS COPYING README.md THANKS NEWS $(abs_top_builddir)/vlc-$(VERSION)/Goodies/
-	zip -r -y -9 $(top_builddir)/vlc-$(VERSION).zip $(top_builddir)/vlc-$(VERSION)
-	rm -rf "$(top_builddir)/vlc-$(VERSION)"
+package-macosx-zip: Heimdall.app
+	rm -f "$(top_builddir)/heimdall-$(VERSION).zip"
+	mkdir -p $(top_builddir)/heimdall-$(VERSION)/Goodies/
+	cp -Rp $(top_builddir)/Heimdall.app $(top_builddir)/heimdall-$(VERSION)/Heimdall.app
+	cd $(srcdir); cp -R AUTHORS COPYING README.md THANKS NEWS $(abs_top_builddir)/heimdall-$(VERSION)/Goodies/
+	zip -r -y -9 $(top_builddir)/heimdall-$(VERSION).zip $(top_builddir)/heimdall-$(VERSION)
+	rm -rf "$(top_builddir)/heimdall-$(VERSION)"
 
 package-macosx-release:
-	rm -f "$(top_builddir)/vlc-$(VERSION)-release.zip"
-	mkdir -p $(top_builddir)/vlc-$(VERSION)-release
-	cp -Rp $(top_builddir)/VLC.app $(top_builddir)/vlc-$(VERSION)-release/
-	cp $(srcdir)/extras/package/macosx/dmg/* $(top_builddir)/vlc-$(VERSION)-release/
-	cp "$(srcdir)/extras/package/macosx/codesign.sh" $(top_builddir)/vlc-$(VERSION)-release/
-	cp "$(srcdir)/extras/package/macosx/vlc-hardening.entitlements" $(top_builddir)/vlc-$(VERSION)-release/
-	cp "$(pkglibexecdir)/vlc-cache-gen" $(top_builddir)/vlc-$(VERSION)-release/
-	install_name_tool -add_rpath "@executable_path/VLC.app/Contents/Frameworks" $(top_builddir)/vlc-$(VERSION)-release/vlc-cache-gen
-	zip -r -y -9 $(top_builddir)/vlc-$(VERSION)-release.zip $(top_builddir)/vlc-$(VERSION)-release
-	rm -rf "$(top_builddir)/vlc-$(VERSION)-release"
+	rm -f "$(top_builddir)/heimdall-$(VERSION)-release.zip"
+	mkdir -p $(top_builddir)/heimdall-$(VERSION)-release
+	cp -Rp $(top_builddir)/Heimdall.app $(top_builddir)/heimdall-$(VERSION)-release/
+	cp $(srcdir)/extras/package/macosx/dmg/* $(top_builddir)/heimdall-$(VERSION)-release/
+	cp "$(srcdir)/extras/package/macosx/codesign.sh" $(top_builddir)/heimdall-$(VERSION)-release/
+	cp "$(srcdir)/extras/package/macosx/heimdall-hardening.entitlements" $(top_builddir)/heimdall-$(VERSION)-release/
+	cp "$(pkglibexecdir)/heimdall-cache-gen" $(top_builddir)/heimdall-$(VERSION)-release/
+	install_name_tool -add_rpath "@executable_path/Heimdall.app/Contents/Frameworks" $(top_builddir)/heimdall-$(VERSION)-release/heimdall-cache-gen
+	zip -r -y -9 $(top_builddir)/heimdall-$(VERSION)-release.zip $(top_builddir)/heimdall-$(VERSION)-release
+	rm -rf "$(top_builddir)/heimdall-$(VERSION)-release"
 
 package-translations:
-	mkdir -p "$(srcdir)/vlc-translations-$(VERSION)"
+	mkdir -p "$(srcdir)/heimdall-translations-$(VERSION)"
 	for i in `cat "$(top_srcdir)/po/LINGUAS"`; do \
-	  cp "$(srcdir)/po/$${i}.po" "$(srcdir)/vlc-translations-$(VERSION)/" ; \
+	  cp "$(srcdir)/po/$${i}.po" "$(srcdir)/heimdall-translations-$(VERSION)/" ; \
 	done
-	cp "$(srcdir)/doc/translations.txt" "$(srcdir)/vlc-translations-$(VERSION)/README.txt"
+	cp "$(srcdir)/doc/translations.txt" "$(srcdir)/heimdall-translations-$(VERSION)/README.txt"
 
-	echo "#!/bin/sh" >>"$(srcdir)/vlc-translations-$(VERSION)/convert.po.sh"
-	echo "" >>"$(srcdir)/vlc-translations-$(VERSION)/convert.po.sh"
-	echo 'if test $$# != 1; then' >>"$(srcdir)/vlc-translations-$(VERSION)/convert.po.sh"
-	echo "	echo \"Usage: convert-po.sh <.po file>\"" >>"$(srcdir)/vlc-translations-$(VERSION)/convert.po.sh"
-	echo "	exit 1" >>"$(srcdir)/vlc-translations-$(VERSION)/convert.po.sh"
-	echo "fi" >>"$(srcdir)/vlc-translations-$(VERSION)/convert.po.sh"
-	echo "" >>"$(srcdir)/vlc-translations-$(VERSION)/convert.po.sh"
-	echo 'msgfmt --statistics -o vlc.mo $$1' >>"$(srcdir)/vlc-translations-$(VERSION)/convert.po.sh"
+	echo "#!/bin/sh" >>"$(srcdir)/heimdall-translations-$(VERSION)/convert.po.sh"
+	echo "" >>"$(srcdir)/heimdall-translations-$(VERSION)/convert.po.sh"
+	echo 'if test $$# != 1; then' >>"$(srcdir)/heimdall-translations-$(VERSION)/convert.po.sh"
+	echo "	echo \"Usage: convert-po.sh <.po file>\"" >>"$(srcdir)/heimdall-translations-$(VERSION)/convert.po.sh"
+	echo "	exit 1" >>"$(srcdir)/heimdall-translations-$(VERSION)/convert.po.sh"
+	echo "fi" >>"$(srcdir)/heimdall-translations-$(VERSION)/convert.po.sh"
+	echo "" >>"$(srcdir)/heimdall-translations-$(VERSION)/convert.po.sh"
+	echo 'msgfmt --statistics -o heimdall.mo $$1' >>"$(srcdir)/heimdall-translations-$(VERSION)/convert.po.sh"
 
-	$(AMTAR) chof - $(srcdir)/vlc-translations-$(VERSION) \
-	  | GZIP=$(GZIP_ENV) gzip -c >$(srcdir)/vlc-translations-$(VERSION).tar.gz
+	$(AMTAR) chof - $(srcdir)/heimdall-translations-$(VERSION) \
+	  | GZIP=$(GZIP_ENV) gzip -c >$(srcdir)/heimdall-translations-$(VERSION).tar.gz
 
 .PHONY: package-macosx package-macosx-zip package-macosx-release package-translations pseudo-bundle macos-install package-macosx-sdk
 
@@ -171,6 +171,6 @@ EXTRA_DIST += \
 	extras/package/macosx/dmg/dmg_settings.py \
 	extras/package/macosx/dmg/disk_image.icns \
 	extras/package/macosx/dmg/background.tiff \
-	extras/package/macosx/asset_sources/vlc_app_icon.svg \
-	extras/package/macosx/VLC.entitlements \
-	extras/package/macosx/VLC.xcodeproj/project.pbxproj
+	extras/package/macosx/asset_sources/heimdall_app_icon.svg \
+	extras/package/macosx/Heimdall.entitlements \
+	extras/package/macosx/Heimdall.xcodeproj/project.pbxproj

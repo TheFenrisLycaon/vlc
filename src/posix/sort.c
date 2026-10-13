@@ -2,6 +2,7 @@
  * sort.c: POSIX sort back-end
  ******************************************************************************
  * Copyright © 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,8 +23,8 @@
 # include <config.h>
 #endif
 
-#include <vlc_common.h>
-#include <vlc_sort.h>
+#include <heimdall_common.h>
+#include <heimdall_sort.h>
 
 #ifdef HAVE_BROKEN_QSORT_R
 
@@ -40,7 +41,7 @@ static int compar_compat(void *arg, const void *a, const void *b)
 }
 
 /* Follow the FreeBSD prototype */
-void vlc_qsort(void *base, size_t nmemb, size_t size,
+void heimdall_qsort(void *base, size_t nmemb, size_t size,
                int (*compar)(const void *, const void *, void *),
                void *arg)
 {
@@ -54,7 +55,7 @@ void vlc_qsort(void *base, size_t nmemb, size_t size,
 #else
 
 /* Follow the POSIX prototype */
-void vlc_qsort(void *base, size_t nmemb, size_t size,
+void heimdall_qsort(void *base, size_t nmemb, size_t size,
                int (*compar)(const void *, const void *, void *),
                void *arg)
 {

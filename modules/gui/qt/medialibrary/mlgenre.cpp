@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,8 +19,8 @@
 
 #include "mlgenre.hpp"
 
-MLGenre::MLGenre(const vlc_ml_genre_t *_data )
-    : MLItem( MLItemId( _data->i_id, VLC_ML_PARENT_GENRE ) )
+MLGenre::MLGenre(const heimdall_ml_genre_t *_data )
+    : MLItem( MLItemId( _data->i_id, HEIMDALL_ML_PARENT_GENRE ) )
     , m_name     ( QString::fromUtf8( _data->psz_name ) )
     , m_nbTracks ( (unsigned int)_data->i_nb_tracks )
 

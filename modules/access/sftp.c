@@ -2,6 +2,7 @@
  * sftp.c: SFTP input module
  *****************************************************************************
  * Copyright (C) 2009 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Rémi Duraffort <ivoire@videolan.org>
  *          Petri Hintukainen <phintuka@gmail.com>
@@ -28,17 +29,17 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
 
 #include <assert.h>
 
-#include <vlc_access.h>
-#include <vlc_input_item.h>
-#include <vlc_network.h>
-#include <vlc_url.h>
-#include <vlc_keystore.h>
+#include <heimdall_access.h>
+#include <heimdall_input_item.h>
+#include <heimdall_network.h>
+#include <heimdall_url.h>
+#include <heimdall_keystore.h>
 
 #include <libssh2.h>
 #include <libssh2_sftp.h>
@@ -47,8 +48,8 @@
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  Open ( vlc_object_t* );
-static void Close( vlc_object_t* );
+static int  Open ( heimdall_object_t* );
+static void Close( heimdall_object_t* );
 
 #define PORT_TEXT N_("SFTP port")
 #define PORT_LONGTEXT N_("SFTP port number to use on the server")
@@ -63,7 +64,7 @@ static void Close( vlc_object_t* );
         "Public-key file is assumed to be in the same directory with '.pub' appended. "\
         "If unset, standard key paths will be attempted (e.g. '~/.ssh/id_rsa').")
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( "SFTP" )
     set_description( N_("SFTP input") )
     set_capability( "access", 0 )
@@ -74,7 +75,7 @@ vlc_module_begin ()
     add_loadfile("sftp-privatekey", NULL, PRIVATEKEY_TEXT, PRIVATEKEY_LONGTEXT)
     add_shortcut( "sftp" )
     set_callbacks( Open, Close )
-vlc_module_end ()
+heimdall_module_end ()
 
 
 /*****************************************************************************
@@ -99,7 +100,7 @@ typedef struct
 static int AuthKeyAgent( stream_t *p_access, const char *psz_username )
 {
     access_sys_t* p_sys = p_access->p_sys;
-    int i_result = VLC_EGENERIC;
+    int i_result = HEIMDALL_EGENERIC;
     LIBSSH2_AGENT *p_sshagent = NULL;
     struct libssh2_agent_publickey *p_identity = NULL,
                                    *p_prev_identity = NULL;
@@ -131,7 +132,7 @@ static int AuthKeyAgent( stream_t *p_access, const char *psz_username )
         if( libssh2_agent_userauth( p_sshagent, psz_username, p_identity ) == 0 )
         {
             msg_Info( p_access, "Public key agent authentication succeeded" );
-            i_result = VLC_SUCCESS;
+            i_result = HEIMDALL_SUCCESS;
             goto bailout;
         }
         msg_Dbg( p_access, "Public key agent authentication failed" );
@@ -159,7 +160,7 @@ static int AuthPublicKey( stream_t *p_access, const char *psz_home, const char *
     };
 
     if( !psz_username || !psz_username[0] )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     psz_keyfile2 = var_InheritString( p_access, "sftp-privatekey" );
 
@@ -169,7 +170,7 @@ static int AuthPublicKey( stream_t *p_access, const char *psz_home, const char *
         if( asprintf( &psz_keyfile1, "%s.pub", psz_keyfile2 ) == -1 )
         {
             free( psz_keyfile2 );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         msg_Dbg( p_access, "Trying paths %s (public) and %s (private) as a possible key pair", psz_keyfile1, psz_keyfile2 );
@@ -180,21 +181,21 @@ static int AuthPublicKey( stream_t *p_access, const char *psz_home, const char *
         if( !res )
         {
             msg_Info( p_access, "Public key authentication succeeded" );
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
         msg_Err( p_access, "Public key authentication failed" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* If no custom path is provided, try all standard key files. */
     for( size_t i = 0; i < ARRAY_SIZE(defaultkeys); i++)
     {
         if( asprintf( &psz_keyfile1, "%s/.ssh/id_%s.pub", psz_home, defaultkeys[i] ) == -1 )
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         if( asprintf( &psz_keyfile2, "%s/.ssh/id_%s", psz_home, defaultkeys[i] ) == -1 )
         {
             free( psz_keyfile1 );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         msg_Dbg( p_access, "Trying paths %s (public) and %s (private) as a possible key pair", psz_keyfile1, psz_keyfile2 );
@@ -205,11 +206,11 @@ static int AuthPublicKey( stream_t *p_access, const char *psz_home, const char *
         if( !res )
         {
             msg_Info( p_access, "Public key authentication succeeded" );
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
         msg_Dbg( p_access, "Public key authentication failed" );
     }
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 static void SSHSessionDestroy( stream_t *p_access )
@@ -257,52 +258,52 @@ static int SSHSessionInit( stream_t *p_access, const char *psz_host, int i_port 
 
     /* Set the socket in non-blocking mode */
     libssh2_session_set_blocking( p_sys->ssh_session, 1 );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     msg_Err( p_access, "Impossible to open the connection to %s:%i",
              psz_host, i_port );
     SSHSessionDestroy( p_access );
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /**
  * Connect to the sftp server and ask for a file
- * @param p_this: the vlc_object
- * @return VLC_SUCCESS if everything was fine
+ * @param p_this: the heimdall_object
+ * @return HEIMDALL_SUCCESS if everything was fine
  */
-static int Open( vlc_object_t* p_this )
+static int Open( heimdall_object_t* p_this )
 {
     stream_t*   p_access = (stream_t*)p_this;
     access_sys_t* p_sys;
-    vlc_credential credential;
+    heimdall_credential credential;
     char* psz_path = NULL;
     char *psz_session_username = NULL;
     char* psz_home = NULL;
     int i_port;
-    vlc_url_t url;
+    heimdall_url_t url;
     size_t i_len;
     int i_type;
-    int i_result = VLC_EGENERIC;
+    int i_result = HEIMDALL_EGENERIC;
 
     if( !p_access->psz_location )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    p_sys = p_access->p_sys = vlc_obj_calloc( p_this, 1, sizeof( access_sys_t ) );
-    if( !p_sys ) return VLC_ENOMEM;
+    p_sys = p_access->p_sys = heimdall_obj_calloc( p_this, 1, sizeof( access_sys_t ) );
+    if( !p_sys ) return HEIMDALL_ENOMEM;
 
     p_sys->i_socket = -1;
 
     /* Parse the URL */
-    if( vlc_UrlParseFixup( &url, p_access->psz_url ) != 0 )
+    if( heimdall_UrlParseFixup( &url, p_access->psz_url ) != 0 )
     {
-        vlc_UrlClean( &url );
-        return VLC_EGENERIC;
+        heimdall_UrlClean( &url );
+        return HEIMDALL_EGENERIC;
     }
-    vlc_credential_init( &credential, &url );
+    heimdall_credential_init( &credential, &url );
     if( url.psz_path != NULL )
     {
-        psz_path = vlc_uri_decode_duplicate( url.psz_path );
+        psz_path = heimdall_uri_decode_duplicate( url.psz_path );
         if( psz_path == NULL )
             goto error;
     }
@@ -320,7 +321,7 @@ static int Open( vlc_object_t* p_this )
         i_port = url.i_port;
 
     /* Create the ssh connection and wait until the server answer */
-    if( SSHSessionInit( p_access, url.psz_host, i_port ) != VLC_SUCCESS )
+    if( SSHSessionInit( p_access, url.psz_host, i_port ) != HEIMDALL_SUCCESS )
         goto error;
 
     /* List the know hosts */
@@ -328,7 +329,7 @@ static int Open( vlc_object_t* p_this )
     if( !ssh_knownhosts )
         goto error;
 
-    psz_home = config_GetUserDir( VLC_HOME_DIR );
+    psz_home = config_GetUserDir( HEIMDALL_HOME_DIR );
     if (likely(psz_home != NULL))
     {
         char *psz_knownhosts_file;
@@ -411,7 +412,7 @@ static int Open( vlc_object_t* p_this )
         goto error;
     }
 
-    if (vlc_credential_get( &credential, p_access, "sftp-user", "sftp-pwd",
+    if (heimdall_credential_get( &credential, p_access, "sftp-user", "sftp-pwd",
                             NULL, NULL) == -EINTR)
         goto error;
 
@@ -434,7 +435,7 @@ static int Open( vlc_object_t* p_this )
             msg_Warn( p_access, "The username changed, starting a new ssh session" );
 
             SSHSessionDestroy( p_access );
-            if( SSHSessionInit( p_access, url.psz_host, i_port ) != VLC_SUCCESS )
+            if( SSHSessionInit( p_access, url.psz_host, i_port ) != HEIMDALL_SUCCESS )
                 goto error;
 
             b_publickey_tried = false;
@@ -454,11 +455,11 @@ static int Open( vlc_object_t* p_this )
             /* Don't try public key multiple times to avoid getting black
              * listed */
             b_publickey_tried = true;
-            if( AuthKeyAgent( p_access, credential.psz_username ) == VLC_SUCCESS
-             || AuthPublicKey( p_access, psz_home, credential.psz_username ) == VLC_SUCCESS )
+            if( AuthKeyAgent( p_access, credential.psz_username ) == HEIMDALL_SUCCESS
+             || AuthPublicKey( p_access, psz_home, credential.psz_username ) == HEIMDALL_SUCCESS )
             {
                 /* Password validity is unknown with the pubkey, but keep the username. */
-                vlc_credential_store( &credential, p_access );
+                heimdall_credential_store( &credential, p_access );
                 break;
             }
         }
@@ -469,12 +470,12 @@ static int Open( vlc_object_t* p_this )
                                        credential.psz_username,
                                        credential.psz_password ) == 0 )
         {
-            vlc_credential_store( &credential, p_access );
+            heimdall_credential_store( &credential, p_access );
             break;
         }
 
         msg_Warn( p_access, "sftp auth failed for %s", credential.psz_username );
-    } while( vlc_credential_get( &credential, p_access, "sftp-user", "sftp-pwd",
+    } while( heimdall_credential_get( &credential, p_access, "sftp-user", "sftp-pwd",
                                 _("SFTP authentication"),
                                 _("Please enter a valid login and password for "
                                 "the SFTP connection to %s"), url.psz_host ) == 0 );
@@ -512,7 +513,7 @@ static int Open( vlc_object_t* p_this )
         psz_path = psz_remote_home;
 
         /* store base url for directory read */
-        char *base = vlc_path2uri( psz_path, "sftp" );
+        char *base = heimdall_path2uri( psz_path, "sftp" );
         if( !base )
             goto error;
         if( -1 == asprintf( &base_url_tmp, "sftp://%s%s", p_access->psz_location, base + 7 ) )
@@ -567,15 +568,15 @@ static int Open( vlc_object_t* p_this )
         goto error;
     }
 
-    i_result = VLC_SUCCESS;
+    i_result = HEIMDALL_SUCCESS;
 
 error:
     free( psz_home );
     free( psz_session_username );
     free( psz_path );
-    vlc_credential_clean( &credential );
-    vlc_UrlClean( &url );
-    if( i_result != VLC_SUCCESS ) {
+    heimdall_credential_clean( &credential );
+    heimdall_UrlClean( &url );
+    if( i_result != HEIMDALL_SUCCESS ) {
         Close( p_this );
     }
     return i_result;
@@ -583,7 +584,7 @@ error:
 
 
 /* Close: quit the module */
-static void Close( vlc_object_t* p_this )
+static void Close( heimdall_object_t* p_this )
 {
     stream_t*   p_access = (stream_t*)p_this;
     access_sys_t* p_sys = p_access->p_sys;
@@ -618,7 +619,7 @@ static int Seek( stream_t* p_access, uint64_t i_pos )
     access_sys_t *sys = p_access->p_sys;
 
     libssh2_sftp_seek64( sys->file, i_pos );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 
@@ -648,23 +649,23 @@ static int Control( stream_t* p_access, int i_query, va_list args )
 
     case STREAM_GET_SIZE:
         if( p_access->pf_readdir != NULL )
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         *va_arg( args, uint64_t * ) = sys->filesize;
         break;
 
     case STREAM_GET_PTS_DELAY:
-        *va_arg( args, vlc_tick_t * ) =
-            VLC_TICK_FROM_MS(var_InheritInteger( p_access, "network-caching" ));
+        *va_arg( args, heimdall_tick_t * ) =
+            HEIMDALL_TICK_FROM_MS(var_InheritInteger( p_access, "network-caching" ));
         break;
 
     case STREAM_SET_PAUSE_STATE:
         break;
 
     default:
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 
@@ -676,7 +677,7 @@ static int DirRead (stream_t *p_access, input_item_node_t *p_current_node)
 {
     access_sys_t *p_sys = p_access->p_sys;
     LIBSSH2_SFTP_ATTRIBUTES attrs;
-    int i_ret = VLC_SUCCESS;
+    int i_ret = HEIMDALL_SUCCESS;
     int err;
     /* Allocate 1024 bytes for file name. Longer names are skipped.
      * libssh2 does not support seeking in directory streams.
@@ -687,12 +688,12 @@ static int DirRead (stream_t *p_access, input_item_node_t *p_current_node)
     char *psz_file = malloc( i_size );
 
     if( !psz_file )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    struct vlc_readdir_helper rdh;
-    vlc_readdir_helper_init( &rdh, p_access, p_current_node );
+    struct heimdall_readdir_helper rdh;
+    heimdall_readdir_helper_init( &rdh, p_access, p_current_node );
 
-    while( i_ret == VLC_SUCCESS
+    while( i_ret == HEIMDALL_SUCCESS
         && 0 != ( err = libssh2_sftp_readdir( p_sys->file, psz_file, i_size, &attrs ) ) )
     {
         if( err < 0 )
@@ -715,17 +716,17 @@ static int DirRead (stream_t *p_access, input_item_node_t *p_current_node)
 
         char *psz_full_uri, *psz_uri;
 
-        psz_uri = vlc_uri_encode( psz_file );
+        psz_uri = heimdall_uri_encode( psz_file );
         if( psz_uri == NULL )
         {
-            i_ret = VLC_ENOMEM;
+            i_ret = HEIMDALL_ENOMEM;
             break;
         }
 
         if( asprintf( &psz_full_uri, "%s/%s", p_sys->psz_base_url, psz_uri ) == -1 )
         {
             free( psz_uri );
-            i_ret = VLC_ENOMEM;
+            i_ret = HEIMDALL_ENOMEM;
             break;
         }
         free( psz_uri );
@@ -733,9 +734,9 @@ static int DirRead (stream_t *p_access, input_item_node_t *p_current_node)
         int i_type = LIBSSH2_SFTP_S_ISDIR( attrs.permissions ) ? ITEM_TYPE_DIRECTORY : ITEM_TYPE_FILE;
 
         input_item_t *p_item;
-        i_ret = vlc_readdir_helper_additem( &rdh, psz_full_uri, NULL, psz_file,
+        i_ret = heimdall_readdir_helper_additem( &rdh, psz_full_uri, NULL, psz_file,
                                             i_type, ITEM_NET, &p_item );
-        if (i_ret == VLC_SUCCESS && p_item)
+        if (i_ret == HEIMDALL_SUCCESS && p_item)
         {
             input_item_AddStat(p_item, "mtime", attrs.mtime);
             input_item_AddStat(p_item, "size", attrs.filesize);
@@ -743,7 +744,7 @@ static int DirRead (stream_t *p_access, input_item_node_t *p_current_node)
         free( psz_full_uri );
     }
 
-    vlc_readdir_helper_finish( &rdh, i_ret == VLC_SUCCESS );
+    heimdall_readdir_helper_finish( &rdh, i_ret == HEIMDALL_SUCCESS );
     free( psz_file );
     return i_ret;
 }

@@ -2,6 +2,7 @@
  * css_test.c: CSS Parser test
  *****************************************************************************
  * Copyright (C) 2019 VideoLabs, VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -25,7 +26,7 @@
 #undef NDEBUG
 
 #include <assert.h>
-#include <vlc_common.h>
+#include <heimdall_common.h>
 #include "css_parser.h"
 
 #define BAILOUT(run) { fprintf(stderr, "failed %s line %d\n", run, __LINE__); \
@@ -35,12 +36,12 @@
 
 #define PARSE_CSS(r) \
     const char *run = r;\
-    vlc_css_parser_t p;\
-    vlc_css_parser_Init(&p);\
-    bool b = vlc_css_parser_ParseBytes(&p, (const uint8_t *)css, strlen(css));\
+    heimdall_css_parser_t p;\
+    heimdall_css_parser_Init(&p);\
+    bool b = heimdall_css_parser_ParseBytes(&p, (const uint8_t *)css, strlen(css));\
     EXPECT(b);\
-    vlc_css_parser_Debug(&p);\
-    const vlc_css_rule_t *rule = p.rules.p_first
+    heimdall_css_parser_Debug(&p);\
+    const heimdall_css_rule_t *rule = p.rules.p_first
 
 
 static int test_element_selectors(void)
@@ -57,7 +58,7 @@ static int test_element_selectors(void)
     EXPECT(rule && rule->b_valid);
     EXPECT(!strcmp(rule->p_selectors->psz_name,"el1"));
     EXPECT(rule->p_selectors->type == SELECTOR_SIMPLE);
-    const vlc_css_declaration_t *decl = rule->p_declarations;
+    const heimdall_css_declaration_t *decl = rule->p_declarations;
     EXPECT(decl && !strcmp(rule->p_declarations->psz_property, "float0"));
     EXPECT(decl->expr && decl->expr->i_count);
     EXPECT(decl->expr->seq[0].term.type == TYPE_NONE);
@@ -85,11 +86,11 @@ static int test_element_selectors(void)
     EXPECT(decl->expr->seq[0].term.type == TYPE_STRING);
     EXPECT(!strcmp(decl->expr->seq[0].term.psz,"foo bar"));
 
-    vlc_css_parser_Clean(&p);
+    heimdall_css_parser_Clean(&p);
     return 0;
 
 error:
-    vlc_css_parser_Clean(&p);
+    heimdall_css_parser_Clean(&p);
     return 1;
 }
 
@@ -188,11 +189,11 @@ static int test_attributes_selectors(void)
     EXPECT(rule->p_selectors->specifiers.p_first->p_matchsel);
     EXPECT(!strcmp(rule->p_selectors->specifiers.p_first->p_matchsel->psz_name, "bar"));
 
-    vlc_css_parser_Clean(&p);
+    heimdall_css_parser_Clean(&p);
     return 0;
 
 error:
-    vlc_css_parser_Clean(&p);
+    heimdall_css_parser_Clean(&p);
     return 1;
 }
 
@@ -232,11 +233,11 @@ static int test_pseudo_selectors(void)
     EXPECT(rule->p_selectors->specifiers.p_first->specifiers.p_first->p_matchsel->match == MATCH_EQUALS);
     EXPECT(!strcmp(rule->p_selectors->specifiers.p_first->specifiers.p_first->p_matchsel->psz_name, "Tom"));
 
-    vlc_css_parser_Clean(&p);
+    heimdall_css_parser_Clean(&p);
     return 0;
 
 error:
-    vlc_css_parser_Clean(&p);
+    heimdall_css_parser_Clean(&p);
     return 1;
 }
 
@@ -290,11 +291,11 @@ static int test_combinators(void)
     EXPECT(rule->p_selectors->specifiers.p_first->combinator == RELATION_CHILD);
     EXPECT(!strcmp(rule->p_selectors->specifiers.p_first->psz_name, "el0"));
 
-    vlc_css_parser_Clean(&p);
+    heimdall_css_parser_Clean(&p);
     return 0;
 
 error:
-    vlc_css_parser_Clean(&p);
+    heimdall_css_parser_Clean(&p);
     return 1;
 }
 
@@ -327,7 +328,7 @@ static int test_values(void)
     CHECK("values");
     EXPECT(rule && rule->b_valid);
     EXPECT(!strcmp(rule->p_selectors->psz_name,"values"));
-    const vlc_css_declaration_t *decl = rule->p_declarations;
+    const heimdall_css_declaration_t *decl = rule->p_declarations;
     EXPECT(decl && !strcmp(decl->psz_property, "neg"));
     EXPECT(decl->expr && decl->expr->i_count);
     EXPECT(decl->expr->seq[0].term.type == TYPE_NONE);
@@ -417,11 +418,11 @@ static int test_values(void)
     EXPECT(decl->expr->seq[0].term.type == TYPE_URI);
     EXPECT(!strcmp(decl->expr->seq[0].term.psz, "url(http://crap/)"));
 
-    vlc_css_parser_Clean(&p);
+    heimdall_css_parser_Clean(&p);
     return 0;
 
 error:
-    vlc_css_parser_Clean(&p);
+    heimdall_css_parser_Clean(&p);
     return 1;
 }
 
@@ -440,7 +441,7 @@ static int test_important_and_operators(void)
     CHECK("important and operators");
     EXPECT(rule && rule->b_valid);
 
-    const vlc_css_declaration_t *decl = rule->p_declarations;
+    const heimdall_css_declaration_t *decl = rule->p_declarations;
 
     EXPECT(decl && !strcmp(decl->psz_property, "important-compact"));
     EXPECT(decl->expr && decl->expr->i_count == 1);
@@ -465,11 +466,11 @@ static int test_important_and_operators(void)
 
     EXPECT(!decl->p_next);
 
-    vlc_css_parser_Clean(&p);
+    heimdall_css_parser_Clean(&p);
     return 0;
 
 error:
-    vlc_css_parser_Clean(&p);
+    heimdall_css_parser_Clean(&p);
     return 1;
 }
 
@@ -508,13 +509,13 @@ static int test_error_cases(void)
      * does not crash on error handling and backtracking
      * and frees memory */
 
-    VLC_UNUSED(rule);
+    HEIMDALL_UNUSED(rule);
 
-    vlc_css_parser_Clean(&p);
+    heimdall_css_parser_Clean(&p);
     return 0;
 
 error:
-    vlc_css_parser_Clean(&p);
+    heimdall_css_parser_Clean(&p);
     return 1;
 }
 

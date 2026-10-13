@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 2004-2006 VLC authors and VideoLAN
  * Copyright © 2006-2007 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  *
  * Authors: Laurent Aimar <fenrir@videolan.org>
@@ -30,12 +31,12 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
 #include <errno.h>
 #include <assert.h>
 
-#include <vlc_network.h>
+#include <heimdall_network.h>
 
 #ifdef _WIN32
 #   include <iphlpapi.h>
@@ -73,7 +74,7 @@
 #endif
 
 /* */
-static int net_SetupDgramSocket (vlc_object_t *p_obj, int fd,
+static int net_SetupDgramSocket (heimdall_object_t *p_obj, int fd,
                                  const struct addrinfo *ptr)
 {
 #if defined (SO_REUSEPORT) && !defined (__linux__)
@@ -104,7 +105,7 @@ static int net_SetupDgramSocket (vlc_object_t *p_obj, int fd,
 
     if (net_SockAddrIsMulticast (ptr->ai_addr, ptr->ai_addrlen))
     {
-        vlc_sockaddr dumb = {
+        heimdall_sockaddr dumb = {
             { .sa_family = ptr->ai_addr->sa_family, },
         };
 
@@ -119,18 +120,18 @@ static int net_SetupDgramSocket (vlc_object_t *p_obj, int fd,
 #endif
     if (bind (fd, ptr->ai_addr, ptr->ai_addrlen))
     {
-        msg_Err( p_obj, "socket bind error: %s", vlc_strerror_c(net_errno) );
+        msg_Err( p_obj, "socket bind error: %s", heimdall_strerror_c(net_errno) );
         net_Close (fd);
         return -1;
     }
     return fd;
 }
 
-static int net_Subscribe(vlc_object_t *obj, int fd,
+static int net_Subscribe(heimdall_object_t *obj, int fd,
                          const struct sockaddr *addr, socklen_t addrlen);
 
 /* */
-static int net_ListenSingle (vlc_object_t *obj, const char *host, unsigned port,
+static int net_ListenSingle (heimdall_object_t *obj, const char *host, unsigned port,
                              int protocol)
 {
     struct addrinfo hints = {
@@ -145,7 +146,7 @@ static int net_ListenSingle (vlc_object_t *obj, const char *host, unsigned port,
     msg_Dbg (obj, "net: opening %s datagram port %u",
              host ? host : "any", port);
 
-    int val = vlc_getaddrinfo (host, port, &hints, &res);
+    int val = heimdall_getaddrinfo (host, port, &hints, &res);
     if (val)
     {
         msg_Err (obj, "Cannot resolve %s port %u : %s", host, port,
@@ -161,7 +162,7 @@ static int net_ListenSingle (vlc_object_t *obj, const char *host, unsigned port,
                              ptr->ai_protocol);
         if (fd == -1)
         {
-            msg_Dbg (obj, "socket error: %s", vlc_strerror_c(net_errno));
+            msg_Dbg (obj, "socket error: %s", heimdall_strerror_c(net_errno));
             continue;
         }
 
@@ -190,7 +191,7 @@ static int net_ListenSingle (vlc_object_t *obj, const char *host, unsigned port,
 }
 
 
-static int net_SetMcastHopLimit( vlc_object_t *p_this,
+static int net_SetMcastHopLimit( heimdall_object_t *p_this,
                                  int fd, int family, int hlim )
 {
     int proto, cmd;
@@ -217,8 +218,8 @@ static int net_SetMcastHopLimit( vlc_object_t *p_this,
 
         default:
             errno = EAFNOSUPPORT;
-            msg_Warn( p_this, "%s", vlc_strerror_c(EAFNOSUPPORT) );
-            return VLC_EGENERIC;
+            msg_Warn( p_this, "%s", heimdall_strerror_c(EAFNOSUPPORT) );
+            return HEIMDALL_EGENERIC;
     }
 
     if( setsockopt( fd, proto, cmd, &hlim, sizeof( hlim ) ) < 0 )
@@ -227,21 +228,21 @@ static int net_SetMcastHopLimit( vlc_object_t *p_this,
         unsigned char buf;
 
         msg_Dbg( p_this, "cannot set hop limit (%d): %s", hlim,
-                 vlc_strerror_c(net_errno) );
+                 heimdall_strerror_c(net_errno) );
         buf = (unsigned char)(( hlim > 255 ) ? 255 : hlim);
         if( setsockopt( fd, proto, cmd, &buf, sizeof( buf ) ) )
         {
             msg_Err( p_this, "cannot set hop limit (%d): %s", hlim,
-                     vlc_strerror_c(net_errno) );
-            return VLC_EGENERIC;
+                     heimdall_strerror_c(net_errno) );
+            return HEIMDALL_EGENERIC;
         }
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 
-static int net_SetMcastOut (vlc_object_t *p_this, int fd, int family,
+static int net_SetMcastOut (heimdall_object_t *p_this, int fd, int family,
                             const char *iface)
 {
     int scope = if_nametoindex (iface);
@@ -275,13 +276,13 @@ static int net_SetMcastOut (vlc_object_t *p_this, int fd, int family,
             errno = EAFNOSUPPORT;
     }
     msg_Err (p_this, "cannot force multicast interface %s: %s", iface,
-             vlc_strerror_c(errno));
+             heimdall_strerror_c(errno));
     return -1;
 }
 
 
 #if defined(MCAST_JOIN_GROUP) && !defined (__APPLE__)
-static unsigned var_GetIfIndex (vlc_object_t *obj)
+static unsigned var_GetIfIndex (heimdall_object_t *obj)
 {
     char *ifname = var_InheritString (obj, "miface");
     if (ifname == NULL)
@@ -301,7 +302,7 @@ static unsigned var_GetIfIndex (vlc_object_t *obj)
  * with fallback to old APIs, and fallback from SSM to ASM.
  */
 static int
-net_SourceSubscribe (vlc_object_t *obj, int fd,
+net_SourceSubscribe (heimdall_object_t *obj, int fd,
                      const struct sockaddr *src, socklen_t srclen,
                      const struct sockaddr *grp, socklen_t grplen)
 {
@@ -384,13 +385,13 @@ net_SourceSubscribe (vlc_object_t *obj, int fd,
 
 #endif
     msg_Err (obj, "cannot join source multicast group: %s",
-             vlc_strerror_c(net_errno));
+             heimdall_strerror_c(net_errno));
     msg_Warn (obj, "trying ASM instead of SSM...");
     return net_Subscribe (obj, fd, grp, grplen);
 }
 
 
-static int net_Subscribe(vlc_object_t *obj, int fd,
+static int net_Subscribe(heimdall_object_t *obj, int fd,
                          const struct sockaddr *grp, socklen_t grplen)
 {
 /* MCAST_JOIN_GROUP was introduced to OS X in v10.7, but it doesn't work,
@@ -476,14 +477,14 @@ static int net_Subscribe(vlc_object_t *obj, int fd,
 
 #endif
     msg_Err (obj, "cannot join multicast group: %s",
-             vlc_strerror_c(net_errno));
+             heimdall_strerror_c(net_errno));
     return -1;
 }
 
 
 static int net_SetDSCP( int fd, uint8_t dscp )
 {
-    vlc_sockaddr addr;
+    heimdall_sockaddr addr;
 
     if (getsockname(fd, &addr.sa, &(socklen_t){ sizeof (addr) }))
         return -1;
@@ -519,7 +520,7 @@ static int net_SetDSCP( int fd, uint8_t dscp )
  * Open a datagram socket to send data to a defined destination, with an
  * optional hop limit.
  *****************************************************************************/
-int net_ConnectDgram( vlc_object_t *p_this, const char *psz_host, unsigned i_port,
+int net_ConnectDgram( heimdall_object_t *p_this, const char *psz_host, unsigned i_port,
                       int i_hlim, int proto )
 {
     struct addrinfo hints = {
@@ -535,7 +536,7 @@ int net_ConnectDgram( vlc_object_t *p_this, const char *psz_host, unsigned i_por
 
     msg_Dbg( p_this, "net: connecting to [%s]:%u", psz_host, i_port );
 
-    int val = vlc_getaddrinfo (psz_host, i_port, &hints, &res);
+    int val = heimdall_getaddrinfo (psz_host, i_port, &hints, &res);
     if (val)
     {
         msg_Err (p_this, "cannot resolve [%s]:%u : %s", psz_host, i_port,
@@ -581,7 +582,7 @@ int net_ConnectDgram( vlc_object_t *p_this, const char *psz_host, unsigned i_por
             b_unreach = true;
         else
             msg_Warn( p_this, "%s port %u : %s", psz_host, i_port,
-                      vlc_strerror_c(errno) );
+                      heimdall_strerror_c(errno) );
         net_Close( fd );
     }
 
@@ -604,7 +605,7 @@ int net_ConnectDgram( vlc_object_t *p_this, const char *psz_host, unsigned i_por
  *****************************************************************************
  * OpenDgram a datagram socket and return a handle
  *****************************************************************************/
-int net_OpenDgram( vlc_object_t *obj, const char *psz_bind, unsigned i_bind,
+int net_OpenDgram( heimdall_object_t *obj, const char *psz_bind, unsigned i_bind,
                    const char *psz_server, unsigned i_server, int protocol )
 {
     if ((psz_server == NULL) || (psz_server[0] == '\0'))
@@ -619,7 +620,7 @@ int net_OpenDgram( vlc_object_t *obj, const char *psz_bind, unsigned i_bind,
         .ai_flags = AI_NUMERICSERV | AI_IDN,
     }, *loc, *rem;
 
-    int val = vlc_getaddrinfo (psz_server, i_server, &hints, &rem);
+    int val = heimdall_getaddrinfo (psz_server, i_server, &hints, &rem);
     if (val)
     {
         msg_Err (obj, "cannot resolve %s port %u : %s", psz_server, i_server,
@@ -628,7 +629,7 @@ int net_OpenDgram( vlc_object_t *obj, const char *psz_bind, unsigned i_bind,
     }
 
     hints.ai_flags |= AI_PASSIVE;
-    val = vlc_getaddrinfo (psz_bind, i_bind, &hints, &loc);
+    val = heimdall_getaddrinfo (psz_bind, i_bind, &hints, &loc);
     if (val)
     {
         msg_Err (obj, "cannot resolve %s port %u : %s", psz_bind, i_bind,
@@ -663,7 +664,7 @@ int net_OpenDgram( vlc_object_t *obj, const char *psz_bind, unsigned i_bind,
               : connect (fd, ptr2->ai_addr, ptr2->ai_addrlen))
             {
                 msg_Err (obj, "cannot connect to %s port %u: %s",
-                         psz_server, i_server, vlc_strerror_c(net_errno));
+                         psz_server, i_server, heimdall_strerror_c(net_errno));
                 continue;
             }
             val = fd;
@@ -695,7 +696,7 @@ int net_SetCSCov (int fd, int sendcov, int recvcov)
 
     if (getsockopt (fd, SOL_SOCKET, SO_TYPE,
                     &type, &(socklen_t){ sizeof (type) }))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
 #ifdef DCCP_SOCKOPT_SEND_CSCOV
     switch (type)
@@ -707,7 +708,7 @@ int net_SetCSCov (int fd, int sendcov, int recvcov)
                 sendcov = (sendcov + 3) / 4;
             if (setsockopt (fd, SOL_DCCP, DCCP_SOCKOPT_SEND_CSCOV,
                             &sendcov, sizeof (sendcov)))
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
 
             if ((recvcov == -1) || (recvcov > 56))
                 recvcov = 0;
@@ -715,14 +716,14 @@ int net_SetCSCov (int fd, int sendcov, int recvcov)
                 recvcov = (recvcov + 3) / 4;
             if (setsockopt (fd, SOL_DCCP, DCCP_SOCKOPT_RECV_CSCOV,
                             &recvcov, sizeof (recvcov)))
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
 
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
     }
 #else
-    VLC_UNUSED(sendcov);
-    VLC_UNUSED(recvcov);
+    HEIMDALL_UNUSED(sendcov);
+    HEIMDALL_UNUSED(recvcov);
 #endif
 
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }

@@ -2,6 +2,7 @@
  * iso-639_def.h: language codes and abbreviations
  *****************************************************************************
  * Copyright (C) 1998-2004 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Definitions taken from GNU glibc.
  *
@@ -28,11 +29,11 @@
  *
  * The entries have been copied in bulk from the set defined in glibc, with
  * minimal adjustments. Corrections or additions, unless they pertain to custom
- * VLC adjustments, should generally be discussed with the glibc developers,
+ * Heimdall adjustments, should generally be discussed with the glibc developers,
  * then updated here subsequently if accepted by glibc.
  *
  * The glibc ordering should be preserved to avoid making future bulk updates
- * harder. (Rare VLC additions belong at the end).
+ * harder. (Rare Heimdall additions belong at the end).
  */
 
 #define LANG_CODE(a,b,c,d) { a,  b, c,  d },
@@ -569,7 +570,7 @@ static const iso639_lang_t p_languages[] =
     LANG_CODE3 ( N_("Zuni"),                                                    "zun", "zun" )
     LANG_CODE3 ( N_("Zaza; Dimili; Dimli; Kirdki; Kirmanjki; Zazaki"),          "zza", "zza" )
 
-    /* Custom VLC additions */
+    /* Custom Heimdall additions */
     LANG_CODE  ( N_("On Screen Display"),                                 "od", "osd", "osd" )
     LANG_CODE3 ( N_("Original audio"),                                          "qaa", "qaa" )
     LANG_CODE  ( N_("Hebrew"),                                            "iw", "heb", "heb" ) /* for old DVDs */

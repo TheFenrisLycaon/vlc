@@ -2,6 +2,7 @@
  * vlm_internal.h: Internal vlm structures
  *****************************************************************************
  * Copyright (C) 1998-2006 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *
@@ -20,11 +21,11 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef LIBVLC_VLM_INTERNAL_H
-#define LIBVLC_VLM_INTERNAL_H 1
+#ifndef LIBHEIMDALL_VLM_INTERNAL_H
+#define LIBHEIMDALL_VLM_INTERNAL_H 1
 
-#include <vlc_vlm.h>
-#include <vlc_player.h>
+#include <heimdall_vlm.h>
+#include <heimdall_player.h>
 
 /* Private */
 typedef struct
@@ -36,8 +37,8 @@ typedef struct
     int i_index;
 
     input_item_t      *p_item;
-    vlc_player_t *player;
-    vlc_player_listener_id *listener;
+    heimdall_player_t *player;
+    heimdall_player_listener_id *listener;
     bool finished;
 } vlm_media_instance_sys_t;
 
@@ -54,12 +55,12 @@ typedef struct
 
 struct vlm_t
 {
-    struct vlc_object_t obj;
+    struct heimdall_object_t obj;
 
-    vlc_mutex_t  lock;
-    vlc_thread_t thread;
-    vlc_mutex_t  lock_manage;
-    vlc_cond_t   wait_manage;
+    heimdall_mutex_t  lock;
+    heimdall_thread_t thread;
+    heimdall_mutex_t  lock_manage;
+    heimdall_cond_t   wait_manage;
     unsigned     users;
 
     /* tell vlm thread there is work to do */

@@ -2,6 +2,7 @@
  * cmd_playtree.cpp
  *****************************************************************************
  * Copyright (C) 2005 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Antoine Cellerier <dionoea@videolan.org>
  *          Clément Stenac <zorglub@videolan.org>
@@ -22,7 +23,7 @@
  *****************************************************************************/
 
 #include "cmd_playtree.hpp"
-#include "../src/vlcproc.hpp"
+#include "../src/heimdallproc.hpp"
 #include "../utils/var_bool.hpp"
 
 void CmdPlaytreeDel::execute()
@@ -34,15 +35,15 @@ void CmdPlaytreeSort::execute()
 {
     /// \todo Choose sort method/order - Need more commands
     /// \todo Choose the correct view
-    const struct vlc_playlist_sort_criterion option = {
-        .key = VLC_PLAYLIST_SORT_KEY_TITLE,
-        .order = VLC_PLAYLIST_SORT_ORDER_ASCENDING };
-    vlc_playlist_Lock( getPL() );
-    vlc_playlist_Sort( getPL(), &option, 1 );
-    vlc_playlist_Unlock( getPL() );
+    const struct heimdall_playlist_sort_criterion option = {
+        .key = HEIMDALL_PLAYLIST_SORT_KEY_TITLE,
+        .order = HEIMDALL_PLAYLIST_SORT_ORDER_ASCENDING };
+    heimdall_playlist_Lock( getPL() );
+    heimdall_playlist_Sort( getPL(), &option, 1 );
+    heimdall_playlist_Unlock( getPL() );
 }
 
 void CmdPlaytreeReset::execute()
 {
-    VlcProc::instance( getIntf() )->getPlaytreeVar().onChange();
+    HeimdallProc::instance( getIntf() )->getPlaytreeVar().onChange();
 }

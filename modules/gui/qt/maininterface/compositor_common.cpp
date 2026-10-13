@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2023 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,7 +30,7 @@
 #include <private/qquickwindow_p.h>
 #endif
 
-using namespace vlc;
+using namespace heimdall;
 
 DummyRenderWindow::~DummyRenderWindow() = default;
 

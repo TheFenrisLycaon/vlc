@@ -2,6 +2,7 @@
  * variant_maps.c
  *****************************************************************************
  * Copyright (C) 2023 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -23,10 +24,10 @@
 
 #include <ctype.h>
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
-#include <vlc_memstream.h>
-#include <vlc_vector.h>
+#include <heimdall_memstream.h>
+#include <heimdall_vector.h>
 
 #include "variant_maps.h"
 
@@ -38,20 +39,20 @@ enum hls_map_parser_state
     STATE_MAP_END,
 };
 
-static int parser_NewESID(struct vlc_memstream *esid,
+static int parser_NewESID(struct heimdall_memstream *esid,
                           struct hls_variant_stream_map *map)
 {
-    vlc_memstream_putc(esid, '\0');
-    if (vlc_memstream_close(esid))
-        return VLC_ENOMEM;
+    heimdall_memstream_putc(esid, '\0');
+    if (heimdall_memstream_close(esid))
+        return HEIMDALL_ENOMEM;
 
-    if (!vlc_vector_push(&map->es_list, esid->ptr))
+    if (!heimdall_vector_push(&map->es_list, esid->ptr))
     {
         free(esid->ptr);
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static inline bool is_valid_char(char c) { return isalnum(c) || c == '/'; }
@@ -59,19 +60,19 @@ static inline bool is_valid_char(char c) { return isalnum(c) || c == '/'; }
 static void hls_variant_map_Destroy(struct hls_variant_stream_map *map)
 {
     char *esid;
-    vlc_vector_foreach (esid, &map->es_list)
+    heimdall_vector_foreach (esid, &map->es_list)
     {
         free(esid);
     }
-    vlc_vector_destroy(&map->es_list);
+    heimdall_vector_destroy(&map->es_list);
     free(map);
 }
 
 int hls_variant_maps_Parse(const char *s, hls_variant_stream_maps_t *out)
 {
-    int error = VLC_ENOMEM;
+    int error = HEIMDALL_ENOMEM;
 
-    struct vlc_memstream current_esid;
+    struct heimdall_memstream current_esid;
     struct hls_variant_stream_map *current_map = NULL;
     enum hls_map_parser_state state = STATE_MAP_BEGIN;
 
@@ -90,7 +91,7 @@ int hls_variant_maps_Parse(const char *s, hls_variant_stream_maps_t *out)
                 if (unlikely(current_map == NULL))
                     goto enomem;
 
-                vlc_vector_init(&current_map->es_list);
+                heimdall_vector_init(&current_map->es_list);
                 current_map->playlist_ref = NULL;
 
                 state = STATE_NEW_ESID;
@@ -99,35 +100,35 @@ int hls_variant_maps_Parse(const char *s, hls_variant_stream_maps_t *out)
                 if (!is_valid_char(c))
                     goto einval;
 
-                vlc_memstream_open(&current_esid);
-                vlc_memstream_putc(&current_esid, c);
+                heimdall_memstream_open(&current_esid);
+                heimdall_memstream_putc(&current_esid, c);
                 state = STATE_BUILD_ESID;
                 break;
             case STATE_BUILD_ESID:
                 if (c == ',')
                 {
                     if (parser_NewESID(&current_esid, current_map) !=
-                        VLC_SUCCESS)
+                        HEIMDALL_SUCCESS)
                         goto enomem;
                     state = STATE_NEW_ESID;
                 }
                 else if (c == '}')
                 {
                     if (parser_NewESID(&current_esid, current_map) !=
-                        VLC_SUCCESS)
+                        HEIMDALL_SUCCESS)
                         goto enomem;
 
-                    if (!vlc_vector_push(out, current_map))
+                    if (!heimdall_vector_push(out, current_map))
                         goto enomem;
                     current_map = NULL;
 
                     state = STATE_MAP_END;
                 }
                 else if (is_valid_char(c))
-                    vlc_memstream_putc(&current_esid, c);
+                    heimdall_memstream_putc(&current_esid, c);
                 else
                 {
-                    if (!vlc_memstream_close(&current_esid))
+                    if (!heimdall_memstream_close(&current_esid))
                         free(current_esid.ptr);
                     goto einval;
                 }
@@ -142,10 +143,10 @@ int hls_variant_maps_Parse(const char *s, hls_variant_stream_maps_t *out)
     }
 
     if (state == STATE_MAP_END)
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
 einval:
-    error = VLC_EINVAL;
+    error = HEIMDALL_EINVAL;
 enomem:
     hls_variant_maps_Destroy(out);
     if (current_map != NULL)
@@ -156,25 +157,25 @@ enomem:
 void hls_variant_maps_Destroy(hls_variant_stream_maps_t *maps)
 {
     struct hls_variant_stream_map *map;
-    vlc_vector_foreach (map, maps)
+    heimdall_vector_foreach (map, maps)
     {
         char *esid;
-        vlc_vector_foreach (esid, &map->es_list)
+        heimdall_vector_foreach (esid, &map->es_list)
             free(esid);
-        vlc_vector_destroy(&map->es_list);
+        heimdall_vector_destroy(&map->es_list);
         free(map);
     }
-    vlc_vector_destroy(maps);
+    heimdall_vector_destroy(maps);
 }
 
 struct hls_variant_stream_map *
 hls_variant_map_FromESID(hls_variant_stream_maps_t *maps, const char *es_id)
 {
     struct hls_variant_stream_map *it;
-    vlc_vector_foreach (it, maps)
+    heimdall_vector_foreach (it, maps)
     {
         const char *es_id_it;
-        vlc_vector_foreach (es_id_it, &it->es_list)
+        heimdall_vector_foreach (es_id_it, &it->es_list)
         {
             if (!strcmp(es_id_it, es_id))
                 return it;
@@ -188,7 +189,7 @@ hls_variant_map_FromPlaylist(hls_variant_stream_maps_t *maps,
                              struct hls_playlist *playlist)
 {
     struct hls_variant_stream_map *it;
-    vlc_vector_foreach (it, maps)
+    heimdall_vector_foreach (it, maps)
     {
         if (it->playlist_ref == playlist)
             return it;

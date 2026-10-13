@@ -2,11 +2,12 @@
 
 // amf_helper.h: AMD Advanced Media Framework helper
 // Copyright © 2024 VideoLabs, VLC authors and VideoLAN
+// Copyright (C) 2026 TheFenrisLycaon
 
 // Authors: Steve Lhomme <robux4@videolabs.io>
 
-#ifndef VLC_AMF_HELPER_H
-#define VLC_AMF_HELPER_H
+#ifndef HEIMDALL_AMF_HELPER_H
+#define HEIMDALL_AMF_HELPER_H
 
 #include <AMF/core/Context.h>
 #include <AMF/core/Factory.h>
@@ -25,7 +26,7 @@ extern "C" {
 #define AMT_TYPE(t)  t
 #endif
 
-struct vlc_amf_context
+struct heimdall_amf_context
 {
     AMT_TYPE(AMFFactory) *pFactory;
     AMT_TYPE(AMFContext) *Context;
@@ -33,8 +34,8 @@ struct vlc_amf_context
     void            *Private;
 };
 
-int vlc_AMFCreateContext(struct vlc_amf_context *);
-void vlc_AMFReleaseContext(struct vlc_amf_context *);
+int heimdall_AMFCreateContext(struct heimdall_amf_context *);
+void heimdall_AMFReleaseContext(struct heimdall_amf_context *);
 
 #ifdef _WIN32
 static inline AMT_TYPE(AMF_SURFACE_FORMAT) DXGIToAMF(DXGI_FORMAT fmt)
@@ -56,4 +57,4 @@ static inline AMT_TYPE(AMF_SURFACE_FORMAT) DXGIToAMF(DXGI_FORMAT fmt)
 } // extern "C"
 #endif
 
-#endif // VLC_AMF_HELPER_H
+#endif // HEIMDALL_AMF_HELPER_H

@@ -2,6 +2,7 @@
  * ancillary.c: ancillary management functions
  *****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,31 +23,31 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_atomic.h>
+#include <heimdall_common.h>
+#include <heimdall_atomic.h>
 
-#include <vlc_ancillary.h>
+#include <heimdall_ancillary.h>
 
-struct vlc_ancillary
+struct heimdall_ancillary
 {
-    vlc_atomic_rc_t rc;
+    heimdall_atomic_rc_t rc;
 
-    vlc_ancillary_id id;
+    heimdall_ancillary_id id;
     void *data;
-    vlc_ancillary_free_cb free_cb;
+    heimdall_ancillary_free_cb free_cb;
 };
 
-struct vlc_ancillary *
-vlc_ancillary_CreateWithFreeCb(void *data,
-                               vlc_ancillary_id id,
-                               vlc_ancillary_free_cb free_cb)
+struct heimdall_ancillary *
+heimdall_ancillary_CreateWithFreeCb(void *data,
+                               heimdall_ancillary_id id,
+                               heimdall_ancillary_free_cb free_cb)
 {
-    struct vlc_ancillary *ancillary = malloc(sizeof(*ancillary));
+    struct heimdall_ancillary *ancillary = malloc(sizeof(*ancillary));
 
     if (ancillary == NULL)
         return NULL;
 
-    vlc_atomic_rc_init(&ancillary->rc);
+    heimdall_atomic_rc_init(&ancillary->rc);
     ancillary->id = id;
     ancillary->data = data;
     ancillary->free_cb = free_cb;
@@ -55,9 +56,9 @@ vlc_ancillary_CreateWithFreeCb(void *data,
 }
 
 void
-vlc_ancillary_Release(struct vlc_ancillary *ancillary)
+heimdall_ancillary_Release(struct heimdall_ancillary *ancillary)
 {
-    if (vlc_atomic_rc_dec(&ancillary->rc))
+    if (heimdall_atomic_rc_dec(&ancillary->rc))
     {
         if (ancillary->free_cb != NULL)
             ancillary->free_cb(ancillary->data);
@@ -65,90 +66,90 @@ vlc_ancillary_Release(struct vlc_ancillary *ancillary)
     }
 }
 
-struct vlc_ancillary *
-vlc_ancillary_Hold(struct vlc_ancillary *ancillary)
+struct heimdall_ancillary *
+heimdall_ancillary_Hold(struct heimdall_ancillary *ancillary)
 {
-    vlc_atomic_rc_inc(&ancillary->rc);
+    heimdall_atomic_rc_inc(&ancillary->rc);
     return ancillary;
 }
 
 void *
-vlc_ancillary_GetData(const struct vlc_ancillary *ancillary)
+heimdall_ancillary_GetData(const struct heimdall_ancillary *ancillary)
 {
     return ancillary->data;
 }
 
 void
-vlc_ancillary_array_Clear(vlc_ancillary_array *array)
+heimdall_ancillary_array_Clear(heimdall_ancillary_array *array)
 {
-    struct vlc_ancillary *ancillary;
-    vlc_vector_foreach(ancillary, array)
-        vlc_ancillary_Release(ancillary);
-    vlc_vector_clear(array);
+    struct heimdall_ancillary *ancillary;
+    heimdall_vector_foreach(ancillary, array)
+        heimdall_ancillary_Release(ancillary);
+    heimdall_vector_clear(array);
 }
 
 int
-vlc_ancillary_array_Merge(vlc_ancillary_array *dst_array,
-                          const vlc_ancillary_array *src_array)
+heimdall_ancillary_array_Merge(heimdall_ancillary_array *dst_array,
+                          const heimdall_ancillary_array *src_array)
 {
     if (src_array->size == 0)
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
-    int ret = VLC_SUCCESS;
-    for (size_t i = 0; i < src_array->size && ret == VLC_SUCCESS; ++i)
-        ret = vlc_ancillary_array_Insert(dst_array, src_array->data[i]);
+    int ret = HEIMDALL_SUCCESS;
+    for (size_t i = 0; i < src_array->size && ret == HEIMDALL_SUCCESS; ++i)
+        ret = heimdall_ancillary_array_Insert(dst_array, src_array->data[i]);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 int
-vlc_ancillary_array_MergeAndClear(vlc_ancillary_array *dst_array,
-                                  vlc_ancillary_array *src_array)
+heimdall_ancillary_array_MergeAndClear(heimdall_ancillary_array *dst_array,
+                                  heimdall_ancillary_array *src_array)
 {
     if (dst_array->size == 0)
     {
         *dst_array = *src_array;
-        vlc_ancillary_array_Init(src_array);
-        return VLC_SUCCESS;
+        heimdall_ancillary_array_Init(src_array);
+        return HEIMDALL_SUCCESS;
     }
 
-    int ret = vlc_ancillary_array_Merge(dst_array, src_array);
-    if (ret == VLC_SUCCESS)
-        vlc_ancillary_array_Clear(src_array);
+    int ret = heimdall_ancillary_array_Merge(dst_array, src_array);
+    if (ret == HEIMDALL_SUCCESS)
+        heimdall_ancillary_array_Clear(src_array);
     return ret;
 }
 
 int
-vlc_ancillary_array_Insert(vlc_ancillary_array *array,
-                           struct vlc_ancillary *ancillary)
+heimdall_ancillary_array_Insert(heimdall_ancillary_array *array,
+                           struct heimdall_ancillary *ancillary)
 {
     assert(ancillary != NULL);
 
     for (size_t i = 0; i < array->size; ++i)
     {
-        struct vlc_ancillary *ancillary_it = array->data[i];
+        struct heimdall_ancillary *ancillary_it = array->data[i];
         if (ancillary_it->id == ancillary->id)
         {
-            vlc_ancillary_Release(ancillary_it);
-            array->data[i] = vlc_ancillary_Hold(ancillary);
-            return VLC_SUCCESS;
+            heimdall_ancillary_Release(ancillary_it);
+            array->data[i] = heimdall_ancillary_Hold(ancillary);
+            return HEIMDALL_SUCCESS;
         }
     }
 
-    bool success = vlc_vector_push(array, ancillary);
+    bool success = heimdall_vector_push(array, ancillary);
     if (!success)
-        return VLC_ENOMEM;
-    vlc_ancillary_Hold(ancillary);
+        return HEIMDALL_ENOMEM;
+    heimdall_ancillary_Hold(ancillary);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-struct vlc_ancillary *
-vlc_ancillary_array_Get(const vlc_ancillary_array *array,
-                        vlc_ancillary_id id)
+struct heimdall_ancillary *
+heimdall_ancillary_array_Get(const heimdall_ancillary_array *array,
+                        heimdall_ancillary_id id)
 {
-    struct vlc_ancillary *ancillary_it;
-    vlc_vector_foreach(ancillary_it, array)
+    struct heimdall_ancillary *ancillary_it;
+    heimdall_vector_foreach(ancillary_it, array)
     {
         if (ancillary_it->id == id)
             return ancillary_it;

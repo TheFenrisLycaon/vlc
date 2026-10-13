@@ -2,6 +2,7 @@
  * oggspots.c: OggSpots decoder module.
  *****************************************************************************
  * Copyright (C) 2016 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Michael Taenzer <neo@nhng.de>
  *
@@ -27,10 +28,10 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
-#include <vlc_image.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
+#include <heimdall_image.h>
 
 #include <assert.h>
 #include <limits.h>
@@ -56,15 +57,15 @@ typedef struct
     /*
      * Common properties
      */
-    vlc_tick_t i_pts;
+    heimdall_tick_t i_pts;
 } decoder_sys_t;
 
 /*****************************************************************************
  * Local prototypes
  *****************************************************************************/
-static int  OpenDecoder   (vlc_object_t*);
-static int  OpenPacketizer(vlc_object_t*);
-static void CloseDecoder  (vlc_object_t*);
+static int  OpenDecoder   (heimdall_object_t*);
+static int  OpenPacketizer(heimdall_object_t*);
+static void CloseDecoder  (heimdall_object_t*);
 
 static int        DecodeVideo  (decoder_t*, block_t*);
 static block_t*   Packetize  (decoder_t*, block_t**);
@@ -78,7 +79,7 @@ static picture_t* DecodePacket (decoder_t*, block_t*);
  * Module descriptor
  *****************************************************************************/
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_subcategory(SUBCAT_INPUT_VCODEC)
     set_shortname("OggSpots")
     set_description(N_("OggSpots video decoder"))
@@ -91,59 +92,59 @@ vlc_module_begin ()
     set_capability("video packetizer", 10)
     set_callbacks(OpenPacketizer, CloseDecoder)
     add_shortcut("oggspots")
-vlc_module_end ()
+heimdall_module_end ()
 
-static int OpenCommon(vlc_object_t* p_this, bool b_packetizer)
+static int OpenCommon(heimdall_object_t* p_this, bool b_packetizer)
 {
     decoder_t* p_dec = (decoder_t*)p_this;
     decoder_sys_t* p_sys;
 
-    if (p_dec->fmt_in->i_codec != VLC_CODEC_OGGSPOTS) {
-        return VLC_EGENERIC;
+    if (p_dec->fmt_in->i_codec != HEIMDALL_CODEC_OGGSPOTS) {
+        return HEIMDALL_EGENERIC;
     }
 
     /* Allocate the memory needed to store the decoder's structure */
     p_sys = malloc(sizeof(*p_sys));
     if (p_sys == NULL) {
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
     p_dec->p_sys = p_sys;
     p_sys->b_packetizer = b_packetizer;
     p_sys->b_has_headers = false;
-    p_sys->i_pts = VLC_TICK_INVALID;
+    p_sys->i_pts = HEIMDALL_TICK_INVALID;
 
     /* Initialize image handler */
     p_sys->p_image = image_HandlerCreate(p_dec);
     if (p_sys->p_image == NULL) {
         free(p_sys);
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     if( b_packetizer )
     {
-        p_dec->fmt_out.i_codec = VLC_CODEC_OGGSPOTS;
+        p_dec->fmt_out.i_codec = HEIMDALL_CODEC_OGGSPOTS;
         p_dec->pf_packetize = Packetize;
     }
     else
     {
-        p_dec->fmt_out.i_codec = VLC_CODEC_RGBA;
+        p_dec->fmt_out.i_codec = HEIMDALL_CODEC_RGBA;
         p_dec->pf_decode = DecodeVideo;
     }
 
     p_dec->pf_flush = Flush;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * OpenDecoder: probe the decoder and return score
  *****************************************************************************/
-static int OpenDecoder(vlc_object_t* p_this)
+static int OpenDecoder(heimdall_object_t* p_this)
 {
     return OpenCommon(p_this, false);
 }
 
-static int OpenPacketizer(vlc_object_t* p_this)
+static int OpenPacketizer(heimdall_object_t* p_this)
 {
     return OpenCommon(p_this, true);
 }
@@ -172,12 +173,12 @@ static void* DecodeBlock(decoder_t* p_dec, block_t* p_block)
 static int DecodeVideo( decoder_t *p_dec, block_t *p_block )
 {
     if( p_block == NULL ) /* No Drain */
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
 
     picture_t *p_pic = DecodeBlock( p_dec, p_block );
     if( p_pic != NULL )
         decoder_QueueVideo( p_dec, p_pic );
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }
 
 static block_t *Packetize( decoder_t *p_dec, block_t **pp_block )
@@ -204,27 +205,27 @@ static int ProcessHeader(decoder_t* p_dec)
 
     /* The OggSpots header is always 52 bytes */
     if (p_dec->fmt_in->i_extra != 52) {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     p_extra = p_dec->fmt_in->p_extra;
 
     /* Identification string */
     if ( memcmp(p_extra, "SPOTS\0\0", 8) ) {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Version number */
     i_major = GetWLE(&p_extra[ 8]); /* major version num */
     i_minor = GetWLE(&p_extra[10]); /* minor version num */
     if (i_major != 0 || i_minor != 1) {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Granule rate */
     i_granulerate_numerator   = GetQWLE(&p_extra[12]);
     i_granulerate_denominator = GetQWLE(&p_extra[20]);
     if (i_granulerate_numerator == 0 || i_granulerate_denominator == 0) {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* The OggSpots spec contained an error and there are implementations out
@@ -236,7 +237,7 @@ static int ProcessHeader(decoder_t* p_dec)
     }
 
     /* Normalize granulerate */
-    vlc_ureduce(&p_dec->fmt_out.video.i_frame_rate,
+    heimdall_ureduce(&p_dec->fmt_out.video.i_frame_rate,
                 &p_dec->fmt_out.video.i_frame_rate_base,
                 i_granulerate_numerator, i_granulerate_denominator, 0);
 
@@ -269,7 +270,7 @@ static int ProcessHeader(decoder_t* p_dec)
         void* p_new_extra = realloc(p_dec->fmt_out.p_extra,
                                 p_dec->fmt_in->i_extra);
         if (unlikely(p_new_extra == NULL)) {
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         }
         p_dec->fmt_out.p_extra = p_new_extra;
         p_dec->fmt_out.i_extra = p_dec->fmt_in->i_extra;
@@ -277,7 +278,7 @@ static int ProcessHeader(decoder_t* p_dec)
                p_dec->fmt_in->p_extra, p_dec->fmt_out.i_extra);
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -287,7 +288,7 @@ static void Flush(decoder_t* p_dec)
 {
     decoder_sys_t* p_sys = p_dec->p_sys;
 
-    p_sys->i_pts = VLC_TICK_INVALID;
+    p_sys->i_pts = HEIMDALL_TICK_INVALID;
 }
 
 /*****************************************************************************
@@ -308,7 +309,7 @@ static void* ProcessPacket(decoder_t* p_dec, block_t* p_block)
     }
 
     /* Date management */
-    if (p_block->i_pts != VLC_TICK_INVALID && p_block->i_pts != p_sys->i_pts) {
+    if (p_block->i_pts != HEIMDALL_TICK_INVALID && p_block->i_pts != p_sys->i_pts) {
         p_sys->i_pts = p_block->i_pts;
     }
 
@@ -359,10 +360,10 @@ static picture_t* DecodePacket(decoder_t* p_dec, block_t* p_block)
     /* Image format */
     es_format_t fmt_in = *p_dec->fmt_in;
     if ( !memcmp(&p_block->p_buffer[4], "PNG", 3) ) {
-        fmt_in.video.i_chroma = VLC_CODEC_PNG;
+        fmt_in.video.i_chroma = HEIMDALL_CODEC_PNG;
     }
     else if ( !memcmp(&p_block->p_buffer[4], "JPEG", 4) ) {
-        fmt_in.video.i_chroma = VLC_CODEC_JPEG;
+        fmt_in.video.i_chroma = HEIMDALL_CODEC_JPEG;
     }
     else {
         char psz_image_type[8+1];
@@ -404,7 +405,7 @@ error:
 /*****************************************************************************
  * CloseDecoder: OggSpots decoder destruction
  *****************************************************************************/
-static void CloseDecoder(vlc_object_t* p_this)
+static void CloseDecoder(heimdall_object_t* p_this)
 {
     decoder_t* p_dec = (decoder_t*)p_this;
     decoder_sys_t* p_sys = p_dec->p_sys;

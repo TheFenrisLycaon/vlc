@@ -2,6 +2,7 @@
  * ts_sl.c : MPEG SL/FMC handling for TS demuxer
  *****************************************************************************
  * Copyright (C) 2014-2016 - VideoLAN Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -20,8 +21,8 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_demux.h>
+#include <heimdall_common.h>
+#include <heimdall_demux.h>
 
 #include "ts_streams.h"
 #include "ts_pid.h"
@@ -73,14 +74,14 @@ bool SetupISO14496LogicalStream( demux_t *p_demux, const decoder_config_descript
         switch( dcd->i_objectTypeIndication )
         {
         case 0x0B: /* mpeg4 sub */
-            es_format_Change( p_fmt, SPU_ES, VLC_CODEC_SUBT );
+            es_format_Change( p_fmt, SPU_ES, HEIMDALL_CODEC_SUBT );
             break;
 
         case 0x20: /* mpeg4 */
-            es_format_Change( p_fmt, VIDEO_ES, VLC_CODEC_MP4V );
+            es_format_Change( p_fmt, VIDEO_ES, HEIMDALL_CODEC_MP4V );
             break;
         case 0x21: /* h264 */
-            es_format_Change( p_fmt, VIDEO_ES, VLC_CODEC_H264 );
+            es_format_Change( p_fmt, VIDEO_ES, HEIMDALL_CODEC_H264 );
             break;
         case 0x60:
         case 0x61:
@@ -89,10 +90,10 @@ bool SetupISO14496LogicalStream( demux_t *p_demux, const decoder_config_descript
         case 0x64:
         case 0x65: /* mpeg2 */
         case 0x6a: /* mpeg1 */
-            es_format_Change( p_fmt, VIDEO_ES, VLC_CODEC_MPGV );
+            es_format_Change( p_fmt, VIDEO_ES, HEIMDALL_CODEC_MPGV );
             break;
         case 0x6c: /* mpeg1 */
-            es_format_Change( p_fmt, VIDEO_ES, VLC_CODEC_JPEG );
+            es_format_Change( p_fmt, VIDEO_ES, HEIMDALL_CODEC_JPEG );
             break;
         default:
             break;
@@ -106,11 +107,11 @@ bool SetupISO14496LogicalStream( demux_t *p_demux, const decoder_config_descript
         case 0x66:
         case 0x67:
         case 0x68: /* mpeg2 aac */
-            es_format_Change( p_fmt, AUDIO_ES, VLC_CODEC_MP4A );
+            es_format_Change( p_fmt, AUDIO_ES, HEIMDALL_CODEC_MP4A );
             break;
         case 0x69: /* mpeg2 */
         case 0x6b: /* mpeg1 */
-            es_format_Change( p_fmt, AUDIO_ES, VLC_CODEC_MPGA );
+            es_format_Change( p_fmt, AUDIO_ES, HEIMDALL_CODEC_MPGA );
             break;
         default:
             break;
@@ -139,7 +140,7 @@ void SLPackets_Section_Handler( demux_t *p_demux,
                                 const uint8_t *p_payloaddata, size_t i_payloaddata,
                                 void *p_pes_cbdata )
 {
-    VLC_UNUSED(p_sectiondata); VLC_UNUSED(i_sectiondata);
+    HEIMDALL_UNUSED(p_sectiondata); HEIMDALL_UNUSED(i_sectiondata);
     demux_sys_t *p_sys = p_demux->p_sys;
     ts_stream_t *p_pes = (ts_stream_t *) p_pes_cbdata;
     ts_pmt_t *p_pmt = p_pes->p_es->p_program;
@@ -154,7 +155,7 @@ void SLPackets_Section_Handler( demux_t *p_demux,
         od_descriptors_t *p_ods = &p_pmt->od;
         sl_header_data header = DecodeSLHeader( i_data, p_data, &p_mpeg4desc->sl_descr );
 
-        DecodeODCommand( VLC_OBJECT(p_demux), p_ods, i_data - header.i_size, &p_data[header.i_size] );
+        DecodeODCommand( HEIMDALL_OBJECT(p_demux), p_ods, i_data - header.i_size, &p_data[header.i_size] );
         bool b_changed = false;
 
         for( int i=0; i<p_ods->objects.i_size; i++ )

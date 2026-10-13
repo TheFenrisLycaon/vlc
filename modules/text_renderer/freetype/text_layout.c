@@ -2,6 +2,7 @@
  * text_layout.c : Text shaping and layout
  *****************************************************************************
  * Copyright (C) 2015 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Salah-Eddin Shaban <salshaaban@gmail.com>
  *          Laurent Aimar <fenrir@videolan.org>
@@ -38,9 +39,9 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_filter.h>
-#include <vlc_text_style.h>
+#include <heimdall_common.h>
+#include <heimdall_filter.h>
+#include <heimdall_text_style.h>
 
 /* Freetype */
 #include <ft2build.h>
@@ -101,7 +102,7 @@ typedef struct run_desc_t
 {
     int                         i_start_offset;
     int                         i_end_offset;
-    vlc_face_id_t              *p_faceid;
+    heimdall_face_id_t              *p_faceid;
     const text_style_t         *p_style;
 
 #ifdef HAVE_HARFBUZZ
@@ -117,8 +118,8 @@ typedef struct run_desc_t
  */
 typedef struct glyph_bitmaps_t
 {
-    vlc_ftcache_glyph_t cglyph;
-    vlc_ftcache_custom_glyph_t coutline;
+    heimdall_ftcache_glyph_t cglyph;
+    heimdall_ftcache_custom_glyph_t coutline;
     FT_Glyph p_shadow;
     FT_BBox  glyph_bbox;
     FT_BBox  outline_bbox;
@@ -135,7 +136,7 @@ typedef struct paragraph_t
     int                 *pi_glyph_indices; /**< Glyph index values within the run's font face */
     text_style_t       **pp_styles;
     ruby_block_t       **pp_ruby;
-    vlc_face_id_t      **pp_facesidx;      /**< Used to determine run boundaries when performing font fallback */
+    heimdall_face_id_t      **pp_facesidx;      /**< Used to determine run boundaries when performing font fallback */
     int                 *pi_run_ids;       /**< The run to which each glyph belongs */
     glyph_bitmaps_t     *p_glyph_bitmaps;
     int                  i_size;
@@ -318,18 +319,18 @@ static paragraph_t *NewParagraph( filter_t *p_filter,
                                   ruby_block_t **pp_ruby,
                                   int i_runs_size )
 {
-    VLC_UNUSED(p_filter);
+    HEIMDALL_UNUSED(p_filter);
     paragraph_t *p_paragraph = calloc( 1, sizeof( paragraph_t ) );
     if( !p_paragraph )
         return 0;
 
     p_paragraph->i_size = i_size;
     p_paragraph->p_code_points =
-            vlc_alloc( i_size, sizeof( *p_paragraph->p_code_points ) );
+            heimdall_alloc( i_size, sizeof( *p_paragraph->p_code_points ) );
     p_paragraph->pi_glyph_indices =
-            vlc_alloc( i_size, sizeof( *p_paragraph->pi_glyph_indices ) );
+            heimdall_alloc( i_size, sizeof( *p_paragraph->pi_glyph_indices ) );
     p_paragraph->pp_styles =
-            vlc_alloc( i_size, sizeof( *p_paragraph->pp_styles ) );
+            heimdall_alloc( i_size, sizeof( *p_paragraph->pp_styles ) );
     p_paragraph->pp_facesidx =
             calloc( i_size, sizeof( *p_paragraph->pp_facesidx ) );
     p_paragraph->pi_run_ids =
@@ -359,19 +360,19 @@ static paragraph_t *NewParagraph( filter_t *p_filter,
         memcpy( p_paragraph->pp_ruby, pp_ruby, i_size * sizeof( *pp_ruby ) );
 
 #ifdef HAVE_HARFBUZZ
-    p_paragraph->p_scripts = vlc_alloc( i_size, sizeof( *p_paragraph->p_scripts ) );
+    p_paragraph->p_scripts = heimdall_alloc( i_size, sizeof( *p_paragraph->p_scripts ) );
     if( !p_paragraph->p_scripts )
         goto error;
 #endif
 
 #ifdef HAVE_FRIBIDI
-    p_paragraph->p_levels = vlc_alloc( i_size, sizeof( *p_paragraph->p_levels ) );
-    p_paragraph->p_types = vlc_alloc( i_size, sizeof( *p_paragraph->p_types ) );
+    p_paragraph->p_levels = heimdall_alloc( i_size, sizeof( *p_paragraph->p_levels ) );
+    p_paragraph->p_types = heimdall_alloc( i_size, sizeof( *p_paragraph->p_types ) );
 #if FRIBIDI_MAJOR_VERSION >= 1
-    p_paragraph->p_btypes = vlc_alloc( i_size, sizeof( *p_paragraph->p_btypes ) );
+    p_paragraph->p_btypes = heimdall_alloc( i_size, sizeof( *p_paragraph->p_btypes ) );
 #endif
     p_paragraph->pi_reordered_indices =
-            vlc_alloc( i_size, sizeof( *p_paragraph->pi_reordered_indices ) );
+            heimdall_alloc( i_size, sizeof( *p_paragraph->pi_reordered_indices ) );
 
     if( !p_paragraph->p_levels || !p_paragraph->p_types
      || !p_paragraph->pi_reordered_indices )
@@ -422,7 +423,7 @@ static int AnalyzeParagraph( paragraph_t *p_paragraph )
                                       p_paragraph->p_levels );
 #endif
     if( i_max == 0 )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
 #ifdef HAVE_HARFBUZZ
     hb_unicode_funcs_t *p_funcs =
@@ -464,7 +465,7 @@ static int AnalyzeParagraph( paragraph_t *p_paragraph )
     }
 #endif //HAVE_HARFBUZZ
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 #endif //HAVE_FRIBIDI
 
@@ -472,7 +473,7 @@ static int AddRun( filter_t *p_filter,
                    paragraph_t *p_paragraph,
                    int i_start_offset,
                    int i_end_offset,
-                   vlc_face_id_t *p_faceid,
+                   heimdall_face_id_t *p_faceid,
                    const text_style_t *p_style )
 {
     if( i_start_offset >= i_end_offset
@@ -483,7 +484,7 @@ static int AddRun( filter_t *p_filter,
                  "AddRun() invalid parameters. Paragraph size: %d, "
                  "Start offset: %d, End offset: %d",
                  p_paragraph->i_size, i_start_offset, i_end_offset );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( p_paragraph->i_runs_count == p_paragraph->i_runs_size )
@@ -492,7 +493,7 @@ static int AddRun( filter_t *p_filter,
             realloc( p_paragraph->p_runs,
                      p_paragraph->i_runs_size * 2 * sizeof( *p_new_runs ) );
         if( !p_new_runs )
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
 
         memset( p_new_runs + p_paragraph->i_runs_size , 0,
                 p_paragraph->i_runs_size * sizeof( *p_new_runs ) );
@@ -521,7 +522,7 @@ static int AddRun( filter_t *p_filter,
     for( int i = i_start_offset; i < i_end_offset; ++i )
         p_paragraph->pi_run_ids[ i ] = i_run_id;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /**
@@ -541,14 +542,14 @@ static int AddRunWithFallback( filter_t *p_filter, paragraph_t *p_paragraph,
                  "AddRunWithFallback() invalid parameters. Paragraph size: %d, "
                  "Start offset: %d, End offset: %d",
                  p_paragraph->i_size, i_start_offset, i_end_offset );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     const text_style_t *p_style = p_paragraph->pp_styles[ i_start_offset ];
 
     /* Maximum number of faces to try for each run */
     #define MAX_FACES 5
-    vlc_face_id_t *pp_facesidx[ MAX_FACES ] = {0};
+    heimdall_face_id_t *pp_facesidx[ MAX_FACES ] = {0};
 
     for( int i = i_start_offset; i < i_end_offset; ++i )
     {
@@ -562,7 +563,7 @@ static int AddRunWithFallback( filter_t *p_filter, paragraph_t *p_paragraph,
             ( p_paragraph->p_types[ i ] == FRIBIDI_TYPE_WS
            || p_paragraph->p_types[ i ] == FRIBIDI_TYPE_CS
            || p_paragraph->p_types[ i ] == FRIBIDI_TYPE_ON ) &&
-            vlc_ftcache_LookupCMapIndex( p_sys->ftcache,
+            heimdall_ftcache_LookupCMapIndex( p_sys->ftcache,
                                          p_paragraph->pp_facesidx[ i - 1 ],
                                          p_paragraph->p_code_points[ i ] ) != 0 )
         {
@@ -580,7 +581,7 @@ static int AddRunWithFallback( filter_t *p_filter, paragraph_t *p_paragraph,
                                                       p_paragraph->p_code_points[ i ] );
                 break;
             }
-            else if( vlc_ftcache_LookupCMapIndex( p_sys->ftcache, pp_facesidx[ j ],
+            else if( heimdall_ftcache_LookupCMapIndex( p_sys->ftcache, pp_facesidx[ j ],
                                                   p_paragraph->p_code_points[ i ] ) != 0 )
             {
                 p_paragraph->pp_facesidx[ i ] = pp_facesidx[ j ];
@@ -598,13 +599,13 @@ static int AddRunWithFallback( filter_t *p_filter, paragraph_t *p_paragraph,
             if( p_paragraph->pp_facesidx[ i_run_start ] &&
                 AddRun( p_filter, p_paragraph, i_run_start, i,
                         p_paragraph->pp_facesidx[ i_run_start ], NULL ) )
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
 
             i_run_start = i;
         }
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static bool FaceStyleEquals( filter_t *p_filter, const text_style_t *p_style1,
@@ -641,7 +642,7 @@ static int ItemizeParagraph( filter_t *p_filter, paragraph_t *p_paragraph )
         msg_Err( p_filter,
                  "ItemizeParagraph() invalid parameters. Paragraph size: %d",
                  p_paragraph->i_size );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     int i_last_run_start = 0;
@@ -676,7 +677,7 @@ static int ItemizeParagraph( filter_t *p_filter, paragraph_t *p_paragraph )
             }
         }
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 #ifdef HAVE_HARFBUZZ
@@ -694,14 +695,14 @@ static int ShapeParagraphHarfBuzz( filter_t *p_filter,
     paragraph_t *p_new_paragraph = 0;
     filter_sys_t *p_sys = p_filter->p_sys;
     int i_total_glyphs = 0;
-    int i_ret = VLC_EGENERIC;
+    int i_ret = HEIMDALL_EGENERIC;
 
     if( p_paragraph->i_size <= 0 || p_paragraph->i_runs_count <= 0 )
     {
         msg_Err( p_filter, "ShapeParagraphHarfBuzz() invalid parameters. "
                  "Paragraph size: %d. Runs count %d",
                  p_paragraph->i_size, p_paragraph->i_runs_count );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     for( int i = 0; i < p_paragraph->i_runs_count; ++i )
@@ -728,17 +729,17 @@ static int ShapeParagraphHarfBuzz( filter_t *p_filter,
             }
         }
 
-        vlc_face_id_t *p_faceid = p_run->p_faceid;
+        heimdall_face_id_t *p_faceid = p_run->p_faceid;
         const text_style_t *p_style = p_run->p_style;
 
         if(!p_faceid)
             goto error;
 
-        vlc_ftcache_metrics_t metrics;
+        heimdall_ftcache_metrics_t metrics;
         metrics.height_px = ConvertToLiveSize( p_filter, p_style );
         metrics.width_px = GetFontWidthForStyle( p_style, metrics.height_px );
 
-        FT_Face p_face = vlc_ftcache_LoadFaceByID( p_sys->ftcache, p_faceid, &metrics );
+        FT_Face p_face = heimdall_ftcache_LoadFaceByID( p_sys->ftcache, p_faceid, &metrics );
         if(!p_face)
             goto error;
 
@@ -786,7 +787,7 @@ static int ShapeParagraphHarfBuzz( filter_t *p_filter,
                                     p_paragraph->i_runs_size );
     if( !p_new_paragraph )
     {
-        i_ret = VLC_ENOMEM;
+        i_ret = HEIMDALL_ENOMEM;
         goto error;
     }
     if( p_paragraph->pp_ruby )
@@ -857,7 +858,7 @@ static int ShapeParagraphHarfBuzz( filter_t *p_filter,
     FreeParagraph( *p_old_paragraph );
     *p_old_paragraph = p_new_paragraph;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     for( int i = 0; i < p_paragraph->i_runs_count; ++i )
@@ -888,13 +889,13 @@ static int ShapeParagraphFriBidi( filter_t *p_filter, paragraph_t *p_paragraph )
         msg_Err( p_filter,
                 "ShapeParagraphFriBidi() invalid parameters. Paragraph size: %d",
                  p_paragraph->i_size );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     FriBidiJoiningType *p_joining_types =
-            vlc_alloc( p_paragraph->i_size, sizeof( *p_joining_types ) );
+            heimdall_alloc( p_paragraph->i_size, sizeof( *p_joining_types ) );
     if( !p_joining_types )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     fribidi_get_joining_types( p_paragraph->p_code_points,
                                p_paragraph->i_size, p_joining_types );
@@ -908,7 +909,7 @@ static int ShapeParagraphFriBidi( filter_t *p_filter, paragraph_t *p_paragraph )
 
     free( p_joining_types );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /**
@@ -931,15 +932,15 @@ static int RemoveZeroWidthCharacters( filter_t *p_filter, paragraph_t *p_paragra
          || ( ch >= 0x200b && ch <= 0x200f ) )
         {
             glyph_bitmaps_t *p_bitmaps = p_paragraph->p_glyph_bitmaps + i;
-            vlc_ftcache_Custom_Glyph_Release( &p_bitmaps->coutline );
-            vlc_ftcache_Glyph_Release( p_sys->ftcache, &p_bitmaps->cglyph );
+            heimdall_ftcache_Custom_Glyph_Release( &p_bitmaps->coutline );
+            heimdall_ftcache_Glyph_Release( p_sys->ftcache, &p_bitmaps->cglyph );
             p_bitmaps->p_shadow = 0;
             p_bitmaps->i_x_advance = 0;
             p_bitmaps->i_y_advance = 0;
         }
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /**
@@ -955,7 +956,7 @@ static int ZeroNsmAdvance( paragraph_t *p_paragraph )
             p_paragraph->p_glyph_bitmaps[ i ].i_x_advance = 0;
             p_paragraph->p_glyph_bitmaps[ i ].i_y_advance = 0;
         }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 #endif
 #endif
@@ -967,8 +968,8 @@ static void ReleaseGlyphBitMaps(filter_t *p_filter, glyph_bitmaps_t *p_bitmaps)
         p_bitmaps->p_shadow != p_bitmaps->cglyph.p_glyph &&
         p_bitmaps->p_shadow != p_bitmaps->coutline.p_glyph )
         FT_Done_Glyph( p_bitmaps->p_shadow );
-    vlc_ftcache_Custom_Glyph_Release( &p_bitmaps->coutline );
-    vlc_ftcache_Glyph_Release( p_sys->ftcache, &p_bitmaps->cglyph );
+    heimdall_ftcache_Custom_Glyph_Release( &p_bitmaps->coutline );
+    heimdall_ftcache_Glyph_Release( p_sys->ftcache, &p_bitmaps->cglyph );
 }
 
 static int CreateOutlinedGlyph( FT_Glyph src, FT_Glyph *dest, void *priv )
@@ -994,7 +995,7 @@ static int LoadGlyphs( filter_t *p_filter, paragraph_t *p_paragraph,
         msg_Err( p_filter, "LoadGlyphs() invalid parameters. "
                  "Paragraph size: %d. Runs count %d", p_paragraph->i_size,
                  p_paragraph->i_runs_count );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     filter_sys_t *p_sys = p_filter->p_sys;
@@ -1004,13 +1005,13 @@ static int LoadGlyphs( filter_t *p_filter, paragraph_t *p_paragraph,
     {
         run_desc_t *p_run = p_paragraph->p_runs + i;
         const text_style_t *p_style = p_run->p_style;
-        vlc_ftcache_metrics_t metrics;
+        heimdall_ftcache_metrics_t metrics;
 
         if( p_run->p_faceid )
         {
             metrics.height_px = ConvertToLiveSize( p_filter, p_style );
             metrics.width_px = GetFontWidthForStyle( p_style, metrics.height_px );
-            if(! vlc_ftcache_LoadFaceByID( p_sys->ftcache, p_run->p_faceid, &metrics ) )
+            if(! heimdall_ftcache_LoadFaceByID( p_sys->ftcache, p_run->p_faceid, &metrics ) )
                 p_run->p_faceid = NULL;
         }
 
@@ -1018,7 +1019,7 @@ static int LoadGlyphs( filter_t *p_filter, paragraph_t *p_paragraph,
         {
             metrics.height_px = ConvertToLiveSize( p_filter, p_sys->p_default_style );
             metrics.width_px = GetFontWidthForStyle( p_sys->p_default_style, metrics.height_px );
-            if( vlc_ftcache_LoadFaceByID( p_sys->ftcache, p_sys->p_faceid, &metrics ) )
+            if( heimdall_ftcache_LoadFaceByID( p_sys->ftcache, p_sys->p_faceid, &metrics ) )
             {
                 p_run->p_faceid = p_sys->p_faceid;
                 p_run->p_style = p_style = p_sys->p_default_style;
@@ -1030,7 +1031,7 @@ static int LoadGlyphs( filter_t *p_filter, paragraph_t *p_paragraph,
         if( p_sys->p_stroker && (p_style->i_style_flags & STYLE_OUTLINE) )
         {
             double f_outline_thickness = p_sys->i_outline_thickness / 100.0;
-            f_outline_thickness = VLC_CLIP( f_outline_thickness, 0.0, 0.5 );
+            f_outline_thickness = HEIMDALL_CLIP( f_outline_thickness, 0.0, 0.5 );
             i_stroker_radius = ( metrics.height_px << 6 ) * f_outline_thickness;
             FT_Stroker_Set( p_sys->p_stroker,
                             i_stroker_radius,
@@ -1045,7 +1046,7 @@ static int LoadGlyphs( filter_t *p_filter, paragraph_t *p_paragraph,
                 i_glyph_index = p_paragraph->pi_glyph_indices[ j ];
             else
             {
-                i_glyph_index = vlc_ftcache_LookupCMapIndex( p_sys->ftcache, p_run->p_faceid,
+                i_glyph_index = heimdall_ftcache_LookupCMapIndex( p_sys->ftcache, p_run->p_faceid,
                                                  p_paragraph->p_code_points[ j ] );
             }
 
@@ -1053,8 +1054,8 @@ static int LoadGlyphs( filter_t *p_filter, paragraph_t *p_paragraph,
 
 #define SKIP_GLYPH( p_bitmaps ) \
     { \
-        vlc_ftcache_Glyph_Init( &p_bitmaps->cglyph );\
-        vlc_ftcache_Custom_Glyph_Init( &p_bitmaps->coutline ); \
+        heimdall_ftcache_Glyph_Init( &p_bitmaps->cglyph );\
+        heimdall_ftcache_Custom_Glyph_Init( &p_bitmaps->coutline ); \
         p_bitmaps->p_shadow = 0; \
         p_bitmaps->i_x_advance = 0; \
         p_bitmaps->i_y_advance = 0; \
@@ -1092,7 +1093,7 @@ static int LoadGlyphs( filter_t *p_filter, paragraph_t *p_paragraph,
 
 
             FT_Long style_flags;
-            if( vlc_ftcache_GetGlyphForCurrentFace( p_sys->ftcache,
+            if( heimdall_ftcache_GetGlyphForCurrentFace( p_sys->ftcache,
                                                     i_glyph_index,
                                                     &p_bitmaps->cglyph,
                                                     &style_flags ) )
@@ -1120,7 +1121,7 @@ static int LoadGlyphs( filter_t *p_filter, paragraph_t *p_paragraph,
                     }
                     if( b_embolden )
                         FT_Outline_Embolden( &((FT_OutlineGlyph)transformed)->outline, 1<<6 );
-                    vlc_ftcache_Glyph_Release( p_sys->ftcache, &p_bitmaps->cglyph );
+                    heimdall_ftcache_Glyph_Release( p_sys->ftcache, &p_bitmaps->cglyph );
                     p_bitmaps->cglyph.p_glyph = transformed;
                 }
             }
@@ -1129,7 +1130,7 @@ static int LoadGlyphs( filter_t *p_filter, paragraph_t *p_paragraph,
             if( p_sys->p_stroker && (p_style->i_style_flags & STYLE_OUTLINE) )
             {
                 p_bitmaps->coutline.p_glyph =
-                    vlc_ftcache_GetOutlinedGlyph( p_sys->ftcache, p_run->p_faceid, i_glyph_index,
+                    heimdall_ftcache_GetOutlinedGlyph( p_sys->ftcache, p_run->p_faceid, i_glyph_index,
                                                   &metrics, style_flags, i_stroker_radius,
                                                   p_bitmaps->cglyph.p_glyph,
                                                   CreateOutlinedGlyph, p_filter,
@@ -1151,7 +1152,7 @@ static int LoadGlyphs( filter_t *p_filter, paragraph_t *p_paragraph,
                 *pi_max_advance_x = i_x_advance;
         }
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int LayoutLine( filter_t *p_filter,
@@ -1171,7 +1172,7 @@ static int LayoutLine( filter_t *p_filter,
                  "Start char: %d. End char: %d",
                  p_paragraph->i_size, p_paragraph->i_runs_count,
                  i_first_char, i_last_char );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     filter_sys_t *p_sys = p_filter->p_sys;
@@ -1181,7 +1182,7 @@ static int LayoutLine( filter_t *p_filter,
     FT_Face p_face = NULL;
     FT_Vector pen = { .x = 0, .y = 0 };
 
-    vlc_ftcache_metrics_t metrics = { 0 };
+    heimdall_ftcache_metrics_t metrics = { 0 };
     int i_font_max_advance_y = 0;
     int i_ul_offset = 0;
     int i_ul_thickness = 0;
@@ -1197,7 +1198,7 @@ static int LayoutLine( filter_t *p_filter,
 
     line_desc_t *p_line = NewLine( 1 + i_last_char - i_first_char );
     if( !p_line )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     for( int i = i_first_char; i <= i_last_char; ++i )
     {
@@ -1233,7 +1234,7 @@ static int LayoutLine( filter_t *p_filter,
             metrics.height_px = ConvertToLiveSize( p_filter, p_style );
             metrics.width_px = GetFontWidthForStyle( p_style, metrics.height_px );
 
-            p_face = vlc_ftcache_LoadFaceByID( p_sys->ftcache, p_run->p_faceid, &metrics );
+            p_face = heimdall_ftcache_LoadFaceByID( p_sys->ftcache, p_run->p_faceid, &metrics );
         }
 
         FT_Vector pen_new = {
@@ -1264,7 +1265,7 @@ static int LayoutLine( filter_t *p_filter,
         }
 
         /* release the source glyph or reference */
-        vlc_ftcache_Glyph_Release( p_sys->ftcache, &p_bitmaps->cglyph );
+        heimdall_ftcache_Glyph_Release( p_sys->ftcache, &p_bitmaps->cglyph );
         p_bitmaps->cglyph.p_glyph = bitmapglyph;
 
         if( p_bitmaps->coutline.p_glyph )
@@ -1274,7 +1275,7 @@ static int LayoutLine( filter_t *p_filter,
                                     FT_RENDER_MODE_NORMAL,
                                     &pen_new, 0 ) )
                 bitmapglyph = NULL;
-            vlc_ftcache_Custom_Glyph_Release( &p_bitmaps->coutline );
+            heimdall_ftcache_Custom_Glyph_Release( &p_bitmaps->coutline );
             p_bitmaps->coutline.p_glyph = bitmapglyph;
         }
 
@@ -1438,7 +1439,7 @@ static int LayoutLine( filter_t *p_filter,
     }
 
     *pp_line = p_line;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static inline bool IsWhitespaceAt( paragraph_t *p_paragraph, size_t i )
@@ -1460,7 +1461,7 @@ static int LayoutParagraph( filter_t *p_filter, paragraph_t *p_paragraph,
         msg_Err( p_filter, "LayoutParagraph() invalid parameters. "
                  "Paragraph size: %d. Runs count %d",
                  p_paragraph->i_size, p_paragraph->i_runs_count );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /*
@@ -1470,7 +1471,7 @@ static int LayoutParagraph( filter_t *p_filter, paragraph_t *p_paragraph,
     if( i_max_width <= i_max_advance_x )
     {
         msg_Err( p_filter, "LayoutParagraph(): Invalid max width" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     i_max_width <<= 6;
@@ -1498,7 +1499,7 @@ static int LayoutParagraph( filter_t *p_filter, paragraph_t *p_paragraph,
     {
         for( int i=0; i < p_paragraph->i_size; ++i )
             ReleaseGlyphBitMaps( p_filter, &p_paragraph->p_glyph_bitmaps[ i ] );
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
     if( b_balance )
@@ -1573,7 +1574,7 @@ static int LayoutParagraph( filter_t *p_filter, paragraph_t *p_paragraph,
                 msg_Dbg( p_filter, "LayoutParagraph(): First glyph width in line exceeds maximum, skipping" );
                 for( ; i < p_paragraph->i_size; ++i )
                     ReleaseGlyphBitMaps( p_filter, &p_paragraph->p_glyph_bitmaps[ i ] );
-                return VLC_SUCCESS;
+                return HEIMDALL_SUCCESS;
             }
 
             int i_newline_start;
@@ -1621,14 +1622,14 @@ static int LayoutParagraph( filter_t *p_filter, paragraph_t *p_paragraph,
     }
 
     *pp_lines = p_first_line;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     for( int i = i_line_start; i < p_paragraph->i_size; ++i )
         ReleaseGlyphBitMaps( p_filter, &p_paragraph->p_glyph_bitmaps[ i ] );
     if( p_first_line )
         FreeLines( p_first_line );
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 static paragraph_t * BuildParagraph( filter_t *p_filter,
@@ -1704,7 +1705,7 @@ static int LayoutRubyText( filter_t *p_filter,
     if( !p_paragraph )
     {
         free( pp_styles );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( LayoutLine( p_filter, p_paragraph,
@@ -1715,13 +1716,13 @@ static int LayoutRubyText( filter_t *p_filter,
             ReleaseGlyphBitMaps( p_filter, &p_paragraph->p_glyph_bitmaps[ i ] );
         free( pp_styles );
         FreeParagraph( p_paragraph );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     FreeParagraph( p_paragraph );
     free( pp_styles );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 int LayoutTextBlock( filter_t *p_filter,
@@ -1773,7 +1774,7 @@ int LayoutTextBlock( filter_t *p_filter,
             if( !p_paragraph )
             {
                 if( p_first_line ) FreeLines( p_first_line );
-                return VLC_ENOMEM;
+                return HEIMDALL_ENOMEM;
             }
 
             if( LayoutParagraph( p_filter, p_paragraph,
@@ -1784,7 +1785,7 @@ int LayoutTextBlock( filter_t *p_filter,
             {
                 FreeParagraph( p_paragraph );
                 if( p_first_line ) FreeLines( p_first_line );
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             }
 
             FreeParagraph( p_paragraph );
@@ -1834,5 +1835,5 @@ int LayoutTextBlock( filter_t *p_filter,
     *pi_max_face_height = i_max_face_height;
     *pp_lines = p_first_line;
     *p_bbox = bbox;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

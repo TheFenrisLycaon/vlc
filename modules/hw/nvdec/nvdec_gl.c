@@ -2,6 +2,7 @@
  * converter_nvdec.c: OpenGL NVDEC opaque converter
  *****************************************************************************
  * Copyright (C) 2019 VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Steve Lhomme <robux4@videolabs.io>
  *
@@ -26,10 +27,10 @@
 
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_window.h>
-#include <vlc_codec.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_window.h>
+#include <heimdall_codec.h>
+#include <heimdall_plugin.h>
 
 #include "nvdec_fmt.h"
 #include "nvdec_priv.h"
@@ -42,7 +43,7 @@
 #endif
 
 typedef struct {
-    vlc_decoder_device *device;
+    heimdall_decoder_device *device;
     CUcontext cuConverterCtx;
     CUgraphicsResource cu_res[PICTURE_PLANE_MAX]; // Y, UV for NV12/P010
     CUarray mappedArray[PICTURE_PLANE_MAX];
@@ -56,18 +57,18 @@ typedef struct {
     } gl;
 } converter_sys_t;
 
-#define CALL_CUDA(func, ...) CudaCheckErr(VLC_OBJECT(interop->gl), devsys->cudaFunctions, devsys->cudaFunctions->func(__VA_ARGS__), #func)
+#define CALL_CUDA(func, ...) CudaCheckErr(HEIMDALL_OBJECT(interop->gl), devsys->cudaFunctions, devsys->cudaFunctions->func(__VA_ARGS__), #func)
 
-static int tc_nvdec_gl_allocate_texture(const struct vlc_gl_interop *interop, uint32_t textures[],
+static int tc_nvdec_gl_allocate_texture(const struct heimdall_gl_interop *interop, uint32_t textures[],
                                 const int32_t tex_width[], const int32_t tex_height[])
 {
     converter_sys_t *p_sys = interop->priv;
-    vlc_decoder_device *device = p_sys->device;
+    heimdall_decoder_device *device = p_sys->device;
     decoder_device_nvdec_t *devsys = GetNVDECOpaqueDevice(device);
 
     int result;
     result = CALL_CUDA(cuCtxPushCurrent, p_sys->cuConverterCtx ? p_sys->cuConverterCtx : devsys->cuCtx);
-    if (result != VLC_SUCCESS)
+    if (result != HEIMDALL_SUCCESS)
         return result;
 
     for (unsigned i = 0; i < interop->tex_count; i++)
@@ -79,7 +80,7 @@ static int tc_nvdec_gl_allocate_texture(const struct vlc_gl_interop *interop, ui
         if (p_sys->gl.GetError() != GL_NO_ERROR)
         {
             msg_Err(interop->gl, "could not alloc PBO buffers");
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         result = CALL_CUDA(cuGraphicsGLRegisterImage, &p_sys->cu_res[i], textures[i], interop->tex_target, CU_GRAPHICS_REGISTER_FLAGS_WRITE_DISCARD);
@@ -96,21 +97,21 @@ static int tc_nvdec_gl_allocate_texture(const struct vlc_gl_interop *interop, ui
 }
 
 static int
-tc_nvdec_gl_update(const struct vlc_gl_interop *interop, uint32_t textures[],
+tc_nvdec_gl_update(const struct heimdall_gl_interop *interop, uint32_t textures[],
                    int32_t const tex_widths[], int32_t const tex_heights[],
                    picture_t *pic, size_t const plane_offsets[])
 {
-    VLC_UNUSED(plane_offsets);
-    VLC_UNUSED(textures);
+    HEIMDALL_UNUSED(plane_offsets);
+    HEIMDALL_UNUSED(textures);
 
     converter_sys_t *p_sys = interop->priv;
-    vlc_decoder_device *device = p_sys->device;
+    heimdall_decoder_device *device = p_sys->device;
     decoder_device_nvdec_t *devsys = GetNVDECOpaqueDevice(device);
     pic_context_nvdec_t *srcpic = container_of(pic->context, pic_context_nvdec_t, ctx);
 
     int result;
     result = CALL_CUDA(cuCtxPushCurrent, p_sys->cuConverterCtx ? p_sys->cuConverterCtx : devsys->cuCtx);
-    if (result != VLC_SUCCESS)
+    if (result != HEIMDALL_SUCCESS)
         return result;
 
     // copy the planes from the pic context to mappedArray
@@ -128,7 +129,7 @@ tc_nvdec_gl_update(const struct vlc_gl_interop *interop, uint32_t textures[],
             .Height = tex_heights[i],
         };
         result = CALL_CUDA(cuMemcpy2DAsync, &cu_cpy, 0);
-        if (result != VLC_SUCCESS)
+        if (result != HEIMDALL_SUCCESS)
             goto error;
         srcY += srcpic->bufferHeight;
     }
@@ -138,39 +139,39 @@ error:
     return result;
 }
 
-static void tc_nvdec_gl_close(struct vlc_gl_interop *interop)
+static void tc_nvdec_gl_close(struct heimdall_gl_interop *interop)
 {
     converter_sys_t *p_sys = interop->priv;
-    vlc_decoder_device_Release(p_sys->device);
+    heimdall_decoder_device_Release(p_sys->device);
     free(p_sys);
 }
 
-static int Open(struct vlc_gl_interop *interop)
+static int Open(struct heimdall_gl_interop *interop)
 {
     if (!is_nvdec_opaque(interop->fmt_in.i_chroma))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    vlc_decoder_device *device = vlc_video_context_HoldDevice(interop->vctx);
-    if (device == NULL || device->type != VLC_DECODER_DEVICE_NVDEC)
-        return VLC_EGENERIC;
+    heimdall_decoder_device *device = heimdall_video_context_HoldDevice(interop->vctx);
+    if (device == NULL || device->type != HEIMDALL_DECODER_DEVICE_NVDEC)
+        return HEIMDALL_EGENERIC;
 
     converter_sys_t *p_sys = malloc(sizeof(*p_sys));
     if (unlikely(p_sys == NULL))
     {
-        vlc_decoder_device_Release(device);
-        return VLC_ENOMEM;
+        heimdall_decoder_device_Release(device);
+        return HEIMDALL_ENOMEM;
     }
 
     p_sys->gl.BindTexture =
-        vlc_gl_GetProcAddress(interop->gl, "glBindTexture");
+        heimdall_gl_GetProcAddress(interop->gl, "glBindTexture");
     assert(p_sys->gl.BindTexture);
 
     p_sys->gl.GetError =
-        vlc_gl_GetProcAddress(interop->gl, "glGetError");
+        heimdall_gl_GetProcAddress(interop->gl, "glGetError");
     assert(p_sys->gl.GetError);
 
     p_sys->gl.TexImage2D =
-        vlc_gl_GetProcAddress(interop->gl, "glTexImage2D");
+        heimdall_gl_GetProcAddress(interop->gl, "glTexImage2D");
     assert(p_sys->gl.TexImage2D);
 
     for (size_t i=0; i < ARRAY_SIZE(p_sys->cu_res); i++)
@@ -194,34 +195,34 @@ static int Open(struct vlc_gl_interop *interop)
     if (cuConverterDevice != cuDecDevice)
     {
         result = CALL_CUDA(cuCtxCreate, &p_sys->cuConverterCtx, 0, cuConverterDevice);
-        if (result != VLC_SUCCESS)
+        if (result != HEIMDALL_SUCCESS)
             goto error;
     }
 
     /* The pictures are uploaded upside-down */
     video_format_TransformBy(&interop->fmt_out, TRANSFORM_VFLIP);
 
-    vlc_fourcc_t render_chroma = NVDECToVlcChroma(interop->fmt_in.i_chroma);
-    const vlc_chroma_description_t *desc = vlc_fourcc_GetChromaDescription(render_chroma);
+    heimdall_fourcc_t render_chroma = NVDECToHeimdallChroma(interop->fmt_in.i_chroma);
+    const heimdall_chroma_description_t *desc = heimdall_fourcc_GetChromaDescription(render_chroma);
     if (desc == NULL)
     {
-        result = VLC_EGENERIC;
+        result = HEIMDALL_EGENERIC;
         goto error;
     }
     p_sys->pixel_size = desc->pixel_size;
     switch (render_chroma)
     {
-        case VLC_CODEC_P010:
-        case VLC_CODEC_P016:
+        case HEIMDALL_CODEC_P010:
+        case HEIMDALL_CODEC_P016:
             interop->tex_count = 2;
-            interop->texs[0] = (struct vlc_gl_tex_cfg) {
+            interop->texs[0] = (struct heimdall_gl_tex_cfg) {
                 .w = {1, 1},
                 .h = {1, 1},
                 .internal = GL_R16,
                 .format = GL_RED,
                 .type = GL_UNSIGNED_BYTE,
             };
-            interop->texs[1] = (struct vlc_gl_tex_cfg) {
+            interop->texs[1] = (struct heimdall_gl_tex_cfg) {
                 .w = {1, 2},
                 .h = {1, 2},
                 .internal = GL_RG16,
@@ -230,10 +231,10 @@ static int Open(struct vlc_gl_interop *interop)
             };
 
             break;
-        case VLC_CODEC_I444:
+        case HEIMDALL_CODEC_I444:
             interop->tex_count = 3;
             interop->texs[0] = interop->texs[1] = interop->texs[2] =
-                (struct vlc_gl_tex_cfg) {
+                (struct heimdall_gl_tex_cfg) {
                     .w = {1, 1},
                     .h = {1, 1},
                     .internal = GL_RED,
@@ -242,10 +243,10 @@ static int Open(struct vlc_gl_interop *interop)
                 };
 
             break;
-        case VLC_CODEC_I444_16L:
+        case HEIMDALL_CODEC_I444_16L:
             interop->tex_count = 3;
             interop->texs[0] = interop->texs[1] = interop->texs[2] =
-                (struct vlc_gl_tex_cfg) {
+                (struct heimdall_gl_tex_cfg) {
                     .w = {1, 1},
                     .h = {1, 1},
                     .internal = GL_R16,
@@ -254,16 +255,16 @@ static int Open(struct vlc_gl_interop *interop)
                 };
 
             break;
-        case VLC_CODEC_NV12:
+        case HEIMDALL_CODEC_NV12:
             interop->tex_count = 2;
-            interop->texs[0] = (struct vlc_gl_tex_cfg) {
+            interop->texs[0] = (struct heimdall_gl_tex_cfg) {
                 .w = {1, 1},
                 .h = {1, 1},
                 .internal = GL_RED,
                 .format = GL_RED,
                 .type = GL_UNSIGNED_BYTE,
             };
-            interop->texs[1] = (struct vlc_gl_tex_cfg) {
+            interop->texs[1] = (struct heimdall_gl_tex_cfg) {
                 .w = {1, 2},
                 .h = {1, 2},
                 .internal = GL_RG,
@@ -278,7 +279,7 @@ static int Open(struct vlc_gl_interop *interop)
     interop->fmt_out.i_chroma = render_chroma;
     interop->fmt_out.space = interop->fmt_in.space;
 
-    static const struct vlc_gl_interop_ops ops = {
+    static const struct heimdall_gl_interop_ops ops = {
         .allocate_textures = tc_nvdec_gl_allocate_texture,
         .update_textures = tc_nvdec_gl_update,
         .close = tc_nvdec_gl_close,
@@ -286,21 +287,21 @@ static int Open(struct vlc_gl_interop *interop)
     interop->ops = &ops;
     interop->priv = p_sys;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     if (p_sys->cuConverterCtx)
         CALL_CUDA(cuCtxDestroy, p_sys->cuConverterCtx);
 
     free(p_sys);
-    vlc_decoder_device_Release(device);
+    heimdall_decoder_device_Release(device);
     return result;
 }
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description("NVDEC OpenGL surface converter")
     set_capability("glinterop", 2)
     set_callback(Open)
     set_subcategory(SUBCAT_VIDEO_VOUT)
     add_shortcut("nvdec")
-vlc_module_end ()
+heimdall_module_end ()

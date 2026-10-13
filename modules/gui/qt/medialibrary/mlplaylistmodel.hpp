@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -68,14 +69,14 @@ signals:
 protected: // MLBaseModel implementation
     QVariant itemRoleData(const MLItem *item, int role = Qt::DisplayRole) const override;
 
-    vlc_ml_sorting_criteria_t nameToCriteria(QByteArray name) const override;
+    heimdall_ml_sorting_criteria_t nameToCriteria(QByteArray name) const override;
 
     std::unique_ptr<MLListCacheLoader> createMLLoader() const override;
 
 protected: // MLBaseModel reimplementation
-    void onVlcMlEvent(const MLEvent & event) override;
+    void onHeimdallMlEvent(const MLEvent & event) override;
 
-    void thumbnailUpdated(const QModelIndex& idx, MLItem* item, const QString& mrl, vlc_ml_thumbnail_status_t status) override;
+    void thumbnailUpdated(const QModelIndex& idx, MLItem* item, const QString& mrl, heimdall_ml_thumbnail_status_t status) override;
 
 private: // Functions
     struct HighLowRanges {
@@ -110,11 +111,11 @@ private:
     {
         using MLListCacheLoader::MLOp::MLOp;
 
-        size_t count(vlc_medialibrary_t* ml, const vlc_ml_query_params_t* queryParams) const override;
+        size_t count(heimdall_medialibrary_t* ml, const heimdall_ml_query_params_t* queryParams) const override;
 
-        std::vector<std::unique_ptr<MLItem>> load(vlc_medialibrary_t* ml, const vlc_ml_query_params_t* queryParams) const override;
+        std::vector<std::unique_ptr<MLItem>> load(heimdall_medialibrary_t* ml, const heimdall_ml_query_params_t* queryParams) const override;
 
-        std::unique_ptr<MLItem> loadItemById(vlc_medialibrary_t* ml, MLItemId itemId) const override;
+        std::unique_ptr<MLItem> loadItemById(heimdall_medialibrary_t* ml, MLItemId itemId) const override;
     };
 };
 

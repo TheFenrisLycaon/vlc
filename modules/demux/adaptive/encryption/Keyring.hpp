@@ -2,6 +2,7 @@
  * Keyring.hpp
  *****************************************************************************
  * Copyright (C) 2019 VideoLabs, VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -20,8 +21,8 @@
 #ifndef KEYRING_H
 #define KEYRING_H
 
-#include <vlc_common.h>
-#include <vlc_threads.h>
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
 
 #include <map>
 #include <list>
@@ -39,7 +40,7 @@ namespace adaptive
         class Keyring
         {
             public:
-                Keyring(vlc_object_t *);
+                Keyring(heimdall_object_t *);
                 ~Keyring();
                 KeyringKey getKey(SharedResources *, const std::string &);
 
@@ -47,8 +48,8 @@ namespace adaptive
                 static const int MAX_KEYS = 50;
                 std::map<std::string, KeyringKey> keys;
                 std::list<std::string> lru;
-                vlc_object_t *obj;
-                vlc_mutex_t lock;
+                heimdall_object_t *obj;
+                heimdall_mutex_t lock;
         };
     }
 }

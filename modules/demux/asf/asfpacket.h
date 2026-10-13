@@ -2,6 +2,7 @@
  * asfpacket.h :
  *****************************************************************************
  * Copyright © 2001-2004, 2011, 2014 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *
@@ -19,12 +20,12 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
-#ifndef VLC_ASF_ASFPACKET_H_
-#define VLC_ASF_ASFPACKET_H_
+#ifndef HEIMDALL_ASF_ASFPACKET_H_
+#define HEIMDALL_ASF_ASFPACKET_H_
 
-#include <vlc_demux.h>
-#include <vlc_es.h>
-#include <vlc_messages.h>
+#include <heimdall_demux.h>
+#include <heimdall_es.h>
+#include <heimdall_messages.h>
 #include "libasf.h"
 
 #define ASFPACKET_PREROLL_FROM_CURRENT -1
@@ -51,11 +52,11 @@ struct asf_packet_sys_s
 {
     void *priv;
     stream_t *s;
-    struct vlc_logger *logger;
+    struct heimdall_logger *logger;
 
     /* global stream info */
-    vlc_tick_t *pi_preroll;
-    vlc_tick_t *pi_preroll_start;
+    heimdall_tick_t *pi_preroll;
+    heimdall_tick_t *pi_preroll_start;
     bool b_deduplicate; /* Flip4mac repeats data object payloads */
     bool b_can_hold_multiple_packets; /* Flip4mac passes multiple buffers */
 
@@ -65,8 +66,8 @@ struct asf_packet_sys_s
 
     /* optional callbacks */
     bool (*pf_doskip)(asf_packet_sys_t *, uint8_t, bool);
-    void (*pf_updatesendtime)(asf_packet_sys_t *, vlc_tick_t);
-    void (*pf_updatetime)(asf_packet_sys_t *, uint8_t, vlc_tick_t);
+    void (*pf_updatesendtime)(asf_packet_sys_t *, heimdall_tick_t);
+    void (*pf_updatetime)(asf_packet_sys_t *, uint8_t, heimdall_tick_t);
     void (*pf_setaspectratio)(asf_packet_sys_t *, uint8_t, uint8_t, uint8_t);
 };
 

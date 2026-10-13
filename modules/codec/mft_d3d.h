@@ -2,6 +2,7 @@
  * mft_d3d.h : Media Foundation Transform audio/video decoder D3D helpers
  *****************************************************************************
  * Copyright (C) 2023 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Steve Lhomme <slhomme@videolabs.io>
  *
@@ -20,8 +21,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_MFT_D3D_H
-#define VLC_MFT_D3D_H
+#ifndef HEIMDALL_MFT_D3D_H
+#define HEIMDALL_MFT_D3D_H
 
 #include <windows.h>
 
@@ -37,13 +38,13 @@ struct IMFTransform;
 struct IMFDXGIDeviceManager;
 struct IMFDXGIBuffer;
 
-struct vlc_logger;
+struct heimdall_logger;
 struct picture_context_t;
 struct es_format_t;
-struct vlc_video_context;
-struct vlc_decoder_device;
+struct heimdall_video_context;
+struct heimdall_decoder_device;
 
-class vlc_mft_ref
+class heimdall_mft_ref
 {
 public:
     virtual void AddRef() = 0;
@@ -53,16 +54,16 @@ public:
     virtual bool Release() = 0;
 };
 
-class vlc_mf_d3d
+class heimdall_mf_d3d
 {
 public:
-    ~vlc_mf_d3d();
+    ~heimdall_mf_d3d();
 
     void Init();
 
     bool CanUseD3D() const;
 
-    HRESULT SetD3D(vlc_logger *logger, IGraphicsUnknown *d3d_device, Microsoft::WRL::ComPtr<IMFTransform> &);
+    HRESULT SetD3D(heimdall_logger *logger, IGraphicsUnknown *d3d_device, Microsoft::WRL::ComPtr<IMFTransform> &);
 
     void ReleaseD3D(Microsoft::WRL::ComPtr<IMFTransform> &);
 
@@ -80,23 +81,23 @@ class MFHW_d3d
 public:
     MFHW_d3d();
     virtual ~MFHW_d3d() = default;
-    virtual HRESULT SetD3D(vlc_logger *, vlc_decoder_device & dec_dev, Microsoft::WRL::ComPtr<IMFTransform> & mft) = 0;
+    virtual HRESULT SetD3D(heimdall_logger *, heimdall_decoder_device & dec_dev, Microsoft::WRL::ComPtr<IMFTransform> & mft) = 0;
     virtual void Release(Microsoft::WRL::ComPtr<IMFTransform> & mft);
 
 
-    virtual picture_context_t *CreatePicContext(vlc_logger *, Microsoft::WRL::ComPtr<IMFDXGIBuffer> &,
-                                                vlc_mft_ref *) = 0;
+    virtual picture_context_t *CreatePicContext(heimdall_logger *, Microsoft::WRL::ComPtr<IMFDXGIBuffer> &,
+                                                heimdall_mft_ref *) = 0;
 
-    virtual HRESULT SetupVideoContext(vlc_logger *, Microsoft::WRL::ComPtr<IMFDXGIBuffer> &, es_format_t & fmt_out) = 0;
+    virtual HRESULT SetupVideoContext(heimdall_logger *, Microsoft::WRL::ComPtr<IMFDXGIBuffer> &, es_format_t & fmt_out) = 0;
 
-    vlc_video_context *vctx_out = nullptr;
-    vlc_decoder_device *dec_dev = nullptr;
+    heimdall_video_context *vctx_out = nullptr;
+    heimdall_decoder_device *dec_dev = nullptr;
 
 protected:
-    HRESULT SetD3D(vlc_logger *, vlc_decoder_device &, IGraphicsUnknown *, Microsoft::WRL::ComPtr<IMFTransform> &);
+    HRESULT SetD3D(heimdall_logger *, heimdall_decoder_device &, IGraphicsUnknown *, Microsoft::WRL::ComPtr<IMFTransform> &);
 
 private:
-    vlc_mf_d3d d3d;
+    heimdall_mf_d3d d3d;
 };
 
-#endif // VLC_MFT_D3D_H
+#endif // HEIMDALL_MFT_D3D_H

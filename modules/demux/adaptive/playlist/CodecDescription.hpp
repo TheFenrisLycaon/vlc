@@ -2,6 +2,7 @@
  * CodecDescription.hpp
  *****************************************************************************
  * Copyright (C) 2021 - VideoLabs, VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -22,7 +23,7 @@
 
 #include "../tools/Properties.hpp"
 #include "../tools/Macros.hpp"
-#include <vlc_es.h>
+#include <heimdall_es.h>
 #include <string>
 #include <list>
 

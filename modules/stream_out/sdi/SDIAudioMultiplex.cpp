@@ -2,6 +2,7 @@
  * SDIAudioMultiplex.cpp: SDI Audio Multiplexing
  *****************************************************************************
  * Copyright © 2018 VideoLabs, VideoLAN and VideoLAN Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,8 +23,8 @@
 #endif
 
 #include "SDIAudioMultiplex.hpp"
-#include <vlc_configuration.h>
-#include <vlc_es.h>
+#include <heimdall_configuration.h>
+#include <heimdall_es.h>
 #include <limits>
 #include <cstring>
 #include <algorithm>
@@ -31,7 +32,7 @@
 
 using namespace sdi_sout;
 
-SDIAudioMultiplexBuffer::SDIAudioMultiplexBuffer(vlc_object_t *obj)
+SDIAudioMultiplexBuffer::SDIAudioMultiplexBuffer(heimdall_object_t *obj)
     : AES3AudioBuffer(obj, 2), AbstractStreamOutputBuffer()
 {
     b_draining = false;
@@ -64,7 +65,7 @@ void SDIAudioMultiplexBuffer::Drain()
 
 bool SDIAudioMultiplexBuffer::isEOS()
 {
-    return b_draining && AES3AudioBuffer::bufferStart() == VLC_TICK_INVALID;
+    return b_draining && AES3AudioBuffer::bufferStart() == HEIMDALL_TICK_INVALID;
 }
 
 static void ConfigureChannels(unsigned i, es_format_t *fmt)
@@ -87,11 +88,11 @@ static void ConfigureChannels(unsigned i, es_format_t *fmt)
     fmt->audio.i_blockalign = i * 16 / 8;
 }
 
-SDIAudioMultiplexConfig::Mapping::Mapping(vlc_object_t *obj, const StreamID &id)
+SDIAudioMultiplexConfig::Mapping::Mapping(heimdall_object_t *obj, const StreamID &id)
     : id(id), buffer(obj)
 {
-    es_format_Init(&fmt, AUDIO_ES, VLC_CODEC_S16N);
-    fmt.audio.i_format = VLC_CODEC_S16N;
+    es_format_Init(&fmt, AUDIO_ES, HEIMDALL_CODEC_S16N);
+    fmt.audio.i_format = HEIMDALL_CODEC_S16N;
     fmt.audio.i_rate = 48000;
     fmt.audio.i_bitspersample = 16;
     ConfigureChannels(2, &fmt);
@@ -103,7 +104,7 @@ SDIAudioMultiplexConfig::Mapping::~Mapping()
     es_format_Clean(&fmt);
 }
 
-SDIAudioMultiplexConfig::SDIAudioMultiplexConfig(vlc_object_t *obj, uint8_t channels)
+SDIAudioMultiplexConfig::SDIAudioMultiplexConfig(heimdall_object_t *obj, uint8_t channels)
 {
     this->obj = obj;
     subframeslotbitmap = 0;
@@ -368,11 +369,11 @@ const es_format_t *
     return NULL;
 }
 
-SDIAudioMultiplex::SDIAudioMultiplex(vlc_object_t *obj, uint8_t channels)
+SDIAudioMultiplex::SDIAudioMultiplex(heimdall_object_t *obj, uint8_t channels)
     : config(obj, channels)
 {
     p_obj = obj;
-    head = VLC_TICK_INVALID;
+    head = HEIMDALL_TICK_INVALID;
 }
 
 SDIAudioMultiplex::~SDIAudioMultiplex()
@@ -380,7 +381,7 @@ SDIAudioMultiplex::~SDIAudioMultiplex()
 
 }
 
-unsigned SDIAudioMultiplex::availableVirtualSamples(vlc_tick_t from) const
+unsigned SDIAudioMultiplex::availableVirtualSamples(heimdall_tick_t from) const
 {
     unsigned samples = std::numeric_limits<unsigned>::max();
     for(size_t i=0; i<MAX_AES3_AUDIO_FRAMES; i++)
@@ -393,7 +394,7 @@ unsigned SDIAudioMultiplex::availableVirtualSamples(vlc_tick_t from) const
     return samples < std::numeric_limits<unsigned>::max() ? samples : 0;
 }
 
-unsigned SDIAudioMultiplex::alignedInterleaveInSamples(vlc_tick_t from, unsigned i_wanted) const
+unsigned SDIAudioMultiplex::alignedInterleaveInSamples(heimdall_tick_t from, unsigned i_wanted) const
 {
     unsigned i_align = i_wanted;
     for(size_t i=0; i<MAX_AES3_AUDIO_FRAMES; i++)
@@ -406,17 +407,17 @@ unsigned SDIAudioMultiplex::alignedInterleaveInSamples(vlc_tick_t from, unsigned
     return i_align;
 }
 
-vlc_tick_t SDIAudioMultiplex::bufferStart() const
+heimdall_tick_t SDIAudioMultiplex::bufferStart() const
 {
-    vlc_tick_t start = VLC_TICK_INVALID;
+    heimdall_tick_t start = HEIMDALL_TICK_INVALID;
     for(size_t i=0; i<MAX_AES3_AUDIO_FRAMES; i++)
     {
         if(framesources[i].subframe0.available() &&
            framesources[i].subframe1.available())
             continue;
-        vlc_tick_t t = framesources[i].bufferStartTime();
-        if(start == VLC_TICK_INVALID ||
-           (t != VLC_TICK_INVALID && t<start))
+        heimdall_tick_t t = framesources[i].bufferStartTime();
+        if(start == HEIMDALL_TICK_INVALID ||
+           (t != HEIMDALL_TICK_INVALID && t<start))
             start = t;
     }
     return start;
@@ -463,12 +464,12 @@ void SDIAudioMultiplex::Debug() const
 
 block_t * SDIAudioMultiplex::Extract(unsigned samples)
 {
-    vlc_tick_t start = bufferStart();
+    heimdall_tick_t start = bufferStart();
 
     uint8_t interleavedframes = config.getMultiplexedFramesCount();
 
     /* Ensure we never roll back due to late fifo */
-    if(head != VLC_TICK_INVALID)
+    if(head != HEIMDALL_TICK_INVALID)
     {
         if(start < head)
         {
@@ -494,7 +495,7 @@ block_t * SDIAudioMultiplex::Extract(unsigned samples)
             continue;
 
 #ifdef SDI_MULTIPLEX_DEBUG
-        vlc_fourcc_t i_codec = source->subframe0.getCodec();
+        heimdall_fourcc_t i_codec = source->subframe0.getCodec();
         msg_Dbg(p_obj, "%4.4s pair %u tocopy %u from %ld head %ld, avail %u",
                 reinterpret_cast<const char *>(&i_codec), i, samples,
                 start, source->bufferStartTime(), ahead);

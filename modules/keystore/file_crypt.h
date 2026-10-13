@@ -2,6 +2,7 @@
  * file_crypt.h: Crypt extension of the keystore memory module
  *****************************************************************************
  * Copyright © 2016 VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -24,11 +25,11 @@
 struct crypt
 {
     void *  p_ctx;
-    size_t  (*pf_encrypt)(vlc_keystore *, void *, const uint8_t *, size_t, uint8_t **);
-    size_t  (*pf_decrypt)(vlc_keystore *, void *, const uint8_t *, size_t, uint8_t **);
-    void    (*pf_clean)(vlc_keystore *, void *);
+    size_t  (*pf_encrypt)(heimdall_keystore *, void *, const uint8_t *, size_t, uint8_t **);
+    size_t  (*pf_decrypt)(heimdall_keystore *, void *, const uint8_t *, size_t, uint8_t **);
+    void    (*pf_clean)(heimdall_keystore *, void *);
 };
 
-int CryptInit(vlc_keystore *, struct crypt *);
+int CryptInit(heimdall_keystore *, struct crypt *);
 
 #endif

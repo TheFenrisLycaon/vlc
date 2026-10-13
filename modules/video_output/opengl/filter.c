@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
  * Copyright (C) 2020 Videolabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -27,24 +28,24 @@
 
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_modules.h>
+#include <heimdall_common.h>
+#include <heimdall_modules.h>
 
 #include "gl_api.h"
 #include "picture.h"
 #include "sampler.h"
 
-struct vlc_gl_filter *
-vlc_gl_filter_New(struct vlc_gl_t *gl)
+struct heimdall_gl_filter *
+heimdall_gl_filter_New(struct heimdall_gl_t *gl)
 {
-    struct vlc_gl_filter_priv *priv = vlc_object_create(gl, sizeof(*priv));
+    struct heimdall_gl_filter_priv *priv = heimdall_object_create(gl, sizeof(*priv));
     if (!priv)
         return NULL;
 
-    int ret = vlc_gl_api_Init(&priv->api, gl);
-    if (ret != VLC_SUCCESS)
+    int ret = heimdall_gl_api_Init(&priv->api, gl);
+    if (ret != HEIMDALL_SUCCESS)
     {
-        vlc_object_delete(&priv->filter.obj);
+        heimdall_object_delete(&priv->filter.obj);
         return NULL;
     }
 
@@ -56,7 +57,7 @@ vlc_gl_filter_New(struct vlc_gl_t *gl)
 
     priv->has_picture = false;
 
-    struct vlc_gl_filter *filter = &priv->filter;
+    struct heimdall_gl_filter *filter = &priv->filter;
     filter->gl = gl;
     filter->config.filter_planes = false;
     filter->config.blend = false;
@@ -65,7 +66,7 @@ vlc_gl_filter_New(struct vlc_gl_t *gl)
     filter->sys = NULL;
     filter->module = NULL;
 
-    vlc_list_init(&priv->blend_subfilters);
+    heimdall_list_init(&priv->blend_subfilters);
 
     filter->sampler = NULL;
 
@@ -76,36 +77,36 @@ static int
 ActivateGLFilter(void *func, bool forced, va_list args)
 {
     (void) forced;
-    vlc_gl_filter_open_fn *activate = func;
-    struct vlc_gl_filter *filter = va_arg(args, struct vlc_gl_filter *);
+    heimdall_gl_filter_open_fn *activate = func;
+    struct heimdall_gl_filter *filter = va_arg(args, struct heimdall_gl_filter *);
     const config_chain_t *config = va_arg(args, config_chain_t *);
-    struct vlc_gl_sampler *sampler = va_arg(args, struct vlc_gl_sampler *);
-    struct vlc_gl_tex_size *size_out = va_arg(args, struct vlc_gl_tex_size *);
+    struct heimdall_gl_sampler *sampler = va_arg(args, struct heimdall_gl_sampler *);
+    struct heimdall_gl_tex_size *size_out = va_arg(args, struct heimdall_gl_tex_size *);
 
     return activate(filter, config, sampler, size_out);
 }
 
-#undef vlc_gl_filter_LoadModule
+#undef heimdall_gl_filter_LoadModule
 int
-vlc_gl_filter_LoadModule(vlc_object_t *parent, const char *name,
-                         struct vlc_gl_filter *filter,
+heimdall_gl_filter_LoadModule(heimdall_object_t *parent, const char *name,
+                         struct heimdall_gl_filter *filter,
                          const config_chain_t *config,
-                         struct vlc_gl_sampler *sampler,
-                         struct vlc_gl_tex_size *size_out)
+                         struct heimdall_gl_sampler *sampler,
+                         struct heimdall_gl_tex_size *size_out)
 {
-    filter->module = vlc_module_load(vlc_object_logger(parent), "opengl filter",
+    filter->module = heimdall_module_load(heimdall_object_logger(parent), "opengl filter",
                                      name, true,
                                      ActivateGLFilter, filter, config,
                                      sampler, size_out);
     if (!filter->module)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     assert(filter->ops->draw);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void
-DeleteFramebuffersOut(struct vlc_gl_filter_priv *priv)
+DeleteFramebuffersOut(struct heimdall_gl_filter_priv *priv)
 {
     const opengl_vtable_t *vt = &priv->api.vt;
 
@@ -114,7 +115,7 @@ DeleteFramebuffersOut(struct vlc_gl_filter_priv *priv)
 }
 
 static void
-DeleteFramebufferMSAA(struct vlc_gl_filter_priv *priv)
+DeleteFramebufferMSAA(struct heimdall_gl_filter_priv *priv)
 {
     const opengl_vtable_t *vt = &priv->api.vt;
 
@@ -123,7 +124,7 @@ DeleteFramebufferMSAA(struct vlc_gl_filter_priv *priv)
 }
 
 void
-vlc_gl_filter_Delete(struct vlc_gl_filter *filter)
+heimdall_gl_filter_Delete(struct heimdall_gl_filter *filter)
 {
     if (filter->ops && filter->ops->close)
         filter->ops->close(filter);
@@ -132,15 +133,15 @@ vlc_gl_filter_Delete(struct vlc_gl_filter *filter)
         module_unneed(filter, filter->module);
 
     if (filter->sampler)
-        vlc_gl_sampler_Delete(filter->sampler);
+        heimdall_gl_sampler_Delete(filter->sampler);
 
-    struct vlc_gl_filter_priv *priv = vlc_gl_filter_PRIV(filter);
+    struct heimdall_gl_filter_priv *priv = heimdall_gl_filter_PRIV(filter);
 
-    struct vlc_gl_filter_priv *subfilter_priv;
-    vlc_list_foreach(subfilter_priv, &priv->blend_subfilters, node)
+    struct heimdall_gl_filter_priv *subfilter_priv;
+    heimdall_list_foreach(subfilter_priv, &priv->blend_subfilters, node)
     {
-        struct vlc_gl_filter *subfilter = &subfilter_priv->filter;
-        vlc_gl_filter_Delete(subfilter);
+        struct heimdall_gl_filter *subfilter = &subfilter_priv->filter;
+        heimdall_gl_filter_Delete(subfilter);
     }
 
     if (priv->tex_count)
@@ -149,11 +150,11 @@ vlc_gl_filter_Delete(struct vlc_gl_filter *filter)
     if (filter->config.msaa_level)
         DeleteFramebufferMSAA(priv);
 
-    vlc_object_delete(&filter->obj);
+    heimdall_object_delete(&filter->obj);
 }
 
 static int
-InitPlane(struct vlc_gl_filter_priv *priv, unsigned plane, GLsizei width,
+InitPlane(struct heimdall_gl_filter_priv *priv, unsigned plane, GLsizei width,
           GLsizei height)
 {
     const opengl_vtable_t *vt = &priv->api.vt;
@@ -178,13 +179,13 @@ InitPlane(struct vlc_gl_filter_priv *priv, unsigned plane, GLsizei width,
 
     GLenum status = vt->CheckFramebufferStatus(GL_FRAMEBUFFER);
     if (status != GL_FRAMEBUFFER_COMPLETE)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int
-InitFramebuffersOut(struct vlc_gl_filter_priv *priv)
+InitFramebuffersOut(struct heimdall_gl_filter_priv *priv)
 {
     assert(priv->size_out.width > 0 && priv->size_out.height > 0);
 
@@ -193,7 +194,7 @@ InitFramebuffersOut(struct vlc_gl_filter_priv *priv)
 
     const opengl_vtable_t *vt = &priv->api.vt;
 
-    struct vlc_gl_filter *filter = &priv->filter;
+    struct heimdall_gl_filter *filter = &priv->filter;
     if (filter->config.filter_planes)
         priv->tex_count = priv->glfmt_in.tex_count;
     else
@@ -212,18 +213,18 @@ InitFramebuffersOut(struct vlc_gl_filter_priv *priv)
         /* Init one framebuffer and texture for each plane */
         int ret =
             InitPlane(priv, i, priv->tex_widths[i], priv->tex_heights[i]);
-        if (ret != VLC_SUCCESS)
+        if (ret != HEIMDALL_SUCCESS)
         {
             DeleteFramebuffersOut(priv);
             return ret;
         }
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int
-InitFramebufferMSAA(struct vlc_gl_filter_priv *priv, unsigned msaa_level)
+InitFramebufferMSAA(struct heimdall_gl_filter_priv *priv, unsigned msaa_level)
 {
     assert(msaa_level);
     assert(priv->size_out.width > 0 && priv->size_out.height > 0);
@@ -246,22 +247,22 @@ InitFramebufferMSAA(struct vlc_gl_filter_priv *priv, unsigned msaa_level)
     if (status != GL_FRAMEBUFFER_COMPLETE)
     {
         DeleteFramebufferMSAA(priv);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 int
-vlc_gl_filter_InitFramebuffers(struct vlc_gl_filter *filter, bool has_out)
+heimdall_gl_filter_InitFramebuffers(struct heimdall_gl_filter *filter, bool has_out)
 {
-    struct vlc_gl_filter_priv *priv = vlc_gl_filter_PRIV(filter);
+    struct heimdall_gl_filter_priv *priv = heimdall_gl_filter_PRIV(filter);
 
     unsigned msaa_level = priv->filter.config.msaa_level;
     if (msaa_level)
     {
         int ret = InitFramebufferMSAA(priv, msaa_level);
-        if (ret != VLC_SUCCESS)
+        if (ret != HEIMDALL_SUCCESS)
             return ret;
     }
 
@@ -269,24 +270,24 @@ vlc_gl_filter_InitFramebuffers(struct vlc_gl_filter *filter, bool has_out)
     if (has_out)
     {
         int ret = InitFramebuffersOut(priv);
-        if (ret != VLC_SUCCESS)
+        if (ret != HEIMDALL_SUCCESS)
         {
             DeleteFramebufferMSAA(priv);
             return ret;
         }
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 void
-vlc_gl_filter_InitPlaneSizes(struct vlc_gl_filter *filter)
+heimdall_gl_filter_InitPlaneSizes(struct heimdall_gl_filter *filter)
 {
-    struct vlc_gl_filter_priv *priv = vlc_gl_filter_PRIV(filter);
+    struct heimdall_gl_filter_priv *priv = heimdall_gl_filter_PRIV(filter);
 
     if (filter->config.filter_planes)
     {
-        struct vlc_gl_format *glfmt = &priv->glfmt_in;
+        struct heimdall_gl_format *glfmt = &priv->glfmt_in;
 
         priv->plane_count = glfmt->tex_count;
         for (unsigned i = 0; i < glfmt->tex_count; ++i)
@@ -308,11 +309,11 @@ vlc_gl_filter_InitPlaneSizes(struct vlc_gl_filter *filter)
 }
 
 void
-vlc_gl_filter_ApplyOutputSize(struct vlc_gl_filter *filter)
+heimdall_gl_filter_ApplyOutputSize(struct heimdall_gl_filter *filter)
 {
-    struct vlc_gl_filter_priv *priv = vlc_gl_filter_PRIV(filter);
+    struct heimdall_gl_filter_priv *priv = heimdall_gl_filter_PRIV(filter);
 
-    vlc_gl_filter_InitPlaneSizes(filter);
+    heimdall_gl_filter_InitPlaneSizes(filter);
 
     const opengl_vtable_t *vt = &priv->api.vt;
     GL_ASSERT_NOERROR(vt);

@@ -2,6 +2,7 @@
  * AuthStorage.cpp
  *****************************************************************************
  * Copyright (C) 2017 - VideoLabs and VideoLAN Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -26,10 +27,10 @@
 
 using namespace adaptive::http;
 
-AuthStorage::AuthStorage( vlc_object_t *p_obj )
+AuthStorage::AuthStorage( heimdall_object_t *p_obj )
 {
     if ( var_InheritBool( p_obj, "http-forward-cookies" ) )
-        p_cookies_jar = static_cast<vlc_http_cookie_jar_t *>
+        p_cookies_jar = static_cast<heimdall_http_cookie_jar_t *>
                 (var_InheritAddress( p_obj, "http-cookies" ));
     else
         p_cookies_jar = nullptr;
@@ -43,7 +44,7 @@ void AuthStorage::addCookie( const std::string &cookie, const ConnectionParams &
 {
     if( !p_cookies_jar )
         return;
-    vlc_http_cookies_store( p_cookies_jar, cookie.c_str(),
+    heimdall_http_cookies_store( p_cookies_jar, cookie.c_str(),
                             params.getHostname().c_str(), params.getPath().c_str() );
 }
 
@@ -51,7 +52,7 @@ std::string AuthStorage::getCookie( const ConnectionParams &params, bool secure 
 {
     if( !p_cookies_jar )
         return std::string();
-    char *psz = vlc_http_cookies_fetch( p_cookies_jar, secure,
+    char *psz = heimdall_http_cookies_fetch( p_cookies_jar, secure,
                                         params.getHostname().c_str(),
                                         params.getPath().c_str() );
     std::string ret;
@@ -63,7 +64,7 @@ std::string AuthStorage::getCookie( const ConnectionParams &params, bool secure 
     return ret;
 }
 
-vlc_http_cookie_jar_t *AuthStorage::getJar() const
+heimdall_http_cookie_jar_t *AuthStorage::getJar() const
 {
     return p_cookies_jar;
 }

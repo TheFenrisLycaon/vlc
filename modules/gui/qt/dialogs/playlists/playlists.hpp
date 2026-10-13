@@ -2,6 +2,7 @@
  * playlists.hpp : playlists
  ****************************************************************************
  * Copyright (C) 2021 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Benjamin Arnaud <bunjee@omega.gg>
  *
@@ -20,12 +21,12 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef QVLC_PLAYLISTS_H_
-#define QVLC_PLAYLISTS_H_ 1
+#ifndef QHEIMDALL_PLAYLISTS_H_
+#define QHEIMDALL_PLAYLISTS_H_ 1
 
-// VLC includes
+// Heimdall includes
 #include "medialibrary/mlplaylistlistmodel.hpp"
-#include <widgets/native/qvlcframe.hpp>
+#include <widgets/native/qheimdallframe.hpp>
 
 // Forward declarations
 class QTreeView;
@@ -33,7 +34,7 @@ class QLineEdit;
 class QLabel;
 class QPushButton;
 
-class PlaylistsDialog : public QVLCDialog
+class PlaylistsDialog : public QHeimdallDialog
 {
     Q_OBJECT
 

@@ -2,6 +2,7 @@
  * picture.h: picture internals
  *****************************************************************************
  * Copyright (C) 2015 Remi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -21,9 +22,9 @@
 #include <stdatomic.h>
 #include <stddef.h>
 
-#include <vlc_picture.h>
-#include <vlc_list.h>
-#include <vlc_ancillary.h>
+#include <heimdall_picture.h>
+#include <heimdall_list.h>
+#include <heimdall_ancillary.h>
 
 typedef struct
 {
@@ -35,9 +36,9 @@ typedef struct
     } gc;
 
     void *pool; /* Only used by picture_pool.c */
-    struct vlc_list pool_node; /* Only used by picture_pool.c */
+    struct heimdall_list pool_node; /* Only used by picture_pool.c */
 
-    vlc_ancillary_array ancillaries;
+    heimdall_ancillary_array ancillaries;
 } picture_priv_t;
 
 void *picture_Allocate(int *, size_t);

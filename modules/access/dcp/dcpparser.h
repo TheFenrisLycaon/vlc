@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2013 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Nicolas Bertrand <nico@isf.cc>
  *          Jean-Baptiste Kempf <jb@videolan.org>
@@ -31,22 +32,22 @@
  */
 
 
-#ifndef VLC_DCP_DCPPARSER_H_
-#define VLC_DCP_DCPPARSER_H_
+#ifndef HEIMDALL_DCP_DCPPARSER_H_
+#define HEIMDALL_DCP_DCPPARSER_H_
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-/* VLC core API headers */
-#include <vlc_common.h>
-#include <vlc_arrays.h>
-#include <vlc_demux.h>
-#include <vlc_plugin.h>
+/* Heimdall core API headers */
+#include <heimdall_common.h>
+#include <heimdall_arrays.h>
+#include <heimdall_demux.h>
+#include <heimdall_plugin.h>
 
 /* gcrypt headers */
 #include <gcrypt.h>
-#include <vlc_gcrypt.h>
+#include <heimdall_gcrypt.h>
 
 #include <iostream>
 #include <string>
@@ -103,14 +104,14 @@ struct dcp_t
         p_asset_list(NULL), p_key_list(NULL) {};
 
     ~dcp_t( ) {
-        vlc_delete_all(pkls);
+        heimdall_delete_all(pkls);
         if ( p_asset_list != NULL ) {
-            vlc_delete_all(*p_asset_list);
+            heimdall_delete_all(*p_asset_list);
             delete(p_asset_list);
 
         }
         if ( p_key_list != NULL ) {
-            vlc_delete_all(*p_key_list);
+            heimdall_delete_all(*p_key_list);
             delete(p_key_list);
         }
     }

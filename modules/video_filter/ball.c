@@ -2,13 +2,14 @@
  * ball.c : Augmented reality ball video filter module
  *****************************************************************************
  * Copyright (C) 2000-2009 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Adrien Maglo <magsoft@videolan.org>
  *
  * The Canny edge detection algorithm comes from gradient.c which was
  * written by:
  *         Samuel Hocevar <sam@zoy.org>
- *         Antoine Cellerier <dionoea -at- videolan -dot- org>
+ *         Antoine Cellerier <dionoea -at- lycaria -dot- org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -36,13 +37,13 @@
 
 #include <math.h> /* sin(), cos(), asin() */
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_picture.h>
-#include <vlc_filter.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_picture.h>
+#include <heimdall_filter.h>
 #include "filter_picture.h"
-#include <vlc_image.h>
+#include <heimdall_image.h>
 
 enum { RED, GREEN, BLUE, WHITE };
 
@@ -89,10 +90,10 @@ static void drawPixelPacked( filter_sys_t *p_sys, picture_t *p_outpic,
                              int x, int y, bool b_skip );
 
 static void FilterBall( filter_t *, picture_t *, picture_t * );
-static int ballCallback( vlc_object_t *, char const *,
-                         vlc_value_t, vlc_value_t,
+static int ballCallback( heimdall_object_t *, char const *,
+                         heimdall_value_t, heimdall_value_t,
                          void * );
-static int getBallColor( vlc_object_t *p_this, char const *psz_newval );
+static int getBallColor( heimdall_object_t *p_this, char const *psz_newval );
 
 
 /*****************************************************************************
@@ -121,7 +122,7 @@ static const char *const mode_list[] = { "red", "green", "blue", "white" };
 static const char *const mode_list_text[] = { N_("Red"), N_("Green"),
                                               N_("Blue"), N_("White") };
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("Ball video filter") )
     set_shortname( N_( "Ball" ))
     set_help(BALL_HELP)
@@ -145,7 +146,7 @@ vlc_module_begin ()
 
     add_shortcut( "ball" )
     set_callback_video_filter( Create )
-vlc_module_end ()
+heimdall_module_end ()
 
 static const char *const ppsz_filter_options[] = {
     "color", "speed", "size",
@@ -161,7 +162,7 @@ static const char *const ppsz_filter_options[] = {
  *****************************************************************************/
 struct filter_sys_t
 {
-    vlc_mutex_t lock;
+    heimdall_mutex_t lock;
 
     int ballColor;
 
@@ -224,12 +225,12 @@ static int Create( filter_t *p_filter )
     /* Allocate structure */
     filter_sys_t *p_sys = malloc( sizeof( filter_sys_t ) );
     if( p_sys == NULL )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     p_filter->p_sys = p_sys;
 
     switch( p_filter->fmt_in.video.i_chroma )
     {
-        case VLC_CODEC_I420:
+        case HEIMDALL_CODEC_I420:
             p_sys->drawingPixelFunction = drawPixelI420;
             COLORS_YUV
             break;
@@ -241,19 +242,19 @@ static int Create( filter_t *p_filter )
                                  &p_sys->i_u_offset,
                                  &p_sys->i_v_offset );
             break;
-        case VLC_CODEC_RGB24:
+        case HEIMDALL_CODEC_RGB24:
             p_sys->drawingPixelFunction = drawPixelRGB24;
             COLORS_RGB
             break;
         default:
             msg_Err( p_filter, "Unsupported input chroma (%4.4s)",
                      (char*)&(p_filter->fmt_in.video.i_chroma) );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 
     p_sys->p_image = image_HandlerCreate( p_filter );
     if( p_sys->p_image == NULL )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     p_filter->ops = &Filter_ops;
 
@@ -269,7 +270,7 @@ static int Create( filter_t *p_filter )
         p_sys->ballColor = RED;
     }
     else
-        p_sys->ballColor = getBallColor( VLC_OBJECT(p_filter), psz_method );
+        p_sys->ballColor = getBallColor( HEIMDALL_OBJECT(p_filter), psz_method );
 
     free( psz_method );
 
@@ -282,7 +283,7 @@ static int Create( filter_t *p_filter )
     p_sys->i_gradThresh =
             var_CreateGetIntegerCommand( p_filter, FILTER_PREFIX "gradient-threshold" );
 
-    vlc_mutex_init( &p_sys->lock );
+    heimdall_mutex_init( &p_sys->lock );
 
     var_AddCallback( p_filter, FILTER_PREFIX "color",
                      ballCallback, p_sys );
@@ -303,7 +304,7 @@ static int Create( filter_t *p_filter )
     p_sys->f_lastVect_x = 0;
     p_sys->f_lastVect_y = -1;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 
@@ -345,9 +346,9 @@ static void Destroy( filter_t *p_filter)
 static void Filter( filter_t *p_filter, picture_t *p_pic, picture_t *p_outpic )
 {
     filter_sys_t *p_sys = p_filter->p_sys;
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     FilterBall( p_filter, p_pic, p_outpic );
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 }
 
 /*****************************************************************************
@@ -390,8 +391,8 @@ static void drawPixelRGB24( filter_sys_t *p_sys, picture_t *p_outpic,
                             uint8_t R, uint8_t G, uint8_t B,
                             int x, int y, bool b_skip )
 {
-    VLC_UNUSED( p_sys );
-    VLC_UNUSED( b_skip );
+    HEIMDALL_UNUSED( p_sys );
+    HEIMDALL_UNUSED( b_skip );
     uint8_t *p_pixel = p_outpic->p[0].p_pixels
                        + p_outpic->p[0].i_pitch
                        * x + 3 * y;
@@ -405,7 +406,7 @@ static void drawPixelI420( filter_sys_t *p_sys, picture_t *p_outpic,
                            uint8_t Y, uint8_t U, uint8_t V,
                            int x, int y, bool b_skip )
 {
-    VLC_UNUSED( p_sys );
+    HEIMDALL_UNUSED( p_sys );
     *( p_outpic->p[0].p_pixels + p_outpic->p[0].i_pitch * y + x ) = Y;
     if( !b_skip )
     {
@@ -531,9 +532,9 @@ static void FilterBall( filter_t *p_filter, picture_t *p_inpic,
 
     switch( p_filter->fmt_in.video.i_chroma )
     {
-        case VLC_CODEC_RGB24:
+        case HEIMDALL_CODEC_RGB24:
         CASE_PACKED_YUV_422
-            video_format_Init( &fmt_comp, VLC_CODEC_GREY );
+            video_format_Init( &fmt_comp, HEIMDALL_CODEC_GREY );
             fmt_comp.i_width = p_filter->fmt_in.video.i_width;
             fmt_comp.i_height = p_filter->fmt_in.video.i_height;
             fmt_comp.i_visible_width = fmt_comp.i_width;
@@ -558,17 +559,17 @@ static void FilterBall( filter_t *p_filter, picture_t *p_inpic,
 
     if( !p_sys->p_smooth )
         p_sys->p_smooth =
-                vlc_alloc( i_numLines * i_numCols, sizeof(*p_sys->p_smooth));
+                heimdall_alloc( i_numLines * i_numCols, sizeof(*p_sys->p_smooth));
     p_smooth = p_sys->p_smooth;
 
     if( !p_sys->p_grad_x )
         p_sys->p_grad_x =
-                vlc_alloc( i_numLines * i_numCols, sizeof(*p_sys->p_grad_x));
+                heimdall_alloc( i_numLines * i_numCols, sizeof(*p_sys->p_grad_x));
     p_grad_x = p_sys->p_grad_x;
 
     if( !p_sys->p_grad_y )
         p_sys->p_grad_y =
-                vlc_alloc( i_numLines * i_numCols, sizeof(*p_sys->p_grad_y));
+                heimdall_alloc( i_numLines * i_numCols, sizeof(*p_sys->p_grad_y));
     p_grad_y = p_sys->p_grad_y;
 
     if( !p_smooth || !p_grad_x || !p_grad_y ) return;
@@ -770,7 +771,7 @@ static void FilterBall( filter_t *p_filter, picture_t *p_inpic,
 
     switch( p_filter->fmt_in.video.i_chroma )
     {
-        case VLC_CODEC_RGB24:
+        case HEIMDALL_CODEC_RGB24:
         CASE_PACKED_YUV_422
             picture_Release( p_converted );
         default:
@@ -784,15 +785,15 @@ static void FilterBall( filter_t *p_filter, picture_t *p_inpic,
  *****************************************************************************
  * filter parameter modification callback
  *****************************************************************************/
-static int ballCallback( vlc_object_t *p_this, char const *psz_var,
-                             vlc_value_t oldval, vlc_value_t newval,
+static int ballCallback( heimdall_object_t *p_this, char const *psz_var,
+                             heimdall_value_t oldval, heimdall_value_t newval,
                              void *p_data )
 {
-    VLC_UNUSED(oldval);
+    HEIMDALL_UNUSED(oldval);
     filter_sys_t *p_sys = p_data;
     msg_Err( p_this, "Test" );
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     if( !strcmp( psz_var, FILTER_PREFIX "color" ) )
     {
         p_sys->ballColor = getBallColor( p_this, newval.psz_string );
@@ -813,9 +814,9 @@ static int ballCallback( vlc_object_t *p_this, char const *psz_var,
     {
         p_sys->i_gradThresh = newval.i_int;
     }
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 
@@ -824,7 +825,7 @@ static int ballCallback( vlc_object_t *p_this, char const *psz_var,
  *****************************************************************************
  * Get and assign the ball color value
  *****************************************************************************/
-static int getBallColor( vlc_object_t *p_this, char const *psz_newval )
+static int getBallColor( heimdall_object_t *p_this, char const *psz_newval )
 {
     int ret;
     if( !strcmp( psz_newval, "red" ) )

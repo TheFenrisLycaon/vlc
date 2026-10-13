@@ -2,6 +2,7 @@
  * hls.c: HLS stream output module
  *****************************************************************************
  * Copyright (C) 2023 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -21,21 +22,21 @@
 #include "config.h"
 #endif
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
-#include <vlc_block.h>
-#include <vlc_boxes.h>
-#include <vlc_configuration.h>
-#include <vlc_frame.h>
-#include <vlc_httpd.h>
-#include <vlc_iso_lang.h>
-#include <vlc_list.h>
-#include <vlc_memstream.h>
-#include <vlc_messages.h>
-#include <vlc_plugin.h>
-#include <vlc_sout.h>
-#include <vlc_tick.h>
-#include <vlc_vector.h>
+#include <heimdall_block.h>
+#include <heimdall_boxes.h>
+#include <heimdall_configuration.h>
+#include <heimdall_frame.h>
+#include <heimdall_httpd.h>
+#include <heimdall_iso_lang.h>
+#include <heimdall_list.h>
+#include <heimdall_memstream.h>
+#include <heimdall_messages.h>
+#include <heimdall_plugin.h>
+#include <heimdall_sout.h>
+#include <heimdall_tick.h>
+#include <heimdall_vector.h>
 
 #include "codecs.h"
 #include "hls.h"
@@ -49,7 +50,7 @@ typedef struct
 {
     block_t *begin;
     block_t **end;
-    vlc_tick_t length;
+    heimdall_tick_t length;
     block_t *last_header;
 } hls_block_chain_t;
 
@@ -74,7 +75,7 @@ typedef struct hls_playlist
     sout_access_out_t *access;
     sout_mux_t *mux;
     /** Every ES muxed in this playlist. */
-    struct vlc_list tracks;
+    struct heimdall_list tracks;
     /** Number of VIDEO_ES tracks currently muxed. */
     unsigned video_track_count;
 
@@ -91,7 +92,7 @@ typedef struct hls_playlist
 
     char *url;
     const char *name;
-    struct vlc_logger *logger;
+    struct heimdall_logger *logger;
 
     /**
      * Current playlist manifest as in RFC 8216 section 4.3.3.
@@ -109,14 +110,14 @@ typedef struct hls_playlist
 
     bool ended;
     /** Wall-clock time the playlist was finalized. */
-    vlc_tick_t ended_at;
+    heimdall_tick_t ended_at;
 
     /**
      * Total duration of the muxed data.
      */
-    vlc_tick_t muxed_duration;
+    heimdall_tick_t muxed_duration;
 
-    struct vlc_list node;
+    struct heimdall_list node;
 } hls_playlist_t;
 
 /**
@@ -130,7 +131,7 @@ typedef struct
     sout_input_t *input;
     const char *es_id;
     hls_playlist_t *playlist_ref;
-    struct vlc_list node;
+    struct heimdall_list node;
 } hls_track_t;
 
 typedef struct
@@ -146,12 +147,12 @@ typedef struct
      * All the created variant streams "EXT-X-STREAM-INF" (As in RFC 8216
      * section 4.3.4.2) playlists.
      */
-    struct vlc_list variant_playlists;
+    struct heimdall_list variant_playlists;
     /**
      * All the created alternative renditions "EXT-X-MEDIA" (As in RFC 8216
      * section 4.3.4.1) playlists.
      */
-    struct vlc_list media_playlists;
+    struct heimdall_list media_playlists;
 
     /**
      * Total number of playlist created by the plugin.
@@ -169,15 +170,15 @@ typedef struct
     /**
      * Global advancement of the stream in media time.
      */
-    vlc_tick_t elapsed_stream_time;
-    vlc_tick_t first_pcr;
+    heimdall_tick_t elapsed_stream_time;
+    heimdall_tick_t first_pcr;
 
     size_t current_memory_cached;
 } sout_stream_sys_t;
 
 #define hls_playlists_foreach(it)                                              \
     for (size_t i_##it = 0; i_##it < 2; ++i_##it)                              \
-        vlc_list_foreach (                                                     \
+        heimdall_list_foreach (                                                     \
             it,                                                                \
             (i_##it == 0 ? &sys->variant_playlists : &sys->media_playlists),   \
             node)
@@ -187,7 +188,7 @@ typedef struct
         if ((it)->ended) continue; else
 
 #define hls_active_playlist_foreach(it, list)                                  \
-    vlc_list_foreach_const (it, list, node)                                    \
+    heimdall_list_foreach_const (it, list, node)                                    \
         if ((it)->ended) continue; else
 
 
@@ -197,7 +198,7 @@ static int HTTPCallback(httpd_callback_sys_t *sys,
                         const httpd_message_t *query)
 {
     if (answer == NULL || query == NULL || client == NULL)
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
     struct hls_storage *storage = (struct hls_storage *)sys;
 
@@ -221,16 +222,16 @@ static int HTTPCallback(httpd_callback_sys_t *sys,
         httpd_MsgAdd(answer, "Connection", "close");
     httpd_MsgAdd(answer, "Content-Length", "%zu", answer->i_body);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-typedef struct VLC_VECTOR(const es_format_t *) es_format_vec_t;
+typedef struct HEIMDALL_VECTOR(const es_format_t *) es_format_vec_t;
 
 static inline bool IsCodecAlreadyDescribed(const es_format_vec_t *vec,
                                            const es_format_t *fmt)
 {
     const es_format_t *it;
-    vlc_vector_foreach (it, vec)
+    heimdall_vector_foreach (it, vec)
     {
         if (es_format_IsSimilar(it, (fmt)))
             return true;
@@ -240,35 +241,35 @@ static inline bool IsCodecAlreadyDescribed(const es_format_vec_t *vec,
 
 static inline hls_track_t *MediaGetTrack(const hls_playlist_t *media_playlist)
 {
-    hls_track_t *track = vlc_list_first_entry_or_null(
+    hls_track_t *track = heimdall_list_first_entry_or_null(
         &media_playlist->tracks, hls_track_t, node);
     assert(track != NULL);
     return track;
 }
 
-VLC_MALLOC static char *GeneratePlaylistCodecInfo(const struct vlc_list *media_list,
+HEIMDALL_MALLOC static char *GeneratePlaylistCodecInfo(const struct heimdall_list *media_list,
                                                   const hls_playlist_t *playlist,
                                                   bool legacy_codecs)
 {
-    es_format_vec_t already_described = VLC_VECTOR_INITIALIZER;
+    es_format_vec_t already_described = HEIMDALL_VECTOR_INITIALIZER;
 
     bool is_stream_empty = true;
-    struct vlc_memstream out;
-    vlc_memstream_open(&out);
+    struct heimdall_memstream out;
+    heimdall_memstream_open(&out);
 
     /* Describe codecs from the playlist. */
     const hls_track_t *track;
-    vlc_list_foreach_const (track, &playlist->tracks, node)
+    heimdall_list_foreach_const (track, &playlist->tracks, node)
     {
         if (IsCodecAlreadyDescribed(&already_described, &track->input->fmt))
             continue;
 
         if (!is_stream_empty)
-            vlc_memstream_putc(&out, ',');
-        if (hls_codec_Format(&out, &track->input->fmt, legacy_codecs) != VLC_SUCCESS)
+            heimdall_memstream_putc(&out, ',');
+        if (hls_codec_Format(&out, &track->input->fmt, legacy_codecs) != HEIMDALL_SUCCESS)
             goto error;
         is_stream_empty = false;
-        vlc_vector_push(&already_described, &track->input->fmt);
+        heimdall_vector_push(&already_described, &track->input->fmt);
     }
 
     /* Describe codecs from all the EXT-X-MEDIA tracks. */
@@ -281,22 +282,22 @@ VLC_MALLOC static char *GeneratePlaylistCodecInfo(const struct vlc_list *media_l
             continue;
 
         if (!is_stream_empty)
-            vlc_memstream_putc(&out, ',');
-        if (hls_codec_Format(&out, &track->input->fmt, legacy_codecs) != VLC_SUCCESS)
+            heimdall_memstream_putc(&out, ',');
+        if (hls_codec_Format(&out, &track->input->fmt, legacy_codecs) != HEIMDALL_SUCCESS)
             goto error;
         is_stream_empty = false;
-        vlc_vector_push(&already_described, &track->input->fmt);
+        heimdall_vector_push(&already_described, &track->input->fmt);
     }
 
-    vlc_vector_destroy(&already_described);
+    heimdall_vector_destroy(&already_described);
 
-    vlc_memstream_putc(&out, '\0');
-    if (vlc_memstream_close(&out) != 0)
+    heimdall_memstream_putc(&out, '\0');
+    if (heimdall_memstream_close(&out) != 0)
         return NULL;
     return out.ptr;
 error:
-    vlc_vector_destroy(&already_described);
-    if (vlc_memstream_close(&out) != 0)
+    heimdall_vector_destroy(&already_described);
+    if (heimdall_memstream_close(&out) != 0)
         return NULL;
     free(out.ptr);
     return NULL;
@@ -318,19 +319,19 @@ static bool HasMediaRendition(const sout_stream_sys_t *sys,
 static int GenerateMainManifest(const sout_stream_sys_t *sys,
                                 struct hls_storage **storage_out)
 {
-    struct vlc_memstream out;
-    vlc_memstream_open(&out);
+    struct heimdall_memstream out;
+    heimdall_memstream_open(&out);
 
 #define MANIFEST_START_TAG(tag)                                                \
     do                                                                         \
     {                                                                          \
         bool first_attribute = true;                                           \
-        vlc_memstream_puts(&out, tag);
+        heimdall_memstream_puts(&out, tag);
 
 #define MANIFEST_ADD_ATTRIBUTE(attribute, ...)                                 \
     do                                                                         \
     {                                                                          \
-        if (vlc_memstream_printf(&out,                                         \
+        if (heimdall_memstream_printf(&out,                                         \
                                  "%s" attribute,                               \
                                  first_attribute ? ":" : ",",                  \
                                  ##__VA_ARGS__) < 0)                           \
@@ -339,12 +340,12 @@ static int GenerateMainManifest(const sout_stream_sys_t *sys,
     } while (0)
 
 #define MANIFEST_END_TAG                                                       \
-    vlc_memstream_putc(&out, '\n');                                            \
+    heimdall_memstream_putc(&out, '\n');                                            \
     }                                                                          \
     while (0)                                                                  \
         ;
 
-    vlc_memstream_puts(&out, "#EXTM3U\n");
+    heimdall_memstream_puts(&out, "#EXTM3U\n");
 
     static const char *const TRACK_TYPES[] = {
         [VIDEO_ES] = "VIDEO",
@@ -397,7 +398,7 @@ static int GenerateMainManifest(const sout_stream_sys_t *sys,
 
             const iso639_lang_t *lang =
                 (fmt->psz_language != NULL)
-                    ? vlc_find_iso639(fmt->psz_language, false)
+                    ? heimdall_find_iso639(fmt->psz_language, false)
                     : NULL;
 
             if (lang != NULL)
@@ -421,7 +422,7 @@ static int GenerateMainManifest(const sout_stream_sys_t *sys,
         MANIFEST_START_TAG("#EXT-X-STREAM-INF")
             unsigned int bandwidth = 0;
             const hls_track_t *track;
-            vlc_list_foreach_const (track, &playlist->tracks, node)
+            heimdall_list_foreach_const (track, &playlist->tracks, node)
                 bandwidth += track->input->fmt.i_bitrate;
             MANIFEST_ADD_ATTRIBUTE("BANDWIDTH=%u", bandwidth);
 
@@ -440,7 +441,7 @@ static int GenerateMainManifest(const sout_stream_sys_t *sys,
                 MANIFEST_ADD_ATTRIBUTE("SUBTITLES=\"%s\"", GROUP_IDS[SPU_ES]);
         MANIFEST_END_TAG
 
-        if (vlc_memstream_printf(&out, "%s\n", playlist->url) < 0)
+        if (heimdall_memstream_printf(&out, "%s\n", playlist->url) < 0)
             goto error;
     }
 
@@ -448,7 +449,7 @@ static int GenerateMainManifest(const sout_stream_sys_t *sys,
 #undef MANIFEST_ADD_ATTRIBUTE
 #undef MANIFEST_END_TAG
 
-    if (vlc_memstream_close(&out) != 0)
+    if (heimdall_memstream_close(&out) != 0)
         return -ENOMEM;
 
     const struct hls_storage_config storage_conf = {
@@ -458,7 +459,7 @@ static int GenerateMainManifest(const sout_stream_sys_t *sys,
     return hls_storage_FromBytes(
         out.ptr, out.length, &storage_conf, &sys->config, storage_out);
 error:
-    if (vlc_memstream_close(&out) == 0)
+    if (heimdall_memstream_close(&out) == 0)
         free(out.ptr);
     return -ENOMEM;
 }
@@ -467,19 +468,19 @@ static int
 GeneratePlaylistManifest(const hls_playlist_t *playlist,
                          struct hls_storage **storage_out)
 {
-    struct vlc_memstream out;
-    vlc_memstream_open(&out);
+    struct heimdall_memstream out;
+    heimdall_memstream_open(&out);
 
 #define MANIFEST_ADD_TAG(fmt, ...)                                             \
     do                                                                         \
     {                                                                          \
-        if (vlc_memstream_printf(&out, fmt "\n", ##__VA_ARGS__) < 0)           \
+        if (heimdall_memstream_printf(&out, fmt "\n", ##__VA_ARGS__) < 0)           \
             goto error;                                                        \
     } while (0)
 
     MANIFEST_ADD_TAG("#EXTM3U");
     const double seg_duration =
-        secf_from_vlc_tick(playlist->config->max_segment_length);
+        secf_from_heimdall_tick(playlist->config->max_segment_length);
     MANIFEST_ADD_TAG("#EXT-X-TARGETDURATION:%.0f", seg_duration);
     // First version adding CMAF fragments support.
     MANIFEST_ADD_TAG("#EXT-X-VERSION:7");
@@ -500,7 +501,7 @@ GeneratePlaylistManifest(const hls_playlist_t *playlist,
     const hls_segment_t *segment;
     hls_segment_queue_Foreach_const(&playlist->segments, segment)
     {
-        MANIFEST_ADD_TAG("#EXTINF:%.2f,", secf_from_vlc_tick(segment->length));
+        MANIFEST_ADD_TAG("#EXTINF:%.2f,", secf_from_heimdall_tick(segment->length));
         MANIFEST_ADD_TAG("%s", segment->url);
     }
 
@@ -509,7 +510,7 @@ GeneratePlaylistManifest(const hls_playlist_t *playlist,
 
 #undef MANIFEST_ADD_TAG
 
-    if (vlc_memstream_close(&out) != 0)
+    if (heimdall_memstream_close(&out) != 0)
         return -ENOMEM;
 
     const struct hls_storage_config storage_config = {
@@ -517,7 +518,7 @@ GeneratePlaylistManifest(const hls_playlist_t *playlist,
     return hls_storage_FromBytes(
         out.ptr, out.length, &storage_config, playlist->config, storage_out);
 error:
-    if (vlc_memstream_close(&out) == 0)
+    if (heimdall_memstream_close(&out) == 0)
         free(out.ptr);
     return -ENOMEM;
 }
@@ -526,10 +527,10 @@ static int UpdatePlaylistManifest(hls_playlist_t *playlist)
 {
     struct hls_storage *new_manifest;
     const int ret = GeneratePlaylistManifest(playlist, &new_manifest);
-    if (unlikely(ret != VLC_SUCCESS))
+    if (unlikely(ret != HEIMDALL_SUCCESS))
     {
-        vlc_error(playlist->logger, "Failed to update playlist manifest: %s",
-                  vlc_strerror(-ret));
+        heimdall_error(playlist->logger, "Failed to update playlist manifest: %s",
+                  heimdall_strerror(-ret));
         return ret;
     }
 
@@ -544,7 +545,7 @@ static int UpdatePlaylistManifest(hls_playlist_t *playlist)
     if (playlist->manifest != NULL)
         hls_storage_Destroy(playlist->manifest);
     playlist->manifest = new_manifest;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 
@@ -552,17 +553,17 @@ static int UpdatePlaylistManifest(hls_playlist_t *playlist)
 typedef struct
 {
     block_t *last;
-    vlc_tick_t length;
+    heimdall_tick_t length;
 } hls_cut_t;
 
 static hls_cut_t CutTsSegment(hls_block_chain_t *muxed_output,
-                              vlc_tick_t min_length,
-                              vlc_tick_t max_length)
+                              heimdall_tick_t min_length,
+                              heimdall_tick_t max_length)
 {
     hls_cut_t iframe_cut = {0};
 
     block_t *prev = NULL;
-    vlc_tick_t total = 0;
+    heimdall_tick_t total = 0;
     for (block_t *it = muxed_output->begin; it != NULL; it = it->p_next)
     {
         if (prev != NULL && (it->i_flags & BLOCK_FLAG_HEADER))
@@ -584,14 +585,14 @@ static hls_cut_t CutTsSegment(hls_block_chain_t *muxed_output,
 }
 
 static hls_cut_t CutMP4Segment(hls_block_chain_t *muxed_output,
-                               vlc_tick_t min_length,
-                               vlc_tick_t max_length)
+                               heimdall_tick_t min_length,
+                               heimdall_tick_t max_length)
 {
     hls_cut_t aligned_cut = {0};
     hls_cut_t moof_cut = {0};
 
     block_t *prev = NULL;
-    vlc_tick_t total = 0;
+    heimdall_tick_t total = 0;
     for (block_t *it = muxed_output->begin; it != NULL; it = it->p_next)
     {
         if (prev != NULL && (it->i_flags & MP4_MUX_BLOCK_FLAG_SYNC))
@@ -631,13 +632,13 @@ static uint32_t PlaylistCutFlag(const hls_playlist_t *playlist)
         case HLS_PLAYLIST_TYPE_WEBVTT:
             break;
     }
-    vlc_assert_unreachable();
+    heimdall_assert_unreachable();
 }
 
 static hls_block_chain_t ExtractAVSegment(const hls_playlist_t *playlist,
                                           hls_block_chain_t *muxed_output,
-                                          vlc_tick_t min_length,
-                                          vlc_tick_t max_length)
+                                          heimdall_tick_t min_length,
+                                          heimdall_tick_t max_length)
 {
     hls_block_chain_t segment = {.begin = muxed_output->begin};
 
@@ -650,7 +651,7 @@ static hls_block_chain_t ExtractAVSegment(const hls_playlist_t *playlist,
             cut = CutMP4Segment(muxed_output, min_length, max_length);
             break;
         case HLS_PLAYLIST_TYPE_WEBVTT:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 
     if (cut.last != NULL)
@@ -675,7 +676,7 @@ static hls_block_chain_t ExtractAVSegment(const hls_playlist_t *playlist,
 }
 
 static hls_block_chain_t ExtractSubtitleSegment(hls_block_chain_t *muxed_output,
-                                                vlc_tick_t segment_length)
+                                                heimdall_tick_t segment_length)
 {
     hls_block_chain_t segment = {.begin = muxed_output->begin,
                                  .length = segment_length};
@@ -701,7 +702,7 @@ static hls_block_chain_t ExtractSubtitleSegment(hls_block_chain_t *muxed_output,
  * CMAF, we need to prepend styp+sidx  here, once per segment, since only the
  * segmenter knows segments boundaries. */
 static void PrependSegmentBoxes(hls_block_chain_t *segment,
-                                vlc_tick_t earliest_pts,
+                                heimdall_tick_t earliest_pts,
                                 size_t referenced_size)
 {
     if (segment->begin == NULL)
@@ -752,8 +753,8 @@ static void PrependSegmentBoxes(hls_block_chain_t *segment,
 
 static hls_block_chain_t ExtractSegment(hls_playlist_t *playlist)
 {
-    const vlc_tick_t min_length = playlist->config->segment_length;
-    const vlc_tick_t max_length = playlist->config->max_segment_length;
+    const heimdall_tick_t min_length = playlist->config->segment_length;
+    const heimdall_tick_t max_length = playlist->config->max_segment_length;
     switch (playlist->type)
     {
         case HLS_PLAYLIST_TYPE_WEBVTT:
@@ -774,7 +775,7 @@ static hls_block_chain_t ExtractSegment(hls_playlist_t *playlist)
             return ExtractAVSegment(
                 playlist, &playlist->muxed_output, min_length, max_length);
     }
-    vlc_assert_unreachable();
+    heimdall_assert_unreachable();
 }
 
 static bool IsSegmentSelfDecodable(const hls_block_chain_t *segment,
@@ -796,7 +797,7 @@ static bool IsSegmentSelfDecodable(const hls_block_chain_t *segment,
         case HLS_PLAYLIST_TYPE_WEBVTT:
             break; /* No video track: handled by the early return above. */
     }
-    vlc_assert_unreachable();
+    heimdall_assert_unreachable();
 }
 
 /* Arbitrary segment size maximum. Beyond this, we consider the sement unusable for
@@ -812,12 +813,12 @@ static int ExtractAndAddSegment(hls_playlist_t *playlist,
     block_ChainProperties(segment.begin, NULL, &segment_size, NULL);
     if (segment_size > HLS_SEGMENT_MAX_SIZE)
     {
-        vlc_error(playlist->logger,
+        heimdall_error(playlist->logger,
                   "Segment too large (%zu bytes): the input bitrate is too high "
                   "for the configured segment length",
                   segment_size);
         block_ChainRelease(segment.begin);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if (playlist->type == HLS_PLAYLIST_TYPE_MP4)
@@ -833,38 +834,38 @@ static int ExtractAndAddSegment(hls_playlist_t *playlist,
     }
 
     const bool self_decodable = IsSegmentSelfDecodable(&segment, playlist);
-    const vlc_tick_t length = segment.length;
+    const heimdall_tick_t length = segment.length;
     const int status = hls_segment_queue_NewSegment(
         &playlist->segments, segment.begin, segment.length);
-    if (unlikely(status != VLC_SUCCESS))
+    if (unlikely(status != HEIMDALL_SUCCESS))
     {
-        vlc_error(playlist->logger,
+        heimdall_error(playlist->logger,
                   "Segment '%u' creation failed: %s",
                   playlist->segments.total_segments + 1,
-                  vlc_strerror(-status));
+                  heimdall_strerror(-status));
         return status;
     }
     playlist->muxed_duration += length;
 
     if (!self_decodable)
     {
-        vlc_warning(
+        heimdall_warning(
             playlist->logger,
             "Segment '%u' does not start with a synchronization frame. It will "
             "not be decodable on its own and will likely fail as a seek point.",
             playlist->segments.total_segments);
         if (playlist->type != HLS_PLAYLIST_TYPE_WEBVTT)
         {
-            vlc_warning(
+            heimdall_warning(
                 playlist->logger,
                 "It is probably due to a GOP being too large to fit in %" PRIi64
                 "s segments. Please adjust your encoding parameters or set a "
                 "larger segment size.",
-                SEC_FROM_VLC_TICK(playlist->config->segment_length));
+                SEC_FROM_HEIMDALL_TICK(playlist->config->segment_length));
         }
     }
 
-    vlc_debug(playlist->logger,
+    heimdall_debug(playlist->logger,
               "Segment '%u' created",
               playlist->segments.total_segments);
 
@@ -872,8 +873,8 @@ static int ExtractAndAddSegment(hls_playlist_t *playlist,
 }
 
 static bool IsSegmentReady(const hls_playlist_t *playlist,
-                           vlc_tick_t min_length,
-                           vlc_tick_t max_length)
+                           heimdall_tick_t min_length,
+                           heimdall_tick_t max_length)
 {
     const hls_block_chain_t *buffer = &playlist->muxed_output;
 
@@ -890,7 +891,7 @@ static bool IsSegmentReady(const hls_playlist_t *playlist,
         return true;
 
     const uint32_t cut_flag = PlaylistCutFlag(playlist);
-    vlc_tick_t total = 0;
+    heimdall_tick_t total = 0;
     for (const block_t *it = buffer->begin; it != NULL; it = it->p_next)
     {
         if (total >= min_length && (it->i_flags & cut_flag))
@@ -913,9 +914,9 @@ static void ReplaceInitSection(hls_playlist_t *playlist, block_t *content)
         content, &storage_config, playlist->config, &init);
     if (status != 0)
     {
-        vlc_error(playlist->logger,
+        heimdall_error(playlist->logger,
                   "Failed to generate init section: %s",
-                  vlc_strerror(-status));
+                  heimdall_strerror(-status));
         return;
     }
 
@@ -970,7 +971,7 @@ static block_t *PlaylistExtractInitSection(hls_playlist_t *playlist,
 
 static void PlaylistWriteMuxedOutput(hls_playlist_t *playlist,
                                      block_t *blocks,
-                                     vlc_tick_t output_duration)
+                                     heimdall_tick_t output_duration)
 {
     if (playlist->type == HLS_PLAYLIST_TYPE_MP4)
         blocks = PlaylistExtractInitSection(playlist, blocks);
@@ -993,7 +994,7 @@ static ssize_t AccessOutWrite(sout_access_out_t *access, block_t *block)
     sout_stream_sys_t *sys = access->p_sys;
 
     size_t size = 0;
-    vlc_tick_t length;
+    heimdall_tick_t length;
     block_ChainProperties(block, NULL, &size, &length);
 
     if (hls_config_IsMemStorageEnabled(&sys->config))
@@ -1038,7 +1039,7 @@ static ssize_t AccessOutWrite(sout_access_out_t *access, block_t *block)
                                   sys->config.max_segment_length) &&
                    it->muxed_duration < sys->elapsed_stream_time)
             {
-                if (ExtractAndAddSegment(it, sys) != VLC_SUCCESS)
+                if (ExtractAndAddSegment(it, sys) != HEIMDALL_SUCCESS)
                     return -1;
             }
         }
@@ -1048,14 +1049,14 @@ static ssize_t AccessOutWrite(sout_access_out_t *access, block_t *block)
 
 static sout_access_out_t *CreateAccessOut(sout_stream_t *stream)
 {
-    sout_access_out_t *access = vlc_object_create(stream, sizeof(*access));
+    sout_access_out_t *access = heimdall_object_create(stream, sizeof(*access));
     if (unlikely(access == NULL))
         return NULL;
 
     access->psz_access = strdup("hls");
     if (unlikely(access->psz_access == NULL))
     {
-        vlc_object_delete(access);
+        heimdall_object_delete(access);
         return NULL;
     }
 
@@ -1088,7 +1089,7 @@ static inline char *FormatPlaylistURL(const hls_playlist_t *playlist,
 static sout_mux_t *CreateFMP4Muxer(sout_access_out_t *access,
                                    const struct hls_config *config)
 {
-    VLC_UNUSED(config);
+    HEIMDALL_UNUSED(config);
     return sout_MuxNew(access, "mp4frag");
 }
 
@@ -1129,7 +1130,7 @@ static hls_playlist_t *CreatePlaylist(sout_stream_t *stream,
     playlist->type = type;
     playlist->config = &sys->config;
     playlist->ended = false;
-    playlist->ended_at = VLC_TICK_INVALID;
+    playlist->ended_at = HEIMDALL_TICK_INVALID;
     playlist->muxed_duration = 0;
     playlist->video_track_count = 0;
 
@@ -1143,7 +1144,7 @@ static hls_playlist_t *CreatePlaylist(sout_stream_t *stream,
 
     playlist->name = playlist->url + strlen(sys->config.base_url) + 1;
 
-    playlist->logger = vlc_LogHeaderCreate(stream->obj.logger, playlist->name);
+    playlist->logger = heimdall_LogHeaderCreate(stream->obj.logger, playlist->name);
     if (unlikely(playlist->logger == NULL))
         goto log_err;
 
@@ -1179,12 +1180,12 @@ static hls_playlist_t *CreatePlaylist(sout_stream_t *stream,
     playlist->init_buff = NULL;
 
 
-    if (UpdatePlaylistManifest(playlist) != VLC_SUCCESS)
+    if (UpdatePlaylistManifest(playlist) != HEIMDALL_SUCCESS)
         goto error;
 
-    vlc_list_init(&playlist->tracks);
+    heimdall_list_init(&playlist->tracks);
 
-    vlc_info(playlist->logger, "Playlist created");
+    heimdall_info(playlist->logger, "Playlist created");
 
     return playlist;
 error:
@@ -1195,7 +1196,7 @@ init_section_err:
         httpd_UrlDelete(playlist->http_manifest);
 manifest_err:
     hls_segment_queue_Clear(&playlist->segments);
-    vlc_LogDestroy(playlist->logger);
+    heimdall_LogDestroy(playlist->logger);
 log_err:
     free(playlist->init_section_url);
 init_section_url_err:
@@ -1231,9 +1232,9 @@ static void DeletePlaylist(hls_playlist_t *playlist)
         block_ChainRelease(playlist->init_buff);
     hls_segment_queue_Clear(&playlist->segments);
 
-    vlc_list_remove(&playlist->node);
+    heimdall_list_remove(&playlist->node);
 
-    vlc_LogDestroy(playlist->logger);
+    heimdall_LogDestroy(playlist->logger);
     free(playlist->url);
     free(playlist->init_section_url);
 
@@ -1246,7 +1247,7 @@ static int UpdateMainManifest(sout_stream_t *stream)
 
     struct hls_storage *new_manifest;
     const int ret = GenerateMainManifest(sys, &new_manifest);
-    if (unlikely(ret != VLC_SUCCESS))
+    if (unlikely(ret != HEIMDALL_SUCCESS))
         return ret;
 
     if (sys->http_host != NULL)
@@ -1256,18 +1257,18 @@ static int UpdateMainManifest(sout_stream_t *stream)
     if (sys->manifest != NULL)
         hls_storage_Destroy(sys->manifest);
     sys->manifest = new_manifest;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static hls_playlist_t *AddPlaylist(sout_stream_t *stream,
                                    enum hls_playlist_type type,
-                                   struct vlc_list *head)
+                                   struct heimdall_list *head)
 {
     hls_playlist_t *variant = CreatePlaylist(stream, type);
     if (variant == NULL)
         return NULL;
 
-    vlc_list_append(&variant->node, head);
+    heimdall_list_append(&variant->node, head);
 
     sout_stream_sys_t *sys = stream->p_sys;
     ++sys->playlist_created_count;
@@ -1317,14 +1318,14 @@ Add(sout_stream_t *stream, const es_format_t *fmt, const char *es_id)
     if (fmt->i_cat == VIDEO_ES)
         ++playlist->video_track_count;
 
-    vlc_list_append(&track->node, &playlist->tracks);
+    heimdall_list_append(&track->node, &playlist->tracks);
 
     const int manifest_ret = UpdateMainManifest(stream);
-    if (unlikely(manifest_ret != VLC_SUCCESS))
+    if (unlikely(manifest_ret != HEIMDALL_SUCCESS))
     {
         msg_Err(stream, "Failed to generate main manifest: %s",
-                vlc_strerror(-manifest_ret));
-        vlc_list_remove(&track->node);
+                heimdall_strerror(-manifest_ret));
+        heimdall_list_remove(&track->node);
         free(track);
         goto error;
     }
@@ -1336,7 +1337,7 @@ Add(sout_stream_t *stream, const es_format_t *fmt, const char *es_id)
 error:
     if (input != NULL)
         sout_MuxDeleteStream(playlist->mux, input);
-    if (vlc_list_is_empty(&playlist->tracks))
+    if (heimdall_list_is_empty(&playlist->tracks))
         DeletePlaylist(playlist);
     return NULL;
 }
@@ -1350,9 +1351,9 @@ static void Del(sout_stream_t *stream, void *id)
         --track->playlist_ref->video_track_count;
 
     sout_MuxDeleteStream(track->playlist_ref->mux, track->input);
-    vlc_list_remove(&track->node);
+    heimdall_list_remove(&track->node);
 
-    if (vlc_list_is_empty(&track->playlist_ref->tracks))
+    if (heimdall_list_is_empty(&track->playlist_ref->tracks))
     {
         struct hls_variant_stream_map *map = hls_variant_map_FromPlaylist(
             &sys->variant_stream_maps, track->playlist_ref);
@@ -1360,13 +1361,13 @@ static void Del(sout_stream_t *stream, void *id)
             map->playlist_ref = NULL;
 
         track->playlist_ref->ended = true;
-        track->playlist_ref->ended_at = vlc_tick_now();
+        track->playlist_ref->ended_at = heimdall_tick_now();
 
         sout_MuxDelete(track->playlist_ref->mux);
         track->playlist_ref->mux = NULL;
 
         while (track->playlist_ref->muxed_output.begin != NULL &&
-               ExtractAndAddSegment(track->playlist_ref, sys) == VLC_SUCCESS)
+               ExtractAndAddSegment(track->playlist_ref, sys) == HEIMDALL_SUCCESS)
           ;
         UpdatePlaylistManifest(track->playlist_ref);
     }
@@ -1374,7 +1375,7 @@ static void Del(sout_stream_t *stream, void *id)
     free(track);
 }
 
-static int Send(sout_stream_t *stream, void *id, vlc_frame_t *frame)
+static int Send(sout_stream_t *stream, void *id, heimdall_frame_t *frame)
 {
     hls_track_t *track = id;
     return sout_MuxSendBuffer(track->playlist_ref->mux, track->input, frame);
@@ -1382,11 +1383,11 @@ static int Send(sout_stream_t *stream, void *id, vlc_frame_t *frame)
 }
 
 /** PCR events are used to have a reliable stream time status. */
-static void SetPCR(sout_stream_t *stream, vlc_tick_t pcr)
+static void SetPCR(sout_stream_t *stream, heimdall_tick_t pcr)
 {
     sout_stream_sys_t *sys = stream->p_sys;
 
-    if (sys->first_pcr == VLC_TICK_INVALID)
+    if (sys->first_pcr == HEIMDALL_TICK_INVALID)
     {
         sys->first_pcr = pcr;
         return;
@@ -1394,7 +1395,7 @@ static void SetPCR(sout_stream_t *stream, vlc_tick_t pcr)
 
     sys->elapsed_stream_time = pcr - sys->first_pcr;
     const hls_playlist_t *playlist;
-    vlc_list_foreach_const (playlist, &sys->media_playlists, node)
+    heimdall_list_foreach_const (playlist, &sys->media_playlists, node)
     {
         if (playlist->type != HLS_PLAYLIST_TYPE_WEBVTT || playlist->mux == NULL)
             continue;
@@ -1407,8 +1408,8 @@ static void SetPCR(sout_stream_t *stream, vlc_tick_t pcr)
      * client could still be playing them for. */
     if (sys->config.max_segments != 0)
     {
-        const vlc_tick_t now = vlc_tick_now();
-        const vlc_tick_t keep_window =
+        const heimdall_tick_t now = heimdall_tick_now();
+        const heimdall_tick_t keep_window =
             sys->config.max_segments * sys->config.max_segment_length
             + sys->config.segment_length;
         hls_playlist_t *pl;
@@ -1436,18 +1437,18 @@ static int Control(sout_stream_t *stream, int query, va_list args)
             break;
 
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int InitHTTP(sout_stream_t *stream)
 {
     sout_stream_sys_t *sys = stream->p_sys;
-    sys->http_host = vlc_http_HostNew(VLC_OBJECT(stream));
+    sys->http_host = heimdall_http_HostNew(HEIMDALL_OBJECT(stream));
     if (sys->http_host == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     char *mainfest_url;
     if (asprintf(&mainfest_url, "%s/stream.m3u8", sys->config.base_url) == -1)
@@ -1457,10 +1458,10 @@ static int InitHTTP(sout_stream_t *stream)
     free(mainfest_url);
     if (sys->http_manifest == NULL)
         goto error;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 error:
     httpd_HostDelete(sys->http_host);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 static void Close(sout_stream_t *stream)
@@ -1489,13 +1490,13 @@ static void Close(sout_stream_t *stream)
 
 #define SOUT_CFG_PREFIX "sout-hls-"
 
-static int Open(vlc_object_t *this)
+static int Open(heimdall_object_t *this)
 {
     sout_stream_t *stream = (sout_stream_t *)this;
 
     sout_stream_sys_t *sys = malloc(sizeof(*sys));
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     stream->p_sys = sys;
 
     static const char *const options[] = {
@@ -1523,9 +1524,9 @@ static int Open(vlc_object_t *this)
     sys->config.legacy_codecs =
         var_GetBool(stream, SOUT_CFG_PREFIX "legacy-codecs");
     sys->config.segment_length =
-        VLC_TICK_FROM_SEC(var_GetInteger(stream, SOUT_CFG_PREFIX "seg-len"));
+        HEIMDALL_TICK_FROM_SEC(var_GetInteger(stream, SOUT_CFG_PREFIX "seg-len"));
     sys->config.max_segment_length =
-        VLC_TICK_FROM_SEC(var_GetInteger(stream, SOUT_CFG_PREFIX "max-seg-len"));
+        HEIMDALL_TICK_FROM_SEC(var_GetInteger(stream, SOUT_CFG_PREFIX "max-seg-len"));
     if (sys->config.max_segment_length < sys->config.segment_length)
     {
         if (sys->config.max_segment_length != 0)
@@ -1537,34 +1538,34 @@ static int Open(vlc_object_t *this)
     sys->config.max_memory =
         BYTES_FROM_KB(var_GetInteger(stream, SOUT_CFG_PREFIX "max-memory"));
 
-    int status = VLC_EINVAL;
+    int status = HEIMDALL_EINVAL;
 
     char *seg_type = var_GetNonEmptyString(stream, SOUT_CFG_PREFIX "seg-type");
     status = hls_playlist_type_FromString(seg_type, &sys->config.preferred_type);
     free(seg_type);
 
-    if (status != VLC_SUCCESS || sys->config.preferred_type == HLS_PLAYLIST_TYPE_WEBVTT)
+    if (status != HEIMDALL_SUCCESS || sys->config.preferred_type == HLS_PLAYLIST_TYPE_WEBVTT)
     {
         msg_Err(stream, "Invalid segment type");
-        status = VLC_ENOENT;
+        status = HEIMDALL_ENOENT;
         goto variant_error;
     }
 
-    vlc_vector_init(&sys->variant_stream_maps);
+    heimdall_vector_init(&sys->variant_stream_maps);
     char *variants = var_GetNonEmptyString(stream, SOUT_CFG_PREFIX "variants");
     if (variants == NULL)
     {
         msg_Err(stream,
                 "At least one variant mapping needs to be specified with the "
                 "\"" SOUT_CFG_PREFIX "variants\" option");
-        status = VLC_EINVAL;
+        status = HEIMDALL_EINVAL;
         goto variant_error;
     }
     status = hls_variant_maps_Parse(variants, &sys->variant_stream_maps);
     free(variants);
-    if (status != VLC_SUCCESS)
+    if (status != HEIMDALL_SUCCESS)
     {
-        if (status == VLC_EINVAL)
+        if (status == HEIMDALL_EINVAL)
             msg_Err(stream,
                     "Wrong variant mapping syntax. It should look like: "
                     "\"{id1,id2},{id3,id4},...\"");
@@ -1574,7 +1575,7 @@ static int Open(vlc_object_t *this)
     if (var_GetBool(stream, SOUT_CFG_PREFIX "host-http"))
     {
         status = InitHTTP(stream);
-        if (status != VLC_SUCCESS)
+        if (status != HEIMDALL_SUCCESS)
             goto error;
     }
     else if (sys->config.outdir != NULL)
@@ -1587,7 +1588,7 @@ static int Open(vlc_object_t *this)
         msg_Err(stream,
                 "No output directory specified."
                 " See \"" SOUT_CFG_PREFIX "out-dir\"");
-        status = VLC_EINVAL;
+        status = HEIMDALL_EINVAL;
         goto error;
     }
 
@@ -1595,11 +1596,11 @@ static int Open(vlc_object_t *this)
 
     sys->playlist_created_count = 0;
 
-    vlc_list_init(&sys->variant_playlists);
-    vlc_list_init(&sys->media_playlists);
+    heimdall_list_init(&sys->variant_playlists);
+    heimdall_list_init(&sys->media_playlists);
 
     sys->elapsed_stream_time = 0;
-    sys->first_pcr = VLC_TICK_INVALID;
+    sys->first_pcr = HEIMDALL_TICK_INVALID;
 
     sys->current_memory_cached = 0;
 
@@ -1613,7 +1614,7 @@ static int Open(vlc_object_t *this)
     };
     stream->ops = &ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 error:
     hls_variant_maps_Destroy(&sys->variant_stream_maps);
 variant_error:
@@ -1680,7 +1681,7 @@ static const char *const SEGMENT_TYPE_TEXT[] = {
     "Fragmented MP4",
 };
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname("HLS")
     set_description(N_("HLS stream output"))
     set_capability("sout output", 50)
@@ -1705,4 +1706,4 @@ vlc_module_begin()
         change_integer_range(0, 60)
 
     set_callback(Open)
-vlc_module_end()
+heimdall_module_end()

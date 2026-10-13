@@ -1,6 +1,6 @@
-name: VLC
+name: Heimdall
 options:
-  bundleIdPrefix: org.videolan.vlc
+  bundleIdPrefix: com.lycaria.heimdall
   supportedDestinations: [iOS, tvOS, visionOS, watchOS]
   deploymentTarget:
     iOS: 9.0
@@ -13,44 +13,44 @@ configs:
 settings:
   configs:
 fileGroups:
-  - "${VLC_SRC_DIR}/bin"
-  - "${VLC_SRC_DIR}/src"
-  - "${VLC_SRC_DIR}/include"
-  - "${VLC_SRC_DIR}/modules"
-  - "${VLC_SRC_DIR}/lib"
-  - "${VLC_SRC_DIR}/test"
-  - "${VLC_SRC_DIR}/contrib/src"
-  - "${VLC_SRC_DIR}/contrib/bootstrap"
-  - "${VLC_SRC_DIR}/doc"
-  - "${VLC_SRC_DIR}/extras/package/apple/"
+  - "${HEIMDALL_SRC_DIR}/bin"
+  - "${HEIMDALL_SRC_DIR}/src"
+  - "${HEIMDALL_SRC_DIR}/include"
+  - "${HEIMDALL_SRC_DIR}/modules"
+  - "${HEIMDALL_SRC_DIR}/lib"
+  - "${HEIMDALL_SRC_DIR}/test"
+  - "${HEIMDALL_SRC_DIR}/contrib/src"
+  - "${HEIMDALL_SRC_DIR}/contrib/bootstrap"
+  - "${HEIMDALL_SRC_DIR}/doc"
+  - "${HEIMDALL_SRC_DIR}/extras/package/apple/"
 targets:
-  VLCAutomake:
+  HeimdallAutomake:
     type: ""
     supportedDestinations: [iOS, tvOS, visionOS, watchOS]
     legacy:
-      toolPath: ${VLC_SRC_DIR}/extras/package/apple/xcode.sh
+      toolPath: ${HEIMDALL_SRC_DIR}/extras/package/apple/xcode.sh
       passSettings: true
-      workingDirectory: ${VLC_SRC_DIR}
+      workingDirectory: ${HEIMDALL_SRC_DIR}
 
-  vlccoreios:
+  heimdallcoreios:
     type: "application"
     supportedDestinations: [iOS, tvOS, visionOS]
     dependencies:
-      - target: VLCAutomake
-      - target: vlc
-      - target: vlccore
+      - target: HeimdallAutomake
+      - target: heimdall
+      - target: heimdallcore
     info:
-      path: "vlccoreios/Info.plist"
+      path: "heimdallcoreios/Info.plist"
       properties:
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
     settings:
-      PRODUCT_BUNDLE_IDENTIFIER: org.videolan.vlc.vlccoreios
+      PRODUCT_BUNDLE_IDENTIFIER: com.lycaria.heimdall.heimdallcoreios
     postBuildScripts:
-      - script: ${VLC_SRC_DIR}/extras/package/apple/copy_plugins.sh
-        name: "Copy VLC plugins"
+      - script: ${HEIMDALL_SRC_DIR}/extras/package/apple/copy_plugins.sh
+        name: "Copy Heimdall plugins"
 
-      - name: Install VLC share data
+      - name: Install Heimdall share data
         shell: /bin/bash
         script: |
             set -e
@@ -62,110 +62,110 @@ targets:
                 prefix=/ \
                 datadir=/share
 
-      - name: Copy vlccoreios binary
+      - name: Copy heimdallcoreios binary
         shell: /bin/bash
         script: |
             INPUT_FILES=()
             for arch in ${ARCHS}; do
-                INPUT_FILES+=("${BUILT_PRODUCTS_DIR}/build-${PLATFORM_NAME}-${arch}${BUILD_SUFFIX}/build/test/.libs/vlccoreios")
+                INPUT_FILES+=("${BUILT_PRODUCTS_DIR}/build-${PLATFORM_NAME}-${arch}${BUILD_SUFFIX}/build/test/.libs/heimdallcoreios")
             done
             lipo -create \
                 -output "${BUILT_PRODUCTS_DIR}/${EXECUTABLE_PATH}" \
                 "${INPUT_FILES[@]}"
-            install_name_tool -change "@rpath/libvlc.dylib" "@rpath/vlc.framework/vlc" \
+            install_name_tool -change "@rpath/libheimdall.dylib" "@rpath/heimdall.framework/heimdall" \
                 "${BUILT_PRODUCTS_DIR}/${EXECUTABLE_PATH}"
-            install_name_tool -change "@rpath/libvlccore.dylib" "@rpath/vlccore.framework/vlccore" \
+            install_name_tool -change "@rpath/libheimdallcore.dylib" "@rpath/heimdallcore.framework/heimdallcore" \
                 "${BUILT_PRODUCTS_DIR}/${EXECUTABLE_PATH}"
             codesign --force --sign "${EXPANDED_CODE_SIGN_IDENTITY}" "${BUILT_PRODUCTS_DIR}/${EXECUTABLE_PATH}"
 
-  vlccorewatchos:
+  heimdallcorewatchos:
     type: "application"
     platform: [watchOS]
     dependencies:
-      - target: VLCAutomake
-      - target: vlc
-      - target: vlccore
+      - target: HeimdallAutomake
+      - target: heimdall
+      - target: heimdallcore
     info:
-      path: "vlccorewatchos/Info.plist"
+      path: "heimdallcorewatchos/Info.plist"
       properties:
-        CFBundleIdentifier: org.videolan.vlc.vlccore.watchapp
-        WKCompanionAppBundleIdentifier: org.videolan.vlc.vlccore
+        CFBundleIdentifier: com.lycaria.heimdall.heimdallcore.watchapp
+        WKCompanionAppBundleIdentifier: com.lycaria.heimdall.heimdallcore
         WKRunsIndependentlyOfCompanionApp: true
         WKApplication: true
         UIBackgroundModes:
           - audio
     settings:
-      PRODUCT_BUNDLE_IDENTIFIER: org.videolan.vlc.vlccoreios.watchapp
+      PRODUCT_BUNDLE_IDENTIFIER: com.lycaria.heimdall.heimdallcoreios.watchapp
     postBuildScripts:
-      - script: ${VLC_SRC_DIR}/extras/package/apple/copy_plugins.sh
-        name: "Copy VLC plugins"
+      - script: ${HEIMDALL_SRC_DIR}/extras/package/apple/copy_plugins.sh
+        name: "Copy Heimdall plugins"
 
-      - name: Copy vlccorewatchos binary
+      - name: Copy heimdallcorewatchos binary
         shell: /bin/bash
         script: |
             INPUT_FILES=()
             for arch in ${ARCHS}; do
-                INPUT_FILES+=("${BUILT_PRODUCTS_DIR}/build-${PLATFORM_NAME}-${arch}${BUILD_SUFFIX}/build/test/.libs/vlccorewatchos")
+                INPUT_FILES+=("${BUILT_PRODUCTS_DIR}/build-${PLATFORM_NAME}-${arch}${BUILD_SUFFIX}/build/test/.libs/heimdallcorewatchos")
             done
             lipo -create \
                 -output "${BUILT_PRODUCTS_DIR}/${EXECUTABLE_PATH}" \
                 "${INPUT_FILES[@]}"
-            install_name_tool -change "@rpath/libvlc.dylib" "@rpath/vlc.framework/vlc" \
+            install_name_tool -change "@rpath/libheimdall.dylib" "@rpath/heimdall.framework/heimdall" \
                 "${BUILT_PRODUCTS_DIR}/${EXECUTABLE_PATH}"
-            install_name_tool -change "@rpath/libvlccore.dylib" "@rpath/vlccore.framework/vlccore" \
+            install_name_tool -change "@rpath/libheimdallcore.dylib" "@rpath/heimdallcore.framework/heimdallcore" \
                 "${BUILT_PRODUCTS_DIR}/${EXECUTABLE_PATH}"
             codesign --force --sign "${EXPANDED_CODE_SIGN_IDENTITY}" "${BUILT_PRODUCTS_DIR}/${EXECUTABLE_PATH}"
 
-  vlc:
+  heimdall:
     type: "framework"
     supportedDestinations: [iOS, tvOS, visionOS, watchOS]
     dependencies:
-      - target: VLCAutomake
+      - target: HeimdallAutomake
     info:
-      path: "vlc/Info.plist"
+      path: "heimdall/Info.plist"
 
     postBuildScripts:
-      - name: Copy libvlc library
+      - name: Copy libheimdall library
         shell: /bin/bash
         script: |
             INPUT_FILES=()
             for arch in ${ARCHS}; do
-                input_file="${BUILT_PRODUCTS_DIR}/build-${PLATFORM_NAME}-${arch}${BUILD_SUFFIX}/build/lib/.libs/libvlc.dylib"
+                input_file="${BUILT_PRODUCTS_DIR}/build-${PLATFORM_NAME}-${arch}${BUILD_SUFFIX}/build/lib/.libs/libheimdall.dylib"
                 echo " + Adding input $input_file"
                 INPUT_FILES+=( "$input_file" )
             done
-            FRAMEWORK_DIR="${BUILT_PRODUCTS_DIR}/vlc.framework"
-            FRAMEWORK_BIN_PATH="${FRAMEWORK_DIR}/vlc"
+            FRAMEWORK_DIR="${BUILT_PRODUCTS_DIR}/heimdall.framework"
+            FRAMEWORK_BIN_PATH="${FRAMEWORK_DIR}/heimdall"
             lipo -create \
                 -output "${FRAMEWORK_BIN_PATH}" \
                 "${INPUT_FILES[@]}"
             dsymutil -o "${FRAMEWORK_DIR}.dSYM" "${FRAMEWORK_BIN_PATH}"
 
-  vlccore:
+  heimdallcore:
     type: "framework"
     supportedDestinations: [iOS, tvOS, visionOS, watchOS]
     dependencies:
-      - target: VLCAutomake
+      - target: HeimdallAutomake
     info:
-      path: "vlccore/Info.plist"
+      path: "heimdallcore/Info.plist"
     sources:
-      - path: ${VLC_SRC_DIR}/include/
-        includes: "vlc_*.h"
+      - path: ${HEIMDALL_SRC_DIR}/include/
+        includes: "heimdall_*.h"
         buildPhase: headers
         headerVisibility: public
     postBuildScripts:
-      - name: Copy vlccore library
+      - name: Copy heimdallcore library
         shell: /bin/bash
         buildRules:
         script: |
             INPUT_FILES=()
             for arch in ${ARCHS}; do
-                input_file="${BUILT_PRODUCTS_DIR}/build-${PLATFORM_NAME}-${arch}/build/src/.libs/libvlccore.dylib"
+                input_file="${BUILT_PRODUCTS_DIR}/build-${PLATFORM_NAME}-${arch}/build/src/.libs/libheimdallcore.dylib"
                 echo " + Adding input $input_file"
                 INPUT_FILES+=( "$input_file" )
             done
-            FRAMEWORK_DIR="${BUILT_PRODUCTS_DIR}/vlccore.framework"
-            FRAMEWORK_BIN_PATH="${FRAMEWORK_DIR}/vlccore"
+            FRAMEWORK_DIR="${BUILT_PRODUCTS_DIR}/heimdallcore.framework"
+            FRAMEWORK_BIN_PATH="${FRAMEWORK_DIR}/heimdallcore"
             lipo -create \
                 -output "${FRAMEWORK_BIN_PATH}" \
                 "${INPUT_FILES[@]}"

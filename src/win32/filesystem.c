@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 2005-2006 VLC authors and VideoLAN
  * Copyright © 2005-2008 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Rémi Denis-Courmont
  *
@@ -40,10 +41,10 @@
 #include <unistd.h>
 #include <stdckdint.h>
 
-#include <vlc_common.h>
-#include <vlc_charset.h>
-#include <vlc_fs.h>
-#include "../libvlc.h" /* vlc_mkdir */
+#include <heimdall_common.h>
+#include <heimdall_charset.h>
+#include <heimdall_fs.h>
+#include "../libheimdall.h" /* heimdall_mkdir */
 
 #ifndef NTDDI_WIN10_RS3
 #define NTDDI_WIN10_RS3  0x0A000004
@@ -64,7 +65,7 @@ static wchar_t *widen_path (const char *path)
     return wpath;
 }
 
-int vlc_open (const char *filename, int flags, ...)
+int heimdall_open (const char *filename, int flags, ...)
 {
     DWORD dwDesiredAccess, dwCreationDisposition, dwFlagsAndAttributes;
 
@@ -143,14 +144,14 @@ int vlc_open (const char *filename, int flags, ...)
     return fd;
 }
 
-int vlc_openat (int dir, const char *filename, int flags, ...)
+int heimdall_openat (int dir, const char *filename, int flags, ...)
 {
     (void) dir; (void) filename; (void) flags;
     errno = ENOSYS;
     return -1;
 }
 
-int vlc_memfd (void)
+int heimdall_memfd (void)
 {
 #if 0
     int fd, err;
@@ -159,7 +160,7 @@ int vlc_memfd (void)
     if (stream == NULL)
         return -1;
 
-    fd = vlc_dup(fileno(stream));
+    fd = heimdall_dup(fileno(stream));
     err = errno;
     fclose(stream);
     errno = err;
@@ -170,12 +171,12 @@ int vlc_memfd (void)
 #endif
 }
 
-int vlc_close (int fd)
+int heimdall_close (int fd)
 {
     return close (fd);
 }
 
-int vlc_mkdir( const char *dirname, mode_t mode )
+int heimdall_mkdir( const char *dirname, mode_t mode )
 {
     wchar_t *wpath = widen_path (dirname);
     if (wpath == NULL)
@@ -187,7 +188,7 @@ int vlc_mkdir( const char *dirname, mode_t mode )
     return ret;
 }
 
-char *vlc_getcwd (void)
+char *heimdall_getcwd (void)
 {
     wchar_t *wdir = _wgetcwd (NULL, 0);
     if (wdir == NULL)
@@ -198,7 +199,7 @@ char *vlc_getcwd (void)
     return dir;
 }
 
-struct vlc_DIR
+struct heimdall_DIR
 {
     wchar_t *wildcard;
     HANDLE fHandle;
@@ -215,9 +216,9 @@ struct vlc_DIR
 
 /* Under Windows, these wrappers return the list of drive letters
  * when called with an empty argument or just '\'. */
-vlc_DIR *vlc_opendir (const char *dirname)
+heimdall_DIR *heimdall_opendir (const char *dirname)
 {
-    vlc_DIR *p_dir = malloc (sizeof (*p_dir));
+    heimdall_DIR *p_dir = malloc (sizeof (*p_dir));
     if (unlikely(p_dir == NULL))
         return NULL;
     p_dir->entry = NULL;
@@ -315,7 +316,7 @@ vlc_DIR *vlc_opendir (const char *dirname)
     return p_dir;
 }
 
-void vlc_closedir( vlc_DIR *vdir )
+void heimdall_closedir( heimdall_DIR *vdir )
 {
     if (vdir->fHandle != INVALID_HANDLE_VALUE)
         FindClose(vdir->fHandle);
@@ -325,7 +326,7 @@ void vlc_closedir( vlc_DIR *vdir )
     free( vdir );
 }
 
-const char *vlc_readdir (vlc_DIR *p_dir)
+const char *heimdall_readdir (heimdall_DIR *p_dir)
 {
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) || NTDDI_VERSION >= NTDDI_WIN10_RS3
     /* Drive letters mode */
@@ -365,7 +366,7 @@ const char *vlc_readdir (vlc_DIR *p_dir)
     return p_dir->entry;
 }
 
-void vlc_rewinddir( vlc_DIR *wdir )
+void heimdall_rewinddir( heimdall_DIR *wdir )
 {
     if (wdir->fHandle == INVALID_HANDLE_VALUE)
     {
@@ -418,7 +419,7 @@ static int filetime_to_time_t(const FILETIME *ft, time_t *result)
     return 0;
 }
 
-int vlc_stat (const char *filename, struct stat *buf)
+int heimdall_stat (const char *filename, struct stat *buf)
 {
     wchar_t *wpath = widen_path (filename);
     if (wpath == NULL)
@@ -473,12 +474,12 @@ int vlc_stat (const char *filename, struct stat *buf)
     return 0;
 }
 
-int vlc_lstat (const char *filename, struct stat *buf)
+int heimdall_lstat (const char *filename, struct stat *buf)
 {
-    return vlc_stat (filename, buf);
+    return heimdall_stat (filename, buf);
 }
 
-int vlc_unlink (const char *filename)
+int heimdall_unlink (const char *filename)
 {
     wchar_t *wpath = widen_path (filename);
     if (wpath == NULL)
@@ -489,7 +490,7 @@ int vlc_unlink (const char *filename)
     return ret;
 }
 
-int vlc_rename (const char *oldpath, const char *newpath)
+int heimdall_rename (const char *oldpath, const char *newpath)
 {
     int ret = -1;
 
@@ -514,7 +515,7 @@ out:
     return ret;
 }
 
-int vlc_dup (int oldfd)
+int heimdall_dup (int oldfd)
 {
     int fd = dup (oldfd);
     if (fd != -1)
@@ -522,7 +523,7 @@ int vlc_dup (int oldfd)
     return fd;
 }
 
-int vlc_dup2(int oldfd, int newfd)
+int heimdall_dup2(int oldfd, int newfd)
 {
     int fd = dup2(oldfd, newfd);
     if (fd != -1)
@@ -530,10 +531,10 @@ int vlc_dup2(int oldfd, int newfd)
     return fd;
 }
 
-int vlc_pipe (int fds[2])
+int heimdall_pipe (int fds[2])
 {
     /* Create the named pipe with FILE_FLAG_OVERLAPPED to enable asynchronous
-     * I/O. This is necessary because vlc_poll on Windows, only work with
+     * I/O. This is necessary because heimdall_poll on Windows, only work with
      * sockets.
      * Using FILE_FLAG_OVERLAPPED allows us to perform non-blocking I/O,
      * which is the correct approach for async operations in Windows. */
@@ -585,19 +586,19 @@ int vlc_pipe (int fds[2])
 #endif
 }
 
-ssize_t vlc_write(int fd, const void *buf, size_t len)
+ssize_t heimdall_write(int fd, const void *buf, size_t len)
 {
     return write(fd, buf, len);
 }
 
-ssize_t vlc_writev(int fd, const struct iovec *iov, int count)
+ssize_t heimdall_writev(int fd, const struct iovec *iov, int count)
 {
     return writev(fd, iov, count);
 }
 
-#include <vlc_network.h>
+#include <heimdall_network.h>
 
-int vlc_socket (int pf, int type, int proto, bool nonblock)
+int heimdall_socket (int pf, int type, int proto, bool nonblock)
 {
     int fd = socket (pf, type, proto);
     if (fd == -1)
@@ -608,14 +609,14 @@ int vlc_socket (int pf, int type, int proto, bool nonblock)
     return fd;
 }
 
-int vlc_socketpair(int pf, int type, int proto, int fds[2], bool nonblock)
+int heimdall_socketpair(int pf, int type, int proto, int fds[2], bool nonblock)
 {
     (void) pf; (void) type; (void) proto; (void) fds; (void) nonblock;
     errno = ENOSYS;
     return -1;
 }
 
-int vlc_accept (int lfd, struct sockaddr *addr, socklen_t *alen, bool nonblock)
+int heimdall_accept (int lfd, struct sockaddr *addr, socklen_t *alen, bool nonblock)
 {
     int fd = accept (lfd, addr, alen);
     if (fd != -1 && nonblock)
@@ -625,7 +626,7 @@ int vlc_accept (int lfd, struct sockaddr *addr, socklen_t *alen, bool nonblock)
     return fd;
 }
 
-ssize_t vlc_send(int fd, const void *buf, size_t len, int flags)
+ssize_t heimdall_send(int fd, const void *buf, size_t len, int flags)
 {
     WSABUF wsabuf = { .buf = (char *)buf, .len = len };
     DWORD sent;
@@ -634,7 +635,7 @@ ssize_t vlc_send(int fd, const void *buf, size_t len, int flags)
                    NULL, NULL) ? -1 : (ssize_t)sent;
 }
 
-ssize_t vlc_sendto(int fd, const void *buf, size_t len, int flags,
+ssize_t heimdall_sendto(int fd, const void *buf, size_t len, int flags,
                    const struct sockaddr *dst, socklen_t dstlen)
 {
     WSABUF wsabuf = { .buf = (char *)buf, .len = len };
@@ -644,7 +645,7 @@ ssize_t vlc_sendto(int fd, const void *buf, size_t len, int flags,
                      NULL, NULL) ? -1 : (ssize_t)sent;
 }
 
-ssize_t vlc_sendmsg(int fd, const struct msghdr *msg, int flags)
+ssize_t heimdall_sendmsg(int fd, const struct msghdr *msg, int flags)
 {
     return sendmsg(fd, msg, flags);
 }

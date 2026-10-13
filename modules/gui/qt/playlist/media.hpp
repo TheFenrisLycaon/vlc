@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,8 +17,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_QT_MEDIA_HPP_
-#define VLC_QT_MEDIA_HPP_
+#ifndef HEIMDALL_QT_MEDIA_HPP_
+#define HEIMDALL_QT_MEDIA_HPP_
 
 #include <QString>
 #include <QStringList>
@@ -25,7 +26,7 @@
 #include "util/qt_dirs.hpp"
 #include "util/shared_input_item.hpp"
 
-namespace vlc {
+namespace heimdall {
   namespace playlist {
 
 class Media
@@ -63,7 +64,7 @@ public:
             int i_options = 0;
 
             ppsz_options = new char *[options.count()];
-            auto optionDeleter = vlc::wrap_carray<char*>(ppsz_options, [&i_options](char *ptr[]) {
+            auto optionDeleter = heimdall::wrap_carray<char*>(ppsz_options, [&i_options](char *ptr[]) {
                 for(int i = 0; i < i_options; i++)
                     free(ptr[i]);
                 delete[] ptr;
@@ -77,7 +78,7 @@ public:
                     throw std::bad_alloc();
                 i_options++;
             }
-            input_item_AddOptions( ptr.get(), i_options, ppsz_options, VLC_INPUT_OPTION_TRUSTED );
+            input_item_AddOptions( ptr.get(), i_options, ppsz_options, HEIMDALL_INPUT_OPTION_TRUSTED );
         }
     }
 
@@ -96,6 +97,6 @@ private:
 };
 
   } // namespace playlist
-} // namespace vlc
+} // namespace heimdall
 
 #endif

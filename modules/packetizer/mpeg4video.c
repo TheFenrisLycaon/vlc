@@ -2,6 +2,7 @@
  * mpeg4video.c: mpeg 4 video packetizer
  *****************************************************************************
  * Copyright (C) 2001-2006 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gildas Bazin <gbazin@videolan.org>
  *          Laurent Aimar <fenrir@via.ecp.fr>
@@ -30,14 +31,14 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_sout.h>
-#include <vlc_codec.h>
-#include <vlc_block.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_sout.h>
+#include <heimdall_codec.h>
+#include <heimdall_block.h>
 
-#include <vlc_bits.h>
-#include <vlc_block_helper.h>
+#include <heimdall_bits.h>
+#include <heimdall_block_helper.h>
 #include "packetizer_helper.h"
 #include "startcode_helper.h"
 #include "h26x_nal_common.h"
@@ -45,15 +46,15 @@
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  Open ( vlc_object_t * );
-static void Close( vlc_object_t * );
+static int  Open ( heimdall_object_t * );
+static void Close( heimdall_object_t * );
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_subcategory( SUBCAT_SOUT_PACKETIZER )
     set_description( N_("MPEG4 video packetizer") )
     set_capability( "video packetizer", 50 )
     set_callbacks( Open, Close )
-vlc_module_end ()
+heimdall_module_end ()
 
 /****************************************************************************
  * Local prototypes
@@ -68,9 +69,9 @@ typedef struct
     /*
      * Common properties
      */
-    vlc_tick_t i_interpolated_pts;
-    vlc_tick_t i_interpolated_dts;
-    vlc_tick_t i_last_ref_pts;
+    heimdall_tick_t i_interpolated_pts;
+    heimdall_tick_t i_interpolated_dts;
+    heimdall_tick_t i_last_ref_pts;
     uint64_t i_last_time_ref;
     uint64_t i_time_ref;
     int64_t i_last_time;
@@ -125,17 +126,17 @@ static const uint8_t p_mp4v_startcode[3] = { 0x00, 0x00, 0x01 };
 /*****************************************************************************
  * Open: probe the packetizer and return score
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     decoder_t     *p_dec = (decoder_t*)p_this;
     decoder_sys_t *p_sys;
 
-    if( p_dec->fmt_in->i_codec != VLC_CODEC_MP4V )
-        return VLC_EGENERIC;
+    if( p_dec->fmt_in->i_codec != HEIMDALL_CODEC_MP4V )
+        return HEIMDALL_EGENERIC;
 
     /* Allocate the memory needed to store the decoder's structure */
     if( ( p_dec->p_sys = p_sys = malloc( sizeof(decoder_sys_t) ) ) == NULL )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     memset( p_sys, 0, sizeof(decoder_sys_t) );
 
     /* Misc init */
@@ -150,7 +151,7 @@ static int Open( vlc_object_t *p_this )
 
     /* Setup properties */
     es_format_Copy( &p_dec->fmt_out, p_dec->fmt_in );
-    p_dec->fmt_out.i_codec = VLC_CODEC_MP4V;
+    p_dec->fmt_out.i_codec = HEIMDALL_CODEC_MP4V;
 
     if( p_dec->fmt_out.i_extra )
     {
@@ -165,13 +166,13 @@ static int Open( vlc_object_t *p_this )
     p_dec->pf_flush = PacketizeFlush;
     p_dec->pf_get_cc = NULL;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * Close: clean up the packetizer
  *****************************************************************************/
-static void Close( vlc_object_t *p_this )
+static void Close( heimdall_object_t *p_this )
 {
     decoder_t *p_dec = (decoder_t*)p_this;
     decoder_sys_t *p_sys = p_dec->p_sys;
@@ -217,7 +218,7 @@ static void PacketizeReset( void *p_private, bool b_flush )
 
     p_sys->i_interpolated_pts =
     p_sys->i_interpolated_dts =
-    p_sys->i_last_ref_pts = VLC_TICK_INVALID;
+    p_sys->i_last_ref_pts = HEIMDALL_TICK_INVALID;
 
     p_sys->i_last_time_ref =
     p_sys->i_time_ref =
@@ -228,8 +229,8 @@ static void PacketizeReset( void *p_private, bool b_flush )
 static block_t *PacketizeParse( void *p_private, bool *pb_ts_used, block_t *p_block )
 {
     decoder_t *p_dec = p_private;
-    const vlc_tick_t i_dts = p_block->i_dts;
-    const vlc_tick_t i_pts = p_block->i_pts;
+    const heimdall_tick_t i_dts = p_block->i_dts;
+    const heimdall_tick_t i_pts = p_block->i_pts;
 
     block_t *p_au = ParseMPEGBlock( p_dec, p_block );
 
@@ -246,18 +247,18 @@ static int PacketizeValidate( void *p_private, block_t *p_au )
 
     /* We've just started the stream, wait for the first PTS.
      * We discard here so we can still get the sequence header. */
-    if( p_sys->i_interpolated_pts == VLC_TICK_INVALID &&
-        p_sys->i_interpolated_dts == VLC_TICK_INVALID )
+    if( p_sys->i_interpolated_pts == HEIMDALL_TICK_INVALID &&
+        p_sys->i_interpolated_dts == HEIMDALL_TICK_INVALID )
     {
         msg_Dbg( p_dec, "need a starting pts/dts" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* When starting the stream we can have the first frame with
      * a null DTS (i_interpolated_pts is initialized to 0) */
-    if( p_au->i_dts == VLC_TICK_INVALID )
+    if( p_au->i_dts == HEIMDALL_TICK_INVALID )
         p_au->i_dts = p_au->i_pts;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -334,7 +335,7 @@ static block_t *ParseMPEGBlock( decoder_t *p_dec, block_t *p_frag )
     }
     else
     if( i_startcode == VOP_START_CODE &&
-        ParseVOP( p_dec, p_frag ) == VLC_SUCCESS )
+        ParseVOP( p_dec, p_frag ) == HEIMDALL_SUCCESS )
     {
         /* We are dealing with a VOP */
         p_pic = block_ChainGather( p_sys->p_frame );
@@ -365,7 +366,7 @@ static int ParseVOL( decoder_t *p_dec, es_format_t *fmt,
     for( ;; )
     {
         if( i_vol <= 5 )
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
         uint32_t i_startcode = GetDWBE( p_vol );
         if( i_startcode >= VIDEO_OBJECT_LAYER_START_CODE &&
@@ -427,16 +428,16 @@ static int ParseVOL( decoder_t *p_dec, es_format_t *fmt,
         bs_skip( &s, 4 );
     }
 
-    if( !bs_read1( &s ) ) return VLC_EGENERIC; /* Marker */
+    if( !bs_read1( &s ) ) return HEIMDALL_EGENERIC; /* Marker */
 
     p_sys->i_fps_num = bs_read( &s, 16 ); /* Time increment resolution*/
     if( !p_sys->i_fps_num ) p_sys->i_fps_num = 1;
 
-    if( !bs_read1( &s ) ) return VLC_EGENERIC; /* Marker */
+    if( !bs_read1( &s ) ) return HEIMDALL_EGENERIC; /* Marker */
 
     if( bs_read1( &s ) )
     {
-        unsigned i_time_increment_bits = vlc_log2( p_sys->i_fps_num - 1 ) + 1;
+        unsigned i_time_increment_bits = heimdall_log2( p_sys->i_fps_num - 1 ) + 1;
 
         bs_skip( &s, i_time_increment_bits ); /* i_fps_den */
     }
@@ -449,7 +450,7 @@ static int ParseVOL( decoder_t *p_dec, es_format_t *fmt,
         bs_skip( &s, 1 );
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int ParseVO( decoder_t *p_dec, block_t *p_vo )
@@ -492,7 +493,7 @@ static int ParseVO( decoder_t *p_dec, block_t *p_vo )
         }
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int ParseVOP( decoder_t *p_dec, block_t *p_vop )
@@ -523,7 +524,7 @@ static int ParseVOP( decoder_t *p_dec, block_t *p_vop )
     }
 
     while( bs_read( &s, 1 ) ) i_modulo_time_base++;
-    if( !bs_read1( &s ) ) return VLC_EGENERIC; /* Marker */
+    if( !bs_read1( &s ) ) return HEIMDALL_EGENERIC; /* Marker */
 
     /* Interpolate PTS/DTS */
     if( !(p_sys->i_flags & BLOCK_FLAG_TYPE_B) )
@@ -542,7 +543,7 @@ static int ParseVOP( decoder_t *p_dec, block_t *p_vop )
     if( p_sys->i_fps_num )
     {
         /* VOP time increment */
-        unsigned i_time_increment_bits = vlc_log2(p_sys->i_fps_num - 1) + 1;
+        unsigned i_time_increment_bits = heimdall_log2(p_sys->i_fps_num - 1) + 1;
         i_time_increment = bs_read( &s, i_time_increment_bits );
 
         int64_t i_time_diff = (i_time_ref + i_time_increment) - (p_sys->i_last_time + p_sys->i_last_timeincr);
@@ -560,14 +561,14 @@ static int ParseVOP( decoder_t *p_dec, block_t *p_vop )
         p_dec->fmt_in->video.i_frame_rate > 0 &&
         p_dec->fmt_in->video.i_frame_rate_base > 0 )
     {
-        p_sys->i_interpolated_pts += vlc_tick_from_samples(
+        p_sys->i_interpolated_pts += heimdall_tick_from_samples(
         p_dec->fmt_in->video.i_frame_rate_base,
         p_dec->fmt_in->video.i_frame_rate);
     }
     else
     {
         int64_t i_time_diff = (i_time_ref + i_time_increment) - (p_sys->i_last_time + p_sys->i_last_timeincr);
-        p_sys->i_interpolated_pts += vlc_tick_from_samples( i_time_diff, p_sys->i_fps_num );
+        p_sys->i_interpolated_pts += heimdall_tick_from_samples( i_time_diff, p_sys->i_fps_num );
     }
 
 #if 0
@@ -581,9 +582,9 @@ static int ParseVOP( decoder_t *p_dec, block_t *p_vop )
         p_sys->i_last_timeincr = i_time_increment;
 
     /* Correct interpolated dts when we receive a new pts/dts */
-    if( p_vop->i_pts != VLC_TICK_INVALID )
+    if( p_vop->i_pts != HEIMDALL_TICK_INVALID )
         p_sys->i_interpolated_pts = p_vop->i_pts;
-    if( p_vop->i_dts != VLC_TICK_INVALID )
+    if( p_vop->i_dts != HEIMDALL_TICK_INVALID )
         p_sys->i_interpolated_dts = p_vop->i_dts;
 
     if( (p_sys->i_flags & BLOCK_FLAG_TYPE_B) || !p_sys->b_frame )
@@ -592,20 +593,20 @@ static int ParseVOP( decoder_t *p_dec, block_t *p_vop )
 
         p_sys->i_interpolated_dts = p_sys->i_interpolated_pts;
 
-        if( p_vop->i_pts != VLC_TICK_INVALID )
+        if( p_vop->i_pts != HEIMDALL_TICK_INVALID )
             p_sys->i_interpolated_dts = p_vop->i_pts;
-        if( p_vop->i_dts != VLC_TICK_INVALID )
+        if( p_vop->i_dts != HEIMDALL_TICK_INVALID )
             p_sys->i_interpolated_dts = p_vop->i_dts;
 
         p_sys->i_interpolated_pts = p_sys->i_interpolated_dts;
     }
     else
     {
-        if( p_sys->i_last_ref_pts != VLC_TICK_INVALID )
+        if( p_sys->i_last_ref_pts != HEIMDALL_TICK_INVALID )
             p_sys->i_interpolated_dts = p_sys->i_last_ref_pts;
 
         p_sys->i_last_ref_pts = p_sys->i_interpolated_pts;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

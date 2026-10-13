@@ -2,6 +2,7 @@
  * secret.c: libsecret keystore module
  *****************************************************************************
  * Copyright © 2015-2016 VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -22,20 +23,20 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_keystore.h>
-#include <vlc_interrupt.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_keystore.h>
+#include <heimdall_interrupt.h>
 
 #include <assert.h>
 
 #include <libsecret/secret.h>
 #include <gio/gdbusnamewatching.h>
 
-static int Open(vlc_object_t *);
-static void Close(vlc_object_t *);
+static int Open(heimdall_object_t *);
+static void Close(heimdall_object_t *);
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname(N_("libsecret keystore"))
     set_description(N_("Secrets are stored via libsecret"))
     set_subcategory(SUBCAT_ADVANCED_MISC)
@@ -43,7 +44,7 @@ vlc_module_begin()
     set_callbacks(Open, Close)
     /* Since we can't destroy gdbus_shared_thread_func */
     cannot_unload_broken_library()
-vlc_module_end ()
+heimdall_module_end ()
 
 static const char *const ppsz_keys[] = {
     "protocol",
@@ -78,7 +79,7 @@ static GCancellable *cancellable_register(void)
     GCancellable *p_canc = g_cancellable_new();
     if (!p_canc)
         return NULL;
-    vlc_interrupt_register(cancellable_interrupted, p_canc);
+    heimdall_interrupt_register(cancellable_interrupted, p_canc);
     return p_canc;
 }
 
@@ -86,7 +87,7 @@ static void cancellable_unregister(GCancellable *p_canc)
 {
     if (p_canc != NULL)
     {
-        vlc_interrupt_unregister();
+        heimdall_interrupt_unregister();
         g_object_unref(p_canc);
     }
 }
@@ -124,32 +125,32 @@ static int
 ghashtable_to_values(GHashTable *g_hash, const char *ppsz_values[KEY_MAX])
 {
     g_hash_table_foreach(g_hash, ghash_to_value, ppsz_values);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void
-ghashtable_insert_vlc_id(GHashTable *g_hash)
+ghashtable_insert_heimdall_id(GHashTable *g_hash)
 {
     g_hash_table_insert(g_hash, (gpointer) ".created_by",
-                        (gpointer) VLC_KEYSTORE_NAME);
+                        (gpointer) HEIMDALL_KEYSTORE_NAME);
 }
 
 static int
-Store(vlc_keystore *p_keystore, const char *const ppsz_values[KEY_MAX],
+Store(heimdall_keystore *p_keystore, const char *const ppsz_values[KEY_MAX],
       const uint8_t *p_secret, size_t i_secret_len, const char *psz_label)
 {
     SecretService *p_ss = (SecretService *) p_keystore->p_sys;
     GHashTable *p_hash = values_to_ghashtable(ppsz_values);
     if (!p_hash)
-        return VLC_EGENERIC;
-    ghashtable_insert_vlc_id(p_hash);
+        return HEIMDALL_EGENERIC;
+    ghashtable_insert_heimdall_id(p_hash);
 
     SecretValue *p_sv = secret_value_new((const gchar *)p_secret, i_secret_len,
                                          "text/plain");
     if (!p_sv)
     {
         g_hash_table_unref(p_hash);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     GCancellable *p_canc = cancellable_register();
@@ -160,7 +161,7 @@ Store(vlc_keystore *p_keystore, const char *const ppsz_values[KEY_MAX],
 
     secret_value_unref(p_sv);
     g_hash_table_unref(p_hash);
-    return b_ret ? VLC_SUCCESS : VLC_EGENERIC;
+    return b_ret ? HEIMDALL_SUCCESS : HEIMDALL_EGENERIC;
 }
 
 static GList*
@@ -171,9 +172,9 @@ items_search(SecretService *p_ss, const char *const ppsz_values[KEY_MAX],
     if (!p_hash)
         return 0;
 
-    /* If true, do not allow to remove non VLC entries */
+    /* If true, do not allow to remove non Heimdall entries */
     if (b_safe)
-        ghashtable_insert_vlc_id(p_hash);
+        ghashtable_insert_heimdall_id(p_hash);
 
     GCancellable *p_canc = cancellable_register();
     GList *p_list = secret_service_search_sync(p_ss, NULL, p_hash,
@@ -187,8 +188,8 @@ items_search(SecretService *p_ss, const char *const ppsz_values[KEY_MAX],
 }
 
 static unsigned int
-Find(vlc_keystore *p_keystore, const char *const ppsz_values[KEY_MAX],
-     vlc_keystore_entry **pp_entries)
+Find(heimdall_keystore *p_keystore, const char *const ppsz_values[KEY_MAX],
+     heimdall_keystore_entry **pp_entries)
 {
     SecretService *p_ss = (SecretService *) p_keystore->p_sys;
 
@@ -198,8 +199,8 @@ Find(vlc_keystore *p_keystore, const char *const ppsz_values[KEY_MAX],
 
     unsigned int i_found_count = g_list_length(p_list);
     unsigned int i_entry_count = 0;
-    vlc_keystore_entry *p_entries = calloc(i_found_count,
-                                           sizeof(vlc_keystore_entry));
+    heimdall_keystore_entry *p_entries = calloc(i_found_count,
+                                           sizeof(heimdall_keystore_entry));
     if (!p_entries)
         goto error;
 
@@ -208,7 +209,7 @@ Find(vlc_keystore *p_keystore, const char *const ppsz_values[KEY_MAX],
         SecretItem *p_item = (SecretItem *) l->data;
         GHashTable *p_attrs = secret_item_get_attributes(p_item);
 
-        vlc_keystore_entry *p_entry = &p_entries[i_entry_count++];
+        heimdall_keystore_entry *p_entry = &p_entries[i_entry_count++];
         /* fill ppsz_values */
         if (ghashtable_to_values(p_attrs, (const char **) p_entry->ppsz_values))
         {
@@ -223,7 +224,7 @@ Find(vlc_keystore *p_keystore, const char *const ppsz_values[KEY_MAX],
         const gchar *psz_value = secret_value_get(p_secret_value, &i_len);
         if (i_len > 0)
         {
-            if (vlc_keystore_entry_set_secret(p_entry,
+            if (heimdall_keystore_entry_set_secret(p_entry,
                                               (const uint8_t *)psz_value, i_len))
             {
                 secret_value_unref(p_secret_value);
@@ -239,12 +240,12 @@ Find(vlc_keystore *p_keystore, const char *const ppsz_values[KEY_MAX],
 error:
     g_list_free_full(p_list, g_object_unref);
     if (i_entry_count > 0)
-        vlc_keystore_release_entries(p_entries, i_entry_count);
+        heimdall_keystore_release_entries(p_entries, i_entry_count);
     return 0;
 }
 
 static unsigned int
-Remove(vlc_keystore *p_keystore, const char *const ppsz_values[KEY_MAX])
+Remove(heimdall_keystore *p_keystore, const char *const ppsz_values[KEY_MAX])
 {
     SecretService *p_ss = (SecretService *) p_keystore->p_sys;
 
@@ -303,7 +304,7 @@ check_service_running(void)
     static atomic_int cache_running = 0;
     int running = atomic_load_explicit(&cache_running, memory_order_relaxed);
     if (running != 0)
-        return running == 1 ? VLC_SUCCESS : VLC_EGENERIC;
+        return running == 1 ? HEIMDALL_SUCCESS : HEIMDALL_EGENERIC;
 
     /* First, check if secrets service is running using g_bus_watch_name().
      * Indeed, secret_service_get_sync will spawn a service if it's not
@@ -314,7 +315,7 @@ check_service_running(void)
      * the thread-default one, that is where g_bus_watch_name() attaches. */
     GMainContext *ctx = g_main_context_new();
     if (unlikely(ctx == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     g_main_context_push_thread_default(ctx);
 
@@ -323,7 +324,7 @@ check_service_running(void)
     {
         g_main_context_pop_thread_default(ctx);
         g_main_context_unref(ctx);
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     struct secrets_watch_data watch_data = {
@@ -337,11 +338,11 @@ check_service_running(void)
                                   dbus_appeared_cb, dbus_vanished_cb,
                                   &watch_data, NULL);
 
-    vlc_interrupt_register(mainloop_interrupted, &watch_data);
+    heimdall_interrupt_register(mainloop_interrupted, &watch_data);
 
     g_main_loop_run(loop);
 
-    vlc_interrupt_unregister();
+    heimdall_interrupt_unregister();
 
     g_bus_unwatch_name(i_id);
 
@@ -353,16 +354,16 @@ check_service_running(void)
     atomic_store_explicit(&cache_running, watch_data.b_running ? 1 : -1,
                           memory_order_relaxed);
 
-    return watch_data.b_running ? VLC_SUCCESS : VLC_EGENERIC;
+    return watch_data.b_running ? HEIMDALL_SUCCESS : HEIMDALL_EGENERIC;
 }
 
 static int
-Open(vlc_object_t *p_this)
+Open(heimdall_object_t *p_this)
 {
     if (!p_this->force)
     {
         int ret = check_service_running();
-        if (ret != VLC_SUCCESS)
+        if (ret != HEIMDALL_SUCCESS)
             return ret;
     }
 
@@ -371,22 +372,22 @@ Open(vlc_object_t *p_this)
                                                   p_canc, NULL);
     cancellable_unregister(p_canc);
     if (!p_ss)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    vlc_keystore *p_keystore = (vlc_keystore *)p_this;
+    heimdall_keystore *p_keystore = (heimdall_keystore *)p_this;
 
-    p_keystore->p_sys = (vlc_keystore_sys *) p_ss;
+    p_keystore->p_sys = (heimdall_keystore_sys *) p_ss;
     p_keystore->pf_store = Store;
     p_keystore->pf_find = Find;
     p_keystore->pf_remove = Remove;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void
-Close(vlc_object_t *p_this)
+Close(heimdall_object_t *p_this)
 {
-    vlc_keystore *p_keystore = (vlc_keystore *)p_this;
+    heimdall_keystore *p_keystore = (heimdall_keystore *)p_this;
     SecretService *p_ss = (SecretService *) p_keystore->p_sys;
     g_object_unref(p_ss);
     secret_service_disconnect();

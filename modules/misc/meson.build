@@ -1,12 +1,12 @@
 # stats module
-vlc_modules += {
+heimdall_modules += {
     'name' : 'stats',
     'sources' : files('stats.c'),
     'plugin_dir' : 'misc',
 }
 
 # audioscrobbler module
-vlc_modules += {
+heimdall_modules += {
     'name' : 'audioscrobbler',
     'sources' : files('audioscrobbler.c'),
     'dependencies' : [threads_dep, socket_libs],
@@ -14,7 +14,7 @@ vlc_modules += {
 }
 
 # export module
-vlc_modules += {
+heimdall_modules += {
     'name' : 'export',
     'sources' : files(
         'playlist/export.c',
@@ -26,21 +26,21 @@ vlc_modules += {
 }
 
 # audio fingerprinter module
-vlc_modules += {
+heimdall_modules += {
     'name' : 'fingerprinter',
     'sources' : files(
         'fingerprinter.c',
         'webservices/acoustid.c',
     ),
     'dependencies' : [m_lib],
-    'link_with' : vlc_json_lib,
+    'link_with' : heimdall_json_lib,
     'plugin_dir' : 'misc',
 }
 
 # libxml2 module
 libxml2_dep = dependency('libxml-2.0', version: '>= 2.5', required: get_option('libxml2'))
 if libxml2_dep.found()
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'xml',
         'sources' : files('xml/libxml.c'),
         'dependencies' : [libxml2_dep],
@@ -51,7 +51,7 @@ endif
 # medialibrary module
 medialibrary_dep = dependency('medialibrary', version: '>= 0.13', required: get_option('medialibrary'), method: 'pkg-config')
 if medialibrary_dep.found()
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'medialibrary',
         'sources' : files(
             'medialibrary/medialibrary.cpp',
@@ -79,7 +79,7 @@ endif
 
 # Securetransport
 if host_system == 'darwin'
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'securetransport',
         'sources' : files('securetransport.c'),
         'dependencies' : [security_dep, corefoundation_dep],
@@ -98,7 +98,7 @@ if gnutls_dep.found()
         gnutls_darwin_deps = [corefoundation_dep, security_dep]
     endif
 
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'gnutls',
         'sources' : files('gnutls.c'),
         'dependencies' : [gnutls_dep, gnutls_darwin_deps],
@@ -108,7 +108,7 @@ endif
 
 # IOKit inhibit module (macOS only)
 if have_osx
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'iokit_inhibit',
         'sources' : files('inhibit/iokit-inhibit.c'),
         'dependencies' : [corefoundation_dep, iokit_dep],
@@ -117,7 +117,7 @@ if have_osx
 endif
 
 if have_ios or have_tvos
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'uikit_inhibit',
         'sources' : files('inhibit/uikit-inhibit.m'),
         'dependencies' : [uikit_dep, foundation_dep],
@@ -128,13 +128,13 @@ endif
 
 if get_option('addon_manager')
     # Add-on manager module
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'addonsvorepository',
         'sources' : files('addons/vorepository.c'),
         'plugin_dir' : 'misc',
     }
     # Add-on filesystem storage module
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'addonsfsstorage',
         'sources' : files('addons/fsstorage.c'),
         'plugin_dir' : 'misc',
@@ -158,7 +158,7 @@ if have_wayland
         command: [wayland_scanner, 'private-code', '@INPUT@', '@OUTPUT@'],
     )
 
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'wl_idle_inhibit',
         'sources' : [
             files('inhibit/wl-idle-inhibit.c'),
@@ -172,7 +172,7 @@ endif
 
 # XCB screensaver inhibit module
 if xcb_dep.found()
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'xdg_screensaver',
         'sources' : files('inhibit/xdg.c'),
         'dependencies' : [xcb_dep],
@@ -182,7 +182,7 @@ endif
 
 # DBUS
 if dbus_dep.found()
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'dbus_screensaver',
         'sources' : files('inhibit/dbus.c'),
         'dependencies' : [dbus_dep],

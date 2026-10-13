@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2020 VideoLAN and AUTHORS
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,7 +24,7 @@
 #include <QObject>
 #include <QWindow>
 #include <QPointer>
-#include "util/vlchotkeyconverter.hpp"
+#include "util/heimdallhotkeyconverter.hpp"
 
 class MainCtx;
 class InterfaceWindowHandler : public QObject
@@ -87,7 +88,7 @@ protected:
 
     QRect m_interfaceGeometry;
 
-    WheelToVLCConverter m_wheelAccumulator;
+    WheelToHeimdallConverter m_wheelAccumulator;
 
     static const Qt::Key kc[10]; /* easter eggs */
     int i_kc_offset = 0;

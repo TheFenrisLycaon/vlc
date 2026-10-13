@@ -2,6 +2,7 @@
  * subpic.c:
  *****************************************************************************
  * Copyright © 2018-2020 John Cox
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: John Cox <jc@kynesim.co.uk>
  *
@@ -24,8 +25,8 @@
 #include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_codec.h>
+#include <heimdall_common.h>
+#include <heimdall_codec.h>
 
 #include <interface/mmal/mmal.h>
 
@@ -56,7 +57,7 @@ void hw_mmal_subpic_close(subpic_reg_stash_t * const spe)
     *spe = (subpic_reg_stash_t){NULL};
 }
 
-MMAL_STATUS_T hw_mmal_subpic_open(vlc_object_t * const obj, subpic_reg_stash_t * const spe, MMAL_PORT_T * const port,
+MMAL_STATUS_T hw_mmal_subpic_open(heimdall_object_t * const obj, subpic_reg_stash_t * const spe, MMAL_PORT_T * const port,
                                   const int display_id, const unsigned int layer)
 {
     MMAL_STATUS_T err;
@@ -86,7 +87,7 @@ MMAL_STATUS_T hw_mmal_subpic_open(vlc_object_t * const obj, subpic_reg_stash_t *
 
 static void conv_subpic_cb(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buf)
 {
-    VLC_UNUSED(port);
+    HEIMDALL_UNUSED(port);
 
     mmal_buffer_header_release(buf);  // Will extract & release pic in pool callback
 }
@@ -115,7 +116,7 @@ static MMAL_STATUS_T port_send_replicated(MMAL_PORT_T * const port, MMAL_POOL_T 
     return MMAL_SUCCESS;
 }
 
-int hw_mmal_subpic_update(vlc_object_t * const obj,
+int hw_mmal_subpic_update(heimdall_object_t * const obj,
     MMAL_BUFFER_HEADER_T * const sub_buf,
     subpic_reg_stash_t * const spe,
     const video_format_t * const fmt,

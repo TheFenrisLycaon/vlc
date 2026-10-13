@@ -2,6 +2,7 @@
  * hls.h
  *****************************************************************************
  * Copyright (C) 2023 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -44,7 +45,7 @@ static inline int hls_playlist_type_FromString(const char *str,
         if (!strcmp(str, HLS_PLAYLIST_TYPE_STRINGS[i]))
         {
             *out = (enum hls_playlist_type)i;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
     }
     return -ENOENT;
@@ -56,8 +57,8 @@ struct hls_config
     char *outdir;
     unsigned int max_segments;
     bool pace;
-    vlc_tick_t segment_length;
-    vlc_tick_t max_segment_length;
+    heimdall_tick_t segment_length;
+    heimdall_tick_t max_segment_length;
     size_t max_memory;
     enum hls_playlist_type preferred_type;
     bool legacy_codecs;
@@ -81,6 +82,6 @@ hls_config_IsMemStorageEnabled(const struct hls_config *config)
 struct hls_sub_segmenter;
 sout_mux_t *CreateSubtitleSegmenter(sout_access_out_t *access,
                                     const struct hls_config *config);
-void hls_sub_segmenter_SignalStreamUpdate(sout_mux_t *, vlc_tick_t);
+void hls_sub_segmenter_SignalStreamUpdate(sout_mux_t *, heimdall_tick_t);
 
 #endif

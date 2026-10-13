@@ -1,10 +1,11 @@
 /*****************************************************************************
- * adjust_sat_hue.h : Hue/Saturation executive part of adjust plugin for vlc
+ * adjust_sat_hue.h : Hue/Saturation executive part of adjust plugin for heimdall
  *****************************************************************************
  * Copyright (C) 2011 VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Simon Latapie <garf@via.ecp.fr>
- *          Antoine Cellerier <dionoea -at- videolan d0t org>
+ *          Antoine Cellerier <dionoea -at- lycaria d0t org>
  *          Martin Briza <gamajun@seznam.cz> (SSE)
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -22,8 +23,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#include <vlc_common.h>
-#include <vlc_cpu.h>
+#include <heimdall_common.h>
+#include <heimdall_cpu.h>
 
 /**
  * Functions processing saturation and hue of adjust filter.

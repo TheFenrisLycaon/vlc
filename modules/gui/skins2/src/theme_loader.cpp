@@ -2,6 +2,7 @@
  * theme_loader.cpp
  *****************************************************************************
  * Copyright (C) 2003 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cyril Deguet     <asmax@via.ecp.fr>
  *          Olivier Teulière <ipkiss@via.ecp.fr>
@@ -31,19 +32,19 @@
 #include <fstream>
 #include <memory>
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_fs.h>
-#include <vlc_url.h>
-#include <vlc_stream_extractor.h>
-#include <vlc_charset.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_fs.h>
+#include <heimdall_url.h>
+#include <heimdall_stream_extractor.h>
+#include <heimdall_charset.h>
 
 #include "theme_loader.hpp"
 #include "theme.hpp"
 #include "../parser/builder.hpp"
 #include "../parser/skin_parser.hpp"
 #include "../src/os_factory.hpp"
-#include "../src/vlcproc.hpp"
+#include "../src/heimdallproc.hpp"
 #include "../src/window_manager.hpp"
 
 #define DEFAULT_XML_FILE "theme.xml"
@@ -69,7 +70,7 @@ static inline std::string sFromLocale( const std::string &rLocale )
  */
 static int makedir( const char *newdir )
 {
-    int ret = vlc_mkdir_parent(newdir, 0775);
+    int ret = heimdall_mkdir_parent(newdir, 0775);
     if (ret == 0)
         return 1;
     fprintf(stderr, "couldn't create directory %s\n", newdir);
@@ -82,7 +83,7 @@ bool ThemeLoader::load( const std::string &fileName )
 
     //Before all, let's see if the file is present
     struct stat p_stat;
-    if( vlc_stat( fileName.c_str(), &p_stat ) )
+    if( heimdall_stat( fileName.c_str(), &p_stat ) )
         return false;
 
     // First, we try to un-targz the file, and if it fails we hope it's a XML
@@ -173,12 +174,12 @@ bool ThemeLoader::unarchive( const std::string& fileName, const std::string &tem
 
     auto make_input_node_ptr = UPTR_HELPER( input_item_node_t, &input_item_node_Delete );
     auto make_input_item_ptr = UPTR_HELPER( input_item_t, &input_item_Release );
-    auto make_stream_ptr = UPTR_HELPER( stream_t, &vlc_stream_Delete );
+    auto make_stream_ptr = UPTR_HELPER( stream_t, &heimdall_stream_Delete );
     auto make_cstr_ptr = UPTR_HELPER( char, &std::free );
 
 #undef UPTR_HELPER
 
-    auto uri = make_cstr_ptr( vlc_path2uri( fileName.c_str(), "file" ) );
+    auto uri = make_cstr_ptr( heimdall_path2uri( fileName.c_str(), "file" ) );
     if( !uri )
     {
         msg_Err( getIntf(), "unable to convert %s to local URI",
@@ -186,7 +187,7 @@ bool ThemeLoader::unarchive( const std::string& fileName, const std::string &tem
         return false;
     }
 
-    auto input = make_stream_ptr( vlc_stream_NewURL( getIntf(), uri.get() ) );
+    auto input = make_stream_ptr( heimdall_stream_NewURL( getIntf(), uri.get() ) );
     if( !input )
     {
         msg_Err( getIntf(), "unable to open %s", uri.get() );
@@ -194,7 +195,7 @@ bool ThemeLoader::unarchive( const std::string& fileName, const std::string &tem
     }
 
     stream_t* stream = input.get();
-    if( vlc_stream_directory_Attach( &stream, NULL, NULL, 0 ) )
+    if( heimdall_stream_directory_Attach( &stream, NULL, NULL, 0 ) )
     {
         msg_Err( getIntf(), "unable to attach stream_directory, treat as XML!" );
     }
@@ -203,17 +204,17 @@ bool ThemeLoader::unarchive( const std::string& fileName, const std::string &tem
         input.release();
         input.reset( stream );
 
-        auto item = make_input_item_ptr( input_item_New( "vlc://dummy", "vlc://dummy" ) );
+        auto item = make_input_item_ptr( input_item_New( "heimdall://dummy", "heimdall://dummy" ) );
         auto node = make_input_node_ptr( (input_item_node_t*)std::calloc( 1, sizeof( input_item_node_t ) ) );
 
         if( !item || !node )
             return false;
 
-        input_item_AddOption( item.get(), "ignore-filetypes=\"\"", VLC_INPUT_OPTION_TRUSTED );
-        input_item_AddOption( item.get(), "extractor-flatten", VLC_INPUT_OPTION_TRUSTED );
+        input_item_AddOption( item.get(), "ignore-filetypes=\"\"", HEIMDALL_INPUT_OPTION_TRUSTED );
+        input_item_AddOption( item.get(), "extractor-flatten", HEIMDALL_INPUT_OPTION_TRUSTED );
         node->p_item = item.release();
 
-        if( vlc_stream_ReadDir( input.get(), node.get() ) )
+        if( heimdall_stream_ReadDir( input.get(), node.get() ) )
         {
             msg_Err( getIntf(), "unable to read items in %s", uri.get() );
             return false;
@@ -222,7 +223,7 @@ bool ThemeLoader::unarchive( const std::string& fileName, const std::string &tem
         for( int i = 0; i < node->i_children; ++i )
         {
             auto child = node->pp_children[i]->p_item;
-            auto child_stream = make_stream_ptr( vlc_stream_NewMRL( getIntf(), child->psz_uri ) );
+            auto child_stream = make_stream_ptr( heimdall_stream_NewMRL( getIntf(), child->psz_uri ) );
             if( !child_stream )
             {
                 msg_Err( getIntf(), "unable to open %s for reading", child->psz_name );
@@ -234,7 +235,7 @@ bool ThemeLoader::unarchive( const std::string& fileName, const std::string &tem
                 return false;
 #endif
 
-            auto base = make_cstr_ptr( vlc_path2uri( tempPath.c_str(), "file" ) );
+            auto base = make_cstr_ptr( heimdall_path2uri( tempPath.c_str(), "file" ) );
             if( !base )
                 return false;
 
@@ -247,7 +248,7 @@ bool ThemeLoader::unarchive( const std::string& fileName, const std::string &tem
             for( const char *component = child->psz_name; *component; )
             {
                 size_t len = strcspn( component, "/" );
-                auto encoded = make_cstr_ptr( vlc_uri_encode(
+                auto encoded = make_cstr_ptr( heimdall_uri_encode(
                     std::string( component, len ).c_str() ) );
                 if( !encoded )
                     return false;
@@ -258,7 +259,7 @@ bool ThemeLoader::unarchive( const std::string& fileName, const std::string &tem
                     ref += *component++;
             }
 
-            auto resolved = make_cstr_ptr( vlc_uri_resolve( base_uri.c_str(), ref.c_str() ) );
+            auto resolved = make_cstr_ptr( heimdall_uri_resolve( base_uri.c_str(), ref.c_str() ) );
             if( !resolved )
                 return false;
 
@@ -290,7 +291,7 @@ bool ThemeLoader::unarchive( const std::string& fileName, const std::string &tem
                 char buf[1024];
                 ssize_t n;
 
-                while( ( n = vlc_stream_Read( child_stream.get(), buf, sizeof buf ) ) > 0 )
+                while( ( n = heimdall_stream_Read( child_stream.get(), buf, sizeof buf ) ) > 0 )
                     contents.append( buf, n );
 
                 std::ofstream out_stream( out_path, std::ios::binary );
@@ -366,7 +367,7 @@ bool ThemeLoader::findFile( const std::string &rootDir, const std::string &rFile
     const char *pszDirContent;
 
     // Open the dir
-    vlc_DIR *pCurrDir = vlc_opendir( rootDir.c_str() );
+    heimdall_DIR *pCurrDir = heimdall_opendir( rootDir.c_str() );
 
     if( pCurrDir == NULL )
     {
@@ -376,7 +377,7 @@ bool ThemeLoader::findFile( const std::string &rootDir, const std::string &rFile
     }
 
     // While we still have entries in the directory
-    while( ( pszDirContent = vlc_readdir( pCurrDir ) ) != NULL )
+    while( ( pszDirContent = heimdall_readdir( pCurrDir ) ) != NULL )
     {
         std::string newURI = rootDir + sep + pszDirContent;
 
@@ -387,7 +388,7 @@ bool ThemeLoader::findFile( const std::string &rootDir, const std::string &rFile
 #if defined( S_ISDIR )
             struct stat stat_data;
 
-            if( ( vlc_stat( newURI.c_str(), &stat_data ) == 0 )
+            if( ( heimdall_stat( newURI.c_str(), &stat_data ) == 0 )
              && S_ISDIR(stat_data.st_mode) )
 #elif defined( DT_DIR )
             if( pDirContent->d_type & DT_DIR )
@@ -398,7 +399,7 @@ bool ThemeLoader::findFile( const std::string &rootDir, const std::string &rFile
                 // Can we find the file in this subdirectory?
                 if( findFile( newURI, rFileName, themeFilePath ) )
                 {
-                    vlc_closedir( pCurrDir );
+                    heimdall_closedir( pCurrDir );
                     return true;
                 }
             }
@@ -408,18 +409,18 @@ bool ThemeLoader::findFile( const std::string &rootDir, const std::string &rFile
                 if( rFileName == std::string( pszDirContent ) )
                 {
                     themeFilePath = std::move(newURI);
-                    vlc_closedir( pCurrDir );
+                    heimdall_closedir( pCurrDir );
                     return true;
                 }
             }
         }
     }
 
-    vlc_closedir( pCurrDir );
+    heimdall_closedir( pCurrDir );
     return false;
 }
 
-// FIXME: could become a skins2 OS factory function or a vlc core function
+// FIXME: could become a skins2 OS factory function or a heimdall core function
 std::string ThemeLoader::getTmpDir( )
 {
 #if defined( _WIN32 )

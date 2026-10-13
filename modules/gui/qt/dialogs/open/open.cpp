@@ -2,6 +2,7 @@
  * open.cpp : Advanced open dialog
  *****************************************************************************
  * Copyright © 2006-2011 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Jean-Baptiste Kempf <jb@videolan.org>
  *
@@ -32,7 +33,7 @@
 #include <QRegularExpression>
 #include <QMenu>
 
-#include <vlc_url.h>
+#include <heimdall_url.h>
 
 #include <cstddef>
 
@@ -41,12 +42,12 @@
 #endif
 
 OpenDialog::OpenDialog(qt_intf_t *_p_intf, QWindow* parent )
-    :  QVLCDialog( parent, _p_intf )
+    :  QHeimdallDialog( parent, _p_intf )
 {
     /* Basic Creation of the Window */
     ui.setupUi( this );
     setWindowTitle( qtr( "Open Media" ) );
-    setWindowRole( "vlc-open-media" );
+    setWindowRole( "heimdall-open-media" );
     setWindowModality( Qt::WindowModal );
 
     /* Tab definition and creation */
@@ -356,11 +357,11 @@ void OpenDialog::enqueue( bool b_enqueue )
     itemsMRL.sort();
 
     /* Go through the item list */
-    QVector<vlc::playlist::Media> medias;
+    QVector<heimdall::playlist::Media> medias;
     /* Take options from the UI, not from what we stored */
     QStringList optionsList = getOptions().split( " :" );
     for( const QString& mrl : itemsMRL)
-        medias.push_back( vlc::playlist::Media{mrl, nullptr, optionsList} );
+        medias.push_back( heimdall::playlist::Media{mrl, nullptr, optionsList} );
     if (!medias.empty())
         THEMPL->append(medias, !b_enqueue);
 }

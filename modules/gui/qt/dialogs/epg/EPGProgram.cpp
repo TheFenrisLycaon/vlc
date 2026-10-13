@@ -2,6 +2,7 @@
  * EPGProgram.cpp:
  ****************************************************************************
  * Copyright © 2016 VideoLAN Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,7 +24,7 @@
 
 #include <QTimeZone>
 
-EPGProgram::EPGProgram( EPGView *view_, const vlc_epg_t *p_epg ) : QObject( view_ )
+EPGProgram::EPGProgram( EPGView *view_, const heimdall_epg_t *p_epg ) : QObject( view_ )
 {
     name = QString(p_epg->psz_name);
     id = p_epg->i_id;
@@ -92,12 +93,12 @@ void EPGProgram::updateEventPos()
         item->updatePos();
 }
 
-void EPGProgram::updateEvents( const vlc_epg_event_t * const * pp_events, size_t i_events,
-                               const vlc_epg_event_t *p_current, QDateTime *mindate )
+void EPGProgram::updateEvents( const heimdall_epg_event_t * const * pp_events, size_t i_events,
+                               const heimdall_epg_event_t *p_current, QDateTime *mindate )
 {
     for( size_t i=0; i<i_events; i++ )
     {
-        const vlc_epg_event_t *p_event = pp_events[i];
+        const heimdall_epg_event_t *p_event = pp_events[i];
         QDateTime eventStart = QDateTime::fromSecsSinceEpoch( p_event->i_start, QTimeZone::systemTimeZone() );
         if( !mindate->isValid() || eventStart < *mindate )
             *mindate = eventStart;

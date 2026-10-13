@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2024 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,14 +19,14 @@
 
 import QtQml
 
-import VLC.MainInterface
-import VLC.Util
-import VLC.Style
+import Heimdall.MainInterface
+import Heimdall.Util
+import Heimdall.Style
 
 FlickableScrollHandler {
     id: handler
 
     scaleFactor: MainCtx.intfScaleFactor
     smoothScroll: MainCtx.smoothScroll
-    duration: VLCStyle.duration_long
+    duration: HeimdallStyle.duration_long
 }

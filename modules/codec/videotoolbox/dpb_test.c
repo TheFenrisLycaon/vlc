@@ -2,6 +2,7 @@
  * dpb_test.c:
  *****************************************************************************
  * Copyright © 2023 VideoLabs, VideoLAN and VLC authors
+ * Copyright (C) 2026 TheFenrisLycaon
   *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -144,7 +145,7 @@ static void CheckDPBWithFramesTest(void)
 
     date_t pts;
     date_Init(&pts, info.field_rate_num, info.field_rate_den);
-    date_Set(&pts, VLC_TICK_0);
+    date_Set(&pts, HEIMDALL_TICK_0);
 
     info.i_foc = 0;
     info.i_poc = info.i_foc & ~1;
@@ -378,7 +379,7 @@ static void CheckDPBWithFieldsTest(void)
     /* Codec stores 1 field per buffer */
     date_t pts;
     date_Init(&pts, info.field_rate_num, info.field_rate_den);
-    date_Set(&pts, VLC_TICK_0);
+    date_Set(&pts, HEIMDALL_TICK_0);
 
     info.b_field = true;
 

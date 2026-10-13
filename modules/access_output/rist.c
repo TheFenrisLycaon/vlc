@@ -2,6 +2,7 @@
  * rist.c: RIST (Reliable Internet Stream Transport) output module
  *****************************************************************************
  * Copyright (C) 2021, SipRadius LLC
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Sergio Ammirata <sergio@ammirata.net>
  *
@@ -24,13 +25,13 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_interrupt.h>
-#include <vlc_plugin.h>
-#include <vlc_sout.h>
-#include <vlc_block.h>
-#include <vlc_rand.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_interrupt.h>
+#include <heimdall_plugin.h>
+#include <heimdall_sout.h>
+#include <heimdall_block.h>
+#include <heimdall_rand.h>
 #ifndef _WIN32
 #include <sys/time.h>
 #endif
@@ -147,9 +148,9 @@ static ssize_t Write( sout_access_out_t *p_access, block_t *p_buffer )
 
 static int Control( sout_access_out_t *p_access, int i_query, va_list args )
 {
-    VLC_UNUSED( p_access );
+    HEIMDALL_UNUSED( p_access );
 
-    int i_ret = VLC_SUCCESS;
+    int i_ret = HEIMDALL_SUCCESS;
 
     switch( i_query )
     {
@@ -158,14 +159,14 @@ static int Control( sout_access_out_t *p_access, int i_query, va_list args )
             break;
 
         default:
-            i_ret = VLC_EGENERIC;
+            i_ret = HEIMDALL_EGENERIC;
             break;
     }
 
     return i_ret;
 }
 
-static void Close( vlc_object_t * p_this )
+static void Close( heimdall_object_t * p_this )
 {
     sout_access_out_t     *p_access = (sout_access_out_t*)p_this;
     sout_access_out_sys_t *p_sys = p_access->p_sys;
@@ -174,25 +175,25 @@ static void Close( vlc_object_t * p_this )
     p_sys->sender_ctx = NULL;
 }
 
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     sout_access_out_t       *p_access = (sout_access_out_t*)p_this;
     sout_access_out_sys_t   *p_sys = NULL;
 
-    if (var_Create ( p_access, "dst-port", VLC_VAR_INTEGER )
-     || var_Create ( p_access, "src-port", VLC_VAR_INTEGER )
-     || var_Create ( p_access, "dst-addr", VLC_VAR_STRING )
-     || var_Create ( p_access, "src-addr", VLC_VAR_STRING ) )
+    if (var_Create ( p_access, "dst-port", HEIMDALL_VAR_INTEGER )
+     || var_Create ( p_access, "src-port", HEIMDALL_VAR_INTEGER )
+     || var_Create ( p_access, "dst-addr", HEIMDALL_VAR_STRING )
+     || var_Create ( p_access, "src-addr", HEIMDALL_VAR_STRING ) )
     {
         msg_Err( p_access, "Valid network information is required." );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     config_ChainParse( p_access, RIST_CFG_PREFIX, ppsz_sout_options, p_access->p_cfg );
 
-    p_sys = vlc_obj_calloc( p_this, 1, sizeof( *p_sys ) );
+    p_sys = heimdall_obj_calloc( p_this, 1, sizeof( *p_sys ) );
     if( unlikely( p_sys == NULL ) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_access->p_sys = p_sys;
 
@@ -201,10 +202,10 @@ static int Open( vlc_object_t *p_this )
     p_sys->gre_dst_port = var_InheritInteger(p_access, RIST_CFG_PREFIX RIST_URL_PARAM_VIRT_DST_PORT);
     if (p_sys->gre_dst_port % 2 != 0) {
         msg_Err( p_access, "Virtual destination port must be an even number." );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    p_sys->i_max_packet_size = rist_get_max_packet_size(VLC_OBJECT(p_access));
+    p_sys->i_max_packet_size = rist_get_max_packet_size(HEIMDALL_OBJECT(p_access));
 
     int i_rist_profile = var_InheritInteger(p_access, RIST_CFG_PREFIX RIST_URL_PARAM_PROFILE);
     int i_verbose_level = var_InheritInteger(p_access, RIST_CFG_PREFIX RIST_URL_PARAM_VERBOSE_LEVEL);
@@ -214,7 +215,7 @@ static int Open( vlc_object_t *p_this )
     struct rist_logging_settings rist_global_logging_settings = LOGGING_SETTINGS_INITIALIZER;
     if (rist_logging_set_global(&rist_global_logging_settings) != 0) {
         msg_Err(p_access,"Could not set logging\n");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     struct rist_logging_settings *logging_settings = &p_sys->logging_settings;
@@ -226,7 +227,7 @@ static int Open( vlc_object_t *p_this )
 
     if (rist_sender_create(&p_sys->sender_ctx, i_rist_profile, 0, logging_settings) != 0) {
         msg_Err( p_access, "Could not create rist sender context\n");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     // Enable stats data
@@ -239,7 +240,7 @@ static int Open( vlc_object_t *p_this )
     int i_recovery_length = var_InheritInteger(p_access, RIST_CFG_PREFIX RIST_CFG_LATENCY);
     p_sys->i_recovery_buffer = i_recovery_length;
 
-    if ( !rist_add_peers(VLC_OBJECT(p_access), p_sys->sender_ctx, p_access->psz_path, i_multipeer_mode, p_sys->gre_dst_port + 1, i_recovery_length) )
+    if ( !rist_add_peers(HEIMDALL_OBJECT(p_access), p_sys->sender_ctx, p_access->psz_path, i_multipeer_mode, p_sys->gre_dst_port + 1, i_recovery_length) )
         goto failed;
 
     if (rist_start(p_sys->sender_ctx) == -1) {
@@ -250,12 +251,12 @@ static int Open( vlc_object_t *p_this )
     p_access->pf_write = Write;
     p_access->pf_control = Control;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 failed:
     rist_destroy(p_sys->sender_ctx);
     p_sys->sender_ctx = NULL;
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 #define SRC_PORT_TEXT N_("Virtual Source Port")
@@ -281,7 +282,7 @@ static const char *const multipeer_mode_type_names[] = {
 };
 
 /* Module descriptor */
-vlc_module_begin()
+heimdall_module_begin()
 
     set_shortname( N_("RIST") )
     set_description( N_("RIST stream output") )
@@ -331,4 +332,4 @@ vlc_module_begin()
 
     set_callbacks( Open, Close )
 
-vlc_module_end ()
+heimdall_module_end ()

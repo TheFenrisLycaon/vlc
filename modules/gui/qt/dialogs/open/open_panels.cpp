@@ -4,6 +4,7 @@
  * Copyright (C) 2006-2009 the VideoLAN team
  * Copyright (C) 2007 Société des arts technologiques
  * Copyright (C) 2007 Savoir-faire Linux
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  *
  * Authors: Clément Stenac <zorglub@videolan.org>
@@ -39,10 +40,10 @@
 #include "util/qt_dirs.hpp"
 #include "util/validators.hpp"
 #include "util/colorizedsvgicon.hpp"
-#include <vlc_intf_strings.h>
-#include <vlc_modules.h>
-#include <vlc_plugin.h>
-#include <vlc_url.h>
+#include <heimdall_intf_strings.h>
+#include <heimdall_modules.h>
+#include <heimdall_plugin.h>
+#include <heimdall_url.h>
 
 #include <QFileDialog>
 #include <QDialogButtonBox>
@@ -609,7 +610,7 @@ void DiscOpenPanel::updateMRL()
     else
         scheme = "cdda";
 
-    char *mrl = vlc_path2uri( qtu(discPath), scheme );
+    char *mrl = heimdall_path2uri( qtu(discPath), scheme );
     if( unlikely(mrl == NULL) )
         return;
 
@@ -762,7 +763,7 @@ void NetOpenPanel::updateMRL()
 
     if( url.contains( QLatin1String( "://" ) ) )
     {
-        char *uri = vlc_uri_fixup( qtu( url ) );
+        char *uri = heimdall_uri_fixup( qtu( url ) );
         if( uri == NULL )
             return;
         url = qfu(uri);
@@ -907,7 +908,7 @@ void CaptureOpenPanel::initialize()
     v4l2PropLayout->addWidget( v4l2StdLabel, 0 , 0 );
 
     v4l2StdBox = new QComboBox;
-    setfillVLCConfigCombo( "v4l2-standard", v4l2StdBox );
+    setfillHeimdallConfigCombo( "v4l2-standard", v4l2StdBox );
     v4l2PropLayout->addWidget( v4l2StdBox, 0 , 1 );
     v4l2PropLayout->addItem( new QSpacerItem( 20, 20, QSizePolicy::Expanding ),
             1, 0, 3, 2 );
@@ -951,7 +952,7 @@ void CaptureOpenPanel::initialize()
     /* Jack Props panel */
 
     /* Pace */
-    jackPace = new QCheckBox(qtr( "Use VLC pace" ));
+    jackPace = new QCheckBox(qtr( "Use Heimdall pace" ));
     jackPropLayout->addWidget( jackPace, 1, 1 );
 
     /* Auto Connect */
@@ -963,7 +964,7 @@ void CaptureOpenPanel::initialize()
     CuMRL( jackPace, &QtCheckboxChanged );
     CuMRL( jackConnect, &QtCheckboxChanged );
     CuMRL( jackPortsSelected, &QLineEdit::textChanged );
-    configList << "jack-input-use-vlc-pace" << "jack-input-auto-connect";
+    configList << "jack-input-use-heimdall-pace" << "jack-input-auto-connect";
     }
 #endif
 
@@ -1052,7 +1053,7 @@ void CaptureOpenPanel::initialize()
     dvbPropLayout->addWidget( dvbBandLabel, 2, 0 );
 
     dvbBandBox = new QComboBox;
-    setfillVLCConfigCombo( "dvb-bandwidth", dvbBandBox );
+    setfillHeimdallConfigCombo( "dvb-bandwidth", dvbBandBox );
     dvbPropLayout->addWidget( dvbBandBox, 2, 1 );
 
     dvbBandLabel->hide();
@@ -1128,7 +1129,7 @@ void CaptureOpenPanel::initialize()
     pvrPropLayout->addWidget( pvrNormLabel, 0, 0 );
 
     pvrNormBox = new QComboBox;
-    setfillVLCConfigCombo( "v4l2-standard", pvrNormBox );
+    setfillHeimdallConfigCombo( "v4l2-standard", pvrNormBox );
     pvrPropLayout->addWidget( pvrNormBox, 0, 1 );
 
     QLabel *pvrFreqLabel = new QLabel( qtr( "Frequency" ) );
@@ -1234,7 +1235,7 @@ void CaptureOpenPanel::updateMRL()
 
         if ( jackPace->isChecked() )
         {
-                mrl += " :jack-input-use-vlc-pace";
+                mrl += " :jack-input-use-heimdall-pace";
         }
         if ( jackConnect->isChecked() )
         {
@@ -1385,7 +1386,7 @@ void CaptureOpenPanel::advancedDialog()
     /* New Adv Prop dialog */
     adv = new QDialog( this );
     adv->setWindowTitle( qtr( "Advanced Options" ) );
-    adv->setWindowRole( "vlc-advanced-options" );
+    adv->setWindowRole( "heimdall-advanced-options" );
 
     /* A main Layout with a Frame */
     QVBoxLayout *mainLayout = new QVBoxLayout( adv );

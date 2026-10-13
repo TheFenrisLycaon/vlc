@@ -1,9 +1,10 @@
 --[[
 
  Copyright © 2010 VideoLAN and AUTHORS
+ Copyright (C) 2026 TheFenrisLycaon
 
- Authors: Fabio Ritrovato <sephiroth87 at videolan dot org>
-          Rémi Duraffort  <ivoire at videolan dot org>
+ Authors: Fabio Ritrovato <sephiroth87 at lycaria dot org>
+          Rémi Duraffort  <ivoire at lycaria dot org>
           Gian Marco Sibilla <techos at jamendo dot com>
 
  This program is free software; you can redistribute it and/or modify
@@ -59,7 +60,7 @@ function lazy_load_xml()
 end
 
 function add_playlist( node_title, ids )
-    local node = vlc.sd.add_node( { title=node_title } )
+    local node = heimdall.sd.add_node( { title=node_title } )
     local subitems = {}
     -- Used to detect duplicated
     local added = {}
@@ -139,5 +140,5 @@ function parse_xml( url )
 end
 
 function log( msg )
-    vlc.msg.dbg( "[JAMENDO] " .. msg )
+    heimdall.msg.dbg( "[JAMENDO] " .. msg )
 end

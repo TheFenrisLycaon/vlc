@@ -2,6 +2,7 @@
  * playlist/control.h
  *****************************************************************************
  * Copyright (C) 2018 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -18,23 +19,23 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_PLAYLIST_CONTROL_H
-#define VLC_PLAYLIST_CONTROL_H
+#ifndef HEIMDALL_PLAYLIST_CONTROL_H
+#define HEIMDALL_PLAYLIST_CONTROL_H
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
-typedef struct vlc_playlist vlc_playlist_t;
-
-bool
-vlc_playlist_ComputeHasPrev(vlc_playlist_t *playlist);
+typedef struct heimdall_playlist heimdall_playlist_t;
 
 bool
-vlc_playlist_ComputeHasNext(vlc_playlist_t *playlist);
+heimdall_playlist_ComputeHasPrev(heimdall_playlist_t *playlist);
+
+bool
+heimdall_playlist_ComputeHasNext(heimdall_playlist_t *playlist);
 
 int
-vlc_playlist_SetCurrentMedia(vlc_playlist_t *playlist, ssize_t index);
+heimdall_playlist_SetCurrentMedia(heimdall_playlist_t *playlist, ssize_t index);
 
 void
-vlc_playlist_UpdateNextMedia(vlc_playlist_t *playlist);
+heimdall_playlist_UpdateNextMedia(heimdall_playlist_t *playlist);
 
 #endif

@@ -3,12 +3,13 @@
  *****************************************************************************
  * Copyright (C) 2003-2009 VLC authors and VideoLAN
  *               2018 VideoLabs, VideoLAN and VLC authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *          Gildas Bazin <gbazin@videolan.org>
  *          Jean-Paul Saman <jpsaman #_at_# m2x dot nl>
- *          Antoine Cellerier <dionoea at videolan dot org>
- *          Ilkka Ollakka <ileoo at videolan dot org>
+ *          Antoine Cellerier <dionoea at lycaria dot org>
+ *          Ilkka Ollakka <ileoo at lycaria dot org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -27,11 +28,11 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_threads.h>
-#include <vlc_modules.h>
-#include <vlc_codec.h>
-#include <vlc_sout.h>
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
+#include <heimdall_modules.h>
+#include <heimdall_codec.h>
+#include <heimdall_sout.h>
 #include "encoder.h"
 #include "encoder_priv.h"
 
@@ -52,11 +53,11 @@ void transcode_video_framerate_apply( const video_format_t *p_src,
         }
     }
 
-    vlc_ureduce( &p_dst->i_frame_rate, &p_dst->i_frame_rate_base,
+    heimdall_ureduce( &p_dst->i_frame_rate, &p_dst->i_frame_rate_base,
                   p_dst->i_frame_rate,  p_dst->i_frame_rate_base, 0 );
 }
 
-static void transcode_video_scale_apply( vlc_object_t *p_obj,
+static void transcode_video_scale_apply( heimdall_object_t *p_obj,
                                         const video_format_t *p_src,
                                         float f_scale,
                                         unsigned i_maxwidth,
@@ -133,7 +134,7 @@ void transcode_video_sar_apply( const video_format_t *p_src,
     /* Check whether a particular aspect ratio was requested */
     if( p_dst->i_sar_num <= 0 || p_dst->i_sar_den <= 0 )
     {
-        vlc_ureduce( &p_dst->i_sar_num, &p_dst->i_sar_den,
+        heimdall_ureduce( &p_dst->i_sar_num, &p_dst->i_sar_den,
                      (uint64_t)p_src->i_sar_num * (p_dst->i_x_offset + p_dst->i_visible_width)
                                                 * (p_src->i_x_offset + p_src->i_visible_height),
                      (uint64_t)p_src->i_sar_den * (p_dst->i_y_offset + p_dst->i_visible_height)
@@ -142,12 +143,12 @@ void transcode_video_sar_apply( const video_format_t *p_src,
     }
     else
     {
-        vlc_ureduce( &p_dst->i_sar_num, &p_dst->i_sar_den,
+        heimdall_ureduce( &p_dst->i_sar_num, &p_dst->i_sar_den,
                      p_dst->i_sar_num, p_dst->i_sar_den, 0 );
     }
 }
 
-static void transcode_video_size_config_apply( vlc_object_t *p_obj,
+static void transcode_video_size_config_apply( heimdall_object_t *p_obj,
                                                const video_format_t *p_srcref,
                                                const transcode_encoder_config_t *p_cfg,
                                                video_format_t *p_dst )
@@ -222,14 +223,14 @@ void transcode_encoder_video_set_src(encoder_t *p_encoder, const video_format_t 
     p_enc_in->orientation = ORIENT_NORMAL;
 
     /* Modify to requested sizes/scale */
-    transcode_video_size_config_apply( VLC_OBJECT(p_encoder), p_src, p_cfg, p_enc_in );
+    transcode_video_size_config_apply( HEIMDALL_OBJECT(p_encoder), p_src, p_cfg, p_enc_in );
 }
 
-void transcode_encoder_video_configure( vlc_object_t *p_obj,
+void transcode_encoder_video_configure( heimdall_object_t *p_obj,
                                         const video_format_t *p_dec_out,
                                         const transcode_encoder_config_t *p_cfg,
                                         const video_format_t *p_src,
-                                        vlc_video_context *vctx_in,
+                                        heimdall_video_context *vctx_in,
                                         transcode_encoder_t *p_enc )
 {
     video_format_t *p_enc_in = &p_enc->p_encoder->fmt_in.video;
@@ -302,29 +303,29 @@ static picture_t *picture_fifo_LockPop( picture_fifo_t *fifo )
 
 static void* EncoderThread( void *obj )
 {
-    vlc_thread_set_name("vlc-encoder");
+    heimdall_thread_set_name("heimdall-encoder");
 
     transcode_encoder_t *p_enc = obj;
     picture_t *p_pic = NULL;
-    int canc = vlc_savecancel ();
+    int canc = heimdall_savecancel ();
     block_t *p_block = NULL;
 
-    vlc_mutex_lock( &p_enc->lock_out );
+    heimdall_mutex_lock( &p_enc->lock_out );
 
     for( ;; )
     {
         while( !p_enc->b_abort &&
                (p_pic = picture_fifo_LockPop( p_enc->pp_pics )) == NULL )
-            vlc_cond_wait( &p_enc->cond, &p_enc->lock_out );
-        vlc_sem_post( &p_enc->picture_pool_has_room );
+            heimdall_cond_wait( &p_enc->cond, &p_enc->lock_out );
+        heimdall_sem_post( &p_enc->picture_pool_has_room );
 
         if( p_pic )
         {
             /* release lock while encoding */
-            vlc_mutex_unlock( &p_enc->lock_out );
-            p_block = vlc_encoder_EncodeVideo( p_enc->p_encoder, p_pic );
+            heimdall_mutex_unlock( &p_enc->lock_out );
+            p_block = heimdall_encoder_EncodeVideo( p_enc->p_encoder, p_pic );
             picture_Release( p_pic );
-            vlc_mutex_lock( &p_enc->lock_out );
+            heimdall_mutex_lock( &p_enc->lock_out );
 
             block_ChainAppend( &p_enc->p_buffers, p_block );
         }
@@ -336,21 +337,21 @@ static void* EncoderThread( void *obj )
     /*Encode what we have in the buffer on closing*/
     while( (p_pic = picture_fifo_LockPop( p_enc->pp_pics )) != NULL )
     {
-        vlc_sem_post( &p_enc->picture_pool_has_room );
-        p_block = vlc_encoder_EncodeVideo( p_enc->p_encoder, p_pic );
+        heimdall_sem_post( &p_enc->picture_pool_has_room );
+        p_block = heimdall_encoder_EncodeVideo( p_enc->p_encoder, p_pic );
         picture_Release( p_pic );
         block_ChainAppend( &p_enc->p_buffers, p_block );
     }
 
     /*Now flush encoder*/
     do {
-        p_block = vlc_encoder_EncodeVideo(p_enc->p_encoder, NULL );
+        p_block = heimdall_encoder_EncodeVideo(p_enc->p_encoder, NULL );
         block_ChainAppend( &p_enc->p_buffers, p_block );
     } while( p_block );
 
-    vlc_mutex_unlock( &p_enc->lock_out );
+    heimdall_mutex_unlock( &p_enc->lock_out );
 
-    vlc_restorecancel (canc);
+    heimdall_restorecancel (canc);
 
     return NULL;
 }
@@ -369,26 +370,26 @@ int transcode_encoder_video_drain( transcode_encoder_t *p_enc, block_t **out )
     {
         if( p_enc->b_threaded && !p_enc->b_abort )
         {
-            vlc_mutex_lock( &p_enc->lock_out );
+            heimdall_mutex_lock( &p_enc->lock_out );
             p_enc->b_abort = true;
-            vlc_cond_signal( &p_enc->cond );
-            vlc_mutex_unlock( &p_enc->lock_out );
-            vlc_join( p_enc->thread, NULL );
+            heimdall_cond_signal( &p_enc->cond );
+            heimdall_mutex_unlock( &p_enc->lock_out );
+            heimdall_join( p_enc->thread, NULL );
         }
         block_ChainAppend( out, transcode_encoder_get_output_async( p_enc ) );
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 void transcode_encoder_video_stop( transcode_encoder_t *p_enc )
 {
     if( p_enc->b_threaded && !p_enc->b_abort )
     {
-        vlc_mutex_lock( &p_enc->lock_out );
+        heimdall_mutex_lock( &p_enc->lock_out );
         p_enc->b_abort = true;
-        vlc_cond_signal( &p_enc->cond );
-        vlc_mutex_unlock( &p_enc->lock_out );
-        vlc_join( p_enc->thread, NULL );
+        heimdall_cond_signal( &p_enc->cond );
+        heimdall_mutex_unlock( &p_enc->lock_out );
+        heimdall_join( p_enc->thread, NULL );
     }
 }
 
@@ -402,7 +403,7 @@ int transcode_encoder_video_open( transcode_encoder_t *p_enc,
     p_enc->p_encoder->p_module =
         module_need( p_enc->p_encoder, "video encoder", p_cfg->psz_name, true );
     if( !p_enc->p_encoder->p_module )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     assert( p_enc->p_encoder->ops != NULL );
 
@@ -410,43 +411,43 @@ int transcode_encoder_video_open( transcode_encoder_t *p_enc,
 
     /*  */
     p_enc->p_encoder->fmt_out.i_codec =
-        vlc_fourcc_GetCodec( VIDEO_ES, p_enc->p_encoder->fmt_out.i_codec );
+        heimdall_fourcc_GetCodec( VIDEO_ES, p_enc->p_encoder->fmt_out.i_codec );
 
-    vlc_sem_init( &p_enc->picture_pool_has_room, p_cfg->video.threads.pool_size );
-    vlc_cond_init( &p_enc->cond );
+    heimdall_sem_init( &p_enc->picture_pool_has_room, p_cfg->video.threads.pool_size );
+    heimdall_cond_init( &p_enc->cond );
     p_enc->p_buffers = NULL;
     p_enc->b_abort = false;
 
     if( p_cfg->video.threads.i_count > 0 )
     {
-        if( vlc_clone( &p_enc->thread, EncoderThread, p_enc ) )
+        if( heimdall_clone( &p_enc->thread, EncoderThread, p_enc ) )
         {
             if (p_enc->p_encoder->ops->close)
                 p_enc->p_encoder->ops->close(p_enc->p_encoder);
             module_unneed( p_enc->p_encoder, p_enc->p_encoder->p_module );
             p_enc->p_encoder->p_module = NULL;
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
         p_enc->b_threaded = true;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 block_t * transcode_encoder_video_encode( transcode_encoder_t *p_enc, picture_t *p_pic )
 {
     if( !p_enc->b_threaded )
     {
-        return vlc_encoder_EncodeVideo( p_enc->p_encoder, p_pic );
+        return heimdall_encoder_EncodeVideo( p_enc->p_encoder, p_pic );
     }
 
-    vlc_sem_wait( &p_enc->picture_pool_has_room );
-    vlc_mutex_lock( &p_enc->lock_out );
+    heimdall_sem_wait( &p_enc->picture_pool_has_room );
+    heimdall_mutex_lock( &p_enc->lock_out );
     picture_Hold( p_pic );
     picture_fifo_Lock( p_enc->pp_pics );
     picture_fifo_Push( p_enc->pp_pics, p_pic );
     picture_fifo_Unlock( p_enc->pp_pics );
-    vlc_cond_signal( &p_enc->cond );
-    vlc_mutex_unlock( &p_enc->lock_out );
+    heimdall_cond_signal( &p_enc->cond );
+    heimdall_mutex_unlock( &p_enc->lock_out );
     return NULL;
 }

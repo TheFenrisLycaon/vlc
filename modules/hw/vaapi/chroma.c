@@ -1,7 +1,8 @@
 /*****************************************************************************
- * chroma.c: VLC picture to VAAPI surface or vice versa
+ * chroma.c: Heimdall picture to VAAPI surface or vice versa
  *****************************************************************************
  * Copyright (C) 2017 VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Victorien Le Couviour--Tuffet <victorien.lecouviour.tuffet@gmail.com>
  *
@@ -28,9 +29,9 @@
 
 #include <va/va.h>
 
-#include <vlc_common.h>
-#include <vlc_filter.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_filter.h>
+#include <heimdall_plugin.h>
 
 #include "../../video_chroma/copy.h"
 #include "filters.h"
@@ -53,14 +54,14 @@ static int CreateFallbackImage(filter_t *filter, picture_t *src_pic,
 {
     int count = vaMaxNumImageFormats(va_dpy);
 
-    VAImageFormat *fmts = vlc_alloc(count, sizeof (*fmts));
+    VAImageFormat *fmts = heimdall_alloc(count, sizeof (*fmts));
     if (unlikely(fmts == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     if (vaQueryImageFormats(va_dpy, fmts, &count))
     {
         free(fmts);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     int i;
@@ -73,12 +74,12 @@ static int CreateFallbackImage(filter_t *filter, picture_t *src_pic,
     int ret;
     if ((fmts[i].fourcc == VA_FOURCC_NV12 || fmts[i].fourcc == VA_FOURCC_I420
       || fmts[i].fourcc == VA_FOURCC_P010)
-     && !vlc_vaapi_CreateImage(VLC_OBJECT(filter), va_dpy, &fmts[i],
+     && !heimdall_vaapi_CreateImage(HEIMDALL_OBJECT(filter), va_dpy, &fmts[i],
                                src_pic->format.i_width, src_pic->format.i_height,
                                image_fallback))
-        ret = VLC_SUCCESS;
+        ret = HEIMDALL_SUCCESS;
     else
-        ret = VLC_EGENERIC;
+        ret = HEIMDALL_EGENERIC;
 
     free(fmts);
 
@@ -100,13 +101,13 @@ FillPictureFromVAImage(picture_t *dest,
     {
     case VA_FOURCC_NV12:
     {
-        assert(dest->format.i_chroma == VLC_CODEC_I420);
+        assert(dest->format.i_chroma == HEIMDALL_CODEC_I420);
         Copy420_SP_to_P(dest, src_planes, src_pitches, src_img->height, cache);
         break;
     }
     case VA_FOURCC_I420:
     {
-        assert(dest->format.i_chroma == VLC_CODEC_I420);
+        assert(dest->format.i_chroma == HEIMDALL_CODEC_I420);
         Copy420_P_to_P(dest, src_planes, src_pitches, src_img->height, cache);
         break;
     }
@@ -114,21 +115,21 @@ FillPictureFromVAImage(picture_t *dest,
     case VA_FOURCC_P012:
         switch (dest->format.i_chroma)
         {
-            case VLC_CODEC_P010:
-            case VLC_CODEC_P012:
+            case HEIMDALL_CODEC_P010:
+            case HEIMDALL_CODEC_P012:
                 Copy420_SP_to_SP(dest, src_planes, src_pitches, src_img->height,
                                  cache);
                 break;
-            case VLC_CODEC_I420_10L:
+            case HEIMDALL_CODEC_I420_10L:
                 Copy420_16_SP_to_P(dest, src_planes, src_pitches,
                                    src_img->height, 6, cache);
                 break;
-            case VLC_CODEC_I420_12L:
+            case HEIMDALL_CODEC_I420_12L:
                 Copy420_16_SP_to_P(dest, src_planes, src_pitches,
                                    src_img->height, 4, cache);
                 break;
             default:
-                vlc_assert_unreachable();
+                heimdall_assert_unreachable();
         }
         break;
     case VA_FOURCC_Y210:
@@ -140,7 +141,7 @@ FillPictureFromVAImage(picture_t *dest,
                    cache);
         break;
     default:
-        vlc_assert_unreachable();
+        heimdall_assert_unreachable();
         break;
     }
 }
@@ -149,7 +150,7 @@ static picture_t *
 DownloadSurface(filter_t *filter, picture_t *src_pic)
 {
     filter_sys_t *const filter_sys = filter->p_sys;
-    VADisplay           va_dpy = vlc_vaapi_PicGetDisplay(src_pic);
+    VADisplay           va_dpy = heimdall_vaapi_PicGetDisplay(src_pic);
     VAImage             src_img;
     void *              src_buf;
 
@@ -161,12 +162,12 @@ DownloadSurface(filter_t *filter, picture_t *src_pic)
     }
 
     VAImageID image_fallback_id = VA_INVALID_ID;
-    VASurfaceID surface = vlc_vaapi_PicGetSurface(src_pic);
+    VASurfaceID surface = heimdall_vaapi_PicGetSurface(src_pic);
     if (vaSyncSurface(va_dpy, surface))
         goto error;
 
     if (filter_sys->derive_failed ||
-        vlc_vaapi_DeriveImage(VLC_OBJECT(filter), va_dpy, surface, &src_img))
+        heimdall_vaapi_DeriveImage(HEIMDALL_OBJECT(filter), va_dpy, surface, &src_img))
     {
         if (filter_sys->image_fallback_failed)
             goto error;
@@ -190,13 +191,13 @@ DownloadSurface(filter_t *filter, picture_t *src_pic)
         src_img = image_fallback;
     }
 
-    if (vlc_vaapi_MapBuffer(VLC_OBJECT(filter), va_dpy, src_img.buf, &src_buf))
+    if (heimdall_vaapi_MapBuffer(HEIMDALL_OBJECT(filter), va_dpy, src_img.buf, &src_buf))
         goto error;
 
     FillPictureFromVAImage(dest, &src_img, src_buf, &filter_sys->cache);
 
-    vlc_vaapi_UnmapBuffer(VLC_OBJECT(filter), va_dpy, src_img.buf);
-    vlc_vaapi_DestroyImage(VLC_OBJECT(filter), va_dpy, src_img.image_id);
+    heimdall_vaapi_UnmapBuffer(HEIMDALL_OBJECT(filter), va_dpy, src_img.buf);
+    heimdall_vaapi_DestroyImage(HEIMDALL_OBJECT(filter), va_dpy, src_img.image_id);
 
     picture_CopyProperties(dest, src_pic);
 ret:
@@ -205,7 +206,7 @@ ret:
 
 error:
     if (image_fallback_id != VA_INVALID_ID)
-        vlc_vaapi_DestroyImage(VLC_OBJECT(filter), va_dpy, image_fallback_id);
+        heimdall_vaapi_DestroyImage(HEIMDALL_OBJECT(filter), va_dpy, image_fallback_id);
 
     picture_Release(dest);
     dest = NULL;
@@ -233,39 +234,39 @@ FillVAImageFromPicture(VAImage *dest_img, uint8_t *dest_buf,
 
     switch (src->format.i_chroma)
     {
-    case VLC_CODEC_I420:
-        assert(dest_pic->format.i_chroma == VLC_CODEC_VAAPI_420);
+    case HEIMDALL_CODEC_I420:
+        assert(dest_pic->format.i_chroma == HEIMDALL_CODEC_VAAPI_420);
         Copy420_P_to_SP(dest_pic, src_planes, src_pitches,
                         src->format.i_height, cache);
 
         break;
-    case VLC_CODEC_I420_10L:
-        assert(dest_pic->format.i_chroma == VLC_CODEC_VAAPI_420_10BPP);
+    case HEIMDALL_CODEC_I420_10L:
+        assert(dest_pic->format.i_chroma == HEIMDALL_CODEC_VAAPI_420_10BPP);
         Copy420_16_P_to_SP(dest_pic, src_planes, src_pitches,
                            src->format.i_height, -6, cache);
         break;
-    case VLC_CODEC_I420_12L:
-        assert(dest_pic->format.i_chroma == VLC_CODEC_VAAPI_420_12BPP);
+    case HEIMDALL_CODEC_I420_12L:
+        assert(dest_pic->format.i_chroma == HEIMDALL_CODEC_VAAPI_420_12BPP);
         Copy420_16_P_to_SP(dest_pic, src_planes, src_pitches,
                            src->format.i_height, -4, cache);
         break;
-    case VLC_CODEC_P010:
-    case VLC_CODEC_P012:
+    case HEIMDALL_CODEC_P010:
+    case HEIMDALL_CODEC_P012:
     {
-        assert(dest_pic->format.i_chroma == VLC_CODEC_VAAPI_420_10BPP
-            || dest_pic->format.i_chroma == VLC_CODEC_VAAPI_420_12BPP);
+        assert(dest_pic->format.i_chroma == HEIMDALL_CODEC_VAAPI_420_10BPP
+            || dest_pic->format.i_chroma == HEIMDALL_CODEC_VAAPI_420_12BPP);
         Copy420_SP_to_SP(dest_pic,  src_planes, src_pitches,
                          src->format.i_height, cache);
         break;
     }
-    case VLC_CODEC_VUYX:
-    case VLC_CODEC_Y410:
-    case VLC_CODEC_Y412:
+    case HEIMDALL_CODEC_VUYX:
+    case HEIMDALL_CODEC_Y410:
+    case HEIMDALL_CODEC_Y412:
         CopyPacked(dest_pic, src_planes[0], src_pitches[0],
                    src->format.i_height, cache);
         break;
     default:
-        vlc_assert_unreachable();
+        heimdall_assert_unreachable();
     }
 
     dest_pic->p[0].p_pixels = tmp[0];
@@ -286,12 +287,12 @@ UploadSurface(filter_t *filter, picture_t *src)
         msg_Err(filter, "cannot retrieve picture from the dest pics pool");
         goto ret;
     }
-    vlc_vaapi_PicAttachContext(dest_pic);
+    heimdall_vaapi_PicAttachContext(dest_pic);
     picture_CopyProperties(dest_pic, src);
 
     if (p_sys->derive_failed ||
-        vlc_vaapi_DeriveImage(VLC_OBJECT(filter), va_dpy,
-                              vlc_vaapi_PicGetSurface(dest_pic), &dest_img))
+        heimdall_vaapi_DeriveImage(HEIMDALL_OBJECT(filter), va_dpy,
+                              heimdall_vaapi_PicGetSurface(dest_pic), &dest_img))
     {
         if (p_sys->image_fallback_failed)
             goto error;
@@ -305,23 +306,23 @@ UploadSurface(filter_t *filter, picture_t *src)
         }
     }
 
-    if (vlc_vaapi_MapBuffer(VLC_OBJECT(filter), va_dpy,
+    if (heimdall_vaapi_MapBuffer(HEIMDALL_OBJECT(filter), va_dpy,
                             dest_img.buf, &dest_buf))
         goto error;
 
     FillVAImageFromPicture(&dest_img, dest_buf, dest_pic,
                            src, &p_sys->cache);
 
-    if (vlc_vaapi_UnmapBuffer(VLC_OBJECT(filter), va_dpy, dest_img.buf))
+    if (heimdall_vaapi_UnmapBuffer(HEIMDALL_OBJECT(filter), va_dpy, dest_img.buf))
         goto error;
 
     if (p_sys->derive_failed &&
-        vaPutImage(va_dpy, vlc_vaapi_PicGetSurface(dest_pic), dest_img.image_id,
+        vaPutImage(va_dpy, heimdall_vaapi_PicGetSurface(dest_pic), dest_img.image_id,
                    0, 0, dest_pic->format.i_width, dest_pic->format.i_height,
                    0, 0, dest_pic->format.i_width, dest_pic->format.i_height))
         goto error;
 
-    if (vlc_vaapi_DestroyImage(VLC_OBJECT(filter),
+    if (heimdall_vaapi_DestroyImage(HEIMDALL_OBJECT(filter),
                                va_dpy, dest_img.image_id))
         goto error;
 
@@ -342,59 +343,59 @@ static int CheckFmt(const video_format_t *in, const video_format_t *out,
     *upload = false;
     switch (in->i_chroma)
     {
-        case VLC_CODEC_VAAPI_420:
-            if (out->i_chroma == VLC_CODEC_I420)
-                return VLC_SUCCESS;
+        case HEIMDALL_CODEC_VAAPI_420:
+            if (out->i_chroma == HEIMDALL_CODEC_I420)
+                return HEIMDALL_SUCCESS;
             break;
-        case VLC_CODEC_VAAPI_420_10BPP:
-            if (out->i_chroma == VLC_CODEC_P010
-             || out->i_chroma == VLC_CODEC_I420_10L)
+        case HEIMDALL_CODEC_VAAPI_420_10BPP:
+            if (out->i_chroma == HEIMDALL_CODEC_P010
+             || out->i_chroma == HEIMDALL_CODEC_I420_10L)
             {
                 *pixel_bytes = 2;
-                return VLC_SUCCESS;
+                return HEIMDALL_SUCCESS;
             }
             break;
-        case VLC_CODEC_VAAPI_420_12BPP:
-            if (out->i_chroma == VLC_CODEC_P012
-             || out->i_chroma == VLC_CODEC_I420_12L)
+        case HEIMDALL_CODEC_VAAPI_420_12BPP:
+            if (out->i_chroma == HEIMDALL_CODEC_P012
+             || out->i_chroma == HEIMDALL_CODEC_I420_12L)
             {
                 *pixel_bytes = 2;
-                return VLC_SUCCESS;
+                return HEIMDALL_SUCCESS;
             }
             break;
-        case VLC_CODEC_VAAPI_422_10BPP:
-            if (out->i_chroma == VLC_CODEC_Y210)
+        case HEIMDALL_CODEC_VAAPI_422_10BPP:
+            if (out->i_chroma == HEIMDALL_CODEC_Y210)
             {
                 *pixel_bytes = 4;
-                return VLC_SUCCESS;
+                return HEIMDALL_SUCCESS;
             }
             break;
-        case VLC_CODEC_VAAPI_422_12BPP:
-            if (out->i_chroma == VLC_CODEC_Y212)
+        case HEIMDALL_CODEC_VAAPI_422_12BPP:
+            if (out->i_chroma == HEIMDALL_CODEC_Y212)
             {
                 *pixel_bytes = 4;
-                return VLC_SUCCESS;
+                return HEIMDALL_SUCCESS;
             }
             break;
-        case VLC_CODEC_VAAPI_444:
-            if (out->i_chroma == VLC_CODEC_VUYX)
+        case HEIMDALL_CODEC_VAAPI_444:
+            if (out->i_chroma == HEIMDALL_CODEC_VUYX)
             {
                 *pixel_bytes = 4;
-                return VLC_SUCCESS;
+                return HEIMDALL_SUCCESS;
             }
             break;
-        case VLC_CODEC_VAAPI_444_10BPP:
-            if (out->i_chroma == VLC_CODEC_Y410)
+        case HEIMDALL_CODEC_VAAPI_444_10BPP:
+            if (out->i_chroma == HEIMDALL_CODEC_Y410)
             {
                 *pixel_bytes = 4;
-                return VLC_SUCCESS;
+                return HEIMDALL_SUCCESS;
             }
             break;
-        case VLC_CODEC_VAAPI_444_12BPP:
-            if (out->i_chroma == VLC_CODEC_Y412)
+        case HEIMDALL_CODEC_VAAPI_444_12BPP:
+            if (out->i_chroma == HEIMDALL_CODEC_Y412)
             {
                 *pixel_bytes = 8;
-                return VLC_SUCCESS;
+                return HEIMDALL_SUCCESS;
             }
             break;
     }
@@ -402,126 +403,126 @@ static int CheckFmt(const video_format_t *in, const video_format_t *out,
     *upload = true;
     switch (out->i_chroma)
     {
-        case VLC_CODEC_VAAPI_420:
-            if (in->i_chroma == VLC_CODEC_I420)
-                return VLC_SUCCESS;
+        case HEIMDALL_CODEC_VAAPI_420:
+            if (in->i_chroma == HEIMDALL_CODEC_I420)
+                return HEIMDALL_SUCCESS;
             break;
-        case VLC_CODEC_VAAPI_420_10BPP:
-            if (in->i_chroma == VLC_CODEC_P010
-             || in->i_chroma == VLC_CODEC_I420_10L)
+        case HEIMDALL_CODEC_VAAPI_420_10BPP:
+            if (in->i_chroma == HEIMDALL_CODEC_P010
+             || in->i_chroma == HEIMDALL_CODEC_I420_10L)
             {
                 *pixel_bytes = 2;
-                return VLC_SUCCESS;
+                return HEIMDALL_SUCCESS;
             }
             break;
-        case VLC_CODEC_VAAPI_420_12BPP:
-            if (in->i_chroma == VLC_CODEC_P012
-             || in->i_chroma == VLC_CODEC_I420_12L)
+        case HEIMDALL_CODEC_VAAPI_420_12BPP:
+            if (in->i_chroma == HEIMDALL_CODEC_P012
+             || in->i_chroma == HEIMDALL_CODEC_I420_12L)
             {
                 *pixel_bytes = 2;
-                return VLC_SUCCESS;
+                return HEIMDALL_SUCCESS;
             }
             break;
-        case VLC_CODEC_VAAPI_422_10BPP:
-            if (in->i_chroma == VLC_CODEC_Y210)
+        case HEIMDALL_CODEC_VAAPI_422_10BPP:
+            if (in->i_chroma == HEIMDALL_CODEC_Y210)
             {
                 *pixel_bytes = 4;
-                return VLC_SUCCESS;
+                return HEIMDALL_SUCCESS;
             }
             break;
-        case VLC_CODEC_VAAPI_422_12BPP:
-            if (in->i_chroma == VLC_CODEC_Y212)
+        case HEIMDALL_CODEC_VAAPI_422_12BPP:
+            if (in->i_chroma == HEIMDALL_CODEC_Y212)
             {
                 *pixel_bytes = 4;
-                return VLC_SUCCESS;
+                return HEIMDALL_SUCCESS;
             }
             break;
-        case VLC_CODEC_VAAPI_444:
-            if (in->i_chroma == VLC_CODEC_VUYX)
+        case HEIMDALL_CODEC_VAAPI_444:
+            if (in->i_chroma == HEIMDALL_CODEC_VUYX)
             {
                 *pixel_bytes = 4;
-                return VLC_SUCCESS;
+                return HEIMDALL_SUCCESS;
             }
             break;
-        case VLC_CODEC_VAAPI_444_10BPP:
-            if (in->i_chroma == VLC_CODEC_Y410)
+        case HEIMDALL_CODEC_VAAPI_444_10BPP:
+            if (in->i_chroma == HEIMDALL_CODEC_Y410)
             {
                 *pixel_bytes = 4;
-                return VLC_SUCCESS;
+                return HEIMDALL_SUCCESS;
             }
             break;
-        case VLC_CODEC_VAAPI_444_12BPP:
-            if (in->i_chroma == VLC_CODEC_Y412)
+        case HEIMDALL_CODEC_VAAPI_444_12BPP:
+            if (in->i_chroma == HEIMDALL_CODEC_Y412)
             {
                 *pixel_bytes = 8;
-                return VLC_SUCCESS;
+                return HEIMDALL_SUCCESS;
             }
             break;
     }
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
-static const struct vlc_filter_operations filter_upload_ops = {
-    .filter_video = UploadSurface,   .close = vlc_vaapi_CloseChroma,
+static const struct heimdall_filter_operations filter_upload_ops = {
+    .filter_video = UploadSurface,   .close = heimdall_vaapi_CloseChroma,
 };
 
-static const struct vlc_filter_operations filter_download_ops = {
-    .filter_video = DownloadSurface, .close = vlc_vaapi_CloseChroma,
+static const struct heimdall_filter_operations filter_download_ops = {
+    .filter_video = DownloadSurface, .close = heimdall_vaapi_CloseChroma,
 };
 
 int
-vlc_vaapi_OpenChroma(filter_t *filter)
+heimdall_vaapi_OpenChroma(filter_t *filter)
 {
     filter_sys_t *      filter_sys;
 
     if (filter->fmt_in.video.i_height != filter->fmt_out.video.i_height
      || filter->fmt_in.video.i_width != filter->fmt_out.video.i_width
      || filter->fmt_in.video.orientation != filter->fmt_out.video.orientation)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     bool is_upload;
     uint8_t pixel_bytes;
     if (CheckFmt(&filter->fmt_in.video, &filter->fmt_out.video, &is_upload,
                  &pixel_bytes))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     filter->ops = is_upload ? &filter_upload_ops : &filter_download_ops;
 
     if (!(filter_sys = calloc(1, sizeof(filter_sys_t))))
     {
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
     filter_sys->derive_failed = false;
     filter_sys->image_fallback_failed = false;
     if (is_upload)
     {
-        vlc_decoder_device *dec_device = filter_HoldDecoderDeviceType( filter, VLC_DECODER_DEVICE_VAAPI );
+        heimdall_decoder_device *dec_device = filter_HoldDecoderDeviceType( filter, HEIMDALL_DECODER_DEVICE_VAAPI );
         if (dec_device == NULL)
         {
             free(filter_sys);
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
-        filter->vctx_out = vlc_video_context_Create( dec_device, VLC_VIDEO_CONTEXT_VAAPI, 0, NULL );
-        vlc_decoder_device_Release(dec_device);
+        filter->vctx_out = heimdall_video_context_Create( dec_device, HEIMDALL_VIDEO_CONTEXT_VAAPI, 0, NULL );
+        heimdall_decoder_device_Release(dec_device);
         if (!filter->vctx_out)
         {
             free(filter_sys);
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         filter_sys->dpy = dec_device->opaque;
 
         filter_sys->dest_pics =
-            vlc_vaapi_PoolNew(VLC_OBJECT(filter), filter->vctx_out, filter_sys->dpy,
+            heimdall_vaapi_PoolNew(HEIMDALL_OBJECT(filter), filter->vctx_out, filter_sys->dpy,
                               DEST_PICS_POOL_SZ, &filter_sys->va_surface_ids,
                               &filter->fmt_out.video);
         if (!filter_sys->dest_pics)
         {
-            vlc_video_context_Release(filter->vctx_out);
+            heimdall_video_context_Release(filter->vctx_out);
             filter->vctx_out = NULL;
             free(filter_sys);
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
     else
@@ -538,11 +539,11 @@ vlc_vaapi_OpenChroma(filter_t *filter)
         if (is_upload)
         {
             picture_pool_Release(filter_sys->dest_pics);
-            vlc_video_context_Release(filter->vctx_out);
+            heimdall_video_context_Release(filter->vctx_out);
             filter->vctx_out = NULL;
         }
         free(filter_sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     filter->p_sys = filter_sys;
@@ -552,11 +553,11 @@ vlc_vaapi_OpenChroma(filter_t *filter)
              (const char *) &filter->fmt_in.video.i_chroma,
              (const char *) &filter->fmt_out.video.i_chroma);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 void
-vlc_vaapi_CloseChroma(filter_t *filter)
+heimdall_vaapi_CloseChroma(filter_t *filter)
 {
     filter_sys_t *const filter_sys = filter->p_sys;
 
@@ -564,7 +565,7 @@ vlc_vaapi_CloseChroma(filter_t *filter)
         picture_pool_Release(filter_sys->dest_pics);
     CopyCleanCache(&filter_sys->cache);
     if (filter->vctx_out)
-        vlc_video_context_Release(filter->vctx_out);
+        heimdall_video_context_Release(filter->vctx_out);
 
     free(filter_sys);
 }

@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,10 +21,10 @@ import QtQuick.Controls.Basic
 import QtQuick.Templates as T
 import QtQuick.Layouts
 
-import VLC.MainInterface
-import VLC.Widgets as Widgets
-import VLC.Util
-import VLC.Style
+import Heimdall.MainInterface
+import Heimdall.Widgets as Widgets
+import Heimdall.Util
+import Heimdall.Style
 
 Dialog {
     id: control
@@ -36,8 +37,8 @@ Dialog {
 
     anchors.centerIn: T.Overlay.overlay
 
-    padding: VLCStyle.margin_normal
-    margins: VLCStyle.margin_large
+    padding: HeimdallStyle.margin_normal
+    margins: HeimdallStyle.margin_large
 
     implicitWidth: contentWidth > 0 ? contentWidth + leftPadding + rightPadding : 0
     implicitHeight: (header && header.visible ? header.implicitHeight + spacing : 0)
@@ -48,7 +49,7 @@ Dialog {
 
     readonly property ColorContext colorContext: ColorContext {
         id: theme
-        palette: VLCStyle.palette
+        palette: HeimdallStyle.palette
         colorSet: ColorContext.Window
     }
 
@@ -87,8 +88,8 @@ Dialog {
         color: theme.bg.primary
 
         Widgets.RoundedRectangleShadow {
-            yOffset: VLCStyle.dp(4, VLCStyle.scale)
-            blurRadius: VLCStyle.dp(3, VLCStyle.scale)
+            yOffset: HeimdallStyle.dp(4, HeimdallStyle.scale)
+            blurRadius: HeimdallStyle.dp(3, HeimdallStyle.scale)
 
             visible: (parent.color.a > 0.0)
 

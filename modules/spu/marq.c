@@ -1,11 +1,12 @@
 /*****************************************************************************
- * marq.c : marquee display video plugin for vlc
+ * marq.c : marquee display video plugin for heimdall
  *****************************************************************************
  * Copyright (C) 2003-2008 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Mark Moriarty
  *          Sigmund Augdal Helberg <dnumgis@videolan.org>
- *          Antoine Cellerier <dionoea . videolan \ org>
+ *          Antoine Cellerier <dionoea . lycaria \ org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -34,25 +35,25 @@
 
 #include "common.h"
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_block.h>
-#include <vlc_fs.h>
-#include <vlc_strings.h>
-#include <vlc_subpicture.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_block.h>
+#include <heimdall_fs.h>
+#include <heimdall_strings.h>
+#include <heimdall_subpicture.h>
 
 /*****************************************************************************
  * Local prototypes
  *****************************************************************************/
 static int  CreateFilter ( filter_t * );
 static void DestroyFilter( filter_t * );
-static subpicture_t *Filter( filter_t *, vlc_tick_t );
+static subpicture_t *Filter( filter_t *, heimdall_tick_t );
 
 static char *MarqueeReadFile( filter_t *, const char * );
-static int MarqueeCallback( vlc_object_t *p_this, char const *psz_var,
-                            vlc_value_t oldval, vlc_value_t newval,
+static int MarqueeCallback( heimdall_object_t *p_this, char const *psz_var,
+                            heimdall_value_t oldval, heimdall_value_t newval,
                             void *p_data );
 static const int pi_color_values[] = {
                0xf0000000, 0x00000000, 0x00808080, 0x00C0C0C0,
@@ -71,12 +72,12 @@ static const char *const ppsz_color_descriptions[] = {
  *****************************************************************************/
 typedef struct
 {
-    vlc_mutex_t lock;
+    heimdall_mutex_t lock;
 
     int i_xoff, i_yoff; /* positioning offsets */
     int i_pos; /* positioning: absolute, or relative location (top, bottom, left, right, center) */
 
-    vlc_tick_t i_timeout;
+    heimdall_tick_t i_timeout;
 
     char *format; /**< marquee text format */
     char *filepath; /**< marquee file path */
@@ -84,8 +85,8 @@ typedef struct
 
     text_style_t *p_style; /* font control */
 
-    vlc_tick_t last_time;
-    vlc_tick_t i_refresh;
+    heimdall_tick_t last_time;
+    heimdall_tick_t i_refresh;
 } filter_sys_t;
 
 #define MSG_TEXT N_("Text")
@@ -121,13 +122,13 @@ typedef struct
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( N_("Marquee" ))
     set_description( N_("Marquee display") )
     set_help(MARQUEE_HELP)
     set_callback_sub_source( CreateFilter, 0 )
     set_subcategory( SUBCAT_VIDEO_SUBPIC )
-    add_string( CFG_PREFIX "marquee", "VLC", MSG_TEXT, MSG_LONGTEXT )
+    add_string( CFG_PREFIX "marquee", "Heimdall", MSG_TEXT, MSG_LONGTEXT )
     add_loadfile(CFG_PREFIX "file", NULL, FILE_TEXT, FILE_LONGTEXT)
 
     set_section( N_("Position"), NULL )
@@ -151,7 +152,7 @@ vlc_module_begin ()
                  REFRESH_LONGTEXT )
 
     add_shortcut( "time" )
-vlc_module_end ()
+heimdall_module_end ()
 
 static const char *const ppsz_filter_options[] = {
     "marquee", "x", "y", "position", "color", "size", "timeout", "refresh",
@@ -159,7 +160,7 @@ static const char *const ppsz_filter_options[] = {
     NULL
 };
 
-static const struct vlc_filter_operations filter_ops = {
+static const struct heimdall_filter_operations filter_ops = {
     .source_sub = Filter, .close = DestroyFilter,
 };
 
@@ -173,15 +174,15 @@ static int CreateFilter( filter_t *p_filter )
     /* Allocate structure */
     p_sys = p_filter->p_sys = malloc( sizeof( filter_sys_t ) );
     if( p_sys == NULL )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_sys->p_style = text_style_Create( STYLE_NO_DEFAULTS );
     if(unlikely(!p_sys->p_style))
     {
         free(p_sys);
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
-    vlc_mutex_init( &p_sys->lock );
+    heimdall_mutex_init( &p_sys->lock );
 
     config_ChainParse( p_filter, CFG_PREFIX, ppsz_filter_options,
                        p_filter->p_cfg );
@@ -193,10 +194,10 @@ static int CreateFilter( filter_t *p_filter )
 
     CREATE_VAR( i_xoff, Integer, "marq-x" );
     CREATE_VAR( i_yoff, Integer, "marq-y" );
-    p_sys->i_timeout = VLC_TICK_FROM_MS(var_CreateGetIntegerCommand( p_filter,
+    p_sys->i_timeout = HEIMDALL_TICK_FROM_MS(var_CreateGetIntegerCommand( p_filter,
                                                               "marq-timeout" ));
     var_AddCallback( p_filter, "marq-timeout", MarqueeCallback, p_sys );
-    p_sys->i_refresh = VLC_TICK_FROM_MS(var_CreateGetIntegerCommand( p_filter,
+    p_sys->i_refresh = HEIMDALL_TICK_FROM_MS(var_CreateGetIntegerCommand( p_filter,
                                                               "marq-refresh" ));
     var_AddCallback( p_filter, "marq-refresh", MarqueeCallback, p_sys );
     CREATE_VAR( i_pos, Integer, "marq-position" );
@@ -215,7 +216,7 @@ static int CreateFilter( filter_t *p_filter )
     p_filter->ops = &filter_ops;
     p_sys->last_time = 0;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 /*****************************************************************************
  * DestroyFilter: destroy marquee video filter
@@ -250,12 +251,12 @@ static void DestroyFilter( filter_t *p_filter )
  ****************************************************************************
  * This function outputs subpictures at regular time intervals.
  ****************************************************************************/
-static subpicture_t *Filter( filter_t *p_filter, vlc_tick_t date )
+static subpicture_t *Filter( filter_t *p_filter, heimdall_tick_t date )
 {
     filter_sys_t *p_sys = p_filter->p_sys;
     subpicture_t *p_spu = NULL;
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     if( p_sys->last_time + p_sys->i_refresh > date )
         goto out;
 
@@ -269,7 +270,7 @@ static subpicture_t *Filter( filter_t *p_filter, vlc_tick_t date )
         }
     }
 
-    char *msg = vlc_strftime( p_sys->format ? p_sys->format : "" );
+    char *msg = heimdall_strftime( p_sys->format ? p_sys->format : "" );
     if( unlikely( msg == NULL ) )
         goto out;
     if( p_sys->message != NULL && !strcmp( msg, p_sys->message ) )
@@ -291,14 +292,14 @@ static subpicture_t *Filter( filter_t *p_filter, vlc_tick_t date )
         p_spu = NULL;
         goto out;
     }
-    vlc_spu_regions_push( &p_spu->regions, p_region );
+    heimdall_spu_regions_push( &p_spu->regions, p_region );
     p_region->fmt.i_sar_den = p_region->fmt.i_sar_num = 1;
 
     p_sys->last_time = date;
 
     p_region->p_text = text_segment_New( msg );
     p_spu->i_start = date;
-    p_spu->i_stop  = p_sys->i_timeout == 0 ? VLC_TICK_INVALID : date + p_sys->i_timeout;
+    p_spu->i_stop  = p_sys->i_timeout == 0 ? HEIMDALL_TICK_INVALID : date + p_sys->i_timeout;
     p_spu->b_ephemer = true;
 
     /*  where to locate the string: */
@@ -319,16 +320,16 @@ static subpicture_t *Filter( filter_t *p_filter, vlc_tick_t date )
     p_region->p_text->style = text_style_Duplicate( p_sys->p_style );
 
 out:
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
     return p_spu;
 }
 
 static char *MarqueeReadFile( filter_t *obj, const char *path )
 {
-    FILE *stream = vlc_fopen( path, "rt" );
+    FILE *stream = heimdall_fopen( path, "rt" );
     if( stream == NULL )
     {
-        msg_Err( obj, "cannot open %s: %s", path, vlc_strerror_c(errno) );
+        msg_Err( obj, "cannot open %s: %s", path, heimdall_strerror_c(errno) );
         return NULL;
     }
 
@@ -337,7 +338,7 @@ static char *MarqueeReadFile( filter_t *obj, const char *path )
     ssize_t len = getline( &line, &(size_t){ 0 }, stream );
     if( len == -1 )
     {
-        msg_Err( obj, "cannot read %s: %s", path, vlc_strerror_c(errno) );
+        msg_Err( obj, "cannot read %s: %s", path, heimdall_strerror_c(errno) );
         clearerr( stream );
         line = NULL;
     }
@@ -351,16 +352,16 @@ static char *MarqueeReadFile( filter_t *obj, const char *path )
 /**********************************************************************
  * Callback to update params on the fly
  **********************************************************************/
-static int MarqueeCallback( vlc_object_t *p_this, char const *psz_var,
-                            vlc_value_t oldval, vlc_value_t newval,
+static int MarqueeCallback( heimdall_object_t *p_this, char const *psz_var,
+                            heimdall_value_t oldval, heimdall_value_t newval,
                             void *p_data )
 {
     filter_sys_t *p_sys = p_data;
 
-    VLC_UNUSED(oldval);
-    VLC_UNUSED(p_this);
+    HEIMDALL_UNUSED(oldval);
+    HEIMDALL_UNUSED(p_this);
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     if( !strcmp( psz_var, "marq-marquee" ) )
     {
         free( p_sys->format );
@@ -388,11 +389,11 @@ static int MarqueeCallback( vlc_object_t *p_this, char const *psz_var,
     }
     else if ( !strcmp( psz_var, "marq-timeout" ) )
     {
-        p_sys->i_timeout = VLC_TICK_FROM_MS(newval.i_int);
+        p_sys->i_timeout = HEIMDALL_TICK_FROM_MS(newval.i_int);
     }
     else if ( !strcmp( psz_var, "marq-refresh" ) )
     {
-        p_sys->i_refresh = VLC_TICK_FROM_MS(newval.i_int);
+        p_sys->i_refresh = HEIMDALL_TICK_FROM_MS(newval.i_int);
     }
     else if ( !strcmp( psz_var, "marq-position" ) )
     /* willing to accept a match against marq-pos */
@@ -403,6 +404,6 @@ static int MarqueeCallback( vlc_object_t *p_this, char const *psz_var,
     free( p_sys->message );
     p_sys->message = NULL; /* force update */
 
-    vlc_mutex_unlock( &p_sys->lock );
-    return VLC_SUCCESS;
+    heimdall_mutex_unlock( &p_sys->lock );
+    return HEIMDALL_SUCCESS;
 }

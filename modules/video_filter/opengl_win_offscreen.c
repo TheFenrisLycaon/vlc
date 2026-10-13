@@ -3,6 +3,7 @@
  * opengl_win_offscreen: Windows offscreen OpenGL module
  *****************************************************************************
  * Copyright © 2025 Videolabs, VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Alexandre Janniaux <ajanni@videolabs.io>
  *          Romain Vimont <rom1v@videolabs.io>
@@ -12,14 +13,14 @@
 # include <config.h>
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_modules.h>
-#include <vlc_picture.h>
-#include <vlc_filter.h>
-#include <vlc_opengl.h>
-#include <vlc_vout_display.h>
-#include <vlc_atomic.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_modules.h>
+#include <heimdall_picture.h>
+#include <heimdall_filter.h>
+#include <heimdall_opengl.h>
+#include <heimdall_vout_display.h>
+#include <heimdall_atomic.h>
 #include "../video_output/opengl/vout_helper.h"
 #include "../video_output/opengl/filters.h"
 #include "../video_output/opengl/gl_api.h"
@@ -43,14 +44,14 @@ struct pbo_picture_context
     struct picture_context_t context;
     void *buffer_mapping;
     int rc;
-    vlc_mutex_t *lock;
-    vlc_cond_t *cond;
+    heimdall_mutex_t *lock;
+    heimdall_cond_t *cond;
 };
 
-struct vlc_gl_pbuffer
+struct heimdall_gl_pbuffer
 {
-    vlc_mutex_t             lock;
-    vlc_cond_t              cond;
+    heimdall_mutex_t             lock;
+    heimdall_cond_t              cond;
 
     video_format_t          fmt_out;
 
@@ -60,7 +61,7 @@ struct vlc_gl_pbuffer
     HGLRC                   hGLRC;
 
     struct wgl_vt           wgl_vt;
-    struct vlc_gl_api       api;
+    struct heimdall_gl_api       api;
 
     size_t                  current_flip;
     GLuint                  pixelbuffers[BUFFER_COUNT];
@@ -71,24 +72,24 @@ struct vlc_gl_pbuffer
     bool current;
 };
 
-static int MakeCurrentBare (vlc_gl_t *gl)
+static int MakeCurrentBare (heimdall_gl_t *gl)
 {
-    struct vlc_gl_pbuffer *sys = gl->sys;
+    struct heimdall_gl_pbuffer *sys = gl->sys;
 
     BOOL success = wglMakeCurrent(sys->pixelBufferDC, sys->hGLRC);
     if (unlikely(!success))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int MakeBoundCurrent (vlc_gl_t *gl)
+static int MakeBoundCurrent (heimdall_gl_t *gl)
 {
-    struct vlc_gl_pbuffer *sys = gl->sys;
+    struct heimdall_gl_pbuffer *sys = gl->sys;
 
     assert(!sys->current);
     int err = MakeCurrentBare(gl);
-    if (err != VLC_SUCCESS)
+    if (err != HEIMDALL_SUCCESS)
         return err;
 
     sys->current = true;
@@ -97,12 +98,12 @@ static int MakeBoundCurrent (vlc_gl_t *gl)
     vt->BindBuffer(GL_PIXEL_PACK_BUFFER, sys->pixelbuffers[sys->current_flip]);
     vt->BindFramebuffer(GL_FRAMEBUFFER, sys->framebuffers[sys->current_flip]);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void ReleaseCurrent (vlc_gl_t *gl)
+static void ReleaseCurrent (heimdall_gl_t *gl)
 {
-    struct vlc_gl_pbuffer *sys = gl->sys;
+    struct heimdall_gl_pbuffer *sys = gl->sys;
 
     assert(sys->current);
     wglMakeCurrent(NULL, NULL);
@@ -110,9 +111,9 @@ static void ReleaseCurrent (vlc_gl_t *gl)
     sys->current = false;
 }
 
-static void *GetSymbol(vlc_gl_t *gl, const char *procname)
+static void *GetSymbol(heimdall_gl_t *gl, const char *procname)
 {
-    struct vlc_gl_pbuffer *sys = gl->sys;
+    struct heimdall_gl_pbuffer *sys = gl->sys;
     /* See https://www.khronos.org/opengl/wiki/Load_OpenGL_Functions */
     PROC f= wglGetProcAddress(procname);
     if(f == 0 || (f == (void*)0x1) || (f == (void*)0x2) ||
@@ -128,9 +129,9 @@ static picture_context_t *picture_context_copy(picture_context_t *input)
     struct pbo_picture_context *context =
         (struct pbo_picture_context *)input;
 
-    vlc_mutex_lock(context->lock);
+    heimdall_mutex_lock(context->lock);
     context->rc++;
-    vlc_mutex_unlock(context->lock);
+    heimdall_mutex_unlock(context->lock);
     return input;
 }
 
@@ -138,24 +139,24 @@ static void picture_context_destroy(picture_context_t *input)
 {
     struct pbo_picture_context *context = (struct pbo_picture_context *) input;
 
-    vlc_mutex_lock(context->lock);
+    heimdall_mutex_lock(context->lock);
     context->rc--;
-    vlc_cond_signal(context->cond);
-    vlc_mutex_unlock(context->lock);
+    heimdall_cond_signal(context->cond);
+    heimdall_mutex_unlock(context->lock);
 }
 
-static inline void BindDrawFramebuffer(struct vlc_gl_pbuffer *sys)
+static inline void BindDrawFramebuffer(struct heimdall_gl_pbuffer *sys)
 {
     const opengl_vtable_t *vt = &sys->api.vt;
     vt->BindFramebuffer(GL_DRAW_FRAMEBUFFER,
                         sys->framebuffers[sys->current_flip]);
 }
 
-static void UpdateBuffer(vlc_gl_t *gl)
+static void UpdateBuffer(heimdall_gl_t *gl)
 {
-    struct vlc_gl_pbuffer *sys = gl->sys;
+    struct heimdall_gl_pbuffer *sys = gl->sys;
 
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     size_t index;
 
     do {
@@ -165,18 +166,18 @@ static void UpdateBuffer(vlc_gl_t *gl)
             if (sys->picture_contexts[index].rc == 0)
                 goto out_loop;
         }
-        vlc_cond_wait(&sys->cond, &sys->lock);
+        heimdall_cond_wait(&sys->cond, &sys->lock);
     } while (index == BUFFER_COUNT);
 out_loop:
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
 
     sys->current_flip = index;
     BindDrawFramebuffer(sys);
 }
 
-static picture_t *Swap(vlc_gl_t *gl)
+static picture_t *Swap(heimdall_gl_t *gl)
 {
-    struct vlc_gl_pbuffer *sys = gl->sys;
+    struct heimdall_gl_pbuffer *sys = gl->sys;
     const opengl_vtable_t *vt = &sys->api.vt;
 
     if (!sys->current)
@@ -237,9 +238,9 @@ error:
     return NULL;
 }
 
-static void Close( vlc_gl_t *gl )
+static void Close( heimdall_gl_t *gl )
 {
-    struct vlc_gl_pbuffer *sys = gl->sys;
+    struct heimdall_gl_pbuffer *sys = gl->sys;
     const opengl_vtable_t *vt = &sys->api.vt;
 
     wglMakeCurrent(sys->pixelBufferDC, sys->hGLRC);
@@ -253,13 +254,13 @@ static void Close( vlc_gl_t *gl )
     sys->wgl_vt.DestroyPbufferARB(sys->hbuffer);
 }
 
-static int LoadWGLExt(vlc_gl_t *gl, struct wgl_vt *wgl_vt)
+static int LoadWGLExt(heimdall_gl_t *gl, struct wgl_vt *wgl_vt)
 {
 #define LOAD_EXT(name, type) do { \
     wgl_vt->name = (type)(void*) wglGetProcAddress("wgl" #name); \
     if (!wgl_vt->name) { \
         msg_Warn(gl, "'wgl " #name "' could not be loaded"); \
-        return VLC_EGENERIC; \
+        return HEIMDALL_EGENERIC; \
     } \
 } while(0)
 
@@ -269,21 +270,21 @@ static int LoadWGLExt(vlc_gl_t *gl, struct wgl_vt *wgl_vt)
     LOAD_EXT(DestroyPbufferARB,      PFNWGLDESTROYPBUFFERARBPROC);
     LOAD_EXT(GetPbufferDCARB,        PFNWGLGETPBUFFERDCARBPROC);
     LOAD_EXT(ReleasePbufferDCARB,    PFNWGLRELEASEPBUFFERDCARBPROC);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int Open(vlc_gl_t *gl, unsigned width, unsigned height,
-                const struct vlc_gl_cfg *gl_cfg)
+static int Open(heimdall_gl_t *gl, unsigned width, unsigned height,
+                const struct heimdall_gl_cfg *gl_cfg)
 {
     if (gl_cfg->need_alpha)
     {
         msg_Err(gl, "Cannot support alpha yet");
-        return VLC_ENOTSUP;
+        return HEIMDALL_ENOTSUP;
     }
 
-    struct vlc_gl_pbuffer *sys = vlc_obj_malloc(&gl->obj, sizeof *sys);
+    struct heimdall_gl_pbuffer *sys = heimdall_obj_malloc(&gl->obj, sizeof *sys);
     if (sys == NULL)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     sys->hbuffer = NULL;
     sys->pixelBufferDC = NULL;
 
@@ -292,7 +293,7 @@ static int Open(vlc_gl_t *gl, unsigned width, unsigned height,
 
     sys->current = false;
 
-    video_format_Init(&sys->fmt_out, VLC_CODEC_RGBA);
+    video_format_Init(&sys->fmt_out, HEIMDALL_CODEC_RGBA);
     sys->fmt_out.i_visible_width
         = sys->fmt_out.i_width
         = width;
@@ -300,11 +301,11 @@ static int Open(vlc_gl_t *gl, unsigned width, unsigned height,
         = sys->fmt_out.i_height
         = height;
 
-    gl->offscreen_chroma_out = VLC_CODEC_RGBA;
+    gl->offscreen_chroma_out = HEIMDALL_CODEC_RGBA;
     gl->offscreen_vctx_out = NULL;
 
-    vlc_mutex_init(&sys->lock);
-    vlc_cond_init(&sys->cond);
+    heimdall_mutex_init(&sys->lock);
+    heimdall_cond_init(&sys->cond);
 
     gl->sys = sys;
 
@@ -315,7 +316,7 @@ static int Open(vlc_gl_t *gl, unsigned width, unsigned height,
         goto error1;
     }
 
-    static const struct vlc_gl_operations gl_ops =
+    static const struct heimdall_gl_operations gl_ops =
     {
         .make_current = MakeBoundCurrent,
         .release_current = ReleaseCurrent,
@@ -357,7 +358,7 @@ static int Open(vlc_gl_t *gl, unsigned width, unsigned height,
     }
 
     int err = LoadWGLExt(gl, &sys->wgl_vt);
-    if (err != VLC_SUCCESS)
+    if (err != HEIMDALL_SUCCESS)
     {
         msg_Err(gl, "Failed to get wgl extensions");
         wglMakeCurrent(NULL, NULL);
@@ -365,8 +366,8 @@ static int Open(vlc_gl_t *gl, unsigned width, unsigned height,
     }
 
     const char *extensions = sys->wgl_vt.GetExtensionsStringARB(tmpScreenDC);
-    if (!vlc_gl_StrHasToken(extensions, "WGL_ARB_pbuffer") ||
-        !vlc_gl_StrHasToken(extensions, "WGL_ARB_pixel_format"))
+    if (!heimdall_gl_StrHasToken(extensions, "WGL_ARB_pbuffer") ||
+        !heimdall_gl_StrHasToken(extensions, "WGL_ARB_pixel_format"))
     {
         msg_Err(gl, "wgl pixel buffer extensions missing");
         wglMakeCurrent(NULL, NULL);
@@ -420,8 +421,8 @@ static int Open(vlc_gl_t *gl, unsigned width, unsigned height,
     wglMakeCurrent(NULL, NULL);
     wglMakeCurrent(sys->pixelBufferDC, sys->hGLRC);
 
-    int ret = vlc_gl_api_Init(&sys->api, gl);
-    if (ret != VLC_SUCCESS)
+    int ret = heimdall_gl_api_Init(&sys->api, gl);
+    if (ret != HEIMDALL_SUCCESS)
     {
         msg_Err(gl, "Failed to initialize gl_api");
         wglMakeCurrent(NULL, NULL);
@@ -461,7 +462,7 @@ static int Open(vlc_gl_t *gl, unsigned width, unsigned height,
     wglDeleteContext(tmpGLRC);
     ReleaseDC(NULL, tmpScreenDC);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error2:
     if (sys->pixelBufferDC != NULL)
@@ -474,14 +475,14 @@ error1:
         wglDeleteContext(tmpGLRC);
     if (tmpScreenDC)
         ReleaseDC(NULL, tmpScreenDC);
-    vlc_obj_free(&gl->obj, sys);
+    heimdall_obj_free(&gl->obj, sys);
 
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     add_shortcut( "opengl_win_offscreen" )
     set_shortname( N_("opengl_offscreen") )
     set_description( N_("offscreen opengl provider for Windows") )
     set_callback_opengl_offscreen( Open, 1 )
-vlc_module_end()
+heimdall_module_end()

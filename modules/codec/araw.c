@@ -2,6 +2,7 @@
  * araw.c: Pseudo audio decoder; for raw pcm data
  *****************************************************************************
  * Copyright (C) 2001, 2003 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *
@@ -30,21 +31,21 @@
 #include <math.h>
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
-#include <vlc_aout.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
+#include <heimdall_aout.h>
 
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  DecoderOpen ( vlc_object_t * );
+static int  DecoderOpen ( heimdall_object_t * );
 
 #ifdef ENABLE_SOUT
-static int  EncoderOpen ( vlc_object_t * );
+static int  EncoderOpen ( heimdall_object_t * );
 #endif
 
-vlc_module_begin ()
+heimdall_module_begin ()
     /* audio decoder module */
     set_description( N_("Raw/Log Audio decoder") )
     set_capability( "audio decoder", 100 )
@@ -58,7 +59,7 @@ vlc_module_begin ()
     set_capability( "audio encoder", 150 )
     set_callback( EncoderOpen )
 #endif
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * Local prototypes
@@ -96,26 +97,26 @@ static void DAT12Decode( void *, const uint8_t *, unsigned );
 /*****************************************************************************
  * DecoderOpen: probe the decoder and return score
  *****************************************************************************/
-static int DecoderOpen( vlc_object_t *p_this )
+static int DecoderOpen( heimdall_object_t *p_this )
 {
     decoder_t *p_dec = (decoder_t*)p_this;
-    vlc_fourcc_t format = p_dec->fmt_in->i_codec;
+    heimdall_fourcc_t format = p_dec->fmt_in->i_codec;
 
     switch( p_dec->fmt_in->i_codec )
     {
-    case VLC_FOURCC('a','r','a','w'):
-    case VLC_FOURCC('a','f','l','t'):
+    case HEIMDALL_FOURCC('a','r','a','w'):
+    case HEIMDALL_FOURCC('a','f','l','t'):
     /* _signed_ big endian samples (mov) */
-    case VLC_FOURCC('t','w','o','s'):
+    case HEIMDALL_FOURCC('t','w','o','s'):
     /* _signed_ little endian samples (mov) */
-    case VLC_FOURCC('s','o','w','t'):
+    case HEIMDALL_FOURCC('s','o','w','t'):
         format =
-            vlc_fourcc_GetCodecAudio( p_dec->fmt_in->i_codec,
+            heimdall_fourcc_GetCodecAudio( p_dec->fmt_in->i_codec,
                                       p_dec->fmt_in->audio.i_bitspersample );
         if( !format )
         {
             msg_Err( p_dec, "bad parameters(bits/sample)" );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
         break;
     }
@@ -126,114 +127,114 @@ static int DecoderOpen( vlc_object_t *p_this )
     switch( format )
     {
 #ifdef WORDS_BIGENDIAN
-    case VLC_CODEC_F64L:
+    case HEIMDALL_CODEC_F64L:
 #else
-    case VLC_CODEC_F64B:
+    case HEIMDALL_CODEC_F64B:
 #endif
-        format = VLC_CODEC_FL64;
+        format = HEIMDALL_CODEC_FL64;
         decode = F64IDecode;
         bits = 64;
         break;
-    case VLC_CODEC_FL64:
+    case HEIMDALL_CODEC_FL64:
         decode = F64NDecode;
         bits = 64;
         break;
 #ifdef WORDS_BIGENDIAN
-    case VLC_CODEC_F32L:
+    case HEIMDALL_CODEC_F32L:
 #else
-    case VLC_CODEC_F32B:
+    case HEIMDALL_CODEC_F32B:
 #endif
-        format = VLC_CODEC_FL32;
+        format = HEIMDALL_CODEC_FL32;
         decode = F32IDecode;
         bits = 32;
         break;
-    case VLC_CODEC_FL32:
+    case HEIMDALL_CODEC_FL32:
         decode = F32NDecode;
         bits = 32;
         break;
-    case VLC_CODEC_U32B:
-        format = VLC_CODEC_S32N;
+    case HEIMDALL_CODEC_U32B:
+        format = HEIMDALL_CODEC_S32N;
         decode = U32BDecode;
         bits = 32;
         break;
-    case VLC_CODEC_U32L:
-        format = VLC_CODEC_S32N;
+    case HEIMDALL_CODEC_U32L:
+        format = HEIMDALL_CODEC_S32N;
         decode = U32LDecode;
         bits = 32;
         break;
-    case VLC_CODEC_S32I:
-        format = VLC_CODEC_S32N;
+    case HEIMDALL_CODEC_S32I:
+        format = HEIMDALL_CODEC_S32N;
         decode = S32IDecode;
         /* fall through */
-    case VLC_CODEC_S32N:
+    case HEIMDALL_CODEC_S32N:
         bits = 32;
         break;
-    case VLC_CODEC_S24B32:
-        format = VLC_CODEC_S32N;
+    case HEIMDALL_CODEC_S24B32:
+        format = HEIMDALL_CODEC_S32N;
         decode = S24B32Decode;
         bits = 32;
         break;
-    case VLC_CODEC_S24L32:
-        format = VLC_CODEC_S32N;
+    case HEIMDALL_CODEC_S24L32:
+        format = HEIMDALL_CODEC_S32N;
         decode = S24L32Decode;
         bits = 32;
         break;
-    case VLC_CODEC_U24B:
-        format = VLC_CODEC_S32N;
+    case HEIMDALL_CODEC_U24B:
+        format = HEIMDALL_CODEC_S32N;
         decode = U24BDecode;
         bits = 24;
         break;
-    case VLC_CODEC_U24L:
-        format = VLC_CODEC_S32N;
+    case HEIMDALL_CODEC_U24L:
+        format = HEIMDALL_CODEC_S32N;
         decode = U24LDecode;
         bits = 24;
         break;
-    case VLC_CODEC_S24B:
-        format = VLC_CODEC_S32N;
+    case HEIMDALL_CODEC_S24B:
+        format = HEIMDALL_CODEC_S32N;
         decode = S24BDecode;
         bits = 24;
         break;
-    case VLC_CODEC_S24L:
-        format = VLC_CODEC_S32N;
+    case HEIMDALL_CODEC_S24L:
+        format = HEIMDALL_CODEC_S32N;
         decode = S24LDecode;
         bits = 24;
         break;
-    case VLC_CODEC_S20B:
-        format = VLC_CODEC_S32N;
+    case HEIMDALL_CODEC_S20B:
+        format = HEIMDALL_CODEC_S32N;
         decode = S20BDecode;
         bits = 20;
         break;
-    case VLC_CODEC_U16B:
-        format = VLC_CODEC_S16N;
+    case HEIMDALL_CODEC_U16B:
+        format = HEIMDALL_CODEC_S16N;
         decode = U16BDecode;
         bits = 16;
         break;
-    case VLC_CODEC_U16L:
-        format = VLC_CODEC_S16N;
+    case HEIMDALL_CODEC_U16L:
+        format = HEIMDALL_CODEC_S16N;
         decode = U16LDecode;
         bits = 16;
         break;
-    case VLC_CODEC_S16I:
-        format = VLC_CODEC_S16N;
+    case HEIMDALL_CODEC_S16I:
+        format = HEIMDALL_CODEC_S16N;
         decode = S16IDecode;
         /* fall through */
-    case VLC_CODEC_S16N:
+    case HEIMDALL_CODEC_S16N:
         bits = 16;
         break;
-    case VLC_CODEC_DAT12:
-        format = VLC_CODEC_S16N;
+    case HEIMDALL_CODEC_DAT12:
+        format = HEIMDALL_CODEC_S16N;
         decode = DAT12Decode;
         bits = 12;
         break;
-    case VLC_CODEC_S8:
+    case HEIMDALL_CODEC_S8:
         decode = S8Decode;
-        format = VLC_CODEC_U8;
+        format = HEIMDALL_CODEC_U8;
         /* fall through */
-    case VLC_CODEC_U8:
+    case HEIMDALL_CODEC_U8:
         bits = 8;
         break;
     default:
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( p_dec->fmt_in->audio.i_channels == 0 ||
@@ -241,13 +242,13 @@ static int DecoderOpen( vlc_object_t *p_this )
     {
         msg_Err( p_dec, "bad channels count (1-%i): %i",
                  AOUT_CHAN_MAX, p_dec->fmt_in->audio.i_channels );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( p_dec->fmt_in->audio.i_rate == 0 || p_dec->fmt_in->audio.i_rate > 384000 )
     {
         msg_Err( p_dec, "bad samplerate: %d Hz", p_dec->fmt_in->audio.i_rate );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     msg_Dbg( p_dec, "samplerate:%dHz channels:%d bits/sample:%d",
@@ -255,23 +256,23 @@ static int DecoderOpen( vlc_object_t *p_this )
              p_dec->fmt_in->audio.i_bitspersample );
 
     /* Allocate the memory needed to store the decoder's structure */
-    decoder_sys_t *p_sys = vlc_obj_malloc(p_this, sizeof(*p_sys));
+    decoder_sys_t *p_sys = heimdall_obj_malloc(p_this, sizeof(*p_sys));
     if( unlikely(p_sys == NULL) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     /* Set output properties */
     p_dec->fmt_out.i_codec = format;
     p_dec->fmt_out.audio.channel_type = p_dec->fmt_in->audio.channel_type;
     p_dec->fmt_out.audio.i_format = format;
     p_dec->fmt_out.audio.i_rate = p_dec->fmt_in->audio.i_rate;
-    if( p_dec->fmt_in->audio.i_channels < ARRAY_SIZE(vlc_chan_maps) )
+    if( p_dec->fmt_in->audio.i_channels < ARRAY_SIZE(heimdall_chan_maps) )
     {
         if( p_dec->fmt_in->audio.i_physical_channels )
             p_dec->fmt_out.audio.i_physical_channels =
                                            p_dec->fmt_in->audio.i_physical_channels;
         else
             p_dec->fmt_out.audio.i_physical_channels =
-                vlc_chan_maps[p_dec->fmt_in->audio.i_channels];
+                heimdall_chan_maps[p_dec->fmt_in->audio.i_channels];
     }
     else
     {
@@ -291,7 +292,7 @@ static int DecoderOpen( vlc_object_t *p_this )
     p_dec->pf_flush  = Flush;
     p_dec->p_sys = p_sys;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -301,7 +302,7 @@ static void Flush( decoder_t *p_dec )
 {
     decoder_sys_t *p_sys = p_dec->p_sys;
 
-    date_Set( &p_sys->end_date, VLC_TICK_INVALID );
+    date_Set( &p_sys->end_date, HEIMDALL_TICK_INVALID );
 }
 
 /****************************************************************************
@@ -313,7 +314,7 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
 {
     decoder_sys_t *p_sys = p_dec->p_sys;
     if( p_block == NULL ) /* No Drain */
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
 
     if( p_block->i_flags & (BLOCK_FLAG_CORRUPTED|BLOCK_FLAG_DISCONTINUITY) )
     {
@@ -322,12 +323,12 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
             goto skip;
     }
 
-    if( p_block->i_pts != VLC_TICK_INVALID &&
+    if( p_block->i_pts != HEIMDALL_TICK_INVALID &&
         p_block->i_pts != date_Get( &p_sys->end_date ) )
     {
         date_Set( &p_sys->end_date, p_block->i_pts );
     }
-    else if( date_Get( &p_sys->end_date ) == VLC_TICK_INVALID )
+    else if( date_Get( &p_sys->end_date ) == HEIMDALL_TICK_INVALID )
         /* We've just started the stream, wait for the first PTS. */
         goto skip;
 
@@ -360,10 +361,10 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
     p_block->i_length = date_Increment( &p_sys->end_date, samples )
                       - p_block->i_pts;
     decoder_QueueAudio( p_dec, p_block );
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 skip:
     block_Release( p_block );
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }
 
 static void S8Decode( void *outp, const uint8_t *in, unsigned samples )
@@ -650,7 +651,7 @@ static void U16IEncode( void *outp, const uint8_t *inp, unsigned samples )
     uint16_t *out = outp;
 
     for( size_t i = 0; i < samples; i++ )
-        *(out++) =  vlc_bswap16( *(in++) + 0x8000 );
+        *(out++) =  heimdall_bswap16( *(in++) + 0x8000 );
 }
 
 static void U16NEncode( void *outp, const uint8_t *inp, unsigned samples )
@@ -724,7 +725,7 @@ static void U32IEncode( void *outp, const uint8_t *inp, unsigned samples )
     uint32_t *out = outp;
 
     for( size_t i = 0; i < samples; i++ )
-        *(out++) =  vlc_bswap32( *(in++) + 0x80000000 );
+        *(out++) =  heimdall_bswap32( *(in++) + 0x80000000 );
 }
 
 static void U32NEncode( void *outp, const uint8_t *inp, unsigned samples )
@@ -742,7 +743,7 @@ static void S32IEncode( void *outp, const uint8_t *inp, unsigned samples )
     int32_t *out = outp;
 
     for( size_t i = 0; i < samples; i++ )
-        *(out++) = vlc_bswap32( *(in++) );
+        *(out++) = heimdall_bswap32( *(in++) );
 }
 
 static void F32IEncode( void *outp, const uint8_t *inp, unsigned samples )
@@ -755,7 +756,7 @@ static void F32IEncode( void *outp, const uint8_t *inp, unsigned samples )
         union { float f; uint32_t u; char b[4]; } s;
 
         s.f = *(in++);
-        s.u = vlc_bswap32( s.u );
+        s.u = heimdall_bswap32( s.u );
         memcpy( out, s.b, 4 );
         out += 4;
     }
@@ -771,7 +772,7 @@ static void F64IEncode( void *outp, const uint8_t *inp, unsigned samples )
         union { double d; uint64_t u; char b[8]; } s;
 
         s.d = *(in++);
-        s.u = vlc_bswap64( s.u );
+        s.u = heimdall_bswap64( s.u );
         memcpy( out, s.b, 8 );
         out += 8;
     }
@@ -807,98 +808,98 @@ static block_t *Encode( encoder_t *enc, block_t *in )
 /**
  * Probes the PCM audio encoder.
  */
-static int EncoderOpen( vlc_object_t *p_this )
+static int EncoderOpen( heimdall_object_t *p_this )
 {
     encoder_t *p_enc = (encoder_t *)p_this;
     void (*encode)(void *, const uint8_t *, unsigned) = NULL;
 
     switch( p_enc->fmt_out.i_codec )
     {
-    case VLC_CODEC_S8:
+    case HEIMDALL_CODEC_S8:
         encode = S8Decode;
         /* fall through */
-    case VLC_CODEC_U8:
-        p_enc->fmt_in.i_codec = VLC_CODEC_U8;
+    case HEIMDALL_CODEC_U8:
+        p_enc->fmt_in.i_codec = HEIMDALL_CODEC_U8;
         p_enc->fmt_out.audio.i_bitspersample = 8;
         break;
-    case VLC_CODEC_U16I:
+    case HEIMDALL_CODEC_U16I:
         encode = U16IEncode;
-        p_enc->fmt_in.i_codec = VLC_CODEC_S16N;
+        p_enc->fmt_in.i_codec = HEIMDALL_CODEC_S16N;
         p_enc->fmt_out.audio.i_bitspersample = 16;
         break;
-    case VLC_CODEC_U16N:
+    case HEIMDALL_CODEC_U16N:
         encode = U16NEncode;
-        p_enc->fmt_in.i_codec = VLC_CODEC_S16N;
+        p_enc->fmt_in.i_codec = HEIMDALL_CODEC_S16N;
         p_enc->fmt_out.audio.i_bitspersample = 16;
         break;
-    case VLC_CODEC_S16I:
+    case HEIMDALL_CODEC_S16I:
         encode = S16IDecode;
         /* fall through */
-    case VLC_CODEC_S16N:
-        p_enc->fmt_in.i_codec = VLC_CODEC_S16N;
+    case HEIMDALL_CODEC_S16N:
+        p_enc->fmt_in.i_codec = HEIMDALL_CODEC_S16N;
         p_enc->fmt_out.audio.i_bitspersample = 16;
         break;
-    case VLC_CODEC_U24B:
+    case HEIMDALL_CODEC_U24B:
         encode = U24BEncode;
-        p_enc->fmt_in.i_codec = VLC_CODEC_S32N;
+        p_enc->fmt_in.i_codec = HEIMDALL_CODEC_S32N;
         p_enc->fmt_out.audio.i_bitspersample = 24;
         break;
-    case VLC_CODEC_U24L:
+    case HEIMDALL_CODEC_U24L:
         encode = U24LEncode;
-        p_enc->fmt_in.i_codec = VLC_CODEC_S32N;
+        p_enc->fmt_in.i_codec = HEIMDALL_CODEC_S32N;
         p_enc->fmt_out.audio.i_bitspersample = 24;
         break;
-    case VLC_CODEC_S24B:
+    case HEIMDALL_CODEC_S24B:
         encode = S24BEncode;
-        p_enc->fmt_in.i_codec = VLC_CODEC_S32N;
+        p_enc->fmt_in.i_codec = HEIMDALL_CODEC_S32N;
         p_enc->fmt_out.audio.i_bitspersample = 24;
         break;
-    case VLC_CODEC_S24L:
+    case HEIMDALL_CODEC_S24L:
         encode = S24LEncode;
-        p_enc->fmt_in.i_codec = VLC_CODEC_S32N;
+        p_enc->fmt_in.i_codec = HEIMDALL_CODEC_S32N;
         p_enc->fmt_out.audio.i_bitspersample = 24;
         break;
-    case VLC_CODEC_U32I:
+    case HEIMDALL_CODEC_U32I:
         encode = U32IEncode;
-        p_enc->fmt_in.i_codec = VLC_CODEC_S32N;
+        p_enc->fmt_in.i_codec = HEIMDALL_CODEC_S32N;
         p_enc->fmt_out.audio.i_bitspersample = 32;
         break;
-    case VLC_CODEC_U32N:
+    case HEIMDALL_CODEC_U32N:
         encode = U32NEncode;
-        p_enc->fmt_in.i_codec = VLC_CODEC_S32N;
+        p_enc->fmt_in.i_codec = HEIMDALL_CODEC_S32N;
         p_enc->fmt_out.audio.i_bitspersample = 32;
         break;
-    case VLC_CODEC_S32I:
+    case HEIMDALL_CODEC_S32I:
         encode = S32IEncode;
         /* fall through */
-    case VLC_CODEC_S32N:
-        p_enc->fmt_in.i_codec = VLC_CODEC_S32N;
+    case HEIMDALL_CODEC_S32N:
+        p_enc->fmt_in.i_codec = HEIMDALL_CODEC_S32N;
         p_enc->fmt_out.audio.i_bitspersample = 32;
         break;
 #ifdef WORDS_BIGENDIAN
-    case VLC_CODEC_F32L:
+    case HEIMDALL_CODEC_F32L:
 #else
-    case VLC_CODEC_F32B:
+    case HEIMDALL_CODEC_F32B:
 #endif
         encode = F32IEncode;
         /* fall through */
-    case VLC_CODEC_FL32:
-        p_enc->fmt_in.i_codec = VLC_CODEC_FL32;
+    case HEIMDALL_CODEC_FL32:
+        p_enc->fmt_in.i_codec = HEIMDALL_CODEC_FL32;
         p_enc->fmt_out.audio.i_bitspersample = 32;
         break;
 #ifdef WORDS_BIGENDIAN
-    case VLC_CODEC_F64L:
+    case HEIMDALL_CODEC_F64L:
 #else
-    case VLC_CODEC_F64B:
+    case HEIMDALL_CODEC_F64B:
 #endif
         encode = F64IEncode;
         /* fall through */
-    case VLC_CODEC_FL64:
-        p_enc->fmt_in.i_codec = VLC_CODEC_FL64;
+    case HEIMDALL_CODEC_FL64:
+        p_enc->fmt_in.i_codec = HEIMDALL_CODEC_FL64;
         p_enc->fmt_out.audio.i_bitspersample = 64;
         break;
     default:
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     p_enc->p_sys = (void *)encode;
@@ -914,10 +915,10 @@ static int EncoderOpen( vlc_object_t *p_this )
              p_enc->fmt_out.audio.i_rate, p_enc->fmt_out.audio.i_channels,
              p_enc->fmt_out.audio.i_bitspersample );
 
-    static const struct vlc_encoder_operations ops =
+    static const struct heimdall_encoder_operations ops =
         { .encode_audio = Encode };
     p_enc->ops = &ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 #endif /* ENABLE_SOUT */

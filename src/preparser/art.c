@@ -2,6 +2,7 @@
  * art.c : Art metadata handling
  *****************************************************************************
  * Copyright (C) 1998-2008 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Antoine Cellerier <dionoea@videolan.org>
  *          Clément Stenac <zorglub@videolan.org
@@ -28,19 +29,19 @@
 #include <sys/stat.h>
 #include <errno.h>
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_input_item.h>
-#include <vlc_fs.h>
-#include <vlc_strings.h>
-#include <vlc_url.h>
-#include <vlc_hash.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_input_item.h>
+#include <heimdall_fs.h>
+#include <heimdall_strings.h>
+#include <heimdall_url.h>
+#include <heimdall_hash.h>
 
 #include "art.h"
 
 static void ArtCacheCreateDir( const char *psz_dir )
 {
-    vlc_mkdir_parent(psz_dir, 0700);
+    heimdall_mkdir_parent(psz_dir, 0700);
 }
 
 static bool ArtUrlIsAttachment( const char *psz_arturl )
@@ -51,7 +52,7 @@ static bool ArtUrlIsAttachment( const char *psz_arturl )
 static char *ArtCacheGetAttachmentDirPath( const char *psz_title,
                                            const char *psz_uri )
 {
-    char *psz_cachedir = config_GetUserDir( VLC_CACHE_DIR );
+    char *psz_cachedir = config_GetUserDir( HEIMDALL_CACHE_DIR );
     char *psz_dir = NULL;
 
     if( unlikely( psz_cachedir == NULL ) )
@@ -63,17 +64,17 @@ static char *ArtCacheGetAttachmentDirPath( const char *psz_title,
         return NULL;
     }
 
-    char psz_hash[VLC_HASH_MD5_DIGEST_HEX_SIZE];
-    vlc_hash_md5_t md5;
-    vlc_hash_md5_Init( &md5 );
-    vlc_hash_md5_Update( &md5, "attachment://", 13 );
+    char psz_hash[HEIMDALL_HASH_MD5_DIGEST_HEX_SIZE];
+    heimdall_hash_md5_t md5;
+    heimdall_hash_md5_Init( &md5 );
+    heimdall_hash_md5_Update( &md5, "attachment://", 13 );
 
     if( !EMPTY_STR( psz_uri ) )
-        vlc_hash_md5_Update( &md5, psz_uri, strlen( psz_uri ) );
+        heimdall_hash_md5_Update( &md5, psz_uri, strlen( psz_uri ) );
     else
-        vlc_hash_md5_Update( &md5, psz_title, strlen( psz_title ) );
+        heimdall_hash_md5_Update( &md5, psz_title, strlen( psz_title ) );
 
-    vlc_hash_FinishHex( &md5, psz_hash );
+    heimdall_hash_FinishHex( &md5, psz_hash );
 
     if( asprintf( &psz_dir, "%s" DIR_SEP "art" DIR_SEP "arturl" DIR_SEP
                   "attachment-%s", psz_cachedir, psz_hash ) == -1 )
@@ -89,17 +90,17 @@ static char *ArtCacheAttachmentPath( input_item_t *p_item )
     const char *psz_title = NULL;
     const char *psz_uri = NULL;
 
-    vlc_mutex_lock( &p_item->lock );
+    heimdall_mutex_lock( &p_item->lock );
 
     if( p_item->p_meta )
-        psz_title = vlc_meta_Get( p_item->p_meta, vlc_meta_Title );
+        psz_title = heimdall_meta_Get( p_item->p_meta, heimdall_meta_Title );
     psz_uri = p_item->psz_uri;
     if( !psz_title )
         psz_title = p_item->psz_name;
 
     psz_path = ArtCacheGetAttachmentDirPath( psz_title, psz_uri );
 
-    vlc_mutex_unlock( &p_item->lock );
+    heimdall_mutex_unlock( &p_item->lock );
     return psz_path;
 }
 
@@ -108,7 +109,7 @@ static char* ArtCacheGetDirPath( const char *psz_arturl, const char *psz_artist,
                                  const char *psz_title, const char *psz_uri )
 {
     char *psz_dir;
-    char *psz_cachedir = config_GetUserDir(VLC_CACHE_DIR);
+    char *psz_cachedir = config_GetUserDir(HEIMDALL_CACHE_DIR);
 
     if (unlikely(psz_cachedir == NULL))
         return NULL;
@@ -155,21 +156,21 @@ static char* ArtCacheGetDirPath( const char *psz_arturl, const char *psz_artist,
          * metadata matches across different tracks, otherwise a previous track
          * can populate a shared cache entry and be reused later.
          */
-        char psz_arturl_sanitized[VLC_HASH_MD5_DIGEST_HEX_SIZE];
+        char psz_arturl_sanitized[HEIMDALL_HASH_MD5_DIGEST_HEX_SIZE];
 
-        vlc_hash_md5_t md5;
-        vlc_hash_md5_Init( &md5 );
-        vlc_hash_md5_Update( &md5, psz_arturl, strlen( psz_arturl ) );
+        heimdall_hash_md5_t md5;
+        heimdall_hash_md5_Init( &md5 );
+        heimdall_hash_md5_Update( &md5, psz_arturl, strlen( psz_arturl ) );
         if( ArtUrlIsAttachment( psz_arturl ) )
         {
             if( !EMPTY_STR( psz_uri ) )
-                vlc_hash_md5_Update( &md5, psz_uri, strlen( psz_uri ) );
+                heimdall_hash_md5_Update( &md5, psz_uri, strlen( psz_uri ) );
             else if( !EMPTY_STR( psz_title ) )
-                vlc_hash_md5_Update( &md5, psz_title, strlen( psz_title ) );
+                heimdall_hash_md5_Update( &md5, psz_title, strlen( psz_title ) );
         }
         else if( !EMPTY_STR( psz_title ) )
-            vlc_hash_md5_Update( &md5, psz_title, strlen( psz_title ) );
-        vlc_hash_FinishHex( &md5, psz_arturl_sanitized );
+            heimdall_hash_md5_Update( &md5, psz_title, strlen( psz_title ) );
+        heimdall_hash_FinishHex( &md5, psz_arturl_sanitized );
         if( asprintf( &psz_dir, "%s" DIR_SEP "art" DIR_SEP "arturl" DIR_SEP
                       "%s", psz_cachedir, psz_arturl_sanitized ) == -1 )
             psz_dir = NULL;
@@ -188,18 +189,18 @@ static char *ArtCachePath( input_item_t *p_item )
     const char *psz_date;
     const char *psz_uri;
 
-    vlc_mutex_lock( &p_item->lock );
+    heimdall_mutex_lock( &p_item->lock );
 
     if( !p_item->p_meta )
-        p_item->p_meta = vlc_meta_New();
+        p_item->p_meta = heimdall_meta_New();
     if( !p_item->p_meta )
         goto end;
 
-    psz_artist = vlc_meta_Get( p_item->p_meta, vlc_meta_Artist );
-    psz_album = vlc_meta_Get( p_item->p_meta, vlc_meta_Album );
-    psz_arturl = vlc_meta_Get( p_item->p_meta, vlc_meta_ArtworkURL );
-    psz_title = vlc_meta_Get( p_item->p_meta, vlc_meta_Title );
-    psz_date = vlc_meta_Get( p_item->p_meta, vlc_meta_Date );
+    psz_artist = heimdall_meta_Get( p_item->p_meta, heimdall_meta_Artist );
+    psz_album = heimdall_meta_Get( p_item->p_meta, heimdall_meta_Album );
+    psz_arturl = heimdall_meta_Get( p_item->p_meta, heimdall_meta_ArtworkURL );
+    psz_title = heimdall_meta_Get( p_item->p_meta, heimdall_meta_Title );
+    psz_date = heimdall_meta_Get( p_item->p_meta, heimdall_meta_Date );
     psz_uri = p_item->psz_uri;
     if( !psz_title )
         psz_title = p_item->psz_name;
@@ -211,7 +212,7 @@ static char *ArtCachePath( input_item_t *p_item )
                                    psz_date, psz_title, psz_uri );
 
 end:
-    vlc_mutex_unlock( &p_item->lock );
+    heimdall_mutex_unlock( &p_item->lock );
     return psz_path;
 }
 
@@ -275,7 +276,7 @@ static char *ArtCacheReadUriFromFile( const char *psz_file )
     if( !psz_file )
         return NULL;
 
-    FILE *fd = vlc_fopen( psz_file, "rb" );
+    FILE *fd = heimdall_fopen( psz_file, "rb" );
     if( !fd )
         return NULL;
 
@@ -312,21 +313,21 @@ static char *ArtCacheReadUriFromDirPath( const char *psz_dir )
     return psz_uri;
 }
 
-static int ArtCacheWriteUriToFile( vlc_object_t *obj, const char *psz_file,
+static int ArtCacheWriteUriToFile( heimdall_object_t *obj, const char *psz_file,
                                    const char *psz_uri )
 {
     if( !psz_file || !psz_uri )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    FILE *f = vlc_fopen( psz_file, "wb" );
+    FILE *f = heimdall_fopen( psz_file, "wb" );
     if( !f )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    int ret = VLC_SUCCESS;
+    int ret = HEIMDALL_SUCCESS;
     if( fputs( psz_uri, f ) < 0 )
     {
-        msg_Err( obj, "Error writing %s: %s", psz_file, vlc_strerror_c(errno) );
-        ret = VLC_EGENERIC;
+        msg_Err( obj, "Error writing %s: %s", psz_file, heimdall_strerror_c(errno) );
+        ret = HEIMDALL_EGENERIC;
     }
 
     fclose( f );
@@ -335,17 +336,17 @@ static int ArtCacheWriteUriToFile( vlc_object_t *obj, const char *psz_file,
 
 static char *ArtCacheGetAttachmentBlobDirPath( const void *p_data, size_t i_data )
 {
-    char *psz_cachedir = config_GetUserDir( VLC_CACHE_DIR );
+    char *psz_cachedir = config_GetUserDir( HEIMDALL_CACHE_DIR );
     char *psz_dir = NULL;
 
     if( unlikely( psz_cachedir == NULL ) )
         return NULL;
 
-    char psz_hash[VLC_HASH_MD5_DIGEST_HEX_SIZE];
-    vlc_hash_md5_t md5;
-    vlc_hash_md5_Init( &md5 );
-    vlc_hash_md5_Update( &md5, p_data, i_data );
-    vlc_hash_FinishHex( &md5, psz_hash );
+    char psz_hash[HEIMDALL_HASH_MD5_DIGEST_HEX_SIZE];
+    heimdall_hash_md5_t md5;
+    heimdall_hash_md5_Init( &md5 );
+    heimdall_hash_md5_Update( &md5, p_data, i_data );
+    heimdall_hash_FinishHex( &md5, psz_hash );
 
     if( asprintf( &psz_dir, "%s" DIR_SEP "art" DIR_SEP "artblob" DIR_SEP "%s",
                   psz_cachedir, psz_hash ) == -1 )
@@ -360,13 +361,13 @@ static char *ArtCacheUriInPath( const char *psz_path )
     if( !psz_path )
         return NULL;
 
-    vlc_DIR *p_dir = vlc_opendir( psz_path );
+    heimdall_DIR *p_dir = heimdall_opendir( psz_path );
     if( !p_dir )
         return NULL;
 
     char *psz_uri = NULL;
     const char *psz_filename;
-    while( psz_uri == NULL && (psz_filename = vlc_readdir( p_dir )) )
+    while( psz_uri == NULL && (psz_filename = heimdall_readdir( p_dir )) )
     {
         if( !strncmp( psz_filename, "art", 3 ) )
         {
@@ -374,13 +375,13 @@ static char *ArtCacheUriInPath( const char *psz_path )
             if( asprintf( &psz_file, "%s" DIR_SEP "%s",
                           psz_path, psz_filename ) != -1 )
             {
-                psz_uri = vlc_path2uri( psz_file, "file" );
+                psz_uri = heimdall_path2uri( psz_file, "file" );
                 free( psz_file );
             }
         }
     }
 
-    vlc_closedir( p_dir );
+    heimdall_closedir( p_dir );
     return psz_uri;
 }
 
@@ -389,11 +390,11 @@ static int ArtCacheFindInPath( input_item_t *p_item, char *psz_path )
     char *psz_uri = ArtCacheUriInPath( psz_path );
     free( psz_path );
     if( !psz_uri )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     input_item_SetArtURL( p_item, psz_uri );
     free( psz_uri );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int ArtCacheFindAttachment( input_item_t *p_item )
@@ -406,7 +407,7 @@ static int ArtCacheFindAttachment( input_item_t *p_item )
         input_item_SetArtURL( p_item, psz_uri );
         free( psz_uri );
         free( psz_path );
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
     return ArtCacheFindInPath( p_item, psz_path );
@@ -418,15 +419,15 @@ int input_FindArtInCache( input_item_t *p_item )
     /* Probe the item-scoped attachment cache even before metadata repopulates
      * the current art URL. Otherwise cached embedded art is missed until a
      * later parse re-discovers the attachment:// URL. */
-    if( ArtCacheFindAttachment( p_item ) == VLC_SUCCESS )
-        return VLC_SUCCESS;
+    if( ArtCacheFindAttachment( p_item ) == HEIMDALL_SUCCESS )
+        return HEIMDALL_SUCCESS;
 
     return ArtCacheFindInPath( p_item, ArtCachePath( p_item ) );
 }
 
 static char * GetDirByItemUIDs( char *psz_uid )
 {
-    char *psz_cachedir = config_GetUserDir(VLC_CACHE_DIR);
+    char *psz_cachedir = config_GetUserDir(HEIMDALL_CACHE_DIR);
     char *psz_dir;
     if (unlikely(psz_cachedir == NULL))
         return NULL;
@@ -447,7 +448,7 @@ int input_FindArtInCacheUsingItemUID( input_item_t *p_item )
     if ( ! *uid )
     {
         free( uid );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* we have an input item uid set */
@@ -467,18 +468,18 @@ int input_FindArtInCacheUsingItemUID( input_item_t *p_item )
         free( psz_byuidfile );
     }
     free( uid );
-    if ( b_done ) return VLC_SUCCESS;
+    if ( b_done ) return HEIMDALL_SUCCESS;
 
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /* */
-int input_SaveArt( vlc_object_t *obj, input_item_t *p_item,
+int input_SaveArt( heimdall_object_t *obj, input_item_t *p_item,
                    const void *data, size_t length, const char *psz_type )
 {
     char *psz_arturl = input_item_GetArtURL( p_item );
     const bool b_attachment = ArtUrlIsAttachment( psz_arturl );
-    int i_ret = VLC_EGENERIC;
+    int i_ret = HEIMDALL_EGENERIC;
     char *psz_filename = NULL;
     char *psz_uri = NULL;
     char *psz_attachment_dir = NULL;
@@ -494,7 +495,7 @@ int input_SaveArt( vlc_object_t *obj, input_item_t *p_item,
         {
             psz_uri = ArtCacheUriInPath( psz_blob_dir );
             if( psz_uri )
-                psz_filename = vlc_uri2path( psz_uri );
+                psz_filename = heimdall_uri2path( psz_uri );
             else
                 psz_filename = ArtCacheNameFromDirPath( psz_blob_dir, psz_type );
 
@@ -509,46 +510,46 @@ int input_SaveArt( vlc_object_t *obj, input_item_t *p_item,
     {
         free( psz_attachment_urlfile );
         free( psz_attachment_dir );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( !psz_uri )
     {
-        psz_uri = vlc_path2uri( psz_filename, "file" );
+        psz_uri = heimdall_path2uri( psz_filename, "file" );
         if( !psz_uri )
         {
             free( psz_filename );
             free( psz_attachment_urlfile );
             free( psz_attachment_dir );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
 
     /* Check if we already dumped it */
     struct stat s;
-    if( !vlc_stat( psz_filename, &s ) )
+    if( !heimdall_stat( psz_filename, &s ) )
         goto save_uid;
 
     /* Dump it otherwise */
-    FILE *f = vlc_fopen( psz_filename, "wb" );
+    FILE *f = heimdall_fopen( psz_filename, "wb" );
     if( !f )
     {
-        msg_Err( obj, "%s: %s", psz_filename, vlc_strerror_c(errno) );
+        msg_Err( obj, "%s: %s", psz_filename, heimdall_strerror_c(errno) );
         goto end;
     }
 
     if( fwrite( data, 1, length, f ) != length )
     {
-        msg_Err( obj, "%s: %s", psz_filename, vlc_strerror_c(errno) );
+        msg_Err( obj, "%s: %s", psz_filename, heimdall_strerror_c(errno) );
         fclose( f );
-        vlc_unlink( psz_filename );
+        heimdall_unlink( psz_filename );
         goto end;
     }
 
     if( fclose( f ) )
     {
-        msg_Err( obj, "%s: %s", psz_filename, vlc_strerror_c(errno) );
-        vlc_unlink( psz_filename );
+        msg_Err( obj, "%s: %s", psz_filename, heimdall_strerror_c(errno) );
+        heimdall_unlink( psz_filename );
         goto end;
     }
 
@@ -561,7 +562,7 @@ save_uid:
     }
     input_item_SetArtURL( p_item, psz_uri );
 
-    i_ret = VLC_SUCCESS;
+    i_ret = HEIMDALL_SUCCESS;
     char *uid = input_item_GetInfo( p_item, "uid", "md5" );
     if ( ! *uid )
     {

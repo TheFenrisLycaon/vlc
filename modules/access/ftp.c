@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 2001-2006 VLC authors and VideoLAN
  * Copyright © 2006 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr> - original code
  *          Rémi Denis-Courmont - EPSV support
@@ -34,20 +35,20 @@
 #include <errno.h>
 #include <ctype.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_access.h>
-#include <vlc_dialog.h>
-#include <vlc_input_item.h>
-#include <vlc_memstream.h>
-#include <vlc_network.h>
-#include <vlc_url.h>
-#include <vlc_tls.h>
-#include <vlc_sout.h>
-#include <vlc_charset.h>
-#include <vlc_interrupt.h>
-#include <vlc_keystore.h>
-#include <vlc_strings.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_access.h>
+#include <heimdall_dialog.h>
+#include <heimdall_input_item.h>
+#include <heimdall_memstream.h>
+#include <heimdall_network.h>
+#include <heimdall_url.h>
+#include <heimdall_tls.h>
+#include <heimdall_sout.h>
+#include <heimdall_charset.h>
+#include <heimdall_interrupt.h>
+#include <heimdall_keystore.h>
+#include <heimdall_strings.h>
 
 #ifndef IPPORT_FTP
 # define IPPORT_FTP 21u
@@ -60,11 +61,11 @@
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int   InOpen ( vlc_object_t * );
-static void  InClose( vlc_object_t * );
+static int   InOpen ( heimdall_object_t * );
+static void  InClose( heimdall_object_t * );
 #ifdef ENABLE_SOUT
-static int  OutOpen ( vlc_object_t * );
-static void OutClose( vlc_object_t * );
+static int  OutOpen ( heimdall_object_t * );
+static void OutClose( heimdall_object_t * );
 #endif
 
 #define USER_TEXT N_("Username")
@@ -81,7 +82,7 @@ static void OutClose( vlc_object_t * );
 #define LOGIN_DIALOG_TEXT _("Please enter a valid login and password for " \
         "the FTP connection to %s")
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( "FTP" )
     set_description( N_("FTP input") )
     set_capability( "access", 0 )
@@ -102,7 +103,7 @@ vlc_module_begin ()
         add_shortcut( "ftp", "ftps", "ftpes" )
         set_callbacks( OutOpen, OutClose )
 #endif
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * Local prototypes
@@ -119,7 +120,7 @@ static int OutSeek( sout_access_out_t *, uint64_t );
 static ssize_t Write( sout_access_out_t *, block_t * );
 #endif
 
-static int LoginUserPwd( vlc_object_t *, access_sys_t *,
+static int LoginUserPwd( heimdall_object_t *, access_sys_t *,
                          const char *, const char *, bool * );
 static void FeaturesCheck( void *, const char * );
 
@@ -140,13 +141,13 @@ enum tls_mode_e
 
 struct access_sys_t
 {
-    vlc_url_t  url;
+    heimdall_url_t  url;
 
     ftp_features_t   features;
-    vlc_tls_client_t *p_creds;
+    heimdall_tls_client_t *p_creds;
     enum tls_mode_e  tlsmode;
-    vlc_tls_t *cmd;
-    vlc_tls_t *data;
+    heimdall_tls_t *cmd;
+    heimdall_tls_t *data;
 
     char       sz_epsv_ip[NI_MAXNUMERICHOST];
     bool       out;
@@ -156,8 +157,8 @@ struct access_sys_t
 #define GET_OUT_SYS( p_this ) \
     ((access_sys_t *)(((sout_access_out_t *)(p_this))->p_sys))
 
-VLC_FORMAT(3, 4)
-static int ftp_SendCommand( vlc_object_t *obj, access_sys_t *sys,
+HEIMDALL_FORMAT(3, 4)
+static int ftp_SendCommand( heimdall_object_t *obj, access_sys_t *sys,
                             const char *fmt, ... )
 {
     size_t fmtlen = strlen( fmt );
@@ -181,7 +182,7 @@ static int ftp_SendCommand( vlc_object_t *obj, access_sys_t *sys,
     else
         msg_Dbg( obj, "sending request: \"%.*s XXXX\" (XX bytes)", 4, cmd );
 
-    if( vlc_tls_Write( sys->cmd, cmd, val ) != val )
+    if( heimdall_tls_Write( sys->cmd, cmd, val ) != val )
     {
         msg_Err( obj, "request failure" );
         val = -1;
@@ -192,9 +193,9 @@ static int ftp_SendCommand( vlc_object_t *obj, access_sys_t *sys,
     return val;
 }
 
-static char *ftp_GetLine( vlc_object_t *obj, access_sys_t *sys )
+static char *ftp_GetLine( heimdall_object_t *obj, access_sys_t *sys )
 {
-    char *resp = vlc_tls_GetLine( sys->cmd );
+    char *resp = heimdall_tls_GetLine( sys->cmd );
     if( resp == NULL )
         msg_Err( obj, "response failure" );
     return resp;
@@ -215,7 +216,7 @@ static char *ftp_GetLine( vlc_object_t *obj, access_sys_t *sys )
 
  These strings are not part of the requests, except in the case \377\377,
  where the request contains one \377. */
-static int ftp_RecvReply( vlc_object_t *obj, access_sys_t *sys,
+static int ftp_RecvReply( heimdall_object_t *obj, access_sys_t *sys,
                           char **restrict strp,
                           void (*cb)(void *, const char *), void *opaque )
 {
@@ -261,7 +262,7 @@ error:
     return -1;
 }
 
-static int ftp_RecvAnswer( vlc_object_t *obj, access_sys_t *sys,
+static int ftp_RecvAnswer( heimdall_object_t *obj, access_sys_t *sys,
                            int *restrict codep, char **restrict strp,
                            void (*cb)(void *, const char *), void *opaque )
 {
@@ -298,13 +299,13 @@ static void DummyLine( void *data, const char *str )
     (void) data; (void) str;
 }
 
-static int ftp_RecvCommand( vlc_object_t *obj, access_sys_t *sys,
+static int ftp_RecvCommand( heimdall_object_t *obj, access_sys_t *sys,
                             int *restrict codep, char **restrict strp )
 {
     return ftp_RecvAnswer( obj, sys, codep, strp, DummyLine, NULL );
 }
 
-static int ftp_RecvCommandInit( vlc_object_t *obj, access_sys_t *sys )
+static int ftp_RecvCommandInit( heimdall_object_t *obj, access_sys_t *sys )
 {
     int val = ftp_RecvReply( obj, sys, NULL, DummyLine, NULL );
     if( val >= 0 )
@@ -312,10 +313,10 @@ static int ftp_RecvCommandInit( vlc_object_t *obj, access_sys_t *sys )
     return val;
 }
 
-static int ftp_StartStream( vlc_object_t *, access_sys_t *, uint64_t, bool );
-static int ftp_StopStream ( vlc_object_t *, access_sys_t * );
+static int ftp_StartStream( heimdall_object_t *, access_sys_t *, uint64_t, bool );
+static int ftp_StopStream ( heimdall_object_t *, access_sys_t * );
 
-static int readTLSMode( vlc_object_t *obj, access_sys_t *p_sys,
+static int readTLSMode( heimdall_object_t *obj, access_sys_t *p_sys,
                         const char * psz_access )
 {
     if ( !strncmp( psz_access, "ftps", 4 ) )
@@ -330,15 +331,15 @@ static int readTLSMode( vlc_object_t *obj, access_sys_t *p_sys,
         return 0;
     }
 
-    p_sys->p_creds = vlc_tls_ClientCreate( obj );
+    p_sys->p_creds = heimdall_tls_ClientCreate( obj );
     return (p_sys->p_creds != NULL) ? 0 : -1;
 }
 
-static int createCmdTLS( vlc_object_t *p_access, access_sys_t *p_sys,
+static int createCmdTLS( heimdall_object_t *p_access, access_sys_t *p_sys,
                          const char *psz_session_name )
 {
     /* TLS/SSL handshake */
-    vlc_tls_t *secure = vlc_tls_ClientSessionCreate( p_sys->p_creds,
+    heimdall_tls_t *secure = heimdall_tls_ClientSessionCreate( p_sys->p_creds,
                                                      p_sys->cmd,
                                                      p_sys->url.psz_host,
                                                      psz_session_name,
@@ -356,7 +357,7 @@ static void clearCmd( access_sys_t *p_sys )
 {
     if( p_sys->cmd != NULL )
     {
-        vlc_tls_Close( p_sys->cmd );
+        heimdall_tls_Close( p_sys->cmd );
         p_sys->cmd = NULL;
     }
 }
@@ -376,18 +377,18 @@ static bool HasControlChar( const char *p )
     return false;
 }
 
-static int Login( vlc_object_t *p_access, access_sys_t *p_sys, const char *path )
+static int Login( heimdall_object_t *p_access, access_sys_t *p_sys, const char *path )
 {
     int i_answer;
 
     /* *** Open a TCP connection with server *** */
-    p_sys->cmd = vlc_tls_SocketOpenTCP( p_access, p_sys->url.psz_host,
+    p_sys->cmd = heimdall_tls_SocketOpenTCP( p_access, p_sys->url.psz_host,
                                         p_sys->url.i_port );
     if( p_sys->cmd == NULL )
     {
         msg_Err( p_access, "connection failed" );
-        vlc_dialog_display_error( p_access, _("Network interaction failed"), "%s",
-            _("VLC could not connect with the given server.") );
+        heimdall_dialog_display_error( p_access, _("Network interaction failed"), "%s",
+            _("Heimdall could not connect with the given server.") );
         goto error;
     }
 
@@ -402,8 +403,8 @@ static int Login( vlc_object_t *p_access, access_sys_t *p_sys, const char *path 
     if( i_answer / 100 != 2 )
     {
         msg_Err( p_access, "connection rejected" );
-        vlc_dialog_display_error( p_access, _("Network interaction failed"), "%s",
-            _("VLC's connection to the given server was rejected.") );
+        heimdall_dialog_display_error( p_access, _("Network interaction failed"), "%s",
+            _("Heimdall's connection to the given server was rejected.") );
         goto error;
     }
 
@@ -461,22 +462,22 @@ static int Login( vlc_object_t *p_access, access_sys_t *p_sys, const char *path 
         }
     }
 
-    vlc_url_t url;
-    vlc_credential credential;
-    if( vlc_UrlParseFixup( &url, path ) != 0 )
+    heimdall_url_t url;
+    heimdall_credential credential;
+    if( heimdall_UrlParseFixup( &url, path ) != 0 )
     {
-        vlc_UrlClean( &url );
+        heimdall_UrlClean( &url );
         goto error;
     }
-    vlc_credential_init( &credential, &url );
+    heimdall_credential_init( &credential, &url );
     bool b_logged = false;
 
     /* First: try credentials from url / option */
-    if (vlc_credential_get( &credential, p_access, "ftp-user", "ftp-pwd",
+    if (heimdall_credential_get( &credential, p_access, "ftp-user", "ftp-pwd",
                             NULL, NULL ) == -EINTR )
     {
-        vlc_credential_clean( &credential );
-        vlc_UrlClean( &url );
+        heimdall_credential_clean( &credential );
+        heimdall_UrlClean( &url );
         goto error;
     }
 
@@ -499,25 +500,25 @@ static int Login( vlc_object_t *p_access, access_sys_t *p_sys, const char *path 
          || b_logged )
             break;
     }
-    while( vlc_credential_get( &credential, p_access, "ftp-user", "ftp-pwd",
+    while( heimdall_credential_get( &credential, p_access, "ftp-user", "ftp-pwd",
                                LOGIN_DIALOG_TITLE, LOGIN_DIALOG_TEXT,
                                url.psz_host ) == 0 );
 
     if( b_logged )
     {
-        vlc_credential_store( &credential, p_access );
-        vlc_credential_clean( &credential );
-        vlc_UrlClean( &url );
+        heimdall_credential_store( &credential, p_access );
+        heimdall_credential_clean( &credential );
+        heimdall_UrlClean( &url );
         return 0;
     }
-    vlc_credential_clean( &credential );
-    vlc_UrlClean( &url );
+    heimdall_credential_clean( &credential );
+    heimdall_UrlClean( &url );
 error:
     clearCmd( p_sys );
     return -1;
 }
 
-static int LoginUserPwd( vlc_object_t *p_access, access_sys_t *p_sys,
+static int LoginUserPwd( heimdall_object_t *p_access, access_sys_t *p_sys,
                          const char *psz_user, const char *psz_pwd,
                          bool *p_logged )
 {
@@ -570,7 +571,7 @@ static int LoginUserPwd( vlc_object_t *p_access, access_sys_t *p_sys,
                     if( i_answer / 100 != 2 )
                     {
                         msg_Err( p_access, "account rejected" );
-                        vlc_dialog_display_error( p_access,
+                        heimdall_dialog_display_error( p_access,
                           _("Network interaction failed"),
                           "%s", _("Your account was rejected.") );
                         return -1;
@@ -609,7 +610,7 @@ static void FeaturesCheck( void *opaque, const char *feature )
         features->b_mlst = true;
 }
 
-static int Connect( vlc_object_t *p_access, access_sys_t *p_sys, const char *path )
+static int Connect( heimdall_object_t *p_access, access_sys_t *p_sys, const char *path )
 {
     if( Login( p_access, p_sys, path ) < 0 )
         return -1;
@@ -623,7 +624,7 @@ static int Connect( vlc_object_t *p_access, access_sys_t *p_sys, const char *pat
 
     if( ftp_RecvCommand( p_access, p_sys, NULL, NULL ) == 2 )
     {
-        int fd = vlc_tls_GetFD(p_sys->cmd);
+        int fd = heimdall_tls_GetFD(p_sys->cmd);
         if( net_GetPeerAddress( fd, p_sys->sz_epsv_ip, NULL ) )
             goto error;
     }
@@ -664,19 +665,19 @@ error:
 }
 
 
-static int parseURL( vlc_object_t *p_obj, vlc_url_t *url, const char *path, enum tls_mode_e mode )
+static int parseURL( heimdall_object_t *p_obj, heimdall_url_t *url, const char *path, enum tls_mode_e mode )
 {
     if( path == NULL )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* *** Parse URL and get server addr/port and path *** */
     while( *path == '/' )
         path++;
 
-    vlc_UrlParseFixup( url, path );
+    heimdall_UrlParseFixup( url, path );
 
     if( url->psz_host == NULL || *url->psz_host == '\0' )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if( url->i_port <= 0 )
     {
@@ -687,7 +688,7 @@ static int parseURL( vlc_object_t *p_obj, vlc_url_t *url, const char *path, enum
     }
 
     if( url->psz_path == NULL )
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     /* FTP URLs are relative to user's default directory (RFC1738 §3.2)
     For absolute path use ftp://foo.bar//usr/local/etc/filename */
     /* FIXME: we should issue a series of CWD, one per slash */
@@ -702,22 +703,22 @@ static int parseURL( vlc_object_t *p_obj, vlc_url_t *url, const char *path, enum
     {
         *type = '\0';
         if( strchr( "iI", type[6] ) == NULL )
-            return VLC_EGENERIC; /* ASCII and directory not supported */
+            return HEIMDALL_EGENERIC; /* ASCII and directory not supported */
     }
-    vlc_uri_decode( url->psz_path );
+    heimdall_uri_decode( url->psz_path );
     if( HasControlChar( url->psz_path ) )
     {
         msg_Err( p_obj, "Invalid chars in the path" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 
 /****************************************************************************
  * Open: connect to ftp server and ask for file
  ****************************************************************************/
-static int InOpen( vlc_object_t *p_this )
+static int InOpen( heimdall_object_t *p_this )
 {
     stream_t     *p_access = (stream_t*)p_this;
     access_sys_t *p_sys;
@@ -725,9 +726,9 @@ static int InOpen( vlc_object_t *p_this )
     bool          b_directory;
 
     /* Init p_access */
-    p_sys = p_access->p_sys = (access_sys_t*)vlc_obj_calloc( p_this, 1, sizeof( access_sys_t ) );
+    p_sys = p_access->p_sys = (access_sys_t*)heimdall_obj_calloc( p_this, 1, sizeof( access_sys_t ) );
     if( !p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     p_sys->data = NULL;
     p_sys->out = false;
     p_sys->offset = 0;
@@ -794,26 +795,26 @@ static int InOpen( vlc_object_t *p_this )
         goto error;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     clearCmd( p_sys );
 
 exit_error:
-    vlc_UrlClean( &p_sys->url );
-    vlc_tls_ClientDelete( p_sys->p_creds );
-    return VLC_EGENERIC;
+    heimdall_UrlClean( &p_sys->url );
+    heimdall_tls_ClientDelete( p_sys->p_creds );
+    return HEIMDALL_EGENERIC;
 }
 
 #ifdef ENABLE_SOUT
-static int OutOpen( vlc_object_t *p_this )
+static int OutOpen( heimdall_object_t *p_this )
 {
     sout_access_out_t *p_access = (sout_access_out_t *)p_this;
     access_sys_t      *p_sys;
 
-    p_sys = vlc_obj_calloc( p_this, 1, sizeof( *p_sys ) );
+    p_sys = heimdall_obj_calloc( p_this, 1, sizeof( *p_sys ) );
     if( !p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     /* Init p_access */
     p_sys->data = NULL;
@@ -845,19 +846,19 @@ static int OutOpen( vlc_object_t *p_this )
     p_access->pf_write = Write;
     p_access->p_sys = (void *)p_sys;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 exit_error:
-    vlc_UrlClean( &p_sys->url );
-    vlc_tls_ClientDelete( p_sys->p_creds );
-    return VLC_EGENERIC;
+    heimdall_UrlClean( &p_sys->url );
+    heimdall_tls_ClientDelete( p_sys->p_creds );
+    return HEIMDALL_EGENERIC;
 }
 #endif
 
 /*****************************************************************************
  * Close: free unused data structures
  *****************************************************************************/
-static void Close( vlc_object_t *p_access, access_sys_t *p_sys )
+static void Close( heimdall_object_t *p_access, access_sys_t *p_sys )
 {
     msg_Dbg( p_access, "stopping stream" );
     ftp_StopStream( p_access, p_sys );
@@ -874,17 +875,17 @@ static void Close( vlc_object_t *p_access, access_sys_t *p_sys )
     clearCmd( p_sys );
 
     /* free memory */
-    vlc_UrlClean( &p_sys->url );
-    vlc_tls_ClientDelete( p_sys->p_creds );
+    heimdall_UrlClean( &p_sys->url );
+    heimdall_tls_ClientDelete( p_sys->p_creds );
 }
 
-static void InClose( vlc_object_t *p_this )
+static void InClose( heimdall_object_t *p_this )
 {
     Close( p_this, ((stream_t *)p_this)->p_sys);
 }
 
 #ifdef ENABLE_SOUT
-static void OutClose( vlc_object_t *p_this )
+static void OutClose( heimdall_object_t *p_this )
 {
     Close( p_this, GET_OUT_SYS(p_this));
 }
@@ -894,7 +895,7 @@ static void OutClose( vlc_object_t *p_this )
 /*****************************************************************************
  * Seek: try to go at the right place
  *****************************************************************************/
-static int SeekCommon( vlc_object_t *p_access, access_sys_t *p_sys,
+static int SeekCommon( heimdall_object_t *p_access, access_sys_t *p_sys,
                        uint64_t i_pos )
 {
     msg_Dbg( p_access, "seeking to %"PRIu64, i_pos );
@@ -902,27 +903,27 @@ static int SeekCommon( vlc_object_t *p_access, access_sys_t *p_sys,
     ftp_StopStream( p_access, p_sys );
 
     if( ftp_StartStream( p_access, p_sys, i_pos, false ) < 0 )
-        return VLC_EGENERIC;
-    return VLC_SUCCESS;
+        return HEIMDALL_EGENERIC;
+    return HEIMDALL_SUCCESS;
 }
 
 static int Seek( stream_t *p_access, uint64_t i_pos )
 {
     access_sys_t *p_sys = p_access->p_sys;
 
-    int val = SeekCommon( VLC_OBJECT(p_access), p_sys, i_pos );
+    int val = SeekCommon( HEIMDALL_OBJECT(p_access), p_sys, i_pos );
     if( val )
         return val;
 
     p_sys->offset = i_pos;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 #ifdef ENABLE_SOUT
 static int OutSeek( sout_access_out_t *p_access, uint64_t i_pos )
 {
-    return SeekCommon(VLC_OBJECT(p_access), GET_OUT_SYS(p_access), i_pos);
+    return SeekCommon(HEIMDALL_OBJECT(p_access), GET_OUT_SYS(p_access), i_pos);
 }
 #endif
 
@@ -937,12 +938,12 @@ static ssize_t Read( stream_t *p_access, void *p_buffer, size_t i_len )
         return 0;
     assert( !p_sys->out );
 
-    ssize_t i_read = vlc_tls_Read( p_sys->data, p_buffer, i_len, false );
+    ssize_t i_read = heimdall_tls_Read( p_sys->data, p_buffer, i_len, false );
     if( i_read >= 0 )
         p_sys->offset += i_read;
     else if( errno != EINTR && errno != EAGAIN )
     {
-        msg_Err( p_access, "receive error: %s", vlc_strerror_c(errno) );
+        msg_Err( p_access, "receive error: %s", heimdall_strerror_c(errno) );
         i_read = 0;
     }
 
@@ -1186,22 +1187,22 @@ static int ParseListDosEntry( char *line, int *type, long long *size,
 static int DirRead (stream_t *p_access, input_item_node_t *p_current_node)
 {
     access_sys_t *p_sys = p_access->p_sys;
-    int i_ret = VLC_SUCCESS;
+    int i_ret = HEIMDALL_SUCCESS;
 
     assert( p_sys->data != NULL );
     assert( !p_sys->out );
 
-    struct vlc_readdir_helper rdh;
-    vlc_readdir_helper_init( &rdh, p_access, p_current_node );
+    struct heimdall_readdir_helper rdh;
+    heimdall_readdir_helper_init( &rdh, p_access, p_current_node );
 
-    while (i_ret == VLC_SUCCESS)
+    while (i_ret == HEIMDALL_SUCCESS)
     {
         char *psz_file;
         int type = ITEM_TYPE_UNKNOWN;
         long long size = 0;
         time_t mtime = (time_t)-1;
 
-        char *psz_line = vlc_tls_GetLine( p_sys->data );
+        char *psz_line = heimdall_tls_GetLine( p_sys->data );
         if( psz_line == NULL )
             break;
 
@@ -1225,14 +1226,14 @@ static int DirRead (stream_t *p_access, input_item_node_t *p_current_node)
                     msg_Warn( p_access, "Skipping invalid MLST fact '%s'", key);
                     continue;
                 }
-                if (!vlc_ascii_strcasecmp( key, "type" )) {
-                    if (!vlc_ascii_strcasecmp( val, "dir" ))
+                if (!heimdall_ascii_strcasecmp( key, "type" )) {
+                    if (!heimdall_ascii_strcasecmp( val, "dir" ))
                         type = ITEM_TYPE_DIRECTORY;
-                    else if (!vlc_ascii_strcasecmp( val, "file" ))
+                    else if (!heimdall_ascii_strcasecmp( val, "file" ))
                         type = ITEM_TYPE_FILE;
-                } else if (!vlc_ascii_strcasecmp( key, "size" )) {
+                } else if (!heimdall_ascii_strcasecmp( key, "size" )) {
                     size = atoll(val);
-                } else if (!vlc_ascii_strcasecmp( key, "modify" )) {
+                } else if (!heimdall_ascii_strcasecmp( key, "modify" )) {
                     mtime = ftp_mktime(val);
                 }
             }
@@ -1261,55 +1262,55 @@ static int DirRead (stream_t *p_access, input_item_node_t *p_current_node)
             continue;
         }
 
-        char *psz_filename = vlc_uri_encode( psz_file );
+        char *psz_filename = heimdall_uri_encode( psz_file );
 
         if (unlikely(psz_filename == NULL))
             continue;
 
-        struct vlc_memstream ms;
+        struct heimdall_memstream ms;
 
         // Scheme
-        vlc_memstream_open(&ms);
-        vlc_memstream_puts(&ms, "ftp");
+        heimdall_memstream_open(&ms);
+        heimdall_memstream_puts(&ms, "ftp");
         if (p_sys->tlsmode != NONE)
         {
             if (p_sys->tlsmode != IMPLICIT)
-                vlc_memstream_putc(&ms, 'e');
-            vlc_memstream_putc(&ms, 's');
+                heimdall_memstream_putc(&ms, 'e');
+            heimdall_memstream_putc(&ms, 's');
         }
-        vlc_memstream_puts(&ms, "://");
+        heimdall_memstream_puts(&ms, "://");
 
         // Host
         // In case of IPv6, enclose in []
         if (strchr(p_sys->url.psz_host, ':') != NULL)
-            vlc_memstream_printf(&ms, "[%s]", p_sys->url.psz_host);
+            heimdall_memstream_printf(&ms, "[%s]", p_sys->url.psz_host);
         else
-            vlc_memstream_puts(&ms, p_sys->url.psz_host);
+            heimdall_memstream_puts(&ms, p_sys->url.psz_host);
 
         // Port
         // Only print if not the default for the scheme
         if (p_sys->url.i_port != ((p_sys->tlsmode != IMPLICIT) ? IPPORT_FTP
                                                                : IPPORT_FTPS))
-            vlc_memstream_printf(&ms, ":%d", p_sys->url.i_port);
+            heimdall_memstream_printf(&ms, ":%d", p_sys->url.i_port);
 
         // Separating / after host[:port]
-        vlc_memstream_putc(&ms, '/');
+        heimdall_memstream_putc(&ms, '/');
 
         // Path to the current location, if any
         if (p_sys->url.psz_path != NULL)
-            vlc_memstream_puts(&ms, p_sys->url.psz_path);
+            heimdall_memstream_puts(&ms, p_sys->url.psz_path);
 
         // Filename
-        vlc_memstream_puts(&ms, psz_filename);
+        heimdall_memstream_puts(&ms, psz_filename);
         free(psz_filename);
 
-        if (likely(vlc_memstream_close(&ms) == 0))
+        if (likely(heimdall_memstream_close(&ms) == 0))
         {
             input_item_t *p_item;
-            i_ret = vlc_readdir_helper_additem( &rdh, ms.ptr, NULL, psz_file,
+            i_ret = heimdall_readdir_helper_additem( &rdh, ms.ptr, NULL, psz_file,
                                                 type, ITEM_NET, &p_item );
 
-            if (i_ret == VLC_SUCCESS && p_item) {
+            if (i_ret == HEIMDALL_SUCCESS && p_item) {
                 if (size > 0)
                     input_item_AddStat(p_item, "size", size);
                 if (mtime != (time_t)-1)
@@ -1320,7 +1321,7 @@ static int DirRead (stream_t *p_access, input_item_node_t *p_current_node)
         free( psz_line );
     }
 
-    vlc_readdir_helper_finish( &rdh, i_ret == VLC_SUCCESS );
+    heimdall_readdir_helper_finish( &rdh, i_ret == HEIMDALL_SUCCESS );
     return i_ret;
 }
 
@@ -1339,7 +1340,7 @@ static ssize_t Write( sout_access_out_t *p_access, block_t *p_buffer )
     {
         block_t *p_next = p_buffer->p_next;
 
-        i_write += vlc_tls_Write( p_sys->data,
+        i_write += heimdall_tls_Write( p_sys->data,
                                   p_buffer->p_buffer, p_buffer->i_buffer );
         block_Release( p_buffer );
 
@@ -1379,13 +1380,13 @@ static int Control( stream_t *p_access, int i_query, va_list args )
             break;
         case STREAM_GET_SIZE:
             if( sys->size == UINT64_MAX )
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             *va_arg( args, uint64_t * ) = sys->size;
             break;
 
         case STREAM_GET_PTS_DELAY:
-            *va_arg( args, vlc_tick_t * ) =
-                VLC_TICK_FROM_MS(var_InheritInteger( p_access, "network-caching" ));
+            *va_arg( args, heimdall_tick_t * ) =
+                HEIMDALL_TICK_FROM_MS(var_InheritInteger( p_access, "network-caching" ));
             break;
 
         case STREAM_SET_PAUSE_STATE:
@@ -1394,13 +1395,13 @@ static int Control( stream_t *p_access, int i_query, va_list args )
             break;
 
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int ftp_StartStream( vlc_object_t *p_access, access_sys_t *p_sys,
+static int ftp_StartStream( heimdall_object_t *p_access, access_sys_t *p_sys,
                             uint64_t i_start, bool b_directory )
 {
     char psz_ipv4[16], *psz_ip = p_sys->sz_epsv_ip;
@@ -1414,7 +1415,7 @@ static int ftp_StartStream( vlc_object_t *p_access, access_sys_t *p_sys,
      || ( ftp_RecvCommand( p_access, p_sys, &i_answer, &psz_arg ) != 2 ) )
     {
         msg_Err( p_access, "cannot set passive mode" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     psz_parser = strchr( psz_arg, '(' );
@@ -1422,7 +1423,7 @@ static int ftp_StartStream( vlc_object_t *p_access, access_sys_t *p_sys,
     {
         free( psz_arg );
         msg_Err( p_access, "cannot parse passive mode response" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( *psz_ip )
@@ -1431,7 +1432,7 @@ static int ftp_StartStream( vlc_object_t *p_access, access_sys_t *p_sys,
         {
             free( psz_arg );
             msg_Err( p_access, "cannot parse passive mode response" );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
     else
@@ -1444,7 +1445,7 @@ static int ftp_StartStream( vlc_object_t *p_access, access_sys_t *p_sys,
         {
             free( psz_arg );
             msg_Err( p_access, "cannot parse passive mode response" );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         snprintf( psz_ipv4, ARRAY_SIZE(psz_ipv4), "%u.%u.%u.%u", a1, a2, a3, a4 );
@@ -1459,7 +1460,7 @@ static int ftp_StartStream( vlc_object_t *p_access, access_sys_t *p_sys,
         ftp_RecvCommand( p_access, p_sys, &i_answer, NULL ) != 2 )
     {
         msg_Err( p_access, "cannot set binary transfer mode" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( i_start > 0 )
@@ -1468,16 +1469,16 @@ static int ftp_StartStream( vlc_object_t *p_access, access_sys_t *p_sys,
             ftp_RecvCommand( p_access, p_sys, &i_answer, NULL ) > 3 )
         {
             msg_Err( p_access, "cannot set restart offset" );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
 
     msg_Dbg( p_access, "waiting for data connection..." );
-    p_sys->data = vlc_tls_SocketOpenTCP( p_access, psz_ip, i_port );
+    p_sys->data = heimdall_tls_SocketOpenTCP( p_access, psz_ip, i_port );
     if( p_sys->data == NULL )
     {
         msg_Err( p_access, "failed to connect with server" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     msg_Dbg( p_access, "connection with \"%s:%d\" successful",
              psz_ip, i_port );
@@ -1503,7 +1504,7 @@ static int ftp_StartStream( vlc_object_t *p_access, access_sys_t *p_sys,
             ftp_RecvCommandInit( p_access, p_sys ) != 1 )
         {
             msg_Err( p_access, "cannot list directory contents" );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
         else
         {
@@ -1522,7 +1523,7 @@ static int ftp_StartStream( vlc_object_t *p_access, access_sys_t *p_sys,
          || ftp_RecvCommandInit( p_access, p_sys ) != 1 )
         {
             msg_Err( p_access, "cannot retrieve file" );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
 
@@ -1530,7 +1531,7 @@ static int ftp_StartStream( vlc_object_t *p_access, access_sys_t *p_sys,
     {
         /* FIXME: Do Reuse TLS Session */
         /* TLS/SSL handshake */
-        vlc_tls_t *secure = vlc_tls_ClientSessionCreate( p_sys->p_creds,
+        heimdall_tls_t *secure = heimdall_tls_ClientSessionCreate( p_sys->p_creds,
                             p_sys->data, p_sys->url.psz_host,
                             ( p_sys->tlsmode == EXPLICIT ) ? "ftpes-data"
                                                            : "ftps-data",
@@ -1539,35 +1540,35 @@ static int ftp_StartStream( vlc_object_t *p_access, access_sys_t *p_sys,
         {
             msg_Err( p_access, "cannot establish FTP/TLS session for data" \
                              ": server not allowing new session ?" );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
         p_sys->data = secure;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int ftp_StopStream ( vlc_object_t *p_access, access_sys_t *p_sys )
+static int ftp_StopStream ( heimdall_object_t *p_access, access_sys_t *p_sys )
 {
-    int ret = VLC_SUCCESS;
+    int ret = HEIMDALL_SUCCESS;
 
     if( ftp_SendCommand( p_access, p_sys, "ABOR" ) < 0 )
     {
         msg_Warn( p_access, "cannot abort file" );
-        ret = VLC_EGENERIC;
+        ret = HEIMDALL_EGENERIC;
     }
 
     if( p_sys->data != NULL )
     {
-        vlc_tls_Close( p_sys->data );
+        heimdall_tls_Close( p_sys->data );
         p_sys->data = NULL;
 
-        if( ret == VLC_SUCCESS )
+        if( ret == HEIMDALL_SUCCESS )
             /* Read the final response from RETR/STOR, i.e. 426 or 226 */
             ftp_RecvCommand( p_access, p_sys, NULL, NULL );
     }
 
-    if( ret == VLC_SUCCESS )
+    if( ret == HEIMDALL_SUCCESS )
         /* Read the response from ABOR, i.e. 226 or 225 */
         ftp_RecvCommand( p_access, p_sys, NULL, NULL );
 

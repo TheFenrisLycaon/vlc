@@ -4,6 +4,7 @@
  * Copyright (C) 2014 Rafaël Carré
  * Copyright (C) 2009 Michael Niedermayer <michaelni@gmx.at>
  * Copyright (c) 2009 Baptiste Coudurier <baptiste dot coudurier at gmail dot com>
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -81,7 +82,7 @@ void v210_convert(uint16_t *dst, const uint32_t *bytes, const int width, const i
 }
 
 #undef vanc_to_cc
-block_t *vanc_to_cc(vlc_object_t *obj, uint16_t *buf, size_t words)
+block_t *vanc_to_cc(heimdall_object_t *obj, uint16_t *buf, size_t words)
 {
     if (words < 3) {
         msg_Err(obj, "VANC line too small (%zu words)", words);

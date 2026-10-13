@@ -2,6 +2,7 @@
  * expert_view.cpp : Detailed preferences overview - view
  *****************************************************************************
  * Copyright (C) 2019-2022 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Lyndon Brown <jnqnfe@gmail.com>
  *
@@ -39,8 +40,8 @@
 #include "expert_view.hpp"
 #include "preferences_widgets.hpp"
 
-#include <vlc_config_cat.h>
-#include <vlc_modules.h>
+#include <heimdall_config_cat.h>
+#include <heimdall_modules.h>
 
 #define COLUMN_COUNT 4
 /*********************************************************************
@@ -225,7 +226,7 @@ ExpertPrefsEditDialog::ExpertPrefsEditDialog( ExpertPrefsTable *_table ) :
     control_widget = nullptr;
 
     setWindowTitle( qtr( "Set option value" ) );
-    setWindowRole( "vlc-preferences" );
+    setWindowRole( "heimdall-preferences" );
     setWindowModality( Qt::WindowModal );
 
     setMinimumSize( 380, 110 );

@@ -2,11 +2,12 @@
  * NSString+Helpers.h: Category with helper functions for NSStrings
  *****************************************************************************
  * Copyright (C) 2002-2025 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Jon Lech Johansen <jon-vl@nanocrew.net>
  *          Christophe Massiot <massiot@via.ecp.fr>
- *          Derk-Jan Hartman <hartman at videolan dot org>
- *          Felix Paul Kühne <fkuehne at videolan dot org>
+ *          Derk-Jan Hartman <hartman at lycaria dot org>
+ *          Felix Paul Kühne <fkuehne at lycaria dot org>
  *          Marvin Scholz <epirat07@gmail.com>
  *          David Fuhrmann <dfuhrmann # videolan.org>
  *
@@ -26,11 +27,11 @@
  *****************************************************************************/
 
 #import <Cocoa/Cocoa.h>
-#import <vlc_input.h>
+#import <heimdall_input.h>
 
 NS_ASSUME_NONNULL_BEGIN
 
-#define NSTR(s) ((s) ? toNSStr(vlc_gettext(s)) : @"")
+#define NSTR(s) ((s) ? toNSStr(heimdall_gettext(s)) : @"")
 
 /**
  * For marking translatable static strings (like `_()`)
@@ -40,7 +41,7 @@ NS_ASSUME_NONNULL_BEGIN
 /**
  * Get a pluralized translation string
  */
-#define _NPS(s, p, n) [NSString stringWithFormat:toNSStr(vlc_ngettext(s, p, n)), (n)]
+#define _NPS(s, p, n) [NSString stringWithFormat:toNSStr(heimdall_ngettext(s, p, n)), (n)]
 
 /**
  * Get a contextualized translation string
@@ -50,17 +51,17 @@ NS_ASSUME_NONNULL_BEGIN
  * In this case, this macro should be used with a unique translation
  * context as the first argument.
  */
-#define _PNS(c, s) (toNSStr(vlc_pgettext(c, s)))
+#define _PNS(c, s) (toNSStr(heimdall_pgettext(c, s)))
 
-extern NSString *const kVLCMediaAudioCD;
-extern NSString *const kVLCMediaDVD;
-extern NSString *const kVLCMediaAudioDVD;
-extern NSString *const kVLCMediaVCD;
-extern NSString *const kVLCMediaSVCD;
-extern NSString *const kVLCMediaBD;
-extern NSString *const kVLCMediaVideoTSFolder;
-extern NSString *const kVLCMediaBDMVFolder;
-extern NSString *const kVLCMediaUnknown;
+extern NSString *const kHeimdallMediaAudioCD;
+extern NSString *const kHeimdallMediaDVD;
+extern NSString *const kHeimdallMediaAudioDVD;
+extern NSString *const kHeimdallMediaVCD;
+extern NSString *const kHeimdallMediaSVCD;
+extern NSString *const kHeimdallMediaBD;
+extern NSString *const kHeimdallMediaVideoTSFolder;
+extern NSString *const kHeimdallMediaBDMVFolder;
+extern NSString *const kHeimdallMediaUnknown;
 
 /**
  * Convert an UTF-8 C string to a NSString.
@@ -71,9 +72,9 @@ extern NSString *const kVLCMediaUnknown;
 NSString *toNSStr(const char * _Nullable str);
 
 /**
- * Takes the first value of an cocoa key string, and converts it to VLCs int representation.
+ * Takes the first value of an cocoa key string, and converts it to Heimdalls int representation.
  */
-unsigned int CocoaKeyToVLC(unichar i_key);
+unsigned int CocoaKeyToHeimdall(unichar i_key);
 
 /**
  * Fix certain settings strings before saving
@@ -98,8 +99,8 @@ bool fixIntfSettings(void);
  \param the current time
  \param negative   If YES, calculate remaining instead of elapsed time
  */
-+ (instancetype)stringWithDuration:(vlc_tick_t)duration
-                       currentTime:(vlc_tick_t)time
++ (instancetype)stringWithDuration:(heimdall_tick_t)duration
+                       currentTime:(heimdall_tick_t)time
                           negative:(BOOL)negative;
 
 /**
@@ -113,14 +114,14 @@ bool fixIntfSettings(void);
 + (instancetype)stringWithTime:(long long int)time;
 
 /**
- Creates an NSString with the given time in VLC ticks
+ Creates an NSString with the given time in Heimdall ticks
 
  This method allocates and initializes an NSString with the given
  time formatted as displayable time
 
- \param time   Time in VLC ticks
+ \param time   Time in Heimdall ticks
  */
-+ (instancetype)stringWithTimeFromTicks:(vlc_tick_t)time;
++ (instancetype)stringWithTimeFromTicks:(heimdall_tick_t)time;
 
 /**
  Creates an NSString with the given time in milliseconds
@@ -187,7 +188,7 @@ bool fixIntfSettings(void);
  * Returns an array of file extensions from a semicolon-separated string of extensions,
  * stripping any leading "*." prefix.
  */
-+ (nullable NSArray<NSString *> *)extensionsArrayFromVLCStyleString:(nullable const char *)extensionsString;
++ (nullable NSArray<NSString *> *)extensionsArrayFromHeimdallStyleString:(nullable const char *)extensionsString;
 
 @end
 
@@ -231,20 +232,20 @@ NSString * _Nullable getBSDNodeFromMountPath(NSString * _Nullable mountPath);
 NSString * _Nullable flagEmojiStringForCountryCode(NSString * _Nullable countryCode);
 
 /**
- * Converts VLC key string to a prettified version, for hotkey settings.
+ * Converts Heimdall key string to a prettified version, for hotkey settings.
  * The returned string adapts similar how its done within the cocoa framework when setting this
  * key to menu items.
  */
 NSString * _Nullable OSXStringKeyToString(NSString * _Nullable theString);
 
 /**
- * Converts VLC key string to cocoa modifiers which can be used as setKeyEquivalent for menu items
+ * Converts Heimdall key string to cocoa modifiers which can be used as setKeyEquivalent for menu items
  */
-NSString * _Nullable VLCKeyToString(char * _Nullable theChar);
+NSString * _Nullable HeimdallKeyToString(char * _Nullable theChar);
 
 /**
- * Converts VLC key to cocoa string which can be used as setKeyEquivalentModifierMask for menu items
+ * Converts Heimdall key to cocoa string which can be used as setKeyEquivalentModifierMask for menu items
  */
-unsigned int VLCModifiersToCocoa(char * _Nullable theChar);
+unsigned int HeimdallModifiersToCocoa(char * _Nullable theChar);
 
 NS_ASSUME_NONNULL_END

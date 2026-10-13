@@ -10,10 +10,10 @@ else
     darwingl_dep = opengles_dep
 endif
 
-vlc_modules += {
+heimdall_modules += {
     'name' : 'cvpx_gl',
     'sources' : files(
-        'VLCCVOpenGLProvider.m',
+        'HeimdallCVOpenGLProvider.m',
         '../../codec/vt_utils.c'
     ),
     'objc_args' : ['-fobjc-arc', '-DGL_SILENCE_DEPRECATION'],
@@ -32,10 +32,10 @@ else
     uifwk_dep = frameworks['UIKit']
 endif
 
-vlc_modules += {
+heimdall_modules += {
     'name' : 'samplebufferdisplay',
     'sources' : files(
-        'VLCSampleBufferDisplay.m',
+        'HeimdallSampleBufferDisplay.m',
         '../../codec/vt_utils.c',
         '../../codec/vt_utils.h'
     ),
@@ -56,9 +56,9 @@ vlc_modules += {
 }
 
 if have_ios or have_tvos
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'caeagl',
-        'sources' : files('VLCOpenGLES2VideoView.m'),
+        'sources' : files('HeimdallOpenGLES2VideoView.m'),
         'objc_args' : ['-fobjc-arc', '-DGL_SILENCE_DEPRECATION'],
         'dependencies' : [
             frameworks['Foundation'],
@@ -69,9 +69,9 @@ if have_ios or have_tvos
         'plugin_dir' : 'video_output',
     }
 
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'uiview',
-        'sources' : files('VLCVideoUIView.m'),
+        'sources' : files('HeimdallVideoUIView.m'),
         'objc_args' : ['-fobjc-arc'],
         'dependencies' : [
             frameworks['Foundation'],

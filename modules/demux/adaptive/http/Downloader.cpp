@@ -2,6 +2,7 @@
  * Downloader.hpp
  *****************************************************************************
  * Copyright (C) 2015 - VideoLAN Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -23,7 +24,7 @@
 
 #include "Downloader.hpp"
 
-#include <vlc_threads.h>
+#include <heimdall_threads.h>
 
 #include <atomic>
 
@@ -40,7 +41,7 @@ Downloader::Downloader()
 bool Downloader::start()
 {
     if(!thread_handle_valid &&
-       vlc_clone(&thread_handle, downloaderThread, static_cast<void *>(this)))
+       heimdall_clone(&thread_handle, downloaderThread, static_cast<void *>(this)))
     {
         return false;
     }
@@ -53,19 +54,19 @@ Downloader::~Downloader()
     kill();
 
     if(thread_handle_valid)
-        vlc_join(thread_handle, nullptr);
+        heimdall_join(thread_handle, nullptr);
 }
 
 void Downloader::kill()
 {
-    vlc::threads::mutex_locker locker {lock};
+    heimdall::threads::mutex_locker locker {lock};
     killed = true;
     wait_cond.signal();
 }
 
 void Downloader::schedule(HTTPChunkBufferedSource *source)
 {
-    vlc::threads::mutex_locker locker {lock};
+    heimdall::threads::mutex_locker locker {lock};
     source->hold();
     chunks.push_back(source);
     wait_cond.signal();
@@ -73,7 +74,7 @@ void Downloader::schedule(HTTPChunkBufferedSource *source)
 
 void Downloader::cancel(HTTPChunkBufferedSource *source)
 {
-    vlc::threads::mutex_locker locker {lock};
+    heimdall::threads::mutex_locker locker {lock};
     while (current == source)
     {
         cancel_current = true;
@@ -89,7 +90,7 @@ void Downloader::cancel(HTTPChunkBufferedSource *source)
 
 void * Downloader::downloaderThread(void *opaque)
 {
-    vlc_thread_set_name("vlc-adapt-dl");
+    heimdall_thread_set_name("heimdall-adapt-dl");
     Downloader *instance = static_cast<Downloader *>(opaque);
     instance->Run();
     return nullptr;

@@ -2,6 +2,7 @@
  * avcodec.h: decoder and encoder using libavcodec
  *****************************************************************************
  * Copyright (C) 2001-2008 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *
@@ -23,28 +24,28 @@
 #include "chroma.h"
 #include "avcommon.h"
 
-/* VLC <-> avcodec tables */
+/* Heimdall <-> avcodec tables */
 bool GetFfmpegCodec( const es_format_t *,
                      enum AVCodecID *pi_ffmpeg_codec, const char **ppsz_name );
-vlc_fourcc_t GetVlcFourcc( enum AVCodecID i_ffmpeg_codec );
-vlc_fourcc_t GetVlcAudioFormat( int i_sample_fmt );
+heimdall_fourcc_t GetHeimdallFourcc( enum AVCodecID i_ffmpeg_codec );
+heimdall_fourcc_t GetHeimdallAudioFormat( int i_sample_fmt );
 
 /* Video encoder module */
-int  InitVideoEnc ( vlc_object_t * );
+int  InitVideoEnc ( heimdall_object_t * );
 void EndVideoEnc( encoder_t * );
 
 /* Video Decoder */
-int InitVideoDec( vlc_object_t * );
-int InitVideoHwDec( vlc_object_t * );
-void EndVideoDec( vlc_object_t * );
+int InitVideoDec( heimdall_object_t * );
+int InitVideoHwDec( heimdall_object_t * );
+void EndVideoDec( heimdall_object_t * );
 
 /* Audio Decoder */
-int InitAudioDec( vlc_object_t * );
-void EndAudioDec( vlc_object_t * );
+int InitAudioDec( heimdall_object_t * );
+void EndAudioDec( heimdall_object_t * );
 
 /* Subtitle Decoder */
-int InitSubtitleDec( vlc_object_t * );
-void EndSubtitleDec( vlc_object_t * );
+int InitSubtitleDec( heimdall_object_t * );
+void EndSubtitleDec( heimdall_object_t * );
 
 /* Initialize decoder */
 AVCodecContext *ffmpeg_AllocContext( decoder_t *, const AVCodec **, bool );

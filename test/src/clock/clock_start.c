@@ -1,7 +1,8 @@
 /*****************************************************************************
- * clock/clock_start.c: test for the vlc clock
+ * clock/clock_start.c: test for the heimdall clock
  *****************************************************************************
  * Copyright (C) 2024 Videolabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Alexandre Janniaux <ajanni@videolabs.io>
  *
@@ -24,40 +25,40 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_tick.h>
-#include <vlc_es.h>
-#include <vlc_tracer.h>
+#include <heimdall_common.h>
+#include <heimdall_tick.h>
+#include <heimdall_es.h>
+#include <heimdall_tracer.h>
 
 #include "../../../src/clock/clock.h"
 
-#include <vlc/vlc.h>
-#include "../../libvlc/test.h"
-#include "../../../lib/libvlc_internal.h"
+#include <heimdall/heimdall.h>
+#include "../../libheimdall/test.h"
+#include "../../../lib/libheimdall_internal.h"
 
 #define MODULE_NAME test_clock_clock
-#undef VLC_DYNAMIC_PLUGIN
+#undef HEIMDALL_DYNAMIC_PLUGIN
 
-#include <vlc_plugin.h>
-#include <vlc_vector.h>
+#include <heimdall_plugin.h>
+#include <heimdall_vector.h>
 
 /* Define a builtin module for mocked parts */
-const char vlc_module_name[] = MODULE_STRING;
+const char heimdall_module_name[] = MODULE_STRING;
 
 /**
  * Fixture structure containing the clocks used for each test.
  */
 struct clock_fixture_simple {
-    vlc_clock_main_t *main;
-    vlc_clock_t *input;
-    vlc_clock_t *master;
-    vlc_clock_t *slave;
+    heimdall_clock_main_t *main;
+    heimdall_clock_t *input;
+    heimdall_clock_t *master;
+    heimdall_clock_t *slave;
 };
 
 struct clock_point
 {
-    vlc_tick_t system;
-    vlc_tick_t stream;
+    heimdall_tick_t system;
+    heimdall_tick_t stream;
 };
 
 /**
@@ -66,48 +67,48 @@ struct clock_point
  * It must be released using \ref destroy_fixture_simple.
  */
 static struct clock_fixture_simple
-init_fixture_simple(struct vlc_logger *logger,
+init_fixture_simple(struct heimdall_logger *logger,
                     bool is_input_master,
-                    vlc_tick_t input_dejitter,
-                    vlc_tick_t output_dejitter)
+                    heimdall_tick_t input_dejitter,
+                    heimdall_tick_t output_dejitter)
 {
     struct clock_fixture_simple f = {
-        .main = vlc_clock_main_New(logger, NULL),
+        .main = heimdall_clock_main_New(logger, NULL),
     };
     assert(f.main != NULL);
 
-    vlc_clock_main_Lock(f.main);
-    vlc_clock_main_SetInputDejitter(f.main, input_dejitter);
-    vlc_clock_main_SetDejitter(f.main, output_dejitter);
+    heimdall_clock_main_Lock(f.main);
+    heimdall_clock_main_SetInputDejitter(f.main, input_dejitter);
+    heimdall_clock_main_SetDejitter(f.main, output_dejitter);
 
     if (is_input_master)
     {
-        f.input = vlc_clock_main_CreateInputMaster(f.main);
+        f.input = heimdall_clock_main_CreateInputMaster(f.main);
         f.master = f.input;
     }
     else
     {
-        f.input = vlc_clock_main_CreateInputSlave(f.main);
-        f.master = vlc_clock_main_CreateMaster(f.main, "Driving", NULL, NULL);
+        f.input = heimdall_clock_main_CreateInputSlave(f.main);
+        f.master = heimdall_clock_main_CreateMaster(f.main, "Driving", NULL, NULL);
     }
     assert(f.input != NULL);
     assert(f.master != NULL);
 
-    f.slave = vlc_clock_main_CreateSlave(f.main, "Output", AUDIO_ES,
+    f.slave = heimdall_clock_main_CreateSlave(f.main, "Output", AUDIO_ES,
                                          NULL, NULL);
     assert(f.slave != NULL);
-    vlc_clock_main_Unlock(f.main);
+    heimdall_clock_main_Unlock(f.main);
 
     return f;
 }
 
 static void destroy_fixture_simple(struct clock_fixture_simple *f)
 {
-    vlc_clock_Delete(f->slave);
+    heimdall_clock_Delete(f->slave);
     if (f->master != f->input)
-        vlc_clock_Delete(f->master);
-    vlc_clock_Delete(f->input);
-    vlc_clock_main_Delete(f->main);
+        heimdall_clock_Delete(f->master);
+    heimdall_clock_Delete(f->input);
+    heimdall_clock_main_Delete(f->main);
 }
 
 /**
@@ -115,25 +116,25 @@ static void destroy_fixture_simple(struct clock_fixture_simple *f)
  * been started.
  **/
 #if 0
-static void test_clock_without_start(struct vlc_logger *logger)
+static void test_clock_without_start(struct heimdall_logger *logger)
 {
     struct clock_fixture_simple f = init_fixture_simple(logger, true, 0, 0);
 
-    vlc_clock_main_Lock(f.main);
-    const vlc_tick_t now = VLC_TICK_FROM_MS(1000);
+    heimdall_clock_main_Lock(f.main);
+    const heimdall_tick_t now = HEIMDALL_TICK_FROM_MS(1000);
     {
-        vlc_clock_Update(f.master, now, now * 1000, 1.);
-        vlc_tick_t result = vlc_clock_ConvertToSystem(f.slave, now, now * 1000, 1., NULL);
-        //assert(result == VLC_TICK_INVALID);
+        heimdall_clock_Update(f.master, now, now * 1000, 1.);
+        heimdall_tick_t result = heimdall_clock_ConvertToSystem(f.slave, now, now * 1000, 1., NULL);
+        //assert(result == HEIMDALL_TICK_INVALID);
     }
 
-    vlc_clock_Start(f.slave, now, now * 1000);
+    heimdall_clock_Start(f.slave, now, now * 1000);
 
     {
-        vlc_tick_t result = vlc_clock_ConvertToSystem(f.slave, now, now * 1000, 1., NULL);
-        assert(result == VLC_TICK_INVALID);
+        heimdall_tick_t result = heimdall_clock_ConvertToSystem(f.slave, now, now * 1000, 1., NULL);
+        assert(result == HEIMDALL_TICK_INVALID);
     }
-    vlc_clock_main_Unlock(f.main);
+    heimdall_clock_main_Unlock(f.main);
 
     destroy_fixture_simple(&f);
 }
@@ -142,21 +143,21 @@ static void test_clock_without_start(struct vlc_logger *logger)
 /**
  * Check that conversion works and is valid after the clock start.
  **/
-static void test_clock_with_start(struct vlc_logger *logger)
+static void test_clock_with_start(struct heimdall_logger *logger)
 {
     fprintf(stderr, "%s:\n", __func__);
     struct clock_fixture_simple f = init_fixture_simple(logger, true, 0, 0);
-    const vlc_tick_t now = VLC_TICK_FROM_MS(1000);
+    const heimdall_tick_t now = HEIMDALL_TICK_FROM_MS(1000);
 
-    vlc_clock_main_Lock(f.main);
-    vlc_clock_Update(f.master, now, now * 1000, 1.);
-    vlc_clock_Start(f.input, now, now * 1000);
-    vlc_clock_Start(f.slave, now, now * 1000);
+    heimdall_clock_main_Lock(f.main);
+    heimdall_clock_Update(f.master, now, now * 1000, 1.);
+    heimdall_clock_Start(f.input, now, now * 1000);
+    heimdall_clock_Start(f.slave, now, now * 1000);
 
-    vlc_tick_t result = vlc_clock_ConvertToSystem(f.slave, now, now * 1000, 1., NULL);
-    assert(result != VLC_TICK_INVALID);
+    heimdall_tick_t result = heimdall_clock_ConvertToSystem(f.slave, now, now * 1000, 1., NULL);
+    assert(result != HEIMDALL_TICK_INVALID);
     assert(result == now);
-    vlc_clock_main_Unlock(f.main);
+    heimdall_clock_main_Unlock(f.main);
 
     destroy_fixture_simple(&f);
 }
@@ -164,22 +165,22 @@ static void test_clock_with_start(struct vlc_logger *logger)
 /**
  * Check that master clock can start.
  **/
-static void test_clock_with_start_master(struct vlc_logger *logger)
+static void test_clock_with_start_master(struct heimdall_logger *logger)
 {
     fprintf(stderr, "%s:\n", __func__);
     struct clock_fixture_simple f = init_fixture_simple(logger, false, 0, 0);
-    const vlc_tick_t now = VLC_TICK_FROM_MS(1000);
+    const heimdall_tick_t now = HEIMDALL_TICK_FROM_MS(1000);
 
-    vlc_clock_main_Lock(f.main);
-    vlc_clock_Start(f.input, now, now * 1000);
-    vlc_clock_Start(f.master, now, now * 1000);
-    vlc_clock_Start(f.slave, now, now * 1000);
-    vlc_clock_Update(f.master, now, now * 1000, 1.);
+    heimdall_clock_main_Lock(f.main);
+    heimdall_clock_Start(f.input, now, now * 1000);
+    heimdall_clock_Start(f.master, now, now * 1000);
+    heimdall_clock_Start(f.slave, now, now * 1000);
+    heimdall_clock_Update(f.master, now, now * 1000, 1.);
 
-    vlc_tick_t result = vlc_clock_ConvertToSystem(f.slave, now, now * 1000, 1., NULL);
-    assert(result != VLC_TICK_INVALID);
+    heimdall_tick_t result = heimdall_clock_ConvertToSystem(f.slave, now, now * 1000, 1., NULL);
+    assert(result != HEIMDALL_TICK_INVALID);
     assert(result == now);
-    vlc_clock_main_Unlock(f.main);
+    heimdall_clock_main_Unlock(f.main);
 
     destroy_fixture_simple(&f);
 }
@@ -188,23 +189,23 @@ static void test_clock_with_start_master(struct vlc_logger *logger)
  * Check that conversion works and is valid after the clock start,
  * when start is done later.
  **/
-static void test_clock_with_output_dejitter(struct vlc_logger *logger)
+static void test_clock_with_output_dejitter(struct heimdall_logger *logger)
 {
     fprintf(stderr, "%s:\n", __func__);
     struct clock_fixture_simple f = init_fixture_simple(logger, true, 0, 0);
-    vlc_clock_main_Lock(f.main);
+    heimdall_clock_main_Lock(f.main);
 
-    const vlc_tick_t now = VLC_TICK_FROM_MS(1000);
-    vlc_clock_Update(f.master, now, now * 1000, 1.);
-    vlc_clock_Start(f.input, 2 * now, now * 1000);
-    vlc_clock_Start(f.slave, 2 * now, now * 1000);
+    const heimdall_tick_t now = HEIMDALL_TICK_FROM_MS(1000);
+    heimdall_clock_Update(f.master, now, now * 1000, 1.);
+    heimdall_clock_Start(f.input, 2 * now, now * 1000);
+    heimdall_clock_Start(f.slave, 2 * now, now * 1000);
 
-    vlc_tick_t result = vlc_clock_ConvertToSystem(f.slave, now, now * 1000, 1., NULL);
+    heimdall_tick_t result = heimdall_clock_ConvertToSystem(f.slave, now, now * 1000, 1., NULL);
     fprintf(stderr, "%s:%d: now=%" PRId64 " converted=%" PRId64 "\n",
             __func__, __LINE__, now, result);
-    assert(result != VLC_TICK_INVALID);
+    assert(result != HEIMDALL_TICK_INVALID);
     assert(result == 2 * now);
-    vlc_clock_main_Unlock(f.main);
+    heimdall_clock_main_Unlock(f.main);
 
     destroy_fixture_simple(&f);
 }
@@ -213,26 +214,26 @@ static void test_clock_with_output_dejitter(struct vlc_logger *logger)
  * Check that clock start is working correctly with an output driving
  * the clock bus.
  **/
-static void test_clock_with_output_clock_start(struct vlc_logger *logger)
+static void test_clock_with_output_clock_start(struct heimdall_logger *logger)
 {
     fprintf(stderr, "%s:\n", __func__);
     struct clock_fixture_simple f = init_fixture_simple(logger, false, 0, 0);
-    vlc_clock_main_Lock(f.main);
+    heimdall_clock_main_Lock(f.main);
 
     /* When the input is not driving the clock bus, we should be able to start
      * without any reference point since the output will provide it later. */
-    const vlc_tick_t now = VLC_TICK_FROM_MS(1000);
-    vlc_clock_Start(f.input, now, now * 1000);
-    vlc_clock_Start(f.slave, now, now * 1000);
+    const heimdall_tick_t now = HEIMDALL_TICK_FROM_MS(1000);
+    heimdall_clock_Start(f.input, now, now * 1000);
+    heimdall_clock_Start(f.slave, now, now * 1000);
 
     /* We provide the clock point to the clock bus. The system time should
      * approximately match the start date. */
-    vlc_clock_Update(f.master, now, now * 1000, 1.);
+    heimdall_clock_Update(f.master, now, now * 1000, 1.);
 
-    vlc_tick_t result = vlc_clock_ConvertToSystem(f.slave, now, now * 1000, 1., NULL);
-    assert(result != VLC_TICK_INVALID);
+    heimdall_tick_t result = heimdall_clock_ConvertToSystem(f.slave, now, now * 1000, 1., NULL);
+    assert(result != HEIMDALL_TICK_INVALID);
     assert(result == now);
-    vlc_clock_main_Unlock(f.main);
+    heimdall_clock_main_Unlock(f.main);
 
     destroy_fixture_simple(&f);
 }
@@ -240,25 +241,25 @@ static void test_clock_with_output_clock_start(struct vlc_logger *logger)
 /**
  * Check that monotonic clock start is working correctly.
  **/
-static void test_clock_with_monotonic_clock(struct vlc_logger *logger)
+static void test_clock_with_monotonic_clock(struct heimdall_logger *logger)
 {
     fprintf(stderr, "%s:\n", __func__);
     struct clock_fixture_simple f = init_fixture_simple(logger, false, 0, 0);
-    vlc_clock_main_Lock(f.main);
+    heimdall_clock_main_Lock(f.main);
 
     /* When the input is not driving the clock bus, we should be able to start
      * without any reference point since the output will provide it later. */
-    const vlc_tick_t now = VLC_TICK_FROM_MS(1000);
-    vlc_clock_Start(f.input, now, now * 1000);
+    const heimdall_tick_t now = HEIMDALL_TICK_FROM_MS(1000);
+    heimdall_clock_Start(f.input, now, now * 1000);
 
     /* The output wants to start before a reference point is found. */
-    vlc_clock_Start(f.slave, now, now * 1000);
+    heimdall_clock_Start(f.slave, now, now * 1000);
 
     // TODO
-    vlc_tick_t result = vlc_clock_ConvertToSystem(f.slave, now, now * 1000, 1., NULL);
-    assert(result != VLC_TICK_INVALID);
+    heimdall_tick_t result = heimdall_clock_ConvertToSystem(f.slave, now, now * 1000, 1., NULL);
+    assert(result != HEIMDALL_TICK_INVALID);
     assert(result == now);
-    vlc_clock_main_Unlock(f.main);
+    heimdall_clock_main_Unlock(f.main);
 
 
     destroy_fixture_simple(&f);
@@ -267,121 +268,121 @@ static void test_clock_with_monotonic_clock(struct vlc_logger *logger)
 /**
  * Check that monotonic clock start accounts for the start date.
  **/
-static vlc_tick_t test_clock_with_monotonic_clock_start(
-    struct vlc_logger *logger,
-    vlc_tick_t input_dejitter,
-    vlc_tick_t output_dejitter,
+static heimdall_tick_t test_clock_with_monotonic_clock_start(
+    struct heimdall_logger *logger,
+    heimdall_tick_t input_dejitter,
+    heimdall_tick_t output_dejitter,
     struct clock_point start_point,
     struct clock_point output_point,
     struct clock_point convert_point
 ){
     fprintf(stderr, "%s:\n", __func__);
     struct clock_fixture_simple f = init_fixture_simple(logger, false, input_dejitter, output_dejitter);
-    vlc_clock_main_Lock(f.main);
+    heimdall_clock_main_Lock(f.main);
 
     /* When the input is not driving the clock bus, we should be able to start
      * without any reference point since the output will provide it later. */
-    vlc_clock_Start(f.input, start_point.system, start_point.stream);
+    heimdall_clock_Start(f.input, start_point.system, start_point.stream);
 
     /* The output wants to start before a reference point is found. */
-    vlc_clock_Start(f.slave, output_point.system, output_point.stream);
+    heimdall_clock_Start(f.slave, output_point.system, output_point.stream);
 
-    vlc_tick_t result = vlc_clock_ConvertToSystem(f.slave, convert_point.system, convert_point.stream, 1., NULL);
-    vlc_clock_main_Unlock(f.main);
+    heimdall_tick_t result = heimdall_clock_ConvertToSystem(f.slave, convert_point.system, convert_point.stream, 1., NULL);
+    heimdall_clock_main_Unlock(f.main);
 
     destroy_fixture_simple(&f);
     return result;
 }
 
-static vlc_tick_t test_clock_slave_update(
-    struct vlc_logger *logger,
+static heimdall_tick_t test_clock_slave_update(
+    struct heimdall_logger *logger,
     struct clock_point start_point,
     struct clock_point output_point
 ){
     fprintf(stderr, "%s:\n", __func__);
     struct clock_fixture_simple f = init_fixture_simple(logger, false, 0, 0);
-    vlc_clock_main_Lock(f.main);
+    heimdall_clock_main_Lock(f.main);
 
     /* When the input is not driving the clock bus, we should be able to start
      * without any reference point since the output will provide it later. */
-    vlc_clock_Start(f.input, start_point.system, start_point.stream);
-    vlc_clock_Update(f.master, start_point.system, start_point.stream, 1.);
+    heimdall_clock_Start(f.input, start_point.system, start_point.stream);
+    heimdall_clock_Update(f.master, start_point.system, start_point.stream, 1.);
 
     /* The output wants to start before a reference point is found. */
-    vlc_clock_Start(f.slave, output_point.system, output_point.stream);
+    heimdall_clock_Start(f.slave, output_point.system, output_point.stream);
 
-    vlc_tick_t result = vlc_clock_Update(f.slave, output_point.system, output_point.stream, 1.);
-    vlc_clock_main_Unlock(f.main);
+    heimdall_tick_t result = heimdall_clock_Update(f.slave, output_point.system, output_point.stream, 1.);
+    heimdall_clock_main_Unlock(f.main);
 
     destroy_fixture_simple(&f);
     return result;
 }
 
 static void test_clock_start_reset(
-    struct vlc_logger *logger
+    struct heimdall_logger *logger
 ){
     fprintf(stderr, "%s:\n", __func__);
     struct clock_fixture_simple f = init_fixture_simple(logger, false, 0, 0);
-    vlc_clock_main_Lock(f.main);
+    heimdall_clock_main_Lock(f.main);
 
-    const vlc_tick_t now = VLC_TICK_FROM_MS(1000);
+    const heimdall_tick_t now = HEIMDALL_TICK_FROM_MS(1000);
     struct clock_point start_point;
     start_point = (struct clock_point){ now, now * 1000 };
 
     /* When the input is not driving the clock bus, we should be able to start
      * without any reference point since the output will provide it later. */
-    vlc_clock_Start(f.input, start_point.system, start_point.stream);
-    vlc_clock_Update(f.master, start_point.system, start_point.stream, 1.);
-    vlc_clock_main_Reset(f.main);
+    heimdall_clock_Start(f.input, start_point.system, start_point.stream);
+    heimdall_clock_Update(f.master, start_point.system, start_point.stream, 1.);
+    heimdall_clock_main_Reset(f.main);
 
-    vlc_tick_t result;
-    result = vlc_clock_ConvertToSystem(f.slave, start_point.system, start_point.stream, 1., NULL);
-    //assert(result == VLC_TICK_INVALID);
+    heimdall_tick_t result;
+    result = heimdall_clock_ConvertToSystem(f.slave, start_point.system, start_point.stream, 1., NULL);
+    //assert(result == HEIMDALL_TICK_INVALID);
 
     start_point.system *= 2;
-    vlc_clock_Start(f.input, start_point.system, start_point.stream);
-    vlc_clock_Update(f.master, start_point.system, start_point.stream, 1.);
-    result = vlc_clock_ConvertToSystem(f.slave, start_point.system, start_point.stream, 1., NULL);
+    heimdall_clock_Start(f.input, start_point.system, start_point.stream);
+    heimdall_clock_Update(f.master, start_point.system, start_point.stream, 1.);
+    result = heimdall_clock_ConvertToSystem(f.slave, start_point.system, start_point.stream, 1., NULL);
     assert(result == start_point.system);
-    vlc_clock_main_Unlock(f.main);
+    heimdall_clock_main_Unlock(f.main);
 
     destroy_fixture_simple(&f);
 }
 
 static void test_clock_slave_only(
-    struct vlc_logger *logger
+    struct heimdall_logger *logger
 ){
     fprintf(stderr, "%s:\n", __func__);
     struct clock_fixture_simple f = init_fixture_simple(logger, false, 0, 0);
-    vlc_clock_main_Lock(f.main);
+    heimdall_clock_main_Lock(f.main);
 
-    const vlc_tick_t now = VLC_TICK_FROM_MS(1000);
+    const heimdall_tick_t now = HEIMDALL_TICK_FROM_MS(1000);
     struct clock_point start_point = { now, now * 1000 };
 
     /* When the input is not driving the clock bus, we should be able to start
      * without any reference point since the output will provide it later. */
-    vlc_clock_Start(f.input, start_point.system, start_point.stream);
+    heimdall_clock_Start(f.input, start_point.system, start_point.stream);
 
-    vlc_clock_Start(f.slave, start_point.system, start_point.stream);
-    vlc_tick_t result;
-    result = vlc_clock_ConvertToSystem(f.slave, start_point.system, start_point.stream, 1., NULL);
+    heimdall_clock_Start(f.slave, start_point.system, start_point.stream);
+    heimdall_tick_t result;
+    result = heimdall_clock_ConvertToSystem(f.slave, start_point.system, start_point.stream, 1., NULL);
     assert(result == start_point.system);
 
-    result = vlc_clock_ConvertToSystem(f.slave, start_point.system, start_point.stream + 1000, 1., NULL);
+    result = heimdall_clock_ConvertToSystem(f.slave, start_point.system, start_point.stream + 1000, 1., NULL);
     assert(result == start_point.system + 1000);
-    vlc_clock_main_Unlock(f.main);
+    heimdall_clock_main_Unlock(f.main);
 
     destroy_fixture_simple(&f);
 }
 int main(void)
 {
-    libvlc_instance_t *libvlc = libvlc_new(0, NULL);
-    assert(libvlc != NULL);
+    libheimdall_instance_t *libheimdall = libheimdall_new(0, NULL);
+    assert(libheimdall != NULL);
 
-    libvlc_int_t *vlc = libvlc->p_libvlc_int;
-    struct vlc_logger *logger = vlc->obj.logger;
+    libheimdall_int_t *heimdall = libheimdall->p_libheimdall_int;
+    struct heimdall_logger *logger = heimdall->obj.logger;
 
-    const vlc_tick_t now = VLC_TICK_FROM_MS(1000);
+    const heimdall_tick_t now = HEIMDALL_TICK_FROM_MS(1000);
 
     //test_clock_without_start(logger);
     test_clock_with_start(logger);
@@ -394,7 +395,7 @@ int main(void)
     start_point = (struct clock_point){ now, now * 1000 };
     output_point = (struct clock_point){ now, now * 1000 };
 
-    vlc_tick_t result = test_clock_with_monotonic_clock_start(
+    heimdall_tick_t result = test_clock_with_monotonic_clock_start(
         logger, 0, 0, start_point, start_point, start_point);
     fprintf(stderr, "%" PRId64 " = %" PRId64 "\n", result, start_point.system);
     assert(result == start_point.system);
@@ -441,22 +442,22 @@ int main(void)
     start_point = (struct clock_point){ now, now * 1000 };
     output_point = (struct clock_point){ now, now * 1000 };
     result = test_clock_slave_update(logger, start_point, output_point);
-    fprintf(stderr, "%" PRId64 " = %" PRId64 "\n", result, (vlc_tick_t)0);
+    fprintf(stderr, "%" PRId64 " = %" PRId64 "\n", result, (heimdall_tick_t)0);
     assert(result == 0);
 
     output_point = (struct clock_point){ now + 10, now * 1000 };
     result = test_clock_slave_update(logger, start_point, output_point);
-    fprintf(stderr, "%" PRId64 " = %" PRId64 "\n", result, (vlc_tick_t)-10);
+    fprintf(stderr, "%" PRId64 " = %" PRId64 "\n", result, (heimdall_tick_t)-10);
     assert(result == -10);
 
     output_point = (struct clock_point){ now, now * 1000 + 10 };
     result = test_clock_slave_update(logger, start_point, output_point);
-    fprintf(stderr, "%" PRId64 " = %" PRId64 "\n", result, (vlc_tick_t)10);
+    fprintf(stderr, "%" PRId64 " = %" PRId64 "\n", result, (heimdall_tick_t)10);
     assert(result == 10);
 
     test_clock_start_reset(logger);
     test_clock_slave_only(logger);
 
-    libvlc_release(libvlc);
+    libheimdall_release(libheimdall);
 }
 

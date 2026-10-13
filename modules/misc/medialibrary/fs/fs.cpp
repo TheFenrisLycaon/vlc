@@ -2,6 +2,7 @@
  * util.cpp: Media library utils
  *****************************************************************************
  * Copyright (C) 2018 VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -23,7 +24,7 @@
 #endif
 
 #include <algorithm>
-#include <vlc_services_discovery.h>
+#include <heimdall_services_discovery.h>
 #include <medialibrary/IDeviceLister.h>
 #include <medialibrary/filesystem/IDevice.h>
 #include <medialibrary/IMediaLibrary.h>
@@ -33,22 +34,22 @@
 #include "util.h"
 #include "fs.h"
 
-namespace vlc {
+namespace heimdall {
   namespace medialibrary {
 
 using namespace ::medialibrary;
 
-SDFileSystemFactory::SDFileSystemFactory(vlc_object_t *parent,
+SDFileSystemFactory::SDFileSystemFactory(heimdall_object_t *parent,
                                          const std::string &scheme)
     : m_parent(parent)
     , m_scheme(scheme)
     , m_callbacks( nullptr )
     , m_parser(parent, {
-        .types = VLC_PREPARSER_TYPE_PARSE,
+        .types = HEIMDALL_PREPARSER_TYPE_PARSE,
         .max_parser_threads = 1,
         .max_thumbnailer_threads = 0,
-        .timeout = VLC_TICK_FROM_SEC(15),
-#if !defined(HAVE_VLC_EXTERNAL_PREPARSER)
+        .timeout = HEIMDALL_TICK_FROM_SEC(15),
+#if !defined(HAVE_HEIMDALL_EXTERNAL_PREPARSER)
         .external_process = false,
 #else
         .external_process = true,
@@ -82,7 +83,7 @@ SDFileSystemFactory::createFile(const std::string& mrl)
 std::shared_ptr<IDevice>
 SDFileSystemFactory::createDevice(const std::string &uuid)
 {
-    vlc::threads::mutex_locker locker(m_mutex);
+    heimdall::threads::mutex_locker locker(m_mutex);
 
     assert( isStarted() == true );
 
@@ -92,7 +93,7 @@ SDFileSystemFactory::createDevice(const std::string &uuid)
 std::shared_ptr<IDevice>
 SDFileSystemFactory::createDeviceFromMrl(const std::string &mrl)
 {
-    vlc::threads::mutex_locker locker(m_mutex);
+    heimdall::threads::mutex_locker locker(m_mutex);
 
     assert( isStarted() == true );
     return deviceByMrl(mrl);
@@ -138,16 +139,16 @@ SDFileSystemFactory::stop()
     m_callbacks = nullptr;
 }
 
-libvlc_int_t *
-SDFileSystemFactory::libvlc() const
+libheimdall_int_t *
+SDFileSystemFactory::libheimdall() const
 {
-    return vlc_object_instance(m_parent);
+    return heimdall_object_instance(m_parent);
 }
 
 LazyPreparser&
 SDFileSystemFactory::getPreparser()
 {
-    vlc::threads::mutex_locker lock(m_mutex);
+    heimdall::threads::mutex_locker lock(m_mutex);
     return m_parser;
 }
 
@@ -160,7 +161,7 @@ void SDFileSystemFactory::onDeviceMounted(const std::string& uuid,
 
     std::shared_ptr<fs::IDevice> device;
     {
-        vlc::threads::mutex_locker lock(m_mutex);
+        heimdall::threads::mutex_locker lock(m_mutex);
         device = deviceByUuid(uuid);
         if (device == nullptr)
         {
@@ -173,7 +174,7 @@ void SDFileSystemFactory::onDeviceMounted(const std::string& uuid,
     m_callbacks->onDeviceMounted( *device, mountpoint );
 }
 
-void vlc::medialibrary::SDFileSystemFactory::onDeviceUnmounted(const std::string& uuid,
+void heimdall::medialibrary::SDFileSystemFactory::onDeviceUnmounted(const std::string& uuid,
                                                                const std::string& mountpoint)
 {
     if ( strncasecmp( mountpoint.c_str(), m_scheme.c_str(), m_scheme.length() ) != 0 )
@@ -181,7 +182,7 @@ void vlc::medialibrary::SDFileSystemFactory::onDeviceUnmounted(const std::string
 
     std::shared_ptr<fs::IDevice> device;
     {
-        vlc::threads::mutex_locker lock(m_mutex);
+        heimdall::threads::mutex_locker lock(m_mutex);
         device = deviceByUuid(uuid);
     }
     if ( device == nullptr )
@@ -196,8 +197,8 @@ void vlc::medialibrary::SDFileSystemFactory::onDeviceUnmounted(const std::string
 bool SDFileSystemFactory::waitForDevice(const std::string& mrl,
                                         uint32_t timeout) const
 {
-    auto deadline = vlc_tick_now() + VLC_TICK_FROM_MS(timeout);
-    vlc::threads::mutex_locker lock{ m_mutex };
+    auto deadline = heimdall_tick_now() + HEIMDALL_TICK_FROM_MS(timeout);
+    heimdall::threads::mutex_locker lock{ m_mutex };
     while ( deviceByMrl(mrl) == nullptr )
     {
         if ( m_cond.timedwait(m_mutex, deadline) != 0 )
@@ -242,4 +243,4 @@ std::shared_ptr<IDevice> SDFileSystemFactory::deviceByMrl(const std::string& mrl
 }
 
   } /* namespace medialibrary */
-} /* namespace vlc */
+} /* namespace heimdall */

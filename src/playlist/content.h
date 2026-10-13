@@ -2,6 +2,7 @@
  * playlist/content.h
  *****************************************************************************
  * Copyright (C) 2018 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -18,19 +19,19 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_PLAYLIST_CONTENT_H
-#define VLC_PLAYLIST_CONTENT_H
+#ifndef HEIMDALL_PLAYLIST_CONTENT_H
+#define HEIMDALL_PLAYLIST_CONTENT_H
 
-typedef struct vlc_playlist vlc_playlist_t;
+typedef struct heimdall_playlist heimdall_playlist_t;
 typedef struct input_item_t input_item_t;
 
-/* called by vlc_playlist_Delete() in playlist.c */
+/* called by heimdall_playlist_Delete() in playlist.c */
 void
-vlc_playlist_ClearItems(vlc_playlist_t *playlist);
+heimdall_playlist_ClearItems(heimdall_playlist_t *playlist);
 
 /* expand an item (replace it by the given media array) */
 int
-vlc_playlist_Expand(vlc_playlist_t *playlist, size_t index,
+heimdall_playlist_Expand(heimdall_playlist_t *playlist, size_t index,
                     input_item_t *const media[], size_t count);
 
 #endif

@@ -1,2 +1,2 @@
-const char psz_vlc_changeset[] = "@VCS_TAG@";
+const char psz_heimdall_changeset[] = "@VCS_TAG@";
 

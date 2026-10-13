@@ -2,6 +2,7 @@
  * av1_unpack.h: AV1 samples expander
  *****************************************************************************
  * Copyright (C) 2018 VideoLabs, VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -17,12 +18,12 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
-#ifndef VLC_AV1_UNPACK_H
-#define VLC_AV1_UNPACK_H
+#ifndef HEIMDALL_AV1_UNPACK_H
+#define HEIMDALL_AV1_UNPACK_H
 
 #include "../packetizer/av1_obu.h"
-#include <vlc_common.h>
-#include <vlc_block.h>
+#include <heimdall_common.h>
+#include <heimdall_block.h>
 
 static inline uint8_t leb128_expected(uint32_t v)
 {

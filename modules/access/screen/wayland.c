@@ -1,9 +1,10 @@
 /**
  * @file wayland.c
- * @brief Wayland screenshooter extension module for VLC media player
+ * @brief Wayland screenshooter extension module for Heimdall media player
  */
 /*****************************************************************************
  * Copyright © 2014 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -36,11 +37,11 @@
 #include <wayland-client.h>
 #include "screenshooter-client-protocol.h"
 
-#include <vlc_common.h>
-#include <vlc_threads.h>
-#include <vlc_demux.h>
-#include <vlc_fs.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
+#include <heimdall_demux.h>
+#include <heimdall_fs.h>
+#include <heimdall_plugin.h>
 
 typedef struct
 {
@@ -60,12 +61,12 @@ typedef struct
     int32_t height; /*< Actual height */
 
     bool done;
-    vlc_tick_t start;
+    heimdall_tick_t start;
 
-    vlc_thread_t thread;
+    heimdall_thread_t thread;
 } demux_sys_t;
 
-static bool DisplayError(vlc_object_t *obj, struct wl_display *display)
+static bool DisplayError(heimdall_object_t *obj, struct wl_display *display)
 {
     int val = wl_display_get_error(display);
     if (val == 0)
@@ -81,11 +82,11 @@ static bool DisplayError(vlc_object_t *obj, struct wl_display *display)
                 val, iface->name, id);
     }
     else
-        msg_Err(obj, "display fatal error: %s", vlc_strerror_c(val));
+        msg_Err(obj, "display fatal error: %s", heimdall_strerror_c(val));
 
     return true;
 }
-#define DisplayError(o,d) DisplayError(VLC_OBJECT(o), (d))
+#define DisplayError(o,d) DisplayError(HEIMDALL_OBJECT(o), (d))
 
 static void output_geometry_cb(void *data, struct wl_output *output, int32_t x,
                                int32_t y, int32_t width, int32_t height,
@@ -121,7 +122,7 @@ static void output_mode_cb(void *data, struct wl_output *output,
 
     es_format_t fmt;
 
-    vlc_fourcc_t i_chroma = VLC_CODEC_BGRX;
+    heimdall_fourcc_t i_chroma = HEIMDALL_CODEC_BGRX;
     es_format_Init(&fmt, VIDEO_ES, i_chroma);
     fmt.video.i_chroma = i_chroma;
     fmt.video.i_sar_num = fmt.video.i_sar_den = 1;
@@ -179,10 +180,10 @@ static block_t *Shoot(demux_t *demux)
 {
     demux_sys_t *sys = demux->p_sys;
 
-    int fd = vlc_memfd();
+    int fd = heimdall_memfd();
     if (fd == -1)
     {
-        msg_Err(demux, "buffer creation error: %s", vlc_strerror_c(errno));
+        msg_Err(demux, "buffer creation error: %s", heimdall_strerror_c(errno));
         return NULL;
     }
 
@@ -193,7 +194,7 @@ static block_t *Shoot(demux_t *demux)
 
     if (ftruncate(fd, size) < 0)
     {
-        msg_Err(demux, "buffer allocation error: %s", vlc_strerror_c(errno));
+        msg_Err(demux, "buffer allocation error: %s", heimdall_strerror_c(errno));
         goto out;
     }
 
@@ -226,7 +227,7 @@ static block_t *Shoot(demux_t *demux)
     }
 
 out:
-    vlc_close(fd);
+    heimdall_close(fd);
     return block;
 }
 
@@ -245,10 +246,10 @@ static void *Thread(void *data)
     struct pollfd ufd[1];
     unsigned interval = lroundf(CLOCK_FREQ / (sys->rate * 1000.f));
 
-    vlc_thread_set_name("vlc-scr-wayland");
+    heimdall_thread_set_name("heimdall-scr-wayland");
 
-    int canc = vlc_savecancel();
-    vlc_cleanup_push(cleanup_wl_display_read, display);
+    int canc = heimdall_savecancel();
+    heimdall_cleanup_push(cleanup_wl_display_read, display);
 
     ufd[0].fd = wl_display_get_fd(display);
     ufd[0].events = POLLIN;
@@ -262,7 +263,7 @@ static void *Thread(void *data)
         {
             block_t *block = Shoot(demux);
 
-            block->i_pts = block->i_dts = vlc_tick_now();
+            block->i_pts = block->i_dts = heimdall_tick_now();
             es_out_SetPCR(demux->out, block->i_pts);
             es_out_Send(demux->out, sys->es, block);
         }
@@ -270,16 +271,16 @@ static void *Thread(void *data)
         while (wl_display_prepare_read(display) != 0)
             wl_display_dispatch_pending(display);
         wl_display_flush(display);
-        vlc_restorecancel(canc);
+        heimdall_restorecancel(canc);
 
         while (poll(ufd, 1, interval) < 0);
 
-        canc = vlc_savecancel();
+        canc = heimdall_savecancel();
         wl_display_read_events(display);
         wl_display_dispatch_pending(display);
     }
-    vlc_cleanup_pop();
-    vlc_restorecancel(canc);
+    heimdall_cleanup_pop();
+    heimdall_restorecancel(canc);
     return NULL;
 }
 
@@ -294,11 +295,11 @@ static int Control(demux_t *demux, int query, va_list args)
             break;
 
         case DEMUX_GET_LENGTH:
-            *va_arg(args, vlc_tick_t *) = 0;
+            *va_arg(args, heimdall_tick_t *) = 0;
             break;
 
         case DEMUX_GET_TIME:
-            *va_arg(args, vlc_tick_t *) = vlc_tick_now() - sys->start;
+            *va_arg(args, heimdall_tick_t *) = heimdall_tick_now() - sys->start;
             break;
 
         case DEMUX_GET_FPS:
@@ -312,7 +313,7 @@ static int Control(demux_t *demux, int query, va_list args)
         //    break;
 
         case DEMUX_GET_PTS_DELAY:
-            *va_arg(args, vlc_tick_t *) = VLC_TICK_FROM_MS(
+            *va_arg(args, heimdall_tick_t *) = HEIMDALL_TICK_FROM_MS(
                 var_InheritInteger(demux, "live-caching") );
             break;
 
@@ -323,10 +324,10 @@ static int Control(demux_t *demux, int query, va_list args)
             break;
 
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void registry_global_cb(void *data, struct wl_registry *registry,
@@ -364,15 +365,15 @@ static const struct wl_registry_listener registry_cbs =
     registry_global_remove_cb,
 };
 
-static int Open(vlc_object_t *obj)
+static int Open(heimdall_object_t *obj)
 {
     demux_t *demux = (demux_t *)obj;
     if (demux->out == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     demux_sys_t *sys = malloc(sizeof (*sys));
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     /* Connect to the display server */
     char *dpy_name = var_InheritString(demux, "wl-display");
@@ -382,7 +383,7 @@ static int Open(vlc_object_t *obj)
     if (sys->display == NULL)
     {
         free(sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     sys->output = NULL;
@@ -425,14 +426,14 @@ static int Open(vlc_object_t *obj)
         goto error;
 
     /* Initializes demux */
-    sys->start = vlc_tick_now();
+    sys->start = heimdall_tick_now();
 
-    if (vlc_clone(&sys->thread, Thread, demux))
+    if (heimdall_clone(&sys->thread, Thread, demux))
         goto error;
 
     demux->pf_demux = NULL;
     demux->pf_control = Control;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     if (sys->screenshooter != NULL)
@@ -443,16 +444,16 @@ error:
         wl_output_destroy(sys->output);
     wl_display_disconnect(sys->display);
     free(sys);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
-static void Close(vlc_object_t *obj)
+static void Close(heimdall_object_t *obj)
 {
     demux_t *demux = (demux_t *)obj;
     demux_sys_t *sys = demux->p_sys;
 
-    vlc_cancel(sys->thread);
-    vlc_join(sys->thread, NULL);
+    heimdall_cancel(sys->thread);
+    heimdall_join(sys->thread, NULL);
 
     screenshooter_destroy(sys->screenshooter);
     wl_shm_destroy(sys->shm);
@@ -481,14 +482,14 @@ static void Close(vlc_object_t *obj)
 #define HEIGHT_LONGTEXT N_( \
     "Pixel height of the capture region, or 0 for full height")
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname (N_("Screen"))
     set_description (N_("Screen capture (with Wayland)"))
     set_subcategory (SUBCAT_INPUT_ACCESS)
     set_capability ("access", 0)
     set_callbacks (Open, Close)
 
-    /* XXX: VLC core does not support multiple configuration items with the
+    /* XXX: Heimdall core does not support multiple configuration items with the
      * same name. So all default values and ranges must be the same as for XCB
      * for the time being. */
     add_float ("screen-fps", 2.0, FPS_TEXT, FPS_LONGTEXT)
@@ -505,4 +506,4 @@ vlc_module_begin ()
         change_integer_range (0, 65535)
         change_safe ()
     add_shortcut ("screen")
-vlc_module_end ()
+heimdall_module_end ()

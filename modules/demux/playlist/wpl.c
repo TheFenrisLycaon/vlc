@@ -2,6 +2,7 @@
  * wpl.c : WPL playlist import
  *****************************************************************************
  * Copyright (C) 2015 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Hugo Beauzée-Luyssen <hugo@beauzee.fr>
  *
@@ -24,9 +25,9 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_access.h>
-#include <vlc_xml.h>
+#include <heimdall_common.h>
+#include <heimdall_access.h>
+#include <heimdall_xml.h>
 
 #include "playlist.h"
 
@@ -36,14 +37,14 @@ static int consume_tag( xml_reader_t* p_reader, char const* psz_tag )
     char const *psz_name;
 
     if( xml_ReaderIsEmptyElement( p_reader ) == 1 )
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
     while( ( i_type = xml_ReaderNextNode( p_reader, &psz_name ) ) > 0 )
     {
         if( i_type == XML_READER_ENDELEM && !strcasecmp( psz_name, psz_tag ) )
         {
             if( --i_depth < 0 )
-                return VLC_SUCCESS;
+                return HEIMDALL_SUCCESS;
         }
         else if( i_type == XML_READER_STARTELEM && !strcasecmp( psz_name, psz_tag ) )
         {
@@ -52,13 +53,13 @@ static int consume_tag( xml_reader_t* p_reader, char const* psz_tag )
         }
     }
 
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 static int consume_volatile_tag( stream_t* p_demux, char const* psz_tag )
 {
     char* psz_copy = strdup( psz_tag );
-    int ret = VLC_ENOMEM;
+    int ret = HEIMDALL_ENOMEM;
 
     if( likely( psz_copy ) )
         ret = consume_tag( p_demux->p_sys, psz_copy );
@@ -121,15 +122,15 @@ static int parse_title_element( stream_t* p_demux, input_item_t* p_input )
     char const* psz_title;
 
     if( xml_ReaderIsEmptyElement( p_reader ) )
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
     if( xml_ReaderNextNode( p_reader, &psz_title ) != XML_READER_TEXT )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     input_item_SetTitle( p_input, psz_title );
 
     consume_tag( p_reader, "title" );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void read_head( stream_t* p_demux, input_item_t* p_input )
@@ -236,7 +237,7 @@ static int Demux( stream_t* p_demux, input_item_node_t *p_node )
     if( xml_ReaderNextNode( p_reader, &psz_name ) != XML_READER_STARTELEM ||
         strcasecmp( psz_name, "smil" ) || xml_ReaderIsEmptyElement( p_reader ) == 1 )
     {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     input_item_t* p_input = GetCurrentItem( p_demux );
@@ -265,43 +266,43 @@ static int Demux( stream_t* p_demux, input_item_node_t *p_node )
         }
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-void Close_WPL( vlc_object_t* p_this )
+void Close_WPL( heimdall_object_t* p_this )
 {
     stream_t *p_demux = (stream_t*)p_this;
 
     xml_ReaderDelete( p_demux->p_sys );
 }
 
-int Import_WPL( vlc_object_t* p_this )
+int Import_WPL( heimdall_object_t* p_this )
 {
     stream_t* p_demux = (stream_t*)p_this;
 
     if( !stream_HasExtension( p_demux, ".wpl" ) &&
         !stream_HasExtension( p_demux, ".zpl" ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     const uint8_t *p_peek;
-    ssize_t i_peek = vlc_stream_Peek( p_demux->s, &p_peek, 2048 );
+    ssize_t i_peek = heimdall_stream_Peek( p_demux->s, &p_peek, 2048 );
     if( unlikely( i_peek <= 0 ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    stream_t *p_probestream = vlc_stream_MemoryNew( p_demux, (uint8_t *)p_peek, i_peek, true );
+    stream_t *p_probestream = heimdall_stream_MemoryNew( p_demux, (uint8_t *)p_peek, i_peek, true );
     if( unlikely( !p_probestream ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     xml_reader_t *p_reader = xml_ReaderCreate( p_this, p_probestream );
     if ( p_reader == NULL )
     {
         msg_Err( p_demux, "Failed to create an XML reader" );
-        vlc_stream_Delete( p_probestream );
-        return VLC_EGENERIC;
+        heimdall_stream_Delete( p_probestream );
+        return HEIMDALL_EGENERIC;
     }
     p_demux->p_sys = p_reader;
 
-    struct vlc_logger *const logger = p_reader->obj.logger;
+    struct heimdall_logger *const logger = p_reader->obj.logger;
     p_reader->obj.logger = NULL;
     const char* psz_name;
     int type = xml_ReaderNextNode( p_reader, &psz_name );
@@ -310,21 +311,21 @@ int Import_WPL( vlc_object_t* p_this )
     {
         msg_Err( p_demux, "Invalid WPL playlist. Root element should have been <smil>" );
         Close_WPL( p_this );
-        vlc_stream_Delete( p_probestream );
-        return VLC_EGENERIC;
+        heimdall_stream_Delete( p_probestream );
+        return HEIMDALL_EGENERIC;
     }
 
     xml_ReaderDelete( p_demux->p_sys );
 
     p_demux->p_sys = xml_ReaderCreate( p_demux, p_demux->s );
-    vlc_stream_Delete( p_probestream );
+    heimdall_stream_Delete( p_probestream );
     if( unlikely( p_demux->p_sys == NULL ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     msg_Dbg( p_demux, "Found valid WPL playlist" );
     p_demux->pf_readdir = Demux;
     p_demux->pf_control = PlaylistControl;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 

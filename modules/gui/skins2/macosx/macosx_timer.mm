@@ -2,6 +2,7 @@
  * macosx_timer.mm
  *****************************************************************************
  * Copyright (C) 2026 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Fletcher Holt <fletcherholt649@gmail.com>
  *
@@ -49,9 +50,9 @@ void MacOSXTimer::start( int delay, bool oneShot )
     // Stop any existing timer
     stop();
 
-    m_interval = VLC_TICK_FROM_MS( delay );
+    m_interval = HEIMDALL_TICK_FROM_MS( delay );
     m_oneShot = oneShot;
-    m_nextDate = vlc_tick_now() + m_interval;
+    m_nextDate = heimdall_tick_now() + m_interval;
 
     // Register with the timer loop
     if( m_pTimerLoop )
@@ -82,7 +83,7 @@ bool MacOSXTimer::execute()
         return false;  // Remove the timer
     }
 
-    m_nextDate = vlc_tick_now() + m_interval;
+    m_nextDate = heimdall_tick_now() + m_interval;
     return true;  // Keep the timer
 }
 
@@ -113,7 +114,7 @@ void MacOSXTimerLoop::removeTimer( MacOSXTimer &rTimer )
 
 void MacOSXTimerLoop::checkTimers()
 {
-    vlc_tick_t now = vlc_tick_now();
+    heimdall_tick_t now = heimdall_tick_now();
 
     // Create a copy of the list to iterate safely
     std::list<MacOSXTimer*> timersCopy = m_timers;

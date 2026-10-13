@@ -2,6 +2,7 @@
  * info_widgets.cpp : Widgets for info panels
  ****************************************************************************
  * Copyright (C) 2013 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,7 +37,7 @@ label = new QLabel( QString( "<font color=\"%1\">%2</font>" ) \
                     ); \
 layout->addWidget( label, row, 0, 1, 1, 0 );
 
-VLCStatsView::VLCStatsView( QWidget *parent ) : QGraphicsView( parent )
+HeimdallStatsView::HeimdallStatsView( QWidget *parent ) : QGraphicsView( parent )
 {
     QColor history(0, 0, 0, 255),
         total(237, 109, 0, 160);
@@ -62,7 +63,7 @@ VLCStatsView::VLCStatsView( QWidget *parent ) : QGraphicsView( parent )
 }
 #undef ADD_LABEL
 
-void VLCStatsView::reset()
+void HeimdallStatsView::reset()
 {
     historymergepointer = 0;
     blocksize = 4;
@@ -72,7 +73,7 @@ void VLCStatsView::reset()
     totalbitrateShape->setPolygon( QPolygonF() );
 }
 
-void VLCStatsView::addValue( float value )
+void HeimdallStatsView::addValue( float value )
 {
     value /= 1000;
 
@@ -103,7 +104,7 @@ void VLCStatsView::addValue( float value )
     drawRulers( maxsizes );
 }
 
-void VLCStatsView::drawRulers( const QRectF &maxsizes )
+void HeimdallStatsView::drawRulers( const QRectF &maxsizes )
 {
     float height = maxsizes.height() * 1000;
     int texp = 0;
@@ -117,7 +118,7 @@ void VLCStatsView::drawRulers( const QRectF &maxsizes )
     }
 }
 
-void VLCStatsView::addHistoryValue( float value )
+void HeimdallStatsView::addHistoryValue( float value )
 {
     /* We keep a full history by creating virtual blocks for inserts, growing
        by power of 2 when no more space is available. At this time, we also

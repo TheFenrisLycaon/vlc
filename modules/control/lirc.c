@@ -1,7 +1,8 @@
 /*****************************************************************************
- * lirc.c : lirc module for vlc
+ * lirc.c : lirc module for heimdall
  *****************************************************************************
  * Copyright (C) 2003-2005 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Sigmund Augdal Helberg <dnumgis@videolan.org>
  *
@@ -31,13 +32,13 @@
 # include "config.h"
 #endif
 
-#define VLC_MODULE_LICENSE VLC_LICENSE_GPL_2_PLUS
-#include <vlc_common.h>
-#include <vlc_threads.h>
-#include <vlc_plugin.h>
-#include <vlc_interface.h>
-#include <vlc_actions.h>
-#include <vlc_poll.h>
+#define HEIMDALL_MODULE_LICENSE HEIMDALL_LICENSE_GPL_2_PLUS
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
+#include <heimdall_plugin.h>
+#include <heimdall_interface.h>
+#include <heimdall_actions.h>
+#include <heimdall_poll.h>
 
 #ifdef HAVE_POLL_H
 # include <poll.h>
@@ -53,10 +54,10 @@
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  Open    ( vlc_object_t * );
-static void Close   ( vlc_object_t * );
+static int  Open    ( heimdall_object_t * );
+static void Close   ( heimdall_object_t * );
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( N_("Infrared") )
     set_subcategory( SUBCAT_INTERFACE_CONTROL )
     set_description( N_("Infrared remote control interface") )
@@ -65,7 +66,7 @@ vlc_module_begin ()
 
     add_string( "lirc-file", NULL,
                 LIRC_TEXT, LIRC_LONGTEXT )
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * intf_sys_t: description and status of FB interface
@@ -73,7 +74,7 @@ vlc_module_end ()
 struct intf_sys_t
 {
     struct lirc_config *config;
-    vlc_thread_t thread;
+    heimdall_thread_t thread;
     int i_fd;
 };
 
@@ -87,7 +88,7 @@ static void Process( intf_thread_t * );
 /*****************************************************************************
  * Open: initialize interface
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     intf_thread_t *p_intf = (intf_thread_t *)p_this;
     intf_sys_t *p_sys;
@@ -95,9 +96,9 @@ static int Open( vlc_object_t *p_this )
     /* Allocate instance and initialize some members */
     p_intf->p_sys = p_sys = malloc( sizeof( intf_sys_t ) );
     if( p_sys == NULL )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    p_sys->i_fd = lirc_init( "vlc", 1 );
+    p_sys->i_fd = lirc_init( "heimdall", 1 );
     if( p_sys->i_fd == -1 )
     {
         msg_Err( p_intf, "lirc initialisation failed" );
@@ -118,30 +119,30 @@ static int Open( vlc_object_t *p_this )
         goto error;
     }
 
-    if( vlc_clone( &p_sys->thread, Run, p_intf ) )
+    if( heimdall_clone( &p_sys->thread, Run, p_intf ) )
     {
         lirc_freeconfig( p_sys->config );
         lirc_deinit();
         goto error;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     free( p_sys );
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /*****************************************************************************
  * Close: destroy interface
  *****************************************************************************/
-static void Close( vlc_object_t *p_this )
+static void Close( heimdall_object_t *p_this )
 {
     intf_thread_t *p_intf = (intf_thread_t *)p_this;
     intf_sys_t *p_sys = p_intf->p_sys;
 
-    vlc_cancel( p_sys->thread );
-    vlc_join( p_sys->thread, NULL );
+    heimdall_cancel( p_sys->thread );
+    heimdall_join( p_sys->thread, NULL );
 
     /* Destroy structure */
     lirc_freeconfig( p_sys->config );
@@ -157,7 +158,7 @@ static void *Run( void *data )
     intf_thread_t *p_intf = data;
     intf_sys_t *p_sys = p_intf->p_sys;
 
-    vlc_thread_set_name("vlc-lirc");
+    heimdall_thread_set_name("heimdall-lirc");
 
     struct pollfd ufd;
     ufd.fd = p_sys->i_fd;
@@ -174,9 +175,9 @@ static void *Run( void *data )
         }
 
         /* Process */
-        int canc = vlc_savecancel();
+        int canc = heimdall_savecancel();
         Process( p_intf );
-        vlc_restorecancel(canc);
+        heimdall_restorecancel(canc);
     }
     return NULL;
 }
@@ -197,9 +198,9 @@ static void Process( intf_thread_t *p_intf )
         {
             if( !strncmp( "key-", c, 4 ) )
             {
-                vlc_action_id_t i_key = vlc_actions_get_id( c );
+                heimdall_action_id_t i_key = heimdall_actions_get_id( c );
                 if( i_key )
-                    var_SetInteger( vlc_object_instance(p_intf), "key-action", i_key );
+                    var_SetInteger( heimdall_object_instance(p_intf), "key-action", i_key );
                 else
                     msg_Err( p_intf, "Unknown hotkey '%s'", c );
             }
@@ -207,7 +208,7 @@ static void Process( intf_thread_t *p_intf )
             {
                 msg_Err( p_intf, "this doesn't appear to be a valid keycombo "
                                  "lirc sent us. Please look at the "
-                                 "doc/lirc/example.lirc file in VLC" );
+                                 "doc/lirc/example.lirc file in Heimdall" );
                 break;
             }
         }

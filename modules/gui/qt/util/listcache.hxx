@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,7 +21,7 @@
 #define LISTCACHE_HXX
 
 #include "listcache.hpp"
-#include <vlc_diffutil.h>
+#include <heimdall_diffutil.h>
 
 //callbacks for the diff algorithm to access the data
 
@@ -431,18 +432,18 @@ void ListCache<T>::partialUpdate()
     //compare the model the user have and the updated model
     //and notify for changes
 
-    vlc_diffutil_callback_t diffOp = {
+    heimdall_diffutil_callback_t diffOp = {
         cacheDataLength,
         cacheDataLength,
         cacheDataCompare
     };
 
-    diffutil_snake_t* snake = vlc_diffutil_build_snake(&diffOp, m_oldData.get(), m_cachedData.get());
-    int diffutilFlags = VLC_DIFFUTIL_RESULT_AGGREGATE;
+    diffutil_snake_t* snake = heimdall_diffutil_build_snake(&diffOp, m_oldData.get(), m_cachedData.get());
+    int diffutilFlags = HEIMDALL_DIFFUTIL_RESULT_AGGREGATE;
     if (m_useMove)
-        diffutilFlags |= VLC_DIFFUTIL_RESULT_MOVE;
+        diffutilFlags |= HEIMDALL_DIFFUTIL_RESULT_MOVE;
 
-    vlc_diffutil_changelist_t* changes = vlc_diffutil_build_change_list(
+    heimdall_diffutil_changelist_t* changes = heimdall_diffutil_build_change_list(
         snake, &diffOp, m_oldData.get(), m_cachedData.get(),
         diffutilFlags);
 
@@ -452,12 +453,12 @@ void ListCache<T>::partialUpdate()
     size_t partialMaximumCount = m_oldData->maximumCount;
     for (size_t i = 0; i < changes->size; i++)
     {
-        vlc_diffutil_change_t& op = changes->data[i];
+        heimdall_diffutil_change_t& op = changes->data[i];
         switch (op.type)
         {
-        case VLC_DIFFUTIL_OP_IGNORE:
+        case HEIMDALL_DIFFUTIL_OP_IGNORE:
             break;
-        case VLC_DIFFUTIL_OP_INSERT:
+        case HEIMDALL_DIFFUTIL_OP_INSERT:
             m_partialX = op.op.insert.x;
             m_partialIndex = op.op.insert.index;
             emit beginInsertRows(op.op.insert.index, op.op.insert.index + op.count - 1);
@@ -468,7 +469,7 @@ void ListCache<T>::partialUpdate()
             emit endInsertRows();
             emit localSizeChanged(partialQueryCount, partialMaximumCount);
             break;
-        case VLC_DIFFUTIL_OP_REMOVE:
+        case HEIMDALL_DIFFUTIL_OP_REMOVE:
             m_partialX = op.op.remove.x;
             m_partialIndex = op.op.remove.index;
             emit beginRemoveRows(op.op.remove.index, op.op.remove.index + op.count - 1);
@@ -479,7 +480,7 @@ void ListCache<T>::partialUpdate()
             emit endRemoveRows();
             emit localSizeChanged(partialQueryCount, partialMaximumCount);
             break;
-        case VLC_DIFFUTIL_OP_MOVE:
+        case HEIMDALL_DIFFUTIL_OP_MOVE:
             m_partialX = op.op.move.x;
             if (op.op.move.from > op.op.move.to)
             {
@@ -500,8 +501,8 @@ void ListCache<T>::partialUpdate()
             break;
         }
     }
-    vlc_diffutil_free_change_list(changes);
-    vlc_diffutil_free_snake(snake);
+    heimdall_diffutil_free_change_list(changes);
+    heimdall_diffutil_free_snake(snake);
 
     //ditch old model
     if (m_useMove)

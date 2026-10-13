@@ -2,6 +2,7 @@
  * extensions.hpp: Extensions manager for Qt: dialogs manager
  ****************************************************************************
  * Copyright (C) 2009-2010 VideoLAN and authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Jean-Philippe André < jpeg # videolan.org >
  *
@@ -49,7 +50,7 @@ extern "C" {
 class ExtensionsDialogProvider : public QObject
 {
     /** This is the dialog provider for Extensions dialogs
-     * @todo Add a setExtManager() function (with vlc_object_hold)
+     * @todo Add a setExtManager() function (with heimdall_object_hold)
      **/
     Q_OBJECT
 

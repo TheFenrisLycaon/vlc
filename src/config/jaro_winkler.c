@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright 2015 Danny Guo
  * Copyright 2018 Lyndon Brown
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Danny Guo <dguo@users.noreply.github.com>
  *          Lyndon Brown <jnqnfe@gmail.com>
@@ -31,7 +32,7 @@
 #include <limits.h>
 #include <assert.h>
 
-#include "vlc_jaro_winkler.h"
+#include "heimdall_jaro_winkler.h"
 
 #define MAX(a, b) ( ((a) > (b)) ? (a) : (b) )
 #define MIN(a, b) ( ((a) < (b)) ? (a) : (b) )
@@ -143,7 +144,7 @@ static inline int jaro_inner(const char *a, const char *b, size_t *ret_prefix_cc
     return 0;
 }
 
-int vlc_jaro_winkler(const char *a, const char *b, float* res) {
+int heimdall_jaro_winkler(const char *a, const char *b, float* res) {
     size_t prefix_char_count = 0;
     float jaro_distance;
     if (jaro_inner(a, b, &prefix_char_count, &jaro_distance) != 0) {

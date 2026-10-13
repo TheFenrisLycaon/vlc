@@ -2,6 +2,7 @@
  * window.c : Implementation of FFT window routines
  *****************************************************************************
  * Copyright (C) 2014 Ronald Wright
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Ronald Wright <logiconcepts819@gmail.com>
  *
@@ -74,7 +75,7 @@ static float bessi0( float x )
 /*
  * Obtain the window type from the window type variable.
  */
-void window_get_param( vlc_object_t * p_aout, window_param * p_param )
+void window_get_param( heimdall_object_t * p_aout, window_param * p_param )
 {
     /* Fetch Kaiser parameter */
     p_param->f_kaiser_alpha = var_InheritFloat( p_aout, "effect-kaiser-param" );
@@ -127,7 +128,7 @@ bool window_init( int i_buffer_size, window_param * p_param,
         goto exit;
     }
 
-    pf_table = vlc_alloc( i_buffer_size, sizeof( *pf_table ) );
+    pf_table = heimdall_alloc( i_buffer_size, sizeof( *pf_table ) );
     if( !pf_table )
     {
         /* Memory allocation failed */
@@ -185,7 +186,7 @@ bool window_init( int i_buffer_size, window_param * p_param,
     }
     default:
         /* We should not reach here */
-        vlc_assert_unreachable();
+        heimdall_assert_unreachable();
         break;
     }
 

@@ -6,11 +6,11 @@ pkglib_LTLIBRARIES =
 noinst_HEADERS =
 check_PROGRAMS =
 pkglibexec_PROGRAMS =
-EXTRA_DIST = check_vlc_modules_list.sh
+EXTRA_DIST = check_heimdall_modules_list.sh
 CLEANFILES =
 
 SUBDIRS =
-TESTS = check_vlc_modules_list.sh
+TESTS = check_heimdall_modules_list.sh
 TEST_EXTENSIONS = .xctest
 # Automake looks for regular test files and therefore resolves directory-based
 # XCTest bundles in $(srcdir). Point the bundle name back to $(abs_builddir).
@@ -28,7 +28,7 @@ CARGO_BUILD_ARGS = --target=@RUST_TARGET@ --release \
 
 RUSTFLAGS = -C panic=abort -C opt-level=z
 if !HAVE_DYNAMIC_PLUGINS
-RUSTFLAGS += --cfg vlc_static_plugins
+RUSTFLAGS += --cfg heimdall_static_plugins
 endif
 
 LIBTOOL_CARGO = \
@@ -136,7 +136,7 @@ SUFFIXES += -client-protocol.h -protocol.c .xml
 
 noinst_LTLIBRARIES += $(noinst_PLUGINS)
 
-# Generate vlc_modules_list (local plugins + SUBDIRS)
+# Generate heimdall_modules_list (local plugins + SUBDIRS)
 include modulelist.mk
 SUBDIRS += .
 

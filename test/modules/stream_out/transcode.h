@@ -2,6 +2,7 @@
  * transcode.h: test for transcoding pipeline
  *****************************************************************************
  * Copyright (C) 2021-2026 VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Alexandre Janniaux <ajanni@videolabs.io>
  *
@@ -20,7 +21,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#include <vlc_fourcc.h>
+#include <heimdall_fourcc.h>
 
 #define TEST_FLAG_CONVERTER 0x01
 #define TEST_FLAG_FILTER 0x02
@@ -51,12 +52,12 @@ struct transcode_scenario {
     int (*decoder_drain)(decoder_t *);
     void (*encoder_setup)(encoder_t *);
     void (*encoder_close)(encoder_t *);
-    void (*encoder_encode)(encoder_t *, picture_t *, vlc_frame_t *);
-    vlc_frame_t *(*encoder_drain)(encoder_t *);
+    void (*encoder_encode)(encoder_t *, picture_t *, heimdall_frame_t *);
+    heimdall_frame_t *(*encoder_drain)(encoder_t *);
     void (*filter_setup)(filter_t *);
     void (*converter_setup)(filter_t *);
     void (*report_error)(sout_stream_t *);
-    void (*report_output)(const vlc_frame_t *);
+    void (*report_output)(const heimdall_frame_t *);
 };
 
 

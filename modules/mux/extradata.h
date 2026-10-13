@@ -2,6 +2,7 @@
  * extradata.h: Muxing extradata builder/gatherer
  *****************************************************************************
  * Copyright (C) 2018 VideoLabs, VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -25,8 +26,8 @@ enum mux_extradata_type_e
     EXTRADATA_ISOBMFF,
 };
 
-mux_extradata_builder_t * mux_extradata_builder_New(vlc_object_t *obj,
-                                                    vlc_fourcc_t,
+mux_extradata_builder_t * mux_extradata_builder_New(heimdall_object_t *obj,
+                                                    heimdall_fourcc_t,
                                                     enum mux_extradata_type_e);
 void mux_extradata_builder_Delete(mux_extradata_builder_t *);
 void mux_extradata_builder_Feed(mux_extradata_builder_t *, const uint8_t *, size_t);

@@ -2,6 +2,7 @@
  * float32.c : precise float32 audio volume implementation
  *****************************************************************************
  * Copyright (C) 2002 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Christophe Massiot <massiot@via.ecp.fr>
  *
@@ -29,25 +30,25 @@
 #endif
 
 #include <stddef.h>
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_aout.h>
-#include <vlc_aout_volume.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_aout.h>
+#include <heimdall_aout_volume.h>
 
 /*****************************************************************************
  * Local prototypes
  *****************************************************************************/
-static int Create( vlc_object_t * );
+static int Create( heimdall_object_t * );
 
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-vlc_module_begin ()
+heimdall_module_begin ()
     set_subcategory( SUBCAT_AUDIO_AFILTER )
     set_description( N_("Single precision audio volume") )
     set_capability( "audio volume", 10 )
     set_callback( Create )
-vlc_module_end ()
+heimdall_module_end ()
 
 /**
  * Mixes a new output buffer
@@ -82,16 +83,16 @@ static void FilterFL64( audio_volume_t *p_volume, block_t *p_buffer,
 /**
  * Initializes the mixer
  */
-static int Create( vlc_object_t *p_this )
+static int Create( heimdall_object_t *p_this )
 {
     audio_volume_t *p_volume = (audio_volume_t *)p_this;
 
     switch (p_volume->format)
     {
-        case VLC_CODEC_FL32:
+        case HEIMDALL_CODEC_FL32:
             p_volume->amplify = FilterFL32;
             break;
-        case VLC_CODEC_FL64:
+        case HEIMDALL_CODEC_FL64:
             p_volume->amplify = FilterFL64;
             break;
         default:

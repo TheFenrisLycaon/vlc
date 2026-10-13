@@ -1,7 +1,8 @@
 /*****************************************************************************
- * common.h : Common macros for the VLC deinterlacer
+ * common.h : Common macros for the Heimdall deinterlacer
  *****************************************************************************
  * Copyright (C) 2000-2017 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Sam Hocevar <sam@zoy.org>
  *         Steve Lhomme <robux4@gmail.com>
@@ -21,17 +22,17 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_DEINTERLACE_COMMON_H
-#define VLC_DEINTERLACE_COMMON_H 1
+#ifndef HEIMDALL_DEINTERLACE_COMMON_H
+#define HEIMDALL_DEINTERLACE_COMMON_H 1
 
-#include <vlc_common.h>
-#include <vlc_filter.h>
+#include <heimdall_common.h>
+#include <heimdall_filter.h>
 
 #include <assert.h>
 
 /**
  * \file
- * Common macros for the VLC deinterlacer.
+ * Common macros for the Heimdall deinterlacer.
  */
 
 /* Needed for Yadif, but also some others. */
@@ -46,7 +47,7 @@
  * @see Deinterlace()
  */
 typedef struct {
-    vlc_tick_t pi_date;
+    heimdall_tick_t pi_date;
     int     pi_nb_fields;
     bool    pb_top_field_first;
 } metadata_history_t;
@@ -100,7 +101,7 @@ void InitDeinterlacingContext( struct deinterlace_ctx * );
  * @param p_pic the picture which field we want the duration
  * @return the duration of the field or 0 if there's no known framerate
  */
-vlc_tick_t GetFieldDuration( const struct deinterlace_ctx *,
+heimdall_tick_t GetFieldDuration( const struct deinterlace_ctx *,
                           const video_format_t *fmt, const picture_t *p_pic );
 
 /**

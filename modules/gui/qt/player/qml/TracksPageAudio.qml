@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2022 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Benjamin Arnaud <bunjee@omega.gg>
  *
@@ -22,11 +23,11 @@ import QtQuick
 import QtQuick.Layouts
 
 
-import VLC.MainInterface
-import VLC.Style
-import VLC.Util
-import VLC.Widgets as Widgets
-import VLC.Player
+import Heimdall.MainInterface
+import Heimdall.Style
+import Heimdall.Util
+import Heimdall.Widgets as Widgets
+import Heimdall.Player
 
 TracksPage {
     id: root
@@ -47,7 +48,7 @@ TracksPage {
         anchors.left: parent.left
         anchors.right: parent.right
 
-        spacing: VLCStyle.margin_xxsmall
+        spacing: HeimdallStyle.margin_xxsmall
 
         Widgets.SubtitleLabel {
             Layout.fillWidth: true
@@ -59,9 +60,9 @@ TracksPage {
 
         RowLayout {
             Layout.fillWidth: true
-            Layout.topMargin: VLCStyle.margin_large
+            Layout.topMargin: HeimdallStyle.margin_large
 
-            spacing: VLCStyle.margin_xsmall
+            spacing: HeimdallStyle.margin_xsmall
 
             Accessible.role: Accessible.Grouping
             Accessible.name: qsTr("Audio track delay")
@@ -85,7 +86,7 @@ TracksPage {
 
                 property bool update: false
 
-                Layout.preferredWidth: VLCStyle.dp(128, VLCStyle.scale)
+                Layout.preferredWidth: HeimdallStyle.dp(128, HeimdallStyle.scale)
 
                 stepSize: 50
                 from: -10000
@@ -142,13 +143,13 @@ TracksPage {
             Layout.fillWidth: true
             Layout.alignment: Qt.AlignRight
 
-            spacing: VLCStyle.margin_xsmall
+            spacing: HeimdallStyle.margin_xsmall
 
             Widgets.TrackDelayButton {
                 id: soundHeard
 
                 text: qsTr("Sound Heard")
-                iconTxt: VLCIcons.check
+                iconTxt: HeimdallIcons.check
                 selected: delayEstimator.isSpottedTimeMarked
 
                 onClicked: {
@@ -162,7 +163,7 @@ TracksPage {
                 id: soundSpotted
 
                 text: qsTr("Sound Spotted")
-                iconTxt: VLCIcons.check
+                iconTxt: HeimdallIcons.check
                 selected: delayEstimator.isHeardTimeMarked
 
                 onClicked: {

@@ -2,6 +2,7 @@
  * block_test.c: Test for block_t stuff
  *****************************************************************************
  * Copyright (C) 2008 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -27,8 +28,8 @@
 #undef NDEBUG
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_block.h>
+#include <heimdall_common.h>
+#include <heimdall_block.h>
 
 static const char text[] =
     "This is a test!\n"

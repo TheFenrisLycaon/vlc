@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,29 +20,29 @@
 import QtQuick
 import QtQuick.Templates as T
 
-import VLC.MainInterface
-import VLC.Style
+import Heimdall.MainInterface
+import Heimdall.Style
 
 // NOTE: Attached tool tip must be used if the popup type is `Popup.Window`.
 T.ToolTip {
     id: control
 
     x: 0
-    y: -implicitHeight - VLCStyle.margin_xxxsmall
+    y: -implicitHeight - HeimdallStyle.margin_xxxsmall
 
     implicitWidth: Math.max(implicitBackgroundWidth + leftInset + rightInset,
                             implicitContentWidth + leftPadding + rightPadding)
     implicitHeight: Math.max(implicitBackgroundHeight + topInset + bottomInset,
                              implicitContentHeight + topPadding + bottomPadding)
 
-    margins: VLCStyle.margin_xsmall
-    padding: VLCStyle.margin_xsmall
+    margins: HeimdallStyle.margin_xsmall
+    padding: HeimdallStyle.margin_xsmall
 
-    font.pixelSize: VLCStyle.fontSize_normal
+    font.pixelSize: HeimdallStyle.fontSize_normal
 
     closePolicy: T.Popup.CloseOnEscape | T.Popup.CloseOnPressOutsideParent | T.Popup.CloseOnReleaseOutsideParent
 
-    property real radius: VLCStyle.dp(4, VLCStyle.scale)
+    property real radius: HeimdallStyle.dp(4, HeimdallStyle.scale)
 
     Component.onCompleted: {
         if (control.popupType !== undefined) {

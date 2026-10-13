@@ -2,6 +2,7 @@
  * Segment.h
  *****************************************************************************
  * Copyright (C) 2010 - 2011 Klagenfurt University
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Created on: Aug 10, 2010
  * Authors: Christopher Mueller <christopher.mueller@itec.uni-klu.ac.at>
@@ -69,11 +70,11 @@ namespace adaptive
                 virtual uint64_t                        getDiscontinuitySequenceNumber() const;
                 virtual bool                            isTemplate      () const;
                 virtual size_t                          getOffset       () const;
-                virtual void                            debug           (vlc_object_t *,int = 0) const;
+                virtual void                            debug           (heimdall_object_t *,int = 0) const;
                 virtual bool                            contains        (size_t byte) const;
                 void                                    setEncryption   (CommonEncryption &);
-                void                                    setDisplayTime  (vlc_tick_t);
-                vlc_tick_t                              getDisplayTime  () const;
+                void                                    setDisplayTime  (heimdall_tick_t);
+                heimdall_tick_t                              getDisplayTime  () const;
                 stime_t                 startTime;
                 stime_t                 duration;
                 bool                    discontinuity;
@@ -89,7 +90,7 @@ namespace adaptive
                 bool                    templated;
                 uint64_t                sequence;
                 uint64_t                discontinuitySequenceNumber;
-                vlc_tick_t              displayTime;
+                heimdall_tick_t              displayTime;
         };
 
         class Segment : public ISegment
@@ -101,7 +102,7 @@ namespace adaptive
                 virtual void setSourceUrl( const std::string &url );
                 Url getUrlSegment() const override;
                 virtual const std::vector<Segment*> & subSegments() const;
-                void debug(vlc_object_t *,int = 0) const override;
+                void debug(heimdall_object_t *,int = 0) const override;
                 virtual void addSubSegment(SubSegment *);
 
             protected:

@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,13 +17,13 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 #include "playlist_item.hpp"
-#include "util/vlctick.hpp"
-#include <vlc_input_item.h>
+#include "util/heimdalltick.hpp"
+#include <heimdall_input_item.h>
 
-//namespace vlc {
+//namespace heimdall {
 //namespace playlist {
 
-PlaylistItem::PlaylistItem(vlc_playlist_item_t* item)
+PlaylistItem::PlaylistItem(heimdall_playlist_item_t* item)
 {
     d = new Data();
     if (item)
@@ -62,7 +63,7 @@ QUrl PlaylistItem::getArtwork() const
     return d->artwork;
 }
 
-VLCDuration PlaylistItem::getDuration() const
+HeimdallDuration PlaylistItem::getDuration() const
 {
     return d->duration;
 }
@@ -75,19 +76,19 @@ QUrl PlaylistItem::getUrl() const
 void PlaylistItem::sync() {
     input_item_t *media = inputItem();
     assert(media);
-    vlc_mutex_locker locker(&media->lock);
+    heimdall_mutex_locker locker(&media->lock);
     d->duration =
         (media->i_duration == INPUT_DURATION_INDEFINITE
             || media->i_duration == INPUT_DURATION_UNSET)
-        ? VLCDuration{}
-        : VLCDuration{media->i_duration};
+        ? HeimdallDuration{}
+        : HeimdallDuration{media->i_duration};
     d->url      = media->psz_uri;
 
     if (media->p_meta) {
-        d->title   = vlc_meta_Get(media->p_meta, vlc_meta_Title);
-        d->artist  = vlc_meta_Get(media->p_meta, vlc_meta_Artist);
-        d->album   = vlc_meta_Get(media->p_meta, vlc_meta_Album);
-        d->artwork = vlc_meta_Get(media->p_meta, vlc_meta_ArtworkURL);
+        d->title   = heimdall_meta_Get(media->p_meta, heimdall_meta_Title);
+        d->artist  = heimdall_meta_Get(media->p_meta, heimdall_meta_Artist);
+        d->album   = heimdall_meta_Get(media->p_meta, heimdall_meta_Album);
+        d->artwork = heimdall_meta_Get(media->p_meta, heimdall_meta_ArtworkURL);
     }
 
     if (d->title.isNull())

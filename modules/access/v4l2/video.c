@@ -1,12 +1,13 @@
 /*****************************************************************************
- * video.c : Video4Linux2 input module for vlc
+ * video.c : Video4Linux2 input module for heimdall
  *****************************************************************************
  * Copyright (C) 2002-2009 VLC authors and VideoLAN
  * Copyright (C) 2011-2012 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Benjamin Pracht <bigben at videolan dot org>
+ * Authors: Benjamin Pracht <bigben at lycaria dot org>
  *          Richard Hosking <richard at hovis dot net>
- *          Antoine Cellerier <dionoea at videolan d.t org>
+ *          Antoine Cellerier <dionoea at lycaria d.t org>
  *          Dennis Lou <dlou99 at yahoo dot com>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -32,13 +33,13 @@
 #include <errno.h>
 #include <sys/ioctl.h>
 
-#include <vlc_common.h>
-#include <vlc_block.h>
-#include <vlc_es.h>
+#include <heimdall_common.h>
+#include <heimdall_block.h>
+#include <heimdall_es.h>
 
 #include "v4l2.h"
 
-static int SetupStandard (vlc_object_t *obj, int fd,
+static int SetupStandard (heimdall_object_t *obj, int fd,
                           const struct v4l2_input *restrict input,
                           v4l2_std_id *restrict std)
 {
@@ -62,14 +63,14 @@ static int SetupStandard (vlc_object_t *obj, int fd,
     if (v4l2_ioctl (fd, VIDIOC_S_STD, std) < 0)
     {
         msg_Err (obj, "cannot set video standard 0x%"PRIx64": %s",
-                 (uint64_t)*std, vlc_strerror_c(errno));
+                 (uint64_t)*std, heimdall_strerror_c(errno));
         return -1;
     }
     msg_Dbg (obj, "video standard set to 0x%"PRIx64":", (uint64_t)*std);
     return 0;
 }
 
-static int SetupAudio (vlc_object_t *obj, int fd,
+static int SetupAudio (heimdall_object_t *obj, int fd,
                        const struct v4l2_input *restrict input)
 {
     if (input->audioset == 0)
@@ -97,7 +98,7 @@ static int SetupAudio (vlc_object_t *obj, int fd,
     if (v4l2_ioctl (fd, VIDIOC_ENUMAUDIO, &enumaudio) < 0)
     {
         msg_Err (obj, "cannot get audio input %"PRIu32" properties: %s", idx,
-                 vlc_strerror_c(errno));
+                 heimdall_strerror_c(errno));
         return -1;
     }
 
@@ -114,21 +115,21 @@ static int SetupAudio (vlc_object_t *obj, int fd,
     if (v4l2_ioctl (fd, VIDIOC_S_AUDIO, &audio) < 0)
     {
         msg_Err (obj, "cannot select audio input %"PRIu32": %s", idx,
-                 vlc_strerror_c(errno));
+                 heimdall_strerror_c(errno));
         return -1;
     }
     msg_Dbg (obj, "selected audio input %"PRIu32, idx);
     return 0;
 }
 
-int SetupTuner (vlc_object_t *obj, int fd, uint32_t idx)
+int SetupTuner (heimdall_object_t *obj, int fd, uint32_t idx)
 {
     struct v4l2_tuner tuner = { .index = idx };
 
     if (v4l2_ioctl (fd, VIDIOC_G_TUNER, &tuner) < 0)
     {
         msg_Err (obj, "cannot get tuner %"PRIu32" properties: %s", idx,
-                 vlc_strerror_c(errno));
+                 heimdall_strerror_c(errno));
         return -1;
     }
 
@@ -186,7 +187,7 @@ int SetupTuner (vlc_object_t *obj, int fd, uint32_t idx)
     if (v4l2_ioctl (fd, VIDIOC_S_TUNER, &tuner) < 0)
     {
         msg_Err (obj, "cannot set tuner %"PRIu32" audio mode: %s", idx,
-                 vlc_strerror_c(errno));
+                 heimdall_strerror_c(errno));
         return -1;
     }
     msg_Dbg (obj, "tuner %"PRIu32" audio mode %u set", idx, tuner.audmode);
@@ -205,7 +206,7 @@ int SetupTuner (vlc_object_t *obj, int fd, uint32_t idx)
         {
             msg_Err (obj, "cannot tune tuner %"PRIu32
                      " to frequency %u %sHz: %s", idx, freq, mult,
-                     vlc_strerror_c(errno));
+                     heimdall_strerror_c(errno));
             return -1;
         }
         msg_Dbg (obj, "tuner %"PRIu32" tuned to frequency %"PRIu32" %sHz",
@@ -216,7 +217,7 @@ int SetupTuner (vlc_object_t *obj, int fd, uint32_t idx)
     return 0;
 }
 
-static int ResetCrop (vlc_object_t *obj, int fd)
+static int ResetCrop (heimdall_object_t *obj, int fd)
 {
     struct v4l2_cropcap cropcap = { .type = V4L2_BUF_TYPE_VIDEO_CAPTURE };
 
@@ -225,7 +226,7 @@ static int ResetCrop (vlc_object_t *obj, int fd)
     if (v4l2_ioctl (fd, VIDIOC_CROPCAP, &cropcap) < 0)
     {
         msg_Dbg (obj, "cannot get cropping properties: %s",
-                 vlc_strerror_c(errno));
+                 heimdall_strerror_c(errno));
         return 0;
     }
 
@@ -238,13 +239,13 @@ static int ResetCrop (vlc_object_t *obj, int fd)
     if (v4l2_ioctl (fd, VIDIOC_S_CROP, &crop) < 0)
     {
         msg_Warn (obj, "cannot reset cropping limits: %s",
-                  vlc_strerror_c(errno));
+                  heimdall_strerror_c(errno));
         return -1;
     }
     return 0;
 }
 
-static int SetupInput(vlc_object_t *obj, int fd, v4l2_std_id *std)
+static int SetupInput(heimdall_object_t *obj, int fd, v4l2_std_id *std)
 {
     struct v4l2_input input;
 
@@ -252,7 +253,7 @@ static int SetupInput(vlc_object_t *obj, int fd, v4l2_std_id *std)
     if (v4l2_ioctl (fd, VIDIOC_ENUMINPUT, &input) < 0)
     {
         msg_Err (obj, "invalid video input %"PRIu32": %s", input.index,
-                 vlc_strerror_c(errno));
+                 heimdall_strerror_c(errno));
         return -1;
     }
 
@@ -274,7 +275,7 @@ static int SetupInput(vlc_object_t *obj, int fd, v4l2_std_id *std)
     if (v4l2_ioctl (fd, VIDIOC_S_INPUT, &input.index) < 0)
     {
         msg_Err (obj, "cannot select input %"PRIu32": %s", input.index,
-                 vlc_strerror_c(errno));
+                 heimdall_strerror_c(errno));
         return -1;
     }
     msg_Dbg (obj, "selected input %"PRIu32, input.index);
@@ -318,7 +319,7 @@ static const struct v4l2_fract zero = { 0, 1 };
  * @param it V4L2 frame interval [OUT]
  * @return 0 on success, -1 on error.
  */
-static int FindMaxRate (vlc_object_t *obj, int fd,
+static int FindMaxRate (heimdall_object_t *obj, int fd,
                         const struct v4l2_format *restrict fmt,
                         const struct v4l2_fract *restrict min_it,
                         struct v4l2_fract *restrict it)
@@ -332,7 +333,7 @@ static int FindMaxRate (vlc_object_t *obj, int fd,
 
     if (v4l2_ioctl (fd, VIDIOC_ENUM_FRAMEINTERVALS, &fie) < 0)
     {
-        msg_Dbg (obj, "  unknown frame intervals: %s", vlc_strerror_c(errno));
+        msg_Dbg (obj, "  unknown frame intervals: %s", heimdall_strerror_c(errno));
         /* Frame intervals cannot be enumerated. Set the format and then
          * get the streaming parameters to figure out the default frame
          * interval. This is not necessarily the maximum though. */
@@ -414,7 +415,7 @@ static int FindMaxRate (vlc_object_t *obj, int fd,
  * @param parm V4L2 capture streaming parameters [OUT]
  * @return 0 on success, -1 on failure.
  */
-static int SetupFormat(vlc_object_t *obj, int fd, uint32_t fourcc,
+static int SetupFormat(heimdall_object_t *obj, int fd, uint32_t fourcc,
                        struct v4l2_format *restrict fmt,
                        struct v4l2_streamparm *restrict parm)
 {
@@ -425,7 +426,7 @@ static int SetupFormat(vlc_object_t *obj, int fd, uint32_t fourcc,
 
     if (v4l2_ioctl (fd, VIDIOC_G_FMT, fmt) < 0)
     {
-        msg_Err (obj, "cannot get default format: %s", vlc_strerror_c(errno));
+        msg_Err (obj, "cannot get default format: %s", heimdall_strerror_c(errno));
         return -1;
     }
     fmt->fmt.pix.pixelformat = fourcc;
@@ -437,7 +438,7 @@ static int SetupFormat(vlc_object_t *obj, int fd, uint32_t fourcc,
     uint64_t best_area = 0;
 
     if (var_InheritURational(obj, &min_it.denominator, &min_it.numerator,
-                             CFG_PREFIX"fps") == VLC_SUCCESS)
+                             CFG_PREFIX"fps") == HEIMDALL_SUCCESS)
         msg_Dbg (obj, " requested frame interval: %"PRIu32"/%"PRIu32,
                  min_it.numerator, min_it.denominator);
     else
@@ -457,7 +458,7 @@ static int SetupFormat(vlc_object_t *obj, int fd, uint32_t fourcc,
     if (v4l2_ioctl (fd, VIDIOC_ENUM_FRAMESIZES, &fse) < 0)
     {
         /* Fallback to current format, try to maximize frame rate */
-        msg_Dbg (obj, " unknown frame sizes: %s", vlc_strerror_c(errno));
+        msg_Dbg (obj, " unknown frame sizes: %s", heimdall_strerror_c(errno));
         msg_Dbg (obj, " current frame size: %"PRIu32"x%"PRIu32,
                  fmt->fmt.pix.width, fmt->fmt.pix.height);
         FindMaxRate (obj, fd, fmt, &min_it, &best_it);
@@ -540,7 +541,7 @@ static int SetupFormat(vlc_object_t *obj, int fd, uint32_t fourcc,
     /* Set the final format */
     if (v4l2_ioctl (fd, VIDIOC_S_FMT, fmt) < 0)
     {
-        msg_Err (obj, "cannot set format: %s", vlc_strerror_c(errno));
+        msg_Err (obj, "cannot set format: %s", heimdall_strerror_c(errno));
         return -1;
     }
 
@@ -548,7 +549,7 @@ static int SetupFormat(vlc_object_t *obj, int fd, uint32_t fourcc,
     if (v4l2_ioctl (fd, VIDIOC_G_PARM, parm) < 0)
     {
         msg_Err (obj, "cannot get streaming parameters: %s",
-                 vlc_strerror_c(errno));
+                 heimdall_strerror_c(errno));
         memset (parm, 0, sizeof (*parm));
         parm->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     }
@@ -558,7 +559,7 @@ static int SetupFormat(vlc_object_t *obj, int fd, uint32_t fourcc,
         parm->parm.capture.timeperframe = best_it;
     if (v4l2_ioctl (fd, VIDIOC_S_PARM, parm) < 0)
         msg_Warn (obj, "cannot set streaming parameters: %s",
-                  vlc_strerror_c(errno));
+                  heimdall_strerror_c(errno));
 
     ResetCrop (obj, fd); /* crop depends on frame size */
 
@@ -568,67 +569,67 @@ static int SetupFormat(vlc_object_t *obj, int fd, uint32_t fourcc,
 typedef struct
 {
     uint32_t v4l2;
-    vlc_fourcc_t vlc; /**< VLC FOURCC, 0 if muxed bitstream */
+    heimdall_fourcc_t heimdall; /**< Heimdall FOURCC, 0 if muxed bitstream */
     uint8_t bpp; /**< Bytes per pixel (first plane) */
-} vlc_v4l2_fmt_t;
+} heimdall_v4l2_fmt_t;
 
-/* NOTE: Currently vlc_v4l2_fmt_rank() assumes format are sorted in order of
+/* NOTE: Currently heimdall_v4l2_fmt_rank() assumes format are sorted in order of
  * decreasing preference. */
-static const vlc_v4l2_fmt_t v4l2_fmts[] =
+static const heimdall_v4l2_fmt_t v4l2_fmts[] =
 {
     /* Planar YUV 4:2:0 */
-    { V4L2_PIX_FMT_YUV420,  VLC_CODEC_I420, 1 },
-    { V4L2_PIX_FMT_YVU420,  VLC_CODEC_YV12, 1 },
-    { V4L2_PIX_FMT_YUV422P, VLC_CODEC_I422, 1 },
+    { V4L2_PIX_FMT_YUV420,  HEIMDALL_CODEC_I420, 1 },
+    { V4L2_PIX_FMT_YVU420,  HEIMDALL_CODEC_YV12, 1 },
+    { V4L2_PIX_FMT_YUV422P, HEIMDALL_CODEC_I422, 1 },
     /* Packed YUV 4:2:2 */
-    { V4L2_PIX_FMT_YUYV,    VLC_CODEC_YUYV, 2 },
-    { V4L2_PIX_FMT_UYVY,    VLC_CODEC_UYVY, 2 },
-    { V4L2_PIX_FMT_YVYU,    VLC_CODEC_YVYU, 2 },
-    { V4L2_PIX_FMT_VYUY,    VLC_CODEC_VYUY, 2 },
+    { V4L2_PIX_FMT_YUYV,    HEIMDALL_CODEC_YUYV, 2 },
+    { V4L2_PIX_FMT_UYVY,    HEIMDALL_CODEC_UYVY, 2 },
+    { V4L2_PIX_FMT_YVYU,    HEIMDALL_CODEC_YVYU, 2 },
+    { V4L2_PIX_FMT_VYUY,    HEIMDALL_CODEC_VYUY, 2 },
 
-    { V4L2_PIX_FMT_YUV411P, VLC_CODEC_I411, 1 },
+    { V4L2_PIX_FMT_YUV411P, HEIMDALL_CODEC_I411, 1 },
 
-    { V4L2_PIX_FMT_YUV410,  VLC_CODEC_I410, 1 },
+    { V4L2_PIX_FMT_YUV410,  HEIMDALL_CODEC_I410, 1 },
 //  { V4L2_PIX_FMT_YVU410     },
 
-    { V4L2_PIX_FMT_NV24,    VLC_CODEC_NV24, 1 },
-    { V4L2_PIX_FMT_NV42,    VLC_CODEC_NV42, 1 },
-    { V4L2_PIX_FMT_NV16,    VLC_CODEC_NV16, 1 },
-    { V4L2_PIX_FMT_NV61,    VLC_CODEC_NV61, 1 },
-    { V4L2_PIX_FMT_NV12,    VLC_CODEC_NV12, 1 },
-    { V4L2_PIX_FMT_NV21,    VLC_CODEC_NV21, 1 },
+    { V4L2_PIX_FMT_NV24,    HEIMDALL_CODEC_NV24, 1 },
+    { V4L2_PIX_FMT_NV42,    HEIMDALL_CODEC_NV42, 1 },
+    { V4L2_PIX_FMT_NV16,    HEIMDALL_CODEC_NV16, 1 },
+    { V4L2_PIX_FMT_NV61,    HEIMDALL_CODEC_NV61, 1 },
+    { V4L2_PIX_FMT_NV12,    HEIMDALL_CODEC_NV12, 1 },
+    { V4L2_PIX_FMT_NV21,    HEIMDALL_CODEC_NV21, 1 },
 
-    /* V4L2-documented but VLC-unsupported misc. YUV formats */
+    /* V4L2-documented but Heimdall-unsupported misc. YUV formats */
 //  { V4L2_PIX_FMT_Y41P       },
 //  { V4L2_PIX_FMT_NV12MT,    },
 //  { V4L2_PIX_FMT_M420,      },
 
     /* Packed RGB */
-    { V4L2_PIX_FMT_ABGR32,   VLC_CODEC_BGRA, 4 },
-    { V4L2_PIX_FMT_ARGB32,   VLC_CODEC_ARGB, 4 },
+    { V4L2_PIX_FMT_ABGR32,   HEIMDALL_CODEC_BGRA, 4 },
+    { V4L2_PIX_FMT_ARGB32,   HEIMDALL_CODEC_ARGB, 4 },
 
-    { V4L2_PIX_FMT_XBGR32,   VLC_CODEC_BGRX, 4 },
-    { V4L2_PIX_FMT_XRGB32,   VLC_CODEC_XRGB, 4 },
+    { V4L2_PIX_FMT_XBGR32,   HEIMDALL_CODEC_BGRX, 4 },
+    { V4L2_PIX_FMT_XRGB32,   HEIMDALL_CODEC_XRGB, 4 },
 
-    { V4L2_PIX_FMT_BGR32,    VLC_CODEC_BGRA, 4 },
-    { V4L2_PIX_FMT_RGB32,    VLC_CODEC_ARGB, 4 },
+    { V4L2_PIX_FMT_BGR32,    HEIMDALL_CODEC_BGRA, 4 },
+    { V4L2_PIX_FMT_RGB32,    HEIMDALL_CODEC_ARGB, 4 },
 
-    { V4L2_PIX_FMT_RGB24,   VLC_CODEC_RGB24, 3 },
-    { V4L2_PIX_FMT_BGR24,   VLC_CODEC_BGR24, 3 },
+    { V4L2_PIX_FMT_RGB24,   HEIMDALL_CODEC_RGB24, 3 },
+    { V4L2_PIX_FMT_BGR24,   HEIMDALL_CODEC_BGR24, 3 },
 
-    { V4L2_PIX_FMT_RGB565,   VLC_CODEC_RGB565LE, 2 },
-    { V4L2_PIX_FMT_RGB565X,  VLC_CODEC_RGB565BE, 2 },
+    { V4L2_PIX_FMT_RGB565,   HEIMDALL_CODEC_RGB565LE, 2 },
+    { V4L2_PIX_FMT_RGB565X,  HEIMDALL_CODEC_RGB565BE, 2 },
 
-    { V4L2_PIX_FMT_XRGB555,  VLC_CODEC_RGB555LE, 2 },
-    { V4L2_PIX_FMT_XRGB555X, VLC_CODEC_RGB555BE, 2  },
+    { V4L2_PIX_FMT_XRGB555,  HEIMDALL_CODEC_RGB555LE, 2 },
+    { V4L2_PIX_FMT_XRGB555X, HEIMDALL_CODEC_RGB555BE, 2  },
 
-    // { V4L2_PIX_FMT_ARGB555,  VLC_CODEC_RGB555LE, 2 },
-    // { V4L2_PIX_FMT_ARGB555X, VLC_CODEC_RGB555BE, 2 },
+    // { V4L2_PIX_FMT_ARGB555,  HEIMDALL_CODEC_RGB555LE, 2 },
+    // { V4L2_PIX_FMT_ARGB555X, HEIMDALL_CODEC_RGB555BE, 2 },
 
-    // { V4L2_PIX_FMT_RGB555,   VLC_CODEC_RGB555LE, 2 },
-    // { V4L2_PIX_FMT_RGB555X,  VLC_CODEC_RGB555BE, 2 },
+    // { V4L2_PIX_FMT_RGB555,   HEIMDALL_CODEC_RGB555LE, 2 },
+    // { V4L2_PIX_FMT_RGB555X,  HEIMDALL_CODEC_RGB555BE, 2 },
 
-    { V4L2_PIX_FMT_RGB332,  VLC_CODEC_RGB332,  1 },
+    { V4L2_PIX_FMT_RGB332,  HEIMDALL_CODEC_RGB332,  1 },
 
     /* Bayer (sub-sampled RGB). Not supported. */
 //  { V4L2_PIX_FMT_SBGGR16,  }
@@ -646,32 +647,32 @@ static const vlc_v4l2_fmt_t v4l2_fmts[] =
 //  { V4L2_PIX_FMT_SRGGB8,   }
 
     /* Compressed data types */
-    { V4L2_PIX_FMT_JPEG,    VLC_CODEC_MJPG, 0 },
-    { V4L2_PIX_FMT_H264,    VLC_CODEC_H264, 0 },
+    { V4L2_PIX_FMT_JPEG,    HEIMDALL_CODEC_MJPG, 0 },
+    { V4L2_PIX_FMT_H264,    HEIMDALL_CODEC_H264, 0 },
     /* FIXME: fill p_extra for avc1... */
-//  { V4L2_PIX_FMT_H264_NO_SC, VLC_FOURCC('a','v','c','1'), 0 }
-    { V4L2_PIX_FMT_MPEG4,   VLC_CODEC_MP4V, 0 },
-    { V4L2_PIX_FMT_XVID,    VLC_CODEC_MP4V, 0 },
-    { V4L2_PIX_FMT_H263,    VLC_CODEC_H263, 0 },
-    { V4L2_PIX_FMT_MPEG2,   VLC_CODEC_MPGV, 0 },
-    { V4L2_PIX_FMT_MPEG1,   VLC_CODEC_MPGV, 0 },
-    { V4L2_PIX_FMT_VC1_ANNEX_G, VLC_CODEC_VC1, 0 },
-    { V4L2_PIX_FMT_VC1_ANNEX_L, VLC_CODEC_VC1, 0 },
+//  { V4L2_PIX_FMT_H264_NO_SC, HEIMDALL_FOURCC('a','v','c','1'), 0 }
+    { V4L2_PIX_FMT_MPEG4,   HEIMDALL_CODEC_MP4V, 0 },
+    { V4L2_PIX_FMT_XVID,    HEIMDALL_CODEC_MP4V, 0 },
+    { V4L2_PIX_FMT_H263,    HEIMDALL_CODEC_H263, 0 },
+    { V4L2_PIX_FMT_MPEG2,   HEIMDALL_CODEC_MPGV, 0 },
+    { V4L2_PIX_FMT_MPEG1,   HEIMDALL_CODEC_MPGV, 0 },
+    { V4L2_PIX_FMT_VC1_ANNEX_G, HEIMDALL_CODEC_VC1, 0 },
+    { V4L2_PIX_FMT_VC1_ANNEX_L, HEIMDALL_CODEC_VC1, 0 },
     { V4L2_PIX_FMT_MPEG,    0,              0 },
 
     /* Reserved formats */
-    { V4L2_PIX_FMT_MJPEG,   VLC_CODEC_MJPG, 0 },
+    { V4L2_PIX_FMT_MJPEG,   HEIMDALL_CODEC_MJPG, 0 },
     { V4L2_PIX_FMT_DV,      0,              0 },
 
     /* Grey scale */
-    { V4L2_PIX_FMT_Y16,     VLC_CODEC_GREY_16L, 2 },
-    { V4L2_PIX_FMT_Y12,     VLC_CODEC_GREY_12L, 2 },
-    { V4L2_PIX_FMT_Y10,     VLC_CODEC_GREY_10L, 2 },
+    { V4L2_PIX_FMT_Y16,     HEIMDALL_CODEC_GREY_16L, 2 },
+    { V4L2_PIX_FMT_Y12,     HEIMDALL_CODEC_GREY_12L, 2 },
+    { V4L2_PIX_FMT_Y10,     HEIMDALL_CODEC_GREY_10L, 2 },
 //  { V4L2_PIX_FMT_Y10BPACK,  },
-    { V4L2_PIX_FMT_GREY,    VLC_CODEC_GREY, 1 },
+    { V4L2_PIX_FMT_GREY,    HEIMDALL_CODEC_GREY, 1 },
 };
 
-static const vlc_v4l2_fmt_t *vlc_from_v4l2_fourcc (uint32_t fourcc)
+static const heimdall_v4l2_fmt_t *heimdall_from_v4l2_fourcc (uint32_t fourcc)
 {
      for (size_t i = 0; i < ARRAY_SIZE(v4l2_fmts); i++)
          if (v4l2_fmts[i].v4l2 == fourcc)
@@ -679,7 +680,7 @@ static const vlc_v4l2_fmt_t *vlc_from_v4l2_fourcc (uint32_t fourcc)
      return NULL;
 }
 
-static size_t vlc_v4l2_fmt_rank (const vlc_v4l2_fmt_t *fmt)
+static size_t heimdall_v4l2_fmt_rank (const heimdall_v4l2_fmt_t *fmt)
 {
     if (fmt == NULL)
         return SIZE_MAX;
@@ -690,19 +691,19 @@ static size_t vlc_v4l2_fmt_rank (const vlc_v4l2_fmt_t *fmt)
     return d;
 }
 
-static vlc_fourcc_t var_InheritFourCC (vlc_object_t *obj, const char *varname)
+static heimdall_fourcc_t var_InheritFourCC (heimdall_object_t *obj, const char *varname)
 {
     char *str = var_InheritString (obj, varname);
     if (str == NULL)
         return 0;
 
-    vlc_fourcc_t fourcc = vlc_fourcc_GetCodecFromString (VIDEO_ES, str);
+    heimdall_fourcc_t fourcc = heimdall_fourcc_GetCodecFromString (VIDEO_ES, str);
     if (fourcc == 0)
         msg_Err (obj, "invalid codec %s", str);
     free (str);
     return fourcc;
 }
-#define var_InheritFourCC(o, v) var_InheritFourCC(VLC_OBJECT(o), v)
+#define var_InheritFourCC(o, v) var_InheritFourCC(HEIMDALL_OBJECT(o), v)
 
 static void GetAR (int fd, unsigned *restrict num, unsigned *restrict den)
 {
@@ -718,7 +719,7 @@ static void GetAR (int fd, unsigned *restrict num, unsigned *restrict den)
     *den = cropcap.pixelaspect.denominator;
 }
 
-int SetupVideo(vlc_object_t *obj, int fd, uint32_t caps,
+int SetupVideo(heimdall_object_t *obj, int fd, uint32_t caps,
                es_format_t *restrict es_fmt,
                uint32_t *restrict block_size, uint32_t *restrict block_flags)
 {
@@ -734,27 +735,27 @@ int SetupVideo(vlc_object_t *obj, int fd, uint32_t caps,
         return -1;
 
     /* Picture format negotiation */
-    const vlc_v4l2_fmt_t *selected = NULL;
-    vlc_fourcc_t reqfourcc = var_InheritFourCC(obj, CFG_PREFIX"chroma");
+    const heimdall_v4l2_fmt_t *selected = NULL;
+    heimdall_fourcc_t reqfourcc = var_InheritFourCC(obj, CFG_PREFIX"chroma");
     bool native = false;
 
     for (struct v4l2_fmtdesc codec = { .type = V4L2_BUF_TYPE_VIDEO_CAPTURE };
          v4l2_ioctl (fd, VIDIOC_ENUM_FMT, &codec) >= 0;
          codec.index++)
     {   /* Enumerate available chromas */
-        const vlc_v4l2_fmt_t *dsc = vlc_from_v4l2_fourcc(codec.pixelformat);
+        const heimdall_v4l2_fmt_t *dsc = heimdall_from_v4l2_fourcc(codec.pixelformat);
 
         msg_Dbg(obj, " %s %s format %4.4s (%4.4s): %s",
               (codec.flags & V4L2_FMT_FLAG_EMULATED) ? "emulates" : "supports",
               (codec.flags & V4L2_FMT_FLAG_COMPRESSED) ? "compressed" : "raw",
                 (char *)&codec.pixelformat,
-                (dsc != NULL) ? (const char *)&dsc->vlc : "N.A.",
+                (dsc != NULL) ? (const char *)&dsc->heimdall : "N.A.",
                 codec.description);
 
         if (dsc == NULL)
-            continue; /* ignore VLC-unsupported codec */
+            continue; /* ignore Heimdall-unsupported codec */
 
-        if (dsc->vlc == reqfourcc)
+        if (dsc->heimdall == reqfourcc)
         {
             msg_Dbg(obj, "  matches the requested format");
             selected = dsc;
@@ -769,7 +770,7 @@ int SetupVideo(vlc_object_t *obj, int fd, uint32_t caps,
         else
             native = true;
 
-        if (vlc_v4l2_fmt_rank (dsc) > vlc_v4l2_fmt_rank(selected))
+        if (heimdall_v4l2_fmt_rank (dsc) > heimdall_v4l2_fmt_rank(selected))
             continue; /* ignore if rank is worse */
 
         selected = dsc;
@@ -781,7 +782,7 @@ int SetupVideo(vlc_object_t *obj, int fd, uint32_t caps,
         return -1;
     }
     msg_Dbg(obj, "selected format %4.4s (%4.4s)",
-            (const char *)&selected->v4l2, (const char *)&selected->vlc);
+            (const char *)&selected->v4l2, (const char *)&selected->heimdall);
 
     /* Find best resolution and frame rate available */
     struct v4l2_format fmt;
@@ -841,8 +842,8 @@ int SetupVideo(vlc_object_t *obj, int fd, uint32_t caps,
     }
 
     /* Setup our unique elementary (video) stream format */
-    es_format_Init(es_fmt, VIDEO_ES, selected->vlc);
-    es_fmt->video.i_chroma = selected->vlc;
+    es_format_Init(es_fmt, VIDEO_ES, selected->heimdall);
+    es_fmt->video.i_chroma = selected->heimdall;
     es_fmt->video.i_visible_width = fmt.fmt.pix.width;
     if (fmt.fmt.pix.bytesperline != 0 && selected->bpp != 0)
         es_fmt->video.i_width = fmt.fmt.pix.bytesperline / selected->bpp;

@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2025 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,22 +21,22 @@ import QtQuick.Templates as T
 import QtQuick.Window
 import QtQuick.Layouts
 
-import VLC.MediaLibrary
+import Heimdall.MediaLibrary
 
-import VLC.Util
-import VLC.Widgets as Widgets
-import VLC.MainInterface
-import VLC.Style
-import VLC.Menus
+import Heimdall.Util
+import Heimdall.Widgets as Widgets
+import Heimdall.MainInterface
+import Heimdall.Style
+import Heimdall.Menus
 
 FocusScope {
     id: root
 
     required property var artistId
 
-    readonly property int _extraMargin: VLCStyle.dynamicAppMargins(width)
-    readonly property int _contentLeftMargin: VLCStyle.layout_left_margin + _extraMargin
-    readonly property int _contentRightMargin: VLCStyle.layout_right_margin + _extraMargin
+    readonly property int _extraMargin: HeimdallStyle.dynamicAppMargins(width)
+    readonly property int _contentLeftMargin: HeimdallStyle.layout_left_margin + _extraMargin
+    readonly property int _contentRightMargin: HeimdallStyle.layout_right_margin + _extraMargin
 
     property int displayMarginBeginning: 0
     property int displayMarginEnd: 0
@@ -245,7 +246,7 @@ FocusScope {
 
                         model: albumModel
 
-                        verticalPadding: VLCStyle.margin_xsmall
+                        verticalPadding: HeimdallStyle.margin_xsmall
 
                         focus: true
 
@@ -270,17 +271,17 @@ FocusScope {
 
                             spacing: pinnedMusicAlbumSection.spacing
 
-                            readonly property bool compactButtons: (pinnedMusicAlbumSection.width < (displayPositioningButtons ? VLCStyle.colWidth(6)
-                                                                                                                               : VLCStyle.colWidth(5)))
+                            readonly property bool compactButtons: (pinnedMusicAlbumSection.width < (displayPositioningButtons ? HeimdallStyle.colWidth(6)
+                                                                                                                               : HeimdallStyle.colWidth(5)))
                             readonly property bool displayPositioningButtons: !!pinnedMusicAlbumSection.tableView?.albumSections // not possible otherwise
 
                             Widgets.ImageExt {
                                 Layout.fillHeight: true
 
-                                Layout.preferredHeight: VLCStyle.trackListAlbumCover_heigth
-                                Layout.preferredWidth: VLCStyle.trackListAlbumCover_width
+                                Layout.preferredHeight: HeimdallStyle.trackListAlbumCover_heigth
+                                Layout.preferredWidth: HeimdallStyle.trackListAlbumCover_width
 
-                                source: pinnedMusicAlbumSection._albumCover ? pinnedMusicAlbumSection._albumCover : VLCStyle.noArtArtist
+                                source: pinnedMusicAlbumSection._albumCover ? pinnedMusicAlbumSection._albumCover : HeimdallStyle.noArtArtist
 
                                 sourceSize: Qt.size(width * eDPR, height * eDPR)
 
@@ -290,7 +291,7 @@ FocusScope {
 
                                 fillMode: Image.PreserveAspectFit
 
-                                radius: VLCStyle.listAlbumCover_radius
+                                radius: HeimdallStyle.listAlbumCover_radius
                                 asynchronous: true
                                 cache: true
 
@@ -316,7 +317,7 @@ FocusScope {
 
                                     Layout.maximumWidth: implicitWidth
 
-                                    font.pixelSize: VLCStyle.fontSize_normal
+                                    font.pixelSize: HeimdallStyle.fontSize_normal
                                     font.weight: Font.DemiBold
                                 }
 
@@ -407,7 +408,7 @@ FocusScope {
 
                     leftPadding: root._contentLeftMargin
                     rightPadding: root._contentRightMargin
-                    topPadding: VLCStyle.layoutTitle_top_padding
+                    topPadding: HeimdallStyle.layoutTitle_top_padding
 
                     Navigation.parentItem: root
                     Navigation.upItem: artistBanner
@@ -539,7 +540,7 @@ FocusScope {
         indexes: indexesFlat ? albumSelectionModel.selectedIndexesFlat
                              : albumSelectionModel.selectedIndexes
         indexesFlat: !!albumSelectionModel.selectedIndexesFlat
-        defaultCover: VLCStyle.noArtAlbumCover
+        defaultCover: HeimdallStyle.noArtAlbumCover
     }
 
     MLAudioModel {
@@ -572,8 +573,8 @@ FocusScope {
         Widgets.ExpandGridItemView {
             id: gridView_id
 
-            basePictureWidth: VLCStyle.gridCover_music_width
-            basePictureHeight: VLCStyle.gridCover_music_height
+            basePictureWidth: HeimdallStyle.gridCover_music_width
+            basePictureHeight: HeimdallStyle.gridCover_music_height
 
             focus: true
             activeFocusOnTab:true
@@ -618,7 +619,7 @@ FocusScope {
 
                 Behavior on opacity {
                     OpacityAnimator {
-                        duration: VLCStyle.duration_short
+                        duration: HeimdallStyle.duration_short
                     }
                 }
             }
@@ -680,7 +681,7 @@ FocusScope {
                 model.addAndPlay(selection)
             }
 
-            rowHeight: VLCStyle.tableCoverRow_height
+            rowHeight: HeimdallStyle.tableCoverRow_height
 
             property bool albumSections: true
 
@@ -999,7 +1000,7 @@ FocusScope {
                 }
             }]
 
-            sortModel: (_availableRowWidth < VLCStyle.colWidth(4)) ? _modelSmall
+            sortModel: (_availableRowWidth < HeimdallStyle.colWidth(4)) ? _modelSmall
                                                                    : _modelMedium
 
             dragItem: tableDragItem
@@ -1024,7 +1025,7 @@ FocusScope {
 
                 // NOTE: Usage of `SmoothedAnimation` is intentional here.
                 SmoothedAnimation {
-                    duration: VLCStyle.duration_veryLong
+                    duration: HeimdallStyle.duration_veryLong
                     easing.type: Easing.InOutSine
                 }
             }
@@ -1038,7 +1039,7 @@ FocusScope {
                                      : tableView_id.selectionModel.selectedIndexes
                 indexesFlat: !!tableView_id.selectionModel.selectedIndexesFlat
 
-                defaultCover: VLCStyle.noArtArtistCover
+                defaultCover: HeimdallStyle.noArtArtistCover
             }
 
             MLTableColumns {

@@ -3,6 +3,7 @@
  * d3d11_scaler: Direct3D11 VideoProcessor based output scaling
  *****************************************************************************
  * Copyright © 2023 Videolabs, VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Chilledheart <hukeyue@hotmail.com>
  *          Steve Lhomme <robux4@videolabs.io>
@@ -12,7 +13,7 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
 #include "d3d11_scaler.h"
 #ifdef HAVE_AMF_SCALER
@@ -40,7 +41,7 @@ struct d3d11_scaler
     ComPtr<ID3D11VideoProcessorOutputView>  outputView;
     ID3D11ShaderResourceView                *SRVs[DXGI_MAX_SHADER_VIEW] = {};
 #ifdef HAVE_AMF_SCALER
-    vlc_amf_context                 amf = {};
+    heimdall_amf_context                 amf = {};
     amf::AMFComponent               *amf_scaler = nullptr;
     bool                            amf_initialized{false};
     amf::AMFSurface                 *amfInput = nullptr;
@@ -48,14 +49,14 @@ struct d3d11_scaler
 #endif
 };
 
-static const d3d_format_t *GetDirectRenderingFormat(vlc_object_t *vd, d3d11_device_t *d3d_dev, uint8_t bits_per_channel, uint8_t alpha_bits)
+static const d3d_format_t *GetDirectRenderingFormat(heimdall_object_t *vd, d3d11_device_t *d3d_dev, uint8_t bits_per_channel, uint8_t alpha_bits)
 {
     UINT supportFlags = D3D11_FORMAT_SUPPORT_SHADER_LOAD | D3D11_FORMAT_SUPPORT_VIDEO_PROCESSOR_OUTPUT;
     return (FindD3D11Format)( vd, d3d_dev, 0, DXGI_RGB_FORMAT, bits_per_channel, 0, 0, alpha_bits,
                             DXGI_CHROMA_GPU, supportFlags );
 }
 
-d3d11_scaler *D3D11_UpscalerCreate(vlc_object_t *vd, d3d11_device_t *d3d_dev, vlc_fourcc_t i_chroma,
+d3d11_scaler *D3D11_UpscalerCreate(heimdall_object_t *vd, d3d11_device_t *d3d_dev, heimdall_fourcc_t i_chroma,
                                    bool super_res, const d3d_format_t **out_fmt)
 {
     if ((*out_fmt)->formatTexture == DXGI_FORMAT_UNKNOWN)
@@ -66,7 +67,7 @@ d3d11_scaler *D3D11_UpscalerCreate(vlc_object_t *vd, d3d11_device_t *d3d_dev, vl
 
     bool canProcess = !super_res;
 #ifdef HAVE_AMF_SCALER
-    struct vlc_amf_context amf = {};
+    struct heimdall_amf_context amf = {};
     amf::AMFComponent *amf_scaler = nullptr;
 #endif
     if (super_res)
@@ -125,8 +126,8 @@ checked:
 #ifdef HAVE_AMF_SCALER
     else if (d3d_dev->adapterDesc.VendorId == GPU_MANUFACTURER_AMD)
     {
-        int res = vlc_AMFCreateContext(&amf);
-        if (res == VLC_SUCCESS)
+        int res = heimdall_AMFCreateContext(&amf);
+        if (res == HEIMDALL_SUCCESS)
         {
             AMF_RESULT res = amf.pFactory->CreateComponent(amf.Context, AMFHQScaler, &amf_scaler);
             if (res == AMF_OK && amf_scaler)
@@ -216,7 +217,7 @@ error:
     if (amf_scaler)
         amf_scaler->Release();
     if (amf.Context)
-        vlc_AMFReleaseContext(&amf);
+        heimdall_AMFReleaseContext(&amf);
 #endif
     delete scaleProc;
     return nullptr;
@@ -234,7 +235,7 @@ static void ReleaseSRVs(d3d11_scaler *scaleProc)
     }
 }
 
-int D3D11_UpscalerUpdate(vlc_object_t *vd, d3d11_scaler *scaleProc, d3d11_device_t*d3d_dev,
+int D3D11_UpscalerUpdate(heimdall_object_t *vd, d3d11_scaler *scaleProc, d3d11_device_t*d3d_dev,
                          const video_format_t *fmt, video_format_t *quad_fmt,
                          unsigned display_width, unsigned display_height,
                          const vout_display_place_t *video_place)
@@ -261,7 +262,7 @@ int D3D11_UpscalerUpdate(vlc_object_t *vd, d3d11_scaler *scaleProc, d3d11_device
     if (scaleProc->Width == out_width && scaleProc->Height == out_height &&
         vout_display_PlaceEquals(&scaleProc->place, video_place))
         // do nothing
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     scaleProc->place = *video_place;
 
     scaleProc->usable = false;
@@ -391,8 +392,8 @@ int D3D11_UpscalerUpdate(vlc_object_t *vd, d3d11_scaler *scaleProc, d3d11_device
         _upscaled[1] = upscaled.Get();
         _upscaled[2] = upscaled.Get();
         _upscaled[3] = upscaled.Get();
-        if (D3D11_AllocateResourceView(vlc_object_logger(vd), d3d_dev->d3ddevice, scaleProc->d3d_fmt,
-                                    _upscaled, 0, scaleProc->SRVs) != VLC_SUCCESS)
+        if (D3D11_AllocateResourceView(heimdall_object_logger(vd), d3d_dev->d3ddevice, scaleProc->d3d_fmt,
+                                    _upscaled, 0, scaleProc->SRVs) != HEIMDALL_SUCCESS)
             goto done_super;
 
 #ifdef HAVE_AMF_SCALER
@@ -589,12 +590,12 @@ int D3D11_UpscalerUpdate(vlc_object_t *vd, d3d11_scaler *scaleProc, d3d11_device
     }
 
     scaleProc->usable = true;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 done_super:
     ReleaseSRVs(scaleProc);
     scaleProc->processor.Reset();
     scaleProc->enumerator.Reset();
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 void D3D11_UpscalerDestroy(d3d11_scaler *scaleProc)
@@ -612,13 +613,13 @@ void D3D11_UpscalerDestroy(d3d11_scaler *scaleProc)
         scaleProc->amf_scaler->Release();
     }
     if (scaleProc->amf.Context)
-        vlc_AMFReleaseContext(&scaleProc->amf);
+        heimdall_AMFReleaseContext(&scaleProc->amf);
 #endif
     delete scaleProc;
 }
 
 
-static int assert_ProcessorInput(vlc_object_t *vd, d3d11_scaler *scaleProc, picture_sys_d3d11_t *p_sys_src)
+static int assert_ProcessorInput(heimdall_object_t *vd, d3d11_scaler *scaleProc, picture_sys_d3d11_t *p_sys_src)
 {
     if (!p_sys_src->processorInput)
     {
@@ -640,13 +641,13 @@ static int assert_ProcessorInput(vlc_object_t *vd, d3d11_scaler *scaleProc, pict
 #ifndef NDEBUG
             msg_Dbg(vd,"Failed to create processor input for slice %d. (hr=0x%lX)", p_sys_src->slice_index, hr);
 #endif
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-int D3D11_UpscalerScale(vlc_object_t *vd, d3d11_scaler *scaleProc, picture_sys_d3d11_t *p_sys)
+int D3D11_UpscalerScale(heimdall_object_t *vd, d3d11_scaler *scaleProc, picture_sys_d3d11_t *p_sys)
 {
     HRESULT hr;
 
@@ -686,12 +687,12 @@ int D3D11_UpscalerScale(vlc_object_t *vd, d3d11_scaler *scaleProc, picture_sys_d
         if (res == AMF_INPUT_FULL)
         {
             msg_Dbg(vd, "scaler input full, skip this frame");
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
         if (res != AMF_OK)
         {
             msg_Err(vd, "scaler input failed (err=%d)", res);
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         amf::AMFData *amfOutput = nullptr;
@@ -699,7 +700,7 @@ int D3D11_UpscalerScale(vlc_object_t *vd, d3d11_scaler *scaleProc, picture_sys_d
         if (res != AMF_OK)
         {
             msg_Err(vd, "scaler gave no output (err=%d)", res);
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         assert(amfOutput->GetMemoryType() == amf::AMF_MEMORY_DX11);
@@ -722,22 +723,22 @@ int D3D11_UpscalerScale(vlc_object_t *vd, d3d11_scaler *scaleProc, picture_sys_d
         _upscaled[1] = out;
         _upscaled[2] = out;
         _upscaled[3] = out;
-        if (D3D11_AllocateResourceView(vlc_object_logger(vd), scaleProc->d3d_dev->d3ddevice, scaleProc->d3d_fmt,
-                                    _upscaled, 0, scaleProc->SRVs) != VLC_SUCCESS)
+        if (D3D11_AllocateResourceView(heimdall_object_logger(vd), scaleProc->d3d_dev->d3ddevice, scaleProc->d3d_fmt,
+                                    _upscaled, 0, scaleProc->SRVs) != HEIMDALL_SUCCESS)
         {
             amfOutput->Release();
-            return VLC_ENOTSUP;
+            return HEIMDALL_ENOTSUP;
         }
 
         amfOutput->Release();
 
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 #endif
-    if (assert_ProcessorInput(vd, scaleProc, p_sys) != VLC_SUCCESS)
+    if (assert_ProcessorInput(vd, scaleProc, p_sys) != HEIMDALL_SUCCESS)
     {
         msg_Err(vd, "fail to create upscaler input");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     D3D11_VIDEO_PROCESSOR_STREAM stream{};
@@ -750,9 +751,9 @@ int D3D11_UpscalerScale(vlc_object_t *vd, d3d11_scaler *scaleProc, picture_sys_d
     if (FAILED(hr))
     {
         msg_Err(vd, "Failed to render the upscaled texture. (hr=0x%lX)", hr);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 void D3D11_UpscalerGetSize(const d3d11_scaler *scaleProc, unsigned *i_width, unsigned *i_height)

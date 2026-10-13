@@ -2,6 +2,7 @@
  * rawvideo.c: Pseudo video decoder/packetizer for raw video data
  *****************************************************************************
  * Copyright (C) 2001, 2002 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *
@@ -27,10 +28,10 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
-#include <vlc_ancillary.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
+#include <heimdall_ancillary.h>
 
 /*****************************************************************************
  * decoder_sys_t : raw video decoder descriptor
@@ -53,13 +54,13 @@ typedef struct
 /****************************************************************************
  * Local prototypes
  ****************************************************************************/
-static int  OpenDecoder   ( vlc_object_t * );
-static int  OpenPacketizer( vlc_object_t * );
+static int  OpenDecoder   ( heimdall_object_t * );
+static int  OpenPacketizer( heimdall_object_t * );
 
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("Pseudo raw video decoder") )
     set_capability( "video decoder", 50 )
     set_subcategory( SUBCAT_INPUT_VCODEC )
@@ -69,29 +70,29 @@ vlc_module_begin ()
     set_description( N_("Pseudo raw video packetizer") )
     set_capability( "video packetizer", 100 )
     set_callback( OpenPacketizer )
-vlc_module_end ()
+heimdall_module_end ()
 
 /**
  * Common initialization for decoder and packetizer
  */
 static int OpenCommon( decoder_t *p_dec )
 {
-    const vlc_chroma_description_t *dsc =
-        vlc_fourcc_GetChromaDescription( p_dec->fmt_in->i_codec );
+    const heimdall_chroma_description_t *dsc =
+        heimdall_fourcc_GetChromaDescription( p_dec->fmt_in->i_codec );
     if( dsc == NULL || dsc->plane_count == 0 )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if( p_dec->fmt_in->video.i_width <= 0 || p_dec->fmt_in->video.i_height == 0 )
     {
         msg_Err( p_dec, "invalid display size %dx%d",
                  p_dec->fmt_in->video.i_width, p_dec->fmt_in->video.i_height );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Allocate the memory needed to store the decoder's structure */
-    decoder_sys_t *p_sys = vlc_obj_calloc(VLC_OBJECT(p_dec), 1, sizeof(*p_sys));
+    decoder_sys_t *p_sys = heimdall_obj_calloc(HEIMDALL_OBJECT(p_dec), 1, sizeof(*p_sys));
     if( unlikely(p_sys == NULL) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     es_format_Copy( &p_dec->fmt_out, p_dec->fmt_in );
 
@@ -100,10 +101,10 @@ static int OpenCommon( decoder_t *p_dec )
     if( !p_dec->fmt_out.video.i_visible_height )
         p_dec->fmt_out.video.i_visible_height = p_dec->fmt_out.video.i_height - p_dec->fmt_out.video.i_y_offset;
 
-    if( p_dec->fmt_in->i_codec == VLC_CODEC_YUV2 )
+    if( p_dec->fmt_in->i_codec == HEIMDALL_CODEC_YUV2 )
     {
         p_dec->fmt_out.video.i_chroma =
-        p_dec->fmt_out.i_codec = VLC_CODEC_YUYV;
+        p_dec->fmt_out.i_codec = HEIMDALL_CODEC_YUYV;
     }
 
     if( p_dec->fmt_out.video.i_frame_rate == 0 ||
@@ -131,7 +132,7 @@ static int OpenCommon( decoder_t *p_dec )
     }
 
     p_dec->p_sys           = p_sys;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -141,7 +142,7 @@ static void Flush( decoder_t *p_dec )
 {
     decoder_sys_t *p_sys = p_dec->p_sys;
 
-    date_Set( &p_sys->pts, VLC_TICK_INVALID );
+    date_Set( &p_sys->pts, HEIMDALL_TICK_INVALID );
 }
 
 /****************************************************************************
@@ -163,8 +164,8 @@ static block_t *DecodeBlock( decoder_t *p_dec, block_t *p_block )
         }
     }
 
-    if( p_block->i_pts == VLC_TICK_INVALID && p_block->i_dts == VLC_TICK_INVALID &&
-        date_Get( &p_sys->pts ) == VLC_TICK_INVALID )
+    if( p_block->i_pts == HEIMDALL_TICK_INVALID && p_block->i_dts == HEIMDALL_TICK_INVALID &&
+        date_Get( &p_sys->pts ) == HEIMDALL_TICK_INVALID )
     {
         /* We've just started the stream, wait for the first PTS. */
         block_Release( p_block );
@@ -172,13 +173,13 @@ static block_t *DecodeBlock( decoder_t *p_dec, block_t *p_block )
     }
 
     /* Date management: If there is a pts available, use that. */
-    if( p_block->i_pts != VLC_TICK_INVALID )
+    if( p_block->i_pts != HEIMDALL_TICK_INVALID )
     {
         date_Set( &p_sys->pts, p_block->i_pts );
     }
     else
     {
-        if( p_block->i_dts != VLC_TICK_INVALID )
+        if( p_block->i_dts != HEIMDALL_TICK_INVALID )
             /* NB, davidf doesn't quite agree with this in general, it is ok
              * for rawvideo since it is in order (ie pts=dts), however, it
              * may not be ok for an out-of-order codec, so don't copy this
@@ -219,7 +220,7 @@ static void FillPicture( decoder_t *p_dec, block_t *p_block, picture_t *p_pic )
         {
             memcpy( p_dst, p_src, p_pic->p[i].i_visible_pitch );
             /*Fix chroma sign.*/
-            if( p_dec->fmt_in->i_codec == VLC_CODEC_YUV2 ) {
+            if( p_dec->fmt_in->i_codec == HEIMDALL_CODEC_YUV2 ) {
                 for( int y = 0; y < p_pic->p[i].i_visible_pitch; y++ ) {
                     p_dst[2*y + 1] ^= 0x80;
                 }
@@ -239,11 +240,11 @@ static void FillPicture( decoder_t *p_dec, block_t *p_block, picture_t *p_pic )
 static int DecodeFrame( decoder_t *p_dec, block_t *p_block )
 {
     if( p_block == NULL ) /* No Drain */
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
 
     p_block = DecodeBlock( p_dec, p_block );
     if( p_block == NULL )
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
 
     /* Get a new picture */
     picture_t *p_pic = NULL;
@@ -252,11 +253,11 @@ static int DecodeFrame( decoder_t *p_dec, block_t *p_block )
     if( p_pic == NULL )
     {
         block_Release( p_block );
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
     }
 
-    struct vlc_ancillary *ancillary;
-    ancillary = vlc_frame_GetAncillary( p_block, VLC_ANCILLARY_ID_ICC );
+    struct heimdall_ancillary *ancillary;
+    ancillary = heimdall_frame_GetAncillary( p_block, HEIMDALL_ANCILLARY_ID_ICC );
     if( ancillary )
         picture_AttachAncillary( p_pic, ancillary );
 
@@ -277,15 +278,15 @@ static int DecodeFrame( decoder_t *p_dec, block_t *p_block )
 
     block_Release( p_block );
     decoder_QueueVideo( p_dec, p_pic );
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }
 
-static int OpenDecoder( vlc_object_t *p_this )
+static int OpenDecoder( heimdall_object_t *p_this )
 {
     decoder_t *p_dec = (decoder_t *)p_this;
 
     int ret = OpenCommon( p_dec );
-    if( ret == VLC_SUCCESS )
+    if( ret == HEIMDALL_SUCCESS )
     {
         p_dec->pf_decode = DecodeFrame;
         p_dec->pf_flush  = Flush;
@@ -312,15 +313,15 @@ static block_t *SendFrame( decoder_t *p_dec, block_t **pp_block )
     return p_block;
 }
 
-static int OpenPacketizer( vlc_object_t *p_this )
+static int OpenPacketizer( heimdall_object_t *p_this )
 {
     decoder_t *p_dec = (decoder_t *)p_this;
 
     if ( p_dec->fmt_in->i_cat != VIDEO_ES )
-        return VLC_ENOTSUP;
+        return HEIMDALL_ENOTSUP;
 
     int ret = OpenCommon( p_dec );
-    if( ret == VLC_SUCCESS )
+    if( ret == HEIMDALL_SUCCESS )
     {
         p_dec->pf_packetize = SendFrame;
         p_dec->pf_flush = Flush;

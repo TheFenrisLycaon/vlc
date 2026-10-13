@@ -2,6 +2,7 @@
  * Manifest.hpp
  *****************************************************************************
  * Copyright © 2015 - VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -35,7 +36,7 @@ namespace smooth
             friend class ManifestParser;
 
             public:
-                Manifest(vlc_object_t *);
+                Manifest(heimdall_object_t *);
                 virtual ~Manifest();
 
                 bool                    isLive() const override;

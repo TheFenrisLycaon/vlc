@@ -2,6 +2,7 @@
  * chroma.h: decoder and encoder using libavcodec
  *****************************************************************************
  * Copyright (C) 2001-2008 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *
@@ -20,24 +21,24 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-/* VLC <-> avutil tables */
+/* Heimdall <-> avutil tables */
 
-#ifndef VLC_AVUTIL_CHROMA_H_
-#define VLC_AVUTIL_CHROMA_H_
+#ifndef HEIMDALL_AVUTIL_CHROMA_H_
+#define HEIMDALL_AVUTIL_CHROMA_H_
 
 #include <libavutil/pixfmt.h>
 
-struct vlc_chroma_ffmpeg
+struct heimdall_chroma_ffmpeg
 {
-    vlc_fourcc_t  i_chroma;
+    heimdall_fourcc_t  i_chroma;
     enum AVPixelFormat i_chroma_id;
     video_color_range_t range;
 };
 
-const struct vlc_chroma_ffmpeg *GetVlcChromaFfmpegTable( size_t *count );
+const struct heimdall_chroma_ffmpeg *GetHeimdallChromaFfmpegTable( size_t *count );
 
-enum AVPixelFormat FindFfmpegChroma( vlc_fourcc_t, bool *uv_flipped );
+enum AVPixelFormat FindFfmpegChroma( heimdall_fourcc_t, bool *uv_flipped );
 
-int GetVlcChroma( video_format_t *fmt, enum AVPixelFormat i_ffmpeg_chroma );
+int GetHeimdallChroma( video_format_t *fmt, enum AVPixelFormat i_ffmpeg_chroma );
 
 #endif

@@ -10,17 +10,17 @@ CSDThemeImage::CSDThemeImage(QQuickItem *parent)
     : QQuickItem(parent)
 {
     setFlag(ItemHasContents, true);
-    m_imageSet.resize(VLC_QT_THEME_BUTTON_STATE_COUNT);
+    m_imageSet.resize(HEIMDALL_QT_THEME_BUTTON_STATE_COUNT);
     connect(this, &CSDThemeImage::requestContentUpdate, this, &CSDThemeImage::updateContent, Qt::QueuedConnection);
 }
 
 void CSDThemeImage::updateContent()
 {
-    for (int i = 0; i < VLC_QT_THEME_BUTTON_STATE_COUNT; i++)
+    for (int i = 0; i < HEIMDALL_QT_THEME_BUTTON_STATE_COUNT; i++)
     {
         m_imageSet[i] = m_theme->getCSDImage(
-                    static_cast<vlc_qt_theme_csd_button_type>(m_buttonType),
-                    static_cast<vlc_qt_theme_csd_button_state>(i),
+                    static_cast<heimdall_qt_theme_csd_button_type>(m_buttonType),
+                    static_cast<heimdall_qt_theme_csd_button_state>(i),
                     m_maximized, m_active, m_bannerHeight);
     }
     m_needContentUpdate = false;

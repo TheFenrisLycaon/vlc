@@ -2,6 +2,7 @@
  * sharpen.c: VDPAU sharpen video filter
  *****************************************************************************
  * Copyright (C) 2013 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -25,19 +26,19 @@
 #include <stdatomic.h>
 #include <stdlib.h>
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_picture.h>
-#include "vlc_vdpau.h"
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
+#include "heimdall_vdpau.h"
 
 typedef struct
 {
     atomic_uint_fast32_t sigma;
 } filter_sys_t;
 
-static float vlc_to_vdp_sigma(float sigma)
+static float heimdall_to_vdp_sigma(float sigma)
 {
     sigma /= 2.f;
     if (sigma > +1.f)
@@ -47,22 +48,22 @@ static float vlc_to_vdp_sigma(float sigma)
     return sigma;
 }
 
-static int SharpenCallback(vlc_object_t *obj, const char *varname,
-                           vlc_value_t prev, vlc_value_t cur, void *data)
+static int SharpenCallback(heimdall_object_t *obj, const char *varname,
+                           heimdall_value_t prev, heimdall_value_t cur, void *data)
 {
     filter_sys_t *sys = data;
     union { uint32_t u; float f; } u;
 
-    u.f = vlc_to_vdp_sigma(cur.f_float);
+    u.f = heimdall_to_vdp_sigma(cur.f_float);
     atomic_store(&sys->sigma, u.u);
     (void) obj; (void) varname; (void) prev;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static picture_t *Sharpen(filter_t *filter, picture_t *pic)
 {
     filter_sys_t *sys = filter->p_sys;
-    vlc_vdp_video_field_t *f = VDPAU_FIELD_FROM_PICCTX(pic->context);
+    heimdall_vdp_video_field_t *f = VDPAU_FIELD_FROM_PICCTX(pic->context);
     union { uint32_t u; float f; } u;
 
     if (unlikely(f == NULL))
@@ -88,28 +89,28 @@ static void Close(filter_t *filter)
 
 static const char *const options[] = { "sigma", NULL };
 
-static const struct vlc_filter_operations filter_ops = {
+static const struct heimdall_filter_operations filter_ops = {
     .filter_video = Sharpen, .close = Close,
 };
 
 static int Open(filter_t *filter)
 {
     if ( filter->vctx_in == NULL ||
-         vlc_video_context_GetType(filter->vctx_in) != VLC_VIDEO_CONTEXT_VDPAU )
-        return VLC_EGENERIC;
-    if (filter->fmt_in.video.i_chroma != VLC_CODEC_VDPAU_VIDEO)
-        return VLC_EGENERIC;
+         heimdall_video_context_GetType(filter->vctx_in) != HEIMDALL_VIDEO_CONTEXT_VDPAU )
+        return HEIMDALL_EGENERIC;
+    if (filter->fmt_in.video.i_chroma != HEIMDALL_CODEC_VDPAU_VIDEO)
+        return HEIMDALL_EGENERIC;
     if (!video_format_IsSimilar(&filter->fmt_in.video, &filter->fmt_out.video))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    vlc_decoder_device *dec_dev = vlc_video_context_HoldDevice(filter->vctx_in);
+    heimdall_decoder_device *dec_dev = heimdall_video_context_HoldDevice(filter->vctx_in);
     assert(dec_dev != NULL);
 
     vdpau_decoder_device_t *vdpau_decoder = GetVDPAUOpaqueDevice(dec_dev);
     if (vdpau_decoder == NULL)
     {
-        vlc_decoder_device_Release(dec_dev);
-        return VLC_EINVAL;
+        heimdall_decoder_device_Release(dec_dev);
+        return HEIMDALL_EINVAL;
     }
 
     /* Check for sharpen support */
@@ -119,20 +120,20 @@ static int Open(filter_t *filter)
     err = vdp_video_mixer_query_feature_support(vdpau_decoder->vdp,
                                                 vdpau_decoder->device,
                                        VDP_VIDEO_MIXER_FEATURE_SHARPNESS, &ok);
-    vlc_decoder_device_Release(dec_dev);
+    heimdall_decoder_device_Release(dec_dev);
     if (err != VDP_STATUS_OK)
         ok = VDP_FALSE;
 
     if (ok != VDP_TRUE)
     {
         msg_Err(filter, "sharpening/blurring not supported by VDPAU device");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Initialization */
     filter_sys_t *sys = malloc(sizeof (*sys));
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     filter->ops = &filter_ops;
     filter->p_sys = sys;
@@ -141,15 +142,15 @@ static int Open(filter_t *filter)
     var_AddCallback(filter, "sharpen-sigma", SharpenCallback, sys);
 
     union { uint32_t u; float f; } u;
-    u.f = vlc_to_vdp_sigma(var_CreateGetFloatCommand(filter, "sharpen-sigma"));
+    u.f = heimdall_to_vdp_sigma(var_CreateGetFloatCommand(filter, "sharpen-sigma"));
     atomic_init(&sys->sigma, u.u);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_description(N_("VDPAU sharpen video filter"))
     set_subcategory(SUBCAT_VIDEO_VFILTER)
     add_shortcut("sharpen")
     set_callback_video_filter(Open)
-vlc_module_end()
+heimdall_module_end()

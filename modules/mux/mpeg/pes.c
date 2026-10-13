@@ -2,6 +2,7 @@
  * pes.c: PES packetizer used by the MPEG multiplexers
  *****************************************************************************
  * Copyright (C) 2001, 2002 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *          Eric Petit <titer@videolan.org>
@@ -29,9 +30,9 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_sout.h>
-#include <vlc_block.h>
+#include <heimdall_common.h>
+#include <heimdall_sout.h>
+#include <heimdall_block.h>
 #include <assert.h>
 
 #include "pes.h"
@@ -112,9 +113,9 @@ static inline int PESHeader( uint8_t *p_hdr, ts_90khz_t i_pts, ts_90khz_t i_dts,
 
                 if( i_pts > 0 && i_dts > 0 && i_pts != i_dts &&
                     ( i_pts != i_dts || ( p_fmt->i_cat == VIDEO_ES &&
-                      p_fmt->i_codec != VLC_CODEC_MPGV &&
-                      p_fmt->i_codec != VLC_CODEC_MP2V &&
-                      p_fmt->i_codec != VLC_CODEC_MP1V 
+                      p_fmt->i_codec != HEIMDALL_CODEC_MPGV &&
+                      p_fmt->i_codec != HEIMDALL_CODEC_MP2V &&
+                      p_fmt->i_codec != HEIMDALL_CODEC_MP1V 
                       ) ) )
                 {
                     i_pts_dts = 0x03;
@@ -321,7 +322,7 @@ static inline int PESHeader( uint8_t *p_hdr, ts_90khz_t i_pts, ts_90khz_t i_dts,
 void EStoPES ( block_t **pp_pes,
                    const es_format_t *p_fmt, int i_stream_id,
                    int b_mpeg2, int b_data_alignment, int i_header_size,
-                   int i_max_pes_size, vlc_tick_t ts_offset )
+                   int i_max_pes_size, heimdall_tick_t ts_offset )
 {
     block_t *p_es = *pp_pes;
     block_t *p_pes = NULL;
@@ -358,9 +359,9 @@ void EStoPES ( block_t **pp_pes,
 
     ts_90khz_t i_dts = 0;
     ts_90khz_t i_pts = 0;
-    if (p_es->i_pts != VLC_TICK_INVALID)
+    if (p_es->i_pts != HEIMDALL_TICK_INVALID)
         i_pts = TO_SCALE_NZ(p_es->i_pts - ts_offset);
-    if (p_es->i_dts != VLC_TICK_INVALID)
+    if (p_es->i_dts != HEIMDALL_TICK_INVALID)
         i_dts = TO_SCALE_NZ(p_es->i_dts - ts_offset);
 
     i_size = p_es->i_buffer;
@@ -411,8 +412,8 @@ void EStoPES ( block_t **pp_pes,
 
     /* Now redate all pes */
     p_pes = *pp_pes;
-    vlc_tick_t i_block_dts = p_pes->i_dts;
-    vlc_tick_t i_length = p_pes->i_length / i_pes_count;
+    heimdall_tick_t i_block_dts = p_pes->i_dts;
+    heimdall_tick_t i_length = p_pes->i_length / i_pes_count;
     while( p_pes )
     {
         p_pes->i_dts = i_block_dts;

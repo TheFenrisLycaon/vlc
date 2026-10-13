@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: LGPL-2.1-or-later
 /*****************************************************************************
- * tojson.c: write json from vlc struct
+ * tojson.c: write json from heimdall struct
  *****************************************************************************
  * Copyright © 2025 Videolabs, VideoLAN and VLC authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gabriel Lafond Thenaille <gabriel@videolabs.io>
  *****************************************************************************/
@@ -11,13 +12,13 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_charset.h>
-#include <vlc_es.h>
-#include <vlc_input_item.h>
-#include <vlc_strings.h>
-#include <vlc_preparser_ipc.h>
-#include <vlc_vector.h>
+#include <heimdall_common.h>
+#include <heimdall_charset.h>
+#include <heimdall_es.h>
+#include <heimdall_input_item.h>
+#include <heimdall_strings.h>
+#include <heimdall_preparser_ipc.h>
+#include <heimdall_vector.h>
 
 #include <float.h>
 #include <stdckdint.h>
@@ -133,7 +134,7 @@ static inline void json_stringify_utf8string(struct serdes_sys *sys,
                 }
                 else {
                     uint32_t bytes;
-                    ssize_t len = vlc_towc(str, &bytes);
+                    ssize_t len = heimdall_towc(str, &bytes);
                     assert(len > 0);
                     json_stringify_utf8char(sys, bytes);
                     str += len - 1;
@@ -224,19 +225,19 @@ static inline void json_stringify_null(struct serdes_sys *sys, void *unused)
 {
     assert(sys != NULL);
 
-    VLC_UNUSED(unused);
+    HEIMDALL_UNUSED(unused);
     if (serdes_buf_puts(sys, "null") < 0) {
         return;
     }
 }
 
 static inline void json_stringify_fourcc(struct serdes_sys *sys,
-                                         vlc_fourcc_t fourcc)
+                                         heimdall_fourcc_t fourcc)
 {
     char str[25];
     char *ptr = str;
     char f[5];
-    vlc_fourcc_to_char(fourcc, f);
+    heimdall_fourcc_to_char(fourcc, f);
     for (size_t i = 0; i < 4; i++) {
         if (f[i] < 0x20 || f[i] >= 0x7f) {
             int ret = sprintf(ptr, "\\\\x%02" PRIx8, f[i]);
@@ -526,7 +527,7 @@ static void toJSON_video_format(struct serdes_sys *sys,
                    video->b_multiview_right_eye_first);
     json_stringify(number, sys, "projection_mode", video->projection_mode);
 
-    /* vlc_viewpoint_t pose */
+    /* heimdall_viewpoint_t pose */
     json_stringify_utf8string(sys, "pose");
     if (serdes_buf_puts(sys, ": ") < 0) {
         return;
@@ -733,7 +734,7 @@ static void toJSON_es_format(struct serdes_sys *sys, const es_format_t *es,
     /* p_extra not sent */
 }
 
-static void toJSON_meta(struct serdes_sys *sys, const vlc_meta_t *meta,
+static void toJSON_meta(struct serdes_sys *sys, const heimdall_meta_t *meta,
                         const char *name)
 {
 #define stringify_meta(sys, meta, type) \
@@ -742,11 +743,11 @@ static void toJSON_meta(struct serdes_sys *sys, const vlc_meta_t *meta,
         if (serdes_buf_puts(sys, ": ") < 0) {\
             return;\
         } \
-        vlc_meta_priority_t p_##type = VLC_META_PRIORITY_BASIC; \
-        const char *v_##type = vlc_meta_GetWithPriority(meta, vlc_meta_##type,\
+        heimdall_meta_priority_t p_##type = HEIMDALL_META_PRIORITY_BASIC; \
+        const char *v_##type = heimdall_meta_GetWithPriority(meta, heimdall_meta_##type,\
                                                         &p_##type); \
-        assert(p_##type >= VLC_META_PRIORITY_BASIC \
-                && p_##type <= VLC_META_PRIORITY_INBAND); \
+        assert(p_##type >= HEIMDALL_META_PRIORITY_BASIC \
+                && p_##type <= HEIMDALL_META_PRIORITY_INBAND); \
         json_stringify_first(string, sys, "value", v_##type); \
         json_stringify_last(number, sys, "priority", p_##type); \
         if (serdes_buf_puts(sys, ", ") < 0) {\
@@ -809,19 +810,19 @@ static void toJSON_meta(struct serdes_sys *sys, const vlc_meta_t *meta,
     if (serdes_buf_putc(sys, '[') < 0) {
         return;
     }
-    char **keys = vlc_meta_CopyExtraNames(meta);
+    char **keys = heimdall_meta_CopyExtraNames(meta);
     if (keys != NULL) {
-        for (size_t i = 0; i < vlc_meta_GetExtraCount(meta); i++) {
+        for (size_t i = 0; i < heimdall_meta_GetExtraCount(meta); i++) {
             if (i != 0) {
                 if (serdes_buf_puts(sys, ", ") < 0) {
                     return;
                 }
             }
-            vlc_meta_priority_t priority = VLC_META_PRIORITY_BASIC;
-            const char *value = vlc_meta_GetExtraWithPriority(meta, keys[i],
+            heimdall_meta_priority_t priority = HEIMDALL_META_PRIORITY_BASIC;
+            const char *value = heimdall_meta_GetExtraWithPriority(meta, keys[i],
                                                               &priority);
-            assert(priority >= VLC_META_PRIORITY_BASIC
-                    && priority <= VLC_META_PRIORITY_INBAND);
+            assert(priority >= HEIMDALL_META_PRIORITY_BASIC
+                    && priority <= HEIMDALL_META_PRIORITY_INBAND);
             json_stringify_first(string, sys, "key", keys[i]);
             json_stringify(string, sys, "value", value);
             json_stringify_last(number, sys, "priority", priority);
@@ -832,7 +833,7 @@ static void toJSON_meta(struct serdes_sys *sys, const vlc_meta_t *meta,
     if (serdes_buf_puts(sys, "], ") < 0) {
         return;
     }
-    json_stringify_last(number, sys, "i_status", vlc_meta_GetStatus(meta));
+    json_stringify_last(number, sys, "i_status", heimdall_meta_GetStatus(meta));
 }
 
 static void toJSON_input_item_es(struct serdes_sys *sys,
@@ -989,9 +990,9 @@ static void toJSON_input_attachment(struct serdes_sys *sys,
     json_stringify(number, sys, "i_data", (*a)->i_data);
     if (sys->bin_data) {
         json_stringify_last(null, sys, "p_data", NULL);
-        vlc_vector_push_all(&sys->attach_data , (*a)->p_data, (*a)->i_data);
+        heimdall_vector_push_all(&sys->attach_data , (*a)->p_data, (*a)->i_data);
     } else {
-        char *b64 = vlc_b64_encode_binary((*a)->p_data, (*a)->i_data);
+        char *b64 = heimdall_b64_encode_binary((*a)->p_data, (*a)->i_data);
         json_stringify_last(string, sys, "p_data", b64);
         free(b64);
     }
@@ -1016,10 +1017,10 @@ static void toJSON_plane(struct serdes_sys *sys, const plane_t *plane,
     }
     if (sys->bin_data) {
         json_stringify_first(null, sys, "p_pixels", NULL);
-        vlc_vector_push_all(&sys->attach_data, plane->p_pixels,
+        heimdall_vector_push_all(&sys->attach_data, plane->p_pixels,
                             plane->i_pitch * plane->i_lines);
     } else {
-        char *b64 = vlc_b64_encode_binary(plane->p_pixels,
+        char *b64 = heimdall_b64_encode_binary(plane->p_pixels,
                                           plane->i_pitch * plane->i_lines);
         json_stringify_first(string, sys, "p_pixels", b64);
         free(b64);
@@ -1071,8 +1072,8 @@ static void toJSON_picture(struct serdes_sys *sys, const picture_t *pic,
 }
 
 static void
-toJSON_vlc_thumbnailer_output(struct serdes_sys *sys,
-                              const struct vlc_thumbnailer_output *output,
+toJSON_heimdall_thumbnailer_output(struct serdes_sys *sys,
+                              const struct heimdall_thumbnailer_output *output,
                               const char *name)
 {
     assert(sys != NULL);
@@ -1098,8 +1099,8 @@ toJSON_vlc_thumbnailer_output(struct serdes_sys *sys,
 }
 
 static void
-toJSON_vlc_preparser_msg_req(struct serdes_sys *sys,
-                             const struct vlc_preparser_msg_req *req,
+toJSON_heimdall_preparser_msg_req(struct serdes_sys *sys,
+                             const struct heimdall_preparser_msg_req *req,
                              const char *name)
 {
     assert(sys != NULL);
@@ -1119,15 +1120,15 @@ toJSON_vlc_preparser_msg_req(struct serdes_sys *sys,
 
     json_stringify_first(number, sys, "type", req->type);
 
-    assert(req->type == VLC_PREPARSER_MSG_REQ_TYPE_PARSE ||
-            req->type == VLC_PREPARSER_MSG_REQ_TYPE_THUMBNAIL ||
-            req->type == VLC_PREPARSER_MSG_REQ_TYPE_THUMBNAIL_TO_FILES);
+    assert(req->type == HEIMDALL_PREPARSER_MSG_REQ_TYPE_PARSE ||
+            req->type == HEIMDALL_PREPARSER_MSG_REQ_TYPE_THUMBNAIL ||
+            req->type == HEIMDALL_PREPARSER_MSG_REQ_TYPE_THUMBNAIL_TO_FILES);
 
-    if (req->type == VLC_PREPARSER_MSG_REQ_TYPE_PARSE) {
+    if (req->type == HEIMDALL_PREPARSER_MSG_REQ_TYPE_PARSE) {
         json_stringify(number, sys, "options", req->options);
     } else {
-        if (req->type == VLC_PREPARSER_MSG_REQ_TYPE_THUMBNAIL_TO_FILES) {
-            json_stringify_array(toJSON_vlc_thumbnailer_output,
+        if (req->type == HEIMDALL_PREPARSER_MSG_REQ_TYPE_THUMBNAIL_TO_FILES) {
+            json_stringify_array(toJSON_heimdall_thumbnailer_output,
                                  req->outputs.size, sys, "outputs",
                                  req->outputs.data);
             if (serdes_buf_puts(sys, ", ") < 0) {
@@ -1135,12 +1136,12 @@ toJSON_vlc_preparser_msg_req(struct serdes_sys *sys,
             }
         }
         json_stringify(number, sys, "seek.type", req->arg.seek.type);
-        if (req->arg.seek.type == VLC_THUMBNAILER_SEEK_TIME) {
+        if (req->arg.seek.type == HEIMDALL_THUMBNAILER_SEEK_TIME) {
             json_stringify(number, sys, "seek.time", req->arg.seek.time);
-        } else if (req->arg.seek.type == VLC_THUMBNAILER_SEEK_POS) {
+        } else if (req->arg.seek.type == HEIMDALL_THUMBNAILER_SEEK_POS) {
             json_stringify(number, sys, "seek.pos", req->arg.seek.pos);
-        } else if (req->arg.seek.type != VLC_THUMBNAILER_SEEK_NONE) {
-            vlc_assert_unreachable();
+        } else if (req->arg.seek.type != HEIMDALL_THUMBNAILER_SEEK_NONE) {
+            heimdall_assert_unreachable();
         }
         json_stringify(number, sys, "seek.speed", req->arg.seek.speed);
         json_stringify(boolean, sys, "hw_dec", req->arg.hw_dec);
@@ -1154,8 +1155,8 @@ toJSON_vlc_preparser_msg_req(struct serdes_sys *sys,
  * name and possible null.
  */
 static void
-toJSON_vlc_preparser_msg_res(struct serdes_sys *sys,
-                             const struct vlc_preparser_msg_res *res,
+toJSON_heimdall_preparser_msg_res(struct serdes_sys *sys,
+                             const struct heimdall_preparser_msg_res *res,
                              const char *name)
 {
     assert(sys != NULL);
@@ -1175,7 +1176,7 @@ toJSON_vlc_preparser_msg_res(struct serdes_sys *sys,
 
     json_stringify_first(number, sys, "type", res->type);
     switch (res->type) {
-        case VLC_PREPARSER_MSG_REQ_TYPE_PARSE:
+        case HEIMDALL_PREPARSER_MSG_REQ_TYPE_PARSE:
             json_stringify_array(toJSON_input_attachment, res->attachments.size,
                     sys, "attachments", res->attachments.data);
             if (serdes_buf_puts(sys, ", ") < 0) {
@@ -1183,15 +1184,15 @@ toJSON_vlc_preparser_msg_res(struct serdes_sys *sys,
             }
             toJSON_input_item_node(sys, &res->subtree, "subtree");
             break;
-        case VLC_PREPARSER_MSG_REQ_TYPE_THUMBNAIL:
+        case HEIMDALL_PREPARSER_MSG_REQ_TYPE_THUMBNAIL:
             toJSON_picture(sys, res->pic, "pic");
             break;
-        case VLC_PREPARSER_MSG_REQ_TYPE_THUMBNAIL_TO_FILES:
+        case HEIMDALL_PREPARSER_MSG_REQ_TYPE_THUMBNAIL_TO_FILES:
             json_stringify_array_value(boolean, res->result.size, sys, "result",
                     res->result.data);
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
     if (serdes_buf_puts(sys, ", ") < 0) {
         return;
@@ -1204,8 +1205,8 @@ toJSON_vlc_preparser_msg_res(struct serdes_sys *sys,
 }
 
 void
-toJSON_vlc_preparser_msg(struct serdes_sys *sys,
-                         const struct vlc_preparser_msg *msg)
+toJSON_heimdall_preparser_msg(struct serdes_sys *sys,
+                         const struct heimdall_preparser_msg *msg)
 {
     assert(sys != NULL);
     assert(msg != NULL);
@@ -1213,12 +1214,12 @@ toJSON_vlc_preparser_msg(struct serdes_sys *sys,
     json_stringify_first(number, sys, "type", msg->type);
     json_stringify(number, sys, "req_type", msg->req_type);
 
-    if (msg->type == VLC_PREPARSER_MSG_TYPE_REQ) {
-        toJSON_vlc_preparser_msg_req(sys, &msg->req, "req");
-    } else if (msg->type == VLC_PREPARSER_MSG_TYPE_RES) {
-        toJSON_vlc_preparser_msg_res(sys, &msg->res, "res");
+    if (msg->type == HEIMDALL_PREPARSER_MSG_TYPE_REQ) {
+        toJSON_heimdall_preparser_msg_req(sys, &msg->req, "req");
+    } else if (msg->type == HEIMDALL_PREPARSER_MSG_TYPE_RES) {
+        toJSON_heimdall_preparser_msg_res(sys, &msg->res, "res");
     } else {
-        vlc_assert_unreachable();
+        heimdall_assert_unreachable();
     }
     if (serdes_buf_puts(sys, "}") < 0) {
         return;

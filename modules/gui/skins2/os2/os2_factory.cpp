@@ -2,6 +2,7 @@
  * os2_factory.cpp
  *****************************************************************************
  * Copyright (C) 2003, 2013 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cyril Deguet      <asmax@via.ecp.fr>
  *          Olivier Teulière <ipkiss@via.ecp.fr>
@@ -90,7 +91,7 @@ MRESULT EXPENTRY OS2Factory::OS2FrameProc( HWND hwnd, ULONG msg,
         // If closing parent window
         if( SHORT1FROMMP(mp1) == SC_CLOSE )
         {
-            libvlc_Quit( vlc_object_instance(p_intf) );
+            libheimdall_Quit( heimdall_object_instance(p_intf) );
 
             return 0;
         }
@@ -163,9 +164,9 @@ OS2Factory::OS2Factory( intf_thread_t *pIntf ):
 
 bool OS2Factory::init()
 {
-    PCSZ vlc_name = "VLC Media Player";
-    PCSZ vlc_icon = "VLC_ICON";
-    PCSZ vlc_class = "SkinWindowClass";
+    PCSZ heimdall_name = "Heimdall Media Player";
+    PCSZ heimdall_icon = "HEIMDALL_ICON";
+    PCSZ heimdall_class = "SkinWindowClass";
 
     MorphToPM();
 
@@ -180,7 +181,7 @@ bool OS2Factory::init()
     // restore FPU CW
     _control87( saved_cw, MCW_EM | MCW_IC | MCW_RC | MCW_PC );
 
-    if( !WinRegisterClass( m_hab, vlc_class, OS2Factory::OS2Proc,
+    if( !WinRegisterClass( m_hab, heimdall_class, OS2Factory::OS2Proc,
                            CS_SIZEREDRAW, sizeof( PVOID )))
     {
         msg_Err( getIntf(), "cannot register window class" );
@@ -193,11 +194,11 @@ bool OS2Factory::init()
     m_hParentWindow = WinCreateStdWindow( HWND_DESKTOP,
                                           0,
                                           &flFrame,
-                                          vlc_class,
-                                          vlc_name,
+                                          heimdall_class,
+                                          heimdall_name,
                                           0,
                                           NULLHANDLE,
-                                          0/* ID_VLC_ICON */,
+                                          0/* ID_HEIMDALL_ICON */,
                                           &m_hParentClientWindow );
 
     if( !m_hParentWindow )
@@ -217,21 +218,21 @@ bool OS2Factory::init()
     changeCursor( kDefaultArrow );
 
     // Initialize the resource path
-    char *datadir = config_GetUserDir( VLC_USERDATA_DIR );
+    char *datadir = config_GetUserDir( HEIMDALL_USERDATA_DIR );
     if (likely(datadir != nullptr))
     {
         m_resourcePath.push_back( (std::string)datadir + "\\skins" );
         free( datadir );
     }
-    datadir = config_GetSysPath(VLC_PKG_DATA_DIR, NULL);
+    datadir = config_GetSysPath(HEIMDALL_PKG_DATA_DIR, NULL);
     if (likely(datadir != nullptr))
     {
         m_resourcePath.push_back( (std::string)datadir + "\\skins" );
         m_resourcePath.push_back( (std::string)datadir + "\\skins2" );
         m_resourcePath.push_back( (std::string)datadir + "\\share\\skins" );
         m_resourcePath.push_back( (std::string)datadir + "\\share\\skins2" );
-        m_resourcePath.push_back( (std::string)datadir + "\\vlc\\skins" );
-        m_resourcePath.push_back( (std::string)datadir + "\\vlc\\skins2" );
+        m_resourcePath.push_back( (std::string)datadir + "\\heimdall\\skins" );
+        m_resourcePath.push_back( (std::string)datadir + "\\heimdall\\skins2" );
         free( datadir );
     }
 
@@ -433,13 +434,13 @@ void OS2Factory::changeCursor( CursorType_t type ) const
 void OS2Factory::rmDir( const std::string &rPath )
 {
     const char *file;
-    vlc_DIR *dir;
+    heimdall_DIR *dir;
 
-    dir = vlc_opendir( rPath.c_str() );
+    dir = heimdall_opendir( rPath.c_str() );
     if( !dir ) return;
 
     // Parse the directory and remove everything it contains
-    while( (file = vlc_readdir( dir )) )
+    while( (file = heimdall_readdir( dir )) )
     {
         struct stat statbuf;
         std::string filename = file;
@@ -463,7 +464,7 @@ void OS2Factory::rmDir( const std::string &rPath )
     }
 
     // Close the directory
-    vlc_closedir( dir );
+    heimdall_closedir( dir );
 
     // And delete it
     rmdir( rPath.c_str() );

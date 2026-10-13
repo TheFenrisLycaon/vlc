@@ -1,9 +1,10 @@
 /*****************************************************************************
- * kms_drm.c : Direct rendering management plugin for vlc
+ * kms_drm.c : Direct rendering management plugin for heimdall
  *****************************************************************************
  * Copyright © 2018 Intel Corporation
  * Copyright © 2021 Videolabs
  * Copyright © 2022 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -39,12 +40,12 @@
 # include <drm_mode.h>
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_vout_display.h>
-#include <vlc_picture.h>
-#include <vlc_window.h>
-#include "vlc_drm.h"
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_vout_display.h>
+#include <heimdall_picture.h>
+#include <heimdall_window.h>
+#include "heimdall_drm.h"
 
 #include <assert.h>
 
@@ -72,10 +73,10 @@ typedef struct vout_display_sys_t {
 } vout_display_sys_t;
 
 static void Prepare(vout_display_t *vd, picture_t *pic,
-                    const struct vlc_render_subpicture *subpic,
-                    vlc_tick_t date)
+                    const struct heimdall_render_subpicture *subpic,
+                    heimdall_tick_t date)
 {
-    VLC_UNUSED(subpic); VLC_UNUSED(date);
+    HEIMDALL_UNUSED(subpic); HEIMDALL_UNUSED(date);
     vout_display_sys_t *sys = vd->sys;
 
     picture_Copy(sys->buffers[sys->front_buf], pic);
@@ -83,16 +84,16 @@ static void Prepare(vout_display_t *vd, picture_t *pic,
 
 static void Display(vout_display_t *vd, picture_t *picture)
 {
-    VLC_UNUSED(picture);
+    HEIMDALL_UNUSED(picture);
     vout_display_sys_t *sys = vd->sys;
-    vlc_window_t *wnd = vd->cfg->window;
+    heimdall_window_t *wnd = vd->cfg->window;
     const video_format_t *fmt = vd->fmt;
     picture_t *pic = sys->buffers[sys->front_buf];
 
     struct drm_mode_set_plane sp = {
         .plane_id = sys->plane_id,
         .crtc_id = wnd->handle.crtc,
-        .fb_id = vlc_drm_dumb_get_fb_id(pic),
+        .fb_id = heimdall_drm_dumb_get_fb_id(pic),
         .crtc_x = vd->place->x,
         .crtc_y = vd->place->y,
         .crtc_w = vd->place->width,
@@ -104,8 +105,8 @@ static void Display(vout_display_t *vd, picture_t *picture)
         .src_h = fmt->i_visible_height << 16,
     };
 
-    if (vlc_drm_ioctl(wnd->display.drm_fd, DRM_IOCTL_MODE_SETPLANE, &sp) < 0) {
-        msg_Err(vd, "DRM plane setting error: %s", vlc_strerror_c(errno));
+    if (heimdall_drm_ioctl(wnd->display.drm_fd, DRM_IOCTL_MODE_SETPLANE, &sp) < 0) {
+        msg_Err(vd, "DRM plane setting error: %s", heimdall_strerror_c(errno));
         return;
     }
 
@@ -125,7 +126,7 @@ static void Close(vout_display_t *vd)
         picture_Release(sys->buffers[i]);
 }
 
-static const struct vlc_display_operations ops = {
+static const struct heimdall_display_operations ops = {
     .close = Close,
     .prepare = Prepare,
     .display = Display,
@@ -135,21 +136,21 @@ static const struct vlc_display_operations ops = {
  * This function allocates and initializes a KMS vout method.
  */
 static int Open(vout_display_t *vd,
-                video_format_t *fmtp, vlc_video_context *context)
+                video_format_t *fmtp, heimdall_video_context *context)
 {
-    vlc_window_t *wnd = vd->cfg->window;
+    heimdall_window_t *wnd = vd->cfg->window;
     uint_fast32_t drm_fourcc = 0;
     video_format_t fmt;
 
-    if (wnd->type != VLC_WINDOW_TYPE_KMS)
-        return VLC_EGENERIC;
+    if (wnd->type != HEIMDALL_WINDOW_TYPE_KMS)
+        return HEIMDALL_EGENERIC;
 
     /*
      * Allocate instance and initialize some members
      */
-    vout_display_sys_t *sys = vlc_obj_malloc(VLC_OBJECT(vd), sizeof (*sys));
+    vout_display_sys_t *sys = heimdall_obj_malloc(HEIMDALL_OBJECT(vd), sizeof (*sys));
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     char *chroma = var_InheritString(vd, "kms-drm-chroma");
     if (chroma) {
@@ -160,10 +161,10 @@ static int Open(vout_display_t *vd,
 
     int fd = wnd->display.drm_fd;
 
-    int crtc_index = vlc_drm_get_crtc_index(fd, wnd->handle.crtc);
+    int crtc_index = heimdall_drm_get_crtc_index(fd, wnd->handle.crtc);
     if (crtc_index < 0) {
         msg_Err(vd, "DRM CRTC object ID %"PRIu32" error: %s",
-                wnd->handle.crtc, vlc_strerror_c(errno));
+                wnd->handle.crtc, heimdall_strerror_c(errno));
         return -errno;
     }
 
@@ -171,21 +172,21 @@ static int Open(vout_display_t *vd,
             wnd->handle.crtc, crtc_index);
 
     size_t nfmt;
-    sys->plane_id = vlc_drm_get_crtc_primary_plane(fd, crtc_index, &nfmt);
+    sys->plane_id = heimdall_drm_get_crtc_primary_plane(fd, crtc_index, &nfmt);
     if (sys->plane_id == 0) {
         /* Most likely the window provider failed to set universal mode, or
          * failed to lease a primary plane. */
-        msg_Err(vd, "DRM primary plane not found: %s", vlc_strerror_c(errno));
+        msg_Err(vd, "DRM primary plane not found: %s", heimdall_strerror_c(errno));
         return -errno;
     }
 
     msg_Dbg(vd, "using DRM plane ID %"PRIu32, sys->plane_id);
 
     if (drm_fourcc == 0) {
-        drm_fourcc = vlc_drm_find_best_format(fd, sys->plane_id, nfmt,
+        drm_fourcc = heimdall_drm_find_best_format(fd, sys->plane_id, nfmt,
                                               vd->source->i_chroma);
         if (drm_fourcc == 0) {
-            msg_Err(vd, "DRM plane format error: %s", vlc_strerror_c(errno));
+            msg_Err(vd, "DRM plane format error: %s", heimdall_strerror_c(errno));
             return -errno;
         }
     }
@@ -194,18 +195,18 @@ static int Open(vout_display_t *vd,
             (char *)&drm_fourcc, drm_fourcc);
 
     video_format_ApplyRotation(&fmt, vd->source);
-    vlc_fourcc_t vlc_fourcc = vlc_fourcc_drm(drm_fourcc);
-    if (vlc_fourcc == 0) {
-        /* This can only occur if $vlc-drm-chroma is unknown. */
+    heimdall_fourcc_t heimdall_fourcc = heimdall_fourcc_drm(drm_fourcc);
+    if (heimdall_fourcc == 0) {
+        /* This can only occur if $heimdall-drm-chroma is unknown. */
         assert(chroma != NULL);
         msg_Err(vd, "unknown DRM pixel format %4.4s (0x%08"PRIXFAST32")",
                 (char *)&drm_fourcc, drm_fourcc);
         return -ENOTSUP;
     }
-    fmt.i_chroma = vlc_fourcc;
+    fmt.i_chroma = heimdall_fourcc;
 
     for (size_t i = 0; i < ARRAY_SIZE(sys->buffers); i++) {
-        sys->buffers[i] = vlc_drm_dumb_alloc_fb(vd->obj.logger, fd, &fmt);
+        sys->buffers[i] = heimdall_drm_dumb_alloc_fb(vd->obj.logger, fd, &fmt);
         if (sys->buffers[i] == NULL) {
             while (i > 0)
                 picture_Release(sys->buffers[--i]);
@@ -219,20 +220,20 @@ static int Open(vout_display_t *vd,
     vd->ops = &ops;
 
     (void) context;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname("drm")
     /* Keep kms here for compatibility with previous video output. */
     add_shortcut("drm", "kms_drm", "kms")
     set_subcategory(SUBCAT_VIDEO_VOUT)
 
-    add_obsolete_string("kms-vlc-chroma") /* since 4.0.0 */
+    add_obsolete_string("kms-heimdall-chroma") /* since 4.0.0 */
     add_string( "kms-drm-chroma", NULL, DRM_CHROMA_TEXT, DRM_CHROMA_LONGTEXT)
     set_description("Direct rendering management video output")
     set_callback_display(Open, 30)
-vlc_module_end ()
+heimdall_module_end ()

@@ -2,6 +2,7 @@
  * video_window.c: vout-specific window management
  *****************************************************************************
  * Copyright © 2014-2021 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -24,28 +25,28 @@
 #include <assert.h>
 #include <stdlib.h>
 
-#include <vlc_common.h>
-#include <vlc_threads.h>
-#include <vlc_window.h>
-#include <vlc_vout.h>
-#include <vlc_vout_display.h>
-#include <vlc_ancillary.h>
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
+#include <heimdall_window.h>
+#include <heimdall_vout.h>
+#include <heimdall_vout_display.h>
+#include <heimdall_ancillary.h>
 #include "video_window.h"
 #include "vout_internal.h"
 
-#define DOUBLE_CLICK_TIME VLC_TICK_FROM_MS(300)
+#define DOUBLE_CLICK_TIME HEIMDALL_TICK_FROM_MS(300)
 
-struct vlc_window_ack_data {
-    vlc_window_t *window;
-    vlc_window_ack_cb callback;
+struct heimdall_window_ack_data {
+    heimdall_window_t *window;
+    heimdall_window_ack_cb callback;
     unsigned width;
     unsigned height;
     void *opaque;
 };
 
-static void vlc_window_Ack(void *data)
+static void heimdall_window_Ack(void *data)
 {
-    struct vlc_window_ack_data *cb_data = data;
+    struct heimdall_window_ack_data *cb_data = data;
 
     if (cb_data->callback != NULL)
         cb_data->callback(cb_data->window, cb_data->width, cb_data->height,
@@ -58,52 +59,52 @@ typedef struct vout_display_window
 
     video_format_t format;
     struct vout_display_placement display;
-    vlc_mutex_t lock;
+    heimdall_mutex_t lock;
 
     struct {
-        vlc_mouse_t window;
-        vlc_mouse_t video;
-        vlc_tick_t last_left_press;
-        vlc_mouse_event event;
+        heimdall_mouse_t window;
+        heimdall_mouse_t video;
+        heimdall_tick_t last_left_press;
+        heimdall_mouse_event event;
         void *opaque;
     } mouse;
 } vout_display_window_t;
 
-static void vout_display_window_ResizeNotify(vlc_window_t *window,
+static void vout_display_window_ResizeNotify(heimdall_window_t *window,
                                              unsigned width, unsigned height,
-                                             vlc_window_ack_cb cb,
+                                             heimdall_window_ack_cb cb,
                                              void *opaque)
 {
     vout_display_window_t *state = window->owner.sys;
     vout_thread_t *vout = state->vout;
-    struct vlc_window_ack_data data = { window, cb, width, height, opaque };
+    struct heimdall_window_ack_data data = { window, cb, width, height, opaque };
 
-    vlc_mutex_lock(&state->lock);
+    heimdall_mutex_lock(&state->lock);
     state->display.width = width;
     state->display.height = height;
-    vlc_mutex_unlock(&state->lock);
+    heimdall_mutex_unlock(&state->lock);
 
     msg_Dbg(window, "resized to %ux%u", width, height);
-    vout_ChangeDisplaySize(vout, width, height, vlc_window_Ack, &data);
+    vout_ChangeDisplaySize(vout, width, height, heimdall_window_Ack, &data);
 }
 
-static void vout_display_window_CloseNotify(vlc_window_t *window)
+static void vout_display_window_CloseNotify(heimdall_window_t *window)
 {
     /* TODO: Nowhere to dispatch to currently.
      * Needs callback to ES output to deselect ES? */
     msg_Err(window, "window closed");
 }
 
-static void vout_display_window_StateNotify(vlc_window_t *window,
+static void vout_display_window_StateNotify(heimdall_window_t *window,
                                             unsigned window_state)
 {
     vout_display_window_t *state = window->owner.sys;
     vout_thread_t *vout = state->vout;
 
     static const char states[][8] = {
-        [VLC_WINDOW_STATE_NORMAL] = "normal",
-        [VLC_WINDOW_STATE_ABOVE] = "above",
-        [VLC_WINDOW_STATE_BELOW] = "below",
+        [HEIMDALL_WINDOW_STATE_NORMAL] = "normal",
+        [HEIMDALL_WINDOW_STATE_ABOVE] = "above",
+        [HEIMDALL_WINDOW_STATE_BELOW] = "below",
     };
 
     assert(window_state < ARRAY_SIZE(states));
@@ -111,7 +112,7 @@ static void vout_display_window_StateNotify(vlc_window_t *window,
     var_SetInteger(vout, "window-state", window_state);
 }
 
-static void vout_display_window_FullscreenNotify(vlc_window_t *window,
+static void vout_display_window_FullscreenNotify(heimdall_window_t *window,
                                                  const char *id)
 {
     vout_display_window_t *state = window->owner.sys;
@@ -124,7 +125,7 @@ static void vout_display_window_FullscreenNotify(vlc_window_t *window,
     var_SetBool(vout, "window-fullscreen", true);
 }
 
-static void vout_display_window_WindowingNotify(vlc_window_t *window)
+static void vout_display_window_WindowingNotify(heimdall_window_t *window)
 {
     vout_display_window_t *state = window->owner.sys;
     vout_thread_t *vout = state->vout;
@@ -133,67 +134,67 @@ static void vout_display_window_WindowingNotify(vlc_window_t *window)
     var_SetBool(vout, "window-fullscreen", false);
 }
 
-static void vout_display_window_MouseEvent(vlc_window_t *window,
-                                           const vlc_window_mouse_event_t *ev)
+static void vout_display_window_MouseEvent(heimdall_window_t *window,
+                                           const heimdall_window_mouse_event_t *ev)
 {
     vout_display_window_t *state = window->owner.sys;
     vout_thread_t *vout = state->vout;
-    vlc_mouse_t *m = &state->mouse.window;
+    heimdall_mouse_t *m = &state->mouse.window;
 
     m->b_double_click = false;
 
     switch (ev->type)
     {
-        case VLC_WINDOW_MOUSE_MOVED:
-            vlc_mouse_SetPosition(m, ev->x, ev->y);
-            state->mouse.last_left_press = VLC_TICK_MIN;
+        case HEIMDALL_WINDOW_MOUSE_MOVED:
+            heimdall_mouse_SetPosition(m, ev->x, ev->y);
+            state->mouse.last_left_press = HEIMDALL_TICK_MIN;
             break;
 
-        case VLC_WINDOW_MOUSE_PRESSED:
+        case HEIMDALL_WINDOW_MOUSE_PRESSED:
             if (!window->info.has_double_click
              && ev->button_mask == MOUSE_BUTTON_LEFT
-             && !vlc_mouse_IsLeftPressed(m))
+             && !heimdall_mouse_IsLeftPressed(m))
             {
-                const vlc_tick_t now = vlc_tick_now();
+                const heimdall_tick_t now = heimdall_tick_now();
 
-                if (state->mouse.last_left_press != VLC_TICK_MIN
+                if (state->mouse.last_left_press != HEIMDALL_TICK_MIN
                  && now - state->mouse.last_left_press < DOUBLE_CLICK_TIME)
                 {
                     m->b_double_click = true;
-                    state->mouse.last_left_press = VLC_TICK_MIN;
+                    state->mouse.last_left_press = HEIMDALL_TICK_MIN;
                 }
                 else
                     state->mouse.last_left_press = now;
             }
 
-            vlc_mouse_SetPressed(m, ev->button_mask);
+            heimdall_mouse_SetPressed(m, ev->button_mask);
             break;
 
-        case VLC_WINDOW_MOUSE_RELEASED:
-            vlc_mouse_SetReleased(m, ev->button_mask);
+        case HEIMDALL_WINDOW_MOUSE_RELEASED:
+            heimdall_mouse_SetReleased(m, ev->button_mask);
             break;
 
-        case VLC_WINDOW_MOUSE_DOUBLE_CLICK:
+        case HEIMDALL_WINDOW_MOUSE_DOUBLE_CLICK:
             assert(window->info.has_double_click);
             m->b_double_click = true;
-            vlc_mouse_SetPressed(m, ev->button_mask);
+            heimdall_mouse_SetPressed(m, ev->button_mask);
             break;
 
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 
-    vlc_mouse_t video_mouse = *m;
+    heimdall_mouse_t video_mouse = *m;
 
-    vlc_mutex_lock(&state->lock);
+    heimdall_mutex_lock(&state->lock);
     if (likely(state->format.i_visible_width != 0
             && state->format.i_visible_height != 0
             && state->display.width != 0 && state->display.height != 0))
         vout_display_TranslateCoordinates(&video_mouse.i_x, &video_mouse.i_y,
                                           &state->format, &state->display);
-    vlc_mutex_unlock(&state->lock);
+    heimdall_mutex_unlock(&state->lock);
 
-    if (video_mouse.b_double_click && vlc_mouse_IsLeftPressed(&video_mouse))
+    if (video_mouse.b_double_click && heimdall_mouse_IsLeftPressed(&video_mouse))
         var_ToggleBool(vout, "fullscreen");
 
     /* Stop propagation if the event was consumed by a video filter */
@@ -202,27 +203,27 @@ static void vout_display_window_MouseEvent(vlc_window_t *window,
 
     /* Check if the mouse state actually changed and emit events. */
     /* NOTE: sys->mouse is only used here, so no need to lock. */
-    if (vlc_mouse_HasMoved(&state->mouse.video, &video_mouse))
+    if (heimdall_mouse_HasMoved(&state->mouse.video, &video_mouse))
         var_SetCoords(vout, "mouse-moved", m->i_x, m->i_y);
-    if (vlc_mouse_HasButton(&state->mouse.video, &video_mouse))
+    if (heimdall_mouse_HasButton(&state->mouse.video, &video_mouse))
         var_SetInteger(vout, "mouse-button-down", video_mouse.i_pressed);
 
     state->mouse.video = video_mouse;
 
-    vlc_mutex_lock(&state->lock);
+    heimdall_mutex_lock(&state->lock);
     /* Mouse events are only initialised if the display exists. */
     if (state->mouse.event != NULL)
         state->mouse.event(&video_mouse, state->mouse.opaque);
-    vlc_mutex_unlock(&state->lock);
+    heimdall_mutex_unlock(&state->lock);
 }
 
-static void vout_display_window_KeyboardEvent(vlc_window_t *window,
+static void vout_display_window_KeyboardEvent(heimdall_window_t *window,
                                               unsigned key)
 {
-    var_SetInteger(vlc_object_instance(window), "key-pressed", key);
+    var_SetInteger(heimdall_object_instance(window), "key-pressed", key);
 }
 
-static void vout_display_window_OutputEvent(vlc_window_t *window,
+static void vout_display_window_OutputEvent(heimdall_window_t *window,
                                             const char *name, const char *desc)
 {
     if (desc != NULL)
@@ -231,8 +232,8 @@ static void vout_display_window_OutputEvent(vlc_window_t *window,
         msg_Dbg(window, "fullscreen output %s removed", name);
 }
 
-static void vout_display_window_IccEvent(vlc_window_t *window,
-                                         vlc_icc_profile_t *profile)
+static void vout_display_window_IccEvent(heimdall_window_t *window,
+                                         heimdall_icc_profile_t *profile)
 {
     vout_display_window_t *state = window->owner.sys;
     vout_thread_t *vout = state->vout;
@@ -245,7 +246,7 @@ static void vout_display_window_IccEvent(vlc_window_t *window,
     vout_ChangeIccProfile(vout, profile);
 }
 
-static const struct vlc_window_callbacks vout_display_window_cbs = {
+static const struct heimdall_window_callbacks vout_display_window_cbs = {
     .resized = vout_display_window_ResizeNotify,
     .closed = vout_display_window_CloseNotify,
     .state_changed = vout_display_window_StateNotify,
@@ -257,8 +258,8 @@ static const struct vlc_window_callbacks vout_display_window_cbs = {
     .icc_event = vout_display_window_IccEvent,
 };
 
-void vout_display_window_SetMouseHandler(vlc_window_t *window,
-                                         vlc_mouse_event event, void *opaque)
+void vout_display_window_SetMouseHandler(heimdall_window_t *window,
+                                         heimdall_mouse_event event, void *opaque)
 {
     vout_display_window_t *state = window->owner.sys;
 
@@ -266,20 +267,20 @@ void vout_display_window_SetMouseHandler(vlc_window_t *window,
      * Note that the current implementation of this function is technically
      * reentrant, but better not rely on this in calling code.
      */
-    vlc_mutex_lock(&state->lock);
+    heimdall_mutex_lock(&state->lock);
     if (state->mouse.event != NULL)
         state->mouse.event(NULL, state->mouse.opaque);
 
     state->mouse.event = event;
     state->mouse.opaque = opaque;
-    vlc_mutex_unlock(&state->lock);
+    heimdall_mutex_unlock(&state->lock);
 }
 
 static
 void vout_display_SizeWindow(unsigned *restrict width,
                              unsigned *restrict height,
                              const video_format_t *restrict original,
-                             const vlc_rational_t *restrict dar,
+                             const heimdall_rational_t *restrict dar,
                              const struct vout_crop *restrict crop,
                              const struct vout_display_placement *restrict dp)
 {
@@ -292,7 +293,7 @@ void vout_display_SizeWindow(unsigned *restrict width,
         unsigned num = dar->num * h;
         unsigned den = dar->den * w;
 
-        vlc_ureduce(&sar_num, &sar_den, num, den, 0);
+        heimdall_ureduce(&sar_num, &sar_den, num, den, 0);
     }
 
     switch (crop->mode) {
@@ -360,16 +361,16 @@ void vout_display_SizeWindow(unsigned *restrict width,
     *height = (h * dp->zoom.num) / dp->zoom.den;
 }
 
-void vout_display_ResizeWindow(struct vlc_window *window,
+void vout_display_ResizeWindow(struct heimdall_window *window,
                                const video_format_t *restrict original,
-                               const vlc_rational_t *restrict dar,
+                               const heimdall_rational_t *restrict dar,
                                const struct vout_crop *restrict crop,
                                const struct vout_display_placement *restrict dp)
 {
     vout_display_window_t *state = window->owner.sys;
     unsigned width, height;
 
-    vlc_mutex_lock(&state->lock);
+    heimdall_mutex_lock(&state->lock);
     video_format_Clean(&state->format);
     video_format_Copy(&state->format, original);
     width = state->display.width;
@@ -377,17 +378,17 @@ void vout_display_ResizeWindow(struct vlc_window *window,
     state->display = *dp;
     state->display.width = width;
     state->display.height = height;
-    vlc_mutex_unlock(&state->lock);
+    heimdall_mutex_unlock(&state->lock);
 
     vout_display_SizeWindow(&width, &height, original, dar, crop, dp);
     msg_Dbg(window, "requested window size: %ux%u", width, height);
-    vlc_window_SetSize(window, width, height);
+    heimdall_window_SetSize(window, width, height);
 }
 
 /**
  * Creates a video window, initially without any attached display.
  */
-vlc_window_t *vout_display_window_New(vout_thread_t *vout)
+heimdall_window_t *vout_display_window_New(vout_thread_t *vout)
 {
     vout_display_window_t *state = malloc(sizeof (*state));
     if (state == NULL)
@@ -395,19 +396,19 @@ vlc_window_t *vout_display_window_New(vout_thread_t *vout)
 
     video_format_Init(&state->format, 0);
     state->display.width = state->display.height = 0;
-    vlc_mutex_init(&state->lock);
-    vlc_mouse_Init(&state->mouse.window);
-    vlc_mouse_Init(&state->mouse.video);
-    state->mouse.last_left_press = VLC_TICK_MIN;
+    heimdall_mutex_init(&state->lock);
+    heimdall_mouse_Init(&state->mouse.window);
+    heimdall_mouse_Init(&state->mouse.video);
+    state->mouse.last_left_press = HEIMDALL_TICK_MIN;
     state->mouse.event = NULL;
     state->vout = vout;
 
     char *modlist = var_InheritString(vout, "window");
-    vlc_window_owner_t owner = {
+    heimdall_window_owner_t owner = {
         .cbs = &vout_display_window_cbs,
         .sys = state,
     };
-    vlc_window_cfg_t cfg = {
+    heimdall_window_cfg_t cfg = {
         .is_fullscreen = var_GetBool(&vout->obj, "fullscreen"),
         .is_decorated = var_InheritBool(&vout->obj, "video-deco"),
 #if defined(__APPLE__) || defined(_WIN32)
@@ -415,13 +416,13 @@ vlc_window_t *vout_display_window_New(vout_thread_t *vout)
         .y = var_InheritInteger(&vout->obj, "video-y"),
 #endif
     };
-    vlc_window_t *window;
+    heimdall_window_t *window;
 
-    var_Create(vout, "window-state", VLC_VAR_INTEGER);
-    var_Create(vout, "window-fullscreen", VLC_VAR_BOOL);
-    var_Create(vout, "window-fullscreen-output", VLC_VAR_STRING);
+    var_Create(vout, "window-state", HEIMDALL_VAR_INTEGER);
+    var_Create(vout, "window-fullscreen", HEIMDALL_VAR_BOOL);
+    var_Create(vout, "window-fullscreen-output", HEIMDALL_VAR_STRING);
 
-    window = vlc_window_New(VLC_OBJECT(vout), modlist, &owner, &cfg);
+    window = heimdall_window_New(HEIMDALL_OBJECT(vout), modlist, &owner, &cfg);
     free(modlist);
     if (window == NULL)
         free(state);
@@ -432,12 +433,12 @@ vlc_window_t *vout_display_window_New(vout_thread_t *vout)
  * Destroys a video window.
  * \note The window must be detached.
  */
-void vout_display_window_Delete(vlc_window_t *window)
+void vout_display_window_Delete(heimdall_window_t *window)
 {
     vout_display_window_t *state = window->owner.sys;
     vout_thread_t *vout = state->vout;
 
-    vlc_window_Delete(window);
+    heimdall_window_Delete(window);
     var_Destroy(vout, "window-fullscreen-output");
     var_Destroy(vout, "window-fullscreen");
     var_Destroy(vout, "window-state");

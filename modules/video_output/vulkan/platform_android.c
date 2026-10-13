@@ -4,6 +4,7 @@
  */
 /*****************************************************************************
  * Copyright © 2018 Niklas Haas, Thomas Guillem
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -24,37 +25,37 @@
 # include <config.h>
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
 
 #include "platform.h"
 #include "../android/utils.h"
 
-static void ClosePlatform(vlc_vk_platform_t *vk);
-static int CreateSurface(vlc_vk_platform_t *vk, const vlc_vk_instance_t *, VkSurfaceKHR *);
-static const struct vlc_vk_platform_operations platform_ops =
+static void ClosePlatform(heimdall_vk_platform_t *vk);
+static int CreateSurface(heimdall_vk_platform_t *vk, const heimdall_vk_instance_t *, VkSurfaceKHR *);
+static const struct heimdall_vk_platform_operations platform_ops =
 {
     .close = ClosePlatform,
     .create_surface = CreateSurface,
 };
 
-static int InitPlatform(vlc_vk_platform_t *vk)
+static int InitPlatform(heimdall_vk_platform_t *vk)
 {
-    if (vk->window->type != VLC_WINDOW_TYPE_ANDROID_NATIVE)
-        return VLC_EGENERIC;
+    if (vk->window->type != HEIMDALL_WINDOW_TYPE_ANDROID_NATIVE)
+        return HEIMDALL_EGENERIC;
 
     vk->platform_ext = VK_KHR_ANDROID_SURFACE_EXTENSION_NAME;
     vk->ops = &platform_ops;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void ClosePlatform(vlc_vk_platform_t *vk)
+static void ClosePlatform(heimdall_vk_platform_t *vk)
 {
     AWindowHandler_releaseANativeWindow(vk->window->display.anativewindow,
                                         vk->window->handle.android_id);
 }
 
-static int CreateSurface(vlc_vk_platform_t *vk, const vlc_vk_instance_t *inst,
+static int CreateSurface(heimdall_vk_platform_t *vk, const heimdall_vk_instance_t *inst,
                          VkSurfaceKHR *surface_out)
 {
     ANativeWindow *anw =
@@ -73,17 +74,17 @@ static int CreateSurface(vlc_vk_platform_t *vk, const vlc_vk_instance_t *inst,
     VkResult res = CreateAndroidSurfaceKHR(inst->instance, &ainfo, NULL, surface_out);
     if (res != VK_SUCCESS) {
         msg_Err(vk, "Failed creating Android surface");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname("Vulkan Android")
     set_description(N_("Android platform support for Vulkan"))
     set_subcategory(SUBCAT_VIDEO_VOUT)
     set_capability("vulkan platform", 50)
     set_callback(InitPlatform)
     add_shortcut("vk_android")
-vlc_module_end()
+heimdall_module_end()

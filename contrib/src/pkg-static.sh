@@ -1,6 +1,7 @@
 #! /bin/sh
 # Copyright (C) 2012 Rémi Denis-Courmont
-# This file is distributed under the same license as the vlc package.
+# Copyright (C) 2026 TheFenrisLycaon
+# This file is distributed under the same license as the heimdall package.
 
 if test -z "$1" || test -n "$2"; then
 	echo "Usage: $0 <file.pc>" >&2

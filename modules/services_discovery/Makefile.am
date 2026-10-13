@@ -71,8 +71,8 @@ if ENABLE_UPNP_SERVER
 libupnp_plugin_la_RES = ../share/upnp_server/ContentDirectory.xml \
 	../share/upnp_server/ConnectionManager.xml \
 	../share/upnp_server/X_MS_MediaReceiverRegistrar.xml \
-	../share/upnp_server/vlc.png \
-	../share/upnp_server/vlc512x512.png
+	../share/upnp_server/heimdall.png \
+	../share/upnp_server/heimdall512x512.png
 dist_libupnp_plugin_la_DATA = $(libupnp_plugin_la_RES)
 libupnp_plugin_ladir = $(pkgdatadir)/upnp_server
 endif
@@ -84,14 +84,14 @@ endif
 
 libpipewirelist_plugin_la_SOURCES = services_discovery/pipewire.c
 libpipewirelist_plugin_la_CFLAGS = $(AM_CFLAGS) $(PIPEWIRE_CFLAGS)
-libpipewirelist_plugin_la_LIBADD = libvlc_pipewire.la $(PIPEWIRE_LIBS)
+libpipewirelist_plugin_la_LIBADD = libheimdall_pipewire.la $(PIPEWIRE_LIBS)
 if HAVE_PIPEWIRE
 sd_PLUGINS += libpipewirelist_plugin.la
 endif
 
 libpulselist_plugin_la_SOURCES = services_discovery/pulse.c
 libpulselist_plugin_la_CFLAGS = $(AM_CFLAGS) $(PULSE_CFLAGS)
-libpulselist_plugin_la_LIBADD = libvlc_pulse.la $(PULSE_LIBS)
+libpulselist_plugin_la_LIBADD = libheimdall_pulse.la $(PULSE_LIBS)
 if HAVE_PULSE
 sd_PLUGINS += libpulselist_plugin.la
 endif

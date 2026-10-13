@@ -2,6 +2,7 @@
  * error.c: POSIX error messages formatting
  *****************************************************************************
  * Copyright © 2013 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -27,9 +28,9 @@
 #include <locale.h>
 #include <assert.h>
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
-static const char *vlc_strerror_l(int errnum, const char *lname)
+static const char *heimdall_strerror_l(int errnum, const char *lname)
 {
     int saved_errno = errno;
     locale_t loc = newlocale(LC_MESSAGES_MASK, lname, (locale_t)0);
@@ -60,10 +61,10 @@ static const char *vlc_strerror_l(int errnum, const char *lname)
  * @return A string pointer, valid until the next call to a function of the
  * strerror() family in the same thread. This function cannot fail.
  */
-const char *vlc_strerror(int errnum)
+const char *heimdall_strerror(int errnum)
 {
     /* We cannot simply use strerror() here, since it is not thread-safe. */
-    return vlc_strerror_l(errnum, "");
+    return heimdall_strerror_l(errnum, "");
 }
 
 /**
@@ -72,7 +73,7 @@ const char *vlc_strerror(int errnum)
  * @return A string pointer, valid until the next call to a function of the
  * strerror() family in the same thread. This function cannot fail.
  */
-const char *vlc_strerror_c(int errnum)
+const char *heimdall_strerror_c(int errnum)
 {
-    return vlc_strerror_l(errnum, "C");
+    return heimdall_strerror_l(errnum, "C");
 }

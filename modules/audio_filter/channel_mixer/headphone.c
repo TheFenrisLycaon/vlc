@@ -3,6 +3,7 @@
  *               -> gives the feeling of a real room with a simple headphone
  *****************************************************************************
  * Copyright (C) 2002-2006 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Boris Dorès <babal@via.ecp.fr>
  *
@@ -31,16 +32,16 @@
 
 #include <math.h>                                        /* sqrt */
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_aout.h>
-#include <vlc_filter.h>
-#include <vlc_block.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_aout.h>
+#include <heimdall_filter.h>
+#include <heimdall_block.h>
 
 /*****************************************************************************
  * Local prototypes
  *****************************************************************************/
-static int  OpenFilter ( vlc_object_t * );
+static int  OpenFilter ( heimdall_object_t * );
 static void CloseFilter( filter_t * );
 static block_t *Convert( filter_t *, block_t * );
 
@@ -70,7 +71,7 @@ static block_t *Convert( filter_t *, block_t * );
      "Dolby Surround encoded streams won't be decoded before being " \
      "processed by this filter. Enabling this setting is not recommended.")
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("Headphone virtual spatialization effect") )
     set_shortname( N_("Headphone effect") )
     set_help( MODULE_DESCRIPTION )
@@ -86,7 +87,7 @@ vlc_module_begin ()
     set_capability( "audio filter", 0 )
     set_callback( OpenFilter )
     add_shortcut( "headphone" )
-vlc_module_end ()
+heimdall_module_end ()
 
 
 /*****************************************************************************
@@ -183,7 +184,7 @@ static void ComputeChannelOperations( filter_sys_t * p_data
     }
 }
 
-static int Init( vlc_object_t *p_this, filter_sys_t * p_data
+static int Init( heimdall_object_t *p_this, filter_sys_t * p_data
         , unsigned int i_nb_channels, uint32_t i_physical_channels
         , unsigned int i_rate )
 {
@@ -434,7 +435,7 @@ static void DoWork( filter_t * p_filter,
 /*****************************************************************************
  * OpenFilter:
  *****************************************************************************/
-static int OpenFilter( vlc_object_t *p_this )
+static int OpenFilter( heimdall_object_t *p_this )
 {
     filter_t *p_filter = (filter_t *)p_this;
     filter_sys_t *p_sys;
@@ -444,30 +445,30 @@ static int OpenFilter( vlc_object_t *p_this )
             != (AOUT_CHAN_LEFT|AOUT_CHAN_RIGHT) )
     {
         msg_Dbg( p_filter, "filter discarded (incompatible format)" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Allocate the memory needed to store the module's structure */
     p_sys = p_filter->p_sys = malloc( sizeof(filter_sys_t) );
     if( p_sys == NULL )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     p_sys->i_overflow_buffer_size = 0;
     p_sys->p_overflow_buffer = NULL;
     p_sys->i_nb_atomic_operations = 0;
     p_sys->p_atomic_operations = NULL;
 
-    if( Init( VLC_OBJECT(p_filter), p_sys
+    if( Init( HEIMDALL_OBJECT(p_filter), p_sys
                 , aout_FormatNbChannels ( &(p_filter->fmt_in.audio) )
                 , p_filter->fmt_in.audio.i_physical_channels
                 , p_filter->fmt_in.audio.i_rate ) < 0 )
     {
         free( p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Request a specific format if not already compatible */
-    p_filter->fmt_in.audio.i_format = VLC_CODEC_FL32;
-    p_filter->fmt_out.audio.i_format = VLC_CODEC_FL32;
+    p_filter->fmt_in.audio.i_format = HEIMDALL_CODEC_FL32;
+    p_filter->fmt_out.audio.i_format = HEIMDALL_CODEC_FL32;
     p_filter->fmt_out.audio.i_rate = p_filter->fmt_in.audio.i_rate;
     p_filter->fmt_in.audio.i_chan_mode =
                                    p_filter->fmt_out.audio.i_chan_mode;
@@ -478,7 +479,7 @@ static int OpenFilter( vlc_object_t *p_this )
         p_filter->fmt_in.audio.i_physical_channels = AOUT_CHANS_5_0;
     }
 
-    static const struct vlc_filter_operations filter_ops =
+    static const struct heimdall_filter_operations filter_ops =
     {
         .filter_audio = Convert, .close = CloseFilter,
     };
@@ -487,7 +488,7 @@ static int OpenFilter( vlc_object_t *p_this )
     aout_FormatPrepare(&p_filter->fmt_in.audio);
     aout_FormatPrepare(&p_filter->fmt_out.audio);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************

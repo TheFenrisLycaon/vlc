@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Benjamin Arnaud <bunjee@omega.gg>
  *
@@ -20,9 +21,9 @@
 
 import QtQuick
 
-import VLC.Style
+import Heimdall.Style
 
 IconToolButton {
     // Style
-    font.pixelSize: VLCStyle.icon_track
+    font.pixelSize: HeimdallStyle.icon_track
 }

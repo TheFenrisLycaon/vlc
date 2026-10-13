@@ -2,8 +2,9 @@
  * sgimb.c: a meta demux to parse sgimb referrer files
  *****************************************************************************
  * Copyright (C) 2004 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Derk-Jan Hartman <hartman at videolan dot org>
+ * Authors: Derk-Jan Hartman <hartman at lycaria dot org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -101,8 +102,8 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_access.h>
+#include <heimdall_common.h>
+#include <heimdall_access.h>
 #include "playlist.h"
 
 /*****************************************************************************
@@ -121,7 +122,7 @@ typedef struct
     char        *psz_mcast_ip;  /* sgiMulticastAddress= */
     int         i_mcast_port;   /* sgiMulticastPort= */
     int         i_packet_size;  /* sgiPacketSize= */
-    vlc_tick_t  i_duration;     /* sgiDuration= */
+    heimdall_tick_t  i_duration;     /* sgiDuration= */
     int         i_port;         /* sgiRtspPort= */
     int         i_sid;          /* sgiSid= */
     bool  b_concert;      /* DeliveryService=cds */
@@ -133,14 +134,14 @@ static int ReadDir( stream_t *, input_item_node_t * );
 /*****************************************************************************
  * Activate: initializes m3u demux structures
  *****************************************************************************/
-int Import_SGIMB( vlc_object_t * p_this )
+int Import_SGIMB( heimdall_object_t * p_this )
 {
     stream_t *p_demux = (stream_t *)p_this;
     const uint8_t *p_peek;
     int i_size;
 
     /* Lets check the content to see if this is a sgi mediabase file */
-    i_size = vlc_stream_Peek( p_demux->s, &p_peek, MAX_LINE );
+    i_size = heimdall_stream_Peek( p_demux->s, &p_peek, MAX_LINE );
     i_size -= sizeof("sgiNameServerHost=") - 1;
     if ( i_size > 0 )
     {
@@ -154,7 +155,7 @@ int Import_SGIMB( vlc_object_t * p_this )
         {
             demux_sys_t *p_sys = malloc(sizeof (*p_sys));
             if( unlikely(p_sys == NULL) )
-                return VLC_ENOMEM;
+                return HEIMDALL_ENOMEM;
 
             msg_Dbg( p_demux, "using SGIMB playlist reader" );
             p_demux->pf_readdir = ReadDir;
@@ -175,16 +176,16 @@ int Import_SGIMB( vlc_object_t * p_this )
             p_sys->b_rtsp_kasenna = false;
             p_sys->b_concert = false;
 
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
     }
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /*****************************************************************************
  * Deactivate: frees unused data
  *****************************************************************************/
-void Close_SGIMB( vlc_object_t *p_this )
+void Close_SGIMB( heimdall_object_t *p_this )
 {
     stream_t *p_demux = (stream_t*)p_this;
     demux_sys_t *p_sys = p_demux->p_sys;
@@ -292,7 +293,7 @@ static int ParseLine ( stream_t *p_demux, char *psz_line )
     else if( !strncasecmp( psz_bol, "sgiDuration=", sizeof("sgiDuration=") - 1 ) )
     {
         psz_bol += sizeof("sgiDuration=") - 1;
-        p_sys->i_duration = VLC_TICK_FROM_US( strtol( psz_bol, NULL, 0 ) );
+        p_sys->i_duration = HEIMDALL_TICK_FROM_US( strtol( psz_bol, NULL, 0 ) );
     }
     else if( !strncasecmp( psz_bol, "sgiRtspPort=", sizeof("sgiRtspPort=") - 1 ) )
     {
@@ -313,7 +314,7 @@ static int ParseLine ( stream_t *p_demux, char *psz_line )
         /* This line isn't really important */
         return 0;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int ReadDir( stream_t *p_demux, input_item_node_t *node )
@@ -322,7 +323,7 @@ static int ReadDir( stream_t *p_demux, input_item_node_t *node )
     input_item_t    *p_child = NULL;
     char            *psz_line;
 
-    while( ( psz_line = vlc_stream_ReadLine( p_demux->s ) ) )
+    while( ( psz_line = heimdall_stream_ReadLine( p_demux->s ) ) )
     {
         ParseLine( p_demux, psz_line );
         free( psz_line );
@@ -387,16 +388,16 @@ static int ReadDir( stream_t *p_demux, input_item_node_t *node )
         p_sys->i_packet_size += 1000;
         if( asprintf( &psz_option, "mtu=%i", p_sys->i_packet_size ) != -1 )
         {
-            input_item_AddOption( p_child, psz_option, VLC_INPUT_OPTION_TRUSTED );
+            input_item_AddOption( p_child, psz_option, HEIMDALL_INPUT_OPTION_TRUSTED );
             free( psz_option );
         }
     }
     if( !p_sys->psz_mcast_ip )
-        input_item_AddOption( p_child, "rtsp-caching=5000", VLC_INPUT_OPTION_TRUSTED );
+        input_item_AddOption( p_child, "rtsp-caching=5000", HEIMDALL_INPUT_OPTION_TRUSTED );
     if( !p_sys->psz_mcast_ip && p_sys->b_rtsp_kasenna )
-        input_item_AddOption( p_child, "rtsp-kasenna", VLC_INPUT_OPTION_TRUSTED );
+        input_item_AddOption( p_child, "rtsp-kasenna", HEIMDALL_INPUT_OPTION_TRUSTED );
 
     input_item_node_AppendItem( node, p_child );
     input_item_Release( p_child );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

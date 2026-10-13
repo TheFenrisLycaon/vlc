@@ -1,7 +1,8 @@
 /*****************************************************************************
- * wingdi.c : Win32 / WinCE GDI video output plugin for vlc
+ * wingdi.c : Win32 / WinCE GDI video output plugin for heimdall
  *****************************************************************************
  * Copyright (C) 2002-2009 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gildas Bazin <gbazin@videolan.org>
  *          Samuel Hocevar <sam@zoy.org>
@@ -30,9 +31,9 @@
 #endif
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_vout_display.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_vout_display.h>
 
 #include <windows.h>
 
@@ -43,15 +44,15 @@
  * Module descriptor
  *****************************************************************************/
 static int  Open (vout_display_t *,
-                  video_format_t *, vlc_video_context *);
+                  video_format_t *, heimdall_video_context *);
 static void Close(vout_display_t *);
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_subcategory(SUBCAT_VIDEO_VOUT)
     set_shortname("GDI")
     set_description(N_("Windows GDI video output"))
     set_callback_display(Open, 110)
-vlc_module_end ()
+heimdall_module_end ()
 
 
 /*****************************************************************************
@@ -122,11 +123,11 @@ static bool ChangePlace(vout_display_t *vd, HDC hdc)
 }
 
 static void Prepare(vout_display_t *vd, picture_t *picture,
-                    const struct vlc_render_subpicture *subpic,
-                    vlc_tick_t date)
+                    const struct heimdall_render_subpicture *subpic,
+                    heimdall_tick_t date)
 {
-    VLC_UNUSED(subpic);
-    VLC_UNUSED(date);
+    HEIMDALL_UNUSED(subpic);
+    HEIMDALL_UNUSED(date);
     vout_display_sys_t *sys = vd->sys;
 
     if (sys->place_changed)
@@ -152,21 +153,21 @@ static void Prepare(vout_display_t *vd, picture_t *picture,
 
 static int SetDisplaySize(vout_display_t *vd, unsigned width, unsigned height)
 {
-    VLC_UNUSED(width); VLC_UNUSED(height);
+    HEIMDALL_UNUSED(width); HEIMDALL_UNUSED(height);
     vout_display_sys_t *sys = vd->sys;
     CommonDisplaySizeChanged(sys->video_wnd);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int PlacementChanged(vout_display_t *vd, const vout_display_place_t *place)
 {
     vout_display_sys_t *sys = vd->sys;
-    VLC_UNUSED(place);
+    HEIMDALL_UNUSED(place);
     sys->place_changed = true;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static const struct vlc_display_operations ops = {
+static const struct heimdall_display_operations ops = {
     .close = Close,
     .prepare = Prepare,
     .display = Display,
@@ -176,17 +177,17 @@ static const struct vlc_display_operations ops = {
 
 /* */
 static int Open(vout_display_t *vd,
-                video_format_t *fmtp, vlc_video_context *context)
+                video_format_t *fmtp, heimdall_video_context *context)
 {
-    VLC_UNUSED(context);
+    HEIMDALL_UNUSED(context);
     vout_display_sys_t *sys;
 
     if ( !vd->obj.force && vd->source->projection_mode != PROJECTION_MODE_RECTANGULAR)
-        return VLC_EGENERIC; /* let a module who can handle it do it */
+        return HEIMDALL_EGENERIC; /* let a module who can handle it do it */
 
     vd->sys = sys = calloc(1, sizeof(*sys));
     if (!sys)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     if (CommonWindowInit(vd, &sys->video_wnd, false))
         goto error;
@@ -195,15 +196,15 @@ static int Open(vout_display_t *vd,
     if (Init(vd, fmtp))
         goto error;
 
-    vlc_window_SetTitle(vd->cfg->window, VOUT_TITLE " (WinGDI output)");
+    heimdall_window_SetTitle(vd->cfg->window, VOUT_TITLE " (WinGDI output)");
 
     /* */
     vd->ops = &ops;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     Close(vd);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /* */
@@ -221,7 +222,7 @@ static void Close(vout_display_t *vd)
 static void Display(vout_display_t *vd, picture_t *picture)
 {
     vout_display_sys_t *sys = vd->sys;
-    VLC_UNUSED(picture);
+    HEIMDALL_UNUSED(picture);
 
     HDC hdc = GetDC(CommonVideoHWND(sys->video_wnd));
 
@@ -278,21 +279,21 @@ static int Init(vout_display_t *vd, video_format_t *fmt)
     msg_Dbg(vd, "GDI depth is %i", i_depth);
     switch (i_depth) {
     case 16:
-        fmt->i_chroma = VLC_CODEC_RGB555LE;
+        fmt->i_chroma = HEIMDALL_CODEC_RGB555LE;
         break;
     case 24:
-        fmt->i_chroma = VLC_CODEC_RGB24;
+        fmt->i_chroma = HEIMDALL_CODEC_RGB24;
         break;
     case 32:
-        if (vd->source->i_chroma == VLC_CODEC_BGRA)
-            fmt->i_chroma = VLC_CODEC_BGRA;
+        if (vd->source->i_chroma == HEIMDALL_CODEC_BGRA)
+            fmt->i_chroma = HEIMDALL_CODEC_BGRA;
         else
-            fmt->i_chroma = VLC_CODEC_BGRX;
+            fmt->i_chroma = HEIMDALL_CODEC_BGRX;
         break;
     default:
         msg_Err(vd, "screen depth %i not supported", i_depth);
         ReleaseDC(CommonVideoHWND(sys->video_wnd), window_dc);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Initialize offscreen bitmap */
@@ -306,9 +307,9 @@ static int Init(vout_display_t *vd, video_format_t *fmt)
     sys->off_dc = CreateCompatibleDC(window_dc);
 
     int err = ChangeSize(vd, window_dc);
-    if (err == VLC_SUCCESS)
+    if (err == HEIMDALL_SUCCESS)
         err = ChangePlace(vd, window_dc);
-    if (err != VLC_SUCCESS)
+    if (err != HEIMDALL_SUCCESS)
         DeleteDC(sys->off_dc);
 
     ReleaseDC(CommonVideoHWND(sys->video_wnd), window_dc);

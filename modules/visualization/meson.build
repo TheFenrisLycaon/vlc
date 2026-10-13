@@ -1,5 +1,5 @@
 # glspectrum plugin
-vlc_modules += {
+heimdall_modules += {
     'name' : 'glspectrum',
     'sources' : files('glspectrum.c',
       'visual/fft.c', 'visual/fft.h',
@@ -13,7 +13,7 @@ vlc_modules += {
 
 # goom visualization plugin
 goom2_dep = dependency('libgoom2', required: get_option('goom2'))
-vlc_modules += {
+heimdall_modules += {
     'name' : 'goom',
     'sources' : files('goom.c'),
     'dependencies' : [goom2_dep, m_lib],
@@ -36,7 +36,7 @@ if get_option('projectm').allowed()
     endif
 endif
 
-vlc_modules += {
+heimdall_modules += {
     'name' : 'projectm',
     'sources' : files('projectm.cpp'),
     'dependencies' : [projectm_dep],
@@ -46,7 +46,7 @@ vlc_modules += {
 }
 
 # Visual visualization plugin
-vlc_modules += {
+heimdall_modules += {
     'name' : 'visual',
     'sources' : files(
         'visual/visual.c', 'visual/visual.h',
@@ -59,7 +59,7 @@ vlc_modules += {
 
 # Vsxu plugin
 vsxu_dep = dependency('libvsxu', required: get_option('vsxu'))
-vlc_modules += {
+heimdall_modules += {
     'name' : 'vsxu',
     'sources' : files('vsxu.cpp', 'cyclic_buffer.h'),
     'dependencies' : [m_lib, vsxu_dep],

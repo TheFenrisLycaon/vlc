@@ -1,6 +1,6 @@
 #
-# VLC plugins
-# This file contains the top-level build definition for VLC
+# Heimdall plugins
+# This file contains the top-level build definition for Heimdall
 # plugins, in the subdirectories are the actual build definitions
 # for the individual plugins.
 #
@@ -165,32 +165,32 @@ ksuser_lib = cc.find_library('ksuser',
 
 # PipeWire helper library
 if pipewire_dep.found()
-    libvlc_pipewire = library('vlc_pipewire',
-        files('audio_output/vlc_pipewire.c'),
-        include_directories: [include_directories('audio_output'), vlc_include_dirs],
-        dependencies: [libvlccore_dep, pipewire_dep],
-        link_with: [vlc_libcompat],
+    libheimdall_pipewire = library('heimdall_pipewire',
+        files('audio_output/heimdall_pipewire.c'),
+        include_directories: [include_directories('audio_output'), heimdall_include_dirs],
+        dependencies: [libheimdallcore_dep, pipewire_dep],
+        link_with: [heimdall_libcompat],
         link_args: gc_sections_linkargs,
         install: true,
         install_dir: libdir_path,
     )
 else
-    libvlc_pipewire = disabler()
+    libheimdall_pipewire = disabler()
 endif
 
 # Pulse audio helper library
 if pulse_dep.found()
-    libvlc_pulse = library('vlc_pulse',
-        files('audio_output/vlcpulse.c'),
-        include_directories: [include_directories('audio_output'), vlc_include_dirs],
-        dependencies: [libvlccore_dep, pulse_dep],
-        link_with: [vlc_libcompat],
+    libheimdall_pulse = library('heimdall_pulse',
+        files('audio_output/heimdallpulse.c'),
+        include_directories: [include_directories('audio_output'), heimdall_include_dirs],
+        dependencies: [libheimdallcore_dep, pulse_dep],
+        link_with: [heimdall_libcompat],
         link_args: gc_sections_linkargs,
         install: true,
         install_dir: libdir_path,
     )
 else
-    libvlc_pulse = disabler()
+    libheimdall_pulse = disabler()
 endif
 
 # SRT
@@ -230,7 +230,7 @@ hxxxhelper_lib = static_library(
         'packetizer/h264_nal.c',
         'packetizer/hevc_nal.c',
     ),
-    include_directories: [vlc_include_dirs],
+    include_directories: [heimdall_include_dirs],
     pic: true,
     install: false
 )
@@ -239,13 +239,13 @@ hxxxhelper_lib = static_library(
 json_bison_files = bison_gen.process('demux/json/grammar.y')
 json_lex_files = flex_gen.process('demux/json/lexicon.l')
 
-vlc_json_lib = static_library('vlc_json',
+heimdall_json_lib = static_library('heimdall_json',
     sources: [
       json_bison_files,
       json_lex_files,
       'demux/json/json.c',
     ],
-    include_directories: [vlc_include_dirs, 'demux/json/'],
+    include_directories: [heimdall_include_dirs, 'demux/json/'],
     install: false,
     pic: true
 )
@@ -254,23 +254,23 @@ vlc_json_lib = static_library('vlc_json',
 deinterlacecommon_lib = static_library(
     'deinterlace_common',
     files('video_filter/deinterlace/common.c'),
-    include_directories: [vlc_include_dirs],
+    include_directories: [heimdall_include_dirs],
     pic: true,
     install: false
 )
 
 
-# Array that holds all enabled VLC module dicts
-vlc_modules = []
-vlc_rust_modules = []
+# Array that holds all enabled Heimdall module dicts
+heimdall_modules = []
+heimdall_rust_modules = []
 
 libandroid_env = []
 libandroid_utils = []
 
 if host_system == 'android'
 libandroid_env = static_library(
-    'libvlc_android_env',
-    include_directories: [vlc_include_dirs],
+    'libheimdall_android_env',
+    include_directories: [heimdall_include_dirs],
     install: false,
     pic: true,
     sources: [
@@ -279,8 +279,8 @@ libandroid_env = static_library(
     ],
 )
 libandroid_utils = static_library(
-    'libvlc_android_utils',
-    include_directories: [vlc_include_dirs],
+    'libheimdall_android_utils',
+    include_directories: [heimdall_include_dirs],
     install: false,
     pic: true,
     sources: [
@@ -382,13 +382,13 @@ endif
 # Qt check executable
 # This has to be declared here as it needs to end up
 # in the modules folder, not in gui/qt/ subfolder as
-# vlc-static would not find it there.
+# heimdall-static would not find it there.
 if get_option('qt').allowed() and qt6_dep.found()
     enable_qt_check = host_system not in ['windows', 'os/2', 'ios', 'tvos', 'visionos']
-    executable('vlc-qt-check',
-        files('gui/qt/vlc-qt-check.cpp'),
+    executable('heimdall-qt-check',
+        files('gui/qt/heimdall-qt-check.cpp'),
         dependencies: [qt6_dep, qt_extra_deps],
-        include_directories: [vlc_include_dirs],
+        include_directories: [heimdall_include_dirs],
         link_args: gc_sections_linkargs,
         build_by_default: enable_qt_check,
         install: enable_qt_check,
@@ -410,8 +410,8 @@ if host_system == 'windows'
     win_extra_sources += windows_rc.compile_resources(
         module_rc,
         include_directories: [
-            vlc_src_root / 'share',
-            vlc_src_root / 'extras/package/win32',
+            heimdall_src_root / 'share',
+            heimdall_src_root / 'extras/package/win32',
         ],
     )
 endif
@@ -420,39 +420,39 @@ endif
 # Common module handling code
 #
 # In order to reduce boilerplate code, plugins are defined by a
-# dictionary which is added to the `vlc_modules` array. This
+# dictionary which is added to the `heimdall_modules` array. This
 # array is then iterated over and a library is defined for each
-# entry with the needed build definition for a VLC plugin.
+# entry with the needed build definition for a Heimdall plugin.
 #
 
-# A plugin is loaded with dlopen() and libvlccore only looks up its entry
+# A plugin is loaded with dlopen() and libheimdallcore only looks up its entry
 # points by name, so nothing else may be exported. The autotools build gets
-# this from libtool's -export-symbols-regex ^vlc_entry; here the first export
+# this from libtool's -export-symbols-regex ^heimdall_entry; here the first export
 # mechanism accepted by the linker is used:
 #  - a version script (GNU ld, gold, lld, mold),
 #  - -exported_symbol, which takes wildcards too (ld64, ld64.lld).
 # On Windows and OS/2, the entry points are declared with __declspec(dllexport)
-# (DLL_SYMBOL in vlc_plugin.h), which already disables the automatic export of
+# (DLL_SYMBOL in heimdall_plugin.h), which already disables the automatic export of
 # every other symbol.
-vlc_plugin_link_args = []
-vlc_plugin_link_depends = []
-vlc_plugin_version_script = meson.current_source_dir() / 'vlc_plugin.map'
-if cc.has_link_argument('-Wl,--version-script=' + vlc_plugin_version_script)
-    vlc_plugin_link_args += '-Wl,--version-script=' + vlc_plugin_version_script
-    vlc_plugin_link_depends += files('vlc_plugin.map')
-elif cc.has_link_argument('-Wl,-exported_symbol,_vlc_entry*')
-    vlc_plugin_link_args += '-Wl,-exported_symbol,_vlc_entry*'
+heimdall_plugin_link_args = []
+heimdall_plugin_link_depends = []
+heimdall_plugin_version_script = meson.current_source_dir() / 'heimdall_plugin.map'
+if cc.has_link_argument('-Wl,--version-script=' + heimdall_plugin_version_script)
+    heimdall_plugin_link_args += '-Wl,--version-script=' + heimdall_plugin_version_script
+    heimdall_plugin_link_depends += files('heimdall_plugin.map')
+elif cc.has_link_argument('-Wl,-exported_symbol,_heimdall_entry*')
+    heimdall_plugin_link_args += '-Wl,-exported_symbol,_heimdall_entry*'
 endif
 
-vlc_plugins_targets = {}
-vlc_plugins_targets_array = []
-vlc_plugins_manifest = {}
-foreach module : vlc_modules
+heimdall_plugins_targets = {}
+heimdall_plugins_targets_array = []
+heimdall_plugins_manifest = {}
+foreach module : heimdall_modules
     if not module.has_key('name')
-        error('Got invalid vlc_modules entry without \'name\' key')
+        error('Got invalid heimdall_modules entry without \'name\' key')
     endif
     if not module.has_key('sources')
-        error('The vlc_modules entry for ' + module['name'] + ' has no sources')
+        error('The heimdall_modules entry for ' + module['name'] + ' has no sources')
     endif
 
     # This list MUST be kept in sync with the keys used below!
@@ -478,12 +478,12 @@ foreach module : vlc_modules
     ]
     foreach key : module.keys()
         if key not in valid_dict_keys
-            error('Invalid key \'@0@\' found in vlc_modules entry for \'@1@\''
+            error('Invalid key \'@0@\' found in heimdall_modules entry for \'@1@\''
                 .format(key, module['name']))
         endif
     endforeach
 
-    vlc_plugins_manifest += {
+    heimdall_plugins_manifest += {
         module['name']: module
     }
 
@@ -493,7 +493,7 @@ foreach module : vlc_modules
 
     common_args = [
         '-DMODULE_STRING="@0@"'.format(module['name']),
-        '-DVLC_DYNAMIC_PLUGIN'
+        '-DHEIMDALL_DYNAMIC_PLUGIN'
     ]
 
     kwargs = {}
@@ -514,14 +514,14 @@ foreach module : vlc_modules
         plugin_dir = plugins_path
     endif
 
-    vlc_plugin = library(
+    heimdall_plugin = library(
         module['name'] + '_plugin',
         module['sources'] + win_extra_sources,
-        link_with: [module.get('link_with', []), vlc_libcompat],
-        link_args: [module.get('link_args', []), symbolic_linkargs, gc_sections_linkargs, vlc_plugin_link_args],
-        link_depends: [module.get('link_depends', []), vlc_plugin_link_depends],
-        include_directories: [module.get('include_directories', []), vlc_include_dirs],
-        dependencies: [module.get('dependencies', []), libvlccore_dep],
+        link_with: [module.get('link_with', []), heimdall_libcompat],
+        link_args: [module.get('link_args', []), symbolic_linkargs, gc_sections_linkargs, heimdall_plugin_link_args],
+        link_depends: [module.get('link_depends', []), heimdall_plugin_link_depends],
+        include_directories: [module.get('include_directories', []), heimdall_include_dirs],
+        dependencies: [module.get('dependencies', []), libheimdallcore_dep],
         c_args: [module.get('c_args', []), common_args],
         cpp_args: [module.get('cpp_args', []), common_args],
         objc_args: [module.get('objc_args', []), common_args],
@@ -534,22 +534,22 @@ foreach module : vlc_modules
         kwargs: kwargs,
         shortname: shortname,
     )
-    if is_disabler(vlc_plugin)
+    if is_disabler(heimdall_plugin)
         # Report the plugin as disabled, or every target listing it in
         # 'depends' would silently turn into a disabler too, without
         # any diagnostic.
         warning('Plugin \'@0@\' will be disabled, one of its dependencies is a disabler'
             .format(module['name']))
-        vlc_plugins_manifest += {
+        heimdall_plugins_manifest += {
             module['name']: module + { 'enabled': false }
         }
         continue
     endif
 
-    vlc_plugins_targets += {
-        module['name']: vlc_plugin
+    heimdall_plugins_targets += {
+        module['name']: heimdall_plugin
     }
-    vlc_plugins_targets_array += vlc_plugin
+    heimdall_plugins_targets_array += heimdall_plugin
 endforeach
 
 # Rust/cargo common handling code
@@ -576,15 +576,15 @@ if get_option('rust').enabled()
             '--config', f'source.vendored-sources.directory="@vendored_rust_deps_sources@"']
     endif
 
-    foreach module : vlc_rust_modules
+    foreach module : heimdall_rust_modules
         if not module.has_key('name')
-            error('Got invalid vlc_rust_modules entry without \'name\' key')
+            error('Got invalid heimdall_rust_modules entry without \'name\' key')
         endif
         if not module.has_key('sources')
-            error('The vlc_rust_modules entry for ' + module['name'] + ' has no sources')
+            error('The heimdall_rust_modules entry for ' + module['name'] + ' has no sources')
         endif
         if not module.has_key('cargo_toml')
-            error('The vlc_rust_modules entry for ' + module['name'] + ' has no cargo_toml')
+            error('The heimdall_rust_modules entry for ' + module['name'] + ' has no cargo_toml')
         endif
 
         # This list MUST be kept in sync with the keys used below!
@@ -598,7 +598,7 @@ if get_option('rust').enabled()
         ]
         foreach key : module.keys()
             if key not in valid_dict_keys
-                error('Invalid key \'@0@\' found in vlc_rust_modules entry for \'@1@\''
+                error('Invalid key \'@0@\' found in heimdall_rust_modules entry for \'@1@\''
                     .format(key, module['name']))
             endif
         endforeach
@@ -624,9 +624,9 @@ if get_option('rust').enabled()
             # `module_cargo` is an archive file everything is exported so nothing is really.
             link_whole: module_cargo,
             link_with: module.get('link_with', []),
-            link_args: [module.get('link_args', []), rust_common_link_args, vlc_plugin_link_args],
-            link_depends: [module.get('link_depends', []), vlc_plugin_link_depends],
-            dependencies: [module.get('dependencies', []), libvlccore_dep],
+            link_args: [module.get('link_args', []), rust_common_link_args, heimdall_plugin_link_args],
+            link_depends: [module.get('link_depends', []), heimdall_plugin_link_depends],
+            dependencies: [module.get('dependencies', []), libheimdallcore_dep],
             build_by_default: true,
         )
     endforeach

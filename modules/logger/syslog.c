@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 2002-2008 the VideoLAN team
  * Copyright © 2007-2015 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,21 +24,21 @@
 # include "config.h"
 #endif
 
-#define VLC_MODULE_LICENSE VLC_LICENSE_GPL_2_PLUS
-#include <vlc_common.h>
-#include <vlc_plugin.h>
+#define HEIMDALL_MODULE_LICENSE HEIMDALL_LICENSE_GPL_2_PLUS
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
 
 #include <stdarg.h>
 #include <syslog.h>
 
 static const int priorities[4] = {
-    [VLC_MSG_INFO] = LOG_INFO,
-    [VLC_MSG_ERR]  = LOG_ERR,
-    [VLC_MSG_WARN] = LOG_WARNING,
-    [VLC_MSG_DBG]  = LOG_DEBUG,
+    [HEIMDALL_MSG_INFO] = LOG_INFO,
+    [HEIMDALL_MSG_ERR]  = LOG_ERR,
+    [HEIMDALL_MSG_WARN] = LOG_WARNING,
+    [HEIMDALL_MSG_DBG]  = LOG_DEBUG,
 };
 
-static void Log(void *opaque, int type, const vlc_log_t *meta,
+static void Log(void *opaque, int type, const heimdall_log_t *meta,
                 const char *format, va_list ap)
 {
     static const char default_msg[] = "message lost";
@@ -79,7 +80,7 @@ static const int         fac_ids[] = { DEFINE_SYSLOG_FACILITY };
 #undef  DEF
 #undef  DEFINE_SYSLOG_FACILITY
 
-static int var_InheritFacility(vlc_object_t *obj, const char *varname)
+static int var_InheritFacility(heimdall_object_t *obj, const char *varname)
 {
     char *str = var_InheritString(obj, varname);
     if (unlikely(str == NULL))
@@ -110,9 +111,9 @@ static void Close(void *opaque)
         free(ident);
 }
 
-static const struct vlc_logger_operations ops = { Log, Close };
+static const struct heimdall_logger_operations ops = { Log, Close };
 
-static const struct vlc_logger_operations *Open(vlc_object_t *obj,
+static const struct heimdall_logger_operations *Open(heimdall_object_t *obj,
                                                 void **restrict sysp)
 {
     if (!var_InheritBool(obj, "syslog"))
@@ -150,7 +151,7 @@ static const struct vlc_logger_operations *Open(vlc_object_t *obj,
 #define SYSLOG_FACILITY_TEXT N_("Facility")
 #define SYSLOG_FACILITY_LONGTEXT N_("System logging facility.")
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname(N_( "syslog" ))
     set_description(N_("System logger (syslog)"))
     set_subcategory(SUBCAT_ADVANCED_MISC)
@@ -164,4 +165,4 @@ vlc_module_begin()
     add_string("syslog-facility", fac_names[0], SYSLOG_FACILITY_TEXT,
                SYSLOG_FACILITY_LONGTEXT)
         change_string_list(fac_names, fac_names)
-vlc_module_end()
+heimdall_module_end()

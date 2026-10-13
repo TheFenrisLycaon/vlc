@@ -2,8 +2,9 @@
  * stream_filter.c :  Lua playlist stream filter module
  *****************************************************************************
  * Copyright (C) 2007-2008 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Antoine Cellerier <dionoea at videolan tod org>
+ * Authors: Antoine Cellerier <dionoea at lycaria tod org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,16 +32,16 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <vlc_common.h>
-#include <vlc_access.h>
+#include <heimdall_common.h>
+#include <heimdall_access.h>
 
-#include "vlc.h"
+#include "heimdall.h"
 #include "libs.h"
 
 /*****************************************************************************
  * Demux specific functions
  *****************************************************************************/
-struct vlclua_playlist
+struct heimdalllua_playlist
 {
     lua_State *L;
     char *filename;
@@ -48,13 +49,13 @@ struct vlclua_playlist
     const char *path;
 };
 
-static int vlclua_demux_peek( lua_State *L )
+static int heimdalllua_demux_peek( lua_State *L )
 {
-    stream_t *s = (stream_t *)vlclua_get_this(L);
+    stream_t *s = (stream_t *)heimdalllua_get_this(L);
     int n = luaL_checkinteger( L, 1 );
     const uint8_t *p_peek;
 
-    ssize_t val = vlc_stream_Peek(s->s, &p_peek, n);
+    ssize_t val = heimdall_stream_Peek(s->s, &p_peek, n);
     if (val > 0)
         lua_pushlstring(L, (const char *)p_peek, val);
     else
@@ -62,15 +63,15 @@ static int vlclua_demux_peek( lua_State *L )
     return 1;
 }
 
-static int vlclua_demux_read( lua_State *L )
+static int heimdalllua_demux_read( lua_State *L )
 {
-    stream_t *s = (stream_t *)vlclua_get_this(L);
+    stream_t *s = (stream_t *)heimdalllua_get_this(L);
     int n = luaL_checkinteger( L, 1 );
     char *buf = malloc(n);
 
     if (buf != NULL)
     {
-        ssize_t val = vlc_stream_Read(s->s, buf, n);
+        ssize_t val = heimdall_stream_Read(s->s, buf, n);
         if (val > 0)
             lua_pushlstring(L, buf, val);
         else
@@ -83,10 +84,10 @@ static int vlclua_demux_read( lua_State *L )
     return 1;
 }
 
-static int vlclua_demux_readline( lua_State *L )
+static int heimdalllua_demux_readline( lua_State *L )
 {
-    stream_t *s = (stream_t *)vlclua_get_this(L);
-    char *line = vlc_stream_ReadLine(s->s);
+    stream_t *s = (stream_t *)heimdalllua_get_this(L);
+    char *line = heimdall_stream_ReadLine(s->s);
 
     if (line != NULL)
     {
@@ -103,31 +104,31 @@ static int vlclua_demux_readline( lua_State *L )
  * Called through lua_scripts_batch_execute to call 'probe' on
  * the script pointed by psz_filename.
  *****************************************************************************/
-static int probe_luascript(vlc_object_t *obj, const char *filename,
+static int probe_luascript(heimdall_object_t *obj, const char *filename,
                            const luabatch_context_t *ctx)
 {
     stream_t *s = (stream_t *)obj;
-    struct vlclua_playlist *sys = s->p_sys;
+    struct heimdalllua_playlist *sys = s->p_sys;
 
     /* Initialise Lua state structure */
     lua_State *L = luaL_newstate();
     if( !L )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     sys->L = L;
 
     /* Load Lua libraries */
     luaL_openlibs( L ); /* FIXME: Don't open all the libs? */
 
-    vlclua_set_this(L, s);
+    heimdalllua_set_this(L, s);
 
     /* Functions to register */
     static const luaL_Reg p_reg[] =
     {
-        { "peek", vlclua_demux_peek },
+        { "peek", heimdalllua_demux_peek },
         { NULL, NULL }
     };
-    luaL_register_namespace( L, "vlc", p_reg );
+    luaL_register_namespace( L, "heimdall", p_reg );
     luaopen_msg( L );
     luaopen_strings( L );
     luaopen_stream( L );
@@ -149,14 +150,14 @@ static int probe_luascript(vlc_object_t *obj, const char *filename,
     lua_pop( L, 1 );
 
     /* Setup the module search path */
-    if (vlclua_add_modules_path(L, filename))
+    if (heimdalllua_add_modules_path(L, filename))
     {
         msg_Warn(s, "error setting the module search path for %s", filename);
         goto error;
     }
 
     /* Load and run the script(s) */
-    if (vlclua_dofile(VLC_OBJECT(s), L, filename))
+    if (heimdalllua_dofile(HEIMDALL_OBJECT(s), L, filename))
     {
         msg_Warn(s, "error loading script %s: %s", filename,
                  lua_tostring(L, lua_gettop(L)));
@@ -186,7 +187,7 @@ static int probe_luascript(vlc_object_t *obj, const char *filename,
                     "probe() function was successful", filename );
             lua_pop( L, 1 );
             sys->filename = strdup(filename);
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
     }
 
@@ -194,22 +195,22 @@ static int probe_luascript(vlc_object_t *obj, const char *filename,
 error:
     lua_pop( L, 1 );
     lua_close(sys->L);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 static int ReadDir(stream_t *s, input_item_node_t *node)
 {
-    struct vlclua_playlist *sys = s->p_sys;
+    struct heimdalllua_playlist *sys = s->p_sys;
     lua_State *L = sys->L;
 
     /* Functions to register for parse() function call only */
     static const luaL_Reg p_reg_parse[] =
     {
-        { "read", vlclua_demux_read },
-        { "readline", vlclua_demux_readline },
+        { "read", heimdalllua_demux_read },
+        { "readline", heimdalllua_demux_readline },
         { NULL, NULL }
     };
-    luaL_register_namespace( L, "vlc", p_reg_parse );
+    luaL_register_namespace( L, "heimdall", p_reg_parse );
 
     lua_getglobal( L, "parse" );
 
@@ -217,26 +218,26 @@ static int ReadDir(stream_t *s, input_item_node_t *node)
     {
         msg_Warn(s, "error running script %s: function %s(): %s",
                  sys->filename, "parse", "not found");
-        return VLC_EINVAL;
+        return HEIMDALL_EINVAL;
     }
 
     if( lua_pcall( L, 0, 1, 0 ) )
     {
         msg_Warn(s, "error running script %s: function %s(): %s",
                  sys->filename, "parse", lua_tostring(L, lua_gettop(L)));
-        return VLC_EINVAL;
+        return HEIMDALL_EINVAL;
     }
 
     if (!lua_gettop(L))
     {
         msg_Err(s, "script went completely foobar");
-        return VLC_EINVAL;
+        return HEIMDALL_EINVAL;
     }
 
     if (!lua_istable(L, -1))
     {
         msg_Warn(s, "Playlist should be a table.");
-        return VLC_EINVAL;
+        return HEIMDALL_EINVAL;
     }
 
     lua_pushnil(L);
@@ -244,7 +245,7 @@ static int ReadDir(stream_t *s, input_item_node_t *node)
     /* playlist nil */
     while (lua_next(L, -2))
     {
-        input_item_t *item = vlclua_read_input_item(VLC_OBJECT(s), L);
+        input_item_t *item = heimdalllua_read_input_item(HEIMDALL_OBJECT(s), L);
         if (item != NULL)
         {
             /* copy the original URL to the meta data,
@@ -262,22 +263,22 @@ static int ReadDir(stream_t *s, input_item_node_t *node)
     }
     /* playlist */
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * Import_LuaPlaylist: main import function
  *****************************************************************************/
-int Import_LuaPlaylist(vlc_object_t *obj)
+int Import_LuaPlaylist(heimdall_object_t *obj)
 {
     stream_t *s = (stream_t *)obj;
 
     if( lua_Disabled( obj ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    struct vlclua_playlist *sys = malloc(sizeof (*sys));
+    struct heimdalllua_playlist *sys = malloc(sizeof (*sys));
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     s->p_sys = sys;
     sys->access = NULL;
@@ -294,9 +295,9 @@ int Import_LuaPlaylist(vlc_object_t *obj)
         }
     }
 
-    int ret = vlclua_scripts_batch_execute(VLC_OBJECT(s), "playlist",
+    int ret = heimdalllua_scripts_batch_execute(HEIMDALL_OBJECT(s), "playlist",
                                            probe_luascript, NULL);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
     {
         free(sys->access);
         free(sys);
@@ -305,13 +306,13 @@ int Import_LuaPlaylist(vlc_object_t *obj)
 
     s->pf_readdir = ReadDir;
     s->pf_control = access_vaDirectoryControlHelper;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-void Close_LuaPlaylist(vlc_object_t *obj)
+void Close_LuaPlaylist(heimdall_object_t *obj)
 {
     stream_t *s = (stream_t *)obj;
-    struct vlclua_playlist *sys = s->p_sys;
+    struct heimdalllua_playlist *sys = s->p_sys;
 
     free(sys->filename);
     assert(sys->L != NULL);

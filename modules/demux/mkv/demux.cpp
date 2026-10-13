@@ -3,6 +3,7 @@
  * mkv.cpp : matroska demuxer
  *****************************************************************************
  * Copyright (C) 2003-2004 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *          Steve Lhomme <steve.lhomme@free.fr>
@@ -38,10 +39,10 @@ demux_sys_t::~demux_sys_t()
         delete opened_segments[i];
     for ( i=0; i<used_vsegments.size(); i++ )
         delete used_vsegments[i];
-    if( meta ) vlc_meta_Delete( meta );
+    if( meta ) heimdall_meta_Delete( meta );
 
     while( titles.size() )
-    { vlc_input_title_Delete( titles.back() ); titles.pop_back();}
+    { heimdall_input_title_Delete( titles.back() ); titles.pop_back();}
 }
 
 
@@ -215,7 +216,7 @@ bool demux_sys_t::PreloadLinked()
             for ( j=0; j<p_vseg->Editions()->size(); j++ )
             {
                 virtual_edition_c * p_ved = (*p_vseg->Editions())[j];
-                input_title_t *p_title = vlc_input_title_New();
+                input_title_t *p_title = heimdall_input_title_New();
                 int i_chapters;
 
                 // TODO use a name for each edition, let the TITLE deal with a codec name
@@ -371,7 +372,7 @@ virtual_chapter_c *demux_sys_t::FindVChapter( chapter_uid i_find_uid, virtual_se
     return p_result;
 }
 
-void demux_sys_t::SetHighlight( vlc_spu_highlight_t & spu_hl )
+void demux_sys_t::SetHighlight( heimdall_spu_highlight_t & spu_hl )
 {
     ev.SetHighlight( spu_hl );
 }

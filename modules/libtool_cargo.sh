@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
 # Copyright (C) 2022 Loïc Branstett <loic@videolabs.io>
 # Copyright (C) 2024 Alexandre Janniaux <ajanni@videolabs.io>
+# Copyright (C) 2026 TheFenrisLycaon
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published by
@@ -55,7 +56,7 @@ $CARGO_RUSTC_CMD --manifest-path="$MODULE_PROJECT_DIR/Cargo.toml" -- ${CFGS}
 NATIVE_STATIC_LIBS=$($CARGO_RUSTC_CMD --manifest-path="$MODULE_PROJECT_DIR/Cargo.toml" --quiet -- ${CFGS} --print native-static-libs 2>&1 \
     | grep "native-static-libs" \
     | sed "s/note: native-static-libs://" \
-    | sed "s/-lvlccore//" \
+    | sed "s/-lheimdallcore//" \
     | sed 's/-framework [^ ]*//g')
 
 STATIC_LIB_NAME=$(echo $LT_CONVENIENCE | sed "s/\.la/\.a/")

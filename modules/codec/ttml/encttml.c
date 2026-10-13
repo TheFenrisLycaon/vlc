@@ -2,6 +2,7 @@
  * encttml.c : TTML encoder
  *****************************************************************************
  * Copyright (C) 2018-2024 VideoLabs, VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,10 +23,10 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
-#include <vlc_subpicture.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
+#include <heimdall_subpicture.h>
 
 #include "ttml.h"
 
@@ -62,7 +63,7 @@ static void AddTextNode( tt_node_t *p_parent, const char *psz_text )
 
 static block_t *Encode( encoder_t *p_enc, subpicture_t *p_spu )
 {
-    VLC_UNUSED( p_enc );
+    HEIMDALL_UNUSED( p_enc );
 
     if( p_spu == NULL )
         return NULL;
@@ -89,7 +90,7 @@ static block_t *Encode( encoder_t *p_enc, subpicture_t *p_spu )
     }
 
     subpicture_region_t *p_region;
-    vlc_spu_regions_foreach(p_region, &p_spu->regions)
+    heimdall_spu_regions_foreach(p_region, &p_spu->regions)
     {
         if( !subpicture_region_IsText( p_region ) ||
             p_region->p_text == NULL ||
@@ -100,11 +101,11 @@ static block_t *Encode( encoder_t *p_enc, subpicture_t *p_spu )
         if( !p_par )
             continue;
 
-        if( p_spu->i_start != VLC_TICK_INVALID )
+        if( p_spu->i_start != HEIMDALL_TICK_INVALID )
         {
-            p_par->timings.begin = tt_time_Create( p_spu->i_start - VLC_TICK_0 );
-            if( p_spu->i_stop != VLC_TICK_INVALID &&  p_spu->i_stop > p_spu->i_start )
-                p_par->timings.end = tt_time_Create( p_spu->i_stop - VLC_TICK_0 );
+            p_par->timings.begin = tt_time_Create( p_spu->i_start - HEIMDALL_TICK_0 );
+            if( p_spu->i_stop != HEIMDALL_TICK_INVALID &&  p_spu->i_stop > p_spu->i_start )
+                p_par->timings.end = tt_time_Create( p_spu->i_stop - HEIMDALL_TICK_0 );
             tt_node_AddAttribute( p_par, "begin", "" );
         }
 
@@ -189,20 +190,20 @@ static block_t *Encode( encoder_t *p_enc, subpicture_t *p_spu )
     }
 
     block_t* p_block = NULL;
-    struct vlc_memstream stream;
+    struct heimdall_memstream stream;
 
-    if( !vlc_memstream_open( &stream ) )
+    if( !heimdall_memstream_open( &stream ) )
     {
         tt_time_t playbacktime = tt_time_Create( p_spu->i_start );
 
         tt_node_ToText( &stream, (tt_basenode_t *)p_root, &playbacktime );
-        if( !vlc_memstream_close( &stream ) )
+        if( !heimdall_memstream_close( &stream ) )
         {
             p_block = block_heap_Alloc( stream.ptr, stream.length );
             if( p_block )
             {
-                p_block->i_dts = p_block->i_pts = VLC_TICK_0 + p_spu->i_start;
-                if( p_spu->i_stop != VLC_TICK_INVALID && p_spu->i_stop > p_spu->i_start )
+                p_block->i_dts = p_block->i_pts = HEIMDALL_TICK_0 + p_spu->i_start;
+                if( p_spu->i_stop != HEIMDALL_TICK_INVALID && p_spu->i_stop > p_spu->i_start )
                     p_block->i_length = p_spu->i_stop - p_spu->i_start;
             }
         }
@@ -213,19 +214,19 @@ static block_t *Encode( encoder_t *p_enc, subpicture_t *p_spu )
     return p_block;
 }
 
-int tt_OpenEncoder( vlc_object_t *p_this )
+int tt_OpenEncoder( heimdall_object_t *p_this )
 {
     encoder_t *p_enc = (encoder_t *)p_this;
 
-    if( p_enc->fmt_out.i_codec != VLC_CODEC_TTML )
-        return VLC_EGENERIC;
+    if( p_enc->fmt_out.i_codec != HEIMDALL_CODEC_TTML )
+        return HEIMDALL_EGENERIC;
 
     p_enc->p_sys = NULL;
 
-    static const struct vlc_encoder_operations ops =
+    static const struct heimdall_encoder_operations ops =
         { .encode_sub = Encode };
     p_enc->ops = &ops;
 
     p_enc->fmt_out.i_cat = SPU_ES;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

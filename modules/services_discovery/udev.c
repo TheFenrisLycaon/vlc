@@ -1,9 +1,10 @@
 /**
  * @file udev.c
- * @brief List of multimedia devices for VLC media player
+ * @brief List of multimedia devices for Heimdall media player
  */
 /*****************************************************************************
  * Copyright © 2009 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -32,28 +33,28 @@
 
 #include <libudev.h>
 
-#include <vlc_common.h>
-#include <vlc_threads.h>
-#include <vlc_services_discovery.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
+#include <heimdall_services_discovery.h>
+#include <heimdall_plugin.h>
 #ifdef HAVE_ALSA
-# include <vlc_modules.h>
+# include <heimdall_modules.h>
 #endif
-#include <vlc_fs.h>
-#include <vlc_url.h>
+#include <heimdall_fs.h>
+#include <heimdall_url.h>
 
-static int OpenV4L (vlc_object_t *);
+static int OpenV4L (heimdall_object_t *);
 #ifdef HAVE_ALSA
-static int OpenALSA (vlc_object_t *);
+static int OpenALSA (heimdall_object_t *);
 #endif
-static int OpenDisc (vlc_object_t *);
-static void Close (vlc_object_t *);
-static int vlc_sd_probe_Open (vlc_object_t *);
+static int OpenDisc (heimdall_object_t *);
+static void Close (heimdall_object_t *);
+static int heimdall_sd_probe_Open (heimdall_object_t *);
 
 /*
  * Module descriptor
  */
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname (N_("Video capture"))
     set_description (N_("Video capture (Video4Linux)"))
     set_subcategory (SUBCAT_PLAYLIST_SD)
@@ -77,32 +78,32 @@ vlc_module_begin ()
     set_callbacks (OpenDisc, Close)
     add_shortcut ("disc")
 
-    VLC_SD_PROBE_SUBMODULE
+    HEIMDALL_SD_PROBE_SUBMODULE
 
-vlc_module_end ()
+heimdall_module_end ()
 
-static int vlc_sd_probe_Open (vlc_object_t *obj)
+static int heimdall_sd_probe_Open (heimdall_object_t *obj)
 {
-    vlc_probe_t *probe = (vlc_probe_t *)obj;
+    heimdall_probe_t *probe = (heimdall_probe_t *)obj;
 
     struct udev *udev = udev_new ();
     if (udev == NULL)
-        return VLC_PROBE_CONTINUE;
+        return HEIMDALL_PROBE_CONTINUE;
 
     struct udev_monitor *mon = udev_monitor_new_from_netlink (udev, "udev");
     if (mon != NULL)
     {
-        vlc_sd_probe_Add (probe, "v4l", N_("Video capture"), SD_CAT_DEVICES);
+        heimdall_sd_probe_Add (probe, "v4l", N_("Video capture"), SD_CAT_DEVICES);
 #ifdef HAVE_ALSA
         if (!module_exists ("pulselist"))
-            vlc_sd_probe_Add (probe, "alsa", N_("Audio capture"),
+            heimdall_sd_probe_Add (probe, "alsa", N_("Audio capture"),
                               SD_CAT_DEVICES);
 #endif
-        vlc_sd_probe_Add (probe, "disc", N_("Discs"), SD_CAT_DEVICES);
+        heimdall_sd_probe_Add (probe, "disc", N_("Discs"), SD_CAT_DEVICES);
         udev_monitor_unref (mon);
     }
     udev_unref (udev);
-    return VLC_PROBE_CONTINUE;
+    return HEIMDALL_PROBE_CONTINUE;
 }
 
 struct device
@@ -125,7 +126,7 @@ typedef struct
 {
     const struct subsys *subsys;
     struct udev_monitor *monitor;
-    vlc_thread_t         thread;
+    heimdall_thread_t         thread;
     void                *root;
 } services_discovery_sys_t;
 
@@ -224,15 +225,15 @@ static void *Run (void *);
 /**
  * Probes and initializes.
  */
-static int Open (vlc_object_t *obj, const struct subsys *subsys)
+static int Open (heimdall_object_t *obj, const struct subsys *subsys)
 {
     services_discovery_t *sd = (services_discovery_t *)obj;
     services_discovery_sys_t *p_sys = malloc (sizeof (*p_sys));
 
     if (p_sys == NULL)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    sd->description = vlc_gettext(subsys->description);
+    sd->description = heimdall_gettext(subsys->description);
     sd->p_sys = p_sys;
     p_sys->subsys = subsys;
     p_sys->root = NULL;
@@ -275,13 +276,13 @@ static int Open (vlc_object_t *obj, const struct subsys *subsys)
     }
     udev_enumerate_unref (devenum);
 
-    if (vlc_clone (&p_sys->thread, Run, sd))
+    if (heimdall_clone (&p_sys->thread, Run, sd))
     {   /* Fallback without thread */
         udev_monitor_unref (mon);
         udev_unref (udev);
         p_sys->monitor = NULL;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     if (mon != NULL)
@@ -289,13 +290,13 @@ error:
     if (udev != NULL)
         udev_unref (udev);
     free (p_sys);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /**
  * Releases resources
  */
-static void Close (vlc_object_t *obj)
+static void Close (heimdall_object_t *obj)
 {
     services_discovery_t *sd = (services_discovery_t *)obj;
     services_discovery_sys_t *p_sys = sd->p_sys;
@@ -304,8 +305,8 @@ static void Close (vlc_object_t *obj)
     {
         struct udev *udev = udev_monitor_get_udev (p_sys->monitor);
 
-        vlc_cancel (p_sys->thread);
-        vlc_join (p_sys->thread, NULL);
+        heimdall_cancel (p_sys->thread);
+        heimdall_join (p_sys->thread, NULL);
         udev_monitor_unref (p_sys->monitor);
         udev_unref (udev);
     }
@@ -316,7 +317,7 @@ static void Close (vlc_object_t *obj)
 
 static void *Run (void *data)
 {
-    vlc_thread_set_name("vlc-udev");
+    heimdall_thread_set_name("heimdall-udev");
 
     services_discovery_t *sd = data;
     services_discovery_sys_t *p_sys = sd->p_sys;
@@ -331,7 +332,7 @@ static void *Run (void *data)
             if (errno != EINTR)
                 break;
 
-        int canc = vlc_savecancel ();
+        int canc = heimdall_savecancel ();
         struct udev_device *dev = udev_monitor_receive_device (mon);
         if (dev == NULL)
             continue;
@@ -347,7 +348,7 @@ static void *Run (void *data)
             AddDevice (sd, dev);
         }
         udev_device_unref (dev);
-        vlc_restorecancel (canc);
+        heimdall_restorecancel (canc);
     }
     return NULL;
 }
@@ -440,7 +441,7 @@ static char *v4l_get_name (struct udev_device *dev)
     return prd ? strdup (prd) : NULL;
 }
 
-int OpenV4L (vlc_object_t *obj)
+int OpenV4L (heimdall_object_t *obj)
 {
     static const struct subsys subsys = {
         "video4linux", N_("Video capture"),
@@ -515,7 +516,7 @@ out:
     return name;
 }
 
-int OpenALSA (vlc_object_t *obj)
+int OpenALSA (heimdall_object_t *obj)
 {
     static const struct subsys subsys = {
         "sound", N_("Audio capture"),
@@ -540,9 +541,9 @@ static char *disc_get_mrl (struct udev_device *dev)
     val = udev_device_get_property_value (dev, "ID_CDROM_MEDIA_STATE");
     if (val == NULL)
     {   /* Force probing of the disc in the drive if any. */
-        int fd = vlc_open (node, O_RDONLY);
+        int fd = heimdall_open (node, O_RDONLY);
         if (fd != -1)
-            vlc_close (fd);
+            heimdall_close (fd);
         return NULL;
     }
     if (!strcmp (val, "blank"))
@@ -571,7 +572,7 @@ static char *disc_get_mrl (struct udev_device *dev)
     if (scheme == NULL)
         return NULL;
 
-    return vlc_path2uri (node, scheme);
+    return heimdall_path2uri (node, scheme);
 }
 
 static char *disc_get_name (struct udev_device *dev)
@@ -613,14 +614,14 @@ static char *disc_get_name (struct udev_device *dev)
     char *label = decode_property (dev, "ID_FS_LABEL_ENC");
 
     if (label)
-        if (asprintf(&name, "%s (%s)", label, vlc_gettext(cat)) < 0)
+        if (asprintf(&name, "%s (%s)", label, heimdall_gettext(cat)) < 0)
             name = NULL;
     free(label);
 
     return name;
 }
 
-int OpenDisc (vlc_object_t *obj)
+int OpenDisc (heimdall_object_t *obj)
 {
     static const struct subsys subsys = {
         "block", N_("Discs"), disc_get_mrl, disc_get_name, ITEM_TYPE_DISC,

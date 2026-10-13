@@ -2,6 +2,7 @@
  * x11_window.cpp
  *****************************************************************************
  * Copyright (C) 2003 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cyril Deguet     <asmax@via.ecp.fr>
  *          Olivier Teulière <ipkiss@via.ecp.fr>
@@ -26,7 +27,7 @@
 #include <X11/Xatom.h>
 
 #include "../src/generic_window.hpp"
-#include "../src/vlcproc.hpp"
+#include "../src/heimdallproc.hpp"
 #include "../src/vout_manager.hpp"
 #include "x11_window.hpp"
 #include "x11_display.hpp"
@@ -156,7 +157,7 @@ X11Window::X11Window( intf_thread_t *pIntf, GenericWindow &rWindow,
     }
 
     // Change the window title
-    std::string name_window = "VLC (" + name_type + ")";
+    std::string name_window = "Heimdall (" + name_type + ")";
     XStoreName( XDISPLAY, m_wnd, name_window.c_str() );
 
     // Set the WM_TRANSIENT_FOR property
@@ -177,8 +178,8 @@ X11Window::X11Window( intf_thread_t *pIntf, GenericWindow &rWindow,
 
     // initialize Class Hint
     XClassHint classhint;
-    classhint.res_name = (char*) "vlc";
-    classhint.res_class = (char*) "Vlc";
+    classhint.res_name = (char*) "heimdall";
+    classhint.res_class = (char*) "Heimdall";
     XSetClassHint( XDISPLAY, m_wnd, &classhint );
 
     // copies WM_HINTS from the main window

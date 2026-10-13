@@ -2,6 +2,7 @@
  * timestamps.c:
  *****************************************************************************
  * Copyright © 2025 VideoLabs, VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -21,8 +22,8 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_tick.h>
+#include <heimdall_common.h>
+#include <heimdall_tick.h>
 
 #include "../../../modules/demux/mpeg/timestamps.h"
 
@@ -35,61 +36,61 @@ if(!(a)) { \
 int main(void)
 {
     /* Should not wrap without reference */
-    vlc_tick_t ts1 = 50;
-    vlc_tick_t ts2 = TimeStampWrapAround(VLC_TICK_INVALID, ts1);
+    heimdall_tick_t ts1 = 50;
+    heimdall_tick_t ts2 = TimeStampWrapAround(HEIMDALL_TICK_INVALID, ts1);
     ASSERT(ts2 == ts1);
 
     ts1 = TS_33BITS_ROLL_NZ * 3/4;
-    ts2 = TimeStampWrapAround(VLC_TICK_INVALID, ts1);
+    ts2 = TimeStampWrapAround(HEIMDALL_TICK_INVALID, ts1);
     ASSERT(ts2 == ts1);
 
     /* Should not wrap */
-    ts1 = VLC_TICK_0 + TS_33BITS_HALF_ROLL_NZ;
-    ts2 = TimeStampWrapAround(VLC_TICK_0, ts1);
+    ts1 = HEIMDALL_TICK_0 + TS_33BITS_HALF_ROLL_NZ;
+    ts2 = TimeStampWrapAround(HEIMDALL_TICK_0, ts1);
     ASSERT(ts2 == ts1);
 
-    ts1 = VLC_TICK_0 + TS_33BITS_ROLL_NZ;
-    ts2 = TimeStampWrapAround(VLC_TICK_0, ts1);
+    ts1 = HEIMDALL_TICK_0 + TS_33BITS_ROLL_NZ;
+    ts2 = TimeStampWrapAround(HEIMDALL_TICK_0, ts1);
     ASSERT(ts2 == ts1);
 
-    ts1 = VLC_TICK_0 + TS_33BITS_ROLL_NZ;
+    ts1 = HEIMDALL_TICK_0 + TS_33BITS_ROLL_NZ;
     ts2 = TimeStampWrapAround(ts1, ts1);
     ASSERT(ts2 == ts1);
 
-    ts1 = VLC_TICK_0 + TS_33BITS_ROLL_NZ;
+    ts1 = HEIMDALL_TICK_0 + TS_33BITS_ROLL_NZ;
     ts2 = TimeStampWrapAround(ts1 - 100, ts1);
     ASSERT(ts2 == ts1);
 
-    ts1 = VLC_TICK_0 + TS_33BITS_ROLL_NZ;
-    ts2 = TimeStampWrapAround(VLC_TICK_0 + TS_33BITS_HALF_ROLL_NZ, ts1);
+    ts1 = HEIMDALL_TICK_0 + TS_33BITS_ROLL_NZ;
+    ts2 = TimeStampWrapAround(HEIMDALL_TICK_0 + TS_33BITS_HALF_ROLL_NZ, ts1);
     ASSERT(ts2 == ts1);
 
     /* Should wrap */
-    ts1 = VLC_TICK_0;
-    ts2 = TimeStampWrapAround(VLC_TICK_0 + TS_33BITS_HALF_ROLL_NZ, ts1);
+    ts1 = HEIMDALL_TICK_0;
+    ts2 = TimeStampWrapAround(HEIMDALL_TICK_0 + TS_33BITS_HALF_ROLL_NZ, ts1);
     ASSERT(ts2 > ts1);
     ASSERT(ts2 == ts1 + TS_33BITS_ROLL_NZ);
 
-    ts1 = VLC_TICK_0;
-    ts2 = TimeStampWrapAround(VLC_TICK_0 + TS_33BITS_ROLL_NZ * 3/4, ts1);
+    ts1 = HEIMDALL_TICK_0;
+    ts2 = TimeStampWrapAround(HEIMDALL_TICK_0 + TS_33BITS_ROLL_NZ * 3/4, ts1);
     ASSERT(ts2 == ts1 + TS_33BITS_ROLL_NZ);
 
-    ts1 = VLC_TICK_0;
-    ts2 = TimeStampWrapAround(VLC_TICK_0 + TS_33BITS_ROLL_NZ, ts1);
+    ts1 = HEIMDALL_TICK_0;
+    ts2 = TimeStampWrapAround(HEIMDALL_TICK_0 + TS_33BITS_ROLL_NZ, ts1);
     ASSERT(ts2 == ts1 + TS_33BITS_ROLL_NZ);
 
-    ts1 = VLC_TICK_0 + TS_33BITS_HALF_ROLL_NZ;
-    ts2 = TimeStampWrapAround(VLC_TICK_0 + TS_33BITS_ROLL_NZ, ts1);
+    ts1 = HEIMDALL_TICK_0 + TS_33BITS_HALF_ROLL_NZ;
+    ts2 = TimeStampWrapAround(HEIMDALL_TICK_0 + TS_33BITS_ROLL_NZ, ts1);
     ASSERT(ts2 == ts1 + TS_33BITS_ROLL_NZ);
 
     /* Should wrap multiple times */
-    ts1 = VLC_TICK_0;
-    ts2 = TimeStampWrapAround(VLC_TICK_0 + TS_33BITS_ROLL_NZ * 2, ts1);
+    ts1 = HEIMDALL_TICK_0;
+    ts2 = TimeStampWrapAround(HEIMDALL_TICK_0 + TS_33BITS_ROLL_NZ * 2, ts1);
     ASSERT(ts2 > ts1);
     ASSERT(ts2 == ts1 + TS_33BITS_ROLL_NZ * 2);
 
-    ts1 = VLC_TICK_0 + TS_33BITS_HALF_ROLL_NZ;
-    ts2 = TimeStampWrapAround(VLC_TICK_0 + TS_33BITS_ROLL_NZ * 5, ts1);
+    ts1 = HEIMDALL_TICK_0 + TS_33BITS_HALF_ROLL_NZ;
+    ts2 = TimeStampWrapAround(HEIMDALL_TICK_0 + TS_33BITS_ROLL_NZ * 5, ts1);
     ASSERT(ts2 > ts1);
     ASSERT(ts2 == ts1 + TS_33BITS_ROLL_NZ * 5);
 

@@ -2,6 +2,7 @@
  * dialogs_provider.hpp : Dialogs provider
  ****************************************************************************
  * Copyright (C) 2006-2008 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Clément Stenac <zorglub@videolan.org>
  *          Jean-Baptiste Kempf <jb@videolan.org>
@@ -21,8 +22,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef QVLC_DIALOGS_PROVIDER_H_
-#define QVLC_DIALOGS_PROVIDER_H_
+#ifndef QHEIMDALL_DIALOGS_PROVIDER_H_
+#define QHEIMDALL_DIALOGS_PROVIDER_H_
 
 #ifdef HAVE_CONFIG_H
 # include "config.h"
@@ -46,7 +47,7 @@
 #include <QStringList>
 #include <QMessageBox>
 
-#include <vlc_es.h>
+#include <heimdall_es.h>
 
 #define TITLE_EXTENSIONS_MEDIA qtr( "Media Files" )
 #define TITLE_EXTENSIONS_VIDEO qtr( "Video Files" )
@@ -71,7 +72,7 @@ enum {
 
 class QEvent;
 class QSignalMapper;
-class VLCMenuBar;
+class HeimdallMenuBar;
 
 class OpenDialog;
 class FirstRunWizard;
@@ -93,7 +94,7 @@ class PrefsDialog;
 class DialogsProvider : public QObject, public Singleton<DialogsProvider>
 {
     Q_OBJECT
-    friend class VLCMenuBar;
+    friend class HeimdallMenuBar;
     friend class Singleton<DialogsProvider>;
 
 public:

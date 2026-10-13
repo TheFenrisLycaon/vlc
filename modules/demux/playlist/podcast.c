@@ -2,8 +2,9 @@
  * podcast.c : podcast playlist imports
  *****************************************************************************
  * Copyright (C) 2005-2026 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Antoine Cellerier <dionoea -at- videolan -dot- org>
+ * Authors: Antoine Cellerier <dionoea -at- lycaria -dot- org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -27,23 +28,23 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_access.h>
+#include <heimdall_common.h>
+#include <heimdall_access.h>
 
 #include "playlist.h"
-#include <vlc_xml.h>
-#include <vlc_strings.h>
+#include <heimdall_xml.h>
+#include <heimdall_strings.h>
 
 /*****************************************************************************
  * Local prototypes
  *****************************************************************************/
 static int ReadDir( stream_t *, input_item_node_t * );
-static vlc_tick_t strTimeToMTime( const char *psz );
+static heimdall_tick_t strTimeToMTime( const char *psz );
 
 /*****************************************************************************
  * Import_podcast: main import function
  *****************************************************************************/
-int Import_podcast( vlc_object_t *p_this )
+int Import_podcast( heimdall_object_t *p_this )
 {
     stream_t *p_demux = (stream_t *)p_this;
 
@@ -55,20 +56,20 @@ int Import_podcast( vlc_object_t *p_this )
          * probestream in order to not modify the source state while probing.
          * */
         const uint8_t *p_peek;
-        ssize_t i_peek = vlc_stream_Peek( p_demux->s, &p_peek, 2048 );
+        ssize_t i_peek = heimdall_stream_Peek( p_demux->s, &p_peek, 2048 );
         if( unlikely( i_peek <= 0 ) )
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
         stream_t *p_probestream =
-            vlc_stream_MemoryNew( p_demux, (uint8_t *)p_peek, i_peek, true );
+            heimdall_stream_MemoryNew( p_demux, (uint8_t *)p_peek, i_peek, true );
         if( unlikely( !p_probestream ) )
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
         xml_reader_t *p_xml_reader = xml_ReaderCreate( p_demux, p_probestream );
         if( !p_xml_reader )
         {
-            vlc_stream_Delete( p_probestream );
-            return VLC_EGENERIC;
+            heimdall_stream_Delete( p_probestream );
+            return HEIMDALL_EGENERIC;
         }
 
         const char *node;
@@ -76,23 +77,23 @@ int Import_podcast( vlc_object_t *p_this )
         if( ( ret = xml_ReaderNextNode( p_xml_reader, &node ) ) != XML_READER_STARTELEM
          || strcmp( node, "rss" ) )
         {
-            vlc_stream_Delete( p_probestream );
+            heimdall_stream_Delete( p_probestream );
             xml_ReaderDelete( p_xml_reader );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         xml_ReaderDelete( p_xml_reader );
-        vlc_stream_Delete( p_probestream );
+        heimdall_stream_Delete( p_probestream );
         /* SUCCESS: this text/xml is a rss file */
     }
     else if( !stream_IsMimeType( p_demux->s, "application/rss+xml" ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     p_demux->pf_readdir = ReadDir;
     p_demux->pf_control = PlaylistControl;
     msg_Dbg( p_demux, "using podcast reader" );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /* "specs" : http://phobos.apple.com/static/iTunesRSS.html */
@@ -189,7 +190,7 @@ static int ReadDir( stream_t *p_demux, input_item_node_t *p_subitems )
                         free( *p );
                         *p = strdup( value );
                         if( *p != NULL )
-                            vlc_xml_decode( *p );
+                            heimdall_xml_decode( *p );
                     }
                     else
                         msg_Dbg( p_demux,"unhandled attribute %s in <%s>",
@@ -253,10 +254,10 @@ static int ReadDir( stream_t *p_demux, input_item_node_t *p_subitems )
         input_item_AddInfo( p_current_input, _("Podcast Info"), \
                             info, "%s", node ); \
         input_item_SetMeta( p_current_input, (meta), node ); }
-                    ADD_GINFO_META( _("Podcast Link"), "link", vlc_meta_URL )
-                    ADD_GINFO_META( _("Podcast Copyright"), "copyright", vlc_meta_Copyright )
-                    ADD_GINFO_META( _("Podcast Language"), "language", vlc_meta_Language )
-                    ADD_GINFO_META( _("Podcast Author"), "itunes:author", vlc_meta_Artist )
+                    ADD_GINFO_META( _("Podcast Link"), "link", heimdall_meta_URL )
+                    ADD_GINFO_META( _("Podcast Copyright"), "copyright", heimdall_meta_Copyright )
+                    ADD_GINFO_META( _("Podcast Language"), "language", heimdall_meta_Language )
+                    ADD_GINFO_META( _("Podcast Author"), "itunes:author", heimdall_meta_Artist )
                     ADD_GINFO( _("Podcast Category"), "itunes:category" )
                     ADD_GINFO( _("Podcast Keywords"), "itunes:keywords" )
                     ADD_GINFO( _("Podcast Subtitle"), "itunes:subtitle" )
@@ -280,7 +281,7 @@ static int ReadDir( stream_t *p_demux, input_item_node_t *p_subitems )
                         {
                             psz_art_url = strdup( node );
                             if( psz_art_url != NULL )
-                                vlc_xml_decode( psz_art_url );
+                                heimdall_xml_decode( psz_art_url );
                         }
                     }
                     else
@@ -323,9 +324,9 @@ static int ReadDir( stream_t *p_demux, input_item_node_t *p_subitems )
                         continue;
                     }
 
-                    vlc_xml_decode( psz_item_mrl );
+                    heimdall_xml_decode( psz_item_mrl );
                     if( psz_item_name )
-                       vlc_xml_decode( psz_item_name );
+                       heimdall_xml_decode( psz_item_name );
                     p_input = input_item_New( psz_item_mrl, psz_item_name );
                     FREENULL( psz_item_mrl );
                     FREENULL( psz_item_name );
@@ -352,15 +353,15 @@ static int ReadDir( stream_t *p_demux, input_item_node_t *p_subitems )
         input_item_SetMeta( p_input, (meta), field ); \
         FREENULL( field ); }
 
-                    ADD_INFO_META( _("Podcast Publication Date"), psz_item_date, vlc_meta_Date );
-                    ADD_INFO_META( _("Podcast Author"), psz_item_author, vlc_meta_Artist );
+                    ADD_INFO_META( _("Podcast Publication Date"), psz_item_date, heimdall_meta_Date );
+                    ADD_INFO_META( _("Podcast Author"), psz_item_author, heimdall_meta_Artist );
                     ADD_INFO( _("Podcast Subcategory"), psz_item_category );
                     ADD_INFO( _("Podcast Duration"), psz_item_duration );
                     ADD_INFO( _("Podcast Keywords"), psz_item_keywords );
                     ADD_INFO( _("Podcast Subtitle"), psz_item_subtitle );
-                    ADD_INFO_META( _("Podcast Summary"), psz_item_summary, vlc_meta_Description );
-                    ADD_INFO_META( _("Podcast Season"), psz_item_season, vlc_meta_Season );
-                    ADD_INFO_META( _("Podcast Episode"), psz_item_episode, vlc_meta_Episode );
+                    ADD_INFO_META( _("Podcast Summary"), psz_item_summary, heimdall_meta_Description );
+                    ADD_INFO_META( _("Podcast Season"), psz_item_season, heimdall_meta_Season );
+                    ADD_INFO_META( _("Podcast Episode"), psz_item_episode, heimdall_meta_Episode );
                     ADD_INFO( _("Podcast Type"), psz_item_type );
 #undef ADD_INFO
 #undef ADD_INFO_META
@@ -417,7 +418,7 @@ static int ReadDir( stream_t *p_demux, input_item_node_t *p_subitems )
     free( psz_elname );
     xml_ReaderDelete( p_xml_reader );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     free( psz_item_name );
@@ -441,20 +442,20 @@ error:
     if( p_xml_reader )
         xml_ReaderDelete( p_xml_reader );
 
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
-static vlc_tick_t strTimeToMTime( const char *psz )
+static heimdall_tick_t strTimeToMTime( const char *psz )
 {
     int h, m, s;
     switch( sscanf( psz, "%u:%u:%u", &h, &m, &s ) )
     {
     case 3:
-        return vlc_tick_from_sec( ( h*60 + m )*60 + s );
+        return heimdall_tick_from_sec( ( h*60 + m )*60 + s );
     case 2:
-        return vlc_tick_from_sec( h*60 + m );
+        return heimdall_tick_from_sec( h*60 + m );
     case 1:
-        return vlc_tick_from_sec( h );
+        return heimdall_tick_from_sec( h );
     default:
         return INPUT_DURATION_UNSET;
     }

@@ -2,6 +2,7 @@
  * ps.h: Program Stream demuxer helper
  *****************************************************************************
  * Copyright (C) 2004-2009 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *
@@ -21,7 +22,7 @@
  *****************************************************************************/
 
 #include <assert.h>
-#include <vlc_demux.h>
+#include <heimdall_demux.h>
 #include "timestamps.h"
 
 #define PS_STREAM_ID_END_STREAM       0xB9
@@ -75,8 +76,8 @@ typedef struct
     int         i_next_block_flags;
     es_out_id_t *es;
     es_format_t fmt;
-    vlc_tick_t  i_first_pts;
-    vlc_tick_t  i_last_pts;
+    heimdall_tick_t  i_first_pts;
+    heimdall_tick_t  i_last_pts;
 
 } ps_track_t;
 
@@ -92,8 +93,8 @@ static inline void ps_track_init( ps_track_t tk[PS_TK_COUNT] )
         tk[i].i_id   = 0;
         tk[i].i_next_block_flags = 0;
         tk[i].es     = NULL;
-        tk[i].i_first_pts = VLC_TICK_INVALID;
-        tk[i].i_last_pts = VLC_TICK_INVALID;
+        tk[i].i_first_pts = HEIMDALL_TICK_INVALID;
+        tk[i].i_last_pts = HEIMDALL_TICK_INVALID;
         es_format_Init( &tk[i].fmt, UNKNOWN_ES, 0 );
     }
 }
@@ -133,7 +134,7 @@ static inline bool ps_is_H264( const uint8_t *p_data, size_t i_data )
 
 static inline bool ps_is_EAC3( const uint8_t *p_data, size_t i_data )
 {
-    /* AC-3 marking, see vlc_a52_header_Parse */
+    /* AC-3 marking, see heimdall_a52_header_Parse */
     if( i_data < 8 || p_data[0] != 0x0b || p_data[1] != 0x77 )
         return false;
     int bsid = p_data[5] >> 3;
@@ -154,7 +155,7 @@ static inline int ps_track_fill( ps_track_t *tk, ps_psm_t *p_psm,
         if( ( i_id&0xf8 ) == 0x88 || /* 0x88 -> 0x8f - Can be DTS-HD primary audio in evob */
             ( i_id&0xf8 ) == 0x98 )  /* 0x98 -> 0x9f - Can be DTS-HD secondary audio in evob */
         {
-            es_format_Change( &tk->fmt, AUDIO_ES, VLC_CODEC_DTS );
+            es_format_Change( &tk->fmt, AUDIO_ES, HEIMDALL_CODEC_DTS );
             tk->i_skip = 4;
         }
         else if( ( i_id&0xf8 ) == 0x80 || /* 0x80 -> 0x87 */
@@ -164,52 +165,52 @@ static inline int ps_track_fill( ps_track_t *tk, ps_psm_t *p_psm,
             if( ( i_id&0xf0 ) == 0xc0 )
             {
                 if( p_pkt == NULL || i_pkt < 9 )
-                    return VLC_EGENERIC;
+                    return HEIMDALL_EGENERIC;
 
                 unsigned i_start = 9 + p_pkt[8];
                 if( i_start + 9 < i_pkt )
                     b_eac3 = ps_is_EAC3( &p_pkt[i_start + 4], i_pkt - i_start - 4 );
             }
 
-            es_format_Change( &tk->fmt, AUDIO_ES, b_eac3 ? VLC_CODEC_EAC3 : VLC_CODEC_A52 );
+            es_format_Change( &tk->fmt, AUDIO_ES, b_eac3 ? HEIMDALL_CODEC_EAC3 : HEIMDALL_CODEC_A52 );
             tk->i_skip = 4;
         }
         else if( ( i_id&0xfc ) == 0x00 ) /* 0x00 -> 0x03 */
         {
-            es_format_Change( &tk->fmt, SPU_ES, VLC_CODEC_CVD );
+            es_format_Change( &tk->fmt, SPU_ES, HEIMDALL_CODEC_CVD );
         }
         else if( ( i_id&0xff ) == 0x0b ) /* 0x0b */
         {
             bool b_eac3 = i_pkt > 8 && ps_is_EAC3( &p_pkt[9], i_pkt - 9 );
-            es_format_Change( &tk->fmt, AUDIO_ES, b_eac3 ? VLC_CODEC_EAC3 : VLC_CODEC_A52 );
+            es_format_Change( &tk->fmt, AUDIO_ES, b_eac3 ? HEIMDALL_CODEC_EAC3 : HEIMDALL_CODEC_A52 );
         }
         else if( ( i_id&0xff ) == 0x10 ) /* 0x10 */
         {
-            es_format_Change( &tk->fmt, SPU_ES, VLC_CODEC_TELETEXT );
+            es_format_Change( &tk->fmt, SPU_ES, HEIMDALL_CODEC_TELETEXT );
         }
         else if( ( i_id&0xe0 ) == 0x20 ) /* 0x20 -> 0x3f */
         {
-            es_format_Change( &tk->fmt, SPU_ES, VLC_CODEC_SPU );
+            es_format_Change( &tk->fmt, SPU_ES, HEIMDALL_CODEC_SPU );
             tk->i_skip = 1;
         }
         else if( ( i_id&0xff ) == 0x70 ) /* 0x70 */
         {
-            es_format_Change( &tk->fmt, SPU_ES, VLC_CODEC_OGT );
+            es_format_Change( &tk->fmt, SPU_ES, HEIMDALL_CODEC_OGT );
         }
         else if( ( i_id&0xf0 ) == 0xa0 ) /* 0xa0 -> 0xaf */
         {
-            es_format_Change( &tk->fmt, AUDIO_ES, VLC_CODEC_DVD_LPCM );
+            es_format_Change( &tk->fmt, AUDIO_ES, HEIMDALL_CODEC_DVD_LPCM );
             tk->i_skip = 1;
         }
         else if( ( i_id&0xf0 ) == 0xb0 ) /* 0xb0 -> 0xbf */
         {
-            es_format_Change( &tk->fmt, AUDIO_ES, VLC_CODEC_TRUEHD );
+            es_format_Change( &tk->fmt, AUDIO_ES, HEIMDALL_CODEC_TRUEHD );
             tk->i_skip = 5;
         }
         else
         {
             es_format_Change( &tk->fmt, UNKNOWN_ES, 0 );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
     else if( (i_id&0xff00) == PS_PACKET_ID_MASK_EXTENDED ) /* EVOB: 0xFD00 -> 0xFDFF */
@@ -218,12 +219,12 @@ static inline int ps_track_fill( ps_track_t *tk, ps_psm_t *p_psm,
         if( ( i_sub_id >= 0x55 && i_sub_id <= 0x5f ) || /* Can be primary VC-1 in evob */
             ( i_sub_id >= 0x75 && i_sub_id <= 0x7f ) )  /* Secondary VC-1 */
         {
-            es_format_Change( &tk->fmt, VIDEO_ES, VLC_CODEC_VC1 );
+            es_format_Change( &tk->fmt, VIDEO_ES, HEIMDALL_CODEC_VC1 );
         }
         else
         {
             es_format_Change( &tk->fmt, UNKNOWN_ES, 0 );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
     else if( (i_id&0xff00) == PS_PACKET_ID_MASK_AOB ) /* AOB: 0xA000 -> 0xA0FF */
@@ -231,18 +232,18 @@ static inline int ps_track_fill( ps_track_t *tk, ps_psm_t *p_psm,
         uint8_t i_sub_id = i_id & 0x07;
         if( i_sub_id == 0 )
         {
-            es_format_Change( &tk->fmt, AUDIO_ES, VLC_CODEC_DVDA_LPCM );
+            es_format_Change( &tk->fmt, AUDIO_ES, HEIMDALL_CODEC_DVDA_LPCM );
             tk->i_skip = 1;
         }
         else if( i_sub_id == 1 )
         {
-            es_format_Change( &tk->fmt, AUDIO_ES, VLC_CODEC_MLP );
+            es_format_Change( &tk->fmt, AUDIO_ES, HEIMDALL_CODEC_MLP );
             tk->i_skip = -1; /* It's a hack for variable skip value */
         }
         else
         {
             es_format_Change( &tk->fmt, UNKNOWN_ES, 0 );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
     else
@@ -255,29 +256,29 @@ static inline int ps_track_fill( ps_track_t *tk, ps_psm_t *p_psm,
         {
             if( i_type == 0x01 )
             {
-                es_format_Change( &tk->fmt, VIDEO_ES, VLC_CODEC_MPGV );
-                tk->fmt.i_original_fourcc = VLC_CODEC_MP1V;
+                es_format_Change( &tk->fmt, VIDEO_ES, HEIMDALL_CODEC_MPGV );
+                tk->fmt.i_original_fourcc = HEIMDALL_CODEC_MP1V;
             }
             else if( i_type == 0x02 )
             {
-                es_format_Change( &tk->fmt, VIDEO_ES, VLC_CODEC_MPGV );
+                es_format_Change( &tk->fmt, VIDEO_ES, HEIMDALL_CODEC_MPGV );
             }
             else if( i_type == 0x10 )
             {
-                es_format_Change( &tk->fmt, VIDEO_ES, VLC_CODEC_MP4V );
+                es_format_Change( &tk->fmt, VIDEO_ES, HEIMDALL_CODEC_MP4V );
             }
             else if( i_type == 0x1b )
             {
-                es_format_Change( &tk->fmt, VIDEO_ES, VLC_CODEC_H264 );
+                es_format_Change( &tk->fmt, VIDEO_ES, HEIMDALL_CODEC_H264 );
             }
             else if( i_type == 0x24 )
             {
-                es_format_Change( &tk->fmt, VIDEO_ES, VLC_CODEC_HEVC );
+                es_format_Change( &tk->fmt, VIDEO_ES, HEIMDALL_CODEC_HEVC );
             }
             else if( i_id == 0xe2 || /* Primary H.264 in evob */
                      i_id == 0xe3 )  /* Secondary H.264 in evob */
             {
-                es_format_Change( &tk->fmt, VIDEO_ES, VLC_CODEC_H264 );
+                es_format_Change( &tk->fmt, VIDEO_ES, HEIMDALL_CODEC_H264 );
             }
             else if( p_pkt && i_type == 0x00 && /* Not from PSM */
                      i_pkt > 9 + 5 &&
@@ -285,12 +286,12 @@ static inline int ps_track_fill( ps_track_t *tk, ps_psm_t *p_psm,
                      ps_is_H264( &p_pkt[ 9 + p_pkt[8] ],
                                   i_pkt - 9 - p_pkt[8] ) )
             {
-                es_format_Change( &tk->fmt, VIDEO_ES, VLC_CODEC_H264 );
+                es_format_Change( &tk->fmt, VIDEO_ES, HEIMDALL_CODEC_H264 );
             }
             else if( tk->fmt.i_cat == UNKNOWN_ES &&
                      ( p_pkt != NULL /* Not system */ || b_mpeg2only ) )
             {
-                es_format_Change( &tk->fmt, VIDEO_ES, VLC_CODEC_MPGV );
+                es_format_Change( &tk->fmt, VIDEO_ES, HEIMDALL_CODEC_MPGV );
             }
         }
         else if( ( i_id&0xe0 ) == 0xc0 ) /* 0xc0 -> 0xdf */
@@ -298,28 +299,28 @@ static inline int ps_track_fill( ps_track_t *tk, ps_psm_t *p_psm,
             if( i_type == 0x03 ||
                 i_type == 0x04 )
             {
-                es_format_Change( &tk->fmt, AUDIO_ES, VLC_CODEC_MPGA );
+                es_format_Change( &tk->fmt, AUDIO_ES, HEIMDALL_CODEC_MPGA );
             }
             else if( i_type == 0x0f )
             {
-                es_format_Change( &tk->fmt, AUDIO_ES, VLC_CODEC_MP4A );
-                tk->fmt.i_original_fourcc = VLC_FOURCC('A','D','T','S');
+                es_format_Change( &tk->fmt, AUDIO_ES, HEIMDALL_CODEC_MP4A );
+                tk->fmt.i_original_fourcc = HEIMDALL_FOURCC('A','D','T','S');
             }
             else if( i_type == 0x11 )
             {
-                es_format_Change( &tk->fmt, AUDIO_ES, VLC_CODEC_MP4A );
-                tk->fmt.i_original_fourcc = VLC_FOURCC('L','A','T','M');
+                es_format_Change( &tk->fmt, AUDIO_ES, HEIMDALL_CODEC_MP4A );
+                tk->fmt.i_original_fourcc = HEIMDALL_FOURCC('L','A','T','M');
             }
             else if( i_type == 0x2d )
             {
-                es_format_Change( &tk->fmt, AUDIO_ES, VLC_CODEC_MPEGH );
+                es_format_Change( &tk->fmt, AUDIO_ES, HEIMDALL_CODEC_MPEGH );
             }
             else if( tk->fmt.i_cat == UNKNOWN_ES )
             {
-                es_format_Change( &tk->fmt, AUDIO_ES, VLC_CODEC_MPGA );
+                es_format_Change( &tk->fmt, AUDIO_ES, HEIMDALL_CODEC_MPGA );
             }
         }
-        else if( tk->fmt.i_cat == UNKNOWN_ES ) return VLC_EGENERIC;
+        else if( tk->fmt.i_cat == UNKNOWN_ES ) return HEIMDALL_EGENERIC;
     }
 
     /* PES packets usually contain truncated frames */
@@ -336,7 +337,7 @@ static inline int ps_track_fill( ps_track_t *tk, ps_psm_t *p_psm,
         }
     }
 
-    return (tk->fmt.i_cat != UNKNOWN_ES || p_pkt) ? VLC_SUCCESS : VLC_EGENERIC;
+    return (tk->fmt.i_cat != UNKNOWN_ES || p_pkt) ? HEIMDALL_SUCCESS : HEIMDALL_EGENERIC;
 }
 
 /* return the id of a PES (should be valid) */
@@ -462,7 +463,7 @@ static inline int ps_pkt_size( const uint8_t *p, int i_peek )
 
 /* parse a PACK PES */
 static inline int ps_pkt_parse_pack( const uint8_t *p_pkt, size_t i_pkt,
-                                     vlc_tick_t *pi_scr, int *pi_mux_rate )
+                                     heimdall_tick_t *pi_scr, int *pi_mux_rate )
 {
     const uint8_t *p = p_pkt;
     ts_90khz_t i_scr;
@@ -474,15 +475,15 @@ static inline int ps_pkt_parse_pack( const uint8_t *p_pkt, size_t i_pkt,
     else if( i_pkt >= 12 && (p[4] >> 4) == 0x02 ) /* 0b0010 ISO 11172-1 MPEG-1 Pack Header */
     {
         if(!ExtractPESTimestamp( &p[4], 0x02, &i_scr )) /* same bits as PES/PTS */
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         *pi_mux_rate = ( ( p[9]&0x7f )<< 15 )|( p[10] << 7 )|( p[11] >> 1);
     }
     else
     {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     *pi_scr = FROM_SCALE( i_scr );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /* Parse a SYSTEM PES */
@@ -502,13 +503,13 @@ static inline int ps_pkt_parse_system( const uint8_t *p_pkt, size_t i_pkt,
         {
             case 0xB7:
                 if( p_pktend - p < 6 )
-                    return VLC_EGENERIC;
+                    return HEIMDALL_EGENERIC;
                 i_id = PS_PACKET_ID_MASK_EXTENDED | (p[2] & 0x7F);
                 p += 6;
                 break;
             default:
                 if( p_pktend - p < 3 )
-                    return VLC_EGENERIC;
+                    return HEIMDALL_EGENERIC;
                 p += 3;
                 break;
         }
@@ -520,18 +521,18 @@ static inline int ps_pkt_parse_system( const uint8_t *p_pkt, size_t i_pkt,
         if( !tk[i_tk].b_configured )
             ps_track_fill( &tk[i_tk], p_psm, i_id, NULL, 0, false );
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /* Parse a PES (and skip i_skip_extra in the payload) */
-static inline int ps_pkt_parse_pes( vlc_object_t *p_object, block_t *p_pes, int i_skip_extra )
+static inline int ps_pkt_parse_pes( heimdall_object_t *p_object, block_t *p_pes, int i_skip_extra )
 {
     unsigned int i_skip;
     ts_pes_header_t pesh;
     ts_pes_header_init( &pesh );
 
-    if( ParsePESHeader( p_object->logger, p_pes->p_buffer, p_pes->i_buffer, &pesh ) != VLC_SUCCESS )
-        return VLC_EGENERIC;
+    if( ParsePESHeader( p_object->logger, p_pes->p_buffer, p_pes->i_buffer, &pesh ) != HEIMDALL_SUCCESS )
+        return HEIMDALL_EGENERIC;
 
     i_skip = pesh.i_size;
 
@@ -547,7 +548,7 @@ static inline int ps_pkt_parse_pes( vlc_object_t *p_object, block_t *p_pes, int 
 
     if( p_pes->i_buffer <= i_skip )
     {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     p_pes->p_buffer += i_skip;
@@ -562,7 +563,7 @@ static inline int ps_pkt_parse_pes( vlc_object_t *p_object, block_t *p_pes, int 
             p_pes->i_dts = p_pes->i_pts;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 typedef struct
@@ -660,24 +661,24 @@ static inline int ps_psm_fill( ps_psm_t *p_psm,
     // at least 10 to read up to the info_length field
     assert(i_pkt >= 4);
     if( !p_psm || i_pkt < 10 || p_buffer[3] != STREAM_ID_PROGRAM_STREAM_MAP)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     i_length = GetWBE(&p_buffer[4]) + 6;
-    if( i_length > i_pkt ) return VLC_EGENERIC;
+    if( i_length > i_pkt ) return HEIMDALL_EGENERIC;
 
     if((p_buffer[6] & 0x80) == 0) /* current_next_indicator */
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     b_single_extension = p_buffer[6] & 0x40;
     i_version = (p_buffer[6] & 0xf8);
 
-    if( p_psm->i_version == i_version ) return VLC_EGENERIC;
+    if( p_psm->i_version == i_version ) return HEIMDALL_EGENERIC;
 
     ps_psm_destroy( p_psm );
 
     i_info_length = GetWBE(&p_buffer[8]);
     if( i_info_length + 10 > i_length )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* Elementary stream map */
     /* int i_esm_length = (uint16_t)(p_buffer[ 10 + i_info_length ] << 8) +
@@ -737,7 +738,7 @@ static inline int ps_psm_fill( ps_psm_t *p_psm,
         es_format_Init( &tk_tmp.fmt, UNKNOWN_ES, 0 );
 
         if( ps_track_fill( &tk_tmp, p_psm, tk[i].i_id,
-                           p_buffer, i_pkt, false ) != VLC_SUCCESS )
+                           p_buffer, i_pkt, false ) != HEIMDALL_SUCCESS )
             continue;
 
         if( tk_tmp.fmt.i_codec == tk[i].fmt.i_codec )
@@ -754,5 +755,5 @@ static inline int ps_psm_fill( ps_psm_t *p_psm,
         tk[i] = tk_tmp;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

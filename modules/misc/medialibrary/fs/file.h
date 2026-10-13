@@ -2,6 +2,7 @@
  * file.h: Media library network file
  *****************************************************************************
  * Copyright (C) 2018 VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -23,7 +24,7 @@
 
 #include <medialibrary/filesystem/IFile.h>
 
-namespace vlc {
+namespace heimdall {
   namespace medialibrary {
 
 using namespace ::medialibrary::fs;
@@ -56,6 +57,6 @@ private:
 };
 
   } /* namespace medialibrary */
-} /* namespace vlc */
+} /* namespace heimdall */
 
 #endif

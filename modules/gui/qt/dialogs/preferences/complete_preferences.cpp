@@ -2,6 +2,7 @@
  * complete_preferences.cpp : "Normal preferences"
  ****************************************************************************
  * Copyright (C) 2006-2011 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Clément Stenac <zorglub@videolan.org>
  *
@@ -36,7 +37,7 @@
 #include "dialogs/preferences/complete_preferences.hpp"
 #include "dialogs/preferences/preferences_widgets.hpp"
 
-#include <vlc_modules.h>
+#include <heimdall_modules.h>
 #include <cassert>
 
 #define ITEM_HEIGHT 25
@@ -62,8 +63,8 @@ PrefsTree::PrefsTree( qt_intf_t *_p_intf, QWidget *_parent,
     main_module = module_get_main();
     assert( main_module );
 
-    enum vlc_config_cat cat = CAT_UNKNOWN;
-    enum vlc_config_subcat subcat = SUBCAT_UNKNOWN;
+    enum heimdall_config_cat cat = CAT_UNKNOWN;
+    enum heimdall_config_subcat subcat = SUBCAT_UNKNOWN;
     QTreeWidgetItem *cat_item = nullptr;
 
     /* Create base cat/subcat tree from core config set */
@@ -77,8 +78,8 @@ PrefsTree::PrefsTree( qt_intf_t *_p_intf, QWidget *_parent,
         if( p_item->i_type != CONFIG_SUBCATEGORY )
             continue;
 
-        subcat = (enum vlc_config_subcat) p_item->value.i;
-        cat = vlc_config_cat_FromSubcat(subcat);
+        subcat = (enum heimdall_config_subcat) p_item->value.i;
+        cat = heimdall_config_cat_FromSubcat(subcat);
 
         if( cat == CAT_UNKNOWN || cat == CAT_HIDDEN )
             continue;
@@ -121,8 +122,8 @@ PrefsTree::PrefsTree( qt_intf_t *_p_intf, QWidget *_parent,
 
             if( p_item->i_type == CONFIG_SUBCATEGORY )
             {
-                subcat = (enum vlc_config_subcat) p_item->value.i;
-                cat = vlc_config_cat_FromSubcat( subcat );
+                subcat = (enum heimdall_config_subcat) p_item->value.i;
+                cat = heimdall_config_cat_FromSubcat( subcat );
                 continue;
             }
 
@@ -160,9 +161,9 @@ PrefsTree::PrefsTree( qt_intf_t *_p_intf, QWidget *_parent,
     // the top-level cat nodes into a preferred order.
     sortItems( 0, Qt::AscendingOrder );
     unsigned index = 0;
-    for (unsigned i = 0; i < vlc_config_cat_Count(); i++)
+    for (unsigned i = 0; i < heimdall_config_cat_Count(); i++)
     {
-        const config_category_t *cat = vlc_config_cat_GetAt(i);
+        const config_category_t *cat = heimdall_config_cat_GetAt(i);
         cat_item = findCatItem(cat->id);
         if ( cat_item == NULL )
             continue;
@@ -178,9 +179,9 @@ PrefsTree::PrefsTree( qt_intf_t *_p_intf, QWidget *_parent,
     resizeColumnToContents( 0 );
 }
 
-QTreeWidgetItem *PrefsTree::createCatNode( enum vlc_config_cat cat )
+QTreeWidgetItem *PrefsTree::createCatNode( enum heimdall_config_cat cat )
 {
-    enum vlc_config_subcat general_subcat = vlc_config_cat_GetGeneralSubcat( cat );
+    enum heimdall_config_subcat general_subcat = heimdall_config_cat_GetGeneralSubcat( cat );
     assert(general_subcat != SUBCAT_UNKNOWN && general_subcat != SUBCAT_HIDDEN);
 
     PrefsTreeItem *item = new PrefsTreeItem( PrefsTreeItem::CATEGORY_NODE );
@@ -188,8 +189,8 @@ QTreeWidgetItem *PrefsTree::createCatNode( enum vlc_config_cat cat )
     item->cat_id = cat;
     item->subcat_id = general_subcat;
     item->p_module = this->main_module;
-    item->name = qfu( vlc_config_subcat_GetName( general_subcat ) );
-    item->help = qfu( vlc_config_subcat_GetHelp( general_subcat ) );
+    item->name = qfu( heimdall_config_subcat_GetName( general_subcat ) );
+    item->help = qfu( heimdall_config_subcat_GetHelp( general_subcat ) );
 
     QIcon icon;
     switch( cat )
@@ -206,7 +207,7 @@ QTreeWidgetItem *PrefsTree::createCatNode( enum vlc_config_cat cat )
         default: break;
     }
 
-    item->setText( 0, qfu( vlc_config_cat_GetName( cat ) ) );
+    item->setText( 0, qfu( heimdall_config_cat_GetName( cat ) ) );
     item->setIcon( 0, icon );
     //current_item->setSizeHint( 0, QSize( -1, ITEM_HEIGHT ) );
 
@@ -219,7 +220,7 @@ QTreeWidgetItem *PrefsTree::createCatNode( enum vlc_config_cat cat )
     return item;
 }
 
-QTreeWidgetItem *PrefsTree::createSubcatNode( QTreeWidgetItem * cat, enum vlc_config_subcat subcat )
+QTreeWidgetItem *PrefsTree::createSubcatNode( QTreeWidgetItem * cat, enum heimdall_config_subcat subcat )
 {
     assert( cat );
 
@@ -228,8 +229,8 @@ QTreeWidgetItem *PrefsTree::createSubcatNode( QTreeWidgetItem * cat, enum vlc_co
     item->cat_id = CAT_UNKNOWN;
     item->subcat_id = subcat;
     item->p_module = this->main_module;
-    item->name = qfu( vlc_config_subcat_GetName( subcat ) );
-    item->help = qfu( vlc_config_subcat_GetHelp( subcat ) );
+    item->name = qfu( heimdall_config_subcat_GetName( subcat ) );
+    item->help = qfu( heimdall_config_subcat_GetHelp( subcat ) );
 
     item->setText( 0, item->name );
     //item->setSizeHint( 0, QSize( -1, ITEM_HEIGHT ) );
@@ -265,7 +266,7 @@ void PrefsTree::createPluginNode( QTreeWidgetItem * parent, module_t *mod )
     parent->addChild( item );
 }
 
-QTreeWidgetItem *PrefsTree::findCatItem( enum vlc_config_cat cat )
+QTreeWidgetItem *PrefsTree::findCatItem( enum heimdall_config_cat cat )
 {
     auto it = this->catMap.find(cat);
     if (it == std::end(this->catMap))
@@ -273,7 +274,7 @@ QTreeWidgetItem *PrefsTree::findCatItem( enum vlc_config_cat cat )
     return it->second;
 }
 
-QTreeWidgetItem *PrefsTree::findSubcatItem( enum vlc_config_subcat subcat )
+QTreeWidgetItem *PrefsTree::findSubcatItem( enum heimdall_config_subcat subcat )
 {
     auto it = this->subcatMap.find(subcat);
     if (it == std::end(this->subcatMap))
@@ -338,29 +339,29 @@ void PrefsTree::unfilterItems( PrefsTreeItem *item )
         unfilterItems( item->child( i ) );
 }
 
-static void populateLoadedSet( QSet<QString> *loaded, vlc_object_t *p_node )
+static void populateLoadedSet( QSet<QString> *loaded, heimdall_object_t *p_node )
 {
     Q_ASSERT( loaded );
-    char *name = vlc_object_get_name( p_node );
+    char *name = heimdall_object_get_name( p_node );
     if ( !EMPTY_STR( name ) ) loaded->insert( QString( name ) );
     free( name );
 
     size_t count = 0, size;
-    vlc_object_t **tab = NULL;
+    heimdall_object_t **tab = NULL;
 
     do
     {
         delete[] tab;
         size = count;
-        tab = new vlc_object_t *[size];
-        count = vlc_list_children(p_node, tab, size);
+        tab = new heimdall_object_t *[size];
+        count = heimdall_list_children(p_node, tab, size);
     }
     while (size < count);
 
     for (size_t i = 0; i < count ; i++)
     {
         populateLoadedSet( loaded, tab[i] );
-        vlc_object_release(tab[i]);
+        heimdall_object_release(tab[i]);
     }
 
     delete[] tab;
@@ -375,7 +376,7 @@ void PrefsTree::updateLoadedStatus( PrefsTreeItem *item = NULL,
 
     if( loaded == NULL )
     {
-        vlc_object_t *p_root = VLC_OBJECT( vlc_object_instance(p_intf) );
+        heimdall_object_t *p_root = HEIMDALL_OBJECT( heimdall_object_instance(p_intf) );
         loaded = new QSet<QString>();
         populateLoadedSet( loaded, p_root );
         b_release = true;
@@ -443,7 +444,7 @@ PrefsTreeItem::PrefsTreeItem( PrefsTreeItemType ty ) : QTreeWidgetItem(ty)
 bool PrefsTreeItem::contains( const QString &text, Qt::CaseSensitivity cs )
 {
     bool is_core = this->node_type != PrefsTreeItem::PLUGIN_NODE;
-    enum vlc_config_subcat id = this->subcat_id;
+    enum heimdall_config_subcat id = this->subcat_id;
     module_t *p_module = this->p_module;
 
     /* check the node itself (its name/longname/helptext) */

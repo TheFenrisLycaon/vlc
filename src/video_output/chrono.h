@@ -2,8 +2,9 @@
  * chrono.h: vout chrono
  *****************************************************************************
  * Copyright (C) 2009-2010 Laurent Aimar
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Laurent Aimar <fenrir _AT_ videolan _DOT_ org>
+ * Authors: Laurent Aimar <fenrir _AT_ lycaria _DOT_ org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -20,24 +21,24 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef LIBVLC_VOUT_CHRONO_H
-#define LIBVLC_VOUT_CHRONO_H
+#ifndef LIBHEIMDALL_VOUT_CHRONO_H
+#define LIBHEIMDALL_VOUT_CHRONO_H
 
 #include <assert.h>
 
 typedef struct {
     int     shift;
-    vlc_tick_t avg;
+    heimdall_tick_t avg;
     unsigned avg_count;
 
     int     shift_mad;
-    vlc_tick_t mad; /* mean absolute deviation */
+    heimdall_tick_t mad; /* mean absolute deviation */
     unsigned mad_count;
 
-    vlc_tick_t start;
+    heimdall_tick_t start;
 } vout_chrono_t;
 
-static inline void vout_chrono_Init(vout_chrono_t *chrono, int shift, vlc_tick_t avg_initial)
+static inline void vout_chrono_Init(vout_chrono_t *chrono, int shift, heimdall_tick_t avg_initial)
 {
     chrono->avg_count   = 0;
     chrono->mad_count   = 0;
@@ -48,29 +49,29 @@ static inline void vout_chrono_Init(vout_chrono_t *chrono, int shift, vlc_tick_t
     chrono->shift_mad   = shift+1;
     chrono->mad         = 0;
 
-    chrono->start = VLC_TICK_INVALID;
+    chrono->start = HEIMDALL_TICK_INVALID;
 }
 
 static inline void vout_chrono_Start(vout_chrono_t *chrono)
 {
-    chrono->start = vlc_tick_now();
+    chrono->start = heimdall_tick_now();
 }
 
-static inline vlc_tick_t vout_chrono_GetHigh(vout_chrono_t *chrono)
+static inline heimdall_tick_t vout_chrono_GetHigh(vout_chrono_t *chrono)
 {
     return chrono->avg + 2 * chrono->mad;
 }
 
-static inline vlc_tick_t vout_chrono_GetLow(vout_chrono_t *chrono)
+static inline heimdall_tick_t vout_chrono_GetLow(vout_chrono_t *chrono)
 {
     return __MAX(chrono->avg - 2 * chrono->mad, 0);
 }
 
 static inline void vout_chrono_Stop(vout_chrono_t *chrono)
 {
-    assert(chrono->start != VLC_TICK_INVALID);
+    assert(chrono->start != HEIMDALL_TICK_INVALID);
 
-    const vlc_tick_t duration = vlc_tick_now() - chrono->start;
+    const heimdall_tick_t duration = heimdall_tick_now() - chrono->start;
 
     if (chrono->avg_count == 0)
     {
@@ -88,7 +89,7 @@ static inline void vout_chrono_Stop(vout_chrono_t *chrono)
             chrono->avg = ((chrono->avg_count - 1) * chrono->avg + duration) / chrono->avg_count;
         }
 
-        const vlc_tick_t abs_diff = llabs( duration - chrono->avg );
+        const heimdall_tick_t abs_diff = llabs( duration - chrono->avg );
 
         /* Always update the mean absolute deviation */
         if (chrono->mad_count < (1u << chrono->shift_mad))
@@ -97,7 +98,7 @@ static inline void vout_chrono_Stop(vout_chrono_t *chrono)
     }
 
     /* For assert */
-    chrono->start = VLC_TICK_INVALID;
+    chrono->start = HEIMDALL_TICK_INVALID;
 }
 
 #endif

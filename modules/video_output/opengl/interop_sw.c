@@ -2,6 +2,7 @@
  * converter_sw.c: OpenGL converters for software video formats
  *****************************************************************************
  * Copyright (C) 2016,2017 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -26,11 +27,11 @@
 #include <limits.h>
 #include <stdlib.h>
 
-#include <vlc_common.h>
-#include <vlc_arrays.h>
-#include <vlc_plugin.h>
-#include <vlc_opengl.h>
-#include <vlc_opengl_interop.h>
+#include <heimdall_common.h>
+#include <heimdall_arrays.h>
+#include <heimdall_plugin.h>
+#include <heimdall_opengl.h>
+#include <heimdall_opengl_interop.h>
 
 #include "gl_util.h"
 #include "interop.h"
@@ -91,7 +92,7 @@ pbo_picture_destroy(picture_t *pic)
 }
 
 static picture_t *
-pbo_picture_create(const struct vlc_gl_interop *interop)
+pbo_picture_create(const struct heimdall_gl_interop *interop)
 {
     const struct priv *priv = interop->priv;
     picture_sys_t *picsys = calloc(1, sizeof(*picsys));
@@ -138,7 +139,7 @@ pbo_picture_create(const struct vlc_gl_interop *interop)
 }
 
 static int
-pbo_data_alloc(const struct vlc_gl_interop *interop, picture_t *pic)
+pbo_data_alloc(const struct heimdall_gl_interop *interop, picture_t *pic)
 {
     const struct priv *priv = interop->priv;
     picture_sys_t *picsys = pic->p_sys;
@@ -155,14 +156,14 @@ pbo_data_alloc(const struct vlc_gl_interop *interop, picture_t *pic)
         {
             msg_Err(interop->gl, "could not alloc PBO buffers");
             priv->gl.DeleteBuffers(i, picsys->buffers);
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int
-pbo_pics_alloc(const struct vlc_gl_interop *interop)
+pbo_pics_alloc(const struct heimdall_gl_interop *interop)
 {
     struct priv *priv = interop->priv;
     for (size_t i = 0; i < PBO_DISPLAY_COUNT; ++i)
@@ -172,22 +173,22 @@ pbo_pics_alloc(const struct vlc_gl_interop *interop)
         if (pic == NULL)
             goto error;
 
-        if (pbo_data_alloc(interop, pic) != VLC_SUCCESS)
+        if (pbo_data_alloc(interop, pic) != HEIMDALL_SUCCESS)
             goto error;
     }
 
     /* turn off pbo */
     priv->gl.BindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 error:
     for (size_t i = 0; i < PBO_DISPLAY_COUNT && priv->pbo.display_pics[i]; ++i)
         picture_Release(priv->pbo.display_pics[i]);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 static int
-tc_pbo_update(const struct vlc_gl_interop *interop, uint32_t textures[],
+tc_pbo_update(const struct heimdall_gl_interop *interop, uint32_t textures[],
               const int32_t tex_width[], const int32_t tex_height[],
               picture_t *pic, const size_t *plane_offset)
 {
@@ -235,11 +236,11 @@ tc_pbo_update(const struct vlc_gl_interop *interop, uint32_t textures[],
     /* turn off pbo */
     priv->gl.BindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int
-tc_common_allocate_textures(const struct vlc_gl_interop *interop, uint32_t textures[],
+tc_common_allocate_textures(const struct heimdall_gl_interop *interop, uint32_t textures[],
                             const int32_t tex_width[], const int32_t tex_height[])
 {
     const struct priv *priv = interop->priv;
@@ -259,11 +260,11 @@ tc_common_allocate_textures(const struct vlc_gl_interop *interop, uint32_t textu
         }
         GL_ASSERT_NOERROR(&priv->gl);
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int
-upload_plane(const struct vlc_gl_interop *interop, unsigned tex_idx,
+upload_plane(const struct heimdall_gl_interop *interop, unsigned tex_idx,
              int32_t width, int32_t height, size_t pitch, size_t pixel_size,
              const void *pixels, unsigned pixel_pack)
 {
@@ -286,7 +287,7 @@ upload_plane(const struct vlc_gl_interop *interop, unsigned tex_idx,
     {
         if (pitch != width_bytes)
         {
-            size_t aligned_row_len = vlc_align(width_bytes, 4);
+            size_t aligned_row_len = heimdall_align(width_bytes, 4);
             size_t buf_size = aligned_row_len * height;
             const uint8_t *source = pixels;
             uint8_t *destination;
@@ -298,7 +299,7 @@ upload_plane(const struct vlc_gl_interop *interop, unsigned tex_idx,
                     free(priv->texture_temp_buf);
                     priv->texture_temp_buf = NULL;
                     priv->texture_temp_buf_size = 0;
-                    return VLC_ENOMEM;
+                    return HEIMDALL_ENOMEM;
                 }
                 priv->texture_temp_buf = r_texture_buf;
                 priv->texture_temp_buf_size = buf_size;
@@ -331,17 +332,17 @@ upload_plane(const struct vlc_gl_interop *interop, unsigned tex_idx,
 
     GL_ASSERT_NOERROR(&priv->gl);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int
-tc_common_update(const struct vlc_gl_interop *interop, uint32_t textures[],
+tc_common_update(const struct heimdall_gl_interop *interop, uint32_t textures[],
                  const int32_t tex_width[], const int32_t tex_height[],
                  picture_t *pic, const size_t *plane_offset)
 {
     const struct priv *priv = interop->priv;
-    int ret = VLC_SUCCESS;
-    for (int i = 0; i < pic->i_planes && ret == VLC_SUCCESS; i++)
+    int ret = HEIMDALL_SUCCESS;
+    for (int i = 0; i < pic->i_planes && ret == HEIMDALL_SUCCESS; i++)
     {
         assert(textures[i] != 0);
         priv->gl.ActiveTexture(GL_TEXTURE0 + i);
@@ -374,14 +375,14 @@ tc_common_update(const struct vlc_gl_interop *interop, uint32_t textures[],
 }
 
 static inline void
-DivideRationalByTwo(vlc_rational_t *r) {
+DivideRationalByTwo(heimdall_rational_t *r) {
     if (r->num % 2 == 0)
         r->num /= 2;
     else
         r->den *= 2;
 }
 
-static bool fixGLFormat(struct vlc_gl_interop *interop, unsigned pixel_size,
+static bool fixGLFormat(struct heimdall_gl_interop *interop, unsigned pixel_size,
                         GLint* intfmt, GLint* fmt, GLint *type)
 {
     struct priv *priv = interop->priv;
@@ -391,17 +392,17 @@ static bool fixGLFormat(struct vlc_gl_interop *interop, unsigned pixel_size,
     bool gles2, gles3, gl2, gl3;
     if (priv->has_gl_3)
     {
-        gl3 = interop->gl->api_type == VLC_OPENGL;
+        gl3 = interop->gl->api_type == HEIMDALL_OPENGL;
         gl2 = false;
-        gles3 = interop->gl->api_type == VLC_OPENGL_ES2;
+        gles3 = interop->gl->api_type == HEIMDALL_OPENGL_ES2;
         gles2 = false;
     }
     else
     {
         gl3 = false;
-        gl2 = interop->gl->api_type == VLC_OPENGL;
+        gl2 = interop->gl->api_type == HEIMDALL_OPENGL;
         gles3 = false;
-        gles2 = interop->gl->api_type == VLC_OPENGL_ES2;
+        gles2 = interop->gl->api_type == HEIMDALL_OPENGL_ES2;
     }
     assert(gl3 || gl2 || gles3 || gles2);
 
@@ -420,7 +421,7 @@ static bool fixGLFormat(struct vlc_gl_interop *interop, unsigned pixel_size,
             }
 
             /* Android is unlikely to support GL_R16UI or GL_R16: */
-            if (vlc_gl_interop_GetTexFormatSize(interop, GL_TEXTURE_2D, *fmt,
+            if (heimdall_gl_interop_GetTexFormatSize(interop, GL_TEXTURE_2D, *fmt,
                                                 *intfmt, *type) != 16)
             {
                 /* XXX: Quality loss with 12 and 16bits since half float has
@@ -441,7 +442,7 @@ static bool fixGLFormat(struct vlc_gl_interop *interop, unsigned pixel_size,
             /* XXX Is GL_RG16F possible with semi planar ? */
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
         }
     }
     else if (gles2 && priv->has_texture_rg)
@@ -462,7 +463,7 @@ static bool fixGLFormat(struct vlc_gl_interop *interop, unsigned pixel_size,
         case GL_RG16:
             return false;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
         }
     }
     else if (gles2 || (gl2 && !priv->has_texture_rg))
@@ -496,7 +497,7 @@ static bool fixGLFormat(struct vlc_gl_interop *interop, unsigned pixel_size,
             *fmt = GL_LUMINANCE_ALPHA;
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
         }
     }
     else
@@ -507,15 +508,15 @@ static bool fixGLFormat(struct vlc_gl_interop *interop, unsigned pixel_size,
     }
 
     if (pixel_size == 2
-     && vlc_gl_interop_GetTexFormatSize(interop, GL_TEXTURE_2D, *fmt,
+     && heimdall_gl_interop_GetTexFormatSize(interop, GL_TEXTURE_2D, *fmt,
                                         *intfmt, *type) != 16)
         return false;
     return true;
 }
 
 static int
-interop_yuv_base_init(struct vlc_gl_interop *interop,
-                      const vlc_chroma_description_t *desc)
+interop_yuv_base_init(struct heimdall_gl_interop *interop,
+                      const heimdall_chroma_description_t *desc)
 {
     struct interop_formats
     {
@@ -541,19 +542,19 @@ interop_yuv_base_init(struct vlc_gl_interop *interop,
 
     if (desc->plane_count == 1)
     {
-        if (desc->fcc == VLC_CODEC_VUYA)
+        if (desc->fcc == HEIMDALL_CODEC_VUYA)
         {
             interop->tex_count = 1;
-            interop->texs[0] = (struct vlc_gl_tex_cfg) {
+            interop->texs[0] = (struct heimdall_gl_tex_cfg) {
                 { 1, 1 }, { 1, 1 },
                 GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE
             };
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
         else if (desc->pixel_size != 2)
         {
             msg_Warn(interop->gl, "unsupported chroma %.4s", (char*)&desc->fcc);
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         /* Only YUV 4:2:2 formats */
@@ -564,18 +565,18 @@ interop_yuv_base_init(struct vlc_gl_interop *interop,
         GLint fmt = GL_RG;
         GLint type = GL_UNSIGNED_BYTE;
         if (!fixGLFormat(interop, desc->pixel_size, &intfmt, &fmt, &type))
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
         interop->tex_count = 2;
-        interop->texs[0] = (struct vlc_gl_tex_cfg) {
+        interop->texs[0] = (struct heimdall_gl_tex_cfg) {
             { 1, 1 }, { 1, 1 },
             intfmt, fmt, type
         };
-        interop->texs[1] = (struct vlc_gl_tex_cfg) {
+        interop->texs[1] = (struct heimdall_gl_tex_cfg) {
             { 1, 2 }, { 1, 1 },
             GL_RGBA, GL_RGBA, type
         };
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
     uint8_t format_index = 0;
@@ -588,7 +589,7 @@ interop_yuv_base_init(struct vlc_gl_interop *interop,
         format_index += 2;
         break;
     default:
-        vlc_assert_unreachable();
+        heimdall_assert_unreachable();
         break;
     }
 
@@ -600,7 +601,7 @@ interop_yuv_base_init(struct vlc_gl_interop *interop,
         format_index += 1;
         break;
     default:
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     assert(format_index < ARRAY_SIZE(formats));
@@ -612,14 +613,14 @@ interop_yuv_base_init(struct vlc_gl_interop *interop,
     GLint plane1_type = format->type;
     if (!fixGLFormat(interop, desc->pixel_size, &plane1_intfmt, &plane1_fmt,
                      &plane1_type))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     GLint plane2_intfmt = format->plane2_intfmt;
     GLint plane2_fmt = format->plane2_fmt;
     GLint plane2_type = format->plane2_type;
     if (!fixGLFormat(interop, desc->pixel_size, &plane2_intfmt, &plane2_fmt,
                      &plane2_type))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     msg_Dbg(interop, "Using format at index %u", format_index);
     msg_Dbg(interop, "Plane1: fmt=%#x intfmt=%#x type=%#x", plane1_fmt,
@@ -632,7 +633,7 @@ interop_yuv_base_init(struct vlc_gl_interop *interop,
         interop->tex_count = desc->plane_count;
         for (unsigned i = 0; i < interop->tex_count; ++i )
         {
-            interop->texs[i] = (struct vlc_gl_tex_cfg) {
+            interop->texs[i] = (struct heimdall_gl_tex_cfg) {
                 { desc->p[i].w.num, desc->p[i].w.den },
                 { desc->p[i].h.num, desc->p[i].h.den },
                 plane1_intfmt, plane1_fmt, plane1_type
@@ -643,12 +644,12 @@ interop_yuv_base_init(struct vlc_gl_interop *interop,
     {
         interop->tex_count = 2;
 
-        interop->texs[0] = (struct vlc_gl_tex_cfg) {
+        interop->texs[0] = (struct heimdall_gl_tex_cfg) {
             { desc->p[0].w.num, desc->p[0].w.den },
             { desc->p[0].h.num, desc->p[0].h.den },
             plane1_intfmt, plane1_fmt, plane1_type
         };
-        interop->texs[1] = (struct vlc_gl_tex_cfg) {
+        interop->texs[1] = (struct heimdall_gl_tex_cfg) {
             { desc->p[1].w.num, desc->p[1].w.den },
             { desc->p[1].h.num, desc->p[1].h.den },
             plane2_intfmt, plane2_fmt, plane2_type
@@ -657,7 +658,7 @@ interop_yuv_base_init(struct vlc_gl_interop *interop,
         /*
          * If plane_count == 2, then the chroma is semiplanar: the U and V
          * planes are packed in the second plane. As a consequence, the
-         * horizontal scaling, as reported in the vlc_chroma_description_t, is
+         * horizontal scaling, as reported in the heimdall_chroma_description_t, is
          * doubled.
          *
          * But once imported as an OpenGL texture, both components are stored
@@ -668,87 +669,87 @@ interop_yuv_base_init(struct vlc_gl_interop *interop,
          DivideRationalByTwo(&interop->texs[1].w);
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int
-interop_rgb_base_init(struct vlc_gl_interop *interop, vlc_fourcc_t chroma)
+interop_rgb_base_init(struct heimdall_gl_interop *interop, heimdall_fourcc_t chroma)
 {
     switch (chroma)
     {
-        case VLC_CODEC_RGB24:
-            interop->texs[0] = (struct vlc_gl_tex_cfg) {
+        case HEIMDALL_CODEC_RGB24:
+            interop->texs[0] = (struct heimdall_gl_tex_cfg) {
                 { 1, 1 }, { 1, 1 }, GL_RGB, GL_RGB, GL_UNSIGNED_BYTE
             };
             break;
 #ifdef GL_BGR
-        case VLC_CODEC_BGR24:
-            interop->texs[0] = (struct vlc_gl_tex_cfg) {
+        case HEIMDALL_CODEC_BGR24:
+            interop->texs[0] = (struct heimdall_gl_tex_cfg) {
                 { 1, 1 }, { 1, 1 }, GL_RGB, GL_BGR, GL_UNSIGNED_BYTE
             };
             break;
 #endif
 
-        case VLC_CODEC_RGBA:
-            interop->texs[0] = (struct vlc_gl_tex_cfg) {
+        case HEIMDALL_CODEC_RGBA:
+            interop->texs[0] = (struct heimdall_gl_tex_cfg) {
                 { 1, 1 }, { 1, 1 }, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE
             };
             break;
-        case VLC_CODEC_BGRA: {
-            if (vlc_gl_interop_GetTexFormatSize(interop, GL_TEXTURE_2D, GL_BGRA, GL_RGBA,
+        case HEIMDALL_CODEC_BGRA: {
+            if (heimdall_gl_interop_GetTexFormatSize(interop, GL_TEXTURE_2D, GL_BGRA, GL_RGBA,
                                                 GL_UNSIGNED_BYTE) != 32)
-                return VLC_EGENERIC;
-            interop->texs[0] = (struct vlc_gl_tex_cfg) {
+                return HEIMDALL_EGENERIC;
+            interop->texs[0] = (struct heimdall_gl_tex_cfg) {
                 { 1, 1 }, { 1, 1 }, GL_RGBA, GL_BGRA, GL_UNSIGNED_BYTE
             };
             break;
         }
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
     interop->tex_count = 1;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void
-interop_xyz12_init(struct vlc_gl_interop *interop)
+interop_xyz12_init(struct heimdall_gl_interop *interop)
 {
     interop->tex_count = 1;
     interop->tex_target = GL_TEXTURE_2D;
-    interop->texs[0] = (struct vlc_gl_tex_cfg) {
+    interop->texs[0] = (struct heimdall_gl_tex_cfg) {
         { 1, 1 }, { 1, 1 }, GL_RGB, GL_RGB, GL_UNSIGNED_SHORT
     };
 }
 
 static int
-opengl_interop_init(struct vlc_gl_interop *interop,
-                    vlc_fourcc_t chroma, video_color_space_t yuv_space)
+opengl_interop_init(struct heimdall_gl_interop *interop,
+                    heimdall_fourcc_t chroma, video_color_space_t yuv_space)
 {
-    const vlc_chroma_description_t *desc =
-        vlc_fourcc_GetChromaDescription(chroma);
+    const heimdall_chroma_description_t *desc =
+        heimdall_fourcc_GetChromaDescription(chroma);
     if (!desc || desc->plane_count == 0)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     assert(!interop->fmt_out.p_palette);
     interop->fmt_out.i_chroma = chroma;
     interop->fmt_out.space = yuv_space;
     interop->tex_target = GL_TEXTURE_2D;
 
-    if (chroma == VLC_CODEC_XYZ_12B||
-        chroma == VLC_CODEC_XYZ_12L)
+    if (chroma == HEIMDALL_CODEC_XYZ_12B||
+        chroma == HEIMDALL_CODEC_XYZ_12L)
     {
         interop_xyz12_init(interop);
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
-    if (vlc_fourcc_IsYUV(chroma))
+    if (heimdall_fourcc_IsYUV(chroma))
         return interop_yuv_base_init(interop, desc);
 
     return interop_rgb_base_init(interop, chroma);
 }
 
 static void
-opengl_interop_generic_deinit(struct vlc_gl_interop *interop)
+opengl_interop_generic_deinit(struct heimdall_gl_interop *interop)
 {
     struct priv *priv = interop->priv;
     for (size_t i = 0; i < PBO_DISPLAY_COUNT && priv->pbo.display_pics[i]; ++i)
@@ -758,43 +759,43 @@ opengl_interop_generic_deinit(struct vlc_gl_interop *interop)
 }
 
 static int
-opengl_interop_generic_init(struct vlc_gl_interop *interop, bool allow_dr)
+opengl_interop_generic_init(struct heimdall_gl_interop *interop, bool allow_dr)
 {
 
     struct priv *priv = calloc(1, sizeof(struct priv));
     if (unlikely(priv == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     interop->priv = priv;
 
 #define LOAD_SYMBOL(type, name) \
-    priv->gl.name = vlc_gl_GetProcAddress(interop->gl, "gl" # name); \
+    priv->gl.name = heimdall_gl_GetProcAddress(interop->gl, "gl" # name); \
     assert(priv->gl.name != NULL);
 
     OPENGL_VTABLE_F(LOAD_SYMBOL);
 
-    struct vlc_gl_extension_vt extension_vt;
-    vlc_gl_LoadExtensionFunctions(interop->gl, &extension_vt);
+    struct heimdall_gl_extension_vt extension_vt;
+    heimdall_gl_LoadExtensionFunctions(interop->gl, &extension_vt);
 
     /* OpenGL or OpenGL ES2 with GL_EXT_unpack_subimage ext */
-    priv->has_unpack_subimage = interop->gl->api_type == VLC_OPENGL
-        || vlc_gl_HasExtension(&extension_vt, "GL_EXT_unpack_subimage");
+    priv->has_unpack_subimage = interop->gl->api_type == HEIMDALL_OPENGL
+        || heimdall_gl_HasExtension(&extension_vt, "GL_EXT_unpack_subimage");
 
     /* RG textures are available natively since OpenGL 3.0 and OpenGL ES 3.0 */
-    priv->has_gl_3 = vlc_gl_GetVersionMajor(&extension_vt) >= 3;
+    priv->has_gl_3 = heimdall_gl_GetVersionMajor(&extension_vt) >= 3;
 
     priv->has_texture_rg =
-        (interop->gl->api_type == VLC_OPENGL
-            && vlc_gl_HasExtension(&extension_vt, "GL_ARB_texture_rg"))
-        || (interop->gl->api_type == VLC_OPENGL_ES2
-            && vlc_gl_HasExtension(&extension_vt, "GL_EXT_texture_rg"));
+        (interop->gl->api_type == HEIMDALL_OPENGL
+            && heimdall_gl_HasExtension(&extension_vt, "GL_ARB_texture_rg"))
+        || (interop->gl->api_type == HEIMDALL_OPENGL_ES2
+            && heimdall_gl_HasExtension(&extension_vt, "GL_EXT_texture_rg"));
 
     priv->has_texture_integer = priv->has_gl_3 &&
-        (interop->gl->api_type == VLC_OPENGL
-        || vlc_gl_HasExtension(&extension_vt, "GL_EXT_texture_integer"));
+        (interop->gl->api_type == HEIMDALL_OPENGL
+        || heimdall_gl_HasExtension(&extension_vt, "GL_EXT_texture_integer"));
 
     video_color_space_t space;
-    const bool is_yup = vlc_fourcc_IsYUV(interop->fmt_in.i_chroma);
+    const bool is_yup = heimdall_fourcc_IsYUV(interop->fmt_in.i_chroma);
 
     if (is_yup)
     {
@@ -812,33 +813,33 @@ opengl_interop_generic_init(struct vlc_gl_interop *interop, bool allow_dr)
     video_format_TransformBy(&interop->fmt_out, TRANSFORM_VFLIP);
 
     /* Check whether the given chroma is translatable to OpenGL. */
-    vlc_fourcc_t i_chroma = interop->fmt_in.i_chroma;
+    heimdall_fourcc_t i_chroma = interop->fmt_in.i_chroma;
     int ret = opengl_interop_init(interop, i_chroma, space);
-    if (ret == VLC_SUCCESS)
+    if (ret == HEIMDALL_SUCCESS)
         goto interop_init;
 
     if (!is_yup)
     {
-        i_chroma = VLC_CODEC_RGBA;
+        i_chroma = HEIMDALL_CODEC_RGBA;
         ret = opengl_interop_init(interop, i_chroma, space);
-        if (ret == VLC_SUCCESS)
+        if (ret == HEIMDALL_SUCCESS)
             goto interop_init;
     }
 
-    vlc_fourcc_t *list = NULL;
+    heimdall_fourcc_t *list = NULL;
     if (is_yup)
-        list = vlc_fourcc_GetYUVFallback(interop->fmt_in.i_chroma);
-    else if (interop->fmt_in.i_chroma != VLC_CODEC_XYZ_12B)
-        list = vlc_fourcc_GetRGBFallback(interop->fmt_in.i_chroma);
+        list = heimdall_fourcc_GetYUVFallback(interop->fmt_in.i_chroma);
+    else if (interop->fmt_in.i_chroma != HEIMDALL_CODEC_XYZ_12B)
+        list = heimdall_fourcc_GetRGBFallback(interop->fmt_in.i_chroma);
 
     if (list == NULL)
         goto error;
 
     /* Check whether any fallback for the chroma is translatable to OpenGL. */
-    for (const vlc_fourcc_t *fcc = list; *fcc; fcc++)
+    for (const heimdall_fourcc_t *fcc = list; *fcc; fcc++)
     {
         ret = opengl_interop_init(interop, *fcc, space);
-        if (ret == VLC_SUCCESS)
+        if (ret == HEIMDALL_SUCCESS)
         {
             i_chroma = *fcc;
             msg_Warn(interop->gl, "direct rendering failed for %4.4s, "
@@ -858,7 +859,7 @@ interop_init:
 
     interop->fmt_in.i_chroma = i_chroma;
 
-    static const struct vlc_gl_interop_ops ops = {
+    static const struct heimdall_gl_interop_ops ops = {
         .allocate_textures = tc_common_allocate_textures,
         .update_textures = tc_common_update,
         .close = opengl_interop_generic_deinit,
@@ -883,14 +884,14 @@ interop_init:
         const bool glver_ok = strverscmp((const char *)ogl_version, "3.0") >= 0;
 
         const bool has_pbo = glver_ok &&
-            (vlc_gl_HasExtension(&extension_vt, "GL_ARB_pixel_buffer_object") ||
-             vlc_gl_HasExtension(&extension_vt, "GL_EXT_pixel_buffer_object"));
+            (heimdall_gl_HasExtension(&extension_vt, "GL_ARB_pixel_buffer_object") ||
+             heimdall_gl_HasExtension(&extension_vt, "GL_EXT_pixel_buffer_object"));
 
         const bool supports_pbo = has_pbo && priv->gl.BufferData
             && priv->gl.BufferSubData;
-        if (supports_pbo && pbo_pics_alloc(interop) == VLC_SUCCESS)
+        if (supports_pbo && pbo_pics_alloc(interop) == HEIMDALL_SUCCESS)
         {
-            static const struct vlc_gl_interop_ops pbo_ops = {
+            static const struct heimdall_gl_interop_ops pbo_ops = {
                 .allocate_textures = tc_common_allocate_textures,
                 .update_textures = tc_pbo_update,
                 .close = opengl_interop_generic_deinit,
@@ -900,25 +901,25 @@ interop_init:
         }
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     free(priv);
     interop->priv = NULL;
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
-static int OpenInteropSW(struct vlc_gl_interop *interop)
+static int OpenInteropSW(struct heimdall_gl_interop *interop)
 {
     return opengl_interop_generic_init(interop, false);
 }
 
-static int OpenInteropDirectRendering(struct vlc_gl_interop *interop)
+static int OpenInteropDirectRendering(struct heimdall_gl_interop *interop)
 {
     return opengl_interop_generic_init(interop, true);
 }
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description("Software OpenGL interop")
     set_capability("opengl sw interop", 1)
     set_callback(OpenInteropSW)
@@ -929,4 +930,4 @@ vlc_module_begin ()
     set_callback(OpenInteropDirectRendering)
     set_capability("opengl sw interop", 2)
     add_shortcut("pbo")
-vlc_module_end ()
+heimdall_module_end ()

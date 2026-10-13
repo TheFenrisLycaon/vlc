@@ -2,9 +2,10 @@
  * caca.c: Color ASCII Art "vout display" module using libcaca
  *****************************************************************************
  * Copyright (C) 2003-2009 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Sam Hocevar <sam@zoy.org>
- *          Laurent Aimar <fenrir _AT_ videolan _DOT_ org>
+ *          Laurent Aimar <fenrir _AT_ lycaria _DOT_ org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -33,18 +34,18 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include <vlc_common.h>
-#include <vlc_queue.h>
-#include <vlc_plugin.h>
-#include <vlc_vout_display.h>
-#include <vlc_actions.h>
+#include <heimdall_common.h>
+#include <heimdall_queue.h>
+#include <heimdall_plugin.h>
+#include <heimdall_vout_display.h>
+#include <heimdall_actions.h>
 #if defined(_WIN32)
 #include <windows.h>
 #elif !defined(__APPLE__)
 # ifdef X_DISPLAY_MISSING
 #  error Xlib required due to XInitThreads
 # endif
-# include <vlc_xlib.h>
+# include <heimdall_xlib.h>
 #endif
 
 #include <caca.h>
@@ -59,29 +60,29 @@ typedef struct vout_display_sys_t {
     bool          update_dither;
 
     bool dead;
-    vlc_queue_t q;
-    vlc_thread_t thread;
+    heimdall_queue_t q;
+    heimdall_thread_t thread;
     vout_display_place_t place;
 
-    vlc_tick_t cursor_timeout;
-    vlc_tick_t cursor_deadline;
+    heimdall_tick_t cursor_timeout;
+    heimdall_tick_t cursor_deadline;
 } vout_display_sys_t;
 
-typedef struct vlc_caca_event {
-    struct vlc_caca_event *next;
+typedef struct heimdall_caca_event {
+    struct heimdall_caca_event *next;
     int key;
-} vlc_caca_event_t;
+} heimdall_caca_event_t;
 
 static void *VoutDisplayEventKeyDispatch(void *data)
 {
-    vlc_thread_set_name("vlc-caca");
+    heimdall_thread_set_name("heimdall-caca");
 
     vout_display_t *vd = data;
     vout_display_sys_t *sys = vd->sys;
-    vlc_caca_event_t *event;
+    heimdall_caca_event_t *event;
 
-    while ((event = vlc_queue_DequeueKillable(&sys->q, &sys->dead)) != NULL) {
-        vlc_window_ReportKeyPress(vd->cfg->window, event->key);
+    while ((event = heimdall_queue_DequeueKillable(&sys->q, &sys->dead)) != NULL) {
+        heimdall_window_ReportKeyPress(vd->cfg->window, event->key);
         free(event);
     }
 
@@ -90,12 +91,12 @@ static void *VoutDisplayEventKeyDispatch(void *data)
 
 static void VoutDisplayEventKey(vout_display_sys_t *sys, int key)
 {
-    vlc_caca_event_t *event = malloc(sizeof (*event));
+    heimdall_caca_event_t *event = malloc(sizeof (*event));
 
     if (likely(event != NULL)) {
         event->next = NULL;
         event->key = key;
-        vlc_queue_Enqueue(&sys->q, event);
+        heimdall_queue_Enqueue(&sys->q, event);
     }
 }
 
@@ -129,10 +130,10 @@ static void Manage(vout_display_t *vd);
 /**
  * Prepare a picture for display */
 static void Prepare(vout_display_t *vd, picture_t *picture,
-                    const struct vlc_render_subpicture *subpicture, vlc_tick_t date)
+                    const struct heimdall_render_subpicture *subpicture, heimdall_tick_t date)
 {
     Manage(vd);
-    VLC_UNUSED(date);
+    HEIMDALL_UNUSED(date);
 
     vout_display_sys_t *sys = vd->sys;
 
@@ -173,7 +174,7 @@ static void Prepare(vout_display_t *vd, picture_t *picture,
                         sys->place.width, sys->place.height,
                         sys->dither,
                         &picture->p->p_pixels[crop_offset]);
-    VLC_UNUSED(subpicture);
+    HEIMDALL_UNUSED(subpicture);
 }
 
 /**
@@ -184,27 +185,27 @@ static void PictureDisplay(vout_display_t *vd, picture_t *picture)
     vout_display_sys_t *sys = vd->sys;
 
     caca_refresh_display(sys->dp);
-    VLC_UNUSED(picture);
+    HEIMDALL_UNUSED(picture);
 }
 
 static int PlacementChanged(vout_display_t *vd, const vout_display_place_t *place)
 {
     vout_display_sys_t *sys = vd->sys;
-    VLC_UNUSED(place);
+    HEIMDALL_UNUSED(place);
     sys->update_dither = true;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int CropChanged(vout_display_t *vd, const video_format_t *source)
 {
-    VLC_UNUSED(source);
+    HEIMDALL_UNUSED(source);
     return PlacementChanged(vd, NULL);
 }
 
 /* */
 static const struct {
     int caca;
-    int vlc;
+    int heimdall;
 } keys[] = {
 
     { CACA_KEY_CTRL_A,  KEY_MODIFIER_CTRL | 'a' },
@@ -272,7 +273,7 @@ static const struct {
 
 static const struct {
     int caca;
-    int vlc;
+    int heimdall;
 } mouses[] = {
     { 1, MOUSE_BUTTON_LEFT },
     { 2, MOUSE_BUTTON_CENTER },
@@ -293,7 +294,7 @@ static void Manage(vout_display_t *vd)
 {
     vout_display_sys_t *sys = vd->sys;
 
-    if (sys->cursor_deadline != INVALID_DEADLINE && sys->cursor_deadline < vlc_tick_now()) {
+    if (sys->cursor_deadline != INVALID_DEADLINE && sys->cursor_deadline < heimdall_tick_now()) {
         caca_set_mouse(sys->dp, 0);
         sys->cursor_deadline = INVALID_DEADLINE;
     }
@@ -306,10 +307,10 @@ static void Manage(vout_display_t *vd)
 
             for (int i = 0; keys[i].caca != -1; i++) {
                 if (keys[i].caca == caca) {
-                    const int vlc = keys[i].vlc;
+                    const int heimdall = keys[i].heimdall;
 
-                    if (vlc >= 0)
-                        VoutDisplayEventKey(sys, vlc);
+                    if (heimdall >= 0)
+                        VoutDisplayEventKey(sys, heimdall);
                     return;
                 }
             }
@@ -323,32 +324,32 @@ static void Manage(vout_display_t *vd)
             break;
         case CACA_EVENT_MOUSE_MOTION:
             caca_set_mouse(sys->dp, 1);
-            sys->cursor_deadline = vlc_tick_now() + sys->cursor_timeout;
-            vlc_window_ReportMouseMoved(vd->cfg->window,
+            sys->cursor_deadline = heimdall_tick_now() + sys->cursor_timeout;
+            heimdall_window_ReportMouseMoved(vd->cfg->window,
                                          caca_get_event_mouse_x(&ev),
                                          caca_get_event_mouse_y(&ev));
             break;
         case CACA_EVENT_MOUSE_PRESS:
         case CACA_EVENT_MOUSE_RELEASE: {
             caca_set_mouse(sys->dp, 1);
-            sys->cursor_deadline = vlc_tick_now() + sys->cursor_timeout;
+            sys->cursor_deadline = heimdall_tick_now() + sys->cursor_timeout;
 
             const int caca = caca_get_event_mouse_button(&ev);
             for (int i = 0; mouses[i].caca != -1; i++) {
                 if (mouses[i].caca == caca) {
                     if (caca_get_event_type(&ev) == CACA_EVENT_MOUSE_PRESS)
-                        vlc_window_ReportMousePressed(vd->cfg->window,
-                                                       mouses[i].vlc);
+                        heimdall_window_ReportMousePressed(vd->cfg->window,
+                                                       mouses[i].heimdall);
                     else
-                        vlc_window_ReportMouseReleased(vd->cfg->window,
-                                                        mouses[i].vlc);
+                        heimdall_window_ReportMouseReleased(vd->cfg->window,
+                                                        mouses[i].heimdall);
                     return;
                 }
             }
             break;
         }
         case CACA_EVENT_QUIT:
-            vlc_window_ReportClose(vd->cfg->window);
+            heimdall_window_ReportClose(vd->cfg->window);
             break;
         default:
             break;
@@ -363,8 +364,8 @@ static void Close(vout_display_t *vd)
 {
     vout_display_sys_t *sys = vd->sys;
 
-    vlc_queue_Kill(&sys->q, &sys->dead);
-    vlc_join(sys->thread, NULL);
+    heimdall_queue_Kill(&sys->q, &sys->dead);
+    heimdall_join(sys->thread, NULL);
 
     if (sys->dither)
         caca_free_dither(sys->dither);
@@ -378,7 +379,7 @@ static void Close(vout_display_t *vd)
     free(sys);
 }
 
-static const struct vlc_display_operations ops = {
+static const struct heimdall_display_operations ops = {
     .close = Close,
     .prepare = Prepare,
     .display = PictureDisplay,
@@ -390,18 +391,18 @@ static const struct vlc_display_operations ops = {
  * This function initializes libcaca vout method.
  */
 static int Open(vout_display_t *vd,
-                video_format_t *fmtp, vlc_video_context *context)
+                video_format_t *fmtp, heimdall_video_context *context)
 {
     vout_display_sys_t *sys;
 
     (void) context;
 
     if (vout_display_cfg_IsWindowed(vd->cfg))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 #if !defined(__APPLE__) && !defined(_WIN32)
 # ifndef X_DISPLAY_MISSING
-    if (!vlc_xlib_init(VLC_OBJECT(vd)))
-        return VLC_EGENERIC;
+    if (!heimdall_xlib_init(HEIMDALL_OBJECT(vd)))
+        return HEIMDALL_EGENERIC;
 # endif
 #endif
 
@@ -413,7 +414,7 @@ static int Open(vout_display_t *vd,
 
     if (!AllocConsole()) {
         msg_Err(vd, "cannot create console");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     hstdout =
@@ -423,13 +424,13 @@ static int Open(vout_display_t *vd,
     if (!hstdout || hstdout == INVALID_HANDLE_VALUE) {
         msg_Err(vd, "cannot create screen buffer");
         FreeConsole();
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if (!SetConsoleActiveScreenBuffer(hstdout)) {
         msg_Err(vd, "cannot set active screen buffer");
         FreeConsole();
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     coord = GetLargestConsoleWindowSize(hstdout);
@@ -483,15 +484,15 @@ static int Open(vout_display_t *vd,
     free(title);
 
     sys->dead = false;
-    vlc_queue_Init(&sys->q, offsetof (vlc_caca_event_t, next));
+    heimdall_queue_Init(&sys->q, offsetof (heimdall_caca_event_t, next));
 
-    if (vlc_clone(&sys->thread, VoutDisplayEventKeyDispatch, vd))
+    if (heimdall_clone(&sys->thread, VoutDisplayEventKeyDispatch, vd))
         goto error;
 
-    sys->cursor_timeout = VLC_TICK_FROM_MS( var_InheritInteger(vd, "mouse-hide-timeout") );
+    sys->cursor_timeout = HEIMDALL_TICK_FROM_MS( var_InheritInteger(vd, "mouse-hide-timeout") );
     sys->cursor_deadline = INVALID_DEADLINE;
 
-    fmtp->i_chroma = VLC_CODEC_XRGB;
+    fmtp->i_chroma = HEIMDALL_CODEC_XRGB;
 
     /* Setup vout_display now that everything is fine */
     vd->ops = &ops;
@@ -501,7 +502,7 @@ static int Open(vout_display_t *vd,
 
     Place(vd);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     if (sys) {
@@ -517,15 +518,15 @@ error:
 #if defined(_WIN32)
     FreeConsole();
 #endif
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname("Caca")
     set_subcategory(SUBCAT_VIDEO_VOUT)
     set_description(N_("Color ASCII art video output"))
     set_callback_display(Open, 15)
-vlc_module_end()
+heimdall_module_end()

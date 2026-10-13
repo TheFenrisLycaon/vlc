@@ -2,6 +2,7 @@
  * tospdif.c : encapsulates A/52 and DTS frames into S/PDIF packets
  *****************************************************************************
  * Copyright (C) 2002, 2006-2016 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Christophe Massiot <massiot@via.ecp.fr>
  *          Stéphane Borel <stef@via.ecp.fr>
@@ -30,23 +31,23 @@
 
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
 
-#include <vlc_aout.h>
-#include <vlc_filter.h>
+#include <heimdall_aout.h>
+#include <heimdall_filter.h>
 
 #include "../../packetizer/a52.h"
 #include "../../packetizer/dts_header.h"
 
-static int  Open( vlc_object_t * );
+static int  Open( heimdall_object_t * );
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_subcategory( SUBCAT_AUDIO_AFILTER )
     set_description( N_("Audio filter for A/52/DTS->S/PDIF encapsulation") )
     set_capability( "audio converter", 10 )
     set_callback( Open )
-vlc_module_end ()
+heimdall_module_end ()
 
 typedef struct
 {
@@ -81,30 +82,30 @@ typedef struct
 #define IEC61937_DTSHD 0x11
 
 #define SPDIF_MORE_DATA 1
-#define SPDIF_SUCCESS VLC_SUCCESS
-#define SPDIF_ERROR VLC_EGENERIC
+#define SPDIF_SUCCESS HEIMDALL_SUCCESS
+#define SPDIF_ERROR HEIMDALL_EGENERIC
 
 static bool is_big_endian( filter_t *p_filter, block_t *p_in_buf )
 {
     switch( p_filter->fmt_in.audio.i_format )
     {
-        case VLC_CODEC_A52:
-        case VLC_CODEC_EAC3:
-        case VLC_CODEC_MLP:
-        case VLC_CODEC_TRUEHD:
+        case HEIMDALL_CODEC_A52:
+        case HEIMDALL_CODEC_EAC3:
+        case HEIMDALL_CODEC_MLP:
+        case HEIMDALL_CODEC_TRUEHD:
             return true;
-        case VLC_CODEC_DTS:
-        case VLC_CODEC_DTSHD:
+        case HEIMDALL_CODEC_DTS:
+        case HEIMDALL_CODEC_DTSHD:
             return p_in_buf->p_buffer[0] == 0x1F
                 || p_in_buf->p_buffer[0] == 0x7F;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 }
 
 static void set_16( filter_t *p_filter, void *p_buf, uint16_t i_val )
 {
-    if( p_filter->fmt_out.audio.i_format == VLC_CODEC_SPDIFB )
+    if( p_filter->fmt_out.audio.i_format == HEIMDALL_CODEC_SPDIFB )
         SetWBE( p_buf, i_val );
     else
         SetWLE( p_buf, i_val );
@@ -139,7 +140,7 @@ static void write_data( filter_t *p_filter, const void *p_buf, size_t i_size,
     assert( p_sys->p_out_buf != NULL );
 
     bool b_output_big_endian =
-        p_filter->fmt_out.audio.i_format == VLC_CODEC_SPDIFB;
+        p_filter->fmt_out.audio.i_format == HEIMDALL_CODEC_SPDIFB;
     uint8_t *p_out = &p_sys->p_out_buf->p_buffer[p_sys->i_out_offset];
     const uint8_t *p_in = p_buf;
 
@@ -178,13 +179,13 @@ static int write_init( filter_t *p_filter, block_t *p_in_buf,
 
     p_sys->p_out_buf = block_Alloc( i_out_size );
     if( !p_sys->p_out_buf )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     p_sys->p_out_buf->i_dts = p_in_buf->i_dts;
     p_sys->p_out_buf->i_pts = p_in_buf->i_pts;
     p_sys->p_out_buf->i_nb_samples = i_nb_samples;
 
     p_sys->i_out_offset = SPDIF_HEADER_SIZE; /* Place for the S/PDIF header */
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void write_finalize( filter_t *p_filter, uint16_t i_data_type,
@@ -222,9 +223,9 @@ static int write_buffer_ac3( filter_t *p_filter, block_t *p_in_buf )
     {
         /* Input is not correctly packetizer. Try to parse the buffer in order
          * to get the mandatory information to play AC3 over S/PDIF */
-        vlc_a52_header_t a52;
-        if( vlc_a52_header_Parse( &a52, p_in_buf->p_buffer, p_in_buf->i_buffer )
-            != VLC_SUCCESS || a52.b_eac3 || a52.i_size > p_in_buf->i_buffer )
+        heimdall_a52_header_t a52;
+        if( heimdall_a52_header_Parse( &a52, p_in_buf->p_buffer, p_in_buf->i_buffer )
+            != HEIMDALL_SUCCESS || a52.b_eac3 || a52.i_size > p_in_buf->i_buffer )
             return SPDIF_ERROR;
         p_in_buf->i_buffer = a52.i_size;
         p_in_buf->i_nb_samples = a52.i_samples;
@@ -263,19 +264,19 @@ static int write_buffer_eac3( filter_t *p_filter, block_t *p_in_buf )
      * dependent EAC3 streams.
      */
 
-    vlc_a52_header_t a52;
-    if( vlc_a52_header_Parse( &a52, p_in_buf->p_buffer, p_in_buf->i_buffer )
-        != VLC_SUCCESS || a52.i_size > p_in_buf->i_buffer )
+    heimdall_a52_header_t a52;
+    if( heimdall_a52_header_Parse( &a52, p_in_buf->p_buffer, p_in_buf->i_buffer )
+        != HEIMDALL_SUCCESS || a52.i_size > p_in_buf->i_buffer )
         return SPDIF_ERROR;
 
     if( p_in_buf->i_buffer > a52.i_size )
     {
         /* Check if the next stream is an eac3 dependent one */
-        vlc_a52_header_t a52_dep;
+        heimdall_a52_header_t a52_dep;
         const uint8_t *dep_buf = &p_in_buf->p_buffer[a52.i_size];
         const size_t dep_size = p_in_buf->i_buffer - a52.i_size;
 
-        if( vlc_a52_header_Parse( &a52_dep, dep_buf, dep_size ) != VLC_SUCCESS
+        if( heimdall_a52_header_Parse( &a52_dep, dep_buf, dep_size ) != HEIMDALL_SUCCESS
          || a52_dep.i_size > dep_size
          || !a52_dep.b_eac3 || a52_dep.bs.eac3.strmtyp != EAC3_STRMTYP_DEPENDENT
          || p_in_buf->i_buffer > a52.i_size + a52_dep.i_size )
@@ -388,9 +389,9 @@ static int write_buffer_dts( filter_t *p_filter, block_t *p_in_buf )
     filter_sys_t *p_sys = p_filter->p_sys;
 
     /* Only send the DTS core part */
-    vlc_dts_header_t core;
-    if( vlc_dts_header_Parse( &core, p_in_buf->p_buffer,
-                              p_in_buf->i_buffer ) != VLC_SUCCESS )
+    heimdall_dts_header_t core;
+    if( heimdall_dts_header_Parse( &core, p_in_buf->p_buffer,
+                              p_in_buf->i_buffer ) != HEIMDALL_SUCCESS )
         return SPDIF_ERROR;
     p_in_buf->i_nb_samples = core.i_frame_length;
     p_in_buf->i_buffer = core.i_frame_size;
@@ -422,10 +423,10 @@ static int write_buffer_dts( filter_t *p_filter, block_t *p_in_buf )
             return SPDIF_ERROR;
 
         uint8_t *p_out = &p_sys->p_out_buf->p_buffer[p_sys->i_out_offset];
-        ssize_t i_size = vlc_dts_header_Convert14b16b( p_out,
+        ssize_t i_size = heimdall_dts_header_Convert14b16b( p_out,
                             p_sys->p_out_buf->i_buffer - p_sys->i_out_offset,
                             p_in_buf->p_buffer, p_in_buf->i_buffer,
-                            p_filter->fmt_out.audio.i_format == VLC_CODEC_SPDIFL );
+                            p_filter->fmt_out.audio.i_format == HEIMDALL_CODEC_SPDIFL );
         if( i_size < 0 )
             return SPDIF_ERROR;
 
@@ -477,9 +478,9 @@ static int write_buffer_dtshd( filter_t *p_filter, block_t *p_in_buf )
     static const size_t i_dtshd_start_code = sizeof( p_dtshd_start_code );
 
     filter_sys_t *p_sys = p_filter->p_sys;
-    vlc_dts_header_t core;
-    if( vlc_dts_header_Parse( &core, p_in_buf->p_buffer,
-                              p_in_buf->i_buffer ) != VLC_SUCCESS )
+    heimdall_dts_header_t core;
+    if( heimdall_dts_header_Parse( &core, p_in_buf->p_buffer,
+                              p_in_buf->i_buffer ) != HEIMDALL_SUCCESS )
         return SPDIF_ERROR;
     unsigned i_period = p_filter->fmt_out.audio.i_rate
                       * core.i_frame_length / core.i_rate;
@@ -516,7 +517,7 @@ static int write_buffer_dtshd( filter_t *p_filter, block_t *p_in_buf )
 
     /* Align so that (length_code & 0xf) == 0x8. This is reportedly needed
      * with some receivers, but the exact requirement is unconfirmed. */
-    size_t i_align = vlc_align( i_in_size + 0x8, 0x10 ) - 0x8;
+    size_t i_align = heimdall_align( i_in_size + 0x8, 0x10 ) - 0x8;
 
     if( i_align > i_in_size && i_align - i_in_size
         <= p_sys->p_out_buf->i_buffer - p_sys->i_out_offset )
@@ -537,10 +538,10 @@ static void Flush( filter_t *p_filter )
     }
     switch( p_filter->fmt_in.audio.i_format )
     {
-        case VLC_CODEC_TRUEHD:
+        case HEIMDALL_CODEC_TRUEHD:
             p_sys->truehd.i_frame_count = 0;
             break;
-        case VLC_CODEC_EAC3:
+        case HEIMDALL_CODEC_EAC3:
             p_sys->eac3.i_nb_blocks = 0;
             break;
         default:
@@ -556,24 +557,24 @@ static block_t *DoWork( filter_t *p_filter, block_t *p_in_buf )
     int i_ret;
     switch( p_filter->fmt_in.audio.i_format )
     {
-        case VLC_CODEC_A52:
+        case HEIMDALL_CODEC_A52:
             i_ret = write_buffer_ac3( p_filter, p_in_buf );
             break;
-        case VLC_CODEC_EAC3:
+        case HEIMDALL_CODEC_EAC3:
             i_ret = write_buffer_eac3( p_filter, p_in_buf );
             break;
-        case VLC_CODEC_MLP:
-        case VLC_CODEC_TRUEHD:
+        case HEIMDALL_CODEC_MLP:
+        case HEIMDALL_CODEC_TRUEHD:
             i_ret = write_buffer_truehd( p_filter, p_in_buf );
             break;
-        case VLC_CODEC_DTSHD:
+        case HEIMDALL_CODEC_DTSHD:
             i_ret = write_buffer_dtshd( p_filter, p_in_buf );
             break;
-        case VLC_CODEC_DTS:
+        case HEIMDALL_CODEC_DTS:
             i_ret = write_buffer_dts( p_filter, p_in_buf );
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 
     switch( i_ret )
@@ -600,26 +601,26 @@ static void Close( filter_t *p_filter )
     free( p_filter->p_sys );
 }
 
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     filter_t *p_filter = (filter_t *)p_this;
     filter_sys_t *p_sys;
 
-    if( ( p_filter->fmt_in.audio.i_format != VLC_CODEC_DTS &&
-          p_filter->fmt_in.audio.i_format != VLC_CODEC_DTSHD &&
-          p_filter->fmt_in.audio.i_format != VLC_CODEC_A52 &&
-          p_filter->fmt_in.audio.i_format != VLC_CODEC_EAC3 &&
-          p_filter->fmt_in.audio.i_format != VLC_CODEC_MLP &&
-          p_filter->fmt_in.audio.i_format != VLC_CODEC_TRUEHD ) ||
-        ( p_filter->fmt_out.audio.i_format != VLC_CODEC_SPDIFL &&
-          p_filter->fmt_out.audio.i_format != VLC_CODEC_SPDIFB ) )
-        return VLC_EGENERIC;
+    if( ( p_filter->fmt_in.audio.i_format != HEIMDALL_CODEC_DTS &&
+          p_filter->fmt_in.audio.i_format != HEIMDALL_CODEC_DTSHD &&
+          p_filter->fmt_in.audio.i_format != HEIMDALL_CODEC_A52 &&
+          p_filter->fmt_in.audio.i_format != HEIMDALL_CODEC_EAC3 &&
+          p_filter->fmt_in.audio.i_format != HEIMDALL_CODEC_MLP &&
+          p_filter->fmt_in.audio.i_format != HEIMDALL_CODEC_TRUEHD ) ||
+        ( p_filter->fmt_out.audio.i_format != HEIMDALL_CODEC_SPDIFL &&
+          p_filter->fmt_out.audio.i_format != HEIMDALL_CODEC_SPDIFB ) )
+        return HEIMDALL_EGENERIC;
 
     p_sys = p_filter->p_sys = calloc( 1, sizeof(filter_sys_t) );
     if( unlikely( p_sys == NULL ) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    static const struct vlc_filter_operations filter_ops =
+    static const struct heimdall_filter_operations filter_ops =
     {
         .filter_audio = DoWork,
         .flush = Flush,
@@ -627,5 +628,5 @@ static int Open( vlc_object_t *p_this )
     };
     p_filter->ops = &filter_ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

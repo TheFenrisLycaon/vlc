@@ -2,6 +2,7 @@
  * journal.c: SystemD journal logger plugin
  *****************************************************************************
  * Copyright © 2015 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -27,17 +28,17 @@
 #include <syslog.h>
 #include <systemd/sd-journal.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
 
 static const int priorities[4] = {
-    [VLC_MSG_INFO] = LOG_INFO,
-    [VLC_MSG_ERR]  = LOG_ERR,
-    [VLC_MSG_WARN] = LOG_WARNING,
-    [VLC_MSG_DBG]  = LOG_DEBUG,
+    [HEIMDALL_MSG_INFO] = LOG_INFO,
+    [HEIMDALL_MSG_ERR]  = LOG_ERR,
+    [HEIMDALL_MSG_WARN] = LOG_WARNING,
+    [HEIMDALL_MSG_DBG]  = LOG_DEBUG,
 };
 
-static void Log(void *opaque, int type, const vlc_log_t *meta,
+static void Log(void *opaque, int type, const heimdall_log_t *meta,
                 const char *format, va_list ap)
 {
     static const char default_msg[] = "message lost";
@@ -52,11 +53,11 @@ static void Log(void *opaque, int type, const vlc_log_t *meta,
         "CODE_LINE=%u", meta->line,
         "CODE_FUNC=%s", (meta->func != NULL) ? meta->func : "",
         //"ERRNO=%d"
-        "VLC_TID=%lu" /* change to OBJECT_TID if standardized */, meta->tid,
-        "VLC_OBJECT_ID=%"PRIxPTR, meta->i_object_id,
-        "VLC_OBJECT_TYPE=%s", meta->psz_object_type,
-        "VLC_MODULE=%s", meta->psz_module,
-        "VLC_HEADER=%s", (meta->psz_header != NULL) ? meta->psz_header : "",
+        "HEIMDALL_TID=%lu" /* change to OBJECT_TID if standardized */, meta->tid,
+        "HEIMDALL_OBJECT_ID=%"PRIxPTR, meta->i_object_id,
+        "HEIMDALL_OBJECT_TYPE=%s", meta->psz_object_type,
+        "HEIMDALL_MODULE=%s", meta->psz_module,
+        "HEIMDALL_HEADER=%s", (meta->psz_header != NULL) ? meta->psz_header : "",
         NULL);
 
     if (msg != default_msg)
@@ -64,9 +65,9 @@ static void Log(void *opaque, int type, const vlc_log_t *meta,
     (void) opaque;
 }
 
-static const struct vlc_logger_operations ops = { Log, NULL };
+static const struct heimdall_logger_operations ops = { Log, NULL };
 
-static const struct vlc_logger_operations *Open(vlc_object_t *obj, void **sysp)
+static const struct heimdall_logger_operations *Open(heimdall_object_t *obj, void **sysp)
 {
     if (!var_InheritBool(obj, "syslog"))
         return NULL;
@@ -75,11 +76,11 @@ static const struct vlc_logger_operations *Open(vlc_object_t *obj, void **sysp)
     return &ops;
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname(N_("Journal"))
     set_description(N_("SystemD journal logger"))
     set_subcategory(SUBCAT_ADVANCED_MISC)
     set_capability("logger", 30)
     set_callback(Open)
     add_shortcut("journal")
-vlc_module_end()
+heimdall_module_end()

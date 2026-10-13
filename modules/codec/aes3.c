@@ -2,6 +2,7 @@
  * aes3.c: aes3 decoder/packetizer module
  *****************************************************************************
  * Copyright (C) 2008 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@videolan.org>
  *
@@ -27,18 +28,18 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
 #include <assert.h>
 
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  OpenDecoder   ( vlc_object_t * );
-static int  OpenPacketizer( vlc_object_t * );
+static int  OpenDecoder   ( heimdall_object_t * );
+static int  OpenPacketizer( heimdall_object_t * );
 
-vlc_module_begin ()
+heimdall_module_begin ()
 
     set_subcategory( SUBCAT_INPUT_ACODEC )
     set_description( N_("AES3/SMPTE 302M audio decoder") )
@@ -50,7 +51,7 @@ vlc_module_begin ()
     set_capability( "audio packetizer", 100 )
     set_callback( OpenPacketizer )
 
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * decoder_sys_t : aes3 decoder descriptor
@@ -76,7 +77,7 @@ static block_t *Parse( decoder_t *p_dec, int *pi_frame_length, int *pi_bits,
 /*****************************************************************************
  * OpenDecoder:
  *****************************************************************************/
-static int OpenDecoder( vlc_object_t *p_this )
+static int OpenDecoder( heimdall_object_t *p_this )
 {
     decoder_t *p_dec = (decoder_t*)p_this;
 
@@ -86,7 +87,7 @@ static int OpenDecoder( vlc_object_t *p_this )
 /*****************************************************************************
  * OpenPacketizer:
  *****************************************************************************/
-static int OpenPacketizer( vlc_object_t *p_this )
+static int OpenPacketizer( heimdall_object_t *p_this )
 {
     decoder_t *p_dec = (decoder_t*)p_this;
 
@@ -131,7 +132,7 @@ static int Decode( decoder_t *p_dec, block_t *p_block )
 
     p_block = Parse( p_dec, &i_frame_length, &i_bits, p_block, false );
     if( !p_block )
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
 
     if( decoder_UpdateAudioFormat( p_dec ) )
     {
@@ -209,7 +210,7 @@ exit:
     block_Release( p_block );
     if( p_aout_buffer != NULL )
         decoder_QueueAudio( p_dec, p_aout_buffer );
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }
 
 /*****************************************************************************
@@ -219,7 +220,7 @@ static void Flush( decoder_t *p_dec )
 {
     decoder_sys_t *p_sys = p_dec->p_sys;
 
-    date_Set( &p_sys->end_date, VLC_TICK_INVALID );
+    date_Set( &p_sys->end_date, HEIMDALL_TICK_INVALID );
 }
 
 /*****************************************************************************
@@ -256,14 +257,14 @@ static int Open( decoder_t *p_dec, bool b_packetizer )
 {
     decoder_sys_t *p_sys;
 
-    if( p_dec->fmt_in->i_codec != VLC_CODEC_302M )
-        return VLC_EGENERIC;
+    if( p_dec->fmt_in->i_codec != HEIMDALL_CODEC_302M )
+        return HEIMDALL_EGENERIC;
 
     /* Allocate the memory needed to store the decoder's structure */
-    p_sys = vlc_obj_malloc( VLC_OBJECT(p_dec), sizeof(*p_sys) );
+    p_sys = heimdall_obj_malloc( HEIMDALL_OBJECT(p_dec), sizeof(*p_sys) );
 
     if( unlikely( !p_sys ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* Misc init */
     date_Init( &p_sys->end_date, 48000, 1 );
@@ -274,20 +275,20 @@ static int Open( decoder_t *p_dec, bool b_packetizer )
     /* Set callback */
     if( b_packetizer )
     {
-        p_dec->fmt_out.i_codec = VLC_CODEC_302M;
+        p_dec->fmt_out.i_codec = HEIMDALL_CODEC_302M;
 
         p_dec->pf_packetize    = Packetize;
     }
     else
     {
-        p_dec->fmt_out.i_codec = VLC_CODEC_S16N;
+        p_dec->fmt_out.i_codec = HEIMDALL_CODEC_S16N;
         p_dec->fmt_out.audio.i_bitspersample = 16;
 
         p_dec->pf_decode    = Decode;
     }
     p_dec->pf_flush            = Flush;
     p_dec->p_sys = p_sys;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static const unsigned int pi_original_channels[4] = {
@@ -326,13 +327,13 @@ static block_t * Parse( decoder_t *p_dec, int *pi_frame_length, int *pi_bits,
     }
 
     /* Date management */
-    if( p_block->i_pts != VLC_TICK_INVALID &&
+    if( p_block->i_pts != HEIMDALL_TICK_INVALID &&
         p_block->i_pts != date_Get( &p_sys->end_date ) )
     {
         date_Set( &p_sys->end_date, p_block->i_pts );
     }
 
-    if( date_Get( &p_sys->end_date ) == VLC_TICK_INVALID )
+    if( date_Get( &p_sys->end_date ) == HEIMDALL_TICK_INVALID )
     {
         /* We've just started the stream, wait for the first PTS. */
         block_Release( p_block );
@@ -374,7 +375,7 @@ static block_t * Parse( decoder_t *p_dec, int *pi_frame_length, int *pi_bits,
     }
     else
     {
-        p_dec->fmt_out.i_codec = i_bits == 16 ? VLC_CODEC_S16N : VLC_CODEC_S32N;
+        p_dec->fmt_out.i_codec = i_bits == 16 ? HEIMDALL_CODEC_S16N : HEIMDALL_CODEC_S32N;
         p_dec->fmt_out.audio.i_bitspersample = i_bits == 16 ? 16 : 32;
     }
 

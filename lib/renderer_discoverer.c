@@ -1,7 +1,8 @@
 /*****************************************************************************
- * renderer_discoverer.c: libvlc renderer API
+ * renderer_discoverer.c: libheimdall renderer API
  *****************************************************************************
  * Copyright © 2016 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -24,55 +25,55 @@
 
 #include <assert.h>
 
-#include <vlc/libvlc.h>
-#include <vlc/libvlc_renderer_discoverer.h>
+#include <heimdall/libheimdall.h>
+#include <heimdall/libheimdall_renderer_discoverer.h>
 
-#include <vlc_common.h>
-#include <vlc_arrays.h>
+#include <heimdall_common.h>
+#include <heimdall_arrays.h>
 
-#include "libvlc_internal.h"
+#include "libheimdall_internal.h"
 #include "renderer_discoverer_internal.h"
 
-struct libvlc_renderer_discoverer_t
+struct libheimdall_renderer_discoverer_t
 {
-    vlc_object_t *          p_object;
-    vlc_renderer_discovery_t *p_rd;
+    heimdall_object_t *          p_object;
+    heimdall_renderer_discovery_t *p_rd;
 
-    const struct libvlc_renderer_discoverer_cbs *cbs;
+    const struct libheimdall_renderer_discoverer_cbs *cbs;
     void *cbs_opaque;
 
     int                     i_items;
-    vlc_renderer_item_t **  pp_items;
+    heimdall_renderer_item_t **  pp_items;
     char                    name[];
 };
 
-static_assert( VLC_RENDERER_CAN_AUDIO == LIBVLC_RENDERER_CAN_AUDIO &&
-               VLC_RENDERER_CAN_VIDEO == LIBVLC_RENDERER_CAN_VIDEO,
-              "core/libvlc renderer flags mismatch" );
+static_assert( HEIMDALL_RENDERER_CAN_AUDIO == LIBHEIMDALL_RENDERER_CAN_AUDIO &&
+               HEIMDALL_RENDERER_CAN_VIDEO == LIBHEIMDALL_RENDERER_CAN_VIDEO,
+              "core/libheimdall renderer flags mismatch" );
 
-vlc_renderer_item_t *
-libvlc_renderer_item_to_vlc( libvlc_renderer_item_t *p_item )
+heimdall_renderer_item_t *
+libheimdall_renderer_item_to_heimdall( libheimdall_renderer_item_t *p_item )
 {
-    return (vlc_renderer_item_t*) p_item;
+    return (heimdall_renderer_item_t*) p_item;
 }
 
-static void renderer_discovery_item_added( vlc_renderer_discovery_t *rd,
-                                           vlc_renderer_item_t *p_item )
+static void renderer_discovery_item_added( heimdall_renderer_discovery_t *rd,
+                                           heimdall_renderer_item_t *p_item )
 {
-    libvlc_renderer_discoverer_t *p_lrd = rd->owner.sys;
+    libheimdall_renderer_discoverer_t *p_lrd = rd->owner.sys;
 
-    vlc_renderer_item_hold( p_item );
+    heimdall_renderer_item_hold( p_item );
 
     TAB_APPEND( p_lrd->i_items, p_lrd->pp_items, p_item );
 
     p_lrd->cbs->on_item_added( p_lrd->cbs_opaque,
-                               (libvlc_renderer_item_t*) p_item );
+                               (libheimdall_renderer_item_t*) p_item );
 }
 
-static void renderer_discovery_item_removed( vlc_renderer_discovery_t *rd,
-                                             vlc_renderer_item_t *p_item )
+static void renderer_discovery_item_removed( heimdall_renderer_discovery_t *rd,
+                                             heimdall_renderer_item_t *p_item )
 {
-    libvlc_renderer_discoverer_t *p_lrd = rd->owner.sys;
+    libheimdall_renderer_discoverer_t *p_lrd = rd->owner.sys;
 
     int i_idx;
     TAB_FIND( p_lrd->i_items, p_lrd->pp_items, p_item, i_idx );
@@ -81,52 +82,52 @@ static void renderer_discovery_item_removed( vlc_renderer_discovery_t *rd,
 
     if( p_lrd->cbs->on_item_removed != NULL )
         p_lrd->cbs->on_item_removed( p_lrd->cbs_opaque,
-                                     (libvlc_renderer_item_t*) p_item );
+                                     (libheimdall_renderer_item_t*) p_item );
 
-    vlc_renderer_item_release( p_item );
+    heimdall_renderer_item_release( p_item );
 }
 
-libvlc_renderer_item_t *
-libvlc_renderer_item_retain(libvlc_renderer_item_t *p_item)
+libheimdall_renderer_item_t *
+libheimdall_renderer_item_retain(libheimdall_renderer_item_t *p_item)
 {
-    vlc_renderer_item_hold( (vlc_renderer_item_t *) p_item );
+    heimdall_renderer_item_hold( (heimdall_renderer_item_t *) p_item );
     return p_item;
 }
 
 void
-libvlc_renderer_item_release(libvlc_renderer_item_t *p_item)
+libheimdall_renderer_item_release(libheimdall_renderer_item_t *p_item)
 {
-    vlc_renderer_item_release( (vlc_renderer_item_t *) p_item );
+    heimdall_renderer_item_release( (heimdall_renderer_item_t *) p_item );
 }
 
 const char *
-libvlc_renderer_item_name( const libvlc_renderer_item_t *p_item )
+libheimdall_renderer_item_name( const libheimdall_renderer_item_t *p_item )
 {
-    return vlc_renderer_item_name( (const vlc_renderer_item_t *) p_item );
+    return heimdall_renderer_item_name( (const heimdall_renderer_item_t *) p_item );
 }
 
 const char *
-libvlc_renderer_item_type( const libvlc_renderer_item_t *p_item )
+libheimdall_renderer_item_type( const libheimdall_renderer_item_t *p_item )
 {
-    return vlc_renderer_item_type( (const vlc_renderer_item_t *) p_item );
+    return heimdall_renderer_item_type( (const heimdall_renderer_item_t *) p_item );
 }
 
 const char *
-libvlc_renderer_item_icon_uri( const libvlc_renderer_item_t *p_item )
+libheimdall_renderer_item_icon_uri( const libheimdall_renderer_item_t *p_item )
 {
-    return vlc_renderer_item_icon_uri( (const vlc_renderer_item_t *) p_item );
+    return heimdall_renderer_item_icon_uri( (const heimdall_renderer_item_t *) p_item );
 }
 
 int
-libvlc_renderer_item_flags( const libvlc_renderer_item_t *p_item )
+libheimdall_renderer_item_flags( const libheimdall_renderer_item_t *p_item )
 {
-    return vlc_renderer_item_flags( (const vlc_renderer_item_t *) p_item );
+    return heimdall_renderer_item_flags( (const heimdall_renderer_item_t *) p_item );
 }
 
-libvlc_renderer_discoverer_t *
-libvlc_renderer_discoverer_new( libvlc_instance_t *p_inst,
+libheimdall_renderer_discoverer_t *
+libheimdall_renderer_discoverer_new( libheimdall_instance_t *p_inst,
                                 const char *psz_name,
-                                const struct libvlc_renderer_discoverer_cbs *cbs,
+                                const struct libheimdall_renderer_discoverer_cbs *cbs,
                                 void *cbs_opaque )
 {
     assert( cbs != NULL && cbs->on_item_added != NULL );
@@ -135,12 +136,12 @@ libvlc_renderer_discoverer_new( libvlc_instance_t *p_inst,
     assert(cbs->version <= 0);
 
     size_t len = strlen( psz_name ) + 1;
-    libvlc_renderer_discoverer_t *p_lrd = malloc( sizeof(*p_lrd) + len );
+    libheimdall_renderer_discoverer_t *p_lrd = malloc( sizeof(*p_lrd) + len );
 
     if( unlikely(p_lrd == NULL) )
         return NULL;
 
-    p_lrd->p_object = VLC_OBJECT(p_inst->p_libvlc_int);
+    p_lrd->p_object = HEIMDALL_OBJECT(p_inst->p_libheimdall_int);
     memcpy( p_lrd->name, psz_name, len );
     TAB_INIT( p_lrd->i_items, p_lrd->pp_items );
     p_lrd->p_rd = NULL;
@@ -151,44 +152,44 @@ libvlc_renderer_discoverer_new( libvlc_instance_t *p_inst,
 }
 
 void
-libvlc_renderer_discoverer_destroy( libvlc_renderer_discoverer_t *p_lrd )
+libheimdall_renderer_discoverer_destroy( libheimdall_renderer_discoverer_t *p_lrd )
 {
-    libvlc_renderer_discoverer_stop( p_lrd );
+    libheimdall_renderer_discoverer_stop( p_lrd );
     free( p_lrd );
 }
 
 int
-libvlc_renderer_discoverer_start( libvlc_renderer_discoverer_t *p_lrd )
+libheimdall_renderer_discoverer_start( libheimdall_renderer_discoverer_t *p_lrd )
 {
     assert( p_lrd->p_rd == NULL );
 
-    struct vlc_renderer_discovery_owner owner =
+    struct heimdall_renderer_discovery_owner owner =
     {
         p_lrd,
         renderer_discovery_item_added,
         renderer_discovery_item_removed,
     };
 
-    p_lrd->p_rd = vlc_rd_new( p_lrd->p_object, p_lrd->name, &owner );
+    p_lrd->p_rd = heimdall_rd_new( p_lrd->p_object, p_lrd->name, &owner );
     return p_lrd->p_rd != NULL ? 0 : -1;
 }
 
 void
-libvlc_renderer_discoverer_stop( libvlc_renderer_discoverer_t *p_lrd )
+libheimdall_renderer_discoverer_stop( libheimdall_renderer_discoverer_t *p_lrd )
 {
     if( p_lrd->p_rd != NULL )
     {
-        vlc_rd_release( p_lrd->p_rd );
+        heimdall_rd_release( p_lrd->p_rd );
         p_lrd->p_rd = NULL;
     }
 
     for( int i = 0; i < p_lrd->i_items; ++i )
-        vlc_renderer_item_release( p_lrd->pp_items[i] );
+        heimdall_renderer_item_release( p_lrd->pp_items[i] );
     TAB_CLEAN( p_lrd->i_items, p_lrd->pp_items );
 }
 
 void
-libvlc_renderer_discoverer_list_release( libvlc_rd_description_t **pp_services,
+libheimdall_renderer_discoverer_list_release( libheimdall_rd_description_t **pp_services,
                                          size_t i_count )
 {
     if( i_count > 0 )
@@ -204,17 +205,17 @@ libvlc_renderer_discoverer_list_release( libvlc_rd_description_t **pp_services,
 }
 
 size_t
-libvlc_renderer_discoverer_list_get( libvlc_instance_t *p_inst,
-                                     libvlc_rd_description_t ***ppp_services )
+libheimdall_renderer_discoverer_list_get( libheimdall_instance_t *p_inst,
+                                     libheimdall_rd_description_t ***ppp_services )
 {
     assert( p_inst != NULL && ppp_services != NULL );
 
     /* Fetch all rd names, and longnames */
     char **ppsz_names, **ppsz_longnames;
-    int i_ret = vlc_rd_get_names( p_inst->p_libvlc_int, &ppsz_names,
+    int i_ret = heimdall_rd_get_names( p_inst->p_libheimdall_int, &ppsz_names,
                                   &ppsz_longnames );
 
-    if( i_ret != VLC_SUCCESS )
+    if( i_ret != HEIMDALL_SUCCESS )
     {
         *ppp_services = NULL;
         return 0;
@@ -226,7 +227,7 @@ libvlc_renderer_discoverer_list_get( libvlc_instance_t *p_inst,
     for( ; *ppsz_name != NULL; ppsz_name++ )
         i_nb_services++;
 
-    libvlc_rd_description_t **pp_services = NULL,
+    libheimdall_rd_description_t **pp_services = NULL,
                                               *p_services = NULL;
     if( i_nb_services > 0 )
     {
@@ -236,10 +237,10 @@ libvlc_renderer_discoverer_list_get( libvlc_instance_t *p_inst,
 
         pp_services =
             malloc( i_nb_services
-                    * sizeof(libvlc_rd_description_t *) );
+                    * sizeof(libheimdall_rd_description_t *) );
         p_services =
             malloc( i_nb_services
-                    * sizeof(libvlc_rd_description_t) );
+                    * sizeof(libheimdall_rd_description_t) );
         if( pp_services == NULL || p_services == NULL )
         {
             free( pp_services );
@@ -248,14 +249,14 @@ libvlc_renderer_discoverer_list_get( libvlc_instance_t *p_inst,
             p_services = NULL;
             i_nb_services = 0;
             /* Even if alloc fails, the next loop must be run in order to free
-             * names returned by vlc_sd_GetNames */
+             * names returned by heimdall_sd_GetNames */
         }
     }
 
     /* Fill output pp_services or free unused name, longname */
     char **ppsz_longname = ppsz_longnames;
     unsigned int i_service_idx = 0;
-    libvlc_rd_description_t *p_service = p_services;
+    libheimdall_rd_description_t *p_service = p_services;
     for( ppsz_name = ppsz_names; *ppsz_name != NULL; ppsz_name++, ppsz_longname++ )
     {
         if( pp_services != NULL )

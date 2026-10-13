@@ -2,6 +2,7 @@
 
 // alpha_d3d11.cpp : helper to combine D3D11 planes to generate pictures with alpha
 // Copyright © 2023 VideoLabs, VLC authors and VideoLAN
+// Copyright (C) 2026 TheFenrisLycaon
 
 // Authors: Steve Lhomme <robux4@videolabs.io>
 
@@ -46,7 +47,7 @@ static picture_context_t *d3d11_alpha_pic_context_copy(picture_context_t *)
     return nullptr;
 }
 
-picture_t *CombineD3D11(decoder_t *dec, picture_t *opaque, picture_t *alpha, vlc_video_context *vctx)
+picture_t *CombineD3D11(decoder_t *dec, picture_t *opaque, picture_t *alpha, heimdall_video_context *vctx)
 {
     auto *out = decoder_NewPicture(dec);
     if (out == nullptr)
@@ -61,7 +62,7 @@ picture_t *CombineD3D11(decoder_t *dec, picture_t *opaque, picture_t *alpha, vlc
     pic_ctx->ctx.picsys.sharedHandle = INVALID_HANDLE_VALUE;
     pic_ctx->ctx.s.copy = d3d11_alpha_pic_context_copy;
     pic_ctx->ctx.s.destroy = d3d11_alpha_pic_context_destroy;
-    pic_ctx->ctx.s.vctx = vlc_video_context_Hold(vctx);
+    pic_ctx->ctx.s.vctx = heimdall_video_context_Hold(vctx);
     pic_ctx->opaque = picture_Hold(opaque);
     pic_ctx->alpha = picture_Hold(alpha);
     out->context = &pic_ctx->ctx.s;
@@ -83,21 +84,21 @@ picture_t *CombineD3D11(decoder_t *dec, picture_t *opaque, picture_t *alpha, vlc
     return out;
 }
 
-int SetupD3D11(decoder_t *dec, vlc_video_context *vctx, vlc_video_context **vctx_out)
+int SetupD3D11(decoder_t *dec, heimdall_video_context *vctx, heimdall_video_context **vctx_out)
 {
     auto *vctx_sys = GetD3D11ContextPrivate(vctx);
     assert(vctx_sys->secondary == DXGI_FORMAT_UNKNOWN);
     assert(*vctx_out == nullptr); // TODO handle multiple format updates
 
-    auto *dec_dev = vlc_video_context_HoldDevice(vctx);
+    auto *dec_dev = heimdall_video_context_HoldDevice(vctx);
     *vctx_out = D3D11CreateVideoContext(dec_dev, vctx_sys->format, DXGI_FORMAT_NV12);
-    vlc_decoder_device_Release(dec_dev);
+    heimdall_decoder_device_Release(dec_dev);
     if (unlikely(*vctx_out == nullptr))
     {
         msg_Dbg(dec,"Failed to create output vctx.");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
-    dec->fmt_out.video.i_chroma = dec->fmt_out.i_codec = VLC_CODEC_D3D11_OPAQUE_ALPHA;
+    dec->fmt_out.video.i_chroma = dec->fmt_out.i_codec = HEIMDALL_CODEC_D3D11_OPAQUE_ALPHA;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

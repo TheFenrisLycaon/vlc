@@ -2,8 +2,9 @@
  * info.h
  *****************************************************************************
  * Copyright (C) 2010 Laurent Aimar
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Laurent Aimar <fenrir _AT_ videolan _DOT_ org>
+ * Authors: Laurent Aimar <fenrir _AT_ lycaria _DOT_ org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -20,10 +21,10 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef LIBVLC_INPUT_INFO_H
-#define LIBVLC_INPUT_INFO_H 1
+#ifndef LIBHEIMDALL_INPUT_INFO_H
+#define LIBHEIMDALL_INPUT_INFO_H 1
 
-#include "vlc_input_item.h"
+#include "heimdall_input_item.h"
 
 static inline info_t *info_New(const char *name)
 {
@@ -49,7 +50,7 @@ static inline info_category_t *info_category_New(const char *name)
     if (!cat)
         return NULL;
     cat->psz_name = strdup(name);
-    vlc_list_init(&cat->infos);
+    heimdall_list_init(&cat->infos);
     return cat;
 }
 
@@ -69,10 +70,10 @@ static inline void info_category_ReplaceInfo(info_category_t *cat,
 {
     info_t *old = info_category_FindInfo(cat, info->psz_name);
     if (old) {
-        vlc_list_remove(&old->node);
+        heimdall_list_remove(&old->node);
         info_Delete(old);
     }
-    vlc_list_append(&info->node, &cat->infos);
+    heimdall_list_append(&info->node, &cat->infos);
 }
 
 static inline info_t *info_category_VaAddInfo(info_category_t *cat,
@@ -84,7 +85,7 @@ static inline info_t *info_category_VaAddInfo(info_category_t *cat,
         info = info_New(name);
         if (!info)
             return NULL;
-        vlc_list_append(&info->node, &cat->infos);
+        heimdall_list_append(&info->node, &cat->infos);
     } else
         free(info->psz_value);
     if (vasprintf(&info->psz_value, format, args) == -1)
@@ -109,19 +110,19 @@ static inline int info_category_DeleteInfo(info_category_t *cat, const char *nam
 {
     info_t *info = info_category_FindInfo(cat, name);
     if (info != NULL) {
-        vlc_list_remove(&info->node);
+        heimdall_list_remove(&info->node);
         info_Delete(info);
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 static inline void info_category_Delete(info_category_t *cat)
 {
     info_t *info;
 
-    while ((info = vlc_list_first_entry_or_null(&cat->infos, info_t, node))) {
-        vlc_list_remove(&info->node);
+    while ((info = heimdall_list_first_entry_or_null(&cat->infos, info_t, node))) {
+        heimdall_list_remove(&info->node);
         info_Delete(info);
     }
     free(cat->psz_name);

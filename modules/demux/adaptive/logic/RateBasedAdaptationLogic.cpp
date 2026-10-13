@@ -2,6 +2,7 @@
  * RateBasedAdaptationLogic.cpp
  *****************************************************************************
  * Copyright (C) 2010 - 2011 Klagenfurt University
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Created on: Aug 10, 2010
  * Authors: Christopher Mueller <christopher.mueller@itec.uni-klu.ac.at>
@@ -35,7 +36,7 @@
 using namespace adaptive::logic;
 using namespace adaptive;
 
-RateBasedAdaptationLogic::RateBasedAdaptationLogic  (vlc_object_t *obj) :
+RateBasedAdaptationLogic::RateBasedAdaptationLogic  (heimdall_object_t *obj) :
                           AbstractAdaptationLogic   (obj),
                           bpsAvg(0),
                           currentBps(0)
@@ -43,7 +44,7 @@ RateBasedAdaptationLogic::RateBasedAdaptationLogic  (vlc_object_t *obj) :
     usedBps = 0;
     dllength = 0;
     dlsize = 0;
-    vlc_mutex_init(&lock);
+    heimdall_mutex_init(&lock);
 }
 
 BaseRepresentation *RateBasedAdaptationLogic::getNextRepresentation(BaseAdaptationSet *adaptSet, BaseRepresentation *currep)
@@ -51,9 +52,9 @@ BaseRepresentation *RateBasedAdaptationLogic::getNextRepresentation(BaseAdaptati
     if(adaptSet == nullptr)
         return nullptr;
 
-    vlc_mutex_lock(&lock);
+    heimdall_mutex_lock(&lock);
     size_t availBps = currentBps + ((currep) ? currep->getBandwidth() : 0);
-    vlc_mutex_unlock(&lock);
+    heimdall_mutex_unlock(&lock);
     if(availBps > usedBps)
         availBps -= usedBps;
     else
@@ -72,7 +73,7 @@ BaseRepresentation *RateBasedAdaptationLogic::getNextRepresentation(BaseAdaptati
 }
 
 void RateBasedAdaptationLogic::updateDownloadRate(const ID &, size_t size,
-                                                  vlc_tick_t time, vlc_tick_t)
+                                                  heimdall_tick_t time, heimdall_tick_t)
 {
     if(unlikely(time == 0))
         return;
@@ -80,12 +81,12 @@ void RateBasedAdaptationLogic::updateDownloadRate(const ID &, size_t size,
     dllength += time;
     dlsize += size;
 
-    if(dllength < VLC_TICK_FROM_MS(250))
+    if(dllength < HEIMDALL_TICK_FROM_MS(250))
         return;
 
     const size_t bps = CLOCK_FREQ * dlsize * 8 / dllength;
 
-    vlc_mutex_locker locker(&lock);
+    heimdall_mutex_locker locker(&lock);
     bpsAvg = average.push(bps);
 
 //    BwDebug(msg_Dbg(p_obj, "alpha1 %lf alpha0 %lf dmax %ld ds %ld", alpha,
@@ -106,7 +107,7 @@ void RateBasedAdaptationLogic::trackerEvent(const TrackerEvent &ev)
     {
         const RepresentationSwitchEvent &event =
                 static_cast<const RepresentationSwitchEvent &>(ev);
-        vlc_mutex_locker locker(&lock);
+        heimdall_mutex_locker locker(&lock);
         if(event.prev)
             usedBps -= event.prev->getBandwidth();
         if(event.next)
@@ -117,7 +118,7 @@ void RateBasedAdaptationLogic::trackerEvent(const TrackerEvent &ev)
     }
 }
 
-FixedRateAdaptationLogic::FixedRateAdaptationLogic(vlc_object_t *obj, size_t bps) :
+FixedRateAdaptationLogic::FixedRateAdaptationLogic(heimdall_object_t *obj, size_t bps) :
     AbstractAdaptationLogic(obj)
 {
     currentBps = bps;

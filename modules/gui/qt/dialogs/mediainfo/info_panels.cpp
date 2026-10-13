@@ -2,6 +2,7 @@
  * info_panels.cpp : Panels for the information dialogs
  ****************************************************************************
  * Copyright (C) 2006-2007 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Clément Stenac <zorglub@videolan.org>
  *          Jean-Baptiste Kempf <jb@videolan.org>
@@ -35,10 +36,10 @@
 #include "dialogs/fingerprint/chromaprint.hpp"
 
 #include <cassert>
-#include <vlc_url.h>
-#include <vlc_meta.h>
-#include <vlc_input_item.h>
-#include <vlc_list.hpp>
+#include <heimdall_url.h>
+#include <heimdall_meta.h>
+#include <heimdall_input_item.h>
+#include <heimdall_list.hpp>
 
 #include <QTreeWidget>
 #include <QTableWidget>
@@ -86,12 +87,12 @@ MetaPanel::MetaPanel( QWidget *parent,
 }
 
     /* Title, artist and album*/
-    ADD_META( VLC_META_TITLE, title_text, 0, 10 ); line++;
-    ADD_META( VLC_META_ARTIST, artist_text, 0, 10 ); line++;
-    ADD_META( VLC_META_ALBUM, collection_text, 0, 7 );
+    ADD_META( HEIMDALL_META_TITLE, title_text, 0, 10 ); line++;
+    ADD_META( HEIMDALL_META_ARTIST, artist_text, 0, 10 ); line++;
+    ADD_META( HEIMDALL_META_ALBUM, collection_text, 0, 7 );
 
     /* Date */
-    label = new QLabel( qfu( VLC_META_DATE ) );
+    label = new QLabel( qfu( HEIMDALL_META_DATE ) );
     label->setFont( smallFont ); label->setContentsMargins( 3, 2, 0, 0 );
     metaLayout->addWidget( label, line - 1, 7, 1, 2 );
 
@@ -105,10 +106,10 @@ MetaPanel::MetaPanel( QWidget *parent,
 
     /* Genre Name */
     /* TODO List id3genres.h is not includable yet ? */
-    ADD_META( VLC_META_GENRE, genre_text, 0, 7 );
+    ADD_META( HEIMDALL_META_GENRE, genre_text, 0, 7 );
 
     /* Number - on the same line */
-    label = new QLabel( qfu( VLC_META_TRACK_NUMBER ) );
+    label = new QLabel( qfu( HEIMDALL_META_TRACK_NUMBER ) );
     label->setFont( smallFont ); label->setContentsMargins( 3, 2, 0, 0 );
     metaLayout->addWidget( label, line - 1, 7, 1, 3  );
 
@@ -127,12 +128,12 @@ MetaPanel::MetaPanel( QWidget *parent,
     line++;
 
     /* Now Playing - Useful for live feeds (HTTP, DVB, ETC...) */
-    ADD_META( VLC_META_NOW_PLAYING, nowplaying_text, 0, 7 );
+    ADD_META( HEIMDALL_META_NOW_PLAYING, nowplaying_text, 0, 7 );
     nowplaying_text->setReadOnly( true ); line--;
 
     /* Language on the same line */
-    ADD_META( VLC_META_LANGUAGE, language_text, 7, -1 ); line++;
-    ADD_META( VLC_META_PUBLISHER, publisher_text, 0, 7 );
+    ADD_META( HEIMDALL_META_LANGUAGE, language_text, 7, -1 ); line++;
+    ADD_META( HEIMDALL_META_PUBLISHER, publisher_text, 0, 7 );
 
     /* Fingerprint button on the same line */
     fingerprintButton = new QPushButton( qtr("&Fingerprint") );
@@ -149,12 +150,12 @@ MetaPanel::MetaPanel( QWidget *parent,
         currentURL = url;
     } );
 
-    ADD_META( VLC_META_COPYRIGHT, copyright_text, 0,  7 ); line++;
+    ADD_META( HEIMDALL_META_COPYRIGHT, copyright_text, 0,  7 ); line++;
 
     fingerprintButton->setMinimumWidth( std::max( fingerprintButton->minimumSizeHint().width(),
                                                   art_cover->minimumSizeHint().width() ) );
 
-    ADD_META( VLC_META_ENCODED_BY, encodedby_text, 0, 7 ); line++;
+    ADD_META( HEIMDALL_META_ENCODED_BY, encodedby_text, 0, 7 ); line++;
 
     label = new QLabel( qtr( "Comments" ) ); label->setFont( smallFont );
     label->setContentsMargins( 3, 2, 0, 0 );
@@ -164,7 +165,7 @@ MetaPanel::MetaPanel( QWidget *parent,
     metaLayout->addWidget( description_text, line, 0, 1, 7 );
     connect( description_text, &QTextEdit::textChanged, this, &MetaPanel::enterEditMode );
 
-    /* VLC_META_SETTING: Useless */
+    /* HEIMDALL_META_SETTING: Useless */
     /* ADD_META( TRACKID )  Useless ? */
     /* ADD_URI - Do not show it, done outside */
 
@@ -289,8 +290,8 @@ bool MetaPanel::saveMeta()
     /* Reset the status of the mode. No need to emit any signal because parent
        is the only caller */
     b_inEditMode = false;
-    int vlcret = input_item_WriteMeta( VLC_OBJECT(p_intf), input );
-    if (vlcret != VLC_SUCCESS) {
+    int heimdallret = input_item_WriteMeta( HEIMDALL_OBJECT(p_intf), input );
+    if (heimdallret != HEIMDALL_SUCCESS) {
         QMessageBox::warning( this, qtr("Metadata"), qtr("Failed to save metadata") );
         return false;
     }
@@ -415,8 +416,8 @@ void ExtraMetaPanel::update( input_item_t *p_item )
     if( !p_item )
         return;
 
-    vlc_mutex_locker meta_lock( &p_item->lock );
-    vlc_meta_t *p_meta = p_item->p_meta;
+    heimdall_mutex_locker meta_lock( &p_item->lock );
+    heimdall_meta_t *p_meta = p_item->p_meta;
 
     if( !p_meta )
         return;
@@ -443,18 +444,18 @@ void ExtraMetaPanel::update( input_item_t *p_item )
 
     } add_row ( extraMeta );
 
-    if( char const* psz_disc = vlc_meta_Get( p_meta,  vlc_meta_DiscNumber ) )
-        add_row( VLC_META_DISCNUMBER, psz_disc );
+    if( char const* psz_disc = heimdall_meta_Get( p_meta,  heimdall_meta_DiscNumber ) )
+        add_row( HEIMDALL_META_DISCNUMBER, psz_disc );
 
-    if( char const* psz_url = vlc_meta_Get( p_meta, vlc_meta_URL ) )
-        add_row( VLC_META_URL, psz_url );
+    if( char const* psz_url = heimdall_meta_Get( p_meta, heimdall_meta_URL ) )
+        add_row( HEIMDALL_META_URL, psz_url );
 
-    char ** ppsz_keys = vlc_meta_CopyExtraNames( p_meta );
+    char ** ppsz_keys = heimdall_meta_CopyExtraNames( p_meta );
     if( ppsz_keys )
     {
         for( int i = 0; ppsz_keys[i]; ++i )
         {
-            add_row( ppsz_keys[i], vlc_meta_GetExtra( p_meta, ppsz_keys[i] ) );
+            add_row( ppsz_keys[i], heimdall_meta_GetExtra( p_meta, ppsz_keys[i] ) );
             free( ppsz_keys[i] );
         }
 
@@ -508,9 +509,9 @@ void InfoPanel::update( input_item_t *p_item)
     QTreeWidgetItem *current_item = NULL;
     QTreeWidgetItem *child_item = NULL;
 
-    vlc_mutex_locker locker( &p_item->lock );
+    heimdall_mutex_locker locker( &p_item->lock );
 
-    for (auto &cat : vlc::from(p_item->categories, &info_category_t::node))
+    for (auto &cat : heimdall::from(p_item->categories, &info_category_t::node))
     {
         if (info_category_IsHidden(&cat))
             continue;
@@ -519,7 +520,7 @@ void InfoPanel::update( input_item_t *p_item)
         current_item->setText(0, qfu(cat.psz_name));
         InfoTree->addTopLevelItem( current_item );
 
-        for (auto &info : vlc::from(cat.infos, &info_t::node))
+        for (auto &info : heimdall::from(cat.infos, &info_t::node))
         {
             child_item = new QTreeWidgetItem ();
             child_item->setText(0, qfu(info.psz_name) + ": " + qfu(info.psz_value));
@@ -624,7 +625,7 @@ InputStatsPanel::InputStatsPanel( QWidget *parent ): QWidget( parent )
 
     layout->addWidget(StatsTree, 4 );
 
-    statsView = new VLCStatsView( this );
+    statsView = new HeimdallStatsView( this );
     statsView->setFrameStyle( QFrame::NoFrame );
     statsView->setSizePolicy( QSizePolicy::Preferred, QSizePolicy::Fixed );
     input_bitrate_graph->setSizeHint( 1, QSize(0, 100) );

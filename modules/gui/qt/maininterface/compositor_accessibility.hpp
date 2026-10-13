@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2023 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,7 +26,7 @@ class QObject;
 class QAccessibleInterface;
 class QQuickWindow;
 
-namespace vlc {
+namespace heimdall {
 
 class AccessibleRenderWindow
 {

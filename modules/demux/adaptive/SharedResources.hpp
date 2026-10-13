@@ -2,6 +2,7 @@
  * SharedResources.h
  *****************************************************************************
  * Copyright © 2019 VideoLabs, VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -20,7 +21,7 @@
 #ifndef SHAREDRESOURCES_H_
 #define SHAREDRESOURCES_H_
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 #include <string>
 
 namespace adaptive
@@ -48,7 +49,7 @@ namespace adaptive
             Keyring     *getKeyring();
             AbstractConnectionManager *getConnManager();
             /* Helper */
-            static SharedResources * createDefault(vlc_object_t *, const std::string &);
+            static SharedResources * createDefault(heimdall_object_t *, const std::string &);
 
         private:
             AuthStorage *authStorage;

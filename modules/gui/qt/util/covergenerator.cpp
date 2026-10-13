@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Benjamin Arnaud <bunjee@omega.gg>
  *
@@ -20,7 +21,7 @@
 
 #include "covergenerator.hpp"
 
-// VLC includes
+// Heimdall includes
 #include "qt.hpp"
 
 // MediaLibrary includes
@@ -39,7 +40,7 @@
 
 // Qt private exported function
 QT_BEGIN_NAMESPACE
-extern void VLC_WEAK qt_blurImage(QImage &blurImage, qreal radius, bool quality, int transposed = 0);
+extern void HEIMDALL_WEAK qt_blurImage(QImage &blurImage, qreal radius, bool quality, int transposed = 0);
 QT_END_NAMESPACE
 
 //-------------------------------------------------------------------------------------------------
@@ -317,17 +318,17 @@ void CoverGenerator::blur(QImage& image) const
 
 //-------------------------------------------------------------------------------------------------
 
-QString CoverGenerator::getPrefix(vlc_ml_parent_type type) const
+QString CoverGenerator::getPrefix(heimdall_ml_parent_type type) const
 {
     switch (type)
     {
-        case VLC_ML_PARENT_GENRE:
+        case HEIMDALL_ML_PARENT_GENRE:
             return "genre";
-        case VLC_ML_PARENT_GROUP:
+        case HEIMDALL_ML_PARENT_GROUP:
             return "group";
-        case VLC_ML_PARENT_FOLDER:
+        case HEIMDALL_ML_PARENT_FOLDER:
             return "folder";
-        case VLC_ML_PARENT_PLAYLIST:
+        case HEIMDALL_ML_PARENT_PLAYLIST:
             return "playlist";
         default:
             return "unknown";

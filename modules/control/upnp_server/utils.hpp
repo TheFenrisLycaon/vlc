@@ -2,6 +2,7 @@
  * utils.hpp : UPnP server utils
  *****************************************************************************
  * Copyright © 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Alaric Senat <alaric@videolabs.io>
  *
@@ -26,7 +27,7 @@
 #include <upnp/list.h>
 #include <vector>
 
-#include <vlc_media_library.h>
+#include <heimdall_media_library.h>
 
 struct sockaddr_storage;
 
@@ -40,7 +41,7 @@ struct MimeType
     std::string combine() const { return media_type + '/' + file_type; }
 };
 
-MimeType get_mimetype(vlc_ml_media_type_t type, const std::string &file_extension) noexcept;
+MimeType get_mimetype(heimdall_ml_media_type_t type, const std::string &file_extension) noexcept;
 
 std::string file_extension(const std::string &file);
 
@@ -51,13 +52,13 @@ std::string addr_to_string(const sockaddr_storage *addr);
 
 template <typename T> using ConstRef = std::reference_wrapper<const T>;
 
-using MediaTrackRef = ConstRef<vlc_ml_media_track_t>;
-std::vector<MediaTrackRef> get_media_tracks(const vlc_ml_media_t &media, vlc_ml_track_type_t type);
-using MediaFileRef = ConstRef<vlc_ml_file_t>;
-std::vector<MediaFileRef> get_media_files(const vlc_ml_media_t &media, vlc_ml_file_type_t);
+using MediaTrackRef = ConstRef<heimdall_ml_media_track_t>;
+std::vector<MediaTrackRef> get_media_tracks(const heimdall_ml_media_t &media, heimdall_ml_track_type_t type);
+using MediaFileRef = ConstRef<heimdall_ml_file_t>;
+std::vector<MediaFileRef> get_media_files(const heimdall_ml_media_t &media, heimdall_ml_file_type_t);
 
-std::string album_thumbnail_url(const vlc_ml_album_t &);
-std::string thumbnail_url(const vlc_ml_media_t &media, vlc_ml_thumbnail_size_t size);
+std::string album_thumbnail_url(const heimdall_ml_album_t &);
+std::string thumbnail_url(const heimdall_ml_media_t &media, heimdall_ml_thumbnail_size_t size);
 
 namespace http
 {

@@ -2,6 +2,7 @@
  * builder.cpp
  *****************************************************************************
  * Copyright (C) 2003 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cyril Deguet     <asmax@via.ecp.fr>
  *          Olivier Teulière <ipkiss@via.ecp.fr>
@@ -57,8 +58,8 @@
 #include "../utils/var_text.hpp"
 
 #include <sys/stat.h>
-#include <vlc_fs.h>
-#include <vlc_image.h>
+#include <heimdall_fs.h>
+#include <heimdall_image.h>
 
 
 Builder::Builder( intf_thread_t *pIntf, const BuilderData &rData,
@@ -1267,7 +1268,7 @@ std::string Builder::getFilePath( const std::string &rFileName ) const
 
     // check that the file exists
     struct stat stat;
-    if( vlc_stat( full_path.c_str(), &stat ) )
+    if( heimdall_stat( full_path.c_str(), &stat ) )
     {
         msg_Err( getIntf(), "missing file: %s", file.c_str() );
         full_path = "";

@@ -1,13 +1,14 @@
 /*****************************************************************************
- * ncurses.c : NCurses interface for vlc
+ * ncurses.c : NCurses interface for heimdall
  *****************************************************************************
  * Copyright © 2001-2011 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Sam Hocevar <sam@zoy.org>
  *          Laurent Aimar <fenrir@via.ecp.fr>
  *          Yoann Peronneau <yoann@videolan.org>
- *          Derk-Jan Hartman <hartman at videolan dot org>
- *          Rafaël Carré <funman@videolanorg>
+ *          Derk-Jan Hartman <hartman at lycaria dot org>
+ *          Rafaël Carré <funman@lycariaorg>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -42,31 +43,31 @@
 #include <math.h>
 #include <errno.h>
 
-#define VLC_MODULE_LICENSE VLC_LICENSE_GPL_2_PLUS
-#include <vlc_common.h>
-#include <vlc_arrays.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
+#define HEIMDALL_MODULE_LICENSE HEIMDALL_LICENSE_GPL_2_PLUS
+#include <heimdall_common.h>
+#include <heimdall_arrays.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
 
 #include <ncurses.h>
 
-#include <vlc_interface.h>
-#include <vlc_vout.h>
-#include <vlc_charset.h>
-#include <vlc_input_item.h>
-#include <vlc_es.h>
-#include <vlc_player.h>
-#include <vlc_playlist.h>
-#include <vlc_meta.h>
-#include <vlc_fs.h>
-#include <vlc_url.h>
-#include <vlc_vector.h>
+#include <heimdall_interface.h>
+#include <heimdall_vout.h>
+#include <heimdall_charset.h>
+#include <heimdall_input_item.h>
+#include <heimdall_es.h>
+#include <heimdall_player.h>
+#include <heimdall_playlist.h>
+#include <heimdall_meta.h>
+#include <heimdall_fs.h>
+#include <heimdall_url.h>
+#include <heimdall_vector.h>
 
 /*****************************************************************************
  * Local prototypes.
  *****************************************************************************/
-static int  Open           (vlc_object_t *);
-static void Close          (vlc_object_t *);
+static int  Open           (heimdall_object_t *);
+static void Close          (heimdall_object_t *);
 
 /*****************************************************************************
  * Module descriptor
@@ -77,7 +78,7 @@ static void Close          (vlc_object_t *);
     "This option allows you to specify the directory the ncurses filebrowser " \
     "will show you initially.")
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname("Ncurses")
     set_description(N_("Ncurses interface"))
     set_capability("interface", 10)
@@ -89,7 +90,7 @@ vlc_module_begin ()
     add_string("ncurses-colors", "", N_("ncurses colors config"), N_("configures the ncurses color palette to provided rgb values, avaiable colors: black, red, green, yellow, blue, magenta, cyan, white. Example: ncurses-colors=yellow=FF8000,cyan=00E5CC. Note: Do not use ' or \" in configuration files!"))
     add_string("ncurses-theme", "", N_("ncurses theme config"), N_("configures what UI elements use what colors from the palette, avaiable elements: title, box, status, info, error, warning, debug, category, folder, progress. Example: ncurses-theme=title=yellow:black,box=cyan:black,playlist=cyan:black-yellow:black. Note: Do not use ' or \" in configuration files!"))
 
-vlc_module_end()
+heimdall_module_end()
 
 #include "audio_filter/equalizer_presets.h"
 #include "eject.c"
@@ -155,7 +156,7 @@ struct dir_entry_t
     char        *path;
 };
 
-typedef struct VLC_VECTOR(char const *) pl_item_names;
+typedef struct HEIMDALL_VECTOR(char const *) pl_item_names;
 
 typedef struct short_color
 {
@@ -164,7 +165,7 @@ typedef struct short_color
 
 struct intf_sys_t
 {
-    vlc_thread_t    thread;
+    heimdall_thread_t    thread;
     atomic_bool     alive;
 
     bool            color;
@@ -184,12 +185,12 @@ struct intf_sys_t
     struct
     {
         int              type;
-        vlc_log_t       *item;
+        heimdall_log_t       *item;
         char            *msg;
     } msgs[50];      // ring buffer
     int                 i_msgs;
     int                 verbosity;
-    vlc_mutex_t         msg_lock;
+    heimdall_mutex_t         msg_lock;
 
     /* Search Box context */
     char            search_chain[20];
@@ -205,8 +206,8 @@ struct intf_sys_t
     bool            show_hidden_files;
 
     /* Playlist context */
-    vlc_playlist_t             *playlist;
-    vlc_playlist_listener_id   *playlist_listener;
+    heimdall_playlist_t             *playlist;
+    heimdall_playlist_listener_id   *playlist_listener;
     pl_item_names               pl_item_names;
     bool                        need_update;
     bool                        plidx_follow;
@@ -252,7 +253,7 @@ static bool IsFile(const char *current_dir, const char *entry)
     char *uri;
     if (asprintf(&uri, "%s" DIR_SEP "%s", current_dir, entry) != -1) {
         struct stat st;
-        ret = vlc_stat(uri, &st) || !S_ISDIR(st.st_mode);
+        ret = heimdall_stat(uri, &st) || !S_ISDIR(st.st_mode);
         free(uri);
     }
 #endif
@@ -268,17 +269,17 @@ static void ReadDir(intf_thread_t *intf)
         return;
     }
 
-    vlc_DIR *current_dir = vlc_opendir(sys->current_dir);
+    heimdall_DIR *current_dir = heimdall_opendir(sys->current_dir);
     if (!current_dir) {
         msg_Warn(intf, "cannot open directory `%s' (%s)", sys->current_dir,
-                 vlc_strerror_c(errno));
+                 heimdall_strerror_c(errno));
         return;
     }
 
     DirsDestroy(sys);
 
     const char *entry;
-    while ((entry = vlc_readdir(current_dir))) {
+    while ((entry = heimdall_readdir(current_dir))) {
         if (!sys->show_hidden_files && *entry == '.' && strcmp(entry, ".."))
             continue;
 
@@ -297,7 +298,7 @@ static void ReadDir(intf_thread_t *intf)
         continue;
     }
 
-    vlc_closedir(current_dir);
+    heimdall_closedir(current_dir);
 
     if (sys->n_dir_entries > 0)
         qsort(sys->dir_entries, sys->n_dir_entries,
@@ -342,47 +343,47 @@ static void CheckIdx(intf_sys_t *sys)
 static void PlaylistRebuild(intf_thread_t *intf)
 {
     intf_sys_t *sys = intf->p_sys;
-    vlc_playlist_t *playlist = sys->playlist;
+    heimdall_playlist_t *playlist = sys->playlist;
 
     for (size_t i = 0; i < sys->pl_item_names.size; ++i)
         free((void *)sys->pl_item_names.data[i]);
-    vlc_vector_clear(&sys->pl_item_names);
+    heimdall_vector_clear(&sys->pl_item_names);
 
-    size_t count = vlc_playlist_Count(playlist);
-    if (!vlc_vector_reserve(&sys->pl_item_names, count))
+    size_t count = heimdall_playlist_Count(playlist);
+    if (!heimdall_vector_reserve(&sys->pl_item_names, count))
         return;
     for (size_t i = 0; i < count; ++i)
     {
-        vlc_playlist_item_t *plitem = vlc_playlist_Get(playlist, i);
-        input_item_t *item = vlc_playlist_item_GetMedia(plitem);
+        heimdall_playlist_item_t *plitem = heimdall_playlist_Get(playlist, i);
+        input_item_t *item = heimdall_playlist_item_GetMedia(plitem);
         char *name = input_item_GetTitleFbName(item);
-        vlc_vector_push(&sys->pl_item_names, name);
+        heimdall_vector_push(&sys->pl_item_names, name);
     }
 
     sys->need_update = false;
 }
 
 static void
-playlist_on_items_added(vlc_playlist_t *playlist,
+playlist_on_items_added(heimdall_playlist_t *playlist,
                         size_t index,
-                        vlc_playlist_item_t *const items[], size_t count,
+                        heimdall_playlist_item_t *const items[], size_t count,
                         void *userdata)
 {
-    VLC_UNUSED(playlist);
-    VLC_UNUSED(index); VLC_UNUSED(items); VLC_UNUSED(count);
+    HEIMDALL_UNUSED(playlist);
+    HEIMDALL_UNUSED(index); HEIMDALL_UNUSED(items); HEIMDALL_UNUSED(count);
 
     intf_sys_t *sys = (intf_sys_t *)userdata;
     sys->need_update = true;
 }
 
 static void
-playlist_on_items_updated(vlc_playlist_t *playlist,
+playlist_on_items_updated(heimdall_playlist_t *playlist,
                           size_t index,
-                          vlc_playlist_item_t *const items[], size_t count,
+                          heimdall_playlist_item_t *const items[], size_t count,
                           void *userdata)
 {
-    VLC_UNUSED(playlist);
-    VLC_UNUSED(index); VLC_UNUSED(items); VLC_UNUSED(count);
+    HEIMDALL_UNUSED(playlist);
+    HEIMDALL_UNUSED(index); HEIMDALL_UNUSED(items); HEIMDALL_UNUSED(count);
 
     ((intf_sys_t *)userdata)->need_update = true;
 }
@@ -460,7 +461,7 @@ static const struct { short f; short b; } default_color_pairs[] =
     /* Source: State, Position, Volume, Chapters, etc...*/
     [C_STATUS]      = { COLOR_BLUE,     COLOR_BLACK },
 
-    /* VLC messages, keep the order from highest priority to lowest */
+    /* Heimdall messages, keep the order from highest priority to lowest */
     [C_INFO]        = { COLOR_BLACK,    COLOR_WHITE },
     [C_ERROR]       = { COLOR_RED,      COLOR_BLACK },
     [C_WARNING]     = { COLOR_YELLOW,   COLOR_BLACK },
@@ -849,25 +850,25 @@ static int DrawMeta(intf_thread_t *intf)
     intf_sys_t *sys = intf->p_sys;
     int l = 0;
 
-    vlc_player_t *player = vlc_playlist_GetPlayer(sys->playlist);
-    vlc_player_Lock(player);
-    input_item_t *item = vlc_player_HoldCurrentMedia(player);
-    vlc_player_Unlock(player);
+    heimdall_player_t *player = heimdall_playlist_GetPlayer(sys->playlist);
+    heimdall_player_Lock(player);
+    input_item_t *item = heimdall_player_HoldCurrentMedia(player);
+    heimdall_player_Unlock(player);
     if (!item)
         return 0;
 
-    vlc_mutex_lock(&item->lock);
-    for (int i=0; i<VLC_META_TYPE_COUNT; i++) {
-        const char *meta = vlc_meta_Get(item->p_meta, i);
+    heimdall_mutex_lock(&item->lock);
+    for (int i=0; i<HEIMDALL_META_TYPE_COUNT; i++) {
+        const char *meta = heimdall_meta_Get(item->p_meta, i);
         if (!meta || !*meta)
             continue;
 
         if (sys->color) color_set(C_CATEGORY, NULL);
-        MainBoxWrite(sys, l++, "  [%s]", vlc_meta_TypeToLocalizedString(i));
+        MainBoxWrite(sys, l++, "  [%s]", heimdall_meta_TypeToLocalizedString(i));
         if (sys->color) color_set(C_DEFAULT, NULL);
         MainBoxWrite(sys, l++, "      %s", meta);
     }
-    vlc_mutex_unlock(&item->lock);
+    heimdall_mutex_unlock(&item->lock);
 
     input_item_Release(item);
 
@@ -879,16 +880,16 @@ static int DrawInfo(intf_thread_t *intf)
     intf_sys_t *sys = intf->p_sys;
     int l = 0;
 
-    vlc_player_t *player = vlc_playlist_GetPlayer(sys->playlist);
-    vlc_player_Lock(player);
-    input_item_t *item = vlc_player_HoldCurrentMedia(player);
-    vlc_player_Unlock(player);
+    heimdall_player_t *player = heimdall_playlist_GetPlayer(sys->playlist);
+    heimdall_player_Lock(player);
+    input_item_t *item = heimdall_player_HoldCurrentMedia(player);
+    heimdall_player_Unlock(player);
     if (!item)
         return 0;
 
-    vlc_mutex_lock(&item->lock);
+    heimdall_mutex_lock(&item->lock);
     info_category_t *p_category;
-    vlc_list_foreach(p_category, &item->categories, node) {
+    heimdall_list_foreach(p_category, &item->categories, node) {
         info_t *p_info;
 
         if (info_category_IsHidden(p_category))
@@ -901,7 +902,7 @@ static int DrawInfo(intf_thread_t *intf)
             MainBoxWrite(sys, l++, _("      %s: %s"),
                          p_info->psz_name, p_info->psz_value);
     }
-    vlc_mutex_unlock(&item->lock);
+    heimdall_mutex_unlock(&item->lock);
 
     input_item_Release(item);
 
@@ -914,14 +915,14 @@ static int DrawStats(intf_thread_t *intf)
     input_stats_t *p_stats;
     int l = 0, i_audio = 0, i_video = 0;
 
-    vlc_player_t *player = vlc_playlist_GetPlayer(sys->playlist);
-    vlc_player_Lock(player);
-    input_item_t *item = vlc_player_HoldCurrentMedia(player);
-    vlc_player_Unlock(player);
+    heimdall_player_t *player = heimdall_playlist_GetPlayer(sys->playlist);
+    heimdall_player_Lock(player);
+    input_item_t *item = heimdall_player_HoldCurrentMedia(player);
+    heimdall_player_Unlock(player);
     if (!item)
         return 0;
 
-    vlc_mutex_lock(&item->lock);
+    heimdall_mutex_lock(&item->lock);
     p_stats = item->p_stats;
 
     for (size_t i = 0; i < item->es_vec.size ; i++) {
@@ -970,7 +971,7 @@ static int DrawStats(intf_thread_t *intf)
     }
     if (sys->color) color_set(C_DEFAULT, NULL);
 
-    vlc_mutex_unlock(&item->lock);
+    heimdall_mutex_unlock(&item->lock);
 
     input_item_Release(item);
 
@@ -1111,7 +1112,7 @@ static int DrawEqualizer(intf_thread_t *intf)
     MainBoxWrite(sys, ret_size++, _("Press + or - here to save"));
     for (int i = 0; i < EQZ_BANDS_MAX; i++)
     {
-        MainBoxWrite(sys, ret_size, _("%.1fHz Band:"), f_vlc_frequency_table_10b[i]);
+        MainBoxWrite(sys, ret_size, _("%.1fHz Band:"), f_heimdall_frequency_table_10b[i]);
         DrawBandsBar(sys, ret_size, sys->bands[i], sys->bands[i]);
         ret_size++;
     }
@@ -1133,13 +1134,13 @@ static int DrawPresets(intf_thread_t *intf)
 static int DrawPlaylist(intf_thread_t *intf)
 {
     intf_sys_t *sys = intf->p_sys;
-    vlc_playlist_t *playlist = sys->playlist;
+    heimdall_playlist_t *playlist = sys->playlist;
 
-    vlc_playlist_Lock(playlist);
-    ssize_t cur_idx = vlc_playlist_GetCurrentIndex(playlist);
+    heimdall_playlist_Lock(playlist);
+    ssize_t cur_idx = heimdall_playlist_GetCurrentIndex(playlist);
     if (sys->need_update)
         PlaylistRebuild(intf);
-    vlc_playlist_Unlock(playlist);
+    heimdall_playlist_Unlock(playlist);
 
     if (sys->plidx_follow)
         sys->box_idx = cur_idx == -1 ? 0 : cur_idx;
@@ -1166,10 +1167,10 @@ static int DrawMessages(intf_thread_t *intf)
     intf_sys_t *sys = intf->p_sys;
     int l = 0;
 
-    vlc_mutex_lock(&sys->msg_lock);
+    heimdall_mutex_lock(&sys->msg_lock);
     int i = sys->i_msgs;
     for(;;) {
-        vlc_log_t *msg = sys->msgs[i].item;
+        heimdall_log_t *msg = sys->msgs[i].item;
         if (msg) {
             if (sys->color)
                 color_set(sys->msgs[i].type + C_INFO, NULL);
@@ -1183,7 +1184,7 @@ static int DrawMessages(intf_thread_t *intf)
             break;
     }
 
-    vlc_mutex_unlock(&sys->msg_lock);
+    heimdall_mutex_unlock(&sys->msg_lock);
     if (sys->color)
         color_set(C_DEFAULT, NULL);
 
@@ -1193,8 +1194,8 @@ static int DrawMessages(intf_thread_t *intf)
 static int DrawStatus(intf_thread_t *intf)
 {
     intf_sys_t     *sys = intf->p_sys;
-    vlc_playlist_t *playlist = sys->playlist;
-    const char *name = _("VLC media player");
+    heimdall_playlist_t *playlist = sys->playlist;
+    const char *name = _("Heimdall media player");
     const size_t name_len = strlen(name) + sizeof(PACKAGE_VERSION);
     int y = 0;
     const char *repeat, *loop, *random;
@@ -1217,83 +1218,83 @@ static int DrawStatus(intf_thread_t *intf)
     repeat = "";
     loop = "";
     random = "";
-    vlc_playlist_Lock(playlist);
-    enum vlc_playlist_playback_repeat repeat_mode =
-        vlc_playlist_GetPlaybackRepeat(playlist);
-    enum vlc_playlist_playback_order order_mode =
-        vlc_playlist_GetPlaybackOrder(playlist);
-    if (repeat_mode == VLC_PLAYLIST_PLAYBACK_REPEAT_CURRENT)
+    heimdall_playlist_Lock(playlist);
+    enum heimdall_playlist_playback_repeat repeat_mode =
+        heimdall_playlist_GetPlaybackRepeat(playlist);
+    enum heimdall_playlist_playback_order order_mode =
+        heimdall_playlist_GetPlaybackOrder(playlist);
+    if (repeat_mode == HEIMDALL_PLAYLIST_PLAYBACK_REPEAT_CURRENT)
         repeat = "[Repeat]";
-    else if (repeat_mode == VLC_PLAYLIST_PLAYBACK_REPEAT_ALL)
+    else if (repeat_mode == HEIMDALL_PLAYLIST_PLAYBACK_REPEAT_ALL)
         loop = "[Loop]";
-    if (order_mode == VLC_PLAYLIST_PLAYBACK_ORDER_RANDOM)
+    if (order_mode == HEIMDALL_PLAYLIST_PLAYBACK_ORDER_RANDOM)
         random = "[Random]";
 
-    vlc_player_t *player = vlc_playlist_GetPlayer(playlist);
-    if (vlc_player_IsStarted(player)) {
+    heimdall_player_t *player = heimdall_playlist_GetPlayer(playlist);
+    if (heimdall_player_IsStarted(player)) {
         char *path, *uri;
 
-        input_item_t *item = vlc_player_GetCurrentMedia(player);
+        input_item_t *item = heimdall_player_GetCurrentMedia(player);
         assert(item);
         uri = input_item_GetURI(item);
-        path = vlc_uri2path(uri);
+        path = heimdall_uri2path(uri);
 
         mvnprintw(y++, 0, COLS, _(" Source   : %s"), path?path:uri);
         free(uri);
         free(path);
 
-        enum vlc_player_state state = vlc_player_GetState(player);
+        enum heimdall_player_state state = heimdall_player_GetState(player);
         switch (state)
         {
             static const char *input_state[] = {
-                [VLC_PLAYER_STATE_PLAYING] = " State    : Playing %s%s%s",
-                [VLC_PLAYER_STATE_STARTED] = " State    : Opening/Connecting %s%s%s",
-                [VLC_PLAYER_STATE_PAUSED]  = " State    : Paused %s%s%s",
+                [HEIMDALL_PLAYER_STATE_PLAYING] = " State    : Playing %s%s%s",
+                [HEIMDALL_PLAYER_STATE_STARTED] = " State    : Opening/Connecting %s%s%s",
+                [HEIMDALL_PLAYER_STATE_PAUSED]  = " State    : Paused %s%s%s",
             };
             char buf1[MSTRTIME_MAX_SIZE];
             char buf2[MSTRTIME_MAX_SIZE];
             float volume;
 
-        case VLC_PLAYER_STATE_STOPPED:
+        case HEIMDALL_PLAYER_STATE_STOPPED:
             y += 2;
             break;
 
-        case VLC_PLAYER_STATE_PLAYING:
-        case VLC_PLAYER_STATE_STARTED:
-        case VLC_PLAYER_STATE_PAUSED:
+        case HEIMDALL_PLAYER_STATE_PLAYING:
+        case HEIMDALL_PLAYER_STATE_STARTED:
+        case HEIMDALL_PLAYER_STATE_PAUSED:
             mvnprintw(y++, 0, COLS, _(input_state[state]), repeat, random, loop);
             /* Fall-through */
 
         default:
-            vlc_tick_to_str(buf1, vlc_player_GetTime(player));
-            vlc_tick_to_str(buf2, vlc_player_GetLength(player));
+            heimdall_tick_to_str(buf1, heimdall_player_GetTime(player));
+            heimdall_tick_to_str(buf2, heimdall_player_GetLength(player));
 
             mvnprintw(y++, 0, COLS, _(" Position : %s/%s"), buf1, buf2);
 
-            volume = vlc_player_aout_GetVolume(player);
-            bool mute = vlc_player_aout_IsMuted(player);
+            volume = heimdall_player_aout_GetVolume(player);
+            bool mute = heimdall_player_aout_IsMuted(player);
             mvnprintw(y++, 0, COLS,
                       mute ? _(" Volume   : Mute") :
                       volume >= 0.f ? _(" Volume   : %3ld%%") : _(" Volume   : ----"),
                       lroundf(volume * 100.f));
 
             size_t title_count = 0;
-            struct vlc_player_title_list *titles =
-                vlc_player_GetTitleList(player);
+            struct heimdall_player_title_list *titles =
+                heimdall_player_GetTitleList(player);
             if (titles)
-                title_count = vlc_player_title_list_GetCount(titles);
+                title_count = heimdall_player_title_list_GetCount(titles);
             if (title_count > 0)
                 mvnprintw(y++, 0, COLS, _(" Title    : %zd/%d"),
-                          vlc_player_GetSelectedTitleIdx(player), title_count);
-            struct vlc_player_title const *title =
-                vlc_player_GetSelectedTitle(player);
+                          heimdall_player_GetSelectedTitleIdx(player), title_count);
+            struct heimdall_player_title const *title =
+                heimdall_player_GetSelectedTitle(player);
 
             if (title && title->chapter_count > 0)
                 mvnprintw(y++, 0, COLS, _(" Chapter  : %zd/%d"),
-                          vlc_player_GetSelectedChapterIdx(player),
+                          heimdall_player_GetSelectedChapterIdx(player),
                           title->chapter_count);
         }
-        if (vlc_player_GetError(player) == VLC_PLAYER_ERROR_GENERIC)
+        if (heimdall_player_GetError(player) == HEIMDALL_PLAYER_ERROR_GENERIC)
             y += 2;
     } else {
         mvnprintw(y++, 0, COLS, _(" Source: <no current item>"));
@@ -1305,17 +1306,17 @@ static int DrawStatus(intf_thread_t *intf)
     if (sys->color) color_set(C_DEFAULT, NULL);
     DrawBox(y++, 1, sys->color, ""); /* position slider */
     DrawEmptyLine(y, 1, COLS-2);
-    if (vlc_player_IsStarted(player))
+    if (heimdall_player_IsStarted(player))
     {
         if (sys->color)
             color_set(C_PROGRESS, NULL);
-        DrawEmptyLine(y, 1, (int)((COLS-2) * vlc_player_GetPosition(player)));
+        DrawEmptyLine(y, 1, (int)((COLS-2) * heimdall_player_GetPosition(player)));
         if (sys->color)
             color_set(C_DEFAULT, NULL);
     }
     y += 2; /* skip slider and box */
 
-    vlc_playlist_Unlock(playlist);
+    heimdall_playlist_Unlock(playlist);
 
     return y;
 }
@@ -1385,12 +1386,12 @@ static void Redraw(intf_thread_t *intf)
     refresh();
 }
 
-static void ChangePosition(vlc_player_t *player, float increment)
+static void ChangePosition(heimdall_player_t *player, float increment)
 {
-    vlc_player_Lock(player);
-    if (vlc_player_GetState(player) == VLC_PLAYER_STATE_PLAYING)
-        vlc_player_JumpPos(player, increment);
-    vlc_player_Unlock(player);
+    heimdall_player_Lock(player);
+    if (heimdall_player_GetState(player) == HEIMDALL_PLAYER_STATE_PLAYING)
+        heimdall_player_JumpPos(player, increment);
+    heimdall_player_Unlock(player);
 }
 
 static inline void RemoveLastUTF8Entity(char *psz, int len)
@@ -1428,20 +1429,20 @@ static char *GetDiscDevice(const char *name)
     return device;
 }
 
-static void Eject(intf_thread_t *intf, vlc_player_t *player)
+static void Eject(intf_thread_t *intf, heimdall_player_t *player)
 {
     char *device, *name;
 
     /* If there's a stream playing, we aren't allowed to eject ! */
-    vlc_player_Lock(player);
-    bool started = vlc_player_IsStarted(player);
-    vlc_player_Unlock(player);
+    heimdall_player_Lock(player);
+    bool started = heimdall_player_IsStarted(player);
+    heimdall_player_Unlock(player);
     if (started)
         return;
 
-    vlc_player_Lock(player);
-    input_item_t *current = vlc_player_GetCurrentMedia(player);
-    vlc_player_Unlock(player);
+    heimdall_player_Lock(player);
+    input_item_t *current = heimdall_player_GetCurrentMedia(player);
+    heimdall_player_Unlock(player);
     if (!current)
         return;
     name = current->psz_name;
@@ -1455,7 +1456,7 @@ static void Eject(intf_thread_t *intf, vlc_player_t *player)
 
 static void AddItem(intf_thread_t *intf, const char *path)
 {
-    char *uri = vlc_path2uri(path, NULL);
+    char *uri = heimdall_path2uri(path, NULL);
     if (uri == NULL)
         return;
 
@@ -1465,10 +1466,10 @@ static void AddItem(intf_thread_t *intf, const char *path)
         return;
 
     intf_sys_t *sys = intf->p_sys;
-    vlc_playlist_t *playlist = sys->playlist;
-    vlc_playlist_Lock(playlist);
-    vlc_playlist_AppendOne(playlist, item);
-    vlc_playlist_Unlock(playlist);
+    heimdall_playlist_t *playlist = sys->playlist;
+    heimdall_playlist_Lock(playlist);
+    heimdall_playlist_AppendOne(playlist, item);
+    heimdall_playlist_Unlock(playlist);
 
     input_item_Release(item);
 }
@@ -1546,40 +1547,40 @@ static void EqualizerLoad(intf_sys_t * sys)
     EnsureEnd();
 }
 
-static int AudioFilterCallback(vlc_object_t * pobj, const char * pvar, vlc_value_t old, vlc_value_t new, void *vsys)
+static int AudioFilterCallback(heimdall_object_t * pobj, const char * pvar, heimdall_value_t old, heimdall_value_t new, void *vsys)
 {
     (void)pobj, (void)pvar, (void)old;
     intf_sys_t * sys = (intf_sys_t *)vsys;
     sys->eq_enabled = new.psz_string && strstr(new.psz_string, "equalizer");
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int EqualizerBandsCallback(vlc_object_t * pobj, const char * pvar, vlc_value_t old, vlc_value_t new, void *vsys)
+static int EqualizerBandsCallback(heimdall_object_t * pobj, const char * pvar, heimdall_value_t old, heimdall_value_t new, void *vsys)
 {
     (void)pobj, (void)pvar, (void)old;
     intf_sys_t * sys = (intf_sys_t *)vsys;
 
     if (new.psz_string)
         EqualizerUpdateBands(sys, new.psz_string);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int EqualizerPreampCallback(vlc_object_t * pobj, const char * pvar, vlc_value_t old, vlc_value_t new, void *vsys)
+static int EqualizerPreampCallback(heimdall_object_t * pobj, const char * pvar, heimdall_value_t old, heimdall_value_t new, void *vsys)
 {
     (void)pobj, (void)pvar, (void)old;
     intf_sys_t * sys = (intf_sys_t *)vsys;
 
     sys->preamp = new.f_float;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int EqualizerPresetCallback(vlc_object_t * pobj, const char * pvar, vlc_value_t old, vlc_value_t new, void *vsys)
+static int EqualizerPresetCallback(heimdall_object_t * pobj, const char * pvar, heimdall_value_t old, heimdall_value_t new, void *vsys)
 {
     (void)pobj, (void)pvar, (void)old;
     intf_sys_t * sys = (intf_sys_t *)vsys;
     if (new.psz_string)
         EqualizerUpdatePreset(sys, new.psz_string);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 // Add var callbacks to sys paout
@@ -1589,9 +1590,9 @@ static void EqualizerSysPaoutInit(intf_sys_t * sys)
         return;
 
     if (!var_Type(sys->paout, "equalizer-bands"))
-        var_Create(sys->paout, "equalizer-bands", VLC_VAR_STRING | VLC_VAR_DOINHERIT);
+        var_Create(sys->paout, "equalizer-bands", HEIMDALL_VAR_STRING | HEIMDALL_VAR_DOINHERIT);
     if (!var_Type(sys->paout, "equalizer-preamp"))
-        var_Create(sys->paout, "equalizer-preamp", VLC_VAR_FLOAT | VLC_VAR_DOINHERIT);
+        var_Create(sys->paout, "equalizer-preamp", HEIMDALL_VAR_FLOAT | HEIMDALL_VAR_DOINHERIT);
     var_AddCallback(sys->paout, "audio-filter", AudioFilterCallback, sys);
     var_AddCallback(sys->paout, "equalizer-bands", EqualizerBandsCallback, sys);
     var_AddCallback(sys->paout, "equalizer-preamp", EqualizerPreampCallback, sys);
@@ -1601,8 +1602,8 @@ static void EqualizerSysPaoutInit(intf_sys_t * sys)
 // Deals with initialization
 static void EqualizerEnter(intf_sys_t * sys)
 {
-    vlc_player_t * player = vlc_playlist_GetPlayer(sys->playlist);
-    audio_output_t* paout = vlc_player_aout_Hold(player);
+    heimdall_player_t * player = heimdall_playlist_GetPlayer(sys->playlist);
+    audio_output_t* paout = heimdall_player_aout_Hold(player);
     if (!sys->paout)
     {
         sys->paout = paout;
@@ -1641,12 +1642,12 @@ static void EqualizerDeinit(intf_sys_t * sys)
 static void EqualizerEnable(intf_sys_t * sys, int diff, audio_output_t * paout)
 {
     (void)diff, (void)paout;
-    vlc_player_t * player = vlc_playlist_GetPlayer(sys->playlist);
+    heimdall_player_t * player = heimdall_playlist_GetPlayer(sys->playlist);
     if (diff > 0) {
-        vlc_player_aout_EnableFilter(player, "equalizer", true);
+        heimdall_player_aout_EnableFilter(player, "equalizer", true);
     }
     else if (diff < 0) {
-        vlc_player_aout_EnableFilter(player, "equalizer", false);
+        heimdall_player_aout_EnableFilter(player, "equalizer", false);
     }
 }
 
@@ -1767,63 +1768,63 @@ static bool HandlePresetsKey(intf_thread_t *intf, int key)
 static bool HandlePlaylistKey(intf_thread_t *intf, int key)
 {
     intf_sys_t *sys = intf->p_sys;
-    vlc_playlist_t *playlist = sys->playlist;
+    heimdall_playlist_t *playlist = sys->playlist;
 
     switch(key)
     {
     /* Playlist Settings */
     case 'r':
-        vlc_playlist_Lock(playlist);
-        enum vlc_playlist_playback_order order_mode =
-            vlc_playlist_GetPlaybackOrder(playlist);
+        heimdall_playlist_Lock(playlist);
+        enum heimdall_playlist_playback_order order_mode =
+            heimdall_playlist_GetPlaybackOrder(playlist);
         order_mode =
-            order_mode == VLC_PLAYLIST_PLAYBACK_ORDER_NORMAL
-            ? VLC_PLAYLIST_PLAYBACK_ORDER_RANDOM
-            : VLC_PLAYLIST_PLAYBACK_ORDER_NORMAL;
-        vlc_playlist_SetPlaybackOrder(playlist, order_mode);
-        vlc_playlist_Unlock(playlist);
+            order_mode == HEIMDALL_PLAYLIST_PLAYBACK_ORDER_NORMAL
+            ? HEIMDALL_PLAYLIST_PLAYBACK_ORDER_RANDOM
+            : HEIMDALL_PLAYLIST_PLAYBACK_ORDER_NORMAL;
+        heimdall_playlist_SetPlaybackOrder(playlist, order_mode);
+        heimdall_playlist_Unlock(playlist);
         return true;
     case 'l':
     case 'R':
-        vlc_playlist_Lock(playlist);
-        enum vlc_playlist_playback_repeat repeat_mode =
-            vlc_playlist_GetPlaybackRepeat(playlist);
+        heimdall_playlist_Lock(playlist);
+        enum heimdall_playlist_playback_repeat repeat_mode =
+            heimdall_playlist_GetPlaybackRepeat(playlist);
         switch (repeat_mode)
         {
-            case VLC_PLAYLIST_PLAYBACK_REPEAT_NONE:
+            case HEIMDALL_PLAYLIST_PLAYBACK_REPEAT_NONE:
                 repeat_mode = key == 'l'
-                    ? VLC_PLAYLIST_PLAYBACK_REPEAT_ALL
-                    : VLC_PLAYLIST_PLAYBACK_REPEAT_CURRENT;
+                    ? HEIMDALL_PLAYLIST_PLAYBACK_REPEAT_ALL
+                    : HEIMDALL_PLAYLIST_PLAYBACK_REPEAT_CURRENT;
                 break;
-            case VLC_PLAYLIST_PLAYBACK_REPEAT_ALL:
+            case HEIMDALL_PLAYLIST_PLAYBACK_REPEAT_ALL:
                 repeat_mode = key == 'l'
-                    ? VLC_PLAYLIST_PLAYBACK_REPEAT_NONE
-                    : VLC_PLAYLIST_PLAYBACK_REPEAT_CURRENT;
+                    ? HEIMDALL_PLAYLIST_PLAYBACK_REPEAT_NONE
+                    : HEIMDALL_PLAYLIST_PLAYBACK_REPEAT_CURRENT;
                 break;
-            case VLC_PLAYLIST_PLAYBACK_REPEAT_CURRENT:
+            case HEIMDALL_PLAYLIST_PLAYBACK_REPEAT_CURRENT:
                 repeat_mode = key == 'l'
-                    ? VLC_PLAYLIST_PLAYBACK_REPEAT_ALL
-                    : VLC_PLAYLIST_PLAYBACK_REPEAT_NONE;
+                    ? HEIMDALL_PLAYLIST_PLAYBACK_REPEAT_ALL
+                    : HEIMDALL_PLAYLIST_PLAYBACK_REPEAT_NONE;
                 break;
         }
-        vlc_playlist_SetPlaybackRepeat(playlist, repeat_mode);
-        vlc_playlist_Unlock(playlist);
+        heimdall_playlist_SetPlaybackRepeat(playlist, repeat_mode);
+        heimdall_playlist_Unlock(playlist);
         return true;
 
     /* Playlist sort */
     case 'o':
     case 'O':
-        vlc_playlist_Lock(playlist);
-        struct vlc_playlist_sort_criterion criteria =
+        heimdall_playlist_Lock(playlist);
+        struct heimdall_playlist_sort_criterion criteria =
         {
-            .key = VLC_PLAYLIST_SORT_KEY_TITLE,
+            .key = HEIMDALL_PLAYLIST_SORT_KEY_TITLE,
             .order = key == 'o'
-                ? VLC_PLAYLIST_SORT_ORDER_ASCENDING
-                : VLC_PLAYLIST_SORT_ORDER_DESCENDING
+                ? HEIMDALL_PLAYLIST_SORT_ORDER_ASCENDING
+                : HEIMDALL_PLAYLIST_SORT_ORDER_DESCENDING
         };
-        vlc_playlist_Sort(playlist, &criteria, 1);
+        heimdall_playlist_Sort(playlist, &criteria, 1);
         sys->need_update = true;
-        vlc_playlist_Unlock(playlist);
+        heimdall_playlist_Unlock(playlist);
         return true;
 
     case ';':
@@ -1831,9 +1832,9 @@ static bool HandlePlaylistKey(intf_thread_t *intf, int key)
         return true;
 
     case 'g':
-        vlc_playlist_Lock(playlist);
-        sys->box_idx = vlc_playlist_GetCurrentIndex(playlist);
-        vlc_playlist_Unlock(playlist);
+        heimdall_playlist_Lock(playlist);
+        sys->box_idx = heimdall_playlist_GetCurrentIndex(playlist);
+        heimdall_playlist_Unlock(playlist);
         sys->plidx_follow = true;
         return true;
 
@@ -1844,12 +1845,12 @@ static bool HandlePlaylistKey(intf_thread_t *intf, int key)
     case KEY_DC:
         if (sys->pl_item_names.size)
         {
-            vlc_playlist_Lock(playlist);
-            vlc_playlist_RemoveOne(playlist, sys->box_idx);
+            heimdall_playlist_Lock(playlist);
+            heimdall_playlist_RemoveOne(playlist, sys->box_idx);
             if (sys->box_idx >= sys->box_lines_total - 1)
                 sys->box_idx = sys->box_lines_total - 2;
             sys->need_update = true;
-            vlc_playlist_Unlock(playlist);
+            heimdall_playlist_Unlock(playlist);
         }
         return true;
 
@@ -1858,9 +1859,9 @@ static bool HandlePlaylistKey(intf_thread_t *intf, int key)
     case '\n':
         if (sys->pl_item_names.size)
         {
-            vlc_playlist_Lock(playlist);
-            vlc_playlist_PlayAt(playlist, sys->box_idx);
-            vlc_playlist_Unlock(playlist);
+            heimdall_playlist_Lock(playlist);
+            heimdall_playlist_PlayAt(playlist, sys->box_idx);
+            heimdall_playlist_Unlock(playlist);
             sys->plidx_follow = true;
         }
         return true;
@@ -1993,10 +1994,10 @@ static void HandleEditBoxKey(intf_thread_t *intf, int key, int box)
         Search(sys);
 }
 
-static void HandleCommonKey(intf_thread_t *intf, vlc_player_t *player, int key)
+static void HandleCommonKey(intf_thread_t *intf, heimdall_player_t *player, int key)
 {
     intf_sys_t *sys = intf->p_sys;
-    vlc_playlist_t *playlist = sys->playlist;
+    heimdall_playlist_t *playlist = sys->playlist;
 
     switch(key)
     {
@@ -2009,7 +2010,7 @@ static void HandleCommonKey(intf_thread_t *intf, vlc_player_t *player, int key)
     case 'q':
     case 'Q':
     case KEY_EXIT:
-        libvlc_Quit(vlc_object_instance(intf));
+        libheimdall_Quit(heimdall_object_instance(intf));
         return;
 
     case 'h':
@@ -2041,84 +2042,84 @@ static void HandleCommonKey(intf_thread_t *intf, vlc_player_t *player, int key)
 
     /* Common control */
     case 'f':
-        vlc_player_vout_ToggleFullscreen(player);
+        heimdall_player_vout_ToggleFullscreen(player);
         return;
 
     case ' ':
-        vlc_player_Lock(player);
-        vlc_player_TogglePause(player);
-        vlc_player_Unlock(player);
+        heimdall_player_Lock(player);
+        heimdall_player_TogglePause(player);
+        heimdall_player_Unlock(player);
         return;
     case 's':
-        vlc_player_Lock(player);
-        vlc_player_Stop(player);
-        vlc_player_Unlock(player);
+        heimdall_player_Lock(player);
+        heimdall_player_Stop(player);
+        heimdall_player_Unlock(player);
         return;
 
     case 'e': Eject(intf, player);           return;
 
     case '[':
-        vlc_player_Lock(player);
-        vlc_player_SelectPrevTitle(player);
-        vlc_player_Unlock(player);
+        heimdall_player_Lock(player);
+        heimdall_player_SelectPrevTitle(player);
+        heimdall_player_Unlock(player);
         return;
     case ']':
-        vlc_player_Lock(player);
-        vlc_player_SelectNextTitle(player);
-        vlc_player_Unlock(player);
+        heimdall_player_Lock(player);
+        heimdall_player_SelectNextTitle(player);
+        heimdall_player_Unlock(player);
         return;
     case '<':
-        vlc_player_Lock(player);
-        vlc_player_SelectPrevChapter(player);
-        vlc_player_Unlock(player);
+        heimdall_player_Lock(player);
+        heimdall_player_SelectPrevChapter(player);
+        heimdall_player_Unlock(player);
         return;
     case '>':
-        vlc_player_Lock(player);
-        vlc_player_SelectNextChapter(player);
-        vlc_player_Unlock(player);
+        heimdall_player_Lock(player);
+        heimdall_player_SelectNextChapter(player);
+        heimdall_player_Unlock(player);
         return;
 
     case 'p':
-        vlc_playlist_Lock(playlist);
-        vlc_playlist_Prev(playlist);
-        vlc_playlist_Unlock(playlist);
+        heimdall_playlist_Lock(playlist);
+        heimdall_playlist_Prev(playlist);
+        heimdall_playlist_Unlock(playlist);
         break;
     case 'n':
-        vlc_playlist_Lock(playlist);
-        vlc_playlist_Next(playlist);
-        vlc_playlist_Unlock(playlist);
+        heimdall_playlist_Lock(playlist);
+        heimdall_playlist_Next(playlist);
+        heimdall_playlist_Unlock(playlist);
         break;
 
     case 'a':
-        vlc_player_Lock(player);
-        vlc_player_aout_IncrementVolume(player, 1, NULL);
-        vlc_player_Unlock(player);
+        heimdall_player_Lock(player);
+        heimdall_player_aout_IncrementVolume(player, 1, NULL);
+        heimdall_player_Unlock(player);
         break;
     case 'z':
-        vlc_player_Lock(player);
-        vlc_player_aout_DecrementVolume(player, 1, NULL);
-        vlc_player_Unlock(player);
+        heimdall_player_Lock(player);
+        heimdall_player_aout_DecrementVolume(player, 1, NULL);
+        heimdall_player_Unlock(player);
         break;
     case 'm':
-        vlc_player_Lock(player);
-        vlc_player_aout_ToggleMute(player);
-        vlc_player_Unlock(player);
+        heimdall_player_Lock(player);
+        heimdall_player_aout_ToggleMute(player);
+        heimdall_player_Unlock(player);
         break;
 
     case 'c':
-        vlc_player_Lock(player);
-        vlc_player_SelectNextTrack(player, AUDIO_ES, VLC_VOUT_ORDER_PRIMARY);
-        vlc_player_Unlock(player);
+        heimdall_player_Lock(player);
+        heimdall_player_SelectNextTrack(player, AUDIO_ES, HEIMDALL_VOUT_ORDER_PRIMARY);
+        heimdall_player_Unlock(player);
         break;
     case 'v':
-        vlc_player_Lock(player);
-        vlc_player_SelectNextTrack(player, SPU_ES, VLC_VOUT_ORDER_PRIMARY);
-        vlc_player_Unlock(player);
+        heimdall_player_Lock(player);
+        heimdall_player_SelectNextTrack(player, SPU_ES, HEIMDALL_VOUT_ORDER_PRIMARY);
+        heimdall_player_Unlock(player);
         break;
     case 'b':
-        vlc_player_Lock(player);
-        vlc_player_SelectNextTrack(player, VIDEO_ES, VLC_VOUT_ORDER_PRIMARY);
-        vlc_player_Unlock(player);
+        heimdall_player_Lock(player);
+        heimdall_player_SelectNextTrack(player, VIDEO_ES, HEIMDALL_VOUT_ORDER_PRIMARY);
+        heimdall_player_Unlock(player);
         break;
 
     case 0x0c:  /* ^l */
@@ -2136,7 +2137,7 @@ static void HandleCommonKey(intf_thread_t *intf, vlc_player_t *player, int key)
 static bool HandleListKey(intf_thread_t *intf, int key)
 {
     intf_sys_t *sys = intf->p_sys;
-    vlc_playlist_t *playlist = sys->playlist;
+    heimdall_playlist_t *playlist = sys->playlist;
 
     switch(key)
     {
@@ -2158,10 +2159,10 @@ static bool HandleListKey(intf_thread_t *intf, int key)
     CheckIdx(sys);
 
     if (sys->box_type == BOX_PLAYLIST) {
-        vlc_playlist_Lock(playlist);
+        heimdall_playlist_Lock(playlist);
         sys->plidx_follow =
-            sys->box_idx == vlc_playlist_GetCurrentIndex(playlist);
-        vlc_playlist_Unlock(playlist);
+            sys->box_idx == heimdall_playlist_GetCurrentIndex(playlist);
+        heimdall_playlist_Unlock(playlist);
     }
 
     return true;
@@ -2173,7 +2174,7 @@ static void HandleKey(intf_thread_t *intf)
     int key = getch();
     int box = sys->box_type;
 
-    vlc_player_t *player = vlc_playlist_GetPlayer(sys->playlist);
+    heimdall_player_t *player = heimdall_playlist_GetPlayer(sys->playlist);
 
     if (key == -1)
         return;
@@ -2217,9 +2218,9 @@ static void HandleKey(intf_thread_t *intf)
 /*
  *
  */
-static vlc_log_t *msg_Copy (const vlc_log_t *msg)
+static heimdall_log_t *msg_Copy (const heimdall_log_t *msg)
 {
-    vlc_log_t *copy = (vlc_log_t *)xmalloc (sizeof (*copy));
+    heimdall_log_t *copy = (heimdall_log_t *)xmalloc (sizeof (*copy));
     copy->i_object_id = msg->i_object_id;
     copy->psz_object_type = msg->psz_object_type;
     copy->psz_module = strdup (msg->psz_module);
@@ -2227,25 +2228,25 @@ static vlc_log_t *msg_Copy (const vlc_log_t *msg)
     return copy;
 }
 
-static void msg_Free (vlc_log_t *msg)
+static void msg_Free (heimdall_log_t *msg)
 {
     free ((char *)msg->psz_module);
     free ((char *)msg->psz_header);
     free (msg);
 }
 
-static void MsgCallback(void *data, int type, const vlc_log_t *msg,
+static void MsgCallback(void *data, int type, const heimdall_log_t *msg,
                         const char *format, va_list ap)
 {
     intf_sys_t *sys = data;
     char *text;
 
     if (sys->verbosity < 0
-     || sys->verbosity < (type - VLC_MSG_ERR)
+     || sys->verbosity < (type - HEIMDALL_MSG_ERR)
      || vasprintf(&text, format, ap) == -1)
         return;
 
-    vlc_mutex_lock(&sys->msg_lock);
+    heimdall_mutex_lock(&sys->msg_lock);
 
     sys->msgs[sys->i_msgs].type = type;
     if (sys->msgs[sys->i_msgs].item != NULL)
@@ -2257,17 +2258,17 @@ static void MsgCallback(void *data, int type, const vlc_log_t *msg,
     if (++sys->i_msgs == ARRAY_SIZE(sys->msgs))
         sys->i_msgs = 0;
 
-    vlc_mutex_unlock(&sys->msg_lock);
+    heimdall_mutex_unlock(&sys->msg_lock);
 }
 
-static const struct vlc_logger_operations log_ops = { MsgCallback, NULL };
+static const struct heimdall_logger_operations log_ops = { MsgCallback, NULL };
 
 /*****************************************************************************
  * Run: ncurses thread
  *****************************************************************************/
 static void *Run(void *data)
 {
-    vlc_thread_set_name("vlc-ncurses");
+    heimdall_thread_set_name("heimdall-ncurses");
 
     intf_thread_t *intf = data;
     intf_sys_t *sys = intf->p_sys;
@@ -2282,19 +2283,19 @@ static void *Run(void *data)
 /*****************************************************************************
  * Open: initialize and create window
  *****************************************************************************/
-static int Open(vlc_object_t *p_this)
+static int Open(heimdall_object_t *p_this)
 {
     intf_thread_t  *intf = (intf_thread_t *)p_this;
     intf_sys_t     *sys  = intf->p_sys = calloc(1, sizeof(intf_sys_t));
 
     if (!sys)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     atomic_init(&sys->alive, true);
-    vlc_mutex_init(&sys->msg_lock);
+    heimdall_mutex_init(&sys->msg_lock);
 
     sys->verbosity = var_InheritInteger(intf, "verbose");
-    vlc_LogSet(vlc_object_instance(intf), &log_ops, sys);
+    heimdall_LogSet(heimdall_object_instance(intf), &log_ops, sys);
 
     sys->box_type = BOX_PLAYLIST;
     sys->previous_box_type = BOX_PLAYLIST;
@@ -2303,7 +2304,7 @@ static int Open(vlc_object_t *p_this)
 
     sys->current_dir = var_CreateGetNonEmptyString(intf, "browse-dir");
     if (!sys->current_dir)
-        sys->current_dir = config_GetUserDir(VLC_HOME_DIR);
+        sys->current_dir = config_GetUserDir(HEIMDALL_HOME_DIR);
 
     initscr();   /* Initialize the curses library */
 
@@ -2320,58 +2321,58 @@ static int Open(vlc_object_t *p_this)
 
     /* Stop printing errors to the console */
     if (!freopen("/dev/null", "wb", stderr))
-        msg_Err(intf, "Couldn't close stderr (%s)", vlc_strerror_c(errno));
+        msg_Err(intf, "Couldn't close stderr (%s)", heimdall_strerror_c(errno));
 
     ReadDir(intf);
 
-    int err = VLC_EGENERIC;
-    sys->playlist = vlc_intf_GetMainPlaylist(intf);
+    int err = HEIMDALL_EGENERIC;
+    sys->playlist = heimdall_intf_GetMainPlaylist(intf);
 
-    static struct vlc_playlist_callbacks const playlist_cbs =
+    static struct heimdall_playlist_callbacks const playlist_cbs =
     {
         .on_items_added = playlist_on_items_added,
         .on_items_updated = playlist_on_items_updated,
     };
-    vlc_playlist_Lock(sys->playlist);
+    heimdall_playlist_Lock(sys->playlist);
     PlaylistRebuild(intf);
     sys->playlist_listener =
-        vlc_playlist_AddListener(sys->playlist, &playlist_cbs, sys, false);
-    vlc_playlist_Unlock(sys->playlist);
+        heimdall_playlist_AddListener(sys->playlist, &playlist_cbs, sys, false);
+    heimdall_playlist_Unlock(sys->playlist);
     if (!sys->playlist_listener)
         return err;
 
-    if (vlc_clone(&sys->thread, Run, intf))
+    if (heimdall_clone(&sys->thread, Run, intf))
     {
-        vlc_playlist_Lock(sys->playlist);
-        vlc_playlist_RemoveListener(sys->playlist, sys->playlist_listener);
-        vlc_playlist_Unlock(sys->playlist);
-        return VLC_ENOMEM;
+        heimdall_playlist_Lock(sys->playlist);
+        heimdall_playlist_RemoveListener(sys->playlist, sys->playlist_listener);
+        heimdall_playlist_Unlock(sys->playlist);
+        return HEIMDALL_ENOMEM;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * Close: destroy interface window
  *****************************************************************************/
-static void Close(vlc_object_t *p_this)
+static void Close(heimdall_object_t *p_this)
 {
     intf_thread_t *intf = (intf_thread_t *)p_this;
     intf_sys_t *sys = intf->p_sys;
 
     atomic_store_explicit(&sys->alive, false, memory_order_relaxed);
-    vlc_join(sys->thread, NULL);
+    heimdall_join(sys->thread, NULL);
 
     EqualizerDeinit(sys);
 
-    vlc_playlist_t *playlist = sys->playlist;
-    vlc_playlist_Lock(playlist);
-    vlc_playlist_RemoveListener(playlist, sys->playlist_listener);
-    vlc_playlist_Unlock(playlist);
+    heimdall_playlist_t *playlist = sys->playlist;
+    heimdall_playlist_Lock(playlist);
+    heimdall_playlist_RemoveListener(playlist, sys->playlist_listener);
+    heimdall_playlist_Unlock(playlist);
 
     for (size_t i = 0; i < sys->pl_item_names.size; ++i)
         free((void *)sys->pl_item_names.data[i]);
-    vlc_vector_clear(&sys->pl_item_names);
+    heimdall_vector_clear(&sys->pl_item_names);
 
     DirsDestroy(sys);
 
@@ -2387,7 +2388,7 @@ static void Close(vlc_object_t *p_this)
 
     endwin();   /* Close the ncurses interface */
 
-    vlc_LogSet(vlc_object_instance(p_this), NULL, NULL);
+    heimdall_LogSet(heimdall_object_instance(p_this), NULL, NULL);
     for(unsigned i = 0; i < ARRAY_SIZE(sys->msgs); i++) {
         if (sys->msgs[i].item)
             msg_Free(sys->msgs[i].item);

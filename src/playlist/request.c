@@ -2,6 +2,7 @@
  * playlist/request.c
  *****************************************************************************
  * Copyright (C) 2018 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -25,52 +26,52 @@
 #include "item.h"
 #include "playlist.h"
 
-#include <vlc_input_item.h>
+#include <heimdall_input_item.h>
 
 int
-vlc_playlist_RequestInsert(vlc_playlist_t *playlist, size_t index,
+heimdall_playlist_RequestInsert(heimdall_playlist_t *playlist, size_t index,
                            input_item_t *const media[], size_t count)
 {
-    vlc_playlist_AssertLocked(playlist);
+    heimdall_playlist_AssertLocked(playlist);
 
-    size_t size = vlc_playlist_Count(playlist);
+    size_t size = heimdall_playlist_Count(playlist);
     if (index > size)
         index = size;
 
-    return vlc_playlist_Insert(playlist, index, media, count);
+    return heimdall_playlist_Insert(playlist, index, media, count);
 }
 
 static ssize_t
-vlc_playlist_FindRealIndex(vlc_playlist_t *playlist, vlc_playlist_item_t *item,
+heimdall_playlist_FindRealIndex(heimdall_playlist_t *playlist, heimdall_playlist_item_t *item,
                            ssize_t index_hint)
 {
-    if (index_hint != -1 && (size_t) index_hint < vlc_playlist_Count(playlist))
+    if (index_hint != -1 && (size_t) index_hint < heimdall_playlist_Count(playlist))
     {
-        if (item == vlc_playlist_Get(playlist, index_hint))
+        if (item == heimdall_playlist_Get(playlist, index_hint))
             /* we are lucky */
             return index_hint;
     }
 
     /* we are unlucky, we need to find the item */
-    return vlc_playlist_IndexOf(playlist, item);
+    return heimdall_playlist_IndexOf(playlist, item);
 }
 
-struct size_vector VLC_VECTOR(size_t);
+struct size_vector HEIMDALL_VECTOR(size_t);
 
 static void
-vlc_playlist_FindIndices(vlc_playlist_t *playlist,
-                         vlc_playlist_item_t *const items[], size_t count,
+heimdall_playlist_FindIndices(heimdall_playlist_t *playlist,
+                         heimdall_playlist_item_t *const items[], size_t count,
                          ssize_t index_hint, struct size_vector *out)
 {
     for (size_t i = 0; i < count; ++i)
     {
-        ssize_t real_index = vlc_playlist_FindRealIndex(playlist, items[i],
+        ssize_t real_index = heimdall_playlist_FindRealIndex(playlist, items[i],
                                                         index_hint);
         if (real_index != -1)
         {
-            int ok = vlc_vector_push(out, real_index);
+            int ok = heimdall_vector_push(out, real_index);
             assert(ok); /* cannot fail, space had been reserved */
-            VLC_UNUSED(ok);
+            HEIMDALL_UNUSED(ok);
             /* the next item is expected after this one */
             index_hint = real_index + 1;
         }
@@ -78,7 +79,7 @@ vlc_playlist_FindIndices(vlc_playlist_t *playlist,
 }
 
 static void
-vlc_playlist_RemoveBySlices(vlc_playlist_t *playlist, size_t sorted_indices[],
+heimdall_playlist_RemoveBySlices(heimdall_playlist_t *playlist, size_t sorted_indices[],
                             size_t count)
 {
     assert(count > 0);
@@ -93,13 +94,13 @@ vlc_playlist_RemoveBySlices(vlc_playlist_t *playlist, size_t sorted_indices[],
         else
         {
             /* the previous slice is complete */
-            vlc_playlist_Remove(playlist, last_index, slice_size);
+            heimdall_playlist_Remove(playlist, last_index, slice_size);
             slice_size = 1;
         }
         last_index = index;
     }
     /* remove the last slice */
-    vlc_playlist_Remove(playlist, last_index, slice_size);
+    heimdall_playlist_Remove(playlist, last_index, slice_size);
 }
 
 /**
@@ -112,7 +113,7 @@ vlc_playlist_RemoveBySlices(vlc_playlist_t *playlist, size_t sorted_indices[],
  * \return the start index of the resulting slice
  */
 static size_t
-vlc_playlist_Regroup(vlc_playlist_t *playlist, size_t indices[],
+heimdall_playlist_Regroup(heimdall_playlist_t *playlist, size_t indices[],
                      size_t head_index)
 {
     size_t head = indices[head_index];
@@ -152,7 +153,7 @@ vlc_playlist_Regroup(vlc_playlist_t *playlist, size_t indices[],
             index = indices[i - 1]; /* current index might have been updated */
 
             /* the slice is complete, move it to build the unique slice */
-            vlc_playlist_Move(playlist, last_index, slice_size, head);
+            heimdall_playlist_Move(playlist, last_index, slice_size, head);
             slice_size = 1;
         }
 
@@ -165,12 +166,12 @@ vlc_playlist_Regroup(vlc_playlist_t *playlist, size_t indices[],
         assert(head >= slice_size);
         head -= slice_size;
     }
-    vlc_playlist_Move(playlist, last_index, slice_size, head);
+    heimdall_playlist_Move(playlist, last_index, slice_size, head);
     return head;
 }
 
 static void
-vlc_playlist_MoveBySlices(vlc_playlist_t *playlist, size_t indices[],
+heimdall_playlist_MoveBySlices(heimdall_playlist_t *playlist, size_t indices[],
                           size_t count, size_t target)
 {
     assert(count > 0);
@@ -182,11 +183,11 @@ vlc_playlist_MoveBySlices(vlc_playlist_t *playlist, size_t indices[],
             break;
 
     /* regroup items to form a unique slice */
-    size_t head = vlc_playlist_Regroup(playlist, indices, i);
+    size_t head = heimdall_playlist_Regroup(playlist, indices, i);
 
     /* move the unique slice to the requested target */
     if (head != target)
-        vlc_playlist_Move(playlist, head, count, target);
+        heimdall_playlist_Move(playlist, head, count, target);
 }
 
 static int
@@ -202,67 +203,67 @@ cmp_size(const void *lhs, const void *rhs)
 }
 
 int
-vlc_playlist_RequestMove(vlc_playlist_t *playlist,
-                         vlc_playlist_item_t *const items[], size_t count,
+heimdall_playlist_RequestMove(heimdall_playlist_t *playlist,
+                         heimdall_playlist_item_t *const items[], size_t count,
                          size_t target, ssize_t index_hint)
 {
-    vlc_playlist_AssertLocked(playlist);
+    heimdall_playlist_AssertLocked(playlist);
 
-    struct size_vector vector = VLC_VECTOR_INITIALIZER;
-    if (!vlc_vector_reserve(&vector, count))
-        return VLC_ENOMEM;
+    struct size_vector vector = HEIMDALL_VECTOR_INITIALIZER;
+    if (!heimdall_vector_reserve(&vector, count))
+        return HEIMDALL_ENOMEM;
 
-    vlc_playlist_FindIndices(playlist, items, count, index_hint, &vector);
+    heimdall_playlist_FindIndices(playlist, items, count, index_hint, &vector);
 
     size_t move_count = vector.size;
     if (move_count)
     {
-        size_t size = vlc_playlist_Count(playlist);
+        size_t size = heimdall_playlist_Count(playlist);
         assert(size >= move_count);
         /* move at most to the end of the list */
         if (target + move_count > size)
             target = size - move_count;
 
         /* keep the items in the same order as the request (do not sort them) */
-        vlc_playlist_MoveBySlices(playlist, vector.data, vector.size, target);
+        heimdall_playlist_MoveBySlices(playlist, vector.data, vector.size, target);
     }
 
-    vlc_vector_destroy(&vector);
-    return VLC_SUCCESS;
+    heimdall_vector_destroy(&vector);
+    return HEIMDALL_SUCCESS;
 }
 
 int
-vlc_playlist_RequestRemove(vlc_playlist_t *playlist,
-                           vlc_playlist_item_t *const items[], size_t count,
+heimdall_playlist_RequestRemove(heimdall_playlist_t *playlist,
+                           heimdall_playlist_item_t *const items[], size_t count,
                            ssize_t index_hint)
 {
-    vlc_playlist_AssertLocked(playlist);
+    heimdall_playlist_AssertLocked(playlist);
 
-    struct size_vector vector = VLC_VECTOR_INITIALIZER;
-    if (!vlc_vector_reserve(&vector, count))
-        return VLC_ENOMEM;
+    struct size_vector vector = HEIMDALL_VECTOR_INITIALIZER;
+    if (!heimdall_vector_reserve(&vector, count))
+        return HEIMDALL_ENOMEM;
 
-    vlc_playlist_FindIndices(playlist, items, count, index_hint, &vector);
+    heimdall_playlist_FindIndices(playlist, items, count, index_hint, &vector);
 
     if (vector.size > 0)
     {
         /* sort so that removing an item does not shift the other indices */
         qsort(vector.data, vector.size, sizeof(vector.data[0]), cmp_size);
 
-        vlc_playlist_RemoveBySlices(playlist, vector.data, vector.size);
+        heimdall_playlist_RemoveBySlices(playlist, vector.data, vector.size);
     }
 
-    vlc_vector_destroy(&vector);
-    return VLC_SUCCESS;
+    heimdall_vector_destroy(&vector);
+    return HEIMDALL_SUCCESS;
 }
 
 int
-vlc_playlist_RequestGoTo(vlc_playlist_t *playlist, vlc_playlist_item_t *item,
+heimdall_playlist_RequestGoTo(heimdall_playlist_t *playlist, heimdall_playlist_item_t *item,
                          ssize_t index_hint)
 {
-    vlc_playlist_AssertLocked(playlist);
+    heimdall_playlist_AssertLocked(playlist);
     ssize_t real_index = item
-                       ? vlc_playlist_FindRealIndex(playlist, item, index_hint)
+                       ? heimdall_playlist_FindRealIndex(playlist, item, index_hint)
                        : -1;
-    return vlc_playlist_GoTo(playlist, real_index);
+    return heimdall_playlist_GoTo(playlist, real_index);
 }

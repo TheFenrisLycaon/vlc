@@ -2,6 +2,7 @@
  * stereo_pan.c : Stereo panning filter
  *****************************************************************************
  * Copyright © 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Vedanta Nayak <vedantnayak2@gmail.com>
  *
@@ -23,10 +24,10 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_aout.h>
-#include <vlc_filter.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_aout.h>
+#include <heimdall_filter.h>
+#include <heimdall_plugin.h>
 #include <stdatomic.h>
 
 #define PAN_CONTROL_TEXT N_("Pan control")
@@ -56,26 +57,26 @@ static block_t *Process ( filter_t *p_filter, block_t *p_in_buf )
     return p_in_buf;
 }
 
-static int paramCallback( vlc_object_t *p_this, char const *psz_var,
-                          vlc_value_t oldval, vlc_value_t newval,
+static int paramCallback( heimdall_object_t *p_this, char const *psz_var,
+                          heimdall_value_t oldval, heimdall_value_t newval,
                           void *p_data)
 {
     filter_sys_t *p_sys = p_data;
 
-    VLC_UNUSED(oldval);
-    VLC_UNUSED(p_this);
-    VLC_UNUSED(psz_var);
+    HEIMDALL_UNUSED(oldval);
+    HEIMDALL_UNUSED(p_this);
+    HEIMDALL_UNUSED(psz_var);
 
     atomic_store( &p_sys->f_pan, newval.f_float);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void Close (vlc_object_t *p_in)
+static void Close (heimdall_object_t *p_in)
 {
     filter_t *p_filter = (filter_t *)p_in;
     filter_sys_t *p_sys = p_filter->p_sys;
-    vlc_object_t *p_aout = vlc_object_parent(p_filter);
+    heimdall_object_t *p_aout = heimdall_object_parent(p_filter);
     var_DelCallback( p_aout, "pan-control", paramCallback, p_sys );
     var_Destroy( p_aout, "pan-control" );
     free(p_sys);
@@ -85,31 +86,31 @@ static int Open (filter_t *p_filter)
 {
     if (p_filter->fmt_out.audio.i_channels < 2) {
         msg_Err( p_filter, "At least 2 audio channels are required" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
-    vlc_object_t *p_aout = vlc_object_parent(p_filter);
+    heimdall_object_t *p_aout = heimdall_object_parent(p_filter);
     filter_sys_t *p_sys = p_filter->p_sys = malloc( sizeof(*p_sys) );
     if (unlikely(!p_sys))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     atomic_init( &p_sys->f_pan,
             var_CreateGetFloat( p_aout, "pan-control" ) );
     var_AddCallback( p_aout, "pan-control", paramCallback, p_sys );
 
-    p_filter->fmt_out.audio.i_format = VLC_CODEC_FL32;
-    p_filter->fmt_in.audio.i_format = VLC_CODEC_FL32;
+    p_filter->fmt_out.audio.i_format = HEIMDALL_CODEC_FL32;
+    p_filter->fmt_in.audio.i_format = HEIMDALL_CODEC_FL32;
     aout_FormatPrepare( &p_filter->fmt_in.audio );
     aout_FormatPrepare( &p_filter->fmt_out.audio );
 
-    static const struct vlc_filter_operations filter_ops =
+    static const struct heimdall_filter_operations filter_ops =
     {
         .filter_audio = Process,
     };
     p_filter->ops = &filter_ops;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname ( N_("Stereo Pan") )
     set_description ( N_("Perform Stereo Panning") )
     set_subcategory ( SUBCAT_AUDIO_AFILTER )
@@ -117,4 +118,4 @@ vlc_module_begin()
             PAN_CONTROL_TEXT, PAN_CONTROL_LONGTEXT )
     set_capability ( "audio filter", 0 )
     set_callbacks ( Open, Close )
-vlc_module_end ()
+heimdall_module_end ()

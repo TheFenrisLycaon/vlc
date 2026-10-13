@@ -2,6 +2,7 @@
  * clock_gettime.c: POSIX clock_gettime() replacement
  *****************************************************************************
  * Copyright © 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Marvin Scholz <epirat07 at gmail dot com>
  *
@@ -45,7 +46,7 @@
  *
  * \return 0 on success, else -1 and errno set
  */
-static int vlc__get_system_boottime(struct timeval *tv)
+static int heimdall__get_system_boottime(struct timeval *tv)
 {
     int ret = sysctl((int[]){ CTL_KERN, KERN_BOOTTIME }, 2,
                      tv, &(size_t){ sizeof(*tv) }, NULL, 0);
@@ -77,7 +78,7 @@ static int vlc__get_system_boottime(struct timeval *tv)
  *
  * \return 0 on success, else -1 and errno set
  */
-static int vlc__get_monotonic(struct timeval *tv)
+static int heimdall__get_monotonic(struct timeval *tv)
 {
     int ret;
     struct timeval currenttime;
@@ -85,7 +86,7 @@ static int vlc__get_monotonic(struct timeval *tv)
     struct timeval boottime_end;
 
     do {
-        ret = vlc__get_system_boottime(&boottime_begin);
+        ret = heimdall__get_system_boottime(&boottime_begin);
         if (ret != 0)
             return ret;
 
@@ -93,7 +94,7 @@ static int vlc__get_monotonic(struct timeval *tv)
         if (ret != 0)
             return ret;
 
-        ret = vlc__get_system_boottime(&boottime_end);
+        ret = heimdall__get_system_boottime(&boottime_end);
         if (ret != 0)
             return ret;
     } while (timercmp(&boottime_begin, &boottime_end, !=));
@@ -109,7 +110,7 @@ int clock_gettime(clockid_t clock_id, struct timespec *tp)
 
     switch (clock_id) {
         case CLOCK_MONOTONIC:
-            ret = vlc__get_monotonic(&tv);
+            ret = heimdall__get_monotonic(&tv);
             break;
         case CLOCK_REALTIME:
             ret = gettimeofday(&tv, NULL);

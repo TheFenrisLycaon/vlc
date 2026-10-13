@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Benjamin Arnaud <bunjee@omega.gg>
  *
@@ -25,9 +26,9 @@
 # include "config.h"
 #endif
 
-// VLC includes
-#include <vlc_common.h>
-#include <vlc_dialog.h>
+// Heimdall includes
+#include <heimdall_common.h>
+#include <heimdall_dialog.h>
 
 // Qt includes
 #include <QAbstractListModel>
@@ -45,7 +46,7 @@ class DialogId
     Q_GADGET
 
 public:
-    DialogId(vlc_dialog_id * id = nullptr) : m_id(id) {}
+    DialogId(heimdall_dialog_id * id = nullptr) : m_id(id) {}
 
 public: // Operators
     bool operator ==(const DialogId & other) const
@@ -54,7 +55,7 @@ public: // Operators
     }
 
 public: // Variables
-    vlc_dialog_id * m_id;
+    heimdall_dialog_id * m_id;
 };
 
 
@@ -123,19 +124,19 @@ private: // Variables
 };
 
 /**
- * this class expose vlc_dialog events and allow to reply
+ * this class expose heimdall_dialog events and allow to reply
  * to use it, instantiate the object, connect the signals then
- * register it in VLCDialogModel
+ * register it in HeimdallDialogModel
  */
-class VLCDialog: public QObject
+class HeimdallDialog: public QObject
 {
     Q_OBJECT
 
 public:
     enum QuestionType {
-        QUESTION_NORMAL = VLC_DIALOG_QUESTION_NORMAL,
-        QUESTION_WARNING = VLC_DIALOG_QUESTION_WARNING,
-        QUESTION_CRITICAL = VLC_DIALOG_QUESTION_CRITICAL
+        QUESTION_NORMAL = HEIMDALL_DIALOG_QUESTION_NORMAL,
+        QUESTION_WARNING = HEIMDALL_DIALOG_QUESTION_WARNING,
+        QUESTION_CRITICAL = HEIMDALL_DIALOG_QUESTION_CRITICAL
     };
     Q_ENUM(QuestionType)
 
@@ -155,7 +156,7 @@ signals:
                const QString & text, const QString & defaultUsername,
                bool b_ask_store);
 
-    void question(DialogId dialogId, const QString & title, const QString & text, VLCDialog::QuestionType type,
+    void question(DialogId dialogId, const QString & title, const QString & text, HeimdallDialog::QuestionType type,
                   const QString & cancel, const QString & action1, const QString & action2);
 
     void progress(DialogId dialogId, const QString & title, const QString & text,
@@ -167,25 +168,25 @@ signals:
 };
 
 /**
- * This class listen to vlc_dialog_t events and forward them to VLCDialog
+ * This class listen to heimdall_dialog_t events and forward them to HeimdallDialog
  */
-class VLCDialogModel : public QObject, public Singleton<VLCDialogModel>
+class HeimdallDialogModel : public QObject, public Singleton<HeimdallDialogModel>
 {
     Q_OBJECT
 
-    Q_PROPERTY(VLCDialog* provider READ getProvider WRITE setProvider NOTIFY providerChanged FINAL)
+    Q_PROPERTY(HeimdallDialog* provider READ getProvider WRITE setProvider NOTIFY providerChanged FINAL)
 
 public:
-    explicit VLCDialogModel(qt_intf_t* intf, QObject *parent = nullptr);
-    ~VLCDialogModel();
+    explicit HeimdallDialogModel(qt_intf_t* intf, QObject *parent = nullptr);
+    ~HeimdallDialogModel();
 
 public:
-    VLCDialog* getProvider() const;
-    void setProvider(VLCDialog*);
+    HeimdallDialog* getProvider() const;
+    void setProvider(HeimdallDialog*);
 
 public:
     //block dialog until m_provider is available the call the callback on it
-    void dialogCallback(vlc_dialog_id*, std::function<void(VLCDialog* provider)>);
+    void dialogCallback(heimdall_dialog_id*, std::function<void(HeimdallDialog* provider)>);
 
 signals:
     void providerChanged();
@@ -200,10 +201,10 @@ private:
     QWaitCondition m_pendingDialogCond;
     unsigned m_pendingDialog = 0;
 
-    VLCDialog* m_provider = nullptr;
+    HeimdallDialog* m_provider = nullptr;
     bool m_shuttingDown = false;
 
-    friend class Singleton<VLCDialogModel>;
+    friend class Singleton<HeimdallDialogModel>;
 };
 
 #endif // DIALOGMODEL_HPP

@@ -1,6 +1,7 @@
 --[[
 
  Copyright © 2012, 2015, 2019-2020 the VideoLAN team
+ Copyright (C) 2026 TheFenrisLycaon
 
  Authors: Cheng Sun <chengsun9atgmail.com>
           Pierre Ynard
@@ -22,9 +23,9 @@
 
 -- Probe function.
 function probe()
-    local path = vlc.path
+    local path = heimdall.path
     path = path:gsub("^www%.", "")
-    return ( vlc.access == "http" or vlc.access == "https" )
+    return ( heimdall.access == "http" or heimdall.access == "https" )
         and string.match( path, "^soundcloud%.com/.+/.+" )
 end
 
@@ -39,7 +40,7 @@ end
 
 -- Search and extract API magic parameter from web asset
 function extract_magic( url )
-    local s = vlc.stream( url )
+    local s = heimdall.stream( url )
     if not s then
         return nil
     end
@@ -54,7 +55,7 @@ function extract_magic( url )
     -- {client_id:"z21TN9SfM0GjGteSzk4ViM1KEwMRNWZF"}
     local client_id = string.match( line, '[{,]client_id:"(%w+)"[},]' )
     if client_id then
-        vlc.msg.dbg( "Found soundcloud API magic" )
+        heimdall.msg.dbg( "Found soundcloud API magic" )
         return client_id
     end
     return nil
@@ -63,7 +64,7 @@ end
 -- Parse function.
 function parse()
     while true do
-        local line = vlc.readline()
+        local line = heimdall.readline()
         if not line then break end
 
         -- API endpoint for audio stream URL
@@ -118,7 +119,7 @@ function parse()
         if client_id then
             stream = stream..( string.match( stream, "?" ) and "&" or "?" ).."client_id="..client_id
         end
-        local api = vlc.stream( stream )
+        local api = heimdall.stream( stream )
 
         if api then
             local streams = api:readline() -- data is on one line only
@@ -128,7 +129,7 @@ function parse()
     end
 
     if not path then
-        vlc.msg.err( "Couldn't extract soundcloud audio URL, please check for updates to this script" )
+        heimdall.msg.err( "Couldn't extract soundcloud audio URL, please check for updates to this script" )
         return { }
     end
 

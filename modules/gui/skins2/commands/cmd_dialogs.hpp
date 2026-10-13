@@ -2,6 +2,7 @@
  * cmd_dialogs.hpp
  *****************************************************************************
  * Copyright (C) 2003 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cyril Deguet     <asmax@via.ecp.fr>
  *          Olivier Teulière <ipkiss@via.ecp.fr>
@@ -28,7 +29,7 @@
 #include "../src/dialogs.hpp"
 #include "cmd_change_skin.hpp"
 
-#include <vlc_interface.h>
+#include <heimdall_interface.h>
 
 
 #define DEFC( a, c ) \

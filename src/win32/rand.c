@@ -2,6 +2,7 @@
  * rand.c : non-predictible random bytes generator
  *****************************************************************************
  * Copyright © 2007 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,14 +23,14 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_rand.h>
+#include <heimdall_common.h>
+#include <heimdall_rand.h>
 
 #include <windows.h>
 #include <bcrypt.h>
 #include <assert.h>
 
-void vlc_rand_bytes (void *buf, size_t len)
+void heimdall_rand_bytes (void *buf, size_t len)
 {
     NTSTATUS ret;
     ret = BCryptGenRandom(0, buf, len, BCRYPT_USE_SYSTEM_PREFERRED_RNG);

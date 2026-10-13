@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 2001-2016 VLC authors and VideoLAN
  *               2022 VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *          Eric Petit <titer@videolan.org>
@@ -147,7 +148,7 @@ static int mpga_decode_frameheader(uint32_t i_header, struct mpga_frameheader_s 
             break;
 
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 
     /* Free bitrate mode can support higher bitrates */

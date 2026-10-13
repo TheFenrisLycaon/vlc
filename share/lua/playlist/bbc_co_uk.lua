@@ -1,8 +1,9 @@
 --[[
 
  Copyright © 2008 the VideoLAN team
+ Copyright (C) 2026 TheFenrisLycaon
 
- Authors: Dominique Leuenberger <dominique-vlc.suse@leuenberger.net>
+ Authors: Dominique Leuenberger <dominique-heimdall.suse@leuenberger.net>
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -21,8 +22,8 @@
 
 -- Probe function.
 function probe()
-    local path = vlc.path:gsub("^www%.", "")
-    return vlc.access == "http"
+    local path = heimdall.path:gsub("^www%.", "")
+    return heimdall.access == "http"
         and string.match( path, "^bbc%.co%.uk/iplayer/.+" )
 end
 
@@ -31,7 +32,7 @@ function parse()
     p = {}
     while true do
         -- Try to find the video's title
-        line = vlc.readline()
+        line = heimdall.readline()
         if not line then break end
         if string.match( line, "title: " ) then
             _,_,name = string.find( line, "title: \"(.*)\"" )

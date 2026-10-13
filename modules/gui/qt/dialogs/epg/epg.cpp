@@ -2,6 +2,7 @@
  * epg.cpp : Epg Viewer dialog
  ****************************************************************************
  * Copyright © 2010 VideoLAN and AUTHORS
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors:    Jean-Baptiste Kempf <jb@videolan.org>
  *
@@ -43,7 +44,7 @@
 #include "qt.hpp"
 #include "player/player_controller.hpp"
 
-EpgDialog::EpgDialog( qt_intf_t *_p_intf ): QVLCFrame( _p_intf )
+EpgDialog::EpgDialog( qt_intf_t *_p_intf ): QHeimdallFrame( _p_intf )
 {
     setWindowTitle( qtr( "Program Guide" ) );
 
@@ -177,8 +178,8 @@ void EpgDialog::updateInfos()
 {
     input_item_t *media = NULL;
     {
-        vlc_player_locker lock{ p_intf->p_player };
-        media = vlc_player_HoldCurrentMedia( p_intf->p_player ); /* w/hold */
+        heimdall_player_locker lock{ p_intf->p_player };
+        media = heimdall_player_HoldCurrentMedia( p_intf->p_player ); /* w/hold */
     }
 
     if( media )

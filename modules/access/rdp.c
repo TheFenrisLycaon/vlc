@@ -2,6 +2,7 @@
  * rdp.c: libfreeRDP based Remote Desktop access
  *****************************************************************************
  * Copyright (C) 2013 VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *****************************************************************************
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -28,13 +29,13 @@
 
 #include <stdckdint.h>
 
-#include <vlc_common.h>
-#include <vlc_threads.h>
-#include <vlc_poll.h>
-#include <vlc_plugin.h>
-#include <vlc_demux.h>
-#include <vlc_url.h>
-#include <vlc_meta.h>
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
+#include <heimdall_poll.h>
+#include <heimdall_plugin.h>
+#include <heimdall_demux.h>
+#include <heimdall_url.h>
+#include <heimdall_meta.h>
 
 #define boolean bool
 
@@ -72,10 +73,10 @@
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  Open ( vlc_object_t * );
-static void Close( vlc_object_t * );
+static int  Open ( heimdall_object_t * );
+static void Close( heimdall_object_t * );
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname( N_("RDP") )
     add_shortcut( "rdp" )
     set_subcategory( SUBCAT_INPUT_ACCESS )
@@ -92,20 +93,20 @@ vlc_module_begin()
         change_safe()
 
     set_callbacks( Open, Close )
-vlc_module_end()
+heimdall_module_end()
 
 #define RDP_MAX_FD 32
 
 typedef struct
 {
-    vlc_thread_t thread;
+    heimdall_thread_t thread;
     freerdp *p_instance;
     block_t *p_block;
     unsigned i_framebuffersize;
 
     float f_fps;
     int i_frame_interval;
-    vlc_tick_t i_starttime;
+    heimdall_tick_t i_starttime;
 
     es_out_id_t *es;
 
@@ -116,13 +117,13 @@ typedef struct
 
 /* context */
 
-struct vlcrdp_context_t
+struct heimdallrdp_context_t
 {
     rdpContext rdp_context; /* Extending API's struct */
     demux_t *p_demux;
     rdpSettings* p_settings;
 };
-typedef struct vlcrdp_context_t vlcrdp_context_t;
+typedef struct heimdallrdp_context_t heimdallrdp_context_t;
 
 /*****************************************************************************
  * Local prototypes
@@ -132,65 +133,65 @@ typedef struct vlcrdp_context_t vlcrdp_context_t;
 
 static BOOL desktopResizeHandler( rdpContext *p_context )
 {
-    vlcrdp_context_t * p_vlccontext = (vlcrdp_context_t *) p_context;
-    demux_sys_t *p_sys = p_vlccontext->p_demux->p_sys;
+    heimdallrdp_context_t * p_heimdallcontext = (heimdallrdp_context_t *) p_context;
+    demux_sys_t *p_sys = p_heimdallcontext->p_demux->p_sys;
     rdpGdi *p_gdi = p_context->gdi;
     int i_colordepth = FREERDP_PIXEL_BPP( p_gdi->dstFormat );
 
     if ( p_sys->es )
     {
-        es_out_Del( p_vlccontext->p_demux->out, p_sys->es );
+        es_out_Del( p_heimdallcontext->p_demux->out, p_sys->es );
         p_sys->es = NULL;
     }
 
-    vlc_fourcc_t i_chroma;
+    heimdall_fourcc_t i_chroma;
     /* Now init and fill es format */
     switch ( p_gdi->dstFormat )
     {
         default:
-            msg_Dbg( p_vlccontext->p_demux, "invalid color depth %d", i_colordepth);
+            msg_Dbg( p_heimdallcontext->p_demux, "invalid color depth %d", i_colordepth);
             /* fallthrough */
         case PIXEL_FORMAT_RGB16:
-            i_chroma = VLC_CODEC_RGB565LE;
+            i_chroma = HEIMDALL_CODEC_RGB565LE;
             break;
         case PIXEL_FORMAT_BGR16:
-            i_chroma = VLC_CODEC_BGR565LE;
+            i_chroma = HEIMDALL_CODEC_BGR565LE;
             break;
         case PIXEL_FORMAT_RGB15:
-            i_chroma = VLC_CODEC_RGB555LE;
+            i_chroma = HEIMDALL_CODEC_RGB555LE;
             break;
         case PIXEL_FORMAT_BGR15:
-            i_chroma = VLC_CODEC_BGR555LE;
+            i_chroma = HEIMDALL_CODEC_BGR555LE;
             break;
         case PIXEL_FORMAT_RGB24:
-            i_chroma = VLC_CODEC_RGB24;
+            i_chroma = HEIMDALL_CODEC_RGB24;
             break;
         case PIXEL_FORMAT_BGR24:
-            i_chroma = VLC_CODEC_BGR24;
+            i_chroma = HEIMDALL_CODEC_BGR24;
             break;
         case PIXEL_FORMAT_ARGB32:
-            i_chroma = VLC_CODEC_ARGB;
+            i_chroma = HEIMDALL_CODEC_ARGB;
             break;
         case PIXEL_FORMAT_XRGB32:
-            i_chroma = VLC_CODEC_XRGB;
+            i_chroma = HEIMDALL_CODEC_XRGB;
             break;
         case PIXEL_FORMAT_ABGR32:
-            i_chroma = VLC_CODEC_ABGR;
+            i_chroma = HEIMDALL_CODEC_ABGR;
             break;
         case PIXEL_FORMAT_XBGR32:
-            i_chroma = VLC_CODEC_XBGR;
+            i_chroma = HEIMDALL_CODEC_XBGR;
             break;
         case PIXEL_FORMAT_BGRA32:
-            i_chroma = VLC_CODEC_BGRA;
+            i_chroma = HEIMDALL_CODEC_BGRA;
             break;
         case PIXEL_FORMAT_BGRX32:
-            i_chroma = VLC_CODEC_BGRX;
+            i_chroma = HEIMDALL_CODEC_BGRX;
             break;
         case PIXEL_FORMAT_RGBA32:
-            i_chroma = VLC_CODEC_RGBA;
+            i_chroma = HEIMDALL_CODEC_RGBA;
             break;
         case PIXEL_FORMAT_RGBX32:
-            i_chroma = VLC_CODEC_RGBX;
+            i_chroma = HEIMDALL_CODEC_RGBX;
             break;
     }
 
@@ -204,7 +205,7 @@ static BOOL desktopResizeHandler( rdpContext *p_context )
     if (ckd_mul(&p_sys->i_framebuffersize, p_gdi->width, p_gdi->height) &&
         ckd_mul(&p_sys->i_framebuffersize, p_sys->i_framebuffersize, i_colordepth >> 3) )
     {
-        msg_Err( p_vlccontext->p_demux, "framebuffer size overflow");
+        msg_Err( p_heimdallcontext->p_demux, "framebuffer size overflow");
         return FALSE;
     }
 
@@ -213,14 +214,14 @@ static BOOL desktopResizeHandler( rdpContext *p_context )
     else
         p_sys->p_block = block_Alloc( p_sys->i_framebuffersize );
 
-    p_sys->es = es_out_Add( p_vlccontext->p_demux->out, &fmt );
+    p_sys->es = es_out_Add( p_heimdallcontext->p_demux->out, &fmt );
     return TRUE;
 }
 
 static BOOL beginPaintHandler( rdpContext *p_context )
 {
-    vlcrdp_context_t * p_vlccontext = (vlcrdp_context_t *) p_context;
-    demux_sys_t *p_sys = p_vlccontext->p_demux->p_sys;
+    heimdallrdp_context_t * p_heimdallcontext = (heimdallrdp_context_t *) p_context;
+    demux_sys_t *p_sys = p_heimdallcontext->p_demux->p_sys;
     rdpGdi *p_gdi = p_context->gdi;
     p_gdi->primary->hdc->hwnd->invalid->null = TRUE;
     if ( ! p_sys->p_block && p_sys->i_framebuffersize )
@@ -230,8 +231,8 @@ static BOOL beginPaintHandler( rdpContext *p_context )
 
 static BOOL endPaintHandler( rdpContext *p_context )
 {
-    vlcrdp_context_t * p_vlccontext = (vlcrdp_context_t *) p_context;
-    demux_sys_t *p_sys = p_vlccontext->p_demux->p_sys;
+    heimdallrdp_context_t * p_heimdallcontext = (heimdallrdp_context_t *) p_context;
+    demux_sys_t *p_sys = p_heimdallcontext->p_demux->p_sys;
     rdpGdi *p_gdi = p_context->gdi;
 
     if ( p_sys->p_block && p_gdi->primary_buffer )
@@ -246,29 +247,29 @@ static BOOL endPaintHandler( rdpContext *p_context )
 
 static BOOL preConnectHandler( freerdp *p_instance )
 {
-    vlcrdp_context_t * p_vlccontext = (vlcrdp_context_t *) p_instance->context;
-    demux_sys_t *p_sys = p_vlccontext->p_demux->p_sys;
+    heimdallrdp_context_t * p_heimdallcontext = (heimdallrdp_context_t *) p_instance->context;
+    demux_sys_t *p_sys = p_heimdallcontext->p_demux->p_sys;
 
     /* Configure connection */
     p_instance->settings->SoftwareGdi = true; /* render in buffer */
     p_instance->settings->Fullscreen = true;
     p_instance->settings->ServerHostname = strdup( p_sys->psz_hostname );
     p_instance->settings->Username =
-            var_InheritString( p_vlccontext->p_demux, CFG_PREFIX "user" );
+            var_InheritString( p_heimdallcontext->p_demux, CFG_PREFIX "user" );
     p_instance->settings->Password =
-            var_InheritString( p_vlccontext->p_demux, CFG_PREFIX "password" );
+            var_InheritString( p_heimdallcontext->p_demux, CFG_PREFIX "password" );
     p_instance->settings->ServerPort = p_sys->i_port;
     p_instance->settings->EncryptionMethods =
-            var_InheritBool( p_vlccontext->p_demux, CFG_PREFIX "encrypt" );
+            var_InheritBool( p_heimdallcontext->p_demux, CFG_PREFIX "encrypt" );
 
     return TRUE;
 }
 
 static BOOL postConnectHandler( freerdp *p_instance )
 {
-    vlcrdp_context_t * p_vlccontext = (vlcrdp_context_t *) p_instance->context;
+    heimdallrdp_context_t * p_heimdallcontext = (heimdallrdp_context_t *) p_instance->context;
 
-    msg_Dbg( p_vlccontext->p_demux, "connected to desktop %dx%d (%d bpp)",
+    msg_Dbg( p_heimdallcontext->p_demux, "connected to desktop %dx%d (%d bpp)",
              p_instance->settings->DesktopWidth,
              p_instance->settings->DesktopHeight,
              p_instance->settings->ColorDepth
@@ -281,7 +282,7 @@ static BOOL postConnectHandler( freerdp *p_instance )
     switch ( p_instance->settings->ColorDepth )
     {
         default:
-            msg_Dbg( p_vlccontext->p_demux, "no valid pixel format found for color depth %d bpp", p_instance->settings->ColorDepth);
+            msg_Dbg( p_heimdallcontext->p_demux, "no valid pixel format found for color depth %d bpp", p_instance->settings->ColorDepth);
             /* fallthrough */
         case 16:
             format = PIXEL_FORMAT_RGB16;
@@ -304,10 +305,10 @@ static BOOL postConnectHandler( freerdp *p_instance )
 static BOOL authenticateHandler( freerdp *p_instance, char** ppsz_username,
                                  char** ppsz_password, char** ppsz_domain )
 {
-    VLC_UNUSED(ppsz_domain);
-    vlcrdp_context_t * p_vlccontext = (vlcrdp_context_t *) p_instance->context;
-    *ppsz_username = var_InheritString( p_vlccontext->p_demux, CFG_PREFIX "user" );
-    *ppsz_password = var_InheritString( p_vlccontext->p_demux, CFG_PREFIX "password" );
+    HEIMDALL_UNUSED(ppsz_domain);
+    heimdallrdp_context_t * p_heimdallcontext = (heimdallrdp_context_t *) p_instance->context;
+    *ppsz_username = var_InheritString( p_heimdallcontext->p_demux, CFG_PREFIX "user" );
+    *ppsz_password = var_InheritString( p_heimdallcontext->p_demux, CFG_PREFIX "password" );
     return TRUE;
 }
 
@@ -319,7 +320,7 @@ static int Control( demux_t *p_demux, int i_query, va_list args )
     demux_sys_t *p_sys = p_demux->p_sys;
     bool *pb;
     double *p_dbl;
-    vlc_meta_t *p_meta;
+    heimdall_meta_t *p_meta;
 
     switch( i_query )
     {
@@ -330,38 +331,38 @@ static int Control( demux_t *p_demux, int i_query, va_list args )
         case DEMUX_HAS_UNSUPPORTED_META:
             pb = va_arg( args, bool * );
             *pb = false;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
 
         case DEMUX_CAN_RECORD:
             pb = va_arg( args, bool * );
             *pb = true;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
 
         case DEMUX_GET_PTS_DELAY:
-            *va_arg( args, vlc_tick_t * ) =
-                VLC_TICK_FROM_MS(var_InheritInteger( p_demux, "live-caching" ));
-            return VLC_SUCCESS;
+            *va_arg( args, heimdall_tick_t * ) =
+                HEIMDALL_TICK_FROM_MS(var_InheritInteger( p_demux, "live-caching" ));
+            return HEIMDALL_SUCCESS;
 
         case DEMUX_GET_TIME:
-            *va_arg( args, vlc_tick_t * ) = vlc_tick_now() - p_sys->i_starttime;
-            return VLC_SUCCESS;
+            *va_arg( args, heimdall_tick_t * ) = heimdall_tick_now() - p_sys->i_starttime;
+            return HEIMDALL_SUCCESS;
 
         case DEMUX_GET_LENGTH:
-            *va_arg( args, vlc_tick_t * ) = 0;
-            return VLC_SUCCESS;
+            *va_arg( args, heimdall_tick_t * ) = 0;
+            return HEIMDALL_SUCCESS;
 
         case DEMUX_GET_FPS:
             p_dbl = va_arg( args, double * );
             *p_dbl = p_sys->f_fps;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
 
         case DEMUX_GET_META:
-            p_meta = va_arg( args, vlc_meta_t * );
-            vlc_meta_Set( p_meta, vlc_meta_Title, p_demux->psz_location );
-            return VLC_SUCCESS;
+            p_meta = va_arg( args, heimdall_meta_t * );
+            heimdall_meta_Set( p_meta, heimdall_meta_Title, p_demux->psz_location );
+            return HEIMDALL_SUCCESS;
 
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 }
 
@@ -372,19 +373,19 @@ static void *DemuxThread( void *p_data )
 {
     demux_t *p_demux = (demux_t *) p_data;
     demux_sys_t *p_sys = p_demux->p_sys;
-    p_sys->i_starttime = vlc_tick_now();
-    vlc_tick_t i_next_frame_date = vlc_tick_now() + p_sys->i_frame_interval;
+    p_sys->i_starttime = heimdall_tick_now();
+    heimdall_tick_t i_next_frame_date = heimdall_tick_now() + p_sys->i_frame_interval;
     int i_ret;
 
-    vlc_thread_set_name("vlc-rdp");
+    heimdall_thread_set_name("heimdall-rdp");
 
     for(;;)
     {
         i_ret = 0;
-        int cancel_state = vlc_savecancel();
+        int cancel_state = heimdall_savecancel();
         if ( freerdp_shall_disconnect( p_sys->p_instance ) )
         {
-            vlc_restorecancel( cancel_state );
+            heimdall_restorecancel( cancel_state );
             msg_Warn( p_demux, "RDP server closed session" );
             es_out_Del( p_demux->out, p_sys->es );
             p_sys->es = NULL;
@@ -405,13 +406,13 @@ static void *DemuxThread( void *p_data )
         if ( freerdp_get_fds( p_sys->p_instance, fds.pp_rfds, &fds.i_nbr,
                               fds.pp_wfds, &fds.i_nbw ) != true )
         {
-            vlc_restorecancel( cancel_state );
+            heimdall_restorecancel( cancel_state );
             msg_Err( p_demux, "cannot get FDS" );
         }
         else
         if ( (fds.i_nbr + fds.i_nbw) > 0 && p_sys->es )
         {
-            vlc_restorecancel( cancel_state );
+            heimdall_restorecancel( cancel_state );
             int i_count = 0;
 
             for( int i = 0; i < fds.i_nbr; i++ )
@@ -428,22 +429,22 @@ static void *DemuxThread( void *p_data )
             }
             i_ret = poll( fds.ufds, i_count, p_sys->i_frame_interval * 1000/2 );
         } else {
-            vlc_restorecancel( cancel_state );
+            heimdall_restorecancel( cancel_state );
         }
 
-        vlc_tick_wait( i_next_frame_date );
+        heimdall_tick_wait( i_next_frame_date );
         i_next_frame_date += p_sys->i_frame_interval;
 
         if ( i_ret >= 0 )
         {
             /* Do the rendering */
-            cancel_state = vlc_savecancel();
+            cancel_state = heimdall_savecancel();
             freerdp_check_fds( p_sys->p_instance );
-            vlc_restorecancel( cancel_state );
+            heimdall_restorecancel( cancel_state );
             block_t *p_block = block_Duplicate( p_sys->p_block );
             if (likely( p_block && p_sys->p_block ))
             {
-                p_sys->p_block->i_dts = p_sys->p_block->i_pts = vlc_tick_now() - p_sys->i_starttime;
+                p_sys->p_block->i_dts = p_sys->p_block->i_pts = heimdall_tick_now() - p_sys->i_starttime;
                 es_out_SetPCR( p_demux->out, p_sys->p_block->i_pts );
                 es_out_Send( p_demux->out, p_sys->es, p_sys->p_block );
                 p_sys->p_block = p_block;
@@ -456,16 +457,16 @@ static void *DemuxThread( void *p_data )
 /*****************************************************************************
  * Open:
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     demux_t      *p_demux = (demux_t*)p_this;
     demux_sys_t  *p_sys;
 
     if (p_demux->out == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    p_sys = vlc_obj_calloc( p_this, 1, sizeof(demux_sys_t) );
-    if( !p_sys ) return VLC_ENOMEM;
+    p_sys = heimdall_obj_calloc( p_this, 1, sizeof(demux_sys_t) );
+    if( !p_sys ) return HEIMDALL_ENOMEM;
 
     p_sys->f_fps = var_InheritFloat( p_demux, CFG_PREFIX "fps" );
     if ( p_sys->f_fps <= 0 ) p_sys->f_fps = 1.0;
@@ -475,7 +476,7 @@ static int Open( vlc_object_t *p_this )
     if ( !p_sys->p_instance )
     {
         msg_Err( p_demux, "rdp instantiation error" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     p_demux->p_sys = p_sys;
@@ -484,15 +485,15 @@ static int Open( vlc_object_t *p_this )
     p_sys->p_instance->Authenticate = authenticateHandler;
 
     /* Set up context handlers and let it be allocated */
-    p_sys->p_instance->ContextSize = sizeof( vlcrdp_context_t );
+    p_sys->p_instance->ContextSize = sizeof( heimdallrdp_context_t );
     freerdp_context_new( p_sys->p_instance );
 
-    vlcrdp_context_t * p_vlccontext = (vlcrdp_context_t *) p_sys->p_instance->context;
-    p_vlccontext->p_demux = p_demux;
+    heimdallrdp_context_t * p_heimdallcontext = (heimdallrdp_context_t *) p_sys->p_instance->context;
+    p_heimdallcontext->p_demux = p_demux;
 
     /* Parse uri params for pre-connect */
-    vlc_url_t url;
-    vlc_UrlParse( &url, p_demux->psz_url );
+    heimdall_url_t url;
+    heimdall_UrlParse( &url, p_demux->psz_url );
 
     if ( !EMPTY_STR(url.psz_host) )
         p_sys->psz_hostname = strdup( url.psz_host );
@@ -501,7 +502,7 @@ static int Open( vlc_object_t *p_this )
 
     p_sys->i_port = ( url.i_port > 0 ) ? url.i_port : 3389;
 
-    vlc_UrlClean( &url );
+    heimdall_UrlClean( &url );
 
     if ( ! freerdp_connect( p_sys->p_instance ) )
     {
@@ -509,7 +510,7 @@ static int Open( vlc_object_t *p_this )
         goto error;
     }
 
-    if ( vlc_clone( &p_sys->thread, DemuxThread, p_demux ) != VLC_SUCCESS )
+    if ( heimdall_clone( &p_sys->thread, DemuxThread, p_demux ) != HEIMDALL_SUCCESS )
     {
         msg_Err( p_demux, "can't spawn thread" );
         freerdp_disconnect( p_sys->p_instance );
@@ -519,24 +520,24 @@ static int Open( vlc_object_t *p_this )
     p_demux->pf_demux = NULL;
     p_demux->pf_control = Control;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     freerdp_free( p_sys->p_instance );
     free( p_sys->psz_hostname );
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /*****************************************************************************
  * Close:
  *****************************************************************************/
-static void Close( vlc_object_t *p_this )
+static void Close( heimdall_object_t *p_this )
 {
     demux_t     *p_demux = (demux_t*)p_this;
     demux_sys_t *p_sys = p_demux->p_sys;
 
-    vlc_cancel( p_sys->thread );
-    vlc_join( p_sys->thread, NULL );
+    heimdall_cancel( p_sys->thread );
+    heimdall_join( p_sys->thread, NULL );
 
     if ( p_sys->es )
         es_out_Del( p_demux->out, p_sys->es );

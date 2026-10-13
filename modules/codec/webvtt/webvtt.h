@@ -2,6 +2,7 @@
  * webvtt.h: WEBVTT shared code
  *****************************************************************************
  * Copyright (C) 2017 VideoLabs, VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -20,28 +21,28 @@
 #ifndef WEBVTT_H
 #define WEBVTT_H
 
-#include <vlc_tick.h>
+#include <heimdall_tick.h>
 
-int  webvtt_OpenDecoder   ( vlc_object_t * );
-void webvtt_CloseDecoder  ( vlc_object_t * );
+int  webvtt_OpenDecoder   ( heimdall_object_t * );
+void webvtt_CloseDecoder  ( heimdall_object_t * );
 
-int  webvtt_OpenDemux     ( vlc_object_t * );
-int  webvtt_OpenDemuxStream (vlc_object_t *);
-void webvtt_CloseDemux    ( vlc_object_t * );
+int  webvtt_OpenDemux     ( heimdall_object_t * );
+int  webvtt_OpenDemuxStream (heimdall_object_t *);
+void webvtt_CloseDemux    ( heimdall_object_t * );
 
 #ifdef ENABLE_SOUT
-int  webvtt_OpenEncoder   ( vlc_object_t * );
+int  webvtt_OpenEncoder   ( heimdall_object_t * );
 
-int  webvtt_OpenMuxer   ( vlc_object_t * );
-void webvtt_CloseMuxer  ( vlc_object_t * );
+int  webvtt_OpenMuxer   ( heimdall_object_t * );
+void webvtt_CloseMuxer  ( heimdall_object_t * );
 #endif
 
-#define ATOM_iden VLC_FOURCC('i', 'd', 'e', 'n')
-#define ATOM_payl VLC_FOURCC('p', 'a', 'y', 'l')
-#define ATOM_sttg VLC_FOURCC('s', 't', 't', 'g')
-#define ATOM_vttc VLC_FOURCC('v', 't', 't', 'c')
-#define ATOM_vtte VLC_FOURCC('v', 't', 't', 'e')
-#define ATOM_vttx VLC_FOURCC('v', 't', 't', 'x')
+#define ATOM_iden HEIMDALL_FOURCC('i', 'd', 'e', 'n')
+#define ATOM_payl HEIMDALL_FOURCC('p', 'a', 'y', 'l')
+#define ATOM_sttg HEIMDALL_FOURCC('s', 't', 't', 'g')
+#define ATOM_vttc HEIMDALL_FOURCC('v', 't', 't', 'c')
+#define ATOM_vtte HEIMDALL_FOURCC('v', 't', 't', 'e')
+#define ATOM_vttx HEIMDALL_FOURCC('v', 't', 't', 'x')
 
 typedef struct webvtt_text_parser_t webvtt_text_parser_t;
 
@@ -53,8 +54,8 @@ enum webvtt_header_line_e
 
 typedef struct
 {
-    vlc_tick_t i_start;
-    vlc_tick_t i_stop;
+    heimdall_tick_t i_start;
+    heimdall_tick_t i_stop;
     char *psz_id;
     char *psz_text;
     char *psz_attrs;
@@ -86,6 +87,6 @@ webvtt_text_parser_t * webvtt_text_parser_New(
 void webvtt_text_parser_Delete( webvtt_text_parser_t *p );
 void webvtt_text_parser_Feed( webvtt_text_parser_t *p, char *psz_line );
 
-bool webvtt_scan_time( const char *psz, vlc_tick_t *p_time );
+bool webvtt_scan_time( const char *psz, heimdall_tick_t *p_time );
 
 #endif

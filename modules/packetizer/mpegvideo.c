@@ -2,6 +2,7 @@
  * mpegvideo.c: parse and packetize an MPEG1/2 video stream
  *****************************************************************************
  * Copyright (C) 2001-2006 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *          Eric Petit <titer@videolan.org>
@@ -45,11 +46,11 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_block.h>
-#include <vlc_codec.h>
-#include <vlc_block_helper.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_block.h>
+#include <heimdall_codec.h>
+#include <heimdall_block_helper.h>
 #include "mpegvideo.h"
 #include "../codec/cc.h"
 #include "packetizer_helper.h"
@@ -67,10 +68,10 @@
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  Open ( vlc_object_t * );
-static void Close( vlc_object_t * );
+static int  Open ( heimdall_object_t * );
+static void Close( heimdall_object_t * );
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_subcategory( SUBCAT_SOUT_PACKETIZER )
     set_description( N_("MPEG-I/II video packetizer") )
     set_shortname( N_("MPEG Video") )
@@ -79,7 +80,7 @@ vlc_module_begin ()
 
     add_bool( "packetizer-mpegvideo-sync-iframe", false, SYNC_INTRAFRAME_TEXT,
               SYNC_INTRAFRAME_LONGTEXT )
-vlc_module_end ()
+heimdall_module_end ()
 
 enum mpeg_startcode_e
 {
@@ -130,8 +131,8 @@ typedef struct
     block_t    **pp_last;
 
     bool b_frame_slice;
-    vlc_tick_t i_pts;
-    vlc_tick_t i_dts;
+    heimdall_tick_t i_pts;
+    heimdall_tick_t i_dts;
 
     date_t  dts;
     date_t  prev_iframe_dts;
@@ -160,9 +161,9 @@ typedef struct
     int i_repeat_first_field;
     int i_progressive_frame;
 
-    vlc_tick_t i_last_ref_pts;
+    heimdall_tick_t i_last_ref_pts;
 
-    vlc_tick_t i_last_frame_pts;
+    heimdall_tick_t i_last_frame_pts;
     uint16_t i_last_frame_refid;
 
     bool b_second_field;
@@ -178,8 +179,8 @@ typedef struct
     /* */
     bool b_cc_reset;
     uint32_t i_cc_flags;
-    vlc_tick_t i_cc_pts;
-    vlc_tick_t i_cc_dts;
+    heimdall_tick_t i_cc_pts;
+    heimdall_tick_t i_cc_dts;
     cc_data_t cc;
 } decoder_sys_t;
 
@@ -199,21 +200,21 @@ static const uint8_t p_mp2v_startcode[3] = { 0x00, 0x00, 0x01 };
 /*****************************************************************************
  * Open:
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     decoder_t *p_dec = (decoder_t*)p_this;
     decoder_sys_t *p_sys;
 
-    if( p_dec->fmt_in->i_codec != VLC_CODEC_MPGV &&
-        p_dec->fmt_in->i_codec != VLC_CODEC_MP2V )
-        return VLC_EGENERIC;
+    if( p_dec->fmt_in->i_codec != HEIMDALL_CODEC_MPGV &&
+        p_dec->fmt_in->i_codec != HEIMDALL_CODEC_MP2V )
+        return HEIMDALL_EGENERIC;
 
     p_dec->p_sys = p_sys = malloc( sizeof( decoder_sys_t ) );
     if( !p_dec->p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     memset( p_dec->p_sys, 0, sizeof( decoder_sys_t ) );
 
-    p_dec->fmt_out.i_codec = VLC_CODEC_MPGV;
+    p_dec->fmt_out.i_codec = HEIMDALL_CODEC_MPGV;
     p_dec->fmt_out.i_original_fourcc = p_dec->fmt_in->i_original_fourcc;
 
     /* Misc init */
@@ -230,7 +231,7 @@ static int Open( vlc_object_t *p_this )
     p_sys->b_frame_slice = false;
 
     p_sys->i_dts =
-    p_sys->i_pts = VLC_TICK_INVALID;
+    p_sys->i_pts = HEIMDALL_TICK_INVALID;
 
     unsigned num, den;
     if( p_dec->fmt_in->video.i_frame_rate && p_dec->fmt_in->video.i_frame_rate_base &&
@@ -269,7 +270,7 @@ static int Open( vlc_object_t *p_this )
     p_sys->i_repeat_first_field = 0;
     p_sys->i_progressive_frame = 0;
 
-    p_sys->i_last_ref_pts = VLC_TICK_INVALID;
+    p_sys->i_last_ref_pts = HEIMDALL_TICK_INVALID;
     p_sys->b_second_field = 0;
 
     p_sys->i_next_block_flags = 0;
@@ -291,13 +292,13 @@ static int Open( vlc_object_t *p_this )
     p_dec->pf_flush = PacketizeFlush;
     p_dec->pf_get_cc = GetCc;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * Close:
  *****************************************************************************/
-static void Close( vlc_object_t *p_this )
+static void Close( heimdall_object_t *p_this )
 {
     decoder_t     *p_dec = (decoder_t*)p_this;
     decoder_sys_t *p_sys = p_dec->p_sys;
@@ -410,7 +411,7 @@ static void ProcessSequenceParameters( decoder_t *p_dec )
         unsigned den = code_to_frame_rate[p_sys->i_frame_rate_value][1];
         if( p_sys->i_frame_rate_ext_n || p_sys->i_frame_rate_ext_d )
         {
-            vlc_ureduce( &num, &den,
+            heimdall_ureduce( &num, &den,
                          num * (1 + p_sys->i_frame_rate_ext_n),
                          den * (1 + p_sys->i_frame_rate_ext_d),
                          CLOCK_FREQ );
@@ -521,23 +522,23 @@ static block_t *OutputFrame( decoder_t *p_dec )
      * and only use first dts as it does not monotonically increase
      * This will NOT work with frame repeats and such, as we would need to fully
      * fill the DPB to get accurate pts timings. */
-    if( unlikely( p_dec->fmt_in->i_original_fourcc == VLC_FOURCC( 'D','V','R',' ') ) )
+    if( unlikely( p_dec->fmt_in->i_original_fourcc == HEIMDALL_FOURCC( 'D','V','R',' ') ) )
     {
         const bool b_first_xmited = (p_sys->i_prev_temporal_ref != p_sys->i_temporal_ref );
 
         if( ( p_pic->i_flags & BLOCK_FLAG_TYPE_I ) && b_first_xmited )
         {
-            if( date_Get( &p_sys->prev_iframe_dts ) == VLC_TICK_INVALID )
+            if( date_Get( &p_sys->prev_iframe_dts ) == HEIMDALL_TICK_INVALID )
             {
-                if( p_sys->i_dts != VLC_TICK_INVALID )
+                if( p_sys->i_dts != HEIMDALL_TICK_INVALID )
                 {
                     date_Set( &p_sys->dts, p_sys->i_dts );
                 }
                 else
                 {
-                    if( date_Get( &p_sys->dts ) == VLC_TICK_INVALID )
+                    if( date_Get( &p_sys->dts ) == HEIMDALL_TICK_INVALID )
                     {
-                        date_Set( &p_sys->dts, VLC_TICK_0 );
+                        date_Set( &p_sys->dts, HEIMDALL_TICK_0 );
                     }
                 }
             }
@@ -563,7 +564,7 @@ static block_t *OutputFrame( decoder_t *p_dec )
 
         p_pic->i_pts = date_Get( &datepts );
 
-        if( date_Get( &p_sys->dts ) != VLC_TICK_INVALID )
+        if( date_Get( &p_sys->dts ) != HEIMDALL_TICK_INVALID )
         {
             date_Increment( &p_sys->dts,  i_num_fields );
 
@@ -577,17 +578,17 @@ static block_t *OutputFrame( decoder_t *p_dec )
         {
             /* Trivial case (DTS == PTS) */
             /* Correct interpolated dts when we receive a new pts/dts */
-            if( p_sys->i_pts != VLC_TICK_INVALID )
+            if( p_sys->i_pts != HEIMDALL_TICK_INVALID )
                 date_Set( &p_sys->dts, p_sys->i_pts );
-            if( p_sys->i_dts != VLC_TICK_INVALID )
+            if( p_sys->i_dts != HEIMDALL_TICK_INVALID )
                 date_Set( &p_sys->dts, p_sys->i_dts );
         }
         else
         {
             /* Correct interpolated dts when we receive a new pts/dts */
-            if(p_sys->i_last_ref_pts != VLC_TICK_INVALID && !p_sys->b_second_field)
+            if(p_sys->i_last_ref_pts != HEIMDALL_TICK_INVALID && !p_sys->b_second_field)
                 date_Set( &p_sys->dts, p_sys->i_last_ref_pts );
-            if( p_sys->i_dts != VLC_TICK_INVALID )
+            if( p_sys->i_dts != HEIMDALL_TICK_INVALID )
                 date_Set( &p_sys->dts, p_sys->i_dts );
 
             if( !p_sys->b_second_field )
@@ -597,7 +598,7 @@ static block_t *OutputFrame( decoder_t *p_dec )
         p_pic->i_dts = date_Get( &p_sys->dts );
 
         /* Set PTS only if we have a B frame or if it comes from the stream */
-        if( p_sys->i_pts != VLC_TICK_INVALID )
+        if( p_sys->i_pts != HEIMDALL_TICK_INVALID )
         {
             p_pic->i_pts = p_sys->i_pts;
         }
@@ -607,10 +608,10 @@ static block_t *OutputFrame( decoder_t *p_dec )
         }
         else
         {
-            p_pic->i_pts = VLC_TICK_INVALID;
+            p_pic->i_pts = HEIMDALL_TICK_INVALID;
         }
 
-        if( date_Get( &p_sys->dts ) != VLC_TICK_INVALID )
+        if( date_Get( &p_sys->dts ) != HEIMDALL_TICK_INVALID )
         {
             date_Increment( &p_sys->dts,  i_num_fields );
 
@@ -622,7 +623,7 @@ static block_t *OutputFrame( decoder_t *p_dec )
     msg_Dbg( p_dec, "pic: type=%d struct=%d ref=%d nf=%d tff=%d dts=%"PRId64" ptsdiff=%"PRId64" len=%"PRId64,
              p_sys->i_picture_type, p_sys->i_picture_structure, p_sys->i_temporal_ref, i_num_fields,
              p_sys->i_top_field_first,
-             p_pic->i_dts , (p_pic->i_pts != VLC_TICK_INVALID) ? p_pic->i_pts - p_pic->i_dts : 0, p_pic->i_length );
+             p_pic->i_dts , (p_pic->i_pts != HEIMDALL_TICK_INVALID) ? p_pic->i_pts - p_pic->i_dts : 0, p_pic->i_length );
 #endif
 
 
@@ -654,7 +655,7 @@ static block_t *OutputFrame( decoder_t *p_dec )
  *****************************************************************************/
 static void PacketizeReset( void *p_private, bool b_flush )
 {
-    VLC_UNUSED(b_flush);
+    HEIMDALL_UNUSED(b_flush);
     decoder_t *p_dec = p_private;
     decoder_sys_t *p_sys = p_dec->p_sys;
 
@@ -666,11 +667,11 @@ static void PacketizeReset( void *p_private, bool b_flush )
         p_sys->pp_last = &p_sys->p_frame;
         p_sys->b_frame_slice = false;
     }
-    date_Set( &p_sys->dts, VLC_TICK_INVALID );
-    date_Set( &p_sys->prev_iframe_dts, VLC_TICK_INVALID );
+    date_Set( &p_sys->dts, HEIMDALL_TICK_INVALID );
+    date_Set( &p_sys->prev_iframe_dts, HEIMDALL_TICK_INVALID );
     p_sys->i_dts =
     p_sys->i_pts =
-    p_sys->i_last_ref_pts = VLC_TICK_INVALID;
+    p_sys->i_last_ref_pts = HEIMDALL_TICK_INVALID;
     p_sys->b_waiting_iframe = p_sys->b_sync_on_intra_frame;
     p_sys->i_prev_temporal_ref = 2048;
 }
@@ -722,7 +723,7 @@ static int PacketizeValidate( void *p_private, block_t *p_au )
         if( (p_au->i_flags & BLOCK_FLAG_TYPE_I) == 0 )
         {
             msg_Dbg( p_dec, "waiting on intra frame" );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
         msg_Dbg( p_dec, "synced on intra frame" );
         p_sys->b_waiting_iframe = false;
@@ -730,19 +731,19 @@ static int PacketizeValidate( void *p_private, block_t *p_au )
 
     /* We've just started the stream, wait for the first PTS.
      * We discard here so we can still get the sequence header. */
-    if( unlikely( p_sys->i_dts == VLC_TICK_INVALID && p_sys->i_pts == VLC_TICK_INVALID &&
-        date_Get( &p_sys->dts ) == VLC_TICK_INVALID ))
+    if( unlikely( p_sys->i_dts == HEIMDALL_TICK_INVALID && p_sys->i_pts == HEIMDALL_TICK_INVALID &&
+        date_Get( &p_sys->dts ) == HEIMDALL_TICK_INVALID ))
     {
         msg_Dbg( p_dec, "need a starting pts/dts" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* When starting the stream we can have the first frame with
-     * an invalid DTS (i_interpolated_pts is initialized to VLC_TICK_INVALID) */
-    if( unlikely( p_au->i_dts == VLC_TICK_INVALID ) )
+     * an invalid DTS (i_interpolated_pts is initialized to HEIMDALL_TICK_INVALID) */
+    if( unlikely( p_au->i_dts == HEIMDALL_TICK_INVALID ) )
         p_au->i_dts = p_au->i_pts;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 /*****************************************************************************
  * ParseMPEGBlock: Re-assemble fragments into a block containing a picture
@@ -1002,7 +1003,7 @@ static block_t *ParseMPEGBlock( decoder_t *p_dec, block_t *p_frag )
         }
 
         /* Check if we can use timestamps */
-        if(p_frag->i_dts != VLC_TICK_INVALID &&
+        if(p_frag->i_dts != HEIMDALL_TICK_INVALID &&
            p_frag->i_dts <= p_sys->i_dts)
         {
             date_t next = p_sys->dts;
@@ -1010,7 +1011,7 @@ static block_t *ParseMPEGBlock( decoder_t *p_dec, block_t *p_frag )
             /* Because the prev timestamp could have been repeated though
              * helper, clear up if we are within 2 frames backward */
             if(date_Increment(&next, 4) >= p_sys->i_dts)
-                p_frag->i_dts = p_frag->i_pts = VLC_TICK_INVALID; /* do not reuse */
+                p_frag->i_dts = p_frag->i_pts = HEIMDALL_TICK_INVALID; /* do not reuse */
         }
 
         p_sys->i_dts = p_frag->i_dts;

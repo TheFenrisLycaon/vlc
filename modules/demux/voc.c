@@ -1,7 +1,8 @@
 /*****************************************************************************
- * voc.c : Creative Voice File (.VOC) demux module for vlc
+ * voc.c : Creative Voice File (.VOC) demux module for heimdall
  *****************************************************************************
  * Copyright (C) 2005 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Rémi Denis-Courmont
  *
@@ -30,22 +31,22 @@
 
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_demux.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_demux.h>
 
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  Open ( vlc_object_t * );
+static int  Open ( heimdall_object_t * );
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("VOC demuxer") )
     set_subcategory( SUBCAT_INPUT_DEMUX )
     set_capability( "demux", 10 )
     set_callback( Open )
     add_file_extension("voc")
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * Local prototypes
@@ -73,57 +74,57 @@ static const char ct_header[] = "Creative Voice File\x1a";
 /*****************************************************************************
  * Open: check file and initializes structures
  *****************************************************************************/
-static int Open( vlc_object_t * p_this )
+static int Open( heimdall_object_t * p_this )
 {
     demux_t     *p_demux = (demux_t*)p_this;
     const uint8_t *p_buf;
     uint16_t    i_data_offset, i_version;
 
-    if( vlc_stream_Peek( p_demux->s, &p_buf, 26 ) < 26 )
-        return VLC_EGENERIC;
+    if( heimdall_stream_Peek( p_demux->s, &p_buf, 26 ) < 26 )
+        return HEIMDALL_EGENERIC;
 
     if( memcmp( p_buf, ct_header, 20 ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     p_buf += 20;
 
     i_data_offset = GetWLE( p_buf );
     if ( i_data_offset < 26 /* not enough room for full VOC header */ )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     p_buf += 2;
 
     i_version = GetWLE( p_buf );
     if( ( i_version != 0x10A ) && ( i_version != 0x114 ) )
-        return VLC_EGENERIC; /* unknown VOC version */
+        return HEIMDALL_EGENERIC; /* unknown VOC version */
     p_buf += 2;
 
     if( GetWLE( p_buf ) != (uint16_t)(0x1234 + ~i_version) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* We have a valid VOC header */
     msg_Dbg( p_demux, "CT Voice file v%d.%d", i_version >> 8,
              i_version & 0xff );
 
     /* skip VOC header */
-    if( vlc_stream_Read( p_demux->s, NULL, i_data_offset ) != i_data_offset )
-        return VLC_EGENERIC;
+    if( heimdall_stream_Read( p_demux->s, NULL, i_data_offset ) != i_data_offset )
+        return HEIMDALL_EGENERIC;
 
-    demux_sys_t *p_sys = vlc_obj_malloc( p_this, sizeof (*p_sys) );
+    demux_sys_t *p_sys = heimdall_obj_malloc( p_this, sizeof (*p_sys) );
     if( unlikely(p_sys == NULL) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_sys->i_silence_countdown = p_sys->i_block_start = p_sys->i_block_end =
     p_sys->i_loop_count = 0;
     p_sys->p_es = NULL;
 
     date_Init( &p_sys->pts, 1, 1 );
-    date_Set( &p_sys->pts, VLC_TICK_0 );
+    date_Set( &p_sys->pts, HEIMDALL_TICK_0 );
 
     es_format_Init( &p_sys->fmt, AUDIO_ES, 0 );
     p_demux->pf_demux = Demux;
     p_demux->pf_control = Control;
     p_demux->p_sys = p_sys;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int fmtcmp( es_format_t *ofmt, es_format_t *nfmt )
@@ -164,8 +165,8 @@ static int ReadBlockHeader( demux_t *p_demux )
     int32_t i_block_size;
     demux_sys_t *p_sys = p_demux->p_sys;
 
-    if( vlc_stream_Read( p_demux->s, buf, 4 ) < 4 )
-        return VLC_EGENERIC; /* EOF */
+    if( heimdall_stream_Read( p_demux->s, buf, 4 ) < 4 )
+        return HEIMDALL_EGENERIC; /* EOF */
 
     i_block_size = GetDWLE( buf ) >> 8;
     msg_Dbg( p_demux, "new block: type: %u, size: %u",
@@ -175,7 +176,7 @@ static int ReadBlockHeader( demux_t *p_demux )
 
     switch( *buf )
     {
-        case 0: /* not possible : caught with earlier vlc_stream_Read */
+        case 0: /* not possible : caught with earlier heimdall_stream_Read */
             goto corrupt;
 
         case 1:
@@ -183,49 +184,49 @@ static int ReadBlockHeader( demux_t *p_demux )
                 goto corrupt;
             i_block_size -= 2;
 
-            if( vlc_stream_Read( p_demux->s, buf, 2 ) < 2 )
+            if( heimdall_stream_Read( p_demux->s, buf, 2 ) < 2 )
                 goto corrupt;
 
             switch( buf[1] ) /* codec id */
             {
             case 0x0:
-                new_fmt.i_codec = VLC_CODEC_U8;
+                new_fmt.i_codec = HEIMDALL_CODEC_U8;
                 new_fmt.audio.i_bytes_per_frame = 1;
                 new_fmt.audio.i_bitspersample = 8;
                 break;
             case 0x1:
-                new_fmt.i_codec = VLC_CODEC_ADPCM_SBPRO_4;
+                new_fmt.i_codec = HEIMDALL_CODEC_ADPCM_SBPRO_4;
                 new_fmt.audio.i_bytes_per_frame = 1;
                 new_fmt.audio.i_bitspersample = 4;
                 break;
             case 0x2:
-                new_fmt.i_codec = VLC_CODEC_ADPCM_SBPRO_3;
+                new_fmt.i_codec = HEIMDALL_CODEC_ADPCM_SBPRO_3;
                 new_fmt.audio.i_bytes_per_frame = 3;
                 new_fmt.audio.i_bitspersample = 3;
                 break;
             case 0x3:
-                new_fmt.i_codec = VLC_CODEC_ADPCM_SBPRO_2;
+                new_fmt.i_codec = HEIMDALL_CODEC_ADPCM_SBPRO_2;
                 new_fmt.audio.i_bytes_per_frame = 1;
                 new_fmt.audio.i_bitspersample = 2;
                 break;
             case 0x4:
-                new_fmt.i_codec = VLC_CODEC_S16L;
+                new_fmt.i_codec = HEIMDALL_CODEC_S16L;
                 new_fmt.audio.i_bytes_per_frame = 2;
                 new_fmt.audio.i_bitspersample = 16;
                 break;
             case 0x6:
-                new_fmt.i_codec = VLC_CODEC_ALAW;
+                new_fmt.i_codec = HEIMDALL_CODEC_ALAW;
                 new_fmt.audio.i_bytes_per_frame = 1;
                 new_fmt.audio.i_bitspersample = 8;
                 break;
             case 0x7:
-                new_fmt.i_codec = VLC_CODEC_MULAW;
+                new_fmt.i_codec = HEIMDALL_CODEC_MULAW;
                 new_fmt.audio.i_bytes_per_frame = 1;
                 new_fmt.audio.i_bitspersample = 8;
                 break;
             default:
                 msg_Err( p_demux, "unsupported compression 0x%"PRIx8, buf[1] );
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             }
 
             new_fmt.audio.i_channels = 1;
@@ -248,13 +249,13 @@ static int ReadBlockHeader( demux_t *p_demux )
 
         case 3: /* silence block */
             if( ( i_block_size != 3 )
-             || ( vlc_stream_Read( p_demux->s, buf, 3 ) < 3 ) )
+             || ( heimdall_stream_Read( p_demux->s, buf, 3 ) < 3 ) )
                 goto corrupt;
 
             i_block_size = 0;
             p_sys->i_silence_countdown = GetWLE( buf );
 
-            new_fmt.i_codec = VLC_CODEC_U8;
+            new_fmt.i_codec = HEIMDALL_CODEC_U8;
             new_fmt.audio.i_rate = fix_voc_sr( 1000000L / (256L - buf[0]) );
             new_fmt.audio.i_bytes_per_frame = 1;
             new_fmt.audio.i_frame_length = 1;
@@ -266,12 +267,12 @@ static int ReadBlockHeader( demux_t *p_demux )
 
         case 6: /* repeat block */
             if( ( i_block_size != 2 )
-             || ( vlc_stream_Read( p_demux->s, buf, 2 ) < 2 ) )
+             || ( heimdall_stream_Read( p_demux->s, buf, 2 ) < 2 ) )
                 goto corrupt;
 
             i_block_size = 0;
             p_sys->i_loop_count = GetWLE( buf );
-            p_sys->i_loop_offset = vlc_stream_Tell( p_demux->s );
+            p_sys->i_loop_offset = heimdall_stream_Tell( p_demux->s );
             break;
 
         case 7: /* repeat end block */
@@ -280,7 +281,7 @@ static int ReadBlockHeader( demux_t *p_demux )
 
             if( p_sys->i_loop_count > 0 )
             {
-                if( vlc_stream_Seek( p_demux->s, p_sys->i_loop_offset ) )
+                if( heimdall_stream_Seek( p_demux->s, p_sys->i_loop_offset ) )
                     msg_Warn( p_demux, "cannot loop: seek failed" );
                 else
                     p_sys->i_loop_count--;
@@ -296,16 +297,16 @@ static int ReadBlockHeader( demux_t *p_demux )
              * is used for stereo rather than 8
              */
             if( ( i_block_size != 4 )
-             || ( vlc_stream_Read( p_demux->s, buf, 4 ) < 4 ) )
+             || ( heimdall_stream_Read( p_demux->s, buf, 4 ) < 4 ) )
                 goto corrupt;
 
             if( buf[2] )
             {
                 msg_Err( p_demux, "unsupported compression" );
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             }
 
-            new_fmt.i_codec = VLC_CODEC_U8;
+            new_fmt.i_codec = HEIMDALL_CODEC_U8;
             static_assert( INPUT_CHAN_MAX > 32, "INPUT_CHAN_MAX too small" );
             if (buf[3] >= 32)
                 goto corrupt;
@@ -319,8 +320,8 @@ static int ReadBlockHeader( demux_t *p_demux )
             new_fmt.i_bitrate = new_fmt.audio.i_rate * 8;
 
             /* read subsequent block 1 */
-            if( vlc_stream_Read( p_demux->s, buf, 4 ) < 4 )
-                return VLC_EGENERIC; /* EOF */
+            if( heimdall_stream_Read( p_demux->s, buf, 4 ) < 4 )
+                return HEIMDALL_EGENERIC; /* EOF */
 
             i_block_size = GetDWLE( buf ) >> 8;
             msg_Dbg( p_demux, "new block: type: %u, size: %u",
@@ -329,13 +330,13 @@ static int ReadBlockHeader( demux_t *p_demux )
                 goto corrupt;
             i_block_size -= 2;
 
-            if( vlc_stream_Read( p_demux->s, buf, 2 ) < 2 )
+            if( heimdall_stream_Read( p_demux->s, buf, 2 ) < 2 )
                 goto corrupt;
 
             if( buf[1] )
             {
                 msg_Err( p_demux, "unsupported compression" );
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             }
 
             break;
@@ -345,8 +346,8 @@ static int ReadBlockHeader( demux_t *p_demux )
                 goto corrupt;
             i_block_size -= 12;
 
-            if( ( vlc_stream_Read( p_demux->s, buf, 8 ) < 8 )
-             ||  vlc_stream_Read( p_demux->s, NULL, 4 ) != 4 )
+            if( ( heimdall_stream_Read( p_demux->s, buf, 8 ) < 8 )
+             ||  heimdall_stream_Read( p_demux->s, NULL, 4 ) != 4 )
                 goto corrupt;
 
             new_fmt.audio.i_rate = GetDWLE( buf );
@@ -361,17 +362,17 @@ static int ReadBlockHeader( demux_t *p_demux )
                     switch( new_fmt.audio.i_bitspersample )
                     {
                         case 8:
-                            new_fmt.i_codec = VLC_CODEC_U8;
+                            new_fmt.i_codec = HEIMDALL_CODEC_U8;
                             break;
 
                         case 16:
-                            new_fmt.i_codec = VLC_CODEC_U16L;
+                            new_fmt.i_codec = HEIMDALL_CODEC_U16L;
                             break;
 
                         default:
                             msg_Err( p_demux, "unsupported bit res.: %u bits",
                                      new_fmt.audio.i_bitspersample );
-                            return VLC_EGENERIC;
+                            return HEIMDALL_EGENERIC;
                     }
                     break;
 
@@ -379,34 +380,34 @@ static int ReadBlockHeader( demux_t *p_demux )
                     switch( new_fmt.audio.i_bitspersample )
                     {
                         case 8:
-                            new_fmt.i_codec = VLC_CODEC_S8;
+                            new_fmt.i_codec = HEIMDALL_CODEC_S8;
                             break;
 
                         case 16:
-                            new_fmt.i_codec = VLC_CODEC_S16L;
+                            new_fmt.i_codec = HEIMDALL_CODEC_S16L;
                             break;
 
                         default:
                             msg_Err( p_demux, "unsupported bit res.: %u bits",
                                      new_fmt.audio.i_bitspersample );
-                            return VLC_EGENERIC;
+                            return HEIMDALL_EGENERIC;
                     }
                     break;
 
                 default:
                     msg_Err( p_demux, "unsupported compression" );
-                    return VLC_EGENERIC;
+                    return HEIMDALL_EGENERIC;
             }
 
             if( new_fmt.audio.i_channels == 0 )
             {
                 msg_Err( p_demux, "0 channels detected" );
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             }
             if ( new_fmt.audio.i_channels > INPUT_CHAN_MAX )
             {
                 msg_Err( p_demux, "too many channels detected %" PRIu8, new_fmt.audio.i_channels );
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             }
 
             new_fmt.audio.i_bytes_per_frame = new_fmt.audio.i_channels
@@ -423,13 +424,13 @@ static int ReadBlockHeader( demux_t *p_demux )
             /* fall through */
         case 4: /* blocks of non-audio types can be skipped */
         case 5:
-            if(vlc_stream_Read( p_demux->s, NULL, i_block_size ) != i_block_size)
+            if(heimdall_stream_Read( p_demux->s, NULL, i_block_size ) != i_block_size)
                 goto corrupt;
             i_block_size = 0;
             break;
     }
 
-    p_sys->i_block_start = vlc_stream_Tell( p_demux->s );
+    p_sys->i_block_start = heimdall_stream_Tell( p_demux->s );
     p_sys->i_block_end = p_sys->i_block_start + i_block_size;
 
     if( i_block_size || p_sys->i_silence_countdown )
@@ -455,15 +456,15 @@ static int ReadBlockHeader( demux_t *p_demux )
             date_Change( &p_sys->pts, p_sys->fmt.audio.i_rate, 1 );
             p_sys->p_es = es_out_Add( p_demux->out, &p_sys->fmt );
             if( unlikely(p_sys->p_es == NULL) )
-                return VLC_ENOMEM;
+                return HEIMDALL_ENOMEM;
         }
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 corrupt:
     msg_Err( p_demux, "corrupted file - halting demux" );
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /*****************************************************************************
@@ -480,12 +481,12 @@ static int Demux( demux_t *p_demux )
 
     if( p_sys->i_silence_countdown == 0 )
     {
-        int64_t i_offset = vlc_stream_Tell( p_demux->s );
+        int64_t i_offset = heimdall_stream_Tell( p_demux->s );
         if( i_offset >= p_sys->i_block_end )
         {
-            if( ReadBlockHeader( p_demux ) != VLC_SUCCESS )
-                return VLC_DEMUXER_EOF;
-            return VLC_DEMUXER_SUCCESS;
+            if( ReadBlockHeader( p_demux ) != HEIMDALL_SUCCESS )
+                return HEIMDALL_DEMUXER_EOF;
+            return HEIMDALL_DEMUXER_SUCCESS;
         }
 
         i_read_frames = ( p_sys->i_block_end - i_offset )
@@ -494,13 +495,13 @@ static int Demux( demux_t *p_demux )
         if( i_read_frames > MAX_READ_FRAME )
             i_read_frames = MAX_READ_FRAME;
 
-        p_block = vlc_stream_Block( p_demux->s,
+        p_block = heimdall_stream_Block( p_demux->s,
                                     p_sys->fmt.audio.i_bytes_per_frame
                                     * i_read_frames );
         if( p_block == NULL )
         {
             msg_Warn( p_demux, "cannot read data" );
-            return VLC_DEMUXER_EOF;
+            return HEIMDALL_DEMUXER_EOF;
         }
     }
     else
@@ -511,20 +512,20 @@ static int Demux( demux_t *p_demux )
 
         p_block = block_Alloc( i_read_frames );
         if( p_block == NULL )
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
 
         memset( p_block->p_buffer, 0, i_read_frames );
         p_sys->i_silence_countdown -= i_read_frames;
     }
 
-    p_block->i_dts = p_block->i_pts = VLC_TICK_0 + date_Get( &p_sys->pts );
+    p_block->i_dts = p_block->i_pts = HEIMDALL_TICK_0 + date_Get( &p_sys->pts );
     p_block->i_nb_samples = i_read_frames * p_sys->fmt.audio.i_frame_length;
     date_Increment( &p_sys->pts, p_block->i_nb_samples );
     es_out_SetPCR( p_demux->out, p_block->i_pts );
     assert(p_sys->p_es != NULL);
     es_out_Send( p_demux->out, p_sys->p_es, p_block );
 
-    return VLC_DEMUXER_SUCCESS;
+    return HEIMDALL_DEMUXER_SUCCESS;
 }
 
 /*****************************************************************************

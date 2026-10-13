@@ -1,9 +1,10 @@
 /*****************************************************************************
- * flaschentaschen.c: Flaschen-Taschen video output display for vlc
+ * flaschentaschen.c: Flaschen-Taschen video output display for heimdall
  * cf. https://github.com/hzeller/flaschen-taschen
  *****************************************************************************
  * Copyright (C) 2000-2009 VLC authors and VideoLAN
  * Copyright (C) 2016 François Revol <revol@free.fr>
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Includes code from vdummy.c and aa.c:
  * Authors: Samuel Hocevar <sam@zoy.org>
@@ -37,11 +38,11 @@
 # include <sys/uio.h>
 #endif
 
-#include <vlc_common.h>
-#include <vlc_fs.h>
-#include <vlc_network.h>
-#include <vlc_plugin.h>
-#include <vlc_vout_display.h>
+#include <heimdall_common.h>
+#include <heimdall_fs.h>
+#include <heimdall_network.h>
+#include <heimdall_plugin.h>
+#include <heimdall_vout_display.h>
 
 #define T_FLDISPLAY N_("Flaschen-Taschen display address")
 #define LT_FLDISPLAY N_( \
@@ -64,10 +65,10 @@
 #define LT_OFFSET_Z NULL
 
 static int Open(vout_display_t *vd,
-                video_format_t *fmtp, vlc_video_context *context);
+                video_format_t *fmtp, heimdall_video_context *context);
 static void Close(vout_display_t *vd);
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( N_("Flaschen") )
     set_description( N_("Flaschen-Taschen video output") )
     set_callback_display( Open, 0 )
@@ -80,7 +81,7 @@ vlc_module_begin ()
     add_integer("flaschen-offset-x", 0, T_OFFSET_X, LT_OFFSET_X)
     add_integer("flaschen-offset-y", 0, T_OFFSET_Y, LT_OFFSET_Y)
     add_integer("flaschen-offset-z", 0, T_OFFSET_Z, LT_OFFSET_Z)
-vlc_module_end ()
+heimdall_module_end ()
 
 
 /*****************************************************************************
@@ -91,7 +92,7 @@ typedef struct vout_display_sys_t {
 } vout_display_sys_t;
 static void            Display(vout_display_t *, picture_t *);
 
-static const struct vlc_display_operations ops = {
+static const struct heimdall_display_operations ops = {
     .close = Close,
     .display = Display,
 };
@@ -100,7 +101,7 @@ static const struct vlc_display_operations ops = {
  * Open: activates flaschen vout display method
  *****************************************************************************/
 static int Open(vout_display_t *vd,
-                video_format_t *fmtp, vlc_video_context *context)
+                video_format_t *fmtp, heimdall_video_context *context)
 {
     vout_display_sys_t *sys;
     int fd;
@@ -108,13 +109,13 @@ static int Open(vout_display_t *vd,
 
     vd->sys = sys = calloc(1, sizeof(*sys));
     if (!sys)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     sys->fd = -1;
 
     /* */
     video_format_t fmt = *fmtp;
     /* TODO: check if this works on big-endian systems */
-    fmt.i_chroma = VLC_CODEC_RGB24;
+    fmt.i_chroma = HEIMDALL_CODEC_RGB24;
     fmt.i_width  = var_InheritInteger(vd, "flaschen-width");
     fmt.i_height = var_InheritInteger(vd, "flaschen-height");
     fmt.i_visible_width = fmt.i_width;
@@ -127,7 +128,7 @@ static int Open(vout_display_t *vd,
     if (display == NULL) {
         msg_Err(vd, "missing flaschen-display");
         free(sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     msg_Dbg(vd, "using display at %s (%dx%d)", display, fmt.i_width, fmt.i_height);
 
@@ -140,7 +141,7 @@ static int Open(vout_display_t *vd,
                  display, port );
         free(display);
         free(sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     free(display);
     sys->fd = fd;
@@ -154,7 +155,7 @@ static int Open(vout_display_t *vd,
     vd->ops = &ops;
 
     (void) context;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void Close(vout_display_t *vd)
@@ -218,7 +219,7 @@ static void Display(vout_display_t *vd, picture_t *picture)
 
     result = sendmsg(sys->fd, &hdr, 0);
     if (result < 0)
-        msg_Err(vd, "sendmsg: error %s in vout display flaschen", vlc_strerror_c(errno));
+        msg_Err(vd, "sendmsg: error %s in vout display flaschen", heimdall_strerror_c(errno));
     else if (result < (int)(header_len + fmt->i_width * fmt->i_height * 3))
         msg_Err(vd, "sendmsg only sent %d bytes in vout display flaschen", result);
         /* we might want to drop some frames? */

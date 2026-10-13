@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 2010 - 2011 Klagenfurt University
  * Copyright (C) 2015 - 2020 VideoLabs, VideoLAN and VLC authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -26,14 +27,14 @@
 #include "../tools/Helper.h"
 #include "BasePeriod.h"
 #include "SegmentTimeline.h"
-#include <vlc_common.h>
-#include <vlc_stream.h>
+#include <heimdall_common.h>
+#include <heimdall_stream.h>
 
 #include <algorithm>
 
 using namespace adaptive::playlist;
 
-BasePlaylist::BasePlaylist (vlc_object_t *p_object_) :
+BasePlaylist::BasePlaylist (heimdall_object_t *p_object_) :
     ICanonicalUrl(), AttrsNode(Type::Playlist),
     p_object(p_object_)
 {
@@ -41,7 +42,7 @@ BasePlaylist::BasePlaylist (vlc_object_t *p_object_) :
     availabilityStartTime = 0;
     availabilityEndTime = 0;
     duration = 0;
-    minUpdatePeriod = VLC_TICK_FROM_SEC(2);
+    minUpdatePeriod = HEIMDALL_TICK_FROM_SEC(2);
     maxSegmentDuration = 0;
     minBufferTime = 0;
     maxBufferTime = 0;
@@ -93,22 +94,22 @@ void BasePlaylist::setType(const std::string &type_)
     type = type_;
 }
 
-void BasePlaylist::setMinBuffering( vlc_tick_t min )
+void BasePlaylist::setMinBuffering( heimdall_tick_t min )
 {
     minBufferTime = min;
 }
 
-void BasePlaylist::setMaxBuffering( vlc_tick_t max )
+void BasePlaylist::setMaxBuffering( heimdall_tick_t max )
 {
     maxBufferTime = max;
 }
 
-vlc_tick_t BasePlaylist::getMinBuffering() const
+heimdall_tick_t BasePlaylist::getMinBuffering() const
 {
     return minBufferTime;
 }
 
-vlc_tick_t BasePlaylist::getMaxBuffering() const
+heimdall_tick_t BasePlaylist::getMaxBuffering() const
 {
     return maxBufferTime;
 }
@@ -126,7 +127,7 @@ Url BasePlaylist::getUrlSegment() const
     return ret;
 }
 
-vlc_object_t * BasePlaylist::getVLCObject() const
+heimdall_object_t * BasePlaylist::getHeimdallObject() const
 {
     return p_object;
 }
@@ -171,5 +172,5 @@ void BasePlaylist::debug() const
 {
     std::vector<BasePeriod *>::const_iterator i;
     for(i = periods.begin(); i != periods.end(); ++i)
-        (*i)->debug(VLC_OBJECT(p_object));
+        (*i)->debug(HEIMDALL_OBJECT(p_object));
 }

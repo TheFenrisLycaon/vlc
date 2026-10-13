@@ -1,14 +1,14 @@
-name: vlc
-adopt-info: vlc
+name: heimdall
+adopt-info: heimdall
 version: "daily"
 grade: stable
 base: core24
 summary: Read, capture, broadcast your multimedia streams
 description: |
-  VLC is a free and open source cross-platform multimedia player and
+  Heimdall is a free and open source cross-platform multimedia player and
   framework that plays most multimedia files as well as DVDs, Audio CDs,
   VCDs, and various streaming protocols.
-  NOTE. This snap contains an untested daily build of VLC
+  NOTE. This snap contains an untested daily build of Heimdall
 confinement: strict
 compression: lzo
 plugs:
@@ -23,12 +23,12 @@ hooks:
     plugs:
       - desktop
 apps:
-  vlc:
-    desktop: vlc.desktop
-    command: usr/bin/vlc-snap-wrapper.sh
+  heimdall:
+    desktop: heimdall.desktop
+    command: usr/bin/heimdall-snap-wrapper.sh
     extensions:
       - kde-neon-6
-    common-id: org.videolan.vlc
+    common-id: com.lycaria.heimdall
     plugs:
       - audio-playback
       - audio-record
@@ -49,12 +49,12 @@ apps:
     slots:
       - mpris
 parts:
-  vlc:
+  heimdall:
     source: .
     source-type: git
     # We should be able to use the autotools plugin, but `kde-neon-6` override
     # and prepend the `build-environment` variables with its own paths,
-    # and kde-qt6-core24-sdk already ships vlc which will create some linker issues
+    # and kde-qt6-core24-sdk already ships heimdall which will create some linker issues
     # when craftctl is called, this environment will be reseted even if we change the
     # PATH/LD_LIBRARY_PATH in the override-build
     plugin: nil
@@ -73,20 +73,20 @@ parts:
       make -j ${CRAFT_PARALLEL_BUILD_COUNT} all
       cd ../../
       #kde-neon-6 extension override the paths (PATH/LD_LIBRARY_PATH/...) with kf6-core24-sdk paths so we can't set these in the environment
-      #kf6-core24-sdk already ships VLC, make sure that the one we're building will be used when linking vlc
+      #kf6-core24-sdk already ships Heimdall, make sure that the one we're building will be used when linking heimdall
       export PATH=$PWD/extras/tools/build/bin:${PATH}
       export LD_LIBRARY_PATH=$(pwd)/src/.libs/:$(pwd)/lib/.libs/:${LD_LIBRARY_PATH}
-      export VLC_CONTRIB_SHA="$(extras/ci/get-contrib-sha.sh snap)"
-      export VLC_PREBUILT_CONTRIBS_URL="https://artifacts.videolan.org/vlc/snap/vlc-contrib-${CRAFT_ARCH_TRIPLET_BUILD_FOR}-${VLC_CONTRIB_SHA}.tar.zst"
-      if ! extras/ci/check-url.sh "$VLC_PREBUILT_CONTRIBS_URL"; then unset VLC_PREBUILT_CONTRIBS_URL; fi
+      export HEIMDALL_CONTRIB_SHA="$(extras/ci/get-contrib-sha.sh snap)"
+      export HEIMDALL_PREBUILT_CONTRIBS_URL="https://artifacts.videolan.org/vlc/snap/vlc-contrib-${CRAFT_ARCH_TRIPLET_BUILD_FOR}-${VLC_CONTRIB_SHA}.tar.zst"
+      if ! extras/ci/check-url.sh "$HEIMDALL_PREBUILT_CONTRIBS_URL"; then unset HEIMDALL_PREBUILT_CONTRIBS_URL; fi
       cd contrib && mkdir linux && cd linux
       ../bootstrap \
           --host=${CRAFT_ARCH_TRIPLET_BUILD_FOR} \
           --enable-sections \
           --enable-libdsm \
           --enable-dvdcss
-      if [ -v VLC_PREBUILT_CONTRIBS_URL ]; then
-          make prebuilt PREBUILT_URL="$VLC_PREBUILT_CONTRIBS_URL"
+      if [ -v HEIMDALL_PREBUILT_CONTRIBS_URL ]; then
+          make prebuilt PREBUILT_URL="$HEIMDALL_PREBUILT_CONTRIBS_URL"
           make -j ${CRAFT_PARALLEL_BUILD_COUNT} tools
       else
           make list
@@ -95,7 +95,7 @@ parts:
           #export prebuilt for CI jobs
           if [ -f "$CRAFT_PROJECT_DIR/snap-save-prebuilt" ]; then
               make package
-              mv ../vlc-contrib-*.tar.zst $CRAFT_PROJECT_DIR/contrib || true
+              mv ../heimdall-contrib-*.tar.zst $CRAFT_PROJECT_DIR/contrib || true
           fi
       fi
       cd ../..
@@ -115,10 +115,10 @@ parts:
 
       find ${CRAFT_PART_INSTALL}/usr/lib -name "*.la" -delete
 
-      cp ${CRAFT_PART_INSTALL}/usr/share/icons/hicolor/256x256/apps/vlc.png ${CRAFT_PART_INSTALL}/vlc.png
-      cp ${CRAFT_PART_INSTALL}/usr/share/applications/vlc.desktop ${CRAFT_PART_INSTALL}/vlc.desktop
-      sed -i 's/\(^Icon=\).*$/\1\/vlc.png/' ${CRAFT_PART_INSTALL}/vlc.desktop
-      sed -i 's|TryExec=.*|TryExec=/snap/bin/vlc|' ${CRAFT_PART_INSTALL}/vlc.desktop
+      cp ${CRAFT_PART_INSTALL}/usr/share/icons/hicolor/256x256/apps/heimdall.png ${CRAFT_PART_INSTALL}/heimdall.png
+      cp ${CRAFT_PART_INSTALL}/usr/share/applications/heimdall.desktop ${CRAFT_PART_INSTALL}/heimdall.desktop
+      sed -i 's/\(^Icon=\).*$/\1\/heimdall.png/' ${CRAFT_PART_INSTALL}/heimdall.desktop
+      sed -i 's|TryExec=.*|TryExec=/snap/bin/heimdall|' ${CRAFT_PART_INSTALL}/heimdall.desktop
     build-packages:
       # build tools
       - ant
@@ -372,10 +372,10 @@ parts:
 
   wrapper:
     plugin: dump
-    after: [vlc]
+    after: [heimdall]
     source: extras/package/snap
     organize:
-      vlc-snap-wrapper.sh: usr/bin/vlc-snap-wrapper.sh
+      heimdall-snap-wrapper.sh: usr/bin/heimdall-snap-wrapper.sh
 
   cleanup:
     after:
@@ -385,10 +385,10 @@ parts:
       - core24
       - kf6-core24
     # remove libraries already present in base snap pacakges
-    # kf6-core24 already ships vlc, make sure to not delete our own files
+    # kf6-core24 already ships heimdall, make sure to not delete our own files
     override-prime: |
       set -eux
       for snap in "core24" "kf6-core24"
       do
-        cd "/snap/$snap/current" && find . -type f,l -a ! -path "*vlc*" -exec rm -rf "{$CRAFT_PRIME}/{}" \;
+        cd "/snap/$snap/current" && find . -type f,l -a ! -path "*heimdall*" -exec rm -rf "{$CRAFT_PRIME}/{}" \;
       done

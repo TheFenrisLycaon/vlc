@@ -2,6 +2,7 @@
  * http.c
  *****************************************************************************
  * Copyright (C) 2001-2009 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *          Remi Denis-Courmont
@@ -31,20 +32,20 @@
 
 #include <stdint.h>
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_sout.h>
-#include <vlc_block.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_sout.h>
+#include <heimdall_block.h>
 
 
-#include <vlc_httpd.h>
+#include <heimdall_httpd.h>
 
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  Open ( vlc_object_t * );
-static void Close( vlc_object_t * );
+static int  Open ( heimdall_object_t * );
+static void Close( heimdall_object_t * );
 
 #define SOUT_CFG_PREFIX "sout-http-"
 
@@ -62,7 +63,7 @@ static void Close( vlc_object_t * );
                              "to the Cubemap reflector.")
 
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("HTTP stream output") )
     set_capability( "sout access", 0 )
     set_shortname( "HTTP" )
@@ -76,7 +77,7 @@ vlc_module_begin ()
     add_bool( SOUT_CFG_PREFIX "metacube", false,
               METACUBE_TEXT, METACUBE_LONGTEXT )
     set_callbacks( Open, Close )
-vlc_module_end ()
+heimdall_module_end ()
 
 
 /*****************************************************************************
@@ -123,7 +124,7 @@ struct metacube2_block_header
 /*
  * Implementation of Metacube2 utility functions. Taken from the Cubemap
  * distribution and then relicensed by the author to LGPL2.1+ for inclusion
- * into VLC.
+ * into Heimdall.
  */
 
 /*
@@ -168,7 +169,7 @@ static uint16_t metacube2_compute_crc(const struct metacube2_block_header *hdr)
 /*****************************************************************************
  * Open: open the file
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     sout_access_out_t       *p_access = (sout_access_out_t*)p_this;
     sout_access_out_sys_t   *p_sys;
@@ -179,7 +180,7 @@ static int Open( vlc_object_t *p_this )
 
     if( !( p_sys = p_access->p_sys =
                 malloc( sizeof( sout_access_out_sys_t ) ) ) )
-        return VLC_ENOMEM ;
+        return HEIMDALL_ENOMEM ;
 
     config_ChainParse( p_access, SOUT_CFG_PREFIX, ppsz_sout_options, p_access->p_cfg );
 
@@ -203,7 +204,7 @@ static int Open( vlc_object_t *p_this )
             strncpy( host, p_access->psz_path, len );
             host[len] = '\0';
 
-            var_Create( p_access, "http-host", VLC_VAR_STRING );
+            var_Create( p_access, "http-host", HEIMDALL_VAR_STRING );
             var_SetString( p_access, "http-host", host );
         }
         if( port != NULL )
@@ -220,7 +221,7 @@ static int Open( vlc_object_t *p_this )
             {
                 const char *var = strcasecmp( p_access->psz_access, "https" )
                                   ? "http-port" : "https-port";
-                var_Create( p_access, var, VLC_VAR_INTEGER );
+                var_Create( p_access, var, HEIMDALL_VAR_INTEGER );
                 var_SetInteger( p_access, var, bind_port );
             }
         }
@@ -230,15 +231,15 @@ static int Open( vlc_object_t *p_this )
 
     /* TLS support */
     if( p_access->psz_access && !strcmp( p_access->psz_access, "https" ) )
-        p_sys->p_httpd_host = vlc_https_HostNew( VLC_OBJECT(p_access) );
+        p_sys->p_httpd_host = heimdall_https_HostNew( HEIMDALL_OBJECT(p_access) );
     else
-        p_sys->p_httpd_host = vlc_http_HostNew( VLC_OBJECT(p_access) );
+        p_sys->p_httpd_host = heimdall_http_HostNew( HEIMDALL_OBJECT(p_access) );
 
     if( p_sys->p_httpd_host == NULL )
     {
         msg_Err( p_access, "cannot start HTTP server" );
         free( p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     psz_user = var_GetNonEmptyString( p_access, SOUT_CFG_PREFIX "user" );
@@ -268,7 +269,7 @@ static int Open( vlc_object_t *p_this )
         httpd_HostDelete( p_sys->p_httpd_host );
 
         free( p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( p_sys->b_metacube )
@@ -278,7 +279,7 @@ static int Open( vlc_object_t *p_this )
         };
         int err = httpd_StreamSetHTTPHeaders( p_sys->p_httpd_stream, headers,
                                               ARRAY_SIZE(headers) );
-        if( err != VLC_SUCCESS )
+        if( err != HEIMDALL_SUCCESS )
         {
             free( p_sys );
             return err;
@@ -293,13 +294,13 @@ static int Open( vlc_object_t *p_this )
     p_access->pf_write       = Write;
     p_access->pf_control     = Control;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * Close: close the target
  *****************************************************************************/
-static void Close( vlc_object_t * p_this )
+static void Close( heimdall_object_t * p_this )
 {
     sout_access_out_t       *p_access = (sout_access_out_t*)p_this;
     sout_access_out_sys_t   *p_sys = p_access->p_sys;
@@ -325,9 +326,9 @@ static int Control( sout_access_out_t *p_access, int i_query, va_list args )
             break;
 
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -381,7 +382,7 @@ static ssize_t Write( sout_access_out_t *p_access, block_t *p_buffer )
                 block_t *p_hdr_block = block_Alloc( i_header_size );
                 if( p_hdr_block == NULL ) {
                     block_ChainRelease( p_buffer );
-                    return VLC_ENOMEM;
+                    return HEIMDALL_ENOMEM;
                 }
                 p_hdr_block->i_flags = 0;
                 memcpy( p_hdr_block->p_buffer, &hdr, sizeof( hdr ) );
@@ -433,7 +434,7 @@ static ssize_t Write( sout_access_out_t *p_access, block_t *p_buffer )
             p_buffer = block_Realloc( p_buffer, sizeof( hdr ), p_buffer->i_buffer );
             if( p_buffer == NULL ) {
                 block_ChainRelease( p_next );
-                return VLC_ENOMEM;
+                return HEIMDALL_ENOMEM;
             }
             memcpy( p_buffer->p_buffer, &hdr, sizeof( hdr ) );
         }
@@ -455,5 +456,5 @@ static ssize_t Write( sout_access_out_t *p_access, block_t *p_buffer )
         block_ChainRelease( p_buffer );
     }
 
-    return( i_err < 0 ? VLC_EGENERIC : i_len );
+    return( i_err < 0 ? HEIMDALL_EGENERIC : i_len );
 }

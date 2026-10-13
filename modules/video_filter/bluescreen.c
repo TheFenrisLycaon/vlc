@@ -1,9 +1,10 @@
 /*****************************************************************************
- * bluescreen.c : Bluescreen (weather channel like) video filter for vlc
+ * bluescreen.c : Bluescreen (weather channel like) video filter for heimdall
  *****************************************************************************
  * Copyright (C) 2005-2007 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Antoine Cellerier <dionoea at videolan tod org>
+ * Authors: Antoine Cellerier <dionoea at lycaria tod org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -28,11 +29,11 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_picture.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
 
 #define BLUESCREEN_HELP N_( \
     "This effect, also known as \"greenscreen\" or \"chroma key\" blends " \
@@ -68,13 +69,13 @@ static int  Create      ( filter_t * );
 static void Destroy     ( filter_t * );
 
 static picture_t *Filter( filter_t *, picture_t * );
-static int BluescreenCallback( vlc_object_t *, char const *,
-                               vlc_value_t, vlc_value_t, void * );
+static int BluescreenCallback( heimdall_object_t *, char const *,
+                               heimdall_value_t, heimdall_value_t, void * );
 
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("Bluescreen video filter") )
     set_shortname( N_("Bluescreen" ))
     set_help( BLUESCREEN_HELP )
@@ -90,7 +91,7 @@ vlc_module_begin ()
                             BLUESCREENUTOL_TEXT, BLUESCREENUTOL_LONGTEXT )
     add_integer_with_range( CFG_PREFIX "vt", 17, 0, 255,
                             BLUESCREENVTOL_TEXT, BLUESCREENVTOL_LONGTEXT )
-vlc_module_end ()
+heimdall_module_end ()
 
 static const char *const ppsz_filter_options[] = {
     "u", "v", "ut", "vt", NULL
@@ -98,12 +99,12 @@ static const char *const ppsz_filter_options[] = {
 
 typedef struct
 {
-    vlc_mutex_t lock;
+    heimdall_mutex_t lock;
     int i_u, i_v, i_ut, i_vt;
     uint8_t *p_at;
 } filter_sys_t;
 
-static const struct vlc_filter_operations filter_ops =
+static const struct heimdall_filter_operations filter_ops =
 {
     .filter_video = Filter, .close = Destroy,
 };
@@ -112,29 +113,29 @@ static int Create( filter_t *p_filter )
 {
     filter_sys_t *p_sys;
 
-    if( p_filter->fmt_in.video.i_chroma != VLC_CODEC_YUVA )
+    if( p_filter->fmt_in.video.i_chroma != HEIMDALL_CODEC_YUVA )
     {
         msg_Err( p_filter,
                  "Unsupported input chroma \"%4.4s\". "
                  "Bluescreen can only use \"YUVA\".",
                  (char*)&p_filter->fmt_in.video.i_chroma );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Allocate structure */
     p_filter->p_sys = malloc( sizeof( filter_sys_t ) );
     if( p_filter->p_sys == NULL )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     p_sys = p_filter->p_sys;
 
     config_ChainParse( p_filter, CFG_PREFIX, ppsz_filter_options,
                        p_filter->p_cfg );
 
     int val;
-    vlc_mutex_init( &p_sys->lock );
+    heimdall_mutex_init( &p_sys->lock );
 #define GET_VAR( name, min, max )                                           \
     val = var_CreateGetIntegerCommand( p_filter, CFG_PREFIX #name );        \
-    p_sys->i_##name = VLC_CLIP( val, min, max );                                \
+    p_sys->i_##name = HEIMDALL_CLIP( val, min, max );                                \
     var_AddCallback( p_filter, CFG_PREFIX #name, BluescreenCallback, p_sys );
 
     GET_VAR( u, 0x00, 0xff );
@@ -146,7 +147,7 @@ static int Create( filter_t *p_filter )
 
     p_filter->ops = &filter_ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void Destroy( filter_t *p_filter )
@@ -174,7 +175,7 @@ static picture_t *Filter( filter_t *p_filter, picture_t *p_pic )
     uint8_t *p_v = p_pic->p[ V_PLANE ].p_pixels;
     uint8_t umin, umax, vmin, vmax;
 
-    if( p_pic->format.i_chroma != VLC_CODEC_YUVA )
+    if( p_pic->format.i_chroma != HEIMDALL_CODEC_YUVA )
     {
         msg_Err( p_filter,
                  "Unsupported input chroma \"%4.4s\". "
@@ -186,12 +187,12 @@ static picture_t *Filter( filter_t *p_filter, picture_t *p_pic )
     p_sys->p_at = xrealloc( p_sys->p_at, i_lines * i_pitch );
     p_at = p_sys->p_at;
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     umin = p_sys->i_u - p_sys->i_ut >= 0x00 ? p_sys->i_u - p_sys->i_ut : 0x00;
     umax = p_sys->i_u + p_sys->i_ut <= 0xff ? p_sys->i_u + p_sys->i_ut : 0xff;
     vmin = p_sys->i_v - p_sys->i_vt >= 0x00 ? p_sys->i_v - p_sys->i_vt : 0x00;
     vmax = p_sys->i_v + p_sys->i_vt <= 0xff ? p_sys->i_v + p_sys->i_vt : 0xff;
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 
     for( int i = 0; i < i_lines*i_pitch; i++ )
     {
@@ -254,24 +255,24 @@ static picture_t *Filter( filter_t *p_filter, picture_t *p_pic )
 /*****************************************************************************
 * Callback to update params on the fly
 *****************************************************************************/
-static int BluescreenCallback( vlc_object_t *p_this, char const *psz_var,
-                               vlc_value_t oldval, vlc_value_t newval,
+static int BluescreenCallback( heimdall_object_t *p_this, char const *psz_var,
+                               heimdall_value_t oldval, heimdall_value_t newval,
                                void *p_data )
 {
-    VLC_UNUSED(p_this); VLC_UNUSED(oldval);
+    HEIMDALL_UNUSED(p_this); HEIMDALL_UNUSED(oldval);
     filter_sys_t *p_sys = p_data;
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
 #define VAR_IS( a ) !strcmp( psz_var, CFG_PREFIX a )
     if( VAR_IS( "u" ) )
-        p_sys->i_u = VLC_CLIP( newval.i_int, 0, 255 );
+        p_sys->i_u = HEIMDALL_CLIP( newval.i_int, 0, 255 );
     else if( VAR_IS( "v" ) )
-        p_sys->i_v = VLC_CLIP( newval.i_int, 0, 255 );
+        p_sys->i_v = HEIMDALL_CLIP( newval.i_int, 0, 255 );
     else if( VAR_IS( "ut" ) )
-        p_sys->i_ut = VLC_CLIP( newval.i_int, 0, 255 );
+        p_sys->i_ut = HEIMDALL_CLIP( newval.i_int, 0, 255 );
     else if( VAR_IS( "vt" ) )
-        p_sys->i_vt = VLC_CLIP( newval.i_int, 0, 255 );
-    vlc_mutex_unlock( &p_sys->lock );
+        p_sys->i_vt = HEIMDALL_CLIP( newval.i_int, 0, 255 );
+    heimdall_mutex_unlock( &p_sys->lock );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

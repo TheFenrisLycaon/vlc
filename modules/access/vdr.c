@@ -2,6 +2,7 @@
  * vdr.c: VDR recordings access plugin
  *****************************************************************************
  * Copyright (C) 2010 Tobias Güntner
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -20,8 +21,8 @@
 
 /***
 VDR splits recordings into multiple files and stores each recording in a
-separate directory. If VLC opens a normal directory, the filesystem module
-will add all files to the playlist. If, however, VLC opens a VDR recording,
+separate directory. If Heimdall opens a normal directory, the filesystem module
+will add all files to the playlist. If, however, Heimdall opens a VDR recording,
 this module will join all files within that directory and provide a single
 continuous stream instead.
 
@@ -54,22 +55,22 @@ See http://www.vdr-wiki.de/ and http://www.tvdr.de/ for more information.
 #include <time.h>
 #include <errno.h>
 
-#include <vlc_common.h>
-#include <vlc_arrays.h>
-#include <vlc_plugin.h>
-#include <vlc_access.h>
-#include <vlc_input.h>
-#include <vlc_fs.h>
-#include <vlc_charset.h>
-#include <vlc_dialog.h>
-#include <vlc_configuration.h>
-#include <vlc_memstream.h>
+#include <heimdall_common.h>
+#include <heimdall_arrays.h>
+#include <heimdall_plugin.h>
+#include <heimdall_access.h>
+#include <heimdall_input.h>
+#include <heimdall_fs.h>
+#include <heimdall_charset.h>
+#include <heimdall_dialog.h>
+#include <heimdall_configuration.h>
+#include <heimdall_memstream.h>
 
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  Open ( vlc_object_t * );
-static void Close( vlc_object_t * );
+static int  Open ( heimdall_object_t * );
+static void Close( heimdall_object_t * );
 
 #define HELP_TEXT N_("Support for VDR recordings (http://www.tvdr.de/).")
 
@@ -81,7 +82,7 @@ static void Close( vlc_object_t * );
 #define FPS_LONGTEXT N_( \
     "Default frame rate for chapter import." )
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( N_("VDR") )
     set_help( HELP_TEXT )
     set_subcategory( SUBCAT_INPUT_ACCESS )
@@ -96,7 +97,7 @@ vlc_module_begin ()
     add_shortcut( "dir" )
     add_shortcut( "file" )
     set_callbacks( Open, Close )
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * Local prototypes, constants, structures
@@ -119,7 +120,7 @@ typedef struct
     int fd;
 
     /* meta data */
-    vlc_meta_t *p_meta;
+    heimdall_meta_t *p_meta;
 
     /* cut marks */
     input_title_t *p_marks;
@@ -157,12 +158,12 @@ static const char *BaseName( const char *psz_path );
 /*****************************************************************************
  * Open a directory
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     stream_t *p_access = (stream_t*)p_this;
 
     if( !p_access->psz_filepath )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* Some tests can be skipped if this module was explicitly requested.
      * That way, the user can play "corrupt" recordings if necessary
@@ -180,19 +181,19 @@ static int Open( vlc_object_t *p_this )
         if( sscanf( psz_name, "%*u-%*u-%*u.%*u.%*u.%*u%*[-.]%*u.%3s%n",
             psz_extension, &i_length ) != 1 || strcasecmp( psz_extension, "rec" ) ||
             ( psz_name[i_length] != DIR_SEP_CHAR && psz_name[i_length] != '\0' ) )
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 
     /* Only directories can be recordings */
     struct stat st;
-    if( vlc_stat( p_access->psz_filepath, &st ) ||
+    if( heimdall_stat( p_access->psz_filepath, &st ) ||
         !S_ISDIR( st.st_mode ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    access_sys_t *p_sys = vlc_obj_calloc( p_this, 1, sizeof( *p_sys ) );
+    access_sys_t *p_sys = heimdall_obj_calloc( p_this, 1, sizeof( *p_sys ) );
 
     if( unlikely(p_sys == NULL) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_access->p_sys = p_sys;
     p_sys->fd = -1;
@@ -205,30 +206,30 @@ static int Open( vlc_object_t *p_this )
         !SwitchFile( p_access, 0 ) )
     {
         Close( p_this );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     ACCESS_SET_CALLBACKS( Read, NULL, Control, Seek );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * Close files and free resources
  *****************************************************************************/
-static void Close( vlc_object_t * p_this )
+static void Close( heimdall_object_t * p_this )
 {
     stream_t *p_access = (stream_t*)p_this;
     access_sys_t *p_sys = p_access->p_sys;
 
     if( p_sys->fd != -1 )
-        vlc_close( p_sys->fd );
+        heimdall_close( p_sys->fd );
     ARRAY_RESET( p_sys->file_sizes );
 
     if( p_sys->p_meta )
-        vlc_meta_Delete( p_sys->p_meta );
+        heimdall_meta_Delete( p_sys->p_meta );
 
     free( p_sys->offsets );
-    vlc_input_title_Delete( p_sys->p_marks );
+    heimdall_input_title_Delete( p_sys->p_marks );
 }
 
 /*****************************************************************************
@@ -268,7 +269,7 @@ static int Control( stream_t *p_access, int i_query, va_list args )
     access_sys_t *p_sys = p_access->p_sys;
     input_title_t ***ppp_title;
     int i;
-    vlc_meta_t *p_meta;
+    heimdall_meta_t *p_meta;
 
     switch( i_query )
     {
@@ -284,8 +285,8 @@ static int Control( stream_t *p_access, int i_query, va_list args )
             break;
 
         case STREAM_GET_PTS_DELAY:
-            *va_arg( args, vlc_tick_t * ) =
-                VLC_TICK_FROM_MS(var_InheritInteger( p_access, "file-caching" ));
+            *va_arg( args, heimdall_tick_t * ) =
+                HEIMDALL_TICK_FROM_MS(var_InheritInteger( p_access, "file-caching" ));
             break;
 
         case STREAM_SET_PAUSE_STATE:
@@ -295,13 +296,13 @@ static int Control( stream_t *p_access, int i_query, va_list args )
         case STREAM_GET_TITLE_INFO:
             /* return a copy of our seek points */
             if( !p_sys->p_marks )
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             ppp_title = va_arg( args, input_title_t*** );
             *va_arg( args, int* ) = 1;
             *ppp_title = malloc( sizeof( **ppp_title ) );
             if( !*ppp_title )
-                return VLC_ENOMEM;
-            **ppp_title = vlc_input_title_Duplicate( p_sys->p_marks );
+                return HEIMDALL_ENOMEM;
+            **ppp_title = heimdall_input_title_Duplicate( p_sys->p_marks );
             break;
 
         case STREAM_GET_TITLE:
@@ -324,18 +325,18 @@ static int Control( stream_t *p_access, int i_query, va_list args )
         case STREAM_SET_SEEKPOINT:
             i = va_arg( args, int );
             if( i < 0 || !p_sys->p_marks || i >= p_sys->p_marks->i_seekpoint )
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             return Seek( p_access, p_sys->offsets[i] );
 
         case STREAM_GET_META:
-            p_meta = va_arg( args, vlc_meta_t* );
-            vlc_meta_Merge( p_meta, p_sys->p_meta );
+            p_meta = va_arg( args, heimdall_meta_t* );
+            heimdall_meta_Merge( p_meta, p_sys->p_meta );
             break;
 
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -376,10 +377,10 @@ static ssize_t Read( stream_t *p_access, void *p_buffer, size_t i_len )
     else
     {
         /* abort on read error */
-        msg_Err( p_access, "failed to read (%s)", vlc_strerror_c(errno) );
-        vlc_dialog_display_error( p_access, _("File reading failed"),
-            _("VLC could not read the file (%s)."),
-            vlc_strerror(errno) );
+        msg_Err( p_access, "failed to read (%s)", heimdall_strerror_c(errno) );
+        heimdall_dialog_display_error( p_access, _("File reading failed"),
+            _("Heimdall could not read the file (%s)."),
+            heimdall_strerror(errno) );
         SwitchFile( p_access, -1 );
         return 0;
     }
@@ -409,11 +410,11 @@ static int Seek( stream_t *p_access, uint64_t i_pos )
         i_file++;
     }
     if( !SwitchFile( p_access, i_file ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* adjust position within that file */
     return lseek( p_sys->fd, i_pos, SEEK_SET ) != -1 ?
-        VLC_SUCCESS : VLC_EGENERIC;
+        HEIMDALL_SUCCESS : HEIMDALL_EGENERIC;
 }
 
 /*****************************************************************************
@@ -470,10 +471,10 @@ static bool ImportNextFile( stream_t *p_access )
         return false;
 
     struct stat st;
-    if( vlc_stat( psz_path, &st ) )
+    if( heimdall_stat( psz_path, &st ) )
     {
         msg_Dbg( p_access, "could not stat %s: %s", psz_path,
-                 vlc_strerror_c(errno) );
+                 heimdall_strerror_c(errno) );
         free( psz_path );
         return false;
     }
@@ -506,7 +507,7 @@ static bool SwitchFile( stream_t *p_access, unsigned i_file )
     /* close old file */
     if( p_sys->fd != -1 )
     {
-        vlc_close( p_sys->fd );
+        heimdall_close( p_sys->fd );
         p_sys->fd = -1;
     }
 
@@ -519,12 +520,12 @@ static bool SwitchFile( stream_t *p_access, unsigned i_file )
     char *psz_path = GetFilePath( p_access, i_file );
     if( !psz_path )
         return false;
-    p_sys->fd = vlc_open( psz_path, O_RDONLY );
+    p_sys->fd = heimdall_open( psz_path, O_RDONLY );
 
     if( p_sys->fd == -1 )
     {
         msg_Err( p_access, "Failed to open %s: %s", psz_path,
-                 vlc_strerror_c(errno) );
+                 heimdall_strerror_c(errno) );
         goto error;
     }
 
@@ -543,11 +544,11 @@ static bool SwitchFile( stream_t *p_access, unsigned i_file )
     return true;
 
 error:
-    vlc_dialog_display_error (p_access, _("File reading failed"), _("VLC could not"
-        " open the file \"%s\" (%s)."), psz_path, vlc_strerror(errno) );
+    heimdall_dialog_display_error (p_access, _("File reading failed"), _("Heimdall could not"
+        " open the file \"%s\" (%s)."), psz_path, heimdall_strerror(errno) );
     if( p_sys->fd != -1 )
     {
-        vlc_close( p_sys->fd );
+        heimdall_close( p_sys->fd );
         p_sys->fd = -1;
     }
     free( psz_path );
@@ -560,7 +561,7 @@ error:
 static void OptimizeForRead( int fd )
 {
     /* cf. Open() in file access module */
-    VLC_UNUSED(fd);
+    HEIMDALL_UNUSED(fd);
 #ifdef HAVE_POSIX_FADVISE
     posix_fadvise( fd, 0, 4096, POSIX_FADV_WILLNEED );
     posix_fadvise( fd, 0, 0, POSIX_FADV_NOREUSE );
@@ -608,10 +609,10 @@ static FILE *OpenRelativeFile( stream_t *p_access, const char *psz_file )
                   psz_file, sys->b_ts_format ? "" : ".vdr" ) == -1 )
         return NULL;
 
-    FILE *file = vlc_fopen( psz_path, "rb" );
+    FILE *file = heimdall_fopen( psz_path, "rb" );
     if( !file )
         msg_Warn( p_access, "Failed to open %s: %s", psz_path,
-                  vlc_strerror_c(errno) );
+                  heimdall_strerror_c(errno) );
     free( psz_path );
 
     return file;
@@ -650,7 +651,7 @@ static void ImportMeta( stream_t *p_access )
     if( !infofile )
         return;
 
-    vlc_meta_t *p_meta = vlc_meta_New();
+    heimdall_meta_t *p_meta = heimdall_meta_New();
     p_sys->p_meta = p_meta;
     if( !p_meta )
     {
@@ -675,9 +676,9 @@ static void ImportMeta( stream_t *p_access )
             if( psz_name )
             {
                 *psz_name = '\0';
-                vlc_meta_SetExtra( p_meta, "Channel", psz_name + 1 );
+                heimdall_meta_SetExtra( p_meta, "Channel", psz_name + 1 );
             }
-            vlc_meta_SetExtra( p_meta, "Transponder", text );
+            heimdall_meta_SetExtra( p_meta, "Transponder", text );
         }
 
         else if( tag == 'E' )
@@ -692,23 +693,23 @@ static void ImportMeta( stream_t *p_access )
 
                 /* TODO: locale */
                 strftime( str, sizeof(str), "%Y-%m-%d %H:%M", &tm );
-                vlc_meta_SetExtra( p_meta, "Date", str );
+                heimdall_meta_SetExtra( p_meta, "Date", str );
 
                 /* display in minutes */
                 i_length = ( i_length + 59 ) / 60;
                 snprintf( str, sizeof(str), "%u:%02u", i_length / 60, i_length % 60 );
-                vlc_meta_SetExtra( p_meta, "Duration", str );
+                heimdall_meta_SetExtra( p_meta, "Duration", str );
             }
         }
 
         else if( tag == 'T' )
         {
-            vlc_meta_SetExtra( p_meta, "Title", text );
+            heimdall_meta_SetExtra( p_meta, "Title", text );
         }
 
         else if( tag == 'S' )
         {
-            vlc_meta_SetExtra( p_meta, "Info", text );
+            heimdall_meta_SetExtra( p_meta, "Info", text );
         }
 
         else if( tag == 'D' )
@@ -718,7 +719,7 @@ static void ImportMeta( stream_t *p_access )
                 if( *p == '|' )
                     *p = '\n';
             }
-            vlc_meta_SetDescription( p_meta, text );
+            heimdall_meta_SetDescription( p_meta, text );
         }
 
         /* FPS are required to convert between timestamps and frames */
@@ -727,42 +728,42 @@ static void ImportMeta( stream_t *p_access )
             float fps = atof( text );
             if( fps >= 1 )
                 p_sys->fps = fps;
-            vlc_meta_SetExtra( p_meta, "Frame Rate", text );
+            heimdall_meta_SetExtra( p_meta, "Frame Rate", text );
         }
 
         else if( tag == 'P' )
         {
-            vlc_meta_SetExtra( p_meta, "Priority", text );
+            heimdall_meta_SetExtra( p_meta, "Priority", text );
         }
 
         else if( tag == 'L' )
         {
-            vlc_meta_SetExtra( p_meta, "Lifetime", text );
+            heimdall_meta_SetExtra( p_meta, "Lifetime", text );
         }
     }
 
     /* create a meaningful title */
-    struct vlc_memstream memstream;
-    if( vlc_memstream_open( &memstream ) == 0 )
+    struct heimdall_memstream memstream;
+    if( heimdall_memstream_open( &memstream ) == 0 )
     {
-        const char *psz_title = vlc_meta_GetExtra( p_meta, "Title" );
-        const char *psz_smalltext = vlc_meta_GetExtra( p_meta, "Info" );
-        const char *psz_date = vlc_meta_GetExtra( p_meta, "Date" );
+        const char *psz_title = heimdall_meta_GetExtra( p_meta, "Title" );
+        const char *psz_smalltext = heimdall_meta_GetExtra( p_meta, "Info" );
+        const char *psz_date = heimdall_meta_GetExtra( p_meta, "Date" );
 
         if( psz_title )
         {
-            vlc_memstream_puts( &memstream, psz_title );
+            heimdall_memstream_puts( &memstream, psz_title );
             if( psz_smalltext )
-                vlc_memstream_puts( &memstream, " - " );
+                heimdall_memstream_puts( &memstream, " - " );
         }
         if( psz_smalltext )
-            vlc_memstream_puts( &memstream, psz_smalltext );
+            heimdall_memstream_puts( &memstream, psz_smalltext );
         if( ( psz_title || psz_smalltext ) && psz_date )
-            vlc_memstream_printf( &memstream, " (%s)", psz_date );
-        if( vlc_memstream_close( &memstream ) == 0 )
+            heimdall_memstream_printf( &memstream, " (%s)", psz_date );
+        if( heimdall_memstream_close( &memstream ) == 0 )
         {
             if( memstream.length )
-                vlc_meta_SetTitle( p_meta, memstream.ptr );
+                heimdall_meta_SetTitle( p_meta, memstream.ptr );
             free( memstream.ptr );
         }
     }
@@ -799,7 +800,7 @@ static void ImportMarks( stream_t *p_access )
     int64_t i_frame_count = st.st_size / 8;
 
     /* Put all cut marks in a "dummy" title */
-    input_title_t *p_marks = vlc_input_title_New();
+    input_title_t *p_marks = heimdall_input_title_New();
     if( !p_marks )
     {
         fclose( marksfile );
@@ -807,7 +808,7 @@ static void ImportMarks( stream_t *p_access )
         return;
     }
     p_marks->psz_name = strdup( _("VDR Cut Marks") );
-    p_marks->i_length = i_frame_count * (vlc_tick_t)( CLOCK_FREQ / p_sys->fps );
+    p_marks->i_length = i_frame_count * (heimdall_tick_t)( CLOCK_FREQ / p_sys->fps );
 
     uint64_t *offsetv = NULL;
 
@@ -850,10 +851,10 @@ static void ImportMarks( stream_t *p_access )
             continue;
 
         /* add file sizes to get the "global" offset */
-        seekpoint_t *sp = vlc_seekpoint_New();
+        seekpoint_t *sp = heimdall_seekpoint_New();
         if( !sp )
             continue;
-        sp->i_time_offset = i_frame * (vlc_tick_t)( CLOCK_FREQ / p_sys->fps );
+        sp->i_time_offset = i_frame * (heimdall_tick_t)( CLOCK_FREQ / p_sys->fps );
         sp->psz_name = strdup( line );
 
         TAB_APPEND( p_marks->i_seekpoint, p_marks->seekpoint, sp );
@@ -868,7 +869,7 @@ static void ImportMarks( stream_t *p_access )
     /* add a chapter at the beginning if missing */
     if( p_marks->i_seekpoint > 0 && offsetv[0] > 0 )
     {
-        seekpoint_t *sp = vlc_seekpoint_New();
+        seekpoint_t *sp = heimdall_seekpoint_New();
         if( sp )
         {
             sp->i_time_offset = 0;
@@ -889,7 +890,7 @@ static void ImportMarks( stream_t *p_access )
     }
     else
     {
-        vlc_input_title_Delete( p_marks );
+        heimdall_input_title_Delete( p_marks );
         free(offsetv);
     }
 
@@ -909,7 +910,7 @@ static bool ReadIndexRecord( FILE *p_file, bool b_ts, int64_t i_frame,
     if( fread( &index_record, sizeof(index_record), 1, p_file ) < 1 )
         return false;
 
-    /* VDR usually (only?) runs on little endian machines, but VLC has a
+    /* VDR usually (only?) runs on little endian machines, but Heimdall has a
      * broader audience. See recording.* in VDR source for data layout. */
     if( b_ts )
     {

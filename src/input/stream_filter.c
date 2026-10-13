@@ -2,8 +2,9 @@
  * stream_filter.c
  *****************************************************************************
  * Copyright (C) 2008 Laurent Aimar
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Author: Laurent Aimar <fenrir _AT_ videolan _DOT_ org>
+ * Author: Laurent Aimar <fenrir _AT_ lycaria _DOT_ org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -24,30 +25,30 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_stream.h>
-#include <vlc_modules.h>
-#include "../libvlc.h"
+#include <heimdall_common.h>
+#include <heimdall_stream.h>
+#include <heimdall_modules.h>
+#include "../libheimdall.h"
 
 #include <assert.h>
 
 #include "stream.h"
 
-struct vlc_stream_filter_private
+struct heimdall_stream_filter_private
 {
     module_t *module;
 };
 
 static void StreamDelete(stream_t *s)
 {
-    struct vlc_stream_filter_private *priv = vlc_stream_Private(s);
+    struct heimdall_stream_filter_private *priv = heimdall_stream_Private(s);
 
     module_unneed(s, priv->module);
-    vlc_stream_Delete(s->s);
+    heimdall_stream_Delete(s->s);
     free(s->psz_filepath);
 }
 
-stream_t *vlc_stream_FilterNew( stream_t *p_source,
+stream_t *heimdall_stream_FilterNew( stream_t *p_source,
                                 const char *psz_stream_filter )
 {
     assert(p_source != NULL);
@@ -58,14 +59,14 @@ stream_t *vlc_stream_FilterNew( stream_t *p_source,
             (p_source->ops == NULL && p_source->pf_read == NULL && p_source->pf_block == NULL))
         return NULL;
 
-    struct vlc_stream_filter_private *priv;
-    stream_t *s = vlc_stream_CustomNew(vlc_object_parent(p_source),
+    struct heimdall_stream_filter_private *priv;
+    stream_t *s = heimdall_stream_CustomNew(heimdall_object_parent(p_source),
                                        StreamDelete, sizeof (*priv),
                                        "stream filter");
     if( s == NULL )
         return NULL;
 
-    priv = vlc_stream_Private(s);
+    priv = heimdall_stream_Private(s);
     s->p_input_item = p_source->p_input_item;
 
     if( p_source->psz_url != NULL )
@@ -97,7 +98,7 @@ stream_t *stream_FilterAutoNew( stream_t *p_source )
     /* Limit number of entries to avoid infinite recursion. */
     for( unsigned i = 0; i < 16; i++ )
     {
-        stream_t *p_filter = vlc_stream_FilterNew( p_source, NULL );
+        stream_t *p_filter = heimdall_stream_FilterNew( p_source, NULL );
         if( p_filter == NULL )
             break;
 
@@ -120,7 +121,7 @@ stream_t *stream_FilterChainNew( stream_t *p_source, const char *psz_chain )
          name != NULL;
          name = strtok_r( NULL, ":", &buf ) )
     {
-        stream_t *p_filter = vlc_stream_FilterNew( p_source, name );
+        stream_t *p_filter = heimdall_stream_FilterNew( p_source, name );
         if( p_filter != NULL )
             p_source = p_filter;
         else

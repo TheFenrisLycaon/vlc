@@ -2,6 +2,7 @@
  * gst_mem.c: GStreamer Memory to picture converter
  *****************************************************************************
  * Copyright (C) 2022 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Yann Lochet <yann@l0chet.fr>
  *
@@ -28,11 +29,11 @@
 #include <gst/video/video.h>
 #include <gst/video/video-format.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_picture.h>
-#include <vlc_chroma_probe.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
+#include <heimdall_chroma_probe.h>
 
 #include "../codec/gstreamer/gstcopypicture.h"
 #include "../codec/gstreamer/gst_mem.h"
@@ -68,48 +69,48 @@ static picture_t * Filter_chain( filter_t *p_filter, picture_t *src )
     return filter_chain_VideoFilter(p_chain, src);
 }
 
-static const struct vlc_filter_operations filter_ops = {
+static const struct heimdall_filter_operations filter_ops = {
     .filter_video = Filter,
 };
 
-static const struct vlc_filter_operations chain_ops = {
+static const struct heimdall_filter_operations chain_ops = {
     .filter_video = Filter_chain,
 };
 
 static int Open(filter_t *p_filter)
 {
-    if(p_filter->fmt_in.video.i_chroma != VLC_CODEC_GST_MEM_OPAQUE)
-        return VLC_EGENERIC;
+    if(p_filter->fmt_in.video.i_chroma != HEIMDALL_CODEC_GST_MEM_OPAQUE)
+        return HEIMDALL_EGENERIC;
 
-    if(p_filter->fmt_out.video.i_chroma == VLC_CODEC_NV12)
+    if(p_filter->fmt_out.video.i_chroma == HEIMDALL_CODEC_NV12)
     {
         p_filter->ops = &filter_ops;
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
     es_format_t fmt_intermediate;
     es_format_Copy(&fmt_intermediate, &p_filter->fmt_out);
-    fmt_intermediate.video.i_chroma = fmt_intermediate.i_codec = VLC_CODEC_NV12;
+    fmt_intermediate.video.i_chroma = fmt_intermediate.i_codec = HEIMDALL_CODEC_NV12;
 
     filter_chain_t *p_chain = filter_chain_NewVideo(p_filter, false, &p_filter->owner);
     if (p_chain == NULL)
     {
         es_format_Clean(&fmt_intermediate);
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
     filter_chain_Reset(p_chain, &p_filter->fmt_in, p_filter->vctx_in, &p_filter->fmt_out);
 
     int ret;
     ret = filter_chain_AppendConverter(p_chain, &fmt_intermediate);
     es_format_Clean(&fmt_intermediate);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
     {
         filter_chain_Delete(p_chain);
         return ret;
     }
 
     ret = filter_chain_AppendConverter(p_chain, NULL);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
     {
         filter_chain_Delete(p_chain);
         return ret;
@@ -118,19 +119,19 @@ static int Open(filter_t *p_filter)
     p_filter->p_sys = p_chain;
     p_filter->ops = &chain_ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void ProbeChroma(vlc_chroma_conv_vec *vec)
+static void ProbeChroma(heimdall_chroma_conv_vec *vec)
 {
-    vlc_chroma_conv_add(vec, 1.1, VLC_CODEC_GST_MEM_OPAQUE, VLC_CODEC_NV12, false);
+    heimdall_chroma_conv_add(vec, 1.1, HEIMDALL_CODEC_GST_MEM_OPAQUE, HEIMDALL_CODEC_NV12, false);
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname(N_("GST_MEM converter"))
     set_description(N_("GST_MEM Chroma Converter filter"))
     set_subcategory(SUBCAT_VIDEO_VFILTER)
     set_callback_video_converter(Open, 10)
     add_submodule()
         set_callback_chroma_conv_probe(ProbeChroma)
-vlc_module_end()
+heimdall_module_end()

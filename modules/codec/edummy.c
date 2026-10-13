@@ -1,7 +1,8 @@
 /*****************************************************************************
- * edummy.c: dummy encoder plugin for vlc.
+ * edummy.c: dummy encoder plugin for heimdall.
  *****************************************************************************
  * Copyright (C) 2002 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gildas Bazin <gbazin@netcourrier.com>
  *
@@ -27,14 +28,14 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
 
-static int OpenVideoEncoder( vlc_object_t * );
-static int OpenAudioEncoder( vlc_object_t * );
+static int OpenVideoEncoder( heimdall_object_t * );
+static int OpenAudioEncoder( heimdall_object_t * );
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( N_("Dummy") )
     set_description( N_("Dummy encoder") )
     set_capability( "video encoder", 0 )
@@ -45,7 +46,7 @@ vlc_module_begin ()
     set_capability( "audio encoder", 0 )
     set_callback( OpenAudioEncoder )
     add_shortcut( "dummy" )
-vlc_module_end ()
+heimdall_module_end ()
 
 
 /*****************************************************************************
@@ -57,30 +58,30 @@ static block_t *EncodeAudio( encoder_t *p_enc, block_t *p_buf );
 /*****************************************************************************
  * OpenVideoDecoder: open the dummy encoder.
  *****************************************************************************/
-static int OpenVideoEncoder( vlc_object_t *p_this )
+static int OpenVideoEncoder( heimdall_object_t *p_this )
 {
     encoder_t *p_enc = (encoder_t *)p_this;
 
-    static const struct vlc_encoder_operations video_ops =
+    static const struct heimdall_encoder_operations video_ops =
         { .encode_video = EncodeVideo };
 
     p_enc->ops = &video_ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * OpenAudioDecoder: open the dummy encoder.
  *****************************************************************************/
-static int OpenAudioEncoder( vlc_object_t *p_this )
+static int OpenAudioEncoder( heimdall_object_t *p_this )
 {
     encoder_t *p_enc = (encoder_t *)p_this;
 
-    static const struct vlc_encoder_operations audio_ops =
+    static const struct heimdall_encoder_operations audio_ops =
         { .encode_audio = EncodeAudio };
 
     p_enc->ops = &audio_ops;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /****************************************************************************
@@ -88,7 +89,7 @@ static int OpenAudioEncoder( vlc_object_t *p_this )
  ****************************************************************************/
 static block_t *EncodeVideo( encoder_t *p_enc, picture_t *p_pict )
 {
-    VLC_UNUSED(p_enc); VLC_UNUSED(p_pict);
+    HEIMDALL_UNUSED(p_enc); HEIMDALL_UNUSED(p_pict);
     return NULL;
 }
 
@@ -97,6 +98,6 @@ static block_t *EncodeVideo( encoder_t *p_enc, picture_t *p_pict )
  ****************************************************************************/
 static block_t *EncodeAudio( encoder_t *p_enc, block_t *p_buf )
 {
-    VLC_UNUSED(p_enc); VLC_UNUSED(p_buf);
+    HEIMDALL_UNUSED(p_enc); HEIMDALL_UNUSED(p_buf);
     return NULL;
 }

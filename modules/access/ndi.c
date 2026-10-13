@@ -2,6 +2,7 @@
  * ndi.c: NDI support plugin
  *****************************************************************************
  * Copyright © 2025-2026 VideoLAN, VLC authors, and libnoidea authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Ahmed Hamed <ahmedhamed3699@gmail.com>
  *
@@ -27,12 +28,12 @@
 #ifdef HAVE_POLL_H
 # include <poll.h>
 #endif
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_demux.h>
-#include <vlc_interrupt.h>
-#include <vlc_network.h>
-#include <vlc_url.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_demux.h>
+#include <heimdall_interrupt.h>
+#include <heimdall_network.h>
+#include <heimdall_url.h>
 
 #include <noidea/recv.h>
 
@@ -42,9 +43,9 @@ typedef struct {
     noidea_recv_ctx_t noidea_ctx;
     es_out_id_t *p_video_es;
     es_out_id_t *p_audio_es;
-    vlc_tick_t i_pcr;
-    vlc_tick_t i_last_video_pts;
-    vlc_tick_t i_last_audio_pts;
+    heimdall_tick_t i_pcr;
+    heimdall_tick_t i_last_video_pts;
+    heimdall_tick_t i_last_audio_pts;
     uint64_t i_video_timecode_base;
     uint64_t i_audio_timecode_base;
     uint32_t i_audio_bps;
@@ -52,11 +53,11 @@ typedef struct {
 
 static void update_pcr( demux_sys_t *p_sys, demux_t *p_demux )
 {
-    vlc_tick_t i_min;
+    heimdall_tick_t i_min;
 
-    if( p_sys->i_last_video_pts == VLC_TICK_MIN )
+    if( p_sys->i_last_video_pts == HEIMDALL_TICK_MIN )
         i_min = p_sys->i_last_audio_pts;
-    else if( p_sys->i_last_audio_pts == VLC_TICK_MIN )
+    else if( p_sys->i_last_audio_pts == HEIMDALL_TICK_MIN )
         i_min = p_sys->i_last_video_pts;
     else
         i_min = __MIN( p_sys->i_last_video_pts, p_sys->i_last_audio_pts );
@@ -68,11 +69,11 @@ static void update_pcr( demux_sys_t *p_sys, demux_t *p_demux )
     }
 }
 
-static vlc_tick_t timecode_to_pts( uint64_t *p_base, uint64_t i_timecode )
+static heimdall_tick_t timecode_to_pts( uint64_t *p_base, uint64_t i_timecode )
 {
     if ( unlikely( *p_base == UINT64_MAX ) )
         *p_base = i_timecode;
-    return VLC_TICK_0 + (vlc_tick_t)( i_timecode - *p_base ) / 10;
+    return HEIMDALL_TICK_0 + (heimdall_tick_t)( i_timecode - *p_base ) / 10;
 }
 
 static uint32_t get_physical_channels( unsigned channels )
@@ -105,12 +106,12 @@ static int data_callback( noidea_packet_t *noidea_packet, void *user_data )
             if ( p_sys->p_video_es == NULL )
             {
                 es_format_t video_format;
-                vlc_fourcc_t fourcc;
+                heimdall_fourcc_t fourcc;
 
                 switch ( video->fourcc )
                 {
                     case NDI_FOURCC_SPEEDHQ:
-                        fourcc = VLC_CODEC_SPEEDHQ;
+                        fourcc = HEIMDALL_CODEC_SPEEDHQ;
                         break;
 
                     default:
@@ -141,7 +142,7 @@ static int data_callback( noidea_packet_t *noidea_packet, void *user_data )
             p_video_frame->i_pts = timecode_to_pts( &p_sys->i_video_timecode_base, video->timecode );
             p_video_frame->i_dts = p_video_frame->i_pts;
             if ( video->fps_num != 0 )
-                p_video_frame->i_length = vlc_tick_from_frac( video->fps_den, video->fps_num );
+                p_video_frame->i_length = heimdall_tick_from_frac( video->fps_den, video->fps_num );
 
             p_sys->i_last_video_pts = p_video_frame->i_pts;
             update_pcr( p_sys, p_demux );
@@ -163,18 +164,18 @@ static int data_callback( noidea_packet_t *noidea_packet, void *user_data )
             if ( p_sys->p_audio_es == NULL )
             {
                 es_format_t audio_format;
-                vlc_fourcc_t fourcc;
+                heimdall_fourcc_t fourcc;
 
                 switch ( audio->fourcc )
                 {
                     case NDI_FOURCC_FOWT:
                         p_sys->i_audio_bps = sizeof( float );
-                        fourcc = VLC_CODEC_F32L;
+                        fourcc = HEIMDALL_CODEC_F32L;
                         break;
 
                     case NDI_FOURCC_SOWT:
                         p_sys->i_audio_bps = sizeof( int16_t );
-                        fourcc = VLC_CODEC_S16L;
+                        fourcc = HEIMDALL_CODEC_S16L;
                         break;
 
                     default:
@@ -212,7 +213,7 @@ static int data_callback( noidea_packet_t *noidea_packet, void *user_data )
             }
             p_audio_frame->i_buffer = buffer_size;
             p_audio_frame->i_nb_samples = audio->num_samples;
-            p_audio_frame->i_length = vlc_tick_from_samples( audio->num_samples, audio->sample_rate );
+            p_audio_frame->i_length = heimdall_tick_from_samples( audio->num_samples, audio->sample_rate );
 
             if ( p_sys->i_audio_bps == sizeof( float ) )
             {
@@ -255,42 +256,42 @@ static int Demux( demux_t *p_demux )
     fd.events = noidea_recv_which_events( p_sys->noidea_ctx );
 
     if ( !noidea_recv_is_connected( p_sys->noidea_ctx ) )
-        return VLC_DEMUXER_EOF;
+        return HEIMDALL_DEMUXER_EOF;
 
-    if ( vlc_poll_i11e( &fd, 1, -1 ) < 0 )
+    if ( heimdall_poll_i11e( &fd, 1, -1 ) < 0 )
     {
         if ( errno == EINTR )
         {
             msg_Warn( p_demux, "NDI demux interrupted" );
-            return VLC_DEMUXER_EOF;
+            return HEIMDALL_DEMUXER_EOF;
         }
         else if ( errno == EBADF )
         {
             msg_Err( p_demux, "NDI socket closed unexpectedly" );
-            return VLC_DEMUXER_EOF;
+            return HEIMDALL_DEMUXER_EOF;
         }
-        return VLC_DEMUXER_EGENERIC;
+        return HEIMDALL_DEMUXER_EGENERIC;
     }
 
-    while ( noidea_recv_capture( p_sys->noidea_ctx ) < 0 && !vlc_killed() )
+    while ( noidea_recv_capture( p_sys->noidea_ctx ) < 0 && !heimdall_killed() )
     {
         if ( errno != EAGAIN )
         {
-            msg_Err( p_demux, "Failed to capture NDI data: %s", vlc_strerror_c(errno) );
+            msg_Err( p_demux, "Failed to capture NDI data: %s", heimdall_strerror_c(errno) );
             break;
         }
 
         fd.fd = noidea_recv_get_socket_fd( p_sys->noidea_ctx );
         fd.events = noidea_recv_which_events( p_sys->noidea_ctx );
-        if ( vlc_poll_i11e( &fd, 1, -1 ) < 0 )
+        if ( heimdall_poll_i11e( &fd, 1, -1 ) < 0 )
         {
             if ( errno != EINTR )
-                return VLC_DEMUXER_EGENERIC;
+                return HEIMDALL_DEMUXER_EGENERIC;
             msg_Warn( p_demux, "NDI demux interrupted" );
         }
     }
 
-    return VLC_DEMUXER_SUCCESS;
+    return HEIMDALL_DEMUXER_SUCCESS;
 }
 
 static int Control( demux_t *p_demux, int query, va_list args )
@@ -311,18 +312,18 @@ static int Control( demux_t *p_demux, int query, va_list args )
         case DEMUX_GET_LENGTH:
         case DEMUX_GET_TIME:
         case DEMUX_SET_TIME:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
         case DEMUX_GET_NORMAL_TIME:
         {
-            vlc_tick_t *pi_time = va_arg( args, vlc_tick_t * );
+            heimdall_tick_t *pi_time = va_arg( args, heimdall_tick_t * );
             *pi_time = p_sys->i_pcr;
             break;
         }
 
         case DEMUX_GET_PTS_DELAY:
-            *va_arg( args, vlc_tick_t * ) =
-                VLC_TICK_FROM_MS( var_InheritInteger( p_demux, "network-caching" ) );
+            *va_arg( args, heimdall_tick_t * ) =
+                HEIMDALL_TICK_FROM_MS( var_InheritInteger( p_demux, "network-caching" ) );
             break;
 
         case DEMUX_GET_TYPE:
@@ -330,26 +331,26 @@ static int Control( demux_t *p_demux, int query, va_list args )
             break;
 
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     demux_t *p_demux = (demux_t*) p_this;
     demux_sys_t *p_sys;
 
     if ( p_demux->b_preparsing || p_demux->out == NULL )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    p_sys = vlc_obj_malloc( p_this, sizeof( *p_sys ) );
+    p_sys = heimdall_obj_malloc( p_this, sizeof( *p_sys ) );
     if ( unlikely( p_sys == NULL ) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    vlc_url_t url;
-    if ( vlc_UrlParse( &url, p_demux->psz_url ) )
+    heimdall_url_t url;
+    if ( heimdall_UrlParse( &url, p_demux->psz_url ) )
         return -errno;
 
     noidea_opts opts = {
@@ -367,7 +368,7 @@ static int Open( vlc_object_t *p_this )
 
     struct pollfd fd;
     int status = 0;
-    int timeout = VLC_TICK_FROM_MS( var_InheritInteger( p_demux, "ipv4-timeout" ) );
+    int timeout = HEIMDALL_TICK_FROM_MS( var_InheritInteger( p_demux, "ipv4-timeout" ) );
     while ( noidea_recv_connect( noidea_ctx ) < 0 )
     {
         if ( errno != EINPROGRESS )
@@ -378,7 +379,7 @@ static int Open( vlc_object_t *p_this )
 
         fd.fd = noidea_recv_get_socket_fd( noidea_ctx );
         fd.events = noidea_recv_which_events( noidea_ctx );
-        if ( ( status = vlc_poll_i11e( &fd, 1, timeout ) ) <= 0 )
+        if ( ( status = heimdall_poll_i11e( &fd, 1, timeout ) ) <= 0 )
         {
             if ( status == 0 || errno == EINTR )
                 continue;
@@ -405,7 +406,7 @@ static int Open( vlc_object_t *p_this )
         
         fd.fd = noidea_recv_get_socket_fd( noidea_ctx );
         fd.events = noidea_recv_which_events( noidea_ctx );
-        if ( ( status = vlc_poll_i11e( &fd, 1, timeout ) ) <= 0 )
+        if ( ( status = heimdall_poll_i11e( &fd, 1, timeout ) ) <= 0 )
         {
             if ( status == 0 || errno == EINTR )
                 continue;
@@ -415,9 +416,9 @@ static int Open( vlc_object_t *p_this )
 
     p_sys->p_video_es = NULL;
     p_sys->p_audio_es = NULL;
-    p_sys->i_pcr = VLC_TICK_0;
-    p_sys->i_last_video_pts = VLC_TICK_MIN;
-    p_sys->i_last_audio_pts = VLC_TICK_MIN;
+    p_sys->i_pcr = HEIMDALL_TICK_0;
+    p_sys->i_last_video_pts = HEIMDALL_TICK_MIN;
+    p_sys->i_last_audio_pts = HEIMDALL_TICK_MIN;
     p_sys->i_video_timecode_base = UINT64_MAX;
     p_sys->i_audio_timecode_base = UINT64_MAX;
     p_sys->noidea_ctx = noidea_ctx;
@@ -425,17 +426,17 @@ static int Open( vlc_object_t *p_this )
     p_demux->pf_demux = Demux;
     p_demux->pf_control = Control;
 
-    vlc_UrlClean( &url );
-    return VLC_SUCCESS;
+    heimdall_UrlClean( &url );
+    return HEIMDALL_SUCCESS;
 
 error:
     if ( noidea_ctx )
         noidea_recv_close( noidea_ctx );
-    vlc_UrlClean( &url );
-    return VLC_EGENERIC;
+    heimdall_UrlClean( &url );
+    return HEIMDALL_EGENERIC;
 }
 
-static void Close( vlc_object_t *p_this )
+static void Close( heimdall_object_t *p_this )
 {
     demux_t *p_demux = (demux_t*) p_this;
     demux_sys_t *p_sys = p_demux->p_sys;
@@ -443,11 +444,11 @@ static void Close( vlc_object_t *p_this )
     noidea_recv_close( p_sys->noidea_ctx );
 }
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("NDI® (Network Device Interface) input") )
     set_shortname( N_( "NDI" ) )
     set_capability( "access", 0 )
     set_subcategory( SUBCAT_INPUT_ACCESS )
     add_shortcut( "ndi" )
     set_callbacks( Open, Close )
-vlc_module_end ()
+heimdall_module_end ()

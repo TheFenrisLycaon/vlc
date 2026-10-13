@@ -3,6 +3,7 @@
  * darwin_specific.m: Darwin specific features
  *****************************************************************************
  * Copyright (C) 2001-2009 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Sam Hocevar <sam@zoy.org>
  *          Christophe Massiot <massiot@via.ecp.fr>
@@ -27,8 +28,8 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include "../libvlc.h"
+#include <heimdall_common.h>
+#include "../libheimdall.h"
 #include <CoreFoundation/CoreFoundation.h>
 
 #include <locale.h>
@@ -72,7 +73,7 @@ void system_Init(void)
 /*****************************************************************************
  * system_Configure: check for system specific configuration options.
  *****************************************************************************/
-void system_Configure( libvlc_int_t *p_this,
+void system_Configure( libheimdall_int_t *p_this,
                        int i_argc, const char *const ppsz_argv[] )
 {
     (void)p_this;

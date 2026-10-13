@@ -2,6 +2,7 @@
  * os2_loop.hpp
  *****************************************************************************
  * Copyright (C) 2003, 2013 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cyril Deguet      <asmax@via.ecp.fr>
  *          Olivier Teulière <ipkiss@via.ecp.fr>
@@ -56,8 +57,8 @@ public:
 
 private:
     /// Map associating special (i.e. non ascii) virtual key codes with
-    /// internal vlc key codes
-    std::map<int, int> virtKeyToVlcKey;
+    /// internal heimdall key codes
+    std::map<int, int> virtKeyToHeimdallKey;
 
     /// Helper function to find the modifier in a Windows message
     int getMod( MPARAM mp ) const;

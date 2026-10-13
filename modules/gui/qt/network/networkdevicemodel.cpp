@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,11 +31,11 @@
 #include "playlist/playlist_controller.hpp"
 
 #include "util/shared_input_item.hpp"
-#include "vlcmediasourcewrapper.hpp"
+#include "heimdallmediasourcewrapper.hpp"
 
 #include "util/locallistbasemodel.hpp"
 
-#include "vlcmediasourcewrapper.hpp"
+#include "heimdallmediasourcewrapper.hpp"
 
 namespace
 {
@@ -497,14 +498,14 @@ bool NetworkDeviceModel::insertIntoPlaylist(const QModelIndexList &itemIdList, s
     Q_D(NetworkDeviceModel);
     if (!(d->m_ctx && d->m_sdSource != CAT_MYCOMPUTER))
         return false;
-    QVector<vlc::playlist::Media> medias;
+    QVector<heimdall::playlist::Media> medias;
     medias.reserve( itemIdList.size() );
     for ( const QModelIndex &id : itemIdList )
     {
         const NetworkDeviceItem* item = d->getItemForRow(id.row());
         if (!item)
             continue;
-        medias.append( vlc::playlist::Media {item->getInputItem().get() } );
+        medias.append( heimdall::playlist::Media {item->getInputItem().get() } );
     }
     if (medias.isEmpty())
         return false;
@@ -522,8 +523,8 @@ bool NetworkDeviceModel::addToPlaylist(int row)
     if (!item)
         return false;
 
-    vlc::playlist::Media media{ item->getInputItem().get() };
-    d->m_ctx->getIntf()->p_mainPlaylistController->append( QVector<vlc::playlist::Media>{ media }, false);
+    heimdall::playlist::Media media{ item->getInputItem().get() };
+    d->m_ctx->getIntf()->p_mainPlaylistController->append( QVector<heimdall::playlist::Media>{ media }, false);
     return true;
 }
 
@@ -563,8 +564,8 @@ bool NetworkDeviceModel::addAndPlay(int row)
     if (!item)
         return false;
 
-    vlc::playlist::Media media{ item->getInputItem().get() };
-    d->m_ctx->getIntf()->p_mainPlaylistController->append( QVector<vlc::playlist::Media>{ media }, true);
+    heimdall::playlist::Media media{ item->getInputItem().get() };
+    d->m_ctx->getIntf()->p_mainPlaylistController->append( QVector<heimdall::playlist::Media>{ media }, true);
     return true;
 }
 

@@ -2,6 +2,7 @@
  * chromaprint.cpp: Fingerprinter helper class
  *****************************************************************************
  * Copyright (C) 2012 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -23,18 +24,18 @@
 #endif
 
 #include "chromaprint.hpp"
-#include <vlc_modules.h>
-#include <vlc_fingerprinter.h>
+#include <heimdall_modules.h>
+#include <heimdall_fingerprinter.h>
 
 Chromaprint::Chromaprint( qt_intf_t *_p_intf ) : p_intf( _p_intf )
 {
     Q_ASSERT( p_intf );
-    p_fingerprinter = fingerprinter_Create( VLC_OBJECT( p_intf ) );
+    p_fingerprinter = fingerprinter_Create( HEIMDALL_OBJECT( p_intf ) );
     if ( p_fingerprinter )
         var_AddCallback( p_fingerprinter, "results-available", results_available, this );
 }
 
-int Chromaprint::results_available( vlc_object_t *, const char *, vlc_value_t, vlc_value_t , void *param )
+int Chromaprint::results_available( heimdall_object_t *, const char *, heimdall_value_t, heimdall_value_t , void *param )
 {
     Chromaprint *me = (Chromaprint *) param;
     me->finish();
@@ -56,8 +57,8 @@ bool Chromaprint::enqueue( input_item_t *p_item )
     if ( ! p_fingerprinter ) return false;
     fingerprint_request_t *p_r = fingerprint_request_New( p_item );
     if ( ! p_r ) return false;
-    vlc_tick_t t = input_item_GetDuration( p_item );
-    if ( t != 0 ) p_r->i_duration = (unsigned int) SEC_FROM_VLC_TICK( t );
+    heimdall_tick_t t = input_item_GetDuration( p_item );
+    if ( t != 0 ) p_r->i_duration = (unsigned int) SEC_FROM_HEIMDALL_TICK( t );
     if( p_fingerprinter->pf_enqueue( p_fingerprinter, p_r ) != 0 )
     {
         fingerprint_request_Delete( p_r );

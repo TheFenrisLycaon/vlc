@@ -1,7 +1,7 @@
 #
 # HTTP(S) lib
 #
-vlc_http_lib = static_library('vlc_http',
+heimdall_http_lib = static_library('heimdall_http',
     files(
         'message.c',
         'resource.c',
@@ -19,10 +19,10 @@ vlc_http_lib = static_library('vlc_http',
         'ports.c',
 	'outfile.c',
     ),
-    dependencies: [threads_dep, socket_libs, libvlccore_dep],
-    link_with: [vlc_libcompat],
+    dependencies: [threads_dep, socket_libs, libheimdallcore_dep],
+    link_with: [heimdall_libcompat],
     install: false,
-    include_directories: [vlc_include_dirs],
+    include_directories: [heimdall_include_dirs],
 )
 
 if (get_option('tests').allowed())
@@ -32,12 +32,12 @@ if (get_option('tests').allowed())
     hpack_test = executable('hpack_test',
         files('hpack.c'),
         c_args: ['-DDEC_TEST'],
-        include_directories: [vlc_include_dirs])
+        include_directories: [heimdall_include_dirs])
     hpackenc_test = executable('hpackenc_test',
         files('hpack.c', 'hpackenc.c'),
         c_args: ['-DENC_TEST'],
-        link_with: vlc_libcompat,
-        include_directories: [vlc_include_dirs])
+        link_with: heimdall_libcompat,
+        include_directories: [heimdall_include_dirs])
     h2frame_test = executable('h2frame_test',
         files(
             'h2frame_test.c',
@@ -45,35 +45,35 @@ if (get_option('tests').allowed())
             'hpackenc.c',
             'h2frame.c',
         ),
-        include_directories: [vlc_include_dirs])
+        include_directories: [heimdall_include_dirs])
     h2output_test = executable('h2output_test',
         files('h2output_test.c'),
-        link_with: vlc_http_lib,
-        include_directories: [vlc_include_dirs])
+        link_with: heimdall_http_lib,
+        include_directories: [heimdall_include_dirs])
     h2conn_test = executable('h2conn_test',
         files('h2conn_test.c'),
-        link_with: vlc_http_lib,
-        include_directories: [vlc_include_dirs])
+        link_with: heimdall_http_lib,
+        include_directories: [heimdall_include_dirs])
     h1conn_test = executable('h1conn_test',
         files('h1conn_test.c'),
-        link_with: vlc_http_lib,
-        include_directories: [vlc_include_dirs])
+        link_with: heimdall_http_lib,
+        include_directories: [heimdall_include_dirs])
     h1chunked_test = executable('h1chunked_test',
         files('chunked_test.c'),
-        link_with: vlc_http_lib,
-        include_directories: [vlc_include_dirs])
+        link_with: heimdall_http_lib,
+        include_directories: [heimdall_include_dirs])
     http_msg_test = executable('http_msg_test',
         files('message_test.c'),
-        link_with: vlc_http_lib,
-        include_directories: [vlc_include_dirs])
+        link_with: heimdall_http_lib,
+        include_directories: [heimdall_include_dirs])
     http_file_test = executable('http_file_test',
         files('file_test.c'),
-        link_with: vlc_http_lib,
-        include_directories: [vlc_include_dirs])
+        link_with: heimdall_http_lib,
+        include_directories: [heimdall_include_dirs])
     http_tunnel_test = executable('http_tunnel_test',
         files('tunnel_test.c'),
-        link_with: vlc_http_lib,
-        include_directories: [vlc_include_dirs])
+        link_with: heimdall_http_lib,
+        include_directories: [heimdall_include_dirs])
 
     test('http_hpack', hpack_test, suite: 'http')
     test('http_hpackenc', hpackenc_test, suite: 'http')
@@ -90,19 +90,19 @@ endif
 #
 # HTTP(S) module
 #
-vlc_modules += {
+heimdall_modules += {
     'name' : 'https',
     'sources' : files('access.c'),
-    'link_with' : [vlc_http_lib],
+    'link_with' : [heimdall_http_lib],
     'plugin_dir' : 'access',
 }
 
 #
 # WebDAV browsing module
 #
-vlc_modules += {
+heimdall_modules += {
     'name' : 'webdav',
     'sources' : files('../webdav.c'),
-    'link_with' : [vlc_http_lib],
+    'link_with' : [heimdall_http_lib],
     'plugin_dir' : 'access',
 }

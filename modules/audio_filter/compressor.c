@@ -2,6 +2,7 @@
  * compressor.c: dynamic range compressor, ported from plugins from LADSPA SWH
  *****************************************************************************
  * Copyright (C) 2010 Ronald Wright
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Ronald Wright <logiconcepts819@gmail.com>
  * Original author: Steve Harris <steve@plugin.org.uk>
@@ -29,8 +30,8 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
 
 #include "dynamics.h"
 
@@ -44,14 +45,14 @@ static float CompressorGain( float f_env,
 
     if( f_env < f_kn_hi )
     {
-        const float f_x = -( f_threshold - f_knee - vlc_dynamics_Lin2Db( f_env, p_sys ) ) / f_knee;
-        return vlc_dynamics_Db2Lin( -f_knee * f_rs * f_x * f_x * 0.25f, p_sys );
+        const float f_x = -( f_threshold - f_knee - heimdall_dynamics_Lin2Db( f_env, p_sys ) ) / f_knee;
+        return heimdall_dynamics_Db2Lin( -f_knee * f_rs * f_x * f_x * 0.25f, p_sys );
     }
 
-    return vlc_dynamics_Db2Lin( ( f_threshold - vlc_dynamics_Lin2Db( f_env, p_sys ) ) * f_rs, p_sys );
+    return heimdall_dynamics_Db2Lin( ( f_threshold - heimdall_dynamics_Lin2Db( f_env, p_sys ) ) * f_rs, p_sys );
 }
 
-static const vlc_dynamics_varnames_t compressor_varnames = {
+static const heimdall_dynamics_varnames_t compressor_varnames = {
     .rms_peak    = "compressor-rms-peak",
     .attack      = "compressor-attack",
     .release     = "compressor-release",
@@ -61,12 +62,12 @@ static const vlc_dynamics_varnames_t compressor_varnames = {
     .makeup_gain = "compressor-makeup-gain",
 };
 
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
-    return vlc_dynamics_OpenCommon( (filter_t*)p_this, &compressor_varnames, CompressorGain, -30.0f );
+    return heimdall_dynamics_OpenCommon( (filter_t*)p_this, &compressor_varnames, CompressorGain, -30.0f );
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname( N_("Compressor") )
     set_description( N_("Dynamic range compressor") )
     set_capability( "audio filter", 0 )
@@ -80,4 +81,4 @@ vlc_module_begin()
     add_float_with_range( compressor_varnames.makeup_gain, 7.0, 0.0,  24.0, MAKEUP_GAIN_TEXT, MAKEUP_GAIN_LONGTEXT )
     set_callback( Open )
     add_shortcut( "compressor" )
-vlc_module_end()
+heimdall_module_end()

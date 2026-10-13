@@ -2,6 +2,7 @@
  * mmal_cmal.c:
  *****************************************************************************
  * Copyright © 2018-2020 John Cox
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: John Cox <jc@kynesim.co.uk>
  *
@@ -32,8 +33,8 @@
 
 #include <interface/vcsm/user-vcsm.h>
 
-#include <vlc_common.h>
-#include <vlc_picture.h>
+#include <heimdall_common.h>
+#include <heimdall_picture.h>
 
 #include "mmal_cma.h"
 #include "mmal_picture.h"
@@ -52,7 +53,7 @@ struct cma_pool_fixed_s
 {
     atomic_int ref_count;
 
-    vlc_mutex_t lock;
+    heimdall_mutex_t lock;
     unsigned int n_in;
     unsigned int n_out;
     unsigned int pool_size;
@@ -61,7 +62,7 @@ struct cma_pool_fixed_s
     cma_buf_t ** pool;
 
     int in_flight;
-    vlc_cond_t flight_cond;
+    heimdall_cond_t flight_cond;
 
     cma_buf_pool_t * alloc_v;
 
@@ -116,17 +117,17 @@ static void cma_pool_fixed_ref(cma_pool_fixed_t * const p)
 
 static void cma_pool_fixed_dec_in_flight(cma_pool_fixed_t * const p)
 {
-    vlc_mutex_lock(&p->lock);
+    heimdall_mutex_lock(&p->lock);
     if (--p->in_flight == 0)
-        vlc_cond_signal(&p->flight_cond);
-    vlc_mutex_unlock(&p->lock);
+        heimdall_cond_signal(&p->flight_cond);
+    heimdall_mutex_unlock(&p->lock);
 }
 
 static cma_buf_t * cma_pool_fixed_get(cma_pool_fixed_t * const p, const size_t req_el_size, const bool inc_flight, const bool no_pool)
 {
     cma_buf_t * v = NULL;
 
-    vlc_mutex_lock(&p->lock);
+    heimdall_mutex_lock(&p->lock);
 
     for (;;)
     {
@@ -142,10 +143,10 @@ static cma_buf_t * cma_pool_fixed_get(cma_pool_fixed_t * const p, const size_t r
 
             if (deadpool != NULL)
             {
-                vlc_mutex_unlock(&p->lock);
+                heimdall_mutex_unlock(&p->lock);
                 // Do the free old op outside the mutex in case the free is slow
                 free_pool(deadpool, dead_n);
-                vlc_mutex_lock(&p->lock);
+                heimdall_mutex_lock(&p->lock);
                 continue;
             }
         }
@@ -153,7 +154,7 @@ static cma_buf_t * cma_pool_fixed_get(cma_pool_fixed_t * const p, const size_t r
         // Late abort if flush so we can still kill the pool
         if (req_el_size == 0)
         {
-            vlc_mutex_unlock(&p->lock);
+            heimdall_mutex_unlock(&p->lock);
             return NULL;
         }
 
@@ -171,13 +172,13 @@ static cma_buf_t * cma_pool_fixed_get(cma_pool_fixed_t * const p, const size_t r
         if (p->in_flight <= 0)
             break;
 
-        vlc_cond_wait(&p->flight_cond, &p->lock);
+        heimdall_cond_wait(&p->flight_cond, &p->lock);
     }
 
     if (inc_flight)
         ++p->in_flight;
 
-    vlc_mutex_unlock(&p->lock);
+    heimdall_mutex_unlock(&p->lock);
 
     if (v == NULL && req_el_size != 0)
         v = cma_pool_alloc_cb(p->alloc_v, req_el_size);
@@ -194,7 +195,7 @@ static cma_buf_t * cma_pool_fixed_get(cma_pool_fixed_t * const p, const size_t r
 
 static void cma_pool_fixed_put(cma_pool_fixed_t * const p, cma_buf_t * v, const size_t el_size, const bool was_in_flight)
 {
-    vlc_mutex_lock(&p->lock);
+    heimdall_mutex_lock(&p->lock);
 
     if (el_size == p->el_size && (p->pool == NULL || p->pool[p->n_out] == NULL))
     {
@@ -209,8 +210,8 @@ static void cma_pool_fixed_put(cma_pool_fixed_t * const p, cma_buf_t * v, const 
     if (was_in_flight)
         --p->in_flight;
 
-    vlc_cond_signal(&p->flight_cond);
-    vlc_mutex_unlock(&p->lock);
+    heimdall_cond_signal(&p->flight_cond);
+    heimdall_mutex_unlock(&p->lock);
 
     if (v != NULL)
         cma_pool_delete(v);
@@ -242,8 +243,8 @@ cma_pool_fixed_new(const unsigned int pool_size,
         return NULL;
 
     atomic_store(&p->ref_count, 1);
-    vlc_mutex_init(&p->lock);
-    vlc_cond_init(&p->flight_cond);
+    heimdall_mutex_init(&p->lock);
+    heimdall_cond_init(&p->flight_cond);
 
     p->pool_size = pool_size;
     p->flight_size = flight_size;
@@ -309,7 +310,7 @@ static cma_buf_t * cma_pool_alloc_cb(cma_buf_pool_t * const v, size_t size)
 
     // 0x80 is magic value to force full ARM-side mapping - otherwise
     // cache requests can cause kernel crashes
-    if ((cb->vcsm_h = vcsm_malloc_cache(size, VCSM_CACHE_TYPE_HOST | 0x80, "VLC frame")) == 0)
+    if ((cb->vcsm_h = vcsm_malloc_cache(size, VCSM_CACHE_TYPE_HOST | 0x80, "Heimdall frame")) == 0)
     {
         goto fail;
     }

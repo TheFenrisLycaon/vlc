@@ -2,10 +2,11 @@
  * postproc.c: video postprocessing using libpostproc
  *****************************************************************************
  * Copyright (C) 1999-2009 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *          Gildas Bazin <gbazin@netcourrier.com>
- *          Antoine Cellerier <dionoea at videolan dot org>
+ *          Antoine Cellerier <dionoea at lycaria dot org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -34,12 +35,12 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_picture.h>
-#include <vlc_cpu.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
+#include <heimdall_cpu.h>
 
 #ifdef HAVE_POSTPROC_POSTPROCESS_H
 #   include <postproc/postprocess.h>
@@ -58,10 +59,10 @@ static int OpenPostproc( filter_t * );
 
 VIDEO_FILTER_WRAPPER_CLOSE(PostprocPict, ClosePostproc)
 
-static int PPQCallback( vlc_object_t *, char const *,
-                        vlc_value_t, vlc_value_t, void * );
-static int PPNameCallback( vlc_object_t *, char const *,
-                           vlc_value_t, vlc_value_t, void * );
+static int PPQCallback( heimdall_object_t *, char const *,
+                        heimdall_value_t, heimdall_value_t, void * );
+static int PPNameCallback( heimdall_object_t *, char const *,
+                           heimdall_value_t, heimdall_value_t, void * );
 
 #define Q_TEXT N_("Post processing quality")
 #define Q_LONGTEXT N_( \
@@ -77,7 +78,7 @@ static int PPNameCallback( vlc_object_t *, char const *,
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("Video post processing filter") )
     set_shortname( N_("Postproc" ) )
     add_shortcut( "postprocess", "pp" ) /* name is "postproc" */
@@ -90,7 +91,7 @@ vlc_module_begin ()
         change_safe()
     add_string( FILTER_PREFIX "name", "default", NAME_TEXT,
                 NULL )
-vlc_module_end ()
+heimdall_module_end ()
 
 static const char *const ppsz_filter_options[] = {
     "q", "name", NULL
@@ -108,7 +109,7 @@ typedef struct
     pp_mode *pp_mode;
 
     /* Lock when using or changing pp_mode */
-    vlc_mutex_t lock;
+    heimdall_mutex_t lock;
 } filter_sys_t;
 
 
@@ -118,7 +119,7 @@ typedef struct
 static int OpenPostproc( filter_t *p_filter )
 {
     filter_sys_t *p_sys;
-    vlc_value_t val, val_orig;
+    heimdall_value_t val, val_orig;
     const char *desc;
     int i_flags = PP_CPU_CAPS_AUTO;
 
@@ -128,36 +129,36 @@ static int OpenPostproc( filter_t *p_filter )
         p_filter->fmt_in.video.i_width != p_filter->fmt_out.video.i_width )
     {
         msg_Err( p_filter, "Filter input and output formats must be identical" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     switch( p_filter->fmt_in.video.i_chroma )
     {
-        case VLC_CODEC_I444:
-        /* case VLC_CODEC_YUVA:
+        case HEIMDALL_CODEC_I444:
+        /* case HEIMDALL_CODEC_YUVA:
            FIXME: Should work but alpha plane needs to be copied manually and
                   I'm kind of feeling too lazy to write the code to do that ATM
                   (i_pitch vs i_visible_pitch...). */
             i_flags |= PP_FORMAT_444;
             break;
-        case VLC_CODEC_I422:
+        case HEIMDALL_CODEC_I422:
             i_flags |= PP_FORMAT_422;
             break;
-        case VLC_CODEC_I411:
+        case HEIMDALL_CODEC_I411:
             i_flags |= PP_FORMAT_411;
             break;
-        case VLC_CODEC_I420:
-        case VLC_CODEC_YV12:
+        case HEIMDALL_CODEC_I420:
+        case HEIMDALL_CODEC_YV12:
             i_flags |= PP_FORMAT_420;
             break;
         default:
             msg_Err( p_filter, "Unsupported input chroma (%4.4s)",
                       (char*)&p_filter->fmt_in.video.i_chroma );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 
     p_sys = malloc( sizeof( filter_sys_t ) );
-    if( !p_sys ) return VLC_ENOMEM;
+    if( !p_sys ) return HEIMDALL_ENOMEM;
     p_filter->p_sys = p_sys;
 
     p_sys->pp_context = pp_get_context( p_filter->fmt_in.video.i_width,
@@ -167,19 +168,19 @@ static int OpenPostproc( filter_t *p_filter )
     {
         msg_Err( p_filter, "Error while creating post processing context." );
         free( p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     config_ChainParse( p_filter, FILTER_PREFIX, ppsz_filter_options,
                        p_filter->p_cfg );
 
-    var_Create( p_filter, FILTER_PREFIX "q", VLC_VAR_INTEGER |
-                VLC_VAR_DOINHERIT | VLC_VAR_ISCOMMAND );
-    var_Change( p_filter, FILTER_PREFIX "q", VLC_VAR_SETTEXT,
+    var_Create( p_filter, FILTER_PREFIX "q", HEIMDALL_VAR_INTEGER |
+                HEIMDALL_VAR_DOINHERIT | HEIMDALL_VAR_ISCOMMAND );
+    var_Change( p_filter, FILTER_PREFIX "q", HEIMDALL_VAR_SETTEXT,
                 _("Post processing") );
 
     var_Get( p_filter, FILTER_PREFIX "q", &val_orig );
-    var_Change( p_filter, FILTER_PREFIX "q", VLC_VAR_DELCHOICE, val_orig );
+    var_Change( p_filter, FILTER_PREFIX "q", HEIMDALL_VAR_DELCHOICE, val_orig );
 
     val.psz_string = var_GetNonEmptyString( p_filter, FILTER_PREFIX "name" );
     if( val_orig.i_int )
@@ -195,7 +196,7 @@ static int OpenPostproc( filter_t *p_filter )
             free( val.psz_string );
             pp_free_context( p_sys->pp_context );
             free( p_sys );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
     else
@@ -221,10 +222,10 @@ static int OpenPostproc( filter_t *p_filter )
                 desc = NULL;
                 break;
         }
-        var_Change( p_filter, FILTER_PREFIX "q", VLC_VAR_ADDCHOICE, val, desc );
+        var_Change( p_filter, FILTER_PREFIX "q", HEIMDALL_VAR_ADDCHOICE, val, desc );
     }
 
-    vlc_mutex_init( &p_sys->lock );
+    heimdall_mutex_init( &p_sys->lock );
 
     /* Add the callback at the end to prevent crashes */
     var_AddCallback( p_filter, FILTER_PREFIX "q", PPQCallback, NULL );
@@ -234,7 +235,7 @@ static int OpenPostproc( filter_t *p_filter )
 
     msg_Warn( p_filter, "Quantification table was not set by video decoder. "
                         "Postprocessing won't look good." );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -262,7 +263,7 @@ static void PostprocPict( filter_t *p_filter, picture_t *p_pic, picture_t *p_out
     filter_sys_t *p_sys = p_filter->p_sys;
 
     /* Lock to prevent issues if pp_mode is changed */
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     if( p_sys->pp_mode != NULL )
     {
         const uint8_t *src[3];
@@ -287,7 +288,7 @@ static void PostprocPict( filter_t *p_filter, picture_t *p_pic, picture_t *p_out
     }
     else
         picture_CopyPixels( p_outpic, p_pic );
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 }
 
 /*****************************************************************************
@@ -311,34 +312,34 @@ static void PPChangeMode( filter_t *p_filter, const char *psz_name,
         }
     }
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     oldmode = p_sys->pp_mode;
     p_sys->pp_mode = newmode;
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 
     pp_free_mode( oldmode );
 }
 
-static int PPQCallback( vlc_object_t *p_this, const char *psz_var,
-                        vlc_value_t oldval, vlc_value_t newval, void *p_data )
+static int PPQCallback( heimdall_object_t *p_this, const char *psz_var,
+                        heimdall_value_t oldval, heimdall_value_t newval, void *p_data )
 {
-    VLC_UNUSED(psz_var); VLC_UNUSED(oldval); VLC_UNUSED(p_data);
+    HEIMDALL_UNUSED(psz_var); HEIMDALL_UNUSED(oldval); HEIMDALL_UNUSED(p_data);
     filter_t *p_filter = (filter_t *)p_this;
 
     char *psz_name = var_GetNonEmptyString( p_filter, FILTER_PREFIX "name" );
     PPChangeMode( p_filter, psz_name, newval.i_int );
     free( psz_name );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int PPNameCallback( vlc_object_t *p_this, const char *psz_var,
-                           vlc_value_t oldval, vlc_value_t newval, void *p_data )
+static int PPNameCallback( heimdall_object_t *p_this, const char *psz_var,
+                           heimdall_value_t oldval, heimdall_value_t newval, void *p_data )
 {
-    VLC_UNUSED(psz_var); VLC_UNUSED(oldval); VLC_UNUSED(p_data);
+    HEIMDALL_UNUSED(psz_var); HEIMDALL_UNUSED(oldval); HEIMDALL_UNUSED(p_data);
     filter_t *p_filter = (filter_t *)p_this;
 
     int i_quality = var_GetInteger( p_filter, FILTER_PREFIX "q" );
     PPChangeMode( p_filter, *newval.psz_string ? newval.psz_string : NULL,
                   i_quality );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

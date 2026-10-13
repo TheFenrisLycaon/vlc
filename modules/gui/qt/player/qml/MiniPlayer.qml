@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,11 +19,11 @@
 import QtQuick
 
 
-import VLC.MainInterface
-import VLC.Player
-import VLC.PlayerControls
-import VLC.Style
-import VLC.Util
+import Heimdall.MainInterface
+import Heimdall.Player
+import Heimdall.PlayerControls
+import Heimdall.Style
+import Heimdall.Util
 
 ControlBar {
     id: root
@@ -54,11 +55,11 @@ ControlBar {
     textPosition: (MainCtx.pinVideoControls) ? ControlBar.TimeTextPosition.LeftRightSlider
                                              : ControlBar.TimeTextPosition.Hide
 
-    sliderHeight: (MainCtx.pinVideoControls) ? VLCStyle.heightBar_xxsmall
-                                             : VLCStyle.dp(3, VLCStyle.scale)
+    sliderHeight: (MainCtx.pinVideoControls) ? HeimdallStyle.heightBar_xxsmall
+                                             : HeimdallStyle.dp(3, HeimdallStyle.scale)
 
-    bookmarksHeight: (MainCtx.pinVideoControls) ? VLCStyle.controlBarBookmarksHeight
-                                                : VLCStyle.icon_xsmall * 0.7
+    bookmarksHeight: (MainCtx.pinVideoControls) ? HeimdallStyle.controlBarBookmarksHeight
+                                                : HeimdallStyle.icon_xsmall * 0.7
 
     identifier: PlayerControlbarModel.Miniplayer
 
@@ -88,7 +89,7 @@ ControlBar {
         NumberAnimation {
             id: animation
             easing.type: Easing.InOutSine
-            duration: VLCStyle.duration_long
+            duration: HeimdallStyle.duration_long
         }
     }
 }

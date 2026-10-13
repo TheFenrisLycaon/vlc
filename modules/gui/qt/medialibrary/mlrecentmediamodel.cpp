@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -54,16 +55,16 @@ void MLRecentMediaModel::clearHistory()
 {
     m_mediaLib->runOnMLThread(this,
     //ML thread
-    [](vlc_medialibrary_t* ml){
-        vlc_ml_clear_history(ml, VLC_ML_HISTORY_TYPE_GLOBAL);
+    [](heimdall_medialibrary_t* ml){
+        heimdall_ml_clear_history(ml, HEIMDALL_ML_HISTORY_TYPE_GLOBAL);
     });
 }
 
-void MLRecentMediaModel::onVlcMlEvent( const MLEvent &event )
+void MLRecentMediaModel::onHeimdallMlEvent( const MLEvent &event )
 {
     switch ( event.i_type )
     {
-        case VLC_ML_EVENT_HISTORY_CHANGED:
+        case HEIMDALL_ML_EVENT_HISTORY_CHANGED:
         {
             emit resetRequested();
             return;
@@ -71,7 +72,7 @@ void MLRecentMediaModel::onVlcMlEvent( const MLEvent &event )
         default:
             break;
     }
-    MLBaseModel::onVlcMlEvent( event );
+    MLBaseModel::onHeimdallMlEvent( event );
 }
 
 std::unique_ptr<MLListCacheLoader>
@@ -80,25 +81,25 @@ MLRecentMediaModel::createMLLoader() const
     return std::make_unique<MLListCacheLoader>(m_mediaLib, std::make_shared<MLRecentMediaModel::Loader>(*this));
 }
 
-size_t MLRecentMediaModel::Loader::count(vlc_medialibrary_t* ml, const vlc_ml_query_params_t* queryParams) const
+size_t MLRecentMediaModel::Loader::count(heimdall_medialibrary_t* ml, const heimdall_ml_query_params_t* queryParams) const
 {
-    return vlc_ml_count_history( ml, queryParams, VLC_ML_HISTORY_TYPE_GLOBAL );
+    return heimdall_ml_count_history( ml, queryParams, HEIMDALL_ML_HISTORY_TYPE_GLOBAL );
 }
 
 std::vector<std::unique_ptr<MLItem>>
-MLRecentMediaModel::Loader::load(vlc_medialibrary_t* ml, const vlc_ml_query_params_t* queryParams) const
+MLRecentMediaModel::Loader::load(heimdall_medialibrary_t* ml, const heimdall_ml_query_params_t* queryParams) const
 {
-    ml_unique_ptr<vlc_ml_media_list_t> media_list{ vlc_ml_list_history(
-                ml, queryParams, VLC_ML_HISTORY_TYPE_GLOBAL ) };
+    ml_unique_ptr<heimdall_ml_media_list_t> media_list{ heimdall_ml_list_history(
+                ml, queryParams, HEIMDALL_ML_HISTORY_TYPE_GLOBAL ) };
     if ( media_list == nullptr )
         return {};
 
     std::vector<std::unique_ptr<MLItem>> res;
 
-    for( vlc_ml_media_t &media: ml_range_iterate<vlc_ml_media_t>( media_list ) )
-        if ( media.i_type != VLC_ML_MEDIA_TYPE_AUDIO )
+    for( heimdall_ml_media_t &media: ml_range_iterate<heimdall_ml_media_t>( media_list ) )
+        if ( media.i_type != HEIMDALL_ML_MEDIA_TYPE_AUDIO )
             res.emplace_back( std::make_unique<MLVideo>( &media ) );
-        else if ( media.i_type == VLC_ML_MEDIA_TYPE_AUDIO )
+        else if ( media.i_type == HEIMDALL_ML_MEDIA_TYPE_AUDIO )
             res.emplace_back( std::make_unique<MLAudio>( ml, &media ) );
         else
             Q_UNREACHABLE();
@@ -109,17 +110,17 @@ MLRecentMediaModel::Loader::load(vlc_medialibrary_t* ml, const vlc_ml_query_para
 // TODO: can we keep this as virtual and not pure virtual?
 //       it's same in models derived from another models.
 std::unique_ptr<MLItem>
-MLRecentMediaModel::Loader::loadItemById(vlc_medialibrary_t* ml, MLItemId itemId) const
+MLRecentMediaModel::Loader::loadItemById(heimdall_medialibrary_t* ml, MLItemId itemId) const
 {
-    assert(itemId.type == VLC_ML_PARENT_UNKNOWN);
-    ml_unique_ptr<vlc_ml_media_t> media(vlc_ml_get_media(ml, itemId.id));
+    assert(itemId.type == HEIMDALL_ML_PARENT_UNKNOWN);
+    ml_unique_ptr<heimdall_ml_media_t> media(heimdall_ml_get_media(ml, itemId.id));
 
     if (media == nullptr)
         return nullptr;
 
-    if (media->i_type != VLC_ML_MEDIA_TYPE_AUDIO)
+    if (media->i_type != HEIMDALL_ML_MEDIA_TYPE_AUDIO)
         return std::make_unique<MLVideo>(media.get());
-    else if (media->i_type == VLC_ML_MEDIA_TYPE_AUDIO)
+    else if (media->i_type == HEIMDALL_ML_MEDIA_TYPE_AUDIO)
         return std::make_unique<MLAudio>(ml, media.get());
     else
         Q_UNREACHABLE();

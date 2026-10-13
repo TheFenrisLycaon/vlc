@@ -2,6 +2,7 @@
  * simple_preferences.cpp : "Simple preferences"
  ****************************************************************************
  * Copyright (C) 2006-2010 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Clément Stenac <zorglub@videolan.org>
  *          Antoine Cellerier <dionoea@videolan.org>
@@ -35,9 +36,9 @@
 #include "util/proxycolumnmodel.hpp"
 #include "medialibrary/mlrecentmediamodel.hpp"
 
-#include <vlc_config_cat.h>
-#include <vlc_configuration.h>
-#include <vlc_aout.h>
+#include <heimdall_config_cat.h>
+#include <heimdall_configuration.h>
+#include <heimdall_aout.h>
 
 #include <QString>
 #include <QFont>
@@ -74,10 +75,10 @@
 #define ICON_WIDTH 48
 
 #ifdef _WIN32
-# include <vlc_charset.h>
+# include <heimdall_charset.h>
 # include <shobjidl.h>
 #endif
-#include <vlc_modules.h>
+#include <heimdall_modules.h>
 
 static struct {
     const char iso[6];
@@ -208,7 +209,7 @@ public:
     void reset()
     {
         bool success = m_control->setProperty(m_property.data(), m_initialValue);
-        vlc_assert(success);
+        heimdall_assert(success);
     }
 
 private:
@@ -260,7 +261,7 @@ SPrefsCatList::SPrefsCatList( qt_intf_t *_p_intf, QWidget *_parent ) :
     addCategory( qfut(SUBPIC_TITLE), qfut(SUBPIC_TOOLTIP), ":/prefsmenu/spref_subtitles.png", SPrefsSubtitles );
     addCategory( qfut(INPUT_TITLE), qfut(INPUT_TOOLTIP), ":/prefsmenu/spref_input.png", SPrefsInputAndCodecs );
     addCategory( qfut(HOTKEYS_TITLE), qfut(HOTKEYS_TOOLTIP), ":/prefsmenu/spref_hotkeys.png", SPrefsHotkeys );
-    if ( vlc_ml_instance_get( p_intf ) != nullptr )
+    if ( heimdall_ml_instance_get( p_intf ) != nullptr )
         addCategory( qfut(ML_TITLE), qfut(ML_TOOLTIP), ":/prefsmenu/spref_medialibrary.png", SPrefsMediaLibrary );
 
     qobject_cast<QToolButton*>(mapper->mapping(SPrefsInterface))->setChecked(true);
@@ -709,7 +710,7 @@ SPrefsPanel::SPrefsPanel( qt_intf_t *_p_intf, QWidget *_parent,
 
             HKEY h_key;
             char *langReg = NULL;
-            if( RegOpenKeyEx( HKEY_CURRENT_USER, TEXT("Software\\VideoLAN\\VLC\\"), 0, KEY_READ, &h_key )
+            if( RegOpenKeyEx( HKEY_CURRENT_USER, TEXT("Software\\Lycaria\\Heimdall\\"), 0, KEY_READ, &h_key )
                     == ERROR_SUCCESS )
             {
                 WCHAR szData[256];
@@ -724,9 +725,9 @@ SPrefsPanel::SPrefsPanel( qt_intf_t *_p_intf, QWidget *_parent,
 
 //            ui.defaultLabel->setFont( italicFont );
             ui.skinsLabel->setText(
-                    qtr( "This is VLC's skinnable interface. You can download other skins at" )
+                    qtr( "This is Heimdall's skinnable interface. You can download other skins at" )
                     + QString( " <a href=\"https://www.videolan.org/vlc/skins.php\">" )
-                    + qtr( "VLC skins website" ) + QString( "</a>." ) );
+                    + qtr( "Heimdall skins website" ) + QString( "</a>." ) );
             ui.skinsLabel->setFont( italicFont );
 
 #ifdef _WIN32
@@ -1027,7 +1028,7 @@ SPrefsPanel::SPrefsPanel( qt_intf_t *_p_intf, QWidget *_parent,
             ui.setupUi( panel );
             panel_label->setText( qtr("Media Library Settings") );
 
-            if ( vlc_ml_instance_get( p_intf ) != NULL )
+            if ( heimdall_ml_instance_get( p_intf ) != NULL )
             {
                 AccessibleCompatAttached::setId( ui.mlGroupBox, "ml-groupbox" );
                 auto foldersModel = new MLFoldersModel( this );
@@ -1277,13 +1278,13 @@ void SPrefsPanel::apply()
 
         //FIXME this is moot
 #if defined( _WIN32 )
-        VLC_UNUSED( f_gain );
+        HEIMDALL_UNUSED( f_gain );
         if( save_vol_aout( "mmdevice" ) )
             config_PutFloat( "mmdevice-volume", i_volume / 100.f );
         if( save_vol_aout( "waveout" ) )
             config_PutFloat( "waveout-volume", i_volume / 100.f );
 #elif defined( Q_OS_MAC )
-        VLC_UNUSED( f_gain );
+        HEIMDALL_UNUSED( f_gain );
         if( save_vol_aout( "auhal" ) )
             config_PutFloat( "auhal-volume", i_volume / 100.f
                     * AOUT_VOLUME_DEFAULT );
@@ -1377,10 +1378,10 @@ void SPrefsPanel::configML()
 #include "util/registry.hpp"
 
 void SPrefsPanel::cleanLang() {
-    QVLCRegistry qvReg( HKEY_CURRENT_USER );
-    qvReg.DeleteValue( "Software\\VideoLAN\\VLC\\", "Lang" );
-    qvReg.DeleteKey( "Software\\VideoLAN\\", "VLC" );
-    qvReg.DeleteKey( "Software\\", "VideoLAN" );
+    QHeimdallRegistry qvReg( HKEY_CURRENT_USER );
+    qvReg.DeleteValue( "Software\\Lycaria\\Heimdall\\", "Lang" );
+    qvReg.DeleteKey( "Software\\Lycaria\\", "Heimdall" );
+    qvReg.DeleteKey( "Software\\", "Lycaria" );
 }
 
 void SPrefsPanel::saveLang() {
@@ -1391,22 +1392,22 @@ void SPrefsPanel::saveLang() {
     }
     else
     {
-        QVLCRegistry qvReg( HKEY_CURRENT_USER );
-        qvReg.WriteRegistry( "Software\\VideoLAN\\VLC\\", "Lang", lang );
+        QHeimdallRegistry qvReg( HKEY_CURRENT_USER );
+        qvReg.WriteRegistry( "Software\\Lycaria\\Heimdall\\", "Lang", lang );
     }
 }
 
 bool SPrefsPanel::addType( const char * psz_ext, QTreeWidgetItem* current,
-                           QTreeWidgetItem* parent, QVLCRegistry *qvReg )
+                           QTreeWidgetItem* parent, QHeimdallRegistry *qvReg )
 {
     bool b_temp;
-    const char* psz_VLC = "VLC";
+    const char* psz_Heimdall = "Heimdall";
     current = new QTreeWidgetItem( parent, QStringList( psz_ext ) );
 
     char* psz_reg = qvReg->ReadRegistry( psz_ext, "", "" );
     if( psz_reg == NULL )
         return false;
-    if( strstr( psz_reg, psz_VLC ) )
+    if( strstr( psz_reg, psz_Heimdall ) )
     {
         current->setCheckState( 0, Qt::Checked );
         b_temp = true;
@@ -1435,7 +1436,7 @@ void SPrefsPanel::assoDialog()
                                 NULL, CLSCTX_INPROC_SERVER,
                                 IID_PPV_ARGS(&p_regui));
             if( SUCCEEDED(hr) )
-                p_regui->LaunchAdvancedAssociationUI(L"VLC" );
+                p_regui->LaunchAdvancedAssociationUI(L"Heimdall" );
         }
         CoUninitialize();
     }
@@ -1451,7 +1452,7 @@ void SPrefsPanel::assoDialog()
     assoLayout->addWidget( filetypeList, 0, 0, 1, 4 );
     filetypeList->header()->hide();
 
-    QVLCRegistry qvReg( HKEY_CLASSES_ROOT );
+    QHeimdallRegistry qvReg( HKEY_CLASSES_ROOT );
 
     QTreeWidgetItem *audioType = new QTreeWidgetItem( QStringList( qtr( "Audio Files" ) ) );
     QTreeWidgetItem *videoType = new QTreeWidgetItem( QStringList( qtr( "Video Files" ) ) );
@@ -1507,7 +1508,7 @@ void SPrefsPanel::assoDialog()
 
     i_temp = 0;
     aTo( ".asx" ); aTo( ".b4s" ); aTo( ".cue" ); aTo( ".ifo" ); aTo( ".m3u" );
-    aTo( ".m3u8" ); aTo( ".pls" ); aTo( ".ram" ); aTo( ".sdp" ); aTo( ".vlc" );
+    aTo( ".m3u8" ); aTo( ".pls" ); aTo( ".ram" ); aTo( ".sdp" ); aTo( ".heimdall" );
     aTo( ".wvx" ); aTo( ".xspf" );
     otherType->setCheckState( 0, ( i_temp > 0 ) ?
                               ( ( i_temp == otherType->childCount() ) ?
@@ -1578,19 +1579,19 @@ void SPrefsPanel::updateCheckBoxes(QTreeWidgetItem* item, int column)
     item->treeWidget()->blockSignals(b_signalsBlocked);
 }
 
-void addAsso( QVLCRegistry *qvReg, const char *psz_ext )
+void addAsso( QHeimdallRegistry *qvReg, const char *psz_ext )
 {
-    QString s_path( "VLC" ); s_path += psz_ext;
+    QString s_path( "Heimdall" ); s_path += psz_ext;
     QString s_path2 = s_path;
 
     /* Save a backup if already assigned */
     char *psz_value = qvReg->ReadRegistry( psz_ext, "", ""  );
 
     if( !EMPTY_STR(psz_value) && strcmp( qtu(s_path), psz_value ) )
-        qvReg->WriteRegistry( psz_ext, "VLC.backup", psz_value );
+        qvReg->WriteRegistry( psz_ext, "Heimdall.backup", psz_value );
     free( psz_value );
 
-    /* Put a "link" to VLC.EXT as default */
+    /* Put a "link" to Heimdall.EXT as default */
     qvReg->WriteRegistry( psz_ext, "", qtu( s_path ) );
 
     /* Create the needed Key if they weren't done in the installer */
@@ -1601,8 +1602,8 @@ void addAsso( QVLCRegistry *qvReg, const char *psz_ext )
         qvReg->WriteRegistry( qtu( s_path.append( "\\shell" ) ), "", "Play" );
 
         /* Get the installer path */
-        QVLCRegistry qvReg2( HKEY_LOCAL_MACHINE );
-        QString str_temp = qvReg2.ReadRegistry( "Software\\VideoLAN\\VLC", "", "" );
+        QHeimdallRegistry qvReg2( HKEY_LOCAL_MACHINE );
+        QString str_temp = qvReg2.ReadRegistry( "Software\\Lycaria\\Heimdall", "", "" );
 
         if( str_temp.size() )
         {
@@ -1615,26 +1616,26 @@ void addAsso( QVLCRegistry *qvReg, const char *psz_ext )
     }
 }
 
-void delAsso( QVLCRegistry *qvReg, const char *psz_ext )
+void delAsso( QHeimdallRegistry *qvReg, const char *psz_ext )
 {
-    QString s_path( "VLC"); s_path += psz_ext;
+    QString s_path( "Heimdall"); s_path += psz_ext;
     char *psz_value = qvReg->ReadRegistry( psz_ext, "", "" );
 
     if( psz_value && !strcmp( qtu(s_path), psz_value ) )
     {
         free( psz_value );
-        psz_value = qvReg->ReadRegistry( psz_ext, "VLC.backup", "" );
+        psz_value = qvReg->ReadRegistry( psz_ext, "Heimdall.backup", "" );
         if( psz_value )
             qvReg->WriteRegistry( psz_ext, "", psz_value );
 
-        qvReg->DeleteValue( psz_ext, "VLC.backup" );
+        qvReg->DeleteValue( psz_ext, "Heimdall.backup" );
     }
     free( psz_value );
 }
 
 void SPrefsPanel::saveAsso()
 {
-    QVLCRegistry qvReg( HKEY_CLASSES_ROOT );
+    QHeimdallRegistry qvReg( HKEY_CLASSES_ROOT );
     for( int i = 0; i < listAsso.size(); i ++ )
     {
         if( listAsso[i]->checkState( 0 ) > 0 )

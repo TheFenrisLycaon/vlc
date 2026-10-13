@@ -2,6 +2,7 @@
  * bpg.c: bpg decoder module using libbpg.
  *****************************************************************************
  * Copyright (C) 2015 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Tristan Matthews <tmatth@videolan.org>
  *
@@ -24,9 +25,9 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
 #include <libbpg.h>
 
 typedef struct
@@ -34,37 +35,37 @@ typedef struct
     struct BPGDecoderContext *p_bpg;
 } decoder_sys_t;
 
-static int  OpenDecoder(vlc_object_t *);
-static void CloseDecoder(vlc_object_t *);
+static int  OpenDecoder(heimdall_object_t *);
+static void CloseDecoder(heimdall_object_t *);
 
 static int DecodeBlock(decoder_t *, block_t *);
 
 /*
  * Module descriptor
  */
-vlc_module_begin()
+heimdall_module_begin()
     set_subcategory( SUBCAT_INPUT_VCODEC )
     /* decoder main module */
     set_description( N_("BPG image decoder") )
     set_capability( "video decoder", 60 )
     set_callbacks( OpenDecoder, CloseDecoder )
     add_shortcut( "bpg" )
-vlc_module_end()
+heimdall_module_end()
 
 
-static int OpenDecoder(vlc_object_t *p_this)
+static int OpenDecoder(heimdall_object_t *p_this)
 {
     decoder_t *p_dec = (decoder_t *)p_this;
 
-    if( p_dec->fmt_in->i_codec != VLC_CODEC_BPG )
+    if( p_dec->fmt_in->i_codec != HEIMDALL_CODEC_BPG )
     {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     decoder_sys_t *p_sys = malloc( sizeof( decoder_sys_t ) );
     if( p_sys == NULL )
     {
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     p_dec->p_sys = p_sys;
@@ -72,13 +73,13 @@ static int OpenDecoder(vlc_object_t *p_this)
     p_sys->p_bpg = bpg_decoder_open();
     if( !p_sys->p_bpg )
     {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Set callbacks */
     p_dec->pf_decode = DecodeBlock;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*
@@ -91,7 +92,7 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
     BPGImageInfo img_info;
 
     if( p_block == NULL ) /* No Drain */
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
 
     if( p_block->i_flags & BLOCK_FLAG_CORRUPTED )
         goto error;
@@ -120,7 +121,7 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
 
     /* Set output properties */
     p_dec->fmt_out.video.i_chroma =
-    p_dec->fmt_out.i_codec = VLC_CODEC_RGB24;
+    p_dec->fmt_out.i_codec = HEIMDALL_CODEC_RGB24;
     p_dec->fmt_out.video.i_visible_width  = p_dec->fmt_out.video.i_width  = img_info.width;
     p_dec->fmt_out.video.i_visible_height = p_dec->fmt_out.video.i_height = img_info.height;
     p_dec->fmt_out.video.i_sar_num = 1;
@@ -151,15 +152,15 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
         }
     }
 
-    p_pic->date = p_block->i_pts != VLC_TICK_INVALID ? p_block->i_pts : p_block->i_dts;
+    p_pic->date = p_block->i_pts != HEIMDALL_TICK_INVALID ? p_block->i_pts : p_block->i_dts;
 
     decoder_QueueVideo( p_dec, p_pic );
 error:
     block_Release( p_block );
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }
 
-static void CloseDecoder( vlc_object_t *p_this )
+static void CloseDecoder( heimdall_object_t *p_this )
 {
     decoder_t *p_dec = (decoder_t *)p_this;
     decoder_sys_t *p_sys = p_dec->p_sys;

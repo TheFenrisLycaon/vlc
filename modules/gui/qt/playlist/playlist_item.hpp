@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,30 +16,30 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
-#ifndef VLC_QT_PLAYLIST_NEW_ITEM_HPP_
-#define VLC_QT_PLAYLIST_NEW_ITEM_HPP_
+#ifndef HEIMDALL_QT_PLAYLIST_NEW_ITEM_HPP_
+#define HEIMDALL_QT_PLAYLIST_NEW_ITEM_HPP_
 
 #ifdef HAVE_CONFIG_H
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_tick.h>
-#include <vlc_cxx_helpers.hpp>
-#include <vlc_playlist.h>
+#include <heimdall_common.h>
+#include <heimdall_tick.h>
+#include <heimdall_cxx_helpers.hpp>
+#include <heimdall_playlist.h>
 #include <QExplicitlySharedDataPointer>
 #include <QUrl>
 #include <QMetaType>
 
-#include "util/vlctick.hpp"
+#include "util/heimdalltick.hpp"
 
 
-//namespace vlc {
+//namespace heimdall {
 //  namespace playlist {
 
-using SharedPlaylistItem = ::vlc::vlc_shared_data_ptr<vlc_playlist_item_t,
-                                                      &vlc_playlist_item_Hold,
-                                                      &vlc_playlist_item_Release>;
+using SharedPlaylistItem = ::heimdall::heimdall_shared_data_ptr<heimdall_playlist_item_t,
+                                                      &heimdall_playlist_item_Hold,
+                                                      &heimdall_playlist_item_Release>;
 
 /**
  * Playlist item wrapper.
@@ -55,22 +56,22 @@ public:
     Q_PROPERTY(QString artist READ getArtist CONSTANT  FINAL)
     Q_PROPERTY(QString album READ getAlbum CONSTANT  FINAL)
     Q_PROPERTY(QUrl artwork READ getArtwork CONSTANT  FINAL)
-    Q_PROPERTY(VLCDuration duration READ getDuration CONSTANT  FINAL)
+    Q_PROPERTY(HeimdallDuration duration READ getDuration CONSTANT  FINAL)
     Q_PROPERTY(QUrl url READ getUrl CONSTANT  FINAL)
 
-    PlaylistItem(vlc_playlist_item_t *item = nullptr);
+    PlaylistItem(heimdall_playlist_item_t *item = nullptr);
 
     operator bool() const;
 
     bool preparsed() const;
 
-    vlc_playlist_item_t *raw() const {
+    heimdall_playlist_item_t *raw() const {
         return d ? d->item.get() : nullptr;
     }
 
     input_item_t *inputItem() const {
         if (const auto item = raw())
-            return vlc_playlist_item_GetMedia(item);
+            return heimdall_playlist_item_GetMedia(item);
         else
             return nullptr;
     }
@@ -86,7 +87,7 @@ public:
 
     QUrl getArtwork() const;
 
-    VLCDuration getDuration() const;
+    HeimdallDuration getDuration() const;
 
     QUrl getUrl() const;
 
@@ -105,7 +106,7 @@ private:
         QString album;
         QUrl artwork;
 
-        VLCDuration duration;
+        HeimdallDuration duration;
 
         QUrl url;
     };
@@ -117,6 +118,6 @@ private:
 static_assert(sizeof(PlaylistItem) == sizeof(void *), "invalid size of PlaylistItem");
 
 //  } // namespace playlist
-//} // namespace vlc
+//} // namespace heimdall
 
 #endif

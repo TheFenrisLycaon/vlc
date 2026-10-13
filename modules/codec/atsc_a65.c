@@ -2,6 +2,7 @@
  * atsc_a65.c : ATSC A65 decoding helpers
  *****************************************************************************
  * Copyright (C) 2016 - VideoLAN Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -21,8 +22,8 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_charset.h>
+#include <heimdall_common.h>
+#include <heimdall_charset.h>
 
 #include "atsc_a65.h"
 
@@ -64,7 +65,7 @@ const uint8_t ATSC_A65_MODE_RESERVED_RANGES[12] = {
 struct atsc_a65_handle_t
 {
     char *psz_lang;
-    vlc_iconv_t iconv_u16be;
+    heimdall_iconv_t iconv_u16be;
 };
 
 atsc_a65_handle_t *atsc_a65_handle_New( const char *psz_lang )
@@ -85,7 +86,7 @@ atsc_a65_handle_t *atsc_a65_handle_New( const char *psz_lang )
 void atsc_a65_handle_Release( atsc_a65_handle_t *p_handle )
 {
     if( p_handle->iconv_u16be )
-        vlc_iconv_close( p_handle->iconv_u16be );
+        heimdall_iconv_close( p_handle->iconv_u16be );
     free( p_handle->psz_lang );
     free( p_handle );
 }
@@ -136,10 +137,10 @@ static bool convert_encoding_set( atsc_a65_handle_t *p_handle,
     {
         if( !p_handle->iconv_u16be )
         {
-            if ( !(p_handle->iconv_u16be = vlc_iconv_open("UTF-8", "UTF-16BE")) )
+            if ( !(p_handle->iconv_u16be = heimdall_iconv_open("UTF-8", "UTF-16BE")) )
                 return false;
         }
-        else if ( VLC_ICONV_ERR == vlc_iconv( p_handle->iconv_u16be, NULL, NULL, NULL, NULL ) ) /* reset */
+        else if ( HEIMDALL_ICONV_ERR == heimdall_iconv( p_handle->iconv_u16be, NULL, NULL, NULL, NULL ) ) /* reset */
         {
             return false;
         }
@@ -155,7 +156,7 @@ static bool convert_encoding_set( atsc_a65_handle_t *p_handle,
                 const size_t i_outbuf_size = i_src * 4;
                 size_t i_inbuf_remain = i_src * 2;
                 size_t i_outbuf_remain = i_outbuf_size;
-                b_ret = ( VLC_ICONV_ERR != vlc_iconv( p_handle->iconv_u16be, &p_inbuf, &i_inbuf_remain,
+                b_ret = ( HEIMDALL_ICONV_ERR != heimdall_iconv( p_handle->iconv_u16be, &p_inbuf, &i_inbuf_remain,
                                                                             &p_outbuf, &i_outbuf_remain ) );
                 psz_dest = psz_realloc;
                 i_mergmin1 += (i_outbuf_size - i_outbuf_remain);
@@ -243,10 +244,10 @@ char * atsc_a65_Decode_simple_UTF16_string( atsc_a65_handle_t *p_handle, const u
 
     if( !p_handle->iconv_u16be )
     {
-        if ( !(p_handle->iconv_u16be = vlc_iconv_open("UTF-8", "UTF-16BE")) )
+        if ( !(p_handle->iconv_u16be = heimdall_iconv_open("UTF-8", "UTF-16BE")) )
             return NULL;
     }
-    else if ( VLC_ICONV_ERR == vlc_iconv( p_handle->iconv_u16be, NULL, NULL, NULL, NULL ) ) /* reset */
+    else if ( HEIMDALL_ICONV_ERR == heimdall_iconv( p_handle->iconv_u16be, NULL, NULL, NULL, NULL ) ) /* reset */
     {
         return NULL;
     }
@@ -260,7 +261,7 @@ char * atsc_a65_Decode_simple_UTF16_string( atsc_a65_handle_t *p_handle, const u
     if( unlikely(!psz_converted) )
         return NULL;
 
-    if( VLC_ICONV_ERR == vlc_iconv( p_handle->iconv_u16be, &psz_toconvert, &i_buffer,
+    if( HEIMDALL_ICONV_ERR == heimdall_iconv( p_handle->iconv_u16be, &psz_toconvert, &i_buffer,
                                                            &psz_converted_end, &i_target_remaining ) )
     {
         free( psz_converted );

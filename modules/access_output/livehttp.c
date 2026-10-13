@@ -3,9 +3,10 @@
  *****************************************************************************
  * Copyright © 2001, 2002, 2013 VLC authors and VideoLAN
  * Copyright © 2009-2010 by Keary Griffin
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Keary Griffin <kearygriffin at gmail.com>
- *          Ilkka Ollakka <ileoo at videolan dot org>
+ *          Ilkka Ollakka <ileoo at lycaria dot org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -36,20 +37,20 @@
 #include <errno.h>
 #include <unistd.h>
 
-#include <vlc_common.h>
-#include <vlc_arrays.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_sout.h>
-#include <vlc_block.h>
-#include <vlc_fs.h>
-#include <vlc_strings.h>
-#include <vlc_charset.h>
+#include <heimdall_common.h>
+#include <heimdall_arrays.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_sout.h>
+#include <heimdall_block.h>
+#include <heimdall_fs.h>
+#include <heimdall_strings.h>
+#include <heimdall_charset.h>
 
 #include <gcrypt.h>
-#include <vlc_gcrypt.h>
+#include <heimdall_gcrypt.h>
 
-#include <vlc_rand.h>
+#include <heimdall_rand.h>
 
 #ifndef O_LARGEFILE
 #   define O_LARGEFILE 0
@@ -62,8 +63,8 @@
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  Open ( vlc_object_t * );
-static void Close( vlc_object_t * );
+static int  Open ( heimdall_object_t * );
+static void Close( heimdall_object_t * );
 
 #define SOUT_CFG_PREFIX "sout-livehttp-"
 #define SEGLEN_TEXT N_("Segment length")
@@ -96,7 +97,7 @@ static void Close( vlc_object_t * );
 #define KEYFILE_TEXT N_("AES key file")
 #define KEYFILE_LONGTEXT N_("File containing the 16 bytes encryption key")
 
-#define KEYLOADFILE_TEXT N_("File where vlc reads key-uri and keyfile-location")
+#define KEYLOADFILE_TEXT N_("File where heimdall reads key-uri and keyfile-location")
 #define KEYLOADFILE_LONGTEXT N_("File is read when segment starts and is assumed to be in format: "\
                                 "key-uri\\nkey-file. File is read on the segment opening and "\
                                 "values are used on that segment.")
@@ -107,7 +108,7 @@ static void Close( vlc_object_t * );
 #define INTITIAL_SEG_TEXT N_("Number of first segment")
 #define INITIAL_SEG_LONGTEXT N_("The number of the first segment generated")
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("HTTP Live streaming output") )
     set_shortname( N_("LiveHTTP" ))
     add_shortcut( "livehttp" )
@@ -137,7 +138,7 @@ vlc_module_begin ()
     add_loadfile(SOUT_CFG_PREFIX "key-loadfile", NULL,
                  KEYLOADFILE_TEXT, KEYLOADFILE_LONGTEXT)
     set_callbacks( Open, Close )
-vlc_module_end ()
+heimdall_module_end ()
 
 
 /*****************************************************************************
@@ -169,7 +170,7 @@ typedef struct output_segment
     char *psz_uri;
     char *psz_key_uri;
     char *psz_duration;
-    vlc_tick_t segment_length;
+    heimdall_tick_t segment_length;
     uint32_t i_segment_number;
     uint8_t aes_ivs[16];
 } output_segment_t;
@@ -180,9 +181,9 @@ typedef struct
     char *psz_indexPath;
     char *psz_indexUrl;
     char *psz_keyfile;
-    vlc_tick_t i_keyfile_modification;
-    vlc_tick_t segment_max_length;
-    vlc_tick_t current_segment_length;
+    heimdall_tick_t i_keyfile_modification;
+    heimdall_tick_t segment_max_length;
+    heimdall_tick_t current_segment_length;
     uint32_t i_segment;
     block_t *full_segments;
     block_t **full_segments_end;
@@ -202,7 +203,7 @@ typedef struct
     char *key_uri;
     uint8_t stuffing_bytes[16];
     ssize_t stuffing_size;
-    vlc_array_t segments_t;
+    heimdall_array_t segments_t;
 } sout_access_out_sys_t;
 
 static int LoadCryptFile( sout_access_out_t *p_access);
@@ -213,7 +214,7 @@ static ssize_t openNextFile( sout_access_out_t *p_access, sout_access_out_sys_t 
 /*****************************************************************************
  * Open: open the file
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     sout_access_out_t   *p_access = (sout_access_out_t*)p_this;
     sout_access_out_sys_t *p_sys;
@@ -224,16 +225,16 @@ static int Open( vlc_object_t *p_this )
     if( !p_access->psz_path )
     {
         msg_Err( p_access, "no file name specified" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( unlikely( !( p_sys = calloc ( 1, sizeof( *p_sys ) ) ) ) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     /* Try to get within asked segment length */
     size_t i_seglen = var_GetInteger( p_access, SOUT_CFG_PREFIX "seglen" );
 
-    p_sys->segment_max_length = vlc_tick_from_sec( i_seglen );
+    p_sys->segment_max_length = heimdall_tick_from_sec( i_seglen );
     p_sys->full_segments = NULL;
     p_sys->full_segments_end = &p_sys->full_segments;
 
@@ -249,7 +250,7 @@ static int Open( vlc_object_t *p_this )
     p_sys->b_generate_iv = var_GetBool( p_access, SOUT_CFG_PREFIX "generate-iv") ;
     p_sys->b_segment_has_data = false;
 
-    vlc_array_init( &p_sys->segments_t );
+    heimdall_array_init( &p_sys->segments_t );
 
     p_sys->stuffing_size = 0;
 
@@ -258,16 +259,16 @@ static int Open( vlc_object_t *p_this )
     if ( psz_idx )
     {
         char *psz_tmp;
-        psz_tmp = vlc_strftime( psz_idx );
+        psz_tmp = heimdall_strftime( psz_idx );
         free( psz_idx );
         if ( !psz_tmp )
         {
             free( p_sys );
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         }
         p_sys->psz_indexPath = psz_tmp;
         if( p_sys->i_initial_segment != 1 )
-            vlc_unlink( p_sys->psz_indexPath );
+            heimdall_unlink( p_sys->psz_indexPath );
     }
 
     p_sys->psz_indexUrl = var_GetNonEmptyString( p_access, SOUT_CFG_PREFIX "index-url" );
@@ -284,7 +285,7 @@ static int Open( vlc_object_t *p_this )
         free( p_sys->psz_indexPath );
         free( p_sys );
         msg_Err( p_access, "Encryption init failed" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     else if( !p_sys->psz_keyfile && ( CryptSetup( p_access, NULL ) < 0 ) )
     {
@@ -293,7 +294,7 @@ static int Open( vlc_object_t *p_this )
         free( p_sys->psz_indexPath );
         free( p_sys );
         msg_Err( p_access, "Encryption init failed" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     p_sys->i_handle = -1;
@@ -303,7 +304,7 @@ static int Open( vlc_object_t *p_this )
     p_access->pf_write = Write;
     p_access->pf_control = Control;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /************************************************************************
@@ -318,7 +319,7 @@ static int CryptSetup( sout_access_out_t *p_access, char *key_file )
     if( !p_sys->key_uri ) /*No key uri, assume no encryption wanted*/
     {
         msg_Dbg( p_access, "No key uri, no encryption");
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
     if( key_file )
@@ -329,10 +330,10 @@ static int CryptSetup( sout_access_out_t *p_access, char *key_file )
     if( unlikely(keyfile == NULL) )
     {
         msg_Err( p_access, "No key-file, no encryption" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    vlc_gcrypt_init();
+    heimdall_gcrypt_init();
 
     /*Setup encryption cipher*/
     gcry_error_t err = gcry_cipher_open( &p_sys->aes_ctx, GCRY_CIPHER_AES,
@@ -341,28 +342,28 @@ static int CryptSetup( sout_access_out_t *p_access, char *key_file )
     {
         msg_Err( p_access, "Opening AES Cipher failed: %s", gcry_strerror(err));
         free( keyfile );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    int keyfd = vlc_open( keyfile, O_RDONLY | O_NONBLOCK );
+    int keyfd = heimdall_open( keyfile, O_RDONLY | O_NONBLOCK );
     if( unlikely( keyfd == -1 ) )
     {
         msg_Err( p_access, "Unable to open keyfile %s: %s", keyfile,
-                 vlc_strerror_c(errno) );
+                 heimdall_strerror_c(errno) );
         free( keyfile );
         gcry_cipher_close( p_sys->aes_ctx );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     free( keyfile );
 
     ssize_t keylen = read( keyfd, key, 16 );
 
-    vlc_close( keyfd );
+    heimdall_close( keyfd );
     if( keylen < 16 )
     {
         msg_Err( p_access, "No key at least 16 octects (you provided %zd), no encryption", keylen );
         gcry_cipher_close( p_sys->aes_ctx );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     err = gcry_cipher_setkey( p_sys->aes_ctx, key, 16 );
@@ -370,13 +371,13 @@ static int CryptSetup( sout_access_out_t *p_access, char *key_file )
     {
         msg_Err(p_access, "Setting AES key failed: %s", gcry_strerror(err));
         gcry_cipher_close( p_sys->aes_ctx );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( p_sys->b_generate_iv )
-        vlc_rand_bytes( p_sys->aes_ivs, 16);
+        heimdall_rand_bytes( p_sys->aes_ivs, 16);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 
@@ -387,14 +388,14 @@ static int LoadCryptFile( sout_access_out_t *p_access )
 {
     sout_access_out_sys_t *p_sys = p_access->p_sys;
 
-    FILE *stream = vlc_fopen( p_sys->psz_keyfile, "rt" );
+    FILE *stream = heimdall_fopen( p_sys->psz_keyfile, "rt" );
     char *key_file=NULL,*key_uri=NULL;
 
     if( unlikely( stream == NULL ) )
     {
         msg_Err( p_access, "Unable to open keyloadfile %s: %s",
-                 p_sys->psz_keyfile, vlc_strerror_c(errno) );
-        return VLC_EGENERIC;
+                 p_sys->psz_keyfile, heimdall_strerror_c(errno) );
+        return HEIMDALL_EGENERIC;
     }
 
 
@@ -403,11 +404,11 @@ static int LoadCryptFile( sout_access_out_t *p_access )
     if( unlikely( len == -1 ) )
     {
         msg_Err( p_access, "Cannot read %s: %s", p_sys->psz_keyfile,
-                 vlc_strerror_c(errno) );
+                 heimdall_strerror_c(errno) );
         clearerr( stream );
         fclose( stream );
         free( key_uri );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     //Strip the newline from uri, maybe scanf would be better?
     key_uri[len-1]='\0';
@@ -416,19 +417,19 @@ static int LoadCryptFile( sout_access_out_t *p_access )
     if( unlikely( len == -1 ) )
     {
         msg_Err( p_access, "Cannot read %s: %s", p_sys->psz_keyfile,
-                 vlc_strerror_c(errno) );
+                 heimdall_strerror_c(errno) );
         clearerr( stream );
         fclose( stream );
 
         free( key_uri );
         free( key_file );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     // Strip the last newline from filename
     key_file[len-1]='\0';
     fclose( stream );
 
-    int returncode = VLC_SUCCESS;
+    int returncode = HEIMDALL_SUCCESS;
     if( !p_sys->key_uri || strcmp( p_sys->key_uri, key_uri ) )
     {
         if( p_sys->key_uri )
@@ -467,9 +468,9 @@ static int CryptKey( sout_access_out_t *p_access, uint32_t i_segment )
     {
         msg_Err(p_access, "Setting AES IVs failed: %s", gcry_strerror(err) );
         gcry_cipher_close( p_sys->aes_ctx);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 
@@ -482,7 +483,7 @@ static char *formatSegmentPath( char *psz_path, uint32_t i_seg )
     char *psz_result;
     char *psz_firstNumSign;
 
-    if ( ! ( psz_result  = vlc_strftime( psz_path ) ) )
+    if ( ! ( psz_result  = heimdall_strftime( psz_path ) ) )
         return NULL;
 
     psz_firstNumSign = psz_result + strcspn( psz_result, SEG_NUMBER_PLACEHOLDER );
@@ -518,16 +519,16 @@ static void destroySegment( output_segment_t *segment )
  ************************************************************************/
 static uint32_t segmentAmountNeeded( sout_access_out_sys_t *p_sys )
 {
-    vlc_tick_t duration = 0;
-    for( size_t index = 1; index <= vlc_array_count( &p_sys->segments_t ); index++ )
+    heimdall_tick_t duration = 0;
+    for( size_t index = 1; index <= heimdall_array_count( &p_sys->segments_t ); index++ )
     {
-        output_segment_t* segment = vlc_array_item_at_index( &p_sys->segments_t, vlc_array_count( &p_sys->segments_t ) - index );
+        output_segment_t* segment = heimdall_array_item_at_index( &p_sys->segments_t, heimdall_array_count( &p_sys->segments_t ) - index );
         duration += segment->segment_length;
 
         if( duration >= ( 3 * p_sys->segment_max_length ) )
             return __MAX(index, p_sys->i_numsegs);
     }
-    return vlc_array_count( &p_sys->segments_t ) - 1;
+    return heimdall_array_count( &p_sys->segments_t ) - 1;
 
 }
 
@@ -539,17 +540,17 @@ static uint32_t segmentAmountNeeded( sout_access_out_sys_t *p_sys )
  ************************************************************************/
 static bool isFirstItemRemovable( sout_access_out_sys_t *p_sys, uint32_t i_firstseg, uint32_t i_index_offset )
 {
-    vlc_tick_t duration = 0;
+    heimdall_tick_t duration = 0;
 
     /* Check that segment has been out of playlist for segment_length + (p_sys->i_numsegs * p_sys->segment_max_length) amount
      * We check this by calculating duration of the items that replaced first item in playlist
      */
     for( unsigned int index = 0; index < i_index_offset; index++ )
     {
-        output_segment_t *segment = vlc_array_item_at_index( &p_sys->segments_t, p_sys->i_segment - i_firstseg + index );
+        output_segment_t *segment = heimdall_array_item_at_index( &p_sys->segments_t, p_sys->i_segment - i_firstseg + index );
         duration += segment->segment_length;
     }
-    output_segment_t *first = vlc_array_item_at_index( &p_sys->segments_t, 0 );
+    output_segment_t *first = heimdall_array_item_at_index( &p_sys->segments_t, 0 );
 
     return duration >= (first->segment_length + (p_sys->i_numsegs * p_sys->segment_max_length));
 }
@@ -572,7 +573,7 @@ static int updateIndexAndDel( sout_access_out_t *p_access, sout_access_out_sys_t
     {
         unsigned numsegs = segmentAmountNeeded( p_sys );
         i_firstseg = ( p_sys->i_segment - numsegs ) + 1;
-        i_index_offset = vlc_array_count( &p_sys->segments_t ) - numsegs;
+        i_index_offset = heimdall_array_count( &p_sys->segments_t ) - numsegs;
     }
 
     // First update index
@@ -584,7 +585,7 @@ static int updateIndexAndDel( sout_access_out_t *p_access, sout_access_out_sys_t
         if ( asprintf( &psz_idxTmp, "%s.tmp", p_sys->psz_indexPath ) < 0)
             return -1;
 
-        fp = vlc_fopen( psz_idxTmp, "wt");
+        fp = heimdall_fopen( psz_idxTmp, "wt");
         if ( !fp )
         {
             msg_Err( p_access, "cannot open index file `%s'", psz_idxTmp );
@@ -593,7 +594,7 @@ static int updateIndexAndDel( sout_access_out_t *p_access, sout_access_out_sys_t
         }
 
         if ( fprintf( fp, "#EXTM3U\n#EXT-X-TARGETDURATION:%.0f\n#EXT-X-VERSION:3\n#EXT-X-ALLOW-CACHE:%s"
-                          "%s\n#EXT-X-MEDIA-SEQUENCE:%"PRIu32"\n%s", ceil(secf_from_vlc_tick( p_sys->segment_max_length )) ,
+                          "%s\n#EXT-X-MEDIA-SEQUENCE:%"PRIu32"\n%s", ceil(secf_from_heimdall_tick( p_sys->segment_max_length )) ,
                           p_sys->b_caching ? "YES" : "NO",
                           p_sys->i_numsegs > 0 ? "" : b_isend ? "\n#EXT-X-PLAYLIST-TYPE:VOD" : "\n#EXT-X-PLAYLIST-TYPE:EVENT",
                           i_firstseg, ((p_sys->i_initial_segment > 1) && (p_sys->i_initial_segment == i_firstseg)) ? "#EXT-X-DISCONTINUITY\n" : ""
@@ -611,7 +612,7 @@ static int updateIndexAndDel( sout_access_out_t *p_access, sout_access_out_sys_t
             //scale to i_index_offset..numsegs + i_index_offset
             uint32_t index = i - i_firstseg + i_index_offset;
 
-            output_segment_t *segment = vlc_array_item_at_index( &p_sys->segments_t, index );
+            output_segment_t *segment = heimdall_array_item_at_index( &p_sys->segments_t, index );
             if( p_sys->key_uri &&
                 ( !psz_current_uri ||  strcmp( psz_current_uri, segment->psz_key_uri ) )
               )
@@ -668,11 +669,11 @@ static int updateIndexAndDel( sout_access_out_t *p_access, sout_access_out_sys_t
         }
         fclose( fp );
 
-        val = vlc_rename ( psz_idxTmp, p_sys->psz_indexPath);
+        val = heimdall_rename ( psz_idxTmp, p_sys->psz_indexPath);
 
         if ( val < 0 )
         {
-            vlc_unlink( psz_idxTmp );
+            heimdall_unlink( psz_idxTmp );
             msg_Err( p_access, "Error moving LiveHttp index file" );
         }
         else
@@ -687,13 +688,13 @@ static int updateIndexAndDel( sout_access_out_t *p_access, sout_access_out_sys_t
            isFirstItemRemovable( p_sys, i_firstseg, i_index_offset )
          )
     {
-         output_segment_t *segment = vlc_array_item_at_index( &p_sys->segments_t, 0 );
+         output_segment_t *segment = heimdall_array_item_at_index( &p_sys->segments_t, 0 );
          msg_Dbg( p_access, "Removing segment number %d", segment->i_segment_number );
-         vlc_array_remove( &p_sys->segments_t, 0 );
+         heimdall_array_remove( &p_sys->segments_t, 0 );
 
          if ( segment->psz_filename )
          {
-             vlc_unlink( segment->psz_filename );
+             heimdall_unlink( segment->psz_filename );
          }
 
          destroySegment( segment );
@@ -711,7 +712,7 @@ static void closeCurrentSegment( sout_access_out_t *p_access, sout_access_out_sy
 {
     if ( p_sys->i_handle >= 0 )
     {
-        output_segment_t *segment = vlc_array_item_at_index( &p_sys->segments_t, vlc_array_count( &p_sys->segments_t ) - 1 );
+        output_segment_t *segment = heimdall_array_item_at_index( &p_sys->segments_t, heimdall_array_count( &p_sys->segments_t ) - 1 );
 
         if( p_sys->key_uri )
         {
@@ -723,7 +724,7 @@ static void closeCurrentSegment( sout_access_out_t *p_access, sout_access_out_sy
                msg_Err( p_access, "Couldn't encrypt 16 bytes: %s", gcry_strerror(err) );
             } else {
 
-            int ret = vlc_write( p_sys->i_handle, p_sys->stuffing_bytes, 16 );
+            int ret = heimdall_write( p_sys->i_handle, p_sys->stuffing_bytes, 16 );
             if( ret != 16 )
                 msg_Err( p_access, "Couldn't write 16 bytes" );
             }
@@ -731,10 +732,10 @@ static void closeCurrentSegment( sout_access_out_t *p_access, sout_access_out_sy
         }
 
 
-        vlc_close( p_sys->i_handle );
+        heimdall_close( p_sys->i_handle );
         p_sys->i_handle = -1;
 
-        if( vlc_asprintf_c( &segment->psz_duration, "%.2f", secf_from_vlc_tick( p_sys->current_segment_length ) ) == -1 )
+        if( heimdall_asprintf_c( &segment->psz_duration, "%.2f", secf_from_heimdall_tick( p_sys->current_segment_length ) ) == -1 )
         {
             msg_Err( p_access, "Couldn't set duration on closed segment");
             return;
@@ -756,7 +757,7 @@ static void closeCurrentSegment( sout_access_out_t *p_access, sout_access_out_sy
 /*****************************************************************************
  * Close: close the target
  *****************************************************************************/
-static void Close( vlc_object_t * p_this )
+static void Close( heimdall_object_t * p_this )
 {
     sout_access_out_t *p_access = (sout_access_out_t*)p_this;
     sout_access_out_sys_t *p_sys = p_access->p_sys;
@@ -803,14 +804,14 @@ static void Close( vlc_object_t * p_this )
         free( p_sys->key_uri );
     }
 
-    while( vlc_array_count( &p_sys->segments_t ) > 0 )
+    while( heimdall_array_count( &p_sys->segments_t ) > 0 )
     {
-        output_segment_t *segment = vlc_array_item_at_index( &p_sys->segments_t, 0 );
-        vlc_array_remove( &p_sys->segments_t, 0 );
+        output_segment_t *segment = heimdall_array_item_at_index( &p_sys->segments_t, 0 );
+        heimdall_array_remove( &p_sys->segments_t, 0 );
         if( p_sys->b_delsegs && p_sys->i_numsegs && segment->psz_filename )
         {
             msg_Dbg( p_access, "Removing segment number %d name %s", segment->i_segment_number, segment->psz_filename );
-            vlc_unlink( segment->psz_filename );
+            heimdall_unlink( segment->psz_filename );
         }
 
         destroySegment( segment );
@@ -839,9 +840,9 @@ static int Control( sout_access_out_t *p_access, int i_query, va_list args )
         }
 
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -870,17 +871,17 @@ static ssize_t openNextFile( sout_access_out_t *p_access, sout_access_out_sys_t 
         return -1;
     }
 
-    fd = vlc_open( segment->psz_filename, O_WRONLY | O_CREAT | O_LARGEFILE |
+    fd = heimdall_open( segment->psz_filename, O_WRONLY | O_CREAT | O_LARGEFILE |
                      O_TRUNC, 0666 );
     if ( fd == -1 )
     {
         msg_Err( p_access, "cannot open `%s' (%s)", segment->psz_filename,
-                 vlc_strerror_c(errno) );
+                 heimdall_strerror_c(errno) );
         destroySegment( segment );
         return -1;
     }
 
-    vlc_array_append_or_abort( &p_sys->segments_t, segment );
+    heimdall_array_append_or_abort( &p_sys->segments_t, segment );
 
     if( p_sys->psz_keyfile )
     {
@@ -910,8 +911,8 @@ static int CheckSegmentChange( sout_access_out_t *p_access, block_t *p_buffer )
     sout_access_out_sys_t *p_sys = p_access->p_sys;
     ssize_t writevalue = 0;
 
-    vlc_tick_t current_length = 0;
-    vlc_tick_t ongoing_length = 0;
+    heimdall_tick_t current_length = 0;
+    heimdall_tick_t ongoing_length = 0;
 
     block_ChainProperties( p_sys->full_segments, NULL, NULL, &current_length );
     block_ChainProperties( p_sys->ongoing_segment, NULL, NULL, &ongoing_length );
@@ -946,7 +947,7 @@ static ssize_t writeSegment( sout_access_out_t *p_access )
     p_sys->full_segments = NULL;
     p_sys->full_segments_end = &p_sys->full_segments;
 
-    vlc_tick_t current_length = 0;
+    heimdall_tick_t current_length = 0;
     block_ChainProperties( output, NULL, NULL, &current_length );
 
     ssize_t i_write=0;
@@ -960,7 +961,7 @@ static ssize_t writeSegment( sout_access_out_t *p_access )
             {
                 output = block_Realloc( output, p_sys->stuffing_size, output->i_buffer );
                 if( unlikely(!output ) )
-                    return VLC_ENOMEM;
+                    return HEIMDALL_ENOMEM;
                 memcpy( output->p_buffer, p_sys->stuffing_bytes, p_sys->stuffing_size );
                 p_sys->stuffing_size = 0;
             }
@@ -985,7 +986,7 @@ static ssize_t writeSegment( sout_access_out_t *p_access )
 
         }
 
-        ssize_t val = vlc_write( p_sys->i_handle, output->p_buffer, output->i_buffer );
+        ssize_t val = heimdall_write( p_sys->i_handle, output->p_buffer, output->i_buffer );
         if ( val == -1 )
         {
            if ( errno == EINTR )

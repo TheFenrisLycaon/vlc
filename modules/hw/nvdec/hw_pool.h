@@ -2,6 +2,7 @@
  * hw_pool.h: hw based picture pool
  *****************************************************************************
  * Copyright (C) 2019-2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Jai Luthra <me@jailuthra.in>
  *          Quentin Chateau <quentin.chateau@deepskycorp.com>
@@ -24,8 +25,8 @@
 #ifndef HW_POOL_H
 #define HW_POOL_H
 
-#include <vlc_picture.h>
-#include <vlc_codec.h>
+#include <heimdall_picture.h>
+#include <heimdall_codec.h>
 
 typedef struct hw_pool_t  hw_pool_t;
 typedef struct hw_pool_owner  hw_pool_owner_t;
@@ -38,7 +39,7 @@ struct hw_pool_owner
 };
 
 hw_pool_t* hw_pool_Create(hw_pool_owner_t *,
-                          const video_format_t *, vlc_video_context *,
+                          const video_format_t *, heimdall_video_context *,
                           void *buffers[], size_t pics_count);
 void hw_pool_AddRef(hw_pool_t *);
 void hw_pool_Release(hw_pool_t *);

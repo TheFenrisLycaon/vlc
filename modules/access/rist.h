@@ -2,6 +2,7 @@
  * rist.h: RIST (Reliable Internet Stream Transport) helper
  *****************************************************************************
  * Copyright (C) 2020, SipRadius LLC
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Sergio Ammirata <sergio@ammirata.net>
  *
@@ -20,14 +21,14 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef RIST_VLC_COMMON_H
-#define RIST_VLC_COMMON_H 1
+#ifndef RIST_HEIMDALL_COMMON_H
+#define RIST_HEIMDALL_COMMON_H 1
 
 #ifdef HAVE_CONFIG_H
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 #include <librist/librist.h>
 #include <limits.h>
 
@@ -107,7 +108,7 @@ static const char *const verbose_level_type_names[] = {
 
 static inline int log_cb(void *arg, enum rist_log_level log_level, const char *msg)
 {
-    vlc_object_t *p_access = (vlc_object_t *)arg;
+    heimdall_object_t *p_access = (heimdall_object_t *)arg;
     int label_index = 0;
     if (log_level > 8)
         label_index = 8;
@@ -119,7 +120,7 @@ static inline int log_cb(void *arg, enum rist_log_level log_level, const char *m
     else if (log_level == RIST_LOG_WARN)
         msg_Warn(p_access, "[RIST-%s]: %.*s", rist_log_label[label_index], (int)strlen(msg) - 1, msg);
     else if (log_level == RIST_LOG_INFO)
-        //libRIST follows Syslog log priorities and assigns INFO a low prio, VLC gives Info the highest
+        //libRIST follows Syslog log priorities and assigns INFO a low prio, Heimdall gives Info the highest
         //so make it warn (debug would be too verbose)
         msg_Warn(p_access, "[RIST-%s]: %.*s", rist_log_label[label_index], (int)strlen(msg) - 1, msg);
     else if (log_level > RIST_LOG_DEBUG)
@@ -128,7 +129,7 @@ static inline int log_cb(void *arg, enum rist_log_level log_level, const char *m
     return 0;
 }
 
-static inline int rist_get_max_packet_size(vlc_object_t *p_this)
+static inline int rist_get_max_packet_size(heimdall_object_t *p_this)
 {
     int i_max_packet_size = var_InheritInteger( p_this, RIST_CFG_PREFIX RIST_CFG_MAX_PACKET_SIZE );
     if (i_max_packet_size > RIST_MAX_PACKET_SIZE)
@@ -140,7 +141,7 @@ static inline int rist_get_max_packet_size(vlc_object_t *p_this)
     return i_max_packet_size;
 }
 
-static inline bool rist_add_peers(vlc_object_t *p_this, struct rist_ctx *ctx, char *psz_url, int i_multipeer_mode, int virt_dst_port, int i_recovery_length)
+static inline bool rist_add_peers(heimdall_object_t *p_this, struct rist_ctx *ctx, char *psz_url, int i_multipeer_mode, int virt_dst_port, int i_recovery_length)
 {
     int i_rist_reorder_buffer = var_InheritInteger( p_this, RIST_CFG_PREFIX RIST_URL_PARAM_REORDER_BUFFER );
     int i_rist_retry_interval = var_InheritInteger( p_this, RIST_CFG_PREFIX RIST_CFG_RETRY_INTERVAL );

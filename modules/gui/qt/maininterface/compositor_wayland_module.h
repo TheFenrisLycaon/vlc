@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2023 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,11 +20,11 @@
 #ifndef COMPOSITOR_WAYLAND_MODULE_H
 #define COMPOSITOR_WAYLAND_MODULE_H
 
-#include <vlc_window.h>
+#include <heimdall_window.h>
 
 typedef struct qtwayland_t
 {
-    struct vlc_object_t obj;
+    struct heimdall_object_t obj;
 
     module_t* p_module;
     void* p_sys;
@@ -32,10 +33,10 @@ typedef struct qtwayland_t
 
     int (*setupInterface)(struct qtwayland_t*, void* video_surface, double scale);
 
-    int (*setupVoutWindow)(struct qtwayland_t*, vlc_window_t* p_wnd);
+    int (*setupVoutWindow)(struct qtwayland_t*, heimdall_window_t* p_wnd);
     void (*teardownVoutWindow)(struct qtwayland_t*);
 
-    void (*enable)(struct qtwayland_t*, const vlc_window_cfg_t *);
+    void (*enable)(struct qtwayland_t*, const heimdall_window_cfg_t *);
     void (*disable)(struct qtwayland_t*);
     void (*move)(struct qtwayland_t*, int x, int y, bool commitSurface);
     void (*resize)(struct qtwayland_t*, size_t width, size_t height, bool commitSurface);
@@ -46,6 +47,6 @@ typedef struct qtwayland_t
     void (*close)(struct qtwayland_t*);
 } qtwayland_t;
 
-int OpenCompositor(vlc_object_t* p_this);
+int OpenCompositor(heimdall_object_t* p_this);
 
 #endif // COMPOSITOR_WAYLAND_MODULE_H

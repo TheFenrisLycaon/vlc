@@ -1,7 +1,7 @@
 /*****************************************************************************
- * bdagraph.hpp : DirectShow BDA graph builder header for vlc
+ * bdagraph.hpp : DirectShow BDA graph builder header for heimdall
  *****************************************************************************
- * Copyright ( C ) 2007 the VideoLAN team
+ * Copyright ( C ) 2007 the Lycaria team
  *
  * Author: Ken Self <kenself(at)optusnet(dot)com(dot)au>
  *
@@ -47,7 +47,7 @@
 #endif
 #include <stdexcept>
 
-#include <vlc_threads.h>
+#include <heimdall_threads.h>
 
 #include <wrl/client.h>
 
@@ -100,8 +100,8 @@ public:
     void    Empty();
 
 private:
-    vlc_mutex_t   lock;
-    vlc_cond_t    wait;
+    heimdall_mutex_t   lock;
+    heimdall_cond_t    wait;
     block_t      *p_first;
     block_t     **pp_next;
 };
@@ -110,7 +110,7 @@ private:
 class BDAGraph : public ISampleGrabberCB
 {
 public:
-    BDAGraph( vlc_object_t * );
+    BDAGraph( heimdall_object_t * );
     virtual ~BDAGraph();
 
     /* */
@@ -140,7 +140,7 @@ private:
     STDMETHODIMP SampleCB( double d_time, IMediaSample* p_sample );
     STDMETHODIMP BufferCB( double d_time, BYTE* p_buffer, long l_buffer_len );
 
-    vlc_object_t *p_access;
+    heimdall_object_t *p_access;
     CLSID     clsid_network_type;  /* network type in use */
     long      l_tuner_used;        /* Index of the Tuning Device in use */
     unsigned  systems;             /* bitmask of all tuners' network types */

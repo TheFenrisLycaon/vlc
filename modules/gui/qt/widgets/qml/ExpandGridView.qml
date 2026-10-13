@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,9 +24,9 @@ import QtQuick.Window
 import QtQml.Models
 
 
-import VLC.MainInterface
-import VLC.Style
-import VLC.Util
+import Heimdall.MainInterface
+import Heimdall.Style
+import Heimdall.Util
 
 FocusScope {
     id: root
@@ -37,13 +38,13 @@ FocusScope {
     //margin to apply
     property int bottomMargin: 0
     property int topMargin: 0
-    property int leftMargin: VLCStyle.layout_left_margin + leftPadding
-    property int rightMargin: VLCStyle.layout_right_margin + rightPadding
+    property int leftMargin: HeimdallStyle.layout_left_margin + leftPadding
+    property int rightMargin: HeimdallStyle.layout_right_margin + rightPadding
 
     property int leftPadding: 0
     property int rightPadding: 0
 
-    readonly property int extraMargin: VLCStyle.dynamicAppMargins(width)
+    readonly property int extraMargin: HeimdallStyle.dynamicAppMargins(width)
 
     // NOTE: The grid margins for the item(s) horizontal positioning.
     readonly property int contentLeftMargin: extraMargin + leftMargin
@@ -57,8 +58,8 @@ FocusScope {
     // default is true
     property bool reuseItems: true
 
-    property int horizontalSpacing: VLCStyle.column_spacing
-    property int verticalSpacing: VLCStyle.column_spacing
+    property int horizontalSpacing: HeimdallStyle.column_spacing
+    property int verticalSpacing: HeimdallStyle.column_spacing
 
     property int displayMarginBeginning: 0
     property int displayMarginEnd: 0
@@ -384,7 +385,7 @@ FocusScope {
 
         // fix anchor for some duration, so that index remains
         // same during whole resize operation
-        const dirty = (Date.now() - _anchoredIdxUpdate) > VLCStyle.duration_veryLong
+        const dirty = (Date.now() - _anchoredIdxUpdate) > HeimdallStyle.duration_veryLong
 
         if (dirty || (_anchoredIdx < 0) || (_anchoredIdx >= _count)) {
             const range = _currentRange || [0, 0]
@@ -552,7 +553,7 @@ FocusScope {
 
     function animateFlickableContentY( newContentY ) {
         animateContentY.stop()
-        animateContentY.duration = VLCStyle.duration_long
+        animateContentY.duration = HeimdallStyle.duration_long
         animateContentY.to = newContentY
         animateContentY.start()
     }
@@ -804,7 +805,7 @@ FocusScope {
         boundsBehavior: Flickable.StopAtBounds
 
         pixelAligned: (MainCtx.qtVersion() >= MainCtx.qtVersionCheck(6, 2, 5)) // QTBUG-103996
-                      && (Screen.pixelDensity >= VLCStyle.highPixelDensityThreshold) // no need for sub-pixel alignment with high pixel density
+                      && (Screen.pixelDensity >= HeimdallStyle.highPixelDensityThreshold) // no need for sub-pixel alignment with high pixel density
 
         T.ScrollBar.vertical: ScrollBarExt {
             id: flickableScrollBar
@@ -1168,7 +1169,7 @@ FocusScope {
             id: animateRetractItem;
             target: root;
             properties: "_expandItemVerticalSpace"
-            duration: VLCStyle.duration_long
+            duration: HeimdallStyle.duration_long
             to: 0
             onStopped: {
                 root.expandIndex = -1
@@ -1181,7 +1182,7 @@ FocusScope {
             id: animateExpandItem;
             target: root;
             properties: "_expandItemVerticalSpace"
-            duration: VLCStyle.duration_long
+            duration: HeimdallStyle.duration_long
             from: 0
         }
     }

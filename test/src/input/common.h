@@ -2,6 +2,7 @@
  * common.h
  *****************************************************************************
  * Copyright (C) 2017 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -18,7 +19,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#include <vlc/vlc.h>
+#include <heimdall/heimdall.h>
 
 #if 0
 #define debug(...) printf(__VA_ARGS__)
@@ -26,19 +27,19 @@
 #define debug(...) (void)0
 #endif
 
-struct vlc_run_args
+struct heimdall_run_args
 {
     /* force specific target name (demux or decoder name). NULL to don't force
      * any */
     const char *name;
 
-    /* vlc verbose level */
+    /* heimdall verbose level */
     unsigned verbose;
 
     /* true to test demux controls */
     bool test_demux_controls;
 };
 
-void vlc_run_args_init(struct vlc_run_args *args);
+void heimdall_run_args_init(struct heimdall_run_args *args);
 
-libvlc_instance_t *libvlc_create(const struct vlc_run_args *args);
+libheimdall_instance_t *libheimdall_create(const struct heimdall_run_args *args);

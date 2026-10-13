@@ -12,7 +12,7 @@
 using namespace adaptive::logic;
 using namespace adaptive::playlist;
 
-RoundRobinLogic::RoundRobinLogic    (vlc_object_t *obj) :
+RoundRobinLogic::RoundRobinLogic    (heimdall_object_t *obj) :
                            AbstractAdaptationLogic      (obj)
 {
     index = 0;

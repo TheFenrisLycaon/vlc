@@ -2,6 +2,7 @@
  * directory.h: Media library network directory
  *****************************************************************************
  * Copyright (C) 2018 VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -26,12 +27,12 @@
 
 #include "fs.h"
 
-namespace vlc {
+namespace heimdall {
   namespace medialibrary {
 
 using namespace ::medialibrary::fs;
 
-using InputItemPtr = ::vlc::vlc_shared_data_ptr<input_item_t,
+using InputItemPtr = ::heimdall::heimdall_shared_data_ptr<input_item_t,
                                                 &input_item_Hold,
                                                 &input_item_Release>;
 
@@ -61,6 +62,6 @@ private:
 };
 
   } /* namespace medialibrary */
-} /* namespace vlc */
+} /* namespace heimdall */
 
 #endif

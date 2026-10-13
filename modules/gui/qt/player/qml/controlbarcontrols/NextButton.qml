@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,15 +19,15 @@
 import QtQuick
 
 
-import VLC.Widgets as Widgets
-import VLC.Style
-import VLC.Playlist
-import VLC.Util
+import Heimdall.Widgets as Widgets
+import Heimdall.Style
+import Heimdall.Playlist
+import Heimdall.Util
 
 Widgets.IconToolButton {
     id: nextBtn
 
-    text: VLCIcons.next
+    text: HeimdallIcons.next
     enabled: MainPlaylistController.hasNext
     onClicked: MainPlaylistController.next()
     description: qsTr("Next")

@@ -2,6 +2,7 @@
  * Representation.h
  *****************************************************************************
  * Copyright (C) 2010 - 2011 Klagenfurt University
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Created on: Aug 10, 2010
  * Authors: Christopher Mueller <christopher.mueller@itec.uni-klu.ac.at>
@@ -63,16 +64,16 @@ namespace adaptive
                 const std::list<std::string> & getCodecs    () const;
                 void                addCodecs               (const std::string &);
                 void                getCodecsDesc           (CodecDescriptionList *) const;
-                void                pruneByPlaybackTime     (vlc_tick_t) override;
+                void                pruneByPlaybackTime     (heimdall_tick_t) override;
 
-                virtual vlc_tick_t  getMinAheadTime         (uint64_t) const;
+                virtual heimdall_tick_t  getMinAheadTime         (uint64_t) const;
                 virtual bool        needsUpdate             (uint64_t) const;
                 virtual bool        needsIndex              () const;
                 virtual bool        runLocalUpdates         (SharedResources *);
                 virtual void        scheduleNextUpdate      (uint64_t, bool);
                 virtual bool        canNoLongerUpdate       () const;
 
-                virtual void        debug                   (vlc_object_t *,int = 0) const;
+                virtual void        debug                   (heimdall_object_t *,int = 0) const;
 
                 /* for segment templates */
                 virtual std::string contextualize(size_t, const std::string &,
@@ -82,11 +83,11 @@ namespace adaptive
                                               const BaseRepresentation *b);
 
                 virtual uint64_t translateSegmentNumber(uint64_t, const BaseRepresentation *) const;
-                bool getSegmentNumberByTime(vlc_tick_t, uint64_t *) const;
-                bool getPlaybackTimeDurationBySegmentNumber(uint64_t, vlc_tick_t *, vlc_tick_t *) const;
-                bool getMediaPlaybackRange(vlc_tick_t *rangeBegin,
-                                                               vlc_tick_t *rangeEnd,
-                                                               vlc_tick_t *rangeLength) const;
+                bool getSegmentNumberByTime(heimdall_tick_t, uint64_t *) const;
+                bool getPlaybackTimeDurationBySegmentNumber(uint64_t, heimdall_tick_t *, heimdall_tick_t *) const;
+                bool getMediaPlaybackRange(heimdall_tick_t *rangeBegin,
+                                                               heimdall_tick_t *rangeEnd,
+                                                               heimdall_tick_t *rangeLength) const;
             protected:
                 virtual CodecDescription * makeCodecDescription(const std::string &) const;
                 virtual bool        validateCodec(const std::string &) const;

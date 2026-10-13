@@ -2,6 +2,7 @@
  * tables.c
  *****************************************************************************
  * Copyright (C) 2001-2005, 2015 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -23,9 +24,9 @@
 
 #include <stdbit.h>
 
-#include <vlc_common.h>
-#include <vlc_block.h>
-#include <vlc_es.h>
+#include <heimdall_common.h>
+#include <heimdall_block.h>
+#include <heimdall_es.h>
 
 # include <dvbpsi/dvbpsi.h>
 # include <dvbpsi/demux.h>
@@ -173,7 +174,7 @@ static void Mpeg4SUBTDecoderSpecific_55( bits_buffer_t *b )
         bits_write( b,  8, fontname[i] ); /* font name */
 }
 
-static void GetPMTmpeg4( vlc_object_t *p_object, dvbpsi_pmt_t *p_dvbpmt,
+static void GetPMTmpeg4( heimdall_object_t *p_object, dvbpsi_pmt_t *p_dvbpmt,
                          unsigned i_mapped_streams, const pes_mapped_stream_t *p_mapped_streams )
 {
     uint8_t iod[4096];
@@ -247,7 +248,7 @@ static void GetPMTmpeg4( vlc_object_t *p_object, dvbpsi_pmt_t *p_dvbpmt,
             bits_write( &bits, 6, 0x05 );   /* AudioStream */
         }
         else if( p_stream->ts->i_stream_type == 0x12 &&
-                 p_stream->fmt->i_codec == VLC_CODEC_SUBT )
+                 p_stream->fmt->i_codec == HEIMDALL_CODEC_SUBT )
         {
             bits_write( &bits, 8, 0x0B );   /* Text Stream */
             bits_write( &bits, 6, 0x04 );   /* VisualStream */
@@ -266,7 +267,7 @@ static void GetPMTmpeg4( vlc_object_t *p_object, dvbpsi_pmt_t *p_dvbpmt,
         bits_write( &bits, 32,  0 );            /* avgBitrate */
 
         /* DecoderSpecificInfo */
-        if( p_stream->fmt->i_codec == VLC_CODEC_SUBT )
+        if( p_stream->fmt->i_codec == HEIMDALL_CODEC_SUBT )
         {
             bits_align( &bits );
             bits_write( &bits, 8,   0x05 ); /* tag */
@@ -430,7 +431,7 @@ static inline size_t Write_AnnexA_String( uint8_t *p_dest, const char *p_src )
     }
 }
 
-void BuildPMT( dvbpsi_t *p_dvbpsi, vlc_object_t *p_object,
+void BuildPMT( dvbpsi_t *p_dvbpsi, heimdall_object_t *p_object,
                ts_mux_standard standard,
                void *p_opaque, PEStoTSCallback pf_callback,
                int i_tsid, int i_pmt_version_number,
@@ -439,11 +440,11 @@ void BuildPMT( dvbpsi_t *p_dvbpsi, vlc_object_t *p_object,
                unsigned i_programs, tsmux_stream_t *p_pmt, const int *pi_programs_number,
                unsigned i_mapped_streams, const pes_mapped_stream_t *p_mapped_streams )
 {
-    dvbpsi_pmt_t *dvbpmt = vlc_alloc( i_programs, sizeof(dvbpsi_pmt_t) );
+    dvbpsi_pmt_t *dvbpmt = heimdall_alloc( i_programs, sizeof(dvbpsi_pmt_t) );
     if( !dvbpmt )
             return;
 
-    VLC_UNUSED(standard);
+    HEIMDALL_UNUSED(standard);
     dvbpsi_sdt_t sdtpsi;
     struct service_info *p_service_infos = NULL;
     if( p_sdt )
@@ -516,7 +517,7 @@ void BuildPMT( dvbpsi_t *p_dvbpsi, vlc_object_t *p_object,
             /* 0xa0 is private */
             dvbpsi_pmt_es_descriptor_add( p_es, 0xa0, i_extra + 10, data );
         }
-        else if( p_stream->fmt->i_codec == VLC_CODEC_JPEG2000 )
+        else if( p_stream->fmt->i_codec == HEIMDALL_CODEC_JPEG2000 )
         {
             uint8_t *p_data = calloc( 1, 24 + p_stream->fmt->i_extra );
             if( p_data )
@@ -544,14 +545,14 @@ void BuildPMT( dvbpsi_t *p_dvbpsi, vlc_object_t *p_object,
                 free(p_data);
             }
         }
-        else if( p_stream->fmt->i_codec == VLC_CODEC_DIRAC )
+        else if( p_stream->fmt->i_codec == HEIMDALL_CODEC_DIRAC )
         {
             /* Dirac registration descriptor */
 
             uint8_t data[4] = { 'd', 'r', 'a', 'c' };
             dvbpsi_pmt_es_descriptor_add( p_es, 0x05, 4, data );
         }
-        else if( p_stream->fmt->i_codec == VLC_CODEC_DTS )
+        else if( p_stream->fmt->i_codec == HEIMDALL_CODEC_DTS )
         {
             uint8_t i_ver;
             /* DTS registration descriptor (ETSI TS 101 154 Annex F) */
@@ -570,7 +571,7 @@ void BuildPMT( dvbpsi_t *p_dvbpsi, vlc_object_t *p_object,
             uint8_t data[4] = { 'D', 'T', 'S', i_ver };
             dvbpsi_pmt_es_descriptor_add( p_es, 0x05, 4, data );
         }
-        else if( p_stream->fmt->i_codec == VLC_CODEC_A52 )
+        else if( p_stream->fmt->i_codec == HEIMDALL_CODEC_A52 )
         {
             uint8_t format[4] = { 'A', 'C', '-', '3'};
 
@@ -591,7 +592,7 @@ void BuildPMT( dvbpsi_t *p_dvbpsi, vlc_object_t *p_object,
                 dvbpsi_pmt_es_descriptor_add( p_es, 0x6a, 1, data );
             }
         }
-        else if( p_stream->fmt->i_codec == VLC_CODEC_EAC3 )
+        else if( p_stream->fmt->i_codec == HEIMDALL_CODEC_EAC3 )
         {
             uint8_t format[4] = { 'E', 'A', 'C', '3'};
 
@@ -612,7 +613,7 @@ void BuildPMT( dvbpsi_t *p_dvbpsi, vlc_object_t *p_object,
                 dvbpsi_pmt_es_descriptor_add( p_es, 0x7a, 1, data );
             }
         }
-        else if( p_stream->fmt->i_codec == VLC_CODEC_OPUS )
+        else if( p_stream->fmt->i_codec == HEIMDALL_CODEC_OPUS )
         {
             uint8_t data[2] = {
                 0x80, /* tag extension */
@@ -623,7 +624,7 @@ void BuildPMT( dvbpsi_t *p_dvbpsi, vlc_object_t *p_object,
             /* "registration" descriptor : "Opus" */
             dvbpsi_pmt_es_descriptor_add( p_es, 0x05, 4, format );
         }
-        else if( p_stream->fmt->i_codec == VLC_CODEC_TELETEXT )
+        else if( p_stream->fmt->i_codec == HEIMDALL_CODEC_TELETEXT )
         {
             if( p_stream->fmt->i_extra )
             {
@@ -633,7 +634,7 @@ void BuildPMT( dvbpsi_t *p_dvbpsi, vlc_object_t *p_object,
             }
             continue;
         }
-        else if( p_stream->fmt->i_codec == VLC_CODEC_DVBS )
+        else if( p_stream->fmt->i_codec == HEIMDALL_CODEC_DVBS )
         {
             /* DVB subtitles */
             if( p_stream->fmt->i_extra )
@@ -758,65 +759,65 @@ int FillPMTESParams( ts_mux_standard standard, const es_format_t *fmt,
     {
     /* VIDEO */
 
-    case VLC_CODEC_MPGV:
-    case VLC_CODEC_MP2V:
-    case VLC_CODEC_MP1V:
+    case HEIMDALL_CODEC_MPGV:
+    case HEIMDALL_CODEC_MP2V:
+    case HEIMDALL_CODEC_MP1V:
         /* TODO: do we need to check MPEG-I/II ? */
         ts->i_stream_type = 0x02;
         pes->i_stream_id = 0xe0;
         break;
-    case VLC_CODEC_MP4V:
+    case HEIMDALL_CODEC_MP4V:
         ts->i_stream_type = 0x10;
         pes->i_stream_id = 0xe0;
         pes->i_es_id = ts->i_pid;
         break;
-    case VLC_CODEC_VVC:
+    case HEIMDALL_CODEC_VVC:
         ts->i_stream_type = 0x33;
         pes->i_stream_id = 0xe0;
         break;
-    case VLC_CODEC_HEVC:
+    case HEIMDALL_CODEC_HEVC:
         ts->i_stream_type = 0x24;
         pes->i_stream_id = 0xe0;
         break;
-    case VLC_CODEC_H264:
+    case HEIMDALL_CODEC_H264:
         ts->i_stream_type = 0x1b;
         pes->i_stream_id = 0xe0;
         break;
     /* XXX dirty dirty but somebody want crapy MS-codec XXX */
-    case VLC_CODEC_H263I:
-    case VLC_CODEC_H263:
-    case VLC_CODEC_WMV3:
-    case VLC_CODEC_WMV2:
-    case VLC_CODEC_WMV1:
-    case VLC_CODEC_DIV3:
-    case VLC_CODEC_DIV2:
-    case VLC_CODEC_DIV1:
-    case VLC_CODEC_MJPG:
+    case HEIMDALL_CODEC_H263I:
+    case HEIMDALL_CODEC_H263:
+    case HEIMDALL_CODEC_WMV3:
+    case HEIMDALL_CODEC_WMV2:
+    case HEIMDALL_CODEC_WMV1:
+    case HEIMDALL_CODEC_DIV3:
+    case HEIMDALL_CODEC_DIV2:
+    case HEIMDALL_CODEC_DIV1:
+    case HEIMDALL_CODEC_MJPG:
         ts->i_stream_type = 0xa0; /* private */
         pes->i_stream_id = 0xa0;   /* beurk */
         break;
-    case VLC_CODEC_DIRAC:
+    case HEIMDALL_CODEC_DIRAC:
         /* stream_id makes use of stream_id_extension */
         pes->i_stream_id = (PES_EXTENDED_STREAM_ID << 8) | 0x60;
         ts->i_stream_type = 0xd1;
         break;
-    case VLC_CODEC_JPEG2000:
+    case HEIMDALL_CODEC_JPEG2000:
         if( !j2k_is_valid_framerate( fmt->video.i_frame_rate,
                                      fmt->video.i_frame_rate_base ) )
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         ts->i_stream_type = 0x21;
         pes->i_stream_id = 0xbd;
     break;
 
     /* AUDIO */
 
-    case VLC_CODEC_MPGA:
-    case VLC_CODEC_MP2:
-    case VLC_CODEC_MP3:
+    case HEIMDALL_CODEC_MPGA:
+    case HEIMDALL_CODEC_MP2:
+    case HEIMDALL_CODEC_MP3:
         ts->i_stream_type = fmt->audio.i_rate >= 32000 ? 0x03 : 0x04;
         pes->i_stream_id = 0xc0;
         break;
-    case VLC_CODEC_A52:
+    case HEIMDALL_CODEC_A52:
         pes->i_stream_id = 0xbd;
         if( standard == TS_MUX_STANDARD_ATSC )
         {
@@ -827,17 +828,17 @@ int FillPMTESParams( ts_mux_standard standard, const es_format_t *fmt,
             ts->i_stream_type = 0x06;
         }
         break;
-    case VLC_CODEC_DVD_LPCM:
+    case HEIMDALL_CODEC_DVD_LPCM:
         ts->i_stream_type = 0x83;
         pes->i_stream_id = 0xbd;
         break;
-    case VLC_CODEC_OPUS:
+    case HEIMDALL_CODEC_OPUS:
         if (fmt->audio.i_channels > 8)
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         ts->i_stream_type = 0x06;
         pes->i_stream_id = 0xbd;
         break;
-    case VLC_CODEC_EAC3:
+    case HEIMDALL_CODEC_EAC3:
         pes->i_stream_id = 0xbd;
         if( standard == TS_MUX_STANDARD_ATSC )
         {
@@ -849,10 +850,10 @@ int FillPMTESParams( ts_mux_standard standard, const es_format_t *fmt,
             ts->i_stream_type = 0x06;
         }
         break;
-    case VLC_CODEC_DTS:
+    case HEIMDALL_CODEC_DTS:
         if( standard == TS_MUX_STANDARD_ATSC )
         {
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
         else
         {
@@ -860,7 +861,7 @@ int FillPMTESParams( ts_mux_standard standard, const es_format_t *fmt,
             pes->i_stream_id = 0xbd;
         }
         break;
-    case VLC_CODEC_MP4A:
+    case HEIMDALL_CODEC_MP4A:
         /* XXX: make that configurable in some way when LOAS
          * is implemented for AAC in TS */
         //ts->i_stream_type = 0x11; /* LOAS/LATM */
@@ -871,30 +872,30 @@ int FillPMTESParams( ts_mux_standard standard, const es_format_t *fmt,
 
     /* TEXT */
 
-    case VLC_CODEC_SPU:
+    case HEIMDALL_CODEC_SPU:
         ts->i_stream_type = 0x82;
         pes->i_stream_id = 0xbd;
         break;
-    case VLC_CODEC_SUBT:
+    case HEIMDALL_CODEC_SUBT:
         ts->i_stream_type = 0x12;
         pes->i_stream_id = 0xfa;
         pes->i_es_id = ts->i_pid;
         break;
-    case VLC_CODEC_DVBS:
+    case HEIMDALL_CODEC_DVBS:
         ts->i_stream_type = 0x06;
         pes->i_es_id = fmt->subs.dvb.i_id;
         pes->i_stream_id = 0xbd;
         break;
-    case VLC_CODEC_TELETEXT:
+    case HEIMDALL_CODEC_TELETEXT:
         ts->i_stream_type = 0x06;
         pes->i_stream_id = 0xbd; /* FIXME */
         break;
 
     default:
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 #endif

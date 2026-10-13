@@ -2,7 +2,7 @@
 
 vaapi_common_sources = files(
     'decoder_device.c',
-    'vlc_vaapi.c',
+    'heimdall_vaapi.c',
 )
 
 # Check for VA-API backends (only if libva is available)
@@ -17,7 +17,7 @@ else
 endif
 
 # VAAPI decoder device for X11
-vlc_modules += {
+heimdall_modules += {
     'name' : 'decdev_vaapi_x11',
     'sources' : vaapi_common_sources,
     'c_args' : ['-DHAVE_VA_X11'],
@@ -27,7 +27,7 @@ vlc_modules += {
 }
 
 # VAAPI decoder device for DRM
-vlc_modules += {
+heimdall_modules += {
     'name' : 'decdev_vaapi_drm',
     'sources' : vaapi_common_sources,
     'c_args' : ['-DHAVE_VA_DRM'],
@@ -37,7 +37,7 @@ vlc_modules += {
 }
 
 # VAAPI decoder device for Wayland
-vlc_modules += {
+heimdall_modules += {
     'name' : 'decdev_vaapi_wl',
     'sources' : vaapi_common_sources,
     'c_args' : ['-DHAVE_VA_WL'],
@@ -47,11 +47,11 @@ vlc_modules += {
 }
 
 # VAAPI filters plugin
-vlc_modules += {
+heimdall_modules += {
     'name' : 'vaapi_filters',
     'sources' : files(
         'filters.c',
-        'vlc_vaapi.c',
+        'heimdall_vaapi.c',
         'chroma.c',
     ),
     'dependencies' : [libva_dep],

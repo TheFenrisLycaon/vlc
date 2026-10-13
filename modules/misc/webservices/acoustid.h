@@ -2,6 +2,7 @@
  * acoustid.h: AcoustId webservice parser
  *****************************************************************************
  * Copyright (C) 2012 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -58,7 +59,7 @@ typedef struct acoustid_fingerprint_t acoustid_fingerprint_t;
 
 typedef struct
 {
-    vlc_object_t *p_obj;
+    heimdall_object_t *p_obj;
     char *psz_server;
     char *psz_apikey;
 } acoustid_config_t;

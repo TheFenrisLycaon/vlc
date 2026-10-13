@@ -1,7 +1,8 @@
 /*****************************************************************************
- * vlc_getProxyUrl for emscripten
+ * heimdall_getProxyUrl for emscripten
  *****************************************************************************
  * Copyright (C) 2021 - VideoLabs, VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -21,11 +22,11 @@
 #ifdef HAVE_CONFIG_H
 # include "config.h"
 #endif
-#include <vlc_common.h>
-#include <vlc_network.h>
+#include <heimdall_common.h>
+#include <heimdall_network.h>
 
-char *vlc_getProxyUrl(const char *url)
+char *heimdall_getProxyUrl(const char *url)
 {
-    VLC_UNUSED(url);
+    HEIMDALL_UNUSED(url);
     return NULL;
 }

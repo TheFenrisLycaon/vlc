@@ -1,8 +1,9 @@
 /*****************************************************************************
- * pulse.c : Pulseaudio output plugin for vlc
+ * pulse.c : Pulseaudio output plugin for heimdall
  *****************************************************************************
  * Copyright (C) 2008 VLC authors and VideoLAN
  * Copyright (C) 2009-2011 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Martin Hamrle <hamrle @ post . cz>
  *
@@ -27,33 +28,33 @@
 
 #include <assert.h>
 #include <math.h>
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_aout.h>
-#include <vlc_cpu.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_aout.h>
+#include <heimdall_cpu.h>
 
 #include <pulse/pulseaudio.h>
-#include "audio_output/vlcpulse.h"
+#include "audio_output/heimdallpulse.h"
 
-static int  Open        ( vlc_object_t * );
-static void Close       ( vlc_object_t * );
+static int  Open        ( heimdall_object_t * );
+static void Close       ( heimdall_object_t * );
 
 #define DISTRO_KLUDGE 50
-#include <vlc_modules.h>
+#include <heimdall_modules.h>
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( "PulseAudio" )
     set_description( N_("Pulseaudio audio output") )
     set_capability( "audio output", 160 + DISTRO_KLUDGE )
     set_subcategory( SUBCAT_AUDIO_AOUT )
     add_shortcut( "pulseaudio", "pa" )
     set_callbacks( Open, Close )
-vlc_module_end ()
+heimdall_module_end ()
 
 /* NOTE:
  * Be careful what you do when the PulseAudio mainloop is held, which is to say
  * within PulseAudio callbacks, or after pa_threaded_mainloop_lock().
- * In particular, a VLC variable callback cannot be triggered nor deleted with
+ * In particular, a Heimdall variable callback cannot be triggered nor deleted with
  * the PulseAudio mainloop lock held, if the callback acquires the lock. */
 
 struct sink
@@ -76,7 +77,7 @@ typedef struct
     pa_cvolume cvolume; /**< actual sink input volume */
 
     bool start_date_reached;
-    vlc_tick_t start_date;
+    heimdall_tick_t start_date;
     size_t total_silence_bytes;
 
     struct {
@@ -86,7 +87,7 @@ typedef struct
     } fifo;
 
     pa_usec_t flush_rt;
-    vlc_tick_t first_pts;
+    heimdall_tick_t first_pts;
 
     pa_volume_t volume_force; /**< Forced volume (stream must be NULL) */
     pa_stream_flags_t flags_force; /**< Forced flags (stream must be NULL) */
@@ -94,20 +95,20 @@ typedef struct
 
     struct sink *sinks; /**< Locally-cached list of sinks */
 
-    vlc_tick_t timing_system_ts;
+    heimdall_tick_t timing_system_ts;
 } aout_sys_t;
 
-static vlc_tick_t stream_get_interpolated_latency(pa_stream *s,
+static heimdall_tick_t stream_get_interpolated_latency(pa_stream *s,
                                                   audio_output_t *aout,
-                                                  vlc_tick_t system_date)
+                                                  heimdall_tick_t system_date)
 {
     aout_sys_t *sys = aout->sys;
 
-    if (unlikely(sys->timing_system_ts == VLC_TICK_INVALID))
+    if (unlikely(sys->timing_system_ts == HEIMDALL_TICK_INVALID))
         return 0;
 
-    vlc_tick_t latency = vlc_pa_get_latency(aout, sys->context, s);
-    if (unlikely(latency == VLC_TICK_INVALID))
+    heimdall_tick_t latency = heimdall_pa_get_latency(aout, sys->context, s);
+    if (unlikely(latency == HEIMDALL_TICK_INVALID))
         return 0;
 
     return latency + sys->timing_system_ts - system_date;
@@ -129,7 +130,7 @@ static void drain_trigger_cb(pa_mainloop_api *api, pa_time_event *e,
 
     assert(sys->drain_trigger == e);
 
-    vlc_pa_rttime_free(sys->mainloop, sys->drain_trigger);
+    heimdall_pa_rttime_free(sys->mainloop, sys->drain_trigger);
     sys->drain_trigger = NULL;
 
     aout_DrainedReport(aout);
@@ -283,8 +284,8 @@ static void stream_latency_cb(pa_stream *s, void *userdata)
 
     /* Subtract the timestamp of the timing_info from the monotonic time */
     pa_usec_t ti_age_us = pa_timeval_age(&ti->timestamp);
-    sys->timing_system_ts = vlc_tick_now()
-                          - VLC_TICK_FROM_US(ti_age_us);
+    sys->timing_system_ts = heimdall_tick_now()
+                          - HEIMDALL_TICK_FROM_US(ti_age_us);
 
     const pa_sample_spec *ss = pa_stream_get_sample_spec(s);
     pa_usec_t silence_us =
@@ -293,8 +294,8 @@ static void stream_latency_cb(pa_stream *s, void *userdata)
     if (sys->start_date_reached
      && likely(rt >= sys->flush_rt + silence_us))
     {
-        vlc_tick_t audio_ts = sys->first_pts +
-            VLC_TICK_FROM_US(rt - sys->flush_rt - silence_us);
+        heimdall_tick_t audio_ts = sys->first_pts +
+            HEIMDALL_TICK_FROM_US(rt - sys->flush_rt - silence_us);
 
         aout_TimingReport(aout, sys->timing_system_ts, audio_ts);
     }
@@ -390,8 +391,8 @@ static void stream_drain(pa_stream *s, audio_output_t *aout)
 
     /* XXX: Loosy drain emulation.
      * See #18141: drain callback is never received */
-    vlc_tick_t delay =
-        stream_get_interpolated_latency(s, aout, vlc_tick_now());
+    heimdall_tick_t delay =
+        stream_get_interpolated_latency(s, aout, heimdall_tick_now());
 
     delay += pa_rtclock_now();
     sys->drain_trigger = pa_context_rttime_new(sys->context, delay,
@@ -446,7 +447,7 @@ static size_t stream_write(pa_stream *s, audio_output_t *aout, size_t nbytes)
 
         if (pa_stream_write_ext_free(s, data, tocopy,
                                      free_cb, first, 0, PA_SEEK_RELATIVE) < 0) {
-            vlc_pa_error(aout, "cannot write", sys->context);
+            heimdall_pa_error(aout, "cannot write", sys->context);
             free_cb(first);
         }
 
@@ -465,7 +466,7 @@ static size_t stream_silence(pa_stream *s, audio_output_t *aout, size_t len)
     void *ptr;
     if (pa_stream_begin_write(s, &ptr, &len))
     {
-        vlc_pa_error(aout, "cannot begin write", sys->context);
+        heimdall_pa_error(aout, "cannot begin write", sys->context);
         return 0;
     }
 
@@ -473,7 +474,7 @@ static size_t stream_silence(pa_stream *s, audio_output_t *aout, size_t len)
 
     if (pa_stream_write(s, ptr, len, NULL, 0, PA_SEEK_RELATIVE) < 0)
     {
-        vlc_pa_error(aout, "cannot write", sys->context);
+        heimdall_pa_error(aout, "cannot write", sys->context);
         return 0;
     }
 
@@ -495,13 +496,13 @@ static void stream_write_cb(pa_stream *s, size_t nbytes, void *userdata)
         /* Write 0s until we reach the start_date */
         size_t silence_bytes;
 
-        if (likely(sys->start_date != VLC_TICK_INVALID))
+        if (likely(sys->start_date != HEIMDALL_TICK_INVALID))
         {
             const pa_sample_spec *ss = pa_stream_get_sample_spec(s);
 
-            vlc_tick_t now = vlc_tick_now();
-            vlc_tick_t latency = stream_get_interpolated_latency(s, aout, now);
-            vlc_tick_t silence = sys->start_date - now - latency;
+            heimdall_tick_t now = heimdall_tick_now();
+            heimdall_tick_t latency = stream_get_interpolated_latency(s, aout, now);
+            heimdall_tick_t silence = sys->start_date - now - latency;
             if (silence <= 0)
                 silence_bytes = 0;
             else
@@ -631,17 +632,17 @@ static void context_cb(pa_context *ctx, pa_subscription_event_type_t type,
             break;
 
         default: /* unsubscribed facility?! */
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 }
 
 
-/*** VLC audio output callbacks ***/
+/*** Heimdall audio output callbacks ***/
 
 /**
  * Queue one audio frame to the playback stream
  */
-static void Play(audio_output_t *aout, block_t *block, vlc_tick_t date)
+static void Play(audio_output_t *aout, block_t *block, heimdall_tick_t date)
 {
     aout_sys_t *sys = aout->sys;
     pa_stream *s = sys->stream;
@@ -657,10 +658,10 @@ static void Play(audio_output_t *aout, block_t *block, vlc_tick_t date)
 
     if (!sys->start_date_reached)
     {
-        if (sys->first_pts == VLC_TICK_INVALID)
+        if (sys->first_pts == HEIMDALL_TICK_INVALID)
             sys->first_pts = block->i_pts;
 
-        vlc_tick_t now = vlc_tick_now();
+        heimdall_tick_t now = heimdall_tick_now();
         sys->start_date = date
                         - pa_bytes_to_usec(sys->fifo.size, ss);
 
@@ -691,7 +692,7 @@ static void Play(audio_output_t *aout, block_t *block, vlc_tick_t date)
 /**
  * Cork or uncork the playback stream
  */
-static void Pause(audio_output_t *aout, bool paused, vlc_tick_t date)
+static void Pause(audio_output_t *aout, bool paused, heimdall_tick_t date)
 {
     aout_sys_t *sys = aout->sys;
     pa_stream *s = sys->stream;
@@ -722,7 +723,7 @@ static void Flush(audio_output_t *aout)
 
     if (sys->drain_trigger != NULL)
     {
-        vlc_pa_rttime_free(sys->mainloop, sys->drain_trigger);
+        heimdall_pa_rttime_free(sys->mainloop, sys->drain_trigger);
         sys->drain_trigger = NULL;
     }
     sys->draining = false;
@@ -739,15 +740,15 @@ static void Flush(audio_output_t *aout)
     sys->fifo.last = &sys->fifo.first;
 
     sys->start_date_reached = false;
-    sys->start_date = VLC_TICK_INVALID;
+    sys->start_date = HEIMDALL_TICK_INVALID;
     sys->total_silence_bytes = 0;
-    sys->timing_system_ts = VLC_TICK_INVALID;
+    sys->timing_system_ts = HEIMDALL_TICK_INVALID;
 
     const pa_sample_spec *ss = pa_stream_get_sample_spec(s);
     const pa_timing_info *ti = pa_stream_get_timing_info(s);
     if (ti != NULL && !ti->read_index_corrupt)
         sys->flush_rt = pa_bytes_to_usec(ti->read_index, ss);
-    sys->first_pts = VLC_TICK_INVALID;
+    sys->first_pts = HEIMDALL_TICK_INVALID;
 
     pa_threaded_mainloop_unlock(sys->mainloop);
 }
@@ -773,7 +774,7 @@ static int VolumeSet(audio_output_t *aout, float vol)
     pa_operation *op;
     pa_volume_t volume;
 
-    /* VLC provides the software volume so convert directly to PulseAudio
+    /* Heimdall provides the software volume so convert directly to PulseAudio
      * software volume, pa_volume_t. This is not a linear amplification factor
      * so do not use PulseAudio linear amplification! */
     vol *= PA_VOLUME_NORM;
@@ -799,7 +800,7 @@ static int VolumeSet(audio_output_t *aout, float vol)
         pa_cvolume_set(&sys->cvolume, ss->channels, PA_VOLUME_NORM);
     }
 
-    /* Preserve the balance (VLC does not support it). */
+    /* Preserve the balance (Heimdall does not support it). */
     pa_cvolume cvolume = sys->cvolume;
     pa_cvolume_scale(&cvolume, PA_VOLUME_NORM);
     pa_sw_cvolume_multiply_scalar(&cvolume, &cvolume, volume);
@@ -860,7 +861,7 @@ static int StreamMove(audio_output_t *aout, const char *name)
         pa_operation_unref(op);
         msg_Dbg(aout, "moving to sink %s", name);
     } else
-        vlc_pa_error(aout, "cannot move sink input", sys->context);
+        heimdall_pa_error(aout, "cannot move sink input", sys->context);
     pa_threaded_mainloop_unlock(sys->mainloop);
 
     return (op != NULL) ? 0 : -1;
@@ -894,23 +895,23 @@ static int Start(audio_output_t *aout, audio_sample_format_t *restrict fmt)
 
     switch (fmt->i_format)
     {
-        case VLC_CODEC_FL64:
-            fmt->i_format = VLC_CODEC_FL32;
+        case HEIMDALL_CODEC_FL64:
+            fmt->i_format = HEIMDALL_CODEC_FL32;
             /* fall through */
-        case VLC_CODEC_FL32:
+        case HEIMDALL_CODEC_FL32:
             ss.format = PA_SAMPLE_FLOAT32NE;
             break;
-        case VLC_CODEC_S32N:
+        case HEIMDALL_CODEC_S32N:
             ss.format = PA_SAMPLE_S32NE;
             break;
-        case VLC_CODEC_S16N:
+        case HEIMDALL_CODEC_S16N:
             ss.format = PA_SAMPLE_S16NE;
             break;
-        case VLC_CODEC_U8:
+        case HEIMDALL_CODEC_U8:
             ss.format = PA_SAMPLE_U8;
             break;
-        case VLC_CODEC_A52:
-            fmt->i_format = VLC_CODEC_SPDIFL;
+        case HEIMDALL_CODEC_A52:
+            fmt->i_format = HEIMDALL_CODEC_SPDIFL;
             fmt->i_bytes_per_frame = 4;
             fmt->i_frame_length = 1;
             fmt->i_physical_channels = AOUT_CHANS_2_0;
@@ -918,8 +919,8 @@ static int Start(audio_output_t *aout, audio_sample_format_t *restrict fmt)
             encoding = PA_ENCODING_AC3_IEC61937;
             ss.format = PA_SAMPLE_S16NE;
             break;
-        case VLC_CODEC_EAC3:
-            fmt->i_format = VLC_CODEC_SPDIFL;
+        case HEIMDALL_CODEC_EAC3:
+            fmt->i_format = HEIMDALL_CODEC_SPDIFL;
             fmt->i_bytes_per_frame = 4;
             fmt->i_frame_length = 1;
             fmt->i_physical_channels = AOUT_CHANS_2_0;
@@ -927,12 +928,12 @@ static int Start(audio_output_t *aout, audio_sample_format_t *restrict fmt)
             encoding = PA_ENCODING_EAC3_IEC61937;
             ss.format = PA_SAMPLE_S16NE;
             break;
-        /* case VLC_CODEC_MPGA:
-            fmt->i_format = VLC_CODEC_SPDIFL FIXME;
+        /* case HEIMDALL_CODEC_MPGA:
+            fmt->i_format = HEIMDALL_CODEC_SPDIFL FIXME;
             encoding = PA_ENCODING_MPEG_IEC61937;
             break;*/
-        case VLC_CODEC_DTS:
-            fmt->i_format = VLC_CODEC_SPDIFL;
+        case HEIMDALL_CODEC_DTS:
+            fmt->i_format = HEIMDALL_CODEC_SPDIFL;
             fmt->i_bytes_per_frame = 4;
             fmt->i_frame_length = 1;
             fmt->i_physical_channels = AOUT_CHANS_2_0;
@@ -942,16 +943,16 @@ static int Start(audio_output_t *aout, audio_sample_format_t *restrict fmt)
             break;
         default:
             if (!AOUT_FMT_LINEAR(fmt) || aout_FormatNbChannels(fmt) == 0)
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
 
             if (HAVE_FPU)
             {
-                fmt->i_format = VLC_CODEC_FL32;
+                fmt->i_format = HEIMDALL_CODEC_FL32;
                 ss.format = PA_SAMPLE_FLOAT32NE;
             }
             else
             {
-                fmt->i_format = VLC_CODEC_S16N;
+                fmt->i_format = HEIMDALL_CODEC_S16N;
                 ss.format = PA_SAMPLE_S16NE;
             }
             break;
@@ -961,7 +962,7 @@ static int Start(audio_output_t *aout, audio_sample_format_t *restrict fmt)
     ss.channels = fmt->i_channels;
     if (!pa_sample_spec_valid(&ss)) {
         msg_Err(aout, "unsupported sample specification");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Stream parameters */
@@ -992,12 +993,12 @@ static int Start(audio_output_t *aout, audio_sample_format_t *restrict fmt)
     sys->draining = false;
     pa_cvolume_init(&sys->cvolume);
     sys->flush_rt = 0;
-    sys->first_pts = VLC_TICK_INVALID;
+    sys->first_pts = HEIMDALL_TICK_INVALID;
 
     sys->start_date_reached = false;
-    sys->start_date = VLC_TICK_INVALID;
+    sys->start_date = HEIMDALL_TICK_INVALID;
     sys->total_silence_bytes = 0;
-    sys->timing_system_ts = VLC_TICK_INVALID;
+    sys->timing_system_ts = HEIMDALL_TICK_INVALID;
 
     sys->fifo.size = 0;
     sys->fifo.first = NULL;
@@ -1031,7 +1032,7 @@ static int Start(audio_output_t *aout, audio_sample_format_t *restrict fmt)
     }
     else
     {
-        /* Channel mapping (order defined in vlc_aout.h) */
+        /* Channel mapping (order defined in heimdall_aout.h) */
         struct pa_channel_map map;
         map.channels = 0;
 
@@ -1068,7 +1069,7 @@ static int Start(audio_output_t *aout, audio_sample_format_t *restrict fmt)
 
         if (!pa_channel_map_valid(&map)) {
             msg_Err(aout, "unsupported channel map");
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         } else {
             const char *name = pa_channel_map_to_name(&map);
             msg_Dbg(aout, "using %s channel map", (name != NULL) ? name : "?");
@@ -1114,8 +1115,8 @@ static int Start(audio_output_t *aout, audio_sample_format_t *restrict fmt)
 
     if (s == NULL) {
         pa_threaded_mainloop_unlock(sys->mainloop);
-        vlc_pa_error(aout, "stream creation failure", sys->context);
-        return VLC_EGENERIC;
+        heimdall_pa_error(aout, "stream creation failure", sys->context);
+        return HEIMDALL_EGENERIC;
     }
     assert(sys->stream == NULL);
     sys->stream = s;
@@ -1136,7 +1137,7 @@ static int Start(audio_output_t *aout, audio_sample_format_t *restrict fmt)
         if (encoding != PA_ENCODING_PCM)
             msg_Dbg(aout, "digital pass-through not available");
         else
-            vlc_pa_error(aout, "stream connection failure", sys->context);
+            heimdall_pa_error(aout, "stream connection failure", sys->context);
         goto fail;
     }
     sys->volume_force = PA_VOLUME_INVALID;
@@ -1154,12 +1155,12 @@ static int Start(audio_output_t *aout, audio_sample_format_t *restrict fmt)
     stream_moved_cb(s, aout);
     pa_threaded_mainloop_unlock(sys->mainloop);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 fail:
     pa_threaded_mainloop_unlock(sys->mainloop);
     Stop(aout);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 static void server_info_cb(pa_context *ctx, const pa_server_info *info,
@@ -1189,7 +1190,7 @@ static void Stop(audio_output_t *aout)
 
     pa_threaded_mainloop_lock(sys->mainloop);
     if (sys->drain_trigger != NULL)
-        vlc_pa_rttime_free(sys->mainloop, sys->drain_trigger);
+        heimdall_pa_rttime_free(sys->mainloop, sys->drain_trigger);
     pa_stream_disconnect(s);
 
     /* Clear all callbacks */
@@ -1209,21 +1210,21 @@ static void Stop(audio_output_t *aout)
     pa_threaded_mainloop_unlock(sys->mainloop);
 }
 
-static int Open(vlc_object_t *obj)
+static int Open(heimdall_object_t *obj)
 {
     audio_output_t *aout = (audio_output_t *)obj;
     aout_sys_t *sys = malloc(sizeof (*sys));
     pa_operation *op;
 
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     /* Allocate structures */
-    pa_context *ctx = vlc_pa_connect(obj, &sys->mainloop);
+    pa_context *ctx = heimdall_pa_connect(obj, &sys->mainloop);
     if (ctx == NULL)
     {
         free(sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     sys->stream = NULL;
     sys->context = ctx;
@@ -1258,7 +1259,7 @@ static int Open(vlc_object_t *obj)
             if (sys->is_pipewire && module_exists("aout_pipewire")) {
                 msg_Dbg(aout, "refusing to use PipeWire");
                 pa_threaded_mainloop_unlock(sys->mainloop);
-                vlc_pa_disconnect(obj, sys->context, sys->mainloop);
+                heimdall_pa_disconnect(obj, sys->context, sys->mainloop);
                 free(sys);
                 return -ENOTSUP;
             }
@@ -1285,10 +1286,10 @@ static int Open(vlc_object_t *obj)
        pa_operation_unref(op);
     pa_threaded_mainloop_unlock(sys->mainloop);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void Close(vlc_object_t *obj)
+static void Close(heimdall_object_t *obj)
 {
     audio_output_t *aout = (audio_output_t *)obj;
     aout_sys_t *sys = aout->sys;
@@ -1297,7 +1298,7 @@ static void Close(vlc_object_t *obj)
     pa_threaded_mainloop_lock(sys->mainloop);
     pa_context_set_subscribe_callback(sys->context, NULL, NULL);
     pa_threaded_mainloop_unlock(sys->mainloop);
-    vlc_pa_disconnect(obj, ctx, sys->mainloop);
+    heimdall_pa_disconnect(obj, ctx, sys->mainloop);
 
     for (struct sink *sink = sys->sinks, *next; sink != NULL; sink = next)
     {

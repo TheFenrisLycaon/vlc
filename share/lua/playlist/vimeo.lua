@@ -1,6 +1,7 @@
 --[[
 
  Copyright © 2009-2019 the VideoLAN team
+ Copyright (C) 2026 TheFenrisLycaon
 
  Authors: Konstantin Pavlov (thresh@videolan.org)
           François Revol (revol@free.fr)
@@ -23,20 +24,20 @@
 
 -- Probe function.
 function probe()
-    return ( vlc.access == "http" or vlc.access == "https" )
-        and ( string.match( vlc.path, "^vimeo%.com/%d+" )
-              or string.match( vlc.path, "^vimeo%.com/channels/.-/%d+" )
-              or string.match( vlc.path, "^player%.vimeo%.com/" ) )
+    return ( heimdall.access == "http" or heimdall.access == "https" )
+        and ( string.match( heimdall.path, "^vimeo%.com/%d+" )
+              or string.match( heimdall.path, "^vimeo%.com/channels/.-/%d+" )
+              or string.match( heimdall.path, "^player%.vimeo%.com/" ) )
 end
 
 -- Parse function.
 function parse()
-    if string.match( vlc.path, "^player%.vimeo%.com/" ) then
+    if string.match( heimdall.path, "^player%.vimeo%.com/" ) then
         -- The /config API will return the data on a single line.
         -- Otherwise, search the web page for the config.
-        local config = vlc.readline()
+        local config = heimdall.readline()
         while true do
-            local line = vlc.readline()
+            local line = heimdall.readline()
             if not line then break end
             if string.match( line, "var config = {" ) then
                 config = line
@@ -44,7 +45,7 @@ function parse()
             end
         end
 
-        local prefres = vlc.var.inherit(nil, "preferred-resolution")
+        local prefres = heimdall.var.inherit(nil, "preferred-resolution")
         local bestres = nil
 
         for stream in string.gmatch( config, "{([^}]*\"profile\":[^}]*)}" ) do
@@ -70,7 +71,7 @@ function parse()
         end
 
         if not path then
-            vlc.msg.err( "Couldn't extract vimeo video URL, please check for updates to this script" )
+            heimdall.msg.err( "Couldn't extract vimeo video URL, please check for updates to this script" )
             return { }
         end
 
@@ -84,7 +85,7 @@ function parse()
     else -- Video web page
         local api
         while true do
-            local line = vlc.readline()
+            local line = heimdall.readline()
             if not line then break end
 
             if string.match( line, "clip_page_config = {" ) then
@@ -97,12 +98,12 @@ function parse()
         end
 
         if not api then
-            vlc.msg.warn( "Couldn't extract vimeo API URL, falling back to preprogrammed URL pattern" )
+            heimdall.msg.warn( "Couldn't extract vimeo API URL, falling back to preprogrammed URL pattern" )
 
-            local path = string.gsub( vlc.path, "^vimeo%.com/channels/.-/(%d+)", "/%1" )
+            local path = string.gsub( heimdall.path, "^vimeo%.com/channels/.-/(%d+)", "/%1" )
             local video_id = string.match( path, "/(%d+)" )
 
-            api = vlc.access.."://player.vimeo.com/video/"..video_id.."/config"
+            api = heimdall.access.."://player.vimeo.com/video/"..video_id.."/config"
         end
 
         return { { path = api } }

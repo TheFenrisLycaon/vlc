@@ -1,6 +1,7 @@
 --[[
 
  Copyright © 2016, 2019-2020, 2022 the VideoLAN team
+ Copyright (C) 2026 TheFenrisLycaon
 
  Authors: Pierre Ynard
 
@@ -21,14 +22,14 @@
 
 -- Probe function.
 function probe()
-    return ( vlc.access == "http" or vlc.access == "https" )
-        and string.match( vlc.path, "^vocaroo%.com/." )
+    return ( heimdall.access == "http" or heimdall.access == "https" )
+        and string.match( heimdall.path, "^vocaroo%.com/." )
 end
 
 -- Parse function.
 function parse()
     -- The HTML page contains no metadata and is not worth parsing
-    local id = string.match( vlc.path, "^vocaroo%.com/([^?]+)" )
+    local id = string.match( heimdall.path, "^vocaroo%.com/([^?]+)" )
 
     -- Dispatch media to correct CDN server
     -- function Ic(e){return function(e){if(e.length){if(11==e.length)return ControlConfig.mediaMp3FileUrl;if(12==e.length&&"1"==e[0])return ControlConfig.mediaMp3FileUrl1;if(10==e.length)return ControlConfig.mediaMp3FileUrl1}return ControlConfig.mediaMp3FileUrl}(e)+e}
@@ -37,7 +38,7 @@ function parse()
         and "//media1.vocaroo.com/mp3/"
         or "//media.vocaroo.com/mp3/"
 
-    local path = vlc.access..":"..cdn..id
-    return { { path = path; options = { ":http-referrer="..vlc.access.."://"..vlc.path } } }
+    local path = heimdall.access..":"..cdn..id
+    return { { path = path; options = { ":http-referrer="..heimdall.access.."://"..heimdall.path } } }
 end
 

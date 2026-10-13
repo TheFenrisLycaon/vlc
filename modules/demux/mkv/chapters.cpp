@@ -2,6 +2,7 @@
  * chapters.cpp : matroska demuxer
  *****************************************************************************
  * Copyright (C) 2003-2004 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *          Steve Lhomme <steve.lhomme@free.fr>
@@ -25,7 +26,7 @@
 
 #include "chapter_command.hpp"
 
-#include <vlc_arrays.h>
+#include <heimdall_arrays.h>
 
 #include <functional>
 #include <algorithm>
@@ -36,8 +37,8 @@ chapter_item_c::~chapter_item_c()
 {
     delete p_segment_uid;
     delete p_segment_edition_uid;
-    vlc_delete_all( codecs );
-    vlc_delete_all( sub_chapters );
+    heimdall_delete_all( codecs );
+    heimdall_delete_all( sub_chapters );
 }
 
 chapter_item_c *chapter_item_c::BrowseCodecPrivate( chapter_codec_id codec_id,

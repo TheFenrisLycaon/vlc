@@ -1,7 +1,8 @@
 /*****************************************************************************
- * waveout.c : Windows waveOut plugin for vlc
+ * waveout.c : Windows waveOut plugin for heimdall
  *****************************************************************************
  * Copyright (C) 2001-2009 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gildas Bazin <gbazin@videolan.org>
  *          André Weber
@@ -34,11 +35,11 @@
 #ifndef UNICODE
 # define UNICODE
 #endif
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_aout.h>
-#include <vlc_charset.h>              /* FromWide() */
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_aout.h>
+#include <heimdall_charset.h>              /* FromWide() */
 
 #include "windows_audio_common.h"
 
@@ -47,9 +48,9 @@
 /*****************************************************************************
  * Local prototypes
  *****************************************************************************/
-static int  Open         ( vlc_object_t * );
-static void Close        ( vlc_object_t * );
-static void Play         ( audio_output_t *, block_t *, vlc_tick_t );
+static int  Open         ( heimdall_object_t * );
+static void Close        ( heimdall_object_t * );
+static void Play         ( audio_output_t *, block_t *, heimdall_tick_t );
 
 /*****************************************************************************
  * notification_thread_t: waveOut event thread
@@ -67,7 +68,7 @@ struct lkwavehdr
 static int OpenWaveOut   ( audio_output_t *, uint32_t,
                            int, int, int, int, bool );
 static int OpenWaveOutPCM( audio_output_t *, uint32_t,
-                           vlc_fourcc_t*, int, int, int, bool );
+                           heimdall_fourcc_t*, int, int, int, bool );
 static int PlayWaveOut   ( audio_output_t *, HWAVEOUT, struct lkwavehdr *,
                            block_t *, bool );
 
@@ -81,7 +82,7 @@ static uint32_t findDeviceID(char *);
 static void WaveOutFlush( audio_output_t *);
 static void WaveOutDrain( audio_output_t *);
 static void WaveOutDrainAsync( audio_output_t *);
-static void WaveOutPause( audio_output_t *, bool, vlc_tick_t);
+static void WaveOutPause( audio_output_t *, bool, heimdall_tick_t);
 static int WaveoutVolumeSet(audio_output_t * p_aout, float volume);
 static int WaveoutMuteSet(audio_output_t * p_aout, bool mute);
 
@@ -120,15 +121,15 @@ struct aout_sys_t
     uint8_t chans_to_reorder;              /* do we need channel reordering */
 
     uint8_t chan_table[AOUT_CHAN_MAX];
-    vlc_fourcc_t format;
+    heimdall_fourcc_t format;
 
-    vlc_tick_t i_played_length;
+    heimdall_tick_t i_played_length;
 
     struct lkwavehdr * p_free_list;
 
-    vlc_mutex_t lock;
-    vlc_cond_t cond;
-    vlc_timer_t volume_poll_timer;
+    heimdall_mutex_t lock;
+    heimdall_cond_t cond;
+    heimdall_timer_t volume_poll_timer;
 
     bool draining;
 };
@@ -138,7 +139,7 @@ struct aout_sys_t
  *****************************************************************************/
 #define DEVICE_TEXT N_("Select Audio Device")
 #define DEVICE_LONG N_("Select special Audio device, or let windows "\
-                       "decide (default), change needs VLC restart "\
+                       "decide (default), change needs Heimdall restart "\
                        "to apply.")
 
 #define AUDIO_CHAN_TEXT N_("Audio output channels")
@@ -148,7 +149,7 @@ struct aout_sys_t
 
 #define VOLUME_TEXT N_("Audio volume")
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( "WaveOut" )
     set_description( N_("WaveOut audio output") )
     set_capability( "audio output", 50 )
@@ -162,7 +163,7 @@ vlc_module_begin ()
                  AUDIO_CHAN_LONGTEXT)
         change_integer_range(1,9)
     set_callbacks( Open, Close )
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * Opens the audio device
@@ -172,7 +173,7 @@ vlc_module_end ()
 static int Start( audio_output_t *p_aout, audio_sample_format_t *restrict fmt )
 {
     if( aout_FormatNbChannels( fmt ) == 0 )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     p_aout->play = Play;
     p_aout->pause = WaveOutPause;
@@ -214,12 +215,12 @@ static int Start( audio_output_t *p_aout, audio_sample_format_t *restrict fmt )
     if( AOUT_FMT_SPDIF(fmt) && var_InheritBool (p_aout, "spdif") )
     {
 
-        if( OpenWaveOut( p_aout, devid, VLC_CODEC_SPDIFL,
+        if( OpenWaveOut( p_aout, devid, HEIMDALL_CODEC_SPDIFL,
                          fmt->i_physical_channels,
                          aout_FormatNbChannels( fmt ), fmt->i_rate, false )
-            == VLC_SUCCESS )
+            == HEIMDALL_SUCCESS )
         {
-            fmt->i_format = VLC_CODEC_SPDIFL;
+            fmt->i_format = HEIMDALL_CODEC_SPDIFL;
 
             /* Calculate the frame size in bytes */
             fmt->i_bytes_per_frame = AOUT_SPDIF_SIZE;
@@ -233,13 +234,13 @@ static int Start( audio_output_t *p_aout, audio_sample_format_t *restrict fmt )
                      "cannot open waveout audio device for spdif fallback to PCM" );
     }
 
-    if( fmt->i_format != VLC_CODEC_SPDIFL )
+    if( fmt->i_format != HEIMDALL_CODEC_SPDIFL )
     {
        /*
          check for configured audio device!
        */
        fmt->i_format = var_InheritBool( p_aout, "waveout-float32" )?
-           VLC_CODEC_FL32: VLC_CODEC_S16N;
+           HEIMDALL_CODEC_FL32: HEIMDALL_CODEC_S16N;
 
         int max_chan = var_InheritInteger( p_aout, "waveout-audio-channels");
         int i_channels = aout_FormatNbChannels(fmt);
@@ -286,13 +287,13 @@ static int Start( audio_output_t *p_aout, audio_sample_format_t *restrict fmt )
         }
         while( ( OpenWaveOutPCM( p_aout, devid, &fmt->i_format,
                                  fmt->i_physical_channels, i_channels,
-                                 fmt->i_rate, false ) != VLC_SUCCESS ) &&
+                                 fmt->i_rate, false ) != HEIMDALL_SUCCESS ) &&
                --i_channels );
 
         if( !i_channels )
         {
             msg_Err(p_aout, "Waveout couldn't find appropriate channel mapping");
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         /* Calculate the frame size in bytes */
@@ -319,7 +320,7 @@ static int Start( audio_output_t *p_aout, audio_sample_format_t *restrict fmt )
         malloc( sys->i_buffer_size );
     if( sys->p_silence_buffer == NULL )
     {
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
     sys->i_repeat_counter = 0;
 
@@ -335,7 +336,7 @@ static int Start( audio_output_t *p_aout, audio_sample_format_t *restrict fmt )
 
     fmt->channel_type = AUDIO_CHANNEL_TYPE_BITMAP;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -344,7 +345,7 @@ static int Start( audio_output_t *p_aout, audio_sample_format_t *restrict fmt )
  * This doesn't actually play the buffer. This just stores the buffer so it
  * can be played by the callback thread.
  *****************************************************************************/
-static void Play( audio_output_t *p_aout, block_t *block, vlc_tick_t date )
+static void Play( audio_output_t *p_aout, block_t *block, heimdall_tick_t date )
 {
     aout_sys_t *sys = p_aout->sys;
 
@@ -366,20 +367,20 @@ static void Play( audio_output_t *p_aout, block_t *block, vlc_tick_t date )
                              sys->chan_table, sys->format );
     }
     while( PlayWaveOut( p_aout, sys->h_waveout, p_waveheader, block,
-                        sys->b_spdif ) != VLC_SUCCESS )
+                        sys->b_spdif ) != HEIMDALL_SUCCESS )
 
     {
         msg_Warn( p_aout, "Couldn't write frame... sleeping");
-        vlc_tick_sleep( block->i_length );
+        heimdall_tick_sleep( block->i_length );
     }
 
     WaveOutClean( sys );
     WaveoutPollVolume( p_aout );
 
-    vlc_mutex_lock( &sys->lock );
+    heimdall_mutex_lock( &sys->lock );
     sys->i_frames++;
     sys->i_played_length += block->i_length;
-    vlc_mutex_unlock( &sys->lock );
+    heimdall_mutex_unlock( &sys->lock );
     (void) date;
 }
 
@@ -423,13 +424,13 @@ static int OpenWaveOut( audio_output_t *p_aout, uint32_t i_device_id, int i_form
 #define waveformat sys->waveformat
 
     waveformat.dwChannelMask = 0;
-    for( unsigned i = 0; pi_vlc_chan_order_wg4[i]; i++ )
-        if( i_channels & pi_vlc_chan_order_wg4[i] )
+    for( unsigned i = 0; pi_heimdall_chan_order_wg4[i]; i++ )
+        if( i_channels & pi_heimdall_chan_order_wg4[i] )
             waveformat.dwChannelMask |= pi_channels_in[i];
 
     switch( i_format )
     {
-    case VLC_CODEC_SPDIFL:
+    case HEIMDALL_CODEC_SPDIFL:
         i_nb_channels = 2;
         /* To prevent channel re-ordering */
         waveformat.dwChannelMask = SPEAKER_FRONT_LEFT | SPEAKER_FRONT_RIGHT;
@@ -440,7 +441,7 @@ static int OpenWaveOut( audio_output_t *p_aout, uint32_t i_device_id, int i_form
         waveformat.SubFormat = __KSDATAFORMAT_SUBTYPE_DOLBY_AC3_SPDIF;
         break;
 
-    case VLC_CODEC_FL32:
+    case HEIMDALL_CODEC_FL32:
         waveformat.Format.wBitsPerSample = sizeof(float) * 8;
         waveformat.Samples.wValidBitsPerSample =
             waveformat.Format.wBitsPerSample;
@@ -448,7 +449,7 @@ static int OpenWaveOut( audio_output_t *p_aout, uint32_t i_device_id, int i_form
         waveformat.SubFormat = __KSDATAFORMAT_SUBTYPE_IEEE_FLOAT;
         break;
 
-    case VLC_CODEC_S16N:
+    case HEIMDALL_CODEC_S16N:
         waveformat.Format.wBitsPerSample = 16;
         waveformat.Samples.wValidBitsPerSample =
             waveformat.Format.wBitsPerSample;
@@ -508,17 +509,17 @@ static int OpenWaveOut( audio_output_t *p_aout, uint32_t i_device_id, int i_form
     if( result == WAVERR_BADFORMAT )
     {
         msg_Warn( p_aout, "waveOutOpen failed WAVERR_BADFORMAT" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     if( result == MMSYSERR_ALLOCATED )
     {
         msg_Warn( p_aout, "waveOutOpen failed WAVERR_ALLOCATED" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     if( result != MMSYSERR_NOERROR )
     {
         msg_Warn( p_aout, "waveOutOpen failed" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     sys->chans_to_reorder =
@@ -529,7 +530,7 @@ static int OpenWaveOut( audio_output_t *p_aout, uint32_t i_device_id, int i_form
         msg_Dbg( p_aout, "channel reordering needed" );
     sys->format = i_format;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 #undef waveformat
 
@@ -539,32 +540,32 @@ static int OpenWaveOut( audio_output_t *p_aout, uint32_t i_device_id, int i_form
  * OpenWaveOutPCM: open a PCM waveout sound device
  ****************************************************************************/
 static int OpenWaveOutPCM( audio_output_t *p_aout, uint32_t i_device_id,
-                           vlc_fourcc_t *i_format,
+                           heimdall_fourcc_t *i_format,
                            int i_channels, int i_nb_channels, int i_rate,
                            bool b_probe )
 {
     bool b_use_float32 = var_CreateGetBool( p_aout, "waveout-float32");
 
-    if( !b_use_float32 || OpenWaveOut( p_aout, i_device_id, VLC_CODEC_FL32,
+    if( !b_use_float32 || OpenWaveOut( p_aout, i_device_id, HEIMDALL_CODEC_FL32,
                                    i_channels, i_nb_channels, i_rate, b_probe )
-        != VLC_SUCCESS )
+        != HEIMDALL_SUCCESS )
     {
-        if ( OpenWaveOut( p_aout, i_device_id, VLC_CODEC_S16N,
+        if ( OpenWaveOut( p_aout, i_device_id, HEIMDALL_CODEC_S16N,
                           i_channels, i_nb_channels, i_rate, b_probe )
-             != VLC_SUCCESS )
+             != HEIMDALL_SUCCESS )
         {
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
         else
         {
-            *i_format = VLC_CODEC_S16N;
-            return VLC_SUCCESS;
+            *i_format = HEIMDALL_CODEC_S16N;
+            return HEIMDALL_SUCCESS;
         }
     }
     else
     {
-        *i_format = VLC_CODEC_FL32;
-        return VLC_SUCCESS;
+        *i_format = HEIMDALL_CODEC_FL32;
+        return HEIMDALL_SUCCESS;
     }
 }
 
@@ -617,7 +618,7 @@ static int PlayWaveOut( audio_output_t *p_aout, HWAVEOUT h_waveout,
     if( result != MMSYSERR_NOERROR )
     {
         msg_Err( p_aout, "waveOutPrepareHeader failed" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Send the buffer to the waveOut queue */
@@ -625,10 +626,10 @@ static int PlayWaveOut( audio_output_t *p_aout, HWAVEOUT h_waveout,
     if( result != MMSYSERR_NOERROR )
     {
         msg_Err( p_aout, "waveOutWrite failed" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -646,7 +647,7 @@ static void CALLBACK WaveOutCallback( HWAVEOUT h_waveout, UINT uMsg,
 
     if( uMsg != WOM_DONE ) return;
 
-    vlc_mutex_lock( &sys->lock );
+    heimdall_mutex_lock( &sys->lock );
     p_waveheader->p_next = sys->p_free_list;
     sys->p_free_list = p_waveheader;
     sys->i_frames--;
@@ -657,18 +658,18 @@ static void CALLBACK WaveOutCallback( HWAVEOUT h_waveout, UINT uMsg,
         sys->draining = false;
     }
 
-    vlc_cond_broadcast( &sys->cond );
-    vlc_mutex_unlock( &sys->lock );
+    heimdall_cond_broadcast( &sys->cond );
+    heimdall_mutex_unlock( &sys->lock );
 }
 
 static void WaveOutClean( aout_sys_t * p_sys )
 {
     struct lkwavehdr *p_whdr, *p_list;
 
-    vlc_mutex_lock(&p_sys->lock);
+    heimdall_mutex_lock(&p_sys->lock);
     p_list =  p_sys->p_free_list;
     p_sys->p_free_list = NULL;
-    vlc_mutex_unlock(&p_sys->lock);
+    heimdall_mutex_unlock(&p_sys->lock);
 
     while( p_list )
     {
@@ -697,7 +698,7 @@ static int ReloadWaveoutDevices( char const *psz_name,
 {
     int n = 0, nb_devices = waveOutGetNumDevs();
 
-    VLC_UNUSED( psz_name );
+    HEIMDALL_UNUSED( psz_name );
 
     *values = xmalloc( (nb_devices + 1) * sizeof(char *) );
     *descs = xmalloc( (nb_devices + 1) * sizeof(char *) );
@@ -725,7 +726,7 @@ static int ReloadWaveoutDevices( char const *psz_name,
     return n;
 }
 
-VLC_CONFIG_STRING_ENUM(ReloadWaveoutDevices)
+HEIMDALL_CONFIG_STRING_ENUM(ReloadWaveoutDevices)
 
 /*
   convert devicename to device ID for output
@@ -771,13 +772,13 @@ static int DeviceSelect (audio_output_t *aout, const char *id)
     return 0;
 }
 
-static int Open(vlc_object_t *obj)
+static int Open(heimdall_object_t *obj)
 {
     audio_output_t *aout = (audio_output_t *)obj;
     aout_sys_t *sys = malloc(sizeof (*sys));
 
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     aout->sys = sys;
     aout->start = Start;
     aout->stop = Stop;
@@ -791,16 +792,16 @@ static int Open(vlc_object_t *obj)
     aout_MuteReport(aout, sys->b_mute);
     aout_VolumeReport(aout, sys->f_volume );
 
-    if( vlc_timer_create( &sys->volume_poll_timer,
+    if( heimdall_timer_create( &sys->volume_poll_timer,
                           WaveoutPollVolume, aout ) )
     {
         msg_Err( aout, "Couldn't create volume polling timer" );
         free( sys );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
-    vlc_mutex_init( &sys->lock );
-    vlc_cond_init( &sys->cond );
+    heimdall_mutex_init( &sys->lock );
+    heimdall_cond_init( &sys->cond );
 
     /* WaveOut does not support hot-plug events so list devices at startup */
     char **ids, **names;
@@ -821,23 +822,23 @@ static int Open(vlc_object_t *obj)
     aout_DeviceReport(aout, dev);
     free(dev);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void Close(vlc_object_t *obj)
+static void Close(heimdall_object_t *obj)
 {
     audio_output_t *aout = (audio_output_t *)obj;
     aout_sys_t *sys = aout->sys;
 
     var_Destroy(aout, "waveout-audio-device");
 
-    vlc_timer_destroy( sys->volume_poll_timer );
+    heimdall_timer_destroy( sys->volume_poll_timer );
     free(sys);
 }
 
 #if 0
 // FIXME: port to aout_TimingReport()
-static int WaveOutTimeGet(audio_output_t * p_aout, vlc_tick_t *delay)
+static int WaveOutTimeGet(audio_output_t * p_aout, heimdall_tick_t *delay)
 {
     MMTIME mmtime;
     mmtime.wType = TIME_SAMPLES;
@@ -853,7 +854,7 @@ static int WaveOutTimeGet(audio_output_t * p_aout, vlc_tick_t *delay)
         return -1;
     }
 
-    vlc_tick_t i_pos = vlc_tick_from_samples(mmtime.u.sample, sys->i_rate);
+    heimdall_tick_t i_pos = heimdall_tick_from_samples(mmtime.u.sample, sys->i_rate);
     *delay = sys->i_played_length - i_pos;
     return 0;
 }
@@ -864,9 +865,9 @@ static void WaveOutFlush( audio_output_t *p_aout)
     MMRESULT res;
     aout_sys_t *sys = p_aout->sys;
 
-    vlc_mutex_lock( &sys->lock );
+    heimdall_mutex_lock( &sys->lock );
     sys->draining = false;
-    vlc_mutex_unlock( &sys->lock );
+    heimdall_mutex_unlock( &sys->lock );
 
     res  = waveOutReset( sys->h_waveout );
     sys->i_played_length = 0;
@@ -878,27 +879,27 @@ static void WaveOutDrain( audio_output_t *p_aout)
 {
     aout_sys_t *sys = p_aout->sys;
 
-    vlc_mutex_lock( &sys->lock );
+    heimdall_mutex_lock( &sys->lock );
     while( sys->i_frames )
     {
-        vlc_cond_wait( &sys->cond, &sys->lock );
+        heimdall_cond_wait( &sys->cond, &sys->lock );
     }
-    vlc_mutex_unlock( &sys->lock );
+    heimdall_mutex_unlock( &sys->lock );
 }
 
 static void WaveOutDrainAsync( audio_output_t *p_aout)
 {
     aout_sys_t *sys = p_aout->sys;
 
-    vlc_mutex_lock( &sys->lock );
+    heimdall_mutex_lock( &sys->lock );
     if( sys->i_frames == 0 )
         aout_DrainedReport( p_aout );
     else
         sys->draining = true;
-    vlc_mutex_unlock( &sys->lock );
+    heimdall_mutex_unlock( &sys->lock );
 }
 
-static void WaveOutPause( audio_output_t * p_aout, bool pause, vlc_tick_t date)
+static void WaveOutPause( audio_output_t * p_aout, bool pause, heimdall_tick_t date)
 {
     MMRESULT res;
     (void) date;
@@ -906,7 +907,7 @@ static void WaveOutPause( audio_output_t * p_aout, bool pause, vlc_tick_t date)
 
     if(pause)
     {
-        vlc_timer_schedule_asap( sys->volume_poll_timer, VLC_TICK_FROM_MS(200) );
+        heimdall_timer_schedule_asap( sys->volume_poll_timer, HEIMDALL_TICK_FROM_MS(200) );
         res = waveOutPause( sys->h_waveout );
         if( res != MMSYSERR_NOERROR )
         {
@@ -916,7 +917,7 @@ static void WaveOutPause( audio_output_t * p_aout, bool pause, vlc_tick_t date)
     }
     else
     {
-        vlc_timer_disarm( sys->volume_poll_timer );
+        heimdall_timer_disarm( sys->volume_poll_timer );
         res = waveOutRestart( sys->h_waveout );
         if( res != MMSYSERR_NOERROR )
         {
@@ -959,14 +960,14 @@ static int WaveoutVolumeSet( audio_output_t *p_aout, float volume )
         }
     }
 
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     sys->f_volume = volume;
 
     if( var_InheritBool( p_aout, "volume-save" ) )
         config_PutFloat( "waveout-volume", volume );
 
     aout_VolumeReport( p_aout, volume );
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
 
     return 0;
 }
@@ -998,10 +999,10 @@ static int WaveoutMuteSet( audio_output_t * p_aout, bool mute )
         }
     }
 
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     sys->b_mute = mute;
     aout_MuteReport( p_aout, mute );
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
 
     return 0;
 }
@@ -1023,7 +1024,7 @@ static void WaveoutPollVolume( void * _aout )
     float volume = (float) ( vol & UINT32_C( 0xffff ) );
     volume /= 0x7fff.fp0;
 
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     if( !sys->b_mute && volume != sys->f_volume )
     {
         sys->f_volume = volume;
@@ -1033,7 +1034,7 @@ static void WaveoutPollVolume( void * _aout )
 
         aout_VolumeReport( aout, volume );
     }
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
 
     return;
 }

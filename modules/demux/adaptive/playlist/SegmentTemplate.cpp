@@ -2,6 +2,7 @@
  * SegmentTemplate.cpp: Implement the UrlTemplate element.
  *****************************************************************************
  * Copyright (C) 1998-2007 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Hugo Beauzée-Luyssen <hugo@beauzee.fr>
  *
@@ -74,7 +75,7 @@ void SegmentTemplate::setSourceUrl( const std::string &url )
     virtualsegment->setSourceUrl(url);
 }
 
-void SegmentTemplate::pruneByPlaybackTime(vlc_tick_t time)
+void SegmentTemplate::pruneByPlaybackTime(heimdall_tick_t time)
 {
     AbstractAttr *p = getAttribute(Type::Timeline);
     if(p)
@@ -89,7 +90,7 @@ size_t SegmentTemplate::pruneBySequenceNumber(uint64_t number)
     return 0;
 }
 
-uint64_t SegmentTemplate::getLiveTemplateNumber(vlc_tick_t playbacktime, bool abs) const
+uint64_t SegmentTemplate::getLiveTemplateNumber(heimdall_tick_t playbacktime, bool abs) const
 {
     uint64_t number = inheritStartNumber();
     /* live streams / templated */
@@ -101,7 +102,7 @@ uint64_t SegmentTemplate::getLiveTemplateNumber(vlc_tick_t playbacktime, bool ab
         const Timescale timescale = inheritTimescale();
         if(abs)
         {
-            vlc_tick_t streamstart =
+            heimdall_tick_t streamstart =
                     parentSegmentInformation->getPlaylist()->availabilityStartTime;
             streamstart += parentSegmentInformation->getPeriodStart();
             playbacktime -= streamstart;
@@ -114,7 +115,7 @@ uint64_t SegmentTemplate::getLiveTemplateNumber(vlc_tick_t playbacktime, bool ab
     return number;
 }
 
-void SegmentTemplate::debug(vlc_object_t *obj, int indent) const
+void SegmentTemplate::debug(heimdall_object_t *obj, int indent) const
 {
     AbstractSegmentBaseType::debug(obj, indent);
     if(virtualsegment)
@@ -124,7 +125,7 @@ void SegmentTemplate::debug(vlc_object_t *obj, int indent) const
         static_cast<const SegmentTimeline *> (p)->debug(obj, indent + 1);
 }
 
-vlc_tick_t SegmentTemplate::getMinAheadTime(uint64_t number) const
+heimdall_tick_t SegmentTemplate::getMinAheadTime(uint64_t number) const
 {
     SegmentTimeline *timeline = inheritSegmentTimeline();
     if( timeline )
@@ -135,7 +136,7 @@ vlc_tick_t SegmentTemplate::getMinAheadTime(uint64_t number) const
     else
     {
         const Timescale timescale = inheritTimescale();
-        uint64_t current = getLiveTemplateNumber(vlc_tick_from_sec(time(nullptr)));
+        uint64_t current = getLiveTemplateNumber(heimdall_tick_from_sec(time(nullptr)));
         stime_t i_length = (current - number) * inheritDuration();
         return timescale.ToTime(i_length);
     }
@@ -186,7 +187,7 @@ Segment *  SegmentTemplate::getNextMediaSegment(uint64_t i_pos,uint64_t *pi_newp
         {
             const Timescale timescale = inheritTimescale();
             const stime_t segmentduration = inheritDuration();
-            vlc_tick_t totalduration = parentSegmentInformation->getPeriodDuration();
+            heimdall_tick_t totalduration = parentSegmentInformation->getPeriodDuration();
             if(totalduration == 0)
                 totalduration = playlist->duration;
             if(totalduration && segmentduration)
@@ -214,7 +215,7 @@ uint64_t SegmentTemplate::getStartSegmentNumber() const
     return timeline ? timeline->minElementNumber() : inheritStartNumber();
 }
 
-bool SegmentTemplate::getSegmentNumberByTime(vlc_tick_t time, uint64_t *ret) const
+bool SegmentTemplate::getSegmentNumberByTime(heimdall_tick_t time, uint64_t *ret) const
 {
     const SegmentTimeline *timeline = inheritSegmentTimeline();
     if(timeline)
@@ -231,7 +232,7 @@ bool SegmentTemplate::getSegmentNumberByTime(vlc_tick_t time, uint64_t *ret) con
         BasePlaylist *playlist = parent->getPlaylist();
         if( playlist->isLive() )
         {
-            vlc_tick_t now = vlc_tick_from_sec(::time(nullptr));
+            heimdall_tick_t now = heimdall_tick_from_sec(::time(nullptr));
             if(time >= playlist->availabilityStartTime && time < now)
                 *ret = getLiveTemplateNumber(time, true);
             else if(now - playlist->availabilityStartTime > time)
@@ -252,8 +253,8 @@ bool SegmentTemplate::getSegmentNumberByTime(vlc_tick_t time, uint64_t *ret) con
 
 
 bool SegmentTemplate::getPlaybackTimeDurationBySegmentNumber(uint64_t number,
-                                                             vlc_tick_t *time,
-                                                             vlc_tick_t *duration) const
+                                                             heimdall_tick_t *time,
+                                                             heimdall_tick_t *duration) const
 {
     if(number == std::numeric_limits<uint64_t>::max())
         return false;

@@ -2,6 +2,7 @@
 Resolve Twitch channel and video URLs to the actual stream URL
 
  Copyright © 2017 the VideoLAN team
+ Copyright (C) 2026 TheFenrisLycaon
 
  Author: Marvin Scholz <epirat07 at gmail dot com>
 
@@ -22,23 +23,23 @@ Resolve Twitch channel and video URLs to the actual stream URL
 
 -- Probe function
 function probe()
-    return (vlc.access == "http" or vlc.access == "https")
-        and ( vlc.path:match("^www%.twitch%.tv/videos/.+") or
-              vlc.path:match("^www%.twitch%.tv/.+") or
-              vlc.path:match("^go%.twitch%.tv/.+") or 
-              vlc.path:match("^go%.twitch%.tv/videos/.+") )
+    return (heimdall.access == "http" or heimdall.access == "https")
+        and ( heimdall.path:match("^www%.twitch%.tv/videos/.+") or
+              heimdall.path:match("^www%.twitch%.tv/.+") or
+              heimdall.path:match("^go%.twitch%.tv/.+") or 
+              heimdall.path:match("^go%.twitch%.tv/videos/.+") )
 end
 
 -- Download and parse a JSON document from the specified URL
 -- Returns: obj, pos, err (see dkjson docs)
 function parse_json(url)
     local json   = require("dkjson")
-    local stream = vlc.stream(url)
+    local stream = heimdall.stream(url)
     local string = ""
     local line   = ""
 
     if not stream then
-        return nil, nil, "Failed creating VLC stream"
+        return nil, nil, "Failed creating Heimdall stream"
     end
 
     while true do
@@ -83,28 +84,28 @@ function parse_video()
     local url, obj, err = nil
 
     -- Parse video id out of url
-    local video_id = vlc.path:match("/videos/(%d+)")
+    local video_id = heimdall.path:match("/videos/(%d+)")
 
     if video_id == nil then
-        vlc.msg.err("Twitch: Failed to parse twitch url for video id")
+        heimdall.msg.err("Twitch: Failed to parse twitch url for video id")
         return playlist
     end
 
-    vlc.msg.dbg("Twitch: Loading video url for " .. video_id)
+    heimdall.msg.dbg("Twitch: Loading video url for " .. video_id)
 
     -- Request video token (required for the video stream)
     url = "https://api.twitch.tv/api/vods/" ..  video_id .. "/access_token"
     obj, err = twitch_api_req(url)
 
     if err then
-        vlc.msg.err("Error getting request token from Twitch: " .. err)
+        heimdall.msg.err("Error getting request token from Twitch: " .. err)
         return playlist
     end
 
     -- Construct stream url
     local stream_url = "http://usher.twitch.tv/vod/" .. video_id
     stream_url = stream_url .. "?player=twitchweb"
-    stream_url = stream_url .. "&nauth=" .. vlc.strings.encode_uri_component(obj.token)
+    stream_url = stream_url .. "&nauth=" .. heimdall.strings.encode_uri_component(obj.token)
     stream_url = stream_url .. "&nauthsig=" .. obj.sig
     stream_url = stream_url .. "&allow_audio_only=true&allow_source=true"
 
@@ -118,7 +119,7 @@ function parse_video()
     obj, err = twitch_api_req(url)
 
     if err then
-        vlc.msg.warn("Error getting video info from Twitch: " .. err)
+        heimdall.msg.warn("Error getting video info from Twitch: " .. err)
         table.insert(playlist, item)
         return playlist
     end
@@ -127,7 +128,7 @@ function parse_video()
     item["name"]        = "Twitch: " .. obj.title
     item["artist"]      = obj.channel.display_name
     item["description"] = obj.description
-    item["url"]         = vlc.path
+    item["url"]         = heimdall.path
 
     table.insert(playlist, item)
 
@@ -141,28 +142,28 @@ function parse_stream()
     local url, obj, err = nil
 
     -- Parse channel name out of url
-    local channel = vlc.path:match("/([a-zA-Z0-9_]+)")
+    local channel = heimdall.path:match("/([a-zA-Z0-9_]+)")
 
     if channel == nil then
-        vlc.msg.err("Twitch: Failed to parse twitch url for channel name")
+        heimdall.msg.err("Twitch: Failed to parse twitch url for channel name")
         return playlist
     end
 
-    vlc.msg.dbg("Twitch: Loading stream url for " .. channel)
+    heimdall.msg.dbg("Twitch: Loading stream url for " .. channel)
 
     -- Request channel token (required for the stream m3u8)
     url = "https://api.twitch.tv/api/channels/" .. channel .. "/access_token"
     obj, err = twitch_api_req(url)
 
     if err then
-        vlc.msg.err("Error getting request token from Twitch: " .. err)
+        heimdall.msg.err("Error getting request token from Twitch: " .. err)
         return playlist
     end
 
     -- Construct stream url
     local stream_url = "http://usher.twitch.tv/api/channel/hls/" .. channel .. ".m3u8"
     stream_url = stream_url .. "?player=twitchweb"
-    stream_url = stream_url .. "&token=" .. vlc.strings.encode_uri_component(obj.token)
+    stream_url = stream_url .. "&token=" .. heimdall.strings.encode_uri_component(obj.token)
     stream_url = stream_url .. "&sig=" .. obj.sig
     stream_url = stream_url .. "&allow_audio_only=true&allow_source=true&type=any"
 
@@ -177,7 +178,7 @@ function parse_stream()
     obj, err = twitch_api_req(url)
 
     if err then
-        vlc.msg.warn("Error getting channel info from Twitch: " .. err)
+        heimdall.msg.warn("Error getting channel info from Twitch: " .. err)
         table.insert(playlist, item)
         return playlist
     end
@@ -187,7 +188,7 @@ function parse_stream()
     item["nowplaying"]  = obj.display_name .. " playing " .. obj.game
     item["artist"]      = obj.display_name
     item["description"] = obj.status
-    item["url"]         = vlc.path
+    item["url"]         = heimdall.path
 
     table.insert(playlist, item)
 
@@ -196,7 +197,7 @@ end
 
 -- Parse function
 function parse()
-    if vlc.path:match("/videos/.+") then
+    if heimdall.path:match("/videos/.+") then
         return parse_video()
     else
         return parse_stream()

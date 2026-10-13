@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2025 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,10 +22,10 @@ import QtQuick.Templates as T
 import QtQuick.Layouts
 
 
-import VLC.MainInterface
-import VLC.Widgets as Widgets
-import VLC.Style
-import VLC.Util
+import Heimdall.MainInterface
+import Heimdall.Widgets as Widgets
+import Heimdall.Style
+import Heimdall.Util
 
 T.ItemDelegate {
     id: control
@@ -35,7 +36,7 @@ T.ItemDelegate {
 
     property bool showText: true
 
-    property real radius: VLCStyle.button_radius
+    property real radius: HeimdallStyle.button_radius
 
     // Settings
 
@@ -44,7 +45,7 @@ T.ItemDelegate {
     implicitHeight: Math.max(implicitBackgroundHeight + topInset + bottomInset,
                              implicitContentHeight + topPadding + bottomPadding)
 
-    padding: VLCStyle.margin_xxsmall
+    padding: HeimdallStyle.margin_xxsmall
 
     leftInset: implicitLeftInset
     rightInset: implicitRightInset
@@ -52,11 +53,11 @@ T.ItemDelegate {
     topInset: implicitTopInset
     bottomInset: implicitBottomInset
 
-    property real implicitLeftInset: VLCStyle.margin_xxsmall
-    property real implicitRightInset: VLCStyle.margin_xxsmall
+    property real implicitLeftInset: HeimdallStyle.margin_xxsmall
+    property real implicitRightInset: HeimdallStyle.margin_xxsmall
 
-    property real implicitTopInset: VLCStyle.margin_xxxsmall
-    property real implicitBottomInset: VLCStyle.margin_xxxsmall
+    property real implicitTopInset: HeimdallStyle.margin_xxxsmall
+    property real implicitBottomInset: HeimdallStyle.margin_xxxsmall
 
     // Accessible
 
@@ -81,7 +82,7 @@ T.ItemDelegate {
 
     T.ToolTip.visible: (showText === false && T.ToolTip.text && (hovered || visualFocus))
 
-    T.ToolTip.delay: VLCStyle.delayToolTipAppear
+    T.ToolTip.delay: HeimdallStyle.delayToolTipAppear
 
     T.ToolTip.text: text
 
@@ -107,7 +108,7 @@ T.ItemDelegate {
         Widgets.CurrentIndicator {
             anchors {
                 left: parent.left
-                leftMargin: VLCStyle.margin_xxxsmall
+                leftMargin: HeimdallStyle.margin_xxxsmall
                 verticalCenter: parent.verticalCenter
             }
             implicitHeight: parent.height / 2
@@ -118,10 +119,10 @@ T.ItemDelegate {
     }
 
     contentItem: RowLayout {
-        spacing: VLCStyle.margin_xsmall
+        spacing: HeimdallStyle.margin_xsmall
 
         Item {
-            Layout.preferredWidth: VLCStyle.icon_banner
+            Layout.preferredWidth: HeimdallStyle.icon_banner
             Layout.fillHeight: true
 
             Widgets.IconLabel {
@@ -138,7 +139,7 @@ T.ItemDelegate {
 
                 color: (control.highlighted || control.checked) ? theme.accent : theme.fg.primary
 
-                font.pixelSize: VLCStyle.icon_banner
+                font.pixelSize: HeimdallStyle.icon_banner
             }
         }
 
@@ -158,7 +159,7 @@ T.ItemDelegate {
 
             visible: control.showText
 
-            font.pixelSize: VLCStyle.fontSize_normal
+            font.pixelSize: HeimdallStyle.fontSize_normal
 
             font.weight: control.checked ? Font.DemiBold : Font.Normal
 
@@ -169,7 +170,7 @@ T.ItemDelegate {
                 enabled: theme.initialized
 
                 ColorAnimation {
-                    duration: VLCStyle.duration_short
+                    duration: HeimdallStyle.duration_short
                 }
             }
         }

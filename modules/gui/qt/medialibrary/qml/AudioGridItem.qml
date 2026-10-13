@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,25 +18,25 @@
  *****************************************************************************/
 import QtQuick
 
-import VLC.MediaLibrary
+import Heimdall.MediaLibrary
 
-import VLC.Widgets as Widgets
-import VLC.Style
-import VLC.Util
+import Heimdall.Widgets as Widgets
+import Heimdall.Style
+import Heimdall.Util
 
 Widgets.GridItem {
     property var model: ({})
     property int index: -1
 
     image: model.cover || ""
-    fallbackImage: VLCStyle.noArtAlbumCover
+    fallbackImage: HeimdallStyle.noArtAlbumCover
 
     fillMode: Image.PreserveAspectCrop
 
     title: model.title || qsTr("Unknown title")
     subtitle: model.main_artist || qsTr("Unknown artist")
-    pictureWidth: VLCStyle.gridCover_music_width
-    pictureHeight: VLCStyle.gridCover_music_height
+    pictureWidth: HeimdallStyle.gridCover_music_width
+    pictureHeight: HeimdallStyle.gridCover_music_height
     onPlayClicked: {
         if ( model.id !== undefined ) {
             MediaLib.addAndPlay( model.id )

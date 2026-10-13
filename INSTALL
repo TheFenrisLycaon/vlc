@@ -1,24 +1,24 @@
-INSTALL file for the VLC media player
+INSTALL file for the Heimdall media player
 =====================================
 
 More extensive information for *nix, Windows and Mac OS X users can be
 found here: http://wiki.videolan.org/Compile_VLC
 
-People installing VLC for Windows from source MUST read:
+People installing Heimdall for Windows from source MUST read:
 http://wiki.videolan.org/Win32Compile
 
-Bootstrapping VLC
+Bootstrapping Heimdall
 =================
 
-If you retrieved VLC from the git server and do not have yet a "configure"
+If you retrieved Heimdall from the git server and do not have yet a "configure"
 script, please run:
 
     ./bootstrap
 
-Configuring VLC
+Configuring Heimdall
 ===============
 
-A typical way to configure VLC is:
+A typical way to configure Heimdall is:
 
    ./configure
 
@@ -29,28 +29,28 @@ symbols:
 
    make distclean ; ./configure --enable-debug
 
-We recommend using either GCC or Clang/LLVM to build VLC. Specifically,
+We recommend using either GCC or Clang/LLVM to build Heimdall. Specifically,
 GCC version 5 or higher, or Clang/LLVM version 3.4 or higher are required.
 Other compilers with compatible feature sets should also work.
 
 
-Building VLC
+Building Heimdall
 ============
 
-Once configured, run `make' to build VLC.
+Once configured, run `make' to build Heimdall.
 
 
-Installing and running VLC
+Installing and running Heimdall
 ==========================
 
-You can install the VLC and its plugins by typing:
+You can install the Heimdall and its plugins by typing:
 
    make install
 
-But you don't need to install it if you don't want to; VLC can be launched
+But you don't need to install it if you don't want to; Heimdall can be launched
 from the current directory as well:
 
-   ./vlc
+   ./heimdall
 
 
 Building packages

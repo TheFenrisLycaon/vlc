@@ -2,6 +2,7 @@
  * ts_sl.h : MPEG SL/FMC handling for TS demuxer
  *****************************************************************************
  * Copyright (C) 2014-2016 - VideoLAN Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -16,8 +17,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
-#ifndef VLC_TS_SL_H
-#define VLC_TS_SL_H
+#ifndef HEIMDALL_TS_SL_H
+#define HEIMDALL_TS_SL_H
 
 typedef struct es_mpeg4_descriptor_t es_mpeg4_descriptor_t;
 typedef struct decoder_config_descriptor_t decoder_config_descriptor_t;

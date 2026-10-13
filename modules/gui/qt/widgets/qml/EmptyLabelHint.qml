@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Benjamin Arnaud <bunjee@omega.gg>
  *
@@ -20,8 +21,8 @@
 
 import QtQuick
 
-import VLC.Style
-import VLC.Widgets as Widgets
+import Heimdall.Style
+import Heimdall.Widgets as Widgets
 
 EmptyLabel {
     id: root
@@ -33,7 +34,7 @@ EmptyLabel {
 
     // Settings
 
-    spacing: VLCStyle.margin_normal
+    spacing: HeimdallStyle.margin_normal
 
     // Children
 

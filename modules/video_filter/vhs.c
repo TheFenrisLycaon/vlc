@@ -2,8 +2,9 @@
  * vhs.c : VHS effect video filter
  *****************************************************************************
  * Copyright (C) 2013      Vianney Boyer
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Vianney Boyer <vlcvboyer -at- gmail -dot- com>
+ * Authors: Vianney Boyer <heimdallvboyer -at- gmail -dot- com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -28,12 +29,12 @@
 #   include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_picture.h>
-#include <vlc_rand.h>
-#include <vlc_tick.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
+#include <heimdall_rand.h>
+#include <heimdall_tick.h>
 
 #include "filter_picture.h"
 
@@ -46,7 +47,7 @@ typedef struct {
     unsigned  i_offset;
     uint16_t i_intensity;
     bool     b_blue_red;
-    vlc_tick_t  i_stop_trigger;
+    heimdall_tick_t  i_stop_trigger;
 } blue_red_line_t;
 
 typedef struct
@@ -58,9 +59,9 @@ typedef struct
     int32_t i_height[VOUT_MAX_PLANES]; /* note: each plane may have different dimensions */
     int32_t i_width[VOUT_MAX_PLANES];
     int32_t i_visible_pitch[VOUT_MAX_PLANES];
-    vlc_tick_t  i_start_time;
-    vlc_tick_t  i_last_time;
-    vlc_tick_t  i_cur_time;
+    heimdall_tick_t  i_start_time;
+    heimdall_tick_t  i_last_time;
+    heimdall_tick_t  i_cur_time;
 
     /* sliding & offset effect */
     int  i_phase_speed;
@@ -68,13 +69,13 @@ typedef struct
     int  i_offset_ofs;
     int  i_sliding_ofs;
     int  i_sliding_speed;
-    vlc_tick_t  i_offset_trigger;
-    vlc_tick_t  i_sliding_trigger;
-    vlc_tick_t  i_sliding_stop_trig;
+    heimdall_tick_t  i_offset_trigger;
+    heimdall_tick_t  i_sliding_trigger;
+    heimdall_tick_t  i_sliding_stop_trig;
     bool     i_sliding_type_duplicate;
 
     /* blue red lines effect */
-    vlc_tick_t  i_BR_line_trigger;
+    heimdall_tick_t  i_BR_line_trigger;
     blue_red_line_t *p_BR_lines[MAX_BLUE_RED_LINES];
 
 } filter_sys_t;
@@ -101,13 +102,13 @@ static int  vhs_sliding_effect_apply( filter_t *, picture_t * );
 static int  Open ( filter_t * );
 static void Close( filter_t * );
 
-vlc_module_begin()
+heimdall_module_begin()
     set_description( N_("VHS movie effect video filter") )
     set_shortname(   N_("VHS movie" ) )
     set_subcategory( SUBCAT_VIDEO_VFILTER )
 
     set_callback_video_filter( Open )
-vlc_module_end()
+heimdall_module_end()
 
 /**
  * Open the filter
@@ -119,36 +120,36 @@ static int Open( filter_t *p_filter )
     /* Assert video in match with video out */
     if( !es_format_IsSimilar( &p_filter->fmt_in, &p_filter->fmt_out ) ) {
         msg_Err( p_filter, "Input and output format does not match" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Reject 0 bpp and unsupported chroma */
-    const vlc_fourcc_t fourcc = p_filter->fmt_in.video.i_chroma;
-    const vlc_chroma_description_t *p_chroma =
-        vlc_fourcc_GetChromaDescription( p_filter->fmt_in.video.i_chroma );
+    const heimdall_fourcc_t fourcc = p_filter->fmt_in.video.i_chroma;
+    const heimdall_chroma_description_t *p_chroma =
+        heimdall_fourcc_GetChromaDescription( p_filter->fmt_in.video.i_chroma );
     assert( p_chroma != NULL );
     if( p_chroma->pixel_size == 0
         || p_chroma->plane_count < 3 || p_chroma->pixel_size > 1
-        || !vlc_fourcc_IsYUV( fourcc ) )
+        || !heimdall_fourcc_IsYUV( fourcc ) )
     {
         msg_Err( p_filter, "Unsupported chroma (%4.4s)", (char*)&fourcc );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Allocate structure */
     p_filter->p_sys = p_sys = calloc(1, sizeof(*p_sys) );
     if( unlikely( !p_sys ) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     /* init data */
-    static const struct vlc_filter_operations filter_ops =
+    static const struct heimdall_filter_operations filter_ops =
     {
         .filter_video = Filter, .close = Close,
     };
     p_filter->ops = &filter_ops;
-    p_sys->i_start_time = p_sys->i_cur_time = p_sys->i_last_time = vlc_tick_now();
+    p_sys->i_start_time = p_sys->i_cur_time = p_sys->i_last_time = heimdall_tick_now();
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /**
@@ -181,13 +182,13 @@ static picture_t *Filter( filter_t *p_filter, picture_t *p_pic_in ) {
     * manage time
     */
     p_sys->i_last_time = p_sys->i_cur_time;
-    p_sys->i_cur_time = vlc_tick_now();
+    p_sys->i_cur_time = heimdall_tick_now();
 
    /*
     * allocate data
     */
     if ( unlikely( !p_sys->b_init ) )
-        if ( unlikely( vhs_allocate_data( p_filter, p_pic_in ) != VLC_SUCCESS ) ) {
+        if ( unlikely( vhs_allocate_data( p_filter, p_pic_in ) != HEIMDALL_SUCCESS ) ) {
             picture_Release( p_pic_in );
             return NULL;
         }
@@ -201,10 +202,10 @@ static picture_t *Filter( filter_t *p_filter, picture_t *p_pic_in ) {
    /*
     * apply effects on picture
     */
-    if ( unlikely( vhs_blue_red_line_effect( p_filter, p_pic_out ) != VLC_SUCCESS ) )
+    if ( unlikely( vhs_blue_red_line_effect( p_filter, p_pic_out ) != HEIMDALL_SUCCESS ) )
         return CopyInfoAndRelease( p_pic_out, p_pic_in );
 
-    if ( unlikely( vhs_sliding_effect(p_filter, p_pic_out ) != VLC_SUCCESS ) )
+    if ( unlikely( vhs_sliding_effect(p_filter, p_pic_out ) != HEIMDALL_SUCCESS ) )
         return CopyInfoAndRelease( p_pic_out, p_pic_in );
 
     vhs_blue_red_dots_effect( p_filter, p_pic_out );
@@ -230,7 +231,7 @@ static int vhs_allocate_data( filter_t *p_filter, picture_t *p_pic_in ) {
         p_sys->i_height[i_p] = (int) p_pic_in->p[i_p].i_visible_lines;
         p_sys->i_width [i_p] = (int) p_pic_in->p[i_p].i_visible_pitch / p_pic_in->p[i_p].i_pixel_pitch;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /**
@@ -245,9 +246,9 @@ static void vhs_free_allocated_data( filter_t *p_filter ) {
     p_sys->i_planes = 0;
 }
 
-static vlc_tick_t RandomEnd(filter_sys_t *p_sys, vlc_tick_t modulo)
+static heimdall_tick_t RandomEnd(filter_sys_t *p_sys, heimdall_tick_t modulo)
 {
-    return p_sys->i_cur_time + (uint64_t)vlc_mrand48() % modulo + modulo / 2;
+    return p_sys->i_cur_time + (uint64_t)heimdall_mrand48() % modulo + modulo / 2;
 }
 
 /**
@@ -256,8 +257,8 @@ static vlc_tick_t RandomEnd(filter_sys_t *p_sys, vlc_tick_t modulo)
 static int vhs_blue_red_line_effect( filter_t *p_filter, picture_t *p_pic_out ) {
     filter_sys_t *p_sys = p_filter->p_sys;
 
-#define BR_LINES_GENERATOR_PERIOD VLC_TICK_FROM_SEC(50)
-#define BR_LINES_DURATION         VLC_TICK_FROM_MS(20)
+#define BR_LINES_GENERATOR_PERIOD HEIMDALL_TICK_FROM_SEC(50)
+#define BR_LINES_DURATION         HEIMDALL_TICK_FROM_MS(20)
 
     /* generate new blue or red lines */
     if ( p_sys->i_BR_line_trigger <= p_sys->i_cur_time ) {
@@ -266,14 +267,14 @@ static int vhs_blue_red_line_effect( filter_t *p_filter, picture_t *p_pic_out ) 
                 /* allocate data */
                 p_sys->p_BR_lines[i_b] = calloc( 1, sizeof(blue_red_line_t) );
                 if ( unlikely( !p_sys->p_BR_lines[i_b] ) )
-                    return VLC_ENOMEM;
+                    return HEIMDALL_ENOMEM;
 
                 /* set random parameters */
-                p_sys->p_BR_lines[i_b]->i_offset = (unsigned)vlc_mrand48()
+                p_sys->p_BR_lines[i_b]->i_offset = (unsigned)heimdall_mrand48()
                                                  % __MAX( 1, p_sys->i_height[Y_PLANE] - 10 )
                                                  + 5;
 
-                p_sys->p_BR_lines[i_b]->b_blue_red = (unsigned)vlc_mrand48() & 0x01;
+                p_sys->p_BR_lines[i_b]->b_blue_red = (unsigned)heimdall_mrand48() & 0x01;
 
                 p_sys->p_BR_lines[i_b]->i_stop_trigger = RandomEnd( p_sys, BR_LINES_DURATION );
 
@@ -318,7 +319,7 @@ static int vhs_blue_red_line_effect( filter_t *p_filter, picture_t *p_pic_out ) 
 
             }
         }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /**
@@ -333,13 +334,13 @@ static void vhs_blue_red_dots_effect( filter_t *p_filter, picture_t *p_pic_out )
           i_dots < p_sys->i_width[Y_PLANE] * p_sys->i_height[Y_PLANE] / BR_DOTS_RATIO;
           i_dots++) {
 
-        uint32_t i_length = (unsigned)vlc_mrand48()
+        uint32_t i_length = (unsigned)heimdall_mrand48()
                           % __MAX( 1, p_sys->i_width[Y_PLANE] / 30 ) + 1;
 
-        uint16_t i_x = (unsigned)vlc_mrand48()
+        uint16_t i_x = (unsigned)heimdall_mrand48()
                      % __MAX( 1, p_sys->i_width[Y_PLANE] - i_length );
-        uint16_t i_y = (unsigned)vlc_mrand48() % p_sys->i_height[Y_PLANE];
-        bool b_color = ( ( (unsigned)vlc_mrand48() % 2 ) == 0);
+        uint16_t i_y = (unsigned)heimdall_mrand48() % p_sys->i_height[Y_PLANE];
+        bool b_color = ( ( (unsigned)heimdall_mrand48() % 2 ) == 0);
 
         for ( size_t i_p = 0; i_p < p_sys->i_planes; i_p++ ) {
             uint32_t i_pix_ofs = i_y
@@ -383,7 +384,7 @@ static int vhs_sliding_effect( filter_t *p_filter, picture_t *p_pic_out ) {
     * one shot offset section
     */
 
-#define OFFSET_AVERAGE_PERIOD   VLC_TICK_FROM_SEC(10)
+#define OFFSET_AVERAGE_PERIOD   HEIMDALL_TICK_FROM_SEC(10)
 
     /* start trigger to be (re)initialized */
     if ( p_sys->i_offset_trigger == 0
@@ -395,7 +396,7 @@ static int vhs_sliding_effect( filter_t *p_filter, picture_t *p_pic_out ) {
     } else if (p_sys->i_offset_trigger <= p_sys->i_cur_time) {
         /* trigger for offset effect occurs */
         p_sys->i_offset_trigger = 0;
-        p_sys->i_offset_ofs = (uint32_t)vlc_mrand48()
+        p_sys->i_offset_ofs = (uint32_t)heimdall_mrand48()
                             % p_sys->i_height[Y_PLANE];
     }
     else
@@ -408,9 +409,9 @@ static int vhs_sliding_effect( filter_t *p_filter, picture_t *p_pic_out ) {
 
 #define MAX_PHASE_OFS (p_sys->i_height[Y_PLANE]*100/15)
 
-    p_sys->i_phase_speed += MOD( (int32_t)vlc_mrand48(), 3) - 1;
+    p_sys->i_phase_speed += MOD( (int32_t)heimdall_mrand48(), 3) - 1;
     p_sys->i_phase_ofs   += p_sys->i_phase_speed;
-    p_sys->i_phase_ofs    = VLC_CLIP( p_sys->i_phase_ofs, -MAX_PHASE_OFS, +MAX_PHASE_OFS);
+    p_sys->i_phase_ofs    = HEIMDALL_CLIP( p_sys->i_phase_ofs, -MAX_PHASE_OFS, +MAX_PHASE_OFS);
     if ( abs( p_sys->i_phase_ofs ) >= MAX_PHASE_OFS )
         p_sys->i_phase_speed = 0;
 
@@ -419,8 +420,8 @@ static int vhs_sliding_effect( filter_t *p_filter, picture_t *p_pic_out ) {
     * sliding section
     */
 
-#define SLIDING_AVERAGE_PERIOD   VLC_TICK_FROM_SEC(20)
-#define SLIDING_AVERAGE_DURATION VLC_TICK_FROM_SEC(3)
+#define SLIDING_AVERAGE_PERIOD   HEIMDALL_TICK_FROM_SEC(20)
+#define SLIDING_AVERAGE_DURATION HEIMDALL_TICK_FROM_SEC(3)
 
     /* start trigger to be (re)initialized */
     if ( ( p_sys->i_sliding_stop_trig  == 0 ) &&
@@ -441,8 +442,8 @@ static int vhs_sliding_effect( filter_t *p_filter, picture_t *p_pic_out ) {
         p_sys->i_sliding_stop_trig = RandomEnd( p_sys, SLIDING_AVERAGE_DURATION );
         p_sys->i_sliding_ofs = 0;
         /* note: sliding speed unit = image per 100 s */
-        p_sys->i_sliding_speed = MOD( (int32_t)vlc_mrand48(), 1001 ) - 500;
-        p_sys->i_sliding_type_duplicate = (unsigned)vlc_mrand48() & 0x01;
+        p_sys->i_sliding_speed = MOD( (int32_t)heimdall_mrand48(), 1001 ) - 500;
+        p_sys->i_sliding_type_duplicate = (unsigned)heimdall_mrand48() & 0x01;
     }
 
     /* stop trigger disabling sliding effect occurs */
@@ -455,7 +456,7 @@ static int vhs_sliding_effect( filter_t *p_filter, picture_t *p_pic_out ) {
 
         int threshold = p_sys->i_sliding_speed
              * p_sys->i_height[Y_PLANE]
-             * SEC_FROM_VLC_TICK( p_sys->i_cur_time - p_sys->i_last_time );
+             * SEC_FROM_HEIMDALL_TICK( p_sys->i_cur_time - p_sys->i_last_time );
 
         /* check if offset is close to 0 and then ready to stop */
         if ( abs( p_sys->i_sliding_ofs ) < abs( threshold )
@@ -471,7 +472,7 @@ static int vhs_sliding_effect( filter_t *p_filter, picture_t *p_pic_out ) {
     /* update offset */
     p_sys->i_sliding_ofs = MOD( p_sys->i_sliding_ofs
                                 + p_sys->i_sliding_speed * p_sys->i_height[Y_PLANE]
-                                * SEC_FROM_VLC_TICK( p_sys->i_cur_time - p_sys->i_last_time),
+                                * SEC_FROM_HEIMDALL_TICK( p_sys->i_cur_time - p_sys->i_last_time),
                                 p_sys->i_height[Y_PLANE] * 100 );
 
     return vhs_sliding_effect_apply( p_filter, p_pic_out );
@@ -491,7 +492,7 @@ static int vhs_sliding_effect_apply( filter_t *p_filter, picture_t *p_pic_out )
             p_temp_buf= calloc( p_pic_out->p[i_p].i_lines
                                 * p_pic_out->p[i_p].i_pitch, 1 );
             if ( unlikely( !p_temp_buf ) )
-                return VLC_ENOMEM;
+                return HEIMDALL_ENOMEM;
             memcpy( p_temp_buf, p_pic_out->p[i_p].p_pixels,
                     p_pic_out->p[i_p].i_lines * p_pic_out->p[i_p].i_pitch );
         }
@@ -519,5 +520,5 @@ static int vhs_sliding_effect_apply( filter_t *p_filter, picture_t *p_pic_out )
             free(p_temp_buf);
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

@@ -1,45 +1,45 @@
-project('VLC', ['c', 'cpp'],
+project('Heimdall', ['c', 'cpp'],
     version: '4.0.0-dev',
     default_options: ['c_std=gnu17', 'cpp_std=c++17'],
     meson_version: '>=1.10.0')
 
-vlc_copyright_years = '1996-2026'
-vlc_version_codename = 'Otto Chriek'
+heimdall_copyright_years = '1996-2026'
+heimdall_version_codename = 'Otto Chriek'
 
-# LibVLC library (ABI) version
+# LibHeimdall library (ABI) version
 # Format must be major.minor.micro
-libvlc_abi_version = '12.0.0'
+libheimdall_abi_version = '12.0.0'
 
-libvlc_abi_version_parts = libvlc_abi_version.split('.')
-libvlc_abi_version_major = libvlc_abi_version_parts[0].to_int()
-libvlc_abi_version_minor = libvlc_abi_version_parts[1].to_int()
-libvlc_abi_version_micro = libvlc_abi_version_parts[2].to_int()
+libheimdall_abi_version_parts = libheimdall_abi_version.split('.')
+libheimdall_abi_version_major = libheimdall_abi_version_parts[0].to_int()
+libheimdall_abi_version_minor = libheimdall_abi_version_parts[1].to_int()
+libheimdall_abi_version_micro = libheimdall_abi_version_parts[2].to_int()
 
-vlc_version_full = meson.project_version()
+heimdall_version_full = meson.project_version()
 
-vlc_version_parts = vlc_version_full.split('-')[0].split('.')
-vlc_version_type  = vlc_version_full.split('-').get(1, '')
+heimdall_version_parts = heimdall_version_full.split('-')[0].split('.')
+heimdall_version_type  = heimdall_version_full.split('-').get(1, '')
 
-if (vlc_version_parts.length() < 3 or vlc_version_parts.length() > 4)
-    error(f'Unexpected project version "@vlc_version_full@".',
+if (heimdall_version_parts.length() < 3 or heimdall_version_parts.length() > 4)
+    error(f'Unexpected project version "@heimdall_version_full@".',
           'Expected a format of major.minor.revision[.extra][-dev]')
 endif
 
-vlc_version_major    = vlc_version_parts[0].to_int()
-vlc_version_minor    = vlc_version_parts[1].to_int()
-vlc_version_revision = vlc_version_parts[2].to_int()
-vlc_version_extra    = vlc_version_parts.get(3, '0').to_int()
+heimdall_version_major    = heimdall_version_parts[0].to_int()
+heimdall_version_minor    = heimdall_version_parts[1].to_int()
+heimdall_version_revision = heimdall_version_parts[2].to_int()
+heimdall_version_extra    = heimdall_version_parts.get(3, '0').to_int()
 
 # Short version (major.minor.revision)
-vlc_version_short = f'@vlc_version_major@.@vlc_version_minor@.@vlc_version_revision@'
+heimdall_version_short = f'@heimdall_version_major@.@heimdall_version_minor@.@heimdall_version_revision@'
 
-# Normal VLC version (major.minor.revision[-dev])
-vlc_version = vlc_version_short + ((vlc_version_type != '') ? f'-@vlc_version_type@' : '')
+# Normal Heimdall version (major.minor.revision[-dev])
+heimdall_version = heimdall_version_short + ((heimdall_version_type != '') ? f'-@heimdall_version_type@' : '')
 
-vlc_package_name = meson.project_name().to_lower()
+heimdall_package_name = meson.project_name().to_lower()
 
-vlc_src_root = meson.current_source_dir()
-vlc_build_root = meson.current_build_dir()
+heimdall_src_root = meson.current_source_dir()
+heimdall_build_root = meson.current_build_dir()
 
 cdata = configuration_data()
 
@@ -81,7 +81,7 @@ endif
 cc = meson.get_compiler('c')
 cpp = meson.get_compiler('cpp')
 host_system = host_machine.system()
-# VLC uses 'darwin' for all Apple platforms; remap 'ios'/'tvos'/'visionos' accordingly.
+# Heimdall uses 'darwin' for all Apple platforms; remap 'ios'/'tvos'/'visionos' accordingly.
 if host_system in ['ios', 'tvos', 'visionos']
     host_system = 'darwin'
 endif
@@ -103,19 +103,19 @@ endif
 
 if host_machine.cpu_family().startswith('x86')
     if add_languages('nasm', native: false, required: false)
-        vlc_nasm_args = []
+        heimdall_nasm_args = []
         if host_machine.cpu_family() == 'x86'
-            vlc_nasm_args += ['-DARCH_X86_64=0']
+            heimdall_nasm_args += ['-DARCH_X86_64=0']
             if host_system in ['darwin', 'windows', 'os/2']
-                vlc_nasm_args += ['-DPREFIX']
+                heimdall_nasm_args += ['-DPREFIX']
             endif
         else
-            vlc_nasm_args += ['-DARCH_X86_64=1']
+            heimdall_nasm_args += ['-DARCH_X86_64=1']
             if host_system == 'darwin'
-                vlc_nasm_args += ['-DPREFIX']
+                heimdall_nasm_args += ['-DPREFIX']
             endif
         endif
-        add_project_arguments(vlc_nasm_args, language: ['nasm'])
+        add_project_arguments(heimdall_nasm_args, language: ['nasm'])
         cdata.set('HAVE_X86ASM', 1)
     endif
 endif
@@ -126,7 +126,7 @@ cargo_bin = find_program('cargo', required: get_option('rust'))
 #
 # General feature defines
 #
-vlc_conf_prefix = []
+heimdall_conf_prefix = []
 
 feature_defines = [
     ['_GNU_SOURCE', 1], # Enable GNU extensions on systems that have them
@@ -134,10 +134,10 @@ feature_defines = [
 
 foreach d : feature_defines
     cdata.set(d.get(0), d.get(1))
-    vlc_conf_prefix += '#define @0@ @1@'.format(d.get(0), d.get(1))
+    heimdall_conf_prefix += '#define @0@ @1@'.format(d.get(0), d.get(1))
 endforeach
 
-vlc_tests = []
+heimdall_tests = []
 
 #
 # SIMD support
@@ -146,8 +146,8 @@ subdir('buildsystem/simd_checks')
 
 #
 # Check for global dependencies
-# These are dependencies needed by libvlc or
-# libvlccore and by some modules too.
+# These are dependencies needed by libheimdall or
+# libheimdallcore and by some modules too.
 #
 # ATTENTION: Take care to follow the naming convetions:
 # - Libraries found with find_lirary() must be named `name_lib`
@@ -173,7 +173,7 @@ dl_lib = cc.find_library('dl', required: false)
 iconv_dep = dependency('iconv', required: false)
 if not iconv_dep.found()
     # check in contribs
-    if cc.has_function('iconv_open', prefix: vlc_conf_prefix + '#include <iconv.h>',
+    if cc.has_function('iconv_open', prefix: heimdall_conf_prefix + '#include <iconv.h>',
                        dependencies: [contrib_dep, cc.find_library('iconv', dirs: contrib_libdir, required: false)])
         iconv_dep = declare_dependency(
             dependencies: [contrib_dep, cc.find_library('iconv', dirs: contrib_libdir)])
@@ -299,7 +299,7 @@ endif
 if not cdata.has('HAVE_STDCKDINT_H')
     list_inc_dirs += 'compat/stdckdint'
 endif
-vlc_include_dirs = include_directories(list_inc_dirs)
+heimdall_include_dirs = include_directories(list_inc_dirs)
 
 #
 # Darwin specific checks
@@ -335,7 +335,7 @@ else
     have_osx = false
 endif
 
-vlc_lib_versioning = host_system not in ['windows', 'os/2'] and not have_ios and not have_tvos
+heimdall_lib_versioning = host_system not in ['windows', 'os/2'] and not have_ios and not have_tvos
 
 #
 # Windows and MinGW checks
@@ -371,7 +371,7 @@ windows_version_test = '''
 
     foreach d : windows_defines
         cdata.set(d.get(0), d.get(1))
-        vlc_conf_prefix += '#define @0@ @1@'.format(d.get(0), d.get(1))
+        heimdall_conf_prefix += '#define @0@ @1@'.format(d.get(0), d.get(1))
     endforeach
 
     mingw_check = '''
@@ -427,7 +427,7 @@ ucrt_version_test = '''
 
         foreach d : mingw_defines
             cdata.set(d.get(0), d.get(1))
-            vlc_conf_prefix += '#define @0@ @1@'.format(d.get(0), d.get(1))
+            heimdall_conf_prefix += '#define @0@ @1@'.format(d.get(0), d.get(1))
         endforeach
 
         # fno-strict-aliasing is necessary for WRL and IID_PPV_ARGS to work safely
@@ -569,7 +569,7 @@ endforeach
 socket_libs = cc.find_library('socket', required: false)
 
 # Check for function 'connect' (optionally link with socket lib if it exists)
-if not cc.has_function('connect', prefix: vlc_conf_prefix + '#include <sys/socket.h>', dependencies: socket_libs)
+if not cc.has_function('connect', prefix: heimdall_conf_prefix + '#include <sys/socket.h>', dependencies: socket_libs)
 
     if host_system == 'windows'
         # If not found and on windows:
@@ -661,7 +661,7 @@ foreach f : check_functions
     # then not found using the other header, it would overwrite
     # the previous value!
 
-    if cc.has_function(f[0], prefix: vlc_conf_prefix + f[1], dependencies: [socket_libs])
+    if cc.has_function(f[0], prefix: heimdall_conf_prefix + f[1], dependencies: [socket_libs])
         cdata.set('HAVE_' + f[0].underscorify().to_upper(), 1)
     endif
 endforeach
@@ -742,7 +742,7 @@ endif
 
 # Check all functions in libcompat_functions array
 foreach f : libcompat_functions
-    if cc.has_function(f[0], prefix: vlc_conf_prefix + f[1], dependencies: [rt_lib, socket_libs])
+    if cc.has_function(f[0], prefix: heimdall_conf_prefix + f[1], dependencies: [rt_lib, socket_libs])
         cdata.set('HAVE_' + f[0].underscorify().to_upper(), 1)
     else
         libcompat_sources += f[0] + '.c'
@@ -755,7 +755,7 @@ libcompat_functions = [
 ]
 
 foreach f : libcompat_functions
-    if cc.has_header_symbol(f[1], f[0], prefix: vlc_conf_prefix)
+    if cc.has_header_symbol(f[1], f[0], prefix: heimdall_conf_prefix)
         cdata.set('HAVE_' + f[0].underscorify().to_upper(), 1)
     else
         libcompat_sources += f[0] + '.c'
@@ -763,19 +763,19 @@ foreach f : libcompat_functions
 endforeach
 
 # Check for function 'nanf' (optionally link with libm if it exists)
-if cc.has_function('nanf', prefix: vlc_conf_prefix + '#include <math.h>', dependencies: m_lib)
+if cc.has_function('nanf', prefix: heimdall_conf_prefix + '#include <math.h>', dependencies: m_lib)
     cdata.set('HAVE_NANF', 1)
 endif
 
 # Check for function 'sincos' (optionally link with libm if it exists)
-if cc.has_function('sincos', prefix: vlc_conf_prefix + '#include <math.h>', dependencies: m_lib)
+if cc.has_function('sincos', prefix: heimdall_conf_prefix + '#include <math.h>', dependencies: m_lib)
     cdata.set('HAVE_SINCOS', 1)
 else
     libcompat_sources += 'sincos.c'
 endif
 
 # Check for function 'fdatasync' (define it to 'fsync' if missing)
-if not cc.has_function('fdatasync', prefix: vlc_conf_prefix + '#include <unistd.h>')
+if not cc.has_function('fdatasync', prefix: heimdall_conf_prefix + '#include <unistd.h>')
     cdata.set('fdatasync', 'fsync')
 endif
 
@@ -963,7 +963,7 @@ elif host_system == 'windows'
     pollfd_prefix += '#include <winsock2.h>'
 endif
 
-if cc.has_type('struct pollfd', prefix: vlc_conf_prefix + pollfd_prefix)
+if cc.has_type('struct pollfd', prefix: heimdall_conf_prefix + pollfd_prefix)
     cdata.set('HAVE_STRUCT_POLLFD', 1)
 endif
 
@@ -999,64 +999,64 @@ endif
 # Populate config.h with additional infos
 #
 
-cdata.set_quoted('VERSION',         vlc_version)
-cdata.set_quoted('PACKAGE_VERSION', vlc_version)
-cdata.set_quoted('VERSION_MESSAGE', f'@vlc_version@ @vlc_version_codename@')
+cdata.set_quoted('VERSION',         heimdall_version)
+cdata.set_quoted('PACKAGE_VERSION', heimdall_version)
+cdata.set_quoted('VERSION_MESSAGE', f'@heimdall_version@ @heimdall_version_codename@')
 
-cdata.set('VERSION_MAJOR',      vlc_version_major)
-cdata.set('VERSION_MINOR',      vlc_version_minor)
-cdata.set('VERSION_REVISION',   vlc_version_revision)
-cdata.set('VERSION_EXTRA',      vlc_version_extra)
+cdata.set('VERSION_MAJOR',      heimdall_version_major)
+cdata.set('VERSION_MINOR',      heimdall_version_minor)
+cdata.set('VERSION_REVISION',   heimdall_version_revision)
+cdata.set('VERSION_EXTRA',      heimdall_version_extra)
 
-cdata.set('PACKAGE_VERSION_MAJOR',      vlc_version_major)
-cdata.set('PACKAGE_VERSION_MINOR',      vlc_version_minor)
-cdata.set('PACKAGE_VERSION_REVISION',   vlc_version_revision)
-cdata.set('PACKAGE_VERSION_EXTRA',      vlc_version_extra)
-cdata.set_quoted('PACKAGE_VERSION_DEV', vlc_version_type)
+cdata.set('PACKAGE_VERSION_MAJOR',      heimdall_version_major)
+cdata.set('PACKAGE_VERSION_MINOR',      heimdall_version_minor)
+cdata.set('PACKAGE_VERSION_REVISION',   heimdall_version_revision)
+cdata.set('PACKAGE_VERSION_EXTRA',      heimdall_version_extra)
+cdata.set_quoted('PACKAGE_VERSION_DEV', heimdall_version_type)
 
-cdata.set('LIBVLC_ABI_MAJOR', libvlc_abi_version_major)
-cdata.set('LIBVLC_ABI_MINOR', libvlc_abi_version_minor)
-cdata.set('LIBVLC_ABI_MICRO', libvlc_abi_version_micro)
+cdata.set('LIBHEIMDALL_ABI_MAJOR', libheimdall_abi_version_major)
+cdata.set('LIBHEIMDALL_ABI_MINOR', libheimdall_abi_version_minor)
+cdata.set('LIBHEIMDALL_ABI_MICRO', libheimdall_abi_version_micro)
 
-cdata.set_quoted('PACKAGE',             vlc_package_name)
-cdata.set_quoted('PACKAGE_NAME',        vlc_package_name)
-cdata.set_quoted('PACKAGE_STRING',      f'@vlc_package_name@ @vlc_version@')
-cdata.set_quoted('COPYRIGHT_YEARS',     vlc_copyright_years)
-cdata.set_quoted('COPYRIGHT_MESSAGE',   f'Copyright © @vlc_copyright_years@ the VideoLAN team')
+cdata.set_quoted('PACKAGE',             heimdall_package_name)
+cdata.set_quoted('PACKAGE_NAME',        heimdall_package_name)
+cdata.set_quoted('PACKAGE_STRING',      f'@heimdall_package_name@ @heimdall_version@')
+cdata.set_quoted('COPYRIGHT_YEARS',     heimdall_copyright_years)
+cdata.set_quoted('COPYRIGHT_MESSAGE',   f'Copyright © @heimdall_copyright_years@ the VideoLAN team')
 
 # Compiler and build system info
-cdata.set_quoted('VLC_COMPILER',        cc.get_id() + ' ' + cc.version())
-cdata.set_quoted('VLC_COMPILE_BY',      '[not implemented with meson]') # TODO
-cdata.set_quoted('VLC_COMPILE_HOST',    '[not implemented with meson]') # TODO
+cdata.set_quoted('HEIMDALL_COMPILER',        cc.get_id() + ' ' + cc.version())
+cdata.set_quoted('HEIMDALL_COMPILE_BY',      '[not implemented with meson]') # TODO
+cdata.set_quoted('HEIMDALL_COMPILE_HOST',    '[not implemented with meson]') # TODO
 
 # Paths
 prefix_path = get_option('prefix')
-vlc_pkg_suffix = meson.project_name().to_lower()
+heimdall_pkg_suffix = meson.project_name().to_lower()
 
 sysdatadir_path = prefix_path / get_option('datadir')
-pkgdatadir_path = sysdatadir_path / vlc_pkg_suffix
+pkgdatadir_path = sysdatadir_path / heimdall_pkg_suffix
 if host_system == 'windows'
     libdir_path = prefix_path
-    pkglibdir_path = libdir_path / vlc_pkg_suffix
+    pkglibdir_path = libdir_path / heimdall_pkg_suffix
     plugins_path = prefix_path / 'plugins'
-    vlc_sdk_path = prefix_path / 'sdk'
+    heimdall_sdk_path = prefix_path / 'sdk'
     bindir_path = prefix_path
     libexecdir_path = prefix_path
     pkglibexecdir_path = prefix_path
     localedir_path = prefix_path / 'locale'
 else
     libdir_path = prefix_path / get_option('libdir')
-    pkglibdir_path = libdir_path / vlc_pkg_suffix
+    pkglibdir_path = libdir_path / heimdall_pkg_suffix
     plugins_path = pkglibdir_path / 'plugins'
-    vlc_sdk_path = prefix_path
+    heimdall_sdk_path = prefix_path
     bindir_path = prefix_path / 'bin'
     libexecdir_path = prefix_path / get_option('libexecdir')
-    pkglibexecdir_path = libexecdir_path / vlc_pkg_suffix
+    pkglibexecdir_path = libexecdir_path / heimdall_pkg_suffix
     localedir_path = prefix_path / get_option('localedir')
 endif
-libvlc_header_path = vlc_sdk_path / 'include' / vlc_pkg_suffix
-plugins_header_path = vlc_sdk_path / 'include' / vlc_pkg_suffix / 'plugins'
-vlccore_lib_path = vlc_sdk_path / 'lib'
+libheimdall_header_path = heimdall_sdk_path / 'include' / heimdall_pkg_suffix
+plugins_header_path = heimdall_sdk_path / 'include' / heimdall_pkg_suffix / 'plugins'
+heimdallcore_lib_path = heimdall_sdk_path / 'lib'
 
 cdata.set_quoted('LIBDIR', libdir_path)
 cdata.set_quoted('PKGLIBDIR', pkglibdir_path)
@@ -1083,13 +1083,13 @@ else
     intl_dep = declare_dependency()
 endif
 
-gen_vlc_about = find_program('buildsystem/gen-vlc-about.py')
-vlc_about = custom_target('vlc_about.h',
+gen_heimdall_about = find_program('buildsystem/gen-heimdall-about.py')
+heimdall_about = custom_target('heimdall_about.h',
                         input:   ['COPYING', 'THANKS', 'AUTHORS'],
-                        output:  ['vlc_about.h'],
+                        output:  ['heimdall_about.h'],
                         install: true,
                         install_dir: plugins_header_path,
-                        command: [gen_vlc_about,
+                        command: [gen_heimdall_about,
                                    '@INPUT0@',
                                    '@INPUT1@',
                                    '@INPUT2@',
@@ -1106,9 +1106,9 @@ if not get_option('upnp_server').disabled()
 endif
 
 # Enable VLM
-if get_option('videolan_manager')
+if get_option('lycaria_manager')
     if not get_option('stream_outputs')
-        error('The VideoLAN manager requires stream outputs.')
+        error('The Lycaria manager requires stream outputs.')
     endif
     cdata.set('ENABLE_VLM', 1)
 endif
@@ -1189,20 +1189,20 @@ if host_system == 'windows'
     # not quoted values
     rc_conf = configuration_data()
     rc_conf.merge_from(cdata)
-    rc_conf.set('VERSION', vlc_version)
-    rc_conf.set('COPYRIGHT_YEARS', vlc_copyright_years)
+    rc_conf.set('VERSION', heimdall_version)
+    rc_conf.set('COPYRIGHT_YEARS', heimdall_copyright_years)
 endif
 
-# libvlccore
+# libheimdallcore
 subdir('src')
 
-# LibVLC
+# LibHeimdall
 subdir('lib')
 
-# VLC plugins
+# Heimdall plugins
 subdir('modules')
 
-# VLC binaries
+# Heimdall binaries
 subdir('bin')
 
 # OS specific packaging
@@ -1229,6 +1229,6 @@ if get_option('rust').allowed()
 endif
 
 warning('''
-    The Meson build system of VLC is currently EXPERIMENTAL and INCOMPLETE.
+    The Meson build system of Heimdall is currently EXPERIMENTAL and INCOMPLETE.
     Testing and reporting or contributing missing plugins and features is welcome!
 ''')

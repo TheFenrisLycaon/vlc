@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Prince Gupta <guptaprince8832@gmail.com>
  *
@@ -20,7 +21,7 @@
 pragma Singleton
 import QtQuick
 
-import VLC.MainInterface
+import Heimdall.MainInterface
 
 Item {
     id: root
@@ -31,7 +32,7 @@ Item {
 
     Behavior on uiTransluency {
         NumberAnimation {
-            duration: VLCStyle.duration_long
+            duration: HeimdallStyle.duration_long
             easing.type: Easing.InOutSine
         }
     }

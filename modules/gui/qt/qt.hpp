@@ -2,6 +2,7 @@
  * qt.hpp : Qt interface
  ****************************************************************************
  * Copyright (C) 2006-2009 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Clément Stenac <zorglub@videolan.org>
  *          Jean-Baptiste Kempf <jb@videolan.org>
@@ -21,16 +22,16 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef QVLC_H_
-#define QVLC_H_
+#ifndef QHEIMDALL_H_
+#define QHEIMDALL_H_
 
 #ifdef HAVE_CONFIG_H
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_threads.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_threads.h>
 
 #include <memory>
 
@@ -63,12 +64,12 @@ enum{
 
 extern "C" {
 typedef struct intf_dialog_args_t intf_dialog_args_t;
-typedef struct vlc_playlist vlc_playlist_t;
+typedef struct heimdall_playlist heimdall_playlist_t;
 typedef struct intf_thread_t intf_thread_t;
-typedef struct vlc_player_t vlc_player_t;
+typedef struct heimdall_player_t heimdall_player_t;
 }
 
-namespace vlc {
+namespace heimdall {
 class Compositor;
 
 namespace playlist {
@@ -82,7 +83,7 @@ class PlayerController;
 
 struct qt_intf_t
 {
-    struct vlc_object_t obj;
+    struct heimdall_object_t obj;
 
     /** pointer to the actual intf module */
     intf_thread_t* intf;
@@ -91,36 +92,36 @@ struct qt_intf_t
     void ( *pf_show_dialog ) ( struct intf_thread_t *, int, int,
                                intf_dialog_args_t * );
 
-    vlc_thread_t thread;
-    vlc_sem_t wait_quit;
+    heimdall_thread_t thread;
+    heimdall_sem_t wait_quit;
 
     class MainCtx *p_mi;     /* Main Interface, NULL if DialogProvider Mode */
-    class QSettings *mainSettings; /* Qt State settings not messing main VLC ones */
+    class QSettings *mainSettings; /* Qt State settings not messing main Heimdall ones */
     bool preferencesResetPending = false;
     bool b_isDialogProvider; /* Qt mode or Skins mode */
 
-    vlc_playlist_t *p_playlist;  /* playlist */
-    vlc_player_t *p_player; /* player */
-    vlc::playlist::PlaylistController* p_mainPlaylistController;
+    heimdall_playlist_t *p_playlist;  /* playlist */
+    heimdall_player_t *p_player; /* player */
+    heimdall::playlist::PlaylistController* p_mainPlaylistController;
     PlayerController* p_mainPlayerController;
-    std::unique_ptr<vlc::Compositor>  p_compositor;
+    std::unique_ptr<heimdall::Compositor>  p_compositor;
 
     int refCount;
     bool isShuttingDown;
 };
 
 template <typename T, void (*LOCK)(T *), void (*UNLOCK)(T *)>
-class vlc_locker {
+class heimdall_locker {
     T * const ptr = nullptr;
 
 public:
-    explicit vlc_locker(T * const ptr)
+    explicit heimdall_locker(T * const ptr)
         : ptr(ptr)
     {
         LOCK(ptr);
     }
 
-    ~vlc_locker()
+    ~heimdall_locker()
     {
         UNLOCK(ptr);
     }
@@ -148,7 +149,7 @@ public:
 
 #define getSettings() p_intf->mainSettings
 
-static inline QString QVLCUserDir( vlc_userdir_t type )
+static inline QString QHeimdallUserDir( heimdall_userdir_t type )
 {
     char *dir = config_GetUserDir( type );
     if( !dir )
@@ -158,7 +159,7 @@ static inline QString QVLCUserDir( vlc_userdir_t type )
     return res;
 }
 
-/* After this day of the year, the usual VLC cone is replaced by another cone
+/* After this day of the year, the usual Heimdall cone is replaced by another cone
  * wearing a Father Xmas hat.
  * Note this icon doesn't represent an endorsment of Coca-Cola company.
  */

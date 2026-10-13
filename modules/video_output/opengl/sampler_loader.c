@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 2020-2026 VLC authors and VideoLAN
  * Copyright (C) 2022-2026 Alexandre Janniaux <ajanni@videolabs.io>
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -25,26 +26,26 @@
 
 #include "sampler.h"
 
-#include <vlc_common.h>
-#include <vlc_modules.h>
-#include <vlc_opengl.h>
+#include <heimdall_common.h>
+#include <heimdall_modules.h>
+#include <heimdall_opengl.h>
 
 static int
 ActivateSampler(void *func, bool forced, va_list args)
 {
     (void) forced;
-    vlc_gl_sampler_open_fn *activate = func;
-    struct vlc_gl_sampler *sampler = va_arg(args, struct vlc_gl_sampler *);
+    heimdall_gl_sampler_open_fn *activate = func;
+    struct heimdall_gl_sampler *sampler = va_arg(args, struct heimdall_gl_sampler *);
     bool expose_planes = va_arg(args, int); /* bool promoted to int in va_args */
 
     return activate(sampler, expose_planes);
 }
 
-struct vlc_gl_sampler *
-vlc_gl_sampler_New(struct vlc_gl_t *gl,
-                   const struct vlc_gl_format *glfmt, bool expose_planes)
+struct heimdall_gl_sampler *
+heimdall_gl_sampler_New(struct heimdall_gl_t *gl,
+                   const struct heimdall_gl_format *glfmt, bool expose_planes)
 {
-    struct vlc_gl_sampler *sampler = vlc_object_create(gl, sizeof(*sampler));
+    struct heimdall_gl_sampler *sampler = heimdall_object_create(gl, sizeof(*sampler));
     if (!sampler)
         return NULL;
 
@@ -74,16 +75,16 @@ vlc_gl_sampler_New(struct vlc_gl_t *gl,
     sampler->ops = NULL;
     sampler->sys = NULL;
 
-    struct vlc_logger *logger = vlc_object_logger(sampler);
+    struct heimdall_logger *logger = heimdall_object_logger(sampler);
     char *sampler_name = var_InheritString(gl, "gl-sampler");
-    sampler->module = vlc_module_load(logger, "opengl sampler", sampler_name,
+    sampler->module = heimdall_module_load(logger, "opengl sampler", sampler_name,
                                       true, ActivateSampler, sampler,
                                       (int)expose_planes);
     free(sampler_name);
     if (!sampler->module)
     {
         msg_Err(gl, "Could not load OpenGL sampler module");
-        vlc_object_delete(sampler);
+        heimdall_object_delete(sampler);
         return NULL;
     }
 
@@ -91,7 +92,7 @@ vlc_gl_sampler_New(struct vlc_gl_t *gl,
 }
 
 void
-vlc_gl_sampler_Delete(struct vlc_gl_sampler *sampler)
+heimdall_gl_sampler_Delete(struct heimdall_gl_sampler *sampler)
 {
     if (sampler->ops && sampler->ops->close)
         sampler->ops->close(sampler);
@@ -103,5 +104,5 @@ vlc_gl_sampler_Delete(struct vlc_gl_sampler *sampler)
     free(sampler->shader.body);
     free(sampler->shader.version);
 
-    vlc_object_delete(sampler);
+    heimdall_object_delete(sampler);
 }

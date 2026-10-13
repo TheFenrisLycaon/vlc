@@ -1,10 +1,11 @@
 /**
  * @file amt.c
- * @brief Automatic Multicast Tunneling Protocol (AMT) file for VLC media player
+ * @brief Automatic Multicast Tunneling Protocol (AMT) file for Heimdall media player
  * Allows multicast streaming when not in a multicast-enabled network
  *
  * Copyright (C) 2018 VLC authors and VideoLAN
  * Copyright (c) Juniper Networks, Inc., 2018. All rights reserved.
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Christophe Massiot <massiot@via.ecp.fr>           - original UDP code
  *          Tristan Leteurtre <tooney@via.ecp.fr>             - original UDP code
@@ -49,16 +50,16 @@
 # include <sys/socket.h>
 #endif
 
-#include <vlc_common.h>
-#include <vlc_threads.h>
-#include <vlc_demux.h>
-#include <vlc_plugin.h>
-#include <vlc_access.h>
-#include <vlc_network.h>
-#include <vlc_block.h>
-#include <vlc_interrupt.h>
-#include <vlc_url.h>
-#include <vlc_rand.h>
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
+#include <heimdall_demux.h>
+#include <heimdall_plugin.h>
+#include <heimdall_access.h>
+#include <heimdall_network.h>
+#include <heimdall_block.h>
+#include <heimdall_interrupt.h>
+#include <heimdall_url.h>
+#include <heimdall_rand.h>
 
 #ifdef HAVE_POLL_H
  #include <poll.h>
@@ -291,13 +292,13 @@ typedef struct _access_sys_t
 {
     char *relay;
 
-    vlc_timer_t updateTimer;
+    heimdall_timer_t updateTimer;
 
     /* Mulicast group and source, differentiate between address family based on the sa_family which is the first field (sin_family or sin6_family) in both structs */
-    vlc_sockaddr mcastGroupAddr;
-    vlc_sockaddr mcastSrcAddr;
+    heimdall_sockaddr mcastGroupAddr;
+    heimdall_sockaddr mcastSrcAddr;
     /* AMT relay imformation */
-    vlc_sockaddr relayDiscoAddr;
+    heimdall_sockaddr relayDiscoAddr;
 
     /* AMT Relay Membership Query data (RFC7450) */
     struct relay_mem_query_msg_t {
@@ -328,15 +329,15 @@ _Static_assert(sizeof((access_sys_t){0}.glob_ulNonce) == NONCE_LEN,
     "glob_ulNonce doesn't match expected nonce length");
 
 /* Standard open/close functions */
-static int  Open (vlc_object_t *);
-static void Close (vlc_object_t *);
+static int  Open (heimdall_object_t *);
+static void Close (heimdall_object_t *);
 
 /* Utility functions */
 static unsigned short get_checksum( unsigned short *buffer, int nLen );
 static void make_report( amt_igmpv3_membership_report_t *mr );
 static void make_ip_header( amt_ip_alert_t *p_ipHead );
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( N_("AMT" ) )
     set_description( N_("AMT input") )
     set_subcategory( SUBCAT_INPUT_ACCESS )
@@ -348,7 +349,7 @@ vlc_module_begin ()
     add_shortcut( "amt" )
 
     set_callbacks( Open, Close )
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * Local prototypes
@@ -359,7 +360,7 @@ static int Control( stream_t *, int, va_list );
 /*****************************************************************************
  * Open: Open a connection to the multicast feed
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     stream_t            *p_access = (stream_t*) p_this;
     access_sys_t        *sys = NULL;
@@ -367,12 +368,12 @@ static int Open( vlc_object_t *p_this )
     char                *saveptr, *psz_strtok_r;
     char                 mcastSrc_buf[INET6_ADDRSTRLEN], mcastGroup_buf[INET6_ADDRSTRLEN];
     const char          *mcastSrc, *mcastGroup;
-    int                  i_bind_port = 1234, i_server_port = 0, VLC_ret = VLC_SUCCESS, response;
-    vlc_url_t            url = { 0 };
+    int                  i_bind_port = 1234, i_server_port = 0, Heimdall_ret = HEIMDALL_SUCCESS, response;
+    heimdall_url_t            url = { 0 };
 
     if( p_access->b_preparsing )
     {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Set up p_access */
@@ -380,14 +381,14 @@ static int Open( vlc_object_t *p_this )
 
     if( !p_access->psz_location )
     {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Allocate the structure for holding AMT info and zeroize it */
-    sys = vlc_obj_calloc( p_this, 1, sizeof( *sys ) );
+    sys = heimdall_obj_calloc( p_this, 1, sizeof( *sys ) );
     if( unlikely( sys == NULL ) )
     {
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     sys->mtu = 1500;
@@ -398,17 +399,17 @@ static int Open( vlc_object_t *p_this )
 
     /* Parse psz_url syntax :
      * [serveraddr[:serverport]][@[bindaddr]:[bindport]] */
-    if( vlc_UrlParse( &url, p_access->psz_url ) != 0 )
+    if( heimdall_UrlParse( &url, p_access->psz_url ) != 0 )
     {
         msg_Err( p_access, "Invalid URL: %s", p_access->psz_url );
-        VLC_ret = VLC_EGENERIC;
+        Heimdall_ret = HEIMDALL_EGENERIC;
         goto cleanup;
     }
 
     /* Determining the multicast source and group depends on the URL provided */
     /*                                                                        */
     /* The address(es) in the URL can be in the form of IP address or FQDN    */
-    /* By calling vlc_getaaddrinfo() you get it in IP form either way         */
+    /* By calling heimdall_getaaddrinfo() you get it in IP form either way         */
     /*                                                                        */
     /* Case 1: amt://<source-ip-address>@<multicast-group-ip-address>         */
     /*                                                                        */
@@ -436,19 +437,19 @@ static int Open( vlc_object_t *p_this )
 
     msg_Dbg( p_access, "Opening multicast: %s:%d local=%s:%d", url.psz_host, i_server_port, url.psz_path, i_bind_port );
 
-    /* Initialize hints prior to call to vlc_getaddrinfo with either IP address or FQDN */
+    /* Initialize hints prior to call to heimdall_getaddrinfo with either IP address or FQDN */
     memset( &hints, 0, sizeof( hints ));
     hints.ai_family = AF_UNSPEC;  /* Setting to AF_UNSPEC accepts both IPv4 and IPv6 */
     hints.ai_socktype = SOCK_DGRAM;
 
     /* Retrieve list of multicast addresses matching the multicast group identifier */
-    response = vlc_getaddrinfo( url.psz_host, AMT_PORT, &hints, &serverinfo );
+    response = heimdall_getaddrinfo( url.psz_host, AMT_PORT, &hints, &serverinfo );
 
     /* If an error returned print reason and exit */
     if( response != 0 )
     {
         msg_Err( p_access, "Could not find multicast group %s, reason: %s", url.psz_host, gai_strerror(response) );
-        VLC_ret = VLC_EGENERIC;
+        Heimdall_ret = HEIMDALL_EGENERIC;
         goto cleanup;
     }
 
@@ -493,7 +494,7 @@ static int Open( vlc_object_t *p_this )
     if ( !psz_strtok_r )
     {
         msg_Err( p_access, "Could not parse location %s", p_access->psz_location);
-        VLC_ret = VLC_EGENERIC;
+        Heimdall_ret = HEIMDALL_EGENERIC;
         goto cleanup;
     }
 
@@ -511,13 +512,13 @@ static int Open( vlc_object_t *p_this )
     else
     {
         /* retrieve list of source addresses matching the multicast source identifier */
-        response = vlc_getaddrinfo( mcastSrc, AMT_PORT, &hints, &serverinfo );
+        response = heimdall_getaddrinfo( mcastSrc, AMT_PORT, &hints, &serverinfo );
 
         /* If an error returned print reason and exit */
         if( response != 0 )
         {
             msg_Err( p_access, "Could not find multicast source %s, reason: %s", mcastSrc, gai_strerror(response) );
-            VLC_ret = VLC_EGENERIC;
+            Heimdall_ret = HEIMDALL_EGENERIC;
             goto cleanup;
         }
 
@@ -554,7 +555,7 @@ static int Open( vlc_object_t *p_this )
     if( unlikely( sys->relay == NULL ) )
     {
         msg_Err( p_access, "No relay anycast or unicast address specified." );
-        VLC_ret = VLC_EGENERIC;
+        Heimdall_ret = HEIMDALL_EGENERIC;
         goto cleanup;
     }
 
@@ -566,14 +567,14 @@ static int Open( vlc_object_t *p_this )
                              mcastSrc, i_server_port, IPPROTO_UDP );
     if( sys->fd == -1 )
     {
-        VLC_ret = VLC_EGENERIC;
+        Heimdall_ret = HEIMDALL_EGENERIC;
         goto cleanup;
     }
 
-    int ret = vlc_timer_create( &sys->updateTimer, amt_update_timer_cb, p_access );
+    int ret = heimdall_timer_create( &sys->updateTimer, amt_update_timer_cb, p_access );
     if( ret != 0 )
     {
-        VLC_ret = VLC_EGENERIC;
+        Heimdall_ret = HEIMDALL_EGENERIC;
         goto cleanup;
     }
 
@@ -585,29 +586,29 @@ static int Open( vlc_object_t *p_this )
 
 cleanup: /* fall through */
 
-    vlc_UrlClean( &url );
+    heimdall_UrlClean( &url );
     if( serverinfo )
         freeaddrinfo( serverinfo );
 
-    if ( VLC_ret != VLC_SUCCESS )
+    if ( Heimdall_ret != HEIMDALL_SUCCESS )
     {
         free( sys->relay );
         if( sys->fd != -1 )
             net_Close( sys->fd );
     }
 
-    return VLC_ret;
+    return Heimdall_ret;
 }
 
 /*****************************************************************************
  * Close: Cancel thread and free data structures
  *****************************************************************************/
-static void Close( vlc_object_t *p_this )
+static void Close( heimdall_object_t *p_this )
 {
     stream_t     *p_access = (stream_t*)p_this;
     access_sys_t *sys = p_access->p_sys;
 
-    vlc_timer_destroy( sys->updateTimer );
+    heimdall_timer_destroy( sys->updateTimer );
 
     /* If using AMT tunneling send leave message and free the relay addresses */
     if ( sys->tryAMT )
@@ -639,15 +640,15 @@ static int Control( stream_t *p_access, int i_query, va_list args )
             break;
 
         case STREAM_GET_PTS_DELAY:
-            *va_arg( args, vlc_tick_t * ) =
-                VLC_TICK_FROM_MS(var_InheritInteger( p_access, "network-caching" ));
+            *va_arg( args, heimdall_tick_t * ) =
+                HEIMDALL_TICK_FROM_MS(var_InheritInteger( p_access, "network-caching" ));
             break;
 
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -677,7 +678,7 @@ static block_t *BlockAMT(stream_t *p_access, bool *restrict eof)
         ufd[0].fd = sys->fd;   /* Native multicast file descriptor */
     ufd[0].events = POLLIN;
 
-    switch (vlc_poll_i11e(ufd, 1, sys->timeout))
+    switch (heimdall_poll_i11e(ufd, 1, sys->timeout))
     {
         case 0:
             if( !sys->tryAMT )
@@ -866,7 +867,7 @@ static bool open_amt_tunnel( stream_t *p_access )
     sys->tryAMT = true;
 
     /* Retrieve list of addresses matching the AMT relay */
-    int response = vlc_getaddrinfo( sys->relay, AMT_PORT, &hints, &serverinfo );
+    int response = heimdall_getaddrinfo( sys->relay, AMT_PORT, &hints, &serverinfo );
 
     /* If an error returned print reason and exit */
     if( response != 0 )
@@ -876,7 +877,7 @@ static bool open_amt_tunnel( stream_t *p_access )
     }
 
     /* Iterate through the list of sockets to find one that works */
-    for (server = serverinfo; server != NULL && !vlc_killed(); server = server->ai_next)
+    for (server = serverinfo; server != NULL && !heimdall_killed(); server = server->ai_next)
     {
         struct sockaddr *server_addr = server->ai_addr; /* can be either an ipv4 struct sockaddr_in or a ipv6 struct sockaddr_in6 */
         char relay_ip[INET6_ADDRSTRLEN];
@@ -929,7 +930,7 @@ static bool open_amt_tunnel( stream_t *p_access )
 
         if( !amt_rcv_relay_mem_query( p_access ) )
         {
-            msg_Err( p_access, "Could not receive AMT relay membership query from %s, reason: %s", relay_ip, vlc_strerror(errno));
+            msg_Err( p_access, "Could not receive AMT relay membership query from %s, reason: %s", relay_ip, heimdall_strerror(errno));
             goto error;
         }
         msg_Dbg( p_access, "Received AMT relay membership query from %s", relay_ip );
@@ -950,8 +951,8 @@ static bool open_amt_tunnel( stream_t *p_access )
             msg_Dbg( p_access, "Got UDP packet from multicast group via AMT relay %s, continuing...", relay_ip );
 
             /* Arm IGMP timer once we've confirmed we are getting packets */
-            vlc_timer_schedule( sys->updateTimer, false,
-                        VLC_TICK_FROM_SEC( sys->relayDiscoAddr.sin.sin_family == AF_INET ? sys->relay_query.igmp.qqic : sys->relay_query.mld.qqic), 0 );
+            heimdall_timer_schedule( sys->updateTimer, false,
+                        HEIMDALL_TICK_FROM_SEC( sys->relayDiscoAddr.sin.sin_family == AF_INET ? sys->relay_query.igmp.qqic : sys->relay_query.mld.qqic), 0 );
             msg_Err(p_access, "Arming timer. qqic is %d",sys->relayDiscoAddr.sin.sin_family == AF_INET ? sys->relay_query.igmp.qqic : sys->relay_query.mld.qqic);
 
             break;   /* found an active server sending UDP packets, so exit loop */
@@ -970,7 +971,7 @@ static bool open_amt_tunnel( stream_t *p_access )
     return true;
 
 error:
-    vlc_timer_disarm( sys->updateTimer );
+    heimdall_timer_disarm( sys->updateTimer );
     if( serverinfo )
     {
         freeaddrinfo( serverinfo );
@@ -1070,7 +1071,7 @@ static int make_mld_report( stream_t *p_access, bool leave, amt_mldv2_listener_r
     report->records[0].aux_data_len = 0;
     report->records[0].num_srcs = 1;
     report->records[0].mcast_address = *group;
-    report->records[0].sources = vlc_obj_calloc( p_access, 1, 16); /* ipv6 addr */
+    report->records[0].sources = heimdall_obj_calloc( p_access, 1, 16); /* ipv6 addr */
     if ( !report->records[0].sources )
     {
         return 1;
@@ -1141,12 +1142,12 @@ static void make_ipv6( amt_ipv6_t *p, uint16_t length, struct in6_addr *dst )
  */
 static int amt_sockets_init( stream_t *p_access )
 {
-    vlc_sockaddr rcvAddr = {0};
+    heimdall_sockaddr rcvAddr = {0};
     access_sys_t *sys = p_access->p_sys;
     int enable = 0, res = 0;
 
     /* create UDP socket */
-    sys->sAMT = vlc_socket( sys->relayDiscoAddr.sin.sin_family, SOCK_DGRAM, IPPROTO_UDP, true );
+    sys->sAMT = heimdall_socket( sys->relayDiscoAddr.sin.sin_family, SOCK_DGRAM, IPPROTO_UDP, true );
     if( sys->sAMT == -1 )
     {
         msg_Err( p_access, "Failed to create UDP socket" );
@@ -1178,11 +1179,11 @@ static int amt_sockets_init( stream_t *p_access )
 
     if( bind(sys->sAMT, &rcvAddr.sa, rcvNamelen ) != 0 )
     {
-        msg_Err( p_access, "Failed to bind UDP socket error: %s", vlc_strerror(errno) );
+        msg_Err( p_access, "Failed to bind UDP socket error: %s", heimdall_strerror(errno) );
         goto error;
     }
 
-    sys->sQuery = vlc_socket( sys->relayDiscoAddr.sin.sin_family, SOCK_DGRAM, IPPROTO_UDP, true );
+    sys->sQuery = heimdall_socket( sys->relayDiscoAddr.sin.sin_family, SOCK_DGRAM, IPPROTO_UDP, true );
     if( sys->sQuery == -1 )
     {
         msg_Err( p_access, "Failed to create query socket" );
@@ -1190,7 +1191,7 @@ static int amt_sockets_init( stream_t *p_access )
     }
 
     /* bind socket to local address */
-    vlc_sockaddr stLocalAddr = {0};
+    heimdall_sockaddr stLocalAddr = {0};
     socklen_t stLocalNamelen;
     if (sys->relayDiscoAddr.sin.sin_family == AF_INET)
     {
@@ -1255,7 +1256,7 @@ static void amt_send_relay_discovery_msg( stream_t *p_access, char *relay_ip )
     chaSendBuffer[3] = 0;
 
     /* create nonce and copy into send buffer */
-    vlc_rand_bytes (&sys->glob_ulNonce, sizeof (sys->glob_ulNonce));
+    heimdall_rand_bytes (&sys->glob_ulNonce, sizeof (sys->glob_ulNonce));
     memcpy( &chaSendBuffer[4], &sys->glob_ulNonce, sizeof(sys->glob_ulNonce) );
 
     /* send it */
@@ -1263,7 +1264,7 @@ static void amt_send_relay_discovery_msg( stream_t *p_access, char *relay_ip )
 
     if( nRet < 0)
     {
-        msg_Err( p_access, "Sendto failed to %s with error: %s.", relay_ip, vlc_strerror_c(errno));
+        msg_Err( p_access, "Sendto failed to %s with error: %s.", relay_ip, heimdall_strerror_c(errno));
     }
 }
 
@@ -1313,7 +1314,7 @@ static void amt_send_relay_request( stream_t *p_access, char *relay_ip )
 
     if( nRet < 0 )
     {
-        msg_Err(p_access, "Error sending relay request to %s error: %s", relay_ip, vlc_strerror(errno) );
+        msg_Err(p_access, "Error sending relay request to %s error: %s", relay_ip, heimdall_strerror(errno) );
     }
 }
 
@@ -1511,7 +1512,7 @@ static int amt_send_mem_update( stream_t *p_access, bool leave)
 
         send( sys->sAMT, pSendBuffer, i_sendBufSizeIPv6, 0 );
 
-        vlc_obj_free( p_access, report.records[0].sources); /* allocd in the make_mld_report() function */
+        heimdall_obj_free( p_access, report.records[0].sources); /* allocd in the make_mld_report() function */
     }
 
 
@@ -1550,7 +1551,7 @@ static bool amt_rcv_relay_adv( stream_t *p_access )
     ufd[0].fd = sys->sAMT;
     ufd[0].events = POLLIN;
 
-    switch( vlc_poll_i11e(ufd, 1, sys->timeout) )
+    switch( heimdall_poll_i11e(ufd, 1, sys->timeout) )
     {
         case 0:
             msg_Err(p_access, "AMT relay advertisement receive time-out");
@@ -1585,7 +1586,7 @@ static bool amt_rcv_relay_adv( stream_t *p_access )
         return false;
     }
 
-    vlc_sockaddr relayAddr = {0};
+    heimdall_sockaddr relayAddr = {0};
     socklen_t relayNamelen;
     void *bin_address_start;
     if (sys->relayDiscoAddr.sin.sin_family == AF_INET)
@@ -1608,7 +1609,7 @@ static bool amt_rcv_relay_adv( stream_t *p_access )
     int nRet = connect( sys->sAMT, &relayAddr.sa, relayNamelen );
     if( nRet < 0 )
     {
-        msg_Err( p_access, "Error connecting AMT UDP socket: %s", vlc_strerror(errno) );
+        msg_Err( p_access, "Error connecting AMT UDP socket: %s", heimdall_strerror(errno) );
         return false;
     }
 
@@ -1651,7 +1652,7 @@ static bool amt_rcv_relay_mem_query( stream_t *p_access )
     ufd[0].fd = sys->sAMT;
     ufd[0].events = POLLIN;
 
-    switch( vlc_poll_i11e(ufd, 1, sys->timeout) )
+    switch( heimdall_poll_i11e(ufd, 1, sys->timeout) )
     {
         case 0:
             msg_Err(p_access, "AMT relay membership query receive time-out");
@@ -1733,11 +1734,11 @@ static bool amt_rcv_relay_mem_query( stream_t *p_access )
             msg_Err(p_access, "Too many source addresses in mld query - currently we only handle %d sources!",AMT_IPV6_MAX_NUM_SOURCES);
             return false;
         }
-        sys->relay_query.mld.srcs = vlc_obj_calloc(p_access, sys->relay_query.mld.num_srcs, 16);
+        sys->relay_query.mld.srcs = heimdall_obj_calloc(p_access, sys->relay_query.mld.num_srcs, 16);
         if( unlikely( sys->relay_query.mld.srcs == NULL ) )
         {
             msg_Err(p_access, "AMT: Out of memory");
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         }
         for ( int i = 0; i < sys->relay_query.mld.num_srcs; i++ )
         {
@@ -1766,6 +1767,6 @@ static void amt_update_timer_cb( void *data )
 
     /* Arms the timer again for a single shot from this callback. That way, the
      * time spent in amt_send_mem_update() is taken into consideration. */
-    vlc_timer_schedule( sys->updateTimer, false,
-                        VLC_TICK_FROM_SEC( sys->mcastGroupAddr.sin.sin_family == AF_INET ? sys->relay_query.igmp.qqic : sys->relay_query.mld.qqic), 0 );
+    heimdall_timer_schedule( sys->updateTimer, false,
+                        HEIMDALL_TICK_FROM_SEC( sys->mcastGroupAddr.sin.sin_family == AF_INET ? sys->relay_query.igmp.qqic : sys->relay_query.mld.qqic), 0 );
 }

@@ -2,6 +2,7 @@
  * devicelister.h: Media library network file system
  *****************************************************************************
  * Copyright (C) 2018 VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -23,13 +24,13 @@
 
 #include <medialibrary/IDeviceLister.h>
 
-#include <vlc_media_source.h>
-#include <vlc_threads.h>
-#include <vlc_cxx_helpers.hpp>
+#include <heimdall_media_source.h>
+#include <heimdall_threads.h>
+#include <heimdall_cxx_helpers.hpp>
 
 #include <vector>
 
-namespace vlc
+namespace heimdall
 {
 namespace medialibrary
 {
@@ -39,7 +40,7 @@ namespace ml = ::medialibrary;
 class DeviceLister : public ml::IDeviceLister
 {
 public:
-    DeviceLister(vlc_object_t* parent);
+    DeviceLister(heimdall_object_t* parent);
 
 private:
     /*
@@ -50,36 +51,36 @@ private:
     bool start( ml::IDeviceListerCb* cb ) override;
     void stop() override;
 
-    static void onChildrenReset( vlc_media_tree_t* tree, input_item_node_t* node,
+    static void onChildrenReset( heimdall_media_tree_t* tree, input_item_node_t* node,
                                  void* data );
-    static void onChildrenAdded( vlc_media_tree_t* tree, input_item_node_t* node,
+    static void onChildrenAdded( heimdall_media_tree_t* tree, input_item_node_t* node,
                                  input_item_node_t* const children[], size_t count,
                                  void *data );
-    static void onChildrenRemoved( vlc_media_tree_t* tree, input_item_node_t* node,
+    static void onChildrenRemoved( heimdall_media_tree_t* tree, input_item_node_t* node,
                                    input_item_node_t* const children[], size_t count,
                                    void* data );
 
 
-    void onChildrenReset( vlc_media_tree_t* tree, input_item_node_t* node );
-    void onChildrenAdded( vlc_media_tree_t* tree, input_item_node_t* node,
+    void onChildrenReset( heimdall_media_tree_t* tree, input_item_node_t* node );
+    void onChildrenAdded( heimdall_media_tree_t* tree, input_item_node_t* node,
                           input_item_node_t* const children[], size_t count );
-    void onChildrenRemoved( vlc_media_tree_t* tree, input_item_node_t* node,
+    void onChildrenRemoved( heimdall_media_tree_t* tree, input_item_node_t* node,
                             input_item_node_t* const children[], size_t count );
 
 private:
-    vlc_object_t* m_parent;
+    heimdall_object_t* m_parent;
     ml::IDeviceListerCb* m_cb;
-    vlc::threads::mutex m_mutex;
+    heimdall::threads::mutex m_mutex;
     struct MediaSource
     {
-        MediaSource( vlc_media_source_t* );
+        MediaSource( heimdall_media_source_t* );
         ~MediaSource();
         MediaSource( const MediaSource& ) = delete;
         MediaSource& operator=( const MediaSource& ) = delete;
         MediaSource( MediaSource&& ) noexcept;
         MediaSource& operator=( MediaSource&& ) noexcept;
-        vlc_media_source_t* s;
-        vlc_media_tree_listener_id* l;
+        heimdall_media_source_t* s;
+        heimdall_media_tree_listener_id* l;
     };
     std::vector<MediaSource> m_mediaSources;
 };

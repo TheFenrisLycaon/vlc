@@ -1,7 +1,8 @@
 /******************************************************************************
- * edgedetection.c : edge detection plugin for VLC
+ * edgedetection.c : edge detection plugin for Heimdall
   *****************************************************************************
  * Copyright (C) 2016 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Odd-Arild Kristensen <oddarildkristensen@gmail.com>
  *
@@ -27,10 +28,10 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_picture.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
 
 /*****************************************************************************
  * Module descriptor
@@ -65,7 +66,7 @@ static const signed char pi_kernel_y[3][3] = {
     {1, 2, 1}
 };
 
-vlc_module_begin ()
+heimdall_module_begin ()
 
     set_description( EDGE_DETECTION_DESCRIPTION )
     set_shortname( EDGE_DETECTION_TEXT )
@@ -73,7 +74,7 @@ vlc_module_begin ()
     set_subcategory( SUBCAT_VIDEO_VFILTER )
     set_callback_video_filter( Open )
 
-vlc_module_end ()
+heimdall_module_end ()
 
 static const struct filter_video_callbacks filter_video_edge_cbs =
 {
@@ -86,7 +87,7 @@ static void Flush( filter_t *p_filter )
     filter_chain_VideoFlush( p_sys );
 }
 
-static const struct vlc_filter_operations filter_ops =
+static const struct heimdall_filter_operations filter_ops =
 {
     .filter_video = Filter, .flush = Flush, .close = Close,
 };
@@ -110,7 +111,7 @@ static int Open( filter_t *p_filter  )
     if ( sys == NULL)
     {
         msg_Err( p_filter, "Could not allocate filter chain" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     /* Clear filter chain */
     filter_chain_Reset( sys, &p_filter->fmt_in, p_filter->vctx_in, &p_filter->fmt_in);
@@ -120,7 +121,7 @@ static int Open( filter_t *p_filter  )
     {
         msg_Err( p_filter, "Could not append filter to filter chain" );
         filter_chain_Delete( sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     /* Add gaussian blur to the frame so to remove noise from the frame */
     i_ret = filter_chain_AppendFromString( sys, "gaussianblur{deviation=1}" );
@@ -128,12 +129,12 @@ static int Open( filter_t *p_filter  )
     {
         msg_Err( p_filter, "Could not append filter to filter chain" );
         filter_chain_Delete( sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     /* Set callback function */
     p_filter->ops = &filter_ops;
     p_filter->p_sys = sys;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /******************************************************************************

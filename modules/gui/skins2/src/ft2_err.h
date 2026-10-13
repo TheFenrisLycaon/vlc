@@ -2,8 +2,9 @@
  * ft2_err.h: turn freetype2 errors into strings
  *****************************************************************************
  * Copyright (C) 2009 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: JP Dinger <jpd (at) videolan (dot) org>
+ * Authors: JP Dinger <jpd (at) lycaria (dot) org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

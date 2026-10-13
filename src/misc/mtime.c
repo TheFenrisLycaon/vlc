@@ -1,9 +1,10 @@
 /*****************************************************************************
  * mtime.c: high resolution time management functions
- * Functions are prototyped in vlc_tick.h.
+ * Functions are prototyped in heimdall_tick.h.
  *****************************************************************************
  * Copyright (C) 1998-2007 VLC authors and VideoLAN
  * Copyright © 2006-2007 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Vincent Seguin <seguin@via.ecp.fr>
  *          Rémi Denis-Courmont
@@ -32,23 +33,23 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_tick.h>
+#include <heimdall_common.h>
+#include <heimdall_tick.h>
 #include <assert.h>
 
 #include <time.h>
 #include <stdlib.h>
 
-char *vlc_tick_to_str( char *psz_buffer, vlc_tick_t ticks )
+char *heimdall_tick_to_str( char *psz_buffer, heimdall_tick_t ticks )
 {
     if( unlikely(ticks < 0) )
     {
-        vlc_tick_to_str( psz_buffer + 1, -ticks );
+        heimdall_tick_to_str( psz_buffer + 1, -ticks );
         *psz_buffer = '-';
         return psz_buffer;
     }
 
-    int i_seconds = SEC_FROM_VLC_TICK(ticks);
+    int i_seconds = SEC_FROM_HEIMDALL_TICK(ticks);
     div_t d;
 
     d = div( i_seconds, 60 );
@@ -70,7 +71,7 @@ char *vlc_tick_to_str( char *psz_buffer, vlc_tick_t ticks )
 
 void date_Init( date_t *p_date, uint32_t i_divider_n, uint32_t i_divider_d )
 {
-    p_date->date = VLC_TICK_INVALID;
+    p_date->date = HEIMDALL_TICK_INVALID;
     p_date->i_divider_num = i_divider_n;
     p_date->i_divider_den = i_divider_d;
     p_date->i_remainder = 0;
@@ -85,12 +86,12 @@ void date_Change( date_t *p_date, uint32_t i_divider_n, uint32_t i_divider_d )
     p_date->i_divider_den = i_divider_d;
 }
 
-vlc_tick_t date_Increment( date_t *p_date, uint32_t i_nb_samples )
+heimdall_tick_t date_Increment( date_t *p_date, uint32_t i_nb_samples )
 {
-    if(unlikely(p_date->date == VLC_TICK_INVALID))
-        return VLC_TICK_INVALID;
+    if(unlikely(p_date->date == HEIMDALL_TICK_INVALID))
+        return HEIMDALL_TICK_INVALID;
     assert( p_date->i_divider_num != 0 );
-    vlc_tick_t i_dividend = i_nb_samples * CLOCK_FREQ * p_date->i_divider_den;
+    heimdall_tick_t i_dividend = i_nb_samples * CLOCK_FREQ * p_date->i_divider_den;
     lldiv_t d = lldiv( i_dividend, p_date->i_divider_num );
 
     p_date->date += d.quot;
@@ -107,11 +108,11 @@ vlc_tick_t date_Increment( date_t *p_date, uint32_t i_nb_samples )
     return p_date->date;
 }
 
-vlc_tick_t date_Decrement( date_t *p_date, uint32_t i_nb_samples )
+heimdall_tick_t date_Decrement( date_t *p_date, uint32_t i_nb_samples )
 {
-    if(unlikely(p_date->date == VLC_TICK_INVALID))
-        return VLC_TICK_INVALID;
-    vlc_tick_t i_dividend = (vlc_tick_t)i_nb_samples * CLOCK_FREQ * p_date->i_divider_den;
+    if(unlikely(p_date->date == HEIMDALL_TICK_INVALID))
+        return HEIMDALL_TICK_INVALID;
+    heimdall_tick_t i_dividend = (heimdall_tick_t)i_nb_samples * CLOCK_FREQ * p_date->i_divider_den;
     p_date->date -= i_dividend / p_date->i_divider_num;
     unsigned i_rem_adjust = i_dividend % p_date->i_divider_num;
 
@@ -128,7 +129,7 @@ vlc_tick_t date_Decrement( date_t *p_date, uint32_t i_nb_samples )
     return p_date->date;
 }
 
-uint64_t vlc_ntp_time(void)
+uint64_t heimdall_ntp_time(void)
 {
     struct timespec ts;
 
@@ -145,12 +146,12 @@ uint64_t vlc_ntp_time(void)
     return t;
 }
 
-struct timespec *vlc_tick_to_timespec(struct timespec *restrict ts,
-                                      vlc_tick_t tick)
+struct timespec *heimdall_tick_to_timespec(struct timespec *restrict ts,
+                                      heimdall_tick_t tick)
 {
     lldiv_t d = lldiv(tick, CLOCK_FREQ);
 
     ts->tv_sec = d.quot;
-    ts->tv_nsec = NS_FROM_VLC_TICK(d.rem);
+    ts->tv_nsec = NS_FROM_HEIMDALL_TICK(d.rem);
     return ts;
 }

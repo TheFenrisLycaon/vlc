@@ -1,7 +1,8 @@
 /*****************************************************************************
- * actions.c: handle vlc actions
+ * actions.c: handle heimdall actions
  *****************************************************************************
  * Copyright (C) 2003-2016 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Sigmund Augdal Helberg <dnumgis@videolan.org>
  *
@@ -26,7 +27,7 @@
 
 /**
  * \file
- * This file defines functions and structures for hotkey handling in vlc
+ * This file defines functions and structures for hotkey handling in heimdall
  */
 
 #include <assert.h>
@@ -37,10 +38,10 @@
 #endif
 #include <errno.h>
 
-#include <vlc_common.h>
-#include <vlc_actions.h>
-#include <vlc_charset.h>
-#include "../libvlc.h"
+#include <heimdall_common.h>
+#include <heimdall_actions.h>
+#include <heimdall_charset.h>
+#include "../libheimdall.h"
 
 static const struct key_descriptor
 {
@@ -187,13 +188,13 @@ static char *utf8_cp (uint_fast32_t cp, char *buf)
 }
 
 /**
- * Parse a human-readable string representation of a VLC key code.
+ * Parse a human-readable string representation of a Heimdall key code.
  * @note This only works with the American English representation
  * (a.k.a. C or POSIX), not with the local representation returned from
- * vlc_keycode2str().
- * @return a VLC key code, or KEY_UNSET on failure.
+ * heimdall_keycode2str().
+ * @return a Heimdall key code, or KEY_UNSET on failure.
  */
-uint_fast32_t vlc_str2keycode (const char *name)
+uint_fast32_t heimdall_str2keycode (const char *name)
 {
     uint_fast32_t mods = 0;
     uint32_t code;
@@ -222,7 +223,7 @@ uint_fast32_t vlc_str2keycode (const char *name)
                                              sizeof (s_keys[0]), keystrcmp);
     if (d != NULL)
         code = d->i_code;
-    else if (vlc_towc (name, &code) <= 0)
+    else if (heimdall_towc (name, &code) <= 0)
         return KEY_UNSET;
 
     if (code != KEY_UNSET)
@@ -236,16 +237,16 @@ static const char *nooptext (const char *txt)
 }
 
 /**
- * Format a human-readable and unique representation of a VLC key code
+ * Format a human-readable and unique representation of a Heimdall key code
  * (including modifiers).
  * @param code key code to translate to a string
  * @param locale true to get a localized string,
- *               false to get a C string suitable for 'vlcrc'
+ *               false to get a C string suitable for 'heimdallrc'
  * @return a heap-allocated string, or NULL on error.
  */
-char *vlc_keycode2str (uint_fast32_t code, bool locale)
+char *heimdall_keycode2str (uint_fast32_t code, bool locale)
 {
-    const char *(*tr)(const char *) = locale ? vlc_gettext : nooptext;
+    const char *(*tr)(const char *) = locale ? heimdall_gettext : nooptext;
     const char *name;
     char *str, buf[5];
     uintptr_t key = code & ~KEY_MODIFIER;
@@ -274,13 +275,13 @@ found:
 }
 
 
-/*** VLC key map ***/
+/*** Heimdall key map ***/
 
 #define MAXACTION 27
 static const struct name2action
 {
     char psz[MAXACTION];
-    vlc_action_id_t id;
+    heimdall_action_id_t id;
 } s_names2actions[] =
 {
     /* *MUST* be sorted (ASCII order) */
@@ -403,7 +404,7 @@ static const struct name2action
 struct mapping
 {
     uint32_t     key; ///< Key code
-    vlc_action_id_t action; ///< Action ID
+    heimdall_action_id_t action; ///< Action ID
 };
 
 static int keycmp (const void *a, const void *b)
@@ -413,15 +414,15 @@ static int keycmp (const void *a, const void *b)
     return (ka->key < kb->key) ? -1 : (ka->key > kb->key) ? +1 : 0;
 }
 
-struct vlc_actions_t
+struct heimdall_actions_t
 {
     void *map; /* Key map */
     void *global_map; /* Grabbed/global key map */
     const char *ppsz_keys[];
 };
 
-static int vlc_key_to_action (vlc_object_t *obj, const char *varname,
-                              vlc_value_t prevkey, vlc_value_t curkey, void *d)
+static int heimdall_key_to_action (heimdall_object_t *obj, const char *varname,
+                              heimdall_value_t prevkey, heimdall_value_t curkey, void *d)
 {
     void *const *map = d;
     const void **pent;
@@ -429,7 +430,7 @@ static int vlc_key_to_action (vlc_object_t *obj, const char *varname,
 
     pent = tfind (&keycode, map, keycmp);
     if (pent == NULL)
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
     const struct mapping *ent = *pent;
 
@@ -441,7 +442,7 @@ static int vlc_key_to_action (vlc_object_t *obj, const char *varname,
 /**
  * Adds a mapping from a certain key code to a certain action.
  */
-static int add_mapping (void **map, uint32_t keycode, vlc_action_id_t action)
+static int add_mapping (void **map, uint32_t keycode, heimdall_action_id_t action)
 {
     struct mapping *entry = malloc (sizeof (*entry));
     if (entry == NULL)
@@ -463,7 +464,7 @@ static int add_mapping (void **map, uint32_t keycode, vlc_action_id_t action)
 static void add_wheel_mapping (void **map, uint32_t kmore, uint32_t kless,
                                  int mode)
 {
-    vlc_action_id_t amore = ACTIONID_NONE, aless = ACTIONID_NONE;
+    heimdall_action_id_t amore = ACTIONID_NONE, aless = ACTIONID_NONE;
 
     switch (mode)
     {
@@ -491,13 +492,13 @@ static void add_wheel_mapping (void **map, uint32_t kmore, uint32_t kless,
 /**
  * Sets up all key mappings for a given action.
  *
- * \param obj the VLC object to inherit keys from and log to
+ * \param obj the Heimdall object to inherit keys from and log to
  * \param map tree (of struct mapping entries) to write mappings to
- * \param confname VLC configuration item to read mappings from
+ * \param confname Heimdall configuration item to read mappings from
  * \param action action ID
  */
-static void init_action (vlc_object_t *obj, void **map,
-                            const char *confname, vlc_action_id_t action)
+static void init_action (heimdall_object_t *obj, void **map,
+                            const char *confname, heimdall_action_id_t action)
 {
     char *keys = var_InheritString (obj, confname);
     if (keys == NULL)
@@ -507,7 +508,7 @@ static void init_action (vlc_object_t *obj, void **map,
          key != NULL;
          key = strtok_r (NULL, "\t", &buf))
     {
-        uint32_t code = vlc_str2keycode (key);
+        uint32_t code = heimdall_str2keycode (key);
         if (code == KEY_UNSET)
         {
             msg_Warn (obj, "Key \"%s\" unrecognized", key);
@@ -523,22 +524,22 @@ static void init_action (vlc_object_t *obj, void **map,
 /**
  * Initializes the key map from configuration.
  */
-int libvlc_InternalActionsInit (libvlc_int_t *libvlc)
+int libheimdall_InternalActionsInit (libheimdall_int_t *libheimdall)
 {
-    assert(libvlc != NULL);
+    assert(libheimdall != NULL);
 
-    vlc_object_t *obj = VLC_OBJECT(libvlc);
-    vlc_actions_t *as = malloc (sizeof (*as) + (1 + ARRAY_SIZE(s_names2actions))
+    heimdall_object_t *obj = HEIMDALL_OBJECT(libheimdall);
+    heimdall_actions_t *as = malloc (sizeof (*as) + (1 + ARRAY_SIZE(s_names2actions))
                       * sizeof (*as->ppsz_keys));
 
     if (unlikely(as == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     as->map = NULL;
     as->global_map = NULL;
 
-    var_Create (obj, "key-pressed", VLC_VAR_INTEGER);
-    var_Create (obj, "global-key-pressed", VLC_VAR_INTEGER);
-    var_Create (obj, "key-action", VLC_VAR_INTEGER);
+    var_Create (obj, "key-pressed", HEIMDALL_VAR_INTEGER);
+    var_Create (obj, "global-key-pressed", HEIMDALL_VAR_INTEGER);
+    var_Create (obj, "key-action", HEIMDALL_VAR_INTEGER);
 
     /* Initialize from configuration */
     for (size_t i = 0; i < ARRAY_SIZE(s_names2actions); i++)
@@ -547,7 +548,7 @@ int libvlc_InternalActionsInit (libvlc_int_t *libvlc)
         if (i > 0
          && strcmp (s_names2actions[i-1].psz, s_names2actions[i].psz) >= 0)
         {
-            msg_Err (libvlc, "key-%s and key-%s are not ordered properly",
+            msg_Err (libheimdall, "key-%s and key-%s are not ordered properly",
                      s_names2actions[i-1].psz, s_names2actions[i].psz);
             abort ();
         }
@@ -570,32 +571,32 @@ int libvlc_InternalActionsInit (libvlc_int_t *libvlc)
     add_wheel_mapping (&as->map, KEY_MOUSEWHEELUP, KEY_MOUSEWHEELDOWN,
                          var_InheritInteger (obj, "hotkeys-y-wheel-mode"));
 
-    libvlc_priv(libvlc)->actions = as;
-    var_AddCallback (obj, "key-pressed", vlc_key_to_action, &as->map);
-    var_AddCallback (obj, "global-key-pressed", vlc_key_to_action,
+    libheimdall_priv(libheimdall)->actions = as;
+    var_AddCallback (obj, "key-pressed", heimdall_key_to_action, &as->map);
+    var_AddCallback (obj, "global-key-pressed", heimdall_key_to_action,
                      &as->global_map);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /**
  * Destroys the key map.
  */
-void libvlc_InternalActionsClean (libvlc_int_t *libvlc)
+void libheimdall_InternalActionsClean (libheimdall_int_t *libheimdall)
 {
-    assert(libvlc != NULL);
+    assert(libheimdall != NULL);
 
-    vlc_actions_t *as = libvlc_priv(libvlc)->actions;
+    heimdall_actions_t *as = libheimdall_priv(libheimdall)->actions;
     if (unlikely(as == NULL))
         return;
 
-    var_DelCallback (libvlc, "global-key-pressed", vlc_key_to_action,
+    var_DelCallback (libheimdall, "global-key-pressed", heimdall_key_to_action,
                      &as->global_map);
-    var_DelCallback (libvlc, "key-pressed", vlc_key_to_action, &as->map);
+    var_DelCallback (libheimdall, "key-pressed", heimdall_key_to_action, &as->map);
 
     tdestroy (as->global_map, free);
     tdestroy (as->map, free);
     free (as);
-    libvlc_priv(libvlc)->actions = NULL;
+    libheimdall_priv(libheimdall)->actions = NULL;
 }
 
 
@@ -609,8 +610,8 @@ static int actcmp(const void *key, const void *ent)
  * Get the action ID from the action name in the configuration subsystem.
  * @return the action ID or ACTIONID_NONE on error.
  */
-vlc_action_id_t
-vlc_actions_get_id (const char *name)
+heimdall_action_id_t
+heimdall_actions_get_id (const char *name)
 {
     const struct name2action *act;
 
@@ -623,9 +624,9 @@ vlc_actions_get_id (const char *name)
     return (act != NULL) ? act->id : ACTIONID_NONE;
 }
 
-#undef vlc_actions_get_keycodes
+#undef heimdall_actions_get_keycodes
 size_t
-vlc_actions_get_keycodes(vlc_object_t *p_obj, const char *psz_key_name,
+heimdall_actions_get_keycodes(heimdall_object_t *p_obj, const char *psz_key_name,
                         bool b_global, uint_fast32_t **pp_keycodes)
 {
     assert(strlen( psz_key_name ) <= MAXACTION);
@@ -645,7 +646,7 @@ vlc_actions_get_keycodes(vlc_object_t *p_obj, const char *psz_key_name,
             ++i_nb_keycodes;
     }
     ++i_nb_keycodes;
-    *pp_keycodes = vlc_alloc( i_nb_keycodes, sizeof( **pp_keycodes ) );
+    *pp_keycodes = heimdall_alloc( i_nb_keycodes, sizeof( **pp_keycodes ) );
     if( unlikely( !*pp_keycodes ) )
     {
         free( psz_keys );
@@ -656,17 +657,17 @@ vlc_actions_get_keycodes(vlc_object_t *p_obj, const char *psz_key_name,
          key != NULL;
          key = strtok_r( NULL, "\t", &buf ), ++i )
     {
-        (*pp_keycodes)[i] = vlc_str2keycode( key );
+        (*pp_keycodes)[i] = heimdall_str2keycode( key );
     }
     assert( i == i_nb_keycodes );
     free( psz_keys );
     return i_nb_keycodes;
 }
 
-#undef vlc_actions_get_key_names
+#undef heimdall_actions_get_key_names
 const char* const*
-vlc_actions_get_key_names(vlc_object_t *p_obj)
+heimdall_actions_get_key_names(heimdall_object_t *p_obj)
 {
-    vlc_actions_t *as = libvlc_priv(vlc_object_instance(p_obj))->actions;
+    heimdall_actions_t *as = libheimdall_priv(heimdall_object_instance(p_obj))->actions;
     return as->ppsz_keys;
 }

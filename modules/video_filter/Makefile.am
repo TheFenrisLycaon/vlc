@@ -62,7 +62,7 @@ libpuzzle_plugin_la_LIBADD = $(LIBM)
 libripple_plugin_la_SOURCES = video_filter/ripple.c
 libripple_plugin_la_LIBADD = $(LIBM)
 librotate_plugin_la_SOURCES = video_filter/rotate.c
-librotate_plugin_la_LIBADD = libvlc_motion.la $(LIBM)
+librotate_plugin_la_LIBADD = libheimdall_motion.la $(LIBM)
 librotate_plugin_la_LDFLAGS = $(AM_LDFLAGS) $(video_filter_RPATH)
 if HAVE_DARWIN
 if !HAVE_TVOS

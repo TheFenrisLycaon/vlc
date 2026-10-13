@@ -2,6 +2,7 @@
  * IndexReader.hpp
  *****************************************************************************
  * Copyright (C) 2015 - VideoLAN and VLC authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -40,7 +41,7 @@ namespace dash
         class IndexReader : public AtomsReader
         {
             public:
-                IndexReader(vlc_object_t *);
+                IndexReader(heimdall_object_t *);
                 bool parseIndex(block_t *, BaseRepresentation *, uint64_t);
         };
     }

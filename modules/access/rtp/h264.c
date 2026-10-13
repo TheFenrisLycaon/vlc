@@ -3,6 +3,7 @@
  */
 /*****************************************************************************
  * Copyright (C) 2021 VideoLabs, VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License
@@ -27,16 +28,16 @@
 #include "h26x.h"
 #include "fmtp.h"
 
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
 
 struct h264_pt_opaque
 {
     block_t *sdpxps;
-    vlc_object_t *obj;
+    heimdall_object_t *obj;
 };
 
-static void *rtp_h264_init(struct vlc_rtp_pt *pt)
+static void *rtp_h264_init(struct heimdall_rtp_pt *pt)
 {
     struct h264_pt_opaque *opaque = pt->opaque;
     block_t *sdpparams = opaque->sdpxps;
@@ -46,7 +47,7 @@ static void *rtp_h264_init(struct vlc_rtp_pt *pt)
     rtp_h26x_init(sys);
 
     es_format_t fmt;
-    es_format_Init (&fmt, VIDEO_ES, VLC_CODEC_H264);
+    es_format_Init (&fmt, VIDEO_ES, HEIMDALL_CODEC_H264);
     fmt.b_packetized = false;
 
     sys->p_packetizer = demux_PacketizerNew(opaque->obj, &fmt, "rtp packetizer");
@@ -56,22 +57,22 @@ static void *rtp_h264_init(struct vlc_rtp_pt *pt)
         return NULL;
     }
 
-    sys->es = vlc_rtp_pt_request_es(pt, &sys->p_packetizer->fmt_out);
+    sys->es = heimdall_rtp_pt_request_es(pt, &sys->p_packetizer->fmt_out);
     if(sdpparams)
         sys->xps = block_Duplicate(sdpparams);
 
     return sys;
 }
 
-static void rtp_h264_destroy(struct vlc_rtp_pt *pt, void *data)
+static void rtp_h264_destroy(struct heimdall_rtp_pt *pt, void *data)
 {
-    VLC_UNUSED(pt);
+    HEIMDALL_UNUSED(pt);
     struct rtp_h26x_sys *sys = data;
     if(sys)
     {
         if(sys->p_packetizer)
             demux_PacketizerDestroy(sys->p_packetizer);
-        vlc_rtp_es_destroy(sys->es);
+        heimdall_rtp_es_destroy(sys->es);
         rtp_h26x_clear(sys);
         free(sys);
     }
@@ -150,7 +151,7 @@ static block_t * h264_chainsplit_MTAP(block_t *block, bool b_24ext,
                 else
                     SetDWBE(out->p_buffer, nalsz);
                 /* store offset as length */
-                out->i_pts = block->i_pts + vlc_tick_from_samples(tsoffset, 90000);
+                out->i_pts = block->i_pts + heimdall_tick_from_samples(tsoffset, 90000);
                 block_ChainLastAppend(&pp_chain_append, out);
             }
             p += payloadhdrsz + nalsz;
@@ -161,10 +162,10 @@ static block_t * h264_chainsplit_MTAP(block_t *block, bool b_24ext,
     return p_chain;
 }
 
-static void rtp_h264_decode(struct vlc_rtp_pt *pt, void *data, block_t *block,
-                            const struct vlc_rtp_pktinfo *restrict info)
+static void rtp_h264_decode(struct heimdall_rtp_pt *pt, void *data, block_t *block,
+                            const struct heimdall_rtp_pktinfo *restrict info)
 {
-    VLC_UNUSED(pt);
+    HEIMDALL_UNUSED(pt);
     struct rtp_h26x_sys *sys = data;
     const bool b_au_end = info->m;
 
@@ -172,7 +173,7 @@ static void rtp_h264_decode(struct vlc_rtp_pt *pt, void *data, block_t *block,
         goto drop;
 
     const uint8_t type = block->p_buffer[0] & 0x1F;
-    const vlc_tick_t pts = block->i_pts;
+    const heimdall_tick_t pts = block->i_pts;
     switch(type)
     {
         case 24: /* STAP-A */
@@ -252,7 +253,7 @@ drop:
     block_Release(block);
 }
 
-static void rtp_h264_release(struct vlc_rtp_pt *pt)
+static void rtp_h264_release(struct heimdall_rtp_pt *pt)
 {
     struct h264_pt_opaque *opaque = pt->opaque;
     if(opaque->sdpxps)
@@ -260,47 +261,47 @@ static void rtp_h264_release(struct vlc_rtp_pt *pt)
     free(opaque);
 }
 
-static const struct vlc_rtp_pt_operations rtp_h264_ops = {
+static const struct heimdall_rtp_pt_operations rtp_h264_ops = {
     rtp_h264_release, rtp_h264_init, rtp_h264_destroy, rtp_h264_decode,
 };
 
-static int rtp_h264_open(vlc_object_t *obj, struct vlc_rtp_pt *pt,
-                         const struct vlc_sdp_pt *desc)
+static int rtp_h264_open(heimdall_object_t *obj, struct heimdall_rtp_pt *pt,
+                         const struct heimdall_sdp_pt *desc)
 {
-    VLC_UNUSED(obj);
+    HEIMDALL_UNUSED(obj);
 
     if(!desc->parameters)
-        return VLC_ENOTSUP;
+        return HEIMDALL_ENOTSUP;
 
     uint8_t mode = 0;
-    int ret = vlc_sdp_fmtp_get(desc, "packetization-mode", &mode);
+    int ret = heimdall_sdp_fmtp_get(desc, "packetization-mode", &mode);
     if ((ret && ret != -ENOENT) || mode > 1)
-        return VLC_ENOTSUP;
+        return HEIMDALL_ENOTSUP;
 
-    if (vlc_ascii_strcasecmp(desc->name, "H264") == 0)
+    if (heimdall_ascii_strcasecmp(desc->name, "H264") == 0)
         pt->ops = &rtp_h264_ops;
     else
-        return VLC_ENOTSUP;
+        return HEIMDALL_ENOTSUP;
 
     struct h264_pt_opaque *opaque = calloc(1, sizeof(*opaque));
     if(!opaque)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     pt->opaque = opaque;
 
     opaque->obj = obj;
 
     size_t sprop_len;
-    const char *sprop = vlc_sdp_fmtp_get_str(desc, "sprop-parameter-sets", &sprop_len);
+    const char *sprop = heimdall_sdp_fmtp_get_str(desc, "sprop-parameter-sets", &sprop_len);
     if (sprop && sprop_len)
         opaque->sdpxps = h26x_fillextradata(sprop);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname(N_("RTP H264"))
     set_description(N_("RTP H264 payload parser"))
     set_subcategory(SUBCAT_INPUT_DEMUX)
     set_rtp_parser_callback(rtp_h264_open)
     add_shortcut("video/H264")
-vlc_module_end()
+heimdall_module_end()

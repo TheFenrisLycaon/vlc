@@ -2,6 +2,7 @@
  * cdrom.c: cdrom tools
  *****************************************************************************
  * Copyright (C) 1998-2001 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Johan Bilien <jobi@via.ecp.fr>
  *          Gildas Bazin <gbazin@netcourrier.com>
@@ -52,11 +53,11 @@
 #endif
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_access.h>
-#include <vlc_charset.h>
-#include <vlc_fs.h>
-#include <vlc_meta.h>
+#include <heimdall_common.h>
+#include <heimdall_access.h>
+#include <heimdall_charset.h>
+#include <heimdall_fs.h>
+#include <heimdall_meta.h>
 
 #if defined( SYS_BSDI )
 #   include <dvd.h>
@@ -84,13 +85,13 @@
 #   include <os2.h>
 
 /*****************************************************************************
- * vlc_DosDevIOCtl: high memory safe wrapper for DosDevIOCtl
+ * heimdall_DosDevIOCtl: high memory safe wrapper for DosDevIOCtl
  *****************************************************************************
  * Unfortunately, DosDevIOCtl() is not high memory safe API, and is not
  * covered by os2safe.h. So define a wrapper function for it here.
  *****************************************************************************/
 
-static APIRET vlc_DosDevIOCtl( HFILE hdevice, ULONG category, ULONG function,
+static APIRET heimdall_DosDevIOCtl( HFILE hdevice, ULONG category, ULONG function,
                                PVOID pParams, ULONG cbParamLenMax,
                                PULONG pcbParamLen, PVOID pData,
                                ULONG cbDataLenMax, PULONG pcbDataLen )
@@ -136,7 +137,7 @@ exit_free:
     return rc;
 }
 
-#   define DosDevIOCtl vlc_DosDevIOCtl
+#   define DosDevIOCtl heimdall_DosDevIOCtl
 #else
 #   error FIXME
 #endif
@@ -147,7 +148,7 @@ exit_free:
 /*****************************************************************************
  * ioctl_Open: Opens a VCD device or file and returns an opaque handle
  *****************************************************************************/
-vcddev_t *ioctl_Open( vlc_object_t *p_this, const char *psz_dev )
+vcddev_t *ioctl_Open( heimdall_object_t *p_this, const char *psz_dev )
 {
     int i_ret;
     int b_is_file;
@@ -179,7 +180,7 @@ vcddev_t *ioctl_Open( vlc_object_t *p_this, const char *psz_dev )
     }
 
 #else
-    if( vlc_stat( psz_dev, &fileinfo ) < 0 )
+    if( heimdall_stat( psz_dev, &fileinfo ) < 0 )
     {
         free( p_vcddev );
         return NULL;
@@ -206,7 +207,7 @@ vcddev_t *ioctl_Open( vlc_object_t *p_this, const char *psz_dev )
         i_ret = os2_vcd_open( p_this, psz_dev, p_vcddev );
 #else
         p_vcddev->i_device_handle = -1;
-        p_vcddev->i_device_handle = vlc_open( psz_dev, O_RDONLY | O_NONBLOCK );
+        p_vcddev->i_device_handle = heimdall_open( psz_dev, O_RDONLY | O_NONBLOCK );
         i_ret = (p_vcddev->i_device_handle == -1) ? -1 : 0;
 #endif
     }
@@ -227,7 +228,7 @@ vcddev_t *ioctl_Open( vlc_object_t *p_this, const char *psz_dev )
 /*****************************************************************************
  * ioctl_Close: Closes an already opened VCD device or file.
  *****************************************************************************/
-void ioctl_Close( vlc_object_t * p_this, vcddev_t *p_vcddev )
+void ioctl_Close( heimdall_object_t * p_this, vcddev_t *p_vcddev )
 {
     free( p_vcddev->psz_dev );
 
@@ -253,7 +254,7 @@ void ioctl_Close( vlc_object_t * p_this, vcddev_t *p_vcddev )
         DosClose( p_vcddev->hcd );
 #else
     if( p_vcddev->i_device_handle != -1 )
-        vlc_close( p_vcddev->i_device_handle );
+        heimdall_close( p_vcddev->i_device_handle );
 #endif
     free( p_vcddev );
 }
@@ -274,7 +275,7 @@ static bool TracksRangeIsValid( int i_first, int i_last )
  * ioctl_GetTOC: Read the Table of Content, fill in the p_sectors map
  *               if b_fill_sector_info is true.
  *****************************************************************************/
-vcddev_toc_t * ioctl_GetTOC( vlc_object_t *p_this, const vcddev_t *p_vcddev )
+vcddev_toc_t * ioctl_GetTOC( heimdall_object_t *p_this, const vcddev_t *p_vcddev )
 {
     vcddev_toc_t *p_toc = calloc(1, sizeof(*p_toc));
     if(!p_toc)
@@ -606,13 +607,13 @@ vcddev_toc_t * ioctl_GetTOC( vlc_object_t *p_this, const vcddev_t *p_vcddev )
 /****************************************************************************
  * ioctl_ReadSector: Read VCD or CDDA sectors
  ****************************************************************************/
-int ioctl_ReadSectors( vlc_object_t *p_this, const vcddev_t *p_vcddev,
+int ioctl_ReadSectors( heimdall_object_t *p_this, const vcddev_t *p_vcddev,
                        int i_sector, uint8_t *p_buffer, int i_nb, int i_type )
 {
     uint8_t *p_block;
 
     if( i_type == VCD_TYPE )
-        p_block = vlc_alloc( i_nb, VCD_SECTOR_SIZE );
+        p_block = heimdall_alloc( i_nb, VCD_SECTOR_SIZE );
     else
         p_block = p_buffer;
 
@@ -872,7 +873,7 @@ unrecoverable:
 /****************************************************************************
  * OpenVCDImage: try to open a vcd image from a .cue file
  ****************************************************************************/
-static int OpenVCDImage( vlc_object_t * p_this, const char *psz_dev,
+static int OpenVCDImage( heimdall_object_t * p_this, const char *psz_dev,
                          vcddev_t *p_vcddev )
 {
     int i_ret = -1;
@@ -918,7 +919,7 @@ static int OpenVCDImage( vlc_object_t * p_this, const char *psz_dev,
 
     /* Open the cue file and try to parse it */
     msg_Dbg( p_this,"trying .cue file: %s", psz_cuefile );
-    cuefile = vlc_fopen( psz_cuefile, "rt" );
+    cuefile = heimdall_fopen( psz_cuefile, "rt" );
     if( cuefile == NULL )
     {
         msg_Dbg( p_this, "could not find .cue file" );
@@ -926,7 +927,7 @@ static int OpenVCDImage( vlc_object_t * p_this, const char *psz_dev,
     }
 
     msg_Dbg( p_this,"guessing vcd image file: %s", psz_vcdfile );
-    p_vcddev->i_vcdimage_handle = vlc_open( psz_vcdfile,
+    p_vcddev->i_vcdimage_handle = heimdall_open( psz_vcdfile,
                                     O_RDONLY | O_NONBLOCK | O_BINARY );
 
     while( !b_found && fgets( line, 1024, cuefile ) )
@@ -954,7 +955,7 @@ static int OpenVCDImage( vlc_object_t * p_this, const char *psz_dev,
                                       (p_pos - psz_cuefile + 1) + 1 );
                         if (psz_vcdfile == NULL)
                         {
-                            i_ret = VLC_ENOMEM;
+                            i_ret = HEIMDALL_ENOMEM;
                             goto error;
                         }
                         strncpy( psz_vcdfile, psz_cuefile, (p_pos - psz_cuefile + 1) );
@@ -965,12 +966,12 @@ static int OpenVCDImage( vlc_object_t * p_this, const char *psz_dev,
                         psz_vcdfile = strdup( filename );
                         if( psz_vcdfile == NULL )
                         {
-                            i_ret = VLC_ENOMEM;
+                            i_ret = HEIMDALL_ENOMEM;
                             goto error;
                         }
                     }
                     msg_Dbg( p_this,"using vcd image file: %s", psz_vcdfile );
-                    p_vcddev->i_vcdimage_handle = vlc_open( psz_vcdfile,
+                    p_vcddev->i_vcdimage_handle = heimdall_open( psz_vcdfile,
                                         O_RDONLY | O_NONBLOCK | O_BINARY );
                 }
                 b_found = true;
@@ -1064,11 +1065,11 @@ end:
 /****************************************************************************
  * CloseVCDImage: closes a vcd image opened by OpenVCDImage
  ****************************************************************************/
-static void CloseVCDImage( vlc_object_t * p_this, vcddev_t *p_vcddev )
+static void CloseVCDImage( heimdall_object_t * p_this, vcddev_t *p_vcddev )
 {
-    VLC_UNUSED( p_this );
+    HEIMDALL_UNUSED( p_this );
     if( p_vcddev->i_vcdimage_handle != -1 )
-        vlc_close( p_vcddev->i_vcdimage_handle );
+        heimdall_close( p_vcddev->i_vcdimage_handle );
     else
         return;
 
@@ -1079,7 +1080,7 @@ static void CloseVCDImage( vlc_object_t * p_this, vcddev_t *p_vcddev )
 /****************************************************************************
  * darwin_getTOC: get the TOC
  ****************************************************************************/
-static CDTOC *darwin_getTOC( vlc_object_t * p_this, const vcddev_t *p_vcddev )
+static CDTOC *darwin_getTOC( heimdall_object_t * p_this, const vcddev_t *p_vcddev )
 {
     mach_port_t port;
     char *psz_devname;
@@ -1227,7 +1228,7 @@ static int darwin_getNumberOfTracks( CDTOC *pTOC, int i_descriptors,
  *****************************************************************************
  * Use IOCTLs on WinNT/2K/XP.
  *****************************************************************************/
-static int win32_vcd_open( vlc_object_t * p_this, const char *psz_dev,
+static int win32_vcd_open( heimdall_object_t * p_this, const char *psz_dev,
                            vcddev_t *p_vcddev )
 {
     /* Initializations */
@@ -1253,7 +1254,7 @@ static int win32_vcd_open( vlc_object_t * p_this, const char *psz_dev,
 /*****************************************************************************
  * os2_vcd_open: open vcd drive
  *****************************************************************************/
-static int os2_vcd_open( vlc_object_t * p_this, const char *psz_dev,
+static int os2_vcd_open( heimdall_object_t * p_this, const char *psz_dev,
                          vcddev_t *p_vcddev )
 {
     char device[] = "X:";
@@ -1353,16 +1354,16 @@ static void CdTextAppendPayload( const char *buffer, size_t i_len,
     }
     else
     {
-        vlc_iconv_t ic = vlc_iconv_open( "UTF-8", from_charset );
-        if( ic != (vlc_iconv_t) -1 )
+        heimdall_iconv_t ic = heimdall_iconv_open( "UTF-8", from_charset );
+        if( ic != (heimdall_iconv_t) -1 )
         {
             const char *psz_in = buffer;
             size_t i_in = i_len;
             char *psz_out = &psz_realloc[i_alloc];
             size_t i_out = i_extend;
-            if( VLC_ICONV_ERR != vlc_iconv( ic, &psz_in, &i_in, &psz_out, &i_out ) )
+            if( HEIMDALL_ICONV_ERR != heimdall_iconv( ic, &psz_in, &i_in, &psz_out, &i_out ) )
                 psz_realloc[i_alloc + i_extend - i_out] = 0;
-            vlc_iconv_close( ic );
+            heimdall_iconv_close( ic );
         }
     }
 }
@@ -1458,7 +1459,7 @@ static void CdTextParsePackText( const uint8_t *p_pack,
     }
 }
 
-static int CdTextParse( vlc_meta_t ***ppp_tracks, int *pi_tracks,
+static int CdTextParse( heimdall_meta_t ***ppp_tracks, int *pi_tracks,
                         const uint8_t *p_buffer, int i_buffer )
 {
     char *pppsz_info[CDTEXT_MAX_TRACKS + 1][0x10];
@@ -1565,7 +1566,7 @@ static int CdTextParse( vlc_meta_t ***ppp_tracks, int *pi_tracks,
     if( i_track_last < 0 )
         return -1;
 
-    vlc_meta_t **pp_tracks = calloc( i_track_last+1, sizeof(*pp_tracks) );
+    heimdall_meta_t **pp_tracks = calloc( i_track_last+1, sizeof(*pp_tracks) );
     if( !pp_tracks )
         goto exit;
 
@@ -1584,10 +1585,10 @@ static int CdTextParse( vlc_meta_t ***ppp_tracks, int *pi_tracks,
 
             if( !psz_value && !psz_default )
                 continue;
-            vlc_meta_t *p_track = pp_tracks[i];
+            heimdall_meta_t *p_track = pp_tracks[i];
             if( !p_track )
             {
-                p_track = pp_tracks[i] = vlc_meta_New();
+                p_track = pp_tracks[i] = heimdall_meta_New();
                 if( !p_track )
                     continue;
             }
@@ -1596,50 +1597,50 @@ static int CdTextParse( vlc_meta_t ***ppp_tracks, int *pi_tracks,
             case cd_text_title:
                 if( i == 0 )
                 {
-                    vlc_meta_SetAlbum( p_track, psz_value );
+                    heimdall_meta_SetAlbum( p_track, psz_value );
                 }
                 else
                 {
                     if( psz_value )
-                        vlc_meta_SetTitle( p_track, psz_value );
+                        heimdall_meta_SetTitle( p_track, psz_value );
                     if( psz_default )
-                        vlc_meta_SetAlbum( p_track, psz_default );
+                        heimdall_meta_SetAlbum( p_track, psz_default );
                 }
                 break;
             case cd_text_performer:
-                vlc_meta_SetArtist( p_track,
+                heimdall_meta_SetArtist( p_track,
                                     psz_value ? psz_value : psz_default );
                 if ( psz_value && i != 0 )
-                    vlc_meta_SetAlbumArtist( p_track, psz_default );
+                    heimdall_meta_SetAlbumArtist( p_track, psz_default );
                 break;
             case cd_text_message:
-                vlc_meta_SetDescription( p_track,
+                heimdall_meta_SetDescription( p_track,
                                          psz_value ? psz_value : psz_default );
                 break;
             case cd_text_genre:
-                vlc_meta_SetGenre( p_track,
+                heimdall_meta_SetGenre( p_track,
                                    psz_value ? psz_value : psz_default );
                 break;
             case cd_text_songwriter:
                 // lyrics
-                vlc_meta_SetExtra( p_track, "AUTHOR",
+                heimdall_meta_SetExtra( p_track, "AUTHOR",
                                    psz_value ? psz_value : psz_default );
                 break;
             case cd_text_composer:
                 // music
-                vlc_meta_SetExtra( p_track, "COMPOSER",
+                heimdall_meta_SetExtra( p_track, "COMPOSER",
                                    psz_value ? psz_value : psz_default );
                 break;
             case cd_text_arrangers:
-                vlc_meta_SetExtra( p_track, "ARRANGER",
+                heimdall_meta_SetExtra( p_track, "ARRANGER",
                                    psz_value ? psz_value : psz_default );
                 break;
             case cd_text_ean_isrc:
             {
                 if ( i == 0 )
-                    vlc_meta_SetExtra( p_track, "EAN/UPN", psz_default );
+                    heimdall_meta_SetExtra( p_track, "EAN/UPN", psz_default );
                 else if ( psz_value )
-                    vlc_meta_SetExtra( p_track, "ISRC", psz_value );
+                    heimdall_meta_SetExtra( p_track, "ISRC", psz_value );
             }
             /* FIXME unsupported:
              * cd_text_discid */
@@ -1661,20 +1662,20 @@ exit:
     defined( __OS2__ ) || \
     defined( HAVE_IOC_TOC_HEADER_IN_SYS_CDIO_H ) || \
     defined( HAVE_SCSIREQ_IN_SYS_SCSIIO_H )
-static int CdTextRead( vlc_object_t *p_object, const vcddev_t *p_vcddev,
+static int CdTextRead( heimdall_object_t *p_object, const vcddev_t *p_vcddev,
                        uint8_t **pp_buffer, int *pi_buffer )
 {
-    VLC_UNUSED( p_object );
-    VLC_UNUSED( p_vcddev );
-    VLC_UNUSED( pp_buffer );
-    VLC_UNUSED( pi_buffer );
+    HEIMDALL_UNUSED( p_object );
+    HEIMDALL_UNUSED( p_vcddev );
+    HEIMDALL_UNUSED( pp_buffer );
+    HEIMDALL_UNUSED( pi_buffer );
     return -1;
 }
 #elif defined( _WIN32 )
-static int CdTextRead( vlc_object_t *p_object, const vcddev_t *p_vcddev,
+static int CdTextRead( heimdall_object_t *p_object, const vcddev_t *p_vcddev,
                        uint8_t **pp_buffer, int *pi_buffer )
 {
-    VLC_UNUSED( p_object );
+    HEIMDALL_UNUSED( p_object );
 
     CDROM_READ_TOC_EX TOCEx = { .Format = CDROM_READ_TOC_EX_FORMAT_CDTEXT };
 
@@ -1692,25 +1693,25 @@ static int CdTextRead( vlc_object_t *p_object, const vcddev_t *p_vcddev,
     /* Read complete CD-TEXT */
     uint8_t *p_text = calloc( 1, i_text );
     if( !p_text )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if( !DeviceIoControl( p_vcddev->h_device_handle, IOCTL_CDROM_READ_TOC_EX,
                           &TOCEx, sizeof(TOCEx), p_text, i_text, &i_read, 0 ) )
     {
         free( p_text );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* */
     *pp_buffer = p_text;
     *pi_buffer = i_text;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 #else
-static int CdTextRead( vlc_object_t *p_object, const vcddev_t *p_vcddev,
+static int CdTextRead( heimdall_object_t *p_object, const vcddev_t *p_vcddev,
                        uint8_t **pp_buffer, int *pi_buffer )
 {
-    VLC_UNUSED( p_object );
+    HEIMDALL_UNUSED( p_object );
 
     if( p_vcddev->i_device_handle == -1 )
         return -1;
@@ -1733,18 +1734,18 @@ static int CdTextRead( vlc_object_t *p_object, const vcddev_t *p_vcddev,
     gc.timeout = 1000;
 
     if( ioctl( p_vcddev->i_device_handle, CDROM_SEND_PACKET, &gc ) == -1 )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* If the size is less than 4 it is an error, if it 4 then
      * it means no text data */
     const int i_text = 2 + (header[0] << 8) + header[1];
     if( i_text <= 4 )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* Read complete CD-TEXT */
     uint8_t *p_text = calloc( 1, i_text );
     if( !p_text )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     memset( &gc, 0, sizeof(gc) );
     gc.cmd[0] = 0x43;   /* Read TOC */
@@ -1761,18 +1762,18 @@ static int CdTextRead( vlc_object_t *p_object, const vcddev_t *p_vcddev,
     if( ioctl( p_vcddev->i_device_handle, CDROM_SEND_PACKET, &gc ) == -1 )
     {
         free( p_text );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* */
     *pp_buffer = p_text;
     *pi_buffer = i_text;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 #endif
 
-int ioctl_GetCdText( vlc_object_t *p_object, const vcddev_t *p_vcddev,
-                     vlc_meta_t ***ppp_tracks, int *pi_tracks )
+int ioctl_GetCdText( heimdall_object_t *p_object, const vcddev_t *p_vcddev,
+                     heimdall_meta_t ***ppp_tracks, int *pi_tracks )
 {
     uint8_t *p_text;
     int i_text;

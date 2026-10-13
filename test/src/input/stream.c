@@ -2,6 +2,7 @@
  * stream.c test streams and stream filters
  *****************************************************************************
  * Copyright (C) 2015 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -18,13 +19,13 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#include "../../libvlc/test.h"
-#include "../lib/libvlc_internal.h"
+#include "../../libheimdall/test.h"
+#include "../lib/libheimdall_internal.h"
 
-#include <vlc_strings.h>
-#include <vlc_hash.h>
-#include <vlc_stream.h>
-#include <vlc_fs.h>
+#include <heimdall_strings.h>
+#include <heimdall_hash.h>
+#include <heimdall_stream.h>
+#include <heimdall_fs.h>
 
 #include <errno.h>
 #include <inttypes.h>
@@ -147,46 +148,46 @@ stream_getsize( struct reader *p_reader )
 {
     uint64_t i_size;
 
-    assert( vlc_stream_GetSize( p_reader->u.s, &i_size ) == 0 );
+    assert( heimdall_stream_GetSize( p_reader->u.s, &i_size ) == 0 );
     return i_size;
 }
 
 static ssize_t
 stream_read( struct reader *p_reader, void *p_buf, size_t i_len )
 {
-    return vlc_stream_Read( p_reader->u.s, p_buf, i_len );
+    return heimdall_stream_Read( p_reader->u.s, p_buf, i_len );
 }
 
 static ssize_t
 stream_peek( struct reader *p_reader, const uint8_t **pp_buf, size_t i_len )
 {
-    return vlc_stream_Peek( p_reader->u.s, pp_buf, i_len );
+    return heimdall_stream_Peek( p_reader->u.s, pp_buf, i_len );
 }
 
 static uint64_t
 stream_tell( struct reader *p_reader )
 {
-    return vlc_stream_Tell( p_reader->u.s );
+    return heimdall_stream_Tell( p_reader->u.s );
 }
 
 static int
 stream_seek( struct reader *p_reader, uint64_t i_offset )
 {
-    return vlc_stream_Seek( p_reader->u.s, i_offset );
+    return heimdall_stream_Seek( p_reader->u.s, i_offset );
 }
 
 static void
 stream_close( struct reader *p_reader )
 {
-    vlc_stream_Delete( p_reader->u.s );
-    libvlc_release( p_reader->p_data );
+    heimdall_stream_Delete( p_reader->u.s );
+    libheimdall_release( p_reader->p_data );
     free( p_reader );
 }
 
 static struct reader *
 stream_open( const char *psz_url )
 {
-    libvlc_instance_t *p_vlc;
+    libheimdall_instance_t *p_heimdall;
     struct reader *p_reader;
     const char * argv[] = {
         "-v",
@@ -201,13 +202,13 @@ stream_open( const char *psz_url )
     p_reader = calloc( 1, sizeof(struct reader) );
     assert( p_reader );
 
-    p_vlc = libvlc_new( ARRAY_SIZE(argv), argv );
-    assert( p_vlc != NULL );
+    p_heimdall = libheimdall_new( ARRAY_SIZE(argv), argv );
+    assert( p_heimdall != NULL );
 
-    p_reader->u.s = vlc_stream_NewURL( p_vlc->p_libvlc_int, psz_url );
+    p_reader->u.s = heimdall_stream_NewURL( p_heimdall->p_libheimdall_int, psz_url );
     if( !p_reader->u.s )
     {
-        libvlc_release( p_vlc );
+        libheimdall_release( p_heimdall );
         free( p_reader );
         return NULL;
     }
@@ -217,7 +218,7 @@ stream_open( const char *psz_url )
     p_reader->pf_peek = stream_peek;
     p_reader->pf_tell = stream_tell;
     p_reader->pf_seek = stream_seek;
-    p_reader->p_data = p_vlc;
+    p_reader->p_data = p_heimdall;
     p_reader->psz_name = "stream";
     return p_reader;
 }
@@ -296,8 +297,8 @@ test( struct reader **pp_readers, unsigned int i_readers, const char *psz_md5 )
     ssize_t i_ret = 0;
     uint64_t i_offset = 0;
     uint64_t i_size;
-    char psz_read_md5[VLC_HASH_MD5_DIGEST_HEX_SIZE];
-    vlc_hash_md5_t md5;
+    char psz_read_md5[HEIMDALL_HASH_MD5_DIGEST_HEX_SIZE];
+    heimdall_hash_md5_t md5;
 
     /* Compare size between each readers */
     i_size = pp_readers[0]->pf_getsize( pp_readers[0] );
@@ -309,16 +310,16 @@ test( struct reader **pp_readers, unsigned int i_readers, const char *psz_md5 )
 
     /* Read the whole file and compare between each readers */
     if( psz_md5 != NULL )
-        vlc_hash_md5_Init( &md5 );
+        heimdall_hash_md5_Init( &md5 );
     while( ( i_ret = READ_AT( i_offset, 4096 ) ) > 0 )
     {
         i_offset += i_ret;
         if( psz_md5 != NULL )
-            vlc_hash_md5_Update( &md5, p_buf, i_ret );
+            heimdall_hash_md5_Update( &md5, p_buf, i_ret );
     }
     if( psz_md5 != NULL )
     {
-        vlc_hash_FinishHex( &md5, psz_read_md5 );
+        heimdall_hash_FinishHex( &md5, psz_read_md5 );
         assert( strcmp( psz_read_md5, psz_md5 ) == 0 );
     }
 
@@ -376,12 +377,12 @@ main( void )
     test_init();
 
 #ifndef TEST_NET
-    char psz_tmp_path[] = "/tmp/libvlc_XXXXXX";
+    char psz_tmp_path[] = "/tmp/libheimdall_XXXXXX";
     char *psz_url;
     int i_tmp_fd;
 
     test_log( "Generating random file...\n" );
-    i_tmp_fd = vlc_mkstemp( psz_tmp_path );
+    i_tmp_fd = heimdall_mkstemp( psz_tmp_path );
     fill_rand( i_tmp_fd, RAND_FILE_SIZE );
     test_log( "Testing random file with libc, and stream...\n" );
     assert( i_tmp_fd != -1 );

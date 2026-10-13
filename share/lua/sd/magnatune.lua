@@ -1,8 +1,9 @@
 --[[
 
  Copyright © 2010 VideoLAN and AUTHORS
+ Copyright (C) 2026 TheFenrisLycaon
 
- Authors: Rémi Duraffort  <ivoire at videolan dot org>
+ Authors: Rémi Duraffort  <ivoire at lycaria dot org>
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -30,7 +31,7 @@ function main()
 end
 
 function add_top_albums()
-    local fd = vlc.stream( "http://magnatune.com/genres/m3u/ranked_all.xspf" )
+    local fd = heimdall.stream( "http://magnatune.com/genres/m3u/ranked_all.xspf" )
     if not fd then return end
     local file = ''
     local line = ''
@@ -42,7 +43,7 @@ function add_top_albums()
         end
     end
 
-    local node = vlc.sd.add_node( {title = "Most popular albums"} )
+    local node = heimdall.sd.add_node( {title = "Most popular albums"} )
 
     local tree = simplexml.parse_string( file )
     simplexml.add_name_maps( tree )

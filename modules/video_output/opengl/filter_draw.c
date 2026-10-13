@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
  * Copyright (C) 2020 Videolabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -23,12 +24,12 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_modules.h>
-#include <vlc_opengl.h>
-#include <vlc_opengl_filter.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_modules.h>
+#include <heimdall_opengl.h>
+#include <heimdall_opengl_filter.h>
 
 #include "gl_api.h"
 #include "gl_common.h"
@@ -44,8 +45,8 @@
 static const char *const filter_options[] = { "vflip", NULL };
 
 struct sys {
-    struct vlc_gl_api api;
-    struct vlc_gl_sampler *sampler;
+    struct heimdall_gl_api api;
+    struct heimdall_gl_sampler *sampler;
 
     GLuint program_id;
 
@@ -60,8 +61,8 @@ struct sys {
 };
 
 static int
-Draw(struct vlc_gl_filter *filter, const struct vlc_gl_picture *pic,
-     const struct vlc_gl_input_meta *meta)
+Draw(struct heimdall_gl_filter *filter, const struct heimdall_gl_picture *pic,
+     const struct heimdall_gl_input_meta *meta)
 {
     (void) meta;
 
@@ -71,9 +72,9 @@ Draw(struct vlc_gl_filter *filter, const struct vlc_gl_picture *pic,
 
     vt->UseProgram(sys->program_id);
 
-    struct vlc_gl_sampler *sampler = sys->sampler;
-    vlc_gl_sampler_Update(sampler, pic);
-    vlc_gl_sampler_Load(sampler);
+    struct heimdall_gl_sampler *sampler = sys->sampler;
+    heimdall_gl_sampler_Update(sampler, pic);
+    heimdall_gl_sampler_Load(sampler);
 
     vt->BindBuffer(GL_ARRAY_BUFFER, sys->vbo);
 
@@ -87,7 +88,7 @@ Draw(struct vlc_gl_filter *filter, const struct vlc_gl_picture *pic,
         };
 
         /* Transform coordinates in place */
-        vlc_gl_picture_ToTexCoords(pic, 4, coords, coords);
+        heimdall_gl_picture_ToTexCoords(pic, 4, coords, coords);
 
         const float data[] = {
             -1,  1, coords[0], coords[1],
@@ -113,11 +114,11 @@ Draw(struct vlc_gl_filter *filter, const struct vlc_gl_picture *pic,
     vt->DrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     GL_ASSERT_NOERROR(vt);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void
-Close(struct vlc_gl_filter *filter)
+Close(struct heimdall_gl_filter *filter)
 {
     struct sys *sys = filter->sys;
 
@@ -129,22 +130,22 @@ Close(struct vlc_gl_filter *filter)
 }
 
 static int
-Open(struct vlc_gl_filter *filter, const config_chain_t *config,
-     struct vlc_gl_sampler *sampler, struct vlc_gl_tex_size *size_out)
+Open(struct heimdall_gl_filter *filter, const config_chain_t *config,
+     struct heimdall_gl_sampler *sampler, struct heimdall_gl_tex_size *size_out)
 {
     (void) size_out;
 
     struct sys *sys = filter->sys = malloc(sizeof(*sys));
     if (!sys)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     sys->sampler = sampler;
 
-    int ret = vlc_gl_api_Init(&sys->api, filter->gl);
-    if (ret != VLC_SUCCESS)
+    int ret = heimdall_gl_api_Init(&sys->api, filter->gl);
+    if (ret != HEIMDALL_SUCCESS)
     {
         free(sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     static const char *const VERTEX_SHADER_BODY =
@@ -159,7 +160,7 @@ Open(struct vlc_gl_filter *filter, const config_chain_t *config,
     static const char *const FRAGMENT_SHADER_BODY =
         "varying vec2 tex_coords;\n"
         "void main() {\n"
-        "  gl_FragColor = vlc_texture(tex_coords);\n"
+        "  gl_FragColor = heimdall_texture(tex_coords);\n"
         "}\n";
 
     const char *extensions = sampler->shader.extensions
@@ -183,13 +184,13 @@ Open(struct vlc_gl_filter *filter, const config_chain_t *config,
     };
 
     GLuint program_id =
-        vlc_gl_BuildProgram(VLC_OBJECT(filter), vt,
+        heimdall_gl_BuildProgram(HEIMDALL_OBJECT(filter), vt,
                             ARRAY_SIZE(vertex_shader), vertex_shader,
                             ARRAY_SIZE(fragment_shader), fragment_shader);
     if (!program_id)
         goto error;
 
-    vlc_gl_sampler_FetchLocations(sampler, program_id);
+    heimdall_gl_sampler_FetchLocations(sampler, program_id);
 
     sys->program_id = program_id;
 
@@ -201,20 +202,20 @@ Open(struct vlc_gl_filter *filter, const config_chain_t *config,
 
     vt->GenBuffers(1, &sys->vbo);
 
-    static const struct vlc_gl_filter_ops ops = {
+    static const struct heimdall_gl_filter_ops ops = {
         .draw = Draw,
         .close = Close,
     };
     filter->ops = &ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     free(sys);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     add_shortcut("draw")
     set_shortname("draw")
     set_capability("opengl filter", 0)
@@ -223,4 +224,4 @@ vlc_module_begin()
     set_subcategory(SUBCAT_HIDDEN)
     add_bool(DRAW_CFG_PREFIX "vflip", false,
              DRAW_VFLIP_SHORTTEXT, DRAW_VFLIP_LONGTEXT)
-vlc_module_end()
+heimdall_module_end()

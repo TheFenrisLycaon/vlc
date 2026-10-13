@@ -2,6 +2,7 @@
  * file.c: File and crypt keystore
  *****************************************************************************
  * Copyright © 2015-2016 VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -32,25 +33,25 @@
 #endif
 #include <unistd.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_fs.h>
-#include <vlc_keystore.h>
-#include <vlc_strings.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_fs.h>
+#include <heimdall_keystore.h>
+#include <heimdall_strings.h>
 
 #include <assert.h>
 
 #include "file_crypt.h"
 #include "list_util.h"
 
-static int Open(vlc_object_t *);
-static void Close(vlc_object_t *);
+static int Open(heimdall_object_t *);
+static void Close(heimdall_object_t *);
 #ifdef CRYPTFILE
-static int OpenCrypt(vlc_object_t *);
-static void CloseCrypt(vlc_object_t *);
+static int OpenCrypt(heimdall_object_t *);
+static void CloseCrypt(heimdall_object_t *);
 #endif
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname(N_("File keystore (plaintext)"))
     set_description(N_("Secrets are stored on a file without any encryption"))
     set_subcategory(SUBCAT_ADVANCED_MISC)
@@ -68,9 +69,9 @@ vlc_module_begin()
         set_capability("keystore", 1)
         add_shortcut("file_crypt")
 #endif
-vlc_module_end ()
+heimdall_module_end ()
 
-struct vlc_keystore_sys
+struct heimdall_keystore_sys
 {
     char *          psz_file;
 #ifdef CRYPTFILE
@@ -108,9 +109,9 @@ values_write(FILE *p_file, const char *const ppsz_values[KEY_MAX])
     {
         if (!ppsz_values[i])
             continue;
-        char *psz_b64 = vlc_b64_encode(ppsz_values[i]);
+        char *psz_b64 = heimdall_b64_encode(ppsz_values[i]);
         if (!psz_b64)
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         const char *psz_end_sep = "";
         for (unsigned int j = i + 1; j < KEY_MAX; ++j)
         {
@@ -123,41 +124,41 @@ values_write(FILE *p_file, const char *const ppsz_values[KEY_MAX])
         if (fprintf(p_file, "%s:%s%s", ppsz_keys[i], psz_b64, psz_end_sep) < 0)
         {
             free(psz_b64);
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
         free(psz_b64);
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int
 truncate0(int i_fd)
 {
 #ifndef _WIN32
-    return ftruncate(i_fd, 0) == 0 ? VLC_SUCCESS : VLC_EGENERIC;
+    return ftruncate(i_fd, 0) == 0 ? HEIMDALL_SUCCESS : HEIMDALL_EGENERIC;
 #else
-    return _chsize(i_fd, 0) == 0 ? VLC_SUCCESS : VLC_EGENERIC;
+    return _chsize(i_fd, 0) == 0 ? HEIMDALL_SUCCESS : HEIMDALL_EGENERIC;
 #endif
 }
 
 /* a line is "{key1:VALUE1_B64,key2:VALUE2_B64}:PASSWORD_B64" */
 static int
-file_save(vlc_keystore *p_keystore, FILE *p_file, int i_fd, struct ks_list *p_list)
+file_save(heimdall_keystore *p_keystore, FILE *p_file, int i_fd, struct ks_list *p_list)
 {
-    vlc_keystore_sys *p_sys = p_keystore->p_sys;
-    int i_ret = VLC_EGENERIC;
+    heimdall_keystore_sys *p_sys = p_keystore->p_sys;
+    int i_ret = HEIMDALL_EGENERIC;
 
     rewind(p_file);
     if (truncate0(i_fd))
     {
-        vlc_unlink(p_sys->psz_file);
+        heimdall_unlink(p_sys->psz_file);
         return i_ret;
     }
 
     for (unsigned int i = 0; i < p_list->i_count; ++i)
     {
-        vlc_keystore_entry *p_entry = &p_list->p_entries[i];
+        heimdall_keystore_entry *p_entry = &p_list->p_entries[i];
         if (!p_entry->p_secret)
             continue;
 
@@ -165,7 +166,7 @@ file_save(vlc_keystore *p_keystore, FILE *p_file, int i_fd, struct ks_list *p_li
             goto end;
         if (values_write(p_file, (const char *const *) p_entry->ppsz_values))
             goto end;
-        char *psz_b64 = vlc_b64_encode_binary(p_entry->p_secret,
+        char *psz_b64 = heimdall_b64_encode_binary(p_entry->p_secret,
                                               p_entry->i_secret_len);
         if (!psz_b64)
             goto end;
@@ -176,21 +177,21 @@ file_save(vlc_keystore *p_keystore, FILE *p_file, int i_fd, struct ks_list *p_li
         }
         free(psz_b64);
     }
-    i_ret = VLC_SUCCESS;
+    i_ret = HEIMDALL_SUCCESS;
 end:
 
-    if (i_ret != VLC_SUCCESS)
+    if (i_ret != HEIMDALL_SUCCESS)
     {
         if (truncate0(i_fd))
-            vlc_unlink(p_sys->psz_file);
+            heimdall_unlink(p_sys->psz_file);
     }
     return i_ret;
 }
 
 static int
-file_read(vlc_keystore *p_keystore, FILE *p_file, int i_fd, struct ks_list *p_list)
+file_read(heimdall_keystore *p_keystore, FILE *p_file, int i_fd, struct ks_list *p_list)
 {
-    vlc_keystore_sys *p_sys = p_keystore->p_sys;
+    heimdall_keystore_sys *p_sys = p_keystore->p_sys;
     char *psz_line = NULL;
     size_t i_line_len = 0;
     ssize_t i_read;
@@ -205,7 +206,7 @@ file_read(vlc_keystore *p_keystore, FILE *p_file, int i_fd, struct ks_list *p_li
             goto end;
         }
 
-        vlc_keystore_entry *p_entry = ks_list_new_entry(p_list);
+        heimdall_keystore_entry *p_entry = ks_list_new_entry(p_list);
         if (!p_entry)
             goto end;
 
@@ -237,7 +238,7 @@ file_read(vlc_keystore *p_keystore, FILE *p_file, int i_fd, struct ks_list *p_li
                 b_end = true;
 
             p[i_len] = '\0';
-            p_value = vlc_b64_decode(p); /* BASE 64 */
+            p_value = heimdall_b64_decode(p); /* BASE 64 */
             if (!p_value)
                 goto end;
             p += i_len + 1;
@@ -248,7 +249,7 @@ file_read(vlc_keystore *p_keystore, FILE *p_file, int i_fd, struct ks_list *p_li
         if (*p == '\0' || *p != ':')
             goto end;
 
-        p_entry->i_secret_len = vlc_b64_decode_binary(&p_entry->p_secret, p + 1);
+        p_entry->i_secret_len = heimdall_b64_decode_binary(&p_entry->p_secret, p + 1);
         if (!p_entry->p_secret)
             goto end;
     }
@@ -260,9 +261,9 @@ end:
     if (!b_valid)
     {
         if (truncate0(i_fd))
-            vlc_unlink(p_sys->psz_file);
+            heimdall_unlink(p_sys->psz_file);
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 #if (!defined(HAVE_FLOCK) && defined (HAVE_FCNTL) && defined (F_SETLKW))
@@ -289,7 +290,7 @@ posix_lock_fd(int fd)
 static int
 file_open(const char *psz_file, const char *psz_mode, FILE **pp_file)
 {
-    FILE *p_file = vlc_fopen(psz_file, psz_mode);
+    FILE *p_file = heimdall_fopen(psz_file, psz_mode);
     if (p_file == NULL)
         return -1;
 
@@ -324,25 +325,25 @@ file_close(FILE *p_file)
 }
 
 static int
-Store(vlc_keystore *p_keystore, const char *const ppsz_values[KEY_MAX],
+Store(heimdall_keystore *p_keystore, const char *const ppsz_values[KEY_MAX],
       const uint8_t *p_secret, size_t i_secret_len, const char *psz_label)
 {
     (void) psz_label;
-    vlc_keystore_sys *p_sys = p_keystore->p_sys;
-    int i_ret = VLC_EGENERIC;
+    heimdall_keystore_sys *p_sys = p_keystore->p_sys;
+    int i_ret = HEIMDALL_EGENERIC;
     struct ks_list list = { 0 };
     FILE *p_file;
     int i_fd = file_open(p_sys->psz_file, "r+", &p_file);
     if (i_fd == -1)
         return i_ret;
 
-    if (file_read(p_keystore, p_file, i_fd, &list) != VLC_SUCCESS)
+    if (file_read(p_keystore, p_file, i_fd, &list) != HEIMDALL_SUCCESS)
         goto end;
 
-    vlc_keystore_entry *p_entry = ks_list_find_entry(&list, ppsz_values, NULL);
+    heimdall_keystore_entry *p_entry = ks_list_find_entry(&list, ppsz_values, NULL);
 
     if (p_entry)
-        vlc_keystore_release_entry(p_entry);
+        heimdall_keystore_release_entry(p_entry);
     else
     {
         p_entry = ks_list_new_entry(&list);
@@ -363,7 +364,7 @@ Store(vlc_keystore *p_keystore, const char *const ppsz_values[KEY_MAX],
         if (i_enc_secret_len == 0)
             goto end;
 
-        int ret = vlc_keystore_entry_set_secret(p_entry, p_enc_secret,
+        int ret = heimdall_keystore_entry_set_secret(p_entry, p_enc_secret,
                                                   i_enc_secret_len);
         free(p_enc_secret);
         if (ret)
@@ -372,7 +373,7 @@ Store(vlc_keystore *p_keystore, const char *const ppsz_values[KEY_MAX],
     else
 #endif
     {
-        if (vlc_keystore_entry_set_secret(p_entry, p_secret, i_secret_len))
+        if (heimdall_keystore_entry_set_secret(p_entry, p_secret, i_secret_len))
             goto end;
     }
 
@@ -386,10 +387,10 @@ end:
 }
 
 static unsigned int
-Find(vlc_keystore *p_keystore, const char *const ppsz_values[KEY_MAX],
-     vlc_keystore_entry **pp_entries)
+Find(heimdall_keystore *p_keystore, const char *const ppsz_values[KEY_MAX],
+     heimdall_keystore_entry **pp_entries)
 {
-    vlc_keystore_sys *p_sys = p_keystore->p_sys;
+    heimdall_keystore_sys *p_sys = p_keystore->p_sys;
     struct ks_list list = { 0 };
     struct ks_list out_list = { 0 };
     FILE *p_file;
@@ -397,14 +398,14 @@ Find(vlc_keystore *p_keystore, const char *const ppsz_values[KEY_MAX],
     if (i_fd == -1)
         return 0;
 
-    if (file_read(p_keystore, p_file, i_fd, &list) != VLC_SUCCESS)
+    if (file_read(p_keystore, p_file, i_fd, &list) != HEIMDALL_SUCCESS)
         goto end;
 
-    vlc_keystore_entry *p_entry;
+    heimdall_keystore_entry *p_entry;
     unsigned i_index = 0;
     while ((p_entry = ks_list_find_entry(&list, ppsz_values, &i_index)))
     {
-        vlc_keystore_entry *p_out_entry = ks_list_new_entry(&out_list);
+        heimdall_keystore_entry *p_out_entry = ks_list_new_entry(&out_list);
 
         if (!p_out_entry
          || ks_values_copy((const char **)p_out_entry->ppsz_values,
@@ -434,7 +435,7 @@ Find(vlc_keystore *p_keystore, const char *const ppsz_values[KEY_MAX],
         }
 #endif
 
-        if (vlc_keystore_entry_set_secret(p_out_entry, p_entry->p_secret,
+        if (heimdall_keystore_entry_set_secret(p_out_entry, p_entry->p_secret,
                                           p_entry->i_secret_len))
         {
             ks_list_free(&out_list);
@@ -450,9 +451,9 @@ end:
 }
 
 static unsigned int
-Remove(vlc_keystore *p_keystore, const char *const ppsz_values[KEY_MAX])
+Remove(heimdall_keystore *p_keystore, const char *const ppsz_values[KEY_MAX])
 {
-    vlc_keystore_sys *p_sys = p_keystore->p_sys;
+    heimdall_keystore_sys *p_sys = p_keystore->p_sys;
     unsigned int i_count = 0;
     struct ks_list list = { 0 };
     FILE *p_file;
@@ -460,19 +461,19 @@ Remove(vlc_keystore *p_keystore, const char *const ppsz_values[KEY_MAX])
     if (i_fd == -1)
         return 0;
 
-    if (file_read(p_keystore, p_file, i_fd, &list) != VLC_SUCCESS)
+    if (file_read(p_keystore, p_file, i_fd, &list) != HEIMDALL_SUCCESS)
         goto end;
 
-    vlc_keystore_entry *p_entry;
+    heimdall_keystore_entry *p_entry;
     unsigned i_index = 0;
     while ((p_entry = ks_list_find_entry(&list, ppsz_values, &i_index)))
     {
-        vlc_keystore_release_entry(p_entry);
+        heimdall_keystore_release_entry(p_entry);
         i_count++;
     }
 
     if (i_count > 0
-     && file_save(p_keystore, p_file, i_fd, &list) != VLC_SUCCESS)
+     && file_save(p_keystore, p_file, i_fd, &list) != HEIMDALL_SUCCESS)
         i_count = 0;
 
 end:
@@ -482,36 +483,36 @@ end:
 }
 
 static void
-Close(vlc_object_t *p_this)
+Close(heimdall_object_t *p_this)
 {
-    vlc_keystore *p_keystore = (vlc_keystore *)p_this;
-    vlc_keystore_sys *p_sys = p_keystore->p_sys;
+    heimdall_keystore *p_keystore = (heimdall_keystore *)p_this;
+    heimdall_keystore_sys *p_sys = p_keystore->p_sys;
 
     free(p_sys->psz_file);
     free(p_sys);
 }
 
 static int
-Open(vlc_object_t *p_this)
+Open(heimdall_object_t *p_this)
 {
-    vlc_keystore *p_keystore = (vlc_keystore *)p_this;
+    heimdall_keystore *p_keystore = (heimdall_keystore *)p_this;
 
-    vlc_keystore_sys *p_sys = calloc(1, sizeof(vlc_keystore_sys));
+    heimdall_keystore_sys *p_sys = calloc(1, sizeof(heimdall_keystore_sys));
     if (!p_sys)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     char *psz_file = var_InheritString(p_this, "keystore-file");
     if (!psz_file)
     {
         free(p_sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     struct stat stat;
     bool b_file_exists = false;
-    if (vlc_stat(psz_file, &stat) != 0)
+    if (heimdall_stat(psz_file, &stat) != 0)
     {
-        FILE *p_file = vlc_fopen(psz_file, "a+");
+        FILE *p_file = heimdall_fopen(psz_file, "a+");
         if (p_file != NULL)
         {
             b_file_exists= true;
@@ -525,7 +526,7 @@ Open(vlc_object_t *p_this)
     {
         free(p_sys);
         free(psz_file);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     p_sys->psz_file = psz_file;
@@ -534,14 +535,14 @@ Open(vlc_object_t *p_this)
     p_keystore->pf_find = Find;
     p_keystore->pf_remove = Remove;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 #ifdef CRYPTFILE
 static void
-CloseCrypt(vlc_object_t *p_this)
+CloseCrypt(heimdall_object_t *p_this)
 {
-    vlc_keystore *p_keystore = (vlc_keystore *)p_this;
+    heimdall_keystore *p_keystore = (heimdall_keystore *)p_this;
     struct crypt *p_crypt = &p_keystore->p_sys->crypt;
 
     if (p_crypt->pf_clean != NULL)
@@ -551,24 +552,24 @@ CloseCrypt(vlc_object_t *p_this)
 }
 
 static int
-OpenCrypt(vlc_object_t *p_this)
+OpenCrypt(heimdall_object_t *p_this)
 {
     int i_ret = Open(p_this);
 
-    if (i_ret != VLC_SUCCESS)
+    if (i_ret != HEIMDALL_SUCCESS)
         return i_ret;
 
-    vlc_keystore *p_keystore = (vlc_keystore *)p_this;
-    vlc_keystore_sys *p_sys = p_keystore->p_sys;
+    heimdall_keystore *p_keystore = (heimdall_keystore *)p_this;
+    heimdall_keystore_sys *p_sys = p_keystore->p_sys;
 
-    if (CryptInit(p_keystore, &p_sys->crypt) != VLC_SUCCESS)
+    if (CryptInit(p_keystore, &p_sys->crypt) != HEIMDALL_SUCCESS)
     {
         Close(p_this);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     assert(p_sys->crypt.pf_encrypt != NULL && p_sys->crypt.pf_decrypt != NULL);
     p_sys->b_crypted = true;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 #endif /* CRYPTFILE */

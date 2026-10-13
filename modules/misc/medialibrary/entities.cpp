@@ -2,6 +2,7 @@
  * entities.cpp: medialibrary C++ -> C entities conversion & management
  *****************************************************************************
  * Copyright © 2008-2018 VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -53,39 +54,39 @@ static auto const strdup_helper = []( std::string const& src, char*& dst )
     return true;
 };
 
-static_assert( static_cast<uint32_t>( VLC_ML_THUMBNAIL_SMALL ) ==
+static_assert( static_cast<uint32_t>( HEIMDALL_ML_THUMBNAIL_SMALL ) ==
                 static_cast<uint32_t>( medialibrary::ThumbnailSizeType::Thumbnail ) &&
-               static_cast<uint32_t>( VLC_ML_THUMBNAIL_BANNER ) ==
+               static_cast<uint32_t>( HEIMDALL_ML_THUMBNAIL_BANNER ) ==
                 static_cast<uint32_t>( medialibrary::ThumbnailSizeType::Banner ) &&
-               static_cast<uint32_t>( VLC_ML_THUMBNAIL_SIZE_COUNT ) ==
+               static_cast<uint32_t>( HEIMDALL_ML_THUMBNAIL_SIZE_COUNT ) ==
                 static_cast<uint32_t>( medialibrary::ThumbnailSizeType::Count ),
                "Mismatched thumbnail sizes" );
 
 template <typename T>
-static bool convertThumbnails( const T input, vlc_ml_thumbnail_t *output )
+static bool convertThumbnails( const T input, heimdall_ml_thumbnail_t *output )
 {
-    for ( auto i = 0u; i < VLC_ML_THUMBNAIL_SIZE_COUNT; ++i )
+    for ( auto i = 0u; i < HEIMDALL_ML_THUMBNAIL_SIZE_COUNT; ++i )
     {
         auto sizeType = static_cast<medialibrary::ThumbnailSizeType>( i );
         switch ( input->thumbnailStatus( sizeType ) )
         {
             case medialibrary::ThumbnailStatus::Available:
-                output[i].i_status = VLC_ML_THUMBNAIL_STATUS_AVAILABLE;
+                output[i].i_status = HEIMDALL_ML_THUMBNAIL_STATUS_AVAILABLE;
                 break;
             case medialibrary::ThumbnailStatus::Missing:
-                output[i].i_status = VLC_ML_THUMBNAIL_STATUS_MISSING;
+                output[i].i_status = HEIMDALL_ML_THUMBNAIL_STATUS_MISSING;
                 break;
             case medialibrary::ThumbnailStatus::Failure:
-                output[i].i_status = VLC_ML_THUMBNAIL_STATUS_FAILURE;
+                output[i].i_status = HEIMDALL_ML_THUMBNAIL_STATUS_FAILURE;
                 break;
             case medialibrary::ThumbnailStatus::PersistentFailure:
-                output[i].i_status = VLC_ML_THUMBNAIL_STATUS_PERSISTENT_FAILURE;
+                output[i].i_status = HEIMDALL_ML_THUMBNAIL_STATUS_PERSISTENT_FAILURE;
                 break;
             case medialibrary::ThumbnailStatus::Crash:
-                output[i].i_status = VLC_ML_THUMBNAIL_STATUS_CRASH;
+                output[i].i_status = HEIMDALL_ML_THUMBNAIL_STATUS_CRASH;
                 break;
         }
-        if ( output[i].i_status != VLC_ML_THUMBNAIL_STATUS_AVAILABLE )
+        if ( output[i].i_status != HEIMDALL_ML_THUMBNAIL_STATUS_AVAILABLE )
         {
             output[i].psz_mrl = nullptr;
             continue;
@@ -100,7 +101,7 @@ static bool convertThumbnails( const T input, vlc_ml_thumbnail_t *output )
     return true;
 }
 
-bool Convert( const medialibrary::IShowEpisode* input, vlc_ml_show_episode_t& output )
+bool Convert( const medialibrary::IShowEpisode* input, heimdall_ml_show_episode_t& output )
 {
     output.i_episode_nb = input->episodeId();
     output.i_season_number = input->seasonId();
@@ -111,7 +112,7 @@ bool Convert( const medialibrary::IShowEpisode* input, vlc_ml_show_episode_t& ou
     return true;
 }
 
-bool Convert( const medialibrary::IMovie* input, vlc_ml_movie_t& output )
+bool Convert( const medialibrary::IMovie* input, heimdall_ml_movie_t& output )
 {
     if( !strdup_helper( input->imdbId(), output.psz_imdb_id ) ||
         !strdup_helper( input->shortSummary(), output.psz_summary ) )
@@ -119,7 +120,7 @@ bool Convert( const medialibrary::IMovie* input, vlc_ml_movie_t& output )
     return true;
 }
 
-static bool convertTracksCommon( vlc_ml_media_track_t* output, const std::string& codec,
+static bool convertTracksCommon( heimdall_ml_media_track_t* output, const std::string& codec,
                                  const std::string& language, const std::string& desc )
 {
     if( !strdup_helper( codec, output->psz_codec ) ||
@@ -129,28 +130,28 @@ static bool convertTracksCommon( vlc_ml_media_track_t* output, const std::string
     return true;
 }
 
-static bool convertTracks( const medialibrary::IMedia* inputMedia, vlc_ml_media_t& outputMedia )
+static bool convertTracks( const medialibrary::IMedia* inputMedia, heimdall_ml_media_t& outputMedia )
 {
     auto videoTracks = inputMedia->videoTracks()->all();
     auto audioTracks = inputMedia->audioTracks()->all();
     auto subtitleTracks = inputMedia->subtitleTracks()->all();
 
     auto nbItems = videoTracks.size() + audioTracks.size() + subtitleTracks.size();
-    outputMedia.p_tracks = static_cast<vlc_ml_media_track_list_t*>(
+    outputMedia.p_tracks = static_cast<heimdall_ml_media_track_list_t*>(
                 calloc( 1, sizeof( *outputMedia.p_tracks ) +
                         nbItems * sizeof( *outputMedia.p_tracks->p_items ) ) );
     if ( unlikely( outputMedia.p_tracks == nullptr ) )
         return false;
     outputMedia.p_tracks->i_nb_items = 0;
 
-    vlc_ml_media_track_t* items = outputMedia.p_tracks->p_items;
+    heimdall_ml_media_track_t* items = outputMedia.p_tracks->p_items;
     for ( const auto& t : videoTracks )
     {
-        vlc_ml_media_track_t* output = &items[outputMedia.p_tracks->i_nb_items++];
+        heimdall_ml_media_track_t* output = &items[outputMedia.p_tracks->i_nb_items++];
 
         if ( convertTracksCommon( output, t->codec(), t->language(), t->description() ) == false )
             return false;
-        output->i_type = VLC_ML_TRACK_TYPE_VIDEO;
+        output->i_type = HEIMDALL_ML_TRACK_TYPE_VIDEO;
         output->i_bitrate = t->bitrate();
         output->v.i_width = t->width();
         output->v.i_height = t->height();
@@ -161,11 +162,11 @@ static bool convertTracks( const medialibrary::IMedia* inputMedia, vlc_ml_media_
     }
     for ( const auto& t : audioTracks )
     {
-        vlc_ml_media_track_t* output = &items[outputMedia.p_tracks->i_nb_items++];
+        heimdall_ml_media_track_t* output = &items[outputMedia.p_tracks->i_nb_items++];
 
         if ( convertTracksCommon( output, t->codec(), t->language(), t->description() ) == false )
             return false;
-        output->i_type = VLC_ML_TRACK_TYPE_AUDIO;
+        output->i_type = HEIMDALL_ML_TRACK_TYPE_AUDIO;
         output->i_bitrate = t->bitrate();
         output->a.i_nbChannels = t->nbChannels();
         output->a.i_sampleRate = t->sampleRate();
@@ -173,12 +174,12 @@ static bool convertTracks( const medialibrary::IMedia* inputMedia, vlc_ml_media_
 
     for ( const auto& t : subtitleTracks )
     {
-        vlc_ml_media_track_t* output = &items[outputMedia.p_tracks->i_nb_items++];
+        heimdall_ml_media_track_t* output = &items[outputMedia.p_tracks->i_nb_items++];
 
         if ( convertTracksCommon( output, t->codec(), t->language(), t->description() ) == false )
             return false;
 
-        output->i_type = VLC_ML_TRACK_TYPE_SUBTITLE;
+        output->i_type = HEIMDALL_ML_TRACK_TYPE_SUBTITLE;
         if ( !strdup_helper( t->encoding(), output->s.psz_encoding ) )
             return false;
     }
@@ -186,19 +187,19 @@ static bool convertTracks( const medialibrary::IMedia* inputMedia, vlc_ml_media_
     return true;
 }
 
-bool Convert( const medialibrary::IMedia* input, vlc_ml_media_t& output )
+bool Convert( const medialibrary::IMedia* input, heimdall_ml_media_t& output )
 {
     output.i_id = input->id();
 
     switch ( input->type() )
     {
         case medialibrary::IMedia::Type::Audio:
-            output.i_type = VLC_ML_MEDIA_TYPE_AUDIO;
+            output.i_type = HEIMDALL_ML_MEDIA_TYPE_AUDIO;
             switch( input->subType() )
             {
                 case medialibrary::IMedia::SubType::AlbumTrack:
                 {
-                    output.i_subtype = VLC_ML_MEDIA_SUBTYPE_ALBUMTRACK;
+                    output.i_subtype = HEIMDALL_ML_MEDIA_SUBTYPE_ALBUMTRACK;
                     output.album_track.i_artist_id = input->artistId();
                     output.album_track.i_album_id = input->albumId();
                     output.album_track.i_disc_nb = input->discNumber();
@@ -207,20 +208,20 @@ bool Convert( const medialibrary::IMedia* input, vlc_ml_media_t& output )
                     break;
                 }
                 case medialibrary::IMedia::SubType::Unknown:
-                    output.i_subtype = VLC_ML_MEDIA_SUBTYPE_UNKNOWN;
+                    output.i_subtype = HEIMDALL_ML_MEDIA_SUBTYPE_UNKNOWN;
                     break;
                 default:
-                    vlc_assert_unreachable();
+                    heimdall_assert_unreachable();
             }
             break;
         case medialibrary::IMedia::Type::Video:
         {
-            output.i_type = VLC_ML_MEDIA_TYPE_VIDEO;
+            output.i_type = HEIMDALL_ML_MEDIA_TYPE_VIDEO;
             switch( input->subType() )
             {
                 case medialibrary::IMedia::SubType::Movie:
                 {
-                    output.i_subtype = VLC_ML_MEDIA_SUBTYPE_MOVIE;
+                    output.i_subtype = HEIMDALL_ML_MEDIA_SUBTYPE_MOVIE;
                     auto movie = input->movie();
                     if ( movie == nullptr )
                         return false;
@@ -230,7 +231,7 @@ bool Convert( const medialibrary::IMedia* input, vlc_ml_media_t& output )
                 }
                 case medialibrary::IMedia::SubType::ShowEpisode:
                 {
-                    output.i_subtype = VLC_ML_MEDIA_SUBTYPE_SHOW_EPISODE;
+                    output.i_subtype = HEIMDALL_ML_MEDIA_SUBTYPE_SHOW_EPISODE;
                     auto episode = input->showEpisode();
                     if ( episode == nullptr )
                         return false;
@@ -239,15 +240,15 @@ bool Convert( const medialibrary::IMedia* input, vlc_ml_media_t& output )
                     break;
                 }
                 case medialibrary::IMedia::SubType::Unknown:
-                    output.i_subtype = VLC_ML_MEDIA_SUBTYPE_UNKNOWN;
+                    output.i_subtype = HEIMDALL_ML_MEDIA_SUBTYPE_UNKNOWN;
                     break;
                 case medialibrary::IMedia::SubType::AlbumTrack:
-                    vlc_assert_unreachable();
+                    heimdall_assert_unreachable();
             }
             break;
         }
         case medialibrary::IMedia::Type::Unknown:
-            output.i_type = VLC_ML_MEDIA_TYPE_UNKNOWN;
+            output.i_type = HEIMDALL_ML_MEDIA_TYPE_UNKNOWN;
             break;
     }
     output.i_year = input->releaseDate();
@@ -263,7 +264,7 @@ bool Convert( const medialibrary::IMedia* input, vlc_ml_media_t& output )
         return false;
 
     auto files = input->files();
-    output.p_files = ml_convert_list<vlc_ml_file_list_t, vlc_ml_file_t>( files );
+    output.p_files = ml_convert_list<heimdall_ml_file_list_t, heimdall_ml_file_t>( files );
     if ( output.p_files == nullptr )
         return false;
     if ( strdup_helper( input->fileName(), output.psz_filename ) == false )
@@ -278,27 +279,27 @@ bool Convert( const medialibrary::IMedia* input, vlc_ml_media_t& output )
     return true;
 }
 
-bool Convert( const medialibrary::IFile* input, vlc_ml_file_t& output )
+bool Convert( const medialibrary::IFile* input, heimdall_ml_file_t& output )
 {
     switch ( input->type() )
     {
         case medialibrary::IFile::Type::Main:
-            output.i_type = VLC_ML_FILE_TYPE_MAIN;
+            output.i_type = HEIMDALL_ML_FILE_TYPE_MAIN;
             break;
         case medialibrary::IFile::Type::Part:
-            output.i_type = VLC_ML_FILE_TYPE_PART;
+            output.i_type = HEIMDALL_ML_FILE_TYPE_PART;
             break;
         case medialibrary::IFile::Type::Soundtrack:
-            output.i_type = VLC_ML_FILE_TYPE_SOUNDTRACK;
+            output.i_type = HEIMDALL_ML_FILE_TYPE_SOUNDTRACK;
             break;
         case medialibrary::IFile::Type::Subtitles:
-            output.i_type = VLC_ML_FILE_TYPE_SUBTITLE;
+            output.i_type = HEIMDALL_ML_FILE_TYPE_SUBTITLE;
             break;
         case medialibrary::IFile::Type::Playlist:
-            output.i_type = VLC_ML_FILE_TYPE_PLAYLIST;
+            output.i_type = HEIMDALL_ML_FILE_TYPE_PLAYLIST;
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 
     output.i_size = input->size();
@@ -320,7 +321,7 @@ bool Convert( const medialibrary::IFile* input, vlc_ml_file_t& output )
     return true;
 }
 
-bool Convert( const medialibrary::IAlbum* input, vlc_ml_album_t& output )
+bool Convert( const medialibrary::IAlbum* input, heimdall_ml_album_t& output )
 {
     output.i_id = input->id();
     output.i_nb_tracks = input->nbTracks();
@@ -372,7 +373,7 @@ static const char* artistName( const medialibrary::IArtist* artist )
     }
 }
 
-bool Convert( const medialibrary::IArtist* input, vlc_ml_artist_t& output )
+bool Convert( const medialibrary::IArtist* input, heimdall_ml_artist_t& output )
 {
     output.i_id = input->id();
     output.i_nb_album = input->nbAlbums();
@@ -390,7 +391,7 @@ bool Convert( const medialibrary::IArtist* input, vlc_ml_artist_t& output )
     return convertThumbnails( input, output.thumbnails );
 }
 
-bool Convert( const medialibrary::IGenre* input, vlc_ml_genre_t& output )
+bool Convert( const medialibrary::IGenre* input, heimdall_ml_genre_t& output )
 {
     output.i_id = input->id();
     output.i_nb_tracks = input->nbTracks();
@@ -400,7 +401,7 @@ bool Convert( const medialibrary::IGenre* input, vlc_ml_genre_t& output )
     if  ( !strdup_helper( input->name(), output.psz_name ) )
         return false;
 
-    for (int i = VLC_ML_THUMBNAIL_SMALL; i < VLC_ML_THUMBNAIL_SIZE_COUNT; ++i)
+    for (int i = HEIMDALL_ML_THUMBNAIL_SMALL; i < HEIMDALL_ML_THUMBNAIL_SIZE_COUNT; ++i)
     {
         const auto sizeType = static_cast<medialibrary::ThumbnailSizeType>(i);
         if ( input->hasThumbnail( sizeType ) )
@@ -416,7 +417,7 @@ bool Convert( const medialibrary::IGenre* input, vlc_ml_genre_t& output )
     return true;
 }
 
-bool Convert( const medialibrary::IShow* input, vlc_ml_show_t& output )
+bool Convert( const medialibrary::IShow* input, heimdall_ml_show_t& output )
 {
     output.i_id = input->id();
     output.i_release_year = input->releaseDate();
@@ -431,13 +432,13 @@ bool Convert( const medialibrary::IShow* input, vlc_ml_show_t& output )
     return true;
 }
 
-bool Convert( const medialibrary::ILabel* input, vlc_ml_label_t& output )
+bool Convert( const medialibrary::ILabel* input, heimdall_ml_label_t& output )
 {
     assert( input->name().empty() == false );
     return strdup_helper( input->name(), output.psz_name );
 }
 
-bool Convert( const medialibrary::IMediaGroup* input, vlc_ml_group_t& output )
+bool Convert( const medialibrary::IMediaGroup* input, heimdall_ml_group_t& output )
 {
     output.i_id = input->id();
 
@@ -464,7 +465,7 @@ bool Convert( const medialibrary::IMediaGroup* input, vlc_ml_group_t& output )
     return true;
 }
 
-bool Convert( const medialibrary::IPlaylist* input, vlc_ml_playlist_t& output )
+bool Convert( const medialibrary::IPlaylist* input, heimdall_ml_playlist_t& output )
 {
     output.i_id = input->id();
 
@@ -499,7 +500,7 @@ bool Convert( const medialibrary::IPlaylist* input, vlc_ml_playlist_t& output )
     return strdup_helper(input->mrl(), output.psz_mrl) == true;
 }
 
-bool Convert( const medialibrary::IFolder* input, vlc_ml_folder_t& output )
+bool Convert( const medialibrary::IFolder* input, heimdall_ml_folder_t& output )
 {
     output.i_id = input->id();
 
@@ -532,7 +533,7 @@ bool Convert( const medialibrary::IFolder* input, vlc_ml_folder_t& output )
     return true;
 }
 
-bool Convert( const medialibrary::IBookmark* input, vlc_ml_bookmark_t& output )
+bool Convert( const medialibrary::IBookmark* input, heimdall_ml_bookmark_t& output )
 {
     if ( strdup_helper( input->name(), output.psz_name ) == false ||
          strdup_helper( input->description(), output.psz_description ) == false )
@@ -561,9 +562,9 @@ input_item_t* MediaToInputItem( const medialibrary::IMedia* media )
     {
         return nullptr;
     }
-    auto inputItem = vlc::wrap_cptr<input_item_t>(
+    auto inputItem = heimdall::wrap_cptr<input_item_t>(
                 input_item_NewExt( mrl.c_str(), media->fileName().c_str(),
-                                   VLC_TICK_FROM_MS( media->duration() ),
+                                   HEIMDALL_TICK_FROM_MS( media->duration() ),
                                    ITEM_TYPE_FILE, ITEM_NET_UNKNOWN ),
                 &input_item_Release );
     auto thumbnailStatus = media->thumbnailStatus( medialibrary::ThumbnailSizeType::Thumbnail );

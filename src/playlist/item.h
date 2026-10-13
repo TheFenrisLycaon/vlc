@@ -2,6 +2,7 @@
  * playlist/item.h
  *****************************************************************************
  * Copyright (C) 2018 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -18,25 +19,25 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_PLAYLIST_ITEM_H
-#define VLC_PLAYLIST_ITEM_H
+#ifndef HEIMDALL_PLAYLIST_ITEM_H
+#define HEIMDALL_PLAYLIST_ITEM_H
 
-#include <vlc_atomic.h>
-#include <vlc_preparser.h>
+#include <heimdall_atomic.h>
+#include <heimdall_preparser.h>
 
-typedef struct vlc_playlist_item vlc_playlist_item_t;
+typedef struct heimdall_playlist_item heimdall_playlist_item_t;
 typedef struct input_item_t input_item_t;
 
-struct vlc_playlist_item
+struct heimdall_playlist_item
 {
     input_item_t *media;
     uint64_t id;
-    vlc_preparser_req *preparser_req;
-    vlc_atomic_rc_t rc;
+    heimdall_preparser_req *preparser_req;
+    heimdall_atomic_rc_t rc;
 };
 
 /* _New() is private, it is called when inserting new media in the playlist */
-vlc_playlist_item_t *
-vlc_playlist_item_New(input_item_t *media, uint64_t id);
+heimdall_playlist_item_t *
+heimdall_playlist_item_New(input_item_t *media, uint64_t id);
 
 #endif

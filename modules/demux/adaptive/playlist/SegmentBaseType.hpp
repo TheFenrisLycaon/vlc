@@ -2,6 +2,7 @@
  * SegmentBaseType.hpp
  *****************************************************************************
  * Copyright (C) 2020 VideoLabs, VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -40,18 +41,18 @@ namespace adaptive
                 AbstractSegmentBaseType( SegmentInformation *, AttrsNode::Type );
                 virtual ~AbstractSegmentBaseType();
 
-                virtual vlc_tick_t getMinAheadTime(uint64_t) const = 0;
+                virtual heimdall_tick_t getMinAheadTime(uint64_t) const = 0;
                 virtual Segment *getMediaSegment(uint64_t pos) const = 0;
                 virtual InitSegment *getInitSegment() const;
                 virtual IndexSegment *getIndexSegment() const;
                 virtual Segment *getNextMediaSegment(uint64_t, uint64_t *, bool *) const = 0;
                 virtual uint64_t getStartSegmentNumber() const = 0;
 
-                virtual bool getSegmentNumberByTime(vlc_tick_t time, uint64_t *ret) const = 0;
+                virtual bool getSegmentNumberByTime(heimdall_tick_t time, uint64_t *ret) const = 0;
                 virtual bool getPlaybackTimeDurationBySegmentNumber(uint64_t number,
-                                                vlc_tick_t *time, vlc_tick_t *duration) const = 0;
+                                                heimdall_tick_t *time, heimdall_tick_t *duration) const = 0;
 
-                virtual void debug(vlc_object_t *, int = 0) const;
+                virtual void debug(heimdall_object_t *, int = 0) const;
 
                 static Segment * findSegmentByScaledTime(const std::vector<Segment *> &,
                                                          stime_t);

@@ -4,9 +4,10 @@
  * Copyright © 2006-2008 Rafaël Carré
  * Copyright © 2007-2010 Mirsal Ennaime
  * Copyright © 2009-2010 The VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors:    Mirsal Ennaime <mirsal at mirsal fr>
- *             Rafaël Carré <funman at videolanorg>
+ *             Rafaël Carré <funman at lycariaorg>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,11 +24,11 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_DBUS_DBUS_PLAYER_H_
-#define VLC_DBUS_DBUS_PLAYER_H_
+#ifndef HEIMDALL_DBUS_DBUS_PLAYER_H_
+#define HEIMDALL_DBUS_DBUS_PLAYER_H_
 
-#include <vlc_interface.h>
-#include <vlc_arrays.h>
+#include <heimdall_interface.h>
+#include <heimdall_arrays.h>
 #include "dbus_common.h"
 
 #define DBUS_MPRIS_PLAYER_INTERFACE    "org.mpris.MediaPlayer2.Player"
@@ -69,7 +70,7 @@ int PlayerMetadataChangedEmit( intf_thread_t*, input_item_t* );
 int TrackChangedEmit      ( intf_thread_t *, input_item_t * );
 int SeekedEmit( intf_thread_t * );
 
-int PlayerPropertiesChangedEmit( intf_thread_t *, vlc_dictionary_t * );
+int PlayerPropertiesChangedEmit( intf_thread_t *, heimdall_dictionary_t * );
 
 void UpdatePlayerCaps( intf_thread_t * );
 

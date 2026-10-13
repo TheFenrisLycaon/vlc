@@ -2,6 +2,7 @@
  * registry.cpp: Windows Registry Manipulation
  ****************************************************************************
  * Copyright (C) 2008 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Andre Weber <WeberAndre # gmx - de>
  *
@@ -29,11 +30,11 @@
 #include <stdlib.h>
 #include "registry.hpp"
 
-QVLCRegistry::QVLCRegistry( HKEY rootKey )
+QHeimdallRegistry::QHeimdallRegistry( HKEY rootKey )
     : m_RootKey( rootKey )
 {}
 
-bool QVLCRegistry::RegistryKeyExists( const char *path )
+bool QHeimdallRegistry::RegistryKeyExists( const char *path )
 {
     HKEY keyHandle;
     if( RegOpenKeyExA( m_RootKey, path, 0, KEY_READ, &keyHandle ) == ERROR_SUCCESS )
@@ -44,7 +45,7 @@ bool QVLCRegistry::RegistryKeyExists( const char *path )
     return false;
 }
 
-bool QVLCRegistry::RegistryValueExists( const char *path, const char *valueName )
+bool QHeimdallRegistry::RegistryValueExists( const char *path, const char *valueName )
 {
     HKEY keyHandle;
     bool temp = false;
@@ -63,7 +64,7 @@ bool QVLCRegistry::RegistryValueExists( const char *path, const char *valueName 
     return temp;
 }
 
-void QVLCRegistry::WriteRegistry( const char *path, const char *valueName, int value )
+void QHeimdallRegistry::WriteRegistry( const char *path, const char *valueName, int value )
 {
     HKEY keyHandle;
 
@@ -76,7 +77,7 @@ void QVLCRegistry::WriteRegistry( const char *path, const char *valueName, int v
     }
 }
 
-void QVLCRegistry::WriteRegistry( const char *path, const char *valueName, const char *value )
+void QHeimdallRegistry::WriteRegistry( const char *path, const char *valueName, const char *value )
 {
     HKEY keyHandle;
 
@@ -89,7 +90,7 @@ void QVLCRegistry::WriteRegistry( const char *path, const char *valueName, const
     }
 }
 
-void QVLCRegistry::WriteRegistry( const char *path, const char *valueName, double value )
+void QHeimdallRegistry::WriteRegistry( const char *path, const char *valueName, double value )
 {
     HKEY keyHandle;
     if( RegCreateKeyExA( m_RootKey, path, 0, NULL, REG_OPTION_NON_VOLATILE,
@@ -100,7 +101,7 @@ void QVLCRegistry::WriteRegistry( const char *path, const char *valueName, doubl
     }
 }
 
-int QVLCRegistry::ReadRegistry( const char *path, const char *valueName, int default_value ) {
+int QHeimdallRegistry::ReadRegistry( const char *path, const char *valueName, int default_value ) {
     HKEY keyHandle;
     int tempValue;
     DWORD size1;
@@ -123,7 +124,7 @@ int QVLCRegistry::ReadRegistry( const char *path, const char *valueName, int def
     return default_value;
 }
 
-char * QVLCRegistry::ReadRegistry( const char *path, const char *valueName, const char *default_value )
+char * QHeimdallRegistry::ReadRegistry( const char *path, const char *valueName, const char *default_value )
 {
     HKEY keyHandle;
     char *tempValue = NULL;
@@ -152,7 +153,7 @@ char * QVLCRegistry::ReadRegistry( const char *path, const char *valueName, cons
     return tempValue == NULL ? strdup( default_value ) : tempValue2;
 }
 
-double QVLCRegistry::ReadRegistry( const char *path, const char *valueName, double default_value )
+double QHeimdallRegistry::ReadRegistry( const char *path, const char *valueName, double default_value )
 {
     HKEY keyHandle;
     double tempValue;
@@ -178,7 +179,7 @@ double QVLCRegistry::ReadRegistry( const char *path, const char *valueName, doub
     return default_value;
 }
 
-int QVLCRegistry::DeleteValue( const char *path, const char *valueName )
+int QHeimdallRegistry::DeleteValue( const char *path, const char *valueName )
 {
     HKEY keyHandle;
     long result;
@@ -191,7 +192,7 @@ int QVLCRegistry::DeleteValue( const char *path, const char *valueName )
     return result;
 }
 
-long QVLCRegistry::DeleteKey( const char *path, const char *keyName )
+long QHeimdallRegistry::DeleteKey( const char *path, const char *keyName )
 {
     HKEY keyHandle;
     long result;

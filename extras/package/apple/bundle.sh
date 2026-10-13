@@ -30,11 +30,11 @@ rm -f "$IPA"
 rm -rf "Payload/"
 mkdir -p "$APP"
 
-# VLC core test binary compiled for iOS
+# Heimdall core test binary compiled for iOS
 cp "${BUILD_DIR}/test/${APP_EXECUTABLE}" "${APP}/${APP_NAME}"
 
 # Convert Info.plist from XML to binary
-CONVERT_PLIST "${SCRIPT_DIR}/Info.plist" "Payload/vlccore.app/Info.plist"
+CONVERT_PLIST "${SCRIPT_DIR}/Info.plist" "Payload/heimdallcore.app/Info.plist"
 
 # Set the bundle type
 echo "APPL????" > "$APP/PkgInfo"
@@ -44,9 +44,9 @@ echo "APPL????" > "$APP/PkgInfo"
 # Frameworks/ directory, but since it is only designed for development usage
 # we can just put them there without further processing.
 mkdir -p "$APP/Frameworks"
-if [ -f "${BUILD_DIR}/lib/.libs/libvlc.dylib" ]; then
-cp "${BUILD_DIR}/lib/.libs/libvlc.dylib" "$APP/Frameworks"
-cp "${BUILD_DIR}/src/.libs/libvlccore.dylib" "$APP/Frameworks"
+if [ -f "${BUILD_DIR}/lib/.libs/libheimdall.dylib" ]; then
+cp "${BUILD_DIR}/lib/.libs/libheimdall.dylib" "$APP/Frameworks"
+cp "${BUILD_DIR}/src/.libs/libheimdallcore.dylib" "$APP/Frameworks"
 find "${BUILD_DIR}/modules/.libs/" -name "*.dylib" -exec cp {} "$APP/Frameworks" \;
 fi
 if [ -n "$EXTRA_FILE" ]; then

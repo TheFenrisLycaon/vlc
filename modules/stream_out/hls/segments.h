@@ -2,6 +2,7 @@
  * segments.h
  *****************************************************************************
  * Copyright (C) 2023 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -27,13 +28,13 @@ typedef struct hls_segment
 {
     char *url;
     unsigned int id;
-    vlc_tick_t length;
+    heimdall_tick_t length;
 
     struct hls_storage *storage;
 
     httpd_url_t *http_url;
 
-    struct vlc_list priv_node;
+    struct heimdall_list priv_node;
 } hls_segment_t;
 
 struct hls_segment_queue_config
@@ -58,15 +59,15 @@ typedef struct
 
     const struct hls_config *hls_config;
 
-    struct vlc_list segments;
+    struct heimdall_list segments;
 } hls_segment_queue_t;
 
 #define hls_segment_queue_Foreach(queue, it)                                   \
-    vlc_list_foreach (it, &(queue)->segments, priv_node)
+    heimdall_list_foreach (it, &(queue)->segments, priv_node)
 #define hls_segment_queue_Foreach_const(queue, it)                             \
-    vlc_list_foreach_const (it, &(queue)->segments, priv_node)
+    heimdall_list_foreach_const (it, &(queue)->segments, priv_node)
 #define hls_segment_GetFirst(queue)                                            \
-    vlc_list_first_entry_or_null(&(queue)->segments, hls_segment_t, priv_node);
+    heimdall_list_first_entry_or_null(&(queue)->segments, hls_segment_t, priv_node);
 
 void hls_segment_queue_Init(hls_segment_queue_t *,
                             const struct hls_segment_queue_config *,
@@ -82,12 +83,12 @@ void hls_segment_queue_Clear(hls_segment_queue_t *);
  * \param content A chain of block containing segment's data.
  * \param length The media time size of the segment.
  *
- * \retval VLC_SUCCESS on success.
+ * \retval HEIMDALL_SUCCESS on success.
  * \retval -errno on error.
  */
 int hls_segment_queue_NewSegment(hls_segment_queue_t *,
                                  block_t *content,
-                                 vlc_tick_t length);
+                                 heimdall_tick_t length);
 
 static inline bool
 hls_segment_queue_IsAtMaxCapacity(const hls_segment_queue_t *queue)

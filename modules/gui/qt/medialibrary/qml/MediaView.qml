@@ -1,5 +1,6 @@
 /******************************************************************************
  * Copyright (C) 2024 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Ash <ashutoshv191@gmail.com>
  *
@@ -19,12 +20,12 @@
  ******************************************************************************/
 import QtQuick
 
-import VLC.MediaLibrary
+import Heimdall.MediaLibrary
 
-import VLC.MainInterface
-import VLC.Widgets as Widgets
-import VLC.Util
-import VLC.Style
+import Heimdall.MainInterface
+import Heimdall.Widgets as Widgets
+import Heimdall.Util
+import Heimdall.Style
 
 // NOTE: This is a customizable view that can be used with
 //       the `MLMediaModel` and its drivatives.
@@ -44,12 +45,12 @@ MainViewLoader {
 
     property string listSectionProperty: model.sortCriteria === "title" ? "title_first_symbol" : "" // "", when as a row
 
-    property int listCoverWidth: VLCStyle.trackListAlbumCover_width
-    property int listCoverHeight: VLCStyle.trackListAlbumCover_heigth
-    property int listCoverRadius: VLCStyle.trackListAlbumCover_radius
+    property int listCoverWidth: HeimdallStyle.trackListAlbumCover_width
+    property int listCoverHeight: HeimdallStyle.trackListAlbumCover_heigth
+    property int listCoverRadius: HeimdallStyle.trackListAlbumCover_radius
 
-    property int gridCoverWidth: VLCStyle.gridCover_music_width
-    property int gridCoverHeight: VLCStyle.gridCover_music_height
+    property int gridCoverWidth: HeimdallStyle.gridCover_music_width
+    property int gridCoverHeight: HeimdallStyle.gridCover_music_height
 
     property int fillMode: MainCtx.gridView ? Image.PreserveAspectCrop : Image.PreserveAspectFit
 
@@ -106,8 +107,8 @@ MainViewLoader {
 
         coverRole: "small_cover"
 
-        defaultCover: VLCStyle.noArtAlbumCover // TODO: better fallback image
-                                               // use a better vlc branding fallback image like 'noart.png' which is used in vlc 3 for media
+        defaultCover: HeimdallStyle.noArtAlbumCover // TODO: better fallback image
+                                               // use a better heimdall branding fallback image like 'noart.png' which is used in heimdall 3 for media
 
         indexesFlat: !!root.selectionModel.selectedIndexesFlat
 
@@ -161,7 +162,7 @@ MainViewLoader {
                 fillMode: root.fillMode
 
                 image: model.small_cover ?? ""
-                fallbackImage: model.isVideo ? VLCStyle.noArtVideoCover : VLCStyle.noArtAlbumCover
+                fallbackImage: model.isVideo ? HeimdallStyle.noArtVideoCover : HeimdallStyle.noArtAlbumCover
 
                 title: model.title || qsTr("Unknown Title")
                 subtitle: model.duration?.formatHMS() ?? "--:--"
@@ -191,7 +192,7 @@ MainViewLoader {
 
                 Behavior on opacity {
                     OpacityAnimator {
-                        duration: VLCStyle.duration_short
+                        duration: HeimdallStyle.duration_short
                     }
                 }
             }
@@ -217,7 +218,7 @@ MainViewLoader {
                     headerDelegate: tableColumns.titleHeaderDelegate,
                     colDelegate: tableColumns.titleDelegate,
 
-                    placeHolder: VLCStyle.noArtAlbumCover // TODO: better fallback image
+                    placeHolder: HeimdallStyle.noArtAlbumCover // TODO: better fallback image
                 }
             }, {
                 size: 1,
@@ -243,7 +244,7 @@ MainViewLoader {
                     headerDelegate: tableColumns.titleHeaderDelegate,
                     colDelegate: tableColumns.titleDelegate,
 
-                    placeHolder: VLCStyle.noArtAlbumCover, // TODO: better fallback image
+                    placeHolder: HeimdallStyle.noArtAlbumCover, // TODO: better fallback image
 
                     subCriterias: ["duration"]
                 }
@@ -255,11 +256,11 @@ MainViewLoader {
 
             selectionModel: root.selectionModel
 
-            sortModel: _availableRowWidth >= VLCStyle.colWidth(4) ? _sortModelLarge : _sortModelSmall
+            sortModel: _availableRowWidth >= HeimdallStyle.colWidth(4) ? _sortModelLarge : _sortModelSmall
 
             headerPositioning: root.listHeaderPositioning
 
-            rowHeight: VLCStyle.tableCoverRow_height
+            rowHeight: HeimdallStyle.tableCoverRow_height
 
             section.property: root.listSectionProperty
 
@@ -312,7 +313,7 @@ MainViewLoader {
         Widgets.EmptyLabelButton {
             focus: true
 
-            cover: VLCStyle.noArtAlbumCover // TODO: better fallback image
+            cover: HeimdallStyle.noArtAlbumCover // TODO: better fallback image
 
             text: qsTr("No media found\nPlease try adding sources")
 

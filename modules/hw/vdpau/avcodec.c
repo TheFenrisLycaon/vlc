@@ -2,6 +2,7 @@
  * avcodec.c: VDPAU decoder for libav
  *****************************************************************************
  * Copyright (C) 2012-2013 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -31,12 +32,12 @@
 #include <libavutil/mem.h>
 #include <libavcodec/avcodec.h>
 #include <libavcodec/vdpau.h>
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_fourcc.h>
-#include <vlc_picture.h>
-#include <vlc_codec.h>
-#include "vlc_vdpau.h"
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_fourcc.h>
+#include <heimdall_picture.h>
+#include <heimdall_codec.h>
+#include "heimdall_vdpau.h"
 #include "../../codec/avcodec/va.h"
 
 typedef struct
@@ -45,13 +46,13 @@ typedef struct
     void *hwaccel_context;
     uint32_t width;
     uint32_t height;
-    vlc_video_context *vctx;
-    vlc_vdp_video_field_t *pool[];
-} vlc_va_sys_t;
+    heimdall_video_context *vctx;
+    heimdall_vdp_video_field_t *pool[];
+} heimdall_va_sys_t;
 
-static vlc_vdp_video_field_t *CreateSurface(vlc_va_t *va, vdpau_decoder_device_t *vdpau_decoder)
+static heimdall_vdp_video_field_t *CreateSurface(heimdall_va_t *va, vdpau_decoder_device_t *vdpau_decoder)
 {
-    vlc_va_sys_t *sys = va->sys;
+    heimdall_va_sys_t *sys = va->sys;
     VdpVideoSurface surface;
     VdpStatus err;
 
@@ -64,15 +65,15 @@ static vlc_vdp_video_field_t *CreateSurface(vlc_va_t *va, vdpau_decoder_device_t
         return NULL;
     }
 
-    vlc_vdp_video_field_t *field = vlc_vdp_video_create(sys->vctx, surface);
+    heimdall_vdp_video_field_t *field = heimdall_vdp_video_create(sys->vctx, surface);
     if (unlikely(field == NULL))
         vdp_video_surface_destroy(vdpau_decoder->vdp, surface);
     return field;
 }
 
-static vlc_vdp_video_field_t *GetSurface(vlc_va_sys_t *sys)
+static heimdall_vdp_video_field_t *GetSurface(heimdall_va_sys_t *sys)
 {
-    vlc_vdp_video_field_t *f;
+    heimdall_vdp_video_field_t *f;
 
     for (unsigned i = 0; (f = sys->pool[i]) != NULL; i++)
     {
@@ -80,7 +81,7 @@ static vlc_vdp_video_field_t *GetSurface(vlc_va_sys_t *sys)
 
         if (atomic_compare_exchange_strong(&f->frame->refs, &expected, 2))
         {
-            vlc_vdp_video_field_t *field = vlc_vdp_video_copy(f);
+            heimdall_vdp_video_field_t *field = heimdall_vdp_video_copy(f);
             atomic_fetch_sub(&f->frame->refs, 1);
             return field;
         }
@@ -88,42 +89,42 @@ static vlc_vdp_video_field_t *GetSurface(vlc_va_sys_t *sys)
     return NULL;
 }
 
-static vlc_vdp_video_field_t *Get(vlc_va_sys_t *sys)
+static heimdall_vdp_video_field_t *Get(heimdall_va_sys_t *sys)
 {
-    vlc_vdp_video_field_t *field;
+    heimdall_vdp_video_field_t *field;
 
     while ((field = GetSurface(sys)) == NULL)
     {
         /* Pool empty. Wait for some time as in src/input/decoder.c.
          * XXX: Both this and the core should use a semaphore or a CV. */
-        vlc_tick_sleep(VOUT_OUTMEM_SLEEP);
+        heimdall_tick_sleep(VOUT_OUTMEM_SLEEP);
     }
 
     return field;
 }
 
-static int Lock(vlc_va_t *va, picture_t *pic, AVCodecContext *ctx, AVFrame *frame)
+static int Lock(heimdall_va_t *va, picture_t *pic, AVCodecContext *ctx, AVFrame *frame)
 {
     (void) ctx;
 
-    vlc_va_sys_t *sys = va->sys;
-    vlc_vdp_video_field_t *field = Get(sys);
+    heimdall_va_sys_t *sys = va->sys;
+    heimdall_vdp_video_field_t *field = Get(sys);
     if (field == NULL)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     pic->context = &field->context;
     frame->data[3] = (void *)(uintptr_t)field->frame->surface;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void Close(vlc_va_t *va, AVCodecContext* ctx)
+static void Close(heimdall_va_t *va, AVCodecContext* ctx)
 {
-    vlc_va_sys_t *sys = va->sys;
+    heimdall_va_sys_t *sys = va->sys;
 
     for (size_t i = 0; sys->pool[i] != NULL; i++)
-        vlc_vdp_video_destroy(sys->pool[i]);
+        heimdall_vdp_video_destroy(sys->pool[i]);
 
-    vlc_video_context_Release(sys->vctx);
+    heimdall_video_context_Release(sys->vctx);
     if (sys->hwaccel_context)
         av_free(sys->hwaccel_context);
     if (ctx)
@@ -131,25 +132,25 @@ static void Close(vlc_va_t *va, AVCodecContext* ctx)
     free(sys);
 }
 
-static const struct vlc_va_operations ops =
+static const struct heimdall_va_operations ops =
 {
     .get = Lock,
     .close = Close,
 };
 
-const struct vlc_video_context_operations vdpau_vctx_ops = {
+const struct heimdall_video_context_operations vdpau_vctx_ops = {
     NULL,
 };
 
-static int Open(vlc_va_t *va, struct vlc_va_cfg *cfg)
+static int Open(heimdall_va_t *va, struct heimdall_va_cfg *cfg)
 {
     AVCodecContext *avctx = cfg->avctx;
     enum AVPixelFormat hwfmt = cfg->hwfmt;
-    vlc_decoder_device *dec_device = cfg->dec_device;
+    heimdall_decoder_device *dec_device = cfg->dec_device;
     video_format_t *fmt_out = cfg->video_fmt_out;
 
     if ( hwfmt != AV_PIX_FMT_VDPAU || GetVDPAUOpaqueDevice(dec_device) == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     void *func;
     VdpStatus err;
@@ -157,9 +158,9 @@ static int Open(vlc_va_t *va, struct vlc_va_cfg *cfg)
     uint32_t width, height;
 
     if (av_vdpau_get_surface_parameters(avctx, &type, &width, &height))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    fmt_out->i_chroma = VLC_CODEC_VDPAU_VIDEO;
+    fmt_out->i_chroma = HEIMDALL_CODEC_VDPAU_VIDEO;
 
     unsigned codec_refs;
     switch (avctx->codec_id)
@@ -179,22 +180,22 @@ static int Open(vlc_va_t *va, struct vlc_va_cfg *cfg)
     }
 
     const unsigned refs = codec_refs + 2 * avctx->thread_count + 5;
-    size_t extra = (refs + 1) * sizeof (vlc_vdp_video_field_t *);
+    size_t extra = (refs + 1) * sizeof (heimdall_vdp_video_field_t *);
 
-    vlc_va_sys_t *sys = malloc(sizeof (*sys) + extra);
+    heimdall_va_sys_t *sys = malloc(sizeof (*sys) + extra);
     if (unlikely(sys == NULL))
-       return VLC_ENOMEM;
+       return HEIMDALL_ENOMEM;
 
-    sys->vctx = vlc_video_context_Create(dec_device, VLC_VIDEO_CONTEXT_VDPAU,
+    sys->vctx = heimdall_video_context_Create(dec_device, HEIMDALL_VIDEO_CONTEXT_VDPAU,
                                          sizeof (VdpChromaType),
                                          &vdpau_vctx_ops);
     if (sys->vctx == NULL)
     {
         free(sys);
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
-    chroma = vlc_video_context_GetPrivate(sys->vctx, VLC_VIDEO_CONTEXT_VDPAU);
+    chroma = heimdall_video_context_GetPrivate(sys->vctx, HEIMDALL_VIDEO_CONTEXT_VDPAU);
     *chroma = type;
     sys->type = type;
     sys->width = width;
@@ -228,25 +229,25 @@ static int Open(vlc_va_t *va, struct vlc_va_cfg *cfg)
     {
         msg_Err(va, "not enough video RAM");
         Close(va, avctx);
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     cfg->vctx_out = sys->vctx;
     va->ops = &ops;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     if (sys->vctx)
-        vlc_video_context_Release(sys->vctx);
+        heimdall_video_context_Release(sys->vctx);
     if (sys->hwaccel_context)
         av_free(sys->hwaccel_context);
     free(sys);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_description(N_("VDPAU video decoder"))
     set_subcategory(SUBCAT_INPUT_VCODEC)
     set_va_callback(Open, 100)
     add_shortcut("vdpau")
-vlc_module_end()
+heimdall_module_end()

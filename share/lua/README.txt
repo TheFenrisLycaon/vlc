@@ -1,56 +1,56 @@
-Instructions to code your own VLC Lua scripts and extensions
+Instructions to code your own Heimdall Lua scripts and extensions
 
 1 - About Lua
 =============
 
 Lua documentation is available on http://www.lua.org/ . The reference manual
 is very useful: http://www.lua.org/manual/5.1/ .
-VLC uses Lua 5.1
+Heimdall uses Lua 5.1
 All the Lua standard libraries are available.
 
 
-2 - Lua in VLC
+2 - Lua in Heimdall
 ==============
 
-Several types of VLC Lua scripts can currently be coded:
+Several types of Heimdall Lua scripts can currently be coded:
  * Playlist and websites parsers (see playlist/README.txt)
  * Art fetchers (see meta/README.txt)
  * Interfaces (see intf/README.txt)
  * Extensions (see extensions/README.txt)
  * Services Discovery (see sd/README.txt)
 
-Lua scripts are tried in alphabetical order in the user's VLC config
+Lua scripts are tried in alphabetical order in the user's Heimdall config
 directory lua/{playlist,meta,intf}/ subdirectory on Windows and Mac OS X or
-in the user's local share directory (~/.local/share/vlc/lua/... on linux),
-then in the global VLC lua/{playlist,meta,intf}/ directory.
+in the user's local share directory (~/.local/share/heimdall/lua/... on linux),
+then in the global Heimdall lua/{playlist,meta,intf}/ directory.
 
 
-3 - VLC specific Lua modules
+3 - Heimdall specific Lua modules
 ============================
 
-All VLC specifics modules are in the "vlc" object. For example, if you want
-to use the "info" function of the "msg" VLC specific Lua module:
-vlc.msg.info( "This is an info message and will be displayed in the console" )
+All Heimdall specifics modules are in the "heimdall" object. For example, if you want
+to use the "info" function of the "msg" Heimdall specific Lua module:
+heimdall.msg.info( "This is an info message and will be displayed in the console" )
 
-Note: availability of the different VLC specific Lua modules depends on
-the type of VLC Lua script your are in.
+Note: availability of the different Heimdall specific Lua modules depends on
+the type of Heimdall Lua script your are in.
 
 Configuration
 -------------
-config.get( name ): Get the VLC configuration option "name"'s value.
-config.set( name, value ): Set the VLC configuration option "name"'s value.
-config.datadir(): Get the VLC data directory.
-config.userdatadir(): Get the user's VLC data directory.
+config.get( name ): Get the Heimdall configuration option "name"'s value.
+config.set( name, value ): Set the Heimdall configuration option "name"'s value.
+config.datadir(): Get the Heimdall data directory.
+config.userdatadir(): Get the user's Heimdall data directory.
 config.homedir(): Get the user's home directory.
-config.configdir(): Get the user's VLC config directory.
-config.cachedir(): Get the user's VLC cache directory.
+config.configdir(): Get the user's Heimdall config directory.
+config.cachedir(): Get the user's Heimdall cache directory.
 
 config.datadir_list( name ): Get the list of possible data directories in
                              order of priority, appended by "name"
 
 Dialog
 ------
-local d = vlc.dialog( "My VLC Extension" ): Create a new UI dialog, with a human-readable title: "My VLC Extension"
+local d = heimdall.dialog( "My Heimdall Extension" ): Create a new UI dialog, with a human-readable title: "My Heimdall Extension"
 d:show(): Show this dialog.
 d:hide(): Hide (but not close) this dialog.
 d:delete(): Close and delete this dialog.
@@ -102,7 +102,7 @@ HTTPd (only usable for interfaces)
 ----------------------------------
 httpd(): create a new HTTP daemon.
 
-local h = vlc.httpd()
+local h = heimdall.httpd()
 h:handler( url, user, password, callback, data ) -- add a handler for given url. If user and password are non nil, they will be used to authenticate connecting clients. callback will be called to handle connections. The callback function takes 7 arguments: data, url, request, type, in, addr, host. It returns the reply as a string.
 h:file( url, mime, user, password, callback, data ) -- add a file for given url with given mime type. If user and password are non nil, they will be used to authenticate connecting clients. callback will be called to handle connections. The callback function takes 2 arguments: data and request. It returns the reply as a string.
 h:redirect( url_dst, url_src ): Redirect all connections from url_src to url_dst.
@@ -179,7 +179,7 @@ All path for this namespace are expected to be passed as UTF8 strings.
 io.mkdir("path", "mode"): Similar to mkdir(2). The mode is passed as a string
   to allow for octal representations. This returns a success code (non 0 in
   case of failure), and a more specific error code as its 2nd returned value
-  in case of failure. The error code is to be used with vlc.errno
+  in case of failure. The error code is to be used with heimdall.errno
 io.readdir("path"): Lists all files & directories in the provided folder.
 io.open("path"[, "mode"]): Similar to lua's io.open. Mode is optional and
   defaults to "r". It returns a file object with the following member functions:
@@ -191,7 +191,7 @@ io.open("path"[, "mode"]): Similar to lua's io.open. Mode is optional and
   all of which are used exactly like the lua object returned by io.open
 io.unlink("path"): Similar to os.remove. First return value is 0 in case
   of success. In case of failure, the 2nd return parameter is an error
-  code to be compared against vlc.errno values.
+  code to be compared against heimdall.errno values.
 
 Messages
 --------
@@ -206,16 +206,16 @@ Misc (Interfaces only)
 /!\ NB: this namespace is ONLY usable for interfaces.
 ---
 ----------------------------------------------------------------
-misc.version(): Get the VLC version string.
-misc.copyright(): Get the VLC copyright statement.
-misc.license(): Get the VLC license.
+misc.version(): Get the Heimdall version string.
+misc.copyright(): Get the Heimdall copyright statement.
+misc.license(): Get the Heimdall license.
 
 misc.action_id( name ): get the id of the given action.
 
 misc.mdate(): Get the current date (in microseconds).
 misc.mwait(): Wait for the given date (in microseconds).
 
-misc.quit(): Quit VLC.
+misc.quit(): Quit Heimdall.
 
 Net
 ---
@@ -224,13 +224,13 @@ Net
 ---
 ----------------------------------------------------------------
 net.url_parse( url ): Deprecated alias for strings.url_parse().
-  Will be removed in VLC 4.x.
+  Will be removed in Heimdall 4.x.
 net.listen_tcp( host, port ): Listen to TCP connections. This returns an
   object with an accept and an fds method. accept is blocking (Poll on the
   fds with the net.POLLIN flag if you want to be non blocking).
   The fds method returns a list of fds you can call poll on before using
   the accept method. For example:
-local l = vlc.net.listen_tcp( "localhost", 1234 )
+local l = heimdall.net.listen_tcp( "localhost", 1234 )
 while true do
   local fd = l:accept()
   if fd >= 0 do
@@ -266,7 +266,7 @@ Objects
 -------
 object.player(): Get the player object.
 object.playlist(): Get the playlist object.
-object.libvlc(): Get the libvlc object.
+object.libheimdall(): Get the libheimdall object.
 object.aout(): Get the audio output object.
 object.vout(): Get the video output object.
 
@@ -322,13 +322,13 @@ playlist.add( ... ): Add a bunch of items to the playlist.
       .encodedby: the item's EncodedBy (OPTIONAL, meta data)
       .arturl: the item's ArtURL (OPTIONAL, meta data)
       .trackid: the item's TrackID (OPTIONAL, meta data)
-      .options: a list of VLC options (OPTIONAL)
+      .options: a list of Heimdall options (OPTIONAL)
                 example: .options = { "run-time=60" }
       .duration: stream duration in seconds (OPTIONAL)
       .meta: custom meta data (OPTIONAL, meta data)
              A .meta field is a table of custom meta key value pairs.
              example: .meta = { ["GVP docid"] = "-5784010886294950089", ["GVP version] = "1.1", Hello = "World!" }
-  Invalid playlist items will be discarded by VLC.
+  Invalid playlist items will be discarded by Heimdall.
 playlist.enqueue( ... ): like playlist.add() except that track isn't played.
 playlist.get( [what, [tree]] ): Get the playlist.
   If "what" is a number, then this will return the corresponding playlist
@@ -398,11 +398,11 @@ sd.add_item( ... ): Add an item to the service discovery.
   Returns the input item.
 sd.remove_item( item ): remove the item.
 
-n = vlc.sd.add_node( {title="Node"} )
+n = heimdall.sd.add_node( {title="Node"} )
 n:add_subitem( ... ): Same as sd.add_item(), but as a child item of node n.
 n:add_subnode( ... ): Same as sd.add_node(), but as a subnode of node n.
 
-d = vlc.sd.add_item( ... ) Get an item object to perform following set operations on it:
+d = heimdall.sd.add_item( ... ) Get an item object to perform following set operations on it:
 d:set_name(): the item's name in playlist
 d:set_title(): the item's Title (OPTIONAL, meta data)
 d:set_artist(): the item's Artist (OPTIONAL, meta data)
@@ -435,38 +435,38 @@ query_params = {
   "favorite_only": boolean,
 }
 
-vlc.ml.video(query_params): Get video media list
-vlc.ml.media(mediaId: integer): Get media with media id parameter
-vlc.ml.media_by_mrl(mediaMrl: string): Get media with media mrl parameter
-vlc.ml.folder(query_params): Get folder list
-vlc.ml.folders_by_type(query_params, mediaType: integer): Get folders by type
-vlc.ml.get_folder(folderId: integer): Get folder with folder id parameter
-vlc.ml.show_episodes(query_params): Get the list of show episodes
-vlc.ml.audio(query_params): Get audio media list
-vlc.ml.media_thumbnail(mediaId: integer): Get media thumbnail with media id parameter
-vlc.ml.albums(query_params): Get album list
-vlc.ml.album(albumId: integer): Get album with album id
-vlc.ml.album_tracks(albumId: integer, query_params): Get album tracks with album id parameter
-vlc.ml.artists(query_params): Get artist list
-vlc.ml.artist(artistId: integer): Get artist with artist id
-vlc.ml.genres(query_params): Get genres list
-vlc.ml.genre(genreId: integer): Get genre with genre id parameter
-vlc.ml.playlists(query_params): Get playlist list
-vlc.ml.playlist(playlistId: integer): Get playlist with playlist id
-vlc.ml.artist_tracks(artistId: integer, query_params): Get artist tracks with artist id parameter
-vlc.ml.genre_tracks(genreId: integer, query_params): Get genre tracks with genre id parameter
-vlc.ml.playlist_tracks(playlistId: integer, query_params): Get playlist tracks with playlist id parameter
-vlc.ml.artist_albums(artistId: integer, query_params): Get artist albums with artist id parameter
-vlc.ml.genre_albums(genreId: integer, query_params): Get albums with genre id parameter
-vlc.ml.genre_artists(genreId: integer, query_params): Get artists with genre id parameter
-vlc.ml.artist_thumbnail(artistId: integer): Get artist thumbnail with artist id parameter
-vlc.ml.album_thumbnail(albumId: integer): Get album thumbnail with album id parameter
-vlc.ml.genre_thumbnail(genreId: integer): Get genre thumbnail with genre id parameter
-vlc.ml.reload(): Reload folder
-vlc.ml.history(historyType: integer, query_params): Get history list
-vlc.ml.video_history(query_params): Get video history list
-vlc.ml.audio_history(query_params): Get audio history list
-vlc.ml.media_bookmarks(mediaId: integer, query_params): Get media bookmarks with media id parameter
+heimdall.ml.video(query_params): Get video media list
+heimdall.ml.media(mediaId: integer): Get media with media id parameter
+heimdall.ml.media_by_mrl(mediaMrl: string): Get media with media mrl parameter
+heimdall.ml.folder(query_params): Get folder list
+heimdall.ml.folders_by_type(query_params, mediaType: integer): Get folders by type
+heimdall.ml.get_folder(folderId: integer): Get folder with folder id parameter
+heimdall.ml.show_episodes(query_params): Get the list of show episodes
+heimdall.ml.audio(query_params): Get audio media list
+heimdall.ml.media_thumbnail(mediaId: integer): Get media thumbnail with media id parameter
+heimdall.ml.albums(query_params): Get album list
+heimdall.ml.album(albumId: integer): Get album with album id
+heimdall.ml.album_tracks(albumId: integer, query_params): Get album tracks with album id parameter
+heimdall.ml.artists(query_params): Get artist list
+heimdall.ml.artist(artistId: integer): Get artist with artist id
+heimdall.ml.genres(query_params): Get genres list
+heimdall.ml.genre(genreId: integer): Get genre with genre id parameter
+heimdall.ml.playlists(query_params): Get playlist list
+heimdall.ml.playlist(playlistId: integer): Get playlist with playlist id
+heimdall.ml.artist_tracks(artistId: integer, query_params): Get artist tracks with artist id parameter
+heimdall.ml.genre_tracks(genreId: integer, query_params): Get genre tracks with genre id parameter
+heimdall.ml.playlist_tracks(playlistId: integer, query_params): Get playlist tracks with playlist id parameter
+heimdall.ml.artist_albums(artistId: integer, query_params): Get artist albums with artist id parameter
+heimdall.ml.genre_albums(genreId: integer, query_params): Get albums with genre id parameter
+heimdall.ml.genre_artists(genreId: integer, query_params): Get artists with genre id parameter
+heimdall.ml.artist_thumbnail(artistId: integer): Get artist thumbnail with artist id parameter
+heimdall.ml.album_thumbnail(albumId: integer): Get album thumbnail with album id parameter
+heimdall.ml.genre_thumbnail(genreId: integer): Get genre thumbnail with genre id parameter
+heimdall.ml.reload(): Reload folder
+heimdall.ml.history(historyType: integer, query_params): Get history list
+heimdall.ml.video_history(query_params): Get video history list
+heimdall.ml.audio_history(query_params): Get audio history list
+heimdall.ml.media_bookmarks(mediaId: integer, query_params): Get media bookmarks with media id parameter
 
 Stream
 ------
@@ -475,7 +475,7 @@ memory_stream( string ): Instantiate a stream object containing a specific strin
   Those two functions return the stream object upon success and nil if an
   error occurred, in that case, the second return value will be an error message.
 
-s = vlc.stream( "http://www.videolan.org/" )
+s = heimdall.stream( "http://www.videolan.org/" )
 s:read( 128 ) -- read up to 128 characters. Return 0 if no more data is available (FIXME?).
 s:readline() -- read a line. Return nil if EOF was reached.
 s:addfilter() -- add a stream filter. If no argument was specified, try to add all automatic stream filters.
@@ -515,7 +515,7 @@ var.create( object, name, value ): Create and set the object's variable "name"
 var.trigger_callback( object, name ): Trigger the callbacks associated with the
   object's "name" variable.
 
-var.libvlc_command( name, argument ): Issue libvlc's "name" command with
+var.libheimdall_command( name, argument ): Issue libheimdall's "name" command with
   argument "argument".
 
 var.inc_integer( name ): Increment the given integer.
@@ -534,7 +534,7 @@ VLM
 ---
 vlm(): Instanciate a VLM object.
 
-v = vlc.vlm()
+v = heimdall.vlm()
 v:execute_command( "new test broadcast" ) -- execute given VLM command
 
 Note: if the VLM object is deleted and you were the last person to hold
@@ -559,7 +559,7 @@ win.console_read(): Read input from the windows console. Note that polling and
 
 XML
 ---
-xml = vlc.xml(): Create an xml object.
+xml = heimdall.xml(): Create an xml object.
 reader = xml:create_reader( stream ): create an xml reader that use the given stream.
 reader:read(): read some data, return -1 on error, 0 on EOF, 1 on start of XML
   element, 2 on end of XML element, 3 on text
@@ -574,6 +574,6 @@ The simplexml module can also be used to parse XML documents easily.
 
 Random number & bytes
 ---------------------
-vlc.rand.number(): Returns a random number between 0 and 2^31 - 1
-vlc.rand.bytes(size): Returns <size> random bytes
+heimdall.rand.number(): Returns a random number between 0 and 2^31 - 1
+heimdall.rand.bytes(size): Returns <size> random bytes
 

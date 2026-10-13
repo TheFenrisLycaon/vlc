@@ -2,6 +2,7 @@
  * hxxx_helper_testdec.c: test decoder for hxxx_helper API
  *****************************************************************************
  * Copyright © 2020 VideoLAN, VLC authors and libbluray AUTHORS
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,9 +23,9 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
 #include "hxxx_helper.h"
 
 struct decoder_sys {
@@ -43,12 +44,12 @@ DecodeBlock(decoder_t *dec, block_t *block)
     struct decoder_sys *sys = dec->p_sys;
 
     if (block == NULL)
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
 
     block = hxxx_helper_process_block(&sys->hh, block);
 
     if (block == NULL)
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
 
     if (hxxx_helper_has_new_config(&sys->hh))
     {
@@ -60,7 +61,7 @@ DecodeBlock(decoder_t *dec, block_t *block)
 
         ret = hxxx_helper_get_colorimetry(&sys->hh, &primaries, &transfer,
                                           &colorspace, &full_range);
-        if (ret == VLC_SUCCESS)
+        if (ret == HEIMDALL_SUCCESS)
         {
             dec->fmt_out.video.primaries = primaries;
             dec->fmt_out.video.transfer = transfer;
@@ -73,7 +74,7 @@ DecodeBlock(decoder_t *dec, block_t *block)
                                                    &offx, &offy,
                                                    &width, &height,
                                                    &vis_width, &vis_height);
-        if (ret == VLC_SUCCESS)
+        if (ret == HEIMDALL_SUCCESS)
         {
             dec->fmt_out.video.i_x_offset = offx;
             dec->fmt_out.video.i_y_offset = offy;
@@ -85,7 +86,7 @@ DecodeBlock(decoder_t *dec, block_t *block)
 
         int sar_num, sar_den;
         ret = hxxx_helper_get_current_sar(&sys->hh, &sar_num, &sar_den);
-        if (ret == VLC_SUCCESS)
+        if (ret == HEIMDALL_SUCCESS)
         {
             dec->fmt_out.video.i_sar_num = sar_num;
             dec->fmt_out.video.i_sar_den = sar_den;
@@ -93,16 +94,16 @@ DecodeBlock(decoder_t *dec, block_t *block)
 
         ret = decoder_UpdateVideoOutput(dec, NULL);
         if (ret != 0)
-            return VLCDEC_ECRITICAL;
+            return HEIMDALLDEC_ECRITICAL;
     }
 
     block_Release(block);
 
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }
 
 static void
-CloseDecoder(vlc_object_t *this)
+CloseDecoder(heimdall_object_t *this)
 {
     decoder_t *dec = (void *)this;
     struct decoder_sys *sys = dec->p_sys;
@@ -112,29 +113,29 @@ CloseDecoder(vlc_object_t *this)
 }
 
 static int
-OpenDecoder(vlc_object_t *this)
+OpenDecoder(heimdall_object_t *this)
 {
     decoder_t *dec = (void *)this;
 
     switch (dec->fmt_in->i_codec)
     {
-        case VLC_CODEC_H264:
-        case VLC_CODEC_HEVC:
+        case HEIMDALL_CODEC_H264:
+        case HEIMDALL_CODEC_HEVC:
             break;
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 
     struct decoder_sys *sys = malloc(sizeof(*sys));
     if (sys == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     hxxx_helper_init(&sys->hh, this, dec->fmt_in->i_codec, 0,
                      var_InheritBool(this, "hxxx-helper-testdec-xvcC") ? 4 : 0);
 
     int ret = hxxx_helper_set_extra(&sys->hh, dec->fmt_in->p_extra,
                                     dec->fmt_in->i_extra);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
     {
         hxxx_helper_clean(&sys->hh);
         free(sys);
@@ -148,10 +149,10 @@ OpenDecoder(vlc_object_t *this)
     dec->fmt_out.video = dec->fmt_in->video;
     dec->fmt_out.video.p_palette = NULL;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_subcategory(SUBCAT_INPUT_VCODEC)
     set_description(N_("hxxx test decoder"))
     add_shortcut("hxxxhelper")
@@ -159,4 +160,4 @@ vlc_module_begin()
     add_bool("hxxx-helper-testdec-xvcC", false, NULL, NULL)
         change_volatile()
     set_callbacks(OpenDecoder, CloseDecoder)
-vlc_module_end()
+heimdall_module_end()

@@ -2,6 +2,7 @@
  * error.c: DOS and Winsock error messages formatting
  *****************************************************************************
  * Copyright © 2006-2013 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -27,7 +28,7 @@
 #include <winerror.h>
 #include <winsock2.h>
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
 #ifndef WSA_QOS_EUNKNOWNPSOBJ
 # define WSA_QOS_EUNKNOWNPSOBJ 11024L
@@ -135,7 +136,7 @@ static const wsaerrmsg_t wsaerrmsg[] =
     /* Winsock2 error codes are missing, they "never" occur */
 };
 
-const char *vlc_strerror_c(int errnum)
+const char *heimdall_strerror_c(int errnum)
 {
     /* C run-time errors */
     if ((unsigned)errnum < (unsigned)_sys_nerr)
@@ -149,7 +150,7 @@ const char *vlc_strerror_c(int errnum)
     return "Unknown error";
 }
 
-const char *vlc_strerror(int errnum)
+const char *heimdall_strerror(int errnum)
 {
-    return /*vlc_gettext*/(vlc_strerror_c(errnum));
+    return /*heimdall_gettext*/(heimdall_strerror_c(errnum));
 }

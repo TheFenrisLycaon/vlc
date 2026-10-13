@@ -2,6 +2,7 @@
  * rv32.c: conversion plugin to RV32 format.
  *****************************************************************************
  * Copyright (C) 2005 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Cyril Deguet <asmax@videolan.org>
  *
@@ -27,11 +28,11 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_picture.h>
-#include <vlc_chroma_probe.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
+#include <heimdall_chroma_probe.h>
 
 /****************************************************************************
  * Local prototypes
@@ -42,19 +43,19 @@ static picture_t *Filter( filter_t *, picture_t * );
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static void ProbeChroma(vlc_chroma_conv_vec *vec)
+static void ProbeChroma(heimdall_chroma_conv_vec *vec)
 {
-    vlc_chroma_conv_add(vec, 1, VLC_CODEC_BGR24, VLC_CODEC_RGBA, false);
+    heimdall_chroma_conv_add(vec, 1, HEIMDALL_CODEC_BGR24, HEIMDALL_CODEC_RGBA, false);
 }
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("RV32 conversion filter") )
     set_callback_video_converter( OpenFilter, 1 )
     add_submodule()
         set_callback_chroma_conv_probe(ProbeChroma)
-vlc_module_end ()
+heimdall_module_end ()
 
-static const struct vlc_filter_operations filter_ops = {
+static const struct heimdall_filter_operations filter_ops = {
     .filter_video = Filter,
 };
 
@@ -64,10 +65,10 @@ static const struct vlc_filter_operations filter_ops = {
 static int OpenFilter( filter_t *p_filter )
 {
     /* XXX Only support RV24 -> RV32 conversion */
-    if( p_filter->fmt_in.video.i_chroma != VLC_CODEC_BGR24 ||
-        p_filter->fmt_out.video.i_chroma != VLC_CODEC_RGBA )
+    if( p_filter->fmt_in.video.i_chroma != HEIMDALL_CODEC_BGR24 ||
+        p_filter->fmt_out.video.i_chroma != HEIMDALL_CODEC_RGBA )
     {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( p_filter->fmt_in.video.i_width != p_filter->fmt_out.video.i_width
@@ -77,7 +78,7 @@ static int OpenFilter( filter_t *p_filter )
 
     p_filter->ops = &filter_ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /****************************************************************************

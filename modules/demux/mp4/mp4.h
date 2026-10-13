@@ -1,7 +1,8 @@
 /*****************************************************************************
- * mp4.h : MP4 file input module for vlc
+ * mp4.h : MP4 file input module for heimdall
  *****************************************************************************
  * Copyright (C) 2001-2004, 2010, 2014 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -18,14 +19,14 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
-#ifndef VLC_MP4_MP4_H_
-#define VLC_MP4_MP4_H_
+#ifndef HEIMDALL_MP4_MP4_H_
+#define HEIMDALL_MP4_MP4_H_
 
 /*****************************************************************************
  * Preamble
  *****************************************************************************/
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 #include "libmp4.h"
 #include "fragments.h"
 #include "../asf/asfpacket.h"
@@ -95,7 +96,7 @@ typedef struct
     uint32_t    i_block_flags;
 } track_config_t;
 
- /* Contain all needed information for read all track with vlc */
+ /* Contain all needed information for read all track with heimdall */
 typedef struct
 {
     unsigned int i_track_ID;/* this should be unique */
@@ -136,7 +137,7 @@ typedef struct
     stime_t          i_start_dts;
     stime_t          i_next_dts;
     int64_t          i_cts_shift;
-    vlc_tick_t       i_pts_offset;
+    heimdall_tick_t       i_pts_offset;
     stime_t          i_decoder_delay; /* track timescale */
     /* give the next sample to read, i_chunk is to find quickly where
       the sample is located */
@@ -188,8 +189,8 @@ typedef struct
 
     /* ASF packets handling */
     const MP4_Box_t *p_asf;
-    vlc_tick_t       i_dts_backup;
-    vlc_tick_t       i_pts_backup;
+    heimdall_tick_t       i_dts_backup;
+    heimdall_tick_t       i_pts_backup;
     asf_track_info_t asfinfo;
 } mp4_track_t;
 

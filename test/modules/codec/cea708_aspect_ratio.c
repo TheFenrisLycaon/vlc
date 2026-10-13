@@ -2,6 +2,7 @@
  * cea708_aspect_ratio.c: CEA-708 aspect ratio awareness tests
  *****************************************************************************
  * Copyright (C) 2025 VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,13 +23,13 @@
 # include "config.h"
 #endif
 
-#include "../../libvlc/test.h"
-#include "../../../lib/libvlc_internal.h"
-#include <vlc_common.h>
-#include <vlc_codec.h>
-#include <vlc_subpicture.h>
-#include <vlc_es.h>
-#include <vlc_interface.h>
+#include "../../libheimdall/test.h"
+#include "../../../lib/libheimdall_internal.h"
+#include <heimdall_common.h>
+#include <heimdall_codec.h>
+#include <heimdall_subpicture.h>
+#include <heimdall_es.h>
+#include <heimdall_interface.h>
 #include <math.h>
 
 #include "../../../modules/codec/substext.h"
@@ -42,7 +43,7 @@
 #define CEA708_SCREEN_COLS_169          210
 #define CEA708_SCREEN_ROWS              75
 
-static libvlc_instance_t *libvlc;
+static libheimdall_instance_t *libheimdall;
 
 /* Test aspect ratio calculation logic based on CEA-708-E Section 8.2
  * "Screen Coordinates" - specifies 160×75 for 4:3, 210×75 for 16:9 */
@@ -262,15 +263,15 @@ int main(void)
 {
     test_init();
 
-    libvlc = libvlc_new(test_defaults_nargs, test_defaults_args);
-    assert(libvlc != NULL);
+    libheimdall = libheimdall_new(test_defaults_nargs, test_defaults_args);
+    assert(libheimdall != NULL);
 
     test_aspect_ratio_calculation();
     test_positioning_accuracy();
     test_current_positioning_issues();
     test_edge_cases_and_negative_scenarios();
 
-    libvlc_release(libvlc);
+    libheimdall_release(libheimdall);
 
     return 0;
 }

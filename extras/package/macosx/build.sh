@@ -12,7 +12,7 @@ SCRIPTDIR=$(dirname "$0")
 source "$SCRIPTDIR/env.build.sh" "none"
 
 SDKROOT=$(xcrun --sdk macosx --show-sdk-path)
-VLCBUILDDIR=""
+HEIMDALLBUILDDIR=""
 
 CORE_COUNT=`getconf NPROCESSORS_ONLN 2>&1`
 let JOBS=$CORE_COUNT+1
@@ -22,13 +22,13 @@ usage()
 cat << EOF
 usage: $0 [options]
 
-Build vlc in the current directory
+Build heimdall in the current directory
 
 OPTIONS:
    -h            Show some help
    -q            Be quiet
    -j            Force number of cores to be used
-   -r            Rebuild everything (tools, contribs, vlc)
+   -r            Rebuild everything (tools, contribs, heimdall)
    -c            Recompile contribs from sources
    -p            Build packages for all artifacts
    -i <n|u|z>    Create an installable package
@@ -37,7 +37,7 @@ OPTIONS:
                      z: zip
    -k <sdk>      Use the specified SDK (default: $SDKROOT)
    -a <arch>     Use the specified arch (default: $HOST_ARCH)
-   -C            Use the specified VLC build dir
+   -C            Use the specified Heimdall build dir
    -b <url>      Enable breakpad support and send crash reports to this URL
    -d            Disable debug mode (on by default)
    -g <g|l|a>    Select the license of contribs
@@ -95,7 +95,7 @@ do
              JOBS=$OPTARG
          ;;
          C)
-             VLCBUILDDIR=$OPTARG
+             HEIMDALLBUILDDIR=$OPTARG
          ;;
          b)
              BREAKPAD=$OPTARG
@@ -130,18 +130,18 @@ fi
 
 ACTUAL_HOST_ARCH=`get_actual_arch $HOST_ARCH`
 
-info "Building VLC for macOS, architecture ${HOST_ARCH} (aka: ${ACTUAL_HOST_ARCH}) on a ${BUILD_ARCH} device"
+info "Building Heimdall for macOS, architecture ${HOST_ARCH} (aka: ${ACTUAL_HOST_ARCH}) on a ${BUILD_ARCH} device"
 
-BUILD_TRIPLET=$(vlcGetBuildTriplet)
-HOST_TRIPLET=$(vlcGetHostTriplet)
+BUILD_TRIPLET=$(heimdallGetBuildTriplet)
+HOST_TRIPLET=$(heimdallGetHostTriplet)
 export SDKROOT
-vlcSetBaseEnvironment
-vlcroot="$(vlcGetRootDir)"
+heimdallSetBaseEnvironment
+heimdallroot="$(heimdallGetRootDir)"
 
 # Checking prerequisites
 info "Checking for python3 ..."
 python3 --version || { echo "python3 not found. Please install from python.org, or set" \
-	"VLC_PATH environment variable to include python3." \
+	"HEIMDALL_PATH environment variable to include python3." \
 	; exit 1; }
 
 
@@ -149,11 +149,11 @@ builddir="$(pwd)"
 info "Building in \"$builddir\""
 
 #
-# vlc/extras/tools
+# heimdall/extras/tools
 #
 
 info "Building building tools"
-spushd "${vlcroot}/extras/tools"
+spushd "${heimdallroot}/extras/tools"
 ./bootstrap > $out
 if [ "$REBUILD" = "yes" ]; then
     make clean
@@ -162,17 +162,17 @@ fi
 make -j$JOBS > $out
 spopd
 
-if [ ! -z "$VLCBUILDDIR" ];then
-    mkdir -p $VLCBUILDDIR
-    pushd $VLCBUILDDIR
+if [ ! -z "$HEIMDALLBUILDDIR" ];then
+    mkdir -p $HEIMDALLBUILDDIR
+    pushd $HEIMDALLBUILDDIR
 fi
 
 #
-# vlc/contribs
+# heimdall/contribs
 #
 
-vlcSetSymbolEnvironment
-vlcSetContribEnvironment "$MINIMAL_OSX_VERSION"
+heimdallSetSymbolEnvironment
+heimdallSetContribEnvironment "$MINIMAL_OSX_VERSION"
 
 info "Building contribs"
 mkdir -p contrib
@@ -199,13 +199,13 @@ if [ "$REBUILD" = "yes" ]; then
     rm -rf $HOST_TRIPLET
 fi
 mkdir -p contrib-$HOST_TRIPLET && cd contrib-$HOST_TRIPLET
-${vlcroot}/contrib/bootstrap --build=$BUILD_TRIPLET --host=$HOST_TRIPLET $CONTRIBFLAGS > $out
+${heimdallroot}/contrib/bootstrap --build=$BUILD_TRIPLET --host=$HOST_TRIPLET $CONTRIBFLAGS > $out
 
 make list
 if [ "$CONTRIBFROMSOURCE" != "yes" ]; then
     if [ ! -e "../$HOST_TRIPLET" ]; then
-        if [ -n "$VLC_PREBUILT_CONTRIBS_URL" ]; then
-            make prebuilt PREBUILT_URL="$VLC_PREBUILT_CONTRIBS_URL" || PREBUILT_FAILED=yes
+        if [ -n "$HEIMDALL_PREBUILT_CONTRIBS_URL" ]; then
+            make prebuilt PREBUILT_URL="$HEIMDALL_PREBUILT_CONTRIBS_URL" || PREBUILT_FAILED=yes
         else
             make prebuilt || PREBUILT_FAILED=yes
         fi
@@ -226,23 +226,23 @@ fi
 spopd
 
 
-vlcUnsetContribEnvironment
-vlcSetLibVLCEnvironment
+heimdallUnsetContribEnvironment
+heimdallSetLibHeimdallEnvironment
 
 #
-# vlc/bootstrap
+# heimdall/bootstrap
 #
 
 info "Bootstrap-ing configure"
-spushd "${vlcroot}"
-if ! [ -e "${vlcroot}/configure" ]; then
-    ${vlcroot}/bootstrap > $out
+spushd "${heimdallroot}"
+if ! [ -e "${heimdallroot}/configure" ]; then
+    ${heimdallroot}/bootstrap > $out
 fi
 spopd
 
 
 #
-# vlc/configure
+# heimdall/configure
 #
 
 CONFIGFLAGS=""
@@ -259,16 +259,16 @@ fi
 export CFLAGS
 export CXXFLAGS
 
-if [ "${vlcroot}/configure" -nt Makefile ]; then
+if [ "${heimdallroot}/configure" -nt Makefile ]; then
 
-  ${vlcroot}/extras/package/macosx/configure.sh \
+  ${heimdallroot}/extras/package/macosx/configure.sh \
       --build=$BUILD_TRIPLET \
       --host=$HOST_TRIPLET \
       --with-contrib=contrib/$HOST_TRIPLET \
       --with-macosx-version-min=$MINIMAL_OSX_VERSION \
       --with-macosx-sdk=$SDKROOT \
       $CONFIGFLAGS \
-      $VLC_CONFIGURE_ARGS > $out
+      $HEIMDALL_CONFIGURE_ARGS > $out
 fi
 
 #
@@ -283,44 +283,44 @@ fi
 info "Running make -j$JOBS"
 make -j$JOBS
 
-info "Preparing VLC.app"
-make VLC.app
+info "Preparing Heimdall.app"
+make Heimdall.app
 
 if [ "$PACKAGETYPE" = "u" ]; then
-    info "Copying app with debug symbols into VLC-debug.app and stripping"
-    rm -rf VLC-debug.app
-    cp -Rp VLC.app VLC-debug.app
+    info "Copying app with debug symbols into Heimdall-debug.app and stripping"
+    rm -rf Heimdall-debug.app
+    cp -Rp Heimdall.app Heimdall-debug.app
 
     # Workaround for breakpad symbol parsing:
-    # Symbols must be uploaded for libvlc(core).dylib, not libvlc(core).x.dylib
-    (cd VLC-debug.app/Contents/MacOS/lib/ && rm libvlccore.dylib && mv libvlccore.*.dylib libvlccore.dylib)
-    (cd VLC-debug.app/Contents/MacOS/lib/ && rm libvlc.dylib && mv libvlc.*.dylib libvlc.dylib)
+    # Symbols must be uploaded for libheimdall(core).dylib, not libheimdall(core).x.dylib
+    (cd Heimdall-debug.app/Contents/MacOS/lib/ && rm libheimdallcore.dylib && mv libheimdallcore.*.dylib libheimdallcore.dylib)
+    (cd Heimdall-debug.app/Contents/MacOS/lib/ && rm libheimdall.dylib && mv libheimdall.*.dylib libheimdall.dylib)
 
-    find VLC.app/ -name "*.dylib" -exec strip -x {} \;
-    find VLC.app/ -type f -name "VLC" -exec strip -x {} \;
-    find VLC.app/ -type f -name "Sparkle" -exec strip -x {} \;
-    find VLC.app/ -type f -name "Breakpad" -exec strip -x {} \;
+    find Heimdall.app/ -name "*.dylib" -exec strip -x {} \;
+    find Heimdall.app/ -type f -name "Heimdall" -exec strip -x {} \;
+    find Heimdall.app/ -type f -name "Sparkle" -exec strip -x {} \;
+    find Heimdall.app/ -type f -name "Breakpad" -exec strip -x {} \;
 
     if [ "$BUILD_TRIPLET" = "$HOST_TRIPLET" ]; then
-        bin/vlc-cache-gen VLC.app/Contents/Frameworks/plugins
+        bin/heimdall-cache-gen Heimdall.app/Contents/Frameworks/plugins
     fi
 
-    info "Building VLC release archive"
+    info "Building Heimdall release archive"
     make package-macosx-release
     make package-macosx-sdk
 
-    shasum -a 512 vlc-*-release.zip
-    shasum -a 512 vlc-macos-sdk-*.tar.gz
+    shasum -a 512 heimdall-*-release.zip
+    shasum -a 512 heimdall-macos-sdk-*.tar.gz
 
 elif [ "$PACKAGETYPE" = "z" ]; then
-    info "Packaging VLC zip archive"
+    info "Packaging Heimdall zip archive"
     make package-macosx-zip
 elif [ "$PACKAGETYPE" = "n" -o "$PACKAGE" = "yes" ]; then
-    info "Building VLC dmg package"
+    info "Building Heimdall dmg package"
     make package-macosx
     make package-macosx-sdk
 fi
 
-if [ ! -z "$VLCBUILDDIR" ]; then
+if [ ! -z "$HEIMDALLBUILDDIR" ]; then
     popd
 fi

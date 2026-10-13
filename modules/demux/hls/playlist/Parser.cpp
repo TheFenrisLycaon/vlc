@@ -2,6 +2,7 @@
  * Parser.cpp
  *****************************************************************************
  * Copyright © 2015 - VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -36,8 +37,8 @@
 #include "M3U8.hpp"
 #include "Tags.hpp"
 
-#include <vlc_strings.h>
-#include <vlc_stream.h>
+#include <heimdall_strings.h>
+#include <heimdall_stream.h>
 #include <cstdio>
 #include <sstream>
 #include <array>
@@ -141,7 +142,7 @@ HLSRepresentation * M3U8Parser::createRepresentation(BaseAdaptationSet *adaptSet
         if(rateAttr)
         {
             unsigned num, den;
-            vlc_ureduce(&num, &den, rateAttr->floatingPoint() * 1000, 1000, 0);
+            heimdall_ureduce(&num, &den, rateAttr->floatingPoint() * 1000, 1000, 0);
             rep->setFrameRate(Rate(num, den));
         }
     }
@@ -149,7 +150,7 @@ HLSRepresentation * M3U8Parser::createRepresentation(BaseAdaptationSet *adaptSet
     return rep;
 }
 
-void M3U8Parser::createAndFillRepresentation(vlc_object_t *p_obj, BaseAdaptationSet *adaptSet,
+void M3U8Parser::createAndFillRepresentation(heimdall_object_t *p_obj, BaseAdaptationSet *adaptSet,
                                              const AttributesTag *tag,
                                              const std::list<Tag *> &tagslist)
 {
@@ -223,16 +224,16 @@ void M3U8Parser::fillAdaptsetFromMediainfo(const AttributesTag *mediatag,
     }
 }
 
-bool M3U8Parser::appendSegmentsFromPlaylistURI(vlc_object_t *p_obj, HLSRepresentation *rep)
+bool M3U8Parser::appendSegmentsFromPlaylistURI(heimdall_object_t *p_obj, HLSRepresentation *rep)
 {
     block_t *p_block = Retrieve::HTTP(resources, ChunkType::Playlist, rep->getPlaylistUrl().toString());
     if(p_block)
     {
-        stream_t *substream = vlc_stream_MemoryNew(p_obj, p_block->p_buffer, p_block->i_buffer, true);
+        stream_t *substream = heimdall_stream_MemoryNew(p_obj, p_block->p_buffer, p_block->i_buffer, true);
         if(substream)
         {
             std::list<Tag *> tagslist = parseEntries(substream);
-            vlc_stream_Delete(substream);
+            heimdall_stream_Delete(substream);
 
             parseSegments(p_obj, rep, tagslist);
 
@@ -279,7 +280,7 @@ static bool parseEncryption(const AttributesTag *keytag, const Url &playlistUrl,
     }
 }
 
-void M3U8Parser::parseSegments(vlc_object_t *, HLSRepresentation *rep, const std::list<Tag *> &tagslist)
+void M3U8Parser::parseSegments(heimdall_object_t *, HLSRepresentation *rep, const std::list<Tag *> &tagslist)
 {
     bool b_pdt = tagslist.cend() != std::find_if(tagslist.cbegin(), tagslist.cend(),
                     [](const Tag *t){return t->getType() == SingleValueTag::EXTXPROGRAMDATETIME;});
@@ -291,9 +292,9 @@ void M3U8Parser::parseSegments(vlc_object_t *, HLSRepresentation *rep, const std
     rep->b_loaded = true;
     rep->b_live = !b_vod;
 
-    vlc_tick_t totalduration = 0;
-    vlc_tick_t nzStartTime = 0;
-    vlc_tick_t absReferenceTime = VLC_TICK_INVALID;
+    heimdall_tick_t totalduration = 0;
+    heimdall_tick_t nzStartTime = 0;
+    heimdall_tick_t absReferenceTime = HEIMDALL_TICK_INVALID;
     uint64_t sequenceNumber = 0;
     uint64_t discontinuitySequence = 0;
     bool discontinuity = false;
@@ -340,19 +341,19 @@ void M3U8Parser::parseSegments(vlc_object_t *, HLSRepresentation *rep, const std
                 segment->setSourceUrl(uritag->getValue().value);
 
                 /* Need to use EXTXTARGETDURATION as default as some can't properly set segment one */
-                vlc_tick_t nzDuration = vlc_tick_from_sec(rep->targetDuration);
+                heimdall_tick_t nzDuration = heimdall_tick_from_sec(rep->targetDuration);
                 if(ctx_extinf)
                 {
                     const Attribute *durAttribute = ctx_extinf->getAttributeByName("DURATION");
                     if(durAttribute)
-                        nzDuration = vlc_tick_from_sec(durAttribute->floatingPoint());
+                        nzDuration = heimdall_tick_from_sec(durAttribute->floatingPoint());
                     ctx_extinf = nullptr;
                 }
                 segment->duration = timescale.ToScaled(nzDuration);
                 segment->startTime = timescale.ToScaled(nzStartTime);
                 nzStartTime += nzDuration;
                 totalduration += nzDuration;
-                if(absReferenceTime != VLC_TICK_INVALID)
+                if(absReferenceTime != HEIMDALL_TICK_INVALID)
                 {
                     segment->setDisplayTime(absReferenceTime);
                     absReferenceTime += nzDuration;
@@ -391,19 +392,19 @@ void M3U8Parser::parseSegments(vlc_object_t *, HLSRepresentation *rep, const std
                 break;
 
             case SingleValueTag::EXTXPROGRAMDATETIME:
-                absReferenceTime = VLC_TICK_0 +
+                absReferenceTime = HEIMDALL_TICK_0 +
                         UTCTime(static_cast<const SingleValueTag *>(tag)->getValue().value);
                 /* Reverse apply UTC timespec from first discont */
-                if(segmentstoappend.size() && segmentstoappend.back()->getDisplayTime() == VLC_TICK_INVALID)
+                if(segmentstoappend.size() && segmentstoappend.back()->getDisplayTime() == HEIMDALL_TICK_INVALID)
                 {
-                    vlc_tick_t tempTime = absReferenceTime;
+                    heimdall_tick_t tempTime = absReferenceTime;
                     for(auto sit = segmentstoappend.crbegin(); sit != segmentstoappend.crend(); ++sit)
                     {
-                        vlc_tick_t duration = timescale.ToTime((*sit)->duration);
-                        if( duration < tempTime - VLC_TICK_0 )
+                        heimdall_tick_t duration = timescale.ToTime((*sit)->duration);
+                        if( duration < tempTime - HEIMDALL_TICK_0 )
                             tempTime -= duration;
                         else
-                            tempTime = VLC_TICK_0;
+                            tempTime = HEIMDALL_TICK_0;
                         (*sit)->setDisplayTime(tempTime);
                     }
                 }
@@ -466,9 +467,9 @@ void M3U8Parser::parseSegments(vlc_object_t *, HLSRepresentation *rep, const std
 
     rep->updateSegmentList(segmentList, true);
 }
-M3U8 * M3U8Parser::parse(vlc_object_t *p_object, stream_t *p_stream, const std::string &playlisturl)
+M3U8 * M3U8Parser::parse(heimdall_object_t *p_object, stream_t *p_stream, const std::string &playlisturl)
 {
-    char *psz_line = vlc_stream_ReadLine(p_stream);
+    char *psz_line = heimdall_stream_ReadLine(p_stream);
     if(!psz_line || strncmp(psz_line, "#EXTM3U", 7) ||
        (psz_line[7] && !std::isspace(psz_line[7])))
     {
@@ -791,9 +792,9 @@ M3U8 * M3U8Parser::parse(vlc_object_t *p_object, stream_t *p_stream, const std::
         if(xstartTag->getAttributeByName("TIME-OFFSET"))
         {
             float offset = xstartTag->getAttributeByName("TIME-OFFSET")->floatingPoint();
-            if(offset > 0 && vlc_tick_from_sec(offset) <= playlist->duration)
+            if(offset > 0 && heimdall_tick_from_sec(offset) <= playlist->duration)
                 playlist->presentationStartOffset = CLOCK_FREQ * offset;
-            else if(offset < 0 && vlc_tick_from_sec(-offset) <= playlist->duration)
+            else if(offset < 0 && heimdall_tick_from_sec(-offset) <= playlist->duration)
                 playlist->presentationStartOffset = playlist->duration +
                                                     CLOCK_FREQ * offset;
         }
@@ -811,7 +812,7 @@ std::list<Tag *> M3U8Parser::parseEntries(stream_t *stream)
     Tag *lastTag = nullptr;
     char *psz_line;
 
-    while((psz_line = vlc_stream_ReadLine(stream)))
+    while((psz_line = heimdall_stream_ReadLine(stream)))
     {
         if(*psz_line == '#')
         {

@@ -2,6 +2,7 @@
  * aout_internal.h : internal defines for audio output
  *****************************************************************************
  * Copyright (C) 2002 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Christophe Massiot <massiot@via.ecp.fr>
  *
@@ -20,15 +21,15 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef LIBVLC_AOUT_INTERNAL_H
-# define LIBVLC_AOUT_INTERNAL_H 1
+#ifndef LIBHEIMDALL_AOUT_INTERNAL_H
+# define LIBHEIMDALL_AOUT_INTERNAL_H 1
 
 # include <stdatomic.h>
 
-# include <vlc_atomic.h>
-# include <vlc_filter.h>
-# include <vlc_list.h>
-# include <vlc_viewpoint.h>
+# include <heimdall_atomic.h>
+# include <heimdall_filter.h>
+# include <heimdall_list.h>
+# include <heimdall_viewpoint.h>
 # include "../clock/clock.h"
 
 /* Max input rate factor (1/4 -> 4) */
@@ -45,36 +46,36 @@ enum {
 };
 
 typedef struct aout_volume aout_volume_t;
-typedef struct vlc_aout_stream vlc_aout_stream;
+typedef struct heimdall_aout_stream heimdall_aout_stream;
 
 typedef struct
 {
-    vlc_mutex_t lock;
+    heimdall_mutex_t lock;
     module_t *module; /**< Output plugin (or NULL if inactive) */
     bool bitexact;
 
-    vlc_aout_stream *main_stream;
+    heimdall_aout_stream *main_stream;
 
     struct
     {
-        vlc_mutex_t lock;
-        struct vlc_list list;
+        heimdall_mutex_t lock;
+        struct heimdall_list list;
         unsigned count;
     } dev;
 
     struct
     {
         atomic_bool update;
-        vlc_mutex_t lock;
-        vlc_viewpoint_t value;
+        heimdall_mutex_t lock;
+        heimdall_viewpoint_t value;
     } vp;
 
     int requested_stereo_mode; /**< Requested stereo mode set by the user */
     int requested_mix_mode; /**< Requested mix mode set by the user */
 
-    struct vlc_audio_meter meter;
+    struct heimdall_audio_meter meter;
 
-    vlc_atomic_rc_t rc;
+    heimdall_atomic_rc_t rc;
 } aout_owner_t;
 
 typedef struct
@@ -99,17 +100,17 @@ static inline aout_owner_t *aout_owner (audio_output_t *aout)
  *****************************************************************************/
 
 /* From mixer.c : */
-aout_volume_t *aout_volume_New(vlc_object_t *, const audio_replay_gain_t *);
-#define aout_volume_New(o, g) aout_volume_New(VLC_OBJECT(o), g)
-int aout_volume_SetFormat(aout_volume_t *, vlc_fourcc_t);
+aout_volume_t *aout_volume_New(heimdall_object_t *, const audio_replay_gain_t *);
+#define aout_volume_New(o, g) aout_volume_New(HEIMDALL_OBJECT(o), g)
+int aout_volume_SetFormat(aout_volume_t *, heimdall_fourcc_t);
 void aout_volume_SetVolume(aout_volume_t *, float);
 int aout_volume_Amplify(aout_volume_t *, block_t *);
 void aout_volume_Delete(aout_volume_t *);
 
 
 /* From output.c : */
-audio_output_t *aout_New (vlc_object_t *);
-#define aout_New(a) aout_New(VLC_OBJECT(a))
+audio_output_t *aout_New (heimdall_object_t *);
+#define aout_New(a) aout_New(HEIMDALL_OBJECT(a))
 
 /**
  * Starts an audio output stream.
@@ -123,7 +124,7 @@ audio_output_t *aout_New (vlc_object_t *);
  *
  * \warning The caller must NOT hold the audio output lock.
  */
-int aout_OutputNew(audio_output_t *aout, vlc_aout_stream *stream,
+int aout_OutputNew(audio_output_t *aout, heimdall_aout_stream *stream,
                    audio_sample_format_t *fmt, int input_profile,
                    audio_sample_format_t *filter_fmt,
                    aout_filters_cfg_t *filters_cfg);
@@ -134,56 +135,56 @@ int aout_OutputNew(audio_output_t *aout, vlc_aout_stream *stream,
  */
 void aout_OutputDelete( audio_output_t * p_aout );
 
-vlc_audio_meter_plugin *
+heimdall_audio_meter_plugin *
 aout_AddMeterPlugin(audio_output_t *aout, const char *chain,
-                    const struct vlc_audio_meter_plugin_owner *owner);
+                    const struct heimdall_audio_meter_plugin_owner *owner);
 
 void
-aout_RemoveMeterPlugin(audio_output_t *aout, vlc_audio_meter_plugin *plugin);
+aout_RemoveMeterPlugin(audio_output_t *aout, heimdall_audio_meter_plugin *plugin);
 
 /* From common.c : */
-void aout_FormatsPrint(vlc_object_t *, const char *,
+void aout_FormatsPrint(heimdall_object_t *, const char *,
                        const audio_sample_format_t *,
                        const audio_sample_format_t *);
 #define aout_FormatsPrint(o, t, a, b) \
-        aout_FormatsPrint(VLC_OBJECT(o), t, a, b)
+        aout_FormatsPrint(HEIMDALL_OBJECT(o), t, a, b)
 
 /* From dec.c */
 #define AOUT_DEC_SUCCESS 0
 #define AOUT_DEC_CHANGED 1
-#define AOUT_DEC_FAILED VLC_EGENERIC
+#define AOUT_DEC_FAILED HEIMDALL_EGENERIC
 
-struct vlc_aout_stream_cfg
+struct heimdall_aout_stream_cfg
 {
     const audio_sample_format_t *fmt;
     int profile;
-    struct vlc_clock_t *clock;
+    struct heimdall_clock_t *clock;
     const char *str_id;
     const audio_replay_gain_t *replay_gain;
 };
 
-vlc_aout_stream *vlc_aout_stream_New(audio_output_t *p_aout,
-                                     const struct vlc_aout_stream_cfg *cfg);
-void vlc_aout_stream_Delete(vlc_aout_stream *);
-int vlc_aout_stream_Play(vlc_aout_stream *stream, block_t *block);
-void vlc_aout_stream_GetResetStats(vlc_aout_stream *stream, unsigned *, unsigned *);
-void vlc_aout_stream_ChangePause(vlc_aout_stream *stream, bool b_paused, vlc_tick_t i_date);
-void vlc_aout_stream_ChangeRate(vlc_aout_stream *stream, float rate);
-void vlc_aout_stream_ChangeDelay(vlc_aout_stream *stream, vlc_tick_t delay);
-void vlc_aout_stream_Flush(vlc_aout_stream *stream);
-void vlc_aout_stream_Drain(vlc_aout_stream *stream);
-/* Contrary to other vlc_aout_stream_*() functions, this function can be called from
+heimdall_aout_stream *heimdall_aout_stream_New(audio_output_t *p_aout,
+                                     const struct heimdall_aout_stream_cfg *cfg);
+void heimdall_aout_stream_Delete(heimdall_aout_stream *);
+int heimdall_aout_stream_Play(heimdall_aout_stream *stream, block_t *block);
+void heimdall_aout_stream_GetResetStats(heimdall_aout_stream *stream, unsigned *, unsigned *);
+void heimdall_aout_stream_ChangePause(heimdall_aout_stream *stream, bool b_paused, heimdall_tick_t i_date);
+void heimdall_aout_stream_ChangeRate(heimdall_aout_stream *stream, float rate);
+void heimdall_aout_stream_ChangeDelay(heimdall_aout_stream *stream, heimdall_tick_t delay);
+void heimdall_aout_stream_Flush(heimdall_aout_stream *stream);
+void heimdall_aout_stream_Drain(heimdall_aout_stream *stream);
+/* Contrary to other heimdall_aout_stream_*() functions, this function can be called from
  * any threads */
-bool vlc_aout_stream_IsDrained(vlc_aout_stream *stream);
+bool heimdall_aout_stream_IsDrained(heimdall_aout_stream *stream);
 /* Called from output.c */
-void vlc_aout_stream_NotifyTiming(vlc_aout_stream *stream, vlc_tick_t system_ts,
-                                  vlc_tick_t audio_ts);
-void vlc_aout_stream_NotifyDrained(vlc_aout_stream *stream);
-void vlc_aout_stream_NotifyGain(vlc_aout_stream *stream, float gain);
+void heimdall_aout_stream_NotifyTiming(heimdall_aout_stream *stream, heimdall_tick_t system_ts,
+                                  heimdall_tick_t audio_ts);
+void heimdall_aout_stream_NotifyDrained(heimdall_aout_stream *stream);
+void heimdall_aout_stream_NotifyGain(heimdall_aout_stream *stream, float gain);
 
-void vlc_aout_stream_RequestRestart(vlc_aout_stream *stream, unsigned);
-void vlc_aout_stream_RequestRetiming(vlc_aout_stream *stream, vlc_tick_t system_ts,
-                                     vlc_tick_t audio_ts);
+void heimdall_aout_stream_RequestRestart(heimdall_aout_stream *stream, unsigned);
+void heimdall_aout_stream_RequestRetiming(heimdall_aout_stream *stream, heimdall_tick_t system_ts,
+                                     heimdall_tick_t audio_ts);
 
 void aout_InputRequestRestart(audio_output_t *aout);
 
@@ -207,17 +208,17 @@ static inline void aout_SetWavePhysicalChannels(audio_sample_format_t *fmt)
  * The clock, that is not mandatory, will be used to create a new slave clock
  * for the filter visualization plugins.
  */
-aout_filters_t *aout_FiltersNewWithClock(vlc_object_t *, vlc_clock_t *,
+aout_filters_t *aout_FiltersNewWithClock(heimdall_object_t *, heimdall_clock_t *,
                                          const audio_sample_format_t *,
                                          const audio_sample_format_t *,
-                                         const aout_filters_cfg_t *cfg) VLC_USED;
+                                         const aout_filters_cfg_t *cfg) HEIMDALL_USED;
 void aout_FiltersResetClock(aout_filters_t *filters);
-void aout_FiltersSetClockDelay(aout_filters_t *filters, vlc_tick_t delay);
+void aout_FiltersSetClockDelay(aout_filters_t *filters, heimdall_tick_t delay);
 bool aout_FiltersCanResample (aout_filters_t *filters);
-filter_t *aout_filter_Create(vlc_object_t *obj, const filter_owner_t *restrict owner,
+filter_t *aout_filter_Create(heimdall_object_t *obj, const filter_owner_t *restrict owner,
                              const char *type, const char *name,
                              const audio_sample_format_t *infmt,
                              const audio_sample_format_t *outfmt,
                              config_chain_t *cfg, bool const_fmt);
 
-#endif /* !LIBVLC_AOUT_INTERNAL_H */
+#endif /* !LIBHEIMDALL_AOUT_INTERNAL_H */

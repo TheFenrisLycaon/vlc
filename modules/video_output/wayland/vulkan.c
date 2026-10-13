@@ -4,6 +4,7 @@
  */
 /*****************************************************************************
  * Copyright © 2020 VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -24,15 +25,15 @@
 # include <config.h>
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
 
 #include "../vulkan/platform.h"
 
-static void ClosePlatform(vlc_vk_platform_t *vk)
+static void ClosePlatform(heimdall_vk_platform_t *vk)
     { (void)vk; }
 
-static int CreateSurface(vlc_vk_platform_t *vk, const vlc_vk_instance_t *inst,
+static int CreateSurface(heimdall_vk_platform_t *vk, const heimdall_vk_instance_t *inst,
                          VkSurfaceKHR *surface_out)
 {
     PFN_vkCreateWaylandSurfaceKHR CreateWaylandSurfaceKHR = (PFN_vkCreateWaylandSurfaceKHR)
@@ -47,33 +48,33 @@ static int CreateSurface(vlc_vk_platform_t *vk, const vlc_vk_instance_t *inst,
     VkResult res = CreateWaylandSurfaceKHR(inst->instance, &surface_info, NULL, surface_out);
     if (res != VK_SUCCESS) {
         msg_Err(vk, "Failed creating Wayland surface");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static const struct vlc_vk_platform_operations platform_ops =
+static const struct heimdall_vk_platform_operations platform_ops =
 {
     .close = ClosePlatform,
     .create_surface = CreateSurface,
 };
 
-static int InitPlatform(vlc_vk_platform_t *vk)
+static int InitPlatform(heimdall_vk_platform_t *vk)
 {
-    if (vk->window->type != VLC_WINDOW_TYPE_WAYLAND)
-        return VLC_EGENERIC;
+    if (vk->window->type != HEIMDALL_WINDOW_TYPE_WAYLAND)
+        return HEIMDALL_EGENERIC;
 
     vk->platform_ext = VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME;
     vk->ops = &platform_ops;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname("Vulkan Wayland")
     set_description(N_("Wayland platform support for Vulkan"))
     set_subcategory(SUBCAT_VIDEO_VOUT)
     set_capability("vulkan platform", 50)
     set_callback(InitPlatform)
     add_shortcut("vk_wl")
-vlc_module_end()
+heimdall_module_end()

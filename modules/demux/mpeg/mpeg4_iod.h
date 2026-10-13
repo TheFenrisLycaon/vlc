@@ -2,6 +2,7 @@
  * mpeg4_iod.h: ISO 14496-1 IOD and parsers
  *****************************************************************************
  * Copyright (C) 2004-2015 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -17,11 +18,11 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
-#ifndef VLC_MPEG4_IOD_H
-#define VLC_MPEG4_IOD_H
+#ifndef HEIMDALL_MPEG4_IOD_H
+#define HEIMDALL_MPEG4_IOD_H
 
-#include <vlc_tick.h>
-#include <vlc_arrays.h>
+#include <heimdall_tick.h>
+#include <heimdall_arrays.h>
 
 #define ES_DESCRIPTOR_COUNT 255
 typedef enum
@@ -62,8 +63,8 @@ typedef struct
     unsigned i_size;
     bool b_au_start;
     bool b_au_end;
-    vlc_tick_t i_dts;
-    vlc_tick_t i_pts;
+    heimdall_tick_t i_dts;
+    heimdall_tick_t i_pts;
 } sl_header_data;
 
 typedef struct es_mpeg4_descriptor_t es_mpeg4_descriptor_t;
@@ -106,11 +107,11 @@ typedef struct
     DECL_ARRAY(od_descriptor_t *) objects;
 } od_descriptors_t;
 
-od_descriptor_t *IODNew( vlc_object_t *p_object, unsigned i_data, const uint8_t *p_data );
+od_descriptor_t *IODNew( heimdall_object_t *p_object, unsigned i_data, const uint8_t *p_data );
 void ODFree( od_descriptor_t *p_od );
 
 sl_header_data DecodeSLHeader( unsigned i_data, const uint8_t *p_data,
                                const sl_config_descriptor_t *sl );
-void DecodeODCommand( vlc_object_t *p_object, od_descriptors_t *,
+void DecodeODCommand( heimdall_object_t *p_object, od_descriptors_t *,
                       unsigned i_data, const uint8_t *p_data );
 #endif

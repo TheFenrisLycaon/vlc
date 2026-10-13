@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2025 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,8 +19,8 @@
 import QtQuick
 import QtQuick.Window
 
-import VLC.MainInterface
-import VLC.Util
+import Heimdall.MainInterface
+import Heimdall.Util
 
 // This item provides the novel "Dual Kawase" effect [1], which offers a very ideal
 // balance of quality and performance. It has been used by many applications since

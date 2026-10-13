@@ -1,7 +1,8 @@
 /*****************************************************************************
- * ts_streams_private.h: Transport Stream input module for VLC.
+ * ts_streams_private.h: Transport Stream input module for Heimdall.
  *****************************************************************************
  * Copyright (C) 2004-2016 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -16,8 +17,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
-#ifndef VLC_TS_STREAMS_PRIVATE_H
-#define VLC_TS_STREAMS_PRIVATE_H
+#ifndef HEIMDALL_TS_STREAMS_PRIVATE_H
+#define HEIMDALL_TS_STREAMS_PRIVATE_H
 
 typedef struct ts_psi_context_t ts_psi_context_t;
 typedef struct ts_sections_processor_t ts_sections_processor_t;
@@ -25,9 +26,9 @@ typedef struct ts_sections_processor_t ts_sections_processor_t;
 #include "mpeg4_iod.h"
 #include "timestamps.h"
 
-#include <vlc_common.h>
-#include <vlc_arrays.h>
-#include <vlc_es.h>
+#include <heimdall_common.h>
+#include <heimdall_arrays.h>
+#include <heimdall_es.h>
 
 struct ts_pat_t
 {
@@ -59,11 +60,11 @@ struct ts_pmt_t
 
     struct
     {
-        vlc_tick_t i_current;
-        vlc_tick_t i_first; // seen <> != TS_TICK_UNKNOWN
+        heimdall_tick_t i_current;
+        heimdall_tick_t i_first; // seen <> != TS_TICK_UNKNOWN
         /* broken PCR handling */
-        vlc_tick_t i_first_dts;
-        vlc_tick_t i_pcroffset;
+        heimdall_tick_t i_first_dts;
+        heimdall_tick_t i_pcroffset;
         bool    b_disable; /* ignore PCR field, use dts */
         bool    b_fix_done;
     } pcr;
@@ -74,7 +75,7 @@ struct ts_pmt_t
         time_t i_event_length;
     } eit;
 
-    vlc_tick_t i_last_dts;
+    heimdall_tick_t i_last_dts;
     uint64_t i_last_dts_byte;
     bool b_last_dts_probed;
 
@@ -147,7 +148,7 @@ struct ts_stream_t
         block_t **pp_last;
     } prepcr;
 
-    vlc_tick_t i_last_dts;
+    heimdall_tick_t i_last_dts;
 };
 
 typedef struct ts_si_context_t ts_si_context_t;

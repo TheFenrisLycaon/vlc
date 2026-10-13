@@ -30,14 +30,14 @@ echo "Checking "po only" git logs"
 # This modified command identified more translators, leading to the removal of existing entries in AUTHORS, impossible by design.
 # So, start with a AUTHORS version with validated entries.
 # Only if the script is not modified (wrt finding translators) you can use the current AUTHORS
-git shortlog -sn -- po extras/package/win32/languages/ share/vlc.desktop.in  share/vlc.desktop share/applications/vlc.desktop extras/package/win32/vlc.win32.nsi.in > temp_update_AUTHORS/po_git_previous.txt
+git shortlog -sn -- po extras/package/win32/languages/ share/heimdall.desktop.in  share/heimdall.desktop share/applications/heimdall.desktop extras/package/win32/heimdall.win32.nsi.in > temp_update_AUTHORS/po_git_previous.txt
 
 # Some typical (ancient) l10n files:
-#share/applications/vlc.desktop
+#share/applications/heimdall.desktop
 #extras/package/win32/languages/declaration.nsh
 #extras/package/win32/languages/english.nsh
 #extras/package/win32/languages/french.nsh
-#extras/package/win32/vlc.win32.nsi.in
+#extras/package/win32/heimdall.win32.nsi.in
 
 sed -n '{
 s/.*Song Ye Wen.*//
@@ -49,11 +49,11 @@ s/.*Julien Humbert.*//
 ' <temp_update_AUTHORS/po_git_previous.txt >temp_update_AUTHORS/po_git.txt
 
 # Checking the logs, this ^^ persons did not do l10n
-# commited to share/vlc.desktop, but this seems to be media types, not l10n things.
+# commited to share/heimdall.desktop, but this seems to be media types, not l10n things.
 # Florian Hubold
-# share/applications/vlc.desktop
+# share/applications/heimdall.desktop
 # Sveinung Kvilhaugsvik
-# commited to extras/package/win32/vlc.win32.nsi.in   and   include/vlc_interface.h
+# commited to extras/package/win32/heimdall.win32.nsi.in   and   include/heimdall_interface.h
 # Julien Humbert
 # comitted to po/POTFILES.in
 # Song Ye Wen
@@ -65,7 +65,7 @@ s/.*Julien Humbert.*//
 # Thanks to Hsi-Ching Chao
 # Thanks to Ruei-Yuan Lu <RueiYuan.Lu@gmail.com>
 #extras/package/win32/languages/schinese.nsh
-#share/vlc.desktop
+#share/heimdall.desktop
 
 
 # there are some artwork designers in git log, too. If one of them wants to be mentioned in "Programmers" also, remove here:
@@ -113,7 +113,7 @@ sed -f temp_update_AUTHORS/remove_git_commiters_gen < temp_update_AUTHORS/progra
 sed 's:\(.*\):s^.*\1.*^^g:' < temp_update_AUTHORS/programmers_part.txt > temp_update_AUTHORS/remove_programmers_part_gen
 sed -f temp_update_AUTHORS/remove_programmers_part_gen < temp_update_AUTHORS/coders_only.txt |sort| uniq -u > temp_update_AUTHORS/new_coders_only.txt
 
-# VideoLAN as a contributor can be removed, I think
+# Lycaria as a contributor can be removed, I think
 
 
 
@@ -140,8 +140,8 @@ rm -f temp_update_AUTHORS/ordered_by_commits.txt
 FileName='temp_update_AUTHORS/all_git_namesonly_ordered.txt' 
 while read LINE
 do
- if [ "$LINE" = "VideoLAN" ]; then
-  echo "VideoLAN is not a person"
+ if [ "$LINE" = "Lycaria" ]; then
+  echo "Lycaria is not a person"
  else
 #  grep "$LINE" temp_update_AUTHORS/new_coders_only.txt >> temp_update_AUTHORS/ordering_log.txt
   grep "$LINE" temp_update_AUTHORS/coders_only.txt >> temp_update_AUTHORS/ordering_log.txt
@@ -165,7 +165,7 @@ echo "But first, please check if temp_update_AUTHORS/review.txt contains complet
 
 
 sed 's/\(.*\)/\1               ---XXX---NEW/g' < temp_update_AUTHORS/new_coders_only.txt | cat - temp_update_AUTHORS/programmers_part.txt |sort > temp_update_AUTHORS/review.txt
-# This file contains VideoLAN as a contributor.
+# This file contains Lycaria as a contributor.
 
 echo
 echo "For the lazy ones: Have a look at temp_update_AUTHORS/final.txt"

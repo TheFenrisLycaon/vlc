@@ -2,6 +2,7 @@
  * rist.c: RIST (Reliable Internet Stream Transport) input module
  *****************************************************************************
  * Copyright (C) 2021, SipRadius LLC
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Sergio Ammirata <sergio@ammirata.net>
  *
@@ -24,11 +25,11 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_interrupt.h>
-#include <vlc_plugin.h>
-#include <vlc_access.h>
-#include <vlc_block.h>
+#include <heimdall_common.h>
+#include <heimdall_interrupt.h>
+#include <heimdall_plugin.h>
+#include <heimdall_access.h>
+#include <heimdall_block.h>
 
 #define RIST_CFG_PREFIX "rist-"
 #include "rist.h"
@@ -54,7 +55,7 @@ typedef struct
     int          i_recovery_buffer;
     int          i_maximum_jitter;
     struct       rist_logging_settings logging_settings;
-    vlc_mutex_t  lock;
+    heimdall_mutex_t  lock;
     struct       rist_data_block *rist_items[RIST_MAX_QUEUE_BUFFERS];
 } stream_sys_t;
 
@@ -93,14 +94,14 @@ static int cb_stats(void *arg, const struct rist_stats *stats_container)
     }
 
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     /* Trigger the appropriate response when there is no more data */
     /* status of 1 is no data for one buffer length */
     /* status of 2 is no data for 60 seconds, i.e. session timeout */
     if (p_sys->flow_id == stats_receiver_flow->flow_id && stats_receiver_flow->status == 2) {
         p_sys->eof = true;
     }
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 
     rist_stats_free(stats_container);
     return 0;
@@ -118,15 +119,15 @@ static int Control(stream_t *p_access, int i_query, va_list args)
             break;
 
         case STREAM_GET_PTS_DELAY:
-            *va_arg( args, vlc_tick_t * ) = VLC_TICK_FROM_MS(
+            *va_arg( args, heimdall_tick_t * ) = HEIMDALL_TICK_FROM_MS(
                    var_InheritInteger(p_access, "network-caching") );
             break;
 
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static block_t *BlockRIST(stream_t *p_access, bool *restrict eof)
@@ -141,16 +142,16 @@ static block_t *BlockRIST(stream_t *p_access, bool *restrict eof)
     int i_read_timeout_ms = p_sys->i_maximum_jitter;
 
     /* The stats callback sets p_sys->eof when librist reports a session
-     * timeout (status == 2). Propagate it here so VLC ends the stream
+     * timeout (status == 2). Propagate it here so Heimdall ends the stream
      * instead of polling forever for data that will never arrive. */
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     if (p_sys->eof) {
-        vlc_mutex_unlock( &p_sys->lock );
+        heimdall_mutex_unlock( &p_sys->lock );
         msg_Err(p_access, "RIST session timed out, ending stream");
         *eof = true;
         return NULL;
     }
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 
     while ((ret = rist_receiver_data_read2(p_sys->receiver_ctx, &rist_buffer, i_read_timeout_ms)) > 0)
     {
@@ -162,7 +163,7 @@ static block_t *BlockRIST(stream_t *p_access, bool *restrict eof)
 
         p_sys->rist_items[i_rist_items_index++] = rist_buffer;
         i_total_size += rist_buffer->payload_len;
-        vlc_mutex_lock( &p_sys->lock );
+        heimdall_mutex_lock( &p_sys->lock );
         if (p_sys->flow_id != rist_buffer->flow_id ||
             rist_buffer->flags == RIST_DATA_FLAGS_DISCONTINUITY ||
             rist_buffer->flags == RIST_DATA_FLAGS_FLOW_BUFFER_START) {
@@ -171,10 +172,10 @@ static block_t *BlockRIST(stream_t *p_access, bool *restrict eof)
                 p_sys->flow_id = rist_buffer->flow_id;
             }
             i_flags = BLOCK_FLAG_DISCONTINUITY;
-            vlc_mutex_unlock( &p_sys->lock );
+            heimdall_mutex_unlock( &p_sys->lock );
             break;
         }
-        vlc_mutex_unlock( &p_sys->lock );
+        heimdall_mutex_unlock( &p_sys->lock );
         if (i_rist_items_index >= RIST_MAX_QUEUE_BUFFERS)
             break;
     }
@@ -215,32 +216,32 @@ failed_cleanup:
 }
 
 
-static void Close(vlc_object_t *p_this)
+static void Close(heimdall_object_t *p_this)
 {
     stream_t *p_access = (stream_t*)p_this;
     stream_sys_t *p_sys = p_access->p_sys;
     rist_destroy(p_sys->receiver_ctx);
 }
 
-static int Open(vlc_object_t *p_this)
+static int Open(heimdall_object_t *p_this)
 {
     stream_t     *p_access = (stream_t*)p_this;
     stream_sys_t *p_sys = NULL;
 
-    p_sys = vlc_obj_calloc( p_this, 1, sizeof( *p_sys ) );
+    p_sys = heimdall_obj_calloc( p_this, 1, sizeof( *p_sys ) );
     if( unlikely( p_sys == NULL ) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_access->p_sys = p_sys;
 
-    vlc_mutex_init( &p_sys->lock );
+    heimdall_mutex_init( &p_sys->lock );
 
     int rist_profile = var_InheritInteger(p_access, RIST_CFG_PREFIX RIST_URL_PARAM_PROFILE);
     p_sys->i_maximum_jitter = var_InheritInteger(p_access, RIST_CFG_PREFIX "maximum-jitter");
     p_sys->gre_filter_dst_port = var_InheritInteger(p_access, RIST_CFG_PREFIX RIST_URL_PARAM_VIRT_DST_PORT);
     if (p_sys->gre_filter_dst_port % 2 != 0) {
         msg_Err(p_access, "Virtual destination port must be an even number.");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     if (rist_profile == RIST_PROFILE_SIMPLE)
         p_sys->gre_filter_dst_port = 0;
@@ -260,7 +261,7 @@ static int Open(vlc_object_t *p_this)
     struct rist_logging_settings rist_global_logging_settings = LOGGING_SETTINGS_INITIALIZER;
     if (rist_logging_set_global(&rist_global_logging_settings) != 0) {
         msg_Err(p_access,"Could not set logging\n");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     struct rist_logging_settings *logging_settings = &p_sys->logging_settings;
@@ -272,7 +273,7 @@ static int Open(vlc_object_t *p_this)
 
     if (rist_receiver_create(&p_sys->receiver_ctx, rist_profile, logging_settings) != 0) {
         msg_Err(p_access, "Could not create rist receiver context");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     int nack_type = var_InheritInteger( p_access, RIST_CFG_PREFIX "nack-type" );
@@ -287,7 +288,7 @@ static int Open(vlc_object_t *p_this)
         goto failed;
     }
 
-    if( !rist_add_peers(VLC_OBJECT(p_access), p_sys->receiver_ctx, p_access->psz_url, 0, RIST_DEFAULT_VIRT_DST_PORT, i_recovery_length) )
+    if( !rist_add_peers(HEIMDALL_OBJECT(p_access), p_sys->receiver_ctx, p_access->psz_url, 0, RIST_DEFAULT_VIRT_DST_PORT, i_recovery_length) )
         goto failed;
 
     /* Start the rist protocol thread */
@@ -299,12 +300,12 @@ static int Open(vlc_object_t *p_this)
     p_access->pf_block = BlockRIST;
     p_access->pf_control = Control;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 failed:
     rist_destroy(p_sys->receiver_ctx);
     msg_Err(p_access, "Failed to open rist module");
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 #define DST_PORT_TEXT N_("Virtual Destination Port Filter")
@@ -313,7 +314,7 @@ failed:
     "to filter incoming data. Use zero to allow all." )
 
 /* Module descriptor */
-vlc_module_begin ()
+heimdall_module_begin ()
 
     set_shortname( N_("RIST") )
     set_description( N_("RIST input") )
@@ -368,5 +369,5 @@ vlc_module_begin ()
 
     set_callbacks( Open, Close )
 
-vlc_module_end ()
+heimdall_module_end ()
 

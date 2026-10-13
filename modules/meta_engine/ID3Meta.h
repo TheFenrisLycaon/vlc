@@ -2,6 +2,7 @@
  * ID3Meta.h : ID3v2 Meta Helper
  *****************************************************************************
  * Copyright (C) 2016 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -20,33 +21,33 @@
 #ifndef ID3META_H
 #define ID3META_H
 
-#include <vlc_meta.h>
+#include <heimdall_meta.h>
 #include "ID3Text.h"
 
-#define vlc_meta_extra vlc_meta_Title
+#define heimdall_meta_extra heimdall_meta_Title
 static struct
 {
     uint32_t i_tag;
-    vlc_meta_type_t type;
+    heimdall_meta_type_t type;
     const char *psz;
 } const ID3_tag_to_metatype[] = {
-    { VLC_FOURCC('T', 'A', 'L', 'B'), vlc_meta_Album,       NULL },
-    { VLC_FOURCC('T', 'C', 'M', 'P'), vlc_meta_Compilation, NULL },
-    { VLC_FOURCC('T', 'D', 'R', 'C'), vlc_meta_Date,        NULL },
-    { VLC_FOURCC('T', 'E', 'N', 'C'), vlc_meta_extra,       "Encoder" },
-    { VLC_FOURCC('T', 'I', 'T', '2'), vlc_meta_Title,       NULL },
-    { VLC_FOURCC('T', 'O', 'P', 'E'), vlc_meta_extra,       "Original Artist" },
-    { VLC_FOURCC('T', 'O', 'R', 'Y'), vlc_meta_extra,       "Original Release Year" },
-    { VLC_FOURCC('T', 'P', 'E', '1'), vlc_meta_Artist,      NULL },
-    { VLC_FOURCC('T', 'P', 'E', '2'), vlc_meta_AlbumArtist, NULL },
-    { VLC_FOURCC('T', 'R', 'S', 'N'), vlc_meta_Publisher,   NULL },
-    { VLC_FOURCC('T', 'R', 'S', 'O'), vlc_meta_extra,       "Radio Station Owner" },
+    { HEIMDALL_FOURCC('T', 'A', 'L', 'B'), heimdall_meta_Album,       NULL },
+    { HEIMDALL_FOURCC('T', 'C', 'M', 'P'), heimdall_meta_Compilation, NULL },
+    { HEIMDALL_FOURCC('T', 'D', 'R', 'C'), heimdall_meta_Date,        NULL },
+    { HEIMDALL_FOURCC('T', 'E', 'N', 'C'), heimdall_meta_extra,       "Encoder" },
+    { HEIMDALL_FOURCC('T', 'I', 'T', '2'), heimdall_meta_Title,       NULL },
+    { HEIMDALL_FOURCC('T', 'O', 'P', 'E'), heimdall_meta_extra,       "Original Artist" },
+    { HEIMDALL_FOURCC('T', 'O', 'R', 'Y'), heimdall_meta_extra,       "Original Release Year" },
+    { HEIMDALL_FOURCC('T', 'P', 'E', '1'), heimdall_meta_Artist,      NULL },
+    { HEIMDALL_FOURCC('T', 'P', 'E', '2'), heimdall_meta_AlbumArtist, NULL },
+    { HEIMDALL_FOURCC('T', 'R', 'S', 'N'), heimdall_meta_Publisher,   NULL },
+    { HEIMDALL_FOURCC('T', 'R', 'S', 'O'), heimdall_meta_extra,       "Radio Station Owner" },
 };
-#undef vlc_meta_extra
+#undef heimdall_meta_extra
 
 static bool ID3TextTagHandler( const uint8_t *p_buf, size_t i_buf,
-                               vlc_meta_type_t type, const char *psz_extra,
-                               vlc_meta_t *p_meta, bool *pb_updated )
+                               heimdall_meta_type_t type, const char *psz_extra,
+                               heimdall_meta_t *p_meta, bool *pb_updated )
 {
     if( p_meta == NULL )
         return false;
@@ -55,16 +56,16 @@ static bool ID3TextTagHandler( const uint8_t *p_buf, size_t i_buf,
     const char *psz = ID3TextConvert( p_buf, i_buf, &p_alloc );
     if( psz && *psz )
     {
-        const char *psz_old = ( psz_extra ) ? vlc_meta_GetExtra( p_meta, psz_extra ):
-                                              vlc_meta_Get( p_meta, type );
+        const char *psz_old = ( psz_extra ) ? heimdall_meta_GetExtra( p_meta, psz_extra ):
+                                              heimdall_meta_Get( p_meta, type );
         if( !psz_old || strcmp( psz_old, psz ) )
         {
             if( pb_updated )
                 *pb_updated = true;
             if( psz_extra )
-                vlc_meta_SetExtra( p_meta, psz_extra, psz );
+                heimdall_meta_SetExtra( p_meta, psz_extra, psz );
             else
-                vlc_meta_Set( p_meta, type, psz );
+                heimdall_meta_Set( p_meta, type, psz );
         }
     }
     free( p_alloc );
@@ -73,7 +74,7 @@ static bool ID3TextTagHandler( const uint8_t *p_buf, size_t i_buf,
 }
 
 static bool ID3LinkFrameTagHandler( const uint8_t *p_buf, size_t i_buf,
-                                    vlc_meta_t *p_meta, bool *pb_updated )
+                                    heimdall_meta_t *p_meta, bool *pb_updated )
 {
     if( i_buf > 13 && p_meta )
     {
@@ -83,11 +84,11 @@ static bool ID3LinkFrameTagHandler( const uint8_t *p_buf, size_t i_buf,
         if( i_desclen < i_len - 1 && i_desclen > 11 &&
             !strncmp( "artworkURL_", psz, 11 ) )
         {
-            const char *psz_old = vlc_meta_Get( p_meta, vlc_meta_ArtworkURL );
+            const char *psz_old = heimdall_meta_Get( p_meta, heimdall_meta_ArtworkURL );
             if( !psz_old || strncmp( psz_old, &psz[i_desclen], i_len - i_desclen ) )
             {
                 char *p_alloc = strndup(&psz[i_desclen + 1], i_len - i_desclen - 1);
-                vlc_meta_Set( p_meta, vlc_meta_ArtworkURL, p_alloc );
+                heimdall_meta_Set( p_meta, heimdall_meta_ArtworkURL, p_alloc );
                 free( p_alloc );
                 *pb_updated = true;
             }
@@ -99,13 +100,13 @@ static bool ID3LinkFrameTagHandler( const uint8_t *p_buf, size_t i_buf,
 
 static bool ID3HandleTag( const uint8_t *p_buf, size_t i_buf,
                           uint32_t i_tag,
-                          vlc_meta_t *p_meta, bool *pb_updated )
+                          heimdall_meta_t *p_meta, bool *pb_updated )
 {
-    if( i_tag == VLC_FOURCC('W', 'X', 'X', 'X') )
+    if( i_tag == HEIMDALL_FOURCC('W', 'X', 'X', 'X') )
     {
         return ID3LinkFrameTagHandler( p_buf, i_buf, p_meta, pb_updated );
     }
-    else if( i_tag == VLC_FOURCC('T', 'X', 'X', 'X') )
+    else if( i_tag == HEIMDALL_FOURCC('T', 'X', 'X', 'X') )
     {
         char *psz_key_alloc;
         const char *psz_key = ID3TextConvert( p_buf, i_buf, &psz_key_alloc );
@@ -126,13 +127,13 @@ static bool ID3HandleTag( const uint8_t *p_buf, size_t i_buf,
                                                        p_buf[0], &psz_val_alloc );
                     if( psz_val )
                     {
-                        vlc_meta_SetExtra( p_meta, psz_key, psz_val );
+                        heimdall_meta_SetExtra( p_meta, psz_key, psz_val );
                         free( psz_val_alloc );
                     }
                 }
             }
             free( psz_key_alloc );
-            return (vlc_meta_GetExtraCount( p_meta ) > 0);
+            return (heimdall_meta_GetExtraCount( p_meta ) > 0);
         }
     }
     else if ( ((const char *) &i_tag)[0] == 'T' )

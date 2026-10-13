@@ -2,6 +2,7 @@
  * visual.h : Header for the visualisation system
  *****************************************************************************
  * Copyright (C) 2002-2009 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Clément Stenac <zorglub@via.ecp.fr>
  *
@@ -21,7 +22,7 @@
  *****************************************************************************/
 
 typedef struct visual_effect_t visual_effect_t;
-typedef int (*visual_run_t)(visual_effect_t *, vlc_object_t *,
+typedef int (*visual_run_t)(visual_effect_t *, heimdall_object_t *,
                             const block_t *, picture_t *);
 typedef void (*visual_free_t)(void *);
 

@@ -2,6 +2,7 @@
  * netbsd/thread.c: NetBSD specifics for threading
  *****************************************************************************
  * Copyright (C) 2020 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -25,11 +26,11 @@
 #include <pthread.h>
 #include <lwp.h>
 
-#include <vlc_common.h>
-#include <vlc_threads.h>
-#include <vlc_atomic.h>
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
+#include <heimdall_atomic.h>
 
-unsigned long vlc_thread_id(void)
+unsigned long heimdall_thread_id(void)
 {
      static _Thread_local lwpid_t tid = -1;
 
@@ -39,7 +40,7 @@ unsigned long vlc_thread_id(void)
      return tid;
 }
 
-void (vlc_thread_set_name)(const char *name)
+void (heimdall_thread_set_name)(const char *name)
 {
     pthread_setname_np(pthread_self(), "%s", (void *)name);
 }

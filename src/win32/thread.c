@@ -1,7 +1,8 @@
 /*****************************************************************************
- * thread.c : Win32 back-end for LibVLC
+ * thread.c : Win32 back-end for LibHeimdall
  *****************************************************************************
  * Copyright (C) 1999-2016 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Jean-Marc Dressler <polux@via.ecp.fr>
  *          Samuel Hocevar <sam@zoy.org>
@@ -32,18 +33,18 @@
 #define _DECL_DLLMAIN
 #include <windows.h>
 #include <process.h>
-#include <vlc_common.h>
-#include <vlc_threads.h>
-#include <vlc_charset.h>
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
+#include <heimdall_charset.h>
 
-#include "../libvlc.h"
+#include "../libheimdall.h"
 #include <stdarg.h>
 #include <stdatomic.h>
 #include <assert.h>
 #include <limits.h>
 #include <errno.h>
 #include <time.h>
-#include <vlc_atomic.h>
+#include <heimdall_atomic.h>
 
 #if WINAPI_FAMILY_PARTITION (WINAPI_PARTITION_DESKTOP)
 #include <mmsystem.h>
@@ -61,32 +62,32 @@ WINBASEAPI HRESULT WINAPI SetThreadDescription(HANDLE,PCWSTR);
 static SRWLOCK super_lock = SRWLOCK_INIT;
 
 /*** Threads ***/
-static thread_local struct vlc_thread *current_thread_ctx = NULL;
+static thread_local struct heimdall_thread *current_thread_ctx = NULL;
 
-struct vlc_thread
+struct heimdall_thread
 {
     HANDLE         id;
 
     bool           killable;
     atomic_uint    killed;
-    vlc_cleanup_t *cleaners;
+    heimdall_cleanup_t *cleaners;
 
     void        *(*entry) (void *);
     void          *data;
 };
 
 /*** Thread-specific variables (TLS) ***/
-struct vlc_threadvar
+struct heimdall_threadvar
 {
     DWORD                 id;
     void                (*destroy) (void *);
-    struct vlc_threadvar *prev;
-    struct vlc_threadvar *next;
-} *vlc_threadvar_last = NULL;
+    struct heimdall_threadvar *prev;
+    struct heimdall_threadvar *next;
+} *heimdall_threadvar_last = NULL;
 
-int vlc_threadvar_create (vlc_threadvar_t *p_tls, void (*destr) (void *))
+int heimdall_threadvar_create (heimdall_threadvar_t *p_tls, void (*destr) (void *))
 {
-    struct vlc_threadvar *var = malloc (sizeof (*var));
+    struct heimdall_threadvar *var = malloc (sizeof (*var));
     if (unlikely(var == NULL))
         return errno;
 
@@ -103,19 +104,19 @@ int vlc_threadvar_create (vlc_threadvar_t *p_tls, void (*destr) (void *))
     if (destr != NULL)
     {
         AcquireSRWLockExclusive(&super_lock);
-        var->prev = vlc_threadvar_last;
+        var->prev = heimdall_threadvar_last;
         if (var->prev)
             var->prev->next = var;
 
-        vlc_threadvar_last = var;
+        heimdall_threadvar_last = var;
         ReleaseSRWLockExclusive(&super_lock);
     }
     return 0;
 }
 
-void vlc_threadvar_delete (vlc_threadvar_t *p_tls)
+void heimdall_threadvar_delete (heimdall_threadvar_t *p_tls)
 {
-    struct vlc_threadvar *var = *p_tls;
+    struct heimdall_threadvar *var = *p_tls;
 
     if (var->destroy != NULL)
     {
@@ -126,14 +127,14 @@ void vlc_threadvar_delete (vlc_threadvar_t *p_tls)
         if (var->next != NULL)
             var->next->prev = var->prev;
         else
-            vlc_threadvar_last = var->prev;
+            heimdall_threadvar_last = var->prev;
         ReleaseSRWLockExclusive(&super_lock);
     }
     TlsFree (var->id);
     free (var);
 }
 
-int vlc_threadvar_set (vlc_threadvar_t key, void *value)
+int heimdall_threadvar_set (heimdall_threadvar_t key, void *value)
 {
     int saved = GetLastError ();
 
@@ -144,7 +145,7 @@ int vlc_threadvar_set (vlc_threadvar_t key, void *value)
     return 0;
 }
 
-void *vlc_threadvar_get (vlc_threadvar_t key)
+void *heimdall_threadvar_get (heimdall_threadvar_t key)
 {
     int saved = GetLastError ();
     void *value = TlsGetValue (key->id);
@@ -153,13 +154,13 @@ void *vlc_threadvar_get (vlc_threadvar_t key)
     return value;
 }
 
-static void vlc_threadvars_cleanup(void)
+static void heimdall_threadvars_cleanup(void)
 {
-    const struct vlc_threadvar *key;
+    const struct heimdall_threadvar *key;
 
 retry:
     AcquireSRWLockShared(&super_lock);
-    for (key = vlc_threadvar_last; key != NULL; key = key->prev)
+    for (key = heimdall_threadvar_last; key != NULL; key = key->prev)
     {
         void *value = TlsGetValue(key->id);
         if (value != NULL)
@@ -233,7 +234,7 @@ static BOOL WINAPI WaitOnAddressFallback(void volatile *addr, void *value,
             val = *(const long long *)value;
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 
     if (futex == val)
@@ -266,7 +267,7 @@ static void WINAPI WakeByAddressFallback(void *addr)
     WakeAllConditionVariable(&bucket->wait);
 }
 
-static void vlc_wait_addr_init(void)
+static void heimdall_wait_addr_init(void)
 {
     for (size_t i = 0; i < ARRAY_SIZE(wait_addr_buckets); i++)
     {
@@ -281,24 +282,24 @@ static void vlc_wait_addr_init(void)
 }
 #endif
 
-void vlc_atomic_wait(void *addr, unsigned val)
+void heimdall_atomic_wait(void *addr, unsigned val)
 {
     WaitOnAddress(addr, &val, sizeof (val), INFINITE);
 }
 
-int vlc_atomic_timedwait(void *addr, unsigned val, vlc_tick_t deadline)
+int heimdall_atomic_timedwait(void *addr, unsigned val, heimdall_tick_t deadline)
 {
-    vlc_tick_t delay;
+    heimdall_tick_t delay;
 
     for(;;)
     {
-        delay = deadline - vlc_tick_now();
+        delay = deadline - heimdall_tick_now();
 
         if (delay < 0)
             return ETIMEDOUT; // deadline passed
 
         DWORD ms;
-        int64_t idelay = MS_FROM_VLC_TICK(delay);
+        int64_t idelay = MS_FROM_HEIMDALL_TICK(delay);
         static_assert(sizeof(unsigned long) <= sizeof(DWORD), "unknown max DWORD");
         if (unlikely(idelay > ULONG_MAX))
             ms = ULONG_MAX;
@@ -312,12 +313,12 @@ int vlc_atomic_timedwait(void *addr, unsigned val, vlc_tick_t deadline)
     }
 }
 
-void vlc_atomic_notify_one(void *addr)
+void heimdall_atomic_notify_one(void *addr)
 {
     WakeByAddressSingle(addr);
 }
 
-void vlc_atomic_notify_all(void *addr)
+void heimdall_atomic_notify_all(void *addr)
 {
     WakeByAddressAll(addr);
 }
@@ -327,26 +328,26 @@ static
 unsigned
 __stdcall ThreadEntry (void *p)
 {
-    struct vlc_thread *th = p;
+    struct heimdall_thread *th = p;
 
     current_thread_ctx = th;
     th->killable = true;
     th->data = th->entry (th->data);
-    assert(th->data != VLC_THREAD_CANCELED); // don't hijack our internal values
+    assert(th->data != HEIMDALL_THREAD_CANCELED); // don't hijack our internal values
     current_thread_ctx = NULL;
 
     return 0;
 }
 
-int vlc_clone (vlc_thread_t *p_handle, void *(*entry) (void *),
+int heimdall_clone (heimdall_thread_t *p_handle, void *(*entry) (void *),
                void *data)
 {
-    struct vlc_thread *th = malloc (sizeof (*th));
+    struct heimdall_thread *th = malloc (sizeof (*th));
     if (unlikely(th == NULL))
         return ENOMEM;
     th->entry = entry;
     th->data = data;
-    th->killable = false; /* not until vlc_entry() ! */
+    th->killable = false; /* not until heimdall_entry() ! */
     atomic_init(&th->killed, false);
     th->cleaners = NULL;
 
@@ -371,7 +372,7 @@ int vlc_clone (vlc_thread_t *p_handle, void *(*entry) (void *),
     return 0;
 }
 
-void vlc_join (vlc_thread_t th, void **result)
+void heimdall_join (heimdall_thread_t th, void **result)
 {
     DWORD ret;
 
@@ -388,12 +389,12 @@ void vlc_join (vlc_thread_t th, void **result)
     free(th);
 }
 
-unsigned long vlc_thread_id (void)
+unsigned long heimdall_thread_id (void)
 {
     return GetCurrentThreadId ();
 }
 
-void (vlc_thread_set_name)(const char *name)
+void (heimdall_thread_set_name)(const char *name)
 {
     if (SetThreadDescription_)
     {
@@ -406,22 +407,22 @@ void (vlc_thread_set_name)(const char *name)
 /*** Thread cancellation ***/
 
 /* APC procedure for thread cancellation */
-static void CALLBACK vlc_cancel_self (ULONG_PTR self)
+static void CALLBACK heimdall_cancel_self (ULONG_PTR self)
 {
     (void) self;
 }
 
-void vlc_cancel (vlc_thread_t th)
+void heimdall_cancel (heimdall_thread_t th)
 {
     atomic_store_explicit(&th->killed, true, memory_order_release);
-    vlc_atomic_notify_one(&th->killed);
+    heimdall_atomic_notify_one(&th->killed);
 
-    QueueUserAPC (vlc_cancel_self, th->id, (uintptr_t)th);
+    QueueUserAPC (heimdall_cancel_self, th->id, (uintptr_t)th);
 }
 
-int vlc_savecancel (void)
+int heimdall_savecancel (void)
 {
-    struct vlc_thread *th = current_thread_ctx;
+    struct heimdall_thread *th = current_thread_ctx;
     if (th == NULL)
         return false; /* Main thread - cannot be cancelled anyway */
 
@@ -430,9 +431,9 @@ int vlc_savecancel (void)
     return state;
 }
 
-void vlc_restorecancel (int state)
+void heimdall_restorecancel (int state)
 {
-    struct vlc_thread *th = current_thread_ctx;
+    struct heimdall_thread *th = current_thread_ctx;
     assert (state == false || state == true);
 
     if (th == NULL)
@@ -442,20 +443,20 @@ void vlc_restorecancel (int state)
     th->killable = !!state;
 }
 
-_Noreturn static void vlc_docancel(struct vlc_thread *th)
+_Noreturn static void heimdall_docancel(struct heimdall_thread *th)
 {
     th->killable = false; /* Do not re-enter cancellation cleanup */
 
-    for (vlc_cleanup_t *p = th->cleaners; p != NULL; p = p->next)
+    for (heimdall_cleanup_t *p = th->cleaners; p != NULL; p = p->next)
         p->proc (p->data);
 
-    th->data = VLC_THREAD_CANCELED;
+    th->data = HEIMDALL_THREAD_CANCELED;
     _endthreadex(0);
 }
 
-void vlc_testcancel (void)
+void heimdall_testcancel (void)
 {
-    struct vlc_thread *th = current_thread_ctx;
+    struct heimdall_thread *th = current_thread_ctx;
     if (th == NULL)
         return; /* Main thread - cannot be cancelled anyway */
     if (!th->killable)
@@ -463,15 +464,15 @@ void vlc_testcancel (void)
     if (!atomic_load_explicit(&th->killed, memory_order_relaxed))
         return;
 
-    vlc_docancel(th);
+    heimdall_docancel(th);
 }
 
-void vlc_control_cancel (vlc_cleanup_t *cleaner)
+void heimdall_control_cancel (heimdall_cleanup_t *cleaner)
 {
     /* NOTE: This function only modifies thread-specific data, so there is no
      * need to lock anything. */
 
-    struct vlc_thread *th = current_thread_ctx;
+    struct heimdall_thread *th = current_thread_ctx;
     if (th == NULL)
         return; /* Main thread - cannot be cancelled anyway */
 
@@ -497,7 +498,7 @@ static union
     } perf;
 } clk;
 
-static vlc_tick_t mdate_perf (void)
+static heimdall_tick_t mdate_perf (void)
 {
     /* We don't need the real date, just the value of a high precision timer */
     LARGE_INTEGER counter;
@@ -506,20 +507,20 @@ static vlc_tick_t mdate_perf (void)
 
     /* Convert to from (1/freq) to microsecond resolution */
     /* We need to split the division to avoid 63-bits overflow */
-    return vlc_tick_from_frac(counter.QuadPart, clk.perf.freq.QuadPart);
+    return heimdall_tick_from_frac(counter.QuadPart, clk.perf.freq.QuadPart);
 }
 
-static vlc_tick_t mdate_perf_100ns(void)
+static heimdall_tick_t mdate_perf_100ns(void)
 {
     /* We don't need the real date, just the value of a high precision timer */
     LARGE_INTEGER counter;
     if (unlikely(!QueryPerformanceCounter(&counter)))
         abort ();
 
-    return VLC_TICK_FROM_MSFTIME(counter.QuadPart);
+    return HEIMDALL_TICK_FROM_MSFTIME(counter.QuadPart);
 }
 
-static vlc_tick_t mdate_wall (void)
+static heimdall_tick_t mdate_wall (void)
 {
     FILETIME ts;
     ULARGE_INTEGER s;
@@ -533,51 +534,51 @@ static vlc_tick_t mdate_wall (void)
     s.HighPart = ts.dwHighDateTime;
     /* hundreds of nanoseconds */
     static_assert ((10000000 % CLOCK_FREQ) == 0, "Broken frequencies ratio");
-    return VLC_TICK_FROM_MSFTIME(s.QuadPart);
+    return HEIMDALL_TICK_FROM_MSFTIME(s.QuadPart);
 }
 
 #if WINAPI_FAMILY_PARTITION (WINAPI_PARTITION_DESKTOP)
-static vlc_tick_t mdate_multimedia(void)
+static heimdall_tick_t mdate_multimedia(void)
 {
     DWORD ts = timeGetTime ();
 
     /* milliseconds */
     static_assert ((CLOCK_FREQ % 1000) == 0, "Broken frequencies ratio");
-    return VLC_TICK_FROM_MS(ts);
+    return HEIMDALL_TICK_FROM_MS(ts);
 }
 #endif
 
-static vlc_tick_t (*mdate_selected) (void) = mdate_wall;
+static heimdall_tick_t (*mdate_selected) (void) = mdate_wall;
 
-vlc_tick_t vlc_tick_now (void)
+heimdall_tick_t heimdall_tick_now (void)
 {
     return mdate_selected ();
 }
 
-void (vlc_tick_wait)(vlc_tick_t deadline)
+void (heimdall_tick_wait)(heimdall_tick_t deadline)
 {
-    vlc_tick_t delay;
-    struct vlc_thread *th = current_thread_ctx;
+    heimdall_tick_t delay;
+    struct heimdall_thread *th = current_thread_ctx;
     if (likely(th != NULL) && th->killable)
     {
 #if (_WIN32_WINNT >= _WIN32_WINNT_WIN8)
         do
         {
             if (atomic_load_explicit(&th->killed, memory_order_acquire))
-                vlc_docancel(th);
+                heimdall_docancel(th);
         }
-        while (vlc_atomic_timedwait(&th->killed, false, deadline) == 0);
+        while (heimdall_atomic_timedwait(&th->killed, false, deadline) == 0);
 
         return;
 #else
         if (atomic_load_explicit(&th->killed, memory_order_relaxed))
-            vlc_docancel(th);
+            heimdall_docancel(th);
 #endif
     }
 
-    while ((delay = (deadline - vlc_tick_now())) > 0)
+    while ((delay = (deadline - heimdall_tick_now())) > 0)
     {
-        int64_t idelay = MS_FROM_VLC_TICK(delay + VLC_TICK_FROM_MS(1)-1);
+        int64_t idelay = MS_FROM_HEIMDALL_TICK(delay + HEIMDALL_TICK_FROM_MS(1)-1);
         DWORD delay_ms;
         static_assert(sizeof(unsigned long) <= sizeof(DWORD), "unknown max DWORD");
         if (unlikely(idelay > ULONG_MAX))
@@ -593,7 +594,7 @@ void (vlc_tick_wait)(vlc_tick_t deadline)
         if (likely(th != NULL) && th->killable)
         {
             if (atomic_load_explicit(&th->killed, memory_order_relaxed))
-                vlc_docancel(th);
+                heimdall_docancel(th);
         }
 #endif
         if (delay_ms != ULONG_MAX)
@@ -601,12 +602,12 @@ void (vlc_tick_wait)(vlc_tick_t deadline)
     }
 }
 
-void (vlc_tick_sleep)(vlc_tick_t delay)
+void (heimdall_tick_sleep)(heimdall_tick_t delay)
 {
-    vlc_tick_wait (vlc_tick_now () + delay);
+    heimdall_tick_wait (heimdall_tick_now () + delay);
 }
 
-static void SelectClockSource(libvlc_int_t *obj)
+static void SelectClockSource(libheimdall_int_t *obj)
 {
     // speed comparison / granularity / counts during sleep
     // multimedia:102000 /    5 ms / no
@@ -652,7 +653,7 @@ static void SelectClockSource(libvlc_int_t *obj)
 
 
 /*** CPU ***/
-unsigned vlc_GetCPUCount (void)
+unsigned heimdall_GetCPUCount (void)
 {
     SYSTEM_INFO systemInfo;
 
@@ -664,22 +665,22 @@ unsigned vlc_GetCPUCount (void)
 
 /*** Initialization ***/
 
-void vlc_threads_setup(libvlc_int_t *vlc)
+void heimdall_threads_setup(libheimdall_int_t *heimdall)
 {
-    SelectClockSource(vlc);
+    SelectClockSource(heimdall);
 
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP)
     /* Raise default priority of the current process */
 #ifndef ABOVE_NORMAL_PRIORITY_CLASS
 #   define ABOVE_NORMAL_PRIORITY_CLASS 0x00008000
 #endif
-    if (var_InheritBool(vlc, "high-priority"))
+    if (var_InheritBool(heimdall, "high-priority"))
     {
         if (SetPriorityClass(GetCurrentProcess(), ABOVE_NORMAL_PRIORITY_CLASS)
          || SetPriorityClass(GetCurrentProcess(), HIGH_PRIORITY_CLASS))
-            msg_Dbg(vlc, "raised process priority");
+            msg_Dbg(heimdall, "raised process priority");
         else
-            msg_Dbg(vlc, "could not raise process priority");
+            msg_Dbg(heimdall, "could not raise process priority");
     }
 #endif
 }
@@ -713,14 +714,14 @@ int __stdcall DllMain (void *hinstDll, DWORD fdwReason, void *lpvReserved)
             if (h == NULL || !LOOKUP(WaitOnAddress)
              || !LOOKUP(WakeByAddressAll) || !LOOKUP(WakeByAddressSingle))
             {
-                vlc_wait_addr_init();
+                heimdall_wait_addr_init();
             }
 #endif
             break;
         }
 
         case DLL_THREAD_DETACH:
-            vlc_threadvars_cleanup();
+            heimdall_threadvars_cleanup();
             break;
     }
     return TRUE;

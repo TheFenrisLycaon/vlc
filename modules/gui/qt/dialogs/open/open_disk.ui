@@ -418,7 +418,7 @@
   <tabstop>subtitlesSpin</tabstop>
  </tabstops>
  <resources>
-  <include location="../../vlc.qrc"/>
+  <include location="../../heimdall.qrc"/>
  </resources>
  <connections/>
 </ui>

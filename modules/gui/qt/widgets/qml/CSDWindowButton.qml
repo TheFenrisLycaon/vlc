@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,9 +20,9 @@ import QtQuick
 import QtQuick.Templates as T
 import QtQuick.Layouts
 
-import VLC.Widgets as Widgets
-import VLC.MainInterface
-import VLC.Style
+import Heimdall.Widgets as Widgets
+import Heimdall.MainInterface
+import Heimdall.Style
 
 
 T.Button {
@@ -37,7 +38,7 @@ T.Button {
     readonly property bool _paintHovered: control.hovered || showHovered
 
     padding: 0
-    width: VLCStyle.dp(40, VLCStyle.scale)
+    width: HeimdallStyle.dp(40, HeimdallStyle.scale)
 
     implicitWidth: Math.max(implicitBackgroundWidth + leftInset + rightInset,
                             implicitContentWidth + leftPadding + rightPadding)
@@ -77,10 +78,10 @@ T.Button {
                         return "Segoe Fluent Icons"
                 }
      
-                return VLCIcons.fontFamily
+                return HeimdallIcons.fontFamily
             }
 
-            font.pixelSize: VLCStyle.icon_CSD
+            font.pixelSize: HeimdallStyle.icon_CSD
             color: control.color
         }
     }

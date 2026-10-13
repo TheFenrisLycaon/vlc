@@ -2,6 +2,7 @@
  * variables.h: object variables typedefs
  *****************************************************************************
  * Copyright (C) 1999-2012 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Samuel Hocevar <sam@zoy.org>
  *
@@ -20,35 +21,35 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef LIBVLC_VARIABLES_H
-# define LIBVLC_VARIABLES_H 1
+#ifndef LIBHEIMDALL_VARIABLES_H
+# define LIBHEIMDALL_VARIABLES_H 1
 
-# include <vlc_list.h>
+# include <heimdall_list.h>
 
-struct vlc_res;
+struct heimdall_res;
 
 /**
- * Private LibVLC data for each object.
+ * Private LibHeimdall data for each object.
  */
-typedef struct vlc_object_internals vlc_object_internals_t;
+typedef struct heimdall_object_internals heimdall_object_internals_t;
 
-struct vlc_object_internals
+struct heimdall_object_internals
 {
-    vlc_object_t *parent; /**< Parent object (or NULL) */
+    heimdall_object_t *parent; /**< Parent object (or NULL) */
     const char *typename; /**< Object type human-readable name */
 
     /* Object variables */
     void           *var_root;
-    vlc_mutex_t     var_lock;
+    heimdall_mutex_t     var_lock;
 
     /* Object resources */
-    struct vlc_res *resources;
+    struct heimdall_res *resources;
 };
 
-# define vlc_internals(o) ((o)->priv)
-# define vlc_externals(priv) (abort(), (void *)(priv))
+# define heimdall_internals(o) ((o)->priv)
+# define heimdall_externals(priv) (abort(), (void *)(priv))
 
-extern void var_DestroyAll( vlc_object_t * );
+extern void var_DestroyAll( heimdall_object_t * );
 
 /**
  * Return a list of all variable names
@@ -59,6 +60,6 @@ extern void var_DestroyAll( vlc_object_t * );
  * @return a NULL terminated list of char *, each elements and the return value
  * must be freed by the caller
  */
-char **var_GetAllNames(vlc_object_t *);
+char **var_GetAllNames(heimdall_object_t *);
 
 #endif

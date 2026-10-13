@@ -2,6 +2,7 @@
  * rand.c: random number/bytes generation functions
  *****************************************************************************
  * Copyright (C) 2007-2018 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,34 +23,34 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_rand.h>
+#include <heimdall_common.h>
+#include <heimdall_rand.h>
 
-#include "../vlc.h"
+#include "../heimdall.h"
 #include "../libs.h"
 
-static int vlclua_rand_number( lua_State *L )
+static int heimdalllua_rand_number( lua_State *L )
 {
-    long rand = vlc_lrand48();
+    long rand = heimdall_lrand48();
     lua_pushnumber( L, rand );
     return 1;
 }
 
-static int vlclua_rand_bytes( lua_State *L )
+static int heimdalllua_rand_bytes( lua_State *L )
 {
     lua_Integer i_size = luaL_checkinteger( L, 1 );
     char* p_buff = malloc( i_size * sizeof( *p_buff ) );
     if ( unlikely( p_buff == NULL ) )
-        return vlclua_error( L );
-    vlc_rand_bytes( p_buff, i_size );
+        return heimdalllua_error( L );
+    heimdall_rand_bytes( p_buff, i_size );
     lua_pushlstring( L, p_buff, i_size );
     free( p_buff );
     return 1;
 }
 
-static const luaL_Reg vlclua_rand_reg[] = {
-    { "number", vlclua_rand_number },
-    { "bytes", vlclua_rand_bytes },
+static const luaL_Reg heimdalllua_rand_reg[] = {
+    { "number", heimdalllua_rand_number },
+    { "bytes", heimdalllua_rand_bytes },
 
     { NULL, NULL }
 };
@@ -57,6 +58,6 @@ static const luaL_Reg vlclua_rand_reg[] = {
 void luaopen_rand( lua_State *L )
 {
     lua_newtable( L );
-    luaL_register( L, NULL, vlclua_rand_reg );
+    luaL_register( L, NULL, heimdalllua_rand_reg );
     lua_setfield( L, -2, "rand" );
 }

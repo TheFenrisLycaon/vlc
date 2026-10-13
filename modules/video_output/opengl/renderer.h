@@ -2,6 +2,7 @@
  * renderer.h: OpenGL internal header
  *****************************************************************************
  * Copyright (C) 2016 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -18,14 +19,14 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_GL_RENDERER_H
-#define VLC_GL_RENDERER_H
+#ifndef HEIMDALL_GL_RENDERER_H
+#define HEIMDALL_GL_RENDERER_H
 
-#include <vlc_common.h>
-#include <vlc_codec.h>
-#include <vlc_opengl.h>
-#include <vlc_opengl_filter.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_codec.h>
+#include <heimdall_opengl.h>
+#include <heimdall_opengl_filter.h>
+#include <heimdall_plugin.h>
 
 #include "gl_api.h"
 #include "gl_common.h"
@@ -42,14 +43,14 @@ extern "C"
     add_shortcut("renderer") \
     set_shortname("renderer") \
     set_capability("opengl filter", 0) \
-    set_callback_opengl_filter(vlc_gl_renderer_Open)
+    set_callback_opengl_filter(heimdall_gl_renderer_Open)
 
 /**
  * OpenGL picture renderer
  */
-struct vlc_gl_renderer
+struct heimdall_gl_renderer
 {
-    struct vlc_gl_api api;
+    struct heimdall_gl_api api;
     const opengl_vtable_t *vt; /* for convenience, same as &api.vt */
 
     /* True to dump shaders */
@@ -77,7 +78,7 @@ struct vlc_gl_renderer
         GLint VertexPosition;
     } aloc;
 
-    struct vlc_gl_sampler *sampler;
+    struct heimdall_gl_sampler *sampler;
 
     unsigned nb_indices;
     GLuint vertex_buffer_object;
@@ -89,7 +90,7 @@ struct vlc_gl_renderer
     bool valid_coords;
 
     /* View point */
-    vlc_viewpoint_t vp;
+    heimdall_viewpoint_t vp;
     float f_teta;
     float f_phi;
     float f_roll;
@@ -105,15 +106,15 @@ struct vlc_gl_renderer
 
     /* Projection mode for the input data */
     video_projection_mode_t projection_mode;
-    vlc_stereoscopic_mode_t stereo_mode;
+    heimdall_stereoscopic_mode_t stereo_mode;
     video_multiview_mode_t multiview_mode;
 };
 
-vlc_gl_filter_open_fn vlc_gl_renderer_Open;
+heimdall_gl_filter_open_fn heimdall_gl_renderer_Open;
 
 int
-vlc_gl_renderer_SetViewpoint(struct vlc_gl_renderer *renderer,
-                             const vlc_viewpoint_t *p_vp);
+heimdall_gl_renderer_SetViewpoint(struct heimdall_gl_renderer *renderer,
+                             const heimdall_viewpoint_t *p_vp);
 
 #ifdef __cplusplus
 }

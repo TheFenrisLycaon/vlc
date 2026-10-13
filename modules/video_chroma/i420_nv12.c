@@ -2,6 +2,7 @@
  * i420_nv12.c : Planar YUV 4:2:0 to SemiPlanar NV12 4:2:0
  *****************************************************************************
  * Copyright (C) 2016 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Steve Lhomme <robux4@videolabs.io>
  *
@@ -28,11 +29,11 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_picture.h>
-#include <vlc_chroma_probe.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
+#include <heimdall_chroma_probe.h>
 #include "copy.h"
 
 typedef struct
@@ -162,30 +163,30 @@ static int Create( filter_t *p_filter )
        || p_filter->fmt_in.video.orientation != p_filter->fmt_out.video.orientation )
         return -1;
 
-    vlc_fourcc_t infcc = p_filter->fmt_in.video.i_chroma;
-    vlc_fourcc_t outfcc = p_filter->fmt_out.video.i_chroma;
+    heimdall_fourcc_t infcc = p_filter->fmt_in.video.i_chroma;
+    heimdall_fourcc_t outfcc = p_filter->fmt_out.video.i_chroma;
     uint8_t pixel_bytes = 1;
 
     switch( infcc )
     {
-        case VLC_CODEC_I420:
-            if( outfcc != VLC_CODEC_NV12 )
+        case HEIMDALL_CODEC_I420:
+            if( outfcc != HEIMDALL_CODEC_NV12 )
                 return -1;
             p_filter->ops = &I420_NV12_ops;
             break;
 
-        case VLC_CODEC_YV12:
-            if( outfcc != VLC_CODEC_NV12 )
+        case HEIMDALL_CODEC_YV12:
+            if( outfcc != HEIMDALL_CODEC_NV12 )
                 return -1;
             p_filter->ops = &YV12_NV12_ops;
             break;
-        case VLC_CODEC_NV12:
+        case HEIMDALL_CODEC_NV12:
             switch( outfcc )
             {
-                case VLC_CODEC_I420:
+                case HEIMDALL_CODEC_I420:
                     p_filter->ops = &NV12_I420_ops;
                     break;
-                case VLC_CODEC_YV12:
+                case HEIMDALL_CODEC_YV12:
                     p_filter->ops = &NV12_YV12_ops;
                     break;
                 default:
@@ -193,15 +194,15 @@ static int Create( filter_t *p_filter )
             }
             break;
 
-        case VLC_CODEC_I420_10L:
-            if( outfcc != VLC_CODEC_P010 )
+        case HEIMDALL_CODEC_I420_10L:
+            if( outfcc != HEIMDALL_CODEC_P010 )
                 return -1;
             pixel_bytes = 2;
             p_filter->ops = &I42010B_P010_ops;
             break;
 
-        case VLC_CODEC_P010:
-            if( outfcc != VLC_CODEC_I420_10L )
+        case HEIMDALL_CODEC_P010:
+            if( outfcc != HEIMDALL_CODEC_I420_10L )
                 return -1;
             pixel_bytes = 2;
             p_filter->ops = &P010_I42010B_ops;
@@ -211,14 +212,14 @@ static int Create( filter_t *p_filter )
             return -1;
     }
 
-    filter_sys_t *p_sys = vlc_obj_malloc( VLC_OBJECT( p_filter ),
+    filter_sys_t *p_sys = heimdall_obj_malloc( HEIMDALL_OBJECT( p_filter ),
                                           sizeof(*p_sys) );
     if (!p_sys)
-         return VLC_ENOMEM;
+         return HEIMDALL_ENOMEM;
 
     if( CopyInitCache( &p_sys->cache, ( p_filter->fmt_in.video.i_x_offset +
                        p_filter->fmt_in.video.i_visible_width ) * pixel_bytes ) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_filter->p_sys = p_sys;
 
@@ -228,16 +229,16 @@ static int Create( filter_t *p_filter )
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static void ProbeChroma(vlc_chroma_conv_vec *vec)
+static void ProbeChroma(heimdall_chroma_conv_vec *vec)
 {
-    vlc_chroma_conv_add(vec, COPY_COST, VLC_CODEC_I420, VLC_CODEC_NV12, true);
-    vlc_chroma_conv_add(vec, COPY_COST, VLC_CODEC_YV12, VLC_CODEC_NV12, true);
-    vlc_chroma_conv_add(vec, COPY_COST, VLC_CODEC_I420_10L, VLC_CODEC_P010, true);
+    heimdall_chroma_conv_add(vec, COPY_COST, HEIMDALL_CODEC_I420, HEIMDALL_CODEC_NV12, true);
+    heimdall_chroma_conv_add(vec, COPY_COST, HEIMDALL_CODEC_YV12, HEIMDALL_CODEC_NV12, true);
+    heimdall_chroma_conv_add(vec, COPY_COST, HEIMDALL_CODEC_I420_10L, HEIMDALL_CODEC_P010, true);
 }
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("YUV planar to semiplanar conversions") )
     set_callback_video_converter( Create, 160 )
     add_submodule()
         set_callback_chroma_conv_probe(ProbeChroma)
-vlc_module_end ()
+heimdall_module_end ()

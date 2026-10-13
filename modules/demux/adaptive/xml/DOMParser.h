@@ -2,6 +2,7 @@
  * DOMParser.h
  *****************************************************************************
  * Copyright (C) 2010 - 2011 Klagenfurt University
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Created on: Aug 10, 2010
  * Authors: Christopher Mueller <christopher.mueller@itec.uni-klu.ac.at>
@@ -25,8 +26,8 @@
 #ifndef DOMPARSER_H_
 #define DOMPARSER_H_
 
-#include <vlc_common.h>
-#include <vlc_stream.h>
+#include <heimdall_common.h>
+#include <heimdall_stream.h>
 
 #include "Node.h"
 
@@ -51,7 +52,7 @@ namespace adaptive
                 Node                *root;
                 stream_t            *stream;
 
-                xml_reader_t        *vlc_reader;
+                xml_reader_t        *heimdall_reader;
 
                 Node*   processNode             (bool);
                 void    addAttributesToNode     (Node *node);

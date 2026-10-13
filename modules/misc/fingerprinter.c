@@ -2,6 +2,7 @@
  * fingerprinter.c: Audio fingerprinter module
  *****************************************************************************
  * Copyright (C) 2012 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -24,16 +25,16 @@
 #include <assert.h>
 #include <stdatomic.h>
 
-#include <vlc_common.h>
-#include <vlc_arrays.h>
-#include <vlc_plugin.h>
-#include <vlc_stream.h>
-#include <vlc_modules.h>
-#include <vlc_meta.h>
-#include <vlc_url.h>
+#include <heimdall_common.h>
+#include <heimdall_arrays.h>
+#include <heimdall_plugin.h>
+#include <heimdall_stream.h>
+#include <heimdall_modules.h>
+#include <heimdall_meta.h>
+#include <heimdall_url.h>
 
-#include <vlc_player.h>
-#include <vlc_fingerprinter.h>
+#include <heimdall_player.h>
+#include <heimdall_fingerprinter.h>
 #include "webservices/acoustid.h"
 #include "../stream_out/chromaprint_data.h"
 
@@ -43,49 +44,49 @@
 
 struct fingerprinter_sys_t
 {
-    vlc_thread_t thread;
-    vlc_player_t *player;
-    vlc_player_listener_id *listener_id;
+    heimdall_thread_t thread;
+    heimdall_player_t *player;
+    heimdall_player_listener_id *listener_id;
     chromaprint_fingerprint_t chroma_fingerprint;
 
     atomic_bool abort;
 
     struct
     {
-        vlc_array_t         queue;
+        heimdall_array_t         queue;
     } incoming;
 
     struct
     {
-        vlc_array_t         queue;
-        vlc_mutex_t         lock;
+        heimdall_array_t         queue;
+        heimdall_mutex_t         lock;
     } results;
 
-    vlc_cond_t              incoming_cond;
+    heimdall_cond_t              incoming_cond;
 
     struct
     {
-        vlc_array_t         queue;
-        vlc_cond_t          cond;
+        heimdall_array_t         queue;
+        heimdall_cond_t          cond;
         bool                b_working;
     } processing;
 };
 
-static int  Open            (vlc_object_t *);
-static void Close           (vlc_object_t *);
+static int  Open            (heimdall_object_t *);
+static void Close           (heimdall_object_t *);
 static void CleanSys        (fingerprinter_sys_t *);
 static void *Run(void *);
 
 /*****************************************************************************
  * Module descriptor
  ****************************************************************************/
-vlc_module_begin ()
+heimdall_module_begin ()
     set_subcategory(SUBCAT_ADVANCED_MISC)
     set_shortname(N_("acoustid"))
     set_description(N_("Track fingerprinter (based on Acoustid)"))
     set_capability("fingerprinter", 10)
     set_callbacks(Open, Close)
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * Requests lifecycle
@@ -94,60 +95,60 @@ vlc_module_end ()
 static int EnqueueRequest( fingerprinter_thread_t *f, fingerprint_request_t *r )
 {
     fingerprinter_sys_t *p_sys = f->p_sys;
-    vlc_player_Lock( p_sys->player );
-    int i_ret = vlc_array_append( &p_sys->incoming.queue, r );
-    vlc_cond_signal( &p_sys->incoming_cond );
-    vlc_player_Unlock( p_sys->player );
+    heimdall_player_Lock( p_sys->player );
+    int i_ret = heimdall_array_append( &p_sys->incoming.queue, r );
+    heimdall_cond_signal( &p_sys->incoming_cond );
+    heimdall_player_Unlock( p_sys->player );
     return i_ret;
 }
 
 static void QueueIncomingRequests( fingerprinter_sys_t *p_sys )
 {
-    for( size_t i = vlc_array_count( &p_sys->incoming.queue ); i > 0 ; i-- )
+    for( size_t i = heimdall_array_count( &p_sys->incoming.queue ); i > 0 ; i-- )
     {
-        fingerprint_request_t *r = vlc_array_item_at_index( &p_sys->incoming.queue, i - 1 );
-        if( vlc_array_append( &p_sys->processing.queue, r ) )
+        fingerprint_request_t *r = heimdall_array_item_at_index( &p_sys->incoming.queue, i - 1 );
+        if( heimdall_array_append( &p_sys->processing.queue, r ) )
             fingerprint_request_Delete( r );
     }
-    vlc_array_clear( &p_sys->incoming.queue );
+    heimdall_array_clear( &p_sys->incoming.queue );
 }
 
 static fingerprint_request_t * GetResult( fingerprinter_thread_t *f )
 {
     fingerprint_request_t *r = NULL;
     fingerprinter_sys_t *p_sys = f->p_sys;
-    vlc_mutex_lock( &p_sys->results.lock );
-    if ( vlc_array_count( &p_sys->results.queue ) )
+    heimdall_mutex_lock( &p_sys->results.lock );
+    if ( heimdall_array_count( &p_sys->results.queue ) )
     {
-        r = vlc_array_item_at_index( &p_sys->results.queue, 0 );
-        vlc_array_remove( &p_sys->results.queue, 0 );
+        r = heimdall_array_item_at_index( &p_sys->results.queue, 0 );
+        heimdall_array_remove( &p_sys->results.queue, 0 );
     }
-    vlc_mutex_unlock( &p_sys->results.lock );
+    heimdall_mutex_unlock( &p_sys->results.lock );
     return r;
 }
 
 static void ApplyResult( fingerprint_request_t *p_r, size_t i_resultid )
 {
-    if ( i_resultid >= vlc_array_count( & p_r->results.metas_array ) ) return;
+    if ( i_resultid >= heimdall_array_count( & p_r->results.metas_array ) ) return;
 
-    vlc_meta_t *p_meta = (vlc_meta_t *)
-            vlc_array_item_at_index( & p_r->results.metas_array, i_resultid );
+    heimdall_meta_t *p_meta = (heimdall_meta_t *)
+            heimdall_array_item_at_index( & p_r->results.metas_array, i_resultid );
     input_item_t *p_item = p_r->p_item;
-    vlc_mutex_lock( &p_item->lock );
-    vlc_meta_Merge( p_item->p_meta, p_meta );
-    vlc_mutex_unlock( &p_item->lock );
+    heimdall_mutex_lock( &p_item->lock );
+    heimdall_meta_Merge( p_item->p_meta, p_meta );
+    heimdall_mutex_unlock( &p_item->lock );
 }
 
-static void player_on_state_changed(vlc_player_t *player,
-                                    enum vlc_player_state new_state,
+static void player_on_state_changed(heimdall_player_t *player,
+                                    enum heimdall_player_state new_state,
                                     void *p_user_data)
 {
-    VLC_UNUSED(player);
+    HEIMDALL_UNUSED(player);
     fingerprinter_sys_t *p_sys = p_user_data;
-    if (new_state == VLC_PLAYER_STATE_STOPPED)
+    if (new_state == HEIMDALL_PLAYER_STATE_STOPPED)
     {
         p_sys->processing.b_working = false;
-        vlc_cond_signal( &p_sys->processing.cond );
+        heimdall_cond_signal( &p_sys->processing.cond );
     }
 }
 
@@ -164,14 +165,14 @@ static void DoFingerprint( fingerprinter_thread_t *p_fingerprinter,
     /* the stereo upmix could make the mono tracks fingerprint to differ :/ */
     if ( asprintf( &psz_sout_option,
                    "sout=#transcode{acodec=%s,channels=2}:chromaprint",
-                   ( VLC_CODEC_S16L == VLC_CODEC_S16N ) ? "s16l" : "s16b" )
+                   ( HEIMDALL_CODEC_S16L == HEIMDALL_CODEC_S16N ) ? "s16l" : "s16b" )
          == -1 )
     {
         input_item_Release( p_item );
         return;
     }
 
-    input_item_AddOption( p_item, psz_sout_option, VLC_INPUT_OPTION_TRUSTED );
+    input_item_AddOption( p_item, psz_sout_option, HEIMDALL_INPUT_OPTION_TRUSTED );
     free( psz_sout_option );
     if ( fp->i_duration )
     {
@@ -180,7 +181,7 @@ static void DoFingerprint( fingerprinter_thread_t *p_fingerprinter,
             input_item_Release( p_item );
             return;
         }
-        input_item_AddOption( p_item, psz_sout_option, VLC_INPUT_OPTION_TRUSTED );
+        input_item_AddOption( p_item, psz_sout_option, HEIMDALL_INPUT_OPTION_TRUSTED );
         free( psz_sout_option );
     }
     input_item_SetURI( p_item, psz_uri ) ;
@@ -188,20 +189,20 @@ static void DoFingerprint( fingerprinter_thread_t *p_fingerprinter,
     p_fingerprinter->p_sys->chroma_fingerprint.psz_fingerprint = NULL;
     p_fingerprinter->p_sys->chroma_fingerprint.i_duration = fp->i_duration;
 
-    vlc_player_t *player = p_fingerprinter->p_sys->player;
-    vlc_player_Lock(player);
+    heimdall_player_t *player = p_fingerprinter->p_sys->player;
+    heimdall_player_Lock(player);
 
     p_fingerprinter->p_sys->processing.b_working = true;
 
-    int ret = vlc_player_SetCurrentMedia(player, p_item);
-    if (ret == VLC_SUCCESS)
-        ret = vlc_player_Start(player);
+    int ret = heimdall_player_SetCurrentMedia(player, p_item);
+    if (ret == HEIMDALL_SUCCESS)
+        ret = heimdall_player_Start(player);
     input_item_Release(p_item);
 
-    if (ret == VLC_SUCCESS)
+    if (ret == HEIMDALL_SUCCESS)
     {
         while( !p_fingerprinter->p_sys->abort && p_fingerprinter->p_sys->processing.b_working )
-            vlc_player_CondWait(player,
+            heimdall_player_CondWait(player,
                                 &p_fingerprinter->p_sys->processing.cond);
 
         if( !p_fingerprinter->p_sys->abort )
@@ -213,95 +214,95 @@ static void DoFingerprint( fingerprinter_thread_t *p_fingerprinter,
         }
     }
 
-    vlc_player_Unlock(player);
+    heimdall_player_Unlock(player);
 }
 
 /*****************************************************************************
  * Open:
  *****************************************************************************/
-static int Open(vlc_object_t *p_this)
+static int Open(heimdall_object_t *p_this)
 {
     fingerprinter_thread_t *p_fingerprinter = (fingerprinter_thread_t*) p_this;
     fingerprinter_sys_t *p_sys = calloc(1, sizeof(fingerprinter_sys_t));
 
     if ( !p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_fingerprinter->p_sys = p_sys;
 
-    var_Create(p_fingerprinter, "vout", VLC_VAR_STRING);
+    var_Create(p_fingerprinter, "vout", HEIMDALL_VAR_STRING);
     var_SetString(p_fingerprinter, "vout", "dummy");
-    var_Create(p_fingerprinter, "aout", VLC_VAR_STRING);
+    var_Create(p_fingerprinter, "aout", HEIMDALL_VAR_STRING);
     var_SetString(p_fingerprinter, "aout", "dummy");
-    p_sys->player = vlc_player_New(VLC_OBJECT(p_fingerprinter),
-                                   VLC_PLAYER_LOCK_NORMAL);
+    p_sys->player = heimdall_player_New(HEIMDALL_OBJECT(p_fingerprinter),
+                                   HEIMDALL_PLAYER_LOCK_NORMAL);
     if (!p_sys->player)
     {
         free(p_sys);
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
-    static const struct vlc_player_cbs cbs = {
+    static const struct heimdall_player_cbs cbs = {
         .on_state_changed = player_on_state_changed,
     };
 
-    vlc_player_Lock(p_sys->player);
+    heimdall_player_Lock(p_sys->player);
     p_sys->listener_id =
-        vlc_player_AddListener(p_sys->player, &cbs, p_fingerprinter->p_sys);
-    vlc_player_Unlock(p_sys->player);
+        heimdall_player_AddListener(p_sys->player, &cbs, p_fingerprinter->p_sys);
+    heimdall_player_Unlock(p_sys->player);
     if (!p_sys->listener_id)
     {
-        vlc_player_Delete(p_sys->player);
+        heimdall_player_Delete(p_sys->player);
         free(p_sys);
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     p_sys->abort = false;
-    vlc_array_init( &p_sys->incoming.queue );
-    vlc_cond_init( &p_sys->incoming_cond );
+    heimdall_array_init( &p_sys->incoming.queue );
+    heimdall_cond_init( &p_sys->incoming_cond );
 
-    vlc_array_init( &p_sys->processing.queue );
-    vlc_cond_init( &p_sys->processing.cond );
+    heimdall_array_init( &p_sys->processing.queue );
+    heimdall_cond_init( &p_sys->processing.cond );
 
-    vlc_array_init( &p_sys->results.queue );
-    vlc_mutex_init( &p_sys->results.lock );
+    heimdall_array_init( &p_sys->results.queue );
+    heimdall_mutex_init( &p_sys->results.lock );
 
     p_fingerprinter->pf_enqueue = EnqueueRequest;
     p_fingerprinter->pf_getresults = GetResult;
     p_fingerprinter->pf_apply = ApplyResult;
 
-    var_Create( p_fingerprinter, "results-available", VLC_VAR_BOOL );
-    if( vlc_clone( &p_sys->thread, Run, p_fingerprinter ) )
+    var_Create( p_fingerprinter, "results-available", HEIMDALL_VAR_BOOL );
+    if( heimdall_clone( &p_sys->thread, Run, p_fingerprinter ) )
     {
         msg_Err( p_fingerprinter, "cannot spawn fingerprinter thread" );
         goto error;
     }
 
-    var_Create( p_fingerprinter, "fingerprint-data", VLC_VAR_ADDRESS );
+    var_Create( p_fingerprinter, "fingerprint-data", HEIMDALL_VAR_ADDRESS );
     var_SetAddress( p_fingerprinter, "fingerprint-data", &p_fingerprinter->p_sys->chroma_fingerprint );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     CleanSys( p_sys );
     free( p_sys );
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /*****************************************************************************
  * Close:
  *****************************************************************************/
-static void Close(vlc_object_t *p_this)
+static void Close(heimdall_object_t *p_this)
 {
     fingerprinter_thread_t   *p_fingerprinter = (fingerprinter_thread_t*) p_this;
     fingerprinter_sys_t *p_sys = p_fingerprinter->p_sys;
 
-    vlc_player_Lock( p_sys->player );
+    heimdall_player_Lock( p_sys->player );
     p_sys->abort = true;
-    vlc_cond_signal( &p_sys->processing.cond );
-    vlc_cond_signal( &p_sys->incoming_cond );
-    vlc_player_Unlock( p_sys->player );
-    vlc_join( p_sys->thread, NULL );
+    heimdall_cond_signal( &p_sys->processing.cond );
+    heimdall_cond_signal( &p_sys->incoming_cond );
+    heimdall_player_Unlock( p_sys->player );
+    heimdall_join( p_sys->thread, NULL );
 
     CleanSys( p_sys );
     free( p_sys );
@@ -309,22 +310,22 @@ static void Close(vlc_object_t *p_this)
 
 static void CleanSys( fingerprinter_sys_t *p_sys )
 {
-    for ( size_t i = 0; i < vlc_array_count( &p_sys->incoming.queue ); i++ )
-        fingerprint_request_Delete( vlc_array_item_at_index( &p_sys->incoming.queue, i ) );
-    vlc_array_clear( &p_sys->incoming.queue );
+    for ( size_t i = 0; i < heimdall_array_count( &p_sys->incoming.queue ); i++ )
+        fingerprint_request_Delete( heimdall_array_item_at_index( &p_sys->incoming.queue, i ) );
+    heimdall_array_clear( &p_sys->incoming.queue );
 
-    for ( size_t i = 0; i < vlc_array_count( &p_sys->processing.queue ); i++ )
-        fingerprint_request_Delete( vlc_array_item_at_index( &p_sys->processing.queue, i ) );
-    vlc_array_clear( &p_sys->processing.queue );
+    for ( size_t i = 0; i < heimdall_array_count( &p_sys->processing.queue ); i++ )
+        fingerprint_request_Delete( heimdall_array_item_at_index( &p_sys->processing.queue, i ) );
+    heimdall_array_clear( &p_sys->processing.queue );
 
-    for ( size_t i = 0; i < vlc_array_count( &p_sys->results.queue ); i++ )
-        fingerprint_request_Delete( vlc_array_item_at_index( &p_sys->results.queue, i ) );
-    vlc_array_clear( &p_sys->results.queue );
+    for ( size_t i = 0; i < heimdall_array_count( &p_sys->results.queue ); i++ )
+        fingerprint_request_Delete( heimdall_array_item_at_index( &p_sys->results.queue, i ) );
+    heimdall_array_clear( &p_sys->results.queue );
 
-    vlc_player_Lock(p_sys->player);
-    vlc_player_RemoveListener(p_sys->player, p_sys->listener_id);
-    vlc_player_Unlock(p_sys->player);
-    vlc_player_Delete(p_sys->player);
+    heimdall_player_Lock(p_sys->player);
+    heimdall_player_RemoveListener(p_sys->player, p_sys->listener_id);
+    heimdall_player_Unlock(p_sys->player);
+    heimdall_player_Delete(p_sys->player);
 }
 
 static void fill_metas_with_results( fingerprint_request_t *p_r, acoustid_fingerprint_t *p_f )
@@ -335,14 +336,14 @@ static void fill_metas_with_results( fingerprint_request_t *p_r, acoustid_finger
         for ( unsigned int j=0 ; j < p_result->recordings.count; j++ )
         {
             acoustid_mb_result_t *p_record = & p_result->recordings.p_recordings[ j ];
-            vlc_meta_t *p_meta = vlc_meta_New();
+            heimdall_meta_t *p_meta = heimdall_meta_New();
             if ( p_meta )
             {
-                vlc_meta_Set( p_meta, vlc_meta_Title, p_record->psz_title );
-                vlc_meta_Set( p_meta, vlc_meta_Artist, p_record->psz_artist );
-                vlc_meta_SetExtra( p_meta, "musicbrainz-id", p_record->s_musicbrainz_id );
-                if( vlc_array_append( & p_r->results.metas_array, p_meta ) )
-                    vlc_meta_Delete( p_meta );
+                heimdall_meta_Set( p_meta, heimdall_meta_Title, p_record->psz_title );
+                heimdall_meta_Set( p_meta, heimdall_meta_Artist, p_record->psz_artist );
+                heimdall_meta_SetExtra( p_meta, "musicbrainz-id", p_record->s_musicbrainz_id );
+                if( heimdall_array_append( & p_r->results.metas_array, p_meta ) )
+                    heimdall_meta_Delete( p_meta );
             }
         }
     }
@@ -353,7 +354,7 @@ static void fill_metas_with_results( fingerprint_request_t *p_r, acoustid_finger
  *****************************************************************************/
 static void *Run( void *opaque )
 {
-    vlc_thread_set_name("vlc-fingerprint");
+    heimdall_thread_set_name("heimdall-fingerprint");
 
     fingerprinter_thread_t *p_fingerprinter = opaque;
     fingerprinter_sys_t *p_sys = p_fingerprinter->p_sys;
@@ -361,26 +362,26 @@ static void *Run( void *opaque )
     /* main loop */
     for (;;)
     {
-        vlc_player_Lock( p_sys->player );
+        heimdall_player_Lock( p_sys->player );
 
-        while( vlc_array_count( &p_sys->incoming.queue ) == 0 )
+        while( heimdall_array_count( &p_sys->incoming.queue ) == 0 )
         {
             if( p_sys->abort )
             {
-                vlc_player_Unlock( p_sys->player );
+                heimdall_player_Unlock( p_sys->player );
                 return NULL;
             }
-            vlc_player_CondWait( p_sys->player, &p_sys->incoming_cond );
+            heimdall_player_CondWait( p_sys->player, &p_sys->incoming_cond );
         }
 
         QueueIncomingRequests( p_sys );
 
-        vlc_player_Unlock( p_sys->player );
+        heimdall_player_Unlock( p_sys->player );
 
         bool results_available = false;
-        while( vlc_array_count( &p_sys->processing.queue ) )
+        while( heimdall_array_count( &p_sys->processing.queue ) )
         {
-            fingerprint_request_t *p_data = vlc_array_item_at_index( &p_sys->processing.queue, 0 );
+            fingerprint_request_t *p_data = heimdall_array_item_at_index( &p_sys->processing.queue, 0 );
 
             char *psz_uri = input_item_GetURI( p_data->p_item );
             if ( psz_uri != NULL )
@@ -394,7 +395,7 @@ static void *Run( void *opaque )
                 DoFingerprint( p_fingerprinter, &acoustid_print, psz_uri );
                 free( psz_uri );
 
-                acoustid_config_t cfg = { .p_obj = VLC_OBJECT(p_fingerprinter),
+                acoustid_config_t cfg = { .p_obj = HEIMDALL_OBJECT(p_fingerprinter),
                                           .psz_server = NULL, .psz_apikey = NULL };
                 acoustid_lookup_fingerprint( &cfg, &acoustid_print );
                 fill_metas_with_results( p_data, &acoustid_print );
@@ -407,17 +408,17 @@ static void *Run( void *opaque )
             }
 
             /* copy results */
-            vlc_mutex_lock( &p_sys->results.lock );
-            if( vlc_array_append( &p_sys->results.queue, p_data ) )
+            heimdall_mutex_lock( &p_sys->results.lock );
+            if( heimdall_array_append( &p_sys->results.queue, p_data ) )
                 fingerprint_request_Delete( p_data );
             else
                 results_available = true;
-            vlc_mutex_unlock( &p_sys->results.lock );
+            heimdall_mutex_unlock( &p_sys->results.lock );
 
             // the fingerprint request must not exist both in the
             // processing and results queue, even in case of thread
             // cancellation, so remove it immediately
-            vlc_array_remove( &p_sys->processing.queue, 0 );
+            heimdall_array_remove( &p_sys->processing.queue, 0 );
 
             if( p_sys->abort )
                 return NULL;
@@ -429,5 +430,5 @@ static void *Run( void *opaque )
         }
     }
 
-    vlc_assert_unreachable();
+    heimdall_assert_unreachable();
 }

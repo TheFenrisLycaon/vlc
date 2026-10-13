@@ -2,6 +2,7 @@
  * generic_window.hpp
  *****************************************************************************
  * Copyright (C) 2003 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cyril Deguet     <asmax@via.ecp.fr>
  *          Olivier Teulière <ipkiss@via.ecp.fr>
@@ -42,7 +43,7 @@ class EvtDragLeave;
 class EvtDragOver;
 class EvtDragDrop;
 class WindowManager;
-struct vlc_window;
+struct heimdall_window;
 
 
 /// Generic window class
@@ -112,7 +113,7 @@ public:
     virtual std::string getType() const { return "Generic"; }
 
     /// window handle
-    void updateWindowConfiguration( struct vlc_window *pWnd ) const;
+    void updateWindowConfiguration( struct heimdall_window *pWnd ) const;
 
     /// window type
     WindowType_t getType() { return m_type; }

@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,9 +21,9 @@ import QtQuick
 import QtQuick.Window
 import QtQuick.Layouts
 
-import VLC.MainInterface
-import VLC.Widgets as Widgets
-import VLC.Style
+import Heimdall.MainInterface
+import Heimdall.Widgets as Widgets
+import Heimdall.Style
 
 Window {
     id: root
@@ -34,8 +35,8 @@ Window {
     property bool modal: false
     modality: modal ? Qt.ApplicationModal : Qt.NonModal
 
-    width: VLCStyle.appWidth * 0.75
-    height: VLCStyle.appHeight * 0.85
+    width: HeimdallStyle.appWidth * 0.75
+    height: HeimdallStyle.appHeight * 0.85
 
     color: theme.bg.primary
 
@@ -77,11 +78,11 @@ Window {
     ColumnLayout {
         id: layout
         anchors.fill: parent
-        anchors.margins: VLCStyle.margin_small
+        anchors.margins: HeimdallStyle.margin_small
 
 
         readonly property ColorContext colorContext: ColorContext {
-            palette: VLCStyle.palette
+            palette: HeimdallStyle.palette
             colorSet: ColorContext.Window
         }
 
@@ -98,10 +99,10 @@ Window {
             id: buttonBox
 
             padding: 0
-            spacing: VLCStyle.margin_small
+            spacing: HeimdallStyle.margin_small
 
             Layout.fillWidth: true
-            Layout.minimumHeight: VLCStyle.icon_normal
+            Layout.minimumHeight: HeimdallStyle.icon_normal
 
             standardButtons: DialogButtonBox.Ok | DialogButtonBox.Cancel
 

@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2023 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Leon Vitanos <leon.vitanos@gmail.com>
  *
@@ -20,12 +21,12 @@
 import QtQuick
 import QtQml.Models
 
-import VLC.MediaLibrary
+import Heimdall.MediaLibrary
 
-import VLC.MainInterface
-import VLC.Util
-import VLC.Widgets as Widgets
-import VLC.Style
+import Heimdall.MainInterface
+import Heimdall.Util
+import Heimdall.Widgets as Widgets
+import Heimdall.Style
 
 Widgets.ExpandGridItemView {
     id: gridView
@@ -42,8 +43,8 @@ Widgets.ExpandGridItemView {
 
     // Settings
 
-    basePictureWidth: VLCStyle.gridCover_video_width
-    basePictureHeight: VLCStyle.gridCover_video_height
+    basePictureWidth: HeimdallStyle.gridCover_video_width
+    basePictureHeight: HeimdallStyle.gridCover_video_height
 
     activeFocusOnTab: true
 
@@ -128,7 +129,7 @@ Widgets.ExpandGridItemView {
 
         Behavior on opacity {
             OpacityAnimator {
-                duration: VLCStyle.duration_short
+                duration: HeimdallStyle.duration_short
             }
         }
     }

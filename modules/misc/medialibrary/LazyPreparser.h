@@ -3,6 +3,7 @@
  * LazyPreparser.h: class to create a preparser at the first request
  *****************************************************************************
  * Copyright © 2025 Videolabs, VideoLAN and VLC authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gabriel Lafond Thenaille <gabriel@videolabs.io>
  *****************************************************************************/
@@ -10,48 +11,48 @@
 #ifndef LAZYPREPARSER_H
 #define LAZYPREPARSER_H
 
-#include <vlc_common.h>
-#include <vlc_preparser.h>
+#include <heimdall_common.h>
+#include <heimdall_preparser.h>
 
 class LazyPreparser
 {
     public:
-        LazyPreparser(vlc_object_t *obj, const struct vlc_preparser_cfg cfg)
+        LazyPreparser(heimdall_object_t *obj, const struct heimdall_preparser_cfg cfg)
             : m_obj(obj)
             , m_cfg(cfg)
-            , m_preparser(nullptr, &vlc_preparser_Delete)
+            , m_preparser(nullptr, &heimdall_preparser_Delete)
         {
             assert(obj != NULL);
         }
 
-        vlc_preparser_t *instance()
+        heimdall_preparser_t *instance()
         {
-            vlc::threads::mutex_locker locker(m_mutex);
+            heimdall::threads::mutex_locker locker(m_mutex);
 
-            vlc_preparser_t *preparser = m_preparser.get();
+            heimdall_preparser_t *preparser = m_preparser.get();
             if (preparser == nullptr) {
-                m_preparser.reset(vlc_preparser_New(m_obj, &m_cfg));
+                m_preparser.reset(heimdall_preparser_New(m_obj, &m_cfg));
                 preparser = m_preparser.get();
                 if (preparser == nullptr) {
-                    msg_Warn(m_obj, "LazyPreparser: Failed to instantiate a vlc_preparser_t!");
+                    msg_Warn(m_obj, "LazyPreparser: Failed to instantiate a heimdall_preparser_t!");
                 } else {
-                    msg_Dbg(m_obj, "LazyPreparser: vlc_preparser_t created!");
+                    msg_Dbg(m_obj, "LazyPreparser: heimdall_preparser_t created!");
                 }
             }
             return preparser;
         }
 
-        vlc_preparser_t *get()
+        heimdall_preparser_t *get()
         {
-            vlc::threads::mutex_locker locker(m_mutex);
+            heimdall::threads::mutex_locker locker(m_mutex);
             return m_preparser.get();
         }
 
     private:
-        vlc::threads::mutex m_mutex;
-        vlc_object_t *m_obj;
-        const struct vlc_preparser_cfg m_cfg;
-        std::unique_ptr<vlc_preparser_t, void(*)(vlc_preparser_t*)> m_preparser;
+        heimdall::threads::mutex m_mutex;
+        heimdall_object_t *m_obj;
+        const struct heimdall_preparser_cfg m_cfg;
+        std::unique_ptr<heimdall_preparser_t, void(*)(heimdall_preparser_t*)> m_preparser;
 };
 
 #endif

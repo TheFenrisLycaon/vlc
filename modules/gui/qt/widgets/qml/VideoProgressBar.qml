@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,7 +17,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 import QtQuick
-import VLC.Style
+import Heimdall.Style
 
 //we want the progress bar to match the radius of the of the video thumbnail
 //so we generarte two rectangles with the right radius and we clip the part we
@@ -24,7 +25,7 @@ import VLC.Style
 Item {
     id: progressBar
 
-    implicitHeight: VLCStyle.dp(4, VLCStyle.scale)
+    implicitHeight: HeimdallStyle.dp(4, HeimdallStyle.scale)
 
     clip :true
 

@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2022 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Benjamin Arnaud <bunjee@omega.gg>
  *
@@ -22,11 +23,11 @@ import QtQuick
 import QtQuick.Layouts
 
 
-import VLC.MainInterface
-import VLC.Style
-import VLC.Player
-import VLC.Util
-import VLC.Widgets as Widgets
+import Heimdall.MainInterface
+import Heimdall.Style
+import Heimdall.Player
+import Heimdall.Util
+import Heimdall.Widgets as Widgets
 
 TracksPage {
     id: root
@@ -55,7 +56,7 @@ TracksPage {
         anchors.left: parent.left
         anchors.right: parent.right
 
-        spacing: VLCStyle.margin_xsmall
+        spacing: HeimdallStyle.margin_xsmall
 
         Widgets.SubtitleLabel {
             Layout.fillWidth: true
@@ -67,9 +68,9 @@ TracksPage {
 
         ColumnLayout {
             Layout.fillWidth: true
-            Layout.topMargin: VLCStyle.margin_large
+            Layout.topMargin: HeimdallStyle.margin_large
 
-            spacing: VLCStyle.margin_xxxsmall
+            spacing: HeimdallStyle.margin_xxxsmall
 
             Accessible.role: Accessible.Grouping
             Accessible.name: qsTr("Primary subtitle delay")
@@ -85,7 +86,7 @@ TracksPage {
             RowLayout {
                 Layout.fillWidth: true
 
-                spacing: VLCStyle.margin_xsmall
+                spacing: HeimdallStyle.margin_xsmall
 
                 Widgets.MenuCaption {
                     Layout.fillWidth: true
@@ -101,7 +102,7 @@ TracksPage {
 
                     property bool update: false
 
-                    Layout.preferredWidth: VLCStyle.dp(128, VLCStyle.scale)
+                    Layout.preferredWidth: HeimdallStyle.dp(128, HeimdallStyle.scale)
 
                     stepSize: 50
                     from: -10000
@@ -163,12 +164,12 @@ TracksPage {
 
                 Layout.alignment: Qt.AlignRight
 
-                spacing: VLCStyle.margin_small
+                spacing: HeimdallStyle.margin_small
 
                 Widgets.TrackDelayButton {
                     id: voiceHeardA
 
-                    iconTxt: VLCIcons.check
+                    iconTxt: HeimdallIcons.check
                     text: qsTr("Voice Heard")
                     selected: delayEstimatorPrimary.isHeardTimeMarked
 
@@ -182,7 +183,7 @@ TracksPage {
                 Widgets.TrackDelayButton {
                     id: textSeenA
 
-                    iconTxt: VLCIcons.check
+                    iconTxt: HeimdallIcons.check
                     text: qsTr("Text Seen")
                     selected: delayEstimatorPrimary.isSpottedTimeMarked
 
@@ -198,7 +199,7 @@ TracksPage {
         ColumnLayout {
             Layout.fillWidth: true
 
-            spacing: VLCStyle.margin_xxxsmall
+            spacing: HeimdallStyle.margin_xxxsmall
 
             Accessible.role: Accessible.Grouping
             Accessible.name: qsTr("Secondary subtitle delay")
@@ -214,7 +215,7 @@ TracksPage {
             RowLayout {
                 Layout.fillWidth: true
 
-                spacing: VLCStyle.margin_xsmall
+                spacing: HeimdallStyle.margin_xsmall
 
                 Widgets.MenuCaption {
                     Layout.fillWidth: true
@@ -230,7 +231,7 @@ TracksPage {
 
                     property bool update: false
 
-                    Layout.preferredWidth: VLCStyle.dp(128, VLCStyle.scale)
+                    Layout.preferredWidth: HeimdallStyle.dp(128, HeimdallStyle.scale)
 
                     stepSize: 50
                     from: -10000
@@ -290,13 +291,13 @@ TracksPage {
 
                 Layout.alignment: Qt.AlignRight
 
-                spacing: VLCStyle.margin_xsmall
+                spacing: HeimdallStyle.margin_xsmall
 
                 Widgets.TrackDelayButton {
                     id: voiceHeardB
 
                     text: qsTr("Voice Heard")
-                    iconTxt: VLCIcons.check
+                    iconTxt: HeimdallIcons.check
                     selected: delayEstimatorSecondary.isHeardTimeMarked
 
                     onClicked: {
@@ -310,7 +311,7 @@ TracksPage {
                     id: textSeenB
 
                     text: qsTr("Text Seen")
-                    iconTxt: VLCIcons.check
+                    iconTxt: HeimdallIcons.check
                     selected: delayEstimatorSecondary.isSpottedTimeMarked
 
                     onClicked: {
@@ -325,7 +326,7 @@ TracksPage {
         RowLayout {
             Layout.fillWidth: true
 
-            spacing: VLCStyle.margin_xsmall
+            spacing: HeimdallStyle.margin_xsmall
 
             Accessible.role: Accessible.Grouping
             Accessible.name: qsTr("Subtitle Speed")
@@ -344,7 +345,7 @@ TracksPage {
 
                 property bool update: false
 
-                Layout.preferredWidth: VLCStyle.dp(128, VLCStyle.scale)
+                Layout.preferredWidth: HeimdallStyle.dp(128, HeimdallStyle.scale)
 
                 stepSize: 1
                 from: 0

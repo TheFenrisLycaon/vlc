@@ -1,7 +1,8 @@
 /*****************************************************************************
- * chroma_yuv.c : ARM NEONv1 YUV 4:2:0 to YUV 4:2:2 chroma conversion for VLC
+ * chroma_yuv.c : ARM NEONv1 YUV 4:2:0 to YUV 4:2:2 chroma conversion for Heimdall
  *****************************************************************************
  * Copyright (C) 2009 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,33 +23,33 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_picture.h>
-#include <vlc_chroma_probe.h>
-#include <vlc_cpu.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
+#include <heimdall_chroma_probe.h>
+#include <heimdall_cpu.h>
 #include "chroma_neon.h"
 
 static int Open (filter_t *);
 
-static void ProbeChroma(vlc_chroma_conv_vec *vec)
+static void ProbeChroma(heimdall_chroma_conv_vec *vec)
 {
-#define PACKED_CHROMAS VLC_CODEC_YUYV, VLC_CODEC_UYVY, VLC_CODEC_YVYU, VLC_CODEC_VYUY
+#define PACKED_CHROMAS HEIMDALL_CODEC_YUYV, HEIMDALL_CODEC_UYVY, HEIMDALL_CODEC_YVYU, HEIMDALL_CODEC_VYUY
 
-    vlc_chroma_conv_add_in_outlist(vec, 0.75, VLC_CODEC_NV12, VLC_CODEC_I420,
-        VLC_CODEC_YV12);
-    vlc_chroma_conv_add_in_outlist(vec, 0.75, VLC_CODEC_NV21, VLC_CODEC_I420,
-        VLC_CODEC_YV12);
+    heimdall_chroma_conv_add_in_outlist(vec, 0.75, HEIMDALL_CODEC_NV12, HEIMDALL_CODEC_I420,
+        HEIMDALL_CODEC_YV12);
+    heimdall_chroma_conv_add_in_outlist(vec, 0.75, HEIMDALL_CODEC_NV21, HEIMDALL_CODEC_I420,
+        HEIMDALL_CODEC_YV12);
 
-    vlc_chroma_conv_add(vec, 0.75, VLC_CODEC_NV24, VLC_CODEC_I444, false);
+    heimdall_chroma_conv_add(vec, 0.75, HEIMDALL_CODEC_NV24, HEIMDALL_CODEC_I444, false);
 }
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description (N_("ARM NEON video chroma conversions"))
     set_callback_video_converter(Open, 250)
     add_submodule()
         set_callback_chroma_conv_probe(ProbeChroma)
-vlc_module_end ()
+heimdall_module_end ()
 
 #define DEFINE_PACK(pack, pict) \
     struct yuv_pack pack = { (pict)->Y_PIXELS, (pict)->Y_PITCH }
@@ -153,112 +154,112 @@ VIDEO_FILTER_WRAPPER (VYUY_I422)
 
 static int Open (filter_t *filter)
 {
-    if (!vlc_CPU_ARM_NEON())
-        return VLC_EGENERIC;
+    if (!heimdall_CPU_ARM_NEON())
+        return HEIMDALL_EGENERIC;
     if ((filter->fmt_in.video.i_width != filter->fmt_out.video.i_width)
      || (filter->fmt_in.video.i_height != filter->fmt_out.video.i_height))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     switch (filter->fmt_in.video.i_chroma)
     {
         /* Semiplanar to planar */
-        case VLC_CODEC_NV12:
+        case HEIMDALL_CODEC_NV12:
             switch (filter->fmt_out.video.i_chroma)
             {
-                case VLC_CODEC_I420:
+                case HEIMDALL_CODEC_I420:
                     filter->ops = &Semiplanar_Planar_420_ops;
                     break;
-                case VLC_CODEC_YV12:
+                case HEIMDALL_CODEC_YV12:
                     filter->ops = &Semiplanar_Planar_420_Swap_ops;
                     break;
                 default:
-                    return VLC_EGENERIC;
+                    return HEIMDALL_EGENERIC;
             }
             break;
 
-        case VLC_CODEC_NV21:
+        case HEIMDALL_CODEC_NV21:
             switch (filter->fmt_out.video.i_chroma)
             {
-                case VLC_CODEC_I420:
+                case HEIMDALL_CODEC_I420:
                     filter->ops = &Semiplanar_Planar_420_Swap_ops;
                     break;
-                case VLC_CODEC_YV12:
+                case HEIMDALL_CODEC_YV12:
                     filter->ops = &Semiplanar_Planar_420_ops;
                     break;
                 default:
-                    return VLC_EGENERIC;
+                    return HEIMDALL_EGENERIC;
             }
             break;
 
-        case VLC_CODEC_NV16:
+        case HEIMDALL_CODEC_NV16:
             switch (filter->fmt_out.video.i_chroma)
             {
-                case VLC_CODEC_I422:
+                case HEIMDALL_CODEC_I422:
                     filter->ops = &Semiplanar_Planar_422_ops;
                     break;
                 default:
-                    return VLC_EGENERIC;
+                    return HEIMDALL_EGENERIC;
             }
             break;
 
-        case VLC_CODEC_NV24:
+        case HEIMDALL_CODEC_NV24:
             switch (filter->fmt_out.video.i_chroma)
             {
-                case VLC_CODEC_I444:
+                case HEIMDALL_CODEC_I444:
                     filter->ops = &Semiplanar_Planar_444_ops;
                     break;
                 default:
-                    return VLC_EGENERIC;
+                    return HEIMDALL_EGENERIC;
             }
             break;
 
         /* Packed to planar */
-        case VLC_CODEC_YUYV:
+        case HEIMDALL_CODEC_YUYV:
             switch (filter->fmt_out.video.i_chroma)
             {
-                case VLC_CODEC_I422:
+                case HEIMDALL_CODEC_I422:
                     filter->ops = &YUYV_I422_ops;
                     break;
                 default:
-                    return VLC_EGENERIC;
+                    return HEIMDALL_EGENERIC;
             }
             break;
 
-        case VLC_CODEC_UYVY:
+        case HEIMDALL_CODEC_UYVY:
             switch (filter->fmt_out.video.i_chroma)
             {
-                case VLC_CODEC_I422:
+                case HEIMDALL_CODEC_I422:
                     filter->ops = &UYVY_I422_ops;
                     break;
                 default:
-                    return VLC_EGENERIC;
+                    return HEIMDALL_EGENERIC;
             }
             break;
 
-        case VLC_CODEC_YVYU:
+        case HEIMDALL_CODEC_YVYU:
             switch (filter->fmt_out.video.i_chroma)
             {
-                case VLC_CODEC_I422:
+                case HEIMDALL_CODEC_I422:
                     filter->ops = &YVYU_I422_ops;
                     break;
                 default:
-                    return VLC_EGENERIC;
+                    return HEIMDALL_EGENERIC;
             }
             break;
 
-        case VLC_CODEC_VYUY:
+        case HEIMDALL_CODEC_VYUY:
             switch (filter->fmt_out.video.i_chroma)
             {
-                case VLC_CODEC_I422:
+                case HEIMDALL_CODEC_I422:
                     filter->ops = &VYUY_I422_ops;
                     break;
                 default:
-                    return VLC_EGENERIC;
+                    return HEIMDALL_EGENERIC;
             }
             break;
 
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

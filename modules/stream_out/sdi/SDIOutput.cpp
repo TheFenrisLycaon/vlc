@@ -1,7 +1,8 @@
 /*****************************************************************************
- * SDIOutput.cpp: SDI sout module for vlc
+ * SDIOutput.cpp: SDI sout module for heimdall
  *****************************************************************************
  * Copyright © 2018 VideoLabs, VideoLAN and VideoLAN Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -26,8 +27,8 @@
 #include "SDIAudioMultiplex.hpp"
 #include "sdiout.hpp"
 
-#include <vlc_sout.h>
-#include <vlc_picture.h>
+#include <heimdall_sout.h>
+#include <heimdall_picture.h>
 
 using namespace sdi_sout;
 
@@ -48,7 +49,7 @@ SDIOutput::SDIOutput(sout_stream_t *p_stream_)
     program = -1;
     videoStream = NULL;
     captionsStream = NULL;
-    audioMultiplex = new SDIAudioMultiplex(VLC_OBJECT(p_stream),
+    audioMultiplex = new SDIAudioMultiplex(HEIMDALL_OBJECT(p_stream),
                                            var_InheritInteger(p_stream, CFG_PREFIX "channels"));
     char *psz_channelsconf = var_InheritString(p_stream, CFG_PREFIX "audio");
     if(psz_channelsconf)
@@ -85,7 +86,7 @@ AbstractStream *SDIOutput::Add(const es_format_t *fmt)
 
     if(fmt->i_cat == VIDEO_ES && !videoStream)
     {
-        if(ConfigureVideo(&fmt->video) == VLC_SUCCESS)
+        if(ConfigureVideo(&fmt->video) == HEIMDALL_SUCCESS)
             s = videoStream = dynamic_cast<VideoDecodedStream *>(createStream(id, fmt, &videoBuffer));
         if(videoStream)
         {
@@ -95,7 +96,7 @@ AbstractStream *SDIOutput::Add(const es_format_t *fmt)
     }
     else if(fmt->i_cat == AUDIO_ES && audio.i_channels)
     {
-        if(audio.b_configured || ConfigureAudio(&fmt->audio) == VLC_SUCCESS)
+        if(audio.b_configured || ConfigureAudio(&fmt->audio) == HEIMDALL_SUCCESS)
         {
             const es_format_t *cfgfmt = audioMultiplex->config.getConfigurationForStream(id);
             if(!cfgfmt)
@@ -158,13 +159,13 @@ int SDIOutput::Control(int i_query, va_list args)
         case SOUT_STREAM_WANTS_SUBSTREAMS:
         case SOUT_STREAM_IS_SYNCHRONOUS:
             *va_arg(args, bool *) = true;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     };
 }
 
-bool SDIOutput::ReachedPlaybackTime(vlc_tick_t t)
+bool SDIOutput::ReachedPlaybackTime(heimdall_tick_t t)
 {
     if (captionsStream &&
         !captionsStream->ReachedPlaybackTime(t))
@@ -190,16 +191,16 @@ AbstractStream *SDIOutput::createStream(const StreamID &id,
     if(b_decoded)
     {
         if(fmt->i_cat == VIDEO_ES)
-            s = new VideoDecodedStream(VLC_OBJECT(p_stream), id, buffer);
+            s = new VideoDecodedStream(HEIMDALL_OBJECT(p_stream), id, buffer);
         else if(fmt->i_cat == AUDIO_ES)
-            s = new AudioDecodedStream(VLC_OBJECT(p_stream), id, buffer);
+            s = new AudioDecodedStream(HEIMDALL_OBJECT(p_stream), id, buffer);
     }
     else
     {
         if(fmt->i_cat == AUDIO_ES)
-            s = new AudioCompressedStream(VLC_OBJECT(p_stream), id, buffer);
+            s = new AudioCompressedStream(HEIMDALL_OBJECT(p_stream), id, buffer);
         else if(fmt->i_cat == SPU_ES)
-            s = new CaptionsStream(VLC_OBJECT(p_stream), id, buffer);
+            s = new CaptionsStream(HEIMDALL_OBJECT(p_stream), id, buffer);
     }
 
      if(s && !s->init(fmt))

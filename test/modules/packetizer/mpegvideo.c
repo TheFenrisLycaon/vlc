@@ -2,6 +2,7 @@
  * mpegvideo.c: H262 packetizer unit testing
  *****************************************************************************
  * Copyright (C) 2019 VideoLabs, VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -21,9 +22,9 @@
 # include "config.h"
 #endif
 
-#include <vlc/vlc.h>
-#include "../../../lib/libvlc_internal.h"
-#include "../../libvlc/test.h"
+#include <heimdall/heimdall.h>
+#include "../../../lib/libheimdall_internal.h"
+#include "../../libheimdall/test.h"
 
 #include "packetizer.h"
 
@@ -147,14 +148,14 @@ int main(void)
 {
     test_init();
 
-    libvlc_instance_t *vlc = libvlc_new(0, NULL);
-    if(!vlc)
+    libheimdall_instance_t *heimdall = libheimdall_new(0, NULL);
+    if(!heimdall)
         return 1;
 
     struct params_s params;
-    params.vlc = vlc;
-    params.obj = VLC_OBJECT(vlc->p_libvlc_int);
-    params.codec = VLC_CODEC_MPGV;
+    params.heimdall = heimdall;
+    params.obj = HEIMDALL_OBJECT(heimdall->p_libheimdall_int);
+    params.codec = HEIMDALL_CODEC_MPGV;
     params.i_rate_num = 0;
     params.i_rate_den = 0;
     params.i_frame_count = 2*25;
@@ -175,6 +176,6 @@ int main(void)
     RUN("skip 1st Iframe", test_packetize,
         test_samples_raw_mpeg + 100, test_samples_raw_mpeg_len - 100, 0);
 
-    libvlc_release(vlc);
+    libheimdall_release(heimdall);
     return 0;
 }

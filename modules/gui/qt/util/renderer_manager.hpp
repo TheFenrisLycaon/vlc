@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2024 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -51,7 +52,7 @@ public:
     Q_PROPERTY(bool useRenderer READ useRenderer NOTIFY useRendererChanged FINAL)
 
 public:
-    RendererManager( qt_intf_t* intf, vlc_player_t* player );
+    RendererManager( qt_intf_t* intf, heimdall_player_t* player );
     virtual ~RendererManager();
 
     void disableRenderer();

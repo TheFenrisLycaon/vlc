@@ -2,8 +2,9 @@
  * httpd.c: HTTPd wrapper
  *****************************************************************************
  * Copyright (C) 2007-2008 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Antoine Cellerier <dionoea at videolan tod org>
+ * Authors: Antoine Cellerier <dionoea at lycaria tod org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,32 +32,32 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_httpd.h>
+#include <heimdall_common.h>
+#include <heimdall_httpd.h>
 
-#include "../vlc.h"
+#include "../heimdall.h"
 #include "../libs.h"
 
 /*****************************************************************************
  * Local prototypes
  *****************************************************************************/
-static uint8_t *vlclua_todata( lua_State *L, int narg, size_t *i_data );
+static uint8_t *heimdalllua_todata( lua_State *L, int narg, size_t *i_data );
 
-static int vlclua_httpd_host_delete( lua_State * );
-static int vlclua_httpd_handler_new( lua_State * );
-static int vlclua_httpd_handler_delete( lua_State * );
-static int vlclua_httpd_file_new( lua_State * );
-static int vlclua_httpd_file_delete( lua_State * );
-static int vlclua_httpd_redirect_new( lua_State * );
-static int vlclua_httpd_redirect_delete( lua_State * );
+static int heimdalllua_httpd_host_delete( lua_State * );
+static int heimdalllua_httpd_handler_new( lua_State * );
+static int heimdalllua_httpd_handler_delete( lua_State * );
+static int heimdalllua_httpd_file_new( lua_State * );
+static int heimdalllua_httpd_file_delete( lua_State * );
+static int heimdalllua_httpd_redirect_new( lua_State * );
+static int heimdalllua_httpd_redirect_delete( lua_State * );
 
 /*****************************************************************************
  * HTTPD Host
  *****************************************************************************/
-static const luaL_Reg vlclua_httpd_reg[] = {
-    { "handler", vlclua_httpd_handler_new },
-    { "file", vlclua_httpd_file_new },
-    { "redirect", vlclua_httpd_redirect_new },
+static const luaL_Reg heimdalllua_httpd_reg[] = {
+    { "handler", heimdalllua_httpd_handler_new },
+    { "file", heimdalllua_httpd_file_new },
+    { "redirect", heimdalllua_httpd_redirect_new },
     { NULL, NULL }
 };
 
@@ -68,7 +69,7 @@ static const char no_password_fmt[] = "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML
 "</head>"
 "<body>"
 "%s"
-"<!-- VLC_PASSWORD_NOT_SET --></body></html>";
+"<!-- HEIMDALL_PASSWORD_NOT_SET --></body></html>";
 
 static const char no_password_body[] = N_(
 "<p>A password for the Web interface has not been set.</p>"
@@ -77,14 +78,14 @@ static const char no_password_body[] = N_(
 "Interface → Main interfaces → Lua → Lua HTTP → Password.</p>"
 );
 
-static const char no_password_title[] = N_("VLC media player");
+static const char no_password_title[] = N_("Heimdall media player");
 
-static int vlclua_httpd_tls_host_new( lua_State *L )
+static int heimdalllua_httpd_tls_host_new( lua_State *L )
 {
-    vlc_object_t *p_this = vlclua_get_this( L );
+    heimdall_object_t *p_this = heimdalllua_get_this( L );
     char *psz_cert = var_InheritString( p_this, "http-cert" );
-    httpd_host_t *p_host = psz_cert == NULL ? vlc_http_HostNew( p_this )
-                                            : vlc_https_HostNew( p_this );
+    httpd_host_t *p_host = psz_cert == NULL ? heimdall_http_HostNew( p_this )
+                                            : heimdall_https_HostNew( p_this );
     free( psz_cert );
     if( !p_host )
         return luaL_error( L, "Failed to create HTTP host" );
@@ -95,9 +96,9 @@ static int vlclua_httpd_tls_host_new( lua_State *L )
     if( luaL_newmetatable( L, "httpd_host" ) )
     {
         lua_newtable( L );
-        luaL_register( L, NULL, vlclua_httpd_reg );
+        luaL_register( L, NULL, heimdalllua_httpd_reg );
         lua_setfield( L, -2, "__index" );
-        lua_pushcfunction( L, vlclua_httpd_host_delete );
+        lua_pushcfunction( L, heimdalllua_httpd_host_delete );
         lua_setfield( L, -2, "__gc" );
     }
 
@@ -105,7 +106,7 @@ static int vlclua_httpd_tls_host_new( lua_State *L )
     return 1;
 }
 
-static int vlclua_httpd_host_delete( lua_State *L )
+static int heimdalllua_httpd_host_delete( lua_State *L )
 {
     httpd_host_t **pp_host = (httpd_host_t **)luaL_checkudata( L, 1, "httpd_host" );
     httpd_HostDelete( *pp_host );
@@ -122,13 +123,13 @@ typedef struct
     int ref;
 } httpd_handler_lua_t;
 
-static int vlclua_httpd_handler_callback(
+static int heimdalllua_httpd_handler_callback(
      void *opaque, httpd_handler_t *p_handler, char *psz_url,
      uint8_t *psz_request, int i_type, uint8_t *p_in, int i_in,
      char *psz_remote_addr, char *psz_remote_host,
      uint8_t **pp_data, size_t *pi_data )
 {
-    VLC_UNUSED(p_handler);
+    HEIMDALL_UNUSED(p_handler);
     httpd_handler_lua_t *p_sys = opaque;
     lua_State *L = p_sys->L;
 
@@ -151,7 +152,7 @@ static int vlclua_httpd_handler_callback(
     if( lua_pcall( L, 7, 1, 0 ) )
     {
         /* function data err */
-        vlc_object_t *p_this = vlclua_get_this( L );
+        heimdall_object_t *p_this = heimdalllua_get_this( L );
         const char *psz_err = lua_tostring( L, -1 );
         msg_Err( p_this, "Error while running the lua HTTPd handler "
                  "callback: %s", psz_err );
@@ -166,10 +167,10 @@ static int vlclua_httpd_handler_callback(
         }
         lua_settop( L, 2 );
         /* function data */
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     /* function data outdata */
-    *pp_data = vlclua_todata( L, -1, pi_data );
+    *pp_data = heimdalllua_todata( L, -1, pi_data );
     if (!p_sys->password)
     {
         free(*pp_data);
@@ -190,10 +191,10 @@ static int vlclua_httpd_handler_callback(
     }
     lua_pop( L, 1 );
     /* function data */
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int vlclua_httpd_handler_new( lua_State * L )
+static int heimdalllua_httpd_handler_new( lua_State * L )
 {
     httpd_host_t **pp_host = (httpd_host_t **)luaL_checkudata( L, 1, "httpd_host" );
     const char *psz_url = luaL_checkstring( L, 2 );
@@ -214,7 +215,7 @@ static int vlclua_httpd_handler_new( lua_State * L )
     lua_xmove( L, p_sys->L, 2 );
     httpd_handler_t *p_handler = httpd_HandlerNew(
                             *pp_host, psz_url, psz_user, psz_password,
-                            vlclua_httpd_handler_callback, p_sys );
+                            heimdalllua_httpd_handler_callback, p_sys );
     if( !p_handler )
     {
         free( p_sys );
@@ -226,7 +227,7 @@ static int vlclua_httpd_handler_new( lua_State * L )
 
     if( luaL_newmetatable( L, "httpd_handler" ) )
     {
-        lua_pushcfunction( L, vlclua_httpd_handler_delete );
+        lua_pushcfunction( L, heimdalllua_httpd_handler_delete );
         lua_setfield( L, -2, "__gc" );
     }
 
@@ -234,7 +235,7 @@ static int vlclua_httpd_handler_new( lua_State * L )
     return 1;
 }
 
-static int vlclua_httpd_handler_delete( lua_State *L )
+static int heimdalllua_httpd_handler_delete( lua_State *L )
 {
     httpd_handler_t **pp_handler = (httpd_handler_t**)luaL_checkudata( L, 1, "httpd_handler" );
     httpd_handler_lua_t *p_sys = httpd_HandlerDelete( *pp_handler );
@@ -253,11 +254,11 @@ struct httpd_file_sys_t
     bool password;
 };
 
-static int vlclua_httpd_file_callback(
+static int heimdalllua_httpd_file_callback(
     httpd_file_sys_t *p_sys, httpd_file_t *p_file, uint8_t *psz_request,
     uint8_t **pp_data, size_t *pi_data )
 {
-    VLC_UNUSED(p_file);
+    HEIMDALL_UNUSED(p_file);
     lua_State *L = p_sys->L;
 
     /* function data */
@@ -269,16 +270,16 @@ static int vlclua_httpd_file_callback(
     if( lua_pcall( L, 2, 1, 0 ) )
     {
         /* function data err */
-        vlc_object_t *p_this = vlclua_get_this( L );
+        heimdall_object_t *p_this = heimdalllua_get_this( L );
         const char *psz_err = lua_tostring( L, -1 );
         msg_Err( p_this, "Error while running the lua HTTPd file callback: %s",
                  psz_err );
         lua_settop( L, 2 );
         /* function data */
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     /* function data outdata */
-    *pp_data = vlclua_todata( L, -1, pi_data );
+    *pp_data = heimdalllua_todata( L, -1, pi_data );
     if (!p_sys->password)
     {
         free(*pp_data);
@@ -291,10 +292,10 @@ static int vlclua_httpd_file_callback(
     }
     lua_pop( L, 1 );
     /* function data */
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int vlclua_httpd_file_new( lua_State *L )
+static int heimdalllua_httpd_file_new( lua_State *L )
 {
     httpd_host_t **pp_host = (httpd_host_t **)luaL_checkudata( L, 1, "httpd_host" );
     const char *psz_url = luaL_checkstring( L, 2 );
@@ -314,7 +315,7 @@ static int vlclua_httpd_file_new( lua_State *L )
     lua_xmove( L, p_sys->L, 2 );
     httpd_file_t *p_file = httpd_FileNew( *pp_host, psz_url, psz_mime,
                                           psz_user, psz_password,
-                                          vlclua_httpd_file_callback, p_sys );
+                                          heimdalllua_httpd_file_callback, p_sys );
     if( !p_file )
     {
         free( p_sys );
@@ -326,7 +327,7 @@ static int vlclua_httpd_file_new( lua_State *L )
 
     if( luaL_newmetatable( L, "httpd_file" ) )
     {
-        lua_pushcfunction( L, vlclua_httpd_file_delete );
+        lua_pushcfunction( L, heimdalllua_httpd_file_delete );
         lua_setfield( L, -2, "__gc" );
     }
 
@@ -334,7 +335,7 @@ static int vlclua_httpd_file_new( lua_State *L )
     return 1;
 }
 
-static int vlclua_httpd_file_delete( lua_State *L )
+static int heimdalllua_httpd_file_delete( lua_State *L )
 {
     httpd_file_t **pp_file = (httpd_file_t**)luaL_checkudata( L, 1, "httpd_file" );
     httpd_file_sys_t *p_sys = httpd_FileDelete( *pp_file );
@@ -346,7 +347,7 @@ static int vlclua_httpd_file_delete( lua_State *L )
 /*****************************************************************************
  * HTTPd Redirect
  *****************************************************************************/
-static int vlclua_httpd_redirect_new( lua_State *L )
+static int heimdalllua_httpd_redirect_new( lua_State *L )
 {
     httpd_host_t **pp_host = (httpd_host_t **)luaL_checkudata( L, 1, "httpd_host" );
     const char *psz_url_dst = luaL_checkstring( L, 2 );
@@ -362,7 +363,7 @@ static int vlclua_httpd_redirect_new( lua_State *L )
 
     if( luaL_newmetatable( L, "httpd_redirect" ) )
     {
-        lua_pushcfunction( L, vlclua_httpd_redirect_delete );
+        lua_pushcfunction( L, heimdalllua_httpd_redirect_delete );
         lua_setfield( L, -2, "__gc" );
     }
 
@@ -370,7 +371,7 @@ static int vlclua_httpd_redirect_new( lua_State *L )
     return 1;
 }
 
-static int vlclua_httpd_redirect_delete( lua_State *L )
+static int heimdalllua_httpd_redirect_delete( lua_State *L )
 {
     httpd_redirect_t **pp_redirect = (httpd_redirect_t**)luaL_checkudata( L, 1, "httpd_redirect" );
     httpd_RedirectDelete( *pp_redirect );
@@ -380,7 +381,7 @@ static int vlclua_httpd_redirect_delete( lua_State *L )
 /*****************************************************************************
  * Utils
  *****************************************************************************/
-static uint8_t *vlclua_todata( lua_State *L, int narg, size_t *pi_data )
+static uint8_t *heimdalllua_todata( lua_State *L, int narg, size_t *pi_data )
 {
     const char *psz_data = lua_tolstring( L, narg, pi_data );
     uint8_t *p_data = malloc( *pi_data );
@@ -398,6 +399,6 @@ static uint8_t *vlclua_todata( lua_State *L, int narg, size_t *pi_data )
  *****************************************************************************/
 void luaopen_httpd( lua_State *L )
 {
-    lua_pushcfunction( L, vlclua_httpd_tls_host_new );
+    lua_pushcfunction( L, heimdalllua_httpd_tls_host_new );
     lua_setfield( L, -2, "httpd" );
 }

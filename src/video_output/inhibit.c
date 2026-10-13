@@ -2,6 +2,7 @@
  * inhibit.c: screen saver inhibition
  *****************************************************************************
  * Copyright (C) 2009 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,41 +23,41 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_modules.h>
+#include <heimdall_common.h>
+#include <heimdall_modules.h>
 #include "inhibit.h"
-#include "../libvlc.h"
+#include "../libheimdall.h"
 #include <assert.h>
 
 typedef struct
 {
-    vlc_inhibit_t ih;
+    heimdall_inhibit_t ih;
     module_t *module;
 } inhibit_t;
 
-vlc_inhibit_t *vlc_inhibit_Create (vlc_object_t *parent)
+heimdall_inhibit_t *heimdall_inhibit_Create (heimdall_object_t *parent)
 {
-    inhibit_t *priv = vlc_custom_create (parent, sizeof (*priv), "inhibit" );
+    inhibit_t *priv = heimdall_custom_create (parent, sizeof (*priv), "inhibit" );
     if (priv == NULL)
         return NULL;
 
-    vlc_inhibit_t *ih = &priv->ih;
+    heimdall_inhibit_t *ih = &priv->ih;
     ih->p_sys = NULL;
     ih->inhibit = NULL;
 
     priv->module = module_need (ih, "inhibit", NULL, false);
     if (priv->module == NULL)
     {
-        vlc_object_delete(ih);
+        heimdall_object_delete(ih);
         ih = NULL;
     }
     return ih;
 }
 
-void vlc_inhibit_Destroy (vlc_inhibit_t *ih)
+void heimdall_inhibit_Destroy (heimdall_inhibit_t *ih)
 {
     assert (ih != NULL);
 
     module_unneed (ih, ((inhibit_t *)ih)->module);
-    vlc_object_delete(ih);
+    heimdall_object_delete(ih);
 }

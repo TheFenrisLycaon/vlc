@@ -2,6 +2,7 @@
  * audiotoolbox_midi.c: Software MIDI synthesizer using AudioToolbox
  *****************************************************************************
  * Copyright (C) 2017 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Marvin Scholz <epirat07 at gmail dot com>
  *
@@ -26,10 +27,10 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
-#include <vlc_dialog.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
+#include <heimdall_dialog.h>
 
 #include <CoreFoundation/CoreFoundation.h>
 #include <AudioUnit/AudioUnit.h>
@@ -47,12 +48,12 @@ do { if ((errorCode) != noErr) goto exceptionLabel; \
 #define SOUNDFONT_LONGTEXT N_( \
     "SoundFont file to use for software synthesis." )
 
-static int  Open  (vlc_object_t *);
-static void Close (vlc_object_t *);
+static int  Open  (heimdall_object_t *);
+static void Close (heimdall_object_t *);
 
 #define CFG_PREFIX "aumidi-"
 
-vlc_module_begin()
+heimdall_module_begin()
     set_description(N_("AudioToolbox MIDI synthesizer"))
     set_capability("audio decoder", 100)
     set_shortname(N_("AUMIDI"))
@@ -60,7 +61,7 @@ vlc_module_begin()
     set_callbacks(Open, Close)
     add_loadfile(CFG_PREFIX "soundfont", "",
                  SOUNDFONT_TEXT, SOUNDFONT_LONGTEXT)
-vlc_module_end()
+heimdall_module_end()
 
 
 typedef struct
@@ -198,19 +199,19 @@ static int RenderAudioUnit(decoder_t *p_dec, decoder_sys_t *p_sys, block_t *p_ou
                                           chunk_frames, &bufferList);
         if (status != noErr) {
             msg_Warn(p_dec, "rendering audio unit failed: %i", (int)status);
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         rendered += chunk_frames;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int SetSoundfont(decoder_t *p_dec, AudioUnit synthUnit, const char *sfPath) {
     if (!sfPath) {
         msg_Dbg(p_dec, "using default soundfont");
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
     msg_Dbg(p_dec, "using custom soundfont: '%s'", sfPath);
@@ -218,7 +219,7 @@ static int SetSoundfont(decoder_t *p_dec, AudioUnit synthUnit, const char *sfPat
                                                            (const UInt8 *)sfPath,
                                                            strlen(sfPath), false);
     if (unlikely(url == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     OSStatus status = AudioUnitSetProperty(synthUnit,
                                            kMusicDeviceProperty_SoundBankURL,
@@ -228,23 +229,23 @@ static int SetSoundfont(decoder_t *p_dec, AudioUnit synthUnit, const char *sfPat
 
     if (status != noErr) {
         msg_Err(p_dec, "failed setting custom SoundFont for MIDI synthesis (%i)", (int)status);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int Open(vlc_object_t *p_this)
+static int Open(heimdall_object_t *p_this)
 {
     decoder_t *p_dec = (decoder_t *)p_this;
     OSStatus status = noErr;
-    int ret = VLC_SUCCESS;
+    int ret = HEIMDALL_SUCCESS;
 
-    if (p_dec->fmt_in->i_codec != VLC_CODEC_MIDI)
-        return VLC_EGENERIC;
+    if (p_dec->fmt_in->i_codec != HEIMDALL_CODEC_MIDI)
+        return HEIMDALL_EGENERIC;
 
     decoder_sys_t *p_sys = malloc(sizeof (*p_sys));
     if (unlikely(p_sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_sys->graph = NULL;
     p_sys->sysex_in_progress = false;
@@ -253,7 +254,7 @@ static int Open(vlc_object_t *p_this)
     status = CreateAUGraph(&p_sys->graph, &p_sys->synthUnit, &p_sys->outputUnit);
     if (unlikely(status != noErr)) {
         msg_Err(p_dec, "failed to create audiograph (%i)", (int)status);
-        ret = VLC_EGENERIC;
+        ret = HEIMDALL_EGENERIC;
         goto bailout;
     }
 
@@ -261,18 +262,18 @@ static int Open(vlc_object_t *p_this)
     char *sfPath = var_InheritString(p_dec, CFG_PREFIX "soundfont");
     ret = SetSoundfont(p_dec, p_sys->synthUnit, sfPath);
     free(sfPath);
-    if (unlikely(ret != VLC_SUCCESS))
+    if (unlikely(ret != HEIMDALL_SUCCESS))
         goto bailout;
 
-    // Set VLC output audio format info
-    p_dec->fmt_out.i_codec = VLC_CODEC_FL32;
+    // Set Heimdall output audio format info
+    p_dec->fmt_out.i_codec = HEIMDALL_CODEC_FL32;
     p_dec->fmt_out.audio.i_bitspersample = 32;
     p_dec->fmt_out.audio.i_rate = 44100;
     p_dec->fmt_out.audio.i_channels = 2;
     p_dec->fmt_out.audio.i_physical_channels = AOUT_CHAN_LEFT | AOUT_CHAN_RIGHT;
 
     if (decoder_UpdateAudioFormat(p_dec) < 0) {
-        ret = VLC_EGENERIC;
+        ret = HEIMDALL_EGENERIC;
         goto bailout;
     }
 
@@ -295,7 +296,7 @@ static int Open(vlc_object_t *p_this)
                                   sizeof(AudioStreamBasicDescription));
     if (unlikely(status != noErr)) {
         msg_Err(p_dec, "failed setting output format for output unit (%i)", (int)status);
-        ret = VLC_EGENERIC;
+        ret = HEIMDALL_EGENERIC;
         goto bailout;
     }
 
@@ -318,7 +319,7 @@ static int Open(vlc_object_t *p_this)
             msg_Err(p_dec, "failed initializing audiograph: invalid soundfont file");
         else
             msg_Err(p_dec, "failed initializing audiograph (%i)", (int)status);
-        ret = VLC_EGENERIC;
+        ret = HEIMDALL_EGENERIC;
         goto bailout;
     }
 
@@ -331,7 +332,7 @@ static int Open(vlc_object_t *p_this)
     status = AUGraphStart(p_sys->graph);
     if (unlikely(status != noErr)) {
         msg_Err(p_dec, "failed starting audiograph (%i)", (int)status);
-        ret = VLC_EGENERIC;
+        ret = HEIMDALL_EGENERIC;
         goto bailout;
     }
 
@@ -344,7 +345,7 @@ static int Open(vlc_object_t *p_this)
 
 bailout:
     // Cleanup if error occurred
-    if (ret != VLC_SUCCESS) {
+    if (ret != HEIMDALL_SUCCESS) {
         if (p_sys->graph)
             DisposeAUGraph(p_sys->graph);
         free(p_sys);
@@ -353,7 +354,7 @@ bailout:
 }
 
 
-static void Close (vlc_object_t *p_this)
+static void Close (heimdall_object_t *p_this)
 {
     decoder_sys_t *p_sys = ((decoder_t *)p_this)->p_sys;
 
@@ -368,7 +369,7 @@ static void Flush (decoder_t *p_dec)
 {
     decoder_sys_t *p_sys = p_dec->p_sys;
 
-    date_Set(&p_sys->end_date, VLC_TICK_INVALID);
+    date_Set(&p_sys->end_date, HEIMDALL_TICK_INVALID);
     p_sys->sysex_in_progress = false;
     p_sys->sample_time = 0;
 
@@ -386,18 +387,18 @@ static int DecodeBlock (decoder_t *p_dec, block_t *p_block)
     OSStatus status = noErr;
 
     if (p_block == NULL) /* No Drain */
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
 
     if (p_block->i_flags & (BLOCK_FLAG_DISCONTINUITY|BLOCK_FLAG_CORRUPTED)) {
         Flush(p_dec);
         if (p_block->i_flags & BLOCK_FLAG_CORRUPTED) {
             block_Release(p_block);
-            return VLCDEC_SUCCESS;
+            return HEIMDALLDEC_SUCCESS;
         }
     }
 
-    if ( p_block->i_pts != VLC_TICK_INVALID &&
-         date_Get(&p_sys->end_date) == VLC_TICK_INVALID ) {
+    if ( p_block->i_pts != HEIMDALL_TICK_INVALID &&
+         date_Get(&p_sys->end_date) == HEIMDALL_TICK_INVALID ) {
         date_Set(&p_sys->end_date, p_block->i_pts);
         p_sys->sample_time = 0;
     } else if (p_block->i_pts < date_Get(&p_sys->end_date)) {
@@ -460,7 +461,7 @@ static int DecodeBlock (decoder_t *p_dec, block_t *p_block)
                       - p_out->i_pts;
     p_sys->sample_time += frames;
 
-    if (RenderAudioUnit(p_dec, p_sys, p_out, frames, base_sample_time) != VLC_SUCCESS) {
+    if (RenderAudioUnit(p_dec, p_sys, p_out, frames, base_sample_time) != HEIMDALL_SUCCESS) {
         block_Release(p_out);
         p_out = NULL;
     }
@@ -469,5 +470,5 @@ drop:
     block_Release(p_block);
     if (p_out != NULL)
         decoder_QueueAudio(p_dec, p_out);
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }

@@ -3,9 +3,10 @@
  *****************************************************************************
  * Copyright (C) 2005-2009 VLC authors and VideoLAN
  * Copyright (C) 2013      Vianney Boyer
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Antoine Cellerier <dionoea -at- videolan -dot- org>
- *          Vianney Boyer <vlcvboyer -at- gmail -dot- com>
+ * Authors: Antoine Cellerier <dionoea -at- lycaria -dot- org>
+ *          Vianney Boyer <heimdallvboyer -at- gmail -dot- com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -31,13 +32,13 @@
 #endif
 #include <math.h>
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_mouse.h>
-#include <vlc_picture.h>
-#include <vlc_rand.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_mouse.h>
+#include <heimdall_picture.h>
+#include <heimdall_rand.h>
 
 #include "../filter_picture.h"
 
@@ -79,7 +80,7 @@ static const char *const ppsz_rotation_descriptions[] = { N_("0"), N_("0/180"), 
 static int  Open ( filter_t * );
 static void Close( filter_t * );
 
-vlc_module_begin()
+heimdall_module_begin()
     set_description( N_("Puzzle interactive game video filter") )
     set_shortname( N_( "Puzzle" ))
     set_subcategory( SUBCAT_VIDEO_VFILTER )
@@ -108,7 +109,7 @@ vlc_module_begin()
         change_integer_list(pi_mode_values, ppsz_mode_descriptions )
 
     set_callback_video_filter( Open )
-vlc_module_end()
+heimdall_module_end()
 
 /*****************************************************************************
  * Local prototypes
@@ -128,18 +129,18 @@ static int Open( filter_t *p_filter )
     /* Assert video in match with video out */
     if( !es_format_IsSimilar( &p_filter->fmt_in, &p_filter->fmt_out ) ) {
         msg_Err( p_filter, "Input and output format does not match" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    const vlc_chroma_description_t *p_chroma =
-        vlc_fourcc_GetChromaDescription( p_filter->fmt_in.video.i_chroma );
+    const heimdall_chroma_description_t *p_chroma =
+        heimdall_fourcc_GetChromaDescription( p_filter->fmt_in.video.i_chroma );
     if( p_chroma == NULL || p_chroma->plane_count == 0 || p_chroma->pixel_size > 1 )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* Allocate structure */
     p_filter->p_sys = p_sys = calloc(1, sizeof( *p_sys ) );
     if( !p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     /* init some values */
     p_sys->b_shuffle_rqst    = true;
@@ -154,7 +155,7 @@ static int Open( filter_t *p_filter )
     {
         free(p_filter->p_sys);
         p_filter->p_sys = NULL;
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
     for (int32_t i_shape = 0; i_shape<SHAPES_QTY; i_shape++)
         p_sys->ps_bezier_pts_H[i_shape] = puzzle_rand_bezier(7);
@@ -163,8 +164,8 @@ static int Open( filter_t *p_filter )
     config_ChainParse( p_filter, CFG_PREFIX, ppsz_filter_options,
                        p_filter->p_cfg );
 
-    vlc_mutex_init( &p_sys->lock );
-    vlc_mutex_init( &p_sys->pce_lock );
+    heimdall_mutex_init( &p_sys->lock );
+    heimdall_mutex_init( &p_sys->pce_lock );
 
     p_sys->s_new_param.i_rows =
         var_CreateGetIntegerCommand( p_filter, CFG_PREFIX "rows" );
@@ -198,7 +199,7 @@ static int Open( filter_t *p_filter )
     var_AddCallback( p_filter, CFG_PREFIX "rotation",     puzzle_Callback, p_sys );
     var_AddCallback( p_filter, CFG_PREFIX "mode",     puzzle_Callback, p_sys );
 
-    static const struct vlc_filter_operations filter_ops =
+    static const struct heimdall_filter_operations filter_ops =
     {
         .filter_video = Filter,
         .video_mouse = puzzle_mouse,
@@ -206,7 +207,7 @@ static int Open( filter_t *p_filter )
     };
     p_filter->ops = &filter_ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /**
@@ -295,7 +296,7 @@ picture_t *Filter( filter_t *p_filter, picture_t *p_pic_in ) {
         return NULL;
     }
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
 
     /* check if we have to compute initial data */
     if ( p_sys->b_change_param || p_sys->b_bake_request || !p_sys->b_init ) {
@@ -385,7 +386,7 @@ picture_t *Filter( filter_t *p_filter, picture_t *p_pic_in ) {
         p_sys->b_change_param = false;
     }
 
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 
     /* generate initial puzzle data when needed */
     if ( p_sys->b_bake_request ) {
@@ -397,7 +398,7 @@ picture_t *Filter( filter_t *p_filter, picture_t *p_pic_in ) {
             if (!ps_save_game)
                 return CopyInfoAndRelease( p_pic_out, p_pic_in );
             i_ret = puzzle_bake( p_filter, p_pic_out, p_pic_in );
-            if ( i_ret != VLC_SUCCESS )
+            if ( i_ret != HEIMDALL_SUCCESS )
             {
                 free(ps_save_game->ps_pieces);
                 free(ps_save_game);
@@ -409,7 +410,7 @@ picture_t *Filter( filter_t *p_filter, picture_t *p_pic_in ) {
         }
         else {
             i_ret = puzzle_bake( p_filter, p_pic_out, p_pic_in );
-            if ( i_ret != VLC_SUCCESS )
+            if ( i_ret != HEIMDALL_SUCCESS )
                 return CopyInfoAndRelease( p_pic_out, p_pic_in );
         }
     }
@@ -417,7 +418,7 @@ picture_t *Filter( filter_t *p_filter, picture_t *p_pic_in ) {
     /* shuffle the desk and generate pieces data  */
     if ( p_sys->b_shuffle_rqst && p_sys->b_init ) {
         i_ret = puzzle_bake_piece ( p_filter );
-        if (i_ret != VLC_SUCCESS)
+        if (i_ret != HEIMDALL_SUCCESS)
             return CopyInfoAndRelease( p_pic_out, p_pic_in );
     }
 
@@ -431,7 +432,7 @@ picture_t *Filter( filter_t *p_filter, picture_t *p_pic_in ) {
                 p_pic_in->p[i_plane].i_pitch * (int32_t) p_pic_in->p[i_plane].i_visible_lines );
     }
 
-    vlc_mutex_lock( &p_sys->pce_lock );
+    heimdall_mutex_lock( &p_sys->pce_lock );
 
     /* manage the game, adjust locations, groups and regenerate some corrupted data if any */
     for (uint32_t i = 0; i < __MAX( 4, p_sys->s_allocated.i_pieces_nbr / 4 )
@@ -454,9 +455,9 @@ picture_t *Filter( filter_t *p_filter, picture_t *p_pic_in ) {
     if ( !p_sys->b_bake_request && !p_sys->b_mouse_drag && p_sys->b_init
             && p_sys->s_current_param.b_advanced ) {
         i_ret = puzzle_sort_layers( p_filter);
-        if (i_ret != VLC_SUCCESS)
+        if (i_ret != HEIMDALL_SUCCESS)
         {
-            vlc_mutex_unlock( &p_sys->pce_lock );
+            heimdall_mutex_unlock( &p_sys->pce_lock );
             return CopyInfoAndRelease( p_pic_out, p_pic_in );
         }
     }
@@ -478,7 +479,7 @@ picture_t *Filter( filter_t *p_filter, picture_t *p_pic_in ) {
         puzzle_auto_solve( p_filter );
     }
 
-    vlc_mutex_unlock( &p_sys->pce_lock );
+    heimdall_mutex_unlock( &p_sys->pce_lock );
 
     /* draw output pic */
     if ( !p_sys->b_bake_request && p_sys->b_init  && p_sys->ps_puzzle_array != NULL ) {
@@ -537,7 +538,7 @@ picture_t *Filter( filter_t *p_filter, picture_t *p_pic_in ) {
         if ((p_sys->i_mouse_drag_pce != NO_PCE) && !p_sys->b_mouse_drag
                 && !p_sys->b_finished && p_sys->s_current_param.b_advanced )
         {
-            vlc_mutex_lock( &p_sys->pce_lock );
+            heimdall_mutex_lock( &p_sys->pce_lock );
 
             int32_t i_delta_x;
 
@@ -569,7 +570,7 @@ picture_t *Filter( filter_t *p_filter, picture_t *p_pic_in ) {
                 puzzle_draw_sign(p_pic_out, p_sys->i_mouse_x - ARROW_WIDTH,
                                  p_sys->i_mouse_y, ARROW_WIDTH, ARROW_LINES, ppsz_mir_arrow_sign, false);
 
-            vlc_mutex_unlock( &p_sys->pce_lock );
+            heimdall_mutex_unlock( &p_sys->pce_lock );
         }
     }
 
@@ -579,14 +580,14 @@ picture_t *Filter( filter_t *p_filter, picture_t *p_pic_in ) {
 /*****************************************************************************
  * Misc stuff...
  *****************************************************************************/
-int puzzle_Callback( vlc_object_t *p_this, char const *psz_var,
-                           vlc_value_t oldval, vlc_value_t newval,
+int puzzle_Callback( heimdall_object_t *p_this, char const *psz_var,
+                           heimdall_value_t oldval, heimdall_value_t newval,
                            void *p_data )
 {
-    VLC_UNUSED(p_this); VLC_UNUSED(oldval);
+    HEIMDALL_UNUSED(p_this); HEIMDALL_UNUSED(oldval);
     filter_sys_t *p_sys = p_data;
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     if( !strcmp( psz_var, CFG_PREFIX "rows" ) ) {
         p_sys->s_new_param.i_rows = __MAX( 1, newval.i_int );
     }
@@ -619,14 +620,14 @@ int puzzle_Callback( vlc_object_t *p_this, char const *psz_var,
     }
 
     p_sys->b_change_param = true;
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /* mouse callback */
-int puzzle_mouse( filter_t *p_filter, vlc_mouse_t *p_new,
-                  const vlc_mouse_t *p_old )
+int puzzle_mouse( filter_t *p_filter, heimdall_mouse_t *p_new,
+                  const heimdall_mouse_t *p_old )
 {
     filter_sys_t *p_sys = p_filter->p_sys;
     const video_format_t  *p_fmt_in = &p_filter->fmt_in.video;
@@ -634,10 +635,10 @@ int puzzle_mouse( filter_t *p_filter, vlc_mouse_t *p_new,
     /* Only take events inside the puzzle area */
     if( p_new->i_x < 0 || p_new->i_x >= (int)p_fmt_in->i_width ||
         p_new->i_y < 0 || p_new->i_y >= (int)p_fmt_in->i_height )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if (! p_sys->b_init || p_sys->b_change_param) {
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
     p_sys->i_mouse_x = p_new->i_x;
@@ -647,22 +648,22 @@ int puzzle_mouse( filter_t *p_filter, vlc_mouse_t *p_new,
     if( p_sys->b_finished ) {
         p_sys->b_mouse_drag = false;
         p_sys->b_mouse_mvt = false;
-        if( vlc_mouse_HasPressed( p_old, p_new, MOUSE_BUTTON_LEFT ) &&
+        if( heimdall_mouse_HasPressed( p_old, p_new, MOUSE_BUTTON_LEFT ) &&
             p_new->i_x < SHUFFLE_WIDTH && p_new->i_y < SHUFFLE_LINES )
         {
             p_sys->b_shuffle_rqst = true;
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
         else
         {
             /* otherwise we can forward the mouse */
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
     }
 
     if ( !p_sys->s_current_param.b_advanced ) {
         /* "square" game mode (sliding puzzle, swap...) */
-        const bool b_clicked = vlc_mouse_HasPressed( p_old, p_new, MOUSE_BUTTON_LEFT );
+        const bool b_clicked = heimdall_mouse_HasPressed( p_old, p_new, MOUSE_BUTTON_LEFT );
 
         if( b_clicked )
         {
@@ -678,7 +679,7 @@ int puzzle_mouse( filter_t *p_filter, vlc_mouse_t *p_new,
             /* do not take into account if border clicked */
             if ((p_new->i_x <= i_border_width) || (p_new->i_y <=  i_border_height) || (p_new->i_x >= (int) p_fmt_in->i_width -  i_border_width) || (p_new->i_y >= (int) p_fmt_in->i_height -  i_border_height ) )
             {
-                return VLC_SUCCESS;
+                return HEIMDALL_SUCCESS;
             }
             else if( p_sys->i_selected == NO_PCE )
                 p_sys->i_selected = i_pos;
@@ -738,19 +739,19 @@ int puzzle_mouse( filter_t *p_filter, vlc_mouse_t *p_new,
     else /* jigsaw puzzle mode */
     {
         if ((p_sys->ps_desk_planes == NULL)  || (p_sys->ps_pict_planes == NULL)  || (p_sys->ps_puzzle_array == NULL) || (p_sys->ps_pieces == NULL)) {
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
 
-        if( vlc_mouse_HasPressed( p_old, p_new, MOUSE_BUTTON_LEFT ) )
+        if( heimdall_mouse_HasPressed( p_old, p_new, MOUSE_BUTTON_LEFT ) )
         {
 
-            vlc_mutex_lock( &p_sys->pce_lock );
+            heimdall_mutex_lock( &p_sys->pce_lock );
 
             if (p_sys->i_mouse_drag_pce != NO_PCE) {
                 int i_ret = puzzle_piece_foreground( p_filter, p_sys->i_mouse_drag_pce);
-                if (i_ret != VLC_SUCCESS)
+                if (i_ret != HEIMDALL_SUCCESS)
                 {
-                    vlc_mutex_unlock( &p_sys->pce_lock );
+                    heimdall_mutex_unlock( &p_sys->pce_lock );
                     return i_ret;
                 }
                 p_sys->i_mouse_drag_pce = 0;
@@ -780,15 +781,15 @@ int puzzle_mouse( filter_t *p_filter, vlc_mouse_t *p_new,
                 p_sys->b_mouse_drag = false;
             }
 
-            vlc_mutex_unlock( &p_sys->pce_lock );
+            heimdall_mutex_unlock( &p_sys->pce_lock );
 
         }
-        else if( vlc_mouse_HasReleased( p_old, p_new, MOUSE_BUTTON_LEFT ) )
+        else if( heimdall_mouse_HasReleased( p_old, p_new, MOUSE_BUTTON_LEFT ) )
         {
             if ( !p_sys->b_mouse_mvt && p_sys->b_mouse_drag ) {
                 /* piece clicked without any mouse mvt => rotate it or mirror */
                 if ( p_sys->s_current_param.i_rotate != 0) {
-                    vlc_mutex_lock( &p_sys->pce_lock );
+                    heimdall_mutex_lock( &p_sys->pce_lock );
 
                     uint32_t i_group_ID = p_sys->ps_pieces[0].i_group_ID;
 
@@ -796,7 +797,7 @@ int puzzle_mouse( filter_t *p_filter, vlc_mouse_t *p_new,
                         if ( i_group_ID == p_sys->ps_pieces[i].i_group_ID )
                             puzzle_rotate_pce( p_filter, i, p_sys->i_mouse_action, p_sys->ps_pieces[0].i_center_x, p_sys->ps_pieces[0].i_center_y, p_sys->i_mouse_action != 4 ? true : false );
 
-                    vlc_mutex_unlock( &p_sys->pce_lock );
+                    heimdall_mutex_unlock( &p_sys->pce_lock );
                 }
             }
             p_sys->b_mouse_drag = false;
@@ -826,11 +827,11 @@ int puzzle_mouse( filter_t *p_filter, vlc_mouse_t *p_new,
             }
             p_sys->i_preview_pos %= 4;
 
-            if ( !vlc_mouse_IsLeftPressed( p_new ) )
+            if ( !heimdall_mouse_IsLeftPressed( p_new ) )
                 p_sys->b_mouse_drag = false;
 
             int i_dx, i_dy;
-            vlc_mouse_GetMotion( &i_dx, &i_dy, p_old, p_new );
+            heimdall_mouse_GetMotion( &i_dx, &i_dy, p_old, p_new );
             if ( i_dx != 0 || i_dy != 0 )
                 p_sys->b_mouse_mvt = true;
 
@@ -844,14 +845,14 @@ int puzzle_mouse( filter_t *p_filter, vlc_mouse_t *p_new,
                 }
                 else if ( i_dx != 0 || i_dy != 0 )
                 {
-                    vlc_mutex_lock( &p_sys->pce_lock );
+                    heimdall_mutex_lock( &p_sys->pce_lock );
 
                     puzzle_move_group( p_filter, p_sys->i_mouse_drag_pce, i_dx, i_dy);
 
-                    vlc_mutex_unlock( &p_sys->pce_lock );
+                    heimdall_mutex_unlock( &p_sys->pce_lock );
                 }
             }
         }
     }
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }

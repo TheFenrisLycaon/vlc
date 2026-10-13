@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,10 +21,10 @@ import QtQuick
 import QtQuick.Templates as T
 
 
-import VLC.MainInterface
-import VLC.Widgets as Widgets
-import VLC.Style
-import VLC.Util
+import Heimdall.MainInterface
+import Heimdall.Widgets as Widgets
+import Heimdall.Style
+import Heimdall.Util
 
 T.ToolButton {
     id: control
@@ -38,7 +39,7 @@ T.ToolButton {
 
     property color backgroundColor: theme.bg.primary
 
-    property real radius: VLCStyle.button_radius
+    property real radius: HeimdallStyle.button_radius
 
     // Settings
 
@@ -53,8 +54,8 @@ T.ToolButton {
 
     baselineOffset: contentItem.y + contentItem.baselineOffset
 
-    font.pixelSize: VLCStyle.icon_toolbar
-    font.family: VLCIcons.fontFamily
+    font.pixelSize: HeimdallStyle.icon_toolbar
+    font.family: HeimdallIcons.fontFamily
 
     // Keys
 
@@ -72,7 +73,7 @@ T.ToolButton {
 
     T.ToolTip.visible: (hovered || visualFocus)
 
-    T.ToolTip.delay: VLCStyle.delayToolTipAppear
+    T.ToolTip.delay: HeimdallStyle.delayToolTipAppear
 
     T.ToolTip.text: description
 
@@ -114,7 +115,7 @@ T.ToolButton {
             delayedEnabled: theme.initialized
 
             ColorAnimation {
-                duration: VLCStyle.duration_long
+                duration: HeimdallStyle.duration_long
             }
         }
 

@@ -2,6 +2,7 @@
  * flac.c: flac packetizer module.
  *****************************************************************************
  * Copyright (C) 1999-2017 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gildas Bazin <gbazin@videolan.org>
  *          Sigmund Augdal Helberg <dnumgis@videolan.org>
@@ -29,26 +30,26 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
 
-#include <vlc_block_helper.h>
+#include <heimdall_block_helper.h>
 #include "packetizer_helper.h"
 #include "flac.h"
 
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  Open (vlc_object_t *);
-static void Close(vlc_object_t *);
+static int  Open (heimdall_object_t *);
+static void Close(heimdall_object_t *);
 
-vlc_module_begin()
+heimdall_module_begin()
     set_subcategory(SUBCAT_SOUT_PACKETIZER)
     set_description(N_("Flac audio packetizer"))
     set_capability("audio packetizer", 50)
     set_callbacks(Open, Close)
-vlc_module_end()
+heimdall_module_end()
 
 /*****************************************************************************
  * decoder_sys_t : FLAC decoder descriptor
@@ -58,7 +59,7 @@ typedef struct
     /*
      * Input properties
      */
-    enum vlc_packetizer_state i_state;
+    enum heimdall_packetizer_state i_state;
 
     block_bytestream_t bytestream;
     size_t i_offset;
@@ -276,7 +277,7 @@ static void Flush(decoder_t *p_dec)
 
     p_sys->i_state = STATE_NOSYNC;
     p_sys->i_offset = 0;
-    date_Set( &p_sys->pts, VLC_TICK_INVALID );
+    date_Set( &p_sys->pts, HEIMDALL_TICK_INVALID );
     block_BytestreamEmpty(&p_sys->bytestream);
 }
 
@@ -297,7 +298,7 @@ static const uint8_t * FLACStartcodeHelper(const uint8_t *p, const uint8_t *end)
 
 static bool FLACStartcodeMatcher(uint8_t i, size_t i_pos, const uint8_t *p_startcode)
 {
-    VLC_UNUSED(p_startcode);
+    HEIMDALL_UNUSED(p_startcode);
     return (i_pos == 0) ? i == 0xFF : (i & 0xFE) == 0xF8;
 }
 
@@ -342,7 +343,7 @@ static block_t *Packetize(decoder_t *p_dec, block_t **pp_block)
         if(block_FindStartcodeFromOffset(&p_sys->bytestream, &p_sys->i_offset,
                                          NULL, 2,
                                          FLACStartcodeHelper,
-                                         FLACStartcodeMatcher) == VLC_SUCCESS)
+                                         FLACStartcodeMatcher) == HEIMDALL_SUCCESS)
         {
             p_sys->i_state = STATE_SYNC;
         }
@@ -404,7 +405,7 @@ static block_t *Packetize(decoder_t *p_dec, block_t **pp_block)
         if(block_FindStartcodeFromOffset(&p_sys->bytestream, &p_sys->i_offset,
                                          NULL, 2,
                                          FLACStartcodeHelper,
-                                         FLACStartcodeMatcher) != VLC_SUCCESS)
+                                         FLACStartcodeMatcher) != HEIMDALL_SUCCESS)
         {
             size_t i_remain = block_BytestreamRemaining( &p_sys->bytestream );
             if( pp_block == NULL && i_remain > FLAC_FRAME_SIZE_MIN ) /* EOF/Drain */
@@ -460,7 +461,7 @@ static block_t *Packetize(decoder_t *p_dec, block_t **pp_block)
                      p_sys->stream_info.max_framesize,
                      p_sys->i_offset);
             if( block_SkipBytes( &p_sys->bytestream,
-                                 FLAC_HEADER_SIZE_MAX + 2 ) != VLC_SUCCESS )
+                                 FLAC_HEADER_SIZE_MAX + 2 ) != HEIMDALL_SUCCESS )
                 return NULL;
             block_BytestreamFlush( &p_sys->bytestream );
             p_sys->crc = 0;
@@ -537,11 +538,11 @@ static block_t *Packetize(decoder_t *p_dec, block_t **pp_block)
 
         if( p_sys->bytestream.p_block &&
             p_sys->bytestream.p_block->i_pts > date_Get( &p_sys->pts ) &&
-            p_sys->bytestream.p_block->i_pts != VLC_TICK_INVALID )
+            p_sys->bytestream.p_block->i_pts != HEIMDALL_TICK_INVALID )
         {
             date_Init( &p_sys->pts, p_sys->headerinfo.i_rate, 1 );
             date_Set( &p_sys->pts, p_sys->bytestream.p_block->i_pts );
-            p_sys->bytestream.p_block->i_pts = VLC_TICK_INVALID;
+            p_sys->bytestream.p_block->i_pts = HEIMDALL_TICK_INVALID;
         }
 
 
@@ -580,25 +581,25 @@ static block_t *Packetize(decoder_t *p_dec, block_t **pp_block)
     return NULL;
 }
 
-static int Open(vlc_object_t *p_this)
+static int Open(heimdall_object_t *p_this)
 {
     decoder_t *p_dec = (decoder_t*)p_this;
     decoder_sys_t *p_sys;
 
-    if (p_dec->fmt_in->i_codec != VLC_CODEC_FLAC)
-        return VLC_EGENERIC;
+    if (p_dec->fmt_in->i_codec != HEIMDALL_CODEC_FLAC)
+        return HEIMDALL_EGENERIC;
 
 
     /* */
     p_dec->p_sys = p_sys = malloc(sizeof(*p_sys));
     if (!p_sys)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_sys->i_state       = STATE_NOSYNC;
     p_sys->i_offset      = 0;
     p_sys->b_stream_info = false;
     p_sys->i_last_frame_size = FLAC_FRAME_SIZE_MIN;
-    p_sys->headerinfo.i_pts  = VLC_TICK_INVALID;
+    p_sys->headerinfo.i_pts  = HEIMDALL_TICK_INVALID;
     p_sys->i_buf_offset  = 0;
     p_sys->i_buf         = 0;
     p_sys->p_buf         = NULL;
@@ -608,7 +609,7 @@ static int Open(vlc_object_t *p_this)
 
     /* */
     es_format_Copy(&p_dec->fmt_out, p_dec->fmt_in);
-    p_dec->fmt_out.i_codec = VLC_CODEC_FLAC;
+    p_dec->fmt_out.i_codec = HEIMDALL_CODEC_FLAC;
     p_dec->fmt_out.b_packetized = true;
 
     /* */
@@ -616,10 +617,10 @@ static int Open(vlc_object_t *p_this)
     p_dec->pf_flush     = Flush;
     p_dec->pf_get_cc    = NULL;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void Close(vlc_object_t *p_this)
+static void Close(heimdall_object_t *p_this)
 {
     decoder_t *p_dec = (decoder_t *)p_this;
     decoder_sys_t *p_sys = p_dec->p_sys;

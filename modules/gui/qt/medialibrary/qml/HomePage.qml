@@ -1,5 +1,6 @@
 /******************************************************************************
  * Copyright (C) 2024 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Ash <ashutoshv191@gmail.com>
  *
@@ -21,12 +22,12 @@ import QtQuick
 import QtQuick.Window
 import QtQuick.Templates as T
 
-import VLC.MediaLibrary
+import Heimdall.MediaLibrary
 
-import VLC.MainInterface
-import VLC.Widgets as Widgets
-import VLC.Util
-import VLC.Style
+import Heimdall.MainInterface
+import Heimdall.Widgets as Widgets
+import Heimdall.Util
+import Heimdall.Style
 
 Widgets.PageExt {
     id: root
@@ -44,9 +45,9 @@ Widgets.PageExt {
 
     isSearchable: true
 
-    property real listCoverHeight: VLCStyle.listAlbumCover_height
-    property real listCoverWidth: VLCStyle.listAlbumCover_width
-    property real listCoverRadius: VLCStyle.listAlbumCover_radius
+    property real listCoverHeight: HeimdallStyle.listAlbumCover_height
+    property real listCoverWidth: HeimdallStyle.listAlbumCover_width
+    property real listCoverRadius: HeimdallStyle.listAlbumCover_radius
 
     readonly property ColorContext colorContext: ColorContext {
         id: theme
@@ -90,10 +91,10 @@ Widgets.PageExt {
         boundsBehavior: Flickable.StopAtBounds
 
         // FIXME: make the media rows positioners consider the flickable margins when adjusting flickable `contentY`.
-        bottomMargin: VLCStyle.margin_large
+        bottomMargin: HeimdallStyle.margin_large
 
         pixelAligned: (MainCtx.qtVersion() >= MainCtx.qtVersionCheck(6, 2, 5)) // QTBUG-103996
-                      && (Screen.pixelDensity >= VLCStyle.highPixelDensityThreshold) // no need for sub-pixel alignment with high pixel density
+                      && (Screen.pixelDensity >= HeimdallStyle.highPixelDensityThreshold) // no need for sub-pixel alignment with high pixel density
 
         property bool _hasMedias: true
 
@@ -116,7 +117,7 @@ Widgets.PageExt {
 
             // NOTE: Usage of `SmoothedAnimation` is intentional here.
             SmoothedAnimation {
-                duration: VLCStyle.duration_veryLong
+                duration: HeimdallStyle.duration_veryLong
                 easing.type: Easing.InOutSine
             }
         }

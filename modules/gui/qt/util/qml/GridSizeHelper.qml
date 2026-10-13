@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2024 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Leon Vitanos <leon.vitanos@gmail.com>
  *
@@ -20,7 +21,7 @@
 
 import QtQuick
 
-import VLC.Style
+import Heimdall.Style
 
 QtObject{
     // NOTE: Base picture sizing
@@ -29,22 +30,22 @@ QtObject{
 
     required property int availableWidth
 
-    property int titleTopMargin: VLCStyle.gridItemTitle_topMargin
-    property int titleHeight: VLCStyle.gridItemTitle_height
+    property int titleTopMargin: HeimdallStyle.gridItemTitle_topMargin
+    property int titleHeight: HeimdallStyle.gridItemTitle_height
 
-    property int subtitleTopMargin: VLCStyle.gridItemSubtitle_topMargin
-    property int subtitleHeight: VLCStyle.gridItemSubtitle_height
+    property int subtitleTopMargin: HeimdallStyle.gridItemSubtitle_topMargin
+    property int subtitleHeight: HeimdallStyle.gridItemSubtitle_height
 
     // NOTE: The total text height of title and subtitle
     //       1dp is added to each, to correctly represent the actual height
-    readonly property int textHeight: (titleHeight ? titleHeight + titleTopMargin + VLCStyle.dp(1, VLCStyle.scale): 0) +
-                                      (subtitleHeight ? subtitleHeight + subtitleTopMargin + VLCStyle.dp(1, VLCStyle.scale) : 0)
+    readonly property int textHeight: (titleHeight ? titleHeight + titleTopMargin + HeimdallStyle.dp(1, HeimdallStyle.scale): 0) +
+                                      (subtitleHeight ? subtitleHeight + subtitleTopMargin + HeimdallStyle.dp(1, HeimdallStyle.scale) : 0)
 
-    property int horizontalSpacing: nbItemPerRow === 2 ? VLCStyle.margin_large + VLCStyle.margin_xxxsmall
-                                                       : (nbItemPerRow === 3 ? VLCStyle.margin_large + VLCStyle.margin_xxsmall
+    property int horizontalSpacing: nbItemPerRow === 2 ? HeimdallStyle.margin_large + HeimdallStyle.margin_xxxsmall
+                                                       : (nbItemPerRow === 3 ? HeimdallStyle.margin_large + HeimdallStyle.margin_xxsmall
                                                                              : _defaultHorizontalSpacing)
 
-    readonly property int _defaultHorizontalSpacing: VLCStyle.column_spacing
+    readonly property int _defaultHorizontalSpacing: HeimdallStyle.column_spacing
 
     property var maxNbItemPerRow
     readonly property int nbItemPerRow: {

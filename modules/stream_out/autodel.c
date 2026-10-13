@@ -2,6 +2,7 @@
  * autodel.c: monitor mux inputs and automatically add/delete streams
  *****************************************************************************
  * Copyright (C) 2006 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Christophe Massiot <massiot@via.ecp.fr>
  *
@@ -35,12 +36,12 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_sout.h>
-#include <vlc_block.h>
-#include <vlc_list.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_sout.h>
+#include <heimdall_block.h>
+#include <heimdall_list.h>
 
 typedef struct sout_stream_id_sys_t sout_stream_id_sys_t;
 struct sout_stream_id_sys_t
@@ -48,16 +49,16 @@ struct sout_stream_id_sys_t
     sout_stream_id_sys_t *id;
     es_format_t fmt;
     const char *es_id;
-    vlc_tick_t i_last;
+    heimdall_tick_t i_last;
     bool b_error;
-    struct vlc_list node;
+    struct heimdall_list node;
 };
 
 typedef struct
 {
-    vlc_tick_t last_pcr;
-    vlc_tick_t drop_delay;
-    struct vlc_list ids;
+    heimdall_tick_t last_pcr;
+    heimdall_tick_t drop_delay;
+    struct heimdall_list ids;
 } sout_stream_sys_t;
 
 static void *Add( sout_stream_t *p_stream, const es_format_t *p_fmt, const char *es_id )
@@ -70,10 +71,10 @@ static void *Add( sout_stream_t *p_stream, const es_format_t *p_fmt, const char 
     es_format_Copy( &p_es->fmt, p_fmt );
 
     p_es->id = NULL;
-    p_es->i_last = VLC_TICK_INVALID;
+    p_es->i_last = HEIMDALL_TICK_INVALID;
     p_es->es_id = es_id;
     p_es->b_error = false;
-    vlc_list_append(&p_es->node, &p_sys->ids);
+    heimdall_list_append(&p_es->node, &p_sys->ids);
     return p_es;
 }
 
@@ -84,7 +85,7 @@ static void Del( sout_stream_t *p_stream, void *_p_es )
     if( p_es->id != NULL )
         sout_StreamIdDel( p_stream->p_next, p_es->id );
 
-    vlc_list_remove(&p_es->node);
+    heimdall_list_remove(&p_es->node);
     es_format_Clean( &p_es->fmt );
     free( p_es );
 }
@@ -94,7 +95,7 @@ static int Send( sout_stream_t *p_stream, void *_p_es, block_t *p_buffer )
     sout_stream_sys_t *p_sys = (sout_stream_sys_t *)p_stream->p_sys;
     sout_stream_id_sys_t *p_es = (sout_stream_id_sys_t *)_p_es;
 
-    p_es->i_last = ( p_buffer->i_dts != VLC_TICK_INVALID ) ? p_buffer->i_dts
+    p_es->i_last = ( p_buffer->i_dts != HEIMDALL_TICK_INVALID ) ? p_buffer->i_dts
                                                            : p_sys->last_pcr;
     if ( !p_es->id && !p_es->b_error )
     {
@@ -112,7 +113,7 @@ static int Send( sout_stream_t *p_stream, void *_p_es, block_t *p_buffer )
     else
         block_ChainRelease( p_buffer );
 
-    vlc_list_foreach (p_es, &p_sys->ids, node)
+    heimdall_list_foreach (p_es, &p_sys->ids, node)
         if (p_es->id != NULL
          && (p_es->fmt.i_cat == VIDEO_ES || p_es->fmt.i_cat == AUDIO_ES)
          && p_es->i_last + p_sys->drop_delay < p_sys->last_pcr )
@@ -121,10 +122,10 @@ static int Send( sout_stream_t *p_stream, void *_p_es, block_t *p_buffer )
             p_es->id = NULL;
         }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void SetPCR( sout_stream_t *stream, vlc_tick_t pcr )
+static void SetPCR( sout_stream_t *stream, heimdall_tick_t pcr )
 {
     sout_stream_sys_t *sys = stream->p_sys;
     sys->last_pcr = pcr;
@@ -141,25 +142,25 @@ static const struct sout_stream_operations ops = {
     .set_pcr = SetPCR,
 };
 
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     sout_stream_t     *p_stream = (sout_stream_t*)p_this;
-    sout_stream_sys_t *p_sys = vlc_obj_malloc(p_this, sizeof (*p_sys));
+    sout_stream_sys_t *p_sys = heimdall_obj_malloc(p_this, sizeof (*p_sys));
 
     static const char *sout_options[] = {"drop-delay", NULL};
     config_ChainParse(p_stream, SOUT_CFG_PREFIX, sout_options, p_stream->p_cfg);
 
     if (unlikely(p_sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    p_sys->last_pcr = VLC_TICK_INVALID;
-    p_sys->drop_delay = VLC_TICK_FROM_MS(
+    p_sys->last_pcr = HEIMDALL_TICK_INVALID;
+    p_sys->drop_delay = HEIMDALL_TICK_FROM_MS(
         var_GetInteger(p_stream, SOUT_CFG_PREFIX "drop-delay"));
-    vlc_list_init(&p_sys->ids);
+    heimdall_list_init(&p_sys->ids);
     p_stream->ops = &ops;
     p_stream->p_sys = p_sys;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 #define DROP_DELAY_TEXT N_("Delay (ms) before track deletion")
@@ -169,7 +170,7 @@ static int Open( vlc_object_t *p_this )
        "if you believe your tracks are deleted too early.")
 
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname(N_("Autodel"))
     set_description(N_("Automatically add/delete input streams"))
     set_capability("sout filter", 50)
@@ -177,4 +178,4 @@ vlc_module_begin()
     set_callback(Open)
 
     add_integer(SOUT_CFG_PREFIX "drop-delay", 0, DROP_DELAY_TEXT, DROP_DELAY_LONGTEXT)
-vlc_module_end()
+heimdall_module_end()

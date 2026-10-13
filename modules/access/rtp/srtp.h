@@ -1,6 +1,7 @@
 /*
  * Secure RTP with libgcrypt
  * Copyright (C) 2007  Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License
@@ -17,8 +18,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  ****************************************************************************/
 
-#ifndef LIBVLC_SRTP_H
-# define LIBVLC_SRTP_H 1
+#ifndef LIBHEIMDALL_SRTP_H
+# define LIBHEIMDALL_SRTP_H 1
 
 typedef struct srtp_session_t srtp_session_t;
 

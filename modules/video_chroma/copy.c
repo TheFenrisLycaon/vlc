@@ -2,8 +2,9 @@
  * copy.c: Fast YV12/NV12 copy
  *****************************************************************************
  * Copyright (C) 2010 Laurent Aimar
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Laurent Aimar <fenrir _AT_ videolan _DOT_ org>
+ * Authors: Laurent Aimar <fenrir _AT_ lycaria _DOT_ org>
  *          Victorien Le Couviour--Tuffet <victorien.lecouviour.tuffet@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -29,9 +30,9 @@
 # undef NDEBUG
 #endif
 
-#include <vlc_common.h>
-#include <vlc_picture.h>
-#include <vlc_cpu.h>
+#include <heimdall_common.h>
+#include <heimdall_picture.h>
+#include <heimdall_cpu.h>
 #include <assert.h>
 
 #include "copy.h"
@@ -57,11 +58,11 @@ int CopyInitCache(copy_cache_t *cache, unsigned width)
     cache->size = __MAX((width + 0x3f) & ~ 0x3f, 16384);
     cache->buffer = aligned_alloc(64, cache->size);
     if (!cache->buffer)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 #else
     (void) cache; (void) width;
 #endif
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 void CopyCleanCache(copy_cache_t *cache)
@@ -122,21 +123,21 @@ void CopyCleanCache(copy_cache_t *cache)
     COPY64_S(dstp, srcp, load, store, "")
 
 #ifdef COPY_TEST_NOOPTIM
-# undef vlc_CPU_SSE4_1
-# define vlc_CPU_SSE4_1() (0)
-# undef vlc_CPU_SSE3
-# define vlc_CPU_SSE3() (0)
-# undef vlc_CPU_SSSE3
-# define vlc_CPU_SSSE3() (0)
-# undef vlc_CPU_SSE2
-# define vlc_CPU_SSE2() (0)
+# undef heimdall_CPU_SSE4_1
+# define heimdall_CPU_SSE4_1() (0)
+# undef heimdall_CPU_SSE3
+# define heimdall_CPU_SSE3() (0)
+# undef heimdall_CPU_SSSE3
+# define heimdall_CPU_SSSE3() (0)
+# undef heimdall_CPU_SSE2
+# define heimdall_CPU_SSE2() (0)
 #endif
 
 /* Optimized copy from "Uncacheable Speculative Write Combining" memory
  * as used by some video surface.
  * XXX It is really efficient only when SSE4.1 is available.
  */
-VLC_SSE
+HEIMDALL_SSE
 static void CopyFromUswc(uint8_t *dst, size_t dst_pitch,
                          const uint8_t *src, size_t src_pitch,
                          unsigned width, unsigned height, int bitshift)
@@ -149,7 +150,7 @@ static void CopyFromUswc(uint8_t *dst, size_t dst_pitch,
     for (unsigned y = 0; y < height; y++) { \
         const unsigned unaligned = (-(uintptr_t)src) & 0x0f; \
         unsigned x = unaligned; \
-        if (vlc_CPU_SSE4_1()) { \
+        if (heimdall_CPU_SSE4_1()) { \
             if (!unaligned) { \
                 for (; x+63 < width; x += 64) \
                     COPY64_S(&dst[x], &src[x], "movntdqa", "movdqa", shiftstr64); \
@@ -199,14 +200,14 @@ static void CopyFromUswc(uint8_t *dst, size_t dst_pitch,
             SSE_USWC_COPY(COPY16_SHIFTL("$2"), COPY64_SHIFTL("$2"))
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 #undef SSE_USWC_COPY
 
     asm volatile ("mfence");
 }
 
-VLC_SSE
+HEIMDALL_SSE
 static void Copy2d(uint8_t *dst, size_t dst_pitch,
                    const uint8_t *src, size_t src_pitch,
                    unsigned width, unsigned height)
@@ -233,7 +234,7 @@ static void Copy2d(uint8_t *dst, size_t dst_pitch,
     }
 }
 
-VLC_SSE
+HEIMDALL_SSE
 static void
 SSE_InterleaveUV(uint8_t *dst, size_t dst_pitch,
                  uint8_t *srcu, size_t srcu_pitch,
@@ -281,7 +282,7 @@ SSE_InterleaveUV(uint8_t *dst, size_t dst_pitch,
     "movdqu %%xmm3, 0x30(%[dst])\n"
 
 #ifdef CAN_COMPILE_SSSE3
-        if (vlc_CPU_SSSE3())
+        if (heimdall_CPU_SSSE3())
             for (x = 0; x < (width & ~31); x += 32)
                 asm volatile
                     (
@@ -349,7 +350,7 @@ SSE_InterleaveUV(uint8_t *dst, size_t dst_pitch,
     }
 }
 
-VLC_SSE
+HEIMDALL_SSE
 static void SSE_SplitUV(uint8_t *dstu, size_t dstu_pitch,
                         uint8_t *dstv, size_t dstv_pitch,
                         const uint8_t *src, size_t src_pitch,
@@ -375,7 +376,7 @@ static void SSE_SplitUV(uint8_t *dstu, size_t dstu_pitch,
     "movhpd %%xmm3,  24(%[dst2])\n"
 
 #ifdef CAN_COMPILE_SSSE3
-    if (vlc_CPU_SSSE3())
+    if (heimdall_CPU_SSSE3())
     {
         static const uint8_t shuffle_8[] = { 0, 2, 4, 6, 8, 10, 12, 14,
                                              1, 3, 5, 7, 9, 11, 13, 15 };
@@ -473,7 +474,7 @@ static void SSE_CopyPlane(uint8_t *dst, size_t dst_pitch,
     assert(hstep > 0);
 
     /* If SSE4.1: CopyFromUswc is faster than memcpy */
-    if (!vlc_CPU_SSE4_1() && bitshift == 0 && src_pitch == dst_pitch)
+    if (!heimdall_CPU_SSE4_1() && bitshift == 0 && src_pitch == dst_pitch)
         memcpy(dst, src, copy_pitch * height);
     else
     for (unsigned y = 0; y < height; y += hstep) {
@@ -649,7 +650,7 @@ void CopyPacked(picture_t *dst, const uint8_t *src, const size_t src_pitch,
     assert(height);
 
 #ifdef CAN_COMPILE_SSE2
-    if (vlc_CPU_SSE4_1())
+    if (heimdall_CPU_SSE4_1())
         return SSE_CopyPlane(dst->p[0].p_pixels, dst->p[0].i_pitch, src, src_pitch,
                              cache->buffer, cache->size, height, 0);
 #else
@@ -665,7 +666,7 @@ void Copy420_SP_to_SP(picture_t *dst, const uint8_t *src[static 2],
 {
     ASSERT_2PLANES;
 #ifdef CAN_COMPILE_SSE2
-    if (vlc_CPU_SSE2())
+    if (heimdall_CPU_SSE2())
         return SSE_Copy420_SP_to_SP(dst, src, src_pitch, height, cache);
 #else
     (void) cache;
@@ -742,10 +743,10 @@ void Copy420_SP_to_P(picture_t *dst, const uint8_t *src[static 2],
 {
     ASSERT_2PLANES;
 #ifdef CAN_COMPILE_SSE2
-    if (vlc_CPU_SSE2())
+    if (heimdall_CPU_SSE2())
         return SSE_Copy420_SP_to_P(dst, src, src_pitch, height, 1, 0, cache);
 #else
-    VLC_UNUSED(cache);
+    HEIMDALL_UNUSED(cache);
 #endif
 
     CopyPlane(dst->p[0].p_pixels, dst->p[0].i_pitch,
@@ -763,10 +764,10 @@ void Copy420_16_SP_to_P(picture_t *dst, const uint8_t *src[static 2],
     assert(bitshift >= -6 && bitshift <= 6 && (bitshift % 2 == 0));
 
 #ifdef CAN_COMPILE_SSE3
-    if (vlc_CPU_SSSE3())
+    if (heimdall_CPU_SSSE3())
         return SSE_Copy420_SP_to_P(dst, src, src_pitch, height, 2, bitshift, cache);
 #else
-    VLC_UNUSED(cache);
+    HEIMDALL_UNUSED(cache);
 #endif
 
     CopyPlane(dst->p[0].p_pixels, dst->p[0].i_pitch,
@@ -818,7 +819,7 @@ void Copy420_P_to_SP(picture_t *dst, const uint8_t *src[static 3],
 {
     ASSERT_3PLANES;
 #ifdef CAN_COMPILE_SSE2
-    if (vlc_CPU_SSE2())
+    if (heimdall_CPU_SSE2())
         return SSE_Copy420_P_to_SP(dst, src, src_pitch, height, 1, 0, cache);
 #else
     (void) cache;
@@ -849,7 +850,7 @@ void Copy420_16_P_to_SP(picture_t *dst, const uint8_t *src[static 3],
     ASSERT_3PLANES;
     assert(bitshift >= -6 && bitshift <= 6 && (bitshift % 2 == 0));
 #ifdef CAN_COMPILE_SSE2
-    if (vlc_CPU_SSSE3())
+    if (heimdall_CPU_SSSE3())
         return SSE_Copy420_P_to_SP(dst, src, src_pitch, height, 2, bitshift, cache);
 #else
     (void) cache;
@@ -883,7 +884,7 @@ void Copy420_P_to_P(picture_t *dst, const uint8_t *src[static 3],
 {
     ASSERT_3PLANES;
 #ifdef CAN_COMPILE_SSE2
-    if (vlc_CPU_SSE2())
+    if (heimdall_CPU_SSE2())
         return SSE_Copy420_P_to_P(dst, src, src_pitch, height, cache);
 #else
     (void) cache;
@@ -907,9 +908,9 @@ int picture_UpdatePlanes(picture_t *picture, uint8_t *data, unsigned pitch)
     assert(picture->p->i_visible_lines <= picture->p->i_lines);
 
     /*  Fill chroma planes for biplanar YUV */
-    if (picture->format.i_chroma == VLC_CODEC_NV12 ||
-        picture->format.i_chroma == VLC_CODEC_NV21 ||
-        picture->format.i_chroma == VLC_CODEC_P010) {
+    if (picture->format.i_chroma == HEIMDALL_CODEC_NV12 ||
+        picture->format.i_chroma == HEIMDALL_CODEC_NV21 ||
+        picture->format.i_chroma == HEIMDALL_CODEC_P010) {
 
         for (int n = 1; n < picture->i_planes; n++) {
             const plane_t *o = &picture->p[n-1];
@@ -921,13 +922,13 @@ int picture_UpdatePlanes(picture_t *picture, uint8_t *data, unsigned pitch)
             assert(p->i_visible_pitch <= p->i_pitch);
             assert(p->i_visible_lines <= p->i_lines);
         }
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
     /*  Fill chroma planes for planar YUV */
     else
-    if (picture->format.i_chroma == VLC_CODEC_I420 ||
-        picture->format.i_chroma == VLC_CODEC_YV12) {
+    if (picture->format.i_chroma == HEIMDALL_CODEC_I420 ||
+        picture->format.i_chroma == HEIMDALL_CODEC_YV12) {
 
         for (int n = 1; n < picture->i_planes; n++) {
             const plane_t *o = &picture->p[n-1];
@@ -937,18 +938,18 @@ int picture_UpdatePlanes(picture_t *picture, uint8_t *data, unsigned pitch)
             p->i_pitch  = pitch / 2;
             p->i_lines  = picture->format.i_height / 2;
         }
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
-    return VLC_ENOTSUP;
+    return HEIMDALL_ENOTSUP;
 }
 
 #ifdef COPY_TEST
 
-#include <vlc_picture.h>
+#include <heimdall_picture.h>
 
 struct test_dst
 {
-    vlc_fourcc_t chroma;
+    heimdall_fourcc_t chroma;
     int bitshift;
     union
     {
@@ -961,24 +962,24 @@ struct test_dst
 
 struct test_conv
 {
-    vlc_fourcc_t src_chroma;
+    heimdall_fourcc_t src_chroma;
     struct test_dst dsts[3];
 };
 
 static const struct test_conv convs[] = {
-    { .src_chroma = VLC_CODEC_NV12,
-      .dsts = { { VLC_CODEC_I420, 0, .conv = Copy420_SP_to_P },
-                { VLC_CODEC_NV12, 0, .conv = Copy420_SP_to_SP } },
+    { .src_chroma = HEIMDALL_CODEC_NV12,
+      .dsts = { { HEIMDALL_CODEC_I420, 0, .conv = Copy420_SP_to_P },
+                { HEIMDALL_CODEC_NV12, 0, .conv = Copy420_SP_to_SP } },
     },
-    { .src_chroma = VLC_CODEC_I420,
-      .dsts = { { VLC_CODEC_I420, 0, .conv = Copy420_P_to_P },
-                { VLC_CODEC_NV12, 0, .conv = Copy420_P_to_SP } },
+    { .src_chroma = HEIMDALL_CODEC_I420,
+      .dsts = { { HEIMDALL_CODEC_I420, 0, .conv = Copy420_P_to_P },
+                { HEIMDALL_CODEC_NV12, 0, .conv = Copy420_P_to_SP } },
     },
-    { .src_chroma = VLC_CODEC_P010,
-      .dsts = { { VLC_CODEC_I420_10L, 6, .conv16 = Copy420_16_SP_to_P } },
+    { .src_chroma = HEIMDALL_CODEC_P010,
+      .dsts = { { HEIMDALL_CODEC_I420_10L, 6, .conv16 = Copy420_16_SP_to_P } },
     },
-    { .src_chroma = VLC_CODEC_I420_10L,
-      .dsts = { { VLC_CODEC_P010, -6, .conv16 = Copy420_16_P_to_SP } },
+    { .src_chroma = HEIMDALL_CODEC_I420_10L,
+      .dsts = { { HEIMDALL_CODEC_P010, -6, .conv16 = Copy420_16_P_to_SP } },
     },
 };
 #define NB_CONVS ARRAY_SIZE(convs)
@@ -1004,7 +1005,7 @@ static const struct test_size sizes[] = {
 };
 #define NB_SIZES ARRAY_SIZE(sizes)
 
-static void piccheck(picture_t *pic, const vlc_chroma_description_t *dsc,
+static void piccheck(picture_t *pic, const heimdall_chroma_description_t *dsc,
                      bool init)
 {
 #define ASSERT_COLOR(good) do { \
@@ -1056,14 +1057,14 @@ static void piccheck(picture_t *pic, const vlc_chroma_description_t *dsc,
 
         switch (pic->format.i_chroma)
         {
-            case VLC_CODEC_P010:
+            case HEIMDALL_CODEC_P010:
                 for (size_t i = 0; i < 3; ++i)
                     colors_16_P[i] <<= 6;
                 break;
-            case VLC_CODEC_I420_10L:
+            case HEIMDALL_CODEC_I420_10L:
                 break;
             default:
-                vlc_assert_unreachable();
+                heimdall_assert_unreachable();
         }
 
         uint32_t color_16_UV = GetDWLE( &colors_16_P[1] );
@@ -1083,7 +1084,7 @@ static picture_t *pic_new_unaligned(const video_format_t *fmt)
     /* Allocate a no-aligned picture in order to ease buffer overflow detection
      * from the source picture */
     unsigned i = 0;
-    const vlc_chroma_description_t *dsc = vlc_fourcc_GetChromaDescription(fmt->i_chroma);
+    const heimdall_chroma_description_t *dsc = heimdall_fourcc_GetChromaDescription(fmt->i_chroma);
     assert(dsc);
     picture_resource_t rsc = { .pf_destroy = pic_rsc_destroy };
     for (; i < dsc->plane_count; i++)
@@ -1111,7 +1112,7 @@ int main(void)
 
 #ifndef COPY_TEST_NOOPTIM
 #ifdef CAN_COMPILE_SSE2
-    if (!vlc_CPU_SSE2())
+    if (!heimdall_CPU_SSE2())
 #endif
     {
         fprintf(stderr, "WARNING: could not test SSE\n");
@@ -1127,8 +1128,8 @@ int main(void)
         {
             const struct test_size *size = &sizes[j];
 
-            const vlc_chroma_description_t *src_dsc =
-                vlc_fourcc_GetChromaDescription(conv->src_chroma);
+            const heimdall_chroma_description_t *src_dsc =
+                heimdall_fourcc_GetChromaDescription(conv->src_chroma);
             assert(src_dsc);
 
             video_format_t fmt;
@@ -1144,14 +1145,14 @@ int main(void)
             copy_cache_t cache;
             int ret = CopyInitCache(&cache, src->format.i_width
                                     * src_dsc->pixel_size);
-            assert(ret == VLC_SUCCESS);
+            assert(ret == HEIMDALL_SUCCESS);
 
             for (size_t f = 0; conv->dsts[f].chroma != 0; ++f)
             {
                 const struct test_dst *test_dst= &conv->dsts[f];
 
-                const vlc_chroma_description_t *dst_dsc =
-                    vlc_fourcc_GetChromaDescription(test_dst->chroma);
+                const heimdall_chroma_description_t *dst_dsc =
+                    heimdall_fourcc_GetChromaDescription(test_dst->chroma);
                 assert(dst_dsc);
                 fmt.i_chroma = test_dst->chroma;
                 picture_t *dst = picture_NewFromFormat(&fmt);

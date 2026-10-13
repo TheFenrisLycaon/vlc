@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Benjamin Arnaud <bunjee@omega.gg>
  *
@@ -20,7 +21,7 @@
 
 import QtQuick
 
-import VLC.Style
+import Heimdall.Style
 
 StateGroup {
     id: root
@@ -60,7 +61,7 @@ StateGroup {
                 NumberAnimation {
                     property: "opacity"
 
-                    duration: VLCStyle.duration_long
+                    duration: HeimdallStyle.duration_long
                     easing.type: Easing.InSine
                 }
 
@@ -80,7 +81,7 @@ StateGroup {
                 NumberAnimation {
                     property: "opacity"
 
-                    duration: VLCStyle.duration_long
+                    duration: HeimdallStyle.duration_long
                     easing.type: Easing.OutSine
                 }
             }

@@ -2,6 +2,7 @@
  * subtitles.c : subtitles detection
  *****************************************************************************
  * Copyright (C) 2003-2009 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Derk-Jan Hartman <hartman at videolan.org>
  * This is adapted code from the GPL'ed MPlayer (http://mplayerhq.hu)
@@ -34,10 +35,10 @@
 #include <unistd.h>
 #include <sys/stat.h>
 
-#include <vlc_common.h>
-#include <vlc_arrays.h>
-#include <vlc_fs.h>
-#include <vlc_url.h>
+#include <heimdall_common.h>
+#include <heimdall_arrays.h>
+#include <heimdall_fs.h>
+#include <heimdall_url.h>
 
 #include "input_internal.h"
 
@@ -69,7 +70,7 @@ static void filename_strip_ext_inplace(char *str)
  * the trimmed version of the string is needed and the returned
  * pointer must not be free()d but rather the original pointer!
  */
-VLC_USED static char *filename_trim_inplace(char *str)
+HEIMDALL_USED static char *filename_trim_inplace(char *str)
 {
     char *ret = str;
     unsigned char c;
@@ -215,24 +216,24 @@ static char **paths_to_list( const char *psz_dir, char *psz_path )
  * \param psz_name_org the complete filename to base the search on.
  * \param ppp_slaves an initialized input item slave list to append detected subtitles to
  * \param p_slaves pointer to the size of the slave list
- * \return VLC_SUCCESS if ok
+ * \return HEIMDALL_SUCCESS if ok
  */
 int subtitles_Detect( input_thread_t *p_this, char *psz_path, const char *psz_name_org,
                       input_item_slave_t ***ppp_slaves, int *p_slaves )
 {
     int i_fuzzy = var_GetInteger( p_this, "sub-autodetect-fuzzy" );
     if ( i_fuzzy == 0 )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     input_item_slave_t **pp_slaves = *ppp_slaves;
     int i_slaves = *p_slaves;
     char **subdirs; /* list of subdirectories to look in */
 
     if( !psz_name_org )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    char *psz_fname_ext = vlc_uri2path( psz_name_org );
+    char *psz_fname_ext = heimdall_uri2path( psz_name_org );
     if( !psz_fname_ext )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     char *psz_fname = strdup( psz_fname_ext );
     char *f_dir = strdup( psz_fname_ext );
@@ -241,7 +242,7 @@ int subtitles_Detect( input_thread_t *p_this, char *psz_path, const char *psz_na
         free( psz_fname_ext );
         free( psz_fname );
         free( f_dir );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     /* extract filename & dirname from psz_fname */
@@ -251,7 +252,7 @@ int subtitles_Detect( input_thread_t *p_this, char *psz_path, const char *psz_na
         free( f_dir );
         free( psz_fname_ext );
         free( psz_fname );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     f_fname_trim++; /* Skip the '/' */
     f_dir[f_fname_trim - psz_fname] = 0; /* keep dir separator in f_dir */
@@ -267,14 +268,14 @@ int subtitles_Detect( input_thread_t *p_this, char *psz_path, const char *psz_na
             continue;
 
         /* parse psz_src dir */
-        vlc_DIR *dir = vlc_opendir( psz_dir );
+        heimdall_DIR *dir = heimdall_opendir( psz_dir );
         if( dir == NULL )
             continue;
 
         msg_Dbg( p_this, "looking for a subtitle file in %s", psz_dir );
 
         const char *psz_name;
-        while( (psz_name = vlc_readdir( dir )) )
+        while( (psz_name = heimdall_readdir( dir )) )
         {
             if( psz_name[0] == '.' || !subtitles_Filter( psz_name ) )
                 continue;
@@ -337,13 +338,13 @@ int subtitles_Detect( input_thread_t *p_this, char *psz_path, const char *psz_na
                     continue;
 
                 if( strcmp( path, psz_fname_ext )
-                 && vlc_stat( path, &st ) == 0
+                 && heimdall_stat( path, &st ) == 0
                  && S_ISREG( st.st_mode ) )
                 {
                     msg_Dbg( p_this,
                             "autodetected subtitle: %s with priority %d",
                             path, i_prio );
-                    char *psz_uri = vlc_path2uri( path, NULL );
+                    char *psz_uri = heimdall_path2uri( path, NULL );
                     input_item_slave_t *p_sub = psz_uri != NULL ?
                         input_item_slave_New( psz_uri, SLAVE_TYPE_SPU, i_prio )
                         : NULL;
@@ -357,7 +358,7 @@ int subtitles_Detect( input_thread_t *p_this, char *psz_path, const char *psz_na
                 free( path );
             }
         }
-        vlc_closedir( dir );
+        heimdall_closedir( dir );
     }
     if( subdirs )
     {
@@ -425,5 +426,5 @@ int subtitles_Detect( input_thread_t *p_this, char *psz_path, const char *psz_na
 
     *ppp_slaves = pp_slaves; /* in case of realloc */
     *p_slaves = i_slaves;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,8 +16,8 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
-#ifndef VLC_COMPOSITOR_DUMMY
-#define VLC_COMPOSITOR_DUMMY
+#ifndef HEIMDALL_COMPOSITOR_DUMMY
+#define HEIMDALL_COMPOSITOR_DUMMY
 
 #ifdef HAVE_CONFIG_H
 # include "config.h"
@@ -29,7 +30,7 @@ class MainCtx;
 class QQuickView;
 class InterfaceWindowHandler;
 
-namespace vlc {
+namespace heimdall {
 
 class CompositorDummy : public QObject, public Compositor
 {
@@ -54,7 +55,7 @@ public:
      */
     void unloadGUI() override;
 
-    bool setupVoutWindow(vlc_window_t *p_wnd, VoutDestroyCb destroyCb) override;
+    bool setupVoutWindow(heimdall_window_t *p_wnd, VoutDestroyCb destroyCb) override;
 
     QWindow* interfaceMainWindow() const override;
 
@@ -72,4 +73,4 @@ protected:
 
 }
 
-#endif // VLC_COMPOSITOR_DUMMY
+#endif // HEIMDALL_COMPOSITOR_DUMMY

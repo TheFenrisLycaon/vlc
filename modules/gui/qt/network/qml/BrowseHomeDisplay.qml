@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,11 +23,11 @@ import QtQml.Models
 import QtQml
 
 
-import VLC.Widgets as Widgets
-import VLC.MainInterface
-import VLC.Util
-import VLC.Style
-import VLC.Network
+import Heimdall.Widgets as Widgets
+import Heimdall.MainInterface
+import Heimdall.Util
+import Heimdall.Style
+import Heimdall.Network
 
 Widgets.PageExt {
     id: root
@@ -115,7 +116,7 @@ Widgets.PageExt {
         visible: [foldersSection, computerSection, deviceSection, lanSection]
                  .every(section => !section.model.loading && section.model.count === 0)
 
-        font.pixelSize: VLCStyle.fontHeight_xxlarge
+        font.pixelSize: HeimdallStyle.fontHeight_xxlarge
         color: root.activeFocus ? theme.accent : theme.fg.primary
         text: qsTr("No network shares found")
     }
@@ -136,7 +137,7 @@ Widgets.PageExt {
         focus: true
 
         pixelAligned: (MainCtx.qtVersion() >= MainCtx.qtVersionCheck(6, 2, 5)) // QTBUG-103996
-                      && (Screen.pixelDensity >= VLCStyle.highPixelDensityThreshold) // no need for sub-pixel alignment with high pixel density
+                      && (Screen.pixelDensity >= HeimdallStyle.highPixelDensityThreshold) // no need for sub-pixel alignment with high pixel density
 
         contentWidth: column.width
         contentHeight: column.height
@@ -150,7 +151,7 @@ Widgets.PageExt {
 
             // NOTE: Usage of `SmoothedAnimation` is intentional here.
             SmoothedAnimation {
-                duration: VLCStyle.duration_veryLong
+                duration: HeimdallStyle.duration_veryLong
                 easing.type: Easing.InOutSine
             }
         }
@@ -196,7 +197,7 @@ Widgets.PageExt {
             height: implicitHeight
 
             spacing: 0 // relied on the generous padding of ViewHeader instead
-            bottomPadding: VLCStyle.margin_normal // topPadding taken care by ViewHeader
+            bottomPadding: HeimdallStyle.margin_normal // topPadding taken care by ViewHeader
 
             Navigation.parentItem: root
             Navigation.upItem: root.header

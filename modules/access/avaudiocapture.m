@@ -2,11 +2,12 @@
  * avaudiocapture.m: AVFoundation based audio capture module
  *****************************************************************************
  * Copyright © 2018 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Pierre d'Herbemont <pdherbemont@videolan.org>
  *          Gustaf Neumann <neumann@wu.ac.at>
  *          Michael S. Feurstein <michael.feurstein@wu.ac.at>
- *          David Fuhrmann <dfuhrmann at videolan dot org>
+ *          David Fuhrmann <dfuhrmann at lycaria dot org>
  *
  ****************************************************************************
  * This program is free software; you can redistribute it and/or modify it
@@ -34,11 +35,11 @@
 
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_input.h>
-#include <vlc_demux.h>
-#include <vlc_dialog.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_input.h>
+#include <heimdall_demux.h>
+#include <heimdall_dialog.h>
 
 #import <AvailabilityMacros.h>
 #import <AVFoundation/AVFoundation.h>
@@ -68,7 +69,7 @@ typedef struct demux_sys_t
 /*****************************************************************************
 * AVFoundation Bridge
 *****************************************************************************/
-@interface VLCAVDecompressedAudioOutput : AVCaptureAudioDataOutput<AVCaptureAudioDataOutputSampleBufferDelegate>
+@interface HeimdallAVDecompressedAudioOutput : AVCaptureAudioDataOutput<AVCaptureAudioDataOutputSampleBufferDelegate>
 {
     demux_t *p_avcapture;
     date_t date;
@@ -76,7 +77,7 @@ typedef struct demux_sys_t
 
 @end
 
-@implementation VLCAVDecompressedAudioOutput : AVCaptureAudioDataOutput
+@implementation HeimdallAVDecompressedAudioOutput : AVCaptureAudioDataOutput
 
 - (id)initWithDemux:(demux_t *)p_demux
 {
@@ -85,7 +86,7 @@ typedef struct demux_sys_t
         p_avcapture = p_demux;
 
         date_Init(&date, 44100, 1);
-        date_Set(&date, VLC_TICK_0);
+        date_Set(&date, HEIMDALL_TICK_0);
     }
     return self;
 }
@@ -157,28 +158,28 @@ static int Control(demux_t *p_demux, int i_query, va_list args)
         case DEMUX_CAN_CONTROL_PACE:
             pb = (bool*)va_arg(args, bool *);
             *pb = false;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
 
         case DEMUX_GET_PTS_DELAY:
-            *va_arg(args, vlc_tick_t *) =
-            VLC_TICK_FROM_MS(var_InheritInteger(p_demux, "live-caching"));
-            return VLC_SUCCESS;
+            *va_arg(args, heimdall_tick_t *) =
+            HEIMDALL_TICK_FROM_MS(var_InheritInteger(p_demux, "live-caching"));
+            return HEIMDALL_SUCCESS;
 
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /*****************************************************************************
 * Open:
 *****************************************************************************/
-static int Open(vlc_object_t *p_this)
+static int Open(heimdall_object_t *p_this)
 {
     demux_t *p_demux = (demux_t*)p_this;
 
     if (p_demux->out == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     @autoreleasepool {
         NSString *currentDeviceId = @"";
@@ -209,16 +210,16 @@ static int Open(vlc_object_t *p_this)
         }
 
         if (!device) {
-            vlc_dialog_display_error(p_demux, _("No Audio Input device found"),
+            heimdall_dialog_display_error(p_demux, _("No Audio Input device found"),
                                      _("Your Mac does not seem to be equipped with a suitable audio input device."
                                        "Please check your connectors and drivers."));
             msg_Err(p_demux, "Can't find any Audio device");
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         if (device.isInUseByAnotherApplication) {
             msg_Err(p_demux, "Capture device is exclusively in use by another application");
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         if (@available(macOS 10.14, *)) {
@@ -233,11 +234,11 @@ static int Open(vlc_object_t *p_this)
             dispatch_semaphore_wait(sema, DISPATCH_TIME_FOREVER);
             if (!accessGranted) {
                 msg_Err(p_demux, "Can't use the audio device as access has not been granted by the user");
-                vlc_dialog_display_error(p_demux, _("Problem accessing a system resource"),
+                heimdall_dialog_display_error(p_demux, _("Problem accessing a system resource"),
                     _("Please open \"System Preferences\" -> \"Security & Privacy\" "
-                      "and allow VLC to access your microphone."));
+                      "and allow Heimdall to access your microphone."));
 
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             }
         }
 
@@ -245,11 +246,11 @@ static int Open(vlc_object_t *p_this)
         AVCaptureDeviceInput *input = [AVCaptureDeviceInput deviceInputWithDevice:device error:&error];
         if (!input) {
             msg_Err(p_demux, "can't create a valid capture input facility (%ld)", [error code]);
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         /* Now we can init */
-        int audiocodec = VLC_CODEC_FL32;
+        int audiocodec = HEIMDALL_CODEC_FL32;
         es_format_t audiofmt;
         es_format_Init(&audiofmt, AUDIO_ES, audiocodec);
 
@@ -276,7 +277,7 @@ static int Open(vlc_object_t *p_this)
         AVCaptureSession *session = [[AVCaptureSession alloc] init];
         [session addInput:input];
 
-        VLCAVDecompressedAudioOutput *output = [[VLCAVDecompressedAudioOutput alloc] initWithDemux:p_demux];
+        HeimdallAVDecompressedAudioOutput *output = [[HeimdallAVDecompressedAudioOutput alloc] initWithDemux:p_demux];
         [session addOutput:output];
 
         dispatch_queue_t queue = dispatch_queue_create("avCaptureQueue", NULL);
@@ -300,21 +301,21 @@ static int Open(vlc_object_t *p_this)
         demux_sys_t *p_sys = NULL;
         p_demux->p_sys = p_sys = calloc(1, sizeof(demux_sys_t));
         if (!p_sys)
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
 
         p_sys->session = CFBridgingRetain(session);
         p_sys->p_es_audio = es_out_Add(p_demux->out, &audiofmt);
 
         [session startRunning];
         msg_Dbg(p_demux, "AVCapture: Audio device ready!");
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 }
 
 /*****************************************************************************
 * Close:
 *****************************************************************************/
-static void Close(vlc_object_t *p_this)
+static void Close(heimdall_object_t *p_this)
 {
     demux_t             *p_demux = (demux_t*)p_this;
     demux_sys_t         *p_sys = p_demux->p_sys;
@@ -337,11 +338,11 @@ static void Close(vlc_object_t *p_this)
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-vlc_module_begin ()
+heimdall_module_begin ()
 set_shortname(N_("AVFoundation Audio Capture"))
 set_description(N_("AVFoundation audio capture module."))
 set_subcategory(SUBCAT_INPUT_ACCESS)
 add_shortcut("qtsound")
 set_capability("access", 0)
 set_callbacks(Open, Close)
-vlc_module_end ()
+heimdall_module_end ()

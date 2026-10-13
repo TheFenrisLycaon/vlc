@@ -2,6 +2,7 @@
  * BufferingLogic.cpp
  *****************************************************************************
  * Copyright (C) 2014 - 2020 VideoLabs, VideoLAN and VLC authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -36,10 +37,10 @@ using namespace adaptive;
 using namespace adaptive::playlist;
 using namespace adaptive::logic;
 
-const vlc_tick_t AbstractBufferingLogic::BUFFERING_LOWEST_LIMIT = VLC_TICK_FROM_SEC(2);
-const vlc_tick_t AbstractBufferingLogic::DEFAULT_MIN_BUFFERING = VLC_TICK_FROM_SEC(6);
-const vlc_tick_t AbstractBufferingLogic::DEFAULT_MAX_BUFFERING = VLC_TICK_FROM_SEC(30);
-const vlc_tick_t AbstractBufferingLogic::DEFAULT_LIVE_BUFFERING = VLC_TICK_FROM_SEC(15);
+const heimdall_tick_t AbstractBufferingLogic::BUFFERING_LOWEST_LIMIT = HEIMDALL_TICK_FROM_SEC(2);
+const heimdall_tick_t AbstractBufferingLogic::DEFAULT_MIN_BUFFERING = HEIMDALL_TICK_FROM_SEC(6);
+const heimdall_tick_t AbstractBufferingLogic::DEFAULT_MAX_BUFFERING = HEIMDALL_TICK_FROM_SEC(30);
+const heimdall_tick_t AbstractBufferingLogic::DEFAULT_LIVE_BUFFERING = HEIMDALL_TICK_FROM_SEC(15);
 
 AbstractBufferingLogic::AbstractBufferingLogic()
 {
@@ -53,17 +54,17 @@ void AbstractBufferingLogic::setLowDelay(bool b)
     userLowLatency = b;
 }
 
-void AbstractBufferingLogic::setUserMinBuffering(vlc_tick_t v)
+void AbstractBufferingLogic::setUserMinBuffering(heimdall_tick_t v)
 {
     userMinBuffering = v;
 }
 
-void AbstractBufferingLogic::setUserMaxBuffering(vlc_tick_t v)
+void AbstractBufferingLogic::setUserMaxBuffering(heimdall_tick_t v)
 {
     userMaxBuffering = v;
 }
 
-void AbstractBufferingLogic::setUserLiveDelay(vlc_tick_t v)
+void AbstractBufferingLogic::setUserLiveDelay(heimdall_tick_t v)
 {
     userLiveDelay = v;
 }
@@ -89,34 +90,34 @@ uint64_t DefaultBufferingLogic::getStartSegmentNumber(BaseRepresentation *rep) c
     if(!profile)
         return 0;
     uint64_t num = profile->getStartSegmentNumber();
-    vlc_tick_t offset = rep->getPlaylist()->presentationStartOffset;
+    heimdall_tick_t offset = rep->getPlaylist()->presentationStartOffset;
     if(offset > 0)
     {
-        vlc_tick_t startTime, duration;
+        heimdall_tick_t startTime, duration;
         if(profile->getPlaybackTimeDurationBySegmentNumber(num, &startTime, &duration))
             profile->getSegmentNumberByTime(startTime + offset, &num);
     }
     return num;
 }
 
-vlc_tick_t DefaultBufferingLogic::getMinBuffering(const BasePlaylist *p) const
+heimdall_tick_t DefaultBufferingLogic::getMinBuffering(const BasePlaylist *p) const
 {
     if(isLowLatency(p))
         return BUFFERING_LOWEST_LIMIT;
 
-    vlc_tick_t buffering = userMinBuffering ? userMinBuffering
+    heimdall_tick_t buffering = userMinBuffering ? userMinBuffering
                                             : DEFAULT_MIN_BUFFERING;
     if(p->getMinBuffering())
         buffering = std::max(buffering, p->getMinBuffering());
     return std::max(buffering, BUFFERING_LOWEST_LIMIT);
 }
 
-vlc_tick_t DefaultBufferingLogic::getMaxBuffering(const BasePlaylist *p) const
+heimdall_tick_t DefaultBufferingLogic::getMaxBuffering(const BasePlaylist *p) const
 {
     if(isLowLatency(p))
         return getMinBuffering(p);
 
-    vlc_tick_t buffering = userMaxBuffering ? userMaxBuffering
+    heimdall_tick_t buffering = userMaxBuffering ? userMaxBuffering
                                             : DEFAULT_MAX_BUFFERING;
     if(p->isLive())
         buffering = std::min(buffering, getLiveDelay(p));
@@ -125,11 +126,11 @@ vlc_tick_t DefaultBufferingLogic::getMaxBuffering(const BasePlaylist *p) const
     return std::max(buffering, getMinBuffering(p));
 }
 
-vlc_tick_t DefaultBufferingLogic::getLiveDelay(const BasePlaylist *p) const
+heimdall_tick_t DefaultBufferingLogic::getLiveDelay(const BasePlaylist *p) const
 {
     if(isLowLatency(p))
         return getMinBuffering(p);
-    vlc_tick_t delay = userLiveDelay ? userLiveDelay
+    heimdall_tick_t delay = userLiveDelay ? userLiveDelay
                                      : DEFAULT_LIVE_BUFFERING;
     if(p->suggestedPresentationDelay)
         delay = p->suggestedPresentationDelay;
@@ -140,14 +141,14 @@ vlc_tick_t DefaultBufferingLogic::getLiveDelay(const BasePlaylist *p) const
     return std::max(delay, getMinBuffering(p));
 }
 
-vlc_tick_t DefaultBufferingLogic::getStableBuffering(const BasePlaylist *p) const
+heimdall_tick_t DefaultBufferingLogic::getStableBuffering(const BasePlaylist *p) const
 {
-    vlc_tick_t min = getMinBuffering(p);
+    heimdall_tick_t min = getMinBuffering(p);
     if(isLowLatency(p))
         return min;
     if(p->isLive())
         return std::max(min, getLiveDelay(p) * 6/10);
-    vlc_tick_t max = getMaxBuffering(p);
+    heimdall_tick_t max = getMaxBuffering(p);
     return std::min(getMinBuffering(p) * 2, max);
 }
 
@@ -156,7 +157,7 @@ uint64_t DefaultBufferingLogic::getLiveStartSegmentNumber(BaseRepresentation *re
     BasePlaylist *playlist = rep->getPlaylist();
 
     /* Get buffering offset min <= max <= live delay */
-    vlc_tick_t i_buffering = getBufferingOffset(playlist);
+    heimdall_tick_t i_buffering = getBufferingOffset(playlist);
 
     SegmentList *segmentList = rep->inheritSegmentList();
     SegmentBase *segmentBase = rep->inheritSegmentBase();
@@ -240,23 +241,23 @@ uint64_t DefaultBufferingLogic::getLiveStartSegmentNumber(BaseRepresentation *re
         if(scaledduration)
         {
             /* Compute playback offset and effective finished segment from wall time */
-            vlc_tick_t now = vlc_tick_from_sec(time(nullptr));
-            vlc_tick_t playbacktime = now - i_buffering;
-            vlc_tick_t minavailtime = playlist->availabilityStartTime + rep->getPeriodStart();
+            heimdall_tick_t now = heimdall_tick_from_sec(time(nullptr));
+            heimdall_tick_t playbacktime = now - i_buffering;
+            heimdall_tick_t minavailtime = playlist->availabilityStartTime + rep->getPeriodStart();
             const uint64_t startnumber = mediaSegmentTemplate->inheritStartNumber();
             const Timescale timescale = mediaSegmentTemplate->inheritTimescale();
             if(!timescale)
                 return startnumber;
-            const vlc_tick_t duration = timescale.ToTime(scaledduration);
+            const heimdall_tick_t duration = timescale.ToTime(scaledduration);
             if(!duration)
                 return startnumber;
 
             /* restrict to DVR window */
             if(playlist->timeShiftBufferDepth)
             {
-                vlc_tick_t elapsed = now - minavailtime;
+                heimdall_tick_t elapsed = now - minavailtime;
                 elapsed = elapsed - (elapsed % duration); /* align to last segment */
-                vlc_tick_t alignednow = minavailtime + elapsed;
+                heimdall_tick_t alignednow = minavailtime + elapsed;
                 if(playlist->timeShiftBufferDepth < elapsed)
                     minavailtime = alignednow - playlist->timeShiftBufferDepth;
 
@@ -380,7 +381,7 @@ uint64_t DefaultBufferingLogic::getLiveStartSegmentNumber(BaseRepresentation *re
     return std::numeric_limits<uint64_t>::max();
 }
 
-vlc_tick_t DefaultBufferingLogic::getBufferingOffset(const BasePlaylist *p) const
+heimdall_tick_t DefaultBufferingLogic::getBufferingOffset(const BasePlaylist *p) const
 {
     return p->isLive() ? getLiveDelay(p) : getMaxBuffering(p);
 }

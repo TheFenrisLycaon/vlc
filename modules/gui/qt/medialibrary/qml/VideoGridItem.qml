@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,12 +18,12 @@
  *****************************************************************************/
 import QtQuick
 
-import VLC.MainInterface
-import VLC.MediaLibrary
+import Heimdall.MainInterface
+import Heimdall.MediaLibrary
 
-import VLC.Widgets as Widgets
-import VLC.Util
-import VLC.Style
+import Heimdall.Widgets as Widgets
+import Heimdall.Util
+import Heimdall.Style
 
 Widgets.GridItem {
     id: root
@@ -39,13 +40,13 @@ Widgets.GridItem {
     }
 
     image: model.thumbnail || ""
-    fallbackImage: VLCStyle.noArtVideoCover
+    fallbackImage: HeimdallStyle.noArtVideoCover
     fillMode: Image.Stretch
 
     title: model.title || qsTr("Unknown title")
     subtitle: model?.duration?.formatHMS() ?? ""
-    pictureWidth: VLCStyle.gridCover_video_width
-    pictureHeight: VLCStyle.gridCover_video_height
+    pictureWidth: HeimdallStyle.gridCover_video_width
+    pictureHeight: HeimdallStyle.gridCover_video_height
 
     // Bottom rounding is provided by the progress bar if it is visible:
     mediaCover.radiusBottomLeft: progressBar.visible ? 0.0 : mediaCover.radius
@@ -97,21 +98,21 @@ Widgets.GridItem {
             anchors.right: parent.right
             anchors.top: parent.top
 
-            width: VLCStyle.gridItem_newIndicator
+            width: HeimdallStyle.gridItem_newIndicator
             height: width
 
             visible: root.showNewIndicator
 
-            source: VLCStyle.newIndicator
+            source: HeimdallStyle.newIndicator
         }
 
         Widgets.VideoQualityLabels {
             anchors {
                 top: parent.top
                 right: parent.right
-                topMargin: VLCStyle.margin_xxsmall
-                leftMargin: VLCStyle.margin_xxsmall
-                rightMargin: VLCStyle.margin_xxsmall
+                topMargin: HeimdallStyle.margin_xxsmall
+                leftMargin: HeimdallStyle.margin_xxsmall
+                rightMargin: HeimdallStyle.margin_xxsmall
             }
 
             labels: root.labels

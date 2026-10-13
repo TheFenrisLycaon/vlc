@@ -1,7 +1,8 @@
 /*****************************************************************************
- * opengl.c: VLC GL API
+ * opengl.c: Heimdall GL API
  *****************************************************************************
  * Copyright (C) 2011 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -25,80 +26,80 @@
 #include <assert.h>
 #include <stdlib.h>
 
-#include <vlc_common.h>
-#include <vlc_atomic.h>
-#include <vlc_opengl.h>
-#include <vlc_codec.h>
-#include <vlc_vout_display.h>
-#include "../libvlc.h"
-#include <vlc_modules.h>
+#include <heimdall_common.h>
+#include <heimdall_atomic.h>
+#include <heimdall_opengl.h>
+#include <heimdall_codec.h>
+#include <heimdall_vout_display.h>
+#include "../libheimdall.h"
+#include <heimdall_modules.h>
 
-static const struct vlc_gl_cfg gl_cfg_default = {
+static const struct heimdall_gl_cfg gl_cfg_default = {
     .need_alpha = false
 };
 
-struct vlc_gl_priv_t
+struct heimdall_gl_priv_t
 {
-    vlc_gl_t gl;
+    heimdall_gl_t gl;
 };
 
-static int vlc_gl_start(void *func, bool forced, va_list ap)
+static int heimdall_gl_start(void *func, bool forced, va_list ap)
 {
-    vlc_gl_activate activate = func;
-    vlc_gl_t *gl = va_arg(ap, vlc_gl_t *);
+    heimdall_gl_activate activate = func;
+    heimdall_gl_t *gl = va_arg(ap, heimdall_gl_t *);
     unsigned width = va_arg(ap, unsigned);
     unsigned height = va_arg(ap, unsigned);
-    const struct vlc_gl_cfg *gl_cfg = va_arg(ap, const struct vlc_gl_cfg *);
+    const struct heimdall_gl_cfg *gl_cfg = va_arg(ap, const struct heimdall_gl_cfg *);
 
     int ret = activate(gl, width, height, gl_cfg);
     if (ret)
-        vlc_objres_clear(VLC_OBJECT(gl));
+        heimdall_objres_clear(HEIMDALL_OBJECT(gl));
     (void) forced;
     return ret;
 }
 
-vlc_gl_t *vlc_gl_Create(const struct vout_display_cfg *restrict cfg,
+heimdall_gl_t *heimdall_gl_Create(const struct vout_display_cfg *restrict cfg,
                         unsigned flags, const char *name,
-                        const struct vlc_gl_cfg * gl_cfg)
+                        const struct heimdall_gl_cfg * gl_cfg)
 {
-    vlc_window_t *wnd = cfg->window;
-    struct vlc_gl_priv_t *glpriv;
+    heimdall_window_t *wnd = cfg->window;
+    struct heimdall_gl_priv_t *glpriv;
     const char *type;
     if (gl_cfg == NULL)
         gl_cfg = &gl_cfg_default;
 
-    enum vlc_gl_api_type api_type;
+    enum heimdall_gl_api_type api_type;
 
-    switch (flags /*& VLC_OPENGL_API_MASK*/)
+    switch (flags /*& HEIMDALL_OPENGL_API_MASK*/)
     {
-        case VLC_OPENGL:
+        case HEIMDALL_OPENGL:
             type = "opengl";
-            api_type = VLC_OPENGL;
+            api_type = HEIMDALL_OPENGL;
             break;
-        case VLC_OPENGL_ES2:
+        case HEIMDALL_OPENGL_ES2:
             type = "opengl es2";
-            api_type = VLC_OPENGL_ES2;
+            api_type = HEIMDALL_OPENGL_ES2;
             break;
         default:
             return NULL;
     }
 
-    glpriv = vlc_custom_create(VLC_OBJECT(wnd), sizeof (*glpriv), "gl");
+    glpriv = heimdall_custom_create(HEIMDALL_OBJECT(wnd), sizeof (*glpriv), "gl");
     if (unlikely(glpriv == NULL))
         return NULL;
 
-    vlc_gl_t *gl = &glpriv->gl;
+    heimdall_gl_t *gl = &glpriv->gl;
     gl->api_type = api_type;
     gl->orientation = ORIENT_NORMAL;
     gl->surface = wnd;
     gl->device = NULL;
 
-    gl->module = vlc_module_load(vlc_object_logger(gl), type, name, true,
-                                 vlc_gl_start, gl,
+    gl->module = heimdall_module_load(heimdall_object_logger(gl), type, name, true,
+                                 heimdall_gl_start, gl,
                                  cfg->display.width, cfg->display.height, gl_cfg);
     if (gl->module == NULL)
     {
-        vlc_object_delete(gl);
+        heimdall_object_delete(gl);
         return NULL;
     }
 
@@ -111,59 +112,59 @@ vlc_gl_t *vlc_gl_Create(const struct vout_display_cfg *restrict cfg,
     return &glpriv->gl;
 }
 
-vlc_gl_t *vlc_gl_CreateOffscreen(vlc_object_t *parent,
-                                 struct vlc_decoder_device *device,
+heimdall_gl_t *heimdall_gl_CreateOffscreen(heimdall_object_t *parent,
+                                 struct heimdall_decoder_device *device,
                                  unsigned width, unsigned height,
                                  unsigned flags, const char *name,
-                                 const struct vlc_gl_cfg *gl_cfg)
+                                 const struct heimdall_gl_cfg *gl_cfg)
 {
-    struct vlc_gl_priv_t *glpriv;
+    struct heimdall_gl_priv_t *glpriv;
     const char *type;
 
-    enum vlc_gl_api_type api_type;
+    enum heimdall_gl_api_type api_type;
     if (gl_cfg == NULL)
         gl_cfg = &gl_cfg_default;
 
-    switch (flags /*& VLC_OPENGL_API_MASK*/)
+    switch (flags /*& HEIMDALL_OPENGL_API_MASK*/)
     {
-        case VLC_OPENGL:
+        case HEIMDALL_OPENGL:
             type = "opengl offscreen";
-            api_type = VLC_OPENGL;
+            api_type = HEIMDALL_OPENGL;
             break;
-        case VLC_OPENGL_ES2:
+        case HEIMDALL_OPENGL_ES2:
             type = "opengl es2 offscreen";
-            api_type = VLC_OPENGL_ES2;
+            api_type = HEIMDALL_OPENGL_ES2;
             break;
         default:
             return NULL;
     }
 
-    glpriv = vlc_custom_create(parent, sizeof (*glpriv), "gl");
+    glpriv = heimdall_custom_create(parent, sizeof (*glpriv), "gl");
     if (unlikely(glpriv == NULL))
         return NULL;
 
-    vlc_gl_t *gl = &glpriv->gl;
+    heimdall_gl_t *gl = &glpriv->gl;
 
     gl->api_type = api_type;
     gl->orientation = ORIENT_NORMAL;
 
-    gl->offscreen_chroma_out = VLC_CODEC_UNKNOWN;
+    gl->offscreen_chroma_out = HEIMDALL_CODEC_UNKNOWN;
     gl->offscreen_vctx_out = NULL;
 
     gl->surface = NULL;
-    gl->device = device ? vlc_decoder_device_Hold(device) : NULL;
-    gl->module = vlc_module_load(vlc_object_logger(gl), type, name, true,
-                                 vlc_gl_start, gl, width, height, gl_cfg);
+    gl->device = device ? heimdall_decoder_device_Hold(device) : NULL;
+    gl->module = heimdall_module_load(heimdall_object_logger(gl), type, name, true,
+                                 heimdall_gl_start, gl, width, height, gl_cfg);
     if (gl->module == NULL)
     {
         if (gl->device)
-            vlc_decoder_device_Release(gl->device);
-        vlc_object_delete(gl);
+            heimdall_decoder_device_Release(gl->device);
+        heimdall_object_delete(gl);
         return NULL;
     }
 
     /* The implementation must initialize the output chroma */
-    assert(gl->offscreen_chroma_out != VLC_CODEC_UNKNOWN);
+    assert(gl->offscreen_chroma_out != HEIMDALL_CODEC_UNKNOWN);
 
     assert(gl->ops);
     assert(gl->ops->make_current);
@@ -174,72 +175,72 @@ vlc_gl_t *vlc_gl_CreateOffscreen(vlc_object_t *parent,
     return &glpriv->gl;
 }
 
-void vlc_gl_Delete(vlc_gl_t *gl)
+void heimdall_gl_Delete(heimdall_gl_t *gl)
 {
     if (gl->ops->close != NULL)
         gl->ops->close(gl);
 
     if (gl->device)
-        vlc_decoder_device_Release(gl->device);
+        heimdall_decoder_device_Release(gl->device);
 
-    vlc_objres_clear(VLC_OBJECT(gl));
-    vlc_object_delete(gl);
+    heimdall_objres_clear(HEIMDALL_OBJECT(gl));
+    heimdall_object_delete(gl);
 }
 
-#include <vlc_window.h>
+#include <heimdall_window.h>
 
-typedef struct vlc_gl_surface
+typedef struct heimdall_gl_surface
 {
     int width;
     int height;
-    vlc_mutex_t lock;
-} vlc_gl_surface_t;
+    heimdall_mutex_t lock;
+} heimdall_gl_surface_t;
 
-static void vlc_gl_surface_ResizeNotify(vlc_window_t *surface,
+static void heimdall_gl_surface_ResizeNotify(heimdall_window_t *surface,
                                         unsigned width, unsigned height,
-                                        vlc_window_ack_cb cb, void *opaque)
+                                        heimdall_window_ack_cb cb, void *opaque)
 {
-    vlc_gl_surface_t *sys = surface->owner.sys;
+    heimdall_gl_surface_t *sys = surface->owner.sys;
 
     msg_Dbg(surface, "resized to %ux%u", width, height);
 
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     sys->width = width;
     sys->height = height;
 
     if (cb != NULL)
         cb(surface, width, height, opaque);
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
 }
 
-vlc_gl_t *vlc_gl_surface_Create(vlc_object_t *obj,
-                                const vlc_window_cfg_t *cfg,
-                                struct vlc_window **restrict wp,
-                                const struct vlc_gl_cfg *gl_cfg)
+heimdall_gl_t *heimdall_gl_surface_Create(heimdall_object_t *obj,
+                                const heimdall_window_cfg_t *cfg,
+                                struct heimdall_window **restrict wp,
+                                const struct heimdall_gl_cfg *gl_cfg)
 {
-    vlc_gl_surface_t *sys = malloc(sizeof (*sys));
+    heimdall_gl_surface_t *sys = malloc(sizeof (*sys));
     if (unlikely(sys == NULL))
         return NULL;
 
     sys->width = cfg->width;
     sys->height = cfg->height;
-    vlc_mutex_init(&sys->lock);
+    heimdall_mutex_init(&sys->lock);
 
-    static const struct vlc_window_callbacks cbs = {
-        .resized = vlc_gl_surface_ResizeNotify,
+    static const struct heimdall_window_callbacks cbs = {
+        .resized = heimdall_gl_surface_ResizeNotify,
     };
-    vlc_window_owner_t owner = {
+    heimdall_window_owner_t owner = {
         .cbs = &cbs,
         .sys = sys,
     };
     char *modlist = var_InheritString(obj, "window");
 
-    vlc_window_t *surface = vlc_window_New(obj, modlist, &owner, cfg);
+    heimdall_window_t *surface = heimdall_window_New(obj, modlist, &owner, cfg);
     free(modlist);
     if (surface == NULL)
         goto error;
-    if (vlc_window_Enable(surface)) {
-        vlc_window_Delete(surface);
+    if (heimdall_window_Enable(surface)) {
+        heimdall_window_Delete(surface);
         goto error;
     }
     if (wp != NULL)
@@ -251,19 +252,19 @@ vlc_gl_t *vlc_gl_surface_Create(vlc_object_t *obj,
         .display = { .width = cfg->width, cfg->height },
     };
 
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     if (sys->width >= 0 && sys->height >= 0) {
         dcfg.display.width = sys->width;
         dcfg.display.height = sys->height;
         sys->width = -1;
         sys->height = -1;
     }
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
 
-    vlc_gl_t *gl = vlc_gl_Create(&dcfg, VLC_OPENGL, NULL, gl_cfg);
+    heimdall_gl_t *gl = heimdall_gl_Create(&dcfg, HEIMDALL_OPENGL, NULL, gl_cfg);
     if (gl == NULL) {
-        vlc_window_Disable(surface);
-        vlc_window_Delete(surface);
+        heimdall_window_Disable(surface);
+        heimdall_window_Delete(surface);
         goto error;
     }
 
@@ -282,14 +283,14 @@ error:
  * \warning This function is intrinsically race-prone.
  * The dimensions can change asynchronously.
  */
-bool vlc_gl_surface_CheckSize(vlc_gl_t *gl, unsigned *restrict width,
+bool heimdall_gl_surface_CheckSize(heimdall_gl_t *gl, unsigned *restrict width,
                               unsigned *restrict height)
 {
-    vlc_window_t *surface = gl->surface;
-    vlc_gl_surface_t *sys = surface->owner.sys;
+    heimdall_window_t *surface = gl->surface;
+    heimdall_gl_surface_t *sys = surface->owner.sys;
     bool ret = false;
 
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     if (sys->width >= 0 && sys->height >= 0)
     {
         *width = sys->width;
@@ -297,20 +298,20 @@ bool vlc_gl_surface_CheckSize(vlc_gl_t *gl, unsigned *restrict width,
         sys->width = -1;
         sys->height = -1;
 
-        vlc_gl_Resize(gl, *width, *height);
+        heimdall_gl_Resize(gl, *width, *height);
         ret = true;
     }
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
     return ret;
 }
 
-void vlc_gl_surface_Destroy(vlc_gl_t *gl)
+void heimdall_gl_surface_Destroy(heimdall_gl_t *gl)
 {
-    vlc_window_t *surface = gl->surface;
-    vlc_gl_surface_t *sys = surface->owner.sys;
+    heimdall_window_t *surface = gl->surface;
+    heimdall_gl_surface_t *sys = surface->owner.sys;
 
-    vlc_gl_Delete(gl);
-    vlc_window_Disable(surface);
-    vlc_window_Delete(surface);
+    heimdall_gl_Delete(gl);
+    heimdall_window_Disable(surface);
+    heimdall_window_Delete(surface);
     free(sys);
 }

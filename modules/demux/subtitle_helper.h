@@ -2,6 +2,7 @@
  * subtitle.h: subtitle helper functions
  *****************************************************************************
  * Copyright (C) 2015 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -21,7 +22,7 @@
 inline static char * peek_Readline( stream_t *p_demuxstream, uint64_t *pi_offset )
 {
     uint8_t *p_peek;
-    ssize_t i_peek = vlc_stream_Peek( p_demuxstream, (const uint8_t **) &p_peek,
+    ssize_t i_peek = heimdall_stream_Peek( p_demuxstream, (const uint8_t **) &p_peek,
                                   *pi_offset + 2048 );
     if( i_peek < 0 || (uint64_t) i_peek < *pi_offset )
         return NULL;
@@ -30,15 +31,15 @@ inline static char * peek_Readline( stream_t *p_demuxstream, uint64_t *pi_offset
     char *psz_line = NULL;
 
     /* Create a stream memory from that offset */
-    stream_t *p_memorystream = vlc_stream_MemoryNew( p_demuxstream,
+    stream_t *p_memorystream = heimdall_stream_MemoryNew( p_demuxstream,
                                                      &p_peek[*pi_offset],
                                                      i_bufsize, true );
     if( p_memorystream )
     {
-        psz_line = vlc_stream_ReadLine( p_memorystream );
+        psz_line = heimdall_stream_ReadLine( p_memorystream );
 
-        *pi_offset += vlc_stream_Tell( p_memorystream );
-        vlc_stream_Delete( p_memorystream );
+        *pi_offset += heimdall_stream_Tell( p_memorystream );
+        heimdall_stream_Delete( p_memorystream );
     }
 
     return psz_line;

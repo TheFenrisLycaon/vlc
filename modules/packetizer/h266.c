@@ -2,6 +2,7 @@
  * h266.c: H.266/VVC video packetizer
  *****************************************************************************
  * Copyright © 2019-2026 VideoLabs, VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -26,13 +27,13 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
-#include <vlc_block.h>
-#include <vlc_bits.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
+#include <heimdall_block.h>
+#include <heimdall_bits.h>
 
-#include <vlc_block_helper.h>
+#include <heimdall_block_helper.h>
 #include "packetizer_helper.h"
 #include "startcode_helper.h"
 #include "h266_nal.h"
@@ -45,15 +46,15 @@
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  Open (vlc_object_t *);
-static void Close(vlc_object_t *);
+static int  Open (heimdall_object_t *);
+static void Close(heimdall_object_t *);
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_subcategory(SUBCAT_SOUT_PACKETIZER)
     set_description(N_("H266/H.266 video packetizer"))
     set_capability("video packetizer", 50)
     set_callbacks(Open, Close)
-vlc_module_end ()
+heimdall_module_end ()
 
 
 /****************************************************************************
@@ -115,7 +116,7 @@ typedef struct
     uint8_t i_nal_length_size;
 
     date_t dts;
-    vlc_tick_t pts;
+    heimdall_tick_t pts;
     bool b_need_ts;
 
     /* */
@@ -258,23 +259,23 @@ static block_t * OutputQueues(decoder_sys_t *p_sys, bool b_valid)
 /*****************************************************************************
  * Open
  *****************************************************************************/
-static int Open(vlc_object_t *p_this)
+static int Open(heimdall_object_t *p_this)
 {
     decoder_t     *p_dec = (decoder_t*)p_this;
     decoder_sys_t *p_sys;
 
-    if (p_dec->fmt_in->i_codec != VLC_CODEC_VVC)
-        return VLC_EGENERIC;
+    if (p_dec->fmt_in->i_codec != HEIMDALL_CODEC_VVC)
+        return HEIMDALL_EGENERIC;
 
     p_dec->p_sys = p_sys = calloc(1, sizeof(decoder_sys_t));
     if (!p_dec->p_sys)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_sys->p_ccs = cc_storage_new();
     if(unlikely(!p_sys->p_ccs))
     {
         free(p_dec->p_sys);
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     INITQ(pre);
@@ -306,7 +307,7 @@ static int Open(vlc_object_t *p_this)
     for(int i=0; i<=H266_MAX_NUH_LAYER_ID; i++)
         h266_poc_ctx_init(&p_sys->pocctx[i]);
 
-    p_sys->pts = VLC_TICK_INVALID;
+    p_sys->pts = HEIMDALL_TICK_INVALID;
     p_sys->b_need_ts = true;
     p_sys->sets = MISSING;
 
@@ -322,8 +323,8 @@ static int Open(vlc_object_t *p_this)
         if(!h266_parse_DecoderConfigurationRecord(p_extra, i_extra, &params))
         {
             msg_Err( p_dec, "Invalid DCR extradata");
-            Close( VLC_OBJECT(p_dec) );
-            return VLC_EGENERIC;
+            Close( HEIMDALL_OBJECT(p_dec) );
+            return HEIMDALL_EGENERIC;
         }
 
         /* Clear vvcC/VVC1 extra, to be replaced with AnnexB */
@@ -353,13 +354,13 @@ static int Open(vlc_object_t *p_this)
                           p_dec->fmt_out.p_extra, p_dec->fmt_out.i_extra);
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * Close
  *****************************************************************************/
-static void Close(vlc_object_t *p_this)
+static void Close(heimdall_object_t *p_this)
 {
     decoder_t *p_dec = (decoder_t*)p_this;
     decoder_sys_t *p_sys = p_dec->p_sys;
@@ -461,7 +462,7 @@ static void PacketizeReset(void *p_private, bool b_flush)
     for(int i=0; i<=H266_MAX_NUH_LAYER_ID; i++)
         h266_poc_ctx_init(&p_sys->pocctx[i]);
     p_sys->b_need_ts = true;
-    date_Set(&p_sys->dts, VLC_TICK_INVALID);
+    date_Set(&p_sys->dts, HEIMDALL_TICK_INVALID);
 }
 
 static bool InsertXPS(decoder_t *p_dec, uint8_t i_nal_type, uint8_t i_id,
@@ -1170,13 +1171,13 @@ static void SetOutputBlockProperties(decoder_t *p_dec, block_t *p_output)
     decoder_sys_t *p_sys = p_dec->p_sys;
     /* Set frame duration */
 
-    const vlc_tick_t i_start = date_Get(&p_sys->dts);
-    if(i_start != VLC_TICK_INVALID)
+    const heimdall_tick_t i_start = date_Get(&p_sys->dts);
+    if(i_start != HEIMDALL_TICK_INVALID)
     {
         date_Increment(&p_sys->dts, 2);
         p_output->i_length = date_Get(&p_sys->dts) - i_start;
     }
-    p_sys->pts = VLC_TICK_INVALID;
+    p_sys->pts = HEIMDALL_TICK_INVALID;
 
     p_output->i_flags &= ~BLOCK_FLAG_AU_END;
 }
@@ -1193,10 +1194,10 @@ static block_t *ParseNALBlock(decoder_t *p_dec, bool *pb_ts_used, block_t *p_fra
 
     if(p_sys->b_need_ts)
     {
-        if(p_frag->i_dts != VLC_TICK_INVALID)
+        if(p_frag->i_dts != HEIMDALL_TICK_INVALID)
             date_Set(&p_sys->dts, p_frag->i_dts);
         p_sys->pts = p_frag->i_pts;
-        if(date_Get(&p_sys->dts) != VLC_TICK_INVALID)
+        if(date_Get(&p_sys->dts) != HEIMDALL_TICK_INVALID)
             p_sys->b_need_ts = false;
         *pb_ts_used = true;
     }
@@ -1209,7 +1210,7 @@ static block_t *ParseNALBlock(decoder_t *p_dec, bool *pb_ts_used, block_t *p_fra
     }
 
     /* Get NALU type */
-    const vlc_tick_t dts = p_frag->i_dts, pts = p_frag->i_pts;
+    const heimdall_tick_t dts = p_frag->i_dts, pts = p_frag->i_pts;
     block_t * p_output = NULL;
     uint8_t i_nal_type = h266_getNALType(&p_frag->p_buffer[4]);
     switch(i_nal_type)
@@ -1255,7 +1256,7 @@ static block_t *ParseNALBlock(decoder_t *p_dec, bool *pb_ts_used, block_t *p_fra
             p_sys->sets = SENT;
         }
         SetOutputBlockProperties(p_dec, p_output);
-        if (dts != VLC_TICK_INVALID && dts > date_Get(&p_sys->dts))
+        if (dts != HEIMDALL_TICK_INVALID && dts > date_Get(&p_sys->dts))
             date_Set(&p_sys->dts, dts);
         p_sys->pts = pts;
         *pb_ts_used = true;
@@ -1268,7 +1269,7 @@ static block_t *PacketizeParse(void *p_private, bool *pb_ts_used, block_t *p_blo
 {
     decoder_t *p_dec = p_private;
     decoder_sys_t *p_sys = p_dec->p_sys;
-    VLC_UNUSED(p_sys);
+    HEIMDALL_UNUSED(p_sys);
 
     /* Remove trailing 0 bytes */
     while (p_block->i_buffer > 5 && p_block->p_buffer[p_block->i_buffer-1] == 0x00)
@@ -1281,9 +1282,9 @@ static block_t *PacketizeParse(void *p_private, bool *pb_ts_used, block_t *p_blo
 
 static int PacketizeValidate(void *p_private, block_t *p_au)
 {
-    VLC_UNUSED(p_private);
-    VLC_UNUSED(p_au);
-    return VLC_SUCCESS;
+    HEIMDALL_UNUSED(p_private);
+    HEIMDALL_UNUSED(p_au);
+    return HEIMDALL_SUCCESS;
 }
 
 static block_t * PacketizeDrain(void *p_private)

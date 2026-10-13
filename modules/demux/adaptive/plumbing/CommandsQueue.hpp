@@ -2,6 +2,7 @@
  * CommandsQueue.hpp
  *****************************************************************************
  * Copyright © 2015 VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -24,8 +25,8 @@
 #include "../Time.hpp"
 #include "../tools/Macros.hpp"
 
-#include <vlc_common.h>
-#include <vlc_es.h>
+#include <heimdall_common.h>
+#include <heimdall_es.h>
 
 #include <atomic>
 #include <list>
@@ -102,7 +103,7 @@ namespace adaptive
             void Execute() override;
 
         protected:
-            EsOutControlPCRCommand( int, const SegmentTimes &, vlc_tick_t );
+            EsOutControlPCRCommand( int, const SegmentTimes &, heimdall_tick_t );
             int group;
     };
 
@@ -133,11 +134,11 @@ namespace adaptive
             void Execute() override;
 
         protected:
-            EsOutMetaCommand( AbstractFakeEsOut *, int, vlc_meta_t * );
+            EsOutMetaCommand( AbstractFakeEsOut *, int, heimdall_meta_t * );
             virtual ~EsOutMetaCommand();
             AbstractFakeEsOut *out;
             int group;
-            vlc_meta_t *p_meta;
+            heimdall_meta_t *p_meta;
     };
 
     class EsOutMilestoneCommand : public AbstractCommand
@@ -173,10 +174,10 @@ namespace adaptive
             virtual EsOutAddCommand * createEsOutAddCommand( AbstractFakeESOutID * ) const;
             virtual EsOutControlPCRCommand * createEsOutControlPCRCommand( int,
                                                                            const SegmentTimes &,
-                                                                           vlc_tick_t ) const;
+                                                                           heimdall_tick_t ) const;
             virtual EsOutControlResetPCRCommand * creatEsOutControlResetPCRCommand() const;
             virtual EsOutDestroyCommand * createEsOutDestroyCommand() const;
-            virtual EsOutMetaCommand * createEsOutMetaCommand( AbstractFakeEsOut *, int, const vlc_meta_t * ) const;
+            virtual EsOutMetaCommand * createEsOutMetaCommand( AbstractFakeEsOut *, int, const heimdall_meta_t * ) const;
             virtual EsOutMilestoneCommand * createEsOutMilestoneCommand( AbstractFakeEsOut * ) const;
             virtual EsOutMediaProgressCommand * createEsOutMediaProgressCommand( const SegmentTimes & ) const;
     };

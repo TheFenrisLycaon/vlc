@@ -2,6 +2,7 @@
  * nvdec_fmt.h : NVDEC common shared code
  *****************************************************************************
  * Copyright © 2019-2023 VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Steve Lhomme <robux4@videolabs.io>
  *
@@ -20,37 +21,37 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_VIDEOCHROMA_NVDEC_FMT_H_
-#define VLC_VIDEOCHROMA_NVDEC_FMT_H_
+#ifndef HEIMDALL_VIDEOCHROMA_NVDEC_FMT_H_
+#define HEIMDALL_VIDEOCHROMA_NVDEC_FMT_H_
 
-#include <vlc_fourcc.h>
+#include <heimdall_fourcc.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-static inline vlc_fourcc_t NVDECToVlcChroma(vlc_fourcc_t chroma)
+static inline heimdall_fourcc_t NVDECToHeimdallChroma(heimdall_fourcc_t chroma)
 {
     switch (chroma)
     {
-    case VLC_CODEC_NVDEC_OPAQUE:
-        return VLC_CODEC_NV12;
-    case VLC_CODEC_NVDEC_OPAQUE_10B:
-        return VLC_CODEC_P010;
-    case VLC_CODEC_NVDEC_OPAQUE_16B:
-        return VLC_CODEC_P016;
-    case VLC_CODEC_NVDEC_OPAQUE_444:
-        return VLC_CODEC_I444;
-    case VLC_CODEC_NVDEC_OPAQUE_444_16B:
-        return VLC_CODEC_I444_16L;
+    case HEIMDALL_CODEC_NVDEC_OPAQUE:
+        return HEIMDALL_CODEC_NV12;
+    case HEIMDALL_CODEC_NVDEC_OPAQUE_10B:
+        return HEIMDALL_CODEC_P010;
+    case HEIMDALL_CODEC_NVDEC_OPAQUE_16B:
+        return HEIMDALL_CODEC_P016;
+    case HEIMDALL_CODEC_NVDEC_OPAQUE_444:
+        return HEIMDALL_CODEC_I444;
+    case HEIMDALL_CODEC_NVDEC_OPAQUE_444_16B:
+        return HEIMDALL_CODEC_I444_16L;
     default:
         return 0;
     }
 }
 
-static inline bool is_nvdec_opaque(vlc_fourcc_t fourcc)
+static inline bool is_nvdec_opaque(heimdall_fourcc_t fourcc)
 {
-    return NVDECToVlcChroma(fourcc) != 0;
+    return NVDECToHeimdallChroma(fourcc) != 0;
 }
 
 #ifdef __cplusplus

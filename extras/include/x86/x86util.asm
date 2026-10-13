@@ -23,8 +23,8 @@
 ;* Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 ;******************************************************************************
 
-%define private_prefix vlcpriv
-%define public_prefix  vlc
+%define private_prefix heimdallpriv
+%define public_prefix  heimdall
 %define cpuflags_mmxext cpuflags_mmx2
 
 %include "x86inc.asm"

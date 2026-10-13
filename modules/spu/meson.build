@@ -1,12 +1,12 @@
 # subsdelay
-vlc_modules += {
+heimdall_modules += {
     'name' : 'subsdelay',
     'sources' : files('subsdelay.c'),
     'plugin_dir' : 'spu',
 }
 
 # audiobargraph_v
-vlc_modules += {
+heimdall_modules += {
     'name' : 'audiobargraph_v',
     'sources' : files('audiobargraph_v.c'),
     'dependencies' : [m_lib],
@@ -15,21 +15,21 @@ vlc_modules += {
 }
 
 # logo
-vlc_modules += {
+heimdall_modules += {
     'name' : 'logo',
     'sources' : files('logo.c'),
     'plugin_dir' : 'spu',
 }
 
 # marq
-vlc_modules += {
+heimdall_modules += {
     'name' : 'marq',
     'sources' : files('marq.c'),
     'plugin_dir' : 'spu',
 }
 
 # mosaic
-vlc_modules += {
+heimdall_modules += {
     'name' : 'mosaic',
     'sources' : files('mosaic.c'),
     'dependencies' : [m_lib],
@@ -37,14 +37,14 @@ vlc_modules += {
 }
 
 # rss
-vlc_modules += {
+heimdall_modules += {
     'name' : 'rss',
     'sources' : files('rss.c'),
     'plugin_dir' : 'spu',
 }
 
 # dynamicoverlay
-vlc_modules += {
+heimdall_modules += {
     'name' : 'dynamicoverlay',
     'sources' : files(
         'dynamicoverlay/dynamicoverlay_buffer.c',

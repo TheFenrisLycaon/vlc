@@ -2,6 +2,7 @@
  * Chunk.h
  *****************************************************************************
  * Copyright (C) 2010 - 2011 Klagenfurt University
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Created on: Aug 10, 2010
  * Authors: Christopher Mueller <christopher.mueller@itec.uni-klu.ac.at>
@@ -32,10 +33,10 @@
 #include "ConnectionParams.hpp"
 #include "../ID.hpp"
 #include "../tools/Macros.hpp"
-#include <vlc_threads.h>
-#include <vlc_cxx_helpers.hpp>
+#include <heimdall_threads.h>
+#include <heimdall_cxx_helpers.hpp>
 
-typedef struct vlc_frame_t block_t;
+typedef struct heimdall_frame_t block_t;
 
 namespace adaptive
 {
@@ -146,14 +147,14 @@ namespace adaptive
                 void                setIdentifier(const std::string &, const BytesRange &);
                 AbstractConnection    *connection;
                 AbstractConnectionManager *connManager;
-                mutable vlc::threads::mutex lock;
+                mutable heimdall::threads::mutex lock;
                 size_t              consumed; /* read pointer */
                 bool                prepared;
                 bool                eof;
                 ID                  sourceid;
-                vlc_tick_t          requestStartTime;
-                vlc_tick_t          responseTime;
-                vlc_tick_t          downloadEndTime;
+                heimdall_tick_t          requestStartTime;
+                heimdall_tick_t          responseTime;
+                heimdall_tick_t          downloadEndTime;
 
             private:
                 bool init(const std::string &);
@@ -189,7 +190,7 @@ namespace adaptive
                 size_t              buffered; /* read cache size */
                 bool                done;
                 bool                eof;
-                vlc::threads::condition_variable avail;
+                heimdall::threads::condition_variable avail;
                 bool                held;
         };
 

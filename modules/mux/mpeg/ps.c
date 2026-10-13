@@ -1,8 +1,9 @@
 /*****************************************************************************
  * ps.c: MPEG PS (ISO/IEC 13818-1) / MPEG SYSTEM (ISO/IEC 1172-1)
- *       multiplexer module for vlc
+ *       multiplexer module for heimdall
  *****************************************************************************
  * Copyright (C) 2001, 2002 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *          Eric Petit <titer@videolan.org>
@@ -31,18 +32,18 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_sout.h>
-#include <vlc_block.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_sout.h>
+#include <heimdall_block.h>
 
 #include "bits.h"
 #include "pes.h"
 
 #include "../../demux/mpeg/timestamps.h"
 
-#include <vlc_iso_lang.h>
+#include <heimdall_iso_lang.h>
 
 /*****************************************************************************
  * Module descriptor
@@ -57,12 +58,12 @@
 #define PES_SIZE_LONGTEXT N_("Set the maximum allowed PES "\
   "size when producing the MPEG PS streams.")
 
-static int     Open   ( vlc_object_t * );
-static void    Close  ( vlc_object_t * );
+static int     Open   ( heimdall_object_t * );
+static void    Close  ( heimdall_object_t * );
 
 #define SOUT_CFG_PREFIX "sout-ps-"
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("PS muxer") )
     set_shortname( "MPEG-PS" )
     set_subcategory( SUBCAT_SOUT_MUX )
@@ -74,7 +75,7 @@ vlc_module_begin ()
                  DTS_LONGTEXT )
     add_integer( SOUT_CFG_PREFIX "pes-max-size", PES_PAYLOAD_SIZE_MAX,
                  PES_SIZE_TEXT, PES_SIZE_LONGTEXT )
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * Exported prototypes
@@ -88,9 +89,9 @@ static int Mux      ( sout_mux_t * );
  * Local prototypes
  *****************************************************************************/
 
-static void MuxWritePackHeader  ( sout_mux_t *, block_t **, vlc_tick_t );
-static void MuxWriteSystemHeader( sout_mux_t *, block_t **, vlc_tick_t );
-static void MuxWritePSM         ( sout_mux_t *, block_t **, vlc_tick_t );
+static void MuxWritePackHeader  ( sout_mux_t *, block_t **, heimdall_tick_t );
+static void MuxWriteSystemHeader( sout_mux_t *, block_t **, heimdall_tick_t );
+static void MuxWritePSM         ( sout_mux_t *, block_t **, heimdall_tick_t );
 
 static void StreamIdInit        ( bool *id, int i_range );
 static int  StreamIdGet         ( bool *id, int i_id_min, int i_id_max );
@@ -104,7 +105,7 @@ typedef struct ps_stream_s
 
     /* Language is iso639-2T */
     uint8_t lang[3];
-    vlc_tick_t i_dts;
+    heimdall_tick_t i_dts;
 
 } ps_stream_t;
 
@@ -122,12 +123,12 @@ typedef struct
     int i_video_bound;
     int i_pes_count;
     int i_system_header;
-    vlc_tick_t i_dts_delay;
+    heimdall_tick_t i_dts_delay;
     int i_rate_bound; /* units of 50 bytes/second */
 
     int64_t i_instant_bitrate;
     int64_t i_instant_size;
-    vlc_tick_t i_instant_dts;
+    heimdall_tick_t i_instant_dts;
 
     bool b_mpeg2;
 
@@ -144,11 +145,11 @@ static const char *const ppsz_sout_options[] = {
 /*****************************************************************************
  * Open:
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     sout_mux_t *p_mux = (sout_mux_t*)p_this;
     sout_mux_sys_t *p_sys;
-    vlc_value_t val;
+    heimdall_value_t val;
 
     msg_Info( p_mux, "Open" );
     config_ChainParse( p_mux, SOUT_CFG_PREFIX, ppsz_sout_options, p_mux->p_cfg );
@@ -181,7 +182,7 @@ static int Open( vlc_object_t *p_this )
     p_sys->b_mpeg2 = !(p_mux->psz_mux && !strcmp( p_mux->psz_mux, "mpeg1" ));
 
     var_Get( p_mux, SOUT_CFG_PREFIX "dts-delay", &val );
-    p_sys->i_dts_delay = VLC_TICK_FROM_MS(val.i_int);
+    p_sys->i_dts_delay = HEIMDALL_TICK_FROM_MS(val.i_int);
 
     var_Get( p_mux, SOUT_CFG_PREFIX "pes-max-size", &val );
     p_sys->i_pes_max_size = (int64_t)val.i_int;
@@ -201,13 +202,13 @@ static int Open( vlc_object_t *p_this )
         }
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * Close:
  *****************************************************************************/
-static void Close( vlc_object_t * p_this )
+static void Close( heimdall_object_t * p_this )
 {
     sout_mux_t      *p_mux = (sout_mux_t*)p_this;
     sout_mux_sys_t  *p_sys = p_mux->p_sys;
@@ -233,7 +234,7 @@ static void Close( vlc_object_t * p_this )
  *****************************************************************************/
 static int Control( sout_mux_t *p_mux, int i_query, va_list args )
 {
-    VLC_UNUSED(p_mux);
+    HEIMDALL_UNUSED(p_mux);
     bool *pb_bool;
     char **ppsz;
 
@@ -242,15 +243,15 @@ static int Control( sout_mux_t *p_mux, int i_query, va_list args )
         case MUX_CAN_ADD_STREAM_WHILE_MUXING:
             pb_bool = va_arg( args, bool * );
             *pb_bool = true;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
 
         case MUX_GET_MIME:
             ppsz = va_arg( args, char ** );
             *ppsz = strdup( "video/mpeg" );
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
 
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 }
 
@@ -268,63 +269,63 @@ static int AddStream( sout_mux_t *p_mux, sout_input_t *p_input )
 
     p_input->p_sys = p_stream = malloc( sizeof( ps_stream_t ) );
     if( unlikely(p_input->p_sys == NULL) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     p_stream->i_stream_type = 0x81;
     p_stream->i_dts = -1;
 
     /* Init this new stream */
     switch( p_input->p_fmt->i_codec )
     {
-        case VLC_CODEC_MPGV:
-        case VLC_CODEC_MP2V:
-        case VLC_CODEC_MP1V:
+        case HEIMDALL_CODEC_MPGV:
+        case HEIMDALL_CODEC_MP2V:
+        case HEIMDALL_CODEC_MP1V:
             p_stream->i_stream_id =
                 StreamIdGet( p_sys->stream_id_mpgv, 0xe0, 0xef );
             p_stream->i_stream_type = 0x02; /* ISO/IEC 13818 Video */
             break;
-        case VLC_CODEC_MP4V:
+        case HEIMDALL_CODEC_MP4V:
             p_stream->i_stream_id =
                 StreamIdGet( p_sys->stream_id_mpgv, 0xe0, 0xef );
             p_stream->i_stream_type = 0x10;
             break;
-        case VLC_CODEC_H264:
+        case HEIMDALL_CODEC_H264:
             p_stream->i_stream_id =
                 StreamIdGet( p_sys->stream_id_mpgv, 0xe0, 0xef );
             p_stream->i_stream_type = 0x1b;
             break;
-        case VLC_CODEC_HEVC:
+        case HEIMDALL_CODEC_HEVC:
             p_stream->i_stream_id =
                 StreamIdGet( p_sys->stream_id_mpgv, 0xe0, 0xef );
             p_stream->i_stream_type = 0x24;
             break;
-        case VLC_CODEC_VVC:
+        case HEIMDALL_CODEC_VVC:
             p_stream->i_stream_id =
                 StreamIdGet( p_sys->stream_id_mpgv, 0xe0, 0xef );
             p_stream->i_stream_type = 0x33;
             break;
-        case VLC_CODEC_DVD_LPCM:
+        case HEIMDALL_CODEC_DVD_LPCM:
             p_stream->i_stream_id =
                 0xbd00 | StreamIdGet( p_sys->stream_id_lpcm, 0xa0, 0xaf );
             break;
-        case VLC_CODEC_DTS:
+        case HEIMDALL_CODEC_DTS:
             p_stream->i_stream_id =
                 0xbd00 | StreamIdGet( p_sys->stream_id_dts, 0x88, 0x8f );
             break;
-        case VLC_CODEC_A52:
+        case HEIMDALL_CODEC_A52:
             p_stream->i_stream_id =
                 0xbd00 | StreamIdGet( p_sys->stream_id_a52, 0x80, 0x87 );
             break;
-        case VLC_CODEC_MPGA:
+        case HEIMDALL_CODEC_MPGA:
             p_stream->i_stream_id =
                 StreamIdGet( p_sys->stream_id_mpga, 0xc0, 0xcf );
             p_stream->i_stream_type = 0x03; /* ISO/IEC 11172 Audio */
             break;
-        case VLC_CODEC_MP4A:
-            if( p_input->p_fmt->i_original_fourcc == VLC_FOURCC('A','D','T','S') )
+        case HEIMDALL_CODEC_MP4A:
+            if( p_input->p_fmt->i_original_fourcc == HEIMDALL_FOURCC('A','D','T','S') )
             {
                 p_stream->i_stream_type = 0x0f; /* ISO/IEC 13818-7 */
             }
-            else if( p_input->p_fmt->i_original_fourcc == VLC_FOURCC('L','A','T','M') )
+            else if( p_input->p_fmt->i_original_fourcc == HEIMDALL_FOURCC('L','A','T','M') )
             {
                 p_stream->i_stream_type = 0x11; /* ISO/IEC 14496-3 */
             }
@@ -333,12 +334,12 @@ static int AddStream( sout_mux_t *p_mux, sout_input_t *p_input )
             p_stream->i_stream_id =
                 StreamIdGet( p_sys->stream_id_mpga, 0xc0, 0xcf );
             break;
-        case VLC_CODEC_MPEGH:
+        case HEIMDALL_CODEC_MPEGH:
             p_stream->i_stream_id =
                     StreamIdGet( p_sys->stream_id_mpga, 0xc0, 0xcf );
             p_stream->i_stream_type = 0x2d; /* ISO/IEC 23008-3 Main */
             break;
-        case VLC_CODEC_SPU:
+        case HEIMDALL_CODEC_SPU:
             p_stream->i_stream_id =
                 0xbd00 | StreamIdGet( p_sys->stream_id_spu, 0x20, 0x3f );
             break;
@@ -376,7 +377,7 @@ static int AddStream( sout_mux_t *p_mux, sout_input_t *p_input )
     if( p_input->p_fmt->psz_language )
     {
         char *psz = p_input->p_fmt->psz_language;
-        const iso639_lang_t *pl = vlc_find_iso639( psz, false );
+        const iso639_lang_t *pl = heimdall_find_iso639( psz, false );
 
         if( pl )
         {
@@ -387,11 +388,11 @@ static int AddStream( sout_mux_t *p_mux, sout_input_t *p_input )
             msg_Dbg( p_mux, "    - lang=%3.3s", pl->psz_iso639_2T );
         }
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     free( p_stream );
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /*****************************************************************************
@@ -405,27 +406,27 @@ static void DelStream( sout_mux_t *p_mux, sout_input_t *p_input )
     msg_Dbg( p_mux, "removing input" );
     switch( p_input->p_fmt->i_codec )
     {
-        case VLC_CODEC_MPGV:
+        case HEIMDALL_CODEC_MPGV:
             StreamIdRelease( p_sys->stream_id_mpgv, 0xe0,
                              p_stream->i_stream_id );
             break;
-        case VLC_CODEC_DVD_LPCM:
+        case HEIMDALL_CODEC_DVD_LPCM:
             StreamIdRelease( p_sys->stream_id_lpcm, 0xa0,
                              p_stream->i_stream_id&0xff );
             break;
-        case VLC_CODEC_DTS:
+        case HEIMDALL_CODEC_DTS:
             StreamIdRelease( p_sys->stream_id_dts, 0x88,
                              p_stream->i_stream_id&0xff );
             break;
-        case VLC_CODEC_A52:
+        case HEIMDALL_CODEC_A52:
             StreamIdRelease( p_sys->stream_id_a52, 0x80,
                              p_stream->i_stream_id&0xff );
             break;
-        case VLC_CODEC_MPGA:
+        case HEIMDALL_CODEC_MPGA:
             StreamIdRelease( p_sys->stream_id_mpga, 0xc0,
                              p_stream->i_stream_id  );
             break;
-        case VLC_CODEC_SPU:
+        case HEIMDALL_CODEC_SPU:
             StreamIdRelease( p_sys->stream_id_spu, 0x20,
                              p_stream->i_stream_id&0xff );
             break;
@@ -467,13 +468,13 @@ static int Mux( sout_mux_t *p_mux )
 
         block_t *p_ps, *p_data;
 
-        vlc_tick_t     i_dts;
+        heimdall_tick_t     i_dts;
 
         /* Choose which stream to mux */
         int i_stream = sout_MuxGetStream( p_mux, 1, &i_dts );
         if( i_stream < 0 )
         {
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
 
         p_input  = p_mux->pp_inputs[i_stream];
@@ -485,7 +486,7 @@ static int Mux( sout_mux_t *p_mux )
         /* Write regulary PackHeader */
         if( p_sys->i_pes_count % 30 == 0)
         {
-            vlc_tick_t i_mindts = VLC_TICK_MAX;
+            heimdall_tick_t i_mindts = HEIMDALL_TICK_MAX;
             for( int i=0; i < p_mux->i_nb_inputs; i++ )
             {
                 ps_stream_t *p_s = (ps_stream_t*)p_input->p_sys;
@@ -495,11 +496,11 @@ static int Mux( sout_mux_t *p_mux )
                     i_mindts = p_s->i_dts;
             }
 
-            if( i_mindts != VLC_TICK_MAX && i_mindts > p_sys->i_instant_dts )
+            if( i_mindts != HEIMDALL_TICK_MAX && i_mindts > p_sys->i_instant_dts )
             {
                 /* Update the instant bitrate every second or so */
                 if( p_sys->i_instant_size &&
-                    i_dts - p_sys->i_instant_dts > VLC_TICK_FROM_SEC(1))
+                    i_dts - p_sys->i_instant_dts > HEIMDALL_TICK_FROM_SEC(1))
                 {
                     int64_t i_instant_bitrate = p_sys->i_instant_size * 8 * CLOCK_FREQ /
                             ( i_dts - p_sys->i_instant_dts );
@@ -558,7 +559,7 @@ static int Mux( sout_mux_t *p_mux )
         p_sys->i_pes_count++;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -594,7 +595,7 @@ static void StreamIdRelease( bool *id, int i_id_min, int i_id )
 }
 
 static void MuxWritePackHeader( sout_mux_t *p_mux, block_t **p_buf,
-                                vlc_tick_t i_dts )
+                                heimdall_tick_t i_dts )
 {
     sout_mux_sys_t *p_sys = p_mux->p_sys;
     bits_buffer_t bits;
@@ -652,7 +653,7 @@ static void MuxWritePackHeader( sout_mux_t *p_mux, block_t **p_buf,
 }
 
 static void MuxWriteSystemHeader( sout_mux_t *p_mux, block_t **p_buf,
-                                  vlc_tick_t i_dts )
+                                  heimdall_tick_t i_dts )
 {
     sout_mux_sys_t  *p_sys = p_mux->p_sys;
     block_t   *p_hdr;
@@ -754,7 +755,7 @@ static void MuxWriteSystemHeader( sout_mux_t *p_mux, block_t **p_buf,
     block_ChainAppend( p_buf, p_hdr );
 }
 
-static void MuxWritePSM( sout_mux_t *p_mux, block_t **p_buf, vlc_tick_t i_dts )
+static void MuxWritePSM( sout_mux_t *p_mux, block_t **p_buf, heimdall_tick_t i_dts )
 {
     sout_mux_sys_t *p_sys = p_mux->p_sys;
     block_t *p_hdr;

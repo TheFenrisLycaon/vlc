@@ -4,6 +4,7 @@
  */
 /*****************************************************************************
  * Copyright © 2022 VideoLabs, Videolan and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License
@@ -25,20 +26,20 @@
 
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_block.h>
-#include <vlc_es.h>
-#include <vlc_plugin.h>
-#include <vlc_strings.h>
+#include <heimdall_common.h>
+#include <heimdall_block.h>
+#include <heimdall_es.h>
+#include <heimdall_plugin.h>
+#include <heimdall_strings.h>
 
 #include "rtp.h"
 
-static void *rtp_opus_init(struct vlc_rtp_pt *pt)
+static void *rtp_opus_init(struct heimdall_rtp_pt *pt)
 {
-    VLC_UNUSED(pt);
+    HEIMDALL_UNUSED(pt);
 
     es_format_t fmt;
-    es_format_Init(&fmt, AUDIO_ES, VLC_CODEC_OPUS);
+    es_format_Init(&fmt, AUDIO_ES, HEIMDALL_CODEC_OPUS);
     static const uint8_t header[] = { 'O', 'p', 'u', 's', 'H', 'e', 'a', 'd',
                                        0x01, 0x02, /* version / 2 channels */
                                        0x00, 0x00, /* preskip */
@@ -50,24 +51,24 @@ static void *rtp_opus_init(struct vlc_rtp_pt *pt)
     fmt.i_extra = sizeof(header);
     memcpy(fmt.p_extra, header, sizeof(header));
 
-    struct vlc_rtp_es *es = vlc_rtp_pt_request_es(pt, &fmt);
+    struct heimdall_rtp_es *es = heimdall_rtp_pt_request_es(pt, &fmt);
     es_format_Clean(&fmt);
 
     return es;
 }
 
-static void rtp_opus_destroy(struct vlc_rtp_pt *pt, void *data)
+static void rtp_opus_destroy(struct heimdall_rtp_pt *pt, void *data)
 {
-    VLC_UNUSED(pt);
-    struct vlc_rtp_es *es = data;
-    vlc_rtp_es_destroy(es);
+    HEIMDALL_UNUSED(pt);
+    struct heimdall_rtp_es *es = data;
+    heimdall_rtp_es_destroy(es);
 }
 
-static void rtp_opus_decode(struct vlc_rtp_pt *pt, void *data, block_t *block,
-                           const struct vlc_rtp_pktinfo *restrict info)
+static void rtp_opus_decode(struct heimdall_rtp_pt *pt, void *data, block_t *block,
+                           const struct heimdall_rtp_pktinfo *restrict info)
 {
-    VLC_UNUSED(pt); VLC_UNUSED(info);
-    struct vlc_rtp_es *es = data;
+    HEIMDALL_UNUSED(pt); HEIMDALL_UNUSED(info);
+    struct heimdall_rtp_es *es = data;
 
     if (block->i_buffer == 0)
     {
@@ -75,32 +76,32 @@ static void rtp_opus_decode(struct vlc_rtp_pt *pt, void *data, block_t *block,
         return;
     }
 
-    vlc_rtp_es_send(es, block);
+    heimdall_rtp_es_send(es, block);
 }
 
-static const struct vlc_rtp_pt_operations rtp_opus_ops = {
+static const struct heimdall_rtp_pt_operations rtp_opus_ops = {
     NULL, rtp_opus_init, rtp_opus_destroy, rtp_opus_decode,
 };
 
-static int rtp_opus_open(vlc_object_t *obj, struct vlc_rtp_pt *pt,
-                        const struct vlc_sdp_pt *desc)
+static int rtp_opus_open(heimdall_object_t *obj, struct heimdall_rtp_pt *pt,
+                        const struct heimdall_sdp_pt *desc)
 {
-    VLC_UNUSED(obj);
+    HEIMDALL_UNUSED(obj);
 
-    if (vlc_ascii_strcasecmp(desc->name, "OPUS") ||
+    if (heimdall_ascii_strcasecmp(desc->name, "OPUS") ||
         desc->clock_rate != 48000 ||
         desc->channel_count != 2)
-        return VLC_ENOTSUP;
+        return HEIMDALL_ENOTSUP;
 
     pt->ops = &rtp_opus_ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname(N_("RTP Opus"))
     set_description(N_("RTP Opus audio payload parser"))
     set_subcategory(SUBCAT_INPUT_DEMUX)
     set_rtp_parser_callback(rtp_opus_open)
     add_shortcut("audio/opus")
-vlc_module_end()
+heimdall_module_end()

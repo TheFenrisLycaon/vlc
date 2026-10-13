@@ -2,6 +2,7 @@
  * acoustid.c: AcoustId webservice parser
  *****************************************************************************
  * Copyright (C) 2012 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,8 +23,8 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_messages.h>
+#include <heimdall_common.h>
+#include <heimdall_messages.h>
 
 #include "json_helper.h"
 #include "acoustid.h"
@@ -53,7 +54,7 @@ static void parse_artists( const struct json_array *artists, acoustid_mb_result_
     }
 }
 
-static void parse_recordings( vlc_object_t *p_obj, const struct json_object *object,
+static void parse_recordings( heimdall_object_t *p_obj, const struct json_object *object,
                               acoustid_result_t *p_result )
 {
     const struct json_array *recordings = json_get_array(object, "recordings");
@@ -86,7 +87,7 @@ static void parse_recordings( vlc_object_t *p_obj, const struct json_object *obj
     }
 }
 
-static bool ParseJson( vlc_object_t *p_obj, const void *p_buffer, size_t i_buffer,
+static bool ParseJson( heimdall_object_t *p_obj, const void *p_buffer, size_t i_buffer,
                        acoustid_results_t *p_results )
 {
     struct json_helper_sys sys;
@@ -147,7 +148,7 @@ static bool ParseJson( vlc_object_t *p_obj, const void *p_buffer, size_t i_buffe
 int acoustid_lookup_fingerprint( const acoustid_config_t *p_cfg, acoustid_fingerprint_t *p_data )
 {
     if ( !p_data->psz_fingerprint )
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
     char *psz_url;
     if( p_cfg->psz_server )
@@ -161,9 +162,9 @@ int acoustid_lookup_fingerprint( const acoustid_config_t *p_cfg, acoustid_finger
                                p_cfg->psz_apikey ? p_cfg->psz_apikey : "",
                                p_data->i_duration,
                                p_data->psz_fingerprint ) < 1 ) )
-             return VLC_EGENERIC;
+             return HEIMDALL_EGENERIC;
     }
-    else /* Use VideoLAN anonymized requests proxy */
+    else /* Use Lycaria anonymized requests proxy */
     {
         if( unlikely(asprintf( &psz_url, "https://" ACOUSTID_ANON_SERVER
                                ACOUSTID_ANON_SERVER_PATH
@@ -172,7 +173,7 @@ int acoustid_lookup_fingerprint( const acoustid_config_t *p_cfg, acoustid_finger
                                "&fingerprint=%s",
                                p_data->i_duration,
                                p_data->psz_fingerprint ) < 1 ) )
-             return VLC_EGENERIC;
+             return HEIMDALL_EGENERIC;
     }
 
     msg_Dbg( p_cfg->p_obj, "Querying AcoustID from %s", psz_url );
@@ -180,7 +181,7 @@ int acoustid_lookup_fingerprint( const acoustid_config_t *p_cfg, acoustid_finger
     void *p_buffer = json_retrieve_document( p_cfg->p_obj, psz_url, &i_buffer );
     free( psz_url );
     if( !p_buffer )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if ( ParseJson( p_cfg->p_obj, p_buffer, i_buffer, & p_data->results ) )
         msg_Dbg( p_cfg->p_obj, "results count == %d", p_data->results.count );
@@ -188,5 +189,5 @@ int acoustid_lookup_fingerprint( const acoustid_config_t *p_cfg, acoustid_finger
         msg_Dbg( p_cfg->p_obj, "No results" );
     free( p_buffer );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

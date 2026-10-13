@@ -3,6 +3,7 @@
  * process.c: win32 implementation of process management
  *****************************************************************************
  * Copyright © 2025 Videolabs, VideoLAN and VLC authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gabriel Lafond Thenaille <gabriel@videolabs.io>
  *****************************************************************************/
@@ -16,40 +17,40 @@
 #include <assert.h>
 #include <stdatomic.h>
 
-#include <vlc_common.h>
-#include <vlc_process.h>
-#include <vlc_interrupt.h>
-#include <vlc_spawn.h>
-#include <vlc_fs.h>
+#include <heimdall_common.h>
+#include <heimdall_process.h>
+#include <heimdall_interrupt.h>
+#include <heimdall_spawn.h>
+#include <heimdall_fs.h>
 
-static_assert(HAVE_VLC_PROCESS_SPAWN == 1, "mismatching HAVE_VLC_PROCESS_SPAWN declaration");
+static_assert(HAVE_HEIMDALL_PROCESS_SPAWN == 1, "mismatching HAVE_HEIMDALL_PROCESS_SPAWN declaration");
 
 static void CALLBACK
-vlc_process_WindowsPoll_i11e_wake_self(ULONG_PTR data)
+heimdall_process_WindowsPoll_i11e_wake_self(ULONG_PTR data)
 {
     (void) data;
 }
 
 static void
-vlc_process_WindowsPoll_i11e_wake(void *opaque)
+heimdall_process_WindowsPoll_i11e_wake(void *opaque)
 {
     assert(opaque != NULL);
 
     HANDLE th = opaque;
-    QueueUserAPC(vlc_process_WindowsPoll_i11e_wake_self, th, 0);
+    QueueUserAPC(heimdall_process_WindowsPoll_i11e_wake_self, th, 0);
 }
 
 /**
  * Map the result of a failed overlapped operation to an errno-like value.
  */
 static int
-vlc_process_WindowsMapIoResult(DWORD error, DWORD *bytes, bool is_read,
+heimdall_process_WindowsMapIoResult(DWORD error, DWORD *bytes, bool is_read,
                                int dflt)
 {
     if (is_read) {
         if (error == ERROR_BROKEN_PIPE || error == ERROR_HANDLE_EOF) {
             *bytes = 0;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
     } else if (error == ERROR_BROKEN_PIPE || error == ERROR_NO_DATA ||
                error == ERROR_PIPE_NOT_CONNECTED) {
@@ -61,70 +62,70 @@ vlc_process_WindowsMapIoResult(DWORD error, DWORD *bytes, bool is_read,
 /**
  * Cancel a pending overlapped operation and wait for its completion.
  */
-static int vlc_process_WindowsCancelPoll(HANDLE hFd, LPOVERLAPPED lpoverlapped,
+static int heimdall_process_WindowsCancelPoll(HANDLE hFd, LPOVERLAPPED lpoverlapped,
                                          DWORD *bytes, DWORD size,
                                          bool is_read, int cancel_err)
 {
     CancelIoEx(hFd, lpoverlapped);
     if (GetOverlappedResult(hFd, lpoverlapped, bytes, TRUE)) {
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
     DWORD error = GetLastError();
     if (error == ERROR_OPERATION_ABORTED) {
         if (*bytes > 0 && *bytes <= size) {
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
         *bytes = 0;
         return cancel_err;
     }
-    return vlc_process_WindowsMapIoResult(error, bytes, is_read, EINVAL);
+    return heimdall_process_WindowsMapIoResult(error, bytes, is_read, EINVAL);
 }
 
 static int
-vlc_process_WindowsPoll(HANDLE hFd, LPOVERLAPPED lpoverlapped, DWORD *bytes,
-                        DWORD size, bool is_read, vlc_tick_t timeout_ms)
+heimdall_process_WindowsPoll(HANDLE hFd, LPOVERLAPPED lpoverlapped, DWORD *bytes,
+                        DWORD size, bool is_read, heimdall_tick_t timeout_ms)
 {
     HANDLE th;
     if (!DuplicateHandle(GetCurrentProcess(), GetCurrentThread(),
                          GetCurrentProcess(), &th, 0, FALSE,
                          DUPLICATE_SAME_ACCESS)) {
-        return vlc_process_WindowsCancelPoll(hFd, lpoverlapped, bytes, size,
+        return heimdall_process_WindowsCancelPoll(hFd, lpoverlapped, bytes, size,
                                              is_read, ENOMEM);
     }
-    vlc_interrupt_register(vlc_process_WindowsPoll_i11e_wake, th);
+    heimdall_interrupt_register(heimdall_process_WindowsPoll_i11e_wake, th);
     DWORD waitResult = WaitForSingleObjectEx(lpoverlapped->hEvent,
                                              timeout_ms, TRUE);
-    int interrupted = vlc_interrupt_unregister();
+    int interrupted = heimdall_interrupt_unregister();
     CloseHandle(th);
 
     if (interrupted != 0) {
-        return vlc_process_WindowsCancelPoll(hFd, lpoverlapped, bytes, size,
+        return heimdall_process_WindowsCancelPoll(hFd, lpoverlapped, bytes, size,
                                              is_read, EINTR);
     }
 
     switch (waitResult) {
         case WAIT_OBJECT_0:
             if (GetOverlappedResult(hFd, lpoverlapped, bytes, FALSE)) {
-                return VLC_SUCCESS;
+                return HEIMDALL_SUCCESS;
             }
-            return vlc_process_WindowsMapIoResult(GetLastError(), bytes,
+            return heimdall_process_WindowsMapIoResult(GetLastError(), bytes,
                                                   is_read, EINVAL);
         case WAIT_TIMEOUT:
             /* Timeout occurred */
-            return vlc_process_WindowsCancelPoll(hFd, lpoverlapped, bytes,
+            return heimdall_process_WindowsCancelPoll(hFd, lpoverlapped, bytes,
                                                  size, is_read, ETIMEDOUT);
         case WAIT_IO_COMPLETION:
             /* Interrupt occurred */
-            return vlc_process_WindowsCancelPoll(hFd, lpoverlapped, bytes,
+            return heimdall_process_WindowsCancelPoll(hFd, lpoverlapped, bytes,
                                                  size, is_read, EINTR);
         default:
-            return vlc_process_WindowsCancelPoll(hFd, lpoverlapped, bytes,
+            return heimdall_process_WindowsCancelPoll(hFd, lpoverlapped, bytes,
                                                  size, is_read, EINVAL);
     }
 }
 
-struct vlc_process {
+struct heimdall_process {
     /* Pid of the linked process */
     pid_t pid;
 
@@ -139,8 +140,8 @@ struct vlc_process {
     atomic_bool killed;
 };
 
-struct vlc_process*
-vlc_process_Spawn(const char *path, int argc, const char *const *argv)
+struct heimdall_process*
+heimdall_process_Spawn(const char *path, int argc, const char *const *argv)
 {
     assert(path != NULL);
     if (argc > 0) {
@@ -148,13 +149,13 @@ vlc_process_Spawn(const char *path, int argc, const char *const *argv)
         assert(argv[0] != NULL);
     }
 
-    int ret = VLC_EGENERIC;
+    int ret = HEIMDALL_EGENERIC;
     int fds[2] = { -1, -1 };
     int extfd_in = -1;
     int extfd_out = -1;
     const char **args = NULL;
 
-    struct vlc_process *process = malloc(sizeof(*process));
+    struct heimdall_process *process = malloc(sizeof(*process));
     if (process == NULL) {
         return NULL;
     }
@@ -168,24 +169,24 @@ vlc_process_Spawn(const char *path, int argc, const char *const *argv)
 
     process->hEventRead = CreateEvent(NULL, TRUE, FALSE, NULL);
     if (process->hEventRead == NULL) {
-        ret = VLC_ENOMEM;
+        ret = HEIMDALL_ENOMEM;
         goto end;
     }
 
     process->hEventWrite = CreateEvent(NULL, TRUE, FALSE, NULL);
     if (process->hEventWrite == NULL) {
-        ret = VLC_ENOMEM;
+        ret = HEIMDALL_ENOMEM;
         goto end;
     }
 
-    ret = vlc_pipe(fds);
+    ret = heimdall_pipe(fds);
     if (ret != 0) {
         goto end;
     }
     extfd_out = fds[1];
     process->fd_in = fds[0];
 
-    ret = vlc_pipe(fds);
+    ret = heimdall_pipe(fds);
     if (ret != 0) {
         goto end;
     }
@@ -203,7 +204,7 @@ vlc_process_Spawn(const char *path, int argc, const char *const *argv)
     /* `argc + 2`, 1 for the process->path and the last to be NULL */
     args = malloc((argc + 2) * sizeof(*args));
     if (args == NULL) {
-        ret = VLC_ENOMEM;
+        ret = HEIMDALL_ENOMEM;
         goto end;
     }
     args[0] = path;
@@ -212,7 +213,7 @@ vlc_process_Spawn(const char *path, int argc, const char *const *argv)
     }
     args[argc + 1] = NULL;
 
-    ret = vlc_spawnp(&process->pid, path, process_fds, args);
+    ret = heimdall_spawnp(&process->pid, path, process_fds, args);
     if (ret != 0) {
         goto end;
     }
@@ -224,18 +225,18 @@ end:
     free(args);
 
     if (extfd_in != -1) {
-        vlc_close(extfd_in);
+        heimdall_close(extfd_in);
     }
     if (extfd_out != -1) {
-        vlc_close(extfd_out);
+        heimdall_close(extfd_out);
     }
 
     if (ret != 0) {
         if (process->fd_in != -1) {
-            vlc_close(process->fd_in);
+            heimdall_close(process->fd_in);
         }
         if (process->fd_out != -1) {
-            vlc_close(process->fd_out);
+            heimdall_close(process->fd_out);
         }
         if (process->hEventRead != NULL) {
             CloseHandle(process->hEventRead);
@@ -250,7 +251,7 @@ end:
 }
 
 void
-vlc_process_Kill(struct vlc_process *process)
+heimdall_process_Kill(struct heimdall_process *process)
 {
     assert(process != NULL);
 
@@ -271,20 +272,20 @@ vlc_process_Kill(struct vlc_process *process)
 }
 
 int
-vlc_process_Terminate(struct vlc_process *process, bool kill_process)
+heimdall_process_Terminate(struct heimdall_process *process, bool kill_process)
 {
     assert(process != NULL);
 
     if (kill_process) {
-        vlc_process_Kill(process);
+        heimdall_process_Kill(process);
     }
 
-    vlc_close(process->fd_in);
-    vlc_close(process->fd_out);
+    heimdall_close(process->fd_in);
+    heimdall_close(process->fd_out);
     CloseHandle(process->hEventRead);
     CloseHandle(process->hEventWrite);
 
-    int status = vlc_waitpid(process->pid);
+    int status = heimdall_waitpid(process->pid);
     if (process->hProcess != NULL) {
         CloseHandle(process->hProcess);
     }
@@ -294,8 +295,8 @@ vlc_process_Terminate(struct vlc_process *process, bool kill_process)
 }
 
 ssize_t
-vlc_process_fd_Read(struct vlc_process *process, uint8_t *buf, size_t size,
-                    vlc_tick_t timeout_ms)
+heimdall_process_fd_Read(struct heimdall_process *process, uint8_t *buf, size_t size,
+                    heimdall_tick_t timeout_ms)
 {
     assert(process != NULL);
     assert(buf != NULL);
@@ -322,9 +323,9 @@ vlc_process_fd_Read(struct vlc_process *process, uint8_t *buf, size_t size,
     int err;
     if (ReadFile(hFd, buf, size, NULL, &overlapped)) {
         if (GetOverlappedResult(hFd, &overlapped, &bytes, FALSE)) {
-            err = VLC_SUCCESS;
+            err = HEIMDALL_SUCCESS;
         } else {
-            err = vlc_process_WindowsMapIoResult(GetLastError(), &bytes, true,
+            err = heimdall_process_WindowsMapIoResult(GetLastError(), &bytes, true,
                                                  EINVAL);
         }
     } else {
@@ -333,14 +334,14 @@ vlc_process_fd_Read(struct vlc_process *process, uint8_t *buf, size_t size,
             if (atomic_load(&process->killed)) {
                 CancelIoEx(hFd, &overlapped);
             }
-            err = vlc_process_WindowsPoll(hFd, &overlapped, &bytes,
+            err = heimdall_process_WindowsPoll(hFd, &overlapped, &bytes,
                                           (DWORD)size, true, timeout_ms);
         } else {
-            err = vlc_process_WindowsMapIoResult(error, &bytes, true, EINVAL);
+            err = heimdall_process_WindowsMapIoResult(error, &bytes, true, EINVAL);
         }
     }
 
-    if (err == VLC_SUCCESS) {
+    if (err == HEIMDALL_SUCCESS) {
         return bytes;
     }
     if (atomic_load(&process->killed)) {
@@ -351,8 +352,8 @@ vlc_process_fd_Read(struct vlc_process *process, uint8_t *buf, size_t size,
 }
 
 ssize_t
-vlc_process_fd_Write(struct vlc_process *process, const uint8_t *buf, size_t size,
-                     vlc_tick_t timeout_ms)
+heimdall_process_fd_Write(struct heimdall_process *process, const uint8_t *buf, size_t size,
+                     heimdall_tick_t timeout_ms)
 {
     assert(process != NULL);
     assert(buf != NULL);
@@ -379,9 +380,9 @@ vlc_process_fd_Write(struct vlc_process *process, const uint8_t *buf, size_t siz
     int err;
     if (WriteFile(hFd, buf, size, NULL, &overlapped)) {
         if (GetOverlappedResult(hFd, &overlapped, &bytes, FALSE)) {
-            err = VLC_SUCCESS;
+            err = HEIMDALL_SUCCESS;
         } else {
-            err = vlc_process_WindowsMapIoResult(GetLastError(), &bytes, false,
+            err = heimdall_process_WindowsMapIoResult(GetLastError(), &bytes, false,
                                                  EINVAL);
         }
     } else {
@@ -390,14 +391,14 @@ vlc_process_fd_Write(struct vlc_process *process, const uint8_t *buf, size_t siz
             if (atomic_load(&process->killed)) {
                 CancelIoEx(hFd, &overlapped);
             }
-            err = vlc_process_WindowsPoll(hFd, &overlapped, &bytes,
+            err = heimdall_process_WindowsPoll(hFd, &overlapped, &bytes,
                                           (DWORD)size, false, timeout_ms);
         } else {
-            err = vlc_process_WindowsMapIoResult(error, &bytes, false, EINVAL);
+            err = heimdall_process_WindowsMapIoResult(error, &bytes, false, EINVAL);
         }
     }
 
-    if (err == VLC_SUCCESS) {
+    if (err == HEIMDALL_SUCCESS) {
         return bytes;
     }
     errno = atomic_load(&process->killed) ? EPIPE : err;

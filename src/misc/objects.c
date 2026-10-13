@@ -1,8 +1,9 @@
 /*****************************************************************************
- * objects.c: vlc_object_t handling
+ * objects.c: heimdall_object_t handling
  *****************************************************************************
  * Copyright (C) 2004-2008 VLC authors and VideoLAN
  * Copyright (C) 2006-2010 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Samuel Hocevar <sam@zoy.org>
  *
@@ -23,7 +24,7 @@
 
 /**
  * \file
- * This file contains the functions to handle the vlc_object_t type
+ * This file contains the functions to handle the heimdall_object_t type
  *
  * Unless otherwise stated, functions in this file are not cancellation point.
  * All functions in this file are safe w.r.t. deferred cancellation.
@@ -37,15 +38,15 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_threads.h>
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
 
-#include "../libvlc.h"
-#include <vlc_aout.h>
+#include "../libheimdall.h"
+#include <heimdall_aout.h>
 #include "audio_output/aout_internal.h"
 
-#include "vlc_interface.h"
-#include "vlc_codec.h"
+#include "heimdall_interface.h"
+#include "heimdall_codec.h"
 
 #include "variables.h"
 
@@ -56,20 +57,20 @@
 #include <limits.h>
 #include <assert.h>
 
-#define vlc_children_foreach(pos, priv) \
+#define heimdall_children_foreach(pos, priv) \
     while (((void)(pos), (void)(priv), 0))
 
-int vlc_object_init(vlc_object_t *restrict obj, vlc_object_t *parent,
+int heimdall_object_init(heimdall_object_t *restrict obj, heimdall_object_t *parent,
                     const char *typename)
 {
-    vlc_object_internals_t *priv = malloc(sizeof (*priv));
+    heimdall_object_internals_t *priv = malloc(sizeof (*priv));
     if (unlikely(priv == NULL))
         return -1;
 
     priv->parent = parent;
     priv->typename = typename;
     priv->var_root = NULL;
-    vlc_mutex_init (&priv->var_lock);
+    heimdall_mutex_init (&priv->var_lock);
     priv->resources = NULL;
 
     obj->priv = priv;
@@ -89,85 +90,85 @@ int vlc_object_init(vlc_object_t *restrict obj, vlc_object_t *parent,
     return 0;
 }
 
-void *(vlc_custom_create)(vlc_object_t *parent, size_t length,
+void *(heimdall_custom_create)(heimdall_object_t *parent, size_t length,
                           const char *typename)
 {
-    assert(length >= sizeof (vlc_object_t));
+    assert(length >= sizeof (heimdall_object_t));
 
-    vlc_object_t *obj = calloc(length, 1);
-    if (unlikely(obj == NULL || vlc_object_init(obj, parent, typename))) {
+    heimdall_object_t *obj = calloc(length, 1);
+    if (unlikely(obj == NULL || heimdall_object_init(obj, parent, typename))) {
         free(obj);
         obj = NULL;
     }
     return obj;
 }
 
-void *(vlc_object_create)(vlc_object_t *p_this, size_t i_size)
+void *(heimdall_object_create)(heimdall_object_t *p_this, size_t i_size)
 {
-    return vlc_custom_create( p_this, i_size, "generic" );
+    return heimdall_custom_create( p_this, i_size, "generic" );
 }
 
-const char *vlc_object_typename(const vlc_object_t *obj)
+const char *heimdall_object_typename(const heimdall_object_t *obj)
 {
-    return vlc_internals(obj)->typename;
+    return heimdall_internals(obj)->typename;
 }
 
-vlc_object_t *(vlc_object_parent)(vlc_object_t *obj)
+heimdall_object_t *(heimdall_object_parent)(heimdall_object_t *obj)
 {
-    return vlc_internals(obj)->parent;
+    return heimdall_internals(obj)->parent;
 }
 
-struct vlc_tracer *vlc_object_get_tracer(vlc_object_t *obj)
+struct heimdall_tracer *heimdall_object_get_tracer(heimdall_object_t *obj)
 {
-    libvlc_int_t *vlc = vlc_object_instance(obj);
-    libvlc_priv_t *vlc_priv = libvlc_priv(vlc);
-    return vlc_priv->tracer;
+    libheimdall_int_t *heimdall = heimdall_object_instance(obj);
+    libheimdall_priv_t *heimdall_priv = libheimdall_priv(heimdall);
+    return heimdall_priv->tracer;
 }
 
-void vlc_object_deinit(vlc_object_t *obj)
+void heimdall_object_deinit(heimdall_object_t *obj)
 {
-    vlc_object_internals_t *priv = vlc_internals(obj);
+    heimdall_object_internals_t *priv = heimdall_internals(obj);
 
     assert(priv->resources == NULL);
 
     /* Destroy the associated variables. */
-    int canc = vlc_savecancel();
+    int canc = heimdall_savecancel();
     var_DestroyAll(obj);
-    vlc_restorecancel(canc);
+    heimdall_restorecancel(canc);
 
     free(priv);
 }
 
-void (vlc_object_delete)(vlc_object_t *obj)
+void (heimdall_object_delete)(heimdall_object_t *obj)
 {
-    vlc_object_deinit(obj);
+    heimdall_object_deinit(obj);
     free(obj);
 }
 
-void vlc_object_vaLog(vlc_object_t *obj, int prio, const char *module,
+void heimdall_object_vaLog(heimdall_object_t *obj, int prio, const char *module,
                       const char *file, unsigned line, const char *func,
                       const char *format, va_list ap)
 {
     if (obj == NULL)
         return;
 
-    const char *typename = vlc_object_typename(obj);
-    /* FIXME: libvlc allows NULL type but modules don't */
+    const char *typename = heimdall_object_typename(obj);
+    /* FIXME: libheimdall allows NULL type but modules don't */
     if (typename == NULL)
         typename = "generic";
 
-    vlc_vaLog(&obj->logger, prio, typename, module, file, line, func,
+    heimdall_vaLog(&obj->logger, prio, typename, module, file, line, func,
               format, ap);
 }
 
-void vlc_object_Log(vlc_object_t *obj, int prio, const char *module,
+void heimdall_object_Log(heimdall_object_t *obj, int prio, const char *module,
                     const char *file, unsigned line, const char *func,
                     const char *format, ...)
 {
     va_list ap;
 
     va_start(ap, format);
-    vlc_object_vaLog(obj, prio, module, file, line, func, format, ap);
+    heimdall_object_vaLog(obj, prio, module, file, line, func, format, ap);
     va_end(ap);
 }
 
@@ -195,16 +196,16 @@ void vlc_object_Log(vlc_object_t *obj, int prio, const char *module,
  * Also type-specific object variables may not have been created yet, or may
  * already have been deleted.
  */
-size_t vlc_list_children(vlc_object_t *obj, vlc_object_t **restrict tab,
+size_t heimdall_list_children(heimdall_object_t *obj, heimdall_object_t **restrict tab,
                          size_t max)
 {
-    vlc_object_internals_t *priv;
+    heimdall_object_internals_t *priv;
     size_t count = 0;
 
-    vlc_children_foreach(priv, vlc_internals(obj))
+    heimdall_children_foreach(priv, heimdall_internals(obj))
     {
          if (count < max)
-             tab[count] = vlc_object_hold(vlc_externals(priv));
+             tab[count] = heimdall_object_hold(heimdall_externals(priv));
          count++;
     }
     return count;

@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2024 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,7 +28,7 @@
 
 class QQuickView;
 
-namespace vlc {
+namespace heimdall {
 
 class CompositorPlatform : public CompositorVideo
 {
@@ -41,7 +42,7 @@ public:
     bool makeMainInterface(MainCtx *, std::function<void(QQuickWindow*)> aboutToShowQuickWindowCallback = {}) override;
     void destroyMainInterface() override;
     void unloadGUI() override;
-    bool setupVoutWindow(vlc_window_t*, VoutDestroyCb destroyCb) override;
+    bool setupVoutWindow(heimdall_window_t*, VoutDestroyCb destroyCb) override;
     QWindow* interfaceMainWindow() const override;
     QQuickWindow* quickWindow() const override;
     Type type() const override;
@@ -54,7 +55,7 @@ protected:
     void commitSurface() override;
 
 private:
-    int windowEnable(const vlc_window_cfg_t *) override;
+    int windowEnable(const heimdall_window_cfg_t *) override;
     void windowDisable() override;
 
 private slots:

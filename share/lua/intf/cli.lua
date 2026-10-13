@@ -1,9 +1,10 @@
 --[==========================================================================[
- cli.lua: CLI module for VLC
+ cli.lua: CLI module for Heimdall
 --[==========================================================================[
  Copyright (C) 2007-2011 the VideoLAN team
+ Copyright (C) 2026 TheFenrisLycaon
 
- Authors: Antoine Cellerier <dionoea at videolan dot org>
+ Authors: Antoine Cellerier <dionoea at lycaria dot org>
           Pierre Ynard
 
  This program is free software; you can redistribute it and/or modify
@@ -23,19 +24,19 @@
 
 description=
 [============================================================================[
- Command Line Interface for VLC
+ Command Line Interface for Heimdall
 
  This is a modules/control/oldrc.c look alike (with a bunch of new features).
  It also provides a VLM interface copied from the telnet interface.
 
  Use on local term:
-    vlc -I luaintf --lua-intf cli
+    heimdall -I luaintf --lua-intf cli
  Use on tcp connection:
-    vlc -I luaintf --lua-intf cli --lua-config "cli={host='localhost:4212'}"
+    heimdall -I luaintf --lua-intf cli --lua-config "cli={host='localhost:4212'}"
  Use on telnet connection:
-    vlc -I luaintf --lua-intf cli --lua-config "cli={host='telnet://localhost:4212'}"
+    heimdall -I luaintf --lua-intf cli --lua-config "cli={host='telnet://localhost:4212'}"
  Use on multiple hosts (term + plain tcp port + telnet):
-    vlc -I luaintf --lua-intf cli --lua-config "cli={hosts={'*console','localhost:4212','telnet://localhost:5678'}}"
+    heimdall -I luaintf --lua-intf cli --lua-config "cli={hosts={'*console','localhost:4212','telnet://localhost:5678'}}"
 
  Configuration options settable through the --lua-config option are:
     * hosts: A list of hosts to listen on.
@@ -62,8 +63,8 @@ skip2 = function(foo) return skip(skip(foo)) end
 setarg = common.setarg
 strip = common.strip
 
-_ = vlc.gettext._
-N_ = vlc.gettext.N_
+_ = heimdall.gettext._
+N_ = heimdall.gettext.N_
 
 running = true
 
@@ -81,9 +82,9 @@ for k,v in pairs(env) do
     if config[k] then
         if type(env[k]) == type(config[k]) then
             env[k] = config[k]
-            vlc.msg.dbg("set environment variable `"..k.."' to "..tostring(env[k]))
+            heimdall.msg.dbg("set environment variable `"..k.."' to "..tostring(env[k]))
         else
-            vlc.msg.err("environment variable `"..k.."' should be of type "..type(env[k])..". config value will be discarded.")
+            heimdall.msg.err("environment variable `"..k.."' should be of type "..type(env[k])..". config value will be discarded.")
         end
     end
 end
@@ -149,15 +150,15 @@ function logout(name,client)
         client:send("Bye-bye!\r\n")
         client:del()
     else
-        client:append("Error: Can't logout of stdin/stdout. Use quit or shutdown to close VLC.")
+        client:append("Error: Can't logout of stdin/stdout. Use quit or shutdown to close Heimdall.")
     end
 end
 
 function shutdown(name,client)
     client:append("Bye-bye!")
     h:broadcast("Shutting down.\r\n")
-    vlc.msg.info("Requested shutdown.")
-    vlc.misc.quit()
+    heimdall.msg.info("Requested shutdown.")
+    heimdall.misc.quit()
     running = false
 end
 
@@ -174,16 +175,16 @@ function add(name,client,arg)
     -- TODO: parse single and double quotes properly
     local f
     if name == "enqueue" then
-        f = vlc.playlist.enqueue
+        f = heimdall.playlist.enqueue
     else
-        f = vlc.playlist.add
+        f = heimdall.playlist.add
     end
     local options = {}
     for o in string.gmatch(arg," +:([^ ]*)") do
         table.insert(options,o)
     end
     arg = string.gsub(arg," +:.*$","")
-    local uri = vlc.strings.make_uri(arg)
+    local uri = heimdall.strings.make_uri(arg)
     f({{path=uri,options=options}})
 end
 
@@ -195,7 +196,7 @@ function move(name,client,arg)
     end
     x = tonumber(tbl[1])
     y = tonumber(tbl[2])
-    local res = vlc.playlist.move(x,y)
+    local res = heimdall.playlist.move(x,y)
     if res == (-1) then
         client:append("You should choose valid id.")
     end
@@ -220,18 +221,18 @@ function format_item(item, is_current)
 end
 
 function playlist(name,client,arg)
-    local current = vlc.playlist.current()
+    local current = heimdall.playlist.current()
     client:append("+----[ Playlist - "..name.." ]")
     if arg == nil then
         -- print the whole playlist
-        local list = vlc.playlist.list()
+        local list = heimdall.playlist.list()
         for _, item in ipairs(list) do
             client:append(format_item(item, item.id == current))
         end
     else
         -- print the requested item (if it exists)
         local id = tonumber(arg)
-        local item = vlc.playlist.get(id)
+        local item = heimdall.playlist.get(id)
         if item ~= nil then
             client:append(format_item(item, false))
         end
@@ -244,13 +245,13 @@ function playlist_sort(name,client,arg)
         client:append("Valid sort keys are: id, title, artist, genre, random, duration, album.")
     else
         local tree = playlist_is_tree(client)
-        vlc.playlist.sort(arg,false,tree)
+        heimdall.playlist.sort(arg,false,tree)
     end
 end
 
 function load_vlm(name, client, value)
     if vlm == nil then
-        vlm = vlc.vlm()
+        vlm = heimdall.vlm()
     end
 end
 
@@ -269,7 +270,7 @@ end
 function help(name,client,arg)
     if arg == nil and vlm ~= nil then
         client:append("+----[ VLM commands ]")
-        local message, vlc_err = vlm:execute_command("help")
+        local message, heimdall_err = vlm:execute_command("help")
         vlm_message_to_string( client, message, "|" )
     end
 
@@ -304,9 +305,9 @@ function input_info(name,client,id)
     local pl_item;
 
     if id then
-        pl_item = vlc.playlist.get(id)
+        pl_item = heimdall.playlist.get(id)
     else
-        pl_item = vlc.playlist.current_item()
+        pl_item = heimdall.playlist.current_item()
     end
 
     if pl_item == nil then
@@ -336,7 +337,7 @@ function input_info(name,client,id)
 end
 
 function stats(name,client)
-    local item = vlc.player.item()
+    local item = heimdall.player.item()
     if(item == nil) then return end
     local stats_tab = item:stats()
 
@@ -363,20 +364,20 @@ function stats(name,client)
 end
 
 function playlist_status(name,client)
-    local item = vlc.player.item()
+    local item = heimdall.player.item()
     if(item ~= nil) then
-        client:append( "( new input: " .. vlc.strings.decode_uri(item:uri()) .. " )" )
+        client:append( "( new input: " .. heimdall.strings.decode_uri(item:uri()) .. " )" )
     end
-    client:append( "( audio volume: " .. tostring(vlc.volume.get()) .. " )")
-    client:append( "( state " .. vlc.playlist.status() .. " )")
+    client:append( "( audio volume: " .. tostring(heimdall.volume.get()) .. " )")
+    client:append( "( state " .. heimdall.playlist.status() .. " )")
 end
 
 function is_playing(name,client)
-    if vlc.player.is_playing() then client:append "1" else client:append "0" end
+    if heimdall.player.is_playing() then client:append "1" else client:append "0" end
 end
 
 function get_title(name,client)
-    local item = vlc.player.item()
+    local item = heimdall.player.item()
     if item then
         client:append(item:name())
     else
@@ -385,7 +386,7 @@ function get_title(name,client)
 end
 
 function get_length(name,client)
-    local item = vlc.player.item()
+    local item = heimdall.player.item()
     if item then
         client:append(math.floor(item:duration()))
     else
@@ -400,8 +401,8 @@ function ret_print(foo,start,stop)
 end
 
 function get_time(name,client)
-    if vlc.player.is_playing() then
-        client:append(math.floor(vlc.player.get_time() / 1000000))
+    if heimdall.player.is_playing() then
+        client:append(math.floor(heimdall.player.get_time() / 1000000))
     else
         client:append("")
     end
@@ -409,36 +410,36 @@ end
 
 function title(name,client,value)
     if value then
-        vlc.player.title_goto(value)
+        heimdall.player.title_goto(value)
     else
-        local idx = vlc.player.get_title_index()
+        local idx = heimdall.player.get_title_index()
         client:append(idx)
     end
 end
 
 function title_next(name,client,value)
-    vlc.player.title_next()
+    heimdall.player.title_next()
 end
 
 function title_previous(name,client,value)
-    vlc.player.title_prev()
+    heimdall.player.title_prev()
 end
 
 function chapter(name,client,value)
     if value then
-        vlc.player.chapter_goto(value)
+        heimdall.player.chapter_goto(value)
     else
-        local idx = vlc.player.get_chapter_index()
+        local idx = heimdall.player.get_chapter_index()
         client:append(idx)
     end
 end
 
 function chapter_next(name,client,value)
-    vlc.player.chapter_next()
+    heimdall.player.chapter_next()
 end
 
 function chapter_previous(name,client,value)
-    vlc.player.chapter_prev()
+    heimdall.player.chapter_prev()
 end
 
 function seek(name,client,value)
@@ -449,49 +450,49 @@ function volume(name,client,value)
     if value then
         common.volume(value)
     else
-        client:append(tostring(vlc.volume.get()))
+        client:append(tostring(heimdall.volume.get()))
     end
 end
 
 function rate_normal(name, client)
-    vlc.player.set_rate(1)
+    heimdall.player.set_rate(1)
 end
 
 function rate_faster(name, client)
-    vlc.player.increment_rate()
+    heimdall.player.increment_rate()
 end
 
 function rate_slower(name, client)
-    vlc.player.decrement_rate()
+    heimdall.player.decrement_rate()
 end
 
 function rate(name, client, value)
     if value then
         local rate = common.us_tonumber(value)
-        vlc.player.set_rate(rate)
+        heimdall.player.set_rate(rate)
     else
-        client:append(vlc.player.get_rate())
+        client:append(heimdall.player.get_rate())
     end
 end
 
 function frame(name,client)
-    vlc.player.next_video_frame()
+    heimdall.player.next_video_frame()
 end
 
 function listvalue(obj,var)
     return function(client,value)
         local o
         if obj == "aout" then
-            o = vlc.object.aout()
+            o = heimdall.object.aout()
         elseif obj == "vout" then
-            o = vlc.object.vout()
+            o = heimdall.object.vout()
         end
         if not o then return end
         if value then
-            vlc.var.set( o, var, value )
+            heimdall.var.set( o, var, value )
         else
-            local c = vlc.var.get( o, var )
-            local v, l = vlc.var.get_list( o, var )
+            local c = heimdall.var.get( o, var )
+            local v, l = heimdall.var.get_list( o, var )
             client:append("+----[ "..var.." ]")
             for i,val in ipairs(v) do
                 local mark = (val==c)and " *" or ""
@@ -504,10 +505,10 @@ end
 
 function vtrack(name, client, value)
     if value then
-        vlc.player.toggle_video_track(value)
+        heimdall.player.toggle_video_track(value)
     else
         client:append("+----[ video tracks ]")
-        local tracks = vlc.player.get_video_tracks()
+        local tracks = heimdall.player.get_video_tracks()
         for _, track in ipairs(tracks) do
             local mark = track.selected and "*" or " "
             client:append("|"..mark..tostring(track.id).." - "..track.name)
@@ -518,10 +519,10 @@ end
 
 function atrack(name, client, value)
     if value then
-        vlc.player.toggle_audio_track(value)
+        heimdall.player.toggle_audio_track(value)
     else
         client:append("+----[ audio tracks ]")
-        local tracks = vlc.player.get_audio_tracks()
+        local tracks = heimdall.player.get_audio_tracks()
         for _, track in ipairs(tracks) do
             local mark = track.selected and "*" or " "
             client:append("|"..mark..tostring(track.id).." - "..track.name)
@@ -532,10 +533,10 @@ end
 
 function strack(name, client, value)
     if value then
-        vlc.player.toggle_spu_track(value)
+        heimdall.player.toggle_spu_track(value)
     else
         client:append("+----[ spu tracks ]")
-        local tracks = vlc.player.get_spu_tracks()
+        local tracks = heimdall.player.get_spu_tracks()
         for _, track in ipairs(tracks) do
             local mark = track.selected and "*" or " "
             client:append("|"..mark..tostring(track.id).." - "..track.name)
@@ -561,18 +562,18 @@ commands_ordered = {
     { "add"; { func = add; args = "XYZ"; help = "add XYZ to playlist" } };
     { "enqueue"; { func = add; args = "XYZ"; help = "queue XYZ to playlist" } };
     { "playlist"; { func = playlist; help = "show items currently in playlist" } };
-    { "delete"; { func = skip2(vlc.playlist.delete); args = "[X]"; help = "delete item X in playlist" } };
+    { "delete"; { func = skip2(heimdall.playlist.delete); args = "[X]"; help = "delete item X in playlist" } };
     { "move"; { func = move; args = "[X][Y]"; help = "move item X in playlist after Y" } };
     { "sort"; { func = playlist_sort; args = "key"; help = "sort the playlist" } };
-    { "play"; { func = skip2(vlc.playlist.play); help = "play stream" } };
-    { "stop"; { func = skip2(vlc.playlist.stop); help = "stop stream" } };
-    { "next"; { func = skip2(vlc.playlist.next); help = "next playlist item" } };
-    { "prev"; { func = skip2(vlc.playlist.prev); help = "previous playlist item" } };
-    { "goto"; { func = skip2(vlc.playlist.gotoitem); help = "goto item at index" ; aliases = { "gotoitem" } } };
-    { "repeat"; { func = skip2(vlc.playlist.repeat_); args = "[on|off]"; help = "toggle playlist repeat" } };
-    { "loop"; { func = skip2(vlc.playlist.loop); args = "[on|off]"; help = "toggle playlist loop" } };
-    { "random"; { func = skip2(vlc.playlist.random); args = "[on|off]"; help = "toggle playlist random" } };
-    { "clear"; { func = skip2(vlc.playlist.clear); help = "clear the playlist" } };
+    { "play"; { func = skip2(heimdall.playlist.play); help = "play stream" } };
+    { "stop"; { func = skip2(heimdall.playlist.stop); help = "stop stream" } };
+    { "next"; { func = skip2(heimdall.playlist.next); help = "next playlist item" } };
+    { "prev"; { func = skip2(heimdall.playlist.prev); help = "previous playlist item" } };
+    { "goto"; { func = skip2(heimdall.playlist.gotoitem); help = "goto item at index" ; aliases = { "gotoitem" } } };
+    { "repeat"; { func = skip2(heimdall.playlist.repeat_); args = "[on|off]"; help = "toggle playlist repeat" } };
+    { "loop"; { func = skip2(heimdall.playlist.loop); args = "[on|off]"; help = "toggle playlist loop" } };
+    { "random"; { func = skip2(heimdall.playlist.random); args = "[on|off]"; help = "toggle playlist random" } };
+    { "clear"; { func = skip2(heimdall.playlist.clear); help = "clear the playlist" } };
     { "status"; { func = playlist_status; help = "current playlist status" } };
     { "title"; { func = title; args = "[X]"; help = "set/get title in current item" } };
     { "title_n"; { func = title_next; help = "next title in current item" } };
@@ -582,7 +583,7 @@ commands_ordered = {
     { "chapter_p"; { func = chapter_previous; help = "previous chapter in current item" } };
     { "" };
     { "seek"; { func = seek; args = "X"; help = "seek in seconds, for instance `seek 12'" } };
-    { "pause"; { func = skip2(vlc.playlist.pause); help = "toggle pause" } };
+    { "pause"; { func = skip2(heimdall.playlist.pause); help = "toggle pause" } };
     { "fastforward"; { func = setarg(common.hotkey,"key-jump+extrashort"); help = "set to maximum rate" } };
     { "rewind"; { func = setarg(common.hotkey,"key-jump-extrashort"); help = "set to minimum rate" } };
     { "faster"; { func = rate_faster; help = "faster playing of stream" } };
@@ -590,7 +591,7 @@ commands_ordered = {
     { "normal"; { func = rate_normal; help = "normal playing of stream" } };
     { "rate"; { func = rate; args = "[playback rate]"; help = "set playback rate to value" } };
     { "frame"; { func = frame; help = "play frame by frame" } };
-    { "fullscreen"; { func = skip2(vlc.video.fullscreen); args = "[on|off]"; help = "toggle fullscreen"; aliases = { "f", "F" } } };
+    { "fullscreen"; { func = skip2(heimdall.video.fullscreen); args = "[on|off]"; help = "toggle fullscreen"; aliases = { "f", "F" } } };
     { "info"; { func = input_info; args= "[X]"; help = "information about the current stream (or specified id)" } };
     { "stats"; { func = stats; help = "show statistical information" } };
     { "get_time"; { func = get_time; help = "seconds elapsed since stream's beginning" } };
@@ -599,8 +600,8 @@ commands_ordered = {
     { "get_length"; { func = get_length; help = "the length of the current stream" } };
     { "" };
     { "volume"; { func = volume; args = "[X]"; help = "set/get audio volume" } };
-    { "volup"; { func = ret_print(vlc.volume.up,"( audio volume: "," )"); args = "[X]"; help = "raise audio volume X steps" } };
-    { "voldown"; { func = ret_print(vlc.volume.down,"( audio volume: "," )"); args = "[X]"; help = "lower audio volume X steps" } };
+    { "volup"; { func = ret_print(heimdall.volume.up,"( audio volume: "," )"); args = "[X]"; help = "raise audio volume X steps" } };
+    { "voldown"; { func = ret_print(heimdall.volume.down,"( audio volume: "," )"); args = "[X]"; help = "lower audio volume X steps" } };
     -- { "adev"; { func = skip(listvalue("aout","audio-device")); args = "[X]"; help = "set/get audio device" } };
     { "achan"; { func = skip(listvalue("aout","stereo-mode")); args = "[X]"; help = "set/get stereo audio output mode" } };
     { "atrack"; { func = atrack; args = "[X]"; help = "set/get audio track" } };
@@ -619,13 +620,13 @@ commands_ordered = {
     { "save_env"; { func = save_env; help = "save env vars (for future clients)"; adv = true } };
     { "alias"; { func = skip(alias); args = "[cmd]"; help = "set/get command aliases"; adv = true } };
     { "description"; { func = print_text("Description",description); help = "describe this module" } };
-    { "license"; { func = print_text("License message",vlc.misc.license()); help = "print VLC's license message"; adv = true } };
+    { "license"; { func = print_text("License message",heimdall.misc.license()); help = "print Heimdall's license message"; adv = true } };
     { "help"; { func = help; args = "[pattern]"; help = "a help message"; aliases = { "?" } } };
     { "longhelp"; { func = help; args = "[pattern]"; help = "a longer help message" } };
     { "lock"; { func = lock; help = "lock the telnet prompt" } };
     { "logout"; { func = logout; help = "exit (if in a socket connection)" } };
-    { "quit"; { func = quit; help = "quit VLC (or logout if in a socket connection)" } };
-    { "shutdown"; { func = shutdown; help = "shutdown VLC" } };
+    { "quit"; { func = quit; help = "quit Heimdall (or logout if in a socket connection)" } };
+    { "shutdown"; { func = shutdown; help = "shutdown Heimdall" } };
     }
 
 commands = {}
@@ -699,23 +700,23 @@ function call_vlm_command(cmd,client,arg)
     if arg ~= nil then
         cmd = cmd.." "..arg
     end
-    local message, vlc_err = vlm:execute_command( cmd )
+    local message, heimdall_err = vlm:execute_command( cmd )
     -- the VLM doesn't let us know if the command exists,
     -- so we need this ugly hack
-    if vlc_err ~= 0 and message.value == "Unknown VLM command" then
-        return vlc_err
+    if heimdall_err ~= 0 and message.value == "Unknown VLM command" then
+        return heimdall_err
     end
     vlm_message_to_string( client, message )
     return 0
 end
 
-function call_libvlc_command(cmd,client,arg)
-    local ok, vlcerr = pcall( vlc.var.libvlc_command, cmd, arg )
+function call_libheimdall_command(cmd,client,arg)
+    local ok, heimdallerr = pcall( heimdall.var.libheimdall_command, cmd, arg )
     if not ok then
         local a = arg and " "..arg or ""
-        client:append("Error in `"..cmd..a.."' ".. vlcerr) -- when pcall fails, the 2nd arg is the error message.
+        client:append("Error in `"..cmd..a.."' ".. heimdallerr) -- when pcall fails, the 2nd arg is the error message.
     end
-    return vlcerr
+    return heimdallerr
 end
 
 function client_command( client )
@@ -727,7 +728,7 @@ function client_command( client )
     elseif call_vlm_command(cmd,client,arg) == 0 then
         --
     elseif client.type == host.client_type.stdio
-    and call_libvlc_command(cmd,client,arg) == 0 then
+    and call_libheimdall_command(cmd,client,arg) == 0 then
         --
     else
         local choices = {}

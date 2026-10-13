@@ -2,8 +2,9 @@
  * video.c: Generic lua interface functions
  *****************************************************************************
  * Copyright (C) 2007-2008 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Antoine Cellerier <dionoea at videolan tod org>
+ * Authors: Antoine Cellerier <dionoea at lycaria tod org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,9 +32,9 @@
 # include "config.h"
 #endif
 
-#include <vlc_vout.h>
+#include <heimdall_vout.h>
 
-#include "../vlc.h"
+#include "../heimdall.h"
 #include "../libs.h"
 #include "input.h"
 #include "variables.h"
@@ -41,15 +42,15 @@
 /*****************************************************************************
  * Vout control
  *****************************************************************************/
-static int vlclua_fullscreen( lua_State *L )
+static int heimdalllua_fullscreen( lua_State *L )
 {
     int i_ret;
 
-    vout_thread_t *p_vout = vlclua_get_vout_internal(L);
+    vout_thread_t *p_vout = heimdalllua_get_vout_internal(L);
     if( !p_vout )
-        return vlclua_error( L );
+        return heimdalllua_error( L );
 
-    i_ret = vlclua_var_toggle_or_set( L, p_vout, "fullscreen" );
+    i_ret = heimdalllua_var_toggle_or_set( L, p_vout, "fullscreen" );
 
     vout_Release(p_vout);
     return i_ret;
@@ -58,14 +59,14 @@ static int vlclua_fullscreen( lua_State *L )
 /*****************************************************************************
  *
  *****************************************************************************/
-static const luaL_Reg vlclua_video_reg[] = {
-    { "fullscreen", vlclua_fullscreen },
+static const luaL_Reg heimdalllua_video_reg[] = {
+    { "fullscreen", heimdalllua_fullscreen },
     { NULL, NULL }
 };
 
 void luaopen_video( lua_State *L )
 {
     lua_newtable( L );
-    luaL_register( L, NULL, vlclua_video_reg );
+    luaL_register( L, NULL, heimdalllua_video_reg );
     lua_setfield( L, -2, "video" );
 }

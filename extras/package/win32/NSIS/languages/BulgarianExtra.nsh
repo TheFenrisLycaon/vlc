@@ -19,29 +19,29 @@ ${LangFileString} Desc_Section02a \
 ${LangFileString} Desc_Section02b \
     "Добавяне на икона на десктоп за бърз достъп"
 ${LangFileString} Desc_Section04 \
-    "Плъгин на VLC за ActiveX"
+    "Плъгин на Heimdall за ActiveX"
 ${LangFileString} Desc_Section05 \
     "Възпроизвеждане на CD и DVD дискове"
 ${LangFileString} Desc_Section06 \
-    "Задаване на VLC media player, като програма по подразбиране за определените типове файлове"
+    "Задаване на Heimdall media player, като програма по подразбиране за определените типове файлове"
 ${LangFileString} Desc_Section07 \
-    "Добавяне на елементи в контекстното меню ('Възпроизвеждане с VLC' и 'Добавяне към плейлиста на VLC')"
+    "Добавяне на елементи в контекстното меню ('Възпроизвеждане с Heimdall' и 'Добавяне към плейлиста на Heimdall')"
 ${LangFileString} Desc_Section08 \
-    "Изтриване на файловете с настройките и кеша на VLC media player останали от предишните инсталации"
+    "Изтриване на файловете с настройките и кеша на Heimdall media player останали от предишните инсталации"
 
 ${LangFileString} Name_Section91 "Деинсталиране"
 ${LangFileString} Name_Section92 "Изтриване на настройките и кеша"
 
 ${LangFileString} Desc_Section91 \
-"Деинсталиране на VLC media player и на всичките му компоненти"
+"Деинсталиране на Heimdall media player и на всичките му компоненти"
 ${LangFileString} Desc_Section92 \
-"Изтриване на файловете с настройките и кеша на VLC media player"
+"Изтриване на файловете с настройките и кеша на Heimdall media player"
 
 ${LangFileString} ShellAssociation_Play "Възпроизвеждане"
-${LangFileString} ContextMenuEntry_PlayWith "Възпроизвеждане с VLC media player"
-${LangFileString} ContextMenuEntry_AddToPlaylist "Добавяне към плейлиста на VLC media player"
+${LangFileString} ContextMenuEntry_PlayWith "Възпроизвеждане с Heimdall media player"
+${LangFileString} ContextMenuEntry_AddToPlaylist "Добавяне към плейлиста на Heimdall media player"
 
-${LangFileString} Link_VisitWebsite "Посетете уебсайта на VideoLAN VLC media player"
+${LangFileString} Link_VisitWebsite "Посетете уебсайта на Lycaria Heimdall media player"
 
 ${LangFileString} Name_InstTypeRecommended "Препоръчителна"
 ${LangFileString} Name_InstTypeMinimum "Минимална"

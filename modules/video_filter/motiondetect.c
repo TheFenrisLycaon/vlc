@@ -2,8 +2,9 @@
  * motiondetect.c : Second version of a motion detection plugin.
  *****************************************************************************
  * Copyright (C) 2000-2008 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Antoine Cellerier <dionoea -at- videolan -dot- org>
+ * Authors: Antoine Cellerier <dionoea -at- lycaria -dot- org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -28,11 +29,11 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_sout.h>
-#include <vlc_filter.h>
-#include <vlc_picture.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_sout.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
 #include "filter_picture.h"
 
 /*****************************************************************************
@@ -43,14 +44,14 @@ static void Destroy   ( filter_t * );
 
 #define FILTER_PREFIX "motiondetect-"
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("Motion detect video filter") )
     set_shortname( N_( "Motion Detect" ))
     set_subcategory( SUBCAT_VIDEO_VFILTER )
 
     add_shortcut( "motion" )
     set_callback_video_filter( Create )
-vlc_module_end ()
+heimdall_module_end ()
 
 
 /*****************************************************************************
@@ -111,9 +112,9 @@ static int Create( filter_t *p_filter )
         default:
             msg_Err( p_filter, "Unsupported input chroma (%4.4s)",
                      (char*)&(p_fmt->i_chroma) );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
-    static const struct vlc_filter_operations filter_ops =
+    static const struct heimdall_filter_operations filter_ops =
     {
         .filter_video = Filter, .flush = Flush, .close = Destroy,
     };
@@ -122,7 +123,7 @@ static int Create( filter_t *p_filter )
     /* Allocate structure */
     p_filter->p_sys = p_sys = malloc( sizeof( filter_sys_t ) );
     if( p_filter->p_sys == NULL )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_sys->is_yuv_planar = is_yuv_planar;
     p_sys->p_old = NULL;
@@ -133,10 +134,10 @@ static int Create( filter_t *p_filter )
     {
         free( p_sys->p_buf2 );
         free( p_sys->p_buf );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -181,13 +182,13 @@ static void PreparePlanar( filter_t *p_filter, picture_t *p_inpic )
     int i_chroma_dy;
     switch( p_inpic->format.i_chroma )
     {
-        case VLC_CODEC_I420:
-        case VLC_CODEC_YV12:
+        case HEIMDALL_CODEC_I420:
+        case HEIMDALL_CODEC_YV12:
             i_chroma_dx = 2;
             i_chroma_dy = 2;
             break;
 
-        case VLC_CODEC_I422:
+        case HEIMDALL_CODEC_I422:
             i_chroma_dx = 2;
             i_chroma_dy = 1;
             break;
@@ -234,7 +235,7 @@ static int PreparePacked( filter_t *p_filter, picture_t *p_inpic, int *pi_pix_of
     {
         msg_Warn( p_filter, "Unsupported input chroma (%4.4s)",
                   (char*)&p_fmt->i_chroma );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     *pi_pix_offset = i_y_offset;
 
@@ -258,7 +259,7 @@ static int PreparePacked( filter_t *p_filter, picture_t *p_inpic, int *pi_pix_of
                     abs( p_inpix[y*i_src_pitch+2*(x+i)+i_y_offset] - p_oldpix[y*i_old_pitch+2*(x+i)+i_y_offset] ) + d;
         }
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static picture_t *Filter( filter_t *p_filter, picture_t *p_inpic )

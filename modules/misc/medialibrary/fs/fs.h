@@ -2,6 +2,7 @@
  * fs.h: Media library network file system
  *****************************************************************************
  * Copyright (C) 2018 VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -23,24 +24,24 @@
 
 #include <memory>
 #include <vector>
-#include <vlc_common.h>
-#include <vlc_threads.h>
-#include <vlc_preparser.h>
-#include <vlc_cxx_helpers.hpp>
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
+#include <heimdall_preparser.h>
+#include <heimdall_cxx_helpers.hpp>
 
 #include <medialibrary/filesystem/IFileSystemFactory.h>
 #include <medialibrary/IDeviceLister.h>
 
 #include "../LazyPreparser.h"
 
-struct libvlc_int_t;
+struct libheimdall_int_t;
 
 namespace medialibrary {
 class IDeviceListerCb;
 class IMediaLibrary;
 }
 
-namespace vlc {
+namespace heimdall {
   namespace medialibrary {
 
 using namespace ::medialibrary;
@@ -48,7 +49,7 @@ using namespace ::medialibrary::fs;
 
 class SDFileSystemFactory : public IFileSystemFactory, private IDeviceListerCb {
 public:
-    SDFileSystemFactory(vlc_object_t *m_parent,
+    SDFileSystemFactory(heimdall_object_t *m_parent,
                         const std::string &scheme);
 
     bool
@@ -84,8 +85,8 @@ public:
     void
     stop() override;
 
-    libvlc_int_t *
-    libvlc() const;
+    libheimdall_int_t *
+    libheimdall() const;
 
     void
     onDeviceMounted(const std::string& uuid, const std::string& mountpoint, bool removable) override;
@@ -108,13 +109,13 @@ private:
     std::shared_ptr<fs::IDevice> deviceByMrl(const std::string& mrl) const;
 
 private:
-    vlc_object_t *const m_parent;
+    heimdall_object_t *const m_parent;
     const std::string m_scheme;
     IFileSystemFactoryCb *m_callbacks;
     bool m_isNetwork;
 
-    mutable vlc::threads::mutex m_mutex;
-    mutable vlc::threads::condition_variable m_cond;
+    mutable heimdall::threads::mutex m_mutex;
+    mutable heimdall::threads::condition_variable m_cond;
     std::vector<std::shared_ptr<IDevice>> m_devices;
     std::shared_ptr<IDeviceLister> m_deviceLister;
 
@@ -122,6 +123,6 @@ private:
 };
 
   } /* namespace medialibrary */
-} /* namespace vlc */
+} /* namespace heimdall */
 
 #endif

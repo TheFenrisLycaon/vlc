@@ -1,7 +1,8 @@
 /*****************************************************************************
- * gestures.c: control vlc with mouse gestures
+ * gestures.c: control heimdall with mouse gestures
  *****************************************************************************
  * Copyright (C) 2004-2009 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Sigmund Augdal Helberg <dnumgis@videolan.org>
  *
@@ -28,26 +29,26 @@
 # include "config.h"
 #endif
 
-#define VLC_MODULE_LICENSE VLC_LICENSE_GPL_2_PLUS
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_interface.h>
-#include <vlc_vout.h>
-#include <vlc_player.h>
-#include <vlc_playlist.h>
-#include <vlc_vector.h>
+#define HEIMDALL_MODULE_LICENSE HEIMDALL_LICENSE_GPL_2_PLUS
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_interface.h>
+#include <heimdall_vout.h>
+#include <heimdall_player.h>
+#include <heimdall_playlist.h>
+#include <heimdall_vector.h>
 #include <assert.h>
 
 /*****************************************************************************
  * intf_sys_t: description and status of interface
  *****************************************************************************/
 
-typedef struct VLC_VECTOR(vout_thread_t *) vout_vector;
+typedef struct HEIMDALL_VECTOR(vout_thread_t *) vout_vector;
 struct intf_sys_t
 {
-    vlc_playlist_t         *playlist;
-    vlc_player_listener_id *player_listener;
-    vlc_mutex_t             lock;
+    heimdall_playlist_t         *playlist;
+    heimdall_player_listener_id *player_listener;
+    heimdall_mutex_t             lock;
     vout_vector             vout_vector;
     bool                    b_button_pressed;
     int                     i_last_x, i_last_y;
@@ -67,8 +68,8 @@ struct intf_sys_t
 #define NONE 0
 #define GESTURE( a, b, c, d ) (a | ( b << 4 ) | ( c << 8 ) | ( d << 12 ))
 
-static int  Open   ( vlc_object_t * );
-static void Close  ( vlc_object_t * );
+static int  Open   ( heimdall_object_t * );
+static void Close  ( heimdall_object_t * );
 
 /*****************************************************************************
  * Module descriptor
@@ -87,7 +88,7 @@ static const char *const button_list[] = { "left", "middle", "right" };
 static const char *const button_list_text[] =
                                    { N_("Left"), N_("Middle"), N_("Right") };
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( N_("Gestures"))
     set_subcategory( SUBCAT_INTERFACE_CONTROL )
     add_integer( "gestures-threshold", 30,
@@ -99,44 +100,44 @@ vlc_module_begin ()
 
     set_capability( "interface", 0 )
     set_callbacks( Open, Close )
-vlc_module_end ()
+heimdall_module_end ()
 
-static void player_on_vout_changed(vlc_player_t *player,
-                                   enum vlc_player_vout_action action,
+static void player_on_vout_changed(heimdall_player_t *player,
+                                   enum heimdall_player_vout_action action,
                                    vout_thread_t *vout,
-                                   enum vlc_vout_order order,
-                                   vlc_es_id_t *es_id,
+                                   enum heimdall_vout_order order,
+                                   heimdall_es_id_t *es_id,
                                    void *data);
-static int MovedEvent( vlc_object_t *, char const *,
-                       vlc_value_t, vlc_value_t, void * );
-static int ButtonEvent( vlc_object_t *, char const *,
-                        vlc_value_t, vlc_value_t, void * );
+static int MovedEvent( heimdall_object_t *, char const *,
+                       heimdall_value_t, heimdall_value_t, void * );
+static int ButtonEvent( heimdall_object_t *, char const *,
+                        heimdall_value_t, heimdall_value_t, void * );
 
 /*****************************************************************************
  * OpenIntf: initialize interface
  *****************************************************************************/
-static int Open ( vlc_object_t *p_this )
+static int Open ( heimdall_object_t *p_this )
 {
     intf_thread_t *p_intf = (intf_thread_t *)p_this;
 
     /* Allocate instance and initialize some members */
     intf_sys_t *p_sys = p_intf->p_sys = malloc( sizeof( intf_sys_t ) );
     if( unlikely(p_sys == NULL) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     // Configure the module
-    p_sys->playlist = vlc_intf_GetMainPlaylist(p_intf);
-    vlc_mutex_init( &p_sys->lock );
-    vlc_vector_init(&p_sys->vout_vector);
+    p_sys->playlist = heimdall_intf_GetMainPlaylist(p_intf);
+    heimdall_mutex_init( &p_sys->lock );
+    heimdall_vector_init(&p_sys->vout_vector);
 
-    static const struct vlc_player_cbs cbs =
+    static const struct heimdall_player_cbs cbs =
     {
         .on_vout_changed = player_on_vout_changed,
     };
-    vlc_player_t *player = vlc_playlist_GetPlayer(p_sys->playlist);
-    vlc_player_Lock(player);
-    p_sys->player_listener = vlc_player_AddListener(player, &cbs, p_intf);
-    vlc_player_Unlock(player);
+    heimdall_player_t *player = heimdall_playlist_GetPlayer(p_sys->playlist);
+    heimdall_player_Lock(player);
+    p_sys->player_listener = heimdall_player_AddListener(player, &cbs, p_intf);
+    heimdall_player_Unlock(player);
     if (!p_sys->player_listener)
         goto error;
 
@@ -156,12 +157,12 @@ static int Open ( vlc_object_t *p_this )
     p_sys->i_pattern = 0;
     p_sys->i_num_gestures = 0;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
-    vlc_vector_clear(&p_sys->vout_vector);
+    heimdall_vector_clear(&p_sys->vout_vector);
     free(p_sys);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /*****************************************************************************
@@ -175,25 +176,25 @@ static inline unsigned gesture( unsigned i_pattern, unsigned i_num )
 /*****************************************************************************
  * CloseIntf: destroy dummy interface
  *****************************************************************************/
-static void Close ( vlc_object_t *p_this )
+static void Close ( heimdall_object_t *p_this )
 {
     intf_thread_t *p_intf = (intf_thread_t *)p_this;
     intf_sys_t *p_sys = p_intf->p_sys;
 
-    vlc_player_t *player = vlc_playlist_GetPlayer(p_sys->playlist);
-    vlc_player_Lock(player);
-    vlc_player_RemoveListener(player, p_sys->player_listener);
-    vlc_player_Unlock(player);
+    heimdall_player_t *player = heimdall_playlist_GetPlayer(p_sys->playlist);
+    heimdall_player_Lock(player);
+    heimdall_player_RemoveListener(player, p_sys->player_listener);
+    heimdall_player_Unlock(player);
 
     /* Destroy the callbacks (the order matters!) */
     vout_thread_t *vout;
-    vlc_vector_foreach(vout, &p_sys->vout_vector)
+    heimdall_vector_foreach(vout, &p_sys->vout_vector)
     {
         var_DelCallback(vout, "mouse-moved", MovedEvent, p_intf);
         var_DelCallback(vout, "mouse-button-down", ButtonEvent, p_intf);
         vout_Release(vout);
     }
-    vlc_vector_clear(&p_sys->vout_vector);
+    heimdall_vector_clear(&p_sys->vout_vector);
 
     /* Destroy structure */
     free( p_sys );
@@ -202,14 +203,14 @@ static void Close ( vlc_object_t *p_this )
 static void ProcessGesture( intf_thread_t *p_intf )
 {
     intf_sys_t *p_sys = p_intf->p_sys;
-    vlc_playlist_t *playlist = p_sys->playlist;
-    vlc_player_t *player = vlc_playlist_GetPlayer(playlist);
+    heimdall_playlist_t *playlist = p_sys->playlist;
+    heimdall_player_t *player = heimdall_playlist_GetPlayer(playlist);
 
     /* Do something */
     /* If you modify this, please try to follow this convention:
        Start with LEFT, RIGHT for playback related commands
        and UP, DOWN, for other commands */
-    vlc_playlist_Lock(playlist);
+    heimdall_playlist_Lock(playlist);
     switch( p_sys->i_pattern )
     {
         case LEFT:
@@ -220,52 +221,52 @@ static void ProcessGesture( intf_thread_t *p_intf )
             int it = var_InheritInteger( p_intf , "short-jump-size" );
             if( it > 0 )
             {
-                vlc_tick_t jump = p_sys->i_pattern == LEFT ? -it : it;
-                vlc_player_JumpTime(player, vlc_tick_from_sec(jump));
+                heimdall_tick_t jump = p_sys->i_pattern == LEFT ? -it : it;
+                heimdall_player_JumpTime(player, heimdall_tick_from_sec(jump));
             }
             break;
         }
 
         case GESTURE(LEFT,UP,NONE,NONE):
             msg_Dbg( p_intf, "Going slower." );
-            vlc_player_DecrementRate(player);
+            heimdall_player_DecrementRate(player);
             break;
 
         case GESTURE(RIGHT,UP,NONE,NONE):
             msg_Dbg( p_intf, "Going faster." );
-            vlc_player_IncrementRate(player);
+            heimdall_player_IncrementRate(player);
             break;
 
         case GESTURE(LEFT,RIGHT,NONE,NONE):
         case GESTURE(RIGHT,LEFT,NONE,NONE):
         {
             msg_Dbg( p_intf, "Play/Pause" );
-            vlc_player_TogglePause(player);
+            heimdall_player_TogglePause(player);
             break;
         }
 
         case GESTURE(LEFT,DOWN,NONE,NONE):
-            vlc_playlist_Prev(playlist);
+            heimdall_playlist_Prev(playlist);
             break;
 
         case GESTURE(RIGHT,DOWN,NONE,NONE):
-            vlc_playlist_Next(playlist);
+            heimdall_playlist_Next(playlist);
             break;
 
         case UP:
             msg_Dbg(p_intf, "Louder");
-            vlc_player_aout_IncrementVolume(player, 1, NULL);
+            heimdall_player_aout_IncrementVolume(player, 1, NULL);
             break;
 
         case DOWN:
             msg_Dbg(p_intf, "Quieter");
-            vlc_player_aout_DecrementVolume(player, 1, NULL);
+            heimdall_player_aout_DecrementVolume(player, 1, NULL);
             break;
 
         case GESTURE(UP,DOWN,NONE,NONE):
         case GESTURE(DOWN,UP,NONE,NONE):
             msg_Dbg( p_intf, "Mute sound" );
-            vlc_player_aout_ToggleMute(player);
+            heimdall_player_aout_ToggleMute(player);
             break;
 
         case GESTURE(UP,RIGHT,NONE,NONE):
@@ -274,20 +275,20 @@ static void ProcessGesture( intf_thread_t *p_intf )
             enum es_format_category_e cat =
                 p_sys->i_pattern == GESTURE(UP,RIGHT,NONE,NONE) ?
                 AUDIO_ES : SPU_ES;
-            vlc_player_SelectNextTrack(player, cat, VLC_VOUT_ORDER_PRIMARY);
+            heimdall_player_SelectNextTrack(player, cat, HEIMDALL_VOUT_ORDER_PRIMARY);
             break;
         }
 
         case GESTURE(UP,LEFT,NONE,NONE):
         {
-            vlc_player_vout_ToggleFullscreen(player);
+            heimdall_player_vout_ToggleFullscreen(player);
             break;
         }
 
         case GESTURE(DOWN,LEFT,NONE,NONE):
-            vlc_playlist_Unlock(playlist);
+            heimdall_playlist_Unlock(playlist);
             /* FIXME: Should close the vout!"*/
-            libvlc_Quit( vlc_object_instance(p_intf) );
+            libheimdall_Quit( heimdall_object_instance(p_intf) );
             break;
 
         case GESTURE(DOWN,LEFT,UP,RIGHT):
@@ -295,21 +296,21 @@ static void ProcessGesture( intf_thread_t *p_intf )
             msg_Dbg( p_intf, "a square was drawn!" );
             break;
     }
-    vlc_playlist_Unlock(playlist);
+    heimdall_playlist_Unlock(playlist);
 
     p_sys->i_num_gestures = 0;
     p_sys->i_pattern = 0;
 }
 
-static int MovedEvent(vlc_object_t *this, char const *psz_var,
-                      vlc_value_t oldval, vlc_value_t newval, void *data)
+static int MovedEvent(heimdall_object_t *this, char const *psz_var,
+                      heimdall_value_t oldval, heimdall_value_t newval, void *data)
 {
-    VLC_UNUSED(this); VLC_UNUSED(psz_var); VLC_UNUSED(oldval);
+    HEIMDALL_UNUSED(this); HEIMDALL_UNUSED(psz_var); HEIMDALL_UNUSED(oldval);
 
     intf_thread_t *intf = data;
     intf_sys_t *sys = intf->p_sys;
 
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     if (sys->b_button_pressed)
     {
         unsigned int pattern = 0;
@@ -351,19 +352,19 @@ static int MovedEvent(vlc_object_t *this, char const *psz_var,
             msg_Dbg(intf, "%s gesture (%u)", dir, delta);
         }
     }
-    vlc_mutex_unlock(&sys->lock);
-    return VLC_SUCCESS;
+    heimdall_mutex_unlock(&sys->lock);
+    return HEIMDALL_SUCCESS;
 }
 
-static int ButtonEvent( vlc_object_t *p_this, char const *psz_var,
-                        vlc_value_t oldval, vlc_value_t val, void *p_data )
+static int ButtonEvent( heimdall_object_t *p_this, char const *psz_var,
+                        heimdall_value_t oldval, heimdall_value_t val, void *p_data )
 {
     intf_thread_t *p_intf = p_data;
     intf_sys_t *p_sys = p_intf->p_sys;
 
     (void) psz_var; (void) oldval;
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     if( val.i_int & p_sys->i_button_mask )
     {
         if( !p_sys->b_button_pressed )
@@ -381,42 +382,42 @@ static int ButtonEvent( vlc_object_t *p_this, char const *psz_var,
             ProcessGesture( p_intf );
         }
     }
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void
-player_on_vout_changed(vlc_player_t *player,
-                       enum vlc_player_vout_action action,
+player_on_vout_changed(heimdall_player_t *player,
+                       enum heimdall_player_vout_action action,
                        vout_thread_t *vout,
-                       enum vlc_vout_order order,
-                       vlc_es_id_t *es_id, void *data)
+                       enum heimdall_vout_order order,
+                       heimdall_es_id_t *es_id, void *data)
 {
-    VLC_UNUSED(player); VLC_UNUSED(order);
+    HEIMDALL_UNUSED(player); HEIMDALL_UNUSED(order);
     intf_thread_t *intf = data;
     intf_sys_t *sys = intf->p_sys;
 
-    if (vlc_es_id_GetCat(es_id) != VIDEO_ES)
+    if (heimdall_es_id_GetCat(es_id) != VIDEO_ES)
         return;
 
     switch (action)
     {
-        case VLC_PLAYER_VOUT_STARTED:
-            if (vlc_vector_push(&sys->vout_vector, vout))
+        case HEIMDALL_PLAYER_VOUT_STARTED:
+            if (heimdall_vector_push(&sys->vout_vector, vout))
             {
                 vout_Hold(vout);
                 var_AddCallback(vout, "mouse-moved", MovedEvent, intf);
                 var_AddCallback(vout, "mouse-button-down", ButtonEvent, intf);
             }
             break;
-        case VLC_PLAYER_VOUT_STOPPED:
+        case HEIMDALL_PLAYER_VOUT_STOPPED:
             for (size_t i = 0; i < sys->vout_vector.size; ++i)
             {
                 vout_thread_t *it = sys->vout_vector.data[i];
                 if (it == vout)
                 {
-                    vlc_vector_remove(&sys->vout_vector, i);
+                    heimdall_vector_remove(&sys->vout_vector, i);
                     var_DelCallback(vout, "mouse-moved", MovedEvent, intf);
                     var_DelCallback(vout, "mouse-button-down", ButtonEvent, intf);
                     vout_Release(vout);
@@ -425,6 +426,6 @@ player_on_vout_changed(vlc_player_t *player,
             }
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 }

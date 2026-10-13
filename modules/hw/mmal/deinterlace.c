@@ -2,6 +2,7 @@
  * mmal.c: MMAL-based deinterlace plugin for Raspberry Pi
  *****************************************************************************
  * Copyright © 2014 jusst technologies GmbH
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Julian Scheel <julian@jusst.de>
  *          Dennis Hamester <dennis.hamester@gmail.com>
@@ -26,9 +27,9 @@
 #include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
 
 #include "mmal_picture.h"
 
@@ -62,7 +63,7 @@
 
 static int OpenMmalDeinterlace(filter_t *);
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname(N_("MMAL deinterlace"))
     set_description(N_("MMAL-based deinterlace filter plugin"))
     set_subcategory(SUBCAT_VIDEO_VFILTER)
@@ -80,7 +81,7 @@ vlc_module_begin()
     add_bool(MMAL_DEINTERLACE_FULL_RATE, false, MMAL_DEINTERLACE_FULL_RATE_TEXT,
                     MMAL_DEINTERLACE_FULL_RATE_LONGTEXT)
 
-vlc_module_end()
+heimdall_module_end()
 
 typedef struct
 {
@@ -139,7 +140,7 @@ fail1:
 
 static void di_input_port_cb(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffer)
 {
-    VLC_UNUSED(port);
+    HEIMDALL_UNUSED(port);
 
     mmal_buffer_header_release(buffer);
 }
@@ -218,7 +219,7 @@ static picture_t *deinterlace(filter_t * p_filter, picture_t * p_pic)
     MMAL_STATUS_T err;
     MMAL_BUFFER_HEADER_T * out_buf = NULL;
 
-    if (hw_mmal_vlc_pic_to_mmal_fmt_update(sys->input->format, p_pic))
+    if (hw_mmal_heimdall_pic_to_mmal_fmt_update(sys->input->format, p_pic))
     {
         // ****** Breaks on opaque (at least)
 
@@ -292,7 +293,7 @@ static picture_t *deinterlace(filter_t * p_filter, picture_t * p_pic)
         if (unlikely(out_pic == NULL))
             break;
 
-        vlc_picture_chain_AppendChain( chain_tail, out_pic );
+        heimdall_picture_chain_AppendChain( chain_tail, out_pic );
         chain_tail = out_pic;
     }
 
@@ -345,7 +346,7 @@ static void di_flush(filter_t *p_filter)
 
 static picture_t * pass_deinterlace(filter_t * p_filter, picture_t * p_pic)
 {
-    VLC_UNUSED(p_filter);
+    HEIMDALL_UNUSED(p_filter);
 
     p_pic->b_progressive = true;
     return p_pic;
@@ -403,22 +404,22 @@ static void CloseMmalDeinterlace(filter_t *filter)
         mmal_component_release(sys->component);
 
     if (filter->vctx_out)
-        vlc_video_context_Release(filter->vctx_out);
+        heimdall_video_context_Release(filter->vctx_out);
 
     free(sys);
 }
 
 
-static bool is_fmt_valid_in(const vlc_fourcc_t fmt)
+static bool is_fmt_valid_in(const heimdall_fourcc_t fmt)
 {
-    return fmt == VLC_CODEC_MMAL_OPAQUE;
+    return fmt == HEIMDALL_CODEC_MMAL_OPAQUE;
 }
 
-static const struct vlc_filter_operations filter_ops = {
+static const struct heimdall_filter_operations filter_ops = {
     .filter_video = deinterlace, .flush = di_flush, .close = CloseMmalDeinterlace,
 };
 
-static const struct vlc_filter_operations filter_pass_ops = {
+static const struct heimdall_filter_operations filter_pass_ops = {
     .filter_video = pass_deinterlace, .close = CloseMmalDeinterlace,
 };
 
@@ -428,21 +429,21 @@ static int OpenMmalDeinterlace(filter_t *filter)
             CLOCK_FREQ * filter->fmt_in.video.i_frame_rate_base /
             filter->fmt_in.video.i_frame_rate : 0;
 
-    int ret = VLC_EGENERIC;
+    int ret = HEIMDALL_EGENERIC;
     MMAL_STATUS_T status;
     filter_sys_t *sys;
 
     if (!is_fmt_valid_in(filter->fmt_in.video.i_chroma) ||
         filter->fmt_out.video.i_chroma != filter->fmt_in.video.i_chroma)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if (filter->vctx_in == NULL ||
-        vlc_video_context_GetType(filter->vctx_in) != VLC_VIDEO_CONTEXT_MMAL)
-        return VLC_EGENERIC;
+        heimdall_video_context_GetType(filter->vctx_in) != HEIMDALL_VIDEO_CONTEXT_MMAL)
+        return HEIMDALL_EGENERIC;
 
     sys = calloc(1, sizeof(filter_sys_t));
     if (!sys)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     filter->p_sys = sys;
 
     sys->seq_in = 1;
@@ -464,7 +465,7 @@ static int OpenMmalDeinterlace(filter_t *filter)
 
     if (filter->fmt_in.video.i_width * filter->fmt_in.video.i_height > 768 * 576)
     {
-        vlc_decoder_device *dec_dev = vlc_video_context_HoldDevice(filter->vctx_in);
+        heimdall_decoder_device *dec_dev = heimdall_video_context_HoldDevice(filter->vctx_in);
         assert(dec_dev != NULL);
         mmal_decoder_device_t *devsys = GetMMALDeviceOpaque(dec_dev);
         assert(devsys != NULL);
@@ -479,7 +480,7 @@ static int OpenMmalDeinterlace(filter_t *filter)
             sys->use_passthrough = true;
             msg_Warn(filter, "Deinterlace bypassed due to lack of GPU memory");
         }
-        vlc_decoder_device_Release(dec_dev);
+        heimdall_decoder_device_Release(dec_dev);
     }
 
     if (var_InheritBool(filter, MMAL_DEINTERLACE_NO_QPU))
@@ -504,11 +505,11 @@ static int OpenMmalDeinterlace(filter_t *filter)
     if (sys->use_passthrough)
     {
         filter->ops = &filter_pass_ops;
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
     filter->ops = &filter_ops;
 
-    filter->vctx_out = vlc_video_context_Hold(filter->vctx_in);
+    filter->vctx_out = heimdall_video_context_Hold(filter->vctx_in);
 
     status = mmal_component_create(MMAL_COMPONENT_DEFAULT_DEINTERLACE, &sys->component);
     if (status != MMAL_SUCCESS) {
@@ -545,8 +546,8 @@ static int OpenMmalDeinterlace(filter_t *filter)
 
     sys->input = sys->component->input[0];
     sys->input->userdata = (struct MMAL_PORT_USERDATA_T *)filter;
-    sys->input->format->encoding = vlc_to_mmal_video_fourcc(&filter->fmt_in.video);
-    hw_mmal_vlc_fmt_to_mmal_fmt(sys->input->format, &filter->fmt_in.video);
+    sys->input->format->encoding = heimdall_to_mmal_video_fourcc(&filter->fmt_in.video);
+    hw_mmal_heimdall_fmt_to_mmal_fmt(sys->input->format, &filter->fmt_in.video);
 
     es_format_Copy(&filter->fmt_out, &filter->fmt_in);
     if (!sys->half_rate)
@@ -593,7 +594,7 @@ static int OpenMmalDeinterlace(filter_t *filter)
     mmal_format_full_copy(sys->output->format, sys->input->format);
 
     {
-        if ((status = hw_mmal_opaque_output(VLC_OBJECT(filter), &sys->out_ppr, sys->output, 5, di_output_port_cb)) != MMAL_SUCCESS)
+        if ((status = hw_mmal_opaque_output(HEIMDALL_OBJECT(filter), &sys->out_ppr, sys->output, 5, di_output_port_cb)) != MMAL_SUCCESS)
             goto fail;
     }
 

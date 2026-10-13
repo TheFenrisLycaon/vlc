@@ -2,8 +2,9 @@
  * filter_picture.h: Common picture functions for filters
  *****************************************************************************
  * Copyright (C) 2007 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Antoine Cellerier <dionoea at videolan dot org>
+ * Authors: Antoine Cellerier <dionoea at lycaria dot org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,175 +23,175 @@
 
 /* FIXME: do all of these really have square pixels? */
 #define CASE_PLANAR_YUV_SQUARE              \
-        case VLC_CODEC_I420:   \
-        case VLC_CODEC_YV12:   \
-        case VLC_CODEC_I411:   \
-        case VLC_CODEC_I410:   \
-        case VLC_CODEC_I444:   \
-        case VLC_CODEC_YUVA:
+        case HEIMDALL_CODEC_I420:   \
+        case HEIMDALL_CODEC_YV12:   \
+        case HEIMDALL_CODEC_I411:   \
+        case HEIMDALL_CODEC_I410:   \
+        case HEIMDALL_CODEC_I444:   \
+        case HEIMDALL_CODEC_YUVA:
 
 #define CASE_PLANAR_YUV_NONSQUARE           \
-        case VLC_CODEC_I422:
+        case HEIMDALL_CODEC_I422:
 
 #define CASE_PLANAR_YUV10                   \
-        case VLC_CODEC_I420_10L:            \
-        case VLC_CODEC_I420_10B:            \
-        case VLC_CODEC_I444_10L:            \
-        case VLC_CODEC_I444_10B:
+        case HEIMDALL_CODEC_I420_10L:            \
+        case HEIMDALL_CODEC_I420_10B:            \
+        case HEIMDALL_CODEC_I444_10L:            \
+        case HEIMDALL_CODEC_I444_10B:
 
 #define CASE_PLANAR_YUV9                    \
-        case VLC_CODEC_I420_9L:             \
-        case VLC_CODEC_I420_9B:             \
-        case VLC_CODEC_I444_9L:             \
-        case VLC_CODEC_I444_9B:
+        case HEIMDALL_CODEC_I420_9L:             \
+        case HEIMDALL_CODEC_I420_9B:             \
+        case HEIMDALL_CODEC_I444_9L:             \
+        case HEIMDALL_CODEC_I444_9B:
 
 #define CASE_PLANAR_YUV                     \
         CASE_PLANAR_YUV_SQUARE              \
         CASE_PLANAR_YUV_NONSQUARE
 
 #define CASE_PACKED_YUV_422                 \
-        case VLC_CODEC_UYVY:   \
-        case VLC_CODEC_YUYV:   \
-        case VLC_CODEC_YVYU:
+        case HEIMDALL_CODEC_UYVY:   \
+        case HEIMDALL_CODEC_YUYV:   \
+        case HEIMDALL_CODEC_YVYU:
 
 #define CASE_PACKED_RGBX                    \
-        case VLC_CODEC_RGBX:   \
-        case VLC_CODEC_XRGB:   \
-        case VLC_CODEC_BGRX:   \
-        case VLC_CODEC_XBGR:
+        case HEIMDALL_CODEC_RGBX:   \
+        case HEIMDALL_CODEC_XRGB:   \
+        case HEIMDALL_CODEC_BGRX:   \
+        case HEIMDALL_CODEC_XBGR:
 
 #define CASE_PACKED_RGBA                    \
-        case VLC_CODEC_RGBA:   \
-        case VLC_CODEC_ARGB:   \
-        case VLC_CODEC_BGRA:   \
-        case VLC_CODEC_ABGR:
+        case HEIMDALL_CODEC_RGBA:   \
+        case HEIMDALL_CODEC_ARGB:   \
+        case HEIMDALL_CODEC_BGRA:   \
+        case HEIMDALL_CODEC_ABGR:
 
 #define CASE_PACKED_RGB32                   \
         CASE_PACKED_RGBX       \
         CASE_PACKED_RGBA
 
 #define CASE_PACKED_RGB16                   \
-        case VLC_CODEC_RGB565BE: \
-        case VLC_CODEC_RGB565LE: \
-        case VLC_CODEC_BGR565BE: \
-        case VLC_CODEC_BGR565LE:
+        case HEIMDALL_CODEC_RGB565BE: \
+        case HEIMDALL_CODEC_RGB565LE: \
+        case HEIMDALL_CODEC_BGR565BE: \
+        case HEIMDALL_CODEC_BGR565LE:
 
 #define CASE_PACKED_RGB15                   \
-        case VLC_CODEC_RGB555BE: \
-        case VLC_CODEC_RGB555LE: \
-        case VLC_CODEC_BGR555BE: \
-        case VLC_CODEC_BGR555LE:
+        case HEIMDALL_CODEC_RGB555BE: \
+        case HEIMDALL_CODEC_RGB555LE: \
+        case HEIMDALL_CODEC_BGR555BE: \
+        case HEIMDALL_CODEC_BGR555LE:
 
 #define CASE_PACKED_RGB1615                 \
         CASE_PACKED_RGB16        \
         CASE_PACKED_RGB15
 
-static inline int GetPackedYuvOffsets( vlc_fourcc_t i_chroma,
+static inline int GetPackedYuvOffsets( heimdall_fourcc_t i_chroma,
     int *i_y_offset, int *i_u_offset, int *i_v_offset )
 {
     switch( i_chroma )
     {
-        case VLC_CODEC_UYVY:
+        case HEIMDALL_CODEC_UYVY:
             /* UYVY */
             *i_y_offset = 1;
             *i_u_offset = 0;
             *i_v_offset = 2;
-            return VLC_SUCCESS;
-        case VLC_CODEC_VYUY:
+            return HEIMDALL_SUCCESS;
+        case HEIMDALL_CODEC_VYUY:
             /* VYUY */
             *i_y_offset = 1;
             *i_u_offset = 2;
             *i_v_offset = 0;
-            return VLC_SUCCESS;
-        case VLC_CODEC_YUYV:
+            return HEIMDALL_SUCCESS;
+        case HEIMDALL_CODEC_YUYV:
             /* YUYV */
             *i_y_offset = 0;
             *i_u_offset = 1;
             *i_v_offset = 3;
-            return VLC_SUCCESS;
-        case VLC_CODEC_YVYU:
+            return HEIMDALL_SUCCESS;
+        case HEIMDALL_CODEC_YVYU:
             /* YVYU */
             *i_y_offset = 0;
             *i_u_offset = 3;
             *i_v_offset = 1;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 }
 
-static inline int GetPackedRgbIndexes( vlc_fourcc_t fcc, int *i_r_index,
+static inline int GetPackedRgbIndexes( heimdall_fourcc_t fcc, int *i_r_index,
                                        int *i_g_index, int *i_b_index, int *i_a_index )
 {
     switch(fcc)
     {
-        case VLC_CODEC_RGBA:
+        case HEIMDALL_CODEC_RGBA:
             *i_r_index = 0;
             *i_g_index = 1;
             *i_b_index = 2;
             *i_a_index = 3;
             break;
-        case VLC_CODEC_ARGB:
+        case HEIMDALL_CODEC_ARGB:
             *i_a_index = 0;
             *i_r_index = 1;
             *i_g_index = 2;
             *i_b_index = 3;
             break;
-        case VLC_CODEC_BGRA:
+        case HEIMDALL_CODEC_BGRA:
             *i_b_index = 0;
             *i_g_index = 1;
             *i_r_index = 2;
             *i_a_index = 3;
             break;
-        case VLC_CODEC_ABGR:
+        case HEIMDALL_CODEC_ABGR:
             *i_a_index = 0;
             *i_b_index = 1;
             *i_g_index = 2;
             *i_r_index = 3;
             break;
-        case VLC_CODEC_RGBX:
+        case HEIMDALL_CODEC_RGBX:
             *i_r_index = 0;
             *i_g_index = 1;
             *i_b_index = 2;
             *i_a_index = -1;
             break;
-        case VLC_CODEC_XRGB:
+        case HEIMDALL_CODEC_XRGB:
             *i_a_index = -1;
             *i_r_index = 1;
             *i_g_index = 2;
             *i_b_index = 3;
             break;
-        case VLC_CODEC_BGRX:
+        case HEIMDALL_CODEC_BGRX:
             *i_b_index = 0;
             *i_g_index = 1;
             *i_r_index = 2;
             *i_a_index = -1;
             break;
-        case VLC_CODEC_XBGR:
+        case HEIMDALL_CODEC_XBGR:
             *i_a_index = -1;
             *i_b_index = 1;
             *i_g_index = 2;
             *i_r_index = 3;
             break;
-        case VLC_CODEC_RGB24:
+        case HEIMDALL_CODEC_RGB24:
             *i_r_index = 0;
             *i_g_index = 1;
             *i_b_index = 2;
             *i_a_index = -1;
             break;
-        case VLC_CODEC_BGR24:
+        case HEIMDALL_CODEC_BGR24:
             *i_b_index = 0;
             *i_g_index = 1;
             *i_r_index = 2;
             *i_a_index = -1;
             break;
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static inline uint8_t vlc_uint8( int v )
+static inline uint8_t heimdall_uint8( int v )
 {
     if( v > 255 )
         return 255;
@@ -216,9 +217,9 @@ static inline void yuv_to_rgb( int *r, int *g, int *b,
             - FIX(0.71414*255.0/224.0) * cr + ONE_HALF;
     b_add = FIX(1.77200*255.0/224.0) * cb + ONE_HALF;
     y = (y1 - 16) * FIX(255.0/219.0);
-    *r = vlc_uint8( (y + r_add) >> SCALEBITS );
-    *g = vlc_uint8( (y + g_add) >> SCALEBITS );
-    *b = vlc_uint8( (y + b_add) >> SCALEBITS );
+    *r = heimdall_uint8( (y + r_add) >> SCALEBITS );
+    *g = heimdall_uint8( (y + g_add) >> SCALEBITS );
+    *b = heimdall_uint8( (y + b_add) >> SCALEBITS );
 #undef FIX
 #undef ONE_HALF
 #undef SCALEBITS

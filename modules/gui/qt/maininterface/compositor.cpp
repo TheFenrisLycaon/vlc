@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -42,11 +43,11 @@
 
 #include "compositor_platform.hpp"
 
-#include <vlc_window.h>
-#include <vlc_modules.h>
+#include <heimdall_window.h>
+#include <heimdall_modules.h>
 
 
-using namespace vlc;
+using namespace heimdall;
 
 template<typename T>
 static Compositor* instanciateCompositor(qt_intf_t *p_intf) {
@@ -107,29 +108,29 @@ namespace {
 
 struct CompositorWindow {
     /* The CompositorVideo instance that created the window */
-    vlc::CompositorVideo *compositor;
+    heimdall::CompositorVideo *compositor;
 
     /* Callback setup from commonSetupVoutWindow. It usually comes from the main qt.cpp
      * file so as to handle the reference counting of Qt's resources. */
-    void (*destroy_cb)(struct vlc_window *wnd);
+    void (*destroy_cb)(struct heimdall_window *wnd);
 };
 
 }
 
 extern "C"
 {
-static int windowEnableCb(vlc_window_t* p_wnd, const vlc_window_cfg_t * cfg)
+static int windowEnableCb(heimdall_window_t* p_wnd, const heimdall_window_cfg_t * cfg)
 {
     assert(p_wnd->sys);
     auto that = static_cast<CompositorWindow*>(p_wnd->sys);
-    int ret = VLC_EGENERIC;
+    int ret = HEIMDALL_EGENERIC;
     QMetaObject::invokeMethod(that->compositor, [&](){
         ret = that->compositor->windowEnable(cfg);
     }, Qt::BlockingQueuedConnection);
     return ret;
 }
 
-static void windowDisableCb(vlc_window_t* p_wnd)
+static void windowDisableCb(heimdall_window_t* p_wnd)
 {
     assert(p_wnd->sys);
     auto that = static_cast<CompositorWindow*>(p_wnd->sys);
@@ -138,14 +139,14 @@ static void windowDisableCb(vlc_window_t* p_wnd)
     }, Qt::BlockingQueuedConnection);
 }
 
-static void windowResizeCb(vlc_window_t* p_wnd, unsigned width, unsigned height)
+static void windowResizeCb(heimdall_window_t* p_wnd, unsigned width, unsigned height)
 {
     assert(p_wnd->sys);
     auto that = static_cast<CompositorWindow*>(p_wnd->sys);
     that->compositor->windowResize(width, height);
 }
 
-static void windowDestroyCb(struct vlc_window * p_wnd)
+static void windowDestroyCb(struct heimdall_window * p_wnd)
 {
     assert(p_wnd->sys);
     auto that = static_cast<CompositorWindow*>(p_wnd->sys);
@@ -160,21 +161,21 @@ static void windowDestroyCb(struct vlc_window * p_wnd)
     p_wnd->sys = nullptr;
 }
 
-static void windowSetStateCb(vlc_window_t* p_wnd, unsigned state)
+static void windowSetStateCb(heimdall_window_t* p_wnd, unsigned state)
 {
     assert(p_wnd->sys);
     auto that = static_cast<CompositorWindow*>(p_wnd->sys);
     that->compositor->windowSetState(state);
 }
 
-static void windowUnsetFullscreenCb(vlc_window_t* p_wnd)
+static void windowUnsetFullscreenCb(heimdall_window_t* p_wnd)
 {
     assert(p_wnd->sys);
     auto that = static_cast<CompositorWindow*>(p_wnd->sys);
     that->compositor->windowUnsetFullscreen();
 }
 
-static void windowSetFullscreenCb(vlc_window_t* p_wnd, const char *id)
+static void windowSetFullscreenCb(heimdall_window_t* p_wnd, const char *id)
 {
     assert(p_wnd->sys);
     auto that = static_cast<CompositorWindow*>(p_wnd->sys);
@@ -195,13 +196,13 @@ CompositorVideo::~CompositorVideo()
     {
         if (m_windowEffectsModule->p_module)
             module_unneed(m_windowEffectsModule, m_windowEffectsModule->p_module);
-        vlc_object_delete(m_windowEffectsModule);
+        heimdall_object_delete(m_windowEffectsModule);
     }
 }
 
-void CompositorVideo::commonSetupVoutWindow(vlc_window_t* p_wnd, VoutDestroyCb destroyCb)
+void CompositorVideo::commonSetupVoutWindow(heimdall_window_t* p_wnd, VoutDestroyCb destroyCb)
 {
-    static const struct vlc_window_operations ops = {
+    static const struct heimdall_window_operations ops = {
         windowEnableCb,
         windowDisableCb,
         windowResizeCb,
@@ -212,7 +213,7 @@ void CompositorVideo::commonSetupVoutWindow(vlc_window_t* p_wnd, VoutDestroyCb d
         nullptr, //window_set_title
     };
 
-    /* Allocate state that will be tracked by the window through vlc_window::sys */
+    /* Allocate state that will be tracked by the window through heimdall_window::sys */
     // NOTE: no std::nothrow here since no error code, forward the exception
     auto *compositor_window = new CompositorWindow;
     compositor_window->compositor = this;
@@ -252,7 +253,7 @@ void CompositorVideo::windowResize(unsigned width, unsigned height)
 
 void CompositorVideo::windowSetState(unsigned state)
 {
-    m_videoWindowHandler->requestVideoState(static_cast<vlc_window_state>(state));
+    m_videoWindowHandler->requestVideoState(static_cast<heimdall_window_state>(state));
 }
 
 void CompositorVideo::windowUnsetFullscreen()
@@ -439,7 +440,7 @@ bool CompositorVideo::setBlurBehind(QWindow *window, const bool enable)
 
     if (!m_windowEffectsModule)
     {
-        m_windowEffectsModule = vlc_object_create<WindowEffectsModule>(m_intf);
+        m_windowEffectsModule = heimdall_object_create<WindowEffectsModule>(m_intf);
         if (!m_windowEffectsModule) // do not set m_failedToLoadWindowEffectsModule here
             return false;
     }
@@ -453,7 +454,7 @@ bool CompositorVideo::setBlurBehind(QWindow *window, const bool enable)
                             "Native background blur effect will not be available. " \
                             "The application may compensate this with a simulated effect on certain platform(s).");
             m_failedToLoadWindowEffectsModule = true;
-            vlc_object_delete(m_windowEffectsModule);
+            heimdall_object_delete(m_windowEffectsModule);
             m_windowEffectsModule = nullptr;
             return false;
         }

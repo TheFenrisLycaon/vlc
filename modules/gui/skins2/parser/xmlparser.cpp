@@ -2,6 +2,7 @@
  * xmlparser.cpp
  *****************************************************************************
  * Copyright (C) 2004 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cyril Deguet     <asmax@via.ecp.fr>
  *
@@ -22,10 +23,10 @@
 
 #include "xmlparser.hpp"
 #include "../src/os_factory.hpp"
-#include <vlc_url.h>
+#include <heimdall_url.h>
 
 #include <sys/stat.h>
-#include <vlc_fs.h>
+#include <heimdall_fs.h>
 
 XMLParser::XMLParser( intf_thread_t *pIntf, const std::string &rFileName )
     : SkinObject( pIntf ), m_pXML( NULL ), m_pReader( NULL ), m_pStream( NULL )
@@ -40,8 +41,8 @@ XMLParser::XMLParser( intf_thread_t *pIntf, const std::string &rFileName )
 
     LoadCatalog();
 
-    char *psz_uri = vlc_path2uri( rFileName.c_str(), NULL );
-    m_pStream = vlc_stream_NewURL( pIntf, psz_uri );
+    char *psz_uri = heimdall_path2uri( rFileName.c_str(), NULL );
+    m_pStream = heimdall_stream_NewURL( pIntf, psz_uri );
     free( psz_uri );
     if( !m_pStream )
     {
@@ -66,7 +67,7 @@ XMLParser::~XMLParser()
 {
     if( m_pReader ) xml_ReaderDelete( m_pReader );
     if( m_pXML ) xml_Delete( m_pXML );
-    if( m_pStream ) vlc_stream_Delete( m_pStream );
+    if( m_pStream ) heimdall_stream_Delete( m_pStream );
 }
 
 
@@ -85,7 +86,7 @@ void XMLParser::LoadCatalog()
     for( it = resPath.begin(); it != resPath.end(); ++it )
     {
         std::string catalog_path = (*it) + sep + "skin.catalog";
-        if( !vlc_stat( catalog_path.c_str(), &statBuf ) )
+        if( !heimdall_stat( catalog_path.c_str(), &statBuf ) )
         {
             msg_Dbg( getIntf(), "Using catalog %s", catalog_path.c_str() );
             xml_CatalogLoad( m_pXML, catalog_path.c_str() );
@@ -101,14 +102,14 @@ void XMLParser::LoadCatalog()
     for( it = resPath.begin(); it != resPath.end(); ++it )
     {
         std::string path = (*it) + sep + "skin.dtd";
-        if( !vlc_stat( path.c_str(), &statBuf ) )
+        if( !heimdall_stat( path.c_str(), &statBuf ) )
         {
             // DTD found
             msg_Dbg( getIntf(), "using DTD %s", path.c_str() );
 
             // Add an entry in the default catalog
             xml_CatalogAdd( m_pXML, "public",
-                            "-//VideoLAN//DTD VLC Skins V"
+                            "-//Lycaria//DTD Heimdall Skins V"
                             SKINS_DTD_VERSION "//EN", path.c_str() );
             break;
         }

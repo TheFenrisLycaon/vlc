@@ -2,6 +2,7 @@
  * dolby.c : simple decoder for dolby surround encoded streams
  *****************************************************************************
  * Copyright (C) 2005-2009 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Boris Dorès <babal@via.ecp.fr>
  *
@@ -28,28 +29,28 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_aout.h>
-#include <vlc_filter.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_aout.h>
+#include <heimdall_filter.h>
 
 /*****************************************************************************
  * Local prototypes
  *****************************************************************************/
-static int  Create    ( vlc_object_t * );
+static int  Create    ( heimdall_object_t * );
 
 static block_t *DoWork( filter_t *, block_t * );
 
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("Simple decoder for Dolby Surround encoded streams") )
     set_shortname( N_("Dolby Surround decoder") )
     set_subcategory( SUBCAT_INPUT_ACODEC )
     set_capability( "audio converter", 5 )
     set_callback( Create )
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * Internal data structures
@@ -67,7 +68,7 @@ typedef struct
 /*****************************************************************************
  * Create: allocate headphone downmixer
  *****************************************************************************/
-static int Create( vlc_object_t *p_this )
+static int Create( heimdall_object_t *p_this )
 {
     int i = 0;
     int i_offset = 0;
@@ -81,24 +82,24 @@ static int Create( vlc_object_t *p_this )
        || ( p_filter->fmt_in.audio.i_chan_mode & ~AOUT_CHANMODE_DOLBYSTEREO )
           != ( p_filter->fmt_out.audio.i_chan_mode & ~AOUT_CHANMODE_DOLBYSTEREO ) )
     {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if ( p_filter->fmt_in.audio.i_rate != p_filter->fmt_out.audio.i_rate )
     {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    if ( p_filter->fmt_in.audio.i_format != VLC_CODEC_FL32
-          || p_filter->fmt_out.audio.i_format != VLC_CODEC_FL32 )
+    if ( p_filter->fmt_in.audio.i_format != HEIMDALL_CODEC_FL32
+          || p_filter->fmt_out.audio.i_format != HEIMDALL_CODEC_FL32 )
     {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Allocate the memory needed to store the module's structure */
-    p_sys = p_filter->p_sys = vlc_obj_malloc( VLC_OBJECT(p_filter), sizeof(*p_sys) );
+    p_sys = p_filter->p_sys = heimdall_obj_malloc( HEIMDALL_OBJECT(p_filter), sizeof(*p_sys) );
     if( unlikely(p_sys == NULL) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     p_sys->i_left = -1;
     p_sys->i_center = -1;
     p_sys->i_right = -1;
@@ -106,11 +107,11 @@ static int Create( vlc_object_t *p_this )
     p_sys->i_rear_center = -1;
     p_sys->i_rear_right = -1;
 
-    while ( pi_vlc_chan_order_wg4[i] )
+    while ( pi_heimdall_chan_order_wg4[i] )
     {
-        if ( p_filter->fmt_out.audio.i_physical_channels & pi_vlc_chan_order_wg4[i] )
+        if ( p_filter->fmt_out.audio.i_physical_channels & pi_heimdall_chan_order_wg4[i] )
         {
-            switch ( pi_vlc_chan_order_wg4[i] )
+            switch ( pi_heimdall_chan_order_wg4[i] )
             {
                 case AOUT_CHAN_LEFT:
                     p_sys->i_left = i_offset;
@@ -136,13 +137,13 @@ static int Create( vlc_object_t *p_this )
         ++i;
     }
 
-    static const struct vlc_filter_operations filter_ops =
+    static const struct heimdall_filter_operations filter_ops =
     {
         .filter_audio = DoWork,
     };
     p_filter->ops = &filter_ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************

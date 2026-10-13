@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,10 +21,10 @@ import QtQuick.Controls.impl
 import QtQuick.Templates as T
 import QtQuick.Layouts
 
-import VLC.MainInterface
-import VLC.Style
-import VLC.Widgets as Widgets
-import VLC.Menus
+import Heimdall.MainInterface
+import Heimdall.Style
+import Heimdall.Widgets as Widgets
+import Heimdall.Menus
 
 
 Item {
@@ -84,7 +85,7 @@ Item {
     function _updateContentModel() {
         const visibleActions = []
         const extraActions = []
-        const extraPadding = VLCStyle.margin_xsmall * 2
+        const extraPadding = HeimdallStyle.margin_xsmall * 2
         //keep enough place for the > menu
         let availableWidth = root.width - _buttonWidth(root._extraActionLabel)
         let i = 0
@@ -108,7 +109,7 @@ Item {
     function _buttonWidth(buttonId) {
         return fontMetrics.advanceWidth(
                     menubar.menuEntryTitle(buttonId).replace("&", "") //beware of mnemonics
-                ) + (VLCStyle.margin_xsmall * 2)
+                ) + (HeimdallStyle.margin_xsmall * 2)
     }
 
     QmlMenuBar {
@@ -125,7 +126,7 @@ Item {
 
     FontMetrics {
         id: fontMetrics
-        font.pixelSize: VLCStyle.fontSize_normal
+        font.pixelSize: HeimdallStyle.fontSize_normal
     }
 
     Row {
@@ -212,15 +213,15 @@ Item {
         property bool focused: false
         property bool textVisible: true
 
-        font.pixelSize: VLCStyle.fontSize_normal
+        font.pixelSize: HeimdallStyle.fontSize_normal
 
         padding: 0
 
         implicitWidth: contentItem.implicitWidth + leftPadding + rightPadding
-        implicitHeight: contentItem.implicitHeight + VLCStyle.margin_xxxsmall * 2
+        implicitHeight: contentItem.implicitHeight + HeimdallStyle.margin_xxxsmall * 2
 
-        leftPadding: VLCStyle.margin_xsmall
-        rightPadding: VLCStyle.margin_xsmall
+        leftPadding: HeimdallStyle.margin_xsmall
+        rightPadding: HeimdallStyle.margin_xsmall
 
         Accessible.onPressAction: control.clicked()
 

@@ -3,14 +3,14 @@
 #
 
 # Dummy codec
-vlc_modules += {
+heimdall_modules += {
     'name' : 'ddummy',
     'sources' : files('ddummy.c'),
     'plugin_dir' : 'codec',
 }
 
 # Dummy codec
-vlc_modules += {
+heimdall_modules += {
     'name' : 'edummy',
     'sources' : files('edummy.c'),
     'plugin_dir' : 'codec',
@@ -19,28 +19,28 @@ vlc_modules += {
 ## Audio codecs
 
 # SPDIF codec
-vlc_modules += {
+heimdall_modules += {
     'name' : 'spdif',
     'sources' : files('spdif.c'),
     'plugin_dir' : 'codec',
 }
 
 # adpcm codec
-vlc_modules += {
+heimdall_modules += {
     'name' : 'adpcm',
     'sources' : files('adpcm.c'),
     'plugin_dir' : 'codec',
 }
 
 # AES3 codec
-vlc_modules += {
+heimdall_modules += {
     'name' : 'aes3',
     'sources' : files('aes3.c'),
     'plugin_dir' : 'codec',
 }
 
 # Raw PCM demux module
-vlc_modules += {
+heimdall_modules += {
     'name' : 'araw',
     'sources' : files('araw.c'),
     'plugin_dir' : 'codec',
@@ -48,7 +48,7 @@ vlc_modules += {
 
 # faad decoder plugin
 faad_lib = dependency('faad2', required: get_option('faad'))
-vlc_modules += {
+heimdall_modules += {
     'name' : 'faad',
     'sources' : files('faad.c'),
     'dependencies' : [faad_lib, m_lib],
@@ -57,7 +57,7 @@ vlc_modules += {
 }
 
 # g711 codec
-vlc_modules += {
+heimdall_modules += {
     'name' : 'g711',
     'sources' : files('g711.c'),
     'plugin_dir' : 'codec',
@@ -83,7 +83,7 @@ else
     fluidsynth_dep = dependency('', required: false)
 endif
 
-vlc_modules += {
+heimdall_modules += {
     'name' : 'fluidsynth',
     'sources' : files('fluidsynth.c'),
     'dependencies' : [fluidsynth_dep, m_lib],
@@ -93,7 +93,7 @@ vlc_modules += {
 }
 
 # Audiotoolbox MIDI plugin (Darwin only)
-vlc_modules += {
+heimdall_modules += {
     'name' : 'audiotoolboxmidi',
     'sources' : files('audiotoolbox_midi.c'),
     'dependencies' : [
@@ -106,7 +106,7 @@ vlc_modules += {
 }
 
 # LPCM codec
-vlc_modules += {
+heimdall_modules += {
     'name' : 'lpcm',
     'sources' : files('lpcm.c'),
     'plugin_dir' : 'codec',
@@ -125,7 +125,7 @@ elif cc.check_header('mad.h', dependencies: contrib_dep )
     endif
 endif
 endif
-vlc_modules += {
+heimdall_modules += {
     'name' : 'mad',
     'sources' : files('mad.c'),
     'dependencies' : [mad_dep],
@@ -135,7 +135,7 @@ vlc_modules += {
 
 # libmpg123 decoder
 mpg123_dep = dependency('libmpg123', required: get_option('mpg123'))
-vlc_modules += {
+heimdall_modules += {
     'name' : 'mpg123',
     'sources' : files('mpg123.c'),
     'dependencies' : [mpg123_dep],
@@ -144,7 +144,7 @@ vlc_modules += {
 }
 
 # Ulead DV Audio codec
-vlc_modules += {
+heimdall_modules += {
     'name' : 'uleaddvaudio',
     'sources' : files('uleaddvaudio.c'),
     'plugin_dir' : 'codec',
@@ -154,21 +154,21 @@ vlc_modules += {
 ## Video codecs
 
 # CDG codec
-vlc_modules += {
+heimdall_modules += {
     'name' : 'cdg',
     'sources' : files('cdg.c'),
     'plugin_dir' : 'codec',
 }
 
 # Raw video codec
-vlc_modules += {
+heimdall_modules += {
     'name' : 'rawvideo',
     'sources' : files('rawvideo.c'),
     'plugin_dir' : 'codec',
 }
 
 # RTP video codec
-vlc_modules += {
+heimdall_modules += {
     'name' : 'rtpvideo',
     'sources' : files('rtpvideo.c'),
     'plugin_dir' : 'codec',
@@ -177,7 +177,7 @@ vlc_modules += {
 openapv_dep = dependency('oapv',
                               version: '>= 0.3',
                               required: get_option('openapv'))
-vlc_modules += {
+heimdall_modules += {
     'name' : 'openapv',
     'sources' : files('openapv.c'),
     'dependencies' : [openapv_dep],
@@ -186,7 +186,7 @@ vlc_modules += {
 }
 
 # RTP Raw video codec
-vlc_modules += {
+heimdall_modules += {
     'name' : 'rtp_rawvid',
     'sources' : files('rtp-rawvid.c'),
     'plugin_dir' : 'codec',
@@ -196,7 +196,7 @@ vlc_modules += {
 
 # PNG codec
 png_dep = dependency('libpng', required: get_option('png'))
-vlc_modules += {
+heimdall_modules += {
     'name' : 'png',
     'sources' : files('png.c'),
     'dependencies' : [png_dep, m_lib],
@@ -206,7 +206,7 @@ vlc_modules += {
 
 # JPEG codec
 jpeg_dep = dependency('libjpeg', 'libjpeg-turbo', required: get_option('jpeg'))
-vlc_modules += {
+heimdall_modules += {
     'name' : 'jpeg',
     'sources' : files('jpeg.c'),
     'dependencies' : [jpeg_dep],
@@ -216,7 +216,7 @@ vlc_modules += {
 
 # BPG codec
 bpg_lib = cc.find_library('bpg', required: get_option('bpg'))
-vlc_modules += {
+heimdall_modules += {
     'name' : 'bpg',
     'sources' : files('bpg.c'),
     'dependencies' : [bpg_lib],
@@ -226,7 +226,7 @@ vlc_modules += {
 
 # SVG image decoder
 cairo_dep = dependency('cairo', version: '>= 1.13.1', required: get_option('cairo'))
-vlc_modules += {
+heimdall_modules += {
     'name' : 'svgdec',
     'sources' : files('svg.c'),
     'dependencies' : [rsvg_dep, cairo_dep],
@@ -237,7 +237,7 @@ vlc_modules += {
 # xwd
 xproto_dep = dependency('xproto', required: get_option('xcb')
     .disable_auto_if(host_system in ['darwin', 'windows']))
-vlc_modules += {
+heimdall_modules += {
     'name' : 'xwd',
     'sources' : files('xwd.c'),
     'dependencies' : [xproto_dep],
@@ -268,7 +268,7 @@ if libass_dep.found()
         libass_deps += freetype_dep
     endif
 endif
-vlc_modules += {
+heimdall_modules += {
     'name' : 'libass',
     'sources' : files('libass.c'),
     'dependencies' : libass_deps,
@@ -277,21 +277,21 @@ vlc_modules += {
 }
 
 # Closed captioning decoder
-vlc_modules += {
+heimdall_modules += {
     'name' : 'cc',
     'sources' : files('cc.c', 'cea708.c'),
     'plugin_dir' : 'codec',
 }
 
 # cvdsub decoder
-vlc_modules += {
+heimdall_modules += {
     'name' : 'cvdsub',
     'sources' : files('cvdsub.c'),
     'plugin_dir' : 'codec',
 }
 
 # dvbsub decoder
-vlc_modules += {
+heimdall_modules += {
     'name' : 'dvbsub',
     'sources' : files('dvbsub.c'),
     'plugin_dir' : 'codec',
@@ -299,7 +299,7 @@ vlc_modules += {
 
 # aribsub
 aribb24_dep = dependency('aribb24', version: '>= 1.0.1', required: get_option('aribsub'))
-vlc_modules += {
+heimdall_modules += {
     'name' : 'aribsub',
     'sources' : files('arib/aribsub.c'),
     'dependencies' : [aribb24_dep],
@@ -309,7 +309,7 @@ vlc_modules += {
 }
 
 libaribcaption_dep = dependency('libaribcaption', 'aribcaption', required: get_option('aribcaption'))
-vlc_modules += {
+heimdall_modules += {
     'name' : 'aribcaption',
     'sources' : files('arib/libaribcaption.c'),
     'dependencies' : [libaribcaption_dep],
@@ -318,42 +318,42 @@ vlc_modules += {
 }
 
 # scte18 decoder
-vlc_modules += {
+heimdall_modules += {
     'name' : 'scte18',
     'sources' : files('scte18.c', 'atsc_a65.c'),
     'plugin_dir' : 'codec',
 }
 
 # scte27 decoder
-vlc_modules += {
+heimdall_modules += {
     'name' : 'scte27',
     'sources' : files('scte27.c'),
     'plugin_dir' : 'codec',
 }
 
 # SPU decoder
-vlc_modules += {
+heimdall_modules += {
     'name' : 'spudec',
     'sources' : files('spudec/spudec.c', 'spudec/parse.c'),
     'plugin_dir' : 'codec',
 }
 
 # STL codec
-vlc_modules += {
+heimdall_modules += {
     'name' : 'stl',
     'sources' : files('stl.c'),
     'plugin_dir' : 'codec',
 }
 
 # subsdec
-vlc_modules += {
+heimdall_modules += {
     'name' : 'subsdec',
     'sources' : files('subsdec.c'),
     'plugin_dir' : 'codec',
 }
 
 # subsusf
-vlc_modules += {
+heimdall_modules += {
     'name' : 'subsusf',
     'sources' : files('subsusf.c'),
     'plugin_dir' : 'codec',
@@ -366,7 +366,7 @@ if get_option('stream_outputs')
     ttml_sources += files('ttml/encttml.c')
 endif
 
-vlc_modules += {
+heimdall_modules += {
     'name' : 'ttml',
     'sources' : ttml_sources,
     'include_directories' : include_directories('.'),
@@ -374,14 +374,14 @@ vlc_modules += {
 }
 
 # svcdsub
-vlc_modules += {
+heimdall_modules += {
     'name' : 'svcdsub',
     'sources' : files('svcdsub.c'),
     'plugin_dir' : 'codec',
 }
 
 # t140
-vlc_modules += {
+heimdall_modules += {
     'name' : 't140',
     'sources' : files('t140.c'),
     'plugin_dir' : 'codec',
@@ -389,7 +389,7 @@ vlc_modules += {
 
 # zvbi
 use_zvbi = zvbi_dep.found() and get_option('zvbi').enabled()
-vlc_modules += {
+heimdall_modules += {
     'name' : 'zvbi',
     'sources' : files('zvbi.c'),
     'dependencies' : [zvbi_dep, socket_libs],
@@ -398,7 +398,7 @@ vlc_modules += {
 }
 
 # telx
-vlc_modules += {
+heimdall_modules += {
     'name' : 'telx',
     'sources' : files('telx.c'),
     'plugin_dir' : 'codec',
@@ -406,14 +406,14 @@ vlc_modules += {
 }
 
 # textst
-vlc_modules += {
+heimdall_modules += {
     'name' : 'textst',
     'sources' : files('textst.c'),
     'plugin_dir' : 'codec',
 }
 
 # substx3g
-vlc_modules += {
+heimdall_modules += {
     'name' : 'substx3g',
     'sources' : files('substx3g.c'),
     'plugin_dir' : 'codec',
@@ -457,10 +457,10 @@ if get_option('css_engine').require(flex.found() and bison.found(),
                 'webvtt/css_parser.c'
             ),
             webvtt_lex_files, webvtt_bison_files,
-            link_with: [vlc_libcompat],
-            dependencies: [libvlccore_dep],
+            link_with: [heimdall_libcompat],
+            dependencies: [libheimdallcore_dep],
             include_directories: [
-                vlc_include_dirs,
+                heimdall_include_dirs,
                 include_directories('webvtt')])
 
         test('css_parser', css_parser_test, suite: 'css_parser')
@@ -468,7 +468,7 @@ if get_option('css_engine').require(flex.found() and bison.found(),
 
 endif
 
-vlc_modules += {
+heimdall_modules += {
     'name' : 'webvtt',
     'sources' : webvtt_sources,
     'include_directories' : include_directories('webvtt'),
@@ -482,7 +482,7 @@ ogg_dep = dependency('ogg', 'Ogg', required: get_option('ogg'))
 
 # FLAC codec
 flac_dep = dependency('flac', 'FLAC', required: get_option('flac'))
-vlc_modules += {
+heimdall_modules += {
     'name' : 'flac',
     'sources' : files('flac.c'),
     'dependencies' : [flac_dep],
@@ -502,7 +502,7 @@ if kate_dep.found()
     kate_deps += tiger_dep
   endif
 endif
-vlc_modules += {
+heimdall_modules += {
     'name' : 'kate',
     'sources' : files('kate.c'),
     'dependencies' : kate_deps,
@@ -513,7 +513,7 @@ vlc_modules += {
 
 # Opus codec
 opus_dep = dependency('opus', version: '>= 1.0.3', required: get_option('opus'))
-vlc_modules += {
+heimdall_modules += {
     'name' : 'opus',
     'sources' : files('opus.c', 'opus_header.c'),
     'dependencies' : [opus_dep, ogg_dep],
@@ -524,7 +524,7 @@ vlc_modules += {
 # Theora codec
 theoraenc_dep = dependency('theoraenc', required: get_option('theoraenc'))
 theoradec_dep = dependency('theoradec', version: '>= 1.0', required: get_option('theoradec'))
-vlc_modules += {
+heimdall_modules += {
     'name' : 'theora',
     'sources' : files('theora.c'),
     'dependencies' : [theoraenc_dep, theoradec_dep, ogg_dep],
@@ -535,7 +535,7 @@ vlc_modules += {
 # Daala codec plugin
 daaladec_dep = dependency('daaladec', required: get_option('daaladec'))
 daalaenc_dep = dependency('daalaenc', required: get_option('daalaenc'))
-vlc_modules += {
+heimdall_modules += {
     'name' : 'daala',
     'sources' : files('daala.c'),
     'dependencies' : [daaladec_dep, daalaenc_dep],
@@ -545,7 +545,7 @@ vlc_modules += {
 
 # Speex codec plugin
 speex_dep = dependency('speex', version: '>= 1.0.5', required: get_option('speex'))
-vlc_modules += {
+heimdall_modules += {
     'name' : 'speex',
     'sources' : files('speex.c'),
     'dependencies' : [speex_dep, ogg_dep],
@@ -556,7 +556,7 @@ vlc_modules += {
 # Vorbis codec
 vorbis_dep    = dependency('vorbis', 'Vorbis', version: '>= 1.1', required: get_option('vorbis'))
 vorbisenc_dep = dependency('vorbisenc', version: '>= 1.1', required: get_option('vorbis'))
-vlc_modules += {
+heimdall_modules += {
     'name' : 'vorbis',
     'sources' : files('vorbis.c'),
     'dependencies' : [vorbis_dep, vorbisenc_dep, ogg_dep],
@@ -565,7 +565,7 @@ vlc_modules += {
 }
 
 # OggSpots decoder
-vlc_modules += {
+heimdall_modules += {
     'name' : 'oggspots',
     'sources' : files('oggspots.c'),
     'dependencies' : [ogg_dep],
@@ -577,9 +577,9 @@ vlc_modules += {
 # TODO: Set proper flags for minimum iOS/tvOS versions
 if host_system == 'darwin'
 
-    libvlc_vtutils = static_library('vlc_vtutils',
+    libheimdall_vtutils = static_library('heimdall_vtutils',
         files('vt_utils.c', 'vt_utils.h', 'vt_utils_native.m'),
-        include_directories : vlc_include_dirs,
+        include_directories : heimdall_include_dirs,
         dependencies : [
             corevideo_dep,
             frameworks['Metal'],
@@ -587,7 +587,7 @@ if host_system == 'darwin'
         ]
     )
 
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'videotoolbox',
         'sources' : files(
             'videotoolbox/decoder.c',
@@ -602,11 +602,11 @@ if host_system == 'darwin'
             frameworks['CoreMedia'],
             frameworks['CoreVideo'],
         ],
-        'link_with' : [hxxxhelper_lib, libvlc_vtutils],
+        'link_with' : [hxxxhelper_lib, libheimdall_vtutils],
         'plugin_dir' : 'codec',
     }
 
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'videotoolbox_enc',
         'sources' : files(
             'videotoolbox/encoder.c',
@@ -617,7 +617,7 @@ if host_system == 'darwin'
             frameworks['CoreMedia'],
             frameworks['CoreVideo'],
         ],
-        'link_with' : [hxxxhelper_lib, libvlc_vtutils],
+        'link_with' : [hxxxhelper_lib, libheimdall_vtutils],
         'plugin_dir' : 'codec',
     }
 
@@ -635,7 +635,7 @@ if avcodec_dep.found()
         ],
         install: false,
         include_directories: [
-            vlc_include_dirs,
+            heimdall_include_dirs,
             include_directories('avcodec')
         ],
     )
@@ -661,7 +661,7 @@ if get_option('merge-ffmpeg')
     endif
 endif
 
-vlc_modules += {
+heimdall_modules += {
     'name' : 'avcodec',
     'sources' : files(
             'avcodec/video.c',
@@ -687,11 +687,11 @@ if get_option('libva').enabled() and get_option('avcodec').disabled()
 endif
 
 libva_dep = dependency('libva', version: '>= 1.0', required: get_option('libva'))
-vlc_modules += {
+heimdall_modules += {
     'name' : 'vaapi',
     'sources' : files(
             'avcodec/vaapi.c',
-            '../hw/vaapi/vlc_vaapi.c',
+            '../hw/vaapi/heimdall_vaapi.c',
             'avcodec/va_surface.c',
         ),
     'dependencies' : [avcodec_dep, libva_dep, avutil_dep],
@@ -704,7 +704,7 @@ vlc_modules += {
 
 if host_system == 'windows'
     mft_deps = [ cc.find_library('mfplat'), cc.find_library('d3d11') ]
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'mft',
         'sources' : files(
                 'mft.cpp',
@@ -720,7 +720,7 @@ if host_system == 'windows'
     if (get_option('d3d11va').
         enable_auto_if(cc.check_header('libavcodec/d3d11va.h', args: [contrib_inc_args]))
         .allowed())
-        vlc_modules += {
+        heimdall_modules += {
             'name' : 'd3d11va',
             'sources' : files(
                     'avcodec/d3d11va.c',
@@ -734,7 +734,7 @@ if host_system == 'windows'
             'link_with' : [ d3d11_common_lib ],
             'dependencies' : [avcodec_compile_dep],
             'include_directories' : [
-                vlc_include_dirs,
+                heimdall_include_dirs,
                 include_directories('avcodec')
             ],
             'plugin_dir' : 'codec',
@@ -744,7 +744,7 @@ if host_system == 'windows'
     if (get_option('dxva2').
         enable_auto_if(cc.check_header('libavcodec/dxva2.h', args: [contrib_inc_args]))
         .allowed() and have_win_desktop)
-        vlc_modules += {
+        heimdall_modules += {
             'name' : 'dxva2',
             'sources' : files(
                     'avcodec/dxva2.c',
@@ -757,7 +757,7 @@ if host_system == 'windows'
             'c_args' : [ '-DHAVE_LIBAVCODEC_DXVA2_H=1' ],
             'link_with' : [ d3d9_common_lib ],
             'include_directories' : [
-                vlc_include_dirs,
+                heimdall_include_dirs,
                 include_directories('avcodec')
             ],
             'dependencies' : [avcodec_compile_dep, cc.find_library('dxva2')],
@@ -765,7 +765,7 @@ if host_system == 'windows'
         }
     endif
 
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'dmo',
         'sources' : files(
                 'dmo/dmo.c',
@@ -781,7 +781,7 @@ if host_system == 'windows'
 endif
 
 # OpenMAX IL codec
-vlc_modules += {
+heimdall_modules += {
     'name' : 'omxil',
     'sources' : files(
             'omxil/utils.c',
@@ -799,7 +799,7 @@ vlc_modules += {
 
 # Android MediaCodec video/audio decoder
 mediandk_lib = cc.find_library('mediandk', required: false)
-vlc_modules += {
+heimdall_modules += {
     'name' : 'mediacodec',
     'sources' : files(
             'omxil/mediacodec.c',
@@ -824,7 +824,7 @@ vlc_modules += {
 
 # x265 encoder
 x265_dep = dependency('x265', required: get_option('x265'))
-vlc_modules += {
+heimdall_modules += {
     'name' : 'x265',
     'sources' : files('x265.c'),
     'dependencies' : [x265_dep],
@@ -834,7 +834,7 @@ vlc_modules += {
 
 # x262 encoder
 x262_dep = dependency('x262', required: get_option('x262'))
-vlc_modules += {
+heimdall_modules += {
     'name' : 'x262',
     'sources' : files('x264.c'),
     'dependencies' : [x262_dep],
@@ -846,7 +846,7 @@ vlc_modules += {
 
 # x264 10-bit encoder (requires x264 >= 0.153)
 x26410b_dep = dependency('x264', version: '>= 0.153', required: get_option('x264'))
-vlc_modules += {
+heimdall_modules += {
     'name' : 'x26410b',
     'sources' : files('x264.c'),
     'dependencies' : [x26410b_dep],
@@ -858,7 +858,7 @@ vlc_modules += {
 
 # x264 encoder
 x264_dep = dependency('x264', version: '>= 0.148', required: get_option('x264'))
-vlc_modules += {
+heimdall_modules += {
     'name' : 'x264',
     'sources' : files('x264.c'),
     'dependencies' : [x264_dep],
@@ -873,7 +873,7 @@ vlc_modules += {
 
 # fdkaac encoder
 fdkaac_dep = dependency('fdk-aac', required: get_option('fdk-aac'))
-vlc_modules += {
+heimdall_modules += {
     'name' : 'fdkaac',
     'sources' : files('fdkaac.c'),
     'dependencies' : [fdkaac_dep],
@@ -883,7 +883,7 @@ vlc_modules += {
 
 # Shine MPEG Audio Layer 3 encoder
 shine_dep = dependency('shine', version: '>= 3.0.0', required: get_option('shine'))
-vlc_modules += {
+heimdall_modules += {
     'name' : 'shine',
     'sources' : files('shine.c'),
     'dependencies' : [shine_dep],
@@ -909,7 +909,7 @@ if vpx_dep.found()
     endif
 endif
 
-vlc_modules += {
+heimdall_modules += {
     'name' : 'vpx',
     'sources' : files('vpx.c'),
     'c_args' : vpx_c_args,
@@ -929,7 +929,7 @@ if host_system == 'windows'
     vpx_alpha_deps += [ cc.find_library('d3d11') ]
     vpx_alpha_cxx_args += libcom_cppflags
 endif
-vlc_modules += {
+heimdall_modules += {
     'name' : 'vpx_alpha',
     'sources' : vpx_alpha_sources,
     'link_with' : vpx_alpha_with,
@@ -940,7 +940,7 @@ vlc_modules += {
 
 # libaom AV1 codec
 aom_dep = dependency('aom', required: get_option('aom'))
-vlc_modules += {
+heimdall_modules += {
     'name' : 'aom',
     'sources' : files('aom.c', '../packetizer/av1_obu.c'),
     'dependencies' : [aom_dep],
@@ -949,7 +949,7 @@ vlc_modules += {
 }
 
 rav1e_dep = dependency('rav1e', required: get_option('rav1e'))
-vlc_modules += {
+heimdall_modules += {
     'name' : 'rav1e',
     'sources' : files('rav1e.c'),
     'dependencies' : [rav1e_dep],
@@ -959,7 +959,7 @@ vlc_modules += {
 
 # Twolame MPEG Audio Layer 2 encoder
 twolame_dep = dependency('twolame', required: get_option('twolame'))
-vlc_modules += {
+heimdall_modules += {
     'name' : 'twolame',
     'sources' : files('twolame.c'),
     'dependencies' : [twolame_dep],
@@ -969,7 +969,7 @@ vlc_modules += {
 
 # dav1d AV1 decoder
 dav1d_dep = dependency('dav1d', version: '>= 0.5.0', required: get_option('dav1d'))
-vlc_modules += {
+heimdall_modules += {
     'name' : 'dav1d',
     'sources' : files(
             'dav1d.c',
@@ -981,11 +981,11 @@ vlc_modules += {
 }
 
 # tests
-vlc_modules += {
+heimdall_modules += {
     'name': 'hxxxhelper_testdec',
     'sources': files('hxxx_helper_testdec.c'),
     'link_with' : [hxxxhelper_lib],
-    'include_directories': [vlc_include_dirs],
+    'include_directories': [heimdall_include_dirs],
     'install' : false,
 }
 
@@ -993,7 +993,7 @@ vlc_modules += {
 
 # QSV encoder
 qsv_dep = dependency('vpl', required: get_option('vpl'))
-vlc_modules += {
+heimdall_modules += {
     'name' : 'qsv',
     'sources' : files('qsv.c'),
     'dependencies' : [qsv_dep],

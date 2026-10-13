@@ -1,7 +1,8 @@
 /*****************************************************************************
- * dshow.cpp : DirectShow access and access_demux module for vlc
+ * dshow.cpp : DirectShow access and access_demux module for heimdall
  *****************************************************************************
  * Copyright (C) 2002-2004, 2006, 2008, 2010 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Gildas Bazin <gbazin@videolan.org>
  *         Damien Fouilleul <damienf@videolan.org>
@@ -36,14 +37,14 @@
 #include <string>
 #include <vector>
 
-#include <vlc_common.h>
-#include <vlc_arrays.h>
-#include <vlc_plugin.h>
-#include <vlc_access.h>
-#include <vlc_demux.h>
+#include <heimdall_common.h>
+#include <heimdall_arrays.h>
+#include <heimdall_plugin.h>
+#include <heimdall_access.h>
+#include <heimdall_demux.h>
 
-#include <vlc_dialog.h>      /* vlc_dialog_display_error */
-#include <vlc_charset.h>     /* FromWide */
+#include <heimdall_dialog.h>      /* heimdall_dialog_display_error */
+#include <heimdall_charset.h>     /* FromWide */
 
 #include <initguid.h>
 
@@ -65,21 +66,21 @@ static int AccessControl ( stream_t *, int, va_list );
 static int Demux       ( demux_t * );
 static int DemuxControl( demux_t *, int, va_list );
 
-static int OpenDevice( vlc_object_t *, access_sys_t *, std::string, bool );
-static ComPtr<IBaseFilter> FindCaptureDevice( vlc_object_t *, std::string *,
+static int OpenDevice( heimdall_object_t *, access_sys_t *, std::string, bool );
+static ComPtr<IBaseFilter> FindCaptureDevice( heimdall_object_t *, std::string *,
                                        std::list<std::string> *, bool );
-static size_t EnumDeviceCaps( vlc_object_t *, ComPtr<IBaseFilter> &,
-                              vlc_fourcc_t, int, int, int, int, int,
+static size_t EnumDeviceCaps( heimdall_object_t *, ComPtr<IBaseFilter> &,
+                              heimdall_fourcc_t, int, int, int, int, int,
                               AM_MEDIA_TYPE *mt, size_t, bool );
-static bool ConnectFilters( vlc_object_t *, access_sys_t *,
+static bool ConnectFilters( heimdall_object_t *, access_sys_t *,
                             ComPtr<IBaseFilter> &, ComPtr<CaptureFilter> & );
 
 static void ShowPropertyPageO( ComPtr<IUnknown> & );
-static void ShowDeviceProperties( vlc_object_t *, ComPtr<ICaptureGraphBuilder2> &,
+static void ShowDeviceProperties( heimdall_object_t *, ComPtr<ICaptureGraphBuilder2> &,
                                   ComPtr<IBaseFilter> &, bool );
-static void ShowTunerProperties( vlc_object_t *, ComPtr<ICaptureGraphBuilder2> &,
+static void ShowTunerProperties( heimdall_object_t *, ComPtr<ICaptureGraphBuilder2> &,
                                  ComPtr<IBaseFilter> &, bool );
-static void ConfigTuner( vlc_object_t *, ComPtr<ICaptureGraphBuilder2> &,
+static void ConfigTuner( heimdall_object_t *, ComPtr<ICaptureGraphBuilder2> &,
                          ComPtr<IBaseFilter> & );
 
 /*****************************************************************************
@@ -176,20 +177,20 @@ static const char *const ppsz_amtuner_mode_text[] = { N_("Default"),
 #define AUDIO_BITSPERSAMPLE_LONGTEXT N_( \
     "Select audio input format with the given bits/sample (if non 0)" )
 
-static int  CommonOpen ( vlc_object_t *, access_sys_t *, bool );
-static void CommonClose( vlc_object_t *, access_sys_t * );
+static int  CommonOpen ( heimdall_object_t *, access_sys_t *, bool );
+static void CommonClose( heimdall_object_t *, access_sys_t * );
 
-static int  AccessOpen ( vlc_object_t * );
-static void AccessClose( vlc_object_t * );
+static int  AccessOpen ( heimdall_object_t * );
+static void AccessClose( heimdall_object_t * );
 
-static int  DemuxOpen  ( vlc_object_t * );
-static void DemuxClose ( vlc_object_t * );
+static int  DemuxOpen  ( heimdall_object_t * );
+static void DemuxClose ( heimdall_object_t * );
 
 } // namespace
 
 using namespace dshow;
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( N_("DirectShow") )
     set_description( N_("DirectShow input") )
     set_subcategory( SUBCAT_INPUT_ACCESS )
@@ -259,7 +260,7 @@ vlc_module_begin ()
     set_capability( "access", 0 )
     set_callbacks( AccessOpen, AccessClose )
 
-vlc_module_end ()
+heimdall_module_end ()
 
 namespace dshow {
 
@@ -300,12 +301,12 @@ struct dshow_stream_t
 
     } header;
 
-    vlc_fourcc_t    i_fourcc;
+    heimdall_fourcc_t    i_fourcc;
     es_out_id_t     *p_es;
 
     bool      b_pts;
 
-    std::deque<VLCMediaSample> samples_queue;
+    std::deque<HeimdallMediaSample> samples_queue;
 };
 
 /*****************************************************************************
@@ -331,7 +332,7 @@ static void CreateDirectShowGraph( access_sys_t *p_sys )
     }
 }
 
-static void DeleteDirectShowGraph( vlc_object_t *p_this, access_sys_t *p_sys )
+static void DeleteDirectShowGraph( heimdall_object_t *p_this, access_sys_t *p_sys )
 {
     DeleteCrossbarRoutes( p_sys );
 
@@ -361,7 +362,7 @@ static void DeleteDirectShowGraph( vlc_object_t *p_this, access_sys_t *p_sys )
 /*****************************************************************************
  * CommonOpen: open direct show device
  *****************************************************************************/
-static int CommonOpen( vlc_object_t *p_this, access_sys_t *p_sys,
+static int CommonOpen( heimdall_object_t *p_this, access_sys_t *p_sys,
                        bool b_access_demux )
 {
     char *psz_val;
@@ -369,12 +370,12 @@ static int CommonOpen( vlc_object_t *p_this, access_sys_t *p_sys,
     /* Get/parse options and open device(s) */
     std::string vdevname, adevname;
     int i_width = 0, i_height = 0;
-    vlc_fourcc_t i_chroma = 0;
+    heimdall_fourcc_t i_chroma = 0;
     bool b_use_audio = true;
     bool b_use_video = true;
 
-    var_Create( p_this,  "dshow-config", VLC_VAR_BOOL | VLC_VAR_DOINHERIT );
-    var_Create( p_this,  "dshow-tuner", VLC_VAR_BOOL | VLC_VAR_DOINHERIT );
+    var_Create( p_this,  "dshow-config", HEIMDALL_VAR_BOOL | HEIMDALL_VAR_DOINHERIT );
+    var_Create( p_this,  "dshow-tuner", HEIMDALL_VAR_BOOL | HEIMDALL_VAR_DOINHERIT );
     psz_val = var_CreateGetString( p_this, "dshow-vdev" );
     if( psz_val )
     {
@@ -442,24 +443,24 @@ static int CommonOpen( vlc_object_t *p_this, access_sys_t *p_sys,
 
     /* Chroma */
     psz_val = var_InheritString( p_this, "dshow-chroma" );
-    i_chroma = vlc_fourcc_GetCodecFromString( VIDEO_ES, psz_val );
+    i_chroma = heimdall_fourcc_GetCodecFromString( VIDEO_ES, psz_val );
     free( psz_val );
 
-    var_Create( p_this, "dshow-fps", VLC_VAR_FLOAT | VLC_VAR_DOINHERIT );
+    var_Create( p_this, "dshow-fps", HEIMDALL_VAR_FLOAT | HEIMDALL_VAR_DOINHERIT );
     var_Create( p_this, "dshow-tuner-channel",
-                VLC_VAR_INTEGER | VLC_VAR_DOINHERIT );
+                HEIMDALL_VAR_INTEGER | HEIMDALL_VAR_DOINHERIT );
     var_Create( p_this, "dshow-tuner-country",
-                VLC_VAR_INTEGER | VLC_VAR_DOINHERIT );
+                HEIMDALL_VAR_INTEGER | HEIMDALL_VAR_DOINHERIT );
     var_Create( p_this, "dshow-tuner-input",
-                VLC_VAR_INTEGER | VLC_VAR_DOINHERIT );
+                HEIMDALL_VAR_INTEGER | HEIMDALL_VAR_DOINHERIT );
 
     var_Create( p_this, "dshow-amtuner-mode",
-                VLC_VAR_INTEGER | VLC_VAR_DOINHERIT );
+                HEIMDALL_VAR_INTEGER | HEIMDALL_VAR_DOINHERIT );
 
-    var_Create( p_this, "dshow-video-input", VLC_VAR_INTEGER | VLC_VAR_DOINHERIT );
-    var_Create( p_this, "dshow-audio-input", VLC_VAR_INTEGER | VLC_VAR_DOINHERIT );
-    var_Create( p_this, "dshow-video-output", VLC_VAR_INTEGER | VLC_VAR_DOINHERIT );
-    var_Create( p_this, "dshow-audio-output", VLC_VAR_INTEGER | VLC_VAR_DOINHERIT );
+    var_Create( p_this, "dshow-video-input", HEIMDALL_VAR_INTEGER | HEIMDALL_VAR_DOINHERIT );
+    var_Create( p_this, "dshow-audio-input", HEIMDALL_VAR_INTEGER | HEIMDALL_VAR_DOINHERIT );
+    var_Create( p_this, "dshow-video-output", HEIMDALL_VAR_INTEGER | HEIMDALL_VAR_DOINHERIT );
+    var_Create( p_this, "dshow-audio-output", HEIMDALL_VAR_INTEGER | HEIMDALL_VAR_DOINHERIT );
 
 
     /* Initialize some data */
@@ -470,21 +471,21 @@ static int CommonOpen( vlc_object_t *p_this, access_sys_t *p_sys,
     /* Build directshow graph */
     CreateDirectShowGraph( p_sys );
 
-    vlc_mutex_init( &p_sys->lock );
-    vlc_cond_init( &p_sys->wait );
+    heimdall_mutex_init( &p_sys->lock );
+    heimdall_cond_init( &p_sys->wait );
 
     if( !b_use_video && !b_use_audio )
     {
-        vlc_dialog_display_error( p_this, _("Capture failed"),
+        heimdall_dialog_display_error( p_this, _("Capture failed"),
                         _("No video or audio device selected.") );
-        return VLC_EGENERIC ;
+        return HEIMDALL_EGENERIC ;
     }
 
     if( !b_use_video )
         msg_Dbg( p_this, "skipping video device" ) ;
     bool b_err_video = false ;
 
-    if( b_use_video && OpenDevice( p_this, p_sys, vdevname, 0 ) != VLC_SUCCESS )
+    if( b_use_video && OpenDevice( p_this, p_sys, vdevname, 0 ) != HEIMDALL_SUCCESS )
     {
         msg_Err( p_this, "can't open video device");
         b_err_video = true ;
@@ -499,16 +500,16 @@ static int CommonOpen( vlc_object_t *p_this, access_sys_t *p_sys,
         if( p_stream->mt.majortype == MEDIATYPE_Video )
         {
             if( /* Raw DV stream */
-                p_stream->i_fourcc == VLC_CODEC_DV ||
+                p_stream->i_fourcc == HEIMDALL_CODEC_DV ||
                 /* Raw MPEG video stream */
-                p_stream->i_fourcc == VLC_CODEC_MPGV )
+                p_stream->i_fourcc == HEIMDALL_CODEC_MPGV )
             {
                 b_use_audio = false;
 
                 if( b_access_demux )
                 {
                     /* Let the access (only) take care of that */
-                    return VLC_EGENERIC;
+                    return HEIMDALL_EGENERIC;
                 }
             }
         }
@@ -520,7 +521,7 @@ static int CommonOpen( vlc_object_t *p_this, access_sys_t *p_sys,
             if( b_access_demux )
             {
                 /* Let the access (only) take care of that */
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             }
 
             if( var_GetBool( p_this, "dshow-tuner" ) )
@@ -538,7 +539,7 @@ static int CommonOpen( vlc_object_t *p_this, access_sys_t *p_sys,
 
     bool b_err_audio = false ;
 
-    if( b_use_audio && OpenDevice( p_this, p_sys, adevname, 1 ) != VLC_SUCCESS )
+    if( b_use_audio && OpenDevice( p_this, p_sys, adevname, 1 ) != HEIMDALL_SUCCESS )
     {
         msg_Err( p_this, "can't open audio device");
         b_err_audio = true ;
@@ -549,10 +550,10 @@ static int CommonOpen( vlc_object_t *p_this, access_sys_t *p_sys,
         ( b_use_video && !b_use_audio && b_err_video ) )
     {
         msg_Err( p_this, "FATAL: could not open ANY device" ) ;
-        vlc_dialog_display_error( p_this,  _("Capture failed"),
-                        _("VLC cannot open ANY capture device. "
+        heimdall_dialog_display_error( p_this,  _("Capture failed"),
+                        _("Heimdall cannot open ANY capture device. "
                           "Check the error log for details.") );
-        return VLC_EGENERIC ;
+        return HEIMDALL_EGENERIC ;
     }
 
     for( int i = p_sys->i_crossbar_route_depth-1; i >= 0 ; --i )
@@ -618,39 +619,39 @@ static int CommonOpen( vlc_object_t *p_this, access_sys_t *p_sys,
     /* Initialize some data */
     p_sys->i_current_stream = 0;
 
-    if( p_sys->pp_streams.empty() ) return VLC_EGENERIC;
+    if( p_sys->pp_streams.empty() ) return HEIMDALL_EGENERIC;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * DemuxOpen: open direct show device as an access_demux module
  *****************************************************************************/
-static int DemuxOpen( vlc_object_t *p_this )
+static int DemuxOpen( heimdall_object_t *p_this )
 {
     demux_t      *p_demux = (demux_t *)p_this;
     access_sys_t *p_sys;
 
     if (p_demux->out == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     p_sys = (access_sys_t*)calloc( 1, sizeof( access_sys_t ) );
     if( !p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     p_demux->p_sys = (demux_sys_t *)p_sys;
 
     ComContext ctx( COINIT_MULTITHREADED | COINIT_DISABLE_OLE1DDE );
 
-    if( vlc_mta_acquire( p_this ) == false )
+    if( heimdall_mta_acquire( p_this ) == false )
     {
         msg_Err( p_this, "Failed to acquire MTA" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    if( CommonOpen( p_this, p_sys, true ) != VLC_SUCCESS )
+    if( CommonOpen( p_this, p_sys, true ) != HEIMDALL_SUCCESS )
     {
         CommonClose( p_this, p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Everything is ready. Let's rock baby */
@@ -659,7 +660,7 @@ static int DemuxOpen( vlc_object_t *p_this )
     {
         msg_Err( p_this, "Failed to run graph. Capture device may be in use." );
         CommonClose( p_this, p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     p_demux->pf_demux   = Demux;
@@ -723,34 +724,34 @@ static int DemuxOpen( vlc_object_t *p_this )
         p_stream->p_es = es_out_Add( p_demux->out, &fmt );
     }
 
-    p_sys->i_start = vlc_tick_now();
-    return VLC_SUCCESS;
+    p_sys->i_start = heimdall_tick_now();
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * AccessOpen: open direct show device as an access module
  *****************************************************************************/
-static int AccessOpen( vlc_object_t *p_this )
+static int AccessOpen( heimdall_object_t *p_this )
 {
     stream_t     *p_access = (stream_t*)p_this;
     access_sys_t *p_sys;
 
     p_access->p_sys = p_sys = (access_sys_t*)calloc( 1, sizeof( access_sys_t ) );
     if( !p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     ComContext ctx( COINIT_MULTITHREADED | COINIT_DISABLE_OLE1DDE );
 
-    if( vlc_mta_acquire( p_this ) == false )
+    if( heimdall_mta_acquire( p_this ) == false )
     {
         msg_Err( p_this, "Failed to acquire MTA" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    if( CommonOpen( p_this, p_sys, false ) != VLC_SUCCESS )
+    if( CommonOpen( p_this, p_sys, false ) != HEIMDALL_SUCCESS )
     {
         CommonClose( p_this, p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Setup Access */
@@ -766,24 +767,24 @@ static int AccessOpen( vlc_object_t *p_this )
     {
         msg_Err( p_this, "Failed to run graph. Capture device may be in use." );
         CommonClose( p_this, p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * CommonClose: close device
  *****************************************************************************/
-static void CommonClose( vlc_object_t *p_this, access_sys_t *p_sys )
+static void CommonClose( heimdall_object_t *p_this, access_sys_t *p_sys )
 {
     msg_Dbg( p_this, "releasing DirectShow");
 
     DeleteDirectShowGraph( p_this, p_sys );
 
-    vlc_delete_all( p_sys->pp_streams );
+    heimdall_delete_all( p_sys->pp_streams );
 
-    vlc_mta_release( p_this );
+    heimdall_mta_release( p_this );
 
     free( p_sys );
 }
@@ -791,7 +792,7 @@ static void CommonClose( vlc_object_t *p_this, access_sys_t *p_sys )
 /*****************************************************************************
  * AccessClose: close device
  *****************************************************************************/
-static void AccessClose( vlc_object_t *p_this )
+static void AccessClose( heimdall_object_t *p_this )
 {
     stream_t     *p_access = (stream_t *)p_this;
     access_sys_t *p_sys    = (access_sys_t *)p_access->p_sys;
@@ -807,7 +808,7 @@ static void AccessClose( vlc_object_t *p_this )
 /*****************************************************************************
  * DemuxClose: close device
  *****************************************************************************/
-static void DemuxClose( vlc_object_t *p_this )
+static void DemuxClose( heimdall_object_t *p_this )
 {
     demux_t      *p_demux = (demux_t *)p_this;
     access_sys_t *p_sys   = (access_sys_t *)p_demux->p_sys;
@@ -823,7 +824,7 @@ static void DemuxClose( vlc_object_t *p_this )
 /****************************************************************************
  * ConnectFilters
  ****************************************************************************/
-static bool ConnectFilters( vlc_object_t *p_this, access_sys_t *p_sys,
+static bool ConnectFilters( heimdall_object_t *p_this, access_sys_t *p_sys,
                             ComPtr<IBaseFilter> & p_filter,
                             ComPtr<CaptureFilter> & p_capture_filter )
 {
@@ -911,21 +912,21 @@ static bool ConnectFilters( vlc_object_t *p_this, access_sys_t *p_sys,
 /*
  * get fourcc priority from arbitrary preference, the higher the better
  */
-static int GetFourCCPriority( vlc_fourcc_t i_fourcc )
+static int GetFourCCPriority( heimdall_fourcc_t i_fourcc )
 {
     switch( i_fourcc )
     {
-    case VLC_CODEC_I420:
-    case VLC_CODEC_FL32:
+    case HEIMDALL_CODEC_I420:
+    case HEIMDALL_CODEC_FL32:
         return 9;
-    case VLC_CODEC_YV12:
-    case VLC_FOURCC('a','r','a','w'):
+    case HEIMDALL_CODEC_YV12:
+    case HEIMDALL_FOURCC('a','r','a','w'):
         return 8;
-    case VLC_CODEC_BGR24:
+    case HEIMDALL_CODEC_BGR24:
         return 7;
-    case VLC_CODEC_YUYV:
-    case VLC_CODEC_BGRX:
-    case VLC_CODEC_RGBA:
+    case HEIMDALL_CODEC_YUYV:
+    case HEIMDALL_CODEC_BGRX:
+    case HEIMDALL_CODEC_RGBA:
         return 6;
     }
 
@@ -934,7 +935,7 @@ static int GetFourCCPriority( vlc_fourcc_t i_fourcc )
 
 #define MAX_MEDIA_TYPES 32
 
-static int OpenDevice( vlc_object_t *p_this, access_sys_t *p_sys,
+static int OpenDevice( heimdall_object_t *p_this, access_sys_t *p_sys,
                        std::string devicename, bool b_audio )
 {
     ComPtr<IBaseFilter> p_device_filter;
@@ -958,7 +959,7 @@ static int OpenDevice( vlc_object_t *p_this, access_sys_t *p_sys,
             if( !p_device_filter )
             {
                 msg_Err( p_this, "Device '%s' already opened, but couldn't be retrieved", devicename.c_str() );
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             }
 
             break;
@@ -972,7 +973,7 @@ static int OpenDevice( vlc_object_t *p_this, access_sys_t *p_sys,
         /* Enumerate devices and display their names */
         FindCaptureDevice( p_this, NULL, &list_devices, b_audio );
         if( list_devices.empty() )
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
         std::list<std::string>::iterator iter;
         for( iter = list_devices.begin(); iter != list_devices.end(); ++iter )
@@ -998,10 +999,10 @@ static int OpenDevice( vlc_object_t *p_this, access_sys_t *p_sys,
         {
             msg_Err( p_this, "can't use device: %s, unsupported device type",
                      devicename.c_str() );
-            vlc_dialog_display_error( p_this, _("Capture failed"),
+            heimdall_dialog_display_error( p_this, _("Capture failed"),
                             _("The device you selected cannot be used, because its "
                               "type is not supported.") );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         /* Add the device filter to the graph (seems necessary with VfW before
@@ -1019,7 +1020,7 @@ static int OpenDevice( vlc_object_t *p_this, access_sys_t *p_sys,
         if( FAILED( hr ) )
         {
             msg_Err( p_this, "Error adding device '%s' to the graph", devicename.c_str() );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
 
@@ -1070,10 +1071,10 @@ static int OpenDevice( vlc_object_t *p_this, access_sys_t *p_sys,
     else {
         /* capture device */
         msg_Err( p_this, "capture device '%s' does not support required parameters !", devicename.c_str() );
-        vlc_dialog_display_error( p_this, _("Capture failed"),
+        heimdall_dialog_display_error( p_this, _("Capture failed"),
                         _("The capture device \"%s\" does not support the "
                           "required parameters."), devicename.c_str() );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Create and add our capture filter */
@@ -1095,7 +1096,7 @@ static int OpenDevice( vlc_object_t *p_this, access_sys_t *p_sys,
         dshow_stream.mt =
             p_capture_filter->CustomGetPin()->CustomGetMediaType();
 
-        /* Show Device properties. Done here so the VLC stream is setup with
+        /* Show Device properties. Done here so the Heimdall stream is setup with
          * the proper parameters. */
         if( var_GetBool( p_this, "dshow-config" ) )
         {
@@ -1154,7 +1155,7 @@ static int OpenDevice( vlc_object_t *p_this, access_sys_t *p_sys,
 
             p_sys->pp_streams.push_back( new dshow_stream_t(dshow_stream) );
 
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
     }
 
@@ -1164,7 +1165,7 @@ static int OpenDevice( vlc_object_t *p_this, access_sys_t *p_sys,
     p_sys->p_graph->RemoveFilter( p_device_filter.Get() );
     p_sys->p_graph->RemoveFilter( p_capture_filter.Get() );
 
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /* FindCaptureDevices:: This Function had two purposes :
@@ -1173,7 +1174,7 @@ static int OpenDevice( vlc_object_t *p_this, access_sys_t *p_sys,
    These actions *may* be requested with a single call.
 */
 static ComPtr<IBaseFilter>
-FindCaptureDevice( vlc_object_t *p_this, std::string *p_devicename,
+FindCaptureDevice( heimdall_object_t *p_this, std::string *p_devicename,
                    std::list<std::string> *p_listdevices, bool b_audio )
 {
     ComPtr<IBaseFilter> p_base_filter;
@@ -1281,8 +1282,8 @@ FindCaptureDevice( vlc_object_t *p_this, std::string *p_devicename,
     return p_base_filter;
 }
 
-static size_t EnumDeviceCaps( vlc_object_t *p_this, ComPtr<IBaseFilter> &p_filter,
-                              vlc_fourcc_t i_fourcc, int i_width, int i_height,
+static size_t EnumDeviceCaps( heimdall_object_t *p_this, ComPtr<IBaseFilter> &p_filter,
+                              heimdall_fourcc_t i_fourcc, int i_width, int i_height,
                               int i_channels, int i_samplespersec,
                               int i_bitspersample, AM_MEDIA_TYPE *mt,
                               size_t mt_max, bool b_audio )
@@ -1350,7 +1351,7 @@ static size_t EnumDeviceCaps( vlc_object_t *p_this, ComPtr<IBaseFilter> &p_filte
                     {
                         if( SUCCEEDED(pSC->GetStreamCaps(i, &p_mt, static_cast<BYTE*>(pSCC))) )
                         {
-                            vlc_fourcc_t i_current_fourcc = GetFourCCFromMediaType( *p_mt );
+                            heimdall_fourcc_t i_current_fourcc = GetFourCCFromMediaType( *p_mt );
                             int i_current_priority = GetFourCCPriority(i_current_fourcc);
 
                             if( (i_fourcc && (i_current_fourcc != i_fourcc))
@@ -1489,7 +1490,7 @@ static size_t EnumDeviceCaps( vlc_object_t *p_this, ComPtr<IBaseFilter> &p_filte
                                     val = i_bitspersample;
                                     if( ! val )
                                     {
-                                        if( VLC_CODEC_FL32 == i_current_fourcc )
+                                        if( HEIMDALL_CODEC_FL32 == i_current_fourcc )
                                             val = 32;
                                         else
                                             val = 16;
@@ -1543,7 +1544,7 @@ static size_t EnumDeviceCaps( vlc_object_t *p_this, ComPtr<IBaseFilter> &p_filte
 
         while( p_enummt->Next( 1, &p_mt, NULL ) == S_OK )
         {
-            vlc_fourcc_t i_current_fourcc = GetFourCCFromMediaType( *p_mt );
+            heimdall_fourcc_t i_current_fourcc = GetFourCCFromMediaType( *p_mt );
             if( !b_audio && i_current_fourcc && p_mt->majortype == MEDIATYPE_Video
                 && p_mt->formattype == FORMAT_VideoInfo )
             {
@@ -1647,9 +1648,9 @@ static size_t EnumDeviceCaps( vlc_object_t *p_this, ComPtr<IBaseFilter> &p_filte
 
         if( !mt_count && p_enummt->Reset() == S_OK )
         {
-            // VLC did not find any supported MEDIATYPE for this output pin.
+            // Heimdall did not find any supported MEDIATYPE for this output pin.
             // However the graph builder might insert converter filters in
-            // the graph if we use a different codec in VLC filter input pin.
+            // the graph if we use a different codec in Heimdall filter input pin.
             // however, in order to avoid nasty surprises, make use of this
             // facility only for known unsupported codecs.
 
@@ -1657,13 +1658,13 @@ static size_t EnumDeviceCaps( vlc_object_t *p_this, ComPtr<IBaseFilter> &p_filte
             {
                 // the first four bytes of subtype GUID contains the codec FOURCC
                 const char *pfcc = (char *)&p_mt->subtype;
-                vlc_fourcc_t i_current_fourcc = VLC_FOURCC(pfcc[0], pfcc[1], pfcc[2], pfcc[3]);
-                if( VLC_FOURCC('H','C','W','2') == i_current_fourcc
+                heimdall_fourcc_t i_current_fourcc = HEIMDALL_FOURCC(pfcc[0], pfcc[1], pfcc[2], pfcc[3]);
+                if( HEIMDALL_FOURCC('H','C','W','2') == i_current_fourcc
                  && p_mt->majortype == MEDIATYPE_Video && !b_audio )
                 {
                     // output format for 'Hauppauge WinTV PVR PCI II Capture'
                     // try I420 as an input format
-                    i_current_fourcc = VLC_CODEC_I420;
+                    i_current_fourcc = HEIMDALL_CODEC_I420;
                     if( !i_fourcc || i_fourcc == i_current_fourcc )
                     {
                         // return alternative media type
@@ -1688,7 +1689,7 @@ static size_t EnumDeviceCaps( vlc_object_t *p_this, ComPtr<IBaseFilter> &p_filte
                             ((VIDEOINFOHEADER *)p_mt->pbFormat)->bmiHeader.biHeight;
                         vh.bmiHeader.biPlanes      = 3;
                         vh.bmiHeader.biBitCount    = 12;
-                        vh.bmiHeader.biCompression = VLC_CODEC_I420;
+                        vh.bmiHeader.biCompression = HEIMDALL_CODEC_I420;
                         vh.bmiHeader.biSizeImage   = vh.bmiHeader.biWidth * 12 *
                             vh.bmiHeader.biHeight / 8;
                         mtr.lSampleSize            = vh.bmiHeader.biSizeImage;
@@ -1718,20 +1719,20 @@ static block_t *ReadCompressed( stream_t *p_access, bool *eof )
     /* There must be only 1 elementary stream to produce a valid stream
      * of MPEG or DV data */
     dshow_stream_t *p_stream = p_sys->pp_streams[0];
-    VLCMediaSample sample;
+    HeimdallMediaSample sample;
 
     /* Read 1 DV/MPEG frame (they contain the video and audio data) */
 
     /* Get new sample/frame from the elementary stream (blocking). */
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
 
     if( p_stream->p_capture_filter->CustomGetPin()->CustomGetSample(&sample) != S_OK )
     {   /* No data available. Wait until some data has arrived */
-        vlc_cond_wait( &p_sys->wait, &p_sys->lock );
-        vlc_mutex_unlock( &p_sys->lock );
+        heimdall_cond_wait( &p_sys->wait, &p_sys->lock );
+        heimdall_mutex_unlock( &p_sys->lock );
         return NULL;
     }
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 
     /*
      * We got our sample
@@ -1765,7 +1766,7 @@ static int Demux( demux_t *p_demux )
     int i_found_samples;
 
     i_found_samples = 0;
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
 
     while ( !i_found_samples )
     {
@@ -1787,14 +1788,14 @@ static int Demux( demux_t *p_demux )
         {
             /* Didn't find any audio nor video sample, just wait till the
              * dshow thread pushes some samples */
-            vlc_cond_wait( &p_sys->wait, &p_sys->lock );
+            heimdall_cond_wait( &p_sys->wait, &p_sys->lock );
             /* Some DShow thread pushed data, or the OS broke the wait all
              * by itself. In all cases, it's *strongly* advised to test the
              * condition again, so let the loop do the test again */
         }
     }
 
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 
     std::vector<dshow_stream_t*>::iterator it = p_sys->pp_streams.begin();
     std::vector<dshow_stream_t*>::iterator end = p_sys->pp_streams.end();
@@ -1809,7 +1810,7 @@ static int Demux( demux_t *p_demux )
             int i_data_size;
             uint8_t *p_data;
             block_t *p_block;
-            VLCMediaSample sample;
+            HeimdallMediaSample sample;
 
             sample = p_stream->samples_queue.front();
             p_stream->samples_queue.pop_front();
@@ -1824,7 +1825,7 @@ static int Demux( demux_t *p_demux )
                 if( p_stream->mt.majortype == MEDIATYPE_Video || !p_stream->b_pts )
                 {
                     /* Use our data timestamp */
-                    i_pts = MSFTIME_FROM_VLC_TICK(sample.i_timestamp);
+                    i_pts = MSFTIME_FROM_HEIMDALL_TICK(sample.i_timestamp);
                     p_stream->b_pts = true;
                 }
                 else
@@ -1836,15 +1837,15 @@ static int Demux( demux_t *p_demux )
             }
 #if 0
             msg_Dbg( p_demux, "Read() stream: %i, size: %i, PTS: %" PRId64,
-                     i_stream, i_data_size, VLC_TICK_FROM_MSFTIME(i_pts) );
+                     i_stream, i_data_size, HEIMDALL_TICK_FROM_MSFTIME(i_pts) );
 #endif
 
             p_block = block_Alloc( i_data_size );
             memcpy( p_block->p_buffer, p_data, i_data_size );
             p_block->i_pts = p_block->i_dts = i_pts == LONG_MIN ?
-                        VLC_TICK_INVALID : (VLC_TICK_FROM_MSFTIME(i_pts) + VLC_TICK_0);
+                        HEIMDALL_TICK_INVALID : (HEIMDALL_TICK_FROM_MSFTIME(i_pts) + HEIMDALL_TICK_0);
 
-            if( p_block->i_pts != VLC_TICK_INVALID )
+            if( p_block->i_pts != HEIMDALL_TICK_INVALID )
                 es_out_SetPCR( p_demux->out, p_block->i_pts );
             es_out_Send( p_demux->out, p_stream->p_es, p_block );
 
@@ -1874,8 +1875,8 @@ static int AccessControl( stream_t *p_access, int i_query, va_list args )
         break;
 
     case STREAM_GET_PTS_DELAY:
-        *va_arg( args, vlc_tick_t * ) =
-            VLC_TICK_FROM_MS( var_InheritInteger( p_access, "live-caching" ) );
+        *va_arg( args, heimdall_tick_t * ) =
+            HEIMDALL_TICK_FROM_MS( var_InheritInteger( p_access, "live-caching" ) );
         break;
 
     case STREAM_GET_CONTENT_TYPE:
@@ -1884,20 +1885,20 @@ static int AccessControl( stream_t *p_access, int i_query, va_list args )
         char **type = va_arg( args, char ** );
 
         /* Check if we need to force demuxers */
-        if( p_stream->i_fourcc == VLC_CODEC_DV )
+        if( p_stream->i_fourcc == HEIMDALL_CODEC_DV )
             *type = strdup( "video/dv" );
-        else if( p_stream->i_fourcc == VLC_CODEC_MPGV )
+        else if( p_stream->i_fourcc == HEIMDALL_CODEC_MPGV )
             *type = strdup( "video/MP2P" );
         else
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         break;
     }
 
     default:
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /****************************************************************************
@@ -1918,26 +1919,26 @@ static int DemuxControl( demux_t *p_demux, int i_query, va_list args )
     case DEMUX_CAN_CONTROL_PACE:
         pb = va_arg( args, bool * );
         *pb = false;
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
     case DEMUX_GET_PTS_DELAY:
-        *va_arg( args, vlc_tick_t * ) =
-            VLC_TICK_FROM_MS( var_InheritInteger( p_demux, "live-caching" ) );
-        return VLC_SUCCESS;
+        *va_arg( args, heimdall_tick_t * ) =
+            HEIMDALL_TICK_FROM_MS( var_InheritInteger( p_demux, "live-caching" ) );
+        return HEIMDALL_SUCCESS;
 
     case DEMUX_GET_TIME:
-        *va_arg( args, vlc_tick_t * ) = vlc_tick_now() - p_sys->i_start;
-        return VLC_SUCCESS;
+        *va_arg( args, heimdall_tick_t * ) = heimdall_tick_now() - p_sys->i_start;
+        return HEIMDALL_SUCCESS;
 
     /* TODO implement others */
     default:
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
-static int AppendAudioEnabledVDevs( vlc_object_t *p_this, std::list<std::string> &audio_list,
+static int AppendAudioEnabledVDevs( heimdall_object_t *p_this, std::list<std::string> &audio_list,
                                     std::list<std::string> &video_list )
 {
     ComPtr<IFilterGraph> p_graph;
@@ -1945,17 +1946,17 @@ static int AppendAudioEnabledVDevs( vlc_object_t *p_this, std::list<std::string>
     ComPtr<ICaptureGraphBuilder2> p_cgbuilder;
 
     if( FAILED( CoCreateInstance( CLSID_FilterGraph, NULL, CLSCTX_INPROC_SERVER, IID_PPV_ARGS( &p_graph ) ) ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if( FAILED( p_graph.As( &p_gbuilder ) ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if( FAILED( CoCreateInstance( CLSID_CaptureGraphBuilder2, NULL, CLSCTX_INPROC_SERVER,
                                   IID_PPV_ARGS( &p_cgbuilder ) ) ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if( FAILED( p_cgbuilder->SetFiltergraph( p_gbuilder.Get() ) ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     for( std::list<std::string>::iterator iter = video_list.begin();
          iter != video_list.end();
@@ -1977,7 +1978,7 @@ static int AppendAudioEnabledVDevs( vlc_object_t *p_this, std::list<std::string>
         p_gbuilder->RemoveFilter( p_device.Get() );
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -2007,7 +2008,7 @@ static int FindDevices( const char *psz_name, char ***vp, char ***tp )
     }
     catch (const std::runtime_error& ex)
     {
-        msg_Err( (vlc_object_t *)NULL, "Failed fetch devices: %s", ex.what() );
+        msg_Err( (heimdall_object_t *)NULL, "Failed fetch devices: %s", ex.what() );
     }
 
     unsigned count = 2 + list_devices.size(), i = 2;
@@ -2034,7 +2035,7 @@ static int FindDevices( const char *psz_name, char ***vp, char ***tp )
     return count;
 }
 
-VLC_CONFIG_STRING_ENUM(FindDevices)
+HEIMDALL_CONFIG_STRING_ENUM(FindDevices)
 
 /*****************************************************************************
  * Properties
@@ -2062,7 +2063,7 @@ static void ShowPropertyPageO( ComPtr<IUnknown> & obj )
     }
 }
 
-static void ShowDeviceProperties( vlc_object_t *p_this,
+static void ShowDeviceProperties( heimdall_object_t *p_this,
                                   ComPtr<ICaptureGraphBuilder2> & p_graph,
                                   ComPtr<IBaseFilter> & p_device_filter,
                                   bool b_audio )
@@ -2166,7 +2167,7 @@ done:
     return hr;
 }
 
-static void ShowTunerProperties( vlc_object_t *p_this,
+static void ShowTunerProperties( heimdall_object_t *p_this,
                                  ComPtr<ICaptureGraphBuilder2> & p_graph,
                                  ComPtr<IBaseFilter> & p_device_filter,
                                  bool b_audio )
@@ -2182,7 +2183,7 @@ static void ShowTunerProperties( vlc_object_t *p_this,
     }
 }
 
-static void ConfigTuner( vlc_object_t *p_this, ComPtr<ICaptureGraphBuilder2> & p_graph,
+static void ConfigTuner( heimdall_object_t *p_this, ComPtr<ICaptureGraphBuilder2> & p_graph,
                          ComPtr<IBaseFilter>  & p_device_filter )
 {
     int i_channel, i_country, i_input, i_amtuner_mode;

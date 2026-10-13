@@ -2,6 +2,7 @@
  * os2_timer.hpp
  *****************************************************************************
  * Copyright (C) 2003, 2013 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cyril Deguet      <asmax@via.ecp.fr>
  *          Olivier Teulière <ipkiss@via.ecp.fr>
@@ -51,7 +52,7 @@ private:
     CmdGeneric &m_rCommand;
 
     /// Delay between two execute
-    vlc_tick_t m_interval;
+    heimdall_tick_t m_interval;
 
     /// Flag to tell whether the timer must be stopped after the
     /// first execution

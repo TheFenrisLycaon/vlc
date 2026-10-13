@@ -1,5 +1,5 @@
 # AV1 packetizer
-vlc_modules += {
+heimdall_modules += {
     'name' : 'packetizer_av1',
     'sources' : files('av1.c', 'av1_obu.c'),
     'shortname' : 'p_av1',
@@ -7,7 +7,7 @@ vlc_modules += {
 }
 
 # Copy packetizer
-vlc_modules += {
+heimdall_modules += {
     'name' : 'packetizer_copy',
     'sources' : files('copy.c'),
     'shortname' : 'p_copy',
@@ -15,7 +15,7 @@ vlc_modules += {
 }
 
 # MPEG-I/II video packetizer
-vlc_modules += {
+heimdall_modules += {
     'name' : 'packetizer_mpegvideo',
     'sources' : files('mpegvideo.c'),
     'shortname' : 'p_mpegvi',
@@ -23,7 +23,7 @@ vlc_modules += {
 }
 
 # MPEG audio layer I/II/III packetizer
-vlc_modules += {
+heimdall_modules += {
     'name' : 'packetizer_mpegaudio',
     'sources' : files('mpegaudio.c'),
     'shortname' : 'p_mpegau',
@@ -31,7 +31,7 @@ vlc_modules += {
 }
 
 # MPEG4 video packetizer
-vlc_modules += {
+heimdall_modules += {
     'name' : 'packetizer_mpeg4video',
     'sources' : files('mpeg4video.c'),
     'shortname' : 'p_mpeg4v',
@@ -39,7 +39,7 @@ vlc_modules += {
 }
 
 # MPEG4 audio packetizer
-vlc_modules += {
+heimdall_modules += {
     'name' : 'packetizer_mpeg4audio',
     'sources' : files('mpeg4audio.c'),
     'shortname' : 'p_mpeg4a',
@@ -47,7 +47,7 @@ vlc_modules += {
 }
 
 # MJPEG packetizer
-vlc_modules += {
+heimdall_modules += {
     'name' : 'packetizer_mjpeg',
     'sources' : files('mjpeg.c'),
     'shortname' : 'p_mjpeg',
@@ -60,7 +60,7 @@ if host_system == 'os/2'
     packetizer_h264_c_args += '-mstackrealign'
 endif
 
-vlc_modules += {
+heimdall_modules += {
     'name' : 'packetizer_h264',
     'sources' : files(
         'h264.c',
@@ -75,7 +75,7 @@ vlc_modules += {
 }
 
 # VC-1 packetizer
-vlc_modules += {
+heimdall_modules += {
     'name' : 'packetizer_vc1',
     'sources' : files('vc1.c'),
     'shortname' : 'p_vc1',
@@ -83,7 +83,7 @@ vlc_modules += {
 }
 
 # Meridian Lossless Packing packetizer
-vlc_modules += {
+heimdall_modules += {
     'name' : 'packetizer_mlp',
     'sources' : files('mlp.c'),
     'shortname' : 'p_mlp',
@@ -91,7 +91,7 @@ vlc_modules += {
 }
 
 # FLAC packetizer
-vlc_modules += {
+heimdall_modules += {
     'name' : 'packetizer_flac',
     'sources' : files('flac.c'),
     'shortname' : 'p_flac',
@@ -99,7 +99,7 @@ vlc_modules += {
 }
 
 # HEVC packetizer
-vlc_modules += {
+heimdall_modules += {
     'name' : 'packetizer_hevc',
     'sources' : files(
         'hevc.c',
@@ -112,7 +112,7 @@ vlc_modules += {
 }
 
 # VVC packetizer
-vlc_modules += {
+heimdall_modules += {
     'name' : 'packetizer_h266',
     'sources' : files(
         'h266.c',
@@ -124,7 +124,7 @@ vlc_modules += {
 }
 
 # A/52 audio packetizer
-vlc_modules += {
+heimdall_modules += {
     'name' : 'packetizer_a52',
     'sources' : files('a52.c'),
     'shortname' : 'p_a52',
@@ -132,7 +132,7 @@ vlc_modules += {
 }
 
 # DTS audio packetizer
-vlc_modules += {
+heimdall_modules += {
     'name' : 'packetizer_dts',
     'sources' : files('dts.c', 'dts_header.c'),
     'shortname' : 'p_dts',
@@ -140,7 +140,7 @@ vlc_modules += {
 }
 
 # FFmpeg-based packetizer
-vlc_modules += {
+heimdall_modules += {
     'name' : 'packetizer_avparser',
     'sources' : files('avparser.c'),
     'dependencies' : [avutil_dep, avcodec_dep],

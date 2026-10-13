@@ -2,6 +2,7 @@
  * menus.cpp : Qt menus
  *****************************************************************************
  * Copyright © 2006-2011 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Clément Stenac <zorglub@videolan.org>
  *          Jean-Baptiste Kempf <jb@videolan.org>
@@ -30,10 +31,10 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_intf_strings.h>
-#include <vlc_aout.h>                             /* audio_output_t */
-#include <vlc_interface.h>
+#include <heimdall_common.h>
+#include <heimdall_intf_strings.h>
+#include <heimdall_aout.h>                             /* audio_output_t */
+#include <heimdall_interface.h>
 
 #include "menus.hpp"
 
@@ -60,7 +61,7 @@
 #include <QActionGroup>
 #include <QSignalMapper>
 
-using namespace vlc::playlist;
+using namespace heimdall::playlist;
 
 /*
   This file defines the main menus and the pop-up menu (right-click menu)
@@ -72,7 +73,7 @@ using namespace vlc::playlist;
 
   */
 
-RendererMenu *VLCMenuBar::rendererMenu = NULL;
+RendererMenu *HeimdallMenuBar::rendererMenu = NULL;
 
 /**
  * @brief Add static entries to DP in menus
@@ -162,7 +163,7 @@ static QAction* addMPLStaticEntry( qt_intf_t *p_intf,
 /**
  * Main Menu Bar Creation
  **/
-VLCMenuBar::VLCMenuBar(QObject* parent)
+HeimdallMenuBar::HeimdallMenuBar(QObject* parent)
     : QObject(parent)
 {}
 
@@ -171,7 +172,7 @@ VLCMenuBar::VLCMenuBar(QObject* parent)
  * Media ( File ) Menu
  * Opening, streaming and quit
  **/
-void VLCMenuBar::FileMenu(qt_intf_t *p_intf, QMenu *menu)
+void HeimdallMenuBar::FileMenu(qt_intf_t *p_intf, QMenu *menu)
 {
     auto mi = p_intf->p_mi;
     QAction *action;
@@ -224,11 +225,11 @@ void VLCMenuBar::FileMenu(qt_intf_t *p_intf, QMenu *menu)
     action->setCheckable( true );
     action->setChecked( THEMPL->getMediaStopAction() ==  PlaylistController::MEDIA_STOPPED_EXIT);
 
-    VLCSystray* systray = mi ? mi->getSysTray() : nullptr;
+    HeimdallSystray* systray = mi ? mi->getSysTray() : nullptr;
     if( systray )
     {
         action = menu->addAction( qtr( "Close to systray"), systray,
-                                 &VLCSystray::toggleUpdateMenu );
+                                 &HeimdallSystray::toggleUpdateMenu );
     }
 
     addDPStaticEntry( menu, qtr( "&Quit" ) ,
@@ -238,7 +239,7 @@ void VLCMenuBar::FileMenu(qt_intf_t *p_intf, QMenu *menu)
 /**
  * Tools, like Media Information, Preferences or Messages
  **/
-void VLCMenuBar::ToolsMenu( qt_intf_t *p_intf, QMenu *menu )
+void HeimdallMenuBar::ToolsMenu( qt_intf_t *p_intf, QMenu *menu )
 {
     addDPStaticEntry( menu, qtr( "&Effects and Filters"), ":/menu/ic_fluent_options.svg",
             &DialogsProvider::extendedDialog, "Ctrl+E" );
@@ -280,7 +281,7 @@ void VLCMenuBar::ToolsMenu( qt_intf_t *p_intf, QMenu *menu )
  * Interface modification, load other interfaces, activate Extensions
  * \param current, set to NULL for menu creation, else for menu update
  **/
-void VLCMenuBar::ViewMenu(qt_intf_t *p_intf, QMenu *menu)
+void HeimdallMenuBar::ViewMenu(qt_intf_t *p_intf, QMenu *menu)
 {
     QAction *action;
 
@@ -365,10 +366,10 @@ void VLCMenuBar::ViewMenu(qt_intf_t *p_intf, QMenu *menu)
 /**
  * Interface Sub-Menu, to list extras interface and skins
  **/
-void VLCMenuBar::InterfacesMenu( qt_intf_t *p_intf, QMenu *current )
+void HeimdallMenuBar::InterfacesMenu( qt_intf_t *p_intf, QMenu *current )
 {
     assert(current);
-    VLCVarChoiceModel* model = new VLCVarChoiceModel(VLC_OBJECT(p_intf->intf), "intf-add", current);
+    HeimdallVarChoiceModel* model = new HeimdallVarChoiceModel(HEIMDALL_OBJECT(p_intf->intf), "intf-add", current);
     CheckableListMenu* submenu = new CheckableListMenu(qtr("Interfaces"), model, QActionGroup::ExclusionPolicy::None, current);
     current->addMenu(submenu);
 }
@@ -376,7 +377,7 @@ void VLCMenuBar::InterfacesMenu( qt_intf_t *p_intf, QMenu *current )
 /**
  * Extensions menu: populate the current menu with extensions
  **/
-void VLCMenuBar::ExtensionsMenu( qt_intf_t *p_intf, QMenu *extMenu )
+void HeimdallMenuBar::ExtensionsMenu( qt_intf_t *p_intf, QMenu *extMenu )
 {
     /* Get ExtensionsManager and load extensions if needed */
     ExtensionsManager *extMgr = ExtensionsManager::getInstance( p_intf );
@@ -397,7 +398,7 @@ void VLCMenuBar::ExtensionsMenu( qt_intf_t *p_intf, QMenu *extMenu )
     extMgr->menu( extMenu );
 }
 
-void VLCMenuBar::VolumeEntries( qt_intf_t *p_intf, QMenu *current )
+void HeimdallMenuBar::VolumeEntries( qt_intf_t *p_intf, QMenu *current )
 {
     current->addSeparator();
 
@@ -409,7 +410,7 @@ void VLCMenuBar::VolumeEntries( qt_intf_t *p_intf, QMenu *current )
 /**
  * Main Audio Menu
  **/
-void VLCMenuBar::AudioMenu( qt_intf_t *p_intf, QMenu * current )
+void HeimdallMenuBar::AudioMenu( qt_intf_t *p_intf, QMenu * current )
 {
     if( current->isEmpty() )
     {
@@ -417,7 +418,7 @@ void VLCMenuBar::AudioMenu( qt_intf_t *p_intf, QMenu * current )
 
         current->addMenu(new CheckableListMenu(qtr( "&Audio Device" ), THEMIM->getAudioDevices(), QActionGroup::ExclusionPolicy::Exclusive, current));
 
-        VLCVarChoiceModel *mix_mode = THEMIM->getAudioMixMode();
+        HeimdallVarChoiceModel *mix_mode = THEMIM->getAudioMixMode();
         if (mix_mode->rowCount() == 0)
             current->addMenu( new CheckableListMenu(qtr( "&Stereo Mode" ), THEMIM->getAudioStereoMode(), QActionGroup::ExclusionPolicy::Exclusive, current) );
         else
@@ -430,7 +431,7 @@ void VLCMenuBar::AudioMenu( qt_intf_t *p_intf, QMenu * current )
 }
 
 /* Subtitles */
-void VLCMenuBar::SubtitleMenu( qt_intf_t *p_intf, QMenu *current, bool b_popup )
+void HeimdallMenuBar::SubtitleMenu( qt_intf_t *p_intf, QMenu *current, bool b_popup )
 {
     if( current->isEmpty() || b_popup )
     {
@@ -445,7 +446,7 @@ void VLCMenuBar::SubtitleMenu( qt_intf_t *p_intf, QMenu *current, bool b_popup )
  * Main Video Menu
  * Subtitles are part of Video.
  **/
-void VLCMenuBar::VideoMenu( qt_intf_t *p_intf, QMenu *current )
+void HeimdallMenuBar::VideoMenu( qt_intf_t *p_intf, QMenu *current )
 {
     if( current->isEmpty() )
     {
@@ -487,7 +488,7 @@ void VLCMenuBar::VideoMenu( qt_intf_t *p_intf, QMenu *current )
  * Navigation Menu
  * For DVD, MP4, MOV and other chapter based format
  **/
-void VLCMenuBar::NavigMenu( qt_intf_t *p_intf, QMenu *menu )
+void HeimdallMenuBar::NavigMenu( qt_intf_t *p_intf, QMenu *menu )
 {
     QAction *action;
     QMenu *submenu;
@@ -515,10 +516,10 @@ void VLCMenuBar::NavigMenu( qt_intf_t *p_intf, QMenu *menu )
 
     menu->addSeparator();
 
-    if ( !VLCMenuBar::rendererMenu )
-        VLCMenuBar::rendererMenu = new RendererMenu( NULL, p_intf, p_intf->p_mainPlayerController );
+    if ( !HeimdallMenuBar::rendererMenu )
+        HeimdallMenuBar::rendererMenu = new RendererMenu( NULL, p_intf, p_intf->p_mainPlayerController );
 
-    menu->addMenu( VLCMenuBar::rendererMenu );
+    menu->addMenu( HeimdallMenuBar::rendererMenu );
     menu->addSeparator();
 
 
@@ -527,7 +528,7 @@ void VLCMenuBar::NavigMenu( qt_intf_t *p_intf, QMenu *menu )
     RebuildNavigMenu( p_intf, menu );
 }
 
-void VLCMenuBar::RebuildNavigMenu( qt_intf_t *p_intf, QMenu *menu )
+void HeimdallMenuBar::RebuildNavigMenu( qt_intf_t *p_intf, QMenu *menu )
 {
     QAction* action;
 
@@ -550,7 +551,7 @@ void VLCMenuBar::RebuildNavigMenu( qt_intf_t *p_intf, QMenu *menu )
 /**
  * Help/About Menu
 **/
-void VLCMenuBar::HelpMenu(qt_intf_t *p_intf, QMenu *menu )
+void HeimdallMenuBar::HelpMenu(qt_intf_t *p_intf, QMenu *menu )
 {
     addDPStaticEntry( menu, qtr( "&Help" ) ,
         ":/menu/help.svg", &DialogsProvider::helpDialog, "F1" );
@@ -574,7 +575,7 @@ void VLCMenuBar::HelpMenu(qt_intf_t *p_intf, QMenu *menu )
  * Popup menus - Right Click menus                                           *
  *****************************************************************************/
 
-void VLCMenuBar::PopupMenuPlaylistEntries( QMenu *menu, qt_intf_t *p_intf )
+void HeimdallMenuBar::PopupMenuPlaylistEntries( QMenu *menu, qt_intf_t *p_intf )
 {
     QAction *action;
     bool hasInput = THEMIM->hasInput();
@@ -623,7 +624,7 @@ void VLCMenuBar::PopupMenuPlaylistEntries( QMenu *menu, qt_intf_t *p_intf )
     menu->addSeparator();
 }
 
-void VLCMenuBar::PopupMenuControlEntries( QMenu *menu, qt_intf_t *p_intf,
+void HeimdallMenuBar::PopupMenuControlEntries( QMenu *menu, qt_intf_t *p_intf,
                                         bool b_normal )
 {
     QAction *action;
@@ -682,7 +683,7 @@ void VLCMenuBar::PopupMenuControlEntries( QMenu *menu, qt_intf_t *p_intf,
     menu->addSeparator();
 }
 
-void VLCMenuBar::PopupMenuStaticEntries( QMenu *menu )
+void HeimdallMenuBar::PopupMenuStaticEntries( QMenu *menu )
 {
     QMenu *openmenu = new QMenu( qtr( "Open Media" ), menu );
     addDPStaticEntry( openmenu, qfut( I_OP_OPF ),
@@ -704,9 +705,9 @@ void VLCMenuBar::PopupMenuStaticEntries( QMenu *menu )
 }
 
 /* Video Tracks and Subtitles tracks */
-QMenu* VLCMenuBar::VideoPopupMenu( qt_intf_t *p_intf, bool show )
+QMenu* HeimdallMenuBar::VideoPopupMenu( qt_intf_t *p_intf, bool show )
 {
-    QMenu* menu = new VLCMenu(p_intf);
+    QMenu* menu = new HeimdallMenu(p_intf);
     VideoMenu(p_intf, menu);
     if( show )
         menu->popup( QCursor::pos() );
@@ -714,9 +715,9 @@ QMenu* VLCMenuBar::VideoPopupMenu( qt_intf_t *p_intf, bool show )
 }
 
 /* Audio Tracks */
-QMenu* VLCMenuBar::AudioPopupMenu( qt_intf_t *p_intf, bool show )
+QMenu* HeimdallMenuBar::AudioPopupMenu( qt_intf_t *p_intf, bool show )
 {
-    QMenu* menu = new VLCMenu(p_intf);
+    QMenu* menu = new HeimdallMenu(p_intf);
     AudioMenu(p_intf, menu);
     if( show )
         menu->popup( QCursor::pos() );
@@ -724,9 +725,9 @@ QMenu* VLCMenuBar::AudioPopupMenu( qt_intf_t *p_intf, bool show )
 }
 
 /* Navigation stuff, and general menus ( open ), used only for skins */
-QMenu* VLCMenuBar::MiscPopupMenu( qt_intf_t *p_intf, bool show )
+QMenu* HeimdallMenuBar::MiscPopupMenu( qt_intf_t *p_intf, bool show )
 {
-    QMenu* menu = new VLCMenu(p_intf);
+    QMenu* menu = new HeimdallMenu(p_intf);
 
     menu->addSeparator();
     PopupMenuPlaylistEntries( menu, p_intf );
@@ -743,10 +744,10 @@ QMenu* VLCMenuBar::MiscPopupMenu( qt_intf_t *p_intf, bool show )
 }
 
 /* Main Menu that sticks everything together  */
-QMenu* VLCMenuBar::PopupMenu( qt_intf_t *p_intf, bool show )
+QMenu* HeimdallMenuBar::PopupMenu( qt_intf_t *p_intf, bool show )
 {
     /* */
-    QMenu* menu = new VLCMenu(p_intf);
+    QMenu* menu = new HeimdallMenu(p_intf);
     input_item_t* p_input = THEMIM->getInput();
     QAction *action;
     bool b_isFullscreen = false;
@@ -811,10 +812,10 @@ QMenu* VLCMenuBar::PopupMenu( qt_intf_t *p_intf, bool show )
             ToolsMenu( p_intf, submenu );
             submenu->addSeparator();
 
-            vlc_object_t* p_object = vlc_object_parent(p_intf->intf);
+            heimdall_object_t* p_object = heimdall_object_parent(p_intf->intf);
 
             /* Open skin dialog box */
-            if (var_Type(p_object, "intf-skins-interactive") & VLC_VAR_ISCOMMAND)
+            if (var_Type(p_object, "intf-skins-interactive") & HEIMDALL_VAR_ISCOMMAND)
             {
                 QAction* openSkinAction = new QAction(qtr("Open skin..."), menu);
                 openSkinAction->setShortcut( QKeySequence( "Ctrl+Shift+S" ));
@@ -824,7 +825,7 @@ QMenu* VLCMenuBar::PopupMenu( qt_intf_t *p_intf, bool show )
                 submenu->addAction(openSkinAction);
             }
 
-            VLCVarChoiceModel* skinmodel = new VLCVarChoiceModel(p_object, "intf-skins", submenu);
+            HeimdallVarChoiceModel* skinmodel = new HeimdallVarChoiceModel(p_object, "intf-skins", submenu);
             CheckableListMenu* skinsubmenu = new CheckableListMenu(qtr("Interface"), skinmodel, QActionGroup::ExclusionPolicy::ExclusiveOptional, submenu);
             submenu->addMenu(skinsubmenu);
 

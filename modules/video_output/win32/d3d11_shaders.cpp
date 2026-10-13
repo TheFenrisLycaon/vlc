@@ -2,6 +2,7 @@
  * d3d11_shaders.c: Direct3D11 Shaders
  *****************************************************************************
  * Copyright (C) 2017 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Steve Lhomme <robux4@gmail.com>
  *
@@ -24,7 +25,7 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
 #include <cassert>
 
@@ -33,7 +34,7 @@
 
 using Microsoft::WRL::ComPtr;
 
-HRESULT (D3D11_CompilePixelShaderBlob)(vlc_object_t *o,
+HRESULT (D3D11_CompilePixelShaderBlob)(heimdall_object_t *o,
                                    d3d11_device_t *d3d_dev,
                                    const display_info_t *display,
                                    video_transfer_func_t transfer,
@@ -46,7 +47,7 @@ HRESULT (D3D11_CompilePixelShaderBlob)(vlc_object_t *o,
                                   src_full_range, quad->generic.textureFormat, pPSBlob, shader_views);
 }
 
-HRESULT D3D11_SetQuadPixelShader(vlc_object_t *o, d3d11_device_t *d3d_dev,
+HRESULT D3D11_SetQuadPixelShader(heimdall_object_t *o, d3d11_device_t *d3d_dev,
                                 bool sharp,
                                 d3d11_quad_t *quad, d3d_shader_blob pPSBlob[DXGI_MAX_RENDER_TARGET])
 {
@@ -131,7 +132,7 @@ void D3D11_ClearRenderTargets(d3d11_device_t *d3d_dev, const d3d_format_t *cfg,
     }
 }
 
-HRESULT (D3D11_CreateVertexShader)(vlc_object_t *obj, d3d_shader_blob *pVSBlob,
+HRESULT (D3D11_CreateVertexShader)(heimdall_object_t *obj, d3d_shader_blob *pVSBlob,
                                    d3d11_device_t *d3d_dev, d3d11_vertex_shader_t *output)
 {
     HRESULT hr;
@@ -168,7 +169,7 @@ void D3D11_ReleaseVertexShader(d3d11_vertex_shader_t *shader)
     shader->shader.Reset();
 }
 
-HRESULT D3D11_CompileVertexShaderBlob(vlc_object_t *obj,
+HRESULT D3D11_CompileVertexShaderBlob(heimdall_object_t *obj,
                                       d3d11_device_t *d3d_dev, bool flat, d3d_shader_blob *pVSBlob)
 {
     return D3D_CompileVertexShader(obj, d3d_dev->feature_level, flat, pVSBlob);

@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,7 +26,7 @@ static const char* const ML_FOLDER_BAN_QUEUE = "ML_FOLDER_BAN_QUEUE";
 
 MLFoldersBaseModel::MLFoldersBaseModel( QObject *parent )
     : QAbstractListModel( parent )
-    , m_ml_event_handle( nullptr , [this](vlc_ml_event_callback_t* cb ) {
+    , m_ml_event_handle( nullptr , [this](heimdall_ml_event_callback_t* cb ) {
         if (!cb)
             return;
         if ( m_mediaLib )
@@ -35,7 +36,7 @@ MLFoldersBaseModel::MLFoldersBaseModel( QObject *parent )
     connect( this , &MLFoldersBaseModel::onMLEntryPointModified , this , &MLFoldersBaseModel::update );
 }
 
-MLFoldersBaseModel::EntryPoint::EntryPoint( const vlc_ml_folder_t& entryPoint)
+MLFoldersBaseModel::EntryPoint::EntryPoint( const heimdall_ml_folder_t& entryPoint)
     : mrl(entryPoint.psz_mrl)
     , banned(entryPoint.b_banned)
 {
@@ -101,9 +102,9 @@ QHash<int, QByteArray> MLFoldersBaseModel::roleNames() const
 void MLFoldersBaseModel::reload(const int row)
 {
     const QString mrl = m_mrls.at(row).mrl;
-    m_mediaLib->runOnMLThread(this, [mrl](vlc_medialibrary_t *ml)
+    m_mediaLib->runOnMLThread(this, [mrl](heimdall_medialibrary_t *ml)
     {
-        vlc_ml_reload_folder( ml, qtu(mrl) );
+        heimdall_ml_reload_folder( ml, qtu(mrl) );
     });
 }
 
@@ -116,18 +117,18 @@ void MLFoldersBaseModel::removeAt(int index)
 
 }
 
-void MLFoldersBaseModel::onMlEvent( void* data , const vlc_ml_event_t* event )
+void MLFoldersBaseModel::onMlEvent( void* data , const heimdall_ml_event_t* event )
 {
     auto self = static_cast<MLFoldersBaseModel *>( data );
-    if ( event->i_type == VLC_ML_EVENT_ENTRY_POINT_ADDED || event->i_type == VLC_ML_EVENT_ENTRY_POINT_REMOVED ||
-         event->i_type == VLC_ML_EVENT_ENTRY_POINT_UNBANNED || event->i_type == VLC_ML_EVENT_ENTRY_POINT_BANNED  )
+    if ( event->i_type == HEIMDALL_ML_EVENT_ENTRY_POINT_ADDED || event->i_type == HEIMDALL_ML_EVENT_ENTRY_POINT_REMOVED ||
+         event->i_type == HEIMDALL_ML_EVENT_ENTRY_POINT_UNBANNED || event->i_type == HEIMDALL_ML_EVENT_ENTRY_POINT_BANNED  )
     {
         if (!self->failed( event ))
             emit self->onMLEntryPointModified( QPrivateSignal() );
     }
 }
 
-void MLFoldersBaseModel::updateImpl(vlc_ml_folder_list_t* (*folderListFunc)( vlc_medialibrary_t* p_ml, const vlc_ml_query_params_t* params ))
+void MLFoldersBaseModel::updateImpl(heimdall_ml_folder_list_t* (*folderListFunc)( heimdall_medialibrary_t* p_ml, const heimdall_ml_query_params_t* params ))
 {
     if (m_updatePending)
         return;
@@ -139,13 +140,13 @@ void MLFoldersBaseModel::updateImpl(vlc_ml_folder_list_t* (*folderListFunc)( vlc
 
     m_mediaLib->runOnMLThread<Ctx>(this,
     //ML thread
-    [folderListFunc](vlc_medialibrary_t* ml,  Ctx& ctx){
-        vlc_ml_folder_list_t* entrypoints = folderListFunc( ml, nullptr );
+    [folderListFunc](heimdall_medialibrary_t* ml,  Ctx& ctx){
+        heimdall_ml_folder_list_t* entrypoints = folderListFunc( ml, nullptr );
         if ( entrypoints != nullptr )
         {
             for ( unsigned int i = 0; entrypoints && i < entrypoints->i_nb_items; i++ )
                 ctx.r.emplace_back( entrypoints->p_items[i] );
-            vlc_ml_release( entrypoints );
+            heimdall_ml_release( entrypoints );
         }
     },
     //UI thread
@@ -160,18 +161,18 @@ void MLFoldersBaseModel::updateImpl(vlc_ml_folder_list_t* (*folderListFunc)( vlc
 
 void MLFoldersModel::update()
 {
-    updateImpl(vlc_ml_list_entry_points);
+    updateImpl(heimdall_ml_list_entry_points);
 }
 
 
-bool MLFoldersModel::failed(const vlc_ml_event_t *event) const
+bool MLFoldersModel::failed(const heimdall_ml_event_t *event) const
 {
-    if ( event->i_type == VLC_ML_EVENT_ENTRY_POINT_ADDED && !event->entry_point_added.b_success )
+    if ( event->i_type == HEIMDALL_ML_EVENT_ENTRY_POINT_ADDED && !event->entry_point_added.b_success )
     {
         emit operationFailed( Add, QUrl::fromEncoded( event->entry_point_added.psz_entry_point ) );
         return true;
     }
-    else if ( event->i_type == VLC_ML_EVENT_ENTRY_POINT_REMOVED && !event->entry_point_removed.b_success )
+    else if ( event->i_type == HEIMDALL_ML_EVENT_ENTRY_POINT_REMOVED && !event->entry_point_removed.b_success )
     {
         emit operationFailed( Remove, QUrl::fromEncoded( event->entry_point_removed.psz_entry_point ) );
         return true;
@@ -185,8 +186,8 @@ void MLFoldersModel::remove( const QUrl &mrl )
     //UI data is updated on onMlEvent
     m_mediaLib->runOnMLThread(this,
     //ML thread
-    [mrl](vlc_medialibrary_t* ml){
-        vlc_ml_remove_folder( ml , qtu( mrl.toString( QUrl::FullyEncoded ) ) );
+    [mrl](heimdall_medialibrary_t* ml){
+        heimdall_ml_remove_folder( ml , qtu( mrl.toString( QUrl::FullyEncoded ) ) );
     },
     ML_FOLDER_ADD_QUEUE);
 }
@@ -196,8 +197,8 @@ void MLFoldersModel::add(const QUrl &mrl )
     //UI data is updated on onMlEvent
     m_mediaLib->runOnMLThread(this,
     //ML thread
-    [mrl](vlc_medialibrary_t* ml){
-        vlc_ml_add_folder( ml, qtu( mrl.toString( QUrl::FullyEncoded ) ) );
+    [mrl](heimdall_medialibrary_t* ml){
+        heimdall_ml_add_folder( ml, qtu( mrl.toString( QUrl::FullyEncoded ) ) );
     },
     ML_FOLDER_ADD_QUEUE);
 }
@@ -207,8 +208,8 @@ void MLBannedFoldersModel::remove(const QUrl &mrl)
     //UI data is updated on onMlEvent
     m_mediaLib->runOnMLThread(this,
     //ML thread
-    [mrl](vlc_medialibrary_t* ml){
-        vlc_ml_unban_folder( ml , qtu( mrl.toString( QUrl::FullyEncoded ) ) );
+    [mrl](heimdall_medialibrary_t* ml){
+        heimdall_ml_unban_folder( ml , qtu( mrl.toString( QUrl::FullyEncoded ) ) );
     },
     ML_FOLDER_BAN_QUEUE);
 }
@@ -218,25 +219,25 @@ void MLBannedFoldersModel::add(const QUrl &mrl)
     //UI data is updated on onMlEvent
     m_mediaLib->runOnMLThread(this,
     //ML thread
-    [mrl](vlc_medialibrary_t* ml){
-        vlc_ml_ban_folder( ml , qtu( mrl.toString( QUrl::FullyEncoded ) ) );
+    [mrl](heimdall_medialibrary_t* ml){
+        heimdall_ml_ban_folder( ml , qtu( mrl.toString( QUrl::FullyEncoded ) ) );
     },
     ML_FOLDER_BAN_QUEUE);
 }
 
 void MLBannedFoldersModel::update()
 {
-    updateImpl(vlc_ml_list_banned_entry_points);
+    updateImpl(heimdall_ml_list_banned_entry_points);
 }
 
-bool MLBannedFoldersModel::failed(const vlc_ml_event_t *event) const
+bool MLBannedFoldersModel::failed(const heimdall_ml_event_t *event) const
 {
-    if ( event->i_type == VLC_ML_EVENT_ENTRY_POINT_BANNED && !event->entry_point_banned.b_success )
+    if ( event->i_type == HEIMDALL_ML_EVENT_ENTRY_POINT_BANNED && !event->entry_point_banned.b_success )
     {
         emit operationFailed( Ban, QUrl::fromEncoded( event->entry_point_banned.psz_entry_point ) );
         return true;
     }
-    else if ( event->i_type == VLC_ML_EVENT_ENTRY_POINT_UNBANNED && !event->entry_point_unbanned.b_success )
+    else if ( event->i_type == HEIMDALL_ML_EVENT_ENTRY_POINT_UNBANNED && !event->entry_point_unbanned.b_success )
     {
         emit operationFailed( Unban, QUrl::fromEncoded( event->entry_point_unbanned.psz_entry_point ) );
         return true;

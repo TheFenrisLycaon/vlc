@@ -4,6 +4,7 @@
  * Copyright (C) 2005 the VideoLAN team
  * Copyright (C) 2002-2007 Rémi Denis-Courmont
  * Copyright (C) 2011-2015 KO Myung-Hun
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: KO Myung-Hun <komh@chollian.net>
  *          Rémi Denis-Courmont
@@ -47,7 +48,7 @@ const char *gai_strerror (int);
 
 #endif /* _WIN32 */
 
-/* GAI error codes. See include/vlc_network.h. */
+/* GAI error codes. See include/heimdall_network.h. */
 #ifndef EAI_BADFLAGS
 # define EAI_BADFLAGS -1
 #endif

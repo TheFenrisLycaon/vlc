@@ -2,6 +2,7 @@
  * av1_obu.c: AV1 OBU parser
  *****************************************************************************
  * Copyright (C) 2018 VideoLabs, VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -21,9 +22,9 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_bits.h>
-#include <vlc_es.h>
+#include <heimdall_common.h>
+#include <heimdall_bits.h>
+#include <heimdall_es.h>
 
 #include "av1.h"
 #include "av1_obu.h"
@@ -41,7 +42,7 @@ typedef uint8_t  obu_u7_t;
 typedef uint8_t  obu_u8_t;
 typedef uint16_t obu_u12_t;
 typedef uint32_t obu_u32_t;
-typedef uint32_t obu_uvlc_t;
+typedef uint32_t obu_uheimdall_t;
 
 #define SELECT_SCREEN_CONTENT_TOOLS 2
 #define SELECT_INTEGER_MV 2
@@ -97,7 +98,7 @@ struct av1_timing_info_s
     obu_u32_t num_units_in_display_tick;
     obu_u32_t time_scale;
     obu_u1_t equal_picture_interval;
-    obu_uvlc_t num_ticks_per_picture_minus_1;
+    obu_uheimdall_t num_ticks_per_picture_minus_1;
 };
 
 static bool av1_parse_timing_info(bs_t *p_bs, struct av1_timing_info_s *p_ti)
@@ -159,7 +160,7 @@ struct av1_color_config_s
     obu_u2_t chroma_sample_position;
     obu_u1_t separate_uv_delta_q;
 
-    vlc_fourcc_t i_chroma;
+    heimdall_fourcc_t i_chroma;
 };
 
 static bool av1_parse_color_config(bs_t *p_bs,
@@ -190,7 +191,7 @@ static bool av1_parse_color_config(bs_t *p_bs,
     if(p_cc->mono_chrome)
     {
         p_cc->color_range = bs_read1(p_bs) ? COLOR_RANGE_FULL : COLOR_RANGE_LIMITED;
-        p_cc->i_chroma = VLC_CODEC_GREY;
+        p_cc->i_chroma = HEIMDALL_CODEC_GREY;
         p_cc->subsampling_x = 1;
         p_cc->subsampling_y = 1;
     }
@@ -199,7 +200,7 @@ static bool av1_parse_color_config(bs_t *p_bs,
              p_cc->matrix_coefficients == 0 )
     {
         p_cc->color_range = COLOR_RANGE_FULL;
-        p_cc->i_chroma = VLC_CODEC_I444;
+        p_cc->i_chroma = HEIMDALL_CODEC_I444;
         p_cc->subsampling_x = 0;
         p_cc->subsampling_y = 0;
     }
@@ -219,19 +220,19 @@ static bool av1_parse_color_config(bs_t *p_bs,
                 p_cc->subsampling_y = 0;
             }
             p_cc->i_chroma = p_cc->subsampling_x ?
-                             p_cc->subsampling_y ? VLC_CODEC_I420 :
-                                                   VLC_CODEC_I422 :
-                                                   VLC_CODEC_I444;
+                             p_cc->subsampling_y ? HEIMDALL_CODEC_I420 :
+                                                   HEIMDALL_CODEC_I422 :
+                                                   HEIMDALL_CODEC_I444;
         }
         else if(seq_profile == 1)
         {
-            p_cc->i_chroma = VLC_CODEC_I444;
+            p_cc->i_chroma = HEIMDALL_CODEC_I444;
             p_cc->subsampling_x = 0;
             p_cc->subsampling_y = 0;
         }
         else
         {
-            p_cc->i_chroma = VLC_CODEC_I420;
+            p_cc->i_chroma = HEIMDALL_CODEC_I420;
             p_cc->subsampling_x = 1;
             p_cc->subsampling_y = 1;
         }
@@ -450,7 +451,7 @@ static bool av1_parse_uncompressed_header(bs_t *p_bs, struct av1_uncompressed_he
         if(p_uh->show_existing_frame)
         {
             const obu_u3_t frame_to_show_map_idx = bs_read(p_bs, 3);
-            VLC_UNUSED(frame_to_show_map_idx);
+            HEIMDALL_UNUSED(frame_to_show_map_idx);
             if(p_seq->decoder_model_info_present_flag && !p_seq->timing_info.equal_picture_interval)
             {
                 /* temporal_point_info() */
@@ -462,7 +463,7 @@ static bool av1_parse_uncompressed_header(bs_t *p_bs, struct av1_uncompressed_he
                 const uint8_t idLen = p_seq->additional_frame_id_length_minus_1 +
                                       p_seq->delta_frame_id_length_minus_2 + 3;
                 const obu_u32_t display_frame_id = bs_read(p_bs, idLen);
-                VLC_UNUSED(display_frame_id);
+                HEIMDALL_UNUSED(display_frame_id);
             }
             if(p_seq->film_grain_params_present)
             {
@@ -564,58 +565,58 @@ bool AV1_get_colorimetry(const av1_OBU_sequence_header_t *p_seq,
 {
     if(!p_seq->color_config.color_description_present_flag)
         return false;
-    *p_primaries = iso_23001_8_cp_to_vlc_primaries(p_seq->color_config.color_primaries);
-    *p_transfer = iso_23001_8_tc_to_vlc_xfer(p_seq->color_config.transfer_characteristics);
-    *p_colorspace = iso_23001_8_mc_to_vlc_coeffs(p_seq->color_config.matrix_coefficients);
+    *p_primaries = iso_23001_8_cp_to_heimdall_primaries(p_seq->color_config.color_primaries);
+    *p_transfer = iso_23001_8_tc_to_heimdall_xfer(p_seq->color_config.transfer_characteristics);
+    *p_colorspace = iso_23001_8_mc_to_heimdall_coeffs(p_seq->color_config.matrix_coefficients);
     *p_full_range = p_seq->color_config.color_range ? COLOR_RANGE_FULL : COLOR_RANGE_LIMITED;
     return true;
 }
 
-vlc_fourcc_t AV1_get_chroma(const av1_OBU_sequence_header_t *p_seq)
+heimdall_fourcc_t AV1_get_chroma(const av1_OBU_sequence_header_t *p_seq)
 {
     switch (p_seq->color_config.i_chroma)
     {
-        case VLC_CODEC_GREY:
+        case HEIMDALL_CODEC_GREY:
             switch (p_seq->color_config.high_bitdepth + p_seq->color_config.twelve_bit)
             {
-                case 0: return VLC_CODEC_GREY;
-                case 1: return VLC_CODEC_GREY_10L;
-                case 2: return VLC_CODEC_GREY_12L;
+                case 0: return HEIMDALL_CODEC_GREY;
+                case 1: return HEIMDALL_CODEC_GREY_10L;
+                case 2: return HEIMDALL_CODEC_GREY_12L;
                 default:
-                    vlc_assert_unreachable();
+                    heimdall_assert_unreachable();
             }
             break;
-        case VLC_CODEC_I420:
+        case HEIMDALL_CODEC_I420:
             switch (p_seq->color_config.high_bitdepth + p_seq->color_config.twelve_bit)
             {
-                case 0: return VLC_CODEC_I420;
-                case 1: return VLC_CODEC_I420_10L;
-                case 2: return VLC_CODEC_I420_12L;
+                case 0: return HEIMDALL_CODEC_I420;
+                case 1: return HEIMDALL_CODEC_I420_10L;
+                case 2: return HEIMDALL_CODEC_I420_12L;
                 default:
-                    vlc_assert_unreachable();
+                    heimdall_assert_unreachable();
             }
             break;
-        case VLC_CODEC_I422:
+        case HEIMDALL_CODEC_I422:
             switch (p_seq->color_config.high_bitdepth + p_seq->color_config.twelve_bit)
             {
-                case 0: return VLC_CODEC_I422;
-                case 1: return VLC_CODEC_I422_10L;
-                case 2: return VLC_CODEC_I422_12L;
+                case 0: return HEIMDALL_CODEC_I422;
+                case 1: return HEIMDALL_CODEC_I422_10L;
+                case 2: return HEIMDALL_CODEC_I422_12L;
                 default:
-                    vlc_assert_unreachable();
+                    heimdall_assert_unreachable();
             }
             break;
-        case VLC_CODEC_I444:
+        case HEIMDALL_CODEC_I444:
             switch (p_seq->color_config.high_bitdepth + p_seq->color_config.twelve_bit)
             {
-                case 0: return VLC_CODEC_I444;
-                case 1: return VLC_CODEC_I444_10L;
-                case 2: return VLC_CODEC_I444_12L;
+                case 0: return HEIMDALL_CODEC_I444;
+                case 1: return HEIMDALL_CODEC_I444_10L;
+                case 2: return HEIMDALL_CODEC_I444_12L;
                 default:
-                    vlc_assert_unreachable();
+                    heimdall_assert_unreachable();
             }
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 }
 

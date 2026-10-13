@@ -2,8 +2,9 @@
  * avio.c: access using libavformat library
  *****************************************************************************
  * Copyright (C) 2009 Laurent Aimar
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Laurent Aimar <fenrir _AT_ videolan _DOT_ org>
+ * Authors: Laurent Aimar <fenrir _AT_ lycaria _DOT_ org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -25,13 +26,13 @@
 #endif
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_access.h>
-#include <vlc_sout.h>
-#include <vlc_avcodec.h>
-#include <vlc_interrupt.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_access.h>
+#include <heimdall_sout.h>
+#include <heimdall_avcodec.h>
+#include <heimdall_interrupt.h>
 
 #include "avio.h"
 #include "../codec/avcodec/avcommon.h"
@@ -40,9 +41,9 @@
  * Module descriptor
  *****************************************************************************/
 #ifndef MERGE_FFMPEG
-vlc_module_begin()
+heimdall_module_begin()
     AVIO_MODULE
-vlc_module_end()
+heimdall_module_end()
 #endif
 
 /*****************************************************************************
@@ -62,7 +63,7 @@ static int UrlInterruptCallback(void *access)
      * create internal threads at all. This is not proper event handling in any
      * case; libavformat needs fixing. */
     (void) access;
-    return vlc_killed();
+    return heimdall_killed();
 }
 
 typedef struct
@@ -81,12 +82,12 @@ typedef struct
 
 /* */
 
-int OpenAvio(vlc_object_t *object)
+int OpenAvio(heimdall_object_t *object)
 {
     stream_t *access = (stream_t*)object;
-    access_sys_t *sys = vlc_obj_malloc(object, sizeof(*sys));
+    access_sys_t *sys = heimdall_obj_malloc(object, sizeof(*sys));
     if (!sys)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     sys->context = NULL;
 
     /* We accept:
@@ -101,10 +102,10 @@ int OpenAvio(vlc_object_t *object)
         url = NULL;
 
     if (!url)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     /* */
-    vlc_init_avformat(object);
+    heimdall_init_avformat(object);
 
     int ret;
     AVIOInterruptCB cb = {
@@ -114,7 +115,7 @@ int OpenAvio(vlc_object_t *object)
     AVDictionary *options = NULL;
     char *psz_opts = var_InheritString(access, "avio-options");
     if (psz_opts) {
-        vlc_av_get_options(psz_opts, &options);
+        heimdall_av_get_options(psz_opts, &options);
         free(psz_opts);
     }
     ret = avio_open2(&sys->context, url, AVIO_FLAG_READ, &cb, &options);
@@ -124,9 +125,9 @@ int OpenAvio(vlc_object_t *object)
     av_dict_free(&options);
     if (ret < 0) {
         msg_Err(access, "Failed to open %s: %s", url,
-                vlc_strerror_c(AVUNERROR(ret)));
+                heimdall_strerror_c(AVUNERROR(ret)));
         free(url);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     free(url);
 
@@ -144,7 +145,7 @@ int OpenAvio(vlc_object_t *object)
     access->pf_seek = Seek;
     access->p_sys = sys;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /* */
@@ -154,28 +155,28 @@ static const char *const ppsz_sout_options[] = {
     NULL,
 };
 
-int OutOpenAvio(vlc_object_t *object)
+int OutOpenAvio(heimdall_object_t *object)
 {
     sout_access_out_t *access = (sout_access_out_t*)object;
 
     config_ChainParse( access, "sout-avio-", ppsz_sout_options, access->p_cfg );
 
-    sout_access_out_sys_t *sys = vlc_obj_malloc(object, sizeof(*sys));
+    sout_access_out_sys_t *sys = heimdall_obj_malloc(object, sizeof(*sys));
     if (!sys)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     sys->context = NULL;
 
     /* */
-    vlc_init_avformat(object);
+    heimdall_init_avformat(object);
 
     if (!access->psz_path)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     int ret;
     AVDictionary *options = NULL;
     char *psz_opts = var_InheritString(access, "sout-avio-options");
     if (psz_opts) {
-        vlc_av_get_options(psz_opts, &options);
+        heimdall_av_get_options(psz_opts, &options);
         free(psz_opts);
     }
     ret = avio_open2(&sys->context, access->psz_path, AVIO_FLAG_WRITE,
@@ -187,7 +188,7 @@ int OutOpenAvio(vlc_object_t *object)
     if (ret < 0) {
         errno = AVUNERROR(ret);
         msg_Err(access, "Failed to open %s", access->psz_path);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     access->pf_write = Write;
@@ -195,10 +196,10 @@ int OutOpenAvio(vlc_object_t *object)
     access->pf_seek = OutSeek;
     access->p_sys = sys;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-void CloseAvio(vlc_object_t *object)
+void CloseAvio(heimdall_object_t *object)
 {
     stream_t *access = (stream_t*)object;
     access_sys_t *sys = access->p_sys;
@@ -206,7 +207,7 @@ void CloseAvio(vlc_object_t *object)
     avio_close(sys->context);
 }
 
-void OutCloseAvio(vlc_object_t *object)
+void OutCloseAvio(heimdall_object_t *object)
 {
     sout_access_out_t *access = (sout_access_out_t*)object;
     sout_access_out_sys_t *sys = access->p_sys;
@@ -253,7 +254,7 @@ static ssize_t Write(sout_access_out_t *p_access, block_t *p_buffer)
 
 error:
     msg_Err(p_access, "Wrote only %zu bytes: %s", i_write,
-            vlc_strerror_c(AVUNERROR(val)));
+            heimdall_strerror_c(AVUNERROR(val)));
     block_ChainRelease( p_buffer );
     return i_write;
 }
@@ -273,11 +274,11 @@ static int Seek(stream_t *access, uint64_t position)
         ret = avio_seek(sys->context, position, SEEK_SET);
     if (ret < 0) {
         msg_Err(access, "Seek to %"PRIu64" failed: %s", position,
-                vlc_strerror_c(AVUNERROR(ret)));
+                heimdall_strerror_c(AVUNERROR(ret)));
         if (sys->size < 0 || position != (uint64_t)sys->size)
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int OutSeek(sout_access_out_t *p_access, uint64_t i_pos)
@@ -285,15 +286,15 @@ static int OutSeek(sout_access_out_t *p_access, uint64_t i_pos)
     sout_access_out_sys_t *sys = p_access->p_sys;
 
     if (avio_seek(sys->context, i_pos, SEEK_SET) < 0)
-        return VLC_EGENERIC;
-    return VLC_SUCCESS;
+        return HEIMDALL_EGENERIC;
+    return HEIMDALL_SUCCESS;
 }
 
 static int OutControl(sout_access_out_t *p_access, int i_query, va_list args)
 {
     sout_access_out_sys_t *p_sys = p_access->p_sys;
 
-    VLC_UNUSED(p_sys);
+    HEIMDALL_UNUSED(p_sys);
     switch (i_query) {
     case ACCESS_OUT_CONTROLS_PACE: {
         bool *pb = va_arg(args, bool *);
@@ -303,9 +304,9 @@ static int OutControl(sout_access_out_t *p_access, int i_query, va_list args)
     }
 
     default:
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int Control(stream_t *access, int query, va_list args)
@@ -318,32 +319,32 @@ static int Control(stream_t *access, int query, va_list args)
     case STREAM_CAN_FASTSEEK: /* FIXME how to do that ? */
         b = va_arg(args, bool *);
         *b = sys->context->seekable;
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     case STREAM_CAN_PAUSE:
         b = va_arg(args, bool *);
         *b = sys->context->read_pause != NULL;
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     case STREAM_CAN_CONTROL_PACE:
         b = va_arg(args, bool *);
         *b = true; /* FIXME */
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     case STREAM_GET_SIZE:
         if (sys->size < 0)
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         *va_arg(args, uint64_t *) = sys->size;
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     case STREAM_GET_PTS_DELAY:
-        *va_arg(args, vlc_tick_t *) =
-            VLC_TICK_FROM_MS(var_InheritInteger(access, "network-caching"));
-        return VLC_SUCCESS;
+        *va_arg(args, heimdall_tick_t *) =
+            HEIMDALL_TICK_FROM_MS(var_InheritInteger(access, "network-caching"));
+        return HEIMDALL_SUCCESS;
 
     case STREAM_SET_PAUSE_STATE: {
         bool is_paused = va_arg(args, int);
         if (avio_pause(sys->context, is_paused)< 0)
-            return VLC_EGENERIC;
-        return VLC_SUCCESS;
+            return HEIMDALL_EGENERIC;
+        return HEIMDALL_SUCCESS;
     }
     default:
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 }

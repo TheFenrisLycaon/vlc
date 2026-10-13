@@ -18,8 +18,8 @@
 + * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
 + *****************************************************************************/
 
-#ifndef VLC_GL_COMMON_H
-#define VLC_GL_COMMON_H
+#ifndef HEIMDALL_GL_COMMON_H
+#define HEIMDALL_GL_COMMON_H
 
 #include <assert.h>
 
@@ -48,7 +48,7 @@
 # endif
 #endif
 
-#define VLCGL_PICTURE_MAX 128
+#define HEIMDALLGL_PICTURE_MAX 128
 
 #if !defined(GL_MAJOR_VERSION)
 # define GL_MAJOR_VERSION 0x821B

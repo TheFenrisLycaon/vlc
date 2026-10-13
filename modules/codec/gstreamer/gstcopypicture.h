@@ -2,6 +2,7 @@
  * gstcopypicture.h: copy GStreamer frames into pictures
  *****************************************************************************
  * Copyright (C) 2022 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Yann Lochet <yann@l0chet.fr>
  *
@@ -20,8 +21,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_GSTCOPYPICTURE_H
-#define VLC_GSTCOPYPICTURE_H
+#ifndef HEIMDALL_GSTCOPYPICTURE_H
+#define HEIMDALL_GSTCOPYPICTURE_H
 
 #include <gst/gst.h>
 #include <gst/video/video.h>

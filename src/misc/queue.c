@@ -2,6 +2,7 @@
  * queue.c: generic queue (FIFO)
  *****************************************************************************
  * Copyright (C) 2020 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -26,8 +27,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include <vlc_common.h>
-#include <vlc_queue.h>
+#include <heimdall_common.h>
+#include <heimdall_queue.h>
 
 /* Opaque struct type.
  *
@@ -35,54 +36,54 @@
  * Still different pointer types are not compatible, i.e. cannot alias.
  * So use memcpy() to read/write pointer values.
  */
-struct vlc_queue_entry;
+struct heimdall_queue_entry;
 
-static void entry_set(struct vlc_queue_entry **pp, struct vlc_queue_entry *e)
+static void entry_set(struct heimdall_queue_entry **pp, struct heimdall_queue_entry *e)
 {
     memcpy(pp, &e, sizeof (e));
 }
 
-static struct vlc_queue_entry *entry_get(struct vlc_queue_entry *const *pp)
+static struct heimdall_queue_entry *entry_get(struct heimdall_queue_entry *const *pp)
 {
-    struct vlc_queue_entry *e;
+    struct heimdall_queue_entry *e;
 
     memcpy(&e, pp, sizeof (e));
     return e;
 }
 
-static struct vlc_queue_entry **next_p(const struct vlc_queue_entry *e,
+static struct heimdall_queue_entry **next_p(const struct heimdall_queue_entry *e,
                                        ptrdiff_t offset)
 {
-    return (struct vlc_queue_entry **)(((unsigned char *)e) + offset);
+    return (struct heimdall_queue_entry **)(((unsigned char *)e) + offset);
 }
 
-static void next_set(struct vlc_queue_entry *e, struct vlc_queue_entry *next,
+static void next_set(struct heimdall_queue_entry *e, struct heimdall_queue_entry *next,
                      ptrdiff_t offset)
 {
     entry_set(next_p(e, offset), next);
 }
 
-static struct vlc_queue_entry *next_get(const struct vlc_queue_entry *e,
+static struct heimdall_queue_entry *next_get(const struct heimdall_queue_entry *e,
                                         ptrdiff_t offset)
 {
     return entry_get(next_p(e, offset));
 }
 
-void vlc_queue_Init(vlc_queue_t *q, ptrdiff_t next_offset)
+void heimdall_queue_Init(heimdall_queue_t *q, ptrdiff_t next_offset)
 {
     q->first = NULL;
     q->lastp = &q->first;
     q->next_offset = next_offset;
-    vlc_mutex_init(&q->lock);
-    vlc_cond_init(&q->wait);
+    heimdall_mutex_init(&q->lock);
+    heimdall_cond_init(&q->wait);
 }
 
-void vlc_queue_EnqueueUnlocked(vlc_queue_t *q, void *entry)
+void heimdall_queue_EnqueueUnlocked(heimdall_queue_t *q, void *entry)
 {
-    struct vlc_queue_entry **lastp;
+    struct heimdall_queue_entry **lastp;
     const ptrdiff_t offset = q->next_offset;
 
-    vlc_mutex_assert(&q->lock);
+    heimdall_mutex_assert(&q->lock);
     assert(entry_get(q->lastp) == NULL);
     entry_set(q->lastp, entry);
 
@@ -90,18 +91,18 @@ void vlc_queue_EnqueueUnlocked(vlc_queue_t *q, void *entry)
         lastp = next_p(entry, offset);
 
     q->lastp = lastp;
-    vlc_queue_Signal(q);
+    heimdall_queue_Signal(q);
 }
 
-void *vlc_queue_DequeueUnlocked(vlc_queue_t *q)
+void *heimdall_queue_DequeueUnlocked(heimdall_queue_t *q)
 {
-    vlc_mutex_assert(&q->lock);
+    heimdall_mutex_assert(&q->lock);
 
     void *entry = q->first;
     const ptrdiff_t offset = q->next_offset;
 
     if (entry != NULL) {
-        struct vlc_queue_entry *next = next_get(entry, offset);
+        struct heimdall_queue_entry *next = next_get(entry, offset);
 
         next_set(entry, NULL, offset);
         q->first = next;
@@ -113,9 +114,9 @@ void *vlc_queue_DequeueUnlocked(vlc_queue_t *q)
     return entry;
 }
 
-void *vlc_queue_DequeueAllUnlocked(vlc_queue_t *q)
+void *heimdall_queue_DequeueAllUnlocked(heimdall_queue_t *q)
 {
-    vlc_mutex_assert(&q->lock);
+    heimdall_mutex_assert(&q->lock);
 
     void *entry = q->first;
 
@@ -125,36 +126,36 @@ void *vlc_queue_DequeueAllUnlocked(vlc_queue_t *q)
     return entry;
 }
 
-void vlc_queue_Enqueue(vlc_queue_t *q, void *entry)
+void heimdall_queue_Enqueue(heimdall_queue_t *q, void *entry)
 {
-    vlc_queue_Lock(q);
-    vlc_queue_EnqueueUnlocked(q, entry);
-    vlc_queue_Unlock(q);
+    heimdall_queue_Lock(q);
+    heimdall_queue_EnqueueUnlocked(q, entry);
+    heimdall_queue_Unlock(q);
 }
 
-void *vlc_queue_Dequeue(vlc_queue_t *q)
+void *heimdall_queue_Dequeue(heimdall_queue_t *q)
 {
     void *entry;
 
-    vlc_queue_Lock(q);
-    vlc_testcancel();
+    heimdall_queue_Lock(q);
+    heimdall_testcancel();
 
-    while (vlc_queue_IsEmpty(q))
-        vlc_queue_Wait(q);
+    while (heimdall_queue_IsEmpty(q))
+        heimdall_queue_Wait(q);
 
-    entry = vlc_queue_DequeueUnlocked(q);
-    vlc_queue_Unlock(q);
+    entry = heimdall_queue_DequeueUnlocked(q);
+    heimdall_queue_Unlock(q);
 
     return entry;
 }
 
-void *vlc_queue_DequeueAll(vlc_queue_t *q)
+void *heimdall_queue_DequeueAll(heimdall_queue_t *q)
 {
     void *entry;
 
-    vlc_queue_Lock(q);
-    entry = vlc_queue_DequeueAllUnlocked(q);
-    vlc_queue_Unlock(q);
+    heimdall_queue_Lock(q);
+    entry = heimdall_queue_DequeueAllUnlocked(q);
+    heimdall_queue_Unlock(q);
 
     return entry;
 }

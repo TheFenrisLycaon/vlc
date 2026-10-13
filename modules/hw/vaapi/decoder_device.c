@@ -2,6 +2,7 @@
  * decoder_device.c: VAAPI decoder_device
  *****************************************************************************
  * Copyright (C) 2017-2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,13 +23,13 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_window.h>
-#include <vlc_codec.h>
-#include <vlc_fs.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_window.h>
+#include <heimdall_codec.h>
+#include <heimdall_fs.h>
 
-#include "vlc_vaapi.h"
+#include "heimdall_vaapi.h"
 #include <va/va_drmcommon.h>
 
 #ifdef HAVE_VA_WL
@@ -37,12 +38,12 @@
 
 #ifdef HAVE_VA_X11
 # include <va/va_x11.h>
-# include <vlc_xlib.h>
+# include <heimdall_xlib.h>
 #endif
 
 #ifdef HAVE_VA_DRM
 # include <va/va_drm.h>
-# include <vlc_fs.h>
+# include <heimdall_fs.h>
 # include <fcntl.h>
 #endif
 
@@ -61,7 +62,7 @@ struct vaapi_instance
  * can be a drm/x11/wl). On error, dpy is terminated and the destroy callback
  * is called. */
 static struct vaapi_instance *
-vaapi_InitializeInstance(vlc_object_t *o, VADisplay dpy,
+vaapi_InitializeInstance(heimdall_object_t *o, VADisplay dpy,
                              VANativeDisplay native,
                              vaapi_native_destroy_cb native_destroy_cb)
 {
@@ -113,10 +114,10 @@ x11_native_destroy_cb(VANativeDisplay native)
 }
 
 static struct vaapi_instance *
-x11_init_vaapi_instance(vlc_decoder_device *device, vlc_window_t *window,
+x11_init_vaapi_instance(heimdall_decoder_device *device, heimdall_window_t *window,
                         VADisplay *vadpyp)
 {
-    if (!vlc_xlib_init(VLC_OBJECT(window)))
+    if (!heimdall_xlib_init(HEIMDALL_OBJECT(window)))
         return NULL;
 
     Display *x11dpy = XOpenDisplay(window->display.x11);
@@ -130,7 +131,7 @@ x11_init_vaapi_instance(vlc_decoder_device *device, vlc_window_t *window,
         return NULL;
     }
 
-    return vaapi_InitializeInstance(VLC_OBJECT(device), vadpy,
+    return vaapi_InitializeInstance(HEIMDALL_OBJECT(device), vadpy,
                                     x11dpy, x11_native_destroy_cb);
 }
 #endif
@@ -140,13 +141,13 @@ x11_init_vaapi_instance(vlc_decoder_device *device, vlc_window_t *window,
 static void
 native_drm_destroy_cb(VANativeDisplay native)
 {
-    vlc_close((intptr_t) native);
+    heimdall_close((intptr_t) native);
 }
 
 /* Get and Initializes a VADisplay from a DRM device. If device is NULL, this
  * function will try to open default devices. */
 static struct vaapi_instance *
-vaapi_InitializeInstanceDRM(vlc_object_t *o,
+vaapi_InitializeInstanceDRM(heimdall_object_t *o,
                             VADisplay (*pf_getDisplayDRM)(int),
                             VADisplay *pdpy, const char *device)
 {
@@ -174,7 +175,7 @@ vaapi_InitializeInstanceDRM(vlc_object_t *o,
 
     for (size_t i = 0; i < drm_device_paths_count; i++)
     {
-        int drm_fd = vlc_open(drm_device_paths[i], O_RDWR);
+        int drm_fd = heimdall_open(drm_device_paths[i], O_RDWR);
         if (drm_fd < 0)
             continue;
 
@@ -192,52 +193,52 @@ vaapi_InitializeInstanceDRM(vlc_object_t *o,
             }
         }
         else
-            vlc_close(drm_fd);
+            heimdall_close(drm_fd);
     }
     return NULL;
 }
 
 static struct vaapi_instance *
-drm_init_vaapi_instance(vlc_decoder_device *device, VADisplay *vadpyp)
+drm_init_vaapi_instance(heimdall_decoder_device *device, VADisplay *vadpyp)
 {
-    return vaapi_InitializeInstanceDRM(VLC_OBJECT(device), vaGetDisplayDRM,
+    return vaapi_InitializeInstanceDRM(HEIMDALL_OBJECT(device), vaGetDisplayDRM,
                                        vadpyp, NULL);
 }
 #endif
 
 #ifdef HAVE_VA_WL
 static struct vaapi_instance *
-wl_init_vaapi_instance(vlc_decoder_device *device, vlc_window_t *window,
+wl_init_vaapi_instance(heimdall_decoder_device *device, heimdall_window_t *window,
                        VADisplay *vadpyp)
 {
     VADisplay vadpy = *vadpyp = vaGetDisplayWl(window->display.wl);
     if (vadpy == NULL)
         return NULL;
 
-    return vaapi_InitializeInstance(VLC_OBJECT(device), vadpy, NULL, NULL);
+    return vaapi_InitializeInstance(HEIMDALL_OBJECT(device), vadpy, NULL, NULL);
 }
 #endif
 
 static void
-Close(vlc_decoder_device *device)
+Close(heimdall_decoder_device *device)
 {
     vaapi_DestroyInstance(device->sys);
 }
 
-static const struct vlc_decoder_device_operations ops = {
+static const struct heimdall_decoder_device_operations ops = {
     .close = Close,
 };
 
 static int
-Open(vlc_decoder_device *device, vlc_window_t *window)
+Open(heimdall_decoder_device *device, heimdall_window_t *window)
 {
     VADisplay vadpy = NULL;
     struct vaapi_instance *vainst = NULL;
 #if defined (HAVE_VA_X11)
-    if (window && window->type == VLC_WINDOW_TYPE_XID)
+    if (window && window->type == HEIMDALL_WINDOW_TYPE_XID)
         vainst = x11_init_vaapi_instance(device, window, &vadpy);
 #elif defined(HAVE_VA_WL)
-    if (window && window->type == VLC_WINDOW_TYPE_WAYLAND)
+    if (window && window->type == HEIMDALL_WINDOW_TYPE_WAYLAND)
         vainst = wl_init_vaapi_instance(device, window, &vadpy);
 #elif defined (HAVE_VA_DRM)
     (void) window;
@@ -246,14 +247,14 @@ Open(vlc_decoder_device *device, vlc_window_t *window)
 # error need X11/WL/DRM support
 #endif
     if (!vainst)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     assert(vadpy != NULL);
 
     device->ops = &ops;
     device->sys = vainst;
-    device->type = VLC_DECODER_DEVICE_VAAPI;
+    device->type = HEIMDALL_DECODER_DEVICE_VAAPI;
     device->opaque = vadpy;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 #if defined (HAVE_VA_X11)
@@ -270,9 +271,9 @@ Open(vlc_decoder_device *device, vlc_window_t *window)
 # define DESCRIPTION_SUFFIX "DRM"
 #endif
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description("VA-API decoder device for " DESCRIPTION_SUFFIX)
     set_callback_dec_device(Open, PRIORITY)
     set_subcategory(SUBCAT_VIDEO_VOUT)
     add_shortcut("vaapi", SHORTCUT)
-vlc_module_end ()
+heimdall_module_end ()

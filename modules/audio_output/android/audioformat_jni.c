@@ -2,6 +2,7 @@
  * android/audioformat_jni.c: Android AudioFormat JNI implementation
  *****************************************************************************
  * Copyright © 2012-2022 VLC authors and VideoLAN, VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Thomas Guillem <thomas@gllm.fr>
  *
@@ -25,10 +26,10 @@
 #endif
 
 #include <assert.h>
-#include <vlc_common.h>
-#include <vlc_threads.h>
-#include <vlc_modules.h>
-#include <vlc_fourcc.h>
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
+#include <heimdall_modules.h>
+#include <heimdall_fourcc.h>
 #include "../../video_output/android/env.h"
 #include "audioformat_jni.h"
 
@@ -52,70 +53,70 @@ static struct {
     } AudioFormat;
 } jfields;
 
-bool vlc_android_AudioFormat_HasEncoding(long long encoding_flags,
-                                         vlc_fourcc_t i_format)
+bool heimdall_android_AudioFormat_HasEncoding(long long encoding_flags,
+                                         heimdall_fourcc_t i_format)
 {
 #define MATCH_ENCODING_FLAG(x) jfields.AudioFormat.has_##x && \
     (encoding_flags == 0 || encoding_flags & (1 << jfields.AudioFormat.x))
 
     switch(i_format)
     {
-        case VLC_CODEC_DTSHD:
+        case HEIMDALL_CODEC_DTSHD:
             return MATCH_ENCODING_FLAG(ENCODING_DTS_HD);
-        case VLC_CODEC_DTS:
+        case HEIMDALL_CODEC_DTS:
             return MATCH_ENCODING_FLAG(ENCODING_DTS);
-        case VLC_CODEC_A52:
+        case HEIMDALL_CODEC_A52:
             return MATCH_ENCODING_FLAG(ENCODING_AC3);
-        case VLC_CODEC_EAC3:
+        case HEIMDALL_CODEC_EAC3:
             return MATCH_ENCODING_FLAG(ENCODING_E_AC3);
-        case VLC_CODEC_TRUEHD:
-        case VLC_CODEC_MLP:
+        case HEIMDALL_CODEC_TRUEHD:
+        case HEIMDALL_CODEC_MLP:
             return MATCH_ENCODING_FLAG(ENCODING_DOLBY_TRUEHD);
         default:
             return true;
     }
 }
 
-int vlc_android_AudioFormat_FourCCToEncoding(vlc_fourcc_t format, int *encoding)
+int heimdall_android_AudioFormat_FourCCToEncoding(heimdall_fourcc_t format, int *encoding)
 {
     switch(format)
     {
-        case VLC_CODEC_A52:
+        case HEIMDALL_CODEC_A52:
             if( !jfields.AudioFormat.has_ENCODING_AC3 )
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             *encoding = jfields.AudioFormat.ENCODING_AC3;
-            return VLC_SUCCESS;
-        case VLC_CODEC_EAC3:
+            return HEIMDALL_SUCCESS;
+        case HEIMDALL_CODEC_EAC3:
             if( !jfields.AudioFormat.has_ENCODING_E_AC3 )
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             *encoding = jfields.AudioFormat.ENCODING_E_AC3;
-            return VLC_SUCCESS;
-        case VLC_CODEC_DTS:
+            return HEIMDALL_SUCCESS;
+        case HEIMDALL_CODEC_DTS:
             if( !jfields.AudioFormat.has_ENCODING_DTS )
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             *encoding = jfields.AudioFormat.ENCODING_DTS;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 
-    vlc_assert_unreachable();
+    heimdall_assert_unreachable();
 }
 
 /* init all jni fields.
  * Done only one time during the first initialisation */
-int vlc_android_AudioFormat_InitJNI(vlc_object_t *p_aout)
+int heimdall_android_AudioFormat_InitJNI(heimdall_object_t *p_aout)
 {
-    static vlc_mutex_t lock = VLC_STATIC_MUTEX;
+    static heimdall_mutex_t lock = HEIMDALL_STATIC_MUTEX;
     static int i_init_state = -1;
     jclass clazz;
     jfieldID field;
     JNIEnv *env = android_getEnv(p_aout, THREAD_NAME);
 
     if(env == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    vlc_mutex_lock(&lock);
+    heimdall_mutex_lock(&lock);
 
     if(i_init_state != -1)
         goto end;
@@ -170,6 +171,6 @@ int vlc_android_AudioFormat_InitJNI(vlc_object_t *p_aout)
 
     i_init_state = 1;
 end:
-    vlc_mutex_unlock(&lock);
-    return i_init_state == 1 ? VLC_SUCCESS : VLC_EGENERIC;
+    heimdall_mutex_unlock(&lock);
+    return i_init_state == 1 ? HEIMDALL_SUCCESS : HEIMDALL_EGENERIC;
 }

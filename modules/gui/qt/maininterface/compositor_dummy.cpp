@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,7 +26,7 @@
 #include "maininterface/mainctx_win32.hpp"
 #endif
 
-namespace vlc {
+namespace heimdall {
 
 CompositorDummy::CompositorDummy(qt_intf_t *p_intf, QObject* parent)
     : QObject(parent)
@@ -92,7 +93,7 @@ void CompositorDummy::unloadGUI()
     m_qmlWidget.reset();
 }
 
-bool CompositorDummy::setupVoutWindow(vlc_window_t*, VoutDestroyCb)
+bool CompositorDummy::setupVoutWindow(heimdall_window_t*, VoutDestroyCb)
 {
     //dummy compositor doesn't handle window integration
     return false;

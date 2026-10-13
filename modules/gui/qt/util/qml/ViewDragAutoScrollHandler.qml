@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,7 +19,7 @@
 import QtQuick
 import QtQuick.Templates as T
 
-import VLC.Style
+import Heimdall.Style
 
 QtObject {
     id: root
@@ -38,7 +39,7 @@ QtObject {
 
     property int orientation: (view && view.orientation !== undefined) ? view.orientation
                                                                        : Qt.Vertical
-    property real margin: VLCStyle.dp(20, VLCStyle.scale)
+    property real margin: HeimdallStyle.dp(20, HeimdallStyle.scale)
 
     readonly property bool scrolling: animation.running // for convenience
     property alias scrollingDirection: animation.direction
@@ -59,7 +60,7 @@ QtObject {
         reversingMode: SmoothedAnimation.Immediate
         easing.type: Easing.OutQuad
 
-        velocity: VLCStyle.dp(200, VLCStyle.scale)
+        velocity: HeimdallStyle.dp(200, HeimdallStyle.scale)
         maximumEasingTime: 1000
 
         readonly property Timer _timer: Timer {

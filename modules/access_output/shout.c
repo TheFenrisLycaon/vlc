@@ -2,9 +2,10 @@
  * shout.c: This module forwards vorbis streams to an icecast server
  *****************************************************************************
  * Copyright (C) 2005 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Daniel Fischer <dan at subsignal dot org>
- *          Derk-Jan Hartman <hartman at videolan dot org>
+ *          Derk-Jan Hartman <hartman at lycaria dot org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -30,7 +31,7 @@
  *
  * Typical usage:
  *
- * vlc v4l:/dev/video:input=2:norm=pal:size=192x144 \
+ * heimdall v4l:/dev/video:input=2:norm=pal:size=192x144 \
  * --sout '#transcode{vcodec=theora,vb=300,acodec=vorb,ab=96}\
  * :std{access=shout,mux=ogg,dst=localhost:8005}'
  *
@@ -44,20 +45,20 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_sout.h>
-#include <vlc_block.h>
-#include <vlc_url.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_sout.h>
+#include <heimdall_block.h>
+#include <heimdall_url.h>
 
 #include <shout/shout.h>
 
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  Open ( vlc_object_t * );
-static void Close( vlc_object_t * );
+static int  Open ( heimdall_object_t * );
+static void Close( heimdall_object_t * );
 
 #define SOUT_CFG_PREFIX "sout-shout-"
 
@@ -107,15 +108,15 @@ static void Close( vlc_object_t * );
                            "website. Requires the bitrate information specified for " \
                            "shoutcast. Requires Ogg streaming for icecast." )
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("IceCAST output") )
     set_shortname( "Shoutcast" )
     set_capability( "sout access", 0 )
     set_subcategory( SUBCAT_SOUT_ACO )
     add_shortcut( "shout" )
-    add_string( SOUT_CFG_PREFIX "name", "VLC media player - Live stream",
+    add_string( SOUT_CFG_PREFIX "name", "Heimdall media player - Live stream",
                 NAME_TEXT, NAME_LONGTEXT )
-    add_string( SOUT_CFG_PREFIX "description", "Live stream from VLC media player",
+    add_string( SOUT_CFG_PREFIX "description", "Live stream from Heimdall media player",
                 DESCRIPTION_TEXT, DESCRIPTION_LONGTEXT )
     add_bool(   SOUT_CFG_PREFIX "mp3", false,
                 MP3_TEXT, MP3_LONGTEXT )
@@ -134,7 +135,7 @@ vlc_module_begin ()
     add_bool(   SOUT_CFG_PREFIX "public", false,
                 PUBLIC_TEXT, PUBLIC_LONGTEXT )
     set_callbacks( Open, Close )
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * Exported prototypes
@@ -159,7 +160,7 @@ typedef struct
 /*****************************************************************************
  * Open: open the shout connection
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     sout_access_out_t *p_access = (sout_access_out_t*)p_this;
     sout_access_out_sys_t *p_sys;
@@ -171,28 +172,28 @@ static int Open( vlc_object_t *p_this )
     char *psz_description;
     char *psz_genre;
     char *psz_url;
-    vlc_url_t url;
+    heimdall_url_t url;
 
     config_ChainParse( p_access, SOUT_CFG_PREFIX, ppsz_sout_options, p_access->p_cfg );
 
-    vlc_UrlParse( &url , p_access->psz_path );
+    heimdall_UrlParse( &url , p_access->psz_path );
     if( url.i_port <= 0 )
         url.i_port = 8000;
 
     if( url.psz_host == NULL )
     {   /* Backward compatibility with bind@path syntax */
-        vlc_UrlClean( &url );
+        heimdall_UrlClean( &url );
         if( unlikely(asprintf( &psz_url, "//%s", p_access->psz_path ) == -1) )
-            return VLC_ENOMEM;
-        vlc_UrlParse( &url, psz_url );
+            return HEIMDALL_ENOMEM;
+        heimdall_UrlParse( &url, psz_url );
         free( psz_url );
     }
 
     p_sys = p_access->p_sys = malloc( sizeof( sout_access_out_sys_t ) );
     if( !p_sys )
     {
-        vlc_UrlClean( &url );
-        return VLC_ENOMEM;
+        heimdall_UrlClean( &url );
+        return HEIMDALL_ENOMEM;
     }
 
     psz_name = var_GetNonEmptyString( p_access, SOUT_CFG_PREFIX "name" );
@@ -208,7 +209,7 @@ static int Open( vlc_object_t *p_this )
          || shout_set_password( p_shout, url.psz_password ) != SHOUTERR_SUCCESS
          || shout_set_mount( p_shout, url.psz_path ) != SHOUTERR_SUCCESS
          || shout_set_user( p_shout, url.psz_username ) != SHOUTERR_SUCCESS
-         || shout_set_agent( p_shout, "VLC media player " VERSION ) != SHOUTERR_SUCCESS
+         || shout_set_agent( p_shout, "Heimdall media player " VERSION ) != SHOUTERR_SUCCESS
          || shout_set_meta( p_shout, SHOUT_META_NAME, psz_name ) != SHOUTERR_SUCCESS
          || shout_set_meta( p_shout, SHOUT_META_DESCRIPTION, psz_description ) != SHOUTERR_SUCCESS
          || shout_set_meta( p_shout, SHOUT_META_GENRE, psz_genre ) != SHOUTERR_SUCCESS
@@ -368,7 +369,7 @@ static int Open( vlc_object_t *p_this )
         if ( i_ret != SHOUTERR_CONNECTED )
         {
             msg_Warn( p_access, "unable to establish connection, retrying..." );
-            vlc_tick_sleep( VLC_TICK_FROM_SEC(30) );
+            heimdall_tick_sleep( HEIMDALL_TICK_FROM_SEC(30) );
         }
     }
 
@@ -385,21 +386,21 @@ static int Open( vlc_object_t *p_this )
     msg_Dbg( p_access, "shout access output opened (%s@%s:%i/%s)",
              url.psz_username, url.psz_host, url.i_port, url.psz_path );
 
-    vlc_UrlClean( &url );
-    return VLC_SUCCESS;
+    heimdall_UrlClean( &url );
+    return HEIMDALL_SUCCESS;
 
 error:
     if( p_sys->p_shout )
         shout_free( p_sys->p_shout );
-    vlc_UrlClean( &url );
+    heimdall_UrlClean( &url );
     free( p_sys );
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /*****************************************************************************
  * Close: close the target
  *****************************************************************************/
-static void Close( vlc_object_t * p_this )
+static void Close( heimdall_object_t * p_this )
 {
     sout_access_out_t *p_access = (sout_access_out_t*)p_this;
     sout_access_out_sys_t *p_sys = p_access->p_sys;
@@ -426,9 +427,9 @@ static int Control( sout_access_out_t *p_access, int i_query, va_list args )
         }
 
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -470,7 +471,7 @@ static ssize_t Write( sout_access_out_t *p_access, block_t *p_buffer )
             {
                 msg_Err( p_access, "failed to reconnect to server" );
                 block_ChainRelease( p_buffer );
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             }
 
         }

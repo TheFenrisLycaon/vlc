@@ -1,7 +1,8 @@
 /*****************************************************************************
- * sepia.c : Sepia video plugin for vlc
+ * sepia.c : Sepia video plugin for heimdall
  *****************************************************************************
  * Copyright (C) 2010 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Branko Kokanovic <branko.kokanovic@gmail.com>
  *
@@ -28,12 +29,12 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_picture.h>
-#include <vlc_cpu.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
+#include <heimdall_cpu.h>
 
 #include <stdatomic.h>
 #include <assert.h>
@@ -60,7 +61,7 @@ VIDEO_FILTER_WRAPPER_CLOSE(Filter, Destroy)
 
 #define CFG_PREFIX "sepia-"
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("Sepia video filter") )
     set_shortname( N_("Sepia" ) )
     set_help( N_("Gives video a warmer tone by applying sepia effect") )
@@ -68,36 +69,36 @@ vlc_module_begin ()
     add_integer_with_range( CFG_PREFIX "intensity", 120, 0, 255,
                            SEPIA_INTENSITY_TEXT, SEPIA_INTENSITY_LONGTEXT )
     set_callback_video_filter( Create )
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * callback prototypes
  *****************************************************************************/
-static int FilterCallback( vlc_object_t *, char const *,
-                           vlc_value_t, vlc_value_t, void * );
+static int FilterCallback( heimdall_object_t *, char const *,
+                           heimdall_value_t, heimdall_value_t, void * );
 
 typedef void (*SepiaFunction)( picture_t *, picture_t *, int );
 
 static const struct
 {
-    vlc_fourcc_t i_chroma;
+    heimdall_fourcc_t i_chroma;
     SepiaFunction pf_sepia;
 } p_sepia_cfg[] = {
-    { VLC_CODEC_I420, PlanarI420Sepia },
-    { VLC_CODEC_RGB24, RVSepia },
-    { VLC_CODEC_BGR24, RVSepia },
-    { VLC_CODEC_BGRA, RVSepia },
-    { VLC_CODEC_RGBA, RVSepia },
-    { VLC_CODEC_ARGB, RVSepia },
-    { VLC_CODEC_ABGR, RVSepia },
-    { VLC_CODEC_BGRX, RVSepia },
-    { VLC_CODEC_RGBX, RVSepia },
-    { VLC_CODEC_XRGB, RVSepia },
-    { VLC_CODEC_XBGR, RVSepia },
-    { VLC_CODEC_UYVY, PackedYUVSepia },
-    { VLC_CODEC_VYUY, PackedYUVSepia },
-    { VLC_CODEC_YUYV, PackedYUVSepia },
-    { VLC_CODEC_YVYU, PackedYUVSepia },
+    { HEIMDALL_CODEC_I420, PlanarI420Sepia },
+    { HEIMDALL_CODEC_RGB24, RVSepia },
+    { HEIMDALL_CODEC_BGR24, RVSepia },
+    { HEIMDALL_CODEC_BGRA, RVSepia },
+    { HEIMDALL_CODEC_RGBA, RVSepia },
+    { HEIMDALL_CODEC_ARGB, RVSepia },
+    { HEIMDALL_CODEC_ABGR, RVSepia },
+    { HEIMDALL_CODEC_BGRX, RVSepia },
+    { HEIMDALL_CODEC_RGBX, RVSepia },
+    { HEIMDALL_CODEC_XRGB, RVSepia },
+    { HEIMDALL_CODEC_XBGR, RVSepia },
+    { HEIMDALL_CODEC_UYVY, PackedYUVSepia },
+    { HEIMDALL_CODEC_VYUY, PackedYUVSepia },
+    { HEIMDALL_CODEC_YUYV, PackedYUVSepia },
+    { HEIMDALL_CODEC_YVYU, PackedYUVSepia },
     { 0, NULL }
 };
 
@@ -122,7 +123,7 @@ static int Create( filter_t *p_filter )
     /* Allocate structure */
     p_sys = p_filter->p_sys = malloc( sizeof( filter_sys_t ) );
     if( p_filter->p_sys == NULL )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_sys->pf_sepia = NULL;
 
@@ -138,7 +139,7 @@ static int Create( filter_t *p_filter )
         msg_Err( p_filter, "Unsupported input chroma (%4.4s)",
                 (char*)&(p_filter->fmt_in.video.i_chroma) );
         free( p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     config_ChainParse( p_filter, CFG_PREFIX, ppsz_filter_options,
@@ -149,7 +150,7 @@ static int Create( filter_t *p_filter )
 
     p_filter->ops = &Filter_ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -187,7 +188,7 @@ static void Filter( filter_t *p_filter, picture_t *p_pic, picture_t *p_outpic )
  * instructions. It copies those 8 bytes to 128b register and fills the gaps
  * with zeroes and following operations are made with word-operating instructs.
  *****************************************************************************/
-VLC_SSE
+HEIMDALL_SSE
 static inline void Sepia8ySSE2(uint8_t * dst, const uint8_t * src,
                          int i_intensity_shifted_pair)
 {
@@ -208,7 +209,7 @@ static inline void Sepia8ySSE2(uint8_t * dst, const uint8_t * src,
         :"memory", "xmm1", "xmm2", "xmm3");
 }
 
-VLC_SSE
+HEIMDALL_SSE
 static void PlanarI420SepiaSSE( picture_t *p_pic, picture_t *p_outpic,
                                 int i_intensity )
 {
@@ -294,7 +295,7 @@ static void PlanarI420Sepia( picture_t *p_pic, picture_t *p_outpic,
                                int i_intensity )
 {
 #if defined(CAN_COMPILE_SSE2)
-    if (vlc_CPU_SSE2())
+    if (heimdall_CPU_SSE2())
         return PlanarI420SepiaSSE( p_pic, p_outpic, i_intensity );
 #endif
 
@@ -406,8 +407,8 @@ static void RVSepia( picture_t *p_pic, picture_t *p_outpic, int i_intensity )
 #define ONE_HALF  (1 << (SCALEBITS - 1))
 #define FIX(x)    ((int) ((x) * (1<<SCALEBITS) + 0.5))
     uint8_t *p_in, *p_in_end, *p_line_end, *p_out;
-    bool b_isRV32 = p_pic->format.i_chroma != VLC_CODEC_RGB24  &&
-                    p_pic->format.i_chroma != VLC_CODEC_BGR24;
+    bool b_isRV32 = p_pic->format.i_chroma != HEIMDALL_CODEC_RGB24  &&
+                    p_pic->format.i_chroma != HEIMDALL_CODEC_BGR24;
     int i_rindex = 0, i_gindex = 1, i_bindex = 2, i_aindex = -1;
 
     GetPackedRgbIndexes( p_outpic->format.i_chroma, &i_rindex, &i_gindex, &i_bindex, &i_aindex );
@@ -443,9 +444,9 @@ static void RVSepia( picture_t *p_pic, picture_t *p_outpic, int i_intensity )
                       - (((( 66 * p_in[i_rindex] + 129 * p_in[i_gindex] + 25
                       * p_in[i_bindex] + 128 ) >> 8 )
                       * FIX( 255.0 / 219.0 )) >> 2 ) + ( i_intensity >> 2 );
-            p_out[i_rindex] = vlc_uint8(i_y + r_intensity);
-            p_out[i_gindex] = vlc_uint8(i_y + g_intensity);
-            p_out[i_bindex] = vlc_uint8(i_y + b_intensity);
+            p_out[i_rindex] = heimdall_uint8(i_y + r_intensity);
+            p_out[i_gindex] = heimdall_uint8(i_y + g_intensity);
+            p_out[i_bindex] = heimdall_uint8(i_y + b_intensity);
             /* for rv32 we take 4 chunks at the time */
             if (b_isRV32) {
                 /* alpha channel or undefined stays the same */
@@ -467,14 +468,14 @@ static void RVSepia( picture_t *p_pic, picture_t *p_outpic, int i_intensity )
 #undef FIX
 }
 
-static int FilterCallback ( vlc_object_t *p_this, char const *psz_var,
-                            vlc_value_t oldval, vlc_value_t newval,
+static int FilterCallback ( heimdall_object_t *p_this, char const *psz_var,
+                            heimdall_value_t oldval, heimdall_value_t newval,
                             void *p_data )
 {
-    VLC_UNUSED(psz_var); VLC_UNUSED(oldval); VLC_UNUSED(p_data);
+    HEIMDALL_UNUSED(psz_var); HEIMDALL_UNUSED(oldval); HEIMDALL_UNUSED(p_data);
     filter_t *p_filter = (filter_t*)p_this;
     filter_sys_t *p_sys = p_filter->p_sys;
 
     atomic_store( &p_sys->i_intensity, newval.i_int );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

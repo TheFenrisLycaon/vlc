@@ -49,7 +49,7 @@
       <string>Add</string>
      </property>
      <property name="icon" >
-      <iconset resource="../vlc.qrc" >:/menu/ic_fluent_play_filled.svg</iconset>
+      <iconset resource="../heimdall.qrc" >:/menu/ic_fluent_play_filled.svg</iconset>
      </property>
     </widget>
    </item>
@@ -59,7 +59,7 @@
       <string>Delete</string>
      </property>
      <property name="icon" >
-      <iconset resource="../vlc.qrc" >:/menu/clear.svg</iconset>
+      <iconset resource="../heimdall.qrc" >:/menu/clear.svg</iconset>
      </property>
     </widget>
    </item>
@@ -73,7 +73,7 @@
   </layout>
  </widget>
  <resources>
-  <include location="../vlc.qrc" />
+  <include location="../heimdall.qrc" />
  </resources>
  <connections>
   <connection>

@@ -2,6 +2,7 @@
  * preferences_widgets.hpp : Widgets for preferences panels
  ****************************************************************************
  * Copyright (C) 2006-2011 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Clément Stenac <zorglub@videolan.org>
  *          Antoine Cellerier <dionoea@videolan.org>
@@ -22,8 +23,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_QT_PREFERENCES_WIDGETS_HPP_
-#define VLC_QT_PREFERENCES_WIDGETS_HPP_
+#ifndef HEIMDALL_QT_PREFERENCES_WIDGETS_HPP_
+#define HEIMDALL_QT_PREFERENCES_WIDGETS_HPP_
 
 #ifdef HAVE_CONFIG_H
 # include "config.h"
@@ -53,7 +54,7 @@ class QPushButton;
 class QFontComboBox;
 class QSlider;
 class QAbstractButton;
-class WheelToVLCConverter;
+class WheelToHeimdallConverter;
 
 /*******************************************************
  * Simple widgets
@@ -408,7 +409,7 @@ private slots:
     void comboIndexChanged( int );
 };
 
-void setfillVLCConfigCombo(const char *configname, QComboBox *combo );
+void setfillHeimdallConfigCombo(const char *configname, QComboBox *combo );
 
 /**********************************************************************
  * Key selector widget
@@ -497,7 +498,7 @@ class KeyInputDialog : public QDialog
 public:
     KeyInputDialog( QTreeWidget *, KeyTableItem *, enum KeySelectorControl::ColumnIndex );
     bool conflicts;
-    QString vlckey, vlckey_tr;
+    QString heimdallkey, heimdallkey_tr;
     void setExistingkeysSet( const QSet<QString> *keyset = NULL );
 
 private:
@@ -506,7 +507,7 @@ private:
     QPushButton *ok, *unset;
     KeyTableItem *keyItem;
     enum KeySelectorControl::ColumnIndex column;
-    WheelToVLCConverter* wheelConverter;
+    WheelToHeimdallConverter* wheelConverter;
 
     void checkForConflicts( const QString &sequence );
     void keyPressEvent( QKeyEvent *);

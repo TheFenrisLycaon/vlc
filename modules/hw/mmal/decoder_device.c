@@ -2,6 +2,7 @@
  * decoder_device.c: MMAL-based decoder plugin for Raspberry Pi
  *****************************************************************************
  * Copyright © 2020 Steve Lhomme
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Steve Lhomme <robux4@videolabs.io>
  *
@@ -24,23 +25,23 @@
 #include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_window.h>
-#include <vlc_codec.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_window.h>
+#include <heimdall_codec.h>
 
 #include <bcm_host.h>
 #include <interface/vcsm/user-vcsm.h>
 
 #include "mmal_picture.h"
 
-static int OpenDecoderDevice(vlc_decoder_device *, vlc_window_t *);
+static int OpenDecoderDevice(heimdall_decoder_device *, heimdall_window_t *);
 
-vlc_module_begin()
+heimdall_module_begin()
     set_description(N_("MMAL"))
     set_callback_dec_device(OpenDecoderDevice, 100)
     add_shortcut("mmal")
-vlc_module_end()
+heimdall_module_end()
 
 
 typedef enum {
@@ -102,43 +103,43 @@ static const char * cma_vcsm_init_str(const vcsm_init_type_t init_mode)
         case VCSM_INIT_LEGACY:
             return "Legacy";
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
             return NULL;
     }
 }
 
-static void CloseDecoderDevice(vlc_decoder_device *device)
+static void CloseDecoderDevice(heimdall_decoder_device *device)
 {
-    VLC_UNUSED(device);
+    HEIMDALL_UNUSED(device);
     cma_vcsm_exit();
 }
 
-static const struct vlc_decoder_device_operations mmal_device_ops = {
+static const struct heimdall_decoder_device_operations mmal_device_ops = {
     .close = CloseDecoderDevice,
 };
 
-static int OpenDecoderDevice(vlc_decoder_device *device, vlc_window_t *window)
+static int OpenDecoderDevice(heimdall_decoder_device *device, heimdall_window_t *window)
 {
-    VLC_UNUSED(window);
+    HEIMDALL_UNUSED(window);
 
-    mmal_decoder_device_t *sys = vlc_obj_malloc(VLC_OBJECT(device), sizeof(mmal_decoder_device_t));
+    mmal_decoder_device_t *sys = heimdall_obj_malloc(HEIMDALL_OBJECT(device), sizeof(mmal_decoder_device_t));
     if (unlikely(sys==NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     vcsm_init_type_t vcsm_init_type = cma_vcsm_init();
     if (vcsm_init_type == VCSM_INIT_NONE) {
         msg_Err(device, "VCSM init failed");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     sys->is_cma = vcsm_init_type == VCSM_INIT_CMA;
 
     device->ops = &mmal_device_ops;
     device->opaque = sys;
-    device->type = VLC_DECODER_DEVICE_MMAL;
+    device->type = HEIMDALL_DECODER_DEVICE_MMAL;
     device->sys = sys;
 
     msg_Warn(device, "VCSM init succeeded: %s", cma_vcsm_init_str(vcsm_init_type));
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

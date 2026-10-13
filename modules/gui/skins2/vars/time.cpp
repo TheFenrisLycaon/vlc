@@ -2,6 +2,7 @@
  * time.cpp
  *****************************************************************************
  * Copyright (C) 2003 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cyril Deguet     <asmax@via.ecp.fr>
  *          Olivier Teulière <ipkiss@via.ecp.fr>
@@ -27,29 +28,29 @@
 inline bool StreamTime::havePosition() const {
 
     float position = 0.0;
-    vlc_player_t *player = vlc_playlist_GetPlayer( getPL() );
+    heimdall_player_t *player = heimdall_playlist_GetPlayer( getPL() );
 
     if( player )
     {
-        vlc_playlist_Lock( getPL() );
-        position = vlc_player_GetPosition( player );
-        vlc_playlist_Unlock( getPL() );
+        heimdall_playlist_Lock( getPL() );
+        position = heimdall_player_GetPosition( player );
+        heimdall_playlist_Unlock( getPL() );
     }
     return player && (position != 0.0);
 }
 
 
-void StreamTime::set( float percentage, bool updateVLC )
+void StreamTime::set( float percentage, bool updateHeimdall )
 {
     VarPercent::set( percentage );
 
     // Avoid looping forever...
-    if( updateVLC )
+    if( updateHeimdall )
     {
-        vlc_player_t *player = vlc_playlist_GetPlayer( getPL() );
-        vlc_playlist_Lock( getPL() );
-        vlc_player_SetPosition( player, percentage );
-        vlc_playlist_Unlock( getPL() );
+        heimdall_player_t *player = heimdall_playlist_GetPlayer( getPL() );
+        heimdall_playlist_Lock( getPL() );
+        heimdall_player_SetPosition( player, percentage );
+        heimdall_playlist_Unlock( getPL() );
     }
 }
 
@@ -86,39 +87,39 @@ std::string StreamTime::formatTime( int seconds, bool bShortFormat ) const
 
 std::string StreamTime::getAsStringCurrTime( bool bShortFormat ) const
 {
-    vlc_player_t *player = vlc_playlist_GetPlayer( getPL() );
+    heimdall_player_t *player = heimdall_playlist_GetPlayer( getPL() );
     if( !havePosition() )
         return "-:--:--";
 
-    vlc_playlist_Lock( getPL() );
-    vlc_tick_t time = vlc_player_GetTime( player );
-    vlc_playlist_Unlock( getPL() );
-    return formatTime( SEC_FROM_VLC_TICK(time), bShortFormat );
+    heimdall_playlist_Lock( getPL() );
+    heimdall_tick_t time = heimdall_player_GetTime( player );
+    heimdall_playlist_Unlock( getPL() );
+    return formatTime( SEC_FROM_HEIMDALL_TICK(time), bShortFormat );
 }
 
 
 std::string StreamTime::getAsStringTimeLeft( bool bShortFormat ) const
 {
-    vlc_player_t *player = vlc_playlist_GetPlayer( getPL() );
+    heimdall_player_t *player = heimdall_playlist_GetPlayer( getPL() );
     if( !havePosition() )
         return "-:--:--";
 
-    vlc_playlist_Lock( getPL() );
-    vlc_tick_t time = vlc_player_GetTime( player );
-    vlc_tick_t duration = vlc_player_GetLength( player );
-    vlc_playlist_Unlock( getPL() );
-    return formatTime( SEC_FROM_VLC_TICK(duration - time), bShortFormat );
+    heimdall_playlist_Lock( getPL() );
+    heimdall_tick_t time = heimdall_player_GetTime( player );
+    heimdall_tick_t duration = heimdall_player_GetLength( player );
+    heimdall_playlist_Unlock( getPL() );
+    return formatTime( SEC_FROM_HEIMDALL_TICK(duration - time), bShortFormat );
 }
 
 
 std::string StreamTime::getAsStringDuration( bool bShortFormat ) const
 {
-    vlc_player_t *player = vlc_playlist_GetPlayer( getPL() );
+    heimdall_player_t *player = heimdall_playlist_GetPlayer( getPL() );
     if( !havePosition() )
         return "-:--:--";
 
-    vlc_playlist_Lock( getPL() );
-    vlc_tick_t duration = vlc_player_GetLength( player );
-    vlc_playlist_Unlock( getPL() );
-    return formatTime( SEC_FROM_VLC_TICK(duration), bShortFormat );
+    heimdall_playlist_Lock( getPL() );
+    heimdall_tick_t duration = heimdall_player_GetLength( player );
+    heimdall_playlist_Unlock( getPL() );
+    return formatTime( SEC_FROM_HEIMDALL_TICK(duration), bShortFormat );
 }

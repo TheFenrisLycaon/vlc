@@ -2,7 +2,7 @@ function descriptor()
   return {
     title = "test",
     version = "0.0.1",
-    author = "VideoLAN",
+    author = "Lycaria",
     shortdesc = "Test example",
     description = "Test description",
     capabilities = {
@@ -14,9 +14,9 @@ function descriptor()
 end
 
 function signal_test(event_name)
-  vlc.msg.dbg("lua test event: " .. event_name)
-  libvlc = vlc.object.libvlc()
-  vlc.var.trigger_callback(libvlc, "test-lua-" .. event_name)
+  heimdall.msg.dbg("lua test event: " .. event_name)
+  libheimdall = heimdall.object.libheimdall()
+  heimdall.var.trigger_callback(libheimdall, "test-lua-" .. event_name)
 end
 
 function activate()

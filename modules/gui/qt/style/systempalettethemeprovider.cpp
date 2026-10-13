@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2022 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -41,10 +42,10 @@ QColor blendColors(QColor c1, QColor c2, float blend = 0.5)
 class SystemePaletteObserver : public QObject
 {
 public:
-    SystemePaletteObserver(vlc_qt_theme_provider_t* obj)
+    SystemePaletteObserver(heimdall_qt_theme_provider_t* obj)
         : m_obj(obj)
     {
-        vlc_assert(obj);
+        heimdall_assert(obj);
         updatePalette();
     }
 
@@ -73,25 +74,25 @@ private:
         m_isDark = colBg.lightness() < colText.lightness();
     }
 
-    vlc_qt_theme_provider_t* m_obj = nullptr;
+    heimdall_qt_theme_provider_t* m_obj = nullptr;
 };
 
-static bool isThemeDark(vlc_qt_theme_provider_t* obj)
+static bool isThemeDark(heimdall_qt_theme_provider_t* obj)
 {
     auto sys = static_cast<SystemePaletteObserver*>(obj->p_sys);
     return sys->m_isDark;
 }
-static void setQtColor(vlc_qt_theme_provider_t* obj,
-                        vlc_qt_theme_color_set set, vlc_qt_theme_color_section section,
-                        vlc_qt_theme_color_name name, vlc_qt_theme_color_state state,
+static void setQtColor(heimdall_qt_theme_provider_t* obj,
+                        heimdall_qt_theme_color_set set, heimdall_qt_theme_color_section section,
+                        heimdall_qt_theme_color_name name, heimdall_qt_theme_color_state state,
                         const QColor& c)
 {
     obj->setColorInt(obj, set, section, name, state, c.red(), c.green(), c.blue(), c.alpha());
 }
 
-static void setQtColorSet(vlc_qt_theme_provider_t* obj, const QPalette& palette,
-                        vlc_qt_theme_color_set set, vlc_qt_theme_color_section section,
-                        vlc_qt_theme_color_name name, QPalette::ColorRole role)
+static void setQtColorSet(heimdall_qt_theme_provider_t* obj, const QPalette& palette,
+                        heimdall_qt_theme_color_set set, heimdall_qt_theme_color_section section,
+                        heimdall_qt_theme_color_name name, QPalette::ColorRole role)
 {
     auto sys = static_cast<SystemePaletteObserver*>(obj->p_sys);
     QColor normalColor = palette.color(QPalette::Normal, role);
@@ -107,22 +108,22 @@ static void setQtColorSet(vlc_qt_theme_provider_t* obj, const QPalette& palette,
         setQtColor(obj, set, section, name, VQTC_STATE_PRESSED, normalColor.darker(110));
 }
 
-static void setQtColorSetFg(vlc_qt_theme_provider_t* obj,
-                        vlc_qt_theme_color_set set, vlc_qt_theme_color_name name, QPalette::ColorRole role)
+static void setQtColorSetFg(heimdall_qt_theme_provider_t* obj,
+                        heimdall_qt_theme_color_set set, heimdall_qt_theme_color_name name, QPalette::ColorRole role)
 {
     auto sys = static_cast<SystemePaletteObserver*>(obj->p_sys);
     setQtColorSet(obj, sys->m_palette, set, VQTC_SECTION_FG, name, role);
 }
 
-static void setQtColorSetBg(vlc_qt_theme_provider_t* obj,
-                        vlc_qt_theme_color_set set, vlc_qt_theme_color_name name, QPalette::ColorRole role)
+static void setQtColorSetBg(heimdall_qt_theme_provider_t* obj,
+                        heimdall_qt_theme_color_set set, heimdall_qt_theme_color_name name, QPalette::ColorRole role)
 {
     auto sys = static_cast<SystemePaletteObserver*>(obj->p_sys);
     setQtColorSet(obj, sys->m_palette, set, VQTC_SECTION_BG, name, role);
 }
 
-static void setQtColorSetBorder(vlc_qt_theme_provider_t* obj,
-    vlc_qt_theme_color_set set, QPalette::ColorRole roleBg, QPalette::ColorRole roleFg, float blend = 0.5)
+static void setQtColorSetBorder(heimdall_qt_theme_provider_t* obj,
+    heimdall_qt_theme_color_set set, QPalette::ColorRole roleBg, QPalette::ColorRole roleFg, float blend = 0.5)
 {
     auto sys = static_cast<SystemePaletteObserver*>(obj->p_sys);
     QColor fg = sys->m_palette.color(QPalette::Normal, roleFg);
@@ -131,7 +132,7 @@ static void setQtColorSetBorder(vlc_qt_theme_provider_t* obj,
 }
 
 
-static int updatePalette(vlc_qt_theme_provider_t* obj)
+static int updatePalette(heimdall_qt_theme_provider_t* obj)
 {
     auto sys = static_cast<SystemePaletteObserver*>(obj->p_sys);
 
@@ -206,7 +207,7 @@ static int updatePalette(vlc_qt_theme_provider_t* obj)
 
     //View
     {
-        vlc_qt_theme_color_set CS = VQTC_SET_VIEW;
+        heimdall_qt_theme_color_set CS = VQTC_SET_VIEW;
         setQtColorSetBg(obj, CS, VQTC_NAME_PRIMARY, QPalette::Base);
         setQtColorSetFg(obj, CS, VQTC_NAME_PRIMARY, QPalette::Text);
 
@@ -456,10 +457,10 @@ static int updatePalette(vlc_qt_theme_provider_t* obj)
         setQtColorSetFg(obj, CS, VQTC_NAME_SECONDARY, QPalette::Button);
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void Close(vlc_qt_theme_provider_t* obj)
+static void Close(heimdall_qt_theme_provider_t* obj)
 {
     auto sys = static_cast<SystemePaletteObserver*>(obj->p_sys);
     delete sys;
@@ -467,17 +468,17 @@ static void Close(vlc_qt_theme_provider_t* obj)
 
 //module definition is made in qt.cpp as we are statically linked to on windows
 //we don't want a bloated dll just for this feature
-int SystemPaletteThemeProviderOpen(vlc_object_t* p_this)
+int SystemPaletteThemeProviderOpen(heimdall_object_t* p_this)
 {
-    vlc_qt_theme_provider_t* obj = (vlc_qt_theme_provider_t*)p_this;
+    heimdall_qt_theme_provider_t* obj = (heimdall_qt_theme_provider_t*)p_this;
 
     auto observer = new (std::nothrow) SystemePaletteObserver(obj);
     if (!observer)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     obj->p_sys = observer;
     obj->close = Close;
     obj->isThemeDark = isThemeDark;
     obj->updatePalette = updatePalette;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

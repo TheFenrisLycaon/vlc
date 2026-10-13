@@ -2,6 +2,7 @@
  * renderer_discovery.c : Renderer Discovery functions
  *****************************************************************************
  * Copyright(C) 2016 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -24,15 +25,15 @@
 
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_atomic.h>
-#include <vlc_renderer_discovery.h>
-#include <vlc_probe.h>
-#include <vlc_modules.h>
-#include "../libvlc.h"
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_atomic.h>
+#include <heimdall_renderer_discovery.h>
+#include <heimdall_probe.h>
+#include <heimdall_modules.h>
+#include "../libheimdall.h"
 
-struct vlc_renderer_item_t
+struct heimdall_renderer_item_t
 {
     char *psz_name;
     char *psz_type;
@@ -40,11 +41,11 @@ struct vlc_renderer_item_t
     char *psz_icon_uri;
     char *psz_demux_filter;
     int i_flags;
-    vlc_atomic_rc_t rc;
+    heimdall_atomic_rc_t rc;
 };
 
 static void
-item_free(vlc_renderer_item_t *p_item)
+item_free(heimdall_renderer_item_t *p_item)
 {
     free(p_item->psz_name);
     free(p_item->psz_type);
@@ -54,21 +55,21 @@ item_free(vlc_renderer_item_t *p_item)
     free(p_item);
 }
 
-vlc_renderer_item_t *
-vlc_renderer_item_new(const char *psz_type, const char *psz_name,
+heimdall_renderer_item_t *
+heimdall_renderer_item_new(const char *psz_type, const char *psz_name,
                       const char *psz_uri, const char *psz_extra_sout,
                       const char *psz_demux_filter, const char *psz_icon_uri,
                       int i_flags)
 {
     assert(psz_uri != NULL);
-    vlc_renderer_item_t *p_item = NULL;
-    vlc_url_t url;
-    vlc_UrlParse(&url, psz_uri);
+    heimdall_renderer_item_t *p_item = NULL;
+    heimdall_url_t url;
+    heimdall_UrlParse(&url, psz_uri);
 
     if (url.psz_protocol == NULL || url.psz_host == NULL)
         goto error;
 
-    p_item = calloc(1, sizeof(vlc_renderer_item_t));
+    p_item = calloc(1, sizeof(heimdall_renderer_item_t));
     if (unlikely(p_item == NULL))
         goto error;
 
@@ -101,19 +102,19 @@ vlc_renderer_item_new(const char *psz_type, const char *psz_name,
         goto error;
 
     p_item->i_flags = i_flags;
-    vlc_atomic_rc_init(&p_item->rc);
-    vlc_UrlClean(&url);
+    heimdall_atomic_rc_init(&p_item->rc);
+    heimdall_UrlClean(&url);
     return p_item;
 
 error:
-    vlc_UrlClean(&url);
+    heimdall_UrlClean(&url);
     if (p_item != NULL)
         item_free(p_item);
     return NULL;
 }
 
 const char *
-vlc_renderer_item_name(const vlc_renderer_item_t *p_item)
+heimdall_renderer_item_name(const heimdall_renderer_item_t *p_item)
 {
     assert(p_item != NULL);
 
@@ -121,7 +122,7 @@ vlc_renderer_item_name(const vlc_renderer_item_t *p_item)
 }
 
 const char *
-vlc_renderer_item_type(const vlc_renderer_item_t *p_item)
+heimdall_renderer_item_type(const heimdall_renderer_item_t *p_item)
 {
     assert(p_item != NULL);
 
@@ -129,7 +130,7 @@ vlc_renderer_item_type(const vlc_renderer_item_t *p_item)
 }
 
 const char *
-vlc_renderer_item_sout(const vlc_renderer_item_t *p_item)
+heimdall_renderer_item_sout(const heimdall_renderer_item_t *p_item)
 {
     assert(p_item != NULL);
 
@@ -137,7 +138,7 @@ vlc_renderer_item_sout(const vlc_renderer_item_t *p_item)
 }
 
 const char *
-vlc_renderer_item_icon_uri(const vlc_renderer_item_t *p_item)
+heimdall_renderer_item_icon_uri(const heimdall_renderer_item_t *p_item)
 {
     assert(p_item != NULL);
 
@@ -145,7 +146,7 @@ vlc_renderer_item_icon_uri(const vlc_renderer_item_t *p_item)
 }
 
 const char *
-vlc_renderer_item_demux_filter(const vlc_renderer_item_t *p_item)
+heimdall_renderer_item_demux_filter(const heimdall_renderer_item_t *p_item)
 {
     assert(p_item != NULL);
 
@@ -153,76 +154,76 @@ vlc_renderer_item_demux_filter(const vlc_renderer_item_t *p_item)
 }
 
 int
-vlc_renderer_item_flags(const vlc_renderer_item_t *p_item)
+heimdall_renderer_item_flags(const heimdall_renderer_item_t *p_item)
 {
     assert(p_item != NULL);
 
     return p_item->i_flags;
 }
 
-vlc_renderer_item_t *
-vlc_renderer_item_hold(vlc_renderer_item_t *p_item)
+heimdall_renderer_item_t *
+heimdall_renderer_item_hold(heimdall_renderer_item_t *p_item)
 {
     assert(p_item != NULL);
 
-    vlc_atomic_rc_inc(&p_item->rc);
+    heimdall_atomic_rc_inc(&p_item->rc);
     return p_item;
 }
 
 void
-vlc_renderer_item_release(vlc_renderer_item_t *p_item)
+heimdall_renderer_item_release(heimdall_renderer_item_t *p_item)
 {
     assert(p_item != NULL);
 
-    if (vlc_atomic_rc_dec(&p_item->rc))
+    if (heimdall_atomic_rc_dec(&p_item->rc))
         item_free(p_item);
 }
 
-struct vlc_rd_probe
+struct heimdall_rd_probe
 {
     char *psz_name;
     char *psz_longname;
 };
 
 int
-vlc_rd_probe_add(vlc_probe_t *probe, const char *psz_name,
+heimdall_rd_probe_add(heimdall_probe_t *probe, const char *psz_name,
                  const char *psz_longname)
 {
-    struct vlc_rd_probe names = { strdup(psz_name), strdup(psz_longname) };
+    struct heimdall_rd_probe names = { strdup(psz_name), strdup(psz_longname) };
 
     if (unlikely(names.psz_name == NULL || names.psz_longname == NULL
-                 || vlc_probe_add(probe, &names, sizeof(names))))
+                 || heimdall_probe_add(probe, &names, sizeof(names))))
     {
         free(names.psz_name);
         free(names.psz_longname);
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
-    return VLC_PROBE_CONTINUE;
+    return HEIMDALL_PROBE_CONTINUE;
 }
 
-#undef vlc_rd_get_names
+#undef heimdall_rd_get_names
 int
-vlc_rd_get_names(vlc_object_t *p_obj, char ***pppsz_names,
+heimdall_rd_get_names(heimdall_object_t *p_obj, char ***pppsz_names,
                  char ***pppsz_longnames)
 {
     size_t i_count;
-    struct vlc_rd_probe *p_tab = vlc_probe(p_obj, "renderer probe", &i_count);
+    struct heimdall_rd_probe *p_tab = heimdall_probe(p_obj, "renderer probe", &i_count);
 
     if (i_count == 0)
     {
         free(p_tab);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    char **ppsz_names = vlc_alloc(i_count + 1, sizeof(char *));
-    char **ppsz_longnames = vlc_alloc(i_count + 1, sizeof(char *));
+    char **ppsz_names = heimdall_alloc(i_count + 1, sizeof(char *));
+    char **ppsz_longnames = heimdall_alloc(i_count + 1, sizeof(char *));
 
     if (unlikely(ppsz_names == NULL || ppsz_longnames == NULL))
     {
         free(ppsz_names);
         free(ppsz_longnames);
         free(p_tab);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     for (size_t i = 0; i < i_count; i++)
@@ -234,24 +235,24 @@ vlc_rd_get_names(vlc_object_t *p_obj, char ***pppsz_names,
     free(p_tab);
     *pppsz_names = ppsz_names;
     *pppsz_longnames = ppsz_longnames;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-void vlc_rd_release(vlc_renderer_discovery_t *p_rd)
+void heimdall_rd_release(heimdall_renderer_discovery_t *p_rd)
 {
     module_unneed(p_rd, p_rd->p_module);
     config_ChainDestroy(p_rd->p_cfg);
     free(p_rd->psz_name);
-    vlc_object_delete(p_rd);
+    heimdall_object_delete(p_rd);
 }
 
-vlc_renderer_discovery_t *
-vlc_rd_new(vlc_object_t *p_obj, const char *psz_name,
-           const struct vlc_renderer_discovery_owner *restrict owner)
+heimdall_renderer_discovery_t *
+heimdall_rd_new(heimdall_object_t *p_obj, const char *psz_name,
+           const struct heimdall_renderer_discovery_owner *restrict owner)
 {
-    vlc_renderer_discovery_t *p_rd;
+    heimdall_renderer_discovery_t *p_rd;
 
-    p_rd = vlc_custom_create(p_obj, sizeof(*p_rd), "renderer discovery");
+    p_rd = heimdall_custom_create(p_obj, sizeof(*p_rd), "renderer discovery");
     if(!p_rd)
         return NULL;
     free(config_ChainCreate(&p_rd->psz_name, &p_rd->p_cfg, psz_name));
@@ -265,7 +266,7 @@ vlc_rd_new(vlc_object_t *p_obj, const char *psz_name,
             psz_name);
         free(p_rd->psz_name);
         config_ChainDestroy(p_rd->p_cfg);
-        vlc_object_delete(p_rd);
+        heimdall_object_delete(p_rd);
         p_rd = NULL;
     }
 

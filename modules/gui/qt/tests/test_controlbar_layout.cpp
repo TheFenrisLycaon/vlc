@@ -105,7 +105,7 @@ private slots:
     {
         m_dir = std::make_unique<QTemporaryDir>();
         QVERIFY(m_dir->isValid());
-        m_settings = std::make_unique<QSettings>(m_dir->filePath("vlc-qt-interface.ini"), QSettings::IniFormat);
+        m_settings = std::make_unique<QSettings>(m_dir->filePath("heimdall-qt-interface.ini"), QSettings::IniFormat);
     }
 
     void cleanup()

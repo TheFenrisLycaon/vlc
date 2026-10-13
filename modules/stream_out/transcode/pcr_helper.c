@@ -2,6 +2,7 @@
  * pcr_helper.c:
  *****************************************************************************
  * Copyright (C) 2022 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -27,39 +28,39 @@
 
 #include "pcr_helper.h"
 
-#include <vlc_list.h>
-#include <vlc_tick.h>
+#include <heimdall_list.h>
+#include <heimdall_tick.h>
 
 struct transcode_track_pcr_helper
 {
-    vlc_tick_t max_delay;
+    heimdall_tick_t max_delay;
     /// Represents the media time held by the frame processing unit.
-    vlc_tick_t held_media_time;
-    vlc_tick_t input_media_time;
-    vlc_tick_t last_dts_output;
+    heimdall_tick_t held_media_time;
+    heimdall_tick_t input_media_time;
+    heimdall_tick_t last_dts_output;
 
-    struct vlc_list delayed_frames_data;
+    struct heimdall_list delayed_frames_data;
 
-    vlc_pcr_sync_t *sync_ref;
+    heimdall_pcr_sync_t *sync_ref;
     unsigned int pcr_sync_es_id;
 };
 
 typedef struct
 {
-    vlc_tick_t length;
-    vlc_tick_t dts;
-    vlc_tick_t media_time;
-    struct vlc_list node;
+    heimdall_tick_t length;
+    heimdall_tick_t dts;
+    heimdall_tick_t media_time;
+    struct heimdall_list node;
 } delayed_frame_data_t;
 
-transcode_track_pcr_helper_t *transcode_track_pcr_helper_New(vlc_pcr_sync_t *sync_ref,
-                                                             vlc_tick_t max_delay)
+transcode_track_pcr_helper_t *transcode_track_pcr_helper_New(heimdall_pcr_sync_t *sync_ref,
+                                                             heimdall_tick_t max_delay)
 {
     transcode_track_pcr_helper_t *ret = malloc(sizeof(*ret));
     if (unlikely(ret == NULL))
         return NULL;
 
-    if (vlc_pcr_sync_NewESID(sync_ref, &ret->pcr_sync_es_id) != VLC_SUCCESS)
+    if (heimdall_pcr_sync_NewESID(sync_ref, &ret->pcr_sync_es_id) != HEIMDALL_SUCCESS)
     {
         free(ret);
         return NULL;
@@ -68,9 +69,9 @@ transcode_track_pcr_helper_t *transcode_track_pcr_helper_New(vlc_pcr_sync_t *syn
     ret->max_delay = max_delay;
     ret->held_media_time = 0;
     ret->input_media_time = 0;
-    ret->last_dts_output = VLC_TICK_INVALID;
+    ret->last_dts_output = HEIMDALL_TICK_INVALID;
 
-    vlc_list_init(&ret->delayed_frames_data);
+    heimdall_list_init(&ret->delayed_frames_data);
     ret->sync_ref = sync_ref;
 
     return ret;
@@ -79,30 +80,30 @@ transcode_track_pcr_helper_t *transcode_track_pcr_helper_New(vlc_pcr_sync_t *syn
 void transcode_track_pcr_helper_Delete(transcode_track_pcr_helper_t *pcr_helper)
 {
     delayed_frame_data_t *it;
-    vlc_list_foreach(it, &pcr_helper->delayed_frames_data, node)
+    heimdall_list_foreach(it, &pcr_helper->delayed_frames_data, node)
     {
-        vlc_list_remove(&it->node);
+        heimdall_list_remove(&it->node);
         free(it);
     }
 
-    vlc_pcr_sync_DelESID(pcr_helper->sync_ref, pcr_helper->pcr_sync_es_id);
+    heimdall_pcr_sync_DelESID(pcr_helper->sync_ref, pcr_helper->pcr_sync_es_id);
 
     free(pcr_helper);
 }
 
-static inline vlc_tick_t
+static inline heimdall_tick_t
 transcode_track_pcr_helper_GetFramePCR(transcode_track_pcr_helper_t *pcr_helper,
-                                       vlc_tick_t frame_dts)
+                                       heimdall_tick_t frame_dts)
 {
-    vlc_tick_t pcr = VLC_TICK_INVALID;
-    vlc_tick_t it = VLC_TICK_INVALID;
+    heimdall_tick_t pcr = HEIMDALL_TICK_INVALID;
+    heimdall_tick_t it = HEIMDALL_TICK_INVALID;
 
-    // XXX: `vlc_pcr_sync_SignalFrameOutput` only needs DTS for now. Passing a frame by only filling
+    // XXX: `heimdall_pcr_sync_SignalFrameOutput` only needs DTS for now. Passing a frame by only filling
     // the DTS is enough.
-    const vlc_frame_t fake_frame = {.i_dts = frame_dts};
+    const heimdall_frame_t fake_frame = {.i_dts = frame_dts};
 
-    while ((it = vlc_pcr_sync_SignalFrameOutput(pcr_helper->sync_ref, pcr_helper->pcr_sync_es_id,
-                                                &fake_frame)) != VLC_TICK_INVALID)
+    while ((it = heimdall_pcr_sync_SignalFrameOutput(pcr_helper->sync_ref, pcr_helper->pcr_sync_es_id,
+                                                &fake_frame)) != HEIMDALL_TICK_INVALID)
     {
         pcr = it;
     }
@@ -110,12 +111,12 @@ transcode_track_pcr_helper_GetFramePCR(transcode_track_pcr_helper_t *pcr_helper,
 }
 
 int transcode_track_pcr_helper_SignalEnteringFrame(transcode_track_pcr_helper_t *pcr_helper,
-                                                   const vlc_frame_t *frame,
-                                                   vlc_tick_t *dropped_frame_ts)
+                                                   const heimdall_frame_t *frame,
+                                                   heimdall_tick_t *dropped_frame_ts)
 {
     delayed_frame_data_t *bdata = malloc(sizeof(*bdata));
     if (unlikely(bdata == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     pcr_helper->input_media_time += frame->i_length;
     pcr_helper->held_media_time += frame->i_length;
@@ -124,9 +125,9 @@ int transcode_track_pcr_helper_SignalEnteringFrame(transcode_track_pcr_helper_t 
     bdata->dts = frame->i_dts;
     bdata->media_time = pcr_helper->input_media_time;
 
-    vlc_pcr_sync_SignalFrame(pcr_helper->sync_ref, pcr_helper->pcr_sync_es_id, frame);
+    heimdall_pcr_sync_SignalFrame(pcr_helper->sync_ref, pcr_helper->pcr_sync_es_id, frame);
 
-    vlc_list_append(&bdata->node, &pcr_helper->delayed_frames_data);
+    heimdall_list_append(&bdata->node, &pcr_helper->delayed_frames_data);
 
     // Something went wrong in the delaying unit.
     // Exceeding this limit usually means the frame was dropped. So in our case, act like it went
@@ -134,59 +135,59 @@ int transcode_track_pcr_helper_SignalEnteringFrame(transcode_track_pcr_helper_t 
     // TODO needs to be properly unit-tested.
     if (pcr_helper->held_media_time > pcr_helper->max_delay)
     {
-        delayed_frame_data_t *first_bdata = vlc_list_first_entry_or_null(
+        delayed_frame_data_t *first_bdata = heimdall_list_first_entry_or_null(
             &pcr_helper->delayed_frames_data, delayed_frame_data_t, node);
         assert(first_bdata != NULL);
 
-        const vlc_tick_t pcr = transcode_track_pcr_helper_GetFramePCR(pcr_helper, first_bdata->dts);
-        *dropped_frame_ts = pcr_helper->last_dts_output == VLC_TICK_INVALID
+        const heimdall_tick_t pcr = transcode_track_pcr_helper_GetFramePCR(pcr_helper, first_bdata->dts);
+        *dropped_frame_ts = pcr_helper->last_dts_output == HEIMDALL_TICK_INVALID
                                 ? pcr
                                 : __MIN(pcr_helper->last_dts_output, first_bdata->dts);
 
         pcr_helper->held_media_time -= first_bdata->length;
 
-        vlc_list_remove(&first_bdata->node);
+        heimdall_list_remove(&first_bdata->node);
         free(first_bdata);
     }
     else
     {
-        *dropped_frame_ts = VLC_TICK_INVALID;
+        *dropped_frame_ts = HEIMDALL_TICK_INVALID;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 int transcode_track_pcr_helper_SignalLeavingFrame(transcode_track_pcr_helper_t *pcr_helper,
-                                                  const vlc_frame_t *frame,
-                                                  vlc_tick_t *pcr)
+                                                  const heimdall_frame_t *frame,
+                                                  heimdall_tick_t *pcr)
 {
-    *pcr = VLC_TICK_INVALID;
+    *pcr = HEIMDALL_TICK_INVALID;
 
-    if (vlc_list_is_empty(&pcr_helper->delayed_frames_data))
-        return VLC_EGENERIC;
+    if (heimdall_list_is_empty(&pcr_helper->delayed_frames_data))
+        return HEIMDALL_EGENERIC;
 
     pcr_helper->last_dts_output = frame->i_dts;
 
     pcr_helper->held_media_time -= frame->i_length;
-    const vlc_tick_t output_media_time =
+    const heimdall_tick_t output_media_time =
         pcr_helper->input_media_time - pcr_helper->held_media_time;
 
     delayed_frame_data_t *frame_data;
-    vlc_list_foreach(frame_data, &pcr_helper->delayed_frames_data, node)
+    heimdall_list_foreach(frame_data, &pcr_helper->delayed_frames_data, node)
     {
         if (output_media_time < frame_data->media_time)
             break;
 
-        const vlc_tick_t current_pcr =
+        const heimdall_tick_t current_pcr =
             transcode_track_pcr_helper_GetFramePCR(pcr_helper, frame_data->dts);
-        if (current_pcr != VLC_TICK_INVALID)
+        if (current_pcr != HEIMDALL_TICK_INVALID)
             *pcr = current_pcr;
 
-        vlc_list_remove(&frame_data->node);
+        heimdall_list_remove(&frame_data->node);
         free(frame_data);
     }
 
-    if (*pcr != VLC_TICK_INVALID)
+    if (*pcr != HEIMDALL_TICK_INVALID)
         *pcr = __MIN(frame->i_dts, *pcr);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

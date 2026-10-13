@@ -3,6 +3,7 @@
  * mkv.cpp : matroska demuxer
  *****************************************************************************
  * Copyright (C) 2003-2004 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *          Steve Lhomme <steve.lhomme@free.fr>
@@ -28,13 +29,13 @@ namespace mkv {
 
 #ifdef HAVE_ZLIB_H
 int32_t zlib_decompress_extra( demux_t * p_demux, mkv_track_t & tk );
-block_t *block_zlib_decompress( vlc_object_t *p_this, block_t *p_in_block );
+block_t *block_zlib_decompress( heimdall_object_t *p_this, block_t *p_in_block );
 #endif
 bool lzo1x_decompress_extra( demux_t * p_demux, mkv_track_t & tk );
-block_t *block_lzo1x_decompress( vlc_object_t *p_this, block_t *p_in_block );
+block_t *block_lzo1x_decompress( heimdall_object_t *p_this, block_t *p_in_block );
 
 block_t *MemToBlock( uint8_t *p_mem, size_t i_mem, size_t offset);
-void handle_real_audio(demux_t * p_demux, mkv_track_t * p_tk, block_t * p_blk, vlc_tick_t i_pts);
+void handle_real_audio(demux_t * p_demux, mkv_track_t * p_tk, block_t * p_blk, heimdall_tick_t i_pts);
 block_t *WEBVTT_Repack_Sample(block_t *p_block, bool b_webm = false,
                               const uint8_t * = NULL, size_t = 0);
 void send_Block( demux_t * p_demux, mkv_track_t * p_tk, block_t * p_block, unsigned int i_number_frames, uint64_t i_duration );
@@ -121,6 +122,6 @@ block_t * packetize_wavpack( const mkv_track_t &, uint8_t *, size_t);
 
 /* helper functions to print the mkv parse tree */
 void MkvTree_va( demux_t& demuxer, int i_level, const char* fmt, va_list args);
-void MkvTree( demux_t & demuxer, int i_level, const char *psz_format, ... ) VLC_FORMAT( 3, 4 );
+void MkvTree( demux_t & demuxer, int i_level, const char *psz_format, ... ) HEIMDALL_FORMAT( 3, 4 );
 
 } // namespace

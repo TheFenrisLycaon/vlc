@@ -1,7 +1,7 @@
 #
-# VLC revision file generation
+# Heimdall revision file generation
 #
-git_dir = vlc_src_root / '.git'
+git_dir = heimdall_src_root / '.git'
 rev_target = vcs_tag(command: ['git',
     '--git-dir', git_dir,
     'describe', '--tags', '--long',
@@ -15,13 +15,13 @@ rev_target = vcs_tag(command: ['git',
 
 fourcc_gen = executable('fourcc_gen',
     ['misc/fourcc_gen.c'],
-    include_directories: vlc_include_dirs,
+    include_directories: heimdall_include_dirs,
     native: true
 )
 
 fourcc = custom_target('fourcc_tables.h',
                         output:  ['fourcc_tables.h'],
-                        depend_files: ['misc/fourcc_list.h', '../include/vlc_fourcc.h'],
+                        depend_files: ['misc/fourcc_list.h', '../include/heimdall_fourcc.h'],
                         capture: true,
                         command: [fourcc_gen])
 
@@ -35,26 +35,26 @@ meson_build_config = custom_target('build_config.c',
 )
 
 #
-# libvlccore dependencies
+# libheimdallcore dependencies
 #
 anl_lib = cc.find_library('anl', required: false)
 
-libvlccore_deps = [
+libheimdallcore_deps = [
     m_lib, dl_lib, threads_dep, intl_dep, socket_libs, iconv_dep, anl_lib, idn_dep
 ]
 
-vlccore_cargs = [ '-DMODULE_STRING="core"', '-DHAVE_DYNAMIC_PLUGINS' ]
-libvlccore_link_args = []
+heimdallcore_cargs = [ '-DMODULE_STRING="core"', '-DHAVE_DYNAMIC_PLUGINS' ]
+libheimdallcore_link_args = []
 
 if host_system == 'darwin'
-    libvlccore_deps += foundation_dep
-    libvlccore_deps += corefoundation_dep
-    libvlccore_deps += declare_dependency(link_args: ['-framework', 'CFNetwork'])
-    libvlccore_link_args += [
-        '-Wl,-U,_vlc_static_modules',
+    libheimdallcore_deps += foundation_dep
+    libheimdallcore_deps += corefoundation_dep
+    libheimdallcore_deps += declare_dependency(link_args: ['-framework', 'CFNetwork'])
+    libheimdallcore_link_args += [
+        '-Wl,-U,_heimdall_static_modules',
         '-Wl,-undefined,dynamic_lookup',
     ]
-    vlccore_cargs += [
+    heimdallcore_cargs += [
         '-DHAVE_DYLIB_DYNAMIC_LOOKUP=1',
     ]
 elif host_system == 'windows'
@@ -67,29 +67,29 @@ min_windows_version_test = '''
 #endif
 '''
 
-    libvlccore_deps += cc.find_library('bcrypt')
-    libvlccore_deps += cc.find_library('normaliz')
+    libheimdallcore_deps += cc.find_library('bcrypt')
+    libheimdallcore_deps += cc.find_library('normaliz')
     if not have_win_store
-        libvlccore_deps += cc.find_library('winmm')
+        libheimdallcore_deps += cc.find_library('winmm')
     else
-        libvlccore_deps += cc.find_library('runtimeobject')
+        libheimdallcore_deps += cc.find_library('runtimeobject')
     endif
     if cc.compiles(min_windows_version_test.format('_WIN32_WINNT_WIN8'), name: 'Compiling for Win8+')
-        libvlccore_deps += cc.find_library('synchronization')
+        libheimdallcore_deps += cc.find_library('synchronization')
     endif
-    vlccore_cargs += ['-DVLC_DLL_EXPORT']
+    heimdallcore_cargs += ['-DHEIMDALL_DLL_EXPORT']
 elif host_system == 'os/2'
-    vlccore_cargs += ['-DVLC_DLL_EXPORT']
+    heimdallcore_cargs += ['-DHEIMDALL_DLL_EXPORT']
 endif
 
 #
-# libvlccore library
+# libheimdallcore library
 #
 
-libvlccore_sources_base = files(
-    'libvlc.c',
-    'libvlc.h',
-    'libvlc-module.c',
+libheimdallcore_sources_base = files(
+    'libheimdall.c',
+    'libheimdall.h',
+    'libheimdall-module.c',
     'missing.c',
     'version.c',
     'config/cat.c',
@@ -102,7 +102,7 @@ libvlccore_sources_base = files(
     'config/intf.c',
     'config/cmdline.c',
     'config/getopt.c',
-    'config/vlc_getopt.h',
+    'config/heimdall_getopt.h',
     'config/jaro_winkler.c',
     'extras/libc.c',
     'media_source/media_source.c',
@@ -305,31 +305,31 @@ libvlccore_sources_base = files(
     'misc/tracer.c',
 )
 
-libvlccore_sources_base += meson_build_config
+libheimdallcore_sources_base += meson_build_config
 
-libvlccore_sout_sources = [
+libheimdallcore_sout_sources = [
     'stream_output/sap.c',
     'stream_output/stream_output.c',
     'stream_output/stream_output.h'
 ]
 
-libvlccore_vlm_sources = [
+libheimdallcore_vlm_sources = [
     'input/vlm.c',
     'input/vlm_event.c',
     'input/vlmshell.c'
 ]
 
-libvlccore_sources = [
-    libvlccore_sources_base,
-    libvlccore_sout_sources,
+libheimdallcore_sources = [
+    libheimdallcore_sources_base,
+    libheimdallcore_sout_sources,
 ]
 
-if get_option('videolan_manager')
-    libvlccore_sources += libvlccore_vlm_sources
+if get_option('lycaria_manager')
+    libheimdallcore_sources += libheimdallcore_vlm_sources
 endif
 
 if host_system == 'darwin'
-    libvlccore_sources += [
+    libheimdallcore_sources += [
         'darwin/dirs.m',
         'darwin/error.c',
         'darwin/netconf.m',
@@ -344,17 +344,17 @@ if host_system == 'darwin'
         'posix/wait.c',
     ]
     if have_osx
-        cdata.set('HAVE_VLC_PROCESS_SPAWN', 1)
-        cdata.set('HAVE_VLC_EXTERNAL_PREPARSER', 1)
-        libvlccore_sources += [
+        cdata.set('HAVE_HEIMDALL_PROCESS_SPAWN', 1)
+        cdata.set('HAVE_HEIMDALL_EXTERNAL_PREPARSER', 1)
+        libheimdallcore_sources += [
             'posix/spawn.c',
             'posix/process.c',
         ]
     endif
 elif host_system == 'windows'
-    cdata.set('HAVE_VLC_PROCESS_SPAWN', 1)
-    cdata.set('HAVE_VLC_EXTERNAL_PREPARSER', 1)
-    libvlccore_sources += [
+    cdata.set('HAVE_HEIMDALL_PROCESS_SPAWN', 1)
+    cdata.set('HAVE_HEIMDALL_EXTERNAL_PREPARSER', 1)
+    libheimdallcore_sources += [
         'win32/dirs-common.c',
         'win32/error.c',
         'win32/filesystem.c',
@@ -367,19 +367,19 @@ elif host_system == 'windows'
     ]
 
     if have_win_store
-        libvlccore_sources += [
+        libheimdallcore_sources += [
             'posix/timer.c',
             'win32/dirs-uap.c',
         ]
     else
-        libvlccore_sources += [
+        libheimdallcore_sources += [
             'win32/timer.c',
             'win32/dirs.c',
             'win32/spawn.c',
         ]
     endif
 elif host_system == 'os/2'
-    libvlccore_sources += [
+    libheimdallcore_sources += [
         'os2/dirs.c',
         'darwin/error.c',
         'os2/filesystem.c',
@@ -391,7 +391,7 @@ elif host_system == 'os/2'
         'os2/thread.c',
     ]
 else
-    libvlccore_sources += [
+    libheimdallcore_sources += [
         'posix/filesystem.c',
         'posix/plugin.c',
         'posix/rand.c',
@@ -399,9 +399,9 @@ else
     ]
 
     if host_system != 'android'
-        cdata.set('HAVE_VLC_PROCESS_SPAWN', 1)
-        cdata.set('HAVE_VLC_EXTERNAL_PREPARSER', 1)
-        libvlccore_sources += [
+        cdata.set('HAVE_HEIMDALL_PROCESS_SPAWN', 1)
+        cdata.set('HAVE_HEIMDALL_EXTERNAL_PREPARSER', 1)
+        libheimdallcore_sources += [
             'posix/dirs.c',
             'posix/error.c',
             'posix/netconf.c',
@@ -414,15 +414,15 @@ else
     endif
 
     if cdata.get('HAVE_QSORT_R', 0) == 1
-        libvlccore_sources += 'posix/sort.c'
+        libheimdallcore_sources += 'posix/sort.c'
     endif
 
     if host_system not in ['android', 'linux', 'freebsd']
-        libvlccore_sources += 'posix/wait.c'
+        libheimdallcore_sources += 'posix/wait.c'
     endif
 
     if host_system == 'android'
-        libvlccore_sources += [
+        libheimdallcore_sources += [
             'android/error.c',
             'android/specific.c',
             'android/thread.c',
@@ -434,7 +434,7 @@ else
     endif
 
     if host_system == 'linux'
-        libvlccore_sources += [
+        libheimdallcore_sources += [
             'linux/cpu.c',
             'linux/dirs.c',
             'linux/filesystem.c',
@@ -443,20 +443,20 @@ else
     endif
 
     if host_system == 'freebsd'
-        libvlccore_sources += [
+        libheimdallcore_sources += [
             'freebsd/cpu.c',
             'freebsd/thread.c',
         ]
     endif
 
     if host_system == 'netbsd'
-        libvlccore_sources += [
+        libheimdallcore_sources += [
             'netbsd/thread.c',
         ]
     endif
 
     if host_system == 'openbsd'
-        libvlccore_sources += [
+        libheimdallcore_sources += [
             'openbsd/cpu.c',
             'openbsd/thread.c',
         ]
@@ -464,9 +464,9 @@ else
 
     if host_system != 'android'
         if anl_lib.found()
-            libvlccore_sources += 'linux/getaddrinfo.c'
+            libheimdallcore_sources += 'linux/getaddrinfo.c'
         else
-            libvlccore_sources += 'posix/getaddrinfo.c'
+            libheimdallcore_sources += 'posix/getaddrinfo.c'
         endif
     endif
 endif
@@ -475,50 +475,50 @@ if get_option('update-check').allowed()
     if not gcrypt_dep.found()
         error('libgcrypt is required for update checking system')
     endif
-    libvlccore_sources += [ 'misc/update.c', 'misc/update_crypto.c' ]
-    vlccore_cargs += '-DUPDATE_CHECK'
-    libvlccore_deps += gcrypt_dep
+    libheimdallcore_sources += [ 'misc/update.c', 'misc/update_crypto.c' ]
+    heimdallcore_cargs += '-DUPDATE_CHECK'
+    libheimdallcore_deps += gcrypt_dep
 endif
 
 if host_system == 'windows'
-    libvlccore_rc = configure_file(
-        input: 'libvlccore_win32_rc.rc.in',
-        output: 'libvlccore_win32_rc.rc',
+    libheimdallcore_rc = configure_file(
+        input: 'libheimdallcore_win32_rc.rc.in',
+        output: 'libheimdallcore_win32_rc.rc',
         configuration: rc_conf,
         install: false,
     )
-    libvlccore_sources += windows_rc.compile_resources(
-        libvlccore_rc,
+    libheimdallcore_sources += windows_rc.compile_resources(
+        libheimdallcore_rc,
         include_directories: [
-            vlc_src_root / 'share',
-            vlc_src_root / 'extras/package/win32',
+            heimdall_src_root / 'share',
+            heimdall_src_root / 'extras/package/win32',
         ],
-        depend_files: files('../extras/package/win32/libvlccore.dll.manifest'),
+        depend_files: files('../extras/package/win32/libheimdallcore.dll.manifest'),
     )
 endif
 
-libvlccore_kwargs = {}
-if vlc_lib_versioning
-    libvlccore_kwargs += {'version': '9.0.0'}
+libheimdallcore_kwargs = {}
+if heimdall_lib_versioning
+    libheimdallcore_kwargs += {'version': '9.0.0'}
 endif
 
-libvlccore = library(
-    'vlccore',
-    libvlccore_sources, vlc_about, fourcc, rev_target,
-    include_directories: vlc_include_dirs,
-    c_args: vlccore_cargs,
-    link_args: libvlccore_link_args,
-    link_with: [vlc_libcompat],
+libheimdallcore = library(
+    'heimdallcore',
+    libheimdallcore_sources, heimdall_about, fourcc, rev_target,
+    include_directories: heimdall_include_dirs,
+    c_args: heimdallcore_cargs,
+    link_args: libheimdallcore_link_args,
+    link_with: [heimdall_libcompat],
     link_args: gc_sections_linkargs,
-    dependencies: libvlccore_deps,
+    dependencies: libheimdallcore_deps,
     install: true,
     install_dir: libdir_path,
-    kwargs: libvlccore_kwargs,
+    kwargs: libheimdallcore_kwargs,
 )
 
-libvlccore_dep = declare_dependency(link_with: libvlccore, sources: vlc_about)
+libheimdallcore_dep = declare_dependency(link_with: libheimdallcore, sources: heimdall_about)
 
-vlc_tests += {
+heimdall_tests += {
     'name' : 'input_es_out',
     'sources' : files(
         'input/test/es_out.c',
@@ -537,11 +537,11 @@ vlc_tests += {
         'clock/input_clock.h',
   ),
   'suite' : ['src'],
-  'link_with' : [libvlccore],
+  'link_with' : [libheimdallcore],
   'include_directories' : [include_directories('.')],
 }
 
-vlc_tests += {
+heimdall_tests += {
     'name' : 'input_clock',
     'sources' : files('clock/test/input_clock.c',
         'clock/input_clock.c',
@@ -552,7 +552,7 @@ vlc_tests += {
         'clock/clock.h',
     ),
     'suite' : ['src'],
-    'link_with' : [libvlccore],
+    'link_with' : [libheimdallcore],
 }
 
 subdir('rust')

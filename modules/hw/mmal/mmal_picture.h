@@ -2,6 +2,7 @@
  * mmal_picture.h: Shared header for MMAL pictures
  *****************************************************************************
  * Copyright © 2014 jusst technologies GmbH
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Julian Scheel <julian@jusst.de>
  *          John Cox <jc@kynesim.co.uk>
@@ -21,11 +22,11 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_MMAL_MMAL_PICTURE_H_
-#define VLC_MMAL_MMAL_PICTURE_H_
+#ifndef HEIMDALL_MMAL_MMAL_PICTURE_H_
+#define HEIMDALL_MMAL_MMAL_PICTURE_H_
 
-#include <vlc_common.h>
-#include <vlc_codec.h>
+#include <heimdall_common.h>
+#include <heimdall_codec.h>
 #include <interface/mmal/mmal.h>
 
 #include "mmal_cma.h"
@@ -34,12 +35,12 @@
 #define NUM_ACTUAL_OPAQUE_BUFFERS 30
 
 
-MMAL_FOURCC_T vlc_to_mmal_video_fourcc(const video_frame_format_t * const vf_vlc);
-MMAL_FOURCC_T vlc_to_mmal_color_space(const video_color_space_t vlc_cs);
-void hw_mmal_vlc_fmt_to_mmal_fmt(MMAL_ES_FORMAT_T *const es_fmt, const video_frame_format_t * const vf_vlc);
+MMAL_FOURCC_T heimdall_to_mmal_video_fourcc(const video_frame_format_t * const vf_heimdall);
+MMAL_FOURCC_T heimdall_to_mmal_color_space(const video_color_space_t heimdall_cs);
+void hw_mmal_heimdall_fmt_to_mmal_fmt(MMAL_ES_FORMAT_T *const es_fmt, const video_frame_format_t * const vf_heimdall);
 // Returns true if fmt_changed
 // frame_rate ignored for compare, but is set if something else is updated
-bool hw_mmal_vlc_pic_to_mmal_fmt_update(MMAL_ES_FORMAT_T *const es_fmt, const picture_t * const pic);
+bool hw_mmal_heimdall_pic_to_mmal_fmt_update(MMAL_ES_FORMAT_T *const es_fmt, const picture_t * const pic);
 
 // Copy pic contents into an existing buffer
 int hw_mmal_copy_pic_to_buf(void * const buf_data, uint32_t * const pLength,
@@ -54,17 +55,17 @@ typedef struct mmal_port_pool_ref_s hw_mmal_port_pool_ref_t;
 void hw_mmal_port_pool_ref_release(hw_mmal_port_pool_ref_t * const ppr, const bool in_cb);
 bool hw_mmal_port_pool_ref_recycle(hw_mmal_port_pool_ref_t * const ppr, MMAL_BUFFER_HEADER_T * const buf);
 MMAL_STATUS_T hw_mmal_port_pool_ref_fill(hw_mmal_port_pool_ref_t * const ppr);
-MMAL_STATUS_T hw_mmal_opaque_output(vlc_object_t * const obj,
+MMAL_STATUS_T hw_mmal_opaque_output(heimdall_object_t * const obj,
                                     hw_mmal_port_pool_ref_t ** pppr,
                                     MMAL_PORT_T * const port,
                                     const unsigned int extra_buffers, MMAL_PORT_BH_CB_T callback);
 
 MMAL_BUFFER_HEADER_T * hw_mmal_pic_sub_buf_get(picture_t * const pic, const unsigned int n);
 
-static inline bool hw_mmal_chroma_is_mmal(const vlc_fourcc_t chroma)
+static inline bool hw_mmal_chroma_is_mmal(const heimdall_fourcc_t chroma)
 {
     return
-        chroma == VLC_CODEC_MMAL_OPAQUE;
+        chroma == HEIMDALL_CODEC_MMAL_OPAQUE;
 }
 
 picture_context_t * hw_mmal_gen_context(
@@ -100,7 +101,7 @@ static inline void buf_to_pic_copy_props(picture_t * const pic, const MMAL_BUFFE
 
     pic->date = buf->pts != MMAL_TIME_UNKNOWN ? buf->pts :
         buf->dts != MMAL_TIME_UNKNOWN ? buf->dts :
-            VLC_TICK_INVALID;
+            HEIMDALL_TICK_INVALID;
 }
 
 MMAL_BUFFER_HEADER_T * hw_mmal_pic_buf_copied(const picture_t *const pic,
@@ -153,9 +154,9 @@ typedef struct
     bool is_cma; // legacy MMAL mode otherwise
 } mmal_decoder_device_t;
 
-static inline mmal_decoder_device_t *GetMMALDeviceOpaque(vlc_decoder_device *dec_dev)
+static inline mmal_decoder_device_t *GetMMALDeviceOpaque(heimdall_decoder_device *dec_dev)
 {
-    if (!dec_dev || dec_dev->type != VLC_DECODER_DEVICE_MMAL)
+    if (!dec_dev || dec_dev->type != HEIMDALL_DECODER_DEVICE_MMAL)
         return NULL;
     return dec_dev->opaque;
 }

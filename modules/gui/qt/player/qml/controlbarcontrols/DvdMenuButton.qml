@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Benjamin Arnaud <bunjee@omega.gg>
  *
@@ -20,17 +21,17 @@
 
 import QtQuick
 
-import VLC.Widgets as Widgets
-import VLC.Style
-import VLC.Player
-import VLC.Util
+import Heimdall.Widgets as Widgets
+import Heimdall.Style
+import Heimdall.Player
+import Heimdall.Util
 
 
 Widgets.IconToolButton {
 
     enabled: Player.hasMenu
 
-    text: VLCIcons.dvd_menu
+    text: HeimdallIcons.dvd_menu
     description: qsTr("Menu")
 
     AccessibleCompat.id: "dvdMenuButton"

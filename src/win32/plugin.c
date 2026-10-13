@@ -2,6 +2,7 @@
  * plugin.c : Low-level dynamic library handling
  *****************************************************************************
  * Copyright (C) 2001-2011 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Sam Hocevar <sam@zoy.org>
  *          Ethan C. Baldridge <BaldridgeE@cadmus.com>
@@ -27,13 +28,13 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_charset.h>
+#include <heimdall_common.h>
+#include <heimdall_charset.h>
 #include "modules/modules.h"
 #include <windows.h>
 #include <wchar.h>
 
-char *vlc_dlerror(void)
+char *heimdall_dlerror(void)
 {
     wchar_t wmsg[256];
     int i = 0, i_error = GetLastError();
@@ -50,7 +51,7 @@ char *vlc_dlerror(void)
     return FromWide( wmsg );
 }
 
-void *vlc_dlopen(const char *psz_file, bool lazy)
+void *heimdall_dlopen(const char *psz_file, bool lazy)
 {
     wchar_t *wfile = ToWide (psz_file);
     if (wfile == NULL)
@@ -80,13 +81,13 @@ void *vlc_dlopen(const char *psz_file, bool lazy)
     return handle;
 }
 
-int vlc_dlclose(void *handle)
+int heimdall_dlclose(void *handle)
 {
     FreeLibrary( handle );
     return 0;
 }
 
-void *vlc_dlsym(void *handle, const char *psz_function)
+void *heimdall_dlsym(void *handle, const char *psz_function)
 {
     return GetProcAddress(handle, psz_function);
 }

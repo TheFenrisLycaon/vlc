@@ -2,6 +2,7 @@
  * netsync.c: synchronization between several network clients.
  *****************************************************************************
  * Copyright (C) 2004-2009 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gildas Bazin <gbazin@videolan.org>
  *          Jean-Paul Saman <jpsaman@videolan.org>
@@ -29,13 +30,13 @@
 #endif
 #include <assert.h>
 
-#define VLC_MODULE_LICENSE VLC_LICENSE_GPL_2_PLUS
-#include <vlc_common.h>
-#include <vlc_threads.h>
-#include <vlc_plugin.h>
-#include <vlc_interface.h>
-#include <vlc_playlist_legacy.h>
-#include <vlc_poll.h>
+#define HEIMDALL_MODULE_LICENSE HEIMDALL_LICENSE_GPL_2_PLUS
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
+#include <heimdall_plugin.h>
+#include <heimdall_interface.h>
+#include <heimdall_playlist_legacy.h>
+#include <heimdall_poll.h>
 
 #include <sys/types.h>
 #include <unistd.h>
@@ -43,15 +44,15 @@
 #   include <poll.h>
 #endif
 
-#include <vlc_network.h>
+#include <heimdall_network.h>
 
 #define NETSYNC_PORT 9875
 
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  Open (vlc_object_t *);
-static void Close(vlc_object_t *);
+static int  Open (heimdall_object_t *);
+static void Close(heimdall_object_t *);
 
 #define NETSYNC_TEXT N_("Network synchronisation" )
 #define NETSYNC_LONGTEXT N_( "This allows you to remotely " \
@@ -60,7 +61,7 @@ static void Close(vlc_object_t *);
 
 #define NETSYNC_TEXT N_("Network master clock")
 #define NETSYNC_LONGTEXT N_("When set, " \
-  "this VLC instance will act as the master clock for synchronization " \
+  "this Heimdall instance will act as the master clock for synchronization " \
   "for clients listening")
 
 #define MIP_TEXT N_("Master server IP address")
@@ -71,13 +72,13 @@ static void Close(vlc_object_t *);
 #define NETSYNC_TIMEOUT_LONGTEXT N_("Length of time (in ms) " \
   "until aborting data reception.")
 
-static void AutoRun(libvlc_int_t *libvlc)
+static void AutoRun(libheimdall_int_t *libheimdall)
 {
-    if (var_InheritBool(libvlc, "network-synchronisation"))
-        intf_Create(libvlc, MODULE_STRING);
+    if (var_InheritBool(libheimdall, "network-synchronisation"))
+        intf_Create(libheimdall, MODULE_STRING);
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname(N_("Network Sync"))
     set_description(N_("Network synchronization"))
     set_subcategory(SUBCAT_ADVANCED_MISC)
@@ -95,7 +96,7 @@ vlc_module_begin()
     add_submodule()
     set_capability("autorun", 40)
     set_callback(AutoRun)
-vlc_module_end()
+heimdall_module_end()
 
 /*****************************************************************************
  * Local prototypes
@@ -108,16 +109,16 @@ struct intf_sys_t {
 
     /* */
     input_thread_t *input;
-    vlc_thread_t   thread;
+    heimdall_thread_t   thread;
 };
 
-static int PlaylistEvent(vlc_object_t *, char const *cmd,
-                         vlc_value_t oldval, vlc_value_t newval, void *data);
+static int PlaylistEvent(heimdall_object_t *, char const *cmd,
+                         heimdall_value_t oldval, heimdall_value_t newval, void *data);
 
 /*****************************************************************************
  * Activate: initialize and create stuff
  *****************************************************************************/
-static int Open(vlc_object_t *object)
+static int Open(heimdall_object_t *object)
 {
     intf_thread_t *intf = (intf_thread_t*)object;
     intf_sys_t    *sys;
@@ -127,23 +128,23 @@ static int Open(vlc_object_t *object)
         char *psz_master = var_InheritString(intf, "netsync-master-ip");
         if (psz_master == NULL) {
             msg_Err(intf, "master address not specified");
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
-        fd = net_ConnectUDP(VLC_OBJECT(intf), psz_master, NETSYNC_PORT, -1);
+        fd = net_ConnectUDP(HEIMDALL_OBJECT(intf), psz_master, NETSYNC_PORT, -1);
         free(psz_master);
     } else {
-        fd = net_ListenUDP1(VLC_OBJECT(intf), NULL, NETSYNC_PORT);
+        fd = net_ListenUDP1(HEIMDALL_OBJECT(intf), NULL, NETSYNC_PORT);
     }
 
     if (fd == -1) {
         msg_Err(intf, "Netsync socket failure");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     intf->p_sys = sys = malloc(sizeof(*sys));
     if (!sys) {
         net_Close(fd);
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     sys->fd = fd;
@@ -155,13 +156,13 @@ static int Open(vlc_object_t *object)
     sys->input = NULL;
 
     var_AddCallback(sys->playlist, "input-current", PlaylistEvent, intf);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * Close: destroy interface
  *****************************************************************************/
-void Close(vlc_object_t *object)
+void Close(heimdall_object_t *object)
 {
     intf_thread_t *intf = (intf_thread_t*)object;
     intf_sys_t *sys = intf->p_sys;
@@ -169,22 +170,22 @@ void Close(vlc_object_t *object)
     var_DelCallback(sys->playlist, "input-current", PlaylistEvent, intf);
 
     if (sys->input != NULL) {
-        vlc_cancel(sys->thread);
-        vlc_join(sys->thread, NULL);
+        heimdall_cancel(sys->thread);
+        heimdall_join(sys->thread, NULL);
     }
 
     net_Close(sys->fd);
     free(sys);
 }
 
-static vlc_tick_t GetPcrSystem(input_thread_t *input)
+static heimdall_tick_t GetPcrSystem(input_thread_t *input)
 {
-    int canc = vlc_savecancel();
+    int canc = heimdall_savecancel();
     /* TODO use the delay */
-    vlc_tick_t system;
+    heimdall_tick_t system;
     if (input_GetPcrSystem(input, &system, NULL))
         system = -1;
-    vlc_restorecancel(canc);
+    heimdall_restorecancel(canc);
 
     return system;
 }
@@ -193,7 +194,7 @@ static void *Master(void *handle)
 {
     intf_thread_t *intf = handle;
     intf_sys_t *sys = intf->p_sys;
-    vlc_thread_set_name("vlc-netsyncboss");
+    heimdall_thread_set_name("heimdall-netsyncboss");
     for (;;) {
         struct pollfd ufd = { .fd = sys->fd, .events = POLLIN, };
         uint64_t data[2];
@@ -202,17 +203,17 @@ static void *Master(void *handle)
             continue;
 
         /* We received something */
-        vlc_sockaddr from;
+        heimdall_sockaddr from;
         socklen_t fromlen = sizeof (from.ss);
 
         if (recvfrom(sys->fd, data, 8, 0, &from.sa, &fromlen) < 8)
             continue;
 
-        vlc_tick_t master_system = GetPcrSystem(sys->input);
+        heimdall_tick_t master_system = GetPcrSystem(sys->input);
         if (master_system < 0)
             continue;
 
-        data[0] = hton64(vlc_tick_now());
+        data[0] = hton64(heimdall_tick_now());
         data[1] = hton64(master_system);
 
         /* Reply to the sender */
@@ -220,7 +221,7 @@ static void *Master(void *handle)
 #if 0
         /* not sure we need the client information to sync,
            since we are the master anyway */
-        vlc_tick_t client_system = ntoh64(data[0]);
+        heimdall_tick_t client_system = ntoh64(data[0]);
         msg_Dbg(intf, "Master clockref: %"PRId64" -> %"PRId64", from %s "
                  "(date: %"PRId64")", client_system, master_system,
                  (from.ss_family == AF_INET) ? inet_ntoa(((struct sockaddr_in *)&from)->sin_addr)
@@ -235,18 +236,18 @@ static void *Slave(void *handle)
     intf_thread_t *intf = handle;
     intf_sys_t *sys = intf->p_sys;
 
-    vlc_thread_set_name("vlc-netsyncrecv");
+    heimdall_thread_set_name("heimdall-netsyncrecv");
 
     for (;;) {
         struct pollfd ufd = { .fd = sys->fd, .events = POLLIN, };
         uint64_t data[2];
 
-        vlc_tick_t system = GetPcrSystem(sys->input);
+        heimdall_tick_t system = GetPcrSystem(sys->input);
         if (system < 0)
             goto wait;
 
         /* Send clock request to the master */
-        const vlc_tick_t send_date = vlc_tick_now();
+        const heimdall_tick_t send_date = heimdall_tick_now();
 
         data[0] = hton64(system);
         send(sys->fd, data, 8, 0);
@@ -255,21 +256,21 @@ static void *Slave(void *handle)
         if (poll(&ufd, 1, sys->timeout) <= 0)
             continue;
 
-        const vlc_tick_t receive_date = vlc_tick_now();
+        const heimdall_tick_t receive_date = heimdall_tick_now();
         if (recv(sys->fd, data, 16, 0) < 16)
             goto wait;
 
-        const vlc_tick_t master_date   = ntoh64(data[0]);
-        const vlc_tick_t master_system = ntoh64(data[1]);
-        const vlc_tick_t diff_date = receive_date -
+        const heimdall_tick_t master_date   = ntoh64(data[0]);
+        const heimdall_tick_t master_system = ntoh64(data[1]);
+        const heimdall_tick_t diff_date = receive_date -
                                   ((receive_date - send_date) / 2 + master_date);
 
         if (master_system > 0) {
-            int canc = vlc_savecancel();
+            int canc = heimdall_savecancel();
 
-            vlc_tick_t client_system;
+            heimdall_tick_t client_system;
             if (!input_GetPcrSystem(sys->input, &client_system, NULL)) {
-                const vlc_tick_t diff_system = client_system - master_system - diff_date;
+                const heimdall_tick_t diff_system = client_system - master_system - diff_date;
                 if (diff_system != 0) {
                     input_ModifyPcrSystem(sys->input, true, master_system - diff_date);
 #if 0
@@ -280,18 +281,18 @@ static void *Slave(void *handle)
 #endif
                 }
             }
-            vlc_restorecancel(canc);
+            heimdall_restorecancel(canc);
         }
     wait:
-        vlc_tick_sleep(INTF_IDLE_SLEEP);
+        heimdall_tick_sleep(INTF_IDLE_SLEEP);
     }
     return NULL;
 }
 
-static int PlaylistEvent(vlc_object_t *object, char const *cmd,
-                         vlc_value_t oldval, vlc_value_t newval, void *data)
+static int PlaylistEvent(heimdall_object_t *object, char const *cmd,
+                         heimdall_value_t oldval, heimdall_value_t newval, void *data)
 {
-    VLC_UNUSED(cmd); VLC_UNUSED(object);
+    HEIMDALL_UNUSED(cmd); HEIMDALL_UNUSED(object);
     intf_thread_t  *intf = data;
     intf_sys_t     *sys = intf->p_sys;
     input_thread_t *input = newval.p_address;
@@ -300,16 +301,16 @@ static int PlaylistEvent(vlc_object_t *object, char const *cmd,
         msg_Err(intf, "InputEvent DEAD");
         assert(oldval.p_address == sys->input);
 
-        vlc_cancel(sys->thread);
-        vlc_join(sys->thread, NULL);
+        heimdall_cancel(sys->thread);
+        heimdall_join(sys->thread, NULL);
     }
 
     sys->input = input;
 
     if (input != NULL) {
-        if (vlc_clone(&sys->thread, sys->is_master ? Master : Slave, intf))
+        if (heimdall_clone(&sys->thread, sys->is_master ? Master : Slave, intf))
             sys->input = NULL;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 

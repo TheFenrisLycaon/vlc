@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,7 +30,7 @@
 class QObject;
 class QWidget;
 
-namespace vlc {
+namespace heimdall {
 
 class CompositorX11RenderWindow;
 class CompositorX11UISurface;
@@ -46,7 +47,7 @@ public:
     void destroyMainInterface() override;
     void unloadGUI() override;
 
-    bool setupVoutWindow(vlc_window_t *p_wnd, VoutDestroyCb destroyCb)  override;
+    bool setupVoutWindow(heimdall_window_t *p_wnd, VoutDestroyCb destroyCb)  override;
 
     inline Type type() const override { return X11Compositor; }
 
@@ -60,7 +61,7 @@ protected:
     void commitSurface() override;
 
 private:
-    int windowEnable(const vlc_window_cfg_t *)  override;
+    int windowEnable(const heimdall_window_cfg_t *)  override;
     void windowDisable() override;
 
 private slots:

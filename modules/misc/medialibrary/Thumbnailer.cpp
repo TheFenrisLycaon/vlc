@@ -1,7 +1,8 @@
 /*****************************************************************************
- * Thumbnailer.cpp: medialibrary thumbnailer implementation using libvlccore
+ * Thumbnailer.cpp: medialibrary thumbnailer implementation using libheimdallcore
  *****************************************************************************
  * Copyright © 2018 VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -24,23 +25,23 @@
 
 #include "medialibrary.h"
 
-#include <vlc_fs.h>
-#include <vlc_block.h>
-#include <vlc_url.h>
-#include <vlc_cxx_helpers.hpp>
-#include <vlc_preparser.h>
+#include <heimdall_fs.h>
+#include <heimdall_block.h>
+#include <heimdall_url.h>
+#include <heimdall_cxx_helpers.hpp>
+#include <heimdall_preparser.h>
 
 #include <climits>
 #include <stdexcept>
 
-Thumbnailer::Thumbnailer( vlc_medialibrary_module_t* ml )
+Thumbnailer::Thumbnailer( heimdall_medialibrary_module_t* ml )
     : m_currentContext(nullptr)
-    , m_thumbnailer(VLC_OBJECT(ml), {
-        .types = VLC_PREPARSER_TYPE_THUMBNAIL_TO_FILES,
+    , m_thumbnailer(HEIMDALL_OBJECT(ml), {
+        .types = HEIMDALL_PREPARSER_TYPE_THUMBNAIL_TO_FILES,
         .max_parser_threads = 0,
         .max_thumbnailer_threads = 1,
-        .timeout = VLC_TICK_FROM_SEC( 3 ),
-#if !defined(HAVE_VLC_EXTERNAL_PREPARSER)
+        .timeout = HEIMDALL_TICK_FROM_SEC( 3 ),
+#if !defined(HAVE_HEIMDALL_EXTERNAL_PREPARSER)
         .external_process = false,
 #else
         .external_process = true,
@@ -49,13 +50,13 @@ Thumbnailer::Thumbnailer( vlc_medialibrary_module_t* ml )
 {
 }
 
-void Thumbnailer::onThumbnailToFilesComplete(vlc_preparser_req *req, int ,
+void Thumbnailer::onThumbnailToFilesComplete(heimdall_preparser_req *req, int ,
                                              const bool *result_array,
                                              size_t result_count, void *data)
 {
     ThumbnailerCtx* ctx = static_cast<ThumbnailerCtx*>( data );
 
-    vlc::threads::mutex_locker lock( ctx->thumbnailer->m_mutex );
+    heimdall::threads::mutex_locker lock( ctx->thumbnailer->m_mutex );
     ctx->done = true;
     if (result_count != 1) {
         ctx->error = true;
@@ -64,7 +65,7 @@ void Thumbnailer::onThumbnailToFilesComplete(vlc_preparser_req *req, int ,
     }
     ctx->thumbnailer->m_currentContext = nullptr;
     ctx->thumbnailer->m_cond.broadcast();
-    vlc_preparser_req_Release( req );
+    heimdall_preparser_req_Release( req );
 }
 
 bool Thumbnailer::generate( const medialibrary::IMedia&, const std::string& mrl,
@@ -78,7 +79,7 @@ bool Thumbnailer::generate( const medialibrary::IMedia&, const std::string& mrl,
 
     ThumbnailerCtx ctx{};
 
-    auto item = vlc::wrap_cptr( input_item_New( mrl.c_str(), nullptr ),
+    auto item = heimdall::wrap_cptr( input_item_New( mrl.c_str(), nullptr ),
                                 &input_item_Release );
     if ( unlikely( item == nullptr ) )
         return false;
@@ -87,19 +88,19 @@ bool Thumbnailer::generate( const medialibrary::IMedia&, const std::string& mrl,
     ctx.thumbnailer = this;
     ctx.error = true;
     {
-        vlc::threads::mutex_locker lock( m_mutex );
+        heimdall::threads::mutex_locker lock( m_mutex );
         m_currentContext = &ctx;
-        struct vlc_thumbnailer_arg thumb_arg = {
+        struct heimdall_thumbnailer_arg thumb_arg = {
             .seek = {
-                .type = vlc_thumbnailer_arg::seek::VLC_THUMBNAILER_SEEK_POS,
+                .type = heimdall_thumbnailer_arg::seek::HEIMDALL_THUMBNAILER_SEEK_POS,
                 .pos = position,
-                .speed = vlc_thumbnailer_arg::seek::VLC_THUMBNAILER_SEEK_FAST,
+                .speed = heimdall_thumbnailer_arg::seek::HEIMDALL_THUMBNAILER_SEEK_FAST,
             },
             .hw_dec = false,
         };
 
-        struct vlc_thumbnailer_output thumb_out = {
-            .format = VLC_THUMBNAILER_FORMAT_JPEG,
+        struct heimdall_thumbnailer_output thumb_out = {
+            .format = HEIMDALL_THUMBNAILER_FORMAT_JPEG,
             .width = (int)desiredWidth,
             .height = (int)desiredHeight,
             .crop = true,
@@ -107,17 +108,17 @@ bool Thumbnailer::generate( const medialibrary::IMedia&, const std::string& mrl,
             .creat_mode = 0600,
         };
 
-        static const struct vlc_thumbnailer_to_files_cbs cbs = {
+        static const struct heimdall_thumbnailer_to_files_cbs cbs = {
             .on_ended = onThumbnailToFilesComplete,
         };
 
-        vlc_preparser_t *thumbnailer = m_thumbnailer.instance();
+        heimdall_preparser_t *thumbnailer = m_thumbnailer.instance();
         if (thumbnailer == nullptr) {
             return false;
         }
 
-        vlc_preparser_req *preparserReq =
-            vlc_preparser_req_NewThumbnailToFiles(thumbnailer, item.get(),
+        heimdall_preparser_req *preparserReq =
+            heimdall_preparser_req_NewThumbnailToFiles(thumbnailer, item.get(),
                                                   &thumb_arg, &thumb_out, 1,
                                                   &cbs, &ctx);
         if (preparserReq == nullptr)
@@ -126,9 +127,9 @@ bool Thumbnailer::generate( const medialibrary::IMedia&, const std::string& mrl,
             return false;
         }
 
-        if (vlc_preparser_Submit(thumbnailer, preparserReq) != VLC_SUCCESS)
+        if (heimdall_preparser_Submit(thumbnailer, preparserReq) != HEIMDALL_SUCCESS)
         {
-            vlc_preparser_req_Release(preparserReq);
+            heimdall_preparser_req_Release(preparserReq);
             m_currentContext = nullptr;
             return false;
         }
@@ -143,16 +144,16 @@ bool Thumbnailer::generate( const medialibrary::IMedia&, const std::string& mrl,
 
 void Thumbnailer::stop()
 {
-    vlc_preparser_t *thumbnailer = m_thumbnailer.get();
+    heimdall_preparser_t *thumbnailer = m_thumbnailer.get();
     if (thumbnailer == nullptr) {
         return;
     }
 
-    /* vlc_preparser_Cancel can call the callback from this thread so the mutex
+    /* heimdall_preparser_Cancel can call the callback from this thread so the mutex
      * must be unlock */
-    vlc_preparser_Cancel(thumbnailer, nullptr);
+    heimdall_preparser_Cancel(thumbnailer, nullptr);
 
-    vlc::threads::mutex_locker lock(m_mutex);
+    heimdall::threads::mutex_locker lock(m_mutex);
     if ( m_currentContext != nullptr )
     {
         while (m_currentContext != nullptr && m_currentContext->done == false)

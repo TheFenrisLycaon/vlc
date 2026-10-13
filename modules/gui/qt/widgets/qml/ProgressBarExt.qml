@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2026 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,7 +19,7 @@
 import QtQuick
 import QtQuick.Templates as T
 
-import VLC.Style
+import Heimdall.Style
 
 T.ProgressBar {
     id: control
@@ -28,8 +29,8 @@ T.ProgressBar {
     implicitHeight: Math.max(implicitBackgroundHeight + topInset + bottomInset,
                              implicitContentHeight + topPadding + bottomPadding)
 
-    horizontalPadding: VLCStyle.margin_large
-    verticalPadding: VLCStyle.margin_small
+    horizontalPadding: HeimdallStyle.margin_large
+    verticalPadding: HeimdallStyle.margin_small
 
     from: 0
     to: 100
@@ -45,13 +46,13 @@ T.ProgressBar {
 
     contentItem: Column {
 
-        spacing: VLCStyle.margin_small
+        spacing: HeimdallStyle.margin_small
 
         Item {
             anchors.left: parent.left
             anchors.right: parent.right
 
-            implicitHeight: VLCStyle.heightBar_xxsmall
+            implicitHeight: HeimdallStyle.heightBar_xxsmall
             implicitWidth: 200
 
             ColorContext {
@@ -64,7 +65,7 @@ T.ProgressBar {
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
 
-                implicitHeight: VLCStyle.heightBar_xxxsmall
+                implicitHeight: HeimdallStyle.heightBar_xxxsmall
 
                 color: progressBarTheme.bg.primary
             }
@@ -73,7 +74,7 @@ T.ProgressBar {
                 anchors.verticalCenter: parent.verticalCenter
 
                 implicitWidth: parent.width * control.visualPosition
-                implicitHeight: VLCStyle.heightBar_xxsmall
+                implicitHeight: HeimdallStyle.heightBar_xxsmall
 
                 // NOTE: We want round corners.
                 radius: height / 2
@@ -91,7 +92,7 @@ T.ProgressBar {
 
                 // NOTE: Why 0.24 though ?
                 implicitWidth: parent.width * 0.24
-                implicitHeight: VLCStyle.heightBar_xxsmall
+                implicitHeight: HeimdallStyle.heightBar_xxsmall
 
                 x: Math.round((parent.width - width) * position)
 
@@ -110,7 +111,7 @@ T.ProgressBar {
                         from: 0
                         to: 1.0
 
-                        duration: VLCStyle.durationSliderBouncing
+                        duration: HeimdallStyle.durationSliderBouncing
                         easing.type: Easing.OutBounce
                     }
 
@@ -118,7 +119,7 @@ T.ProgressBar {
                         from: 1.0
                         to: 0
 
-                        duration: VLCStyle.durationSliderBouncing
+                        duration: HeimdallStyle.durationSliderBouncing
                         easing.type: Easing.OutBounce
                     }
                 }

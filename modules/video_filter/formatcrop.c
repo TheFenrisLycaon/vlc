@@ -2,6 +2,7 @@
  * formatcrop.c
  *****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -24,11 +25,11 @@
 
 #include <limits.h>
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_picture.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
 
 /**
  * This filter crops the input pictures by adjusting the format (offsets and
@@ -128,7 +129,7 @@ Open(filter_t *filter)
         msg_Err(filter, "Vertical crop (top=%u, bottom=%u) "
                         "greater than the picture height (%u)\n",
                         crop_top, crop_bottom, fmt->i_visible_height);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if (crop_left + crop_right >= fmt->i_visible_width)
@@ -136,7 +137,7 @@ Open(filter_t *filter)
         msg_Err(filter, "Horizontal crop (left=%u, right=%u) "
                         "greater than the picture width (%u)\n",
                         crop_left, crop_right, fmt->i_visible_width);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     filter->fmt_out.video.i_width = fmt->i_width;
@@ -148,16 +149,16 @@ Open(filter_t *filter)
     filter->fmt_out.video.i_visible_height =
         fmt->i_visible_height - crop_top - crop_bottom;
 
-    static const struct vlc_filter_operations filter_ops =
+    static const struct heimdall_filter_operations filter_ops =
     {
         .filter_video = Filter,
     };
     filter->ops = &filter_ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname("formatcrop")
     set_description(N_("Video cropping filter"))
     set_callback_video_filter(Open)
@@ -172,4 +173,4 @@ vlc_module_begin()
                            CROPLEFT_TEXT, CROPTOP_LONGTEXT)
     add_integer_with_range(CFG_PREFIX "right", 0, 0, INT_MAX,
                            CROPRIGHT_TEXT, CROPTOP_LONGTEXT)
-vlc_module_end()
+heimdall_module_end()

@@ -2,6 +2,7 @@
  * interpreter.cpp
  *****************************************************************************
  * Copyright (C) 2003 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cyril Deguet     <asmax@via.ecp.fr>
  *          Olivier Teulière <ipkiss@via.ecp.fr>
@@ -40,7 +41,7 @@
 #include "../commands/cmd_snapshot.hpp"
 #include "../src/theme.hpp"
 #include "../src/var_manager.hpp"
-#include "../src/vlcproc.hpp"
+#include "../src/heimdallproc.hpp"
 
 
 Interpreter::Interpreter( intf_thread_t *pIntf ): SkinObject( pIntf )
@@ -85,26 +86,26 @@ Interpreter::Interpreter( intf_thread_t *pIntf ): SkinObject( pIntf )
     REGISTER_CMD1( "playlist.setLoop(false)", CmdPlaylistLoop, false )
     REGISTER_CMD1( "playlist.setRepeat(true)", CmdPlaylistRepeat, true )
     REGISTER_CMD1( "playlist.setRepeat(false)", CmdPlaylistRepeat, false )
-    VarTree &rVarTree = VlcProc::instance( getIntf() )->getPlaytreeVar();
+    VarTree &rVarTree = HeimdallProc::instance( getIntf() )->getPlaytreeVar();
     REGISTER_CMD1( "playlist.del()", CmdPlaytreeDel, rVarTree )
     REGISTER_CMD1( "playtree.del()", CmdPlaytreeDel, rVarTree )
     REGISTER_CMD( "playlist.sort()", CmdPlaytreeSort )
     REGISTER_CMD( "playtree.sort()", CmdPlaytreeSort )
-    REGISTER_CMD( "vlc.fullscreen()", CmdFullscreen )
-    REGISTER_CMD( "vlc.play()", CmdPlay )
-    REGISTER_CMD( "vlc.pause()", CmdPause )
-    REGISTER_CMD( "vlc.stop()", CmdStop )
-    REGISTER_CMD( "vlc.faster()", CmdFaster )
-    REGISTER_CMD( "vlc.slower()", CmdSlower )
-    REGISTER_CMD( "vlc.mute()", CmdMute )
-    REGISTER_CMD( "vlc.volumeUp()", CmdVolumeUp )
-    REGISTER_CMD( "vlc.volumeDown()", CmdVolumeDown )
-    REGISTER_CMD( "vlc.minimize()", CmdMinimize )
-    REGISTER_CMD( "vlc.onTop()", CmdOnTop )
-    REGISTER_CMD( "vlc.snapshot()", CmdSnapshot )
-    REGISTER_CMD( "vlc.toggleRecord()", CmdToggleRecord )
-    REGISTER_CMD( "vlc.nextFrame()", CmdNextFrame )
-    REGISTER_CMD( "vlc.quit()", CmdQuit )
+    REGISTER_CMD( "heimdall.fullscreen()", CmdFullscreen )
+    REGISTER_CMD( "heimdall.play()", CmdPlay )
+    REGISTER_CMD( "heimdall.pause()", CmdPause )
+    REGISTER_CMD( "heimdall.stop()", CmdStop )
+    REGISTER_CMD( "heimdall.faster()", CmdFaster )
+    REGISTER_CMD( "heimdall.slower()", CmdSlower )
+    REGISTER_CMD( "heimdall.mute()", CmdMute )
+    REGISTER_CMD( "heimdall.volumeUp()", CmdVolumeUp )
+    REGISTER_CMD( "heimdall.volumeDown()", CmdVolumeDown )
+    REGISTER_CMD( "heimdall.minimize()", CmdMinimize )
+    REGISTER_CMD( "heimdall.onTop()", CmdOnTop )
+    REGISTER_CMD( "heimdall.snapshot()", CmdSnapshot )
+    REGISTER_CMD( "heimdall.toggleRecord()", CmdToggleRecord )
+    REGISTER_CMD( "heimdall.nextFrame()", CmdNextFrame )
+    REGISTER_CMD( "heimdall.quit()", CmdQuit )
     REGISTER_CMD1( "equalizer.enable()", CmdSetEqualizer, true )
     REGISTER_CMD1( "equalizer.disable()", CmdSetEqualizer, false )
 

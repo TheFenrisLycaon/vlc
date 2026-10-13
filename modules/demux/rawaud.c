@@ -1,7 +1,8 @@
 /*****************************************************************************
- * rawaud.c : raw audio input module for vlc
+ * rawaud.c : raw audio input module for heimdall
  *****************************************************************************
  * Copyright (C) 2009 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Jarmo Torvinen <jarmo.torvinen@jutel.fi>
  *
@@ -28,15 +29,15 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_demux.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_demux.h>
 
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  Open ( vlc_object_t * );
-static void Close( vlc_object_t * );
+static int  Open ( heimdall_object_t * );
+static void Close( heimdall_object_t * );
 
 
 #define SAMPLERATE_TEXT N_("Audio samplerate (Hz)")
@@ -58,7 +59,7 @@ static void Close( vlc_object_t * );
 # define FOURCC_DEFAULT "s16l"
 #endif
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname( "Raw Audio" )
     set_description( N_("Raw audio demuxer") )
     set_capability( "demux", 0 )
@@ -73,7 +74,7 @@ vlc_module_begin()
                 FOURCC_TEXT, FOURCC_LONGTEXT )
         change_safe()
     add_string( "rawaud-lang", "eng", LANG_TEXT, LANG_LONGTEXT)
-vlc_module_end()
+heimdall_module_end()
 
 /*****************************************************************************
  * Definitions of structures used by this plugin
@@ -99,18 +100,18 @@ static int Control( demux_t *, int i_query, va_list args );
 /*****************************************************************************
  * Open: initializes raw audio demuxer
  *****************************************************************************/
-static int Open( vlc_object_t * p_this )
+static int Open( heimdall_object_t * p_this )
 {
     demux_t     *p_demux = (demux_t*)p_this;
     demux_sys_t *p_sys;
 
     p_demux->p_sys      = p_sys = malloc( sizeof( demux_sys_t ) );
     if( !p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     char *psz_fourcc = var_InheritString( p_demux, "rawaud-fourcc" );
     es_format_Init( &p_sys->fmt, AUDIO_ES,
-                    vlc_fourcc_GetCodecFromString( AUDIO_ES, psz_fourcc ) );
+                    heimdall_fourcc_GetCodecFromString( AUDIO_ES, psz_fourcc ) );
     free( psz_fourcc );
 
     if( !p_sys->fmt.i_codec )
@@ -118,35 +119,35 @@ static int Open( vlc_object_t * p_this )
         msg_Err( p_demux, "rawaud-fourcc must be a 4 character string");
         es_format_Clean( &p_sys->fmt );
         free( p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     // get the bits per sample ratio based on codec
     switch( p_sys->fmt.i_codec )
     {
 
-        case VLC_CODEC_FL64:
+        case HEIMDALL_CODEC_FL64:
             p_sys->fmt.audio.i_bitspersample = 64;
             break;
 
-        case VLC_CODEC_FL32:
-        case VLC_CODEC_S32L:
-        case VLC_CODEC_S32B:
+        case HEIMDALL_CODEC_FL32:
+        case HEIMDALL_CODEC_S32L:
+        case HEIMDALL_CODEC_S32B:
             p_sys->fmt.audio.i_bitspersample = 32;
             break;
 
-        case VLC_CODEC_S24L:
-        case VLC_CODEC_S24B:
+        case HEIMDALL_CODEC_S24L:
+        case HEIMDALL_CODEC_S24B:
             p_sys->fmt.audio.i_bitspersample = 24;
             break;
 
-        case VLC_CODEC_S16L:
-        case VLC_CODEC_S16B:
+        case HEIMDALL_CODEC_S16L:
+        case HEIMDALL_CODEC_S16B:
             p_sys->fmt.audio.i_bitspersample = 16;
             break;
 
-        case VLC_CODEC_S8:
-        case VLC_CODEC_U8:
+        case HEIMDALL_CODEC_S8:
+        case HEIMDALL_CODEC_U8:
             p_sys->fmt.audio.i_bitspersample = 8;
             break;
 
@@ -155,7 +156,7 @@ static int Open( vlc_object_t * p_this )
                     (char *)&p_sys->fmt.i_codec);
             es_format_Clean( &p_sys->fmt );
             free( p_sys );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
     }
 
@@ -173,7 +174,7 @@ static int Open( vlc_object_t * p_this )
         msg_Err( p_demux, "invalid bitrate");
         es_format_Clean( &p_sys->fmt );
         free( p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     msg_Dbg( p_demux,
@@ -191,13 +192,13 @@ static int Open( vlc_object_t * p_this )
     {
         es_format_Clean( &p_sys->fmt );
         free( p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     msg_Dbg( p_demux, "elementary stream added");
 
     /* initialize timing */
     date_Init( &p_sys->pts, p_sys->fmt.audio.i_rate, 1 );
-    date_Set( &p_sys->pts, VLC_TICK_0 );
+    date_Set( &p_sys->pts, HEIMDALL_TICK_0 );
 
     /* calculate 50ms frame size/time */
     p_sys->i_frame_samples = __MAX( p_sys->fmt.audio.i_rate / 20, 1 );
@@ -208,13 +209,13 @@ static int Open( vlc_object_t * p_this )
 
     p_demux->pf_demux   = Demux;
     p_demux->pf_control = Control;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * Close: frees unused data
  *****************************************************************************/
-static void Close( vlc_object_t *p_this )
+static void Close( heimdall_object_t *p_this )
 {
     demux_t     *p_demux = (demux_t*)p_this;
     demux_sys_t *p_sys  = p_demux->p_sys;
@@ -233,9 +234,9 @@ static int Demux( demux_t *p_demux )
     demux_sys_t *p_sys  = p_demux->p_sys;
     block_t     *p_block;
 
-    p_block = vlc_stream_Block( p_demux->s, p_sys->i_frame_size );
+    p_block = heimdall_stream_Block( p_demux->s, p_sys->i_frame_size );
     if( p_block == NULL )
-        return VLC_DEMUXER_EOF;
+        return HEIMDALL_DEMUXER_EOF;
 
     p_block->i_dts = p_block->i_pts = date_Get( &p_sys->pts );
 
@@ -244,7 +245,7 @@ static int Demux( demux_t *p_demux )
 
     date_Increment( &p_sys->pts, p_sys->i_frame_samples );
 
-    return VLC_DEMUXER_SUCCESS;
+    return HEIMDALL_DEMUXER_SUCCESS;
 }
 
 /*****************************************************************************

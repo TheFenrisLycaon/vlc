@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2022 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Benjamin Arnaud <bunjee@omega.gg>
  *
@@ -22,10 +23,10 @@ import QtQuick
 import QtQuick.Layouts
 
 
-import VLC.MainInterface
-import VLC.Style
-import VLC.Widgets as Widgets
-import VLC.Util
+import Heimdall.MainInterface
+import Heimdall.Style
+import Heimdall.Widgets as Widgets
+import Heimdall.Util
 
 RowLayout {
     id: root
@@ -34,7 +35,7 @@ RowLayout {
 
     default property alias content: content.data
 
-    property int preferredWidth: VLCStyle.dp(512, VLCStyle.scale)
+    property int preferredWidth: HeimdallStyle.dp(512, HeimdallStyle.scale)
 
     //FIXME make TrackMenuController a proper type (see TrackMenu)
     required property QtObject trackMenuController
@@ -55,10 +56,10 @@ RowLayout {
     }
 
     Item {
-        Layout.preferredWidth: VLCStyle.dp(72, VLCStyle.scale)
+        Layout.preferredWidth: HeimdallStyle.dp(72, HeimdallStyle.scale)
         Layout.fillHeight: true
 
-        Layout.topMargin: VLCStyle.margin_large
+        Layout.topMargin: HeimdallStyle.margin_large
 
         Layout.alignment: Qt.AlignLeft | Qt.AlignTop
 
@@ -70,7 +71,7 @@ RowLayout {
             anchors.horizontalCenter: parent.horizontalCenter
 
             description: qsTr("Back")
-            text: VLCIcons.back
+            text: HeimdallIcons.back
 
             Navigation.parentItem: root
             Navigation.rightItem: content
@@ -80,7 +81,7 @@ RowLayout {
     }
 
     Rectangle {
-        Layout.preferredWidth: VLCStyle.margin_xxxsmall
+        Layout.preferredWidth: HeimdallStyle.margin_xxxsmall
         Layout.fillHeight: true
 
         color: theme.border
@@ -92,6 +93,6 @@ RowLayout {
         Layout.fillWidth: true
         Layout.fillHeight: true
 
-        Layout.margins: VLCStyle.margin_large
+        Layout.margins: HeimdallStyle.margin_large
     }
 }

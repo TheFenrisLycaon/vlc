@@ -2,6 +2,7 @@
  * MPD.cpp
  *****************************************************************************
  * Copyright (C) 2010 - 2011 Klagenfurt University
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Created on: Aug 10, 2010
  * Authors: Christopher Mueller <christopher.mueller@itec.uni-klu.ac.at>
@@ -30,12 +31,12 @@
 #include "MPD.h"
 #include "ProgramInformation.h"
 
-#include <vlc_common.h>
-#include <vlc_stream.h>
+#include <heimdall_common.h>
+#include <heimdall_stream.h>
 
 using namespace dash::mpd;
 
-MPD::MPD (vlc_object_t *p_object, Profile profile_) :
+MPD::MPD (heimdall_object_t *p_object, Profile profile_) :
     BasePlaylist(p_object),
     profile( profile_ )
 {
@@ -79,7 +80,7 @@ void MPD::debug() const
     msg_Dbg(p_object, "MPD profile=%s mediaPresentationDuration=%" PRId64
             " minBufferTime=%" PRId64,
             static_cast<std::string>(getProfile()).c_str(),
-            SEC_FROM_VLC_TICK(duration),
+            SEC_FROM_HEIMDALL_TICK(duration),
             minBufferTime);
     msg_Dbg(p_object, "BaseUrl=%s", getUrlSegment().toString().c_str());
 

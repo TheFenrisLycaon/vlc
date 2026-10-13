@@ -2,6 +2,7 @@
  * mediainfo.cpp : Information about an item
  ****************************************************************************
  * Copyright (C) 2006-2008 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Clément Stenac <zorglub@videolan.org>
  *          Jean-Baptiste Kempf <jb@videolan.org>
@@ -28,7 +29,7 @@
 #include "mediainfo.hpp"
 #include "player/player_controller.hpp"
 
-#include <vlc_url.h>
+#include <heimdall_url.h>
 
 #include <QTabWidget>
 #include <QGridLayout>
@@ -43,7 +44,7 @@
 
 MediaInfoDialog::MediaInfoDialog(qt_intf_t *_p_intf,
                                  SharedInputItem p_item )
-    : QVLCFrame( _p_intf )
+    : QHeimdallFrame( _p_intf )
 {
     isMainInputInfo = ( p_item == NULL );
 
@@ -51,7 +52,7 @@ MediaInfoDialog::MediaInfoDialog(qt_intf_t *_p_intf,
         setWindowTitle( qtr( "Current Media Information" ) );
     else
         setWindowTitle( qtr( "Media Information" ) );
-    setWindowRole( "vlc-media-info" );
+    setWindowRole( "heimdall-media-info" );
 
     setWindowFlags( Qt::Window | Qt::CustomizeWindowHint |
                     Qt::WindowCloseButtonHint | Qt::WindowMinimizeButtonHint );
@@ -206,7 +207,7 @@ void MediaInfoDialog::updateURI( const QString& uri )
     QString location;
 
     /* If URI points to a local file, show the path instead of the URI */
-    char *path = vlc_uri2path( qtu( uri ) );
+    char *path = heimdall_uri2path( qtu( uri ) );
     if( path != NULL )
     {
         location = qfu( path );

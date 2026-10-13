@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,7 +18,7 @@
  *****************************************************************************/
 import QtQuick
 import QtQuick.Controls.Basic
-import VLC.Style
+import Heimdall.Style
 
 BusyIndicator {
     id: control
@@ -26,7 +27,7 @@ BusyIndicator {
     palette.text: color
     running: false
 
-    property int delay: VLCStyle.duration_humanMoment
+    property int delay: HeimdallStyle.duration_humanMoment
     property bool runningDelayed: false
     onRunningDelayedChanged: {
         if (runningDelayed) {

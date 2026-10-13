@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -44,7 +45,7 @@ class MLPlaylistModel;
 class NetworkDeviceModel;
 class NetworkMediaModel;
 class MainCtx;
-namespace vlc {
+namespace heimdall {
 namespace playlist {
 class PlaylistController;
 class PlaylistListModel;
@@ -148,8 +149,8 @@ protected:
     void onPopup(QMenu * menu) override;
 };
 
-//inherit VLCMenuBar so we can access menu creation functions
-class QmlGlobalMenu : public VLCMenuBar
+//inherit HeimdallMenuBar so we can access menu creation functions
+class QmlGlobalMenu : public HeimdallMenuBar
 {
     Q_OBJECT
     SIMPLE_MENU_PROPERTY(MainCtx*, ctx, nullptr)
@@ -174,9 +175,9 @@ private:
     bool m_shown = false;
 };
 
-//inherit VLCMenuBar so we can access menu creation functions
+//inherit HeimdallMenuBar so we can access menu creation functions
 class QmlMenuBarMenu;
-class QmlMenuBar : public VLCMenuBar
+class QmlMenuBar : public HeimdallMenuBar
 {
     Q_OBJECT
     SIMPLE_MENU_PROPERTY(MainCtx*, ctx, nullptr)
@@ -407,7 +408,7 @@ signals:
     void requestDeleteSelectedPlaylists();
 };
 
-class QmlAudioContextMenu : public VLCMenuBar
+class QmlAudioContextMenu : public HeimdallMenuBar
 {
     Q_OBJECT
     SIMPLE_MENU_PROPERTY(MainCtx*, ctx, nullptr)
@@ -465,9 +466,9 @@ public slots:
 
 class PlaylistContextMenu : public QObject {
     Q_OBJECT
-    SIMPLE_MENU_PROPERTY(vlc::playlist::PlaylistListModel*, model, nullptr)
+    SIMPLE_MENU_PROPERTY(heimdall::playlist::PlaylistListModel*, model, nullptr)
     SIMPLE_MENU_PROPERTY(QAbstractProxyModel*, proxyModel, nullptr)
-    SIMPLE_MENU_PROPERTY(vlc::playlist::PlaylistController*, controler, nullptr)
+    SIMPLE_MENU_PROPERTY(heimdall::playlist::PlaylistController*, controler, nullptr)
     SIMPLE_MENU_PROPERTY(ListSelectionModel*, selectionModel, nullptr)
     SIMPLE_MENU_PROPERTY(MainCtx *, ctx, nullptr)
 public:

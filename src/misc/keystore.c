@@ -2,6 +2,7 @@
  * keystore.c:
  *****************************************************************************
  * Copyright (C) 2015-2016  VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,21 +23,21 @@
 # include <config.h>
 #endif
 
-#include <vlc_common.h>
-#include <vlc_dialog.h>
-#include <vlc_keystore.h>
-#include <vlc_modules.h>
-#include <vlc_url.h>
-#include <vlc_interrupt.h>
-#include "../libvlc.h"
+#include <heimdall_common.h>
+#include <heimdall_dialog.h>
+#include <heimdall_keystore.h>
+#include <heimdall_modules.h>
+#include <heimdall_url.h>
+#include <heimdall_interrupt.h>
+#include "../libheimdall.h"
 
 #include <assert.h>
 #include <limits.h>
 
-static vlc_keystore *
-keystore_create(vlc_object_t *p_parent, const char *psz_name)
+static heimdall_keystore *
+keystore_create(heimdall_object_t *p_parent, const char *psz_name)
 {
-    vlc_keystore *p_keystore = vlc_custom_create(p_parent, sizeof (*p_keystore),
+    heimdall_keystore *p_keystore = heimdall_custom_create(p_parent, sizeof (*p_keystore),
                                                  "keystore");
     if (unlikely(p_keystore == NULL))
         return NULL;
@@ -44,7 +45,7 @@ keystore_create(vlc_object_t *p_parent, const char *psz_name)
     p_keystore->p_module = module_need(p_keystore, "keystore", psz_name, true);
     if (p_keystore->p_module == NULL)
     {
-        vlc_object_delete(p_keystore);
+        heimdall_object_delete(p_keystore);
         return NULL;
     }
     assert(p_keystore->pf_store);
@@ -54,30 +55,30 @@ keystore_create(vlc_object_t *p_parent, const char *psz_name)
     return p_keystore;
 }
 
-#undef vlc_keystore_create
-vlc_keystore *
-vlc_keystore_create(vlc_object_t *p_parent)
+#undef heimdall_keystore_create
+heimdall_keystore *
+heimdall_keystore_create(heimdall_object_t *p_parent)
 {
     assert(p_parent);
 
     char *modlist = var_InheritString(p_parent, "keystore");
-    vlc_keystore *p_keystore = keystore_create(p_parent, modlist);
+    heimdall_keystore *p_keystore = keystore_create(p_parent, modlist);
 
     free(modlist);
     return p_keystore;
 }
 
 void
-vlc_keystore_release(vlc_keystore *p_keystore)
+heimdall_keystore_release(heimdall_keystore *p_keystore)
 {
     assert(p_keystore);
     module_unneed(p_keystore, p_keystore->p_module);
 
-    vlc_object_delete(p_keystore);
+    heimdall_object_delete(p_keystore);
 }
 
 int
-vlc_keystore_store(vlc_keystore *p_keystore,
+heimdall_keystore_store(heimdall_keystore *p_keystore,
                    const char * const ppsz_values[KEY_MAX],
                    const uint8_t *p_secret, ssize_t i_secret_len,
                    const char *psz_label)
@@ -88,7 +89,7 @@ vlc_keystore_store(vlc_keystore *p_keystore,
     {
         msg_Err(p_keystore, "invalid store request: "
                 "protocol and server should be valid");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     if (ppsz_values[KEY_PORT])
     {
@@ -97,7 +98,7 @@ vlc_keystore_store(vlc_keystore *p_keystore,
         {
             msg_Err(p_keystore, "invalid store request: "
                     "port is not valid number");
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
     if (i_secret_len < 0)
@@ -107,16 +108,16 @@ vlc_keystore_store(vlc_keystore *p_keystore,
 }
 
 unsigned int
-vlc_keystore_find(vlc_keystore *p_keystore,
+heimdall_keystore_find(heimdall_keystore *p_keystore,
                   const char * const ppsz_values[KEY_MAX],
-                  vlc_keystore_entry **pp_entries)
+                  heimdall_keystore_entry **pp_entries)
 {
     assert(p_keystore && ppsz_values && pp_entries);
     return p_keystore->pf_find(p_keystore, ppsz_values, pp_entries);
 }
 
 unsigned int
-vlc_keystore_remove(vlc_keystore *p_keystore,
+heimdall_keystore_remove(heimdall_keystore *p_keystore,
                     const char *const ppsz_values[KEY_MAX])
 {
     assert(p_keystore && ppsz_values);
@@ -124,56 +125,56 @@ vlc_keystore_remove(vlc_keystore *p_keystore,
 }
 
 void
-vlc_keystore_release_entries(vlc_keystore_entry *p_entries, unsigned int i_count)
+heimdall_keystore_release_entries(heimdall_keystore_entry *p_entries, unsigned int i_count)
 {
     for (unsigned int i = 0; i < i_count; ++i)
-        vlc_keystore_release_entry(&p_entries[i]);
+        heimdall_keystore_release_entry(&p_entries[i]);
     free(p_entries);
 }
 
 int
-libvlc_InternalKeystoreInit(libvlc_int_t *p_libvlc)
+libheimdall_InternalKeystoreInit(libheimdall_int_t *p_libheimdall)
 {
-    assert(p_libvlc != NULL);
-    libvlc_priv_t *p_priv = libvlc_priv(p_libvlc);
+    assert(p_libheimdall != NULL);
+    libheimdall_priv_t *p_priv = libheimdall_priv(p_libheimdall);
 
-    p_priv->p_memory_keystore = keystore_create(VLC_OBJECT(p_libvlc), "memory");
-    return p_priv->p_memory_keystore != NULL ? VLC_SUCCESS : VLC_EGENERIC;
+    p_priv->p_memory_keystore = keystore_create(HEIMDALL_OBJECT(p_libheimdall), "memory");
+    return p_priv->p_memory_keystore != NULL ? HEIMDALL_SUCCESS : HEIMDALL_EGENERIC;
 }
 
 void
-libvlc_InternalKeystoreClean(libvlc_int_t *p_libvlc)
+libheimdall_InternalKeystoreClean(libheimdall_int_t *p_libheimdall)
 {
-    assert(p_libvlc != NULL);
-    libvlc_priv_t *p_priv = libvlc_priv(p_libvlc);
+    assert(p_libheimdall != NULL);
+    libheimdall_priv_t *p_priv = libheimdall_priv(p_libheimdall);
 
     if (p_priv->p_memory_keystore != NULL)
     {
-        vlc_keystore_release(p_priv->p_memory_keystore);
+        heimdall_keystore_release(p_priv->p_memory_keystore);
         p_priv->p_memory_keystore = NULL;
     }
 }
 
-static vlc_keystore *
-get_memory_keystore(vlc_object_t *p_obj)
+static heimdall_keystore *
+get_memory_keystore(heimdall_object_t *p_obj)
 {
-    return libvlc_priv(vlc_object_instance(p_obj))->p_memory_keystore;
+    return libheimdall_priv(heimdall_object_instance(p_obj))->p_memory_keystore;
 }
 
-static vlc_keystore_entry *
-find_closest_path(vlc_keystore_entry *p_entries, unsigned i_count,
+static heimdall_keystore_entry *
+find_closest_path(heimdall_keystore_entry *p_entries, unsigned i_count,
                   const char *psz_path)
 {
-    vlc_keystore_entry *p_match_entry = NULL;
+    heimdall_keystore_entry *p_match_entry = NULL;
     size_t i_last_pathlen = 0;
-    char *psz_decoded_path = vlc_uri_decode_duplicate(psz_path);
+    char *psz_decoded_path = heimdall_uri_decode_duplicate(psz_path);
     if (psz_decoded_path == NULL)
         return NULL;
 
     /* Try to find the entry that has the closest path to psz_url */
     for (unsigned int i = 0; i < i_count; ++i)
     {
-        vlc_keystore_entry *p_entry = &p_entries[i];
+        heimdall_keystore_entry *p_entry = &p_entries[i];
         const char *psz_entry_path = p_entry->ppsz_values[KEY_PATH];
         if (psz_entry_path == NULL)
         {
@@ -195,7 +196,7 @@ find_closest_path(vlc_keystore_entry *p_entries, unsigned i_count,
 }
 
 static bool
-is_credential_valid(vlc_credential *p_credential)
+is_credential_valid(heimdall_credential *p_credential)
 {
     if (p_credential->psz_username && p_credential->psz_password)
         return true;
@@ -204,7 +205,7 @@ is_credential_valid(vlc_credential *p_credential)
 }
 
 static bool
-is_url_valid(const vlc_url_t *p_url)
+is_url_valid(const heimdall_url_t *p_url)
 {
     return p_url && p_url->psz_protocol && p_url->psz_protocol[0]
         && p_url->psz_host && p_url->psz_host[0];
@@ -226,7 +227,7 @@ static struct
 
 /* Don't store a port if it's the default one */
 static bool
-protocol_set_port(const vlc_url_t *p_url, char *psz_port)
+protocol_set_port(const heimdall_url_t *p_url, char *psz_port)
 {
     int i_port = -1;
 
@@ -253,13 +254,13 @@ protocol_set_port(const vlc_url_t *p_url, char *psz_port)
 }
 
 static bool
-protocol_is_smb(const vlc_url_t *p_url)
+protocol_is_smb(const heimdall_url_t *p_url)
 {
     return strcasecmp(p_url->psz_protocol, "smb") == 0;
 }
 
 static bool
-protocol_store_path(const vlc_url_t *p_url)
+protocol_store_path(const heimdall_url_t *p_url)
 {
     return p_url->psz_path
       && (strncasecmp(p_url->psz_protocol, "http", 4) == 0
@@ -269,7 +270,7 @@ protocol_store_path(const vlc_url_t *p_url)
 
 /* Split domain;user in userinfo */
 static void
-smb_split_domain(vlc_credential *p_credential)
+smb_split_domain(heimdall_credential *p_credential)
 {
     const char *psz_delim = strchr(p_credential->psz_username, ';');
     if (psz_delim == NULL)
@@ -287,9 +288,9 @@ smb_split_domain(vlc_credential *p_credential)
 }
 
 static void
-credential_find_keystore(vlc_credential *p_credential, vlc_keystore *p_keystore)
+credential_find_keystore(heimdall_credential *p_credential, heimdall_keystore *p_keystore)
 {
-    const vlc_url_t *p_url = p_credential->p_url;
+    const heimdall_url_t *p_url = p_credential->p_url;
 
     const char *ppsz_values[KEY_MAX] = { 0 };
     ppsz_values[KEY_PROTOCOL] = p_url->psz_protocol;
@@ -302,16 +303,16 @@ credential_find_keystore(vlc_credential *p_credential, vlc_keystore *p_keystore)
     if (protocol_set_port(p_url, psz_port))
         ppsz_values[KEY_PORT] = psz_port;
 
-    vlc_keystore_entry *p_entries;
+    heimdall_keystore_entry *p_entries;
     unsigned int i_entries_count;
-    i_entries_count = vlc_keystore_find(p_keystore, ppsz_values, &p_entries);
+    i_entries_count = heimdall_keystore_find(p_keystore, ppsz_values, &p_entries);
 
-    /* Remove last entries after vlc_keystore_find call since
+    /* Remove last entries after heimdall_keystore_find call since
      * p_credential->psz_username (default username) can be a pointer to an
      * entry */
     if (p_credential->i_entries_count > 0)
     {
-        vlc_keystore_release_entries(p_credential->p_entries,
+        heimdall_keystore_release_entries(p_credential->p_entries,
                                      p_credential->i_entries_count);
         p_credential->psz_username = NULL;
     }
@@ -320,7 +321,7 @@ credential_find_keystore(vlc_credential *p_credential, vlc_keystore *p_keystore)
 
     if (p_credential->i_entries_count > 0)
     {
-        vlc_keystore_entry *p_entry;
+        heimdall_keystore_entry *p_entry;
 
         if (protocol_store_path(p_url))
             p_entry = find_closest_path(p_credential->p_entries,
@@ -331,7 +332,7 @@ credential_find_keystore(vlc_credential *p_credential, vlc_keystore *p_keystore)
 
         if (!p_entry || p_entry->p_secret[p_entry->i_secret_len - 1] != '\0')
         {
-            vlc_keystore_release_entries(p_credential->p_entries,
+            heimdall_keystore_release_entries(p_credential->p_entries,
                                          p_credential->i_entries_count);
             p_credential->i_entries_count = 0;
         }
@@ -347,7 +348,7 @@ credential_find_keystore(vlc_credential *p_credential, vlc_keystore *p_keystore)
 }
 
 void
-vlc_credential_init(vlc_credential *p_credential, const vlc_url_t *p_url)
+heimdall_credential_init(heimdall_credential *p_credential, const heimdall_url_t *p_url)
 {
     assert(p_credential);
 
@@ -357,13 +358,13 @@ vlc_credential_init(vlc_credential *p_credential, const vlc_url_t *p_url)
 }
 
 void
-vlc_credential_clean(vlc_credential *p_credential)
+heimdall_credential_clean(heimdall_credential *p_credential)
 {
     if (p_credential->i_entries_count > 0)
-        vlc_keystore_release_entries(p_credential->p_entries,
+        heimdall_keystore_release_entries(p_credential->p_entries,
                                      p_credential->i_entries_count);
     if (p_credential->p_keystore)
-        vlc_keystore_release(p_credential->p_keystore);
+        heimdall_keystore_release(p_credential->p_keystore);
 
     free(p_credential->psz_split_domain);
     free(p_credential->psz_var_username);
@@ -372,20 +373,20 @@ vlc_credential_clean(vlc_credential *p_credential)
     free(p_credential->psz_dialog_password);
 }
 
-#undef vlc_credential_get
+#undef heimdall_credential_get
 int
-vlc_credential_get(vlc_credential *p_credential, vlc_object_t *p_parent,
+heimdall_credential_get(heimdall_credential *p_credential, heimdall_object_t *p_parent,
                    const char *psz_option_username,
                    const char *psz_option_password,
                    const char *psz_dialog_title,
                    const char *psz_dialog_fmt, ...)
 {
     assert(p_credential && p_parent);
-    const vlc_url_t *p_url = p_credential->p_url;
+    const heimdall_url_t *p_url = p_credential->p_url;
 
     if (!is_url_valid(p_url))
     {
-        msg_Err(p_parent, "vlc_credential_get: invalid url");
+        msg_Err(p_parent, "heimdall_credential_get: invalid url");
         return -EINVAL;
     }
 
@@ -396,9 +397,9 @@ vlc_credential_get(vlc_credential *p_credential, vlc_object_t *p_parent,
     while (!is_credential_valid(p_credential))
     {
         /* First, fetch credential from URL (if any).
-         * Secondly, fetch credential from VLC Options (if any).
+         * Secondly, fetch credential from Heimdall Options (if any).
          * Thirdly, fetch credential from keystore (if any) using user and realm
-         * previously set by the caller, the URL or by VLC Options.
+         * previously set by the caller, the URL or by Heimdall Options.
          * Finally, fetch credential from the dialog (if any). This last will be
          * repeated until user cancel the dialog. */
 
@@ -439,7 +440,7 @@ vlc_credential_get(vlc_credential *p_credential, vlc_object_t *p_parent,
 
         case GET_FROM_MEMORY_KEYSTORE:
         {
-            vlc_keystore *p_keystore = get_memory_keystore(p_parent);
+            heimdall_keystore *p_keystore = get_memory_keystore(p_parent);
             if (p_keystore != NULL)
                 credential_find_keystore(p_credential, p_keystore);
             p_credential->i_get_order++;
@@ -448,11 +449,11 @@ vlc_credential_get(vlc_credential *p_credential, vlc_object_t *p_parent,
 
         case GET_FROM_KEYSTORE:
             if (p_credential->p_keystore == NULL)
-                p_credential->p_keystore = vlc_keystore_create(p_parent);
+                p_credential->p_keystore = heimdall_keystore_create(p_parent);
             if (p_credential->p_keystore != NULL)
                 credential_find_keystore(p_credential, p_credential->p_keystore);
 
-            if (vlc_killed())
+            if (heimdall_killed())
                 return -EINTR;
 
             p_credential->i_get_order++;
@@ -469,14 +470,14 @@ vlc_credential_get(vlc_credential *p_credential, vlc_object_t *p_parent,
             bool *p_store = p_credential->p_keystore != NULL ?
                             &p_credential->b_store : NULL;
             int i_ret =
-                vlc_dialog_wait_login_va(p_parent,
+                heimdall_dialog_wait_login_va(p_parent,
                                          &psz_dialog_username,
                                          &psz_dialog_password, p_store,
                                          p_credential->psz_username,
                                          psz_dialog_title, psz_dialog_fmt, ap);
             va_end(ap);
 
-            /* Free previous dialog strings after vlc_dialog_wait_login_va call
+            /* Free previous dialog strings after heimdall_dialog_wait_login_va call
              * since p_credential->psz_username (default username) can be a
              * pointer to p_credential->psz_dialog_username */
             free(p_credential->psz_dialog_username);
@@ -487,7 +488,7 @@ vlc_credential_get(vlc_credential *p_credential, vlc_object_t *p_parent,
             if (i_ret != 1)
             {
                 p_credential->psz_username = p_credential->psz_password = NULL;
-                return vlc_killed() ? -EINTR : -ENOENT;
+                return heimdall_killed() ? -EINTR : -ENOENT;
             }
 
             p_credential->psz_username = p_credential->psz_dialog_username;
@@ -502,9 +503,9 @@ vlc_credential_get(vlc_credential *p_credential, vlc_object_t *p_parent,
     return is_credential_valid(p_credential) ? 0 : -ENOENT;
 }
 
-#undef vlc_credential_store
+#undef heimdall_credential_store
 bool
-vlc_credential_store(vlc_credential *p_credential, vlc_object_t *p_parent)
+heimdall_credential_store(heimdall_credential *p_credential, heimdall_object_t *p_parent)
 {
     if (!is_credential_valid(p_credential))
         return false;
@@ -512,7 +513,7 @@ vlc_credential_store(vlc_credential *p_credential, vlc_object_t *p_parent)
     if (p_credential->b_from_keystore)
         return p_credential->b_from_keystore;
 
-    vlc_keystore *p_keystore;
+    heimdall_keystore *p_keystore;
     if (p_credential->b_store)
     {
         /* Store in permanent keystore */
@@ -527,11 +528,11 @@ vlc_credential_store(vlc_credential *p_credential, vlc_object_t *p_parent)
     if (p_keystore == NULL)
         return false;
 
-    const vlc_url_t *p_url = p_credential->p_url;
+    const heimdall_url_t *p_url = p_credential->p_url;
 
     char *psz_path = NULL;
     if (protocol_store_path(p_url)
-     && (psz_path =  vlc_uri_decode_duplicate(p_url->psz_path)) != NULL)
+     && (psz_path =  heimdall_uri_decode_duplicate(p_url->psz_path)) != NULL)
     {
         char *p_slash;
         if (protocol_is_smb(p_url))
@@ -563,7 +564,7 @@ vlc_credential_store(vlc_credential *p_credential, vlc_object_t *p_parent)
         ppsz_values[KEY_PORT] = psz_port;
 
     char *psz_label;
-    if (asprintf(&psz_label, "LibVLC password for %s://%s%s",
+    if (asprintf(&psz_label, "LibHeimdall password for %s://%s%s",
                  p_url->psz_protocol, p_url->psz_host,
                  psz_path ? psz_path : "") == -1)
     {
@@ -574,8 +575,8 @@ vlc_credential_store(vlc_credential *p_credential, vlc_object_t *p_parent)
     const uint8_t *p_password = (const uint8_t *)
         (p_credential->psz_password != NULL ? p_credential->psz_password : "");
 
-    bool b_ret = vlc_keystore_store(p_keystore, ppsz_values, p_password,
-                                    -1, psz_label) == VLC_SUCCESS;
+    bool b_ret = heimdall_keystore_store(p_keystore, ppsz_values, p_password,
+                                    -1, psz_label) == HEIMDALL_SUCCESS;
     free(psz_label);
     free(psz_path);
     return b_ret;

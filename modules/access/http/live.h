@@ -2,6 +2,7 @@
  * live.h: HTTP read-only live stream declarations
  *****************************************************************************
  * Copyright (C) 2015 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -25,16 +26,16 @@
  * @{
  */
 
-struct vlc_http_resource;
+struct heimdall_http_resource;
 
-struct vlc_http_resource *vlc_http_live_create(struct vlc_http_mgr *mgr,
+struct heimdall_http_resource *heimdall_http_live_create(struct heimdall_http_mgr *mgr,
                                                const char *uri, const char *ua,
                                                const char *ref);
-block_t *vlc_http_live_read(struct vlc_http_resource *);
+block_t *heimdall_http_live_read(struct heimdall_http_resource *);
 
-#define vlc_http_live_get_status vlc_http_res_get_status
-#define vlc_http_live_get_redirect vlc_http_res_get_redirect
-#define vlc_http_live_get_type vlc_http_res_get_type
-#define vlc_http_live_destroy vlc_http_res_destroy
+#define heimdall_http_live_get_status heimdall_http_res_get_status
+#define heimdall_http_live_get_redirect heimdall_http_res_get_redirect
+#define heimdall_http_live_get_type heimdall_http_res_get_type
+#define heimdall_http_live_destroy heimdall_http_res_destroy
 
 /** @} */

@@ -2,6 +2,7 @@
  * hxxx_common.c: AVC/HEVC packetizers shared code
  *****************************************************************************
  * Copyright (C) 2001-2015 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -21,9 +22,9 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_block.h>
-#include <vlc_codec.h>
+#include <heimdall_common.h>
+#include <heimdall_block.h>
+#include <heimdall_codec.h>
 
 #include "hxxx_common.h"
 #include "../codec/cc.h"
@@ -34,8 +35,8 @@
 struct cc_storage_t
 {
     uint32_t i_flags;
-    vlc_tick_t i_dts;
-    vlc_tick_t i_pts;
+    heimdall_tick_t i_dts;
+    heimdall_tick_t i_pts;
     cc_data_t current;
     cc_data_t next;
 };
@@ -45,8 +46,8 @@ cc_storage_t * cc_storage_new( void )
     cc_storage_t *p_ccs = malloc( sizeof(*p_ccs) );
     if( likely(p_ccs) )
     {
-        p_ccs->i_pts = VLC_TICK_INVALID;
-        p_ccs->i_dts = VLC_TICK_INVALID;
+        p_ccs->i_pts = HEIMDALL_TICK_INVALID;
+        p_ccs->i_dts = HEIMDALL_TICK_INVALID;
         p_ccs->i_flags = 0;
         cc_Init( &p_ccs->current );
         cc_Init( &p_ccs->next );
@@ -110,7 +111,7 @@ block_t * cc_storage_get_current( cc_storage_t *p_ccs, decoder_cc_desc_t *p_desc
  * Will always use 4 byte 0 0 0 1 startcodes
  * Will prepend a SPS and PPS before each keyframe
  ****************************************************************************/
-block_t *PacketizeXXC1( void *p_private, struct vlc_logger *logger,
+block_t *PacketizeXXC1( void *p_private, struct heimdall_logger *logger,
                         uint8_t i_nal_length_size, block_t **pp_block,
                         pf_annexb_nal_parse pf_nal_parser,
                         pf_annexb_nal_drain pf_nal_drain )
@@ -150,7 +151,7 @@ block_t *PacketizeXXC1( void *p_private, struct vlc_logger *logger,
         if( i_size == 0 ||
             i_size > (size_t)( &p_block->p_buffer[p_block->i_buffer] - p ) )
         {
-            vlc_error( logger, "Broken frame : size %zu is too big", i_size );
+            heimdall_error( logger, "Broken frame : size %zu is too big", i_size );
             break;
         }
 

@@ -2,6 +2,7 @@
  * x11_timer.hpp
  *****************************************************************************
  * Copyright (C) 2003 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cyril Deguet     <asmax@via.ecp.fr>
  *          Olivier Teulière <ipkiss@via.ecp.fr>
@@ -47,7 +48,7 @@ public:
     /// Stop the timer
     virtual void stop();
 
-    vlc_tick_t getNextDate() const;
+    heimdall_tick_t getNextDate() const;
 
     /// Execute the callback.
     /// Returns false if the timer must be removed after
@@ -59,9 +60,9 @@ private:
     /// Timer loop
     X11TimerLoop *m_pTimerLoop;
     /// Delay between two execute
-    vlc_tick_t m_interval;
+    heimdall_tick_t m_interval;
     /// Next date at which the timer must be executed
-    vlc_tick_t m_nextDate;
+    heimdall_tick_t m_nextDate;
     /// Flag to tell if the timer must be stopped after the first execution
     bool m_oneShot;
 };

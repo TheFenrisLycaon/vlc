@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 2001-2010 VLC authors and VideoLAN
  * Copyright © 2007-2012 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gildas Bazin <gbazin@videolan.org>
  *
@@ -25,8 +26,8 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_charset.h> // FromWide
+#include <heimdall_common.h>
+#include <heimdall_charset.h> // FromWide
 #include "../config/configuration.h"
 
 #include <windows.h>
@@ -74,38 +75,38 @@ error:
 
 static char *config_GetDataDir(void)
 {
-    const char *path = getenv ("VLC_DATA_PATH");
+    const char *path = getenv ("HEIMDALL_DATA_PATH");
     return (path != NULL) ? strdup (path) : config_GetLibDir ();
 }
 
-char *config_GetSysPath(vlc_sysdir_t type, const char *filename)
+char *config_GetSysPath(heimdall_sysdir_t type, const char *filename)
 {
     char *dir = NULL;
 
     switch (type)
     {
-        case VLC_PKG_DATA_DIR:
+        case HEIMDALL_PKG_DATA_DIR:
             dir = config_GetDataDir();
             break;
-        case VLC_PKG_LIB_DIR:
-            dir = getenv ("VLC_LIB_PATH");
+        case HEIMDALL_PKG_LIB_DIR:
+            dir = getenv ("HEIMDALL_LIB_PATH");
             if (dir)
                 return strdup( dir );
             dir = config_GetLibDir();
             break;
-        case VLC_PKG_LIBEXEC_DIR:
-            dir = getenv ("VLC_LIBEXEC_PATH");
+        case HEIMDALL_PKG_LIBEXEC_DIR:
+            dir = getenv ("HEIMDALL_LIBEXEC_PATH");
             if (dir)
                 return strdup( dir );
             dir = config_GetLibexecDir();
             break;
-        case VLC_SYSDATA_DIR:
+        case HEIMDALL_SYSDATA_DIR:
             break;
-        case VLC_LOCALE_DIR:
-            dir = config_GetSysPath(VLC_PKG_DATA_DIR, "locale");
+        case HEIMDALL_LOCALE_DIR:
+            dir = config_GetSysPath(HEIMDALL_PKG_DATA_DIR, "locale");
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 
     if (filename == NULL || unlikely(dir == NULL))

@@ -2,6 +2,7 @@
  * sdi.cpp: test for the SDI output decoded streams
  *****************************************************************************
  * Copyright (C) 2026 VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Alexandre Janniaux <ajanni@videolabs.io>
  *
@@ -26,56 +27,56 @@
 
 /* Define a builtin module for mocked parts */
 #define MODULE_NAME test_sdi_mock
-#undef VLC_DYNAMIC_PLUGIN
+#undef HEIMDALL_DYNAMIC_PLUGIN
 
-#include "../../libvlc/test.h"
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
+#include "../../libheimdall/test.h"
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
 
 #include "../../../modules/stream_out/sdi/SDIStream.hpp"
-#include "../lib/libvlc_internal.h"
+#include "../lib/libheimdall_internal.h"
 
 #include <climits>
 #include <cstdint>
 #include <memory>
 
-const char vlc_module_name[] = MODULE_STRING;
+const char heimdall_module_name[] = MODULE_STRING;
 
 static unsigned decoder_opened = 0;
 static unsigned decoder_closed = 0;
 
 struct dec_fmt {
-    vlc_fourcc_t codec;
+    heimdall_fourcc_t codec;
 };
 
-static void DecoderDeviceClose(struct vlc_decoder_device *device)
-    { VLC_UNUSED(device); }
+static void DecoderDeviceClose(struct heimdall_decoder_device *device)
+    { HEIMDALL_UNUSED(device); }
 
-static const struct vlc_decoder_device_operations decoder_device_ops =
+static const struct heimdall_decoder_device_operations decoder_device_ops =
 {
     DecoderDeviceClose,
 };
 
-static int OpenDecoderDevice(struct vlc_decoder_device *device,
-                             vlc_window_t *window)
+static int OpenDecoderDevice(struct heimdall_decoder_device *device,
+                             heimdall_window_t *window)
 {
-    VLC_UNUSED(window);
+    HEIMDALL_UNUSED(window);
     device->ops = &decoder_device_ops;
     /* The private parts are never used in this test. */
-    device->type = VLC_DECODER_DEVICE_VAAPI;
-    return VLC_SUCCESS;
+    device->type = HEIMDALL_DECODER_DEVICE_VAAPI;
+    return HEIMDALL_SUCCESS;
 }
 
-static int DecoderDecode(decoder_t *dec, vlc_frame_t *frame)
+static int DecoderDecode(decoder_t *dec, heimdall_frame_t *frame)
 {
-    VLC_UNUSED(dec);
+    HEIMDALL_UNUSED(dec);
     if (frame != NULL)
-        vlc_frame_Release(frame);
-    return VLCDEC_SUCCESS;
+        heimdall_frame_Release(frame);
+    return HEIMDALLDEC_SUCCESS;
 }
 
-static void CloseDecoder(vlc_object_t *obj)
+static void CloseDecoder(heimdall_object_t *obj)
 {
     decoder_t *dec = reinterpret_cast<decoder_t *>(obj);
     dec_fmt *sys = static_cast<dec_fmt*>(dec->p_sys);
@@ -89,7 +90,7 @@ static void CloseDecoder(vlc_object_t *obj)
     delete sys;
 }
 
-static int OpenDecoder(vlc_object_t *obj)
+static int OpenDecoder(heimdall_object_t *obj)
 {
     decoder_t *dec = reinterpret_cast<decoder_t *>(obj);
 
@@ -97,9 +98,9 @@ static int OpenDecoder(vlc_object_t *obj)
     {
         /* Make the owner instantiate its decoder device, so that the
          * teardown has to release it from the owner storage. */
-        vlc_decoder_device *dev = decoder_GetDecoderDevice(dec);
+        heimdall_decoder_device *dev = decoder_GetDecoderDevice(dec);
         assert(dev != NULL);
-        vlc_decoder_device_Release(dev);
+        heimdall_decoder_device_Release(dev);
     }
 
     es_format_Clean(&dec->fmt_out);
@@ -113,10 +114,10 @@ static int OpenDecoder(vlc_object_t *obj)
     dec->pf_decode = DecoderDecode;
 
     decoder_opened++;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void test_decoded_stream(vlc_object_t *obj, vlc_fourcc_t i_codec,
+static void test_decoded_stream(heimdall_object_t *obj, heimdall_fourcc_t i_codec,
                                 es_format_category_e i_cat)
 {
     std::unique_ptr<sdi_sout::AbstractStreamOutputBuffer> buffer;
@@ -130,7 +131,7 @@ static void test_decoded_stream(vlc_object_t *obj, vlc_fourcc_t i_codec,
         buffer = std::make_unique<sdi_sout::PictureStreamOutputBuffer>();
         stream = std::make_unique<sdi_sout::VideoDecodedStream>(obj, id, buffer.get());
 
-        es_format_Init(&output, VIDEO_ES, VLC_CODEC_UYVY);
+        es_format_Init(&output, VIDEO_ES, HEIMDALL_CODEC_UYVY);
         output.video.i_chroma = output.i_codec;
         output.video.i_width = output.video.i_visible_width = 720;
         output.video.i_height = output.video.i_visible_height = 576;
@@ -140,7 +141,7 @@ static void test_decoded_stream(vlc_object_t *obj, vlc_fourcc_t i_codec,
         buffer = std::make_unique<sdi_sout::BlockStreamOutputBuffer>();
         stream = std::make_unique<sdi_sout::AudioDecodedStream>(obj, id, buffer.get());
 
-        es_format_Init(&output, AUDIO_ES, VLC_CODEC_S16N);
+        es_format_Init(&output, AUDIO_ES, HEIMDALL_CODEC_S16N);
         output.audio.i_format = output.i_codec;
         output.audio.i_rate = 48000;
         output.audio.i_physical_channels = AOUT_CHANS_STEREO;
@@ -178,7 +179,7 @@ static void test_decoded_stream(vlc_object_t *obj, vlc_fourcc_t i_codec,
     buffer.reset();
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_callbacks(OpenDecoder, CloseDecoder)
     set_capability("video decoder", INT_MAX)
 
@@ -188,17 +189,17 @@ vlc_module_begin()
 
     add_submodule()
         set_callback_dec_device(OpenDecoderDevice, 0)
-vlc_module_end()
+heimdall_module_end()
 
-extern "C" VLC_EXPORT const vlc_plugin_cb vlc_static_modules[];
-extern "C" const vlc_plugin_cb vlc_static_modules[] = {
-    VLC_SYMBOL(vlc_entry),
+extern "C" HEIMDALL_EXPORT const heimdall_plugin_cb heimdall_static_modules[];
+extern "C" const heimdall_plugin_cb heimdall_static_modules[] = {
+    HEIMDALL_SYMBOL(heimdall_entry),
     NULL
 };
 
 int main(int argc, char **argv)
 {
-    VLC_UNUSED(argc); VLC_UNUSED(argv);
+    HEIMDALL_UNUSED(argc); HEIMDALL_UNUSED(argv);
     test_init();
 
     const char * const args[] = {
@@ -206,14 +207,14 @@ int main(int argc, char **argv)
         "--no-auto-preparse",
     };
 
-    libvlc_instance_t *vlc = libvlc_new(ARRAY_SIZE(args), args);
-    assert(vlc != NULL);
+    libheimdall_instance_t *heimdall = libheimdall_new(ARRAY_SIZE(args), args);
+    assert(heimdall != NULL);
 
-    vlc_object_t *obj = VLC_OBJECT(vlc->p_libvlc_int);
-    test_decoded_stream(obj, VLC_CODEC_MP4V, VIDEO_ES);
-    test_decoded_stream(obj, VLC_CODEC_MPGA, AUDIO_ES);
+    heimdall_object_t *obj = HEIMDALL_OBJECT(heimdall->p_libheimdall_int);
+    test_decoded_stream(obj, HEIMDALL_CODEC_MP4V, VIDEO_ES);
+    test_decoded_stream(obj, HEIMDALL_CODEC_MPGA, AUDIO_ES);
 
-    libvlc_release(vlc);
+    libheimdall_release(heimdall);
     assert(decoder_opened == 2);
     assert(decoder_closed == 2);
     return 0;

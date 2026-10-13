@@ -2,6 +2,7 @@
  * noseek.c:
  *****************************************************************************
  * Copyright (C) 2017 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,9 +23,9 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_demux.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_demux.h>
 
 static int Demux(demux_t *demux)
 {
@@ -42,7 +43,7 @@ static int Control(demux_t *demux, int query, va_list args)
         case DEMUX_SET_POSITION:
         case DEMUX_SET_TIME:
         case DEMUX_GET_TITLE_INFO:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
         case DEMUX_TEST_AND_CLEAR_FLAGS:
         {
@@ -59,21 +60,21 @@ static int Control(demux_t *demux, int query, va_list args)
             return demux_vaControl(demux->s, query, args);
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int Open(vlc_object_t *obj)
+static int Open(heimdall_object_t *obj)
 {
     demux_t *demux = (demux_t *)obj;
 
     demux->pf_demux = Demux;
     demux->pf_control = Control;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description(N_("Seek prevention demux filter"))
     set_subcategory(SUBCAT_INPUT_STREAM_FILTER)
     set_capability("demux_filter", 0)
     set_callback(Open)
-vlc_module_end()
+heimdall_module_end()

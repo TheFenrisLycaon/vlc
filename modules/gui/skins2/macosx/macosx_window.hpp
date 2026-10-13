@@ -2,6 +2,7 @@
  * macosx_window.hpp
  *****************************************************************************
  * Copyright (C) 2026 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Fletcher Holt <fletcherholt649@gmail.com>
  *          Felix Paul Kühne <fkuehne@videolan.org>
@@ -27,11 +28,11 @@
 #include "../src/generic_window.hpp"
 #include "../src/os_window.hpp"
 
-#include <vlc_window.h>
+#include <heimdall_window.h>
 
 @class NSWindow;
 @class NSView;
-@class VLCSkinsWindow;
+@class HeimdallSkinsWindow;
 
 class MacOSXDragDrop;
 
@@ -66,7 +67,7 @@ public:
     virtual void toggleOnTop( bool onTop ) const;
 
     /// Set the window handler for video output
-    virtual void setOSHandle( vlc_window_t *pWnd ) const;
+    virtual void setOSHandle( heimdall_window_t *pWnd ) const;
 
     /// Reparent the window
     virtual void reparent( OSWindow *pParent, int x, int y, int w, int h );
@@ -84,7 +85,7 @@ private:
     /// Associated GenericWindow
     GenericWindow &m_rWindow;
     /// NSWindow handle (used for TopWindow/FullscreenWindow)
-    VLCSkinsWindow *m_pWindow;
+    HeimdallSkinsWindow *m_pWindow;
     /// NSView handle (used for VoutWindow, embedded in parent's content view)
     NSView *m_pVoutView;
     /// Parent window

@@ -2,6 +2,7 @@
  * specific.c: OS/2 specific features
  *****************************************************************************
  * Copyright (C) 2010 KO Myung-Hun
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,16 +23,16 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include "../libvlc.h"
-#include <vlc_playlist.h>
-#include <vlc_interface.h>
-#include <vlc_url.h>
+#include <heimdall_common.h>
+#include "../libheimdall.h"
+#include <heimdall_playlist.h>
+#include <heimdall_interface.h>
+#include <heimdall_url.h>
 
 #include <fcntl.h>
 #include <io.h>
 
-#define VLC_IPC_PIPE "\\PIPE\\VLC\\IPC\\"VERSION
+#define HEIMDALL_IPC_PIPE "\\PIPE\\Heimdall\\IPC\\"VERSION
 
 #define IPC_CMD_GO      0x00
 #define IPC_CMD_ENQUEUE 0x01
@@ -43,7 +44,7 @@ static HPIPE hpipeIPC     = NULLHANDLE;
 static int   tidIPCFirst  = -1;
 static int   tidIPCHelper = -1;
 
-static void add_to_playlist(vlc_playlist_t *playlist, const char *uri,
+static void add_to_playlist(heimdall_playlist_t *playlist, const char *uri,
                             bool play_now, int options_count,
                             const char *const *options)
 {
@@ -51,19 +52,19 @@ static void add_to_playlist(vlc_playlist_t *playlist, const char *uri,
     if (!media)
         return;
     input_item_AddOptions(media, options_count, options,
-                          VLC_INPUT_OPTION_TRUSTED);
+                          HEIMDALL_INPUT_OPTION_TRUSTED);
 
-    vlc_playlist_Lock(playlist);
-    vlc_playlist_AppendOne(playlist, media);
+    heimdall_playlist_Lock(playlist);
+    heimdall_playlist_AppendOne(playlist, media);
     if (play_now)
-        vlc_playlist_Start(playlist);
-    vlc_playlist_Unlock(playlist);
+        heimdall_playlist_Start(playlist);
+    heimdall_playlist_Unlock(playlist);
     input_item_Release(media);
 }
 
 static void IPCHelperThread( void *arg )
 {
-    libvlc_int_t *libvlc = arg;
+    libheimdall_int_t *libheimdall = arg;
 
     ULONG  ulCmd;
     int    i_argc;
@@ -73,7 +74,7 @@ static void IPCHelperThread( void *arg )
     int    i_options;
 
     /* Add files to the playlist */
-    vlc_playlist_t *p_playlist;
+    heimdall_playlist_t *p_playlist;
 
     do
     {
@@ -87,7 +88,7 @@ static void IPCHelperThread( void *arg )
         /* Read a count of arguments */
         DosRead( hpipeIPC, &i_argc, sizeof( i_argc ), &cbActual );
 
-        ppsz_argv = vlc_alloc( i_argc, sizeof( *ppsz_argv ));
+        ppsz_argv = heimdall_alloc( i_argc, sizeof( *ppsz_argv ));
 
         for( int i_opt = 0; i_opt < i_argc; i_opt++ )
         {
@@ -100,7 +101,7 @@ static void IPCHelperThread( void *arg )
             DosRead( hpipeIPC, ppsz_argv[ i_opt ], i_len, &cbActual );
         }
 
-        p_playlist = libvlc_priv(libvlc)->main_playlist;
+        p_playlist = libheimdall_priv(libheimdall)->main_playlist;
 
         for( int i_opt = 0; i_opt < i_argc;)
         {
@@ -145,7 +146,7 @@ void system_Init( void )
         setmode( fileno( stdin ), O_BINARY ); /* Needed for pipes */
 }
 
-void system_Configure( libvlc_int_t *p_this, int i_argc, const char *const ppsz_argv[] )
+void system_Configure( libheimdall_int_t *p_this, int i_argc, const char *const ppsz_argv[] )
 {
     if( var_InheritBool( p_this, "high-priority" ) )
     {
@@ -172,21 +173,21 @@ void system_Configure( libvlc_int_t *p_this, int i_argc, const char *const ppsz_
         /* Use a named pipe to check if another instance is already running */
         for(;;)
         {
-            rc = DosOpen( VLC_IPC_PIPE, &hpipe, &ulAction, 0, 0,
+            rc = DosOpen( HEIMDALL_IPC_PIPE, &hpipe, &ulAction, 0, 0,
                           OPEN_ACTION_OPEN_IF_EXISTS,
                           OPEN_ACCESS_READWRITE | OPEN_SHARE_DENYREADWRITE |
                           OPEN_FLAGS_FAIL_ON_ERROR,
                           NULL );
 
             if( rc == ERROR_PIPE_BUSY )
-                DosWaitNPipe( VLC_IPC_PIPE, -1 );
+                DosWaitNPipe( HEIMDALL_IPC_PIPE, -1 );
             else
                 break;
         }
 
         if( rc )
         {
-            rc = DosCreateNPipe( VLC_IPC_PIPE,  &hpipeIPC,
+            rc = DosCreateNPipe( HEIMDALL_IPC_PIPE,  &hpipeIPC,
                                  NP_ACCESS_DUPLEX,
                                  NP_WAIT | NP_TYPE_MESSAGE |
                                  NP_READMODE_MESSAGE | 0x01,
@@ -239,7 +240,7 @@ void system_Configure( libvlc_int_t *p_this, int i_argc, const char *const ppsz_
                 if( strstr( ppsz_argv[ i_opt ], "://" ))
                     mrl = strdup( ppsz_argv[ i_opt ] );
                 else
-                    mrl = vlc_path2uri( ppsz_argv[ i_opt ], NULL );
+                    mrl = heimdall_path2uri( ppsz_argv[ i_opt ], NULL );
 
                 if( !mrl )
                     mrl = ( char * )ppsz_argv[ i_opt ];
@@ -280,14 +281,14 @@ void system_End(void)
 
         do
         {
-            rc = DosOpen( VLC_IPC_PIPE, &hpipe, &ulAction, 0, 0,
+            rc = DosOpen( HEIMDALL_IPC_PIPE, &hpipe, &ulAction, 0, 0,
                           OPEN_ACTION_OPEN_IF_EXISTS,
                           OPEN_ACCESS_READWRITE | OPEN_SHARE_DENYREADWRITE |
                           OPEN_FLAGS_FAIL_ON_ERROR,
                           NULL );
 
             if( rc == ERROR_PIPE_BUSY )
-                DosWaitNPipe( VLC_IPC_PIPE, -1 );
+                DosWaitNPipe( HEIMDALL_IPC_PIPE, -1 );
             else if( rc )
                 DosSleep( 1 );
         } while( rc );

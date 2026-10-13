@@ -2,6 +2,7 @@
  * omxil.c: Video decoder module making use of OpenMAX IL components.
  *****************************************************************************
  * Copyright (C) 2010 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gildas Bazin <gbazin@videolan.org>
  *
@@ -29,11 +30,11 @@
 
 #include <limits.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
-#include <vlc_block_helper.h>
-#include <vlc_cpu.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
+#include <heimdall_block_helper.h>
+#include <heimdall_cpu.h>
 #include "../../packetizer/h264_nal.h"
 #include "../../packetizer/hevc_nal.h"
 
@@ -60,10 +61,10 @@
 /*****************************************************************************
  * Local prototypes
  *****************************************************************************/
-static int  OpenDecoder( vlc_object_t * );
-static int  OpenEncoder( vlc_object_t * );
-static int  OpenGeneric( vlc_object_t *, bool b_encode );
-static void CloseGeneric( vlc_object_t * );
+static int  OpenDecoder( heimdall_object_t * );
+static int  OpenEncoder( heimdall_object_t * );
+static int  OpenGeneric( heimdall_object_t *, bool b_encode );
+static void CloseGeneric( heimdall_object_t * );
 
 static int DecodeVideo( decoder_t *, block_t * );
 static int DecodeAudio ( decoder_t *, block_t * );
@@ -82,7 +83,7 @@ static OMX_ERRORTYPE OmxFillBufferDone( OMX_HANDLETYPE, OMX_PTR,
  *****************************************************************************/
 
 #define CFG_PREFIX "omxil-"
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("Audio/Video decoder (using OpenMAX IL)") )
     set_subcategory( SUBCAT_INPUT_VCODEC )
     set_section( N_("Decoding") , NULL )
@@ -101,7 +102,7 @@ vlc_module_begin ()
     set_capability( "video encoder", 0 )
     set_callback( OpenEncoder )
 #endif
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * ImplementationSpecificWorkarounds: place-holder for implementation
@@ -116,13 +117,13 @@ static OMX_ERRORTYPE ImplementationSpecificWorkarounds(decoder_t *p_dec,
 
     /* Try to find out the profile of the video */
     if(p_fmt->i_cat == VIDEO_ES && def->eDir == OMX_DirInput &&
-            p_fmt->i_codec == VLC_CODEC_H264)
+            p_fmt->i_codec == HEIMDALL_CODEC_H264)
         h264_get_profile_level(p_dec->fmt_in, &i_profile, &i_level, &p_sys->i_nal_size_length);
 
     if(!strcmp(p_sys->psz_component, "OMX.TI.Video.Decoder"))
     {
         if(p_fmt->i_cat == VIDEO_ES && def->eDir == OMX_DirInput &&
-           p_fmt->i_codec == VLC_CODEC_H264 &&
+           p_fmt->i_codec == HEIMDALL_CODEC_H264 &&
            (i_profile != PROFILE_H264_BASELINE || i_level > 30))
         {
             msg_Dbg(p_dec, "h264 profile/level not supported (0x%" PRIx8 ", 0x%" PRIx8 ")",
@@ -131,13 +132,13 @@ static OMX_ERRORTYPE ImplementationSpecificWorkarounds(decoder_t *p_dec,
         }
 
         if(p_fmt->i_cat == VIDEO_ES && def->eDir == OMX_DirOutput &&
-           p_fmt->i_codec == VLC_CODEC_I420)
+           p_fmt->i_codec == HEIMDALL_CODEC_I420)
         {
             /* I420 xvideo is slow on OMAP */
             def->format.video.eColorFormat = OMX_COLOR_FormatCbYCrY;
             p_fmt->i_codec =
-                p_fmt->video.i_chroma = GetVlcChromaFormat( def->format.video.eColorFormat );
-            if( !GetVlcChromaSizes( p_fmt->i_codec,
+                p_fmt->video.i_chroma = GetHeimdallChromaFormat( def->format.video.eColorFormat );
+            if( !GetHeimdallChromaSizes( p_fmt->i_codec,
                                def->format.video.nFrameWidth,
                                def->format.video.nFrameHeight,
                                &p_port->i_frame_size, &p_port->i_frame_stride,
@@ -181,7 +182,7 @@ static OMX_ERRORTYPE ImplementationSpecificWorkarounds(decoder_t *p_dec,
 }
 
 /*****************************************************************************
- * SetPortDefinition: set definition of the omx port based on the vlc format
+ * SetPortDefinition: set definition of the omx port based on the heimdall format
  *****************************************************************************/
 static OMX_ERRORTYPE SetPortDefinition(decoder_t *p_dec, OmxPort *p_port,
                                        es_format_t *p_fmt)
@@ -224,7 +225,7 @@ static OMX_ERRORTYPE SetPortDefinition(decoder_t *p_dec, OmxPort *p_port,
                     CHECK_ERROR(omx_error, "codec %4.4s doesn't match any OMX format",
                                 (char *)&p_fmt->i_codec );
                 }
-                if( !GetVlcChromaSizes( p_fmt->i_codec,
+                if( !GetHeimdallChromaSizes( p_fmt->i_codec,
                                    def->format.video.nFrameWidth,
                                    def->format.video.nFrameHeight,
                                    &p_port->i_frame_size, &p_port->i_frame_stride,
@@ -239,14 +240,14 @@ static OMX_ERRORTYPE SetPortDefinition(decoder_t *p_dec, OmxPort *p_port,
         }
         else
         {
-            p_fmt->i_codec = GetVlcChromaFormat( def->format.video.eColorFormat );
+            p_fmt->i_codec = GetHeimdallChromaFormat( def->format.video.eColorFormat );
             if( p_fmt->i_codec == 0 )
             {
                 omx_error = OMX_ErrorNotImplemented;
                 CHECK_ERROR(omx_error, "OMX color format %i not supported",
                             (int)def->format.video.eColorFormat );
             }
-            if( !GetVlcChromaSizes( p_fmt->i_codec,
+            if( !GetHeimdallChromaSizes( p_fmt->i_codec,
                                def->format.video.nFrameWidth,
                                def->format.video.nFrameHeight,
                                &p_port->i_frame_size, &p_port->i_frame_stride,
@@ -275,7 +276,7 @@ static OMX_ERRORTYPE SetPortDefinition(decoder_t *p_dec, OmxPort *p_port,
         }
         else
         {
-            p_fmt->i_codec = OmxToVlcAudioFormat(def->format.audio.eEncoding );
+            p_fmt->i_codec = OmxToHeimdallAudioFormat(def->format.audio.eEncoding );
             if( p_fmt->i_codec == 0 )
             {
                 omx_error = OMX_ErrorNotImplemented;
@@ -343,7 +344,7 @@ static OMX_ERRORTYPE SetPortDefinition(decoder_t *p_dec, OmxPort *p_port,
 
 
 /*****************************************************************************
- * UpdatePixelAspect: Update vlc pixel aspect based on the aspect reported on
+ * UpdatePixelAspect: Update heimdall pixel aspect based on the aspect reported on
  * the omx port - NOTE: Broadcom specific
  *****************************************************************************/
 static OMX_ERRORTYPE UpdatePixelAspect(decoder_t *p_dec)
@@ -493,7 +494,7 @@ static OMX_ERRORTYPE FreeBuffers(decoder_t *p_dec, OmxPort *p_port)
 }
 
 /*****************************************************************************
- * GetPortDefinition: set vlc format based on the definition of the omx port
+ * GetPortDefinition: set heimdall format based on the definition of the omx port
  *****************************************************************************/
 static OMX_ERRORTYPE GetPortDefinition(decoder_t *p_dec, OmxPort *p_port,
                                        es_format_t *p_fmt)
@@ -553,17 +554,17 @@ static OMX_ERRORTYPE GetPortDefinition(decoder_t *p_dec, OmxPort *p_port,
             def->format.video.nStride = p_fmt->video.i_width;
         }
 
-        p_fmt->i_codec = GetVlcVideoFormat( def->format.video.eCompressionFormat );
+        p_fmt->i_codec = GetHeimdallVideoFormat( def->format.video.eCompressionFormat );
         if( p_fmt->i_codec == 0 )
         {
-            p_fmt->i_codec = GetVlcChromaFormat( def->format.video.eColorFormat );
+            p_fmt->i_codec = GetHeimdallChromaFormat( def->format.video.eColorFormat );
             if( p_fmt->i_codec == 0 )
             {
                 omx_error = OMX_ErrorNotImplemented;
                 CHECK_ERROR(omx_error, "OMX color format %i not supported",
                             (int)def->format.video.eColorFormat );
             }
-            if( !GetVlcChromaSizes( p_fmt->i_codec,
+            if( !GetHeimdallChromaSizes( p_fmt->i_codec,
                                def->format.video.nFrameWidth,
                                def->format.video.nFrameHeight,
                                &p_port->i_frame_size, &p_port->i_frame_stride,
@@ -585,7 +586,7 @@ static OMX_ERRORTYPE GetPortDefinition(decoder_t *p_dec, OmxPort *p_port,
         break;
 
     case AUDIO_ES:
-        p_fmt->i_codec = OmxToVlcAudioFormat( def->format.audio.eEncoding );
+        p_fmt->i_codec = OmxToHeimdallAudioFormat( def->format.audio.eEncoding );
         if( p_fmt->i_codec == 0 )
         {
             omx_error = OMX_ErrorNotImplemented;
@@ -606,7 +607,7 @@ static OMX_ERRORTYPE GetPortDefinition(decoder_t *p_dec, OmxPort *p_port,
 
         if(p_fmt->audio.i_channels < 9)
             p_fmt->audio.i_physical_channels =
-                vlc_chan_maps[p_fmt->audio.i_channels];
+                heimdall_chan_maps[p_fmt->audio.i_channels];
 
         date_Init( &p_sys->end_date, p_fmt->audio.i_rate, 1 );
 
@@ -843,7 +844,7 @@ static OMX_ERRORTYPE InitialiseComponent(decoder_t *p_dec,
     }
 
     if(!strncmp(p_sys->psz_component, "OMX.broadcom.", 13) &&
-        p_sys->in.p_fmt->i_codec == VLC_CODEC_H264)
+        p_sys->in.p_fmt->i_codec == HEIMDALL_CODEC_H264)
     {
         OMX_PARAM_BRCMVIDEODECODEERRORCONCEALMENTTYPE concanParam;
         OMX_INIT_STRUCTURE(concanParam);
@@ -888,63 +889,63 @@ static OMX_ERRORTYPE InitialiseComponent(decoder_t *p_dec,
 /*****************************************************************************
  * OpenDecoder: Create the decoder instance
  *****************************************************************************/
-static int OpenDecoder( vlc_object_t *p_this )
+static int OpenDecoder( heimdall_object_t *p_this )
 {
     decoder_t *p_dec = (decoder_t*)p_this;
     int status;
 
     if( 0 || !GetOmxRole(p_dec->fmt_in, false) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     status = OpenGeneric( p_this, false );
-    if(status != VLC_SUCCESS) return status;
+    if(status != HEIMDALL_SUCCESS) return status;
 
     switch( p_dec->fmt_in->i_cat )
     {
         case AUDIO_ES: p_dec->pf_decode = DecodeAudio; break;
         case VIDEO_ES: p_dec->pf_decode = DecodeVideo; break;
-        default: vlc_assert_unreachable();
+        default: heimdall_assert_unreachable();
     }
     p_dec->pf_flush        = Flush;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 #ifdef ENABLE_SOUT
 static void CloseEncoder( encoder_t *p_enc )
 {
-    CloseGeneric( VLC_OBJECT(p_enc) );
+    CloseGeneric( HEIMDALL_OBJECT(p_enc) );
 }
 
 /*****************************************************************************
  * OpenEncoder: Create the encoder instance
  *****************************************************************************/
-static int OpenEncoder( vlc_object_t *p_this )
+static int OpenEncoder( heimdall_object_t *p_this )
 {
     encoder_t *p_enc = (encoder_t*)p_this;
     int status;
 
     if( !GetOmxRole(&p_enc->fmt_out, true) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     status = OpenGeneric( p_this, true );
-    if(status != VLC_SUCCESS) return status;
+    if(status != HEIMDALL_SUCCESS) return status;
 
-    static const struct vlc_encoder_operations ops =
+    static const struct heimdall_encoder_operations ops =
     {
         .close = CloseEncoder,
         .encode_video = EncodeVideo,
     };
     p_enc->ops = &ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 #endif
 
 /*****************************************************************************
  * OpenGeneric: Create the generic decoder/encoder instance
  *****************************************************************************/
-static int OpenGeneric( vlc_object_t *p_this, bool b_encode )
+static int OpenGeneric( heimdall_object_t *p_this, bool b_encode )
 {
     decoder_t *p_dec = (decoder_t*)p_this;
     decoder_sys_t *p_sys;
@@ -952,15 +953,15 @@ static int OpenGeneric( vlc_object_t *p_this, bool b_encode )
     OMX_BUFFERHEADERTYPE *p_header;
     unsigned int i;
 
-    if (InitOmxCore(p_this) != VLC_SUCCESS) {
-        return VLC_EGENERIC;
+    if (InitOmxCore(p_this) != HEIMDALL_SUCCESS) {
+        return HEIMDALL_EGENERIC;
     }
 
     /* Allocate the memory needed to store the decoder's structure */
     if( ( p_dec->p_sys = p_sys = calloc( 1, sizeof(*p_sys)) ) == NULL )
     {
         DeinitOmxCore();
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     /* Initialise the thread properties */
@@ -1003,7 +1004,7 @@ static int OpenGeneric( vlc_object_t *p_this, bool b_encode )
         msg_Warn( p_this, "couldn't find an omx component for codec %4.4s",
                   (char *)&p_dec->fmt_in->i_codec );
         CloseGeneric(p_this);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Try to load and initialise a component */
@@ -1073,7 +1074,7 @@ static int OpenGeneric( vlc_object_t *p_this, bool b_encode )
             p_header->nFilledLen = i_filled_len;
             free(p_buf);
         }
-        else if( p_dec->fmt_in->i_codec == VLC_CODEC_HEVC && !p_sys->in.b_direct )
+        else if( p_dec->fmt_in->i_codec == HEIMDALL_CODEC_HEVC && !p_sys->in.b_direct )
         {
             size_t i_filled_len;
             uint8_t *p_buf;
@@ -1102,7 +1103,7 @@ static int OpenGeneric( vlc_object_t *p_this, bool b_encode )
             p_header->pOutputPortPrivate = p_header->pBuffer;
             p_header->pBuffer = p_dec->fmt_in->p_extra;
         }
-        else if (p_dec->fmt_in->i_codec == VLC_CODEC_WMV3 &&
+        else if (p_dec->fmt_in->i_codec == HEIMDALL_CODEC_WMV3 &&
                  p_dec->fmt_in->i_extra >= 4 &&
                  p_header->nAllocLen >= 36)
         {
@@ -1164,11 +1165,11 @@ static int OpenGeneric( vlc_object_t *p_this, bool b_encode )
     if (!p_sys->b_use_pts)
         msg_Dbg( p_dec, "using dts timestamp mode for %s", p_sys->psz_component);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
  error:
     CloseGeneric(p_this);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /*****************************************************************************
@@ -1252,7 +1253,7 @@ static OMX_ERRORTYPE PortReconfigure(decoder_t *p_dec, OmxPort *p_port)
  *****************************************************************************/
 static int DecodeVideoOutput( decoder_t *p_dec, OmxPort *p_port, picture_t **pp_pic )
 {
-    VLC_UNUSED( p_dec );
+    HEIMDALL_UNUSED( p_dec );
     OMX_BUFFERHEADERTYPE *p_header;
     picture_t *p_pic = NULL, *p_next_pic;
     OMX_ERRORTYPE omx_error;
@@ -1421,21 +1422,21 @@ static int DecodeVideo( decoder_t *p_dec, block_t *p_block )
     unsigned int i;
 
     if( p_block == NULL ) /* No Drain */
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
 
     /* Check for errors from codec */
     if(p_sys->b_error)
     {
         msg_Dbg(p_dec, "error during decoding");
         block_Release( p_block );
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
     }
 
     if( p_block->i_flags & BLOCK_FLAG_CORRUPTED )
     {
         block_Release( p_block );
         Flush( p_dec );
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
     }
 
     /* Use the aspect ratio provided by the input (ie read from packetizer).
@@ -1492,10 +1493,10 @@ static int DecodeVideo( decoder_t *p_dec, block_t *p_block )
         attempts++;
     }
 
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 error:
     p_sys->b_error = true;
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }
 
 /*****************************************************************************
@@ -1509,20 +1510,20 @@ int DecodeAudio ( decoder_t *p_dec, block_t *p_block )
     unsigned int i;
 
     if( p_block == NULL ) /* No Drain */
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
 
     /* Check for errors from codec */
     if(p_sys->b_error)
     {
         msg_Dbg(p_dec, "error during decoding");
         block_Release( p_block );
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
     }
 
     if( p_block->i_flags & BLOCK_FLAG_CORRUPTED )
     {
         block_Release( p_block );
-        date_Set( &p_sys->end_date, VLC_TICK_INVALID );
+        date_Set( &p_sys->end_date, HEIMDALL_TICK_INVALID );
         if(!p_sys->in.b_flushed)
         {
             msg_Dbg(p_dec, "flushing");
@@ -1530,16 +1531,16 @@ int DecodeAudio ( decoder_t *p_dec, block_t *p_block )
                              p_sys->in.definition.nPortIndex, 0 );
         }
         p_sys->in.b_flushed = true;
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
     }
 
-    if( date_Get( &p_sys->end_date ) == VLC_TICK_INVALID )
+    if( date_Get( &p_sys->end_date ) == HEIMDALL_TICK_INVALID )
     {
         if( !p_block->i_pts )
         {
             /* We've just started the stream, wait for the first PTS. */
             block_Release( p_block );
-            return VLCDEC_SUCCESS;
+            return HEIMDALLDEC_SUCCESS;
         }
         date_Set( &p_sys->end_date, p_block->i_pts );
     }
@@ -1635,10 +1636,10 @@ reconfig:
         CHECK_ERROR(omx_error, "PortReconfigure failed");
     }
 
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 error:
     p_sys->b_error = true;
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }
 
 #ifdef ENABLE_SOUT
@@ -1677,7 +1678,7 @@ static block_t *EncodeVideo( encoder_t *p_enc, picture_t *p_pic )
         }
         else
         {
-            CopyVlcPicture(p_dec, p_header, p_pic);
+            CopyHeimdallPicture(p_dec, p_header, p_pic);
         }
 
         p_header->nFilledLen = p_sys->in.i_frame_size;
@@ -1744,7 +1745,7 @@ error:
 /*****************************************************************************
  * CloseGeneric: omxil decoder destruction
  *****************************************************************************/
-static void CloseGeneric( vlc_object_t *p_this )
+static void CloseGeneric( heimdall_object_t *p_this )
 {
     decoder_t *p_dec = (decoder_t *)p_this;
     decoder_sys_t *p_sys = p_dec->p_sys;
@@ -1773,7 +1774,7 @@ static OMX_ERRORTYPE OmxEventHandler( OMX_HANDLETYPE omx_handle,
     unsigned int i;
     (void)omx_handle;
 
-    PrintOmxEvent(VLC_OBJECT(p_dec), event, data_1, data_2, event_data);
+    PrintOmxEvent(HEIMDALL_OBJECT(p_dec), event, data_1, data_2, event_data);
     switch (event)
     {
     case OMX_EventError:

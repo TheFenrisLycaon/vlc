@@ -1,5 +1,5 @@
 Before reading this document, you should first take a look at skins-howto.txt
-to understand the general functioning of VLC skins.
+to understand the general functioning of Heimdall skins.
 
 What is an event ?
 ==================
@@ -27,116 +27,116 @@ All this is case sensitive.
 Don't add spaces.
 EVENT is the action to execute, it can be one of the following:
 
- - VLC_NOTHING:
+ - HEIMDALL_NOTHING:
    Action    : none, it executes nothing so don't use it !
    Parameters: none.
 
- - VLC_SHOW:
+ - HEIMDALL_SHOW:
    Action    : Open all windows of the interface with a fading effect if
                selected.
    Parameters: none.
 
- - VLC_HIDE:
+ - HEIMDALL_HIDE:
    Action    : Close all windows of the interface with a fading effect if
                selected.
    Parameters:
      - First 1 is an EVENT to execute when all windows have been closed.
 
- - VLC_QUIT:
+ - HEIMDALL_QUIT:
    Action    : Quit the interface
    Parameters: none.
 
- - VLC_OPEN:
+ - HEIMDALL_OPEN:
    Action    : Open an "open file dialog box" to open a file to play.
    Parameters: none.
 
- - VLC_LOAD_SKIN:
+ - HEIMDALL_LOAD_SKIN:
    Action    : Open an "open file dialog box" to change the current skin.
    Parameters: none.
 
- - VLC_ON_TOP:
+ - HEIMDALL_ON_TOP:
    Action    : Toggle the "Always on top" status
    Parameters: none.
 
- - VLC_LOG_SHOW:
+ - HEIMDALL_LOG_SHOW:
    Not supported yet
 
- - VLC_LOG_CLEAR:
+ - HEIMDALL_LOG_CLEAR:
    Not supported yet.
 
- - VLC_INTF_REFRESH:
+ - HEIMDALL_INTF_REFRESH:
    Action    : Force refreshing of the interface.
    Parameters: none.
 
- - VLC_CHANGE_TRAY:
-   Action    : if VLC is not visible in system tray, show it, else hide it.
+ - HEIMDALL_CHANGE_TRAY:
+   Action    : if Heimdall is not visible in system tray, show it, else hide it.
    Parameters: none.
 
- - VLC_CHANGE_TASKBAR:
-   Action    : if VLC is not visible in taskbar, show it, else hide it.
+ - HEIMDALL_CHANGE_TASKBAR:
+   Action    : if Heimdall is not visible in taskbar, show it, else hide it.
    Parameters: none.
 
- - VLC_FULLSCREEN:
+ - HEIMDALL_FULLSCREEN:
    Action    : switch current playlist item to fullscreen mode.
    Parameters: none.
 
- - VLC_PLAY:
+ - HEIMDALL_PLAY:
    Action    : play the stream.
    Parameters: none.
 
- - VLC_STOP:
+ - HEIMDALL_STOP:
    Action    : stop the stream.
    Parameters: none.
 
- - VLC_PAUSE:
+ - HEIMDALL_PAUSE:
    Action    : pause the stream.
    Parameters: none.
 
- - VLC_NEXT:
+ - HEIMDALL_NEXT:
    Action    : go to the next file in the playlist.
    Parameters: none.
 
- - VLC_PREV:
+ - HEIMDALL_PREV:
    Action    : go to the previous file in the playlist.
    Parameters: none.
 
- - VLC_SLOWER:
+ - HEIMDALL_SLOWER:
    Action    : play the stream slower.
    Parameters: none.
 
- - VLC_FASTER:
+ - HEIMDALL_FASTER:
    Action    : play the stream faster.
    Parameters: none.
 
- - VLC_STREAMPOS:
+ - HEIMDALL_STREAMPOS:
    Not supported yet.
 
- - VLC_VOLUME_CHANGE:
+ - HEIMDALL_VOLUME_CHANGE:
    Action    : change sound volume.
    Parameters:
-     1: - VLC_VOLUME_MUTE: switch to mute mode.
-        - VLC_VOLUME_UP: raise sounds volume.
-        - VLC_VOLUME_DOWN:
-        - VLC_VOLUME_SET: set sound volume to second parameter
-     2: if first parameter is VLC_VOLUME_SET only, an integer between 0 and 100.
+     1: - HEIMDALL_VOLUME_MUTE: switch to mute mode.
+        - HEIMDALL_VOLUME_UP: raise sounds volume.
+        - HEIMDALL_VOLUME_DOWN:
+        - HEIMDALL_VOLUME_SET: set sound volume to second parameter
+     2: if first parameter is HEIMDALL_VOLUME_SET only, an integer between 0 and 100.
 
- - VLC_PLAYLIST_ADD_FILE:
+ - HEIMDALL_PLAYLIST_ADD_FILE:
    Action    : Open an "open file dialog box" to add files to playlist.
    Parameters: none.
 
- - VLC_WINDOW_MOVE:
+ - HEIMDALL_WINDOW_MOVE:
    Action    : initiate manual window movement.
    Parameters: only one which must match the ID of a window. It should be
                used with image controls.
 
- - VLC_WINDOW_OPEN:
+ - HEIMDALL_WINDOW_OPEN:
    Action    : open a window with a fading effect if selected.
    Parameters:
      1: ID of the window to open.
      2: Describe what to do. Nothing is opening. 'TRUE' is the same. 'FALSE' is
         closing window. 'CHANGE' is switching between these two states.
 
- - VLC_WINDOW_CLOSE:
+ - HEIMDALL_WINDOW_CLOSE:
    Action    : close a window with a fading effect if selected.
    Parameters:
      1: ID of the window to close.
@@ -210,7 +210,7 @@ shortcut.
   mute                      Mute the sound.
   volume_up
   volume_down
-  quit         CTRL+C       Quit VLC.
+  quit         CTRL+C       Quit Heimdall.
   open         CTRL+O       Open a file.
   add_file     CTRL+A       Add a file.
   load_skin    CTRL+S       Change skin.

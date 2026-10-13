@@ -2,6 +2,7 @@
  * mft.cpp : Media Foundation Transform audio/video decoder
  *****************************************************************************
  * Copyright (C) 2014 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Felix Abecassis <felix.abecassis@gmail.com>
  *
@@ -34,10 +35,10 @@
 #include <cassert>
 #include <vector>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
-#include <vlc_aout.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
+#include <heimdall_aout.h>
 extern "C" {
 #include "hxxx_helper.h"
 }
@@ -64,7 +65,7 @@ DEFINE_CODECAPI_GUID(AVDecVideoAcceleration_MPEG2, "f7db8a2e-4f48-4ee8-ae31-8b6e
 #endif
 
 
-#include <vlc_codecs.h> // wf_tag_to_fourcc
+#include <heimdall_codecs.h> // wf_tag_to_fourcc
 
 #include <algorithm>
 #include <atomic>
@@ -74,15 +75,15 @@ DEFINE_CODECAPI_GUID(AVDecVideoAcceleration_MPEG2, "f7db8a2e-4f48-4ee8-ae31-8b6e
 #include <wrl/client.h>
 using Microsoft::WRL::ComPtr;
 
-static int  Open(vlc_object_t *);
-static void Close(vlc_object_t *);
-static int OpenMFTAudioEncoder(vlc_object_t *);
-static int OpenMFTVideoEncoder(vlc_object_t *);
+static int  Open(heimdall_object_t *);
+static void Close(heimdall_object_t *);
+static int OpenMFTAudioEncoder(heimdall_object_t *);
+static int OpenMFTVideoEncoder(heimdall_object_t *);
 
 #define MFT_DEBUG_TEXT N_("Extra MFT Debug")
 #define MFT_DEBUG_LONGTEXT N_( "Show more MediaFoundation debug info, may be slower to load" )
 
-vlc_module_begin()
+heimdall_module_begin()
     set_description(N_("Media Foundation Transform decoder"))
     add_shortcut("mft")
     set_capability("video decoder", 1)
@@ -106,9 +107,9 @@ vlc_module_begin()
     set_capability("video encoder", 10) // less than DMO for now
     set_callback(OpenMFTVideoEncoder)
 #endif
-vlc_module_end()
+heimdall_module_end()
 
-class mft_sys_t : public vlc_mft_ref
+class mft_sys_t : public heimdall_mft_ref
 {
 public:
     ComPtr<IMFTransform> mft;
@@ -135,7 +136,7 @@ public:
     int pending_input_events = 0;
     int pending_output_events = 0;
     int pending_drain_events = 0;
-    HRESULT DequeueMediaEvent(vlc_logger *, bool wait = false);
+    HRESULT DequeueMediaEvent(heimdall_logger *, bool wait = false);
 
     /* Input stream */
     DWORD input_stream_id = 0;
@@ -146,7 +147,7 @@ public:
     ComPtr<IMFSample> output_sample;
 
     HRESULT AllocateOutputSample(es_format_category_e cat, ComPtr<IMFSample> & result);
-    HRESULT SetOutputType(vlc_logger *, const GUID & req_subtype, es_format_t & fmt_out);
+    HRESULT SetOutputType(heimdall_logger *, const GUID & req_subtype, es_format_t & fmt_out);
     HRESULT SetInputType(const es_format_t & fmt_in, const MFT_REGISTER_TYPE_INFO &);
 
     virtual void DoRelease() = 0;
@@ -229,15 +230,15 @@ protected:
 /**
  * Generic class to handle Direct3D with MediaFoundation
  */
-class vlc_mft_d3d : public mft_sys_t
+class heimdall_mft_d3d : public mft_sys_t
 {
 public:
-    vlc_mft_d3d() = default;
-    virtual ~vlc_mft_d3d() = default;
+    heimdall_mft_d3d() = default;
+    virtual ~heimdall_mft_d3d() = default;
 
     std::unique_ptr<MFHW_d3d> hw_d3d;
 
-    HRESULT SetD3D(vlc_logger *, vlc_decoder_device &);
+    HRESULT SetD3D(heimdall_logger *, heimdall_decoder_device &);
 
 protected:
     void DoRelease() override
@@ -247,7 +248,7 @@ protected:
     }
 };
 
-class mft_dec_video : public vlc_mft_d3d
+class mft_dec_video : public heimdall_mft_d3d
 {
 public:
     mft_dec_video() = default;
@@ -270,12 +271,12 @@ protected:
     bool IsEncoder() const final { return true; }
 };
 
-class mft_enc_video : public vlc_mft_d3d
+class mft_enc_video : public heimdall_mft_d3d
 {
 public:
 
-    HRESULT ProcessInputPicture(struct vlc_logger *, picture_t *);
-    HRESULT ProcessOutput(vlc_logger *, block_t * & output);
+    HRESULT ProcessInputPicture(struct heimdall_logger *, picture_t *);
+    HRESULT ProcessOutput(heimdall_logger *, block_t * & output);
 
     bool IsEncoder() const final { return true; }
 
@@ -310,7 +311,7 @@ static const int pi_channels_maps[9] =
 
 typedef struct
 {
-    vlc_fourcc_t fourcc;
+    heimdall_fourcc_t fourcc;
     const GUID   guid;
 } pair_format_guid;
 
@@ -330,37 +331,37 @@ DEFINE_MEDIATYPE_GUID (MFVideoFormat_AV1, FCC('AV01'));
 
 /*
  * We need this table since the FOURCC used for GUID is not the same
- * as the FOURCC used by VLC, for instance h264 vs H264.
+ * as the FOURCC used by Heimdall, for instance h264 vs H264.
  */
 static const pair_format_guid video_codec_table[] =
 {
-    { VLC_CODEC_H264, MFVideoFormat_H264 },
-    { VLC_CODEC_MPGV, MFVideoFormat_MPEG2 },
-    { VLC_CODEC_MP2V, MFVideoFormat_MPEG2 },
-    { VLC_CODEC_MP1V, MFVideoFormat_MPG1 },
-    { VLC_CODEC_MJPG, MFVideoFormat_MJPG },
-    { VLC_CODEC_WMV1, MFVideoFormat_WMV1 },
-    { VLC_CODEC_WMV2, MFVideoFormat_WMV2 },
-    { VLC_CODEC_WMV3, MFVideoFormat_WMV3 },
-    { VLC_CODEC_VC1,  MFVideoFormat_WVC1 },
-    { VLC_CODEC_AV1,  MFVideoFormat_AV1 },
+    { HEIMDALL_CODEC_H264, MFVideoFormat_H264 },
+    { HEIMDALL_CODEC_MPGV, MFVideoFormat_MPEG2 },
+    { HEIMDALL_CODEC_MP2V, MFVideoFormat_MPEG2 },
+    { HEIMDALL_CODEC_MP1V, MFVideoFormat_MPG1 },
+    { HEIMDALL_CODEC_MJPG, MFVideoFormat_MJPG },
+    { HEIMDALL_CODEC_WMV1, MFVideoFormat_WMV1 },
+    { HEIMDALL_CODEC_WMV2, MFVideoFormat_WMV2 },
+    { HEIMDALL_CODEC_WMV3, MFVideoFormat_WMV3 },
+    { HEIMDALL_CODEC_VC1,  MFVideoFormat_WVC1 },
+    { HEIMDALL_CODEC_AV1,  MFVideoFormat_AV1 },
 
     { 0, GUID_NULL }
 };
 
 /*
- * Table to map MF Transform raw chroma output formats to native VLC FourCC
+ * Table to map MF Transform raw chroma output formats to native Heimdall FourCC
  */
 static const pair_format_guid chroma_format_table[] = {
-    { VLC_CODEC_NV12,  MFVideoFormat_NV12 },
-    { VLC_CODEC_I420,  MFVideoFormat_I420 },
-    { VLC_CODEC_YV12,  MFVideoFormat_YV12 },
-    { VLC_CODEC_YV12,  MFVideoFormat_IYUV },
-    { VLC_CODEC_YUYV,  MFVideoFormat_YUY2 },
-    { VLC_CODEC_BGRX,  MFVideoFormat_RGB32  },
-    { VLC_CODEC_BGR24, MFVideoFormat_RGB24  },
-    { VLC_CODEC_BGRA,  MFVideoFormat_ARGB32 },
-    { VLC_CODEC_GREY,  MFVideoFormat_L8 },
+    { HEIMDALL_CODEC_NV12,  MFVideoFormat_NV12 },
+    { HEIMDALL_CODEC_I420,  MFVideoFormat_I420 },
+    { HEIMDALL_CODEC_YV12,  MFVideoFormat_YV12 },
+    { HEIMDALL_CODEC_YV12,  MFVideoFormat_IYUV },
+    { HEIMDALL_CODEC_YUYV,  MFVideoFormat_YUY2 },
+    { HEIMDALL_CODEC_BGRX,  MFVideoFormat_RGB32  },
+    { HEIMDALL_CODEC_BGR24, MFVideoFormat_RGB24  },
+    { HEIMDALL_CODEC_BGRA,  MFVideoFormat_ARGB32 },
+    { HEIMDALL_CODEC_GREY,  MFVideoFormat_L8 },
 
     { 0, GUID_NULL }
 };
@@ -371,17 +372,17 @@ static const pair_format_guid chroma_format_table[] = {
  */
 static const pair_format_guid audio_codec_table[] =
 {
-    { VLC_CODEC_MPGA, MFAudioFormat_MPEG      },
-    { VLC_CODEC_MP3,  MFAudioFormat_MP3       },
-    { VLC_CODEC_DTS,  MFAudioFormat_DTS       },
-    { VLC_CODEC_MP4A, MFAudioFormat_AAC       },
-    { VLC_CODEC_WMA2, MFAudioFormat_WMAudioV8 },
-    { VLC_CODEC_A52,  MFAudioFormat_Dolby_AC3 },
+    { HEIMDALL_CODEC_MPGA, MFAudioFormat_MPEG      },
+    { HEIMDALL_CODEC_MP3,  MFAudioFormat_MP3       },
+    { HEIMDALL_CODEC_DTS,  MFAudioFormat_DTS       },
+    { HEIMDALL_CODEC_MP4A, MFAudioFormat_AAC       },
+    { HEIMDALL_CODEC_WMA2, MFAudioFormat_WMAudioV8 },
+    { HEIMDALL_CODEC_A52,  MFAudioFormat_Dolby_AC3 },
 
     { 0, GUID_NULL }
 };
 
-static HRESULT MFTypeFromCodec(const GUID & type, vlc_fourcc_t codec, MFT_REGISTER_TYPE_INFO & info)
+static HRESULT MFTypeFromCodec(const GUID & type, heimdall_fourcc_t codec, MFT_REGISTER_TYPE_INFO & info)
 {
     const pair_format_guid *table = type == MFMediaType_Video ? video_codec_table : audio_codec_table;
     for (int i = 0; table[i].fourcc; ++i)
@@ -395,7 +396,7 @@ static HRESULT MFTypeFromCodec(const GUID & type, vlc_fourcc_t codec, MFT_REGIST
     return E_INVALIDARG;
 }
 
-static vlc_fourcc_t MFFormatToChroma(const GUID & guid)
+static heimdall_fourcc_t MFFormatToChroma(const GUID & guid)
 {
     for (int i = 0; chroma_format_table[i].fourcc; ++i)
         if (chroma_format_table[i].guid == guid)
@@ -404,15 +405,15 @@ static vlc_fourcc_t MFFormatToChroma(const GUID & guid)
     return 0;
 }
 
-static HRESULT MFTypeFromAudio(vlc_fourcc_t audio_format, MFT_REGISTER_TYPE_INFO & info)
+static HRESULT MFTypeFromAudio(heimdall_fourcc_t audio_format, MFT_REGISTER_TYPE_INFO & info)
 {
-    if (audio_format == VLC_CODEC_F32L)
+    if (audio_format == HEIMDALL_CODEC_F32L)
     {
         info.guidMajorType = MFMediaType_Audio;
         info.guidSubtype = MFAudioFormat_Float;
         return S_OK;
     }
-    if (audio_format == VLC_CODEC_S16L)
+    if (audio_format == HEIMDALL_CODEC_S16L)
     {
         info.guidMajorType = MFMediaType_Audio;
         info.guidSubtype = MFAudioFormat_PCM;
@@ -421,7 +422,7 @@ static HRESULT MFTypeFromAudio(vlc_fourcc_t audio_format, MFT_REGISTER_TYPE_INFO
 
     return E_INVALIDARG;
 }
-static vlc_fourcc_t MFFormatToCodec(const pair_format_guid table[], const GUID & guid)
+static heimdall_fourcc_t MFFormatToCodec(const pair_format_guid table[], const GUID & guid)
 {
     for (int i = 0; table[i].fourcc; ++i)
         if (table[i].guid == guid)
@@ -430,9 +431,9 @@ static vlc_fourcc_t MFFormatToCodec(const pair_format_guid table[], const GUID &
     return 0;
 }
 
-static HRESULT MFTypeFromChroma(vlc_fourcc_t chroma, vlc_video_context *vctx, MFT_REGISTER_TYPE_INFO & info)
+static HRESULT MFTypeFromChroma(heimdall_fourcc_t chroma, heimdall_video_context *vctx, MFT_REGISTER_TYPE_INFO & info)
 {
-    if (vctx && vlc_video_context_GetType(vctx) == VLC_VIDEO_CONTEXT_D3D11VA)
+    if (vctx && heimdall_video_context_GetType(vctx) == HEIMDALL_VIDEO_CONTEXT_D3D11VA)
     {
         assert(is_d3d11_opaque(chroma));
         auto *dev_sys = GetD3D11ContextPrivate(vctx);
@@ -565,7 +566,7 @@ error:
     return hr;
 }
 
-HRESULT mft_sys_t::SetOutputType(vlc_logger *logger,
+HRESULT mft_sys_t::SetOutputType(heimdall_logger *logger,
                              const GUID & req_subtype, es_format_t & fmt_out)
 {
     HRESULT hr;
@@ -685,7 +686,7 @@ HRESULT mft_sys_t::SetOutputType(vlc_logger *logger,
             if(!fmt_out.i_codec) {
                 if (subtype == MFVideoFormat_IYUV)
                     subtype = MFVideoFormat_I420;
-                fmt_out.i_codec = vlc_fourcc_GetCodec(VIDEO_ES, subtype.Data1);
+                fmt_out.i_codec = heimdall_fourcc_GetCodec(VIDEO_ES, subtype.Data1);
             }
         }
     }
@@ -713,7 +714,7 @@ HRESULT mft_sys_t::SetOutputType(vlc_logger *logger,
         hr = output_media_type->SetUINT32(MF_MT_FIXED_SIZE_SAMPLES, 0);
         hr = output_media_type->SetUINT32(MF_MT_ALL_SAMPLES_INDEPENDENT, 1);
 
-        if (fmt_out.i_codec == VLC_CODEC_H264)
+        if (fmt_out.i_codec == HEIMDALL_CODEC_H264)
         {
             eAVEncH264VProfile profile;
 #if (_WIN32_WINNT < _WIN32_WINNT_WIN8)
@@ -735,7 +736,7 @@ HRESULT mft_sys_t::SetOutputType(vlc_logger *logger,
     hr = mft->SetOutputType(output_stream_id, output_media_type.Get(), 0);
     if (FAILED(hr))
     {
-        vlc_error(logger, "Failed to set the output. (hr=0x%lX)", hr);
+        heimdall_error(logger, "Failed to set the output. (hr=0x%lX)", hr);
         goto error;
     }
 
@@ -743,7 +744,7 @@ HRESULT mft_sys_t::SetOutputType(vlc_logger *logger,
 
     if (fmt_out.i_cat == VIDEO_ES)
     {
-        if (fmt_out.i_codec == VLC_CODEC_H264)
+        if (fmt_out.i_codec == HEIMDALL_CODEC_H264)
         {
             UINT32 blob_size = 0;
             hr = output_media_type->GetBlobSize(MF_MT_MPEG_SEQUENCE_HEADER, &blob_size);
@@ -775,13 +776,13 @@ HRESULT mft_sys_t::SetOutputType(vlc_logger *logger,
         if (SUCCEEDED(hr) && rate)
             fmt_out.audio.i_rate = rate;
 
-        vlc_fourcc_t fourcc;
+        heimdall_fourcc_t fourcc;
         wf_tag_to_fourcc(subtype.Data1, &fourcc, NULL);
-        fmt_out.i_codec = vlc_fourcc_GetCodecAudio(fourcc, fmt_out.audio.i_bitspersample);
+        fmt_out.i_codec = heimdall_fourcc_GetCodecAudio(fourcc, fmt_out.audio.i_bitspersample);
 
         fmt_out.audio.i_physical_channels = pi_channels_maps[fmt_out.audio.i_channels];
 
-        if (fmt_out.i_codec == VLC_CODEC_MP4A)
+        if (fmt_out.i_codec == HEIMDALL_CODEC_MP4A)
         {
             UINT32 blob_size = 0;
             hr = output_media_type->GetBlobSize(MF_MT_USER_DATA, &blob_size);
@@ -805,11 +806,11 @@ HRESULT mft_sys_t::SetOutputType(vlc_logger *logger,
     return S_OK;
 
 error:
-    vlc_error(logger, "Error in SetOutputType()");
+    heimdall_error(logger, "Error in SetOutputType()");
     return hr;
 }
 
-static HRESULT AllocateInputSample(struct vlc_logger *logger, ComPtr<IMFTransform> & mft, DWORD stream_id, ComPtr<IMFSample> & result, DWORD size)
+static HRESULT AllocateInputSample(struct heimdall_logger *logger, ComPtr<IMFTransform> & mft, DWORD stream_id, ComPtr<IMFSample> & result, DWORD size)
 {
     HRESULT hr;
 
@@ -842,7 +843,7 @@ static HRESULT AllocateInputSample(struct vlc_logger *logger, ComPtr<IMFTransfor
     return hr;
 
 error:
-    vlc_error(logger, "Error in AllocateInputSample(). (hr=0x%lX)", hr);
+    heimdall_error(logger, "Error in AllocateInputSample(). (hr=0x%lX)", hr);
     return hr;
 }
 
@@ -901,12 +902,12 @@ HRESULT mft_sys_t::AllocateOutputSample(es_format_category_e cat, ComPtr<IMFSamp
     return S_OK;
 }
 
-HRESULT mft_enc_video::ProcessInputPicture(vlc_logger *logger, picture_t *p_pic)
+HRESULT mft_enc_video::ProcessInputPicture(heimdall_logger *logger, picture_t *p_pic)
 {
     HRESULT hr;
     ComPtr<IMFSample> input_sample;
 
-    const vlc_chroma_description_t *p_chroma_desc = vlc_fourcc_GetChromaDescription( p_pic->format.i_chroma );
+    const heimdall_chroma_description_t *p_chroma_desc = heimdall_fourcc_GetChromaDescription( p_pic->format.i_chroma );
     if( !p_chroma_desc )
         return E_INVALIDARG;
 
@@ -923,7 +924,7 @@ HRESULT mft_enc_video::ProcessInputPicture(vlc_logger *logger, picture_t *p_pic)
         alloc_size += p->i_pitch * p->i_lines;
     }
 
-    vlc_tick_t ts;
+    heimdall_tick_t ts;
     ComPtr<IMFMediaBuffer> input_media_buffer;
     UINT64 frame_ratio_num = p_pic->format.i_frame_rate;
     UINT64 frame_ratio_den = p_pic->format.i_frame_rate_base;
@@ -961,7 +962,7 @@ HRESULT mft_enc_video::ProcessInputPicture(vlc_logger *logger, picture_t *p_pic)
     ts = p_pic->date;
 
     /* Convert from microseconds to 100 nanoseconds unit. */
-    hr = input_sample->SetSampleTime(MSFTIME_FROM_VLC_TICK(ts));
+    hr = input_sample->SetSampleTime(MSFTIME_FROM_HEIMDALL_TICK(ts));
     if (FAILED(hr))
         goto error;
 
@@ -976,24 +977,24 @@ HRESULT mft_enc_video::ProcessInputPicture(vlc_logger *logger, picture_t *p_pic)
     hr = mft->ProcessInput(input_stream_id, input_sample.Get(), 0);
     if (FAILED(hr))
     {
-        vlc_debug(logger, "Failed to process input stream %lu (error 0x%lX)", input_stream_id, hr);
+        heimdall_debug(logger, "Failed to process input stream %lu (error 0x%lX)", input_stream_id, hr);
         goto error;
     }
 
     return hr;
 
 error:
-    vlc_error(logger, "Error in ProcessInputStream(). (hr=0x%lX)", hr);
+    heimdall_error(logger, "Error in ProcessInputStream(). (hr=0x%lX)", hr);
     return hr;
 }
 
-static int ProcessInputStream(struct vlc_logger *logger, ComPtr<IMFTransform> & mft, DWORD stream_id, block_t *p_block)
+static int ProcessInputStream(struct heimdall_logger *logger, ComPtr<IMFTransform> & mft, DWORD stream_id, block_t *p_block)
 {
     HRESULT hr;
     ComPtr<IMFSample> input_sample;
 
     DWORD alloc_size = p_block->i_buffer;
-    vlc_tick_t ts;
+    heimdall_tick_t ts;
     ComPtr<IMFMediaBuffer> input_media_buffer;
 
     hr = AllocateInputSample(logger, mft, stream_id, input_sample, alloc_size);
@@ -1019,25 +1020,25 @@ static int ProcessInputStream(struct vlc_logger *logger, ComPtr<IMFTransform> & 
     if (FAILED(hr))
         goto error;
 
-    ts = p_block->i_pts == VLC_TICK_INVALID ? p_block->i_dts : p_block->i_pts;
+    ts = p_block->i_pts == HEIMDALL_TICK_INVALID ? p_block->i_dts : p_block->i_pts;
 
     /* Convert from microseconds to 100 nanoseconds unit. */
-    hr = input_sample->SetSampleTime(MSFTIME_FROM_VLC_TICK(ts));
+    hr = input_sample->SetSampleTime(MSFTIME_FROM_HEIMDALL_TICK(ts));
     if (FAILED(hr))
         goto error;
 
     hr = mft->ProcessInput(stream_id, input_sample.Get(), 0);
     if (FAILED(hr))
     {
-        vlc_debug(logger, "Failed to process input stream %lu (error 0x%lX)", stream_id, hr);
+        heimdall_debug(logger, "Failed to process input stream %lu (error 0x%lX)", stream_id, hr);
         goto error;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
-    vlc_error(logger, "Error in ProcessInputStream(). (hr=0x%lX)", hr);
-    return VLC_EGENERIC;
+    heimdall_error(logger, "Error in ProcessInputStream(). (hr=0x%lX)", hr);
+    return HEIMDALL_EGENERIC;
 }
 
 /* Copy a packed buffer (no padding) to a picture_t */
@@ -1078,7 +1079,7 @@ static int ProcessOutputStream(decoder_t *p_dec, DWORD stream_id, bool & keep_re
 
     keep_reading = false;
     if (hr == MF_E_TRANSFORM_NEED_MORE_INPUT)
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
     if (hr == MF_E_TRANSFORM_STREAM_CHANGE || hr == MF_E_TRANSFORM_TYPE_NOT_SET)
     {
@@ -1089,41 +1090,41 @@ static int ProcessOutputStream(decoder_t *p_dec, DWORD stream_id, bool & keep_re
             video_format_Copy( &p_dec->fmt_out.video, &p_dec->fmt_in->video );
         else
             p_dec->fmt_out.audio = p_dec->fmt_in->audio;
-        hr = p_sys->SetOutputType(vlc_object_logger(p_dec), GUID_NULL, p_dec->fmt_out);
+        hr = p_sys->SetOutputType(heimdall_object_logger(p_dec), GUID_NULL, p_dec->fmt_out);
         if (FAILED(hr))
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
         /* Reallocate output sample. */
         hr = p_sys->AllocateOutputSample(p_dec->fmt_in->i_cat, p_sys->output_sample);
         if (FAILED(hr))
         {
             msg_Err(p_dec, "Error in AllocateOutputSample(). (hr=0x%lX)", hr);
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
     /* An error not listed above occurred */
     if (FAILED(hr))
     {
         msg_Dbg(p_dec, "Failed to process output stream %lu (error 0x%lX)", stream_id, hr);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if (output_buffer.pSample == nullptr)
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
     LONGLONG sample_time;
     hr = output_buffer.pSample->GetSampleTime(&sample_time);
     if (FAILED(hr))
-        return VLC_EGENERIC;
-    /* Convert from 100 nanoseconds unit to vlc ticks. */
-    vlc_tick_t samp_time = VLC_TICK_FROM_MSFTIME(sample_time);
+        return HEIMDALL_EGENERIC;
+    /* Convert from 100 nanoseconds unit to heimdall ticks. */
+    heimdall_tick_t samp_time = HEIMDALL_TICK_FROM_MSFTIME(sample_time);
 
     DWORD output_count = 0;
     hr = output_buffer.pSample->GetBufferCount(&output_count);
     if (unlikely(FAILED(hr)))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     ComPtr<IMFSample> output_sample = output_buffer.pSample;
 
@@ -1137,7 +1138,7 @@ static int ProcessOutputStream(decoder_t *p_dec, DWORD stream_id, bool & keep_re
 
         if (p_dec->fmt_in->i_cat == VIDEO_ES)
         {
-            auto *vidsys = dynamic_cast<vlc_mft_d3d*>(p_sys);
+            auto *vidsys = dynamic_cast<heimdall_mft_d3d*>(p_sys);
             picture_context_t *pic_ctx = nullptr;
             if (vidsys->hw_d3d != nullptr)
             {
@@ -1145,12 +1146,12 @@ static int ProcessOutputStream(decoder_t *p_dec, DWORD stream_id, bool & keep_re
                 hr = output_media_buffer.As(&spDXGIBuffer);
                 if (vidsys->hw_d3d->vctx_out == nullptr)
                 {
-                    hr = vidsys->hw_d3d->SetupVideoContext(vlc_object_logger(p_dec), spDXGIBuffer, p_dec->fmt_out);
+                    hr = vidsys->hw_d3d->SetupVideoContext(heimdall_object_logger(p_dec), spDXGIBuffer, p_dec->fmt_out);
                     if (FAILED(hr))
                         goto error;
                 }
 
-                pic_ctx = vidsys->hw_d3d->CreatePicContext(vlc_object_logger(p_dec), spDXGIBuffer, p_sys);
+                pic_ctx = vidsys->hw_d3d->CreatePicContext(heimdall_object_logger(p_dec), spDXGIBuffer, p_sys);
                 if (unlikely(pic_ctx == nullptr))
                     goto error;
             }
@@ -1160,7 +1161,7 @@ static int ProcessOutputStream(decoder_t *p_dec, DWORD stream_id, bool & keep_re
                 if (pic_ctx)
                     pic_ctx->destroy(pic_ctx);
 
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             }
 
             picture = decoder_NewPicture(p_dec);
@@ -1168,7 +1169,7 @@ static int ProcessOutputStream(decoder_t *p_dec, DWORD stream_id, bool & keep_re
             {
                 if (pic_ctx)
                     pic_ctx->destroy(pic_ctx);
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             }
 
             UINT32 interlaced = FALSE;
@@ -1222,7 +1223,7 @@ static int ProcessOutputStream(decoder_t *p_dec, DWORD stream_id, bool & keep_re
             int samples = total_length / (p_dec->fmt_out.audio.i_bitspersample * p_dec->fmt_out.audio.i_channels / 8);
             aout_buffer = decoder_NewAudioBuffer(p_dec, samples);
             if (!aout_buffer)
-                return VLC_SUCCESS;
+                return HEIMDALL_SUCCESS;
             if (aout_buffer->i_buffer < total_length)
             {
                 block_Release(aout_buffer);
@@ -1267,11 +1268,11 @@ static int ProcessOutputStream(decoder_t *p_dec, DWORD stream_id, bool & keep_re
     }
 
     keep_reading = true;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     msg_Err(p_dec, "Error in ProcessOutputStream()");
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 static void Flush(decoder_t *p_dec)
@@ -1288,7 +1289,7 @@ static int DecodeSync(decoder_t *p_dec, block_t *p_block)
     if (p_block && p_block->i_flags & (BLOCK_FLAG_CORRUPTED))
     {
         block_Release(p_block);
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
     }
 
     if (p_block == NULL)
@@ -1298,7 +1299,7 @@ static int DecodeSync(decoder_t *p_dec, block_t *p_block)
         if (FAILED(hr))
         {
             msg_Warn(p_dec, "draining failed (hr=0x%lX)", hr);
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
 
@@ -1307,13 +1308,13 @@ static int DecodeSync(decoder_t *p_dec, block_t *p_block)
     int err;
     do {
         err = ProcessOutputStream(p_dec, p_sys->output_stream_id, keep_reading);
-    } while (err == VLC_SUCCESS && keep_reading);
-    if (err != VLC_SUCCESS)
+    } while (err == HEIMDALL_SUCCESS && keep_reading);
+    if (err != HEIMDALL_SUCCESS)
         goto error;
 
     if (p_block != NULL )
     {
-        if (p_dec->fmt_in->i_codec == VLC_CODEC_H264)
+        if (p_dec->fmt_in->i_codec == HEIMDALL_CODEC_H264)
         {
             /* in-place NAL to annex B conversion. */
             auto *vidsys = dynamic_cast<mft_dec_video*>(p_sys);
@@ -1326,7 +1327,7 @@ static int DecodeSync(decoder_t *p_dec, block_t *p_block)
                 {
                     size_t extrasize;
                     block_ChainProperties(p_xps_blocks, NULL, &extrasize, NULL);
-                    if (ProcessInputStream(vlc_object_logger(p_dec), p_sys->mft, p_sys->input_stream_id, p_xps_blocks))
+                    if (ProcessInputStream(heimdall_object_logger(p_dec), p_sys->mft, p_sys->input_stream_id, p_xps_blocks))
                     {
                         block_ChainRelease(p_xps_blocks);
                         goto error;
@@ -1337,21 +1338,21 @@ static int DecodeSync(decoder_t *p_dec, block_t *p_block)
             }
         }
 
-        if (ProcessInputStream(vlc_object_logger(p_dec), p_sys->mft, p_sys->input_stream_id, p_block))
+        if (ProcessInputStream(heimdall_object_logger(p_dec), p_sys->mft, p_sys->input_stream_id, p_block))
             goto error;
         block_Release(p_block);
     }
 
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 
 error:
     msg_Err(p_dec, "Error in DecodeSync()");
     if (p_block)
         block_Release(p_block);
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }
 
-HRESULT mft_sys_t::DequeueMediaEvent(vlc_logger *logger, bool wait)
+HRESULT mft_sys_t::DequeueMediaEvent(heimdall_logger *logger, bool wait)
 {
     HRESULT hr;
 
@@ -1371,7 +1372,7 @@ HRESULT mft_sys_t::DequeueMediaEvent(vlc_logger *logger, bool wait)
     else if (event_type == METransformDrainComplete)
         pending_drain_events += 1;
     else
-        vlc_error(logger, "Unsupported asynchronous event %lu.", event_type);
+        heimdall_error(logger, "Unsupported asynchronous event %lu.", event_type);
 
     return S_OK;
 }
@@ -1382,16 +1383,16 @@ static int DecodeAsync(decoder_t *p_dec, block_t *p_block)
     HRESULT hr;
 
     if (!p_block) /* No Drain */
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
 
     if (p_block->i_flags & (BLOCK_FLAG_CORRUPTED))
     {
         block_Release(p_block);
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
     }
 
     /* Dequeue all pending media events. */
-    while ((hr = p_sys->DequeueMediaEvent(vlc_object_logger(p_dec))) == S_OK)
+    while ((hr = p_sys->DequeueMediaEvent(heimdall_object_logger(p_dec))) == S_OK)
         continue;
     if (hr != MF_E_NO_EVENTS_AVAILABLE && FAILED(hr))
         goto error;
@@ -1404,15 +1405,15 @@ static int DecodeAsync(decoder_t *p_dec, block_t *p_block)
         int err;
         do {
             err = ProcessOutputStream(p_dec, p_sys->output_stream_id, keep_reading);
-        } while (err == VLC_SUCCESS && keep_reading);
-        if (err != VLC_SUCCESS)
+        } while (err == HEIMDALL_SUCCESS && keep_reading);
+        if (err != HEIMDALL_SUCCESS)
             goto error;
     }
 
     /* Poll the MFT and return decoded frames until the input stream is ready. */
     while (p_sys->pending_input_events == 0)
     {
-        hr = p_sys->DequeueMediaEvent(vlc_object_logger(p_dec));
+        hr = p_sys->DequeueMediaEvent(heimdall_object_logger(p_dec));
         if (hr == MF_E_NO_EVENTS_AVAILABLE)
         {
             /* Sleep for 1 ms to avoid excessive polling. */
@@ -1429,25 +1430,25 @@ static int DecodeAsync(decoder_t *p_dec, block_t *p_block)
             int err;
             do {
                 err = ProcessOutputStream(p_dec, p_sys->output_stream_id, keep_reading);
-            } while (err == VLC_SUCCESS && keep_reading);
-            if (err != VLC_SUCCESS)
+            } while (err == HEIMDALL_SUCCESS && keep_reading);
+            if (err != HEIMDALL_SUCCESS)
                 goto error;
             break;
         }
     }
 
     p_sys->pending_input_events -= 1;
-    if (ProcessInputStream(vlc_object_logger(p_dec), p_sys->mft, p_sys->input_stream_id, p_block))
+    if (ProcessInputStream(heimdall_object_logger(p_dec), p_sys->mft, p_sys->input_stream_id, p_block))
         goto error;
 
     block_Release(p_block);
 
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 
 error:
     msg_Err(p_dec, "Error in DecodeAsync()");
     block_Release(p_block);
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }
 
 static HRESULT EnableHardwareAcceleration(const es_format_t & fmt_in, ComPtr<IMFAttributes> & attributes)
@@ -1455,17 +1456,17 @@ static HRESULT EnableHardwareAcceleration(const es_format_t & fmt_in, ComPtr<IMF
     HRESULT hr;
     switch (fmt_in.i_codec)
     {
-        case VLC_CODEC_H264:
+        case HEIMDALL_CODEC_H264:
             hr = attributes->SetUINT32(CODECAPI_AVDecVideoAcceleration_H264, TRUE);
             break;
-        case VLC_CODEC_WMV1:
-        case VLC_CODEC_WMV2:
-        case VLC_CODEC_WMV3:
-        case VLC_CODEC_VC1:
+        case HEIMDALL_CODEC_WMV1:
+        case HEIMDALL_CODEC_WMV2:
+        case HEIMDALL_CODEC_WMV3:
+        case HEIMDALL_CODEC_VC1:
             hr = attributes->SetUINT32(CODECAPI_AVDecVideoAcceleration_VC1, TRUE);
             break;
-        case VLC_CODEC_MPGV:
-        case VLC_CODEC_MP2V:
+        case HEIMDALL_CODEC_MPGV:
+        case HEIMDALL_CODEC_MP2V:
             hr = attributes->SetUINT32(CODECAPI_AVDecVideoAcceleration_MPEG2, TRUE);
             break;
         default:
@@ -1478,11 +1479,11 @@ static HRESULT EnableHardwareAcceleration(const es_format_t & fmt_in, ComPtr<IMF
 
 static void DestroyMFT(decoder_t *p_dec);
 
-HRESULT vlc_mft_d3d::SetD3D(vlc_logger *logger, vlc_decoder_device & dec_dev)
+HRESULT heimdall_mft_d3d::SetD3D(heimdall_logger *logger, heimdall_decoder_device & dec_dev)
 {
     HRESULT hr;
     assert(hw_d3d == nullptr);
-    if (dec_dev.type == VLC_DECODER_DEVICE_D3D11VA)
+    if (dec_dev.type == HEIMDALL_DECODER_DEVICE_D3D11VA)
     {
         ComPtr<IMFAttributes> attributes;
         hr = mft->GetAttributes(&attributes);
@@ -1568,14 +1569,14 @@ static int InitializeMFT(decoder_t *p_dec, const MFT_REGISTER_TYPE_INFO & type)
     if (attributes.Get() && p_dec->fmt_in->i_cat == VIDEO_ES)
     {
         EnableHardwareAcceleration(*p_dec->fmt_in, attributes);
-        auto *vidsys = dynamic_cast<vlc_mft_d3d*>(p_sys);
+        auto *vidsys = dynamic_cast<heimdall_mft_d3d*>(p_sys);
         if (p_dec->fmt_in->video.i_width != 0 /*&& vidsys->d3d.CanUseD3D()*/)
         {
-            vlc_decoder_device *dec_dev = decoder_GetDecoderDevice(p_dec);
+            heimdall_decoder_device *dec_dev = decoder_GetDecoderDevice(p_dec);
             if (dec_dev != nullptr)
             {
-                hr = vidsys->SetD3D(vlc_object_logger(p_dec), *dec_dev);
-                if (SUCCEEDED(hr) && dec_dev->type == VLC_DECODER_DEVICE_D3D11VA)
+                hr = vidsys->SetD3D(heimdall_object_logger(p_dec), *dec_dev);
+                if (SUCCEEDED(hr) && dec_dev->type == HEIMDALL_DECODER_DEVICE_D3D11VA)
                 {
                     IMFAttributes *outputAttr = NULL;
                     hr = p_sys->mft->GetOutputStreamAttributes(p_sys->output_stream_id, &outputAttr);
@@ -1584,7 +1585,7 @@ static int InitializeMFT(decoder_t *p_dec, const MFT_REGISTER_TYPE_INFO & type)
                         hr = outputAttr->SetUINT32(MF_SA_D3D11_BINDFLAGS, D3D11_BIND_SHADER_RESOURCE);
                     }
                 }
-                vlc_decoder_device_Release(dec_dev);
+                heimdall_decoder_device_Release(dec_dev);
             }
         }
     }
@@ -1593,7 +1594,7 @@ static int InitializeMFT(decoder_t *p_dec, const MFT_REGISTER_TYPE_INFO & type)
         video_format_Copy( &p_dec->fmt_out.video, &p_dec->fmt_in->video );
     else
         p_dec->fmt_out.audio = p_dec->fmt_in->audio;
-    hr = p_sys->SetOutputType(vlc_object_logger(p_dec), GUID_NULL, p_dec->fmt_out);
+    hr = p_sys->SetOutputType(heimdall_object_logger(p_dec), GUID_NULL, p_dec->fmt_out);
     if (FAILED(hr))
         goto error;
 
@@ -1621,18 +1622,18 @@ static int InitializeMFT(decoder_t *p_dec, const MFT_REGISTER_TYPE_INFO & type)
         goto error;
     }
 
-    if (p_dec->fmt_in->i_codec == VLC_CODEC_H264)
+    if (p_dec->fmt_in->i_codec == HEIMDALL_CODEC_H264)
     {
         auto *vidsys = dynamic_cast<mft_dec_video*>(p_sys);
-        hxxx_helper_init(&vidsys->hh, VLC_OBJECT(p_dec), p_dec->fmt_in->i_codec, 0, 0);
+        hxxx_helper_init(&vidsys->hh, HEIMDALL_OBJECT(p_dec), p_dec->fmt_in->i_codec, 0, 0);
         hxxx_helper_set_extra(&vidsys->hh, p_dec->fmt_in->p_extra, p_dec->fmt_in->i_extra);
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     msg_Err(p_dec, "Error in InitializeMFT()");
     DestroyMFT(p_dec);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 static void DestroyMFT(decoder_t *p_dec)
@@ -1684,7 +1685,7 @@ static void DestroyMFT(decoder_t *p_dec)
         hxxx_helper_clean(&vidsys->hh);
 }
 
-static int ListTransforms(struct vlc_logger *logger, GUID category, const char *type, bool do_test)
+static int ListTransforms(struct heimdall_logger *logger, GUID category, const char *type, bool do_test)
 {
     HRESULT hr;
 
@@ -1694,9 +1695,9 @@ static int ListTransforms(struct vlc_logger *logger, GUID category, const char *
     IMFActivate **activate_objects = NULL;
     UINT32 count = 0;
     hr = MFTEnumEx(category, flags, nullptr, nullptr, &activate_objects, &count);
-    vlc_debug(logger, "Listing %u %s%s", count, type, (count?"s":""));
+    heimdall_debug(logger, "Listing %u %s%s", count, type, (count?"s":""));
     if (FAILED(hr))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     for (UINT32 o=0; o<count; o++)
     {
@@ -1725,15 +1726,15 @@ static int ListTransforms(struct vlc_logger *logger, GUID category, const char *
                 }
             }
 
-            vlc_debug(logger, "%s '%ls'%s is%s available", type, Name, async, available?"":" not");
+            heimdall_debug(logger, "%s '%ls'%s is%s available", type, Name, async, available?"":" not");
         }
         else
-            vlc_debug(logger, "found %s '%ls'", type, Name);
+            heimdall_debug(logger, "found %s '%ls'", type, Name);
 
         activate_objects[o]->ShutdownObject();
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int FindMFT(decoder_t *p_dec)
@@ -1763,14 +1764,14 @@ static int FindMFT(decoder_t *p_dec)
             hr = MFTypeFromAudio(p_dec->fmt_in->i_codec, input_type);
     }
     if (FAILED(hr))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     const char *dec_str;
     if (p_dec->fmt_in->i_cat == VIDEO_ES)
         dec_str = "video decoder";
     else
         dec_str = "audio decoder";
-    ListTransforms(vlc_object_logger(p_dec), category, dec_str, var_InheritBool(p_dec, "mft-debug"));
+    ListTransforms(heimdall_object_logger(p_dec), category, dec_str, var_InheritBool(p_dec, "mft-debug"));
 
     UINT32 flags = MFT_ENUM_FLAG_SORTANDFILTER | MFT_ENUM_FLAG_LOCALMFT
                  | MFT_ENUM_FLAG_SYNCMFT | MFT_ENUM_FLAG_ASYNCMFT
@@ -1779,11 +1780,11 @@ static int FindMFT(decoder_t *p_dec)
     UINT32 activate_objects_count = 0;
     hr = MFTEnumEx(category, flags, &input_type, NULL, &activate_objects, &activate_objects_count);
     if (FAILED(hr))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     msg_Dbg(p_dec, "Found %d available MFT module(s) for %4.4s", activate_objects_count, (const char*)&p_dec->fmt_in->i_codec);
     if (activate_objects_count == 0)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     for (UINT32 i = 0; i < activate_objects_count; ++i)
     {
@@ -1792,20 +1793,20 @@ static int FindMFT(decoder_t *p_dec)
         if (FAILED(hr))
             continue;
 
-        if (InitializeMFT(p_dec, input_type) == VLC_SUCCESS)
+        if (InitializeMFT(p_dec, input_type) == HEIMDALL_SUCCESS)
         {
             for (++i; i < activate_objects_count; ++i)
                 activate_objects[i]->Release();
             CoTaskMemFree(activate_objects);
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
     }
     CoTaskMemFree(activate_objects);
 
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
-HRESULT mft_enc_video::ProcessOutput(vlc_logger *logger, block_t * & output)
+HRESULT mft_enc_video::ProcessOutput(heimdall_logger *logger, block_t * & output)
 {
     output = nullptr;
     HRESULT hr;
@@ -1815,7 +1816,7 @@ HRESULT mft_enc_video::ProcessOutput(vlc_logger *logger, block_t * & output)
         hr = AllocateOutputSample(VIDEO_ES, output_sample);
         if (FAILED(hr))
         {
-            vlc_error(logger, "Error in AllocateOutputSample(). (hr=0x%lX)", hr);
+            heimdall_error(logger, "Error in AllocateOutputSample(). (hr=0x%lX)", hr);
             break;
         }
 
@@ -1830,7 +1831,7 @@ HRESULT mft_enc_video::ProcessOutput(vlc_logger *logger, block_t * & output)
 
         if (FAILED(hr))
         {
-            vlc_debug(logger, "Failed to process video output stream %lu (error 0x%lX)", output_stream_id, hr);
+            heimdall_debug(logger, "Failed to process video output stream %lu (error 0x%lX)", output_stream_id, hr);
             return hr;
         }
 
@@ -1841,7 +1842,7 @@ HRESULT mft_enc_video::ProcessOutput(vlc_logger *logger, block_t * & output)
         hr = output_buffer.pSample->GetSampleTime(&sample_time);
         if (FAILED(hr))
         {
-            vlc_debug(logger, "Failed to get output time. (hr=0x%lX)", hr);
+            heimdall_debug(logger, "Failed to get output time. (hr=0x%lX)", hr);
             // if (output_sample.Get() == nullptr)
             //     output_buffer.pSample->Release();
             return hr;
@@ -1851,7 +1852,7 @@ HRESULT mft_enc_video::ProcessOutput(vlc_logger *logger, block_t * & output)
         hr = output_buffer.pSample->GetBufferCount(&output_count);
         if (unlikely(FAILED(hr)))
         {
-            vlc_debug(logger, "Failed to get output buffer count. (hr=0x%lX)", hr);
+            heimdall_debug(logger, "Failed to get output buffer count. (hr=0x%lX)", hr);
             // if (output_sample.Get() == nullptr)
             //     output_buffer.pSample->Release();
             return hr;
@@ -1863,7 +1864,7 @@ HRESULT mft_enc_video::ProcessOutput(vlc_logger *logger, block_t * & output)
             hr = output_buffer.pSample->GetBufferByIndex(buf_index, &output_media_buffer);
             if (FAILED(hr))
             {
-                vlc_debug(logger, "Failed to get output buffer %lu. (hr=0x%lX)", buf_index, hr);
+                heimdall_debug(logger, "Failed to get output buffer %lu. (hr=0x%lX)", buf_index, hr);
                 // if (output_sample.Get() == nullptr)
                 //     output_buffer.pSample->Release();
                 return hr;
@@ -1873,7 +1874,7 @@ HRESULT mft_enc_video::ProcessOutput(vlc_logger *logger, block_t * & output)
             hr = output_media_buffer->GetCurrentLength(&total_length);
             if (FAILED(hr))
             {
-                vlc_debug(logger, "Failed to get output buffer %lu length. (hr=0x%lX)", buf_index, hr);
+                heimdall_debug(logger, "Failed to get output buffer %lu length. (hr=0x%lX)", buf_index, hr);
                 // if (output_sample.Get() == nullptr)
                 //     output_buffer.pSample->Release();
                 return hr;
@@ -1892,7 +1893,7 @@ HRESULT mft_enc_video::ProcessOutput(vlc_logger *logger, block_t * & output)
             hr = output_media_buffer->Lock(&buffer_start, NULL, NULL);
             if (FAILED(hr))
             {
-                vlc_debug(logger, "Failed to lock output buffer %lu. (hr=0x%lX)", buf_index, hr);
+                heimdall_debug(logger, "Failed to lock output buffer %lu. (hr=0x%lX)", buf_index, hr);
                 // if (output_sample.Get() == nullptr)
                 //     output_buffer.pSample->Release();
                 block_Release(vout_buffer);
@@ -1909,19 +1910,19 @@ HRESULT mft_enc_video::ProcessOutput(vlc_logger *logger, block_t * & output)
 
             if (FAILED(hr))
             {
-                vlc_debug(logger, "Failed to unlock output buffer %lu. (hr=0x%lX)", buf_index, hr);
+                heimdall_debug(logger, "Failed to unlock output buffer %lu. (hr=0x%lX)", buf_index, hr);
                 // if (output_sample.Get() == nullptr)
                 //     output_buffer.pSample->Release();
                 block_Release(vout_buffer);
                 return hr;
             }
 
-            // Convert from 100 nanoseconds unit to vlc ticks.
-            vout_buffer->i_dts = vout_buffer->i_pts = VLC_TICK_FROM_MSFTIME(sample_time);
+            // Convert from 100 nanoseconds unit to heimdall ticks.
+            vout_buffer->i_dts = vout_buffer->i_pts = HEIMDALL_TICK_FROM_MSFTIME(sample_time);
             UINT64 decode_timestamp;
             hr = output_buffer.pSample->GetUINT64(MFSampleExtension_DecodeTimestamp, &decode_timestamp);
             if (SUCCEEDED(hr))
-                vout_buffer->i_dts = VLC_TICK_FROM_MSFTIME(decode_timestamp);
+                vout_buffer->i_dts = HEIMDALL_TICK_FROM_MSFTIME(decode_timestamp);
 
             UINT32 is_keyframe = FALSE;
             hr = output_buffer.pSample->GetUINT32(MFSampleExtension_CleanPoint, &is_keyframe);
@@ -1954,13 +1955,13 @@ static block_t *EncodeVideoAsync(encoder_t *p_enc, picture_t *p_pic)
         }
         while (p_sys->pending_drain_events == 0)
         {
-            hr = p_sys->DequeueMediaEvent(vlc_object_logger(p_enc), true);
+            hr = p_sys->DequeueMediaEvent(heimdall_object_logger(p_enc), true);
             if (FAILED(hr))
                 goto error;
 
             while (p_sys->pending_output_events > 0)
             {
-                hr = p_sys->ProcessOutput(vlc_object_logger(p_enc), output);
+                hr = p_sys->ProcessOutput(heimdall_object_logger(p_enc), output);
                 if (FAILED(hr))
                 {
                     goto error;
@@ -1973,7 +1974,7 @@ static block_t *EncodeVideoAsync(encoder_t *p_enc, picture_t *p_pic)
 
     HRESULT hr;
     /* Dequeue all pending media events. */
-    while ((hr = p_sys->DequeueMediaEvent(vlc_object_logger(p_enc))) == S_OK)
+    while ((hr = p_sys->DequeueMediaEvent(heimdall_object_logger(p_enc))) == S_OK)
         continue;
     if (hr != MF_E_NO_EVENTS_AVAILABLE && FAILED(hr))
         goto error;
@@ -1981,7 +1982,7 @@ static block_t *EncodeVideoAsync(encoder_t *p_enc, picture_t *p_pic)
     /* Drain the output stream of the MFT before sending the input packet. */
     while (p_sys->pending_output_events > 0)
     {
-        hr = p_sys->ProcessOutput(vlc_object_logger(p_enc), output);
+        hr = p_sys->ProcessOutput(heimdall_object_logger(p_enc), output);
         if (FAILED(hr))
         {
             break;
@@ -1993,13 +1994,13 @@ static block_t *EncodeVideoAsync(encoder_t *p_enc, picture_t *p_pic)
         /* Poll the MFT and return decoded frames until the input stream is ready. */
         while (p_sys->pending_input_events == 0)
         {
-            hr = p_sys->DequeueMediaEvent(vlc_object_logger(p_enc), true);
+            hr = p_sys->DequeueMediaEvent(heimdall_object_logger(p_enc), true);
             if (FAILED(hr))
                 goto error;
 
             while (p_sys->pending_output_events > 0)
             {
-                hr = p_sys->ProcessOutput(vlc_object_logger(p_enc), output);
+                hr = p_sys->ProcessOutput(heimdall_object_logger(p_enc), output);
                 if (FAILED(hr))
                 {
                     goto error;
@@ -2008,7 +2009,7 @@ static block_t *EncodeVideoAsync(encoder_t *p_enc, picture_t *p_pic)
         }
 
         p_sys->pending_input_events -= 1;
-        hr = p_sys->ProcessInputPicture(vlc_object_logger(p_enc), p_pic);
+        hr = p_sys->ProcessInputPicture(heimdall_object_logger(p_enc), p_pic);
         if (FAILED(hr))
             goto error;
     }
@@ -2034,7 +2035,7 @@ static block_t * EncodeVideo(encoder_t *p_enc, picture_t *p_pic)
 
     /* Drain the output stream before sending the input packet. */
     block_t *output = nullptr;
-    HRESULT hr = p_sys->ProcessOutput(vlc_object_logger(p_enc), output);
+    HRESULT hr = p_sys->ProcessOutput(heimdall_object_logger(p_enc), output);
     if (FAILED(hr))
     {
         if (output)
@@ -2044,7 +2045,7 @@ static block_t * EncodeVideo(encoder_t *p_enc, picture_t *p_pic)
 
     if (p_pic != nullptr)
     {
-        hr = p_sys->ProcessInputPicture(vlc_object_logger(p_enc), p_pic);
+        hr = p_sys->ProcessInputPicture(heimdall_object_logger(p_enc), p_pic);
         if (FAILED(hr))
         {
             if (output)
@@ -2080,7 +2081,7 @@ static block_t * EncodeAudio(encoder_t *p_enc, block_t *p_aout_buffer)
     /* Drain the output stream before sending the input packet. */
     block_t *output = nullptr;
     bool keep_reading = true;
-    int err = VLC_SUCCESS;
+    int err = HEIMDALL_SUCCESS;
     HRESULT hr;
     do {
         ComPtr<IMFSample> output_sample;
@@ -2115,8 +2116,8 @@ static block_t * EncodeAudio(encoder_t *p_enc, block_t *p_aout_buffer)
             msg_Dbg(p_enc, "Failed to get output time. (hr=0x%lX)", hr);
             return nullptr;
         }
-        /* Convert from 100 nanoseconds unit to vlc ticks. */
-        vlc_tick_t samp_time = VLC_TICK_FROM_MSFTIME(sample_time);
+        /* Convert from 100 nanoseconds unit to heimdall ticks. */
+        heimdall_tick_t samp_time = HEIMDALL_TICK_FROM_MSFTIME(sample_time);
 
         DWORD output_count = 0;
         hr = output_buffer.pSample->GetBufferCount(&output_count);
@@ -2147,7 +2148,7 @@ static block_t * EncodeAudio(encoder_t *p_enc, block_t *p_aout_buffer)
             block_t *aout_buffer = block_Alloc(total_length);
             if (unlikely(aout_buffer == nullptr))
             {
-                err = VLC_ENOMEM;
+                err = HEIMDALL_ENOMEM;
                 break;
             }
 
@@ -2178,15 +2179,15 @@ static block_t * EncodeAudio(encoder_t *p_enc, block_t *p_aout_buffer)
                 block_ChainAppend(&output, aout_buffer);
         }
 
-    } while (err == VLC_SUCCESS && keep_reading);
-    if (err != VLC_SUCCESS)
+    } while (err == HEIMDALL_SUCCESS && keep_reading);
+    if (err != HEIMDALL_SUCCESS)
     {
         block_Release(output);
         return nullptr;
     }
 
     if (p_aout_buffer != nullptr &&
-        ProcessInputStream(vlc_object_logger(p_enc), p_sys->mft,
+        ProcessInputStream(heimdall_object_logger(p_enc), p_sys->mft,
                            p_sys->input_stream_id, p_aout_buffer))
     {
         block_Release(output);
@@ -2243,7 +2244,7 @@ static void EncoderClose(encoder_t *p_enc)
     p_sys->Release();
 }
 
-static int InitializeEncoder(struct vlc_logger *logger, mft_sys_t &mf_sys)
+static int InitializeEncoder(struct heimdall_logger *logger, mft_sys_t &mf_sys)
 {
     HRESULT hr;
     ComPtr<IMFAttributes> attributes;
@@ -2275,7 +2276,7 @@ static int InitializeEncoder(struct vlc_logger *logger, mft_sys_t &mf_sys)
         goto error;
     if (input_streams_count != 1 || output_streams_count != 1)
     {
-        vlc_error(logger, "MFT encoder should have 1 input stream and 1 output stream.");
+        heimdall_error(logger, "MFT encoder should have 1 input stream and 1 output stream.");
         goto error;
     }
 
@@ -2294,24 +2295,24 @@ static int InitializeEncoder(struct vlc_logger *logger, mft_sys_t &mf_sys)
     else if (FAILED(hr))
         goto error;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
-    return VLC_ENOTSUP;
+    return HEIMDALL_ENOTSUP;
 }
 
-static int OpenMFTVideoEncoder(vlc_object_t *p_this)
+static int OpenMFTVideoEncoder(heimdall_object_t *p_this)
 {
     encoder_t *p_enc = (encoder_t*)p_this;
 
     if( FAILED(CoInitializeEx(NULL, COINIT_MULTITHREADED | COINIT_DISABLE_OLE1DDE)) )
-        return VLC_EINVAL;
+        return HEIMDALL_EINVAL;
 
     HRESULT hr = MFStartup(MF_VERSION, MFSTARTUP_NOSOCKET);
     if (FAILED(hr))
     {
         CoUninitialize();
-        return VLC_ENOTSUP;
+        return HEIMDALL_ENOTSUP;
     }
 
     mft_enc_video *p_sys = new (std::nothrow) mft_enc_video();
@@ -2319,7 +2320,7 @@ static int OpenMFTVideoEncoder(vlc_object_t *p_this)
     {
         MFShutdown();
         CoUninitialize();
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
     p_enc->p_sys = p_sys;
 
@@ -2335,7 +2336,7 @@ static int OpenMFTVideoEncoder(vlc_object_t *p_this)
     {
         msg_Dbg(p_this, "Input chroma %4.4s not supported by MediaFoundation, forcing NV12",
                 (char*)&p_enc->fmt_in.i_codec);
-        p_enc->fmt_in.video.i_chroma = VLC_CODEC_NV12;
+        p_enc->fmt_in.video.i_chroma = HEIMDALL_CODEC_NV12;
         p_enc->fmt_in.i_codec = p_enc->fmt_in.video.i_chroma;
         hr = MFTypeFromChroma(p_enc->fmt_in.video.i_chroma, nullptr, input_type);
         assert(SUCCEEDED(hr));
@@ -2349,7 +2350,7 @@ static int OpenMFTVideoEncoder(vlc_object_t *p_this)
         goto error;
     }
 
-    ListTransforms(vlc_object_logger(p_this), category, "video encoder", var_InheritBool(p_this, "mft-debug"));
+    ListTransforms(heimdall_object_logger(p_this), category, "video encoder", var_InheritBool(p_this, "mft-debug"));
 
     flags = MFT_ENUM_FLAG_SORTANDFILTER | MFT_ENUM_FLAG_LOCALMFT
             | MFT_ENUM_FLAG_SYNCMFT | MFT_ENUM_FLAG_ASYNCMFT
@@ -2390,7 +2391,7 @@ static int OpenMFTVideoEncoder(vlc_object_t *p_this)
             continue;
         }
 
-        if (InitializeEncoder(vlc_object_logger(p_this), *p_sys) == VLC_SUCCESS)
+        if (InitializeEncoder(heimdall_object_logger(p_this), *p_sys) == HEIMDALL_SUCCESS)
         {
             msg_Dbg(p_enc, "Using video encoder %ls", Name);
             found = true;
@@ -2406,7 +2407,7 @@ static int OpenMFTVideoEncoder(vlc_object_t *p_this)
     p_enc->fmt_in.i_codec = MFFormatToChroma(input_type.guidSubtype);
     p_enc->fmt_in.video.i_chroma = p_enc->fmt_in.i_codec;
 
-    hr = p_sys->SetOutputType(vlc_object_logger(p_this),
+    hr = p_sys->SetOutputType(heimdall_object_logger(p_this),
                               output_type.guidSubtype, p_enc->fmt_out);
     if (FAILED(hr))
     {
@@ -2428,39 +2429,39 @@ static int OpenMFTVideoEncoder(vlc_object_t *p_this)
         goto error;
     }
 
-    static const struct vlc_encoder_operations video_ops = []{
-        struct vlc_encoder_operations cbs{};
+    static const struct heimdall_encoder_operations video_ops = []{
+        struct heimdall_encoder_operations cbs{};
         cbs.close = EncoderClose;
         cbs.encode_video = EncodeVideo;
         return cbs;
     }();
-    static const struct vlc_encoder_operations video_async_ops = []{
-        struct vlc_encoder_operations cbs{};
+    static const struct heimdall_encoder_operations video_async_ops = []{
+        struct heimdall_encoder_operations cbs{};
         cbs.close = EncoderClose;
         cbs.encode_video = EncodeVideoAsync;
         return cbs;
     }();
     p_enc->ops = p_sys->is_async ? &video_async_ops : &video_ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     EncoderClose(p_enc);
-    return VLC_ENOTSUP;
+    return HEIMDALL_ENOTSUP;
 }
 
-static int OpenMFTAudioEncoder(vlc_object_t *p_this)
+static int OpenMFTAudioEncoder(heimdall_object_t *p_this)
 {
     encoder_t *p_enc = (encoder_t*)p_this;
 
     if( FAILED(CoInitializeEx(NULL, COINIT_MULTITHREADED | COINIT_DISABLE_OLE1DDE)) )
-        return VLC_EINVAL;
+        return HEIMDALL_EINVAL;
 
     HRESULT hr = MFStartup(MF_VERSION, MFSTARTUP_NOSOCKET);
     if (FAILED(hr))
     {
         CoUninitialize();
-        return VLC_ENOTSUP;
+        return HEIMDALL_ENOTSUP;
     }
 
     mft_enc_audio *p_sys = new (std::nothrow) mft_enc_audio();
@@ -2468,7 +2469,7 @@ static int OpenMFTAudioEncoder(vlc_object_t *p_this)
     {
         MFShutdown();
         CoUninitialize();
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
     p_enc->p_sys = p_sys;
 
@@ -2497,7 +2498,7 @@ static int OpenMFTAudioEncoder(vlc_object_t *p_this)
         goto error;
     }
 
-    ListTransforms(vlc_object_logger(p_this), category, "audio encoder", var_InheritBool(p_this, "mft-debug"));
+    ListTransforms(heimdall_object_logger(p_this), category, "audio encoder", var_InheritBool(p_this, "mft-debug"));
 
     flags = MFT_ENUM_FLAG_SORTANDFILTER | MFT_ENUM_FLAG_LOCALMFT
             | MFT_ENUM_FLAG_SYNCMFT | MFT_ENUM_FLAG_ASYNCMFT
@@ -2511,10 +2512,10 @@ static int OpenMFTAudioEncoder(vlc_object_t *p_this)
     if (activate_objects_count == 0)
     {
         // try the other raw input format
-        if (p_enc->fmt_in.audio.i_format == VLC_CODEC_F32L)
-            p_enc->fmt_in.audio.i_format = VLC_CODEC_S16L;
+        if (p_enc->fmt_in.audio.i_format == HEIMDALL_CODEC_F32L)
+            p_enc->fmt_in.audio.i_format = HEIMDALL_CODEC_S16L;
         else
-            p_enc->fmt_in.audio.i_format = VLC_CODEC_F32L;
+            p_enc->fmt_in.audio.i_format = HEIMDALL_CODEC_F32L;
         MFTypeFromAudio(p_enc->fmt_in.audio.i_format, input_type);
         hr = MFTEnumEx(category, flags, &input_type, &output_type, &activate_objects, &activate_objects_count);
         if (FAILED(hr))
@@ -2541,7 +2542,7 @@ static int OpenMFTAudioEncoder(vlc_object_t *p_this)
         if (FAILED(hr))
             continue;
 
-        if (InitializeEncoder(vlc_object_logger(p_this), *p_sys) == VLC_SUCCESS)
+        if (InitializeEncoder(heimdall_object_logger(p_this), *p_sys) == HEIMDALL_SUCCESS)
         {
             msg_Dbg(p_enc, "Using audio encoder %ls", Name);
             found = true;
@@ -2554,7 +2555,7 @@ static int OpenMFTAudioEncoder(vlc_object_t *p_this)
     if (!found)
         goto error;
 
-    if (p_sys->SetOutputType(vlc_object_logger(p_this),
+    if (p_sys->SetOutputType(heimdall_object_logger(p_this),
                              output_type.guidSubtype, p_enc->fmt_out))
         goto error;
 
@@ -2573,34 +2574,34 @@ static int OpenMFTAudioEncoder(vlc_object_t *p_this)
         goto error;
     }
 
-    static const struct vlc_encoder_operations audio_ops = []{
-        struct vlc_encoder_operations cbs{};
+    static const struct heimdall_encoder_operations audio_ops = []{
+        struct heimdall_encoder_operations cbs{};
         cbs.close = EncoderClose;
         cbs.encode_audio = EncodeAudio;
         return cbs;
     }();
     p_enc->ops = &audio_ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     EncoderClose(p_enc);
-    return VLC_ENOTSUP;
+    return HEIMDALL_ENOTSUP;
 }
 #endif // !ENABLE_SOUT
 
-static int Open(vlc_object_t *p_this)
+static int Open(heimdall_object_t *p_this)
 {
     decoder_t *p_dec = (decoder_t *)p_this;
 
     if( FAILED(CoInitializeEx(NULL, COINIT_MULTITHREADED | COINIT_DISABLE_OLE1DDE)) )
-        return VLC_EINVAL;
+        return HEIMDALL_EINVAL;
 
     HRESULT hr = MFStartup(MF_VERSION, MFSTARTUP_NOSOCKET);
     if (FAILED(hr))
     {
         CoUninitialize();
-        return VLC_ENOTSUP;
+        return HEIMDALL_ENOTSUP;
     }
 
     mft_sys_t *p_sys;
@@ -2612,7 +2613,7 @@ static int Open(vlc_object_t *p_this)
     {
         MFShutdown();
         CoUninitialize();
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
     p_dec->p_sys = p_sys;
 
@@ -2633,14 +2634,14 @@ static int Open(vlc_object_t *p_this)
     p_dec->pf_decode = p_sys->is_async ? DecodeAsync : DecodeSync;
     p_dec->pf_flush = p_sys->is_async ? NULL : Flush;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     Close(p_this);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
-static void Close(vlc_object_t *p_this)
+static void Close(heimdall_object_t *p_this)
 {
     decoder_t *p_dec = (decoder_t *)p_this;
     auto *p_sys = static_cast<mft_sys_t*>(p_dec->p_sys);

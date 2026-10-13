@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Benjamin Arnaud <bunjee@omega.gg>
  *
@@ -20,15 +21,15 @@
 
 import QtQuick
 
-import VLC.Style
-import VLC.Widgets as Widgets
+import Heimdall.Style
+import Heimdall.Widgets as Widgets
 
 Item {
     id: root
 
     // Settings
 
-    width: VLCStyle.play_cover_normal
+    width: HeimdallStyle.play_cover_normal
     height: width
 
     // NOTE: This is the same scaling than the PlayButton, except we make it bigger.
@@ -51,7 +52,7 @@ Item {
         enabled: (!tapHandler.pressed)
 
         NumberAnimation {
-            duration: VLCStyle.duration_short
+            duration: HeimdallStyle.duration_short
 
             easing.type: Easing.OutQuad
         }
@@ -90,7 +91,7 @@ Item {
     Widgets.IconLabel {
         anchors.centerIn: parent
 
-        text: VLCIcons.play_filled
+        text: HeimdallIcons.play_filled
 
         color: (root.hovered) ? theme.accent : "black"
 

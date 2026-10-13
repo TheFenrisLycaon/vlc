@@ -2,8 +2,9 @@
  * freeze.c : Freezing video filter
  *****************************************************************************
  * Copyright (C) 2013      Vianney Boyer
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Vianney Boyer <vlcvboyer -at- gmail -dot- com>
+ * Authors: Vianney Boyer <heimdallvboyer -at- gmail -dot- com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -28,11 +29,11 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_mouse.h>
-#include <vlc_picture.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_mouse.h>
+#include <heimdall_picture.h>
 #include "filter_picture.h"
 
 #ifndef MOD
@@ -59,8 +60,8 @@ typedef struct
 
 static picture_t *Filter( filter_t *, picture_t * );
 
-static int  freeze_mouse( filter_t *, vlc_mouse_t *,
-                          const vlc_mouse_t * );
+static int  freeze_mouse( filter_t *, heimdall_mouse_t *,
+                          const heimdall_mouse_t * );
 static int  freeze_allocate_data( filter_t *, picture_t * );
 static void freeze_free_allocated_data( filter_t * );
 
@@ -74,19 +75,19 @@ static void freeze_free_allocated_data( filter_t * );
 static int  Open ( filter_t * );
 static void Close( filter_t * );
 
-vlc_module_begin()
+heimdall_module_begin()
     set_description( N_("Freezing interactive video filter") )
     set_shortname(   N_("Freeze" ) )
     set_subcategory( SUBCAT_VIDEO_VFILTER )
 
     set_callback_video_filter( Open )
-vlc_module_end()
+heimdall_module_end()
 
 /*****************************************************************************
  * Local prototypes
  *****************************************************************************/
 
-static const struct vlc_filter_operations filter_ops =
+static const struct heimdall_filter_operations filter_ops =
 {
     .filter_video = Filter,
     .video_mouse = freeze_mouse,
@@ -103,32 +104,32 @@ static int Open( filter_t *p_filter )
     /* Assert video in match with video out */
     if( !es_format_IsSimilar( &p_filter->fmt_in, &p_filter->fmt_out ) ) {
         msg_Err( p_filter, "Input and output format does not match" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Reject 0 bpp and unsupported chroma */
-    const vlc_fourcc_t fourcc = p_filter->fmt_in.video.i_chroma;
-    const vlc_chroma_description_t *p_chroma
-          = vlc_fourcc_GetChromaDescription( fourcc );
+    const heimdall_fourcc_t fourcc = p_filter->fmt_in.video.i_chroma;
+    const heimdall_chroma_description_t *p_chroma
+          = heimdall_fourcc_GetChromaDescription( fourcc );
     assert( p_chroma != NULL );
     if( p_chroma->pixel_size == 0
         || p_chroma->plane_count < 3 || p_chroma->pixel_size > 1
-        || !vlc_fourcc_IsYUV( fourcc ) )
+        || !heimdall_fourcc_IsYUV( fourcc ) )
     {
         msg_Err( p_filter, "Unsupported chroma (%4.4s)", (char*)&fourcc );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Allocate structure */
     p_filter->p_sys = p_sys = calloc(1, sizeof( *p_sys ) );
     if( unlikely(!p_sys) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     /* init data */
 
     p_filter->ops = &filter_ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /**
@@ -160,7 +161,7 @@ static picture_t *Filter( filter_t *p_filter, picture_t *p_pic_in ) {
     * allocate data
     */
     if ( unlikely(!p_sys->b_init) )
-        if (freeze_allocate_data( p_filter, p_pic_in ) != VLC_SUCCESS)
+        if (freeze_allocate_data( p_filter, p_pic_in ) != HEIMDALL_SUCCESS)
         {
             picture_Release( p_pic_in );
             return NULL;
@@ -225,8 +226,8 @@ static picture_t *Filter( filter_t *p_filter, picture_t *p_pic_in ) {
 /*
  * mouse callback
  **/
-static int freeze_mouse( filter_t *p_filter, vlc_mouse_t *p_new,
-                         const vlc_mouse_t *p_old )
+static int freeze_mouse( filter_t *p_filter, heimdall_mouse_t *p_new,
+                         const heimdall_mouse_t *p_old )
 {
     filter_sys_t *p_sys = p_filter->p_sys;
     const video_format_t  *p_fmt_in = &p_filter->fmt_in.video;
@@ -234,17 +235,17 @@ static int freeze_mouse( filter_t *p_filter, vlc_mouse_t *p_new,
     /* Only take events inside the video area */
     if( p_new->i_x < 0 || p_new->i_x >= (int)p_fmt_in->i_width ||
         p_new->i_y < 0 || p_new->i_y >= (int)p_fmt_in->i_height )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if ( unlikely(!p_sys->b_init) )
     {
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
     int32_t i_base_timeout = 0;
-    if( vlc_mouse_HasPressed( p_old, p_new, MOUSE_BUTTON_LEFT ) )
+    if( heimdall_mouse_HasPressed( p_old, p_new, MOUSE_BUTTON_LEFT ) )
         i_base_timeout = 100;
-    else if( vlc_mouse_IsLeftPressed( p_new ) )
+    else if( heimdall_mouse_IsLeftPressed( p_new ) )
         i_base_timeout = 50;
 
     if( i_base_timeout > 0 )
@@ -275,7 +276,7 @@ static int freeze_mouse( filter_t *p_filter, vlc_mouse_t *p_new,
             }
     }
 
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 
@@ -299,7 +300,7 @@ static int freeze_allocate_data( filter_t *p_filter, picture_t *p_pic_in )
     if ( unlikely( !p_sys->i_height || !p_sys->i_width || !p_sys->i_visible_pitch ) )
     {
         freeze_free_allocated_data( p_filter );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     /* init data */
@@ -317,7 +318,7 @@ static int freeze_allocate_data( filter_t *p_filter, picture_t *p_pic_in )
     if ( unlikely( !p_sys->pi_freezing_countdown ) )
     {
         freeze_free_allocated_data( p_filter );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     for ( int32_t i_r = 0; i_r < p_sys->i_height[Y_PLANE]; i_r++ )
@@ -327,7 +328,7 @@ static int freeze_allocate_data( filter_t *p_filter, picture_t *p_pic_in )
         if ( unlikely( !p_sys->pi_freezing_countdown[i_r] ) )
         {
             freeze_free_allocated_data( p_filter );
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         }
     }
 
@@ -336,7 +337,7 @@ static int freeze_allocate_data( filter_t *p_filter, picture_t *p_pic_in )
     if( unlikely( !p_sys->pi_freezed_picture ) )
     {
         freeze_free_allocated_data( p_filter );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     for ( int32_t i_p = 0; i_p < p_sys->i_planes; i_p++)
@@ -346,7 +347,7 @@ static int freeze_allocate_data( filter_t *p_filter, picture_t *p_pic_in )
         if ( unlikely(!p_sys->pi_freezed_picture[i_p]) )
         {
             freeze_free_allocated_data( p_filter );
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         }
         for ( int32_t i_r = 0; i_r < p_sys->i_height[i_p]; i_r++ )
         {
@@ -355,7 +356,7 @@ static int freeze_allocate_data( filter_t *p_filter, picture_t *p_pic_in )
             if ( unlikely( !p_sys->pi_freezed_picture[i_p][i_r] ) )
             {
                 freeze_free_allocated_data( p_filter );
-                return VLC_ENOMEM;
+                return HEIMDALL_ENOMEM;
             }
         }
     }
@@ -366,7 +367,7 @@ static int freeze_allocate_data( filter_t *p_filter, picture_t *p_pic_in )
     if( unlikely( !p_sys->pb_update_cache ) )
     {
         freeze_free_allocated_data( p_filter );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     for ( int32_t i_r = 0; i_r < p_sys->i_height[Y_PLANE]; i_r++ )
@@ -376,11 +377,11 @@ static int freeze_allocate_data( filter_t *p_filter, picture_t *p_pic_in )
         if ( unlikely( !p_sys->pb_update_cache[i_r] ) )
         {
             freeze_free_allocated_data( p_filter );
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         }
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /**

@@ -349,7 +349,7 @@ libvideotoolbox_plugin_la_SOURCES = codec/videotoolbox/decoder.c \
                                     codec/videotoolbox/pacer.c \
                                     codec/videotoolbox/pacer.h
 libvideotoolbox_plugin_la_CPPFLAGS = $(AM_CPPFLAGS) # Trigger MODULE_NAME declaration
-libvideotoolbox_plugin_la_LIBADD = libchroma_copy.la libvlc_hxxxhelper.la libvlc_vtutils.la
+libvideotoolbox_plugin_la_LIBADD = libchroma_copy.la libheimdall_hxxxhelper.la libheimdall_vtutils.la
 libvideotoolbox_plugin_la_LDFLAGS = $(AM_LDFLAGS) -Wl,-framework,CoreFoundation -Wl,-framework,VideoToolbox -Wl,-framework,CoreMedia -Wl,-framework,CoreVideo -Wl,-framework,Metal
 if HAVE_DARWIN
 if !HAVE_WATCHOS
@@ -367,7 +367,7 @@ TESTS += videotoolbox_dpb_test
 
 libvideotoolbox_enc_plugin_la_SOURCES = codec/videotoolbox/encoder.c
 libvideotoolbox_enc_plugin_la_CPPFLAGS = $(AM_CPPFLAGS) # Trigger MODULE_NAME declaration
-libvideotoolbox_enc_plugin_la_LIBADD = libvlc_hxxxhelper.la libvlc_vtutils.la
+libvideotoolbox_enc_plugin_la_LIBADD = libheimdall_hxxxhelper.la libheimdall_vtutils.la
 libvideotoolbox_enc_plugin_la_LDFLAGS = $(AM_LDFLAGS) -Wl,-framework,CoreFoundation -Wl,-framework,VideoToolbox -Wl,-framework,CoreMedia -Wl,-framework,CoreVideo -Wl,-framework,Metal
 if HAVE_DARWIN
 if ENABLE_SOUT
@@ -416,7 +416,7 @@ endif
 ### avcodec hardware acceleration ###
 
 libvaapi_plugin_la_SOURCES = \
-	codec/avcodec/vaapi.c hw/vaapi/vlc_vaapi.c hw/vaapi/vlc_vaapi.h \
+	codec/avcodec/vaapi.c hw/vaapi/heimdall_vaapi.c hw/vaapi/heimdall_vaapi.h \
 	codec/avcodec/va_surface.c codec/avcodec/va_surface.h
 libvaapi_plugin_la_CPPFLAGS = $(AM_CPPFLAGS)
 libvaapi_plugin_la_CFLAGS = $(AM_CFLAGS) $(AVCODEC_CFLAGS)
@@ -497,7 +497,7 @@ libmediacodec_plugin_la_CPPFLAGS = $(AM_CPPFLAGS) -I$(srcdir)/codec/omxil
 libmediacodec_plugin_la_SOURCES = codec/omxil/mediacodec.c codec/omxil/mediacodec.h \
 	codec/omxil/mediacodec_jni.c codec/omxil/mediacodec_ndk.c codec/omxil/utils.c \
 	codec/omxil/omxil_utils.h codec/omxil/qcom.c codec/omxil/qcom.h
-libmediacodec_plugin_la_LIBADD = libchroma_copy.la libvlc_hxxxhelper.la \
+libmediacodec_plugin_la_LIBADD = libchroma_copy.la libheimdall_hxxxhelper.la \
 	libandroid_utils.la $(LIBDL) $(GLES2_LIBS) $(EGL_LIBS) -lmediandk
 codec_PLUGINS += $(LTLIBomxil)
 EXTRA_LTLIBRARIES += libomxil_plugin.la
@@ -648,17 +648,17 @@ libmft_plugin_la_SOURCES = codec/mft.cpp \
     codec/mft_d3d11.cpp codec/mft_d3d11.h
 libmft_plugin_la_CXXFLAGS = $(AM_CXXFLAGS) $(LIBCOMCXXFLAGS)
 if HAVE_WIN32
-libmft_plugin_la_LIBADD = $(LIBCOM) -luuid -lmfplat libvlc_hxxxhelper.la libd3d11_common.la -ld3d11
+libmft_plugin_la_LIBADD = $(LIBCOM) -luuid -lmfplat libheimdall_hxxxhelper.la libd3d11_common.la -ld3d11
 codec_PLUGINS += libmft_plugin.la
 endif
 
 libgstdecode_plugin_la_SOURCES = codec/gstreamer/gstdecode.c \
-								 codec/gstreamer/gstvlcpictureplaneallocator.c \
-								 codec/gstreamer/gstvlcpictureplaneallocator.h \
-								 codec/gstreamer/gstvlcvideopool.c \
-								 codec/gstreamer/gstvlcvideopool.h \
-								 codec/gstreamer/gstvlcvideosink.c \
-								 codec/gstreamer/gstvlcvideosink.h \
+								 codec/gstreamer/gstheimdallpictureplaneallocator.c \
+								 codec/gstreamer/gstheimdallpictureplaneallocator.h \
+								 codec/gstreamer/gstheimdallvideopool.c \
+								 codec/gstreamer/gstheimdallvideopool.h \
+								 codec/gstreamer/gstheimdallvideosink.c \
+								 codec/gstreamer/gstheimdallvideosink.h \
 								 codec/gstreamer/gstcopypicture.c \
 								 codec/gstreamer/gstcopypicture.h \
 								 codec/gstreamer/gst_mem.h \
@@ -669,7 +669,7 @@ if HAVE_GST_DECODE
 codec_PLUGINS += libgstdecode_plugin.la
 endif
 
-libvlc_hxxxhelper_la_SOURCES = \
+libheimdall_hxxxhelper_la_SOURCES = \
 	codec/hxxx_helper.c codec/hxxx_helper.h \
 	packetizer/hxxx_nal.h packetizer/hxxx_nal.c \
 	packetizer/hxxx_sei.h packetizer/hxxx_sei.c \
@@ -677,15 +677,15 @@ libvlc_hxxxhelper_la_SOURCES = \
 	packetizer/h264_nal.c packetizer/h264_nal.h \
 	packetizer/h26x_nal_common.h \
 	packetizer/hevc_nal.c packetizer/hevc_nal.h
-libvlc_hxxxhelper_la_CPPFLAGS = -Dneedsomethinghere
-libvlc_hxxxhelper_la_LDFLAGS = -static
-noinst_LTLIBRARIES += libvlc_hxxxhelper.la
+libheimdall_hxxxhelper_la_CPPFLAGS = -Dneedsomethinghere
+libheimdall_hxxxhelper_la_LDFLAGS = -static
+noinst_LTLIBRARIES += libheimdall_hxxxhelper.la
 
 libhxxxhelper_testdec_plugin_la_SOURCES = codec/hxxx_helper_testdec.c
 libhxxxhelper_testdec_plugin_la_LDFLAGS = $(AM_LDFLAGS) $(codec_RPATH)
-libhxxxhelper_testdec_plugin_la_LIBADD = libvlc_hxxxhelper.la
+libhxxxhelper_testdec_plugin_la_LIBADD = libheimdall_hxxxhelper.la
 noinst_PLUGINS += libhxxxhelper_testdec_plugin.la
 
-libvlc_vtutils_la_SOURCES = codec/vt_utils.c codec/vt_utils.h codec/vt_utils_native.m
-libvlc_vtutils_la_LDFLAGS = -static -no-undefined
-EXTRA_LTLIBRARIES += libvlc_vtutils.la
+libheimdall_vtutils_la_SOURCES = codec/vt_utils.c codec/vt_utils.h codec/vt_utils_native.m
+libheimdall_vtutils_la_LDFLAGS = -static -no-undefined
+EXTRA_LTLIBRARIES += libheimdall_vtutils.la

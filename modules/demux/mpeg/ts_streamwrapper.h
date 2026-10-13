@@ -2,6 +2,7 @@
  * ts_streamwrapper.c: Stream filter source wrapper
  *****************************************************************************
  * Copyright (C) 2020 VideoLabs, VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -17,7 +18,7 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
-#include <vlc_stream.h>
+#include <heimdall_stream.h>
 
 static int ts_stream_wrapper_Control(stream_t *s, int i_query, va_list va)
 {
@@ -45,12 +46,12 @@ static int ts_stream_wrapper_Seek(stream_t *s, uint64_t pos)
 
 static void ts_stream_wrapper_Destroy(stream_t *s)
 {
-    VLC_UNUSED(s);
+    HEIMDALL_UNUSED(s);
 }
 
 static stream_t * ts_stream_wrapper_New(stream_t *demuxstream)
 {
-    stream_t *s = vlc_stream_CommonNew(VLC_OBJECT(demuxstream),
+    stream_t *s = heimdall_stream_CommonNew(HEIMDALL_OBJECT(demuxstream),
                                        ts_stream_wrapper_Destroy);
     if(s)
     {

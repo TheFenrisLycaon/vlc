@@ -1,7 +1,8 @@
 /*****************************************************************************
- * ts_streams.c: Transport Stream input module for VLC.
+ * ts_streams.c: Transport Stream input module for Heimdall.
  *****************************************************************************
  * Copyright (C) 2004-2016 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -20,15 +21,15 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
 #include "ts_pid.h"
 #include "ts_streams.h"
 #include "ts_streams_private.h"
 
-#include <vlc_demux.h>
-#include <vlc_es.h>
-#include <vlc_es_out.h>
+#include <heimdall_demux.h>
+#include <heimdall_es.h>
+#include <heimdall_es_out.h>
 
 #include "sections.h"
 #include "ts_pid.h"
@@ -104,17 +105,17 @@ ts_pmt_t *ts_pmt_New( demux_t *p_demux )
     pmt->od.i_version = -1;
     ARRAY_INIT( pmt->od.objects );
 
-    pmt->i_last_dts = VLC_TICK_INVALID;
+    pmt->i_last_dts = HEIMDALL_TICK_INVALID;
     pmt->i_last_dts_byte = 0;
     pmt->b_last_dts_probed = false;
 
     pmt->p_atsc_si_basepid      = NULL;
     pmt->p_si_sdt_pid = NULL;
 
-    pmt->pcr.i_current = VLC_TICK_INVALID;
-    pmt->pcr.i_first  = VLC_TICK_INVALID;
+    pmt->pcr.i_current = HEIMDALL_TICK_INVALID;
+    pmt->pcr.i_first  = HEIMDALL_TICK_INVALID;
     pmt->pcr.b_disable = false;
-    pmt->pcr.i_first_dts = VLC_TICK_INVALID;
+    pmt->pcr.i_first_dts = HEIMDALL_TICK_INVALID;
     pmt->pcr.i_pcroffset = -1;
 
     pmt->pcr.b_fix_done = false;
@@ -252,7 +253,7 @@ static void ts_pes_ChainDelete_es( demux_t *p_demux, ts_es_t *p_es )
 
 ts_stream_t *ts_stream_New( demux_t *p_demux, ts_pmt_t *p_program )
 {
-    VLC_UNUSED(p_demux);
+    HEIMDALL_UNUSED(p_demux);
     ts_stream_t *pes = malloc( sizeof( ts_stream_t ) );
     if( !pes )
         return NULL;
@@ -278,7 +279,7 @@ ts_stream_t *ts_stream_New( demux_t *p_demux, ts_pmt_t *p_program )
     pes->p_proc = NULL;
     pes->prepcr.p_head = NULL;
     pes->prepcr.pp_last = &pes->prepcr.p_head;
-    pes->i_last_dts = VLC_TICK_INVALID;
+    pes->i_last_dts = HEIMDALL_TICK_INVALID;
 
     return pes;
 }

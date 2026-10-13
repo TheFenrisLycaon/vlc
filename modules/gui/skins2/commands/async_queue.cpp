@@ -2,6 +2,7 @@
  * async_queue.cpp
  *****************************************************************************
  * Copyright (C) 2003 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cyril Deguet     <asmax@via.ecp.fr>
  *          Olivier Teulière <ipkiss@via.ecp.fr>
@@ -63,7 +64,7 @@ void AsyncQueue::destroy( intf_thread_t *pIntf )
 
 void AsyncQueue::push( const CmdGenericPtr &rcCommand, bool removePrev )
 {
-    vlc::threads::mutex_locker guard {m_lock};
+    heimdall::threads::mutex_locker guard {m_lock};
 
     if( removePrev )
     {
@@ -102,7 +103,7 @@ void AsyncQueue::flush()
     {
         CmdGenericPtr cCommand;
         {
-            vlc::threads::mutex_locker guard {m_lock};
+            heimdall::threads::mutex_locker guard {m_lock};
             // Pop the first command from the queue
             cCommand = m_cmdList.front();
             m_cmdList.pop_front();

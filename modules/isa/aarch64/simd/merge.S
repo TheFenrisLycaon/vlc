@@ -3,6 +3,7 @@
  //*****************************************************************************
  // Copyright (C) 2009-2012 Rémi Denis-Courmont
  // Copyright (C) 2016-	   Janne Grunau
+ // Copyright (C) 2026 TheFenrisLycaon
  //
  // This program is free software; you can redistribute it and/or modify
  // it under the terms of the GNU Lesser General Public License as published by
@@ -31,7 +32,7 @@
 #define	SIZE	x3
 
 	.align 2
-	// NOTE: Offset and pitch must be multiple of 16-bytes in VLC.
+	// NOTE: Offset and pitch must be multiple of 16-bytes in Heimdall.
 function merge8_arm64
 	bti		c
 	ands		x5, SIZE, #~63

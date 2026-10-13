@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,7 +23,7 @@
 
 #include "qt.hpp" // for qtr()
 
-namespace vlc {
+namespace heimdall {
 namespace playlist {
 
 class PlaylistControllerPrivate
@@ -33,7 +34,7 @@ public:
     PlaylistController * const q_ptr;
 
 public:
-    PlaylistControllerPrivate(PlaylistController* playlistController, vlc_playlist_t *playlist);
+    PlaylistControllerPrivate(PlaylistController* playlistController, heimdall_playlist_t *playlist);
     PlaylistControllerPrivate() = delete;
     ~PlaylistControllerPrivate();
 
@@ -53,8 +54,8 @@ public:
     }
 
     //playlist
-    vlc_playlist_t* m_playlist = nullptr;
-    vlc_playlist_listener_id* m_listener = nullptr;
+    heimdall_playlist_t* m_playlist = nullptr;
+    heimdall_playlist_listener_id* m_listener = nullptr;
 
     bool m_initialized = false;
     ssize_t m_currentIndex = -1;
@@ -98,6 +99,6 @@ private:
 };
 
 } //namespace playlist
-} //namespace vlc
+} //namespace heimdall
 
 #endif // PLAYLIST_CONTROLLER_P_HPP

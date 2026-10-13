@@ -1,9 +1,10 @@
 /**
  * @file input.c
- * @brief Wayland input events for VLC media player
+ * @brief Wayland input events for Heimdall media player
  */
 /*****************************************************************************
  * Copyright © 2018 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -32,24 +33,24 @@
 #include <wayland-client.h>
 #ifdef HAVE_XKBCOMMON
 # include <xkbcommon/xkbcommon.h>
-# include "../xcb/vlc_xkb.h"
+# include "../xcb/heimdall_xkb.h"
 #endif
-#include <vlc_common.h>
-#include <vlc_threads.h>
-#include <vlc_window.h>
-#include <vlc_mouse.h>
-#include <vlc_fs.h>
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
+#include <heimdall_window.h>
+#include <heimdall_mouse.h>
+#include <heimdall_fs.h>
 
 #include "input.h"
 
 struct seat_data
 {
-    vlc_window_t *owner;
+    heimdall_window_t *owner;
     struct wl_seat *seat;
 
     struct wl_pointer *pointer;
-    vlc_tick_t cursor_timeout;
-    vlc_tick_t cursor_deadline;
+    heimdall_tick_t cursor_timeout;
+    heimdall_tick_t cursor_deadline;
     uint32_t cursor_serial;
 
 #ifdef HAVE_XKBCOMMON
@@ -72,7 +73,7 @@ static void pointer_show(struct seat_data *sd, struct wl_pointer *pointer)
     if (surface != NULL)
     {
         wl_pointer_set_cursor(pointer, sd->cursor_serial, surface, hsx, hsy);
-        sd->cursor_deadline = vlc_tick_now() + sd->cursor_timeout;
+        sd->cursor_deadline = heimdall_tick_now() + sd->cursor_timeout;
     }
 }
 
@@ -99,7 +100,7 @@ static void pointer_motion_cb(void *data, struct wl_pointer *pointer,
     struct seat_data *sd = data;
 
     pointer_show(sd, pointer);
-    vlc_window_ReportMouseMoved(sd->owner,
+    heimdall_window_ReportMouseMoved(sd->owner,
                                  wl_fixed_to_int(sx), wl_fixed_to_int(sy));
     (void) time;
 }
@@ -131,10 +132,10 @@ static void pointer_button_cb(void *data, struct wl_pointer *pointer,
     switch (state)
     {
         case WL_POINTER_BUTTON_STATE_RELEASED:
-            vlc_window_ReportMouseReleased(sd->owner, button);
+            heimdall_window_ReportMouseReleased(sd->owner, button);
             break;
         case WL_POINTER_BUTTON_STATE_PRESSED:
-            vlc_window_ReportMousePressed(sd->owner, button);
+            heimdall_window_ReportMousePressed(sd->owner, button);
             break;
     }
 
@@ -145,7 +146,7 @@ static void pointer_axis_cb(void *data, struct wl_pointer *pointer,
                             uint32_t serial, uint32_t type, wl_fixed_t value)
 {
     struct seat_data *sd = data;
-    vlc_window_t *wnd = sd->owner;
+    heimdall_window_t *wnd = sd->owner;
     int button;
     bool plus = value > 0;
 
@@ -166,8 +167,8 @@ static void pointer_axis_cb(void *data, struct wl_pointer *pointer,
 
     while (value > 0)
     {
-        vlc_window_ReportMousePressed(wnd, button);
-        vlc_window_ReportMouseReleased(wnd, button);
+        heimdall_window_ReportMousePressed(wnd, button);
+        heimdall_window_ReportMouseReleased(wnd, button);
         value -= wl_fixed_from_int(10);
     }
     (void) serial;
@@ -224,8 +225,8 @@ static void pointer_create(struct seat_data *sd)
     if (likely(sd->pointer != NULL))
         wl_pointer_add_listener(sd->pointer, &pointer_cbs, sd);
 
-    sd->cursor_timeout = VLC_TICK_FROM_MS( var_InheritInteger(sd->owner, "mouse-hide-timeout") );
-    sd->cursor_deadline = VLC_TICK_MAX;
+    sd->cursor_timeout = HEIMDALL_TICK_FROM_MS( var_InheritInteger(sd->owner, "mouse-hide-timeout") );
+    sd->cursor_deadline = HEIMDALL_TICK_MAX;
 }
 
 static void pointer_destroy(struct seat_data *sd)
@@ -246,7 +247,7 @@ static void keyboard_keymap_cb(void *data, struct wl_keyboard *keyboard,
                                uint32_t format, int fd, uint32_t size)
 {
     struct seat_data *sd = data;
-    vlc_window_t *wnd = sd->owner;
+    heimdall_window_t *wnd = sd->owner;
     void *map;
 
     msg_Dbg(wnd, "format %"PRIu32" keymap of %"PRIu32" bytes", format, size);
@@ -275,7 +276,7 @@ static void keyboard_keymap_cb(void *data, struct wl_keyboard *keyboard,
         msg_Err(wnd, "keymap parse error");
 
 out:
-    vlc_close(fd);
+    heimdall_close(fd);
     (void) keyboard;
 }
 
@@ -296,7 +297,7 @@ static void keyboard_key_cb(void *data, struct wl_keyboard *keyboard,
                             uint32_t state)
 {
     struct seat_data *sd = data;
-    vlc_window_t *wnd = sd->owner;
+    heimdall_window_t *wnd = sd->owner;
     uint_fast32_t vk;
 
     if (state != WL_KEYBOARD_KEY_STATE_PRESSED)
@@ -304,12 +305,12 @@ static void keyboard_key_cb(void *data, struct wl_keyboard *keyboard,
     if (unlikely(sd->keystate == NULL))
         return;
 
-    vk = vlc_xkb_get_one(sd->keystate, keycode + 8);
+    vk = heimdall_xkb_get_one(sd->keystate, keycode + 8);
     if (vk)
     {
         msg_Dbg(wnd, "key: 0x%08"PRIxFAST32" (XKB: 0x%04"PRIx32")",
                 vk, keycode);
-        vlc_window_ReportKeyPress(wnd, vk);
+        heimdall_window_ReportKeyPress(wnd, vk);
     }
 
     (void) keyboard; (void) serial; (void) time;
@@ -335,7 +336,7 @@ static void keyboard_repeat_info_cb(void *data, struct wl_keyboard *keyboard,
                                     int32_t rate, int32_t delay)
 {
     struct seat_data *sd = data;
-    vlc_window_t *wnd = sd->owner;
+    heimdall_window_t *wnd = sd->owner;
 
     msg_Dbg(wnd, "keyboard repeat info: %d Hz after %d ms", rate, delay);
     (void) keyboard;
@@ -389,7 +390,7 @@ static void seat_capabilities_cb(void *data, struct wl_seat *seat,
                                  uint32_t capabilities)
 {
     struct seat_data *sd = data;
-    struct vlc_window *wnd = sd->owner;
+    struct heimdall_window *wnd = sd->owner;
 
     msg_Dbg(wnd, "seat capabilities: 0x%"PRIx32, capabilities);
     (void) seat;
@@ -427,7 +428,7 @@ static const struct wl_seat_listener seat_cbs =
     seat_name_cb,
 };
 
-int seat_create(vlc_window_t *wnd, struct wl_registry *registry,
+int seat_create(heimdall_window_t *wnd, struct wl_registry *registry,
                 uint32_t name, uint32_t version, struct wl_list *list)
 {
     struct seat_data *sd = malloc(sizeof (*sd));
@@ -459,17 +460,17 @@ int seat_create(vlc_window_t *wnd, struct wl_registry *registry,
     return 0;
 }
 
-static vlc_tick_t seat_next_deadline(const struct seat_data *sd)
+static heimdall_tick_t seat_next_deadline(const struct seat_data *sd)
 {
-    return (sd->pointer != NULL) ? sd->cursor_deadline : VLC_TICK_MAX;
+    return (sd->pointer != NULL) ? sd->cursor_deadline : HEIMDALL_TICK_MAX;
 }
 
-static void seat_refresh(struct seat_data *sd, vlc_tick_t now)
+static void seat_refresh(struct seat_data *sd, heimdall_tick_t now)
 {
     if (sd->pointer != NULL && sd->cursor_deadline <= now)
     {   /* Hide cursor */
         wl_pointer_set_cursor(sd->pointer, sd->cursor_serial, NULL, 0, 0);
-        sd->cursor_deadline = VLC_TICK_MAX;
+        sd->cursor_deadline = HEIMDALL_TICK_MAX;
     }
 }
 
@@ -518,19 +519,19 @@ void seat_destroy_all(struct wl_list *list)
 int seat_next_timeout(const struct wl_list *list)
 {
     struct seat_data *sd;
-    vlc_tick_t deadline = VLC_TICK_MAX;
+    heimdall_tick_t deadline = HEIMDALL_TICK_MAX;
 
     wl_list_for_each(sd, list, node)
     {
-        vlc_tick_t d = seat_next_deadline(sd);
+        heimdall_tick_t d = seat_next_deadline(sd);
         if (deadline > d)
             deadline = d;
     }
 
-    if (deadline == VLC_TICK_MAX)
+    if (deadline == HEIMDALL_TICK_MAX)
         return -1;
 
-    vlc_tick_t now = vlc_tick_now();
+    heimdall_tick_t now = heimdall_tick_now();
     if (now >= deadline)
         return 0;
 
@@ -540,7 +541,7 @@ int seat_next_timeout(const struct wl_list *list)
 void seat_timeout(struct wl_list *list)
 {
     struct seat_data *sd;
-    vlc_tick_t now = vlc_tick_now();
+    heimdall_tick_t now = heimdall_tick_now();
 
     wl_list_for_each(sd, list, node)
         seat_refresh(sd, now);

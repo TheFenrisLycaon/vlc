@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright © 2021 Videolabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -25,44 +26,44 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_inhibit.h>
-#include <vlc_window.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_inhibit.h>
+#include <heimdall_window.h>
 
 #include <UIKit/UIKit.h>
 
-static void UpdateInhibit(vlc_inhibit_t *ih, unsigned mask)
+static void UpdateInhibit(heimdall_inhibit_t *ih, unsigned mask)
 {
     dispatch_async(dispatch_get_main_queue(), ^{
         [UIApplication sharedApplication].idleTimerDisabled =
-            (mask & VLC_INHIBIT_DISPLAY) == VLC_INHIBIT_DISPLAY;
+            (mask & HEIMDALL_INHIBIT_DISPLAY) == HEIMDALL_INHIBIT_DISPLAY;
     });
 }
 
-static int OpenInhibit(vlc_object_t *obj)
+static int OpenInhibit(heimdall_object_t *obj)
 {
-    vlc_inhibit_t *ih = (vlc_inhibit_t *)obj;
-    vlc_window_t *wnd = vlc_inhibit_GetWindow(ih);
-    if (wnd->type != VLC_WINDOW_TYPE_NSOBJECT)
-        return VLC_EGENERIC;
+    heimdall_inhibit_t *ih = (heimdall_inhibit_t *)obj;
+    heimdall_window_t *wnd = heimdall_inhibit_GetWindow(ih);
+    if (wnd->type != HEIMDALL_WINDOW_TYPE_NSOBJECT)
+        return HEIMDALL_EGENERIC;
 
     UIView * view = (__bridge UIView*)wnd->handle.nsobject;
 
     if (unlikely(![view respondsToSelector:@selector(isKindOfClass:)]))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if (![view isKindOfClass:[UIView class]])
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     ih->inhibit = UpdateInhibit;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname("UIKit sleep inhibition")
     set_description("UIKit screen sleep inhibition for iOS and tvOS")
     set_subcategory(SUBCAT_ADVANCED_MISC)
     set_capability("inhibit", 10)
     set_callback(OpenInhibit)
-vlc_module_end()
+heimdall_module_end()

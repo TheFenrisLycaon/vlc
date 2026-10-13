@@ -2,6 +2,7 @@
  * win32_dragdrop.cpp
  *****************************************************************************
  * Copyright (C) 2003 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cyril Deguet     <asmax@via.ecp.fr>
  *          Olivier Teulière <ipkiss@via.ecp.fr>
@@ -29,7 +30,7 @@
 #include <list>
 #include <shlobj.h>
 
-#include <vlc_charset.h>
+#include <heimdall_charset.h>
 
 /// Wrapper around FromWide, to avoid the need to call free()
 static inline std::string sFromWide( const std::wstring &rWide )

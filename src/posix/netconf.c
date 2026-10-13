@@ -2,6 +2,7 @@
  * netconf.c : Network configuration
  *****************************************************************************
  * Copyright (C) 2013 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -25,26 +26,26 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <vlc_common.h>
-#include <vlc_fs.h>
-#include <vlc_network.h>
-#include <vlc_spawn.h>
+#include <heimdall_common.h>
+#include <heimdall_fs.h>
+#include <heimdall_network.h>
+#include <heimdall_spawn.h>
 
-char *vlc_getProxyUrl(const char *url)
+char *heimdall_getProxyUrl(const char *url)
 {
     int fd[2];
 
-    if (vlc_pipe(fd))
+    if (heimdall_pipe(fd))
         return NULL;
 
     pid_t pid;
     int fdv[] = { -1, fd[1], STDERR_FILENO, -1 };
     const char *argv[] = { "proxy", url, NULL };
 
-    if (vlc_spawnp(&pid, "proxy", fdv, argv))
+    if (heimdall_spawnp(&pid, "proxy", fdv, argv))
         pid = -1;
 
-    vlc_close(fd[1]);
+    heimdall_close(fd[1]);
 
     if (pid != -1)
     {
@@ -60,8 +61,8 @@ char *vlc_getProxyUrl(const char *url)
         }
         while (len < sizeof (buf));
 
-        vlc_close(fd[0]);
-        vlc_waitpid(pid);
+        heimdall_close(fd[0]);
+        heimdall_waitpid(pid);
 
         if (len >= 9 && !strncasecmp(buf, "direct://", 9))
             return NULL;
@@ -75,7 +76,7 @@ char *vlc_getProxyUrl(const char *url)
         /* Parse error: fallback (may be due to missing executable) */
     }
     else
-        vlc_close(fd[0]);
+        heimdall_close(fd[0]);
 
     /* Fallback to environment variable */
     char *var = getenv("http_proxy");

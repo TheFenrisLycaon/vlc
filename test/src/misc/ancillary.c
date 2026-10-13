@@ -2,6 +2,7 @@
  * ancillary.c: test for ancillary
  *****************************************************************************
  * Copyright (C) 2021 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,10 +23,10 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_frame.h>
-#include <vlc_picture.h>
-#include <vlc_ancillary.h>
+#include <heimdall_common.h>
+#include <heimdall_frame.h>
+#include <heimdall_picture.h>
+#include <heimdall_ancillary.h>
 
 #include <assert.h>
 
@@ -38,11 +39,11 @@ ancillary_free(void *data)
 
 int main( void )
 {
-    vlc_frame_t *frame = vlc_frame_Alloc(1);
+    heimdall_frame_t *frame = heimdall_frame_Alloc(1);
     assert(frame);
 
     int ret;
-    struct vlc_ancillary *ancillary;
+    struct heimdall_ancillary *ancillary;
 
     /* Create and try to attach 3 ancillaries to the frame, only 2 will be
      * attached. */
@@ -52,50 +53,50 @@ int main( void )
         ret = asprintf(&data, "test%zu", i);
         assert(ret > 0);
 
-        vlc_ancillary_id id;
+        heimdall_ancillary_id id;
         switch (i)
         {
             case 0:
                 /* Check that only one ancillary of the same id is added (the
                  * last one take precedence). */
-            case 1: id = VLC_ANCILLARY_ID('t','s','t','1'); break;
-            case 2: id = VLC_ANCILLARY_ID('t','s','t','2'); break;
-            default: vlc_assert_unreachable();
+            case 1: id = HEIMDALL_ANCILLARY_ID('t','s','t','1'); break;
+            case 2: id = HEIMDALL_ANCILLARY_ID('t','s','t','2'); break;
+            default: heimdall_assert_unreachable();
         }
 
-        ancillary = vlc_ancillary_CreateWithFreeCb(data, id, ancillary_free);
+        ancillary = heimdall_ancillary_CreateWithFreeCb(data, id, ancillary_free);
         assert(ancillary);
 
-        ret = vlc_frame_AttachAncillary(frame, ancillary);
-        assert(ret == VLC_SUCCESS);
-        vlc_ancillary_Release(ancillary);
+        ret = heimdall_frame_AttachAncillary(frame, ancillary);
+        assert(ret == HEIMDALL_SUCCESS);
+        heimdall_ancillary_Release(ancillary);
     }
 
-    /* Check that ancillaries are copied via a vlc_frame_CopyProperties() (done
-     * by vlc_frame_Duplicate()). */
-    vlc_frame_t *copy_frame = vlc_frame_Duplicate(frame);
+    /* Check that ancillaries are copied via a heimdall_frame_CopyProperties() (done
+     * by heimdall_frame_Duplicate()). */
+    heimdall_frame_t *copy_frame = heimdall_frame_Duplicate(frame);
     assert(copy_frame);
-    vlc_frame_Release(frame);
+    heimdall_frame_Release(frame);
     frame = copy_frame;
 
-    picture_t *picture = picture_New(VLC_CODEC_NV12, 1, 1, 1, 1);
+    picture_t *picture = picture_New(HEIMDALL_CODEC_NV12, 1, 1, 1, 1);
     assert(picture);
 
     /* Manually attach both ancillaries to a newly allocated picture. */
-    ancillary = vlc_frame_GetAncillary(frame, VLC_ANCILLARY_ID('t','s','t','1'));
+    ancillary = heimdall_frame_GetAncillary(frame, HEIMDALL_ANCILLARY_ID('t','s','t','1'));
     assert(ancillary);
     picture_AttachAncillary(picture, ancillary);
 
-    ancillary = vlc_frame_GetAncillary(frame, VLC_ANCILLARY_ID('t','s','t','2'));
+    ancillary = heimdall_frame_GetAncillary(frame, HEIMDALL_ANCILLARY_ID('t','s','t','2'));
     assert(ancillary);
     picture_AttachAncillary(picture, ancillary);
 
     const char test3[] = "test3";
-    void *data = picture_AttachNewAncillary(picture, VLC_ANCILLARY_ID('t','s','t','3'), sizeof(test3));
+    void *data = picture_AttachNewAncillary(picture, HEIMDALL_ANCILLARY_ID('t','s','t','3'), sizeof(test3));
     assert(data);
     strcpy(data, test3);
 
-    vlc_frame_Release(frame);
+    heimdall_frame_Release(frame);
 
     /* Check that ancillaries are copied via a picture_Clone(). */
     picture_t *clone = picture_Clone(picture);
@@ -103,23 +104,23 @@ int main( void )
     picture_Release(picture);
 
     /* Check that ancillaries are copied via a picture_Copy(). */
-    picture_t *copy = picture_New(VLC_CODEC_I420, 1, 1, 1, 1);
+    picture_t *copy = picture_New(HEIMDALL_CODEC_I420, 1, 1, 1, 1);
     assert(copy);
     picture_Copy(copy, clone);
     picture_Release(clone);
 
     /* Check that ancillaries are still valid. */
-    ancillary = picture_GetAncillary(copy, VLC_ANCILLARY_ID('t','s','t','1'));
+    ancillary = picture_GetAncillary(copy, HEIMDALL_ANCILLARY_ID('t','s','t','1'));
     assert(ancillary);
-    assert(strcmp("test1", vlc_ancillary_GetData(ancillary)) == 0);
+    assert(strcmp("test1", heimdall_ancillary_GetData(ancillary)) == 0);
 
-    ancillary = picture_GetAncillary(copy, VLC_ANCILLARY_ID('t','s','t','2'));
+    ancillary = picture_GetAncillary(copy, HEIMDALL_ANCILLARY_ID('t','s','t','2'));
     assert(ancillary);
-    assert(strcmp("test2", vlc_ancillary_GetData(ancillary)) == 0);
+    assert(strcmp("test2", heimdall_ancillary_GetData(ancillary)) == 0);
 
-    ancillary = picture_GetAncillary(copy, VLC_ANCILLARY_ID('t','s','t','3'));
+    ancillary = picture_GetAncillary(copy, HEIMDALL_ANCILLARY_ID('t','s','t','3'));
     assert(ancillary);
-    assert(strcmp("test3", vlc_ancillary_GetData(ancillary)) == 0);
+    assert(strcmp("test3", heimdall_ancillary_GetData(ancillary)) == 0);
 
     picture_Release(copy);
 

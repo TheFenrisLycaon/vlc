@@ -2,6 +2,7 @@
  * playlist/sort.c
  *****************************************************************************
  * Copyright (C) 2018 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,10 +23,10 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_rand.h>
-#include <vlc_sort.h>
-#include <vlc_strings.h>
+#include <heimdall_common.h>
+#include <heimdall_rand.h>
+#include <heimdall_sort.h>
+#include <heimdall_strings.h>
 #include "control.h"
 #include "item.h"
 #include "notify.h"
@@ -35,11 +36,11 @@
  * Struct containing a copy of (parsed) media metadata, used for sorting
  * without locking all the items.
  */
-struct vlc_playlist_item_meta {
-    vlc_playlist_item_t *item;
+struct heimdall_playlist_item_meta {
+    heimdall_playlist_item_t *item;
     size_t index;
     const char *title_or_name;
-    vlc_tick_t duration;
+    heimdall_tick_t duration;
     const char *artist;
     const char *album;
     const char *album_artist;
@@ -58,28 +59,28 @@ struct vlc_playlist_item_meta {
 };
 
 static int
-vlc_playlist_item_meta_CopyString(const char **to, const char *from)
+heimdall_playlist_item_meta_CopyString(const char **to, const char *from)
 {
     if (from)
     {
         *to = strdup(from);
         if (unlikely(!*to))
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
     }
     else
         *to = NULL;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int
-vlc_playlist_item_meta_GetNumber(const char * str, int64_t * to)
+heimdall_playlist_item_meta_GetNumber(const char * str, int64_t * to)
 {
     // NOTE: When we have an empty string we apply the default value.
     if (*str == '\0')
     {
         *to = 0;
 
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
     char *end;
@@ -87,120 +88,120 @@ vlc_playlist_item_meta_GetNumber(const char * str, int64_t * to)
     int64_t value = strtoull(str, &end, 10);
 
     if (*end != '\0')
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     *to = value;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int
-vlc_playlist_item_meta_InitField(struct vlc_playlist_item_meta *meta,
-                                 enum vlc_playlist_sort_key key)
+heimdall_playlist_item_meta_InitField(struct heimdall_playlist_item_meta *meta,
+                                 enum heimdall_playlist_sort_key key)
 {
     input_item_t *media = meta->item->media;
     switch (key)
     {
-        case VLC_PLAYLIST_SORT_KEY_TITLE:
+        case HEIMDALL_PLAYLIST_SORT_KEY_TITLE:
         {
-            const char *value = input_item_GetMetaLocked(media, vlc_meta_Title);
+            const char *value = input_item_GetMetaLocked(media, heimdall_meta_Title);
             if (EMPTY_STR(value))
                 value = media->psz_name;
-            return vlc_playlist_item_meta_CopyString(&meta->title_or_name,
+            return heimdall_playlist_item_meta_CopyString(&meta->title_or_name,
                                                      value);
         }
-        case VLC_PLAYLIST_SORT_KEY_DURATION:
+        case HEIMDALL_PLAYLIST_SORT_KEY_DURATION:
         {
             if (media->i_duration == INPUT_DURATION_INDEFINITE
              || media->i_duration == INPUT_DURATION_UNSET)
                 meta->duration = 0;
             else
                 meta->duration = media->i_duration;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
-        case VLC_PLAYLIST_SORT_KEY_ARTIST:
+        case HEIMDALL_PLAYLIST_SORT_KEY_ARTIST:
         {
             const char *value = input_item_GetMetaLocked(media,
-                                                         vlc_meta_Artist);
-            return vlc_playlist_item_meta_CopyString(&meta->artist, value);
+                                                         heimdall_meta_Artist);
+            return heimdall_playlist_item_meta_CopyString(&meta->artist, value);
         }
-        case VLC_PLAYLIST_SORT_KEY_ALBUM:
+        case HEIMDALL_PLAYLIST_SORT_KEY_ALBUM:
         {
-            const char *value = input_item_GetMetaLocked(media, vlc_meta_Album);
-            return vlc_playlist_item_meta_CopyString(&meta->album, value);
+            const char *value = input_item_GetMetaLocked(media, heimdall_meta_Album);
+            return heimdall_playlist_item_meta_CopyString(&meta->album, value);
         }
-        case VLC_PLAYLIST_SORT_KEY_ALBUM_ARTIST:
+        case HEIMDALL_PLAYLIST_SORT_KEY_ALBUM_ARTIST:
         {
             const char *value = input_item_GetMetaLocked(media,
-                                                         vlc_meta_AlbumArtist);
-            return vlc_playlist_item_meta_CopyString(&meta->album_artist,
+                                                         heimdall_meta_AlbumArtist);
+            return heimdall_playlist_item_meta_CopyString(&meta->album_artist,
                                                      value);
         }
-        case VLC_PLAYLIST_SORT_KEY_GENRE:
+        case HEIMDALL_PLAYLIST_SORT_KEY_GENRE:
         {
-            const char *value = input_item_GetMetaLocked(media, vlc_meta_Genre);
-            return vlc_playlist_item_meta_CopyString(&meta->genre, value);
+            const char *value = input_item_GetMetaLocked(media, heimdall_meta_Genre);
+            return heimdall_playlist_item_meta_CopyString(&meta->genre, value);
         }
-        case VLC_PLAYLIST_SORT_KEY_DATE:
+        case HEIMDALL_PLAYLIST_SORT_KEY_DATE:
         {
-            const char *str = input_item_GetMetaLocked(media, vlc_meta_Date);
+            const char *str = input_item_GetMetaLocked(media, heimdall_meta_Date);
             meta->has_date = !EMPTY_STR(str);
             if (meta->has_date)
                 meta->date = atoll(str);
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
-        case VLC_PLAYLIST_SORT_KEY_TRACK_NUMBER:
+        case HEIMDALL_PLAYLIST_SORT_KEY_TRACK_NUMBER:
         {
             const char *str = input_item_GetMetaLocked(media,
-                                                       vlc_meta_TrackNumber);
+                                                       heimdall_meta_TrackNumber);
             meta->has_track_number = !EMPTY_STR(str);
             if (meta->has_track_number)
                 meta->track_number = atoll(str);
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
-        case VLC_PLAYLIST_SORT_KEY_DISC_NUMBER:
+        case HEIMDALL_PLAYLIST_SORT_KEY_DISC_NUMBER:
         {
             const char *str = input_item_GetMetaLocked(media,
-                                                       vlc_meta_DiscNumber);
+                                                       heimdall_meta_DiscNumber);
             meta->has_disc_number = !EMPTY_STR(str);
             if (meta->has_disc_number)
                 meta->disc_number = atoll(str);
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
-        case VLC_PLAYLIST_SORT_KEY_URL:
+        case HEIMDALL_PLAYLIST_SORT_KEY_URL:
         {
-            const char *value = input_item_GetMetaLocked(media, vlc_meta_URL);
-            return vlc_playlist_item_meta_CopyString(&meta->url, value);
+            const char *value = input_item_GetMetaLocked(media, heimdall_meta_URL);
+            return heimdall_playlist_item_meta_CopyString(&meta->url, value);
         }
-        case VLC_PLAYLIST_SORT_KEY_RATING:
+        case HEIMDALL_PLAYLIST_SORT_KEY_RATING:
         {
-            const char *str = input_item_GetMetaLocked(media, vlc_meta_Rating);
+            const char *str = input_item_GetMetaLocked(media, heimdall_meta_Rating);
             meta->has_rating = !EMPTY_STR(str);
             if (meta->has_rating)
                 meta->rating = atoll(str);
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
-        case VLC_PLAYLIST_SORT_KEY_FILE_SIZE:
+        case HEIMDALL_PLAYLIST_SORT_KEY_FILE_SIZE:
         {
             char *str = input_item_GetInfoLocked(media, ".stat", "size");
 
             if (str == NULL)
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
 
-            int result = vlc_playlist_item_meta_GetNumber(str, &(meta->file_size));
+            int result = heimdall_playlist_item_meta_GetNumber(str, &(meta->file_size));
 
             free(str);
 
             return result;
         }
-        case VLC_PLAYLIST_SORT_KEY_FILE_MODIFIED:
+        case HEIMDALL_PLAYLIST_SORT_KEY_FILE_MODIFIED:
         {
             char *str = input_item_GetInfoLocked(media, ".stat", "mtime");
 
             if (str == NULL)
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
 
-            int result = vlc_playlist_item_meta_GetNumber(str, &(meta->file_modified));
+            int result = heimdall_playlist_item_meta_GetNumber(str, &(meta->file_modified));
 
             free(str);
 
@@ -208,12 +209,12 @@ vlc_playlist_item_meta_InitField(struct vlc_playlist_item_meta *meta,
         }
         default:
             assert(!"Unknown sort key");
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 }
 
 static void
-vlc_playlist_item_meta_DestroyFields(struct vlc_playlist_item_meta *meta)
+heimdall_playlist_item_meta_DestroyFields(struct heimdall_playlist_item_meta *meta)
 {
     free((void *) meta->title_or_name);
     free((void *) meta->artist);
@@ -224,40 +225,40 @@ vlc_playlist_item_meta_DestroyFields(struct vlc_playlist_item_meta *meta)
 }
 
 static int
-vlc_playlist_item_meta_InitFields(struct vlc_playlist_item_meta *meta,
-        const struct vlc_playlist_sort_criterion criteria[], size_t count)
+heimdall_playlist_item_meta_InitFields(struct heimdall_playlist_item_meta *meta,
+        const struct heimdall_playlist_sort_criterion criteria[], size_t count)
 {
     for (size_t i = 0; i < count; ++i)
     {
-        const struct vlc_playlist_sort_criterion *criterion = &criteria[i];
-        int ret = vlc_playlist_item_meta_InitField(meta, criterion->key);
-        if (unlikely(ret != VLC_SUCCESS))
+        const struct heimdall_playlist_sort_criterion *criterion = &criteria[i];
+        int ret = heimdall_playlist_item_meta_InitField(meta, criterion->key);
+        if (unlikely(ret != HEIMDALL_SUCCESS))
         {
-            vlc_playlist_item_meta_DestroyFields(meta);
+            heimdall_playlist_item_meta_DestroyFields(meta);
             return ret;
         }
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static struct vlc_playlist_item_meta *
-vlc_playlist_item_meta_New(size_t index, vlc_playlist_item_t *item,
-                           const struct vlc_playlist_sort_criterion criteria[],
+static struct heimdall_playlist_item_meta *
+heimdall_playlist_item_meta_New(size_t index, heimdall_playlist_item_t *item,
+                           const struct heimdall_playlist_sort_criterion criteria[],
                            size_t count)
 {
     /* assume that NULL representation is all-zeros */
-    struct vlc_playlist_item_meta *meta = calloc(1, sizeof(*meta));
+    struct heimdall_playlist_item_meta *meta = calloc(1, sizeof(*meta));
     if (unlikely(!meta))
         return NULL;
 
     meta->item = item;
     meta->index = index;
 
-    vlc_mutex_lock(&item->media->lock);
-    int ret = vlc_playlist_item_meta_InitFields(meta, criteria, count);
-    vlc_mutex_unlock(&item->media->lock);
+    heimdall_mutex_lock(&item->media->lock);
+    int ret = heimdall_playlist_item_meta_InitFields(meta, criteria, count);
+    heimdall_mutex_unlock(&item->media->lock);
 
-    if (unlikely(ret != VLC_SUCCESS))
+    if (unlikely(ret != HEIMDALL_SUCCESS))
     {
         free(meta);
         return NULL;
@@ -267,9 +268,9 @@ vlc_playlist_item_meta_New(size_t index, vlc_playlist_item_t *item,
 }
 
 static void
-vlc_playlist_item_meta_Delete(struct vlc_playlist_item_meta *meta)
+heimdall_playlist_item_meta_Delete(struct heimdall_playlist_item_meta *meta)
 {
-    vlc_playlist_item_meta_DestroyFields(meta);
+    heimdall_playlist_item_meta_DestroyFields(meta);
     free(meta);
 }
 
@@ -287,7 +288,7 @@ static inline int
 CompareFilenameStrings(const char *a, const char *b)
 {
     if (a && b)
-        return vlc_filenamecmp(a, b);
+        return heimdall_filenamecmp(a, b);
     if (!a && !b)
         return 0;
     return a ? 1 : -1;
@@ -326,52 +327,52 @@ CompareOptionalIntegers(bool has_a, int64_t a, bool has_b, int64_t b)
 }
 
 static inline int
-CompareMetaByKey(const struct vlc_playlist_item_meta *a,
-                 const struct vlc_playlist_item_meta *b,
-                 enum vlc_playlist_sort_key key)
+CompareMetaByKey(const struct heimdall_playlist_item_meta *a,
+                 const struct heimdall_playlist_item_meta *b,
+                 enum heimdall_playlist_sort_key key)
 {
     switch (key)
     {
-        case VLC_PLAYLIST_SORT_KEY_TITLE:
+        case HEIMDALL_PLAYLIST_SORT_KEY_TITLE:
             return CompareFilenameStrings(a->title_or_name, b->title_or_name);
-        case VLC_PLAYLIST_SORT_KEY_DURATION:
+        case HEIMDALL_PLAYLIST_SORT_KEY_DURATION:
             return CompareIntegers(a->duration, b->duration);
-        case VLC_PLAYLIST_SORT_KEY_ARTIST:
+        case HEIMDALL_PLAYLIST_SORT_KEY_ARTIST:
             return CompareStrings(a->artist, b->artist);
-        case VLC_PLAYLIST_SORT_KEY_ALBUM:
+        case HEIMDALL_PLAYLIST_SORT_KEY_ALBUM:
             return CompareFilenameStrings(a->album, b->album);
-        case VLC_PLAYLIST_SORT_KEY_ALBUM_ARTIST:
+        case HEIMDALL_PLAYLIST_SORT_KEY_ALBUM_ARTIST:
             return CompareStrings(a->album_artist, b->album_artist);
-        case VLC_PLAYLIST_SORT_KEY_GENRE:
+        case HEIMDALL_PLAYLIST_SORT_KEY_GENRE:
             return CompareStrings(a->genre, b->genre);
-        case VLC_PLAYLIST_SORT_KEY_DATE:
+        case HEIMDALL_PLAYLIST_SORT_KEY_DATE:
             return CompareOptionalIntegers(a->has_date, a->date,
                                            b->has_date, b->date);
-        case VLC_PLAYLIST_SORT_KEY_TRACK_NUMBER:
+        case HEIMDALL_PLAYLIST_SORT_KEY_TRACK_NUMBER:
             return CompareOptionalIntegers(a->has_track_number, a->track_number,
                                            b->has_track_number, b->track_number);
-        case VLC_PLAYLIST_SORT_KEY_DISC_NUMBER:
+        case HEIMDALL_PLAYLIST_SORT_KEY_DISC_NUMBER:
             return CompareOptionalIntegers(a->has_disc_number, a->disc_number,
                                            b->has_disc_number, b->disc_number);
-        case VLC_PLAYLIST_SORT_KEY_URL:
+        case HEIMDALL_PLAYLIST_SORT_KEY_URL:
             return CompareVersionStrings(a->url, b->url);
-        case VLC_PLAYLIST_SORT_KEY_RATING:
+        case HEIMDALL_PLAYLIST_SORT_KEY_RATING:
             return CompareOptionalIntegers(a->has_rating, a->rating,
                                            b->has_rating, b->rating);
-        case VLC_PLAYLIST_SORT_KEY_FILE_SIZE:
+        case HEIMDALL_PLAYLIST_SORT_KEY_FILE_SIZE:
             return CompareIntegers(a->file_size, b->file_size);
-        case VLC_PLAYLIST_SORT_KEY_FILE_MODIFIED:
+        case HEIMDALL_PLAYLIST_SORT_KEY_FILE_MODIFIED:
             return CompareIntegers(a->file_modified, b->file_modified);
         default:
             assert(!"Unknown sort key");
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
      }
 }
 
 /* context for qsort_r() */
 struct sort_request
 {
-    const struct vlc_playlist_sort_criterion *criteria;
+    const struct heimdall_playlist_sort_criterion *criteria;
     size_t count;
 };
 
@@ -379,18 +380,18 @@ static int
 compare_meta(const void *lhs, const void *rhs, void *userdata)
 {
     struct sort_request *req = userdata;
-    const struct vlc_playlist_item_meta *a =
-            *(const struct vlc_playlist_item_meta **) lhs;
-    const struct vlc_playlist_item_meta *b =
-            *(const struct vlc_playlist_item_meta **) rhs;
+    const struct heimdall_playlist_item_meta *a =
+            *(const struct heimdall_playlist_item_meta **) lhs;
+    const struct heimdall_playlist_item_meta *b =
+            *(const struct heimdall_playlist_item_meta **) rhs;
 
     for (size_t i = 0; i < req->count; ++i)
     {
-        const struct vlc_playlist_sort_criterion *criterion = &req->criteria[i];
+        const struct heimdall_playlist_sort_criterion *criterion = &req->criteria[i];
         int ret = CompareMetaByKey(a, b, criterion->key);
         if (ret)
         {
-            if (criterion->order == VLC_PLAYLIST_SORT_ORDER_DESCENDING)
+            if (criterion->order == HEIMDALL_PLAYLIST_SORT_ORDER_DESCENDING)
                 /* do not return -ret, it's undefined if ret == INT_MIN */
                 return ret > 0 ? -1 : 1;
             return ret;
@@ -404,20 +405,20 @@ compare_meta(const void *lhs, const void *rhs, void *userdata)
 }
 
 static void
-vlc_playlist_DeleteMetaArray(struct vlc_playlist_item_meta *array[],
+heimdall_playlist_DeleteMetaArray(struct heimdall_playlist_item_meta *array[],
                              size_t count)
 {
     for (size_t i = 0; i < count; ++i)
-        vlc_playlist_item_meta_Delete(array[i]);
+        heimdall_playlist_item_meta_Delete(array[i]);
     free(array);
 }
 
-static struct vlc_playlist_item_meta **
-vlc_playlist_NewMetaArray(vlc_playlist_t *playlist,
-        const struct vlc_playlist_sort_criterion criteria[], size_t count)
+static struct heimdall_playlist_item_meta **
+heimdall_playlist_NewMetaArray(heimdall_playlist_t *playlist,
+        const struct heimdall_playlist_sort_criterion criteria[], size_t count)
 {
-    struct vlc_playlist_item_meta **array =
-            vlc_alloc(playlist->items.size, sizeof(*array));
+    struct heimdall_playlist_item_meta **array =
+            heimdall_alloc(playlist->items.size, sizeof(*array));
 
     if (unlikely(!array))
         return NULL;
@@ -425,7 +426,7 @@ vlc_playlist_NewMetaArray(vlc_playlist_t *playlist,
     size_t i;
     for (i = 0; i < playlist->items.size; ++i)
     {
-        array[i] = vlc_playlist_item_meta_New(i, playlist->items.data[i],
+        array[i] = heimdall_playlist_item_meta_New(i, playlist->items.data[i],
                                               criteria, count);
         if (unlikely(!array[i]))
             break;
@@ -434,7 +435,7 @@ vlc_playlist_NewMetaArray(vlc_playlist_t *playlist,
     if (i < playlist->items.size)
     {
         /* allocation failure */
-        vlc_playlist_DeleteMetaArray(array, i);
+        heimdall_playlist_DeleteMetaArray(array, i);
         return NULL;
     }
 
@@ -442,46 +443,46 @@ vlc_playlist_NewMetaArray(vlc_playlist_t *playlist,
 }
 
 int
-vlc_playlist_Sort(vlc_playlist_t *playlist,
-                  const struct vlc_playlist_sort_criterion criteria[],
+heimdall_playlist_Sort(heimdall_playlist_t *playlist,
+                  const struct heimdall_playlist_sort_criterion criteria[],
                   size_t count)
 {
     assert(count > 0);
-    vlc_playlist_AssertLocked(playlist);
+    heimdall_playlist_AssertLocked(playlist);
 
-    vlc_playlist_item_t *current = playlist->current != -1
+    heimdall_playlist_item_t *current = playlist->current != -1
                                  ? playlist->items.data[playlist->current]
                                  : NULL;
 
-    struct vlc_playlist_item_meta **array =
-        vlc_playlist_NewMetaArray(playlist, criteria, count);
+    struct heimdall_playlist_item_meta **array =
+        heimdall_playlist_NewMetaArray(playlist, criteria, count);
     if (unlikely(!array))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     struct sort_request req = { criteria, count };
 
-    vlc_qsort(array, playlist->items.size, sizeof(*array), compare_meta, &req);
+    heimdall_qsort(array, playlist->items.size, sizeof(*array), compare_meta, &req);
 
     /* apply the sorting result to the playlist */
     for (size_t i = 0; i < playlist->items.size; ++i)
         playlist->items.data[i] = array[i]->item;
 
-    vlc_playlist_DeleteMetaArray(array, playlist->items.size);
+    heimdall_playlist_DeleteMetaArray(array, playlist->items.size);
 
-    struct vlc_playlist_state state;
+    struct heimdall_playlist_state state;
     if (current)
     {
         /* the current position have changed after the shuffle */
-        vlc_playlist_state_Save(playlist, &state);
-        playlist->current = vlc_playlist_IndexOf(playlist, current);
-        playlist->has_prev = vlc_playlist_ComputeHasPrev(playlist);
-        playlist->has_next = vlc_playlist_ComputeHasNext(playlist);
+        heimdall_playlist_state_Save(playlist, &state);
+        playlist->current = heimdall_playlist_IndexOf(playlist, current);
+        playlist->has_prev = heimdall_playlist_ComputeHasPrev(playlist);
+        playlist->has_next = heimdall_playlist_ComputeHasNext(playlist);
     }
 
-    vlc_playlist_Notify(playlist, on_items_reset, playlist->items.data,
+    heimdall_playlist_Notify(playlist, on_items_reset, playlist->items.data,
                         playlist->items.size);
     if (current)
-        vlc_playlist_state_NotifyChanges(playlist, &state);
+        heimdall_playlist_state_NotifyChanges(playlist, &state);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

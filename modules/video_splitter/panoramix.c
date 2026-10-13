@@ -1,7 +1,8 @@
 /*****************************************************************************
- * panoramix.c : Wall panoramic video with edge blending plugin for vlc
+ * panoramix.c : Wall panoramic video with edge blending plugin for heimdall
  *****************************************************************************
  * Copyright (C) 2000, 2001, 2002, 2003 VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cedric Cocquebert <cedric.cocquebert@supelec.fr>
  *          based on Samuel Hocevar <sam@zoy.org>
@@ -31,11 +32,11 @@
 #include <math.h>
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_video_splitter.h>
-#include <vlc_window.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_video_splitter.h>
+#include <heimdall_window.h>
 
 #define OVERLAP
 
@@ -72,10 +73,10 @@
 #define PANORAMIX_HELP N_("Split the video in multiple windows to " \
     "display on a wall of screens")
 
-static int  Open ( vlc_object_t * );
-static void Close( vlc_object_t * );
+static int  Open ( heimdall_object_t * );
+static void Close( heimdall_object_t * );
 
-vlc_module_begin()
+heimdall_module_begin()
     set_description( N_("Panoramix: wall with overlap video filter") )
     set_shortname( N_("Panoramix" ))
     set_help(PANORAMIX_HELP)
@@ -172,7 +173,7 @@ vlc_module_begin()
 
     add_shortcut( "panoramix" )
     set_callbacks( Open, Close )
-vlc_module_end()
+heimdall_module_end()
 
 
 /*****************************************************************************
@@ -253,7 +254,7 @@ typedef struct
 
 typedef struct
 {
-    vlc_fourcc_t i_chroma;
+    heimdall_fourcc_t i_chroma;
 
     const int pi_div_w[VOUT_MAX_PLANES];
     const int pi_div_h[VOUT_MAX_PLANES];
@@ -291,7 +292,7 @@ typedef struct
 /* */
 static int Filter( video_splitter_t *, picture_t *pp_dst[], picture_t * );
 
-static int Mouse( video_splitter_t *, int, vlc_window_mouse_event_t * );
+static int Mouse( video_splitter_t *, int, heimdall_window_mouse_event_t * );
 
 /* */
 static int Configuration( panoramix_output_t pp_output[ROW_MAX][COL_MAX],
@@ -315,13 +316,13 @@ static void FilterPlanar( uint8_t *p_out, int i_out_pitch,
 /* */
 static const panoramix_chroma_t p_chroma_array[] = {
     /* Planar chroma */
-    { VLC_CODEC_I410, { 1, 4, 4, }, { 1, 1, 1, }, { 0, 128, 128 }, true },
-    { VLC_CODEC_I411, { 1, 4, 4, }, { 1, 4, 4, }, { 0, 128, 128 }, true },
-    { VLC_CODEC_YV12, { 1, 2, 2, }, { 1, 2, 2, }, { 0, 128, 128 }, true },
-    { VLC_CODEC_I420, { 1, 2, 2, }, { 1, 2, 2, }, { 0, 128, 128 }, true },
-    { VLC_CODEC_I422, { 1, 2, 2, }, { 1, 1, 1, }, { 0, 128, 128 }, true },
-    { VLC_CODEC_I440, { 1, 1, 1, }, { 1, 2, 2, }, { 0, 128, 128 }, true },
-    { VLC_CODEC_I444, { 1, 1, 1, }, { 1, 1, 1, }, { 0, 128, 128 }, true },
+    { HEIMDALL_CODEC_I410, { 1, 4, 4, }, { 1, 1, 1, }, { 0, 128, 128 }, true },
+    { HEIMDALL_CODEC_I411, { 1, 4, 4, }, { 1, 4, 4, }, { 0, 128, 128 }, true },
+    { HEIMDALL_CODEC_YV12, { 1, 2, 2, }, { 1, 2, 2, }, { 0, 128, 128 }, true },
+    { HEIMDALL_CODEC_I420, { 1, 2, 2, }, { 1, 2, 2, }, { 0, 128, 128 }, true },
+    { HEIMDALL_CODEC_I422, { 1, 2, 2, }, { 1, 1, 1, }, { 0, 128, 128 }, true },
+    { HEIMDALL_CODEC_I440, { 1, 1, 1, }, { 1, 2, 2, }, { 0, 128, 128 }, true },
+    { HEIMDALL_CODEC_I444, { 1, 1, 1, }, { 1, 1, 1, }, { 0, 128, 128 }, true },
     /* TODO packed chroma (yuv/rgb) ? */
 
     { 0, {0, }, { 0, }, { 0, 0, 0 }, false }
@@ -329,7 +330,7 @@ static const panoramix_chroma_t p_chroma_array[] = {
 
 #ifndef _WIN32
 /* Get the number of outputs */
-static unsigned CountMonitors( vlc_object_t *obj )
+static unsigned CountMonitors( heimdall_object_t *obj )
 {
     char *psz_display = var_InheritString( obj, "x11-display" );
     int snum;
@@ -398,7 +399,7 @@ error:
  *****************************************************************************
  * This function allocates and initializes a Wall vout method.
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     video_splitter_t *p_splitter = (video_splitter_t*)p_this;
     video_splitter_sys_t *p_sys;
@@ -406,11 +407,11 @@ static int Open( vlc_object_t *p_this )
     const panoramix_chroma_t *p_chroma;
     for( int i = 0; ; i++ )
     {
-        vlc_fourcc_t i_chroma = p_chroma_array[i].i_chroma;
+        heimdall_fourcc_t i_chroma = p_chroma_array[i].i_chroma;
         if( !i_chroma )
         {
             msg_Err( p_splitter, "colorspace not supported by plug-in !" );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
         if( i_chroma == p_splitter->fmt.i_chroma )
         {
@@ -422,7 +423,7 @@ static int Open( vlc_object_t *p_this )
     /* Allocate structure */
     p_splitter->p_sys = p_sys = malloc( sizeof( *p_sys ) );
     if( !p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     /* */
     p_sys->p_chroma = p_chroma;
@@ -485,8 +486,8 @@ static int Open( vlc_object_t *p_this )
     p_sys->a_0 =  p_sys->bz_begin;
 
     /* */
-    p_sys->i_col = VLC_CLIP( p_sys->i_col, 1, COL_MAX );
-    p_sys->i_row = VLC_CLIP( p_sys->i_row, 1, ROW_MAX );
+    p_sys->i_col = HEIMDALL_CLIP( p_sys->i_col, 1, COL_MAX );
+    p_sys->i_row = HEIMDALL_CLIP( p_sys->i_row, 1, ROW_MAX );
     msg_Dbg( p_splitter, "opening a %i x %i wall",
              p_sys->i_col, p_sys->i_row );
 
@@ -556,7 +557,7 @@ static int Open( vlc_object_t *p_this )
             p_gamma[i].f_white_level = 0.0/255.0;
         }
 
-        if( p_chroma->i_chroma == VLC_CODEC_YV12 )
+        if( p_chroma->i_chroma == HEIMDALL_CODEC_YV12 )
         {
             /* Exchange U and V */
             panoramix_gamma_t t = p_gamma[1];
@@ -649,7 +650,7 @@ static int Open( vlc_object_t *p_this )
     if( !p_splitter->p_output )
     {
         free( p_sys );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     for( int y = 0; y < p_sys->i_row; y++ )
@@ -678,13 +679,13 @@ static int Open( vlc_object_t *p_this )
     p_splitter->pf_filter = Filter;
     p_splitter->mouse = Mouse;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /**
  * Terminate a splitter module
  */
-static void Close( vlc_object_t *p_this )
+static void Close( heimdall_object_t *p_this )
 {
     video_splitter_t *p_splitter = (video_splitter_t*)p_this;
     video_splitter_sys_t *p_sys = p_splitter->p_sys;
@@ -703,7 +704,7 @@ static int Filter( video_splitter_t *p_splitter, picture_t *pp_dst[], picture_t 
     if( video_splitter_NewPicture( p_splitter, pp_dst ) )
     {
         picture_Release( p_src );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     for( int y = 0; y < p_sys->i_row; y++ )
@@ -762,14 +763,14 @@ static int Filter( video_splitter_t *p_splitter, picture_t *pp_dst[], picture_t 
     }
 
     picture_Release( p_src );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /**
  * It converts mouse events
  */
 static int Mouse( video_splitter_t *p_splitter, int i_index,
-                  vlc_window_mouse_event_t *restrict ev )
+                  heimdall_window_mouse_event_t *restrict ev )
 {
     video_splitter_sys_t *p_sys = p_splitter->p_sys;
 
@@ -788,12 +789,12 @@ static int Mouse( video_splitter_t *p_splitter, int i_index,
                 {
                     ev->x = p_output->i_src_x + i_x;
                     ev->y = p_output->i_src_y + i_y;
-                    return VLC_SUCCESS;
+                    return HEIMDALL_SUCCESS;
                 }
             }
         }
     }
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /* It return a coefficient between 0.0 and 1.0 to be applied to the given

@@ -37,7 +37,7 @@ cd ../..
 rm -rf "${TMP_DIR}"
 
 echo ""
-echo "Please upload this package '${name}.tar.zst' to our VideoLAN FTP,"
+echo "Please upload this package '${name}.tar.zst' to our Lycaria FTP,"
 echo ""
 echo "and write the following checksum into the contrib/src/<project>/cargo-vendor-SHA512SUMS:"
 echo ""

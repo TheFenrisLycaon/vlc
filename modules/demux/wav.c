@@ -1,7 +1,8 @@
 /*****************************************************************************
- * wav.c : wav file input module for vlc
+ * wav.c : wav file input module for heimdall
  *****************************************************************************
  * Copyright (C) 2001-2008 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *
@@ -31,11 +32,11 @@
 #include <assert.h>
 #include <limits.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_demux.h>
-#include <vlc_aout.h>
-#include <vlc_codecs.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_demux.h>
+#include <heimdall_aout.h>
+#include <heimdall_codecs.h>
 
 #include "windows_audio_commons.h"
 
@@ -88,7 +89,7 @@ static int Demux( demux_t *p_demux )
 {
     demux_sys_t *p_sys = p_demux->p_sys;
     block_t     *p_block;
-    const int64_t i_pos = vlc_stream_Tell( p_demux->s );
+    const int64_t i_pos = heimdall_stream_Tell( p_demux->s );
     unsigned int i_read_size = p_sys->i_frame_size;
     uint32_t i_read_samples = p_sys->i_frame_samples;
 
@@ -97,7 +98,7 @@ static int Demux( demux_t *p_demux )
     {
         int64_t i_end = p_sys->i_data_pos + p_sys->i_data_size;
         if ( i_pos >= i_end )
-            return VLC_DEMUXER_EOF;  /* EOF */
+            return HEIMDALL_DEMUXER_EOF;  /* EOF */
 
         /* Don't read past data chunk boundary */
         if ( i_end < i_pos + i_read_size )
@@ -108,10 +109,10 @@ static int Demux( demux_t *p_demux )
         }
     }
 
-    if( ( p_block = vlc_stream_Block( p_demux->s, i_read_size ) ) == NULL )
+    if( ( p_block = heimdall_stream_Block( p_demux->s, i_read_size ) ) == NULL )
     {
         msg_Warn( p_demux, "cannot read data" );
-        return VLC_DEMUXER_EOF;
+        return HEIMDALL_DEMUXER_EOF;
     }
 
     p_block->i_dts =
@@ -130,7 +131,7 @@ static int Demux( demux_t *p_demux )
 
     date_Increment( &p_sys->pts, i_read_samples );
 
-    return VLC_DEMUXER_SUCCESS;
+    return HEIMDALL_DEMUXER_SUCCESS;
 }
 
 static int Control( demux_t *p_demux, int i_query, va_list args )
@@ -145,7 +146,7 @@ static int Control( demux_t *p_demux, int i_query, va_list args )
                                      p_sys->fmt.i_bitrate,
                                      p_sys->fmt.audio.i_blockalign,
                                      i_query, args );
-    if( ret != VLC_SUCCESS )
+    if( ret != HEIMDALL_SUCCESS )
         return ret;
 
     /* Update the date to the new seek point */
@@ -154,20 +155,20 @@ static int Control( demux_t *p_demux, int i_query, va_list args )
         case DEMUX_SET_POSITION:
         case DEMUX_SET_TIME:
         {
-            uint64_t ofs = vlc_stream_Tell( p_demux->s );
+            uint64_t ofs = heimdall_stream_Tell( p_demux->s );
             if( unlikely( ofs < p_sys->i_data_pos ) )
-                return VLC_SUCCESS;
+                return HEIMDALL_SUCCESS;
 
             ofs -= p_sys->i_data_pos;
-            vlc_tick_t pts = VLC_TICK_0 +
-                vlc_tick_from_samples( ofs * 8, p_sys->fmt.i_bitrate );
+            heimdall_tick_t pts = HEIMDALL_TICK_0 +
+                heimdall_tick_from_samples( ofs * 8, p_sys->fmt.i_bitrate );
             date_Set( &p_sys->pts, pts );
             break;
         }
         default:
             break;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int ChunkSkip( demux_t *p_demux, uint32_t i_size )
@@ -180,11 +181,11 @@ static int ChunkSkip( demux_t *p_demux, uint32_t i_size )
          * by reading NULL. Non data chunks are generally smaller than this.
          * This seek may be used to skip the data chunk if there is an other
          * chunk after it (unlikely). */
-        return vlc_stream_Seek( p_demux->s,
-                                vlc_stream_Tell( p_demux->s ) + i_size );
+        return heimdall_stream_Seek( p_demux->s,
+                                heimdall_stream_Tell( p_demux->s ) + i_size );
     }
 
-    return vlc_stream_Read( p_demux->s, NULL, i_size ) != i_size ? VLC_EGENERIC : VLC_SUCCESS;
+    return heimdall_stream_Read( p_demux->s, NULL, i_size ) != i_size ? HEIMDALL_EGENERIC : HEIMDALL_SUCCESS;
 }
 
 static int ChunkGetNext( demux_t *p_demux, enum wav_chunk_id *p_id,
@@ -200,8 +201,8 @@ static int ChunkGetNext( demux_t *p_demux, enum wav_chunk_id *p_id,
     for( ;; )
     {
         const uint8_t *p_peek;
-        if( vlc_stream_Peek( p_demux->s, &p_peek, 8 ) < 8 )
-            return VLC_EGENERIC;
+        if( heimdall_stream_Peek( p_demux->s, &p_peek, 8 ) < 8 )
+            return HEIMDALL_EGENERIC;
 
         const struct wav_chunk_id_key *id =
             bsearch( p_peek, wav_chunk_id_key_list, wav_chunk_id_key_count,
@@ -213,21 +214,21 @@ static int ChunkGetNext( demux_t *p_demux, enum wav_chunk_id *p_id,
             msg_Warn( p_demux, "unknown chunk '%4.4s' of size: %u",
                       p_peek, i_size );
 
-            if( vlc_stream_Read( p_demux->s, NULL, 8 ) != 8 )
-                return VLC_EGENERIC;
+            if( heimdall_stream_Read( p_demux->s, NULL, 8 ) != 8 )
+                return HEIMDALL_EGENERIC;
 
-            if( ChunkSkip( p_demux, i_size ) != VLC_SUCCESS )
-                return VLC_EGENERIC;
+            if( ChunkSkip( p_demux, i_size ) != HEIMDALL_SUCCESS )
+                return HEIMDALL_EGENERIC;
             continue;
         }
 
-        if( vlc_stream_Read( p_demux->s, NULL, 8 ) != 8 )
-            return VLC_EGENERIC;
+        if( heimdall_stream_Read( p_demux->s, NULL, 8 ) != 8 )
+            return HEIMDALL_EGENERIC;
 
         *p_id = id->id;
         *pi_size = i_size;
 
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 }
 
@@ -239,7 +240,7 @@ static int FrameInfo_PCM( unsigned int *pi_size, unsigned *pi_samples,
     if( p_fmt->audio.i_rate > 352800
      || p_fmt->audio.i_bitspersample > 64
      || p_fmt->audio.i_channels > WAV_CHAN_MAX )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* read samples for 50ms of */
     *pi_samples = __MAX( p_fmt->audio.i_rate / 20, 1 );
@@ -255,67 +256,67 @@ static int FrameInfo_PCM( unsigned int *pi_size, unsigned *pi_samples,
     }
 
     *pi_size = i_bytes;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int FrameInfo_MS_ADPCM( unsigned int *pi_size, unsigned *pi_samples,
                                const es_format_t *p_fmt )
 {
     if( p_fmt->audio.i_channels == 0 )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if( p_fmt->audio.i_blockalign < 7 * p_fmt->audio.i_channels )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     *pi_samples = 2 + 2 * ( p_fmt->audio.i_blockalign -
         7 * p_fmt->audio.i_channels ) / p_fmt->audio.i_channels;
     *pi_size = p_fmt->audio.i_blockalign;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int FrameInfo_IMA_ADPCM( unsigned int *pi_size, unsigned *pi_samples,
                                 const es_format_t *p_fmt )
 {
     if( p_fmt->audio.i_channels == 0 )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if( p_fmt->audio.i_blockalign < 4 * p_fmt->audio.i_channels )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     *pi_samples = 2 * ( p_fmt->audio.i_blockalign -
         4 * p_fmt->audio.i_channels ) / p_fmt->audio.i_channels;
     *pi_size = p_fmt->audio.i_blockalign;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int FrameInfo_Creative_ADPCM( unsigned int *pi_size, unsigned *pi_samples,
                                      const es_format_t *p_fmt )
 {
     if( p_fmt->audio.i_channels == 0 )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* 4 bits / sample */
     *pi_samples = p_fmt->audio.i_blockalign * 2 / p_fmt->audio.i_channels;
     *pi_size = p_fmt->audio.i_blockalign;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int FrameInfo_MSGSM( unsigned int *pi_size, unsigned *pi_samples,
                             const es_format_t *p_fmt )
 {
     if( p_fmt->i_bitrate <= 0 )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     *pi_samples = ( p_fmt->audio.i_blockalign * p_fmt->audio.i_rate * 8)
                     / p_fmt->i_bitrate;
     *pi_size = p_fmt->audio.i_blockalign;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
-static void Close ( vlc_object_t * p_this )
+static void Close ( heimdall_object_t * p_this )
 {
     demux_t     *p_demux = (demux_t*)p_this;
     demux_sys_t *p_sys   = p_demux->p_sys;
@@ -332,11 +333,11 @@ static int ChunkParseDS64( demux_t *p_demux, uint32_t i_size )
     if( i_size < 24 )
     {
         msg_Err( p_demux, "invalid 'ds64' chunk" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    if( vlc_stream_Peek( p_demux->s, &p_peek, 24 ) < 24 )
-        return VLC_EGENERIC;
+    if( heimdall_stream_Peek( p_demux->s, &p_peek, 24 ) < 24 )
+        return HEIMDALL_EGENERIC;
 
     p_sys->i_data_size = GetQWLE( &p_peek[8] );
 
@@ -376,8 +377,8 @@ static int ChunkParseFmt( demux_t *p_demux, uint32_t i_size )
     p_wf         = &p_wf_ext->Format;
     p_wf->cbSize = 0;
     i_size      -= 2;
-    if( vlc_stream_Read( p_demux->s, p_wf, i_size ) != (int)i_size ||
-        ( ( i_size & 1 ) && vlc_stream_Read( p_demux->s, NULL, 1 ) != 1 ) )
+    if( heimdall_stream_Read( p_demux->s, p_wf, i_size ) != (int)i_size ||
+        ( ( i_size & 1 ) && heimdall_stream_Read( p_demux->s, NULL, 1 ) != 1 ) )
     {
         msg_Err( p_demux, "cannot load 'fmt ' chunk" );
         goto error;
@@ -488,8 +489,8 @@ static int ChunkParseFmt( demux_t *p_demux, uint32_t i_size )
 
     if( i_channel_mask )
     {
-        if( p_sys->fmt.i_codec == VLC_FOURCC('a','r','a','w') ||
-            p_sys->fmt.i_codec == VLC_FOURCC('a','f','l','t') )
+        if( p_sys->fmt.i_codec == HEIMDALL_FOURCC('a','r','a','w') ||
+            p_sys->fmt.i_codec == HEIMDALL_FOURCC('a','f','l','t') )
             p_sys->i_chans_to_reorder =
                 aout_CheckChannelReorder( pi_channels_aout, NULL,
                                           i_channel_mask,
@@ -526,52 +527,52 @@ static int ChunkParseFmt( demux_t *p_demux, uint32_t i_size )
 
     switch( p_sys->fmt.i_codec )
     {
-    case VLC_FOURCC( 'a', 'r', 'a', 'w' ):
-    case VLC_FOURCC( 'a', 'f', 'l', 't' ):
-    case VLC_FOURCC( 'u', 'l', 'a', 'w' ):
-    case VLC_CODEC_ALAW:
-    case VLC_CODEC_MULAW:
+    case HEIMDALL_FOURCC( 'a', 'r', 'a', 'w' ):
+    case HEIMDALL_FOURCC( 'a', 'f', 'l', 't' ):
+    case HEIMDALL_FOURCC( 'u', 'l', 'a', 'w' ):
+    case HEIMDALL_CODEC_ALAW:
+    case HEIMDALL_CODEC_MULAW:
         if( FrameInfo_PCM( &p_sys->i_frame_size, &p_sys->i_frame_samples,
                            &p_sys->fmt ) )
             goto error;
         p_sys->fmt.i_codec =
-            vlc_fourcc_GetCodecAudio( p_sys->fmt.i_codec,
+            heimdall_fourcc_GetCodecAudio( p_sys->fmt.i_codec,
                                       p_sys->fmt.audio.i_bitspersample );
         if( p_sys->fmt.i_codec == 0 ) {
             msg_Err( p_demux, "Unrecognized codec" );
             goto error;
         }
         break;
-    case VLC_CODEC_ADPCM_MS:
+    case HEIMDALL_CODEC_ADPCM_MS:
     /* FIXME not sure at all FIXME */
-    case VLC_FOURCC( 'm', 's', 0x00, 0x61 ):
-    case VLC_FOURCC( 'm', 's', 0x00, 0x62 ):
+    case HEIMDALL_FOURCC( 'm', 's', 0x00, 0x61 ):
+    case HEIMDALL_FOURCC( 'm', 's', 0x00, 0x62 ):
         if( FrameInfo_MS_ADPCM( &p_sys->i_frame_size, &p_sys->i_frame_samples,
                                 &p_sys->fmt ) )
             goto error;
         break;
-    case VLC_CODEC_ADPCM_IMA_WAV:
+    case HEIMDALL_CODEC_ADPCM_IMA_WAV:
         if( FrameInfo_IMA_ADPCM( &p_sys->i_frame_size, &p_sys->i_frame_samples,
                                  &p_sys->fmt ) )
             goto error;
         break;
-    case VLC_CODEC_ADPCM_CREATIVE:
+    case HEIMDALL_CODEC_ADPCM_CREATIVE:
         if( FrameInfo_Creative_ADPCM( &p_sys->i_frame_size, &p_sys->i_frame_samples,
                                       &p_sys->fmt ) )
             goto error;
         break;
-    case VLC_CODEC_MPGA:
-    case VLC_CODEC_A52:
+    case HEIMDALL_CODEC_MPGA:
+    case HEIMDALL_CODEC_A52:
         /* FIXME set end of area FIXME */
         goto error;
-    case VLC_CODEC_GSM_MS:
-    case VLC_CODEC_ADPCM_G726:
-    case VLC_CODEC_TRUESPEECH:
-    case VLC_CODEC_ATRAC3P:
-    case VLC_CODEC_ATRAC3:
-    case VLC_CODEC_DFPWM:
-    case VLC_CODEC_G723_1:
-    case VLC_CODEC_WMA2:
+    case HEIMDALL_CODEC_GSM_MS:
+    case HEIMDALL_CODEC_ADPCM_G726:
+    case HEIMDALL_CODEC_TRUESPEECH:
+    case HEIMDALL_CODEC_ATRAC3P:
+    case HEIMDALL_CODEC_ATRAC3:
+    case HEIMDALL_CODEC_DFPWM:
+    case HEIMDALL_CODEC_G723_1:
+    case HEIMDALL_CODEC_WMA2:
         if( FrameInfo_MSGSM( &p_sys->i_frame_size, &p_sys->i_frame_samples,
                              &p_sys->fmt ) )
             goto error;
@@ -595,16 +596,16 @@ static int ChunkParseFmt( demux_t *p_demux, uint32_t i_size )
 
     msg_Dbg( p_demux, "found %s audio format", psz_name );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     es_format_Clean( &p_sys->fmt );
     InitFmt( p_demux );
     free( p_wf );
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
-static int Open( vlc_object_t * p_this )
+static int Open( heimdall_object_t * p_this )
 {
     demux_t     *p_demux = (demux_t*)p_this;
     demux_sys_t *p_sys;
@@ -614,33 +615,33 @@ static int Open( vlc_object_t * p_this )
     uint32_t       i_size;
 
     /* Is it a wav file ? */
-    if( vlc_stream_Peek( p_demux->s, &p_peek, 12 ) < 12 )
-        return VLC_EGENERIC;
+    if( heimdall_stream_Peek( p_demux->s, &p_peek, 12 ) < 12 )
+        return HEIMDALL_EGENERIC;
 
     b_is_rf64 = ( memcmp( p_peek, "RF64", 4 ) == 0 );
     if( ( !b_is_rf64 && memcmp( p_peek, "RIFF", 4 ) ) ||
           memcmp( &p_peek[8], "WAVE", 4 ) )
     {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     p_demux->pf_demux     = Demux;
     p_demux->pf_control   = Control;
     p_demux->p_sys        = p_sys = malloc( sizeof( *p_sys ) );
     if( unlikely(!p_sys) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_sys->p_es           = NULL;
     p_sys->i_data_pos = p_sys->i_data_size = 0;
     InitFmt( p_demux );
 
     /* skip riff header */
-    if( vlc_stream_Read( p_demux->s, NULL, 12 ) != 12 )
+    if( heimdall_stream_Read( p_demux->s, NULL, 12 ) != 12 )
         goto error;
 
     bool eof = false;
     enum wav_chunk_id id;
-    while( !eof && ( ChunkGetNext( p_demux, &id, &i_size ) ) == VLC_SUCCESS )
+    while( !eof && ( ChunkGetNext( p_demux, &id, &i_size ) ) == HEIMDALL_SUCCESS )
     {
         if( i_size == 0 )
         {
@@ -653,9 +654,9 @@ static int Open( vlc_object_t * p_this )
             case wav_chunk_id_data:
             {
                 uint64_t i_stream_size;
-                if( vlc_stream_GetSize( p_demux->s, &i_stream_size ) != VLC_SUCCESS )
+                if( heimdall_stream_GetSize( p_demux->s, &i_stream_size ) != HEIMDALL_SUCCESS )
                     goto error;
-                p_sys->i_data_pos = vlc_stream_Tell( p_demux->s );
+                p_sys->i_data_pos = heimdall_stream_Tell( p_demux->s );
 
                 if( !b_is_rf64 && i_stream_size >= i_size + p_sys->i_data_pos )
                     p_sys->i_data_size = i_size;
@@ -667,14 +668,14 @@ static int Open( vlc_object_t * p_this )
                      * since this chunk is the last one */
                     eof = true;
                 }   /* Unlikely case where there is a chunk after 'data' */
-                else if( ChunkSkip( p_demux, i_size ) != VLC_SUCCESS )
+                else if( ChunkSkip( p_demux, i_size ) != HEIMDALL_SUCCESS )
                     goto error;
                 break;
             }
             case wav_chunk_id_ds64:
                 if( b_is_rf64 )
                 {
-                    if( ChunkParseDS64( p_demux, i_size ) != VLC_SUCCESS )
+                    if( ChunkParseDS64( p_demux, i_size ) != HEIMDALL_SUCCESS )
                         goto error;
                 }
                 else
@@ -690,7 +691,7 @@ static int Open( vlc_object_t * p_this )
                     msg_Warn( p_demux, "fmt chunk already parsed" );
                     break;
                 }
-                if( ChunkParseFmt( p_demux, i_size ) != VLC_SUCCESS )
+                if( ChunkParseFmt( p_demux, i_size ) != HEIMDALL_SUCCESS )
                     goto error;
                 break;
         }
@@ -707,8 +708,8 @@ static int Open( vlc_object_t * p_this )
     }
 
     /* Seek back to data position if needed */
-    if( unlikely( vlc_stream_Tell( p_demux->s ) != p_sys->i_data_pos )
-     && vlc_stream_Seek( p_demux->s, p_sys->i_data_pos ) != VLC_SUCCESS )
+    if( unlikely( heimdall_stream_Tell( p_demux->s ) != p_sys->i_data_pos )
+     && heimdall_stream_Seek( p_demux->s, p_sys->i_data_pos ) != HEIMDALL_SUCCESS )
         goto error;
 
     if( p_sys->fmt.i_bitrate <= 0 )
@@ -723,19 +724,19 @@ static int Open( vlc_object_t * p_this )
         goto error;
 
     date_Init( &p_sys->pts, p_sys->fmt.audio.i_rate, 1 );
-    date_Set( &p_sys->pts, VLC_TICK_0 );
+    date_Set( &p_sys->pts, HEIMDALL_TICK_0 );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     es_format_Clean( &p_sys->fmt );
     free( p_sys );
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("WAV demuxer") )
     set_subcategory( SUBCAT_INPUT_DEMUX )
     set_capability( "demux", 142 )
     set_callbacks( Open, Close )
-vlc_module_end ()
+heimdall_module_end ()

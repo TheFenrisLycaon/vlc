@@ -2,6 +2,7 @@
  * SmoothSegment.cpp:
  *****************************************************************************
  * Copyright (C) 2015 - VideoLAN Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -48,14 +49,14 @@ void SmoothSegmentChunk::onDownload(block_t **pp_block)
     if(!rep || ((*pp_block)->i_flags & BLOCK_FLAG_HEADER) == 0)
         return;
 
-    SmoothIndexReader br(rep->getPlaylist()->getVLCObject());
+    SmoothIndexReader br(rep->getPlaylist()->getHeimdallObject());
     br.parseIndex(*pp_block, rep, sequence);
 
     /* If timeshift depth is present, we use it for expiring segments
        as we never update playlist itself */
     if(rep->getPlaylist()->timeShiftBufferDepth)
     {
-        vlc_tick_t start, end, length;
+        heimdall_tick_t start, end, length;
         if(rep->getMediaPlaybackRange(&start, &end, &length))
         {
             start = std::max(start, end - rep->getPlaylist()->timeShiftBufferDepth);

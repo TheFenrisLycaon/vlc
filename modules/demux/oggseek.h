@@ -1,7 +1,8 @@
 /*****************************************************************************
- * oggseek.h : ogg seeking functions for ogg demuxer vlc
+ * oggseek.h : ogg seeking functions for ogg demuxer heimdall
  *****************************************************************************
  * Copyright (C) 2008 - 2010 Gabriel Finch <salsaman@gmail.com>
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gabriel Finch <salsaman@gmail.com>
  * adapted from: http://lives.svn.sourceforge.net/viewvc/lives/trunk/lives-plugins
@@ -45,14 +46,14 @@ struct oggseek_index_entry
 {
     demux_index_entry_t *p_next;
     /* value is highest granulepos for theora, sync frame for dirac */
-    vlc_tick_t i_value;
+    heimdall_tick_t i_value;
     int64_t i_pagepos;
 };
 
-int     Oggseek_BlindSeektoAbsoluteTime ( demux_t *, logical_stream_t *, vlc_tick_t, bool );
+int     Oggseek_BlindSeektoAbsoluteTime ( demux_t *, logical_stream_t *, heimdall_tick_t, bool );
 int     Oggseek_BlindSeektoPosition ( demux_t *, logical_stream_t *, double f, bool );
-int     Oggseek_SeektoAbsolutetime ( demux_t *, logical_stream_t *, vlc_tick_t );
-const demux_index_entry_t *OggSeek_IndexAdd ( logical_stream_t *, vlc_tick_t, int64_t );
+int     Oggseek_SeektoAbsolutetime ( demux_t *, logical_stream_t *, heimdall_tick_t );
+const demux_index_entry_t *OggSeek_IndexAdd ( logical_stream_t *, heimdall_tick_t, int64_t );
 void    Oggseek_ProbeEnd( demux_t * );
 
 void oggseek_index_entries_free ( demux_index_entry_t * );

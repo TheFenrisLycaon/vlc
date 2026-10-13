@@ -1,8 +1,9 @@
 --[[
 
  Copyright © 2010 VideoLAN and AUTHORS
+ Copyright (C) 2026 TheFenrisLycaon
 
- Authors: Fabio Ritrovato <sephiroth87 at videolan dot org>
+ Authors: Fabio Ritrovato <sephiroth87 at lycaria dot org>
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -53,7 +54,7 @@ function main()
                             station_name = string.gsub( station_name, "-", " " )
                     end
             end
-            vlc.sd.add_item( {path=station.children_map["listen_url"][1].children[1],
+            heimdall.sd.add_item( {path=station.children_map["listen_url"][1].children[1],
                               title=station_name,
                               genre=dropnil(station.children_map["genre"][1].children[1]),
                               nowplaying=dropnil(station.children_map["current_song"][1].children[1]),

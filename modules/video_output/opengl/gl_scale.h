@@ -18,58 +18,58 @@
 + * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
 + *****************************************************************************/
 
-#ifndef VLC_GL_SCALE_H
-#define VLC_GL_SCALE_H
+#ifndef HEIMDALL_GL_SCALE_H
+#define HEIMDALL_GL_SCALE_H
 
-enum vlc_gl_scale {
-    VLC_GLSCALE_BUILTIN,
-    VLC_GLSCALE_SPLINE16,
-    VLC_GLSCALE_SPLINE36,
-    VLC_GLSCALE_SPLINE64,
-    VLC_GLSCALE_MITCHELL,
-    VLC_GLSCALE_BICUBIC,
-    VLC_GLSCALE_EWA_LANCZOS,
-    VLC_GLSCALE_NEAREST,
-    VLC_GLSCALE_BILINEAR,
-    VLC_GLSCALE_GAUSSIAN,
-    VLC_GLSCALE_LANCZOS,
-    VLC_GLSCALE_GINSENG,
-    VLC_GLSCALE_EWA_GINSENG,
-    VLC_GLSCALE_EWA_HANN,
-    VLC_GLSCALE_CATMULL_ROM,
-    VLC_GLSCALE_ROBIDOUX,
-    VLC_GLSCALE_ROBIDOUXSHARP,
-    VLC_GLSCALE_EWA_ROBIDOUX,
-    VLC_GLSCALE_EWA_ROBIDOUXSHARP,
-    VLC_GLSCALE_SINC,
-    VLC_GLSCALE_EWA_JINC,
+enum heimdall_gl_scale {
+    HEIMDALL_GLSCALE_BUILTIN,
+    HEIMDALL_GLSCALE_SPLINE16,
+    HEIMDALL_GLSCALE_SPLINE36,
+    HEIMDALL_GLSCALE_SPLINE64,
+    HEIMDALL_GLSCALE_MITCHELL,
+    HEIMDALL_GLSCALE_BICUBIC,
+    HEIMDALL_GLSCALE_EWA_LANCZOS,
+    HEIMDALL_GLSCALE_NEAREST,
+    HEIMDALL_GLSCALE_BILINEAR,
+    HEIMDALL_GLSCALE_GAUSSIAN,
+    HEIMDALL_GLSCALE_LANCZOS,
+    HEIMDALL_GLSCALE_GINSENG,
+    HEIMDALL_GLSCALE_EWA_GINSENG,
+    HEIMDALL_GLSCALE_EWA_HANN,
+    HEIMDALL_GLSCALE_CATMULL_ROM,
+    HEIMDALL_GLSCALE_ROBIDOUX,
+    HEIMDALL_GLSCALE_ROBIDOUXSHARP,
+    HEIMDALL_GLSCALE_EWA_ROBIDOUX,
+    HEIMDALL_GLSCALE_EWA_ROBIDOUXSHARP,
+    HEIMDALL_GLSCALE_SINC,
+    HEIMDALL_GLSCALE_EWA_JINC,
 };
 
-static const int vlc_glscale_values[] = {
-    VLC_GLSCALE_BUILTIN,
-    VLC_GLSCALE_SPLINE16,
-    VLC_GLSCALE_SPLINE36,
-    VLC_GLSCALE_SPLINE64,
-    VLC_GLSCALE_MITCHELL,
-    VLC_GLSCALE_BICUBIC,
-    VLC_GLSCALE_EWA_LANCZOS,
-    VLC_GLSCALE_NEAREST,
-    VLC_GLSCALE_BILINEAR,
-    VLC_GLSCALE_GAUSSIAN,
-    VLC_GLSCALE_LANCZOS,
-    VLC_GLSCALE_GINSENG,
-    VLC_GLSCALE_EWA_GINSENG,
-    VLC_GLSCALE_EWA_HANN,
-    VLC_GLSCALE_CATMULL_ROM,
-    VLC_GLSCALE_ROBIDOUX,
-    VLC_GLSCALE_ROBIDOUXSHARP,
-    VLC_GLSCALE_EWA_ROBIDOUX,
-    VLC_GLSCALE_EWA_ROBIDOUXSHARP,
-    VLC_GLSCALE_SINC,
-    VLC_GLSCALE_EWA_JINC,
+static const int heimdall_glscale_values[] = {
+    HEIMDALL_GLSCALE_BUILTIN,
+    HEIMDALL_GLSCALE_SPLINE16,
+    HEIMDALL_GLSCALE_SPLINE36,
+    HEIMDALL_GLSCALE_SPLINE64,
+    HEIMDALL_GLSCALE_MITCHELL,
+    HEIMDALL_GLSCALE_BICUBIC,
+    HEIMDALL_GLSCALE_EWA_LANCZOS,
+    HEIMDALL_GLSCALE_NEAREST,
+    HEIMDALL_GLSCALE_BILINEAR,
+    HEIMDALL_GLSCALE_GAUSSIAN,
+    HEIMDALL_GLSCALE_LANCZOS,
+    HEIMDALL_GLSCALE_GINSENG,
+    HEIMDALL_GLSCALE_EWA_GINSENG,
+    HEIMDALL_GLSCALE_EWA_HANN,
+    HEIMDALL_GLSCALE_CATMULL_ROM,
+    HEIMDALL_GLSCALE_ROBIDOUX,
+    HEIMDALL_GLSCALE_ROBIDOUXSHARP,
+    HEIMDALL_GLSCALE_EWA_ROBIDOUX,
+    HEIMDALL_GLSCALE_EWA_ROBIDOUXSHARP,
+    HEIMDALL_GLSCALE_SINC,
+    HEIMDALL_GLSCALE_EWA_JINC,
 };
 
-static const char *const vlc_glscale_text[] = {
+static const char *const heimdall_glscale_text[] = {
     "Built-in / fixed function (fast)",
     "Spline 2 taps",
     "Spline 3 taps (recommended upscaler)",
@@ -93,19 +93,19 @@ static const char *const vlc_glscale_text[] = {
     "Unwindowed EWA Jinc (clipped)",
 };
 
-#define VLC_GL_UPSCALER_TEXT "OpenGL upscaler"
-#define VLC_GL_UPSCALER_LONGTEXT "Upscaler filter to apply during rendering"
+#define HEIMDALL_GL_UPSCALER_TEXT "OpenGL upscaler"
+#define HEIMDALL_GL_UPSCALER_LONGTEXT "Upscaler filter to apply during rendering"
 
-#define VLC_GL_DOWNSCALER_TEXT "OpenGL downscaler"
-#define VLC_GL_DOWNSCALER_LONGTEXT "Downscaler filter to apply during rendering"
+#define HEIMDALL_GL_DOWNSCALER_TEXT "OpenGL downscaler"
+#define HEIMDALL_GL_DOWNSCALER_LONGTEXT "Downscaler filter to apply during rendering"
 
 #define add_glscale_opts() \
     set_section(N_("Scaling"), NULL) \
-    add_integer("gl-upscaler", VLC_GLSCALE_BUILTIN, VLC_GL_UPSCALER_TEXT, \
-                VLC_GL_UPSCALER_LONGTEXT) \
-        change_integer_list(vlc_glscale_values, vlc_glscale_text) \
-    add_integer("gl-downscaler", VLC_GLSCALE_BUILTIN, VLC_GL_DOWNSCALER_TEXT, \
-                VLC_GL_DOWNSCALER_LONGTEXT) \
-        change_integer_list(vlc_glscale_values, vlc_glscale_text) \
+    add_integer("gl-upscaler", HEIMDALL_GLSCALE_BUILTIN, HEIMDALL_GL_UPSCALER_TEXT, \
+                HEIMDALL_GL_UPSCALER_LONGTEXT) \
+        change_integer_list(heimdall_glscale_values, heimdall_glscale_text) \
+    add_integer("gl-downscaler", HEIMDALL_GLSCALE_BUILTIN, HEIMDALL_GL_DOWNSCALER_TEXT, \
+                HEIMDALL_GL_DOWNSCALER_LONGTEXT) \
+        change_integer_list(heimdall_glscale_values, heimdall_glscale_text) \
 
 #endif

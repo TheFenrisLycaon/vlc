@@ -2,6 +2,7 @@
  * dlna.cpp : DLNA/UPNP (renderer) sout module
  *****************************************************************************
  * Copyright © 2018 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Shaleen Jain <shaleen@jain.sh>
  *          William Ung <william1.ung@epitech.eu>
@@ -31,12 +32,12 @@
 #include <string>
 #include <sstream>
 
-#include <vlc_configuration.h>
-#include <vlc_cxx_helpers.hpp>
-#include <vlc_dialog.h>
-#include <vlc_rand.h>
-#include <vlc_sout.h>
-#include <vlc_block.h>
+#include <heimdall_configuration.h>
+#include <heimdall_cxx_helpers.hpp>
+#include <heimdall_dialog.h>
+#include <heimdall_rand.h>
+#include <heimdall_sout.h>
+#include <heimdall_block.h>
 
 static const char* AV_TRANSPORT_SERVICE_TYPE = "urn:schemas-upnp-org:service:AVTransport:1";
 static const char* CONNECTION_MANAGER_SERVICE_TYPE = "urn:schemas-upnp-org:service:ConnectionManager:1";
@@ -70,9 +71,9 @@ struct sout_stream_sys_t
     std::shared_ptr<MediaRenderer> renderer;
     UpnpInstanceWrapper *p_upnp;
 
-    ProtocolPtr canDecodeAudio( vlc_fourcc_t i_codec ) const;
-    ProtocolPtr canDecodeVideo( vlc_fourcc_t audio_codec,
-                         vlc_fourcc_t video_codec ) const;
+    ProtocolPtr canDecodeAudio( heimdall_fourcc_t i_codec ) const;
+    ProtocolPtr canDecodeVideo( heimdall_fourcc_t audio_codec,
+                         heimdall_fourcc_t video_codec ) const;
     bool startSoutChain( sout_stream_t* p_stream,
                          const std::vector<sout_stream_id_sys_t*> &new_streams,
                          const std::string &sout );
@@ -92,7 +93,7 @@ struct sout_stream_sys_t
     std::vector<protocol_info_t>        device_protocols;
 
 private:
-    std::string GetAcodecOption( sout_stream_t *, vlc_fourcc_t *, const audio_format_t *, int );
+    std::string GetAcodecOption( sout_stream_t *, heimdall_fourcc_t *, const audio_format_t *, int );
     int UpdateOutput( sout_stream_t *p_stream );
 
 };
@@ -124,7 +125,7 @@ std::vector<std::string> split(const std::string &s, char delim) {
     return elems;
 }
 
-ProtocolPtr sout_stream_sys_t::canDecodeAudio(vlc_fourcc_t audio_codec) const
+ProtocolPtr sout_stream_sys_t::canDecodeAudio(heimdall_fourcc_t audio_codec) const
 {
     for (protocol_info_t protocol : device_protocols) {
         if (protocol.profile.media == DLNA_CLASS_AUDIO
@@ -136,8 +137,8 @@ ProtocolPtr sout_stream_sys_t::canDecodeAudio(vlc_fourcc_t audio_codec) const
     return nullptr;
 }
 
-ProtocolPtr sout_stream_sys_t::canDecodeVideo(vlc_fourcc_t audio_codec,
-                vlc_fourcc_t video_codec) const
+ProtocolPtr sout_stream_sys_t::canDecodeVideo(heimdall_fourcc_t audio_codec,
+                heimdall_fourcc_t video_codec) const
 {
     for (protocol_info_t protocol : device_protocols) {
         if (protocol.profile.media == DLNA_CLASS_AV
@@ -158,7 +159,7 @@ bool sout_stream_sys_t::startSoutChain(sout_stream_t *p_stream,
     msg_Dbg( p_stream, "Creating chain %s", sout.c_str() );
     out_streams = new_streams;
 
-    p_out = sout_StreamChainNew(VLC_OBJECT(p_stream), sout.c_str(), nullptr);
+    p_out = sout_StreamChainNew(HEIMDALL_OBJECT(p_stream), sout.c_str(), nullptr);
     if (p_out == nullptr) {
         msg_Err(p_stream, "could not create sout chain:%s", sout.c_str());
         out_streams.clear();
@@ -212,7 +213,7 @@ sout_stream_id_sys_t *sout_stream_sys_t::GetSubId( sout_stream_t *p_stream,
 {
     assert( p_stream->p_sys == this );
 
-    if ( update && UpdateOutput( p_stream ) != VLC_SUCCESS )
+    if ( update && UpdateOutput( p_stream ) != HEIMDALL_SUCCESS )
         return nullptr;
 
     for (size_t i = 0; i < out_streams.size(); ++i)
@@ -226,18 +227,18 @@ sout_stream_id_sys_t *sout_stream_sys_t::GetSubId( sout_stream_t *p_stream,
 }
 
 std::string
-sout_stream_sys_t::GetAcodecOption( sout_stream_t *p_stream, vlc_fourcc_t *p_codec_audio,
+sout_stream_sys_t::GetAcodecOption( sout_stream_t *p_stream, heimdall_fourcc_t *p_codec_audio,
                                     const audio_format_t *p_aud, int i_quality )
 {
-    VLC_UNUSED(p_aud);
-    VLC_UNUSED(i_quality);
+    HEIMDALL_UNUSED(p_aud);
+    HEIMDALL_UNUSED(i_quality);
     std::stringstream ssout;
 
     msg_Dbg( p_stream, "Converting audio to %.4s", (const char*)p_codec_audio );
 
     ssout << "acodec=";
     char fourcc[5];
-    vlc_fourcc_to_char( *p_codec_audio, fourcc );
+    heimdall_fourcc_to_char( *p_codec_audio, fourcc );
     fourcc[4] = '\0';
     ssout << fourcc << ',';
 
@@ -250,13 +251,13 @@ int sout_stream_sys_t::UpdateOutput( sout_stream_t *p_stream )
     assert( p_stream->p_sys == this );
 
     if ( !es_changed )
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
     es_changed = false;
 
     bool canRemux = true;
     // To keep track of which stream needs transcoding if at all.
-    vlc_fourcc_t i_codec_video = 0, i_codec_audio = 0;
+    heimdall_fourcc_t i_codec_video = 0, i_codec_audio = 0;
     const es_format_t *p_original_audio = nullptr;
     const es_format_t *p_original_video = nullptr;
     std::vector<sout_stream_id_sys_t*> new_streams;
@@ -277,7 +278,7 @@ int sout_stream_sys_t::UpdateOutput( sout_stream_t *p_stream )
     }
 
     if (new_streams.empty())
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
     ProtocolPtr stream_protocol;
     // check if we have an audio only stream
@@ -296,7 +297,7 @@ int sout_stream_sys_t::UpdateOutput( sout_stream_t *p_stream )
     // video only stream
     else if (p_original_video && !p_original_audio)
     {
-        if( !(stream_protocol = canDecodeVideo(VLC_CODEC_NONE,
+        if( !(stream_protocol = canDecodeVideo(HEIMDALL_CODEC_NONE,
                         p_original_video->i_codec)) )
         {
             msg_Dbg(p_stream, "can't remux video track %d codec: %4.4s",
@@ -341,8 +342,8 @@ int sout_stream_sys_t::UpdateOutput( sout_stream_t *p_stream )
         if ( !perf_warning_shown && i_codec_video == 0 && p_original_video
           && var_InheritInteger( p_stream, RENDERER_CFG_PREFIX "show-perf-warning" ) )
         {
-            int res = vlc_dialog_wait_question( p_stream,
-                          VLC_DIALOG_QUESTION_WARNING,
+            int res = heimdall_dialog_wait_question( p_stream,
+                          HEIMDALL_DIALOG_QUESTION_WARNING,
                          _("Cancel"), _("OK"), _("OK, don't warn me again"),
                          _("Performance warning"),
                          _("Casting this video requires conversion. "
@@ -369,12 +370,12 @@ int sout_stream_sys_t::UpdateOutput( sout_stream_t *p_stream )
         {
             i_codec_video = stream_protocol->profile.video_codec;
             try {
-                ssout << vlc_sout_renderer_GetVcodecOption( p_stream,
+                ssout << heimdall_sout_renderer_GetVcodecOption( p_stream,
                                         { i_codec_video },
                                         &i_codec_video,
                                         &p_original_video->video, i_quality );
             } catch(const std::exception& e) {
-                return VLC_EGENERIC ;
+                return HEIMDALL_EGENERIC ;
             }
         }
         ssout << "}:";
@@ -382,8 +383,8 @@ int sout_stream_sys_t::UpdateOutput( sout_stream_t *p_stream )
 
     std::ostringstream ss;
     ss << "/dlna"
-       << "/" << vlc_tick_now()
-       << "/" << static_cast<uint64_t>( vlc_mrand48() )
+       << "/" << heimdall_tick_now()
+       << "/" << static_cast<uint64_t>( heimdall_mrand48() )
        << "/stream";
     std::string root_url = ss.str();
 
@@ -391,21 +392,21 @@ int sout_stream_sys_t::UpdateOutput( sout_stream_t *p_stream )
           << ",mux=" << stream_protocol->profile.mux
           << ",access=http{mime=" << stream_protocol->profile.mime << "}}";
 
-    auto ip = vlc::wrap_cptr<char>(getServerIPAddress());
+    auto ip = heimdall::wrap_cptr<char>(getServerIPAddress());
     if (ip == nullptr)
     {
         msg_Err(p_stream, "could not get the local ip address");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     char *uri;
     if (asprintf(&uri, "http://%s:%d%s", ip.get(), http_port, root_url.c_str()) < 0) {
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     if ( !startSoutChain( p_stream, new_streams, ssout.str() ) ) {
         free(uri);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     renderer->PrepareForConnection(dlna_write_protocol_info(*stream_protocol).c_str());
@@ -416,7 +417,7 @@ int sout_stream_sys_t::UpdateOutput( sout_stream_t *p_stream )
     renderer->Play("1");
 
     free(uri);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 char *MediaRenderer::getServiceURL(const char* type, const char *service)
@@ -511,10 +512,10 @@ int MediaRenderer::Play(const char *speed)
     IXML_Document *p_response = SendAction("Play", AV_TRANSPORT_SERVICE_TYPE, arg_list);
     if(!p_response)
     {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     ixmlDocument_free(p_response);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 int MediaRenderer::Stop()
@@ -526,10 +527,10 @@ int MediaRenderer::Stop()
     IXML_Document *p_response = SendAction("Stop", AV_TRANSPORT_SERVICE_TYPE, arg_list);
     if(!p_response)
     {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     ixmlDocument_free(p_response);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 std::vector<protocol_info_t> MediaRenderer::GetProtocolInfo()
@@ -622,7 +623,7 @@ int MediaRenderer::PrepareForConnection(const char* protocol_str)
                                     CONNECTION_MANAGER_SERVICE_TYPE, arg_list);
     if(!response)
     {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     msg_Dbg(parent, "PrepareForConnection response: %s",
@@ -677,7 +678,7 @@ int MediaRenderer::PrepareForConnection(const char* protocol_str)
     }
 
     ixmlDocument_free(response);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 int MediaRenderer::ConnectionComplete()
@@ -690,11 +691,11 @@ int MediaRenderer::ConnectionComplete()
                                     CONNECTION_MANAGER_SERVICE_TYPE, arg_list);
     if(!p_response)
     {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     ixmlDocument_free(p_response);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 int MediaRenderer::SetAVTransportURI(const char* uri, const protocol_info_t& proto)
@@ -721,7 +722,7 @@ int MediaRenderer::SetAVTransportURI(const char* uri, const protocol_info_t& pro
                 audio ? "object.item.audioItem" : "object.item.videoItem",
                 dlna_protocol.c_str(),
                 uri) < 0) {
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     msg_Dbg(parent, "didl: %s", meta_data);
@@ -737,10 +738,10 @@ int MediaRenderer::SetAVTransportURI(const char* uri, const protocol_info_t& pro
     free(meta_data);
     if(!p_response)
     {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     ixmlDocument_free(p_response);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void *
@@ -776,7 +777,7 @@ static int Send(sout_stream_t *p_stream, void *id,
     if ( id_sys == nullptr )
     {
         block_Release( p_buffer );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     return sout_StreamIdSend(p_sys->p_out, id_sys, p_buffer);
@@ -853,7 +854,7 @@ static const struct sout_stream_operations ops = [] {
     return ops;
 }();
 
-int OpenSout( vlc_object_t *p_this )
+int OpenSout( heimdall_object_t *p_this )
 {
     sout_stream_t *p_stream = reinterpret_cast<sout_stream_t*>(p_this);
     sout_stream_sys_t *p_sys = nullptr;
@@ -862,9 +863,9 @@ int OpenSout( vlc_object_t *p_this )
 
     int http_port = var_InheritInteger(p_stream, SOUT_CFG_PREFIX "http-port");
     bool b_supports_video = var_GetBool(p_stream, SOUT_CFG_PREFIX "video");
-    auto base_url = vlc::wrap_cptr(
+    auto base_url = heimdall::wrap_cptr(
         var_GetNonEmptyString(p_stream, SOUT_CFG_PREFIX "base_url"));
-    auto device_url = vlc::wrap_cptr(
+    auto device_url = heimdall::wrap_cptr(
         var_GetNonEmptyString(p_stream, SOUT_CFG_PREFIX "url"));
     if ( device_url == nullptr)
     {
@@ -877,7 +878,7 @@ int OpenSout( vlc_object_t *p_this )
     }
     catch ( const std::exception& ex ) {
         msg_Err( p_stream, "Failed to instantiate sout_stream_sys_t: %s", ex.what() );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     p_sys->p_upnp = UpnpInstanceWrapper::get( p_this );
@@ -898,11 +899,11 @@ int OpenSout( vlc_object_t *p_this )
     p_stream->p_sys = p_sys;
     p_stream->ops = &ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     delete p_sys;
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 }

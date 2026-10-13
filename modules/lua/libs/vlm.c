@@ -2,8 +2,9 @@
  * vlm.c: Generic lua VLM wrapper
  *****************************************************************************
  * Copyright (C) 2007-2008 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Antoine Cellerier <dionoea at videolan tod org>
+ * Authors: Antoine Cellerier <dionoea at lycaria tod org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,28 +32,28 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_vlm.h>
+#include <heimdall_common.h>
+#include <heimdall_vlm.h>
 
-#include "../vlc.h"
+#include "../heimdall.h"
 #include "../libs.h"
 
 /*****************************************************************************
  *
  *****************************************************************************/
 #ifdef ENABLE_VLM
-static int vlclua_vlm_delete( lua_State * );
-static int vlclua_vlm_execute_command( lua_State * );
+static int heimdalllua_vlm_delete( lua_State * );
+static int heimdalllua_vlm_execute_command( lua_State * );
 
-static const luaL_Reg vlclua_vlm_reg[] = {
-    { "execute_command", vlclua_vlm_execute_command },
+static const luaL_Reg heimdalllua_vlm_reg[] = {
+    { "execute_command", heimdalllua_vlm_execute_command },
     { NULL, NULL }
 };
 
-static int vlclua_vlm_new( lua_State *L )
+static int heimdalllua_vlm_new( lua_State *L )
 {
-    vlc_object_t *p_this = vlclua_get_this( L );
-    vlm_t *p_vlm = vlm_New( vlc_object_instance(p_this), NULL );
+    heimdall_object_t *p_this = heimdalllua_get_this( L );
+    vlm_t *p_vlm = vlm_New( heimdall_object_instance(p_this), NULL );
     if( !p_vlm )
         return luaL_error( L, "Cannot start VLM." );
 
@@ -62,9 +63,9 @@ static int vlclua_vlm_new( lua_State *L )
     if( luaL_newmetatable( L, "vlm" ) )
     {
         lua_newtable( L );
-        luaL_register( L, NULL, vlclua_vlm_reg );
+        luaL_register( L, NULL, heimdalllua_vlm_reg );
         lua_setfield( L, -2, "__index" );
-        lua_pushcfunction( L, vlclua_vlm_delete );
+        lua_pushcfunction( L, heimdalllua_vlm_delete );
         lua_setfield( L, -2, "__gc" );
     }
 
@@ -72,7 +73,7 @@ static int vlclua_vlm_new( lua_State *L )
     return 1;
 }
 
-static int vlclua_vlm_delete( lua_State *L )
+static int heimdalllua_vlm_delete( lua_State *L )
 {
     vlm_t **pp_vlm = (vlm_t**)luaL_checkudata( L, 1, "vlm" );
     vlm_Delete( *pp_vlm );
@@ -103,7 +104,7 @@ static void push_message( lua_State *L, vlm_message_t *message )
     }
 }
 
-static int vlclua_vlm_execute_command( lua_State *L )
+static int heimdalllua_vlm_execute_command( lua_State *L )
 {
     vlm_t **pp_vlm = (vlm_t**)luaL_checkudata( L, 1, "vlm" );
     const char *psz_command = luaL_checkstring( L, 2 );
@@ -113,13 +114,13 @@ static int vlclua_vlm_execute_command( lua_State *L )
     lua_settop( L, 0 );
     push_message( L, message );
     vlm_MessageDelete( message );
-    return 1 + vlclua_push_ret( L, i_ret );
+    return 1 + heimdalllua_push_ret( L, i_ret );
 }
 
 #else
-static int vlclua_vlm_new( lua_State *L )
+static int heimdalllua_vlm_new( lua_State *L )
 {
-    return luaL_error( L, "Cannot start VLM because it was disabled when compiling VLC." );
+    return luaL_error( L, "Cannot start VLM because it was disabled when compiling Heimdall." );
 }
 #endif
 
@@ -128,6 +129,6 @@ static int vlclua_vlm_new( lua_State *L )
  *****************************************************************************/
 void luaopen_vlm( lua_State *L )
 {
-    lua_pushcfunction( L, vlclua_vlm_new );
+    lua_pushcfunction( L, heimdalllua_vlm_new );
     lua_setfield( L, -2, "vlm" );
 }

@@ -2,6 +2,7 @@
  Gets an artwork from amazon
 
  Copyright © 2007 the VideoLAN team
+ Copyright (C) 2026 TheFenrisLycaon
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -53,7 +54,7 @@ function fetch_art()
         ["LCI"] = "https://upload.wikimedia.org/wikipedia/fr/thumb/b/b4/LCI_logo_(2016).png/610px-LCI_logo_(2016).png",
         ["France Info"] = "https://upload.wikimedia.org/wikipedia/commons/thumb/0/03/Franceinfo.svg/800px-Franceinfo.svg.png"
     }
-    local meta = vlc.item:metas();
+    local meta = heimdall.item:metas();
     local channel
     if meta["title"] then
         channel = meta["title"]

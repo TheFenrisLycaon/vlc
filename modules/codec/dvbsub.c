@@ -4,12 +4,13 @@
  *****************************************************************************
  * Copyright (C) 2003 ANEVIA
  * Copyright (C) 2003-2009 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gildas Bazin <gbazin@videolan.org>
  *          Damien LUCAS <damien.lucas@anevia.com>
  *          Laurent Aimar <fenrir@via.ecp.fr>
  *          Jean-Paul Saman <jpsaman #_at_# m2x dot nl>
- *          Derk-Jan Hartman <hartman #at# videolan dot org>
+ *          Derk-Jan Hartman <hartman #at# lycaria dot org>
  *          Simon Hailes <simon _a_ screen.subtitling.com>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -70,14 +71,14 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
-#include <vlc_sout.h>
-#include <vlc_arrays.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
+#include <heimdall_sout.h>
+#include <heimdall_arrays.h>
 
-#include <vlc_bits.h>
+#include <heimdall_bits.h>
 
 #include <limits.h>
 #include <stdckdint.h>
@@ -119,18 +120,18 @@ static const char *const ppsz_pos_descriptions[] =
 /*****************************************************************************
  * Module descriptor.
  *****************************************************************************/
-static int  Open ( vlc_object_t * );
-static void Close( vlc_object_t * );
+static int  Open ( heimdall_object_t * );
+static void Close( heimdall_object_t * );
 static int Decode( decoder_t *, block_t * );
 static void Flush( decoder_t * );
 
 #ifdef ENABLE_SOUT
-static int OpenEncoder  ( vlc_object_t * );
+static int OpenEncoder  ( heimdall_object_t * );
 static void CloseEncoder( encoder_t * );
 static block_t *Encode  ( encoder_t *, subpicture_t * );
 #endif
 
-vlc_module_begin ()
+heimdall_module_begin ()
 #   define DVBSUB_CFG_PREFIX "dvbsub-"
     set_description( N_("DVB subtitles decoder") )
     set_shortname( N_("DVB subtitles") )
@@ -153,7 +154,7 @@ vlc_module_begin ()
     add_integer( ENC_CFG_PREFIX "x", -1, ENC_POSX_TEXT, ENC_POSX_LONGTEXT )
     add_integer( ENC_CFG_PREFIX "y", -1, ENC_POSY_TEXT, ENC_POSY_LONGTEXT )
 #endif
-vlc_module_end ()
+heimdall_module_end ()
 
 static const char *const ppsz_enc_options[] = { "x", "y", NULL };
 
@@ -272,7 +273,7 @@ typedef struct
     /* Decoder internal data */
     int                i_id;
     int                i_ancillary_id;
-    vlc_tick_t         i_pts;
+    heimdall_tick_t         i_pts;
 
     int                i_spu_position;
     int                i_spu_x;
@@ -349,24 +350,24 @@ static subpicture_t *render( decoder_t * );
  * Tries to launch a decoder and return score so that the interface is able
  * to chose.
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     decoder_t     *p_dec = (decoder_t *) p_this;
     decoder_sys_t *p_sys;
     int i_posx, i_posy;
 
-    if( p_dec->fmt_in->i_codec != VLC_CODEC_DVBS )
+    if( p_dec->fmt_in->i_codec != HEIMDALL_CODEC_DVBS )
     {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     p_dec->pf_decode = Decode;
     p_dec->pf_flush  = Flush;
     p_sys = p_dec->p_sys = calloc( 1, sizeof(decoder_sys_t) );
     if( !p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    p_sys->i_pts          = VLC_TICK_INVALID;
+    p_sys->i_pts          = HEIMDALL_TICK_INVALID;
     p_sys->i_id           = p_dec->fmt_in->subs.dvb.i_id & 0xFFFF;
     p_sys->i_ancillary_id = p_dec->fmt_in->subs.dvb.i_id >> 16;
 
@@ -395,13 +396,13 @@ static int Open( vlc_object_t *p_this )
 
     default_clut_init( p_dec );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * Close:
  *****************************************************************************/
-static void Close( vlc_object_t *p_this )
+static void Close( heimdall_object_t *p_this )
 {
     decoder_t     *p_dec = (decoder_t*) p_this;
     decoder_sys_t *p_sys = p_dec->p_sys;
@@ -421,7 +422,7 @@ static void Flush( decoder_t *p_dec )
 {
     decoder_sys_t *p_sys = p_dec->p_sys;
 
-    p_sys->i_pts = VLC_TICK_INVALID;
+    p_sys->i_pts = HEIMDALL_TICK_INVALID;
 }
 
 /*****************************************************************************
@@ -432,7 +433,7 @@ static int Decode( decoder_t *p_dec, block_t *p_block )
     decoder_sys_t *p_sys = p_dec->p_sys;
 
     if( p_block == NULL ) /* No Drain */
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
 
     if( p_block->i_flags & (BLOCK_FLAG_DISCONTINUITY | BLOCK_FLAG_CORRUPTED) )
     {
@@ -447,7 +448,7 @@ static int Decode( decoder_t *p_dec, block_t *p_block )
         default_dds_init( p_dec );
 
     p_sys->i_pts = p_block->i_pts;
-    if( p_sys->i_pts == VLC_TICK_INVALID )
+    if( p_sys->i_pts == HEIMDALL_TICK_INVALID )
     {
 #ifdef DEBUG_DVBSUB
         /* Some DVB channels send stuffing segments in non-dated packets so
@@ -500,7 +501,7 @@ static int Decode( decoder_t *p_dec, block_t *p_block )
 
 end:
     block_Release(p_block);
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }
 
 /* following functions are local */
@@ -866,7 +867,7 @@ static void decode_page_composition( decoder_t *p_dec, bs_t *s, uint16_t i_segme
     if( i_region_defs == 0 ) return;
 
     p_sys->p_page->p_region_defs =
-        vlc_alloc( i_region_defs, sizeof(dvbsub_regiondef_t) );
+        heimdall_alloc( i_region_defs, sizeof(dvbsub_regiondef_t) );
     if( p_sys->p_page->p_region_defs )
     {
         p_sys->p_page->i_region_defs = i_region_defs;
@@ -1680,10 +1681,10 @@ static subpicture_t *render( decoder_t *p_dec )
 
     /* Set the pf_render callback */
     p_spu->i_start = p_sys->i_pts;
-    //p_spu->i_stop = (vlc_tick_t) 0;
+    //p_spu->i_stop = (heimdall_tick_t) 0;
     p_spu->b_ephemer = true;
     //p_spu->b_fade = true;
-    //p_spu->i_stop = p_spu->i_start + (vlc_tick_t) (i_timeout * 1000000);
+    //p_spu->i_stop = p_spu->i_start + (heimdall_tick_t) (i_timeout * 1000000);
     p_spu->b_subtitle = true;
 
     /* Correct positioning of SPU */
@@ -1766,11 +1767,11 @@ static subpicture_t *render( decoder_t *p_dec )
             continue;
         }
 
-        /* FIXME: don't create a subpicture region with VLC CODEC YUVP
+        /* FIXME: don't create a subpicture region with Heimdall CODEC YUVP
          * when it actually is a TEXT region */
 
         /* Create new SPU region */
-        video_format_Init( &fmt, VLC_CODEC_YUVP );
+        video_format_Init( &fmt, HEIMDALL_CODEC_YUVP );
         fmt.i_sar_num = 0; /* 0 means use aspect ratio of background video */
         fmt.i_sar_den = 1;
         fmt.i_width = fmt.i_visible_width = p_region->i_width;
@@ -1830,7 +1831,7 @@ static subpicture_t *render( decoder_t *p_dec )
         p_spu_region->i_x = i_base_x + p_regiondef->i_x;
         p_spu_region->i_y = i_base_y + p_regiondef->i_y;
         p_spu_region->i_align = p_sys->i_spu_position;
-        vlc_spu_regions_push(&p_spu->regions, p_spu_region);
+        heimdall_spu_regions_push(&p_spu->regions, p_spu_region);
 
         p_src = p_region->p_pixbuf;
         p_dst = p_spu_region->p_picture->Y_PIXELS;
@@ -1871,7 +1872,7 @@ static subpicture_t *render( decoder_t *p_dec )
             p_spu_region->i_x = i_base_x + p_regiondef->i_x + p_object_def->i_x;
             p_spu_region->i_y = i_base_y + p_regiondef->i_y + p_object_def->i_y;
             p_spu_region->i_align = p_sys->i_spu_position;
-            vlc_spu_regions_push(&p_spu->regions, p_spu_region);
+            heimdall_spu_regions_push(&p_spu->regions, p_spu_region);
         }
     }
 
@@ -1897,7 +1898,7 @@ typedef struct
     size_t           i_regions;
     encoder_region_t *p_regions;
 
-    vlc_tick_t i_pts;
+    heimdall_tick_t i_pts;
 
     /* subpicture positioning */
     int i_offset_x;
@@ -1913,24 +1914,24 @@ static void encode_object( encoder_t *, bs_t *, const subpicture_t * );
 /*****************************************************************************
  * OpenEncoder: probe the encoder and return score
  *****************************************************************************/
-static int OpenEncoder( vlc_object_t *p_this )
+static int OpenEncoder( heimdall_object_t *p_this )
 {
     encoder_t *p_enc = (encoder_t *)p_this;
     encoder_sys_t *p_sys;
 
-    if( ( p_enc->fmt_out.i_codec != VLC_CODEC_DVBS ) &&
+    if( ( p_enc->fmt_out.i_codec != HEIMDALL_CODEC_DVBS ) &&
         !p_enc->obj.force )
     {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Allocate the memory needed to store the decoder's structure */
     p_sys = malloc(sizeof(encoder_sys_t));
     if (p_sys == NULL)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     p_enc->p_sys = p_sys;
 
-    p_enc->fmt_out.i_codec = VLC_CODEC_DVBS;
+    p_enc->fmt_out.i_codec = HEIMDALL_CODEC_DVBS;
     p_enc->fmt_out.subs.dvb.i_id  = 1 << 16 | 1;
 
     config_ChainParse( p_enc, ENC_CFG_PREFIX, ppsz_enc_options, p_enc->p_cfg );
@@ -1944,24 +1945,24 @@ static int OpenEncoder( vlc_object_t *p_this )
     p_sys->i_offset_x = var_CreateGetInteger( p_this, ENC_CFG_PREFIX "x" );
     p_sys->i_offset_y = var_CreateGetInteger( p_this, ENC_CFG_PREFIX "y" );
 
-    static const struct vlc_encoder_operations ops =
+    static const struct heimdall_encoder_operations ops =
     {
         .close = CloseEncoder,
         .encode_sub = Encode,
     };
     p_enc->ops = &ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-/* FIXME: this routine is a hack to convert VLC_CODEC_YUVA
- *        into VLC_CODEC_YUVP
+/* FIXME: this routine is a hack to convert HEIMDALL_CODEC_YUVA
+ *        into HEIMDALL_CODEC_YUVP
  */
 static void YuvaYuvp( subpicture_t *p_subpic )
 {
     const subpicture_region_t *p_region;
 
-    vlc_spu_regions_foreach_const(p_region, &p_subpic->regions)
+    heimdall_spu_regions_foreach_const(p_region, &p_subpic->regions)
     {
         video_format_t *p_fmt = &p_region->p_picture->format;
         int i = 0, j = 0, n = 0, p = 0;
@@ -1983,7 +1984,7 @@ static void YuvaYuvp( subpicture_t *p_subpic )
         /* p_enc not valid here */
         msg_Dbg( p_enc, "YuvaYuvp: i_pixels=%d, i_iterator=%d", i_pixels, i_iterator );
 #endif
-        p_fmt->i_chroma = VLC_CODEC_YUVP;
+        p_fmt->i_chroma = HEIMDALL_CODEC_YUVP;
         p_fmt->p_palette = (video_palette_t *) malloc( sizeof( video_palette_t ) );
         if( !p_fmt->p_palette ) break;
         p_fmt->p_palette->i_entries = 0;
@@ -2160,23 +2161,23 @@ static block_t *Encode( encoder_t *p_enc, subpicture_t *p_subpic )
     bs_t bits, *s = &bits;
     block_t *p_block;
 
-    if( !p_subpic || vlc_spu_regions_is_empty(&p_subpic->regions) ) return NULL;
+    if( !p_subpic || heimdall_spu_regions_is_empty(&p_subpic->regions) ) return NULL;
 
-    /* FIXME: this is a hack to convert VLC_CODEC_YUVA into
-     *  VLC_CODEC_YUVP
+    /* FIXME: this is a hack to convert HEIMDALL_CODEC_YUVA into
+     *  HEIMDALL_CODEC_YUVP
      */
-    p_region = vlc_spu_regions_first_or_null(&p_subpic->regions);
+    p_region = heimdall_spu_regions_first_or_null(&p_subpic->regions);
     /* Sanity check */
     if( !p_region ) return NULL;
 
     if( !subpicture_region_IsText( p_region ) )
     {
-        if( p_region->p_picture->format.i_chroma == VLC_CODEC_YUVA )
+        if( p_region->p_picture->format.i_chroma == HEIMDALL_CODEC_YUVA )
         {
             YuvaYuvp( p_subpic );
         }
 
-        if( p_region->p_picture->format.i_chroma != VLC_CODEC_YUVP )
+        if( p_region->p_picture->format.i_chroma != HEIMDALL_CODEC_YUVP )
         {
             msg_Err( p_enc, "chroma %4.4s not supported", (char *)&p_region->p_picture->format.i_chroma );
             return NULL;
@@ -2227,7 +2228,7 @@ static block_t *Encode( encoder_t *p_enc, subpicture_t *p_subpic )
     p_block->i_buffer = bs_pos( s ) / 8;
     p_block->i_pts = p_block->i_dts = p_subpic->i_start;
     if( !p_subpic->b_ephemer &&
-        ( p_subpic->i_stop != VLC_TICK_INVALID && p_subpic->i_stop > p_subpic->i_start ) )
+        ( p_subpic->i_stop != HEIMDALL_TICK_INVALID && p_subpic->i_stop > p_subpic->i_start ) )
     {
         block_t *p_block_stop;
 
@@ -2253,7 +2254,7 @@ static block_t *Encode( encoder_t *p_enc, subpicture_t *p_subpic )
         p_block_stop->i_buffer = bs_pos( s ) / 8;
         p_block_stop->i_pts = p_block_stop->i_dts = p_subpic->i_stop;
         block_ChainAppend( &p_block, p_block_stop );
-        p_block_stop->i_length = VLC_TICK_FROM_MS(100); /* p_subpic->i_stop - p_subpic->i_start; */
+        p_block_stop->i_length = HEIMDALL_TICK_FROM_MS(100); /* p_subpic->i_stop - p_subpic->i_start; */
     }
 #ifdef DEBUG_DVBSUB
     msg_Dbg( p_enc, "subpicture encoded properly" );
@@ -2290,7 +2291,7 @@ static void encode_page_composition( encoder_t *p_enc, bs_t *s,
 
     i_regions = 0;
     if (p_subpic)
-    vlc_spu_regions_foreach_const(p_region, &p_subpic->regions)
+    heimdall_spu_regions_foreach_const(p_region, &p_subpic->regions)
     {
         if( i_regions >= p_sys->i_regions )
         {
@@ -2330,9 +2331,9 @@ static void encode_page_composition( encoder_t *p_enc, bs_t *s,
 
     i_timeout = 0;
     if( p_subpic && !p_subpic->b_ephemer &&
-        ( p_subpic->i_stop != VLC_TICK_INVALID && p_subpic->i_stop > p_subpic->i_start ) )
+        ( p_subpic->i_stop != HEIMDALL_TICK_INVALID && p_subpic->i_stop > p_subpic->i_start ) )
     {
-        i_timeout = SEC_FROM_VLC_TICK(p_subpic->i_stop - p_subpic->i_start);
+        i_timeout = SEC_FROM_HEIMDALL_TICK(p_subpic->i_stop - p_subpic->i_start);
     }
 
     bs_write( s, 8, i_timeout ); /* Timeout */
@@ -2343,7 +2344,7 @@ static void encode_page_composition( encoder_t *p_enc, bs_t *s,
 
     i_regions = 0;
     if (p_subpic)
-    vlc_spu_regions_foreach_const(p_region, &p_subpic->regions)
+    heimdall_spu_regions_foreach_const(p_region, &p_subpic->regions)
     {
         bs_write( s, 8, i_regions );
         bs_write( s, 8, 0 ); /* Reserved */
@@ -2369,7 +2370,7 @@ static void encode_clut( encoder_t *p_enc, bs_t *s, subpicture_region_t *p_regio
     /* Sanity check */
     if( !p_region ) return;
 
-    if( !subpicture_region_IsText( p_region ) && p_region->p_picture->format.i_chroma == VLC_CODEC_YUVP )
+    if( !subpicture_region_IsText( p_region ) && p_region->p_picture->format.i_chroma == HEIMDALL_CODEC_YUVP )
     {
         p_pal = p_region->p_picture->format.p_palette;
     }
@@ -2409,7 +2410,7 @@ static void encode_region_composition( encoder_t *p_enc, bs_t *s,
     unsigned int i_region;
 
     i_region = 0;
-    vlc_spu_regions_foreach_const(p_region, &p_subpic->regions)
+    heimdall_spu_regions_foreach_const(p_region, &p_subpic->regions)
     {
         int i_entries = 4, i_depth = 0x1, i_bg = 0;
         bool b_text = subpicture_region_IsText( p_region );
@@ -2485,7 +2486,7 @@ static void encode_object( encoder_t *p_enc, bs_t *s, const subpicture_t *p_subp
     int i_length_pos, i_update_pos, i_pixel_data_pos;
 
     i_region = 0;
-    vlc_spu_regions_foreach_const(p_region, &p_subpic->regions)
+    heimdall_spu_regions_foreach_const(p_region, &p_subpic->regions)
     {
         bs_write( s, 8, 0x0f ); /* Sync byte */
         bs_write( s, 8, DVBSUB_ST_OBJECT_DATA ); /* Segment type */
@@ -2499,7 +2500,7 @@ static void encode_object( encoder_t *p_enc, bs_t *s, const subpicture_t *p_subp
         /* object coding method */
         if (subpicture_region_IsText( p_region ))
             bs_write( s, 2, 1 );
-        else if ( p_region->p_picture->format.i_chroma == VLC_CODEC_YUVP )
+        else if ( p_region->p_picture->format.i_chroma == HEIMDALL_CODEC_YUVP )
             bs_write( s, 2, 0 );
         else
         {

@@ -1,7 +1,8 @@
 /*****************************************************************************
- * wasapi.c : Windows Audio Session API output plugin for VLC
+ * wasapi.c : Windows Audio Session API output plugin for Heimdall
  *****************************************************************************
  * Copyright (C) 2012 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -29,18 +30,18 @@
 #include <stdlib.h>
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_aout.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_aout.h>
+#include <heimdall_plugin.h>
 
 #include <windows.h>
 #include <mmreg.h>
 #include <audioclient.h>
 #include "mmdevice.h"
 
-#include <vlc_codecs.h> // GUID_FMT/GUID_PRINT
+#include <heimdall_codecs.h> // GUID_FMT/GUID_PRINT
 
-#define TIMING_REPORT_DELAY VLC_TICK_FROM_MS(1000)
+#define TIMING_REPORT_DELAY HEIMDALL_TICK_FROM_MS(1000)
 
 /* 00000092-0000-0010-8000-00aa00389b71 */
 DEFINE_GUID(_KSDATAFORMAT_SUBTYPE_IEC61937_DOLBY_DIGITAL,
@@ -119,16 +120,16 @@ typedef struct aout_stream_sys
     uint8_t chans_table[AOUT_CHAN_MAX];
     uint8_t chans_to_reorder;
 
-    vlc_fourcc_t format; /**< Sample format */
+    heimdall_fourcc_t format; /**< Sample format */
     unsigned rate; /**< Sample rate */
     unsigned block_align;
     UINT64 written; /**< Frames written to the buffer */
     UINT32 frames; /**< Total buffer size (frames) */
     bool s24s32; /**< Output configured as S24N, but input as S32N */
-    vlc_tick_t first_pts;
+    heimdall_tick_t first_pts;
 } aout_stream_sys_t;
 
-/*** VLC audio output callbacks ***/
+/*** Heimdall audio output callbacks ***/
 static void TimingReport(aout_stream_t *s)
 {
     aout_stream_sys_t *sys = s->sys;
@@ -157,12 +158,12 @@ static void TimingReport(aout_stream_t *s)
         return;
     }
 
-    aout_stream_TimingReport(s, VLC_TICK_FROM_MSFTIME(qpcpos),
-                             vlc_tick_from_frac(pos, clock_freq) +
+    aout_stream_TimingReport(s, HEIMDALL_TICK_FROM_MSFTIME(qpcpos),
+                             heimdall_tick_from_frac(pos, clock_freq) +
                              sys->first_pts);
 
     aout_stream_TriggerTimer(s, TimingReport,
-                             vlc_tick_now() + TIMING_REPORT_DELAY);
+                             heimdall_tick_now() + TIMING_REPORT_DELAY);
 
     static_assert((10000000 % CLOCK_FREQ) == 0, "Frequency conversion broken");
 }
@@ -188,12 +189,12 @@ static void StartDeferredCallback(aout_stream_t *s)
     StartNow(s);
 }
 
-static HRESULT StartDeferred(aout_stream_t *s, vlc_tick_t date)
+static HRESULT StartDeferred(aout_stream_t *s, heimdall_tick_t date)
 {
     aout_stream_sys_t *sys = s->sys;
-    vlc_tick_t written = vlc_tick_from_frac(sys->written, sys->rate);
-    vlc_tick_t start_date = date - written;
-    vlc_tick_t start_delay = start_date - vlc_tick_now();
+    heimdall_tick_t written = heimdall_tick_from_frac(sys->written, sys->rate);
+    heimdall_tick_t start_date = date - written;
+    heimdall_tick_t start_delay = start_date - heimdall_tick_now();
 
     /* Create or update the current timer */
     if (start_delay > 0)
@@ -214,7 +215,7 @@ static HRESULT StartDeferred(aout_stream_t *s, vlc_tick_t date)
     return S_OK;
 }
 
-static HRESULT Play(aout_stream_t *s, block_t *block, vlc_tick_t date)
+static HRESULT Play(aout_stream_t *s, block_t *block, heimdall_tick_t date)
 {
     aout_stream_sys_t *sys = s->sys;
     void *pv;
@@ -226,14 +227,14 @@ static HRESULT Play(aout_stream_t *s, block_t *block, vlc_tick_t date)
         goto out;
     }
     /* Partial-block retries have no date: keep the already scheduled start. */
-    else if (sys->started_state == STARTED_STATE_INIT && date != VLC_TICK_INVALID)
+    else if (sys->started_state == STARTED_STATE_INIT && date != HEIMDALL_TICK_INVALID)
     {
         hr = StartDeferred(s, date);
         if (FAILED(hr))
             goto out;
     }
 
-    if (sys->first_pts == VLC_TICK_INVALID)
+    if (sys->first_pts == HEIMDALL_TICK_INVALID)
         sys->first_pts = block->i_pts;
 
     if (sys->chans_to_reorder)
@@ -307,7 +308,7 @@ static HRESULT Play(aout_stream_t *s, block_t *block, vlc_tick_t date)
         if (block->i_nb_samples == 0)
             break; /* done */
 
-        block->i_length -= vlc_tick_from_samples(frames, sys->rate);
+        block->i_length -= heimdall_tick_from_samples(frames, sys->rate);
         /* Out of buffer space, keep the block and notify the owner */
         IAudioRenderClient_Release(render);
         return S_FALSE;
@@ -359,7 +360,7 @@ static HRESULT Flush(aout_stream_t *s)
     else
         hr = S_OK;
 
-    sys->first_pts = VLC_TICK_INVALID;
+    sys->first_pts = HEIMDALL_TICK_INVALID;
     if (SUCCEEDED(hr))
     {
         msg_Dbg(s, "reset");
@@ -385,33 +386,33 @@ static const uint32_t chans_in[] = {
     SPEAKER_FRONT_CENTER, SPEAKER_LOW_FREQUENCY, 0
 };
 
-static void vlc_HdmiToWave(WAVEFORMATEXTENSIBLE_IEC61937 *restrict wf_iec61937,
+static void heimdall_HdmiToWave(WAVEFORMATEXTENSIBLE_IEC61937 *restrict wf_iec61937,
                            audio_sample_format_t *restrict audio)
 {
     WAVEFORMATEXTENSIBLE *wf = &wf_iec61937->FormatExt;
 
     switch (audio->i_format)
     {
-    case VLC_CODEC_DTSHD:
+    case HEIMDALL_CODEC_DTSHD:
         wf->SubFormat = _KSDATAFORMAT_SUBTYPE_IEC61937_DTS_HD;
         wf->Format.nChannels = 8;
         wf->dwChannelMask = KSAUDIO_SPEAKER_7POINT1;
         audio->i_rate = 768000;
         break;
-    case VLC_CODEC_EAC3:
+    case HEIMDALL_CODEC_EAC3:
         wf->SubFormat = _KSDATAFORMAT_SUBTYPE_IEC61937_DOLBY_DIGITAL_PLUS;
         wf->Format.nChannels = 2;
         wf->dwChannelMask = KSAUDIO_SPEAKER_5POINT1;
         break;
-    case VLC_CODEC_TRUEHD:
-    case VLC_CODEC_MLP:
+    case HEIMDALL_CODEC_TRUEHD:
+    case HEIMDALL_CODEC_MLP:
         wf->SubFormat = _KSDATAFORMAT_SUBTYPE_IEC61937_DOLBY_MLP;
         wf->Format.nChannels = 8;
         wf->dwChannelMask = KSAUDIO_SPEAKER_7POINT1;
         audio->i_rate = 768000;
         break;
     default:
-        vlc_assert_unreachable();
+        heimdall_assert_unreachable();
     }
     wf->Format.wFormatTag = WAVE_FORMAT_EXTENSIBLE;
     wf->Format.nSamplesPerSec = 192000;
@@ -426,26 +427,26 @@ static void vlc_HdmiToWave(WAVEFORMATEXTENSIBLE_IEC61937 *restrict wf_iec61937,
     wf_iec61937->dwEncodedChannelCount = audio->i_channels;
     wf_iec61937->dwAverageBytesPerSec = 0;
 
-    audio->i_format = VLC_CODEC_SPDIFL;
+    audio->i_format = HEIMDALL_CODEC_SPDIFL;
     audio->i_bytes_per_frame = wf->Format.nBlockAlign;
     audio->i_frame_length = 1;
 }
 
-static void vlc_SpdifToWave(WAVEFORMATEXTENSIBLE *restrict wf,
+static void heimdall_SpdifToWave(WAVEFORMATEXTENSIBLE *restrict wf,
                             audio_sample_format_t *restrict audio)
 {
     switch (audio->i_format)
     {
-    case VLC_CODEC_DTS:
+    case HEIMDALL_CODEC_DTS:
         wf->SubFormat = _KSDATAFORMAT_SUBTYPE_IEC61937_DTS;
         break;
-    case VLC_CODEC_SPDIFL:
-    case VLC_CODEC_SPDIFB:
-    case VLC_CODEC_A52:
+    case HEIMDALL_CODEC_SPDIFL:
+    case HEIMDALL_CODEC_SPDIFB:
+    case HEIMDALL_CODEC_A52:
         wf->SubFormat = _KSDATAFORMAT_SUBTYPE_IEC61937_DOLBY_DIGITAL;
         break;
     default:
-        vlc_assert_unreachable();
+        heimdall_assert_unreachable();
     }
 
     wf->Format.wFormatTag = WAVE_FORMAT_EXTENSIBLE;
@@ -460,32 +461,32 @@ static void vlc_SpdifToWave(WAVEFORMATEXTENSIBLE *restrict wf,
 
     wf->dwChannelMask = SPEAKER_FRONT_LEFT | SPEAKER_FRONT_RIGHT;
 
-    audio->i_format = VLC_CODEC_SPDIFL;
+    audio->i_format = HEIMDALL_CODEC_SPDIFL;
     audio->i_bytes_per_frame = wf->Format.nBlockAlign;
     audio->i_frame_length = 1;
 }
 
-static void vlc_ToWave(WAVEFORMATEXTENSIBLE *restrict wf,
+static void heimdall_ToWave(WAVEFORMATEXTENSIBLE *restrict wf,
                        audio_sample_format_t *restrict audio)
 {
     switch (audio->i_format)
     {
-        case VLC_CODEC_FL64:
-            audio->i_format = VLC_CODEC_FL32;
+        case HEIMDALL_CODEC_FL64:
+            audio->i_format = HEIMDALL_CODEC_FL32;
             /* fall through */
-        case VLC_CODEC_FL32:
+        case HEIMDALL_CODEC_FL32:
             wf->SubFormat = KSDATAFORMAT_SUBTYPE_IEEE_FLOAT;
             break;
 
-        case VLC_CODEC_U8:
-            audio->i_format = VLC_CODEC_S16N;
+        case HEIMDALL_CODEC_U8:
+            audio->i_format = HEIMDALL_CODEC_S16N;
             /* fall through */
-        case VLC_CODEC_S16N:
+        case HEIMDALL_CODEC_S16N:
             wf->SubFormat = KSDATAFORMAT_SUBTYPE_PCM;
             break;
 
         default:
-            audio->i_format = VLC_CODEC_FL32;
+            audio->i_format = HEIMDALL_CODEC_FL32;
             wf->SubFormat = KSDATAFORMAT_SUBTYPE_IEEE_FLOAT;
             break;
     }
@@ -502,36 +503,36 @@ static void vlc_ToWave(WAVEFORMATEXTENSIBLE *restrict wf,
     wf->Samples.wValidBitsPerSample = audio->i_bitspersample;
 
     wf->dwChannelMask = 0;
-    for (unsigned i = 0; pi_vlc_chan_order_wg4[i]; i++)
-        if (audio->i_physical_channels & pi_vlc_chan_order_wg4[i])
+    for (unsigned i = 0; pi_heimdall_chan_order_wg4[i]; i++)
+        if (audio->i_physical_channels & pi_heimdall_chan_order_wg4[i])
             wf->dwChannelMask |= chans_in[i];
 }
 
-static void LogWaveFormat(struct vlc_logger *l, const WAVEFORMATEX *restrict wf)
+static void LogWaveFormat(struct heimdall_logger *l, const WAVEFORMATEX *restrict wf)
 {
-    vlc_debug(l, "nChannels %d", wf->nChannels);
-    vlc_debug(l, "wBitsPerSample %d", wf->wBitsPerSample);
-    vlc_debug(l, "nAvgBytesPerSec %lu", wf->nAvgBytesPerSec);
-    vlc_debug(l, "nSamplesPerSec %lu", wf->nSamplesPerSec);
-    vlc_debug(l, "nBlockAlign %d", wf->nBlockAlign);
-    vlc_debug(l, "cbSize %d", wf->cbSize);
-    vlc_debug(l, "wFormatTag 0x%04X", wf->wFormatTag);
+    heimdall_debug(l, "nChannels %d", wf->nChannels);
+    heimdall_debug(l, "wBitsPerSample %d", wf->wBitsPerSample);
+    heimdall_debug(l, "nAvgBytesPerSec %lu", wf->nAvgBytesPerSec);
+    heimdall_debug(l, "nSamplesPerSec %lu", wf->nSamplesPerSec);
+    heimdall_debug(l, "nBlockAlign %d", wf->nBlockAlign);
+    heimdall_debug(l, "cbSize %d", wf->cbSize);
+    heimdall_debug(l, "wFormatTag 0x%04X", wf->wFormatTag);
 
     if (wf->wFormatTag == WAVE_FORMAT_EXTENSIBLE &&
         wf->cbSize >= sizeof(WAVEFORMATEXTENSIBLE) - sizeof(WAVEFORMATEX))
     {
         const WAVEFORMATEXTENSIBLE *wfe = container_of(wf, WAVEFORMATEXTENSIBLE, Format);
         if (IsEqualIID(&wfe->SubFormat, &KSDATAFORMAT_SUBTYPE_IEEE_FLOAT))
-            vlc_debug(l, "SubFormat IEEE_FLOAT");
+            heimdall_debug(l, "SubFormat IEEE_FLOAT");
         else if (IsEqualIID(&wfe->SubFormat, &KSDATAFORMAT_SUBTYPE_PCM))
-            vlc_debug(l, "SubFormat PCM");
+            heimdall_debug(l, "SubFormat PCM");
         else
-            vlc_debug(l, "SubFormat " GUID_FMT, GUID_PRINT(wfe->SubFormat));
-        vlc_debug(l, "wValidBitsPerSample %d", wfe->Samples.wValidBitsPerSample);
+            heimdall_debug(l, "SubFormat " GUID_FMT, GUID_PRINT(wfe->SubFormat));
+        heimdall_debug(l, "wValidBitsPerSample %d", wfe->Samples.wValidBitsPerSample);
     }
 }
 
-static int vlc_FromWave(const WAVEFORMATEX *restrict wf,
+static int heimdall_FromWave(const WAVEFORMATEX *restrict wf,
                         audio_sample_format_t *restrict audio)
 {
     uint32_t physical_channels = 0;
@@ -545,10 +546,10 @@ static int vlc_FromWave(const WAVEFORMATEX *restrict wf,
             switch (wf->wBitsPerSample)
             {
                 case 64:
-                    audio->i_format = VLC_CODEC_FL64;
+                    audio->i_format = HEIMDALL_CODEC_FL64;
                     break;
                 case 32:
-                    audio->i_format = VLC_CODEC_FL32;
+                    audio->i_format = HEIMDALL_CODEC_FL32;
                     break;
                 default:
                     return -1;
@@ -560,10 +561,10 @@ static int vlc_FromWave(const WAVEFORMATEX *restrict wf,
             {
                 case 32:
                 case 24:
-                    audio->i_format = VLC_CODEC_S32N;
+                    audio->i_format = HEIMDALL_CODEC_S32N;
                     break;
                 case 16:
-                    audio->i_format = VLC_CODEC_S16N;
+                    audio->i_format = HEIMDALL_CODEC_S16N;
                     break;
                 default:
                     return -1;
@@ -575,7 +576,7 @@ static int vlc_FromWave(const WAVEFORMATEX *restrict wf,
 
         for (unsigned i = 0; chans_in[i]; i++)
             if (wfe->dwChannelMask & chans_in[i])
-                physical_channels |= pi_vlc_chan_order_wg4[i];
+                physical_channels |= pi_heimdall_chan_order_wg4[i];
     }
     else
         return -1;
@@ -590,7 +591,7 @@ static int vlc_FromWave(const WAVEFORMATEX *restrict wf,
     return 0;
 }
 
-static unsigned vlc_CheckWaveOrder (const WAVEFORMATEX *restrict wf,
+static unsigned heimdall_CheckWaveOrder (const WAVEFORMATEX *restrict wf,
                                     uint8_t *restrict table)
 {
     uint32_t mask = 0;
@@ -641,7 +642,7 @@ static HRESULT GetExclusivePCMFormat(IAudioClient *c, const WAVEFORMATEX *pwf,
         return hr;
     }
 
-    /* This format come from vlc_ToWave() */
+    /* This format come from heimdall_ToWave() */
     assert(pwf->wFormatTag == WAVE_FORMAT_EXTENSIBLE);
     const WAVEFORMATEXTENSIBLE *pwfe = (void *) pwf;
     assert(IsEqualIID(&pwfe->SubFormat, &KSDATAFORMAT_SUBTYPE_IEEE_FLOAT)
@@ -677,7 +678,7 @@ static HRESULT GetExclusivePCMFormat(IAudioClient *c, const WAVEFORMATEX *pwf,
         case 24: bits_candidates = bits_pcm24_candidates; break;
         case 16: bits_candidates = bits_pcm16_candidates; break;
         case 8:  bits_candidates = bits_pcm8_candidates;  break;
-        default: vlc_assert_unreachable();
+        default: heimdall_assert_unreachable();
     }
 
     /* Check the input samplerate, then 48kHz and 44.1khz */
@@ -802,9 +803,9 @@ static HRESULT Start(aout_stream_t *s, audio_sample_format_t *restrict pfmt,
     if (b_spdif || b_hdmi)
     {
         if (b_spdif)
-            vlc_SpdifToWave(pwfe, &fmt);
+            heimdall_SpdifToWave(pwfe, &fmt);
         else
-            vlc_HdmiToWave(&wf_iec61937, &fmt);
+            heimdall_HdmiToWave(&wf_iec61937, &fmt);
 
         shared_mode = AUDCLNT_SHAREMODE_EXCLUSIVE;
         /* The max buffer duration in exclusive mode is 200ms */
@@ -825,13 +826,13 @@ static HRESULT Start(aout_stream_t *s, audio_sample_format_t *restrict pfmt,
             if (FAILED(hr))
             {
                 msg_Dbg(s, "failed to use mix format");
-                vlc_ToWave(pwfe, &fmt); /* failed, fallback to default */
+                heimdall_ToWave(pwfe, &fmt); /* failed, fallback to default */
             }
-            else if (vlc_FromWave(pwf_mix, &fmt))
+            else if (heimdall_FromWave(pwf_mix, &fmt))
             {
                 msg_Dbg(s, "unsupported mix format");
-                LogWaveFormat(vlc_object_logger(s), pwf_mix);
-                vlc_ToWave(pwfe, &fmt); /* failed, fallback to default */
+                LogWaveFormat(heimdall_object_logger(s), pwf_mix);
+                heimdall_ToWave(pwfe, &fmt); /* failed, fallback to default */
             }
             else
                 pwf = pwf_mix;
@@ -842,12 +843,12 @@ static HRESULT Start(aout_stream_t *s, audio_sample_format_t *restrict pfmt,
         }
         else
         {
-            vlc_ToWave(pwfe, &fmt);
-            buffer_duration = MSFTIME_FROM_VLC_TICK(AOUT_MAX_PREPARE_TIME);
+            heimdall_ToWave(pwfe, &fmt);
+            buffer_duration = MSFTIME_FROM_HEIMDALL_TICK(AOUT_MAX_PREPARE_TIME);
         }
 
         /* Cache the var in the parent object (audio_output_t). */
-        if (var_CreateGetBool(vlc_object_parent(s), "wasapi-exclusive"))
+        if (var_CreateGetBool(heimdall_object_parent(s), "wasapi-exclusive"))
         {
             shared_mode = AUDCLNT_SHAREMODE_EXCLUSIVE;
             buffer_duration = MSFTIME_FROM_MS(200);
@@ -868,7 +869,7 @@ static HRESULT Start(aout_stream_t *s, audio_sample_format_t *restrict pfmt,
     {
         msg_Err(s, "cannot negotiate audio format (error 0x%lX)%s", hr,
                 hr == AUDCLNT_E_UNSUPPORTED_FORMAT
-                && fmt.i_format == VLC_CODEC_SPDIFL ?
+                && fmt.i_format == HEIMDALL_CODEC_SPDIFL ?
                 ": digital pass-through not supported" : "");
         goto error;
     }
@@ -876,10 +877,10 @@ static HRESULT Start(aout_stream_t *s, audio_sample_format_t *restrict pfmt,
     if (hr == S_FALSE)
     {
         assert(pwf_closest != NULL);
-        if (vlc_FromWave(pwf_closest, &fmt))
+        if (heimdall_FromWave(pwf_closest, &fmt))
         {
             msg_Err(s, "unsupported closest audio format");
-            LogWaveFormat(vlc_object_logger(s), pwf_closest);
+            LogWaveFormat(heimdall_object_logger(s), pwf_closest);
             CoTaskMemFree(pwf_closest);
             hr = E_INVALIDARG;
             goto error;
@@ -890,12 +891,12 @@ static HRESULT Start(aout_stream_t *s, audio_sample_format_t *restrict pfmt,
     else
         assert(pwf_closest == NULL);
 
-    sys->chans_to_reorder = fmt.i_format != VLC_CODEC_SPDIFL ?
-                            vlc_CheckWaveOrder(pwf, sys->chans_table) : 0;
+    sys->chans_to_reorder = fmt.i_format != HEIMDALL_CODEC_SPDIFL ?
+                            heimdall_CheckWaveOrder(pwf, sys->chans_table) : 0;
     sys->format = fmt.i_format;
     sys->block_align = pwf->nBlockAlign;
     sys->rate = pwf->nSamplesPerSec;
-    sys->s24s32 = pwf->wBitsPerSample == 24 && fmt.i_format == VLC_CODEC_S32N;
+    sys->s24s32 = pwf->wBitsPerSample == 24 && fmt.i_format == HEIMDALL_CODEC_S32N;
     if (sys->s24s32)
         msg_Dbg(s, "audio device configured as s24");
 
@@ -942,7 +943,7 @@ static HRESULT Start(aout_stream_t *s, audio_sample_format_t *restrict pfmt,
     CoTaskMemFree(pwf_mix);
     *pfmt = fmt;
     sys->written = 0;
-    sys->first_pts = VLC_TICK_INVALID;
+    sys->first_pts = HEIMDALL_TICK_INVALID;
     s->sys = sys;
     s->play = Play;
     s->pause = Pause;
@@ -959,13 +960,13 @@ error:
 
 #define WASAPI_EXCLUSIVE_TEXT N_("Use exclusive mode")
 #define WASAPI_EXCLUSIVE_LONGTEXT N_( \
-    "VLC will have a direct connection of the audio endpoint device. " \
+    "Heimdall will have a direct connection of the audio endpoint device. " \
     "This mode can be used to reduce the audio latency or " \
     "to assure that the audio stream won't be modified by the OS. " \
     "This mode is more likely to fail if the soundcard format is not " \
-    "handled by VLC.")
+    "handled by Heimdall.")
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname("WASAPI")
     set_description(N_("Windows Audio Session API output"))
     set_capability("aout stream", 50)
@@ -973,4 +974,4 @@ vlc_module_begin()
              WASAPI_EXCLUSIVE_LONGTEXT)
     set_subcategory(SUBCAT_AUDIO_AOUT)
     set_callback(Start)
-vlc_module_end()
+heimdall_module_end()

@@ -2,6 +2,7 @@
  * filesystem.c: Linux file system helpers
  *****************************************************************************
  * Copyright © 2018 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Rémi Denis-Courmont
  *
@@ -32,10 +33,10 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
-#include <vlc_common.h>
-#include <vlc_fs.h>
+#include <heimdall_common.h>
+#include <heimdall_fs.h>
 
-int vlc_memfd(void)
+int heimdall_memfd(void)
 {
     int fd;
 #ifdef HAVE_MEMFD_CREATE
@@ -52,7 +53,7 @@ int vlc_memfd(void)
     /* Fallback to POSIX implementation if O_TMPFILE is not supported (errno is
      * EISDIR, or EOPNOTSUPP, cf. man open(2). */
     char bufpath[] = "/tmp/"PACKAGE_NAME"XXXXXX";
-    fd = vlc_mkstemp(bufpath);
+    fd = heimdall_mkstemp(bufpath);
     if (fd != -1)
         unlink(bufpath);
     return fd;

@@ -2,11 +2,12 @@
  * audio.c: transcoding stream output module (audio)
  *****************************************************************************
  * Copyright (C) 2003-2009 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *          Gildas Bazin <gbazin@videolan.org>
  *          Jean-Paul Saman <jpsaman #_at_# m2x dot nl>
- *          Antoine Cellerier <dionoea at videolan dot org>
+ *          Antoine Cellerier <dionoea at lycaria dot org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -30,11 +31,11 @@
 #include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_aout.h>
-#include <vlc_meta.h>
-#include <vlc_modules.h>
-#include <vlc_sout.h>
+#include <heimdall_common.h>
+#include <heimdall_aout.h>
+#include <heimdall_meta.h>
+#include <heimdall_modules.h>
+#include <heimdall_sout.h>
 
 #include "transcode.h"
 
@@ -47,14 +48,14 @@ static int audio_update_format( decoder_t *p_dec )
     aout_FormatPrepare( &p_dec->fmt_out.audio );
 
     if( !AOUT_FMT_LINEAR(&p_dec->fmt_out.audio) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    vlc_mutex_lock(&id->fifo.lock);
+    heimdall_mutex_lock(&id->fifo.lock);
     es_format_Clean( &id->decoder_out );
     es_format_Copy( &id->decoder_out, &p_dec->fmt_out );
-    vlc_mutex_unlock(&id->fifo.lock);
+    heimdall_mutex_unlock(&id->fifo.lock);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int transcode_audio_filters_init( sout_stream_t *p_stream,
@@ -65,14 +66,14 @@ static int transcode_audio_filters_init( sout_stream_t *p_stream,
 {
     /* Load user specified audio filters */
     /* XXX: These variable names come kinda out of nowhere... */
-    var_Create( p_stream, "audio-time-stretch", VLC_VAR_BOOL );
-    var_Create( p_stream, "audio-filter", VLC_VAR_STRING );
+    var_Create( p_stream, "audio-time-stretch", HEIMDALL_VAR_BOOL );
+    var_Create( p_stream, "audio-filter", HEIMDALL_VAR_STRING );
     if( p_cfg->psz_filters )
         var_SetString( p_stream, "audio-filter", p_cfg->psz_filters );
     *pp_chain = aout_FiltersNew( p_stream, p_dec_out, p_enc_in, NULL );
     var_Destroy( p_stream, "audio-filter" );
     var_Destroy( p_stream, "audio-time-stretch" );
-    return ( *pp_chain != NULL ) ? VLC_SUCCESS : VLC_EGENERIC;
+    return ( *pp_chain != NULL ) ? HEIMDALL_SUCCESS : HEIMDALL_EGENERIC;
 }
 
 static void decoder_queue_audio( decoder_t *p_dec, block_t *p_audio )
@@ -80,19 +81,19 @@ static void decoder_queue_audio( decoder_t *p_dec, block_t *p_audio )
     struct decoder_owner *p_owner = dec_get_owner( p_dec );
     sout_stream_id_sys_t *id = p_owner->id;
 
-    vlc_mutex_lock(&id->fifo.lock);
+    heimdall_mutex_lock(&id->fifo.lock);
     *id->fifo.audio.last = p_audio;
     id->fifo.audio.last = &p_audio->p_next;
-    vlc_mutex_unlock(&id->fifo.lock);
+    heimdall_mutex_unlock(&id->fifo.lock);
 }
 
 static block_t *transcode_dequeue_all_audios( sout_stream_id_sys_t *id )
 {
-    vlc_mutex_lock(&id->fifo.lock);
+    heimdall_mutex_lock(&id->fifo.lock);
     block_t *p_audio_bufs = id->fifo.audio.first;
     id->fifo.audio.first = NULL;
     id->fifo.audio.last = &id->fifo.audio.first;
-    vlc_mutex_unlock(&id->fifo.lock);
+    heimdall_mutex_unlock(&id->fifo.lock);
 
     return p_audio_bufs;
 }
@@ -128,7 +129,7 @@ int transcode_audio_init( sout_stream_t *p_stream, const es_format_t *p_fmt,
     {
         msg_Err( p_stream, "cannot find audio decoder" );
         es_format_Clean( &id->decoder_out );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( id->decoder_out.i_codec == 0 ) /* format_update can happen on open() */
@@ -137,7 +138,7 @@ int transcode_audio_init( sout_stream_t *p_stream, const es_format_t *p_fmt,
         es_format_Copy( &id->decoder_out, &id->p_decoder->fmt_out );
     }
 
-    vlc_mutex_lock(&id->fifo.lock);
+    heimdall_mutex_lock(&id->fifo.lock);
 
     /* The decoder fmt_out can be uninitialized here (since it can initialized
      * asynchronously). Fix decoder_out with default values in that case.
@@ -146,7 +147,7 @@ int transcode_audio_init( sout_stream_t *p_stream, const es_format_t *p_fmt,
      * */
     id->decoder_out.audio.i_format = FIRSTVALID( id->decoder_out.audio.i_format,
                                                  id->p_decoder->fmt_out.i_codec,
-                                                 VLC_CODEC_FL32 );
+                                                 HEIMDALL_CODEC_FL32 );
     id->decoder_out.audio.i_rate = FIRSTVALID( id->decoder_out.audio.i_rate,
                                                id->p_decoder->fmt_in->audio.i_rate,
                                                48000 );
@@ -171,17 +172,17 @@ int transcode_audio_init( sout_stream_t *p_stream, const es_format_t *p_fmt,
                                 id->p_decoder->fmt_out.i_codec,
                                 &encoder_tested_fmt_in ) )
     {
-        vlc_mutex_unlock(&id->fifo.lock);
+        heimdall_mutex_unlock(&id->fifo.lock);
         module_unneed( id->p_decoder, id->p_decoder->p_module );
         id->p_decoder->p_module = NULL;
         es_format_Clean( &id->decoder_out );
         es_format_Clean( &encoder_tested_fmt_in );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     es_format_SetMeta( &encoder_tested_fmt_in, p_fmt );
 
-    vlc_mutex_unlock(&id->fifo.lock);
+    heimdall_mutex_unlock(&id->fifo.lock);
 
     id->encoder = transcode_encoder_new( sout_EncoderCreate(p_stream, sizeof(encoder_t)), &encoder_tested_fmt_in );
     if( !id->encoder )
@@ -190,12 +191,12 @@ int transcode_audio_init( sout_stream_t *p_stream, const es_format_t *p_fmt,
         id->p_decoder->p_module = NULL;
         es_format_Clean( &id->decoder_out );
         es_format_Clean( &encoder_tested_fmt_in );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     es_format_Clean( &encoder_tested_fmt_in );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 void transcode_audio_clean( sout_stream_t *p_stream, sout_stream_id_sys_t *id )
@@ -225,8 +226,8 @@ int transcode_audio_process( sout_stream_t *p_stream,
     *out = NULL;
 
     int ret = id->p_decoder->pf_decode( id->p_decoder, in );
-    if( ret != VLCDEC_SUCCESS )
-        return VLC_EGENERIC;
+    if( ret != HEIMDALLDEC_SUCCESS )
+        return HEIMDALL_EGENERIC;
 
     block_t *p_audio_bufs = transcode_dequeue_all_audios( id );
 
@@ -245,7 +246,7 @@ int transcode_audio_process( sout_stream_t *p_stream,
             continue;
         }
 
-        vlc_mutex_lock(&id->fifo.lock);
+        heimdall_mutex_lock(&id->fifo.lock);
 
         if( p_audio_buf && ( unlikely(!transcode_encoder_opened( id->encoder )) ||
             !transcode_audio_format_IsSimilar( &id->fmt_input_audio, &id->decoder_out.audio ) ) )
@@ -275,7 +276,7 @@ int transcode_audio_process( sout_stream_t *p_stream,
                                               &transcode_encoder_format_in( id->encoder )->audio,
                                               &id->p_af_chain ) )
             {
-                vlc_mutex_unlock(&id->fifo.lock);
+                heimdall_mutex_unlock(&id->fifo.lock);
                 goto error;
             }
 
@@ -285,7 +286,7 @@ int transcode_audio_process( sout_stream_t *p_stream,
             if( !transcode_encoder_opened( id->encoder ) &&
                 transcode_encoder_open( id->encoder, id->p_enccfg ) )
             {
-                vlc_mutex_unlock(&id->fifo.lock);
+                heimdall_mutex_unlock(&id->fifo.lock);
                 goto error;
             }
 
@@ -299,29 +300,29 @@ int transcode_audio_process( sout_stream_t *p_stream,
             {
                 msg_Err( p_stream, "cannot output transcoded stream %4.4s",
                                    (char *) &id->p_enccfg->i_codec );
-                vlc_mutex_unlock(&id->fifo.lock);
+                heimdall_mutex_unlock(&id->fifo.lock);
                 goto error;
             }
         }
 
-        vlc_mutex_unlock(&id->fifo.lock);
+        heimdall_mutex_unlock(&id->fifo.lock);
 
         if( id->pf_drift_validate )
         {
-            vlc_tick_t i_pts = date_Get( &id->next_input_pts );
-            vlc_tick_t i_drift = 0;
+            heimdall_tick_t i_pts = date_Get( &id->next_input_pts );
+            heimdall_tick_t i_drift = 0;
 
-            if( likely( p_audio_buf->i_pts != VLC_TICK_INVALID ) )
+            if( likely( p_audio_buf->i_pts != HEIMDALL_TICK_INVALID ) )
                 i_drift = p_audio_buf->i_pts - i_pts;
-            if( id->pf_drift_validate( id->callback_data, i_drift ) != VLC_SUCCESS )
+            if( id->pf_drift_validate( id->callback_data, i_drift ) != HEIMDALL_SUCCESS )
             {
                 date_Set( &id->next_input_pts, p_audio_buf->i_pts );
                 i_drift = 0;
             }
 
-            vlc_mutex_lock(&id->fifo.lock);
+            heimdall_mutex_lock(&id->fifo.lock);
             id->i_drift = i_drift;
-            vlc_mutex_unlock(&id->fifo.lock);
+            heimdall_mutex_unlock(&id->fifo.lock);
             date_Increment( &id->next_input_pts, p_audio_buf->i_nb_samples );
         }
 
@@ -350,5 +351,5 @@ error:
         transcode_encoder_drain( id->encoder, out );
     }
 
-    return error ? VLC_EGENERIC : VLC_SUCCESS;
+    return error ? HEIMDALL_EGENERIC : HEIMDALL_SUCCESS;
 }

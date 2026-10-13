@@ -2,6 +2,7 @@
  * gain.c : gain control filter
  *****************************************************************************
  * Copyright © 2012 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Ludovic Fauvet <etix@videolan.org>
  *
@@ -28,19 +29,19 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_aout.h>
-#include <vlc_aout_volume.h>
-#include <vlc_filter.h>
-#include <vlc_modules.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_aout.h>
+#include <heimdall_aout_volume.h>
+#include <heimdall_filter.h>
+#include <heimdall_modules.h>
+#include <heimdall_plugin.h>
 
 
 /*****************************************************************************
  * Local prototypes
  *****************************************************************************/
 
-static int      Open        ( vlc_object_t * );
+static int      Open        ( heimdall_object_t * );
 static void     Close       ( filter_t * );
 static block_t  *Process    ( filter_t *, block_t * );
 
@@ -58,7 +59,7 @@ typedef struct
 #define GAIN_VALUE_TEXT N_( "Gain multiplier" )
 #define GAIN_VALUE_LONGTEXT N_( "Increase or decrease the gain (default 1.0)" )
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname( N_("Gain") )
     set_description( N_("Gain control filter") )
     set_subcategory( SUBCAT_AUDIO_AFILTER )
@@ -68,19 +69,19 @@ vlc_module_begin()
 
     set_capability( "audio filter", 0 )
     set_callback( Open )
-vlc_module_end()
+heimdall_module_end()
 
 
 /*****************************************************************************
  * Open: initialize filter
  *****************************************************************************/
 
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     filter_t *p_filter = (filter_t *)p_this;
-    filter_sys_t *p_sys = vlc_object_create( p_this, sizeof( *p_sys ) );
+    filter_sys_t *p_sys = heimdall_object_create( p_this, sizeof( *p_sys ) );
     if( unlikely( p_sys == NULL ) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_filter->p_sys = p_sys;
     p_sys->volume.format = p_filter->fmt_in.audio.i_format;
@@ -88,21 +89,21 @@ static int Open( vlc_object_t *p_this )
     if( p_sys->module == NULL )
     {
         msg_Warn( p_filter, "unsupported format" );
-        vlc_object_delete(&p_sys->volume);
-        return VLC_EGENERIC;
+        heimdall_object_delete(&p_sys->volume);
+        return HEIMDALL_EGENERIC;
     }
 
-    p_sys->f_gain = var_InheritFloat( vlc_object_parent(p_filter),
+    p_sys->f_gain = var_InheritFloat( heimdall_object_parent(p_filter),
                                       "gain-value" );
     msg_Dbg( p_filter, "gain multiplier sets to %.2fx", p_sys->f_gain );
 
     p_filter->fmt_out.audio = p_filter->fmt_in.audio;
 
-    static const struct vlc_filter_operations filter_ops =
+    static const struct heimdall_filter_operations filter_ops =
         { .filter_audio = Process, .close = Close };
     p_filter->ops = &filter_ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 
@@ -128,5 +129,5 @@ static void Close( filter_t *p_filter )
     filter_sys_t *p_sys = p_filter->p_sys;
 
     module_unneed( &p_sys->volume, p_sys->module );
-    vlc_object_delete(&p_sys->volume);
+    heimdall_object_delete(&p_sys->volume);
 }

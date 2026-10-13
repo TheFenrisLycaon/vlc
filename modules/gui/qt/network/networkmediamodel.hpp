@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,7 +23,7 @@
 #include <QAbstractListModel>
 #include <QUrl>
 
-#include "vlcmediasourcewrapper.hpp"
+#include "heimdallmediasourcewrapper.hpp"
 #include "util/shared_input_item.hpp"
 #include "devicesourceprovider.hpp"
 
@@ -77,7 +78,7 @@ public:
     bool isValid() {
         MediaTreeLocker lock{ tree };
         input_item_node_t* node;
-        return vlc_media_tree_Find( tree.get(), media.get(), &node, nullptr);
+        return heimdall_media_tree_Find( tree.get(), media.get(), &node, nullptr);
     }
 
     SharedMediaSourceModel source;

@@ -2,6 +2,7 @@
 
 // openapv.c : APV decoder using openapv library
 // Copyright © 2025 VideoLabs, VLC authors and VideoLAN
+// Copyright (C) 2026 TheFenrisLycaon
 
 // Authors: Steve Lhomme <robux4@videolabs.io>
 
@@ -9,11 +10,11 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
-#include <vlc_modules.h>
-#include <vlc_bits.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
+#include <heimdall_modules.h>
+#include <heimdall_bits.h>
 
 #include "../packetizer/iso_color_tables.h"
 
@@ -23,10 +24,10 @@
 #define THREAD_TILES_TEXT N_("Tile Threads")
 #define THREAD_TILES_LONGTEXT N_( "Max number of threads used for decoding, default 0=auto" )
 
-static int OpenAPVDecoder(vlc_object_t *);
-static void CloseAPVDecoder(vlc_object_t *);
+static int OpenAPVDecoder(heimdall_object_t *);
+static void CloseAPVDecoder(heimdall_object_t *);
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description(N_("OpenAPV video decoder"))
     set_capability("video decoder", 10)
     set_callbacks(OpenAPVDecoder, CloseAPVDecoder)
@@ -34,7 +35,7 @@ vlc_module_begin ()
 
     add_integer_with_range( "openapv-threads", 0, 0, INT_MAX,
                  THREAD_TILES_TEXT, THREAD_TILES_LONGTEXT)
-vlc_module_end ()
+heimdall_module_end ()
 
 struct oapv_sys
 {
@@ -43,66 +44,66 @@ struct oapv_sys
 };
 
 static const struct {
-    vlc_fourcc_t vlc;
+    heimdall_fourcc_t heimdall;
     int          oapv;
-} vlc_oapv_chromas[] = {
-    { VLC_CODEC_I422_10L, OAPV_CS_SET(OAPV_CF_YCBCR422, 10, 0) },
-    { VLC_CODEC_I422_12L, OAPV_CS_SET(OAPV_CF_YCBCR422, 12, 0) },
-    { VLC_CODEC_I422_16L, OAPV_CS_SET(OAPV_CF_YCBCR422, 16, 0) },
-    { VLC_CODEC_I444_10L, OAPV_CS_SET(OAPV_CF_YCBCR444, 10, 0) },
-    { VLC_CODEC_I444_12L, OAPV_CS_SET(OAPV_CF_YCBCR444, 12, 0) },
-    { VLC_CODEC_I444_16L, OAPV_CS_SET(OAPV_CF_YCBCR444, 16, 0) },
-    { VLC_CODEC_GREY_10L, OAPV_CS_SET(OAPV_CF_YCBCR400, 10, 0) },
-    { VLC_CODEC_GREY_12L, OAPV_CS_SET(OAPV_CF_YCBCR400, 12, 0) },
-    { VLC_CODEC_GREY_16L, OAPV_CS_SET(OAPV_CF_YCBCR400, 16, 0) },
+} heimdall_oapv_chromas[] = {
+    { HEIMDALL_CODEC_I422_10L, OAPV_CS_SET(OAPV_CF_YCBCR422, 10, 0) },
+    { HEIMDALL_CODEC_I422_12L, OAPV_CS_SET(OAPV_CF_YCBCR422, 12, 0) },
+    { HEIMDALL_CODEC_I422_16L, OAPV_CS_SET(OAPV_CF_YCBCR422, 16, 0) },
+    { HEIMDALL_CODEC_I444_10L, OAPV_CS_SET(OAPV_CF_YCBCR444, 10, 0) },
+    { HEIMDALL_CODEC_I444_12L, OAPV_CS_SET(OAPV_CF_YCBCR444, 12, 0) },
+    { HEIMDALL_CODEC_I444_16L, OAPV_CS_SET(OAPV_CF_YCBCR444, 16, 0) },
+    { HEIMDALL_CODEC_GREY_10L, OAPV_CS_SET(OAPV_CF_YCBCR400, 10, 0) },
+    { HEIMDALL_CODEC_GREY_12L, OAPV_CS_SET(OAPV_CF_YCBCR400, 12, 0) },
+    { HEIMDALL_CODEC_GREY_16L, OAPV_CS_SET(OAPV_CF_YCBCR400, 16, 0) },
 };
 
-static inline vlc_fourcc_t FindVlcChroma(uint8_t profile_idc, uint8_t bit_depth_minus8, uint8_t chroma_format_idc)
+static inline heimdall_fourcc_t FindHeimdallChroma(uint8_t profile_idc, uint8_t bit_depth_minus8, uint8_t chroma_format_idc)
 {
     if (profile_idc == 33) // 422-10 profile
     {
         assert(chroma_format_idc == 2);
         assert(bit_depth_minus8 == 2);
-        return VLC_CODEC_I422_10L;
+        return HEIMDALL_CODEC_I422_10L;
     }
     if (profile_idc == 44) // 422-12 profile
     {
         assert(chroma_format_idc == 2);
         assert(bit_depth_minus8 >= 2 && bit_depth_minus8 <= 4);
-        return VLC_CODEC_I422_12L;
+        return HEIMDALL_CODEC_I422_12L;
     }
     if (profile_idc == 55) // 444-10 profile
     {
         assert(chroma_format_idc == 2 || chroma_format_idc == 3);
         assert(bit_depth_minus8 == 2);
-        return VLC_CODEC_I444_10L;
+        return HEIMDALL_CODEC_I444_10L;
     }
     if (profile_idc == 66) // 444-12 profile
     {
         assert(chroma_format_idc == 2 || chroma_format_idc == 3);
         assert(bit_depth_minus8 >= 2 && bit_depth_minus8 <= 4);
-        return VLC_CODEC_I444_12L;
+        return HEIMDALL_CODEC_I444_12L;
     }
     // if (profile_idc == 77) // 4444-10 profile
     // {
     //     assert(chroma_format_idc >= 2 && chroma_format_idc <= 4);
     //     assert(bit_depth_minus8 == 2);
-    //     return VLC_CODEC_V410;
+    //     return HEIMDALL_CODEC_V410;
     // }
     // if (profile_idc == 88) // 4444-12 profile
     // {
     //     assert(chroma_format_idc >= 2 && chroma_format_idc <= 4);
     //     assert(bit_depth_minus8 >= 2 && bit_depth_minus8 <= 4);
-    //     return VLC_CODEC_V410;
+    //     return HEIMDALL_CODEC_V410;
     // }
     if (bit_depth_minus8 == 2) // 10-bit
     {
         switch(chroma_format_idc)
         {
-            case 0: return VLC_CODEC_GREY_10L;
-            case 2: return VLC_CODEC_I422_10L;
-            case 3: return VLC_CODEC_I444_10L;
-            // case 4: return VLC_CODEC_I4444_10L;
+            case 0: return HEIMDALL_CODEC_GREY_10L;
+            case 2: return HEIMDALL_CODEC_I422_10L;
+            case 3: return HEIMDALL_CODEC_I444_10L;
+            // case 4: return HEIMDALL_CODEC_I4444_10L;
             default: return 0;
         }
     }
@@ -110,10 +111,10 @@ static inline vlc_fourcc_t FindVlcChroma(uint8_t profile_idc, uint8_t bit_depth_
     {
         switch(chroma_format_idc)
         {
-            case 0: return VLC_CODEC_GREY_12L;
-            case 2: return VLC_CODEC_I422_12L;
-            case 3: return VLC_CODEC_I444_12L;
-            // case 4: return VLC_CODEC_I4444_12L;
+            case 0: return HEIMDALL_CODEC_GREY_12L;
+            case 2: return HEIMDALL_CODEC_I422_12L;
+            case 3: return HEIMDALL_CODEC_I444_12L;
+            // case 4: return HEIMDALL_CODEC_I4444_12L;
             default: return 0;
         }
     }
@@ -121,10 +122,10 @@ static inline vlc_fourcc_t FindVlcChroma(uint8_t profile_idc, uint8_t bit_depth_
     // {
     //     switch(chroma_format_idc)
     //     {
-    //         case 0: return VLC_CODEC_GREY_14L;
-    //         case 2: return VLC_CODEC_I422_14L;
-    //         case 3: return VLC_CODEC_I444_14L;
-    // //        case 4: return VLC_CODEC_I4444_14L;
+    //         case 0: return HEIMDALL_CODEC_GREY_14L;
+    //         case 2: return HEIMDALL_CODEC_I422_14L;
+    //         case 3: return HEIMDALL_CODEC_I444_14L;
+    // //        case 4: return HEIMDALL_CODEC_I4444_14L;
     //         default: return 0;
     //     }
     // }
@@ -132,10 +133,10 @@ static inline vlc_fourcc_t FindVlcChroma(uint8_t profile_idc, uint8_t bit_depth_
     {
         switch(chroma_format_idc)
         {
-            case 0: return VLC_CODEC_GREY_16L;
-            case 2: return VLC_CODEC_I422_16L;
-            case 3: return VLC_CODEC_I444_16L;
-            // case 4: return VLC_CODEC_I4444_16L;
+            case 0: return HEIMDALL_CODEC_GREY_16L;
+            case 2: return HEIMDALL_CODEC_I422_16L;
+            case 3: return HEIMDALL_CODEC_I444_16L;
+            // case 4: return HEIMDALL_CODEC_I4444_16L;
             default: return 0;
         }
     }
@@ -207,7 +208,7 @@ static int Decode( decoder_t *p_dec, block_t *p_block )
     struct oapv_sys *sys = p_dec->p_sys;
 
     if (p_block == NULL) // drain nothing to do
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
 
     oapv_frms_t  ofrms = { 0 };
     oapvm_t      mid = { 0 };
@@ -220,7 +221,7 @@ static int Decode( decoder_t *p_dec, block_t *p_block )
     if (ofrms.frm[0].imgb == NULL)
     {
         block_Release(p_block);
-        return VLCDEC_ECRITICAL; // no more memory ?
+        return HEIMDALLDEC_ECRITICAL; // no more memory ?
     }
 
     bitb.addr = p_block->p_buffer;
@@ -232,7 +233,7 @@ static int Decode( decoder_t *p_dec, block_t *p_block )
         msg_Err( p_dec, "decoding error %d", err );
         ofrms.frm[0].imgb->release(ofrms.frm[0].imgb);
         block_Release(p_block);
-        return VLCDEC_ECRITICAL;
+        return HEIMDALLDEC_ECRITICAL;
     }
 
     assert(stats.aui.num_frms == 1 || stats.aui.num_frms == 0);
@@ -240,7 +241,7 @@ static int Decode( decoder_t *p_dec, block_t *p_block )
     {
         picture_t *decoded = ofrms.frm[0].imgb->pdata[0];
         picture_Hold(decoded);
-        decoded->date = p_block->i_pts != VLC_TICK_INVALID ? p_block->i_pts : p_block->i_dts;
+        decoded->date = p_block->i_pts != HEIMDALL_TICK_INVALID ? p_block->i_pts : p_block->i_dts;
 
         decoder_QueueVideo( p_dec, decoded );
     }
@@ -250,15 +251,15 @@ static int Decode( decoder_t *p_dec, block_t *p_block )
         ofrms.frm[i].imgb->release(ofrms.frm[i].imgb);
     }
 
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }
 
 
-int OpenAPVDecoder(vlc_object_t *o)
+int OpenAPVDecoder(heimdall_object_t *o)
 {
     decoder_t *dec = container_of(o, decoder_t, obj);
-    if (dec->fmt_in->i_codec != VLC_CODEC_APV)
-        return VLC_ENOTSUP;
+    if (dec->fmt_in->i_codec != HEIMDALL_CODEC_APV)
+        return HEIMDALL_ENOTSUP;
 
     uint8_t color_primaries = 2;
     uint8_t transfer_characteristics = 2;
@@ -277,21 +278,21 @@ int OpenAPVDecoder(vlc_object_t *o)
     if (configurationVersion != 1)
     {
         msg_Dbg(o, "unknown configuration %" PRIu8, configurationVersion);
-        return VLC_ENOTSUP;
+        return HEIMDALL_ENOTSUP;
     }
 
     uint32_t number_of_configuration_entry = bs_read(&extra, 8);
     if (number_of_configuration_entry != 1)
     {
         msg_Err(o, "unsupported number of configurations (%u)", (unsigned)number_of_configuration_entry);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     bs_skip(&extra, 8); // pbu_type
     uint8_t number_of_frame_info = bs_read(&extra, 8);
     if (number_of_frame_info != 1)
     {
         msg_Err(o, "unsupported number of frames (%u)", (unsigned)number_of_frame_info);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     bs_skip(&extra, 6);
     bool color_description_present_flag = bs_read1(&extra);
@@ -313,9 +314,9 @@ int OpenAPVDecoder(vlc_object_t *o)
         bs_skip(&extra, 7); // reserved
     }
 
-    struct oapv_sys *sys = vlc_obj_malloc(o, sizeof(*sys));
+    struct oapv_sys *sys = heimdall_obj_malloc(o, sizeof(*sys));
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     oapvd_cdesc_t desc = { 0 };
     desc.threads = var_InheritInteger( o, "openapv-threads" );
@@ -323,19 +324,19 @@ int OpenAPVDecoder(vlc_object_t *o)
     if (sys->decoder == NULL)
     {
         msg_Err(o, "failed to create decoder");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if (dec->fmt_in->video.primaries == COLOR_PRIMARIES_UNDEF)
-        dec->fmt_out.video.primaries = iso_23001_8_cp_to_vlc_primaries(color_primaries);
+        dec->fmt_out.video.primaries = iso_23001_8_cp_to_heimdall_primaries(color_primaries);
     else
         dec->fmt_out.video.primaries = dec->fmt_in->video.primaries;
     if (dec->fmt_in->video.transfer == TRANSFER_FUNC_UNDEF)
-        dec->fmt_out.video.transfer = iso_23001_8_tc_to_vlc_xfer(transfer_characteristics);
+        dec->fmt_out.video.transfer = iso_23001_8_tc_to_heimdall_xfer(transfer_characteristics);
     else
         dec->fmt_out.video.transfer = dec->fmt_in->video.transfer;
     if (dec->fmt_in->video.space == COLOR_SPACE_UNDEF)
-        dec->fmt_out.video.space = iso_23001_8_mc_to_vlc_coeffs(matrix_coefficients);
+        dec->fmt_out.video.space = iso_23001_8_mc_to_heimdall_coeffs(matrix_coefficients);
     else
         dec->fmt_out.video.space = dec->fmt_in->video.space;
     if (dec->fmt_in->video.color_range == COLOR_RANGE_UNDEF)
@@ -346,7 +347,7 @@ int OpenAPVDecoder(vlc_object_t *o)
     dec->fmt_out.video.i_width = frame_width;
     dec->fmt_out.video.i_height = frame_height;
 
-    dec->fmt_out.i_codec = FindVlcChroma(profile_idc, bit_depth_minus8, chroma_format_idc);
+    dec->fmt_out.i_codec = FindHeimdallChroma(profile_idc, bit_depth_minus8, chroma_format_idc);
     dec->fmt_out.video.i_chroma = dec->fmt_out.i_codec;
 
     dec->p_sys = sys;
@@ -355,23 +356,23 @@ int OpenAPVDecoder(vlc_object_t *o)
     {
         msg_Err(o, "decoder_UpdateVideoOutput failed");
         CloseAPVDecoder(o);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
-    for (size_t i=0; i < ARRAY_SIZE(vlc_oapv_chromas); i++)
+    for (size_t i=0; i < ARRAY_SIZE(heimdall_oapv_chromas); i++)
     {
-        if (dec->fmt_out.video.i_chroma == vlc_oapv_chromas[i].vlc)
+        if (dec->fmt_out.video.i_chroma == heimdall_oapv_chromas[i].heimdall)
         {
-            sys->cs = vlc_oapv_chromas[i].oapv;
+            sys->cs = heimdall_oapv_chromas[i].oapv;
             break;
         }
     }
 
     dec->pf_decode = Decode;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-void CloseAPVDecoder(vlc_object_t *o)
+void CloseAPVDecoder(heimdall_object_t *o)
 {
     decoder_t *dec = container_of(o, decoder_t, obj);
     struct oapv_sys *sys = dec->p_sys;

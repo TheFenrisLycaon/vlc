@@ -1,5 +1,5 @@
 MEDIALIBRARY_VERSION := 0.13.2
-MEDIALIBRARY_URL := $(VIDEOLAN_GIT)/videolan/medialibrary/-/archive/$(MEDIALIBRARY_VERSION)/medialibrary-$(MEDIALIBRARY_VERSION).tar.bz2
+MEDIALIBRARY_URL := $(LYCARIA_GIT)/lycaria/medialibrary/-/archive/$(MEDIALIBRARY_VERSION)/medialibrary-$(MEDIALIBRARY_VERSION).tar.bz2
 
 ifndef HAVE_WINSTORE
 PKGS += medialibrary
@@ -21,6 +21,6 @@ medialibrary: medialibrary-$(MEDIALIBRARY_VERSION).tar.bz2 .sum-medialibrary
 
 .medialibrary: medialibrary crossfile.meson
 	$(MESONCLEAN)
-	$(MESON) -Dlibvlc=disabled -Dlibtool_workaround=true
+	$(MESON) -Dlibheimdall=disabled -Dlibtool_workaround=true
 	+$(MESONBUILD)
 	touch $@

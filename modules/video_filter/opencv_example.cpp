@@ -5,6 +5,7 @@
  *****************************************************************************
  * Copyright (C) 2006-2012 VLC authors and VideoLAN
  * Copyright (C) 2012 Edward Wang
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Dugal Harris <dugalh@protoclea.co.za>
  *          Edward Wang <edward.c.wang@compdigitec.com>
@@ -32,12 +33,12 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_picture.h>
-#include <vlc_vout.h>
-#include <vlc_image.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
+#include <heimdall_vout.h>
+#include <heimdall_image.h>
 #include "filter_event_info.h"
 
 #include <opencv2/core/core_c.h>
@@ -68,7 +69,7 @@ public:
 /****************************************************************************
  * Local prototypes
  ****************************************************************************/
-static int  OpenFilter ( vlc_object_t * );
+static int  OpenFilter ( heimdall_object_t * );
 static void CloseFilter( filter_t * );
 
 static picture_t *Filter( filter_t *, picture_t * );
@@ -76,7 +77,7 @@ static picture_t *Filter( filter_t *, picture_t * );
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("OpenCV face detection example filter") )
     set_shortname( N_( "OpenCV example" ))
     set_capability( "opencv internal filter", 1 )
@@ -88,12 +89,12 @@ vlc_module_begin ()
     add_string( "opencv-haarcascade-file", "c:\\haarcascade_frontalface_alt.xml",
                           N_("Haar cascade filename"),
                           N_("Name of XML file containing Haar cascade description"))
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * OpenFilter: probe the filter and return score
  *****************************************************************************/
-static int OpenFilter( vlc_object_t *p_this )
+static int OpenFilter( heimdall_object_t *p_this )
 {
     filter_t *p_filter = (filter_t*)p_this;
     filter_sys_t *p_sys;
@@ -102,7 +103,7 @@ static int OpenFilter( vlc_object_t *p_this )
     p_filter->p_sys = p_sys = new filter_sys_t;
     if(p_sys == nullptr)
     {
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     //init the video_filter_event_info_t struct
@@ -111,7 +112,7 @@ static int OpenFilter( vlc_object_t *p_this )
     p_sys->i_id = 0;
 
     static const struct FilterOperationInitializer {
-        struct vlc_filter_operations ops {};
+        struct heimdall_filter_operations ops {};
         FilterOperationInitializer()
         {
             ops.filter_video = Filter;
@@ -121,12 +122,12 @@ static int OpenFilter( vlc_object_t *p_this )
     p_filter->ops = &filter_ops.ops;
 
     //create the VIDEO_FILTER_EVENT_VARIABLE
-    vlc_value_t val;
-    if (var_Create( vlc_object_instance(p_filter), VIDEO_FILTER_EVENT_VARIABLE, VLC_VAR_ADDRESS | VLC_VAR_DOINHERIT ) != VLC_SUCCESS)
+    heimdall_value_t val;
+    if (var_Create( heimdall_object_instance(p_filter), VIDEO_FILTER_EVENT_VARIABLE, HEIMDALL_VAR_ADDRESS | HEIMDALL_VAR_DOINHERIT ) != HEIMDALL_SUCCESS)
         msg_Err( p_filter, "Could not create %s", VIDEO_FILTER_EVENT_VARIABLE);
 
     val.p_address = &(p_sys->event_info);
-    if (var_Set( vlc_object_instance(p_filter), VIDEO_FILTER_EVENT_VARIABLE, val )!=VLC_SUCCESS)
+    if (var_Set( heimdall_object_instance(p_filter), VIDEO_FILTER_EVENT_VARIABLE, val )!=HEIMDALL_SUCCESS)
         msg_Err( p_filter, "Could not set %s", VIDEO_FILTER_EVENT_VARIABLE);
 
     //OpenCV init specific to this example
@@ -136,7 +137,7 @@ static int OpenFilter( vlc_object_t *p_this )
     }
     free( filename );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -148,7 +149,7 @@ static void CloseFilter( filter_t *p_filter )
 
     delete p_sys;
 
-    var_Destroy( vlc_object_instance(p_filter), VIDEO_FILTER_EVENT_VARIABLE);
+    var_Destroy( heimdall_object_instance(p_filter), VIDEO_FILTER_EVENT_VARIABLE);
 }
 
 /****************************************************************************
@@ -211,7 +212,7 @@ static picture_t *Filter( filter_t *p_filter, picture_t *p_pic )
         p_sys->event_info.p_region[i].i_height = r.height;
     }
     
-    var_TriggerCallback( vlc_object_instance(p_filter), VIDEO_FILTER_EVENT_VARIABLE );
+    var_TriggerCallback( heimdall_object_instance(p_filter), VIDEO_FILTER_EVENT_VARIABLE );
 
     return p_pic;
 }

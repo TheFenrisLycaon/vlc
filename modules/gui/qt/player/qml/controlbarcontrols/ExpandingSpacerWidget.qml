@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,15 +21,15 @@ import QtQuick.Templates as T
 import QtQuick.Layouts
 
 
-import VLC.Widgets as Widgets
-import VLC.Style
+import Heimdall.Widgets as Widgets
+import Heimdall.Style
 
 
 Item {
     enabled: false
 
-    implicitWidth: VLCStyle.widthExtendedSpacer
-    implicitHeight: VLCStyle.icon_toolbar
+    implicitWidth: HeimdallStyle.widthExtendedSpacer
+    implicitHeight: HeimdallStyle.icon_toolbar
 
     property bool paintOnly: false
     property alias spacetextExt: spacetext
@@ -44,12 +45,12 @@ Item {
         id: spacetext
         anchors.centerIn: parent
 
-        text: VLCIcons.space
+        text: HeimdallIcons.space
         color: theme.fg.secondary
         visible: paintOnly
 
-        font.pixelSize: VLCStyle.icon_toolbar
-        font.family: VLCIcons.fontFamily
+        font.pixelSize: HeimdallStyle.icon_toolbar
+        font.family: HeimdallIcons.fontFamily
 
         verticalAlignment: Text.AlignVCenter
         horizontalAlignment: Text.AlignHCenter

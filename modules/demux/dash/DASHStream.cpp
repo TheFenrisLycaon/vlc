@@ -2,6 +2,7 @@
  * DASHStream.cpp
  *****************************************************************************
  * Copyright (C) 2015 - VideoLAN and VLC authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -30,7 +31,7 @@ DASHStream::DASHStream(demux_t *demux)
 {
 }
 
-AbstractDemuxer *DASHStream::newDemux(vlc_object_t *p_obj, const StreamFormat &format,
+AbstractDemuxer *DASHStream::newDemux(heimdall_object_t *p_obj, const StreamFormat &format,
                                       es_out_t *out, AbstractSourceStream *source) const
 {
     AbstractDemuxer *ret = nullptr;

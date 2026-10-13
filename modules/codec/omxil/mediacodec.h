@@ -2,6 +2,7 @@
  * mediacodec.h: Video decoder module using the Android MediaCodec API
  *****************************************************************************
  * Copyright © 2015 VLC authors and VideoLAN, VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -18,10 +19,10 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_MEDIACODEC_H
-#define VLC_MEDIACODEC_H
+#ifndef HEIMDALL_MEDIACODEC_H
+#define HEIMDALL_MEDIACODEC_H
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 #include "../../video_output/android/utils.h"
 
 typedef struct mc_api mc_api;
@@ -103,7 +104,7 @@ struct mc_api_out
         struct
         {
             int i_index;
-            vlc_tick_t i_ts;
+            heimdall_tick_t i_ts;
             const uint8_t *p_ptr;
             size_t i_size;
         } buf;
@@ -156,10 +157,10 @@ struct mc_api
     mc_api_sys *p_sys;
 
     /* Set before init */
-    vlc_object_t *  p_obj;
+    heimdall_object_t *  p_obj;
     const char *    psz_mime;
     enum es_format_category_e i_cat;
-    vlc_fourcc_t    i_codec;
+    heimdall_fourcc_t    i_codec;
 
     /* Set after prepare */
     int  i_quirks;
@@ -182,13 +183,13 @@ struct mc_api
      * - MC_API_INFO_OUTPUT_FORMAT_CHANGED if output format changed
      * - MC_API_INFO_OUTPUT_BUFFERS_CHANGED if buffers changed
      * - MC_API_ERROR in case of error. */
-    int (*dequeue_in)(mc_api *, vlc_tick_t i_timeout);
-    int (*dequeue_out)(mc_api *, vlc_tick_t i_timeout);
+    int (*dequeue_in)(mc_api *, heimdall_tick_t i_timeout);
+    int (*dequeue_out)(mc_api *, heimdall_tick_t i_timeout);
 
     /* i_index is the index returned by dequeue_in and should be >= 0
      * Returns 0 if buffer is successfully queued, or MC_API_ERROR */
     int (*queue_in)(mc_api *, int i_index, const void *p_buf, size_t i_size,
-                    vlc_tick_t i_ts, bool b_config);
+                    heimdall_tick_t i_ts, bool b_config);
 
     /* i_index is the index returned by dequeue_out and should be >= 0,
      * MC_API_INFO_OUTPUT_FORMAT_CHANGED, or MC_API_INFO_OUTPUT_BUFFERS_CHANGED.

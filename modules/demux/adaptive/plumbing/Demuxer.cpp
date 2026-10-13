@@ -2,6 +2,7 @@
  * Demuxer.cpp
  *****************************************************************************
  * Copyright © 2015 - VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -24,8 +25,8 @@
 
 #include "Demuxer.hpp"
 
-#include <vlc_stream.h>
-#include <vlc_demux.h>
+#include <heimdall_stream.h>
+#include <heimdall_demux.h>
 #include "SourceStream.hpp"
 #include "../StreamFormat.hpp"
 #include "CommandsQueue.hpp"
@@ -80,16 +81,16 @@ AbstractDemuxer::Status AbstractDemuxer::returnCode(int i_ret)
 {
     switch(i_ret)
     {
-        case VLC_DEMUXER_SUCCESS:
+        case HEIMDALL_DEMUXER_SUCCESS:
             return Status::Success;
-        case VLC_DEMUXER_EGENERIC:
+        case HEIMDALL_DEMUXER_EGENERIC:
             return Status::Eof;
         default:
             return Status::Error;
     };
 }
 
-Demuxer::Demuxer(vlc_object_t *p_obj_, const std::string &name_,
+Demuxer::Demuxer(heimdall_object_t *p_obj_, const std::string &name_,
                  es_out_t *out, AbstractSourceStream *source)
     : AbstractDemuxer()
 {
@@ -123,11 +124,11 @@ bool Demuxer::create()
     if(!p_newstream)
         return false;
 
-    p_demux = demux_New( p_obj, name.c_str(), "vlc://nop",
+    p_demux = demux_New( p_obj, name.c_str(), "heimdall://nop",
                          p_newstream, p_es_out );
     if(!p_demux)
     {
-        vlc_stream_Delete(p_newstream);
+        heimdall_stream_Delete(p_newstream);
         b_eof = true;
         return false;
     }
@@ -151,24 +152,24 @@ void Demuxer::destroy()
 
 void Demuxer::drain()
 {
-    while(p_demux && demux_Demux(p_demux) == VLC_DEMUXER_SUCCESS);
+    while(p_demux && demux_Demux(p_demux) == HEIMDALL_DEMUXER_SUCCESS);
 }
 
-Demuxer::Status Demuxer::demux(vlc_tick_t)
+Demuxer::Status Demuxer::demux(heimdall_tick_t)
 {
     if(!p_demux || b_eof)
         return Status::Eof;
     int i_ret = demux_Demux(p_demux);
-    if(i_ret != VLC_DEMUXER_SUCCESS)
+    if(i_ret != HEIMDALL_DEMUXER_SUCCESS)
         b_eof = true;
     return returnCode(i_ret);
 }
 
-SlaveDemuxer::SlaveDemuxer(vlc_object_t *p_obj, const std::string &name,
+SlaveDemuxer::SlaveDemuxer(heimdall_object_t *p_obj, const std::string &name,
                            es_out_t *out, AbstractSourceStream *source)
     : Demuxer(p_obj, name, out, source)
 {
-    length = VLC_TICK_INVALID;
+    length = HEIMDALL_TICK_INVALID;
     b_reinitsonseek = false;
     b_startsfromzero = false;
 }
@@ -182,19 +183,19 @@ bool SlaveDemuxer::create()
 {
     if(Demuxer::create())
     {
-        length = VLC_TICK_INVALID;
-        if(demux_Control(p_demux, DEMUX_GET_LENGTH, &length) != VLC_SUCCESS)
+        length = HEIMDALL_TICK_INVALID;
+        if(demux_Control(p_demux, DEMUX_GET_LENGTH, &length) != HEIMDALL_SUCCESS)
             b_eof = true;
         return true;
     }
     return false;
 }
 
-AbstractDemuxer::Status SlaveDemuxer::demux(vlc_tick_t nz_deadline)
+AbstractDemuxer::Status SlaveDemuxer::demux(heimdall_tick_t nz_deadline)
 {
     /* Always call with increment or buffering will get slow stuck */
-    vlc_tick_t i_next_demux_time = VLC_TICK_0 + nz_deadline + VLC_TICK_FROM_MS(250);
-    if( demux_Control(p_demux, DEMUX_SET_NEXT_DEMUX_TIME, i_next_demux_time ) != VLC_SUCCESS )
+    heimdall_tick_t i_next_demux_time = HEIMDALL_TICK_0 + nz_deadline + HEIMDALL_TICK_FROM_MS(250);
+    if( demux_Control(p_demux, DEMUX_SET_NEXT_DEMUX_TIME, i_next_demux_time ) != HEIMDALL_SUCCESS )
     {
         b_eof = true;
         return Status::Eof;

@@ -1,5 +1,5 @@
 <!--  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - >
-<  view.html: VLC media player web interface - VLM
+<  view.html: Heimdall media player web interface - VLM
 < - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - >
 <  Copyright (C) 2005-2014 VLC authors and VideoLAN
 <
@@ -22,7 +22,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml">
 
 <head>
-	<title><?vlc gettext("VLC media player - Flash Viewer") ?></title>
+	<title><?heimdall gettext("Heimdall media player - Flash Viewer") ?></title>
 	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 	<meta name="referrer" content="no-referrer" />
 	<link href="favicon.ico" type="image/x-icon" rel="shortcut icon"/>
@@ -62,19 +62,19 @@
 
 <body>
 	<div id="window_stream" class="ui-widget-content">
-		<h3 class="ui-widget-header"><?vlc gettext("Streaming Output") ?></h3>
+		<h3 class="ui-widget-header"><?heimdall gettext("Streaming Output") ?></h3>
 		<div class="ui-widget-content">
-			<div id="button_stream_config" class="button icon ui-widget ui-state-default" title="<?vlc gettext("Configure") ?>" opendialog="window_stream_config"><span class="ui-icon ui-icon-wrench"></span></div>
+			<div id="button_stream_config" class="button icon ui-widget ui-state-default" title="<?heimdall gettext("Configure") ?>" opendialog="window_stream_config"><span class="ui-icon ui-icon-wrench"></span></div>
 			<div align="center">
 				<div href="http://localhost:8081/stream.flv" style="display:block;width:720px;height:500px" id="player"></div>
 			</div>
 			<div>&nbsp;</div>
 		</div>
 		<div class="footer">
-			<?vlc print(vlc.misc.version() .. " - Lua Web Interface - " .. vlc.misc.copyright()) ?>
+			<?heimdall print(heimdall.misc.version() .. " - Lua Web Interface - " .. heimdall.misc.copyright()) ?>
 		</div>
 	</div>
-	<?vlc
+	<?heimdall
 
 	dialogs("stream_config_window.html");
 	?>

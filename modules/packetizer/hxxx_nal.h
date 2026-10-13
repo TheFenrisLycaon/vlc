@@ -2,6 +2,7 @@
  * hxxx_nal.h: Common helpers for AVC/HEVC NALU
  *****************************************************************************
  * Copyright (C) 2014-2015 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,8 +23,8 @@
 
 #include <stdbit.h>
 
-#include <vlc_common.h>
-#include <vlc_es.h>
+#include <heimdall_common.h>
+#include <heimdall_es.h>
 #include "startcode_helper.h"
 
 static const uint8_t  annexb_startcode4[] = { 0x00, 0x00, 0x00, 0x01 };

@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2022 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,9 +30,9 @@
 #include <functional>
 
 class MediaLib;
-struct vlc_medialibrary_t;
-struct vlc_ml_event_callback_t;
-struct vlc_ml_event_t;
+struct heimdall_medialibrary_t;
+struct heimdall_ml_event_callback_t;
+struct heimdall_ml_event_t;
 
 
 class ThumbnailCollector : public QObject
@@ -49,12 +50,12 @@ signals:
     void finished();
 
 private:
-    static void onVlcMLEvent(void *data, const vlc_ml_event_t *event);
+    static void onHeimdallMLEvent(void *data, const heimdall_ml_event_t *event);
 
     QMutex m_mut;
     MediaLib *m_ml {};
-    std::unique_ptr<vlc_ml_event_callback_t,
-                    std::function<void(vlc_ml_event_callback_t*)>> m_ml_event_handle {};
+    std::unique_ptr<heimdall_ml_event_callback_t,
+                    std::function<void(heimdall_ml_event_callback_t*)>> m_ml_event_handle {};
 
     QSet<int64_t> m_pending;
     QHash<int64_t, QString> m_thumbnails;

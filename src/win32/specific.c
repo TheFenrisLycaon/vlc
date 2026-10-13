@@ -2,6 +2,7 @@
  * specific.c: Win32 specific initialization
  *****************************************************************************
  * Copyright (C) 2001-2004, 2010 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Samuel Hocevar <sam@zoy.org>
  *          Gildas Bazin <gbazin@videolan.org>
@@ -28,9 +29,9 @@
 #ifndef UNICODE
 # define UNICODE
 #endif
-#include <vlc_common.h>
-#include "../libvlc.h"
-#include "../lib/libvlc_internal.h"
+#include <heimdall_common.h>
+#include "../libheimdall.h"
+#include "../lib/libheimdall_internal.h"
 
 #include <winsock2.h>
 
@@ -67,9 +68,9 @@ typedef struct
     int argc;
     int enqueue;
     char data[];
-} vlc_ipc_data_t;
+} heimdall_ipc_data_t;
 
-void system_Configure( libvlc_int_t *p_this, int i_argc, const char *const ppsz_argv[] )
+void system_Configure( libheimdall_int_t *p_this, int i_argc, const char *const ppsz_argv[] )
 {
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
     if( var_InheritBool( p_this, "one-instance" )
@@ -81,7 +82,7 @@ void system_Configure( libvlc_int_t *p_this, int i_argc, const char *const ppsz_
         msg_Info( p_this, "one instance mode ENABLED");
 
         /* Use a named mutex to check if another instance is already running */
-        if( !( hmutex = CreateMutex( 0, TRUE, L"VLC ipc " TEXT(VERSION) ) ) )
+        if( !( hmutex = CreateMutex( 0, TRUE, L"Heimdall ipc " TEXT(VERSION) ) ) )
         {
             /* Failed for some reason. Just ignore the option and go on as
              * normal. */
@@ -92,7 +93,7 @@ void system_Configure( libvlc_int_t *p_this, int i_argc, const char *const ppsz_
 
         if( GetLastError() != ERROR_ALREADY_EXISTS )
         {
-            libvlc_InternalAddIntf( p_this, "win_msg,none" );
+            libheimdall_InternalAddIntf( p_this, "win_msg,none" );
             /* Initialization done.
              * Release the mutex to unblock other instances */
             ReleaseMutex( hmutex );
@@ -108,7 +109,7 @@ void system_Configure( libvlc_int_t *p_this, int i_argc, const char *const ppsz_
 
             /* Locate the window created by the IPC helper thread of the
              * 1st instance */
-            if( !( ipcwindow = FindWindow( 0, L"VLC ipc " TEXT(VERSION) ) ) )
+            if( !( ipcwindow = FindWindow( 0, L"Heimdall ipc " TEXT(VERSION) ) ) )
             {
                 msg_Err( p_this, "one instance mode DISABLED "
                          "(couldn't find 1st instance of program)" );
@@ -122,7 +123,7 @@ void system_Configure( libvlc_int_t *p_this, int i_argc, const char *const ppsz_
             {
                 COPYDATASTRUCT wm_data;
                 int i_opt;
-                vlc_ipc_data_t *p_data;
+                heimdall_ipc_data_t *p_data;
                 size_t i_data = sizeof (*p_data);
 
                 for( i_opt = 0; i_opt < i_argc; i_opt++ )

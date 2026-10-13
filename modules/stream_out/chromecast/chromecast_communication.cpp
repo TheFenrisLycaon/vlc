@@ -2,6 +2,7 @@
  * chromecast_communication.cpp: Handle chromecast protocol messages
  *****************************************************************************
  * Copyright © 2014-2017 VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Adrien Maglo <magsoft@videolan.org>
  *          Jean-Baptiste Kempf <jb@videolan.org>
@@ -34,10 +35,10 @@
 
 #include <iomanip>
 
-#include <vlc_input_item.h>
-#include <vlc_url.h>
+#include <heimdall_input_item.h>
+#include <heimdall_url.h>
 
-ChromecastCommunication::ChromecastCommunication( vlc_object_t* p_module,
+ChromecastCommunication::ChromecastCommunication( heimdall_object_t* p_module,
     std::string serverPath, unsigned int serverPort, const char* targetIP, unsigned int devicePort )
     : m_module( p_module )
     , m_creds( NULL )
@@ -50,20 +51,20 @@ ChromecastCommunication::ChromecastCommunication( vlc_object_t* p_module,
     if (devicePort == 0)
         devicePort = CHROMECAST_CONTROL_PORT;
 
-    m_creds = vlc_tls_ClientCreate( vlc_object_parent(m_module) );
+    m_creds = heimdall_tls_ClientCreate( heimdall_object_parent(m_module) );
     if (m_creds == NULL)
         throw std::runtime_error( "Failed to create TLS client" );
 
-    m_tls = vlc_tls_SocketOpenTLS( m_creds, targetIP, devicePort, "tcps",
+    m_tls = heimdall_tls_SocketOpenTLS( m_creds, targetIP, devicePort, "tcps",
                                    NULL, NULL );
     if (m_tls == NULL)
     {
-        vlc_tls_ClientDelete(m_creds);
+        heimdall_tls_ClientDelete(m_creds);
         throw std::runtime_error( "Failed to create client session" );
     }
 
     char psz_localIP[NI_MAXNUMERICHOST];
-    if (net_GetSockAddress( vlc_tls_GetFD(m_tls), psz_localIP, NULL ))
+    if (net_GetSockAddress( heimdall_tls_GetFD(m_tls), psz_localIP, NULL ))
         throw std::runtime_error( "Cannot get local IP address" );
 
     m_serverIp = psz_localIP;
@@ -78,8 +79,8 @@ void ChromecastCommunication::disconnect()
 {
     if ( m_tls != NULL )
     {
-        vlc_tls_Close(m_tls);
-        vlc_tls_ClientDelete(m_creds);
+        heimdall_tls_Close(m_tls);
+        heimdall_tls_ClientDelete(m_creds);
         m_tls = NULL;
     }
 }
@@ -103,7 +104,7 @@ int ChromecastCommunication::buildMessage(const std::string & namespace_,
     msg.set_protocol_version(castchannel::CastMessage_ProtocolVersion_CASTV2_1_0);
     msg.set_namespace_(namespace_);
     msg.set_payload_type(payloadType);
-    msg.set_source_id("sender-vlc");
+    msg.set_source_id("sender-heimdall");
     msg.set_destination_id(destinationId);
     if (payloadType == castchannel::CastMessage_PayloadType_STRING)
         msg.set_payload_utf8(payload);
@@ -149,9 +150,9 @@ ssize_t ChromecastCommunication::receive( uint8_t *p_data, size_t i_size, int i_
 
             struct pollfd ufd[1];
             ufd[0].events = POLLIN;
-            ufd[0].fd = vlc_tls_GetPollFD( m_tls, &ufd[0].events );
+            ufd[0].fd = heimdall_tls_GetPollFD( m_tls, &ufd[0].events );
 
-            ssize_t val = vlc_poll_i11e(ufd, 1, i_timeout);
+            ssize_t val = heimdall_poll_i11e(ufd, 1, i_timeout);
             if ( val < 0 )
                 return -1;
             else if ( val == 0 )
@@ -196,7 +197,7 @@ unsigned ChromecastCommunication::msgAuth()
 
     return buildMessage(NAMESPACE_DEVICEAUTH, authMessage.SerializeAsString(),
                         DEFAULT_CHOMECAST_RECEIVER, castchannel::CastMessage_PayloadType_BINARY)
-           == VLC_SUCCESS ? 1 : kInvalidId;
+           == HEIMDALL_SUCCESS ? 1 : kInvalidId;
 }
 
 
@@ -204,7 +205,7 @@ unsigned ChromecastCommunication::msgPing()
 {
     std::string s("{\"type\":\"PING\"}");
     return buildMessage( NAMESPACE_HEARTBEAT, s, DEFAULT_CHOMECAST_RECEIVER )
-           == VLC_SUCCESS ? 1 : kInvalidId;
+           == HEIMDALL_SUCCESS ? 1 : kInvalidId;
 }
 
 
@@ -212,21 +213,21 @@ unsigned ChromecastCommunication::msgPong()
 {
     std::string s("{\"type\":\"PONG\"}");
     return buildMessage( NAMESPACE_HEARTBEAT, s, DEFAULT_CHOMECAST_RECEIVER )
-           == VLC_SUCCESS ? 1 : kInvalidId;
+           == HEIMDALL_SUCCESS ? 1 : kInvalidId;
 }
 
 unsigned ChromecastCommunication::msgConnect( const std::string& destinationId )
 {
     std::string s("{\"type\":\"CONNECT\"}");
     return buildMessage( NAMESPACE_CONNECTION, s, destinationId )
-           == VLC_SUCCESS ? 1 : kInvalidId;
+           == HEIMDALL_SUCCESS ? 1 : kInvalidId;
 }
 
 unsigned ChromecastCommunication::msgReceiverClose( const std::string& destinationId )
 {
     std::string s("{\"type\":\"CLOSE\"}");
     return buildMessage( NAMESPACE_CONNECTION, s, destinationId )
-           == VLC_SUCCESS ? 1 : kInvalidId;
+           == HEIMDALL_SUCCESS ? 1 : kInvalidId;
 }
 
 unsigned ChromecastCommunication::msgReceiverGetStatus()
@@ -237,7 +238,7 @@ unsigned ChromecastCommunication::msgReceiverGetStatus()
        <<  "\"requestId\":" << id << "}";
 
     return buildMessage( NAMESPACE_RECEIVER, ss.str(), DEFAULT_CHOMECAST_RECEIVER )
-           == VLC_SUCCESS ? id : kInvalidId;
+           == HEIMDALL_SUCCESS ? id : kInvalidId;
 }
 
 unsigned ChromecastCommunication::msgReceiverLaunchApp()
@@ -249,7 +250,7 @@ unsigned ChromecastCommunication::msgReceiverLaunchApp()
        <<  "\"requestId\":" << id << "}";
 
     return buildMessage( NAMESPACE_RECEIVER, ss.str(), DEFAULT_CHOMECAST_RECEIVER )
-           == VLC_SUCCESS ? id : kInvalidId;
+           == HEIMDALL_SUCCESS ? id : kInvalidId;
 }
 
 unsigned ChromecastCommunication::msgPlayerGetStatus( const std::string& destinationId )
@@ -260,7 +261,7 @@ unsigned ChromecastCommunication::msgPlayerGetStatus( const std::string& destina
        <<  "\"requestId\":" << id
        << "}";
 
-    return pushMediaPlayerMessage( destinationId, ss ) == VLC_SUCCESS ? id : kInvalidId;
+    return pushMediaPlayerMessage( destinationId, ss ) == HEIMDALL_SUCCESS ? id : kInvalidId;
 }
 
 static std::string escape_json(const std::string &s)
@@ -278,9 +279,9 @@ static std::string escape_json(const std::string &s)
     return o.str();
 }
 
-static std::string meta_get_escaped(const vlc_meta_t *p_meta, vlc_meta_type_t type)
+static std::string meta_get_escaped(const heimdall_meta_t *p_meta, heimdall_meta_type_t type)
 {
-    const char *psz = vlc_meta_Get(p_meta, type);
+    const char *psz = heimdall_meta_Get(p_meta, type);
     if (!psz)
         return std::string();
     return escape_json(std::string(psz));
@@ -289,12 +290,12 @@ static std::string meta_get_escaped(const vlc_meta_t *p_meta, vlc_meta_type_t ty
 std::string ChromecastCommunication::getServerBaseURL() const
 {
 
-    vlc_url_t url_comps{};
+    heimdall_url_t url_comps{};
     url_comps.psz_protocol = (char*)"http";
     url_comps.psz_host = (char*)m_serverIp.c_str();
     url_comps.i_port = m_serverPort;
 
-    char *url = vlc_uri_compose(&url_comps);
+    char *url = heimdall_uri_compose(&url_comps);
     if (!url)
         throw std::bad_alloc();
     std::string url_str = url;
@@ -304,8 +305,8 @@ std::string ChromecastCommunication::getServerBaseURL() const
 }
 
 std::string ChromecastCommunication::GetMedia( const std::string& mime,
-                                               const vlc_meta_t *p_meta,
-                                               vlc_tick_t input_length )
+                                               const heimdall_meta_t *p_meta,
+                                               heimdall_tick_t input_length )
 {
     std::stringstream ss;
 
@@ -321,22 +322,22 @@ std::string ChromecastCommunication::GetMedia( const std::string& mime,
 
     if( p_meta )
     {
-        title = meta_get_escaped( p_meta, vlc_meta_Title );
-        artwork = meta_get_escaped( p_meta, vlc_meta_ArtworkURL );
+        title = meta_get_escaped( p_meta, heimdall_meta_Title );
+        artwork = meta_get_escaped( p_meta, heimdall_meta_ArtworkURL );
 
         if( b_music && !title.empty() )
         {
-            artist = meta_get_escaped( p_meta, vlc_meta_Artist );
-            album = meta_get_escaped( p_meta, vlc_meta_Album );
-            albumartist = meta_get_escaped( p_meta, vlc_meta_AlbumArtist );
-            tracknumber = meta_get_escaped( p_meta, vlc_meta_TrackNumber );
-            discnumber = meta_get_escaped( p_meta, vlc_meta_DiscNumber );
+            artist = meta_get_escaped( p_meta, heimdall_meta_Artist );
+            album = meta_get_escaped( p_meta, heimdall_meta_Album );
+            albumartist = meta_get_escaped( p_meta, heimdall_meta_AlbumArtist );
+            tracknumber = meta_get_escaped( p_meta, heimdall_meta_TrackNumber );
+            discnumber = meta_get_escaped( p_meta, heimdall_meta_DiscNumber );
         }
         if( title.empty() )
         {
-            title = meta_get_escaped( p_meta, vlc_meta_NowPlaying );
+            title = meta_get_escaped( p_meta, heimdall_meta_NowPlaying );
             if( title.empty() )
-                title = meta_get_escaped( p_meta, vlc_meta_ESNowPlaying );
+                title = meta_get_escaped( p_meta, heimdall_meta_ESNowPlaying );
         }
 
         if ( !title.empty() )
@@ -369,7 +370,7 @@ std::string ChromecastCommunication::GetMedia( const std::string& mime,
 
     msg_Dbg( m_module, "s_chromecast_url: %s", chromecast_url.c_str());
 
-    const bool is_buffered = input_length > VLC_TICK_0;
+    const bool is_buffered = input_length > HEIMDALL_TICK_0;
     const char *stream_type;
     if (is_buffered)
         stream_type = "BUFFERED";
@@ -386,7 +387,7 @@ std::string ChromecastCommunication::GetMedia( const std::string& mime,
     {
         std::stringstream duration;
         duration.setf( std::ios_base::fixed, std::ios_base::floatfield );
-        duration << std::setprecision(6) << secf_from_vlc_tick(input_length);
+        duration << std::setprecision(6) << secf_from_heimdall_tick(input_length);
         ss << ",\"duration\":" << duration.str();
     }
 
@@ -394,7 +395,7 @@ std::string ChromecastCommunication::GetMedia( const std::string& mime,
 }
 
 unsigned ChromecastCommunication::msgPlayerLoad( const std::string& destinationId,
-                                             const std::string& mime, const vlc_meta_t *p_meta, vlc_tick_t input_length )
+                                             const std::string& mime, const heimdall_meta_t *p_meta, heimdall_tick_t input_length )
 {
     unsigned id = getNextRequestId();
     std::stringstream ss;
@@ -403,7 +404,7 @@ unsigned ChromecastCommunication::msgPlayerLoad( const std::string& destinationI
        <<  "\"requestId\":" << id
        << "}";
 
-    return pushMediaPlayerMessage( destinationId, ss ) == VLC_SUCCESS ? id : kInvalidId;
+    return pushMediaPlayerMessage( destinationId, ss ) == HEIMDALL_SUCCESS ? id : kInvalidId;
 }
 
 unsigned ChromecastCommunication::msgPlayerPlay( const std::string& destinationId, int64_t mediaSessionId )
@@ -417,7 +418,7 @@ unsigned ChromecastCommunication::msgPlayerPlay( const std::string& destinationI
        <<  "\"requestId\":" << id
        << "}";
 
-    return pushMediaPlayerMessage( destinationId, ss ) == VLC_SUCCESS ? id : kInvalidId;
+    return pushMediaPlayerMessage( destinationId, ss ) == HEIMDALL_SUCCESS ? id : kInvalidId;
 }
 
 unsigned ChromecastCommunication::msgPlayerStop( const std::string& destinationId, int64_t mediaSessionId )
@@ -431,7 +432,7 @@ unsigned ChromecastCommunication::msgPlayerStop( const std::string& destinationI
        <<  "\"requestId\":" << id
        << "}";
 
-    return pushMediaPlayerMessage( destinationId, ss ) == VLC_SUCCESS ? id : kInvalidId;
+    return pushMediaPlayerMessage( destinationId, ss ) == HEIMDALL_SUCCESS ? id : kInvalidId;
 }
 
 unsigned ChromecastCommunication::msgPlayerPause( const std::string& destinationId, int64_t mediaSessionId )
@@ -445,7 +446,7 @@ unsigned ChromecastCommunication::msgPlayerPause( const std::string& destination
        <<  "\"requestId\":" << id
        << "}";
 
-    return pushMediaPlayerMessage( destinationId, ss ) == VLC_SUCCESS ? id : kInvalidId;
+    return pushMediaPlayerMessage( destinationId, ss ) == HEIMDALL_SUCCESS ? id : kInvalidId;
 }
 
 unsigned ChromecastCommunication::msgPlayerSetVolume( const std::string& destinationId, int64_t mediaSessionId, float f_volume, bool b_mute )
@@ -454,7 +455,7 @@ unsigned ChromecastCommunication::msgPlayerSetVolume( const std::string& destina
     unsigned id = getNextRequestId();
 
     if ( f_volume < 0.0 || f_volume > 1.0)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     std::stringstream ss;
     ss << "{\"type\":\"SET_VOLUME\","
@@ -463,20 +464,20 @@ unsigned ChromecastCommunication::msgPlayerSetVolume( const std::string& destina
        <<  "\"requestId\":" << id
        << "}";
 
-    return pushMediaPlayerMessage( destinationId, ss ) == VLC_SUCCESS ? id : kInvalidId;
+    return pushMediaPlayerMessage( destinationId, ss ) == HEIMDALL_SUCCESS ? id : kInvalidId;
 }
 
 /**
  * @brief Send a message to the Chromecast
  * @param msg the CastMessage to send
- * @return vlc error code
+ * @return heimdall error code
  */
 int ChromecastCommunication::sendMessage( const castchannel::CastMessage &msg )
 {
     size_t i_size = msg.ByteSizeLong();
     uint8_t *p_data = new(std::nothrow) uint8_t[PACKET_HEADER_LEN + i_size];
     if (p_data == NULL)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
 #ifndef NDEBUG
     msg_Dbg( m_module, "sendMessage: %s->%s %s", msg.namespace_().c_str(), msg.destination_id().c_str(), msg.payload_utf8().c_str());
@@ -485,14 +486,14 @@ int ChromecastCommunication::sendMessage( const castchannel::CastMessage &msg )
     SetDWBE(p_data, i_size);
     msg.SerializeWithCachedSizesToArray(p_data + PACKET_HEADER_LEN);
 
-    ssize_t i_ret = vlc_tls_Write(m_tls, p_data, PACKET_HEADER_LEN + i_size);
+    ssize_t i_ret = heimdall_tls_Write(m_tls, p_data, PACKET_HEADER_LEN + i_size);
     delete[] p_data;
     if (i_ret > 0 && (size_t)i_ret == PACKET_HEADER_LEN + i_size)
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
     msg_Warn( m_module, "failed to send message %s (%s)", msg.payload_utf8().c_str(), strerror( errno ) );
 
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 int ChromecastCommunication::pushMediaPlayerMessage( const std::string& destinationId, const std::stringstream & payload )

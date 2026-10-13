@@ -2,6 +2,7 @@
  * Item.cpp
  *****************************************************************************
  * Copyright © 2024 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Alaric Senat <alaric@videolabs.io>
  *
@@ -49,7 +50,7 @@ static std::string duration_to_string(const char *fmt, std::chrono::duration<Rep
 }
 
 static xml::Element make_resource(xml::Document &doc,
-                                  const vlc_ml_media_t &media,
+                                  const heimdall_ml_media_t &media,
                                   const std::vector<utils::MediaTrackRef> v_tracks,
                                   const std::vector<utils::MediaFileRef> main_files,
                                   const std::string &file_extension)
@@ -66,12 +67,12 @@ static xml::Element make_resource(xml::Document &doc,
         duration_to_string("%H:%M:%S", std::chrono::milliseconds(media.i_duration));
     elem.set_attribute("duration", media_duration.c_str());
 
-    if (media.i_type == VLC_ML_MEDIA_TYPE_VIDEO)
+    if (media.i_type == HEIMDALL_ML_MEDIA_TYPE_VIDEO)
     {
         std::stringstream resolution;
         if (v_tracks.size() >= 1)
         {
-            const vlc_ml_media_track_t &vtrack = v_tracks[0];
+            const heimdall_ml_media_track_t &vtrack = v_tracks[0];
 
             resolution << vtrack.v.i_width << 'x' << vtrack.v.i_height;
         }
@@ -92,23 +93,23 @@ static xml::Element make_resource(xml::Document &doc,
 };
 
 static void
-dump_resources(xml::Element &dest, const vlc_ml_media_t &media, const std::string &file_extension)
+dump_resources(xml::Element &dest, const heimdall_ml_media_t &media, const std::string &file_extension)
 {
     xml::Document &doc = dest.owner;
 
-    const auto v_tracks = utils::get_media_tracks(media, VLC_ML_TRACK_TYPE_VIDEO);
-    const auto main_files = utils::get_media_files(media, VLC_ML_FILE_TYPE_MAIN);
+    const auto v_tracks = utils::get_media_tracks(media, HEIMDALL_ML_TRACK_TYPE_VIDEO);
+    const auto main_files = utils::get_media_files(media, HEIMDALL_ML_FILE_TYPE_MAIN);
 
     dest.add_child(make_resource(doc, media, v_tracks, main_files, file_extension));
 
     // Thumbnails
-    for (int i = 0; i < VLC_ML_THUMBNAIL_SIZE_COUNT; ++i)
+    for (int i = 0; i < HEIMDALL_ML_THUMBNAIL_SIZE_COUNT; ++i)
     {
         const auto &thumbnail = media.thumbnails[i];
-        if (thumbnail.i_status != VLC_ML_THUMBNAIL_STATUS_AVAILABLE)
+        if (thumbnail.i_status != HEIMDALL_ML_THUMBNAIL_STATUS_AVAILABLE)
             continue;
         const auto thumbnail_extension = utils::file_extension(std::string(thumbnail.psz_mrl));
-        const auto url = utils::thumbnail_url(media, static_cast<vlc_ml_thumbnail_size_t>(i));
+        const auto url = utils::thumbnail_url(media, static_cast<heimdall_ml_thumbnail_size_t>(i));
         auto elem = doc.create_element("res", doc.create_text_node(url.c_str()));
 
         const utils::MimeType mime{"image", "jpeg"};
@@ -119,10 +120,10 @@ dump_resources(xml::Element &dest, const vlc_ml_media_t &media, const std::strin
     }
 
     // Subtitles, for now we only share the first available subtitle file.
-    const auto subtitles = utils::get_media_files(media, VLC_ML_FILE_TYPE_SUBTITLE);
+    const auto subtitles = utils::get_media_files(media, HEIMDALL_ML_FILE_TYPE_SUBTITLE);
     if (!subtitles.empty())
     {
-        const vlc_ml_file_t &sub = subtitles.front();
+        const heimdall_ml_file_t &sub = subtitles.front();
         const auto file_extension = utils::file_extension(sub.psz_mrl);
         const std::string url = utils::get_server_url() + "subtitle/" + std::to_string(media.i_id) +
                                 "." + file_extension;
@@ -134,24 +135,24 @@ dump_resources(xml::Element &dest, const vlc_ml_media_t &media, const std::strin
 }
 
 void Item::dump_mlobject_metadata(xml::Element &dest,
-                                  const vlc_ml_media_t &media,
+                                  const heimdall_ml_media_t &media,
                                   const ml::MediaLibraryContext &ml)
 {
 
     if (media.p_files->i_nb_items == 0)
         return;
 
-    const vlc_ml_file_t &file = media.p_files->p_items[0];
+    const heimdall_ml_file_t &file = media.p_files->p_items[0];
 
     const std::string file_extension = utils::file_extension(file.psz_mrl);
 
     const char *object_class = nullptr;
     switch (media.i_type)
     {
-        case VLC_ML_MEDIA_TYPE_AUDIO:
+        case HEIMDALL_ML_MEDIA_TYPE_AUDIO:
             object_class = "object.item.audioItem";
             break;
-        case VLC_ML_MEDIA_TYPE_VIDEO:
+        case HEIMDALL_ML_MEDIA_TYPE_VIDEO:
             object_class = "object.item.videoItem";
             break;
         default:
@@ -168,7 +169,7 @@ void Item::dump_mlobject_metadata(xml::Element &dest,
 
     switch (media.i_subtype)
     {
-        case VLC_ML_MEDIA_SUBTYPE_ALBUMTRACK:
+        case HEIMDALL_ML_MEDIA_SUBTYPE_ALBUMTRACK:
         {
             const auto album = ml::Album::get(ml, media.album_track.i_album_id);
             if (album != nullptr)

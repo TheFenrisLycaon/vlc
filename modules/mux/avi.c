@@ -2,6 +2,7 @@
  * avi.c
  *****************************************************************************
  * Copyright (C) 2001-2009 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *
@@ -30,19 +31,19 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_sout.h>
-#include <vlc_block.h>
-#include <vlc_codecs.h>
-#include <vlc_boxes.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_sout.h>
+#include <heimdall_block.h>
+#include <heimdall_codecs.h>
+#include <heimdall_boxes.h>
 #include "../demux/avi/bitmapinfoheader.h"
 
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  Open   ( vlc_object_t * );
-static void Close  ( vlc_object_t * );
+static int  Open   ( heimdall_object_t * );
+static void Close  ( heimdall_object_t * );
 
 #define SOUT_CFG_PREFIX "sout-avi-"
 
@@ -56,7 +57,7 @@ static void Close  ( vlc_object_t * );
 #define CFG_ENCODER_TEXT    N_("Encoder")
 #define CFG_KEYWORDS_TEXT   N_("Keywords")
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("AVI muxer") )
     set_subcategory( SUBCAT_SOUT_MUX )
     set_capability( "sout mux", 5 )
@@ -70,12 +71,12 @@ vlc_module_begin ()
     add_string( SOUT_CFG_PREFIX "name", NULL,      CFG_NAME_TEXT, NULL )
     add_string( SOUT_CFG_PREFIX "subject", NULL,   CFG_SUBJECT_TEXT, NULL )
     add_string( SOUT_CFG_PREFIX "encoder",
-                "VLC Media Player - " VERSION_MESSAGE,
+                "Heimdall Media Player - " VERSION_MESSAGE,
                                                    CFG_ENCODER_TEXT, NULL )
     add_string( SOUT_CFG_PREFIX "keywords", NULL,  CFG_KEYWORDS_TEXT, NULL )
 
     set_callbacks( Open, Close )
-vlc_module_end ()
+heimdall_module_end ()
 
 
 /*****************************************************************************
@@ -92,7 +93,7 @@ typedef struct avi_stream_s
 
     char fcc[4];
 
-    vlc_tick_t i_duration;       // in µs
+    heimdall_tick_t i_duration;       // in µs
 
     int     i_frames;        // total frame count
     int64_t i_totalsize;    // total stream size
@@ -102,7 +103,7 @@ typedef struct avi_stream_s
 
     union {
         struct {
-            VLC_BITMAPINFOHEADER  bih;
+            HEIMDALL_BITMAPINFOHEADER  bih;
             uint8_t               *p_bitmap_extra;
             size_t                 i_bitmap_extra;
         };
@@ -168,7 +169,7 @@ static void SetFCC( uint8_t *p, char *fcc )
 /*****************************************************************************
  * Open:
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     sout_mux_t      *p_mux = (sout_mux_t*)p_this;
     sout_mux_sys_t  *p_sys;
@@ -177,7 +178,7 @@ static int Open( vlc_object_t *p_this )
 
     p_sys = malloc( sizeof( sout_mux_sys_t ) );
     if( !p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     p_sys->i_streams = 0;
     p_sys->i_stream_video = -1;
     p_sys->i_movi_size = 0;
@@ -189,7 +190,7 @@ static int Open( vlc_object_t *p_this )
     if( !p_sys->idx1.entry )
     {
         free( p_sys );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
     p_sys->b_write_header = true;
 
@@ -200,13 +201,13 @@ static int Open( vlc_object_t *p_this )
     p_mux->pf_mux       = Mux;
     p_mux->p_sys        = p_sys;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * Close:
  *****************************************************************************/
-static void Close( vlc_object_t * p_this )
+static void Close( heimdall_object_t * p_this )
 {
     sout_mux_t      *p_mux = (sout_mux_t*)p_this;
     sout_mux_sys_t  *p_sys = p_mux->p_sys;
@@ -250,7 +251,7 @@ static void Close( vlc_object_t * p_this )
         msg_Info( p_mux, "stream[%d] duration:%"PRId64" totalsize:%"PRId64
                   " frames:%d fps:%f KiB/s:%d",
                   i_stream,
-                  SEC_FROM_VLC_TICK(p_stream->i_duration),
+                  SEC_FROM_HEIMDALL_TICK(p_stream->i_duration),
                   p_stream->i_totalsize,
                   p_stream->i_frames,
                   p_stream->f_fps, p_stream->i_bitrate/1024 );
@@ -278,7 +279,7 @@ static void Close( vlc_object_t * p_this )
 
 static int Control( sout_mux_t *p_mux, int i_query, va_list args )
 {
-    VLC_UNUSED(p_mux);
+    HEIMDALL_UNUSED(p_mux);
     bool *pb_bool;
     char **ppsz;
 
@@ -287,15 +288,15 @@ static int Control( sout_mux_t *p_mux, int i_query, va_list args )
        case MUX_CAN_ADD_STREAM_WHILE_MUXING:
            pb_bool = va_arg( args, bool * );
            *pb_bool = false;
-           return VLC_SUCCESS;
+           return HEIMDALL_SUCCESS;
 
        case MUX_GET_MIME:
            ppsz = va_arg( args, char ** );
            *ppsz = strdup( "video/avi" );
-           return VLC_SUCCESS;
+           return HEIMDALL_SUCCESS;
 
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
    }
 }
 
@@ -307,13 +308,13 @@ static int AddStream( sout_mux_t *p_mux, sout_input_t *p_input )
     if( p_sys->i_streams >= 100 )
     {
         msg_Err( p_mux, "too many streams" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     msg_Dbg( p_mux, "adding input" );
     p_input->p_sys = malloc( sizeof( int ) );
     if( !p_input->p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     *((int*)p_input->p_sys) = p_sys->i_streams;
     p_stream = &p_sys->stream[p_sys->i_streams];
@@ -338,7 +339,7 @@ static int AddStream( sout_mux_t *p_mux, sout_input_t *p_input )
                 {
                     free( p_input->p_sys );
                     p_input->p_sys = NULL;
-                    return VLC_ENOMEM;
+                    return HEIMDALL_ENOMEM;
                 }
                 memcpy( p_stream->p_wav_extra,
                         p_input->p_fmt->p_extra,
@@ -352,60 +353,60 @@ static int AddStream( sout_mux_t *p_mux, sout_input_t *p_input )
 
             switch( p_input->p_fmt->i_codec )
             {
-                case VLC_CODEC_A52:
+                case HEIMDALL_CODEC_A52:
                     p_wf->wFormatTag = WAVE_FORMAT_A52;
                     p_wf->nBlockAlign= 1;
                     break;
-                case VLC_CODEC_MP3:
+                case HEIMDALL_CODEC_MP3:
                     p_wf->wFormatTag = WAVE_FORMAT_MPEGLAYER3;
                     p_wf->nBlockAlign= 1;
                     break;
-                case VLC_CODEC_MPGA:
-                case VLC_CODEC_MP2:
+                case HEIMDALL_CODEC_MPGA:
+                case HEIMDALL_CODEC_MP2:
                     p_wf->wFormatTag = WAVE_FORMAT_MPEG;
                     p_wf->nBlockAlign= 1;
                     break;
-                case VLC_CODEC_WMA1:
+                case HEIMDALL_CODEC_WMA1:
                     p_wf->wFormatTag = WAVE_FORMAT_WMA1;
                     break;
-                case VLC_CODEC_WMA2:
+                case HEIMDALL_CODEC_WMA2:
                     p_wf->wFormatTag = WAVE_FORMAT_WMA2;
                     break;
-                case VLC_CODEC_WMAP:
+                case HEIMDALL_CODEC_WMAP:
                     p_wf->wFormatTag = WAVE_FORMAT_WMAP;
                     break;
-                case VLC_CODEC_WMAL:
+                case HEIMDALL_CODEC_WMAL:
                     p_wf->wFormatTag = WAVE_FORMAT_WMAL;
                     break;
-                case VLC_CODEC_ALAW:
+                case HEIMDALL_CODEC_ALAW:
                     p_wf->wFormatTag = WAVE_FORMAT_ALAW;
                     break;
-                case VLC_CODEC_MULAW:
+                case HEIMDALL_CODEC_MULAW:
                     p_wf->wFormatTag = WAVE_FORMAT_MULAW;
                     break;
                     /* raw codec */
-                case VLC_CODEC_U8:
+                case HEIMDALL_CODEC_U8:
                     p_wf->wFormatTag = WAVE_FORMAT_PCM;
                     p_wf->nBlockAlign= p_wf->nChannels;
                     p_wf->wBitsPerSample = 8;
                     p_wf->nAvgBytesPerSec = (p_wf->wBitsPerSample/8) *
                                       p_wf->nSamplesPerSec * p_wf->nChannels;
                     break;
-                case VLC_CODEC_S16L:
+                case HEIMDALL_CODEC_S16L:
                     p_wf->wFormatTag = WAVE_FORMAT_PCM;
                     p_wf->nBlockAlign= 2 * p_wf->nChannels;
                     p_wf->wBitsPerSample = 16;
                     p_wf->nAvgBytesPerSec = (p_wf->wBitsPerSample/8) *
                                       p_wf->nSamplesPerSec * p_wf->nChannels;
                     break;
-                case VLC_CODEC_S24L:
+                case HEIMDALL_CODEC_S24L:
                     p_wf->wFormatTag = WAVE_FORMAT_PCM;
                     p_wf->nBlockAlign= 3 * p_wf->nChannels;
                     p_wf->wBitsPerSample = 24;
                     p_wf->nAvgBytesPerSec = (p_wf->wBitsPerSample/8) *
                                       p_wf->nSamplesPerSec * p_wf->nChannels;
                     break;
-                case VLC_CODEC_S32L:
+                case HEIMDALL_CODEC_S32L:
                     p_wf->wFormatTag = WAVE_FORMAT_PCM;
                     p_wf->nBlockAlign= 4 * p_wf->nChannels;
                     p_wf->wBitsPerSample = 32;
@@ -416,7 +417,7 @@ static int AddStream( sout_mux_t *p_mux, sout_input_t *p_input )
                     free( p_stream->p_wav_extra );
                     free( p_input->p_sys );
                     p_input->p_sys = NULL;
-                    return VLC_EGENERIC;
+                    return HEIMDALL_EGENERIC;
             }
             break;
         case VIDEO_ES:
@@ -432,17 +433,17 @@ static int AddStream( sout_mux_t *p_mux, sout_input_t *p_input )
             }
             if( CreateBitmapInfoHeader( &p_input->fmt, &p_stream->bih,
                                         &p_stream->p_bitmap_extra,
-                                        &p_stream->i_bitmap_extra ) != VLC_SUCCESS )
+                                        &p_stream->i_bitmap_extra ) != HEIMDALL_SUCCESS )
             {
                 free( p_input->p_sys );
                 p_input->p_sys = NULL;
-                return VLC_ENOMEM;
+                return HEIMDALL_ENOMEM;
             }
             break;
         default:
             free( p_input->p_sys );
             p_input->p_sys = NULL;
-            return( VLC_EGENERIC );
+            return( HEIMDALL_EGENERIC );
     }
     p_stream->i_totalsize = 0;
     p_stream->i_frames    = 0;
@@ -453,7 +454,7 @@ static int AddStream( sout_mux_t *p_mux, sout_input_t *p_input )
     p_stream->i_bitrate = 128 * 1024;
 
     p_sys->i_streams++;
-    return( VLC_SUCCESS );
+    return( HEIMDALL_SUCCESS );
 }
 
 static void DelStream( sout_mux_t *p_mux, sout_input_t *p_input )
@@ -469,18 +470,18 @@ static int PrepareSamples(const avi_stream_t *p_stream, block_t **pp_block)
     {
        /* Add header present at the end of BITMAP info header
           to first frame in case of XVID */
-       if( p_stream->bih.biCompression == VLC_FOURCC( 'X', 'V', 'I', 'D' ) )
+       if( p_stream->bih.biCompression == HEIMDALL_FOURCC( 'X', 'V', 'I', 'D' ) )
        {
            size_t i_header_length = p_stream->i_bitmap_extra;
            *pp_block = block_Realloc( *pp_block, i_header_length,
                                       (*pp_block)->i_buffer );
            if( !*pp_block )
-               return VLC_ENOMEM;
+               return HEIMDALL_ENOMEM;
            memcpy((*pp_block)->p_buffer,p_stream->p_bitmap_extra, i_header_length);
        }
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int Mux      ( sout_mux_t *p_mux )
@@ -495,7 +496,7 @@ static int Mux      ( sout_mux_t *p_mux )
 
         block_t *p_hdr = avi_HeaderCreateRIFF( p_mux );
         if ( !p_hdr )
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         sout_AccessOutWrite( p_mux->p_access, p_hdr );
 
         p_sys->b_write_header = false;
@@ -512,9 +513,9 @@ static int Mux      ( sout_mux_t *p_mux )
         p_stream = &p_sys->stream[i_stream];
 
         p_fifo = p_mux->pp_inputs[i]->p_fifo;
-        vlc_fifo_Lock( p_fifo );
-        block_t *p_data = vlc_fifo_DequeueAllUnlocked( p_fifo );
-        vlc_fifo_Unlock( p_fifo );
+        heimdall_fifo_Lock( p_fifo );
+        block_t *p_data = heimdall_fifo_DequeueAllUnlocked( p_fifo );
+        heimdall_fifo_Unlock( p_fifo );
 
         while( p_data != NULL )
         {
@@ -527,7 +528,7 @@ static int Mux      ( sout_mux_t *p_mux )
                 p_data->i_length = p_next->i_dts - p_data->i_dts;
             }
 
-            if (PrepareSamples(p_stream, &p_data) != VLC_SUCCESS)
+            if (PrepareSamples(p_stream, &p_data) != HEIMDALL_SUCCESS)
             {
                 p_data = p_next;
                 continue;

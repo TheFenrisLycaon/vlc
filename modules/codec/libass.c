@@ -2,6 +2,7 @@
  * SSA/ASS subtitle decoder using libass.
  *****************************************************************************
  * Copyright (C) 2008-2009 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@videolan.org>
  *
@@ -34,13 +35,13 @@
 #include <assert.h>
 #include <math.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
-#include <vlc_input.h>
-#include <vlc_dialog.h>
-#include <vlc_stream.h>
-#include <vlc_messages.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
+#include <heimdall_input.h>
+#include <heimdall_dialog.h>
+#include <heimdall_stream.h>
+#include <heimdall_messages.h>
 
 #include <ass/ass.h>
 
@@ -49,25 +50,25 @@
 #endif
 
 #if defined(_WIN32)
-#   include <vlc_charset.h>
+#   include <heimdall_charset.h>
 #endif
 
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  Create ( vlc_object_t * );
-static void Destroy( vlc_object_t * );
+static int  Create ( heimdall_object_t * );
+static void Destroy( heimdall_object_t * );
 
 #define TEXT_SSA_FONTSDIR   N_("Additional fonts directory")
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( N_("Subtitles (advanced)"))
     set_description( N_("Subtitle renderers using libass") )
     set_capability( "spu decoder", 100 )
     set_subcategory( SUBCAT_INPUT_SCODEC )
     set_callbacks( Create, Destroy )
     add_string("ssa-fontsdir", NULL, TEXT_SSA_FONTSDIR, NULL)
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * Local prototypes
@@ -78,11 +79,11 @@ static void Flush( decoder_t * );
 /* */
 typedef struct
 {
-    vlc_tick_t     i_last_pts;
-    vlc_tick_t     i_max_stop;
+    heimdall_tick_t     i_last_pts;
+    heimdall_tick_t     i_max_stop;
 
     /* The following fields of decoder_sys_t are shared between decoder and spu units */
-    vlc_mutex_t    lock;
+    heimdall_mutex_t    lock;
     int            i_refcount;
 
     /* */
@@ -96,13 +97,13 @@ static void DecSysRelease( decoder_sys_t *p_sys );
 static void DecSysHold( decoder_sys_t *p_sys );
 
 /* */
-static void SubpictureUpdate( subpicture_t *, const struct vlc_spu_updater_configuration * );
+static void SubpictureUpdate( subpicture_t *, const struct heimdall_spu_updater_configuration * );
 static void SubpictureDestroy( subpicture_t * );
 
 typedef struct
 {
     decoder_sys_t *p_dec_sys;
-    vlc_tick_t    i_pts;
+    heimdall_tick_t    i_pts;
 } libass_spu_updater_sys_t;
 
 typedef struct
@@ -119,34 +120,34 @@ static void OldEngineClunkyRollInfoPatch( decoder_t *p_dec, ASS_Track * );
 
 //#define DEBUG_REGION
 
-static void vlc_ass_msg_handler(int level, const char *fmt, va_list va, void *data) {
+static void heimdall_ass_msg_handler(int level, const char *fmt, va_list va, void *data) {
     decoder_t *p_dec = data;
-    msg_GenericVa( p_dec, VLC_MSG_DBG, fmt, va );
+    msg_GenericVa( p_dec, HEIMDALL_MSG_DBG, fmt, va );
 }
 
 /*****************************************************************************
  * Create: Open libass decoder.
  *****************************************************************************/
-static int Create( vlc_object_t *p_this )
+static int Create( heimdall_object_t *p_this )
 {
     decoder_t *p_dec = (decoder_t *)p_this;
     decoder_sys_t *p_sys;
 
-    if( p_dec->fmt_in->i_codec != VLC_CODEC_SSA )
-        return VLC_EGENERIC;
+    if( p_dec->fmt_in->i_codec != HEIMDALL_CODEC_SSA )
+        return HEIMDALL_EGENERIC;
 
     p_dec->pf_decode = DecodeBlock;
     p_dec->pf_flush  = Flush;
 
     p_dec->p_sys = p_sys = malloc( sizeof( decoder_sys_t ) );
     if( !p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     /* */
-    vlc_mutex_init( &p_sys->lock );
+    heimdall_mutex_init( &p_sys->lock );
     p_sys->i_refcount = 1;
-    p_sys->i_last_pts = VLC_TICK_INVALID;
-    p_sys->i_max_stop = VLC_TICK_INVALID;
+    p_sys->i_last_pts = HEIMDALL_TICK_INVALID;
+    p_sys->i_max_stop = HEIMDALL_TICK_INVALID;
     p_sys->p_library  = NULL;
     p_sys->p_renderer = NULL;
     p_sys->p_track    = NULL;
@@ -157,10 +158,10 @@ static int Create( vlc_object_t *p_this )
     {
         msg_Warn( p_dec, "Libass library creation failed" );
         DecSysRelease( p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    ass_set_message_cb(p_library, vlc_ass_msg_handler, p_dec);
+    ass_set_message_cb(p_library, heimdall_ass_msg_handler, p_dec);
 
     /* load attachments */
     input_attachment_t  **pp_attachments;
@@ -194,7 +195,7 @@ static int Create( vlc_object_t *p_this )
 
             ass_add_font( p_sys->p_library, p_attach->psz_name, p_attach->p_data, p_attach->i_data );
         }
-        vlc_input_attachment_Release( p_attach );
+        heimdall_input_attachment_Release( p_attach );
     }
     free( pp_attachments );
 
@@ -214,7 +215,7 @@ static int Create( vlc_object_t *p_this )
     {
         msg_Warn( p_dec, "Libass renderer creation failed" );
         DecSysRelease( p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     ass_set_use_margins( p_renderer, false);
@@ -243,17 +244,17 @@ static int Create( vlc_object_t *p_this )
     }
 
 #elif defined( __APPLE__ )
-    const char *psz_font = NULL; /* We don't ship a default font with VLC */
+    const char *psz_font = NULL; /* We don't ship a default font with Heimdall */
     const char *psz_family = "Helvetica Neue"; /* Use HN if we can't find anything more suitable - Arial is not on all Apple platforms */
 #else
-    const char *psz_font = NULL; /* We don't ship a default font with VLC */
+    const char *psz_font = NULL; /* We don't ship a default font with Heimdall */
     const char *psz_family = "Arial"; /* Use Arial if we can't find anything more suitable */
 #endif
 
 #ifdef HAVE_FONTCONFIG
 #if defined(_WIN32)
-    vlc_dialog_id *p_dialog_id =
-        vlc_dialog_display_progress( p_dec, true, 0.0, NULL,
+    heimdall_dialog_id *p_dialog_id =
+        heimdall_dialog_display_progress( p_dec, true, 0.0, NULL,
                                     _("Building font cache"),
                                     _( "Please wait while your font cache is rebuilt.\n"
                                     "This should take less than a minute." ) );
@@ -261,7 +262,7 @@ static int Create( vlc_object_t *p_this )
     ass_set_fonts( p_renderer, psz_font, psz_family, ASS_FONTPROVIDER_AUTODETECT, NULL, 1 );  // setup default font/family
 #if defined(_WIN32)
     if( p_dialog_id != 0 )
-        vlc_dialog_release( p_dec, p_dialog_id );
+        heimdall_dialog_release( p_dec, p_dialog_id );
 #endif
 #else
     ass_set_fonts( p_renderer, psz_font, psz_family, ASS_FONTPROVIDER_AUTODETECT, NULL, 0 );
@@ -276,20 +277,20 @@ static int Create( vlc_object_t *p_this )
     if( !p_track )
     {
         DecSysRelease( p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     ass_process_codec_private( p_track, p_dec->fmt_in->p_extra, p_dec->fmt_in->i_extra );
     OldEngineClunkyRollInfoPatch( p_dec, p_track );
 
-    p_dec->fmt_out.i_codec = VLC_CODEC_RGBA;
+    p_dec->fmt_out.i_codec = HEIMDALL_CODEC_RGBA;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * Destroy: finish
  *****************************************************************************/
-static void Destroy( vlc_object_t *p_this )
+static void Destroy( heimdall_object_t *p_this )
 {
     decoder_t *p_dec = (decoder_t *)p_this;
 
@@ -298,21 +299,21 @@ static void Destroy( vlc_object_t *p_this )
 
 static void DecSysHold( decoder_sys_t *p_sys )
 {
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     p_sys->i_refcount++;
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 }
 static void DecSysRelease( decoder_sys_t *p_sys )
 {
     /* */
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     p_sys->i_refcount--;
     if( p_sys->i_refcount > 0 )
     {
-        vlc_mutex_unlock( &p_sys->lock );
+        heimdall_mutex_unlock( &p_sys->lock );
         return;
     }
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 
     if( p_sys->p_track )
         ass_free_track( p_sys->p_track );
@@ -331,8 +332,8 @@ static void Flush( decoder_t *p_dec )
 {
     decoder_sys_t *p_sys = p_dec->p_sys;
 
-    p_sys->i_max_stop = VLC_TICK_INVALID;
-    p_sys->i_last_pts = VLC_TICK_INVALID;
+    p_sys->i_max_stop = HEIMDALL_TICK_INVALID;
+    p_sys->i_last_pts = HEIMDALL_TICK_INVALID;
 }
 
 /****************************************************************************
@@ -345,19 +346,19 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
     subpicture_t *p_spu = NULL;
 
     if( p_block == NULL ) /* No Drain */
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
 
     if( p_block->i_flags & BLOCK_FLAG_CORRUPTED )
     {
         Flush( p_dec );
         block_Release( p_block );
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
     }
 
     if( p_block->i_buffer == 0 || p_block->p_buffer[0] == '\0' )
     {
         block_Release( p_block );
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
     }
 
     if( p_block->i_pts != p_sys->i_last_pts )
@@ -366,10 +367,10 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
         if( !p_spu_sys )
         {
             block_Release( p_block );
-            return VLCDEC_SUCCESS;
+            return HEIMDALLDEC_SUCCESS;
         }
 
-        static const struct vlc_spu_updater_ops spu_ops =
+        static const struct heimdall_spu_updater_ops spu_ops =
         {
             .update   = SubpictureUpdate,
             .destroy  = SubpictureDestroy,
@@ -386,7 +387,7 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
             msg_Warn( p_dec, "can't get spu buffer" );
             free( p_spu_sys );
             block_Release( p_block );
-            return VLCDEC_SUCCESS;
+            return HEIMDALLDEC_SUCCESS;
         }
 
         p_spu_sys->p_dec_sys = p_sys;
@@ -402,27 +403,27 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
 
     p_sys->i_last_pts = p_block->i_pts;
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     if( p_sys->p_track )
     {
         ass_process_chunk( p_sys->p_track,(void *) p_block->p_buffer, p_block->i_buffer,
-                           MS_FROM_VLC_TICK( p_block->i_pts ), MS_FROM_VLC_TICK( p_block->i_length ) );
+                           MS_FROM_HEIMDALL_TICK( p_block->i_pts ), MS_FROM_HEIMDALL_TICK( p_block->i_length ) );
     }
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 
     block_Release( p_block );
 
     if( p_spu )
         decoder_QueueSub( p_dec, p_spu );
 
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }
 
 /****************************************************************************
  *
  ****************************************************************************/
 static void SubpictureUpdate( subpicture_t *p_subpic,
-                              const struct vlc_spu_updater_configuration *cfg )
+                              const struct heimdall_spu_updater_configuration *cfg )
 {
     libass_spu_updater_sys_t *p_spusys = p_subpic->updater.sys;
     decoder_sys_t *p_sys = p_spusys->p_dec_sys;
@@ -433,7 +434,7 @@ static void SubpictureUpdate( subpicture_t *p_subpic,
                      p_fmt_src->i_visible_height != cfg->previous.video_src->i_visible_height;
     bool b_fmt_dst = !video_format_IsSimilar(cfg->previous.video_dst, p_fmt_dst);
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
 
     if( b_fmt_src || b_fmt_dst )
     {
@@ -451,19 +452,19 @@ static void SubpictureUpdate( subpicture_t *p_subpic,
     }
 
     /* */
-    const vlc_tick_t i_stream_date = p_spusys->i_pts + (cfg->pts - p_subpic->i_start);
+    const heimdall_tick_t i_stream_date = p_spusys->i_pts + (cfg->pts - p_subpic->i_start);
     int i_changed;
     ASS_Image *p_img = ass_render_frame( p_sys->p_renderer, p_sys->p_track,
-                                         MS_FROM_VLC_TICK( i_stream_date ), &i_changed );
+                                         MS_FROM_HEIMDALL_TICK( i_stream_date ), &i_changed );
 
     if( !i_changed && !b_fmt_src && !b_fmt_dst &&
-        (p_img != NULL) == (!vlc_spu_regions_is_empty(&p_subpic->regions)) )
+        (p_img != NULL) == (!heimdall_spu_regions_is_empty(&p_subpic->regions)) )
     {
-        vlc_mutex_unlock( &p_sys->lock );
+        heimdall_mutex_unlock( &p_sys->lock );
         return;
     }
 
-    vlc_spu_regions_Clear( &p_subpic->regions );
+    heimdall_spu_regions_Clear( &p_subpic->regions );
 
     /* */
     p_subpic->i_original_picture_height = p_fmt_dst->i_visible_height;
@@ -480,14 +481,14 @@ static void SubpictureUpdate( subpicture_t *p_subpic,
 
     if( i_region <= 0 )
     {
-        vlc_mutex_unlock( &p_sys->lock );
+        heimdall_mutex_unlock( &p_sys->lock );
         return;
     }
 
     /* Allocate the regions and draw them */
     video_format_t fmt_region;
     fmt_region = *p_fmt_dst;
-    fmt_region.i_chroma   = VLC_CODEC_RGBA;
+    fmt_region.i_chroma   = HEIMDALL_CODEC_RGBA;
     fmt_region.i_x_offset = 0;
     fmt_region.i_y_offset = 0;
     fmt_region.transfer = TRANSFER_FUNC_SRGB;
@@ -516,9 +517,9 @@ static void SubpictureUpdate( subpicture_t *p_subpic,
         RegionDraw( r, p_img );
 
         /* */
-        vlc_spu_regions_push(&p_subpic->regions, r);
+        heimdall_spu_regions_push(&p_subpic->regions, r);
     }
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 
 }
 static void SubpictureDestroy( subpicture_t *p_subpic )
@@ -561,7 +562,7 @@ static int BuildRegions( rectangle_t *p_region, int i_max_region, ASS_Image *p_i
     int i_count;
 
 #ifdef DEBUG_REGION
-    int64_t i_ck_start = vlc_tick_now();
+    int64_t i_ck_start = heimdall_tick_now();
 #endif
 
     for( p_tmp = p_img_list, i_count = 0; p_tmp != NULL; p_tmp = p_tmp->next )
@@ -674,7 +675,7 @@ static int BuildRegions( rectangle_t *p_region, int i_max_region, ASS_Image *p_i
         p_region[n] = region[n];
 
 #ifdef DEBUG_REGION
-    int64_t i_ck_time = vlc_tick_now() - i_ck_start;
+    int64_t i_ck_time = heimdall_tick_now() - i_ck_start;
     msg_Err( p_spu, "ASS: %d objects merged into %d region in %d micros", i_count, i_region, (int)(i_ck_time) );
 #endif
 
@@ -771,12 +772,12 @@ static void OldEngineClunkyRollInfoPatch( decoder_t *p_dec, ASS_Track *p_track )
     if( !p_dec->fmt_in->i_extra )
         return;
 
-    stream_t *p_memstream = vlc_stream_MemoryNew( p_dec, p_dec->fmt_in->p_extra,
+    stream_t *p_memstream = heimdall_stream_MemoryNew( p_dec, p_dec->fmt_in->p_extra,
                                                   p_dec->fmt_in->i_extra, true );
     if (unlikely(!p_memstream))
         return;
 
-    char *s = vlc_stream_ReadLine( p_memstream );
+    char *s = heimdall_stream_ReadLine( p_memstream );
     unsigned playres[2] = {0, 0};
     bool b_hotfix = false;
     if( s && !strncmp( s, "[Script Info]", 13 ) )
@@ -784,7 +785,7 @@ static void OldEngineClunkyRollInfoPatch( decoder_t *p_dec, ASS_Track *p_track )
         free( s );
         for( ;; )
         {
-            s = vlc_stream_ReadLine( p_memstream );
+            s = heimdall_stream_ReadLine( p_memstream );
             if( !s || *s == '[' /* Next section */ )
             {
                 break;
@@ -811,7 +812,7 @@ static void OldEngineClunkyRollInfoPatch( decoder_t *p_dec, ASS_Track *p_track )
         }
     }
     free( s );
-    vlc_stream_Delete( p_memstream );
+    heimdall_stream_Delete( p_memstream );
     if( b_hotfix && playres[0] && playres[1] )
     {
 	msg_Dbg( p_dec,"patching script info for custom rendering engine "

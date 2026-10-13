@@ -2,6 +2,7 @@
  * tsutil.h
  *****************************************************************************
  * Copyright (C) 2001-2005, 2015 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -17,8 +18,8 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
-#ifndef VLC_MPEG_TSUTIL_H_
-#define VLC_MPEG_TSUTIL_H_
+#ifndef HEIMDALL_MPEG_TSUTIL_H_
+#define HEIMDALL_MPEG_TSUTIL_H_
 
 typedef void(*PEStoTSCallback)(void *, block_t *);
 

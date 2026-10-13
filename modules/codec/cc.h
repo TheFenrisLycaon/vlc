@@ -2,6 +2,7 @@
  * cc.h
  *****************************************************************************
  * Copyright (C) 2007 Laurent Aimar
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *
@@ -20,10 +21,10 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_CC_H_
-#define VLC_CC_H_
+#ifndef HEIMDALL_CC_H_
+#define HEIMDALL_CC_H_
 
-#include <vlc_bits.h>
+#include <heimdall_bits.h>
 
 #define CC_PKT_BYTE0(field) (0xFC | (0x03 & field))
 
@@ -89,7 +90,7 @@ static inline void cc_Init( cc_data_t *c )
 }
 static inline void cc_Exit( cc_data_t *c )
 {
-    VLC_UNUSED(c);
+    HEIMDALL_UNUSED(c);
     return;
 }
 static inline void cc_Flush( cc_data_t *c )
@@ -175,7 +176,7 @@ static inline void cc_ProbeCEA708OneByte( cc_data_t *c, bool b_start, const uint
             } break;
 
             default:
-                vlc_assert_unreachable();
+                heimdall_assert_unreachable();
                 break;
         }
         c->cea708.pktsize--;

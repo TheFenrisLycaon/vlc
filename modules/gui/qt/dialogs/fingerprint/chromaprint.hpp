@@ -2,6 +2,7 @@
  * chromaprint.hpp: Fingerprinter helper class
  *****************************************************************************
  * Copyright (C) 2012 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -41,8 +42,8 @@ public:
     Chromaprint( qt_intf_t *p_intf = NULL );
     virtual ~Chromaprint();
     bool enqueue( input_item_t *p_item );
-    static int results_available( vlc_object_t *p_this, const char *,
-                                  vlc_value_t, vlc_value_t newval, void *param );
+    static int results_available( heimdall_object_t *p_this, const char *,
+                                  heimdall_value_t, heimdall_value_t newval, void *param );
     fingerprint_request_t * fetchResults();
     void apply( fingerprint_request_t *, size_t i_id );
     static bool isSupported( QString uri );

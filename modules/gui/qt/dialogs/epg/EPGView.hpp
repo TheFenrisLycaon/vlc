@@ -2,6 +2,7 @@
  * EPGView.hpp : EPGView
  ****************************************************************************
  * Copyright © 2009-2010 VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Ludovic Fauvet <etix@l0cal.com>
  *
@@ -59,7 +60,7 @@ public:
     QDateTime       epgTime() const;
     void            setEpgTime(const QDateTime&);
 
-    bool            updateEPG( const vlc_epg_t * const *, size_t );
+    bool            updateEPG( const heimdall_epg_t * const *, size_t );
     void            reset();
     void            cleanup();
     bool            hasValidData() const;

@@ -2,6 +2,7 @@
  * d3d11_decoder.cpp : D3D11 GPU block to picture decoder
  *****************************************************************************
  * Copyright © 2018-2022 VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Steve Lhomme <robux4@gmail.com>
  *
@@ -24,10 +25,10 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_codec.h>
-#include <vlc_picture.h>
-#include <vlc_modules.h>
+#include <heimdall_common.h>
+#include <heimdall_codec.h>
+#include <heimdall_picture.h>
+#include <heimdall_modules.h>
 
 #include "d3d11_filters.h"
 #include <dxgi1_2.h>
@@ -40,15 +41,15 @@ using Microsoft::WRL::ComPtr;
 struct d3d11_dec_sys {
     date_t             pts;
     const d3d_format_t *output_format = nullptr;
-    vlc_video_context  *vctx = nullptr;
-    vlc_decoder_device *dec_dev = nullptr;
+    heimdall_video_context  *vctx = nullptr;
+    heimdall_decoder_device *dec_dev = nullptr;
 
     ~d3d11_dec_sys()
     {
         if (vctx)
-            vlc_video_context_Release(vctx);
+            heimdall_video_context_Release(vctx);
         if (dec_dev)
-            vlc_decoder_device_Release(dec_dev);
+            heimdall_decoder_device_Release(dec_dev);
     }
 };
 
@@ -66,7 +67,7 @@ static block_t *DecodeBlock( decoder_t *p_dec, block_t *p_block )
         }
     }
 
-    if( p_block->i_pts <= VLC_TICK_INVALID && p_block->i_dts <= VLC_TICK_INVALID &&
+    if( p_block->i_pts <= HEIMDALL_TICK_INVALID && p_block->i_dts <= HEIMDALL_TICK_INVALID &&
         !date_Get( &p_sys->pts ) )
     {
         /* We've just started the stream, wait for the first PTS. */
@@ -75,11 +76,11 @@ static block_t *DecodeBlock( decoder_t *p_dec, block_t *p_block )
     }
 
     /* Date management: If there is a pts avaliable, use that. */
-    if( p_block->i_pts > VLC_TICK_INVALID )
+    if( p_block->i_pts > HEIMDALL_TICK_INVALID )
     {
         date_Set( &p_sys->pts, p_block->i_pts );
     }
-    else if( p_block->i_dts > VLC_TICK_INVALID )
+    else if( p_block->i_dts > HEIMDALL_TICK_INVALID )
     {
         /* NB, davidf doesn't quite agree with this in general, it is ok
          * for rawvideo since it is in order (ie pts=dts), however, it
@@ -94,11 +95,11 @@ static block_t *DecodeBlock( decoder_t *p_dec, block_t *p_block )
 static int DecodeFrame( decoder_t *p_dec, block_t *p_block )
 {
     if( p_block == nullptr ) // No Drain needed
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
 
     p_block = DecodeBlock( p_dec, p_block );
     if( p_block == nullptr )
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
 
     HRESULT hr;
     ComPtr<ID3D11Resource> d3d11res;
@@ -117,7 +118,7 @@ static int DecodeFrame( decoder_t *p_dec, block_t *p_block )
         {
             msg_Err(p_dec, "Unknown texture format %d", outDesc.Format);
             block_Release( p_block );
-            return VLCDEC_ECRITICAL;
+            return HEIMDALLDEC_ECRITICAL;
         }
     }
 
@@ -128,13 +129,13 @@ static int DecodeFrame( decoder_t *p_dec, block_t *p_block )
         if (!p_sys->vctx)
         {
             block_Release( p_block );
-            return VLCDEC_ECRITICAL;
+            return HEIMDALLDEC_ECRITICAL;
         }
 
         if( decoder_UpdateVideoOutput( p_dec, p_sys->vctx ) )
         {
             block_Release( p_block );
-            return VLCDEC_ECRITICAL;
+            return HEIMDALLDEC_ECRITICAL;
         }
     }
 
@@ -164,10 +165,10 @@ static int DecodeFrame( decoder_t *p_dec, block_t *p_block )
     picture_sys_d3d11_t *pic_sys = ActiveD3D11PictureSys(p_pic);
     if (pic_sys->ownHandle)
     {
-        ComPtr<ID3D11Device1> d3d11VLC1;
-        dev_sys->d3d_dev.d3ddevice->QueryInterface(IID_GRAPHICS_PPV_ARGS(&d3d11VLC1));
+        ComPtr<ID3D11Device1> d3d11Heimdall1;
+        dev_sys->d3d_dev.d3ddevice->QueryInterface(IID_GRAPHICS_PPV_ARGS(&d3d11Heimdall1));
 
-        hr = d3d11VLC1->OpenSharedResource1(pic_sys->sharedHandle, IID_GRAPHICS_PPV_ARGS(&sharedTex));
+        hr = d3d11Heimdall1->OpenSharedResource1(pic_sys->sharedHandle, IID_GRAPHICS_PPV_ARGS(&sharedTex));
     }
     else
     {
@@ -176,72 +177,72 @@ static int DecodeFrame( decoder_t *p_dec, block_t *p_block )
     if (unlikely(FAILED(hr)))
     {
         block_Release( p_block );
-        return VLCDEC_ECRITICAL;
+        return HEIMDALLDEC_ECRITICAL;
     }
 
     ID3D11Texture2D *srcTex = src_sys->texture[0];
     auto *srcVctx = p_pic->context->vctx;
     src_sys->texture[0] = sharedTex;
-    p_pic->context->vctx = vlc_video_context_Hold(p_sys->vctx);
+    p_pic->context->vctx = heimdall_video_context_Hold(p_sys->vctx);
     srcTex->Release();
-    vlc_video_context_Release(srcVctx);
+    heimdall_video_context_Release(srcVctx);
 
     for (int j = 0; j < DXGI_MAX_SHADER_VIEW; j++)
     {
         if (src_sys->renderSrc[j])
             src_sys->renderSrc[j]->Release();
     }
-    D3D11_AllocateResourceView(vlc_object_logger(p_dec), dev_sys->d3d_dev.d3ddevice, p_sys->output_format,
+    D3D11_AllocateResourceView(heimdall_object_logger(p_dec), dev_sys->d3d_dev.d3ddevice, p_sys->output_format,
                                src_sys->texture, src_sys->slice_index, src_sys->renderSrc);
 
     picture_Hold( p_pic ); // hold the picture we got from the block
     block_Release( p_block );
     decoder_QueueVideo( p_dec, p_pic );
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }
 
 static void Flush( decoder_t *p_dec )
 {
     d3d11_dec_sys *p_sys = static_cast<d3d11_dec_sys*>(p_dec->p_sys);
 
-    date_Set( &p_sys->pts, VLC_TICK_INVALID );
+    date_Set( &p_sys->pts, HEIMDALL_TICK_INVALID );
 }
 
-void D3D11CloseBlockDecoder( vlc_object_t *obj )
+void D3D11CloseBlockDecoder( heimdall_object_t *obj )
 {
     decoder_t *p_dec = (decoder_t *)obj;
     d3d11_dec_sys *p_sys = static_cast<d3d11_dec_sys*>(p_dec->p_sys);
     delete p_sys;
 }
 
-int D3D11OpenBlockDecoder( vlc_object_t *obj )
+int D3D11OpenBlockDecoder( heimdall_object_t *obj )
 {
     decoder_t *p_dec = (decoder_t *)obj;
 
     if ( !is_d3d11_opaque(p_dec->fmt_in->video.i_chroma) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     if( p_dec->fmt_in->video.i_width <= 0 || p_dec->fmt_in->video.i_height == 0 )
     {
         msg_Err( p_dec, "invalid display size %dx%d",
                  p_dec->fmt_in->video.i_width, p_dec->fmt_in->video.i_height );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    vlc_decoder_device *dec_dev = decoder_GetDecoderDevice(p_dec);
+    heimdall_decoder_device *dec_dev = decoder_GetDecoderDevice(p_dec);
     if (dec_dev == nullptr)
-        return VLC_ENOTSUP;
+        return HEIMDALL_ENOTSUP;
     auto dev_sys = GetD3D11OpaqueDevice(dec_dev);
     if (dev_sys == nullptr)
     {
-        vlc_decoder_device_Release(dec_dev);
-        return VLC_ENOTSUP;
+        heimdall_decoder_device_Release(dec_dev);
+        return HEIMDALL_ENOTSUP;
     }
 
     d3d11_dec_sys *p_sys = new (std::nothrow) d3d11_dec_sys();
     if (unlikely(!p_sys))
     {
-        vlc_decoder_device_Release(dec_dev);
-        return VLC_ENOMEM;
+        heimdall_decoder_device_Release(dec_dev);
+        return HEIMDALL_ENOMEM;
     }
     p_sys->dec_dev = dec_dev;
 
@@ -264,7 +265,7 @@ int D3D11OpenBlockDecoder( vlc_object_t *obj )
         date_Init( &p_sys->pts, p_dec->fmt_out.video.i_frame_rate,
                     p_dec->fmt_out.video.i_frame_rate_base );
 
-    if (p_dec->fmt_in->video.i_chroma == VLC_CODEC_D3D11_OPAQUE_BGRA)
+    if (p_dec->fmt_in->video.i_chroma == HEIMDALL_CODEC_D3D11_OPAQUE_BGRA)
     {
         // there's only one possible value so we don't have to wait for the
         // DXGI_FORMAT
@@ -281,13 +282,13 @@ int D3D11OpenBlockDecoder( vlc_object_t *obj )
         if (!p_sys->vctx)
         {
             delete p_sys;
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         if( decoder_UpdateVideoOutput( p_dec, p_sys->vctx ) )
         {
             delete p_sys;
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
     else
@@ -300,5 +301,5 @@ int D3D11OpenBlockDecoder( vlc_object_t *obj )
     p_dec->pf_flush  = Flush;
     p_dec->p_sys = p_sys;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

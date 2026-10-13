@@ -2,6 +2,7 @@
  * Downloader.hpp
  *****************************************************************************
  * Copyright (C) 2015 - VideoLAN Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -22,9 +23,9 @@
 
 #include "Chunk.h"
 
-#include <vlc_common.h>
-#include <vlc_threads.h>
-#include <vlc_cxx_helpers.hpp>
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
+#include <heimdall_cxx_helpers.hpp>
 #include <list>
 
 namespace adaptive
@@ -49,10 +50,10 @@ namespace adaptive
                 static void * downloaderThread(void *);
                 void Run();
                 void kill();
-                vlc_thread_t thread_handle;
-                vlc::threads::mutex lock;
-                vlc::threads::condition_variable wait_cond;
-                vlc::threads::condition_variable updated_cond;
+                heimdall_thread_t thread_handle;
+                heimdall::threads::mutex lock;
+                heimdall::threads::condition_variable wait_cond;
+                heimdall::threads::condition_variable updated_cond;
                 bool         thread_handle_valid;
                 bool         killed;
                 bool         cancel_current;

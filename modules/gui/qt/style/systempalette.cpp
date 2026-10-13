@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,8 +22,8 @@
 #include <QSettings>
 #include <QFile>
 #include <maininterface/mainctx.hpp>
-#include <vlc_modules.h>
-#include <vlc_picture.h>
+#include <heimdall_modules.h>
+#include <heimdall_picture.h>
 
 namespace {
 
@@ -96,13 +97,13 @@ bool isGTKBasedEnvironment()
 #endif
 
 
-static void PaletteChangedCallback(vlc_qt_theme_provider_t*, void* data)
+static void PaletteChangedCallback(heimdall_qt_theme_provider_t*, void* data)
 {
     auto priv = static_cast<ExternalPaletteImpl*>(data);
     emit priv->paletteChanged();
 }
 
-static void MetricsChangedCallback(vlc_qt_theme_provider_t*, vlc_qt_theme_image_type type, void* data)
+static void MetricsChangedCallback(heimdall_qt_theme_provider_t*, heimdall_qt_theme_image_type type, void* data)
 {
     auto priv = static_cast<ExternalPaletteImpl*>(data);
     assert(priv);
@@ -110,7 +111,7 @@ static void MetricsChangedCallback(vlc_qt_theme_provider_t*, vlc_qt_theme_image_
 }
 
 
-static void ReleaseVLCPictureCb(void* data)
+static void ReleaseHeimdallPictureCb(void* data)
 {
     auto pic = static_cast<picture_t*>(data);
     if (pic)
@@ -119,9 +120,9 @@ static void ReleaseVLCPictureCb(void* data)
 
 
 static void setColorRBGAInt(
-    vlc_qt_theme_provider_t* obj,
-    vlc_qt_theme_color_set set, vlc_qt_theme_color_section section,
-    vlc_qt_theme_color_name name, vlc_qt_theme_color_state state,
+    heimdall_qt_theme_provider_t* obj,
+    heimdall_qt_theme_color_set set, heimdall_qt_theme_color_section section,
+    heimdall_qt_theme_color_name name, heimdall_qt_theme_color_state state,
     int r, int g, int b, int a)
 {
     auto palette = static_cast<SystemPalette*>(obj->setColorData);
@@ -133,9 +134,9 @@ static void setColorRBGAInt(
 }
 
 static void setColorRBGAFloat(
-    vlc_qt_theme_provider_t* obj,
-    vlc_qt_theme_color_set set, vlc_qt_theme_color_section section,
-    vlc_qt_theme_color_name name, vlc_qt_theme_color_state state,
+    heimdall_qt_theme_provider_t* obj,
+    heimdall_qt_theme_color_set set, heimdall_qt_theme_color_section section,
+    heimdall_qt_theme_color_name name, heimdall_qt_theme_color_state state,
     double r, double g, double b, double a)
 {
     auto palette = static_cast<SystemPalette*>(obj->setColorData);
@@ -166,7 +167,7 @@ ExternalPaletteImpl::~ExternalPaletteImpl()
             m_provider->close(m_provider);
         if (m_module)
             module_unneed(m_provider, m_module);
-        vlc_object_delete(m_provider);
+        heimdall_object_delete(m_provider);
     }
 }
 
@@ -178,7 +179,7 @@ bool ExternalPaletteImpl::init()
         preferedProvider = "qt-themeprovider-gtk";
 #endif
 
-    m_provider = vlc_object_create<vlc_qt_theme_provider_t>(m_ctx->getIntf());
+    m_provider = heimdall_object_create<heimdall_qt_theme_provider_t>(m_ctx->getIntf());
     if (!m_provider)
         return false;
 
@@ -212,15 +213,15 @@ bool ExternalPaletteImpl::hasCSDImages() const
 {
     if (!m_provider->supportThemeImage)
         return false;
-    return m_provider->supportThemeImage(m_provider, VLC_QT_THEME_IMAGE_TYPE_CSD_BUTTON);
+    return m_provider->supportThemeImage(m_provider, HEIMDALL_QT_THEME_IMAGE_TYPE_CSD_BUTTON);
 }
 
 
-QImage ExternalPaletteImpl::getCSDImage(vlc_qt_theme_csd_button_type type, vlc_qt_theme_csd_button_state state, bool maximized, bool active, int bannerHeight)
+QImage ExternalPaletteImpl::getCSDImage(heimdall_qt_theme_csd_button_type type, heimdall_qt_theme_csd_button_state state, bool maximized, bool active, int bannerHeight)
 {
     if (!m_provider->getThemeImage)
         return {};
-    vlc_qt_theme_image_setting imageSettings;
+    heimdall_qt_theme_image_setting imageSettings;
     imageSettings.windowScaleFactor = m_ctx->intfMainWindow()->devicePixelRatio();
     imageSettings.userScaleFacor = m_ctx->getIntfUserScaleFactor();
     imageSettings.u.csdButton.buttonType = type;
@@ -228,20 +229,20 @@ QImage ExternalPaletteImpl::getCSDImage(vlc_qt_theme_csd_button_type type, vlc_q
     imageSettings.u.csdButton.maximized = maximized;
     imageSettings.u.csdButton.active = active;
     imageSettings.u.csdButton.bannerHeight = bannerHeight;
-    picture_t* pic = m_provider->getThemeImage(m_provider, VLC_QT_THEME_IMAGE_TYPE_CSD_BUTTON, &imageSettings);
+    picture_t* pic = m_provider->getThemeImage(m_provider, HEIMDALL_QT_THEME_IMAGE_TYPE_CSD_BUTTON, &imageSettings);
     if (!pic)
         return {};
 
     QImage::Format format = QImage::Format_Invalid;
     switch (pic->format.i_chroma)
     {
-    case VLC_CODEC_ARGB:
+    case HEIMDALL_CODEC_ARGB:
         format = QImage::Format_ARGB32_Premultiplied;
         break;
-    case VLC_CODEC_RGBA:
+    case HEIMDALL_CODEC_RGBA:
         format = QImage::Format_RGBA8888_Premultiplied;
         break;
-    case VLC_CODEC_RGB24:
+    case HEIMDALL_CODEC_RGB24:
         format = QImage::Format_RGB888;
         break;
     default:
@@ -252,7 +253,7 @@ QImage ExternalPaletteImpl::getCSDImage(vlc_qt_theme_csd_button_type type, vlc_q
     return QImage(pic->p[0].p_pixels,
             pic->format.i_visible_width, pic->format.i_visible_height, pic->p[0].i_pitch,
             format,
-            ReleaseVLCPictureCb, pic
+            ReleaseHeimdallPictureCb, pic
             );
 }
 
@@ -265,22 +266,22 @@ int ExternalPaletteImpl::update()
 {
     if (m_provider->updatePalette)
         return m_provider->updatePalette(m_provider);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
-void ExternalPaletteImpl::updateMetrics(vlc_qt_theme_image_type type)
+void ExternalPaletteImpl::updateMetrics(heimdall_qt_theme_image_type type)
 {
     if (m_provider->getThemeMetrics)
     {
-        if (type == VLC_QT_THEME_IMAGE_TYPE_CSD_BUTTON)
+        if (type == HEIMDALL_QT_THEME_IMAGE_TYPE_CSD_BUTTON)
         {
             m_csdMetrics.reset();
             [&](){
                 if (!m_provider->getThemeMetrics)
                     return;
-                vlc_qt_theme_metrics metrics;
+                heimdall_qt_theme_metrics metrics;
                 memset(&metrics, 0, sizeof(metrics));
-                bool ret = m_provider->getThemeMetrics(m_provider, VLC_QT_THEME_IMAGE_TYPE_CSD_BUTTON, &metrics);
+                bool ret = m_provider->getThemeMetrics(m_provider, HEIMDALL_QT_THEME_IMAGE_TYPE_CSD_BUTTON, &metrics);
                 if (!ret)
                     return;
                 m_csdMetrics = std::make_unique<CSDMetrics>();
@@ -340,7 +341,7 @@ ColorSchemeModel::ColorScheme SystemPalette::source() const
     return m_source;
 }
 
-QImage SystemPalette::getCSDImage(vlc_qt_theme_csd_button_type type, vlc_qt_theme_csd_button_state state, bool maximized, bool active, int bannerHeight)
+QImage SystemPalette::getCSDImage(heimdall_qt_theme_csd_button_type type, heimdall_qt_theme_csd_button_state state, bool maximized, bool active, int bannerHeight)
 {
     if (!hasCSDImage())
         return QImage();
@@ -915,7 +916,7 @@ void SystemPalette::makeSystemPalette()
 
     m_colorMap.clear();
     int ret = palette->update();
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
     {
         if (palette->isThemeDark())
             makeDarkPalette();

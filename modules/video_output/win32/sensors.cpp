@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright © 2017 Steve Lhomme
  * Copyright © 2017 VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Steve Lhomme <robux4@gmail.com>
  *
@@ -41,7 +42,7 @@ using Microsoft::WRL::ComPtr;
 class SensorReceiver : public ISensorEvents
 {
 public:
-    SensorReceiver(const vout_display_owner_t *o, const vlc_viewpoint_t & init_viewpoint)
+    SensorReceiver(const vout_display_owner_t *o, const heimdall_viewpoint_t & init_viewpoint)
         :owner(*o)
         ,current_pos(init_viewpoint)
     {}
@@ -98,7 +99,7 @@ public:
     HRESULT STDMETHODCALLTYPE OnDataUpdated(ISensor *pSensor, ISensorDataReport *pNewData)
     {
         (void)pSensor;
-        vlc_viewpoint_t old_pos = current_pos;
+        heimdall_viewpoint_t old_pos = current_pos;
         HRESULT hr;
         PROPVARIANT pvRot;
 
@@ -124,9 +125,9 @@ public:
 
         // TODO: use current_pos directly?
         /* Zero initialize vp for field of view. */
-        vlc_viewpoint_t vp {};
+        heimdall_viewpoint_t vp {};
         vp.fov = 0.f;
-        vlc_viewpoint_from_euler(&vp,
+        heimdall_viewpoint_from_euler(&vp,
             old_pos.yaw   - current_pos.yaw,
             old_pos.pitch - current_pos.pitch,
             old_pos.roll  - current_pos.roll
@@ -153,11 +154,11 @@ public:
 
 private:
     vout_display_owner_t owner;
-    vlc_viewpoint_t current_pos;
+    heimdall_viewpoint_t current_pos;
     long m_cRef;
 };
 
-void *HookWindowsSensors(vlc_logger *vd, const vout_display_owner_t *move, HWND hwnd)
+void *HookWindowsSensors(heimdall_logger *vd, const vout_display_owner_t *move, HWND hwnd)
 {
     ComPtr<ISensorManager> pSensorManager;
     HRESULT hr = CoCreateInstance( __uuidof(SensorManager),
@@ -170,13 +171,13 @@ void *HookWindowsSensors(vlc_logger *vd, const vout_display_owner_t *move, HWND 
     hr = pSensorManager->GetSensorsByType(SENSOR_TYPE_INCLINOMETER_3D, &pInclinometers);
     if (FAILED(hr))
     {
-        vlc_debug(vd, "inclinometer not found. (hr=0x%lX)", hr);
+        heimdall_debug(vd, "inclinometer not found. (hr=0x%lX)", hr);
         return NULL;
     }
 
     ULONG count;
     pInclinometers->GetCount(&count);
-    vlc_debug(vd, "Found %lu inclinometer", count);
+    heimdall_debug(vd, "Found %lu inclinometer", count);
     for (ULONG i=0; i<count; ++i)
     {
         ComPtr<ISensor> pSensor;
@@ -195,8 +196,8 @@ void *HookWindowsSensors(vlc_logger *vd, const vout_display_owner_t *move, HWND 
         if (FAILED(hr))
             continue;
 
-        vlc_viewpoint_t start_viewpoint;
-        vlc_viewpoint_init(&start_viewpoint);
+        heimdall_viewpoint_t start_viewpoint;
+        heimdall_viewpoint_init(&start_viewpoint);
         PROPVARIANT pvRot;
         PropVariantInit(&pvRot);
         hr = pSensor->GetProperty(SENSOR_DATA_TYPE_TILT_X_DEGREES, &pvRot);

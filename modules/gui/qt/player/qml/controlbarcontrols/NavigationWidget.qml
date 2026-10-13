@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2022 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Benjamin Arnaud <bunjee@omega.gg>
  *
@@ -22,23 +23,23 @@ import QtQuick
 import QtQuick.Templates as Templates
 
 
-import VLC.MainInterface
-import VLC.Widgets as Widgets
-import VLC.Style
-import VLC.Player
+import Heimdall.MainInterface
+import Heimdall.Widgets as Widgets
+import Heimdall.Style
+import Heimdall.Player
 
 Templates.Pane {
     id: root
 
     // Properties
 
-    font.pixelSize: VLCStyle.icon_toolbar
+    font.pixelSize: HeimdallStyle.icon_toolbar
 
     property bool paintOnly: false
 
     // Private
 
-    readonly property string _controlPath : "qrc:///qt/qml/VLC/PlayerControls/"
+    readonly property string _controlPath : "qrc:///qt/qml/Heimdall/PlayerControls/"
 
     // Signals
 

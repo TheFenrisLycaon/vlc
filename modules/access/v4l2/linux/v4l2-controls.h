@@ -2,6 +2,7 @@
  *  Video for Linux Two controls header file
  *
  *  Copyright (C) 1999-2012 the contributors
+ *  Copyright (C) 2026 TheFenrisLycaon
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -366,7 +367,7 @@ enum v4l2_mpeg_video_multi_slice_mode {
 #define V4L2_CID_MPEG_VIDEO_H264_CPB_SIZE		(V4L2_CID_MPEG_BASE+356)
 #define V4L2_CID_MPEG_VIDEO_H264_ENTROPY_MODE		(V4L2_CID_MPEG_BASE+357)
 enum v4l2_mpeg_video_h264_entropy_mode {
-	V4L2_MPEG_VIDEO_H264_ENTROPY_MODE_CAVLC	= 0,
+	V4L2_MPEG_VIDEO_H264_ENTROPY_MODE_CAHEIMDALL	= 0,
 	V4L2_MPEG_VIDEO_H264_ENTROPY_MODE_CABAC	= 1,
 };
 #define V4L2_CID_MPEG_VIDEO_H264_I_PERIOD		(V4L2_CID_MPEG_BASE+358)
@@ -410,7 +411,7 @@ enum v4l2_mpeg_video_h264_profile {
 	V4L2_MPEG_VIDEO_H264_PROFILE_HIGH_10_INTRA		= 8,
 	V4L2_MPEG_VIDEO_H264_PROFILE_HIGH_422_INTRA		= 9,
 	V4L2_MPEG_VIDEO_H264_PROFILE_HIGH_444_INTRA		= 10,
-	V4L2_MPEG_VIDEO_H264_PROFILE_CAVLC_444_INTRA		= 11,
+	V4L2_MPEG_VIDEO_H264_PROFILE_CAHEIMDALL_444_INTRA		= 11,
 	V4L2_MPEG_VIDEO_H264_PROFILE_SCALABLE_BASELINE		= 12,
 	V4L2_MPEG_VIDEO_H264_PROFILE_SCALABLE_HIGH		= 13,
 	V4L2_MPEG_VIDEO_H264_PROFILE_SCALABLE_HIGH_INTRA	= 14,

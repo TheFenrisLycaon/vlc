@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2012-2013 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors:
  *          Nicolas Bertrand <nico@isf.cc>
@@ -43,14 +44,14 @@
 #define KDM_HELP_TEXT          N_("KDM file")
 #define KDM_HELP_LONG_TEXT     N_("Path to Key Delivery Message XML file")
 
-/* VLC core API headers */
-#include <vlc_common.h>
-#include <vlc_demux.h>
-#include <vlc_plugin.h>
-#include <vlc_xml.h>
-#include <vlc_url.h>
-#include <vlc_aout.h>
-#include <vlc_fs.h>
+/* Heimdall core API headers */
+#include <heimdall_common.h>
+#include <heimdall_demux.h>
+#include <heimdall_plugin.h>
+#include <heimdall_xml.h>
+#include <heimdall_url.h>
+#include <heimdall_aout.h>
+#include <heimdall_fs.h>
 
 #ifdef _WIN32
 # define KM_WIN32
@@ -79,11 +80,11 @@ using namespace ASDCP;
                                      with Errata as of 30 August 2012" */
 
 /* Forward declarations */
-static int Open( vlc_object_t * );
-static void Close( vlc_object_t * );
+static int Open( heimdall_object_t * );
+static void Close( heimdall_object_t * );
 
 /* Module descriptor */
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname( N_( "DCP" ) )
     add_shortcut( "dcp" )
     set_description( N_( "Digital Cinema Package module" ) )
@@ -91,7 +92,7 @@ vlc_module_begin()
     set_subcategory( SUBCAT_INPUT_ACCESS )
     add_loadfile("kdm", "", KDM_HELP_TEXT, KDM_HELP_LONG_TEXT)
     set_callbacks( Open, Close )
-vlc_module_end()
+heimdall_module_end()
 
 namespace {
 
@@ -173,7 +174,7 @@ class demux_sys_t
     uint8_t pi_chan_table[AOUT_CHAN_MAX];
     uint8_t i_channels;
 
-    vlc_tick_t i_pts;
+    heimdall_tick_t i_pts;
 
     demux_sys_t():
         PictureEssType ( ESS_UNKNOWN ),
@@ -312,7 +313,7 @@ void CloseDcpAndMxf( demux_t *p_demux );
 /*****************************************************************************
  * Open: module init function
  *****************************************************************************/
-static int Open( vlc_object_t *obj )
+static int Open( heimdall_object_t *obj )
 {
     demux_t *p_demux = ( demux_t* ) obj;
     demux_sys_t *p_sys;
@@ -320,11 +321,11 @@ static int Open( vlc_object_t *obj )
     int retval;
 
     if( p_demux->out == NULL || p_demux->psz_filepath == NULL )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     p_sys = new ( nothrow ) demux_sys_t();
     if( unlikely( p_sys == NULL ) ) {
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
     p_demux->p_sys = p_sys;
 
@@ -332,7 +333,7 @@ static int Open( vlc_object_t *obj )
     dcp_t *p_dcp = new ( nothrow ) dcp_t;
     if( unlikely( p_dcp == NULL ) ) {
         delete  p_sys;
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
     p_sys->p_dcp = p_dcp;
 
@@ -355,7 +356,7 @@ static int Open( vlc_object_t *obj )
             if ( essInter != p_sys->PictureEssType )
             {
                 msg_Err( p_demux, "Integrity check failed : different essence containers" );
-                retval = VLC_EGENERIC;
+                retval = HEIMDALL_EGENERIC;
                 goto error;
             }
         }
@@ -364,7 +365,7 @@ static int Open( vlc_object_t *obj )
         {
             case ESS_UNKNOWN:
                 msg_Err( p_demux, "The file %s is not a supported AS_DCP essence container", p_sys->p_dcp->video_reels[i].filename.c_str() );
-                retval = VLC_EGENERIC;
+                retval = HEIMDALL_EGENERIC;
                 goto error;
 
             case ESS_JPEG_2000:
@@ -374,12 +375,12 @@ static int Open( vlc_object_t *obj )
                     JP2K::MXFSReader * p_PicMXFSReader = new ( nothrow ) JP2K::MXFSReader(MAYBE_FACTORY);
 
                     if( !p_PicMXFSReader) {
-                        retval = VLC_ENOMEM;
+                        retval = HEIMDALL_ENOMEM;
                         goto error;
                     }
                     if( !ASDCP_SUCCESS( p_PicMXFSReader->OpenRead( p_sys->p_dcp->video_reels[i].filename.c_str() ) ) ) {
                         msg_Err( p_demux, "File %s could not be opened with ASDCP", p_sys->p_dcp->video_reels[i].filename.c_str() );
-                        retval = VLC_EGENERIC;
+                        retval = HEIMDALL_EGENERIC;
                         delete p_PicMXFSReader;
                         goto error;
                     }
@@ -391,13 +392,13 @@ static int Open( vlc_object_t *obj )
                 } else {                                            /* 2D JPEG2000 */
                     JP2K::MXFReader *p_PicMXFReader = new ( nothrow ) JP2K::MXFReader(MAYBE_FACTORY);
                     if( !p_PicMXFReader ) {
-                        retval = VLC_ENOMEM;
+                        retval = HEIMDALL_ENOMEM;
                         goto error;
                     }
                     if( !ASDCP_SUCCESS( p_PicMXFReader->OpenRead( p_sys->p_dcp->video_reels[i].filename.c_str() ) ) ) {
                         msg_Err( p_demux, "File %s could not be opened with ASDCP",
                                         p_sys->p_dcp->video_reels[i].filename.c_str() );
-                        retval = VLC_EGENERIC;
+                        retval = HEIMDALL_EGENERIC;
                         delete p_PicMXFReader;
                         goto error;
                     }
@@ -407,7 +408,7 @@ static int Open( vlc_object_t *obj )
                     videoReader.p_PicMXFReader = p_PicMXFReader;
                     p_sys->v_videoReader.push_back(videoReader);
                 }
-                es_format_Init( &video_format, VIDEO_ES, VLC_CODEC_JPEG2000 );
+                es_format_Init( &video_format, VIDEO_ES, HEIMDALL_CODEC_JPEG2000 );
                 fillVideoFmt( &video_format.video, PicDesc.StoredWidth, PicDesc.StoredHeight,
                                 PicDesc.EditRate.Numerator, PicDesc.EditRate.Denominator );
 
@@ -417,7 +418,7 @@ static int Open( vlc_object_t *obj )
                             p_sys->frame_rate_denom != PicDesc.EditRate.Denominator )
                     {
                         msg_Err( p_demux, "Integrity check failed : different frame rates" );
-                        retval = VLC_EGENERIC;
+                        retval = HEIMDALL_EGENERIC;
                         goto error;
                     }
                 }
@@ -441,19 +442,19 @@ static int Open( vlc_object_t *obj )
                 MPEG2::VideoDescriptor  VideoDesc;
 
                 if( !p_VideoMXFReader ) {
-                    retval = VLC_ENOMEM;
+                    retval = HEIMDALL_ENOMEM;
                     goto error;
                 }
 
                 if( !ASDCP_SUCCESS( p_VideoMXFReader->OpenRead( p_sys->p_dcp->video_reels[i].filename.c_str() ) ) ) {
                     msg_Err( p_demux, "File %s could not be opened with ASDCP", p_sys->p_dcp->video_reels[i].filename.c_str() );
-                    retval = VLC_EGENERIC;
+                    retval = HEIMDALL_EGENERIC;
                     goto error;
                 }
 
                 p_VideoMXFReader->FillVideoDescriptor( VideoDesc );
 
-                es_format_Init( &video_format, VIDEO_ES, VLC_CODEC_MPGV );
+                es_format_Init( &video_format, VIDEO_ES, HEIMDALL_CODEC_MPGV );
                 fillVideoFmt( &video_format.video, VideoDesc.StoredWidth, VideoDesc.StoredHeight,
                               VideoDesc.EditRate.Numerator, VideoDesc.EditRate.Denominator );
 
@@ -463,7 +464,7 @@ static int Open( vlc_object_t *obj )
                             p_sys->frame_rate_denom != VideoDesc.EditRate.Denominator)
                     {
                         msg_Err( p_demux, "Integrity check failed : different frame rates" );
-                        retval = VLC_EGENERIC;
+                        retval = HEIMDALL_EGENERIC;
                         goto error;
                     }
                 }
@@ -478,7 +479,7 @@ static int Open( vlc_object_t *obj )
             }
             default:
                 msg_Err( p_demux, "Unrecognized video format" );
-                retval = VLC_EGENERIC;
+                retval = HEIMDALL_EGENERIC;
                 goto error;
         }
     }
@@ -486,13 +487,13 @@ static int Open( vlc_object_t *obj )
     if ( (p_sys->frame_rate_num == 0) || (p_sys->frame_rate_denom == 0) ) {
         msg_Err(p_demux, "Invalid frame rate (%i/%i)",
                 p_sys->frame_rate_num, p_sys->frame_rate_denom);
-        retval = VLC_EGENERIC;
+        retval = HEIMDALL_EGENERIC;
         goto error;
     }
 
     if( ( p_sys->p_video_es = es_out_Add( p_demux->out, &video_format ) ) == NULL ) {
         msg_Err( p_demux, "Failed to add video es" );
-        retval = VLC_EGENERIC;
+        retval = HEIMDALL_EGENERIC;
         goto error;
     }
 
@@ -516,21 +517,21 @@ static int Open( vlc_object_t *obj )
                     {
                         msg_Err( p_demux, "Integrity check failed : different audio essence types in %s",
                         p_sys->p_dcp->audio_reels[i].filename.c_str() );
-                        retval = VLC_EGENERIC;
+                        retval = HEIMDALL_EGENERIC;
                         goto error;
                     }
                 }
                 PCM::MXFReader *p_AudioMXFReader = new ( nothrow ) PCM::MXFReader(MAYBE_FACTORY);
 
                 if( !p_AudioMXFReader ) {
-                    retval = VLC_ENOMEM;
+                    retval = HEIMDALL_ENOMEM;
                     goto error;
                 }
 
                 if( !ASDCP_SUCCESS( p_AudioMXFReader->OpenRead( p_sys->p_dcp->audio_reels[i].filename.c_str() ) ) ) {
                     msg_Err( p_demux, "File %s could not be opened with ASDCP",
                                     p_sys->p_dcp->audio_reels[i].filename.c_str() );
-                    retval = VLC_EGENERIC;
+                    retval = HEIMDALL_EGENERIC;
                     delete p_AudioMXFReader;
                     goto error;
                 }
@@ -541,7 +542,7 @@ static int Open( vlc_object_t *obj )
                         || (pi_channels_aout[AudioDesc.ChannelCount] == NULL) )
                 {
                     msg_Err(p_demux, " DCP module does not support %i channels", AudioDesc.ChannelCount);
-                    retval = VLC_EGENERIC;
+                    retval = HEIMDALL_EGENERIC;
                     delete p_AudioMXFReader;
                     goto error;
                 }
@@ -550,7 +551,7 @@ static int Open( vlc_object_t *obj )
                 p_sys->v_audioReader.push_back( audioReader );
 
             }
-            es_format_Init( &audio_format, AUDIO_ES, VLC_CODEC_S24L );
+            es_format_Init( &audio_format, AUDIO_ES, HEIMDALL_CODEC_S24L );
             if( AudioDesc.AudioSamplingRate.Denominator != 0 )
                 audio_format.audio.i_rate =
                     AudioDesc.AudioSamplingRate.Numerator
@@ -563,7 +564,7 @@ static int Open( vlc_object_t *obj )
             p_sys->i_audio_buffer = PCM::CalcFrameBufferSize( AudioDesc );
             if (p_sys->i_audio_buffer == 0) {
                 msg_Err( p_demux, "Failed to get audio buffer size" );
-                retval = VLC_EGENERIC;
+                retval = HEIMDALL_EGENERIC;
                 goto error;
             }
 
@@ -579,13 +580,13 @@ static int Open( vlc_object_t *obj )
 
             if( ( p_sys->p_audio_es = es_out_Add( p_demux->out, &audio_format ) ) == NULL ) {
                 msg_Err( p_demux, "Failed to add audio es" );
-                retval = VLC_EGENERIC;
+                retval = HEIMDALL_EGENERIC;
                 goto error;
             }
         } else {
             msg_Err( p_demux, "The file %s is not a supported AS_DCP essence container",
                     p_sys->p_dcp->audio_reels[0].filename.c_str() );
-            retval = VLC_EGENERIC;
+            retval = HEIMDALL_EGENERIC;
             goto error;
         }
     }
@@ -593,7 +594,7 @@ static int Open( vlc_object_t *obj )
     p_demux->pf_control = Control;
     p_sys->frame_no = p_sys->p_dcp->video_reels[0].i_entrypoint;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 error:
     CloseDcpAndMxf( p_demux );
     return retval;
@@ -603,7 +604,7 @@ error:
 /*****************************************************************************
  * Close: module destroy function
  *****************************************************************************/
-static inline void Close( vlc_object_t *obj )
+static inline void Close( heimdall_object_t *obj )
 {
     demux_t *p_demux = ( demux_t* ) obj;
     CloseDcpAndMxf( p_demux );
@@ -712,8 +713,8 @@ static int Demux( demux_t *p_demux )
             goto error;
     }
 
-    p_video_frame->i_length = vlc_tick_from_samples(p_sys->frame_rate_denom, p_sys->frame_rate_num);
-    p_video_frame->i_pts = vlc_tick_from_samples(p_sys->frame_no * p_sys->frame_rate_denom, p_sys->frame_rate_num);
+    p_video_frame->i_length = heimdall_tick_from_samples(p_sys->frame_rate_denom, p_sys->frame_rate_num);
+    p_video_frame->i_pts = heimdall_tick_from_samples(p_sys->frame_no * p_sys->frame_rate_denom, p_sys->frame_rate_num);
 
     if( !p_sys->p_dcp->audio_reels.empty() )
     {
@@ -747,11 +748,11 @@ static int Demux( demux_t *p_demux )
         if( p_sys->i_chans_to_reorder )
             aout_ChannelReorder( p_audio_frame->p_buffer, p_audio_frame->i_buffer,
                     p_sys->i_chans_to_reorder,
-                    p_sys->pi_chan_table, VLC_CODEC_S24L );
+                    p_sys->pi_chan_table, HEIMDALL_CODEC_S24L );
 
         p_audio_frame->i_buffer = AudioFrameBuff.Size();
-        p_audio_frame->i_length = vlc_tick_from_samples(p_sys->frame_rate_denom, p_sys->frame_rate_num);
-        p_audio_frame->i_pts = vlc_tick_from_samples(p_sys->frame_no * p_sys->frame_rate_denom, p_sys->frame_rate_num);
+        p_audio_frame->i_length = heimdall_tick_from_samples(p_sys->frame_rate_denom, p_sys->frame_rate_num);
+        p_audio_frame->i_pts = heimdall_tick_from_samples(p_sys->frame_no * p_sys->frame_rate_denom, p_sys->frame_rate_num);
         /* Video is the main pts */
         if ( p_audio_frame->i_pts != p_video_frame->i_pts ) {
             msg_Err( p_demux, "Audio and video frame pts are not in sync" );
@@ -805,7 +806,7 @@ static int Control( demux_t *p_demux, int query, va_list args )
             break;
 
         case DEMUX_SET_PAUSE_STATE:
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
 
         case DEMUX_GET_POSITION:
             pf = va_arg( args, double * );
@@ -823,33 +824,33 @@ static int Control( demux_t *p_demux, int query, va_list args )
             break;
 
         case DEMUX_GET_LENGTH:
-            *va_arg ( args, vlc_tick_t * ) =
-                vlc_tick_from_sec( p_sys->frames_total * p_sys->frame_rate_denom / p_sys->frame_rate_num );
+            *va_arg ( args, heimdall_tick_t * ) =
+                heimdall_tick_from_sec( p_sys->frames_total * p_sys->frame_rate_denom / p_sys->frame_rate_num );
             break;
 
         case DEMUX_GET_TIME:
-            *va_arg( args, vlc_tick_t * ) = std::max<vlc_tick_t>(p_sys->i_pts, 0);
+            *va_arg( args, heimdall_tick_t * ) = std::max<heimdall_tick_t>(p_sys->i_pts, 0);
             break;
 
         case DEMUX_SET_TIME:
-            p_sys->i_pts = va_arg( args, vlc_tick_t );
+            p_sys->i_pts = va_arg( args, heimdall_tick_t );
             msg_Warn( p_demux, "DEMUX_SET_TIME"  );
             p_sys->frame_no = p_sys->i_pts * p_sys->frame_rate_num / ( CLOCK_FREQ * p_sys->frame_rate_denom );
             es_out_SetPCR(p_demux->out, p_sys->i_pts);
             es_out_Control( p_demux->out, ES_OUT_SET_NEXT_DISPLAY_TIME, p_sys->i_pts );
             break;
         case DEMUX_GET_PTS_DELAY:
-            *va_arg( args, vlc_tick_t * ) =
-                VLC_TICK_FROM_MS(var_InheritInteger( p_demux, "file-caching" ));
-            return VLC_SUCCESS;
+            *va_arg( args, heimdall_tick_t * ) =
+                HEIMDALL_TICK_FROM_MS(var_InheritInteger( p_demux, "file-caching" ));
+            return HEIMDALL_SUCCESS;
 
 
         default:
             msg_Warn( p_demux, "Unknown query %d in DCP Control", query );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 
@@ -868,7 +869,7 @@ static inline void fillVideoFmt( video_format_t * fmt, unsigned int width, unsig
 {
     fmt->i_width = width;
     fmt->i_height = height;
-    /* As input are square pixels let VLC  or decoder fix SAR, origin,
+    /* As input are square pixels let Heimdall  or decoder fix SAR, origin,
      * and visible area */
     fmt->i_frame_rate = frame_rate_num;
     fmt->i_frame_rate_base = frame_rate_denom;
@@ -951,7 +952,7 @@ int dcpInit ( demux_t *p_demux )
 
     msg_Dbg(p_demux, "parsing XML files done");
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 
@@ -965,16 +966,16 @@ int dcpInit ( demux_t *p_demux )
  */
 static std::string assetmapPath( demux_t * p_demux )
 {
-    vlc_DIR *dir = NULL;
+    heimdall_DIR *dir = NULL;
     const char *ent = NULL;
     demux_sys_t *p_sys = (demux_sys_t *)p_demux->p_sys;
     dcp_t *p_dcp = p_sys->p_dcp;
     std::string result;
 
-    if( ( dir = vlc_opendir (p_dcp->path.c_str() ) ) != NULL )
+    if( ( dir = heimdall_opendir (p_dcp->path.c_str() ) ) != NULL )
     {
         /* print all the files and directories within directory */
-        while( ( ent = vlc_readdir ( dir ) ) != NULL )
+        while( ( ent = heimdall_readdir ( dir ) ) != NULL )
         {
             if( strcasecmp( "assetmap", ent ) == 0 || strcasecmp( "assetmap.xml", ent ) == 0 )
             {
@@ -984,7 +985,7 @@ static std::string assetmapPath( demux_t * p_demux )
                 break;
             }
         }
-        vlc_closedir( dir );
+        heimdall_closedir( dir );
     }
     else
         msg_Err( p_demux, "Could not open the directory: %s", p_dcp->path.c_str() );
@@ -1010,7 +1011,7 @@ int parseXML ( demux_t * p_demux )
     std::string assetmap_path = assetmapPath( p_demux );
     /* We get the ASSETMAP file path */
     if( assetmap_path.empty() )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* We parse the ASSETMAP File in order to get CPL File path, PKL File path
      and to store UID/Path of all files in DCP directory (except ASSETMAP file) */
@@ -1019,5 +1020,5 @@ int parseXML ( demux_t * p_demux )
         return retval;
 
     delete assetmap;
-    return VLC_SUCCESS; /* TODO : perform checking on XML parsing */
+    return HEIMDALL_SUCCESS; /* TODO : perform checking on XML parsing */
 }

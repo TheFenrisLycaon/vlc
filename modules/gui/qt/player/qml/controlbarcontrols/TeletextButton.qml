@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Benjamin Arnaud <bunjee@omega.gg>
  *
@@ -21,11 +22,11 @@
 import QtQuick
 
 
-import VLC.MainInterface
-import VLC.Style
-import VLC.Player
-import VLC.Widgets
-import VLC.Util
+import Heimdall.MainInterface
+import Heimdall.Style
+import Heimdall.Player
+import Heimdall.Widgets
+import Heimdall.Util
 
 PopupIconToolButton {
     id: root
@@ -34,7 +35,7 @@ PopupIconToolButton {
 
     enabled: Player.isTeletextAvailable
 
-    text: VLCIcons.tvtelx
+    text: HeimdallIcons.tvtelx
 
     description: qsTr("Teletext")
 

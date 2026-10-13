@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 2003-2004, 2010 VLC authors and VideoLAN
  * Copyright © 2007 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
@@ -30,17 +31,17 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_arrays.h>
-#include <vlc_threads.h>
-#include <vlc_sout.h>
+#include <heimdall_common.h>
+#include <heimdall_arrays.h>
+#include <heimdall_threads.h>
+#include <heimdall_sout.h>
 
-#include <vlc_httpd.h>
-#include <vlc_url.h>
-#include <vlc_network.h>
-#include <vlc_charset.h>
-#include <vlc_fs.h>
-#include <vlc_rand.h>
+#include <heimdall_httpd.h>
+#include <heimdall_url.h>
+#include <heimdall_network.h>
+#include <heimdall_charset.h>
+#include <heimdall_fs.h>
+#include <heimdall_rand.h>
 #include <assert.h>
 #include <errno.h>
 #include <stdlib.h>
@@ -59,8 +60,8 @@ typedef struct rtsp_session_t rtsp_session_t;
 
 struct rtsp_stream_t
 {
-    vlc_mutex_t     lock;
-    vlc_object_t   *owner;
+    heimdall_mutex_t     lock;
+    heimdall_object_t   *owner;
     httpd_host_t   *host;
     httpd_url_t    *url;
     char           *psz_path;
@@ -69,8 +70,8 @@ struct rtsp_stream_t
     int             sessionc;
     rtsp_session_t **sessionv;
 
-    vlc_tick_t      timeout;
-    vlc_timer_t     timer;
+    heimdall_tick_t      timeout;
+    heimdall_timer_t     timer;
 };
 
 
@@ -84,7 +85,7 @@ static void RtspClientDel( rtsp_stream_t *rtsp, rtsp_session_t *session );
 
 static void RtspTimeOut( void *data );
 
-rtsp_stream_t *RtspSetup( vlc_object_t *owner, const char *path )
+rtsp_stream_t *RtspSetup( heimdall_object_t *owner, const char *path )
 {
     rtsp_stream_t *rtsp = calloc( 1, sizeof( *rtsp ) );
 
@@ -92,12 +93,12 @@ rtsp_stream_t *RtspSetup( vlc_object_t *owner, const char *path )
         return NULL;
 
     rtsp->owner = owner;
-    vlc_mutex_init( &rtsp->lock );
+    heimdall_mutex_init( &rtsp->lock );
 
-    rtsp->timeout = vlc_tick_from_sec(__MAX(0,var_InheritInteger(owner, "rtsp-timeout")));
+    rtsp->timeout = heimdall_tick_from_sec(__MAX(0,var_InheritInteger(owner, "rtsp-timeout")));
     if (rtsp->timeout != 0)
     {
-        if (vlc_timer_create(&rtsp->timer, RtspTimeOut, rtsp))
+        if (heimdall_timer_create(&rtsp->timer, RtspTimeOut, rtsp))
             goto error;
     }
 
@@ -107,7 +108,7 @@ rtsp_stream_t *RtspSetup( vlc_object_t *owner, const char *path )
 
     msg_Dbg( owner, "RTSP stream at %s", rtsp->psz_path );
 
-    rtsp->host = vlc_rtsp_HostNew( VLC_OBJECT(owner) );
+    rtsp->host = heimdall_rtsp_HostNew( HEIMDALL_OBJECT(owner) );
     if( rtsp->host == NULL )
         goto error;
 
@@ -147,7 +148,7 @@ void RtspUnsetup( rtsp_stream_t *rtsp )
         RtspClientDel( rtsp, rtsp->sessionv[0] );
 
     if (rtsp->timeout != 0)
-        vlc_timer_destroy(rtsp->timer);
+        heimdall_timer_destroy(rtsp->timer);
 
     free( rtsp->psz_path );
     free( rtsp );
@@ -173,7 +174,7 @@ struct rtsp_session_t
 {
     rtsp_stream_t *stream;
     uint64_t       id;
-    vlc_tick_t     last_seen; /* for timeouts */
+    heimdall_tick_t     last_seen; /* for timeouts */
 
     /* output (id-access) */
     int            trackc;
@@ -272,7 +273,7 @@ void RtspDelId( rtsp_stream_t *rtsp, rtsp_stream_id_t *id )
 {
     httpd_UrlDelete( id->url );
 
-    vlc_mutex_lock( &rtsp->lock );
+    heimdall_mutex_lock( &rtsp->lock );
     for( int i = 0; i < rtsp->sessionc; i++ )
     {
         rtsp_session_t *ses = rtsp->sessionv[i];
@@ -288,7 +289,7 @@ void RtspDelId( rtsp_stream_t *rtsp, rtsp_stream_id_t *id )
         }
     }
 
-    vlc_mutex_unlock( &rtsp->lock );
+    heimdall_mutex_unlock( &rtsp->lock );
     free( id );
 }
 
@@ -299,7 +300,7 @@ static void RtspUpdateTimer( rtsp_stream_t *rtsp )
     if (rtsp->timeout == 0)
         return;
 
-    vlc_tick_t timeout = 0;
+    heimdall_tick_t timeout = 0;
     for (int i = 0; i < rtsp->sessionc; i++)
     {
         if (timeout == 0 || rtsp->sessionv[i]->last_seen < timeout)
@@ -308,11 +309,11 @@ static void RtspUpdateTimer( rtsp_stream_t *rtsp )
     if (timeout != 0)
     {
         timeout += rtsp->timeout;
-        vlc_timer_schedule(rtsp->timer, true, timeout, VLC_TIMER_FIRE_ONCE);
+        heimdall_timer_schedule(rtsp->timer, true, timeout, HEIMDALL_TIMER_FIRE_ONCE);
     }
     else
     {
-        vlc_timer_disarm(rtsp->timer);
+        heimdall_timer_disarm(rtsp->timer);
     }
 }
 
@@ -321,13 +322,13 @@ static void RtspTimeOut( void *data )
 {
     rtsp_stream_t *rtsp = data;
 
-    vlc_mutex_lock(&rtsp->lock);
-    vlc_tick_t now = vlc_tick_now();
+    heimdall_mutex_lock(&rtsp->lock);
+    heimdall_tick_t now = heimdall_tick_now();
     for (int i = rtsp->sessionc - 1; i >= 0; i--)
         if (rtsp->sessionv[i]->last_seen + rtsp->timeout < now)
             RtspClientDel(rtsp, rtsp->sessionv[i]);
     RtspUpdateTimer(rtsp);
-    vlc_mutex_unlock(&rtsp->lock);
+    heimdall_mutex_unlock(&rtsp->lock);
 }
 
 
@@ -340,7 +341,7 @@ rtsp_session_t *RtspClientNew( rtsp_stream_t *rtsp )
         return NULL;
 
     s->stream = rtsp;
-    vlc_rand_bytes (&s->id, sizeof (s->id));
+    heimdall_rand_bytes (&s->id, sizeof (s->id));
     s->trackc = 0;
     s->trackv = NULL;
 
@@ -397,7 +398,7 @@ static void RtspClientAlive( rtsp_session_t *session )
     if (session->stream->timeout == 0)
         return;
 
-    session->last_seen = vlc_tick_now();
+    session->last_seen = heimdall_tick_now();
     RtspUpdateTimer(session->stream);
 }
 
@@ -405,7 +406,7 @@ static int dup_socket(int oldfd)
 {
     int newfd;
 #ifndef _WIN32
-    newfd = vlc_dup(oldfd);
+    newfd = heimdall_dup(oldfd);
 #else
     WSAPROTOCOL_INFO info;
     WSADuplicateSocket (oldfd, GetCurrentProcessId (), &info);
@@ -457,7 +458,7 @@ static inline const char *parameter_next( const char *str )
 }
 
 
-static vlc_tick_t ParseNPT (const char *str)
+static heimdall_tick_t ParseNPT (const char *str)
 {
     locale_t loc = newlocale (LC_NUMERIC_MASK, "C", NULL);
     locale_t oldloc = uselocale (loc);
@@ -475,7 +476,7 @@ static vlc_tick_t ParseNPT (const char *str)
         uselocale (oldloc);
         freelocale (loc);
     }
-    return sec < 0 ? -1 : vlc_tick_from_sec( sec );
+    return sec < 0 ? -1 : heimdall_tick_from_sec( sec );
 }
 
 
@@ -488,7 +489,7 @@ static int RtspHandler( rtsp_stream_t *rtsp, rtsp_stream_id_t *id,
                         httpd_message_t *answer,
                         const httpd_message_t *query )
 {
-    vlc_object_t *owner = rtsp->owner;
+    heimdall_object_t *owner = rtsp->owner;
     char psz_sesbuf[17];
     const char *psz_session = NULL, *psz;
     char control[sizeof("rtsp://[]:12345") + NI_MAXNUMERICHOST
@@ -498,7 +499,7 @@ static int RtspHandler( rtsp_stream_t *rtsp, rtsp_stream_id_t *id,
     time (&now);
 
     if( answer == NULL || query == NULL || cl == NULL )
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     else
     {
         /* Build self-referential control URL */
@@ -523,7 +524,7 @@ static int RtspHandler( rtsp_stream_t *rtsp, rtsp_stream_id_t *id,
     answer->i_body = 0;
     answer->p_body = NULL;
 
-    httpd_MsgAdd( answer, "Server", "VLC/%s", VERSION );
+    httpd_MsgAdd( answer, "Server", "Heimdall/%s", VERSION );
 
     /* Date: is always allowed, and sometimes mandatory with RTSP/2.0. */
     struct tm ut;
@@ -690,7 +691,7 @@ static int RtspHandler( rtsp_stream_t *rtsp, rtsp_stream_id_t *id,
                     {
                         /* Create a dummy session ID */
                         snprintf( psz_sesbuf, sizeof( psz_sesbuf ), "%lu",
-                                  vlc_mrand48() );
+                                  heimdall_mrand48() );
                         psz_session = psz_sesbuf;
                     }
                     answer->i_status = 200;
@@ -730,7 +731,7 @@ static int RtspHandler( rtsp_stream_t *rtsp, rtsp_stream_id_t *id,
                                 sizeof (int));
                     net_GetSockAddress( fd, src, &sport );
 
-                    vlc_mutex_lock( &rtsp->lock );
+                    heimdall_mutex_lock( &rtsp->lock );
                     if( psz_session == NULL )
                     {
                         ses = RtspClientNew( rtsp );
@@ -744,7 +745,7 @@ static int RtspHandler( rtsp_stream_t *rtsp, rtsp_stream_id_t *id,
                         if( ses == NULL )
                         {
                             answer->i_status = 454;
-                            vlc_mutex_unlock( &rtsp->lock );
+                            heimdall_mutex_unlock( &rtsp->lock );
                             net_Close( fd );
                             continue;
                         }
@@ -784,12 +785,12 @@ static int RtspHandler( rtsp_stream_t *rtsp, rtsp_stream_id_t *id,
                         /* The track is already set up, and we don't
                          * support changing the transport parameters on
                          * the fly */
-                        vlc_mutex_unlock( &rtsp->lock );
+                        heimdall_mutex_unlock( &rtsp->lock );
                         answer->i_status = 455;
                         net_Close( fd );
                         break;
                     }
-                    vlc_mutex_unlock( &rtsp->lock );
+                    heimdall_mutex_unlock( &rtsp->lock );
 
                     httpd_ServerIP( cl, ip, NULL );
 
@@ -822,7 +823,7 @@ static int RtspHandler( rtsp_stream_t *rtsp, rtsp_stream_id_t *id,
             answer->i_status = 200;
 
             psz_session = httpd_MsgGet( query, "Session" );
-            vlc_tick_t start = -1, end = -1, npt;
+            heimdall_tick_t start = -1, end = -1, npt;
             const char *range = httpd_MsgGet (query, "Range");
             if (range != NULL)
             {
@@ -851,7 +852,7 @@ static int RtspHandler( rtsp_stream_t *rtsp, rtsp_stream_id_t *id,
                     break;
                 }
             }
-            vlc_mutex_lock( &rtsp->lock );
+            heimdall_mutex_lock( &rtsp->lock );
             ses = RtspClientGet( rtsp, psz_session );
             if( ses != NULL )
             {
@@ -862,7 +863,7 @@ static int RtspHandler( rtsp_stream_t *rtsp, rtsp_stream_id_t *id,
                 RtspClientAlive(ses);
 
                 sout_stream_id_sys_t *sout_id = NULL;
-                vlc_tick_t ts = rtp_get_ts((sout_stream_t *)owner,
+                heimdall_tick_t ts = rtp_get_ts((sout_stream_t *)owner,
                                            sout_id, &npt);
 
                 for( int i = 0; i < ses->trackc; i++ )
@@ -912,11 +913,11 @@ static int RtspHandler( rtsp_stream_t *rtsp, rtsp_stream_id_t *id,
                     httpd_MsgAdd( answer, "RTP-Info", "%s", info );
                 }
             }
-            vlc_mutex_unlock( &rtsp->lock );
+            heimdall_mutex_unlock( &rtsp->lock );
 
             if (ses != NULL)
             {
-                double f_npt = secf_from_vlc_tick(npt);
+                double f_npt = secf_from_heimdall_tick(npt);
                 httpd_MsgAdd( answer, "Range", "npt=%f-", f_npt );
             }
 
@@ -938,7 +939,7 @@ static int RtspHandler( rtsp_stream_t *rtsp, rtsp_stream_id_t *id,
             rtsp_session_t *ses;
             answer->i_status = 200;
             psz_session = httpd_MsgGet( query, "Session" );
-            vlc_mutex_lock( &rtsp->lock );
+            heimdall_mutex_lock( &rtsp->lock );
             ses = RtspClientGet( rtsp, psz_session );
             if (ses != NULL)
             {
@@ -967,7 +968,7 @@ static int RtspHandler( rtsp_stream_t *rtsp, rtsp_stream_id_t *id,
                 }
                 RtspClientAlive(ses);
             }
-            vlc_mutex_unlock( &rtsp->lock );
+            heimdall_mutex_unlock( &rtsp->lock );
             break;
         }
 
@@ -981,11 +982,11 @@ static int RtspHandler( rtsp_stream_t *rtsp, rtsp_stream_id_t *id,
 
             psz_session = httpd_MsgGet( query, "Session" );
             answer->i_status = 200;
-            vlc_mutex_lock( &rtsp->lock );
+            heimdall_mutex_lock( &rtsp->lock );
             rtsp_session_t *ses = RtspClientGet( rtsp, psz_session );
             if (ses != NULL)
                 RtspClientAlive(ses);
-            vlc_mutex_unlock( &rtsp->lock );
+            heimdall_mutex_unlock( &rtsp->lock );
             break;
         }
 
@@ -997,7 +998,7 @@ static int RtspHandler( rtsp_stream_t *rtsp, rtsp_stream_id_t *id,
 
             psz_session = httpd_MsgGet( query, "Session" );
 
-            vlc_mutex_lock( &rtsp->lock );
+            heimdall_mutex_lock( &rtsp->lock );
             ses = RtspClientGet( rtsp, psz_session );
             if( ses != NULL )
             {
@@ -1019,19 +1020,19 @@ static int RtspHandler( rtsp_stream_t *rtsp, rtsp_stream_id_t *id,
                     RtspClientAlive(ses);
                 }
             }
-            vlc_mutex_unlock( &rtsp->lock );
+            heimdall_mutex_unlock( &rtsp->lock );
             break;
         }
 
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 
     if( psz_session )
     {
         if (rtsp->timeout != 0)
             httpd_MsgAdd( answer, "Session", "%s;timeout=%" PRIu64, psz_session,
-                                                              SEC_FROM_VLC_TICK(rtsp->timeout) );
+                                                              SEC_FROM_HEIMDALL_TICK(rtsp->timeout) );
         else
             httpd_MsgAdd( answer, "Session", "%s", psz_session );
     }
@@ -1046,7 +1047,7 @@ static int RtspHandler( rtsp_stream_t *rtsp, rtsp_stream_id_t *id,
     if( psz != NULL )
         httpd_MsgAdd( answer, "Timestamp", "%s", psz );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 

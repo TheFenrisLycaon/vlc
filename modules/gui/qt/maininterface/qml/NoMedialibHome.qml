@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,11 +19,11 @@
 import QtQuick
 import QtQuick.Window
 
-import VLC.MainInterface
-import VLC.Widgets as Widgets
-import VLC.Util
-import VLC.Style
-import VLC.Dialogs
+import Heimdall.MainInterface
+import Heimdall.Widgets as Widgets
+import Heimdall.Util
+import Heimdall.Style
+import Heimdall.Dialogs
 
 FocusScope {
     id: root
@@ -43,7 +44,7 @@ FocusScope {
 
         property int orientation: Qt.Vertical
 
-        property real spacing: VLCStyle.margin_large
+        property real spacing: HeimdallStyle.margin_large
 
         implicitWidth: orientation === Qt.Vertical ? Math.max(cone.implicitWidth, buttons.implicitWidth)
                                                    : cone.implicitWidth + spacing + buttons.implicitWidth
@@ -105,10 +106,10 @@ FocusScope {
 
             property real _eDPR: MainCtx.effectiveDevicePixelRatio(Window.window)
 
-            sourceSize: Qt.size(0, orientation === Qt.Vertical ? VLCStyle.colWidth(1)
+            sourceSize: Qt.size(0, orientation === Qt.Vertical ? HeimdallStyle.colWidth(1)
                                                                : buttons.implicitHeight * 1.618 * _eDPR) // 1.618 = golden ratio approximation
 
-            source: MainCtx.useXmasCone() ? "qrc:///logo/vlc48-xmas.png" // TODO: new xmas cone designs
+            source: MainCtx.useXmasCone() ? "qrc:///logo/heimdall48-xmas.png" // TODO: new xmas cone designs
                                           : "qrc:///misc/cone.svg"
 
             Connections {

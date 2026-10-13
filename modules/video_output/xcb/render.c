@@ -1,9 +1,10 @@
 /**
  * @file render.c
- * @brief X C Bindings video output module for VLC media player
+ * @brief X C Bindings video output module for Heimdall media player
  */
 /*****************************************************************************
  * Copyright © 2009-2018 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -34,12 +35,12 @@
 #include <xcb/render.h>
 #include <xcb/shm.h>
 
-#include <vlc_common.h>
-#include <vlc_charset.h>
-#include <vlc_fs.h>
-#include <vlc_plugin.h>
-#include <vlc_vout_display.h>
-#include <vlc_subpicture.h>
+#include <heimdall_common.h>
+#include <heimdall_charset.h>
+#include <heimdall_fs.h>
+#include <heimdall_plugin.h>
+#include <heimdall_vout_display.h>
+#include <heimdall_subpicture.h>
 
 #include "pictures.h"
 #include "events.h"
@@ -77,7 +78,7 @@ typedef struct vout_display_sys_t {
 
     int32_t src_x;
     int32_t src_y;
-    vlc_fourcc_t spu_chromas[2];
+    heimdall_fourcc_t spu_chromas[2];
 } vout_display_sys_t;
 
 static size_t PictureAttach(vout_display_t *vd, picture_t *pic)
@@ -91,7 +92,7 @@ static size_t PictureAttach(vout_display_t *vd, picture_t *pic)
      || buf->fd == -1 /* picture buffer not in shared memory */)
         return -1;
 
-    int fd = vlc_dup(buf->fd);
+    int fd = heimdall_dup(buf->fd);
     if (fd == -1)
         return -1;
 
@@ -112,7 +113,7 @@ static void PictureDetach(vout_display_t *vd)
     xcb_shm_detach(sys->conn, sys->segment);
 }
 
-static void RenderRegion(vout_display_t *vd, const vlc_render_subpicture *subpic,
+static void RenderRegion(vout_display_t *vd, const heimdall_render_subpicture *subpic,
                          const struct subpicture_region_rendered *reg)
 {
     vout_display_sys_t *sys = vd->sys;
@@ -121,7 +122,7 @@ static void RenderRegion(vout_display_t *vd, const vlc_render_subpicture *subpic
     unsigned sw = reg->place.width;
     unsigned sh = reg->place.height;
     xcb_rectangle_t rects[] = { { 0, 0, sw, sh }, };
-    VLC_UNUSED(subpic);
+    HEIMDALL_UNUSED(subpic);
 
     xcb_create_pixmap(conn, 32, sys->drawable.subpic, sys->root,
         pic->format.i_width, pic->format.i_height);
@@ -154,7 +155,7 @@ static void RenderRegion(vout_display_t *vd, const vlc_render_subpicture *subpic
 
     /* Force alpha channel to maximum (add 100% and clip).
      * This is to compensate RENDER expecting pre-multiplied RGB
-     * while VLC uses straight RGB.
+     * while Heimdall uses straight RGB.
      */
     static const xcb_render_color_t alpha_one_color = { 0, 0, 0, 0xffff };
 
@@ -216,8 +217,8 @@ static void RenderRegion(vout_display_t *vd, const vlc_render_subpicture *subpic
 }
 
 static void Prepare(vout_display_t *vd, picture_t *pic,
-                    const vlc_render_subpicture *subpic,
-                    vlc_tick_t date)
+                    const heimdall_render_subpicture *subpic,
+                    heimdall_tick_t date)
 {
     const video_format_t *fmt = vd->source;
     const vout_display_place_t *place = vd->place;
@@ -269,7 +270,7 @@ static void Prepare(vout_display_t *vd, picture_t *pic,
     if (subpic != NULL)
     {
         const struct subpicture_region_rendered *r;
-        vlc_vector_foreach(r, &subpic->regions)
+        heimdall_vector_foreach(r, &subpic->regions)
             RenderRegion(vd, subpic, r);
     }
 
@@ -283,7 +284,7 @@ static void Display(vout_display_t *vd, picture_t *pic)
     xcb_connection_t *conn = sys->conn;
     xcb_void_cookie_t ck;
 
-    vlc_xcb_Manage(vd->obj.logger, conn);
+    heimdall_xcb_Manage(vd->obj.logger, conn);
 
     /* Copy the scaled picture into the target picture, in other words
      * copy the rendered pixmap into the window.
@@ -395,7 +396,7 @@ static int UpdateOutput(vout_display_t *vd)
     DeleteBuffers(vd);
     CreateBuffers(vd);
     xcb_flush(sys->conn);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int SetDisplaySize(vout_display_t *vd, unsigned width, unsigned height)
@@ -412,18 +413,18 @@ static int SetDisplaySize(vout_display_t *vd, unsigned width, unsigned height)
     DeleteBuffers(vd);
     CreateBuffers(vd);
     xcb_flush(sys->conn);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int PlacementChanged(vout_display_t *vd, const vout_display_place_t *place)
 {
-    VLC_UNUSED(place);
+    HEIMDALL_UNUSED(place);
     return UpdateOutput(vd);
 }
 
 static int AspectChanged(vout_display_t *vd, const video_format_t *source)
 {
-    VLC_UNUSED(source);
+    HEIMDALL_UNUSED(source);
     return PlacementChanged(vd, NULL);
 }
 
@@ -464,14 +465,14 @@ static void Close(vout_display_t *vd)
     xcb_disconnect(sys->conn);
 }
 
-/* Convert RENDER picture format to VLC video chroma */
-static vlc_fourcc_t ParseFormat(const xcb_setup_t *setup,
+/* Convert RENDER picture format to Heimdall video chroma */
+static heimdall_fourcc_t ParseFormat(const xcb_setup_t *setup,
                                 const xcb_render_pictforminfo_t *pfi)
 {
     if (pfi->type != XCB_RENDER_PICT_TYPE_DIRECT)
         return 0;
 
-    const xcb_format_t *pixfmt = vlc_xcb_DepthToPixmapFormat(setup,
+    const xcb_format_t *pixfmt = heimdall_xcb_DepthToPixmapFormat(setup,
                                                              pfi->depth);
     if (unlikely(pixfmt == NULL))
         return 0;
@@ -486,29 +487,29 @@ static vlc_fourcc_t ParseFormat(const xcb_setup_t *setup,
 #ifdef WORDS_BIGENDIAN
                 if (d->red_shift == 24 && d->green_shift == 16
                  && d->blue_shift == 8)
-                    return VLC_CODEC_RGBA;
+                    return HEIMDALL_CODEC_RGBA;
                 if (d->red_shift == 8 && d->green_shift == 16
                  && d->blue_shift == 24)
-                    return VLC_CODEC_BGRA;
+                    return HEIMDALL_CODEC_BGRA;
                 if (d->red_shift == 16 && d->green_shift == 8
                  && d->blue_shift == 0)
-                    return VLC_CODEC_ARGB;
+                    return HEIMDALL_CODEC_ARGB;
                 if (d->red_shift == 0 && d->green_shift == 8
                  && d->blue_shift == 16)
-                    return VLC_CODEC_ABGR;
+                    return HEIMDALL_CODEC_ABGR;
 #else
                 if (d->red_shift == 0 && d->green_shift == 8
                  && d->blue_shift == 16)
-                    return VLC_CODEC_RGBA;
+                    return HEIMDALL_CODEC_RGBA;
                 if (d->red_shift == 16 && d->green_shift == 8
                  && d->blue_shift == 0)
-                    return VLC_CODEC_BGRA;
+                    return HEIMDALL_CODEC_BGRA;
                 if (d->red_shift == 8 && d->green_shift == 16
                  && d->blue_shift == 24)
-                    return VLC_CODEC_ARGB;
+                    return HEIMDALL_CODEC_ARGB;
                 if (d->red_shift == 24 && d->green_shift == 16
                  && d->blue_shift == 8)
-                    return VLC_CODEC_ABGR;
+                    return HEIMDALL_CODEC_ABGR;
 #endif
             }
             break;
@@ -517,20 +518,20 @@ static vlc_fourcc_t ParseFormat(const xcb_setup_t *setup,
         case 24:
             if (bpp == 32 && d->red_mask == 0xff && d->green_mask == 0xff
              && d->blue_mask == 0xff && d->alpha_mask == 0x00)
-                return VLC_CODEC_RGB32;
+                return HEIMDALL_CODEC_RGB32;
             if (bpp == 24 && d->red_mask == 0xff && d->green_mask == 0xff
              && d->blue_mask == 0xff && d->alpha_mask == 0x00)
-                return VLC_CODEC_RGB24;
+                return HEIMDALL_CODEC_RGB24;
             break;
         case 16:
             if (bpp == 16 && d->red_mask == 0x1f && d->green_mask == 0x3f
              && d->blue_mask == 0x1f && d->alpha_mask == 0x00)
-                return VLC_CODEC_RGB16;
+                return HEIMDALL_CODEC_RGB16;
             break;
         case 15:
             if (bpp == 16 && d->red_mask == 0x1f && d->green_mask == 0x1f
              && d->blue_mask == 0x1f && d->alpha_mask == 0x00)
-                return VLC_CODEC_RGB15;
+                return HEIMDALL_CODEC_RGB15;
             break;
 #endif
     }
@@ -596,7 +597,7 @@ FindVisual(const xcb_setup_t *setup, const xcb_screen_t *scr,
     return 0;
 }
 
-static const struct vlc_display_operations ops = {
+static const struct heimdall_display_operations ops = {
     .close = Close,
     .prepare = Prepare,
     .display = Display,
@@ -610,14 +611,14 @@ static const struct vlc_display_operations ops = {
  * Probe the X server.
  */
 static int Open(vout_display_t *vd,
-                video_format_t *fmtp, vlc_video_context *ctx)
+                video_format_t *fmtp, heimdall_video_context *ctx)
 {
-    vlc_object_t *obj = VLC_OBJECT(vd);
-    struct vlc_logger *log = obj->logger;
+    heimdall_object_t *obj = HEIMDALL_OBJECT(vd);
+    struct heimdall_logger *log = obj->logger;
 
-    vout_display_sys_t *sys = vlc_obj_malloc(obj, sizeof (*sys));
+    vout_display_sys_t *sys = heimdall_obj_malloc(obj, sizeof (*sys));
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     vd->sys = sys;
 
@@ -625,8 +626,8 @@ static int Open(vout_display_t *vd,
     xcb_connection_t *conn;
     const xcb_screen_t *screen;
 
-    int ret = vlc_xcb_parent_Create(log, vd->cfg->window, &conn, &screen);
-    if (ret != VLC_SUCCESS)
+    int ret = heimdall_xcb_parent_Create(log, vd->cfg->window, &conn, &screen);
+    if (ret != HEIMDALL_SUCCESS)
         return ret;
 
     sys->conn = conn;
@@ -666,7 +667,7 @@ static int Open(vout_display_t *vd,
         if (pic_fmt->depth != 32)
             continue;
 
-        vlc_fourcc_t chroma = ParseFormat(setup, pic_fmt);
+        heimdall_fourcc_t chroma = ParseFormat(setup, pic_fmt);
         if (chroma == 0)
             continue;
 
@@ -748,11 +749,11 @@ static int Open(vout_display_t *vd,
     vd->ops = &ops;
 
     (void) ctx;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     xcb_disconnect(conn);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 static const char *filter_names[] = {
@@ -764,7 +765,7 @@ static const char *filter_descs[] = {
     N_("Bilinear"), N_("Fast"), N_("Good"), N_("Best"),
 };
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname(N_("RENDER"))
     set_description(N_("X11 RENDER video output (XCB)"))
     set_subcategory(SUBCAT_VIDEO_VOUT)
@@ -773,4 +774,4 @@ vlc_module_begin()
     add_string("x11-render-filter", "good", N_("Scaling mode"),
                NULL)
         change_string_list(filter_names, filter_descs)
-vlc_module_end()
+heimdall_module_end()

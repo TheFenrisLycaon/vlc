@@ -2,6 +2,7 @@
  * randomizer.c
  *****************************************************************************
  * Copyright (C) 2018 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -28,8 +29,8 @@
 
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_rand.h>
+#include <heimdall_common.h>
+#include <heimdall_rand.h>
 #include "randomizer.h"
 
 /**
@@ -259,11 +260,11 @@
 void
 randomizer_Init(struct randomizer *r)
 {
-    vlc_vector_init(&r->items);
+    heimdall_vector_init(&r->items);
 
-    /* initialize separately instead of using vlc_lrand48() to avoid locking
+    /* initialize separately instead of using heimdall_lrand48() to avoid locking
      * the mutex for every random number generation */
-    vlc_rand_bytes(r->xsubi, sizeof(r->xsubi));
+    heimdall_rand_bytes(r->xsubi, sizeof(r->xsubi));
 
     r->loop = false;
     r->head = 0;
@@ -274,7 +275,7 @@ randomizer_Init(struct randomizer *r)
 void
 randomizer_Destroy(struct randomizer *r)
 {
-    vlc_vector_destroy(&r->items);
+    heimdall_vector_destroy(&r->items);
 }
 
 void
@@ -284,10 +285,10 @@ randomizer_SetLoop(struct randomizer *r, bool loop)
 }
 
 static inline ssize_t
-randomizer_IndexOf(struct randomizer *r, const vlc_playlist_item_t *item)
+randomizer_IndexOf(struct randomizer *r, const heimdall_playlist_item_t *item)
 {
     ssize_t index;
-    vlc_vector_index_of(&r->items, item, &index);
+    heimdall_vector_index_of(&r->items, item, &index);
     return index;
 }
 
@@ -309,7 +310,7 @@ randomizer_Reshuffle(struct randomizer *r)
 static inline void
 swap_items(struct randomizer *r, int i, int j)
 {
-    vlc_playlist_item_t *item = r->items.data[i];
+    heimdall_playlist_item_t *item = r->items.data[i];
     r->items.data[i] = r->items.data[j];
     r->items.data[j] = item;
 }
@@ -374,7 +375,7 @@ randomizer_HasNext(struct randomizer *r)
     return r->loop || r->next < r->items.size;
 }
 
-vlc_playlist_item_t *
+heimdall_playlist_item_t *
 randomizer_PeekPrev(struct randomizer *r)
 {
     assert(randomizer_HasPrev(r));
@@ -382,7 +383,7 @@ randomizer_PeekPrev(struct randomizer *r)
     return r->items.data[index];
 }
 
-vlc_playlist_item_t *
+heimdall_playlist_item_t *
 randomizer_PeekNext(struct randomizer *r)
 {
     assert(randomizer_HasNext(r));
@@ -400,20 +401,20 @@ randomizer_PeekNext(struct randomizer *r)
     return r->items.data[r->next];
 }
 
-vlc_playlist_item_t *
+heimdall_playlist_item_t *
 randomizer_Prev(struct randomizer *r)
 {
     assert(randomizer_HasPrev(r));
-    vlc_playlist_item_t *item = randomizer_PeekPrev(r);
+    heimdall_playlist_item_t *item = randomizer_PeekPrev(r);
     r->next = r->next ? r->next - 1 : r->items.size - 1;
     return item;
 }
 
-vlc_playlist_item_t *
+heimdall_playlist_item_t *
 randomizer_Next(struct randomizer *r)
 {
     assert(randomizer_HasNext(r));
-    vlc_playlist_item_t *item = randomizer_PeekNext(r);
+    heimdall_playlist_item_t *item = randomizer_PeekNext(r);
     r->next++;
     if (r->next == r->items.size && r->next != r->head)
         r->next = 0;
@@ -421,9 +422,9 @@ randomizer_Next(struct randomizer *r)
 }
 
 bool
-randomizer_Add(struct randomizer *r, vlc_playlist_item_t *items[], size_t count)
+randomizer_Add(struct randomizer *r, heimdall_playlist_item_t *items[], size_t count)
 {
-    if (!vlc_vector_insert_all(&r->items, r->history, items, count))
+    if (!heimdall_vector_insert_all(&r->items, r->history, items, count))
         return false;
     /* the insertion shifted history (and possibly next) */
     if (r->next > r->history)
@@ -435,7 +436,7 @@ randomizer_Add(struct randomizer *r, vlc_playlist_item_t *items[], size_t count)
 static void
 randomizer_SelectIndex(struct randomizer *r, size_t index)
 {
-    vlc_playlist_item_t *selected = r->items.data[index];
+    heimdall_playlist_item_t *selected = r->items.data[index];
     if (r->history && index >= r->history)
     {
         if (index > r->history)
@@ -466,7 +467,7 @@ randomizer_SelectIndex(struct randomizer *r, size_t index)
 }
 
 void
-randomizer_Select(struct randomizer *r, const vlc_playlist_item_t *item)
+randomizer_Select(struct randomizer *r, const heimdall_playlist_item_t *item)
 {
     ssize_t index = randomizer_IndexOf(r, item);
     assert(index != -1); /* item must exist */
@@ -517,7 +518,7 @@ randomizer_RemoveAt(struct randomizer *r, size_t index)
 }
 
 static void
-randomizer_RemoveOne(struct randomizer *r, const vlc_playlist_item_t *item)
+randomizer_RemoveOne(struct randomizer *r, const heimdall_playlist_item_t *item)
 {
     ssize_t index = randomizer_IndexOf(r, item);
     assert(index >= 0); /* item must exist */
@@ -525,19 +526,19 @@ randomizer_RemoveOne(struct randomizer *r, const vlc_playlist_item_t *item)
 }
 
 void
-randomizer_Remove(struct randomizer *r, vlc_playlist_item_t *const items[],
+randomizer_Remove(struct randomizer *r, heimdall_playlist_item_t *const items[],
                   size_t count)
 {
     for (size_t i = 0; i < count; ++i)
         randomizer_RemoveOne(r, items[i]);
 
-    vlc_vector_autoshrink(&r->items);
+    heimdall_vector_autoshrink(&r->items);
 }
 
 void
 randomizer_Clear(struct randomizer *r)
 {
-    vlc_vector_clear(&r->items);
+    heimdall_vector_clear(&r->items);
     r->head = 0;
     r->next = 0;
     r->history = 0;
@@ -547,12 +548,12 @@ randomizer_Clear(struct randomizer *r)
 #ifdef TEST_RANDOMIZER
 
 /* fake structure to simplify tests */
-struct vlc_playlist_item {
+struct heimdall_playlist_item {
     size_t index;
 };
 
 static void
-ArrayInit(vlc_playlist_item_t *array[], size_t len)
+ArrayInit(heimdall_playlist_item_t *array[], size_t len)
 {
     for (size_t i = 0; i < len; ++i)
     {
@@ -563,7 +564,7 @@ ArrayInit(vlc_playlist_item_t *array[], size_t len)
 }
 
 static void
-ArrayDestroy(vlc_playlist_item_t *array[], size_t len)
+ArrayDestroy(heimdall_playlist_item_t *array[], size_t len)
 {
     for (size_t i = 0; i < len; ++i)
         free(array[i]);
@@ -576,7 +577,7 @@ test_all_items_selected_exactly_once(void)
     randomizer_Init(&randomizer);
 
     #define SIZE 100
-    vlc_playlist_item_t *items[SIZE];
+    heimdall_playlist_item_t *items[SIZE];
     ArrayInit(items, SIZE);
 
     bool ok = randomizer_Add(&randomizer, items, SIZE);
@@ -586,7 +587,7 @@ test_all_items_selected_exactly_once(void)
     for (int i = 0; i < SIZE; ++i)
     {
         assert(randomizer_HasNext(&randomizer));
-        vlc_playlist_item_t *item = randomizer_Next(&randomizer);
+        heimdall_playlist_item_t *item = randomizer_Next(&randomizer);
         assert(item);
         assert(!selected[item->index]); /* never selected twice */
         selected[item->index] = true;
@@ -610,7 +611,7 @@ test_all_items_selected_exactly_once_per_cycle(void)
     randomizer_SetLoop(&randomizer, true);
 
     #define SIZE 100
-    vlc_playlist_item_t *items[SIZE];
+    heimdall_playlist_item_t *items[SIZE];
     ArrayInit(items, SIZE);
 
     bool ok = randomizer_Add(&randomizer, items, SIZE);
@@ -622,7 +623,7 @@ test_all_items_selected_exactly_once_per_cycle(void)
         for (int i = 0; i < SIZE; ++i)
         {
             assert(randomizer_HasNext(&randomizer));
-            vlc_playlist_item_t *item = randomizer_Next(&randomizer);
+            heimdall_playlist_item_t *item = randomizer_Next(&randomizer);
             assert(item);
             assert(!selected[item->index]); /* never selected twice */
             selected[item->index] = true;
@@ -646,7 +647,7 @@ test_all_items_selected_exactly_once_with_additions(void)
     randomizer_Init(&randomizer);
 
     #define SIZE 100
-    vlc_playlist_item_t *items[SIZE];
+    heimdall_playlist_item_t *items[SIZE];
     ArrayInit(items, SIZE);
 
     bool ok = randomizer_Add(&randomizer, items, 75);
@@ -656,7 +657,7 @@ test_all_items_selected_exactly_once_with_additions(void)
     for (int i = 0; i < 50; ++i)
     {
         assert(randomizer_HasNext(&randomizer));
-        vlc_playlist_item_t *item = randomizer_Next(&randomizer);
+        heimdall_playlist_item_t *item = randomizer_Next(&randomizer);
         assert(item);
         assert(!selected[item->index]); /* never selected twice */
         selected[item->index] = true;
@@ -667,7 +668,7 @@ test_all_items_selected_exactly_once_with_additions(void)
     for (int i = 50; i < SIZE; ++i)
     {
         assert(randomizer_HasNext(&randomizer));
-        vlc_playlist_item_t *item = randomizer_Next(&randomizer);
+        heimdall_playlist_item_t *item = randomizer_Next(&randomizer);
         assert(item);
         assert(!selected[item->index]); /* never selected twice */
         selected[item->index] = true;
@@ -690,7 +691,7 @@ test_all_items_selected_exactly_once_with_removals(void)
     randomizer_Init(&randomizer);
 
     #define SIZE 100
-    vlc_playlist_item_t *items[SIZE];
+    heimdall_playlist_item_t *items[SIZE];
     ArrayInit(items, SIZE);
 
     bool ok = randomizer_Add(&randomizer, items, SIZE);
@@ -700,13 +701,13 @@ test_all_items_selected_exactly_once_with_removals(void)
     for (int i = 0; i < 50; ++i)
     {
         assert(randomizer_HasNext(&randomizer));
-        vlc_playlist_item_t *item = randomizer_Next(&randomizer);
+        heimdall_playlist_item_t *item = randomizer_Next(&randomizer);
         assert(item);
         assert(!selected[item->index]); /* never selected twice */
         selected[item->index] = true;
     }
 
-    vlc_playlist_item_t *to_remove[20];
+    heimdall_playlist_item_t *to_remove[20];
     /* copy 10 items already selected */
     memcpy(to_remove, &randomizer.items.data[20], 10 * sizeof(*to_remove));
     /* copy 10 items not already selected */
@@ -717,7 +718,7 @@ test_all_items_selected_exactly_once_with_removals(void)
     for (int i = 50; i < SIZE - 10; ++i)
     {
         assert(randomizer_HasNext(&randomizer));
-        vlc_playlist_item_t *item = randomizer_Next(&randomizer);
+        heimdall_playlist_item_t *item = randomizer_Next(&randomizer);
         assert(item);
         assert(!selected[item->index]); /* never selected twice */
         selected[item->index] = true;
@@ -745,7 +746,7 @@ test_cycle_after_manual_selection(void)
     randomizer_SetLoop(&randomizer, true);
 
     #define SIZE 100
-    vlc_playlist_item_t *items[SIZE];
+    heimdall_playlist_item_t *items[SIZE];
     ArrayInit(items, SIZE);
 
     bool ok = randomizer_Add(&randomizer, items, 100);
@@ -757,7 +758,7 @@ test_cycle_after_manual_selection(void)
     for (int i = 0; i < 2 * SIZE; ++i)
     {
         assert(randomizer_HasNext(&randomizer));
-        vlc_playlist_item_t *item = randomizer_Next(&randomizer);
+        heimdall_playlist_item_t *item = randomizer_Next(&randomizer);
         assert(item);
     }
 
@@ -776,7 +777,7 @@ test_cycle_with_additions_and_removals(void)
     randomizer_SetLoop(&randomizer, true);
 
     #define SIZE 100
-    vlc_playlist_item_t *items[SIZE];
+    heimdall_playlist_item_t *items[SIZE];
     ArrayInit(items, SIZE);
 
     bool ok = randomizer_Add(&randomizer, items, 80);
@@ -785,11 +786,11 @@ test_cycle_with_additions_and_removals(void)
     for (int i = 0; i < 30; ++i)
     {
         assert(randomizer_HasNext(&randomizer));
-        vlc_playlist_item_t *item = randomizer_Next(&randomizer);
+        heimdall_playlist_item_t *item = randomizer_Next(&randomizer);
         assert(item);
     }
 
-    vlc_playlist_item_t *to_remove[20];
+    heimdall_playlist_item_t *to_remove[20];
     /* copy 10 items already selected */
     memcpy(to_remove, &randomizer.items.data[15], 10 * sizeof(*to_remove));
     /* copy 10 items not already selected */
@@ -802,21 +803,21 @@ test_cycle_with_additions_and_removals(void)
     for (int i = 0; i < 40; ++i)
     {
         assert(randomizer_HasNext(&randomizer));
-        vlc_playlist_item_t *item = randomizer_Next(&randomizer);
+        heimdall_playlist_item_t *item = randomizer_Next(&randomizer);
         assert(item);
     }
 
     /* the first cycle is complete */
     assert(randomizer_HasNext(&randomizer));
     /* force the determination of the first item of the next cycle */
-    vlc_playlist_item_t *item = randomizer_PeekNext(&randomizer);
+    heimdall_playlist_item_t *item = randomizer_PeekNext(&randomizer);
     assert(item);
 
     assert(randomizer.items.size == 60);
     assert(randomizer.history == 1);
 
     /* save current history */
-    vlc_playlist_item_t *history[59];
+    heimdall_playlist_item_t *history[59];
     memcpy(history, &randomizer.items.data[1], 59 * sizeof(*history));
 
     /* insert 20 new items */
@@ -854,7 +855,7 @@ test_force_select_new_item(void)
     randomizer_Init(&randomizer);
 
     #define SIZE 100
-    vlc_playlist_item_t *items[SIZE];
+    heimdall_playlist_item_t *items[SIZE];
     ArrayInit(items, SIZE);
 
     bool ok = randomizer_Add(&randomizer, items, SIZE);
@@ -863,7 +864,7 @@ test_force_select_new_item(void)
     bool selected[SIZE] = {0};
     for (int i = 0; i < SIZE; ++i)
     {
-        vlc_playlist_item_t *item;
+        heimdall_playlist_item_t *item;
         if (i != 50)
         {
             assert(randomizer_HasNext(&randomizer));
@@ -898,7 +899,7 @@ test_force_select_item_already_selected(void)
     randomizer_Init(&randomizer);
 
     #define SIZE 100
-    vlc_playlist_item_t *items[SIZE];
+    heimdall_playlist_item_t *items[SIZE];
     ArrayInit(items, SIZE);
 
     bool ok = randomizer_Add(&randomizer, items, SIZE);
@@ -908,7 +909,7 @@ test_force_select_item_already_selected(void)
     /* we need an additional loop cycle, since we select the same item twice */
     for (int i = 0; i < SIZE + 1; ++i)
     {
-        vlc_playlist_item_t *item;
+        heimdall_playlist_item_t *item;
         if (i != 50)
         {
             assert(randomizer_HasNext(&randomizer));
@@ -945,7 +946,7 @@ test_prev(void)
     randomizer_Init(&randomizer);
 
     #define SIZE 10
-    vlc_playlist_item_t *items[SIZE];
+    heimdall_playlist_item_t *items[SIZE];
     ArrayInit(items, SIZE);
 
     bool ok = randomizer_Add(&randomizer, items, SIZE);
@@ -953,7 +954,7 @@ test_prev(void)
 
     assert(!randomizer_HasPrev(&randomizer));
 
-    vlc_playlist_item_t *actual[SIZE];
+    heimdall_playlist_item_t *actual[SIZE];
     for (int i = 0; i < SIZE; ++i)
     {
         assert(randomizer_HasNext(&randomizer));
@@ -966,7 +967,7 @@ test_prev(void)
     for (int i = SIZE - 2; i >= 0; --i)
     {
         assert(randomizer_HasPrev(&randomizer));
-        vlc_playlist_item_t *item = randomizer_Prev(&randomizer);
+        heimdall_playlist_item_t *item = randomizer_Prev(&randomizer);
         assert(item == actual[i]);
     }
 
@@ -975,7 +976,7 @@ test_prev(void)
     for (int i = 1; i < SIZE; ++i)
     {
         assert(randomizer_HasNext(&randomizer));
-        vlc_playlist_item_t *item = randomizer_Next(&randomizer);
+        heimdall_playlist_item_t *item = randomizer_Next(&randomizer);
         assert(item == actual[i]);
     }
 
@@ -991,7 +992,7 @@ test_prev_with_select(void)
     randomizer_Init(&randomizer);
 
     #define SIZE 10
-    vlc_playlist_item_t *items[SIZE];
+    heimdall_playlist_item_t *items[SIZE];
     ArrayInit(items, SIZE);
 
     bool ok = randomizer_Add(&randomizer, items, SIZE);
@@ -999,7 +1000,7 @@ test_prev_with_select(void)
 
     assert(!randomizer_HasPrev(&randomizer));
 
-    vlc_playlist_item_t *actual[SIZE];
+    heimdall_playlist_item_t *actual[SIZE];
     for (int i = 0; i < 5; ++i)
     {
         assert(randomizer_HasNext(&randomizer));
@@ -1009,7 +1010,7 @@ test_prev_with_select(void)
 
     randomizer_Select(&randomizer, actual[2]);
 
-    vlc_playlist_item_t *item;
+    heimdall_playlist_item_t *item;
 
     assert(randomizer_HasPrev(&randomizer));
     item = randomizer_Prev(&randomizer);
@@ -1041,7 +1042,7 @@ test_prev_across_reshuffle_loops(void)
     randomizer_Init(&randomizer);
 
     #define SIZE 10
-    vlc_playlist_item_t *items[SIZE];
+    heimdall_playlist_item_t *items[SIZE];
     ArrayInit(items, SIZE);
 
     bool ok = randomizer_Add(&randomizer, items, SIZE);
@@ -1049,7 +1050,7 @@ test_prev_across_reshuffle_loops(void)
 
     assert(!randomizer_HasPrev(&randomizer));
 
-    vlc_playlist_item_t *actual[SIZE];
+    heimdall_playlist_item_t *actual[SIZE];
     for (int i = 0; i < SIZE; ++i)
     {
         assert(randomizer_HasNext(&randomizer));
@@ -1061,7 +1062,7 @@ test_prev_across_reshuffle_loops(void)
     randomizer_SetLoop(&randomizer, true);
     assert(randomizer_HasNext(&randomizer));
 
-    vlc_playlist_item_t *actualnew[4];
+    heimdall_playlist_item_t *actualnew[4];
     /* determine the 4 first items */
     for (int i = 0; i < 4; ++i)
     {
@@ -1086,7 +1087,7 @@ test_prev_across_reshuffle_loops(void)
     for (int i = 0; i < 6; ++i)
     {
         assert(randomizer_HasPrev(&randomizer));
-        vlc_playlist_item_t *item = randomizer_Prev(&randomizer);
+        heimdall_playlist_item_t *item = randomizer_Prev(&randomizer);
 
         int j;
         for (j = 3; j >= 0; --j)
@@ -1122,13 +1123,13 @@ test_loop_respect_not_same_before(void)
     randomizer_SetLoop(&randomizer, true);
 
     #define SIZE (NOT_SAME_BEFORE + 2)
-    vlc_playlist_item_t *items[SIZE];
+    heimdall_playlist_item_t *items[SIZE];
     ArrayInit(items, SIZE);
 
     bool ok = randomizer_Add(&randomizer, items, SIZE);
     assert(ok);
 
-    vlc_playlist_item_t *actual[SIZE];
+    heimdall_playlist_item_t *actual[SIZE];
     for (int i = 0; i < SIZE; ++i)
     {
         assert(randomizer_HasNext(&randomizer));
@@ -1172,7 +1173,7 @@ test_loop_respect_not_same_before_impossible(void)
     randomizer_SetLoop(&randomizer, true);
 
     #define SIZE NOT_SAME_BEFORE
-    vlc_playlist_item_t *items[SIZE];
+    heimdall_playlist_item_t *items[SIZE];
     ArrayInit(items, SIZE);
 
     bool ok = randomizer_Add(&randomizer, items, SIZE);
@@ -1181,7 +1182,7 @@ test_loop_respect_not_same_before_impossible(void)
     for (int i = 0; i < 10 * SIZE; ++i)
     {
         assert(randomizer_HasNext(&randomizer));
-        vlc_playlist_item_t *item = randomizer_Next(&randomizer);
+        heimdall_playlist_item_t *item = randomizer_Next(&randomizer);
         assert(item);
     }
 

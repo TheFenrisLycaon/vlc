@@ -2,6 +2,7 @@
  * window_os2.c: OS/2 non-embedded video window provider
  *****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: KO Myung-Hun <komh@chollian.net>
  *
@@ -27,12 +28,12 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_charset.h>
-#include <vlc_plugin.h>
-#include <vlc_window.h>
-#include <vlc_mouse.h>
-#include <vlc_actions.h>
+#include <heimdall_common.h>
+#include <heimdall_charset.h>
+#include <heimdall_plugin.h>
+#include <heimdall_window.h>
+#include <heimdall_mouse.h>
+#include <heimdall_actions.h>
 
 #include <float.h>
 #include <ctype.h>
@@ -40,15 +41,15 @@
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int Open( vlc_window_t *wnd );
+static int Open( heimdall_window_t *wnd );
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( N_("OS/2 window"))
     set_description( N_("OS/2 non-embeded window video"))
     set_subcategory( SUBCAT_VIDEO_VOUT )
     set_capability ("vout window", 30 )
     set_callback( Open )
-vlc_module_end ()
+heimdall_module_end ()
 
 typedef struct vout_window_sys_t
 {
@@ -71,37 +72,37 @@ typedef struct vout_window_sys_t
  * Local prototypes
  *****************************************************************************/
 static int ConvertKey( USHORT i_pmkey );
-static void MousePressed( vlc_window_t *wnd, HWND hwnd, unsigned button );
-static void MouseReleased( vlc_window_t *wnd, unsigned button );
+static void MousePressed( heimdall_window_t *wnd, HWND hwnd, unsigned button );
+static void MouseReleased( heimdall_window_t *wnd, unsigned button );
 static MRESULT EXPENTRY WndProc( HWND hwnd, ULONG msg,
                                  MPARAM mp1, MPARAM mp2 );
 static void MorphToPM( void );
 static void PMThread( void *arg );
 
-static int Enable( vlc_window_t *wnd, const vlc_window_cfg_t *cfg );
-static void Disable( struct vlc_window *wnd );
-static void Resize( vlc_window_t *wnd, unsigned width, unsigned height );
-static void Close(vlc_window_t *wnd );
-static void SetState( vlc_window_t *wnd, unsigned state );
-static void UnsetFullscreen( vlc_window_t *wnd );
-static void SetFullscreen( vlc_window_t *wnd, const char *id );
-static void SetTitle( vlc_window_t *wnd, const char *title );
+static int Enable( heimdall_window_t *wnd, const heimdall_window_cfg_t *cfg );
+static void Disable( struct heimdall_window *wnd );
+static void Resize( heimdall_window_t *wnd, unsigned width, unsigned height );
+static void Close(heimdall_window_t *wnd );
+static void SetState( heimdall_window_t *wnd, unsigned state );
+static void UnsetFullscreen( heimdall_window_t *wnd );
+static void SetFullscreen( heimdall_window_t *wnd, const char *id );
+static void SetTitle( heimdall_window_t *wnd, const char *title );
 
-#define WC_VLC_WINDOW_OS2 "WC_VLC_WINDOW_OS2"
+#define WC_HEIMDALL_WINDOW_OS2 "WC_HEIMDALL_WINDOW_OS2"
 
-#define WM_VLC_ENABLE       ( WM_USER + 1 )
-#define WM_VLC_RESIZE       ( WM_USER + 2 )
-#define WM_VLC_SETSTATE     ( WM_USER + 3 )
-#define WM_VLC_FULLSCREEN   ( WM_USER + 4 )
-#define WM_VLC_SETTITLE     ( WM_USER + 5 )
+#define WM_HEIMDALL_ENABLE       ( WM_USER + 1 )
+#define WM_HEIMDALL_RESIZE       ( WM_USER + 2 )
+#define WM_HEIMDALL_SETSTATE     ( WM_USER + 3 )
+#define WM_HEIMDALL_FULLSCREEN   ( WM_USER + 4 )
+#define WM_HEIMDALL_SETTITLE     ( WM_USER + 5 )
 
 #define TID_HIDE_MOUSE  0x1010
 
 static const struct
 {
     USHORT i_pmkey;
-    int    i_vlckey;
-} pmkeys_to_vlckeys[] =
+    int    i_heimdallkey;
+} pmkeys_to_heimdallkeys[] =
 {
     { VK_LEFT, KEY_LEFT },
     { VK_RIGHT, KEY_RIGHT },
@@ -164,15 +165,15 @@ static const struct
 static int ConvertKey( USHORT i_pmkey )
 {
     int i;
-    for( i = 0; pmkeys_to_vlckeys[ i ].i_pmkey != 0; i++ )
+    for( i = 0; pmkeys_to_heimdallkeys[ i ].i_pmkey != 0; i++ )
     {
-        if( pmkeys_to_vlckeys[ i ].i_pmkey == i_pmkey )
-            return pmkeys_to_vlckeys[ i ].i_vlckey;
+        if( pmkeys_to_heimdallkeys[ i ].i_pmkey == i_pmkey )
+            return pmkeys_to_heimdallkeys[ i ].i_heimdallkey;
     }
     return 0;
 }
 
-static void MousePressed( vlc_window_t *wnd, HWND hwnd, unsigned button )
+static void MousePressed( heimdall_window_t *wnd, HWND hwnd, unsigned button )
 {
     vout_window_sys_t *sys = wnd->sys;
 
@@ -184,10 +185,10 @@ static void MousePressed( vlc_window_t *wnd, HWND hwnd, unsigned button )
 
     sys->button_pressed |= 1 << button;
 
-    vlc_window_ReportMousePressed( wnd, button );
+    heimdall_window_ReportMousePressed( wnd, button );
 }
 
-static void MouseReleased( vlc_window_t *wnd, unsigned button )
+static void MouseReleased( heimdall_window_t *wnd, unsigned button )
 {
     vout_window_sys_t *sys = wnd->sys;
 
@@ -195,14 +196,14 @@ static void MouseReleased( vlc_window_t *wnd, unsigned button )
     if( !sys->button_pressed )
         WinSetCapture( HWND_DESKTOP, NULLHANDLE );
 
-    vlc_window_ReportMouseReleased(wnd, button);
+    heimdall_window_ReportMouseReleased(wnd, button);
 }
 
 #define WM_MOUSELEAVE   0x41F
 
 static MRESULT EXPENTRY WndProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
 {
-    vlc_window_t *wnd = WinQueryWindowPtr( hwnd, 0 );
+    heimdall_window_t *wnd = WinQueryWindowPtr( hwnd, 0 );
     MRESULT result = ( MRESULT )TRUE;
 
     if ( !wnd )
@@ -228,13 +229,13 @@ static MRESULT EXPENTRY WndProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     {
         /* the user wants to close the window */
         case WM_CLOSE:
-            vlc_window_ReportClose( wnd );
+            heimdall_window_ReportClose( wnd );
             WinPostMsg( hwnd, WM_QUIT, 0, 0 );
             result = 0;
             break;
 
         case WM_SIZE:
-            vlc_window_ReportSize( wnd,
+            heimdall_window_ReportSize( wnd,
                                     SHORT1FROMMP( mp2 ), SHORT2FROMMP( mp2 ));
             result = 0;
             break;
@@ -250,7 +251,7 @@ static MRESULT EXPENTRY WndProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
             int h = rcl.yTop - rcl.yBottom;
             i_mouse_y = ( h - i_mouse_y ) - 1;
 
-            vlc_window_ReportMouseMoved( wnd, i_mouse_x, i_mouse_y );
+            heimdall_window_ReportMouseMoved( wnd, i_mouse_x, i_mouse_y );
 
             result = WinDefWindowProc( hwnd, msg, mp1, mp2 );
             break;
@@ -281,15 +282,15 @@ static MRESULT EXPENTRY WndProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
             break;
 
         case WM_BUTTON1DBLCLK :
-            vlc_window_ReportMouseDoubleClick( wnd, MOUSE_BUTTON_LEFT );
+            heimdall_window_ReportMouseDoubleClick( wnd, MOUSE_BUTTON_LEFT );
             break;
 
         case WM_BUTTON2DBLCLK :
-            vlc_window_ReportMouseDoubleClick( wnd, MOUSE_BUTTON_RIGHT );
+            heimdall_window_ReportMouseDoubleClick( wnd, MOUSE_BUTTON_RIGHT );
             break;
 
         case WM_BUTTON3DBLCLK :
-            vlc_window_ReportMouseDoubleClick( wnd, MOUSE_BUTTON_CENTER );
+            heimdall_window_ReportMouseDoubleClick( wnd, MOUSE_BUTTON_CENTER );
             break;
 
         case WM_TRANSLATEACCEL :
@@ -323,7 +324,7 @@ static MRESULT EXPENTRY WndProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
                     if( i_flags & KC_ALT )
                         i_key |= KEY_MODIFIER_ALT;
 
-                    vlc_window_ReportKeyPress( wnd, i_key );
+                    heimdall_window_ReportKeyPress( wnd, i_key );
                 }
             }
             break;
@@ -347,7 +348,7 @@ static MRESULT EXPENTRY WndProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
             }
             break;
 
-        case WM_VLC_ENABLE :
+        case WM_HEIMDALL_ENABLE :
         {
             if( !LONGFROMMP( mp1 ))
             {
@@ -357,7 +358,7 @@ static MRESULT EXPENTRY WndProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
             }
 
             /* Enable */
-            vlc_window_cfg_t *cfg = PVOIDFROMMP( mp2 );
+            heimdall_window_cfg_t *cfg = PVOIDFROMMP( mp2 );
 
             if( cfg->is_decorated )
             {
@@ -412,7 +413,7 @@ static MRESULT EXPENTRY WndProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
             break;
         }
 
-        case WM_VLC_RESIZE :
+        case WM_HEIMDALL_RESIZE :
             rcl.xLeft   = 0;
             rcl.yBottom = 0;
             rcl.xRight  = LONGFROMMP( mp1 );
@@ -432,11 +433,11 @@ static MRESULT EXPENTRY WndProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
             WinCalcFrameRect( sys->frame, &sys->client_rect, TRUE );
             break;
 
-        case WM_VLC_SETSTATE:
+        case WM_HEIMDALL_SETSTATE:
             /* TODO */
             break;
 
-        case WM_VLC_FULLSCREEN:
+        case WM_HEIMDALL_FULLSCREEN:
             if( LONGFROMMP( mp1 ))
             {
                 /* Fullscreen */
@@ -464,7 +465,7 @@ static MRESULT EXPENTRY WndProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
                              SWP_ACTIVATE );
             break;
 
-        case WM_VLC_SETTITLE :
+        case WM_HEIMDALL_SETTITLE :
         {
             char *title = PVOIDFROMMP( mp1 );
 
@@ -494,7 +495,7 @@ static void MorphToPM( void )
 
 static void PMThread( void *arg )
 {
-    vlc_window_t *wnd = arg;
+    heimdall_window_t *wnd = arg;
     vout_window_sys_t *sys = wnd->sys;
     ULONG i_frame_flags;
     QMSG qm;
@@ -506,7 +507,7 @@ static void PMThread( void *arg )
     sys->hmq = WinCreateMsgQueue( sys->hab, 0);
 
     WinRegisterClass( sys->hab,
-                      WC_VLC_WINDOW_OS2,
+                      WC_HEIMDALL_WINDOW_OS2,
                       WndProc,
                       CS_SIZEREDRAW | CS_MOVENOTIFY,
                       sizeof( PVOID ));
@@ -518,8 +519,8 @@ static void PMThread( void *arg )
         WinCreateStdWindow( HWND_DESKTOP,       /* parent window handle */
                             WS_VISIBLE,         /* frame window style */
                             &i_frame_flags,     /* window style */
-                            WC_VLC_WINDOW_OS2,  /* class name */
-                            "VLC Video Window", /* window title */
+                            WC_HEIMDALL_WINDOW_OS2,  /* class name */
+                            "Heimdall Video Window", /* window title */
                             0L,                 /* default client style */
                             NULLHANDLE,         /* resource in exe file */
                             1,                  /* frame window id */
@@ -545,7 +546,7 @@ static void PMThread( void *arg )
     /* Prevent SIG_FPE */
     _control87( MCW_EM, MCW_EM );
 
-    sys->i_result = VLC_SUCCESS;
+    sys->i_result = HEIMDALL_SUCCESS;
     DosPostEventSem( sys->ack_event );
 
     while( WinGetMsg( sys->hab, &qm, NULLHANDLE, 0, 0 ))
@@ -560,11 +561,11 @@ exit_error:
     WinDestroyMsgQueue( sys->hmq );
     WinTerminate( sys->hab );
 
-    sys->i_result = VLC_EGENERIC;
+    sys->i_result = HEIMDALL_EGENERIC;
     DosPostEventSem( sys->ack_event );
 }
 
-static const struct vlc_window_operations ops = {
+static const struct heimdall_window_operations ops = {
     .enable  = Enable,
     .disable = Disable,
     .resize = Resize,
@@ -575,67 +576,67 @@ static const struct vlc_window_operations ops = {
     .set_title = SetTitle,
 };
 
-static int Open( vlc_window_t *wnd )
+static int Open( heimdall_window_t *wnd )
 {
     vout_window_sys_t *sys;
 
     wnd->sys = sys = calloc( 1, sizeof( *sys ));
     if( !sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     DosCreateEventSem( NULL, &sys->ack_event, 0, FALSE );
 
     sys->tid = _beginthread( PMThread, NULL, 1024 * 1024, wnd );
     DosWaitEventSem( sys->ack_event, SEM_INDEFINITE_WAIT );
 
-    if( sys->i_result != VLC_SUCCESS )
+    if( sys->i_result != HEIMDALL_SUCCESS )
     {
         DosCloseEventSem( sys->ack_event );
 
         free( sys );
 
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    wnd->type = VLC_WINDOW_TYPE_HWND;
+    wnd->type = HEIMDALL_WINDOW_TYPE_HWND;
     wnd->handle.hwnd = ( void * )sys->client;
     wnd->ops = &ops;
     wnd->info.has_double_click = true;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int Enable( vlc_window_t *wnd, const vlc_window_cfg_t *cfg)
+static int Enable( heimdall_window_t *wnd, const heimdall_window_cfg_t *cfg)
 {
     vout_window_sys_t *sys = wnd->sys;
 
-    vlc_window_cfg_t *config = malloc( sizeof( *config ));
+    heimdall_window_cfg_t *config = malloc( sizeof( *config ));
     if( !config )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     memcpy( config, cfg, sizeof( *config ));
-    WinPostMsg( sys->client, WM_VLC_ENABLE,
+    WinPostMsg( sys->client, WM_HEIMDALL_ENABLE,
                 MPFROMLONG( TRUE ), MPFROMP( config ) );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void Disable( struct vlc_window *wnd )
+static void Disable( struct heimdall_window *wnd )
 {
     vout_window_sys_t *sys = wnd->sys;
 
-    WinPostMsg( sys->client, WM_VLC_ENABLE, MPFROMLONG( FALSE ), 0 );
+    WinPostMsg( sys->client, WM_HEIMDALL_ENABLE, MPFROMLONG( FALSE ), 0 );
 }
 
-static void Resize( vlc_window_t *wnd, unsigned width, unsigned height )
+static void Resize( heimdall_window_t *wnd, unsigned width, unsigned height )
 {
     vout_window_sys_t *sys = wnd->sys;
 
-    WinPostMsg( sys->client, WM_VLC_RESIZE,
+    WinPostMsg( sys->client, WM_HEIMDALL_RESIZE,
                 MPFROMLONG( width ), MPFROMLONG( height ));
 }
 
-static void Close( vlc_window_t *wnd )
+static void Close( heimdall_window_t *wnd )
 {
     vout_window_sys_t *sys = wnd->sys;
 
@@ -648,31 +649,31 @@ static void Close( vlc_window_t *wnd )
     free( sys );
 }
 
-static void SetState( vlc_window_t *wnd, unsigned state )
+static void SetState( heimdall_window_t *wnd, unsigned state )
 {
     vout_window_sys_t *sys = wnd->sys;
 
-    WinPostMsg( sys->client, WM_VLC_SETSTATE, MPFROMLONG( state ), 0 );
+    WinPostMsg( sys->client, WM_HEIMDALL_SETSTATE, MPFROMLONG( state ), 0 );
 }
 
-static void UnsetFullscreen(vlc_window_t *wnd)
+static void UnsetFullscreen(heimdall_window_t *wnd)
 {
     vout_window_sys_t *sys = wnd->sys;
 
-    WinPostMsg( sys->client, WM_VLC_FULLSCREEN, MPFROMLONG( FALSE ), 0 );
+    WinPostMsg( sys->client, WM_HEIMDALL_FULLSCREEN, MPFROMLONG( FALSE ), 0 );
 }
 
-static void SetFullscreen(vlc_window_t *wnd, const char *id)
+static void SetFullscreen(heimdall_window_t *wnd, const char *id)
 {
-    VLC_UNUSED( id );
+    HEIMDALL_UNUSED( id );
     vout_window_sys_t *sys = wnd->sys;
 
-    WinPostMsg( sys->client, WM_VLC_FULLSCREEN, MPFROMLONG( TRUE ), 0 );
+    WinPostMsg( sys->client, WM_HEIMDALL_FULLSCREEN, MPFROMLONG( TRUE ), 0 );
 }
 
-static void SetTitle(vlc_window_t *wnd, const char *title)
+static void SetTitle(heimdall_window_t *wnd, const char *title)
 {
     vout_window_sys_t *sys = wnd->sys;
 
-    WinPostMsg( sys->client, WM_VLC_SETTITLE, MPFROMP( strdup( title )), 0 );
+    WinPostMsg( sys->client, WM_HEIMDALL_SETTITLE, MPFROMP( strdup( title )), 0 );
 }

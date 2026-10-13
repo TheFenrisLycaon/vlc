@@ -2,6 +2,7 @@
  * substtml.c : TTML subtitles decoder
  *****************************************************************************
  * Copyright (C) 2015-2017 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Hugo Beauzée-Luyssen <hugo@beauzee.fr>
  *          Sushma Reddy <sushma.reddy@research.iiit.ac.in>
@@ -24,14 +25,14 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_codec.h>
-#include <vlc_xml.h>
-#include <vlc_stream.h>
-#include <vlc_text_style.h>
-#include <vlc_charset.h>
-#include <vlc_image.h>
-#include <vlc_memstream.h>
+#include <heimdall_common.h>
+#include <heimdall_codec.h>
+#include <heimdall_xml.h>
+#include <heimdall_stream.h>
+#include <heimdall_text_style.h>
+#include <heimdall_charset.h>
+#include <heimdall_image.h>
+#include <heimdall_memstream.h>
 
 #include <ctype.h>
 #include <assert.h>
@@ -85,7 +86,7 @@ typedef struct
 
 typedef struct
 {
-    vlc_dictionary_t regions;
+    heimdall_dictionary_t regions;
     tt_node_t *      p_rootnode; /* for now. FIXME: split header */
     ttml_length_t    root_extent_h, root_extent_v;
     unsigned         i_cell_resolution_v;
@@ -225,7 +226,7 @@ static ttml_length_t ttml_read_length( const char *psz )
     ttml_length_t len = { 0.0, TTML_UNIT_UNKNOWN };
 
     char* psz_end = NULL;
-    float size = vlc_strtof_c( psz, &psz_end );
+    float size = heimdall_strtof_c( psz, &psz_end );
     len.i_value = size;
     if( psz_end )
     {
@@ -333,14 +334,14 @@ static void FillTextStyle( const char *psz_attr, const char *psz_val,
     }
     else if( !strcasecmp( "color", psz_attr ) )
     {
-        unsigned int i_color = vlc_html_color( psz_val, NULL );
+        unsigned int i_color = heimdall_html_color( psz_val, NULL );
         p_text_style->i_font_color = (i_color & 0xffffff);
         p_text_style->i_font_alpha = (i_color & 0xFF000000) >> 24;
         p_text_style->i_features |= STYLE_HAS_FONT_COLOR | STYLE_HAS_FONT_ALPHA;
     }
     else if( !strcasecmp( "backgroundColor", psz_attr ) )
     {
-        unsigned int i_color = vlc_html_color( psz_val, NULL );
+        unsigned int i_color = heimdall_html_color( psz_val, NULL );
         p_text_style->i_background_color = i_color & 0xFFFFFF;
         p_text_style->i_background_alpha = (i_color & 0xFF000000) >> 24;
         p_text_style->i_features |= STYLE_HAS_BACKGROUND_COLOR
@@ -384,7 +385,7 @@ static void FillTextStyle( const char *psz_attr, const char *psz_val,
         if( token != NULL )
         {
             bool b_ok = false;
-            unsigned int color = vlc_html_color( token, &b_ok );
+            unsigned int color = heimdall_html_color( token, &b_ok );
             if( b_ok )
             {
                 p_text_style->i_outline_color = color & 0xFFFFFF;
@@ -461,10 +462,10 @@ static void FillRegionStyle( ttml_context_t *p_ctx,
     }
 }
 
-static void ComputeTTMLStyles( ttml_context_t *p_ctx, const vlc_dictionary_t *p_dict,
+static void ComputeTTMLStyles( ttml_context_t *p_ctx, const heimdall_dictionary_t *p_dict,
                                ttml_style_t *p_ttml_style )
 {
-    VLC_UNUSED(p_dict);
+    HEIMDALL_UNUSED(p_dict);
     /* Values depending on multiple others are converted last
      * Default value conversion must also not depend on attribute presence */
     text_style_t *p_text_style = p_ttml_style->font_style;
@@ -581,30 +582,30 @@ static void FillTTMLStyle( const char *psz_attr, const char *psz_namespace,
     else FillTextStyle( psz_attr, psz_val, p_ttml_style->font_style );
 }
 
-static void DictionaryMerge( const vlc_dictionary_t *p_src, vlc_dictionary_t *p_dst,
+static void DictionaryMerge( const heimdall_dictionary_t *p_src, heimdall_dictionary_t *p_dst,
                              bool b_override )
 {
     for (size_t i = 0; i < p_src->i_size; ++i)
     {
-        for ( const vlc_dictionary_entry_t* p_entry = p_src->p_entries[i];
+        for ( const heimdall_dictionary_entry_t* p_entry = p_src->p_entries[i];
                                             p_entry != NULL; p_entry = p_entry->p_next )
         {
-            if( vlc_dictionary_has_key( p_dst, p_entry->psz_key ) )
+            if( heimdall_dictionary_has_key( p_dst, p_entry->psz_key ) )
             {
                 if( b_override )
                 {
-                    vlc_dictionary_remove_value_for_key( p_dst, p_entry->psz_key, NULL, NULL );
-                    vlc_dictionary_insert( p_dst, p_entry->psz_key, p_entry->p_value );
+                    heimdall_dictionary_remove_value_for_key( p_dst, p_entry->psz_key, NULL, NULL );
+                    heimdall_dictionary_insert( p_dst, p_entry->psz_key, p_entry->p_value );
                 }
             }
             else
-                vlc_dictionary_insert( p_dst, p_entry->psz_key, p_entry->p_value );
+                heimdall_dictionary_insert( p_dst, p_entry->psz_key, p_entry->p_value );
         }
     }
 }
 
 static void DictMergeWithStyleID( ttml_context_t *p_ctx, tt_namespaces_t *p_nss,
-                                  const char *psz_styles, vlc_dictionary_t *p_dst )
+                                  const char *psz_styles, heimdall_dictionary_t *p_dst )
 {
     assert(p_ctx->p_rootnode);
     char *psz_dup;
@@ -612,8 +613,8 @@ static void DictMergeWithStyleID( ttml_context_t *p_ctx, tt_namespaces_t *p_nss,
     {
         /* Use temp dict instead of reverse token processing to
          * resolve styles in specified order */
-        vlc_dictionary_t tempdict;
-        vlc_dictionary_init( &tempdict, 0 );
+        heimdall_dictionary_t tempdict;
+        heimdall_dictionary_init( &tempdict, 0 );
 
         char *saveptr;
         char *psz_id = strtok_r( psz_dup, " ", &saveptr );
@@ -630,16 +631,16 @@ static void DictMergeWithStyleID( ttml_context_t *p_ctx, tt_namespaces_t *p_nss,
             psz_id = strtok_r( NULL, " ", &saveptr );
         }
 
-        if( !vlc_dictionary_is_empty( &tempdict ) )
+        if( !heimdall_dictionary_is_empty( &tempdict ) )
             DictionaryMerge( &tempdict, p_dst, false );
 
-        vlc_dictionary_clear( &tempdict, NULL, NULL );
+        heimdall_dictionary_clear( &tempdict, NULL, NULL );
         free( psz_dup );
     }
 }
 
 static void DictMergeWithRegionID( ttml_context_t *p_ctx, tt_namespaces_t *p_nss,
-                                   const char *psz_id, vlc_dictionary_t *p_dst )
+                                   const char *psz_id, heimdall_dictionary_t *p_dst )
 {
     assert(p_ctx->p_rootnode);
     if( psz_id && p_ctx->p_rootnode )
@@ -674,12 +675,12 @@ static void DictMergeWithRegionID( ttml_context_t *p_ctx, tt_namespaces_t *p_nss
 }
 
 static void DictToTTMLStyle( ttml_context_t *p_ctx, tt_namespaces_t *p_nss,
-                             const vlc_dictionary_t *p_dict,
+                             const heimdall_dictionary_t *p_dict,
                              ttml_style_t *p_ttml_style )
 {
     for (size_t i = 0; i < p_dict->i_size; ++i)
     {
-        for ( vlc_dictionary_entry_t* p_entry = p_dict->p_entries[i];
+        for ( heimdall_dictionary_entry_t* p_entry = p_dict->p_entries[i];
               p_entry != NULL; p_entry = p_entry->p_next )
         {
             const char *psz_namespace = tt_namespaces_GetURI( p_nss, p_entry->psz_key );
@@ -697,8 +698,8 @@ static ttml_style_t * InheritTTMLStyles( ttml_context_t *p_ctx, tt_namespaces_t 
 {
     assert( p_node );
     ttml_style_t *p_ttml_style = NULL;
-    vlc_dictionary_t merged;
-    vlc_dictionary_init( &merged, 0 );
+    heimdall_dictionary_t merged;
+    heimdall_dictionary_init( &merged, 0 );
 
     /* Merge dics backwards without overwriting */
     for( ; p_node; p_node = p_node->p_parent )
@@ -714,12 +715,12 @@ static ttml_style_t * InheritTTMLStyles( ttml_context_t *p_ctx, tt_namespaces_t 
             DictMergeWithRegionID( p_ctx, p_nss, psz_regionid, &merged );
     }
 
-    if( !vlc_dictionary_is_empty( &merged ) && (p_ttml_style = ttml_style_New()) )
+    if( !heimdall_dictionary_is_empty( &merged ) && (p_ttml_style = ttml_style_New()) )
     {
         DictToTTMLStyle( p_ctx, p_nss, &merged, p_ttml_style );
     }
 
-    vlc_dictionary_clear( &merged, NULL, NULL );
+    heimdall_dictionary_clear( &merged, NULL, NULL );
 
     return p_ttml_style;
 }
@@ -745,27 +746,27 @@ static int ParseTTMLChunk( xml_reader_t *p_reader, tt_namespaces_t *p_nss,
                 if( ( psz_node_namespace && strcmp( psz_node_namespace, TT_NS ) ) ||
                     strcmp( tt_LocalName( psz_node_name ), "tt" ) ||
                     *pp_rootnode != NULL )
-                    return VLC_EGENERIC;
+                    return HEIMDALL_EGENERIC;
                 *pp_rootnode = tt_node_NewRead( p_reader, p_nss, NULL,
                                                 psz_node_name, psz_node_namespace );
                 if( !*pp_rootnode ||
-                    tt_nodes_Read( p_reader, p_nss, *pp_rootnode ) != VLC_SUCCESS )
-                    return VLC_EGENERIC;
+                    tt_nodes_Read( p_reader, p_nss, *pp_rootnode ) != HEIMDALL_SUCCESS )
+                    return HEIMDALL_EGENERIC;
                 break;
 
             case XML_READER_ENDELEM:
                 if( !*pp_rootnode ||
                     strcmp( psz_node_name, (*pp_rootnode)->psz_node_name ) )
-                    return VLC_EGENERIC;
+                    return HEIMDALL_EGENERIC;
                 break;
         }
 
     } while( 1 );
 
     if( *pp_rootnode == NULL )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void BIDIConvert( text_segment_t *p_segment, int i_direction )
@@ -813,15 +814,15 @@ static ttml_region_t *GetTTMLRegion( ttml_context_t *p_ctx, tt_namespaces_t *p_n
                                      const char *psz_region_id )
 {
     ttml_region_t *p_region = ( ttml_region_t * )
-            vlc_dictionary_value_for_key( &p_ctx->regions, psz_region_id ? psz_region_id : "" );
+            heimdall_dictionary_value_for_key( &p_ctx->regions, psz_region_id ? psz_region_id : "" );
     if( p_region == NULL )
     {
         if( psz_region_id && strcmp( psz_region_id, "" ) ) /* not default region */
         {
             /* Create region if if missing */
 
-            vlc_dictionary_t merged;
-            vlc_dictionary_init( &merged, 0 );
+            heimdall_dictionary_t merged;
+            heimdall_dictionary_init( &merged, 0 );
             /* Get all attributes, including region > style */
             DictMergeWithRegionID( p_ctx, p_nss, psz_region_id, &merged );
             if( (p_region = ttml_region_New( false )) )
@@ -829,7 +830,7 @@ static ttml_region_t *GetTTMLRegion( ttml_context_t *p_ctx, tt_namespaces_t *p_n
                 /* Fill from its own attributes */
                 for (size_t i = 0; i < merged.i_size; ++i)
                 {
-                    for ( vlc_dictionary_entry_t* p_entry = merged.p_entries[i];
+                    for ( heimdall_dictionary_entry_t* p_entry = merged.p_entries[i];
                           p_entry != NULL; p_entry = p_entry->p_next )
                     {
                         const char *psz_namespace = tt_namespaces_GetURI( p_nss, p_entry->psz_key );
@@ -841,13 +842,13 @@ static ttml_region_t *GetTTMLRegion( ttml_context_t *p_ctx, tt_namespaces_t *p_n
                     }
                 }
             }
-            vlc_dictionary_clear( &merged, NULL, NULL );
+            heimdall_dictionary_clear( &merged, NULL, NULL );
 
-            vlc_dictionary_insert( &p_ctx->regions, psz_region_id, p_region );
+            heimdall_dictionary_insert( &p_ctx->regions, psz_region_id, p_region );
         }
         else if( (p_region = ttml_region_New( true )) ) /* create default */
         {
-            vlc_dictionary_insert( &p_ctx->regions, "", p_region );
+            heimdall_dictionary_insert( &p_ctx->regions, "", p_region );
         }
     }
     return p_region;
@@ -988,7 +989,7 @@ static void ConvertNodesToRegionContent( ttml_context_t *p_ctx, tt_namespaces_t 
             const char *psz_base64 = GetSMPTEImage( p_ctx, p_nss, &psz_id[1] );
             if( psz_base64 )
                 p_region->bgbitmap.i_bytes =
-                    vlc_b64_decode_binary( &p_region->bgbitmap.p_bytes, psz_base64 );
+                    heimdall_b64_decode_binary( &p_region->bgbitmap.p_bytes, psz_base64 );
         }
     }
 
@@ -1046,19 +1047,19 @@ static tt_node_t *ParseTTML( decoder_t *p_dec, tt_namespaces_t *p_nss,
     stream_t*       p_sub;
     xml_reader_t*   p_xml_reader;
 
-    p_sub = vlc_stream_MemoryNew( p_dec, (uint8_t*) p_buffer, i_buffer, true );
+    p_sub = heimdall_stream_MemoryNew( p_dec, (uint8_t*) p_buffer, i_buffer, true );
     if( unlikely( p_sub == NULL ) )
         return NULL;
 
     p_xml_reader = xml_ReaderCreate( p_dec, p_sub );
     if( unlikely( p_xml_reader == NULL ) )
     {
-        vlc_stream_Delete( p_sub );
+        heimdall_stream_Delete( p_sub );
         return NULL;
     }
 
     tt_node_t *p_rootnode = NULL;
-    if( ParseTTMLChunk( p_xml_reader, p_nss, &p_rootnode ) != VLC_SUCCESS )
+    if( ParseTTMLChunk( p_xml_reader, p_nss, &p_rootnode ) != HEIMDALL_SUCCESS )
     {
         if( p_rootnode )
             tt_node_RecursiveDelete( p_rootnode );
@@ -1066,7 +1067,7 @@ static tt_node_t *ParseTTML( decoder_t *p_dec, tt_namespaces_t *p_nss,
     }
 
     xml_ReaderDelete( p_xml_reader );
-    vlc_stream_Delete( p_sub );
+    heimdall_stream_Delete( p_sub );
 
     return p_rootnode;
 }
@@ -1116,12 +1117,12 @@ static ttml_region_t *GenerateRegions( tt_namespaces_t *p_nss, tt_node_t *p_root
             InitTTMLContext( p_nss, p_rootnode, &context );
             context.p_rootnode = p_rootnode;
 
-            vlc_dictionary_init( &context.regions, 1 );
+            heimdall_dictionary_init( &context.regions, 1 );
             ConvertNodesToRegionContent( &context, p_nss, p_bodynode, NULL, NULL, playbacktime );
 
             for (size_t i = 0; i < context.regions.i_size; ++i)
             {
-                for ( const vlc_dictionary_entry_t* p_entry = context.regions.p_entries[i];
+                for ( const heimdall_dictionary_entry_t* p_entry = context.regions.p_entries[i];
                                                     p_entry != NULL; p_entry = p_entry->p_next )
                 {
                     *pp_region_last = (ttml_region_t *) p_entry->p_value;
@@ -1129,7 +1130,7 @@ static ttml_region_t *GenerateRegions( tt_namespaces_t *p_nss, tt_node_t *p_root
                 }
             }
 
-            vlc_dictionary_clear( &context.regions, NULL, NULL );
+            heimdall_dictionary_clear( &context.regions, NULL, NULL );
         }
     }
     else if ( tt_node_Match( p_rootnode, "div", TT_NS ) ||
@@ -1230,7 +1231,7 @@ static picture_t * picture_CreateFromPNG( decoder_t *p_dec,
         return NULL;
 
     video_format_t fmt_out;
-    video_format_Init( &fmt_out, VLC_CODEC_RGBA );
+    video_format_Init( &fmt_out, HEIMDALL_CODEC_RGBA );
 
     if ( isValidPixelsExtent( flags, extent_x, extent_y ) )
     {
@@ -1238,7 +1239,7 @@ static picture_t * picture_CreateFromPNG( decoder_t *p_dec,
     }
 
     es_format_t es_in;
-    es_format_Init( &es_in, VIDEO_ES, VLC_CODEC_PNG );
+    es_format_Init( &es_in, VIDEO_ES, HEIMDALL_CODEC_PNG );
     es_in.video.i_chroma = es_in.i_codec;
 
     block_t *p_block = block_Alloc( i_data );
@@ -1247,7 +1248,7 @@ static picture_t * picture_CreateFromPNG( decoder_t *p_dec,
     memcpy( p_block->p_buffer, p_data, i_data );
 
     picture_t *p_pic = NULL;
-    struct vlc_logger *logger = p_dec->obj.logger;
+    struct heimdall_logger *logger = p_dec->obj.logger;
     bool no_interact = p_dec->obj.no_interact;
     p_dec->obj.logger = NULL;
     p_dec->obj.no_interact = true;
@@ -1329,13 +1330,13 @@ static int ParseBlock( decoder_t *p_dec, const block_t *p_block )
     temporal_extent.begin.base = 0;
 
     if( p_block->i_flags & BLOCK_FLAG_CORRUPTED )
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
 
     /* We cannot display a subpicture with no date */
-    if( p_block->i_pts == VLC_TICK_INVALID )
+    if( p_block->i_pts == HEIMDALL_TICK_INVALID )
     {
         msg_Warn( p_dec, "subtitle without a date" );
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
     }
 
     tt_namespaces_t namespaces;
@@ -1344,7 +1345,7 @@ static int ParseBlock( decoder_t *p_dec, const block_t *p_block )
     if( !p_rootnode )
     {
         tt_namespaces_Clean( &namespaces );
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
     }
 
     tt_timings_Resolve( (tt_basenode_t *) p_rootnode, &temporal_extent,
@@ -1355,7 +1356,7 @@ static int ParseBlock( decoder_t *p_dec, const block_t *p_block )
         printf("%ld ", tt_time_Convert( &p_timings_array[i] ) );
     printf("\n");
 #endif
-    vlc_tick_t i_block_start_time = p_block->i_dts - p_sys->pes.i_offset;
+    heimdall_tick_t i_block_start_time = p_block->i_dts - p_sys->pes.i_offset;
 
     if(TTML_in_PES(p_dec) && i_block_start_time < p_sys->pes.i_prev_segment_start_time )
         i_block_start_time = p_sys->pes.i_prev_segment_start_time;
@@ -1363,11 +1364,11 @@ static int ParseBlock( decoder_t *p_dec, const block_t *p_block )
     for( size_t i=0; i+1 < i_timings_count; i++ )
     {
         /* We Only support absolute timings (2) */
-        if( tt_time_Convert( &p_timings_array[i] ) + VLC_TICK_0 < i_block_start_time )
+        if( tt_time_Convert( &p_timings_array[i] ) + HEIMDALL_TICK_0 < i_block_start_time )
             continue;
 
         if( !TTML_in_PES(p_dec) &&
-            tt_time_Convert( &p_timings_array[i] ) + VLC_TICK_0 > i_block_start_time + p_block->i_length )
+            tt_time_Convert( &p_timings_array[i] ) + HEIMDALL_TICK_0 > i_block_start_time + p_block->i_length )
             break;
 
         if( TTML_in_PES(p_dec) && p_sys->pes.i_prev_segment_start_time < tt_time_Convert( &p_timings_array[i] ) )
@@ -1392,9 +1393,9 @@ static int ParseBlock( decoder_t *p_dec, const block_t *p_block )
         if( p_regions && p_spu )
         {
             p_spu->i_start    = p_sys->pes.i_offset +
-                                VLC_TICK_0 + tt_time_Convert( &p_timings_array[i] );
+                                HEIMDALL_TICK_0 + tt_time_Convert( &p_timings_array[i] );
             p_spu->i_stop     = p_sys->pes.i_offset +
-                                VLC_TICK_0 + tt_time_Convert( &p_timings_array[i+1] ) - 1;
+                                HEIMDALL_TICK_0 + tt_time_Convert( &p_timings_array[i+1] ) - 1;
             p_spu->b_ephemer  = true;
 
             if( !b_bitmap_regions ) /* TEXT regions */
@@ -1420,7 +1421,7 @@ static int ParseBlock( decoder_t *p_dec, const block_t *p_block )
 
     free( p_timings_array );
 
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }
 
 
@@ -1430,7 +1431,7 @@ static int ParseBlock( decoder_t *p_dec, const block_t *p_block )
 static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
 {
     if( p_block == NULL ) /* No Drain */
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
 
     int ret = ParseBlock( p_dec, p_block );
 #ifdef TTML_DEBUG
@@ -1462,19 +1463,19 @@ static void Flush( decoder_t *p_dec )
 /*****************************************************************************
  * tt_OpenDecoder: probe the decoder and return score
  *****************************************************************************/
-int tt_OpenDecoder( vlc_object_t *p_this )
+int tt_OpenDecoder( heimdall_object_t *p_this )
 {
     decoder_t *p_dec = (decoder_t*)p_this;
     decoder_sys_t *p_sys;
 
-    if( p_dec->fmt_in->i_codec != VLC_CODEC_TTML &&
+    if( p_dec->fmt_in->i_codec != HEIMDALL_CODEC_TTML &&
         !TTML_in_PES(p_dec) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* Allocate the memory needed to store the decoder's structure */
-    p_dec->p_sys = p_sys = vlc_obj_calloc( p_this, 1, sizeof( *p_sys ) );
+    p_dec->p_sys = p_sys = heimdall_obj_calloc( p_this, 1, sizeof( *p_sys ) );
     if( unlikely( p_sys == NULL ) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     if( !TTML_in_PES( p_dec ) )
         p_dec->pf_decode = DecodeBlock;
@@ -1484,5 +1485,5 @@ int tt_OpenDecoder( vlc_object_t *p_this )
     p_sys->i_align = var_InheritInteger( p_dec, "ttml-align" );
     ttml_in_pes_Init( &p_sys->pes );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

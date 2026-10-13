@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,12 +25,12 @@
 #include "mlhelper.hpp"
 #include "mlqmltypes.hpp"
 
-class VLCDuration;
+class HeimdallDuration;
 
 class MLAlbum : public MLItem
 {
 public:
-    MLAlbum(const vlc_ml_album_t *_data);
+    MLAlbum(const heimdall_ml_album_t *_data);
 
     QString getTitle() const;
     unsigned int getReleaseYear() const;
@@ -37,7 +38,7 @@ public:
     QString getCover() const;
     QString getArtist() const;
     unsigned int getNbTracks() const;
-    VLCDuration getDuration() const;
+    HeimdallDuration getDuration() const;
 
 private:
     QString m_title;

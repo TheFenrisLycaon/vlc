@@ -2,6 +2,7 @@
  * converter_vdpau.c: OpenGL VDPAU opaque converter
  *****************************************************************************
  * Copyright (C) 2017 VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Victorien Le Couviour--Tuffet <victorien.lecouviour.tuffet@gmail.com>
  *
@@ -29,15 +30,15 @@
 #include <GL/gl.h>
 #include <GL/glext.h>
 
-#include <vlc_common.h>
-#include <vlc_window.h>
-#include <vlc_xlib.h>
-#include <vlc_codec.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_window.h>
+#include <heimdall_xlib.h>
+#include <heimdall_codec.h>
+#include <heimdall_plugin.h>
 
 #include "gl_api.h"
 #include "gl_util.h"
-#include "../../hw/vdpau/vlc_vdpau.h"
+#include "../../hw/vdpau/heimdall_vdpau.h"
 #include "interop.h"
 
 #define INTEROP_CALL(sys, fct, ...) \
@@ -47,12 +48,12 @@
         if (ret != GL_NO_ERROR) \
         { \
             msg_Err(interop->gl, #fct " failed: 0x%x", ret); \
-            return VLC_EGENERIC; \
+            return HEIMDALL_EGENERIC; \
         } \
     }
 
 typedef struct {
-    vlc_decoder_device *dec_device;
+    heimdall_decoder_device *dec_device;
     struct {
         PFNGLGETERRORPROC GetError;
         PFNGLVDPAUINITNVPROC                     VDPAUInitNV;
@@ -68,15 +69,15 @@ typedef struct {
 } converter_sys_t;
 
 static int
-tc_vdpau_gl_update(const struct vlc_gl_interop *interop, uint32_t textures[],
+tc_vdpau_gl_update(const struct heimdall_gl_interop *interop, uint32_t textures[],
                    int32_t const tex_widths[], int32_t const tex_heights[],
                    picture_t *pic, size_t const plane_offsets[])
 {
-    VLC_UNUSED(tex_widths);
-    VLC_UNUSED(tex_heights);
-    VLC_UNUSED(plane_offsets);
+    HEIMDALL_UNUSED(tex_widths);
+    HEIMDALL_UNUSED(tex_heights);
+    HEIMDALL_UNUSED(plane_offsets);
 
-    vlc_vdp_output_surface_t *p_sys = pic->p_sys;
+    heimdall_vdp_output_surface_t *p_sys = pic->p_sys;
     converter_sys_t *convsys = interop->priv;
     GLvdpauSurfaceNV gl_nv_surface = p_sys->gl_nv_surface;
 
@@ -105,51 +106,51 @@ tc_vdpau_gl_update(const struct vlc_gl_interop *interop, uint32_t textures[],
     INTEROP_CALL(convsys, VDPAUMapSurfacesNV, 1, &gl_nv_surface);
 
     p_sys->gl_nv_surface = gl_nv_surface;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void
-Close(struct vlc_gl_interop *interop)
+Close(struct heimdall_gl_interop *interop)
 {
     converter_sys_t *sys = interop->priv;
 
     sys->gl.VDPAUFiniNV();
     assert(sys->gl.GetError() == GL_NO_ERROR);
-    vlc_decoder_device *dec_device = sys->dec_device;
-    vlc_decoder_device_Release(dec_device);
+    heimdall_decoder_device *dec_device = sys->dec_device;
+    heimdall_decoder_device_Release(dec_device);
     free(sys);
 }
 
 static int
-Open(struct vlc_gl_interop *interop)
+Open(struct heimdall_gl_interop *interop)
 {
     if (interop->vctx == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    struct vlc_gl_extension_vt extension_vt;
-    vlc_gl_LoadExtensionFunctions(interop->gl, &extension_vt);
+    struct heimdall_gl_extension_vt extension_vt;
+    heimdall_gl_LoadExtensionFunctions(interop->gl, &extension_vt);
 
-    vlc_decoder_device *dec_device = vlc_video_context_HoldDevice(interop->vctx);
+    heimdall_decoder_device *dec_device = heimdall_video_context_HoldDevice(interop->vctx);
     if (GetVDPAUOpaqueDevice(dec_device) == NULL
-     || interop->fmt_in.i_chroma != VLC_CODEC_VDPAU_VIDEO
-     || !vlc_gl_HasExtension(&extension_vt, "GL_NV_vdpau_interop"))
+     || interop->fmt_in.i_chroma != HEIMDALL_CODEC_VDPAU_VIDEO
+     || !heimdall_gl_HasExtension(&extension_vt, "GL_NV_vdpau_interop"))
     {
-        vlc_decoder_device_Release(dec_device);
-        return VLC_EGENERIC;
+        heimdall_decoder_device_Release(dec_device);
+        return HEIMDALL_EGENERIC;
     }
 
     converter_sys_t *sys = malloc(sizeof(*sys));
     if (unlikely(sys == NULL))
     {
-        vlc_decoder_device_Release(dec_device);
-        return VLC_ENOMEM;
+        heimdall_decoder_device_Release(dec_device);
+        return HEIMDALL_ENOMEM;
     }
     sys->dec_device = dec_device;
-    sys->gl.GetError = vlc_gl_GetProcAddress(interop->gl, "glGetError");
+    sys->gl.GetError = heimdall_gl_GetProcAddress(interop->gl, "glGetError");
     assert(sys->gl.GetError != NULL);
 
     /* Request to change the input chroma to the core */
-    interop->fmt_in.i_chroma = VLC_CODEC_VDPAU_OUTPUT;
+    interop->fmt_in.i_chroma = HEIMDALL_CODEC_VDPAU_OUTPUT;
 
     VdpDevice device;
     vdpau_decoder_device_t *vdpau_dev = GetVDPAUOpaqueDevice(dec_device);
@@ -161,18 +162,18 @@ Open(struct vlc_gl_interop *interop)
                              VDP_FUNC_ID_GET_PROC_ADDRESS, &vdp_gpa)
         != VDP_STATUS_OK)
     {
-        vlc_decoder_device_Release(dec_device);
+        heimdall_decoder_device_Release(dec_device);
         free(sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
 #define SAFE_GPA(fct) \
-    sys->gl.fct = vlc_gl_GetProcAddress(interop->gl, "gl" #fct); \
+    sys->gl.fct = heimdall_gl_GetProcAddress(interop->gl, "gl" #fct); \
     if (sys->gl.fct == NULL) \
     { \
-        vlc_decoder_device_Release(dec_device); \
+        heimdall_decoder_device_Release(dec_device); \
         free(sys); \
-        return VLC_EGENERIC; \
+        return HEIMDALL_EGENERIC; \
     }
     SAFE_GPA(VDPAUInitNV);
     SAFE_GPA(VDPAUFiniNV);
@@ -191,9 +192,9 @@ Open(struct vlc_gl_interop *interop)
         if (ret != GL_NO_ERROR)
         {
             msg_Err(interop->gl, "VDPAUInitNV failed: 0x%x", ret);
-            vlc_decoder_device_Release(dec_device);
+            heimdall_decoder_device_Release(dec_device);
             free(sys);
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
 
@@ -201,11 +202,11 @@ Open(struct vlc_gl_interop *interop)
     video_format_TransformBy(&interop->fmt_out, TRANSFORM_VFLIP);
 
     interop->tex_target = GL_TEXTURE_2D;
-    interop->fmt_out.i_chroma = VLC_CODEC_RGBA;
+    interop->fmt_out.i_chroma = HEIMDALL_CODEC_RGBA;
     interop->fmt_out.space = COLOR_SPACE_UNDEF;
 
     interop->tex_count = 1;
-    interop->texs[0] = (struct vlc_gl_tex_cfg) {
+    interop->texs[0] = (struct heimdall_gl_tex_cfg) {
         .w = {1, 1},
         .h = {1, 1},
         .internal = GL_RGBA,
@@ -213,21 +214,21 @@ Open(struct vlc_gl_interop *interop)
         .type = GL_UNSIGNED_BYTE,
     };
 
-    static const struct vlc_gl_interop_ops ops = {
+    static const struct heimdall_gl_interop_ops ops = {
         .update_textures = tc_vdpau_gl_update,
         .close = Close,
     };
     interop->ops = &ops;
     interop->priv = sys;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description("VDPAU OpenGL surface converter")
     set_capability("glinterop", 2)
     set_callback(Open)
     set_subcategory(SUBCAT_VIDEO_VOUT)
     add_shortcut("vdpau")
-vlc_module_end ()
+heimdall_module_end ()

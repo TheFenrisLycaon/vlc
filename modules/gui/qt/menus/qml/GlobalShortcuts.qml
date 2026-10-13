@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,8 +18,8 @@
  *****************************************************************************/
 import QtQuick
 
-import VLC.MainInterface
-import VLC.Dialogs
+import Heimdall.MainInterface
+import Heimdall.Dialogs
 
 Item {
 
@@ -54,6 +55,6 @@ Item {
 
     Loader {
         active: MainCtx.mediaLibraryAvailable
-        source: "qrc:///qt/qml/VLC/MediaLibrary/MLGlobalShortcuts.qml"
+        source: "qrc:///qt/qml/Heimdall/MediaLibrary/MLGlobalShortcuts.qml"
     }
 }

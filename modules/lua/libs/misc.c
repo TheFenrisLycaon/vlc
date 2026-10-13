@@ -2,10 +2,11 @@
  * misc.c
  *****************************************************************************
  * Copyright (C) 2007-2008 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Antoine Cellerier <dionoea at videolan tod org>
+ * Authors: Antoine Cellerier <dionoea at lycaria tod org>
  *          Pierre d'Herbemont <pdherbemont # videolan.org>
- *          Rémi Duraffort <ivoire # videolan tod org>
+ *          Rémi Duraffort <ivoire # lycaria tod org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,29 +38,29 @@
 #include <math.h>
 #include <stdlib.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_meta.h>
-#include <vlc_interface.h>
-#include <vlc_actions.h>
-#include <vlc_interrupt.h>
-#include <vlc_rand.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_meta.h>
+#include <heimdall_interface.h>
+#include <heimdall_actions.h>
+#include <heimdall_interrupt.h>
+#include <heimdall_rand.h>
 
-#include "../vlc.h"
+#include "../heimdall.h"
 #include "../libs.h"
 #include "misc.h"
 
 /*****************************************************************************
- * Internal lua<->vlc utils
+ * Internal lua<->heimdall utils
  *****************************************************************************/
-void vlclua_set_object( lua_State *L, void *id, void *value )
+void heimdalllua_set_object( lua_State *L, void *id, void *value )
 {
     lua_pushlightuserdata( L, id );
     lua_pushlightuserdata( L, value );
     lua_rawset( L, LUA_REGISTRYINDEX );
 }
 
-void *vlclua_get_object( lua_State *L, void *id )
+void *heimdalllua_get_object( lua_State *L, void *id )
 {
     lua_pushlightuserdata( L, id );
     lua_rawget( L, LUA_REGISTRYINDEX );
@@ -68,102 +69,102 @@ void *vlclua_get_object( lua_State *L, void *id )
     return (void *)p;
 }
 
-#undef vlclua_set_this
-void vlclua_set_this( lua_State *L, vlc_object_t *p_this )
+#undef heimdalllua_set_this
+void heimdalllua_set_this( lua_State *L, heimdall_object_t *p_this )
 {
-    vlclua_set_object( L, vlclua_set_this, p_this );
+    heimdalllua_set_object( L, heimdalllua_set_this, p_this );
 }
 
-vlc_object_t * vlclua_get_this( lua_State *L )
+heimdall_object_t * heimdalllua_get_this( lua_State *L )
 {
-    return vlclua_get_object( L, vlclua_set_this );
+    return heimdalllua_get_object( L, heimdalllua_set_this );
 }
 
-vlc_player_t *vlclua_get_player_internal( lua_State *L )
+heimdall_player_t *heimdalllua_get_player_internal( lua_State *L )
 {
-    vlc_playlist_t *playlist = vlclua_get_playlist_internal(L);
-    return vlc_playlist_GetPlayer(playlist);
+    heimdall_playlist_t *playlist = heimdalllua_get_playlist_internal(L);
+    return heimdall_playlist_GetPlayer(playlist);
 }
 
 /*****************************************************************************
- * VLC error code translation
+ * Heimdall error code translation
  *****************************************************************************/
-int vlclua_push_ret( lua_State *L, int i_error )
+int heimdalllua_push_ret( lua_State *L, int i_error )
 {
     const char *str;
 
     lua_pushnumber( L, i_error );
 
-    if( i_error == VLC_EGENERIC )
+    if( i_error == HEIMDALL_EGENERIC )
         str = "Generic error";
     else
-        str = vlc_strerror_c( -i_error );
+        str = heimdall_strerror_c( -i_error );
 
     lua_pushstring( L, str );
     return 2;
 }
 
 /*****************************************************************************
- * Get the VLC version string
+ * Get the Heimdall version string
  *****************************************************************************/
-static int vlclua_version( lua_State *L )
+static int heimdalllua_version( lua_State *L )
 {
     lua_pushstring( L, VERSION_MESSAGE );
     return 1;
 }
 
 /*****************************************************************************
- * Get the VLC copyright
+ * Get the Heimdall copyright
  *****************************************************************************/
-static int vlclua_copyright( lua_State *L )
+static int heimdalllua_copyright( lua_State *L )
 {
     lua_pushliteral( L, COPYRIGHT_MESSAGE );
     return 1;
 }
 
 /*****************************************************************************
- * Get the VLC license msg/disclaimer
+ * Get the Heimdall license msg/disclaimer
  *****************************************************************************/
-static int vlclua_license( lua_State *L )
+static int heimdalllua_license( lua_State *L )
 {
     lua_pushstring( L, LICENSE_MSG );
     return 1;
 }
 
 /*****************************************************************************
- * Quit VLC
+ * Quit Heimdall
  *****************************************************************************/
-static int vlclua_quit( lua_State *L )
+static int heimdalllua_quit( lua_State *L )
 {
-    vlc_object_t *p_this = vlclua_get_this( L );
+    heimdall_object_t *p_this = heimdalllua_get_this( L );
     /* The rc.c code also stops the playlist ... not sure if this is needed
      * though. */
-    libvlc_Quit( vlc_object_instance(p_this) );
+    libheimdall_Quit( heimdall_object_instance(p_this) );
     return 0;
 }
 
-static int vlclua_mdate( lua_State *L )
+static int heimdalllua_mdate( lua_State *L )
 {
-    lua_pushnumber( L, vlc_tick_now() );
+    lua_pushnumber( L, heimdall_tick_now() );
     return 1;
 }
 
-static int vlclua_mwait( lua_State *L )
+static int heimdalllua_mwait( lua_State *L )
 {
     double f = luaL_checknumber( L, 1 );
 
-    vlc_interrupt_t *oint = vlclua_set_interrupt( L );
-    int ret = vlc_mwait_i11e( llround(f) );
+    heimdall_interrupt_t *oint = heimdalllua_set_interrupt( L );
+    int ret = heimdall_mwait_i11e( llround(f) );
 
-    vlc_interrupt_set( oint );
+    heimdall_interrupt_set( oint );
     if( ret )
         return luaL_error( L, "Interrupted." );
     return 0;
 }
 
-static int vlclua_action_id( lua_State *L )
+static int heimdalllua_action_id( lua_State *L )
 {
-    vlc_action_id_t i_key = vlc_actions_get_id( luaL_checkstring( L, 1 ) );
+    heimdall_action_id_t i_key = heimdall_actions_get_id( luaL_checkstring( L, 1 ) );
     if (i_key == 0)
         return 0;
     lua_pushnumber( L, i_key );
@@ -173,17 +174,17 @@ static int vlclua_action_id( lua_State *L )
 /*****************************************************************************
  *
  *****************************************************************************/
-static const luaL_Reg vlclua_misc_reg[] = {
-    { "version", vlclua_version },
-    { "copyright", vlclua_copyright },
-    { "license", vlclua_license },
+static const luaL_Reg heimdalllua_misc_reg[] = {
+    { "version", heimdalllua_version },
+    { "copyright", heimdalllua_copyright },
+    { "license", heimdalllua_license },
 
-    { "action_id", vlclua_action_id },
+    { "action_id", heimdalllua_action_id },
 
-    { "mdate", vlclua_mdate },
-    { "mwait", vlclua_mwait },
+    { "mdate", heimdalllua_mdate },
+    { "mwait", heimdalllua_mwait },
 
-    { "quit", vlclua_quit },
+    { "quit", heimdalllua_quit },
 
     { NULL, NULL }
 };
@@ -191,6 +192,6 @@ static const luaL_Reg vlclua_misc_reg[] = {
 void luaopen_misc( lua_State *L )
 {
     lua_newtable( L );
-    luaL_register( L, NULL, vlclua_misc_reg );
+    luaL_register( L, NULL, heimdalllua_misc_reg );
     lua_setfield( L, -2, "misc" );
 }

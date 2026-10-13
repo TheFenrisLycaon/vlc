@@ -6,7 +6,7 @@
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <objects>
-        <customObject id="-2" userLabel="File's Owner" customClass="VLCErrorWindowController">
+        <customObject id="-2" userLabel="File's Owner" customClass="HeimdallErrorWindowController">
             <connections>
                 <outlet property="cleanupButton" destination="11" id="9oD-4y-Lho"/>
                 <outlet property="errorTable" destination="8" id="4tg-CT-oZG"/>
@@ -91,14 +91,14 @@
                 <constraints>
                     <constraint firstAttribute="trailing" secondItem="7" secondAttribute="trailing" id="4nW-Xc-sPX"/>
                     <constraint firstItem="7" firstAttribute="top" secondItem="6" secondAttribute="top" id="6AH-w4-raW"/>
-                    <constraint firstItem="11" firstAttribute="top" secondItem="7" secondAttribute="bottom" constant="8" symbolic="YES" id="ZYg-92-5Hf" customClass="VLCSpacingConstraint">
+                    <constraint firstItem="11" firstAttribute="top" secondItem="7" secondAttribute="bottom" constant="8" symbolic="YES" id="ZYg-92-5Hf" customClass="HeimdallSpacingConstraint">
                         <userDefinedRuntimeAttributes>
                             <userDefinedRuntimeAttribute type="number" keyPath="spacingToken">
                                 <integer value="2"/>
                             </userDefinedRuntimeAttribute>
                         </userDefinedRuntimeAttributes>
                     </constraint>
-                    <constraint firstItem="11" firstAttribute="leading" secondItem="6" secondAttribute="leading" constant="16" id="bE6-8W-prE" customClass="VLCSpacingConstraint">
+                    <constraint firstItem="11" firstAttribute="leading" secondItem="6" secondAttribute="leading" constant="16" id="bE6-8W-prE" customClass="HeimdallSpacingConstraint">
                         <userDefinedRuntimeAttributes>
                             <userDefinedRuntimeAttribute type="number" keyPath="spacingToken">
                                 <integer value="3"/>

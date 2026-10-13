@@ -2,6 +2,7 @@
  * matroska_segment.cpp : matroska demuxer
  *****************************************************************************
  * Copyright (C) 2003-2010 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *          Steve Lhomme <steve.lhomme@free.fr>
@@ -27,7 +28,7 @@
 #include "util.hpp"
 #include "Ebml_dispatcher.hpp"
 
-#include <vlc_arrays.h>
+#include <heimdall_arrays.h>
 
 #include <new>
 #include <iterator>
@@ -76,9 +77,9 @@ matroska_segment_c::~matroska_segment_c()
     delete p_prev_segment_uid;
     delete p_next_segment_uid;
 
-    vlc_delete_all( stored_editions );
-    vlc_delete_all( translations );
-    vlc_delete_all( families );
+    heimdall_delete_all( stored_editions );
+    heimdall_delete_all( translations );
+    heimdall_delete_all( families );
 }
 
 
@@ -105,7 +106,7 @@ void matroska_segment_c::LoadCues( KaxCues *cues )
         if( MKV_IS_ID( el, KaxCuePoint ) )
         {
             uint64_t cue_position = -1;
-            vlc_tick_t  cue_mk_time = -1;
+            heimdall_tick_t  cue_mk_time = -1;
 
             unsigned int track_id = 0;
             bool b_invalid_cue = false;
@@ -131,7 +132,7 @@ void matroska_segment_c::LoadCues( KaxCues *cues )
                         b_invalid_cue = true;
                         break;
                     }
-                    cue_mk_time = VLC_TICK_FROM_NS(static_cast<uint64_t>( *cuetime ) * i_timescale);
+                    cue_mk_time = HEIMDALL_TICK_FROM_NS(static_cast<uint64_t>( *cuetime ) * i_timescale);
                 }
                 else if( MKV_IS_ID( el, KaxCueTrackPositions ) )
                 {
@@ -162,24 +163,24 @@ void matroska_segment_c::LoadCues( KaxCues *cues )
                             }
                             else if( MKV_CHECKED_PTR_DECL ( kcbn_ptr, KaxCueBlockNumber, el ) )
                             {
-                                VLC_UNUSED( kcbn_ptr );
+                                HEIMDALL_UNUSED( kcbn_ptr );
                             }
 #if LIBMATROSKA_VERSION >= 0x010401
                             else if( MKV_CHECKED_PTR_DECL( cuerelative, KaxCueRelativePosition, el ) )
                             {
-                                VLC_UNUSED( cuerelative );
+                                HEIMDALL_UNUSED( cuerelative );
                             }
                             else if( MKV_CHECKED_PTR_DECL( cueblock, KaxCueBlockNumber, el ) )
                             {
-                                VLC_UNUSED( cueblock );
+                                HEIMDALL_UNUSED( cueblock );
                             }
                             else if( MKV_CHECKED_PTR_DECL( cueref, KaxCueReference, el ) )
                             {
-                                VLC_UNUSED( cueref );
+                                HEIMDALL_UNUSED( cueref );
                             }
                             else if( MKV_CHECKED_PTR_DECL( cueduration, KaxCueDuration, el ) )
                             {
-                                VLC_UNUSED( cueduration );
+                                HEIMDALL_UNUSED( cueduration );
                             }
 #endif
                             else
@@ -230,39 +231,39 @@ void matroska_segment_c::LoadCues( KaxCues *cues )
 
 
 static const struct {
-    vlc_meta_type_t type;
+    heimdall_meta_type_t type;
     const char *key;
     int target_type; /* 0 is valid for all target_type */
 } metadata_map[] = {
-                     {vlc_meta_ShowName,    "TITLE",         70},
-                     {vlc_meta_Album,       "TITLE",         50},
-                     {vlc_meta_Title,       "TITLE",         30},
-                     {vlc_meta_DiscNumber,  "PART_NUMBER",   60},
-                     {vlc_meta_Season,      "PART_NUMBER",   60},
-                     {vlc_meta_Episode,     "PART_NUMBER",   50},
-                     {vlc_meta_TrackNumber, "PART_NUMBER",   30},
-                     {vlc_meta_DiscTotal,   "TOTAL_PARTS",   70},
-                     {vlc_meta_TrackTotal,  "TOTAL_PARTS",   30},
-                     {vlc_meta_Setting,     "ENCODER_SETTINGS", 0},
-                     /* TODO read TagLanguage {vlc_meta_Language} */
-                     /* TODO read tags targeting attachments {vlc_meta_ArtworkURL, */
-                     {vlc_meta_AlbumArtist, "ARTIST",        50},
-                     {vlc_meta_Artist,      "ARTIST",        0},
-                     {vlc_meta_Director,    "DIRECTOR",      0},
-                     {vlc_meta_Actors,      "ACTOR",         0},
-                     {vlc_meta_Genre,       "GENRE",         0},
-                     {vlc_meta_Copyright,   "COPYRIGHT",     0},
-                     {vlc_meta_Description, "DESCRIPTION",   0},
-                     {vlc_meta_Description, "COMMENT",       0},
-                     {vlc_meta_Rating,      "RATING",        0},
-                     {vlc_meta_Date,        "DATE_RELEASED", 0},
-                     {vlc_meta_Date,        "DATE_RELEASE",  0},
-                     {vlc_meta_Date,        "DATE_RECORDED", 0},
-                     {vlc_meta_URL,         "URL",           0},
-                     {vlc_meta_Publisher,   "PUBLISHER",     0},
-                     {vlc_meta_EncodedBy,   "ENCODED_BY",    0},
-                     {vlc_meta_Album,       "ALBUM",         0}, /* invalid tag */
-                     {vlc_meta_Title,       NULL,            0},
+                     {heimdall_meta_ShowName,    "TITLE",         70},
+                     {heimdall_meta_Album,       "TITLE",         50},
+                     {heimdall_meta_Title,       "TITLE",         30},
+                     {heimdall_meta_DiscNumber,  "PART_NUMBER",   60},
+                     {heimdall_meta_Season,      "PART_NUMBER",   60},
+                     {heimdall_meta_Episode,     "PART_NUMBER",   50},
+                     {heimdall_meta_TrackNumber, "PART_NUMBER",   30},
+                     {heimdall_meta_DiscTotal,   "TOTAL_PARTS",   70},
+                     {heimdall_meta_TrackTotal,  "TOTAL_PARTS",   30},
+                     {heimdall_meta_Setting,     "ENCODER_SETTINGS", 0},
+                     /* TODO read TagLanguage {heimdall_meta_Language} */
+                     /* TODO read tags targeting attachments {heimdall_meta_ArtworkURL, */
+                     {heimdall_meta_AlbumArtist, "ARTIST",        50},
+                     {heimdall_meta_Artist,      "ARTIST",        0},
+                     {heimdall_meta_Director,    "DIRECTOR",      0},
+                     {heimdall_meta_Actors,      "ACTOR",         0},
+                     {heimdall_meta_Genre,       "GENRE",         0},
+                     {heimdall_meta_Copyright,   "COPYRIGHT",     0},
+                     {heimdall_meta_Description, "DESCRIPTION",   0},
+                     {heimdall_meta_Description, "COMMENT",       0},
+                     {heimdall_meta_Rating,      "RATING",        0},
+                     {heimdall_meta_Date,        "DATE_RELEASED", 0},
+                     {heimdall_meta_Date,        "DATE_RELEASE",  0},
+                     {heimdall_meta_Date,        "DATE_RECORDED", 0},
+                     {heimdall_meta_URL,         "URL",           0},
+                     {heimdall_meta_Publisher,   "PUBLISHER",     0},
+                     {heimdall_meta_EncodedBy,   "ENCODED_BY",    0},
+                     {heimdall_meta_Album,       "ALBUM",         0}, /* invalid tag */
+                     {heimdall_meta_Title,       NULL,            0},
 };
 
 bool matroska_segment_c::ParseSimpleTags( SimpleTag* pout_simple, KaxTagSimple *tag, int target_type )
@@ -293,8 +294,8 @@ bool matroska_segment_c::ParseSimpleTags( SimpleTag* pout_simple, KaxTagSimple *
         }
         E_CASE( KaxTagDefault, unused )
         {
-            VLC_UNUSED(unused);
-            VLC_UNUSED(vars);
+            HEIMDALL_UNUSED(unused);
+            HEIMDALL_UNUSED(vars);
         }
         E_CASE( KaxTagSimple, simple )
         {
@@ -313,19 +314,19 @@ bool matroska_segment_c::ParseSimpleTags( SimpleTag* pout_simple, KaxTagSimple *
         return false;
     }
     if( !sys.meta )
-        sys.meta = vlc_meta_New();
+        sys.meta = heimdall_meta_New();
     for( int i = 0; metadata_map[i].key; i++ )
     {
         if( pout_simple->tag_name == metadata_map[i].key &&
             (metadata_map[i].target_type == 0 || target_type == metadata_map[i].target_type ) )
         {
-            vlc_meta_Set( sys.meta, metadata_map[i].type, pout_simple->value.c_str () );
+            heimdall_meta_Set( sys.meta, metadata_map[i].type, pout_simple->value.c_str () );
             msg_Dbg( &sys.demuxer, "|   |   + Meta %s: %s", pout_simple->tag_name.c_str (), pout_simple->value.c_str ());
             goto done;
         }
     }
     msg_Dbg( &sys.demuxer, "|   |   + Meta %s: %s", pout_simple->tag_name.c_str (), pout_simple->value.c_str ());
-    vlc_meta_SetExtra( sys.meta, pout_simple->tag_name.c_str (), pout_simple->value.c_str ());
+    heimdall_meta_SetExtra( sys.meta, pout_simple->tag_name.c_str (), pout_simple->value.c_str ());
 done:
     return true;
 }
@@ -440,11 +441,11 @@ void matroska_segment_c::LoadTags( KaxTags *tags_ )
 void matroska_segment_c::InformationCreate( )
 {
     if( !sys.meta )
-        sys.meta = vlc_meta_New();
+        sys.meta = heimdall_meta_New();
 
     if( psz_title )
     {
-        vlc_meta_SetTitle( sys.meta, psz_title );
+        heimdall_meta_SetTitle( sys.meta, psz_title );
     }
 }
 
@@ -473,7 +474,7 @@ bool matroska_segment_c::PreloadClusters(uint64_t i_cluster_pos)
 
         E_CASE_DEFAULT( el )
         {
-            VLC_UNUSED( el );
+            HEIMDALL_UNUSED( el );
             vars.stop_parsing = true;
         }
     };
@@ -771,13 +772,13 @@ bool matroska_segment_c::LoadSeekHeadItem( const EbmlCallbacks & ClassInfos, int
     return true;
 }
 
-bool matroska_segment_c::Seek( demux_t &demuxer, vlc_tick_t i_absolute_mk_date, vlc_tick_t i_mk_time_offset, bool b_accurate )
+bool matroska_segment_c::Seek( demux_t &demuxer, heimdall_tick_t i_absolute_mk_date, heimdall_tick_t i_mk_time_offset, bool b_accurate )
 {
     SegmentSeeker::tracks_seekpoint_t seekpoints;
 
     SegmentSeeker::fptr_t i_seek_position = std::numeric_limits<SegmentSeeker::fptr_t>::max();
-    vlc_tick_t i_mk_seek_time = -1;
-    vlc_tick_t i_mk_date = i_absolute_mk_date - i_mk_time_offset;
+    heimdall_tick_t i_mk_seek_time = -1;
+    heimdall_tick_t i_mk_date = i_absolute_mk_date - i_mk_time_offset;
     SegmentSeeker::track_ids_t selected_tracks;
     SegmentSeeker::track_ids_t priority;
 
@@ -788,9 +789,9 @@ bool matroska_segment_c::Seek( demux_t &demuxer, vlc_tick_t i_absolute_mk_date, 
         mkv_track_t &track = *it->second;
 
         track.i_skip_until_fpos = std::numeric_limits<uint64_t>::max();
-        if( track.i_last_dts != VLC_TICK_INVALID )
+        if( track.i_last_dts != HEIMDALL_TICK_INVALID )
             track.b_discontinuity = true;
-        track.i_last_dts        = VLC_TICK_INVALID;
+        track.i_last_dts        = HEIMDALL_TICK_INVALID;
 
         bool selected;
         if (track.p_es == NULL)
@@ -857,10 +858,10 @@ bool matroska_segment_c::Seek( demux_t &demuxer, vlc_tick_t i_absolute_mk_date, 
 
     // propagate seek information //
 
-    sys.i_pcr           = VLC_TICK_INVALID;
-    sys.i_pts           = VLC_TICK_0 + i_mk_seek_time + i_mk_time_offset;
+    sys.i_pcr           = HEIMDALL_TICK_INVALID;
+    sys.i_pts           = HEIMDALL_TICK_0 + i_mk_seek_time + i_mk_time_offset;
     if (b_accurate)
-        sys.i_start_pts = VLC_TICK_0 + i_absolute_mk_date;
+        sys.i_start_pts = HEIMDALL_TICK_0 + i_absolute_mk_date;
     else
         sys.i_start_pts = sys.i_pts;
 
@@ -1077,8 +1078,8 @@ bool matroska_segment_c::EnsureDuration(KaxCluster & fromCluster)
             }
         }
 
-        i_duration = VLC_TICK_FROM_NS( i_last_timecode - fromCluster.GlobalTimestamp() );
-        msg_Dbg( &sys.demuxer, " extracted Duration=%" PRId64, SEC_FROM_VLC_TICK(i_duration) );
+        i_duration = HEIMDALL_TICK_FROM_NS( i_last_timecode - fromCluster.GlobalTimestamp() );
+        msg_Dbg( &sys.demuxer, " extracted Duration=%" PRId64, SEC_FROM_HEIMDALL_TICK(i_duration) );
     }
 
     // get back to the reading position we were at before looking for a duration
@@ -1202,7 +1203,7 @@ int matroska_segment_c::BlockGet( KaxBlock * & pp_block, KaxSimpleBlock * & pp_s
         }
         E_CASE( KaxCues, kcue )
         {
-            VLC_UNUSED( kcue );
+            HEIMDALL_UNUSED( kcue );
             msg_Warn( vars.p_demuxer, "find KaxCues FIXME" );
         }
         E_CASE_DEFAULT(element)
@@ -1226,7 +1227,7 @@ int matroska_segment_c::BlockGet( KaxBlock * & pp_block, KaxSimpleBlock * & pp_s
         {
             vars.ep->Down ();
 
-            VLC_UNUSED( ksilent );
+            HEIMDALL_UNUSED( ksilent );
         }
         E_CASE( KaxBlockGroup, kbgroup )
         {
@@ -1265,7 +1266,7 @@ int matroska_segment_c::BlockGet( KaxBlock * & pp_block, KaxSimpleBlock * & pp_s
                 bool const b_valid_track = vars.obj->FindTrackByBlock( NULL, &ksblock ) != NULL;
                 if (b_valid_track)
                     vars.obj->_seeker.add_seekpoint( ksblock.TrackNum(),
-                        SegmentSeeker::Seekpoint( ksblock.GetElementPosition(), VLC_TICK_FROM_NS(ksblock.GlobalTimestamp()) ) );
+                        SegmentSeeker::Seekpoint( ksblock.GetElementPosition(), HEIMDALL_TICK_FROM_NS(ksblock.GlobalTimestamp()) ) );
             }
         }
     };
@@ -1293,7 +1294,7 @@ int matroska_segment_c::BlockGet( KaxBlock * & pp_block, KaxSimpleBlock * & pp_s
             if( p_track != NULL && p_track->fmt.i_cat == SPU_ES )
             {
                 vars.obj->_seeker.add_seekpoint( kblock.TrackNum(),
-                    SegmentSeeker::Seekpoint( kblock.GetElementPosition(), VLC_TICK_FROM_NS(kblock.GlobalTimestamp()) ) );
+                    SegmentSeeker::Seekpoint( kblock.GetElementPosition(), HEIMDALL_TICK_FROM_NS(kblock.GlobalTimestamp()) ) );
             }
 
             vars.ep->Keep ();
@@ -1322,8 +1323,8 @@ int matroska_segment_c::BlockGet( KaxBlock * & pp_block, KaxSimpleBlock * & pp_s
         }
         E_CASE( KaxClusterSilentTrackNumber, kstrackn )
         {
-            VLC_UNUSED( kstrackn );
-            VLC_UNUSED( vars );
+            HEIMDALL_UNUSED( kstrackn );
+            HEIMDALL_UNUSED( vars );
         }
 #if LIBMATROSKA_VERSION >= 0x010401
         E_CASE( KaxDiscardPadding, kdiscardp )
@@ -1334,7 +1335,7 @@ int matroska_segment_c::BlockGet( KaxBlock * & pp_block, KaxSimpleBlock * & pp_s
 #endif
         E_CASE_DEFAULT( element )
         {
-            VLC_UNUSED(element);
+            HEIMDALL_UNUSED(element);
 
             msg_Warn( vars.p_demuxer, "unknown element at { fpos: %" PRId64 ", '%s' }",
               element.GetElementPosition(), EBML_NAME( &element ) );
@@ -1371,7 +1372,7 @@ int matroska_segment_c::BlockGet( KaxBlock * & pp_block, KaxSimpleBlock * & pp_s
             /* We have block group let's check if the picture is a keyframe */
             else if( *pb_key_picture )
             {
-                if( p_track->fmt.i_codec == VLC_CODEC_THEORA )
+                if( p_track->fmt.i_codec == HEIMDALL_CODEC_THEORA )
                 {
                     DataBuffer *    p_data = &pp_block->GetBuffer(0);
                     const uint8_t * p_buff = p_data->Buffer();
@@ -1401,7 +1402,7 @@ int matroska_segment_c::BlockGet( KaxBlock * & pp_block, KaxSimpleBlock * & pp_s
             else
                 *pi_duration = duration - duration_padding;
 
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
 
         i_level = ep.GetLevel();
@@ -1414,7 +1415,7 @@ int matroska_segment_c::BlockGet( KaxBlock * & pp_block, KaxSimpleBlock * & pp_s
                 continue;
             }
             msg_Warn( &sys.demuxer, "EOF" );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         /* Verify that we are still inside our cluster
@@ -1463,7 +1464,7 @@ int matroska_segment_c::BlockGet( KaxBlock * & pp_block, KaxSimpleBlock * & pp_s
 
                 default:
                     msg_Err( &sys.demuxer, "invalid level = %d", i_level );
-                    return VLC_EGENERIC;
+                    return HEIMDALL_EGENERIC;
             }
         }
         catch (int ret_code)

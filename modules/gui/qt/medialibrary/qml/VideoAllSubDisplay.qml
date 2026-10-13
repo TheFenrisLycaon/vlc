@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Benjamin Arnaud <bunjee@omega.gg>
  *
@@ -20,13 +21,13 @@
 
 import QtQuick
 
-import VLC.MainInterface
-import VLC.MediaLibrary
+import Heimdall.MainInterface
+import Heimdall.MediaLibrary
 
-import VLC.Widgets as Widgets
-import VLC.Util
-import VLC.Style
-import VLC.Menus
+import Heimdall.Widgets as Widgets
+import Heimdall.Util
+import Heimdall.Style
+import Heimdall.Menus
 
 Widgets.PageExt {
     id: root

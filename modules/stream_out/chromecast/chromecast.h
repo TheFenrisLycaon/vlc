@@ -1,7 +1,8 @@
 /*****************************************************************************
- * chromecast.cpp: Chromecast module for vlc
+ * chromecast.cpp: Chromecast module for heimdall
  *****************************************************************************
  * Copyright © 2014-2015 VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Adrien Maglo <magsoft@videolan.org>
  *          Jean-Baptiste Kempf <jb@videolan.org>
@@ -26,16 +27,16 @@
  * Preamble
  *****************************************************************************/
 
-#ifndef VLC_CHROMECAST_H
-#define VLC_CHROMECAST_H
+#ifndef HEIMDALL_CHROMECAST_H
+#define HEIMDALL_CHROMECAST_H
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_tls.h>
-#include <vlc_threads.h>
-#include <vlc_interrupt.h>
-#include <vlc_httpd.h>
-#include <vlc_cxx_helpers.hpp>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_tls.h>
+#include <heimdall_threads.h>
+#include <heimdall_interrupt.h>
+#include <heimdall_httpd.h>
+#include <heimdall_cxx_helpers.hpp>
 
 #include <atomic>
 #include <sstream>
@@ -99,7 +100,7 @@ enum States
 class ChromecastCommunication
 {
 public:
-    ChromecastCommunication( vlc_object_t* module,
+    ChromecastCommunication( heimdall_object_t* module,
                              std::string serverPath, unsigned int serverPort,
                              const char* targetIP, unsigned int devicePort );
     ~ChromecastCommunication();
@@ -122,7 +123,7 @@ public:
     unsigned msgReceiverClose(const std::string& destinationId);
     unsigned msgAuth();
     unsigned msgPlayerLoad( const std::string& destinationId,
-                            const std::string& mime, const vlc_meta_t *p_meta, vlc_tick_t input_length );
+                            const std::string& mime, const heimdall_meta_t *p_meta, heimdall_tick_t input_length );
     unsigned msgPlayerPlay( const std::string& destinationId, int64_t mediaSessionId );
     unsigned msgPlayerStop( const std::string& destinationId, int64_t mediaSessionId );
     unsigned msgPlayerPause( const std::string& destinationId, int64_t mediaSessionId );
@@ -143,14 +144,14 @@ private:
                      const std::string & destinationId = DEFAULT_CHOMECAST_RECEIVER,
                      castchannel::CastMessage_PayloadType payloadType = castchannel::CastMessage_PayloadType_STRING);
     int pushMediaPlayerMessage( const std::string& destinationId, const std::stringstream & payload );
-    std::string GetMedia( const std::string& mime, const vlc_meta_t *p_meta, vlc_tick_t input_length );
+    std::string GetMedia( const std::string& mime, const heimdall_meta_t *p_meta, heimdall_tick_t input_length );
     unsigned getNextReceiverRequestId();
     unsigned getNextRequestId();
 
 private:
-    vlc_object_t* m_module;
-    vlc_tls_client_t *m_creds;
-    vlc_tls_t *m_tls;
+    heimdall_object_t* m_module;
+    heimdall_tls_client_t *m_creds;
+    heimdall_tls_t *m_tls;
     unsigned m_receiver_requestId;
     unsigned m_requestId;
     std::string m_serverIp;
@@ -167,7 +168,7 @@ struct intf_sys_t
     {
         Stop,
     };
-    intf_sys_t(vlc_object_t * const p_this, int local_port, std::string device_addr,
+    intf_sys_t(heimdall_object_t * const p_this, int local_port, std::string device_addr,
                int device_port, httpd_host_t *);
     ~intf_sys_t();
 
@@ -183,7 +184,7 @@ struct intf_sys_t
     void setPacing(bool do_pace);
     int pace();
     void sendInputEvent(enum cc_input_event event, union cc_input_arg arg);
-    vlc_tick_t getPauseDelay();
+    heimdall_tick_t getPauseDelay();
 
     unsigned int getHttpStreamPort() const;
     std::string getHttpStreamPath() const;
@@ -209,14 +210,14 @@ private:
     void tryLoad();
     void doStop();
 
-    void setMeta( vlc_meta_t *p_meta );
-    void setInputLength( vlc_tick_t length );
+    void setMeta( heimdall_meta_t *p_meta );
+    void setInputLength( heimdall_tick_t length );
 
-    vlc_tick_t getPlaybackTimestamp();
+    heimdall_tick_t getPlaybackTimestamp();
 
     double getPlaybackPosition() const;
 
-    void setInitialTime( vlc_tick_t time );
+    void setInitialTime( heimdall_tick_t time );
     // Sets the current state and signal the associated wait cond.
     // This must be called with the lock held
     void setState( States state );
@@ -231,7 +232,7 @@ private:
 private:
     static void* ChromecastThread(void* p_data);
 
-    static vlc_tick_t get_time(void*);
+    static heimdall_tick_t get_time(void*);
 
     static int pace(void*);
     static void send_input_event(void *, enum cc_input_event event, union cc_input_arg arg);
@@ -239,16 +240,16 @@ private:
 
     static void set_pause_state(void*, bool paused);
 
-    static void set_meta(void*, vlc_meta_t *p_meta);
-    static void set_input_length(void*, vlc_tick_t length);
+    static void set_meta(void*, heimdall_meta_t *p_meta);
+    static void set_input_length(void*, heimdall_tick_t length);
 
     void prepareHttpArtwork();
 
-    static vlc_tick_t   timeCCToVLC(double);
-    static std::string  timeVLCToCC(vlc_tick_t);
+    static heimdall_tick_t   timeCCToHeimdall(double);
+    static std::string  timeHeimdallToCC(heimdall_tick_t);
 
 private:
-    vlc_object_t  * const m_module;
+    heimdall_object_t  * const m_module;
     const int      m_device_port;
     std::string    m_mime;
     std::string    m_device_addr;
@@ -258,10 +259,10 @@ private:
     unsigned m_last_request_id;
     int64_t m_mediaSessionId;
 
-    mutable vlc::threads::mutex  m_lock;
-    vlc::threads::condition_variable m_stateChangedCond;
-    vlc::threads::condition_variable m_pace_cond;
-    vlc_thread_t m_chromecastThread;
+    mutable heimdall::threads::mutex  m_lock;
+    heimdall::threads::condition_variable m_stateChangedCond;
+    heimdall::threads::condition_variable m_pace_cond;
+    heimdall_thread_t m_chromecastThread;
 
     on_input_event_itf    m_on_input_event;
     void                 *m_on_input_event_data;
@@ -278,15 +279,15 @@ private:
     bool m_request_stop;
     bool m_request_load;
     bool m_paused;
-    vlc_tick_t m_input_length;
+    heimdall_tick_t m_input_length;
     bool m_input_eof;
     bool m_cc_eof;
     bool m_pace;
     bool m_interrupted;
 
-    vlc_meta_t *m_meta;
+    heimdall_meta_t *m_meta;
 
-    vlc_interrupt_t *m_ctl_thread_interrupt;
+    heimdall_interrupt_t *m_ctl_thread_interrupt;
 
     struct httpd_info_t {
         httpd_info_t( httpd_host_t* host, int port );
@@ -303,9 +304,9 @@ private:
     char             *m_art_url;
     unsigned          m_art_idx;
 
-    vlc_tick_t        m_cc_time_last_request_date;
-    vlc_tick_t        m_cc_time_date;
-    vlc_tick_t        m_cc_time;
+    heimdall_tick_t        m_cc_time_last_request_date;
+    heimdall_tick_t        m_cc_time_date;
+    heimdall_tick_t        m_cc_time;
 
     /* shared structure with the demux-filter */
     chromecast_common      m_common;
@@ -314,4 +315,4 @@ private:
     uint8_t m_pingRetriesLeft;
 };
 
-#endif /* VLC_CHROMECAST_H */
+#endif /* HEIMDALL_CHROMECAST_H */

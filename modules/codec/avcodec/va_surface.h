@@ -4,9 +4,10 @@
  * Copyright (C) 2009 Geoffroy Couprie
  * Copyright (C) 2009 Laurent Aimar
  * Copyright (C) 2015 Steve Lhomme
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Geoffroy Couprie <geal@videolan.org>
- *          Laurent Aimar <fenrir _AT_ videolan _DOT_ org>
+ *          Laurent Aimar <fenrir _AT_ lycaria _DOT_ org>
  *          Steve Lhomme <robux4@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -35,13 +36,13 @@ extern "C" {
 #endif
 
 /* */
-typedef struct vlc_va_surface_t vlc_va_surface_t;
+typedef struct heimdall_va_surface_t heimdall_va_surface_t;
 typedef struct va_pool_t va_pool_t;
 
 #define MAX_SURFACE_COUNT (64)
 
 struct va_pool_cfg {
-    int (*pf_create_device)(vlc_va_t *);
+    int (*pf_create_device)(heimdall_va_t *);
     /**
      * Destroy resources allocated with the surfaces and the associated decoder
      */
@@ -50,7 +51,7 @@ struct va_pool_cfg {
     /**
      * Create the DirectX surfaces in hw_surface and the decoder in decoder
      */
-    int (*pf_create_decoder_surfaces)(vlc_va_t *, int codec_id,
+    int (*pf_create_decoder_surfaces)(heimdall_va_t *, int codec_id,
                                       const video_format_t *fmt,
                                       size_t surface_count);
     /**
@@ -67,7 +68,7 @@ struct va_pool_cfg {
  * The pf_create_device callback of the pool configuration is called. If it
  * fails, the pool is not created.
  */
-va_pool_t * va_pool_Create(vlc_va_t *, const struct va_pool_cfg *);
+va_pool_t * va_pool_Create(heimdall_va_t *, const struct va_pool_cfg *);
 
 /**
  * Close the VA pool.
@@ -85,22 +86,22 @@ void va_pool_Close(va_pool_t *);
  * The pf_create_decoder_surfaces callback of the pool configuration is called.
  * If it succeeds, the pf_setup_avcodec_ctx callback will be called afterwards.
  */
-int va_pool_SetupDecoder(vlc_va_t *, va_pool_t *, AVCodecContext *, const video_format_t *, size_t count);
+int va_pool_SetupDecoder(heimdall_va_t *, va_pool_t *, AVCodecContext *, const video_format_t *, size_t count);
 
 /**
  * Get a reference to an available surface or NULL on timeout
  */
-vlc_va_surface_t *va_pool_Get(va_pool_t *);
+heimdall_va_surface_t *va_pool_Get(va_pool_t *);
 
 /**
  * Get the index of the va_surface in the pool.
  */
-size_t va_surface_GetIndex(const vlc_va_surface_t *surface);
+size_t va_surface_GetIndex(const heimdall_va_surface_t *surface);
 
 /**
  * Add a reference to the surface.
  */
-void va_surface_AddRef(vlc_va_surface_t *surface);
+void va_surface_AddRef(heimdall_va_surface_t *surface);
 
 /**
  * Remove a reference to the surface.
@@ -110,7 +111,7 @@ void va_surface_AddRef(vlc_va_surface_t *surface);
  *
  * \see va_pool_Close()
  */
-void va_surface_Release(vlc_va_surface_t *surface);
+void va_surface_Release(heimdall_va_surface_t *surface);
 
 #ifdef __cplusplus
 }

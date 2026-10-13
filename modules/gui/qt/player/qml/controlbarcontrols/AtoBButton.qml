@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,17 +19,17 @@
 import QtQuick
 
 
-import VLC.Widgets as Widgets
-import VLC.Player
-import VLC.Style
-import VLC.Util
+import Heimdall.Widgets as Widgets
+import Heimdall.Player
+import Heimdall.Style
+import Heimdall.Util
 
 Widgets.ImageToolButton {
     id: control
 
     text: qsTr("A to B Loop")
 
-    sourceSize: Qt.size(VLCStyle.icon_toolbar, VLCStyle.icon_toolbar)
+    sourceSize: Qt.size(HeimdallStyle.icon_toolbar, HeimdallStyle.icon_toolbar)
 
     checked: Player.ABloopState !== Player.ABLOOP_STATE_NONE
     onClicked: Player.toggleABloopState()

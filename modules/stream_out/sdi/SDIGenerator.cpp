@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright © 2014-2016 VideoLAN and VideoLAN Authors
  *             2018-2019 VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,16 +23,16 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_es.h>
-#include <vlc_picture.h>
-#include <vlc_image.h>
+#include <heimdall_common.h>
+#include <heimdall_es.h>
+#include <heimdall_picture.h>
+#include <heimdall_image.h>
 
 #include "SDIGenerator.hpp"
 
 using namespace sdi;
 
-picture_t * Generator::Picture(vlc_object_t *obj, const char *psz_file,
+picture_t * Generator::Picture(heimdall_object_t *obj, const char *psz_file,
                                const video_format_t *fmt)
 {
     picture_t *p_pic = NULL;

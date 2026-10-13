@@ -4,6 +4,7 @@
  */
 /*****************************************************************************
  * Copyright © 2022 VideoLAN and VideoLAN Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -23,74 +24,74 @@
 #ifndef WASYNC_RESIZE_COMPRESSOR_H
 #define WASYNC_RESIZE_COMPRESSOR_H 1
 
-#include <vlc_window.h>
-#include <vlc_threads.h>
+#include <heimdall_window.h>
+#include <heimdall_threads.h>
 
-typedef struct vlc_wasync_resize_compressor {
-    vlc_timer_t timer;
-    vlc_mutex_t lock;
-    vlc_window_t * wnd;
+typedef struct heimdall_wasync_resize_compressor {
+    heimdall_timer_t timer;
+    heimdall_mutex_t lock;
+    heimdall_window_t * wnd;
     unsigned requested_width;
     unsigned requested_height;
     unsigned current_width;
     unsigned current_height;
     bool resizing;
-} vlc_wasync_resize_compressor_t;
+} heimdall_wasync_resize_compressor_t;
 
 static void wasync_resize_compressor_callback(void *data) {
-    vlc_wasync_resize_compressor_t * compressor = (vlc_wasync_resize_compressor_t *) data;
-    vlc_mutex_lock(&compressor->lock);
+    heimdall_wasync_resize_compressor_t * compressor = (heimdall_wasync_resize_compressor_t *) data;
+    heimdall_mutex_lock(&compressor->lock);
     while (compressor->requested_width != compressor->current_width ||
            compressor->requested_height != compressor->current_height) {
         unsigned h = compressor->requested_height;
         unsigned w = compressor->requested_width;
-        vlc_mutex_unlock(&compressor->lock);
+        heimdall_mutex_unlock(&compressor->lock);
 
-        vlc_window_ReportSize(compressor->wnd, w, h);
+        heimdall_window_ReportSize(compressor->wnd, w, h);
 
-        vlc_mutex_lock(&compressor->lock);
+        heimdall_mutex_lock(&compressor->lock);
         compressor->current_width = w;
         compressor->current_height = h;
     }
     compressor->resizing = false;
-    vlc_mutex_unlock(&compressor->lock);
+    heimdall_mutex_unlock(&compressor->lock);
 }
 
-static inline int vlc_wasync_resize_compressor_init(vlc_wasync_resize_compressor_t *compressor,
-                                                     vlc_window_t *window) {
+static inline int heimdall_wasync_resize_compressor_init(heimdall_wasync_resize_compressor_t *compressor,
+                                                     heimdall_window_t *window) {
     compressor->timer = NULL;
-    vlc_mutex_init(&compressor->lock);
+    heimdall_mutex_init(&compressor->lock);
     compressor->requested_width = 0;
     compressor->requested_height = 0;
     compressor->current_width = 0;
     compressor->current_height = 0;
     compressor->resizing = false;
     compressor->wnd = window;
-    if (vlc_timer_create(&compressor->timer, wasync_resize_compressor_callback,
-                         compressor) != VLC_SUCCESS)
-        return VLC_EGENERIC;
-    return VLC_SUCCESS;
+    if (heimdall_timer_create(&compressor->timer, wasync_resize_compressor_callback,
+                         compressor) != HEIMDALL_SUCCESS)
+        return HEIMDALL_EGENERIC;
+    return HEIMDALL_SUCCESS;
 }
 
-static inline void vlc_wasync_resize_compressor_destroy(vlc_wasync_resize_compressor_t *compressor) {
+static inline void heimdall_wasync_resize_compressor_destroy(heimdall_wasync_resize_compressor_t *compressor) {
     if (compressor->timer != NULL)
-        vlc_timer_destroy(compressor->timer);
+        heimdall_timer_destroy(compressor->timer);
 }
 
-static inline void vlc_wasync_resize_compressor_dropOrWait(vlc_wasync_resize_compressor_t *compressor) {
-    vlc_timer_disarm(compressor->timer);
+static inline void heimdall_wasync_resize_compressor_dropOrWait(heimdall_wasync_resize_compressor_t *compressor) {
+    heimdall_timer_disarm(compressor->timer);
 }
 
-static inline void vlc_wasync_resize_compressor_reportSize(vlc_wasync_resize_compressor_t *compressor,
+static inline void heimdall_wasync_resize_compressor_reportSize(heimdall_wasync_resize_compressor_t *compressor,
                                                            unsigned width, unsigned height) {
-    vlc_mutex_lock(&compressor->lock);
+    heimdall_mutex_lock(&compressor->lock);
     compressor->requested_width = width;
     compressor->requested_height = height;
     if (compressor->resizing == false) {
-        vlc_timer_schedule_asap(compressor->timer, VLC_TIMER_FIRE_ONCE);
+        heimdall_timer_schedule_asap(compressor->timer, HEIMDALL_TIMER_FIRE_ONCE);
         compressor->resizing = true;
     }
-    vlc_mutex_unlock(&compressor->lock);
+    heimdall_mutex_unlock(&compressor->lock);
 }
 
 #endif /* WASYNC_RESIZE_COMPRESSOR_H */

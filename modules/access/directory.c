@@ -2,8 +2,9 @@
  * directory.c: expands a directory (directory: access_browser plug-in)
  *****************************************************************************
  * Copyright (C) 2002-2015 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Derk-Jan Hartman <hartman at videolan dot org>
+ * Authors: Derk-Jan Hartman <hartman at lycaria dot org>
  *          Rémi Denis-Courmont
  *          Julien 'Lta' BALLET <contact # lta.io>
  *
@@ -33,19 +34,19 @@
 #include <limits.h>
 #include <sys/stat.h>
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 #include "fs.h"
-#include <vlc_access.h>
-#include <vlc_input_item.h>
+#include <heimdall_access.h>
+#include <heimdall_input_item.h>
 
-#include <vlc_fs.h>
-#include <vlc_url.h>
+#include <heimdall_fs.h>
+#include <heimdall_url.h>
 
 typedef struct
 {
     char *base_uri;
     bool need_separator;
-    vlc_DIR *dir;
+    heimdall_DIR *dir;
 } access_sys_t;
 
 static int DirRead (stream_t *access, input_item_node_t *node);
@@ -57,7 +58,7 @@ static int DirControl( stream_t *p_access, int i_query, va_list args )
         case STREAM_GET_TYPE:
         {
             *va_arg( args, int* ) = ITEM_TYPE_DIRECTORY;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
         default:
             return access_vaDirectoryControlHelper( p_access, i_query, args );
@@ -67,9 +68,9 @@ static int DirControl( stream_t *p_access, int i_query, va_list args )
 /*****************************************************************************
  * DirInit: Init the directory access with a directory stream
  *****************************************************************************/
-int DirInit (stream_t *access, vlc_DIR *dir)
+int DirInit (stream_t *access, heimdall_DIR *dir)
 {
-    access_sys_t *sys = vlc_obj_malloc(VLC_OBJECT(access), sizeof (*sys));
+    access_sys_t *sys = heimdall_obj_malloc(HEIMDALL_OBJECT(access), sizeof (*sys));
     if (unlikely(sys == NULL))
         goto error;
 
@@ -80,7 +81,7 @@ int DirInit (stream_t *access, vlc_DIR *dir)
             sys->base_uri = NULL;
     }
     else
-        sys->base_uri = vlc_path2uri(access->psz_filepath, "file");
+        sys->base_uri = heimdall_path2uri(access->psz_filepath, "file");
     if (unlikely(sys->base_uri == NULL))
         goto error;
 
@@ -95,26 +96,26 @@ int DirInit (stream_t *access, vlc_DIR *dir)
     access->p_sys = sys;
     access->pf_readdir = DirRead;
     access->pf_control = DirControl;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
-    vlc_closedir(dir);
-    return VLC_ENOMEM;
+    heimdall_closedir(dir);
+    return HEIMDALL_ENOMEM;
 }
 
 /*****************************************************************************
  * DirOpen: Open the directory access
  *****************************************************************************/
-int DirOpen (vlc_object_t *obj)
+int DirOpen (heimdall_object_t *obj)
 {
     stream_t *access = (stream_t *)obj;
 
     if (access->psz_filepath == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    vlc_DIR *dir = vlc_opendir(access->psz_filepath);
+    heimdall_DIR *dir = heimdall_opendir(access->psz_filepath);
     if (dir == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     return DirInit(access, dir);
 }
@@ -122,27 +123,27 @@ int DirOpen (vlc_object_t *obj)
 /*****************************************************************************
  * Close: close the target
  *****************************************************************************/
-void DirClose(vlc_object_t *obj)
+void DirClose(heimdall_object_t *obj)
 {
     stream_t *access = (stream_t *)obj;
     access_sys_t *sys = access->p_sys;
 
     free(sys->base_uri);
-    vlc_closedir(sys->dir);
+    heimdall_closedir(sys->dir);
 }
 
 static int DirRead (stream_t *access, input_item_node_t *node)
 {
     access_sys_t *sys = access->p_sys;
     const char *entry;
-    int ret = VLC_SUCCESS;
+    int ret = HEIMDALL_SUCCESS;
 
     bool special_files = var_InheritBool(access, "list-special-files");
 
-    struct vlc_readdir_helper rdh;
-    vlc_readdir_helper_init(&rdh, access, node);
+    struct heimdall_readdir_helper rdh;
+    heimdall_readdir_helper_init(&rdh, access, node);
 
-    while (ret == VLC_SUCCESS && (entry = vlc_readdir(sys->dir)) != NULL)
+    while (ret == HEIMDALL_SUCCESS && (entry = heimdall_readdir(sys->dir)) != NULL)
     {
         struct stat st;
         int type;
@@ -154,7 +155,7 @@ static int DirRead (stream_t *access, input_item_node_t *node)
         char *path;
 
         if (asprintf(&path, "%s"DIR_SEP"%s", access->psz_filepath, entry) == -1
-         || (type = vlc_stat(path, &st), free(path), type))
+         || (type = heimdall_stat(path, &st), free(path), type))
             continue;
 #endif
         switch (st.st_mode & S_IFMT)
@@ -189,10 +190,10 @@ static int DirRead (stream_t *access, input_item_node_t *node)
         }
 
         /* Create an input item for the current entry */
-        char *encoded = vlc_uri_encode(entry);
+        char *encoded = heimdall_uri_encode(entry);
         if (unlikely(encoded == NULL))
         {
-            ret = VLC_ENOMEM;
+            ret = HEIMDALL_ENOMEM;
             break;
         }
 
@@ -204,14 +205,14 @@ static int DirRead (stream_t *access, input_item_node_t *node)
         free(encoded);
         if (unlikely(uri == NULL))
         {
-            ret = VLC_ENOMEM;
+            ret = HEIMDALL_ENOMEM;
             break;
         }
         input_item_t *p_item;
-        ret = vlc_readdir_helper_additem(&rdh, uri, NULL, entry, type,
+        ret = heimdall_readdir_helper_additem(&rdh, uri, NULL, entry, type,
                                          ITEM_NET_UNKNOWN, &p_item);
 
-        if (ret == VLC_SUCCESS && p_item && st.st_mtime >= 0 && st.st_size >= 0)
+        if (ret == HEIMDALL_SUCCESS && p_item && st.st_mtime >= 0 && st.st_size >= 0)
         {
             input_item_AddStat( p_item, "mtime", st.st_mtime );
             input_item_AddStat( p_item, "size", st.st_size );
@@ -219,7 +220,7 @@ static int DirRead (stream_t *access, input_item_node_t *node)
         free(uri);
     }
 
-    vlc_readdir_helper_finish(&rdh, ret == VLC_SUCCESS);
+    heimdall_readdir_helper_finish(&rdh, ret == HEIMDALL_SUCCESS);
 
     return ret;
 }

@@ -1,10 +1,11 @@
 /*****************************************************************************
- * motionblur.c : motion blur filter for vlc
+ * motionblur.c : motion blur filter for heimdall
  *****************************************************************************
  * Copyright (C) 2000, 2001, 2002, 2003 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Sigmund Augdal Helberg <dnumgis@videolan.org>
- *          Antoine Cellerier <dionoea &t videolan d.t org>
+ *          Antoine Cellerier <dionoea &t lycaria d.t org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -31,12 +32,12 @@
 
 #include <stdatomic.h>
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_sout.h>
-#include <vlc_filter.h>
-#include <vlc_picture.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_sout.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
 
 /*****************************************************************************
  * Local protypes
@@ -45,8 +46,8 @@ typedef struct filter_sys_t filter_sys_t;
 
 static int  Create       ( filter_t * );
 static void RenderBlur   ( filter_sys_t *, picture_t *, picture_t * );
-static int MotionBlurCallback( vlc_object_t *, char const *,
-                               vlc_value_t, vlc_value_t, void * );
+static int MotionBlurCallback( heimdall_object_t *, char const *,
+                               heimdall_value_t, heimdall_value_t, void * );
 VIDEO_FILTER_WRAPPER_CLOSE(Filter, Destroy)
 
 /*****************************************************************************
@@ -57,7 +58,7 @@ VIDEO_FILTER_WRAPPER_CLOSE(Filter, Destroy)
 
 #define FILTER_PREFIX "blur-"
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( N_("Motion blur") )
     set_description( N_("Motion blur filter") )
     set_subcategory( SUBCAT_VIDEO_VFILTER )
@@ -68,7 +69,7 @@ vlc_module_begin ()
     add_shortcut( "blur" )
 
     set_callback_video_filter( Create )
-vlc_module_end ()
+heimdall_module_end ()
 
 static const char *const ppsz_filter_options[] = {
     "factor", NULL
@@ -89,23 +90,23 @@ struct filter_sys_t
  *****************************************************************************/
 static int Create( filter_t *p_filter )
 {
-    const vlc_chroma_description_t *p_chroma =
-        vlc_fourcc_GetChromaDescription( p_filter->fmt_in.video.i_chroma );
+    const heimdall_chroma_description_t *p_chroma =
+        heimdall_fourcc_GetChromaDescription( p_filter->fmt_in.video.i_chroma );
     assert( p_chroma != NULL );
     if( p_chroma->plane_count == 0 )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* Allocate structure */
     filter_sys_t *p_sys = malloc( sizeof( filter_sys_t ) );
     if( p_sys == NULL )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     p_filter->p_sys = p_sys;
 
     p_sys->p_tmp = picture_NewFromFormat( &p_filter->fmt_in.video );
     if( !p_sys->p_tmp )
     {
         free( p_sys );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
     p_sys->b_first = true;
 
@@ -120,7 +121,7 @@ static int Create( filter_t *p_filter )
                      MotionBlurCallback, p_sys );
 
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -192,13 +193,13 @@ static void RenderBlur( filter_sys_t *p_sys, picture_t *p_newpic,
     }
 }
 
-static int MotionBlurCallback( vlc_object_t *p_this, char const *psz_var,
-                               vlc_value_t oldval, vlc_value_t newval,
+static int MotionBlurCallback( heimdall_object_t *p_this, char const *psz_var,
+                               heimdall_value_t oldval, heimdall_value_t newval,
                                void *p_data )
 {
-    VLC_UNUSED(p_this); VLC_UNUSED(psz_var); VLC_UNUSED(oldval);
+    HEIMDALL_UNUSED(p_this); HEIMDALL_UNUSED(psz_var); HEIMDALL_UNUSED(oldval);
     filter_sys_t *p_sys = p_data;
 
-    atomic_store( &p_sys->i_factor, VLC_CLIP( newval.i_int, 1, 127 ) );
-    return VLC_SUCCESS;
+    atomic_store( &p_sys->i_factor, HEIMDALL_CLIP( newval.i_int, 1, 127 ) );
+    return HEIMDALL_SUCCESS;
 }

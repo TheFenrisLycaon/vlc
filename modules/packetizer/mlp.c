@@ -2,8 +2,9 @@
  * mlp.c: packetize MLP/TrueHD audio
  *****************************************************************************
  * Copyright (C) 2008 Laurent Aimar
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Laurent Aimar < fenrir _AT videolan _DOT_ org >
+ * Authors: Laurent Aimar < fenrir _AT lycaria _DOT_ org >
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -27,11 +28,11 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
-#include <vlc_block_helper.h>
-#include <vlc_bits.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
+#include <heimdall_block_helper.h>
+#include <heimdall_bits.h>
 #include <assert.h>
 
 #include "packetizer_helper.h"
@@ -40,15 +41,15 @@
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  Open ( vlc_object_t * );
-static void Close( vlc_object_t * );
+static int  Open ( heimdall_object_t * );
+static void Close( heimdall_object_t * );
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_subcategory( SUBCAT_SOUT_PACKETIZER )
     set_description( N_("MLP/TrueHD parser") )
     set_capability( "audio packetizer", 50 )
     set_callbacks( Open, Close )
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  *
@@ -73,7 +74,7 @@ typedef struct
     /*
      * Input properties
      */
-    enum vlc_packetizer_state i_state;
+    enum heimdall_packetizer_state i_state;
 
     block_bytestream_t bytestream;
 
@@ -83,7 +84,7 @@ typedef struct
     date_t  end_date;
     bool    b_discontinuity;
 
-    vlc_tick_t i_pts;
+    heimdall_tick_t i_pts;
     int i_frame_size;
 
     bool         b_mlp;
@@ -170,7 +171,7 @@ static int MlpParse( mlp_header_t *p_mlp, const uint8_t p_hdr[MLP_HEADER_SYNC] )
     }
     else
     {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( i_rate_idx1 == 0x0f )
@@ -191,7 +192,7 @@ static int MlpParse( mlp_header_t *p_mlp, const uint8_t p_hdr[MLP_HEADER_SYNC] )
 
     //fprintf( stderr, "i_samples = %d channels:%d rate:%d bitsrate=%d substreams=%d\n",
     //        p_mlp->i_samples, p_mlp->i_channels, p_mlp->i_rate, p_mlp->i_bitrate, p_mlp->i_substreams );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int SyncInfo( const uint8_t *p_hdr, bool *pb_mlp, mlp_header_t *p_mlp )
@@ -243,8 +244,8 @@ static int SyncInfo( const uint8_t *p_hdr, bool *pb_mlp, mlp_header_t *p_mlp )
  */
 static int SyncInfoDolby( const uint8_t *p_buf )
 {
-    vlc_a52_header_t a52;
-    if( vlc_a52_header_Parse( &a52, p_buf, MLP_HEADER_SIZE ) == VLC_SUCCESS )
+    heimdall_a52_header_t a52;
+    if( heimdall_a52_header_Parse( &a52, p_buf, MLP_HEADER_SIZE ) == HEIMDALL_SUCCESS )
         return a52.i_size;
     else
         return 0;
@@ -258,7 +259,7 @@ static void Flush( decoder_t *p_dec )
     p_sys->i_state = STATE_NOSYNC;
     p_sys->b_discontinuity = true;
     block_BytestreamEmpty( &p_sys->bytestream );
-    date_Set( &p_sys->end_date, VLC_TICK_INVALID );
+    date_Set( &p_sys->end_date, HEIMDALL_TICK_INVALID );
 }
 
 static block_t *Packetize( decoder_t *p_dec, block_t **pp_block )
@@ -287,8 +288,8 @@ static block_t *Packetize( decoder_t *p_dec, block_t **pp_block )
             }
         }
 
-        if( p_block->i_pts == VLC_TICK_INVALID &&
-            date_Get( &p_sys->end_date ) == VLC_TICK_INVALID )
+        if( p_block->i_pts == HEIMDALL_TICK_INVALID &&
+            date_Get( &p_sys->end_date ) == HEIMDALL_TICK_INVALID )
         {
             /* We've just started the stream, wait for the first PTS. */
             msg_Dbg( p_dec, "waiting for PTS" );
@@ -330,7 +331,7 @@ static block_t *Packetize( decoder_t *p_dec, block_t **pp_block )
         case STATE_SYNC:
             /* New frame, set the Presentation Time Stamp */
             p_sys->i_pts = p_sys->bytestream.p_block->i_pts;
-            if( p_sys->i_pts != VLC_TICK_INVALID &&
+            if( p_sys->i_pts != HEIMDALL_TICK_INVALID &&
                 p_sys->i_pts != date_Get( &p_sys->end_date ) )
             {
                 date_Set( &p_sys->end_date, p_sys->i_pts );
@@ -442,7 +443,7 @@ static block_t *Packetize( decoder_t *p_dec, block_t **pp_block )
 
             /* Make sure we don't reuse the same pts twice */
             if( p_sys->i_pts == p_sys->bytestream.p_block->i_pts )
-                p_sys->i_pts = p_sys->bytestream.p_block->i_pts = VLC_TICK_INVALID;
+                p_sys->i_pts = p_sys->bytestream.p_block->i_pts = HEIMDALL_TICK_INVALID;
 
             if( p_sys->b_discontinuity )
             {
@@ -466,19 +467,19 @@ static block_t *Packetize( decoder_t *p_dec, block_t **pp_block )
     return NULL;
 }
 
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     decoder_t *p_dec = (decoder_t*)p_this;
     decoder_sys_t *p_sys;
 
-    if( p_dec->fmt_in->i_codec != VLC_CODEC_MLP &&
-        p_dec->fmt_in->i_codec != VLC_CODEC_TRUEHD )
-        return VLC_EGENERIC;
+    if( p_dec->fmt_in->i_codec != HEIMDALL_CODEC_MLP &&
+        p_dec->fmt_in->i_codec != HEIMDALL_CODEC_TRUEHD )
+        return HEIMDALL_EGENERIC;
 
     /* */
     p_dec->p_sys = p_sys = malloc( sizeof(*p_sys) );
     if( !p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     /* */
     p_sys->i_state = STATE_NOSYNC;
@@ -496,10 +497,10 @@ static int Open( vlc_object_t *p_this )
     p_dec->pf_packetize = Packetize;
     p_dec->pf_flush     = Flush;
     p_dec->pf_get_cc    = NULL;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void Close( vlc_object_t *p_this )
+static void Close( heimdall_object_t *p_this )
 {
     decoder_t *p_dec = (decoder_t*)p_this;
     decoder_sys_t *p_sys = p_dec->p_sys;

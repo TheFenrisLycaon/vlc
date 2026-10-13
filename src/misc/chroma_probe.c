@@ -2,6 +2,7 @@
  * chroma_probe.c: chroma conversion probing
  *****************************************************************************
  * Copyright (C) 2025 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,24 +23,24 @@
 # include "config.h"
 #endif
 
-#include <vlc_chroma_probe.h>
-#include <vlc_fourcc.h>
-#include <vlc_threads.h>
-#include <vlc_modules.h>
-#include <vlc_sort.h>
-#include <vlc_memstream.h>
+#include <heimdall_chroma_probe.h>
+#include <heimdall_fourcc.h>
+#include <heimdall_threads.h>
+#include <heimdall_modules.h>
+#include <heimdall_sort.h>
+#include <heimdall_memstream.h>
 
 static int
-modules_Probe(vlc_chroma_conv_vec *chroma_table)
+modules_Probe(heimdall_chroma_conv_vec *chroma_table)
 {
     module_t **mods;
-    ssize_t total = vlc_module_match("chroma probe", NULL, false, &mods, NULL);
+    ssize_t total = heimdall_module_match("chroma probe", NULL, false, &mods, NULL);
     if (total == -1)
         return -ENOENT;
 
     for (ssize_t i = 0; i < total; ++i)
     {
-        vlc_chroma_conv_probe fn = vlc_module_map(NULL, mods[i]);
+        heimdall_chroma_conv_probe fn = heimdall_module_map(NULL, mods[i]);
         if (fn == NULL)
             continue;
         fn(chroma_table);
@@ -51,15 +52,15 @@ modules_Probe(vlc_chroma_conv_vec *chroma_table)
 /* Breadth First Search (BFS) node */
 struct bfs_node
 {
-    vlc_fourcc_t chain[VLC_CHROMA_CONV_CHAIN_COUNT_MAX];
-    unsigned depth; /* Max deep is VLC_CHROMA_CONV_CHAIN_COUNT_MAX -1 */
+    heimdall_fourcc_t chain[HEIMDALL_CHROMA_CONV_CHAIN_COUNT_MAX];
+    unsigned depth; /* Max deep is HEIMDALL_CHROMA_CONV_CHAIN_COUNT_MAX -1 */
     float cost_factor;
 };
-typedef struct VLC_VECTOR(struct bfs_node) bfs_queue_vec;
+typedef struct HEIMDALL_VECTOR(struct bfs_node) bfs_queue_vec;
 
 static int
-bfs_Run(vlc_fourcc_t chroma_from, vlc_fourcc_t chroma_to, unsigned max_depth,
-        const vlc_chroma_conv_vec *chroma_table, int flags,
+bfs_Run(heimdall_fourcc_t chroma_from, heimdall_fourcc_t chroma_to, unsigned max_depth,
+        const heimdall_chroma_conv_vec *chroma_table, int flags,
         bfs_queue_vec *queue)
 {
     struct bfs_node start = {
@@ -67,14 +68,14 @@ bfs_Run(vlc_fourcc_t chroma_from, vlc_fourcc_t chroma_to, unsigned max_depth,
         .cost_factor = 1,
         .depth = 0,
     };
-    bool success = vlc_vector_push(queue, start);
+    bool success = heimdall_vector_push(queue, start);
     if (!success)
         return -ENOMEM;
 
     for (size_t queue_idx = 0; queue_idx < queue->size; queue_idx++)
     {
         const struct bfs_node current = queue->data[queue_idx];
-        vlc_fourcc_t current_chroma = current.chain[current.depth];
+        heimdall_fourcc_t current_chroma = current.chain[current.depth];
 
         if (chroma_to != 0 && current_chroma == chroma_to)
             continue; /* Found a path to 'chroma_to' */
@@ -85,26 +86,26 @@ bfs_Run(vlc_fourcc_t chroma_from, vlc_fourcc_t chroma_to, unsigned max_depth,
         /* Enqueue neighbors */
         for (size_t chroma_idx = 0; chroma_idx < chroma_table->size; chroma_idx++)
         {
-            struct vlc_chroma_conv_entry *entry = &chroma_table->data[chroma_idx];
-            vlc_fourcc_t from = entry->in;
-            vlc_fourcc_t to = entry->out;
+            struct heimdall_chroma_conv_entry *entry = &chroma_table->data[chroma_idx];
+            heimdall_fourcc_t from = entry->in;
+            heimdall_fourcc_t to = entry->out;
             float cost_factor = entry->cost_factor;
 
             if (from == current_chroma)
             {
-                vlc_fourcc_t next_chroma = to;
+                heimdall_fourcc_t next_chroma = to;
 
                 /* Apply filters from flags */
-                if (flags & VLC_CHROMA_CONV_FLAG_ONLY_YUV)
+                if (flags & HEIMDALL_CHROMA_CONV_FLAG_ONLY_YUV)
                 {
-                    if (!vlc_fourcc_IsYUV(next_chroma))
+                    if (!heimdall_fourcc_IsYUV(next_chroma))
                         continue;
                 }
-                else if (flags & VLC_CHROMA_CONV_FLAG_ONLY_RGB)
+                else if (flags & HEIMDALL_CHROMA_CONV_FLAG_ONLY_RGB)
                 {
-                    const vlc_chroma_description_t *desc =
-                        vlc_fourcc_GetChromaDescription(next_chroma);
-                    if (desc == NULL || desc->subtype != VLC_CHROMA_SUBTYPE_RGB)
+                    const heimdall_chroma_description_t *desc =
+                        heimdall_fourcc_GetChromaDescription(next_chroma);
+                    if (desc == NULL || desc->subtype != HEIMDALL_CHROMA_SUBTYPE_RGB)
                         continue;
                 }
 
@@ -125,7 +126,7 @@ bfs_Run(vlc_fourcc_t chroma_from, vlc_fourcc_t chroma_to, unsigned max_depth,
                 next.cost_factor = current.cost_factor * cost_factor;
 
                 next.chain[next.depth] = next_chroma;
-                success = vlc_vector_push(queue, next);
+                success = heimdall_vector_push(queue, next);
                 if (!success)
                     return -ENOMEM;
             }
@@ -135,7 +136,7 @@ bfs_Run(vlc_fourcc_t chroma_from, vlc_fourcc_t chroma_to, unsigned max_depth,
 }
 
 static uint64_t
-GetChromaBits(const vlc_chroma_description_t *desc,
+GetChromaBits(const heimdall_chroma_description_t *desc,
               unsigned width, unsigned height)
 {
     if (desc->plane_count == 0)
@@ -143,33 +144,33 @@ GetChromaBits(const vlc_chroma_description_t *desc,
         /* Fallback to the size of the subtype */
         switch (desc->subtype)
         {
-            case VLC_CHROMA_SUBTYPE_OTHER:
+            case HEIMDALL_CHROMA_SUBTYPE_OTHER:
                 return 0;
-            case VLC_CHROMA_SUBTYPE_YUV444:
+            case HEIMDALL_CHROMA_SUBTYPE_YUV444:
                 return width * height * 3 * desc->color_bits;
-            case VLC_CHROMA_SUBTYPE_YUV440:
-            case VLC_CHROMA_SUBTYPE_YUV422:
+            case HEIMDALL_CHROMA_SUBTYPE_YUV440:
+            case HEIMDALL_CHROMA_SUBTYPE_YUV422:
                 return width * height * 2 * desc->color_bits;
-            case VLC_CHROMA_SUBTYPE_YUV420:
-            case VLC_CHROMA_SUBTYPE_YUV411:
+            case HEIMDALL_CHROMA_SUBTYPE_YUV420:
+            case HEIMDALL_CHROMA_SUBTYPE_YUV411:
                 return width * height * 1.5 * desc->color_bits;
-            case VLC_CHROMA_SUBTYPE_YUV410:
+            case HEIMDALL_CHROMA_SUBTYPE_YUV410:
                 return width * height * 1.125 * desc->color_bits;
-            case VLC_CHROMA_SUBTYPE_YUV211:
-            case VLC_CHROMA_SUBTYPE_GREY:
+            case HEIMDALL_CHROMA_SUBTYPE_YUV211:
+            case HEIMDALL_CHROMA_SUBTYPE_GREY:
                 return width * height * desc->color_bits;
-            case VLC_CHROMA_SUBTYPE_RGB:
+            case HEIMDALL_CHROMA_SUBTYPE_RGB:
                 return width * height * 4 * desc->color_bits;
             default:
-                vlc_assert_unreachable();
+                heimdall_assert_unreachable();
         }
     }
 
     uint64_t total_bits = 0;
     for (unsigned i = 0; i < desc->plane_count; i++)
     {
-        const vlc_rational_t rw = desc->p[i].w;
-        const vlc_rational_t rh = desc->p[i].h;
+        const heimdall_rational_t rw = desc->p[i].w;
+        const heimdall_rational_t rh = desc->p[i].h;
 
         unsigned plane_width = width * rw.num / rw.den;
         unsigned plane_height = height * rh.num / rh.den;
@@ -184,36 +185,36 @@ GetChromaBits(const vlc_chroma_description_t *desc,
 }
 
 static float
-GetColorRatio(enum vlc_chroma_subtype subtype)
+GetColorRatio(enum heimdall_chroma_subtype subtype)
 {
     switch (subtype)
     {
-        case VLC_CHROMA_SUBTYPE_YUV444:
-        case VLC_CHROMA_SUBTYPE_RGB:
+        case HEIMDALL_CHROMA_SUBTYPE_YUV444:
+        case HEIMDALL_CHROMA_SUBTYPE_RGB:
             return 1.f;
-        case VLC_CHROMA_SUBTYPE_YUV422:
+        case HEIMDALL_CHROMA_SUBTYPE_YUV422:
             return 0.67;
-        case VLC_CHROMA_SUBTYPE_YUV440:
+        case HEIMDALL_CHROMA_SUBTYPE_YUV440:
             return 0.5; /* should be like YUV422, but it is less common */
-        case VLC_CHROMA_SUBTYPE_YUV420:
+        case HEIMDALL_CHROMA_SUBTYPE_YUV420:
             return 0.5;
-        case VLC_CHROMA_SUBTYPE_YUV411:
+        case HEIMDALL_CHROMA_SUBTYPE_YUV411:
             return 0.33;
-        case VLC_CHROMA_SUBTYPE_YUV410:
+        case HEIMDALL_CHROMA_SUBTYPE_YUV410:
             return 0.25;
-        case VLC_CHROMA_SUBTYPE_YUV211:
-        case VLC_CHROMA_SUBTYPE_OTHER:
+        case HEIMDALL_CHROMA_SUBTYPE_YUV211:
+        case HEIMDALL_CHROMA_SUBTYPE_OTHER:
             return 0.2;
-        case VLC_CHROMA_SUBTYPE_GREY:
+        case HEIMDALL_CHROMA_SUBTYPE_GREY:
             return 0.1;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 }
 
 static float
-CompareDescs(const vlc_chroma_description_t *in_desc,
-             const vlc_chroma_description_t *out_desc)
+CompareDescs(const heimdall_chroma_description_t *in_desc,
+             const heimdall_chroma_description_t *out_desc)
 {
     /* Compare color bits */
     float bits_ratio;
@@ -236,8 +237,8 @@ CompareDescs(const vlc_chroma_description_t *in_desc,
         color_ratio = 1.f;
 
     /* Malus for CPU YUV <-> Other. Favor staying in the same color model. */
-    bool in_is_yuv = vlc_chroma_description_IsYUV(in_desc);
-    bool out_is_yuv = vlc_chroma_description_IsYUV(out_desc);
+    bool in_is_yuv = heimdall_chroma_description_IsYUV(in_desc);
+    bool out_is_yuv = heimdall_chroma_description_IsYUV(out_desc);
     if ((in_desc->plane_count != 0 && out_desc->plane_count != 0)
      && (in_is_yuv || out_is_yuv) && (in_is_yuv != out_is_yuv))
         color_ratio *= 0.9;
@@ -246,7 +247,7 @@ CompareDescs(const vlc_chroma_description_t *in_desc,
 }
 
 static void
-vlc_chroma_conv_result_FromNode(struct vlc_chroma_conv_result *res,
+heimdall_chroma_conv_result_FromNode(struct heimdall_chroma_conv_result *res,
                                 const struct bfs_node *node,
                                 unsigned width, unsigned height)
 {
@@ -261,10 +262,10 @@ vlc_chroma_conv_result_FromNode(struct vlc_chroma_conv_result *res,
 
         if (i > 0)
         {
-            const vlc_chroma_description_t *from_desc =
-                vlc_fourcc_GetChromaDescription(res->chain[i - 1]);
-            const vlc_chroma_description_t *to_desc =
-                vlc_fourcc_GetChromaDescription(res->chain[i]);
+            const heimdall_chroma_description_t *from_desc =
+                heimdall_fourcc_GetChromaDescription(res->chain[i - 1]);
+            const heimdall_chroma_description_t *to_desc =
+                heimdall_fourcc_GetChromaDescription(res->chain[i]);
 
             if (from_desc == NULL || to_desc == NULL)
             {
@@ -297,8 +298,8 @@ vlc_chroma_conv_result_FromNode(struct vlc_chroma_conv_result *res,
 static int
 SortResults(const void *a, const void *b, void *arg)
 {
-    const struct vlc_chroma_conv_result *ra = a;
-    const struct vlc_chroma_conv_result *rb = b;
+    const struct heimdall_chroma_conv_result *ra = a;
+    const struct heimdall_chroma_conv_result *rb = b;
     bool *sort_by_quality = arg;
 
     int cost_score = 0, quality_score = 0;
@@ -323,15 +324,15 @@ SortResults(const void *a, const void *b, void *arg)
 }
 
 static bool
-bfs_node_IsResult(const struct bfs_node *node, vlc_fourcc_t to)
+bfs_node_IsResult(const struct bfs_node *node, heimdall_fourcc_t to)
 {
-    vlc_fourcc_t current_chroma = node->chain[node->depth];
+    heimdall_fourcc_t current_chroma = node->chain[node->depth];
     return to == 0 || current_chroma == to;
 }
 
 static bool
-vlc_chroma_conv_result_Equals(struct vlc_chroma_conv_result *a,
-                              struct vlc_chroma_conv_result *b)
+heimdall_chroma_conv_result_Equals(struct heimdall_chroma_conv_result *a,
+                              struct heimdall_chroma_conv_result *b)
 {
     if (a->chain_count != b->chain_count)
         return false;
@@ -344,15 +345,15 @@ vlc_chroma_conv_result_Equals(struct vlc_chroma_conv_result *a,
     return true;
 }
 
-struct vlc_chroma_conv_result *
-vlc_chroma_conv_Probe(vlc_fourcc_t from, vlc_fourcc_t to,
+struct heimdall_chroma_conv_result *
+heimdall_chroma_conv_Probe(heimdall_fourcc_t from, heimdall_fourcc_t to,
                       unsigned width, unsigned height,
                       unsigned max_indirect_steps, int flags, size_t *count)
 {
     assert(from != 0);
-    assert(max_indirect_steps <= VLC_CHROMA_CONV_MAX_INDIRECT_STEPS);
-    vlc_chroma_conv_vec chroma_table;
-    vlc_vector_init(&chroma_table);
+    assert(max_indirect_steps <= HEIMDALL_CHROMA_CONV_MAX_INDIRECT_STEPS);
+    heimdall_chroma_conv_vec chroma_table;
+    heimdall_vector_init(&chroma_table);
 
     if (width == 0 || height == 0)
     {
@@ -363,8 +364,8 @@ vlc_chroma_conv_Probe(vlc_fourcc_t from, vlc_fourcc_t to,
     if (max_indirect_steps > 0)
     {
         /* Allow indirect steps only when converting from/to a GPU chroma */
-        bool from_cpu = vlc_fourcc_GetChromaBPP(from) != 0;
-        bool to_cpu = to == 0 ? true : vlc_fourcc_GetChromaBPP(to) != 0;
+        bool from_cpu = heimdall_fourcc_GetChromaBPP(from) != 0;
+        bool to_cpu = to == 0 ? true : heimdall_fourcc_GetChromaBPP(to) != 0;
         if (from_cpu && to_cpu)
             max_indirect_steps--;
     }
@@ -373,17 +374,17 @@ vlc_chroma_conv_Probe(vlc_fourcc_t from, vlc_fourcc_t to,
     int ret = modules_Probe(&chroma_table);
     if (ret != 0 || chroma_table.size == 0)
     {
-        vlc_vector_destroy(&chroma_table);
+        heimdall_vector_destroy(&chroma_table);
         return NULL;
     }
 
     /* Run tree search */
     bfs_queue_vec bfs_queue;
-    vlc_vector_init(&bfs_queue);
+    heimdall_vector_init(&bfs_queue);
     ret = bfs_Run(from, to, max_indirect_steps + 1 , &chroma_table, flags,
                   &bfs_queue);
 
-    vlc_vector_destroy(&chroma_table);
+    heimdall_vector_destroy(&chroma_table);
 
     size_t result_count = 0;
     for (size_t i = 1 /* skip start node */; i < bfs_queue.size; ++i)
@@ -392,17 +393,17 @@ vlc_chroma_conv_Probe(vlc_fourcc_t from, vlc_fourcc_t to,
 
     if (unlikely(ret != 0) || result_count == 0)
     {
-        vlc_vector_destroy(&bfs_queue);
+        heimdall_vector_destroy(&bfs_queue);
         return NULL;
     }
 
     /* Allocate the result array */
-    struct VLC_VECTOR(struct vlc_chroma_conv_result) result_vec =
-        VLC_VECTOR_INITIALIZER;
-    bool success = vlc_vector_push_hole(&result_vec, result_count);
+    struct HEIMDALL_VECTOR(struct heimdall_chroma_conv_result) result_vec =
+        HEIMDALL_VECTOR_INITIALIZER;
+    bool success = heimdall_vector_push_hole(&result_vec, result_count);
     if (!success)
     {
-        vlc_vector_destroy(&bfs_queue);
+        heimdall_vector_destroy(&bfs_queue);
         return NULL;
     }
 
@@ -415,17 +416,17 @@ vlc_chroma_conv_Probe(vlc_fourcc_t from, vlc_fourcc_t to,
             continue;
 
         assert(res_idx < result_count);
-        struct vlc_chroma_conv_result *res = &result_vec.data[res_idx++];
-        vlc_chroma_conv_result_FromNode(res, node, width, height);
+        struct heimdall_chroma_conv_result *res = &result_vec.data[res_idx++];
+        heimdall_chroma_conv_result_FromNode(res, node, width, height);
     }
     assert(res_idx == result_count);
 
-    vlc_vector_destroy(&bfs_queue);
+    heimdall_vector_destroy(&bfs_queue);
 
     /* Sort */
-    bool sort_by_quality = (flags & VLC_CHROMA_CONV_FLAG_SORT_COST) == 0;
-    vlc_qsort(result_vec.data, result_count,
-              sizeof(struct vlc_chroma_conv_result), SortResults,
+    bool sort_by_quality = (flags & HEIMDALL_CHROMA_CONV_FLAG_SORT_COST) == 0;
+    heimdall_qsort(result_vec.data, result_count,
+              sizeof(struct heimdall_chroma_conv_result), SortResults,
               &sort_by_quality);
 
     /* Remove duplicate entries, it can happen when more the 2 modules probe
@@ -433,18 +434,18 @@ vlc_chroma_conv_Probe(vlc_fourcc_t from, vlc_fourcc_t to,
      * they might have different quality. */
     for (size_t i = 0; i < result_vec.size - 1; ++ i)
     {
-        struct vlc_chroma_conv_result *cur = &result_vec.data[i];
+        struct heimdall_chroma_conv_result *cur = &result_vec.data[i];
 
         size_t j = i + 1;
         while (j < result_vec.size)
         {
-            struct vlc_chroma_conv_result *next = &result_vec.data[j];
-            if (vlc_chroma_conv_result_Equals(cur, next))
+            struct heimdall_chroma_conv_result *next = &result_vec.data[j];
+            if (heimdall_chroma_conv_result_Equals(cur, next))
             {
                 /* Keep the lowest cost */
                 if (next->cost < cur->cost)
                     cur->cost = next->cost;
-                vlc_vector_remove(&result_vec, j);
+                heimdall_vector_remove(&result_vec, j);
                 /* update pointer after possible realloc */
                 cur = &result_vec.data[i];
             }
@@ -458,20 +459,20 @@ vlc_chroma_conv_Probe(vlc_fourcc_t from, vlc_fourcc_t to,
 }
 
 char *
-vlc_chroma_conv_result_ToString(const struct vlc_chroma_conv_result *res)
+heimdall_chroma_conv_result_ToString(const struct heimdall_chroma_conv_result *res)
 {
-    struct vlc_memstream ms;
-    int ret = vlc_memstream_open(&ms);
+    struct heimdall_memstream ms;
+    int ret = heimdall_memstream_open(&ms);
     if (ret != 0)
         return NULL;
-    vlc_memstream_printf(&ms, "[c=%u|q=%u] ", res->cost, res->quality);
+    heimdall_memstream_printf(&ms, "[c=%u|q=%u] ", res->cost, res->quality);
 
     for (size_t i = 0; i < res->chain_count; ++i)
     {
-        vlc_memstream_printf(&ms, "%4.4s", (const char *) &res->chain[i]);
+        heimdall_memstream_printf(&ms, "%4.4s", (const char *) &res->chain[i]);
         if (i != res->chain_count - 1)
-            vlc_memstream_puts(&ms, " -> ");
+            heimdall_memstream_puts(&ms, " -> ");
     }
-    ret = vlc_memstream_close(&ms);
+    ret = heimdall_memstream_close(&ms);
     return ret == 0 ? ms.ptr : NULL;
 }

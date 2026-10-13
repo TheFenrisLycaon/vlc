@@ -2,6 +2,7 @@
  * dxva2_deinterlace.c: DxVA2 deinterlacing filter
  *****************************************************************************
  * Copyright (C) 2017 Videolabs SAS
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Steve Lhomme <robux4@gmail.com>
  *
@@ -27,9 +28,9 @@
 #include <stdlib.h>
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_filter.h>
-#include <vlc_picture.h>
+#include <heimdall_common.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
 
 #define COBJMACROS
 #include <initguid.h>
@@ -146,7 +147,7 @@ static void FillSample( DXVA2_VideoSample *p_sample,
                 DXVA2_SampleFieldInterleavedOddFirst;
     FillExtendedFormat(p_fmt, &p_sample->SampleFormat);
     p_sample->Start = 0;
-    p_sample->End = MSFTIME_FROM_VLC_TICK(GetFieldDuration(p_context, p_fmt, p_pic));
+    p_sample->End = MSFTIME_FROM_HEIMDALL_TICK(GetFieldDuration(p_context, p_fmt, p_pic));
     p_sample->SampleData = DXVA2_SampleData_RFF_TFF_Present;
     if (!i_field)
         p_sample->SampleData |= DXVA2_SampleData_TFF;
@@ -200,10 +201,10 @@ static int RenderPic( filter_t *filter, picture_t *p_outpic, picture_t *src,
 
     hr = IDirect3DSurface9_GetDesc( p_sys_src->surface, &srcDesc );
     if (unlikely(FAILED(hr)))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     hr = IDirect3DSurface9_GetDesc( sys->hw_surface, &dstDesc );
     if (unlikely(FAILED(hr)))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     area.top = area.left = 0;
     area.bottom = __MIN(srcDesc.Height, dstDesc.Height);
@@ -242,7 +243,7 @@ static int RenderPic( filter_t *filter, picture_t *p_outpic, picture_t *src,
                                                  samples,
                                                  i_samples, NULL );
     if (FAILED(hr))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     d3d9_decoder_device_t *d3d9_decoder = GetD3D9OpaqueContext(filter->vctx_out);
 
@@ -251,9 +252,9 @@ static int RenderPic( filter_t *filter, picture_t *p_outpic, picture_t *src,
                                        p_out_sys->surface, NULL,
                                        D3DTEXF_NONE);
     if (FAILED(hr))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int RenderSinglePic( filter_t *p_filter, picture_t *p_outpic, picture_t *p_pic )
@@ -314,7 +315,7 @@ picture_t *AllocPicture( filter_t *p_filter )
     IDirect3DSurface9_Release(pic_ctx->picsys.surface);
     pic_ctx->s = (picture_context_t) {
         d3d9_pic_context_destroy, d3d9_pic_context_copy,
-        vlc_video_context_Hold(p_filter->vctx_out),
+        heimdall_video_context_Hold(p_filter->vctx_out),
     };
     pic->context = &pic_ctx->s;
     return pic;
@@ -328,12 +329,12 @@ static void D3D9CloseDeinterlace(filter_t *filter)
     Flush(filter);
     IDirect3DSurface9_Release( sys->hw_surface );
     IDirectXVideoProcessor_Release( sys->processor );
-    vlc_video_context_Release(filter->vctx_out);
+    heimdall_video_context_Release(filter->vctx_out);
 
     free(sys);
 }
 
-static const struct vlc_filter_operations filter_ops = {
+static const struct heimdall_filter_operations filter_ops = {
     .filter_video = Deinterlace, .flush = Flush, .close = D3D9CloseDeinterlace,
 };
 
@@ -346,17 +347,17 @@ int D3D9OpenDeinterlace(filter_t *filter)
     void *pv;
     IDirectXVideoProcessorService *processor = NULL;
 
-    if (filter->fmt_in.video.i_chroma != VLC_CODEC_D3D9_OPAQUE
-     && filter->fmt_in.video.i_chroma != VLC_CODEC_D3D9_OPAQUE_10B)
-        return VLC_EGENERIC;
+    if (filter->fmt_in.video.i_chroma != HEIMDALL_CODEC_D3D9_OPAQUE
+     && filter->fmt_in.video.i_chroma != HEIMDALL_CODEC_D3D9_OPAQUE_10B)
+        return HEIMDALL_EGENERIC;
     if ( GetD3D9ContextPrivate(filter->vctx_in) == NULL )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     if (!video_format_IsSimilar(&filter->fmt_in.video, &filter->fmt_out.video))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     sys = calloc(1, sizeof (*sys));
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     d3d9_video_context_t *vtcx_sys = GetD3D9ContextPrivate( filter->vctx_in );
 
@@ -505,11 +506,11 @@ int D3D9OpenDeinterlace(filter_t *filter)
     IDirectXVideoProcessorService_Release(processor);
 
     filter->fmt_out.video   = out_fmt;
-    filter->vctx_out        = vlc_video_context_Hold(filter->vctx_in);
+    filter->vctx_out        = heimdall_video_context_Hold(filter->vctx_in);
     filter->ops             = &filter_ops;
     filter->p_sys = sys;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 error:
     if (processorGUIDs)
         CoTaskMemFree(processorGUIDs);
@@ -519,5 +520,5 @@ error:
         IDirectXVideoProcessorService_Release(processor);
     free(sys);
 
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }

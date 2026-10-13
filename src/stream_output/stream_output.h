@@ -2,6 +2,7 @@
  * stream_output.h : internal stream output
  *****************************************************************************
  * Copyright (C) 2002-2005 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Christophe Massiot <massiot@via.ecp.fr>
  *          Laurent Aimar <fenrir@via.ecp.fr>
@@ -23,15 +24,15 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  ***************************************************************************/
 
-#ifndef VLC_SRC_STREAMOUT_H
-# define VLC_SRC_STREAMOUT_H 1
+#ifndef HEIMDALL_SRC_STREAMOUT_H
+# define HEIMDALL_SRC_STREAMOUT_H 1
 
-# include <vlc_sout.h>
-# include <vlc_network.h>
+# include <heimdall_sout.h>
+# include <heimdall_network.h>
 
 /** Stream output instance */
-sout_stream_t *sout_NewInstance( vlc_object_t *, const char * );
-#define sout_NewInstance(a,b) sout_NewInstance(VLC_OBJECT(a),b)
+sout_stream_t *sout_NewInstance( heimdall_object_t *, const char * );
+#define sout_NewInstance(a,b) sout_NewInstance(HEIMDALL_OBJECT(a),b)
 
 sout_packetizer_input_t *
 sout_InputNew( sout_stream_t *, const es_format_t *, const char * );
@@ -41,7 +42,7 @@ int sout_InputSendBuffer( sout_stream_t *, sout_packetizer_input_t *,
 
 enum sout_input_query_e
 {
-    SOUT_INPUT_SET_SPU_HIGHLIGHT, /* arg1=const vlc_spu_highlight_t *, can fail */
+    SOUT_INPUT_SET_SPU_HIGHLIGHT, /* arg1=const heimdall_spu_highlight_t *, can fail */
 };
 int  sout_InputControl( sout_stream_t *, sout_packetizer_input_t *,
                         int i_query, ... );

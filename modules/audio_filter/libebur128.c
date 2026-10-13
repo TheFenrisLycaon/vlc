@@ -2,6 +2,7 @@
  * libebur128.c : libebur128 filter
  *****************************************************************************
  * Copyright © 2020 Videolabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,16 +23,16 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_aout.h>
-#include <vlc_filter.h>
-#include <vlc_modules.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_aout.h>
+#include <heimdall_filter.h>
+#include <heimdall_modules.h>
+#include <heimdall_plugin.h>
 
 #include <ebur128.h>
 
-#define UPDATE_INTERVAL VLC_TICK_FROM_MS(400)
+#define UPDATE_INTERVAL HEIMDALL_TICK_FROM_MS(400)
 
 #define CFG_PREFIX "ebur128-"
 
@@ -39,7 +40,7 @@ struct filter_sys
 {
     int mode;
     ebur128_state *state;
-    vlc_tick_t last_update;
+    heimdall_tick_t last_update;
     bool new_frames;
 };
 
@@ -89,7 +90,7 @@ SendLoudnessMeter(filter_t *filter)
     struct filter_sys *sys = filter->p_sys;
 
     int error;
-    struct vlc_audio_loudness loudness = { 0, 0, 0, 0, 0 };
+    struct heimdall_audio_loudness loudness = { 0, 0, 0, 0, 0 };
 
     error = ebur128_loudness_momentary(sys->state, &loudness.loudness_momentary);
     if (error != EBUR128_SUCCESS)
@@ -149,7 +150,7 @@ Process(filter_t *filter, block_t *block)
 
     switch (filter->fmt_in.i_codec)
     {
-        case VLC_CODEC_U8:
+        case HEIMDALL_CODEC_U8:
         {
             if (unlikely(block->i_buffer > SIZE_MAX / 2))
                 return out;
@@ -168,27 +169,27 @@ Process(filter_t *filter, block_t *block)
             free(data_s16);
             break;
         }
-        case VLC_CODEC_S16N:
+        case HEIMDALL_CODEC_S16N:
             error = ebur128_add_frames_short(sys->state,
                                              (const short *)block->p_buffer,
                                              block->i_nb_samples);
             break;
-        case VLC_CODEC_S32N:
+        case HEIMDALL_CODEC_S32N:
             error = ebur128_add_frames_int(sys->state,
                                            (const int *) block->p_buffer,
                                            block->i_nb_samples);
             break;
-        case VLC_CODEC_FL32:
+        case HEIMDALL_CODEC_FL32:
             error = ebur128_add_frames_float(sys->state,
                                              (const float *) block->p_buffer,
                                              block->i_nb_samples);
             break;
-        case VLC_CODEC_FL64:
+        case HEIMDALL_CODEC_FL64:
             error = ebur128_add_frames_double(sys->state,
                                               (const double *) block->p_buffer,
                                               block->i_nb_samples);
             break;
-        default: vlc_assert_unreachable();
+        default: heimdall_assert_unreachable();
     }
 
     if (error != EBUR128_SUCCESS)
@@ -197,7 +198,7 @@ Process(filter_t *filter, block_t *block)
         return out;
     }
 
-    if (sys->last_update == VLC_TICK_INVALID)
+    if (sys->last_update == HEIMDALL_TICK_INVALID)
         sys->last_update = out->i_pts;
 
     if (out->i_pts + out->i_length - sys->last_update >= UPDATE_INTERVAL)
@@ -227,7 +228,7 @@ Flush(filter_t *filter)
             SendLoudnessMeter(filter);
             sys->new_frames = false;
         }
-        sys->last_update = VLC_TICK_INVALID;
+        sys->last_update = HEIMDALL_TICK_INVALID;
 
         ebur128_destroy(&sys->state);
     }
@@ -243,24 +244,24 @@ Close(filter_t *filter)
     free(filter->p_sys);
 }
 
-static const struct vlc_filter_operations filter_ops = {
+static const struct heimdall_filter_operations filter_ops = {
     .filter_audio = Process, .flush = Flush, .close = Close,
 };
 
-static int Open(vlc_object_t *this)
+static int Open(heimdall_object_t *this)
 {
     filter_t *filter = (filter_t *) this;
 
     switch (filter->fmt_in.i_codec)
     {
-        case VLC_CODEC_U8:
-        case VLC_CODEC_S16N:
-        case VLC_CODEC_S32N:
-        case VLC_CODEC_FL32:
-        case VLC_CODEC_FL64:
+        case HEIMDALL_CODEC_U8:
+        case HEIMDALL_CODEC_S16N:
+        case HEIMDALL_CODEC_S32N:
+        case HEIMDALL_CODEC_FL32:
+        case HEIMDALL_CODEC_FL64:
             break;
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 
     static const char *const options[] = {
@@ -270,7 +271,7 @@ static int Open(vlc_object_t *this)
 
     struct filter_sys *sys = malloc(sizeof(*sys));
     if (sys == NULL)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     int plugin_mode = var_InheritInteger(filter, CFG_PREFIX "mode");
     sys->mode = EBUR128_MODE_M;
@@ -281,30 +282,30 @@ static int Open(vlc_object_t *this)
         case 2: sys->mode |= EBUR128_MODE_I;        /* fall-through */
         case 1: sys->mode |= EBUR128_MODE_S;        /* fall-through */
         case 0: break;
-        default: vlc_assert_unreachable();
+        default: heimdall_assert_unreachable();
     }
 
 
-    sys->last_update = VLC_TICK_INVALID;
+    sys->last_update = HEIMDALL_TICK_INVALID;
     sys->new_frames = false;
     sys->state = CreateEbuR128State(filter, sys->mode);
     if (sys->state == NULL)
     {
         free(sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     filter->p_sys = sys;
     filter->fmt_out.audio = filter->fmt_in.audio;
     filter->ops = &filter_ops;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname("EBU R 128")
     set_description("EBU R128 standard for loudness normalisation")
     set_subcategory(SUBCAT_AUDIO_AFILTER)
     add_integer_with_range(CFG_PREFIX "mode", 0, 0, 4, N_("Mode"), NULL)
     set_capability("audio meter", 0)
     set_callback(Open)
-vlc_module_end()
+heimdall_module_end()

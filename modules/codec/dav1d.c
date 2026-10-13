@@ -2,6 +2,7 @@
  * dav1d.c: dav1d decoder (AV1) module
  *****************************************************************************
  * Copyright (C) 2016 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Adrien Maglo <magsoft@videolan.org>
  * Based on aom.c by: Tristan Matthews <tmatth@videolan.org>
@@ -29,10 +30,10 @@
 #endif
 
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
-#include <vlc_timestamp_helper.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
+#include <heimdall_timestamp_helper.h>
 
 #include <errno.h>
 #include <dav1d/dav1d.h>
@@ -44,8 +45,8 @@
 /****************************************************************************
  * Local prototypes
  ****************************************************************************/
-static int OpenDecoder(vlc_object_t *);
-static void CloseDecoder(vlc_object_t *);
+static int OpenDecoder(heimdall_object_t *);
+static void CloseDecoder(heimdall_object_t *);
 
 /*****************************************************************************
  * Module descriptor
@@ -57,7 +58,7 @@ static void CloseDecoder(vlc_object_t *);
 #define THREAD_TILES_LONGTEXT N_( "Max number of threads used for tile decoding, default 0=auto" )
 
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname("dav1d")
     set_description(N_("Dav1d video decoder"))
     set_capability("video decoder", 10000)
@@ -75,7 +76,7 @@ vlc_module_begin ()
                 THREAD_TILES_TEXT, THREAD_TILES_LONGTEXT)
 #endif
     add_bool( "dav1d-all-layers", false, "Display all spatial layers", NULL )
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * decoder_sys_t: libaom decoder descriptor
@@ -89,23 +90,23 @@ typedef struct
 
 struct user_data_s
 {
-    vlc_tick_t dts;
+    heimdall_tick_t dts;
 };
 
 static void FreeUserData_Handler(const uint8_t *p, void *userdata)
 {
-    VLC_UNUSED(p);
+    HEIMDALL_UNUSED(p);
     free(userdata);
 }
 
-static vlc_fourcc_t FindVlcChroma(const Dav1dPicture *img)
+static heimdall_fourcc_t FindHeimdallChroma(const Dav1dPicture *img)
 {
-    static const vlc_fourcc_t chroma_table_rgb[] = { VLC_CODEC_GBR_PLANAR, VLC_CODEC_GBR_PLANAR_10L, VLC_CODEC_GBR_PLANAR_12L };
-    static const vlc_fourcc_t chroma_table[][3] = {
-        [DAV1D_PIXEL_LAYOUT_I400] = { VLC_CODEC_GREY, VLC_CODEC_GREY_10L, VLC_CODEC_GREY_12L },
-        [DAV1D_PIXEL_LAYOUT_I420] = { VLC_CODEC_I420, VLC_CODEC_I420_10L,  VLC_CODEC_I420_12L },
-        [DAV1D_PIXEL_LAYOUT_I422] = { VLC_CODEC_I422, VLC_CODEC_I422_10L,  VLC_CODEC_I422_12L },
-        [DAV1D_PIXEL_LAYOUT_I444] = { VLC_CODEC_I444, VLC_CODEC_I444_10L,  VLC_CODEC_I444_12L },
+    static const heimdall_fourcc_t chroma_table_rgb[] = { HEIMDALL_CODEC_GBR_PLANAR, HEIMDALL_CODEC_GBR_PLANAR_10L, HEIMDALL_CODEC_GBR_PLANAR_12L };
+    static const heimdall_fourcc_t chroma_table[][3] = {
+        [DAV1D_PIXEL_LAYOUT_I400] = { HEIMDALL_CODEC_GREY, HEIMDALL_CODEC_GREY_10L, HEIMDALL_CODEC_GREY_12L },
+        [DAV1D_PIXEL_LAYOUT_I420] = { HEIMDALL_CODEC_I420, HEIMDALL_CODEC_I420_10L,  HEIMDALL_CODEC_I420_12L },
+        [DAV1D_PIXEL_LAYOUT_I422] = { HEIMDALL_CODEC_I422, HEIMDALL_CODEC_I422_10L,  HEIMDALL_CODEC_I422_12L },
+        [DAV1D_PIXEL_LAYOUT_I444] = { HEIMDALL_CODEC_I444, HEIMDALL_CODEC_I444_10L,  HEIMDALL_CODEC_I444_12L },
     };
 
     // AV1 signals RGB with the combination of the identity matrix, the BT.709 primaries and the sRGB/YCC transfer function.
@@ -140,9 +141,9 @@ static void UpdateDecoderOutput(decoder_t *dec, const Dav1dSequenceHeader *seq_h
 
     if(dec->fmt_in->video.primaries == COLOR_PRIMARIES_UNDEF && seq_hdr)
     {
-        v->primaries = iso_23001_8_cp_to_vlc_primaries(seq_hdr->pri);
-        v->transfer = iso_23001_8_tc_to_vlc_xfer(seq_hdr->trc);
-        v->space = iso_23001_8_mc_to_vlc_coeffs(seq_hdr->mtrx);
+        v->primaries = iso_23001_8_cp_to_heimdall_primaries(seq_hdr->pri);
+        v->transfer = iso_23001_8_tc_to_heimdall_xfer(seq_hdr->trc);
+        v->space = iso_23001_8_mc_to_heimdall_coeffs(seq_hdr->mtrx);
         v->color_range = seq_hdr->color_range ? COLOR_RANGE_FULL : COLOR_RANGE_LIMITED;
     }
 }
@@ -189,7 +190,7 @@ static int NewPicture(Dav1dPicture *img, void *cookie)
     v->projection_mode = dec->fmt_in->video.projection_mode;
     v->multiview_mode = dec->fmt_in->video.multiview_mode;
     v->pose = dec->fmt_in->video.pose;
-    dec->fmt_out.i_codec = FindVlcChroma(img);
+    dec->fmt_out.i_codec = FindHeimdallChroma(img);
     if (unlikely(dec->fmt_out.i_codec == 0))
         return -1;
 
@@ -262,7 +263,7 @@ static void FreePicture(Dav1dPicture *data, void *cookie)
 {
     picture_t *pic = data->allocator_data;
     decoder_t *dec = cookie;
-    VLC_UNUSED(dec);
+    HEIMDALL_UNUSED(dec);
     picture_Release(pic);
 }
 
@@ -279,7 +280,7 @@ static void FlushDecoder(decoder_t *dec)
 
 static void release_block(const uint8_t *buf, void *b)
 {
-    VLC_UNUSED(buf);
+    HEIMDALL_UNUSED(buf);
     block_t *block = b;
     block_Release(block);
 }
@@ -294,7 +295,7 @@ static int Decode(decoder_t *dec, block_t *block)
     if (block && block->i_flags & (BLOCK_FLAG_CORRUPTED))
     {
         block_Release(block);
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
     }
 
     bool b_eos = false;
@@ -308,10 +309,10 @@ static int Decode(decoder_t *dec, block_t *block)
                                      release_block, block) != 0))
         {
             block_Release(block);
-            return VLCDEC_ECRITICAL;
+            return HEIMDALLDEC_ECRITICAL;
         }
 
-        p_data->m.timestamp = block->i_pts == VLC_TICK_INVALID ? block->i_dts : block->i_pts;
+        p_data->m.timestamp = block->i_pts == HEIMDALL_TICK_INVALID ? block->i_dts : block->i_pts;
         if(block->i_dts != p_data->m.timestamp)
         {
             struct user_data_s *userdata = malloc(sizeof(*userdata));
@@ -321,7 +322,7 @@ static int Decode(decoder_t *dec, block_t *block)
             {
                 free(userdata);
                 dav1d_data_unref(&data);
-                return VLCDEC_ECRITICAL;
+                return HEIMDALLDEC_ECRITICAL;
             }
             userdata->dts = block->i_dts;
         }
@@ -330,7 +331,7 @@ static int Decode(decoder_t *dec, block_t *block)
     }
 
     bool b_draining = false;
-    int i_ret = VLCDEC_SUCCESS;
+    int i_ret = HEIMDALLDEC_SUCCESS;
     int res;
     do {
         if( p_data )
@@ -341,16 +342,16 @@ static int Decode(decoder_t *dec, block_t *block)
                 msg_Err(dec, "Decoder feed error %d!", res);
                 /* bitstream decoding errors (typically DAV1D_ERR(EINVAL), are assumed
                  * to be recoverable. Other errors returned from this function are either
-                 * unexpected within the VLC configuration, or considered critical failures:
+                 * unexpected within the Heimdall configuration, or considered critical failures:
                  * - EAGAIN is handled above.
                  * - ENOMEM means out-of-memory and is unrecoverable.
                  * - ENOPROTOOPT is a build or configuration error (invalid demuxer/muxer or unsupported bitdepth) and is unrecoverable.
-                 * - ERANGE means frame size limits exceeded. VLC doesn't use this so we can ignore this, but unless size changes, it would be unrecoverable.
+                 * - ERANGE means frame size limits exceeded. Heimdall doesn't use this so we can ignore this, but unless size changes, it would be unrecoverable.
                  * - EINVAL is any other bitstream error which is basically what this is about.
                  * - EIO means file count not be opened and is unrecoverable.
                  * - ENOENT  is actually only returned by dav1d_parse_sequence_header(), which is outside this context (I think?).
                  * - read() can return other values but it's OK to consider these critical for now. */
-                i_ret = res == DAV1D_ERR(EINVAL) ? VLCDEC_SUCCESS : VLCDEC_ECRITICAL;
+                i_ret = res == DAV1D_ERR(EINVAL) ? HEIMDALLDEC_SUCCESS : HEIMDALLDEC_ECRITICAL;
                 break;
             }
         }
@@ -366,7 +367,7 @@ static int Decode(decoder_t *dec, block_t *block)
                 picture_t *pic = picture_Clone(_pic);
                 if (unlikely(pic == NULL))
                 {
-                    i_ret = VLC_EGENERIC;
+                    i_ret = HEIMDALL_EGENERIC;
                     picture_Release(_pic);
                     b_output_error = true;
                     break;
@@ -421,22 +422,22 @@ static int Decode(decoder_t *dec, block_t *block)
 /*****************************************************************************
  * OpenDecoder: probe the decoder
  *****************************************************************************/
-static int OpenDecoder(vlc_object_t *p_this)
+static int OpenDecoder(heimdall_object_t *p_this)
 {
     decoder_t *dec = (decoder_t *)p_this;
 
-    if (dec->fmt_in->i_codec != VLC_CODEC_AV1)
-        return VLC_EGENERIC;
+    if (dec->fmt_in->i_codec != HEIMDALL_CODEC_AV1)
+        return HEIMDALL_EGENERIC;
 
-    decoder_sys_t *p_sys = vlc_obj_malloc(p_this, sizeof(*p_sys));
+    decoder_sys_t *p_sys = heimdall_obj_malloc(p_this, sizeof(*p_sys));
     if (!p_sys)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     dav1d_default_settings(&p_sys->s);
 #if DAV1D_API_VERSION_MAJOR >= 6
     p_sys->s.n_threads = var_InheritInteger(p_this, "dav1d-thread-frames");
     if (p_sys->s.n_threads == 0)
-        p_sys->s.n_threads = __MAX(1, vlc_GetCPUCount());
+        p_sys->s.n_threads = __MAX(1, heimdall_GetCPUCount());
 
 #if DAV1D_API_VERSION_MAJOR > 6 || DAV1D_API_VERSION_MINOR >= 7
     // after dav1d 1.0.0
@@ -461,10 +462,10 @@ static int OpenDecoder(vlc_object_t *p_this)
 #else // before dav1d 1.0.0
     p_sys->s.n_tile_threads = var_InheritInteger(p_this, "dav1d-thread-tiles");
     if (p_sys->s.n_tile_threads == 0)
-        p_sys->s.n_tile_threads = VLC_CLIP(vlc_GetCPUCount(), 1, 4);
+        p_sys->s.n_tile_threads = HEIMDALL_CLIP(heimdall_GetCPUCount(), 1, 4);
     p_sys->s.n_frame_threads = var_InheritInteger(p_this, "dav1d-thread-frames");
     if (p_sys->s.n_frame_threads == 0)
-        p_sys->s.n_frame_threads = __MAX(1, vlc_GetCPUCount());
+        p_sys->s.n_frame_threads = __MAX(1, heimdall_GetCPUCount());
 #endif
     p_sys->s.all_layers = var_InheritBool( p_this, "dav1d-all-layers" );
     p_sys->s.allocator.cookie = dec;
@@ -488,7 +489,7 @@ static int OpenDecoder(vlc_object_t *p_this)
     bool super_res = false;
     if (!sequence_hdr)
     {
-        dec->fmt_out.i_codec = VLC_CODEC_I420;
+        dec->fmt_out.i_codec = HEIMDALL_CODEC_I420;
         dec->fmt_out.video.i_width = dec->fmt_in->video.i_width;
         dec->fmt_out.video.i_height = dec->fmt_in->video.i_height;
     }
@@ -510,7 +511,7 @@ static int OpenDecoder(vlc_object_t *p_this)
     if (dav1d_open(&p_sys->c, &p_sys->s) < 0)
     {
         msg_Err(p_this, "Could not open the Dav1d decoder");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
 #if DAV1D_API_VERSION_MAJOR >= 6
@@ -550,8 +551,8 @@ static int OpenDecoder(vlc_object_t *p_this)
 
         if (decoder_UpdateVideoFormat(dec) != 0)
         {
-            CloseDecoder(VLC_OBJECT(dec));
-            return VLC_EGENERIC;
+            CloseDecoder(HEIMDALL_OBJECT(dec));
+            return HEIMDALL_EGENERIC;
         }
     }
     dec->pf_decode = Decode;
@@ -559,13 +560,13 @@ static int OpenDecoder(vlc_object_t *p_this)
 
     cc_Init(&p_sys->cc);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * CloseDecoder: decoder destruction
  *****************************************************************************/
-static void CloseDecoder(vlc_object_t *p_this)
+static void CloseDecoder(heimdall_object_t *p_this)
 {
     decoder_t *dec = (decoder_t *)p_this;
     decoder_sys_t *p_sys = dec->p_sys;

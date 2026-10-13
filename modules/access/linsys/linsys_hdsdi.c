@@ -2,6 +2,7 @@
  * linsys_hdsdi.c: HDSDI capture for Linear Systems/Computer Modules cards
  *****************************************************************************
  * Copyright (C) 2010-2011 VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Christophe Massiot <massiot@via.ecp.fr>
  *
@@ -36,15 +37,15 @@
 #include <fcntl.h>
 #include <errno.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
 
-#include <vlc_input.h>
-#include <vlc_access.h>
-#include <vlc_demux.h>
-#include <vlc_poll.h>
+#include <heimdall_input.h>
+#include <heimdall_access.h>
+#include <heimdall_demux.h>
+#include <heimdall_poll.h>
 
-#include <vlc_fs.h>
+#include <heimdall_fs.h>
 
 #include "linsys_sdivideo.h"
 #include "linsys_sdiaudio.h"
@@ -62,7 +63,7 @@
 #define SDIAUDIO_SAMPLESIZE_FILE "/sys/class/sdiaudio/sdiaudiorx%u/sample_size"
 #define SDIAUDIO_CHANNELS_FILE  "/sys/class/sdiaudio/sdiaudiorx%u/channels"
 #define NB_VBUFFERS             2
-#define CLOCK_GAP               VLC_TICK_FROM_MS(500)
+#define CLOCK_GAP               HEIMDALL_TICK_FROM_MS(500)
 #define START_DATE              INT64_C(0x100000000)
 
 #define MAX_AUDIOS              4
@@ -83,10 +84,10 @@
 #define AUDIO_LONGTEXT N_( \
     "Allows you to set audio configuration (id=group,pair:id=group,pair...)." )
 
-static int  Open ( vlc_object_t * );
-static void Close( vlc_object_t * );
+static int  Open ( heimdall_object_t * );
+static void Close( heimdall_object_t * );
 
-vlc_module_begin()
+heimdall_module_begin()
     set_description( N_("HD-SDI Input") )
     set_shortname( N_("HD-SDI") )
     set_subcategory( SUBCAT_INPUT_ACCESS )
@@ -104,7 +105,7 @@ vlc_module_begin()
     set_capability( "access", 0 )
     add_shortcut( "linsys-hdsdi" )
     set_callbacks( Open, Close )
-vlc_module_end()
+heimdall_module_end()
 
 /*****************************************************************************
  * Local prototypes
@@ -147,8 +148,8 @@ typedef struct
     unsigned int i_frame_rate, i_frame_rate_base;
     unsigned int i_width, i_height, i_aspect, i_forced_aspect;
     unsigned int i_vblock_size, i_ablock_size;
-    vlc_tick_t   i_next_vdate, i_next_adate;
-    vlc_tick_t   i_incr, i_aincr;
+    heimdall_tick_t   i_next_vdate, i_next_adate;
+    heimdall_tick_t   i_incr, i_aincr;
 
     /* ES stuff */
     int          i_id_video;
@@ -169,19 +170,19 @@ static int Capture( demux_t *p_demux );
 /*****************************************************************************
  * DemuxOpen:
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     demux_t     *p_demux = (demux_t *)p_this;
     demux_sys_t *p_sys;
     char        *psz_parser;
 
     if (p_demux->out == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* Fill p_demux field */
     p_demux->p_sys = p_sys = calloc( 1, sizeof( demux_sys_t ) );
     if( unlikely(!p_sys) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     /* HDSDI AR */
     unsigned int i_num, i_den;
@@ -248,29 +249,29 @@ static int Open( vlc_object_t *p_this )
 
     if( pthread_create( &p_sys->thread, NULL, Demux, p_demux ) )
     {
-        vlc_close( p_sys->evfd );
+        heimdall_close( p_sys->evfd );
         goto error;
     }
 
     p_demux->pf_demux = NULL;
     p_demux->pf_control = Control;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 error:
     free( p_sys );
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /*****************************************************************************
  * DemuxClose:
  *****************************************************************************/
-static void Close( vlc_object_t *p_this )
+static void Close( heimdall_object_t *p_this )
 {
     demux_t     *p_demux = (demux_t *)p_this;
     demux_sys_t *p_sys = p_demux->p_sys;
 
     write( p_sys->evfd, &(uint64_t){ 1 }, sizeof (uint64_t));
     pthread_join( p_sys->thread, NULL );
-    vlc_close( p_sys->evfd );
+    heimdall_close( p_sys->evfd );
     free( p_sys );
 }
 
@@ -281,10 +282,10 @@ static void *Demux( void *opaque )
 {
     demux_t *p_demux = opaque;
 
-    if( InitCapture( p_demux ) != VLC_SUCCESS )
+    if( InitCapture( p_demux ) != HEIMDALL_SUCCESS )
         return NULL;
 
-    while( Capture( p_demux ) == VLC_SUCCESS );
+    while( Capture( p_demux ) == HEIMDALL_SUCCESS );
 
     CloseCapture( p_demux );
     return NULL;
@@ -305,16 +306,16 @@ static int Control( demux_t *p_demux, int i_query, va_list args )
             /* TODO */
             pb = va_arg( args, bool * );
             *pb = false;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
 
         case DEMUX_GET_PTS_DELAY:
-            *va_arg( args, vlc_tick_t * ) =
-                VLC_TICK_FROM_MS(var_InheritInteger( p_demux, "live-caching" ));
-            return VLC_SUCCESS;
+            *va_arg( args, heimdall_tick_t * ) =
+                HEIMDALL_TICK_FROM_MS(var_InheritInteger( p_demux, "live-caching" ));
+            return HEIMDALL_SUCCESS;
 
         /* TODO implement others */
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 }
 
@@ -490,16 +491,16 @@ static int InitVideo( demux_t *p_demux )
 
     default:
         msg_Err( p_demux, "unsupported standard %d", p_sys->i_standard );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     p_sys->i_next_vdate = START_DATE;
-    p_sys->i_incr = vlc_tick_from_samples(p_sys->i_frame_rate_base, p_sys->i_frame_rate);
+    p_sys->i_incr = heimdall_tick_from_samples(p_sys->i_frame_rate_base, p_sys->i_frame_rate);
     p_sys->i_vblock_size = p_sys->i_width * p_sys->i_height * 3 / 2
                             + sizeof(struct block_extension_t);
 
     /* Video ES */
-    es_format_Init( &fmt, VIDEO_ES, VLC_CODEC_I420 );
+    es_format_Init( &fmt, VIDEO_ES, HEIMDALL_CODEC_I420 );
     fmt.i_id                    = p_sys->i_id_video;
     fmt.video.i_frame_rate      = p_sys->i_frame_rate;
     fmt.video.i_frame_rate_base = p_sys->i_frame_rate_base;
@@ -510,7 +511,7 @@ static int InitVideo( demux_t *p_demux )
     fmt.video.i_sar_den         = VOUT_ASPECT_FACTOR;
     p_sys->p_es_video           = es_out_Add( p_demux->out, &fmt );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int InitAudio( demux_t *p_demux )
@@ -528,7 +529,7 @@ static int InitAudio( demux_t *p_demux )
                  1 + p_audio->i_channel / 2, 1 + (p_audio->i_channel % 2),
                  p_sys->i_sample_rate, p_audio->i_delay );
 
-        es_format_Init( &fmt, AUDIO_ES, VLC_CODEC_S16L );
+        es_format_Init( &fmt, AUDIO_ES, HEIMDALL_CODEC_S16L );
         fmt.i_id = p_audio->i_id;
         fmt.audio.i_channels          = 2;
         fmt.audio.i_physical_channels = AOUT_CHANS_STEREO;
@@ -543,9 +544,9 @@ static int InitAudio( demux_t *p_demux )
 
     p_sys->i_next_adate = START_DATE;
     p_sys->i_ablock_size = p_sys->i_sample_rate * 4 * p_sys->i_frame_rate_base / p_sys->i_frame_rate;
-    p_sys->i_aincr = vlc_tick_from_samples(p_sys->i_ablock_size, p_sys->i_sample_rate * 4);
+    p_sys->i_aincr = heimdall_tick_from_samples(p_sys->i_ablock_size, p_sys->i_sample_rate * 4);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int HandleVideo( demux_t *p_demux, const uint8_t *p_buffer )
@@ -553,7 +554,7 @@ static int HandleVideo( demux_t *p_demux, const uint8_t *p_buffer )
     demux_sys_t *p_sys = p_demux->p_sys;
     block_t *p_current_picture = block_Alloc( p_sys->i_vblock_size );
     if( unlikely( !p_current_picture ) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     uint8_t *p_y = p_current_picture->p_buffer;
     uint8_t *p_u = p_y + p_sys->i_width * p_sys->i_height;
     uint8_t *p_v = p_u + p_sys->i_width * p_sys->i_height / 4;
@@ -609,7 +610,7 @@ static int HandleVideo( demux_t *p_demux, const uint8_t *p_buffer )
 
     es_out_SetPCR( p_demux->out, p_sys->i_next_vdate );
     p_sys->i_next_vdate += p_sys->i_incr;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int HandleAudio( demux_t *p_demux, const uint8_t *p_buffer )
@@ -623,20 +624,20 @@ static int HandleAudio( demux_t *p_demux, const uint8_t *p_buffer )
         {
             block_t *p_block = block_Alloc( p_sys->i_ablock_size );
             if( unlikely( !p_block ) )
-                return VLC_ENOMEM;
+                return HEIMDALL_ENOMEM;
             SparseCopy( (int16_t *)p_block->p_buffer, (const int16_t *)p_buffer,
                         p_sys->i_ablock_size / 4,
                         p_audio->i_channel * 2, p_sys->i_max_channel + 1 );
 
             p_block->i_dts = p_block->i_pts
-                = p_sys->i_next_adate + vlc_tick_from_samples(p_audio->i_delay,
+                = p_sys->i_next_adate + heimdall_tick_from_samples(p_audio->i_delay,
                                                               p_sys->i_sample_rate);
             p_block->i_length = p_sys->i_aincr;
             es_out_Send( p_demux->out, p_audio->p_es, p_block );
         }
     }
     p_sys->i_next_adate += p_sys->i_aincr;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -655,11 +656,11 @@ static ssize_t WriteULSysfs( const char *psz_fmt, unsigned int i_link,
 
     snprintf( psz_data, sizeof(psz_data) -1, "%u\n", i_buf );
 
-    if ( (i_fd = vlc_open( psz_file, O_WRONLY )) < 0 )
+    if ( (i_fd = heimdall_open( psz_file, O_WRONLY )) < 0 )
         return i_fd;
 
     i_ret = write( i_fd, psz_data, strlen(psz_data) + 1 );
-    vlc_close( i_fd );
+    heimdall_close( i_fd );
     return i_ret;
 }
 
@@ -673,10 +674,10 @@ static int InitCapture( demux_t *p_demux )
     char psz_vdev[MAXLEN];
 
     snprintf( psz_vdev, sizeof(psz_vdev), SDIVIDEO_DEVICE, p_sys->i_link );
-    if ( (p_sys->i_vfd = vlc_open( psz_vdev, O_RDONLY ) ) < 0 )
+    if ( (p_sys->i_vfd = heimdall_open( psz_vdev, O_RDONLY ) ) < 0 )
     {
         msg_Err( p_demux, "couldn't open device %s", psz_vdev );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Wait for standard to settle down */
@@ -698,7 +699,7 @@ static int InitCapture( demux_t *p_demux )
 
             if ( ioctl( p_sys->i_vfd, SDIVIDEO_IOC_RXGETEVENTS, &i_val ) < 0 )
                 msg_Warn( p_demux, "couldn't SDIVIDEO_IOC_RXGETEVENTS: %s",
-                          vlc_strerror_c(errno) );
+                          heimdall_strerror_c(errno) );
             else
             {
                 if ( i_val & SDIVIDEO_EVENT_RX_BUFFER )
@@ -719,8 +720,8 @@ static int InitCapture( demux_t *p_demux )
 
         if( pfd[1].revents )
         {
-            vlc_close( p_sys->i_vfd );
-            return VLC_EGENERIC;
+            heimdall_close( p_sys->i_vfd );
+            return HEIMDALL_EGENERIC;
         }
     }
 
@@ -728,14 +729,14 @@ static int InitCapture( demux_t *p_demux )
           < 0 )
     {
         msg_Warn( p_demux, "couldn't SDIVIDEO_IOC_RXGETVIDSTATUS: %s",
-                  vlc_strerror_c(errno) );
-        vlc_close( p_sys->i_vfd );
-        return VLC_EGENERIC;
+                  heimdall_strerror_c(errno) );
+        heimdall_close( p_sys->i_vfd );
+        return HEIMDALL_EGENERIC;
     }
-    vlc_close( p_sys->i_vfd );
+    heimdall_close( p_sys->i_vfd );
 
-    if ( InitVideo( p_demux ) != VLC_SUCCESS )
-        return VLC_EGENERIC;
+    if ( InitVideo( p_demux ) != HEIMDALL_SUCCESS )
+        return HEIMDALL_EGENERIC;
     p_sys->i_vbuffer_size = p_sys->i_height * p_sys->i_width * 2;
 
     /* First open the audio for synchronization reasons */
@@ -745,17 +746,17 @@ static int InitCapture( demux_t *p_demux )
         char psz_adev[MAXLEN];
 
         snprintf( psz_adev, sizeof(psz_adev), SDIAUDIO_DEVICE, p_sys->i_link );
-        if ( (p_sys->i_afd = vlc_open( psz_adev, O_RDONLY ) ) < 0 )
+        if ( (p_sys->i_afd = heimdall_open( psz_adev, O_RDONLY ) ) < 0 )
         {
             msg_Err( p_demux, "couldn't open device %s", psz_adev );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         if ( ioctl( p_sys->i_afd, SDIAUDIO_IOC_RXGETAUDRATE, &i_rate ) < 0 )
         {
             msg_Warn( p_demux, "couldn't SDIAUDIO_IOC_RXGETAUDRATE: %s",
-                      vlc_strerror_c(errno) );
-            return VLC_EGENERIC;
+                      heimdall_strerror_c(errno) );
+            return HEIMDALL_EGENERIC;
         }
         switch ( i_rate )
         {
@@ -779,12 +780,12 @@ static int InitCapture( demux_t *p_demux )
         case SDIAUDIO_CTL_SYNC_FREE_RUNNING:
         default:
             msg_Err( p_demux, "unknown sample rate %u", i_rate );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
-        vlc_close( p_sys->i_afd );
+        heimdall_close( p_sys->i_afd );
 
-        if ( InitAudio( p_demux ) != VLC_SUCCESS )
-            return VLC_EGENERIC;
+        if ( InitAudio( p_demux ) != HEIMDALL_SUCCESS )
+            return HEIMDALL_EGENERIC;
         p_sys->i_abuffer_size = p_sys->i_ablock_size
                                  * (1 + p_sys->i_max_channel);
 
@@ -794,7 +795,7 @@ static int InitCapture( demux_t *p_demux )
         {
             msg_Err( p_demux, "couldn't write file " SDIAUDIO_SAMPLESIZE_FILE,
                      p_sys->i_link );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         if ( WriteULSysfs( SDIAUDIO_CHANNELS_FILE, p_sys->i_link,
@@ -802,7 +803,7 @@ static int InitCapture( demux_t *p_demux )
         {
             msg_Err( p_demux, "couldn't write file " SDIAUDIO_CHANNELS_FILE,
                      p_sys->i_link );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
 #ifdef HAVE_MMAP_SDIAUDIO
@@ -811,7 +812,7 @@ static int InitCapture( demux_t *p_demux )
         {
             msg_Err( p_demux, "couldn't read file " SDIAUDIO_BUFFERS_FILE,
                      p_sys->i_link );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
         p_sys->i_current_abuffer = 0;
 #endif
@@ -821,21 +822,21 @@ static int InitCapture( demux_t *p_demux )
         {
             msg_Err( p_demux, "couldn't write file " SDIAUDIO_BUFSIZE_FILE,
                      p_sys->i_link );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         if ( (p_sys->i_afd = open( psz_adev, O_RDONLY ) ) < 0 )
         {
             msg_Err( p_demux, "couldn't open device %s", psz_adev );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
 #ifdef HAVE_MMAP_SDIAUDIO
         i_bufmemsize = ((p_sys->i_abuffer_size + i_page_size - 1) / i_page_size)
                          * i_page_size;
-        p_sys->pp_abuffers = vlc_alloc( p_sys->i_abuffers, sizeof(uint8_t *) );
+        p_sys->pp_abuffers = heimdall_alloc( p_sys->i_abuffers, sizeof(uint8_t *) );
         if( unlikely( !p_sys->pp_abuffers ) )
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         for ( unsigned int i = 0; i < p_sys->i_abuffers; i++ )
         {
             if ( (p_sys->pp_abuffers[i] = mmap( NULL, p_sys->i_abuffer_size,
@@ -843,8 +844,8 @@ static int InitCapture( demux_t *p_demux )
                                                 i * i_bufmemsize )) == MAP_FAILED )
             {
                 msg_Err( p_demux, "couldn't mmap(%d): %s", i,
-                         vlc_strerror_c(errno) );
-                return VLC_EGENERIC;
+                         heimdall_strerror_c(errno) );
+                return HEIMDALL_EGENERIC;
             }
         }
 #endif
@@ -856,7 +857,7 @@ static int InitCapture( demux_t *p_demux )
     {
         msg_Err( p_demux, "couldn't write file " SDIVIDEO_MODE_FILE,
                  p_sys->i_link );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if ( WriteULSysfs( SDIVIDEO_BUFFERS_FILE, p_sys->i_link,
@@ -864,7 +865,7 @@ static int InitCapture( demux_t *p_demux )
     {
         msg_Err( p_demux, "couldn't write file " SDIVIDEO_BUFFERS_FILE,
                  p_sys->i_link );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 #ifdef HAVE_MMAP_SDIVIDEO
     p_sys->i_vbuffers = NB_VBUFFERS;
@@ -875,22 +876,22 @@ static int InitCapture( demux_t *p_demux )
     {
         msg_Err( p_demux, "couldn't write file " SDIVIDEO_BUFSIZE_FILE,
                  p_sys->i_link );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if ( (p_sys->i_vfd = open( psz_vdev, O_RDONLY ) ) < 0 )
     {
         msg_Err( p_demux, "couldn't open device %s", psz_vdev );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
 #ifdef HAVE_MMAP_SDIVIDEO
     p_sys->i_current_vbuffer = 0;
     i_bufmemsize = ((p_sys->i_vbuffer_size + i_page_size - 1) / i_page_size)
                      * i_page_size;
-    p_sys->pp_vbuffers = vlc_alloc( p_sys->i_vbuffers, sizeof(uint8_t *) );
+    p_sys->pp_vbuffers = heimdall_alloc( p_sys->i_vbuffers, sizeof(uint8_t *) );
     if( unlikely( !p_sys->pp_vbuffers ) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     for ( unsigned int i = 0; i < p_sys->i_vbuffers; i++ )
     {
         if ( (p_sys->pp_vbuffers[i] = mmap( NULL, p_sys->i_vbuffer_size,
@@ -898,13 +899,13 @@ static int InitCapture( demux_t *p_demux )
                                             i * i_bufmemsize )) == MAP_FAILED )
         {
             msg_Err( p_demux, "couldn't mmap(%d): %s", i,
-                     vlc_strerror_c(errno) );
-            return VLC_EGENERIC;
+                     heimdall_strerror_c(errno) );
+            return HEIMDALL_EGENERIC;
         }
     }
 #endif
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void CloseCapture( demux_t *p_demux )
@@ -917,7 +918,7 @@ static void CloseCapture( demux_t *p_demux )
         munmap( p_sys->pp_vbuffers[i], p_sys->i_vbuffer_size );
     free( p_sys->pp_vbuffers );
 #endif
-    vlc_close( p_sys->i_vfd );
+    heimdall_close( p_sys->i_vfd );
     if ( p_sys->i_max_channel != -1 )
     {
 #ifdef HAVE_MMAP_SDIAUDIO
@@ -925,7 +926,7 @@ static void CloseCapture( demux_t *p_demux )
             munmap( p_sys->pp_abuffers[i], p_sys->i_abuffer_size );
         free( p_sys->pp_abuffers );
 #endif
-        vlc_close( p_sys->i_afd );
+        heimdall_close( p_sys->i_afd );
     }
 }
 
@@ -945,10 +946,10 @@ static int Capture( demux_t *p_demux )
     }
 
     if( poll( pfd, 2 + (p_sys->i_max_channel != -1), -1 ) < 0 )
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
     if( pfd[0].revents )
-        return VLC_EGENERIC; /* Stop! */
+        return HEIMDALL_EGENERIC; /* Stop! */
 
     if( pfd[1].revents & POLLPRI )
     {
@@ -956,7 +957,7 @@ static int Capture( demux_t *p_demux )
 
         if ( ioctl( p_sys->i_vfd, SDIVIDEO_IOC_RXGETEVENTS, &i_val ) < 0 )
             msg_Warn( p_demux, "couldn't SDIVIDEO_IOC_RXGETEVENTS: %s",
-                      vlc_strerror_c(errno) );
+                      heimdall_strerror_c(errno) );
         else
         {
             if ( i_val & SDIVIDEO_EVENT_RX_BUFFER )
@@ -981,7 +982,7 @@ static int Capture( demux_t *p_demux )
 
         if ( ioctl( p_sys->i_afd, SDIAUDIO_IOC_RXGETEVENTS, &i_val ) < 0 )
             msg_Warn( p_demux, "couldn't SDIAUDIO_IOC_RXGETEVENTS: %s",
-                      vlc_strerror_c(errno) );
+                      heimdall_strerror_c(errno) );
         else
         {
             if ( i_val & SDIAUDIO_EVENT_RX_BUFFER )
@@ -1005,19 +1006,19 @@ static int Capture( demux_t *p_demux )
               < 0 )
         {
             msg_Warn( p_demux, "couldn't SDIVIDEO_IOC_DQBUF: %s",
-                      vlc_strerror_c(errno) );
-            return VLC_EGENERIC;
+                      heimdall_strerror_c(errno) );
+            return HEIMDALL_EGENERIC;
         }
 
-        if( HandleVideo( p_demux, p_sys->pp_vbuffers[p_sys->i_current_vbuffer] ) != VLC_SUCCESS )
-            return VLC_ENOMEM;
+        if( HandleVideo( p_demux, p_sys->pp_vbuffers[p_sys->i_current_vbuffer] ) != HEIMDALL_SUCCESS )
+            return HEIMDALL_ENOMEM;
 
         if ( ioctl( p_sys->i_vfd, SDIVIDEO_IOC_QBUF, p_sys->i_current_vbuffer )
               < 0 )
         {
             msg_Warn( p_demux, "couldn't SDIVIDEO_IOC_QBUF: %s",
-                      vlc_strerror_c(errno) );
-            return VLC_EGENERIC;
+                      heimdall_strerror_c(errno) );
+            return HEIMDALL_EGENERIC;
         }
 
         p_sys->i_current_vbuffer++;
@@ -1025,19 +1026,19 @@ static int Capture( demux_t *p_demux )
 #else
         uint8_t *p_buffer = malloc( p_sys->i_vbuffer_size );
         if( unlikely( !p_buffer ) )
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
 
         if ( read( p_sys->i_vfd, p_buffer, p_sys->i_vbuffer_size ) < 0 )
         {
-            msg_Warn( p_demux, "couldn't read: %s", vlc_strerror_c(errno) );
+            msg_Warn( p_demux, "couldn't read: %s", heimdall_strerror_c(errno) );
             free( p_buffer );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
-        if( HandleVideo( p_demux, p_buffer ) != VLC_SUCCESS )
+        if( HandleVideo( p_demux, p_buffer ) != HEIMDALL_SUCCESS )
         {
             free( p_buffer );
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         }
         free( p_buffer );
 #endif
@@ -1050,19 +1051,19 @@ static int Capture( demux_t *p_demux )
               < 0 )
         {
             msg_Warn( p_demux, "couldn't SDIAUDIO_IOC_DQBUF: %s",
-                      vlc_strerror_c(errno) );
-            return VLC_EGENERIC;
+                      heimdall_strerror_c(errno) );
+            return HEIMDALL_EGENERIC;
         }
 
-        if( HandleAudio( p_demux, p_sys->pp_abuffers[p_sys->i_current_abuffer] ) != VLC_SUCCESS )
-            return VLC_ENOMEM;
+        if( HandleAudio( p_demux, p_sys->pp_abuffers[p_sys->i_current_abuffer] ) != HEIMDALL_SUCCESS )
+            return HEIMDALL_ENOMEM;
 
         if ( ioctl( p_sys->i_afd, SDIAUDIO_IOC_QBUF, p_sys->i_current_abuffer )
               < 0 )
         {
             msg_Warn( p_demux, "couldn't SDIAUDIO_IOC_QBUF: %s",
-                      vlc_strerror_c(errno) );
-            return VLC_EGENERIC;
+                      heimdall_strerror_c(errno) );
+            return HEIMDALL_EGENERIC;
         }
 
         p_sys->i_current_abuffer++;
@@ -1070,23 +1071,23 @@ static int Capture( demux_t *p_demux )
 #else
         uint8_t *p_buffer = malloc( p_sys->i_abuffer_size );
         if( unlikely( !p_buffer ) )
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
 
         if ( read( p_sys->i_afd, p_buffer, p_sys->i_abuffer_size ) < 0 )
         {
-            msg_Warn( p_demux, "couldn't read: %s", vlc_strerror_c(errno) );
+            msg_Warn( p_demux, "couldn't read: %s", heimdall_strerror_c(errno) );
             free( p_buffer );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
-        if( HandleAudio( p_demux, p_buffer ) != VLC_SUCCESS )
+        if( HandleAudio( p_demux, p_buffer ) != HEIMDALL_SUCCESS )
         {
             free( p_buffer );
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         }
         free( p_buffer );
 #endif
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

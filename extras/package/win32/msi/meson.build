@@ -26,7 +26,7 @@ lightx86 = find_program('light.exe', required: msi_required)
 
 W_MSIDIR = run_command(cygpath, '-w', meson.current_source_dir(), check: true).stdout().strip()
 W_MSIBUILDDIR = run_command(cygpath, '-w', meson.current_build_dir(), check: true).stdout().strip()
-W_TOPBUILDDIR = run_command(cygpath, '-w', vlc_build_root, check: true).stdout().strip()
+W_TOPBUILDDIR = run_command(cygpath, '-w', heimdall_build_root, check: true).stdout().strip()
 W_PREFIX = run_command(cygpath, '-w', prefix_path / '', check: true).stdout().strip()
 
 wix_conf = configuration_data()
@@ -37,7 +37,7 @@ wix_conf.set('HAVE_NLS_TRUE', wix_conf.get('ENABLE_NLS', 0) == 1 ? '' : '#')
 wix_conf.set('WINDOWS_ARCH', WIX_WINDOWS_ARCH)
 wix_conf.set('PREFIX_PATH', W_PREFIX)
 
-vlc_wix = configure_file(
+heimdall_wix = configure_file(
     input: 'config.wxi.in',
     output: 'config.wxi',
     configuration: wix_conf,
@@ -93,7 +93,7 @@ foreach wxsobj : wxs_files
         ],
         output: outname,
         input: wxsobj[0],
-        depend_files: [vlc_wix],
+        depend_files: [heimdall_wix],
         build_always_stale: true,
         build_by_default: false,
         console: true,
@@ -102,7 +102,7 @@ foreach wxsobj : wxs_files
     compiled_winpath += out_winpath
 endforeach
 
-msi_name = 'vlc-' + vlc_version + '-' + winstaller_suffix + '.msi'
+msi_name = 'heimdall-' + heimdall_version + '-' + winstaller_suffix + '.msi'
 msi_output = custom_target(
     command: [x86_runner, lightx86, '-nologo',
         '-sval', '-spdb', '-ext', 'WixUIExtension', '-ext', 'WixUtilExtension', '-cultures:en-us',

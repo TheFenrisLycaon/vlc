@@ -2,6 +2,7 @@
  * codecs.c:
  *****************************************************************************
  * Copyright (C) 2023 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -21,9 +22,9 @@
 #include "config.h"
 #endif
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
-#include <vlc_memstream.h>
+#include <heimdall_memstream.h>
 
 #include "../../packetizer/h264_nal.h"
 #include "../../packetizer/hevc_nal.h"
@@ -31,7 +32,7 @@
 #include "../../packetizer/hxxx_nal.h"
 #include "codecs.h"
 
-static int FormatAVC(struct vlc_memstream *ms, const es_format_t *fmt)
+static int FormatAVC(struct heimdall_memstream *ms, const es_format_t *fmt)
 {
     /* Parse the h264 constraint flag. */
     hxxx_iterator_ctx_t it;
@@ -52,15 +53,15 @@ static int FormatAVC(struct vlc_memstream *ms, const es_format_t *fmt)
 
     /* NAL units aren't provisioned. Codec description will be minimal. */
     if (unlikely(nal == NULL || nal_size<4))
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
     uint8_t profile = nal[1];
     uint8_t constraints = nal[2];
     uint8_t level = nal[3];
 
-    const int written = vlc_memstream_printf(
+    const int written = heimdall_memstream_printf(
         ms, "avc1.%02X%02X%02X", profile, constraints, level);
-    return (written < 0) ? VLC_ENOMEM : VLC_SUCCESS;
+    return (written < 0) ? HEIMDALL_ENOMEM : HEIMDALL_SUCCESS;
 }
 
 static uint32_t ReverseBits(uint32_t in)
@@ -77,10 +78,10 @@ static uint32_t ReverseBits(uint32_t in)
     return out;
 }
 
-static int FormatHEVC(struct vlc_memstream *ms, const es_format_t *fmt)
+static int FormatHEVC(struct heimdall_memstream *ms, const es_format_t *fmt)
 {
-    if (vlc_memstream_puts(ms, "hvc1") < 0)
-        return VLC_ENOMEM;
+    if (heimdall_memstream_puts(ms, "hvc1") < 0)
+        return HEIMDALL_ENOMEM;
 
     uint8_t to_skip = 8;
     hxxx_iterator_ctx_t it;
@@ -104,7 +105,7 @@ static int FormatHEVC(struct vlc_memstream *ms, const es_format_t *fmt)
 
     /* NAL units aren't provisioned. Codec description will be minimal. */
     if (unlikely(nal == NULL))
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
     const void *profile_space = nal + 2;
     struct hxxx_bsfw_ep3b_ctx_s ep3b;
@@ -131,92 +132,92 @@ static int FormatHEVC(struct vlc_memstream *ms, const es_format_t *fmt)
     }
     const uint8_t level_idc = bs_read(&bs, 8);
 
-    if (vlc_memstream_printf(ms,
+    if (heimdall_memstream_printf(ms,
                              "%s.%u.%X.%c%u",
                              profile_space_id,
                              profile_idc,
                              profile_compatibility_flag,
                              tier_flag,
                              level_idc) < 0)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     /* Append constraints bytes. */
     for (unsigned i = 0; cnstrflags; cnstrflags >>= 1)
     {
-        if (vlc_memstream_printf(ms, ".%2.2x", constraints[i++]) < 0)
-            return VLC_ENOMEM;
+        if (heimdall_memstream_printf(ms, ".%2.2x", constraints[i++]) < 0)
+            return HEIMDALL_ENOMEM;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int FormatMP4A(struct vlc_memstream *ms, const es_format_t *fmt)
+static int FormatMP4A(struct heimdall_memstream *ms, const es_format_t *fmt)
 {
-    const int written = vlc_memstream_printf(
+    const int written = heimdall_memstream_printf(
         ms, "mp4a.40.%02x", (fmt->i_profile == -1) ? 2u : fmt->i_profile + 1u);
-    return (written < 0) ? VLC_ENOMEM : VLC_SUCCESS;
+    return (written < 0) ? HEIMDALL_ENOMEM : HEIMDALL_SUCCESS;
 }
 
-static int FormatOpus(struct vlc_memstream *ms, bool legacy)
+static int FormatOpus(struct heimdall_memstream *ms, bool legacy)
 {
     // Legacy lower-cased "opus" is required by
     // some receivers (e.g. Chromecast default receiver or old browsers).
-    const int written = vlc_memstream_puts(ms, legacy ? "opus" : "Opus");
-    return (written <= 0) ? VLC_ENOMEM : VLC_SUCCESS;
+    const int written = heimdall_memstream_puts(ms, legacy ? "opus" : "Opus");
+    return (written <= 0) ? HEIMDALL_ENOMEM : HEIMDALL_SUCCESS;
 }
 
-static int FormatFLAC(struct vlc_memstream *ms, bool legacy)
+static int FormatFLAC(struct heimdall_memstream *ms, bool legacy)
 {
     // Legacy lower-cased "flac" is required by some receivers (e.g. Chromecast
     // default receiver or old browsers).
-    const int written = vlc_memstream_puts(ms, legacy ? "flac" : "fLaC");
-    return (written <= 0) ? VLC_ENOMEM : VLC_SUCCESS;
+    const int written = heimdall_memstream_puts(ms, legacy ? "flac" : "fLaC");
+    return (written <= 0) ? HEIMDALL_ENOMEM : HEIMDALL_SUCCESS;
 }
 
-static int FormatAC3(struct vlc_memstream *ms, const es_format_t *fmt)
+static int FormatAC3(struct heimdall_memstream *ms, const es_format_t *fmt)
 {
-    const int written = vlc_memstream_puts(
-        ms, (fmt->i_codec == VLC_CODEC_EAC3) ? "ec-3" : "ac-3");
-    return (written <= 0) ? VLC_ENOMEM : VLC_SUCCESS;
+    const int written = heimdall_memstream_puts(
+        ms, (fmt->i_codec == HEIMDALL_CODEC_EAC3) ? "ec-3" : "ac-3");
+    return (written <= 0) ? HEIMDALL_ENOMEM : HEIMDALL_SUCCESS;
 }
 
-static int FormatWebVTT(struct vlc_memstream *ms)
+static int FormatWebVTT(struct heimdall_memstream *ms)
 {
-    const int written = vlc_memstream_puts(ms, "wvtt");
-    return (written <= 0) ? VLC_ENOMEM : VLC_SUCCESS;
+    const int written = heimdall_memstream_puts(ms, "wvtt");
+    return (written <= 0) ? HEIMDALL_ENOMEM : HEIMDALL_SUCCESS;
 }
 
-int hls_codec_Format(struct vlc_memstream *ms, const es_format_t *fmt,
+int hls_codec_Format(struct heimdall_memstream *ms, const es_format_t *fmt,
                      bool legacy_codecs)
 {
     switch (fmt->i_codec)
     {
-        case VLC_CODEC_H264:
+        case HEIMDALL_CODEC_H264:
             return FormatAVC(ms, fmt);
-        case VLC_CODEC_HEVC:
+        case HEIMDALL_CODEC_HEVC:
             return FormatHEVC(ms, fmt);
-        case VLC_CODEC_MP4A:
+        case HEIMDALL_CODEC_MP4A:
             return FormatMP4A(ms, fmt);
-        case VLC_CODEC_OPUS:
+        case HEIMDALL_CODEC_OPUS:
             return FormatOpus(ms, legacy_codecs);
-        case VLC_CODEC_FLAC:
+        case HEIMDALL_CODEC_FLAC:
             return FormatFLAC(ms, legacy_codecs);
-        case VLC_CODEC_A52:
-        case VLC_CODEC_EAC3:
+        case HEIMDALL_CODEC_A52:
+        case HEIMDALL_CODEC_EAC3:
             return FormatAC3(ms, fmt);
-        case VLC_CODEC_TEXT:
-        case VLC_CODEC_WEBVTT:
+        case HEIMDALL_CODEC_TEXT:
+        case HEIMDALL_CODEC_WEBVTT:
             return FormatWebVTT(ms);
         default:
-            return VLC_ENOTSUP;
+            return HEIMDALL_ENOTSUP;
     }
 }
 
 bool hls_codec_IsSupported(const es_format_t *fmt)
 {
-    return fmt->i_codec == VLC_CODEC_H264 || fmt->i_codec == VLC_CODEC_HEVC ||
-           fmt->i_codec == VLC_CODEC_MP4A || fmt->i_codec == VLC_CODEC_OPUS ||
-           fmt->i_codec == VLC_CODEC_FLAC || fmt->i_codec == VLC_CODEC_A52 ||
-           fmt->i_codec == VLC_CODEC_EAC3 || fmt->i_codec == VLC_CODEC_TEXT ||
-           fmt->i_codec == VLC_CODEC_WEBVTT;
+    return fmt->i_codec == HEIMDALL_CODEC_H264 || fmt->i_codec == HEIMDALL_CODEC_HEVC ||
+           fmt->i_codec == HEIMDALL_CODEC_MP4A || fmt->i_codec == HEIMDALL_CODEC_OPUS ||
+           fmt->i_codec == HEIMDALL_CODEC_FLAC || fmt->i_codec == HEIMDALL_CODEC_A52 ||
+           fmt->i_codec == HEIMDALL_CODEC_EAC3 || fmt->i_codec == HEIMDALL_CODEC_TEXT ||
+           fmt->i_codec == HEIMDALL_CODEC_WEBVTT;
 }

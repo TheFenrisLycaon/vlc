@@ -1,7 +1,8 @@
 /*****************************************************************************
- * helpers.c : Generic helper functions for the VLC deinterlacer
+ * helpers.c : Generic helper functions for the Heimdall deinterlacer
  *****************************************************************************
  * Copyright (C) 2011 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Juha Jeronen <juha.jeronen@jyu.fi>
  *
@@ -27,10 +28,10 @@
 #include <stdint.h>
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_cpu.h>
-#include <vlc_filter.h>
-#include <vlc_picture.h>
+#include <heimdall_common.h>
+#include <heimdall_cpu.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
 
 #include "deinterlace.h" /* definition of p_sys, needed for Merge() */
 #include "common.h"      /* FFMIN3 et al. */

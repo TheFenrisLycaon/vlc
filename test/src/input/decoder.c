@@ -2,6 +2,7 @@
  * decoder.c
  *****************************************************************************
  * Copyright (C) 2017 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Shaleen Jain <shaleen.jain95@gmail.com>
  *
@@ -24,17 +25,17 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_modules.h>
-#include <vlc_codec.h>
-#include <vlc_stream.h>
-#include <vlc_access.h>
-#include <vlc_meta.h>
-#include <vlc_block.h>
-#include <vlc_url.h>
+#include <heimdall_common.h>
+#include <heimdall_modules.h>
+#include <heimdall_codec.h>
+#include <heimdall_stream.h>
+#include <heimdall_access.h>
+#include <heimdall_meta.h>
+#include <heimdall_block.h>
+#include <heimdall_url.h>
 
-#include <vlc/libvlc.h>
-#include "../../../lib/libvlc_internal.h"
+#include <heimdall/libheimdall.h>
+#include "../../../lib/libheimdall_internal.h"
 
 #include "common.h"
 #include "decoder.h"
@@ -58,7 +59,7 @@ static subpicture_t *spu_new_buffer_decoder(decoder_t *dec,
     return subpicture_New (p_subpic);
 }
 
-static vlc_decoder_device * get_no_device( decoder_t *dec )
+static heimdall_decoder_device * get_no_device( decoder_t *dec )
 {
     (void) dec;
     // no decoder device for this test
@@ -87,9 +88,9 @@ static void queue_sub(decoder_t *dec, subpicture_t *p_subpic)
     subpicture_Delete(p_subpic);
 }
 
-static decoder_t *decoder_create(vlc_object_t *parent)
+static decoder_t *decoder_create(heimdall_object_t *parent)
 {
-    struct decoder_owner *owner = vlc_object_create(parent, sizeof(*owner));
+    struct decoder_owner *owner = heimdall_object_create(parent, sizeof(*owner));
     if (unlikely(owner == NULL))
         return NULL;
     return &owner->dec;
@@ -109,9 +110,9 @@ static int decoder_load(decoder_t *decoder, bool is_packetizer,
     {
         decoder_Clean( decoder );
         es_format_Clean( &owner->fmt_in );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void decoder_destroy_clean(decoder_t *decoder)
@@ -119,7 +120,7 @@ static void decoder_destroy_clean(decoder_t *decoder)
     struct decoder_owner *owner = dec_get_owner(decoder);
     decoder_Clean(decoder);
     es_format_Clean(&owner->fmt_in);
-    vlc_object_delete(decoder);
+    heimdall_object_delete(decoder);
 }
 
 void test_decoder_destroy(decoder_t *decoder)
@@ -129,7 +130,7 @@ void test_decoder_destroy(decoder_t *decoder)
     decoder_destroy_clean(decoder);
 }
 
-decoder_t *test_decoder_create(vlc_object_t *parent, const es_format_t *fmt)
+decoder_t *test_decoder_create(heimdall_object_t *parent, const es_format_t *fmt)
 {
     assert(parent && fmt);
     decoder_t *packetizer = decoder_create(parent);
@@ -184,14 +185,14 @@ decoder_t *test_decoder_create(vlc_object_t *parent, const es_format_t *fmt)
             return NULL;
     }
 
-    if (decoder_load(packetizer, true, fmt) != VLC_SUCCESS)
+    if (decoder_load(packetizer, true, fmt) != HEIMDALL_SUCCESS)
     {
         decoder_destroy_clean(packetizer);
         decoder_destroy_clean(decoder);
         return NULL;
     }
 
-    if (decoder_load(decoder, false, &packetizer->fmt_out) != VLC_SUCCESS)
+    if (decoder_load(decoder, false, &packetizer->fmt_out) != HEIMDALL_SUCCESS)
     {
         decoder_destroy_clean(packetizer);
         decoder_destroy_clean(decoder);
@@ -211,7 +212,7 @@ int test_decoder_process(decoder_t *decoder, block_t *p_block)
     {
         if (p_block != NULL)
             block_Release(p_block);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     block_t **pp_block = p_block ? &p_block : NULL;
@@ -230,12 +231,12 @@ int test_decoder_process(decoder_t *decoder, block_t *p_block)
             /* Reload decoder */
             decoder_Clean(decoder);
             es_format_Clean( &owner->fmt_in );
-            if (decoder_load(decoder, false, &packetizer->fmt_out) != VLC_SUCCESS)
+            if (decoder_load(decoder, false, &packetizer->fmt_out) != HEIMDALL_SUCCESS)
             {
                 if (p_block != NULL)
                     block_Release(p_block);
                 block_ChainRelease(p_packetized_block);
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             }
         }
 
@@ -255,12 +256,12 @@ int test_decoder_process(decoder_t *decoder, block_t *p_block)
 
             int ret = decoder->pf_decode(decoder, p_packetized_block);
 
-            if (ret == VLCDEC_ECRITICAL)
+            if (ret == HEIMDALLDEC_ECRITICAL)
             {
                 if (p_block != NULL)
                     block_Release(p_block);
                 block_ChainRelease(p_next);
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             }
 
             p_packetized_block = p_next;
@@ -268,5 +269,5 @@ int test_decoder_process(decoder_t *decoder, block_t *p_block)
     }
     if (p_block == NULL) /* Drain */
         decoder->pf_decode(decoder, NULL);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

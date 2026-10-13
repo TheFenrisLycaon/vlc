@@ -2,6 +2,7 @@
  * test/src/media_source.c
  *****************************************************************************
  * Copyright (C) 2018 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,16 +23,16 @@
 # include "config.h"
 #endif
 
-#include "../../libvlc/test.h"
-#include "../lib/libvlc_internal.h"
+#include "../../libheimdall/test.h"
+#include "../lib/libheimdall_internal.h"
 
 #include <assert.h>
-#include <vlc_common.h>
-#include <vlc_media_source.h>
-#include <vlc_vector.h>
-#include <vlc/vlc.h>
+#include <heimdall_common.h>
+#include <heimdall_media_source.h>
+#include <heimdall_vector.h>
+#include <heimdall/heimdall.h>
 
-static const char *libvlc_argv[] = {
+static const char *libheimdall_argv[] = {
     "-v",
     "--ignore-config",
     "-Idummy",
@@ -41,61 +42,61 @@ static const char *libvlc_argv[] = {
 static void
 test_list(void)
 {
-    libvlc_instance_t *vlc = libvlc_new(ARRAY_SIZE(libvlc_argv), libvlc_argv);
-    assert(vlc);
+    libheimdall_instance_t *heimdall = libheimdall_new(ARRAY_SIZE(libheimdall_argv), libheimdall_argv);
+    assert(heimdall);
 
-    vlc_media_source_provider_t *provider =
-            vlc_media_source_provider_Get(vlc->p_libvlc_int);
+    heimdall_media_source_provider_t *provider =
+            heimdall_media_source_provider_Get(heimdall->p_libheimdall_int);
     assert(provider);
 
-    vlc_media_source_meta_list_t *list =
-            vlc_media_source_provider_List(provider, 0);
+    heimdall_media_source_meta_list_t *list =
+            heimdall_media_source_provider_List(provider, 0);
     assert(list);
 
-    size_t count = vlc_media_source_meta_list_Count(list);
+    size_t count = heimdall_media_source_meta_list_Count(list);
     assert(count);
     for (size_t i = 0; i < count; ++i)
     {
-        struct vlc_media_source_meta *meta =
-                vlc_media_source_meta_list_Get(list, i);
+        struct heimdall_media_source_meta *meta =
+                heimdall_media_source_meta_list_Get(list, i);
         assert(meta);
         assert(meta->name);
         assert(meta->longname);
         assert(meta->category); /* there is no category 0 */
     }
 
-    vlc_media_source_meta_list_Delete(list);
-    libvlc_release(vlc);
+    heimdall_media_source_meta_list_Delete(list);
+    libheimdall_release(heimdall);
 }
 
 static void
 test_list_filtered_by_category(void)
 {
-    libvlc_instance_t *vlc = libvlc_new(ARRAY_SIZE(libvlc_argv), libvlc_argv);
-    assert(vlc);
+    libheimdall_instance_t *heimdall = libheimdall_new(ARRAY_SIZE(libheimdall_argv), libheimdall_argv);
+    assert(heimdall);
 
-    vlc_media_source_provider_t *provider =
-            vlc_media_source_provider_Get(vlc->p_libvlc_int);
+    heimdall_media_source_provider_t *provider =
+            heimdall_media_source_provider_Get(heimdall->p_libheimdall_int);
     assert(provider);
 
-    vlc_media_source_meta_list_t *list =
-            vlc_media_source_provider_List(provider, SD_CAT_LAN);
+    heimdall_media_source_meta_list_t *list =
+            heimdall_media_source_provider_List(provider, SD_CAT_LAN);
     assert(list);
 
-    size_t count = vlc_media_source_meta_list_Count(list);
+    size_t count = heimdall_media_source_meta_list_Count(list);
     assert(count);
     for (size_t i = 0; i < count; ++i)
     {
-        struct vlc_media_source_meta *meta =
-                vlc_media_source_meta_list_Get(list, i);
+        struct heimdall_media_source_meta *meta =
+                heimdall_media_source_meta_list_Get(list, i);
         assert(meta);
         assert(meta->name);
         assert(meta->longname);
         assert(meta->category == SD_CAT_LAN);
     }
 
-    vlc_media_source_meta_list_Delete(list);
-    libvlc_release(vlc);
+    heimdall_media_source_meta_list_Delete(list);
+    libheimdall_release(heimdall);
 }
 
 int main(void)

@@ -1,8 +1,9 @@
 --[[
 
  Copyright © 2010 VideoLAN and AUTHORS
+ Copyright (C) 2026 TheFenrisLycaon
 
- Authors: Fabio Ritrovato <sephiroth87 at videolan dot org>
+ Authors: Fabio Ritrovato <sephiroth87 at lycaria dot org>
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -23,18 +24,18 @@ local simplexml = require "simplexml"
 
 -- Probe function.
 function probe()
-    return vlc.access == "http"
-        and string.match( vlc.path, "^api%.jamendo%.com/" )
-        and string.match( vlc.path, "get2" )
-        and string.match( vlc.path, "track" )
-        and string.match( vlc.path, "xml" )
+    return heimdall.access == "http"
+        and string.match( heimdall.path, "^api%.jamendo%.com/" )
+        and string.match( heimdall.path, "get2" )
+        and string.match( heimdall.path, "track" )
+        and string.match( heimdall.path, "xml" )
 end
 
 -- Parse function.
 function parse()
     local page = ""
     while true do
-        local line = vlc.readline()
+        local line = heimdall.readline()
         if line == nil then break end
         page = page .. line
     end
@@ -44,7 +45,7 @@ function parse()
         simplexml.add_name_maps( track )
         if track.children_map["id"] == nil and
            track.children_map["stream"] == nil then
-            vlc.msg.err( "No track id or stream URL, not enough info to add tracks..." )
+            heimdall.msg.err( "No track id or stream URL, not enough info to add tracks..." )
             return {}
         end
         local stream_url

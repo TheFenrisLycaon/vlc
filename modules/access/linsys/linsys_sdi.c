@@ -2,6 +2,7 @@
  * linsys_sdi.c: SDI capture for Linear Systems/Computer Modules cards
  *****************************************************************************
  * Copyright (C) 2009-2011 VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Christophe Massiot <massiot@via.ecp.fr>
  *
@@ -35,15 +36,15 @@
 #include <errno.h>
 #include <limits.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
 
-#include <vlc_input.h>
-#include <vlc_access.h>
-#include <vlc_demux.h>
-#include <vlc_poll.h>
+#include <heimdall_input.h>
+#include <heimdall_access.h>
+#include <heimdall_demux.h>
+#include <heimdall_poll.h>
 
-#include <vlc_fs.h>
+#include <heimdall_fs.h>
 
 #include "linsys_sdi.h"
 
@@ -56,7 +57,7 @@
 #define SDI_MODE_FILE     "/sys/class/sdi/sdirx%u/mode"
 #define READ_TIMEOUT      80000
 #define RESYNC_TIMEOUT    500000
-#define CLOCK_GAP         VLC_TICK_FROM_MS(500)
+#define CLOCK_GAP         HEIMDALL_TICK_FROM_MS(500)
 #define START_DATE        INT64_C(0x100000000)
 
 #define DEMUX_BUFFER_SIZE 1350000
@@ -85,12 +86,12 @@
 #define TELX_LANG_LONGTEXT N_( \
     "Allows you to set Teletext language (page=lang/type,...)." )
 
-static int  Open ( vlc_object_t * );
-static void Close( vlc_object_t * );
-static int  DemuxOpen ( vlc_object_t * );
-static void DemuxClose( vlc_object_t * );
+static int  Open ( heimdall_object_t * );
+static void Close( heimdall_object_t * );
+static int  DemuxOpen ( heimdall_object_t * );
+static void DemuxClose( heimdall_object_t * );
 
-vlc_module_begin()
+heimdall_module_begin()
     set_description( N_("SDI Input") )
     set_shortname( N_("SDI") )
     set_subcategory( SUBCAT_INPUT_ACCESS )
@@ -113,7 +114,7 @@ vlc_module_begin()
         set_description( N_("SDI Demux") )
         set_capability( "demux", 0 )
         set_callbacks( DemuxOpen, DemuxClose )
-vlc_module_end()
+heimdall_module_end()
 
 /*****************************************************************************
  * Local prototypes
@@ -156,7 +157,7 @@ typedef struct
 
     /* SDI sync */
     int              i_state;
-    vlc_tick_t       i_last_state_change;
+    heimdall_tick_t       i_last_state_change;
     unsigned int     i_anc_size, i_active_size, i_picture_size;
     unsigned int     i_line_offset, i_nb_lines;
 
@@ -177,8 +178,8 @@ typedef struct
     char             *psz_telx, *psz_telx_lang;
     bool             b_hd, b_vbi;
     vbi_raw_decoder  rd_wss, rd_telx;
-    vlc_tick_t       i_next_date;
-    vlc_tick_t       i_incr;
+    heimdall_tick_t       i_next_date;
+    heimdall_tick_t       i_incr;
 
     /* ES stuff */
     int              i_id_video;
@@ -205,24 +206,24 @@ static int Capture( demux_t *p_demux );
 /*****************************************************************************
  * DemuxOpen:
  *****************************************************************************/
-static int DemuxOpen( vlc_object_t *p_this )
+static int DemuxOpen( heimdall_object_t *p_this )
 {
     demux_t     *p_demux = (demux_t *)p_this;
     demux_sys_t *p_sys;
     char        *psz_parser;
 
     if (p_demux->out == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* Fill p_demux field */
     p_demux->pf_demux = DemuxDemux;
     p_demux->pf_control = DemuxControl;
     p_demux->p_sys = p_sys = calloc( 1, sizeof( demux_sys_t ) );
     if( unlikely(!p_sys ) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_sys->i_state = STATE_NOSYNC;
-    p_sys->i_last_state_change = vlc_tick_now();
+    p_sys->i_last_state_change = heimdall_tick_now();
 
     /* SDI AR */
     unsigned int i_num, i_den;
@@ -281,16 +282,16 @@ static int DemuxOpen( vlc_object_t *p_this )
 
     p_sys->psz_telx_lang = var_InheritString( p_demux, "linsys-sdi-telx-lang" );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     demux_t     *p_demux = (demux_t *)p_this;
     demux_sys_t *p_sys;
     int         i_ret;
 
-    if ( (i_ret = DemuxOpen( p_this )) != VLC_SUCCESS )
+    if ( (i_ret = DemuxOpen( p_this )) != HEIMDALL_SUCCESS )
         return i_ret;
 
     /* Fill p_demux field */
@@ -300,19 +301,19 @@ static int Open( vlc_object_t *p_this )
 
     p_sys->i_link = var_InheritInteger( p_demux, "linsys-sdi-link" );
 
-    if( InitCapture( p_demux ) != VLC_SUCCESS )
+    if( InitCapture( p_demux ) != HEIMDALL_SUCCESS )
     {
         free( p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * DemuxClose:
  *****************************************************************************/
-static void DemuxClose( vlc_object_t *p_this )
+static void DemuxClose( heimdall_object_t *p_this )
 {
     demux_t     *p_demux = (demux_t *)p_this;
     demux_sys_t *p_sys   = p_demux->p_sys;
@@ -322,7 +323,7 @@ static void DemuxClose( vlc_object_t *p_this )
     free( p_sys );
 }
 
-static void Close( vlc_object_t *p_this )
+static void Close( heimdall_object_t *p_this )
 {
     demux_t     *p_demux = (demux_t *)p_this;
 
@@ -335,7 +336,7 @@ static void Close( vlc_object_t *p_this )
  *****************************************************************************/
 static int DemuxDemux( demux_t *p_demux )
 {
-    block_t *p_block = vlc_stream_Block( p_demux->s, DEMUX_BUFFER_SIZE );
+    block_t *p_block = heimdall_stream_Block( p_demux->s, DEMUX_BUFFER_SIZE );
     int i_ret;
 
     if ( p_block == NULL )
@@ -344,12 +345,12 @@ static int DemuxDemux( demux_t *p_demux )
     i_ret = HandleSDBuffer( p_demux, p_block->p_buffer, p_block->i_buffer );
     block_Release( p_block );
 
-    return ( i_ret == VLC_SUCCESS );
+    return ( i_ret == HEIMDALL_SUCCESS );
 }
 
 static int Demux( demux_t *p_demux )
 {
-    return ( Capture( p_demux ) == VLC_SUCCESS );
+    return ( Capture( p_demux ) == HEIMDALL_SUCCESS );
 }
 
 /*****************************************************************************
@@ -373,16 +374,16 @@ static int Control( demux_t *p_demux, int i_query, va_list args )
             /* TODO */
             pb = va_arg( args, bool * );
             *pb = false;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
 
         case DEMUX_GET_PTS_DELAY:
-            *va_arg( args, vlc_tick_t * ) =
-                VLC_TICK_FROM_MS(var_InheritInteger( p_demux, "live-caching" ));
-            return VLC_SUCCESS;
+            *va_arg( args, heimdall_tick_t * ) =
+                HEIMDALL_TICK_FROM_MS(var_InheritInteger( p_demux, "live-caching" ));
+            return HEIMDALL_SUCCESS;
 
         /* TODO implement others */
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 }
 
@@ -405,7 +406,7 @@ static int NewFrame( demux_t *p_demux )
 
     p_sys->p_current_picture = block_Alloc( p_sys->i_block_size );
     if( unlikely( !p_sys->p_current_picture ) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     p_sys->p_y = p_sys->p_current_picture->p_buffer;
     p_sys->p_u = p_sys->p_y + p_sys->i_width * p_sys->i_height;
     p_sys->p_v = p_sys->p_u + p_sys->i_width * p_sys->i_height / 4;
@@ -415,7 +416,7 @@ static int NewFrame( demux_t *p_demux )
         sdi_audio_t *p_audio = &p_sys->p_audios[i];
         p_audio->i_left_samples = p_audio->i_right_samples = 0;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int StartDecode( demux_t *p_demux )
@@ -425,14 +426,14 @@ static int StartDecode( demux_t *p_demux )
     char *psz_parser;
 
     p_sys->i_next_date = START_DATE;
-    p_sys->i_incr = vlc_tick_from_samples(p_sys->i_frame_rate_base, p_sys->i_frame_rate);
+    p_sys->i_incr = heimdall_tick_from_samples(p_sys->i_frame_rate_base, p_sys->i_frame_rate);
     p_sys->i_block_size = p_sys->i_width * p_sys->i_height * 3 / 2
                            + sizeof(struct block_extension_t);
-    if( NewFrame( p_demux ) != VLC_SUCCESS )
-        return VLC_ENOMEM;
+    if( NewFrame( p_demux ) != HEIMDALL_SUCCESS )
+        return HEIMDALL_ENOMEM;
 
     /* Video ES */
-    es_format_Init( &fmt, VIDEO_ES, VLC_CODEC_I420 );
+    es_format_Init( &fmt, VIDEO_ES, HEIMDALL_CODEC_I420 );
     fmt.i_id                    = p_sys->i_id_video;
     fmt.video.i_frame_rate      = p_sys->i_frame_rate;
     fmt.video.i_frame_rate_base = p_sys->i_frame_rate_base;
@@ -445,7 +446,7 @@ static int StartDecode( demux_t *p_demux )
     fmt.video.i_sar_den = VOUT_ASPECT_FACTOR;
     p_sys->p_es_video   = es_out_Add( p_demux->out, &fmt );
 
-    if ( p_sys->b_vbi && InitWSS( p_demux ) != VLC_SUCCESS )
+    if ( p_sys->b_vbi && InitWSS( p_demux ) != HEIMDALL_SUCCESS )
         p_sys->b_vbi = 0;
 
     /* Teletext ES */
@@ -480,7 +481,7 @@ static int StartDecode( demux_t *p_demux )
             else
                 p_sys->i_telx_count = 1;
 
-            if ( InitTelx( p_demux ) == VLC_SUCCESS )
+            if ( InitTelx( p_demux ) == HEIMDALL_SUCCESS )
             {
                 int i_dr_size = 0;
                 uint8_t *p_dr = NULL;
@@ -492,7 +493,7 @@ static int StartDecode( demux_t *p_demux )
                          p_sys->i_telx_line + 1 + 313
                                                 + p_sys->i_telx_count - 1 );
 
-                es_format_Init( &fmt, SPU_ES, VLC_CODEC_TELETEXT );
+                es_format_Init( &fmt, SPU_ES, HEIMDALL_CODEC_TELETEXT );
                 fmt.i_id = i_id;
 
                 /* Teletext language & type */
@@ -534,7 +535,7 @@ static int StartDecode( demux_t *p_demux )
                 p_sys->i_telx_count = 0;
         }
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void StopDecode( demux_t *p_demux )
@@ -696,16 +697,16 @@ static int InitWSS( demux_t *p_demux )
     {
         msg_Warn( p_demux, "cannot initialize zvbi for WSS" );
         vbi_raw_decoder_destroy ( &p_sys->rd_telx );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     p_sys->p_wss_buffer = malloc( p_sys->i_width * 2 );
     if( !p_sys->p_wss_buffer )
     {
         vbi_raw_decoder_destroy ( &p_sys->rd_telx );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void DecodeWSS( demux_t *p_demux )
@@ -763,16 +764,16 @@ static int InitTelx( demux_t *p_demux )
     {
         msg_Warn( p_demux, "cannot initialize zvbi for Teletext" );
         vbi_raw_decoder_destroy ( &p_sys->rd_telx );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    p_sys->p_telx_buffer = vlc_alloc( p_sys->i_telx_count * p_sys->i_width, 4 );
+    p_sys->p_telx_buffer = heimdall_alloc( p_sys->i_telx_count * p_sys->i_width, 4 );
     if( !p_sys->p_telx_buffer )
     {
         vbi_raw_decoder_destroy ( &p_sys->rd_telx );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int DecodeTelx( demux_t *p_demux )
@@ -790,7 +791,7 @@ static int DecodeTelx( demux_t *p_demux )
         uint8_t *p;
         block_t *p_block = block_Alloc( 1 + i_nb_slices_rounded * 46 );
         if( unlikely( !p_block ) )
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         p_block->p_buffer[0] = 0x10; /* FIXME ? data_identifier */
         p = p_block->p_buffer + 1;
 
@@ -819,7 +820,7 @@ static int DecodeTelx( demux_t *p_demux )
         p_block->i_dts = p_block->i_pts = p_sys->i_next_date;
         es_out_Send( p_demux->out, p_sys->p_es_telx, p_block );
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int InitAudio( demux_t *p_demux, sdi_audio_t *p_audio )
@@ -830,7 +831,7 @@ static int InitAudio( demux_t *p_demux, sdi_audio_t *p_audio )
     msg_Dbg( p_demux, "starting audio %u/%u rate:%u delay:%d", p_audio->i_group,
              p_audio->i_pair, p_audio->i_rate, p_audio->i_delay );
 
-    es_format_Init( &fmt, AUDIO_ES, VLC_CODEC_S16L );
+    es_format_Init( &fmt, AUDIO_ES, HEIMDALL_CODEC_S16L );
     fmt.i_id = p_audio->i_id;
     fmt.audio.i_channels          = 2;
     fmt.audio.i_physical_channels = AOUT_CHANS_STEREO;
@@ -847,13 +848,13 @@ static int InitAudio( demux_t *p_demux, sdi_audio_t *p_audio )
     p_audio->i_max_samples        = (float)p_audio->i_nb_samples *
                                     (1.f + SAMPLERATE_TOLERANCE);
 
-    p_audio->p_buffer             = vlc_alloc( p_audio->i_max_samples, sizeof(int16_t) * 2 );
+    p_audio->p_buffer             = heimdall_alloc( p_audio->i_max_samples, sizeof(int16_t) * 2 );
     p_audio->i_left_samples       = p_audio->i_right_samples = 0;
     p_audio->i_block_number       = 0;
 
     if( unlikely( !p_audio->p_buffer ) )
-        return VLC_ENOMEM;
-    return VLC_SUCCESS;
+        return HEIMDALL_ENOMEM;
+    return HEIMDALL_SUCCESS;
 }
 
 /* Fast and efficient linear resampling routine */
@@ -894,12 +895,12 @@ static int DecodeAudio( demux_t *p_demux, sdi_audio_t *p_audio )
     int16_t *p_output;
 
     if ( p_audio->p_buffer == NULL )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     if ( !p_audio->i_left_samples && !p_audio->i_right_samples )
     {
         msg_Warn( p_demux, "no audio %u/%u", p_audio->i_group,
                   p_audio->i_pair );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     if ( p_audio->i_left_samples <
             (float)p_audio->i_nb_samples * (1.f - SAMPLERATE_TOLERANCE) ||
@@ -910,7 +911,7 @@ static int DecodeAudio( demux_t *p_demux, sdi_audio_t *p_audio )
             "left samplerate out of tolerance for audio %u/%u (%u vs. %u)",
             p_audio->i_group, p_audio->i_pair,
             p_audio->i_left_samples, p_audio->i_nb_samples );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     if ( p_audio->i_right_samples <
             (float)p_audio->i_nb_samples * (1.f - SAMPLERATE_TOLERANCE) ||
@@ -921,14 +922,14 @@ static int DecodeAudio( demux_t *p_demux, sdi_audio_t *p_audio )
             "right samplerate out of tolerance for audio %u/%u (%u vs. %u)",
             p_audio->i_group, p_audio->i_pair,
             p_audio->i_right_samples, p_audio->i_nb_samples );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     p_block = block_Alloc( p_audio->i_nb_samples * sizeof(int16_t) * 2 );
     if( unlikely( !p_block ) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     p_block->i_dts = p_block->i_pts = p_sys->i_next_date
-        + vlc_tick_from_samples(p_audio->i_delay, p_audio->i_rate);
+        + heimdall_tick_from_samples(p_audio->i_delay, p_audio->i_rate);
     p_output = (int16_t *)p_block->p_buffer;
 
     if ( p_audio->i_left_samples == p_audio->i_nb_samples &&
@@ -945,7 +946,7 @@ static int DecodeAudio( demux_t *p_demux, sdi_audio_t *p_audio )
     }
 
     es_out_Send( p_demux->out, p_audio->p_es, p_block );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int DecodeFrame( demux_t *p_demux )
@@ -967,14 +968,14 @@ static int DecodeFrame( demux_t *p_demux )
     }
 
     if ( p_sys->i_telx_count )
-        if ( DecodeTelx( p_demux ) != VLC_SUCCESS )
-            return VLC_ENOMEM;
+        if ( DecodeTelx( p_demux ) != HEIMDALL_SUCCESS )
+            return HEIMDALL_ENOMEM;
 
     for ( int i = 0; i < MAX_AUDIOS; i++ )
     {
         if ( p_sys->p_audios[i].i_group && p_sys->p_audios[i].p_es != NULL )
-            if( DecodeAudio( p_demux, &p_sys->p_audios[i] ) != VLC_SUCCESS )
-                return VLC_EGENERIC;
+            if( DecodeAudio( p_demux, &p_sys->p_audios[i] ) != HEIMDALL_SUCCESS )
+                return HEIMDALL_EGENERIC;
     }
 
     DecodeVideo( p_demux );
@@ -982,10 +983,10 @@ static int DecodeFrame( demux_t *p_demux )
     es_out_SetPCR( p_demux->out, p_sys->i_next_date );
     p_sys->i_next_date += p_sys->i_incr;
 
-    if( NewFrame( p_demux ) != VLC_SUCCESS )
-        return VLC_ENOMEM;
+    if( NewFrame( p_demux ) != HEIMDALL_SUCCESS )
+        return HEIMDALL_ENOMEM;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -1200,7 +1201,7 @@ static void HandleAudioData( demux_t *p_demux, const uint16_t *p_anc,
             {
                 p_audio->i_rate = 48000;
                 p_audio->i_delay = 0;
-                if( InitAudio( p_demux, p_audio ) != VLC_SUCCESS )
+                if( InitAudio( p_demux, p_audio ) != HEIMDALL_SUCCESS )
                     return;
             }
 
@@ -1314,7 +1315,7 @@ static void HandleAudioConfig( demux_t *p_demux, const uint16_t *p_anc,
                 continue;
             }
 
-            if( InitAudio( p_demux, p_audio ) != VLC_SUCCESS )
+            if( InitAudio( p_demux, p_audio ) != HEIMDALL_SUCCESS )
                 return;
         }
     }
@@ -1413,11 +1414,11 @@ static int HandleSDBuffer( demux_t *p_demux, uint8_t *p_buffer,
     const uint8_t *p_line;
 
     if ( p_sys->i_state != STATE_SYNC
-          && p_sys->i_last_state_change < vlc_tick_now() - RESYNC_TIMEOUT )
+          && p_sys->i_last_state_change < heimdall_tick_now() - RESYNC_TIMEOUT )
     {
         p_sys->i_state = STATE_NOSYNC;
-        p_sys->i_last_state_change = vlc_tick_now();
-        return VLC_EGENERIC;
+        p_sys->i_last_state_change = heimdall_tick_now();
+        return HEIMDALL_EGENERIC;
     }
 
     switch ( p_sys->i_state )
@@ -1428,7 +1429,7 @@ static int HandleSDBuffer( demux_t *p_demux, uint8_t *p_buffer,
         if ( p_parser == NULL )
             break;
         p_sys->i_state = STATE_STARTSYNC;
-        p_sys->i_last_state_change = vlc_tick_now();
+        p_sys->i_last_state_change = heimdall_tick_now();
         /* fallthrough */
 
     case STATE_STARTSYNC:
@@ -1437,7 +1438,7 @@ static int HandleSDBuffer( demux_t *p_demux, uint8_t *p_buffer,
             break;
         p_sys->i_anc_size = 0;
         p_sys->i_state = STATE_ANCSYNC;
-        p_sys->i_last_state_change = vlc_tick_now();
+        p_sys->i_last_state_change = heimdall_tick_now();
         /* fallthrough */
 
     case STATE_ANCSYNC:
@@ -1447,7 +1448,7 @@ static int HandleSDBuffer( demux_t *p_demux, uint8_t *p_buffer,
             break;
         p_sys->i_active_size = 0;
         p_sys->i_state = STATE_LINESYNC;
-        p_sys->i_last_state_change = vlc_tick_now();
+        p_sys->i_last_state_change = heimdall_tick_now();
         /* fallthrough */
 
     case STATE_LINESYNC:
@@ -1457,7 +1458,7 @@ static int HandleSDBuffer( demux_t *p_demux, uint8_t *p_buffer,
             break;
         p_sys->i_picture_size = p_sys->i_anc_size + p_sys->i_active_size;
         p_sys->i_state = STATE_ACTIVESYNC;
-        p_sys->i_last_state_change = vlc_tick_now();
+        p_sys->i_last_state_change = heimdall_tick_now();
         /* fallthrough */
 
     case STATE_ACTIVESYNC:
@@ -1468,7 +1469,7 @@ static int HandleSDBuffer( demux_t *p_demux, uint8_t *p_buffer,
         p_sys->i_line_offset = p_sys->i_picture_size
                              / (p_sys->i_anc_size + p_sys->i_active_size);
         p_sys->i_state = STATE_VBLANKSYNC;
-        p_sys->i_last_state_change = vlc_tick_now();
+        p_sys->i_last_state_change = heimdall_tick_now();
         /* fallthrough */
 
     case STATE_VBLANKSYNC:
@@ -1477,7 +1478,7 @@ static int HandleSDBuffer( demux_t *p_demux, uint8_t *p_buffer,
         if ( p_parser == NULL )
             break;
         p_sys->i_state = STATE_PICSYNC;
-        p_sys->i_last_state_change = vlc_tick_now();
+        p_sys->i_last_state_change = heimdall_tick_now();
         /* fallthrough */
 
     case STATE_PICSYNC:
@@ -1493,7 +1494,7 @@ static int HandleSDBuffer( demux_t *p_demux, uint8_t *p_buffer,
                  p_sys->i_anc_size, p_sys->i_active_size,
                  p_sys->i_picture_size, p_sys->i_line_offset + 1 );
             p_sys->i_state = STATE_NOSYNC;
-            p_sys->i_last_state_change = vlc_tick_now();
+            p_sys->i_last_state_change = heimdall_tick_now();
             break;
         }
 
@@ -1505,10 +1506,10 @@ static int HandleSDBuffer( demux_t *p_demux, uint8_t *p_buffer,
                  p_sys->i_anc_size, p_sys->i_active_size,
                  p_sys->i_nb_lines, p_sys->i_line_offset + 1 );
         p_sys->i_state = STATE_SYNC;
-        if( StartDecode( p_demux ) != VLC_SUCCESS )
+        if( StartDecode( p_demux ) != HEIMDALL_SUCCESS )
         {
             StopDecode( p_demux );
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         }
         p_sys->i_current_line = 0;
         p_sys->p_line_buffer = malloc( p_sys->i_anc_size
@@ -1516,7 +1517,7 @@ static int HandleSDBuffer( demux_t *p_demux, uint8_t *p_buffer,
         if( !p_sys->p_line_buffer )
         {
             StopDecode( p_demux );
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         }
         p_sys->i_line_buffer = 0;
 
@@ -1555,7 +1556,7 @@ static int HandleSDBuffer( demux_t *p_demux, uint8_t *p_buffer,
                           p_sys->i_current_line + 1, p_line[4], p_line[anc+4] );
                 StopDecode( p_demux );
                 p_sys->i_state = STATE_NOSYNC;
-                p_sys->i_last_state_change = vlc_tick_now();
+                p_sys->i_last_state_change = heimdall_tick_now();
                 break;
             }
 
@@ -1635,14 +1636,14 @@ static int HandleSDBuffer( demux_t *p_demux, uint8_t *p_buffer,
             if ( p_sys->i_current_line == p_sys->i_nb_lines )
             {
                 p_sys->i_current_line %= p_sys->i_nb_lines;
-                if( DecodeFrame( p_demux ) != VLC_SUCCESS )
-                    return VLC_EGENERIC;
+                if( DecodeFrame( p_demux ) != HEIMDALL_SUCCESS )
+                    return HEIMDALL_EGENERIC;
             }
         }
         break;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -1657,7 +1658,7 @@ static int ReadULSysfs( const char *psz_fmt, unsigned int i_link )
 
     snprintf( psz_file, sizeof(psz_file), psz_fmt, i_link );
 
-    FILE *stream = vlc_fopen( psz_file, "rt" );
+    FILE *stream = heimdall_fopen( psz_file, "rt" );
     if( stream == NULL )
         return -1;
 
@@ -1674,7 +1675,7 @@ static int WriteULSysfs( const char *psz_fmt, unsigned int i_link,
 
     snprintf( psz_file, sizeof(psz_file), psz_fmt, i_link );
 
-    FILE *stream = vlc_fopen( psz_file, "wt" );
+    FILE *stream = heimdall_fopen( psz_file, "wt" );
     if( stream == NULL )
         return -1;
 
@@ -1695,14 +1696,14 @@ static int InitCapture( demux_t *p_demux )
     if ( WriteULSysfs( SDI_MODE_FILE, p_sys->i_link, SDI_CTL_MODE_10BIT ) < 0 )
     {
         msg_Err( p_demux, "couldn't write file " SDI_MODE_FILE, p_sys->i_link );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if ( (i_ret = ReadULSysfs( SDI_BUFFERS_FILE, p_sys->i_link )) < 0 )
     {
         msg_Err( p_demux, "couldn't read file " SDI_BUFFERS_FILE,
                  p_sys->i_link );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     p_sys->i_buffers = i_ret;
     p_sys->i_current_buffer = 0;
@@ -1711,27 +1712,27 @@ static int InitCapture( demux_t *p_demux )
     {
         msg_Err( p_demux, "couldn't read file " SDI_BUFSIZE_FILE,
                  p_sys->i_link );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     p_sys->i_buffer_size = i_ret;
     if ( p_sys->i_buffer_size % 20 )
     {
         msg_Err( p_demux, "buffer size must be a multiple of 20" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     snprintf( psz_dev, sizeof(psz_dev) - 1, SDI_DEVICE, p_sys->i_link );
-    if ( (p_sys->i_fd = vlc_open( psz_dev, O_RDONLY ) ) < 0 )
+    if ( (p_sys->i_fd = heimdall_open( psz_dev, O_RDONLY ) ) < 0 )
     {
         msg_Err( p_demux, "couldn't open device %s", psz_dev );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     i_bufmemsize = ((p_sys->i_buffer_size + i_page_size - 1) / i_page_size)
                      * i_page_size;
-    p_sys->pp_buffers = vlc_alloc( p_sys->i_buffers, sizeof(uint8_t *) );
+    p_sys->pp_buffers = heimdall_alloc( p_sys->i_buffers, sizeof(uint8_t *) );
     if( !p_sys->pp_buffers )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     for ( unsigned int i = 0; i < p_sys->i_buffers; i++ )
     {
@@ -1740,13 +1741,13 @@ static int InitCapture( demux_t *p_demux )
                                            i * i_bufmemsize )) == MAP_FAILED )
         {
             msg_Err( p_demux, "couldn't mmap(%d): %s", i,
-                     vlc_strerror_c(errno) );
+                     heimdall_strerror_c(errno) );
             free( p_sys->pp_buffers );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void CloseCapture( demux_t *p_demux )
@@ -1756,7 +1757,7 @@ static void CloseCapture( demux_t *p_demux )
     StopDecode( p_demux );
     for ( unsigned int i = 0; i < p_sys->i_buffers; i++ )
         munmap( p_sys->pp_buffers[i], p_sys->i_buffer_size );
-    vlc_close( p_sys->i_fd );
+    heimdall_close( p_sys->i_fd );
     free( p_sys->pp_buffers );
 }
 
@@ -1770,8 +1771,8 @@ static int Capture( demux_t *p_demux )
 
     if ( poll( &pfd, 1, READ_TIMEOUT ) < 0 )
     {
-        msg_Warn( p_demux, "couldn't poll(): %s", vlc_strerror_c(errno) );
-        return VLC_EGENERIC;
+        msg_Warn( p_demux, "couldn't poll(): %s", heimdall_strerror_c(errno) );
+        return HEIMDALL_EGENERIC;
     }
 
     if ( pfd.revents & POLLPRI )
@@ -1780,7 +1781,7 @@ static int Capture( demux_t *p_demux )
 
         if ( ioctl( p_sys->i_fd, SDI_IOC_RXGETEVENTS, &i_val ) < 0 )
             msg_Warn( p_demux, "couldn't SDI_IOC_RXGETEVENTS: %s",
-                      vlc_strerror_c(errno) );
+                      heimdall_strerror_c(errno) );
         else
         {
             if ( i_val & SDI_EVENT_RX_BUFFER )
@@ -1801,8 +1802,8 @@ static int Capture( demux_t *p_demux )
         if ( ioctl( p_sys->i_fd, SDI_IOC_DQBUF, p_sys->i_current_buffer ) < 0 )
         {
             msg_Warn( p_demux, "couldn't SDI_IOC_DQBUF: %s",
-                      vlc_strerror_c(errno) );
-            return VLC_EGENERIC;
+                      heimdall_strerror_c(errno) );
+            return HEIMDALL_EGENERIC;
         }
 
         i_ret = HandleSDBuffer( p_demux,
@@ -1812,11 +1813,11 @@ static int Capture( demux_t *p_demux )
         if ( ioctl( p_sys->i_fd, SDI_IOC_QBUF, p_sys->i_current_buffer ) < 0 )
         {
             msg_Warn( p_demux, "couldn't SDI_IOC_QBUF: %s",
-                      vlc_strerror_c(errno) );
-            return VLC_EGENERIC;
+                      heimdall_strerror_c(errno) );
+            return HEIMDALL_EGENERIC;
         }
 
-        if ( i_ret == VLC_SUCCESS )
+        if ( i_ret == HEIMDALL_SUCCESS )
         {
             p_sys->i_current_buffer++;
             p_sys->i_current_buffer %= p_sys->i_buffers;
@@ -1831,6 +1832,6 @@ static int Capture( demux_t *p_demux )
         }
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 

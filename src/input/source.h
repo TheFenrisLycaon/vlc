@@ -2,6 +2,7 @@
  * source.h: Internal input source structures
  *****************************************************************************
  * Copyright (C) 1998-2006 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *
@@ -20,23 +21,23 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef LIBVLC_INPUT_SOURCE_H
-#define LIBVLC_INPUT_SOURCE_H 1
+#ifndef LIBHEIMDALL_INPUT_SOURCE_H
+#define LIBHEIMDALL_INPUT_SOURCE_H 1
 
-#include <vlc_common.h>
-#include <vlc_tick.h>
-#include <vlc_atomic.h>
+#include <heimdall_common.h>
+#include <heimdall_tick.h>
+#include <heimdall_atomic.h>
 
 typedef struct input_title_t input_title_t;
-struct vlc_input_es_out;
+struct heimdall_input_es_out;
 
 /* input_source_t: gathers all information per input source */
 struct input_source_t
 {
-    vlc_atomic_rc_t rc;
+    heimdall_atomic_rc_t rc;
 
     demux_t  *p_demux; /**< Demux object (most downstream) */
-    struct vlc_input_es_out *p_slave_es_out; /**< Slave es out */
+    struct heimdall_input_es_out *p_slave_es_out; /**< Slave es out */
 
     char *str_id;
     int auto_id;
@@ -69,10 +70,10 @@ struct input_source_t
     float sub_rate;
 
     /* */
-    vlc_tick_t i_pts_delay;
+    heimdall_tick_t i_pts_delay;
 
     /* Read-write protected by es_out.c lock */
-    vlc_tick_t i_normal_time;
+    heimdall_tick_t i_normal_time;
 
     bool       b_eof;   /* eof of demuxer */
 };

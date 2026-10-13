@@ -1,6 +1,7 @@
 
 /*****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Prince Gupta <guptaprince8832@gmail.com>
  *
@@ -21,9 +22,9 @@
 
 import QtQuick
 
-import VLC.MainInterface
-import VLC.Widgets as Widgets
-import VLC.MediaLibrary
+import Heimdall.MainInterface
+import Heimdall.Widgets as Widgets
+import Heimdall.MediaLibrary
 
 Widgets.DragItem {
     id: root

@@ -2,6 +2,7 @@
  * zvbi.c : VBI and Teletext PES demux and decoder using libzvbi
  *****************************************************************************
  * Copyright (C) 2007, M2X
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Derk-Jan Hartman <djhartman at m2x dot nl>
  *          Jean-Paul Saman <jpsaman at m2x dot nl>
@@ -43,19 +44,19 @@
 
 #include <ctype.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
 #include <assert.h>
 #include <libzvbi.h>
 
-#include <vlc_codec.h>
+#include <heimdall_codec.h>
 #include "substext.h"
 
 /*****************************************************************************
  * Module descriptor.
  *****************************************************************************/
-static int  Open ( vlc_object_t * );
-static void Close( vlc_object_t * );
+static int  Open ( heimdall_object_t * );
+static void Close( heimdall_object_t * );
 
 #define PAGE_TEXT N_("Teletext page")
 #define PAGE_LONGTEXT N_("Open the indicated Teletext page. " \
@@ -100,7 +101,7 @@ static const char *const level_descriptions[] =
 static const int level_zvbi_values[] =
 { VBI_WST_LEVEL_1, VBI_WST_LEVEL_1p5, VBI_WST_LEVEL_2p5, VBI_WST_LEVEL_3p5 };
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("VBI and Teletext decoder") )
     set_shortname( N_("VBI & Teletext") )
     set_capability( "spu decoder", 51 )
@@ -117,7 +118,7 @@ vlc_module_begin ()
               TELX_TEXT, TELX_LONGTEXT )
     add_integer( "vbi-level", 3, LEVEL_TEXT, NULL )
         change_integer_list( level_values, level_descriptions )
-vlc_module_end ()
+heimdall_module_end ()
 
 /****************************************************************************
  * Local structures
@@ -167,7 +168,7 @@ typedef struct
     bool              b_update;
     bool              b_text;   /* Subtitles as text */
 
-    vlc_mutex_t       lock; /* Lock to protect the following variables */
+    heimdall_mutex_t       lock; /* Lock to protect the following variables */
     /* Positioning of Teletext images */
     int               i_align;
     /* */
@@ -187,7 +188,7 @@ static int Decode( decoder_t *, block_t * );
 static subpicture_t *Subpicture( decoder_t *p_dec,
                                  bool b_text,
                                  int i_columns, int i_rows,
-                                 int i_align, vlc_tick_t i_pts );
+                                 int i_align, heimdall_tick_t i_pts );
 
 static void EventHandler( vbi_event *ev, void *user_data );
 static int OpaquePage( picture_t *p_src, const vbi_page *p_page,
@@ -196,10 +197,10 @@ static int get_first_visible_row( vbi_char *p_text, int rows, int columns);
 static int get_last_visible_row( vbi_char *p_text, int rows, int columns);
 
 /* Properties callbacks */
-static int RequestPage( vlc_object_t *p_this, char const *psz_cmd,
-                        vlc_value_t oldval, vlc_value_t newval, void *p_data );
-static int Opaque( vlc_object_t *p_this, char const *psz_cmd,
-                   vlc_value_t oldval, vlc_value_t newval, void *p_data );
+static int RequestPage( heimdall_object_t *p_this, char const *psz_cmd,
+                        heimdall_value_t oldval, heimdall_value_t newval, void *p_data );
+static int Opaque( heimdall_object_t *p_this, char const *psz_cmd,
+                   heimdall_value_t oldval, heimdall_value_t newval, void *p_data );
 
 /*****************************************************************************
  * Open: probe the decoder and return score
@@ -207,13 +208,13 @@ static int Opaque( vlc_object_t *p_this, char const *psz_cmd,
  * Tries to launch a decoder and return score so that the interface is able
  * to chose.
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     decoder_t     *p_dec = (decoder_t *) p_this;
     decoder_sys_t *p_sys = NULL;
 
-    if( p_dec->fmt_in->i_codec != VLC_CODEC_TELETEXT )
-        return VLC_EGENERIC;
+    if( p_dec->fmt_in->i_codec != HEIMDALL_CODEC_TELETEXT )
+        return HEIMDALL_EGENERIC;
 
     int i_page = var_CreateGetInteger( p_dec, "vbi-page" );
     if( i_page > 999 )
@@ -224,18 +225,18 @@ static int Open( vlc_object_t *p_this )
 
     p_sys = p_dec->p_sys = calloc( 1, sizeof(decoder_sys_t) );
     if( p_sys == NULL )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_sys->i_key[0] = p_sys->i_key[1] = p_sys->i_key[2] = '*' - '0';
     p_sys->b_update = false;
     p_sys->p_vbi_dec = vbi_decoder_new();
-    vlc_mutex_init( &p_sys->lock );
+    heimdall_mutex_init( &p_sys->lock );
 
     if( p_sys->p_vbi_dec == NULL )
     {
         msg_Err( p_dec, "VBI decoder could not be created." );
         Close( p_this );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     /* Some broadcasters in countries with level 1 and level 1.5 still not send a G0 to do
@@ -258,7 +259,7 @@ static int Open( vlc_object_t *p_this )
 #endif
                                 0 , EventHandler, p_dec );
 
-    /* Create the var on vlc_global. */
+    /* Create the var on heimdall_global. */
     p_sys->i_wanted_page = i_page;
     var_AddCallback( p_dec, "vbi-page", RequestPage, p_sys );
 
@@ -280,16 +281,16 @@ static int Open( vlc_object_t *p_this )
 
     p_sys->i_level = var_CreateGetInteger( p_dec, "vbi-level" );
 
-    p_dec->fmt_out.i_codec = p_sys->b_text ? VLC_CODEC_TEXT : VLC_CODEC_RGBA;
+    p_dec->fmt_out.i_codec = p_sys->b_text ? HEIMDALL_CODEC_TEXT : HEIMDALL_CODEC_RGBA;
 
     p_dec->pf_decode = Decode;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * Close:
  *****************************************************************************/
-static void Close( vlc_object_t *p_this )
+static void Close( heimdall_object_t *p_this )
 {
     decoder_t     *p_dec = (decoder_t*) p_this;
     decoder_sys_t *p_sys = p_dec->p_sys;
@@ -319,7 +320,7 @@ static int Decode( decoder_t *p_dec, block_t *p_block )
     vbi_page        p_page;
 
     if( p_block == NULL ) /* No Drain */
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
 
     if( p_block->i_buffer > 0 &&
         ( ( p_block->p_buffer[0] >= 0x10 && p_block->p_buffer[0] <= 0x1f ) ||
@@ -365,19 +366,19 @@ static int Decode( decoder_t *p_dec, block_t *p_block )
     }
 
     /* */
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     if( p_sys->i_wanted_page == 0 )
     {
-        vlc_mutex_unlock( &p_sys->lock );
+        heimdall_mutex_unlock( &p_sys->lock );
         block_Release( p_block );
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
     }
     const int i_align = p_sys->i_align;
     const unsigned int i_wanted_page = p_sys->i_wanted_page;
     const unsigned int i_wanted_subpage = p_sys->i_wanted_subpage;
     const bool b_opaque = p_sys->b_opaque;
     const unsigned int i_level = p_sys->i_level > 3 ? 3 : p_sys->i_level;
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 
     /* Try to see if the page we want is in the cache yet */
     memset( &p_page, 0, sizeof(vbi_page) );
@@ -490,7 +491,7 @@ static int Decode( decoder_t *p_dec, block_t *p_block )
     else
     {
         subpicture_region_t *p_region =
-            vlc_spu_regions_first_or_null(&p_spu->regions);
+            heimdall_spu_regions_first_or_null(&p_spu->regions);
         picture_t *p_pic = p_region->p_picture;
 
         /* ZVBI is stupid enough to assume pitch == width */
@@ -509,9 +510,9 @@ static int Decode( decoder_t *p_dec, block_t *p_block )
                           0, i_first_row, p_page.columns, i_num_rows,
                           1, 1);
 
-        vlc_mutex_lock( &p_sys->lock );
+        heimdall_mutex_lock( &p_sys->lock );
         memcpy( p_sys->nav_link, &p_page.nav_link, sizeof( p_sys->nav_link )) ;
-        vlc_mutex_unlock( &p_sys->lock );
+        heimdall_mutex_unlock( &p_sys->lock );
 
         OpaquePage( p_pic, &p_page, b_opaque, i_first_row * p_page.columns );
     }
@@ -521,18 +522,18 @@ exit:
     block_Release( p_block );
     if( p_spu )
         decoder_QueueSub( p_dec, p_spu );
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 
 error:
     vbi_unref_page( &p_page );
     block_Release( p_block );
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }
 
 static subpicture_t *Subpicture( decoder_t *p_dec,
                                  bool b_text,
                                  int i_columns, int i_rows, int i_align,
-                                 vlc_tick_t i_pts )
+                                 heimdall_tick_t i_pts )
 {
     subpicture_t *p_spu=NULL;
 
@@ -552,7 +553,7 @@ static subpicture_t *Subpicture( decoder_t *p_dec,
     if( !b_text )
     {
         video_format_t fmt;
-        video_format_Init(&fmt, VLC_CODEC_RGBA);
+        video_format_Init(&fmt, HEIMDALL_CODEC_RGBA);
         fmt.i_width = fmt.i_visible_width = i_columns * 12;
         fmt.i_height = fmt.i_visible_height = i_rows * 10;
         fmt.i_sar_num = fmt.i_sar_den = 0; /* let the vout set the correct AR */
@@ -572,17 +573,17 @@ static subpicture_t *Subpicture( decoder_t *p_dec,
         subpicture_Delete( p_spu );
         return NULL;
     }
-    vlc_spu_regions_push(&p_spu->regions, p_region);
+    heimdall_spu_regions_push(&p_spu->regions, p_region);
 
     p_spu->i_start = i_pts;
     if ( b_text )
     {
-        p_spu->i_stop = i_pts + VLC_TICK_FROM_SEC(10);
+        p_spu->i_stop = i_pts + HEIMDALL_TICK_FROM_SEC(10);
         p_region->b_absolute = false; p_region->b_in_window = false;
     }
     else
     {
-        p_spu->i_stop = VLC_TICK_INVALID;
+        p_spu->i_stop = HEIMDALL_TICK_INVALID;
         p_region->b_absolute = true; p_region->b_in_window = false;
         p_region->i_align = i_align;
         // bottom center based on "vbi-position"
@@ -667,7 +668,7 @@ static int OpaquePage( picture_t *p_src, const vbi_page *p_page,
 {
     unsigned int    x, y;
 
-    assert( p_src->format.i_chroma == VLC_CODEC_RGBA );
+    assert( p_src->format.i_chroma == HEIMDALL_CODEC_RGBA );
 
     /* Kludge since zvbi doesn't provide an option to specify opacity. */
     for( y = 0; y < p_src->format.i_height; y++ )
@@ -703,18 +704,18 @@ static int OpaquePage( picture_t *p_src, const vbi_page *p_page,
         }
     }
     /* end of kludge */
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /* Callbacks */
-static int RequestPage( vlc_object_t *p_this, char const *psz_cmd,
-                        vlc_value_t oldval, vlc_value_t newval, void *p_data )
+static int RequestPage( heimdall_object_t *p_this, char const *psz_cmd,
+                        heimdall_value_t oldval, heimdall_value_t newval, void *p_data )
 {
     decoder_sys_t *p_sys = p_data;
-    VLC_UNUSED(p_this); VLC_UNUSED(psz_cmd); VLC_UNUSED(oldval);
+    HEIMDALL_UNUSED(p_this); HEIMDALL_UNUSED(psz_cmd); HEIMDALL_UNUSED(oldval);
     int want_navlink = -1;
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     switch( newval.i_int )
     {
         case ZVBI_KEY_RED:
@@ -747,21 +748,21 @@ static int RequestPage( vlc_object_t *p_this, char const *psz_cmd,
         p_sys->i_wanted_page = newval.i_int;
         p_sys->i_wanted_subpage = VBI_ANY_SUBNO;
     }
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int Opaque( vlc_object_t *p_this, char const *psz_cmd,
-                   vlc_value_t oldval, vlc_value_t newval, void *p_data )
+static int Opaque( heimdall_object_t *p_this, char const *psz_cmd,
+                   heimdall_value_t oldval, heimdall_value_t newval, void *p_data )
 {
     decoder_sys_t *p_sys = p_data;
-    VLC_UNUSED(p_this); VLC_UNUSED(psz_cmd); VLC_UNUSED(oldval);
+    HEIMDALL_UNUSED(p_this); HEIMDALL_UNUSED(psz_cmd); HEIMDALL_UNUSED(oldval);
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     p_sys->b_opaque = newval.b_bool;
     p_sys->b_update = true;
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

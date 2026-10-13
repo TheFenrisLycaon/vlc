@@ -1,7 +1,7 @@
 # librist
 
 LIBRIST_VERSION := v0.2.20
-LIBRIST_URL := $(VIDEOLAN_GIT)/rist/librist/-/archive/$(LIBRIST_VERSION)/librist-$(LIBRIST_VERSION).tar.gz
+LIBRIST_URL := $(LYCARIA_GIT)/rist/librist/-/archive/$(LIBRIST_VERSION)/librist-$(LIBRIST_VERSION).tar.gz
 
 ifdef BUILD_NETWORK
 PKGS += librist

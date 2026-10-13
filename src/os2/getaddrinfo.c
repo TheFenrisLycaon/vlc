@@ -4,6 +4,7 @@
  * Copyright (C) 2005 the VideoLAN team
  * Copyright (C) 2002-2007 Rémi Denis-Courmont
  * Copyright (C) 2011 KO Myung-Hun
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: KO Myung-Hun <komh@chollian.net>
  *          Rémi Denis-Courmont
@@ -27,8 +28,8 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_network.h>
+#include <heimdall_common.h>
+#include <heimdall_network.h>
 
 #ifdef HAVE_ARPA_INET_H
 #include <arpa/inet.h>
@@ -160,7 +161,7 @@ makeaddrinfo (int af, int type, int proto,
 static struct addrinfo *
 makeipv4info (int type, int proto, u_long ip, u_short port, const char *name)
 {
-    vlc_sockaddr addr = {0};
+    heimdall_sockaddr addr = {0};
 
     addr.sin.sin_family = AF_INET;
 # ifdef HAVE_SA_LEN

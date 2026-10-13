@@ -2,6 +2,7 @@
  * itml.h : iTunes Music Library import functions
  *******************************************************************************
  * Copyright (C) 2007 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Yoann Peronneau <yoann@videolan.org>
  *
@@ -43,7 +44,7 @@
 typedef struct
 {
     char *name, *artist, *album, *genre, *trackNum, *location;
-    vlc_tick_t duration;
+    heimdall_tick_t duration;
 } track_elem_t;
 
 struct xml_elem_hnd

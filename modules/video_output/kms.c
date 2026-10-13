@@ -1,8 +1,9 @@
 /*****************************************************************************
- * kms.c : kernel mode setting plugin for vlc
+ * kms.c : kernel mode setting plugin for heimdall
  *****************************************************************************
  * Copyright © 2018 Intel Corporation
  * Copyright © 2021 Videolabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -39,10 +40,10 @@
 #include <xf86drmMode.h>
 #include <drm_fourcc.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_fs.h>
-#include <vlc_window.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_fs.h>
+#include <heimdall_window.h>
 
 #include <assert.h>
 
@@ -114,7 +115,7 @@ struct vout_window_sys_t {
     uint32_t main_buffer;
 };
 
-static deviceRval FindCRTC(vlc_window_t *wnd, drmModeRes const *res,
+static deviceRval FindCRTC(heimdall_window_t *wnd, drmModeRes const *res,
                              drmModeConnector const *conn)
 {
     struct vout_window_sys_t *sys = wnd->sys;
@@ -159,7 +160,7 @@ static deviceRval FindCRTC(vlc_window_t *wnd, drmModeRes const *res,
 }
 
 
-static deviceRval SetupDevice(vlc_window_t *wnd, drmModeRes const *res,
+static deviceRval SetupDevice(heimdall_window_t *wnd, drmModeRes const *res,
                              drmModeConnector const *conn)
 {
     struct vout_window_sys_t *sys = wnd->sys;
@@ -182,7 +183,7 @@ static deviceRval SetupDevice(vlc_window_t *wnd, drmModeRes const *res,
     return drvSuccess;
 }
 
-static void UpdateOutputs(vlc_window_t *wnd)
+static void UpdateOutputs(heimdall_window_t *wnd)
 {
     struct vout_window_sys_t *sys = wnd->sys;
     drmModeRes *modeRes = sys->modeRes;
@@ -217,7 +218,7 @@ static void UpdateOutputs(vlc_window_t *wnd)
             if ((enc->possible_crtcs & (1 << crtc_index)) != 0) {
 
                 drmModeFreeEncoder(enc);
-                vlc_window_ReportOutputDevice(wnd, name, name);
+                heimdall_window_ReportOutputDevice(wnd, name, name);
                 break;
             }
             drmModeFreeEncoder(enc);
@@ -226,7 +227,7 @@ static void UpdateOutputs(vlc_window_t *wnd)
     }
 }
 
-static int WindowEnable(vlc_window_t *wnd, const vlc_window_cfg_t *cfg)
+static int WindowEnable(heimdall_window_t *wnd, const heimdall_window_cfg_t *cfg)
 {
     struct vout_window_sys_t *sys = wnd->sys;
     (void)cfg;
@@ -275,7 +276,7 @@ static int WindowEnable(vlc_window_t *wnd, const vlc_window_cfg_t *cfg)
                 drmModeFreeConnector(conn);
                 drmModeFreeResources(modeRes);
                 free(connector_request);
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             }
             drmModeFreeConnector(conn);
             found_connector = false;
@@ -291,7 +292,7 @@ static int WindowEnable(vlc_window_t *wnd, const vlc_window_cfg_t *cfg)
     if (!found_connector)
     {
         msg_Warn(wnd, "Could not find a valid connector");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     wnd->handle.crtc = sys->crtc;
@@ -324,9 +325,9 @@ static int WindowEnable(vlc_window_t *wnd, const vlc_window_cfg_t *cfg)
     sys->framebuffer = new_fb;
     sys->main_buffer = request.handle;
 
-    vlc_window_ReportSize(wnd, sys->width, sys->height);
+    heimdall_window_ReportSize(wnd, sys->width, sys->height);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error_set_crtc:
     drmModeRmFB(sys->drm_fd, new_fb);
@@ -349,10 +350,10 @@ error_create_dumb:
     drmModeFreeConnector(sys->conn);
     sys->conn = NULL;
 
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
-static void WindowDisable(vlc_window_t *wnd)
+static void WindowDisable(heimdall_window_t *wnd)
 {
     struct vout_window_sys_t *sys = wnd->sys;
     sys->crtc = 0;
@@ -385,24 +386,24 @@ static void WindowDisable(vlc_window_t *wnd)
     (void)ret;
 }
 
-static void WindowClose(vlc_window_t *wnd)
+static void WindowClose(heimdall_window_t *wnd)
 {
     struct vout_window_sys_t *sys = wnd->sys;
     drmModeFreeResources(sys->modeRes);
     drmSetClientCap(sys->drm_fd, DRM_CLIENT_CAP_UNIVERSAL_PLANES, 0);
     drmDropMaster(sys->drm_fd);
-    vlc_close(sys->drm_fd);
+    heimdall_close(sys->drm_fd);
     free(sys);
 }
 
-static const struct vlc_window_operations window_ops =
+static const struct heimdall_window_operations window_ops =
 {
     .destroy = WindowClose,
     .enable = WindowEnable,
     .disable = WindowDisable,
 };
 
-static int OpenWindow(vlc_window_t *wnd)
+static int OpenWindow(heimdall_window_t *wnd)
 {
     char *psz_device;
 
@@ -411,7 +412,7 @@ static int OpenWindow(vlc_window_t *wnd)
         = wnd->sys
         = malloc(sizeof *sys);
     if (sys == NULL)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     sys->crtc = 0;
 
@@ -424,7 +425,7 @@ static int OpenWindow(vlc_window_t *wnd)
         goto error_end;
     }
 
-    sys->drm_fd = vlc_open(psz_device, O_RDWR);
+    sys->drm_fd = heimdall_open(psz_device, O_RDWR);
     if (sys->drm_fd == -1) {
         msg_Err(wnd, "cannot open %s", psz_device);
         free(psz_device);
@@ -461,27 +462,27 @@ static int OpenWindow(vlc_window_t *wnd)
     }
 
     wnd->ops = &window_ops;
-    wnd->type = VLC_WINDOW_TYPE_KMS;
+    wnd->type = HEIMDALL_WINDOW_TYPE_KMS;
     wnd->display.drm_fd = sys->drm_fd;
     /* Note: wnd->handle.crtc will be initialized later */
 
     UpdateOutputs(wnd);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 error_drm:
     drmDropMaster(sys->drm_fd);
-    vlc_close(sys->drm_fd);
+    heimdall_close(sys->drm_fd);
 
 error_end:
     free(sys);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname("kms")
     set_subcategory(SUBCAT_VIDEO_VOUT)
 
@@ -494,4 +495,4 @@ vlc_module_begin ()
     set_callback(OpenWindow)
     set_capability("vout window", 9)
 
-vlc_module_end ()
+heimdall_module_end ()

@@ -5,13 +5,13 @@
 # Common Xiph metadata library
 xiph_meta_lib = static_library('xiph_metadata',
     sources: files('xiph_metadata.c', '../meta_engine/ID3Pictures.h'),
-    include_directories: [vlc_include_dirs],
+    include_directories: [heimdall_include_dirs],
     install: false,
     pic: true
 )
 
 # FLAC demux
-vlc_modules += {
+heimdall_modules += {
     'name' : 'flacsys',
     'sources' : files('flac.c'),
     'include_directories' : include_directories('../packetizer'),
@@ -28,7 +28,7 @@ if vorbis_dep.found()
     ogg_deps += vorbis_dep
 endif
 if ogg_dep.found()
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'ogg',
         'sources' : files('ogg.c', 'oggseek.c', 'ogg_granule.c'),
         'link_with' : [xiph_meta_lib],
@@ -42,76 +42,76 @@ if (get_option('tests').allowed())
     # Xiph test
     xiph_test = executable('xiph_test',
         files('xiph_test.c'),
-        include_directories: [vlc_include_dirs])
+        include_directories: [heimdall_include_dirs])
 
     test('xiph_test', xiph_test, suite: 'demux')
 endif
 
 # Demux dump
-vlc_modules += {
+heimdall_modules += {
     'name' : 'demuxdump',
     'sources' : files('demuxdump.c'),
     'plugin_dir' : 'demux',
 }
 
 # Raw DV demux
-vlc_modules += {
+heimdall_modules += {
     'name' : 'rawdv',
     'sources' : files('rawdv.c'),
     'plugin_dir' : 'demux',
 }
 
 # Raw Vid demux
-vlc_modules += {
+heimdall_modules += {
     'name' : 'rawvid',
     'sources' : files('rawvid.c'),
     'plugin_dir' : 'demux',
 }
 
 # au demux
-vlc_modules += {
+heimdall_modules += {
     'name' : 'au',
     'sources' : files('au.c'),
     'plugin_dir' : 'demux',
 }
 
 # Raw AUD demux
-vlc_modules += {
+heimdall_modules += {
     'name' : 'rawaud',
     'sources' : files('rawaud.c'),
     'plugin_dir' : 'demux',
 }
 
 # WAV demux module
-vlc_modules += {
+heimdall_modules += {
     'name' : 'wav',
     'sources' : files('wav.c'),
     'plugin_dir' : 'demux',
 }
 
 # NSV demux
-vlc_modules += {
+heimdall_modules += {
     'name' : 'nsv',
     'sources' : files('nsv.c'),
     'plugin_dir' : 'demux',
 }
 
 # HX raw video/audio IP camera demuxer
-vlc_modules += {
+heimdall_modules += {
     'name' : 'hx',
     'sources' : files('hx.c'),
     'plugin_dir' : 'demux',
 }
 
 # G64 RTP dumps demuxer
-vlc_modules += {
+heimdall_modules += {
     'name' : 'g64rtp',
     'sources' : files('g64rtp.c'),
     'plugin_dir' : 'demux',
 }
 
 # MPEG PS demux
-vlc_modules += {
+heimdall_modules += {
     'name' : 'ps',
     'sources' : files('mpeg/ps.c'),
     'plugin_dir' : 'demux',
@@ -121,7 +121,7 @@ vlc_modules += {
 libmodplug_dep = dependency('libmodplug', version: ['>= 0.8.4', '!= 0.8.8'],
     required: get_option('libmodplug'))
 if libmodplug_dep.found()
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'mod',
         'sources' : files('mod.c'),
         'dependencies' : [libmodplug_dep],
@@ -130,28 +130,28 @@ if libmodplug_dep.found()
 endif
 
 # PVA demux
-vlc_modules += {
+heimdall_modules += {
     'name' : 'pva',
     'sources' : files('pva.c'),
     'plugin_dir' : 'demux',
 }
 
 # AIFF demux
-vlc_modules += {
+heimdall_modules += {
     'name' : 'aiff',
     'sources' : files('aiff.c'),
     'plugin_dir' : 'demux',
 }
 
 # MJPEG demux
-vlc_modules += {
+heimdall_modules += {
     'name' : 'mjpeg',
     'sources' : files('mjpeg.c'),
     'plugin_dir' : 'demux',
 }
 
 # Subtitle demux
-vlc_modules += {
+heimdall_modules += {
     'name' : 'subtitle',
     'sources' : files('subtitle.c'),
     'dependencies' : [m_lib],
@@ -159,105 +159,105 @@ vlc_modules += {
 }
 
 # ty demux
-vlc_modules += {
+heimdall_modules += {
     'name' : 'ty',
     'sources' : files('ty.c'),
     'plugin_dir' : 'demux',
 }
 
 # vobsub demux
-vlc_modules += {
+heimdall_modules += {
     'name' : 'vobsub',
     'sources' : files('vobsub.c'),
     'plugin_dir' : 'demux',
 }
 
 # voc demux
-vlc_modules += {
+heimdall_modules += {
     'name' : 'voc',
     'sources' : files('voc.c'),
     'plugin_dir' : 'demux',
 }
 
 # xa demux
-vlc_modules += {
+heimdall_modules += {
     'name' : 'xa',
     'sources' : files('xa.c'),
     'plugin_dir' : 'demux',
 }
 
 # nuv demux
-vlc_modules += {
+heimdall_modules += {
     'name' : 'nuv',
     'sources' : files('nuv.c'),
     'plugin_dir' : 'demux',
 }
 
 # tta demux
-vlc_modules += {
+heimdall_modules += {
     'name' : 'tta',
     'sources' : files('tta.c'),
     'plugin_dir' : 'demux',
 }
 
 # VC1 demux
-vlc_modules += {
+heimdall_modules += {
     'name' : 'vc1',
     'sources' : files('vc1.c'),
     'plugin_dir' : 'demux',
 }
 
 # CDG demux
-vlc_modules += {
+heimdall_modules += {
     'name' : 'demux_cdg',
     'sources' : files('cdg.c'),
     'plugin_dir' : 'demux',
 }
 
 # SMF demux
-vlc_modules += {
+heimdall_modules += {
     'name' : 'smf',
     'sources' : files('smf.c'),
     'plugin_dir' : 'demux',
 }
 
 # DMX Audio Music demux
-vlc_modules += {
+heimdall_modules += {
     'name' : 'dmxmus',
     'sources' : files('dmxmus.c'),
     'plugin_dir' : 'demux',
 }
 
 # Image demux
-vlc_modules += {
+heimdall_modules += {
     'name' : 'image',
     'sources' : files('image.c'),
     'plugin_dir' : 'demux',
 }
 
 # STL demux
-vlc_modules += {
+heimdall_modules += {
     'name' : 'demux_stl',
     'sources' : files('stl.c'),
     'plugin_dir' : 'demux',
 }
 
 # ASF demux
-vlc_modules += {
+heimdall_modules += {
     'name' : 'asf',
     'sources' : files('asf/asf.c', 'asf/libasf.c', 'asf/asfpacket.c'),
     'plugin_dir' : 'demux',
 }
 
 # AVI demux
-vlc_modules += {
+heimdall_modules += {
     'name' : 'avi',
     'sources' : files('avi/avi.c', 'avi/libavi.c'),
     'plugin_dir' : 'demux',
 }
 
 # CAF demux
-vlc_modules += {
+heimdall_modules += {
     'name' : 'caf',
     'sources' : files('caf.c'),
     'dependencies' : [m_lib],
@@ -271,7 +271,7 @@ if avformat_dep.found()
         avformat_extra_sources += 'avformat/mux.c'
     endif
 
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'avformat',
         'sources' : files(
             'avformat/demux.c',
@@ -287,21 +287,21 @@ if avformat_dep.found()
 endif
 
 # Directory demuxer
-vlc_modules += {
+heimdall_modules += {
     'name' : 'directory_demux',
     'sources' : files('directory.c'),
     'plugin_dir' : 'demux',
 }
 
 # ES demux
-vlc_modules += {
+heimdall_modules += {
     'name' : 'es',
     'sources' : files('mpeg/es.c', '../packetizer/dts_header.c'),
     'plugin_dir' : 'demux',
 }
 
 # h.26x demux
-vlc_modules += {
+heimdall_modules += {
     'name' : 'h26x',
     'sources' : files('mpeg/h26x.c', '../packetizer/h264_nal.c'),
     'plugin_dir' : 'demux',
@@ -311,7 +311,7 @@ vlc_modules += {
 libebml_dep = dependency('libebml', 'EBML', required: get_option('matroska'))
 libmatroska_dep = dependency('libmatroska', 'Matroska', required: get_option('matroska'))
 if libebml_dep.found() and libmatroska_dep.found()
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'mkv',
         'sources' : files(
             'mkv/mkv.cpp',
@@ -330,7 +330,7 @@ if libebml_dep.found() and libmatroska_dep.found()
             'mkv/chapter_command_script_common.cpp',
             'mkv/stream_io_callback.cpp',
             'mkv/lzokay.cpp',
-            'mkv/vlc_colors.c',
+            'mkv/heimdall_colors.c',
             'mp4/libmp4.c',
             '../packetizer/dts_header.c',
         ),
@@ -340,7 +340,7 @@ if libebml_dep.found() and libmatroska_dep.found()
 endif
 
 # MP4 demux
-vlc_modules += {
+heimdall_modules += {
     'name' : 'mp4',
     'sources' : files(
         'mp4/mp4.c',
@@ -357,21 +357,21 @@ vlc_modules += {
 }
 
 # mock demux
-vlc_modules += {
+heimdall_modules += {
     'name' : 'demux_mock',
     'sources' : files('mock.c'),
     'install' : false,
 }
 
 # mpgv demux
-vlc_modules += {
+heimdall_modules += {
     'name' : 'mpgv',
     'sources' : files('mpeg/mpgv.c'),
     'plugin_dir' : 'demux',
 }
 
 # Playlist demux
-vlc_modules += {
+heimdall_modules += {
     'name' : 'playlist',
     'sources' : files(
         'playlist/asx.c',
@@ -412,7 +412,7 @@ if libdvbpsi_dep.found()
         arrib24_define += '-DHAVE_ARIBB24=1'
     endif
 
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'ts',
         'sources' : files(
             'mpeg/ts.c',
@@ -445,7 +445,7 @@ endif
 
 # GME
 gme_dep = dependency('libgme', required: get_option('gme'))
-vlc_modules += {
+heimdall_modules += {
     'name' : 'gme',
     'sources' : files('gme.c'),
     'dependencies' : [gme_dep],
@@ -457,7 +457,7 @@ vlc_modules += {
 sid_dep = dependency('libsidplay2', required: get_option('sid'))
 if cpp.check_header('sidplay/builders/resid.h', dependencies: sid_dep)
 resid_dep = cpp.find_library('resid-builder', dirs: contrib_libdir, required: get_option('sid'))
-vlc_modules += {
+heimdall_modules += {
     'name' : 'sid',
     'sources' : files('sid.cpp'),
     'dependencies' : [sid_dep, resid_dep],
@@ -469,7 +469,7 @@ endif
 
 # Adaptive streams demuxer
 
-vlc_modules += {
+heimdall_modules += {
     'name' : 'adaptive',
     'enabled' : get_option('adaptive').allowed(),
     'sources' : files(
@@ -682,21 +682,21 @@ vlc_modules += {
     ),
     'include_directories' : include_directories('adaptive', './'),
     'dependencies' : [socket_libs, m_lib, z_dep, gcrypt_dep],
-    'link_with' : vlc_http_lib,
+    'link_with' : heimdall_http_lib,
     'plugin_dir' : 'demux',
 }
 
-vlc_modules += {
+heimdall_modules += {
     'name' : 'ytdl',
     'sources' : files('ytdl.c'),
     'c_args' : host_system == 'windows' ? '-DEXEEXT=".exe"' : '-DEXEEXT=""',
-    'link_with' : vlc_json_lib,
+    'link_with' : heimdall_json_lib,
     'plugin_dir' : 'demux',
     'enabled' : host_system not in ['android', 'emscripten']
 }
 
 # noseek demux
-vlc_modules += {
+heimdall_modules += {
     'name' : 'noseek',
     'sources' : files('filter/noseek.c'),
     'plugin_dir' : 'demux',

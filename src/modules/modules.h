@@ -2,6 +2,7 @@
  * modules.h : Module management functions.
  *****************************************************************************
  * Copyright (C) 2001-2016 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Samuel Hocevar <sam@zoy.org>
  *
@@ -20,18 +21,18 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef LIBVLC_MODULES_H
-# define LIBVLC_MODULES_H 1
+#ifndef LIBHEIMDALL_MODULES_H
+# define LIBHEIMDALL_MODULES_H 1
 
 # include <stdatomic.h>
-# include <vlc_plugin.h>
+# include <heimdall_plugin.h>
 
-struct vlc_param;
+struct heimdall_param;
 
-/** VLC plugin */
-typedef struct vlc_plugin_t
+/** Heimdall plugin */
+typedef struct heimdall_plugin_t
 {
-    struct vlc_plugin_t *next;
+    struct heimdall_plugin_t *next;
     module_t *module;
     unsigned modules_count;
 
@@ -42,7 +43,7 @@ typedef struct vlc_plugin_t
      */
     struct
     {
-        struct vlc_param *params; /**< Table of configuration items */
+        struct heimdall_param *params; /**< Table of configuration items */
         size_t size; /**< Total count of all items */
         size_t count; /**< Count of real options (excludes hints) */
         size_t booleans; /**< Count of options that are of boolean type */
@@ -57,24 +58,24 @@ typedef struct vlc_plugin_t
     int64_t mtime; /**< Last modification time */
     uint64_t size; /**< File size */
 #endif
-} vlc_plugin_t;
+} heimdall_plugin_t;
 
 /**
  * List of all plug-ins.
  */
-extern struct vlc_plugin_t *vlc_plugins;
+extern struct heimdall_plugin_t *heimdall_plugins;
 
 #define MODULE_SHORTCUT_MAX 20
 
 /** Plugin deactivation callback */
-typedef void (*vlc_deactivate_cb)(vlc_object_t*);
+typedef void (*heimdall_deactivate_cb)(heimdall_object_t*);
 
 /**
  * Internal module descriptor
  */
 struct module_t
 {
-    vlc_plugin_t *plugin; /**< Plug-in/library containing the module */
+    heimdall_plugin_t *plugin; /**< Plug-in/library containing the module */
     module_t   *next;
 
     /** Shortcuts to the module */
@@ -97,27 +98,27 @@ struct module_t
     const char *activate_name;
     const char *deactivate_name;
     void *pf_activate;
-    vlc_deactivate_cb deactivate;
+    heimdall_deactivate_cb deactivate;
 };
 
-vlc_plugin_t *vlc_plugin_create(void);
-void vlc_plugin_destroy(vlc_plugin_t *);
-module_t *vlc_module_create(vlc_plugin_t *);
-void vlc_module_destroy (module_t *);
+heimdall_plugin_t *heimdall_plugin_create(void);
+void heimdall_plugin_destroy(heimdall_plugin_t *);
+module_t *heimdall_module_create(heimdall_plugin_t *);
+void heimdall_module_destroy (module_t *);
 
-vlc_plugin_t *vlc_plugin_describe(vlc_plugin_cb);
-int vlc_plugin_resolve(vlc_plugin_t *, vlc_plugin_cb);
+heimdall_plugin_t *heimdall_plugin_describe(heimdall_plugin_cb);
+int heimdall_plugin_resolve(heimdall_plugin_t *, heimdall_plugin_cb);
 
 void module_InitBank (void);
-void module_LoadPlugins(libvlc_int_t *);
+void module_LoadPlugins(libheimdall_int_t *);
 void module_EndBank (bool);
-int vlc_plugin_Map(struct vlc_logger *, vlc_plugin_t *);
-void *vlc_plugin_Symbol(struct vlc_logger *, vlc_plugin_t *, const char *name);
+int heimdall_plugin_Map(struct heimdall_logger *, heimdall_plugin_t *);
+void *heimdall_plugin_Symbol(struct heimdall_logger *, heimdall_plugin_t *, const char *name);
 
 /**
- * Lists of all VLC modules with a given capability.
+ * Lists of all Heimdall modules with a given capability.
  *
- * This functions returns a table of all VLC modules whose capability
+ * This functions returns a table of all Heimdall modules whose capability
  * matches the supplied capability name. Entries are sorted by decreasing
  * module score.
  *
@@ -130,7 +131,7 @@ void *vlc_plugin_Symbol(struct vlc_logger *, vlc_plugin_t *, const char *name);
  */
 size_t module_list_cap(module_t *const **tab, const char *name);
 
-int vlc_bindtextdomain (const char *);
+int heimdall_bindtextdomain (const char *);
 
 /* Low-level OS-dependent handler */
 
@@ -141,7 +142,7 @@ int vlc_bindtextdomain (const char *);
  * \param lazy whether to resolve the symbols lazily
  * \return a module handle on success, or NULL on error.
  */
-void *vlc_dlopen(const char *path, bool) VLC_USED;
+void *heimdall_dlopen(const char *path, bool) HEIMDALL_USED;
 
 /**
  * Unloads a dynamic library.
@@ -152,7 +153,7 @@ void *vlc_dlopen(const char *path, bool) VLC_USED;
  * \retval 0 on success
  * \retval -1 on error (none are defined though)
  */
-int vlc_dlclose(void *);
+int heimdall_dlclose(void *);
 
 /**
  * Looks up a symbol from a dynamically loaded library
@@ -167,19 +168,19 @@ int vlc_dlclose(void *);
  * normal symbols such as function or global variables cannot have NULL as
  * their address.
  */
-void *vlc_dlsym(void *handle, const char *name) VLC_USED;
+void *heimdall_dlsym(void *handle, const char *name) HEIMDALL_USED;
 
 /**
- * Formats an error message for vlc_dlopen() or vlc_dlsym().
+ * Formats an error message for heimdall_dlopen() or heimdall_dlsym().
  *
  * \return a heap-allocated nul-terminated error string, or NULL.
  */
-char *vlc_dlerror(void) VLC_USED;
+char *heimdall_dlerror(void) HEIMDALL_USED;
 
 /* Plugins cache */
-vlc_plugin_t *vlc_cache_load(libvlc_int_t *, const char *, block_t **);
-vlc_plugin_t *vlc_cache_lookup(vlc_plugin_t **, const char *relpath);
+heimdall_plugin_t *heimdall_cache_load(libheimdall_int_t *, const char *, block_t **);
+heimdall_plugin_t *heimdall_cache_lookup(heimdall_plugin_t **, const char *relpath);
 
-void CacheSave(libvlc_int_t *, const char *, vlc_plugin_t *const *, size_t);
+void CacheSave(libheimdall_int_t *, const char *, heimdall_plugin_t *const *, size_t);
 
-#endif /* !LIBVLC_MODULES_H */
+#endif /* !LIBHEIMDALL_MODULES_H */

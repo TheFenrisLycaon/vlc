@@ -2,6 +2,7 @@
  * motion.h: laptop built-in motion sensors
  *****************************************************************************
  * Copyright (C) 2012 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Pierre Ynard
  *
@@ -25,7 +26,7 @@
 
 typedef struct motion_sensors_t motion_sensors_t;
 
-motion_sensors_t *motion_create( vlc_object_t *obj );
+motion_sensors_t *motion_create( heimdall_object_t *obj );
 void motion_destroy( motion_sensors_t *motion );
 int motion_get_angle( motion_sensors_t *motion );
 

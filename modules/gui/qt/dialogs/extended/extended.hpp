@@ -2,6 +2,7 @@
  * extended.hpp : Extended controls - Undocked
  ****************************************************************************
  * Copyright (C) 2006 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Clément Stenac <zorglub@videolan.org>
  *
@@ -20,17 +21,17 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef QVLC_EXTENDED_DIALOG_H_
-#define QVLC_EXTENDED_DIALOG_H_ 1
+#ifndef QHEIMDALL_EXTENDED_DIALOG_H_
+#define QHEIMDALL_EXTENDED_DIALOG_H_ 1
 
-#include "widgets/native/qvlcframe.hpp"
+#include "widgets/native/qheimdallframe.hpp"
 
 #include "extended_panels.hpp"
 #include "player/player_controller.hpp"
 
 class QTabWidget;
 
-class ExtendedDialog : public QVLCDialog
+class ExtendedDialog : public QHeimdallDialog
 {
     Q_OBJECT
 public:

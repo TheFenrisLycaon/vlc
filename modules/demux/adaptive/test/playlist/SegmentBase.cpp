@@ -2,6 +2,7 @@
  *
  *****************************************************************************
  * Copyright (C) 2020 VideoLabs, VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -51,7 +52,7 @@ int SegmentBase_test()
         uint64_t number; bool discont;
         Expect(segmentBase->getSegmentNumberByTime(1, &number) == false);
         Expect(segmentBase->getNextMediaSegment(0, &number, &discont) == nullptr);
-        vlc_tick_t time, duration;
+        heimdall_tick_t time, duration;
         Expect(segmentBase->getPlaybackTimeDurationBySegmentNumber(0, &time, &duration) == false);
 
         /* Create a split range */

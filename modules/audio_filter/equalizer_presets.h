@@ -2,6 +2,7 @@
  * equalizer_presets.h:
  *****************************************************************************
  * Copyright (C) 2004 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *
@@ -20,8 +21,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_EQUALIZER_PRESETS_H_
-#define VLC_EQUALIZER_PRESETS_H_
+#ifndef HEIMDALL_EQUALIZER_PRESETS_H_
+#define HEIMDALL_EQUALIZER_PRESETS_H_
 
 /*****************************************************************************
  * Equalizer presets
@@ -33,7 +34,7 @@
 #define EQZ_BANDS_MAX 10
 
 /* The frequency tables */
-static const float f_vlc_frequency_table_10b[EQZ_BANDS_MAX] =
+static const float f_heimdall_frequency_table_10b[EQZ_BANDS_MAX] =
 {
     60, 170, 310, 600, 1000, 3000, 6000, 12000, 14000, 16000,
 };

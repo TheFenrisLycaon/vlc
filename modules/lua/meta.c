@@ -2,8 +2,9 @@
  * meta.c: Get meta/artwork using lua scripts
  *****************************************************************************
  * Copyright (C) 2007-2008 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Antoine Cellerier <dionoea at videolan tod org>
+ * Authors: Antoine Cellerier <dionoea at lycaria tod org>
  *          Pierre d'Herbemont <pdherbemont # videolan.org>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -32,13 +33,13 @@
 # include "config.h"
 #endif
 
-#include "vlc.h"
+#include "heimdall.h"
 #include "libs.h"
 
 /*****************************************************************************
  * Init lua
  *****************************************************************************/
-static lua_State * init( vlc_object_t *p_this, input_item_t * p_item, const char *psz_filename )
+static lua_State * init( heimdall_object_t *p_this, input_item_t * p_item, const char *psz_filename )
 {
     lua_State * L = luaL_newstate();
     if( !L )
@@ -47,13 +48,13 @@ static lua_State * init( vlc_object_t *p_this, input_item_t * p_item, const char
         return NULL;
     }
 
-    vlclua_set_this( L, p_this );
+    heimdalllua_set_this( L, p_this );
 
     /* Load Lua libraries */
     luaL_openlibs( L ); /* XXX: Don't open all the libs? */
 
     static const luaL_Reg p_reg[] = { { NULL, NULL } };
-    luaL_register_namespace( L, "vlc", p_reg );
+    luaL_register_namespace( L, "heimdall", p_reg );
 
     luaopen_msg( L );
     luaopen_stream( L );
@@ -63,7 +64,7 @@ static lua_State * init( vlc_object_t *p_this, input_item_t * p_item, const char
     luaopen_xml( L );
     luaopen_input_item( L, p_item );
 
-    if( vlclua_add_modules_path( L, psz_filename ) )
+    if( heimdalllua_add_modules_path( L, psz_filename ) )
     {
         msg_Warn( p_this, "Error while setting the module search path for %s",
                   psz_filename );
@@ -77,7 +78,7 @@ static lua_State * init( vlc_object_t *p_this, input_item_t * p_item, const char
 /*****************************************************************************
  * Run a lua entry point function
  *****************************************************************************/
-static int run( vlc_object_t *p_this, const char * psz_filename,
+static int run( heimdall_object_t *p_this, const char * psz_filename,
                 lua_State * L, const char *luafunction,
                 const luabatch_context_t *p_context )
 {
@@ -87,7 +88,7 @@ static int run( vlc_object_t *p_this, const char * psz_filename,
     lua_setglobal( L, luafunction );
 
     /* Load and run the script(s) */
-    if( vlclua_dofile( p_this, L, psz_filename ) )
+    if( heimdalllua_dofile( p_this, L, psz_filename ) )
     {
         msg_Warn( p_this, "Error loading script %s: %s", psz_filename,
                  lua_tostring( L, lua_gettop( L ) ) );
@@ -130,11 +131,11 @@ static int run( vlc_object_t *p_this, const char * psz_filename,
                  lua_tostring( L, lua_gettop( L ) ) );
         goto error;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     lua_pop( L, 1 );
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /*****************************************************************************
@@ -147,15 +148,15 @@ static bool validate_scope( const luabatch_context_t *p_context, meta_fetcher_sc
         || p_context->e_scope == e_scope;
 }
 
-static int fetch_art( vlc_object_t *p_this, const char * psz_filename,
+static int fetch_art( heimdall_object_t *p_this, const char * psz_filename,
                       const luabatch_context_t *p_context )
 {
     lua_State *L = init( p_this, p_context->p_item, psz_filename );
     if( !L )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     int i_ret = run(p_this, psz_filename, L, "fetch_art", p_context);
-    if(i_ret != VLC_SUCCESS)
+    if(i_ret != HEIMDALL_SUCCESS)
     {
         lua_close( L );
         return i_ret;
@@ -183,33 +184,33 @@ static int fetch_art( vlc_object_t *p_this, const char * psz_filename,
     }
 
     lua_close(L);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     lua_close( L );
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /*****************************************************************************
  * Called through lua_scripts_batch_execute to call 'read_meta' on the script
  * pointed by psz_filename.
  *****************************************************************************/
-static int read_meta( vlc_object_t *p_this, const char * psz_filename,
+static int read_meta( heimdall_object_t *p_this, const char * psz_filename,
                       const luabatch_context_t *p_context )
 {
     /* FIXME: merge with finder */
     demux_meta_t *p_demux_meta = (demux_meta_t *)p_this;
-    VLC_UNUSED( p_context );
+    HEIMDALL_UNUSED( p_context );
 
     lua_State *L = init( p_this, p_demux_meta->p_item, psz_filename );
     if( !L )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     int i_ret = run(p_this, psz_filename, L, "read_meta", NULL);
     lua_close( L );
 
     // Continue even if an error occurred: all "meta reader" are always run.
-    return i_ret == VLC_SUCCESS ? VLC_EGENERIC : i_ret;
+    return i_ret == HEIMDALL_SUCCESS ? HEIMDALL_EGENERIC : i_ret;
 }
 
 
@@ -217,12 +218,12 @@ static int read_meta( vlc_object_t *p_this, const char * psz_filename,
  * Called through lua_scripts_batch_execute to call 'fetch_meta' on the script
  * pointed by psz_filename.
  *****************************************************************************/
-static int fetch_meta( vlc_object_t *p_this, const char * psz_filename,
+static int fetch_meta( heimdall_object_t *p_this, const char * psz_filename,
                        const luabatch_context_t *p_context )
 {
     lua_State *L = init( p_this, p_context->p_item, psz_filename );
     if( !L )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     int ret = run(p_this, psz_filename, L, "fetch_meta", p_context);
     lua_close( L );
@@ -237,9 +238,9 @@ static int fetch_meta( vlc_object_t *p_this, const char * psz_filename,
 int ReadMeta( demux_meta_t *p_this )
 {
     if( lua_Disabled( p_this ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    return vlclua_scripts_batch_execute( VLC_OBJECT(p_this), "meta"DIR_SEP"reader",
+    return heimdalllua_scripts_batch_execute( HEIMDALL_OBJECT(p_this), "meta"DIR_SEP"reader",
                                          (void*) &read_meta, NULL );
 }
 
@@ -251,11 +252,11 @@ int ReadMeta( demux_meta_t *p_this )
 int FetchMeta( meta_fetcher_t *p_finder )
 {
     if( lua_Disabled( p_finder ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     luabatch_context_t context = { p_finder->p_item, p_finder->e_scope, validate_scope };
 
-    return vlclua_scripts_batch_execute( VLC_OBJECT(p_finder), "meta"DIR_SEP"fetcher",
+    return heimdalllua_scripts_batch_execute( HEIMDALL_OBJECT(p_finder), "meta"DIR_SEP"fetcher",
                                          &fetch_meta, (void*)&context );
 }
 
@@ -266,10 +267,10 @@ int FetchMeta( meta_fetcher_t *p_finder )
 int FindArt( meta_fetcher_t *p_finder )
 {
     if( lua_Disabled( p_finder ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     luabatch_context_t context = { p_finder->p_item, p_finder->e_scope, validate_scope };
 
-    return vlclua_scripts_batch_execute( VLC_OBJECT(p_finder), "meta"DIR_SEP"art",
+    return heimdalllua_scripts_batch_execute( HEIMDALL_OBJECT(p_finder), "meta"DIR_SEP"art",
                                          &fetch_art, (void*)&context );
 }

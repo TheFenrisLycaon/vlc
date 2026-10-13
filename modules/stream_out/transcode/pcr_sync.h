@@ -2,6 +2,7 @@
  * pcr_sync.h
  *****************************************************************************
  * Copyright (C) 2022 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -44,19 +45,19 @@
 /**
  * Opaque PCR-Sync internal state.
  */
-typedef struct vlc_pcr_sync vlc_pcr_sync_t;
+typedef struct heimdall_pcr_sync heimdall_pcr_sync_t;
 
 /**
  * Allocate and initialize a new pcr_sync.
  *
  * \return An heap allocated pcr_sync or NULL if the allocation failed.
  */
-vlc_pcr_sync_t *vlc_pcr_sync_New(void) VLC_USED;
+heimdall_pcr_sync_t *heimdall_pcr_sync_New(void) HEIMDALL_USED;
 
 /**
  * Delete a pcr_sync and discard its internal state.
  */
-void vlc_pcr_sync_Delete(vlc_pcr_sync_t *);
+void heimdall_pcr_sync_Delete(heimdall_pcr_sync_t *);
 
 /**
  * Create a new ES ID.
@@ -65,15 +66,15 @@ void vlc_pcr_sync_Delete(vlc_pcr_sync_t *);
  *
  * \param[out] id The assigned ID if the function is successful, undefined otherwise.
  *
- * \retval VLC_SUCCESS On success.
- * \retval VLC_ENOMEM On internal allocation error.
+ * \retval HEIMDALL_SUCCESS On success.
+ * \retval HEIMDALL_ENOMEM On internal allocation error.
  */
-int vlc_pcr_sync_NewESID(vlc_pcr_sync_t *, unsigned int *id);
+int heimdall_pcr_sync_NewESID(heimdall_pcr_sync_t *, unsigned int *id);
 
 /**
  * Delete the given ES ID
  */
-void vlc_pcr_sync_DelESID(vlc_pcr_sync_t *, unsigned int id);
+void heimdall_pcr_sync_DelESID(heimdall_pcr_sync_t *, unsigned int id);
 
 /**
  * Signal a frame input from the Frame Processing Unit.
@@ -81,9 +82,9 @@ void vlc_pcr_sync_DelESID(vlc_pcr_sync_t *, unsigned int id);
  * The frame timestamp will be cached and used in later \ref SignalPCR calls to determine the
  * correct PCR forwarding point.
  *
- * \param id The ES ID (See \ref vlc_pcr_sync_NewESID).
+ * \param id The ES ID (See \ref heimdall_pcr_sync_NewESID).
  */
-void vlc_pcr_sync_SignalFrame(vlc_pcr_sync_t *, unsigned int id, const vlc_frame_t *);
+void heimdall_pcr_sync_SignalFrame(heimdall_pcr_sync_t *, unsigned int id, const heimdall_frame_t *);
 
 /**
  * Signal a frame output from the Frame Processing Unit.
@@ -91,28 +92,28 @@ void vlc_pcr_sync_SignalFrame(vlc_pcr_sync_t *, unsigned int id, const vlc_frame
  * This function return the following PCR to forward if any is available.
  * \note This can be called multiple times to handle multiple following PCR's.
  *
- * \param id The ES ID (See \ref vlc_pcr_sync_NewESID).
+ * \param id The ES ID (See \ref heimdall_pcr_sync_NewESID).
  *
- * \return The PCR value following the frame or VLC_TICK_INVALID if no PCR is following.
+ * \return The PCR value following the frame or HEIMDALL_TICK_INVALID if no PCR is following.
  */
-vlc_tick_t vlc_pcr_sync_SignalFrameOutput(vlc_pcr_sync_t *, unsigned int id, const vlc_frame_t *);
+heimdall_tick_t heimdall_pcr_sync_SignalFrameOutput(heimdall_pcr_sync_t *, unsigned int id, const heimdall_frame_t *);
 
 /**
- * Status code returned by \ref vlc_pcr_sync_SignalPCR when PCR could be directly forwarded
+ * Status code returned by \ref heimdall_pcr_sync_SignalPCR when PCR could be directly forwarded
  */
-#define VLC_PCR_SYNC_FORWARD_PCR (-EAGAIN)
+#define HEIMDALL_PCR_SYNC_FORWARD_PCR (-EAGAIN)
 
 /**
  * Signal a PCR event.
  *
  * \param pcr The PCR value.
  *
- * \retval VLC_SUCCESS On success.
- * \retval VLC_ENOMEM On allocation error.
- * \retval VLC_PCR_SYNC_FORWARD_PCR When the Signaled PCR could be immediately sent and is not
+ * \retval HEIMDALL_SUCCESS On success.
+ * \retval HEIMDALL_ENOMEM On allocation error.
+ * \retval HEIMDALL_PCR_SYNC_FORWARD_PCR When the Signaled PCR could be immediately sent and is not
  * queued.
  */
-int vlc_pcr_sync_SignalPCR(vlc_pcr_sync_t *, vlc_tick_t pcr);
+int heimdall_pcr_sync_SignalPCR(heimdall_pcr_sync_t *, heimdall_tick_t pcr);
 
 #if defined( __cplusplus )
 }

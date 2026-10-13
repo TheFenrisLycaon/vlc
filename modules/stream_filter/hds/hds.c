@@ -24,14 +24,14 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_arrays.h>
-#include <vlc_threads.h>
-#include <vlc_plugin.h>
-#include <vlc_stream.h>
-#include <vlc_strings.h>            /* b64_decode */
-#include <vlc_xml.h>
-#include <vlc_charset.h>            /* FromCharset */
+#include <heimdall_common.h>
+#include <heimdall_arrays.h>
+#include <heimdall_threads.h>
+#include <heimdall_plugin.h>
+#include <heimdall_stream.h>
+#include <heimdall_strings.h>            /* b64_decode */
+#include <heimdall_xml.h>
+#include <heimdall_charset.h>            /* FromCharset */
 
 typedef struct chunk_s
 {
@@ -90,10 +90,10 @@ typedef struct hds_stream_s
     /* kilobits per second */
     uint32_t       bitrate;
 
-    vlc_mutex_t    abst_lock;
+    heimdall_mutex_t    abst_lock;
 
-    vlc_mutex_t    dl_lock;
-    vlc_cond_t     dl_cond;
+    heimdall_mutex_t    dl_lock;
+    heimdall_cond_t     dl_cond;
 
     /* can be left as null */
     char*          abst_url;
@@ -127,14 +127,14 @@ typedef struct hds_stream_s
 typedef struct
 {
     char         *base_url;    /* URL common part for chunks */
-    vlc_thread_t live_thread;
-    vlc_thread_t dl_thread;
+    heimdall_thread_t live_thread;
+    heimdall_thread_t dl_thread;
 
     /* we pend on peek until some number of segments arrives; otherwise
      * the downstream system dies in case of playback */
     uint64_t     chunk_count;
 
-    vlc_array_t  hds_streams; /* available streams */
+    heimdall_array_t  hds_streams; /* available streams */
 
     /* Buffer that holds the very first bytes of the stream: the FLV
      * file header and a possible metadata packet.
@@ -173,7 +173,7 @@ typedef struct _manifest {
     char* element_stack[MAX_XML_DEPTH];
     bootstrap_info bootstraps[MAX_BOOTSTRAP_INFO];
     media_info medias[MAX_MEDIA_ELEMENTS];
-    xml_reader_t *vlc_reader;
+    xml_reader_t *heimdall_reader;
 } manifest_t;
 
 static unsigned char flv_header_bytes[] = {
@@ -201,16 +201,16 @@ static unsigned char amf_object_end[] = { 0x0, 0x0, 0x9 };
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  Open( vlc_object_t * );
-static void Close( vlc_object_t * );
+static int  Open( heimdall_object_t * );
+static void Close( heimdall_object_t * );
 
-vlc_module_begin()
+heimdall_module_begin()
     set_subcategory( SUBCAT_INPUT_STREAM_FILTER )
     set_description( N_("HTTP Dynamic Streaming") )
     set_shortname( "Dynamic Streaming")
     set_capability( "stream_filter", 330 )
     set_callbacks( Open, Close )
-vlc_module_end()
+heimdall_module_end()
 
 static ssize_t Read( stream_t *, void *, size_t );
 static int   Control( stream_t *, int , va_list );
@@ -224,7 +224,7 @@ static inline bool isFQUrl( const char* url )
 static bool isHDS( stream_t *s )
 {
     const uint8_t *peek;
-    int i_size = vlc_stream_Peek( s->s, &peek, 200 );
+    int i_size = heimdall_stream_Peek( s->s, &peek, 200 );
     if( i_size < 200 )
         return false;
 
@@ -256,7 +256,7 @@ static uint64_t get_stream_size( stream_t* s )
     if ( p_sys->live )
         return 0;
 
-    if ( vlc_array_count( &p_sys->hds_streams ) == 0 )
+    if ( heimdall_array_count( &p_sys->hds_streams ) == 0 )
         return 0;
 
     hds_stream_t* hds_stream = p_sys->hds_streams.pp_elems[0];
@@ -268,7 +268,7 @@ static uint64_t get_stream_size( stream_t* s )
         hds_stream->bitrate * BITRATE_AS_BYTES_PER_SECOND;
 }
 
-static uint8_t* parse_asrt( vlc_object_t* p_this,
+static uint8_t* parse_asrt( heimdall_object_t* p_this,
                         hds_stream_t* s,
                         uint8_t* data,
                         uint8_t* data_end )
@@ -374,7 +374,7 @@ static uint8_t* parse_asrt( vlc_object_t* p_this,
     return data_p;
 }
 
-static uint8_t* parse_afrt( vlc_object_t* p_this,
+static uint8_t* parse_afrt( heimdall_object_t* p_this,
                         hds_stream_t* s,
                         uint8_t* data,
                         uint8_t* data_end )
@@ -505,7 +505,7 @@ static void chunk_free( chunk_t * chunk )
     free( chunk );
 }
 
-static void parse_BootstrapData( vlc_object_t* p_this,
+static void parse_BootstrapData( heimdall_object_t* p_this,
                                  hds_stream_t * s,
                                  uint8_t* data,
                                  uint8_t* data_end )
@@ -703,7 +703,7 @@ static void whitespace_substr( char** start,
 
 /* returns length (could be zero, indicating all of remaining data) */
 /* ptr is to start of data, right after 'mdat' string */
-static uint32_t find_chunk_mdat( vlc_object_t* p_this,
+static uint32_t find_chunk_mdat( heimdall_object_t* p_this,
                                  uint8_t* chunkdata, uint8_t* chunkdata_end,
                                  uint8_t** mdatptr )
 {
@@ -799,7 +799,7 @@ static uint8_t* download_chunk( stream_t *s,
 
     msg_Info(s, "Downloading fragment %s",  fragment_url );
 
-    stream_t* download_stream = vlc_stream_NewURL( s, fragment_url );
+    stream_t* download_stream = heimdall_stream_NewURL( s, fragment_url );
     if( ! download_stream )
     {
         msg_Err(s, "Failed to download fragment %s", fragment_url );
@@ -824,7 +824,7 @@ static uint8_t* download_chunk( stream_t *s,
         return NULL;
     }
 
-    int read = vlc_stream_Read( download_stream, data,
+    int read = heimdall_stream_Read( download_stream, data,
                             size );
     if( read < 0 )
         read = 0;
@@ -845,27 +845,27 @@ static uint8_t* download_chunk( stream_t *s,
         chunk->failed = false;
     }
 
-    vlc_stream_Delete( download_stream );
+    heimdall_stream_Delete( download_stream );
     return data;
 }
 
 static void* download_thread( void* p )
 {
-    vlc_thread_set_name("vlc-hds-dl");
+    heimdall_thread_set_name("heimdall-hds-dl");
 
-    vlc_object_t* p_this = (vlc_object_t*)p;
+    heimdall_object_t* p_this = (heimdall_object_t*)p;
     stream_t* s = (stream_t*) p_this;
     stream_sys_t* sys = s->p_sys;
 
-    if ( vlc_array_count( &sys->hds_streams ) == 0 )
+    if ( heimdall_array_count( &sys->hds_streams ) == 0 )
         return NULL;
 
     // TODO: Change here for selectable stream
     hds_stream_t* hds_stream = sys->hds_streams.pp_elems[0];
 
-    int canc = vlc_savecancel();
+    int canc = heimdall_savecancel();
 
-    vlc_mutex_lock( & hds_stream->dl_lock );
+    heimdall_mutex_lock( & hds_stream->dl_lock );
 
     while( ! sys->closed )
     {
@@ -907,13 +907,13 @@ static void* download_thread( void* p )
             }
         }
 
-        vlc_cond_wait( & hds_stream->dl_cond,
+        heimdall_cond_wait( & hds_stream->dl_cond,
                        & hds_stream->dl_lock );
     }
 
-    vlc_mutex_unlock( & hds_stream->dl_lock );
+    heimdall_mutex_unlock( & hds_stream->dl_lock );
 
-    vlc_restorecancel( canc );
+    heimdall_restorecancel( canc );
     return NULL;
 }
 
@@ -1050,7 +1050,7 @@ static void maintain_live_chunks(
     hds_stream_t* hds_stream
     )
 {
-    vlc_mutex_lock( &hds_stream->dl_lock );
+    heimdall_mutex_lock( &hds_stream->dl_lock );
     if( ! hds_stream->chunks_head )
     {
         /* just start with the earliest in the abst
@@ -1081,7 +1081,7 @@ static void maintain_live_chunks(
     }
 
     if( dl )
-        vlc_cond_signal( & hds_stream->dl_cond );
+        heimdall_cond_signal( & hds_stream->dl_cond );
 
     chunk = hds_stream->chunks_head;
     while( chunk && chunk->data && chunk->mdat_pos >= chunk->mdat_len && chunk->next )
@@ -1095,24 +1095,24 @@ static void maintain_live_chunks(
         hds_stream->chunks_livereadpos = hds_stream->chunks_head;
 
     hds_stream->chunks_head = chunk;
-    vlc_mutex_unlock( &hds_stream->dl_lock );
+    heimdall_mutex_unlock( &hds_stream->dl_lock );
 }
 
 
 static void* live_thread( void* p )
 {
-    vlc_thread_set_name("vlc-hds-live");
+    heimdall_thread_set_name("heimdall-hds-live");
 
     stream_t *s = (stream_t*)p;
     stream_sys_t* sys = s->p_sys;
 
-    if ( vlc_array_count( &sys->hds_streams ) == 0 )
+    if ( heimdall_array_count( &sys->hds_streams ) == 0 )
         return NULL;
 
     // TODO: Change here for selectable stream
     hds_stream_t* hds_stream = sys->hds_streams.pp_elems[0];
 
-    int canc = vlc_savecancel();
+    int canc = heimdall_savecancel();
 
     char* abst_url;
 
@@ -1135,12 +1135,12 @@ static void* live_thread( void* p )
         }
     }
 
-    vlc_tick_t last_dl_start_time;
+    heimdall_tick_t last_dl_start_time;
 
     while( ! sys->closed )
     {
-        last_dl_start_time = vlc_tick_now();
-        stream_t* download_stream = vlc_stream_NewURL( s, abst_url );
+        last_dl_start_time = heimdall_tick_now();
+        stream_t* download_stream = heimdall_stream_NewURL( s, abst_url );
         if( ! download_stream )
         {
             msg_Err( s, "Failed to download abst %s", abst_url );
@@ -1155,7 +1155,7 @@ static void* live_thread( void* p )
             else
             {
                 uint8_t* data = malloc( size );
-                int read = vlc_stream_Read( download_stream, data,
+                int read = heimdall_stream_Read( download_stream, data,
                                         size );
                 if( read < size )
                 {
@@ -1165,21 +1165,21 @@ static void* live_thread( void* p )
                 }
                 else
                 {
-                    vlc_mutex_lock( & hds_stream->abst_lock );
-                    parse_BootstrapData( VLC_OBJECT(s), hds_stream,
+                    heimdall_mutex_lock( & hds_stream->abst_lock );
+                    parse_BootstrapData( HEIMDALL_OBJECT(s), hds_stream,
                                          data, data + read );
-                    vlc_mutex_unlock( & hds_stream->abst_lock );
+                    heimdall_mutex_unlock( & hds_stream->abst_lock );
                     maintain_live_chunks( s, hds_stream );
                 }
 
                 free( data );
             }
 
-            vlc_stream_Delete( download_stream );
+            heimdall_stream_Delete( download_stream );
         }
 
-        vlc_tick_wait( last_dl_start_time +
-                       vlc_tick_from_samples(hds_stream->fragment_runs[hds_stream->fragment_run_count-1].fragment_duration,
+        heimdall_tick_wait( last_dl_start_time +
+                       heimdall_tick_from_samples(hds_stream->fragment_runs[hds_stream->fragment_run_count-1].fragment_duration,
                                              hds_stream->afrt_timescale) );
 
 
@@ -1187,7 +1187,7 @@ static void* live_thread( void* p )
 
     free( abst_url );
 
-    vlc_restorecancel( canc );
+    heimdall_restorecancel( canc );
     return NULL;
 }
 
@@ -1196,14 +1196,14 @@ static int init_Manifest( stream_t *s, manifest_t *m )
     memset(m, 0, sizeof(*m));
     stream_t *st = s->s;
 
-    m->vlc_reader = xml_ReaderCreate( st, st );
-    if( !m->vlc_reader )
+    m->heimdall_reader = xml_ReaderCreate( st, st );
+    if( !m->heimdall_reader )
     {
         msg_Err( s, "Failed to open source for parsing" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void cleanup_Manifest( manifest_t *m )
@@ -1227,8 +1227,8 @@ static void cleanup_Manifest( manifest_t *m )
         free( m->bootstraps[i].profile );
     }
 
-    if( m->vlc_reader )
-        xml_ReaderDelete( m->vlc_reader );
+    if( m->heimdall_reader )
+        xml_ReaderDelete( m->heimdall_reader );
 }
 
 static void write_int_24( uint8_t *p, uint32_t val )
@@ -1324,11 +1324,11 @@ static int parse_Manifest( stream_t *s, manifest_t *m )
     char** element_stack = m->element_stack;
     bootstrap_info *bootstraps = m->bootstraps;
     media_info *medias = m->medias;
-    xml_reader_t *vlc_reader = m->vlc_reader;
+    xml_reader_t *heimdall_reader = m->heimdall_reader;
     char* media_id = NULL;
 
 #define TIMESCALE 10000000
-    while( (type = xml_ReaderNextNode( vlc_reader, (const char**) &node )) > 0 )
+    while( (type = xml_ReaderNextNode( heimdall_reader, (const char**) &node )) > 0 )
     {
         switch( type )
         {
@@ -1337,20 +1337,20 @@ static int parse_Manifest( stream_t *s, manifest_t *m )
                 if( !( element_stack[current_element_idx] = strdup( node ) ) )
                 {
                     free(media_id);
-                    return VLC_ENOMEM;
+                    return HEIMDALL_ENOMEM;
                 }
             } else {
                 if( current_element_idx == MAX_XML_DEPTH - 1u )
                 {
                     msg_Err( s, "Too many XML elements, quitting" );
                     free(media_id);
-                    return VLC_EGENERIC;
+                    return HEIMDALL_EGENERIC;
                 }
 
                 if ( !( element_stack[++current_element_idx] = strdup( node ) ) )
                 {
                     free(media_id);
-                    return VLC_ENOMEM;
+                    return HEIMDALL_ENOMEM;
                 }
             }
 
@@ -1382,17 +1382,17 @@ static int parse_Manifest( stream_t *s, manifest_t *m )
             {
                 msg_Err( s, "Too many media elements, quitting" );
                 free(media_id);
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             }
 
-            while( ( attr_name = xml_ReaderNextAttr( vlc_reader, &attr_value )) )
+            while( ( attr_name = xml_ReaderNextAttr( heimdall_reader, &attr_value )) )
             {
                 if( !strcmp(attr_name, "streamId" ) )
                 {
                     if( !( medias[media_idx].stream_id = strdup( attr_value ) ) )
                     {
                         free(media_id);
-                        return VLC_ENOMEM;
+                        return HEIMDALL_ENOMEM;
                     }
                 }
                 else if( !strcmp(attr_name, "url" ) )
@@ -1400,7 +1400,7 @@ static int parse_Manifest( stream_t *s, manifest_t *m )
                     if( !( medias[media_idx].media_url = strdup( attr_value ) ) )
                     {
                         free(media_id);
-                        return VLC_ENOMEM;
+                        return HEIMDALL_ENOMEM;
                     }
                 }
                 else if( !strcmp(attr_name, "bootstrapInfoId" ) )
@@ -1408,7 +1408,7 @@ static int parse_Manifest( stream_t *s, manifest_t *m )
                     if( !( medias[media_idx].bootstrap_id = strdup( attr_value ) ) )
                     {
                         free(media_id);
-                        return VLC_ENOMEM;
+                        return HEIMDALL_ENOMEM;
                     }
                 }
                 else if( !strcmp(attr_name, "bitrate" ) )
@@ -1421,14 +1421,14 @@ static int parse_Manifest( stream_t *s, manifest_t *m )
 
         else if( type == XML_READER_STARTELEM && ! strcmp( current_element, "bootstrapInfo") )
         {
-            while( ( attr_name = xml_ReaderNextAttr( vlc_reader, &attr_value )) )
+            while( ( attr_name = xml_ReaderNextAttr( heimdall_reader, &attr_value )) )
             {
                 if( !strcmp(attr_name, "url" ) )
                 {
                     if( !( bootstraps[bootstrap_idx].url = strdup( attr_value ) ) )
                     {
                         free(media_id);
-                        return VLC_ENOMEM;
+                        return HEIMDALL_ENOMEM;
                     }
                 }
                 else if( !strcmp(attr_name, "id" ) )
@@ -1436,7 +1436,7 @@ static int parse_Manifest( stream_t *s, manifest_t *m )
                     if( !( bootstraps[bootstrap_idx].id = strdup( attr_value ) ) )
                     {
                         free(media_id);
-                        return VLC_ENOMEM;
+                        return HEIMDALL_ENOMEM;
                     }
                 }
                 else if( !strcmp(attr_name, "profile" ) )
@@ -1444,7 +1444,7 @@ static int parse_Manifest( stream_t *s, manifest_t *m )
                     if( !( bootstraps[bootstrap_idx].profile = strdup( attr_value ) ) )
                     {
                         free(media_id);
-                        return VLC_ENOMEM;
+                        return HEIMDALL_ENOMEM;
                     }
                 }
             }
@@ -1460,7 +1460,7 @@ static int parse_Manifest( stream_t *s, manifest_t *m )
                 *end = '\0';
 
                 bootstraps[bootstrap_idx].data_len =
-                    vlc_b64_decode_binary( (uint8_t**)&bootstraps[bootstrap_idx].data, start );
+                    heimdall_b64_decode_binary( (uint8_t**)&bootstraps[bootstrap_idx].data, start );
                 if( ! bootstraps[bootstrap_idx].data )
                 {
                     msg_Err( s, "Couldn't decode bootstrap info" );
@@ -1476,7 +1476,7 @@ static int parse_Manifest( stream_t *s, manifest_t *m )
                 if( ! strcmp( element_stack[current_element_idx-1], "manifest" ) )
                 {
                     if( !( media_id = strdup( node ) ) )
-                        return VLC_ENOMEM;
+                        return HEIMDALL_ENOMEM;
                 }
             }
             else if( ! strcmp( current_element, "metadata" ) &&
@@ -1492,12 +1492,12 @@ static int parse_Manifest( stream_t *s, manifest_t *m )
                     *end = '\0';
 
                     medias[mi].metadata_len =
-                        vlc_b64_decode_binary( (uint8_t**)&medias[mi].metadata, start );
+                        heimdall_b64_decode_binary( (uint8_t**)&medias[mi].metadata, start );
 
                     if ( ! medias[mi].metadata )
                     {
                         free(media_id);
-                        return VLC_ENOMEM;
+                        return HEIMDALL_ENOMEM;
                     }
 
                     uint8_t *end_marker =
@@ -1526,13 +1526,13 @@ static int parse_Manifest( stream_t *s, manifest_t *m )
                 if( !new_stream )
                 {
                     free(media_id);
-                    return VLC_ENOMEM;
+                    return HEIMDALL_ENOMEM;
                 }
                 memset( new_stream, 0, sizeof(hds_stream_t));
 
-                vlc_mutex_init( & new_stream->abst_lock );
-                vlc_mutex_init( & new_stream->dl_lock );
-                vlc_cond_init( & new_stream->dl_cond );
+                heimdall_mutex_init( & new_stream->abst_lock );
+                heimdall_mutex_init( & new_stream->dl_lock );
+                heimdall_cond_init( & new_stream->dl_cond );
 
                 if( sys->duration_seconds )
                 {
@@ -1549,7 +1549,7 @@ static int parse_Manifest( stream_t *s, manifest_t *m )
                     {
                         free( media_id );
                         free( new_stream );
-                        return VLC_ENOMEM;
+                        return HEIMDALL_ENOMEM;
                     }
                 }
 
@@ -1561,7 +1561,7 @@ static int parse_Manifest( stream_t *s, manifest_t *m )
                         free( new_stream->url );
                         free( media_id );
                         free( new_stream );
-                        return VLC_ENOMEM;
+                        return HEIMDALL_ENOMEM;
                     }
 
                     memcpy( new_stream->metadata, medias[i].metadata, medias[i].metadata_len );
@@ -1570,7 +1570,7 @@ static int parse_Manifest( stream_t *s, manifest_t *m )
 
                 if( ! sys->live && bootstraps[j].data )
                 {
-                    parse_BootstrapData( VLC_OBJECT(s),
+                    parse_BootstrapData( HEIMDALL_OBJECT(s),
                                          new_stream,
                                          bootstraps[j].data,
                                          bootstraps[j].data + bootstraps[j].data_len );
@@ -1598,13 +1598,13 @@ static int parse_Manifest( stream_t *s, manifest_t *m )
                         free( new_stream->url );
                         free( media_id );
                         free( new_stream );
-                        return VLC_ENOMEM;
+                        return HEIMDALL_ENOMEM;
                     }
                 }
 
                 new_stream->bitrate = medias[i].bitrate;
 
-                vlc_array_append_or_abort( &sys->hds_streams, new_stream );
+                heimdall_array_append_or_abort( &sys->hds_streams, new_stream );
 
                 msg_Info( s, "New track with quality_segment(%s), bitrate(%u), timescale(%u), movie_id(%s), segment_run_count(%d), fragment_run_count(%u)",
                           new_stream->quality_segment_modifier?new_stream->quality_segment_modifier:"", new_stream->bitrate, new_stream->timescale,
@@ -1617,7 +1617,7 @@ static int parse_Manifest( stream_t *s, manifest_t *m )
     free( media_id );
     cleanup_Manifest( m );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 
@@ -1650,30 +1650,30 @@ static void SysCleanup( stream_sys_t *p_sys )
 {
     for( size_t i = 0; i < p_sys->hds_streams.i_count ; i++ )
         hds_free( p_sys->hds_streams.pp_elems[i] );
-    vlc_array_clear( &p_sys->hds_streams );
+    heimdall_array_clear( &p_sys->hds_streams );
     free( p_sys->base_url );
 }
 
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     stream_t *s = (stream_t*)p_this;
     stream_sys_t *p_sys;
 
     if( !isHDS( s ) || s->psz_url == NULL )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     msg_Info( p_this, "HTTP Dynamic Streaming (%s)", s->psz_url );
 
     s->p_sys = p_sys = calloc( 1, sizeof(*p_sys ) );
     if( unlikely( p_sys == NULL ) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     char *uri_without_query = strndup( s->psz_url,
                                        strcspn( s->psz_url, "?" ) );
     if( uri_without_query == NULL )
     {
         free( p_sys );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     /* remove the last part of the url */
@@ -1682,14 +1682,14 @@ static int Open( vlc_object_t *p_this )
     {
         free( uri_without_query );
         free( p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     *pos = '\0';
     p_sys->base_url = uri_without_query;
 
     p_sys->flv_header_bytes_sent = 0;
 
-    vlc_array_init( &p_sys->hds_streams );
+    heimdall_array_init( &p_sys->hds_streams );
 
     manifest_t m;
     if( init_Manifest( s, &m ) || parse_Manifest( s, &m ) )
@@ -1702,7 +1702,7 @@ static int Open( vlc_object_t *p_this )
     s->pf_seek = NULL;
     s->pf_control = Control;
 
-    if( vlc_clone( &p_sys->dl_thread, download_thread, s ) )
+    if( heimdall_clone( &p_sys->dl_thread, download_thread, s ) )
     {
         goto error;
     }
@@ -1710,40 +1710,40 @@ static int Open( vlc_object_t *p_this )
     if( p_sys->live ) {
         msg_Info( p_this, "Live stream detected" );
 
-        if( vlc_clone( &p_sys->live_thread, live_thread, s ) )
+        if( heimdall_clone( &p_sys->live_thread, live_thread, s ) )
         {
             goto error;
         }
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     SysCleanup( p_sys );
     free( p_sys );
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
-static void Close( vlc_object_t *p_this )
+static void Close( heimdall_object_t *p_this )
 {
     stream_t *s = (stream_t*)p_this;
     stream_sys_t *p_sys = s->p_sys;
 
     // TODO: Change here for selectable stream
-    hds_stream_t *stream = vlc_array_count(&p_sys->hds_streams) ?
+    hds_stream_t *stream = heimdall_array_count(&p_sys->hds_streams) ?
         p_sys->hds_streams.pp_elems[0] : NULL;
 
-    vlc_mutex_lock( &stream->dl_lock );
+    heimdall_mutex_lock( &stream->dl_lock );
     p_sys->closed = true;
     if (stream)
-        vlc_cond_signal( & stream->dl_cond );
-    vlc_mutex_unlock( &stream->dl_lock );
+        heimdall_cond_signal( & stream->dl_cond );
+    heimdall_mutex_unlock( &stream->dl_lock );
 
-    vlc_join( p_sys->dl_thread, NULL );
+    heimdall_join( p_sys->dl_thread, NULL );
 
     if( p_sys->live )
     {
-        vlc_join( p_sys->live_thread, NULL );
+        heimdall_join( p_sys->live_thread, NULL );
     }
 
     SysCleanup( p_sys );
@@ -1834,7 +1834,7 @@ static unsigned read_chunk_data(
     /* new chunk generation is handled by a different thread in live case */
     if( ! sys->live )
     {
-        vlc_mutex_lock( &stream->dl_lock );
+        heimdall_mutex_lock( &stream->dl_lock );
         chunk = stream->chunks_head;
         if( chunk )
         {
@@ -1859,8 +1859,8 @@ static unsigned read_chunk_data(
         }
 
         if( dl )
-            vlc_cond_signal( & stream->dl_cond );
-        vlc_mutex_unlock( &stream->dl_lock );
+            heimdall_cond_signal( & stream->dl_cond );
+        heimdall_mutex_unlock( &stream->dl_lock );
     }
 
     return ( ((uint8_t*)buffer) - ((uint8_t*)buffer_start));
@@ -1875,7 +1875,7 @@ static ssize_t Read( stream_t *s, void *buffer, size_t i_read )
 {
     stream_sys_t *p_sys = s->p_sys;
 
-    if ( vlc_array_count( &p_sys->hds_streams ) == 0 )
+    if ( heimdall_array_count( &p_sys->hds_streams ) == 0 )
         return 0;
     if( unlikely(i_read == 0) )
         return 0;
@@ -1904,14 +1904,14 @@ static int Control( stream_t *s, int i_query, va_list args )
             *(va_arg( args, bool * )) = true;
             break;
         case STREAM_GET_PTS_DELAY:
-            *va_arg (args, vlc_tick_t *) = VLC_TICK_FROM_MS(
+            *va_arg (args, heimdall_tick_t *) = HEIMDALL_TICK_FROM_MS(
                 var_InheritInteger(s, "network-caching") );
              break;
         case STREAM_GET_SIZE:
             *(va_arg (args, uint64_t *)) = get_stream_size(s);
             break;
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

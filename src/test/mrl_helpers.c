@@ -2,6 +2,7 @@
  * mrl_helpers.c: test src/input/mrl_helpers.h
  *****************************************************************************
  * Copyright (C) 2016 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -27,8 +28,8 @@
 #undef NDEBUG
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_arrays.h>
+#include <heimdall_common.h>
+#include <heimdall_arrays.h>
 #include "../input/mrl_helpers.h"
 
 #define MAX_RESULT 10
@@ -76,7 +77,7 @@ int main (void)
         int ret = mrl_FragmentSplit(&mrli, testcase[i].payload);
         if (testcase[i].success)
         {
-            assert(ret == VLC_SUCCESS);
+            assert(ret == HEIMDALL_SUCCESS);
             if (mrli.extra != NULL)
                 assert(strcmp(mrli.extra, testcase[i].extra) == 0);
             else
@@ -85,8 +86,8 @@ int main (void)
             const char *p = testcase[i].payload + 2;
             for (size_t j = 0; testcase[i].results[j] != NULL; ++j)
             {
-                assert(j < vlc_array_count(&mrli.identifiers) && j < MAX_RESULT);
-                const char *res = vlc_array_item_at_index(&mrli.identifiers, j);
+                assert(j < heimdall_array_count(&mrli.identifiers) && j < MAX_RESULT);
+                const char *res = heimdall_array_item_at_index(&mrli.identifiers, j);
 
                 assert(strcmp(testcase[i].results[j], res) == 0);
 
@@ -100,7 +101,7 @@ int main (void)
         }
         else
         {
-            assert(ret != VLC_SUCCESS);
+            assert(ret != HEIMDALL_SUCCESS);
         }
         mrl_info_Clean(&mrli);
     }

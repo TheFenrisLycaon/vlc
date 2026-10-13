@@ -1,4 +1,4 @@
-<!DOCTYPE Theme PUBLIC "-//VideoLAN//DTD VLC Skins V2.0//EN" "skins.dtd">
+<!DOCTYPE Theme PUBLIC "-//Lycaria//DTD Heimdall Skins V2.0//EN" "skins.dtd">
 
 <Theme version="2.0" magnet="9" alpha="255">
     <ThemeInfo name="Winamp2" author="See README.txt in the skin file" />
@@ -161,19 +161,19 @@
                 <Anchor x="30" y="0" points="(0,0),(245,0)" priority="90" range="15" />
                 <Anchor x="30" y="14" points="(0,0),(245,0)" priority="90" range="15" />
                 <Image x="0" y="0" image="small_focus" action="move" action2="main_window.setLayout(big_layout)" />
-                <Text font="text_font" x="122" y="4" width="35" text="$t" visible="not vlc.isStopped" scrolling="none" alignment="right" />
+                <Text font="text_font" x="122" y="4" width="35" text="$t" visible="not heimdall.isStopped" scrolling="none" alignment="right" />
                 <Button x="6" y="3" up="menu_up" down="menu_down" over="menu_up" action="dialogs.popup()" tooltiptext="Popup menu" />
                 <Button x="167" y="3" up="small_previous" action="playlist.previous()" />
-                <Button x="176" y="3" up="small_play" action="vlc.play()" />
-                <Button x="185" y="3" up="small_pause" action="vlc.pause()" />
-                <Button x="194" y="3" up="small_stop" action="vlc.stop()" />
+                <Button x="176" y="3" up="small_play" action="heimdall.play()" />
+                <Button x="185" y="3" up="small_pause" action="heimdall.pause()" />
+                <Button x="194" y="3" up="small_stop" action="heimdall.stop()" />
                 <Button x="203" y="3" up="small_forward" action="playlist.next()" />
                 <Button x="212" y="3" up="small_eject" action="dialogs.fileSimple()" />
-                <Button x="244" y="3" up="minimize_up" down="minimize_down" over="minimize_up" action="vlc.minimize()" tooltiptext="Minimize" />
+                <Button x="244" y="3" up="minimize_up" down="minimize_down" over="minimize_up" action="heimdall.minimize()" tooltiptext="Minimize" />
                 <Button x="254" y="3" up="switch_up" down="switch_down" over="switch_up" action="main_window.setLayout(big_layout)" tooltiptext="Switch" />
-                <Button x="264" y="3" up="quit_up" down="quit_down" over="quit_up" action="vlc.quit()" tooltiptext="Quit" />
-                <Image x="226" y="4" image="small_time_bg" visible="not vlc.isStopped" />
-                <Slider value="time" x="227" y="7" up="small_time_cursor_up" down="small_time_cursor_up" points="(0,0),(14,0)" thickness="7" tooltiptext="Time: $T" visible="not vlc.isStopped" />
+                <Button x="264" y="3" up="quit_up" down="quit_down" over="quit_up" action="heimdall.quit()" tooltiptext="Quit" />
+                <Image x="226" y="4" image="small_time_bg" visible="not heimdall.isStopped" />
+                <Slider value="time" x="227" y="7" up="small_time_cursor_up" down="small_time_cursor_up" points="(0,0),(14,0)" thickness="7" tooltiptext="Time: $T" visible="not heimdall.isStopped" />
             </Group>
         </Layout>
         <Layout id="big_layout" width="275" height="116">
@@ -188,28 +188,28 @@
                 <Anchor x="275" y="30" points="(0,0),(0,86)" priority="90" range="15" />
                 <Image x="0" y="0" image="main" action="move" />
                 <Image x="10" y="22" image="five_dots" />
-                <Checkbox x="10" y="32" up1="dot2_up" down1="dot2_down" up2="dot2_down" down2="dot2_up" state="vlc.isOnTop" action1="vlc.onTop()" action2="vlc.onTop()" tooltiptext1="Toggle Always-On-Top" tooltiptext2="Toggle Always-On-Top" />
-                <Image x="26" y="29" image="play_icon" visible="vlc.isPlaying" />
-                <Image x="26" y="29" image="pause_icon" visible="vlc.isPaused" />
-                <Image x="26" y="29" image="stop_icon" visible="vlc.isStopped" />
+                <Checkbox x="10" y="32" up1="dot2_up" down1="dot2_down" up2="dot2_down" down2="dot2_up" state="heimdall.isOnTop" action1="heimdall.onTop()" action2="heimdall.onTop()" tooltiptext1="Toggle Always-On-Top" tooltiptext2="Toggle Always-On-Top" />
+                <Image x="26" y="29" image="play_icon" visible="heimdall.isPlaying" />
+                <Image x="26" y="29" image="pause_icon" visible="heimdall.isPaused" />
+                <Image x="26" y="29" image="stop_icon" visible="heimdall.isStopped" />
                 <Image x="0" y="0" image="title_focus" action="move" action2="main_window.setLayout(small_layout)" />
-                <Text font="digits_font;digits_font_2" x="30" y="26" width="72" text="$t" visible="not vlc.isStopped" scrolling="none" alignment="right" />
+                <Text font="digits_font;digits_font_2" x="30" y="26" width="72" text="$t" visible="not heimdall.isStopped" scrolling="none" alignment="right" />
                 <Text font="text_font" x="111" y="27" width="155" text="$N" />
                 <Text font="text_font" x="111" y="43" width="15" text="$B" scrolling="none" alignment="right" />
                 <Text font="text_font" x="151" y="43" width="15" text="$S" scrolling="none" alignment="right" />
                 <Slider value="volume" x="107" y="57" up="volume_up" down="volume_down" points="(7,6),(58,6)" tooltiptext="Volume: $V%">
                     <SliderBackground image="volume_bg;volume_bg_2" nbvert="28" padvert="2" />
                 </Slider>
-                <Image x="16" y="72" image="time_bg" visible="not vlc.isStopped" />
-                <Slider value="time" x="30" y="77" up="time_up;time_up_2" down="time_down;time_down_2" points="(0,0),(218,0)" thickness="5" tooltiptext="Time: $T" visible="not vlc.isStopped" />
+                <Image x="16" y="72" image="time_bg" visible="not heimdall.isStopped" />
+                <Slider value="time" x="30" y="77" up="time_up;time_up_2" down="time_down;time_down_2" points="(0,0),(218,0)" thickness="5" tooltiptext="Time: $T" visible="not heimdall.isStopped" />
                 <Button x="6" y="3" up="menu_up" down="menu_down" over="menu_up" action="dialogs.popup()" tooltiptext="Popup menu" />
-                <Button x="244" y="3" up="minimize_up" down="minimize_down" over="minimize_up" action="vlc.minimize()" tooltiptext="Minimize" />
+                <Button x="244" y="3" up="minimize_up" down="minimize_down" over="minimize_up" action="heimdall.minimize()" tooltiptext="Minimize" />
                 <Button x="254" y="3" up="switch_up" down="switch_down" over="switch_up" action="main_window.setLayout(small_layout)" tooltiptext="Switch" />
-                <Button x="264" y="3" up="quit_up" down="quit_down" over="quit_up" action="vlc.quit()" tooltiptext="Quit" />
+                <Button x="264" y="3" up="quit_up" down="quit_down" over="quit_up" action="heimdall.quit()" tooltiptext="Quit" />
                 <Button x="16" y="88" up="previous_up" down="previous_down" action="playlist.previous()" tooltiptext="Previous" />
-                <Button x="39" y="88" up="play_up" down="play_down" action="vlc.play()" tooltiptext="Play" />
-                <Button x="62" y="88" up="pause_up" down="pause_down" action="vlc.pause()" tooltiptext="Pause" />
-                <Button x="85" y="88" up="stop_up" down="stop_down" action="vlc.stop()" tooltiptext="Stop" />
+                <Button x="39" y="88" up="play_up" down="play_down" action="heimdall.play()" tooltiptext="Play" />
+                <Button x="62" y="88" up="pause_up" down="pause_down" action="heimdall.pause()" tooltiptext="Pause" />
+                <Button x="85" y="88" up="stop_up" down="stop_down" action="heimdall.stop()" tooltiptext="Stop" />
                 <Button x="108" y="88" up="next_up" down="next_down" action="playlist.next()" tooltiptext="Next" />
                 <Button x="136" y="89" up="eject_up" down="eject_down" action="dialogs.fileSimple()" tooltiptext="Open" />
                 <Checkbox x="164" y="89" up1="noshuffle_up" down1="noshuffle_down" up2="shuffle_up" down2="shuffle_down" state="playlist.isRandom" action1="playlist.setRandom(true)" action2="playlist.setRandom(false)" tooltiptext1="Shuffle" tooltiptext2="Shuffle" />
@@ -348,11 +348,11 @@
                 </Playlist>
                 <Button x="14" y="86" up="pl_add_up" down="pl_add_down" over="pl_add_up" action="playlist.add()" lefttop="leftbottom" rightbottom="leftbottom" />
                 <Button x="43" y="86" up="pl_sub_up" down="pl_sub_down" over="pl_sub_up" action="playlist.del()" lefttop="leftbottom" rightbottom="leftbottom" />
-                <Text font="text_font" x="186" y="101" width="35" text="$t" visible="not vlc.isStopped" lefttop="rightbottom" rightbottom="rightbottom" scrolling="none" alignment="right" />
+                <Text font="text_font" x="186" y="101" width="35" text="$t" visible="not heimdall.isStopped" lefttop="rightbottom" rightbottom="rightbottom" scrolling="none" alignment="right" />
                 <Button x="131" y="101" up="pl_previous" down="pl_previous" over="pl_previous" action="playlist.previous()" lefttop="rightbottom" rightbottom="rightbottom" />
-                <Button x="140" y="101" up="pl_play" down="pl_play" over="pl_play" action="vlc.play()" lefttop="rightbottom" rightbottom="rightbottom" />
-                <Button x="149" y="101" up="pl_pause" down="pl_pause" over="pl_pause" action="vlc.pause()" lefttop="rightbottom" rightbottom="rightbottom" />
-                <Button x="158" y="101" up="pl_stop" down="pl_stop" over="pl_stop" action="vlc.stop()" lefttop="rightbottom" rightbottom="rightbottom" />
+                <Button x="140" y="101" up="pl_play" down="pl_play" over="pl_play" action="heimdall.play()" lefttop="rightbottom" rightbottom="rightbottom" />
+                <Button x="149" y="101" up="pl_pause" down="pl_pause" over="pl_pause" action="heimdall.pause()" lefttop="rightbottom" rightbottom="rightbottom" />
+                <Button x="158" y="101" up="pl_stop" down="pl_stop" over="pl_stop" action="heimdall.stop()" lefttop="rightbottom" rightbottom="rightbottom" />
                 <Button x="167" y="101" up="pl_forward" down="pl_forward" over="pl_forward" action="playlist.next()" lefttop="rightbottom" rightbottom="rightbottom" />
                 <Button x="176" y="101" up="pl_eject" down="pl_eject" over="pl_eject" action="dialogs.fileSimple()" lefttop="rightbottom" rightbottom="rightbottom" />
             </Group>

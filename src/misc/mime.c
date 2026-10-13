@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright © 2004-2012 VLC authors and VideoLAN
  * Copyright © 2004-2007 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *          Rémi Denis-Courmont
@@ -26,8 +27,8 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_mime.h>
+#include <heimdall_common.h>
+#include <heimdall_mime.h>
 
 #include <string.h>
 
@@ -89,7 +90,7 @@ static const struct
     { "",       "" }
 };
 
-const char *vlc_mime_Ext2Mime( const char *psz_url )
+const char *heimdall_mime_Ext2Mime( const char *psz_url )
 {
 
     const char *psz_ext = strrchr(psz_url, '.');

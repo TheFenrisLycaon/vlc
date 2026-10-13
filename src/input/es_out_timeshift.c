@@ -2,8 +2,9 @@
  * es_out_timeshift.c: Es Out timeshift.
  *****************************************************************************
  * Copyright (C) 2008 Laurent Aimar
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Laurent Aimar < fenrir _AT_ videolan _DOT_ org>
+ * Authors: Laurent Aimar < fenrir _AT_ lycaria _DOT_ org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -37,15 +38,15 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include <vlc_common.h>
-#include <vlc_arrays.h>
-#include <vlc_fs.h>
-#include <vlc_mouse.h>
-#include <vlc_es_out.h>
-#include <vlc_block.h>
+#include <heimdall_common.h>
+#include <heimdall_arrays.h>
+#include <heimdall_fs.h>
+#include <heimdall_mouse.h>
+#include <heimdall_es_out.h>
+#include <heimdall_block.h>
 #include "input_internal.h"
 #ifdef _WIN32
-#  include <vlc_charset.h> // FromWide
+#  include <heimdall_charset.h> // FromWide
 #endif
 #include "es_out.h"
 
@@ -72,7 +73,7 @@ enum ts_storage_cmd_type_e
 typedef struct attribute_packed
 {
     int8_t  i_type;
-    vlc_tick_t i_date;
+    heimdall_tick_t i_date;
 } ts_cmd_header_t;
 
 typedef struct attribute_packed
@@ -119,17 +120,17 @@ typedef struct attribute_packed
         struct
         {
             int        i_int;
-            vlc_meta_t *p_meta;
+            heimdall_meta_t *p_meta;
         } int_meta;
         struct
         {
             int       i_int;
-            vlc_epg_t *p_epg;
+            heimdall_epg_t *p_epg;
         } int_epg;
         struct
         {
             int       i_int;
-            vlc_epg_event_t *p_evt;
+            heimdall_epg_event_t *p_evt;
         } int_epg_evt;
         struct
         {
@@ -160,17 +161,17 @@ typedef struct attribute_packed
         int  i_int;
         struct
         {
-            vlc_tick_t i_pts_delay;
-            vlc_tick_t i_pts_jitter;
+            heimdall_tick_t i_pts_delay;
+            heimdall_tick_t i_pts_jitter;
             int     i_cr_average;
         } jitter;
         struct
         {
             double  f_position;
-            vlc_tick_t i_time;
-            vlc_tick_t i_normal_time;
-            vlc_tick_t i_length;
-            vlc_tick_t b_live;
+            heimdall_tick_t i_time;
+            heimdall_tick_t i_normal_time;
+            heimdall_tick_t i_length;
+            heimdall_tick_t b_live;
         } times;
     } u;
 } ts_cmd_privcontrol_t;
@@ -214,37 +215,37 @@ struct ts_storage_t
 
 typedef struct
 {
-    vlc_thread_t   thread;
+    heimdall_thread_t   thread;
     struct es_out_timeshift *ts;
     input_thread_t *p_input;
     es_out_t       *p_tsout;
-    struct vlc_input_es_out *p_out;
+    struct heimdall_input_es_out *p_out;
     int64_t        i_tmp_size_max;
     const char     *psz_tmp_path;
 
     /* Lock for all following fields */
-    vlc_mutex_t    lock;
-    vlc_cond_t     wait;
-    vlc_sem_t      done;
+    heimdall_mutex_t    lock;
+    heimdall_cond_t     wait;
+    heimdall_sem_t      done;
 
     /* */
     bool           b_paused;
-    vlc_tick_t     i_pause_date;
+    heimdall_tick_t     i_pause_date;
 
     /* */
     float          rate;
     float          rate_source;
-    vlc_tick_t     i_rate_date;
-    vlc_tick_t     i_rate_delay;
+    heimdall_tick_t     i_rate_date;
+    heimdall_tick_t     i_rate_delay;
 
     /* */
-    vlc_tick_t     i_buffering_delay;
+    heimdall_tick_t     i_buffering_delay;
 
     /* */
     ts_storage_t   *p_storage_r;
     ts_storage_t   *p_storage_w;
 
-    vlc_tick_t     i_cmd_delay;
+    heimdall_tick_t     i_cmd_delay;
 
 } ts_thread_t;
 
@@ -256,14 +257,14 @@ struct es_out_id_t
 struct es_out_timeshift
 {
     input_thread_t *p_input;
-    struct vlc_input_es_out *p_out;
+    struct heimdall_input_es_out *p_out;
 
     /* Configuration */
     int64_t        i_tmp_size_max;    /* Maximal temporary file size in byte */
     char           *psz_tmp_path;     /* Path for temporary files */
 
     /* Lock for all following fields */
-    vlc_mutex_t    lock;
+    heimdall_mutex_t    lock;
 
     /* */
     bool           b_delayed;
@@ -279,7 +280,7 @@ struct es_out_timeshift
     int            i_es;
     es_out_id_t    **pp_es;
 
-    struct vlc_input_es_out out;
+    struct heimdall_input_es_out out;
 };
 
 static void         Del    ( es_out_t *, es_out_id_t * );
@@ -292,7 +293,7 @@ static void         TsPushCmd( ts_thread_t *, ts_cmd_t * );
 static int          TsPopCmdLocked( ts_thread_t *, ts_cmd_t *, bool b_flush );
 static bool         TsHasCmd( ts_thread_t * );
 static bool         TsIsUnused( ts_thread_t * );
-static int          TsChangePause( ts_thread_t *, bool b_source_paused, bool b_paused, vlc_tick_t i_date );
+static int          TsChangePause( ts_thread_t *, bool b_source_paused, bool b_paused, heimdall_tick_t i_date );
 static int          TsChangeRate( ts_thread_t *, float src_rate, float rate );
 
 static void         *TsRun( void * );
@@ -333,9 +334,9 @@ static int GetTmpFile( char **filename, const char *dirname )
      && asprintf( filename, "%s"DIR_SEP PACKAGE_NAME"-timeshift.XXXXXX",
                   dirname ) >= 0 )
     {
-        vlc_mkdir( dirname, 0700 );
+        heimdall_mkdir( dirname, 0700 );
 
-        int fd = vlc_mkstemp( *filename );
+        int fd = heimdall_mkstemp( *filename );
         if( fd != -1 )
             return fd;
 
@@ -346,7 +347,7 @@ static int GetTmpFile( char **filename, const char *dirname )
     if( unlikely(*filename == NULL) )
         return -1;
 
-    int fd = vlc_mkstemp( *filename );
+    int fd = heimdall_mkstemp( *filename );
     if( fd != -1 )
         return fd;
 
@@ -359,7 +360,7 @@ static int GetTmpFile( char **filename, const char *dirname )
  *****************************************************************************/
 static struct es_out_timeshift * PRIV(es_out_t *out)
 {
-    struct vlc_input_es_out *parent = container_of(out, struct vlc_input_es_out, out);
+    struct heimdall_input_es_out *parent = container_of(out, struct heimdall_input_es_out, out);
     struct es_out_timeshift *sys = container_of(parent, struct es_out_timeshift, out);
     return sys;
 }
@@ -391,13 +392,13 @@ static es_out_id_t *Add( es_out_t *p_out, input_source_t *in, const es_format_t 
     if( !p_es )
         return NULL;
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
 
     TsAutoStop( p_out );
 
     if( CmdInitAdd( &cmd, in, p_es, p_fmt, p_sys->b_delayed ) )
     {
-        vlc_mutex_unlock( &p_sys->lock );
+        heimdall_mutex_unlock( &p_sys->lock );
         free( p_es );
         return NULL;
     }
@@ -407,7 +408,7 @@ static es_out_id_t *Add( es_out_t *p_out, input_source_t *in, const es_format_t 
     else
         CmdExecuteAdd(p_sys, &cmd);
 
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 
     return p_es;
 }
@@ -415,9 +416,9 @@ static int Send( es_out_t *p_out, es_out_id_t *p_es, block_t *p_block )
 {
     struct es_out_timeshift *p_sys = PRIV(p_out);
     ts_cmd_send_t cmd;
-    int i_ret = VLC_SUCCESS;
+    int i_ret = HEIMDALL_SUCCESS;
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
 
     TsAutoStop( p_out );
 
@@ -427,7 +428,7 @@ static int Send( es_out_t *p_out, es_out_id_t *p_es, block_t *p_block )
     else
         i_ret = CmdExecuteSend(p_sys, &cmd) ;
 
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 
     return i_ret;
 }
@@ -436,7 +437,7 @@ static void Del( es_out_t *p_out, es_out_id_t *p_es )
     struct es_out_timeshift *p_sys = PRIV(p_out);
     ts_cmd_del_t cmd;
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
 
     TsAutoStop( p_out );
 
@@ -446,10 +447,10 @@ static void Del( es_out_t *p_out, es_out_id_t *p_es )
     else
         CmdExecuteDel(p_sys, &cmd);
 
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 }
 
-static inline int es_out_in_vaControl(struct vlc_input_es_out *p_out,
+static inline int es_out_in_vaControl(struct heimdall_input_es_out *p_out,
                                       input_source_t *in,
                                       int i_query,
                                       va_list args)
@@ -457,7 +458,7 @@ static inline int es_out_in_vaControl(struct vlc_input_es_out *p_out,
     return p_out->out.cbs->control(&p_out->out, in, i_query, args);
 }
 
-static inline int es_out_in_Control(struct vlc_input_es_out *p_out,
+static inline int es_out_in_Control(struct heimdall_input_es_out *p_out,
                                     input_source_t *in,
                                     int i_query, ...)
 {
@@ -470,7 +471,7 @@ static inline int es_out_in_Control(struct vlc_input_es_out *p_out,
     return i_result;
 }
 
-static inline int es_out_in_vaPrivControl(struct vlc_input_es_out *out,
+static inline int es_out_in_vaPrivControl(struct heimdall_input_es_out *out,
                                           input_source_t *in,
                                           int i_query,
                                           va_list args)
@@ -478,7 +479,7 @@ static inline int es_out_in_vaPrivControl(struct vlc_input_es_out *out,
     return out->ops->priv_control(out, in, i_query, args);
 }
 
-static inline int es_out_in_PrivControl(struct vlc_input_es_out *p_out,
+static inline int es_out_in_PrivControl(struct heimdall_input_es_out *p_out,
                                         input_source_t *in,
                                         int i_query, ... )
 {
@@ -504,13 +505,13 @@ ControlLockedIsEmpty(struct es_out_timeshift *p_sys, input_source_t *in,
         assert( !ret );
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int
 ControlLockedGetWakeup(struct es_out_timeshift *p_sys,
                        input_source_t *in,
-                       vlc_tick_t *pi_wakeup)
+                       heimdall_tick_t *pi_wakeup)
 {
     if( p_sys->b_delayed )
     {
@@ -524,7 +525,7 @@ ControlLockedGetWakeup(struct es_out_timeshift *p_sys,
         assert( !ret );
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 static int 
 ControlLockedGetBuffering(struct es_out_timeshift *p_sys,
@@ -540,14 +541,14 @@ ControlLockedGetBuffering(struct es_out_timeshift *p_sys,
         assert( !ret );
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 static int
 ControlLockedSetPauseState(struct es_out_timeshift *p_sys,
                            input_source_t *in,
                            bool b_source_paused,
                            bool b_paused,
-                           vlc_tick_t i_date)
+                           heimdall_tick_t i_date)
 {
     int i_ret;
 
@@ -558,7 +559,7 @@ ControlLockedSetPauseState(struct es_out_timeshift *p_sys,
     }
     else
     {
-        i_ret = VLC_EGENERIC;
+        i_ret = HEIMDALL_EGENERIC;
         if( !input_CanPaceControl( p_sys->p_input ) )
         {
             if( !p_sys->b_delayed )
@@ -598,7 +599,7 @@ ControlLockedSetRate(struct es_out_timeshift *p_sys,
     }
     else
     {
-        i_ret = VLC_EGENERIC;
+        i_ret = HEIMDALL_EGENERIC;
         if( !input_CanPaceControl( p_sys->p_input ) )
         {
             if( !p_sys->b_delayed )
@@ -624,7 +625,7 @@ ControlLockedSetRate(struct es_out_timeshift *p_sys,
     return i_ret;
 }
 static int ControlLockedResetPcrDecoder(struct es_out_timeshift *p_sys, input_source_t *in,
-                                        vlc_tick_t duration)
+                                        heimdall_tick_t duration)
 {
     return es_out_in_PrivControl(p_sys->p_out, in, ES_OUT_PRIV_RESET_PCR_FRAME_PREV, duration);
 
@@ -670,11 +671,11 @@ static int ControlLocked( es_out_t *p_out, input_source_t *in, int i_query,
     {
         ts_cmd_control_t cmd;
         if( CmdInitControl( &cmd, in, i_query, args, p_sys->b_delayed ) )
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         if( p_sys->b_delayed )
         {
             TsPushCmd( p_sys->p_ts, (ts_cmd_t *) &cmd );
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
         return CmdExecuteControl(p_sys, &cmd);
     }
@@ -688,7 +689,7 @@ static int ControlLocked( es_out_t *p_out, input_source_t *in, int i_query,
         if( p_sys->b_delayed )
         {
             *pb_enabled = true;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
         return es_out_in_Control( p_sys->p_out, in, ES_OUT_GET_ES_STATE,
                                   p_es->p_es, pb_enabled );
@@ -696,7 +697,7 @@ static int ControlLocked( es_out_t *p_out, input_source_t *in, int i_query,
     case ES_OUT_VOUT_SET_MOUSE_EVENT:
     {
         es_out_id_t *p_es = va_arg( args, es_out_id_t * );
-        vlc_mouse_event cb = va_arg( args, vlc_mouse_event );
+        heimdall_mouse_event cb = va_arg( args, heimdall_mouse_event );
         void *user_data = va_arg( args, void * );
         return es_out_in_Control( p_sys->p_out, in, ES_OUT_VOUT_SET_MOUSE_EVENT,
                                   p_es->p_es, cb, user_data );
@@ -719,7 +720,7 @@ static int ControlLocked( es_out_t *p_out, input_source_t *in, int i_query,
     case ES_OUT_SPU_SET_HIGHLIGHT:
     {
         es_out_id_t *p_es = va_arg( args, es_out_id_t * );
-        const struct vlc_spu_highlight_t *p_hl = va_arg( args, const struct vlc_spu_highlight_t * );
+        const struct heimdall_spu_highlight_t *p_hl = va_arg( args, const struct heimdall_spu_highlight_t * );
         return es_out_in_Control( p_sys->p_out, in, ES_OUT_SPU_SET_HIGHLIGHT,
                                   p_es->p_es, p_hl );
     }
@@ -734,8 +735,8 @@ static int ControlLocked( es_out_t *p_out, input_source_t *in, int i_query,
         return es_out_in_vaControl( p_sys->p_out, in, i_query, args );
 
     default:
-        vlc_assert_unreachable();
-        return VLC_EGENERIC;
+        heimdall_assert_unreachable();
+        return HEIMDALL_EGENERIC;
     }
 }
 
@@ -744,18 +745,18 @@ static int Control( es_out_t *p_tsout, input_source_t *in, int i_query, va_list 
     struct es_out_timeshift *p_sys = PRIV(p_tsout);
     int i_ret;
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
 
     TsAutoStop( p_tsout );
 
     i_ret = ControlLocked( p_tsout, in, i_query, args );
 
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 
     return i_ret;
 }
 
-static int PrivControlLocked(struct vlc_input_es_out *p_tsout,
+static int PrivControlLocked(struct heimdall_input_es_out *p_tsout,
                              input_source_t *in,
                              int i_query,
                              va_list args )
@@ -772,17 +773,17 @@ static int PrivControlLocked(struct vlc_input_es_out *p_tsout,
     {
         ts_cmd_t cmd;
         if( CmdInitPrivControl( &cmd.privcontrol, in, i_query, args, p_sys->b_delayed ) )
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         if( p_sys->b_delayed )
         {
             TsPushCmd( p_sys->p_ts, &cmd );
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
         return CmdExecutePrivControl(p_sys, &cmd.privcontrol);
     }
     case ES_OUT_PRIV_GET_WAKE_UP: /* TODO ? */
     {
-        vlc_tick_t *pi_wakeup = va_arg( args, vlc_tick_t* );
+        heimdall_tick_t *pi_wakeup = va_arg( args, heimdall_tick_t* );
         return ControlLockedGetWakeup(p_sys, in, pi_wakeup);
     }
     case ES_OUT_PRIV_GET_BUFFERING:
@@ -794,14 +795,14 @@ static int PrivControlLocked(struct vlc_input_es_out *p_tsout,
     {
         const bool b_source_paused = (bool)va_arg( args, int );
         const bool b_paused = (bool)va_arg( args, int );
-        const vlc_tick_t i_date = va_arg( args, vlc_tick_t );
+        const heimdall_tick_t i_date = va_arg( args, heimdall_tick_t );
 
         return ControlLockedSetPauseState(p_sys, in, b_source_paused, b_paused, i_date);
     }
     case ES_OUT_PRIV_SET_REBUFFER_STATE:
     {
         const bool b_rebuffering = (bool)va_arg( args, int );
-        const vlc_tick_t i_date = va_arg( args, vlc_tick_t );
+        const heimdall_tick_t i_date = va_arg( args, heimdall_tick_t );
 
         return es_out_in_PrivControl(p_sys->p_out, in,
                                      ES_OUT_PRIV_SET_REBUFFER_STATE,
@@ -816,7 +817,7 @@ static int PrivControlLocked(struct vlc_input_es_out *p_tsout,
     }
     case ES_OUT_PRIV_RESET_PCR_FRAME_PREV:
     {
-        const vlc_tick_t duration = va_arg( args, vlc_tick_t );
+        const heimdall_tick_t duration = va_arg( args, heimdall_tick_t );
         return ControlLockedResetPcrDecoder(p_sys, in, duration);
     }
     case ES_OUT_PRIV_SET_FRAME_NEXT:
@@ -842,22 +843,22 @@ static int PrivControlLocked(struct vlc_input_es_out *p_tsout,
     case ES_OUT_PRIV_SET_RECORD_STATE:
     case ES_OUT_PRIV_SET_VBI_PAGE:
     case ES_OUT_PRIV_SET_VBI_TRANSPARENCY:
-    default: vlc_assert_unreachable();
+    default: heimdall_assert_unreachable();
     }
 }
 
-static int PrivControl(struct vlc_input_es_out *p_tsout, input_source_t *in, int i_query, va_list args )
+static int PrivControl(struct heimdall_input_es_out *p_tsout, input_source_t *in, int i_query, va_list args )
 {
     struct es_out_timeshift *p_sys = PRIV(&p_tsout->out);
     int i_ret;
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
 
     TsAutoStop(&p_tsout->out);
 
     i_ret = PrivControlLocked(p_tsout, in, i_query, args);
 
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 
     return i_ret;
 }
@@ -874,16 +875,16 @@ static const struct es_out_callbacks es_out_timeshift_cbs =
 /*****************************************************************************
  * input_EsOutTimeshiftNew:
  *****************************************************************************/
-struct vlc_input_es_out *
+struct heimdall_input_es_out *
 input_EsOutTimeshiftNew(input_thread_t *p_input,
-                        struct vlc_input_es_out *p_next_out,
+                        struct heimdall_input_es_out *p_next_out,
                         float rate)
 {
     struct es_out_timeshift *p_sys = malloc( sizeof(*p_sys) );
     if( !p_sys )
         return NULL;
 
-    static const struct vlc_input_es_out_ops timeshift_ops =
+    static const struct heimdall_input_es_out_ops timeshift_ops =
     {
         .priv_control = PrivControl,
     };
@@ -898,7 +899,7 @@ input_EsOutTimeshiftNew(input_thread_t *p_input,
     p_sys->input_rate_source = rate;
 
     p_sys->p_out = p_next_out;
-    vlc_mutex_init_recursive( &p_sys->lock );
+    heimdall_mutex_init_recursive( &p_sys->lock );
 
     p_sys->b_delayed = false;
     p_sys->p_ts = NULL;
@@ -921,7 +922,7 @@ input_EsOutTimeshiftNew(input_thread_t *p_input,
         const DWORD count = GetTempPathW( 0, NULL );
         if( count > 0 )
         {
-            WCHAR *path = vlc_alloc( count + 1, sizeof(WCHAR) );
+            WCHAR *path = heimdall_alloc( count + 1, sizeof(WCHAR) );
             if( path != NULL )
             {
                 DWORD ret = GetTempPathW( count + 1, path );
@@ -989,7 +990,7 @@ static int TsStart(struct es_out_timeshift *p_sys)
 
     p_sys->p_ts = p_ts = calloc(1, sizeof(*p_ts));
     if( !p_ts )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     p_ts->i_tmp_size_max = p_sys->i_tmp_size_max;
     p_ts->psz_tmp_path = p_sys->psz_tmp_path;
@@ -997,11 +998,11 @@ static int TsStart(struct es_out_timeshift *p_sys)
     p_ts->ts = p_sys;
     p_ts->p_out = p_sys->p_out;
     p_ts->p_tsout = p_out;
-    vlc_mutex_init( &p_ts->lock );
-    vlc_cond_init( &p_ts->wait );
-    vlc_sem_init( &p_ts->done, 0 );
+    heimdall_mutex_init( &p_ts->lock );
+    heimdall_cond_init( &p_ts->wait );
+    heimdall_sem_init( &p_ts->done, 0 );
     p_ts->b_paused = p_sys->b_input_paused && !p_sys->b_input_paused_source;
-    p_ts->i_pause_date = p_ts->b_paused ? vlc_tick_now() : -1;
+    p_ts->i_pause_date = p_ts->b_paused ? heimdall_tick_now() : -1;
     p_ts->rate_source = p_sys->input_rate_source;
     p_ts->rate        = p_sys->input_rate;
     p_ts->i_rate_date = -1;
@@ -1012,17 +1013,17 @@ static int TsStart(struct es_out_timeshift *p_sys)
     p_ts->p_storage_w = NULL;
 
     p_sys->b_delayed = true;
-    if( vlc_clone( &p_ts->thread, TsRun, p_ts ) )
+    if( heimdall_clone( &p_ts->thread, TsRun, p_ts ) )
     {
         msg_Err( p_sys->p_input, "cannot create timeshift thread" );
 
         TsDestroy( p_ts );
 
         p_sys->b_delayed = false;
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 static void TsAutoStop( es_out_t *p_out )
 {
@@ -1038,13 +1039,13 @@ static void TsAutoStop( es_out_t *p_out )
 }
 static void TsStop( ts_thread_t *p_ts )
 {
-    vlc_mutex_lock( &p_ts->lock );
-    vlc_sem_post( &p_ts->done );
-    vlc_cond_signal( &p_ts->wait );
-    vlc_mutex_unlock( &p_ts->lock );
-    vlc_join( p_ts->thread, NULL );
+    heimdall_mutex_lock( &p_ts->lock );
+    heimdall_sem_post( &p_ts->done );
+    heimdall_cond_signal( &p_ts->wait );
+    heimdall_mutex_unlock( &p_ts->lock );
+    heimdall_join( p_ts->thread, NULL );
 
-    vlc_mutex_lock( &p_ts->lock );
+    heimdall_mutex_lock( &p_ts->lock );
     for( ;; )
     {
         ts_cmd_t cmd;
@@ -1057,13 +1058,13 @@ static void TsStop( ts_thread_t *p_ts )
     assert( !p_ts->p_storage_r || !p_ts->p_storage_r->p_next );
     if( p_ts->p_storage_r )
         TsStorageDelete( p_ts->p_storage_r );
-    vlc_mutex_unlock( &p_ts->lock );
+    heimdall_mutex_unlock( &p_ts->lock );
 
     TsDestroy( p_ts );
 }
 static void TsPushCmd( ts_thread_t *p_ts, ts_cmd_t *p_cmd )
 {
-    vlc_mutex_lock( &p_ts->lock );
+    heimdall_mutex_lock( &p_ts->lock );
 
     if( !p_ts->p_storage_w || TsStorageIsFull( p_ts->p_storage_w, p_cmd ) )
     {
@@ -1072,7 +1073,7 @@ static void TsPushCmd( ts_thread_t *p_ts, ts_cmd_t *p_cmd )
         if( !p_storage )
         {
             CmdClean( p_cmd );
-            vlc_mutex_unlock( &p_ts->lock );
+            heimdall_mutex_unlock( &p_ts->lock );
             /* TODO warn the user (but only once) */
             return;
         }
@@ -1092,16 +1093,16 @@ static void TsPushCmd( ts_thread_t *p_ts, ts_cmd_t *p_cmd )
     /* TODO return error and warn the user (but only once) */
     TsStoragePushCmd( p_ts->p_storage_w, p_cmd, p_ts->p_storage_r == p_ts->p_storage_w );
 
-    vlc_cond_signal( &p_ts->wait );
+    heimdall_cond_signal( &p_ts->wait );
 
-    vlc_mutex_unlock( &p_ts->lock );
+    heimdall_mutex_unlock( &p_ts->lock );
 }
 static int TsPopCmdLocked( ts_thread_t *p_ts, ts_cmd_t *p_cmd, bool b_flush )
 {
-    vlc_mutex_assert( &p_ts->lock );
+    heimdall_mutex_assert( &p_ts->lock );
 
     if( TsStorageIsEmpty( p_ts->p_storage_r ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     TsStoragePopCmd( p_ts->p_storage_r, p_cmd, b_flush );
 
@@ -1115,15 +1116,15 @@ static int TsPopCmdLocked( ts_thread_t *p_ts, ts_cmd_t *p_cmd, bool b_flush )
         p_ts->p_storage_r = p_next;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 static bool TsHasCmd( ts_thread_t *p_ts )
 {
     bool b_cmd;
 
-    vlc_mutex_lock( &p_ts->lock );
+    heimdall_mutex_lock( &p_ts->lock );
     b_cmd = !TsStorageIsEmpty( p_ts->p_storage_r );
-    vlc_mutex_unlock( &p_ts->lock );
+    heimdall_mutex_unlock( &p_ts->lock );
 
     return b_cmd;
 }
@@ -1131,17 +1132,17 @@ static bool TsIsUnused( ts_thread_t *p_ts )
 {
     bool b_unused;
 
-    vlc_mutex_lock( &p_ts->lock );
+    heimdall_mutex_lock( &p_ts->lock );
     b_unused = !p_ts->b_paused &&
                p_ts->rate == p_ts->rate_source &&
                TsStorageIsEmpty( p_ts->p_storage_r );
-    vlc_mutex_unlock( &p_ts->lock );
+    heimdall_mutex_unlock( &p_ts->lock );
 
     return b_unused;
 }
-static int TsChangePause( ts_thread_t *p_ts, bool b_source_paused, bool b_paused, vlc_tick_t i_date )
+static int TsChangePause( ts_thread_t *p_ts, bool b_source_paused, bool b_paused, heimdall_tick_t i_date )
 {
-    vlc_mutex_lock( &p_ts->lock );
+    heimdall_mutex_lock( &p_ts->lock );
 
     int i_ret;
     if( b_paused )
@@ -1166,16 +1167,16 @@ static int TsChangePause( ts_thread_t *p_ts, bool b_source_paused, bool b_paused
         p_ts->b_paused = b_paused;
         p_ts->i_pause_date = i_date;
 
-        vlc_cond_signal( &p_ts->wait );
+        heimdall_cond_signal( &p_ts->wait );
     }
-    vlc_mutex_unlock( &p_ts->lock );
+    heimdall_mutex_unlock( &p_ts->lock );
     return i_ret;
 }
 static int TsChangeRate( ts_thread_t *p_ts, float src_rate, float rate )
 {
     int i_ret;
 
-    vlc_mutex_lock( &p_ts->lock );
+    heimdall_mutex_lock( &p_ts->lock );
     p_ts->i_cmd_delay += p_ts->i_rate_delay;
 
     p_ts->i_rate_date = -1;
@@ -1184,23 +1185,23 @@ static int TsChangeRate( ts_thread_t *p_ts, float src_rate, float rate )
     p_ts->rate_source = src_rate;
 
     i_ret = es_out_SetRate( p_ts->p_out, rate, rate );
-    vlc_mutex_unlock( &p_ts->lock );
+    heimdall_mutex_unlock( &p_ts->lock );
 
     return i_ret;
 }
 
 static void *TsRun( void *p_data )
 {
-    vlc_thread_set_name("vlc-timeshift");
+    heimdall_thread_set_name("heimdall-timeshift");
 
     ts_thread_t *p_ts = p_data;
-    vlc_tick_t i_buffering_date = -1;
+    heimdall_tick_t i_buffering_date = -1;
 
-    vlc_mutex_lock( &p_ts->lock );
-    while( vlc_sem_trywait( &p_ts->done ) != 0 )
+    heimdall_mutex_lock( &p_ts->lock );
+    while( heimdall_sem_trywait( &p_ts->done ) != 0 )
     {
         ts_cmd_t cmd;
-        vlc_tick_t  i_deadline;
+        heimdall_tick_t  i_deadline;
 
         /* Pop a command to execute */
         bool b_buffering = es_out_GetBuffering( p_ts->p_out );
@@ -1208,7 +1209,7 @@ static void *TsRun( void *p_data )
         if( ( p_ts->b_paused && !b_buffering )
          || TsPopCmdLocked( p_ts, &cmd, false ) )
         {
-            vlc_cond_wait( &p_ts->wait, &p_ts->lock );
+            heimdall_cond_wait( &p_ts->wait, &p_ts->lock );
             continue;
         }
 
@@ -1231,7 +1232,7 @@ static void *TsRun( void *p_data )
         p_ts->i_rate_delay = 0;
         if( p_ts->rate_source != p_ts->rate )
         {
-            const vlc_tick_t i_duration = cmd.header.i_date - p_ts->i_rate_date;
+            const heimdall_tick_t i_duration = cmd.header.i_date - p_ts->i_rate_date;
             p_ts->i_rate_delay = i_duration * p_ts->rate_source / p_ts->rate - i_duration;
         }
         if( p_ts->i_cmd_delay + p_ts->i_rate_delay + p_ts->i_buffering_delay < 0 && p_ts->rate != p_ts->rate_source )
@@ -1248,7 +1249,7 @@ static void *TsRun( void *p_data )
 
             if( !es_out_SetRate( p_ts->p_out, p_ts->rate_source, p_ts->rate ) )
             {
-                vlc_value_t val = { .f_float = p_ts->rate };
+                heimdall_value_t val = { .f_float = p_ts->rate };
                 /* Warn back input
                  * FIXME it is perfectly safe BUT it is ugly as it may hide a
                  * rate change requested by user */
@@ -1257,11 +1258,11 @@ static void *TsRun( void *p_data )
         }
         i_deadline = cmd.header.i_date + p_ts->i_cmd_delay + p_ts->i_rate_delay + p_ts->i_buffering_delay;
 
-        vlc_mutex_unlock( &p_ts->lock );
+        heimdall_mutex_unlock( &p_ts->lock );
 
         /* Regulate the speed of command processing to the same one than
          * reading  */
-        if( vlc_sem_timedwait( &p_ts->done, i_deadline ) == 0 )
+        if( heimdall_sem_timedwait( &p_ts->done, i_deadline ) == 0 )
         {
             CmdClean( &cmd );
             return NULL;
@@ -1290,12 +1291,12 @@ static void *TsRun( void *p_data )
             CmdExecuteDel(p_ts->ts, &cmd.del);
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
             break;
         }
-        vlc_mutex_lock( &p_ts->lock );
+        heimdall_mutex_lock( &p_ts->lock );
     }
-    vlc_mutex_unlock( &p_ts->lock );
+    heimdall_mutex_unlock( &p_ts->lock );
     return NULL;
 }
 
@@ -1331,21 +1332,21 @@ static ts_storage_t *TsStorageNew( const char *psz_tmp_path, int64_t i_tmp_size_
     p_storage->p_filew = fdopen( fd, "w+b" );
     if( p_storage->p_filew == NULL )
     {
-        vlc_close( fd );
-        vlc_unlink( psz_file );
+        heimdall_close( fd );
+        heimdall_unlink( psz_file );
         goto error;
     }
 
-    p_storage->p_filer = vlc_fopen( psz_file, "rb" );
+    p_storage->p_filer = heimdall_fopen( psz_file, "rb" );
     if( p_storage->p_filer == NULL )
     {
         fclose( p_storage->p_filew );
-        vlc_unlink( psz_file );
+        heimdall_unlink( psz_file );
         goto error;
     }
 
 #ifndef _WIN32
-    vlc_unlink( psz_file );
+    heimdall_unlink( psz_file );
     free( psz_file );
 #else
     p_storage->psz_file = psz_file;
@@ -1357,7 +1358,7 @@ static ts_storage_t *TsStorageNew( const char *psz_tmp_path, int64_t i_tmp_size_
     p_storage->i_file_size = 0;
 
     /* */
-    p_storage->p_cmd_buf = vlc_alloc( TS_STORAGE_COMMAND_PREALLOC, MAX_COMMAND_SIZE );
+    p_storage->p_cmd_buf = heimdall_alloc( TS_STORAGE_COMMAND_PREALLOC, MAX_COMMAND_SIZE );
     p_storage->i_cmd_buf = TS_STORAGE_COMMAND_PREALLOC * MAX_COMMAND_SIZE;
     p_storage->p_cmd_w = p_storage->p_cmd_buf;
     p_storage->p_cmd_r = p_storage->p_cmd_buf;
@@ -1390,7 +1391,7 @@ static void TsStorageDelete( ts_storage_t *p_storage )
     fclose( p_storage->p_filer );
     fclose( p_storage->p_filew );
 #ifdef _WIN32
-    vlc_unlink( p_storage->psz_file );
+    heimdall_unlink( p_storage->psz_file );
     free( p_storage->psz_file );
 #endif
     free( p_storage );
@@ -1527,7 +1528,7 @@ static void CmdClean( ts_cmd_t *p_cmd )
     case C_DEL:
         break;
     default:
-        vlc_assert_unreachable();
+        heimdall_assert_unreachable();
         break;
     }
 }
@@ -1536,13 +1537,13 @@ static int CmdInitAdd( ts_cmd_add_t *p_cmd, input_source_t *in,  es_out_id_t *p_
                        const es_format_t *p_fmt, bool b_copy )
 {
     p_cmd->header.i_type = C_ADD;
-    p_cmd->header.i_date = vlc_tick_now();
+    p_cmd->header.i_date = heimdall_tick_now();
     p_cmd->p_es = p_es;
     if( b_copy )
     {
         p_cmd->p_fmt = malloc( sizeof(*p_fmt) );
         if( !p_cmd->p_fmt )
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         es_format_Copy( p_cmd->p_fmt, p_fmt );
         p_cmd->in = in ? input_source_Hold( in ) : NULL;
     }
@@ -1551,7 +1552,7 @@ static int CmdInitAdd( ts_cmd_add_t *p_cmd, input_source_t *in,  es_out_id_t *p_
         p_cmd->p_fmt = (es_format_t*)p_fmt;
         p_cmd->in = in;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 static void CmdExecuteAdd(struct es_out_timeshift *p_sys, ts_cmd_add_t *p_cmd)
 {
@@ -1570,7 +1571,7 @@ static void CmdCleanAdd( ts_cmd_add_t *p_cmd )
 static void CmdInitSend( ts_cmd_send_t *p_cmd, es_out_id_t *p_es, block_t *p_block )
 {
     p_cmd->header.i_type = C_SEND;
-    p_cmd->header.i_date = vlc_tick_now();
+    p_cmd->header.i_date = heimdall_tick_now();
     p_cmd->p_es = p_es;
     p_cmd->p_block = p_block;
 }
@@ -1588,7 +1589,7 @@ static int CmdExecuteSend(struct es_out_timeshift *p_sys, ts_cmd_send_t *p_cmd)
             return es_out_Send(out, p_cmd->p_es->p_es, p_block);
         block_Release( p_block );
     }
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 static void CmdCleanSend( ts_cmd_send_t *p_cmd )
 {
@@ -1599,9 +1600,9 @@ static void CmdCleanSend( ts_cmd_send_t *p_cmd )
 static int CmdInitDel( ts_cmd_del_t *p_cmd, es_out_id_t *p_es )
 {
     p_cmd->header.i_type = C_DEL;
-    p_cmd->header.i_date = vlc_tick_now();
+    p_cmd->header.i_date = heimdall_tick_now();
     p_cmd->p_es = p_es;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 static void CmdExecuteDel(struct es_out_timeshift *p_sys, ts_cmd_del_t *p_cmd)
 {
@@ -1615,7 +1616,7 @@ static int CmdInitControl( ts_cmd_control_t *p_cmd, input_source_t *in,
                            int i_query, va_list args, bool b_copy )
 {
     p_cmd->header.i_type = C_CONTROL;
-    p_cmd->header.i_date = vlc_tick_now();
+    p_cmd->header.i_date = heimdall_tick_now();
     p_cmd->i_query = i_query;
 
     if( b_copy )
@@ -1631,14 +1632,14 @@ static int CmdInitControl( ts_cmd_control_t *p_cmd, input_source_t *in,
         p_cmd->u.i_int = va_arg( args, int );
         break;
 
-    case ES_OUT_SET_PCR:                /* arg1=vlc_tick_t i_pcr(microsecond!) (using default group 0)*/
-    case ES_OUT_SET_NEXT_DISPLAY_TIME:  /* arg1=vlc_tick_t i_pts(microsecond) */
-        p_cmd->u.i_i64 = va_arg( args, vlc_tick_t );
+    case ES_OUT_SET_PCR:                /* arg1=heimdall_tick_t i_pcr(microsecond!) (using default group 0)*/
+    case ES_OUT_SET_NEXT_DISPLAY_TIME:  /* arg1=heimdall_tick_t i_pts(microsecond) */
+        p_cmd->u.i_i64 = va_arg( args, heimdall_tick_t );
         break;
 
-    case ES_OUT_SET_GROUP_PCR:          /* arg1= int i_group, arg2=vlc_tick_t i_pcr(microsecond!)*/
+    case ES_OUT_SET_GROUP_PCR:          /* arg1= int i_group, arg2=heimdall_tick_t i_pcr(microsecond!)*/
         p_cmd->u.int_i64.i_int = va_arg( args, int );
-        p_cmd->u.int_i64.i_i64 = va_arg( args, vlc_tick_t );
+        p_cmd->u.int_i64.i_i64 = va_arg( args, heimdall_tick_t );
         break;
 
     case ES_OUT_SET_ES_SCRAMBLED_STATE:
@@ -1650,61 +1651,61 @@ static int CmdInitControl( ts_cmd_control_t *p_cmd, input_source_t *in,
     case ES_OUT_RESET_PCR:           /* no arg */
         break;
 
-    case ES_OUT_SET_META:        /* arg1=const vlc_meta_t* */
-    case ES_OUT_SET_GROUP_META:  /* arg1=int i_group arg2=const vlc_meta_t* */
+    case ES_OUT_SET_META:        /* arg1=const heimdall_meta_t* */
+    case ES_OUT_SET_GROUP_META:  /* arg1=int i_group arg2=const heimdall_meta_t* */
     {
         if( i_query == ES_OUT_SET_GROUP_META )
             p_cmd->u.int_meta.i_int = va_arg( args, int );
-        const vlc_meta_t *p_meta = va_arg( args, const vlc_meta_t * );
+        const heimdall_meta_t *p_meta = va_arg( args, const heimdall_meta_t * );
 
         if( b_copy )
         {
-            p_cmd->u.int_meta.p_meta = vlc_meta_New();
+            p_cmd->u.int_meta.p_meta = heimdall_meta_New();
             if( !p_cmd->u.int_meta.p_meta )
-                return VLC_EGENERIC;
-            vlc_meta_Merge( p_cmd->u.int_meta.p_meta, p_meta );
+                return HEIMDALL_EGENERIC;
+            heimdall_meta_Merge( p_cmd->u.int_meta.p_meta, p_meta );
         }
         else
         {
             /* The cast is only needed to avoid warning */
-            p_cmd->u.int_meta.p_meta = (vlc_meta_t*)p_meta;
+            p_cmd->u.int_meta.p_meta = (heimdall_meta_t*)p_meta;
         }
         break;
     }
 
-    case ES_OUT_SET_GROUP_EPG:   /* arg1=int i_group arg2=const vlc_epg_t* */
+    case ES_OUT_SET_GROUP_EPG:   /* arg1=int i_group arg2=const heimdall_epg_t* */
     {
         p_cmd->u.int_epg.i_int = va_arg( args, int );
-        const vlc_epg_t *p_epg = va_arg( args, const vlc_epg_t * );
+        const heimdall_epg_t *p_epg = va_arg( args, const heimdall_epg_t * );
 
         if( b_copy )
         {
-            p_cmd->u.int_epg.p_epg = vlc_epg_Duplicate( p_epg );
+            p_cmd->u.int_epg.p_epg = heimdall_epg_Duplicate( p_epg );
             if( !p_cmd->u.int_epg.p_epg )
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
         }
         else
         {
             /* The cast is only needed to avoid warning */
-            p_cmd->u.int_epg.p_epg = (vlc_epg_t*)p_epg;
+            p_cmd->u.int_epg.p_epg = (heimdall_epg_t*)p_epg;
         }
         break;
     }
-    case ES_OUT_SET_GROUP_EPG_EVENT:   /* arg1=int i_group arg2=const vlc_epg_event_t* */
+    case ES_OUT_SET_GROUP_EPG_EVENT:   /* arg1=int i_group arg2=const heimdall_epg_event_t* */
     {
         p_cmd->u.int_epg_evt.i_int = va_arg( args, int );
-        const vlc_epg_event_t *p_evt = va_arg( args, const vlc_epg_event_t * );
+        const heimdall_epg_event_t *p_evt = va_arg( args, const heimdall_epg_event_t * );
 
         if( b_copy )
         {
-            p_cmd->u.int_epg_evt.p_evt = vlc_epg_event_Duplicate( p_evt );
+            p_cmd->u.int_epg_evt.p_evt = heimdall_epg_event_Duplicate( p_evt );
             if( !p_cmd->u.int_epg_evt.p_evt )
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
         }
         else
         {
             /* The cast is only needed to avoid warning */
-            p_cmd->u.int_epg_evt.p_evt = (vlc_epg_event_t*)p_evt;
+            p_cmd->u.int_epg_evt.p_evt = (heimdall_epg_event_t*)p_evt;
         }
         break;
     }
@@ -1739,7 +1740,7 @@ static int CmdInitControl( ts_cmd_control_t *p_cmd, input_source_t *in,
         {
             p_cmd->u.es_fmt.p_fmt = malloc( sizeof(*p_fmt) );
             if( !p_cmd->u.es_fmt.p_fmt )
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             es_format_Copy( p_cmd->u.es_fmt.p_fmt, p_fmt );
         }
         else
@@ -1749,11 +1750,11 @@ static int CmdInitControl( ts_cmd_control_t *p_cmd, input_source_t *in,
         break;
     }
     default:
-        vlc_assert_unreachable();
-        return VLC_EGENERIC;
+        heimdall_assert_unreachable();
+        return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int
@@ -1770,11 +1771,11 @@ CmdExecuteControl(struct es_out_timeshift *p_sys,
     case ES_OUT_DEL_GROUP:   /* arg1=int i_group */
         return es_out_in_Control( p_sys->p_out, in, i_query, p_cmd->u.i_int );
 
-    case ES_OUT_SET_PCR:                /* arg1=vlc_tick_t i_pcr(microsecond!) (using default group 0)*/
-    case ES_OUT_SET_NEXT_DISPLAY_TIME:  /* arg1=vlc_tick_t i_pts(microsecond) */
+    case ES_OUT_SET_PCR:                /* arg1=heimdall_tick_t i_pcr(microsecond!) (using default group 0)*/
+    case ES_OUT_SET_NEXT_DISPLAY_TIME:  /* arg1=heimdall_tick_t i_pts(microsecond) */
         return es_out_in_Control( p_sys->p_out, in, i_query, p_cmd->u.i_i64 );
 
-    case ES_OUT_SET_GROUP_PCR:          /* arg1= int i_group, arg2=vlc_tick_t i_pcr(microsecond!)*/
+    case ES_OUT_SET_GROUP_PCR:          /* arg1= int i_group, arg2=heimdall_tick_t i_pcr(microsecond!)*/
         return es_out_in_Control( p_sys->p_out, in, i_query, p_cmd->u.int_i64.i_int,
                                   p_cmd->u.int_i64.i_i64 );
 
@@ -1782,15 +1783,15 @@ CmdExecuteControl(struct es_out_timeshift *p_sys,
     case ES_OUT_RESET_PCR:           /* no arg */
         return es_out_in_Control( p_sys->p_out, in, i_query );
 
-    case ES_OUT_SET_GROUP_META:  /* arg1=int i_group arg2=const vlc_meta_t* */
+    case ES_OUT_SET_GROUP_META:  /* arg1=int i_group arg2=const heimdall_meta_t* */
         return es_out_in_Control( p_sys->p_out, in, i_query, p_cmd->u.int_meta.i_int,
                                   p_cmd->u.int_meta.p_meta );
 
-    case ES_OUT_SET_GROUP_EPG:   /* arg1=int i_group arg2=const vlc_epg_t* */
+    case ES_OUT_SET_GROUP_EPG:   /* arg1=int i_group arg2=const heimdall_epg_t* */
         return es_out_in_Control( p_sys->p_out, in, i_query, p_cmd->u.int_epg.i_int,
                                   p_cmd->u.int_epg.p_epg );
 
-    case ES_OUT_SET_GROUP_EPG_EVENT: /* arg1=int i_group arg2=const vlc_epg_event_t* */
+    case ES_OUT_SET_GROUP_EPG_EVENT: /* arg1=int i_group arg2=const heimdall_epg_event_t* */
         return es_out_in_Control( p_sys->p_out, in, i_query, p_cmd->u.int_epg_evt.i_int,
                                   p_cmd->u.int_epg_evt.p_evt );
 
@@ -1801,7 +1802,7 @@ CmdExecuteControl(struct es_out_timeshift *p_sys,
         return es_out_in_Control( p_sys->p_out, in, i_query, p_cmd->u.es_bool.p_es->p_es,
                                   p_cmd->u.es_bool.b_bool );
 
-    case ES_OUT_SET_META:  /* arg1=const vlc_meta_t* */
+    case ES_OUT_SET_META:  /* arg1=const heimdall_meta_t* */
         return es_out_in_Control( p_sys->p_out, in, i_query, p_cmd->u.int_meta.p_meta );
 
     /* Modified control */
@@ -1825,8 +1826,8 @@ CmdExecuteControl(struct es_out_timeshift *p_sys,
                                   p_cmd->u.es_fmt.p_fmt );
 
     default:
-        vlc_assert_unreachable();
-        return VLC_EGENERIC;
+        heimdall_assert_unreachable();
+        return HEIMDALL_EGENERIC;
     }
 }
 static void CmdCleanControl( ts_cmd_control_t *p_cmd )
@@ -1839,15 +1840,15 @@ static void CmdCleanControl( ts_cmd_control_t *p_cmd )
     case ES_OUT_SET_GROUP_META:
     case ES_OUT_SET_META:
         if( p_cmd->u.int_meta.p_meta )
-            vlc_meta_Delete( p_cmd->u.int_meta.p_meta );
+            heimdall_meta_Delete( p_cmd->u.int_meta.p_meta );
         break;
     case ES_OUT_SET_GROUP_EPG:
         if( p_cmd->u.int_epg.p_epg )
-            vlc_epg_Delete( p_cmd->u.int_epg.p_epg );
+            heimdall_epg_Delete( p_cmd->u.int_epg.p_epg );
         break;
     case ES_OUT_SET_GROUP_EPG_EVENT:
         if( p_cmd->u.int_epg_evt.p_evt )
-            vlc_epg_event_Delete( p_cmd->u.int_epg_evt.p_evt );
+            heimdall_epg_event_Delete( p_cmd->u.int_epg_evt.p_evt );
         break;
     case ES_OUT_SET_ES_FMT:
         if( p_cmd->u.es_fmt.p_fmt )
@@ -1862,7 +1863,7 @@ static void CmdCleanControl( ts_cmd_control_t *p_cmd )
 static int CmdInitPrivControl( ts_cmd_privcontrol_t *p_cmd, input_source_t *in, int i_query, va_list args, bool b_copy )
 {
     p_cmd->header.i_type = C_PRIVCONTROL;
-    p_cmd->header.i_date = vlc_tick_now();
+    p_cmd->header.i_date = heimdall_tick_now();
     p_cmd->i_query = i_query;
 
     if( b_copy )
@@ -1878,8 +1879,8 @@ static int CmdInitPrivControl( ts_cmd_privcontrol_t *p_cmd, input_source_t *in, 
         break;
     case ES_OUT_PRIV_SET_JITTER:
     {
-        vlc_tick_t i_pts_delay = va_arg( args, vlc_tick_t );
-        vlc_tick_t i_pts_jitter = va_arg( args, vlc_tick_t );
+        heimdall_tick_t i_pts_delay = va_arg( args, heimdall_tick_t );
+        heimdall_tick_t i_pts_jitter = va_arg( args, heimdall_tick_t );
         int     i_cr_average = va_arg( args, int );
 
         p_cmd->u.jitter.i_pts_delay = i_pts_delay;
@@ -1890,9 +1891,9 @@ static int CmdInitPrivControl( ts_cmd_privcontrol_t *p_cmd, input_source_t *in, 
     case ES_OUT_PRIV_SET_TIMES:
     {
         double f_position = va_arg( args, double );
-        vlc_tick_t i_time = va_arg( args, vlc_tick_t );
-        vlc_tick_t i_normal_time = va_arg( args, vlc_tick_t );
-        vlc_tick_t i_length = va_arg( args, vlc_tick_t );
+        heimdall_tick_t i_time = va_arg( args, heimdall_tick_t );
+        heimdall_tick_t i_normal_time = va_arg( args, heimdall_tick_t );
+        heimdall_tick_t i_length = va_arg( args, heimdall_tick_t );
         bool b_live = va_arg( args, int );
 
         p_cmd->u.times.f_position = f_position;
@@ -1904,10 +1905,10 @@ static int CmdInitPrivControl( ts_cmd_privcontrol_t *p_cmd, input_source_t *in, 
     }
     case ES_OUT_PRIV_SET_EOS: /* no arg */
         break;
-    default: vlc_assert_unreachable();
+    default: heimdall_assert_unreachable();
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int CmdExecutePrivControl(struct es_out_timeshift *p_sys, ts_cmd_privcontrol_t *p_cmd)
@@ -1933,7 +1934,7 @@ static int CmdExecutePrivControl(struct es_out_timeshift *p_sys, ts_cmd_privcont
                                       p_cmd->u.times.b_live );
     case ES_OUT_PRIV_SET_EOS: /* no arg */
         return es_out_in_PrivControl( p_sys->p_out, in, i_query );
-    default: vlc_assert_unreachable();
+    default: heimdall_assert_unreachable();
     }
 }
 

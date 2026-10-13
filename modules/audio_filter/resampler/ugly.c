@@ -2,6 +2,7 @@
  * ugly.c : zero-order hold "ugly" resampler
  *****************************************************************************
  * Copyright (C) 2002, 2006 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Samuel Hocevar <sam@zoy.org>
  *
@@ -28,23 +29,23 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_aout.h>
-#include <vlc_filter.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_aout.h>
+#include <heimdall_filter.h>
 
 /*****************************************************************************
  * Local prototypes
  *****************************************************************************/
-static int Create (vlc_object_t *);
-static int CreateResampler (vlc_object_t *);
+static int Create (heimdall_object_t *);
+static int CreateResampler (heimdall_object_t *);
 
 static block_t *DoWork( filter_t *, block_t * );
 
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("Nearest-neighbor audio resampler") )
     set_capability( "audio converter", 2 )
     set_subcategory( SUBCAT_AUDIO_RESAMPLER )
@@ -53,35 +54,35 @@ vlc_module_begin ()
     add_submodule()
     set_capability( "audio resampler", 2 )
     set_callback( CreateResampler )
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * Create: allocate ugly resampler
  *****************************************************************************/
-static int Create( vlc_object_t *p_this )
+static int Create( heimdall_object_t *p_this )
 {
     filter_t * p_filter = (filter_t *)p_this;
 
     if( p_filter->fmt_in.audio.i_rate == p_filter->fmt_out.audio.i_rate )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     return CreateResampler( p_this );
 }
 
-static int CreateResampler( vlc_object_t *p_this )
+static int CreateResampler( heimdall_object_t *p_this )
 {
     filter_t * p_filter = (filter_t *)p_this;
 
     if( p_filter->fmt_in.audio.i_format != p_filter->fmt_out.audio.i_format
      || p_filter->fmt_in.audio.i_channels != p_filter->fmt_out.audio.i_channels
      || !AOUT_FMT_LINEAR( &p_filter->fmt_in.audio ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    static const struct vlc_filter_operations filter_ops =
+    static const struct heimdall_filter_operations filter_ops =
     {
         .filter_audio = DoWork,
     };
     p_filter->ops = &filter_ops;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -113,7 +114,7 @@ static block_t *DoWork( filter_t * p_filter, block_t * p_in_buf )
     p_out_buf->i_nb_samples = i_out_nb;
     p_out_buf->i_buffer = i_out_nb * framesize;
     p_out_buf->i_pts = p_in_buf->i_pts;
-    p_out_buf->i_length = vlc_tick_from_samples(p_out_buf->i_nb_samples, p_filter->fmt_out.audio.i_rate);
+    p_out_buf->i_length = heimdall_tick_from_samples(p_out_buf->i_nb_samples, p_filter->fmt_out.audio.i_rate);
 
     while( i_out_nb )
     {

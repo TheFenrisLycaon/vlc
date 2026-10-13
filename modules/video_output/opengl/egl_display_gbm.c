@@ -2,6 +2,7 @@
  * egl_display_gbm.c
  *****************************************************************************
  * Copyright (C) 2021 Videolabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,10 +23,10 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_opengl.h>
-#include <vlc_fs.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_opengl.h>
+#include <heimdall_fs.h>
 #include <fcntl.h>
 #include <assert.h>
 
@@ -46,7 +47,7 @@ struct sys
     int fd;
 };
 
-static void Close(struct vlc_egl_display *display)
+static void Close(struct heimdall_egl_display *display)
 {
     struct sys *sys = display->sys;
 
@@ -54,7 +55,7 @@ static void Close(struct vlc_egl_display *display)
     assert(sys->fd >= 0);
 
     gbm_device_destroy(sys->device);
-    vlc_close(sys->fd);
+    heimdall_close(sys->fd);
 
     free(sys);
 }
@@ -83,7 +84,7 @@ OpenDeviceFd(const char **out_path)
     for (size_t i = 0; i < ARRAY_SIZE(default_drm_device_paths); ++i)
     {
         const char *path = default_drm_device_paths[i];
-        int fd = vlc_open(path, O_RDWR);
+        int fd = heimdall_open(path, O_RDWR);
         if (fd >= 0)
         {
             *out_path = path;
@@ -94,31 +95,31 @@ OpenDeviceFd(const char **out_path)
     return -1;
 }
 
-static vlc_egl_display_open_fn Open;
+static heimdall_egl_display_open_fn Open;
 static int
-Open(struct vlc_egl_display *display)
+Open(struct heimdall_egl_display *display)
 {
     struct sys *sys = display->sys = malloc(sizeof(*sys));
     if (!sys)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     const char *extensions = eglQueryString(EGL_NO_DISPLAY, EGL_EXTENSIONS);
     if (!extensions)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    if (!vlc_gl_StrHasToken(extensions, "EGL_KHR_platform_gbm"))
-        return VLC_EGENERIC;
+    if (!heimdall_gl_StrHasToken(extensions, "EGL_KHR_platform_gbm"))
+        return HEIMDALL_EGENERIC;
 
     const char *device_path;
     sys->fd = OpenDeviceFd(&device_path);
     if (sys->fd < 0)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     sys->device = gbm_create_device(sys->fd);
     if (!sys->device)
     {
-        vlc_close(sys->fd);
-        return VLC_EGENERIC;
+        heimdall_close(sys->fd);
+        return HEIMDALL_EGENERIC;
     }
 
     display->display = eglGetPlatformDisplay(EGL_PLATFORM_GBM_KHR, sys->device,
@@ -126,23 +127,23 @@ Open(struct vlc_egl_display *display)
     if (display->display == EGL_NO_DISPLAY)
     {
         gbm_device_destroy(sys->device);
-        vlc_close(sys->fd);
-        return VLC_EGENERIC;
+        heimdall_close(sys->fd);
+        return HEIMDALL_EGENERIC;
     }
 
-    static const struct vlc_egl_display_ops ops = {
+    static const struct heimdall_egl_display_ops ops = {
         .close = Close,
     };
     display->ops = &ops;
 
     msg_Info(display, "EGL using GBM platform on device %s (fd=%d)",
                       device_path, sys->fd);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_description("EGL GBM display")
     set_capability("egl display", 2)
     set_callback(Open)
     add_shortcut("egl_display_gbm")
-vlc_module_end()
+heimdall_module_end()

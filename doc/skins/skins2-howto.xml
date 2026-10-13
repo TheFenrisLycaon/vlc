@@ -12,7 +12,7 @@
 <copyright>
 <year>2004-2013</year>
 <holder>
-the VideoLAN project
+the Lycaria project
 </holder>
 </copyright>
 
@@ -41,7 +41,7 @@ website</ulink>.
 </authorgroup>
 
 <keywordset>
-    <keyword>VLC</keyword>
+    <keyword>Heimdall</keyword>
     <keyword>Skin</keyword>
     <keyword>XML</keyword>
     <keyword>Bezier</keyword>
@@ -53,7 +53,7 @@ website</ulink>.
 
 <sect1><title>Basic principles</title>
 
-<para>A skin (or theme, the two words have almost the same meaning) for VLC is made of:</para>
+<para>A skin (or theme, the two words have almost the same meaning) for Heimdall is made of:</para>
 
 <itemizedlist>
   <listitem><para>many PNG (Portable Network Graphics) files, for the images of the different states of the controls,</para></listitem>
@@ -62,7 +62,7 @@ website</ulink>.
 </itemizedlist>
 
 <para>Those of you who have already made skins for other software should have no
-difficulty to understand how VLC skins work.</para>
+difficulty to understand how Heimdall skins work.</para>
 
 </sect1>
 
@@ -75,7 +75,7 @@ difficulty to understand how VLC skins work.</para>
 
 <note><para>Both the transparency mask and the transparent color will be taken into acount, so if the transparency mask is correctly set in the bitmap file you need to choose a unused color for the transparency color.</para></note>
 
-<note><para>Starting from VLC 0.8.5, it is not anymore necessary to use PNG format for the bitmap files: most common formats are supported. Using PNG format is still recommended, for compatibility with older VLC versions.</para></note>
+<note><para>Starting from Heimdall 0.8.5, it is not anymore necessary to use PNG format for the bitmap files: most common formats are supported. Using PNG format is still recommended, for compatibility with older Heimdall versions.</para></note>
 
 </sect1>
 
@@ -84,7 +84,7 @@ difficulty to understand how VLC skins work.</para>
 
 <para>XML is a markup language, like HTML. It won't be explained here any further, please use Google if you don't know what XML is. You'll see, it is rather easy to understand.</para>
 
-<para>The XML file used for the VLC skins follows a predefined DTD. You can find this DTD <ulink url="http://git.videolan.org/gitweb.cgi?p=vlc.git;a=blob;f=share/skins2/skin.dtd;hb=HEAD">in VLC Git</ulink>, and its reading is strongly advised, since it contains the default values used for the parameters. A skin that does not follow the DTD with which VLC was compiled won't be loaded by VLC (and it might even crash it...).</para>
+<para>The XML file used for the Heimdall skins follows a predefined DTD. You can find this DTD <ulink url="http://git.videolan.org/gitweb.cgi?p=vlc.git;a=blob;f=share/skins2/skin.dtd;hb=HEAD">in Heimdall Git</ulink>, and its reading is strongly advised, since it contains the default values used for the parameters. A skin that does not follow the DTD with which Heimdall was compiled won't be loaded by Heimdall (and it might even crash it...).</para>
 
 <para>For a better undestanding of what follows, you should have a look at the DTD <!--(the last version is available on <ulink url="FIXME">TODO</ulink>) -->and/or at an example of valid XML skin<!-- TODO: link to the current DTD -->.</para>
 
@@ -100,7 +100,7 @@ difficulty to understand how VLC skins work.</para>
     </sect3>
     <sect3 id="themetooltipfont">
       <title>tooltipfont</title>
-      <para>Identifiant of a <link linkend="Font">Font</link> or <link linkend="BitmapFont">BitmapFont</link>, used for the tooltips (beware that any character not present in a <link linkend="BitmapFont">BitmapFont</link> will be printed as a space, so will be invisible). The default value uses a font provided with VLC, so you don't need to provide it with your skin.</para>
+      <para>Identifiant of a <link linkend="Font">Font</link> or <link linkend="BitmapFont">BitmapFont</link>, used for the tooltips (beware that any character not present in a <link linkend="BitmapFont">BitmapFont</link> will be printed as a space, so will be invisible). The default value uses a font provided with Heimdall, so you don't need to provide it with your skin.</para>
       <para>Default value: defaultfont</para>
     </sect3>
     <sect3 id="thememagnet">
@@ -124,7 +124,7 @@ difficulty to understand how VLC skins work.</para>
 
 <sect2 id="ThemeInfo">
   <title>ThemeInfo</title>
-  <para>You can enter here some information about you (but this information is currently unused by VLC...)</para>
+  <para>You can enter here some information about you (but this information is currently unused by Heimdall...)</para>
       <sect3 id="themeinfoname">
       <title>name</title>
       <para>Skin name. Not supported yet.</para>
@@ -168,17 +168,17 @@ difficulty to understand how VLC skins work.</para>
   </sect3>
   <sect3 id="bitmapnbframes">
     <title>nbframes</title>
-    <para>This attribute is needed to define animated bitmaps; it is the number of frames (images) contained in your animation. All the different frames are just images laid vertically in the bitmap. Animated GIFs are not supported at the moment. (since VLC 0.8.5)</para>
+    <para>This attribute is needed to define animated bitmaps; it is the number of frames (images) contained in your animation. All the different frames are just images laid vertically in the bitmap. Animated GIFs are not supported at the moment. (since Heimdall 0.8.5)</para>
     <para>Default value: 1</para>
   </sect3>
   <sect3 id="bitmapfps">
     <title>fps</title>
-    <para>Only used in animated bitmaps; it is the number of frames (images) per seconds of the animation. (since VLC 0.8.5)</para>
+    <para>Only used in animated bitmaps; it is the number of frames (images) per seconds of the animation. (since Heimdall 0.8.5)</para>
     <para>Default value: 0</para>
   </sect3>
   <sect3 id="bitmaploop">
     <title>loop</title>
-    <para>Only used in animated bitmaps; it is the number of loops before animation stops. Default value 0 means animation doesn't stop. Otherwise, animation stops on the last frame after the number of loops has been reached (since VLC 1.1)</para>
+    <para>Only used in animated bitmaps; it is the number of loops before animation stops. Default value 0 means animation doesn't stop. Otherwise, animation stops on the last frame after the number of loops has been reached (since Heimdall 1.1)</para>
     <para>Default value: 0</para>
   </sect3>
 
@@ -186,7 +186,7 @@ difficulty to understand how VLC skins work.</para>
 
 <sect2 id="SubBitmap">
   <title>SubBitmap</title>
-  <para>Declares a portion of bitmap, that will be used with controls in the same way as a regular Bitmap. A SubBitmap tag can only be placed inside a <link linkend="Bitmap">Bitmap</link> tag, and references implicitly the same file. SubBitmaps are very convenient when a file contains images for several controls. (This tag was not available before VLC 0.8.5).</para>
+  <para>Declares a portion of bitmap, that will be used with controls in the same way as a regular Bitmap. A SubBitmap tag can only be placed inside a <link linkend="Bitmap">Bitmap</link> tag, and references implicitly the same file. SubBitmaps are very convenient when a file contains images for several controls. (This tag was not available before Heimdall 0.8.5).</para>
   <sect3 id="subbitmapid">
     <title>id</title>
     <para>Identifiant of the portion of bitmap that will be used with controls. It must be unique in the whole skin.</para>
@@ -275,11 +275,11 @@ difficulty to understand how VLC skins work.</para>
     <title>id</title>
     <para>Name of the window (it may be used for actions). Two windows cannot have the same id.</para>
     <para>Default value: none</para>
-    <para>As of vlc1.1, a special id has been added to provide a skinnable fullscreen controller. This value id="fullscreenController" allows the window to be displayed only in fullscreen mode. Display is toggled by pressing the 'i' hotkey or clicking the mouse middle button</para>
+    <para>As of heimdall1.1, a special id has been added to provide a skinnable fullscreen controller. This value id="fullscreenController" allows the window to be displayed only in fullscreen mode. Display is toggled by pressing the 'i' hotkey or clicking the mouse middle button</para>
   </sect3>
   <sect3 id="windowvisible">
     <title>visible</title>
-    <para>Indicates whether the window should appear when VLC is started. Since VLC remembers the skin windows position and visibility, this attribute will only be used the first time the skin is started.</para>
+    <para>Indicates whether the window should appear when Heimdall is started. Since Heimdall remembers the skin windows position and visibility, this attribute will only be used the first time the skin is started.</para>
     <para>Default value: true</para>
   </sect3>
   <sect3 id="windowx">
@@ -314,12 +314,12 @@ difficulty to understand how VLC skins work.</para>
   </sect3>
   <sect3 id="layoutwidth">
     <title>width</title>
-    <para><!--TODO: calculate it in VLC :)-->Initial width of the layout. This value is required since VLC is not (yet?) able to calculate it using the sizes and positions of the controls.</para>
+    <para><!--TODO: calculate it in Heimdall :)-->Initial width of the layout. This value is required since Heimdall is not (yet?) able to calculate it using the sizes and positions of the controls.</para>
     <para><emphasis>Required.</emphasis></para>
   </sect3>
   <sect3 id="layoutheight">
     <title>height</title>
-    <para><!--TODO: calculate it in VLC :)-->Initial height of the layout. This value is required since VLC is not (yet?) able to calculate it using the sizes and positions of the controls.</para>
+    <para><!--TODO: calculate it in Heimdall :)-->Initial height of the layout. This value is required since Heimdall is not (yet?) able to calculate it using the sizes and positions of the controls.</para>
     <para><emphasis>Required.</emphasis></para>
   </sect3>
   <sect3 id="minwidth">
@@ -361,7 +361,7 @@ difficulty to understand how VLC skins work.</para>
 
 <sect2 id="Panel">
   <title>Panel</title>
-  <para>A Panel can be seen as an enhanced <link linkend="Layout">Group</link>. It also adds an offset to the elements it contains, but in addition it becomes their reference for the lefttop, rightbottom, xkeepratio and ykeepratio attributes. Panel tags can be nested. Since VLC 0.9.0.</para>
+  <para>A Panel can be seen as an enhanced <link linkend="Layout">Group</link>. It also adds an offset to the elements it contains, but in addition it becomes their reference for the lefttop, rightbottom, xkeepratio and ykeepratio attributes. Panel tags can be nested. Since Heimdall 0.9.0.</para>
   <para>See the <link linkend="commattr">common attributes</link>.</para>
   <sect3 id="panelx">
     <title>x</title>
@@ -414,7 +414,7 @@ difficulty to understand how VLC skins work.</para>
   </sect3>
   <sect3 id="anchorlefttop">
     <title>lefttop</title>
-    <para>Indicate to which corner of the Layout the top-left-hand corner of this anchor is attached, in case of resizing. Possible values are 'lefttop', 'leftbottom', 'righttop' and 'rightbottom'. Available since VLC 0.8.6.</para>
+    <para>Indicate to which corner of the Layout the top-left-hand corner of this anchor is attached, in case of resizing. Possible values are 'lefttop', 'leftbottom', 'righttop' and 'rightbottom'. Available since Heimdall 0.8.6.</para>
     <para>Note that there is no "rightbottom" attribute for the anchors (contrarily to normal controls), because an anchor is not resizable (even when the anchor is not ponctual and follows a Bezier curve).</para>
     <para>Default value: lefttop</para>
   </sect3>
@@ -473,13 +473,13 @@ difficulty to understand how VLC skins work.</para>
   <sect3 id="xkeepratio">
     <title>xkeepratio</title>
     <para>When set to true, the behaviour of the horizontal resizing is changed. Instead of taking into account the <link linkend="lefttop">lefttop</link> and <link linkend="rightbottom">rightbottom</link> attributes to determine how the control will be moved/resized, only its initial position inside the container box matters. For example, if initially the space to the left of the control is twice as big as the one to its right, this will stay the same during any horizontal resizing. The width of the control stays constant.</para>
-    <para>This attribute can be particularly useful to keep a control centered in the container box, without resizing it (to resize it, you would rather use the lefttop/rightbottom attributes). See the <link linkend="layoutmodel">Layout model</link> for more details. Available since VLC 0.8.6.</para>
+    <para>This attribute can be particularly useful to keep a control centered in the container box, without resizing it (to resize it, you would rather use the lefttop/rightbottom attributes). See the <link linkend="layoutmodel">Layout model</link> for more details. Available since Heimdall 0.8.6.</para>
     <para>Default value: false</para>
   </sect3>
   <sect3 id="ykeepratio">
     <title>ykeepratio</title>
     <para>When set to true, the behaviour of the vertical resizing is changed. Instead of taking into account the <link linkend="lefttop">lefttop</link> and <link linkend="rightbottom">rightbottom</link> attributes to determine how the control will be moved/resized, only its initial position inside the <link linkend="Layout">Layout</link> matters. For example, if initially the space to the top of the control is twice as big as the one to its bottom, this will stay the same during any vertical resizing. The height of the control stays constant.</para>
-    <para>This attribute can be particularly useful to keep a control centered in the container box, without resizing it (to resize it, you would rather use the lefttop/rightbottom attributes). See the <link linkend="layoutmodel">Layout model</link> for more details. Available since VLC 0.8.6.</para>
+    <para>This attribute can be particularly useful to keep a control centered in the container box, without resizing it (to resize it, you would rather use the lefttop/rightbottom attributes). See the <link linkend="layoutmodel">Layout model</link> for more details. Available since Heimdall 0.8.6.</para>
     <para>Default value: false</para>
   </sect3>
   <sect3 id="help">
@@ -487,7 +487,7 @@ difficulty to understand how VLC skins work.</para>
     <para>Help text for the current control. The variable '$H' will be expanded to this value when the mouse hovers the current control (see <link linkend="textvars">Text variables</link>).</para>
     <para>Default value: </para>
   </sect3>
-    <para>The vlc2.0 extends some of these parameters and adds five more parameters to ease up positioning windows within a given screen and widgets within their own containers (layout, panel, ...). As extension, the x, y, width and height can now be given in pixels (default) or in percentage of their container. For instance, x="10" or x="10px" is construed as 10 pixels, and x="10%" is construed as 10% of the width of the screen for windows or their container for widgets.</para>
+    <para>The heimdall2.0 extends some of these parameters and adds five more parameters to ease up positioning windows within a given screen and widgets within their own containers (layout, panel, ...). As extension, the x, y, width and height can now be given in pixels (default) or in percentage of their container. For instance, x="10" or x="10px" is construed as 10 pixels, and x="10%" is construed as 10% of the width of the screen for windows or their container for widgets.</para>
   <sect3 id="position">
     <title>position</title>
     <para>Relative placement of windows or widget within their respective container(screen for windows, layout or panel for widgets). This placement is given with a geographical qualifier. Possible values are "Center", "North", "NorthWest", ....The skin engine computes the size of the element (from the width and height parameters) then places it at the center or sticks it to a given border depending on the geographical qualifer.</para>
@@ -505,12 +505,12 @@ difficulty to understand how VLC skins work.</para>
   </sect3>
   <sect3 id="xoffset">
     <title>xoffset</title>
-    <para>Coupled with position and xmargin, this parameter moves the widget horizontally by this offset from the position computed above. From VLC2.1.0 on, xoffset can directly be used without position, in which case percentage is computed against the current object instead of the upper container</para>
+    <para>Coupled with position and xmargin, this parameter moves the widget horizontally by this offset from the position computed above. From HEIMDALL2.1.0 on, xoffset can directly be used without position, in which case percentage is computed against the current object instead of the upper container</para>
     <para>Default value: 0</para>
   </sect3>
   <sect3 id="yoffset">
     <title>yoffset</title>
-    <para>Coupled with position and ymargin, this parameter moves the widget vertically by this offset from the position computed above. From VLC2.1.0 on, yoffset can directly be used without position, in which case percentage is computed against the current object instead of the upper container</para>
+    <para>Coupled with position and ymargin, this parameter moves the widget vertically by this offset from the position computed above. From HEIMDALL2.1.0 on, yoffset can directly be used without position, in which case percentage is computed against the current object instead of the upper container</para>
     <para>Default value: 0</para>
   </sect3>
 </sect2>
@@ -536,23 +536,23 @@ difficulty to understand how VLC skins work.</para>
   </sect3>
   <sect3 id="imageresize">
     <title>resize</title>
-    <para>Since VLC 0.8.2. Specify the behaviour of the image when it is resized. Possible values are 'mosaic' (the image is repeated as many times as necessary to reach the wanted dimensions) and 'scale' (the image is actually rescaled). Beware that the 'scale' behaviour is much slower than the 'mosaic' one, so make sure to use it only when it's really needed.</para>
-    <para>In VLC 2.0, a third value 'scale2' is available to scale an image, yet preserving its aspect ratio. The image is centered and scaled either heightwise or widthwise to fill up as much area as possible. Extra borders are made transparent.</para>
+    <para>Since Heimdall 0.8.2. Specify the behaviour of the image when it is resized. Possible values are 'mosaic' (the image is repeated as many times as necessary to reach the wanted dimensions) and 'scale' (the image is actually rescaled). Beware that the 'scale' behaviour is much slower than the 'mosaic' one, so make sure to use it only when it's really needed.</para>
+    <para>In Heimdall 2.0, a third value 'scale2' is available to scale an image, yet preserving its aspect ratio. The image is centered and scaled either heightwise or widthwise to fill up as much area as possible. Extra borders are made transparent.</para>
     <para>Default value: mosaic.</para>
   </sect3>
   <sect3 id="imageaction">
     <title>action</title>
-    <para>Action triggered by a click on the control. Possible values are 'move', to move the window, 'resizeE', to resize horizontally, 'resizeS' to resize vertically, and 'resizeSE' to resize both horizontally and vertically. Mnemonics: S, E and SE stand for South, East, and South-East. The 'resizeS' and 'resizeE' actions are available since VLC 0.8.5 only.</para>
+    <para>Action triggered by a click on the control. Possible values are 'move', to move the window, 'resizeE', to resize horizontally, 'resizeS' to resize vertically, and 'resizeSE' to resize both horizontally and vertically. Mnemonics: S, E and SE stand for South, East, and South-East. The 'resizeS' and 'resizeE' actions are available since Heimdall 0.8.5 only.</para>
     <para>Default value: none</para>
   </sect3>
   <sect3 id="imageaction2">
     <title>action2</title>
-    <para>Action triggered by a double-click on the control. See <link linkend="actions">Actions</link> for a list of possible actions. (Since VLC 0.8.5).</para>
+    <para>Action triggered by a double-click on the control. See <link linkend="actions">Actions</link> for a list of possible actions. (Since Heimdall 0.8.5).</para>
     <para>Default value: none</para>
   </sect3>
   <sect3 id="imageart">
     <title>art</title>
-    <para>if set to true, the skin engine reuses the control to display the art file of the resource currently being played back. Usually, resize="scale2" is desirable, for art to be rendered in the best possible way. (from VLC 2.0 on).</para>
+    <para>if set to true, the skin engine reuses the control to display the art file of the resource currently being played back. Usually, resize="scale2" is desirable, for art to be rendered in the best possible way. (from Heimdall 2.0 on).</para>
     <para>Default value: false</para>
   </sect3>
 </sect2>
@@ -675,17 +675,17 @@ difficulty to understand how VLC skins work.</para>
   </sect3>
   <sect3 id="textalignment">
     <title>alignment</title>
-    <para>Alignment of the text inside the control. Possible values are 'left', 'center' and 'right'. The 'width' and 'center' alignments are computed using the width of the control (as given by the <link linkend="textwidth">width</link> attribute). Available since VLC 0.8.5.</para>
+    <para>Alignment of the text inside the control. Possible values are 'left', 'center' and 'right'. The 'width' and 'center' alignments are computed using the width of the control (as given by the <link linkend="textwidth">width</link> attribute). Available since Heimdall 0.8.5.</para>
     <para>Default value: left</para>
   </sect3>
   <sect3 id="focus">
     <title>focus</title>
-    <para>indicates if the control is eligible for mouse focus or not. If focus is set to false, it is as though the control did not exist when it comes to mouse focus. This allows for instance displaying a dynamic text in the title bar, yet opting for being able to move the window rather than manage scrolling of lengthy text. Available in VLC 2.0</para>
+    <para>indicates if the control is eligible for mouse focus or not. If focus is set to false, it is as though the control did not exist when it comes to mouse focus. This allows for instance displaying a dynamic text in the title bar, yet opting for being able to move the window rather than manage scrolling of lengthy text. Available in Heimdall 2.0</para>
     <para>Default value: true</para>
   </sect3>
   <sect3 id="textscrolling">
     <title>scrolling</title>
-    <para>Scrolling behaviour of the text (only when it doesn't fit in the <link linkend="textwidth">width</link> of the control). Possible values are 'auto', 'manual' and 'none'. If this attribute is set to 'auto', the text automatically starts scrolling. The user can drag the text, and click on it to start/stop the scrolling. If this attribute is set to 'manual', the text only scrolls when dragged by the user. If this attribute is set to 'none', no scrolling is possible at all. Available since VLC 0.8.5.</para>
+    <para>Scrolling behaviour of the text (only when it doesn't fit in the <link linkend="textwidth">width</link> of the control). Possible values are 'auto', 'manual' and 'none'. If this attribute is set to 'auto', the text automatically starts scrolling. The user can drag the text, and click on it to start/stop the scrolling. If this attribute is set to 'manual', the text only scrolls when dragged by the user. If this attribute is set to 'none', no scrolling is possible at all. Available since Heimdall 0.8.5.</para>
     <para>Default value: auto</para>
   </sect3>
 </sect2>
@@ -726,12 +726,12 @@ difficulty to understand how VLC skins work.</para>
   </sect3>
   <sect3 id="sliderwidth">
     <title>width</title>
-    <para>Width of the slider. If set, this width supersedes the actual width of the slider computed from the curve width. (new after VLC 2.1.0)</para>
+    <para>Width of the slider. If set, this width supersedes the actual width of the slider computed from the curve width. (new after Heimdall 2.1.0)</para>
     <para>Default value: -1</para>
   </sect3>
   <sect3 id="sliderheight">
     <title>height</title>
-    <para>Height of the slider. If set, this height supersedes the actual height of the slider computed from the curve height. (new after VLC 2.1.0)</para>
+    <para>Height of the slider. If set, this height supersedes the actual height of the slider computed from the curve height. (new after Heimdall 2.1.0)</para>
     <para>Default value: -1</para>
   </sect3>
   <sect3 id="slidertooltiptext">
@@ -930,7 +930,7 @@ difficulty to understand how VLC skins work.</para>
     <emphasis>dialogs.file()</emphasis>: Show the "Open File" dialog box, with many options (stream output, subtitles, etc...).
   </para></listitem>
   <listitem><para>
-    <emphasis>dialogs.directory()</emphasis>: Show the "Open Directory" dialog box (new after VLC 0.8.2).
+    <emphasis>dialogs.directory()</emphasis>: Show the "Open Directory" dialog box (new after Heimdall 0.8.2).
   </para></listitem>
   <listitem><para>
     <emphasis>dialogs.disc()</emphasis>: Show the "Open Disc" dialog box.
@@ -948,73 +948,73 @@ difficulty to understand how VLC skins work.</para>
     <emphasis>dialogs.fileInfo()</emphasis>: Show the "File Info" dialog box.
   </para></listitem>
   <listitem><para>
-    <emphasis>dialogs.playlist()</emphasis>: Show the "standard" (not skinned) playlist dialog (since VLC 0.8.6).
+    <emphasis>dialogs.playlist()</emphasis>: Show the "standard" (not skinned) playlist dialog (since Heimdall 0.8.6).
   </para></listitem>
   <listitem><para>
-    <emphasis>dialogs.streamingWizard()</emphasis>: Show the "Streaming Wizard" dialog box (new after VLC 0.8.2).
+    <emphasis>dialogs.streamingWizard()</emphasis>: Show the "Streaming Wizard" dialog box (new after Heimdall 0.8.2).
   </para></listitem>
   <listitem><para>
     <emphasis>dialogs.popup()</emphasis>: Show the full popup menu, (already available with a right-click on a <link linkend="Image">Image</link> control).
   </para></listitem>
   <listitem><para>
-    <emphasis>dialogs.audioPopup()</emphasis>: Show the audio settings popup menu (since VLC 0.8.6).
+    <emphasis>dialogs.audioPopup()</emphasis>: Show the audio settings popup menu (since Heimdall 0.8.6).
   </para></listitem>
    <listitem><para>
-    <emphasis>dialogs.videoPopup()</emphasis>: Show the video settings popup menu (since VLC 0.8.6).
+    <emphasis>dialogs.videoPopup()</emphasis>: Show the video settings popup menu (since Heimdall 0.8.6).
   </para></listitem>
   <listitem><para>
-    <emphasis>dialogs.miscPopup()</emphasis>: Show a popup menu containing playback control and general options (since VLC 0.8.6).
+    <emphasis>dialogs.miscPopup()</emphasis>: Show a popup menu containing playback control and general options (since Heimdall 0.8.6).
   </para></listitem>
   <listitem><para>
-    <emphasis>equalizer.enable()</emphasis>: Enable the equalizer audio filter (since VLC 0.8.5).
+    <emphasis>equalizer.enable()</emphasis>: Enable the equalizer audio filter (since Heimdall 0.8.5).
   </para></listitem>
   <listitem><para>
-    <emphasis>equalizer.disable()</emphasis>: Disable the equalizer audio filter (since VLC 0.8.5).
+    <emphasis>equalizer.disable()</emphasis>: Disable the equalizer audio filter (since Heimdall 0.8.5).
   </para></listitem>
   <listitem><para>
-    <emphasis>vlc.play()</emphasis>: Play the current playlist item.
+    <emphasis>heimdall.play()</emphasis>: Play the current playlist item.
   </para></listitem>
   <listitem><para>
-    <emphasis>vlc.pause()</emphasis>: Pause the current playlist item.
+    <emphasis>heimdall.pause()</emphasis>: Pause the current playlist item.
   </para></listitem>
   <listitem><para>
-    <emphasis>vlc.stop()</emphasis>: Stop the current playlist item.
+    <emphasis>heimdall.stop()</emphasis>: Stop the current playlist item.
   </para></listitem>
   <listitem><para>
-    <emphasis>vlc.faster()</emphasis>: Play the current playlist item faster.
+    <emphasis>heimdall.faster()</emphasis>: Play the current playlist item faster.
   </para></listitem>
   <listitem><para>
-    <emphasis>vlc.slower()</emphasis>: Play the current playlist item slower.
+    <emphasis>heimdall.slower()</emphasis>: Play the current playlist item slower.
   </para></listitem>
   <listitem><para>
-    <emphasis>vlc.mute()</emphasis>: Toggle mute/un-mute.
+    <emphasis>heimdall.mute()</emphasis>: Toggle mute/un-mute.
   </para></listitem>
   <listitem><para>
-    <emphasis>vlc.volumeUp()</emphasis>: Increase the volume (since VLC 0.8.2).
+    <emphasis>heimdall.volumeUp()</emphasis>: Increase the volume (since Heimdall 0.8.2).
   </para></listitem>
   <listitem><para>
-    <emphasis>vlc.volumeDown()</emphasis>: Reduce the volume (since VLC 0.8.2).
+    <emphasis>heimdall.volumeDown()</emphasis>: Reduce the volume (since Heimdall 0.8.2).
   </para></listitem>
   <listitem><para>
-    <emphasis>vlc.fullscreen()</emphasis>: Toggle the fullscreen mode.
+    <emphasis>heimdall.fullscreen()</emphasis>: Toggle the fullscreen mode.
   </para></listitem>
   <listitem><para>
-    <emphasis>vlc.snapshot()</emphasis>: Take a snapshot (since VLC 0.8.5).
+    <emphasis>heimdall.snapshot()</emphasis>: Take a snapshot (since Heimdall 0.8.5).
   </para></listitem>
   <listitem><para>
-    <emphasis>vlc.toggleRecord()</emphasis>: Start/Stop recording (since VLC 1.1).
+    <emphasis>heimdall.toggleRecord()</emphasis>: Start/Stop recording (since Heimdall 1.1).
   </para></listitem>
   <listitem><para>
-    <emphasis>vlc.nextFrame()</emphasis>: Advance one frame at a time (since VLC 1.1).
+    <emphasis>heimdall.nextFrame()</emphasis>: Advance one frame at a time (since Heimdall 1.1).
   </para></listitem>
   <listitem><para>
-    <emphasis>vlc.onTop()</emphasis>: Toggle the "Always on top" status (since VLC 0.8.0).
+    <emphasis>heimdall.onTop()</emphasis>: Toggle the "Always on top" status (since Heimdall 0.8.0).
   </para></listitem>
   <listitem><para>
-    <emphasis>vlc.minimize()</emphasis>: Minimize VLC (since VLC 0.8.0)
+    <emphasis>heimdall.minimize()</emphasis>: Minimize Heimdall (since Heimdall 0.8.0)
   </para></listitem>
   <listitem><para>
-    <emphasis>vlc.quit()</emphasis>: Quit VLC.
+    <emphasis>heimdall.quit()</emphasis>: Quit Heimdall.
   </para></listitem>
   <listitem><para>
     <emphasis>playlist.add()</emphasis>: Add a new item to the playlist.
@@ -1044,31 +1044,31 @@ difficulty to understand how VLC skins work.</para>
     <emphasis>playlist.setLoop(false)</emphasis>: Do not loop at playlist end.
   </para></listitem>
   <listitem><para>
-    <emphasis>playlist.setRepeat(true)</emphasis>: Repeat the current playlist item (since VLC 0.8.0).
+    <emphasis>playlist.setRepeat(true)</emphasis>: Repeat the current playlist item (since Heimdall 0.8.0).
   </para></listitem>
   <listitem><para>
-    <emphasis>playlist.setRepeat(false)</emphasis>: Stop repeating the current playlist item (since VLC 0.8.0).
+    <emphasis>playlist.setRepeat(false)</emphasis>: Stop repeating the current playlist item (since Heimdall 0.8.0).
   </para></listitem>
   <listitem><para>
-    <emphasis>playlist.load()</emphasis>: Load an external playlist file (since VLC 0.8.0).
+    <emphasis>playlist.load()</emphasis>: Load an external playlist file (since Heimdall 0.8.0).
   </para></listitem>
   <listitem><para>
-    <emphasis>playlist.save()</emphasis>: Save the current playlist (since VLC 0.8.0).
+    <emphasis>playlist.save()</emphasis>: Save the current playlist (since Heimdall 0.8.0).
   </para></listitem>
   <listitem id="dvdactions"><para>
-    <emphasis>dvd.nextTitle()</emphasis>: Go to the next title of the DVD (since VLC 0.8.5).
+    <emphasis>dvd.nextTitle()</emphasis>: Go to the next title of the DVD (since Heimdall 0.8.5).
   </para></listitem>
   <listitem><para>
-    <emphasis>dvd.previousTitle()</emphasis>: Go to the previous title of the DVD (since VLC 0.8.5).
+    <emphasis>dvd.previousTitle()</emphasis>: Go to the previous title of the DVD (since Heimdall 0.8.5).
   </para></listitem>
   <listitem><para>
-    <emphasis>dvd.nextChapter()</emphasis>: Go to the next chapter of the DVD (since VLC 0.8.5).
+    <emphasis>dvd.nextChapter()</emphasis>: Go to the next chapter of the DVD (since Heimdall 0.8.5).
   </para></listitem>
   <listitem><para>
-    <emphasis>dvd.previousChapter()</emphasis>: Go to the previous chapter of the DVD (since VLC 0.8.5).
+    <emphasis>dvd.previousChapter()</emphasis>: Go to the previous chapter of the DVD (since Heimdall 0.8.5).
   </para></listitem>
   <listitem><para>
-    <emphasis>dvd.rootMenu()</emphasis>: Go to the root menu of the DVD (since VLC 0.8.5).
+    <emphasis>dvd.rootMenu()</emphasis>: Go to the root menu of the DVD (since Heimdall 0.8.5).
   </para></listitem>
   <listitem><para>
     <emphasis>WindowID.show()</emphasis>: Show the <link linkend="Window">Window</link> whose <link linkend="windowid">id</link> attribute is 'WindowID'.
@@ -1077,10 +1077,10 @@ difficulty to understand how VLC skins work.</para>
     <emphasis>WindowID.hide()</emphasis>: Hide the <link linkend="Window">Window</link> whose <link linkend="windowid">id</link> attribute is 'WindowID'.
   </para></listitem>
   <listitem><para>
-    <emphasis>WindowID.maximize()</emphasis>: Maximize the <link linkend="Window">Window</link> whose <link linkend="windowid">id</link> attribute is 'WindowID'. Since VLC 0.9.0.
+    <emphasis>WindowID.maximize()</emphasis>: Maximize the <link linkend="Window">Window</link> whose <link linkend="windowid">id</link> attribute is 'WindowID'. Since Heimdall 0.9.0.
   </para></listitem>
   <listitem><para>
-    <emphasis>WindowID.unmaximize()</emphasis>: Unmaximize the <link linkend="Window">Window</link> whose <link linkend="windowid">id</link> attribute is 'WindowID'. Since VLC 0.9.0.
+    <emphasis>WindowID.unmaximize()</emphasis>: Unmaximize the <link linkend="Window">Window</link> whose <link linkend="windowid">id</link> attribute is 'WindowID'. Since Heimdall 0.9.0.
   </para></listitem>
   <listitem><para>
     <emphasis>WindowID.setLayout(LayoutID)</emphasis>: Change the layout of the <link linkend="Window">Window</link> whose <link linkend="windowid">id</link> attribute is 'WindowID', using the <link linkend="Layout">Layout</link> whose <link linkend="layoutid">id</link> attribute is 'LayoutID'.
@@ -1104,7 +1104,7 @@ difficulty to understand how VLC skins work.</para>
     <emphasis>$V</emphasis>: Value of the volume (from 0 to 100 --> useful for a percentage).
   </para></listitem>
   <listitem><para>
-    <emphasis>$R</emphasis>: Value of the playback speed rate. Available from VLC 2.0
+    <emphasis>$R</emphasis>: Value of the playback speed rate. Available from Heimdall 2.0
   </para></listitem>
   <listitem><para>
     <emphasis>$T</emphasis>: Current time (the output format is H:MM:SS).
@@ -1116,7 +1116,7 @@ difficulty to understand how VLC skins work.</para>
     <emphasis>$D</emphasis>: Duration of the stream, when available (the output format is H:MM:SS).
   </para></listitem>
   <listitem><para>
-    <emphasis>$t, $l, $d</emphasis>: Same as $T, $L and $D, except that the hour in the format is displayed only if its value is different from 0. These text variables were needed to support Winamp2 skins, but it is advised to use the uppercase ones. (Since VLC 0.8.5).
+    <emphasis>$t, $l, $d</emphasis>: Same as $T, $L and $D, except that the hour in the format is displayed only if its value is different from 0. These text variables were needed to support Winamp2 skins, but it is advised to use the uppercase ones. (Since Heimdall 0.8.5).
   </para></listitem>
   <listitem><para>
     <emphasis>$H</emphasis>: Value of the <link linkend="help">help</link> attribute of the control that is under the mouse. The main use of this escape character is to create a kind of status bar, providing contextual help.</para>
@@ -1140,46 +1140,46 @@ difficulty to understand how VLC skins work.</para>
 <sect1 id="boolexpr">
 <title>Boolean expressions</title>
 
-<para>Some attributes in the XML file require a boolean value, such as "true" or "false". But sometimes, you may need something more complex than a mere "static" boolean value. For example, let's say that you want a <link linkend="Text">Text</link> control to display "Pause" whenever the stream is paused. Wouldn't it be nice to show this control only when the stream is paused, and to hide it the rest of the time? Well, guess what: this is possible. You only have to set the <link linkend="visible">visible</link> attribute of the <link linkend="Text">Text</link> control to "vlc.isPaused".</para>
+<para>Some attributes in the XML file require a boolean value, such as "true" or "false". But sometimes, you may need something more complex than a mere "static" boolean value. For example, let's say that you want a <link linkend="Text">Text</link> control to display "Pause" whenever the stream is paused. Wouldn't it be nice to show this control only when the stream is paused, and to hide it the rest of the time? Well, guess what: this is possible. You only have to set the <link linkend="visible">visible</link> attribute of the <link linkend="Text">Text</link> control to "heimdall.isPaused".</para>
 
 <para>Here is a list of all the dynamic statuses that can be used in boolean expressions:</para>
 
 <itemizedlist>
   <listitem><para>
-    <emphasis>equalizer.isEnabled</emphasis>: True if the equalizer audio filter is enabled (since VLC 0.8.5).
+    <emphasis>equalizer.isEnabled</emphasis>: True if the equalizer audio filter is enabled (since Heimdall 0.8.5).
   </para></listitem>
   <listitem><para>
-    <emphasis>vlc.hasVout</emphasis>: True if a video is being played (since VLC 0.8.5).
+    <emphasis>heimdall.hasVout</emphasis>: True if a video is being played (since Heimdall 0.8.5).
   </para></listitem>
   <listitem><para>
-    <emphasis>vlc.hasAudio</emphasis>: True if audio is being played (since VLC 0.8.5).
+    <emphasis>heimdall.hasAudio</emphasis>: True if audio is being played (since Heimdall 0.8.5).
   </para></listitem>
   <listitem><para>
-    <emphasis>vlc.isFullscreen</emphasis>: True when the video is in fullscreen mode (since VLC 0.8.5).
+    <emphasis>heimdall.isFullscreen</emphasis>: True when the video is in fullscreen mode (since Heimdall 0.8.5).
   </para></listitem>
   <listitem><para>
-    <emphasis>vlc.isPlaying</emphasis>: True when VLC is playing, false otherwise.
+    <emphasis>heimdall.isPlaying</emphasis>: True when Heimdall is playing, false otherwise.
   </para></listitem>
   <listitem><para>
-    <emphasis>vlc.isStopped</emphasis>: True when VLC is stopped, false otherwise.
+    <emphasis>heimdall.isStopped</emphasis>: True when Heimdall is stopped, false otherwise.
   </para></listitem>
   <listitem><para>
-    <emphasis>vlc.isPaused</emphasis>: True when VLC is paused, false otherwise.
+    <emphasis>heimdall.isPaused</emphasis>: True when Heimdall is paused, false otherwise.
   </para></listitem>
   <listitem><para>
-    <emphasis>vlc.isSeekable</emphasis>: True when the stream is seekable, false otherwise. This one can be used if you want to display a slider only when seeking is allowed.
+    <emphasis>heimdall.isSeekable</emphasis>: True when the stream is seekable, false otherwise. This one can be used if you want to display a slider only when seeking is allowed.
   </para></listitem>
   <listitem><para>
-    <emphasis>vlc.canRecord</emphasis>: True if the stream can be recorded, false otherwise. (since vlc1.1)
+    <emphasis>heimdall.canRecord</emphasis>: True if the stream can be recorded, false otherwise. (since heimdall1.1)
   </para></listitem>
   <listitem><para>
-    <emphasis>vlc.isRecording</emphasis>: True if the stream is being recorded, false otherwise. (since vlc1.1)
+    <emphasis>heimdall.isRecording</emphasis>: True if the stream is being recorded, false otherwise. (since heimdall1.1)
   </para></listitem>
   <listitem><para>
-    <emphasis>vlc.isMute</emphasis>: True when the sound is mute (in VLC, not on your OS), false otherwise.
+    <emphasis>heimdall.isMute</emphasis>: True when the sound is mute (in Heimdall, not on your OS), false otherwise.
   </para></listitem>
   <listitem><para>
-    <emphasis>vlc.isOnTop</emphasis>: True when the windows have the "Always on top" status (since VLC 0.8.0).
+    <emphasis>heimdall.isOnTop</emphasis>: True when the windows have the "Always on top" status (since Heimdall 0.8.0).
   </para></listitem>
   <listitem><para>
     <emphasis>playlist.isRandom</emphasis>: True when the playlist items are played in a random order, false otherwise.
@@ -1188,24 +1188,24 @@ difficulty to understand how VLC skins work.</para>
     <emphasis>playlist.isLoop</emphasis>: True when the playlist is looping, false otherwise.
   </para></listitem>
   <listitem><para>
-    <emphasis>playlist.isRepeat</emphasis>: True when the current playlist item is being repeated, false otherwise (since VLC 0.8.0).
+    <emphasis>playlist.isRepeat</emphasis>: True when the current playlist item is being repeated, false otherwise (since Heimdall 0.8.0).
   </para></listitem>
   <listitem><para>
-   <emphasis>dvd.isActive</emphasis>: True when a DVD is currently playing. This variable can be used to display buttons associated to the <link linkend="dvdactions">dvd.* actions</link> only when needed (since VLC 0.8.5).
+   <emphasis>dvd.isActive</emphasis>: True when a DVD is currently playing. This variable can be used to display buttons associated to the <link linkend="dvdactions">dvd.* actions</link> only when needed (since Heimdall 0.8.5).
   </para></listitem>
   <listitem><para>
-    <emphasis>WindowID.isMaximized</emphasis>: True when the window whose <link linkend="windowid">id</link> is "WindowID" is maximized, false otherwise (since VLC 0.9.0).
+    <emphasis>WindowID.isMaximized</emphasis>: True when the window whose <link linkend="windowid">id</link> is "WindowID" is maximized, false otherwise (since Heimdall 0.9.0).
   </para></listitem>
   <listitem><para>
     <emphasis>WindowID.isVisible</emphasis>: True when the window whose <link linkend="windowid">id</link> is "WindowID" is visible, false otherwise.
   </para></listitem>
   <listitem><para>
-    <emphasis>LayoutID.isActive</emphasis>: True when the layout whose <link linkend="layoutid">id</link> is "LayoutID" is the active layout in its window (even if the window is hidden), false otherwise (since VLC 0.8.6).
+    <emphasis>LayoutID.isActive</emphasis>: True when the layout whose <link linkend="layoutid">id</link> is "LayoutID" is the active layout in its window (even if the window is hidden), false otherwise (since Heimdall 0.8.6).
   </para></listitem>
 </itemizedlist>
 
 <para>In addition to these dynamic values, you can use the constant values "true" and "false". And of course, any combination is allowed, using the "and", "or" and "not" operators. For example, supposing that you have a window named "playlist_window", the following expression is valid (even though completely stupid):</para>
-<para>visible="(true) and ((not playlist_window.isVisible) and (not vlc.isStopped or false))"</para>
+<para>visible="(true) and ((not playlist_window.isVisible) and (not heimdall.isStopped or false))"</para>
 
 </sect1>
 
@@ -1218,10 +1218,10 @@ difficulty to understand how VLC skins work.</para>
 
 <itemizedlist>
   <listitem><para>
-    <emphasis>equalizer.band(n)</emphasis>: Where 'n' is an integer between 0 and 9. When the equalizer audio filter is enabled, this value corresponds to the amplification factor of the n'th frequency band: 0% means -20 dB, and 100% means +20 dB. The frequencies corresponding to the 10 bands are: 60Hz, 170Hz, 310Hz, 600Hz, 1kHz, 3kHz, 6kHz, 12kHz, 14kHz, 16kHz. (Since VLC 0.8.5)
+    <emphasis>equalizer.band(n)</emphasis>: Where 'n' is an integer between 0 and 9. When the equalizer audio filter is enabled, this value corresponds to the amplification factor of the n'th frequency band: 0% means -20 dB, and 100% means +20 dB. The frequencies corresponding to the 10 bands are: 60Hz, 170Hz, 310Hz, 600Hz, 1kHz, 3kHz, 6kHz, 12kHz, 14kHz, 16kHz. (Since Heimdall 0.8.5)
   </para></listitem>
   <listitem><para>
-    <emphasis>equalizer.preamp</emphasis>: Preamplification value (if the equalizer audio filter is enabled). A value of 0% means -20 dB, and 100% means +20 dB. (Since VLC 0.8.5)
+    <emphasis>equalizer.preamp</emphasis>: Preamplification value (if the equalizer audio filter is enabled). A value of 0% means -20 dB, and 100% means +20 dB. (Since Heimdall 0.8.5)
   </para></listitem>
   <listitem><para>
     <emphasis>time</emphasis>: Position of the stream being played.
@@ -1272,17 +1272,17 @@ difficulty to understand how VLC skins work.</para>
 
 <para>When designing a new skin, it can be useful to organize your files in different directories. For example, you can have one directory for the fonts, another one for the images of the main window, yet another one for the images of the playlist window, etc...</para>
 
-<para>But such a structure is not very convenient when it comes to distributing the skin. To address this problem, VLC is able to load skins directly from a .tar.gz archive containing all your files, along with directory information. When loading the skin, the files will be extracted in a temporary directory, then VLC will recursively search a file named "theme.xml", and the first one to be found will be used to load the skin. Of course, the temporary directory will be removed when you quit VLC or change the interface.</para>
+<para>But such a structure is not very convenient when it comes to distributing the skin. To address this problem, Heimdall is able to load skins directly from a .tar.gz archive containing all your files, along with directory information. When loading the skin, the files will be extracted in a temporary directory, then Heimdall will recursively search a file named "theme.xml", and the first one to be found will be used to load the skin. Of course, the temporary directory will be removed when you quit Heimdall or change the interface.</para>
 
 <para>On Linux, creating a .tar.gz archive is rather straight-forward using the 'tar' and 'gzip' commands. On Windows, it can be done using Winzip, UltimateZip, or any other (well, almost) compression software...</para>
 
-<para>Since VLC 0.8.5, it is also possible to archive your skin in a zip file.</para>
+<para>Since Heimdall 0.8.5, it is also possible to archive your skin in a zip file.</para>
 
 <para>It is advised to rename your .tar.gz (or .zip) archive with the .vlt extension, for 2 main reasons:</para>
 
 <itemizedlist>
   <listitem><para>on some systems, the "Change skin" dialog box only displays files which have a .vlt or .xml extension,</para></listitem>
-  <listitem><para>in the future, .vlt files could be associated to VLC in such a way that double-clicking a .vlt file would automatically load the skin in VLC.</para></listitem>
+  <listitem><para>in the future, .vlt files could be associated to Heimdall in such a way that double-clicking a .vlt file would automatically load the skin in Heimdall.</para></listitem>
 </itemizedlist>
 
 </sect1>
@@ -1290,7 +1290,7 @@ difficulty to understand how VLC skins work.</para>
 <sect1 id="bezier">
 <title>Bezier curves</title>
 
-<para>One cool thing with VLC sliders is that they are not necessarily rectilinear, but they can follow any Bezier curve. So if you want to have a slider moving on a half-circle, or even doing a loop, you can!</para>
+<para>One cool thing with Heimdall sliders is that they are not necessarily rectilinear, but they can follow any Bezier curve. So if you want to have a slider moving on a half-circle, or even doing a loop, you can!</para>
 
 <para>This is not the place to explain how Bezier curves work (see <ulink url="http://astronomy.swin.edu.au/~pbourke/curves/bezier/">http://astronomy.swin.edu.au/~pbourke/curves/bezier/</ulink> for a nice introduction), the main thing to know is that a Bezier curve can be characterized by a set of points. Once you have them (thanks to the <link linkend="CurveMaker">CurveMaker</link> utility for example<!--XXX: deprecated-->), you just need to enter the list of points in the <link linkend="sliderpoints">points</link> attribute. Here is an example with 3 points: points="(2,50),(45,120),(88,50)".</para>
 
@@ -1312,21 +1312,21 @@ difficulty to understand how VLC skins work.</para>
   <title>Generating Bezier curves</title>
 
   <para>
-To generate easily Bezier curves, you can use the <ulink url="/vlc/skins/VLC-curve-maker.exe">CurveMaker</ulink> utility (sorry, this is for Windows users only). Basically, you add and remove points at will, and you can move them to see how the curve evolves. When you have reached the perfect curve, you just have to copy-paste the list of abscissas and ordinates to form the <link linkend="sliderpoints">points</link> attribute of your <link linkend="Slider">Slider</link> or <link linkend="Anchor">Anchor</link>. The curve-maker also allows to load a .bmp file, this could be useful if you want to follow a specific pattern of a slider, for example.
+To generate easily Bezier curves, you can use the <ulink url="/heimdall/skins/Heimdall-curve-maker.exe">CurveMaker</ulink> utility (sorry, this is for Windows users only). Basically, you add and remove points at will, and you can move them to see how the curve evolves. When you have reached the perfect curve, you just have to copy-paste the list of abscissas and ordinates to form the <link linkend="sliderpoints">points</link> attribute of your <link linkend="Slider">Slider</link> or <link linkend="Anchor">Anchor</link>. The curve-maker also allows to load a .bmp file, this could be useful if you want to follow a specific pattern of a slider, for example.
   </para>
 
 <note><para>This tool was made for the first version of the skins and has not been modified since then. This explains why it does not use PNG files and why it does not generate directly the value of the <link linkend="sliderpoints">points</link> attribute.</para></note>
   </sect2>
 
   <sect2>
-  <title>Using VLC warning messages</title>
+  <title>Using Heimdall warning messages</title>
   <para>
-VLC is able to give warnings and error messages about a loaded skin if it finds problems in the XML file. This can be very helpful to detect syntax errors (a tag which is never closed for example), or incorrect values of attributes. Here is how to see these messages:
+Heimdall is able to give warnings and error messages about a loaded skin if it finds problems in the XML file. This can be very helpful to detect syntax errors (a tag which is never closed for example), or incorrect values of attributes. Here is how to see these messages:
   </para>
 
 <itemizedlist>
-  <listitem><para>on Linux, simply start VLC from a console with the following command-line: 'vlc -I skins2 -v' (you can use -vv if you want to see debug messages too),</para></listitem>
-  <listitem><para>on Windows it is more difficult to use the same method (but you can use it with a rxvt console, in the Cygwin environment). Then another solution is to start VLC with a command-line such as 'vlc -I skins2 -v --extraintf logger'. This should open both VLC and a log window containing the messages. What's more, the logs should be saved in a file named 'vlc-log.txt', in VLC installation directory. The relevant lines are those starting with "[00000178] skins2 interface" (the number may be different).</para></listitem>
+  <listitem><para>on Linux, simply start Heimdall from a console with the following command-line: 'heimdall -I skins2 -v' (you can use -vv if you want to see debug messages too),</para></listitem>
+  <listitem><para>on Windows it is more difficult to use the same method (but you can use it with a rxvt console, in the Cygwin environment). Then another solution is to start Heimdall with a command-line such as 'heimdall -I skins2 -v --extraintf logger'. This should open both Heimdall and a log window containing the messages. What's more, the logs should be saved in a file named 'heimdall-log.txt', in Heimdall installation directory. The relevant lines are those starting with "[00000178] skins2 interface" (the number may be different).</para></listitem>
 </itemizedlist>
 
   </sect2>
@@ -1343,7 +1343,7 @@ VLC is able to give warnings and error messages about a loaded skin if it finds 
 
   <sect2>
   <title>Submit your skin!</title>
-  <para>Once your skin is finished, you can share it with other people. The easiest way is probably to send it by email to vlc -at- videolan -dot- org, so that we can put it on the website with the other ones. You can also post it in the <ulink url="http://forum.videolan.org/viewforum.php?f=15">skins forum</ulink>. Feel free to ask for support there if you have any problems...</para>
+  <para>Once your skin is finished, you can share it with other people. The easiest way is probably to send it by email to heimdall -at- lycaria -dot- org, so that we can put it on the website with the other ones. You can also post it in the <ulink url="http://forum.videolan.org/viewforum.php?f=15">skins forum</ulink>. Feel free to ask for support there if you have any problems...</para>
   </sect2>
 
 </sect1>

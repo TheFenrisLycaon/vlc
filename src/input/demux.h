@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 1998-2008 VLC authors and VideoLAN
  * Copyright (C) 2008 Laurent Aimar
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *
@@ -21,16 +22,16 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef LIBVLC_INPUT_DEMUX_H
-#define LIBVLC_INPUT_DEMUX_H 1
+#ifndef LIBHEIMDALL_INPUT_DEMUX_H
+#define LIBHEIMDALL_INPUT_DEMUX_H 1
 
-#include <vlc_common.h>
-#include <vlc_demux.h>
+#include <heimdall_common.h>
+#include <heimdall_demux.h>
 
 #include "stream.h"
 
 /* stream_t *s could be null and then it mean a access+demux in one */
-demux_t *demux_NewAdvanced( vlc_object_t *p_obj, input_thread_t *p_parent_input,
+demux_t *demux_NewAdvanced( heimdall_object_t *p_obj, input_thread_t *p_parent_input,
                             const char *psz_demux, const char *url,
                             stream_t *s, es_out_t *out, bool );
 
@@ -57,7 +58,7 @@ int demux_GetSeekpoint( demux_t * );
  * @return The last demux (filter) in the chain.
  * The return value is always a valid (non-NULL) demux pointer.
  */
-demux_t *demux_FilterChainNew( demux_t *source, const char *list ) VLC_USED;
+demux_t *demux_FilterChainNew( demux_t *source, const char *list ) HEIMDALL_USED;
 
 bool demux_FilterEnable( demux_t *p_demux_chain, const char* psz_demux );
 bool demux_FilterDisable( demux_t *p_demux_chain, const char* psz_demux );

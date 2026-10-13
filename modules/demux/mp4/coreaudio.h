@@ -1,7 +1,8 @@
 /*****************************************************************************
- * coreaudio.h : CoreAudio definitions for vlc
+ * coreaudio.h : CoreAudio definitions for heimdall
  *****************************************************************************
  * Copyright (C) 2014-2018 VideoLabs, VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -17,9 +18,9 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
-#ifndef VLC_DEMUX_COREAUDIO_H
-#define VLC_DEMUX_COREAUDIO_H
-#include <vlc_aout.h>
+#ifndef HEIMDALL_DEMUX_COREAUDIO_H
+#define HEIMDALL_DEMUX_COREAUDIO_H
+#include <heimdall_aout.h>
 
 /* According to Apple's CoreAudio_Bitmap/CoreAudio_BitmapTypes.h */
 enum
@@ -236,7 +237,7 @@ static inline void CoreAudio_Layout_Clean(struct CoreAudio_layout_s *c)
     free( c->p_descriptions );
 }
 
-static const uint32_t pi_vlc_chan_order_CoreAudio[] =
+static const uint32_t pi_heimdall_chan_order_CoreAudio[] =
 {
     AOUT_CHAN_LEFT, AOUT_CHAN_RIGHT, AOUT_CHAN_CENTER,
     AOUT_CHAN_LFE,
@@ -249,7 +250,7 @@ static const uint32_t pi_vlc_chan_order_CoreAudio[] =
 static const struct
 {
     uint32_t i_bitmap;
-    uint32_t i_vlc_bitmap;
+    uint32_t i_heimdall_bitmap;
 } CoreAudio_Bitmap_mapping[] = {
     { CoreAudio_Bitmap_LEFT,         AOUT_CHAN_LEFT },
     { CoreAudio_Bitmap_RIGHT,        AOUT_CHAN_RIGHT },
@@ -280,33 +281,33 @@ static const struct
     { CoreAudio_Bitmap_RIGHTTOPREAR, 0 },
 };
 
-static inline int CoreAudio_Bitmap_to_vlc_bitmap( const struct CoreAudio_layout_s *c,
+static inline int CoreAudio_Bitmap_to_heimdall_bitmap( const struct CoreAudio_layout_s *c,
                                                   uint16_t *pi_mapping,
                                                   uint8_t *pi_channels,
                                                   const uint32_t **pp_chans_order )
 {
-    *pp_chans_order = pi_vlc_chan_order_CoreAudio;
+    *pp_chans_order = pi_heimdall_chan_order_CoreAudio;
     *pi_mapping = 0;
     *pi_channels = 0;
     for (uint8_t i=0;i<ARRAY_SIZE(CoreAudio_Bitmap_mapping);i++)
     {
         if ( CoreAudio_Bitmap_mapping[i].i_bitmap & c->i_channels_bitmap )
         {
-            if ( (CoreAudio_Bitmap_mapping[i].i_vlc_bitmap & *pi_mapping) ||
+            if ( (CoreAudio_Bitmap_mapping[i].i_heimdall_bitmap & *pi_mapping) ||
                  *pi_channels >= AOUT_CHAN_MAX )
             {
                 /* double mapping or unsupported number of channels */
                 *pi_mapping = 0;
                 *pi_channels = 0;
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             }
-            *pi_mapping |= CoreAudio_Bitmap_mapping[i].i_vlc_bitmap;
+            *pi_mapping |= CoreAudio_Bitmap_mapping[i].i_heimdall_bitmap;
         }
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static const uint32_t pi_vlc_chan_order_C[] = {
+static const uint32_t pi_heimdall_chan_order_C[] = {
     AOUT_CHAN_LEFT, AOUT_CHAN_CENTER, AOUT_CHAN_RIGHT,
     AOUT_CHAN_REARLEFT, AOUT_CHAN_REARCENTER, AOUT_CHAN_REARRIGHT,
     AOUT_CHAN_LFE,
@@ -314,7 +315,7 @@ static const uint32_t pi_vlc_chan_order_C[] = {
     0
 };
 
-static const uint32_t pi_vlc_chan_order_B[] = {
+static const uint32_t pi_heimdall_chan_order_B[] = {
     AOUT_CHAN_LEFT, AOUT_CHAN_RIGHT,
     AOUT_CHAN_REARLEFT, AOUT_CHAN_REARRIGHT,
     AOUT_CHAN_CENTER,
@@ -324,14 +325,14 @@ static const uint32_t pi_vlc_chan_order_B[] = {
     0
 };
 
-static const uint32_t pi_vlc_chan_order_AAC[] = {
+static const uint32_t pi_heimdall_chan_order_AAC[] = {
     AOUT_CHAN_CENTER, AOUT_CHAN_LEFT, AOUT_CHAN_RIGHT,
     AOUT_CHAN_MIDDLELEFT, AOUT_CHAN_MIDDLERIGHT,
     AOUT_CHAN_REARLEFT, AOUT_CHAN_REARRIGHT, AOUT_CHAN_REARCENTER,
     AOUT_CHAN_LFE, 0
 };
 
-static const uint32_t pi_vlc_chan_order_EAC[] = {
+static const uint32_t pi_heimdall_chan_order_EAC[] = {
     AOUT_CHAN_LEFT, AOUT_CHAN_CENTER, AOUT_CHAN_RIGHT,
     AOUT_CHAN_MIDDLELEFT, AOUT_CHAN_MIDDLERIGHT,
     AOUT_CHAN_LFE,
@@ -339,7 +340,7 @@ static const uint32_t pi_vlc_chan_order_EAC[] = {
     0
 };
 
-static const uint32_t pi_vlc_chan_order_DTS[] = {
+static const uint32_t pi_heimdall_chan_order_DTS[] = {
     AOUT_CHAN_LEFT, AOUT_CHAN_CENTER, AOUT_CHAN_RIGHT,
     AOUT_CHAN_MIDDLELEFT, AOUT_CHAN_MIDDLERIGHT,
     AOUT_CHAN_REARLEFT, AOUT_CHAN_REARCENTER, AOUT_CHAN_REARRIGHT,
@@ -347,7 +348,7 @@ static const uint32_t pi_vlc_chan_order_DTS[] = {
     0
 };
 
-static const uint32_t pi_vlc_chan_order_DTS_C[] = {
+static const uint32_t pi_heimdall_chan_order_DTS_C[] = {
     AOUT_CHAN_CENTER, AOUT_CHAN_REARCENTER,
     AOUT_CHAN_LEFT, AOUT_CHAN_RIGHT,
     AOUT_CHAN_MIDDLELEFT, AOUT_CHAN_MIDDLERIGHT,
@@ -356,7 +357,7 @@ static const uint32_t pi_vlc_chan_order_DTS_C[] = {
     0
 };
 
-static const uint32_t pi_vlc_chan_order_Atmos[] = {
+static const uint32_t pi_heimdall_chan_order_Atmos[] = {
     AOUT_CHAN_LEFT, AOUT_CHAN_RIGHT, AOUT_CHAN_CENTER,
     AOUT_CHAN_LFE,
     AOUT_CHAN_REARLEFT, AOUT_CHAN_REARRIGHT,
@@ -370,7 +371,7 @@ static const struct CoreAudioTableEntry
 {
     enum CoreAudio_Layout layout;
     const uint32_t *p_chans_order;
-    uint16_t i_vlc_bitmap;
+    uint16_t i_heimdall_bitmap;
 } CoreAudio_Layout_mapping[] = {
     { CoreAudio_Layout_Mono,                                    NULL, AOUT_CHAN_CENTER },
     { CoreAudio_Layout_Stereo,                                  NULL, AOUT_CHANS_STEREO },
@@ -379,87 +380,87 @@ static const struct CoreAudioTableEntry
 //    CoreAudio_Layout_Ambisonic_B_Format
 
     { CoreAudio_Layout_Quadraphonic,                            NULL, AOUT_CHANS_4_0_MIDDLE },
-    { CoreAudio_Layout_Pentagonal,               pi_vlc_chan_order_B, AOUT_CHANS_4_0 | AOUT_CHAN_CENTER },
+    { CoreAudio_Layout_Pentagonal,               pi_heimdall_chan_order_B, AOUT_CHANS_4_0 | AOUT_CHAN_CENTER },
 //    { CoreAudio_Layout_Hexagonal
 //    { CoreAudio_Layout_Octagonal
 //    { CoreAudio_Layout_Cube
 
-    { CoreAudio_Layout_MPEG_3_0_A,        pi_vlc_chan_order_CoreAudio, AOUT_CHANS_3_0 },
+    { CoreAudio_Layout_MPEG_3_0_A,        pi_heimdall_chan_order_CoreAudio, AOUT_CHANS_3_0 },
     { CoreAudio_Layout_MPEG_3_0_B,                               NULL, AOUT_CHANS_3_0 },
-    { CoreAudio_Layout_MPEG_4_0_A,        pi_vlc_chan_order_CoreAudio, AOUT_CHANS_3_0 | AOUT_CHAN_REARCENTER },
+    { CoreAudio_Layout_MPEG_4_0_A,        pi_heimdall_chan_order_CoreAudio, AOUT_CHANS_3_0 | AOUT_CHAN_REARCENTER },
     { CoreAudio_Layout_MPEG_4_0_B,                               NULL, AOUT_CHANS_3_0 | AOUT_CHAN_REARCENTER },
-    { CoreAudio_Layout_MPEG_5_0_A,        pi_vlc_chan_order_CoreAudio, AOUT_CHANS_5_0 },
-    { CoreAudio_Layout_MPEG_5_0_B,                pi_vlc_chan_order_B, AOUT_CHANS_5_0 },
-    { CoreAudio_Layout_MPEG_5_0_C,                pi_vlc_chan_order_C, AOUT_CHANS_5_0 },
+    { CoreAudio_Layout_MPEG_5_0_A,        pi_heimdall_chan_order_CoreAudio, AOUT_CHANS_5_0 },
+    { CoreAudio_Layout_MPEG_5_0_B,                pi_heimdall_chan_order_B, AOUT_CHANS_5_0 },
+    { CoreAudio_Layout_MPEG_5_0_C,                pi_heimdall_chan_order_C, AOUT_CHANS_5_0 },
     { CoreAudio_Layout_MPEG_5_0_D,                               NULL, AOUT_CHANS_5_0 },
-    { CoreAudio_Layout_MPEG_5_1_A,        pi_vlc_chan_order_CoreAudio, AOUT_CHANS_5_1 },
-    { CoreAudio_Layout_MPEG_5_1_B,                pi_vlc_chan_order_B, AOUT_CHANS_5_1 },
-    { CoreAudio_Layout_MPEG_5_1_C,                pi_vlc_chan_order_C, AOUT_CHANS_5_1 },
+    { CoreAudio_Layout_MPEG_5_1_A,        pi_heimdall_chan_order_CoreAudio, AOUT_CHANS_5_1 },
+    { CoreAudio_Layout_MPEG_5_1_B,                pi_heimdall_chan_order_B, AOUT_CHANS_5_1 },
+    { CoreAudio_Layout_MPEG_5_1_C,                pi_heimdall_chan_order_C, AOUT_CHANS_5_1 },
     { CoreAudio_Layout_MPEG_5_1_D,                               NULL, AOUT_CHANS_5_1 },
-    { CoreAudio_Layout_MPEG_6_1_A,        pi_vlc_chan_order_CoreAudio, AOUT_CHANS_5_1 | AOUT_CHAN_REARCENTER },
-    { CoreAudio_Layout_MPEG_7_1_A,        pi_vlc_chan_order_CoreAudio, AOUT_CHANS_7_1 },
-    { CoreAudio_Layout_MPEG_7_1_B,              pi_vlc_chan_order_AAC, AOUT_CHANS_7_1 },
-    { CoreAudio_Layout_MPEG_7_1_C,        pi_vlc_chan_order_CoreAudio, AOUT_CHANS_7_1 },
-    { CoreAudio_Layout_Emagic_Default_7_1,        pi_vlc_chan_order_B, AOUT_CHANS_7_1 },
+    { CoreAudio_Layout_MPEG_6_1_A,        pi_heimdall_chan_order_CoreAudio, AOUT_CHANS_5_1 | AOUT_CHAN_REARCENTER },
+    { CoreAudio_Layout_MPEG_7_1_A,        pi_heimdall_chan_order_CoreAudio, AOUT_CHANS_7_1 },
+    { CoreAudio_Layout_MPEG_7_1_B,              pi_heimdall_chan_order_AAC, AOUT_CHANS_7_1 },
+    { CoreAudio_Layout_MPEG_7_1_C,        pi_heimdall_chan_order_CoreAudio, AOUT_CHANS_7_1 },
+    { CoreAudio_Layout_Emagic_Default_7_1,        pi_heimdall_chan_order_B, AOUT_CHANS_7_1 },
 
-    { CoreAudio_Layout_ITU_2_1,           pi_vlc_chan_order_CoreAudio, AOUT_CHANS_3_0 },
-    { CoreAudio_Layout_ITU_2_2,           pi_vlc_chan_order_CoreAudio, AOUT_CHANS_4_0 },
+    { CoreAudio_Layout_ITU_2_1,           pi_heimdall_chan_order_CoreAudio, AOUT_CHANS_3_0 },
+    { CoreAudio_Layout_ITU_2_2,           pi_heimdall_chan_order_CoreAudio, AOUT_CHANS_4_0 },
 
-    { CoreAudio_Layout_DVD_4,             pi_vlc_chan_order_CoreAudio, AOUT_CHANS_2_1 },
-    { CoreAudio_Layout_DVD_5,             pi_vlc_chan_order_CoreAudio, AOUT_CHANS_2_1 | AOUT_CHAN_REARCENTER },
-    { CoreAudio_Layout_DVD_6,             pi_vlc_chan_order_CoreAudio, AOUT_CHANS_2_1 | AOUT_CHANS_REAR },
-    { CoreAudio_Layout_DVD_10,            pi_vlc_chan_order_CoreAudio, AOUT_CHANS_3_1 },
-    { CoreAudio_Layout_DVD_11,            pi_vlc_chan_order_CoreAudio, AOUT_CHANS_3_1 | AOUT_CHAN_REARCENTER },
-    { CoreAudio_Layout_DVD_18,                    pi_vlc_chan_order_B, AOUT_CHANS_5_1 },
+    { CoreAudio_Layout_DVD_4,             pi_heimdall_chan_order_CoreAudio, AOUT_CHANS_2_1 },
+    { CoreAudio_Layout_DVD_5,             pi_heimdall_chan_order_CoreAudio, AOUT_CHANS_2_1 | AOUT_CHAN_REARCENTER },
+    { CoreAudio_Layout_DVD_6,             pi_heimdall_chan_order_CoreAudio, AOUT_CHANS_2_1 | AOUT_CHANS_REAR },
+    { CoreAudio_Layout_DVD_10,            pi_heimdall_chan_order_CoreAudio, AOUT_CHANS_3_1 },
+    { CoreAudio_Layout_DVD_11,            pi_heimdall_chan_order_CoreAudio, AOUT_CHANS_3_1 | AOUT_CHAN_REARCENTER },
+    { CoreAudio_Layout_DVD_18,                    pi_heimdall_chan_order_B, AOUT_CHANS_5_1 },
 
-    { CoreAudio_Layout_AudioUnit_6_0,             pi_vlc_chan_order_B, AOUT_CHANS_5_0 | AOUT_CHAN_REARCENTER },
+    { CoreAudio_Layout_AudioUnit_6_0,             pi_heimdall_chan_order_B, AOUT_CHANS_5_0 | AOUT_CHAN_REARCENTER },
     //CoreAudio_Layout_AudioUnit_7_0
-    { CoreAudio_Layout_AudioUnit_7_0_Front,       pi_vlc_chan_order_B, AOUT_CHANS_5_0 | AOUT_CHANS_MIDDLE },
+    { CoreAudio_Layout_AudioUnit_7_0_Front,       pi_heimdall_chan_order_B, AOUT_CHANS_5_0 | AOUT_CHANS_MIDDLE },
 
-    { CoreAudio_Layout_AAC_6_0,                 pi_vlc_chan_order_AAC, AOUT_CHANS_5_0 | AOUT_CHAN_REARCENTER },
-    { CoreAudio_Layout_AAC_6_1,                 pi_vlc_chan_order_AAC, AOUT_CHANS_5_0 | AOUT_CHAN_REARCENTER | AOUT_CHAN_LFE },
-    { CoreAudio_Layout_AAC_7_0,                 pi_vlc_chan_order_AAC, AOUT_CHANS_5_0 | AOUT_CHANS_MIDDLE },
-    { CoreAudio_Layout_AAC_7_1_B,               pi_vlc_chan_order_AAC, AOUT_CHANS_7_1 },
-    { CoreAudio_Layout_AAC_Octagonal,           pi_vlc_chan_order_AAC, AOUT_CHANS_7_0 | AOUT_CHAN_REARCENTER },
+    { CoreAudio_Layout_AAC_6_0,                 pi_heimdall_chan_order_AAC, AOUT_CHANS_5_0 | AOUT_CHAN_REARCENTER },
+    { CoreAudio_Layout_AAC_6_1,                 pi_heimdall_chan_order_AAC, AOUT_CHANS_5_0 | AOUT_CHAN_REARCENTER | AOUT_CHAN_LFE },
+    { CoreAudio_Layout_AAC_7_0,                 pi_heimdall_chan_order_AAC, AOUT_CHANS_5_0 | AOUT_CHANS_MIDDLE },
+    { CoreAudio_Layout_AAC_7_1_B,               pi_heimdall_chan_order_AAC, AOUT_CHANS_7_1 },
+    { CoreAudio_Layout_AAC_Octagonal,           pi_heimdall_chan_order_AAC, AOUT_CHANS_7_0 | AOUT_CHAN_REARCENTER },
 
     // CoreAudio_Layout_TMH_10_2_std
     // CoreAudio_Layout_TMH_10_2_full
 
-    { CoreAudio_Layout_AC3_1_0_1,                 pi_vlc_chan_order_C, AOUT_CHAN_CENTER | AOUT_CHAN_LFE },
-    { CoreAudio_Layout_AC3_3_0,                   pi_vlc_chan_order_C, AOUT_CHANS_3_0 },
-    { CoreAudio_Layout_AC3_3_1,                   pi_vlc_chan_order_C, AOUT_CHANS_3_0 | AOUT_CHAN_REARCENTER },
-    { CoreAudio_Layout_AC3_3_0_1,                 pi_vlc_chan_order_C, AOUT_CHANS_3_0 | AOUT_CHAN_LFE },
-    { CoreAudio_Layout_AC3_2_1_1,                 pi_vlc_chan_order_C, AOUT_CHANS_2_1 | AOUT_CHAN_REARCENTER },
-    { CoreAudio_Layout_AC3_3_1_1,                 pi_vlc_chan_order_C, AOUT_CHANS_3_1 | AOUT_CHAN_REARCENTER },
+    { CoreAudio_Layout_AC3_1_0_1,                 pi_heimdall_chan_order_C, AOUT_CHAN_CENTER | AOUT_CHAN_LFE },
+    { CoreAudio_Layout_AC3_3_0,                   pi_heimdall_chan_order_C, AOUT_CHANS_3_0 },
+    { CoreAudio_Layout_AC3_3_1,                   pi_heimdall_chan_order_C, AOUT_CHANS_3_0 | AOUT_CHAN_REARCENTER },
+    { CoreAudio_Layout_AC3_3_0_1,                 pi_heimdall_chan_order_C, AOUT_CHANS_3_0 | AOUT_CHAN_LFE },
+    { CoreAudio_Layout_AC3_2_1_1,                 pi_heimdall_chan_order_C, AOUT_CHANS_2_1 | AOUT_CHAN_REARCENTER },
+    { CoreAudio_Layout_AC3_3_1_1,                 pi_heimdall_chan_order_C, AOUT_CHANS_3_1 | AOUT_CHAN_REARCENTER },
 
-    { CoreAudio_Layout_EAC_6_0_A,                 pi_vlc_chan_order_C, AOUT_CHANS_4_0 | AOUT_CHAN_CENTER | AOUT_CHAN_REARCENTER },
-    { CoreAudio_Layout_EAC_7_0_A,                 pi_vlc_chan_order_C, AOUT_CHANS_6_0 | AOUT_CHAN_CENTER },
+    { CoreAudio_Layout_EAC_6_0_A,                 pi_heimdall_chan_order_C, AOUT_CHANS_4_0 | AOUT_CHAN_CENTER | AOUT_CHAN_REARCENTER },
+    { CoreAudio_Layout_EAC_7_0_A,                 pi_heimdall_chan_order_C, AOUT_CHANS_6_0 | AOUT_CHAN_CENTER },
 
-    { CoreAudio_Layout_EAC3_6_1_A,              pi_vlc_chan_order_EAC, AOUT_CHANS_4_0 | AOUT_CHAN_CENTER | AOUT_CHAN_REARCENTER | AOUT_CHAN_LFE },
-    // { CoreAudio_Layout_EAC3_6_1_B,              pi_vlc_chan_order_EAC, },
-    // { CoreAudio_Layout_EAC3_6_1_C,              pi_vlc_chan_order_EAC, },
-    // { CoreAudio_Layout_EAC3_7_1_A,              pi_vlc_chan_order_EAC, },
-    { CoreAudio_Layout_EAC3_7_1_B,              pi_vlc_chan_order_EAC, AOUT_CHANS_7_1 },
-    // { CoreAudio_Layout_EAC3_7_1_C,              pi_vlc_chan_order_EAC, },
-    // { CoreAudio_Layout_EAC3_7_1_D,              pi_vlc_chan_order_EAC, },
-    // { CoreAudio_Layout_EAC3_7_1_E,              pi_vlc_chan_order_EAC, },
+    { CoreAudio_Layout_EAC3_6_1_A,              pi_heimdall_chan_order_EAC, AOUT_CHANS_4_0 | AOUT_CHAN_CENTER | AOUT_CHAN_REARCENTER | AOUT_CHAN_LFE },
+    // { CoreAudio_Layout_EAC3_6_1_B,              pi_heimdall_chan_order_EAC, },
+    // { CoreAudio_Layout_EAC3_6_1_C,              pi_heimdall_chan_order_EAC, },
+    // { CoreAudio_Layout_EAC3_7_1_A,              pi_heimdall_chan_order_EAC, },
+    { CoreAudio_Layout_EAC3_7_1_B,              pi_heimdall_chan_order_EAC, AOUT_CHANS_7_1 },
+    // { CoreAudio_Layout_EAC3_7_1_C,              pi_heimdall_chan_order_EAC, },
+    // { CoreAudio_Layout_EAC3_7_1_D,              pi_heimdall_chan_order_EAC, },
+    // { CoreAudio_Layout_EAC3_7_1_E,              pi_heimdall_chan_order_EAC, },
 
-    // { CoreAudio_Layout_EAC3_7_1_F,              pi_vlc_chan_order_EAC, },
-    // { CoreAudio_Layout_EAC3_7_1_G,              pi_vlc_chan_order_EAC, },
-    // { CoreAudio_Layout_EAC3_7_1_H,              pi_vlc_chan_order_EAC, },
+    // { CoreAudio_Layout_EAC3_7_1_F,              pi_heimdall_chan_order_EAC, },
+    // { CoreAudio_Layout_EAC3_7_1_G,              pi_heimdall_chan_order_EAC, },
+    // { CoreAudio_Layout_EAC3_7_1_H,              pi_heimdall_chan_order_EAC, },
 
     { CoreAudio_Layout_DTS_3_1,                                  NULL, AOUT_CHANS_3_1 },
     { CoreAudio_Layout_DTS_4_1,                                  NULL, AOUT_CHANS_3_1 | AOUT_CHAN_REARCENTER },
     { CoreAudio_Layout_DTS_6_0_A,                                NULL, AOUT_CHANS_6_0 },
     // { CoreAudio_Layout_DTS_6_0_B,                                NULL,  },
-    { CoreAudio_Layout_DTS_6_0_C,             pi_vlc_chan_order_DTS_C, AOUT_CHANS_6_0 },
+    { CoreAudio_Layout_DTS_6_0_C,             pi_heimdall_chan_order_DTS_C, AOUT_CHANS_6_0 },
     { CoreAudio_Layout_DTS_6_1_A,                                NULL, AOUT_CHANS_6_1_MIDDLE },
     //{ CoreAudio_Layout_DTS_6_1_B,                                NULL,  },
-    { CoreAudio_Layout_DTS_6_1_C,             pi_vlc_chan_order_DTS_C, AOUT_CHANS_6_1_MIDDLE },
-    { CoreAudio_Layout_DTS_7_0,                 pi_vlc_chan_order_DTS, AOUT_CHANS_6_0 | AOUT_CHAN_CENTER },
-    { CoreAudio_Layout_DTS_7_1,                 pi_vlc_chan_order_DTS, AOUT_CHANS_7_1 },
+    { CoreAudio_Layout_DTS_6_1_C,             pi_heimdall_chan_order_DTS_C, AOUT_CHANS_6_1_MIDDLE },
+    { CoreAudio_Layout_DTS_7_0,                 pi_heimdall_chan_order_DTS, AOUT_CHANS_6_0 | AOUT_CHAN_CENTER },
+    { CoreAudio_Layout_DTS_7_1,                 pi_heimdall_chan_order_DTS, AOUT_CHANS_7_1 },
     // { CoreAudio_Layout_DTS_8_0_A
-    { CoreAudio_Layout_DTS_8_0_B,               pi_vlc_chan_order_DTS, AOUT_CHANS_5_0 | AOUT_CHANS_MIDDLE | AOUT_CHAN_REARCENTER },
+    { CoreAudio_Layout_DTS_8_0_B,               pi_heimdall_chan_order_DTS, AOUT_CHANS_5_0 | AOUT_CHANS_MIDDLE | AOUT_CHAN_REARCENTER },
     //{ CoreAudio_Layout_DTS_8_1_A
     //{ CoreAudio_Layout_DTS_8_1_B          = (181<<16) | 9,// Lc C Rc L R Ls Cs Rs LFE
     //{ CoreAudio_Layout_DTS_6_1_D          = (182<<16) | 7,// C L R Ls Rs LFE Cs
@@ -467,40 +468,40 @@ static const struct CoreAudioTableEntry
     // { CoreAudio_Layout_WAVE_2_1           = CoreAudio_Layout_DVD_4,
     // { CoreAudio_Layout_WAVE_3_0           = CoreAudio_Layout_MPEG_3_0_A,
     // { CoreAudio_Layout_WAVE_4_0_A         = CoreAudio_Layout_ITU_2_2,
-    { CoreAudio_Layout_WAVE_4_0_B,                pi_vlc_chan_order_B, AOUT_CHANS_FRONT | AOUT_CHANS_MIDDLE },
+    { CoreAudio_Layout_WAVE_4_0_B,                pi_heimdall_chan_order_B, AOUT_CHANS_FRONT | AOUT_CHANS_MIDDLE },
     // { CoreAudio_Layout_WAVE_5_0_A         = CoreAudio_Layout_MPEG_5_0_A,
-    { CoreAudio_Layout_WAVE_5_0_B,                pi_vlc_chan_order_B, AOUT_CHANS_FRONT | AOUT_CHAN_CENTER | AOUT_CHANS_MIDDLE },
+    { CoreAudio_Layout_WAVE_5_0_B,                pi_heimdall_chan_order_B, AOUT_CHANS_FRONT | AOUT_CHAN_CENTER | AOUT_CHANS_MIDDLE },
     // { CoreAudio_Layout_WAVE_5_1_A         = CoreAudio_Layout_MPEG_5_1_A,
-    { CoreAudio_Layout_WAVE_5_1_B,                pi_vlc_chan_order_B, AOUT_CHANS_FRONT | AOUT_CHAN_CENTER | AOUT_CHAN_LFE | AOUT_CHANS_MIDDLE  },
-    //{ CoreAudio_Layout_WAVE_6_1,          pi_vlc_chan_order_CoreAudio, 0 },// L R C LFE Cs Ls Rs
-    { CoreAudio_Layout_WAVE_7_1,          pi_vlc_chan_order_CoreAudio, AOUT_CHANS_7_0 | AOUT_CHAN_LFE },
+    { CoreAudio_Layout_WAVE_5_1_B,                pi_heimdall_chan_order_B, AOUT_CHANS_FRONT | AOUT_CHAN_CENTER | AOUT_CHAN_LFE | AOUT_CHANS_MIDDLE  },
+    //{ CoreAudio_Layout_WAVE_6_1,          pi_heimdall_chan_order_CoreAudio, 0 },// L R C LFE Cs Ls Rs
+    { CoreAudio_Layout_WAVE_7_1,          pi_heimdall_chan_order_CoreAudio, AOUT_CHANS_7_0 | AOUT_CHAN_LFE },
 
     // { CoreAudio_Layout_HOA_ACN_SN3D       = (190<<16) | 0,// Ambisonics SN3D
     // { CoreAudio_Layout_HOA_ACN_N3D        = (191<<16) | 0,// Ambisonics N3D
 
     // { CoreAudio_Layout_Atmos_7_1_4        = (192<<16) | 12, // L R C LFE Ls Rs Rls Rrs Vhl VHr Ltr Rtr
     // { CoreAudio_Layout_Atmos_9_1_6        = (193<<16) | 16, // L R C LFE Ls Rs Rls Rrs Lw Rw Vhl VHr Ltm Rtm Ltr Rtr
-    { CoreAudio_Layout_Atmos_5_1_2,           pi_vlc_chan_order_Atmos,  AOUT_CHANS_7_1 }, // L R C LFE Ls Rs Ltm Rtm
+    { CoreAudio_Layout_Atmos_5_1_2,           pi_heimdall_chan_order_Atmos,  AOUT_CHANS_7_1 }, // L R C LFE Ls Rs Ltm Rtm
 };
 
-static inline int CoreAudio_Layout_to_vlc( const struct CoreAudio_layout_s *c,
+static inline int CoreAudio_Layout_to_heimdall( const struct CoreAudio_layout_s *c,
                                            uint16_t *pi_bitmap,
                                            uint8_t *pi_channels,
                                            const uint32_t **pp_chans_order )
 {
     if( c->i_channels_layout_tag == CoreAudio_Layout_BITMAP )
-        return CoreAudio_Bitmap_to_vlc_bitmap( c, pi_bitmap, pi_channels, pp_chans_order );
+        return CoreAudio_Bitmap_to_heimdall_bitmap( c, pi_bitmap, pi_channels, pp_chans_order );
 
     for (size_t i=0;i<ARRAY_SIZE(CoreAudio_Layout_mapping);i++)
     {
         if(CoreAudio_Layout_mapping[i].layout == c->i_channels_layout_tag )
         {
-            *pi_bitmap = CoreAudio_Layout_mapping[i].i_vlc_bitmap;
+            *pi_bitmap = CoreAudio_Layout_mapping[i].i_heimdall_bitmap;
             *pp_chans_order = CoreAudio_Layout_mapping[i].p_chans_order;
             *pi_channels = c->i_channels_layout_tag & 0xFF;
             break;
         }
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 #endif

@@ -2,6 +2,7 @@
  * x11_loop.hpp
  *****************************************************************************
  * Copyright (C) 2003 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cyril Deguet     <asmax@via.ecp.fr>
  *          Olivier Teulière <ipkiss@via.ecp.fr>
@@ -57,16 +58,16 @@ private:
     /// Flag set on exit
     bool m_exit;
     /// Date and position of the last left-click
-    vlc_tick_t m_lastClickTime;
+    heimdall_tick_t m_lastClickTime;
     int m_lastClickPosX, m_lastClickPosY;
     /// Maximum interval between clicks for a double-click (in microsec)
     static int m_dblClickDelay;
     /// Map associating special (i.e. non ascii) virtual key codes with
-    /// internal vlc key codes
+    /// internal heimdall key codes
     typedef std::map<KeySym, int> keymap_t;
     static keymap_t m_keymap;
-    /// Translate X11 KeySyms to VLC key codes.
-    static int keysymToVlcKey( KeySym keysym )
+    /// Translate X11 KeySyms to Heimdall key codes.
+    static int keysymToHeimdallKey( KeySym keysym )
     {
         keymap_t::const_iterator i=m_keymap.find(keysym);
         return i!=m_keymap.end() ? (i->second) : keysym;

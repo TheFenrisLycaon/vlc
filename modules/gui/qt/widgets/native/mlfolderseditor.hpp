@@ -2,6 +2,7 @@
  * roundimage.hpp: Custom widgets
  ****************************************************************************
  * Copyright (C) 2021 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Prince Gupta <guptaprince8832@gmail.com>
  *
@@ -20,8 +21,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_QT_MLFOLDERSEDITOR_HPP
-#define VLC_QT_MLFOLDERSEDITOR_HPP
+#ifndef HEIMDALL_QT_MLFOLDERSEDITOR_HPP
+#define HEIMDALL_QT_MLFOLDERSEDITOR_HPP
 
 #include "qt.hpp"
 

@@ -2,6 +2,7 @@
  * chapter_command.cpp : matroska demuxer
  *****************************************************************************
  * Copyright (C) 2003-2004 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *          Steve Lhomme <steve.lhomme@free.fr>
@@ -23,7 +24,7 @@
 
 #include "chapter_command.hpp"
 
-#include <vlc_arrays.h>
+#include <heimdall_arrays.h>
 
 namespace mkv {
 
@@ -32,19 +33,19 @@ void chapter_codec_cmds_c::AddCommand( const KaxChapterProcessCommand & command 
     auto data = FindChild<KaxChapterProcessData>(command);
     if (unlikely(!data))
     {
-        vlc_debug( l, "missing ChapProcessData" );
+        heimdall_debug( l, "missing ChapProcessData" );
         return;
     }
 
     auto codec_time = FindChild<KaxChapterProcessTime>(command);
     if( unlikely(!codec_time) )
     {
-        vlc_debug( l, "missing ChapProcessTime" );
+        heimdall_debug( l, "missing ChapProcessTime" );
         return;
     }
     if( static_cast<unsigned>(*codec_time) >= 3 )
     {
-        vlc_debug( l, "unknown ChapProcessTime %d", static_cast<unsigned>(*codec_time) );
+        heimdall_debug( l, "unknown ChapProcessTime %d", static_cast<unsigned>(*codec_time) );
         return;
     }
 
@@ -53,7 +54,7 @@ void chapter_codec_cmds_c::AddCommand( const KaxChapterProcessCommand & command 
         case MATROSKA_CHAPPROCESSTIME_DURING: during_cmds.push_back( *data ); break;
         case MATROSKA_CHAPPROCESSTIME_BEFORE: enter_cmds.push_back( *data );  break;
         case MATROSKA_CHAPPROCESSTIME_AFTER:  leave_cmds.push_back( *data );  break;
-        default: vlc_assert_unreachable();
+        default: heimdall_assert_unreachable();
     }
 }
 

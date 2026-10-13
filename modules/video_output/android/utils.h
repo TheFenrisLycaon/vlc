@@ -2,6 +2,7 @@
  * utils.h: shared code between Android vout modules.
  *****************************************************************************
  * Copyright (C) 2014-2015 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Felix Abecassis <felix.abecassis@gmail.com>
  *          Thomas Guillem <thomas@gllm.fr>
@@ -38,10 +39,10 @@
 #include <android/data_space.h>
 #include <media/NdkImageReader.h>
 
-#include <vlc_vout_display.h>
-#include <vlc_common.h>
+#include <heimdall_vout_display.h>
+#include <heimdall_common.h>
 
-/* AWH using a VideoLAN AWindow helpers */
+/* AWH using a Lycaria AWindow helpers */
 #define AWH_CAPS_SET_VIDEO_LAYOUT 0x1
 /* AWH backed by a Android SurfaceView */
 #define AWH_CAPS_SURFACE_VIEW 0x2
@@ -197,9 +198,9 @@ struct awh_mouse_coords
 
 typedef struct
 {
-    void (*on_new_window_size)(vlc_window_t *wnd, unsigned i_width,
+    void (*on_new_window_size)(heimdall_window_t *wnd, unsigned i_width,
                                unsigned i_height);
-    void (*on_new_mouse_coords)(vlc_window_t *wnd,
+    void (*on_new_mouse_coords)(heimdall_window_t *wnd,
                                 const struct awh_mouse_coords *coords);
 } awh_events_t;
 
@@ -211,12 +212,12 @@ struct android_video_context_t
     struct asurface_control_api *asc_api;
     AImageReader *air;
 
-    struct vlc_asurfacetexture *texture;
+    struct heimdall_asurfacetexture *texture;
     void *dec_opaque;
     bool (*render)(struct picture_context_t *ctx);
-    bool (*render_ts)(struct picture_context_t *ctx, vlc_tick_t ts);
+    bool (*render_ts)(struct picture_context_t *ctx, heimdall_tick_t ts);
 
-    struct vlc_asurfacetexture *
+    struct heimdall_asurfacetexture *
         (*get_texture)(struct picture_context_t *ctx);
 };
 
@@ -226,7 +227,7 @@ struct android_picture_ctx
     AImage *image;
     int fence_fd;
     int read_fence_fd;
-    vlc_atomic_rc_t rc;
+    heimdall_atomic_rc_t rc;
     ASurfaceControl *sc;
 };
 
@@ -245,21 +246,21 @@ android_picture_ctx_set_read_fence(struct android_picture_ctx *apctx, int fd)
     else
     {
         android_video_context_t *avctx =
-            vlc_video_context_GetPrivate(apctx->s.vctx, VLC_VIDEO_CONTEXT_AWINDOW);
+            heimdall_video_context_GetPrivate(apctx->s.vctx, HEIMDALL_VIDEO_CONTEXT_AWINDOW);
 
-        int merged = avctx->air_api->sync_merge("vlc_read_fence", apctx->read_fence_fd, fd);
+        int merged = avctx->air_api->sync_merge("heimdall_read_fence", apctx->read_fence_fd, fd);
         close(apctx->read_fence_fd);
         close(fd);
         apctx->read_fence_fd = merged;
     }
 }
 
-struct vlc_asurfacetexture
+struct heimdall_asurfacetexture
 {
     struct ANativeWindow *window;
     jobject              *jsurface;
 
-    const struct vlc_asurfacetexture_operations *ops;
+    const struct heimdall_asurfacetexture_operations *ops;
 };
 
 /**
@@ -267,39 +268,39 @@ struct vlc_asurfacetexture
  *
  * It can use either the NDK API or JNI API.
  */
-struct vlc_asurfacetexture_operations
+struct heimdall_asurfacetexture_operations
 {
     int (*attach_to_gl_context)(
-            struct vlc_asurfacetexture *surface,
+            struct heimdall_asurfacetexture *surface,
             uint32_t tex_name);
 
     void (*detach_from_gl_context)(
-            struct vlc_asurfacetexture *surface);
+            struct heimdall_asurfacetexture *surface);
 
     int (*update_tex_image)(
-            struct vlc_asurfacetexture *surface,
+            struct heimdall_asurfacetexture *surface,
             const float **pp_transform_mtx);
 
     void (*release_tex_image)(
-            struct vlc_asurfacetexture *st);
+            struct heimdall_asurfacetexture *st);
 
     void (*destroy)(
-            struct vlc_asurfacetexture *surface);
+            struct heimdall_asurfacetexture *surface);
 };
 
 /**
  * Create new AWindowHandler
  *
  * This handle allow to access IAWindowNativeHandler jobject attached to the
- * VLC object var.
+ * Heimdall object var.
  * \return a valid AWindowHandler * or NULL. It must be released with
  * AWindowHandler_destroy.
  */
-AWindowHandler *AWindowHandler_new(vlc_object_t *obj, vlc_window_t *wnd, awh_events_t *p_events);
+AWindowHandler *AWindowHandler_new(heimdall_object_t *obj, heimdall_window_t *wnd, awh_events_t *p_events);
 void AWindowHandler_destroy(AWindowHandler *p_awh);
 
 AWindowHandler *
-AWindowHandler_newFromANWs(vlc_object_t *obj, ANativeWindow *video,
+AWindowHandler_newFromANWs(heimdall_object_t *obj, ANativeWindow *video,
                            ANativeWindow *subtitle);
 
 struct aimage_reader_api *
@@ -342,28 +343,28 @@ int AWindowHandler_setVideoLayout(AWindowHandler *p_awh,
  * \return 0 on success, -1 on error.
  */
 int
-SurfaceTexture_attachToGLContext(struct vlc_asurfacetexture *st, uint32_t tex_name);
+SurfaceTexture_attachToGLContext(struct heimdall_asurfacetexture *st, uint32_t tex_name);
 
 /**
  * Detach a SurfaceTexture from the OpenGL ES context that owns the OpenGL ES
  * texture object.
  */
 void
-SurfaceTexture_detachFromGLContext(struct vlc_asurfacetexture *st);
+SurfaceTexture_detachFromGLContext(struct heimdall_asurfacetexture *st);
 
 /**
  * Create a new SurfaceTexture object.
  *
  * See Android SurfaceTexture
  */
-struct vlc_asurfacetexture *
-vlc_asurfacetexture_New(AWindowHandler *p_awh, bool single_buffer);
+struct heimdall_asurfacetexture *
+heimdall_asurfacetexture_New(AWindowHandler *p_awh, bool single_buffer);
 
 /**
  * Delete a SurfaceTexture object created with SurfaceTexture_New.
  */
 static inline void
-vlc_asurfacetexture_Delete(struct vlc_asurfacetexture *st)
+heimdall_asurfacetexture_Delete(struct heimdall_asurfacetexture *st)
 {
     if (st->ops->destroy)
         st->ops->destroy(st);
@@ -375,10 +376,10 @@ vlc_asurfacetexture_Delete(struct vlc_asurfacetexture *st)
  * \param pp_transform_mtx the transform matrix fetched from
  * SurfaceTexture.getTransformMatrix() after the
  * SurfaceTexture.updateTexImage() call
- * \return VLC_SUCCESS or a VLC error
+ * \return HEIMDALL_SUCCESS or a Heimdall error
  */
 int
-SurfaceTexture_updateTexImage(struct vlc_asurfacetexture *st, const float **pp_transform_mtx);
+SurfaceTexture_updateTexImage(struct heimdall_asurfacetexture *st, const float **pp_transform_mtx);
 
 void
-SurfaceTexture_releaseTexImage(struct vlc_asurfacetexture *st);
+SurfaceTexture_releaseTexImage(struct heimdall_asurfacetexture *st);

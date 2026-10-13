@@ -1,7 +1,8 @@
 /*****************************************************************************
- * chromecast_ctrl.cpp: Chromecast module for vlc
+ * chromecast_ctrl.cpp: Chromecast module for heimdall
  *****************************************************************************
  * Copyright © 2014-2015 VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Adrien Maglo <magsoft@videolan.org>
  *          Jean-Baptiste Kempf <jb@videolan.org>
@@ -38,10 +39,10 @@
 #include <iomanip>
 #include <string_view>
 
-#include <vlc_fixups.h>
-#include <vlc_stream.h>
-#include <vlc_rand.h>
-#include <vlc_threads.h>
+#include <heimdall_fixups.h>
+#include <heimdall_stream.h>
+#include <heimdall_rand.h>
+#include <heimdall_threads.h>
 
 extern "C" {
 #include "../../demux/json/json.h"
@@ -54,22 +55,22 @@ extern "C" {
 extern "C" {
 
 struct chromecast_ctrl_json {
-    struct vlc_logger *logger;
+    struct heimdall_logger *logger;
     const char *string;
 };
 
 void json_parse_error(void *data, const char *msg)
 {
-    vlc_assert(data != NULL);
+    heimdall_assert(data != NULL);
 
     struct chromecast_ctrl_json *sys = static_cast<struct chromecast_ctrl_json *>(data);
-    vlc_error(sys->logger, "%s", msg);
+    heimdall_error(sys->logger, "%s", msg);
 }
 
 size_t json_read(void *data, void *buf, size_t size)
 {
-    vlc_assert(data != NULL);
-    vlc_assert(buf != NULL);
+    heimdall_assert(data != NULL);
+    heimdall_assert(buf != NULL);
 
     struct chromecast_ctrl_json *sys = static_cast<struct chromecast_ctrl_json *>(data);
     size_t len = strlen(sys->string);
@@ -126,13 +127,13 @@ static const char* StateToStr( States s )
     case TakenOver:
         return "TakenOver";
     }
-    vlc_assert_unreachable();
+    heimdall_assert_unreachable();
 }
 
 /*****************************************************************************
  * intf_sys_t: class definition
  *****************************************************************************/
-intf_sys_t::intf_sys_t(vlc_object_t * const p_this, int port, std::string device_addr,
+intf_sys_t::intf_sys_t(heimdall_object_t * const p_this, int port, std::string device_addr,
                        int device_port, httpd_host_t *httpd_host)
  : m_module(p_this)
  , m_device_port(device_port)
@@ -151,7 +152,7 @@ intf_sys_t::intf_sys_t(vlc_object_t * const p_this, int port, std::string device
  , m_request_stop( false )
  , m_request_load( false )
  , m_paused( false )
- , m_input_length( VLC_TICK_INVALID )
+ , m_input_length( HEIMDALL_TICK_INVALID )
  , m_input_eof( false )
  , m_cc_eof( false )
  , m_pace( false )
@@ -160,15 +161,15 @@ intf_sys_t::intf_sys_t(vlc_object_t * const p_this, int port, std::string device
  , m_httpd_file(NULL)
  , m_art_url(NULL)
  , m_art_idx(0)
- , m_cc_time_date( VLC_TICK_INVALID )
- , m_cc_time( VLC_TICK_INVALID )
+ , m_cc_time_date( HEIMDALL_TICK_INVALID )
+ , m_cc_time( HEIMDALL_TICK_INVALID )
  , m_pingRetriesLeft( PING_WAIT_RETRIES )
 {
     m_communication = new ChromecastCommunication( p_this,
         getHttpStreamPath(), getHttpStreamPort(),
         m_device_addr.c_str(), m_device_port );
 
-    m_ctl_thread_interrupt = vlc_interrupt_create();
+    m_ctl_thread_interrupt = heimdall_interrupt_create();
     if( unlikely(m_ctl_thread_interrupt == NULL) )
         throw std::runtime_error( "error creating interrupt context" );
 
@@ -190,22 +191,22 @@ intf_sys_t::intf_sys_t(vlc_object_t * const p_this, int port, std::string device
     m_common.pf_set_meta         = set_meta;
     m_common.pf_set_input_length = set_input_length;
 
-    assert( var_Type( vlc_object_parent(vlc_object_parent(m_module)), CC_SHARED_VAR_NAME) == 0 );
-    if (var_Create( vlc_object_parent(vlc_object_parent(m_module)), CC_SHARED_VAR_NAME, VLC_VAR_ADDRESS ) == VLC_SUCCESS )
-        var_SetAddress( vlc_object_parent(vlc_object_parent(m_module)), CC_SHARED_VAR_NAME, &m_common );
+    assert( var_Type( heimdall_object_parent(heimdall_object_parent(m_module)), CC_SHARED_VAR_NAME) == 0 );
+    if (var_Create( heimdall_object_parent(heimdall_object_parent(m_module)), CC_SHARED_VAR_NAME, HEIMDALL_VAR_ADDRESS ) == HEIMDALL_SUCCESS )
+        var_SetAddress( heimdall_object_parent(heimdall_object_parent(m_module)), CC_SHARED_VAR_NAME, &m_common );
 
     // Start the Chromecast event thread.
-    if (vlc_clone(&m_chromecastThread, ChromecastThread, this))
+    if (heimdall_clone(&m_chromecastThread, ChromecastThread, this))
     {
-        vlc_interrupt_destroy( m_ctl_thread_interrupt );
-        var_SetAddress( vlc_object_parent(vlc_object_parent(m_module)), CC_SHARED_VAR_NAME, NULL );
+        heimdall_interrupt_destroy( m_ctl_thread_interrupt );
+        var_SetAddress( heimdall_object_parent(heimdall_object_parent(m_module)), CC_SHARED_VAR_NAME, NULL );
         throw std::runtime_error( "error creating cc thread" );
     }
 }
 
 intf_sys_t::~intf_sys_t()
 {
-    var_Destroy( vlc_object_parent(vlc_object_parent(m_module)), CC_SHARED_VAR_NAME );
+    var_Destroy( heimdall_object_parent(heimdall_object_parent(m_module)), CC_SHARED_VAR_NAME );
 
     m_lock.lock();
     if( m_communication )
@@ -232,18 +233,18 @@ intf_sys_t::~intf_sys_t()
         }
 
         m_lock.unlock();
-        vlc_interrupt_kill( m_ctl_thread_interrupt );
-        vlc_join(m_chromecastThread, NULL);
+        heimdall_interrupt_kill( m_ctl_thread_interrupt );
+        heimdall_join(m_chromecastThread, NULL);
 
         delete m_communication;
     }
     else
         m_lock.unlock();
 
-    vlc_interrupt_destroy( m_ctl_thread_interrupt );
+    heimdall_interrupt_destroy( m_ctl_thread_interrupt );
 
     if (m_meta != NULL)
-        vlc_meta_Delete(m_meta);
+        heimdall_meta_Delete(m_meta);
 
     if( m_httpd_file )
         httpd_FileDelete( m_httpd_file );
@@ -253,7 +254,7 @@ intf_sys_t::~intf_sys_t()
 
 void intf_sys_t::preservePlaybackOnTeardown()
 {
-    vlc::threads::mutex_locker locker( m_lock );
+    heimdall::threads::mutex_locker locker( m_lock );
     m_state = TakenOver;
 }
 
@@ -263,7 +264,7 @@ void intf_sys_t::reinit()
 
     if( m_communication )
     {
-        vlc_join( m_chromecastThread, NULL );
+        heimdall_join( m_chromecastThread, NULL );
         delete m_communication;
         m_communication = NULL;
     }
@@ -283,7 +284,7 @@ void intf_sys_t::reinit()
     }
 
     m_state = Authenticating;
-    if( vlc_clone( &m_chromecastThread, ChromecastThread, this) )
+    if( heimdall_clone( &m_chromecastThread, ChromecastThread, this) )
     {
         m_state = Dead;
         delete m_communication;
@@ -295,47 +296,47 @@ int intf_sys_t::httpd_file_fill( uint8_t *, uint8_t **pp_data, size_t *pi_data )
 {
     char *psz_art;
     {
-        vlc::threads::mutex_locker lock( m_lock );
+        heimdall::threads::mutex_locker lock( m_lock );
         if( !m_art_url )
         {
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
         psz_art = strdup( m_art_url );
     }
 
-    stream_t *s = vlc_stream_NewURL( m_module, psz_art );
+    stream_t *s = heimdall_stream_NewURL( m_module, psz_art );
     free( psz_art );
     if( !s )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     uint64_t size;
-    if( vlc_stream_GetSize( s, &size ) != VLC_SUCCESS
+    if( heimdall_stream_GetSize( s, &size ) != HEIMDALL_SUCCESS
      || size > INT64_C( 10000000 ) )
     {
         msg_Warn( m_module, "art stream is too big or invalid" );
-        vlc_stream_Delete( s );
-        return VLC_EGENERIC;
+        heimdall_stream_Delete( s );
+        return HEIMDALL_EGENERIC;
     }
 
     *pp_data = (uint8_t *)malloc( size );
     if( !*pp_data )
     {
-        vlc_stream_Delete( s );
-        return VLC_EGENERIC;
+        heimdall_stream_Delete( s );
+        return HEIMDALL_EGENERIC;
     }
 
-    ssize_t read = vlc_stream_Read( s, *pp_data, size );
-    vlc_stream_Delete( s );
+    ssize_t read = heimdall_stream_Read( s, *pp_data, size );
+    heimdall_stream_Delete( s );
 
     if( read < 0 || (size_t)read != size )
     {
         free( *pp_data );
         *pp_data = NULL;
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     *pi_data = size;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int httpd_file_fill_cb( httpd_file_sys_t *data, httpd_file_t *,
@@ -347,7 +348,7 @@ static int httpd_file_fill_cb( httpd_file_sys_t *data, httpd_file_t *,
 
 void intf_sys_t::prepareHttpArtwork()
 {
-    const char *psz_art = m_meta ? vlc_meta_Get( m_meta, vlc_meta_ArtworkURL ) : NULL;
+    const char *psz_art = m_meta ? heimdall_meta_Get( m_meta, heimdall_meta_ArtworkURL ) : NULL;
     /* Abort if there is no art or if the art is already served */
     if( !psz_art || strncmp( psz_art, "http", 4) == 0 )
         return;
@@ -386,7 +387,7 @@ void intf_sys_t::prepareHttpArtwork()
 
     std::stringstream ss;
     ss << m_art_http_ip << ss_art_idx.str();
-    vlc_meta_Set( m_meta, vlc_meta_ArtworkURL, ss.str().c_str() );
+    heimdall_meta_Set( m_meta, heimdall_meta_ArtworkURL, ss.str().c_str() );
 }
 
 void intf_sys_t::tryLoad()
@@ -426,13 +427,13 @@ void intf_sys_t::tryLoad()
 
 void intf_sys_t::setRetryOnFail( bool enabled )
 {
-    vlc::threads::mutex_locker locker(m_lock);
+    heimdall::threads::mutex_locker locker(m_lock);
     m_retry_on_fail = enabled;
 }
 
 void intf_sys_t::setHasInput( const std::string mime_type )
 {
-    vlc::threads::mutex_locker locker(m_lock);
+    heimdall::threads::mutex_locker locker(m_lock);
     msg_Dbg( m_module, "Loading content" );
 
     if( m_state == Dead )
@@ -452,9 +453,9 @@ void intf_sys_t::setHasInput( const std::string mime_type )
     m_paused = false;
     m_cc_eof = false;
     m_request_load = true;
-    m_cc_time_last_request_date = VLC_TICK_INVALID;
-    m_cc_time_date = VLC_TICK_INVALID;
-    m_cc_time = VLC_TICK_INVALID;
+    m_cc_time_last_request_date = HEIMDALL_TICK_INVALID;
+    m_cc_time_date = HEIMDALL_TICK_INVALID;
+    m_cc_time = HEIMDALL_TICK_INVALID;
     m_mediaSessionId = 0;
 
     tryLoad();
@@ -508,7 +509,7 @@ bool intf_sys_t::isStateReady() const
 
 void intf_sys_t::setPacing(bool do_pace)
 {
-    vlc::threads::mutex_locker locker( m_lock );
+    heimdall::threads::mutex_locker locker( m_lock );
     if( m_pace == do_pace )
         return;
     m_pace = do_pace;
@@ -523,19 +524,19 @@ static void interrupt_wake_up_cb( void *data )
 
 void intf_sys_t::interrupt_wake_up()
 {
-    vlc::threads::mutex_locker locker( m_lock );
+    heimdall::threads::mutex_locker locker( m_lock );
     m_interrupted = true;
     m_pace_cond.signal();
 }
 
 int intf_sys_t::pace()
 {
-    vlc::threads::mutex_locker locker( m_lock );
+    heimdall::threads::mutex_locker locker( m_lock );
 
     m_interrupted = false;
-    vlc_interrupt_register( interrupt_wake_up_cb, this );
+    heimdall_interrupt_register( interrupt_wake_up_cb, this );
     int ret = 0;
-    vlc_tick_t deadline = vlc_tick_now() + VLC_TICK_FROM_MS(500);
+    heimdall_tick_t deadline = heimdall_tick_now() + HEIMDALL_TICK_FROM_MS(500);
 
     /* Wait for the sout to send more data via http (m_pace), or wait for the
      * CC to finish. In case the demux filter is EOF, we always wait for
@@ -543,7 +544,7 @@ int intf_sys_t::pace()
     while( !isFinishedPlaying() && ( m_pace || m_input_eof ) && !m_interrupted && ret == 0 )
         ret = m_pace_cond.timedwait( m_lock, deadline );
 
-    vlc_interrupt_unregister();
+    heimdall_interrupt_unregister();
 
     if( m_cc_eof )
         return CC_PACE_OK_ENDED;
@@ -565,7 +566,7 @@ void intf_sys_t::sendInputEvent(enum cc_input_event event, union cc_input_arg ar
     on_input_event_itf on_input_event;
     void *data;
     {
-        vlc::threads::mutex_locker locker( m_lock );
+        heimdall::threads::mutex_locker locker( m_lock );
         on_input_event = m_on_input_event;
         data = m_on_input_event_data;
 
@@ -645,7 +646,7 @@ void intf_sys_t::queueMessage( QueueableMessages msg )
 {
     // Assume lock is held by the called
     m_msgQueue.push( msg );
-    vlc_interrupt_raise( m_ctl_thread_interrupt );
+    heimdall_interrupt_raise( m_ctl_thread_interrupt );
 }
 
 intf_sys_t::httpd_info_t::httpd_info_t( httpd_host_t* host, int port )
@@ -656,8 +657,8 @@ intf_sys_t::httpd_info_t::httpd_info_t( httpd_host_t* host, int port )
     {
         std::ostringstream ss;
         ss << "/chromecast"
-           << "/" << vlc_tick_now()
-           << "/" << static_cast<uint64_t>( vlc_mrand48() );
+           << "/" << heimdall_tick_now()
+           << "/" << static_cast<uint64_t>( heimdall_mrand48() );
 
         m_root = ss.str();
         m_url = httpd_UrlNew( m_host, m_root.c_str(), NULL, NULL );
@@ -681,7 +682,7 @@ intf_sys_t::httpd_info_t::~httpd_info_t()
  *****************************************************************************/
 void* intf_sys_t::ChromecastThread(void* p_data)
 {
-    vlc_thread_set_name("vlc-chromecast");
+    heimdall_thread_set_name("heimdall-chromecast");
 
     intf_sys_t *p_sys = static_cast<intf_sys_t*>(p_data);
     p_sys->mainLoop();
@@ -690,20 +691,20 @@ void* intf_sys_t::ChromecastThread(void* p_data)
 
 void intf_sys_t::mainLoop()
 {
-    vlc_savecancel();
-    vlc_interrupt_set( m_ctl_thread_interrupt );
+    heimdall_savecancel();
+    heimdall_interrupt_set( m_ctl_thread_interrupt );
 
     // State was already initialized as Authenticating
     m_communication->msgAuth();
 
-    while ( !vlc_killed() )
+    while ( !heimdall_killed() )
     {
         if ( !handleMessages() )
             break;
         // Reset the interrupt state to avoid commands not being sent (since
         // the context is still flagged as interrupted)
-        vlc_interrupt_unregister();
-        vlc::threads::mutex_locker lock( m_lock );
+        heimdall_interrupt_unregister();
+        heimdall::threads::mutex_locker lock( m_lock );
         while ( m_msgQueue.empty() == false )
         {
             QueueableMessages msg = m_msgQueue.front();
@@ -737,7 +738,7 @@ void intf_sys_t::processAuthMessage( const castchannel::CastMessage& msg )
     }
     else
     {
-        vlc::threads::mutex_locker lock( m_lock );
+        heimdall::threads::mutex_locker lock( m_lock );
         setState( Connecting );
         m_communication->msgConnect(DEFAULT_CHOMECAST_RECEIVER);
         m_communication->msgReceiverGetStatus();
@@ -746,7 +747,7 @@ void intf_sys_t::processAuthMessage( const castchannel::CastMessage& msg )
 
 void intf_sys_t::processHeartBeatMessage( const castchannel::CastMessage& msg , const struct json_object *entry )
 {
-    VLC_UNUSED(msg);
+    HEIMDALL_UNUSED(msg);
     const std::string_view type = json_get_str_view(entry, "type");
     if (type == "PING")
     {
@@ -793,7 +794,7 @@ bool intf_sys_t::processReceiverMessage( const castchannel::CastMessage& msg , c
                 }
             }
         }
-        vlc::threads::mutex_locker lock( m_lock );
+        heimdall::threads::mutex_locker lock( m_lock );
 
         switch ( m_state )
         {
@@ -858,7 +859,7 @@ bool intf_sys_t::processReceiverMessage( const castchannel::CastMessage& msg , c
         const char *reason = json_get_str(entry, "reason");
         msg_Err( m_module, "Failed to start the MediaPlayer: %s",
                  reason);
-        vlc::threads::mutex_locker lock( m_lock );
+        heimdall::threads::mutex_locker lock( m_lock );
         m_appTransportId = "";
         m_mediaSessionId = 0;
         setState( Dead );
@@ -878,7 +879,7 @@ void intf_sys_t::processMediaMessage( const castchannel::CastMessage& msg , cons
     const std::string_view type = json_get_str_view(entry, "type");
     int64_t requestId = (int64_t) json_get_num(entry,"requestId");
 
-    vlc::threads::mutex_locker lock( m_lock );
+    heimdall::threads::mutex_locker lock( m_lock );
 
     if ((m_last_request_id != 0 && requestId != m_last_request_id))
         return;
@@ -962,10 +963,10 @@ void intf_sys_t::processMediaMessage( const castchannel::CastMessage& msg , cons
             else if (newPlayerState == "PLAYING")
             {                
                 if (status->array.size >= 1) {                                
-                    vlc_tick_t currentTime = timeCCToVLC(json_get_num(&status->array.entries[0].object,
+                    heimdall_tick_t currentTime = timeCCToHeimdall(json_get_num(&status->array.entries[0].object,
                                                                       "currentTime"));
                     m_cc_time = currentTime;
-                    m_cc_time_date = vlc_tick_now();
+                    m_cc_time_date = heimdall_tick_now();
                     
                     setState( Playing );
                 }
@@ -1030,7 +1031,7 @@ void intf_sys_t::processConnectionMessage( const castchannel::CastMessage& , con
     {
         // Close message indicates an application is being closed, not the connection.
         // From this point on, we need to relaunch the media receiver app
-        vlc::threads::mutex_locker lock( m_lock );
+        heimdall::threads::mutex_locker lock( m_lock );
         m_appTransportId = "";
         m_mediaSessionId = 0;
         setState( Connected );
@@ -1048,7 +1049,7 @@ bool intf_sys_t::handleMessages()
     size_t i_payloadSize = 0;
     size_t i_received = 0;
     bool b_timeout = false;
-    vlc_tick_t i_begin_time = vlc_tick_now();
+    heimdall_tick_t i_begin_time = heimdall_tick_now();
 
     /* Packet structure:
      * +------------------------------------+------------------------------+
@@ -1061,7 +1062,7 @@ bool intf_sys_t::handleMessages()
         // how many bytes to read
         ssize_t i_ret = m_communication->receive( p_packet + i_received,
                                         i_payloadSize + PACKET_HEADER_LEN - i_received,
-                                        PING_WAIT_TIME - SEC_FROM_VLC_TICK( vlc_tick_now() - i_begin_time ),
+                                        PING_WAIT_TIME - SEC_FROM_HEIMDALL_TICK( heimdall_tick_now() - i_begin_time ),
                                         &b_timeout );
         if ( i_ret < 0 )
         {
@@ -1069,14 +1070,14 @@ bool intf_sys_t::handleMessages()
                 return true;
             // An error occurred, we give up
             msg_Err( m_module, "The connection to the Chromecast died (receiving).");
-            vlc::threads::mutex_locker lock( m_lock );
+            heimdall::threads::mutex_locker lock( m_lock );
             setState( Dead );
             return false;
         }
         else if ( b_timeout == true )
         {
             // If no commands were queued to be sent, we timed out. Let's ping the chromecast
-            vlc::threads::mutex_locker lock( m_lock );
+            heimdall::threads::mutex_locker lock( m_lock );
             if ( m_pingRetriesLeft == 0 )
             {
                 m_state = Dead;
@@ -1096,7 +1097,7 @@ bool intf_sys_t::handleMessages()
             if ( i_payloadSize > PACKET_MAX_LEN - PACKET_HEADER_LEN )
             {
                 msg_Err( m_module, "Payload size is too long: dropping connection" );
-                vlc::threads::mutex_locker lock( m_lock );
+                heimdall::threads::mutex_locker lock( m_lock );
                 m_state = Dead;
                 return false;
             }
@@ -1128,7 +1129,7 @@ void intf_sys_t::doStop()
 
 void intf_sys_t::requestPlayerStop()
 {
-    vlc::threads::mutex_locker lock( m_lock );
+    heimdall::threads::mutex_locker lock( m_lock );
 
     std::queue<QueueableMessages> empty;
     std::swap(m_msgQueue, empty);
@@ -1136,7 +1137,7 @@ void intf_sys_t::requestPlayerStop()
     m_retry_on_fail = false;
     m_request_load = false;
 
-    if( vlc_killed() )
+    if( heimdall_killed() )
     {
         if( !isStatePlaying() )
             return;
@@ -1148,27 +1149,27 @@ void intf_sys_t::requestPlayerStop()
 
 States intf_sys_t::state() const
 {
-    vlc::threads::mutex_locker lock( m_lock );
+    heimdall::threads::mutex_locker lock( m_lock );
     return m_state;
 }
 
-vlc_tick_t intf_sys_t::timeCCToVLC(double time)
+heimdall_tick_t intf_sys_t::timeCCToHeimdall(double time)
 {
-    return vlc_tick_from_sec(time);
+    return heimdall_tick_from_sec(time);
 }
 
-std::string intf_sys_t::timeVLCToCC(vlc_tick_t time)
+std::string intf_sys_t::timeHeimdallToCC(heimdall_tick_t time)
 {
     std::stringstream ss;
     ss.setf(std::ios_base::fixed, std::ios_base::floatfield);
-    ss << std::setprecision(6) << secf_from_vlc_tick(time);
+    ss << std::setprecision(6) << secf_from_heimdall_tick(time);
     return ss.str();
 }
 
 void intf_sys_t::setOnInputEventCb(on_input_event_itf on_input_event,
                                    void *on_input_event_data)
 {
-    vlc::threads::mutex_locker lock( m_lock );
+    heimdall::threads::mutex_locker lock( m_lock );
     m_on_input_event = on_input_event;
     m_on_input_event_data = on_input_event_data;
 }
@@ -1177,20 +1178,20 @@ void intf_sys_t::setDemuxEnabled(bool enabled,
                                  on_paused_changed_itf on_paused_changed,
                                  void *on_paused_changed_data)
 {
-    vlc::threads::mutex_locker lock( m_lock );
+    heimdall::threads::mutex_locker lock( m_lock );
     m_on_paused_changed = on_paused_changed;
     m_on_paused_changed_data = on_paused_changed_data;
 
     if( enabled )
     {
-        if( m_state == Dead && !vlc_killed() )
+        if( m_state == Dead && !heimdall_killed() )
             reinit();
     }
 }
 
 void intf_sys_t::setPauseState(bool paused)
 {
-    vlc::threads::mutex_locker lock( m_lock );
+    heimdall::threads::mutex_locker lock( m_lock );
     if ( m_mediaSessionId == 0 || paused == m_paused || !m_communication )
         return;
 
@@ -1224,36 +1225,36 @@ bool intf_sys_t::isFinishedPlaying()
     return m_cc_eof || isStateError() || m_state == Stopped;
 }
 
-void intf_sys_t::setMeta(vlc_meta_t *p_meta)
+void intf_sys_t::setMeta(heimdall_meta_t *p_meta)
 {
-    vlc::threads::mutex_locker lock( m_lock );
+    heimdall::threads::mutex_locker lock( m_lock );
     if (m_meta != NULL)
-        vlc_meta_Delete(m_meta);
+        heimdall_meta_Delete(m_meta);
     m_meta = p_meta;
 }
 
-void intf_sys_t::setInputLength(vlc_tick_t length)
+void intf_sys_t::setInputLength(heimdall_tick_t length)
 {
-    vlc::threads::mutex_locker lock( m_lock );
+    heimdall::threads::mutex_locker lock( m_lock );
     m_input_length = length;
 }
 
-vlc_tick_t intf_sys_t::getPlaybackTimestamp()
+heimdall_tick_t intf_sys_t::getPlaybackTimestamp()
 {
-    vlc::threads::mutex_locker lock( m_lock );
+    heimdall::threads::mutex_locker lock( m_lock );
     switch( m_state )
     {
         case Buffering:
         case Paused:
             if( !m_played_once )
-                return VLC_TICK_INVALID;
+                return HEIMDALL_TICK_INVALID;
             /* fallthrough */
         case Playing:
         {
             assert( m_communication );
-            vlc_tick_t now = vlc_tick_now();
+            heimdall_tick_t now = heimdall_tick_now();
             if( m_state == Playing && m_last_request_id == 0
-             && now - m_cc_time_last_request_date > VLC_TICK_FROM_SEC(4) )
+             && now - m_cc_time_last_request_date > HEIMDALL_TICK_FROM_SEC(4) )
             {
                 m_cc_time_last_request_date = now;
                 m_last_request_id =
@@ -1262,7 +1263,7 @@ vlc_tick_t intf_sys_t::getPlaybackTimestamp()
             return m_cc_time + now - m_cc_time_date;
         }
         default:
-            return VLC_TICK_INVALID;
+            return HEIMDALL_TICK_INVALID;
     }
 }
 
@@ -1299,7 +1300,7 @@ void intf_sys_t::setState( States state )
     }
 }
 
-vlc_tick_t intf_sys_t::get_time(void *pt)
+heimdall_tick_t intf_sys_t::get_time(void *pt)
 {
     intf_sys_t *p_this = static_cast<intf_sys_t*>(pt);
     return p_this->getPlaybackTimestamp();
@@ -1330,13 +1331,13 @@ void intf_sys_t::set_pause_state(void *pt, bool paused)
     p_this->setPauseState( paused );
 }
 
-void intf_sys_t::set_meta(void *pt, vlc_meta_t *p_meta)
+void intf_sys_t::set_meta(void *pt, heimdall_meta_t *p_meta)
 {
     intf_sys_t *p_this = static_cast<intf_sys_t*>(pt);
     p_this->setMeta( p_meta );
 }
 
-void intf_sys_t::set_input_length(void *pt, vlc_tick_t length)
+void intf_sys_t::set_input_length(void *pt, heimdall_tick_t length)
 {
     intf_sys_t *p_this = static_cast<intf_sys_t*>(pt);
     p_this->setInputLength( length );

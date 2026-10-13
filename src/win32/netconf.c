@@ -2,6 +2,7 @@
  * netconf.c : Network configuration
  *****************************************************************************
  * Copyright (C) 2001-2008 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -24,14 +25,14 @@
 
 #include <string.h>
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_network.h>
-#include <vlc_url.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_network.h>
+#include <heimdall_url.h>
 
-char *vlc_getProxyUrl(const char *psz_url)
+char *heimdall_getProxyUrl(const char *psz_url)
 {
-    VLC_UNUSED(psz_url);
+    HEIMDALL_UNUSED(psz_url);
 
     char *proxy = config_GetPsz( "http-proxy" );
     if (proxy == NULL)
@@ -41,9 +42,9 @@ char *vlc_getProxyUrl(const char *psz_url)
     if (proxy_pwd == NULL)
         return proxy;
 
-    vlc_url_t url;
-    if (vlc_UrlParse(&url, proxy) < 0) {
-        vlc_UrlClean(&url);
+    heimdall_url_t url;
+    if (heimdall_UrlParse(&url, proxy) < 0) {
+        heimdall_UrlClean(&url);
         free (proxy);
         free (proxy_pwd);
         return NULL;
@@ -52,8 +53,8 @@ char *vlc_getProxyUrl(const char *psz_url)
     if (url.psz_password == NULL )
         url.psz_password = proxy_pwd;
 
-    char *proxy_url = vlc_uri_compose (&url);
-    vlc_UrlClean (&url);
+    char *proxy_url = heimdall_uri_compose (&url);
+    heimdall_UrlClean (&url);
 
     free (proxy_pwd);
     free (proxy);

@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright © 2006-2013 Rémi Denis-Courmont
  *           © 2013 Felix Paul Kühne
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -26,9 +27,9 @@
 #include <stdlib.h>
 #include <errno.h>
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
-const char *vlc_strerror_c(int errnum)
+const char *heimdall_strerror_c(int errnum)
 {
     /* We cannot simply use strerror() here, since it is not thread-safe. */
     if ((unsigned)errnum < (unsigned)sys_nerr)
@@ -37,7 +38,7 @@ const char *vlc_strerror_c(int errnum)
     return _("Unknown error");
 }
 
-const char *vlc_strerror(int errnum)
+const char *heimdall_strerror(int errnum)
 {
-    return vlc_strerror_c(errnum);
+    return heimdall_strerror_c(errnum);
 }

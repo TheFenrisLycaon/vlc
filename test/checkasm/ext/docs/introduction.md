@@ -48,7 +48,7 @@ the listed platforms (except RISCV-V), with fall-backs to generic OS-specific AP
 
 - [**GitLab Repository**](https://code.videolan.org/videolan/checkasm)
 - [**Issue Tracker**](https://code.videolan.org/videolan/checkasm/issues)
-- [VideoLAN Homepage](https://www.videolan.org/)
+- [Lycaria Homepage](https://www.videolan.org/)
 
 @subsection intro_next_steps Next Steps
 

@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2024 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,8 +32,8 @@
 #include "util/csdmenu_module.h"
 #include "menus/menus.hpp"
 
-#include <vlc_common.h>
-#include <vlc_modules.h>
+#include <heimdall_common.h>
+#include <heimdall_modules.h>
 
 #if QT_VERSION < QT_VERSION_CHECK(6, 7, 0)
 #if defined(Q_OS_UNIX)
@@ -46,10 +47,10 @@ struct xdg_surface;
 
 namespace {
 
-//vlc module callback
+//heimdall module callback
 static int csdMenuInfoOpen(void *func, bool forced, va_list ap)
 {
-    VLC_UNUSED(forced);
+    HEIMDALL_UNUSED(forced);
     qt_csd_menu_open open = reinterpret_cast<qt_csd_menu_open>(func);
     qt_csd_menu_t* obj = va_arg(ap, qt_csd_menu_t*);
     qt_csd_menu_info* info = va_arg(ap, qt_csd_menu_info*);
@@ -95,7 +96,7 @@ public:
 
     void fallbackMenu(QPoint pos)
     {
-        auto menu = new VLCMenu(m_ctx->getIntf());
+        auto menu = new HeimdallMenu(m_ctx->getIntf());
         menu->setAttribute(Qt::WA_DeleteOnClose);
 
         QObject::connect(menu, &QMenu::aboutToShow, q_ptr, [this](){
@@ -183,13 +184,13 @@ public:
         info.notifyMenuVisible = &notifyMenuVisible;
 
         m_systemMenuState = UNAVAILABLE;
-        m_systemMenu = vlc_object_create<qt_csd_menu_t>(m_ctx->getIntf());
+        m_systemMenu = heimdall_object_create<qt_csd_menu_t>(m_ctx->getIntf());
         if (!m_systemMenu)
             return;
-        m_module = vlc_module_load(vlc_object_logger(m_systemMenu), "qtcsdmenu", nullptr, false, &csdMenuInfoOpen, m_systemMenu, &info);
+        m_module = heimdall_module_load(heimdall_object_logger(m_systemMenu), "qtcsdmenu", nullptr, false, &csdMenuInfoOpen, m_systemMenu, &info);
         if (!m_module)
         {
-            vlc_object_delete(m_systemMenu);
+            heimdall_object_delete(m_systemMenu);
             m_systemMenu = nullptr;
             return;
         }
@@ -205,7 +206,7 @@ public:
         }
         if (m_systemMenu)
         {
-            vlc_object_delete(m_systemMenu);
+            heimdall_object_delete(m_systemMenu);
             m_systemMenu = nullptr;
         }
         m_systemMenuState = CSDMenuPrivate::NEED_INITIALISATION;

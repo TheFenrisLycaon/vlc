@@ -2,6 +2,7 @@
  Gets an artwork from the Cover Art Archive or Amazon
 
  Copyright © 2007-2010 the VideoLAN team
+ Copyright (C) 2026 TheFenrisLycaon
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -24,7 +25,7 @@ end
 
 function try_query(mbid)
     local relquery = "http://mb.videolan.org/ws/2/release/" .. mbid
-    local s = vlc.stream( relquery )
+    local s = heimdall.stream( relquery )
     if not s then return nil end
     local page = s:read( 65653 )
 
@@ -41,13 +42,13 @@ function try_query(mbid)
     if asin then
         return "http://images.amazon.com/images/P/"..asin..".01._SCLZZZZZZZ_.jpg"
     end
-    vlc.msg.dbg("Neither coverartarchive.org nor amazon have cover art for this release")
+    heimdall.msg.dbg("Neither coverartarchive.org nor amazon have cover art for this release")
     return nil
 end
 
 -- Return the mbid for the first release returned by the MusicBrainz search server for query
 function get_releaseid(query)
-    local s = vlc.stream( query )
+    local s = heimdall.stream( query )
     if not s then return nil end
     local page = s:read( 65653 )
 
@@ -62,7 +63,7 @@ end
 
 -- Return the artwork
 function fetch_art()
-    local meta = vlc.item:metas()
+    local meta = heimdall.item:metas()
 
     if meta["Listing Type"] == "radio"
     or meta["Listing Type"] == "tv"
@@ -76,12 +77,12 @@ function fetch_art()
 
     if not releaseid and meta["artist"] and meta["album"] then
         query = "artist:\"" .. meta["artist"] .. "\" AND release:\"" .. meta["album"] .. "\""
-        relquery = "http://mb.videolan.org/ws/2/release/?query=" .. vlc.strings.encode_uri_component( query )
+        relquery = "http://mb.videolan.org/ws/2/release/?query=" .. heimdall.strings.encode_uri_component( query )
         releaseid = get_releaseid( relquery )
     end
     if not releaseid and meta["artist"] and meta["title"] then
         query = "artist:\"" .. meta["artist"] .. "\" AND recording:\"" .. meta["title"] .. "\""
-        recquery = "http://mb.videolan.org/ws/2/recording/?query=" .. vlc.strings.encode_uri_component( query )
+        recquery = "http://mb.videolan.org/ws/2/recording/?query=" .. heimdall.strings.encode_uri_component( query )
         releaseid = get_releaseid( recquery )
     end
     if releaseid then

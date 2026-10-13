@@ -2,6 +2,7 @@
  * hpack.c: HPACK Header Compression for HTTP/2
  *****************************************************************************
  * Copyright (C) 2015 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -34,7 +35,7 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "vlc_common.h"
+#include "heimdall_common.h"
 #include "hpack.h"
 
 /** Static Table header names */

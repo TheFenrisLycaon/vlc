@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 2001-2006 VLC authors and VideoLAN
  * Copyright © 2006-2007 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Christophe Massiot <massiot@via.ecp.fr>
  *          Rémi Denis-Courmont
@@ -51,15 +52,15 @@
 #   include <unistd.h>
 #endif
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 #include "fs.h"
-#include <vlc_access.h>
-#include <vlc_interrupt.h>
+#include <heimdall_access.h>
+#include <heimdall_interrupt.h>
 #ifdef _WIN32
-# include <vlc_charset.h>
+# include <heimdall_charset.h>
 #endif
-#include <vlc_fs.h>
-#include <vlc_url.h>
+#include <heimdall_fs.h>
+#include <heimdall_url.h>
 
 typedef struct
 {
@@ -121,7 +122,7 @@ static bool IsRemote (int fd)
 
 static bool IsRemote(int fd, const char *path)
 {
-    VLC_UNUSED(fd);
+    HEIMDALL_UNUSED(fd);
 
     size_t len = strlen(path);
     if (len < 2)
@@ -172,7 +173,7 @@ static int FileControl (stream_t *, int, va_list);
 /*****************************************************************************
  * FileOpen: open the file
  *****************************************************************************/
-int FileOpen( vlc_object_t *p_this )
+int FileOpen( heimdall_object_t *p_this )
 {
     stream_t *p_access = (stream_t*)p_this;
 
@@ -187,14 +188,14 @@ int FileOpen( vlc_object_t *p_this )
         if (oldfd > INT_MAX)
             errno = EBADF;
         else if (*end == '\0')
-            fd = vlc_dup (oldfd);
+            fd = heimdall_dup (oldfd);
         else if (*end == '/' && end > p_access->psz_location)
         {
-            char *name = vlc_uri_decode_duplicate (end - 1);
+            char *name = heimdall_uri_decode_duplicate (end - 1);
             if (name != NULL)
             {
                 name[0] = '.';
-                fd = vlc_openat (oldfd, name, O_RDONLY | O_NONBLOCK);
+                fd = heimdall_openat (oldfd, name, O_RDONLY | O_NONBLOCK);
                 free (name);
             }
         }
@@ -202,8 +203,8 @@ int FileOpen( vlc_object_t *p_this )
     else
     {
         if (unlikely(p_access->psz_filepath == NULL))
-            return VLC_EGENERIC;
-        fd = vlc_open (p_access->psz_filepath, O_RDONLY | O_NONBLOCK);
+            return HEIMDALL_EGENERIC;
+        fd = heimdall_open (p_access->psz_filepath, O_RDONLY | O_NONBLOCK);
     }
 
     if (fd == -1)
@@ -211,14 +212,14 @@ int FileOpen( vlc_object_t *p_this )
         msg_Err (p_access, "cannot open file %s (%s)",
                  p_access->psz_filepath ? p_access->psz_filepath
                                         : p_access->psz_location,
-                 vlc_strerror_c(errno));
-        return VLC_EGENERIC;
+                 heimdall_strerror_c(errno));
+        return HEIMDALL_EGENERIC;
     }
 
     struct stat st;
     if (fstat (fd, &st))
     {
-        msg_Err (p_access, "read error: %s", vlc_strerror_c(errno));
+        msg_Err (p_access, "read error: %s", heimdall_strerror_c(errno));
         goto error;
     }
 
@@ -234,7 +235,7 @@ int FileOpen( vlc_object_t *p_this )
 #ifdef HAVE_FDOPENDIR
         DIR *p_dir = fdopendir(fd);
         if (!p_dir) {
-            msg_Err (p_access, "fdopendir error: %s", vlc_strerror_c(errno));
+            msg_Err (p_access, "fdopendir error: %s", heimdall_strerror_c(errno));
             goto error;
         }
         return DirInit (p_access, p_dir);
@@ -244,7 +245,7 @@ int FileOpen( vlc_object_t *p_this )
 #endif
     }
 
-    access_sys_t *p_sys = vlc_obj_malloc(p_this, sizeof (*p_sys));
+    access_sys_t *p_sys = heimdall_obj_malloc(p_this, sizeof (*p_sys));
     if (unlikely(p_sys == NULL))
         goto error;
     p_access->pf_read = Read;
@@ -278,17 +279,17 @@ int FileOpen( vlc_object_t *p_this )
         p_sys->b_pace_control = strcasecmp (p_access->psz_name, "stream");
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
-    vlc_close (fd);
-    return VLC_EGENERIC;
+    heimdall_close (fd);
+    return HEIMDALL_EGENERIC;
 }
 
 /*****************************************************************************
  * FileClose: close the target
  *****************************************************************************/
-void FileClose (vlc_object_t * p_this)
+void FileClose (heimdall_object_t * p_this)
 {
     stream_t     *p_access = (stream_t*)p_this;
 
@@ -300,7 +301,7 @@ void FileClose (vlc_object_t * p_this)
 
     access_sys_t *p_sys = p_access->p_sys;
 
-    vlc_close (p_sys->fd);
+    heimdall_close (p_sys->fd);
 }
 
 
@@ -309,7 +310,7 @@ static ssize_t Read (stream_t *p_access, void *p_buffer, size_t i_len)
     access_sys_t *p_sys = p_access->p_sys;
     int fd = p_sys->fd;
 
-    ssize_t val = vlc_read_i11e (fd, p_buffer, i_len);
+    ssize_t val = heimdall_read_i11e (fd, p_buffer, i_len);
     if (val < 0)
     {
         switch (errno)
@@ -319,7 +320,7 @@ static ssize_t Read (stream_t *p_access, void *p_buffer, size_t i_len)
                 return -1;
         }
 
-        msg_Err (p_access, "read error: %s", vlc_strerror_c(errno));
+        msg_Err (p_access, "read error: %s", heimdall_strerror_c(errno));
         val = 0;
     }
 
@@ -334,8 +335,8 @@ static int FileSeek (stream_t *p_access, uint64_t i_pos)
     access_sys_t *sys = p_access->p_sys;
 
     if (lseek(sys->fd, i_pos, SEEK_SET) == (off_t)-1)
-        return VLC_EGENERIC;
-    return VLC_SUCCESS;
+        return HEIMDALL_EGENERIC;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -345,7 +346,7 @@ static int FileControl( stream_t *p_access, int i_query, va_list args )
 {
     access_sys_t *p_sys = p_access->p_sys;
     bool    *pb_bool;
-    vlc_tick_t *pi_64;
+    heimdall_tick_t *pi_64;
 
     switch( i_query )
     {
@@ -372,7 +373,7 @@ static int FileControl( stream_t *p_access, int i_query, va_list args )
             struct stat st;
 
             if (fstat (p_sys->fd, &st) || !S_ISREG(st.st_mode))
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             const uint64_t stat =
                 (i_query == STREAM_GET_SIZE) ? st.st_size : st.st_mtime;
             *va_arg( args, uint64_t * ) = stat;
@@ -380,12 +381,12 @@ static int FileControl( stream_t *p_access, int i_query, va_list args )
         }
 
         case STREAM_GET_PTS_DELAY:
-            pi_64 = va_arg( args, vlc_tick_t * );
+            pi_64 = va_arg( args, heimdall_tick_t * );
             if (IsRemote (p_sys->fd, p_access->psz_filepath))
-                *pi_64 = VLC_TICK_FROM_MS(
+                *pi_64 = HEIMDALL_TICK_FROM_MS(
                         var_InheritInteger (p_access, "network-caching") );
             else
-                *pi_64 = VLC_TICK_FROM_MS(
+                *pi_64 = HEIMDALL_TICK_FROM_MS(
                         var_InheritInteger (p_access, "file-caching") );
             break;
 
@@ -394,8 +395,8 @@ static int FileControl( stream_t *p_access, int i_query, va_list args )
             break;
 
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

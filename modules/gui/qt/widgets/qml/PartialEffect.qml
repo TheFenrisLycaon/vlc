@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2024 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,8 +20,8 @@
 import QtQuick
 import QtQuick.Window
 
-import VLC.MainInterface
-import VLC.Util
+import Heimdall.MainInterface
+import Heimdall.Util
 
 // This item can be used as a layer effect.
 // The purpose of this item is to apply an effect to a partial

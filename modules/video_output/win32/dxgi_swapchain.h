@@ -2,6 +2,7 @@
  * dxgi_swapchain.h: DXGI swapchain handled by the display module
  *****************************************************************************
  * Copyright (C) 2014-2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Martell Malone <martellmalone@gmail.com>
  *          Steve Lhomme <robux4@gmail.com>
@@ -21,16 +22,16 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_DXGI_SWAPCHAIN_H
-#define VLC_DXGI_SWAPCHAIN_H
+#ifndef HEIMDALL_DXGI_SWAPCHAIN_H
+#define HEIMDALL_DXGI_SWAPCHAIN_H
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
-#include <vlc/libvlc.h>
-#include <vlc/libvlc_picture.h>
-#include <vlc/libvlc_media.h>
-#include <vlc/libvlc_renderer_discoverer.h>
-#include <vlc/libvlc_media_player.h>
+#include <heimdall/libheimdall.h>
+#include <heimdall/libheimdall_picture.h>
+#include <heimdall/libheimdall_media.h>
+#include <heimdall/libheimdall_renderer_discoverer.h>
+#include <heimdall/libheimdall_media_player.h>
 
 #include <wrl/client.h>
 
@@ -46,9 +47,9 @@
 
 struct dxgi_swapchain;
 
-struct dxgi_swapchain *DXGI_CreateLocalSwapchainHandleHwnd(vlc_object_t *, HWND);
+struct dxgi_swapchain *DXGI_CreateLocalSwapchainHandleHwnd(heimdall_object_t *, HWND);
 
-struct dxgi_swapchain *DXGI_CreateLocalSwapchainHandleDComp(vlc_object_t *,
+struct dxgi_swapchain *DXGI_CreateLocalSwapchainHandleDComp(heimdall_object_t *,
                                            void /*IDCompositionDevice*/ * dcompDevice,
                                            void /*IDCompositionVisual*/ * dcompVisual);
 
@@ -56,15 +57,15 @@ Microsoft::WRL::ComPtr<IDXGISwapChain1> & DXGI_GetSwapChain1( struct dxgi_swapch
 Microsoft::WRL::ComPtr<IDXGISwapChain4> & DXGI_GetSwapChain4( struct dxgi_swapchain * );
 const d3d_format_t  *DXGI_GetPixelFormat( struct dxgi_swapchain * );
 
-void DXGI_SelectSwapchainColorspace( struct dxgi_swapchain *, const libvlc_video_render_cfg_t *, bool match_display );
+void DXGI_SelectSwapchainColorspace( struct dxgi_swapchain *, const libheimdall_video_render_cfg_t *, bool match_display );
 void DXGI_LocalSwapchainCleanupDevice( struct dxgi_swapchain * );
-void DXGI_SwapchainUpdateOutput( struct dxgi_swapchain *, libvlc_video_output_cfg_t * );
+void DXGI_SwapchainUpdateOutput( struct dxgi_swapchain *, libheimdall_video_output_cfg_t * );
 bool DXGI_UpdateSwapChain( struct dxgi_swapchain *, IDXGIAdapter *,
                            IUnknown *pFactoryDevice,
-                           const d3d_format_t *, const libvlc_video_render_cfg_t *,
+                           const d3d_format_t *, const libheimdall_video_render_cfg_t *,
                            bool match_display );
 
 void DXGI_LocalSwapchainSwap( struct dxgi_swapchain * );
-void DXGI_LocalSwapchainSetMetadata( struct dxgi_swapchain *, libvlc_video_metadata_type_t, const void * );
+void DXGI_LocalSwapchainSetMetadata( struct dxgi_swapchain *, libheimdall_video_metadata_type_t, const void * );
 
-#endif /* VLC_DXGI_SWAPCHAIN_H */
+#endif /* HEIMDALL_DXGI_SWAPCHAIN_H */

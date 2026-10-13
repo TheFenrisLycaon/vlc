@@ -2,8 +2,9 @@
  * statistic.h : vout statistic
  *****************************************************************************
  * Copyright (C) 2009 Laurent Aimar
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Laurent Aimar <fenrir _AT_ videolan _DOT_ org>
+ * Authors: Laurent Aimar <fenrir _AT_ lycaria _DOT_ org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -20,8 +21,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef LIBVLC_VOUT_STATISTIC_H
-# define LIBVLC_VOUT_STATISTIC_H
+#ifndef LIBHEIMDALL_VOUT_STATISTIC_H
+# define LIBHEIMDALL_VOUT_STATISTIC_H
 # include <stdatomic.h>
 
 /* NOTE: Both statistics are atomic on their own, so one might be older than

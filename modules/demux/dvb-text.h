@@ -2,6 +2,7 @@
  * dvb-text.h:
  *****************************************************************************
  * Copyright (C) 2007-2011 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -23,7 +24,7 @@
  * Refer to EN 800 486 annex A.
  * @return a heap-allocation nul-terminated UTF-8 string or NULL on error.
  */
-static char *vlc_from_EIT (const void *buf, size_t length)
+static char *heimdall_from_EIT (const void *buf, size_t length)
 {
     if (unlikely(length == 0))
         return NULL;

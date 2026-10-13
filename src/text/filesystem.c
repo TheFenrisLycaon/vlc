@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 2005-2006 VLC authors and VideoLAN
  * Copyright © 2005-2008 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Rémi Denis-Courmont
  *
@@ -28,9 +29,9 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_fs.h>
-#include <vlc_sort.h>
+#include <heimdall_common.h>
+#include <heimdall_fs.h>
+#include <heimdall_sort.h>
 
 #include <assert.h>
 
@@ -46,7 +47,7 @@
  * @param mode fopen file open mode
  * @return NULL on error, an open FILE pointer on success.
  */
-FILE *vlc_fopen (const char *filename, const char *mode)
+FILE *heimdall_fopen (const char *filename, const char *mode)
 {
     int rwflags = 0, oflags = 0;
 
@@ -88,13 +89,13 @@ FILE *vlc_fopen (const char *filename, const char *mode)
         }
     }
 
-    int fd = vlc_open (filename, rwflags | oflags, 0666);
+    int fd = heimdall_open (filename, rwflags | oflags, 0666);
     if (fd == -1)
         return NULL;
 
     FILE *stream = fdopen (fd, mode);
     if (stream == NULL)
-        vlc_close (fd);
+        heimdall_close (fd);
 
     return stream;
 }
@@ -115,10 +116,10 @@ static int compar_void(const void *a, const void *b, void *data)
 }
 
 /**
- * Does the same as vlc_scandir(), but takes an open directory pointer
+ * Does the same as heimdall_scandir(), but takes an open directory pointer
  * instead of a directory path.
  */
-int vlc_loaddir( vlc_DIR *dir, char ***namelist,
+int heimdall_loaddir( heimdall_DIR *dir, char ***namelist,
                   int (*select)( const char * ),
                   int (*compar)( const char **, const char ** ) )
 {
@@ -130,12 +131,12 @@ int vlc_loaddir( vlc_DIR *dir, char ***namelist,
     char **tab = NULL;
     unsigned num = 0;
 
-    vlc_rewinddir (dir);
+    heimdall_rewinddir (dir);
 
     for (unsigned size = 0;;)
     {
         errno = 0;
-        const char *entry = vlc_readdir (dir);
+        const char *entry = heimdall_readdir (dir);
         if (entry == NULL)
         {
             if (errno)
@@ -162,7 +163,7 @@ int vlc_loaddir( vlc_DIR *dir, char ***namelist,
     }
 
     if (compar != NULL && num > 0)
-        vlc_qsort(tab, num, sizeof (*tab), compar_void, compar);
+        heimdall_qsort(tab, num, sizeof (*tab), compar_void, compar);
     *namelist = tab;
     return num;
 
@@ -186,24 +187,24 @@ error:
  * @return How many file names were selected (possibly 0),
  * or -1 in case of error.
  */
-int vlc_scandir( const char *dirname, char ***namelist,
+int heimdall_scandir( const char *dirname, char ***namelist,
                   int (*select)( const char * ),
                   int (*compar)( const char **, const char ** ) )
 {
-    vlc_DIR *dir = vlc_opendir (dirname);
+    heimdall_DIR *dir = heimdall_opendir (dirname);
     int val = -1;
 
     if (dir != NULL)
     {
-        val = vlc_loaddir (dir, namelist, select, compar);
-        vlc_closedir (dir);
+        val = heimdall_loaddir (dir, namelist, select, compar);
+        heimdall_closedir (dir);
     }
     return val;
 }
 
-# include <vlc_rand.h>
+# include <heimdall_rand.h>
 
-VLC_WEAK int vlc_mkstemp(char *template)
+HEIMDALL_WEAK int heimdall_mkstemp(char *template)
 {
     static const char bytes[] =
         "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqstruvwxyz_-";
@@ -229,12 +230,12 @@ VLC_WEAK int vlc_mkstemp(char *template)
         /* Create a pseudo random file name */
         uint8_t pi_rand[6];
 
-        vlc_rand_bytes( pi_rand, sizeof(pi_rand) );
+        heimdall_rand_bytes( pi_rand, sizeof(pi_rand) );
         for( int j = 0; j < 6; j++ )
             pattern[j] = bytes[pi_rand[j] % nbytes];
 
         /* */
-        int fd = vlc_open( template, O_CREAT | O_EXCL | O_RDWR, 0600 );
+        int fd = heimdall_open( template, O_CREAT | O_EXCL | O_RDWR, 0600 );
         if( fd >= 0 )
             return fd;
         if( errno != EEXIST )

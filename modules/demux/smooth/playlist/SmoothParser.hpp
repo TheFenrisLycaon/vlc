@@ -2,6 +2,7 @@
  * Parser.hpp
  *****************************************************************************
  * Copyright © 2015 - VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -25,7 +26,7 @@
 #include <cstdlib>
 #include <sstream>
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
 namespace adaptive
 {
@@ -53,7 +54,7 @@ namespace smooth
         class ManifestParser
         {
             public:
-                ManifestParser             (xml::Node *, vlc_object_t *,
+                ManifestParser             (xml::Node *, heimdall_object_t *,
                                             stream_t *, const std::string &);
                 virtual ~ManifestParser    ();
 
@@ -61,7 +62,7 @@ namespace smooth
 
             private:
                 xml::Node       *root;
-                vlc_object_t    *p_object;
+                heimdall_object_t    *p_object;
                 stream_t        *p_stream;
                 std::string      playlisturl;
         };

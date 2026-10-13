@@ -2,6 +2,7 @@
  * SmoothManager.cpp
  *****************************************************************************
  * Copyright © 2015 - VideoLAN and VLC authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -29,9 +30,9 @@
 #include "../adaptive/tools/Retrieve.hpp"
 #include "playlist/SmoothParser.hpp"
 #include "../adaptive/xml/DOMParser.h"
-#include <vlc_stream.h>
-#include <vlc_demux.h>
-#include <vlc_charset.h>
+#include <heimdall_stream.h>
+#include <heimdall_demux.h>
+#include <heimdall_charset.h>
 #include <time.h>
 
 using namespace adaptive;
@@ -60,7 +61,7 @@ Manifest * SmoothManager::fetchManifest()
     if(!p_block)
         return nullptr;
 
-    stream_t *memorystream = vlc_stream_MemoryNew(p_demux, p_block->p_buffer, p_block->i_buffer, true);
+    stream_t *memorystream = heimdall_stream_MemoryNew(p_demux, p_block->p_buffer, p_block->i_buffer, true);
     if(!memorystream)
     {
         block_Release(p_block);
@@ -70,14 +71,14 @@ Manifest * SmoothManager::fetchManifest()
     xml::DOMParser parser(memorystream);
     if(!parser.parse(true))
     {
-        vlc_stream_Delete(memorystream);
+        heimdall_stream_Delete(memorystream);
         block_Release(p_block);
         return nullptr;
     }
 
     Manifest *manifest = nullptr;
 
-    ManifestParser *manifestParser = new (std::nothrow) ManifestParser(parser.getRootNode(), VLC_OBJECT(p_demux),
+    ManifestParser *manifestParser = new (std::nothrow) ManifestParser(parser.getRootNode(), HEIMDALL_OBJECT(p_demux),
                                                                        memorystream, playlisturl);
     if(manifestParser)
     {
@@ -85,7 +86,7 @@ Manifest * SmoothManager::fetchManifest()
         delete manifestParser;
     }
 
-    vlc_stream_Delete(memorystream);
+    heimdall_stream_Delete(memorystream);
     block_Release(p_block);
 
     return manifest;
@@ -100,7 +101,7 @@ bool SmoothManager::updatePlaylist()
     for(it=streams.begin(); it!=streams.end(); ++it)
     {
         const AbstractStream *st = *it;
-        const vlc_tick_t m = st->getMinAheadTime();
+        const heimdall_tick_t m = st->getMinAheadTime();
         if(!st->isValid() || st->isDisabled() || !st->isSelected())
         {
             continue;
@@ -118,14 +119,14 @@ void SmoothManager::scheduleNextUpdate()
 {
     time_t now = time(nullptr);
 
-    vlc_tick_t minbuffer = getMinAheadTime() / 2;
+    heimdall_tick_t minbuffer = getMinAheadTime() / 2;
 
     if(playlist->minUpdatePeriod > minbuffer)
         minbuffer = playlist->minUpdatePeriod;
 
-    minbuffer = std::max(minbuffer, VLC_TICK_FROM_SEC(5));
+    minbuffer = std::max(minbuffer, HEIMDALL_TICK_FROM_SEC(5));
 
-    nextPlaylistupdate = now + SEC_FROM_VLC_TICK(minbuffer);
+    nextPlaylistupdate = now + SEC_FROM_HEIMDALL_TICK(minbuffer);
 
     msg_Dbg(p_demux, "Updated playlist, next update in %" PRId64 "s", (int64_t) nextPlaylistupdate - now );
 }

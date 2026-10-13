@@ -1,7 +1,8 @@
 /*****************************************************************************
- * kva.c: KVA video output plugin for vlc
+ * kva.c: KVA video output plugin for heimdall
  *****************************************************************************
  * Copyright (C) 2010, 2011, 2012 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: KO Myung-Hun <komh@chollian.net>
  *
@@ -27,10 +28,10 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_vout_display.h>
-#include <vlc_actions.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_vout_display.h>
+#include <heimdall_actions.h>
 
 #include <ctype.h>
 #include <float.h>
@@ -44,7 +45,7 @@
  * Module descriptor
  *****************************************************************************/
 static int  Open ( vout_display_t *,
-                   video_format_t *, vlc_video_context * );
+                   video_format_t *, heimdall_video_context * );
 static void Close( vout_display_t * );
 
 #define KVA_FIXT23_TEXT N_( \
@@ -62,7 +63,7 @@ static const char *const ppsz_kva_video_mode[] = {
 static const char *const ppsz_kva_video_mode_text[] = {
     N_("Auto"), N_("SNAP"), N_("WarpOverlay!"), N_("VMAN"), N_("DIVE") };
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( "KVA" )
     set_subcategory( SUBCAT_VIDEO_VOUT )
     add_string( "kva-video-mode", ppsz_kva_video_mode[0], KVA_VIDEO_MODE_TEXT,
@@ -72,7 +73,7 @@ vlc_module_begin ()
     set_description( N_("K Video Acceleration video output") )
     add_shortcut( "kva" )
     set_callback_display( Open, 100 )
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * vout_display_sys_t: video output method descriptor
@@ -121,13 +122,13 @@ static int              ConvertKey    ( USHORT );
 static MRESULT EXPENTRY MyFrameWndProc( HWND, ULONG, MPARAM, MPARAM );
 static MRESULT EXPENTRY WndProc       ( HWND, ULONG, MPARAM, MPARAM );
 
-#define WC_VLC_KVA "WC_VLC_KVA"
+#define WC_HEIMDALL_KVA "WC_HEIMDALL_KVA"
 
 #define COLOR_KEY 0x000001
 
-#define WM_VLC_MANAGE               ( WM_USER + 1 )
-#define WM_VLC_SIZE_CHANGE          ( WM_USER + 2 )
-#define WM_VLC_SET_POS              ( WM_USER + 3 )
+#define WM_HEIMDALL_MANAGE               ( WM_USER + 1 )
+#define WM_HEIMDALL_SIZE_CHANGE          ( WM_USER + 2 )
+#define WM_HEIMDALL_SET_POS              ( WM_USER + 3 )
 
 #define TID_HIDE_MOUSE  0x1010
 
@@ -142,12 +143,12 @@ struct open_init
 };
 
 static void Prepare(vout_display_t *vd, picture_t *pic,
-                    const struct vlc_render_subpicture *subpic, vlc_tick_t date)
+                    const struct heimdall_render_subpicture *subpic, heimdall_tick_t date)
 {
-    VLC_UNUSED(subpic);
-    VLC_UNUSED(date);
+    HEIMDALL_UNUSED(subpic);
+    HEIMDALL_UNUSED(date);
     picture_t fake_pic = *pic;
-    if (KVALock(vd->sys, &fake_pic) == VLC_SUCCESS)
+    if (KVALock(vd->sys, &fake_pic) == HEIMDALL_SUCCESS)
     {
         picture_CopyPixels(&fake_pic, pic);
         KVAUnlock(&fake_pic);
@@ -160,12 +161,12 @@ static int PlacementChanged(vout_display_t *vd, const vout_display_place_t *plac
     sys->kvas.ulAspectWidth  = place->width;
     sys->kvas.ulAspectHeight = place->height;
     kvaSetup( &sys->kvas );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int AspectChanged(vout_display_t *vd, const video_format_t *source)
 {
-    VLC_UNUSED(source);
+    HEIMDALL_UNUSED(source);
     return PlacementChanged(vd, vd->place);
 }
 
@@ -182,10 +183,10 @@ static int CropChanged(vout_display_t *vd, const video_format_t *source)
     sys->kvas.rclSrcRect.yBottom = src_rot.i_y_offset +
                                    src_rot.i_visible_height;
     kvaSetup( &sys->kvas );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static const struct vlc_display_operations ops = {
+static const struct heimdall_display_operations ops = {
     .close = Close,
     .prepare = Prepare,
     .display = Display,
@@ -217,7 +218,7 @@ static void PMThread( void *arg )
     sys->hmq = WinCreateMsgQueue( sys->hab, 0);
 
     WinRegisterClass( sys->hab,
-                      WC_VLC_KVA,
+                      WC_HEIMDALL_KVA,
                       WndProc,
                       CS_SIZEREDRAW | CS_MOVENOTIFY,
                       sizeof( PVOID ));
@@ -245,7 +246,7 @@ static void PMThread( void *arg )
         WinCreateStdWindow( sys->parent,      /* parent window handle */
                             WS_VISIBLE,       /* frame window style */
                             &i_frame_flags,   /* window style */
-                            WC_VLC_KVA,       /* class name */
+                            WC_HEIMDALL_KVA,       /* class name */
                             "",               /* window title */
                             0L,               /* default client style */
                             NULLHANDLE,       /* resource in exe file */
@@ -310,7 +311,7 @@ static void PMThread( void *arg )
     /* Prevent SIG_FPE */
     _control87(MCW_EM, MCW_EM);
 
-    sys->i_result = VLC_SUCCESS;
+    sys->i_result = HEIMDALL_SUCCESS;
     DosPostEventSem( sys->ack_event );
 
     while( WinGetMsg( sys->hab, &qm, NULLHANDLE, 0, 0 ))
@@ -338,7 +339,7 @@ exit_frame :
     WinDestroyMsgQueue( sys->hmq );
     WinTerminate( sys->hab );
 
-    sys->i_result = VLC_EGENERIC;
+    sys->i_result = HEIMDALL_EGENERIC;
     DosPostEventSem( sys->ack_event );
 }
 
@@ -346,25 +347,25 @@ exit_frame :
  * This function initializes KVA vout method.
  */
 static int Open ( vout_display_t *vd,
-                  video_format_t *fmtp, vlc_video_context *context )
+                  video_format_t *fmtp, heimdall_video_context *context )
 {
     vout_display_sys_t *sys;
     struct open_init init = {
         .vd   = vd,
         .fmtp = fmtp,
     };
-    VLC_UNUSED(context);
+    HEIMDALL_UNUSED(context);
 
     vd->sys = sys = calloc( 1, sizeof( *sys ));
     if( !sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     sys->b_fixt23 = var_CreateGetBool( vd, "kva-fixt23");
 
-    if( !sys->b_fixt23 && vd->cfg->window->type != VLC_WINDOW_TYPE_HWND )
+    if( !sys->b_fixt23 && vd->cfg->window->type != HEIMDALL_WINDOW_TYPE_HWND )
     {
         free( sys );
-        return VLC_ENOTSUP;
+        return HEIMDALL_ENOTSUP;
     }
 
     DosCreateEventSem( NULL, &sys->ack_event, 0, FALSE );
@@ -372,20 +373,20 @@ static int Open ( vout_display_t *vd,
     sys->tid = _beginthread( PMThread, NULL, 1024 * 1024, &init );
     DosWaitEventSem( sys->ack_event, SEM_INDEFINITE_WAIT );
 
-    if( sys->i_result != VLC_SUCCESS )
+    if( sys->i_result != HEIMDALL_SUCCESS )
     {
         DosCloseEventSem( sys->ack_event );
 
         free( sys );
 
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Sometimes WinSetWindowPos() causes locking. To avoid this,
      * post a message here */
-    WinPostMsg( sys->client, WM_VLC_SET_POS, 0, 0 );
+    WinPostMsg( sys->client, WM_HEIMDALL_SET_POS, 0, 0 );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -415,21 +416,21 @@ static void Display( vout_display_t *vd, picture_t *picture )
 {
     vout_display_sys_t * sys = vd->sys;
 
-    VLC_UNUSED( picture );
+    HEIMDALL_UNUSED( picture );
 
     /* Let a window procedure manage instead because if resizing a frame window
      * here, WM_SIZE is not sent to its child window.
      * Maybe, is this due to the different threads ? */
-    WinPostMsg( sys->client, WM_VLC_MANAGE, 0, 0 );
+    WinPostMsg( sys->client, WM_HEIMDALL_MANAGE, 0, 0 );
 }
 
 static int SetDisplaySize( vout_display_t *vd, unsigned width, unsigned height )
 {
     vout_display_sys_t *sys = vd->sys;
-    WinPostMsg( sys->client, WM_VLC_SIZE_CHANGE,
+    WinPostMsg( sys->client, WM_HEIMDALL_SIZE_CHANGE,
                 MPFROMLONG( width ),
                 MPFROMLONG( height ));
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /* following functions are local */
@@ -443,7 +444,7 @@ static int SetDisplaySize( vout_display_t *vd, unsigned width, unsigned height )
 static int OpenDisplay( vout_display_t *vd, video_format_t *fmt )
 {
     vout_display_sys_t * sys = vd->sys;
-    vlc_fourcc_t *fallback;
+    heimdall_fourcc_t *fallback;
     bool b_hw_accel = 0;
     FOURCC i_kva_fourcc;
     int i_chroma_shift = 0;
@@ -453,8 +454,8 @@ static int OpenDisplay( vout_display_t *vd, video_format_t *fmt )
 
     for( int pass = 0; pass < 2 && !b_hw_accel; pass++ )
     {
-        fallback = ( pass == 0 ) ? vlc_fourcc_GetYUVFallback( fmt->i_chroma ) :
-                                   vlc_fourcc_GetRGBFallback( fmt->i_chroma );
+        fallback = ( pass == 0 ) ? heimdall_fourcc_GetYUVFallback( fmt->i_chroma ) :
+                                   heimdall_fourcc_GetRGBFallback( fmt->i_chroma );
         if( fallback == NULL )
             continue;
 
@@ -462,18 +463,18 @@ static int OpenDisplay( vout_display_t *vd, video_format_t *fmt )
         {
             switch( fallback[ i ])
             {
-                case VLC_CODEC_YV12:
+                case HEIMDALL_CODEC_YV12:
                     b_hw_accel = sys->kvac.ulInputFormatFlags & KVAF_YV12;
                     i_kva_fourcc = FOURCC_YV12;
                     i_chroma_shift = 1;
                     break;
 
-                case VLC_CODEC_YUYV:
+                case HEIMDALL_CODEC_YUYV:
                     b_hw_accel = sys->kvac.ulInputFormatFlags & KVAF_YUY2;
                     i_kva_fourcc = FOURCC_Y422;
                     break;
 
-                case VLC_CODEC_RGB565:
+                case HEIMDALL_CODEC_RGB565:
                     if (sys->kvac.ulInputFormatFlags & KVAF_BGR16)
                     {
                         b_hw_accel = true;
@@ -481,7 +482,7 @@ static int OpenDisplay( vout_display_t *vd, video_format_t *fmt )
                     }
                     break;
 
-                case VLC_CODEC_RGB555:
+                case HEIMDALL_CODEC_RGB555:
                     if (sys->kvac.ulInputFormatFlags & KVAF_BGR15)
                     {
                         b_hw_accel = true;
@@ -489,7 +490,7 @@ static int OpenDisplay( vout_display_t *vd, video_format_t *fmt )
                     }
                     break;
 
-                case VLC_CODEC_BGRX:
+                case HEIMDALL_CODEC_BGRX:
                     if (sys->kvac.ulInputFormatFlags & KVAF_BGR32)
                     {
                         b_hw_accel = true;
@@ -497,7 +498,7 @@ static int OpenDisplay( vout_display_t *vd, video_format_t *fmt )
                     }
                     break;
 
-                case VLC_CODEC_BGR24:
+                case HEIMDALL_CODEC_BGR24:
                     if (sys->kvac.ulInputFormatFlags & KVAF_BGR24)
                     {
                         b_hw_accel = true;
@@ -519,7 +520,7 @@ static int OpenDisplay( vout_display_t *vd, video_format_t *fmt )
     {
         msg_Err( vd, "Ooops. There is no fourcc supported by KVA at all.");
 
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     msg_Dbg( vd, "output chroma = %4.4s", ( const char * )&fmt->i_chroma );
@@ -545,7 +546,7 @@ static int OpenDisplay( vout_display_t *vd, video_format_t *fmt )
     {
         msg_Err( vd, "cannot set up KVA");
 
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     sys->i_chroma_shift = i_chroma_shift;
@@ -578,7 +579,7 @@ static int OpenDisplay( vout_display_t *vd, video_format_t *fmt )
         sys->client_rect.yTop    = sys->client_rect.yBottom + h;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -589,7 +590,7 @@ static int OpenDisplay( vout_display_t *vd, video_format_t *fmt )
  *****************************************************************************/
 static void CloseDisplay( vout_display_t *vd )
 {
-    VLC_UNUSED( vd );
+    HEIMDALL_UNUSED( vd );
 }
 
 static int KVALock( vout_display_sys_t *sys, picture_t *picture )
@@ -598,7 +599,7 @@ static int KVALock( vout_display_sys_t *sys, picture_t *picture )
     ULONG kva_bpl;
 
     if( kvaLockBuffer( &kva_buffer, &kva_bpl ))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* Packed or Y plane */
     picture->p->p_pixels = ( uint8_t * )kva_buffer;
@@ -616,12 +617,12 @@ static int KVALock( vout_display_sys_t *sys, picture_t *picture )
         p->i_lines  = picture->format.i_height >> sys->i_chroma_shift;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void KVAUnlock( picture_t *picture )
 {
-    VLC_UNUSED( picture );
+    HEIMDALL_UNUSED( picture );
 
     kvaUnlockBuffer();
 }
@@ -643,8 +644,8 @@ static void MorphToPM( void )
 static const struct
 {
     USHORT i_pmkey;
-    int    i_vlckey;
-} pmkeys_to_vlckeys[] =
+    int    i_heimdallkey;
+} pmkeys_to_heimdallkeys[] =
 {
     { VK_LEFT, KEY_LEFT },
     { VK_RIGHT, KEY_RIGHT },
@@ -707,10 +708,10 @@ static const struct
 static int ConvertKey( USHORT i_pmkey )
 {
     int i;
-    for( i = 0; pmkeys_to_vlckeys[ i ].i_pmkey != 0; i++ )
+    for( i = 0; pmkeys_to_heimdallkeys[ i ].i_pmkey != 0; i++ )
     {
-        if( pmkeys_to_vlckeys[ i ].i_pmkey == i_pmkey )
-            return pmkeys_to_vlckeys[ i ].i_vlckey;
+        if( pmkeys_to_heimdallkeys[ i ].i_pmkey == i_pmkey )
+            return pmkeys_to_heimdallkeys[ i ].i_heimdallkey;
     }
     return 0;
 }
@@ -826,7 +827,7 @@ static void MousePressed( vout_display_t *vd, HWND hwnd, unsigned button )
 
     sys->button_pressed |= 1 << button;
 
-    vlc_window_ReportMousePressed( vd->cfg->window, button );
+    heimdall_window_ReportMousePressed( vd->cfg->window, button );
 }
 
 static void MouseReleased( vout_display_t *vd, unsigned button )
@@ -837,7 +838,7 @@ static void MouseReleased( vout_display_t *vd, unsigned button )
     if( !sys->button_pressed )
         WinSetCapture( HWND_DESKTOP, NULLHANDLE );
 
-    vlc_window_ReportMouseReleased( vd->cfg->window, button );
+    heimdall_window_ReportMouseReleased( vd->cfg->window, button );
 }
 
 #define WM_MOUSELEAVE   0x41F
@@ -870,7 +871,7 @@ static MRESULT EXPENTRY WndProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
     {
         /* the user wants to close the window */
         case WM_CLOSE:
-            vlc_window_ReportClose(vd->cfg->window);
+            heimdall_window_ReportClose(vd->cfg->window);
             result = 0;
             break;
 
@@ -885,7 +886,7 @@ static MRESULT EXPENTRY WndProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
             /* Invert Y coordinate */
             y = vd->cfg->display.height - y;
 
-            vlc_window_ReportMouseMoved( vd->cfg->window, x, y );
+            heimdall_window_ReportMouseMoved( vd->cfg->window, x, y );
 
             result = WinDefWindowProc( hwnd, msg, mp1,mp2 );
             break;
@@ -916,7 +917,7 @@ static MRESULT EXPENTRY WndProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
             break;
 
         case WM_BUTTON1DBLCLK :
-            vlc_window_ReportMouseDoubleClick( vd->cfg->window, MOUSE_BUTTON_LEFT );
+            heimdall_window_ReportMouseDoubleClick( vd->cfg->window, MOUSE_BUTTON_LEFT );
             break;
 
         case WM_TRANSLATEACCEL :
@@ -957,7 +958,7 @@ static MRESULT EXPENTRY WndProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
                     if( i_flags & KC_ALT )
                         i_key |= KEY_MODIFIER_ALT;
 
-                    vlc_window_ReportKeyPress(vd->cfg->window, i_key);
+                    heimdall_window_ReportKeyPress(vd->cfg->window, i_key);
                 }
             }
             break;
@@ -982,11 +983,11 @@ static MRESULT EXPENTRY WndProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
             break;
 
         /* Process Manage() call */
-        case WM_VLC_MANAGE :
+        case WM_HEIMDALL_MANAGE :
             break;
 
         /* Size change */
-        case WM_VLC_SIZE_CHANGE :
+        case WM_HEIMDALL_SIZE_CHANGE :
             rcl.xLeft   = 0;
             rcl.yBottom = 0;
             rcl.xRight  = LONGFROMMP( mp1 );
@@ -1007,7 +1008,7 @@ static MRESULT EXPENTRY WndProc( HWND hwnd, ULONG msg, MPARAM mp1, MPARAM mp2 )
             break;
 
         /* Set position */
-        case WM_VLC_SET_POS :
+        case WM_HEIMDALL_SET_POS :
             rcl = sys->client_rect;
 
             WinCalcFrameRect( sys->frame, &rcl, FALSE);

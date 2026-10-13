@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2024 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -54,27 +55,27 @@ static bool CSDMenuPopup(qt_csd_menu_t* p_this, qt_csd_menu_event* event)
 int X11CSDMenuOpen(qt_csd_menu_t* p_this, qt_csd_menu_info* info)
 {
     if (info->platform != QT_CSD_PLATFORM_X11) {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if (info->data.x11.connection == NULL || info->data.x11.rootwindow == 0) {
         msg_Warn(p_this, "X11 connection or root window missing");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    csd_menu_priv_t* sys = (csd_menu_priv_t*)vlc_obj_calloc(p_this, 1, sizeof(csd_menu_priv_t));
+    csd_menu_priv_t* sys = (csd_menu_priv_t*)heimdall_obj_calloc(p_this, 1, sizeof(csd_menu_priv_t));
     if (!sys)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     sys->connection = info->data.x11.connection;
     sys->rootWindow = info->data.x11.rootwindow;
 
-    sys->gtkShowWindowMenuAtom = vlc::getInternAtom(sys->connection, "_GTK_SHOW_WINDOW_MENU");
+    sys->gtkShowWindowMenuAtom = heimdall::getInternAtom(sys->connection, "_GTK_SHOW_WINDOW_MENU");
 
     if (sys->gtkShowWindowMenuAtom == 0)
         goto error;
 
-    if (!vlc::wmNetSupport(sys->connection, info->data.x11.rootwindow, sys->gtkShowWindowMenuAtom))
+    if (!heimdall::wmNetSupport(sys->connection, info->data.x11.rootwindow, sys->gtkShowWindowMenuAtom))
         goto error;
 
 
@@ -82,12 +83,12 @@ int X11CSDMenuOpen(qt_csd_menu_t* p_this, qt_csd_menu_info* info)
     p_this->popup = CSDMenuPopup;
     p_this->p_sys = sys;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     p_this->p_sys = NULL;
-    vlc_obj_free(p_this, sys);
-    return VLC_EGENERIC;
+    heimdall_obj_free(p_this, sys);
+    return HEIMDALL_EGENERIC;
 }
 
 }

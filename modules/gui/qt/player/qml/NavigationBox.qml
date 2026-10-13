@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2023 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,11 +22,11 @@ import QtQuick.Templates as T
 import QtQuick.Layouts
 
 
-import VLC.MainInterface
-import VLC.Style
-import VLC.Widgets as Widgets
-import VLC.Player
-import VLC.Util
+import Heimdall.MainInterface
+import Heimdall.Style
+import Heimdall.Widgets as Widgets
+import Heimdall.Player
+import Heimdall.Util
 
 T.Control {
     id: navigationBox
@@ -38,7 +39,7 @@ T.Control {
     Accessible.name: qsTr("DVD navigation")
     AccessibleCompat.id: "navigationBox"
 
-    padding: VLCStyle.focus_border
+    padding: HeimdallStyle.focus_border
 
     property real dragXMin: 0
     property real dragXMax: 0
@@ -68,8 +69,8 @@ T.Control {
     contentItem: GridLayout {
         columns: 3
         rows: 2
-        columnSpacing: VLCStyle.margin_xxsmall
-        rowSpacing: VLCStyle.margin_xxsmall
+        columnSpacing: HeimdallStyle.margin_xxsmall
+        rowSpacing: HeimdallStyle.margin_xxsmall
 
         Widgets.ActionButtonOverlay {
             id: closeButton
@@ -77,8 +78,8 @@ T.Control {
             Layout.alignment: Qt.AlignRight | Qt.AlignTop
             Layout.column: 2
             Layout.row: 0
-            iconTxt: VLCIcons.window_close
-            iconSize: VLCStyle.icon_normal
+            iconTxt: HeimdallIcons.window_close
+            iconSize: HeimdallStyle.icon_normal
 
             Accessible.name: qsTr("Close navigation")
             AccessibleCompat.id: "navCloseButton"
@@ -93,8 +94,8 @@ T.Control {
             color: theme.fg.secondary
             Layout.column: 1
             Layout.row: 0
-            iconTxt: VLCIcons.ic_fluent_chevron_up_24
-            iconSize: VLCStyle.icon_large
+            iconTxt: HeimdallIcons.ic_fluent_chevron_up_24
+            iconSize: HeimdallStyle.icon_large
 
             Accessible.name: qsTr("Navigate up")
             AccessibleCompat.id: "navUpButton"
@@ -107,8 +108,8 @@ T.Control {
             color: theme.fg.secondary
             Layout.column: 0
             Layout.row: 1
-            iconTxt: VLCIcons.ic_fluent_chevron_left_24
-            iconSize: VLCStyle.icon_large
+            iconTxt: HeimdallIcons.ic_fluent_chevron_left_24
+            iconSize: HeimdallStyle.icon_large
 
             Accessible.name: qsTr("Navigate left")
             AccessibleCompat.id: "navLeftButton"
@@ -121,9 +122,9 @@ T.Control {
             color: theme.fg.secondary
             Layout.column: 1
             Layout.row: 1
-            iconTxt: VLCIcons.ok
-            font.pixelSize: VLCStyle.fontSize_large
-            iconSize: VLCStyle.icon_normal
+            iconTxt: HeimdallIcons.ok
+            font.pixelSize: HeimdallStyle.fontSize_large
+            iconSize: HeimdallStyle.icon_normal
 
             Accessible.name: qsTr("Select")
             AccessibleCompat.id: "navOkButton"
@@ -136,8 +137,8 @@ T.Control {
             color: theme.fg.secondary
             Layout.column: 2
             Layout.row: 1
-            iconTxt: VLCIcons.ic_fluent_chevron_right_24
-            iconSize: VLCStyle.icon_large
+            iconTxt: HeimdallIcons.ic_fluent_chevron_right_24
+            iconSize: HeimdallStyle.icon_large
 
             Accessible.name: qsTr("Navigate right")
             AccessibleCompat.id: "navRightButton"
@@ -150,8 +151,8 @@ T.Control {
             color: theme.fg.secondary
             Layout.column: 1
             Layout.row: 2
-            iconTxt: VLCIcons.ic_fluent_chevron_down_24
-            iconSize: VLCStyle.icon_large
+            iconTxt: HeimdallIcons.ic_fluent_chevron_down_24
+            iconSize: HeimdallStyle.icon_large
 
             Accessible.name: qsTr("Navigate down")
             AccessibleCompat.id: "navDownButton"
@@ -164,9 +165,9 @@ T.Control {
         id: navBoxBackgound
         color: "black"
         opacity: 0.4
-        radius: VLCStyle.navBoxButton_radius
+        radius: HeimdallStyle.navBoxButton_radius
         border.color: theme.bg.secondary
-        border.width: VLCStyle.border
+        border.width: HeimdallStyle.border
         border.pixelAligned: (radius < Number.EPSILON)
 
         MouseArea {

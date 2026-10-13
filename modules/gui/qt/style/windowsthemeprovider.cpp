@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2022 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,11 +33,11 @@ namespace
 class WinColorSchemeObserver : public QAbstractNativeEventFilter
 {
 public:
-    WinColorSchemeObserver(vlc_qt_theme_provider_t* obj)
+    WinColorSchemeObserver(heimdall_qt_theme_provider_t* obj)
         : m_obj(obj)
         , m_settings(QLatin1String {WIN_THEME_SETTING_PATH}, QSettings::NativeFormat)
     {
-        vlc_assert(obj);
+        heimdall_assert(obj);
         qApp->installNativeEventFilter(this);
     }
 
@@ -72,14 +73,14 @@ public:
     }
 
 private:
-    vlc_qt_theme_provider_t* m_obj = nullptr;
+    heimdall_qt_theme_provider_t* m_obj = nullptr;
 
     QSettings m_settings;
 };
 
-static void setQtColor(vlc_qt_theme_provider_t* obj,
-                        vlc_qt_theme_color_set set, vlc_qt_theme_color_section section,
-                        vlc_qt_theme_color_name name, vlc_qt_theme_color_state state,
+static void setQtColor(heimdall_qt_theme_provider_t* obj,
+                        heimdall_qt_theme_color_set set, heimdall_qt_theme_color_section section,
+                        heimdall_qt_theme_color_name name, heimdall_qt_theme_color_state state,
                         int color)
 {
     const DWORD c = GetSysColor(color);
@@ -87,21 +88,21 @@ static void setQtColor(vlc_qt_theme_provider_t* obj,
 }
 
 
-static void setQtColorFg(vlc_qt_theme_provider_t* obj,
-                        vlc_qt_theme_color_set set, vlc_qt_theme_color_name name, vlc_qt_theme_color_state state, int role)
+static void setQtColorFg(heimdall_qt_theme_provider_t* obj,
+                        heimdall_qt_theme_color_set set, heimdall_qt_theme_color_name name, heimdall_qt_theme_color_state state, int role)
 {
     setQtColor(obj, set, VQTC_SECTION_FG, name, state, role);
 }
 
-static void setQtColorBg(vlc_qt_theme_provider_t* obj,
-                        vlc_qt_theme_color_set set, vlc_qt_theme_color_name name, vlc_qt_theme_color_state state, int role)
+static void setQtColorBg(heimdall_qt_theme_provider_t* obj,
+                        heimdall_qt_theme_color_set set, heimdall_qt_theme_color_name name, heimdall_qt_theme_color_state state, int role)
 {
     setQtColor(obj, set, VQTC_SECTION_BG, name, state, role);
 }
 
 
-static void setQtColorButton(vlc_qt_theme_provider_t* obj,
-                        vlc_qt_theme_color_set CS)
+static void setQtColorButton(heimdall_qt_theme_provider_t* obj,
+                        heimdall_qt_theme_color_set CS)
 {
     setQtColorBg(obj, CS, VQTC_NAME_PRIMARY, VQTC_STATE_NORMAL, COLOR_3DFACE);
     setQtColorFg(obj, CS, VQTC_NAME_PRIMARY, VQTC_STATE_NORMAL, COLOR_BTNTEXT);
@@ -118,13 +119,13 @@ static void setQtColorButton(vlc_qt_theme_provider_t* obj,
 
 }
 
-static bool isThemeDark(vlc_qt_theme_provider_t* obj)
+static bool isThemeDark(heimdall_qt_theme_provider_t* obj)
 {
     auto sys = static_cast<WinColorSchemeObserver*>(obj->p_sys);
     return sys->isThemeDark();
 }
 
-static int updatePalette(vlc_qt_theme_provider_t* obj)
+static int updatePalette(heimdall_qt_theme_provider_t* obj)
 {
     HIGHCONTRAST constrastInfo;
     constrastInfo.cbSize = sizeof(HIGHCONTRAST);
@@ -140,7 +141,7 @@ static int updatePalette(vlc_qt_theme_provider_t* obj)
 
         //View
         {
-            vlc_qt_theme_color_set CS = VQTC_SET_VIEW;
+            heimdall_qt_theme_color_set CS = VQTC_SET_VIEW;
             setQtColorBg(obj, CS, VQTC_NAME_PRIMARY, VQTC_STATE_NORMAL, COLOR_WINDOW);
             setQtColorFg(obj, CS, VQTC_NAME_PRIMARY, VQTC_STATE_NORMAL, COLOR_WINDOWTEXT);
             setQtColorFg(obj, CS, VQTC_NAME_PRIMARY, VQTC_STATE_DISABLED, COLOR_GRAYTEXT);
@@ -186,14 +187,14 @@ static int updatePalette(vlc_qt_theme_provider_t* obj)
         setQtColorButton(obj, VQTC_SET_BUTTON_STANDARD);
         setQtColorButton(obj, VQTC_SET_SWITCH);
 
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
-    //use VLC palette, choose the one maching the dark/light settings
-    return VLC_EGENERIC;
+    //use Heimdall palette, choose the one maching the dark/light settings
+    return HEIMDALL_EGENERIC;
 }
 
-static void Close(vlc_qt_theme_provider_t* obj)
+static void Close(heimdall_qt_theme_provider_t* obj)
 {
     auto sys = static_cast<WinColorSchemeObserver*>(obj->p_sys);
     delete sys;
@@ -201,23 +202,23 @@ static void Close(vlc_qt_theme_provider_t* obj)
 
 //module definition is made in qt.cpp as we are statically linked to on windows
 //we don't want a bloated dll just for this feature
-int WindowsThemeProviderOpen(vlc_object_t* p_this)
+int WindowsThemeProviderOpen(heimdall_object_t* p_this)
 {
-    vlc_qt_theme_provider_t* obj = (vlc_qt_theme_provider_t*)p_this;
+    heimdall_qt_theme_provider_t* obj = (heimdall_qt_theme_provider_t*)p_this;
 
     QSettings settings(QLatin1String {WIN_THEME_SETTING_PATH}, QSettings::NativeFormat);
     if (! settings.contains(WIN_THEME_SETTING_LIGHT_THEME_KEY))
     {
         //can't detect theme change, module is useless
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     auto observer = new (std::nothrow) WinColorSchemeObserver(obj);
     if (!observer)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     obj->p_sys = observer;
     obj->close = Close;
     obj->isThemeDark = isThemeDark;
     obj->updatePalette = updatePalette;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

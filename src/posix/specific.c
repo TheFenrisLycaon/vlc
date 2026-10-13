@@ -2,6 +2,7 @@
  * specific.c: stubs for POSIX OS-specific initialization
  *****************************************************************************
  * Copyright © 2008 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,56 +23,56 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include "../libvlc.h"
-#include "../lib/libvlc_internal.h"
+#include <heimdall_common.h>
+#include "../libheimdall.h"
+#include "../lib/libheimdall_internal.h"
 
 #ifdef HAVE_DBUS
 /* used for one-instance mode */
 # include <dbus/dbus.h>
-# include <vlc_url.h>
+# include <heimdall_url.h>
 #endif
 
 void system_Init (void)
 {
 }
 
-static void system_ConfigureDbus(libvlc_int_t *vlc, int argc,
+static void system_ConfigureDbus(libheimdall_int_t *heimdall, int argc,
                                  const char *const argv[])
 {
 /* FIXME: could be replaced by using Unix sockets */
 #ifdef HAVE_DBUS
 # define MPRIS_APPEND "/org/mpris/MediaPlayer2/TrackList/Append"
-# define MPRIS_BUS_NAME "org.mpris.MediaPlayer2.vlc"
+# define MPRIS_BUS_NAME "org.mpris.MediaPlayer2.heimdall"
 # define MPRIS_OBJECT_PATH "/org/mpris/MediaPlayer2"
 # define MPRIS_TRACKLIST_INTERFACE "org.mpris.MediaPlayer2.TrackList"
 
     dbus_threads_init_default();
 
-    if (var_InheritBool(vlc, "dbus"))
-        libvlc_InternalAddIntf(vlc, "dbus,none");
+    if (var_InheritBool(heimdall, "dbus"))
+        libheimdall_InternalAddIntf(heimdall, "dbus,none");
 
-    if (!var_InheritBool(vlc, "one-instance")
-     && !(var_InheritBool(vlc, "one-instance-when-started-from-file")
-       && var_InheritBool(vlc, "started-from-file")))
+    if (!var_InheritBool(heimdall, "one-instance")
+     && !(var_InheritBool(heimdall, "one-instance-when-started-from-file")
+       && var_InheritBool(heimdall, "started-from-file")))
          return;
 
     for (int i = 0; i < argc; i++)
         if (argv[i][0] == ':')
         {
-            msg_Err(vlc, "item option %s incompatible with single instance",
+            msg_Err(heimdall, "item option %s incompatible with single instance",
                     argv[i]);
             return;
         }
 
-    char *name = var_GetString(vlc, "dbus-mpris-name");
+    char *name = var_GetString(heimdall, "dbus-mpris-name");
     if (name != NULL)
     {
         bool singleton = !strcmp(name, MPRIS_BUS_NAME);
         free(name);
         if (singleton)
         {
-            msg_Dbg(vlc, "no running VLC instance - continuing normally...");
+            msg_Dbg(heimdall, "no running Heimdall instance - continuing normally...");
             return; /* This is the single instance */
         }
     }
@@ -84,15 +85,15 @@ static void system_ConfigureDbus(libvlc_int_t *vlc, int argc,
     DBusConnection *conn = dbus_bus_get(DBUS_BUS_SESSION, &err);
     if (conn == NULL)
     {
-        msg_Err(vlc, "D-Bus session bus connection failure: %s",
+        msg_Err(heimdall, "D-Bus session bus connection failure: %s",
                  err.message);
         dbus_error_free(&err);
         return;
     }
 
-    msg_Warn(vlc, "running VLC instance - exiting...");
+    msg_Warn(heimdall, "running Heimdall instance - exiting...");
 
-    const dbus_bool_t play = !var_InheritBool(vlc, "playlist-enqueue");
+    const dbus_bool_t play = !var_InheritBool(heimdall, "playlist-enqueue");
 
     for (int i = 0; i < argc; i++)
     {
@@ -109,7 +110,7 @@ static void system_ConfigureDbus(libvlc_int_t *vlc, int argc,
             mrl = argv[i];
         else
         {
-            mrlbuf = vlc_path2uri(argv[i], NULL);
+            mrlbuf = heimdall_path2uri(argv[i], NULL);
             if (unlikely(mrlbuf == NULL))
             {
                 dbus_message_unref(req);
@@ -119,7 +120,7 @@ static void system_ConfigureDbus(libvlc_int_t *vlc, int argc,
         }
 
         /* append MRLs */
-        msg_Dbg(vlc, "adding track %s to running instance", mrl);
+        msg_Dbg(heimdall, "adding track %s to running instance", mrl);
 
         const char *after_track = MPRIS_APPEND;
         dbus_bool_t ok = dbus_message_append_args(req, DBUS_TYPE_STRING, &mrl,
@@ -139,7 +140,7 @@ static void system_ConfigureDbus(libvlc_int_t *vlc, int argc,
         dbus_message_unref(req);
         if (reply == NULL)
         {
-            msg_Err(vlc, "D-Bus error: %s", err.message);
+            msg_Err(heimdall, "D-Bus error: %s", err.message);
             dbus_error_free(&err);
             continue;
         }
@@ -150,12 +151,12 @@ static void system_ConfigureDbus(libvlc_int_t *vlc, int argc,
     dbus_connection_unref(conn);
     exit(0);
 #else
-    (void) vlc; (void) argc; (void) argv;
+    (void) heimdall; (void) argc; (void) argv;
 #endif // HAVE_DBUS
 }
 
-void system_Configure(libvlc_int_t *libvlc,
+void system_Configure(libheimdall_int_t *libheimdall,
                       int argc, const char *const argv[])
 {
-    system_ConfigureDbus(libvlc, argc, argv);
+    system_ConfigureDbus(libheimdall, argc, argv);
 }

@@ -5,9 +5,10 @@
  * Copyright © 2009 Laurent Aimar
  * Copyright © 2015 Steve Lhomme
  * Copyright © 2015 VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Geoffroy Couprie <geal@videolan.org>
- *          Laurent Aimar <fenrir _AT_ videolan _DOT_ org>
+ *          Laurent Aimar <fenrir _AT_ lycaria _DOT_ org>
  *          Steve Lhomme <robux4@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -40,11 +41,11 @@
 
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_picture.h>
-#include <vlc_plugin.h>
-#include <vlc_charset.h>
-#include <vlc_codec.h>
+#include <heimdall_common.h>
+#include <heimdall_picture.h>
+#include <heimdall_plugin.h>
+#include <heimdall_charset.h>
+#include <heimdall_codec.h>
 
 #define COBJMACROS
 #include <initguid.h>
@@ -56,7 +57,7 @@
 struct d3d11va_pic_context
 {
     struct d3d11_pic_context  ctx;
-    struct vlc_va_surface_t   *va_surface;
+    struct heimdall_va_surface_t   *va_surface;
 };
 
 #define D3D11VA_PICCONTEXT_FROM_PICCTX(pic_ctx)  \
@@ -64,19 +65,19 @@ struct d3d11va_pic_context
 
 #include "directx_va.h"
 
-static int Open(vlc_va_t *va, struct vlc_va_cfg *cfg);
+static int Open(heimdall_va_t *va, struct heimdall_va_cfg *cfg);
 
-vlc_module_begin()
+heimdall_module_begin()
     set_description(N_("Direct3D11 Video Acceleration"))
     set_subcategory(SUBCAT_INPUT_VCODEC)
     set_va_callback(Open, 110)
-vlc_module_end()
+heimdall_module_end()
 
 typedef struct
 {
     d3d11_device_t               *d3d_dev;
 
-    vlc_video_context            *vctx;
+    heimdall_video_context            *vctx;
 
     const d3d_format_t           *render_fmt;
 
@@ -92,21 +93,21 @@ typedef struct
     va_pool_t                     *va_pool;
     ID3D11VideoDecoderOutputView  *hw_surface[MAX_SURFACE_COUNT];
     ID3D11ShaderResourceView      *renderSrc[MAX_SURFACE_COUNT * DXGI_MAX_SHADER_VIEW];
-} vlc_va_sys_t;
+} heimdall_va_sys_t;
 
 /* */
-static int D3dCreateDevice(vlc_va_t *);
+static int D3dCreateDevice(heimdall_va_t *);
 
-static int DxGetInputList(vlc_va_t *, input_list_t *);
-static int DxSetupOutput(vlc_va_t *, const directx_va_mode_t *, const video_format_t *);
+static int DxGetInputList(heimdall_va_t *, input_list_t *);
+static int DxSetupOutput(heimdall_va_t *, const directx_va_mode_t *, const video_format_t *);
 
-static int DxCreateDecoderSurfaces(vlc_va_t *, int codec_id,
+static int DxCreateDecoderSurfaces(heimdall_va_t *, int codec_id,
                                    const video_format_t *fmt, size_t surface_count);
 static void DxDestroySurfaces(void *);
 
 static void SetupAVCodecContext(void *opaque, AVCodecContext *avctx)
 {
-    vlc_va_sys_t *sys = opaque;
+    heimdall_va_sys_t *sys = opaque;
     sys->hw.cfg = &sys->cfg;
     sys->hw.surface = sys->hw_surface;
     sys->hw.context_mutex = sys->d3d_dev->context_mutex;
@@ -119,7 +120,7 @@ static void SetupAVCodecContext(void *opaque, AVCodecContext *avctx)
 static void d3d11va_pic_context_destroy(picture_context_t *ctx)
 {
     struct d3d11va_pic_context *pic_ctx = D3D11VA_PICCONTEXT_FROM_PICCTX(ctx);
-    struct vlc_va_surface_t *va_surface = pic_ctx->va_surface;
+    struct heimdall_va_surface_t *va_surface = pic_ctx->va_surface;
     static_assert(offsetof(struct d3d11va_pic_context, ctx.s) == 0,
         "Cast assumption failure");
     d3d11_pic_context_destroy(ctx);
@@ -133,7 +134,7 @@ static picture_context_t *d3d11va_pic_context_copy(picture_context_t *ctx)
     if (unlikely(pic_ctx==NULL))
         return NULL;
     *pic_ctx = *src_ctx;
-    vlc_video_context_Hold(pic_ctx->ctx.s.vctx);
+    heimdall_video_context_Hold(pic_ctx->ctx.s.vctx);
     va_surface_AddRef(pic_ctx->va_surface);
     for (int i=0;i<DXGI_MAX_SHADER_VIEW; i++)
     {
@@ -147,14 +148,14 @@ static picture_context_t *d3d11va_pic_context_copy(picture_context_t *ctx)
 static struct d3d11va_pic_context *CreatePicContext(ID3D11Resource *p_resource,
                                                   UINT slice,
                                                   ID3D11ShaderResourceView *renderSrc[DXGI_MAX_SHADER_VIEW],
-                                                  vlc_video_context *vctx)
+                                                  heimdall_video_context *vctx)
 {
     struct d3d11va_pic_context *pic_ctx = calloc(1, sizeof(*pic_ctx));
     if (unlikely(pic_ctx==NULL))
         return NULL;
     pic_ctx->ctx.s = (picture_context_t) {
         d3d11va_pic_context_destroy, d3d11va_pic_context_copy,
-        vlc_video_context_Hold(vctx),
+        heimdall_video_context_Hold(vctx),
     };
 
     pic_ctx->ctx.picsys.slice_index = slice;
@@ -168,9 +169,9 @@ static struct d3d11va_pic_context *CreatePicContext(ID3D11Resource *p_resource,
     return pic_ctx;
 }
 
-static picture_context_t* NewSurfacePicContext(vlc_va_t *va, vlc_va_surface_t *va_surface)
+static picture_context_t* NewSurfacePicContext(heimdall_va_t *va, heimdall_va_surface_t *va_surface)
 {
-    vlc_va_sys_t *sys = va->sys;
+    heimdall_va_sys_t *sys = va->sys;
     ID3D11VideoDecoderOutputView *surface = sys->hw_surface[va_surface_GetIndex(va_surface)];
     ID3D11ShaderResourceView *resourceView[DXGI_MAX_SHADER_VIEW];
 
@@ -193,30 +194,30 @@ static picture_context_t* NewSurfacePicContext(vlc_va_t *va, vlc_va_surface_t *v
     return &pic_ctx->ctx.s;
 }
 
-static int Get(vlc_va_t *va, picture_t *pic, AVCodecContext *ctx, AVFrame *frame)
+static int Get(heimdall_va_t *va, picture_t *pic, AVCodecContext *ctx, AVFrame *frame)
 {
     (void) ctx;
 
-    vlc_va_sys_t *sys = va->sys;
-    vlc_va_surface_t *va_surface = va_pool_Get(sys->va_pool);
+    heimdall_va_sys_t *sys = va->sys;
+    heimdall_va_surface_t *va_surface = va_pool_Get(sys->va_pool);
     if (unlikely(va_surface == NULL))
-        return VLC_ENOENT;
+        return HEIMDALL_ENOENT;
     pic->context = NewSurfacePicContext(va, va_surface);
     if (unlikely(pic->context == NULL))
     {
         va_surface_Release(va_surface);
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
     frame->data[3] = (uint8_t*)sys->hw_surface[va_surface_GetIndex(va_surface)];
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void Close(vlc_va_t *va, AVCodecContext* ctx)
+static void Close(heimdall_va_t *va, AVCodecContext* ctx)
 {
-    vlc_va_sys_t *sys = va->sys;
+    heimdall_va_sys_t *sys = va->sys;
 
     if (sys->vctx)
-        vlc_video_context_Release(sys->vctx);
+        heimdall_video_context_Release(sys->vctx);
 
     if (sys->va_pool)
         va_pool_Close(sys->va_pool);
@@ -225,41 +226,41 @@ static void Close(vlc_va_t *va, AVCodecContext* ctx)
         ctx->hwaccel_context = NULL;
 }
 
-static const struct vlc_va_operations ops =
+static const struct heimdall_va_operations ops =
 {
     .get = Get,
     .close = Close,
 };
 
-static int Open(vlc_va_t *va, struct vlc_va_cfg *cfg)
+static int Open(heimdall_va_t *va, struct heimdall_va_cfg *cfg)
 {
     AVCodecContext *ctx = cfg->avctx;
     enum AVPixelFormat hwfmt = cfg->hwfmt;
     const AVPixFmtDescriptor *desc = cfg->desc;
     const es_format_t *fmt_in = cfg->fmt_in;
-    vlc_decoder_device *dec_device = cfg->dec_device;
+    heimdall_decoder_device *dec_device = cfg->dec_device;
     video_format_t *fmt_out = cfg->video_fmt_out;
 
-    int err = VLC_EGENERIC;
+    int err = HEIMDALL_EGENERIC;
 
     ctx->hwaccel_context = NULL;
 
     if ( hwfmt != AV_PIX_FMT_D3D11VA_VLD )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     d3d11_decoder_device_t *devsys = GetD3D11OpaqueDevice( dec_device );
     if ( devsys == NULL )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if (!(ID3D11Device_GetCreationFlags(devsys->d3d_dev.d3ddevice) & D3D11_CREATE_DEVICE_VIDEO_SUPPORT))
     {
         msg_Err(va, "Missing D3D11_CREATE_DEVICE_VIDEO_SUPPORT");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    vlc_va_sys_t *sys = calloc(1, sizeof (*sys));
+    heimdall_va_sys_t *sys = calloc(1, sizeof (*sys));
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     va->sys = sys;
 
@@ -279,7 +280,7 @@ static int Open(vlc_va_t *va, struct vlc_va_cfg *cfg)
     sys->va_pool = va_pool_Create(va, &pool_cfg);
     if (sys->va_pool == NULL)
     {
-        err = VLC_EGENERIC;
+        err = HEIMDALL_EGENERIC;
         goto error;
     }
 
@@ -289,13 +290,13 @@ static int Open(vlc_va_t *va, struct vlc_va_cfg *cfg)
                                              &final_fmt, &sys->hw.surface_count);
     if (sys->selected_decoder == NULL)
     {
-        err = VLC_EGENERIC;
+        err = HEIMDALL_EGENERIC;
         goto error;
     }
 
     final_fmt.i_chroma = sys->render_fmt->fourcc;
     err = va_pool_SetupDecoder(va, sys->va_pool, ctx, &final_fmt, sys->hw.surface_count);
-    if (err != VLC_SUCCESS)
+    if (err != HEIMDALL_SUCCESS)
         goto error;
 
     msg_Info(va, "Using D3D11VA (%ls, vendor %x(%s), device %x, revision %x)",
@@ -307,14 +308,14 @@ static int Open(vlc_va_t *va, struct vlc_va_cfg *cfg)
     if (sys->vctx == NULL)
     {
         msg_Dbg(va, "no video context");
-        err = VLC_EGENERIC;
+        err = HEIMDALL_EGENERIC;
         goto error;
     }
 
     va->ops = &ops;
     *fmt_out = final_fmt;
     cfg->vctx_out = sys->vctx;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     Close(va, ctx);
@@ -324,9 +325,9 @@ error:
 /**
  * It creates a Direct3D device usable for decoding
  */
-static int D3dCreateDevice(vlc_va_t *va)
+static int D3dCreateDevice(heimdall_va_t *va)
 {
-    vlc_va_sys_t *sys = va->sys;
+    heimdall_va_sys_t *sys = va->sys;
     HRESULT hr;
 
     assert(sys->d3d_dev->d3ddevice && sys->d3d_dev->d3dcontext);
@@ -334,7 +335,7 @@ static int D3dCreateDevice(vlc_va_t *va)
     hr = ID3D11DeviceContext_QueryInterface(sys->d3d_dev->d3dcontext, &IID_ID3D11VideoContext, &d3dvidctx);
     if (FAILED(hr)) {
        msg_Err(va, "Could not Query ID3D11VideoContext Interface. (hr=0x%lX)", hr);
-       return VLC_EGENERIC;
+       return HEIMDALL_EGENERIC;
     }
     sys->hw.video_context = d3dvidctx;
 
@@ -343,11 +344,11 @@ static int D3dCreateDevice(vlc_va_t *va)
     if (FAILED(hr)) {
        msg_Err(va, "Could not Query ID3D11VideoDevice Interface. (hr=0x%lX)", hr);
        ID3D11VideoContext_Release(sys->hw.video_context);
-       return VLC_EGENERIC;
+       return HEIMDALL_EGENERIC;
     }
     sys->d3ddec = d3dviddev;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void ReleaseInputList(input_list_t *p_list)
@@ -355,9 +356,9 @@ static void ReleaseInputList(input_list_t *p_list)
     free(p_list->list);
 }
 
-static int DxGetInputList(vlc_va_t *va, input_list_t *p_list)
+static int DxGetInputList(heimdall_va_t *va, input_list_t *p_list)
 {
-    vlc_va_sys_t *sys = va->sys;
+    heimdall_va_sys_t *sys = va->sys;
     HRESULT hr;
 
     UINT input_count = ID3D11VideoDevice_GetVideoDecoderProfileCount(sys->d3ddec);
@@ -365,7 +366,7 @@ static int DxGetInputList(vlc_va_t *va, input_list_t *p_list)
     p_list->count = input_count;
     p_list->list = calloc(input_count, sizeof(*p_list->list));
     if (unlikely(p_list->list == NULL)) {
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
     p_list->pf_release = ReleaseInputList;
 
@@ -375,16 +376,16 @@ static int DxGetInputList(vlc_va_t *va, input_list_t *p_list)
         {
             msg_Err(va, "GetVideoDecoderProfile %d failed. (hr=0x%lX)", i, hr);
             ReleaseInputList(p_list);
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int DxSetupOutput(vlc_va_t *va, const directx_va_mode_t *mode, const video_format_t *fmt)
+static int DxSetupOutput(heimdall_va_t *va, const directx_va_mode_t *mode, const video_format_t *fmt)
 {
-    vlc_va_sys_t *sys = va->sys;
+    heimdall_va_sys_t *sys = va->sys;
     HRESULT hr;
 
 #ifndef NDEBUG
@@ -400,7 +401,7 @@ static int DxSetupOutput(vlc_va_t *va, const directx_va_mode_t *mode, const vide
                                   mode->guid, sys->d3d_dev->WDDM.build))
     {
         msg_Warn(va, "GPU blocklisted for %s codec", mode->name);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     const d3d_format_t *processorInput[4];
@@ -489,20 +490,20 @@ static int DxSetupOutput(vlc_va_t *va, const directx_va_mode_t *mode, const vide
 
         msg_Dbg(va, "Using output format %s for decoder %s", DxgiFormatToStr(processorInput[idx]->formatTexture), mode->name);
         sys->render_fmt = processorInput[idx];
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
     msg_Dbg(va, "Output format from picture source not supported.");
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /**
  * It creates a Direct3D11 decoder using the given video format
  */
-static int DxCreateDecoderSurfaces(vlc_va_t *va, int codec_id,
+static int DxCreateDecoderSurfaces(heimdall_va_t *va, int codec_id,
                                    const video_format_t *fmt, size_t surface_count)
 {
-    vlc_va_sys_t *sys = va->sys;
+    heimdall_va_sys_t *sys = va->sys;
     HRESULT hr;
 
     d3d11_device_lock(sys->d3d_dev);
@@ -522,7 +523,7 @@ static int DxCreateDecoderSurfaces(vlc_va_t *va, int codec_id,
     {
         msg_Warn(va, "%dx%d resolution not supported by your hardware", fmt->i_width, fmt->i_height);
         d3d11_device_unlock(sys->d3d_dev);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     D3D11_VIDEO_DECODER_OUTPUT_VIEW_DESC viewDesc;
@@ -551,7 +552,7 @@ static int DxCreateDecoderSurfaces(vlc_va_t *va, int codec_id,
     if (FAILED(hr)) {
         msg_Err(va, "CreateTexture2D %zu failed. (hr=0x%lX)", surface_count, hr);
         d3d11_device_unlock(sys->d3d_dev);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     unsigned surface_idx;
@@ -566,13 +567,13 @@ static int DxCreateDecoderSurfaces(vlc_va_t *va, int codec_id,
             msg_Err(va, "CreateVideoDecoderOutputView %d failed. (hr=0x%lX)", surface_idx, hr);
             ID3D11Texture2D_Release(p_texture);
             d3d11_device_unlock(sys->d3d_dev);
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         if (texDesc.BindFlags & D3D11_BIND_SHADER_RESOURCE)
         {
             ID3D11Texture2D *textures[DXGI_MAX_SHADER_VIEW] = {p_texture, p_texture, p_texture};
-            D3D11_AllocateResourceView(vlc_object_logger(va), sys->d3d_dev->d3ddevice, sys->render_fmt, textures, surface_idx,
+            D3D11_AllocateResourceView(heimdall_object_logger(va), sys->d3d_dev->d3ddevice, sys->render_fmt, textures, surface_idx,
                                 &sys->renderSrc[surface_idx * DXGI_MAX_SHADER_VIEW]);
         }
     }
@@ -592,7 +593,7 @@ static int DxCreateDecoderSurfaces(vlc_va_t *va, int codec_id,
     if (FAILED(hr)) {
         msg_Err(va, "GetVideoDecoderConfigCount failed. (hr=0x%lX)", hr);
         d3d11_device_unlock(sys->d3d_dev);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* List all configurations available for the decoder */
@@ -602,7 +603,7 @@ static int DxCreateDecoderSurfaces(vlc_va_t *va, int codec_id,
         if (FAILED(hr)) {
             msg_Err(va, "GetVideoDecoderConfig failed. (hr=0x%lX)", hr);
             d3d11_device_unlock(sys->d3d_dev);
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
 
@@ -636,7 +637,7 @@ static int DxCreateDecoderSurfaces(vlc_va_t *va, int codec_id,
     if (cfg_score <= 0) {
         msg_Err(va, "Failed to find a supported decoder configuration");
         d3d11_device_unlock(sys->d3d_dev);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Create the decoder */
@@ -646,18 +647,18 @@ static int DxCreateDecoderSurfaces(vlc_va_t *va, int codec_id,
         msg_Err(va, "ID3D11VideoDevice_CreateVideoDecoder failed. (hr=0x%lX)", hr);
         sys->hw.decoder = NULL;
         d3d11_device_unlock(sys->d3d_dev);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     d3d11_device_unlock(sys->d3d_dev);
     sys->hw.decoder = decoder;
 
     msg_Dbg(va, "DxCreateDecoderSurfaces succeed");
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void DxDestroySurfaces(void *opaque)
 {
-    vlc_va_sys_t *sys = opaque;
+    heimdall_va_sys_t *sys = opaque;
     if (sys->hw.decoder)
         ID3D11VideoDecoder_Release(sys->hw.decoder);
     if (sys->hw_surface[0]) {

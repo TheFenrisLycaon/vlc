@@ -2,6 +2,7 @@
  * playtree.cpp
  *****************************************************************************
  * Copyright (C) 2005 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Antoine Cellerier <dionoea@videolan.org>
  *          Clément Stenac <zorglub@videolan.org>
@@ -26,12 +27,12 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
 #include "playtree.hpp"
-#include <vlc_playlist.h>
-#include <vlc_input_item.h>
-#include <vlc_url.h>
+#include <heimdall_playlist.h>
+#include <heimdall_input_item.h>
+#include <heimdall_url.h>
 #include "../utils/ustring.hpp"
 
 Playtree::Playtree( intf_thread_t *pIntf )
@@ -52,11 +53,11 @@ void Playtree::delSelected()
     {
         if( it->isSelected() && !it->isReadonly() )
         {
-            vlc_playlist_Lock( getPL() );
-            ssize_t idx = vlc_playlist_IndexOfMedia( getPL(), it->getMedia() );
+            heimdall_playlist_Lock( getPL() );
+            ssize_t idx = heimdall_playlist_IndexOfMedia( getPL(), it->getMedia() );
             if( idx != -1 )
-                vlc_playlist_Remove( getPL(), idx, 1 ),
-            vlc_playlist_Unlock( getPL() );
+                heimdall_playlist_Remove( getPL(), idx, 1 ),
+            heimdall_playlist_Unlock( getPL() );
 
             it = it->getNextSiblingOrUncle();
         }
@@ -71,11 +72,11 @@ void Playtree::action( VarTree *pElem )
 {
     if( !pElem->getMedia() )
         return;
-    vlc_playlist_Lock( getPL() );
-    ssize_t idx = vlc_playlist_IndexOfMedia( getPL(), pElem->getMedia() );
+    heimdall_playlist_Lock( getPL() );
+    ssize_t idx = heimdall_playlist_IndexOfMedia( getPL(), pElem->getMedia() );
     if( idx != -1 )
-        vlc_playlist_PlayAt( getPL(), idx );
-    vlc_playlist_Unlock( getPL() );
+        heimdall_playlist_PlayAt( getPL(), idx );
+    heimdall_playlist_Unlock( getPL() );
 }
 
 void Playtree::onChange()
@@ -90,12 +91,12 @@ void Playtree::onUpdateItem( int pos )
     Iterator it = getPlaylistIt( pos  );
     if( it != m_children.end() )
     {
-        vlc_playlist_Lock( getPL() );
-        vlc_playlist_item_t *item = vlc_playlist_Get( getPL(), pos );
-        input_item_t* media = vlc_playlist_item_GetMedia( item ) ;
+        heimdall_playlist_Lock( getPL() );
+        heimdall_playlist_item_t *item = heimdall_playlist_Get( getPL(), pos );
+        input_item_t* media = heimdall_playlist_item_GetMedia( item ) ;
         if( media != it->getMedia() )
             it->setMedia( media );
-        vlc_playlist_Unlock( getPL() );
+        heimdall_playlist_Unlock( getPL() );
 
         bool updateNeeded = false;
 
@@ -177,11 +178,11 @@ void Playtree::onAppend( int pos )
     Iterator it_node = m_children.begin();
     it_node->setExpanded( true );
 
-    vlc_playlist_Lock( getPL() );
-    vlc_playlist_item_t *item = vlc_playlist_Get( getPL(), pos );
-    input_item_t* media = vlc_playlist_item_GetMedia( item ) ;
-    bool isPlaying = pos == vlc_playlist_GetCurrentIndex( getPL() );
-    vlc_playlist_Unlock( getPL() );
+    heimdall_playlist_Lock( getPL() );
+    heimdall_playlist_item_t *item = heimdall_playlist_Get( getPL(), pos );
+    input_item_t* media = heimdall_playlist_item_GetMedia( item ) ;
+    bool isPlaying = pos == heimdall_playlist_GetCurrentIndex( getPL() );
+    heimdall_playlist_Unlock( getPL() );
 
     UString *pName = getTitle( media );
     Iterator it = it_node->add( media, UStringPtr( pName ),
@@ -194,10 +195,10 @@ void Playtree::onAppend( int pos )
 
 void Playtree::buildNode( int pos, VarTree &rTree )
 {
-    vlc_playlist_item_t *item = vlc_playlist_Get( getPL(), pos );
-    input_item_t *media = vlc_playlist_item_GetMedia( item );
+    heimdall_playlist_item_t *item = heimdall_playlist_Get( getPL(), pos );
+    input_item_t *media = heimdall_playlist_item_GetMedia( item );
     UString *pName = getTitle( media );
-    bool isPlaying = pos == vlc_playlist_GetCurrentIndex(getPL());
+    bool isPlaying = pos == heimdall_playlist_GetCurrentIndex(getPL());
     (void)rTree.add( media, UStringPtr( pName ),
                      false, isPlaying, false, false, -1 );
 }
@@ -211,15 +212,15 @@ void Playtree::buildTree()
     Iterator it = add( NULL, UStringPtr( pName ),
                        false, false, false, false, -1 );
 
-    vlc_playlist_Lock( getPL() );
-    size_t count = vlc_playlist_Count( getPL() );
+    heimdall_playlist_Lock( getPL() );
+    size_t count = heimdall_playlist_Count( getPL() );
     for( size_t pos = 0; pos < count; pos++ )
     {
         if( pos == 0 )
             it->setExpanded( true );
         buildNode( pos , *it );
     }
-    vlc_playlist_Unlock( getPL() );
+    heimdall_playlist_Unlock( getPL() );
 }
 
 void Playtree::onUpdateSlider()
@@ -259,7 +260,7 @@ void Playtree::insertItems( VarTree& elem, const std::list<std::string>& files, 
 
     assert( pNode != NULL );
 
-    vlc_playlist_Lock( getPL() );
+    heimdall_playlist_Lock( getPL() );
     for( std::list<std::string>::const_iterator it = files.begin();
          it != files.end(); ++it, i_pos++ )
     {
@@ -269,7 +270,7 @@ void Playtree::insertItems( VarTree& elem, const std::list<std::string>& files, 
             pItem = input_item_New( it->c_str(), NULL );
         else
         {
-            char *psz_uri = vlc_path2uri( it->c_str(), NULL );
+            char *psz_uri = heimdall_path2uri( it->c_str(), NULL );
             if( psz_uri == NULL )
                 continue;
             pItem = input_item_New( psz_uri, NULL );
@@ -279,14 +280,14 @@ void Playtree::insertItems( VarTree& elem, const std::list<std::string>& files, 
         if( pItem == NULL)
             continue;
 
-        vlc_playlist_Insert( getPL(),i_pos, &pItem, 1 );
+        heimdall_playlist_Insert( getPL(),i_pos, &pItem, 1 );
         if( first )
         {
             first = false;
-            vlc_playlist_PlayAt( getPL(),i_pos );
+            heimdall_playlist_PlayAt( getPL(),i_pos );
         }
     }
-    vlc_playlist_Unlock( getPL() );
+    heimdall_playlist_Unlock( getPL() );
 
 }
 

@@ -2,6 +2,7 @@
  * complete_preferences.hpp : Tree of modules for preferences
  ****************************************************************************
  * Copyright (C) 2006-2007 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Clément Stenac <zorglub@videolan.org>
  *
@@ -20,15 +21,15 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_QT_COMPLETE_PREFERENCES_HPP_
-#define VLC_QT_COMPLETE_PREFERENCES_HPP_
+#ifndef HEIMDALL_QT_COMPLETE_PREFERENCES_HPP_
+#define HEIMDALL_QT_COMPLETE_PREFERENCES_HPP_
 
 #ifdef HAVE_CONFIG_H
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_config_cat.h>
+#include <heimdall_common.h>
+#include <heimdall_config_cat.h>
 
 #include <QTreeWidget>
 #include <QTreeWidgetItem>
@@ -80,8 +81,8 @@ public:
     QString name;
     QString help;
     QString help_html;
-    enum vlc_config_cat cat_id;
-    enum vlc_config_subcat subcat_id;
+    enum heimdall_config_cat cat_id;
+    enum heimdall_config_subcat subcat_id;
     module_t *p_module;
     char *module_name;
     bool module_is_loaded;
@@ -103,19 +104,19 @@ public:
     }
 
 private:
-    QTreeWidgetItem *createCatNode( enum vlc_config_cat cat );
-    QTreeWidgetItem *createSubcatNode( QTreeWidgetItem * cat, enum vlc_config_subcat subcat );
+    QTreeWidgetItem *createCatNode( enum heimdall_config_cat cat );
+    QTreeWidgetItem *createSubcatNode( QTreeWidgetItem * cat, enum heimdall_config_subcat subcat );
     void createPluginNode( QTreeWidgetItem * parent, module_t *mod );
-    QTreeWidgetItem *findCatItem( enum vlc_config_cat cat );
-    QTreeWidgetItem *findSubcatItem( enum vlc_config_subcat subcat );
+    QTreeWidgetItem *findCatItem( enum heimdall_config_cat cat );
+    QTreeWidgetItem *findSubcatItem( enum heimdall_config_subcat subcat );
     bool filterItems( PrefsTreeItem *item, const QString &text, Qt::CaseSensitivity cs );
     void unfilterItems( PrefsTreeItem *item );
     void updateLoadedStatus( PrefsTreeItem *item , QSet<QString> *loaded );
     qt_intf_t *p_intf;
     module_t *main_module;
     bool b_show_only_loaded;
-    std::unordered_map<vlc_config_cat, QTreeWidgetItem *> catMap;
-    std::unordered_map<vlc_config_subcat, QTreeWidgetItem *> subcatMap;
+    std::unordered_map<heimdall_config_cat, QTreeWidgetItem *> catMap;
+    std::unordered_map<heimdall_config_subcat, QTreeWidgetItem *> subcatMap;
 
 private slots:
     void resizeColumns();

@@ -1,9 +1,10 @@
 /**
  * @file idle-inhibit.c
- * @brief Wayland idle inhibitor module for VLC media player
+ * @brief Wayland idle inhibitor module for Heimdall media player
  */
 /*****************************************************************************
  * Copyright © 2018 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -32,23 +33,23 @@
 #include <wayland-client.h>
 #include "idle-inhibit-client-protocol.h"
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_window.h>
-#include <vlc_inhibit.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_window.h>
+#include <heimdall_inhibit.h>
 
-struct vlc_inhibit_sys
+struct heimdall_inhibit_sys
 {
     struct wl_event_queue *eventq;
     struct zwp_idle_inhibit_manager_v1 *manager;
     struct zwp_idle_inhibitor_v1 *inhibitor;
 };
 
-static void Inhibit (vlc_inhibit_t *ih, unsigned mask)
+static void Inhibit (heimdall_inhibit_t *ih, unsigned mask)
 {
-    vlc_window_t *wnd = vlc_inhibit_GetWindow(ih);
-    vlc_inhibit_sys_t *sys = ih->p_sys;
-    bool suspend = (mask & VLC_INHIBIT_DISPLAY) != 0;
+    heimdall_window_t *wnd = heimdall_inhibit_GetWindow(ih);
+    heimdall_inhibit_sys_t *sys = ih->p_sys;
+    bool suspend = (mask & HEIMDALL_INHIBIT_DISPLAY) != 0;
 
     if (sys->inhibitor != NULL) {
         zwp_idle_inhibitor_v1_destroy(sys->inhibitor);
@@ -64,8 +65,8 @@ static void Inhibit (vlc_inhibit_t *ih, unsigned mask)
 static void registry_global_cb(void *data, struct wl_registry *registry,
                                uint32_t name, const char *iface, uint32_t vers)
 {
-    vlc_inhibit_t *ih = data;
-    vlc_inhibit_sys_t *sys = ih->p_sys;
+    heimdall_inhibit_t *ih = data;
+    heimdall_inhibit_sys_t *sys = ih->p_sys;
 
     if (!strcmp(iface, "zwp_idle_inhibit_manager_v1"))
         sys->manager = wl_registry_bind(registry, name,
@@ -85,17 +86,17 @@ static const struct wl_registry_listener registry_cbs =
     registry_global_remove_cb,
 };
 
-static int Open(vlc_object_t *obj)
+static int Open(heimdall_object_t *obj)
 {
-    vlc_inhibit_t *ih = (vlc_inhibit_t *)obj;
-    vlc_window_t *wnd = vlc_inhibit_GetWindow(ih);
+    heimdall_inhibit_t *ih = (heimdall_inhibit_t *)obj;
+    heimdall_window_t *wnd = heimdall_inhibit_GetWindow(ih);
 
-    if (wnd->type != VLC_WINDOW_TYPE_WAYLAND)
-        return VLC_EGENERIC;
+    if (wnd->type != HEIMDALL_WINDOW_TYPE_WAYLAND)
+        return HEIMDALL_EGENERIC;
 
-    vlc_inhibit_sys_t *sys = vlc_obj_malloc(obj, sizeof (*sys));
+    heimdall_inhibit_sys_t *sys = heimdall_obj_malloc(obj, sizeof (*sys));
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     sys->manager = NULL;
     sys->inhibitor = NULL;
@@ -105,7 +106,7 @@ static int Open(vlc_object_t *obj)
 
     sys->eventq = wl_display_create_queue(display);
     if (sys->eventq == NULL)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     struct wl_registry *registry = wl_display_get_registry(display);
     if (registry == NULL)
@@ -120,19 +121,19 @@ static int Open(vlc_object_t *obj)
         goto error;
 
     ih->inhibit = Inhibit;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     if (sys->eventq != NULL)
         wl_event_queue_destroy(sys->eventq);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
-static void Close(vlc_object_t *obj)
+static void Close(heimdall_object_t *obj)
 {
-    vlc_inhibit_t *ih = (vlc_inhibit_t *)obj;
-    vlc_inhibit_sys_t *sys = ih->p_sys;
-    vlc_window_t *wnd = vlc_inhibit_GetWindow(ih);
+    heimdall_inhibit_t *ih = (heimdall_inhibit_t *)obj;
+    heimdall_inhibit_sys_t *sys = ih->p_sys;
+    heimdall_window_t *wnd = heimdall_inhibit_GetWindow(ih);
 
     if (sys->inhibitor != NULL)
         zwp_idle_inhibitor_v1_destroy(sys->inhibitor);
@@ -142,10 +143,10 @@ static void Close(vlc_object_t *obj)
     wl_event_queue_destroy(sys->eventq);
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname(N_("WL idle"))
     set_description(N_("Wayland idle inhibitor"))
     set_subcategory(SUBCAT_ADVANCED_MISC)
     set_capability("inhibit", 30)
     set_callbacks(Open, Close)
-vlc_module_end()
+heimdall_module_end()

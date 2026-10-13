@@ -2,6 +2,7 @@
  * ram.c : RAM playlist format import
  *****************************************************************************
  * Copyright (C) 2009 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Srikanth Raju <srikiraju@gmail.com>
  *
@@ -48,11 +49,11 @@ http://service.real.com/help/library/guides/realone/IntroGuide/HTML/htmfiles/ram
 
 #include <ctype.h>
 
-#include <vlc_common.h>
-#include <vlc_arrays.h>
-#include <vlc_access.h>
-#include <vlc_url.h>
-#include <vlc_charset.h>
+#include <heimdall_common.h>
+#include <heimdall_arrays.h>
+#include <heimdall_access.h>
+#include <heimdall_url.h>
+#include <heimdall_charset.h>
 
 #include "playlist.h"
 
@@ -67,30 +68,30 @@ static void ParseClipInfo( const char * psz_clipinfo, char **ppsz_artist, char *
 /**
  * Import_RAM: main import function
  * @param p_this: this demux object
- * @return VLC_SUCCESS if everything is okay
+ * @return HEIMDALL_SUCCESS if everything is okay
  */
-int Import_RAM( vlc_object_t *p_this )
+int Import_RAM( heimdall_object_t *p_this )
 {
     stream_t *p_demux = (stream_t *)p_this;
     const uint8_t *p_peek;
 
     if( !stream_HasExtension( p_demux, ".ram" )
      && !stream_HasExtension( p_demux, ".rm" ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* Many Real Media Files are misdetected */
-    if( vlc_stream_Peek( p_demux->s, &p_peek, 4 ) < 4 )
-        return VLC_EGENERIC;
+    if( heimdall_stream_Peek( p_demux->s, &p_peek, 4 ) < 4 )
+        return HEIMDALL_EGENERIC;
     if( !memcmp( p_peek, ".ra", 3 ) || !memcmp( p_peek, ".RMF", 4 ) )
     {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     msg_Dbg( p_demux, "found valid RAM playlist" );
     p_demux->pf_readdir = ReadDir;
     p_demux->pf_control = PlaylistControl;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /**
@@ -196,7 +197,7 @@ static int ReadDir( stream_t *p_demux, input_item_node_t *p_subitems )
 {
     const char *psz_prefix = p_demux->psz_url;
     if( unlikely(psz_prefix == NULL) )
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
     char       *psz_line;
     char       *psz_artist = NULL, *psz_album = NULL, *psz_genre = NULL, *psz_year = NULL;
@@ -206,7 +207,7 @@ static int ReadDir( stream_t *p_demux, input_item_node_t *p_subitems )
     bool b_cleanup = false;
     input_item_t *p_input;
 
-    psz_line = vlc_stream_ReadLine( p_demux->s );
+    psz_line = heimdall_stream_ReadLine( p_demux->s );
     while( psz_line )
     {
         char *psz_parse = psz_line;
@@ -235,7 +236,7 @@ static int ReadDir( stream_t *p_demux, input_item_node_t *p_subitems )
             if( psz_option )
             {
                 /* Remove options from MRL
-                   because VLC can't get the file otherwise */
+                   because Heimdall can't get the file otherwise */
                 *psz_option = '\0';
                 psz_option++;
                 psz_option_next = psz_option;
@@ -273,7 +274,7 @@ static int ReadDir( stream_t *p_demux, input_item_node_t *p_subitems )
                     }
                     else if( !strcmp( psz_param, "author" ) )
                     {
-                        psz_author = vlc_uri_decode_duplicate(psz_value);
+                        psz_author = heimdall_uri_decode_duplicate(psz_value);
                         EnsureUTF8( psz_author );
                     }
                     else if( !strcmp( psz_param, "start" )
@@ -300,12 +301,12 @@ static int ReadDir( stream_t *p_demux, input_item_node_t *p_subitems )
                     else if( !strcmp( psz_param, "title" ) )
                     {
                         free( psz_title );
-                        psz_title = vlc_uri_decode_duplicate(psz_value);
+                        psz_title = heimdall_uri_decode_duplicate(psz_value);
                         EnsureUTF8( psz_title );
                     }
                     else if( !strcmp( psz_param, "copyright" ) )
                     {
-                        psz_copyright = vlc_uri_decode_duplicate(psz_value);
+                        psz_copyright = heimdall_uri_decode_duplicate(psz_value);
                         EnsureUTF8( psz_copyright );
                     }
                     else
@@ -343,7 +344,7 @@ static int ReadDir( stream_t *p_demux, input_item_node_t *p_subitems )
  error:
         /* Fetch another line */
         free( psz_line );
-        psz_line = vlc_stream_ReadLine( p_demux->s );
+        psz_line = heimdall_stream_ReadLine( p_demux->s );
         if( !psz_line ) b_cleanup = true;
 
         if( b_cleanup )
@@ -366,7 +367,7 @@ static int ReadDir( stream_t *p_demux, input_item_node_t *p_subitems )
             b_cleanup = false;
         }
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /**
@@ -429,19 +430,19 @@ static void ParseClipInfo( const char *psz_clipinfo, char **ppsz_artist, char **
         }
         /* Put into args */
         if( !strcmp( psz_param, "artist name" ) )
-            *ppsz_artist = vlc_uri_decode_duplicate( psz_value );
+            *ppsz_artist = heimdall_uri_decode_duplicate( psz_value );
         else if( !strcmp( psz_param, "title" ) )
-            *ppsz_title = vlc_uri_decode_duplicate( psz_value );
+            *ppsz_title = heimdall_uri_decode_duplicate( psz_value );
         else if( !strcmp( psz_param, "album name" ) )
-            *ppsz_album = vlc_uri_decode_duplicate( psz_value );
+            *ppsz_album = heimdall_uri_decode_duplicate( psz_value );
         else if( !strcmp( psz_param, "genre" ) )
-            *ppsz_genre = vlc_uri_decode_duplicate( psz_value );
+            *ppsz_genre = heimdall_uri_decode_duplicate( psz_value );
         else if( !strcmp( psz_param, "year" ) )
-            *ppsz_year = vlc_uri_decode_duplicate( psz_value );
+            *ppsz_year = heimdall_uri_decode_duplicate( psz_value );
         else if( !strcmp( psz_param, "cdnum" ) )
-            *ppsz_cdnum = vlc_uri_decode_duplicate( psz_value );
+            *ppsz_cdnum = heimdall_uri_decode_duplicate( psz_value );
         else if( !strcmp( psz_param, "comments" ) )
-            *ppsz_comments = vlc_uri_decode_duplicate( psz_value );
+            *ppsz_comments = heimdall_uri_decode_duplicate( psz_value );
 
         free( psz_suboption );
         psz_option_next++;

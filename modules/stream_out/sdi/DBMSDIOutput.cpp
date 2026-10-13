@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright © 2014-2016 VideoLAN and VideoLAN Authors
  *                  2018 VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -25,10 +26,10 @@
 #include <algorithm>
 #include <cstdlib>
 
-#include <vlc_common.h>
-#include <vlc_es.h>
-#include <vlc_picture.h>
-#include <vlc_interrupt.h>
+#include <heimdall_common.h>
+#include <heimdall_es.h>
+#include <heimdall_picture.h>
+#include <heimdall_interrupt.h>
 
 #include "DBMHelper.hpp"
 #include "DBMSDIOutput.hpp"
@@ -66,13 +67,13 @@ DBMSDIOutput::DBMSDIOutput(sout_stream_t *p_stream) :
 {
     p_card = NULL;
     p_output = NULL;
-    clock.system_reference = VLC_TICK_INVALID;
+    clock.system_reference = HEIMDALL_TICK_INVALID;
     clock.offset = 0;
     lasttimestamp = 0;
     b_running = false;
-    streamStartTime = VLC_TICK_INVALID;
-    vlc_mutex_init(&feeder.lock);
-    vlc_cond_init(&feeder.cond);
+    streamStartTime = HEIMDALL_TICK_INVALID;
+    heimdall_mutex_init(&feeder.lock);
+    heimdall_cond_init(&feeder.cond);
     feeder.canceled = false;
 }
 
@@ -81,14 +82,14 @@ DBMSDIOutput::~DBMSDIOutput()
     if(p_output)
     {
         while(!isDrained())
-            vlc_tick_wait(vlc_tick_now() + CLOCK_FREQ/60);
+            heimdall_tick_wait(heimdall_tick_now() + CLOCK_FREQ/60);
 
-        vlc_mutex_lock(&feeder.lock);
+        heimdall_mutex_lock(&feeder.lock);
         feeder.canceled = true;
-        vlc_cond_signal(&feeder.cond);
-        vlc_mutex_unlock(&feeder.lock);
+        heimdall_cond_signal(&feeder.cond);
+        heimdall_mutex_unlock(&feeder.lock);
 
-        vlc_join(feeder.thread, NULL);
+        heimdall_join(feeder.thread, NULL);
     }
 
     es_format_Clean(&video.configuredfmt);
@@ -161,9 +162,9 @@ HRESULT STDMETHODCALLTYPE DBMSDIOutput::ScheduledFrameCompleted
 #else
     bool b_active;
 #endif
-    vlc_mutex_locker locker(&feeder.lock);
+    heimdall_mutex_locker locker(&feeder.lock);
     if((S_OK == p_output->IsScheduledPlaybackRunning(&b_active)) && b_active)
-        vlc_cond_signal(&feeder.cond);
+        heimdall_cond_signal(&feeder.cond);
 
     return S_OK;
 }
@@ -221,10 +222,10 @@ int DBMSDIOutput::Open()
 
     decklink_iterator->Release();
 
-    if(vlc_clone(&feeder.thread, feederThreadCallback, this))
+    if(heimdall_clone(&feeder.thread, feederThreadCallback, this))
         goto error;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     if (p_output)
@@ -240,7 +241,7 @@ error:
     if (decklink_iterator)
         decklink_iterator->Release();
 
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 int DBMSDIOutput::ConfigureAudio(const audio_format_t *)
@@ -249,13 +250,13 @@ int DBMSDIOutput::ConfigureAudio(const audio_format_t *)
     IDeckLinkProfileAttributes *p_attributes = NULL;
 
     if(FAKE_DRIVER)
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
     if(!p_output)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if(!video.configuredfmt.i_codec && b_running)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if (audio.i_channels > 0)
     {
@@ -294,12 +295,12 @@ int DBMSDIOutput::ConfigureAudio(const audio_format_t *)
 
         p_attributes->Release();
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     if(p_attributes)
         p_attributes->Release();
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 static BMDVideoConnection getVConn(const char *psz)
@@ -343,22 +344,22 @@ int DBMSDIOutput::ConfigureVideo(const video_format_t *vfmt)
     if(FAKE_DRIVER)
     {
         video_format_Copy(fmt, vfmt);
-        fmt->i_chroma = !video.tenbits ? VLC_CODEC_UYVY : VLC_CODEC_I422_10L;
+        fmt->i_chroma = !video.tenbits ? HEIMDALL_CODEC_UYVY : HEIMDALL_CODEC_I422_10L;
         fmt->i_frame_rate = (unsigned) frameduration;
         fmt->i_frame_rate_base = (unsigned) timescale;
         video.configuredfmt.i_codec = fmt->i_chroma;
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
     if(!p_output)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if(!video.configuredfmt.i_codec && b_running)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* Now configure card */
     if(!p_output)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     result = p_card->QueryInterface(IID_IDeckLinkConfiguration, &pv);
     CHECK("Could not get config interface");
@@ -399,7 +400,7 @@ int DBMSDIOutput::ConfigureVideo(const video_format_t *vfmt)
     result = p_config->SetInt(bmdDeckLinkConfigVideoOutputConnection, vconn);
     CHECK("Could not set video output connection");
 
-    p_display_mode = Decklink::Helper::MatchDisplayMode(VLC_OBJECT(p_stream),
+    p_display_mode = Decklink::Helper::MatchDisplayMode(HEIMDALL_OBJECT(p_stream),
                                                         p_output, vfmt, wanted_mode.id);
     if(p_display_mode == NULL)
     {
@@ -473,7 +474,7 @@ int DBMSDIOutput::ConfigureVideo(const video_format_t *vfmt)
         fmt->i_y_offset = 0;
         fmt->i_sar_num = 0;
         fmt->i_sar_den = 0;
-        fmt->i_chroma = !video.tenbits ? VLC_CODEC_UYVY : VLC_CODEC_I422_10L; /* we will convert to v210 */
+        fmt->i_chroma = !video.tenbits ? HEIMDALL_CODEC_UYVY : HEIMDALL_CODEC_I422_10L; /* we will convert to v210 */
         fmt->i_frame_rate = (unsigned) frameduration;
         fmt->i_frame_rate_base = (unsigned) timescale;
         video.configuredfmt.i_codec = fmt->i_chroma;
@@ -481,7 +482,7 @@ int DBMSDIOutput::ConfigureVideo(const video_format_t *vfmt)
         char *psz_file = var_InheritString(p_stream, CFG_PREFIX "nosignal-image");
         if(psz_file)
         {
-            video.pic_nosignal = sdi::Generator::Picture(VLC_OBJECT(p_stream), psz_file, fmt);
+            video.pic_nosignal = sdi::Generator::Picture(HEIMDALL_OBJECT(p_stream), psz_file, fmt);
             if (!video.pic_nosignal)
                 msg_Err(p_stream, "Could not create no signal picture");
             free(psz_file);
@@ -492,7 +493,7 @@ int DBMSDIOutput::ConfigureVideo(const video_format_t *vfmt)
     p_attributes->Release();
     p_config->Release();
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     if (p_display_mode)
@@ -501,7 +502,7 @@ error:
         p_attributes->Release();
     if (p_config)
         p_config->Release();
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 int DBMSDIOutput::StartPlayback()
@@ -510,10 +511,10 @@ int DBMSDIOutput::StartPlayback()
     if(FAKE_DRIVER && !b_running)
     {
         b_running = true;
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
     if(b_running)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if(audio.b_configured)
         p_output->EndAudioPreroll();
@@ -521,10 +522,10 @@ int DBMSDIOutput::StartPlayback()
     result = p_output->StartScheduledPlayback(streamStartTime, CLOCK_FREQ, 1.0);
     CHECK("Could not start playback");
     b_running = true;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 int DBMSDIOutput::FeedOneFrame()
@@ -533,15 +534,15 @@ int DBMSDIOutput::FeedOneFrame()
     if(p)
         return ProcessVideo(p, reinterpret_cast<block_t *>(captionsBuffer.Dequeue()));
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-int DBMSDIOutput::FeedAudio(vlc_tick_t start, vlc_tick_t preroll, bool b_truncate)
+int DBMSDIOutput::FeedAudio(heimdall_tick_t start, heimdall_tick_t preroll, bool b_truncate)
 {
 #ifdef SDI_MULTIPLEX_DEBUG
         audioMultiplex->Debug();
 #endif
-    vlc_tick_t bufferStart = audioMultiplex->bufferStart();
+    heimdall_tick_t bufferStart = audioMultiplex->bufferStart();
     unsigned i_samples_per_frame =
             audioMultiplex->alignedInterleaveInSamples(bufferStart, SAMPLES_PER_FRAME);
 
@@ -575,12 +576,12 @@ int DBMSDIOutput::FeedAudio(vlc_tick_t start, vlc_tick_t preroll, bool b_truncat
         buffered += i_samples_per_frame;
     }
 
-    return buffered > 0 ? VLC_SUCCESS : VLC_EGENERIC;
+    return buffered > 0 ? HEIMDALL_SUCCESS : HEIMDALL_EGENERIC;
 }
 
 void * DBMSDIOutput::feederThreadCallback(void *me)
 {
-    vlc_thread_set_name("vlc-DBMSDI");
+    heimdall_thread_set_name("heimdall-DBMSDI");
 
     reinterpret_cast<DBMSDIOutput *>(me)->feederThread();
     return NULL;
@@ -588,11 +589,11 @@ void * DBMSDIOutput::feederThreadCallback(void *me)
 
 void DBMSDIOutput::feederThread()
 {
-    vlc_tick_t maxdelay = CLOCK_FREQ/60;
+    heimdall_tick_t maxdelay = CLOCK_FREQ/60;
     for(;;)
     {
-        vlc_mutex_locker locker(&feeder.lock);
-        vlc_cond_timedwait(&feeder.cond, &feeder.lock, vlc_tick_now() + maxdelay);
+        heimdall_mutex_locker locker(&feeder.lock);
+        heimdall_cond_timedwait(&feeder.cond, &feeder.lock, heimdall_tick_now() + maxdelay);
         if (feeder.canceled)
             break;
         doSchedule();
@@ -604,34 +605,34 @@ void DBMSDIOutput::feederThread()
 int DBMSDIOutput::Process()
 {
     if((!p_output && !FAKE_DRIVER))
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
-    vlc_mutex_locker locker(&feeder.lock);
-    vlc_cond_signal(&feeder.cond);
+    heimdall_mutex_locker locker(&feeder.lock);
+    heimdall_cond_signal(&feeder.cond);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 int DBMSDIOutput::doSchedule()
 {
-    const vlc_tick_t preroll = DECKLINK_PREROLL;
-    vlc_tick_t next = videoBuffer.NextPictureTime();
-    if(next == VLC_TICK_INVALID ||
+    const heimdall_tick_t preroll = DECKLINK_PREROLL;
+    heimdall_tick_t next = videoBuffer.NextPictureTime();
+    if(next == HEIMDALL_TICK_INVALID ||
        (!b_running && !ReachedPlaybackTime(next + preroll + SAMPLES_PER_FRAME*CLOCK_FREQ/48000)))
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
     if(FAKE_DRIVER)
     {
         FeedOneFrame();
         FeedAudio(next, preroll, false);
         b_running = true;
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
     uint32_t bufferedFramesCount;
     uint32_t bufferedAudioCount = 0;
     if(S_OK != p_output->GetBufferedVideoFrameCount(&bufferedFramesCount))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     uint32_t bufferedFramesTarget = (uint64_t)timescale*preroll/frameduration/CLOCK_FREQ;
     if( bufferedFramesTarget > bufferedFramesCount )
@@ -646,22 +647,22 @@ int DBMSDIOutput::doSchedule()
     }
 
     /* no frames got in ?? */
-    if(streamStartTime == VLC_TICK_INVALID)
+    if(streamStartTime == HEIMDALL_TICK_INVALID)
     {
         assert(bufferedFramesTarget);
         assert(!b_running);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if(audio.b_configured)
     {
         if(S_OK != p_output->GetBufferedAudioSampleFrameCount(&bufferedAudioCount))
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
         uint32_t bufferedAudioTarget = 48000*preroll/CLOCK_FREQ;
         if(bufferedAudioCount < bufferedAudioTarget)
         {
-            vlc_tick_t audioSamplesDuration = (bufferedAudioTarget - bufferedAudioCount)
+            heimdall_tick_t audioSamplesDuration = (bufferedAudioTarget - bufferedAudioCount)
                                             * CLOCK_FREQ / 48000;
             if(b_running)
                 FeedAudio(next, audioSamplesDuration, false);
@@ -679,7 +680,7 @@ int DBMSDIOutput::doSchedule()
         StartPlayback();
     }
 
-    return (bufferedFramesCount < bufferedFramesTarget) ? VLC_EGENERIC : VLC_SUCCESS;
+    return (bufferedFramesCount < bufferedFramesTarget) ? HEIMDALL_EGENERIC : HEIMDALL_SUCCESS;
 }
 
 int DBMSDIOutput::ProcessAudio(block_t *p_block)
@@ -687,13 +688,13 @@ int DBMSDIOutput::ProcessAudio(block_t *p_block)
     if(FAKE_DRIVER)
     {
         block_Release(p_block);
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
     if (!p_output)
     {
         block_Release(p_block);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     uint32_t sampleFrameCount = p_block->i_nb_samples;
@@ -715,13 +716,13 @@ int DBMSDIOutput::ProcessAudio(block_t *p_block)
 
     block_Release(p_block);
 
-    return result != S_OK ? VLC_EGENERIC : VLC_SUCCESS;
+    return result != S_OK ? HEIMDALL_EGENERIC : HEIMDALL_SUCCESS;
 }
 
 int DBMSDIOutput::ProcessVideo(picture_t *picture, block_t *p_cc)
 {
     if (!picture)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     checkClockDrift();
 
@@ -732,11 +733,11 @@ int DBMSDIOutput::ProcessVideo(picture_t *picture, block_t *p_cc)
         if(S_OK == p_output->GetScheduledStreamTime(CLOCK_FREQ, &streamTime, &playbackSpeed))
         {
             if(picture->date - streamTime >
-               VLC_TICK_FROM_SEC(video.nosignal_delay))
+               HEIMDALL_TICK_FROM_SEC(video.nosignal_delay))
             {
                 msg_Info(p_stream, "no signal");
                 picture_Hold(video.pic_nosignal);
-                video.pic_nosignal->date = streamTime + VLC_TICK_FROM_MS(30);
+                video.pic_nosignal->date = streamTime + HEIMDALL_TICK_FROM_MS(30);
                 doProcessVideo(video.pic_nosignal, NULL);
             }
         }
@@ -748,7 +749,7 @@ int DBMSDIOutput::ProcessVideo(picture_t *picture, block_t *p_cc)
 int DBMSDIOutput::doProcessVideo(picture_t *picture, block_t *p_cc)
 {
     HRESULT result;
-    int w, h, stride, length, ret = VLC_EGENERIC;
+    int w, h, stride, length, ret = HEIMDALL_EGENERIC;
     BMDTimeValue scheduleTime;
     IDeckLinkMutableVideoFrame *pDLVideoFrame = NULL;
     w = video.configuredfmt.video.i_visible_width;
@@ -831,13 +832,13 @@ int DBMSDIOutput::doProcessVideo(picture_t *picture, block_t *p_cc)
 
     if(!b_running) /* preroll */
     {
-        if(streamStartTime == VLC_TICK_INVALID ||
+        if(streamStartTime == HEIMDALL_TICK_INVALID ||
            picture->date < streamStartTime)
             streamStartTime = picture->date;
     }
 
 end:
-    ret = VLC_SUCCESS;
+    ret = HEIMDALL_SUCCESS;
 
 error:
     if(p_cc)
@@ -860,17 +861,17 @@ void DBMSDIOutput::checkClockDrift()
                                                    &timeInFrame,
                                                    &ticksPerFrame))
     {
-        if(clock.system_reference == VLC_TICK_INVALID)
+        if(clock.system_reference == HEIMDALL_TICK_INVALID)
         {
-            clock.system_reference = vlc_tick_now();
+            clock.system_reference = heimdall_tick_now();
             clock.hardware_reference = hardwareTime;
         }
         else
         {
-            vlc_tick_t elapsed_system = vlc_tick_now() - clock.system_reference;
+            heimdall_tick_t elapsed_system = heimdall_tick_now() - clock.system_reference;
             BMDTimeValue elapsed_hardware = hardwareTime - clock.hardware_reference;
             if(std::abs(elapsed_system - elapsed_hardware) >
-                    std::abs(clock.offset) + VLC_TICK_FROM_MS(15))
+                    std::abs(clock.offset) + HEIMDALL_TICK_FROM_MS(15))
             {
                 clock.offset = elapsed_system - elapsed_hardware;
                 msg_Info(p_stream, "offset now %" PRId64 " ms", clock.offset / 1000);

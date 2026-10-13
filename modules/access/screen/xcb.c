@@ -1,9 +1,10 @@
 /**
  * @file xcb.c
- * @brief X11 C Bindings screen capture demux module for VLC media player
+ * @brief X11 C Bindings screen capture demux module for Heimdall media player
  */
 /*****************************************************************************
  * Copyright © 2009 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -32,9 +33,9 @@
 # include <sys/shm.h>
 # include <xcb/shm.h>
 #endif
-#include <vlc_common.h>
-#include <vlc_demux.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_demux.h>
+#include <heimdall_plugin.h>
 
 #define FPS_TEXT N_("Frame rate")
 #define FPS_LONGTEXT N_( \
@@ -60,13 +61,13 @@
 #define FOLLOW_MOUSE_LONGTEXT N_( \
     "Follow the mouse when capturing a subscreen." )
 
-static int  Open (vlc_object_t *);
-static void Close (vlc_object_t *);
+static int  Open (heimdall_object_t *);
+static void Close (heimdall_object_t *);
 
 /*
  * Module descriptor
  */
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname (N_("Screen"))
     set_description (N_("Screen capture (with X11/XCB)"))
     set_subcategory (SUBCAT_INPUT_ACCESS)
@@ -90,7 +91,7 @@ vlc_module_begin ()
               FOLLOW_MOUSE_LONGTEXT)
 
     add_shortcut ("screen", "window")
-vlc_module_end ()
+heimdall_module_end ()
 
 /*
  * Local prototypes
@@ -118,7 +119,7 @@ typedef struct
     bool              follow_mouse;
     uint16_t          cur_w, cur_h; /**< Actual capture pixel dimensions */
     /* Timer does not use this, only input thread: */
-    vlc_timer_t       timer;
+    heimdall_timer_t       timer;
 } demux_sys_t;
 
 /** Checks MIT-SHM shared memory support */
@@ -140,15 +141,15 @@ static bool CheckSHM (xcb_connection_t *conn)
 /**
  * Probes and initializes.
  */
-static int Open (vlc_object_t *obj)
+static int Open (heimdall_object_t *obj)
 {
     demux_t *demux = (demux_t *)obj;
     if (demux->out == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     demux_sys_t *p_sys = malloc (sizeof (*p_sys));
     if (p_sys == NULL)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     demux->p_sys = p_sys;
 
     /* Connect to X server */
@@ -159,7 +160,7 @@ static int Open (vlc_object_t *obj)
     if (xcb_connection_has_error (conn))
     {
         free (p_sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     p_sys->conn = conn;
 
@@ -240,7 +241,7 @@ static int Open (vlc_object_t *obj)
     if (!p_sys->rate)
         goto error;
 
-    vlc_tick_t interval = (float)CLOCK_FREQ / p_sys->rate;
+    heimdall_tick_t interval = (float)CLOCK_FREQ / p_sys->rate;
     if (!interval)
         goto error;
 
@@ -248,31 +249,31 @@ static int Open (vlc_object_t *obj)
     p_sys->cur_h = 0;
     p_sys->bpp = 0;
     p_sys->es = NULL;
-    if (vlc_timer_create (&p_sys->timer, Demux, demux))
+    if (heimdall_timer_create (&p_sys->timer, Demux, demux))
         goto error;
-    vlc_timer_schedule_asap (p_sys->timer, interval);
+    heimdall_timer_schedule_asap (p_sys->timer, interval);
 
     /* Initializes demux */
     demux->pf_demux   = NULL;
     demux->pf_control = Control;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     xcb_disconnect (p_sys->conn);
     free (p_sys);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 
 /**
  * Releases resources
  */
-static void Close (vlc_object_t *obj)
+static void Close (heimdall_object_t *obj)
 {
     demux_t *demux = (demux_t *)obj;
     demux_sys_t *p_sys = demux->p_sys;
 
-    vlc_timer_destroy (p_sys->timer);
+    heimdall_timer_destroy (p_sys->timer);
     xcb_disconnect (p_sys->conn);
     free (p_sys);
 }
@@ -289,23 +290,23 @@ static int Control (demux_t *demux, int query, va_list args)
         {
             float *v = va_arg (args, float *);
             *v = 0.;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
 
         case DEMUX_GET_LENGTH:
         case DEMUX_GET_TIME:
         {
-            *va_arg (args, vlc_tick_t *) = 0;
-            return VLC_SUCCESS;
+            *va_arg (args, heimdall_tick_t *) = 0;
+            return HEIMDALL_SUCCESS;
         }
 
         /* TODO: get title info -> crawl visible windows */
 
         case DEMUX_GET_PTS_DELAY:
         {
-            *va_arg (args, vlc_tick_t *) =
-                VLC_TICK_FROM_MS(var_InheritInteger (demux, "live-caching"));
-            return VLC_SUCCESS;
+            *va_arg (args, heimdall_tick_t *) =
+                HEIMDALL_TICK_FROM_MS(var_InheritInteger (demux, "live-caching"));
+            return HEIMDALL_SUCCESS;
         }
 
         case DEMUX_CAN_PAUSE:
@@ -315,14 +316,14 @@ static int Control (demux_t *demux, int query, va_list args)
         {
             bool *v = va_arg (args, bool *);
             *v = false;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
 
         case DEMUX_SET_PAUSE_STATE:
-            return VLC_SUCCESS; /* should not happen */
+            return HEIMDALL_SUCCESS; /* should not happen */
     }
 
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 
@@ -444,7 +445,7 @@ discard:
         if (id == -1) /* XXX: fallback */
         {
             msg_Err (demux, "shared memory allocation error: %s",
-                     vlc_strerror_c(errno));
+                     heimdall_strerror_c(errno));
             goto noshm;
         }
 
@@ -466,13 +467,13 @@ discard:
         }
         free (img);
 
-        /* Attach the segment to VLC */
+        /* Attach the segment to Heimdall */
         void *shm = shmat (id, NULL, 0 /* read/write */);
         shmctl (id, IPC_RMID, 0);
         if (-1 == (intptr_t)shm)
         {
             msg_Err (demux, "shared memory attachment error: %s",
-                     vlc_strerror_c(errno));
+                     heimdall_strerror_c(errno));
             return;
         }
 
@@ -504,7 +505,7 @@ noshm:
     /* Send block - zero copy */
     if (sys->es != NULL)
     {
-        block->i_pts = block->i_dts = vlc_tick_now ();
+        block->i_pts = block->i_dts = heimdall_tick_now ();
 
         es_out_SetPCR(demux->out, block->i_pts);
         es_out_Send (demux->out, sys->es, block);
@@ -519,7 +520,7 @@ static es_out_id_t *InitES (demux_t *demux, uint_fast16_t width,
 {
     demux_sys_t *p_sys = demux->p_sys;
     const xcb_setup_t *setup = xcb_get_setup (p_sys->conn);
-    vlc_fourcc_t chroma = 0;
+    heimdall_fourcc_t chroma = 0;
 
     for (const xcb_format_t *fmt = xcb_setup_pixmap_formats (setup),
              *end = fmt + xcb_setup_pixmap_formats_length (setup);
@@ -531,25 +532,25 @@ static es_out_id_t *InitES (demux_t *demux, uint_fast16_t width,
         {
             case 32:
                 if (fmt->bits_per_pixel == 32)
-                    chroma = VLC_CODEC_ARGB;
+                    chroma = HEIMDALL_CODEC_ARGB;
                 break;
             case 24:
                 if (fmt->bits_per_pixel == 32)
-                    chroma = VLC_CODEC_XRGB;
+                    chroma = HEIMDALL_CODEC_XRGB;
                 else if (fmt->bits_per_pixel == 24)
-                    chroma = VLC_CODEC_RGB24;
+                    chroma = HEIMDALL_CODEC_RGB24;
                 break;
             case 16:
                 if (fmt->bits_per_pixel == 16)
-                    chroma = VLC_CODEC_RGB565;
+                    chroma = HEIMDALL_CODEC_RGB565;
                 break;
             case 15:
                 if (fmt->bits_per_pixel == 16)
-                    chroma = VLC_CODEC_RGB555;
+                    chroma = HEIMDALL_CODEC_RGB555;
                 break;
             case 8: /* XXX: screw grey scale! */
                 if (fmt->bits_per_pixel == 8)
-                    chroma = VLC_CODEC_RGB233;
+                    chroma = HEIMDALL_CODEC_RGB233;
                 break;
         }
         if (chroma != 0)

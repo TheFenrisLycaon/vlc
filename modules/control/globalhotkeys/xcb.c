@@ -1,9 +1,10 @@
 /*****************************************************************************
- * xcb.c: Global-Hotkey X11 using xcb handling for vlc
+ * xcb.c: Global-Hotkey X11 using xcb handling for heimdall
  *****************************************************************************
  * Copyright (C) 2009 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Laurent Aimar <fenrir _AT_ videolan _DOT_ org>
+ * Authors: Laurent Aimar <fenrir _AT_ lycaria _DOT_ org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,13 +24,13 @@
 #ifdef HAVE_CONFIG_H
 # include "config.h"
 #endif
-#define VLC_MODULE_LICENSE VLC_LICENSE_GPL_2_PLUS
-#include <vlc_common.h>
-#include <vlc_threads.h>
-#include <vlc_plugin.h>
-#include <vlc_interface.h>
-#include <vlc_actions.h>
-#include <vlc_poll.h>
+#define HEIMDALL_MODULE_LICENSE HEIMDALL_LICENSE_GPL_2_PLUS
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
+#include <heimdall_plugin.h>
+#include <heimdall_interface.h>
+#include <heimdall_actions.h>
+#include <heimdall_poll.h>
 #include <errno.h>
 
 #include <xcb/xcb.h>
@@ -42,18 +43,18 @@
 /*****************************************************************************
  * Local prototypes
  *****************************************************************************/
-static int Open( vlc_object_t *p_this );
-static void Close( vlc_object_t *p_this );
+static int Open( heimdall_object_t *p_this );
+static void Close( heimdall_object_t *p_this );
 
-static void AutoRun(libvlc_int_t *libvlc)
+static void AutoRun(libheimdall_int_t *libheimdall)
 {
-    intf_Create(libvlc, MODULE_STRING);
+    intf_Create(libheimdall, MODULE_STRING);
 }
 
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname( N_("Global Hotkeys") )
     set_subcategory( SUBCAT_INTERFACE_HOTKEYS )
     set_description( N_("Global Hotkeys interface") )
@@ -64,18 +65,18 @@ vlc_module_begin()
     add_submodule()
     set_capability("autorun", 10)
     set_callback(AutoRun)
-vlc_module_end()
+heimdall_module_end()
 
 typedef struct
 {
     xcb_keycode_t *p_keys;
     unsigned      i_modifier;
-    uint32_t      i_vlc;
+    uint32_t      i_heimdall;
 } hotkey_mapping_t;
 
 struct intf_sys_t
 {
-    vlc_thread_t thread;
+    heimdall_thread_t thread;
 
     xcb_connection_t  *p_connection;
     xcb_window_t      root;
@@ -92,15 +93,15 @@ static void *Thread( void *p_data );
 /*****************************************************************************
  * Open:
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     intf_thread_t *p_intf = (intf_thread_t *)p_this;
     intf_sys_t *p_sys;
-    int ret = VLC_EGENERIC;
+    int ret = HEIMDALL_EGENERIC;
 
     p_intf->p_sys = p_sys = calloc( 1, sizeof(*p_sys) );
     if( !p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     int i_screen_default;
     p_sys->p_connection = xcb_connect( NULL, &i_screen_default );
@@ -130,13 +131,13 @@ static int Open( vlc_object_t *p_this )
 
     if( !Mapping( p_intf ) )
     {
-        ret = VLC_SUCCESS;
+        ret = HEIMDALL_SUCCESS;
         p_intf->p_sys = NULL; /* for Close() */
         goto error;
     }
     Register( p_intf );
 
-    if( vlc_clone( &p_sys->thread, Thread, p_intf ) )
+    if( heimdall_clone( &p_sys->thread, Thread, p_intf ) )
     {
         if( p_sys->p_map )
         {
@@ -145,7 +146,7 @@ static int Open( vlc_object_t *p_this )
         }
         goto error;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     if( p_sys->p_symbols )
@@ -158,7 +159,7 @@ error:
 /*****************************************************************************
  * Close:
  *****************************************************************************/
-static void Close( vlc_object_t *p_this )
+static void Close( heimdall_object_t *p_this )
 {
     intf_thread_t *p_intf = (intf_thread_t *)p_this;
     intf_sys_t *p_sys = p_intf->p_sys;
@@ -166,8 +167,8 @@ static void Close( vlc_object_t *p_this )
     if( !p_sys )
         return; /* if we were running disabled */
 
-    vlc_cancel( p_sys->thread );
-    vlc_join( p_sys->thread, NULL );
+    heimdall_cancel( p_sys->thread );
+    heimdall_join( p_sys->thread, NULL );
 
     for( int i = 0; i < p_sys->i_map; i++ )
         free( p_sys->p_map[i].p_keys );
@@ -237,20 +238,20 @@ end:
 
 
 static unsigned GetX11Modifier( xcb_connection_t *p_connection,
-        xcb_key_symbols_t *p_symbols, unsigned i_vlc )
+        xcb_key_symbols_t *p_symbols, unsigned i_heimdall )
 {
     unsigned i_mask = 0;
 
-    if( i_vlc & KEY_MODIFIER_ALT )
+    if( i_heimdall & KEY_MODIFIER_ALT )
         i_mask |= GetModifier( p_connection, p_symbols, XK_Alt_L ) |
                   GetModifier( p_connection, p_symbols, XK_Alt_R );
-    if( i_vlc & KEY_MODIFIER_SHIFT )
+    if( i_heimdall & KEY_MODIFIER_SHIFT )
         i_mask |= GetModifier( p_connection, p_symbols, XK_Shift_L ) |
                   GetModifier( p_connection, p_symbols, XK_Shift_R );
-    if( i_vlc & KEY_MODIFIER_CTRL )
+    if( i_heimdall & KEY_MODIFIER_CTRL )
         i_mask |= GetModifier( p_connection, p_symbols, XK_Control_L ) |
                   GetModifier( p_connection, p_symbols, XK_Control_R );
-    if( i_vlc & KEY_MODIFIER_META )
+    if( i_heimdall & KEY_MODIFIER_META )
         i_mask |= GetModifier( p_connection, p_symbols, XK_Meta_L ) |
                   GetModifier( p_connection, p_symbols, XK_Meta_R ) |
                   GetModifier( p_connection, p_symbols, XK_Super_L ) |
@@ -262,23 +263,23 @@ static unsigned GetX11Modifier( xcb_connection_t *p_connection,
 static const struct
 {
     xcb_keysym_t i_x11;
-    unsigned     i_vlc;
+    unsigned     i_heimdall;
 
-} x11keys_to_vlckeys[] =
+} x11keys_to_heimdallkeys[] =
 {
 #include "../../video_output/xcb/xcb_keysym.h"
     { 0, 0 }
 };
-static xcb_keysym_t GetX11Key( unsigned i_vlc )
+static xcb_keysym_t GetX11Key( unsigned i_heimdall )
 {
-    /* X11 and VLC use ASCII for printable ASCII characters */
-    if( i_vlc >= 32 && i_vlc <= 127 )
-        return i_vlc;
+    /* X11 and Heimdall use ASCII for printable ASCII characters */
+    if( i_heimdall >= 32 && i_heimdall <= 127 )
+        return i_heimdall;
 
-    for( int i = 0; x11keys_to_vlckeys[i].i_vlc != 0; i++ )
+    for( int i = 0; x11keys_to_heimdallkeys[i].i_heimdall != 0; i++ )
     {
-        if( x11keys_to_vlckeys[i].i_vlc == i_vlc )
-            return x11keys_to_vlckeys[i].i_x11;
+        if( x11keys_to_heimdallkeys[i].i_heimdall == i_heimdall )
+            return x11keys_to_heimdallkeys[i].i_x11;
     }
 
     return XK_VoidSymbol;
@@ -300,18 +301,18 @@ static bool Mapping( intf_thread_t *p_intf )
     p_sys->p_map = NULL;
 
     /* Registering of Hotkeys */
-    for( const char* const* ppsz_keys = vlc_actions_get_key_names( p_intf );
+    for( const char* const* ppsz_keys = heimdall_actions_get_key_names( p_intf );
          *ppsz_keys != NULL; ppsz_keys++ )
     {
         uint_fast32_t *p_keys;
-        size_t i_nb_keys = vlc_actions_get_keycodes( p_intf, *ppsz_keys, true,
+        size_t i_nb_keys = heimdall_actions_get_keycodes( p_intf, *ppsz_keys, true,
                                                      &p_keys );
 
         for( size_t i = 0; i < i_nb_keys; ++i )
         {
-            uint_fast32_t i_vlc_key = p_keys[i];
+            uint_fast32_t i_heimdall_key = p_keys[i];
             const unsigned i_modifier = GetX11Modifier( p_sys->p_connection,
-                    p_sys->p_symbols, i_vlc_key & KEY_MODIFIER );
+                    p_sys->p_symbols, i_heimdall_key & KEY_MODIFIER );
 
             const size_t max = sizeof(p_x11_modifier_ignored) /
                     sizeof(*p_x11_modifier_ignored);
@@ -323,7 +324,7 @@ static bool Mapping( intf_thread_t *p_intf )
                     continue;
 
                 xcb_keycode_t *keycodes = xcb_key_symbols_get_keycode(
-                    p_sys->p_symbols, GetX11Key( i_vlc_key & ~KEY_MODIFIER ) );
+                    p_sys->p_symbols, GetX11Key( i_heimdall_key & ~KEY_MODIFIER ) );
 
                 if( keycodes == NULL )
                     break;
@@ -341,7 +342,7 @@ static bool Mapping( intf_thread_t *p_intf )
 
                 p_map->p_keys = keycodes;
                 p_map->i_modifier = i_modifier|i_ignored;
-                p_map->i_vlc = i_vlc_key;
+                p_map->i_heimdall = i_heimdall_key;
                 active = true;
             }
         }
@@ -372,9 +373,9 @@ static void *Thread( void *p_data )
     intf_sys_t *p_sys = p_intf->p_sys;
     xcb_connection_t *p_connection = p_sys->p_connection;
 
-    vlc_thread_set_name("vlc-hotkeys-xcb");
+    heimdall_thread_set_name("heimdall-hotkeys-xcb");
 
-    int canc = vlc_savecancel();
+    int canc = heimdall_savecancel();
 
     /* */
     xcb_flush( p_connection );
@@ -384,16 +385,16 @@ static void *Thread( void *p_data )
     for( ;; )
     {
         /* Wait for x11 event */
-        vlc_restorecancel( canc );
+        heimdall_restorecancel( canc );
         struct pollfd fds = { .fd = fd, .events = POLLIN, };
         if( poll( &fds, 1, -1 ) < 0 )
         {
             if( errno != EINTR )
                 break;
-            canc = vlc_savecancel();
+            canc = heimdall_savecancel();
             continue;
         }
-        canc = vlc_savecancel();
+        canc = heimdall_savecancel();
 
         xcb_generic_event_t *p_event;
         while( ( p_event = xcb_poll_for_event( p_connection ) ) )
@@ -414,8 +415,8 @@ static void *Thread( void *p_data )
                     if( p_map->p_keys[j] == e->detail &&
                         p_map->i_modifier == e->state )
                     {
-                        var_SetInteger( vlc_object_instance(p_intf),
-                                        "global-key-pressed", p_map->i_vlc );
+                        var_SetInteger( heimdall_object_instance(p_intf),
+                                        "global-key-pressed", p_map->i_heimdall );
                         goto done;
                     }
             }

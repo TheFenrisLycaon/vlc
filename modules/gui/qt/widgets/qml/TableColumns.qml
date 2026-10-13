@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,9 +20,9 @@ import QtQuick
 import QtQuick.Layouts
 
 
-import VLC.Widgets as Widgets
-import VLC.Util
-import VLC.Style
+import Heimdall.Widgets as Widgets
+import Heimdall.Util
+import Heimdall.Style
 
 Item {
     id: root
@@ -36,9 +37,9 @@ Item {
 
     property int fillMode: Image.PreserveAspectFit
 
-    property int titleCover_width: VLCStyle.trackListAlbumCover_width
-    property int titleCover_height: VLCStyle.trackListAlbumCover_heigth
-    property int titleCover_radius: VLCStyle.trackListAlbumCover_radius
+    property int titleCover_width: HeimdallStyle.trackListAlbumCover_width
+    property int titleCover_height: HeimdallStyle.trackListAlbumCover_heigth
+    property int titleCover_radius: HeimdallStyle.trackListAlbumCover_radius
 
     // function (model) -> [string...]
     // implement this function to show labels in title Cover
@@ -96,7 +97,7 @@ Item {
 
         RowLayout {
             anchors.fill: parent
-            spacing: VLCStyle.margin_normal
+            spacing: HeimdallStyle.margin_normal
 
             Widgets.MediaCover {
                 id: cover
@@ -109,12 +110,12 @@ Item {
 
                 source: titleDel.rowModel?.[root.criteriaCover] ?? ""
 
-                fallbackImageSource: titleDel.colModel.placeHolder || VLCStyle.noArtAlbumCover
+                fallbackImageSource: titleDel.colModel.placeHolder || HeimdallStyle.noArtAlbumCover
 
                 fillMode: root.fillMode
 
                 playCoverShowPlay: (titleDel.currentlyFocused || titleDel.containsMouse)
-                playIconSize: VLCStyle.play_cover_small
+                playIconSize: HeimdallStyle.play_cover_small
                 radius: root.titleCover_radius
                 color: titleDel.colorContext.bg.secondary
 
@@ -138,9 +139,9 @@ Item {
                         anchors {
                             top: parent.top
                             right: parent.right
-                            topMargin: VLCStyle.margin_xxsmall
-                            leftMargin: VLCStyle.margin_xxsmall
-                            rightMargin: VLCStyle.margin_xxsmall
+                            topMargin: HeimdallStyle.margin_xxsmall
+                            leftMargin: HeimdallStyle.margin_xxsmall
+                            rightMargin: HeimdallStyle.margin_xxsmall
                         }
 
                         labels: root.titlecoverLabels(titleDel.rowModel)
@@ -158,8 +159,8 @@ Item {
                 Layout.fillHeight: true
                 Layout.fillWidth: true
 
-                Layout.topMargin: VLCStyle.margin_xxsmall
-                Layout.bottomMargin: VLCStyle.margin_xxsmall
+                Layout.topMargin: HeimdallStyle.margin_xxsmall
+                Layout.bottomMargin: HeimdallStyle.margin_xxsmall
 
                 source: titleDel
             }
@@ -171,16 +172,16 @@ Item {
         Row {
             anchors.fill: parent
 
-            spacing: VLCStyle.margin_normal
+            spacing: HeimdallStyle.margin_normal
 
             Widgets.IconLabel {
                 width: root.titleCover_width
                 height: parent.height
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
-                font.pixelSize: VLCStyle.icon_tableHeader
+                font.pixelSize: HeimdallStyle.icon_tableHeader
 
-                text: VLCIcons.album_cover
+                text: HeimdallIcons.album_cover
                 color: titleHeadDel.colorContext.fg.secondary
             }
 
@@ -204,8 +205,8 @@ Item {
             horizontalAlignment: Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter
 
-            text: VLCIcons.time
-            font.pixelSize: VLCStyle.icon_tableHeader
+            text: HeimdallIcons.time
+            font.pixelSize: HeimdallStyle.icon_tableHeader
             color: parent.colorContext.fg.secondary
         }
     }
@@ -254,7 +255,7 @@ Item {
     TextMetrics {
         id: timeTextMetric
 
-        font.pixelSize: VLCStyle.fontSize_normal
+        font.pixelSize: HeimdallStyle.fontSize_normal
         text: "000h00"
     }
 

@@ -1,7 +1,8 @@
 /*****************************************************************************
- * media.c: Libvlc API media descriptor management
+ * media.c: Libheimdall API media descriptor management
  *****************************************************************************
  * Copyright (C) 2007 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Pierre d'Herbemont <pdherbemont@videolan.org>
  *
@@ -28,107 +29,107 @@
 #include <errno.h>
 #include <limits.h>
 
-#include <vlc/libvlc.h>
-#include <vlc/libvlc_picture.h>
-#include <vlc/libvlc_media.h>
-#include <vlc/libvlc_media_list.h> // For the subitems, here for convenience
+#include <heimdall/libheimdall.h>
+#include <heimdall/libheimdall_picture.h>
+#include <heimdall/libheimdall_media.h>
+#include <heimdall/libheimdall_media_list.h> // For the subitems, here for convenience
 
-#include <vlc_common.h>
-#include <vlc_meta.h>
-#include <vlc_url.h>
-#include <vlc_atomic.h>
+#include <heimdall_common.h>
+#include <heimdall_meta.h>
+#include <heimdall_url.h>
+#include <heimdall_atomic.h>
 
-#include "../src/libvlc.h"
+#include "../src/libheimdall.h"
 
-#include "libvlc_internal.h"
+#include "libheimdall_internal.h"
 #include "media_internal.h"
 #include "media_list_internal.h"
 #include "picture_internal.h"
 
-static const vlc_meta_type_t libvlc_to_vlc_meta[] =
+static const heimdall_meta_type_t libheimdall_to_heimdall_meta[] =
 {
-    [libvlc_meta_Title]        = vlc_meta_Title,
-    [libvlc_meta_Artist]       = vlc_meta_Artist,
-    [libvlc_meta_Genre]        = vlc_meta_Genre,
-    [libvlc_meta_Copyright]    = vlc_meta_Copyright,
-    [libvlc_meta_Album]        = vlc_meta_Album,
-    [libvlc_meta_TrackNumber]  = vlc_meta_TrackNumber,
-    [libvlc_meta_Description]  = vlc_meta_Description,
-    [libvlc_meta_Rating]       = vlc_meta_Rating,
-    [libvlc_meta_Date]         = vlc_meta_Date,
-    [libvlc_meta_Setting]      = vlc_meta_Setting,
-    [libvlc_meta_URL]          = vlc_meta_URL,
-    [libvlc_meta_Language]     = vlc_meta_Language,
-    [libvlc_meta_NowPlaying]   = vlc_meta_NowPlaying,
-    [libvlc_meta_Publisher]    = vlc_meta_Publisher,
-    [libvlc_meta_EncodedBy]    = vlc_meta_EncodedBy,
-    [libvlc_meta_ArtworkURL]   = vlc_meta_ArtworkURL,
-    [libvlc_meta_TrackID]      = vlc_meta_TrackID,
-    [libvlc_meta_TrackTotal]   = vlc_meta_TrackTotal,
-    [libvlc_meta_Director]     = vlc_meta_Director,
-    [libvlc_meta_Season]       = vlc_meta_Season,
-    [libvlc_meta_Episode]      = vlc_meta_Episode,
-    [libvlc_meta_ShowName]     = vlc_meta_ShowName,
-    [libvlc_meta_Actors]       = vlc_meta_Actors,
-    [libvlc_meta_AlbumArtist]  = vlc_meta_AlbumArtist,
-    [libvlc_meta_DiscNumber]   = vlc_meta_DiscNumber,
-    [libvlc_meta_DiscTotal]    = vlc_meta_DiscTotal,
-    [libvlc_meta_Compilation]  = vlc_meta_Compilation,
+    [libheimdall_meta_Title]        = heimdall_meta_Title,
+    [libheimdall_meta_Artist]       = heimdall_meta_Artist,
+    [libheimdall_meta_Genre]        = heimdall_meta_Genre,
+    [libheimdall_meta_Copyright]    = heimdall_meta_Copyright,
+    [libheimdall_meta_Album]        = heimdall_meta_Album,
+    [libheimdall_meta_TrackNumber]  = heimdall_meta_TrackNumber,
+    [libheimdall_meta_Description]  = heimdall_meta_Description,
+    [libheimdall_meta_Rating]       = heimdall_meta_Rating,
+    [libheimdall_meta_Date]         = heimdall_meta_Date,
+    [libheimdall_meta_Setting]      = heimdall_meta_Setting,
+    [libheimdall_meta_URL]          = heimdall_meta_URL,
+    [libheimdall_meta_Language]     = heimdall_meta_Language,
+    [libheimdall_meta_NowPlaying]   = heimdall_meta_NowPlaying,
+    [libheimdall_meta_Publisher]    = heimdall_meta_Publisher,
+    [libheimdall_meta_EncodedBy]    = heimdall_meta_EncodedBy,
+    [libheimdall_meta_ArtworkURL]   = heimdall_meta_ArtworkURL,
+    [libheimdall_meta_TrackID]      = heimdall_meta_TrackID,
+    [libheimdall_meta_TrackTotal]   = heimdall_meta_TrackTotal,
+    [libheimdall_meta_Director]     = heimdall_meta_Director,
+    [libheimdall_meta_Season]       = heimdall_meta_Season,
+    [libheimdall_meta_Episode]      = heimdall_meta_Episode,
+    [libheimdall_meta_ShowName]     = heimdall_meta_ShowName,
+    [libheimdall_meta_Actors]       = heimdall_meta_Actors,
+    [libheimdall_meta_AlbumArtist]  = heimdall_meta_AlbumArtist,
+    [libheimdall_meta_DiscNumber]   = heimdall_meta_DiscNumber,
+    [libheimdall_meta_DiscTotal]    = heimdall_meta_DiscTotal,
+    [libheimdall_meta_Compilation]  = heimdall_meta_Compilation,
 };
 
 static_assert(
-    ORIENT_TOP_LEFT     == (int) libvlc_video_orient_top_left &&
-    ORIENT_TOP_RIGHT    == (int) libvlc_video_orient_top_right &&
-    ORIENT_BOTTOM_LEFT  == (int) libvlc_video_orient_bottom_left &&
-    ORIENT_BOTTOM_RIGHT == (int) libvlc_video_orient_bottom_right &&
-    ORIENT_LEFT_TOP     == (int) libvlc_video_orient_left_top &&
-    ORIENT_LEFT_BOTTOM  == (int) libvlc_video_orient_left_bottom &&
-    ORIENT_RIGHT_TOP    == (int) libvlc_video_orient_right_top &&
-    ORIENT_RIGHT_BOTTOM == (int) libvlc_video_orient_right_bottom,
-    "Mismatch between libvlc_video_orient_t and video_orientation_t" );
+    ORIENT_TOP_LEFT     == (int) libheimdall_video_orient_top_left &&
+    ORIENT_TOP_RIGHT    == (int) libheimdall_video_orient_top_right &&
+    ORIENT_BOTTOM_LEFT  == (int) libheimdall_video_orient_bottom_left &&
+    ORIENT_BOTTOM_RIGHT == (int) libheimdall_video_orient_bottom_right &&
+    ORIENT_LEFT_TOP     == (int) libheimdall_video_orient_left_top &&
+    ORIENT_LEFT_BOTTOM  == (int) libheimdall_video_orient_left_bottom &&
+    ORIENT_RIGHT_TOP    == (int) libheimdall_video_orient_right_top &&
+    ORIENT_RIGHT_BOTTOM == (int) libheimdall_video_orient_right_bottom,
+    "Mismatch between libheimdall_video_orient_t and video_orientation_t" );
 
 static_assert(
-    PROJECTION_MODE_RECTANGULAR             == (int) libvlc_video_projection_rectangular &&
-    PROJECTION_MODE_EQUIRECTANGULAR         == (int) libvlc_video_projection_equirectangular &&
-    PROJECTION_MODE_CUBEMAP_LAYOUT_STANDARD == (int) libvlc_video_projection_cubemap_layout_standard,
-    "Mismatch between libvlc_video_projection_t and video_projection_mode_t" );
+    PROJECTION_MODE_RECTANGULAR             == (int) libheimdall_video_projection_rectangular &&
+    PROJECTION_MODE_EQUIRECTANGULAR         == (int) libheimdall_video_projection_equirectangular &&
+    PROJECTION_MODE_CUBEMAP_LAYOUT_STANDARD == (int) libheimdall_video_projection_cubemap_layout_standard,
+    "Mismatch between libheimdall_video_projection_t and video_projection_mode_t" );
 
 static_assert(
-    MULTIVIEW_2D                    == (int) libvlc_video_multiview_2d &&
-    MULTIVIEW_STEREO_SBS            == (int) libvlc_video_multiview_stereo_sbs &&
-    MULTIVIEW_STEREO_TB             == (int) libvlc_video_multiview_stereo_tb &&
-    MULTIVIEW_STEREO_ROW            == (int) libvlc_video_multiview_stereo_row &&
-    MULTIVIEW_STEREO_COL            == (int) libvlc_video_multiview_stereo_col &&
-    MULTIVIEW_STEREO_FRAME          == (int) libvlc_video_multiview_stereo_frame &&
-    MULTIVIEW_STEREO_CHECKERBOARD   == (int) libvlc_video_multiview_stereo_checkerboard,
-    "Mismatch between libvlc_video_multiview_t and video_multiview_mode_t");
+    MULTIVIEW_2D                    == (int) libheimdall_video_multiview_2d &&
+    MULTIVIEW_STEREO_SBS            == (int) libheimdall_video_multiview_stereo_sbs &&
+    MULTIVIEW_STEREO_TB             == (int) libheimdall_video_multiview_stereo_tb &&
+    MULTIVIEW_STEREO_ROW            == (int) libheimdall_video_multiview_stereo_row &&
+    MULTIVIEW_STEREO_COL            == (int) libheimdall_video_multiview_stereo_col &&
+    MULTIVIEW_STEREO_FRAME          == (int) libheimdall_video_multiview_stereo_frame &&
+    MULTIVIEW_STEREO_CHECKERBOARD   == (int) libheimdall_video_multiview_stereo_checkerboard,
+    "Mismatch between libheimdall_video_multiview_t and video_multiview_mode_t");
 
-static libvlc_media_t *input_item_add_subitem( libvlc_media_t *p_md,
+static libheimdall_media_t *input_item_add_subitem( libheimdall_media_t *p_md,
                                                input_item_t *item )
 {
-    libvlc_media_t * p_md_child;
-    libvlc_media_list_t *p_subitems;
+    libheimdall_media_t * p_md_child;
+    libheimdall_media_list_t *p_subitems;
 
-    p_md_child = libvlc_media_new_from_input_item( item );
+    p_md_child = libheimdall_media_new_from_input_item( item );
 
     /* Add this to our media list */
     p_subitems = p_md->p_subitems;
-    libvlc_media_list_internal_add_media( p_subitems, p_md_child );
+    libheimdall_media_list_internal_add_media( p_subitems, p_md_child );
 
     return p_md_child;
 }
 
-struct vlc_item_list
+struct heimdall_item_list
 {
-    struct vlc_list node;
+    struct heimdall_list node;
     const input_item_node_t *item;
-    libvlc_media_t *media;
+    libheimdall_media_t *media;
 };
 
-static struct vlc_item_list *
-wrap_item_in_list( libvlc_media_t *media, const input_item_node_t *item )
+static struct heimdall_item_list *
+wrap_item_in_list( libheimdall_media_t *media, const input_item_node_t *item )
 {
-    struct vlc_item_list *node = malloc( sizeof *node );
+    struct heimdall_item_list *node = malloc( sizeof *node );
     if( node == NULL )
         return NULL;
     node->item = item;
@@ -136,22 +137,22 @@ wrap_item_in_list( libvlc_media_t *media, const input_item_node_t *item )
     return node;
 }
 
-static void input_item_add_subnode( libvlc_media_t *md,
+static void input_item_add_subnode( libheimdall_media_t *md,
                                     const input_item_node_t *root )
 {
-    struct vlc_list list;
-    vlc_list_init( &list );
+    struct heimdall_list list;
+    heimdall_list_init( &list );
 
     /* Retain the media because we don't want the search algorithm to release
      * it when its subitems get parsed. */
-    libvlc_media_retain(md);
-    libvlc_media_list_lock(md->p_subitems);
-    libvlc_media_list_internal_clear(md->p_subitems);
+    libheimdall_media_retain(md);
+    libheimdall_media_list_lock(md->p_subitems);
+    libheimdall_media_list_internal_clear(md->p_subitems);
 
-    struct vlc_item_list *node_root = wrap_item_in_list( md, root );
+    struct heimdall_item_list *node_root = wrap_item_in_list( md, root );
     if( node_root == NULL )
     {
-        libvlc_media_release(md);
+        libheimdall_media_release(md);
         goto error;
     }
 
@@ -159,14 +160,14 @@ static void input_item_add_subnode( libvlc_media_t *md,
      * first, then stash its children and loop back on the last item in the
      * list until the full subtree is parsed, and eventually the full tree is
      * parsed. */
-    vlc_list_append( &node_root->node, &list );
+    heimdall_list_append( &node_root->node, &list );
 
-    while( !vlc_list_is_empty( &list ) )
+    while( !heimdall_list_is_empty( &list ) )
     {
         /* Pop last item in the list. */
-        struct vlc_item_list *node =
-            vlc_list_last_entry_or_null( &list, struct vlc_item_list, node );
-        vlc_list_remove(&node->node);
+        struct heimdall_item_list *node =
+            heimdall_list_last_entry_or_null( &list, struct heimdall_item_list, node );
+        heimdall_list_remove(&node->node);
 
         for( int i = 0; i < node->item->i_children; i++ )
         {
@@ -174,56 +175,56 @@ static void input_item_add_subnode( libvlc_media_t *md,
 
             /* The media will be released when its children will be added to
              * the list. */
-            libvlc_media_t *md_child = input_item_add_subitem( node->media, child->p_item );
+            libheimdall_media_t *md_child = input_item_add_subitem( node->media, child->p_item );
             if( md_child == NULL )
                 goto error;
 
             /* No need to lock subitems of the submedia since the submedia is
              * not yet exposed */
-            struct vlc_item_list *submedia =
+            struct heimdall_item_list *submedia =
                 wrap_item_in_list( md_child, child );
             if (submedia == NULL)
             {
-                libvlc_media_release( md_child );
+                libheimdall_media_release( md_child );
                 goto error;
             }
 
             /* Stash a request to parse this subtree. */
-            vlc_list_append( &submedia->node, &list );
+            heimdall_list_append( &submedia->node, &list );
         }
 
-        libvlc_media_release( node->media );
+        libheimdall_media_release( node->media );
         free( node );
     }
 
-    libvlc_media_list_unlock(md->p_subitems);
+    libheimdall_media_list_unlock(md->p_subitems);
     return;
 
 error:
-    libvlc_printerr( "Not enough memory" );
+    libheimdall_printerr( "Not enough memory" );
 
-    struct vlc_item_list *node;
-    vlc_list_foreach( node, &list, node )
+    struct heimdall_item_list *node;
+    heimdall_list_foreach( node, &list, node )
     {
         if( node->media != NULL )
-            libvlc_media_release( node->media );
+            libheimdall_media_release( node->media );
         free( node );
     }
 
-    libvlc_media_list_unlock(md->p_subitems);
+    libheimdall_media_list_unlock(md->p_subitems);
 }
 
-void libvlc_media_add_subtree(libvlc_media_t *p_md, const input_item_node_t *node)
+void libheimdall_media_add_subtree(libheimdall_media_t *p_md, const input_item_node_t *node)
 {
     input_item_add_subnode( p_md, node );
 }
 
-static void media_destroy( void *libvlc_owner )
+static void media_destroy( void *libheimdall_owner )
 {
-    libvlc_media_t *p_md = libvlc_owner;
+    libheimdall_media_t *p_md = libheimdall_owner;
 
     if( p_md->p_subitems )
-        libvlc_media_list_release( p_md->p_subitems );
+        libheimdall_media_list_release( p_md->p_subitems );
 
     free( p_md );
 }
@@ -234,27 +235,27 @@ static void media_destroy( void *libvlc_owner )
  *
  * That's the generic constructor
  */
-libvlc_media_t * libvlc_media_new_from_input_item(input_item_t *p_input_item )
+libheimdall_media_t * libheimdall_media_new_from_input_item(input_item_t *p_input_item )
 {
-    libvlc_media_t * p_md;
+    libheimdall_media_t * p_md;
 
     if (!p_input_item)
     {
-        libvlc_printerr( "No input item given" );
+        libheimdall_printerr( "No input item given" );
         return NULL;
     }
 
     /* The item is wrapped by a single media for its whole lifetime */
-    assert( input_item_GetLibvlcOwner( p_input_item ) == NULL );
+    assert( input_item_GetLibheimdallOwner( p_input_item ) == NULL );
 
-    p_md = calloc( 1, sizeof(libvlc_media_t) );
+    p_md = calloc( 1, sizeof(libheimdall_media_t) );
     if( !p_md )
     {
-        libvlc_printerr( "Not enough memory" );
+        libheimdall_printerr( "Not enough memory" );
         return NULL;
     }
 
-    p_md->p_subitems = libvlc_media_list_new();
+    p_md->p_subitems = libheimdall_media_list_new();
     if( p_md->p_subitems == NULL )
     {
         free( p_md );
@@ -265,8 +266,8 @@ libvlc_media_t * libvlc_media_new_from_input_item(input_item_t *p_input_item )
 
     p_md->p_input_item      = p_input_item;
 
-    input_item_SetLibvlcOwner( p_md->p_input_item, p_md, media_destroy );
-    atomic_init(&p_md->parsed_status, libvlc_media_parsed_status_none);
+    input_item_SetLibheimdallOwner( p_md->p_input_item, p_md, media_destroy );
+    atomic_init(&p_md->parsed_status, libheimdall_media_parsed_status_none);
     p_md->req = NULL;
 
     input_item_Hold( p_md->p_input_item );
@@ -275,53 +276,53 @@ libvlc_media_t * libvlc_media_new_from_input_item(input_item_t *p_input_item )
 }
 
 // Create a media with a certain given media resource location
-libvlc_media_t *libvlc_media_new_location(const char * psz_mrl)
+libheimdall_media_t *libheimdall_media_new_location(const char * psz_mrl)
 {
     input_item_t * p_input_item;
-    libvlc_media_t * p_md;
+    libheimdall_media_t * p_md;
 
     p_input_item = input_item_New( psz_mrl, NULL );
 
     if (!p_input_item)
     {
-        libvlc_printerr( "Not enough memory" );
+        libheimdall_printerr( "Not enough memory" );
         return NULL;
     }
 
-    p_md = libvlc_media_new_from_input_item( p_input_item );
+    p_md = libheimdall_media_new_from_input_item( p_input_item );
 
-    /* The p_input_item is retained in libvlc_media_new_from_input_item */
+    /* The p_input_item is retained in libheimdall_media_new_from_input_item */
     input_item_Release( p_input_item );
 
     return p_md;
 }
 
 // Create a media for a certain file path
-libvlc_media_t *libvlc_media_new_path(const char *path)
+libheimdall_media_t *libheimdall_media_new_path(const char *path)
 {
-    char *mrl = vlc_path2uri( path, NULL );
+    char *mrl = heimdall_path2uri( path, NULL );
     if( unlikely(mrl == NULL) )
     {
-        libvlc_printerr( "%s", vlc_strerror_c(errno) );
+        libheimdall_printerr( "%s", heimdall_strerror_c(errno) );
         return NULL;
     }
 
-    libvlc_media_t *m = libvlc_media_new_location(mrl);
+    libheimdall_media_t *m = libheimdall_media_new_location(mrl);
     free( mrl );
     return m;
 }
 
 // Create a media for an already open file descriptor
-libvlc_media_t *libvlc_media_new_fd(int fd)
+libheimdall_media_t *libheimdall_media_new_fd(int fd)
 {
     char mrl[16];
     snprintf( mrl, sizeof(mrl), "fd://%d", fd );
 
-    return libvlc_media_new_location(mrl);
+    return libheimdall_media_new_location(mrl);
 }
 
 // Create a media with custom callbacks to read the data from
-libvlc_media_t *libvlc_media_new_callbacks(const struct libvlc_media_open_cbs *cbs,
+libheimdall_media_t *libheimdall_media_new_callbacks(const struct libheimdall_media_open_cbs *cbs,
                                            void *cbs_opaque)
 {
     assert(cbs != NULL && cbs->read != NULL);
@@ -329,7 +330,7 @@ libvlc_media_t *libvlc_media_new_callbacks(const struct libvlc_media_open_cbs *c
     /* No different versions to handle for now */
     assert(cbs->version <= 0);
 
-    libvlc_media_t *m = libvlc_media_new_location("imem://");
+    libheimdall_media_t *m = libheimdall_media_new_location("imem://");
     if (unlikely(m == NULL))
         return NULL;
 
@@ -340,35 +341,35 @@ libvlc_media_t *libvlc_media_new_callbacks(const struct libvlc_media_open_cbs *c
 }
 
 // Create a media as an empty node with a given name
-libvlc_media_t * libvlc_media_new_as_node(const char *psz_name)
+libheimdall_media_t * libheimdall_media_new_as_node(const char *psz_name)
 {
     input_item_t * p_input_item;
-    libvlc_media_t * p_md;
+    libheimdall_media_t * p_md;
 
     p_input_item = input_item_New( INPUT_ITEM_URI_NOP, psz_name );
 
     if (!p_input_item)
     {
-        libvlc_printerr( "Not enough memory" );
+        libheimdall_printerr( "Not enough memory" );
         return NULL;
     }
 
-    p_md = libvlc_media_new_from_input_item( p_input_item );
+    p_md = libheimdall_media_new_from_input_item( p_input_item );
     input_item_Release( p_input_item );
 
     return p_md;
 }
 
 // Add an option to the media descriptor
-void libvlc_media_add_option( libvlc_media_t * p_md,
+void libheimdall_media_add_option( libheimdall_media_t * p_md,
                               const char * psz_option )
 {
-    libvlc_media_add_option_flag( p_md, psz_option,
-                          VLC_INPUT_OPTION_UNIQUE|VLC_INPUT_OPTION_TRUSTED );
+    libheimdall_media_add_option_flag( p_md, psz_option,
+                          HEIMDALL_INPUT_OPTION_UNIQUE|HEIMDALL_INPUT_OPTION_TRUSTED );
 }
 
-// Same as libvlc_media_add_option but with configurable flags
-void libvlc_media_add_option_flag( libvlc_media_t * p_md,
+// Same as libheimdall_media_add_option but with configurable flags
+void libheimdall_media_add_option_flag( libheimdall_media_t * p_md,
                                    const char * ppsz_option,
                                    unsigned i_flags )
 {
@@ -376,7 +377,7 @@ void libvlc_media_add_option_flag( libvlc_media_t * p_md,
 }
 
 // Delete a media descriptor object
-void libvlc_media_release( libvlc_media_t *p_md )
+void libheimdall_media_release( libheimdall_media_t *p_md )
 {
     if (!p_md)
         return;
@@ -387,7 +388,7 @@ void libvlc_media_release( libvlc_media_t *p_md )
 }
 
 // Retain a media descriptor object
-libvlc_media_t *libvlc_media_retain( libvlc_media_t *p_md )
+libheimdall_media_t *libheimdall_media_retain( libheimdall_media_t *p_md )
 {
     assert (p_md);
     input_item_Hold( p_md->p_input_item );
@@ -395,14 +396,14 @@ libvlc_media_t *libvlc_media_retain( libvlc_media_t *p_md )
 }
 
 // Duplicate a media descriptor object
-libvlc_media_t *
-libvlc_media_duplicate( libvlc_media_t *p_md_orig )
+libheimdall_media_t *
+libheimdall_media_duplicate( libheimdall_media_t *p_md_orig )
 {
 
     input_item_t *dup = input_item_Copy( p_md_orig->p_input_item );
     if( dup == NULL )
         return NULL;
-    libvlc_media_t *p_md = libvlc_media_new_from_input_item( dup );
+    libheimdall_media_t *p_md = libheimdall_media_new_from_input_item( dup );
     input_item_Release( dup );
 
     return p_md;
@@ -410,63 +411,63 @@ libvlc_media_duplicate( libvlc_media_t *p_md_orig )
 
 // Get mrl from a media descriptor object
 char *
-libvlc_media_get_mrl( libvlc_media_t * p_md )
+libheimdall_media_get_mrl( libheimdall_media_t * p_md )
 {
     assert( p_md );
     return input_item_GetURI( p_md->p_input_item );
 }
 
 // Getter for meta information
-char *libvlc_media_get_meta( libvlc_media_t *p_md, libvlc_meta_t e_meta )
+char *libheimdall_media_get_meta( libheimdall_media_t *p_md, libheimdall_meta_t e_meta )
 {
     char *psz_meta = NULL;
 
-    if( e_meta == libvlc_meta_NowPlaying )
+    if( e_meta == libheimdall_meta_NowPlaying )
     {
         psz_meta = input_item_GetNowPlayingFb( p_md->p_input_item );
     }
-    else if( e_meta == libvlc_meta_Title )
+    else if( e_meta == libheimdall_meta_Title )
     {
         psz_meta = input_item_GetTitleFbName( p_md->p_input_item );
     }
     else
     {
         psz_meta = input_item_GetMeta( p_md->p_input_item,
-                                             libvlc_to_vlc_meta[e_meta] );
+                                             libheimdall_to_heimdall_meta[e_meta] );
     }
     return psz_meta;
 }
 
 // Set the meta of the media
-void libvlc_media_set_meta( libvlc_media_t *p_md, libvlc_meta_t e_meta, const char *psz_value )
+void libheimdall_media_set_meta( libheimdall_media_t *p_md, libheimdall_meta_t e_meta, const char *psz_value )
 {
     assert( p_md );
-    input_item_SetMeta( p_md->p_input_item, libvlc_to_vlc_meta[e_meta], psz_value );
+    input_item_SetMeta( p_md->p_input_item, libheimdall_to_heimdall_meta[e_meta], psz_value );
 }
 
 // Getter for meta extra information
-char *libvlc_media_get_meta_extra( libvlc_media_t *p_md, const char *psz_name )
+char *libheimdall_media_get_meta_extra( libheimdall_media_t *p_md, const char *psz_name )
 {
     assert( p_md );
     return input_item_GetMetaExtra( p_md->p_input_item, psz_name );
 }
 
 // Set the meta extra of the media
-void libvlc_media_set_meta_extra( libvlc_media_t *p_md, const char *psz_name, const char *psz_value)
+void libheimdall_media_set_meta_extra( libheimdall_media_t *p_md, const char *psz_name, const char *psz_value)
 {
     assert( p_md );
     input_item_SetMetaExtra( p_md->p_input_item, psz_name, psz_value );
 }
 
 // Getter for meta extra names
-unsigned libvlc_media_get_meta_extra_names( libvlc_media_t *p_md, char ***pppsz_names )
+unsigned libheimdall_media_get_meta_extra_names( libheimdall_media_t *p_md, char ***pppsz_names )
 {
     assert( p_md && pppsz_names );
     return input_item_GetMetaExtraNames( p_md->p_input_item, pppsz_names );
 }
 
 // Release a media meta extra names
-void libvlc_media_meta_extra_names_release( char **ppsz_names, unsigned i_count )
+void libheimdall_media_meta_extra_names_release( char **ppsz_names, unsigned i_count )
 {
     if( i_count > 0 )
     {
@@ -478,36 +479,36 @@ void libvlc_media_meta_extra_names_release( char **ppsz_names, unsigned i_count 
 }
 
 // Save the meta previously set
-int libvlc_media_save_meta( libvlc_instance_t *inst, libvlc_media_t *p_md )
+int libheimdall_media_save_meta( libheimdall_instance_t *inst, libheimdall_media_t *p_md )
 {
     assert( p_md );
-    vlc_object_t *p_obj = VLC_OBJECT(inst->p_libvlc_int);
-    return input_item_WriteMeta( p_obj, p_md->p_input_item ) == VLC_SUCCESS;
+    heimdall_object_t *p_obj = HEIMDALL_OBJECT(inst->p_libheimdall_int);
+    return input_item_WriteMeta( p_obj, p_md->p_input_item ) == HEIMDALL_SUCCESS;
 }
 
 // Get subitems of media descriptor object.
-libvlc_media_list_t *
-libvlc_media_subitems( libvlc_media_t * p_md )
+libheimdall_media_list_t *
+libheimdall_media_subitems( libheimdall_media_t * p_md )
 {
-    libvlc_media_list_retain( p_md->p_subitems );
+    libheimdall_media_list_retain( p_md->p_subitems );
     return p_md->p_subitems;
 }
 
 // Getter for statistics information
-bool libvlc_media_get_stats(libvlc_media_t *p_md,
-                            libvlc_media_stats_t *p_stats)
+bool libheimdall_media_get_stats(libheimdall_media_t *p_md,
+                            libheimdall_media_stats_t *p_stats)
 {
     input_item_t *item = p_md->p_input_item;
 
     if( !p_md->p_input_item )
         return false;
 
-    vlc_mutex_lock( &item->lock );
+    heimdall_mutex_lock( &item->lock );
 
     input_stats_t *p_itm_stats = p_md->p_input_item->p_stats;
     if( p_itm_stats == NULL )
     {
-        vlc_mutex_unlock( &item->lock );
+        heimdall_mutex_unlock( &item->lock );
         return false;
     }
 
@@ -529,49 +530,49 @@ bool libvlc_media_get_stats(libvlc_media_t *p_md,
     p_stats->i_played_abuffers = p_itm_stats->i_played_abuffers;
     p_stats->i_lost_abuffers = p_itm_stats->i_lost_abuffers;
 
-    vlc_mutex_unlock( &item->lock );
+    heimdall_mutex_unlock( &item->lock );
     return true;
 }
 
 // Get duration of media object (in us)
-libvlc_time_t
-libvlc_media_get_duration( libvlc_media_t * p_md )
+libheimdall_time_t
+libheimdall_media_get_duration( libheimdall_media_t * p_md )
 {
     assert( p_md );
 
     if( !p_md->p_input_item )
     {
-        libvlc_printerr( "No input item" );
+        libheimdall_printerr( "No input item" );
         return -1;
     }
 
-    vlc_tick_t i_duration = input_item_GetDuration( p_md->p_input_item );
+    heimdall_tick_t i_duration = input_item_GetDuration( p_md->p_input_item );
 
     if( i_duration == 0 && !input_item_IsPreparsed( p_md->p_input_item ) )
         return -1;
 
-    return libvlc_time_from_vlc_tick( i_duration );
+    return libheimdall_time_from_heimdall_tick( i_duration );
 }
 
 int
-libvlc_media_get_filestat( libvlc_media_t *p_md, unsigned type, uint64_t *out )
+libheimdall_media_get_filestat( libheimdall_media_t *p_md, unsigned type, uint64_t *out )
 {
     assert( p_md );
     assert( out );
 
     if( !p_md->p_input_item )
     {
-        libvlc_printerr( "No input item" );
+        libheimdall_printerr( "No input item" );
         return -1;
     }
 
     const char *name;
     switch (type)
     {
-        case libvlc_media_filestat_mtime:   name = "mtime"; break;
-        case libvlc_media_filestat_size:    name = "size"; break;
+        case libheimdall_media_filestat_mtime:   name = "mtime"; break;
+        case libheimdall_media_filestat_size:    name = "size"; break;
         default:
-            libvlc_printerr( "unknown libvlc_media_stat" );
+            libheimdall_printerr( "unknown libheimdall_media_stat" );
             return -1;
     };
 
@@ -594,14 +595,14 @@ libvlc_media_get_filestat( libvlc_media_t *p_md, unsigned type, uint64_t *out )
 }
 
 bool
-libvlc_media_is_parsed(libvlc_media_t *media)
+libheimdall_media_is_parsed(libheimdall_media_t *media)
 {
-    return atomic_load(&media->parsed_status) == libvlc_media_parsed_status_done;
+    return atomic_load(&media->parsed_status) == libheimdall_media_parsed_status_done;
 }
 
 // Sets media descriptor's user_data
 void
-libvlc_media_set_user_data( libvlc_media_t * p_md, void * p_new_user_data )
+libheimdall_media_set_user_data( libheimdall_media_t * p_md, void * p_new_user_data )
 {
     assert( p_md );
     p_md->p_user_data = p_new_user_data;
@@ -609,69 +610,69 @@ libvlc_media_set_user_data( libvlc_media_t * p_md, void * p_new_user_data )
 
 // Get media descriptor's user_data
 void *
-libvlc_media_get_user_data( libvlc_media_t * p_md )
+libheimdall_media_get_user_data( libheimdall_media_t * p_md )
 {
     assert( p_md );
     return p_md->p_user_data;
 }
 
-libvlc_media_tracklist_t *
-libvlc_media_get_tracklist( libvlc_media_t *p_md, libvlc_track_type_t type )
+libheimdall_media_tracklist_t *
+libheimdall_media_get_tracklist( libheimdall_media_t *p_md, libheimdall_track_type_t type )
 {
     assert( p_md );
 
     input_item_t *p_input_item = p_md->p_input_item;
 
-    vlc_mutex_lock( &p_input_item->lock );
-    libvlc_media_tracklist_t *list =
-        libvlc_media_tracklist_from_item( p_input_item, type );
-    vlc_mutex_unlock( &p_input_item->lock );
+    heimdall_mutex_lock( &p_input_item->lock );
+    libheimdall_media_tracklist_t *list =
+        libheimdall_media_tracklist_from_item( p_input_item, type );
+    heimdall_mutex_unlock( &p_input_item->lock );
 
     return list;
 }
 
 // Get codec description from media elementary stream
 const char *
-libvlc_media_get_codec_description( libvlc_track_type_t i_type,
+libheimdall_media_get_codec_description( libheimdall_track_type_t i_type,
                                     uint32_t i_codec )
 {
-    return vlc_fourcc_GetDescription( libvlc_track_type_to_escat( i_type),
+    return heimdall_fourcc_GetDescription( libheimdall_track_type_to_escat( i_type),
                                       i_codec );
 }
 
 // Get the media type of the media descriptor object
-libvlc_media_type_t libvlc_media_get_type( libvlc_media_t *p_md )
+libheimdall_media_type_t libheimdall_media_get_type( libheimdall_media_t *p_md )
 {
     assert( p_md );
 
     enum input_item_type_e i_type;
     input_item_t *p_input_item = p_md->p_input_item;
 
-    vlc_mutex_lock( &p_input_item->lock );
+    heimdall_mutex_lock( &p_input_item->lock );
     i_type = p_md->p_input_item->i_type;
-    vlc_mutex_unlock( &p_input_item->lock );
+    heimdall_mutex_unlock( &p_input_item->lock );
 
     switch( i_type )
     {
     case ITEM_TYPE_FILE:
-        return libvlc_media_type_file;
+        return libheimdall_media_type_file;
     case ITEM_TYPE_NODE:
     case ITEM_TYPE_DIRECTORY:
-        return libvlc_media_type_directory;
+        return libheimdall_media_type_directory;
     case ITEM_TYPE_DISC:
-        return libvlc_media_type_disc;
+        return libheimdall_media_type_disc;
     case ITEM_TYPE_STREAM:
-        return libvlc_media_type_stream;
+        return libheimdall_media_type_stream;
     case ITEM_TYPE_PLAYLIST:
-        return libvlc_media_type_playlist;
+        return libheimdall_media_type_playlist;
     default:
-        return libvlc_media_type_unknown;
+        return libheimdall_media_type_unknown;
     }
 }
 
 // Add a slave to the media descriptor
-int libvlc_media_slaves_add( libvlc_media_t *p_md,
-                             libvlc_media_slave_type_t i_type,
+int libheimdall_media_slaves_add( libheimdall_media_t *p_md,
+                             libheimdall_media_slave_type_t i_type,
                              unsigned int i_priority,
                              const char *psz_uri )
 {
@@ -681,14 +682,14 @@ int libvlc_media_slaves_add( libvlc_media_t *p_md,
     enum slave_type i_input_slave_type;
     switch( i_type )
     {
-    case libvlc_media_slave_type_subtitle:
+    case libheimdall_media_slave_type_subtitle:
         i_input_slave_type = SLAVE_TYPE_SPU;
         break;
-    case libvlc_media_slave_type_generic:
+    case libheimdall_media_slave_type_generic:
         i_input_slave_type = SLAVE_TYPE_GENERIC;
         break;
     default:
-        vlc_assert_unreachable();
+        heimdall_assert_unreachable();
         return -1;
     }
 
@@ -718,39 +719,39 @@ int libvlc_media_slaves_add( libvlc_media_t *p_md,
                                                       i_input_slave_priority );
     if( p_slave == NULL )
         return -1;
-    return input_item_AddSlave( p_input_item, p_slave ) == VLC_SUCCESS ? 0 : -1;
+    return input_item_AddSlave( p_input_item, p_slave ) == HEIMDALL_SUCCESS ? 0 : -1;
 }
 
 // Clear all slaves of the media descriptor
-void libvlc_media_slaves_clear( libvlc_media_t *p_md )
+void libheimdall_media_slaves_clear( libheimdall_media_t *p_md )
 {
     assert( p_md );
     input_item_t *p_input_item = p_md->p_input_item;
 
-    vlc_mutex_lock( &p_input_item->lock );
+    heimdall_mutex_lock( &p_input_item->lock );
     for( int i = 0; i < p_input_item->i_slaves; i++ )
         input_item_slave_Delete( p_input_item->pp_slaves[i] );
     TAB_CLEAN( p_input_item->i_slaves, p_input_item->pp_slaves );
-    vlc_mutex_unlock( &p_input_item->lock );
+    heimdall_mutex_unlock( &p_input_item->lock );
 }
 
 // Get a media descriptor's slave list
-unsigned int libvlc_media_slaves_get( libvlc_media_t *p_md,
-                                      libvlc_media_slave_t ***ppp_slaves )
+unsigned int libheimdall_media_slaves_get( libheimdall_media_t *p_md,
+                                      libheimdall_media_slave_t ***ppp_slaves )
 {
     assert( p_md && ppp_slaves );
     input_item_t *p_input_item = p_md->p_input_item;
     *ppp_slaves = NULL;
 
-    vlc_mutex_lock( &p_input_item->lock );
+    heimdall_mutex_lock( &p_input_item->lock );
 
     int i_count = p_input_item->i_slaves;
     if( i_count <= 0 )
-        return vlc_mutex_unlock( &p_input_item->lock ), 0;
+        return heimdall_mutex_unlock( &p_input_item->lock ), 0;
 
-    libvlc_media_slave_t **pp_slaves = calloc( i_count, sizeof(*pp_slaves) );
+    libheimdall_media_slave_t **pp_slaves = calloc( i_count, sizeof(*pp_slaves) );
     if( pp_slaves == NULL )
-        return vlc_mutex_unlock( &p_input_item->lock ), 0;
+        return heimdall_mutex_unlock( &p_input_item->lock ), 0;
 
     for( int i = 0; i < i_count; ++i )
     {
@@ -758,13 +759,13 @@ unsigned int libvlc_media_slaves_get( libvlc_media_t *p_md,
         assert( p_item_slave->i_priority >= SLAVE_PRIORITY_MATCH_NONE );
 
         /* also allocate psz_uri buffer at the end of the struct */
-        libvlc_media_slave_t *p_slave = malloc( sizeof(*p_slave) +
+        libheimdall_media_slave_t *p_slave = malloc( sizeof(*p_slave) +
                                                 strlen( p_item_slave->psz_uri )
                                                 + 1 );
         if( p_slave == NULL )
         {
-            libvlc_media_slaves_release(pp_slaves, i);
-            return vlc_mutex_unlock( &p_input_item->lock ), 0;
+            libheimdall_media_slaves_release(pp_slaves, i);
+            return heimdall_mutex_unlock( &p_input_item->lock ), 0;
         }
         p_slave->psz_uri = (char *) ((uint8_t *)p_slave) + sizeof(*p_slave);
         strcpy( p_slave->psz_uri, p_item_slave->psz_uri );
@@ -772,13 +773,13 @@ unsigned int libvlc_media_slaves_get( libvlc_media_t *p_md,
         switch( p_item_slave->i_type )
         {
         case SLAVE_TYPE_SPU:
-            p_slave->i_type = libvlc_media_slave_type_subtitle;
+            p_slave->i_type = libheimdall_media_slave_type_subtitle;
             break;
         case SLAVE_TYPE_GENERIC:
-            p_slave->i_type = libvlc_media_slave_type_generic;
+            p_slave->i_type = libheimdall_media_slave_type_generic;
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
         }
 
         switch( p_item_slave->i_priority )
@@ -799,18 +800,18 @@ unsigned int libvlc_media_slaves_get( libvlc_media_t *p_md,
             p_slave->i_priority = 4;
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
         }
         pp_slaves[i] = p_slave;
     }
-    vlc_mutex_unlock( &p_input_item->lock );
+    heimdall_mutex_unlock( &p_input_item->lock );
 
     *ppp_slaves = pp_slaves;
     return i_count;
 }
 
 // Release a media descriptor's slave list
-void libvlc_media_slaves_release( libvlc_media_slave_t **pp_slaves,
+void libheimdall_media_slaves_release( libheimdall_media_slave_t **pp_slaves,
                                   unsigned int i_count )
 {
     if( i_count > 0 )

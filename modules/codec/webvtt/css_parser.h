@@ -2,6 +2,7 @@
  * css_parser.h : CSS parser interface
  *****************************************************************************
  * Copyright (C) 2017 VideoLabs, VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -24,17 +25,17 @@
 //#define CSS_PARSER_DEBUG
 #define YYSTYPE CSSSTYPE
 
-typedef struct vlc_css_parser_t vlc_css_parser_t;
-typedef struct vlc_css_selector_t vlc_css_selector_t;
-typedef struct vlc_css_declaration_t vlc_css_declaration_t;
-typedef struct vlc_css_rule_t vlc_css_rule_t;
-typedef struct vlc_css_expr_t vlc_css_expr_t;
+typedef struct heimdall_css_parser_t heimdall_css_parser_t;
+typedef struct heimdall_css_selector_t heimdall_css_selector_t;
+typedef struct heimdall_css_declaration_t heimdall_css_declaration_t;
+typedef struct heimdall_css_rule_t heimdall_css_rule_t;
+typedef struct heimdall_css_expr_t heimdall_css_expr_t;
 
 typedef struct
 {
     float val;
     char *psz;
-    vlc_css_expr_t *function;
+    heimdall_css_expr_t *function;
     enum
     {
         TYPE_INVALID,
@@ -56,27 +57,27 @@ typedef struct
         TYPE_UNICODERANGE,
         TYPE_URI,
     } type;
-} vlc_css_term_t;
+} heimdall_css_term_t;
 
-struct vlc_css_expr_t
+struct heimdall_css_expr_t
 {
     struct
     {
         char op;
-        vlc_css_term_t term;
+        heimdall_css_term_t term;
     } *seq;
     size_t i_alloc;
     size_t i_count;
 };
 
-struct vlc_css_declaration_t
+struct heimdall_css_declaration_t
 {
     char *psz_property;
-    vlc_css_expr_t *expr;
-    vlc_css_declaration_t *p_next;
+    heimdall_css_expr_t *expr;
+    heimdall_css_declaration_t *p_next;
 };
 
-enum vlc_css_match_e
+enum heimdall_css_match_e
 {
     MATCH_EQUALS,
     MATCH_INCLUDES,
@@ -86,7 +87,7 @@ enum vlc_css_match_e
     MATCH_CONTAINS,
 };
 
-enum vlc_css_relation_e
+enum heimdall_css_relation_e
 {
    RELATION_SELF = 0,
    RELATION_DESCENDENT = ' ',
@@ -95,7 +96,7 @@ enum vlc_css_relation_e
    RELATION_CHILD = '>',
 };
 
-struct vlc_css_selector_t
+struct heimdall_css_selector_t
 {
     char *psz_name;
     enum
@@ -113,71 +114,71 @@ struct vlc_css_selector_t
     } type;
     struct
     {
-        vlc_css_selector_t *p_first;
-        vlc_css_selector_t **pp_append;
+        heimdall_css_selector_t *p_first;
+        heimdall_css_selector_t **pp_append;
     } specifiers;
 
-    enum vlc_css_match_e match;
-    vlc_css_selector_t *p_matchsel;
+    enum heimdall_css_match_e match;
+    heimdall_css_selector_t *p_matchsel;
 
-    enum vlc_css_relation_e combinator;
-    vlc_css_selector_t *p_next;
+    enum heimdall_css_relation_e combinator;
+    heimdall_css_selector_t *p_next;
 };
 
-struct vlc_css_rule_t
+struct heimdall_css_rule_t
 {
     bool b_valid;
-    vlc_css_selector_t *p_selectors;
-    vlc_css_declaration_t *p_declarations;
+    heimdall_css_selector_t *p_selectors;
+    heimdall_css_declaration_t *p_declarations;
 
-    vlc_css_rule_t *p_next;
+    heimdall_css_rule_t *p_next;
 };
 
-struct vlc_css_parser_t
+struct heimdall_css_parser_t
 {
     struct
     {
-        vlc_css_rule_t *p_first;
-        vlc_css_rule_t **pp_append;
+        heimdall_css_rule_t *p_first;
+        heimdall_css_rule_t **pp_append;
     } rules;
 };
 
 #define CHAIN_APPEND_DECL(n, t) void n( t *p_a, t *p_b )
 
-void vlc_css_term_Clean( vlc_css_term_t a );
-bool vlc_css_expression_AddTerm( vlc_css_expr_t *p_expr, char op, vlc_css_term_t a );
-void vlc_css_expression_Delete( vlc_css_expr_t *p_expr );
-vlc_css_expr_t * vlc_css_expression_New( vlc_css_term_t term );
+void heimdall_css_term_Clean( heimdall_css_term_t a );
+bool heimdall_css_expression_AddTerm( heimdall_css_expr_t *p_expr, char op, heimdall_css_term_t a );
+void heimdall_css_expression_Delete( heimdall_css_expr_t *p_expr );
+heimdall_css_expr_t * heimdall_css_expression_New( heimdall_css_term_t term );
 
-CHAIN_APPEND_DECL(vlc_css_declarations_Append, vlc_css_declaration_t);
-void vlc_css_declarations_Delete( vlc_css_declaration_t *p_decl );
-vlc_css_declaration_t * vlc_css_declaration_New( const char *psz );
+CHAIN_APPEND_DECL(heimdall_css_declarations_Append, heimdall_css_declaration_t);
+void heimdall_css_declarations_Delete( heimdall_css_declaration_t *p_decl );
+heimdall_css_declaration_t * heimdall_css_declaration_New( const char *psz );
 
-CHAIN_APPEND_DECL(vlc_css_selector_Append, vlc_css_selector_t);
-void vlc_css_selector_AddSpecifier( vlc_css_selector_t *p_sel, vlc_css_selector_t *p_spec );
-void vlc_css_selectors_Delete( vlc_css_selector_t *p_sel );
-vlc_css_selector_t * vlc_css_selector_New( int type, const char *psz );
+CHAIN_APPEND_DECL(heimdall_css_selector_Append, heimdall_css_selector_t);
+void heimdall_css_selector_AddSpecifier( heimdall_css_selector_t *p_sel, heimdall_css_selector_t *p_spec );
+void heimdall_css_selectors_Delete( heimdall_css_selector_t *p_sel );
+heimdall_css_selector_t * heimdall_css_selector_New( int type, const char *psz );
 
-void vlc_css_rules_Delete( vlc_css_rule_t *p_rule );
-vlc_css_rule_t * vlc_css_rule_New( void );
+void heimdall_css_rules_Delete( heimdall_css_rule_t *p_rule );
+heimdall_css_rule_t * heimdall_css_rule_New( void );
 
-void vlc_css_parser_AddRule( vlc_css_parser_t *p_parser, vlc_css_rule_t *p_rule );
-void vlc_css_parser_Debug( const vlc_css_parser_t *p_parser );
-void vlc_css_parser_Clean( vlc_css_parser_t *p_parser );
-void vlc_css_parser_Init( vlc_css_parser_t *p_parser );
+void heimdall_css_parser_AddRule( heimdall_css_parser_t *p_parser, heimdall_css_rule_t *p_rule );
+void heimdall_css_parser_Debug( const heimdall_css_parser_t *p_parser );
+void heimdall_css_parser_Clean( heimdall_css_parser_t *p_parser );
+void heimdall_css_parser_Init( heimdall_css_parser_t *p_parser );
 
-bool vlc_css_parser_ParseBytes( vlc_css_parser_t *p_parser, const uint8_t *, size_t );
-bool vlc_css_parser_ParseString( vlc_css_parser_t *p_parser, const char * );
+bool heimdall_css_parser_ParseBytes( heimdall_css_parser_t *p_parser, const uint8_t *, size_t );
+bool heimdall_css_parser_ParseString( heimdall_css_parser_t *p_parser, const char * );
 
-void vlc_css_unescape( char *psz );
-char * vlc_css_unquoted( const char *psz );
-char * vlc_css_unescaped( const char *psz );
-char * vlc_css_unquotedunescaped( const char *psz );
+void heimdall_css_unescape( char *psz );
+char * heimdall_css_unquoted( const char *psz );
+char * heimdall_css_unescaped( const char *psz );
+char * heimdall_css_unquotedunescaped( const char *psz );
 
 #   ifdef CSS_PARSER_DEBUG
 
-void css_selector_Debug( const vlc_css_selector_t *p_sel );
-void css_rule_Debug( const vlc_css_rule_t *p_rule );
+void css_selector_Debug( const heimdall_css_selector_t *p_sel );
+void css_rule_Debug( const heimdall_css_rule_t *p_rule );
 
 #   endif
 

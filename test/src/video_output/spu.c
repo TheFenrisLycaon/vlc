@@ -2,6 +2,7 @@
  * test/src/video_output/spu.c
  *****************************************************************************
  * Copyright (C) 2019-2026 VideoLabs, VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Alexandre Janniaux <ajanni@videolabs.io>
  *
@@ -23,18 +24,18 @@
 # include "config.h"
 #endif
 
-#include "../../libvlc/test.h"
+#include "../../libheimdall/test.h"
 #include <assert.h>
-#include <vlc_common.h>
-#include <vlc_spu.h>
-#include <vlc_codec.h>
-#include <vlc_subpicture.h>
+#include <heimdall_common.h>
+#include <heimdall_spu.h>
+#include <heimdall_codec.h>
+#include <heimdall_subpicture.h>
 #define MODULE_NAME saletype
-#undef VLC_DYNAMIC_PLUGIN
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_vout_display.h>
-#include "../lib/libvlc_internal.h"
+#undef HEIMDALL_DYNAMIC_PLUGIN
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_vout_display.h>
+#include "../lib/libheimdall_internal.h"
 #include "../../../modules/codec/substext.h"
 
 #define PRINTDIMFSTR "%dx%d+%d,%d sar=%d:%d"
@@ -71,9 +72,9 @@ enum
  *   same values.
  */
 
-const char vlc_module_name[] = "spu_test";
+const char heimdall_module_name[] = "spu_test";
 
-static const char *libvlc_argv[] = {
+static const char *libheimdall_argv[] = {
     "-v",
     "--ignore-config",
     "-Idummy",
@@ -108,7 +109,7 @@ static subpicture_t *create_subtitle(unsigned w, unsigned h, int nb_regions)
 {
     video_format_t fmt;
     video_format_Init(&fmt, 0);
-    video_format_Setup(&fmt, VLC_CODEC_RGBA, w, h, w, h, 1, 1);
+    video_format_Setup(&fmt, HEIMDALL_CODEC_RGBA, w, h, w, h, 1, 1);
 
     subpicture_t *sub = decoder_NewSubpicture(&dec_subpicture, NULL);
     if(!sub)
@@ -122,14 +123,14 @@ static subpicture_t *create_subtitle(unsigned w, unsigned h, int nb_regions)
             subpicture_Delete(sub);
             return NULL;
         }
-        vlc_spu_regions_push(&sub->regions, region);
+        heimdall_spu_regions_push(&sub->regions, region);
 
         region->i_x = 0;
         region->i_y = 0;
     }
 
-    sub->i_start = VLC_TICK_0;
-    sub->i_stop = VLC_TICK_0 + vlc_tick_from_sec(1);
+    sub->i_start = HEIMDALL_TICK_0;
+    sub->i_stop = HEIMDALL_TICK_0 + heimdall_tick_from_sec(1);
     sub->b_subtitle = true;
 
     return sub;
@@ -142,7 +143,7 @@ static subpicture_t *create_subtitle(unsigned w, unsigned h, int nb_regions)
 static subpicture_t *create_text_subtitle(int nb_regions)
 {
     video_format_t fmt;
-    video_format_Init(&fmt, VLC_CODEC_TEXT);
+    video_format_Init(&fmt, HEIMDALL_CODEC_TEXT);
 
     subpicture_t *sub = decoder_NewSubpictureText(&dec_subpicture);
     if(!sub)
@@ -182,15 +183,15 @@ static const int aligns_sequence[] = {
     SUBPICTURE_ALIGN_RIGHT,
 };
 
-const vlc_fourcc_t chroma_list[] =
+const heimdall_fourcc_t chroma_list[] =
 {
-    VLC_CODEC_RGBA, 0
+    HEIMDALL_CODEC_RGBA, 0
 };
 
 static void test_reset_SPU(spu_t *spu)
 {
     video_format_t fmt;
-    video_format_Init(&fmt, VLC_CODEC_RGBA);
+    video_format_Init(&fmt, HEIMDALL_CODEC_RGBA);
     assert(spu_Render(spu, NULL, &fmt, &fmt, true, NULL, INT64_MAX, INT64_MAX, false) == NULL);
 }
 
@@ -266,20 +267,20 @@ static int expect_rendered_region(const struct subpicture_region_rendered *regio
     EXPECT_EQ_INT(region->place.x, spu_test_place_x(logical_x, logical_w, fmt_out) + place_dx);
     EXPECT_EQ_INT(region->place.y, logical_y + place_dy);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 failed:
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 #define CHECK_REGION(...) \
-    EXPECT(expect_rendered_region(__VA_ARGS__) == VLC_SUCCESS)
+    EXPECT(expect_rendered_region(__VA_ARGS__) == HEIMDALL_SUCCESS)
 
 static int test_multiple_spu_render(spu_t *spu)
 {
     video_format_t fmt_in, fmt_out;
-    video_format_Init(&fmt_in, VLC_CODEC_RGBA);
-    video_format_Init(&fmt_out, VLC_CODEC_RGBA);
+    video_format_Init(&fmt_in, HEIMDALL_CODEC_RGBA);
+    video_format_Init(&fmt_out, HEIMDALL_CODEC_RGBA);
     fmt_in.i_width = fmt_in.i_visible_width = 1920;
     fmt_in.i_height = fmt_in.i_visible_height = 1080;
     fmt_in.i_sar_num = fmt_in.i_sar_den = 1;
@@ -289,13 +290,13 @@ static int test_multiple_spu_render(spu_t *spu)
     subpicture_t *subpic = create_subtitle(100, 100, 2);
     if(!subpic)
         return 1;
-    subpic->i_start = VLC_TICK_0;
-    subpic->i_stop = VLC_TICK_0 + vlc_tick_from_sec(1);
+    subpic->i_start = HEIMDALL_TICK_0;
+    subpic->i_stop = HEIMDALL_TICK_0 + heimdall_tick_from_sec(1);
     {
-        struct subpicture_region_t *region = vlc_spu_regions_first_or_null(&subpic->regions);
+        struct subpicture_region_t *region = heimdall_spu_regions_first_or_null(&subpic->regions);
         region->i_align = SUBPICTURE_ALIGN_BOTTOM|SUBPICTURE_ALIGN_RIGHT;
         region->b_absolute = false;
-        region = vlc_list_first_entry_or_null(&region->node, subpicture_region_t, node);
+        region = heimdall_list_first_entry_or_null(&region->node, subpicture_region_t, node);
         region->i_align = SUBPICTURE_ALIGN_BOTTOM|SUBPICTURE_ALIGN_RIGHT;
         region->b_absolute = false;
     }
@@ -311,7 +312,7 @@ static int test_multiple_spu_render(spu_t *spu)
         { 9, 16 }, // vertical!
     };
 
-    vlc_render_subpicture *output = NULL;
+    heimdall_render_subpicture *output = NULL;
     for(unsigned aridx = 0; aridx < ARRAY_SIZE(aspect_ratios); aridx++)
     {
         fmt_out.i_sar_num = aspect_ratios[aridx].num;
@@ -322,7 +323,7 @@ static int test_multiple_spu_render(spu_t *spu)
             fprintf(stderr,"\n\ttesting %s scaling\n", i==INTERNAL_SCALED ? "internal" : "external");
             output = spu_Render(spu, i == INTERNAL_SCALED ? NULL : chroma_list,
                                 &fmt_out, &fmt_in, true, NULL,
-                                VLC_TICK_0, VLC_TICK_0, false);
+                                HEIMDALL_TICK_0, HEIMDALL_TICK_0, false);
             EXPECT(output->regions.size == 2);
             const struct subpicture_region_rendered *region0 = output->regions.data[0];
             const video_format_t *fmt0 = &region0->p_picture->format;
@@ -346,7 +347,7 @@ static int test_multiple_spu_render(spu_t *spu)
                          1.0, 1.0, (i == INTERNAL_SCALED),
                          +0, -100); // displacement because packed against region 0
 
-            vlc_render_subpicture_Delete(output);
+            heimdall_render_subpicture_Delete(output);
             output = NULL;
         }
     }
@@ -355,15 +356,15 @@ static int test_multiple_spu_render(spu_t *spu)
 
 failed:
     if(output)
-        vlc_render_subpicture_Delete(output);
+        heimdall_render_subpicture_Delete(output);
     return 1;
 }
 
 static int test_spu_scaling(spu_t *spu)
 {
     video_format_t fmt_in, fmt_out;
-    video_format_Init(&fmt_in, VLC_CODEC_RGBA);
-    video_format_Init(&fmt_out, VLC_CODEC_RGBA);
+    video_format_Init(&fmt_in, HEIMDALL_CODEC_RGBA);
+    video_format_Init(&fmt_out, HEIMDALL_CODEC_RGBA);
     fmt_in.i_width = 2000;
     fmt_in.i_visible_width = 1920;
     fmt_in.i_height = 1100;
@@ -376,8 +377,8 @@ static int test_spu_scaling(spu_t *spu)
                                                  fmt_out.i_visible_width,
                                                  fmt_out.i_visible_height};
 
-    vlc_render_subpicture *output0 = NULL;
-    vlc_render_subpicture *output1 = NULL;
+    heimdall_render_subpicture *output0 = NULL;
+    heimdall_render_subpicture *output1 = NULL;
 
     {
         subpicture_t *subpic = create_subtitle(100, 100, 1);
@@ -385,7 +386,7 @@ static int test_spu_scaling(spu_t *spu)
         spu_PutSubpicture(spu, subpic);
         output0 = spu_Render(spu, NULL, &fmt_out, &fmt_in,
                              true, &video_position,
-                             VLC_TICK_0, VLC_TICK_0, false);
+                             HEIMDALL_TICK_0, HEIMDALL_TICK_0, false);
         EXPECT(output0);
         EXPECT(output0->regions.size == 1);
 
@@ -396,7 +397,7 @@ static int test_spu_scaling(spu_t *spu)
         spu_PutSubpicture(spu, subpic);
         output1 = spu_Render(spu, chroma_list, &fmt_out, &fmt_in,
                             true, &video_position,
-                            VLC_TICK_0, VLC_TICK_0, false);
+                            HEIMDALL_TICK_0, HEIMDALL_TICK_0, false);
         EXPECT(output1);
         EXPECT(output1->regions.size == 1);
 
@@ -423,9 +424,9 @@ static int test_spu_scaling(spu_t *spu)
         EXPECT(fmt1->i_x_offset == fmt2->i_x_offset && fmt1->i_y_offset == fmt2->i_y_offset);
         EXPECT(region1->place.x == region2->place.x && region1->place.y == region2->place.y);
 
-        vlc_render_subpicture_Delete(output0);
+        heimdall_render_subpicture_Delete(output0);
         output0 = NULL;
-        vlc_render_subpicture_Delete(output1);
+        heimdall_render_subpicture_Delete(output1);
         output1 = NULL;
     }
 
@@ -459,7 +460,7 @@ static int test_spu_scaling(spu_t *spu)
             subpic->i_original_picture_width = fmt_in.i_visible_width * xratio;
             subpic->i_original_picture_height = fmt_in.i_visible_height * yratio;
 
-            struct subpicture_region_t *srcregion = vlc_spu_regions_first_or_null(&subpic->regions);
+            struct subpicture_region_t *srcregion = heimdall_spu_regions_first_or_null(&subpic->regions);
             if(!srcregion)
             {
                 subpicture_Delete(subpic);
@@ -475,7 +476,7 @@ static int test_spu_scaling(spu_t *spu)
                     i==INTERNAL_SCALED ? "internal" : "external");
             output0 = spu_Render(spu, i == INTERNAL_SCALED ? NULL : chroma_list,
                                  &fmt_out, &fmt_in, true, NULL,
-                                 VLC_TICK_0, VLC_TICK_0, false);
+                                 HEIMDALL_TICK_0, HEIMDALL_TICK_0, false);
             const struct subpicture_region_rendered *region = output0->regions.data[0];
             const video_format_t *fmt = &region->p_picture->format;
 
@@ -488,7 +489,7 @@ static int test_spu_scaling(spu_t *spu)
                          xratio, yratio, (i == INTERNAL_SCALED),
                          +0, +0);
 
-            vlc_render_subpicture_Delete(output0);
+            heimdall_render_subpicture_Delete(output0);
             output0 = NULL;
             test_reset_SPU(spu);
         }
@@ -510,7 +511,7 @@ static int test_spu_scaling(spu_t *spu)
             subpicture_t *subpic = create_subtitle(100, 100, 1);
             EXPECT(subpic);
 
-            struct subpicture_region_t *srcregion = vlc_spu_regions_first_or_null(&subpic->regions);
+            struct subpicture_region_t *srcregion = heimdall_spu_regions_first_or_null(&subpic->regions);
             if(!srcregion)
             {
                 subpicture_Delete(subpic);
@@ -525,7 +526,7 @@ static int test_spu_scaling(spu_t *spu)
             fprintf(stderr,"\n\ttesting %s scaling\n", i==INTERNAL_SCALED ? "internal" : "external");
             output0 = spu_Render(spu, i == INTERNAL_SCALED ? NULL : chroma_list,
                                  &fmt_out, &fmt_in, true, NULL,
-                                 VLC_TICK_0, VLC_TICK_0, false);
+                                 HEIMDALL_TICK_0, HEIMDALL_TICK_0, false);
             EXPECT(output0);
             const struct subpicture_region_rendered *region = output0->regions.data[0];
             const video_format_t *fmt = &region->p_picture->format;
@@ -539,7 +540,7 @@ static int test_spu_scaling(spu_t *spu)
                          xratio, yratio, (i == INTERNAL_SCALED),
                          +0, +0);
 
-            vlc_render_subpicture_Delete(output0);
+            heimdall_render_subpicture_Delete(output0);
             output0 = NULL;
             test_reset_SPU(spu);
         }
@@ -550,24 +551,24 @@ static int test_spu_scaling(spu_t *spu)
 
 failed:
     if(output0)
-        vlc_render_subpicture_Delete(output0);
+        heimdall_render_subpicture_Delete(output0);
     if(output1)
-        vlc_render_subpicture_Delete(output1);
+        heimdall_render_subpicture_Delete(output1);
     return 1;
 }
 
 static int test_spu_align(spu_t *spu)
 {
     video_format_t fmt_in, fmt_out;
-    video_format_Init(&fmt_in, VLC_CODEC_RGBA);
-    video_format_Init(&fmt_out, VLC_CODEC_RGBA);
+    video_format_Init(&fmt_in, HEIMDALL_CODEC_RGBA);
+    video_format_Init(&fmt_out, HEIMDALL_CODEC_RGBA);
     fmt_in.i_width = fmt_in.i_visible_width = 1920;
     fmt_in.i_height = fmt_in.i_visible_height = 1080;
     fmt_in.i_sar_num = fmt_in.i_sar_den = 1;
     video_format_Copy(&fmt_out, &fmt_in);
 
     /* Check all aligns */
-    vlc_render_subpicture *output0 = NULL;
+    heimdall_render_subpicture *output0 = NULL;
     fmt_out.i_sar_num = 1; fmt_out.i_sar_den = 1;
     for(unsigned j = 0; j<ARRAY_SIZE(aligns_sequence); j++)
     {
@@ -579,7 +580,7 @@ static int test_spu_align(spu_t *spu)
 
             unsigned offset_x = j % 3 ? 10 : 0, offset_y = j % 4 ? 10 : 0;
 
-            struct subpicture_region_t *srcregion = vlc_spu_regions_first_or_null(&subpic->regions);
+            struct subpicture_region_t *srcregion = heimdall_spu_regions_first_or_null(&subpic->regions);
             if(!srcregion)
             {
                 subpicture_Delete(subpic);
@@ -595,7 +596,7 @@ static int test_spu_align(spu_t *spu)
             fprintf(stderr,"\ttesting %s scaling\n", i==INTERNAL_SCALED ? "internal" : "external");
             output0 = spu_Render(spu, i == INTERNAL_SCALED ? NULL : chroma_list,
                                  &fmt_out, &fmt_in, true, NULL,
-                                 VLC_TICK_0, VLC_TICK_0, false);
+                                 HEIMDALL_TICK_0, HEIMDALL_TICK_0, false);
             EXPECT(output0);
 
             const struct subpicture_region_rendered *region = output0->regions.data[0];
@@ -610,7 +611,7 @@ static int test_spu_align(spu_t *spu)
                          1.0, 1.0, (i == INTERNAL_SCALED),
                          +0, +0);
 
-            vlc_render_subpicture_Delete(output0);
+            heimdall_render_subpicture_Delete(output0);
             output0 = NULL;
             test_reset_SPU(spu);
         }
@@ -620,21 +621,21 @@ static int test_spu_align(spu_t *spu)
 
 failed:
     if(output0)
-        vlc_render_subpicture_Delete(output0);
+        heimdall_render_subpicture_Delete(output0);
     return 1;
 }
 
 static int test_text_rendering(spu_t *spu)
 {
     video_format_t fmt_in, fmt_out;
-    video_format_Init(&fmt_in, VLC_CODEC_RGBA);
-    video_format_Init(&fmt_out, VLC_CODEC_RGBA);
+    video_format_Init(&fmt_in, HEIMDALL_CODEC_RGBA);
+    video_format_Init(&fmt_out, HEIMDALL_CODEC_RGBA);
     fmt_in.i_width = fmt_in.i_visible_width = 1920;
     fmt_in.i_height = fmt_in.i_visible_height = 1080;
     fmt_in.i_sar_num = fmt_in.i_sar_den = 1;
     video_format_Copy(&fmt_out, &fmt_in);
 
-    vlc_render_subpicture *output0 = NULL;
+    heimdall_render_subpicture *output0 = NULL;
     fmt_out.i_sar_num = 1; fmt_out.i_sar_den = 1;
     for(unsigned j = 0; j<ARRAY_SIZE(aligns_sequence); j++)
     {
@@ -642,8 +643,8 @@ static int test_text_rendering(spu_t *spu)
         {
             subpicture_t *subpic = create_text_subtitle(1);
             EXPECT(subpic);
-            subpic->i_start = VLC_TICK_0;
-            subpic->i_stop = VLC_TICK_0 + vlc_tick_from_sec(1);
+            subpic->i_start = HEIMDALL_TICK_0;
+            subpic->i_stop = HEIMDALL_TICK_0 + heimdall_tick_from_sec(1);
             subtext_updater_sys_t *updtsys = subpic->updater.sys;
             substext_updater_region_t *updtregion = &updtsys->region;
 
@@ -655,7 +656,7 @@ static int test_text_rendering(spu_t *spu)
             fprintf(stderr, "\n\nchecking with updater align flags %x origin %f %f\n", updtregion->align, updtregion->origin.x, updtregion->origin.y);
 
             /* Ensure it will be re-rendered by updater */
-            vlc_spu_regions_Clear(&subpic->regions);
+            heimdall_spu_regions_Clear(&subpic->regions);
             updtregion->flags &= ~UPDT_REGION_FIXED_DONE;
             updtregion->b_absolute = false;
 
@@ -665,7 +666,7 @@ static int test_text_rendering(spu_t *spu)
             fprintf(stderr,"\ttesting %s scaling\n", i==INTERNAL_SCALED ? "internal" : "external");
             output0 = spu_Render(spu, i == INTERNAL_SCALED ? NULL : chroma_list,
                                  &fmt_out, &fmt_in, true, NULL,
-                                 VLC_TICK_0, VLC_TICK_0, false);
+                                 HEIMDALL_TICK_0, HEIMDALL_TICK_0, false);
             EXPECT(output0);
             EXPECT(output0->regions.size);
             fprintf(stderr,"\t%d origin %f %f\n", __LINE__, updtregion->origin.x, updtregion->origin.y);
@@ -681,7 +682,7 @@ static int test_text_rendering(spu_t *spu)
                          1.0, 1.0, (i == INTERNAL_SCALED),
                          +0, +0);
 
-            vlc_render_subpicture_Delete(output0);
+            heimdall_render_subpicture_Delete(output0);
             output0 = NULL;
             test_reset_SPU(spu);
         }
@@ -691,15 +692,15 @@ static int test_text_rendering(spu_t *spu)
 
 failed:
     if(output0)
-        vlc_render_subpicture_Delete(output0);
+        heimdall_render_subpicture_Delete(output0);
     return 1;
 }
 
 static int test_spu_rescaling(spu_t *spu)
 {
     video_format_t fmt_in, fmt_out;
-    video_format_Init(&fmt_in, VLC_CODEC_RGBA);
-    video_format_Init(&fmt_out, VLC_CODEC_RGBA);
+    video_format_Init(&fmt_in, HEIMDALL_CODEC_RGBA);
+    video_format_Init(&fmt_out, HEIMDALL_CODEC_RGBA);
     fmt_in.i_width = 2000;
     fmt_in.i_visible_width = 1920;
     fmt_in.i_height = 1200;
@@ -707,12 +708,12 @@ static int test_spu_rescaling(spu_t *spu)
     fmt_in.i_sar_num = fmt_in.i_sar_den = 1;
     video_format_Copy(&fmt_out, &fmt_in);
 
-    vlc_render_subpicture *output0 = NULL;
-    vlc_render_subpicture *output1 = NULL;
+    heimdall_render_subpicture *output0 = NULL;
+    heimdall_render_subpicture *output1 = NULL;
     {
         subpicture_t *subpic = create_subtitle(100, 100, 1);
         EXPECT(subpic);
-        struct subpicture_region_t *srcregion = vlc_spu_regions_first_or_null(&subpic->regions);
+        struct subpicture_region_t *srcregion = heimdall_spu_regions_first_or_null(&subpic->regions);
         if(!srcregion)
         {
             subpicture_Delete(subpic);
@@ -723,7 +724,7 @@ static int test_spu_rescaling(spu_t *spu)
         spu_PutSubpicture(spu, subpic);
 
         output0 = spu_Render(spu, NULL, &fmt_out, &fmt_in,
-                             true, NULL, VLC_TICK_0, VLC_TICK_0, false);
+                             true, NULL, HEIMDALL_TICK_0, HEIMDALL_TICK_0, false);
         EXPECT(output0);
         EXPECT(output0->regions.size);
 
@@ -731,13 +732,13 @@ static int test_spu_rescaling(spu_t *spu)
         fmt_out.i_visible_height = 1080/10;
 
         output1 = spu_Render(spu, NULL, &fmt_out, &fmt_in,
-                             true, NULL, VLC_TICK_0, VLC_TICK_0, false);
+                             true, NULL, HEIMDALL_TICK_0, HEIMDALL_TICK_0, false);
         EXPECT(output1);
         EXPECT(output1->regions.size);
 
-        vlc_render_subpicture_Delete(output0);
+        heimdall_render_subpicture_Delete(output0);
         output0 = NULL;
-        vlc_render_subpicture_Delete(output1);
+        heimdall_render_subpicture_Delete(output1);
         output1 = NULL;
     }
 
@@ -745,17 +746,17 @@ static int test_spu_rescaling(spu_t *spu)
 
 failed:
     if(output0)
-        vlc_render_subpicture_Delete(output0);
+        heimdall_render_subpicture_Delete(output0);
     if(output1)
-        vlc_render_subpicture_Delete(output1);
+        heimdall_render_subpicture_Delete(output1);
     return 1;
 }
 
 static int test_spu_rescaling_text(spu_t *spu)
 {
     video_format_t fmt_in, fmt_out;
-    video_format_Init(&fmt_in, VLC_CODEC_RGBA);
-    video_format_Init(&fmt_out, VLC_CODEC_RGBA);
+    video_format_Init(&fmt_in, HEIMDALL_CODEC_RGBA);
+    video_format_Init(&fmt_out, HEIMDALL_CODEC_RGBA);
     fmt_in.i_width = 1100;
     fmt_in.i_visible_width = 1000;
     fmt_in.i_height = 600;
@@ -767,8 +768,8 @@ static int test_spu_rescaling_text(spu_t *spu)
     fmt_out.i_height = 1100;
     fmt_out.i_visible_height = 1000;
 
-    vlc_render_subpicture *output0 = NULL;
-    vlc_render_subpicture *output1 = NULL;
+    heimdall_render_subpicture *output0 = NULL;
+    heimdall_render_subpicture *output1 = NULL;
 
     /* Rescaling for text is tricky as the rendered region size will only be
      * decided by the text_renderer.
@@ -780,8 +781,8 @@ static int test_spu_rescaling_text(spu_t *spu)
     {
         subpicture_t *subpic = create_text_subtitle(1);
         assert(subpic);
-        subpic->i_start = VLC_TICK_0;
-        subpic->i_stop = VLC_TICK_0 + vlc_tick_from_sec(1);
+        subpic->i_start = HEIMDALL_TICK_0;
+        subpic->i_stop = HEIMDALL_TICK_0 + heimdall_tick_from_sec(1);
         subtext_updater_sys_t *updtsys = subpic->updater.sys;
         substext_updater_region_t *updtregion = &updtsys->region;
         updtregion->align = SUBPICTURE_ALIGN_TOP|SUBPICTURE_ALIGN_LEFT;
@@ -793,7 +794,7 @@ static int test_spu_rescaling_text(spu_t *spu)
         spu_PutSubpicture(spu, subpic);
 
         output0 = spu_Render(spu, NULL, &fmt_out, &fmt_in,
-                             true, NULL, VLC_TICK_0, VLC_TICK_0, false);
+                             true, NULL, HEIMDALL_TICK_0, HEIMDALL_TICK_0, false);
         EXPECT(output0);
         EXPECT(output0->regions.size);
         const struct subpicture_region_rendered *region0 = output0->regions.data[0];
@@ -806,7 +807,7 @@ static int test_spu_rescaling_text(spu_t *spu)
         fmt_out.i_visible_height /= 4;
 
         output1 = spu_Render(spu, NULL, &fmt_out, &fmt_in,
-                             true, NULL, VLC_TICK_0, VLC_TICK_0, false);
+                             true, NULL, HEIMDALL_TICK_0, HEIMDALL_TICK_0, false);
         EXPECT(output1);
         EXPECT(output1->regions.size);
         const struct subpicture_region_rendered *region1 = output1->regions.data[0];
@@ -818,9 +819,9 @@ static int test_spu_rescaling_text(spu_t *spu)
         EXPECT_EQ_INT(region1->place.width, region0->place.width);
         EXPECT_EQ_INT(region1->place.height, region0->place.height);
 
-        vlc_render_subpicture_Delete(output0);
+        heimdall_render_subpicture_Delete(output0);
         output0 = NULL;
-        vlc_render_subpicture_Delete(output1);
+        heimdall_render_subpicture_Delete(output1);
         output1 = NULL;
     }
 
@@ -833,8 +834,8 @@ static int test_spu_rescaling_text(spu_t *spu)
 
         subpicture_t *subpic = create_text_subtitle(1);
         assert(subpic);
-        subpic->i_start = VLC_TICK_0;
-        subpic->i_stop = VLC_TICK_0 + vlc_tick_from_sec(1);
+        subpic->i_start = HEIMDALL_TICK_0;
+        subpic->i_stop = HEIMDALL_TICK_0 + heimdall_tick_from_sec(1);
         subtext_updater_sys_t *updtsys = subpic->updater.sys;
         substext_updater_region_t *updtregion = &updtsys->region;
         updtregion->align = SUBPICTURE_ALIGN_TOP|SUBPICTURE_ALIGN_LEFT;
@@ -847,7 +848,7 @@ static int test_spu_rescaling_text(spu_t *spu)
 
         updtregion->b_in_window = true;
         output0 = spu_Render(spu, NULL, &fmt_out, &fmt_in,
-                             true, &video_position, VLC_TICK_0, VLC_TICK_0, false);
+                             true, &video_position, HEIMDALL_TICK_0, HEIMDALL_TICK_0, false);
         EXPECT(output0);
         EXPECT(output0->regions.size);
         const struct subpicture_region_rendered *region0 = output0->regions.data[0];
@@ -857,13 +858,13 @@ static int test_spu_rescaling_text(spu_t *spu)
         EXPECT_EQ_INT(region0->place.width, 100 * 2);
         EXPECT_EQ_INT(region0->place.height, 100 * 2);
 
-        vlc_render_subpicture_Delete(output0);
+        heimdall_render_subpicture_Delete(output0);
         output0 = NULL;
 
         /* video_position but not in_window */
         updtregion->b_in_window = false;
         output1 = spu_Render(spu, NULL, &fmt_out, &fmt_in,
-                             true, &video_position, VLC_TICK_0, VLC_TICK_0, false);
+                             true, &video_position, HEIMDALL_TICK_0, HEIMDALL_TICK_0, false);
         EXPECT(output1);
         EXPECT(output1->regions.size);
         const struct subpicture_region_rendered *region1 = output1->regions.data[0];
@@ -873,7 +874,7 @@ static int test_spu_rescaling_text(spu_t *spu)
         EXPECT_EQ_INT(region1->place.width, 100);
         EXPECT_EQ_INT(region1->place.height, 100);
 
-        vlc_render_subpicture_Delete(output1);
+        heimdall_render_subpicture_Delete(output1);
         output1 = NULL;
     }
 
@@ -881,31 +882,31 @@ static int test_spu_rescaling_text(spu_t *spu)
 
 failed:
     if(output0)
-        vlc_render_subpicture_Delete(output0);
+        heimdall_render_subpicture_Delete(output0);
     if(output1)
-        vlc_render_subpicture_Delete(output1);
+        heimdall_render_subpicture_Delete(output1);
     return 1;
 }
 
 static int test_spu_crop(spu_t *spu)
 {
     video_format_t fmt_in, fmt_out;
-    video_format_Init(&fmt_in, VLC_CODEC_RGBA);
-    video_format_Init(&fmt_out, VLC_CODEC_RGBA);
+    video_format_Init(&fmt_in, HEIMDALL_CODEC_RGBA);
+    video_format_Init(&fmt_out, HEIMDALL_CODEC_RGBA);
     fmt_in.i_width = fmt_in.i_visible_width = 1000;
     fmt_in.i_height = fmt_in.i_visible_height = 500;
     fmt_in.i_sar_num = fmt_in.i_sar_den = 1;
     video_format_Copy(&fmt_out, &fmt_in);
 
-    vlc_render_subpicture *output0 = NULL;
-    vlc_render_subpicture *output1 = NULL;
+    heimdall_render_subpicture *output0 = NULL;
+    heimdall_render_subpicture *output1 = NULL;
 
     {
         subpicture_t *subpic = create_subtitle(100, 100, 1);
         EXPECT(subpic);
 
         struct subpicture_region_t *srcregion =
-            vlc_spu_regions_first_or_null(&subpic->regions);
+            heimdall_spu_regions_first_or_null(&subpic->regions);
         if(!srcregion)
         {
             subpicture_Delete(subpic);
@@ -920,7 +921,7 @@ static int test_spu_crop(spu_t *spu)
         spu_PutSubpicture(spu, subpic);
 
         output0 = spu_Render(spu, NULL, &fmt_out, &fmt_in,
-                             true, NULL, VLC_TICK_0, VLC_TICK_0, false);
+                             true, NULL, HEIMDALL_TICK_0, HEIMDALL_TICK_0, false);
         EXPECT(output0);
         EXPECT(output0->regions.size == 1);
 
@@ -936,7 +937,7 @@ static int test_spu_crop(spu_t *spu)
         EXPECT_EQ_INT(region->place.width, 40);
         EXPECT_EQ_INT(region->place.height, 25);
 
-        vlc_render_subpicture_Delete(output0);
+        heimdall_render_subpicture_Delete(output0);
         output0 = NULL;
     }
 
@@ -955,7 +956,7 @@ static int test_spu_crop(spu_t *spu)
         EXPECT(subpic);
 
         struct subpicture_region_t *srcregion =
-            vlc_spu_regions_first_or_null(&subpic->regions);
+            heimdall_spu_regions_first_or_null(&subpic->regions);
         if(!srcregion)
         {
             subpicture_Delete(subpic);
@@ -970,7 +971,7 @@ static int test_spu_crop(spu_t *spu)
 
         output0 = spu_Render(spu, NULL, &fmt_out, &fmt_in,
                              true, &video_position,
-                             VLC_TICK_0, VLC_TICK_0, false);
+                             HEIMDALL_TICK_0, HEIMDALL_TICK_0, false);
         EXPECT(output0);
         EXPECT(output0->regions.size == 1);
         const struct subpicture_region_rendered *region0 = output0->regions.data[0];
@@ -984,7 +985,7 @@ static int test_spu_crop(spu_t *spu)
 
         output1 = spu_Render(spu, NULL, &fmt_out, &fmt_in,
                              true, &video_position,
-                             VLC_TICK_0, VLC_TICK_0, false);
+                             HEIMDALL_TICK_0, HEIMDALL_TICK_0, false);
         EXPECT(output1);
         EXPECT(output1->regions.size == 1);
         const struct subpicture_region_rendered *region1 = output1->regions.data[0];
@@ -995,15 +996,15 @@ static int test_spu_crop(spu_t *spu)
         EXPECT_EQ_INT(region1->place.height, 20);
     }
 
-    vlc_render_subpicture_Delete(output0);
-    vlc_render_subpicture_Delete(output1);
+    heimdall_render_subpicture_Delete(output0);
+    heimdall_render_subpicture_Delete(output1);
     return 0;
 
 failed:
     if(output0)
-        vlc_render_subpicture_Delete(output0);
+        heimdall_render_subpicture_Delete(output0);
     if(output1)
-        vlc_render_subpicture_Delete(output1);
+        heimdall_render_subpicture_Delete(output1);
     return 1;
 }
 
@@ -1013,10 +1014,10 @@ int main(int argc, char **argv)
 
     (void)argc; (void)argv;
 
-    libvlc_instance_t *libvlc = libvlc_new(ARRAY_SIZE(libvlc_argv), libvlc_argv);
-    assert(libvlc);
+    libheimdall_instance_t *libheimdall = libheimdall_new(ARRAY_SIZE(libheimdall_argv), libheimdall_argv);
+    assert(libheimdall);
 
-    spu_t *spu = spu_Create(&libvlc->p_libvlc_int->obj, NULL);
+    spu_t *spu = spu_Create(&libheimdall->p_libheimdall_int->obj, NULL);
     assert(spu);
 
     int ret = test_spu_scaling(spu);
@@ -1053,7 +1054,7 @@ int main(int argc, char **argv)
 
     spu_Destroy(spu);
 
-    libvlc_release(libvlc);
+    libheimdall_release(libheimdall);
 
     return ret;
 }
@@ -1064,20 +1065,20 @@ int main(int argc, char **argv)
 
 static void renderer_Destroy( filter_t *p_filter )
 {
-    VLC_UNUSED(p_filter);
+    HEIMDALL_UNUSED(p_filter);
 }
 
 static subpicture_region_t *renderer_Render( filter_t *p_filter,
                                              const subpicture_region_t *p_region_in,
-                                             const vlc_fourcc_t *p_chroma_list )
+                                             const heimdall_fourcc_t *p_chroma_list )
 {
-    VLC_UNUSED(p_filter); VLC_UNUSED(p_chroma_list);
+    HEIMDALL_UNUSED(p_filter); HEIMDALL_UNUSED(p_chroma_list);
     unsigned w,h;
     assert(sscanf(p_region_in->p_text->psz_text, "%ux%u", &w, &h) == 2);
 
     video_format_t fmt;
     video_format_Init(&fmt, 0);
-    video_format_Setup(&fmt, VLC_CODEC_RGBA, w, h, w, h, 1, 1);
+    video_format_Setup(&fmt, HEIMDALL_CODEC_RGBA, w, h, w, h, 1, 1);
     subpicture_region_t *r = subpicture_region_New(&fmt);
     r->b_absolute = p_region_in->b_absolute;
     r->i_x = p_region_in->i_x;
@@ -1086,7 +1087,7 @@ static subpicture_region_t *renderer_Render( filter_t *p_filter,
     return r;
 }
 
-static const struct vlc_filter_operations renderer_ops =
+static const struct heimdall_filter_operations renderer_ops =
 {
         .render = renderer_Render, .close = renderer_Destroy,
 };
@@ -1094,18 +1095,18 @@ static const struct vlc_filter_operations renderer_ops =
 static int renderer_Create( filter_t *p_filter )
 {
     p_filter->ops = &renderer_ops;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_subcategory(SUBCAT_VIDEO_SUBPIC)
     add_shortcut("saletype")
     set_callback_text_renderer(renderer_Create, 0)
     add_submodule ()
-vlc_module_end()
+heimdall_module_end()
 
-VLC_EXPORT const vlc_plugin_cb vlc_static_modules[] = {
-    VLC_SYMBOL(vlc_entry),
+HEIMDALL_EXPORT const heimdall_plugin_cb heimdall_static_modules[] = {
+    HEIMDALL_SYMBOL(heimdall_entry),
     NULL
 };
 

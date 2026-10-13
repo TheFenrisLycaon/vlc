@@ -2,6 +2,7 @@
  * deinterlace.c: ARMv6 SIMD deinterlacing functions
  *****************************************************************************
  * Copyright (C) 2022 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,9 +23,9 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_cpu.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_cpu.h>
+#include <heimdall_plugin.h>
 #include "../../../video_filter/deinterlace/merge.h"
 
 void merge8_armv6(void *, const void *, const void *, size_t);
@@ -32,7 +33,7 @@ void merge16_armv6(void *, const void *, const void *, size_t);
 
 static void Probe(void *data)
 {
-    if (vlc_CPU_ARMv6()) {
+    if (heimdall_CPU_ARMv6()) {
         struct deinterlace_functions *const f = data;
 
         f->merges[0] = merge8_armv6;
@@ -40,7 +41,7 @@ static void Probe(void *data)
     }
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_description("ARM SIMD optimisation for deinterlacing")
     set_cpu_funcs("deinterlace functions", Probe, 10)
-vlc_module_end()
+heimdall_module_end()

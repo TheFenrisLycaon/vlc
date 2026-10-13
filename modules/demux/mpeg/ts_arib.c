@@ -2,6 +2,7 @@
  * ts_arib.c : TS demux ARIB specific handling
  *****************************************************************************
  * Copyright (C) 2017 - VideoLAN Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -20,8 +21,8 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_demux.h>
+#include <heimdall_common.h>
+#include <heimdall_demux.h>
 
 #include "timestamps.h"
 #include "ts_pid.h"
@@ -134,8 +135,8 @@ bool ts_arib_inject_png_palette( const uint8_t *p_in, size_t i_in, uint8_t **pp_
         if( i_len > 0x7FFFFFFFU || i_len > i_data - 12 )
             break;
 
-        uint32_t i_chunk = VLC_FOURCC(p_data[4], p_data[5], p_data[6], p_data[7]);
-        if( i_chunk == VLC_FOURCC('I', 'D', 'A', 'T') )
+        uint32_t i_chunk = HEIMDALL_FOURCC(p_data[4], p_data[5], p_data[6], p_data[7]);
+        if( i_chunk == HEIMDALL_FOURCC('I', 'D', 'A', 'T') )
         {
             p_idat = p_data;
             break;

@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021-23 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,12 +21,12 @@ import QtQuick
 import QtQuick.Layouts
 import QtQml.Models
 
-import VLC.MediaLibrary
+import Heimdall.MediaLibrary
 
-import VLC.Widgets as Widgets
-import VLC.MainInterface
-import VLC.Util
-import VLC.Style
+import Heimdall.Widgets as Widgets
+import Heimdall.MainInterface
+import Heimdall.Util
+import Heimdall.Style
 
 MainViewLoader {
     id: root
@@ -70,9 +71,9 @@ MainViewLoader {
 
     property bool showGroupCountColumn: false
 
-    property real listCoverHeight: VLCStyle.listAlbumCover_height
-    property real listCoverWidth: VLCStyle.listAlbumCover_width
-    property real listCoverRadius: VLCStyle.listAlbumCover_radius
+    property real listCoverHeight: HeimdallStyle.listAlbumCover_height
+    property real listCoverWidth: HeimdallStyle.listAlbumCover_width
+    property real listCoverRadius: HeimdallStyle.listAlbumCover_radius
 
     // Aliases
 
@@ -138,7 +139,7 @@ MainViewLoader {
 
         coverRole: "thumbnail"
 
-        defaultCover: VLCStyle.noArtVideoCover
+        defaultCover: HeimdallStyle.noArtVideoCover
     }
 
     Component {
@@ -250,14 +251,14 @@ MainViewLoader {
         id: emptylabel
 
         Widgets.EmptyLabelButton {
-            coverWidth : VLCStyle.dp(182, VLCStyle.scale)
-            coverHeight: VLCStyle.dp(114, VLCStyle.scale)
+            coverWidth : HeimdallStyle.dp(182, HeimdallStyle.scale)
+            coverHeight: HeimdallStyle.dp(114, HeimdallStyle.scale)
 
             focus: true
 
             text: qsTr("No video found\nPlease try adding sources")
 
-            cover: VLCStyle.noArtVideoCover
+            cover: HeimdallStyle.noArtVideoCover
 
             Navigation.parentItem: root
         }

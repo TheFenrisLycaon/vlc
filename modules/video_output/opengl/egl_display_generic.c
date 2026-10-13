@@ -2,6 +2,7 @@
  * egl_display_generic.c
  *****************************************************************************
  * Copyright (C) 2021 Videolabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,9 +23,9 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_opengl.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_opengl.h>
 
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
@@ -35,12 +36,12 @@
 static EGLenum GetPlatform(const char *extensions)
 {
 #ifdef EGL_KHR_platform_x11
-    if (vlc_gl_StrHasToken(extensions, "EGL_EXT_platform_x11"))
+    if (heimdall_gl_StrHasToken(extensions, "EGL_EXT_platform_x11"))
         return EGL_PLATFORM_X11_KHR;
 #endif
 
 #ifdef EGL_KHR_platform_wayland
-    if (vlc_gl_StrHasToken(extensions, "EGL_EXT_platform_wayland"))
+    if (heimdall_gl_StrHasToken(extensions, "EGL_EXT_platform_wayland"))
         return EGL_PLATFORM_WAYLAND_KHR;
 #endif
 
@@ -48,9 +49,9 @@ static EGLenum GetPlatform(const char *extensions)
 }
 #endif
 
-static vlc_egl_display_open_fn Open;
+static heimdall_egl_display_open_fn Open;
 static int
-Open(struct vlc_egl_display *display)
+Open(struct heimdall_egl_display *display)
 {
 #if defined(__ANDROID__) || defined(__EMSCRIPTEN__)
     /* The default display is refcounted on Android and Emscripten */
@@ -58,12 +59,12 @@ Open(struct vlc_egl_display *display)
 #elif defined(EGL_KHR_display_reference)
     const char *extensions = eglQueryString(EGL_NO_DISPLAY, EGL_EXTENSIONS);
 
-    if (!vlc_gl_StrHasToken(extensions, "EGL_KHR_display_reference"))
-        return VLC_EGENERIC;
+    if (!heimdall_gl_StrHasToken(extensions, "EGL_KHR_display_reference"))
+        return HEIMDALL_EGENERIC;
 
     EGLenum platform = GetPlatform(extensions);
     if (!platform)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     const EGLAttrib attribs[] = {
         EGL_TRACK_REFERENCES_KHR, EGL_TRUE,
@@ -75,14 +76,14 @@ Open(struct vlc_egl_display *display)
 #endif
 
     if (display->display == EGL_NO_DISPLAY)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_description("EGL generic display")
     set_capability("egl display", 1)
     set_callback(Open)
     add_shortcut("egl_display_generic")
-vlc_module_end()
+heimdall_module_end()

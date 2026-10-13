@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,14 +20,14 @@
 import QtQuick
 import QtQuick.Templates as T
 
-import VLC.Style
-import VLC.Widgets as Widgets
+import Heimdall.Style
+import Heimdall.Widgets as Widgets
 
 T.Control {
     id: root
 
     // Properties
-    padding: VLCStyle.margin_normal
+    padding: HeimdallStyle.margin_normal
 
     implicitWidth: Math.max(implicitBackgroundWidth + leftInset + rightInset,
                             implicitContentWidth + leftPadding + rightPadding)
@@ -46,7 +47,7 @@ T.Control {
 
     property alias column: column
 
-    spacing: VLCStyle.margin_normal
+    spacing: HeimdallStyle.margin_normal
 
     enabled: visible
 
@@ -70,8 +71,8 @@ T.Control {
 
             anchors.horizontalCenter: parent.horizontalCenter
 
-            width: VLCStyle.colWidth(1)
-            height: VLCStyle.colWidth(1)
+            width: HeimdallStyle.colWidth(1)
+            height: HeimdallStyle.colWidth(1)
 
             fillMode: Image.PreserveAspectFit
 
@@ -92,7 +93,7 @@ T.Control {
 
             color: theme.fg.primary
 
-            font.pixelSize: VLCStyle.fontSize_xxlarge
+            font.pixelSize: HeimdallStyle.fontSize_xxlarge
             font.weight: Font.DemiBold
         }
     }

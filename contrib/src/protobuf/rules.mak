@@ -63,7 +63,7 @@ protoc: protoc-$(PROTOBUF_VERSION)-cpp.tar.gz .sum-protoc
 	# sed -i.orig -e 's,include(libprotobuf-lite,#include(libprotobuf-lite,' $(UNPACK_DIR)/cmake/CMakeLists.txt
 	$(MOVE)
 
-.protoc: BUILD_DIR=$</vlc_native
+.protoc: BUILD_DIR=$</heimdall_native
 .protoc: protoc
 	$(CMAKECLEAN)
 	$(BUILDVARS) $(CMAKE_NATIVE) $(PROTOC_CONF)

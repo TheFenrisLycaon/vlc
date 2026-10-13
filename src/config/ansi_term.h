@@ -2,6 +2,7 @@
  * ansi_term.h: Common declarations and helpers for ANSI terminal handling
  *****************************************************************************
  * Copyright (C) 1998-2011 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -18,8 +19,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_ANSI_TERM_H
-#define VLC_ANSI_TERM_H 1
+#ifndef HEIMDALL_ANSI_TERM_H
+#define HEIMDALL_ANSI_TERM_H 1
 
 #if !defined( _WIN32 )
 # include <termios.h>

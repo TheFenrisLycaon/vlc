@@ -2,10 +2,11 @@
  * linux_dvb.c : functions to control a DVB card under Linux with v4l2
  *****************************************************************************
  * Copyright (C) 1998-2010 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Damien Lucas <nitrox@via.ecp.fr>
  *          Johan Bilien <jobi@via.ecp.fr>
- *          Jean-Paul Saman <jpsaman _at_ videolan _dot_ org>
+ *          Jean-Paul Saman <jpsaman _at_ lycaria _dot_ org>
  *          Christopher Ross <chris@tebibyte.org>
  *          Christophe Massiot <massiot@via.ecp.fr>
  *          David Kaplan <david@of1.org>
@@ -29,10 +30,10 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_access.h>
-#include <vlc_fs.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_access.h>
+#include <heimdall_fs.h>
 
 #include <errno.h>
 #include <sys/types.h>
@@ -64,16 +65,16 @@ struct frontend_t
 #define FRONTEND_LOCK_TIMEOUT 10000000 /* 10 s */
 
 /* Local prototypes */
-static int FrontendInfo( vlc_object_t *, dvb_sys_t * );
-static int FrontendSetQPSK( vlc_object_t *, dvb_sys_t * );
-static int FrontendSetQAM( vlc_object_t *, dvb_sys_t * );
-static int FrontendSetOFDM( vlc_object_t *, dvb_sys_t * );
-static int FrontendSetATSC( vlc_object_t *, dvb_sys_t * );
+static int FrontendInfo( heimdall_object_t *, dvb_sys_t * );
+static int FrontendSetQPSK( heimdall_object_t *, dvb_sys_t * );
+static int FrontendSetQAM( heimdall_object_t *, dvb_sys_t * );
+static int FrontendSetOFDM( heimdall_object_t *, dvb_sys_t * );
+static int FrontendSetATSC( heimdall_object_t *, dvb_sys_t * );
 
 /*****************************************************************************
  * FrontendOpen : Determine frontend device information and capabilities
  *****************************************************************************/
-int FrontendOpen( vlc_object_t *p_access, dvb_sys_t *p_sys, const char *psz_access )
+int FrontendOpen( heimdall_object_t *p_access, dvb_sys_t *p_sys, const char *psz_access )
 {
     frontend_t * p_frontend;
     unsigned int i_adapter, i_device;
@@ -92,15 +93,15 @@ int FrontendOpen( vlc_object_t *p_access, dvb_sys_t *p_sys, const char *psz_acce
 
     p_sys->p_frontend = p_frontend = malloc( sizeof(frontend_t) );
     if( !p_frontend )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     msg_Dbg( p_access, "Opening device %s", frontend );
-    if( (p_sys->i_frontend_handle = vlc_open(frontend, O_RDWR | O_NONBLOCK)) < 0 )
+    if( (p_sys->i_frontend_handle = heimdall_open(frontend, O_RDWR | O_NONBLOCK)) < 0 )
     {
         msg_Err( p_access, "FrontEndOpen: opening device failed: %s",
-                 vlc_strerror_c(errno) );
+                 heimdall_strerror_c(errno) );
         free( p_frontend );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( b_probe )
@@ -110,9 +111,9 @@ int FrontendOpen( vlc_object_t *p_access, dvb_sys_t *p_sys, const char *psz_acce
 
         if( FrontendInfo( p_access, p_sys ) < 0 )
         {
-            vlc_close( p_sys->i_frontend_handle );
+            heimdall_close( p_sys->i_frontend_handle );
             free( p_frontend );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         switch( p_frontend->info.type )
@@ -164,9 +165,9 @@ int FrontendOpen( vlc_object_t *p_access, dvb_sys_t *p_sys, const char *psz_acce
         {
             msg_Err( p_access, "requested type %s not supported by %s tuner",
                      psz_expected, psz_real );
-            vlc_close( p_sys->i_frontend_handle );
+            heimdall_close( p_sys->i_frontend_handle );
             free( p_frontend );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
     else /* no frontend probing is done so use default border values. */
@@ -188,18 +189,18 @@ int FrontendOpen( vlc_object_t *p_access, dvb_sys_t *p_sys, const char *psz_acce
             p_frontend->info.type = FE_ATSC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * FrontendClose : Close the frontend
  *****************************************************************************/
-void FrontendClose( vlc_object_t *p_access, dvb_sys_t *p_sys )
+void FrontendClose( heimdall_object_t *p_access, dvb_sys_t *p_sys )
 {
-    VLC_UNUSED(p_access);
+    HEIMDALL_UNUSED(p_access);
     if( p_sys->p_frontend )
     {
-        vlc_close( p_sys->i_frontend_handle );
+        heimdall_close( p_sys->i_frontend_handle );
         free( p_sys->p_frontend );
 
         p_sys->p_frontend = NULL;
@@ -209,7 +210,7 @@ void FrontendClose( vlc_object_t *p_access, dvb_sys_t *p_sys )
 /*****************************************************************************
  * FrontendSet : Tune !
  *****************************************************************************/
-int FrontendSet( vlc_object_t *p_access, dvb_sys_t *p_sys )
+int FrontendSet( heimdall_object_t *p_access, dvb_sys_t *p_sys )
 {
     switch( p_sys->p_frontend->info.type )
     {
@@ -218,7 +219,7 @@ int FrontendSet( vlc_object_t *p_access, dvb_sys_t *p_sys )
         if( FrontendSetQPSK( p_access, p_sys ) )
         {
             msg_Err( p_access, "DVB-S tuning error" );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
         break;
 
@@ -227,7 +228,7 @@ int FrontendSet( vlc_object_t *p_access, dvb_sys_t *p_sys )
         if( FrontendSetQAM( p_access, p_sys ) )
         {
             msg_Err( p_access, "DVB-C tuning error" );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
         break;
 
@@ -236,7 +237,7 @@ int FrontendSet( vlc_object_t *p_access, dvb_sys_t *p_sys )
         if( FrontendSetOFDM( p_access, p_sys ) )
         {
             msg_Err( p_access, "DVB-T tuning error" );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
         break;
 
@@ -245,23 +246,23 @@ int FrontendSet( vlc_object_t *p_access, dvb_sys_t *p_sys )
         if( FrontendSetATSC( p_access, p_sys ) )
         {
             msg_Err( p_access, "ATSC tuning error" );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
         break;
 
     default:
         msg_Err( p_access, "tuner type %s not supported",
                  p_sys->p_frontend->info.name );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     p_sys->p_frontend->i_last_status = 0;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * FrontendPoll : Poll for frontend events
  *****************************************************************************/
-void FrontendPoll( vlc_object_t *p_access, dvb_sys_t *p_sys )
+void FrontendPoll( heimdall_object_t *p_access, dvb_sys_t *p_sys )
 {
     frontend_t * p_frontend = p_sys->p_frontend;
     struct dvb_frontend_event event;
@@ -273,7 +274,7 @@ void FrontendPoll( vlc_object_t *p_access, dvb_sys_t *p_sys )
         {
             if( errno != EWOULDBLOCK )
                 msg_Err( p_access, "frontend event error: %s",
-                         vlc_strerror_c(errno) );
+                         heimdall_strerror_c(errno) );
             return;
         }
 
@@ -346,7 +347,7 @@ int FrontendGetStatistic( dvb_sys_t *p_sys, frontend_statistic_t *p_stat )
     frontend_t * p_frontend = p_sys->p_frontend;
 
     if( (p_frontend->i_last_status & FE_HAS_LOCK) == 0 )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     memset( p_stat, 0, sizeof(*p_stat) );
     if( ioctl( p_sys->i_frontend_handle, FE_READ_BER, &p_stat->i_ber ) < 0 )
@@ -356,7 +357,7 @@ int FrontendGetStatistic( dvb_sys_t *p_sys, frontend_statistic_t *p_stat )
     if( ioctl( p_sys->i_frontend_handle, FE_READ_SNR, &p_stat->i_snr ) < 0 )
         p_stat->i_snr = -1;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 void FrontendGetStatus( dvb_sys_t *p_sys, frontend_status_t *p_status )
@@ -368,7 +369,7 @@ void FrontendGetStatus( dvb_sys_t *p_sys, frontend_status_t *p_status )
     p_status->b_has_lock = (p_frontend->i_last_status & FE_HAS_LOCK) != 0;
 }
 
-static int ScanParametersDvbS( vlc_object_t *p_access, dvb_sys_t *p_sys, scan_parameter_t *p_scan )
+static int ScanParametersDvbS( heimdall_object_t *p_access, dvb_sys_t *p_sys, scan_parameter_t *p_scan )
 {
     const frontend_t *p_frontend = p_sys->p_frontend;
 
@@ -380,7 +381,7 @@ static int ScanParametersDvbS( vlc_object_t *p_access, dvb_sys_t *p_sys, scan_pa
     char *psz_name = var_InheritString( p_access, "dvb-satellite" );
     if( psz_name )
     {
-        char *data_dir = config_GetSysPath(VLC_SYSDATA_DIR, "dvb/dvb-s");
+        char *data_dir = config_GetSysPath(HEIMDALL_SYSDATA_DIR, "dvb/dvb-s");
         if( !data_dir || -1 ==  asprintf( &p_scan->psz_scanlist_file,
             "%s/%s", data_dir, psz_name ) )
         {
@@ -391,10 +392,10 @@ static int ScanParametersDvbS( vlc_object_t *p_access, dvb_sys_t *p_sys, scan_pa
         free( psz_name );
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int ScanParametersDvbC( vlc_object_t *p_access, dvb_sys_t *p_sys, scan_parameter_t *p_scan )
+static int ScanParametersDvbC( heimdall_object_t *p_access, dvb_sys_t *p_sys, scan_parameter_t *p_scan )
 {
     const frontend_t *p_frontend = p_sys->p_frontend;
 
@@ -413,10 +414,10 @@ static int ScanParametersDvbC( vlc_object_t *p_access, dvb_sys_t *p_sys, scan_pa
     /* if user supplies symbolrate, don't scan those */
     p_scan->i_symbolrate = var_GetInteger( p_access, "dvb-srate" );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int ScanParametersDvbT( vlc_object_t *p_access, dvb_sys_t *p_sys, scan_parameter_t *p_scan )
+static int ScanParametersDvbT( heimdall_object_t *p_access, dvb_sys_t *p_sys, scan_parameter_t *p_scan )
 {
     const frontend_t *p_frontend = p_sys->p_frontend;
 
@@ -431,10 +432,10 @@ static int ScanParametersDvbT( vlc_object_t *p_access, dvb_sys_t *p_sys, scan_pa
     p_scan->frequency.i_max = p_frontend->info.frequency_max;
     p_scan->frequency.i_step = p_frontend->info.frequency_stepsize;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-int FrontendFillScanParameter( vlc_object_t *p_access, dvb_sys_t *p_sys, scan_parameter_t *p_scan )
+int FrontendFillScanParameter( heimdall_object_t *p_access, dvb_sys_t *p_sys, scan_parameter_t *p_scan )
 {
     const frontend_t *p_frontend = p_sys->p_frontend;
 
@@ -446,13 +447,13 @@ int FrontendFillScanParameter( vlc_object_t *p_access, dvb_sys_t *p_sys, scan_pa
         return ScanParametersDvbS( p_access, p_sys, p_scan );  /* DVB-S */
 
     msg_Err( p_access, "frontend scanning not supported" );
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /*****************************************************************************
  * FrontendInfo : Return information about given frontend
  *****************************************************************************/
-static int FrontendInfo( vlc_object_t *p_access, dvb_sys_t *p_sys )
+static int FrontendInfo( heimdall_object_t *p_access, dvb_sys_t *p_sys )
 {
     frontend_t *p_frontend = p_sys->p_frontend;
 
@@ -460,8 +461,8 @@ static int FrontendInfo( vlc_object_t *p_access, dvb_sys_t *p_sys )
     if( ioctl( p_sys->i_frontend_handle, FE_GET_INFO, &p_frontend->info ) < 0 )
     {
         msg_Err( p_access, "frontend info request error: %s",
-                 vlc_strerror_c(errno) );
-        return VLC_EGENERIC;
+                 heimdall_strerror_c(errno) );
+        return HEIMDALL_EGENERIC;
     }
 
     /* Print out frontend capabilities. */
@@ -492,7 +493,7 @@ static int FrontendInfo( vlc_object_t *p_access, dvb_sys_t *p_sys )
         default:
             msg_Err( p_access, "  unknown frontend type (%d)",
                      p_frontend->info.type );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
     msg_Dbg(p_access, "  frequency_min = %u (kHz)",
             p_frontend->info.frequency_min);
@@ -579,13 +580,13 @@ static int FrontendInfo( vlc_object_t *p_access, dvb_sys_t *p_sys )
         msg_Dbg(p_access, "  spurious TS muting");
    msg_Dbg(p_access, "End of capability list");
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * Decoding the DVB parameters (common)
  *****************************************************************************/
-static fe_spectral_inversion_t DecodeInversion( vlc_object_t *p_access )
+static fe_spectral_inversion_t DecodeInversion( heimdall_object_t *p_access )
 {
     int i_val;
     fe_spectral_inversion_t fe_inversion = 0;
@@ -609,7 +610,7 @@ static fe_spectral_inversion_t DecodeInversion( vlc_object_t *p_access )
 /*****************************************************************************
  * FrontendSetQPSK : controls the FE device
  *****************************************************************************/
-static fe_sec_voltage_t DecodeVoltage( vlc_object_t *p_access )
+static fe_sec_voltage_t DecodeVoltage( heimdall_object_t *p_access )
 {
     switch( var_GetInteger( p_access, "dvb-voltage" ) )
     {
@@ -620,7 +621,7 @@ static fe_sec_voltage_t DecodeVoltage( vlc_object_t *p_access )
     }
 }
 
-static fe_sec_tone_mode_t DecodeTone( vlc_object_t *p_access )
+static fe_sec_tone_mode_t DecodeTone( heimdall_object_t *p_access )
 {
     switch( var_GetInteger( p_access, "dvb-tone" ) )
     {
@@ -636,7 +637,7 @@ struct diseqc_cmd_t
     uint32_t wait;
 };
 
-static int DoDiseqc( vlc_object_t *p_access, dvb_sys_t *p_sys )
+static int DoDiseqc( heimdall_object_t *p_access, dvb_sys_t *p_sys )
 {
     int i_val;
     bool b_val;
@@ -664,15 +665,15 @@ static int DoDiseqc( vlc_object_t *p_access, dvb_sys_t *p_sys )
     if( ioctl( p_sys->i_frontend_handle, FE_SET_TONE, SEC_TONE_OFF ) < 0 )
     {
         msg_Err( p_access, "switching tone %s error: %s", "off",
-                 vlc_strerror_c(errno) );
-        return VLC_EGENERIC;
+                 heimdall_strerror_c(errno) );
+        return HEIMDALL_EGENERIC;
     }
 
     /* Configure LNB voltage. */
     if( ioctl( p_sys->i_frontend_handle, FE_SET_VOLTAGE, fe_voltage ) < 0 )
     {
-        msg_Err( p_access, "voltage error: %s", vlc_strerror_c(errno) );
-        return VLC_EGENERIC;
+        msg_Err( p_access, "voltage error: %s", heimdall_strerror_c(errno) );
+        return HEIMDALL_EGENERIC;
     }
 
     b_val = var_GetBool( p_access, "dvb-high-voltage" );
@@ -680,11 +681,11 @@ static int DoDiseqc( vlc_object_t *p_access, dvb_sys_t *p_sys )
                FE_ENABLE_HIGH_LNB_VOLTAGE, b_val ) < 0 && b_val )
     {
         msg_Err( p_access, "high LNB voltage error: %s",
-                 vlc_strerror_c(errno) );
+                 heimdall_strerror_c(errno) );
     }
 
     /* Wait for at least 15 ms. */
-    vlc_tick_sleep(VLC_TICK_FROM_MS(15));
+    heimdall_tick_sleep(HEIMDALL_TICK_FROM_MS(15));
 
     i_val = var_GetInteger( p_access, "dvb-satno" );
     if( i_val > 0 && i_val < 5 )
@@ -708,37 +709,37 @@ static int DoDiseqc( vlc_object_t *p_access, dvb_sys_t *p_sys )
                    &cmd.cmd ) )
         {
             msg_Err( p_access, "master command sending error: %s",
-                     vlc_strerror_c(errno) );
-            return VLC_EGENERIC;
+                     heimdall_strerror_c(errno) );
+            return HEIMDALL_EGENERIC;
         }
 
-        vlc_tick_sleep(VLC_TICK_FROM_MS(15 + cmd.wait));
+        heimdall_tick_sleep(HEIMDALL_TICK_FROM_MS(15 + cmd.wait));
 
         /* A or B simple diseqc ("diseqc-compatible") */
         if( ioctl( p_sys->i_frontend_handle, FE_DISEQC_SEND_BURST,
                   ((i_val - 1) % 2) ? SEC_MINI_B : SEC_MINI_A ) )
         {
             msg_Err( p_access, "burst sending error: %s",
-                     vlc_strerror_c(errno) );
-            return VLC_EGENERIC;
+                     heimdall_strerror_c(errno) );
+            return HEIMDALL_EGENERIC;
         }
 
-        vlc_tick_sleep(VLC_TICK_FROM_MS(15));
+        heimdall_tick_sleep(HEIMDALL_TICK_FROM_MS(15));
     }
 
     if( ioctl( p_sys->i_frontend_handle, FE_SET_TONE, fe_tone ) )
     {
         msg_Err( p_access, "switching tone %s error: %s",
                  (fe_tone == SEC_TONE_ON) ? "on" : "off",
-                 vlc_strerror_c(errno) );
-        return VLC_EGENERIC;
+                 heimdall_strerror_c(errno) );
+        return HEIMDALL_EGENERIC;
     }
 
-    vlc_tick_sleep(VLC_TICK_FROM_MS(50));
+    heimdall_tick_sleep(HEIMDALL_TICK_FROM_MS(50));
     return 0;
 }
 
-static int FrontendSetQPSK( vlc_object_t *p_access, dvb_sys_t *p_sys )
+static int FrontendSetQPSK( heimdall_object_t *p_access, dvb_sys_t *p_sys )
 {
     struct dvb_frontend_parameters fep;
     int i_val;
@@ -787,7 +788,7 @@ static int FrontendSetQPSK( vlc_object_t *p_access, dvb_sys_t *p_sys )
                      i_frequency );
             msg_Err( p_access, "specify dvb-lnb-lof1 manually for the local "
                      "oscillator frequency" );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
         var_SetInteger( p_access, "dvb-lnb-lof1", i_lnb_lof1 );
         var_SetInteger( p_access, "dvb-lnb-lof2", i_lnb_lof2 );
@@ -818,7 +819,7 @@ static int FrontendSetQPSK( vlc_object_t *p_access, dvb_sys_t *p_sys )
 
     if( DoDiseqc( p_access, p_sys ) < 0 )
     {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Empty the event queue */
@@ -833,17 +834,17 @@ static int FrontendSetQPSK( vlc_object_t *p_access, dvb_sys_t *p_sys )
     /* Now send it all to the frontend device */
     if( ioctl( p_sys->i_frontend_handle, FE_SET_FRONTEND, &fep ) < 0 )
     {
-        msg_Err( p_access, "frontend error: %s", vlc_strerror_c(errno) );
-        return VLC_EGENERIC;
+        msg_Err( p_access, "frontend error: %s", heimdall_strerror_c(errno) );
+        return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * FrontendSetQAM : controls the FE device
  *****************************************************************************/
-static int FrontendSetQAM( vlc_object_t *p_access, dvb_sys_t *p_sys )
+static int FrontendSetQAM( heimdall_object_t *p_access, dvb_sys_t *p_sys )
 {
     frontend_t *p_frontend = p_sys->p_frontend;
     struct dvb_frontend_parameters fep;
@@ -880,17 +881,17 @@ static int FrontendSetQAM( vlc_object_t *p_access, dvb_sys_t *p_sys )
     /* Now send it all to the frontend device */
     if( ioctl( p_sys->i_frontend_handle, FE_SET_FRONTEND, &fep ) < 0 )
     {
-        msg_Err( p_access, "frontend error: %s", vlc_strerror_c(errno) );
-        return VLC_EGENERIC;
+        msg_Err( p_access, "frontend error: %s", heimdall_strerror_c(errno) );
+        return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * FrontendSetOFDM : controls the FE device
  *****************************************************************************/
-static fe_bandwidth_t DecodeBandwidth( vlc_object_t *p_access )
+static fe_bandwidth_t DecodeBandwidth( heimdall_object_t *p_access )
 {
     fe_bandwidth_t      fe_bandwidth = 0;
     int i_bandwidth = var_GetInteger( p_access, "dvb-bandwidth" );
@@ -911,7 +912,7 @@ static fe_bandwidth_t DecodeBandwidth( vlc_object_t *p_access )
     return fe_bandwidth;
 }
 
-static fe_transmit_mode_t DecodeTransmission( vlc_object_t *p_access )
+static fe_transmit_mode_t DecodeTransmission( heimdall_object_t *p_access )
 {
     fe_transmit_mode_t  fe_transmission = 0;
     int i_transmission = var_GetInteger( p_access, "dvb-transmission" );
@@ -931,7 +932,7 @@ static fe_transmit_mode_t DecodeTransmission( vlc_object_t *p_access )
     return fe_transmission;
 }
 
-static fe_hierarchy_t DecodeHierarchy( vlc_object_t *p_access )
+static fe_hierarchy_t DecodeHierarchy( heimdall_object_t *p_access )
 {
     fe_hierarchy_t      fe_hierarchy = 0;
     int i_hierarchy = var_GetInteger( p_access, "dvb-hierarchy" );
@@ -953,7 +954,7 @@ static fe_hierarchy_t DecodeHierarchy( vlc_object_t *p_access )
     return fe_hierarchy;
 }
 
-static int FrontendSetOFDM( vlc_object_t *p_access, dvb_sys_t *p_sys )
+static int FrontendSetOFDM( heimdall_object_t *p_access, dvb_sys_t *p_sys )
 {
     struct dvb_frontend_parameters fep;
 
@@ -983,17 +984,17 @@ static int FrontendSetOFDM( vlc_object_t *p_access, dvb_sys_t *p_sys )
     /* Now send it all to the frontend device */
     if( ioctl( p_sys->i_frontend_handle, FE_SET_FRONTEND, &fep ) < 0 )
     {
-        msg_Err( p_access, "frontend error: %s", vlc_strerror_c(errno) );
-        return VLC_EGENERIC;
+        msg_Err( p_access, "frontend error: %s", heimdall_strerror_c(errno) );
+        return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * FrontendSetATSC : controls the FE device
  *****************************************************************************/
-static int FrontendSetATSC( vlc_object_t *p_access, dvb_sys_t *p_sys )
+static int FrontendSetATSC( heimdall_object_t *p_access, dvb_sys_t *p_sys )
 {
     struct dvb_frontend_parameters fep;
 
@@ -1014,11 +1015,11 @@ static int FrontendSetATSC( vlc_object_t *p_access, dvb_sys_t *p_sys )
     /* Now send it all to the frontend device */
     if( ioctl( p_sys->i_frontend_handle, FE_SET_FRONTEND, &fep ) < 0 )
     {
-        msg_Err( p_access, "frontend error: %s", vlc_strerror_c(errno) );
-        return VLC_EGENERIC;
+        msg_Err( p_access, "frontend error: %s", heimdall_strerror_c(errno) );
+        return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 
@@ -1029,7 +1030,7 @@ static int FrontendSetATSC( vlc_object_t *p_access, dvb_sys_t *p_sys )
 /*****************************************************************************
  * DMXSetFilter : controls the demux to add a filter
  *****************************************************************************/
-int DMXSetFilter( vlc_object_t *p_access, int i_pid, int * pi_fd, int i_type )
+int DMXSetFilter( heimdall_object_t *p_access, int i_pid, int * pi_fd, int i_type )
 {
     struct dmx_pes_filter_params s_filter_params;
     unsigned int i_adapter, i_device;
@@ -1046,11 +1047,11 @@ int DMXSetFilter( vlc_object_t *p_access, int i_pid, int * pi_fd, int i_type )
     }
 
     msg_Dbg( p_access, "Opening device %s", dmx );
-    if( (*pi_fd = vlc_open(dmx, O_RDWR)) < 0 )
+    if( (*pi_fd = heimdall_open(dmx, O_RDWR)) < 0 )
     {
         msg_Err( p_access, "DMXSetFilter: opening device failed: %s",
-                 vlc_strerror_c(errno) );
-        return VLC_EGENERIC;
+                 heimdall_strerror_c(errno) );
+        return HEIMDALL_EGENERIC;
     }
 
     /* We fill the DEMUX structure : */
@@ -1156,27 +1157,27 @@ int DMXSetFilter( vlc_object_t *p_access, int i_pid, int * pi_fd, int i_type )
     if( ioctl( *pi_fd, DMX_SET_PES_FILTER, &s_filter_params ) )
     {
         msg_Err( p_access, "setting demux PES filter failed: %s",
-                 vlc_strerror_c(errno) );
-        return VLC_EGENERIC;
+                 heimdall_strerror_c(errno) );
+        return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * DMXUnsetFilter : removes a filter
  *****************************************************************************/
-int DMXUnsetFilter( vlc_object_t *p_access, int i_fd )
+int DMXUnsetFilter( heimdall_object_t *p_access, int i_fd )
 {
     if( ioctl( i_fd, DMX_STOP ) < 0 )
     {
         msg_Err( p_access, "stopping demux failed: %s",
-                 vlc_strerror_c(errno) );
-        return VLC_EGENERIC;
+                 heimdall_strerror_c(errno) );
+        return HEIMDALL_EGENERIC;
     }
 
     msg_Dbg( p_access, "DMXUnsetFilter: closing demux %d", i_fd );
-    vlc_close( i_fd );
-    return VLC_SUCCESS;
+    heimdall_close( i_fd );
+    return HEIMDALL_SUCCESS;
 }
 
 
@@ -1187,7 +1188,7 @@ int DMXUnsetFilter( vlc_object_t *p_access, int i_fd )
 /*****************************************************************************
  * DVROpen :
  *****************************************************************************/
-int DVROpen( vlc_object_t *p_access, dvb_sys_t *p_sys )
+int DVROpen( heimdall_object_t *p_access, dvb_sys_t *p_sys )
 {
     unsigned int i_adapter, i_device;
     char dvr[128];
@@ -1203,27 +1204,27 @@ int DVROpen( vlc_object_t *p_access, dvb_sys_t *p_sys )
     }
 
     msg_Dbg( p_access, "Opening device %s", dvr );
-    if( (p_sys->i_handle = vlc_open(dvr, O_RDONLY)) < 0 )
+    if( (p_sys->i_handle = heimdall_open(dvr, O_RDONLY)) < 0 )
     {
         msg_Err( p_access, "DVROpen: opening device failed: %s",
-                 vlc_strerror_c(errno) );
-        return VLC_EGENERIC;
+                 heimdall_strerror_c(errno) );
+        return HEIMDALL_EGENERIC;
     }
 
     if( fcntl( p_sys->i_handle, F_SETFL, O_NONBLOCK ) == -1 )
     {
         msg_Warn( p_access, "DVROpen: couldn't set non-blocking mode: %s",
-                  vlc_strerror_c(errno) );
+                  heimdall_strerror_c(errno) );
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * DVRClose :
  *****************************************************************************/
-void DVRClose( vlc_object_t *p_access, dvb_sys_t *p_sys )
+void DVRClose( heimdall_object_t *p_access, dvb_sys_t *p_sys )
 {
-    VLC_UNUSED(p_access);
-    vlc_close( p_sys->i_handle );
+    HEIMDALL_UNUSED(p_access);
+    heimdall_close( p_sys->i_handle );
 }

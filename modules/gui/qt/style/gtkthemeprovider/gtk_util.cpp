@@ -19,6 +19,7 @@
 // original code from the Chromium project
 
 // Copyright 2012 The Chromium Authors
+ * Copyright (C) 2026 TheFenrisLycaon
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -168,7 +169,7 @@ bool GtkInitFromCommandLine(int* argc, char** argv) {
 }
 
 
-CairoSurface::CairoSurface(VLCPicturePtr& bitmap) 
+CairoSurface::CairoSurface(HeimdallPicturePtr& bitmap) 
 {
     picture_t* pic = bitmap.get();
     surface_ = (cairo_image_surface_create_for_data(
@@ -388,7 +389,7 @@ GtkCssContext AppendCssNodeToStyleContext(GtkCssContext context,
 
     // Always add a "chromium" class so that themes can style chromium
     // widgets specially if they want to.
-    classes.push_back("vlc");
+    classes.push_back("heimdall");
 
     float scale = std::round(GetDeviceScaleFactor());
 

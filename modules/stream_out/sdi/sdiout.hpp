@@ -1,8 +1,9 @@
 /*****************************************************************************
- * sdiout.hpp: SDI sout module for vlc
+ * sdiout.hpp: SDI sout module for heimdall
  *****************************************************************************
  * Copyright © 2014-2016 VideoLAN and VideoLAN Authors
  *                  2018 VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by

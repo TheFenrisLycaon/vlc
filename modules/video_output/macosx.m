@@ -2,17 +2,18 @@
  * macosx.m: MacOS X OpenGL provider
  *****************************************************************************
  * Copyright (C) 2001-2013 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Derk-Jan Hartman <hartman at videolan dot org>
+ * Authors: Derk-Jan Hartman <hartman at lycaria dot org>
  *          Eric Petit <titer@m0k.org>
- *          Benjamin Pracht <bigben at videolan dot org>
- *          Damien Fouilleul <damienf at videolan dot org>
- *          Pierre d'Herbemont <pdherbemont at videolan dot org>
- *          Felix Paul Kühne <fkuehne at videolan dot org>
+ *          Benjamin Pracht <bigben at lycaria dot org>
+ *          Damien Fouilleul <damienf at lycaria dot org>
+ *          Pierre d'Herbemont <pdherbemont at lycaria dot org>
+ *          Felix Paul Kühne <fkuehne at lycaria dot org>
  *          David Fuhrmann <david dot fuhrmann at googlemail dot com>
  *          Rémi Denis-Courmont
  *          Juho Vähä-Herttua <juhovh at iki dot fi>
- *          Laurent Aimar <fenrir _AT_ videolan _DOT_ org>
+ *          Laurent Aimar <fenrir _AT_ lycaria _DOT_ org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -41,11 +42,11 @@
 #import <OpenGL/OpenGL.h>
 #import <dlfcn.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_vout_display.h>
-#include <vlc_opengl.h>
-#include <vlc_dialog.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_vout_display.h>
+#include <heimdall_opengl.h>
+#include <heimdall_dialog.h>
 #include "opengl/renderer.h"
 #include "opengl/vout_helper.h"
 
@@ -53,24 +54,24 @@
  * Forward declarations
  */
 static int Open(vout_display_t *vd,
-                video_format_t *fmt, vlc_video_context *context);
+                video_format_t *fmt, heimdall_video_context *context);
 static void Close(vout_display_t *vd);
 
-static void PictureRender (vout_display_t *vd, picture_t *pic, const vlc_render_subpicture *subpicture,
-                           vlc_tick_t date);
+static void PictureRender (vout_display_t *vd, picture_t *pic, const heimdall_render_subpicture *subpicture,
+                           heimdall_tick_t date);
 static void PictureDisplay (vout_display_t *vd, picture_t *pic);
 static void UpdatePlace (vout_display_t *vd, const vout_display_cfg_t *cfg);
 
-static void *OurGetProcAddress(vlc_gl_t *, const char *);
+static void *OurGetProcAddress(heimdall_gl_t *, const char *);
 
-static int OpenglLock (vlc_gl_t *gl);
-static void OpenglUnlock (vlc_gl_t *gl);
-static void OpenglSwap (vlc_gl_t *gl);
+static int OpenglLock (heimdall_gl_t *gl);
+static void OpenglUnlock (heimdall_gl_t *gl);
+static void OpenglSwap (heimdall_gl_t *gl);
 
 /**
  * Module declaration
  */
-vlc_module_begin ()
+heimdall_module_begin ()
     /* Will be loaded even without interface module. see voutgl.m */
     set_shortname ("Mac OS X")
     set_description (N_("Mac OS X OpenGL video output"))
@@ -80,17 +81,17 @@ vlc_module_begin ()
     add_glopts ()
 
     add_opengl_submodule_renderer()
-vlc_module_end ()
+heimdall_module_end ()
 
 /**
  * Obj-C protocol declaration that drawable-nsobject should follow
  */
-@protocol VLCVideoViewEmbedding <NSObject>
+@protocol HeimdallVideoViewEmbedding <NSObject>
 - (void)addVoutSubview:(NSView *)view;
 - (void)removeVoutSubview:(NSView *)view;
 @end
 
-@interface VLCOpenGLVideoView : NSOpenGLView
+@interface HeimdallOpenGLVideoView : NSOpenGLView
 {
     vout_display_t *vd;
 }
@@ -102,10 +103,10 @@ vlc_module_end ()
 
 typedef struct vout_display_sys_t
 {
-    VLCOpenGLVideoView *glView;
-    id<VLCVideoViewEmbedding> container;
+    HeimdallOpenGLVideoView *glView;
+    id<HeimdallVideoViewEmbedding> container;
 
-    vlc_gl_t *gl;
+    heimdall_gl_t *gl;
     vout_display_opengl_t *vgl;
 
     picture_t *current;
@@ -118,17 +119,17 @@ typedef struct vout_display_sys_t
 struct gl_sys
 {
     CGLContextObj locked_ctx;
-    VLCOpenGLVideoView *glView;
+    HeimdallOpenGLVideoView *glView;
 };
 
-static void *OurGetProcAddress(vlc_gl_t *gl, const char *name)
+static void *OurGetProcAddress(heimdall_gl_t *gl, const char *name)
 {
-    VLC_UNUSED(gl);
+    HEIMDALL_UNUSED(gl);
 
     return dlsym(RTLD_DEFAULT, name);
 }
 
-static int SetViewpoint(vout_display_t *vd, const vlc_viewpoint_t *vp)
+static int SetViewpoint(vout_display_t *vd, const heimdall_viewpoint_t *vp)
 {
     vout_display_sys_t *sys = vd->sys;
     return vout_display_opengl_SetViewpoint (sys->vgl, vp);
@@ -137,10 +138,10 @@ static int SetViewpoint(vout_display_t *vd, const vlc_viewpoint_t *vp)
 static int PlacementChanged(vout_display_t *vd, const vout_display_place_t *place)
 {
     vout_display_sys_t *sys = vd->sys;
-    VLC_UNUSED(place);
+    HEIMDALL_UNUSED(place);
 
     if (!sys)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     @autoreleasepool {
         @synchronized(sys->glView) {
@@ -151,19 +152,19 @@ static int PlacementChanged(vout_display_t *vd, const vout_display_place_t *plac
             sys->cfg = cfg;
             UpdatePlace(vd, &cfg);
         }
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 }
 
 static int AspectChanged(vout_display_t *vd, const video_format_t *source)
 {
     vout_display_sys_t *sys = vd->sys;
-    VLC_UNUSED(source);
+    HEIMDALL_UNUSED(source);
 
     return PlacementChanged(vd, NULL);
 }
 
-static const struct vlc_display_operations ops = {
+static const struct heimdall_display_operations ops = {
     .close = Close,
     .prepare = PictureRender,
     .display = PictureDisplay,
@@ -174,16 +175,16 @@ static const struct vlc_display_operations ops = {
 };
 
 static int Open (vout_display_t *vd,
-                 video_format_t *fmt, vlc_video_context *context)
+                 video_format_t *fmt, heimdall_video_context *context)
 {
 
-    if (vd->cfg->window->type != VLC_WINDOW_TYPE_NSOBJECT)
-        return VLC_EGENERIC;
+    if (vd->cfg->window->type != HEIMDALL_WINDOW_TYPE_NSOBJECT)
+        return HEIMDALL_EGENERIC;
 
     vout_display_sys_t *sys = calloc(1, sizeof(*sys));
 
     if (!sys)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     sys->cfg = *vd->cfg;
     sys->has_first_frame = false;
     sys->current = NULL;
@@ -206,7 +207,7 @@ static int Open (vout_display_t *vd,
 
         /* Get our main view*/
         dispatch_sync(dispatch_get_main_queue(), ^{
-            sys->glView = [[VLCOpenGLVideoView alloc] init];
+            sys->glView = [[HeimdallOpenGLVideoView alloc] init];
         });
 
         if (!sys->glView) {
@@ -231,12 +232,12 @@ static int Open (vout_display_t *vd,
                 [sys->glView setFrame:[parentView bounds]];
             });
         } else {
-            msg_Err(vd, "Invalid drawable-nsobject object. drawable-nsobject must either be an NSView or comply to the @protocol VLCVideoViewEmbedding.");
+            msg_Err(vd, "Invalid drawable-nsobject object. drawable-nsobject must either be an NSView or comply to the @protocol HeimdallVideoViewEmbedding.");
             goto error;
         }
 
         /* Initialize common OpenGL video display */
-        sys->gl = vlc_object_create(vd, sizeof(*sys->gl));
+        sys->gl = heimdall_object_create(vd, sizeof(*sys->gl));
 
         if( unlikely( !sys->gl ) )
             goto error;
@@ -244,13 +245,13 @@ static int Open (vout_display_t *vd,
         struct gl_sys *glsys = sys->gl->sys = malloc(sizeof(struct gl_sys));
         if( unlikely( !sys->gl->sys ) )
         {
-            vlc_object_delete(sys->gl);
+            heimdall_object_delete(sys->gl);
             goto error;
         }
         glsys->locked_ctx = NULL;
         glsys->glView = sys->glView;
 
-        static const struct vlc_gl_operations gl_ops =
+        static const struct heimdall_gl_operations gl_ops =
         {
             .make_current = OpenglLock,
             .release_current = OpenglUnlock,
@@ -258,18 +259,18 @@ static int Open (vout_display_t *vd,
             .get_proc_address = OurGetProcAddress,
         };
         sys->gl->ops = &gl_ops;
-        sys->gl->api_type = VLC_OPENGL;
+        sys->gl->api_type = HEIMDALL_OPENGL;
 
-        const vlc_fourcc_t *subpicture_chromas;
+        const heimdall_fourcc_t *subpicture_chromas;
 
-        if (vlc_gl_MakeCurrent(sys->gl) != VLC_SUCCESS)
+        if (heimdall_gl_MakeCurrent(sys->gl) != HEIMDALL_SUCCESS)
         {
             msg_Err(vd, "Can't attach gl context");
             goto error;
         }
         sys->vgl = vout_display_opengl_New (fmt, &subpicture_chromas, sys->gl,
                                             &vd->cfg->viewpoint, context);
-        vlc_gl_ReleaseCurrent(sys->gl);
+        heimdall_gl_ReleaseCurrent(sys->gl);
         if (!sys->vgl) {
             msg_Err(vd, "Error while initializing opengl display.");
             goto error;
@@ -280,11 +281,11 @@ static int Open (vout_display_t *vd,
 
         vd->ops = &ops;
 
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
     error:
         Close(vd);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 }
 
@@ -299,16 +300,16 @@ static void Close(vout_display_t *vd)
 
         if (sys->vgl != NULL)
         {
-            vlc_gl_MakeCurrent(sys->gl);
+            heimdall_gl_MakeCurrent(sys->gl);
             vout_display_opengl_Delete (sys->vgl);
-            vlc_gl_ReleaseCurrent(sys->gl);
+            heimdall_gl_ReleaseCurrent(sys->gl);
         }
 
         if (sys->gl != NULL)
         {
             assert(((struct gl_sys *)sys->gl->sys)->locked_ctx == NULL);
             free(sys->gl->sys);
-            vlc_object_delete(sys->gl);
+            heimdall_object_delete(sys->gl);
         }
 
         dispatch_async(dispatch_get_main_queue(), ^{
@@ -331,16 +332,16 @@ static void Close(vout_display_t *vd)
  *****************************************************************************/
 
 static void PictureRender (vout_display_t *vd, picture_t *pic,
-                           const vlc_render_subpicture *subpicture,
-                           vlc_tick_t date)
+                           const heimdall_render_subpicture *subpicture,
+                           heimdall_tick_t date)
 {
-    VLC_UNUSED(date);
+    HEIMDALL_UNUSED(date);
     vout_display_sys_t *sys = vd->sys;
 
-    if (vlc_gl_MakeCurrent(sys->gl) == VLC_SUCCESS)
+    if (heimdall_gl_MakeCurrent(sys->gl) == HEIMDALL_SUCCESS)
     {
         vout_display_opengl_Prepare (sys->vgl, pic, subpicture);
-        vlc_gl_ReleaseCurrent(sys->gl);
+        heimdall_gl_ReleaseCurrent(sys->gl);
     }
 }
 
@@ -352,10 +353,10 @@ static void PictureDisplay (vout_display_t *vd, picture_t *pic)
     @synchronized(sys->glView)
     {
         [sys->glView setVoutFlushing:YES];
-        if (vlc_gl_MakeCurrent(sys->gl) == VLC_SUCCESS)
+        if (heimdall_gl_MakeCurrent(sys->gl) == HEIMDALL_SUCCESS)
         {
             [sys->glView render];
-            vlc_gl_ReleaseCurrent(sys->gl);
+            heimdall_gl_ReleaseCurrent(sys->gl);
         }
         [sys->glView setVoutFlushing:NO];
         sys->has_first_frame = true;
@@ -376,7 +377,7 @@ static void UpdatePlace (vout_display_t *vd, const vout_display_cfg_t *cfg)
 /*****************************************************************************
  * vout opengl callbacks
  *****************************************************************************/
-static int OpenglLock (vlc_gl_t *gl)
+static int OpenglLock (heimdall_gl_t *gl)
 {
     struct gl_sys *sys = gl->sys;
     if (![sys->glView respondsToSelector:@selector(openGLContext)])
@@ -396,14 +397,14 @@ static int OpenglLock (vlc_gl_t *gl)
     return 1;
 }
 
-static void OpenglUnlock (vlc_gl_t *gl)
+static void OpenglUnlock (heimdall_gl_t *gl)
 {
     struct gl_sys *sys = gl->sys;
     CGLUnlockContext (sys->locked_ctx);
     sys->locked_ctx = NULL;
 }
 
-static void OpenglSwap (vlc_gl_t *gl)
+static void OpenglSwap (heimdall_gl_t *gl)
 {
     struct gl_sys *sys = gl->sys;
     [[sys->glView openGLContext] flushBuffer];
@@ -412,16 +413,16 @@ static void OpenglSwap (vlc_gl_t *gl)
 /*****************************************************************************
  * Our NSView object
  *****************************************************************************/
-@implementation VLCOpenGLVideoView
+@implementation HeimdallOpenGLVideoView
 
-#define VLCAssertMainThread() assert([[NSThread currentThread] isMainThread])
+#define HeimdallAssertMainThread() assert([[NSThread currentThread] isMainThread])
 
 /**
  * Gets called by the Open() method.
  */
 - (id)init
 {
-    VLCAssertMainThread();
+    HeimdallAssertMainThread();
 
     /* Warning - this may be called on non main thread */
 
@@ -508,7 +509,7 @@ static void OpenglSwap (vlc_gl_t *gl)
  */
 - (BOOL)lockgl
 {
-    VLCAssertMainThread();
+    HeimdallAssertMainThread();
     NSOpenGLContext *context = [self openGLContext];
     CGLError err = CGLLockContext ([context CGLContextObj]);
     if (err == kCGLNoError)
@@ -521,7 +522,7 @@ static void OpenglSwap (vlc_gl_t *gl)
  */
 - (void)unlockgl
 {
-    VLCAssertMainThread();
+    HeimdallAssertMainThread();
     CGLUnlockContext ([[self openGLContext] CGLContextObj]);
 }
 
@@ -548,7 +549,7 @@ static void OpenglSwap (vlc_gl_t *gl)
         vout_display_opengl_Display (sys->vgl);
     else
         glClear (GL_COLOR_BUFFER_BIT);
-    vlc_gl_Swap(sys->gl);
+    heimdall_gl_Swap(sys->gl);
 }
 
 /**
@@ -556,7 +557,7 @@ static void OpenglSwap (vlc_gl_t *gl)
  */
 - (void)reshape
 {
-    VLCAssertMainThread();
+    HeimdallAssertMainThread();
 
     /* on HiDPI displays, the point bounds don't equal the actual pixel based bounds */
     NSRect bounds = [self convertRectToBacking:[self bounds]];
@@ -577,7 +578,7 @@ static void OpenglSwap (vlc_gl_t *gl)
  */
 - (void)update
 {
-    VLCAssertMainThread();
+    HeimdallAssertMainThread();
     BOOL success = [self lockgl];
     if (!success)
         return;
@@ -592,7 +593,7 @@ static void OpenglSwap (vlc_gl_t *gl)
  */
 - (void)drawRect:(NSRect) rect
 {
-    VLCAssertMainThread();
+    HeimdallAssertMainThread();
 
     @synchronized(self) {
         BOOL success = [self lockgl];

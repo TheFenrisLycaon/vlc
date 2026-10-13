@@ -2,6 +2,7 @@
  * wgl.c: WGL extension for OpenGL
  *****************************************************************************
  * Copyright © 2009-2016 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Adrien Maglo <magsoft@videolan.org>
  *
@@ -23,10 +24,10 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_vout_display.h>
-#include <vlc_opengl.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_vout_display.h>
+#include <heimdall_opengl.h>
 
 #include "../opengl/vout_helper.h"
 #include <GL/glew.h>
@@ -35,13 +36,13 @@
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int Open(vlc_gl_t *, unsigned width, unsigned height,
-                const struct vlc_gl_cfg *gl_cfg);
-static void Close(vlc_gl_t *);
+static int Open(heimdall_gl_t *, unsigned width, unsigned height,
+                const struct heimdall_gl_cfg *gl_cfg);
+static void Close(heimdall_gl_t *);
 
 #define HW_GPU_AFFINITY_TEXT N_("GPU affinity")
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname("WGL")
     set_description(N_("WGL extension for OpenGL"))
     set_subcategory(SUBCAT_VIDEO_VOUT)
@@ -50,7 +51,7 @@ vlc_module_begin()
 
     set_callback_opengl(Open, 50)
     add_shortcut("wgl")
-vlc_module_end()
+heimdall_module_end()
 
 /*****************************************************************************
  * Local prototypes.
@@ -62,16 +63,16 @@ typedef struct vout_display_sys_t
     HDC                   hGLDC;
     HGLRC                 hGLRC;
     HMODULE               hOpengl;
-    vlc_gl_t              *gl;
+    heimdall_gl_t              *gl;
     HDC                   affinityHDC; // DC for the selected GPU
 } vout_display_sys_t;
 
-static void          Swap(vlc_gl_t *);
-static void          *OurGetProcAddress(vlc_gl_t *, const char *);
-static int           MakeCurrent(vlc_gl_t *gl);
-static void          ReleaseCurrent(vlc_gl_t *gl);
+static void          Swap(heimdall_gl_t *);
+static void          *OurGetProcAddress(heimdall_gl_t *, const char *);
+static int           MakeCurrent(heimdall_gl_t *gl);
+static void          ReleaseCurrent(heimdall_gl_t *gl);
 
-#define VLC_PFD_INITIALIZER { \
+#define HEIMDALL_PFD_INITIALIZER { \
     .nSize = sizeof(PIXELFORMATDESCRIPTOR), \
     .nVersion = 1, \
     .dwFlags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER, \
@@ -82,10 +83,10 @@ static void          ReleaseCurrent(vlc_gl_t *gl);
 }
 
 /* Create an GPU Affinity DC */
-static void CreateGPUAffinityDC(vlc_gl_t *gl, UINT nVidiaAffinity) {
+static void CreateGPUAffinityDC(heimdall_gl_t *gl, UINT nVidiaAffinity) {
     vout_display_sys_t *sys = gl->sys;
 
-    PIXELFORMATDESCRIPTOR pfd = VLC_PFD_INITIALIZER;
+    PIXELFORMATDESCRIPTOR pfd = HEIMDALL_PFD_INITIALIZER;
 
     /* create a temporary GL context */
     HDC winDC = GetDC(sys->hvideownd);
@@ -122,12 +123,12 @@ static void CreateGPUAffinityDC(vlc_gl_t *gl, UINT nVidiaAffinity) {
 }
 
 /* Destroy an GPU Affinity DC */
-static void DestroyGPUAffinityDC(vlc_gl_t *gl) {
+static void DestroyGPUAffinityDC(heimdall_gl_t *gl) {
     vout_display_sys_t *sys = gl->sys;
 
     if (sys->affinityHDC == NULL) return;
 
-    PIXELFORMATDESCRIPTOR pfd = VLC_PFD_INITIALIZER;
+    PIXELFORMATDESCRIPTOR pfd = HEIMDALL_PFD_INITIALIZER;
 
     /* create a temporary GL context */
     HDC winDC = GetDC(sys->hvideownd);
@@ -149,28 +150,28 @@ static void DestroyGPUAffinityDC(vlc_gl_t *gl) {
     fncDeleteDCNV(sys->affinityHDC);
 }
 
-static int Open(vlc_gl_t *gl, unsigned width, unsigned height,
-                const struct vlc_gl_cfg *gl_cfg)
+static int Open(heimdall_gl_t *gl, unsigned width, unsigned height,
+                const struct heimdall_gl_cfg *gl_cfg)
 {
     vout_display_sys_t *sys;
 
     if (gl_cfg->need_alpha)
     {
         msg_Err(gl, "Cannot support alpha yet");
-        return VLC_ENOTSUP;
+        return HEIMDALL_ENOTSUP;
     }
 
     /* Allocate structure */
     gl->sys = sys = calloc(1, sizeof(*sys));
     if (!sys)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     /* Process selected GPU affinity */
     int nVidiaAffinity = var_InheritInteger(gl, "gpu-affinity");
     if (nVidiaAffinity >= 0) CreateGPUAffinityDC(gl, nVidiaAffinity);
 
-    vlc_window_t *wnd = gl->surface;
-    if (wnd->type != VLC_WINDOW_TYPE_HWND || wnd->handle.hwnd == 0)
+    heimdall_window_t *wnd = gl->surface;
+    if (wnd->type != HEIMDALL_WINDOW_TYPE_HWND || wnd->handle.hwnd == 0)
         goto error;
 
     sys->hvideownd = wnd->handle.hwnd;
@@ -188,7 +189,7 @@ static int Open(vlc_gl_t *gl, unsigned width, unsigned height,
     }
 
     /* Set the pixel format for the DC */
-    PIXELFORMATDESCRIPTOR pfd = VLC_PFD_INITIALIZER;
+    PIXELFORMATDESCRIPTOR pfd = HEIMDALL_PFD_INITIALIZER;
     SetPixelFormat(sys->hGLDC, ChoosePixelFormat(sys->hGLDC, &pfd), &pfd);
 
     /* Create the context. */
@@ -221,7 +222,7 @@ static int Open(vlc_gl_t *gl, unsigned width, unsigned height,
 #ifdef WGL_EXT_swap_control
     /* Create an GPU Affinity DC */
     const char *extensions = (const char*)glGetString(GL_EXTENSIONS);
-    if (vlc_gl_StrHasToken(extensions, "WGL_EXT_swap_control")) {
+    if (heimdall_gl_StrHasToken(extensions, "WGL_EXT_swap_control")) {
         PFNWGLSWAPINTERVALEXTPROC SwapIntervalEXT = (PFNWGLSWAPINTERVALEXTPROC)wglGetProcAddress("wglSwapIntervalEXT");
         if (SwapIntervalEXT)
             SwapIntervalEXT(1);
@@ -230,7 +231,7 @@ static int Open(vlc_gl_t *gl, unsigned width, unsigned height,
 
     wglMakeCurrent(sys->hGLDC, NULL);
 
-    static const struct vlc_gl_operations gl_ops =
+    static const struct heimdall_gl_operations gl_ops =
     {
         .make_current = MakeCurrent,
         .release_current = ReleaseCurrent,
@@ -242,14 +243,14 @@ static int Open(vlc_gl_t *gl, unsigned width, unsigned height,
     gl->ops = &gl_ops;
 
     (void) width; (void) height;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     Close(gl);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
-static void Close(vlc_gl_t *gl)
+static void Close(heimdall_gl_t *gl)
 {
     vout_display_sys_t *sys = gl->sys;
 
@@ -263,13 +264,13 @@ static void Close(vlc_gl_t *gl)
     free(sys);
 }
 
-static void Swap(vlc_gl_t *gl)
+static void Swap(heimdall_gl_t *gl)
 {
     vout_display_sys_t *sys = gl->sys;
     SwapBuffers(sys->hGLDC);
 }
 
-static void *OurGetProcAddress(vlc_gl_t *gl, const char *name)
+static void *OurGetProcAddress(heimdall_gl_t *gl, const char *name)
 {
     vout_display_sys_t *sys = gl->sys;
 
@@ -283,7 +284,7 @@ static void *OurGetProcAddress(vlc_gl_t *gl, const char *name)
     return f;
 }
 
-static int MakeCurrent(vlc_gl_t *gl)
+static int MakeCurrent(heimdall_gl_t *gl)
 {
     vout_display_sys_t *sys = gl->sys;
 
@@ -299,18 +300,18 @@ static int MakeCurrent(vlc_gl_t *gl)
     ReleaseDC(sys->hvideownd, winDC);
 
     if (likely(success))
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
-    /* vlc_gl_MakeCurrent should never fail. */
+    /* heimdall_gl_MakeCurrent should never fail. */
 
     DWORD dw = GetLastError();
     msg_Err(gl, "Cannot make wgl current, error %lx", dw);
 
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
-static void ReleaseCurrent(vlc_gl_t *gl)
+static void ReleaseCurrent(heimdall_gl_t *gl)
 {
-    VLC_UNUSED(gl);
+    HEIMDALL_UNUSED(gl);
     wglMakeCurrent(NULL, NULL);
 }

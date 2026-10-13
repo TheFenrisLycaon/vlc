@@ -4,6 +4,7 @@
  */
 /*****************************************************************************
  * Copyright © 2022 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -34,11 +35,11 @@
 # include <drm_fourcc.h>
 # include <drm_mode.h>
 #endif
-#include <vlc_common.h>
-#include <vlc_picture.h>
-#include "vlc_drm.h"
+#include <heimdall_common.h>
+#include <heimdall_picture.h>
+#include "heimdall_drm.h"
 
-struct vlc_drm_buf {
+struct heimdall_drm_buf {
     struct picture_buffer_t buf; /**< Common picture buffer properties */
     uint32_t handle; /**< DRM buffer handle */
     uint32_t fb_id; /**< DRM frame buffer identifier */
@@ -50,27 +51,27 @@ static void drmDestroyDumb(int fd, uint32_t handle)
         .handle = handle,
     };
 
-    vlc_drm_ioctl(fd, DRM_IOCTL_MODE_DESTROY_DUMB, &dreq);
+    heimdall_drm_ioctl(fd, DRM_IOCTL_MODE_DESTROY_DUMB, &dreq);
 }
 
-static void vlc_drm_dumb_buf_destroy(struct vlc_drm_buf *picbuf)
+static void heimdall_drm_dumb_buf_destroy(struct heimdall_drm_buf *picbuf)
 {
     munmap(picbuf->buf.base, picbuf->buf.size);
     drmDestroyDumb(picbuf->buf.fd, picbuf->handle);
     free(picbuf);
 }
 
-static void vlc_drm_dumb_destroy(picture_t *pic)
+static void heimdall_drm_dumb_destroy(picture_t *pic)
 {
-    struct vlc_drm_buf *picbuf = pic->p_sys;
+    struct heimdall_drm_buf *picbuf = pic->p_sys;
 
     if (picbuf->fb_id != 0)
-        vlc_drm_ioctl(picbuf->buf.fd, DRM_IOCTL_MODE_RMFB, &picbuf->fb_id);
+        heimdall_drm_ioctl(picbuf->buf.fd, DRM_IOCTL_MODE_RMFB, &picbuf->fb_id);
 
-    vlc_drm_dumb_buf_destroy(picbuf);
+    heimdall_drm_dumb_buf_destroy(picbuf);
 }
 
-picture_t *vlc_drm_dumb_alloc(struct vlc_logger *log, int fd,
+picture_t *heimdall_drm_dumb_alloc(struct heimdall_logger *log, int fd,
                               const video_format_t *restrict fmt)
 {
     picture_t template;
@@ -82,13 +83,13 @@ picture_t *vlc_drm_dumb_alloc(struct vlc_logger *log, int fd,
     struct drm_mode_create_dumb creq = {
         .height = template.format.i_height,
         .width = template.format.i_width,
-        .bpp = (vlc_fourcc_GetChromaBPP(template.format.i_chroma) + 7) & ~7,
+        .bpp = (heimdall_fourcc_GetChromaBPP(template.format.i_chroma) + 7) & ~7,
         .flags =  0,
     };
 
-    if (vlc_drm_ioctl(fd, DRM_IOCTL_MODE_CREATE_DUMB, &creq) < 0) {
-        vlc_error(log, "DRM dumb buffer creation error: %s",
-                  vlc_strerror(errno));
+    if (heimdall_drm_ioctl(fd, DRM_IOCTL_MODE_CREATE_DUMB, &creq) < 0) {
+        heimdall_error(log, "DRM dumb buffer creation error: %s",
+                  heimdall_strerror(errno));
         return NULL;
     }
 
@@ -97,9 +98,9 @@ picture_t *vlc_drm_dumb_alloc(struct vlc_logger *log, int fd,
         .handle = creq.handle,
     };
 
-    if (vlc_drm_ioctl(fd, DRM_IOCTL_MODE_MAP_DUMB, &mreq) < 0) {
-        vlc_error(log, "DRM dumb buffer mapping setup error: %s",
-                  vlc_strerror(errno));
+    if (heimdall_drm_ioctl(fd, DRM_IOCTL_MODE_MAP_DUMB, &mreq) < 0) {
+        heimdall_error(log, "DRM dumb buffer mapping setup error: %s",
+                  heimdall_strerror(errno));
 error:  drmDestroyDumb(fd, creq.handle);
         return NULL;
     }
@@ -108,13 +109,13 @@ error:  drmDestroyDumb(fd, creq.handle);
     unsigned char *base = mmap(NULL, creq.size, PROT_READ | PROT_WRITE,
                                MAP_SHARED, fd, mreq.offset);
     if (base == MAP_FAILED) {
-        vlc_error(log, "DRM dumb buffer memory-mapping error: %s",
-                  vlc_strerror(errno));
+        heimdall_error(log, "DRM dumb buffer memory-mapping error: %s",
+                  heimdall_strerror(errno));
         goto error;
     }
 
-    /* Create the VLC picture representation */
-    struct vlc_drm_buf *picbuf = malloc(sizeof (*picbuf));
+    /* Create the Heimdall picture representation */
+    struct heimdall_drm_buf *picbuf = malloc(sizeof (*picbuf));
     if (unlikely(picbuf == NULL)) {
         munmap(base, creq.size);
         goto error;
@@ -129,7 +130,7 @@ error:  drmDestroyDumb(fd, creq.handle);
 
     picture_resource_t res = {
         .p_sys = picbuf,
-        .pf_destroy = vlc_drm_dumb_destroy,
+        .pf_destroy = heimdall_drm_dumb_destroy,
     };
 
     for (int i = 0; i < template.i_planes; i++) {
@@ -141,22 +142,22 @@ error:  drmDestroyDumb(fd, creq.handle);
 
     picture_t *pic = picture_NewFromResource(fmt, &res);
     if (unlikely(pic == NULL))
-        vlc_drm_dumb_buf_destroy(picbuf);
+        heimdall_drm_dumb_buf_destroy(picbuf);
     return pic;
 }
 
-picture_t *vlc_drm_dumb_alloc_fb(struct vlc_logger *log, int fd,
+picture_t *heimdall_drm_dumb_alloc_fb(struct heimdall_logger *log, int fd,
                                  const video_format_t *restrict fmt)
 {
-    uint32_t pixfmt = vlc_drm_fourcc(fmt->i_chroma);
+    uint32_t pixfmt = heimdall_drm_fourcc(fmt->i_chroma);
     if (pixfmt == DRM_FORMAT_INVALID)
         return NULL;
 
-    picture_t *pic = vlc_drm_dumb_alloc(log, fd, fmt);
+    picture_t *pic = heimdall_drm_dumb_alloc(log, fd, fmt);
     if (pic == NULL)
         return NULL;
 
-    struct vlc_drm_buf *picbuf = pic->p_sys;
+    struct heimdall_drm_buf *picbuf = pic->p_sys;
     struct drm_mode_fb_cmd2 cmd = {
         .width = fmt->i_width,
         .height = fmt->i_height,
@@ -171,9 +172,9 @@ picture_t *vlc_drm_dumb_alloc_fb(struct vlc_logger *log, int fd,
     for (int i = 1; i < pic->i_planes; i++)
         cmd.offsets[i] = pic->p[i].p_pixels - pic->p[0].p_pixels;
 
-    if (vlc_drm_ioctl(fd, DRM_IOCTL_MODE_ADDFB2, &cmd) < 0) {
-        vlc_error(log, "DRM framebuffer addition error: %s",
-                  vlc_strerror(errno));
+    if (heimdall_drm_ioctl(fd, DRM_IOCTL_MODE_ADDFB2, &cmd) < 0) {
+        heimdall_error(log, "DRM framebuffer addition error: %s",
+                  heimdall_strerror(errno));
         picture_Release(pic);
         pic = NULL;
     } else
@@ -182,9 +183,9 @@ picture_t *vlc_drm_dumb_alloc_fb(struct vlc_logger *log, int fd,
     return pic;
 }
 
-uint32_t vlc_drm_dumb_get_fb_id(const picture_t *pic)
+uint32_t heimdall_drm_dumb_get_fb_id(const picture_t *pic)
 {
-    struct vlc_drm_buf *picbuf = pic->p_sys;
+    struct heimdall_drm_buf *picbuf = pic->p_sys;
 
     assert(picbuf->fb_id != 0);
     return picbuf->fb_id;

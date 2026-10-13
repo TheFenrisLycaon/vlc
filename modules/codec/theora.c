@@ -2,6 +2,7 @@
  * theora.c: theora decoder module making use of libtheora.
  *****************************************************************************
  * Copyright (C) 1999-2012 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gildas Bazin <gbazin@videolan.org>
  *
@@ -27,12 +28,12 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
-#include <vlc_sout.h>
-#include <vlc_input_item.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
+#include <heimdall_sout.h>
+#include <heimdall_input_item.h>
 #include "../demux/xiph.h"
 
 #include <ogg/ogg.h>
@@ -72,15 +73,15 @@ typedef struct
     /*
      * Common properties
      */
-    vlc_tick_t i_pts;
+    heimdall_tick_t i_pts;
 } decoder_sys_t;
 
 /*****************************************************************************
  * Local prototypes
  *****************************************************************************/
-static int  OpenDecoder   ( vlc_object_t * );
-static int  OpenPacketizer( vlc_object_t * );
-static void CloseDecoder  ( vlc_object_t * );
+static int  OpenDecoder   ( heimdall_object_t * );
+static int  OpenPacketizer( heimdall_object_t * );
+static void CloseDecoder  ( heimdall_object_t * );
 
 static int DecodeVideo  ( decoder_t *, block_t * );
 static block_t *Packetize  ( decoder_t *, block_t ** );
@@ -94,7 +95,7 @@ static void ParseTheoraComments( decoder_t * );
 static void theora_CopyPicture( picture_t *, th_ycbcr_buffer );
 
 #ifdef ENABLE_SOUT
-static int  OpenEncoder( vlc_object_t *p_this );
+static int  OpenEncoder( heimdall_object_t *p_this );
 static void CloseEncoder( encoder_t *p_enc );
 static block_t *Encode( encoder_t *p_enc, picture_t *p_pict );
 #endif
@@ -109,7 +110,7 @@ static block_t *Encode( encoder_t *p_enc, picture_t *p_pict );
 
 #define ENC_POSTPROCESS_TEXT N_("Post processing quality")
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_subcategory( SUBCAT_INPUT_VCODEC )
     set_shortname( "Theora" )
     set_description( N_("Theora video decoder") )
@@ -136,39 +137,39 @@ vlc_module_begin ()
     add_integer( ENC_CFG_PREFIX "quality", 2, ENC_QUALITY_TEXT,
                  ENC_QUALITY_LONGTEXT )
 #endif
-vlc_module_end ()
+heimdall_module_end ()
 
 static const char *const ppsz_enc_options[] = {
     "quality", NULL
 };
 
-static int OpenCommon( vlc_object_t *p_this, bool b_packetizer )
+static int OpenCommon( heimdall_object_t *p_this, bool b_packetizer )
 {
     decoder_t *p_dec = (decoder_t*)p_this;
     decoder_sys_t *p_sys;
 
-    if( p_dec->fmt_in->i_codec != VLC_CODEC_THEORA )
+    if( p_dec->fmt_in->i_codec != HEIMDALL_CODEC_THEORA )
     {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Allocate the memory needed to store the decoder's structure */
     if( ( p_dec->p_sys = p_sys = malloc(sizeof(*p_sys)) ) == NULL )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     p_sys->b_packetizer = b_packetizer;
     p_sys->b_has_headers = false;
-    p_sys->i_pts = VLC_TICK_INVALID;
+    p_sys->i_pts = HEIMDALL_TICK_INVALID;
     p_sys->b_decoded_first_keyframe = false;
     p_sys->tcx = NULL;
 
     if( b_packetizer )
     {
-        p_dec->fmt_out.i_codec = VLC_CODEC_THEORA;
+        p_dec->fmt_out.i_codec = HEIMDALL_CODEC_THEORA;
         p_dec->pf_packetize = Packetize;
     }
     else
     {
-        p_dec->fmt_out.i_codec = VLC_CODEC_I420;
+        p_dec->fmt_out.i_codec = HEIMDALL_CODEC_I420;
         p_dec->pf_decode = DecodeVideo;
     }
     p_dec->pf_flush = Flush;
@@ -177,18 +178,18 @@ static int OpenCommon( vlc_object_t *p_this, bool b_packetizer )
     th_comment_init( &p_sys->tc );
     th_info_init( &p_sys->ti );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * OpenDecoder: probe the decoder and return score
  *****************************************************************************/
-static int OpenDecoder( vlc_object_t *p_this )
+static int OpenDecoder( heimdall_object_t *p_this )
 {
     return OpenCommon( p_this, false );
 }
 
-static int OpenPacketizer( vlc_object_t *p_this )
+static int OpenPacketizer( heimdall_object_t *p_this )
 {
     return OpenCommon( p_this, true );
 }
@@ -228,12 +229,12 @@ static void *DecodeBlock( decoder_t *p_dec, block_t *p_block )
 static int DecodeVideo( decoder_t *p_dec, block_t *p_block )
 {
     if( p_block == NULL ) /* No Drain */
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
 
     picture_t *p_pic = DecodeBlock( p_dec, p_block );
     if( p_pic != NULL )
         decoder_QueueVideo( p_dec, p_pic );
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }
 
 static block_t *Packetize( decoder_t *p_dec, block_t **pp_block )
@@ -261,9 +262,9 @@ static int ProcessHeaders( decoder_t *p_dec )
     size_t i_count;
     if( xiph_SplitHeaders( pi_size, pp_data, &i_count,
                            p_dec->fmt_in->i_extra, p_dec->fmt_in->p_extra) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     if( i_count < 3 )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     oggpacket.granulepos = -1;
     oggpacket.e_o_s = 0;
@@ -285,13 +286,13 @@ static int ProcessHeaders( decoder_t *p_dec )
     switch( p_sys->ti.pixel_fmt )
     {
       case TH_PF_420:
-        p_dec->fmt_out.i_codec = VLC_CODEC_I420;
+        p_dec->fmt_out.i_codec = HEIMDALL_CODEC_I420;
         break;
       case TH_PF_422:
-        p_dec->fmt_out.i_codec = VLC_CODEC_I422;
+        p_dec->fmt_out.i_codec = HEIMDALL_CODEC_I422;
         break;
       case TH_PF_444:
-        p_dec->fmt_out.i_codec = VLC_CODEC_I444;
+        p_dec->fmt_out.i_codec = HEIMDALL_CODEC_I444;
         break;
       case TH_PF_RSVD:
       default:
@@ -414,7 +415,7 @@ static int ProcessHeaders( decoder_t *p_dec )
         {
             /* Clean up the decoder setup info... we're done with it */
             th_setup_free( ts );
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         }
         p_dec->fmt_out.p_extra = p_extra;
         p_dec->fmt_out.i_extra = p_dec->fmt_in->i_extra;
@@ -424,12 +425,12 @@ static int ProcessHeaders( decoder_t *p_dec )
 
     /* Clean up the decoder setup info... we're done with it */
     th_setup_free( ts );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     /* Clean up the decoder setup info... we're done with it */
     th_setup_free( ts );
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /*****************************************************************************
@@ -439,7 +440,7 @@ static void Flush( decoder_t *p_dec )
 {
     decoder_sys_t *p_sys = p_dec->p_sys;
 
-    p_sys->i_pts = VLC_TICK_INVALID;
+    p_sys->i_pts = HEIMDALL_TICK_INVALID;
 }
 
 /*****************************************************************************
@@ -465,7 +466,7 @@ static void *ProcessPacket( decoder_t *p_dec, ogg_packet *p_oggpacket,
     }
 
     /* Date management */
-    if( p_block->i_pts != VLC_TICK_INVALID && p_block->i_pts != p_sys->i_pts )
+    if( p_block->i_pts != HEIMDALL_TICK_INVALID && p_block->i_pts != p_sys->i_pts )
     {
         p_sys->i_pts = p_block->i_pts;
     }
@@ -486,7 +487,7 @@ static void *ProcessPacket( decoder_t *p_dec, ogg_packet *p_oggpacket,
     }
 
     /* Date management */
-    p_sys->i_pts += vlc_tick_from_samples( p_sys->ti.fps_denominator,
+    p_sys->i_pts += heimdall_tick_from_samples( p_sys->ti.fps_denominator,
                       p_sys->ti.fps_numerator ); /* 1 frame per packet */
 
     return p_buf;
@@ -579,11 +580,11 @@ static void ParseTheoraComments( decoder_t *p_dec )
             psz_value++;
 
             if( !p_dec->p_description )
-                p_dec->p_description = vlc_meta_New();
+                p_dec->p_description = heimdall_meta_New();
             /* TODO:  Since psz_value can contain NULLs see if there is an
              * instance where we need to preserve the full length of this string */
             if( p_dec->p_description )
-                vlc_meta_SetExtra( p_dec->p_description, psz_name, psz_value );
+                heimdall_meta_SetExtra( p_dec->p_description, psz_name, psz_value );
         }
         free( psz_comment );
         i++;
@@ -593,7 +594,7 @@ static void ParseTheoraComments( decoder_t *p_dec )
 /*****************************************************************************
  * CloseDecoder: theora decoder destruction
  *****************************************************************************/
-static void CloseDecoder( vlc_object_t *p_this )
+static void CloseDecoder( heimdall_object_t *p_this )
 {
     decoder_t *p_dec = (decoder_t *)p_this;
     decoder_sys_t *p_sys = p_dec->p_sys;
@@ -668,7 +669,7 @@ typedef struct
 /*****************************************************************************
  * OpenEncoder: probe the encoder and return score
  *****************************************************************************/
-static int OpenEncoder( vlc_object_t *p_this )
+static int OpenEncoder( heimdall_object_t *p_this )
 {
     encoder_t *p_enc = (encoder_t *)p_this;
     encoder_sys_t *p_sys;
@@ -679,18 +680,18 @@ static int OpenEncoder( vlc_object_t *p_this )
     ogg_packet header;
     int status;
 
-    if( p_enc->fmt_out.i_codec != VLC_CODEC_THEORA &&
+    if( p_enc->fmt_out.i_codec != HEIMDALL_CODEC_THEORA &&
         !p_enc->obj.force )
     {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Allocate the memory needed to store the encoder's structure */
     if( ( p_sys = malloc(sizeof(encoder_sys_t)) ) == NULL )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    p_enc->fmt_in.video.i_chroma = p_enc->fmt_in.i_codec = VLC_CODEC_I420;
-    p_enc->fmt_out.i_codec = VLC_CODEC_THEORA;
+    p_enc->fmt_in.video.i_chroma = p_enc->fmt_in.i_codec = HEIMDALL_CODEC_I420;
+    p_enc->fmt_out.i_codec = HEIMDALL_CODEC_THEORA;
 
     config_ChainParse( p_enc, ENC_CFG_PREFIX, ppsz_enc_options, p_enc->p_cfg );
 
@@ -735,7 +736,7 @@ static int OpenEncoder( vlc_object_t *p_this )
     if( p_enc->fmt_in.video.i_sar_num > 0 && p_enc->fmt_in.video.i_sar_den > 0 )
     {
         unsigned i_dst_num, i_dst_den;
-        vlc_ureduce( &i_dst_num, &i_dst_den,
+        heimdall_ureduce( &i_dst_num, &i_dst_den,
                      p_enc->fmt_in.video.i_sar_num,
                      p_enc->fmt_in.video.i_sar_den, 0 );
         p_sys->ti.aspect_numerator = i_dst_num;
@@ -793,7 +794,7 @@ static int OpenEncoder( vlc_object_t *p_this )
         }
     }
 
-    static const struct vlc_encoder_operations ops =
+    static const struct heimdall_encoder_operations ops =
     {
         .close = CloseEncoder,
         .encode_video = Encode,
@@ -801,13 +802,13 @@ static int OpenEncoder( vlc_object_t *p_this )
     p_enc->ops = &ops;
     p_enc->p_sys = p_sys;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 error:
     th_info_clear(&p_sys->ti);
     th_comment_clear(&p_sys->tc);
     th_encode_free(p_sys->tcx);
     free(p_sys);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /****************************************************************************

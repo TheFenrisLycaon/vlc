@@ -2,6 +2,7 @@
  * playlists.cpp : Playlists
  ****************************************************************************
  * Copyright (C) 2021 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Benjamin Arnaud <bunjee@omega.gg>
  *
@@ -26,8 +27,8 @@
 
 #include "playlists.hpp"
 
-// VLC includes
-#include <vlc_media_library.h>
+// Heimdall includes
+#include <heimdall_media_library.h>
 #include <maininterface/mainctx.hpp>
 #include <medialibrary/mlplaylistlistmodel.hpp>
 #include <medialibrary/mlqmltypes.hpp>
@@ -46,13 +47,13 @@
 //-------------------------------------------------------------------------------------------------
 
 PlaylistsDialog::PlaylistsDialog(qt_intf_t * _p_intf, const QVariantList &media, MLPlaylistListModel::PlaylistType type, QWindow *parent)
-    : QVLCDialog(parent, _p_intf)
+    : QHeimdallDialog(parent, _p_intf)
 {
     MainCtx * mainCtx = p_intf->p_mi;
 
     assert(mainCtx->hasMediaLibrary());
 
-    setWindowRole("vlc-playlists");
+    setWindowRole("heimdall-playlists");
 
     setWindowTitle(qtr("Add to Playlist"));
 
@@ -126,7 +127,7 @@ PlaylistsDialog::PlaylistsDialog(qt_intf_t * _p_intf, const QVariantList &media,
     layout->addLayout(layoutButtons);
 
     // FIXME: Is this the right default size ?
-    QVLCTools::restoreWidgetPosition(p_intf, "Playlists", this, QSize(320, 320));
+    QHeimdallTools::restoreWidgetPosition(p_intf, "Playlists", this, QSize(320, 320));
 
     updateGeometry();
 
@@ -139,7 +140,7 @@ PlaylistsDialog::PlaylistsDialog(qt_intf_t * _p_intf, const QVariantList &media,
 
 PlaylistsDialog::~PlaylistsDialog()
 {
-    QVLCTools::saveWidgetPosition(p_intf, "Playlists", this);
+    QHeimdallTools::saveWidgetPosition(p_intf, "Playlists", this);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -197,11 +198,11 @@ void PlaylistsDialog::accept()
 
         connect(m_model, &MLPlaylistListModel::transactionPendingChanged, this, [this](bool done) {
             if (!done)
-                QVLCDialog::accept();
+                QHeimdallDialog::accept();
             }, Qt::SingleShotConnection);
     }
     else
     {
-        QVLCDialog::accept();
+        QHeimdallDialog::accept();
     }
 }

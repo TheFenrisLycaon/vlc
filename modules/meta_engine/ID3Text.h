@@ -2,6 +2,7 @@
  * ID3Text.h : ID3v2 Text Helper
  *****************************************************************************
  * Copyright (C) 2016 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -20,7 +21,7 @@
 #ifndef ID3TEXT_H
 #define ID3TEXT_H
 
-#include <vlc_charset.h>
+#include <heimdall_charset.h>
 
 /* Text encoding byte of the ID3v2 frames */
 enum

@@ -2,8 +2,9 @@
  * vpx.c: libvpx decoder (VP8/VP9) module
  *****************************************************************************
  * Copyright (C) 2013 Rafaël Carré
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Rafaël Carré <funman@videolanorg>
+ * Authors: Rafaël Carré <funman@lycariaorg>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -27,10 +28,10 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
 
 #include <vpx/vpx_decoder.h>
 #include <vpx/vp8dx.h>
@@ -44,11 +45,11 @@
 /****************************************************************************
  * Local prototypes
  ****************************************************************************/
-static int OpenDecoder(vlc_object_t *);
-static void CloseDecoder(vlc_object_t *);
+static int OpenDecoder(heimdall_object_t *);
+static void CloseDecoder(heimdall_object_t *);
 #ifdef ENABLE_SOUT
 static const char *const ppsz_sout_options[] = { "quality-mode", NULL };
-static int OpenEncoder(vlc_object_t *);
+static int OpenEncoder(heimdall_object_t *);
 static void CloseEncoder(encoder_t *);
 static block_t *Encode(encoder_t *p_enc, picture_t *p_pict);
 
@@ -69,7 +70,7 @@ static const char* const quality_desc[] = {
  * Module descriptor
  *****************************************************************************/
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname("vpx")
     set_description(N_("WebM video decoder"))
     set_capability("video decoder", 60)
@@ -94,9 +95,9 @@ vlc_module_begin ()
                  QUALITY_MODE_LONGTEXT )
         change_integer_list( quality_values, quality_desc )
 #endif
-vlc_module_end ()
+heimdall_module_end ()
 
-static void vpx_err_msg(vlc_object_t *this, struct vpx_codec_ctx *ctx,
+static void vpx_err_msg(heimdall_object_t *this, struct vpx_codec_ctx *ctx,
                         const char *msg)
 {
     const char *error  = vpx_codec_error(ctx);
@@ -106,7 +107,7 @@ static void vpx_err_msg(vlc_object_t *this, struct vpx_codec_ctx *ctx,
     msg_Err(this, msg, error, detail);
 }
 
-#define VPX_ERR(this, ctx, msg) vpx_err_msg(VLC_OBJECT(this), ctx, msg ": %s (%s)")
+#define VPX_ERR(this, ctx, msg) vpx_err_msg(HEIMDALL_OBJECT(this), ctx, msg ": %s (%s)")
 
 /*****************************************************************************
  * decoder_sys_t: libvpx decoder descriptor
@@ -118,32 +119,32 @@ typedef struct
 
 static const struct
 {
-    vlc_fourcc_t     i_chroma;
+    heimdall_fourcc_t     i_chroma;
     enum vpx_img_fmt i_chroma_id;
     uint8_t          i_bitdepth;
     enum vpx_color_space cs;
 } chroma_table[] =
 {
     /* Transfer characteristic-dependent mappings must come first */
-    { VLC_CODEC_GBR_PLANAR, VPX_IMG_FMT_I444, 8, VPX_CS_SRGB },
-    { VLC_CODEC_GBR_PLANAR_10L, VPX_IMG_FMT_I44416, 10, VPX_CS_SRGB },
+    { HEIMDALL_CODEC_GBR_PLANAR, VPX_IMG_FMT_I444, 8, VPX_CS_SRGB },
+    { HEIMDALL_CODEC_GBR_PLANAR_10L, VPX_IMG_FMT_I44416, 10, VPX_CS_SRGB },
 
-    { VLC_CODEC_I420, VPX_IMG_FMT_I420, 8, VPX_CS_UNKNOWN },
-    { VLC_CODEC_I422, VPX_IMG_FMT_I422, 8, VPX_CS_UNKNOWN },
-    { VLC_CODEC_I444, VPX_IMG_FMT_I444, 8, VPX_CS_UNKNOWN },
-    { VLC_CODEC_I440, VPX_IMG_FMT_I440, 8, VPX_CS_UNKNOWN },
+    { HEIMDALL_CODEC_I420, VPX_IMG_FMT_I420, 8, VPX_CS_UNKNOWN },
+    { HEIMDALL_CODEC_I422, VPX_IMG_FMT_I422, 8, VPX_CS_UNKNOWN },
+    { HEIMDALL_CODEC_I444, VPX_IMG_FMT_I444, 8, VPX_CS_UNKNOWN },
+    { HEIMDALL_CODEC_I440, VPX_IMG_FMT_I440, 8, VPX_CS_UNKNOWN },
 
-    { VLC_CODEC_YV12, VPX_IMG_FMT_YV12, 8, VPX_CS_UNKNOWN },
+    { HEIMDALL_CODEC_YV12, VPX_IMG_FMT_YV12, 8, VPX_CS_UNKNOWN },
 
-    { VLC_CODEC_I420_10L, VPX_IMG_FMT_I42016, 10, VPX_CS_UNKNOWN },
-    { VLC_CODEC_I422_10L, VPX_IMG_FMT_I42216, 10, VPX_CS_UNKNOWN },
-    { VLC_CODEC_I444_10L, VPX_IMG_FMT_I44416, 10, VPX_CS_UNKNOWN },
+    { HEIMDALL_CODEC_I420_10L, VPX_IMG_FMT_I42016, 10, VPX_CS_UNKNOWN },
+    { HEIMDALL_CODEC_I422_10L, VPX_IMG_FMT_I42216, 10, VPX_CS_UNKNOWN },
+    { HEIMDALL_CODEC_I444_10L, VPX_IMG_FMT_I44416, 10, VPX_CS_UNKNOWN },
 
-    { VLC_CODEC_I420_12L, VPX_IMG_FMT_I42016, 12, VPX_CS_UNKNOWN },
-    { VLC_CODEC_I422_12L, VPX_IMG_FMT_I42216, 12, VPX_CS_UNKNOWN },
-    { VLC_CODEC_I444_12L, VPX_IMG_FMT_I44416, 12, VPX_CS_UNKNOWN },
+    { HEIMDALL_CODEC_I420_12L, VPX_IMG_FMT_I42016, 12, VPX_CS_UNKNOWN },
+    { HEIMDALL_CODEC_I422_12L, VPX_IMG_FMT_I42216, 12, VPX_CS_UNKNOWN },
+    { HEIMDALL_CODEC_I444_12L, VPX_IMG_FMT_I44416, 12, VPX_CS_UNKNOWN },
 
-    { VLC_CODEC_I444_16L, VPX_IMG_FMT_I44416, 16, VPX_CS_UNKNOWN },
+    { HEIMDALL_CODEC_I444_16L, VPX_IMG_FMT_I44416, 16, VPX_CS_UNKNOWN },
 };
 
 struct video_color
@@ -181,7 +182,7 @@ const struct video_color vpx_color_mapping_table[] =
                             COLOR_SPACE_UNDEF },
 };
 
-static vlc_fourcc_t FindVlcChroma( struct vpx_image *img )
+static heimdall_fourcc_t FindHeimdallChroma( struct vpx_image *img )
 {
     for( unsigned int i = 0; i < ARRAY_SIZE(chroma_table); i++ )
         if( chroma_table[i].i_chroma_id == img->fmt &&
@@ -202,21 +203,21 @@ static int Decode(decoder_t *dec, block_t *block)
     struct vpx_codec_ctx *ctx = &p_sys->ctx;
 
     if (block == NULL) /* No Drain */
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
 
     if (block->i_flags & (BLOCK_FLAG_CORRUPTED)) {
         block_Release(block);
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
     }
 
     /* Associate packet PTS with decoded frame */
-    vlc_tick_t *pkt_pts = malloc(sizeof(*pkt_pts));
+    heimdall_tick_t *pkt_pts = malloc(sizeof(*pkt_pts));
     if (!pkt_pts) {
         block_Release(block);
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
     }
 
-    *pkt_pts = (block->i_pts != VLC_TICK_INVALID) ? block->i_pts : block->i_dts;
+    *pkt_pts = (block->i_pts != HEIMDALL_TICK_INVALID) ? block->i_pts : block->i_dts;
 
     vpx_codec_err_t err;
     err = vpx_codec_decode(ctx, block->p_buffer, block->i_buffer, pkt_pts, 0);
@@ -227,34 +228,34 @@ static int Decode(decoder_t *dec, block_t *block)
         free(pkt_pts);
         VPX_ERR(dec, ctx, "Failed to decode frame");
         if (err == VPX_CODEC_UNSUP_BITSTREAM)
-            return VLCDEC_ECRITICAL;
+            return HEIMDALLDEC_ECRITICAL;
         else
-            return VLCDEC_SUCCESS;
+            return HEIMDALLDEC_SUCCESS;
     }
 
     const void *iter = NULL;
     struct vpx_image *img = vpx_codec_get_frame(ctx, &iter);
     if (!img) {
         free(pkt_pts);
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
     }
 
     if (err == VPX_CODEC_CORRUPT_FRAME) {
         VPX_ERR(dec, ctx, "Failed to decode frame");
         free(pkt_pts);
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
     }
 
     /* fetches back the PTS */
     pkt_pts = img->user_priv;
-    vlc_tick_t pts = *pkt_pts;
+    heimdall_tick_t pts = *pkt_pts;
     free(pkt_pts);
 
-    dec->fmt_out.i_codec = FindVlcChroma(img);
+    dec->fmt_out.i_codec = FindHeimdallChroma(img);
 
     if( dec->fmt_out.i_codec == 0 ) {
         msg_Err(dec, "Unsupported output colorspace %d", img->fmt);
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
     }
 
     video_format_t *v = &dec->fmt_out.video;
@@ -284,10 +285,10 @@ static int Decode(decoder_t *dec, block_t *block)
     dec->fmt_out.video.pose = dec->fmt_in->video.pose;
 
     if (decoder_UpdateVideoFormat(dec))
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
     picture_t *pic = decoder_NewPicture(dec);
     if (!pic)
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
 
     for (int plane = 0; plane < pic->i_planes; plane++ ) {
         plane_t src_plane = pic->p[plane];
@@ -300,13 +301,13 @@ static int Decode(decoder_t *dec, block_t *block)
     pic->date = pts;
 
     decoder_QueueVideo(dec, pic);
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }
 
 /*****************************************************************************
  * OpenDecoder: probe the decoder
  *****************************************************************************/
-static int OpenDecoder(vlc_object_t *p_this)
+static int OpenDecoder(heimdall_object_t *p_this)
 {
     decoder_t *dec = (decoder_t *)p_this;
     const struct vpx_codec_iface *iface;
@@ -315,38 +316,38 @@ static int OpenDecoder(vlc_object_t *p_this)
     switch (dec->fmt_in->i_codec)
     {
 #ifdef ENABLE_VP8_DECODER
-    case VLC_CODEC_VP8:
+    case HEIMDALL_CODEC_VP8:
         if (es_format_HasVpxAlpha(dec->fmt_in)) // contains alpha extradata
-            return VLC_ENOTSUP;
+            return HEIMDALL_ENOTSUP;
         // fallthrough
-    case VLC_CODEC_WEBP:
-    case VLC_CODEC_VP8ALPHA_ES:
+    case HEIMDALL_CODEC_WEBP:
+    case HEIMDALL_CODEC_VP8ALPHA_ES:
         iface = &vpx_codec_vp8_dx_algo;
         vp_version = 8;
         break;
 #endif
 #ifdef ENABLE_VP9_DECODER
-    case VLC_CODEC_VP9:
+    case HEIMDALL_CODEC_VP9:
         if (es_format_HasVpxAlpha(dec->fmt_in)) // contains alpha extradata
-            return VLC_ENOTSUP;
+            return HEIMDALL_ENOTSUP;
         // fallthrough
-    case VLC_CODEC_VP9ALPHA_ES:
+    case HEIMDALL_CODEC_VP9ALPHA_ES:
         iface = &vpx_codec_vp9_dx_algo;
         vp_version = 9;
         break;
 #endif
     default:
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     decoder_sys_t *sys = malloc(sizeof(*sys));
     if (!sys)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     dec->p_sys = sys;
 
     int i_thread_count = var_InheritInteger(p_this, "vpx-threads");
     if (i_thread_count <= 0)
-        i_thread_count = vlc_GetCPUCount();
+        i_thread_count = heimdall_GetCPUCount();
     struct vpx_codec_dec_cfg deccfg = {
         .threads = __MIN(i_thread_count, 16)
     };
@@ -357,7 +358,7 @@ static int OpenDecoder(vlc_object_t *p_this)
     if (vpx_codec_dec_init(&sys->ctx, iface, &deccfg, 0) != VPX_CODEC_OK) {
         VPX_ERR(p_this, &sys->ctx, "Failed to initialize decoder");
         free(sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     dec->pf_decode = Decode;
@@ -370,13 +371,13 @@ static int OpenDecoder(vlc_object_t *p_this)
         dec->fmt_out.video.i_sar_den = dec->fmt_in->video.i_sar_den;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * CloseDecoder: decoder destruction
  *****************************************************************************/
-static void CloseDecoder(vlc_object_t *p_this)
+static void CloseDecoder(heimdall_object_t *p_this)
 {
     decoder_t *dec = (decoder_t *)p_this;
     decoder_sys_t *sys = dec->p_sys;
@@ -409,7 +410,7 @@ typedef struct
 /*****************************************************************************
  * OpenEncoder: probe the encoder
  *****************************************************************************/
-static int OpenEncoder(vlc_object_t *p_this)
+static int OpenEncoder(heimdall_object_t *p_this)
 {
     encoder_t *p_enc = (encoder_t *)p_this;
     encoder_sys_t *p_sys;
@@ -420,35 +421,35 @@ static int OpenEncoder(vlc_object_t *p_this)
     switch (p_enc->fmt_out.i_codec)
     {
 #ifdef ENABLE_VP8_ENCODER
-    case VLC_CODEC_VP8:
+    case HEIMDALL_CODEC_VP8:
         if (es_format_HasVpxAlpha(&p_enc->fmt_out)) // contains alpha extradata
-            return VLC_ENOTSUP;
+            return HEIMDALL_ENOTSUP;
         // fallthrough
-    case VLC_CODEC_WEBP:
+    case HEIMDALL_CODEC_WEBP:
         iface = &vpx_codec_vp8_cx_algo;
         vp_version = 8;
         break;
 #endif
 #ifdef ENABLE_VP9_ENCODER
-    case VLC_CODEC_VP9:
+    case HEIMDALL_CODEC_VP9:
         if (es_format_HasVpxAlpha(&p_enc->fmt_out)) // contains alpha extradata
-            return VLC_ENOTSUP;
+            return HEIMDALL_ENOTSUP;
         iface = &vpx_codec_vp9_cx_algo;
         vp_version = 9;
         break;
 #endif
     default:
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Allocate the memory needed to store the encoder's structure */
     p_sys = malloc(sizeof(*p_sys));
     if (p_sys == NULL)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     struct vpx_codec_enc_cfg enccfg = {0};
     vpx_codec_enc_config_default(iface, &enccfg, 0);
-    enccfg.g_threads = __MIN(vlc_GetCPUCount(), 4);
+    enccfg.g_threads = __MIN(heimdall_GetCPUCount(), 4);
     enccfg.g_w = p_enc->fmt_in.video.i_visible_width;
     enccfg.g_h = p_enc->fmt_in.video.i_visible_height;
 
@@ -461,7 +462,7 @@ static int OpenEncoder(vlc_object_t *p_this)
         goto error;
     }
 
-    p_enc->fmt_in.i_codec = p_enc->fmt_in.video.i_chroma = VLC_CODEC_I420;
+    p_enc->fmt_in.i_codec = p_enc->fmt_in.video.i_chroma = HEIMDALL_CODEC_I420;
     config_ChainParse(p_enc, ENC_CFG_PREFIX, ppsz_sout_options, p_enc->p_cfg);
 
     /* Deadline (in ms) to spend in encoder */
@@ -478,7 +479,7 @@ static int OpenEncoder(vlc_object_t *p_this)
             break;
     }
 
-    static const struct vlc_encoder_operations ops =
+    static const struct heimdall_encoder_operations ops =
     {
         .close = CloseEncoder,
         .encode_video = Encode,
@@ -486,17 +487,17 @@ static int OpenEncoder(vlc_object_t *p_this)
     p_enc->ops = &ops;
     p_enc->p_sys = p_sys;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 error:
     free(p_sys);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 static const uint32_t webp_simple_lossy_header[5] = {
-    VLC_FOURCC('R', 'I', 'F', 'F'),
+    HEIMDALL_FOURCC('R', 'I', 'F', 'F'),
     0, /* TBD: total size of VP8 data plus 12 bytes for WEBP fourcc + VP8 ChunkHeader */
-    VLC_FOURCC('W', 'E', 'B', 'P'),
-    VLC_FOURCC('V', 'P', '8', ' '),
+    HEIMDALL_FOURCC('W', 'E', 'B', 'P'),
+    HEIMDALL_FOURCC('V', 'P', '8', ' '),
     0, /* TBD: total size of VP8 data */
 };
 
@@ -553,7 +554,7 @@ static block_t *Encode(encoder_t *p_enc, picture_t *p_pict)
     /* WebP container specific context */
     uint32_t i_vp8_data_size = 0;
     uint8_t *p_header = NULL;
-    const bool b_is_webp = p_enc->fmt_out.i_codec == VLC_CODEC_WEBP;
+    const bool b_is_webp = p_enc->fmt_out.i_codec == HEIMDALL_CODEC_WEBP;
     static const size_t i_webp_header_size = sizeof(webp_simple_lossy_header);
 
     while ((pkt = vpx_codec_get_cx_data(ctx, &iter)) != NULL)

@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,7 +19,7 @@
 
 #include <cassert>
 #include "medialib.hpp"
-#include <vlc_cxx_helpers.hpp>
+#include <heimdall_cxx_helpers.hpp>
 
 #include "util/listcache.hpp"
 
@@ -92,7 +93,7 @@ public:
             return false;
 
         if ( q->m_ml_event_handle == nullptr )
-            q->m_ml_event_handle.reset( q->m_mediaLib->registerEventListener(MLBaseModel::onVlcMlEvent, q ) );
+            q->m_ml_event_handle.reset( q->m_mediaLib->registerEventListener(MLBaseModel::onHeimdallMlEvent, q ) );
 
         invalidateCache();
         return true;
@@ -177,7 +178,7 @@ public:
 
 MLBaseModel::MLBaseModel(QObject *parent)
     : BaseModel(new MLBaseModelPrivate(this), parent)
-    , m_ml_event_handle( nullptr, [this](vlc_ml_event_callback_t* cb ) {
+    , m_ml_event_handle( nullptr, [this](heimdall_ml_event_callback_t* cb ) {
             assert( m_mediaLib != nullptr );
             m_mediaLib->unregisterEventListener( cb );
         })
@@ -358,7 +359,7 @@ void MLBaseModel::addAndPlay(const QModelIndexList &list, const QStringList &opt
     loadItems(indx, play);
 }
 
-vlc_ml_sorting_criteria_t MLBaseModel::getMLSortingCriteria() const
+heimdall_ml_sorting_criteria_t MLBaseModel::getMLSortingCriteria() const
 {
     Q_D(const MLBaseModel);
     return nameToCriteria(d->m_sortCriteria.toUtf8());
@@ -366,19 +367,19 @@ vlc_ml_sorting_criteria_t MLBaseModel::getMLSortingCriteria() const
 
 //-------------------------------------------------------------------------------------------------
 
-void MLBaseModel::onVlcMlEvent(const MLEvent &event)
+void MLBaseModel::onHeimdallMlEvent(const MLEvent &event)
 {
     Q_D(MLBaseModel);
     switch(event.i_type)
     {
-        case VLC_ML_EVENT_BACKGROUND_IDLE_CHANGED:
+        case HEIMDALL_ML_EVENT_BACKGROUND_IDLE_CHANGED:
             if ( event.background_idle_changed.b_idle && m_need_reset )
             {
                 emit resetRequested();
                 m_need_reset = false;
             }
             break;
-        case VLC_ML_EVENT_MEDIA_THUMBNAIL_GENERATED:
+        case HEIMDALL_ML_EVENT_MEDIA_THUMBNAIL_GENERATED:
         {
             if (event.media_thumbnail_generated.b_success) {
                 if (!d->m_cache)
@@ -391,11 +392,11 @@ void MLBaseModel::onVlcMlEvent(const MLEvent &event)
                 int row = 0;
 
                 /* Only consider items available locally in cache */
-                MLItemId itemId{event.media_thumbnail_generated.i_media_id, VLC_ML_PARENT_UNKNOWN};
+                MLItemId itemId{event.media_thumbnail_generated.i_media_id, HEIMDALL_ML_PARENT_UNKNOWN};
                 MLItem* item = findInCache(itemId, &row);
                 if (item)
                 {
-                    vlc_ml_thumbnail_status_t status = VLC_ML_THUMBNAIL_STATUS_FAILURE;
+                    heimdall_ml_thumbnail_status_t status = HEIMDALL_ML_THUMBNAIL_STATUS_FAILURE;
                     QString mrl;
                     if (event.media_thumbnail_generated.b_success)
                     {
@@ -416,13 +417,13 @@ void MLBaseModel::onVlcMlEvent(const MLEvent &event)
     }
 }
 
-void MLBaseModel::onVlcMlEvent(void* data, const vlc_ml_event_t* event)
+void MLBaseModel::onHeimdallMlEvent(void* data, const heimdall_ml_event_t* event)
 {
     auto self = static_cast<MLBaseModel*>(data);
     //MLEvent is not copiable, but lambda needs to be copiable
     auto  mlEvent = std::make_shared<MLEvent>(event);
     QMetaObject::invokeMethod(self, [self, mlEvent] () mutable {
-        self->onVlcMlEvent(*mlEvent);
+        self->onHeimdallMlEvent(*mlEvent);
     });
 }
 
@@ -622,7 +623,7 @@ size_t MLListCacheLoader::countTask(std::function<void(size_t taskId, size_t cou
     return m_medialib->runOnMLThread<Ctx>(this,
         //ML thread
         [op = m_op]
-        (vlc_medialibrary_t* ml, Ctx& ctx) {
+        (heimdall_medialibrary_t* ml, Ctx& ctx) {
             auto query = op->getQueryParams();
             ctx.count = op->count(ml, &query);
         },
@@ -643,7 +644,7 @@ size_t MLListCacheLoader::loadTask(size_t offset, size_t limit,
     return m_medialib->runOnMLThread<Ctx>(this,
         //ML thread
         [op = m_op, offset, limit]
-        (vlc_medialibrary_t* ml, Ctx& ctx)
+        (heimdall_medialibrary_t* ml, Ctx& ctx)
         {
             auto query = op->getQueryParams(offset, limit);
             ctx.list = op->load(ml, &query);
@@ -666,7 +667,7 @@ size_t MLListCacheLoader::countAndLoadTask(size_t offset, size_t limit,
     return m_medialib->runOnMLThread<Ctx>(this,
         //ML thread
         [offset, limit, op = m_op]
-        (vlc_medialibrary_t* ml, Ctx& ctx) {
+        (heimdall_medialibrary_t* ml, Ctx& ctx) {
             auto query = op->getQueryParams(offset, limit);
             ctx.list = op->load(ml, &query);
             ctx.maximumCount = op->count(ml, &query);
@@ -686,7 +687,7 @@ quint64 MLListCacheLoader::loadItemsTask(size_t offset, const QVector<int> &inde
 
     return m_medialib->runOnMLThread<Ctx>(this,
         //ML thread
-        [offset, op = m_op, indexes](vlc_medialibrary_t* ml, Ctx& ctx)
+        [offset, op = m_op, indexes](heimdall_medialibrary_t* ml, Ctx& ctx)
         {
             if (indexes.isEmpty())
                 return;
@@ -712,7 +713,7 @@ quint64 MLListCacheLoader::loadItemsTask(size_t offset, const QVector<int> &inde
 
             ctx.items.resize(indexes.size());
 
-            vlc_ml_query_params_t queryParam = op->getQueryParams();
+            heimdall_ml_query_params_t queryParam = op->getQueryParams();
             for (const auto range : ranges)
             {
                 queryParam.i_offset = offset + range.low;
@@ -742,7 +743,7 @@ size_t MLListCacheLoader::loadItemByIdTask(MLItemId itemId, std::function<void (
     };
     return m_medialib->runOnMLThread<Ctx>(this,
         //ML thread
-        [itemId, op = m_op](vlc_medialibrary_t* ml, Ctx& ctx) {
+        [itemId, op = m_op](heimdall_medialibrary_t* ml, Ctx& ctx) {
             ctx.item = op->loadItemById(ml, itemId);
         },
         //UI thread
@@ -753,7 +754,7 @@ size_t MLListCacheLoader::loadItemByIdTask(MLItemId itemId, std::function<void (
         });
 }
 
-MLListCacheLoader::MLOp::MLOp(MLItemId parentId, QString searchPattern, vlc_ml_sorting_criteria_t sort, bool sort_desc, bool fav_only)
+MLListCacheLoader::MLOp::MLOp(MLItemId parentId, QString searchPattern, heimdall_ml_sorting_criteria_t sort, bool sort_desc, bool fav_only)
     : m_parent(parentId)
     , m_searchPattern(searchPattern.toUtf8())
     , m_sort(sort)
@@ -762,9 +763,9 @@ MLListCacheLoader::MLOp::MLOp(MLItemId parentId, QString searchPattern, vlc_ml_s
 {
 }
 
-vlc_ml_query_params_t MLListCacheLoader::MLOp::getQueryParams(size_t offset, size_t limit) const
+heimdall_ml_query_params_t MLListCacheLoader::MLOp::getQueryParams(size_t offset, size_t limit) const
 {
-    vlc_ml_query_params_t params = vlc_ml_query_params_create();
+    heimdall_ml_query_params_t params = heimdall_ml_query_params_create();
     if (!m_searchPattern.isNull())
         params.psz_pattern = m_searchPattern.constData();
     params.i_nbResults = limit;

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 # Copyright © 2022 VideoLabs, VLC authors and VideoLAN
+# Copyright (C) 2026 TheFenrisLycaon
 #
 # Authors: Steve Lhomme <robux4@videolabs.io>
 #
@@ -69,7 +70,7 @@ def outputDir(top, parent: str, dir: str):
                     fileId = generate_id('cmp', outname)
                     args.out.write('                    <Component Id="{}" Guid="*">\r\n'.format(fileId))
                     fileIdList.append(fileId)
-                    args.out.write('                        <File Id="{}" Name="{}" KeyPath="yes" Source="$(var.VlcInstallPrefix){}"/>\r\n'.format(generate_id('fil', outname), file.name, outname))
+                    args.out.write('                        <File Id="{}" Name="{}" KeyPath="yes" Source="$(var.HeimdallInstallPrefix){}"/>\r\n'.format(generate_id('fil', outname), file.name, outname))
                     args.out.write('                    </Component>\r\n')
         # then sub directories
         for file in cwd.iterdir():

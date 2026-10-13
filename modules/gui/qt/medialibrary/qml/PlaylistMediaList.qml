@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021-23 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Benjamin Arnaud <bunjee@omega.gg>
  *
@@ -22,13 +23,13 @@ import QtQuick
 import QtQuick.Layouts
 import QtQml.Models
 
-import VLC.MediaLibrary
+import Heimdall.MediaLibrary
 
-import VLC.Widgets as Widgets
-import VLC.MainInterface
-import VLC.Util
-import VLC.Style
-import VLC.Dialogs
+import Heimdall.Widgets as Widgets
+import Heimdall.MainInterface
+import Heimdall.Util
+import Heimdall.Style
+import Heimdall.Dialogs
 
 MainViewLoader {
     id: root
@@ -64,8 +65,8 @@ MainViewLoader {
     //---------------------------------------------------------------------------------------------
     // Private
 
-    property string _placeHolder: (isMusic) ? VLCStyle.noArtAlbumCover
-                                            : VLCStyle.noArtVideoCover
+    property string _placeHolder: (isMusic) ? HeimdallStyle.noArtAlbumCover
+                                            : HeimdallStyle.noArtVideoCover
 
     // FIXME: remove this
     property var _currentView: currentItem
@@ -226,7 +227,7 @@ MainViewLoader {
         id: progressIndicator
         anchors.bottom: parent.bottom
         anchors.right: parent.right
-        anchors.margins: VLCStyle.margin_small
+        anchors.margins: HeimdallStyle.margin_small
 
         visible: false
 
@@ -237,7 +238,7 @@ MainViewLoader {
         Timer {
             id: visibilityTimer
 
-            interval: VLCStyle.duration_humanMoment
+            interval: HeimdallStyle.duration_humanMoment
 
             onTriggered: {
                 progressIndicator.visible = true
@@ -287,8 +288,8 @@ MainViewLoader {
             //-------------------------------------------------------------------------------------
             // Settings
 
-            basePictureWidth: isMusic ? VLCStyle.gridCover_music_width : VLCStyle.gridCover_video_width
-            basePictureHeight: isMusic ? VLCStyle.gridCover_music_height : VLCStyle.gridCover_video_height
+            basePictureWidth: isMusic ? HeimdallStyle.gridCover_music_width : HeimdallStyle.gridCover_video_width
+            basePictureHeight: isMusic ? HeimdallStyle.gridCover_music_height : HeimdallStyle.gridCover_video_height
 
             model: root.model
 
@@ -358,7 +359,7 @@ MainViewLoader {
 
                 Behavior on opacity {
                     OpacityAnimator {
-                        duration: VLCStyle.duration_short
+                        duration: HeimdallStyle.duration_short
                     }
                 }
 
@@ -450,11 +451,11 @@ MainViewLoader {
             //-------------------------------------------------------------------------------------
             // Settings
 
-            rowHeight: VLCStyle.tableCoverRow_height
+            rowHeight: HeimdallStyle.tableCoverRow_height
 
             model: root.model
 
-            sortModel: (_availableRowWidth < VLCStyle.colWidth(4)) ? _modelSmall
+            sortModel: (_availableRowWidth < HeimdallStyle.colWidth(4)) ? _modelSmall
                                                                    : _modelMedium
 
             selectionModel: root.selectionModel
@@ -508,14 +509,14 @@ MainViewLoader {
                 //---------------------------------------------------------------------------------
                 // NOTE: When it's music we want the cover to be square
 
-                titleCover_width: (isMusic) ? VLCStyle.trackListAlbumCover_width
-                                            : VLCStyle.listAlbumCover_width
+                titleCover_width: (isMusic) ? HeimdallStyle.trackListAlbumCover_width
+                                            : HeimdallStyle.listAlbumCover_width
 
-                titleCover_height: (isMusic) ? VLCStyle.trackListAlbumCover_heigth
-                                             : VLCStyle.listAlbumCover_height
+                titleCover_height: (isMusic) ? HeimdallStyle.trackListAlbumCover_heigth
+                                             : HeimdallStyle.listAlbumCover_height
 
-                titleCover_radius: (isMusic) ? VLCStyle.trackListAlbumCover_radius
-                                             : VLCStyle.listAlbumCover_radius
+                titleCover_radius: (isMusic) ? HeimdallStyle.trackListAlbumCover_radius
+                                             : HeimdallStyle.listAlbumCover_radius
 
                 //---------------------------------------------------------------------------------
 
@@ -538,7 +539,7 @@ MainViewLoader {
             text: qsTr("No playlists found")
             hint: qsTr("Right click on a media\nto add it to a playlist")
 
-            cover: VLCStyle.noArtAlbumCover
+            cover: HeimdallStyle.noArtAlbumCover
         }
     }
 }

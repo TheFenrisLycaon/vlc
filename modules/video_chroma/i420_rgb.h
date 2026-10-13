@@ -1,7 +1,8 @@
 /*****************************************************************************
- * i420_rgb.h : YUV to bitmap RGB conversion module for vlc
+ * i420_rgb.h : YUV to bitmap RGB conversion module for heimdall
  *****************************************************************************
  * Copyright (C) 2000, 2004 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Samuel Hocevar <sam@zoy.org>
  *

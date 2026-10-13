@@ -2,8 +2,9 @@
  * extract.c : Extract RGB components
  *****************************************************************************
  * Copyright (C) 2000-2006 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Antoine Cellerier <dionoea .t videolan d@t org>
+ * Authors: Antoine Cellerier <dionoea .t lycaria d@t org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -30,11 +31,11 @@
 
 #include <math.h>
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_picture.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
 #include "filter_picture.h"
 
 /*****************************************************************************
@@ -42,8 +43,8 @@
  *****************************************************************************/
 static int  Create      ( filter_t * );
 
-static int ExtractCallback( vlc_object_t *, char const *,
-                            vlc_value_t, vlc_value_t, void * );
+static int ExtractCallback( heimdall_object_t *, char const *,
+                            heimdall_value_t, heimdall_value_t, void * );
 VIDEO_FILTER_WRAPPER_CLOSE(Filter, Destroy)
 
 static void make_projection_matrix( filter_t *, int color, int *matrix );
@@ -63,7 +64,7 @@ static const char *const ppsz_component_descriptions[] = {
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("Extract RGB component video filter") )
     set_shortname( N_("Extract" ))
     set_subcategory( SUBCAT_VIDEO_VFILTER )
@@ -74,7 +75,7 @@ vlc_module_begin ()
         change_integer_list( pi_component_values, ppsz_component_descriptions )
 
     set_callback_video_filter( Create )
-vlc_module_end ()
+heimdall_module_end ()
 
 static const char *const ppsz_filter_options[] = {
     "component", NULL
@@ -83,7 +84,7 @@ static const char *const ppsz_filter_options[] = {
 enum { RED=0xFF0000, GREEN=0x00FF00, BLUE=0x0000FF };
 typedef struct
 {
-    vlc_mutex_t lock;
+    heimdall_mutex_t lock;
     int *projection_matrix;
     uint32_t i_color;
 } filter_sys_t;
@@ -95,12 +96,12 @@ static int Create( filter_t *p_filter )
 {
     switch( p_filter->fmt_in.video.i_chroma )
     {
-        case VLC_CODEC_I420:
-        case VLC_CODEC_I420_10L:
-        case VLC_CODEC_I420_10B:
-        case VLC_CODEC_YV12:
+        case HEIMDALL_CODEC_I420:
+        case HEIMDALL_CODEC_I420_10L:
+        case HEIMDALL_CODEC_I420_10B:
+        case HEIMDALL_CODEC_YV12:
 
-        case VLC_CODEC_I422:
+        case HEIMDALL_CODEC_I422:
 
         CASE_PACKED_YUV_422
             break;
@@ -109,20 +110,20 @@ static int Create( filter_t *p_filter )
             /* We only want planar YUV 4:2:0 or 4:2:2 */
             msg_Err( p_filter, "Unsupported input chroma (%4.4s)",
                      (char*)&(p_filter->fmt_in.video.i_chroma) );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 
     /* Allocate structure */
     filter_sys_t *p_sys = malloc( sizeof( filter_sys_t ) );
     if( p_sys == NULL )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     p_filter->p_sys = p_sys;
 
     p_sys->projection_matrix = malloc( 9 * sizeof( int ) );
     if( !p_sys->projection_matrix )
     {
         free( p_sys );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     config_ChainParse( p_filter, FILTER_PREFIX, ppsz_filter_options,
@@ -133,13 +134,13 @@ static int Create( filter_t *p_filter )
     /* Matrix won't be used for RED, GREEN or BLUE in planar formats */
     make_projection_matrix( p_filter, p_sys->i_color,
                             p_sys->projection_matrix );
-    vlc_mutex_init( &p_sys->lock );
+    heimdall_mutex_init( &p_sys->lock );
     var_AddCallback( p_filter, FILTER_PREFIX "component",
                      ExtractCallback, p_sys );
 
     p_filter->ops = &Filter_ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -162,14 +163,14 @@ static void Filter( filter_t *p_filter, picture_t *p_pic, picture_t *p_outpic )
 {
     filter_sys_t *p_sys = p_filter->p_sys;
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     switch( p_pic->format.i_chroma )
     {
-    case VLC_CODEC_I420:
-    case VLC_CODEC_I420_10L:
-    case VLC_CODEC_I420_10B:
-    case VLC_CODEC_YV12:
-    case VLC_CODEC_I422:
+    case HEIMDALL_CODEC_I420:
+    case HEIMDALL_CODEC_I420_10L:
+    case HEIMDALL_CODEC_I420_10B:
+    case HEIMDALL_CODEC_YV12:
+    case HEIMDALL_CODEC_I422:
         get_custom_from_yuv( p_pic, p_outpic, Y_PLANE, U_PLANE, V_PLANE, p_sys->projection_matrix );
         break;
 
@@ -178,9 +179,9 @@ static void Filter( filter_t *p_filter, picture_t *p_pic, picture_t *p_outpic )
             break;
 
     default:
-        vlc_assert_unreachable();
+        heimdall_assert_unreachable();
     }
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 }
 
 #define U8 128
@@ -245,23 +246,23 @@ static void make_projection_matrix( filter_t *p_filter, int color, int *matrix )
     msg_Dbg( p_filter, "%6d %6d %6d", matrix[6], matrix[7], matrix[8] );
 }
 
-#define IS_YUV_10BITS(fmt) (fmt == VLC_CODEC_I420_10L || fmt == VLC_CODEC_I420_10B)
+#define IS_YUV_10BITS(fmt) (fmt == HEIMDALL_CODEC_I420_10L || fmt == HEIMDALL_CODEC_I420_10B)
 
 #define GET_CUSTOM_PIX() \
     do \
     { \
         val = (*y_in[0] * m[3] + (**u_in - u) * m[4] + (**v_in - v) * m[5]) / 65536 + u; \
-        *(*u_out)++ = VLC_CLIP( val, 0, maxval ); \
+        *(*u_out)++ = HEIMDALL_CLIP( val, 0, maxval ); \
         val = (*y_in[0] * m[6] + (**u_in - u) * m[7] + (**v_in - v) * m[8]) / 65536 + v; \
-        *(*v_out)++ = VLC_CLIP( val, 0, maxval ); \
+        *(*v_out)++ = HEIMDALL_CLIP( val, 0, maxval ); \
         val = (*y_in[0]++ * m[0] + (**u_in - u) * m[1] + (**v_in - v) * m[2]) / 65536; \
-        *y_out[0]++ = VLC_CLIP( val, 0, maxval ); \
+        *y_out[0]++ = HEIMDALL_CLIP( val, 0, maxval ); \
         val = (*y_in[0]++ * m[0] + (**u_in - u) * m[1] + (**v_in - v) * m[2]) / 65536; \
-        *y_out[0]++ = VLC_CLIP( val, 0, maxval ); \
+        *y_out[0]++ = HEIMDALL_CLIP( val, 0, maxval ); \
         val = (*y_in[1]++ * m[0] + (**u_in - u) * m[1] + (**v_in - v) * m[2]) / 65536; \
-        *y_out[1]++ = VLC_CLIP( val, 0, maxval ); \
+        *y_out[1]++ = HEIMDALL_CLIP( val, 0, maxval ); \
         val = (*y_in[1]++ * m[0] + (*(*u_in)++ - u) * m[1] + (*(*v_in)++ - v) * m[2]) / 65536; \
-        *y_out[1]++ = VLC_CLIP( val, 0, maxval ); \
+        *y_out[1]++ = HEIMDALL_CLIP( val, 0, maxval ); \
     } while (0);
 
 static inline void
@@ -332,7 +333,7 @@ static void get_custom_from_packedyuv422( picture_t *p_inpic,
 {
     int i_y_offset, i_u_offset, i_v_offset;
     if( GetPackedYuvOffsets( p_inpic->format.i_chroma, &i_y_offset,
-                         &i_u_offset, &i_v_offset ) != VLC_SUCCESS )
+                         &i_u_offset, &i_v_offset ) != HEIMDALL_SUCCESS )
         return;
 
     uint8_t *yin = p_inpic->p->p_pixels + i_y_offset;
@@ -354,14 +355,14 @@ static void get_custom_from_packedyuv422( picture_t *p_inpic,
         const uint8_t *ylend = yin + i_visible_pitch;
         while( yin < ylend )
         {
-            *uout = vlc_uint8( (*yin * m[3] + (*uin-U8) * m[4] + (*vin-V8) * m[5]) / 65536 + U8 );
+            *uout = heimdall_uint8( (*yin * m[3] + (*uin-U8) * m[4] + (*vin-V8) * m[5]) / 65536 + U8 );
             uout += 4;
-            *vout = vlc_uint8( (*yin * m[6] + (*uin-U8) * m[7] + (*vin-V8) * m[8]) / 65536 + V8 );
+            *vout = heimdall_uint8( (*yin * m[6] + (*uin-U8) * m[7] + (*vin-V8) * m[8]) / 65536 + V8 );
             vout += 4;
-            *yout = vlc_uint8( (*yin * m[0] + (*uin-U8) * m[1] + (*vin-V8) * m[2]) / 65536 );
+            *yout = heimdall_uint8( (*yin * m[0] + (*uin-U8) * m[1] + (*vin-V8) * m[2]) / 65536 );
             yin  += 2;
             yout += 2;
-            *yout = vlc_uint8( (*yin * m[0] + (*uin-U8) * m[1] + (*vin-V8) * m[2]) / 65536 );
+            *yout = heimdall_uint8( (*yin * m[0] + (*uin-U8) * m[1] + (*vin-V8) * m[2]) / 65536 );
             yin  += 2;
             yout += 2;
             uin  += 4;
@@ -376,14 +377,14 @@ static void get_custom_from_packedyuv422( picture_t *p_inpic,
     }
 }
 
-static int ExtractCallback( vlc_object_t *p_this, char const *psz_var,
-                            vlc_value_t oldval, vlc_value_t newval,
+static int ExtractCallback( heimdall_object_t *p_this, char const *psz_var,
+                            heimdall_value_t oldval, heimdall_value_t newval,
                             void *p_data )
 {
-    VLC_UNUSED(oldval);
+    HEIMDALL_UNUSED(oldval);
     filter_sys_t *p_sys = p_data;
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     if( !strcmp( psz_var, FILTER_PREFIX "component" ) )
     {
         p_sys->i_color = newval.i_int;
@@ -395,6 +396,6 @@ static int ExtractCallback( vlc_object_t *p_this, char const *psz_var,
     {
         msg_Warn( p_this, "Unknown callback command." );
     }
-    vlc_mutex_unlock( &p_sys->lock );
-    return VLC_SUCCESS;
+    heimdall_mutex_unlock( &p_sys->lock );
+    return HEIMDALL_SUCCESS;
 }

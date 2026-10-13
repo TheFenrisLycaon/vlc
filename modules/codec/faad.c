@@ -2,6 +2,7 @@
  * faad.c: AAC decoder using libfaad2
  *****************************************************************************
  * Copyright (C) 2001, 2003 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *          Gildas Bazin <gbazin@videolan.org>
@@ -36,12 +37,12 @@
 #include <assert.h>
 #include <stdbit.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_input_item.h>
-#include <vlc_codec.h>
-#include <vlc_cpu.h>
-#include <vlc_aout.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_input_item.h>
+#include <heimdall_codec.h>
+#include <heimdall_cpu.h>
+#include <heimdall_aout.h>
 
 #include <faad.h>
 #if !defined(FAAD2_VERSION) // FAAD2_VERSION added in 2.10.1
@@ -54,15 +55,15 @@
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  Open( vlc_object_t * );
-static void Close( vlc_object_t * );
+static int  Open( heimdall_object_t * );
+static void Close( heimdall_object_t * );
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("AAC audio decoder (using libfaad2)") )
     set_capability( "audio decoder", 100 )
     set_subcategory( SUBCAT_INPUT_ACODEC )
     set_callbacks( Open, Close )
-vlc_module_end ()
+heimdall_module_end ()
 
 /****************************************************************************
  * Local prototypes
@@ -78,7 +79,7 @@ typedef struct
 
     /* samples */
     date_t date;
-    vlc_tick_t i_last_length;
+    heimdall_tick_t i_last_length;
 
     /* temporary buffer */
     block_t *p_block;
@@ -92,7 +93,7 @@ typedef struct
 static_assert (MPEG4_ASC_MAX_INDEXEDPOS == LFE_CHANNEL, "Mismatch");
 
 #define FAAD_CHANNEL_ID_COUNT (LFE_CHANNEL + 1)
-static const uint32_t pi_tovlcmapping[FAAD_CHANNEL_ID_COUNT] =
+static const uint32_t pi_toheimdallmapping[FAAD_CHANNEL_ID_COUNT] =
 {
     [UNKNOWN_CHANNEL]      = 0,
     [FRONT_CHANNEL_CENTER] = AOUT_CHAN_CENTER,
@@ -109,30 +110,30 @@ static const uint32_t pi_tovlcmapping[FAAD_CHANNEL_ID_COUNT] =
 /*****************************************************************************
  * OpenDecoder: probe the decoder and return score
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     decoder_t *p_dec = (decoder_t*)p_this;
     decoder_sys_t *p_sys;
     NeAACDecConfiguration *cfg;
 
-    if( p_dec->fmt_in->i_codec != VLC_CODEC_MP4A ||
+    if( p_dec->fmt_in->i_codec != HEIMDALL_CODEC_MP4A ||
         p_dec->fmt_in->i_profile >= AAC_PROFILE_ELD ||
         (p_dec->fmt_in->i_extra > 1 &&
          (GetWBE(p_dec->fmt_in->p_extra) & 0xffe0) >= 0xf8e0)) /* ELD AOT */
     {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Allocate the memory needed to store the decoder's structure */
     if( ( p_dec->p_sys = p_sys = malloc( sizeof(*p_sys) ) ) == NULL )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     /* Open a faad context */
     if( ( p_sys->hfaad = NeAACDecOpen() ) == NULL )
     {
         msg_Err( p_dec, "cannot initialize faad" );
         free( p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     char * vinfo[2];
@@ -161,7 +162,7 @@ static int Open( vlc_object_t *p_this )
             msg_Err( p_dec, "Failed to initialize faad using extra data" );
             NeAACDecClose( p_sys->hfaad );
             free( p_sys );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         if( i_rate != 0 )
@@ -179,10 +180,10 @@ static int Open( vlc_object_t *p_this )
         /* Will be initialised from first frame */
         p_dec->fmt_out.audio.i_rate = 0;
         p_dec->fmt_out.audio.i_channels = 0;
-        date_Set( &p_sys->date, VLC_TICK_INVALID );
+        date_Set( &p_sys->date, HEIMDALL_TICK_INVALID );
     }
 
-    p_dec->fmt_out.i_codec = HAVE_FPU ? VLC_CODEC_FL32 : VLC_CODEC_S16N;
+    p_dec->fmt_out.i_codec = HAVE_FPU ? HEIMDALL_CODEC_FL32 : HEIMDALL_CODEC_S16N;
     p_dec->fmt_out.audio.i_chan_mode = p_dec->fmt_in->audio.i_chan_mode;
 
     /* Set the faad config */
@@ -195,7 +196,7 @@ static int Open( vlc_object_t *p_this )
         msg_Err( p_dec, "Failed to set faad configuration" );
         NeAACDecClose( p_sys->hfaad );
         free( p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     p_sys->i_last_length = 0;
@@ -208,7 +209,7 @@ static int Open( vlc_object_t *p_this )
 
     p_dec->pf_decode = DecodeBlock;
     p_dec->pf_flush  = Flush;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -245,7 +246,7 @@ static void Flush( decoder_t *p_dec )
 {
     decoder_sys_t *p_sys = p_dec->p_sys;
 
-    date_Set( &p_sys->date, VLC_TICK_INVALID );
+    date_Set( &p_sys->date, HEIMDALL_TICK_INVALID );
     FlushBuffer( p_sys, SIZE_MAX );
 }
 
@@ -257,7 +258,7 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
     decoder_sys_t *p_sys = p_dec->p_sys;
 
     if( !p_block ) /* No Drain */
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
 
     if( p_block->i_flags & (BLOCK_FLAG_DISCONTINUITY | BLOCK_FLAG_CORRUPTED) )
     {
@@ -265,7 +266,7 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
         if( p_block->i_flags & (BLOCK_FLAG_CORRUPTED) )
         {
             block_Release( p_block );
-            return VLCDEC_SUCCESS;
+            return HEIMDALLDEC_SUCCESS;
         }
     }
 
@@ -286,7 +287,7 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
         }
     }
 
-    const vlc_tick_t i_pts = p_block->i_pts;
+    const heimdall_tick_t i_pts = p_block->i_pts;
 
     /* Append block as temporary buffer */
     if( p_sys->p_block == NULL )
@@ -339,7 +340,7 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
         {
             /* Can not init decoder at all for now */
             FlushBuffer( p_sys, SIZE_MAX );
-            return VLCDEC_SUCCESS;
+            return HEIMDALLDEC_SUCCESS;
         }
 
         /* Decoder Initialized */
@@ -350,18 +351,18 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
         date_Init( &p_sys->date, i_rate, 1 );
     }
 
-    if( i_pts != VLC_TICK_INVALID && i_pts != date_Get( &p_sys->date ) )
+    if( i_pts != HEIMDALL_TICK_INVALID && i_pts != date_Get( &p_sys->date ) )
     {
         if( p_sys->i_last_length == 0 ||
             /* We need to be permissive and rebase dts when it's really way off */
             llabs( i_pts - date_Get( &p_sys->date ) ) > p_sys->i_last_length * 3 / 2  )
             date_Set( &p_sys->date, i_pts );
     }
-    else if( date_Get( &p_sys->date ) == VLC_TICK_INVALID )
+    else if( date_Get( &p_sys->date ) == HEIMDALL_TICK_INVALID )
     {
         /* We've just started the stream, wait for the first PTS. */
         FlushBuffer( p_sys, SIZE_MAX );
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
     }
 
     /* Decode all data */
@@ -465,9 +466,9 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
                     psz_ext, frame.channels, frame.samplerate );
 
             if( !p_dec->p_description )
-                p_dec->p_description = vlc_meta_New();
+                p_dec->p_description = heimdall_meta_New();
             if( p_dec->p_description )
-                vlc_meta_SetExtra( p_dec->p_description, _("AAC extension"), psz_ext );
+                heimdall_meta_SetExtra( p_dec->p_description, _("AAC extension"), psz_ext );
 
             p_sys->b_sbr = b_sbr;
             p_sys->b_ps = frame.ps;
@@ -561,7 +562,7 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
                 unsigned pos = frame.channel_position[i];
                 if( likely(pos < FAAD_CHANNEL_ID_COUNT) )
                 {
-                    pi_faad_channels_positions[i] = pi_tovlcmapping[pos];
+                    pi_faad_channels_positions[i] = pi_toheimdallmapping[pos];
                     p_dec->fmt_out.audio.i_physical_channels |= pi_faad_channels_positions[i];
                 }
                 else pi_faad_channels_positions[i] = 0;
@@ -631,13 +632,13 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
         }
     }
 
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }
 
 /*****************************************************************************
  * Close:
  *****************************************************************************/
-static void Close( vlc_object_t *p_this )
+static void Close( heimdall_object_t *p_this )
 {
     decoder_t *p_dec = (decoder_t *)p_this;
     decoder_sys_t *p_sys = p_dec->p_sys;

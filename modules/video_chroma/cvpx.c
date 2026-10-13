@@ -2,8 +2,9 @@
  * cvpx.c: core video buffer to picture converter
  *****************************************************************************
  * Copyright (C) 2015-2017 VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Felix Paul Kühne <fkuehne at videolan dot org>
+ * Authors: Felix Paul Kühne <fkuehne at lycaria dot org>
  *          Thomas Guillem <thomas@gllm.fr>
  *          Victorien Le Couviour--Tuffet <victorien.lecouiour.tuffet@gmail.com>
  *
@@ -29,12 +30,12 @@
 #include <QuartzCore/QuartzCore.h>
 #include <TargetConditionals.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_picture.h>
-#include <vlc_chroma_probe.h>
-#include <vlc_modules.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
+#include <heimdall_chroma_probe.h>
+#include <heimdall_modules.h>
 #include "../codec/vt_utils.h"
 #include "../video_chroma/copy.h"
 
@@ -65,32 +66,32 @@ typedef struct
     };
 } filter_sys_t;
 
-static void ProbeChroma(vlc_chroma_conv_vec *vec)
+static void ProbeChroma(heimdall_chroma_conv_vec *vec)
 {
-    vlc_chroma_conv_add(vec, 0.25, VLC_CODEC_CVPX_BGRA, VLC_CODEC_CVPX_I420, true);
-    vlc_chroma_conv_add(vec, 0.25, VLC_CODEC_CVPX_BGRA, VLC_CODEC_CVPX_NV12, true);
-    vlc_chroma_conv_add(vec, 0.25, VLC_CODEC_CVPX_BGRA, VLC_CODEC_CVPX_P010, true);
-    vlc_chroma_conv_add(vec, 0.25, VLC_CODEC_CVPX_BGRA, VLC_CODEC_CVPX_UYVY, true);
+    heimdall_chroma_conv_add(vec, 0.25, HEIMDALL_CODEC_CVPX_BGRA, HEIMDALL_CODEC_CVPX_I420, true);
+    heimdall_chroma_conv_add(vec, 0.25, HEIMDALL_CODEC_CVPX_BGRA, HEIMDALL_CODEC_CVPX_NV12, true);
+    heimdall_chroma_conv_add(vec, 0.25, HEIMDALL_CODEC_CVPX_BGRA, HEIMDALL_CODEC_CVPX_P010, true);
+    heimdall_chroma_conv_add(vec, 0.25, HEIMDALL_CODEC_CVPX_BGRA, HEIMDALL_CODEC_CVPX_UYVY, true);
 
-    vlc_chroma_conv_add(vec, 0.25, VLC_CODEC_CVPX_I420, VLC_CODEC_CVPX_NV12, true);
-    vlc_chroma_conv_add(vec, 0.25, VLC_CODEC_CVPX_I420, VLC_CODEC_CVPX_P010, true);
-    vlc_chroma_conv_add(vec, 0.25, VLC_CODEC_CVPX_I420, VLC_CODEC_CVPX_UYVY, true);
+    heimdall_chroma_conv_add(vec, 0.25, HEIMDALL_CODEC_CVPX_I420, HEIMDALL_CODEC_CVPX_NV12, true);
+    heimdall_chroma_conv_add(vec, 0.25, HEIMDALL_CODEC_CVPX_I420, HEIMDALL_CODEC_CVPX_P010, true);
+    heimdall_chroma_conv_add(vec, 0.25, HEIMDALL_CODEC_CVPX_I420, HEIMDALL_CODEC_CVPX_UYVY, true);
 
-    vlc_chroma_conv_add(vec, 0.25, VLC_CODEC_CVPX_NV12, VLC_CODEC_CVPX_P010, true);
-    vlc_chroma_conv_add(vec, 0.25, VLC_CODEC_CVPX_NV12, VLC_CODEC_CVPX_UYVY, true);
+    heimdall_chroma_conv_add(vec, 0.25, HEIMDALL_CODEC_CVPX_NV12, HEIMDALL_CODEC_CVPX_P010, true);
+    heimdall_chroma_conv_add(vec, 0.25, HEIMDALL_CODEC_CVPX_NV12, HEIMDALL_CODEC_CVPX_UYVY, true);
 
-    vlc_chroma_conv_add(vec, 0.25, VLC_CODEC_CVPX_P010, VLC_CODEC_CVPX_UYVY, true);
+    heimdall_chroma_conv_add(vec, 0.25, HEIMDALL_CODEC_CVPX_P010, HEIMDALL_CODEC_CVPX_UYVY, true);
 
-    vlc_chroma_conv_add(vec, 1.1, VLC_CODEC_CVPX_NV12, VLC_CODEC_NV12, true);
-    vlc_chroma_conv_add(vec, 1.1, VLC_CODEC_CVPX_NV12, VLC_CODEC_I420, true);
-    vlc_chroma_conv_add(vec, 1.1, VLC_CODEC_CVPX_P010, VLC_CODEC_P010, true);
-    vlc_chroma_conv_add(vec, 1.1, VLC_CODEC_CVPX_P010, VLC_CODEC_I420_10L, true);
-    vlc_chroma_conv_add(vec, 1.1, VLC_CODEC_CVPX_UYVY, VLC_CODEC_UYVY, true);
-    vlc_chroma_conv_add(vec, 1.1, VLC_CODEC_CVPX_I420, VLC_CODEC_I420, true);
-    vlc_chroma_conv_add(vec, 1.1, VLC_CODEC_CVPX_BGRA, VLC_CODEC_BGRA, true);
+    heimdall_chroma_conv_add(vec, 1.1, HEIMDALL_CODEC_CVPX_NV12, HEIMDALL_CODEC_NV12, true);
+    heimdall_chroma_conv_add(vec, 1.1, HEIMDALL_CODEC_CVPX_NV12, HEIMDALL_CODEC_I420, true);
+    heimdall_chroma_conv_add(vec, 1.1, HEIMDALL_CODEC_CVPX_P010, HEIMDALL_CODEC_P010, true);
+    heimdall_chroma_conv_add(vec, 1.1, HEIMDALL_CODEC_CVPX_P010, HEIMDALL_CODEC_I420_10L, true);
+    heimdall_chroma_conv_add(vec, 1.1, HEIMDALL_CODEC_CVPX_UYVY, HEIMDALL_CODEC_UYVY, true);
+    heimdall_chroma_conv_add(vec, 1.1, HEIMDALL_CODEC_CVPX_I420, HEIMDALL_CODEC_I420, true);
+    heimdall_chroma_conv_add(vec, 1.1, HEIMDALL_CODEC_CVPX_BGRA, HEIMDALL_CODEC_BGRA, true);
 }
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description("Conversions from/to CoreVideo buffers")
     set_callback_video_converter(Open, 10)
 #if !TARGET_OS_IPHONE
@@ -104,7 +105,7 @@ vlc_module_begin ()
 #endif
     add_submodule()
         set_callback_chroma_conv_probe(ProbeChroma)
-vlc_module_end ()
+heimdall_module_end ()
 
 
 /********************************
@@ -130,52 +131,52 @@ static void Copy(filter_t *p_filter, picture_t *dst, picture_t *src,
 #define DO_P(x) \
     x(dst, src_planes[0], src_pitches[0], height, &p_sys->sw.cache)
 
-    const vlc_fourcc_t infcc = src->format.i_chroma;
-    const vlc_fourcc_t outfcc = dst->format.i_chroma;
+    const heimdall_fourcc_t infcc = src->format.i_chroma;
+    const heimdall_fourcc_t outfcc = dst->format.i_chroma;
 
     switch (infcc)
     {
-        case VLC_CODEC_NV12:
-            if (outfcc == VLC_CODEC_NV12)
+        case HEIMDALL_CODEC_NV12:
+            if (outfcc == HEIMDALL_CODEC_NV12)
                 DO(Copy420_SP_to_SP);
             else
             {
-                assert(outfcc == VLC_CODEC_I420);
+                assert(outfcc == HEIMDALL_CODEC_I420);
                 DO(Copy420_SP_to_P);
             }
             break;
-        case VLC_CODEC_P010:
-            if (outfcc == VLC_CODEC_P010)
+        case HEIMDALL_CODEC_P010:
+            if (outfcc == HEIMDALL_CODEC_P010)
                 DO(Copy420_SP_to_SP);
             else
             {
-                assert(outfcc == VLC_CODEC_I420_10L);
+                assert(outfcc == HEIMDALL_CODEC_I420_10L);
                 DO_S(Copy420_16_SP_to_P, 6);
             }
             break;
-        case VLC_CODEC_I420:
-            if (outfcc == VLC_CODEC_I420)
+        case HEIMDALL_CODEC_I420:
+            if (outfcc == HEIMDALL_CODEC_I420)
                 DO(Copy420_P_to_P);
             else
             {
-                assert(outfcc == VLC_CODEC_NV12);
+                assert(outfcc == HEIMDALL_CODEC_NV12);
                 DO(Copy420_P_to_SP);
             }
             break;
-        case VLC_CODEC_I420_10L:
-            assert(outfcc == VLC_CODEC_P010);
+        case HEIMDALL_CODEC_I420_10L:
+            assert(outfcc == HEIMDALL_CODEC_P010);
             DO_S(Copy420_16_P_to_SP, -6);
             break;
-        case VLC_CODEC_UYVY:
-            assert(outfcc == VLC_CODEC_UYVY);
+        case HEIMDALL_CODEC_UYVY:
+            assert(outfcc == HEIMDALL_CODEC_UYVY);
             DO_P(CopyPacked);
             break;
-        case VLC_CODEC_BGRA:
-            assert(outfcc == VLC_CODEC_BGRA);
+        case HEIMDALL_CODEC_BGRA:
+            assert(outfcc == HEIMDALL_CODEC_BGRA);
             DO_P(CopyPacked);
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 
 #undef DO
@@ -270,14 +271,14 @@ static void Close(filter_t *p_filter)
 
     CopyCleanCache(&p_sys->sw.cache);
     if (p_filter->vctx_out)
-        vlc_video_context_Release(p_filter->vctx_out);
+        heimdall_video_context_Release(p_filter->vctx_out);
     free(p_sys);
 }
 
-static const struct vlc_filter_operations CVPX_TO_SW_ops = {
+static const struct heimdall_filter_operations CVPX_TO_SW_ops = {
     .filter_video = CVPX_TO_SW_Filter, .close = Close,
 };
-static const struct vlc_filter_operations SW_TO_CVPX_ops = {
+static const struct heimdall_filter_operations SW_TO_CVPX_ops = {
     .filter_video = SW_TO_CVPX_Filter, .close = Close,
 };
 
@@ -285,38 +286,38 @@ static int Open(filter_t *p_filter)
 {
     if (p_filter->fmt_in.video.i_height != p_filter->fmt_out.video.i_height
         || p_filter->fmt_in.video.i_width != p_filter->fmt_out.video.i_width)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     video_format_t sw_fmt;
 #define CASE_CVPX_INPUT(x, i420_fcc) \
-    case VLC_CODEC_CVPX_##x: \
+    case HEIMDALL_CODEC_CVPX_##x: \
         sw_fmt = p_filter->fmt_out.video; \
-        if (p_filter->fmt_out.video.i_chroma == VLC_CODEC_##x) \
+        if (p_filter->fmt_out.video.i_chroma == HEIMDALL_CODEC_##x) \
             p_filter->ops = &CVPX_TO_SW_ops; \
         else if (i420_fcc != 0 && p_filter->fmt_out.video.i_chroma == i420_fcc) { \
             p_filter->ops = &CVPX_TO_SW_ops; \
-            sw_fmt.i_chroma = VLC_CODEC_##x; \
-        } else return VLC_EGENERIC; \
+            sw_fmt.i_chroma = HEIMDALL_CODEC_##x; \
+        } else return HEIMDALL_EGENERIC; \
 
 #define CASE_CVPX_OUTPUT(x, i420_fcc) \
-    case VLC_CODEC_CVPX_##x: \
+    case HEIMDALL_CODEC_CVPX_##x: \
         sw_fmt = p_filter->fmt_in.video; \
-        if (p_filter->fmt_in.video.i_chroma == VLC_CODEC_##x) { \
+        if (p_filter->fmt_in.video.i_chroma == HEIMDALL_CODEC_##x) { \
             p_filter->ops = &SW_TO_CVPX_ops; \
         } \
         else if (i420_fcc != 0 && p_filter->fmt_in.video.i_chroma == i420_fcc) { \
             p_filter->ops = &SW_TO_CVPX_ops; \
-            sw_fmt.i_chroma = VLC_CODEC_##x; \
-        } else return VLC_EGENERIC; \
+            sw_fmt.i_chroma = HEIMDALL_CODEC_##x; \
+        } else return HEIMDALL_EGENERIC; \
         b_need_pool = true;
 
     bool b_need_pool = false;
     unsigned i_cache_pixel_bytes = 1;
     switch (p_filter->fmt_in.video.i_chroma)
     {
-        CASE_CVPX_INPUT(NV12, VLC_CODEC_I420)
+        CASE_CVPX_INPUT(NV12, HEIMDALL_CODEC_I420)
             break;
-        CASE_CVPX_INPUT(P010, VLC_CODEC_I420_10L)
+        CASE_CVPX_INPUT(P010, HEIMDALL_CODEC_I420_10L)
             i_cache_pixel_bytes = 2;
             break;
         CASE_CVPX_INPUT(UYVY, 0)
@@ -328,9 +329,9 @@ static int Open(filter_t *p_filter)
         default:
             switch (p_filter->fmt_out.video.i_chroma)
             {
-                CASE_CVPX_OUTPUT(NV12, VLC_CODEC_I420)
+                CASE_CVPX_OUTPUT(NV12, HEIMDALL_CODEC_I420)
                     break;
-                CASE_CVPX_OUTPUT(P010, VLC_CODEC_I420_10L)
+                CASE_CVPX_OUTPUT(P010, HEIMDALL_CODEC_I420_10L)
                     i_cache_pixel_bytes = 2;
                     break;
                 CASE_CVPX_OUTPUT(UYVY, 0)
@@ -340,71 +341,71 @@ static int Open(filter_t *p_filter)
                 CASE_CVPX_OUTPUT(BGRA, 0)
                     break;
                 default:
-                    return VLC_EGENERIC;
+                    return HEIMDALL_EGENERIC;
             }
     }
 
     filter_sys_t *p_sys = p_filter->p_sys = malloc(sizeof(filter_sys_t));
 
     if (unlikely(!p_sys))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_sys->pool = NULL;
     p_sys->sw.fmt = sw_fmt;
 
     unsigned i_cache_width = p_filter->fmt_in.video.i_width * i_cache_pixel_bytes;
     int ret = CopyInitCache(&p_sys->sw.cache, i_cache_width);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
         goto error;
 
     if (b_need_pool)
     {
-        vlc_decoder_device *dec_dev =
+        heimdall_decoder_device *dec_dev =
             filter_HoldDecoderDeviceType(p_filter,
-                                         VLC_DECODER_DEVICE_VIDEOTOOLBOX);
+                                         HEIMDALL_DECODER_DEVICE_VIDEOTOOLBOX);
         if (dec_dev == NULL)
         {
             msg_Err(p_filter, "Missing decoder device");
-            ret = VLC_EGENERIC;
+            ret = HEIMDALL_EGENERIC;
             goto error;
         }
-        const static struct vlc_video_context_operations vt_vctx_ops = {
+        const static struct heimdall_video_context_operations vt_vctx_ops = {
             NULL,
         };
         p_filter->vctx_out =
-            vlc_video_context_CreateCVPX(dec_dev, CVPX_VIDEO_CONTEXT_DEFAULT,
+            heimdall_video_context_CreateCVPX(dec_dev, CVPX_VIDEO_CONTEXT_DEFAULT,
                                          0, &vt_vctx_ops);
-        vlc_decoder_device_Release(dec_dev);
+        heimdall_decoder_device_Release(dec_dev);
         if (!p_filter->vctx_out)
         {
-            ret = VLC_ENOMEM;
+            ret = HEIMDALL_ENOMEM;
             goto error;
         }
 
         p_sys->pool = cvpxpool_create(&p_filter->fmt_out.video, 3);
         if (p_sys->pool == NULL)
         {
-            ret = VLC_ENOMEM;
+            ret = HEIMDALL_ENOMEM;
             goto error;
         }
     }
     else
     {
         if (p_filter->vctx_in == NULL ||
-            vlc_video_context_GetType(p_filter->vctx_in) != VLC_VIDEO_CONTEXT_CVPX)
+            heimdall_video_context_GetType(p_filter->vctx_in) != HEIMDALL_VIDEO_CONTEXT_CVPX)
         {
-            ret = VLC_EGENERIC;
+            ret = HEIMDALL_EGENERIC;
             goto error;
         }
     }
 
     p_filter->fmt_out.i_codec = p_filter->fmt_out.video.i_chroma;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 error:
     Close(p_filter);
     p_filter->p_sys = NULL;
 
-    assert(ret != VLC_SUCCESS);
+    assert(ret != HEIMDALL_SUCCESS);
     return ret;
 
 #undef CASE_CVPX_INPUT
@@ -457,13 +458,13 @@ Filter(filter_t *filter, picture_t *src)
     return dst;
 }
 
-static vlc_fourcc_t const supported_chromas[] = { VLC_CODEC_CVPX_BGRA,
-                                                  VLC_CODEC_CVPX_I420,
-                                                  VLC_CODEC_CVPX_NV12,
-                                                  VLC_CODEC_CVPX_P010,
-                                                  VLC_CODEC_CVPX_UYVY };
+static heimdall_fourcc_t const supported_chromas[] = { HEIMDALL_CODEC_CVPX_BGRA,
+                                                  HEIMDALL_CODEC_CVPX_I420,
+                                                  HEIMDALL_CODEC_CVPX_NV12,
+                                                  HEIMDALL_CODEC_CVPX_P010,
+                                                  HEIMDALL_CODEC_CVPX_UYVY };
 
-static const struct vlc_filter_operations filter_ops = {
+static const struct heimdall_filter_operations filter_ops = {
     .filter_video = Filter, .close = Close_CVPX_to_CVPX,
 };
 
@@ -474,11 +475,11 @@ Open_CVPX_to_CVPX(filter_t *filter)
     if (filter->fmt_in.video.i_chroma == filter->fmt_out.video.i_chroma &&
         filter->fmt_in.video.i_visible_width == filter->fmt_out.video.i_visible_width &&
         filter->fmt_in.video.i_visible_height == filter->fmt_out.video.i_visible_height)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if (filter->vctx_in == NULL ||
-        vlc_video_context_GetType(filter->vctx_in) != VLC_VIDEO_CONTEXT_CVPX)
-        return VLC_EGENERIC;
+        heimdall_video_context_GetType(filter->vctx_in) != HEIMDALL_VIDEO_CONTEXT_CVPX)
+        return HEIMDALL_EGENERIC;
 
     unsigned int i;
 #define CHECK_CHROMA(fourcc) \
@@ -487,7 +488,7 @@ Open_CVPX_to_CVPX(filter_t *filter)
            fourcc != supported_chromas[i]) \
         ++i; \
     if (i == ARRAY_SIZE(supported_chromas)) \
-        return VLC_EGENERIC; \
+        return HEIMDALL_EGENERIC; \
 
     CHECK_CHROMA(filter->fmt_in.video.i_chroma)
     CHECK_CHROMA(filter->fmt_out.video.i_chroma)
@@ -495,13 +496,13 @@ Open_CVPX_to_CVPX(filter_t *filter)
 
     filter_sys_t *p_sys  = calloc(1, sizeof(filter_sys_t));
     if (!p_sys)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     if (VTPixelTransferSessionCreate(NULL, &p_sys->vttransfer)
         != noErr)
     {
         free(p_sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if ((p_sys->pool = cvpxpool_create(&filter->fmt_out.video, 3)) == NULL)
@@ -509,14 +510,14 @@ Open_CVPX_to_CVPX(filter_t *filter)
         VTPixelTransferSessionInvalidate(p_sys->vttransfer);
         CFRelease(p_sys->vttransfer);
         free(p_sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     filter->p_sys = p_sys;
     filter->ops = &filter_ops;
-    filter->vctx_out = vlc_video_context_Hold(filter->vctx_in);
+    filter->vctx_out = heimdall_video_context_Hold(filter->vctx_in);
     filter->fmt_out.i_codec = filter->fmt_out.video.i_chroma;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void
@@ -527,7 +528,7 @@ Close_CVPX_to_CVPX(filter_t *filter)
     VTPixelTransferSessionInvalidate(p_sys->vttransfer);
     CFRelease(p_sys->vttransfer);
     CVPixelBufferPoolRelease(p_sys->pool);
-    vlc_video_context_Release(filter->vctx_out);
+    heimdall_video_context_Release(filter->vctx_out);
     free(filter->p_sys);
 }
 
@@ -545,31 +546,31 @@ chain_CVPX_Flush(filter_t *filter)
     filter_chain_VideoFlush(chain);
 }
 
-static vlc_fourcc_t
-GetIntermediateChroma(vlc_fourcc_t input_chroma, vlc_fourcc_t output_chroma)
+static heimdall_fourcc_t
+GetIntermediateChroma(heimdall_fourcc_t input_chroma, heimdall_fourcc_t output_chroma)
 {
-    vlc_fourcc_t chromas[2] = { input_chroma, output_chroma };
+    heimdall_fourcc_t chromas[2] = { input_chroma, output_chroma };
 
     for(size_t i=0; i<ARRAY_SIZE(chromas); ++i)
     {
         switch (chromas[i])
         {
-            case VLC_CODEC_I420: return VLC_CODEC_CVPX_I420;
-            case VLC_CODEC_BGRA: return VLC_CODEC_CVPX_BGRA;
-            case VLC_CODEC_NV12: return VLC_CODEC_CVPX_NV12;
-            case VLC_CODEC_UYVY: return VLC_CODEC_CVPX_UYVY;
-            case VLC_CODEC_P010: return VLC_CODEC_CVPX_P010;
+            case HEIMDALL_CODEC_I420: return HEIMDALL_CODEC_CVPX_I420;
+            case HEIMDALL_CODEC_BGRA: return HEIMDALL_CODEC_CVPX_BGRA;
+            case HEIMDALL_CODEC_NV12: return HEIMDALL_CODEC_CVPX_NV12;
+            case HEIMDALL_CODEC_UYVY: return HEIMDALL_CODEC_CVPX_UYVY;
+            case HEIMDALL_CODEC_P010: return HEIMDALL_CODEC_CVPX_P010;
             default: break;
         }
     }
 
-    vlc_assert_unreachable();
+    heimdall_assert_unreachable();
 }
 
 static int
 PrintConversionChain(filter_t *filter, void *opaque)
 {
-    VLC_UNUSED(opaque);
+    HEIMDALL_UNUSED(opaque);
     msg_Dbg(filter, " - conversion %4.4s (%dx%d) -> %4.4s (%dx%d)",
              (const char*)&filter->fmt_in.video.i_chroma,
              filter->fmt_in.video.i_visible_width,
@@ -577,15 +578,15 @@ PrintConversionChain(filter_t *filter, void *opaque)
              (const char*)&filter->fmt_out.video.i_chroma,
              filter->fmt_out.video.i_visible_width,
              filter->fmt_out.video.i_visible_height);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static const vlc_fourcc_t supported_sw_chromas[] = {
-    VLC_CODEC_I420, VLC_CODEC_BGRA, VLC_CODEC_NV12,
-    VLC_CODEC_UYVY, VLC_CODEC_P010,
+static const heimdall_fourcc_t supported_sw_chromas[] = {
+    HEIMDALL_CODEC_I420, HEIMDALL_CODEC_BGRA, HEIMDALL_CODEC_NV12,
+    HEIMDALL_CODEC_UYVY, HEIMDALL_CODEC_P010,
 };
 
-static const struct vlc_filter_operations chain_CVPX_ops = {
+static const struct heimdall_filter_operations chain_CVPX_ops = {
     .filter_video = chain_CVPX_Filter, .flush = chain_CVPX_Flush,
     .close = Close_chain_CVPX,
 };
@@ -596,9 +597,9 @@ static picture_t *VideoBufferNew(filter_t *filter)
     return filter_NewPicture(cvpx_chain);
 }
 
-static struct vlc_decoder_device *VideoHoldDevice(vlc_object_t *obj, void *sys)
+static struct heimdall_decoder_device *VideoHoldDevice(heimdall_object_t *obj, void *sys)
 {
-    VLC_UNUSED(obj);
+    HEIMDALL_UNUSED(obj);
     filter_t *cvpx_chain = sys;
     return filter_HoldDecoderDevice(cvpx_chain);
 }
@@ -611,15 +612,15 @@ Open_chain_CVPX(filter_t *filter)
 
     /* Check whether we're already in a CVPX chain or not, to avoid
      * looping on the same conversion. */
-    vlc_value_t is_in_chain;
-    int ret = var_GetChecked(vlc_object_parent(filter), "cvpx-chroma-chain",
-                             VLC_VAR_BOOL, &is_in_chain);
+    heimdall_value_t is_in_chain;
+    int ret = var_GetChecked(heimdall_object_parent(filter), "cvpx-chroma-chain",
+                             HEIMDALL_VAR_BOOL, &is_in_chain);
 
-    if (ret == VLC_SUCCESS && is_in_chain.b_bool )
-        return VLC_EGENERIC;
+    if (ret == HEIMDALL_SUCCESS && is_in_chain.b_bool )
+        return HEIMDALL_EGENERIC;
 
-    vlc_fourcc_t input_chroma = filter->fmt_in.video.i_chroma;
-    vlc_fourcc_t output_chroma = filter->fmt_out.video.i_chroma;
+    heimdall_fourcc_t input_chroma = filter->fmt_in.video.i_chroma;
+    heimdall_fourcc_t output_chroma = filter->fmt_out.video.i_chroma;
 
     for (size_t i=0; i<ARRAY_SIZE(supported_chromas); ++i)
     {
@@ -630,12 +631,12 @@ Open_chain_CVPX(filter_t *filter)
     /* If we don't convert from or to CVPX chroma, we don't need to use
      * this filter at all. */
     if (!is_input_valid && !is_output_valid)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* If we convert from CVPX to CVPX, we can directly use the filter
      * above without this one. */
     if (is_input_valid && is_output_valid)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* Store which side was in CVPixelBuffer chroma */
     bool is_input_cvpx = is_input_valid;
@@ -644,11 +645,11 @@ Open_chain_CVPX(filter_t *filter)
     {
         /* CVPX conversion needs a CVPX context */
         if (filter->vctx_in == NULL)
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
-        if (vlc_video_context_GetType(filter->vctx_in)
-                != VLC_VIDEO_CONTEXT_CVPX)
-            return VLC_EGENERIC;
+        if (heimdall_video_context_GetType(filter->vctx_in)
+                != HEIMDALL_VIDEO_CONTEXT_CVPX)
+            return HEIMDALL_EGENERIC;
     }
 
     /* Check whether the other software chroma is supported. */
@@ -661,7 +662,7 @@ Open_chain_CVPX(filter_t *filter)
     /* If one of the side is not true yet, it means we didn't found a matching
      * software chroma and hardware chroma for this side. */
     if (!is_input_valid || !is_output_valid)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     msg_Dbg(filter, "Starting CVPX conversion chain %4.4s -> %4.4s",
              (const char *)&input_chroma,
@@ -683,7 +684,7 @@ Open_chain_CVPX(filter_t *filter)
     filter_chain_t *chain =
         filter_chain_NewVideo(filter, false, &owner);
     if (chain == NULL)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     filter_chain_Reset(chain, &filter->fmt_in, filter->vctx_in, &filter->fmt_out);
 
@@ -699,19 +700,19 @@ Open_chain_CVPX(filter_t *filter)
         = fmt_out.i_codec
         = GetIntermediateChroma(input_chroma, output_chroma);
 
-    var_Create(filter, "cvpx-chroma-chain", VLC_VAR_BOOL);
+    var_Create(filter, "cvpx-chroma-chain", HEIMDALL_VAR_BOOL);
     var_SetBool(filter, "cvpx-chroma-chain", true);
 
     /* Append intermediate CVPX chroma */
     ret = filter_chain_AppendConverter(chain, &fmt_out);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
         goto error;
     /* Append final chroma, either CVPX or software. */
     ret = filter_chain_AppendConverter(chain, NULL);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
         goto error;
 
-    struct vlc_video_context *vctx_out =
+    struct heimdall_video_context *vctx_out =
         filter_chain_GetVideoCtxOut(chain);
 
     filter->vctx_out = vctx_out;
@@ -722,12 +723,12 @@ Open_chain_CVPX(filter_t *filter)
     msg_Dbg(filter, "CVPX conversion chain:");
     filter_chain_ForEach(chain, PrintConversionChain, NULL);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 error:
     msg_Err(filter, "Failed to insert converter for CVPX chain");
     filter_chain_Delete(chain);
     var_Destroy(filter, "cvpx-chroma-chain");
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 static void

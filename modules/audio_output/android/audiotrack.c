@@ -2,6 +2,7 @@
  * audiotrack.c: Android Java AudioTrack audio output module
  *****************************************************************************
  * Copyright © 2012-2015 VLC authors and VideoLAN, VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Thomas Guillem <thomas@gllm.fr>
  *          Ming Hu <tewilove@gmail.com>
@@ -30,24 +31,24 @@
 #include <dlfcn.h>
 #include <stdbool.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_aout.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_aout.h>
 #include "../../video_output/android/env.h"
 #include "device.h"
 #include "audioformat_jni.h"
 #include "dynamicsprocessing_jni.h"
 
 #define SMOOTHPOS_SAMPLE_COUNT 10
-#define SMOOTHPOS_INTERVAL_US VLC_TICK_FROM_MS(30) // 30ms
+#define SMOOTHPOS_INTERVAL_US HEIMDALL_TICK_FROM_MS(30) // 30ms
 
-#define AUDIOTIMESTAMP_INTERVAL_US VLC_TICK_FROM_MS(500) // 500ms
+#define AUDIOTIMESTAMP_INTERVAL_US HEIMDALL_TICK_FROM_MS(500) // 500ms
 
-#define AUDIOTRACK_MAX_BUFFER_US VLC_TICK_FROM_MS(750) // 750ms
+#define AUDIOTRACK_MAX_BUFFER_US HEIMDALL_TICK_FROM_MS(750) // 750ms
 
-#define TIMING_REPORT_DELAY_TICKS VLC_TICK_FROM_MS(1000)
+#define TIMING_REPORT_DELAY_TICKS HEIMDALL_TICK_FROM_MS(1000)
 
-#define JARRAY_SIZE_US VLC_TICK_FROM_MS(50)
+#define JARRAY_SIZE_US HEIMDALL_TICK_FROM_MS(50)
 
 typedef struct
 {
@@ -92,9 +93,9 @@ typedef struct
         WRITE_FLOATARRAY
     } i_write_type;
 
-    vlc_thread_t thread;    /* AudioTrack_Thread */
-    vlc_mutex_t lock;
-    vlc_cond_t thread_cond; /* cond owned by AudioTrack_Thread */
+    heimdall_thread_t thread;    /* AudioTrack_Thread */
+    heimdall_mutex_t lock;
+    heimdall_cond_t thread_cond; /* cond owned by AudioTrack_Thread */
 
     /* These variables need locking on read and write */
     bool b_thread_running;  /* Set to false by aout to stop the thread */
@@ -112,14 +113,14 @@ typedef struct
         jobject array;
     } jbuffer;
 
-    vlc_frame_t *frame_chain;
-    vlc_frame_t **frame_last;
+    heimdall_frame_t *frame_chain;
+    heimdall_frame_t **frame_last;
 
     /* Bytes written since the last timing report */
     size_t timing_report_last_written_bytes;
     /* Number of bytes to write before sending a timing report */
     size_t timing_report_delay_bytes;
-    vlc_tick_t first_pts;
+    heimdall_tick_t first_pts;
 } aout_sys_t;
 
 
@@ -127,11 +128,11 @@ typedef struct
 //#define AUDIOTRACK_USE_FLOAT
 
 /* Get AudioTrack native sample rate: if activated, most of  the resampling
- * will be done by VLC */
+ * will be done by Heimdall */
 #define AUDIOTRACK_NATIVE_SAMPLERATE
 
 #define THREAD_NAME "android_audiotrack"
-#define GET_ENV() android_getEnv( VLC_OBJECT(stream), THREAD_NAME )
+#define GET_ENV() android_getEnv( HEIMDALL_OBJECT(stream), THREAD_NAME )
 
 static struct
 {
@@ -224,18 +225,18 @@ static struct
 /* init all jni fields.
  * Done only one time during the first initialisation */
 static int
-AudioTrack_InitJNI( vlc_object_t *p_aout)
+AudioTrack_InitJNI( heimdall_object_t *p_aout)
 {
-    static vlc_mutex_t lock = VLC_STATIC_MUTEX;
+    static heimdall_mutex_t lock = HEIMDALL_STATIC_MUTEX;
     static int i_init_state = -1;
     jclass clazz;
     jfieldID field;
     JNIEnv *env = android_getEnv( p_aout, THREAD_NAME );
 
     if( env == NULL )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    vlc_mutex_lock( &lock );
+    heimdall_mutex_lock( &lock );
 
     if( i_init_state != -1 )
         goto end;
@@ -439,8 +440,8 @@ AudioTrack_InitJNI( vlc_object_t *p_aout)
 
     i_init_state = 1;
 end:
-    vlc_mutex_unlock( &lock );
-    return i_init_state == 1 ? VLC_SUCCESS : VLC_EGENERIC;
+    heimdall_mutex_unlock( &lock );
+    return i_init_state == 1 ? HEIMDALL_SUCCESS : HEIMDALL_EGENERIC;
 }
 
 static inline bool
@@ -480,10 +481,10 @@ check_exception( JNIEnv *env, aout_stream_t *stream,
 
 #define JNI_AUDIOTIMESTAMP_GET_LONG( field ) JNI_CALL( GetLongField, p_sys->timestamp.p_obj, jfields.AudioTimestamp.field )
 
-static inline vlc_tick_t
+static inline heimdall_tick_t
 frames_to_us( aout_sys_t *p_sys, uint64_t i_nb_frames )
 {
-    return  vlc_tick_from_samples(i_nb_frames, p_sys->fmt.i_rate);
+    return  heimdall_tick_from_samples(i_nb_frames, p_sys->fmt.i_rate);
 }
 #define FRAMES_TO_US(x) frames_to_us( p_sys, (x) )
 
@@ -503,9 +504,9 @@ frames_to_bytes( aout_sys_t *p_sys, uint64_t i_frames )
 #define FRAMES_TO_BYTES(x) frames_to_bytes( p_sys, (x) )
 
 static inline uint64_t
-us_to_frames( aout_sys_t *p_sys, vlc_tick_t i_us )
+us_to_frames( aout_sys_t *p_sys, heimdall_tick_t i_us )
 {
-    return samples_from_vlc_tick( i_us, p_sys->fmt.i_rate );
+    return samples_from_heimdall_tick( i_us, p_sys->fmt.i_rate );
 }
 #define US_TO_FRAMES(x) us_to_frames( p_sys, x)
 #define US_TO_BYTES(x) frames_to_bytes( p_sys, us_to_frames( p_sys, x ) )
@@ -572,10 +573,10 @@ AudioTrack_Reset( JNIEnv *env, aout_stream_t *stream )
     p_sys->i_samples_written = 0;
     p_sys->timing_report_last_written_bytes = 0;
     p_sys->timing_report_delay_bytes = 0;
-    p_sys->first_pts = VLC_TICK_INVALID;
+    p_sys->first_pts = HEIMDALL_TICK_INVALID;
 }
 
-static vlc_tick_t
+static heimdall_tick_t
 AudioTrack_GetLatencyUs( JNIEnv *env, aout_stream_t *stream )
 {
     aout_sys_t *p_sys = stream->sys;
@@ -589,7 +590,7 @@ AudioTrack_GetLatencyUs( JNIEnv *env, aout_stream_t *stream )
          * audio hardware latency */
         if( i_latency_ms > 0 )
         {
-            vlc_tick_t i_latency_us = VLC_TICK_FROM_MS( i_latency_ms )
+            heimdall_tick_t i_latency_us = HEIMDALL_TICK_FROM_MS( i_latency_ms )
                 - FRAMES_TO_US( p_sys->i_max_audiotrack_samples );
             return i_latency_us >= 0 ? i_latency_us : 0;
         }
@@ -599,7 +600,7 @@ AudioTrack_GetLatencyUs( JNIEnv *env, aout_stream_t *stream )
 }
 
 struct role {
-    char vlc[16];
+    char heimdall[16];
 };
 
 static const struct role video_roles[] = {
@@ -610,7 +611,7 @@ static const struct role video_roles[] = {
 
 static int role_cmp(const void *r1, const void *entry) {
     const struct role *role = entry;
-    return strcmp(r1, role->vlc);
+    return strcmp(r1, role->heimdall);
 }
 
 static inline bool RoleHasVideoContent( char *role ) {
@@ -640,10 +641,10 @@ AudioTrack_New21( JNIEnv *env, aout_stream_t *stream, unsigned int i_rate,
 
     bool hasVideo = false;
 
-    char *vlc_role = var_InheritString(stream, "role");
-    if (vlc_role != NULL) {
-    hasVideo = RoleHasVideoContent(vlc_role);
-    free(vlc_role);
+    char *heimdall_role = var_InheritString(stream, "role");
+    if (heimdall_role != NULL) {
+    hasVideo = RoleHasVideoContent(heimdall_role);
+    free(heimdall_role);
     }
 
     ref = JNI_CALL_OBJECT( p_aattr_builder,
@@ -721,7 +722,7 @@ AudioTrack_NewLegacy( JNIEnv *env, aout_stream_t *stream, unsigned int i_rate,
                       int i_channel_config, int i_format, int i_size,
                       jint session_id )
 {
-    VLC_UNUSED( stream );
+    HEIMDALL_UNUSED( stream );
     return JNI_AT_NEW( jfields.AudioManager.STREAM_MUSIC, i_rate,
                        i_channel_config, i_format, i_size,
                        jfields.AudioTrack.MODE_STREAM, session_id );
@@ -837,7 +838,7 @@ AudioTrack_Create( JNIEnv *env, aout_stream_t *stream,
             i_channel_config = jfields.AudioFormat.CHANNEL_OUT_STEREO;
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 
     i_min_buffer_size = JNI_AT_CALL_STATIC_INT( getMinBufferSize, i_rate,
@@ -869,7 +870,7 @@ AudioTrack_Create( JNIEnv *env, aout_stream_t *stream,
 }
 
 static void
-AudioTrack_ConsumeFrame(aout_stream_t *stream, vlc_frame_t *f, size_t size)
+AudioTrack_ConsumeFrame(aout_stream_t *stream, heimdall_frame_t *f, size_t size)
 {
     aout_sys_t *p_sys = stream->sys;
     assert(f != NULL && f == p_sys->frame_chain);
@@ -885,7 +886,7 @@ AudioTrack_ConsumeFrame(aout_stream_t *stream, vlc_frame_t *f, size_t size)
     if (p_sys->frame_chain == NULL)
         p_sys->frame_last = &p_sys->frame_chain;
 
-    vlc_frame_Release(f);
+    heimdall_frame_Release(f);
 }
 
 static int
@@ -928,7 +929,7 @@ AudioTrack_WriteByteArray( JNIEnv *env, aout_stream_t *stream, bool b_force )
 
     if (p_sys->jbuffer.size == 0)
     {
-        vlc_frame_t *f = p_sys->frame_chain;
+        heimdall_frame_t *f = p_sys->frame_chain;
         assert(f != NULL);
 
         size_t size = f->i_buffer > p_sys->jbuffer.maxsize ?
@@ -990,7 +991,7 @@ AudioTrack_WriteByteArrayV23(JNIEnv *env, aout_stream_t *stream)
 
     if (p_sys->jbuffer.size == 0)
     {
-        vlc_frame_t *f = p_sys->frame_chain;
+        heimdall_frame_t *f = p_sys->frame_chain;
         assert(f != NULL);
 
         size_t size = f->i_buffer > p_sys->jbuffer.maxsize ?
@@ -1031,7 +1032,7 @@ AudioTrack_WriteShortArrayV23(JNIEnv *env, aout_stream_t *stream)
 
     if (p_sys->jbuffer.size == 0)
     {
-        vlc_frame_t *f = p_sys->frame_chain;
+        heimdall_frame_t *f = p_sys->frame_chain;
         assert(f != NULL);
 
         size_t buffer_size_short = f->i_buffer / 2;
@@ -1074,7 +1075,7 @@ AudioTrack_WriteFloatArray(JNIEnv *env, aout_stream_t *stream)
 
     if (p_sys->jbuffer.size == 0)
     {
-        vlc_frame_t *f = p_sys->frame_chain;
+        heimdall_frame_t *f = p_sys->frame_chain;
         assert(f != NULL);
 
         size_t buffer_size_float = f->i_buffer / 4;
@@ -1125,7 +1126,7 @@ AudioTrack_Write( JNIEnv *env, aout_stream_t *stream, bool b_force )
         i_ret = AudioTrack_WriteFloatArray(env, stream);
         break;
     default:
-        vlc_assert_unreachable();
+        heimdall_assert_unreachable();
     }
 
     if( i_ret < 0 ) {
@@ -1165,11 +1166,11 @@ AudioTrack_ReportTiming( JNIEnv *env, aout_stream_t *stream )
     if( p_sys->timestamp.p_obj != NULL
      && JNI_AT_CALL_BOOL( getTimestamp, p_sys->timestamp.p_obj ) )
     {
-        vlc_tick_t frame_date_us =
-            VLC_TICK_FROM_NS(JNI_AUDIOTIMESTAMP_GET_LONG( nanoTime ));
+        heimdall_tick_t frame_date_us =
+            HEIMDALL_TICK_FROM_NS(JNI_AUDIOTIMESTAMP_GET_LONG( nanoTime ));
         jlong frame_post_last = JNI_AUDIOTIMESTAMP_GET_LONG( framePosition );
         if( frame_post_last == 0 )
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
         /* the low-order 32 bits of position is in wrapping frame units
          * similar to AudioTrack#getPlaybackHeadPosition. */
@@ -1182,22 +1183,22 @@ AudioTrack_ReportTiming( JNIEnv *env, aout_stream_t *stream )
         aout_stream_TimingReport( stream, frame_date_us,
                                   FRAMES_TO_US( frame_pos ) +
                                   p_sys->first_pts );
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
-    vlc_tick_t now = vlc_tick_now();
-    vlc_tick_t frame_us = FRAMES_TO_US( AudioTrack_getPlaybackHeadPosition( env, stream ) );
+    heimdall_tick_t now = heimdall_tick_now();
+    heimdall_tick_t frame_us = FRAMES_TO_US( AudioTrack_getPlaybackHeadPosition( env, stream ) );
     if( frame_us == 0 )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    vlc_tick_t latency_us = AudioTrack_GetLatencyUs( env, stream );
+    heimdall_tick_t latency_us = AudioTrack_GetLatencyUs( env, stream );
     frame_us -= latency_us;
 
     if( frame_us <= 0 )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     aout_stream_TimingReport( stream, now, frame_us + p_sys->first_pts );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /**
@@ -1209,9 +1210,9 @@ AudioTrack_Thread( void *p_data )
     aout_stream_t *stream = p_data;
     aout_sys_t *p_sys = stream->sys;
     JNIEnv *env = GET_ENV();
-    vlc_tick_t i_last_time_blocked = 0;
+    heimdall_tick_t i_last_time_blocked = 0;
 
-    vlc_thread_set_name("vlc-audiotrack");
+    heimdall_thread_set_name("heimdall-audiotrack");
 
     if( !env )
         return NULL;
@@ -1221,24 +1222,24 @@ AudioTrack_Thread( void *p_data )
         int i_ret = 0;
         bool b_forced;
 
-        vlc_mutex_lock( &p_sys->lock );
+        heimdall_mutex_lock( &p_sys->lock );
 
         /* Wait for not paused state */
         while( p_sys->b_thread_running && p_sys->b_thread_paused )
         {
             i_last_time_blocked = 0;
-            vlc_cond_wait( &p_sys->thread_cond, &p_sys->lock );
+            heimdall_cond_wait( &p_sys->thread_cond, &p_sys->lock );
         }
 
         /* Wait for more data in the jbuffer buffer */
         while (p_sys->b_thread_running
             && p_sys->jbuffer.size == 0
             && p_sys->frame_chain == NULL)
-            vlc_cond_wait( &p_sys->thread_cond, &p_sys->lock );
+            heimdall_cond_wait( &p_sys->thread_cond, &p_sys->lock );
 
         if( !p_sys->b_thread_running || p_sys->b_error )
         {
-            vlc_mutex_unlock( &p_sys->lock );
+            heimdall_mutex_unlock( &p_sys->lock );
             break;
         }
 
@@ -1249,7 +1250,7 @@ AudioTrack_Thread( void *p_data )
          * Android 4.4.2 if we send frames too quickly. To fix this issue,
          * force the writing of the buffer after a certain delay. */
         if( i_last_time_blocked != 0 )
-            b_forced = vlc_tick_now() - i_last_time_blocked >
+            b_forced = heimdall_tick_now() - i_last_time_blocked >
                        FRAMES_TO_US( p_sys->i_max_audiotrack_samples ) * 2;
         else
             b_forced = false;
@@ -1259,18 +1260,18 @@ AudioTrack_Thread( void *p_data )
         {
             if( i_ret == 0 )
             {
-                vlc_tick_t i_now = vlc_tick_now();
+                heimdall_tick_t i_now = heimdall_tick_now();
 
                 /* cf. b_forced HACK comment */
                 if( p_sys->i_write_type == WRITE_BYTEARRAY && i_last_time_blocked == 0 )
                     i_last_time_blocked = i_now;
 
                 /* Wait for free space in Audiotrack internal buffer */
-                vlc_tick_t i_play_deadline = i_now + __MAX( 10000,
+                heimdall_tick_t i_play_deadline = i_now + __MAX( 10000,
                         FRAMES_TO_US( p_sys->i_max_audiotrack_samples / 5 ) );
 
                 while( p_sys->b_thread_running && i_ret == 0 )
-                    i_ret = vlc_cond_timedwait( &p_sys->thread_cond, &p_sys->lock,
+                    i_ret = heimdall_cond_timedwait( &p_sys->thread_cond, &p_sys->lock,
                                                 i_play_deadline );
 
             }
@@ -1284,7 +1285,7 @@ AudioTrack_Thread( void *p_data )
 
                     if( p_sys->timing_report_last_written_bytes >=
                             p_sys->timing_report_delay_bytes
-                     && AudioTrack_ReportTiming( env, stream ) == VLC_SUCCESS )
+                     && AudioTrack_ReportTiming( env, stream ) == HEIMDALL_SUCCESS )
                     {
                         p_sys->timing_report_last_written_bytes = 0;
                         /* From now on, fetch the timestamp every 1 seconds */
@@ -1295,7 +1296,7 @@ AudioTrack_Thread( void *p_data )
             }
         }
 
-        vlc_mutex_unlock( &p_sys->lock );
+        heimdall_mutex_unlock( &p_sys->lock );
     }
 
     return NULL;
@@ -1308,11 +1309,11 @@ ConvertFromIEC61937( aout_stream_t *stream, block_t *p_buffer )
      * configured with ENCODING_ AC3/E_AC3/DTS. In that case, only the codec
      * data is needed (without the IEC61937 encapsulation). This function
      * recovers the codec data from an EC61937 frame. It is the opposite of the
-     * code found in converter/tospdif.c. We could also request VLC core to
+     * code found in converter/tospdif.c. We could also request Heimdall core to
      * send us the codec data directly, but in that case, we wouldn't benefit
      * from the eac3 block merger of tospdif.c. */
 
-    VLC_UNUSED( stream );
+    HEIMDALL_UNUSED( stream );
     uint8_t i_length_mul;
 
     if( p_buffer->i_buffer < 6 )
@@ -1335,7 +1336,7 @@ ConvertFromIEC61937( aout_stream_t *stream, block_t *p_buffer )
             i_length_mul = 1;
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
     uint16_t i_length = GetWBE( &p_buffer->p_buffer[6] );
     if( i_length == 0 )
@@ -1352,19 +1353,19 @@ ConvertFromIEC61937( aout_stream_t *stream, block_t *p_buffer )
 }
 
 static void
-Play( aout_stream_t *stream, block_t *p_buffer, vlc_tick_t i_date )
+Play( aout_stream_t *stream, block_t *p_buffer, heimdall_tick_t i_date )
 {
     JNIEnv *env = NULL;
     aout_sys_t *p_sys = stream->sys;
 
-    if( p_sys->b_passthrough && p_sys->fmt.i_format == VLC_CODEC_SPDIFB
+    if( p_sys->b_passthrough && p_sys->fmt.i_format == HEIMDALL_CODEC_SPDIFB
      && ConvertFromIEC61937( stream, p_buffer ) != 0 )
     {
         block_Release(p_buffer);
         return;
     }
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
 
     if( p_sys->b_error || !( env = GET_ENV() ) )
     {
@@ -1377,25 +1378,25 @@ Play( aout_stream_t *stream, block_t *p_buffer, vlc_tick_t i_date )
                             p_sys->i_chans_to_reorder, p_sys->p_chan_table,
                             p_sys->fmt.i_format );
 
-    if( p_sys->first_pts == VLC_TICK_INVALID )
+    if( p_sys->first_pts == HEIMDALL_TICK_INVALID )
         p_sys->first_pts = p_buffer->i_pts;
 
-    vlc_frame_ChainLastAppend(&p_sys->frame_last, p_buffer);
-    vlc_cond_signal(&p_sys->thread_cond);
+    heimdall_frame_ChainLastAppend(&p_sys->frame_last, p_buffer);
+    heimdall_cond_signal(&p_sys->thread_cond);
 
 bailout:
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
     (void) i_date;
 }
 
 static void
-Pause( aout_stream_t *stream, bool b_pause, vlc_tick_t i_date )
+Pause( aout_stream_t *stream, bool b_pause, heimdall_tick_t i_date )
 {
     aout_sys_t *p_sys = stream->sys;
     JNIEnv *env;
-    VLC_UNUSED( i_date );
+    HEIMDALL_UNUSED( i_date );
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
 
     if( p_sys->b_error || !( env = GET_ENV() ) )
         goto bailout;
@@ -1413,7 +1414,7 @@ Pause( aout_stream_t *stream, bool b_pause, vlc_tick_t i_date )
     }
 
 bailout:
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 }
 
 static void
@@ -1422,10 +1423,10 @@ Flush( aout_stream_t *stream )
     aout_sys_t *p_sys = stream->sys;
     JNIEnv *env;
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
 
     p_sys->jbuffer.size = p_sys->jbuffer.offset = 0;
-    vlc_frame_ChainRelease(p_sys->frame_chain);
+    heimdall_frame_ChainRelease(p_sys->frame_chain);
     p_sys->frame_chain = NULL;
     p_sys->frame_last = &p_sys->frame_chain;
 
@@ -1467,7 +1468,7 @@ Flush( aout_stream_t *stream )
     CHECK_AT_EXCEPTION( "play" );
 
 bailout:
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 }
 
 static void
@@ -1517,7 +1518,7 @@ VolumeSet( aout_stream_t *stream, float volume )
             {
                 int ret = DynamicsProcessing_SetVolume( stream, p_sys->p_dp, gain );
 
-                if( ret == VLC_SUCCESS )
+                if( ret == HEIMDALL_SUCCESS )
                     gain = 1.0; /* reset sw gain */
                 else
                     msg_Warn( stream, "failed to set gain via DynamicsProcessing, fallback to sw gain");
@@ -1546,8 +1547,8 @@ static int GetPassthroughFmt( bool compat, audio_sample_format_t *fmt, int *at_f
         *at_format = jfields.AudioFormat.ENCODING_IEC61937;
         switch( fmt->i_format )
         {
-            case VLC_CODEC_TRUEHD:
-            case VLC_CODEC_MLP:
+            case HEIMDALL_CODEC_TRUEHD:
+            case HEIMDALL_CODEC_MLP:
                 fmt->i_rate = 192000;
                 fmt->i_bytes_per_frame = 16;
 
@@ -1556,42 +1557,42 @@ static int GetPassthroughFmt( bool compat, audio_sample_format_t *fmt, int *at_f
                  * apparently */
                 fmt->i_physical_channels = AOUT_CHANS_7_1;
                 break;
-            case VLC_CODEC_DTS:
+            case HEIMDALL_CODEC_DTS:
                 fmt->i_bytes_per_frame = 4;
                 fmt->i_physical_channels = AOUT_CHANS_STEREO;
                 break;
-            case VLC_CODEC_DTSHD:
+            case HEIMDALL_CODEC_DTSHD:
                 fmt->i_bytes_per_frame = 4;
                 fmt->i_physical_channels = AOUT_CHANS_STEREO;
                 fmt->i_rate = 192000;
                 fmt->i_bytes_per_frame = 16;
                 break;
-            case VLC_CODEC_EAC3:
+            case HEIMDALL_CODEC_EAC3:
                 fmt->i_rate = 192000;
-            case VLC_CODEC_A52:
+            case HEIMDALL_CODEC_A52:
                 fmt->i_physical_channels = AOUT_CHANS_STEREO;
                 fmt->i_bytes_per_frame = 4;
                 break;
             default:
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
         }
         fmt->i_frame_length = 1;
         fmt->i_channels = aout_FormatNbChannels( fmt );
-        fmt->i_format = VLC_CODEC_SPDIFL;
+        fmt->i_format = HEIMDALL_CODEC_SPDIFL;
     }
     else
     {
-        if( vlc_android_AudioFormat_FourCCToEncoding( fmt->i_format, at_format )
-                != VLC_SUCCESS )
-            return VLC_EGENERIC;
+        if( heimdall_android_AudioFormat_FourCCToEncoding( fmt->i_format, at_format )
+                != HEIMDALL_SUCCESS )
+            return HEIMDALL_EGENERIC;
         fmt->i_bytes_per_frame = 4;
         fmt->i_frame_length = 1;
         fmt->i_physical_channels = AOUT_CHANS_STEREO;
         fmt->i_channels = 2;
-        fmt->i_format = VLC_CODEC_SPDIFB;
+        fmt->i_format = HEIMDALL_CODEC_SPDIFB;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int
@@ -1609,25 +1610,25 @@ StartPassthrough( JNIEnv *env, aout_stream_t *stream )
         audio_sample_format_t fmt = p_sys->fmt;
 
         i_ret = GetPassthroughFmt( compat, &fmt, &i_at_format );
-        if( i_ret != VLC_SUCCESS )
+        if( i_ret != HEIMDALL_SUCCESS )
             return i_ret;
 
         p_sys->b_passthrough = true;
         i_ret = AudioTrack_Create( env, stream, fmt.i_rate, i_at_format,
                                    fmt.i_physical_channels );
 
-        if( i_ret == VLC_SUCCESS )
+        if( i_ret == HEIMDALL_SUCCESS )
         {
             msg_Dbg( stream, "Using passthrough format: %d", i_at_format );
             p_sys->i_chans_to_reorder = 0;
             p_sys->fmt = fmt;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
     }
 
     p_sys->b_passthrough = false;
     msg_Warn( stream, "SPDIF configuration failed" );
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 static int
@@ -1642,30 +1643,30 @@ StartPCM( JNIEnv *env, aout_stream_t *stream, unsigned i_max_channels )
             JNI_AT_CALL_STATIC_INT( getNativeOutputSampleRate,
                                     jfields.AudioManager.STREAM_MUSIC );
     else
-        p_sys->fmt.i_rate = VLC_CLIP( p_sys->fmt.i_rate, 4000, 48000 );
+        p_sys->fmt.i_rate = HEIMDALL_CLIP( p_sys->fmt.i_rate, 4000, 48000 );
 
     do
     {
         /* We can only accept U8, S16N, FL32, and AC3 */
         switch( p_sys->fmt.i_format )
         {
-        case VLC_CODEC_U8:
+        case HEIMDALL_CODEC_U8:
             i_at_format = jfields.AudioFormat.ENCODING_PCM_8BIT;
             break;
-        case VLC_CODEC_S16N:
+        case HEIMDALL_CODEC_S16N:
             i_at_format = jfields.AudioFormat.ENCODING_PCM_16BIT;
             break;
-        case VLC_CODEC_FL32:
+        case HEIMDALL_CODEC_FL32:
             if( jfields.AudioFormat.has_ENCODING_PCM_FLOAT )
                 i_at_format = jfields.AudioFormat.ENCODING_PCM_FLOAT;
             else
             {
-                p_sys->fmt.i_format = VLC_CODEC_S16N;
+                p_sys->fmt.i_format = HEIMDALL_CODEC_S16N;
                 i_at_format = jfields.AudioFormat.ENCODING_PCM_16BIT;
             }
             break;
         default:
-            p_sys->fmt.i_format = VLC_CODEC_S16N;
+            p_sys->fmt.i_format = HEIMDALL_CODEC_S16N;
             i_at_format = jfields.AudioFormat.ENCODING_PCM_16BIT;
             break;
         }
@@ -1676,7 +1677,7 @@ StartPCM( JNIEnv *env, aout_stream_t *stream, unsigned i_max_channels )
 
         i_nb_channels = aout_FormatNbChannels( &p_sys->fmt );
         if( i_nb_channels == 0 )
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         if( AOUT_FMT_LINEAR( &p_sys->fmt ) )
             i_nb_channels = __MIN( i_max_channels, i_nb_channels );
         if( i_nb_channels > 5 )
@@ -1701,11 +1702,11 @@ StartPCM( JNIEnv *env, aout_stream_t *stream, unsigned i_max_channels )
                                    p_sys->fmt.i_physical_channels );
         if( i_ret != 0 )
         {
-            if( p_sys->fmt.i_format == VLC_CODEC_FL32 )
+            if( p_sys->fmt.i_format == HEIMDALL_CODEC_FL32 )
             {
                 msg_Warn( stream, "FL32 configuration failed, "
                                   "fallback to S16N PCM" );
-                p_sys->fmt.i_format = VLC_CODEC_S16N;
+                p_sys->fmt.i_format = HEIMDALL_CODEC_S16N;
             }
             else if( p_sys->fmt.i_physical_channels & AOUT_CHANS_5_1 )
             {
@@ -1718,7 +1719,7 @@ StartPCM( JNIEnv *env, aout_stream_t *stream, unsigned i_max_channels )
         }
     } while( i_ret != 0 );
 
-    if( i_ret != VLC_SUCCESS )
+    if( i_ret != HEIMDALL_SUCCESS )
         return i_ret;
 
     uint32_t p_chans_out[AOUT_CHAN_MAX];
@@ -1729,7 +1730,7 @@ StartPCM( JNIEnv *env, aout_stream_t *stream, unsigned i_max_channels )
                                   p_sys->fmt.i_physical_channels,
                                   p_sys->p_chan_table );
     aout_FormatPrepare( &p_sys->fmt );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void
@@ -1742,16 +1743,16 @@ Stop( aout_stream_t *stream )
         return;
 
     /* Stop the AudioTrack thread */
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     if( p_sys->b_thread_running )
     {
         p_sys->b_thread_running = false;
-        vlc_cond_signal( &p_sys->thread_cond );
-        vlc_mutex_unlock( &p_sys->lock );
-        vlc_join( p_sys->thread, NULL );
+        heimdall_cond_signal( &p_sys->thread_cond );
+        heimdall_mutex_unlock( &p_sys->lock );
+        heimdall_join( p_sys->thread, NULL );
     }
     else
-        vlc_mutex_unlock(  &p_sys->lock );
+        heimdall_mutex_unlock(  &p_sys->lock );
 
     if (p_sys->jbuffer.array != NULL)
         (*env)->DeleteGlobalRef(env, p_sys->jbuffer.array);
@@ -1799,17 +1800,17 @@ Start( aout_stream_t *stream, audio_sample_format_t *restrict p_fmt,
     }
 
     if( !( env = GET_ENV() ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    AudioTrack_InitJNI(VLC_OBJECT(stream));
+    AudioTrack_InitJNI(HEIMDALL_OBJECT(stream));
 
     aout_sys_t *p_sys = stream->sys = calloc( 1, sizeof (aout_sys_t) );
 
     if( unlikely( p_sys == NULL ) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    vlc_mutex_init(&p_sys->lock);
-    vlc_cond_init(&p_sys->thread_cond);
+    heimdall_mutex_init(&p_sys->lock);
+    heimdall_cond_init(&p_sys->thread_cond);
     p_sys->jbuffer.array = NULL;
 
     p_sys->volume = 1.0f;
@@ -1817,7 +1818,7 @@ Start( aout_stream_t *stream, audio_sample_format_t *restrict p_fmt,
 
     p_sys->fmt = *p_fmt;
 
-    aout_FormatPrint( stream, "VLC is looking for:", &p_sys->fmt );
+    aout_FormatPrint( stream, "Heimdall is looking for:", &p_sys->fmt );
 
     if (p_sys->fmt.channel_type == AUDIO_CHANNEL_TYPE_AMBISONICS)
     {
@@ -1833,12 +1834,12 @@ Start( aout_stream_t *stream, audio_sample_format_t *restrict p_fmt,
     else if( b_try_passthrough )
         i_ret = StartPassthrough( env, stream );
     else
-        i_ret = VLC_EGENERIC;
+        i_ret = HEIMDALL_EGENERIC;
 
     if( i_ret != 0 )
     {
         free( p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( jfields.AudioTrack.getBufferSizeInFrames )
@@ -1864,13 +1865,13 @@ Start( aout_stream_t *stream, audio_sample_format_t *restrict p_fmt,
     p_sys->frame_last = &p_sys->frame_chain;
     AudioTrack_Reset( env, stream );
 
-    if( p_sys->fmt.i_format == VLC_CODEC_FL32 )
+    if( p_sys->fmt.i_format == HEIMDALL_CODEC_FL32 )
     {
         msg_Dbg( stream, "using WRITE_FLOATARRAY");
         p_sys->i_write_type = WRITE_FLOATARRAY;
         i_ret = AudioTrack_AllocJArray(env, stream, 4, (*env)->NewFloatArray);
     }
-    else if( p_sys->fmt.i_format == VLC_CODEC_SPDIFL )
+    else if( p_sys->fmt.i_format == HEIMDALL_CODEC_SPDIFL )
     {
         assert( jfields.AudioFormat.has_ENCODING_IEC61937 );
         msg_Dbg( stream, "using WRITE_SHORTARRAYV23");
@@ -1899,10 +1900,10 @@ Start( aout_stream_t *stream, audio_sample_format_t *restrict p_fmt,
     /* Run AudioTrack_Thread */
     p_sys->b_thread_running = true;
     p_sys->b_thread_paused = false;
-    if ( vlc_clone( &p_sys->thread, AudioTrack_Thread, stream ) )
+    if ( heimdall_clone( &p_sys->thread, AudioTrack_Thread, stream ) )
     {
         p_sys->b_thread_running = false;
-        msg_Err(stream, "vlc clone failed");
+        msg_Err(stream, "heimdall clone failed");
         goto error;
     }
 
@@ -1911,7 +1912,7 @@ Start( aout_stream_t *stream, audio_sample_format_t *restrict p_fmt,
 
     *p_fmt = p_sys->fmt;
 
-    aout_FormatPrint( stream, "VLC will output:", &p_sys->fmt );
+    aout_FormatPrint( stream, "Heimdall will output:", &p_sys->fmt );
 
     stream->stop = Stop;
     stream->play = Play;
@@ -1921,14 +1922,14 @@ Start( aout_stream_t *stream, audio_sample_format_t *restrict p_fmt,
     stream->mute_set = MuteSet;
 
     msg_Dbg(stream, "using AudioTrack API");
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     Stop( stream );
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname("AudioTrack")
     set_description("Android AudioTrack audio output")
 
@@ -1936,4 +1937,4 @@ vlc_module_begin ()
 
     set_capability("aout android stream", 180)
     set_callback(Start)
-vlc_module_end ()
+heimdall_module_end ()

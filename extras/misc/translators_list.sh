@@ -59,7 +59,7 @@ echo '"X-Poedit-Bookmark.*' >> temp_translators/doubles.txt
 echo '"Project-Id-Version:.*' >> temp_translators/doubles.txt
 echo '"X-Generator: .*' >> temp_translators/doubles.txt
 echo '"Language: .*' >> temp_translators/doubles.txt
-echo ' *[Cc]opyright *([cC])[0-9 ,-]*t*h*e* *VideoLAN$* *t*e*a*m*[0-9 ,-]*\.*' >> temp_translators/doubles.txt
+echo ' *[Cc]opyright *([cC])[0-9 ,-]*t*h*e* *Lycaria$* *t*e*a*m*[0-9 ,-]*\.*' >> temp_translators/doubles.txt
 echo '[ ]*\$[ ]*[i,I][d,D][ ]*[:]*[ ]*\$' >> temp_translators/doubles.txt
 echo '"X-Poedit-Country:.*' >> temp_translators/doubles.txt
 echo '"X-Project-Style:.*'  >> temp_translators/doubles.txt

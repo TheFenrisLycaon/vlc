@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,11 +20,11 @@ import QtQuick
 import QtQml.Models
 import QtQuick.Layouts
 
-import VLC.MediaLibrary
-import VLC.MainInterface
-import VLC.Util
-import VLC.Widgets as Widgets
-import VLC.Style
+import Heimdall.MediaLibrary
+import Heimdall.MainInterface
+import Heimdall.Util
+import Heimdall.Widgets as Widgets
+import Heimdall.Style
 
 Widgets.TableViewExt {
     id: root
@@ -50,7 +51,7 @@ Widgets.TableViewExt {
         colDelegate: tableColumns.titleDelegate,
         headerDelegate: tableColumns.titleHeaderDelegate,
 
-        placeHolder: VLCStyle.noArtAlbumCover
+        placeHolder: HeimdallStyle.noArtAlbumCover
     })
 
     property var _lineAlbum: ({
@@ -155,16 +156,16 @@ Widgets.TableViewExt {
             colDelegate: tableColumns.titleDelegate,
             headerDelegate: tableColumns.titleHeaderDelegate,
 
-            placeHolder: VLCStyle.noArtAlbumCover
+            placeHolder: HeimdallStyle.noArtAlbumCover
         })
     }]
 
     // Settings
 
     sortModel: {
-        if (_availableRowWidth < VLCStyle.colWidth(4))
+        if (_availableRowWidth < HeimdallStyle.colWidth(4))
             return _modelSmall
-        else if (_availableRowWidth < VLCStyle.colWidth(9))
+        else if (_availableRowWidth < HeimdallStyle.colWidth(9))
             return _modelMedium
         else
             return _modelLarge
@@ -173,7 +174,7 @@ Widgets.TableViewExt {
     section.property: "title_first_symbol"
 
     model: rootmodel
-    rowHeight: VLCStyle.tableCoverRow_height
+    rowHeight: HeimdallStyle.tableCoverRow_height
 
     dragItem: tableDragItem
 
@@ -254,7 +255,7 @@ Widgets.TableViewExt {
         Timer {
             id: visibilityTimer
 
-            interval: VLCStyle.duration_humanMoment
+            interval: HeimdallStyle.duration_humanMoment
 
             onTriggered: {
                 progressIndicator.visible = true

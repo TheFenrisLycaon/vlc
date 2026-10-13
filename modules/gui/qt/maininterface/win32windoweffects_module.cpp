@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2024 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -85,18 +86,18 @@ static void setBlurBehind(QWindow* const window, const bool enable = true, const
                           sizeof(backdropType));
 }
 
-int QtWin32WindowEffectsOpen(vlc_object_t* p_this)
+int QtWin32WindowEffectsOpen(heimdall_object_t* p_this)
 {
     assert(p_this);
 
     if (QOperatingSystemVersion::current()
         < QOperatingSystemVersion(QOperatingSystemVersion::Windows, 10, 0, 22621))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     const auto obj = reinterpret_cast<WindowEffectsModule*>(p_this);
 
     obj->setBlurBehind = setBlurBehind;
     obj->isEffectAvailable = isEffectAvailable;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

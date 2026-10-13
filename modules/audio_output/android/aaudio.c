@@ -2,6 +2,7 @@
  * aaudio.c: Android AAudio audio stream module
  *****************************************************************************
  * Copyright © 2018-2022 VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Romain Vimont <rom1v@videolabs.io>
  *          Thomas Guillem <thomas@gllm.fr>
@@ -25,9 +26,9 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_aout.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_aout.h>
 #include <assert.h>
 #include <dlfcn.h>
 
@@ -36,7 +37,7 @@
 
 #include <aaudio/AAudio.h>
 
-#define TIMING_REPORT_DELAY_TICKS VLC_TICK_FROM_MS(1000)
+#define TIMING_REPORT_DELAY_TICKS HEIMDALL_TICK_FROM_MS(1000)
 
 struct sys
 {
@@ -58,11 +59,11 @@ struct sys
     bool error;
 
     /* Spinlock that protect all the following variables */
-    vlc_mutex_t lock;
+    heimdall_mutex_t lock;
 
     /* Frame FIFO */
-    vlc_frame_t *frame_chain;
-    vlc_frame_t **frame_last;
+    heimdall_frame_t *frame_chain;
+    heimdall_frame_t **frame_last;
 
     /* Size of the frame FIFO */
     size_t frames_total_bytes;
@@ -74,7 +75,7 @@ struct sys
     size_t underrun_total_bytes;
 
     /* Date when the data callback should start to process audio */
-    vlc_tick_t first_play_date;
+    heimdall_tick_t first_play_date;
     /* True is the data callback started to process audio from the frame FIFO */
     bool started;
     bool draining;
@@ -82,7 +83,7 @@ struct sys
     size_t timing_report_last_written_bytes;
     /* Number of bytes to write before sending a timing report */
     size_t timing_report_delay_bytes;
-    vlc_tick_t first_pts;
+    heimdall_tick_t first_pts;
 
     /* Channel reordering */
     uint8_t chans_to_reorder;
@@ -133,10 +134,10 @@ LoadSymbols(aout_stream_t *stream)
      * an AudioEffect to modify the gain.
      */
 
-    static vlc_mutex_t lock = VLC_STATIC_MUTEX;
+    static heimdall_mutex_t lock = HEIMDALL_STATIC_MUTEX;
     static int init_state = -1;
 
-    vlc_mutex_lock(&lock);
+    heimdall_mutex_lock(&lock);
 
     if (init_state != -1)
         goto end;
@@ -189,13 +190,13 @@ LoadSymbols(aout_stream_t *stream)
 
     init_state = 1;
 end:
-    vlc_mutex_unlock(&lock);
-    return init_state == 1 ? VLC_SUCCESS : VLC_EGENERIC;
+    heimdall_mutex_unlock(&lock);
+    return init_state == 1 ? HEIMDALL_SUCCESS : HEIMDALL_EGENERIC;
 }
 
 struct role
 {
-    char vlc[16];
+    char heimdall[16];
     aaudio_usage_t aaudio;
 };
 
@@ -213,16 +214,16 @@ static const struct role roles[] =
 };
 
 static int
-role_cmp(const void *vlc_role, const void *entry)
+role_cmp(const void *heimdall_role, const void *entry)
 {
     const struct role *role = entry;
-    return strcmp(vlc_role, role->vlc);
+    return strcmp(heimdall_role, role->heimdall);
 }
 
 static aaudio_usage_t
-GetUsageFromVLCRole(const char *vlc_role)
+GetUsageFromHeimdallRole(const char *heimdall_role)
 {
-    struct role *role = bsearch(vlc_role, roles, ARRAY_SIZE(roles),
+    struct role *role = bsearch(heimdall_role, roles, ARRAY_SIZE(roles),
                                 sizeof(*roles), role_cmp);
 
     return role == NULL ? AAUDIO_USAGE_MEDIA : role->aaudio;
@@ -237,11 +238,11 @@ LogAAudioError(aout_stream_t *stream, const char *msg, aaudio_result_t result)
 static int
 WaitState(aout_stream_t *stream, aaudio_result_t wait_state)
 {
-#define WAIT_TIMEOUT VLC_TICK_FROM_SEC(2)
+#define WAIT_TIMEOUT HEIMDALL_TICK_FROM_SEC(2)
     struct sys *sys = stream->sys;
 
     if (sys->error)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     assert(sys->as);
 
@@ -256,11 +257,11 @@ WaitState(aout_stream_t *stream, aaudio_result_t wait_state)
         if (result != AAUDIO_OK)
         {
             sys->error = true;
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
         current_state = next_state;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static aaudio_stream_state_t
@@ -280,10 +281,10 @@ GetState(aout_stream_t *stream)
     struct sys *sys = stream->sys; \
     aaudio_result_t result = vt.AAudioStream_request##x(sys->as); \
     if (result == AAUDIO_OK) \
-        return VLC_SUCCESS; \
+        return HEIMDALL_SUCCESS; \
     LogAAudioError(stream, "Failed to start AAudio stream", result); \
     sys->error = true; \
-    return VLC_EGENERIC; \
+    return HEIMDALL_EGENERIC; \
 } while (0)
 
 static inline int
@@ -316,14 +317,14 @@ BytesToFrames(struct sys *sys, size_t bytes)
     return bytes * sys->fmt.i_frame_length / sys->fmt.i_bytes_per_frame;
 }
 
-static inline vlc_tick_t
+static inline heimdall_tick_t
 FramesToTicks(struct sys *sys, int64_t frames)
 {
-    return vlc_tick_from_samples(frames, sys->fmt.i_rate);
+    return heimdall_tick_from_samples(frames, sys->fmt.i_rate);
 }
 
 
-static inline vlc_tick_t
+static inline heimdall_tick_t
 BytesToTicks(struct sys *sys, size_t bytes)
 {
     return FramesToTicks(sys, BytesToFrames(sys, bytes));
@@ -336,20 +337,20 @@ FramesToBytes(struct sys *sys, uint64_t frames)
 }
 
 static inline int64_t
-TicksToFrames(struct sys *sys, vlc_tick_t ticks)
+TicksToFrames(struct sys *sys, heimdall_tick_t ticks)
 {
-    return samples_from_vlc_tick(ticks, sys->fmt.i_rate);
+    return samples_from_heimdall_tick(ticks, sys->fmt.i_rate);
 }
 
 static inline size_t
-TicksToBytes(struct sys *sys, vlc_tick_t ticks)
+TicksToBytes(struct sys *sys, heimdall_tick_t ticks)
 {
     return FramesToBytes(sys, TicksToFrames(sys, ticks));
 }
 
 static int
 GetFrameTimestampLocked(aout_stream_t *stream, int64_t *pos_frames,
-                        vlc_tick_t *frame_time_us)
+                        heimdall_tick_t *frame_time_us)
 {
     struct sys *sys = stream->sys;
 
@@ -360,13 +361,13 @@ GetFrameTimestampLocked(aout_stream_t *stream, int64_t *pos_frames,
     if (result != AAUDIO_OK)
     {
         LogAAudioError(stream, "AAudioStream_getTimestamp failed", result);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     if (*pos_frames <= 0)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    *frame_time_us = VLC_TICK_FROM_NS(time_ns);
-    return VLC_SUCCESS;
+    *frame_time_us = HEIMDALL_TICK_FROM_NS(time_ns);
+    return HEIMDALL_SUCCESS;
 }
 
 static aaudio_data_callback_result_t
@@ -379,21 +380,21 @@ DataCallback(AAudioStream *as, void *user, void *data_, int32_t num_frames)
     size_t bytes = FramesToBytes(sys, num_frames);
     uint8_t *data = data_;
 
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     aaudio_stream_state_t state = GetState(stream);
 
     if (!sys->started)
     {
         size_t tocopy;
 
-        if (sys->first_play_date == VLC_TICK_INVALID)
+        if (sys->first_play_date == HEIMDALL_TICK_INVALID)
             tocopy = bytes;
         else
         {
-            vlc_tick_t now = vlc_tick_now();
+            heimdall_tick_t now = heimdall_tick_now();
 
             /* Write silence to reach the first play date */
-            vlc_tick_t silence_ticks = sys->first_play_date - now;
+            heimdall_tick_t silence_ticks = sys->first_play_date - now;
             if (silence_ticks > 0)
             {
                 tocopy = TicksToBytes(sys, silence_ticks);
@@ -417,7 +418,7 @@ DataCallback(AAudioStream *as, void *user, void *data_, int32_t num_frames)
 
     while (bytes > 0)
     {
-        vlc_frame_t *f = sys->frame_chain;
+        heimdall_frame_t *f = sys->frame_chain;
         if (f == NULL)
         {
             aaudio_data_callback_result_t res;
@@ -431,7 +432,7 @@ DataCallback(AAudioStream *as, void *user, void *data_, int32_t num_frames)
             else
                 res = AAUDIO_CALLBACK_RESULT_STOP;
 
-            vlc_mutex_unlock(&sys->lock);
+            heimdall_mutex_unlock(&sys->lock);
 
             memset(data, 0, bytes);
 
@@ -448,15 +449,15 @@ DataCallback(AAudioStream *as, void *user, void *data_, int32_t num_frames)
         sys->timing_report_last_written_bytes += tocopy;
 
         int64_t pos_frames;
-        vlc_tick_t system_ts;
+        heimdall_tick_t system_ts;
         if (state == AAUDIO_STREAM_STATE_STARTED
          && sys->timing_report_last_written_bytes >= sys->timing_report_delay_bytes
-         && GetFrameTimestampLocked(stream, &pos_frames, &system_ts) == VLC_SUCCESS)
+         && GetFrameTimestampLocked(stream, &pos_frames, &system_ts) == HEIMDALL_SUCCESS)
         {
 
-            vlc_tick_t pos_ticks = FramesToTicks(sys, pos_frames);
+            heimdall_tick_t pos_ticks = FramesToTicks(sys, pos_frames);
             /* underrun 0s don't count in timing reports */
-            vlc_tick_t underrun_ticks = BytesToTicks(sys, sys->underrun_total_bytes);
+            heimdall_tick_t underrun_ticks = BytesToTicks(sys, sys->underrun_total_bytes);
 
             /* pos_frame might not have taken the last underrun update */
             if (likely(pos_ticks > underrun_ticks))
@@ -489,11 +490,11 @@ DataCallback(AAudioStream *as, void *user, void *data_, int32_t num_frames)
             if (sys->frame_chain == NULL)
                 sys->frame_last = &sys->frame_chain;
 
-            vlc_frame_Release(f);
+            heimdall_frame_Release(f);
         }
     }
 
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
 
     return AAUDIO_CALLBACK_RESULT_CONTINUE;
 }
@@ -517,7 +518,7 @@ CloseAAudioStream(aout_stream_t *stream)
     {
         RequestStop(stream);
 
-        if (WaitState(stream, AAUDIO_STREAM_STATE_STOPPED) != VLC_SUCCESS)
+        if (WaitState(stream, AAUDIO_STREAM_STATE_STOPPED) != HEIMDALL_SUCCESS)
             msg_Warn(stream, "Error waiting for stopped state");
     }
 
@@ -528,26 +529,26 @@ CloseAAudioStream(aout_stream_t *stream)
 }
 
 static aaudio_channel_mask_t
-VLCMaskToAaudio(uint16_t vlc_mask)
+HeimdallMaskToAaudio(uint16_t heimdall_mask)
 {
     aaudio_channel_mask_t mask = 0;
-    if (vlc_mask & AOUT_CHAN_CENTER)
+    if (heimdall_mask & AOUT_CHAN_CENTER)
         mask |= AAUDIO_CHANNEL_FRONT_CENTER;
-    if (vlc_mask & AOUT_CHAN_LEFT)
+    if (heimdall_mask & AOUT_CHAN_LEFT)
         mask |= AAUDIO_CHANNEL_FRONT_LEFT;
-    if (vlc_mask & AOUT_CHAN_RIGHT)
+    if (heimdall_mask & AOUT_CHAN_RIGHT)
         mask |= AAUDIO_CHANNEL_FRONT_RIGHT;
-    if (vlc_mask & AOUT_CHAN_REARCENTER)
+    if (heimdall_mask & AOUT_CHAN_REARCENTER)
         mask |= AAUDIO_CHANNEL_BACK_CENTER;
-    if (vlc_mask & AOUT_CHAN_REARLEFT)
+    if (heimdall_mask & AOUT_CHAN_REARLEFT)
         mask |= AAUDIO_CHANNEL_BACK_LEFT;
-    if (vlc_mask & AOUT_CHAN_REARRIGHT)
+    if (heimdall_mask & AOUT_CHAN_REARRIGHT)
         mask |= AAUDIO_CHANNEL_BACK_RIGHT;
-    if (vlc_mask & AOUT_CHAN_MIDDLELEFT)
+    if (heimdall_mask & AOUT_CHAN_MIDDLELEFT)
         mask |= AAUDIO_CHANNEL_SIDE_LEFT;
-    if (vlc_mask & AOUT_CHAN_MIDDLERIGHT)
+    if (heimdall_mask & AOUT_CHAN_MIDDLERIGHT)
         mask |= AAUDIO_CHANNEL_SIDE_RIGHT;
-    if (vlc_mask & AOUT_CHAN_LFE)
+    if (heimdall_mask & AOUT_CHAN_LFE)
         mask |= AAUDIO_CHANNEL_LOW_FREQUENCY;
     return mask;
 }
@@ -563,7 +564,7 @@ OpenAAudioStream(aout_stream_t *stream)
     if (result != AAUDIO_OK)
     {
         LogAAudioError(stream, "Failed to create AAudio stream builder", result);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     vt.AAudioStreamBuilder_setFormat(builder, sys->cfg.format);
@@ -579,7 +580,7 @@ OpenAAudioStream(aout_stream_t *stream)
     if (vt.AAudioStreamBuilder_setChannelMask != NULL)
     {
         aaudio_channel_mask_t mask =
-            VLCMaskToAaudio(sys->fmt.i_physical_channels);
+            HeimdallMaskToAaudio(sys->fmt.i_physical_channels);
         vt.AAudioStreamBuilder_setChannelMask(builder, mask);
     }
     else
@@ -589,12 +590,12 @@ OpenAAudioStream(aout_stream_t *stream)
     vt.AAudioStreamBuilder_setSessionId(builder, sys->cfg.session_id);
 
     /* Setup the role */
-    char *vlc_role = var_InheritString(stream, "role");
-    if (vlc_role != NULL)
+    char *heimdall_role = var_InheritString(stream, "role");
+    if (heimdall_role != NULL)
     {
-        aaudio_usage_t usage = GetUsageFromVLCRole(vlc_role);
+        aaudio_usage_t usage = GetUsageFromHeimdallRole(heimdall_role);
         vt.AAudioStreamBuilder_setUsage(builder, usage);
-        free(vlc_role);
+        free(heimdall_role);
     } /* else if not set, default is MEDIA usage */
 
     vt.AAudioStreamBuilder_setDataCallback(builder, DataCallback, stream);
@@ -613,13 +614,13 @@ OpenAAudioStream(aout_stream_t *stream)
     {
         LogAAudioError(stream, "Failed to open AAudio stream", result);
         vt.AAudioStreamBuilder_delete(builder);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     vt.AAudioStreamBuilder_delete(builder);
 
     sys->as = as;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void
@@ -649,14 +650,14 @@ PrepareAudioFormat(aout_stream_t *stream, audio_sample_format_t *fmt)
         aout_FormatPrepare(fmt);
     }
 
-    if (fmt->i_format == VLC_CODEC_S16N)
+    if (fmt->i_format == HEIMDALL_CODEC_S16N)
         sys->cfg.format = AAUDIO_FORMAT_PCM_I16;
     else
     {
-        if (fmt->i_format != VLC_CODEC_FL32)
+        if (fmt->i_format != HEIMDALL_CODEC_FL32)
         {
             /* override to request conversion */
-            fmt->i_format = VLC_CODEC_FL32;
+            fmt->i_format = HEIMDALL_CODEC_FL32;
             fmt->i_bytes_per_frame = 4 * fmt->i_channels;
         }
         sys->cfg.format = AAUDIO_FORMAT_PCM_FLOAT;
@@ -674,14 +675,14 @@ PrepareAudioFormat(aout_stream_t *stream, audio_sample_format_t *fmt)
 }
 
 static void
-Play(aout_stream_t *stream, vlc_frame_t *frame, vlc_tick_t date)
+Play(aout_stream_t *stream, heimdall_frame_t *frame, heimdall_tick_t date)
 {
     struct sys *sys = stream->sys;
 
     aaudio_stream_state_t state = GetState(stream);
     if (state == AAUDIO_STREAM_STATE_OPEN)
     {
-        if (RequestStart(stream) != VLC_SUCCESS)
+        if (RequestStart(stream) != HEIMDALL_SUCCESS)
             goto bailout;
     }
     else if (state != AAUDIO_STREAM_STATE_STARTING
@@ -695,13 +696,13 @@ Play(aout_stream_t *stream, vlc_frame_t *frame, vlc_tick_t date)
                            sys->chans_to_reorder, sys->chan_table,
                            sys->fmt.i_format );
 
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
 
     if (!sys->started)
     {
-        vlc_tick_t now = vlc_tick_now();
+        heimdall_tick_t now = heimdall_tick_now();
         sys->first_play_date = date - BytesToTicks(sys, sys->frames_total_bytes);
-        if (sys->first_pts == VLC_TICK_INVALID)
+        if (sys->first_pts == HEIMDALL_TICK_INVALID)
             sys->first_pts = frame->i_pts;
 
         if (sys->first_play_date > now)
@@ -713,12 +714,12 @@ Play(aout_stream_t *stream, vlc_frame_t *frame, vlc_tick_t date)
     }
 
 
-    vlc_frame_ChainLastAppend(&sys->frame_last, frame);
+    heimdall_frame_ChainLastAppend(&sys->frame_last, frame);
     sys->frames_total_bytes += frame->i_buffer;
 
     size_t underrun_bytes = sys->underrun_warn_bytes;
     sys->underrun_warn_bytes = 0;
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
 
     if (underrun_bytes > 0)
         msg_Warn(stream, "underflow of %" PRId64 " us",
@@ -726,11 +727,11 @@ Play(aout_stream_t *stream, vlc_frame_t *frame, vlc_tick_t date)
 
     return;
 bailout:
-    vlc_frame_Release(frame);
+    heimdall_frame_Release(frame);
 }
 
 static void
-Pause(aout_stream_t *stream, bool pause, vlc_tick_t pause_date)
+Pause(aout_stream_t *stream, bool pause, heimdall_tick_t pause_date)
 {
     struct sys *sys = stream->sys;
     (void) pause_date;
@@ -747,7 +748,7 @@ Pause(aout_stream_t *stream, bool pause, vlc_tick_t pause_date)
 
         state = GetState(stream);
         if (state == AAUDIO_STREAM_STATE_PAUSING
-         && WaitState(stream, AAUDIO_STREAM_STATE_PAUSED) != VLC_SUCCESS)
+         && WaitState(stream, AAUDIO_STREAM_STATE_PAUSED) != HEIMDALL_SUCCESS)
 
         sys->started = false;
     }
@@ -774,31 +775,31 @@ Flush(aout_stream_t *stream)
 
     if (state != AAUDIO_STREAM_STATE_PAUSING
      && state != AAUDIO_STREAM_STATE_PAUSED
-     && RequestPause(stream) != VLC_SUCCESS)
+     && RequestPause(stream) != HEIMDALL_SUCCESS)
         goto error;
 
     state = GetState(stream);
     if (state == AAUDIO_STREAM_STATE_PAUSING
-     && WaitState(stream, AAUDIO_STREAM_STATE_PAUSED) != VLC_SUCCESS)
+     && WaitState(stream, AAUDIO_STREAM_STATE_PAUSED) != HEIMDALL_SUCCESS)
         goto error;
 
-    if (RequestFlush(stream) != VLC_SUCCESS)
+    if (RequestFlush(stream) != HEIMDALL_SUCCESS)
         goto error;
 
-    if (WaitState(stream, AAUDIO_STREAM_STATE_FLUSHED) != VLC_SUCCESS)
+    if (WaitState(stream, AAUDIO_STREAM_STATE_FLUSHED) != HEIMDALL_SUCCESS)
         goto error;
 
 error:
     CloseAAudioStream(stream);
 
-    vlc_frame_ChainRelease(sys->frame_chain);
+    heimdall_frame_ChainRelease(sys->frame_chain);
     sys->frame_chain = NULL;
     sys->frame_last = &sys->frame_chain;
     sys->frames_total_bytes = 0;
 
     sys->started = false;
     sys->draining = false;
-    sys->first_pts = sys->first_play_date = VLC_TICK_INVALID;
+    sys->first_pts = sys->first_play_date = HEIMDALL_TICK_INVALID;
     sys->start_silence_bytes = 0;
     sys->timing_report_last_written_bytes = 0;
     sys->timing_report_delay_bytes = 0;
@@ -806,7 +807,7 @@ error:
     sys->underrun_total_bytes = 0;
 
     int ret = OpenAAudioStream(stream);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
     {
         sys->error = true;
         return;
@@ -827,11 +828,11 @@ Drain(aout_stream_t *stream)
 {
     struct sys *sys = stream->sys;
 
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     sys->draining = true;
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
 
-    if (unlikely(sys->first_play_date == VLC_TICK_INVALID))
+    if (unlikely(sys->first_play_date == HEIMDALL_TICK_INVALID))
         aout_stream_DrainedReport(stream);
 }
 
@@ -849,7 +850,7 @@ VolumeSet(aout_stream_t *stream, float vol)
         return;
 
     int ret = DynamicsProcessing_SetVolume(stream, sys->dp, vol);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
         msg_Warn(stream, "failed to set the volume via DynamicsProcessing");
 }
 
@@ -865,7 +866,7 @@ MuteSet(aout_stream_t *stream, bool mute)
 
     int ret = DynamicsProcessing_SetVolume(stream, sys->dp,
                                            mute ? 0.0f : sys->volume);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
         msg_Warn(stream, "failed to mute via DynamicsProcessing");
 }
 
@@ -880,7 +881,7 @@ Stop(aout_stream_t *stream)
     if (sys->dp != NULL)
         DynamicsProcessing_Delete(stream, sys->dp);
 
-    vlc_frame_ChainRelease(sys->frame_chain);
+    heimdall_frame_ChainRelease(sys->frame_chain);
 
     free(sys);
 }
@@ -890,10 +891,10 @@ Start(aout_stream_t *stream, audio_sample_format_t *fmt,
       enum android_audio_device_type adev)
 {
     if (!AOUT_FMT_LINEAR(fmt))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    if (LoadSymbols(stream) != VLC_SUCCESS)
-        return VLC_EGENERIC;
+    if (LoadSymbols(stream) != HEIMDALL_SUCCESS)
+        return HEIMDALL_EGENERIC;
 
     if (adev == ANDROID_AUDIO_DEVICE_STEREO)
     {
@@ -903,13 +904,13 @@ Start(aout_stream_t *stream, audio_sample_format_t *fmt,
 
     struct sys *sys = stream->sys = malloc(sizeof(*sys));
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     sys->volume = 1.0f;
     sys->muted = false;
     sys->error = false;
 
-    vlc_mutex_init(&sys->lock);
+    heimdall_mutex_init(&sys->lock);
     sys->frame_chain = NULL;
     sys->frame_last = &sys->frame_chain;
     sys->frames_total_bytes = 0;
@@ -919,14 +920,14 @@ Start(aout_stream_t *stream, audio_sample_format_t *fmt,
 
     sys->started = false;
     sys->draining = false;
-    sys->first_pts = sys->first_play_date = VLC_TICK_INVALID;
+    sys->first_pts = sys->first_play_date = HEIMDALL_TICK_INVALID;
     sys->timing_report_last_written_bytes = 0;
     sys->timing_report_delay_bytes = 0;
 
     PrepareAudioFormat(stream, fmt);
 
     int ret = OpenAAudioStream(stream);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
     {
         free(sys);
         return ret;
@@ -957,13 +958,13 @@ Start(aout_stream_t *stream, audio_sample_format_t *fmt,
     stream->mute_set = MuteSet;
 
     msg_Dbg(stream, "using AAudio API");
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname("AAudio")
     set_description("Android AAudio output")
     set_subcategory(SUBCAT_AUDIO_AOUT)
     set_capability("aout android stream", 190)
     set_callback(Start)
-vlc_module_end ()
+heimdall_module_end ()

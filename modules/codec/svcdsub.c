@@ -2,6 +2,7 @@
  * svcdsub.c : Overlay Graphics Text (SVCD subtitles) decoder
  *****************************************************************************
  * Copyright (C) 2003, 2004 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Rocky Bernstein
  *          Gildas Bazin <gbazin@videolan.org>
@@ -30,21 +31,21 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
-#include <vlc_bits.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
+#include <heimdall_bits.h>
 
 #include "../demux/mpeg/timestamps.h"
 
 /*****************************************************************************
  * Module descriptor.
  *****************************************************************************/
-static int  DecoderOpen   ( vlc_object_t * );
-static int  PacketizerOpen( vlc_object_t * );
-static void DecoderClose  ( vlc_object_t * );
+static int  DecoderOpen   ( heimdall_object_t * );
+static int  PacketizerOpen( heimdall_object_t * );
+static void DecoderClose  ( heimdall_object_t * );
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("Philips OGT (SVCD subtitle) decoder") )
     set_shortname( N_("SVCD subtitles") )
     set_subcategory( SUBCAT_INPUT_SCODEC )
@@ -55,7 +56,7 @@ vlc_module_begin ()
     set_description( N_("Philips OGT (SVCD subtitle) packetizer") )
     set_capability( "spu packetizer", 50 )
     set_callbacks( PacketizerOpen, DecoderClose )
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * Local prototypes
@@ -91,7 +92,7 @@ typedef struct
                                    image data */
   size_t second_field_offset;      /* offset of odd raster lines */
 
-  vlc_tick_t i_duration;   /* how long to display the image, 0 stands
+  heimdall_tick_t i_duration;   /* how long to display the image, 0 stands
                            for "until next subtitle" */
 
   uint16_t i_x_start, i_y_start; /* position of top leftmost pixel of
@@ -101,17 +102,17 @@ typedef struct
   uint8_t p_palette[4][4];       /* Palette of colors used in subtitle */
 } decoder_sys_t;
 
-static int OpenCommon( vlc_object_t *p_this, bool b_packetizer )
+static int OpenCommon( heimdall_object_t *p_this, bool b_packetizer )
 {
     decoder_t     *p_dec = (decoder_t*)p_this;
     decoder_sys_t *p_sys;
 
-    if( p_dec->fmt_in->i_codec != VLC_CODEC_OGT )
-        return VLC_EGENERIC;
+    if( p_dec->fmt_in->i_codec != HEIMDALL_CODEC_OGT )
+        return HEIMDALL_EGENERIC;
 
     p_dec->p_sys = p_sys = calloc( 1, sizeof( decoder_sys_t ) );
     if( p_sys == NULL )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
 
     p_sys->i_image = -1;
@@ -119,20 +120,20 @@ static int OpenCommon( vlc_object_t *p_this, bool b_packetizer )
     p_sys->i_state = SUBTITLE_BLOCK_EMPTY;
     p_sys->p_spu   = NULL;
 
-    p_dec->fmt_out.i_codec = VLC_CODEC_OGT;
+    p_dec->fmt_out.i_codec = HEIMDALL_CODEC_OGT;
 
     if( b_packetizer )
         p_dec->pf_packetize = Packetize;
     else
         p_dec->pf_decode    = Decode;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * DecoderOpen: open/initialize the svcdsub decoder.
  *****************************************************************************/
-static int DecoderOpen( vlc_object_t *p_this )
+static int DecoderOpen( heimdall_object_t *p_this )
 {
     return OpenCommon( p_this, false );
 }
@@ -140,7 +141,7 @@ static int DecoderOpen( vlc_object_t *p_this )
 /*****************************************************************************
  * PacketizerOpen: open/initialize the svcdsub packetizer.
  *****************************************************************************/
-static int PacketizerOpen( vlc_object_t *p_this )
+static int PacketizerOpen( heimdall_object_t *p_this )
 {
     return OpenCommon( p_this, true );
 }
@@ -148,7 +149,7 @@ static int PacketizerOpen( vlc_object_t *p_this )
 /*****************************************************************************
  * DecoderClose: closes the svcdsub decoder/packetizer.
  *****************************************************************************/
-void DecoderClose( vlc_object_t *p_this )
+void DecoderClose( heimdall_object_t *p_this )
 {
     decoder_t     *p_dec = (decoder_t*)p_this;
     decoder_sys_t *p_sys = p_dec->p_sys;
@@ -167,17 +168,17 @@ static int Decode( decoder_t *p_dec, block_t *p_block )
 #endif
 
     if( p_block == NULL ) /* No Drain */
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
 
     if( !(p_block = Reassemble( p_dec, p_block )) )
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
 
     /* Parse and decode */
     subpicture_t *p_spu = DecodePacket( p_dec, p_block );
     block_Release( p_block );
     if( p_spu != NULL )
         decoder_QueueSub( p_dec, p_spu );
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }
 
 /*****************************************************************************
@@ -195,7 +196,7 @@ static block_t *Packetize( decoder_t *p_dec, block_t **pp_block )
     if( !(p_spu = Reassemble( p_dec, p_block )) ) return NULL;
 
     p_spu->i_dts = p_spu->i_pts;
-    p_spu->i_length = VLC_TICK_INVALID;
+    p_spu->i_length = HEIMDALL_TICK_INVALID;
 
     return p_spu;
 }
@@ -456,7 +457,7 @@ static subpicture_t *DecodePacket( decoder_t *p_dec, block_t *p_data )
     p_spu->b_ephemer = true;
 
     /* Create new subtitle region */
-    video_format_Init( &fmt, VLC_CODEC_YUVP );
+    video_format_Init( &fmt, HEIMDALL_CODEC_YUVP );
 
     /**
        The video on which the subtitle sits, is scaled, probably
@@ -487,7 +488,7 @@ static subpicture_t *DecodePacket( decoder_t *p_dec, block_t *p_data )
         return NULL;
     }
 
-    vlc_spu_regions_push(&p_spu->regions, p_region);
+    heimdall_spu_regions_push(&p_spu->regions, p_region);
     p_region->b_absolute = true; p_region->b_in_window = false;
     p_region->i_x = p_sys->i_x_start;
     p_region->i_y = p_sys->i_y_start;

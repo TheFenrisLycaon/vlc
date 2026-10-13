@@ -3,10 +3,11 @@
  *****************************************************************************
  * Copyright (C) 2000-2010 VLC authors and VideoLAN
  * Copyright (C) 2009-2010 Laurent Aimar
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Vincent Seguin <seguin@via.ecp.fr>
  *          Samuel Hocevar <sam@zoy.org>
- *          Laurent Aimar <fenrir _AT_ videolan _DOT_ org>
+ *          Laurent Aimar <fenrir _AT_ lycaria _DOT_ org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -34,22 +35,22 @@
 #include <limits.h>
 #include <stdckdint.h>
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 #include "picture.h"
-#include <vlc_image.h>
-#include <vlc_block.h>
+#include <heimdall_image.h>
+#include <heimdall_block.h>
 
-#include <vlc_ancillary.h>
+#include <heimdall_ancillary.h>
 
 static void PictureDestroyContext( picture_t *p_picture )
 {
     picture_context_t *ctx = p_picture->context;
     if (ctx != NULL)
     {
-        vlc_video_context *vctx = ctx->vctx;
+        heimdall_video_context *vctx = ctx->vctx;
         ctx->destroy(ctx);
         if (vctx)
-            vlc_video_context_Release(vctx);
+            heimdall_video_context_Release(vctx);
         p_picture->context = NULL;
     }
 }
@@ -74,14 +75,14 @@ static void picture_DestroyFromFormat(picture_t *pic)
         picture_Deallocate(res->fd, res->base, res->size);
 }
 
-VLC_WEAK void *picture_Allocate(int *restrict fdp, size_t size)
+HEIMDALL_WEAK void *picture_Allocate(int *restrict fdp, size_t size)
 {
     assert((size % 64) == 0);
     *fdp = -1;
     return aligned_alloc(64, size);
 }
 
-VLC_WEAK void picture_Deallocate(int fd, void *base, size_t size)
+HEIMDALL_WEAK void picture_Deallocate(int fd, void *base, size_t size)
 {
     assert(fd == -1);
     aligned_free(base);
@@ -94,7 +95,7 @@ VLC_WEAK void picture_Deallocate(int fd, void *base, size_t size)
 void picture_Reset( picture_t *p_picture )
 {
     /* */
-    p_picture->date = VLC_TICK_INVALID;
+    p_picture->date = HEIMDALL_TICK_INVALID;
     p_picture->b_force = false;
     p_picture->b_still = false;
     p_picture->b_progressive = false;
@@ -103,7 +104,7 @@ void picture_Reset( picture_t *p_picture )
     PictureDestroyContext( p_picture );
 
     picture_priv_t *priv = container_of(p_picture, picture_priv_t, picture);
-    vlc_ancillary_array_Clear(&priv->ancillaries);
+    heimdall_ancillary_array_Clear(&priv->ancillaries);
 }
 
 /*****************************************************************************
@@ -116,10 +117,10 @@ static int LCM( int a, int b )
 
 int picture_Setup( picture_t *p_picture, const video_format_t *restrict fmt )
 {
-    const vlc_chroma_description_t *p_dsc =
-        vlc_fourcc_GetChromaDescription( fmt->i_chroma );
+    const heimdall_chroma_description_t *p_dsc =
+        heimdall_fourcc_GetChromaDescription( fmt->i_chroma );
     if( unlikely(!p_dsc) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* Store default values */
     p_picture->i_planes = 0;
@@ -164,7 +165,7 @@ int picture_Setup( picture_t *p_picture, const video_format_t *restrict fmt )
 
     if (unlikely(ckd_add(&width, fmt->i_width, i_modulo_w - 1))
      || unlikely(ckd_add(&height, fmt->i_height, i_modulo_h - 1)))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     width = width / i_modulo_w * i_modulo_w;
     height = height / i_modulo_h * i_modulo_h;
@@ -172,27 +173,27 @@ int picture_Setup( picture_t *p_picture, const video_format_t *restrict fmt )
     for( unsigned i = 0; i < p_dsc->plane_count; i++ )
     {
         plane_t *p = &p_picture->p[i];
-        const vlc_rational_t *h = &p_dsc->p[i].h;
-        const vlc_rational_t *w = &p_dsc->p[i].w;
+        const heimdall_rational_t *h = &p_dsc->p[i].h;
+        const heimdall_rational_t *w = &p_dsc->p[i].w;
 
         unsigned mul_height;
         if (unlikely(ckd_mul(&mul_height, height, h->num)))
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         mul_height = mul_height / h->den;
         if (unlikely(mul_height > INT_MAX))
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
         p->i_lines = mul_height;
         p->i_visible_lines = (fmt->i_visible_height + (h->den - 1)) / h->den * h->num;
 
         unsigned mul_width;
         if (unlikely(ckd_mul(&mul_width, width, w->num)))
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         mul_width = mul_width / w->den;
         if (unlikely(ckd_mul(&mul_width, mul_width, p_dsc->pixel_size)))
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         if (unlikely(mul_width > INT_MAX))
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
         p->i_pitch = mul_width;
         p->i_visible_pitch = (fmt->i_visible_width + (w->den - 1)) / w->den * w->num
@@ -203,7 +204,7 @@ int picture_Setup( picture_t *p_picture, const video_format_t *restrict fmt )
     }
     p_picture->i_planes = p_dsc->plane_count;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -217,7 +218,7 @@ static bool picture_InitPrivate(const video_format_t *restrict p_fmt,
     picture_t *p_picture = &priv->picture;
 
     memset( p_picture, 0, sizeof( *p_picture ) );
-    p_picture->date = VLC_TICK_INVALID;
+    p_picture->date = HEIMDALL_TICK_INVALID;
 
     video_format_Copy(&p_picture->format, p_fmt);
     /* Make sure the real dimensions are a multiple of 16 */
@@ -227,7 +228,7 @@ static bool picture_InitPrivate(const video_format_t *restrict p_fmt,
         return false;
     }
 
-    vlc_atomic_rc_init(&p_picture->refs);
+    heimdall_atomic_rc_init(&p_picture->refs);
     priv->gc.opaque = NULL;
 
     p_picture->p_sys = p_resource->p_sys;
@@ -239,7 +240,7 @@ static bool picture_InitPrivate(const video_format_t *restrict p_fmt,
 
     priv->pool = NULL;
 
-    vlc_ancillary_array_Init(&priv->ancillaries);
+    heimdall_ancillary_array_Init(&priv->ancillaries);
 
     return true;
 }
@@ -342,7 +343,7 @@ error:
     return NULL;
 }
 
-picture_t *picture_New( vlc_fourcc_t i_chroma, int i_width, int i_height, int i_sar_num, int i_sar_den )
+picture_t *picture_New( heimdall_fourcc_t i_chroma, int i_width, int i_height, int i_sar_num, int i_sar_den )
 {
     video_format_t fmt;
 
@@ -359,14 +360,14 @@ picture_t *picture_New( vlc_fourcc_t i_chroma, int i_width, int i_height, int i_
 
 void picture_Destroy(picture_t *picture)
 {
-    assert(vlc_atomic_rc_get(&picture->refs) == 0);
+    assert(heimdall_atomic_rc_get(&picture->refs) == 0);
 
     PictureDestroyContext(picture);
 
     picture_priv_t *priv = container_of(picture, picture_priv_t, picture);
     assert(priv->gc.destroy != NULL);
     priv->gc.destroy(picture);
-    vlc_ancillary_array_Clear(&priv->ancillaries);
+    heimdall_ancillary_array_Clear(&priv->ancillaries);
     video_format_Clean(&picture->format);
     free(priv);
 }
@@ -422,7 +423,7 @@ void picture_CopyProperties( picture_t *p_dst, const picture_t *p_src )
 
     const picture_priv_t *src_priv = container_of(p_src, picture_priv_t, picture);
     picture_priv_t *dst_priv = container_of(p_dst, picture_priv_t, picture);
-    vlc_ancillary_array_Merge(&dst_priv->ancillaries, &src_priv->ancillaries);
+    heimdall_ancillary_array_Merge(&dst_priv->ancillaries, &src_priv->ancillaries);
 }
 
 void picture_CopyPixels( picture_t *p_dst, const picture_t *p_src )
@@ -488,69 +489,69 @@ picture_t *picture_Clone(picture_t *picture)
 
     const picture_priv_t *priv = container_of(picture, picture_priv_t, picture);
     picture_priv_t *clone_priv = container_of(clone, picture_priv_t, picture);
-    vlc_ancillary_array_Merge(&clone_priv->ancillaries, &priv->ancillaries);
+    heimdall_ancillary_array_Merge(&clone_priv->ancillaries, &priv->ancillaries);
     return clone;
 }
 
 int
-picture_MergeAncillaries(picture_t *pic, const vlc_ancillary_array *src_array)
+picture_MergeAncillaries(picture_t *pic, const heimdall_ancillary_array *src_array)
 {
     picture_priv_t *priv = container_of(pic, picture_priv_t, picture);
-    return vlc_ancillary_array_Merge(&priv->ancillaries, src_array);
+    return heimdall_ancillary_array_Merge(&priv->ancillaries, src_array);
 }
 
 int
-picture_MergeAndClearAncillaries(picture_t *pic, vlc_ancillary_array *src_array)
+picture_MergeAndClearAncillaries(picture_t *pic, heimdall_ancillary_array *src_array)
 {
     picture_priv_t *priv = container_of(pic, picture_priv_t, picture);
-    return vlc_ancillary_array_MergeAndClear(&priv->ancillaries, src_array);
+    return heimdall_ancillary_array_MergeAndClear(&priv->ancillaries, src_array);
 }
 
 int
-picture_AttachAncillary(picture_t *pic, struct vlc_ancillary *ancillary)
+picture_AttachAncillary(picture_t *pic, struct heimdall_ancillary *ancillary)
 {
     picture_priv_t *priv = container_of(pic, picture_priv_t, picture);
-    return vlc_ancillary_array_Insert(&priv->ancillaries, ancillary);
+    return heimdall_ancillary_array_Insert(&priv->ancillaries, ancillary);
 }
 
 void *
-picture_AttachNewAncillary(picture_t *pic, vlc_ancillary_id id, size_t size)
+picture_AttachNewAncillary(picture_t *pic, heimdall_ancillary_id id, size_t size)
 {
     void *data = malloc(size);
     if (!data)
         return NULL;
 
-    struct vlc_ancillary *ancillary = vlc_ancillary_Create(data, id);
+    struct heimdall_ancillary *ancillary = heimdall_ancillary_Create(data, id);
     if (!ancillary) {
         free(data);
         return NULL;
     }
 
     if (picture_AttachAncillary(pic, ancillary) != 0) {
-        vlc_ancillary_Release(ancillary);
+        heimdall_ancillary_Release(ancillary);
         return NULL;
     }
 
-    vlc_ancillary_Release(ancillary);
+    heimdall_ancillary_Release(ancillary);
 
     return data;
 }
 
-struct vlc_ancillary *
-picture_GetAncillary(const picture_t *pic, vlc_ancillary_id id)
+struct heimdall_ancillary *
+picture_GetAncillary(const picture_t *pic, heimdall_ancillary_id id)
 {
     picture_priv_t *priv = container_of(pic, picture_priv_t, picture);
-    return vlc_ancillary_array_Get(&priv->ancillaries, id);
+    return heimdall_ancillary_array_Get(&priv->ancillaries, id);
 }
 
 /*****************************************************************************
  *
  *****************************************************************************/
-int picture_Export( vlc_object_t *p_obj,
+int picture_Export( heimdall_object_t *p_obj,
                     block_t **pp_image,
                     video_format_t *p_fmt,
                     picture_t *p_picture,
-                    vlc_fourcc_t i_codec,
+                    heimdall_fourcc_t i_codec,
                     int i_override_width, int i_override_height,
                     bool b_crop )
 {
@@ -638,15 +639,15 @@ int picture_Export( vlc_object_t *p_obj,
 
     image_handler_t *p_image = image_HandlerCreate( p_obj );
     if( !p_image )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    vlc_tick_t date = p_picture->date;
+    heimdall_tick_t date = p_picture->date;
     block_t *p_block = image_Write( p_image, p_picture, &fmt_in, i_codec, &fmt_out );
 
     image_HandlerDelete( p_image );
 
     if( !p_block )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     p_block->i_pts =
     p_block->i_dts = date;
@@ -655,5 +656,5 @@ int picture_Export( vlc_object_t *p_obj,
         *p_fmt = fmt_out;
     *pp_image = p_block;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

@@ -2,6 +2,7 @@
  * rtp.h: rtp stream output module header
  *****************************************************************************
  * Copyright (C) 2003-2007 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *          Rémi Denis-Courmont
@@ -25,7 +26,7 @@ typedef struct rtsp_stream_t rtsp_stream_t;
 typedef struct rtsp_stream_id_t rtsp_stream_id_t;
 typedef struct sout_stream_id_sys_t sout_stream_id_sys_t;
 
-rtsp_stream_t *RtspSetup( vlc_object_t *owner, const char *path );
+rtsp_stream_t *RtspSetup( heimdall_object_t *owner, const char *path );
 void RtspUnsetup( rtsp_stream_t *rtsp );
 
 rtsp_stream_id_t *RtspAddId( rtsp_stream_t *rtsp, sout_stream_id_sys_t *sid,
@@ -43,25 +44,25 @@ void RtspTrackDetach( rtsp_stream_t *rtsp, const char *name,
 
 char *SDPGenerate( sout_stream_t *p_stream, const char *rtsp_url );
 
-uint32_t rtp_compute_ts( unsigned i_clock_rate, vlc_tick_t i_pts );
+uint32_t rtp_compute_ts( unsigned i_clock_rate, heimdall_tick_t i_pts );
 int rtp_add_sink( sout_stream_id_sys_t *id, int fd, bool rtcp_mux, uint16_t *seq );
 void rtp_del_sink( sout_stream_id_sys_t *id, int fd );
 uint16_t rtp_get_seq( sout_stream_id_sys_t *id );
-vlc_tick_t rtp_get_ts( const sout_stream_t *p_stream, const sout_stream_id_sys_t *id,
-                       vlc_tick_t *p_npt );
+heimdall_tick_t rtp_get_ts( const sout_stream_t *p_stream, const sout_stream_id_sys_t *id,
+                       heimdall_tick_t *p_npt );
 
 /* RTP packetization */
 void rtp_packetize_common (sout_stream_id_sys_t *id, block_t *out,
-                           bool b_m_bit, vlc_tick_t i_pts);
+                           bool b_m_bit, heimdall_tick_t i_pts);
 void rtp_packetize_send (sout_stream_id_sys_t *id, block_t *out);
 size_t rtp_mtu (const sout_stream_id_sys_t *id);
 
 int rtp_packetize_xiph_config( sout_stream_id_sys_t *id, const char *fmtp,
-                               vlc_tick_t i_pts );
+                               heimdall_tick_t i_pts );
 
 /* RTCP */
 typedef struct rtcp_sender_t rtcp_sender_t;
-rtcp_sender_t *OpenRTCP (vlc_object_t *obj, int rtp_fd, int proto,
+rtcp_sender_t *OpenRTCP (heimdall_object_t *obj, int rtp_fd, int proto,
                          bool mux);
 void CloseRTCP (rtcp_sender_t *rtcp);
 void SendRTCP (rtcp_sender_t *restrict rtcp, const block_t *rtp);
@@ -83,7 +84,7 @@ typedef struct rtp_format_t
     pf_rtp_packetizer_t pf_packetize;
 } rtp_format_t;
 
-int rtp_get_fmt( vlc_object_t *obj, const es_format_t *p_fmt, const char *mux,
+int rtp_get_fmt( heimdall_object_t *obj, const es_format_t *p_fmt, const char *mux,
                  rtp_format_t *p_rtp_fmt );
 
 /* Only used by rtp_packetize_rawvideo */

@@ -2,6 +2,7 @@
  * es_out.c: Es Out handler for input.
  *****************************************************************************
  * Copyright (C) 2003-2019 VLC authors, VideoLAN and Videolabs SAS
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *          Jean-Paul Saman <jpsaman #_at_# m2x dot nl>
@@ -31,19 +32,19 @@
 
 #include <stdio.h>
 #include <assert.h>
-#include <vlc_common.h>
-#include <vlc_configuration.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
 
-#include <vlc_arrays.h>
-#include <vlc_es_out.h>
-#include <vlc_block.h>
-#include <vlc_aout.h>
-#include <vlc_fourcc.h>
-#include <vlc_meta.h>
-#include <vlc_list.h>
-#include <vlc_memstream.h>
-#include <vlc_tracer.h>
-#include <vlc_replay_gain.h>
+#include <heimdall_arrays.h>
+#include <heimdall_es_out.h>
+#include <heimdall_block.h>
+#include <heimdall_aout.h>
+#include <heimdall_fourcc.h>
+#include <heimdall_meta.h>
+#include <heimdall_list.h>
+#include <heimdall_memstream.h>
+#include <heimdall_tracer.h>
+#include <heimdall_replay_gain.h>
 
 #include "./source.h"
 #include "../clock/input_clock.h"
@@ -57,7 +58,7 @@
 
 #include "../stream_output/stream_output.h"
 
-#include <vlc_iso_lang.h>
+#include <heimdall_iso_lang.h>
 
 /*****************************************************************************
  * Local prototypes
@@ -79,27 +80,27 @@ typedef struct
     /* Clock for this program */
     input_clock_t    *p_input_clock;
     struct {
-        vlc_clock_main_t *main;
-        vlc_clock_t *input;
+        heimdall_clock_main_t *main;
+        heimdall_clock_t *input;
     } clocks;
 
     /* Weak reference to the master ES clock */
-    const vlc_clock_t *p_master_es_clock;
-    enum vlc_clock_master_source active_clock_source;
+    const heimdall_clock_t *p_master_es_clock;
+    enum heimdall_clock_master_source active_clock_source;
 
-    vlc_tick_t i_last_pcr;
+    heimdall_tick_t i_last_pcr;
 
-    vlc_meta_t *p_meta;
-    struct vlc_list node;
+    heimdall_meta_t *p_meta;
+    struct heimdall_list node;
 } es_out_pgrm_t;
 
 
 /**
  * Opaque structure representing an ES (Elementary Stream) track.
  *
- * This structure is propagated via the vlc_input_event_es event
+ * This structure is propagated via the heimdall_input_event_es event
  */
-struct vlc_es_id_t
+struct heimdall_es_id_t
 {
     int i_id;
     enum es_format_category_e i_cat;
@@ -112,10 +113,10 @@ struct vlc_es_id_t
 
 struct es_out_id_t
 {
-    vlc_es_id_t id;
+    heimdall_es_id_t id;
 
-    /* weak reference, used by input_decoder_callbacks and vlc_clock_cbs */
-    struct vlc_input_es_out *out;
+    /* weak reference, used by input_decoder_callbacks and heimdall_clock_cbs */
+    struct heimdall_input_es_out *out;
 
     /* ES ID */
     es_out_pgrm_t *p_pgrm;
@@ -126,7 +127,7 @@ struct es_out_id_t
     /* Channel in the track type */
     int         i_channel;
 
-    vlc_atomic_rc_t rc;
+    heimdall_atomic_rc_t rc;
 
     size_t      i_pos; /* position, used to get the title of the track */
     es_format_t fmt; /* input fmt from the demuxer */
@@ -137,27 +138,27 @@ struct es_out_id_t
     bool        b_terminated;
     bool        forced;
 
-    vlc_input_decoder_t   *p_dec;
-    vlc_input_decoder_t   *p_dec_record;
-    vlc_clock_t *p_clock;
+    heimdall_input_decoder_t   *p_dec;
+    heimdall_input_decoder_t   *p_dec_record;
+    heimdall_clock_t *p_clock;
 
-    /* Used by vlc_clock_cbs, need to be const during the lifetime of the clock */
+    /* Used by heimdall_clock_cbs, need to be const during the lifetime of the clock */
     bool master;
 
-    vlc_tick_t i_pts_level;
-    vlc_tick_t delay;
+    heimdall_tick_t i_pts_level;
+    heimdall_tick_t delay;
 
     /* Fields for ES created by decoders */
-    struct VLC_VECTOR(es_out_id_t *) sub_es_vec;
+    struct HEIMDALL_VECTOR(es_out_id_t *) sub_es_vec;
 
     /* Field for a sub track from a master ES */
     es_out_id_t *p_master;
 
-    struct vlc_list node;
+    struct heimdall_list node;
 
-    vlc_mouse_event mouse_event_cb;
+    heimdall_mouse_event mouse_event_cb;
     void* mouse_event_userdata;
-    vlc_mouse_t oldmouse;
+    heimdall_mouse_t oldmouse;
     bool mouse_being_dragged;
 };
 
@@ -183,18 +184,18 @@ typedef struct
     input_source_t *main_source;
 
     /* */
-    vlc_mutex_t   lock;
+    heimdall_mutex_t   lock;
 
     /* all programs */
-    struct vlc_list programs;
+    struct heimdall_list programs;
     es_out_pgrm_t *p_pgrm;  /* Master program */
 
-    enum vlc_clock_master_source user_clock_source;
+    enum heimdall_clock_master_source user_clock_source;
 
     /* all es */
     int         i_id;
-    struct vlc_list es;
-    struct vlc_list es_slaves; /* Dynamically created es on regular es selection */
+    struct heimdall_list es;
+    struct heimdall_list es_slaves; /* Dynamically created es on regular es selection */
 
     /* mode gestion */
     bool  b_active;
@@ -206,15 +207,15 @@ typedef struct
     int         i_group_id;
 
     /* delay */
-    vlc_tick_t i_audio_delay;
-    vlc_tick_t i_spu_delay;
-    vlc_tick_t i_video_delay;
+    heimdall_tick_t i_audio_delay;
+    heimdall_tick_t i_spu_delay;
+    heimdall_tick_t i_video_delay;
 
     /* Clock configuration */
-    vlc_tick_t  i_pts_delay;
-    vlc_tick_t  i_tracks_pts_delay;
-    vlc_tick_t  i_pts_jitter;
-    vlc_tick_t  i_last_pts_jitter;
+    heimdall_tick_t  i_pts_delay;
+    heimdall_tick_t  i_tracks_pts_delay;
+    heimdall_tick_t  i_pts_jitter;
+    heimdall_tick_t  i_last_pts_jitter;
     int         i_cr_average;
     float       rate;
 
@@ -222,16 +223,16 @@ typedef struct
     bool        b_paused;
     bool        b_rebuffering;
     es_out_id_t *p_next_frame_es;
-    vlc_tick_t  i_pause_date;
+    heimdall_tick_t  i_pause_date;
 
     /* Current preroll */
-    vlc_tick_t  i_preroll_end;
+    heimdall_tick_t  i_preroll_end;
 
     /* Used for buffering */
     bool        b_buffering;
-    vlc_tick_t  i_buffering_extra_initial;
-    vlc_tick_t  i_buffering_extra_stream;
-    vlc_tick_t  i_buffering_extra_system;
+    heimdall_tick_t  i_buffering_extra_initial;
+    heimdall_tick_t  i_buffering_extra_stream;
+    heimdall_tick_t  i_buffering_extra_system;
     bool        b_draining;
 
     /* Record */
@@ -242,9 +243,9 @@ typedef struct
 
     unsigned    cc_decoder;
 
-    enum vlc_mouse_pause_policy mouse_pause_policy;
+    enum heimdall_mouse_pause_policy mouse_pause_policy;
 
-    struct vlc_input_es_out out;
+    struct heimdall_input_es_out out;
 } es_out_sys_t;
 
 static void         EsOutDelLocked(es_out_sys_t *, es_out_id_t *);
@@ -253,25 +254,25 @@ static void         EsOutDel    (es_out_t *, es_out_id_t *);
 static void         EsOutTerminate(es_out_sys_t *);
 static void         EsOutSelect(es_out_sys_t *, es_out_id_t *es, bool b_force);
 static void         EsOutSelectList(es_out_sys_t *, enum es_format_category_e cat,
-                                    vlc_es_id_t *const* es_id_list);
-static void         EsOutUpdateInfo(es_out_sys_t *, es_out_id_t *es, const vlc_meta_t *);
+                                    heimdall_es_id_t *const* es_id_list);
+static void         EsOutUpdateInfo(es_out_sys_t *, es_out_id_t *es, const heimdall_meta_t *);
 static int          EsOutSetRecord(es_out_sys_t *, bool b_record, const char *dir_path);
 
 static bool EsIsSelected( es_out_id_t *es );
-static void EsOutSelectEs(es_out_sys_t *out, es_out_id_t *es, bool b_force, enum vlc_vout_order vout_order);
+static void EsOutSelectEs(es_out_sys_t *out, es_out_id_t *es, bool b_force, enum heimdall_vout_order vout_order);
 static void EsOutDeleteInfoEs(es_out_sys_t *, es_out_id_t *es);
 static void EsOutUnselectEs(es_out_sys_t *out, es_out_id_t *es, bool b_update);
 static void EsOutDecoderChangeDelay(es_out_sys_t *out, es_out_id_t *p_es);
-static void EsOutDecodersChangePause(es_out_sys_t *out, bool b_paused, vlc_tick_t i_date);
+static void EsOutDecodersChangePause(es_out_sys_t *out, bool b_paused, heimdall_tick_t i_date);
 static void EsOutChangePosition(es_out_sys_t *out, es_out_id_t *p_next_frame_es);
-static void EsOutProgramChangePause(es_out_sys_t *out, bool b_paused, vlc_tick_t i_date);
+static void EsOutProgramChangePause(es_out_sys_t *out, bool b_paused, heimdall_tick_t i_date);
 static void EsOutProgramsChangeRate(es_out_sys_t *out);
 static void EsOutDecodersStopBuffering(es_out_sys_t *out, bool b_forced);
 static void EsOutDrainDecoder(es_out_sys_t *p_sys, es_out_id_t *es, bool wait);
-static void EsOutGlobalMeta(es_out_sys_t *p_out, const vlc_meta_t *p_meta);
-static void EsOutMeta(es_out_sys_t *p_out, const vlc_meta_t *p_meta, const vlc_meta_t *p_progmeta);
-static void EsOutSetJitter(es_out_sys_t *p_sys, vlc_tick_t i_pts_delay,
-                           vlc_tick_t i_pts_jitter, vlc_tick_t i_cr_average);
+static void EsOutGlobalMeta(es_out_sys_t *p_out, const heimdall_meta_t *p_meta);
+static void EsOutMeta(es_out_sys_t *p_out, const heimdall_meta_t *p_meta, const heimdall_meta_t *p_progmeta);
+static void EsOutSetJitter(es_out_sys_t *p_sys, heimdall_tick_t i_pts_delay,
+                           heimdall_tick_t i_pts_jitter, heimdall_tick_t i_cr_average);
 static int EsOutEsUpdateFmt(es_out_id_t *es, const es_format_t *fmt);
 static int EsOutPrivControlLocked(es_out_sys_t *out, input_source_t *, int i_query, ...);
 static int EsOutControlLocked(es_out_sys_t *out, input_source_t *, int i_query, ...);
@@ -302,7 +303,7 @@ static bool EsOutIsBuffering(const es_out_sys_t *p_sys)
 struct clock_source_mapping
 {
     char key[sizeof("monotonic")];
-    enum vlc_clock_master_source val;
+    enum heimdall_clock_master_source val;
 };
 
 static int clock_source_mapping_cmp(const void *key, const void *val)
@@ -311,17 +312,17 @@ static int clock_source_mapping_cmp(const void *key, const void *val)
     return strcasecmp( key, entry->key );
 }
 
-static enum vlc_clock_master_source
-clock_source_Inherit(vlc_object_t *obj)
+static enum heimdall_clock_master_source
+clock_source_Inherit(heimdall_object_t *obj)
 {
     static const struct clock_source_mapping clock_source_list[] =
     {
-        { "0", VLC_CLOCK_MASTER_AUDIO }, /* legacy option */
-        { "1", VLC_CLOCK_MASTER_MONOTONIC }, /* legacy option */
-        { "audio", VLC_CLOCK_MASTER_AUDIO },
-        { "auto", VLC_CLOCK_MASTER_AUTO },
-        { "input", VLC_CLOCK_MASTER_INPUT },
-        { "monotonic", VLC_CLOCK_MASTER_MONOTONIC },
+        { "0", HEIMDALL_CLOCK_MASTER_AUDIO }, /* legacy option */
+        { "1", HEIMDALL_CLOCK_MASTER_MONOTONIC }, /* legacy option */
+        { "audio", HEIMDALL_CLOCK_MASTER_AUDIO },
+        { "auto", HEIMDALL_CLOCK_MASTER_AUTO },
+        { "input", HEIMDALL_CLOCK_MASTER_INPUT },
+        { "monotonic", HEIMDALL_CLOCK_MASTER_MONOTONIC },
     };
 
     char *master_source_str = var_InheritString(obj, "clock-master");
@@ -338,17 +339,17 @@ clock_source_Inherit(vlc_object_t *obj)
     return entry->val;
 
 default_val:
-    return VLC_CLOCK_MASTER_AUTO;
+    return HEIMDALL_CLOCK_MASTER_AUTO;
 }
 
 #define foreach_es_then_es_slaves( pos ) \
     for( int fetes_i=0; fetes_i<2; fetes_i++ ) \
-        vlc_list_foreach( pos, (!fetes_i ? &p_sys->es : &p_sys->es_slaves), node )
+        heimdall_list_foreach( pos, (!fetes_i ? &p_sys->es : &p_sys->es_slaves), node )
 
 struct mouse_pause_policy_mapping
 {
     char key[sizeof("pause-on-released")];
-    enum vlc_mouse_pause_policy val;
+    enum heimdall_mouse_pause_policy val;
 };
 
 static int mouse_pause_policy_cmp(const void *key, const void *val)
@@ -357,14 +358,14 @@ static int mouse_pause_policy_cmp(const void *key, const void *val)
     return strcmp( key, entry->key );
 }
 
-static enum vlc_mouse_pause_policy
+static enum heimdall_mouse_pause_policy
 mouse_pause_policy_inherit(input_thread_t *obj)
 {
     static const struct mouse_pause_policy_mapping mouse_pause_policy_list[] =
     {
-        { "auto", VLC_MOUSE_IMMEDIATE_PAUSE_ON_RELEASED},
-        { "disabled", VLC_MOUSE_PAUSE_DISABLED},
-        { "pause-on-released", VLC_MOUSE_IMMEDIATE_PAUSE_ON_RELEASED},
+        { "auto", HEIMDALL_MOUSE_IMMEDIATE_PAUSE_ON_RELEASED},
+        { "disabled", HEIMDALL_MOUSE_PAUSE_DISABLED},
+        { "pause-on-released", HEIMDALL_MOUSE_IMMEDIATE_PAUSE_ON_RELEASED},
     };
 
     char *policy_str = var_InheritString(obj, "mouse-pause-policy");
@@ -381,28 +382,28 @@ mouse_pause_policy_inherit(input_thread_t *obj)
     return entry->val;
 
 default_val:
-    return VLC_MOUSE_IMMEDIATE_PAUSE_ON_RELEASED;
+    return HEIMDALL_MOUSE_IMMEDIATE_PAUSE_ON_RELEASED;
 }
 
-static void MouseEventCb(const vlc_mouse_t *newmouse, void *userdata)
+static void MouseEventCb(const heimdall_mouse_t *newmouse, void *userdata)
 {
     es_out_id_t *id = userdata;
-    struct vlc_input_es_out *out = id->out;
+    struct heimdall_input_es_out *out = id->out;
     es_out_sys_t *p_sys = PRIV(&out->out);
 
     if(!p_sys->p_input)
         return;
 
-    enum vlc_mouse_pause_policy policy = p_sys->mouse_pause_policy;
+    enum heimdall_mouse_pause_policy policy = p_sys->mouse_pause_policy;
 
     //TODO: More behaviors to be implemented.
 
-    if (policy == VLC_MOUSE_PAUSE_DISABLED)
+    if (policy == HEIMDALL_MOUSE_PAUSE_DISABLED)
         return;
 
     if(!newmouse)
     {
-        vlc_mouse_Init(&id->oldmouse);
+        heimdall_mouse_Init(&id->oldmouse);
         id->mouse_being_dragged = false;
         return;
     }
@@ -410,14 +411,14 @@ static void MouseEventCb(const vlc_mouse_t *newmouse, void *userdata)
     const es_format_t *fmt = id->fmt_out.i_cat != UNKNOWN_ES ? &id->fmt_out : &id->fmt;
 
     if (fmt->video.projection_mode != PROJECTION_MODE_RECTANGULAR) {
-        if (vlc_mouse_HasDragged( &id->oldmouse, newmouse )) {
+        if (heimdall_mouse_HasDragged( &id->oldmouse, newmouse )) {
             id->mouse_being_dragged = true;
         }
     };
 
-    if (vlc_mouse_HasReleased(&id->oldmouse, newmouse, MOUSE_BUTTON_LEFT)) {
+    if (heimdall_mouse_HasReleased(&id->oldmouse, newmouse, MOUSE_BUTTON_LEFT)) {
         if (!id->mouse_being_dragged) {
-            input_SendEvent(p_sys->p_input, &(struct vlc_input_event) {
+            input_SendEvent(p_sys->p_input, &(struct heimdall_input_event) {
                 .type = INPUT_EVENT_MOUSE_LEFT
             });
         }
@@ -429,20 +430,20 @@ static void MouseEventCb(const vlc_mouse_t *newmouse, void *userdata)
 }
 
 static void
-decoder_on_vout_started(vlc_input_decoder_t *decoder, vout_thread_t *vout,
-                      enum vlc_vout_order order, void *userdata)
+decoder_on_vout_started(heimdall_input_decoder_t *decoder, vout_thread_t *vout,
+                      enum heimdall_vout_order order, void *userdata)
 {
     (void) decoder;
 
     es_out_id_t *id = userdata;
-    struct vlc_input_es_out *out = id->out;
+    struct heimdall_input_es_out *out = id->out;
     es_out_sys_t *p_sys = PRIV(&out->out);
 
     if (!p_sys->p_input)
         return;
 
-    struct vlc_input_event_vout event = {
-        .action = VLC_INPUT_EVENT_VOUT_STARTED,
+    struct heimdall_input_event_vout event = {
+        .action = HEIMDALL_INPUT_EVENT_VOUT_STARTED,
         .vout = vout,
         .order = order,
         .id = &id->id,
@@ -452,21 +453,21 @@ decoder_on_vout_started(vlc_input_decoder_t *decoder, vout_thread_t *vout,
 }
 
 static void
-decoder_on_vout_stopped(vlc_input_decoder_t *decoder, vout_thread_t *vout, void *userdata)
+decoder_on_vout_stopped(heimdall_input_decoder_t *decoder, vout_thread_t *vout, void *userdata)
 {
     (void) decoder;
 
     es_out_id_t *id = userdata;
-    struct vlc_input_es_out *out = id->out;
+    struct heimdall_input_es_out *out = id->out;
     es_out_sys_t *p_sys = PRIV(&out->out);
 
     if (!p_sys->p_input)
         return;
 
-    struct vlc_input_event_vout event = {
-        .action = VLC_INPUT_EVENT_VOUT_STOPPED,
+    struct heimdall_input_event_vout event = {
+        .action = HEIMDALL_INPUT_EVENT_VOUT_STOPPED,
         .vout = vout,
-        .order = VLC_VOUT_ORDER_NONE,
+        .order = HEIMDALL_VOUT_ORDER_NONE,
         .id = &id->id,
     };
 
@@ -474,17 +475,17 @@ decoder_on_vout_stopped(vlc_input_decoder_t *decoder, vout_thread_t *vout, void 
 }
 
 static void
-decoder_on_output_paused(vlc_input_decoder_t *decoder, bool paused,
-                         vlc_tick_t paused_date, void *userdata)
+decoder_on_output_paused(heimdall_input_decoder_t *decoder, bool paused,
+                         heimdall_tick_t paused_date, void *userdata)
 {
     (void) decoder;
     es_out_id_t *id = userdata;
-    struct vlc_input_es_out *out = id->out;
+    struct heimdall_input_es_out *out = id->out;
     es_out_sys_t *p_sys = PRIV(&out->out);
 
-    struct vlc_input_event_output_state event = {
-        .action = paused ? VLC_INPUT_EVENT_OUTPUT_STATE_PAUSED
-                         : VLC_INPUT_EVENT_OUTPUT_STATE_RESUMED,
+    struct heimdall_input_event_output_state event = {
+        .action = paused ? HEIMDALL_INPUT_EVENT_OUTPUT_STATE_PAUSED
+                         : HEIMDALL_INPUT_EVENT_OUTPUT_STATE_RESUMED,
         .paused_date = paused_date,
         .id = &id->id,
     };
@@ -493,18 +494,18 @@ decoder_on_output_paused(vlc_input_decoder_t *decoder, bool paused,
 }
 
 static void
-decoder_on_thumbnail_ready(vlc_input_decoder_t *decoder, picture_t *pic, void *userdata)
+decoder_on_thumbnail_ready(heimdall_input_decoder_t *decoder, picture_t *pic, void *userdata)
 {
     (void) decoder;
 
     es_out_id_t *id = userdata;
-    struct vlc_input_es_out *out = id->out;
+    struct heimdall_input_es_out *out = id->out;
     es_out_sys_t *p_sys = PRIV(&out->out);
 
     if (!p_sys->p_input)
         return;
 
-    struct vlc_input_event event = {
+    struct heimdall_input_event event = {
         .type = INPUT_EVENT_THUMBNAIL_READY,
         .thumbnail = pic,
     };
@@ -513,13 +514,13 @@ decoder_on_thumbnail_ready(vlc_input_decoder_t *decoder, picture_t *pic, void *u
 }
 
 static void
-decoder_on_new_video_stats(vlc_input_decoder_t *decoder, unsigned decoded, unsigned lost,
+decoder_on_new_video_stats(heimdall_input_decoder_t *decoder, unsigned decoded, unsigned lost,
                            unsigned displayed, unsigned late, void *userdata)
 {
     (void) decoder;
 
     es_out_id_t *id = userdata;
-    struct vlc_input_es_out *out = id->out;
+    struct heimdall_input_es_out *out = id->out;
     es_out_sys_t *p_sys = PRIV(&out->out);
 
     if (!p_sys->p_input)
@@ -540,13 +541,13 @@ decoder_on_new_video_stats(vlc_input_decoder_t *decoder, unsigned decoded, unsig
 }
 
 static void
-decoder_on_new_audio_stats(vlc_input_decoder_t *decoder, unsigned decoded, unsigned lost,
+decoder_on_new_audio_stats(heimdall_input_decoder_t *decoder, unsigned decoded, unsigned lost,
                            unsigned played, void *userdata)
 {
     (void) decoder;
 
     es_out_id_t *id = userdata;
-    struct vlc_input_es_out *out = id->out;
+    struct heimdall_input_es_out *out = id->out;
     es_out_sys_t *p_sys = PRIV(&out->out);
 
     if (!p_sys->p_input)
@@ -565,19 +566,19 @@ decoder_on_new_audio_stats(vlc_input_decoder_t *decoder, unsigned decoded, unsig
 }
 
 static void
-decoder_frame_next_status(vlc_input_decoder_t *decoder, int status,
+decoder_frame_next_status(heimdall_input_decoder_t *decoder, int status,
                               void *userdata)
 {
     (void) decoder;
 
     es_out_id_t *id = userdata;
-    struct vlc_input_es_out *out = id->out;
+    struct heimdall_input_es_out *out = id->out;
     es_out_sys_t *p_sys = container_of(out, es_out_sys_t, out);
 
     if (!p_sys->p_input)
         return;
 
-    const struct vlc_input_event event = {
+    const struct heimdall_input_event event = {
         .type = INPUT_EVENT_FRAME_NEXT_STATUS,
         .frame_next_status = status,
     };
@@ -586,37 +587,37 @@ decoder_frame_next_status(vlc_input_decoder_t *decoder, int status,
 }
 
 static void
-decoder_frame_next_need_data(vlc_input_decoder_t *decoder, bool need_data,
+decoder_frame_next_need_data(heimdall_input_decoder_t *decoder, bool need_data,
                              void *userdata)
 {
     (void) decoder;
 
     es_out_id_t *id = userdata;
-    struct vlc_input_es_out *out = id->out;
+    struct heimdall_input_es_out *out = id->out;
     es_out_sys_t *p_sys = container_of(out, es_out_sys_t, out);
 
     if (!p_sys->p_input)
         return;
 
-    vlc_value_t val = { .b_bool = need_data };
+    heimdall_value_t val = { .b_bool = need_data };
     input_ControlPushHelper(p_sys->p_input, INPUT_CONTROL_NEED_DATA_FRAME_NEXT,
                             &val);
 }
 
 static void
-decoder_frame_previous_status(vlc_input_decoder_t *decoder, int status,
+decoder_frame_previous_status(heimdall_input_decoder_t *decoder, int status,
                               void *userdata)
 {
     (void) decoder;
 
     es_out_id_t *id = userdata;
-    struct vlc_input_es_out *out = id->out;
+    struct heimdall_input_es_out *out = id->out;
     es_out_sys_t *p_sys = container_of(out, es_out_sys_t, out);
 
     if (!p_sys->p_input)
         return;
 
-    const struct vlc_input_event event = {
+    const struct heimdall_input_event event = {
         .type = INPUT_EVENT_FRAME_PREVIOUS_STATUS,
         .frame_previous_status = status,
     };
@@ -625,14 +626,14 @@ decoder_frame_previous_status(vlc_input_decoder_t *decoder, int status,
 }
 
 static void
-decoder_frame_previous_seek(vlc_input_decoder_t *decoder, vlc_tick_t pts,
+decoder_frame_previous_seek(heimdall_input_decoder_t *decoder, heimdall_tick_t pts,
                             unsigned frame_rate, unsigned frame_rate_base,
                             int steps, bool failed, void *userdata)
 {
     (void) decoder;
 
     es_out_id_t *id = userdata;
-    struct vlc_input_es_out *out = id->out;
+    struct heimdall_input_es_out *out = id->out;
     es_out_sys_t *p_sys = container_of(out, es_out_sys_t, out);
 
     if (!p_sys->p_input)
@@ -651,14 +652,14 @@ decoder_frame_previous_seek(vlc_input_decoder_t *decoder, vlc_tick_t pts,
 }
 
 static int
-decoder_get_attachments(vlc_input_decoder_t *decoder,
+decoder_get_attachments(heimdall_input_decoder_t *decoder,
                         input_attachment_t ***ppp_attachment,
                         void *userdata)
 {
     (void) decoder;
 
     es_out_id_t *id = userdata;
-    struct vlc_input_es_out *out = id->out;
+    struct heimdall_input_es_out *out = id->out;
     es_out_sys_t *p_sys = PRIV(&out->out);
 
     if (!p_sys->p_input)
@@ -667,7 +668,7 @@ decoder_get_attachments(vlc_input_decoder_t *decoder,
     return input_GetAttachments(p_sys->p_input, ppp_attachment);
 }
 
-static const struct vlc_input_decoder_callbacks decoder_cbs = {
+static const struct heimdall_input_decoder_callbacks decoder_cbs = {
     .on_vout_started = decoder_on_vout_started,
     .on_vout_stopped = decoder_on_vout_stopped,
     .on_output_paused = decoder_on_output_paused,
@@ -746,7 +747,7 @@ static void EsOutPropsInit( es_out_es_props_t *p_props,
  *****************************************************************************/
 static void EsTerminate(es_out_id_t *es)
 {
-    vlc_list_remove(&es->node);
+    heimdall_list_remove(&es->node);
 
     es->b_terminated = true;
 }
@@ -780,7 +781,7 @@ static char *EsGetTitle( es_out_id_t *es )
 
 static void EsRelease(es_out_id_t *es)
 {
-    if (!vlc_atomic_rc_dec(&es->rc))
+    if (!heimdall_atomic_rc_dec(&es->rc))
         return;
 
     free(es->psz_title);
@@ -794,16 +795,16 @@ static void EsRelease(es_out_id_t *es)
 
 static void EsHold(es_out_id_t *es)
 {
-    vlc_atomic_rc_inc(&es->rc);
+    heimdall_atomic_rc_inc(&es->rc);
 }
 
 static void EsOutDelete(es_out_t *out)
 {
     es_out_sys_t *p_sys = PRIV(out);
 
-    assert(vlc_list_is_empty(&p_sys->es));
-    assert(vlc_list_is_empty(&p_sys->es_slaves));
-    assert(vlc_list_is_empty(&p_sys->programs));
+    assert(heimdall_list_is_empty(&p_sys->es));
+    assert(heimdall_list_is_empty(&p_sys->es_slaves));
+    assert(heimdall_list_is_empty(&p_sys->programs));
     assert(p_sys->p_pgrm == NULL);
     EsOutPropsCleanup( &p_sys->video );
     EsOutPropsCleanup( &p_sys->audio );
@@ -816,10 +817,10 @@ static void ProgramDelete( es_out_pgrm_t *p_pgrm )
 {
     input_clock_Delete( p_pgrm->p_input_clock );
     if (p_pgrm->clocks.input)
-        vlc_clock_Delete(p_pgrm->clocks.input);
-    vlc_clock_main_Delete(p_pgrm->clocks.main);
+        heimdall_clock_Delete(p_pgrm->clocks.input);
+    heimdall_clock_main_Delete(p_pgrm->clocks.main);
     if( p_pgrm->p_meta )
-        vlc_meta_Delete( p_pgrm->p_meta );
+        heimdall_meta_Delete( p_pgrm->p_meta );
     input_source_Release( p_pgrm->source );
 
     free( p_pgrm );
@@ -836,9 +837,9 @@ static void EsOutTerminate(es_out_sys_t *p_sys)
     {
         if (es->p_dec != NULL)
         {
-            if (!vlc_input_decoder_IsDrained(es->p_dec))
-                vlc_input_decoder_Flush(es->p_dec);
-            vlc_input_decoder_Delete(es->p_dec);
+            if (!heimdall_input_decoder_IsDrained(es->p_dec))
+                heimdall_input_decoder_Flush(es->p_dec);
+            heimdall_input_decoder_Delete(es->p_dec);
         }
 
         EsTerminate(es);
@@ -846,9 +847,9 @@ static void EsOutTerminate(es_out_sys_t *p_sys)
     }
 
     es_out_pgrm_t *p_pgrm;
-    vlc_list_foreach(p_pgrm, &p_sys->programs, node)
+    heimdall_list_foreach(p_pgrm, &p_sys->programs, node)
     {
-        vlc_list_remove(&p_pgrm->node);
+        heimdall_list_remove(&p_pgrm->node);
         input_SendEventProgramDel( p_sys->p_input, p_pgrm->i_id );
         ProgramDelete(p_pgrm);
     }
@@ -859,7 +860,7 @@ static void EsOutTerminate(es_out_sys_t *p_sys)
     input_SendEventMetaEpg( p_sys->p_input );
 }
 
-static vlc_tick_t EsOutGetWakeup(es_out_sys_t *p_sys)
+static heimdall_tick_t EsOutGetWakeup(es_out_sys_t *p_sys)
 {
     input_thread_t *p_input = p_sys->p_input;
 
@@ -888,9 +889,9 @@ static bool EsOutIsEmpty(es_out_sys_t *p_sys)
     es_out_id_t *es;
     foreach_es_then_es_slaves(es)
     {
-        if( es->p_dec && !vlc_input_decoder_IsEmpty( es->p_dec ) )
+        if( es->p_dec && !heimdall_input_decoder_IsEmpty( es->p_dec ) )
             return false;
-        if( es->p_dec_record && !vlc_input_decoder_IsEmpty( es->p_dec_record ) )
+        if( es->p_dec_record && !heimdall_input_decoder_IsEmpty( es->p_dec_record ) )
             return false;
     }
     return true;
@@ -899,13 +900,13 @@ static bool EsOutIsEmpty(es_out_sys_t *p_sys)
 static int EsOutDrain(es_out_sys_t *p_sys)
 {
     if( p_sys->p_pgrm == NULL ) /* Nothing to drain, assume es_out is empty */
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
     if( p_sys->b_buffering )
     {
         EsOutDecodersStopBuffering(p_sys, true);
         if( p_sys->b_buffering )
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 
     if( !p_sys->b_draining )
@@ -917,7 +918,7 @@ static int EsOutDrain(es_out_sys_t *p_sys)
         p_sys->b_draining = true;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void EsOutUpdateDelayJitter(es_out_sys_t *p_sys)
@@ -927,7 +928,7 @@ static void EsOutUpdateDelayJitter(es_out_sys_t *p_sys)
                            p_sys->i_pts_jitter, p_sys->i_cr_average);
 }
 
-static void EsOutSetEsDelay(es_out_sys_t *p_sys, es_out_id_t *es, vlc_tick_t delay)
+static void EsOutSetEsDelay(es_out_sys_t *p_sys, es_out_id_t *es, heimdall_tick_t delay)
 {
     assert(es->fmt.i_cat == AUDIO_ES || es->fmt.i_cat == SPU_ES || es->fmt.i_cat == VIDEO_ES);
 
@@ -938,7 +939,7 @@ static void EsOutSetEsDelay(es_out_sys_t *p_sys, es_out_id_t *es, vlc_tick_t del
     EsOutUpdateDelayJitter(p_sys);
 }
 
-static void EsOutSetDelay(es_out_sys_t *p_sys, int i_cat, vlc_tick_t i_delay)
+static void EsOutSetDelay(es_out_sys_t *p_sys, int i_cat, heimdall_tick_t i_delay)
 {
     es_out_id_t *es;
 
@@ -964,18 +965,18 @@ static int EsOutSetRecord(es_out_sys_t *p_sys, bool b_record, const char *dir_pa
 
     if (!b_record)
     {
-        vlc_list_foreach (p_es, &p_sys->es, node) /* Only master es */
+        heimdall_list_foreach (p_es, &p_sys->es, node) /* Only master es */
         {
             if (!p_es->p_dec_record)
                 continue;
 
-            vlc_input_decoder_Flush(p_es->p_dec_record);
-            vlc_input_decoder_Delete(p_es->p_dec_record);
+            heimdall_input_decoder_Flush(p_es->p_dec_record);
+            heimdall_input_decoder_Delete(p_es->p_dec_record);
             p_es->p_dec_record = NULL;
         }
         sout_StreamChainDelete(p_sys->p_sout_record, NULL);
         p_sys->p_sout_record = NULL;
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
     char *psz_path = NULL;
@@ -985,11 +986,11 @@ static int EsOutSetRecord(es_out_sys_t *p_sys, bool b_record, const char *dir_pa
         if (psz_path == NULL)
         {
             if (var_CountChoices(p_input, "video-es"))
-                psz_path = config_GetUserDir(VLC_VIDEOS_DIR);
+                psz_path = config_GetUserDir(HEIMDALL_VIDEOS_DIR);
             else if (var_CountChoices(p_input, "audio-es"))
-                psz_path = config_GetUserDir(VLC_MUSIC_DIR);
+                psz_path = config_GetUserDir(HEIMDALL_MUSIC_DIR);
             else
-                psz_path = config_GetUserDir(VLC_DOWNLOAD_DIR);
+                psz_path = config_GetUserDir(HEIMDALL_DOWNLOAD_DIR);
         }
 
         dir_path = psz_path;
@@ -1017,20 +1018,20 @@ static int EsOutSetRecord(es_out_sys_t *p_sys, bool b_record, const char *dir_pa
     free(psz_path);
 
     if (!psz_sout)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     p_sys->p_sout_record = sout_NewInstance(p_input, psz_sout);
     free(psz_sout);
 
     if (!p_sys->p_sout_record)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    vlc_list_foreach (p_es, &p_sys->es, node) /* Only master es */
+    heimdall_list_foreach (p_es, &p_sys->es, node) /* Only master es */
     {
         if (p_es->p_dec == NULL)
             continue;
 
-        const struct vlc_input_decoder_cfg cfg = {
+        const struct heimdall_input_decoder_cfg cfg = {
             .fmt = &p_es->fmt,
             .str_id = p_es->id.str_id,
             .clock = NULL,
@@ -1043,20 +1044,20 @@ static int EsOutSetRecord(es_out_sys_t *p_sys, bool b_record, const char *dir_pa
             .cbs_data = p_es,
         };
 
-        p_es->p_dec_record = vlc_input_decoder_New(VLC_OBJECT(p_input), &cfg);
+        p_es->p_dec_record = heimdall_input_decoder_New(HEIMDALL_OBJECT(p_input), &cfg);
 
         if (p_es->p_dec_record != NULL && p_sys->b_buffering)
-            vlc_input_decoder_StartWait(p_es->p_dec_record);
+            heimdall_input_decoder_StartWait(p_es->p_dec_record);
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static es_out_id_t *EsOutStopNextFrame(es_out_sys_t *p_sys)
 {
     if (p_sys->p_next_frame_es == NULL || p_sys->p_next_frame_es->p_dec == NULL)
         return NULL;
-    vlc_input_decoder_StopFrameNext(p_sys->p_next_frame_es->p_dec);
+    heimdall_input_decoder_StopFrameNext(p_sys->p_next_frame_es->p_dec);
     es_out_id_t *noflush_es = p_sys->p_next_frame_es;
     p_sys->p_next_frame_es = NULL;
     if (p_sys->i_last_pts_jitter != p_sys->i_pts_jitter)
@@ -1065,7 +1066,7 @@ static es_out_id_t *EsOutStopNextFrame(es_out_sys_t *p_sys)
          * EsOutChangePosition() */
         EsOutSetJitter(p_sys, p_sys->i_pts_delay, p_sys->i_last_pts_jitter,
                        p_sys->i_cr_average);
-        p_sys->i_last_pts_jitter = VLC_TICK_INVALID;
+        p_sys->i_last_pts_jitter = HEIMDALL_TICK_INVALID;
     }
     return noflush_es;
 }
@@ -1077,7 +1078,7 @@ static void EsOutResumeFromNextFrame(es_out_sys_t *p_sys)
     EsOutChangePosition(p_sys, EsOutStopNextFrame(p_sys));
 }
 
-static void EsOutChangeOutputPause(es_out_sys_t *p_sys, bool b_paused, vlc_tick_t i_date)
+static void EsOutChangeOutputPause(es_out_sys_t *p_sys, bool b_paused, heimdall_tick_t i_date)
 {
     /* XXX the order is important */
     if( b_paused )
@@ -1092,10 +1093,10 @@ static void EsOutChangeOutputPause(es_out_sys_t *p_sys, bool b_paused, vlc_tick_
 
         if( p_sys->i_buffering_extra_initial > 0 )
         {
-            vlc_tick_t i_stream_start;
-            vlc_tick_t i_system_start;
-            vlc_tick_t i_stream_duration;
-            vlc_tick_t i_system_duration;
+            heimdall_tick_t i_stream_start;
+            heimdall_tick_t i_system_start;
+            heimdall_tick_t i_stream_duration;
+            heimdall_tick_t i_system_duration;
             int i_ret;
             i_ret = input_clock_GetState( p_sys->p_pgrm->p_input_clock,
                                           &i_stream_start, &i_system_start,
@@ -1103,7 +1104,7 @@ static void EsOutChangeOutputPause(es_out_sys_t *p_sys, bool b_paused, vlc_tick_
             if( !i_ret )
             {
                 /* FIXME pcr != exactly what wanted */
-                const vlc_tick_t i_used = /*(i_stream_duration - input_priv(p_sys->p_input)->i_pts_delay)*/ p_sys->i_buffering_extra_system - p_sys->i_buffering_extra_initial;
+                const heimdall_tick_t i_used = /*(i_stream_duration - input_priv(p_sys->p_input)->i_pts_delay)*/ p_sys->i_buffering_extra_system - p_sys->i_buffering_extra_initial;
                 i_date -= i_used;
             }
             p_sys->i_buffering_extra_initial = 0;
@@ -1118,7 +1119,7 @@ static void EsOutChangeOutputPause(es_out_sys_t *p_sys, bool b_paused, vlc_tick_
     p_sys->i_pause_date = i_date;
 }
 
-static void EsOutChangePause(es_out_sys_t *p_sys, bool b_paused, vlc_tick_t i_date)
+static void EsOutChangePause(es_out_sys_t *p_sys, bool b_paused, heimdall_tick_t i_date)
 {
     const bool b_was_paused = EsOutIsPaused(p_sys);
 
@@ -1129,7 +1130,7 @@ static void EsOutChangePause(es_out_sys_t *p_sys, bool b_paused, vlc_tick_t i_da
         EsOutChangeOutputPause(p_sys, b_is_paused, i_date);
 }
 
-static void EsOutChangeRebuffer(es_out_sys_t *p_sys, bool b_rebuffering, vlc_tick_t i_date)
+static void EsOutChangeRebuffer(es_out_sys_t *p_sys, bool b_rebuffering, heimdall_tick_t i_date)
 {
     if( p_sys->b_rebuffering == b_rebuffering )
         return;
@@ -1155,7 +1156,7 @@ static void EsOutChangeRate(es_out_sys_t *p_sys, float rate)
 
     foreach_es_then_es_slaves(es)
         if( es->p_dec != NULL )
-            vlc_input_decoder_ChangeRate( es->p_dec, rate );
+            heimdall_input_decoder_ChangeRate( es->p_dec, rate );
 }
 
 static void EsOutChangePosition(es_out_sys_t *p_sys,
@@ -1170,27 +1171,27 @@ static void EsOutChangePosition(es_out_sys_t *p_sys,
         if( p_es->p_dec != NULL )
         {
             if( p_es != p_next_frame_es )
-                vlc_input_decoder_Flush( p_es->p_dec );
+                heimdall_input_decoder_Flush( p_es->p_dec );
             if( !p_sys->b_buffering )
             {
-                vlc_input_decoder_StartWait( p_es->p_dec );
+                heimdall_input_decoder_StartWait( p_es->p_dec );
                 if( p_es->p_dec_record != NULL )
-                    vlc_input_decoder_StartWait( p_es->p_dec_record );
+                    heimdall_input_decoder_StartWait( p_es->p_dec_record );
             }
         }
-        p_es->i_pts_level = VLC_TICK_INVALID;
+        p_es->i_pts_level = HEIMDALL_TICK_INVALID;
     }
 
     es_out_pgrm_t *pgrm;
-    vlc_list_foreach(pgrm, &p_sys->programs, node)
+    heimdall_list_foreach(pgrm, &p_sys->programs, node)
     {
         input_clock_Reset(pgrm->p_input_clock);
         if (pgrm->clocks.input != NULL)
         {
-            vlc_clock_Lock(pgrm->clocks.input);
-            pgrm->i_last_pcr = VLC_TICK_INVALID;
-            vlc_clock_Reset(pgrm->clocks.input);
-            vlc_clock_Unlock(pgrm->clocks.input);
+            heimdall_clock_Lock(pgrm->clocks.input);
+            pgrm->i_last_pcr = HEIMDALL_TICK_INVALID;
+            heimdall_clock_Reset(pgrm->clocks.input);
+            heimdall_clock_Unlock(pgrm->clocks.input);
         }
     }
 
@@ -1214,10 +1215,10 @@ static void EsOutDecodersStopBuffering(es_out_sys_t *p_sys, bool b_forced)
 {
     es_out_id_t *p_es;
 
-    vlc_tick_t i_stream_start;
-    vlc_tick_t i_system_start;
-    vlc_tick_t i_stream_duration;
-    vlc_tick_t i_system_duration;
+    heimdall_tick_t i_stream_start;
+    heimdall_tick_t i_system_start;
+    heimdall_tick_t i_stream_duration;
+    heimdall_tick_t i_system_duration;
 
     /* TODO: We still need input_clock_GetState for the preroll computation
      *       for now. */
@@ -1243,11 +1244,11 @@ static void EsOutDecodersStopBuffering(es_out_sys_t *p_sys, bool b_forced)
         return;
     }
 
-    vlc_tick_t i_preroll_duration = 0;
+    heimdall_tick_t i_preroll_duration = 0;
     if( p_sys->i_preroll_end >= 0 )
         i_preroll_duration = __MAX( p_sys->i_preroll_end - i_stream_start, 0 );
 
-    const vlc_tick_t i_buffering_duration = p_sys->i_pts_delay +
+    const heimdall_tick_t i_buffering_duration = p_sys->i_pts_delay +
                                          p_sys->i_pts_jitter +
                                          p_sys->i_tracks_pts_delay +
                                          i_preroll_duration +
@@ -1274,7 +1275,7 @@ static void EsOutDecodersStopBuffering(es_out_sys_t *p_sys, bool b_forced)
     input_SendEventCache( p_sys->p_input, 1.0 );
 
     msg_Dbg( p_sys->p_input, "Stream buffering done (%d ms in %d ms)",
-              (int)MS_FROM_VLC_TICK(i_stream_duration), (int)MS_FROM_VLC_TICK(i_system_duration) );
+              (int)MS_FROM_HEIMDALL_TICK(i_stream_duration), (int)MS_FROM_HEIMDALL_TICK(i_system_duration) );
     p_sys->b_buffering = false;
     p_sys->i_preroll_end = -1;
     p_sys->i_prev_stream_level = -1;
@@ -1285,47 +1286,47 @@ static void EsOutDecodersStopBuffering(es_out_sys_t *p_sys, bool b_forced)
         return;
     }
 
-    const vlc_tick_t i_decoder_buffering_start = vlc_tick_now();
+    const heimdall_tick_t i_decoder_buffering_start = heimdall_tick_now();
     foreach_es_then_es_slaves(p_es)
     {
         if( !p_es->p_dec || p_es->fmt.i_cat == SPU_ES )
             continue;
-        vlc_input_decoder_Wait( p_es->p_dec );
+        heimdall_input_decoder_Wait( p_es->p_dec );
         if( p_es->p_dec_record )
-            vlc_input_decoder_Wait( p_es->p_dec_record );
+            heimdall_input_decoder_Wait( p_es->p_dec_record );
     }
 
     msg_Dbg( p_sys->p_input, "Decoder wait done in %d ms",
-              (int)MS_FROM_VLC_TICK(vlc_tick_now() - i_decoder_buffering_start) );
+              (int)MS_FROM_HEIMDALL_TICK(heimdall_tick_now() - i_decoder_buffering_start) );
 
     /* Here is a good place to destroy unused vout with every demuxer */
     EsOutStopFreeVout(p_sys);
 
     /* */
-    const vlc_tick_t i_current_date = EsOutIsPaused(p_sys) ? p_sys->i_pause_date : vlc_tick_now();
+    const heimdall_tick_t i_current_date = EsOutIsPaused(p_sys) ? p_sys->i_pause_date : heimdall_tick_now();
 
     /* The preroll is stream time, unlike the pts_delay margin: convert it to
      * system time with the current rate. */
-    const vlc_tick_t update = i_current_date - i_buffering_duration
-        - (vlc_tick_t)(i_preroll_duration * (1.0 / p_sys->rate - 1.0));
+    const heimdall_tick_t update = i_current_date - i_buffering_duration
+        - (heimdall_tick_t)(i_preroll_duration * (1.0 / p_sys->rate - 1.0));
 
-    /* The call order of these 3 input_clock_t/vlc_clock_main_t functions is
+    /* The call order of these 3 input_clock_t/heimdall_clock_main_t functions is
      * important:
      *
-     * - vlc_clock_main_Reset() must be called after
+     * - heimdall_clock_main_Reset() must be called after
      *   input_clock_ChangeSystemOrigin() since we want to use update points
      *   after the buffering step. Indeed, in case of an input clock source,
      *   input_clock_ChangeSystemOrigin() also forward the updated point to the
      *   output clock.
      *
-     * - vlc_clock_main_SetFirstPcr() must be called after
-     *   vlc_clock_main_Reset() since the reset function also reset the first
+     * - heimdall_clock_main_SetFirstPcr() must be called after
+     *   heimdall_clock_main_Reset() since the reset function also reset the first
      *   PCR point.
      */
 
     input_clock_ChangeSystemOrigin( p_sys->p_pgrm->p_input_clock, update );
 
-    vlc_clock_main_Lock(p_sys->p_pgrm->clocks.main);
+    heimdall_clock_main_Lock(p_sys->p_pgrm->clocks.main);
     /* Resetting the main_clock here will drop all points that were sent during
      * the buffering step. Only points coming from the input_clock are dropped
      * here. Indeed, decoders should not send any output frames while buffering
@@ -1335,13 +1336,13 @@ static void EsOutDecodersStopBuffering(es_out_sys_t *p_sys, bool b_forced)
      * frames and not from EsOutChangePosition(), like the input clock. Indeed,
      * flush is asynchronous and the output used by the decoder may still need
      * a valid reference of the clock to output their last frames. */
-    vlc_clock_main_Reset(p_sys->p_pgrm->clocks.main);
+    heimdall_clock_main_Reset(p_sys->p_pgrm->clocks.main);
 
     /* Send the first PCR to the output clock. This will be used as a reference
      * point for the sync point. */
-    vlc_clock_main_SetFirstPcr(p_sys->p_pgrm->clocks.main, update,
+    heimdall_clock_main_SetFirstPcr(p_sys->p_pgrm->clocks.main, update,
                                i_stream_start);
-    vlc_clock_main_Unlock(p_sys->p_pgrm->clocks.main);
+    heimdall_clock_main_Unlock(p_sys->p_pgrm->clocks.main);
 
     /* If pause was requested during buffering previously, set pause state now
      * that buffering is complete and clock references are established. Use
@@ -1356,7 +1357,7 @@ static void EsOutDecodersStopBuffering(es_out_sys_t *p_sys, bool b_forced)
         assert(!p_sys->b_paused);
         assert(input_priv(p_sys->p_input)->i_state != PAUSE_S);
 
-        const vlc_tick_t i_pause_date = vlc_tick_now();
+        const heimdall_tick_t i_pause_date = heimdall_tick_now();
         EsOutChangePause(p_sys, true, i_pause_date);
 
          /* Update input state since pause was not yet applied. */
@@ -1369,12 +1370,12 @@ static void EsOutDecodersStopBuffering(es_out_sys_t *p_sys, bool b_forced)
         if( !p_es->p_dec )
             continue;
 
-        vlc_input_decoder_StopWait( p_es->p_dec );
+        heimdall_input_decoder_StopWait( p_es->p_dec );
         if( p_es->p_dec_record )
-            vlc_input_decoder_StopWait( p_es->p_dec_record );
+            heimdall_input_decoder_StopWait( p_es->p_dec_record );
     }
 }
-static void EsOutDecodersChangePause(es_out_sys_t *p_sys, bool b_paused, vlc_tick_t i_date)
+static void EsOutDecodersChangePause(es_out_sys_t *p_sys, bool b_paused, heimdall_tick_t i_date)
 {
     es_out_id_t *es;
 
@@ -1382,9 +1383,9 @@ static void EsOutDecodersChangePause(es_out_sys_t *p_sys, bool b_paused, vlc_tic
     foreach_es_then_es_slaves(es)
         if( es->p_dec )
         {
-            vlc_input_decoder_ChangePause( es->p_dec, b_paused, i_date );
+            heimdall_input_decoder_ChangePause( es->p_dec, b_paused, i_date );
             if( es->p_dec_record )
-                vlc_input_decoder_ChangePause( es->p_dec_record, b_paused,
+                heimdall_input_decoder_ChangePause( es->p_dec_record, b_paused,
                                                i_date );
         }
 }
@@ -1397,9 +1398,9 @@ static bool EsOutIsExtraBufferingAllowed(es_out_sys_t *p_sys)
     foreach_es_then_es_slaves(p_es)
     {
         if( p_es->p_dec )
-            i_size += vlc_input_decoder_GetFifoSize( p_es->p_dec );
+            i_size += heimdall_input_decoder_GetFifoSize( p_es->p_dec );
         if( p_es->p_dec_record )
-            i_size += vlc_input_decoder_GetFifoSize( p_es->p_dec_record );
+            i_size += heimdall_input_decoder_GetFifoSize( p_es->p_dec_record );
     }
     //msg_Info( out, "----- EsOutIsExtraBufferingAllowed =% 5d KiB -- ", i_size / 1024 );
 
@@ -1412,24 +1413,24 @@ static bool EsOutIsExtraBufferingAllowed(es_out_sys_t *p_sys)
     return i_size < i_level_high;
 }
 
-static void EsOutProgramChangePause(es_out_sys_t *p_sys, bool b_paused, vlc_tick_t i_date)
+static void EsOutProgramChangePause(es_out_sys_t *p_sys, bool b_paused, heimdall_tick_t i_date)
 {
     es_out_pgrm_t *pgrm;
 
-    vlc_list_foreach(pgrm, &p_sys->programs, node)
+    heimdall_list_foreach(pgrm, &p_sys->programs, node)
     {
         input_clock_ChangePause(pgrm->p_input_clock, b_paused, i_date);
 
-        vlc_clock_main_Lock(pgrm->clocks.main);
-        vlc_clock_main_ChangePause(pgrm->clocks.main, i_date, b_paused);
-        vlc_clock_main_Unlock(pgrm->clocks.main);
+        heimdall_clock_main_Lock(pgrm->clocks.main);
+        heimdall_clock_main_ChangePause(pgrm->clocks.main, i_date, b_paused);
+        heimdall_clock_main_Unlock(pgrm->clocks.main);
     }
 }
 
 static void EsOutDecoderChangeDelay(es_out_sys_t *p_sys, es_out_id_t *p_es)
 {
-    vlc_tick_t i_delay;
-    if( p_es->delay != VLC_TICK_MAX )
+    heimdall_tick_t i_delay;
+    if( p_es->delay != HEIMDALL_TICK_MAX )
         i_delay = p_es->delay; /* The track use its own delay, and not a category delay */
     else if( p_es->fmt.i_cat == AUDIO_ES )
         i_delay = p_sys->i_audio_delay;
@@ -1441,15 +1442,15 @@ static void EsOutDecoderChangeDelay(es_out_sys_t *p_sys, es_out_id_t *p_es)
         return;
 
     if( p_es->p_dec )
-        vlc_input_decoder_ChangeDelay( p_es->p_dec, i_delay );
+        heimdall_input_decoder_ChangeDelay( p_es->p_dec, i_delay );
     if( p_es->p_dec_record )
-        vlc_input_decoder_ChangeDelay( p_es->p_dec_record, i_delay );
+        heimdall_input_decoder_ChangeDelay( p_es->p_dec_record, i_delay );
 }
 static void EsOutProgramsChangeRate(es_out_sys_t *p_sys)
 {
     es_out_pgrm_t *pgrm;
 
-    vlc_list_foreach(pgrm, &p_sys->programs, node)
+    heimdall_list_foreach(pgrm, &p_sys->programs, node)
         input_clock_ChangeRate(pgrm->p_input_clock, p_sys->rate);
 }
 
@@ -1462,7 +1463,7 @@ static void EsOutFrameNext(es_out_sys_t *p_sys, bool previous)
         /* Don't use 'foreach_es_then_es_slaves': next-frame is not implemented
          * on ES slaves */
         es_out_id_t *p_es;
-        vlc_list_foreach( p_es, &p_sys->es, node )
+        heimdall_list_foreach( p_es, &p_sys->es, node )
             if( p_es->fmt.i_cat == VIDEO_ES && p_es->p_dec )
             {
                 p_sys->p_next_frame_es = p_es;
@@ -1477,16 +1478,16 @@ static void EsOutFrameNext(es_out_sys_t *p_sys, bool previous)
     }
 
     if( previous )
-        vlc_input_decoder_FramePrevious( p_sys->p_next_frame_es->p_dec );
+        heimdall_input_decoder_FramePrevious( p_sys->p_next_frame_es->p_dec );
     else
-        vlc_input_decoder_FrameNext( p_sys->p_next_frame_es->p_dec );
+        heimdall_input_decoder_FrameNext( p_sys->p_next_frame_es->p_dec );
 }
-static vlc_tick_t EsOutGetBuffering(es_out_sys_t *p_sys)
+static heimdall_tick_t EsOutGetBuffering(es_out_sys_t *p_sys)
 {
     if( !p_sys->p_pgrm )
         return 0;
 
-    vlc_tick_t i_stream_duration, i_system_duration;
+    heimdall_tick_t i_stream_duration, i_system_duration;
 
     /* If the input_clock is not ready, we don't have a reference point
      * which means that buffering has not started, continue waiting. */
@@ -1494,7 +1495,7 @@ static vlc_tick_t EsOutGetBuffering(es_out_sys_t *p_sys)
                                          &i_stream_duration, &i_system_duration))
         return 0;
 
-    vlc_tick_t i_delay;
+    heimdall_tick_t i_delay;
 
     if( p_sys->b_buffering && p_sys->i_buffering_extra_initial <= 0 )
     {
@@ -1512,11 +1513,11 @@ static vlc_tick_t EsOutGetBuffering(es_out_sys_t *p_sys)
         else
         {
             i_system_duration = input_clock_GetSystemDuration(p_sys->p_pgrm->p_input_clock,
-                                          vlc_tick_now());
+                                          heimdall_tick_now());
 
         }
 
-        const vlc_tick_t i_consumed = i_system_duration * p_sys->rate - i_stream_duration;
+        const heimdall_tick_t i_consumed = i_system_duration * p_sys->rate - i_stream_duration;
         i_delay = p_sys->i_pts_delay + p_sys->i_pts_jitter
                 + p_sys->i_tracks_pts_delay - i_consumed;
     }
@@ -1526,20 +1527,20 @@ static vlc_tick_t EsOutGetBuffering(es_out_sys_t *p_sys)
 }
 
 static void EsOutSendEsEvent(es_out_sys_t *p_sys, es_out_id_t *es, int action,
-                             bool forced, enum vlc_vout_order vout_order)
+                             bool forced, enum heimdall_vout_order vout_order)
 {
     input_thread_t *p_input = p_sys->p_input;
 
     const char *action_str;
     switch( action )
     {
-        case VLC_INPUT_ES_ADDED:
+        case HEIMDALL_INPUT_ES_ADDED:
             action_str = "added"; break;
-        case VLC_INPUT_ES_DELETED:
+        case HEIMDALL_INPUT_ES_DELETED:
             action_str = "deleted"; break;
-        case VLC_INPUT_ES_SELECTED:
+        case HEIMDALL_INPUT_ES_SELECTED:
             action_str = forced ? "selected (forced)" : "selected"; break;
-        case VLC_INPUT_ES_UNSELECTED:
+        case HEIMDALL_INPUT_ES_UNSELECTED:
             action_str = "unselected"; break;
         default:
             action_str = NULL; break;
@@ -1548,7 +1549,7 @@ static void EsOutSendEsEvent(es_out_sys_t *p_sys, es_out_id_t *es, int action,
         msg_Dbg( p_sys->p_input, "ES track %s: '%s' (fourcc: '%4.4s')",
                  action_str, es->id.str_id, (const char *) &es->fmt.i_codec );
 
-    input_SendEventEs(p_input, &(struct vlc_input_event_es) {
+    input_SendEventEs(p_input, &(struct heimdall_input_event_es) {
         .action = action,
         .id = &es->id,
         .title = es->psz_title ? es->psz_title : "",
@@ -1558,23 +1559,23 @@ static void EsOutSendEsEvent(es_out_sys_t *p_sys, es_out_id_t *es, int action,
     });
 }
 
-static vlc_tick_t
-ClockListenerUpdate(void *opaque, vlc_tick_t ck_system,
-                    vlc_tick_t ck_stream, double rate, bool discontinuity)
+static heimdall_tick_t
+ClockListenerUpdate(void *opaque, heimdall_tick_t ck_system,
+                    heimdall_tick_t ck_stream, double rate, bool discontinuity)
 {
     es_out_pgrm_t *pgrm = opaque;
     assert(pgrm->clocks.input != NULL);
-    vlc_clock_Lock(pgrm->clocks.input);
+    heimdall_clock_Lock(pgrm->clocks.input);
 
     if (discontinuity)
     {
-        const vlc_tick_t current_date = vlc_tick_now();
-        vlc_clock_main_SetFirstPcr(pgrm->clocks.main, current_date, ck_stream);
+        const heimdall_tick_t current_date = heimdall_tick_now();
+        heimdall_clock_main_SetFirstPcr(pgrm->clocks.main, current_date, ck_stream);
     }
 
-    vlc_tick_t drift =
-        vlc_clock_Update(pgrm->clocks.input, ck_system, ck_stream, rate);
-    vlc_clock_Unlock(pgrm->clocks.input);
+    heimdall_tick_t drift =
+        heimdall_clock_Update(pgrm->clocks.input, ck_system, ck_stream, rate);
+    heimdall_clock_Unlock(pgrm->clocks.input);
     return drift;
 }
 
@@ -1583,9 +1584,9 @@ ClockListenerReset(void *opaque)
 {
     es_out_pgrm_t *pgrm = opaque;
     assert(pgrm->clocks.input != NULL);
-    vlc_clock_Lock(pgrm->clocks.input);
-    vlc_clock_Reset(pgrm->clocks.input);
-    vlc_clock_Unlock(pgrm->clocks.input);
+    heimdall_clock_Lock(pgrm->clocks.input);
+    heimdall_clock_Reset(pgrm->clocks.input);
+    heimdall_clock_Unlock(pgrm->clocks.input);
 }
 
 static void EsOutProgramHandleClockSource(es_out_sys_t *p_sys, es_out_pgrm_t *p_pgrm)
@@ -1600,7 +1601,7 @@ static void EsOutProgramHandleClockSource(es_out_sys_t *p_sys, es_out_pgrm_t *p_
      * ES_OUT_SET_PCR). */
 
 
-    static const struct vlc_input_clock_cbs clock_cbs =
+    static const struct heimdall_input_clock_cbs clock_cbs =
     {
         .update = ClockListenerUpdate,
         .reset = ClockListenerReset,
@@ -1608,7 +1609,7 @@ static void EsOutProgramHandleClockSource(es_out_sys_t *p_sys, es_out_pgrm_t *p_
 
     switch( p_sys->user_clock_source )
     {
-        case VLC_CLOCK_MASTER_AUTO:
+        case HEIMDALL_CLOCK_MASTER_AUTO:
             /* If not active, input_CanPaceControl() returns an uninitialized
              * value. If not active while sending a PCR, it means the demux
              * module is pacing itself (via a thread or API callbacks).
@@ -1616,23 +1617,23 @@ static void EsOutProgramHandleClockSource(es_out_sys_t *p_sys, es_out_pgrm_t *p_
              * */
             if( p_sys->b_active && input_CanPaceControl( p_input ) )
             {
-                p_pgrm->active_clock_source = VLC_CLOCK_MASTER_AUDIO;
+                p_pgrm->active_clock_source = HEIMDALL_CLOCK_MASTER_AUDIO;
                 break;
             }
             msg_Dbg( p_input, "The input can't pace, selecting the input (PCR) as the "
                      "clock source" );
             /* Fall-through */
-        case VLC_CLOCK_MASTER_INPUT:
+        case HEIMDALL_CLOCK_MASTER_INPUT:
         {
-            vlc_clock_main_Lock(p_pgrm->clocks.main);
+            heimdall_clock_main_Lock(p_pgrm->clocks.main);
             p_pgrm->clocks.input =
-                vlc_clock_main_CreateInputMaster(p_pgrm->clocks.main);
-            vlc_clock_main_Unlock(p_pgrm->clocks.main);
+                heimdall_clock_main_CreateInputMaster(p_pgrm->clocks.main);
+            heimdall_clock_main_Unlock(p_pgrm->clocks.main);
 
             if (p_pgrm->clocks.input == NULL)
                 break;
             input_clock_AttachListener(p_pgrm->p_input_clock, &clock_cbs, p_pgrm);
-            p_pgrm->active_clock_source = VLC_CLOCK_MASTER_INPUT;
+            p_pgrm->active_clock_source = HEIMDALL_CLOCK_MASTER_INPUT;
             break;
         }
         default:
@@ -1643,21 +1644,21 @@ static void EsOutProgramHandleClockSource(es_out_sys_t *p_sys, es_out_pgrm_t *p_
     const char *clock_source_str;
     switch( p_pgrm->active_clock_source )
     {
-        case VLC_CLOCK_MASTER_AUDIO:    clock_source_str = "audio"; break;
-        case VLC_CLOCK_MASTER_INPUT:    clock_source_str = "input"; break;
-        case VLC_CLOCK_MASTER_MONOTONIC:clock_source_str = "monotonic"; break;
+        case HEIMDALL_CLOCK_MASTER_AUDIO:    clock_source_str = "audio"; break;
+        case HEIMDALL_CLOCK_MASTER_INPUT:    clock_source_str = "input"; break;
+        case HEIMDALL_CLOCK_MASTER_MONOTONIC:clock_source_str = "monotonic"; break;
 
-        case VLC_CLOCK_MASTER_AUTO:
+        case HEIMDALL_CLOCK_MASTER_AUTO:
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 
-    if (p_pgrm->active_clock_source != VLC_CLOCK_MASTER_INPUT)
+    if (p_pgrm->active_clock_source != HEIMDALL_CLOCK_MASTER_INPUT)
     {
-        vlc_clock_main_Lock(p_pgrm->clocks.main);
+        heimdall_clock_main_Lock(p_pgrm->clocks.main);
         p_pgrm->clocks.input =
-            vlc_clock_main_CreateInputSlave(p_pgrm->clocks.main);
-        vlc_clock_main_Unlock(p_pgrm->clocks.main);
+            heimdall_clock_main_CreateInputSlave(p_pgrm->clocks.main);
+        heimdall_clock_main_Unlock(p_pgrm->clocks.main);
 
         if (p_pgrm->clocks.input != NULL)
         {
@@ -1720,7 +1721,7 @@ static void EsOutProgramSelect(es_out_sys_t *p_sys, es_out_pgrm_t *p_pgrm)
                 /* ES tracks are deleted (and unselected) when their programs
                  * are unselected (they will be added back when their programs
                  * are selected back). */
-                EsOutSendEsEvent(p_sys, es, VLC_INPUT_ES_DELETED, false, VLC_VOUT_ORDER_PRIMARY);
+                EsOutSendEsEvent(p_sys, es, HEIMDALL_INPUT_ES_DELETED, false, HEIMDALL_VOUT_ORDER_PRIMARY);
             }
 
         }
@@ -1755,7 +1756,7 @@ static void EsOutProgramSelect(es_out_sys_t *p_sys, es_out_pgrm_t *p_pgrm)
         }
         else if (es->p_pgrm == p_sys->p_pgrm)
         {
-            EsOutSendEsEvent(p_sys, es, VLC_INPUT_ES_ADDED, false, VLC_VOUT_ORDER_PRIMARY);
+            EsOutSendEsEvent(p_sys, es, HEIMDALL_INPUT_ES_ADDED, false, HEIMDALL_VOUT_ORDER_PRIMARY);
             EsOutUpdateInfo(p_sys, es, NULL);
         }
 
@@ -1769,11 +1770,11 @@ static void EsOutProgramSelect(es_out_sys_t *p_sys, es_out_pgrm_t *p_pgrm)
     if( p_pgrm->p_meta )
     {
         input_item_SetESNowPlaying( input_priv(p_input)->p_item,
-                                    vlc_meta_Get( p_pgrm->p_meta, vlc_meta_ESNowPlaying ) );
+                                    heimdall_meta_Get( p_pgrm->p_meta, heimdall_meta_ESNowPlaying ) );
         input_item_SetPublisher( input_priv(p_input)->p_item,
-                                 vlc_meta_Get( p_pgrm->p_meta, vlc_meta_Publisher ) );
+                                 heimdall_meta_Get( p_pgrm->p_meta, heimdall_meta_Publisher ) );
         input_item_SetTitle( input_priv(p_input)->p_item,
-                             vlc_meta_Get( p_pgrm->p_meta, vlc_meta_Title ) );
+                             heimdall_meta_Get( p_pgrm->p_meta, heimdall_meta_Title ) );
         input_SendEventMeta( p_input );
         /* FIXME: we probably want to replace every input meta */
     }
@@ -1801,48 +1802,48 @@ static es_out_pgrm_t *EsOutProgramAdd(es_out_sys_t *p_sys, input_source_t *sourc
     p_pgrm->i_es = 0;
     p_pgrm->b_selected = false;
     p_pgrm->b_scrambled = false;
-    p_pgrm->i_last_pcr = VLC_TICK_INVALID;
+    p_pgrm->i_last_pcr = HEIMDALL_TICK_INVALID;
     p_pgrm->p_meta = NULL;
     p_pgrm->p_master_es_clock = NULL;
-    p_pgrm->active_clock_source = VLC_CLOCK_MASTER_AUTO;
+    p_pgrm->active_clock_source = HEIMDALL_CLOCK_MASTER_AUTO;
 
-    struct vlc_tracer *tracer = vlc_object_get_tracer( &p_input->obj );
+    struct heimdall_tracer *tracer = heimdall_object_get_tracer( &p_input->obj );
     p_pgrm->clocks.input = NULL;
-    p_pgrm->clocks.main = vlc_clock_main_New(p_input->obj.logger, tracer);
+    p_pgrm->clocks.main = heimdall_clock_main_New(p_input->obj.logger, tracer);
     if (p_pgrm->clocks.main == NULL)
     {
         free( p_pgrm );
         return NULL;
     }
 
-    p_pgrm->p_input_clock = input_clock_New(vlc_object_logger(p_input), p_sys->rate);
+    p_pgrm->p_input_clock = input_clock_New(heimdall_object_logger(p_input), p_sys->rate);
     if( !p_pgrm->p_input_clock )
     {
-        vlc_clock_main_Delete(p_pgrm->clocks.main);
+        heimdall_clock_main_Delete(p_pgrm->clocks.main);
         free( p_pgrm );
         return NULL;
     }
 
     if( EsOutIsPaused(p_sys) )
         input_clock_ChangePause( p_pgrm->p_input_clock, true, p_sys->i_pause_date );
-    const vlc_tick_t pts_delay = p_sys->i_pts_delay + p_sys->i_pts_jitter
+    const heimdall_tick_t pts_delay = p_sys->i_pts_delay + p_sys->i_pts_jitter
                                + p_sys->i_tracks_pts_delay;
     input_clock_SetJitter( p_pgrm->p_input_clock, pts_delay, p_sys->i_cr_average );
 
-    vlc_clock_main_Lock(p_pgrm->clocks.main);
-    vlc_clock_main_SetInputDejitter(p_pgrm->clocks.main, pts_delay );
+    heimdall_clock_main_Lock(p_pgrm->clocks.main);
+    heimdall_clock_main_SetInputDejitter(p_pgrm->clocks.main, pts_delay );
 
     /* In case of low delay: don't use any output dejitter. This may result on
      * some audio/video glitches when starting, but low-delay is more important
      * than the visual quality if the user chose this option. */
     if (input_priv(p_input)->b_low_delay)
-        vlc_clock_main_SetDejitter(p_pgrm->clocks.main, 0);
+        heimdall_clock_main_SetDejitter(p_pgrm->clocks.main, 0);
     if( EsOutIsPaused(p_sys) )
-        vlc_clock_main_ChangePause(p_pgrm->clocks.main, p_sys->i_pause_date, true);
-    vlc_clock_main_Unlock(p_pgrm->clocks.main);
+        heimdall_clock_main_ChangePause(p_pgrm->clocks.main, p_sys->i_pause_date, true);
+    heimdall_clock_main_Unlock(p_pgrm->clocks.main);
 
     /* Append it */
-    vlc_list_append(&p_pgrm->node, &p_sys->programs);
+    heimdall_list_append(&p_pgrm->node, &p_sys->programs);
 
     /* Update "program" variable */
     input_SendEventProgramAdd( p_input, i_group, NULL );
@@ -1862,7 +1863,7 @@ static es_out_pgrm_t *EsOutProgramSearch(es_out_sys_t *p_sys, input_source_t *so
 {
     es_out_pgrm_t *pgrm;
 
-    vlc_list_foreach(pgrm, &p_sys->programs, node)
+    heimdall_list_foreach(pgrm, &p_sys->programs, node)
         if (pgrm->i_id == i_group && pgrm->source == source)
             return pgrm;
 
@@ -1887,13 +1888,13 @@ static int EsOutProgramDel(es_out_sys_t *p_sys, input_source_t *source, int i_gr
 
     es_out_pgrm_t *p_pgrm = EsOutProgramSearch(p_sys, source, i_group);
     if( p_pgrm == NULL )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if( p_pgrm->i_es )
     {
         msg_Dbg( p_input, "can't delete program %d which still has %i ES",
                  i_group, p_pgrm->i_es );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Unselect sticky ES tracks */
@@ -1911,7 +1912,7 @@ static int EsOutProgramDel(es_out_sys_t *p_sys, input_source_t *source, int i_gr
         es->p_pgrm = NULL;
     }
 
-    vlc_list_remove(&p_pgrm->node);
+    heimdall_list_remove(&p_pgrm->node);
 
     /* If program is selected we need to unselect it */
     if( p_sys->p_pgrm == p_pgrm )
@@ -1922,7 +1923,7 @@ static int EsOutProgramDel(es_out_sys_t *p_sys, input_source_t *source, int i_gr
 
     ProgramDelete( p_pgrm );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /* EsOutProgramGetMetaName:
@@ -1930,9 +1931,9 @@ static int EsOutProgramDel(es_out_sys_t *p_sys, input_source_t *source, int i_gr
 static char *EsOutProgramGetMetaName( es_out_pgrm_t *p_pgrm )
 {
     char *psz = NULL;
-    if( p_pgrm->p_meta && vlc_meta_Get( p_pgrm->p_meta, vlc_meta_Title ) )
+    if( p_pgrm->p_meta && heimdall_meta_Get( p_pgrm->p_meta, heimdall_meta_Title ) )
     {
-        if (asprintf(&psz, _("%s [%s %d]"), vlc_meta_Get(p_pgrm->p_meta, vlc_meta_Title),
+        if (asprintf(&psz, _("%s [%s %d]"), heimdall_meta_Get(p_pgrm->p_meta, heimdall_meta_Title),
                      _("Program"), p_pgrm->i_id) != -1)
             return psz;
     }
@@ -1944,8 +1945,8 @@ static char *EsOutProgramGetMetaName( es_out_pgrm_t *p_pgrm )
 static char *EsOutProgramGetProgramName( es_out_pgrm_t *p_pgrm )
 {
     char *psz = NULL;
-    if( p_pgrm->p_meta && vlc_meta_Get( p_pgrm->p_meta, vlc_meta_Title ) )
-        return strdup( vlc_meta_Get( p_pgrm->p_meta, vlc_meta_Title ) );
+    if( p_pgrm->p_meta && heimdall_meta_Get( p_pgrm->p_meta, heimdall_meta_Title ) )
+        return strdup( heimdall_meta_Get( p_pgrm->p_meta, heimdall_meta_Title ) );
 
     if (asprintf(&psz, "%s %d", _("Program"), p_pgrm->i_id) != -1 )
         return psz;
@@ -1964,7 +1965,7 @@ static char *EsInfoCategoryName( es_out_id_t* es )
 }
 
 static void EsOutProgramMeta(es_out_sys_t *p_sys, input_source_t *source,
-                             int i_group, const vlc_meta_t *p_meta)
+                             int i_group, const heimdall_meta_t *p_meta)
 {
     es_out_pgrm_t     *p_pgrm;
     input_thread_t    *p_input = p_sys->p_input;
@@ -1977,9 +1978,9 @@ static void EsOutProgramMeta(es_out_sys_t *p_sys, input_source_t *source,
     msg_Dbg( p_input, "EsOutProgramMeta: number=%d", i_group );
 
     /* Check against empty meta data (empty for what we handle) */
-    if( !vlc_meta_Get( p_meta, vlc_meta_Title) &&
-        !vlc_meta_Get( p_meta, vlc_meta_ESNowPlaying) &&
-        !vlc_meta_Get( p_meta, vlc_meta_Publisher) )
+    if( !heimdall_meta_Get( p_meta, heimdall_meta_Title) &&
+        !heimdall_meta_Get( p_meta, heimdall_meta_ESNowPlaying) &&
+        !heimdall_meta_Get( p_meta, heimdall_meta_Publisher) )
     {
         return;
     }
@@ -1999,8 +2000,8 @@ static void EsOutProgramMeta(es_out_sys_t *p_sys, input_source_t *source,
 
     if( p_pgrm->p_meta )
     {
-        const char *psz_current_title = vlc_meta_Get( p_pgrm->p_meta, vlc_meta_Title );
-        const char *psz_new_title = vlc_meta_Get( p_meta, vlc_meta_Title );
+        const char *psz_current_title = heimdall_meta_Get( p_pgrm->p_meta, heimdall_meta_Title );
+        const char *psz_new_title = heimdall_meta_Get( p_meta, heimdall_meta_Title );
         if( (psz_current_title != NULL && psz_new_title != NULL)
             ? strcmp(psz_new_title, psz_current_title)
             : (psz_current_title != psz_new_title) )
@@ -2014,19 +2015,19 @@ static void EsOutProgramMeta(es_out_sys_t *p_sys, input_source_t *source,
              * TODO update scrambled info name ? */
             free( psz_oldinfokey );
         }
-        vlc_meta_Delete( p_pgrm->p_meta );
+        heimdall_meta_Delete( p_pgrm->p_meta );
     }
-    p_pgrm->p_meta = vlc_meta_New();
+    p_pgrm->p_meta = heimdall_meta_New();
     if( p_pgrm->p_meta )
-        vlc_meta_Merge( p_pgrm->p_meta, p_meta );
+        heimdall_meta_Merge( p_pgrm->p_meta, p_meta );
 
     if( p_sys->p_pgrm == p_pgrm )
     {
         EsOutMeta(p_sys, NULL, p_meta);
     }
     /* */
-    psz_title = vlc_meta_Get( p_meta, vlc_meta_Title);
-    psz_provider = vlc_meta_Get( p_meta, vlc_meta_Publisher);
+    psz_title = heimdall_meta_Get( p_meta, heimdall_meta_Title);
+    psz_provider = heimdall_meta_Get( p_meta, heimdall_meta_Publisher);
 
     /* Update the description text of the program */
     if( psz_title && *psz_title )
@@ -2052,7 +2053,7 @@ static void EsOutProgramMeta(es_out_sys_t *p_sys, input_source_t *source,
     }
 
     /* */
-    char **ppsz_all_keys = vlc_meta_CopyExtraNames(p_meta );
+    char **ppsz_all_keys = heimdall_meta_CopyExtraNames(p_meta );
 
     info_category_t *p_cat = NULL;
     if( psz_provider || ( ppsz_all_keys[0] && *ppsz_all_keys[0] ) )
@@ -2066,8 +2067,8 @@ static void EsOutProgramMeta(es_out_sys_t *p_sys, input_source_t *source,
     for( i = 0; ppsz_all_keys[i]; i++ )
     {
         if( p_cat )
-            info_category_AddInfo( p_cat, vlc_gettext(ppsz_all_keys[i]), "%s",
-                                   vlc_meta_GetExtra( p_meta, ppsz_all_keys[i] ) );
+            info_category_AddInfo( p_cat, heimdall_gettext(ppsz_all_keys[i]), "%s",
+                                   heimdall_meta_GetExtra( p_meta, ppsz_all_keys[i] ) );
         free( ppsz_all_keys[i] );
     }
     free( ppsz_all_keys );
@@ -2080,7 +2081,7 @@ static void EsOutProgramMeta(es_out_sys_t *p_sys, input_source_t *source,
             input_SendEventMeta( p_input );
         }
         if( p_cat )
-            info_category_AddInfo( p_cat, vlc_meta_TypeToLocalizedString(vlc_meta_Publisher),
+            info_category_AddInfo( p_cat, heimdall_meta_TypeToLocalizedString(heimdall_meta_Publisher),
                                    "%s",psz_provider );
     }
     if( p_cat )
@@ -2093,7 +2094,7 @@ static void EsOutProgramMeta(es_out_sys_t *p_sys, input_source_t *source,
 }
 
 static void EsOutProgramEpgEvent(es_out_sys_t *p_sys, input_source_t *source,
-                                 int i_group, const vlc_epg_event_t *p_event)
+                                 int i_group, const heimdall_epg_event_t *p_event)
 {
     input_thread_t    *p_input = p_sys->p_input;
     input_item_t      *p_item = input_priv(p_input)->p_item;
@@ -2110,7 +2111,7 @@ static void EsOutProgramEpgEvent(es_out_sys_t *p_sys, input_source_t *source,
 }
 
 static void EsOutProgramEpg(es_out_sys_t *p_sys, input_source_t *source,
-                            int i_group, const vlc_epg_t *p_epg)
+                            int i_group, const heimdall_epg_t *p_epg)
 {
     input_thread_t    *p_input = p_sys->p_input;
     input_item_t      *p_item = input_priv(p_input)->p_item;
@@ -2129,7 +2130,7 @@ static void EsOutProgramEpg(es_out_sys_t *p_sys, input_source_t *source,
     msg_Dbg( p_input, "EsOutProgramEpg: number=%d name=%s", i_group, psz_cat );
 
     /* Merge EPG */
-    vlc_epg_t epg;
+    heimdall_epg_t epg;
 
     epg = *p_epg;
     epg.psz_name = EsOutProgramGetProgramName( p_pgrm );
@@ -2143,37 +2144,37 @@ static void EsOutProgramEpg(es_out_sys_t *p_sys, input_source_t *source,
     if( p_epg->b_present && p_pgrm->p_meta &&
        ( p_epg->p_current || p_epg->i_event == 0 ) )
     {
-        vlc_meta_SetNowPlaying( p_pgrm->p_meta, NULL );
+        heimdall_meta_SetNowPlaying( p_pgrm->p_meta, NULL );
     }
 
-    vlc_mutex_lock( &p_item->lock );
+    heimdall_mutex_lock( &p_item->lock );
     for( int i = 0; i < p_item->i_epg; i++ )
     {
-        const vlc_epg_t *p_tmp = p_item->pp_epg[i];
+        const heimdall_epg_t *p_tmp = p_item->pp_epg[i];
 
         if( p_tmp->b_present && p_tmp->i_source_id == p_pgrm->i_id )
         {
             const char *psz_name = ( p_tmp->p_current ) ? p_tmp->p_current->psz_name : NULL;
             if( !p_pgrm->p_meta )
-                p_pgrm->p_meta = vlc_meta_New();
+                p_pgrm->p_meta = heimdall_meta_New();
             if( p_pgrm->p_meta )
-                vlc_meta_Set( p_pgrm->p_meta, vlc_meta_ESNowPlaying, psz_name );
+                heimdall_meta_Set( p_pgrm->p_meta, heimdall_meta_ESNowPlaying, psz_name );
             break;
         }
     }
-    vlc_mutex_unlock( &p_item->lock );
+    heimdall_mutex_unlock( &p_item->lock );
 
     /* Update selected program input info */
     if( p_pgrm == p_sys->p_pgrm )
     {
         const char *psz_nowplaying = p_pgrm->p_meta ?
-                                     vlc_meta_Get( p_pgrm->p_meta, vlc_meta_ESNowPlaying ) : NULL;
+                                     heimdall_meta_Get( p_pgrm->p_meta, heimdall_meta_ESNowPlaying ) : NULL;
 
         input_item_SetESNowPlaying( input_priv(p_input)->p_item, psz_nowplaying );
         input_SendEventMeta( p_input );
 
         const char *now_playing_tr =
-            vlc_meta_TypeToLocalizedString(vlc_meta_ESNowPlaying);
+            heimdall_meta_TypeToLocalizedString(heimdall_meta_ESNowPlaying);
         int ret;
         if( psz_nowplaying )
             ret = input_item_AddInfo( p_item, psz_cat, now_playing_tr,
@@ -2181,7 +2182,7 @@ static void EsOutProgramEpg(es_out_sys_t *p_sys, input_source_t *source,
         else
             ret = input_item_DelInfo( p_item, psz_cat, now_playing_tr );
 
-        if( ret == VLC_SUCCESS )
+        if( ret == HEIMDALL_SUCCESS )
             input_SendEventMetaInfo( p_input );
     }
 
@@ -2203,7 +2204,7 @@ static void EsOutProgramUpdateScrambled(es_out_sys_t *p_sys, es_out_pgrm_t *p_pg
     es_out_id_t *es;
     bool b_scrambled = false;
 
-    vlc_list_foreach( es, &p_sys->es, node ) /* Only master es */
+    heimdall_list_foreach( es, &p_sys->es, node ) /* Only master es */
         if (es->p_pgrm == p_pgrm && es->b_scrambled)
         {
             b_scrambled = true;
@@ -2223,33 +2224,33 @@ static void EsOutProgramUpdateScrambled(es_out_sys_t *p_sys, es_out_pgrm_t *p_pg
         ret = input_item_DelInfo( p_item, psz_cat, _("Scrambled") );
     free( psz_cat );
 
-    if( ret == VLC_SUCCESS )
+    if( ret == HEIMDALL_SUCCESS )
         input_SendEventMetaInfo( p_input );
     input_SendEventProgramScrambled( p_input, p_pgrm->i_id, b_scrambled );
 }
 
-static void EsOutMeta(es_out_sys_t *p_sys, const vlc_meta_t *p_meta, const vlc_meta_t *p_program_meta)
+static void EsOutMeta(es_out_sys_t *p_sys, const heimdall_meta_t *p_meta, const heimdall_meta_t *p_program_meta)
 {
     input_thread_t  *p_input = p_sys->p_input;
     input_item_t *p_item = input_GetItem( p_input );
 
-    vlc_mutex_lock( &p_item->lock );
+    heimdall_mutex_lock( &p_item->lock );
     if( p_meta )
-        vlc_meta_Merge( p_item->p_meta, p_meta );
-    vlc_mutex_unlock( &p_item->lock );
+        heimdall_meta_Merge( p_item->p_meta, p_meta );
+    heimdall_mutex_unlock( &p_item->lock );
 
     /* Check program meta to not override GROUP_META values */
-    if( p_meta && (!p_program_meta || vlc_meta_Get( p_program_meta, vlc_meta_Title ) == NULL) &&
-         vlc_meta_Get( p_meta, vlc_meta_Title ) != NULL )
-        input_item_SetName( p_item, vlc_meta_Get( p_meta, vlc_meta_Title ) );
+    if( p_meta && (!p_program_meta || heimdall_meta_Get( p_program_meta, heimdall_meta_Title ) == NULL) &&
+         heimdall_meta_Get( p_meta, heimdall_meta_Title ) != NULL )
+        input_item_SetName( p_item, heimdall_meta_Get( p_meta, heimdall_meta_Title ) );
 
     const char *psz_arturl = NULL;
     char *psz_alloc = NULL;
 
     if( p_program_meta )
-        psz_arturl = vlc_meta_Get( p_program_meta, vlc_meta_ArtworkURL );
+        psz_arturl = heimdall_meta_Get( p_program_meta, heimdall_meta_ArtworkURL );
     if( psz_arturl == NULL && p_meta )
-        psz_arturl = vlc_meta_Get( p_meta, vlc_meta_ArtworkURL );
+        psz_arturl = heimdall_meta_Get( p_meta, heimdall_meta_ArtworkURL );
 
     if( psz_arturl == NULL ) /* restore/favor previously set item art URL */
         psz_arturl = psz_alloc = input_item_GetArtURL( p_item );
@@ -2273,9 +2274,9 @@ static void EsOutMeta(es_out_sys_t *p_sys, const vlc_meta_t *p_meta, const vlc_m
     /* TODO handle sout meta ? */
 }
 
-static void EsOutGlobalMeta(es_out_sys_t *p_sys, const vlc_meta_t *p_meta)
+static void EsOutGlobalMeta(es_out_sys_t *p_sys, const heimdall_meta_t *p_meta)
 {
-    vlc_meta_t *pgrm_meta = NULL;
+    heimdall_meta_t *pgrm_meta = NULL;
     if (p_sys->p_pgrm != NULL)
         pgrm_meta = p_sys->p_pgrm->p_meta;
 
@@ -2303,20 +2304,20 @@ static void EsOutFillEsFmt(es_out_sys_t *p_sys, es_format_t *fmt)
     {
     case AUDIO_ES:
     {
-        fmt->i_codec = vlc_fourcc_GetCodecAudio( fmt->i_codec,
+        fmt->i_codec = heimdall_fourcc_GetCodecAudio( fmt->i_codec,
                                                  fmt->audio.i_bitspersample );
         audio_replay_gain_t rg;
         memset( &rg, 0, sizeof(rg) );
-        vlc_mutex_lock( &input_priv(p_input)->p_item->lock );
-        vlc_replay_gain_CopyFromMeta( &rg, input_priv(p_input)->p_item->p_meta );
-        vlc_mutex_unlock( &input_priv(p_input)->p_item->lock );
+        heimdall_mutex_lock( &input_priv(p_input)->p_item->lock );
+        heimdall_replay_gain_CopyFromMeta( &rg, input_priv(p_input)->p_item->p_meta );
+        heimdall_mutex_unlock( &input_priv(p_input)->p_item->lock );
         replay_gain_Merge( &fmt->audio_replay_gain, &rg );
 
         break;
     }
 
     case VIDEO_ES:
-        fmt->i_codec = vlc_fourcc_GetCodec( fmt->i_cat, fmt->i_codec );
+        fmt->i_codec = heimdall_fourcc_GetCodec( fmt->i_cat, fmt->i_codec );
 
         // first sanitize some values
         if( fmt->video.i_visible_width )
@@ -2346,14 +2347,14 @@ static void EsOutFillEsFmt(es_out_sys_t *p_sys, es_format_t *fmt)
         }
 
         if( fmt->video.i_frame_rate && fmt->video.i_frame_rate_base )
-            vlc_ureduce( &fmt->video.i_frame_rate,
+            heimdall_ureduce( &fmt->video.i_frame_rate,
                          &fmt->video.i_frame_rate_base,
                          fmt->video.i_frame_rate,
                          fmt->video.i_frame_rate_base, 0 );
         break;
 
     case SPU_ES:
-        fmt->i_codec = vlc_fourcc_GetCodec( fmt->i_cat, fmt->i_codec );
+        fmt->i_codec = heimdall_fourcc_GetCodec( fmt->i_cat, fmt->i_codec );
         break;
 
     default:
@@ -2361,41 +2362,41 @@ static void EsOutFillEsFmt(es_out_sys_t *p_sys, es_format_t *fmt)
     }
 }
 
-VLC_MALLOC static char *EsOutCreateStrId( es_out_id_t *es, bool stable, const char *id,
+HEIMDALL_MALLOC static char *EsOutCreateStrId( es_out_id_t *es, bool stable, const char *id,
                                           es_out_id_t *p_master )
 {
-    struct vlc_memstream ms;
-    if( vlc_memstream_open( &ms ) != 0 )
+    struct heimdall_memstream ms;
+    if( heimdall_memstream_open( &ms ) != 0 )
         return NULL;
 
     if( p_master )
     {
-        vlc_memstream_puts( &ms, p_master->id.str_id );
-        vlc_memstream_puts( &ms, "/cc/" );
+        heimdall_memstream_puts( &ms, p_master->id.str_id );
+        heimdall_memstream_puts( &ms, "/cc/" );
     }
     else if ( id )
     {
         /* ',' is used as a delimiter */
         assert( strchr( id, ',' ) == NULL);
 
-        vlc_memstream_puts( &ms, id );
-        vlc_memstream_putc( &ms, '/' );
+        heimdall_memstream_puts( &ms, id );
+        heimdall_memstream_putc( &ms, '/' );
     }
 
     switch (es->fmt.i_cat)
     {
-        case VIDEO_ES:  vlc_memstream_puts( &ms, "video" );    break;
-        case AUDIO_ES:  vlc_memstream_puts( &ms, "audio" );    break;
-        case SPU_ES:    vlc_memstream_puts( &ms, "spu" );      break;
-        case DATA_ES:   vlc_memstream_puts( &ms, "data" );     break;
-        default:        vlc_memstream_puts( &ms, "unknown" );  break;
+        case VIDEO_ES:  heimdall_memstream_puts( &ms, "video" );    break;
+        case AUDIO_ES:  heimdall_memstream_puts( &ms, "audio" );    break;
+        case SPU_ES:    heimdall_memstream_puts( &ms, "spu" );      break;
+        case DATA_ES:   heimdall_memstream_puts( &ms, "data" );     break;
+        default:        heimdall_memstream_puts( &ms, "unknown" );  break;
     }
 
     if( !stable )
-        vlc_memstream_puts( &ms, "/auto" );
+        heimdall_memstream_puts( &ms, "/auto" );
 
-    vlc_memstream_printf( &ms, "/%d", es->fmt.i_id );
-    if( vlc_memstream_close( &ms ) != 0 )
+    heimdall_memstream_printf( &ms, "/%d", es->fmt.i_id );
+    if( heimdall_memstream_close( &ms ) != 0 )
         return NULL;
 
     return ms.ptr;
@@ -2424,7 +2425,7 @@ static es_out_id_t *EsOutAddLocked(es_out_sys_t *p_sys,
     es->out = &p_sys->out;
     es->id.source = input_source_Hold( source );
 
-    if( es_format_Copy( &es->fmt, fmt ) != VLC_SUCCESS )
+    if( es_format_Copy( &es->fmt, fmt ) != HEIMDALL_SUCCESS )
     {
         free( es );
         return NULL;
@@ -2521,21 +2522,21 @@ static es_out_id_t *EsOutAddLocked(es_out_sys_t *p_sys,
     es->p_dec_record = NULL;
     es->p_clock = NULL;
     es->master = false;
-    vlc_vector_init(&es->sub_es_vec);
+    heimdall_vector_init(&es->sub_es_vec);
     es->p_master = p_master;
-    vlc_mouse_Init(&es->oldmouse);
+    heimdall_mouse_Init(&es->oldmouse);
     es->mouse_event_cb = MouseEventCb;
     es->mouse_event_userdata = es;
     es->mouse_being_dragged = false;
-    es->i_pts_level = VLC_TICK_INVALID;
-    es->delay = VLC_TICK_MAX;
+    es->i_pts_level = HEIMDALL_TICK_INVALID;
+    es->delay = HEIMDALL_TICK_MAX;
 
-    vlc_list_append(&es->node, es->p_master ? &p_sys->es_slaves : &p_sys->es);
+    heimdall_list_append(&es->node, es->p_master ? &p_sys->es_slaves : &p_sys->es);
 
-    vlc_atomic_rc_init(&es->rc);
+    heimdall_atomic_rc_init(&es->rc);
 
     if( es->p_pgrm == p_sys->p_pgrm )
-        EsOutSendEsEvent(p_sys, es, VLC_INPUT_ES_ADDED, false, VLC_VOUT_ORDER_PRIMARY);
+        EsOutSendEsEvent(p_sys, es, HEIMDALL_INPUT_ES_ADDED, false, HEIMDALL_VOUT_ORDER_PRIMARY);
 
     EsOutUpdateInfo(p_sys, es, NULL);
     EsOutSelect(p_sys, es, false);
@@ -2553,9 +2554,9 @@ static es_out_id_t *EsOutAdd(es_out_t *out, input_source_t *source, const es_for
     if( !source )
         source = p_sys->main_source;
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     es_out_id_t *es = EsOutAddLocked(p_sys, source, fmt, NULL);
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
     return es;
 }
 
@@ -2564,7 +2565,7 @@ static bool EsIsSelected( es_out_id_t *es )
     return es->p_dec != NULL;
 }
 
-static void ClockUpdate(vlc_tick_t system_ts, vlc_tick_t ts, double rate,
+static void ClockUpdate(heimdall_tick_t system_ts, heimdall_tick_t ts, double rate,
                         unsigned frame_rate, unsigned frame_rate_base,
                         void *data)
 {
@@ -2578,9 +2579,9 @@ static void ClockUpdate(vlc_tick_t system_ts, vlc_tick_t ts, double rate,
 static void EsOutCreateDecoder(es_out_sys_t *p_sys, es_out_id_t *p_es)
 {
     input_thread_t *p_input = p_sys->p_input;
-    vlc_input_decoder_t *dec;
+    heimdall_input_decoder_t *dec;
 
-    static const struct vlc_clock_cbs clock_cbs = {
+    static const struct heimdall_clock_cbs clock_cbs = {
         .on_update = ClockUpdate
     };
 
@@ -2589,38 +2590,38 @@ static void EsOutCreateDecoder(es_out_sys_t *p_sys, es_out_id_t *p_es)
     enum es_format_category_e clock_source_cat;
     switch( p_sys->user_clock_source )
     {
-        case VLC_CLOCK_MASTER_AUTO:
-        case VLC_CLOCK_MASTER_AUDIO:
+        case HEIMDALL_CLOCK_MASTER_AUTO:
+        case HEIMDALL_CLOCK_MASTER_AUDIO:
             clock_source_cat = AUDIO_ES;
             break;
-        case VLC_CLOCK_MASTER_MONOTONIC:
-        case VLC_CLOCK_MASTER_INPUT:
+        case HEIMDALL_CLOCK_MASTER_MONOTONIC:
+        case HEIMDALL_CLOCK_MASTER_INPUT:
             clock_source_cat = UNKNOWN_ES;
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 
-    vlc_clock_main_Lock(p_es->p_pgrm->clocks.main);
+    heimdall_clock_main_Lock(p_es->p_pgrm->clocks.main);
     if( p_es->fmt.i_cat != UNKNOWN_ES
      && p_es->fmt.i_cat == clock_source_cat
      && p_es->p_pgrm->p_master_es_clock == NULL )
     {
         p_es->master = true;
         p_es->p_pgrm->p_master_es_clock = p_es->p_clock =
-            vlc_clock_main_CreateMaster(p_es->p_pgrm->clocks.main,
+            heimdall_clock_main_CreateMaster(p_es->p_pgrm->clocks.main,
                                         p_es->id.str_id,
                                         &clock_cbs, p_es);
     }
     else
     {
         p_es->master = false;
-        p_es->p_clock = vlc_clock_main_CreateSlave(p_es->p_pgrm->clocks.main,
+        p_es->p_clock = heimdall_clock_main_CreateSlave(p_es->p_pgrm->clocks.main,
                                                    p_es->id.str_id,
                                                    p_es->fmt.i_cat,
                                                    &clock_cbs, p_es);
     }
-    vlc_clock_main_Unlock(p_es->p_pgrm->clocks.main);
+    heimdall_clock_main_Unlock(p_es->p_pgrm->clocks.main);
 
     if( !p_es->p_clock )
     {
@@ -2629,7 +2630,7 @@ static void EsOutCreateDecoder(es_out_sys_t *p_sys, es_out_id_t *p_es)
     }
 
     input_thread_private_t *priv = input_priv(p_input);
-    const struct vlc_input_decoder_cfg cfg = {
+    const struct heimdall_input_decoder_cfg cfg = {
         .fmt = &p_es->fmt,
         .str_id = p_es->id.str_id,
         .clock = p_es->p_clock,
@@ -2644,25 +2645,25 @@ static void EsOutCreateDecoder(es_out_sys_t *p_sys, es_out_id_t *p_es)
     if (p_es->p_master != NULL)
     {
         assert(p_es->p_master->p_dec != NULL);
-        dec = vlc_input_decoder_CreateSubDec(p_es->p_master->p_dec, &cfg);
+        dec = heimdall_input_decoder_CreateSubDec(p_es->p_master->p_dec, &cfg);
     }
     else
     {
-        dec = vlc_input_decoder_New( VLC_OBJECT(p_input), &cfg );
+        dec = heimdall_input_decoder_New( HEIMDALL_OBJECT(p_input), &cfg );
     }
     if( dec != NULL )
     {
-        vlc_input_decoder_ChangeRate( dec, p_sys->rate );
+        heimdall_input_decoder_ChangeRate( dec, p_sys->rate );
 
         if( unlikely( EsOutIsPaused(p_sys) ) ) /* Could happen during next-frame */
-            vlc_input_decoder_ChangePause( dec, true, p_sys->i_pause_date );
+            heimdall_input_decoder_ChangePause( dec, true, p_sys->i_pause_date );
 
         if( p_sys->b_buffering )
-            vlc_input_decoder_StartWait( dec );
+            heimdall_input_decoder_StartWait( dec );
 
         if( !p_es->p_master && p_sys->p_sout_record )
         {
-            const struct vlc_input_decoder_cfg rec_cfg = {
+            const struct heimdall_input_decoder_cfg rec_cfg = {
                 .fmt = &p_es->fmt,
                 .str_id = p_es->id.str_id,
                 .clock = NULL,
@@ -2674,24 +2675,24 @@ static void EsOutCreateDecoder(es_out_sys_t *p_sys, es_out_id_t *p_es)
                 .cbs = &decoder_cbs,
                 .cbs_data = p_es,
             };
-            p_es->p_dec_record = vlc_input_decoder_New( VLC_OBJECT(p_input), &rec_cfg );
+            p_es->p_dec_record = heimdall_input_decoder_New( HEIMDALL_OBJECT(p_input), &rec_cfg );
 
             if( p_es->p_dec_record )
             {
                 if( p_sys->b_buffering )
-                    vlc_input_decoder_StartWait( p_es->p_dec_record );
+                    heimdall_input_decoder_StartWait( p_es->p_dec_record );
                 if( unlikely( EsOutIsPaused(p_sys) ) ) /* Could happen during next-frame */
-                    vlc_input_decoder_ChangePause( p_es->p_dec_record, true, p_sys->i_pause_date );
+                    heimdall_input_decoder_ChangePause( p_es->p_dec_record, true, p_sys->i_pause_date );
             }
         }
 
         if( p_es->mouse_event_cb && p_es->fmt.i_cat == VIDEO_ES )
-            vlc_input_decoder_SetVoutMouseEvent( dec, p_es->mouse_event_cb,
+            heimdall_input_decoder_SetVoutMouseEvent( dec, p_es->mouse_event_cb,
                                                  p_es->mouse_event_userdata );
     }
     else
     {
-        vlc_clock_Delete( p_es->p_clock );
+        heimdall_clock_Delete( p_es->p_clock );
         p_es->p_clock = NULL;
     }
     p_es->p_dec = dec;
@@ -2711,7 +2712,7 @@ static void EsOutDeleteSubESes(es_out_sys_t *sys,
         EsOutDelLocked(sys, subes);
     }
 
-    vlc_vector_clear(&parent->sub_es_vec);
+    heimdall_vector_clear(&parent->sub_es_vec);
 }
 
 static void EsOutDestroyDecoder(es_out_sys_t *sys,
@@ -2724,30 +2725,30 @@ static void EsOutDestroyDecoder(es_out_sys_t *sys,
 
     EsOutDeleteSubESes(sys, p_es);
 
-    if (!vlc_input_decoder_IsDrained(p_es->p_dec))
-        vlc_input_decoder_Flush(p_es->p_dec);
-    vlc_input_decoder_Delete( p_es->p_dec );
+    if (!heimdall_input_decoder_IsDrained(p_es->p_dec))
+        heimdall_input_decoder_Flush(p_es->p_dec);
+    heimdall_input_decoder_Delete( p_es->p_dec );
     p_es->p_dec = NULL;
     if( p_es->p_pgrm->p_master_es_clock == p_es->p_clock )
         p_es->p_pgrm->p_master_es_clock = NULL;
     if( p_es->p_clock != NULL ) /* SubEs have their own clocks */
     {
-        vlc_clock_Delete( p_es->p_clock );
+        heimdall_clock_Delete( p_es->p_clock );
         p_es->p_clock = NULL;
     }
 
     if( p_es->p_dec_record )
     {
-        if (!vlc_input_decoder_IsDrained(p_es->p_dec_record))
-            vlc_input_decoder_Flush(p_es->p_dec_record);
-        vlc_input_decoder_Delete( p_es->p_dec_record );
+        if (!heimdall_input_decoder_IsDrained(p_es->p_dec_record))
+            heimdall_input_decoder_Flush(p_es->p_dec_record);
+        heimdall_input_decoder_Delete( p_es->p_dec_record );
         p_es->p_dec_record = NULL;
     }
 
     es_format_Clean( &p_es->fmt_out );
 }
 
-static void EsOutSelectEs(es_out_sys_t *p_sys, es_out_id_t *es, bool b_force, enum vlc_vout_order vout_order)
+static void EsOutSelectEs(es_out_sys_t *p_sys, es_out_id_t *es, bool b_force, enum heimdall_vout_order vout_order)
 {
     input_thread_t *p_input = p_sys->p_input;
     bool b_thumbnailing = p_sys->input_type == INPUT_TYPE_THUMBNAILING;
@@ -2803,14 +2804,14 @@ static void EsOutSelectEs(es_out_sys_t *p_sys, es_out_id_t *es, bool b_force, en
         return;
 
     /* Mark it as selected */
-    EsOutSendEsEvent(p_sys, es, VLC_INPUT_ES_SELECTED, b_force, vout_order);
+    EsOutSendEsEvent(p_sys, es, HEIMDALL_INPUT_ES_SELECTED, b_force, vout_order);
 
     /* Special case of the zvbi decoder for teletext: send the initial selected
      * page and transparency */
     if( !es->p_master )
     {
         bool vbi_opaque;
-        int vbi_page = vlc_input_decoder_GetVbiPage( es->p_dec, &vbi_opaque );
+        int vbi_page = heimdall_input_decoder_GetVbiPage( es->p_dec, &vbi_opaque );
         if( vbi_page >= 0 )
         {
             input_SendEventVbiPage( p_input, vbi_page );
@@ -2829,7 +2830,7 @@ static void EsOutDrainSubESes(es_out_id_t *parent)
         if (es->p_dec == NULL)
             continue;
 
-        vlc_input_decoder_Drain(es->p_dec);
+        heimdall_input_decoder_Drain(es->p_dec);
     }
 }
 
@@ -2853,7 +2854,7 @@ static void EsOutUnselectEs(es_out_sys_t *p_sys, es_out_id_t *es, bool b_update)
         return;
 
     /* Mark it as unselected */
-    EsOutSendEsEvent(p_sys, es, VLC_INPUT_ES_UNSELECTED, false, VLC_VOUT_ORDER_PRIMARY);
+    EsOutSendEsEvent(p_sys, es, HEIMDALL_INPUT_ES_UNSELECTED, false, HEIMDALL_VOUT_ORDER_PRIMARY);
 }
 
 static bool EsOutSelectMatchPrioritized( const es_out_es_props_t *p_esprops,
@@ -2953,7 +2954,7 @@ static void EsOutSelect(es_out_sys_t *p_sys, es_out_id_t *es, bool b_force)
             if( b_auto_unselect )
                 EsOutUnselectEs(p_sys, p_esprops->p_main_es, true);
 
-            EsOutSelectEs(p_sys, es, b_force, VLC_VOUT_ORDER_PRIMARY);
+            EsOutSelectEs(p_sys, es, b_force, HEIMDALL_VOUT_ORDER_PRIMARY);
         }
     }
     else if( p_sys->i_mode == ES_OUT_MODE_PARTIAL )
@@ -2970,7 +2971,7 @@ static void EsOutSelect(es_out_sys_t *p_sys, es_out_id_t *es, bool b_force)
                 if( atoi( prgm ) == es->p_pgrm->i_id )
                 {
                     if( !EsIsSelected( es ) )
-                        EsOutSelectEs(p_sys, es, b_force, VLC_VOUT_ORDER_PRIMARY);
+                        EsOutSelectEs(p_sys, es, b_force, HEIMDALL_VOUT_ORDER_PRIMARY);
                     break;
                 }
             }
@@ -3041,7 +3042,7 @@ static void EsOutSelect(es_out_sys_t *p_sys, es_out_id_t *es, bool b_force)
             if( b_auto_unselect )
                 EsOutUnselectEs(p_sys, p_esprops->p_main_es, true);
 
-            EsOutSelectEs(p_sys, es, b_force, VLC_VOUT_ORDER_PRIMARY);
+            EsOutSelectEs(p_sys, es, b_force, HEIMDALL_VOUT_ORDER_PRIMARY);
         }
     }
 
@@ -3089,7 +3090,7 @@ static void EsOutSelectListFromProps(es_out_sys_t *p_sys, enum es_format_categor
         strcpy( buffer, esprops->str_ids );
         if( EsOutIdMatchStrIds( other, buffer ) && !EsIsSelected( other ) )
         {
-            EsOutSelectEs(p_sys, other, true, VLC_VOUT_ORDER_PRIMARY);
+            EsOutSelectEs(p_sys, other, true, HEIMDALL_VOUT_ORDER_PRIMARY);
 
             if( esprops->e_policy == ES_OUT_ES_POLICY_EXCLUSIVE )
                 break;
@@ -3099,7 +3100,7 @@ static void EsOutSelectListFromProps(es_out_sys_t *p_sys, enum es_format_categor
     free( buffer );
 }
 
-static bool EsOutIdMatchEsList( const es_out_id_t *es, vlc_es_id_t * const*es_id_list )
+static bool EsOutIdMatchEsList( const es_out_id_t *es, heimdall_es_id_t * const*es_id_list )
 {
     for( size_t i = 0; es_id_list[i] != NULL; i++ )
     {
@@ -3110,7 +3111,7 @@ static bool EsOutIdMatchEsList( const es_out_id_t *es, vlc_es_id_t * const*es_id
 }
 
 static void EsOutSelectList(es_out_sys_t *p_sys, enum es_format_category_e cat,
-                            vlc_es_id_t * const *es_id_list)
+                            heimdall_es_id_t * const *es_id_list)
 {
     es_out_id_t *other;
     es_out_es_props_t *p_esprops = GetPropsByCat( p_sys, cat );
@@ -3139,9 +3140,9 @@ static void EsOutSelectList(es_out_sys_t *p_sys, enum es_format_category_e cat,
         }
 
         /* First ID is considered to be the PRIMARY */
-        enum vlc_vout_order vout_oder = ( es_id_list[0] == &other->id )
-            ? VLC_VOUT_ORDER_PRIMARY
-            : VLC_VOUT_ORDER_SECONDARY;
+        enum heimdall_vout_order vout_oder = ( es_id_list[0] == &other->id )
+            ? HEIMDALL_VOUT_ORDER_PRIMARY
+            : HEIMDALL_VOUT_ORDER_SECONDARY;
         EsOutSelectEs(p_sys, other, true, vout_oder);
 
         if (p_esprops->e_policy == ES_OUT_ES_POLICY_EXCLUSIVE)
@@ -3150,11 +3151,11 @@ static void EsOutSelectList(es_out_sys_t *p_sys, enum es_format_category_e cat,
 }
 
 static void EsOutCreateSubESes(es_out_sys_t *sys,
-                               struct vlc_subdec_desc *desc,
+                               struct heimdall_subdec_desc *desc,
                                es_out_id_t *parent)
 {
     size_t prev_count = parent->sub_es_vec.size;
-    bool success = vlc_vector_reserve(&parent->sub_es_vec, desc->fmt_count);
+    bool success = heimdall_vector_reserve(&parent->sub_es_vec, desc->fmt_count);
     if (!success)
         return;
 
@@ -3177,8 +3178,8 @@ static void EsOutCreateSubESes(es_out_sys_t *sys,
             parent->sub_es_vec.size = i;
             break;
         }
-        success = vlc_vector_insert(&parent->sub_es_vec, i, es);
-        assert(success); /* vlc_vector_reserve() already checked */
+        success = heimdall_vector_insert(&parent->sub_es_vec, i, es);
+        assert(success); /* heimdall_vector_reserve() already checked */
 
         switch (fmt->i_cat)
         {
@@ -3206,11 +3207,11 @@ static int EsOutSend(es_out_t *out, es_out_id_t *es, block_t *p_block )
     input_thread_t *p_input = p_sys->p_input;
 
     assert( p_block->p_next == NULL );
-    struct vlc_tracer *tracer = vlc_object_get_tracer( &p_input->obj );
+    struct heimdall_tracer *tracer = heimdall_object_get_tracer( &p_input->obj );
 
     if ( tracer != NULL )
     {
-        vlc_tracer_TraceStreamDTS( tracer, "DEMUX", es->id.str_id, "OUT",
+        heimdall_tracer_TraceStreamDTS( tracer, "DEMUX", es->id.str_id, "OUT",
                             p_block->i_pts, p_block->i_dts);
     }
 
@@ -3230,7 +3231,7 @@ static int EsOutSend(es_out_t *out, es_out_id_t *es, block_t *p_block )
                                       memory_order_relaxed);
     }
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     assert( !p_sys->b_draining );
 
     /* Shift all slaves timestamps with the main source normal time. This will
@@ -3239,16 +3240,16 @@ static int EsOutSend(es_out_t *out, es_out_id_t *es, block_t *p_block )
      * */
     if( es->id.source != p_sys->main_source )
     {
-        if( p_block->i_dts != VLC_TICK_INVALID )
+        if( p_block->i_dts != HEIMDALL_TICK_INVALID )
         {
-            p_block->i_dts -= es->id.source->i_normal_time - VLC_TICK_0;
-            p_block->i_dts += p_sys->main_source->i_normal_time - VLC_TICK_0;
+            p_block->i_dts -= es->id.source->i_normal_time - HEIMDALL_TICK_0;
+            p_block->i_dts += p_sys->main_source->i_normal_time - HEIMDALL_TICK_0;
         }
 
-        if( p_block->i_pts != VLC_TICK_INVALID )
+        if( p_block->i_pts != HEIMDALL_TICK_INVALID )
         {
-            p_block->i_pts -= es->id.source->i_normal_time - VLC_TICK_0;
-            p_block->i_pts += p_sys->main_source->i_normal_time - VLC_TICK_0;
+            p_block->i_pts -= es->id.source->i_normal_time - HEIMDALL_TICK_0;
+            p_block->i_pts += p_sys->main_source->i_normal_time - HEIMDALL_TICK_0;
         }
     }
 
@@ -3256,33 +3257,33 @@ static int EsOutSend(es_out_t *out, es_out_id_t *es, block_t *p_block )
     if( p_sys->p_next_frame_es != NULL && p_sys->p_next_frame_es != es )
     {
         block_Release( p_block );
-        vlc_mutex_unlock( &p_sys->lock );
-        return VLC_SUCCESS;
+        heimdall_mutex_unlock( &p_sys->lock );
+        return HEIMDALL_SUCCESS;
     }
 
     /* Mark preroll blocks */
     if( p_sys->i_preroll_end >= 0 )
     {
-        vlc_tick_t i_date = p_block->i_pts;
-        if( p_block->i_pts == VLC_TICK_INVALID )
+        heimdall_tick_t i_date = p_block->i_pts;
+        if( p_block->i_pts == HEIMDALL_TICK_INVALID )
             i_date = p_block->i_dts;
 
         /* In some cases, the demuxer sends non dated packets.
            We use interpolation, previous, or pcr value to compare with
            preroll target timestamp */
-        if( i_date == VLC_TICK_INVALID )
+        if( i_date == HEIMDALL_TICK_INVALID )
         {
-            if( es->i_pts_level != VLC_TICK_INVALID )
+            if( es->i_pts_level != HEIMDALL_TICK_INVALID )
                 i_date = es->i_pts_level;
-            else if( es->p_pgrm->i_last_pcr != VLC_TICK_INVALID )
+            else if( es->p_pgrm->i_last_pcr != HEIMDALL_TICK_INVALID )
                 i_date = es->p_pgrm->i_last_pcr;
         }
 
-        if( i_date != VLC_TICK_INVALID )
+        if( i_date != HEIMDALL_TICK_INVALID )
             es->i_pts_level = i_date + p_block->i_length;
 
         /* If i_date is still invalid (first/all non dated), expect to be in preroll */
-        if( i_date == VLC_TICK_INVALID ||
+        if( i_date == HEIMDALL_TICK_INVALID ||
             es->i_pts_level < p_sys->i_preroll_end )
             p_block->i_flags |= BLOCK_FLAG_PREROLL;
     }
@@ -3290,8 +3291,8 @@ static int EsOutSend(es_out_t *out, es_out_id_t *es, block_t *p_block )
     if( !es->p_dec )
     {
         block_Release( p_block );
-        vlc_mutex_unlock( &p_sys->lock );
-        return VLC_SUCCESS;
+        heimdall_mutex_unlock( &p_sys->lock );
+        return HEIMDALL_SUCCESS;
     }
 
     /* Check for sout mode */
@@ -3312,37 +3313,37 @@ static int EsOutSend(es_out_t *out, es_out_id_t *es, block_t *p_block )
     {
         block_t *p_dup = block_Duplicate( p_block );
         if( p_dup )
-            vlc_input_decoder_Decode( es->p_dec_record, p_dup,
+            heimdall_input_decoder_Decode( es->p_dec_record, p_dup,
                                       input_priv(p_input)->b_out_pace_control );
     }
-    struct vlc_input_decoder_status status;
-    vlc_input_decoder_DecodeWithStatus(es->p_dec, p_block,
+    struct heimdall_input_decoder_status status;
+    heimdall_input_decoder_DecodeWithStatus(es->p_dec, p_block,
                                        input_priv(p_input)->b_out_pace_control,
                                        &status);
 
     if( status.format.changed )
     {
         int ret = EsOutEsUpdateFmt(es, &status.format.fmt);
-        if (ret == VLC_SUCCESS)
+        if (ret == HEIMDALL_SUCCESS)
         {
             EsOutUpdateInfo(p_sys, es, status.format.meta);
-            EsOutSendEsEvent(p_sys, es, VLC_INPUT_ES_UPDATED, false, VLC_VOUT_ORDER_PRIMARY);
+            EsOutSendEsEvent(p_sys, es, HEIMDALL_INPUT_ES_UPDATED, false, HEIMDALL_VOUT_ORDER_PRIMARY);
         }
 
         es_format_Clean( &status.format.fmt );
         if( status.format.meta )
-            vlc_meta_Delete( status.format.meta );
+            heimdall_meta_Delete( status.format.meta );
     }
 
     /* Check subdec status */
     if (status.subdec_desc.fmt_count > 0)
         EsOutCreateSubESes(p_sys, &status.subdec_desc, es);
 
-    vlc_subdec_desc_Clean(&status.subdec_desc);
+    heimdall_subdec_desc_Clean(&status.subdec_desc);
 
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void
@@ -3350,7 +3351,7 @@ EsOutDrainDecoder(es_out_sys_t *p_sys, es_out_id_t *es, bool wait)
 {
     assert( es->p_dec );
 
-    vlc_input_decoder_Drain( es->p_dec );
+    heimdall_input_decoder_Drain( es->p_dec );
     EsOutDrainSubESes(es);
 
     if (!wait)
@@ -3361,12 +3362,12 @@ EsOutDrainDecoder(es_out_sys_t *p_sys, es_out_id_t *es, bool wait)
      * bit too long if the ES is deleted in the middle of a stream. */
     while( !input_Stopped(p_sys->p_input) && !p_sys->b_buffering )
     {
-        if( vlc_input_decoder_IsDrained( es->p_dec ) &&
-            ( !es->p_dec_record || vlc_input_decoder_IsDrained( es->p_dec_record ) ))
+        if( heimdall_input_decoder_IsDrained( es->p_dec ) &&
+            ( !es->p_dec_record || heimdall_input_decoder_IsDrained( es->p_dec_record ) ))
             break;
         /* FIXME there should be a way to have auto deleted es, but there will be
          * a problem when another codec of the same type is created (mainly video) */
-        vlc_tick_sleep(VLC_TICK_FROM_MS(20));
+        heimdall_tick_sleep(HEIMDALL_TICK_FROM_MS(20));
     }
 }
 
@@ -3389,7 +3390,7 @@ static void EsOutDelLocked(es_out_sys_t *p_sys, es_out_id_t *es)
     EsTerminate(es);
 
     if( es->p_pgrm == p_sys->p_pgrm )
-        EsOutSendEsEvent(p_sys, es, VLC_INPUT_ES_DELETED, false, VLC_VOUT_ORDER_PRIMARY);
+        EsOutSendEsEvent(p_sys, es, HEIMDALL_INPUT_ES_DELETED, false, HEIMDALL_VOUT_ORDER_PRIMARY);
 
     EsOutDeleteInfoEs(p_sys, es);
 
@@ -3426,7 +3427,7 @@ static void EsOutDelLocked(es_out_sys_t *p_sys, es_out_id_t *es)
             {
                 if (EsIsSelected(other))
                 {
-                    EsOutSendEsEvent(p_sys, es, VLC_INPUT_ES_SELECTED, false, VLC_VOUT_ORDER_PRIMARY);
+                    EsOutSendEsEvent(p_sys, es, HEIMDALL_INPUT_ES_SELECTED, false, HEIMDALL_VOUT_ORDER_PRIMARY);
                     if( p_esprops->p_main_es == NULL )
                         p_esprops->p_main_es = other;
                 }
@@ -3441,9 +3442,9 @@ static void EsOutDelLocked(es_out_sys_t *p_sys, es_out_id_t *es)
 static void EsOutDel(es_out_t *out, es_out_id_t *es)
 {
     es_out_sys_t *p_sys = PRIV(out);
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     EsOutDelLocked(p_sys, es);
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 }
 
 static int EsOutVaControlLocked(es_out_sys_t *, input_source_t *, int, va_list );
@@ -3457,9 +3458,9 @@ static int EsOutControlLocked(es_out_sys_t *p_sys, input_source_t *source, int i
     return ret;
 }
 
-static vlc_tick_t EsOutGetTracksDelay(es_out_sys_t *p_sys)
+static heimdall_tick_t EsOutGetTracksDelay(es_out_sys_t *p_sys)
 {
-    vlc_tick_t tracks_delay = 0;
+    heimdall_tick_t tracks_delay = 0;
     bool has_video = false;
     bool has_audio = false;
     bool has_spu = false;
@@ -3472,7 +3473,7 @@ static vlc_tick_t EsOutGetTracksDelay(es_out_sys_t *p_sys)
         if (es->p_dec == NULL)
             continue;
 
-        if (es->delay != VLC_TICK_MAX)
+        if (es->delay != HEIMDALL_TICK_MAX)
             tracks_delay = __MIN(tracks_delay, es->delay);
         else if (es->fmt.i_cat == VIDEO_ES)
             has_video = true;
@@ -3490,10 +3491,10 @@ static vlc_tick_t EsOutGetTracksDelay(es_out_sys_t *p_sys)
     return -tracks_delay;
 }
 
-static void EsOutSetJitter(es_out_sys_t *p_sys, vlc_tick_t i_pts_delay,
-                           vlc_tick_t i_pts_jitter, vlc_tick_t i_cr_average)
+static void EsOutSetJitter(es_out_sys_t *p_sys, heimdall_tick_t i_pts_delay,
+                           heimdall_tick_t i_pts_jitter, heimdall_tick_t i_cr_average)
 {
-    const vlc_tick_t i_tracks_pts_delay = EsOutGetTracksDelay(p_sys);
+    const heimdall_tick_t i_tracks_pts_delay = EsOutGetTracksDelay(p_sys);
     bool b_change_clock =
     i_pts_delay != p_sys->i_pts_delay ||
     i_pts_jitter != p_sys->i_pts_jitter ||
@@ -3511,12 +3512,12 @@ static void EsOutSetJitter(es_out_sys_t *p_sys, vlc_tick_t i_pts_delay,
 
     i_pts_delay += i_pts_jitter + i_tracks_pts_delay;
     es_out_pgrm_t *pgrm;
-    vlc_list_foreach(pgrm, &p_sys->programs, node)
+    heimdall_list_foreach(pgrm, &p_sys->programs, node)
     {
         input_clock_SetJitter(pgrm->p_input_clock, i_pts_delay, i_cr_average);
-        vlc_clock_main_Lock(pgrm->clocks.main);
-        vlc_clock_main_SetInputDejitter(pgrm->clocks.main, i_pts_delay);
-        vlc_clock_main_Unlock(pgrm->clocks.main);
+        heimdall_clock_main_Lock(pgrm->clocks.main);
+        heimdall_clock_main_SetInputDejitter(pgrm->clocks.main, i_pts_delay);
+        heimdall_clock_main_Unlock(pgrm->clocks.main);
     }
 }
 
@@ -3527,7 +3528,7 @@ static void EsOutSetJitter(es_out_sys_t *p_sys, vlc_tick_t i_pts_delay,
  * \param source the input source emitting the control request
  * \param i_query A es_out query as defined in include/ninput.h
  * \param args a variable list of arguments for the query
- * \return VLC_SUCCESS or an error code
+ * \return HEIMDALL_SUCCESS or an error code
  */
 static int EsOutVaControlLocked(es_out_sys_t *p_sys, input_source_t *source,
                                 int i_query, va_list args)
@@ -3545,14 +3546,14 @@ static int EsOutVaControlLocked(es_out_sys_t *p_sys, input_source_t *source,
         bool is_selected = EsIsSelected(es);
         if(request_select && !is_selected)
         {
-            EsOutSelectEs(p_sys, es, true, VLC_VOUT_ORDER_PRIMARY);
-            return EsIsSelected( es ) ? VLC_SUCCESS : VLC_EGENERIC;
+            EsOutSelectEs(p_sys, es, true, HEIMDALL_VOUT_ORDER_PRIMARY);
+            return EsIsSelected( es ) ? HEIMDALL_SUCCESS : HEIMDALL_EGENERIC;
         }
 
         if(!request_select && is_selected)
             EsOutUnselectEs(p_sys, es, es->p_pgrm == p_sys->p_pgrm);
 
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
     case ES_OUT_GET_ES_STATE:
@@ -3561,7 +3562,7 @@ static int EsOutVaControlLocked(es_out_sys_t *p_sys, input_source_t *source,
         bool *pb = va_arg( args, bool * );
 
         *pb = EsIsSelected( es );
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
     case ES_OUT_SET_ES_CAT_POLICY:
@@ -3570,9 +3571,9 @@ static int EsOutVaControlLocked(es_out_sys_t *p_sys, input_source_t *source,
         enum es_out_policy_e i_pol = va_arg( args, enum es_out_policy_e );
         es_out_es_props_t *p_esprops = GetPropsByCat( p_sys, i_cat );
         if( p_esprops == NULL )
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         p_esprops->e_policy = i_pol;
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
     case ES_OUT_SET_ES:
@@ -3586,7 +3587,7 @@ static int EsOutVaControlLocked(es_out_sys_t *p_sys, input_source_t *source,
         else
         {
             if (es->b_terminated)
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             i_cat = es->fmt.i_cat;
         }
 
@@ -3624,13 +3625,13 @@ static int EsOutVaControlLocked(es_out_sys_t *p_sys, input_source_t *source,
         }
 
         EsOutStopFreeVout(p_sys);
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
     case ES_OUT_UNSET_ES:
     {
         es_out_id_t *es = va_arg( args, es_out_id_t * ), *other;
         if (es->b_terminated)
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         foreach_es_then_es_slaves(other)
         {
             if (es != other)
@@ -3640,11 +3641,11 @@ static int EsOutVaControlLocked(es_out_sys_t *p_sys, input_source_t *source,
             {
                 EsOutUnselectEs(p_sys, other, other->p_pgrm == p_sys->p_pgrm);
                 EsOutStopFreeVout(p_sys);
-                return VLC_SUCCESS;
+                return HEIMDALL_SUCCESS;
             }
             break;
         }
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     case ES_OUT_SET_ES_DEFAULT:
@@ -3668,7 +3669,7 @@ static int EsOutVaControlLocked(es_out_sys_t *p_sys, input_source_t *source,
             if( es->fmt.i_cat == SPU_ES )
                 p_sys->sub.i_demux_id = es->fmt.i_id;
         }
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
     case ES_OUT_SET_PCR:
@@ -3676,7 +3677,7 @@ static int EsOutVaControlLocked(es_out_sys_t *p_sys, input_source_t *source,
     {
         es_out_pgrm_t *p_pgrm = NULL;
         int            i_group = 0;
-        vlc_tick_t     i_pcr;
+        heimdall_tick_t     i_pcr;
 
         /* Search program */
         if( i_query == ES_OUT_SET_PCR )
@@ -3691,27 +3692,27 @@ static int EsOutVaControlLocked(es_out_sys_t *p_sys, input_source_t *source,
             p_pgrm = EsOutProgramInsert(p_sys, source, i_group);
         }
         if( !p_pgrm )
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
-        if( p_pgrm->active_clock_source == VLC_CLOCK_MASTER_AUTO )
+        if( p_pgrm->active_clock_source == HEIMDALL_CLOCK_MASTER_AUTO )
         {
             EsOutProgramHandleClockSource(p_sys, p_pgrm);
-            assert( p_pgrm->active_clock_source != VLC_CLOCK_MASTER_AUTO );
+            assert( p_pgrm->active_clock_source != HEIMDALL_CLOCK_MASTER_AUTO );
         }
 
-        i_pcr = va_arg( args, vlc_tick_t );
-        if( i_pcr == VLC_TICK_INVALID )
+        i_pcr = va_arg( args, heimdall_tick_t );
+        if( i_pcr == HEIMDALL_TICK_INVALID )
         {
             msg_Err( p_sys->p_input, "Invalid PCR value in ES_OUT_SET_(GROUP_)PCR !" );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         p_pgrm->i_last_pcr = i_pcr;
 
-        struct vlc_tracer *tracer = vlc_object_get_tracer( &p_sys->p_input->obj );
+        struct heimdall_tracer *tracer = heimdall_object_get_tracer( &p_sys->p_input->obj );
         if ( tracer != NULL )
         {
-            vlc_tracer_TracePCR(tracer, "DEMUX", "PCR", i_pcr);
+            heimdall_tracer_TracePCR(tracer, "DEMUX", "PCR", i_pcr);
         }
         input_thread_private_t *priv = input_priv(p_sys->p_input);
 
@@ -3719,15 +3720,15 @@ static int EsOutVaControlLocked(es_out_sys_t *p_sys, input_source_t *source,
         {
             sout_StreamSetPCR( priv->p_sout, i_pcr );
         }
-        /* TODO do not use vlc_tick_now() but proper stream acquisition date */
+        /* TODO do not use heimdall_tick_now() but proper stream acquisition date */
         const bool b_low_delay = priv->b_low_delay;
         bool b_extra_buffering_allowed = !b_low_delay && EsOutIsExtraBufferingAllowed(p_sys);
         bool buffering = EsOutIsBuffering(p_sys) || p_sys->p_next_frame_es != NULL;
         /* Do not account the download stall as clock lateness. The input
          * clock will shift this frozen system date when rebuffering ends. */
-        const vlc_tick_t system_now = p_sys->b_rebuffering
-                                    ? p_sys->i_pause_date : vlc_tick_now();
-        vlc_tick_t i_late = input_clock_Update(
+        const heimdall_tick_t system_now = p_sys->b_rebuffering
+                                    ? p_sys->i_pause_date : heimdall_tick_now();
+        heimdall_tick_t i_late = input_clock_Update(
                             p_pgrm->p_input_clock,
                             input_CanPaceControl(p_sys->p_input), buffering,
                             b_extra_buffering_allowed,
@@ -3735,37 +3736,37 @@ static int EsOutVaControlLocked(es_out_sys_t *p_sys, input_source_t *source,
 
         if (tracer != NULL)
         {
-            vlc_tracer_Trace(tracer,
-                             VLC_TRACE("type", "DEMUX"),
-                             VLC_TRACE("id", "input"),
-                             VLC_TRACE_TICK_NS("buffering", -i_late),
-                             VLC_TRACE_END);
+            heimdall_tracer_Trace(tracer,
+                             HEIMDALL_TRACE("type", "DEMUX"),
+                             HEIMDALL_TRACE("id", "input"),
+                             HEIMDALL_TRACE_TICK_NS("buffering", -i_late),
+                             HEIMDALL_TRACE_END);
         }
 
         if( !p_sys->p_pgrm )
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
 
         if( p_sys->b_buffering )
         {
             /* Check buffering state on master clock update */
             EsOutDecodersStopBuffering(p_sys, false);
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
 
         if( p_sys->b_rebuffering )
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
 
         if (p_pgrm != p_sys->p_pgrm || p_sys->p_next_frame_es != NULL)
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
 
         /* The PCR is not considered late, there is no compensation needed. */
         if (i_late <= 0)
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
 
         /* The output is paced by another client, there is no clock
          * compensation possible. */
         if (priv->p_sout != NULL && priv->b_out_pace_control)
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
 
         /* Last pcr/clock update was late. We need to compensate by offsetting
          * from the clock the rendering dates. */
@@ -3776,10 +3777,10 @@ static int EsOutVaControlLocked(es_out_sys_t *p_sys, input_source_t *source,
          * - track offset pts delay
          * updated on input_clock_Update
          * Late/jitter amount is updated from median of late values */
-        vlc_tick_t i_clock_total_delay = input_clock_GetJitter(p_pgrm->p_input_clock);
+        heimdall_tick_t i_clock_total_delay = input_clock_GetJitter(p_pgrm->p_input_clock);
 
         /* Current jitter */
-        vlc_tick_t i_new_jitter = i_clock_total_delay
+        heimdall_tick_t i_new_jitter = i_clock_total_delay
                                 - p_sys->i_tracks_pts_delay
                                 - p_sys->i_pts_delay;
 
@@ -3800,8 +3801,8 @@ static int EsOutVaControlLocked(es_out_sys_t *p_sys, input_source_t *source,
 
             msg_Err(p_sys->p_input,
                     "ES_OUT_SET_(GROUP_)PCR  is called %d ms late (jitter of %d ms ignored)",
-                    (int)MS_FROM_VLC_TICK(i_late),
-                    (int)MS_FROM_VLC_TICK(i_new_jitter));
+                    (int)MS_FROM_HEIMDALL_TICK(i_late),
+                    (int)MS_FROM_HEIMDALL_TICK(i_new_jitter));
 
             /* don't change the current jitter */
             i_new_jitter = p_sys->i_pts_jitter;
@@ -3810,8 +3811,8 @@ static int EsOutVaControlLocked(es_out_sys_t *p_sys, input_source_t *source,
         {
             msg_Err(p_sys->p_input,
                     "ES_OUT_SET_(GROUP_)PCR  is called %d ms late (pts_delay increased to %d ms)",
-                    (int)MS_FROM_VLC_TICK(i_late),
-                    (int)MS_FROM_VLC_TICK(i_clock_total_delay));
+                    (int)MS_FROM_HEIMDALL_TICK(i_late),
+                    (int)MS_FROM_HEIMDALL_TICK(i_clock_total_delay));
         }
 
         /* Force a rebufferization when we are too late */
@@ -3821,14 +3822,14 @@ static int EsOutVaControlLocked(es_out_sys_t *p_sys, input_source_t *source,
                                p_sys->i_pts_delay, i_new_jitter,
                                p_sys->i_cr_average);
 
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
     case ES_OUT_RESET_PCR:
         msg_Dbg( p_sys->p_input, "ES_OUT_RESET_PCR called" );
         EsOutStopNextFrame(p_sys);
         EsOutChangePosition(p_sys, NULL);
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
     case ES_OUT_SET_GROUP:
     {
@@ -3837,13 +3838,13 @@ static int EsOutVaControlLocked(es_out_sys_t *p_sys, input_source_t *source,
 
         p_sys->i_group_id = i;
 
-        vlc_list_foreach(p_pgrm, &p_sys->programs, node)
+        heimdall_list_foreach(p_pgrm, &p_sys->programs, node)
             if( p_pgrm->i_id == i )
             {
                 EsOutProgramSelect(p_sys, p_pgrm);
-                return VLC_SUCCESS;
+                return HEIMDALL_SUCCESS;
             }
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     case ES_OUT_SET_ES_FMT:
@@ -3853,12 +3854,12 @@ static int EsOutVaControlLocked(es_out_sys_t *p_sys, input_source_t *source,
         if( es == NULL || es->fmt.i_cat != p_fmt->i_cat
          || (es->fmt.i_id != p_fmt->i_id && p_fmt->i_id != -1)
          || es->fmt.i_group != p_fmt->i_group )
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
         const int i_id = es->fmt.i_id;
         es_format_Clean( &es->fmt );
         int ret = es_format_Copy( &es->fmt, p_fmt );
-        if( ret != VLC_SUCCESS )
+        if( ret != HEIMDALL_SUCCESS )
             return ret;
         es->fmt.i_id = i_id;
         if( !es->fmt.i_original_fourcc )
@@ -3876,9 +3877,9 @@ static int EsOutVaControlLocked(es_out_sys_t *p_sys, input_source_t *source,
         if(b_was_selected)
             EsOutCreateDecoder(p_sys, es);
 
-        EsOutSendEsEvent(p_sys, es, VLC_INPUT_ES_UPDATED, false, VLC_VOUT_ORDER_PRIMARY);
+        EsOutSendEsEvent(p_sys, es, HEIMDALL_INPUT_ES_UPDATED, false, HEIMDALL_VOUT_ORDER_PRIMARY);
 
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
     case ES_OUT_SET_ES_SCRAMBLED_STATE:
@@ -3891,50 +3892,50 @@ static int EsOutVaControlLocked(es_out_sys_t *p_sys, input_source_t *source,
             es->b_scrambled = b_scrambled;
             EsOutProgramUpdateScrambled(p_sys, es->p_pgrm );
         }
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
     case ES_OUT_SET_NEXT_DISPLAY_TIME:
     {
-        const vlc_tick_t i_date = va_arg( args, vlc_tick_t );
+        const heimdall_tick_t i_date = va_arg( args, heimdall_tick_t );
 
         if( i_date < 0 )
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
         p_sys->i_preroll_end = i_date;
 
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
     case ES_OUT_SET_GROUP_META:
     {
         int i_group = va_arg( args, int );
-        const vlc_meta_t *p_meta = va_arg( args, const vlc_meta_t * );
+        const heimdall_meta_t *p_meta = va_arg( args, const heimdall_meta_t * );
 
         EsOutProgramMeta(p_sys, source, i_group, p_meta);
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
     case ES_OUT_SET_GROUP_EPG:
     {
         int i_group = va_arg( args, int );
-        const vlc_epg_t *p_epg = va_arg( args, const vlc_epg_t * );
+        const heimdall_epg_t *p_epg = va_arg( args, const heimdall_epg_t * );
 
         EsOutProgramEpg(p_sys, source, i_group, p_epg);
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
     case ES_OUT_SET_GROUP_EPG_EVENT:
     {
         int i_group = va_arg( args, int );
-        const vlc_epg_event_t *p_evt = va_arg( args, const vlc_epg_event_t * );
+        const heimdall_epg_event_t *p_evt = va_arg( args, const heimdall_epg_event_t * );
 
         EsOutProgramEpgEvent(p_sys, source, i_group, p_evt);
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
     case ES_OUT_SET_EPG_TIME:
     {
         int64_t i64 = va_arg( args, int64_t );
 
         EsOutEpgTime(p_sys, i64);
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
     case ES_OUT_DEL_GROUP:
@@ -3946,10 +3947,10 @@ static int EsOutVaControlLocked(es_out_sys_t *p_sys, input_source_t *source,
 
     case ES_OUT_SET_META:
     {
-        const vlc_meta_t *p_meta = va_arg( args, const vlc_meta_t * );
+        const heimdall_meta_t *p_meta = va_arg( args, const heimdall_meta_t * );
 
         EsOutGlobalMeta(p_sys, p_meta);
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
     case ES_OUT_DRAIN:
@@ -3959,7 +3960,7 @@ static int EsOutVaControlLocked(es_out_sys_t *p_sys, input_source_t *source,
     {
         bool *pb = va_arg( args, bool* );
         *pb = EsOutIsEmpty( p_sys );
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
     case ES_OUT_POST_SUBNODE:
@@ -3970,7 +3971,7 @@ static int EsOutVaControlLocked(es_out_sys_t *p_sys, input_source_t *source,
             input_item_node_Delete(node);
         }
 
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
     case ES_OUT_VOUT_SET_MOUSE_EVENT:
@@ -3978,9 +3979,9 @@ static int EsOutVaControlLocked(es_out_sys_t *p_sys, input_source_t *source,
         es_out_id_t *p_es = va_arg( args, es_out_id_t * );
 
         if( !p_es || p_es->fmt.i_cat != VIDEO_ES )
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
-        p_es->mouse_event_cb = va_arg( args, vlc_mouse_event );
+        p_es->mouse_event_cb = va_arg( args, heimdall_mouse_event );
         p_es->mouse_event_userdata = va_arg( args, void * );
 
         if ( !p_es->mouse_event_cb )
@@ -3991,10 +3992,10 @@ static int EsOutVaControlLocked(es_out_sys_t *p_sys, input_source_t *source,
         }
 
         if( p_es->p_dec )
-            vlc_input_decoder_SetVoutMouseEvent( p_es->p_dec,
+            heimdall_input_decoder_SetVoutMouseEvent( p_es->p_dec,
                 p_es->mouse_event_cb, p_es->mouse_event_userdata );
 
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
     case ES_OUT_VOUT_ADD_OVERLAY:
     {
@@ -4002,27 +4003,27 @@ static int EsOutVaControlLocked(es_out_sys_t *p_sys, input_source_t *source,
         subpicture_t *sub = va_arg( args, subpicture_t * );
         size_t *channel = va_arg( args, size_t * );
         if( p_es && p_es->fmt.i_cat == VIDEO_ES && p_es->p_dec )
-            return vlc_input_decoder_AddVoutOverlay( p_es->p_dec, sub, channel );
-        return VLC_EGENERIC;
+            return heimdall_input_decoder_AddVoutOverlay( p_es->p_dec, sub, channel );
+        return HEIMDALL_EGENERIC;
     }
     case ES_OUT_VOUT_DEL_OVERLAY:
     {
         es_out_id_t *p_es = va_arg( args, es_out_id_t * );
         size_t channel = va_arg( args, size_t );
         if( p_es && p_es->fmt.i_cat == VIDEO_ES && p_es->p_dec )
-            return vlc_input_decoder_DelVoutOverlay( p_es->p_dec, channel );
-        return VLC_EGENERIC;
+            return heimdall_input_decoder_DelVoutOverlay( p_es->p_dec, channel );
+        return HEIMDALL_EGENERIC;
     }
     case ES_OUT_SPU_SET_HIGHLIGHT:
     {
         es_out_id_t *p_es = va_arg( args, es_out_id_t * );
-        const vlc_spu_highlight_t *spu_hl =
-            va_arg( args, const vlc_spu_highlight_t * );
+        const heimdall_spu_highlight_t *spu_hl =
+            va_arg( args, const heimdall_spu_highlight_t * );
         if( p_es && p_es->fmt.i_cat == SPU_ES && p_es->p_dec )
-            return vlc_input_decoder_SetSpuHighlight( p_es->p_dec, spu_hl );
-        return VLC_EGENERIC;
+            return heimdall_input_decoder_SetSpuHighlight( p_es->p_dec, spu_hl );
+        return HEIMDALL_EGENERIC;
     }
-    default: vlc_assert_unreachable();
+    default: heimdall_assert_unreachable();
     }
 }
 
@@ -4042,7 +4043,7 @@ static int EsOutVaPrivControlLocked(es_out_sys_t *p_sys, input_source_t *source,
                 i_mode == ES_OUT_MODE_AUTO || i_mode == ES_OUT_MODE_PARTIAL ||
                 i_mode == ES_OUT_MODE_END );
 
-        if (i_mode != ES_OUT_MODE_NONE && !p_sys->b_active && !vlc_list_is_empty(&p_sys->es))
+        if (i_mode != ES_OUT_MODE_NONE && !p_sys->b_active && !heimdall_list_is_empty(&p_sys->es))
         {
             /* XXX Terminate vout if there are tracks but no video one.
              * This one is not mandatory but is he earliest place where it
@@ -4078,21 +4079,21 @@ static int EsOutVaPrivControlLocked(es_out_sys_t *p_sys, input_source_t *source,
 
         if( i_mode == ES_OUT_MODE_END )
             EsOutTerminate(p_sys);
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
     case ES_OUT_PRIV_SET_ES:
     case ES_OUT_PRIV_UNSET_ES:
     case ES_OUT_PRIV_RESTART_ES:
     {
-        vlc_es_id_t *es_id = va_arg( args, vlc_es_id_t * );
-        es_out_id_t *es = vlc_es_id_get_out( es_id );
+        heimdall_es_id_t *es_id = va_arg( args, heimdall_es_id_t * );
+        es_out_id_t *es = heimdall_es_id_get_out( es_id );
         int new_query;
         switch( query )
         {
             case ES_OUT_PRIV_SET_ES: new_query = ES_OUT_SET_ES; break;
             case ES_OUT_PRIV_UNSET_ES: new_query = ES_OUT_UNSET_ES; break;
             case ES_OUT_PRIV_RESTART_ES: new_query = ES_OUT_RESTART_ES; break;
-            default: vlc_assert_unreachable();
+            default: heimdall_assert_unreachable();
         }
         return EsOutControlLocked(p_sys, p_sys->main_source, new_query, es);
     }
@@ -4110,29 +4111,29 @@ static int EsOutVaPrivControlLocked(es_out_sys_t *p_sys, input_source_t *source,
             EsOutSelectListFromProps(p_sys, cat);
         }
 
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
     case ES_OUT_PRIV_GET_WAKE_UP:
     {
-        vlc_tick_t *pi_wakeup = va_arg( args, vlc_tick_t* );
+        heimdall_tick_t *pi_wakeup = va_arg( args, heimdall_tick_t* );
         *pi_wakeup = EsOutGetWakeup(p_sys);
 
-        struct vlc_tracer *tracer = vlc_object_get_tracer( &p_sys->p_input->obj );
+        struct heimdall_tracer *tracer = heimdall_object_get_tracer( &p_sys->p_input->obj );
         if (tracer != NULL)
         {
-            vlc_tracer_Trace(tracer,
-                             VLC_TRACE("id", "es_out"),
-                             VLC_TRACE_TICK_NS("wakeup_delay", *pi_wakeup == 0 ? 0 : *pi_wakeup - vlc_tick_now()),
-                             VLC_TRACE_END);
+            heimdall_tracer_Trace(tracer,
+                             HEIMDALL_TRACE("id", "es_out"),
+                             HEIMDALL_TRACE_TICK_NS("wakeup_delay", *pi_wakeup == 0 ? 0 : *pi_wakeup - heimdall_tick_now()),
+                             HEIMDALL_TRACE_END);
         }
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
     case ES_OUT_PRIV_SET_ES_LIST:
     {
         enum es_format_category_e cat = va_arg( args, enum es_format_category_e );
-        vlc_es_id_t *const*es_id_list = va_arg( args, vlc_es_id_t ** );
+        heimdall_es_id_t *const*es_id_list = va_arg( args, heimdall_es_id_t ** );
         EsOutSelectList(p_sys, cat, es_id_list);
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
     case ES_OUT_PRIV_STOP_ALL_ES:
     {
@@ -4142,36 +4143,36 @@ static int EsOutVaPrivControlLocked(es_out_sys_t *p_sys, input_source_t *source,
         foreach_es_then_es_slaves(es)
             count++;
 
-        vlc_es_id_t **selected_es = vlc_alloc(count + 1, sizeof(vlc_es_id_t *));
+        heimdall_es_id_t **selected_es = heimdall_alloc(count + 1, sizeof(heimdall_es_id_t *));
         if (!selected_es)
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
 
-        *va_arg(args, vlc_es_id_t ***) = selected_es;
+        *va_arg(args, heimdall_es_id_t ***) = selected_es;
 
         foreach_es_then_es_slaves(es)
         {
             if (EsIsSelected(es))
             {
                 EsOutDestroyDecoder(p_sys, es);
-                *selected_es++ = vlc_es_id_Hold(&es->id);
+                *selected_es++ = heimdall_es_id_Hold(&es->id);
             }
             *selected_es = NULL;
         }
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
     case ES_OUT_PRIV_START_ALL_ES:
     {
-        vlc_es_id_t **selected_es = va_arg( args, vlc_es_id_t ** );
-        vlc_es_id_t **selected_es_it = selected_es;
-        for( vlc_es_id_t *id = *selected_es_it; id != NULL;
+        heimdall_es_id_t **selected_es = va_arg( args, heimdall_es_id_t ** );
+        heimdall_es_id_t **selected_es_it = selected_es;
+        for( heimdall_es_id_t *id = *selected_es_it; id != NULL;
              id = *++selected_es_it )
         {
-            EsOutCreateDecoder(p_sys, vlc_es_id_get_out(id));
-            vlc_es_id_Release( id );
+            EsOutCreateDecoder(p_sys, heimdall_es_id_get_out(id));
+            heimdall_es_id_Release( id );
         }
         free(selected_es);
         EsOutStopFreeVout(p_sys);
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
     case ES_OUT_PRIV_GET_BUFFERING:
     {
@@ -4180,22 +4181,22 @@ static int EsOutVaPrivControlLocked(es_out_sys_t *p_sys, input_source_t *source,
             *pb = true;
         else
             *pb = false;
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
     case ES_OUT_PRIV_SET_ES_DELAY:
     {
-        vlc_es_id_t *es_id = va_arg( args, vlc_es_id_t * );
-        es_out_id_t *es = vlc_es_id_get_out( es_id );
-        const vlc_tick_t delay = va_arg(args, vlc_tick_t);
+        heimdall_es_id_t *es_id = va_arg( args, heimdall_es_id_t * );
+        es_out_id_t *es = heimdall_es_id_get_out( es_id );
+        const heimdall_tick_t delay = va_arg(args, heimdall_tick_t);
         EsOutSetEsDelay(p_sys, es, delay);
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
     case ES_OUT_PRIV_SET_DELAY:
     {
         const int i_cat = va_arg( args, int );
-        const vlc_tick_t i_delay = va_arg( args, vlc_tick_t );
+        const heimdall_tick_t i_delay = va_arg( args, heimdall_tick_t );
         EsOutSetDelay(p_sys, i_cat, i_delay);
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
     case ES_OUT_PRIV_SET_RECORD_STATE:
     {
@@ -4207,20 +4208,20 @@ static int EsOutVaPrivControlLocked(es_out_sys_t *p_sys, input_source_t *source,
     {
         const bool b_source_paused = (bool)va_arg( args, int );
         const bool b_paused = (bool)va_arg( args, int );
-        const vlc_tick_t i_date = va_arg( args, vlc_tick_t );
+        const heimdall_tick_t i_date = va_arg( args, heimdall_tick_t );
 
         assert( !b_source_paused == !b_paused );
         EsOutChangePause(p_sys, b_paused, i_date);
 
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
     case ES_OUT_PRIV_SET_REBUFFER_STATE:
     {
         const bool b_rebuffering = (bool)va_arg( args, int );
-        const vlc_tick_t i_date = va_arg( args, vlc_tick_t );
+        const heimdall_tick_t i_date = va_arg( args, heimdall_tick_t );
 
         EsOutChangeRebuffer(p_sys, b_rebuffering, i_date);
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
     case ES_OUT_PRIV_SET_RATE:
     {
@@ -4230,19 +4231,19 @@ static int EsOutVaPrivControlLocked(es_out_sys_t *p_sys, input_source_t *source,
         assert( src_rate == rate );
         EsOutChangeRate(p_sys, rate);
 
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
     case ES_OUT_PRIV_RESET_PCR_FRAME_PREV:
     {
-        const vlc_tick_t buffering_duration = va_arg(args, vlc_tick_t);
+        const heimdall_tick_t buffering_duration = va_arg(args, heimdall_tick_t);
 
         if (buffering_duration == 0)
         {
             EsOutResumeFromNextFrame(p_sys);
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
         /* Check if we have enough buffering to reach the current frame */
-        vlc_tick_t new_jitter = buffering_duration - p_sys->i_pts_delay;
+        heimdall_tick_t new_jitter = buffering_duration - p_sys->i_pts_delay;
         if (new_jitter > p_sys->i_pts_jitter)
         {
             new_jitter += p_sys->i_pts_jitter;
@@ -4250,43 +4251,43 @@ static int EsOutVaPrivControlLocked(es_out_sys_t *p_sys, input_source_t *source,
             msg_Warn(p_sys->p_input,
                      "previous-frame: seek-back (%d ms) longer than buffering, "
                      "adding %d ms to pts-delay",
-                     (int)MS_FROM_VLC_TICK(buffering_duration),
-                     (int)MS_FROM_VLC_TICK(new_jitter));
-            if (p_sys->i_last_pts_jitter == VLC_TICK_INVALID)
+                     (int)MS_FROM_HEIMDALL_TICK(buffering_duration),
+                     (int)MS_FROM_HEIMDALL_TICK(new_jitter));
+            if (p_sys->i_last_pts_jitter == HEIMDALL_TICK_INVALID)
                 p_sys->i_last_pts_jitter = p_sys->i_pts_jitter;
             EsOutSetJitter(p_sys, p_sys->i_pts_delay, new_jitter,
                            p_sys->i_cr_average);
         }
 
         EsOutChangePosition( p_sys, NULL );
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
     case ES_OUT_PRIV_SET_FRAME_NEXT:
     case ES_OUT_PRIV_SET_FRAME_PREVIOUS:
         EsOutFrameNext( p_sys, query == ES_OUT_PRIV_SET_FRAME_PREVIOUS );
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     case ES_OUT_PRIV_SET_TIMES:
     {
         double f_position = va_arg( args, double );
-        vlc_tick_t i_time = va_arg( args, vlc_tick_t );
-        vlc_tick_t i_normal_time = va_arg( args, vlc_tick_t );
-        vlc_tick_t i_length = va_arg( args, vlc_tick_t );
+        heimdall_tick_t i_time = va_arg( args, heimdall_tick_t );
+        heimdall_tick_t i_normal_time = va_arg( args, heimdall_tick_t );
+        heimdall_tick_t i_length = va_arg( args, heimdall_tick_t );
         bool b_live = va_arg( args, int );
 
-        if (i_normal_time != VLC_TICK_INVALID)
+        if (i_normal_time != HEIMDALL_TICK_INVALID)
             source->i_normal_time = i_normal_time;
 
         if( source != p_sys->main_source )
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
 
         if (p_sys->b_buffering)
         {
-            input_SendEventTimes(p_sys->p_input, 0.0, VLC_TICK_INVALID,
+            input_SendEventTimes(p_sys->p_input, 0.0, HEIMDALL_TICK_INVALID,
                                  i_normal_time, i_length, b_live);
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
 
-        vlc_tick_t i_delay;
+        heimdall_tick_t i_delay;
 
         /* Fix for buffering delay */
         if (!input_priv(p_sys->p_input)->p_sout ||
@@ -4295,11 +4296,11 @@ static int EsOutVaPrivControlLocked(es_out_sys_t *p_sys, input_source_t *source,
         else
             i_delay = 0;
 
-        if (i_time != VLC_TICK_INVALID)
+        if (i_time != HEIMDALL_TICK_INVALID)
         {
             i_time -= i_delay;
-            if (i_time < VLC_TICK_0)
-                i_time = VLC_TICK_0;
+            if (i_time < HEIMDALL_TICK_0)
+                i_time = HEIMDALL_TICK_0;
         }
 
         if (i_length != 0)
@@ -4309,55 +4310,55 @@ static int EsOutVaPrivControlLocked(es_out_sys_t *p_sys, input_source_t *source,
 
         input_SendEventTimes(p_sys->p_input, f_position, i_time,
                              i_normal_time, i_length, b_live);
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
     case ES_OUT_PRIV_SET_JITTER:
     {
-        vlc_tick_t i_pts_delay  = va_arg( args, vlc_tick_t );
-        vlc_tick_t i_pts_jitter = va_arg( args, vlc_tick_t );
+        heimdall_tick_t i_pts_delay  = va_arg( args, heimdall_tick_t );
+        heimdall_tick_t i_pts_jitter = va_arg( args, heimdall_tick_t );
         int     i_cr_average = va_arg( args, int );
 
         EsOutSetJitter(p_sys, i_pts_delay, i_pts_jitter, i_cr_average);
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
     case ES_OUT_PRIV_GET_GROUP_FORCED:
     {
         int *pi_group = va_arg( args, int * );
         *pi_group = p_sys->i_group_id;
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
     case ES_OUT_PRIV_SET_EOS:
     {
         EsOutDrain(p_sys);
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
     case ES_OUT_PRIV_SET_VBI_PAGE:
     case ES_OUT_PRIV_SET_VBI_TRANSPARENCY:
     {
-        vlc_es_id_t *es_id = va_arg( args, vlc_es_id_t * );
-        es_out_id_t *es = vlc_es_id_get_out( es_id );
+        heimdall_es_id_t *es_id = va_arg( args, heimdall_es_id_t * );
+        es_out_id_t *es = heimdall_es_id_get_out( es_id );
         assert(es);
         if( !es->p_dec )
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
         int ret;
         if( query == ES_OUT_PRIV_SET_VBI_PAGE )
         {
             unsigned page = va_arg( args, unsigned );
-            ret = vlc_input_decoder_SetVbiPage( es->p_dec, page );
-            if( ret == VLC_SUCCESS )
+            ret = heimdall_input_decoder_SetVbiPage( es->p_dec, page );
+            if( ret == HEIMDALL_SUCCESS )
                 input_SendEventVbiPage( p_sys->p_input, page );
         }
         else
         {
             bool transp = va_arg( args, int );
-            ret = vlc_input_decoder_SetVbiOpaque( es->p_dec, !transp );
-            if( ret == VLC_SUCCESS )
+            ret = heimdall_input_decoder_SetVbiOpaque( es->p_dec, !transp );
+            if( ret == HEIMDALL_SUCCESS )
                 input_SendEventVbiTransparency( p_sys->p_input, transp );
         }
         return ret;
     }
-    default: vlc_assert_unreachable();
+    default: heimdall_assert_unreachable();
     }
 
 }
@@ -4368,9 +4369,9 @@ static int EsOutControl(es_out_t *out, input_source_t *source,
     es_out_sys_t *p_sys = PRIV(out);
     int i_ret;
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     i_ret = EsOutVaControlLocked(p_sys, source, i_query, args);
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 
     return i_ret;
 }
@@ -4385,16 +4386,16 @@ static int EsOutPrivControlLocked(es_out_sys_t *sys, input_source_t *source, int
     return ret;
 }
 
-static int EsOutPrivControl(struct vlc_input_es_out *out,
+static int EsOutPrivControl(struct heimdall_input_es_out *out,
                             input_source_t *source,
                             int query,
                             va_list args)
 {
     es_out_sys_t *p_sys = PRIV(&out->out);
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     int ret = EsOutVaPrivControlLocked(p_sys, source, query, args);
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 
     return ret;
 }
@@ -4410,7 +4411,7 @@ static const struct es_out_callbacks es_out_cbs =
 /*****************************************************************************
  * input_EsOutNew:
  *****************************************************************************/
-struct vlc_input_es_out *
+struct heimdall_input_es_out *
 input_EsOutNew(input_thread_t *p_input, input_source_t *main_source, float rate,
                enum input_type input_type)
 {
@@ -4418,14 +4419,14 @@ input_EsOutNew(input_thread_t *p_input, input_source_t *main_source, float rate,
     if( !p_sys )
         return NULL;
 
-    static const struct vlc_input_es_out_ops input_es_out_ops =
+    static const struct heimdall_input_es_out_ops input_es_out_ops =
     {
         .priv_control = EsOutPrivControl,
     };
     p_sys->out.ops = &input_es_out_ops;
     p_sys->out.out.cbs = &es_out_cbs;
 
-    vlc_mutex_init( &p_sys->lock );
+    heimdall_mutex_init( &p_sys->lock );
     p_sys->p_input = p_input;
     p_sys->main_source = main_source;
 
@@ -4435,9 +4436,9 @@ input_EsOutNew(input_thread_t *p_input, input_source_t *main_source, float rate,
     p_sys->input_type = input_type;
 
     p_sys->p_pgrm = NULL;
-    vlc_list_init(&p_sys->programs);
-    vlc_list_init(&p_sys->es);
-    vlc_list_init(&p_sys->es_slaves);
+    heimdall_list_init(&p_sys->programs);
+    heimdall_list_init(&p_sys->es);
+    heimdall_list_init(&p_sys->es_slaves);
 
     /* */
     EsOutPropsInit( &p_sys->video, true, p_input, input_type,
@@ -4456,10 +4457,10 @@ input_EsOutNew(input_thread_t *p_input, input_source_t *main_source, float rate,
     p_sys->i_group_id = var_GetInteger( p_input, "program" );
     p_sys->i_audio_delay = p_sys->i_spu_delay = p_sys->i_video_delay = 0;
     p_sys->i_pts_delay = p_sys->i_tracks_pts_delay = p_sys->i_pts_jitter
-                       = p_sys->i_last_pts_jitter = VLC_TICK_INVALID;
+                       = p_sys->i_last_pts_jitter = HEIMDALL_TICK_INVALID;
     p_sys->i_cr_average = 0;
 
-    p_sys->user_clock_source = clock_source_Inherit( VLC_OBJECT(p_input) );
+    p_sys->user_clock_source = clock_source_Inherit( HEIMDALL_OBJECT(p_input) );
     p_sys->i_id = 0;
 
     p_sys->i_pause_date = -1;
@@ -4471,7 +4472,7 @@ input_EsOutNew(input_thread_t *p_input, input_source_t *main_source, float rate,
     p_sys->b_buffering = true;
     p_sys->i_buffering_extra_initial = p_sys->i_buffering_extra_stream
                                      = p_sys->i_buffering_extra_system
-                                     = VLC_TICK_INVALID;
+                                     = HEIMDALL_TICK_INVALID;
     p_sys->b_draining = false;
     p_sys->p_sout_record = NULL;
     p_sys->i_preroll_end = -1;
@@ -4493,7 +4494,7 @@ static char *LanguageGetName( const char *psz_code )
     }
 
     size_t len = strlen( psz_code );
-    pl = vlc_find_iso639( psz_code, ( len != 2 && len != 3 ) );
+    pl = heimdall_find_iso639( psz_code, ( len != 2 && len != 3 ) );
 
     if( !pl )
     {
@@ -4501,7 +4502,7 @@ static char *LanguageGetName( const char *psz_code )
     }
     else
     {
-        return strdup( vlc_gettext(pl->psz_eng_name) );
+        return strdup( heimdall_gettext(pl->psz_eng_name) );
     }
 }
 
@@ -4511,7 +4512,7 @@ static char *LanguageGetCode( const char *psz_lang )
     const iso639_lang_t *pl;
     if( psz_lang != NULL )
     {
-        pl = vlc_find_iso639( psz_lang, true );
+        pl = heimdall_find_iso639( psz_lang, true );
         if( pl != NULL )
             return strdup( pl->psz_iso639_2B );
     }
@@ -4616,7 +4617,7 @@ static int EsOutEsUpdateFmt(es_out_id_t *es,
 
     es_format_Clean(&es->fmt_out);
     int ret = es_format_Copy(&es->fmt_out, &update);
-    if (ret == VLC_SUCCESS)
+    if (ret == HEIMDALL_SUCCESS)
         EsOutUpdateEsLanguageTitle(es, &es->fmt_out);
 
     return ret;
@@ -4624,14 +4625,14 @@ static int EsOutEsUpdateFmt(es_out_id_t *es,
 
 static void info_category_AddCodecInfo( info_category_t* p_cat,
                                         const char *psz_info,
-                                        vlc_fourcc_t i_fourcc,
+                                        heimdall_fourcc_t i_fourcc,
                                         const char *psz_description )
 {
     const char *ps_fcc = (const char*)&i_fourcc;
     if( psz_description && *psz_description )
         info_category_AddInfo( p_cat, psz_info, "%s (%.4s)",
                                psz_description, ps_fcc );
-    else if ( i_fourcc != VLC_FOURCC(0,0,0,0) )
+    else if ( i_fourcc != HEIMDALL_FOURCC(0,0,0,0) )
         info_category_AddInfo( p_cat, psz_info, "%.4s", ps_fcc );
 }
 /****************************************************************************
@@ -4640,7 +4641,7 @@ static void info_category_AddCodecInfo( info_category_t* p_cat,
  ****************************************************************************/
 static void EsOutUpdateInfo(es_out_sys_t *p_sys,
                             es_out_id_t *es,
-                            const vlc_meta_t *p_meta)
+                            const heimdall_meta_t *p_meta)
 {
     input_thread_t *p_input = p_sys->p_input;
     input_item_t   *p_item = input_priv(p_input)->p_item;
@@ -4665,9 +4666,9 @@ static void EsOutUpdateInfo(es_out_sys_t *p_sys,
     if( es->psz_title )
         info_category_AddInfo( p_cat, _("Title"), "%s", es->psz_title );
 
-    const vlc_fourcc_t i_codec_fourcc = p_fmt_es->i_original_fourcc;
+    const heimdall_fourcc_t i_codec_fourcc = p_fmt_es->i_original_fourcc;
     const char *psz_codec_description =
-        vlc_fourcc_GetDescription( p_fmt_es->i_cat, i_codec_fourcc );
+        heimdall_fourcc_GetDescription( p_fmt_es->i_cat, i_codec_fourcc );
     info_category_AddCodecInfo( p_cat, _("Codec"),
                                 i_codec_fourcc, psz_codec_description );
 
@@ -4692,11 +4693,11 @@ static void EsOutUpdateInfo(es_out_sys_t *p_sys,
             info_category_AddInfo( p_cat, _("Channels"), "%u",
                                   p_fmt_es->audio.i_channels ?
                                   p_fmt_es->audio.i_channels :
-                                  vlc_popcount( p_fmt_es->audio.i_physical_channels ) );
+                                  heimdall_popcount( p_fmt_es->audio.i_physical_channels ) );
 
         if( p_fmt_es->audio.i_physical_channels )
             info_category_AddInfo( p_cat, _("Channel Layout"), "%s",
-                vlc_gettext( aout_FormatPrintChannels( &p_fmt_es->audio ) ) );
+                heimdall_gettext( aout_FormatPrintChannels( &p_fmt_es->audio ) ) );
 
         if( p_fmt_es->audio.i_rate )
             info_category_AddInfo( p_cat, _("Sample rate"), _("%u Hz"),
@@ -4712,7 +4713,7 @@ static void EsOutUpdateInfo(es_out_sys_t *p_sys,
         if( fmt->audio.i_format &&
             fmt->audio.i_format != p_fmt_es->i_codec )
         {
-            psz_codec_description = vlc_fourcc_GetDescription( AUDIO_ES,
+            psz_codec_description = heimdall_fourcc_GetDescription( AUDIO_ES,
                                                                fmt->audio.i_format );
             info_category_AddCodecInfo( p_cat, _("Decoded format"),
                                         fmt->audio.i_format,
@@ -4722,7 +4723,7 @@ static void EsOutUpdateInfo(es_out_sys_t *p_sys,
         if( fmt->audio.i_physical_channels &&
             fmt->audio.i_physical_channels != p_fmt_es->audio.i_physical_channels )
             info_category_AddInfo( p_cat, _("Decoded channels"), "%s",
-                vlc_gettext( aout_FormatPrintChannels( &fmt->audio ) ) );
+                heimdall_gettext( aout_FormatPrintChannels( &fmt->audio ) ) );
 
         if( fmt->audio.i_rate &&
             fmt->audio.i_rate != p_fmt_es->audio.i_rate )
@@ -4781,7 +4782,7 @@ static void EsOutUpdateInfo(es_out_sys_t *p_sys,
        }
        if( fmt->video.i_chroma != 0 )
        {
-           psz_codec_description = vlc_fourcc_GetDescription( VIDEO_ES,
+           psz_codec_description = heimdall_fourcc_GetDescription( VIDEO_ES,
                                                               fmt->video.i_chroma );
            info_category_AddCodecInfo( p_cat, _("Decoded format"),
                                        fmt->video.i_chroma,
@@ -4795,7 +4796,7 @@ static void EsOutUpdateInfo(es_out_sys_t *p_sys,
                N_("Left bottom"), N_("Right top"),
            };
            info_category_AddInfo( p_cat, _("Orientation"), "%s",
-               vlc_gettext(orient_names[fmt->video.orientation]) );
+               heimdall_gettext(orient_names[fmt->video.orientation]) );
        }
        if( fmt->video.primaries != COLOR_PRIMARIES_UNDEF )
        {
@@ -4813,7 +4814,7 @@ static void EsOutUpdateInfo(es_out_sys_t *p_sys,
            static_assert(ARRAY_SIZE(primaries_names) == COLOR_PRIMARIES_MAX+1,
                          "Color primiaries table mismatch");
            info_category_AddInfo( p_cat, _("Color primaries"), "%s",
-               vlc_gettext(primaries_names[fmt->video.primaries]) );
+               heimdall_gettext(primaries_names[fmt->video.primaries]) );
        }
        if( fmt->video.transfer != TRANSFER_FUNC_UNDEF )
        {
@@ -4831,7 +4832,7 @@ static void EsOutUpdateInfo(es_out_sys_t *p_sys,
            static_assert(ARRAY_SIZE(func_names) == TRANSFER_FUNC_MAX+1,
                          "Transfer functions table mismatch");
            info_category_AddInfo( p_cat, _("Color transfer function"), "%s",
-               vlc_gettext(func_names[fmt->video.transfer]) );
+               heimdall_gettext(func_names[fmt->video.transfer]) );
        }
        if( fmt->video.space != COLOR_SPACE_UNDEF )
        {
@@ -4844,7 +4845,7 @@ static void EsOutUpdateInfo(es_out_sys_t *p_sys,
            static_assert(ARRAY_SIZE(space_names) == COLOR_SPACE_MAX+1,
                          "Color space table mismatch");
            info_category_AddInfo( p_cat, _("Color space"), "%s",
-               vlc_gettext(space_names[fmt->video.space]) );
+               heimdall_gettext(space_names[fmt->video.space]) );
        }
        if( fmt->video.color_range != COLOR_RANGE_UNDEF )
        {
@@ -4856,7 +4857,7 @@ static void EsOutUpdateInfo(es_out_sys_t *p_sys,
            static_assert(ARRAY_SIZE(range_names) == COLOR_RANGE_MAX+1,
                          "Color range table mismatch");
            info_category_AddInfo( p_cat, _("Color Range"), "%s",
-               vlc_gettext(range_names[fmt->video.color_range]) );
+               heimdall_gettext(range_names[fmt->video.color_range]) );
        }
        if( fmt->video.chroma_location != CHROMA_LOCATION_UNDEF )
        {
@@ -4872,7 +4873,7 @@ static void EsOutUpdateInfo(es_out_sys_t *p_sys,
            static_assert(ARRAY_SIZE(c_loc_names) == CHROMA_LOCATION_MAX+1,
                          "Chroma location table mismatch");
            info_category_AddInfo( p_cat, _("Chroma location"), "%s",
-               vlc_gettext(c_loc_names[fmt->video.chroma_location]) );
+               heimdall_gettext(c_loc_names[fmt->video.chroma_location]) );
        }
        if( fmt->video.multiview_mode != MULTIVIEW_2D )
        {
@@ -4888,9 +4889,9 @@ static void EsOutUpdateInfo(es_out_sys_t *p_sys,
            static_assert(ARRAY_SIZE(c_multiview_names) == MULTIVIEW_STEREO_MAX+1,
                          "Multiview format table mismatch");
            info_category_AddInfo( p_cat, _("Stereo Mode"), "%s",
-               vlc_gettext(c_multiview_names[fmt->video.multiview_mode]) );
+               heimdall_gettext(c_multiview_names[fmt->video.multiview_mode]) );
            info_category_AddInfo( p_cat, _("First Stereo Eye"),
-                                  vlc_gettext(fmt->video.b_multiview_right_eye_first ?
+                                  heimdall_gettext(fmt->video.b_multiview_right_eye_first ?
                                       N_("Right") : N_("Left")) );
        }
        if( fmt->video.projection_mode != PROJECTION_MODE_RECTANGULAR )
@@ -4905,23 +4906,23 @@ static void EsOutUpdateInfo(es_out_sys_t *p_sys,
                psz_loc_name = N_("Cubemap");
                break;
            default:
-               vlc_assert_unreachable();
+               heimdall_assert_unreachable();
                break;
            }
            info_category_AddInfo( p_cat, _("Projection"), "%s",
-                                  vlc_gettext(psz_loc_name) );
+                                  heimdall_gettext(psz_loc_name) );
 
            float yaw, pitch, roll;
-           vlc_viewpoint_to_euler(&fmt->video.pose, &yaw, &pitch, &roll);
+           heimdall_viewpoint_to_euler(&fmt->video.pose, &yaw, &pitch, &roll);
 
-           info_category_AddInfo( p_cat, vlc_pgettext("ViewPoint", "Yaw"),
+           info_category_AddInfo( p_cat, heimdall_pgettext("ViewPoint", "Yaw"),
                                   "%.2f", yaw );
-           info_category_AddInfo( p_cat, vlc_pgettext("ViewPoint", "Pitch"),
+           info_category_AddInfo( p_cat, heimdall_pgettext("ViewPoint", "Pitch"),
                                   "%.2f", pitch );
-           info_category_AddInfo( p_cat, vlc_pgettext("ViewPoint", "Roll"),
+           info_category_AddInfo( p_cat, heimdall_pgettext("ViewPoint", "Roll"),
                                   "%.2f", roll );
            info_category_AddInfo( p_cat,
-                                  vlc_pgettext("ViewPoint", "Field of view"),
+                                  heimdall_pgettext("ViewPoint", "Field of view"),
                                   "%.2f", fmt->video.pose.fov );
        }
        if ( fmt->video.mastering.max_luminance )
@@ -4985,15 +4986,15 @@ static void EsOutUpdateInfo(es_out_sys_t *p_sys,
     /* Append generic meta */
     if( p_meta )
     {
-        char **ppsz_all_keys = vlc_meta_CopyExtraNames( p_meta );
+        char **ppsz_all_keys = heimdall_meta_CopyExtraNames( p_meta );
         for( int i = 0; ppsz_all_keys && ppsz_all_keys[i]; i++ )
         {
             char *psz_key = ppsz_all_keys[i];
-            const char *psz_value = vlc_meta_GetExtra( p_meta, psz_key );
+            const char *psz_value = heimdall_meta_GetExtra( p_meta, psz_key );
 
             if( psz_value )
-                info_category_AddInfo( p_cat, vlc_gettext(psz_key), "%s",
-                                       vlc_gettext(psz_value) );
+                info_category_AddInfo( p_cat, heimdall_gettext(psz_key), "%s",
+                                       heimdall_gettext(psz_value) );
             free( psz_key );
         }
         free( ppsz_all_keys );
@@ -5015,53 +5016,53 @@ static void EsOutDeleteInfoEs(es_out_sys_t *p_sys,
     int ret = input_item_DelInfo(p_item, psz_info_category, NULL);
     free(psz_info_category);
 
-    if (ret == VLC_SUCCESS)
+    if (ret == HEIMDALL_SUCCESS)
         input_SendEventMetaInfo(p_input);
 }
 
-es_out_id_t *vlc_es_id_get_out(vlc_es_id_t *id)
+es_out_id_t *heimdall_es_id_get_out(heimdall_es_id_t *id)
 {
     return container_of(id, es_out_id_t, id);
 }
 
-vlc_es_id_t *
-vlc_es_id_Hold(vlc_es_id_t *id)
+heimdall_es_id_t *
+heimdall_es_id_Hold(heimdall_es_id_t *id)
 {
-    EsHold(vlc_es_id_get_out(id));
+    EsHold(heimdall_es_id_get_out(id));
     return id;
 }
 
 void
-vlc_es_id_Release(vlc_es_id_t *id)
+heimdall_es_id_Release(heimdall_es_id_t *id)
 {
-    EsRelease(vlc_es_id_get_out(id));
+    EsRelease(heimdall_es_id_get_out(id));
 }
 
 int
-vlc_es_id_GetInputId(vlc_es_id_t *id)
+heimdall_es_id_GetInputId(heimdall_es_id_t *id)
 {
     return id->i_id;
 }
 
 bool
-vlc_es_id_IsStrIdStable(vlc_es_id_t *id)
+heimdall_es_id_IsStrIdStable(heimdall_es_id_t *id)
 {
     return id->stable;
 }
 
 const char *
-vlc_es_id_GetStrId(vlc_es_id_t *id)
+heimdall_es_id_GetStrId(heimdall_es_id_t *id)
 {
     return id->str_id;
 }
 
 enum es_format_category_e
-vlc_es_id_GetCat(vlc_es_id_t *id)
+heimdall_es_id_GetCat(heimdall_es_id_t *id)
 {
     return id->i_cat;
 }
 
-const input_source_t *vlc_es_id_GetSource(vlc_es_id_t *id)
+const input_source_t *heimdall_es_id_GetSource(heimdall_es_id_t *id)
 {
     return id->source;
 }

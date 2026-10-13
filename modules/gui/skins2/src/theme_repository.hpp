@@ -2,6 +2,7 @@
  * theme_repository.hpp
  *****************************************************************************
  * Copyright (C) 2004 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cyril Deguet     <asmax@via.ecp.fr>
  *
@@ -51,8 +52,8 @@ private:
     void parseDirectory( const std::string &rDir );
 
     /// Callback for menu item selection
-    static int changeSkin( vlc_object_t *pThis, char const *pVariable,
-                           vlc_value_t oldval, vlc_value_t newval,
+    static int changeSkin( heimdall_object_t *pThis, char const *pVariable,
+                           heimdall_value_t oldval, heimdall_value_t newval,
                            void *pData );
 
     /// list of skins available

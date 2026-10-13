@@ -2,6 +2,7 @@
  * encoder.c: transcoding encoders
  *****************************************************************************
  * Copyright (C) 2018 VideoLabs, VideoLAN and VLC authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -20,13 +21,13 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_modules.h>
-#include <vlc_codec.h>
-#include <vlc_picture_fifo.h>
-#include <vlc_aout.h>
-#include <vlc_sout.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_modules.h>
+#include <heimdall_codec.h>
+#include <heimdall_picture_fifo.h>
+#include <heimdall_aout.h>
+#include <heimdall_sout.h>
 
 #include "encoder.h"
 #include "encoder_priv.h"
@@ -55,7 +56,7 @@ void transcode_encoder_delete( transcode_encoder_t *p_enc )
             picture_fifo_Delete( p_enc->pp_pics );
         }
 
-        vlc_encoder_Destroy( p_enc->p_encoder );
+        heimdall_encoder_Destroy( p_enc->p_encoder );
     }
     free( p_enc );
 }
@@ -79,7 +80,7 @@ transcode_encoder_t * transcode_encoder_new( encoder_t *p_encoder,
     transcode_encoder_t *p_enc = calloc( 1, sizeof(*p_enc) );
     if( !p_enc )
     {
-        vlc_object_delete(p_encoder);
+        heimdall_object_delete(p_encoder);
         return NULL;
     }
 
@@ -103,11 +104,11 @@ transcode_encoder_t * transcode_encoder_new( encoder_t *p_encoder,
             {
                 es_format_Clean( &p_enc->p_encoder->fmt_in );
                 es_format_Clean( &p_enc->p_encoder->fmt_out );
-                vlc_object_delete(p_enc->p_encoder);
+                heimdall_object_delete(p_enc->p_encoder);
                 free( p_enc );
                 return NULL;
             }
-            vlc_mutex_init( &p_enc->lock_out );
+            heimdall_mutex_init( &p_enc->lock_out );
             break;
         default:
             break;
@@ -166,17 +167,17 @@ block_t * transcode_encoder_encode( transcode_encoder_t *p_enc, void *in )
         case SPU_ES:
             return transcode_encoder_spu_encode( p_enc, in );
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
             return NULL;
     }
 }
 
 block_t * transcode_encoder_get_output_async( transcode_encoder_t *p_enc )
 {
-    vlc_mutex_lock( &p_enc->lock_out );
+    heimdall_mutex_lock( &p_enc->lock_out );
     block_t *p_data = p_enc->p_buffers;
     p_enc->p_buffers = NULL;
-    vlc_mutex_unlock( &p_enc->lock_out );
+    heimdall_mutex_unlock( &p_enc->lock_out );
     return p_data;
 }
 
@@ -212,14 +213,14 @@ int transcode_encoder_open( transcode_encoder_t *p_enc,
         case VIDEO_ES:
             return transcode_encoder_video_open( p_enc, p_cfg );
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 }
 
 int transcode_encoder_drain( transcode_encoder_t *p_enc, block_t **out )
 {
     if( !transcode_encoder_opened( p_enc ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     switch( p_enc->p_encoder->fmt_in.i_cat )
     {
@@ -228,20 +229,20 @@ int transcode_encoder_drain( transcode_encoder_t *p_enc, block_t **out )
         case AUDIO_ES:
             return transcode_encoder_audio_drain( p_enc, out );
         case SPU_ES:
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 }
 
 int transcode_encoder_test( encoder_t *p_encoder,
                             const transcode_encoder_config_t *p_cfg,
                             const es_format_t *p_dec_fmtin,
-                            vlc_fourcc_t i_codec_in,
+                            heimdall_fourcc_t i_codec_in,
                             es_format_t *p_enc_wanted_in )
 {
     if( !p_encoder )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     switch ( p_dec_fmtin->i_cat )
     {
@@ -249,6 +250,6 @@ int transcode_encoder_test( encoder_t *p_encoder,
             return transcode_encoder_audio_test( p_encoder, p_cfg, p_dec_fmtin,
                                                  i_codec_in, p_enc_wanted_in );
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 }

@@ -2,6 +2,7 @@
  * mono.c : stereo2mono downmixsimple channel mixer plug-in
  *****************************************************************************
  * Copyright (C) 2006 M2X
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Jean-Paul Saman <jpsaman at m2x dot nl>
  *
@@ -30,16 +31,16 @@
 #include <math.h>                                        /* sqrt */
 #include <stdint.h>                                         /* int16_t .. */
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_block.h>
-#include <vlc_filter.h>
-#include <vlc_aout.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_block.h>
+#include <heimdall_filter.h>
+#include <heimdall_aout.h>
 
 /*****************************************************************************
  * Local prototypes
  *****************************************************************************/
-static int  OpenFilter    ( vlc_object_t * );
+static int  OpenFilter    ( heimdall_object_t * );
 static void CloseFilter   ( filter_t * );
 
 static block_t *Convert( filter_t *p_filter, block_t *p_block );
@@ -94,7 +95,7 @@ static const char *const ppsz_pos_descriptions[] =
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("Stereo to mono downmixer") )
     set_capability( "audio filter", 0 )
     set_subcategory( SUBCAT_AUDIO_AFILTER )
@@ -107,7 +108,7 @@ vlc_module_begin ()
         MONO_CHANNEL_LONGTEXT )
         change_integer_list( pi_pos_values, ppsz_pos_descriptions )
 
-vlc_module_end ()
+heimdall_module_end ()
 
 /* Init() and ComputeChannelOperations() -
  * Code taken from modules/audio_filter/channel_mixer/headphone.c
@@ -190,7 +191,7 @@ static void ComputeChannelOperations( filter_sys_t * p_data,
     }
 }
 
-static int Init( vlc_object_t *p_this, filter_sys_t * p_data,
+static int Init( heimdall_object_t *p_this, filter_sys_t * p_data,
                  unsigned int i_nb_channels, uint32_t i_physical_channels,
                  unsigned int i_rate )
 {
@@ -335,7 +336,7 @@ static int Init( vlc_object_t *p_this, filter_sys_t * p_data,
 /*****************************************************************************
  * OpenFilter
  *****************************************************************************/
-static int OpenFilter( vlc_object_t *p_this )
+static int OpenFilter( heimdall_object_t *p_this )
 {
     filter_t * p_filter = (filter_t *)p_this;
     filter_sys_t *p_sys = NULL;
@@ -343,13 +344,13 @@ static int OpenFilter( vlc_object_t *p_this )
     if( aout_FormatNbChannels( &(p_filter->fmt_in.audio) ) == 1 )
     {
         /*msg_Dbg( p_filter, "filter discarded (incompatible format)" );*/
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Allocate the memory needed to store the module's structure */
     p_sys = p_filter->p_sys = malloc( sizeof(filter_sys_t) );
     if( p_sys == NULL )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     p_sys->b_downmix = var_InheritBool( p_this, MONO_CFG "downmix" );
     p_sys->i_channel_selected = var_InheritInteger( p_this, MONO_CFG "channel" );
@@ -362,13 +363,13 @@ static int OpenFilter( vlc_object_t *p_this )
     p_sys->i_nb_atomic_operations = 0;
     p_sys->p_atomic_operations = NULL;
 
-    if( Init( VLC_OBJECT(p_filter), p_filter->p_sys,
+    if( Init( HEIMDALL_OBJECT(p_filter), p_filter->p_sys,
               aout_FormatNbChannels( &p_filter->fmt_in.audio ),
               p_filter->fmt_in.audio.i_physical_channels,
               p_filter->fmt_in.audio.i_rate ) < 0 )
     {
         free( p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( p_sys->b_downmix )
@@ -385,7 +386,7 @@ static int OpenFilter( vlc_object_t *p_this )
     }
     p_filter->fmt_out.audio.i_rate = p_filter->fmt_in.audio.i_rate;
 
-    static const struct vlc_filter_operations filter_ops =
+    static const struct heimdall_filter_operations filter_ops =
     {
         .filter_audio = Convert, .close = CloseFilter,
     };
@@ -399,12 +400,12 @@ static int OpenFilter( vlc_object_t *p_this )
              p_filter->fmt_in.audio.i_bitspersample,
              p_filter->fmt_out.audio.i_bitspersample );
 
-    p_filter->fmt_in.audio.i_format = VLC_CODEC_S16N;
+    p_filter->fmt_in.audio.i_format = HEIMDALL_CODEC_S16N;
     aout_FormatPrepare(&p_filter->fmt_in.audio);
-    p_filter->fmt_out.audio.i_format = VLC_CODEC_S16N;
+    p_filter->fmt_out.audio.i_format = HEIMDALL_CODEC_S16N;
     aout_FormatPrepare(&p_filter->fmt_out.audio);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************

@@ -2,6 +2,7 @@
  * preparser.c
  *****************************************************************************
  * Copyright © 2017-2017 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -24,25 +25,25 @@
 
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_preparser.h>
-#include <vlc_modules.h>
+#include <heimdall_common.h>
+#include <heimdall_preparser.h>
+#include <heimdall_modules.h>
 
 #include "preparser.h"
 
-vlc_preparser_t *vlc_preparser_New(vlc_object_t *obj,
-                                   const struct vlc_preparser_cfg *cfg )
+heimdall_preparser_t *heimdall_preparser_New(heimdall_object_t *obj,
+                                   const struct heimdall_preparser_cfg *cfg )
 {
     assert(obj != NULL);
     assert(cfg != NULL);
 
-    vlc_preparser_t *preparser = malloc(sizeof(*preparser));
+    heimdall_preparser_t *preparser = malloc(sizeof(*preparser));
     if (preparser == NULL) {
         return NULL;
     }
-#if defined(HAVE_VLC_EXTERNAL_PREPARSER)
+#if defined(HAVE_HEIMDALL_EXTERNAL_PREPARSER)
     /* Must reflect cfg->external_process: forcing this to true would cause
-     * vlc-preparser child processes to spawn further children, resulting in
+     * heimdall-preparser child processes to spawn further children, resulting in
      * an infinite fork bomb. */
     const bool external_process = cfg->external_process;
 #else
@@ -54,9 +55,9 @@ vlc_preparser_t *vlc_preparser_New(vlc_object_t *obj,
     const bool external_process = false;
 #endif
     if (external_process) {
-        preparser->sys = vlc_preparser_external_New(preparser, obj, cfg);
+        preparser->sys = heimdall_preparser_external_New(preparser, obj, cfg);
     } else {
-        preparser->sys = vlc_preparser_internal_New(preparser, obj, cfg);
+        preparser->sys = heimdall_preparser_internal_New(preparser, obj, cfg);
     }
     if (preparser->sys == NULL) {
         free(preparser);
@@ -65,10 +66,10 @@ vlc_preparser_t *vlc_preparser_New(vlc_object_t *obj,
     return preparser;
 }
 
-struct vlc_preparser_req *
-vlc_preparser_req_NewParse(vlc_preparser_t *preparser, input_item_t *item,
+struct heimdall_preparser_req *
+heimdall_preparser_req_NewParse(heimdall_preparser_t *preparser, input_item_t *item,
                            int type_option,
-                           const struct vlc_preparser_cbs *cbs,
+                           const struct heimdall_preparser_cbs *cbs,
                            void *cbs_userdata)
 {
     assert(preparser != NULL);
@@ -78,10 +79,10 @@ vlc_preparser_req_NewParse(vlc_preparser_t *preparser, input_item_t *item,
                                          cbs, cbs_userdata);
 }
 
-struct vlc_preparser_req *
-vlc_preparser_req_NewThumbnail(vlc_preparser_t *preparser, input_item_t *item,
-                               const struct vlc_thumbnailer_arg *thumb_arg,
-                               const struct vlc_thumbnailer_cbs *cbs,
+struct heimdall_preparser_req *
+heimdall_preparser_req_NewThumbnail(heimdall_preparser_t *preparser, input_item_t *item,
+                               const struct heimdall_thumbnailer_arg *thumb_arg,
+                               const struct heimdall_thumbnailer_cbs *cbs,
                                void *cbs_userdata)
 {
     assert(preparser != NULL);
@@ -91,13 +92,13 @@ vlc_preparser_req_NewThumbnail(vlc_preparser_t *preparser, input_item_t *item,
                                              cbs, cbs_userdata);
 }
 
-struct vlc_preparser_req *
-vlc_preparser_req_NewThumbnailToFiles(vlc_preparser_t *preparser,
+struct heimdall_preparser_req *
+heimdall_preparser_req_NewThumbnailToFiles(heimdall_preparser_t *preparser,
                                 input_item_t *item,
-                                const struct vlc_thumbnailer_arg *thumb_arg,
-                                const struct vlc_thumbnailer_output *outputs,
+                                const struct heimdall_thumbnailer_arg *thumb_arg,
+                                const struct heimdall_thumbnailer_output *outputs,
                                 size_t output_count,
-                                const struct vlc_thumbnailer_to_files_cbs *cbs,
+                                const struct heimdall_thumbnailer_to_files_cbs *cbs,
                                 void *cbs_userdata)
 {
     assert(preparser != NULL);
@@ -110,7 +111,7 @@ vlc_preparser_req_NewThumbnailToFiles(vlc_preparser_t *preparser,
 }
 
 int
-vlc_preparser_Submit(vlc_preparser_t *preparser, struct vlc_preparser_req *req)
+heimdall_preparser_Submit(heimdall_preparser_t *preparser, struct heimdall_preparser_req *req)
 {
     assert(preparser != NULL);
     assert(preparser->ops != NULL);
@@ -121,14 +122,14 @@ vlc_preparser_Submit(vlc_preparser_t *preparser, struct vlc_preparser_req *req)
     req->submitted = true;
 
     int ret = preparser->ops->submit(preparser->sys, req);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
         req->submitted = false;
 
     return ret;
 }
 
-size_t vlc_preparser_Cancel(vlc_preparser_t *preparser,
-                            struct vlc_preparser_req *req)
+size_t heimdall_preparser_Cancel(heimdall_preparser_t *preparser,
+                            struct heimdall_preparser_req *req)
 {
     assert(preparser != NULL);
     assert(preparser->ops != NULL);
@@ -136,7 +137,7 @@ size_t vlc_preparser_Cancel(vlc_preparser_t *preparser,
     return preparser->ops->cancel(preparser->sys, req);
 }
 
-void vlc_preparser_Delete(vlc_preparser_t *preparser)
+void heimdall_preparser_Delete(heimdall_preparser_t *preparser)
 {
     assert(preparser != NULL);
     assert(preparser->ops != NULL);
@@ -145,7 +146,7 @@ void vlc_preparser_Delete(vlc_preparser_t *preparser)
     free(preparser);
 }
 
-input_item_t *vlc_preparser_req_GetItem(struct vlc_preparser_req *req)
+input_item_t *heimdall_preparser_req_GetItem(struct heimdall_preparser_req *req)
 {
     assert(req != NULL);
     assert(req->ops != NULL);
@@ -153,7 +154,7 @@ input_item_t *vlc_preparser_req_GetItem(struct vlc_preparser_req *req)
     return req->ops->get_item(req);
 }
 
-void vlc_preparser_req_Release(struct vlc_preparser_req *req)
+void heimdall_preparser_req_Release(struct heimdall_preparser_req *req)
 {
     assert(req != NULL);
     assert(req->ops != NULL);

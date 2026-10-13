@@ -2,6 +2,7 @@
  * rand.c : non-predictible random bytes generator
  *****************************************************************************
  * Copyright (C) 2011 KO Myung-Hun <komh@chollian.net>
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,10 +23,10 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_rand.h>
+#include <heimdall_common.h>
+#include <heimdall_rand.h>
 
-void vlc_rand_bytes (void *buf, size_t len)
+void heimdall_rand_bytes (void *buf, size_t len)
 {
     QWORD qwTime;
     uint8_t *p_buf = (uint8_t *)buf;

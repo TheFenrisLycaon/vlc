@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,8 +21,8 @@
 #ifdef HAVE_CONFIG_H
 # include "config.h"
 #endif
-#include <vlc_window.h>
-#include <vlc_cxx_helpers.hpp>
+#include <heimdall_window.h>
+#include <heimdall_cxx_helpers.hpp>
 
 #include "compositor_x11.hpp"
 #include "compositor_x11_renderwindow.hpp"
@@ -41,13 +42,13 @@
 #include <X11/Xlib.h>
 #endif
 
-using namespace vlc;
+using namespace heimdall;
 
-int CompositorX11::windowEnable(const vlc_window_cfg_t *)
+int CompositorX11::windowEnable(const heimdall_window_cfg_t *)
 {
     commonWindowEnable();
     m_renderWindow->enableVideoWindow();
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 void CompositorX11::windowDisable()
@@ -190,7 +191,7 @@ bool CompositorX11::makeMainInterface(MainCtx* mainCtx, std::function<void (QQui
 {
     m_mainCtx = mainCtx;
 
-    m_renderWindow = std::make_unique<vlc::CompositorX11RenderWindow>(m_intf, m_conn);
+    m_renderWindow = std::make_unique<heimdall::CompositorX11RenderWindow>(m_intf, m_conn);
     if (!m_renderWindow->init())
         return false;
 
@@ -270,12 +271,12 @@ void CompositorX11::onSurfaceSizeChanged(const QSizeF& size)
     m_pendingSize = QSize{static_cast<int>(std::ceil(area.width())), static_cast<int>(std::ceil(area.height()))};
 }
 
-bool CompositorX11::setupVoutWindow(vlc_window_t* p_wnd, VoutDestroyCb destroyCb)
+bool CompositorX11::setupVoutWindow(heimdall_window_t* p_wnd, VoutDestroyCb destroyCb)
 {
     if (m_wnd)
         return false;
 
-    p_wnd->type = VLC_WINDOW_TYPE_XID;
+    p_wnd->type = HEIMDALL_WINDOW_TYPE_XID;
     p_wnd->handle.xid = m_videoWidget->winId();
 #ifndef X_DISPLAY_MISSING
     assert(qGuiApp);

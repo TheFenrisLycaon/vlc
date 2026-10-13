@@ -2,6 +2,7 @@
  * cmd_resize.cpp
  *****************************************************************************
  * Copyright (C) 2003 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cyril Deguet     <asmax@via.ecp.fr>
  *          Olivier Teulière <ipkiss@via.ecp.fr>
@@ -23,7 +24,7 @@
 
 #include "cmd_resize.hpp"
 #include "../src/generic_layout.hpp"
-#include "../src/vlcproc.hpp"
+#include "../src/heimdallproc.hpp"
 #include "../src/window_manager.hpp"
 #include "../src/vout_manager.hpp"
 #include "../controls/ctrl_video.hpp"
@@ -43,7 +44,7 @@ void CmdResize::execute()
 
 
 
-CmdResizeVout::CmdResizeVout( intf_thread_t *pIntf, vlc_window_t* pWnd,
+CmdResizeVout::CmdResizeVout( intf_thread_t *pIntf, heimdall_window_t* pWnd,
                               int width, int height )
     : CmdGeneric( pIntf ), m_pWnd( pWnd ), m_width( width ),
       m_height( height ) { }
@@ -55,7 +56,7 @@ void CmdResizeVout::execute()
 }
 
 CmdSetFullscreen::CmdSetFullscreen( intf_thread_t *pIntf,
-                                    vlc_window_t * pWnd, bool fullscreen )
+                                    heimdall_window_t * pWnd, bool fullscreen )
     : CmdGeneric( pIntf ), m_pWnd( pWnd ), m_bFullscreen( fullscreen ) { }
 
 

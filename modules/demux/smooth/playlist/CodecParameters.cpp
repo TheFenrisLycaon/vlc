@@ -2,6 +2,7 @@
  * CodecParameters.cpp
  *****************************************************************************
  * Copyright (C) 2021 - VideoLabs, VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -53,7 +54,7 @@ static void HexDecode(const std::string &s, std::vector<uint8_t> &v)
 void CodecParameters::setCodecPrivateData(const std::string &extra)
 {
     HexDecode(extra, extradata);
-    if(fourcc == VLC_CODEC_WMAP)
+    if(fourcc == HEIMDALL_CODEC_WMAP)
     {
         //fromWaveFormatEx(const std::string &extra);
     }
@@ -113,15 +114,15 @@ void CodecParameters::initAndFillEsFmt(es_format_t *fmt) const
     switch(fmt->i_cat)
     {
         case VIDEO_ES:
-            if( fmt->i_codec == VLC_FOURCC( 'A', 'V', 'C', '1' ) ||
-                fmt->i_codec == VLC_FOURCC( 'A', 'V', 'C', 'B' ) ||
-                fmt->i_codec == VLC_FOURCC( 'H', '2', '6', '4' ) )
+            if( fmt->i_codec == HEIMDALL_FOURCC( 'A', 'V', 'C', '1' ) ||
+                fmt->i_codec == HEIMDALL_FOURCC( 'A', 'V', 'C', 'B' ) ||
+                fmt->i_codec == HEIMDALL_FOURCC( 'H', '2', '6', '4' ) )
             {
-                fmt->i_codec = VLC_CODEC_H264;
+                fmt->i_codec = HEIMDALL_CODEC_H264;
             }
-            else if( fmt->i_codec == VLC_FOURCC( 'W', 'V', 'C', '1' ) )
+            else if( fmt->i_codec == HEIMDALL_FOURCC( 'W', 'V', 'C', '1' ) )
             {
-                fmt->i_codec = VLC_CODEC_VC1;
+                fmt->i_codec = HEIMDALL_CODEC_VC1;
             }
 
             FillExtradata(fmt, extradata);
@@ -149,20 +150,20 @@ void CodecParameters::setFourCC(const std::string &fcc)
 {
     if(fcc.size() == 4)
     {
-        fourcc = VLC_FOURCC(fcc[0], fcc[1], fcc[2], fcc[3]);
+        fourcc = HEIMDALL_FOURCC(fcc[0], fcc[1], fcc[2], fcc[3]);
         switch(fourcc)
         {
-            case VLC_FOURCC( 'A', 'V', 'C', '1' ):
-            case VLC_FOURCC( 'A', 'V', 'C', 'B' ):
-            case VLC_FOURCC( 'H', '2', '6', '4' ):
-            case VLC_FOURCC( 'W', 'V', 'C', '1' ):
+            case HEIMDALL_FOURCC( 'A', 'V', 'C', '1' ):
+            case HEIMDALL_FOURCC( 'A', 'V', 'C', 'B' ):
+            case HEIMDALL_FOURCC( 'H', '2', '6', '4' ):
+            case HEIMDALL_FOURCC( 'W', 'V', 'C', '1' ):
                 es_type = VIDEO_ES;
                 break;
-            case VLC_FOURCC( 'T', 'T', 'M', 'L' ):
+            case HEIMDALL_FOURCC( 'T', 'T', 'M', 'L' ):
                 es_type = SPU_ES;
                 break;
-            case VLC_FOURCC( 'A', 'A', 'C', 'L' ):
-            case VLC_FOURCC( 'W', 'M', 'A', 'P' ):
+            case HEIMDALL_FOURCC( 'A', 'A', 'C', 'L' ):
+            case HEIMDALL_FOURCC( 'W', 'M', 'A', 'P' ):
             default:
                 es_type = AUDIO_ES;
                 break;

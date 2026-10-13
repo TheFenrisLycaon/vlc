@@ -2,6 +2,7 @@
  * concat.c: Concatenated inputs
  *****************************************************************************
  * Copyright (C) 2015 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -25,9 +26,9 @@
 #include <assert.h>
 #include <stdint.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_access.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_access.h>
 
 struct access_entry
 {
@@ -45,7 +46,7 @@ typedef struct
     bool can_pause;
     bool can_control_pace;
     uint64_t size;
-    vlc_tick_t caching;
+    heimdall_tick_t caching;
 } access_sys_t;
 
 static stream_t *GetAccess(stream_t *access)
@@ -55,17 +56,17 @@ static stream_t *GetAccess(stream_t *access)
 
     if (a != NULL)
     {
-        if (!vlc_stream_Eof(a))
+        if (!heimdall_stream_Eof(a))
             return a;
 
-        vlc_stream_Delete(a);
+        heimdall_stream_Delete(a);
         sys->access = NULL;
     }
 
     if (sys->next == NULL)
         return NULL;
 
-    a = vlc_access_NewMRL(VLC_OBJECT(access), sys->next->mrl);
+    a = heimdall_access_NewMRL(HEIMDALL_OBJECT(access), sys->next->mrl);
     if (a == NULL)
         return NULL;
 
@@ -86,7 +87,7 @@ static ssize_t Read(stream_t *access, void *buf, size_t len)
     if (unlikely(a->pf_read == NULL))
         return 0;
 
-    return vlc_stream_ReadPartial(a, buf, len);
+    return heimdall_stream_ReadPartial(a, buf, len);
 }
 
 static block_t *Block(stream_t *access, bool *restrict eof)
@@ -98,7 +99,7 @@ static block_t *Block(stream_t *access, bool *restrict eof)
         return NULL;
     }
 
-    return vlc_stream_ReadBlock(a);
+    return heimdall_stream_ReadBlock(a);
 }
 
 static int Seek(stream_t *access, uint64_t position)
@@ -107,7 +108,7 @@ static int Seek(stream_t *access, uint64_t position)
 
     if (sys->access != NULL)
     {
-        vlc_stream_Delete(sys->access);
+        heimdall_stream_Delete(sys->access);
         sys->access = NULL;
     }
 
@@ -120,27 +121,27 @@ static int Seek(stream_t *access, uint64_t position)
             break;
 
         bool can_seek;
-        vlc_stream_Control(a, STREAM_CAN_SEEK, &can_seek);
+        heimdall_stream_Control(a, STREAM_CAN_SEEK, &can_seek);
         if (!can_seek)
             break;
 
         uint64_t size;
 
-        if (vlc_stream_GetSize(a, &size))
+        if (heimdall_stream_GetSize(a, &size))
             break;
         if (position - offset < size)
         {
-            if (vlc_stream_Seek(a, position - offset))
+            if (heimdall_stream_Seek(a, position - offset))
                 break;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
 
         offset += size;
-        vlc_stream_Delete(a);
+        heimdall_stream_Delete(a);
         sys->access = NULL;
     }
 
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 static int Control(stream_t *access, int query, va_list args)
@@ -163,36 +164,36 @@ static int Control(stream_t *access, int query, va_list args)
             break;
         case STREAM_GET_SIZE:
             if (sys->size == UINT64_MAX)
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             *va_arg(args, uint64_t *) = sys->size;
             break;
         case STREAM_GET_PTS_DELAY:
-            *va_arg(args, vlc_tick_t *) = sys->caching;
+            *va_arg(args, heimdall_tick_t *) = sys->caching;
             break;
 
         case STREAM_GET_SIGNAL:
         case STREAM_SET_PAUSE_STATE:
-            return vlc_stream_vaControl(sys->access, query, args);
+            return heimdall_stream_vaControl(sys->access, query, args);
 
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int Open(vlc_object_t *obj)
+static int Open(heimdall_object_t *obj)
 {
     stream_t *access = (stream_t *)obj;
 
     char *list = var_CreateGetNonEmptyString(access, "concat-list");
     if (list == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    access_sys_t *sys = vlc_obj_malloc(obj, sizeof (*sys));
+    access_sys_t *sys = heimdall_obj_malloc(obj, sizeof (*sys));
     if (unlikely(sys == NULL))
     {
         free(list);
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     var_SetString(access, "concat-list", ""); /* prevent recursion */
@@ -218,7 +219,7 @@ static int Open(vlc_object_t *obj)
         if (unlikely(e == NULL))
             break;
 
-        stream_t *a = vlc_access_NewMRL(obj, mrl);
+        stream_t *a = heimdall_access_NewMRL(obj, mrl);
         if (a == NULL)
         {
             msg_Err(access, "cannot concatenate location %s", mrl);
@@ -231,7 +232,7 @@ static int Open(vlc_object_t *obj)
             if (a->pf_block == NULL)
             {
                 msg_Err(access, "cannot concatenate directory %s", mrl);
-                vlc_stream_Delete(a);
+                heimdall_stream_Delete(a);
                 free(e);
                 continue;
             }
@@ -243,30 +244,30 @@ static int Open(vlc_object_t *obj)
         memcpy(e->mrl, mrl, mlen + 1);
 
         if (sys->can_seek)
-            vlc_stream_Control(a, STREAM_CAN_SEEK, &sys->can_seek);
+            heimdall_stream_Control(a, STREAM_CAN_SEEK, &sys->can_seek);
         if (sys->can_seek_fast)
-            vlc_stream_Control(a, STREAM_CAN_FASTSEEK, &sys->can_seek_fast);
+            heimdall_stream_Control(a, STREAM_CAN_FASTSEEK, &sys->can_seek_fast);
         if (sys->can_pause)
-            vlc_stream_Control(a, STREAM_CAN_PAUSE, &sys->can_pause);
+            heimdall_stream_Control(a, STREAM_CAN_PAUSE, &sys->can_pause);
         if (sys->can_control_pace)
-            vlc_stream_Control(a, STREAM_CAN_CONTROL_PACE,
+            heimdall_stream_Control(a, STREAM_CAN_CONTROL_PACE,
                                &sys->can_control_pace);
         if (sys->size != UINT64_MAX)
         {
             uint64_t size;
 
-            if (vlc_stream_GetSize(a, &size))
+            if (heimdall_stream_GetSize(a, &size))
                 sys->size = UINT64_MAX;
             else
                 sys->size += size;
         }
 
-        vlc_tick_t caching;
-        vlc_stream_Control(a, STREAM_GET_PTS_DELAY, &caching);
+        heimdall_tick_t caching;
+        heimdall_stream_Control(a, STREAM_GET_PTS_DELAY, &caching);
         if (caching > sys->caching)
             sys->caching = caching;
 
-        vlc_stream_Delete(a);
+        heimdall_stream_Delete(a);
         pp = &e->next;
     }
 
@@ -280,16 +281,16 @@ static int Open(vlc_object_t *obj)
     access->pf_control = Control;
     access->p_sys = sys;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void Close(vlc_object_t *obj)
+static void Close(heimdall_object_t *obj)
 {
     stream_t *access = (stream_t *)obj;
     access_sys_t *sys = access->p_sys;
 
     if (sys->access != NULL)
-        vlc_stream_Delete(sys->access);
+        heimdall_stream_Delete(sys->access);
 
     for (struct access_entry *e = sys->first, *next; e != NULL; e = next)
     {
@@ -304,7 +305,7 @@ static void Close(vlc_object_t *obj)
 #define INPUT_LIST_LONGTEXT N_( \
     "Comma-separated list of input URLs to concatenate.")
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname(N_("Concatenation"))
     set_description(N_("Concatenated inputs"))
     set_subcategory(SUBCAT_INPUT_ACCESS)
@@ -312,4 +313,4 @@ vlc_module_begin()
     set_capability("access", 0)
     set_callbacks(Open, Close)
     add_shortcut("concat", "list")
-vlc_module_end()
+heimdall_module_end()

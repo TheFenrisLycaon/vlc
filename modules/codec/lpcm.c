@@ -2,13 +2,14 @@
  * lpcm.c: lpcm decoder/packetizer module
  *****************************************************************************
  * Copyright (C) 1999-2008 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Samuel Hocevar <sam@zoy.org>
  *          Henri Fallon <henri@videolan.org>
  *          Christophe Massiot <massiot@via.ecp.fr>
  *          Gildas Bazin <gbazin@videolan.org>
- *          Lauren Aimar <fenrir _AT_ videolan _DOT_ org >
- *          Steinar H. Gunderson <steinar+vlc@gunderson.no>
+ *          Lauren Aimar <fenrir _AT_ lycaria _DOT_ org >
+ *          Steinar H. Gunderson <steinar+heimdall@gunderson.no>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -32,26 +33,26 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
-#include <vlc_aout.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
+#include <heimdall_aout.h>
 #include <unistd.h>
 #include <assert.h>
 
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  OpenDecoder   ( vlc_object_t * );
-static int  OpenPacketizer( vlc_object_t * );
+static int  OpenDecoder   ( heimdall_object_t * );
+static int  OpenPacketizer( heimdall_object_t * );
 
 #ifdef ENABLE_SOUT
-static int  OpenEncoder   ( vlc_object_t * );
+static int  OpenEncoder   ( heimdall_object_t * );
 static void CloseEncoder  ( encoder_t * );
 static block_t *EncodeFrames( encoder_t *, block_t * );
 #endif
 
-vlc_module_begin ()
+heimdall_module_begin ()
 
     set_subcategory( SUBCAT_INPUT_ACODEC )
     set_description( N_("Linear PCM audio decoder") )
@@ -71,7 +72,7 @@ vlc_module_begin ()
     add_shortcut( "lpcm" )
 #endif
 
-vlc_module_end ()
+heimdall_module_end ()
 
 
 /*****************************************************************************
@@ -220,37 +221,37 @@ static int OpenCommon( decoder_t *p_dec, bool b_packetizer )
     switch( p_dec->fmt_in->i_codec )
     {
     /* DVD LPCM */
-    case VLC_CODEC_DVD_LPCM:
+    case HEIMDALL_CODEC_DVD_LPCM:
         i_type = LPCM_VOB;
         i_header_size = LPCM_VOB_HEADER_LEN;
         break;
     /* DVD-Audio LPCM */
-    case VLC_CODEC_DVDA_LPCM:
+    case HEIMDALL_CODEC_DVDA_LPCM:
         i_type = LPCM_AOB;
         i_header_size = LPCM_AOB_HEADER_LEN;
         break;
     /* BD LPCM */
-    case VLC_CODEC_BD_LPCM:
+    case HEIMDALL_CODEC_BD_LPCM:
         i_type = LPCM_BD;
         i_header_size = LPCM_BD_HEADER_LEN;
         break;
     /* WIDI LPCM */
-    case VLC_CODEC_WIDI_LPCM:
+    case HEIMDALL_CODEC_WIDI_LPCM:
         i_type = LPCM_WIDI;
         i_header_size = LPCM_WIDI_HEADER_LEN;
         break;
     default:
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Allocate the memory needed to store the decoder's structure */
-    p_sys = vlc_obj_malloc(VLC_OBJECT(p_dec), sizeof (*p_sys));
+    p_sys = heimdall_obj_malloc(HEIMDALL_OBJECT(p_dec), sizeof (*p_sys));
     if (unlikely(p_sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     /* Misc init */
     p_sys->b_packetizer = b_packetizer;
-    date_Set( &p_sys->end_date, VLC_TICK_INVALID );
+    date_Set( &p_sys->end_date, HEIMDALL_TICK_INVALID );
     p_sys->i_type = i_type;
     p_sys->i_header_size = i_header_size;
     p_sys->i_chans_to_reorder = 0;
@@ -261,18 +262,18 @@ static int OpenCommon( decoder_t *p_dec, bool b_packetizer )
         switch( i_type )
         {
         case LPCM_VOB:
-            p_dec->fmt_out.i_codec = VLC_CODEC_DVD_LPCM;
+            p_dec->fmt_out.i_codec = HEIMDALL_CODEC_DVD_LPCM;
             break;
         case LPCM_AOB:
-            p_dec->fmt_out.i_codec = VLC_CODEC_DVDA_LPCM;
+            p_dec->fmt_out.i_codec = HEIMDALL_CODEC_DVDA_LPCM;
             break;
         case LPCM_WIDI:
-            p_dec->fmt_out.i_codec = VLC_CODEC_WIDI_LPCM;
+            p_dec->fmt_out.i_codec = HEIMDALL_CODEC_WIDI_LPCM;
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
         case LPCM_BD:
-            p_dec->fmt_out.i_codec = VLC_CODEC_BD_LPCM;
+            p_dec->fmt_out.i_codec = HEIMDALL_CODEC_BD_LPCM;
             break;
         }
     }
@@ -282,11 +283,11 @@ static int OpenCommon( decoder_t *p_dec, bool b_packetizer )
         {
         case 24:
         case 20:
-            p_dec->fmt_out.i_codec = VLC_CODEC_S32N;
+            p_dec->fmt_out.i_codec = HEIMDALL_CODEC_S32N;
             p_dec->fmt_out.audio.i_bitspersample = 32;
             break;
         default:
-            p_dec->fmt_out.i_codec = VLC_CODEC_S16N;
+            p_dec->fmt_out.i_codec = HEIMDALL_CODEC_S16N;
             p_dec->fmt_out.audio.i_bitspersample = 16;
             break;
         }
@@ -299,13 +300,13 @@ static int OpenCommon( decoder_t *p_dec, bool b_packetizer )
         p_dec->pf_packetize = Packetize;
     p_dec->pf_flush     = Flush;
     p_dec->p_sys = p_sys;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
-static int OpenDecoder( vlc_object_t *p_this )
+static int OpenDecoder( heimdall_object_t *p_this )
 {
     return OpenCommon( (decoder_t*) p_this, false );
 }
-static int OpenPacketizer( vlc_object_t *p_this )
+static int OpenPacketizer( heimdall_object_t *p_this )
 {
     return OpenCommon( (decoder_t*) p_this, true );
 }
@@ -317,7 +318,7 @@ static void Flush( decoder_t *p_dec )
 {
     decoder_sys_t *p_sys = p_dec->p_sys;
 
-    date_Set( &p_sys->end_date, VLC_TICK_INVALID );
+    date_Set( &p_sys->end_date, HEIMDALL_TICK_INVALID );
 }
 
 /*****************************************************************************
@@ -349,13 +350,13 @@ static block_t *Packetize( decoder_t *p_dec, block_t **pp_block )
     }
 
     /* Date management */
-    if( p_block->i_pts != VLC_TICK_INVALID &&
+    if( p_block->i_pts != HEIMDALL_TICK_INVALID &&
         p_block->i_pts != date_Get( &p_sys->end_date ) )
     {
         date_Set( &p_sys->end_date, p_block->i_pts );
     }
 
-    if( date_Get( &p_sys->end_date ) == VLC_TICK_INVALID )
+    if( date_Get( &p_sys->end_date ) == HEIMDALL_TICK_INVALID )
     {
         /* We've just started the stream, wait for the first PTS. */
         block_Release( p_block );
@@ -444,20 +445,20 @@ static block_t *Packetize( decoder_t *p_dec, block_t **pp_block )
         if( i_bits == 16 )
         {
             p_dec->fmt_out.audio.i_format =
-            p_dec->fmt_out.i_codec = VLC_CODEC_S16N;
+            p_dec->fmt_out.i_codec = HEIMDALL_CODEC_S16N;
             p_dec->fmt_out.audio.i_bitspersample = 16;
         }
         else
         {
             p_dec->fmt_out.audio.i_format =
-            p_dec->fmt_out.i_codec = VLC_CODEC_S32N;
+            p_dec->fmt_out.i_codec = HEIMDALL_CODEC_S32N;
             p_dec->fmt_out.audio.i_bitspersample = 32;
         }
         aout_FormatPrepare(&p_dec->fmt_out.audio);
 
         /* */
         block_t *p_aout_buffer;
-        if( decoder_UpdateAudioFormat( p_dec ) != VLC_SUCCESS ||
+        if( decoder_UpdateAudioFormat( p_dec ) != HEIMDALL_SUCCESS ||
            !(p_aout_buffer = decoder_NewAudioBuffer( p_dec, i_frame_length )) )
         {
             block_Release( p_block );
@@ -482,7 +483,7 @@ static block_t *Packetize( decoder_t *p_dec, block_t **pp_block )
             AobExtract( p_aout_buffer, p_block, i_bits, p_aob_group );
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
         case LPCM_BD:
             BdExtract( p_aout_buffer, p_block, i_frame_length, i_channels, i_channels_padding, i_bits );
             break;
@@ -505,21 +506,21 @@ static int DecodeFrame( decoder_t *p_dec, block_t *p_block )
     block_t *p_out = Packetize( p_dec, &p_block );
     if( p_out != NULL )
         decoder_QueueAudio( p_dec, p_out );
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }
 
 #ifdef ENABLE_SOUT
 /*****************************************************************************
  * OpenEncoder: lpcm encoder construction
  *****************************************************************************/
-static int OpenEncoder( vlc_object_t *p_this )
+static int OpenEncoder( heimdall_object_t *p_this )
 {
     encoder_t *p_enc = (encoder_t *)p_this;
     encoder_sys_t *p_sys;
 
     /* We only support DVD LPCM yet. */
-    if( p_enc->fmt_out.i_codec != VLC_CODEC_DVD_LPCM )
-        return VLC_EGENERIC;
+    if( p_enc->fmt_out.i_codec != HEIMDALL_CODEC_DVD_LPCM )
+        return HEIMDALL_EGENERIC;
 
     if( p_enc->fmt_in.audio.i_rate != 48000 &&
         p_enc->fmt_in.audio.i_rate != 96000 &&
@@ -527,19 +528,19 @@ static int OpenEncoder( vlc_object_t *p_this )
         p_enc->fmt_in.audio.i_rate != 32000 )
     {
         msg_Err( p_enc, "DVD LPCM supports only sample rates of 48, 96, 44.1 or 32 kHz" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( p_enc->fmt_in.audio.i_channels > 8 )
     {
         msg_Err( p_enc, "DVD LPCM supports a maximum of eight channels" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Allocate the memory needed to store the encoder's structure */
     if( ( p_sys =
           (encoder_sys_t *)malloc(sizeof(encoder_sys_t)) ) == NULL )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     /* In DVD LCPM, a frame is always 150 PTS ticks. */
     p_sys->i_frame_samples = p_enc->fmt_in.audio.i_rate * 150 / 90000;
@@ -554,7 +555,7 @@ static int OpenEncoder( vlc_object_t *p_this )
     p_enc->fmt_in.i_codec = p_enc->fmt_out.i_codec;
 
     p_enc->fmt_in.audio.i_bitspersample = 16;
-    p_enc->fmt_in.i_codec = VLC_CODEC_S16N;
+    p_enc->fmt_in.i_codec = HEIMDALL_CODEC_S16N;
 
     p_enc->fmt_out.i_bitrate =
         p_enc->fmt_in.audio.i_channels *
@@ -563,7 +564,7 @@ static int OpenEncoder( vlc_object_t *p_this )
         (p_sys->i_frame_samples + LPCM_VOB_HEADER_LEN) /
         p_sys->i_frame_samples;
 
-    static const struct vlc_encoder_operations ops =
+    static const struct heimdall_encoder_operations ops =
     {
         .close = CloseEncoder,
         .encode_audio = EncodeFrames,
@@ -572,7 +573,7 @@ static int OpenEncoder( vlc_object_t *p_this )
     p_enc->ops = &ops;
     p_enc->p_sys = p_sys;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -619,7 +620,7 @@ static block_t *EncodeFrames( encoder_t *p_enc, block_t *p_aout_buf )
         i_freq_code = 3;
         break;
     default:
-        vlc_assert_unreachable();
+        heimdall_assert_unreachable();
     }
 
     int i_bytes_consumed = 0;
@@ -662,10 +663,10 @@ static block_t *EncodeFrames( encoder_t *p_enc, block_t *p_aout_buf )
         i_bytes_consumed += i_consume_bytes;
 
         /* We need to find i_length by means of next_pts due to possible roundoff errors. */
-        vlc_tick_t this_pts = p_aout_buf->i_pts +
-            vlc_tick_from_samples(i * p_sys->i_frame_samples + i_start_offset, p_sys->i_rate);
-        vlc_tick_t next_pts = p_aout_buf->i_pts +
-            vlc_tick_from_samples((i + 1) * p_sys->i_frame_samples + i_start_offset, p_sys->i_rate);
+        heimdall_tick_t this_pts = p_aout_buf->i_pts +
+            heimdall_tick_from_samples(i * p_sys->i_frame_samples + i_start_offset, p_sys->i_rate);
+        heimdall_tick_t next_pts = p_aout_buf->i_pts +
+            heimdall_tick_from_samples((i + 1) * p_sys->i_frame_samples + i_start_offset, p_sys->i_rate);
 
         p_block->i_pts = p_block->i_dts = this_pts;
         p_block->i_length = next_pts - this_pts;
@@ -829,7 +830,7 @@ static int AobHeader( unsigned *pi_rate,
 {
     const unsigned i_header_size = GetWBE( &p_header[1] );
     if( i_header_size + 3 < LPCM_AOB_HEADER_LEN )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* Padding = Total header size - Normal AOB header
      *         + 3 bytes (1 for continuity counter + 2 for header_size ) */
@@ -844,12 +845,12 @@ static int AobHeader( unsigned *pi_rate,
     /* Validate */
     if( i_index_size_g1 > 0x02 ||
         ( i_index_size_g2 != 0x0f && i_index_size_g2 > 0x02 ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     if( (i_index_rate_g1 & 0x07) > 0x02 ||
         ( i_index_rate_g2 != 0x0f && (i_index_rate_g1 & 0x07) > 0x02 ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     if( i_assignment > 20 )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* */
     /* max is 0x2, 0xf == unused */
@@ -858,7 +859,7 @@ static int AobHeader( unsigned *pi_rate,
 
     /* No info about interlacing of different sampling rate */
     if ( g[1].i_bits && ( i_index_rate_g1 != i_index_rate_g2 ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* only set 16bits if both are <= */
     if( g[0].i_bits )
@@ -869,7 +870,7 @@ static int AobHeader( unsigned *pi_rate,
             *pi_bits = 16;
     }
     else
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if( i_index_rate_g1 & 0x08 )
         *pi_rate = 44100 << (i_index_rate_g1 & 0x07);
@@ -915,9 +916,9 @@ static int AobHeader( unsigned *pi_rate,
         for( unsigned j = 0; j < g[i].i_channels; j++ )
         {
             g[i].pi_position[j] = 0;
-            for( int k = 0; pi_vlc_chan_order_wg4[k] != 0; k++ )
+            for( int k = 0; pi_heimdall_chan_order_wg4[k] != 0; k++ )
             {
-                const unsigned i_channel = pi_vlc_chan_order_wg4[k];
+                const unsigned i_channel = pi_heimdall_chan_order_wg4[k];
                 if( i_channel == p_aob[j] )
                     break;
                 if( (*pi_layout) & i_channel )
@@ -925,7 +926,7 @@ static int AobHeader( unsigned *pi_rate,
             }
         }
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static const uint32_t pi_8channels_in[] =
@@ -1210,7 +1211,7 @@ static void AobExtract( block_t *p_aout_buffer,
                                  | (p_block->p_buffer[2*i_src+1] << 16)
                                  | (p_block->p_buffer[4*g->i_channels+i_src] <<  8);
 #ifdef WORDS_BIGENDIAN
-                        *p_out32 = vlc_bswap32(*p_out32);
+                        *p_out32 = heimdall_bswap32(*p_out32);
 #endif
                         i_aout_written += 4;
                     }
@@ -1221,7 +1222,7 @@ static void AobExtract( block_t *p_aout_buffer,
                                  | (p_block->p_buffer[2*i_src+1] << 16)
                                  | (((p_block->p_buffer[4*g->i_channels+i_src] << ((!n)?0:4) ) & 0xf0) <<  8);
 #ifdef WORDS_BIGENDIAN
-                        *p_out32 = vlc_bswap32(*p_out32);
+                        *p_out32 = heimdall_bswap32(*p_out32);
 #endif
                         i_aout_written += 4;
                     }
@@ -1244,7 +1245,7 @@ static void AobExtract( block_t *p_aout_buffer,
                             *p_out32 = (p_block->p_buffer[2*i_src+0] << 24)
                                      | (p_block->p_buffer[2*i_src+1] << 16);
 #ifdef WORDS_BIGENDIAN
-                            *p_out32 = vlc_bswap32(*p_out32);
+                            *p_out32 = heimdall_bswap32(*p_out32);
 #endif
                             i_aout_written += 4;
                         }

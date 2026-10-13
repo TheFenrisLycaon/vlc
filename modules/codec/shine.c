@@ -2,6 +2,7 @@
  * shine_mod.c: MP3 encoder using Shine, a fixed point implementation
  *****************************************************************************
  * Copyright (C) 2008-2009 M2X
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Rafaël Carré <rcarre@m2x.nl>
  *
@@ -29,13 +30,13 @@
 
 #include <stdatomic.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
-#include <vlc_block.h>
-#include <vlc_block_helper.h>
-#include <vlc_bits.h>
-#include <vlc_aout.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
+#include <heimdall_block.h>
+#include <heimdall_block_helper.h>
+#include <heimdall_bits.h>
+#include <heimdall_aout.h>
 
 #include <assert.h>
 #include <inttypes.h>
@@ -55,44 +56,44 @@ typedef struct
 /*****************************************************************************
  * Local prototypes
  *****************************************************************************/
-static int  OpenEncoder   ( vlc_object_t * );
+static int  OpenEncoder   ( heimdall_object_t * );
 static void CloseEncoder  ( encoder_t * );
 
 static block_t *EncodeFrame  ( encoder_t *, block_t * );
 
-vlc_module_begin()
+heimdall_module_begin()
     set_subcategory( SUBCAT_INPUT_ACODEC )
     set_description( N_("MP3 fixed point audio encoder") )
     set_capability( "audio encoder", 50 )
     set_callback( OpenEncoder )
-vlc_module_end()
+heimdall_module_end()
 
 static atomic_bool busy = false;
 
-static int OpenEncoder( vlc_object_t *p_this )
+static int OpenEncoder( heimdall_object_t *p_this )
 {
     encoder_t *p_enc = (encoder_t*)p_this;
     encoder_sys_t *p_sys;
 
     /* shine is an 'MP3' encoder */
-    if( (p_enc->fmt_out.i_codec != VLC_CODEC_MP3 &&
-         p_enc->fmt_out.i_codec != VLC_CODEC_MP2 &&
-         p_enc->fmt_out.i_codec != VLC_CODEC_MPGA) ||
+    if( (p_enc->fmt_out.i_codec != HEIMDALL_CODEC_MP3 &&
+         p_enc->fmt_out.i_codec != HEIMDALL_CODEC_MP2 &&
+         p_enc->fmt_out.i_codec != HEIMDALL_CODEC_MPGA) ||
         p_enc->fmt_out.audio.i_channels > 2 )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* Shine is strict on its input */
     if( p_enc->fmt_in.audio.i_channels != 2 )
     {
         msg_Err( p_enc, "Only stereo input is accepted, rejecting %d channels",
             p_enc->fmt_in.audio.i_channels );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( p_enc->fmt_out.i_bitrate <= 0 )
     {
         msg_Err( p_enc, "unknown bitrate" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     msg_Dbg( p_enc, "bitrate %d, samplerate %d, channels %d",
@@ -102,7 +103,7 @@ static int OpenEncoder( vlc_object_t *p_this )
     if( atomic_exchange(&busy, true) )
     {
         msg_Err( p_enc, "encoder already in progress" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     p_enc->p_sys = p_sys = calloc( 1, sizeof( *p_sys ) );
@@ -126,26 +127,26 @@ static int OpenEncoder( vlc_object_t *p_this )
         atomic_store(&busy, false);
         msg_Err(p_enc, "Invalid bitrate %d\n", cfg.mpeg.bitr);
         free(p_sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     p_sys->s = shine_initialise(&cfg);
     p_sys->samples_per_frame = shine_samples_per_pass(p_sys->s);
 
-    p_enc->fmt_in.i_codec = VLC_CODEC_S16N;
+    p_enc->fmt_in.i_codec = HEIMDALL_CODEC_S16N;
 
-    static const struct vlc_encoder_operations ops =
+    static const struct heimdall_encoder_operations ops =
     {
         .close = CloseEncoder,
         .encode_audio = EncodeFrame,
     };
     p_enc->ops = &ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 enomem:
     atomic_store(&busy, false);
-    return VLC_ENOMEM;
+    return HEIMDALL_ENOMEM;
 }
 
 /* We split/pack PCM blocks to a fixed size: p_sys->samples_per_frame * 4 bytes */
@@ -156,7 +157,7 @@ static block_t *GetPCM( encoder_t *p_enc, block_t *p_block )
 
     if( !p_block ) goto buffered; /* just return a block if we can */
 
-    /* Put the PCM samples sent by VLC in the Fifo */
+    /* Put the PCM samples sent by Heimdall in the Fifo */
     while( p_sys->i_buffer + p_block->i_buffer >= p_sys->samples_per_frame * 4 )
     {
         unsigned int i_buffer = 0;
@@ -231,10 +232,10 @@ static block_t *EncodeFrame( encoder_t *p_enc, block_t *p_block )
     block_t *p_pcm_block;
     block_t *p_chain = NULL;
     unsigned int i_samples = p_block->i_buffer >> 2 /* s16l stereo */;
-    vlc_tick_t start_date = p_block->i_pts;
-    start_date -= vlc_tick_from_samples(i_samples, p_enc->fmt_out.audio.i_rate);
+    heimdall_tick_t start_date = p_block->i_pts;
+    start_date -= heimdall_tick_from_samples(i_samples, p_enc->fmt_out.audio.i_rate);
 
-    VLC_UNUSED(p_enc);
+    HEIMDALL_UNUSED(p_enc);
 
     do {
         p_pcm_block = GetPCM( p_enc, p_block );
@@ -264,7 +265,7 @@ static block_t *EncodeFrame( encoder_t *p_enc, block_t *p_block )
         memcpy( p_mp3_block->p_buffer, buf, written );
 
         /* date management */
-        p_mp3_block->i_length = vlc_tick_from_samples(p_sys->samples_per_frame,
+        p_mp3_block->i_length = heimdall_tick_from_samples(p_sys->samples_per_frame,
             p_enc->fmt_out.audio.i_rate);
 
         start_date += p_mp3_block->i_length;

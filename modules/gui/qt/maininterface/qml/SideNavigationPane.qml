@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2024 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,12 +21,12 @@ import QtQuick.Layouts
 import QtQuick.Templates as T
 import QtQml.Models
 
-import VLC.Style
-import VLC.Widgets as Widgets
+import Heimdall.Style
+import Heimdall.Widgets as Widgets
 
-import VLC.MainInterface
-import VLC.Dialogs
-import VLC.Util
+import Heimdall.MainInterface
+import Heimdall.Dialogs
+import Heimdall.Util
 
 T.Pane {
     id: root
@@ -44,14 +45,14 @@ T.Pane {
 
     property alias model: navigationModel
 
-    readonly property int minimumWidth: VLCStyle.expandNavigationPaneWidth + safeAreaLeftMargin + safeAreaRightMargin
+    readonly property int minimumWidth: HeimdallStyle.expandNavigationPaneWidth + safeAreaLeftMargin + safeAreaRightMargin
 
     implicitWidth: Math.max(implicitBackgroundWidth + leftInset + rightInset,
                             implicitContentWidth + leftPadding + rightPadding)
     implicitHeight: Math.max(implicitBackgroundHeight + topInset + bottomInset,
                              implicitContentHeight + topPadding + bottomPadding)
 
-    padding: VLCStyle.margin_normal
+    padding: HeimdallStyle.margin_normal
 
     readonly property ColorContext colorContext: ColorContext {
         id: theme
@@ -100,7 +101,7 @@ T.Pane {
         //would be parented (and layouted) to the Layout
         ColumnLayout {
             anchors.fill: parent
-            spacing: VLCStyle.margin_xsmall
+            spacing: HeimdallStyle.margin_xsmall
 
             Widgets.ListViewExt {
                 id: listView
@@ -127,7 +128,7 @@ T.Pane {
 
                 component DelegateAnimation : NumberAnimation {
                     easing.type: Easing.InOutSine
-                    duration: VLCStyle.duration_long
+                    duration: HeimdallStyle.duration_long
                 }
 
                 reuseItems: false // Not relevant here, we disable it because of QTBUG-131106 when transition is involved.
@@ -163,9 +164,9 @@ T.Pane {
                     width: ListView.view.contentWidth
                     height: preferredHeight
 
-                    property real preferredHeight: shouldShow ? VLCStyle.buttonHeightNavigationPane : 0.0
+                    property real preferredHeight: shouldShow ? HeimdallStyle.buttonHeightNavigationPane : 0.0
 
-                    leftPadding: root.safeAreaLeftMargin + VLCStyle.margin_xsmall
+                    leftPadding: root.safeAreaLeftMargin + HeimdallStyle.margin_xsmall
                     rightPadding: root.safeAreaRightMargin
 
                     leftInset: root.safeAreaLeftMargin + implicitLeftInset
@@ -243,19 +244,19 @@ T.Pane {
                 active: (MainCtx.mediaLibraryAvailable && MainCtx.mediaLibrary.idle === false)
                 visible: active
 
-                source: "qrc:///qt/qml/VLC/MediaLibrary/ScanProgressBar.qml"
+                source: "qrc:///qt/qml/Heimdall/MediaLibrary/ScanProgressBar.qml"
 
                 onLoaded: {
                     if (item.background) {
                         item.background.opacity = 0.6
-                        item.background.radius = Qt.binding(() => VLCStyle.dp(4, VLCStyle.scale))
+                        item.background.radius = Qt.binding(() => HeimdallStyle.dp(4, HeimdallStyle.scale))
                     }
 
-                    item.leftPadding = Qt.binding(function() { return root.safeAreaLeftMargin + VLCStyle.margin_small })
-                    item.rightPadding = Qt.binding(function() { return root.safeAreaRightMargin + VLCStyle.margin_small })
+                    item.leftPadding = Qt.binding(function() { return root.safeAreaLeftMargin + HeimdallStyle.margin_small })
+                    item.rightPadding = Qt.binding(function() { return root.safeAreaRightMargin + HeimdallStyle.margin_small })
 
-                    item.leftInset = Qt.binding(() => { return VLCStyle.margin_xxsmall + root.safeAreaLeftMargin })
-                    item.rightInset = Qt.binding(() => { return VLCStyle.margin_xxsmall + root.safeAreaRightMargin })
+                    item.leftInset = Qt.binding(() => { return HeimdallStyle.margin_xxsmall + root.safeAreaLeftMargin })
+                    item.rightInset = Qt.binding(() => { return HeimdallStyle.margin_xxsmall + root.safeAreaRightMargin })
                 }
             }
 
@@ -265,15 +266,15 @@ T.Pane {
                 AccessibleCompat.id: "preferencesButton"
 
                 Layout.fillWidth: true
-                Layout.preferredHeight: VLCStyle.buttonHeightNavigationPane
+                Layout.preferredHeight: HeimdallStyle.buttonHeightNavigationPane
 
-                leftPadding: root.safeAreaLeftMargin + VLCStyle.margin_xsmall
+                leftPadding: root.safeAreaLeftMargin + HeimdallStyle.margin_xsmall
                 rightPadding: root.safeAreaRightMargin
 
                 leftInset: root.safeAreaLeftMargin + implicitLeftInset
                 rightInset: root.safeAreaRightMargin + implicitRightInset
 
-                iconTxt: VLCIcons.settings
+                iconTxt: HeimdallIcons.settings
                 text: qsTr("Preferences")
 
                 checked: DialogsProvider.prefsDialogVisible

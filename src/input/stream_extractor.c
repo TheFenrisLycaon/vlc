@@ -2,6 +2,7 @@
  * stream_extractor.c
  *****************************************************************************
  * Copyright (C) 2016 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -25,14 +26,14 @@
 #  include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_arrays.h>
-#include <vlc_stream.h>
-#include <vlc_stream_extractor.h>
-#include <vlc_modules.h>
-#include <vlc_url.h>
-#include <vlc_memstream.h>
-#include "../libvlc.h"
+#include <heimdall_common.h>
+#include <heimdall_arrays.h>
+#include <heimdall_stream.h>
+#include <heimdall_stream_extractor.h>
+#include <heimdall_modules.h>
+#include <heimdall_url.h>
+#include <heimdall_memstream.h>
+#include "../libheimdall.h"
 #include <assert.h>
 
 #include "stream.h"
@@ -76,7 +77,7 @@ struct stream_extractor_private {
     stream_t* source; /**< the source stream consumed by the stream-extractor */
     module_t* module; /**< the stream-extractor module */
 
-    vlc_object_t* object; /**< the underlying stream-extractor object */
+    heimdall_object_t* object; /**< the underlying stream-extractor object */
 };
 
 /**
@@ -86,39 +87,39 @@ struct stream_extractor_private {
  * within \p base, see \ref mrl_helpers for further information.
  **/
 
-VLC_MALLOC static char*
+HEIMDALL_MALLOC static char*
 StreamExtractorCreateMRL( char const* base, char const* subentry,
                           char const** volumes, size_t volumes_count )
 {
-    struct vlc_memstream buffer;
+    struct heimdall_memstream buffer;
     char* escaped;
 
     escaped = mrl_EscapeFragmentIdentifier( subentry );
     if ( escaped == NULL )
         return NULL;
 
-    if( vlc_memstream_open( &buffer ) )
+    if( heimdall_memstream_open( &buffer ) )
     {
         free( escaped );
         return NULL;
     }
 
-    vlc_memstream_puts( &buffer, base );
+    heimdall_memstream_puts( &buffer, base );
 
     if( !strstr( base, "#" ) )
-        vlc_memstream_putc( &buffer, '#' );
+        heimdall_memstream_putc( &buffer, '#' );
 
-    vlc_memstream_puts( &buffer, "!/" );
-    vlc_memstream_puts( &buffer, escaped );
+    heimdall_memstream_puts( &buffer, "!/" );
+    heimdall_memstream_puts( &buffer, escaped );
 
     for( size_t i=0; i<volumes_count; i++ )
     {
-        vlc_memstream_puts( &buffer, "!+" );
-        vlc_memstream_puts( &buffer, volumes[i] );
+        heimdall_memstream_puts( &buffer, "!+" );
+        heimdall_memstream_puts( &buffer, volumes[i] );
     }
 
     free( escaped );
-    return vlc_memstream_close( &buffer ) ? NULL : buffer.ptr;
+    return heimdall_memstream_close( &buffer ) ? NULL : buffer.ptr;
 }
 
 /**
@@ -135,10 +136,10 @@ static void se_Release( struct stream_extractor_private* priv )
         module_unneed( priv->object, priv->module );
 
         if( priv->source )
-            vlc_stream_Delete( priv->source );
+            heimdall_stream_Delete( priv->source );
     }
 
-    vlc_object_delete(priv->object);
+    heimdall_object_delete(priv->object);
 }
 
 /**
@@ -195,7 +196,7 @@ se_DirControl( stream_t* stream, int req, va_list args )
     (void)req;
     (void)args;
 
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /**
@@ -221,9 +222,9 @@ se_InitStream( struct stream_extractor_private* priv, stream_t* s )
                                            (char const **) priv->extractor.volumes,
                                            priv->extractor.volumes_count );
     if( unlikely( !s->psz_url ) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void
@@ -253,9 +254,9 @@ se_InitDirectory( struct stream_extractor_private* priv, stream_t* s )
     s->psz_url = strdup( directory->source->psz_url );
 
     if( unlikely( !s->psz_url ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /**
@@ -271,21 +272,21 @@ se_InitDirectory( struct stream_extractor_private* priv, stream_t* s )
  * \param priv the private section of the stream_extractor_t
  * \param source the source stream which the stream_extractor_t should
  *        will read from
- * \return VLC_SUCCESS on success, an error-code on failure.
+ * \return HEIMDALL_SUCCESS on success, an error-code on failure.
  **/
 static int
 se_AttachWrapper( struct stream_extractor_private* priv, stream_t* source )
 {
-    stream_t* s = vlc_stream_CommonNew( vlc_object_parent(source),
+    stream_t* s = heimdall_stream_CommonNew( heimdall_object_parent(source),
                                         se_StreamDelete );
 
     if( unlikely( !s ) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     if( priv->pf_init( priv, s ) )
     {
         stream_CommonDelete( s );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     priv->wrapper = s;
@@ -295,7 +296,7 @@ se_AttachWrapper( struct stream_extractor_private* priv, stream_t* source )
     priv->source = source;
 
     priv->wrapper = stream_FilterChainNew( priv->wrapper, "prefetch,cache" );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int
@@ -306,18 +307,18 @@ StreamExtractorAttach( stream_t** source, char const* identifier,
     char const* capability = extractor ? "stream_extractor"
                                        : "stream_directory";
 
-    struct stream_extractor_private* priv = vlc_custom_create(
-        vlc_object_parent(*source), sizeof( *priv ), capability );
+    struct stream_extractor_private* priv = heimdall_custom_create(
+        heimdall_object_parent(*source), sizeof( *priv ), capability );
 
     if( unlikely( !priv ) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     char ***dst_volumes;
     size_t * dst_volumes_count;
 
     if( extractor )
     {
-        priv->object = VLC_OBJECT( &priv->extractor );
+        priv->object = HEIMDALL_OBJECT( &priv->extractor );
 
         priv->pf_init = se_InitStream;
         priv->pf_clean = se_CleanStreamExtractor;
@@ -333,7 +334,7 @@ StreamExtractorAttach( stream_t** source, char const* identifier,
     }
     else
     {
-        priv->object = VLC_OBJECT( &priv->directory );
+        priv->object = HEIMDALL_OBJECT( &priv->directory );
 
         priv->pf_init = se_InitDirectory;
         priv->pf_clean = se_CleanStreamDirectory;
@@ -363,22 +364,22 @@ StreamExtractorAttach( stream_t** source, char const* identifier,
         goto error;
 
     *source = priv->wrapper;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     se_Release( priv );
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 int
-vlc_stream_directory_Attach( stream_t** source, char const* module_name,
+heimdall_stream_directory_Attach( stream_t** source, char const* module_name,
                              const char **volumes, size_t volumes_count )
 {
     return StreamExtractorAttach( source, NULL, module_name, volumes, volumes_count );
 }
 
 int
-vlc_stream_extractor_Attach( stream_t** source, char const* identifier,
+heimdall_stream_extractor_Attach( stream_t** source, char const* identifier,
                              char const* module_name, const char **volumes, size_t volumes_count )
 {
     return StreamExtractorAttach( source, identifier, module_name, volumes, volumes_count );
@@ -387,14 +388,14 @@ vlc_stream_extractor_Attach( stream_t** source, char const* identifier,
 int
 stream_extractor_AttachParsed( stream_t** source, const struct mrl_info *mrli )
 {
-    size_t count = vlc_array_count( &mrli->identifiers );
+    size_t count = heimdall_array_count( &mrli->identifiers );
     size_t idx = 0;
 
     while( idx < count )
     {
-        const char* id = vlc_array_item_at_index( &mrli->identifiers, idx );
+        const char* id = heimdall_array_item_at_index( &mrli->identifiers, idx );
 
-        if( vlc_stream_extractor_Attach( source, id, NULL,
+        if( heimdall_stream_extractor_Attach( source, id, NULL,
                                         (char const **) mrli->volumes.pp_elems,
                                         mrli->volumes.i_count ) )
             break;
@@ -402,11 +403,11 @@ stream_extractor_AttachParsed( stream_t** source, const struct mrl_info *mrli )
         ++idx;
     }
 
-    return idx == count ? VLC_SUCCESS : VLC_EGENERIC;
+    return idx == count ? HEIMDALL_SUCCESS : HEIMDALL_EGENERIC;
 }
 
 char*
-vlc_stream_extractor_CreateMRL( stream_directory_t* directory,
+heimdall_stream_extractor_CreateMRL( stream_directory_t* directory,
                                 char const* subentry,
                                 char const **volumes, size_t volumes_count )
 {

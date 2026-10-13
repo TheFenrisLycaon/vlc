@@ -2,6 +2,7 @@
  * qt_dirs.hpp : String Directory helpers
  ****************************************************************************
  * Copyright (C) 2006-2008 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors:       Jean-Baptiste Kempf <jb@videolan.org>
  *
@@ -20,8 +21,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_QT_QT_DIRS_HPP_
-#define VLC_QT_QT_DIRS_HPP_
+#ifndef HEIMDALL_QT_QT_DIRS_HPP_
+#define HEIMDALL_QT_QT_DIRS_HPP_
 
 #include <QString>
 #include <QDir>

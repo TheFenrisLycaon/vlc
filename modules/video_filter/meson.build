@@ -1,7 +1,7 @@
 # Video filters
 
 # Edge-detection filter
-vlc_modules += {
+heimdall_modules += {
     'name' : 'edgedetection',
     'sources' : files('edgedetection.c'),
     'dependencies' : [m_lib],
@@ -9,7 +9,7 @@ vlc_modules += {
 }
 
 # Adjust (saturation/hue) filter
-vlc_modules += {
+heimdall_modules += {
     'name' : 'adjust',
     'sources' : files(
         'adjust.c',
@@ -21,21 +21,21 @@ vlc_modules += {
 }
 
 # Alpha-mask filter
-vlc_modules += {
+heimdall_modules += {
     'name' : 'alphamask',
     'sources' : files('alphamask.c'),
     'plugin_dir' : 'video_filter',
 }
 
 # Anaglyph filter
-vlc_modules += {
+heimdall_modules += {
     'name' : 'anaglyph',
     'sources' : files('anaglyph.c'),
     'plugin_dir' : 'video_filter',
 }
 
 # Anti-flicker filter
-vlc_modules += {
+heimdall_modules += {
     'name' : 'antiflicker',
     'sources' : files('antiflicker.c'),
     'plugin_dir' : 'video_filter',
@@ -52,7 +52,7 @@ if opengl_dep.found() or opengles2_dep.found()
     endif
 endif
 
-vlc_modules += {
+heimdall_modules += {
     'name' : 'opengl_filter',
     'sources' : files('opengl.c'),
     'dependencies' : [gl_common_dep, opengl_filter_dep],
@@ -62,7 +62,7 @@ vlc_modules += {
 }
 
 # OpenGL adjust filter
-vlc_modules += {
+heimdall_modules += {
     'name' : 'gladjust',
     'sources' : files('gladjust.c'),
     'dependencies' : [gl_plugin_dep],
@@ -70,7 +70,7 @@ vlc_modules += {
     'enabled' : opengl_filter_dep.found(),
 }
 
-vlc_modules += {
+heimdall_modules += {
     'name' : 'opengl_win_offscreen',
     'sources' : files('opengl_win_offscreen.c'),
     'dependencies' : [ gl_common_dep, opengl_dep ],
@@ -79,7 +79,7 @@ vlc_modules += {
 }
 
 # pl_scale - libplacebo scale filter
-vlc_modules += {
+heimdall_modules += {
     'name' : 'pl_scale',
     'sources' : files('../video_output/opengl/pl_scale.c'),
     'dependencies' : [gl_plugin_dep, libplacebo_dep],
@@ -89,7 +89,7 @@ vlc_modules += {
 }
 
 # egl_pbuffer_filter
-vlc_modules += {
+heimdall_modules += {
     'name' : 'egl_pbuffer_filter',
     'sources' : files(
         'egl_pbuffer.c',
@@ -101,18 +101,18 @@ vlc_modules += {
 }
 
 # egl_surfacetexture (Android only)
-vlc_modules += {
+heimdall_modules += {
     'name' : 'egl_surfacetexture',
     'sources' : files('egl_surfacetexture.c'),
     'dependencies' : [android_lib, egl_dep, opengles2_dep],
     'c_args' : ['-DUSE_OPENGL_ES2'],
-    'link_with' : [libandroid_env, libandroid_utils, libvlc_opengles],
+    'link_with' : [libandroid_env, libandroid_utils, libheimdall_opengles],
     'plugin_dir' : 'video_filter',
     'enabled' : host_system == 'android' and egl_dep.found(),
 }
 
 if host_system == 'windows'
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'amf_frc',
         'sources' : files(
                 'amf_frc.c',
@@ -127,7 +127,7 @@ if host_system == 'windows'
                     and cc.check_header('AMF/components/FRC.h', args: [contrib_inc_args]),
     }
 
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'amf_vqenhancer',
         'sources' : files(
                 'amf_vqenhancer.c',
@@ -144,32 +144,32 @@ if host_system == 'windows'
 endif
 
 # Ball filter
-vlc_modules += {
+heimdall_modules += {
     'name' : 'ball',
     'sources' : files('ball.c'),
     'dependencies' : [m_lib],
     'plugin_dir' : 'video_filter',
 }
 
-vlc_modules += {
+heimdall_modules += {
     'name' : 'blendbench',
     'sources' : files('blendbench.c'),
     'plugin_dir' : 'video_filter',
 }
 
-vlc_modules += {
+heimdall_modules += {
     'name' : 'bluescreen',
     'sources' : files('bluescreen.c'),
     'plugin_dir' : 'video_filter',
 }
 
-vlc_modules += {
+heimdall_modules += {
     'name' : 'canvas',
     'sources' : files('canvas.c'),
     'plugin_dir' : 'video_filter',
 }
 
-vlc_modules += {
+heimdall_modules += {
     'name' : 'colorthres',
     'sources' : files('colorthres.c'),
     'dependencies' : [m_lib],
@@ -177,126 +177,126 @@ vlc_modules += {
 }
 
 # Crop filter
-vlc_modules += {
+heimdall_modules += {
     'name' : 'croppadd',
     'sources' : files('croppadd.c'),
     'plugin_dir' : 'video_filter',
 }
 
-vlc_modules += {
+heimdall_modules += {
     'name' : 'erase',
     'sources' : files('erase.c'),
     'plugin_dir' : 'video_filter',
 }
 
-vlc_modules += {
+heimdall_modules += {
     'name' : 'extract',
     'sources' : files('extract.c'),
     'dependencies' : [m_lib],
     'plugin_dir' : 'video_filter',
 }
 
-vlc_modules += {
+heimdall_modules += {
     'name' : 'fps',
     'sources' : files('fps.c'),
     'plugin_dir' : 'video_filter',
 }
 
-vlc_modules += {
+heimdall_modules += {
     'name' : 'freeze',
     'sources' : files('freeze.c'),
     'plugin_dir' : 'video_filter',
 }
 
 # Gaussian blur filter
-vlc_modules += {
+heimdall_modules += {
     'name' : 'gaussianblur',
     'sources' : files('gaussianblur.c'),
     'dependencies' : [m_lib],
     'plugin_dir' : 'video_filter',
 }
 
-vlc_modules += {
+heimdall_modules += {
     'name' : 'gradfun',
     'sources' : files('gradfun.c', 'gradfun.h'),
     'dependencies' : [m_lib],
     'plugin_dir' : 'video_filter',
 }
 
-vlc_modules += {
+heimdall_modules += {
     'name' : 'gradient',
     'sources' : files('gradient.c'),
     'dependencies' : [m_lib],
     'plugin_dir' : 'video_filter',
 }
 
-vlc_modules += {
+heimdall_modules += {
     'name' : 'grain',
     'sources' : files('grain.c'),
     'dependencies' : [m_lib],
     'plugin_dir' : 'video_filter',
 }
 
-vlc_modules += {
+heimdall_modules += {
     'name' : 'hqdn3d',
     'sources' : files('hqdn3d.c', 'hqdn3d.h'),
     'dependencies' : [m_lib],
     'plugin_dir' : 'video_filter',
 }
 
-vlc_modules += {
+heimdall_modules += {
     'name' : 'invert',
     'sources' : files('invert.c'),
     'plugin_dir' : 'video_filter',
 }
 
-vlc_modules += {
+heimdall_modules += {
     'name' : 'magnify',
     'sources' : files('magnify.c'),
     'plugin_dir' : 'video_filter',
 }
 
-vlc_modules += {
+heimdall_modules += {
     'name' : 'formatcrop',
     'sources' : files('formatcrop.c'),
     'plugin_dir' : 'video_filter',
 }
 
-vlc_modules += {
+heimdall_modules += {
     'name' : 'mirror',
     'sources' : files('mirror.c'),
     'plugin_dir' : 'video_filter',
 }
 
 # Motion blur filter
-vlc_modules += {
+heimdall_modules += {
     'name' : 'motionblur',
     'sources' : files('motionblur.c'),
     'plugin_dir' : 'video_filter',
 }
 
 # Motion detection filter
-vlc_modules += {
+heimdall_modules += {
     'name' : 'motiondetect',
     'sources' : files('motiondetect.c'),
     'plugin_dir' : 'video_filter',
 }
 
 # Old movie filter
-vlc_modules += {
+heimdall_modules += {
     'name' : 'oldmovie',
     'sources' : files('oldmovie.c'),
     'dependencies' : [m_lib],
     'plugin_dir' : 'video_filter',
 }
 
-vlc_modules += {
+heimdall_modules += {
     'name' : 'posterize',
     'sources' : files('posterize.c'),
     'plugin_dir' : 'video_filter',
 }
 
-vlc_modules += {
+heimdall_modules += {
     'name' : 'psychedelic',
     'sources' : files('psychedelic.c'),
     'dependencies' : [m_lib],
@@ -304,7 +304,7 @@ vlc_modules += {
 }
 
 # Puzzle filter
-vlc_modules += {
+heimdall_modules += {
     'name' : 'puzzle',
     'sources' : files(
         'puzzle/puzzle.c',
@@ -322,7 +322,7 @@ vlc_modules += {
     'plugin_dir' : 'video_filter',
 }
 
-vlc_modules += {
+heimdall_modules += {
     'name' : 'ripple',
     'sources' : files('ripple.c'),
     'dependencies' : [m_lib],
@@ -330,21 +330,21 @@ vlc_modules += {
 }
 
 # Rotate filter
-vlc_modules += {
+heimdall_modules += {
     'name' : 'rotate',
     'sources' : files('rotate.c'),
     'dependencies' : [m_lib],
-    'link_with' : [vlc_motion_lib],
+    'link_with' : [heimdall_motion_lib],
     'plugin_dir' : 'video_filter',
 }
 
-vlc_modules += {
+heimdall_modules += {
     'name' : 'scale',
     'sources' : files('scale.c'),
     'plugin_dir' : 'video_filter',
 }
 
-vlc_modules += {
+heimdall_modules += {
     'name' : 'scene',
     'sources' : files('scene.c'),
     'dependencies' : [m_lib],
@@ -352,33 +352,33 @@ vlc_modules += {
 }
 
 # Sepia filter
-vlc_modules += {
+heimdall_modules += {
     'name' : 'sepia',
     'sources' : files('sepia.c'),
     'plugin_dir' : 'video_filter',
 }
 
 # Sharpen filter
-vlc_modules += {
+heimdall_modules += {
     'name' : 'sharpen',
     'sources' : files('sharpen.c'),
     'plugin_dir' : 'video_filter',
 }
 
-vlc_modules += {
+heimdall_modules += {
     'name' : 'transform',
     'sources' : files('transform.c'),
     'plugin_dir' : 'video_filter',
 }
 
 # VHS-effect filter
-vlc_modules += {
+heimdall_modules += {
     'name' : 'vhs',
     'sources' : files('vhs.c'),
     'plugin_dir' : 'video_filter',
 }
 
-vlc_modules += {
+heimdall_modules += {
     'name' : 'wave',
     'sources' : files('wave.c'),
     'dependencies' : [m_lib],
@@ -386,7 +386,7 @@ vlc_modules += {
 }
 
 # macOS/iOS accelerated video filters (CoreImage)
-vlc_modules += {
+heimdall_modules += {
     'name' : 'ci_filters',
     'sources' : files('ci_filters.m', '../codec/vt_utils.c'),
     'dependencies' : [
@@ -416,7 +416,7 @@ deinterlace_sources = files(
 if cdata.has('HAVE_X86ASM')
     deinterlace_sources+=files('deinterlace/yadif_x86.asm')
 endif
-vlc_modules += {
+heimdall_modules += {
     'name' : 'deinterlace',
     'sources' : deinterlace_sources,
     'include_directories' : include_directories('../../extras/include/x86'),
@@ -425,7 +425,7 @@ vlc_modules += {
 }
 
 # gl blend
-vlc_modules += {
+heimdall_modules += {
     'name' : 'glblend',
     'sources' : files('deinterlace/glblend.c'),
     'dependencies' : [gl_common_dep, gl_vout_dep],
@@ -440,7 +440,7 @@ if postproc_dep.found()
     if cc.check_header('postproc/postprocess.h', dependencies: [postproc_dep])
         postproc_c_args += ['-DHAVE_POSTPROC_POSTPROCESS_H']
     endif
-    vlc_modules += {
+    heimdall_modules += {
     'name' : 'postproc',
     'sources' : files('postproc.c'),
     'dependencies' : [m_lib, postproc_dep],
@@ -449,13 +449,13 @@ if postproc_dep.found()
     }
 endif
 
-vlc_modules += {
+heimdall_modules += {
     'name' : 'blend',
     'sources' : files('blend.cpp'),
     'plugin_dir' : 'video_filter',
 }
 
-vlc_modules += {
+heimdall_modules += {
     'name' : 'dither',
     'sources' : files('dither.c'),
     'dependencies' : [m_lib],
@@ -467,7 +467,7 @@ opencv_dep = dependency('opencv4',
                         required: false,
                         version: '>=4.0.0')
 
-vlc_modules += {
+heimdall_modules += {
     'name' : 'opencv_wrapper',
     'sources' : files('opencv_wrapper.cpp'),
     'dependencies' : [m_lib, opencv_dep],
@@ -476,7 +476,7 @@ vlc_modules += {
     'enabled' : opencv_dep.found()
 }
 
-vlc_modules += {
+heimdall_modules += {
     'name' : 'opencv_example',
     'sources' : files('opencv_example.cpp'),
     'dependencies' : [m_lib, opencv_dep],
@@ -489,7 +489,7 @@ sam3_dep = dependency('sam3',
                       required: get_option('sam3'))
 
 if opencv_dep.found() and sam3_dep.found()
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'sam3',
         'sources' : files('sam3.cpp'),
         'dependencies' : [

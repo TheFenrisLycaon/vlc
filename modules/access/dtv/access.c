@@ -1,9 +1,10 @@
 /**
  * @file access.c
- * @brief Digital broadcasting input module for VLC media player
+ * @brief Digital broadcasting input module for Heimdall media player
  */
 /*****************************************************************************
  * Copyright © 2011 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -26,10 +27,10 @@
 
 #include <stdbit.h>
 
-#include <vlc_common.h>
-#include <vlc_access.h>
-#include <vlc_plugin.h>
-#include <vlc_dialog.h>
+#include <heimdall_common.h>
+#include <heimdall_access.h>
+#include <heimdall_plugin.h>
+#include <heimdall_dialog.h>
 #ifdef HAVE_SEARCH_H
 #include <search.h>
 #endif
@@ -75,7 +76,7 @@
     "constellations (depending on the delivery system). " \
     "If the demodulator cannot detect the constellation automatically, " \
     "it needs to be configured manually.")
-static const char *const modulation_vlc[] = { "",
+static const char *const modulation_heimdall[] = { "",
     "QAM", "16QAM", "32QAM", "64QAM", "128QAM", "256QAM",
     "8VSB", "16VSB",
     "QPSK", "DQPSK", "8PSK", "16APSK", "32APSK",
@@ -95,7 +96,7 @@ static const char *const modulation_user[] = { N_("Undefined"),
 #define INVERSION_LONGTEXT N_( \
     "If the demodulator cannot detect spectral inversion correctly, " \
     "it needs to be configured manually.")
-const int auto_off_on_vlc[] = { -1, 0, 1 };
+const int auto_off_on_heimdall[] = { -1, 0, 1 };
 static const char *const auto_off_on_user[] = { N_("Automatic"),
     N_("Off"), N_("On") };
 
@@ -107,7 +108,7 @@ static const char *const auto_off_on_user[] = { N_("Automatic"),
 #define CODE_RATE_C_TEXT N_("Layer C code rate")
 #define CODE_RATE_LONGTEXT N_( \
     "The code rate for Forward Error Correction can be specified.")
-static const char *const code_rate_vlc[] = { "",
+static const char *const code_rate_heimdall[] = { "",
     "0", /*"1/4", "1/3",*/ "1/2", "3/5", "2/3", "3/4",
     "4/5", "5/6", "6/7", "7/8", "8/9", "9/10",
 };
@@ -117,7 +118,7 @@ static const char *const code_rate_user[] = { N_("Automatic"),
 };
 
 #define TRANSMISSION_TEXT N_("Transmission mode")
-const int transmission_vlc[] = { -1,
+const int transmission_heimdall[] = { -1,
     1, 2, 4, 8, 16, 32,
 };
 static const char *const transmission_user[] = { N_("Automatic"),
@@ -125,7 +126,7 @@ static const char *const transmission_user[] = { N_("Automatic"),
 };
 
 #define BANDWIDTH_TEXT N_("Bandwidth (MHz)")
-const int bandwidth_vlc[] = { 0,
+const int bandwidth_heimdall[] = { 0,
     10, 8, 7, 6, 5, 2
 };
 static const char *const bandwidth_user[] = { N_("Automatic"),
@@ -134,7 +135,7 @@ static const char *const bandwidth_user[] = { N_("Automatic"),
 };
 
 #define GUARD_TEXT N_("Guard interval")
-const char *const guard_vlc[] = { "",
+const char *const guard_heimdall[] = { "",
     "1/128", "1/32", "1/16", "19/256", "1/8", "19/128", "1/4",
 };
 static const char *const guard_user[] = { N_("Automatic"),
@@ -142,7 +143,7 @@ static const char *const guard_user[] = { N_("Automatic"),
 };
 
 #define HIERARCHY_TEXT N_("Hierarchy mode")
-const int hierarchy_vlc[] = { -1,
+const int hierarchy_heimdall[] = { -1,
     0, 1, 2, 4,
 };
 static const char *const hierarchy_user[] = { N_("Automatic"),
@@ -164,7 +165,7 @@ static const char *const hierarchy_user[] = { N_("Automatic"),
 #define PILOT_TEXT N_("Pilot")
 
 #define ROLLOFF_TEXT N_("Roll-off factor")
-const int rolloff_vlc[] = { -1,
+const int rolloff_heimdall[] = { -1,
     35, 20, 25,
 };
 static const char *const rolloff_user[] = { N_("Automatic"),
@@ -177,7 +178,7 @@ static const char *const rolloff_user[] = { N_("Automatic"),
 #define POLARIZATION_LONGTEXT N_( \
     "To select the polarization of the transponder, a different voltage " \
     "is normally applied to the low noise block-downconverter (LNB).")
-static const char *const polarization_vlc[] = { "", "V", "H", "R", "L" };
+static const char *const polarization_heimdall[] = { "", "V", "H", "R", "L" };
 static const char *const polarization_user[] = { N_("Unspecified (0V)"),
     N_("Vertical (13V)"), N_("Horizontal (18V)"),
     N_("Circular Right Hand (13V)"), N_("Circular Left Hand (18V)") };
@@ -211,7 +212,7 @@ static const char *const polarization_user[] = { N_("Unspecified (0V)"),
     "the correct LNB can be selected (1 to 4). " \
     "If there is no switch, this parameter should be 0.")
 #ifdef HAVE_LINUX_DVB
-static const int satno_vlc[] = { 0, 1, 2, 3, 4 };
+static const int satno_heimdall[] = { 0, 1, 2, 3, 4 };
 static const char *const satno_user[] = { N_("Unspecified"),
     "A/1", "B/2", "C/3", "D/4" };
 #endif
@@ -243,10 +244,10 @@ static const char *const satno_user[] = { N_("Unspecified"),
 #define MINOR_CHANNEL_TEXT N_("ATSC minor channel")
 #define PHYSICAL_CHANNEL_TEXT N_("Physical channel")
 
-static int  Open (vlc_object_t *);
-static void Close (vlc_object_t *);
+static int  Open (heimdall_object_t *);
+static void Close (heimdall_object_t *);
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname (N_("DTV"))
     set_description (N_("Digital Television and Radio"))
     set_subcategory (SUBCAT_INPUT_ACCESS)
@@ -282,32 +283,32 @@ vlc_module_begin ()
         change_integer_range (0, 107999999)
         change_safe ()
     add_integer ("dvb-inversion", -1, INVERSION_TEXT, INVERSION_LONGTEXT)
-        change_integer_list (auto_off_on_vlc, auto_off_on_user)
+        change_integer_list (auto_off_on_heimdall, auto_off_on_user)
         change_safe ()
 
     set_section (N_("Terrestrial reception parameters"), NULL)
     add_integer ("dvb-bandwidth", 0, BANDWIDTH_TEXT, NULL)
-        change_integer_list (bandwidth_vlc, bandwidth_user)
+        change_integer_list (bandwidth_heimdall, bandwidth_user)
         change_safe ()
     add_integer ("dvb-transmission", -1,
                  TRANSMISSION_TEXT, NULL)
-        change_integer_list (transmission_vlc, transmission_user)
+        change_integer_list (transmission_heimdall, transmission_user)
         change_safe ()
     add_string ("dvb-guard", "", GUARD_TEXT, NULL)
-        change_string_list (guard_vlc, guard_user)
+        change_string_list (guard_heimdall, guard_user)
         change_safe ()
 
     set_section (N_("DVB-T reception parameters"), NULL)
     add_string ("dvb-code-rate-hp", "",
                 CODE_RATE_HP_TEXT, CODE_RATE_LONGTEXT)
-        change_string_list (code_rate_vlc, code_rate_user)
+        change_string_list (code_rate_heimdall, code_rate_user)
         change_safe ()
     add_string ("dvb-code-rate-lp", "",
                 CODE_RATE_LP_TEXT, CODE_RATE_LONGTEXT)
-        change_string_list (code_rate_vlc, code_rate_user)
+        change_string_list (code_rate_heimdall, code_rate_user)
         change_safe ()
     add_integer ("dvb-hierarchy", -1, HIERARCHY_TEXT, NULL)
-        change_integer_list (hierarchy_vlc, hierarchy_user)
+        change_integer_list (hierarchy_heimdall, hierarchy_user)
         change_safe ()
     add_integer ("dvb-plp-id", 0, PLP_ID_TEXT, NULL)
         change_integer_range (0, 255)
@@ -316,10 +317,10 @@ vlc_module_begin ()
     set_section (N_("ISDB-T reception parameters"), NULL)
     add_string ("dvb-a-modulation", NULL,
                 MODULATION_A_TEXT, MODULATION_LONGTEXT)
-        change_string_list (modulation_vlc, modulation_user)
+        change_string_list (modulation_heimdall, modulation_user)
         change_safe ()
     add_string ("dvb-a-fec", NULL, CODE_RATE_A_TEXT, CODE_RATE_LONGTEXT)
-        change_string_list (code_rate_vlc, code_rate_user)
+        change_string_list (code_rate_heimdall, code_rate_user)
         change_safe ()
     add_integer ("dvb-a-count", 0, SEGMENT_COUNT_A_TEXT, NULL)
         change_integer_range (0, 13)
@@ -329,10 +330,10 @@ vlc_module_begin ()
         change_safe ()
     add_string ("dvb-b-modulation", NULL,
                 MODULATION_B_TEXT, MODULATION_LONGTEXT)
-        change_string_list (modulation_vlc, modulation_user)
+        change_string_list (modulation_heimdall, modulation_user)
         change_safe ()
     add_string ("dvb-b-fec", NULL, CODE_RATE_B_TEXT, CODE_RATE_LONGTEXT)
-        change_string_list (code_rate_vlc, code_rate_user)
+        change_string_list (code_rate_heimdall, code_rate_user)
         change_safe ()
     add_integer ("dvb-b-count", 0, SEGMENT_COUNT_B_TEXT, NULL)
         change_integer_range (0, 13)
@@ -342,10 +343,10 @@ vlc_module_begin ()
         change_safe ()
     add_string ("dvb-c-modulation", NULL,
                 MODULATION_C_TEXT, MODULATION_LONGTEXT)
-        change_string_list (modulation_vlc, modulation_user)
+        change_string_list (modulation_heimdall, modulation_user)
         change_safe ()
     add_string ("dvb-c-fec", NULL, CODE_RATE_C_TEXT, CODE_RATE_LONGTEXT)
-        change_string_list (code_rate_vlc, code_rate_user)
+        change_string_list (code_rate_heimdall, code_rate_user)
         change_safe ()
     add_integer ("dvb-c-count", 0, SEGMENT_COUNT_C_TEXT, NULL)
         change_integer_range (0, 13)
@@ -357,13 +358,13 @@ vlc_module_begin ()
     set_section (N_("Cable and satellite reception parameters"), NULL)
     add_string ("dvb-modulation", NULL,
                  MODULATION_TEXT, MODULATION_LONGTEXT)
-        change_string_list (modulation_vlc, modulation_user)
+        change_string_list (modulation_heimdall, modulation_user)
         change_safe ()
     add_integer ("dvb-srate", 0, SRATE_TEXT, SRATE_LONGTEXT)
         change_integer_range (0, UINT64_C(0xffffffff))
         change_safe ()
     add_string ("dvb-fec", "", CODE_RATE_TEXT, CODE_RATE_LONGTEXT)
-        change_string_list (code_rate_vlc, code_rate_user)
+        change_string_list (code_rate_heimdall, code_rate_user)
         change_safe ()
 
     set_section (N_("DVB-S2 parameters"), NULL)
@@ -371,10 +372,10 @@ vlc_module_begin ()
         change_integer_range (0, 255)
         change_safe ()
     add_integer ("dvb-pilot", -1, PILOT_TEXT, NULL)
-        change_integer_list (auto_off_on_vlc, auto_off_on_user)
+        change_integer_list (auto_off_on_heimdall, auto_off_on_user)
         change_safe ()
     add_integer ("dvb-rolloff", -1, ROLLOFF_TEXT, NULL)
-        change_integer_list (rolloff_vlc, rolloff_user)
+        change_integer_list (rolloff_heimdall, rolloff_user)
         change_safe ()
 
     set_section (N_("ISDB-S parameters"), NULL)
@@ -385,7 +386,7 @@ vlc_module_begin ()
     set_section (N_("Satellite equipment control"), NULL)
     add_string ("dvb-polarization", "",
                 POLARIZATION_TEXT, POLARIZATION_LONGTEXT)
-        change_string_list (polarization_vlc, polarization_user)
+        change_string_list (polarization_heimdall, polarization_user)
         change_safe ()
     add_obsolete_integer("dvb-voltage") /* deprecated in 1.2, removed in 4.0 */
 #ifdef HAVE_LINUX_DVB
@@ -401,13 +402,13 @@ vlc_module_begin ()
         change_integer_range (0, 0x7fffffff)
 #ifdef HAVE_LINUX_DVB
     add_integer ("dvb-satno", 0, SATNO_TEXT, SATNO_LONGTEXT)
-        change_integer_list (satno_vlc, satno_user)
+        change_integer_list (satno_heimdall, satno_user)
         change_safe ()
     add_integer ("dvb-uncommitted", 0, UNCOMMITTED_TEXT, UNCOMMITTED_LONGTEXT)
-        change_integer_list (satno_vlc, satno_user)
+        change_integer_list (satno_heimdall, satno_user)
         change_safe ()
     add_integer ("dvb-tone", -1, TONE_TEXT, TONE_LONGTEXT)
-        change_integer_list (auto_off_on_vlc, auto_off_on_user)
+        change_integer_list (auto_off_on_heimdall, auto_off_on_user)
 #endif
 #ifdef _WIN32
     add_integer ("dvb-network-id", 0, NETID_TEXT, NULL)
@@ -423,7 +424,7 @@ vlc_module_begin ()
     add_integer ("dvb-minor-channel", 0, MINOR_CHANNEL_TEXT, NULL)
     add_integer ("dvb-physical-channel", 0, PHYSICAL_CHANNEL_TEXT, NULL)
 #endif
-vlc_module_end ()
+heimdall_module_end ()
 
 typedef struct
 {
@@ -436,17 +437,17 @@ static block_t *Read (stream_t *, bool * restrict);
 static int Control (stream_t *, int, va_list);
 static dtv_delivery_t GuessSystem (const char *, dvb_device_t *);
 static dtv_delivery_t GetDeliveryByScheme(const char *psz_scheme);
-static int Tune (vlc_object_t *, dvb_device_t *, tuner_setup_t, uint64_t);
-static uint64_t var_InheritFrequency (vlc_object_t *);
+static int Tune (heimdall_object_t *, dvb_device_t *, tuner_setup_t, uint64_t);
+static uint64_t var_InheritFrequency (heimdall_object_t *);
 
 tuner_setup_t dtv_get_delivery_tuner_setup( dtv_delivery_t d );
 
-static int Open (vlc_object_t *obj)
+static int Open (heimdall_object_t *obj)
 {
     stream_t *access = (stream_t *)obj;
     access_sys_t *sys = malloc (sizeof (*sys));
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     var_LocationParse (obj, access->psz_location, "dvb-");
 
@@ -454,7 +455,7 @@ static int Open (vlc_object_t *obj)
     if (dev == NULL)
     {
         free (sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     sys->dev = dev;
@@ -472,7 +473,7 @@ static int Open (vlc_object_t *obj)
         if (sys->pf_setup == NULL || Tune (obj, dev, sys->pf_setup, freq))
         {
             msg_Err (obj, "tuning to %"PRIu64" Hz failed", freq);
-            vlc_dialog_display_error (obj, N_("Digital broadcasting"),
+            heimdall_dialog_display_error (obj, N_("Digital broadcasting"),
                 N_("The selected digital tuner does not support "
                    "the specified parameters.\n"
                    "Please check the preferences."));
@@ -483,15 +484,15 @@ static int Open (vlc_object_t *obj)
 
     access->pf_block = Read;
     access->pf_control = Control;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     Close (obj);
     access->p_sys = NULL;
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
-static void Close (vlc_object_t *obj)
+static void Close (heimdall_object_t *obj)
 {
     stream_t *access = (stream_t *)obj;
     access_sys_t *sys = access->p_sys;
@@ -539,8 +540,8 @@ static int Control (stream_t *access, int query, va_list args)
 
         case STREAM_GET_PTS_DELAY:
         {
-            *va_arg (args, vlc_tick_t *) =
-                VLC_TICK_FROM_MS( var_InheritInteger (access, "live-caching") );
+            *va_arg (args, heimdall_tick_t *) =
+                HEIMDALL_TICK_FROM_MS( var_InheritInteger (access, "live-caching") );
             break;
         }
 
@@ -552,11 +553,11 @@ static int Control (stream_t *access, int query, va_list args)
             /* Fetch the signal levels only every so often to avoid stressing
              * the device bus. */
             if ((sys->signal_poll++))
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
 
             *va_arg (args, double *) = dvb_get_snr (dev);
             *va_arg (args, double *) = dvb_get_signal_strength (dev);
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
 
         case STREAM_SET_PRIVATE_ID_STATE:
         {
@@ -564,11 +565,11 @@ static int Control (stream_t *access, int query, va_list args)
             bool add = va_arg (args, int);
 
             if (unlikely(pid > 0x1FFF))
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             if (add)
             {
                 if (dvb_add_pid (dev, pid))
-                    return VLC_EGENERIC;
+                    return HEIMDALL_EGENERIC;
             }
             else
                 dvb_remove_pid (dev, pid);
@@ -580,7 +581,7 @@ static int Control (stream_t *access, int query, va_list args)
             const en50221_capmt_info_t *pmt = va_arg(args, void *);
 
             if( !dvb_set_ca_pmt (dev, pmt) )
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             break;
         }
 
@@ -590,30 +591,30 @@ static int Control (stream_t *access, int query, va_list args)
             bool *on = va_arg (args, bool *);
 
             *on = likely(pid <= 0x1FFF) ? dvb_get_pid_state(dev, pid) : false;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
 
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 
 /*** Generic tuning ***/
 /** Set parameters and tune the device */
-static int Tune (vlc_object_t *obj, dvb_device_t *dev, tuner_setup_t pf_setup,
+static int Tune (heimdall_object_t *obj, dvb_device_t *dev, tuner_setup_t pf_setup,
                  uint64_t freq)
 {
     if (pf_setup(obj, dev, freq)
      || dvb_set_inversion (dev, var_InheritInteger (obj, "dvb-inversion"))
      || dvb_tune (dev))
-        return VLC_EGENERIC;
-    return VLC_SUCCESS;
+        return HEIMDALL_EGENERIC;
+    return HEIMDALL_SUCCESS;
 }
 
-static uint64_t var_InheritFrequency (vlc_object_t *obj)
+static uint64_t var_InheritFrequency (heimdall_object_t *obj)
 {
     uint64_t freq = var_InheritInteger (obj, "dvb-frequency");
     if (freq != 0 && freq < 30000000)
@@ -625,11 +626,11 @@ static uint64_t var_InheritFrequency (vlc_object_t *obj)
     return freq;
 }
 
-static uint32_t var_InheritCodeRate (vlc_object_t *obj, const char *varname)
+static uint32_t var_InheritCodeRate (heimdall_object_t *obj, const char *varname)
 {
     char *code_rate = var_InheritString (obj, varname);
     if (code_rate == NULL)
-        return VLC_FEC_AUTO;
+        return HEIMDALL_FEC_AUTO;
 
     uint16_t a, b;
     int v = sscanf (code_rate, "%"SCNu16"/%"SCNu16, &a, &b);
@@ -637,22 +638,22 @@ static uint32_t var_InheritCodeRate (vlc_object_t *obj, const char *varname)
     switch (v)
     {
         case 2:
-            return VLC_FEC(a, b);
+            return HEIMDALL_FEC(a, b);
         case 1:
             if (a == 0)
                 return 0;
-            /* Backward compatibility with VLC < 1.2 (= Linux DVBv3 enum) */
+            /* Backward compatibility with Heimdall < 1.2 (= Linux DVBv3 enum) */
             if (a < 9)
             {
                 msg_Warn (obj, "\"%s=%"PRIu16"\" option is obsolete. "
                           "Use \"%s=%"PRIu16"/%"PRIu16"\" instead.",
                           varname + 4, a, varname + 4, a, a + 1);
-                return VLC_FEC(a, a + 1);
+                return HEIMDALL_FEC(a, a + 1);
             }
             else
                 msg_Warn (obj, "\"fec=9\" option is obsolete.");
     }
-    return VLC_FEC_AUTO;
+    return HEIMDALL_FEC_AUTO;
 }
 
 static int modcmp (const void *a, const void *b)
@@ -660,21 +661,21 @@ static int modcmp (const void *a, const void *b)
     return strcasecmp (a, *(const char *const *)b);
 }
 
-static const char *var_InheritModulation (vlc_object_t *obj, const char *var)
+static const char *var_InheritModulation (heimdall_object_t *obj, const char *var)
 {
     char *mod = var_InheritString (obj, var);
     if (mod == NULL)
         return "";
 
-    size_t n = ARRAY_SIZE(modulation_vlc);
-    const char *const *p = lfind (mod, modulation_vlc, &n, sizeof (mod), modcmp);
+    size_t n = ARRAY_SIZE(modulation_heimdall);
+    const char *const *p = lfind (mod, modulation_heimdall, &n, sizeof (mod), modcmp);
     if (p != NULL)
     {
         free (mod);
         return *p;
     }
 
-    /* Backward compatibility with VLC < 1.2 */
+    /* Backward compatibility with Heimdall < 1.2 */
     const char *str;
     switch (atoi (mod))
     {
@@ -697,11 +698,11 @@ static const char *var_InheritModulation (vlc_object_t *obj, const char *var)
     return str;
 }
 
-static unsigned var_InheritGuardInterval (vlc_object_t *obj)
+static unsigned var_InheritGuardInterval (heimdall_object_t *obj)
 {
     char *guard = var_InheritString (obj, "dvb-guard");
     if (guard == NULL)
-        return VLC_GUARD_AUTO;
+        return HEIMDALL_GUARD_AUTO;
 
     uint16_t a, b;
     int v = sscanf (guard, "%"SCNu16"/%"SCNu16, &a, &b);
@@ -709,7 +710,7 @@ static unsigned var_InheritGuardInterval (vlc_object_t *obj)
     switch (v)
     {
         case 1:
-            /* Backward compatibility with VLC < 1.2 */
+            /* Backward compatibility with Heimdall < 1.2 */
             if (a == 0)
                 break;
             msg_Warn (obj, "\"guard=%"PRIu16"\" option is obsolete. "
@@ -718,21 +719,21 @@ static unsigned var_InheritGuardInterval (vlc_object_t *obj)
             a = 1;
             /* fall through */
         case 2:
-            return VLC_GUARD(a, b);
+            return HEIMDALL_GUARD(a, b);
     }
-    return VLC_GUARD_AUTO;
+    return HEIMDALL_GUARD_AUTO;
 }
 
 
 /*** ATSC ***/
-static int atsc_setup (vlc_object_t *obj, dvb_device_t *dev, uint64_t freq)
+static int atsc_setup (heimdall_object_t *obj, dvb_device_t *dev, uint64_t freq)
 {
     const char *mod = var_InheritModulation (obj, "dvb-modulation");
 
     return dvb_set_atsc (dev, freq, mod);
 }
 
-static int cqam_setup (vlc_object_t *obj, dvb_device_t *dev, uint64_t freq)
+static int cqam_setup (heimdall_object_t *obj, dvb_device_t *dev, uint64_t freq)
 {
     const char *mod = var_InheritModulation (obj, "dvb-modulation");
 
@@ -740,7 +741,7 @@ static int cqam_setup (vlc_object_t *obj, dvb_device_t *dev, uint64_t freq)
 }
 
 /*** DVB-C ***/
-static int dvbc_setup (vlc_object_t *obj, dvb_device_t *dev, uint64_t freq)
+static int dvbc_setup (heimdall_object_t *obj, dvb_device_t *dev, uint64_t freq)
 {
     const char *mod = var_InheritModulation (obj, "dvb-modulation");
     uint32_t fec = var_InheritCodeRate (obj, "dvb-fec");
@@ -750,7 +751,7 @@ static int dvbc_setup (vlc_object_t *obj, dvb_device_t *dev, uint64_t freq)
 }
 
 /*** DVB-S ***/
-static char var_InheritPolarization (vlc_object_t *obj)
+static char var_InheritPolarization (heimdall_object_t *obj)
 {
     char *polstr = var_InheritString (obj, "dvb-polarization");
     if (polstr != NULL)
@@ -765,7 +766,7 @@ static char var_InheritPolarization (vlc_object_t *obj)
     return '\0';
 }
 
-static void sec_setup (vlc_object_t *obj, dvb_device_t *dev, uint64_t freq)
+static void sec_setup (heimdall_object_t *obj, dvb_device_t *dev, uint64_t freq)
 {
     char pol = var_InheritPolarization (obj);
     unsigned lowf = var_InheritInteger (obj, "dvb-lnb-low");
@@ -775,7 +776,7 @@ static void sec_setup (vlc_object_t *obj, dvb_device_t *dev, uint64_t freq)
     dvb_set_sec (dev, freq, pol, lowf, highf, switchf);
 }
 
-static int dvbs_setup (vlc_object_t *obj, dvb_device_t *dev, uint64_t freq)
+static int dvbs_setup (heimdall_object_t *obj, dvb_device_t *dev, uint64_t freq)
 {
     uint32_t fec = var_InheritCodeRate (obj, "dvb-fec");
     uint32_t srate = var_InheritInteger (obj, "dvb-srate");
@@ -786,7 +787,7 @@ static int dvbs_setup (vlc_object_t *obj, dvb_device_t *dev, uint64_t freq)
     return ret;
 }
 
-static int dvbs2_setup (vlc_object_t *obj, dvb_device_t *dev, uint64_t freq)
+static int dvbs2_setup (heimdall_object_t *obj, dvb_device_t *dev, uint64_t freq)
 {
     const char *mod = var_InheritModulation (obj, "dvb-modulation");
     uint32_t fec = var_InheritCodeRate (obj, "dvb-fec");
@@ -802,7 +803,7 @@ static int dvbs2_setup (vlc_object_t *obj, dvb_device_t *dev, uint64_t freq)
 }
 
 /*** DVB-T ***/
-static int dvbt_setup (vlc_object_t *obj, dvb_device_t *dev, uint64_t freq)
+static int dvbt_setup (heimdall_object_t *obj, dvb_device_t *dev, uint64_t freq)
 {
     const char *mod = var_InheritModulation (obj, "dvb-modulation");
     uint32_t fec_hp = var_InheritCodeRate (obj, "dvb-code-rate-hp");
@@ -815,7 +816,7 @@ static int dvbt_setup (vlc_object_t *obj, dvb_device_t *dev, uint64_t freq)
     return dvb_set_dvbt (dev, freq, mod, fec_hp, fec_lp, bw, tx, guard, h);
 }
 
-static int dvbt2_setup (vlc_object_t *obj, dvb_device_t *dev, uint64_t freq)
+static int dvbt2_setup (heimdall_object_t *obj, dvb_device_t *dev, uint64_t freq)
 {
     const char *mod = var_InheritModulation (obj, "dvb-modulation");
     uint32_t fec = var_InheritCodeRate (obj, "dvb-fec");
@@ -828,7 +829,7 @@ static int dvbt2_setup (vlc_object_t *obj, dvb_device_t *dev, uint64_t freq)
 }
 
 /*** ISDB-C ***/
-static int isdbc_setup (vlc_object_t *obj, dvb_device_t *dev, uint64_t freq)
+static int isdbc_setup (heimdall_object_t *obj, dvb_device_t *dev, uint64_t freq)
 {
     const char *mod = var_InheritModulation (obj, "dvb-modulation");
     uint32_t fec = var_InheritCodeRate (obj, "dvb-fec");
@@ -838,7 +839,7 @@ static int isdbc_setup (vlc_object_t *obj, dvb_device_t *dev, uint64_t freq)
 }
 
 /*** ISDB-S ***/
-static int isdbs_setup (vlc_object_t *obj, dvb_device_t *dev, uint64_t freq)
+static int isdbs_setup (heimdall_object_t *obj, dvb_device_t *dev, uint64_t freq)
 {
     uint16_t ts_id = var_InheritInteger (obj, "dvb-ts-id");
 
@@ -849,7 +850,7 @@ static int isdbs_setup (vlc_object_t *obj, dvb_device_t *dev, uint64_t freq)
 }
 
 /*** ISDB-T ***/
-static int isdbt_setup (vlc_object_t *obj, dvb_device_t *dev, uint64_t freq)
+static int isdbt_setup (heimdall_object_t *obj, dvb_device_t *dev, uint64_t freq)
 {
     isdbt_layer_t layers[3];
     uint32_t guard = var_InheritGuardInterval (obj);

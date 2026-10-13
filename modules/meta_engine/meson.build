@@ -1,5 +1,5 @@
 # Folder
-vlc_modules += {
+heimdall_modules += {
     'name' : 'folder',
     'sources' : files('folder.c'),
     'plugin_dir' : 'meta_engine',
@@ -8,7 +8,7 @@ vlc_modules += {
 # Taglib
 taglib_dep = dependency('taglib', version: '>= 1.11', required: get_option('taglib'))
 if taglib_dep.found()
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'taglib',
         'sources' : files('taglib.cpp'),
         'dependencies' : [taglib_dep, z_dep],

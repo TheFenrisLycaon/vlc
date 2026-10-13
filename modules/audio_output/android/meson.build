@@ -5,14 +5,14 @@ android_audio_common = files(
     'dynamicsprocessing_jni.c',
 )
 
-vlc_modules += {
+heimdall_modules += {
     'name' : 'android_audiodev',
     'sources' : [android_audio_common, android_env_c, files('device.c')],
     'plugin_dir' : 'audio_output',
     'enabled' : host_system == 'android',
 }
 
-vlc_modules += {
+heimdall_modules += {
     'name' : 'audiotrack',
     'sources' : [android_audio_common, android_env_c, files('audiotrack.c')],
     'plugin_dir' : 'audio_output',
@@ -20,7 +20,7 @@ vlc_modules += {
 }
 
 opensles_lib = cc.find_library('OpenSLES', required: false)
-vlc_modules += {
+heimdall_modules += {
     'name' : 'opensles',
     'sources' : files('opensles.c'),
     'dependencies' : [opensles_lib],
@@ -29,7 +29,7 @@ vlc_modules += {
 }
 
 aaudio_lib = cc.find_library('aaudio', required: false)
-vlc_modules += {
+heimdall_modules += {
     'name' : 'aaudio',
     'sources' : [android_audio_common, android_env_c, files('aaudio.c')],
     'dependencies' : [aaudio_lib],

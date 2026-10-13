@@ -1,7 +1,8 @@
 /*****************************************************************************
- * SDIOutput.hpp: SDI sout module for vlc
+ * SDIOutput.hpp: SDI sout module for heimdall
  *****************************************************************************
  * Copyright © 2018 VideoLabs, VideoLAN and VideoLAN Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -21,8 +22,8 @@
 #define SDIOUTPUT_HPP
 
 #include "SDIStream.hpp"
-#include <vlc_common.h>
-#include <vlc_sout.h>
+#include <heimdall_common.h>
+#include <heimdall_sout.h>
 #include <list>
 
 namespace sdi_sout
@@ -48,7 +49,7 @@ namespace sdi_sout
                                                   bool = true);
             virtual int ConfigureVideo(const video_format_t *) = 0;
             virtual int ConfigureAudio(const audio_format_t *) = 0;
-            virtual bool ReachedPlaybackTime(vlc_tick_t);
+            virtual bool ReachedPlaybackTime(heimdall_tick_t);
             sout_stream_t *p_stream;
             VideoDecodedStream *videoStream;
             std::list<AbstractStream *> audioStreams;

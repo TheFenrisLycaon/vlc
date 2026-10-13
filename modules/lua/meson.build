@@ -20,8 +20,8 @@ lua_sources = files(
     'meta.c',
     'stream_filter.c',
     'services_discovery.c',
-    'vlc.c',
-    'vlc.h',
+    'heimdall.c',
+    'heimdall.h',
     'libs.h',
     'libs/configuration.c',
     'libs/equalizer.c',
@@ -58,7 +58,7 @@ if host_system == 'windows'
   lua_sources += files('libs/win.c')
 endif
 
-vlc_modules += {
+heimdall_modules += {
   'name' : 'lua',
   'sources' : lua_sources,
   'dependencies' : [lua_dep, socket_libs],
@@ -68,7 +68,7 @@ vlc_modules += {
 
 if lua_dep.found() and get_option('lua').allowed()
   if host_system == 'windows'
-    # VLC looks for everything next to the executable on Windows
+    # Heimdall looks for everything next to the executable on Windows
     luac_install_dir = prefix_path / 'lua'
     lua_pkgdata_install_dir = prefix_path / 'lua'
   else
@@ -122,7 +122,7 @@ if lua_dep.found() and get_option('lua').allowed()
   )
 
   foreach m : lua_modules
-    module_path = m.full_path().replace(vlc_src_root / 'share/lua/', '')
+    module_path = m.full_path().replace(heimdall_src_root / 'share/lua/', '')
     build_name = module_path.replace('.lua', '').underscorify()
     splitpath = module_path.split('/')
     output = splitpath.get(splitpath.length() - 1).replace('.lua', '.luac')
@@ -153,13 +153,13 @@ if lua_dep.found() and get_option('lua').allowed()
     '../../share/lua/http/vlm.html',
     '../../share/lua/http/images/buttons.png',
     '../../share/lua/http/images/speaker-32.png',
-    '../../share/lua/http/images/vlc-48.png',
+    '../../share/lua/http/images/heimdall-48.png',
     '../../share/lua/http/images/Audio-48.png',
     '../../share/lua/http/images/Folder-48.png',
     '../../share/lua/http/images/Other-48.png',
     '../../share/lua/http/images/Back-48.png',
     '../../share/lua/http/images/Video-48.png',
-    '../../share/lua/http/images/vlc16x16.png',
+    '../../share/lua/http/images/heimdall16x16.png',
     '../../share/lua/http/mobile_equalizer.html',
     '../../share/lua/http/vlm_export.html',
     '../../share/lua/http/mobile_browse.html',
@@ -202,7 +202,7 @@ if lua_dep.found() and get_option('lua').allowed()
   )
 
   foreach m : lua_pkgdata
-    splitpath = m.full_path().replace(vlc_src_root / 'share/lua/', '').split('/')
+    splitpath = m.full_path().replace(heimdall_src_root / 'share/lua/', '').split('/')
     subdir = '/'.join(splitpath.slice(0, splitpath.length() - 1))
     install_data(m, install_dir: lua_pkgdata_install_dir / subdir)
   endforeach

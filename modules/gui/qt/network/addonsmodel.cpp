@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,10 +30,10 @@
 #include <QPixmap>
 #include <QQmlFile>
 
-#include <vlc_media_source.h>
-#include <vlc_addons.h>
-#include <vlc_cxx_helpers.hpp>
-#include <vlc_addons.h>
+#include <heimdall_media_source.h>
+#include <heimdall_addons.h>
+#include <heimdall_cxx_helpers.hpp>
+#include <heimdall_addons.h>
 
 #define CHECK_ADDON_TYPE_MATCH(type) \
     static_assert(static_cast<addon_type_t>(AddonsModel::Type::TYPE_ ## type) == ADDON_##type)
@@ -59,7 +60,7 @@ CHECK_ADDON_STATE_MATCH(UNINSTALLING);
 
 namespace {
 
-using AddonPtr = ::vlc::vlc_shared_data_ptr<addon_entry_t,
+using AddonPtr = ::heimdall::heimdall_shared_data_ptr<addon_entry_t,
                                      &addon_entry_Hold, &addon_entry_Release>;
 
 class AddonItem {
@@ -67,7 +68,7 @@ public:
     //
     AddonItem( AddonPtr addon )
     {
-        vlc_mutex_locker locker{&addon->lock};
+        heimdall_mutex_locker locker{&addon->lock};
         name = qfu( addon->psz_name );
         summary = qfu( addon->psz_summary ).trimmed();
         description = qfu( addon->psz_description ).trimmed();
@@ -77,7 +78,7 @@ public:
         uuid = QByteArray( reinterpret_cast<const char*>(addon->uuid), sizeof( addon_uuid_t ));
 
         if ( addon->psz_image_data ) {
-            char *cDir = config_GetUserDir( VLC_CACHE_DIR );
+            char *cDir = config_GetUserDir( HEIMDALL_CACHE_DIR );
             if (likely(cDir != nullptr))
             {
                 QDir dir( cDir );
@@ -257,49 +258,49 @@ QVariant AddonsModel::data( const QModelIndex& index, int role ) const
             return item->description;
         case Role::DOWNLOADS:
         {
-            vlc_mutex_locker locker{&item->entry->lock};
+            heimdall_mutex_locker locker{&item->entry->lock};
             return QVariant::fromValue( item->entry->i_downloads );
         }
         case Role::SCORE:
         {
-            vlc_mutex_locker locker{&item->entry->lock};
+            heimdall_mutex_locker locker{&item->entry->lock};
             return item->entry->i_score;
         }
         case Role::STATE:
         {
-            vlc_mutex_locker locker{&item->entry->lock};
+            heimdall_mutex_locker locker{&item->entry->lock};
             return item->entry->e_state;
         }
         case Role::ARTWORK:
         {
-            vlc_mutex_locker locker{&item->entry->lock};
+            heimdall_mutex_locker locker{&item->entry->lock};
             return item->artworkUrl;
         }
         case Role::TYPE:
         {
-            vlc_mutex_locker locker{&item->entry->lock};
+            heimdall_mutex_locker locker{&item->entry->lock};
             return QVariant::fromValue(item->entry->e_type);
         }
         case Role::LINK:
         {
-            vlc_mutex_locker locker{&item->entry->lock};
+            heimdall_mutex_locker locker{&item->entry->lock};
             return QString{ item->entry->psz_source_uri };
         }
         case Role::ADDON_VERSION:
         {
-            vlc_mutex_locker locker{&item->entry->lock};
+            heimdall_mutex_locker locker{&item->entry->lock};
             return qfu(item->entry->psz_version);
         }
         case Role::UUID:
             return item->uuid;
         case Role::DOWNLOAD_COUNT:
         {
-            vlc_mutex_locker locker{&item->entry->lock};
+            heimdall_mutex_locker locker{&item->entry->lock};
             return QVariant::fromValue(item->entry->i_downloads);
         }
         case Role::FILENAME:
         {
-            vlc_mutex_locker locker{&item->entry->lock};
+            heimdall_mutex_locker locker{&item->entry->lock};
             QList<QString> list;
             addon_file_t *p_file;
             ARRAY_FOREACH( p_file, item->entry->files )
@@ -308,26 +309,26 @@ QVariant AddonsModel::data( const QModelIndex& index, int role ) const
         }
         case  Role::BROKEN:
         {
-            vlc_mutex_locker locker{&item->entry->lock};
+            heimdall_mutex_locker locker{&item->entry->lock};
             return item->entry->e_flags & ADDON_BROKEN;
         }
         case  Role::MANAGEABLE:
         {
-            vlc_mutex_locker locker{&item->entry->lock};
+            heimdall_mutex_locker locker{&item->entry->lock};
             return item->entry->e_flags & ADDON_MANAGEABLE;
         }
         case  Role::UPDATABLE:
         {
-            vlc_mutex_locker locker{&item->entry->lock};
+            heimdall_mutex_locker locker{&item->entry->lock};
             return item->entry->e_flags & ADDON_UPDATABLE;
         }
 
         case Qt::ToolTipRole:
         {
-            vlc_mutex_locker locker{&item->entry->lock};
+            heimdall_mutex_locker locker{&item->entry->lock};
             if ( !( item->entry->e_flags & ADDON_MANAGEABLE ) )
             {
-                return qtr("This addon has been installed manually. VLC can't manage it by itself.");
+                return qtr("This addon has been installed manually. Heimdall can't manage it by itself.");
             }
             return QVariant{};
         }
@@ -365,7 +366,7 @@ Qt::ItemFlags AddonsModel::flags( const QModelIndex &index ) const
         return qtFlags;
 
     {
-        vlc_mutex_locker locker{&item->entry->lock};
+        heimdall_mutex_locker locker{&item->entry->lock};
         addon_state_t addonState = item->entry->e_state;
         if (addonState == ADDON_INSTALLING || addonState == ADDON_UNINSTALLING)
             qtFlags &= ~Qt::ItemIsEnabled;
@@ -568,7 +569,7 @@ QString AddonsModel::getIconForType(AddonsModel::Type type)
     default:
         return QStringLiteral("qrc:///addons/addon_default.svg");
     }
-    vlc_assert_unreachable();
+    heimdall_assert_unreachable();
 }
 
 int AddonsModel::getMaxScore()
@@ -620,7 +621,7 @@ bool AddonsModelPrivate::initializeModel()
         addonChangedCallback,
     };
 
-    m_manager = addons_manager_New( VLC_OBJECT( m_ctx->getIntf() ), &owner );
+    m_manager = addons_manager_New( HEIMDALL_OBJECT( m_ctx->getIntf() ), &owner );
     assert( m_manager );
 
     emit q->loadingChanged();

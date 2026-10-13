@@ -2,6 +2,7 @@
  * libmp4.c: libmp4 tests
  *****************************************************************************
  * Copyright (C) 2026 VideoLabs, VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -21,13 +22,13 @@
 # include <config.h>
 #endif
 
-#include <vlc/vlc.h>
-#include "../../../lib/libvlc_internal.h"
-#include "../../libvlc/test.h"
+#include <heimdall/heimdall.h>
+#include "../../../lib/libheimdall_internal.h"
+#include "../../libheimdall/test.h"
 
-#include <vlc_common.h>
-#include <vlc_block.h>
-#include <vlc_stream.h>
+#include <heimdall_common.h>
+#include <heimdall_block.h>
+#include <heimdall_stream.h>
 
 #define MODULE_STRING "test_demux_libmp4"
 
@@ -39,7 +40,7 @@
         goto failed; } \
     } while(0)
 
-const char vlc_module_name[] = MODULE_STRING;
+const char heimdall_module_name[] = MODULE_STRING;
 
 static MP4_Box_t * BoxAddChild( MP4_Box_t *p_parent, MP4_Box_t *p_childbox )
 {
@@ -56,7 +57,7 @@ static MP4_Box_t * BoxAddChild( MP4_Box_t *p_parent, MP4_Box_t *p_childbox )
 
 static MP4_Box_t *newBox(const char x[4])
 {
-    return MP4_BoxNew(VLC_FOURCC(x[0],x[1],x[2],x[3]));
+    return MP4_BoxNew(HEIMDALL_FOURCC(x[0],x[1],x[2],x[3]));
 }
 
 static MP4_Box_t *generate_mp4_tree()
@@ -403,13 +404,13 @@ static const unsigned char mp4_slowstart[] = {
 };
 static const unsigned int mp4_slowstart_len = 2386;
 
-static int check_MP4_Box(vlc_object_t *obj)
+static int check_MP4_Box(heimdall_object_t *obj)
 {
-    stream_t *stream = vlc_stream_MemoryNew(obj, (uint8_t *)mp4_slowstart, mp4_slowstart_len, true);
+    stream_t *stream = heimdall_stream_MemoryNew(obj, (uint8_t *)mp4_slowstart, mp4_slowstart_len, true);
     if(!stream)
         return 1;
     MP4_Box_t *root = MP4_BoxGetRoot(stream);
-    vlc_stream_Delete(stream);
+    heimdall_stream_Delete(stream);
 
     EXPECT(root);
 
@@ -690,13 +691,13 @@ static const unsigned char mp4_frag[] = {
 };
 static const unsigned int mp4_frag_len = 2701;
 
-static int check_MP4_Frag(vlc_object_t *obj)
+static int check_MP4_Frag(heimdall_object_t *obj)
 {
-    stream_t *stream = vlc_stream_MemoryNew(obj, (uint8_t *)mp4_frag, mp4_frag_len, true);
+    stream_t *stream = heimdall_stream_MemoryNew(obj, (uint8_t *)mp4_frag, mp4_frag_len, true);
     if(!stream)
         return 1;
     MP4_Box_t *root = MP4_BoxGetRoot(stream);
-    vlc_stream_Delete(stream);
+    heimdall_stream_Delete(stream);
 
     EXPECT(root);
 
@@ -722,18 +723,18 @@ int main(void)
         "-vvv",
     };
 
-    libvlc_instance_t *vlc = libvlc_new(ARRAY_SIZE(args), args);
-    if(!vlc)
+    libheimdall_instance_t *heimdall = libheimdall_new(ARRAY_SIZE(args), args);
+    if(!heimdall)
         return 1;
 
     int ret = check_MP4_BoxGet();
 
     if( !ret )
-      ret = check_MP4_Box(&vlc->p_libvlc_int->obj);
+      ret = check_MP4_Box(&heimdall->p_libheimdall_int->obj);
 
     if( !ret )
-      ret = check_MP4_Frag(&vlc->p_libvlc_int->obj);
+      ret = check_MP4_Frag(&heimdall->p_libheimdall_int->obj);
 
-    libvlc_release(vlc);
+    libheimdall_release(heimdall);
     return ret;
 }

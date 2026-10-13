@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,7 +22,7 @@
 #include <cassert>
 
 #include "mlhelper.hpp"
-#include "util/vlctick.hpp"
+#include "util/heimdalltick.hpp"
 
 VideoDescription::VideoDescription(const QString &codec, const QString &language, const unsigned int fps)
     : m_codec(codec)
@@ -73,16 +74,16 @@ unsigned int AudioDescription::getSampleRate() const
     return m_sampleRate;
 }
 
-MLVideo::MLVideo(const vlc_ml_media_t* data)
+MLVideo::MLVideo(const heimdall_ml_media_t* data)
     : MLMedia ( data )
 {
-    assert( data->i_type == VLC_ML_MEDIA_TYPE_VIDEO || data->i_type == VLC_ML_MEDIA_TYPE_UNKNOWN );
+    assert( data->i_type == HEIMDALL_ML_MEDIA_TYPE_VIDEO || data->i_type == HEIMDALL_ML_MEDIA_TYPE_UNKNOWN );
 
     m_isNew = (m_playCount == 0 && m_progress <= 0);
 
     unsigned int numChannel = 0 , maxWidth = 0 , maxHeight = 0;
-    for( const vlc_ml_media_track_t& track: ml_range_iterate<vlc_ml_media_track_t>( data->p_tracks ) ) {
-        if ( track.i_type == VLC_ML_TRACK_TYPE_AUDIO ) {
+    for( const heimdall_ml_media_track_t& track: ml_range_iterate<heimdall_ml_media_track_t>( data->p_tracks ) ) {
+        if ( track.i_type == HEIMDALL_ML_TRACK_TYPE_AUDIO ) {
             numChannel = std::max( numChannel , track.a.i_nbChannels );
 
             m_audioDesc.push_back( { qfu( track.psz_codec ) ,
@@ -91,7 +92,7 @@ MLVideo::MLVideo(const vlc_ml_media_t* data)
                                      track.a.i_sampleRate }
                                  );
         }
-        else if ( track.i_type == VLC_ML_TRACK_TYPE_VIDEO ){
+        else if ( track.i_type == HEIMDALL_ML_TRACK_TYPE_VIDEO ){
             maxWidth = std::max( maxWidth, track.v.i_width );
             maxHeight = std::max( maxHeight, track.v.i_height );
 
@@ -99,7 +100,7 @@ MLVideo::MLVideo(const vlc_ml_media_t* data)
                                      qfu( track.psz_language ) ,
                                      track.v.i_fpsNum }
                                  );
-        } else if ( track.i_type == VLC_ML_TRACK_TYPE_SUBTITLE )
+        } else if ( track.i_type == HEIMDALL_ML_TRACK_TYPE_SUBTITLE )
         {
             m_subtitleDesc.emplaceBack( qfu(track.psz_codec)
                                         , qfu(track.psz_language)
@@ -123,7 +124,7 @@ void MLVideo::setIsNew(bool isNew)
     m_isNew = isNew;
 }
 
-void MLVideo::setSmallCover(vlc_ml_thumbnail_status_t status, QString mrl)
+void MLVideo::setSmallCover(heimdall_ml_thumbnail_status_t status, QString mrl)
 {
     m_smallThumbnail = {std::move(mrl), status};
 }

@@ -2,10 +2,11 @@
  * interface_widgets.hpp : Custom widgets for the main interface
  ****************************************************************************
  * Copyright (C) 2006-2008 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Clément Stenac <zorglub@videolan.org>
  *          Jean-Baptiste Kempf <jb@videolan.org>
- *          Rafaël Carré <funman@videolanorg>
+ *          Rafaël Carré <funman@lycariaorg>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,8 +23,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_QT_INTERFACE_WIDGETS_HPP_
-#define VLC_QT_INTERFACE_WIDGETS_HPP_
+#ifndef HEIMDALL_QT_INTERFACE_WIDGETS_HPP_
+#define HEIMDALL_QT_INTERFACE_WIDGETS_HPP_
 
 #ifdef HAVE_CONFIG_H
 # include "config.h"

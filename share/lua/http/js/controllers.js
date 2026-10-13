@@ -70,8 +70,8 @@ function updateStatus() {
                     var tmp = new Date();
                     currentArt = $('[name="artwork_url"]', data).text();
                     updateArt('/art?' + tmp.getTime());
-                } else if ($('[name="artwork_url"]', data).text() == "" && currentArt != 'images/vlc-48.png') {
-                    currentArt = 'images/vlc-48.png';
+                } else if ($('[name="artwork_url"]', data).text() == "" && currentArt != 'images/heimdall-48.png') {
+                    currentArt = 'images/heimdall-48.png';
                     updateArt(currentArt);
                 }
 

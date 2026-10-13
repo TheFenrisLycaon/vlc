@@ -2,6 +2,7 @@
  * es.c: Elementary stream output module
  *****************************************************************************
  * Copyright (C) 2003-2004 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *
@@ -28,12 +29,12 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_sout.h>
-#include <vlc_dialog.h>
-#include <vlc_memstream.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_sout.h>
+#include <heimdall_dialog.h>
+#include <heimdall_memstream.h>
 
 typedef struct
 {
@@ -62,13 +63,13 @@ typedef struct
     bool synchronous;
 } sout_stream_id_sys_t;
 
-VLC_MALLOC static char * es_print_url( const char *psz_fmt, vlc_fourcc_t i_fourcc, int i_count,
+HEIMDALL_MALLOC static char * es_print_url( const char *psz_fmt, heimdall_fourcc_t i_fourcc, int i_count,
                                        const char *psz_access, const char *psz_mux )
 {
-    struct vlc_memstream stream;
+    struct heimdall_memstream stream;
     unsigned char c;
 
-    if (vlc_memstream_open(&stream))
+    if (heimdall_memstream_open(&stream))
         return NULL;
 
     if( psz_fmt == NULL || !*psz_fmt )
@@ -78,34 +79,34 @@ VLC_MALLOC static char * es_print_url( const char *psz_fmt, vlc_fourcc_t i_fourc
     {
         if (c != '%')
         {
-            vlc_memstream_putc(&stream, c);
+            heimdall_memstream_putc(&stream, c);
             continue;
         }
 
         switch (c = *(psz_fmt++))
         {
             case 'n':
-                vlc_memstream_printf(&stream, "%d", i_count);
+                heimdall_memstream_printf(&stream, "%d", i_count);
                 break;
             case 'c':
-                vlc_memstream_printf(&stream, "%4.4s", (char *)&i_fourcc);
+                heimdall_memstream_printf(&stream, "%4.4s", (char *)&i_fourcc);
                 break;
             case 'm':
-                vlc_memstream_puts(&stream, psz_mux);
+                heimdall_memstream_puts(&stream, psz_mux);
                 break;
             case 'a':
-                vlc_memstream_puts(&stream, psz_access);
+                heimdall_memstream_puts(&stream, psz_access);
                 break;
             case '\0':
-                vlc_memstream_putc(&stream, '%');
+                heimdall_memstream_putc(&stream, '%');
                 goto out;
             default:
-                vlc_memstream_printf(&stream, "%%%c", (int) c);
+                heimdall_memstream_printf(&stream, "%%%c", (int) c);
                 break;
         }
     }
 out:
-    if (vlc_memstream_close(&stream))
+    if (heimdall_memstream_close(&stream))
         return NULL;
     return stream.ptr;
 }
@@ -198,7 +199,7 @@ Add( sout_stream_t *p_stream, const es_format_t *p_fmt, const char *es_id )
     {
         msg_Err( p_stream, "no suitable sout access module for `%s/%s://%s'",
                  psz_access, psz_mux, psz_dst );
-        vlc_dialog_display_error( p_stream, _("Streaming / Transcoding failed"),
+        heimdall_dialog_display_error( p_stream, _("Streaming / Transcoding failed"),
             _("There is no suitable stream-output access module for \"%s/%s://%s\"."),
             psz_access, psz_mux, psz_dst );
         free( psz_dst );
@@ -221,7 +222,7 @@ Add( sout_stream_t *p_stream, const es_format_t *p_fmt, const char *es_id )
     {
         msg_Err( p_stream, "no suitable sout mux module for `%s/%s://%s'",
                  psz_access, psz_mux, psz_dst );
-        vlc_dialog_display_error( p_stream, _("Streaming / Transcoding failed"),
+        heimdall_dialog_display_error( p_stream, _("Streaming / Transcoding failed"),
             _("There is no suitable stream-output access module "\
             "for \"%s/%s://%s\"."), psz_access, psz_mux, psz_dst );
         sout_AccessOutDelete( p_access );
@@ -261,7 +262,7 @@ static void Del( sout_stream_t *p_stream, void *_id )
 
 static int Send( sout_stream_t *p_stream, void *_id, block_t *p_buffer )
 {
-    VLC_UNUSED(p_stream);
+    HEIMDALL_UNUSED(p_stream);
     sout_stream_id_sys_t *id = (sout_stream_id_sys_t *)_id;
     return sout_MuxSendBuffer( id->p_mux, id->p_input, p_buffer );
 }
@@ -306,13 +307,13 @@ static const char *const ppsz_sout_options[] = {
 /*****************************************************************************
  * Open:
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     sout_stream_t       *p_stream = (sout_stream_t*)p_this;
-    sout_stream_sys_t *p_sys = vlc_obj_malloc(p_this, sizeof (*p_sys));
+    sout_stream_sys_t *p_sys = heimdall_obj_malloc(p_this, sizeof (*p_sys));
 
     if (unlikely(p_sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     config_ChainParse( p_stream, SOUT_CFG_PREFIX, ppsz_sout_options, p_stream->p_cfg );
 
@@ -335,7 +336,7 @@ static int Open( vlc_object_t *p_this )
     p_stream->ops = &ops;
     p_stream->p_sys = p_sys;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -372,7 +373,7 @@ static int Open( vlc_object_t *p_this )
 #define DESTV_LONGTEXT N_( \
     "This is the output URI that will be used for video." )
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname("ES")
     set_description(N_("Elementary stream output"))
     set_capability("sout output", 50)
@@ -401,4 +402,4 @@ vlc_module_begin()
                DESTV_LONGTEXT)
 
     set_callback(Open)
-vlc_module_end()
+heimdall_module_end()

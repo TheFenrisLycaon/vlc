@@ -1,5 +1,6 @@
 /******************************************************************************
  * Copyright (C) 2024 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Ash <ashutoshv191@gmail.com>
  *
@@ -19,11 +20,11 @@
  ******************************************************************************/
 import QtQuick
 
-import VLC.MediaLibrary
+import Heimdall.MediaLibrary
 
-import VLC.MainInterface
-import VLC.Widgets as Widgets
-import VLC.Util
+import Heimdall.MainInterface
+import Heimdall.Widgets as Widgets
+import Heimdall.Util
 
 Widgets.PageLoader {
     id: root

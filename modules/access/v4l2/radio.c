@@ -2,6 +2,7 @@
  * radio.c : V4L2 analog radio receiver
  *****************************************************************************
  * Copyright (C) 2012 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -24,17 +25,17 @@
 
 #include <fcntl.h>
 
-#include <vlc_common.h>
-#include <vlc_demux.h>
-#include <vlc_fs.h>
+#include <heimdall_common.h>
+#include <heimdall_demux.h>
+#include <heimdall_fs.h>
 
 #include "v4l2.h"
 
 typedef struct
 {
     int fd;
-    vlc_v4l2_ctrl_t *controls;
-    vlc_tick_t start;
+    heimdall_v4l2_ctrl_t *controls;
+    heimdall_tick_t start;
 } demux_sys_t;
 
 static int RadioControl (demux_t *demux, int query, va_list args)
@@ -50,33 +51,33 @@ static int RadioControl (demux_t *demux, int query, va_list args)
             break;
 
         case DEMUX_GET_PTS_DELAY:
-            *va_arg (args,vlc_tick_t *) = VLC_TICK_FROM_MS(
+            *va_arg (args,heimdall_tick_t *) = HEIMDALL_TICK_FROM_MS(
                 var_InheritInteger (demux, "live-caching") );
             break;
 
         case DEMUX_GET_TIME:
-            *va_arg (args, vlc_tick_t *) = vlc_tick_now () - sys->start;
+            *va_arg (args, heimdall_tick_t *) = heimdall_tick_now () - sys->start;
             break;
 
         /* TODO implement others */
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-int RadioOpen (vlc_object_t *obj)
+int RadioOpen (heimdall_object_t *obj)
 {
     demux_t *demux = (demux_t *)obj;
     if (demux->out == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* Parse MRL */
     size_t pathlen = strcspn (demux->psz_location, ":;");
     char *path = (pathlen != 0) ? strndup (demux->psz_location, pathlen)
                               : var_InheritString (obj, CFG_PREFIX"radio-dev");
     if (unlikely(path == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     if (demux->psz_location[pathlen] != '\0')
         var_LocationParse (obj, demux->psz_location + pathlen + 1, CFG_PREFIX);
 
@@ -85,7 +86,7 @@ int RadioOpen (vlc_object_t *obj)
     int fd = OpenDevice (obj, path, &caps);
     free (path);
     if (fd == -1)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     if (!(caps & V4L2_CAP_TUNER))
     {
         msg_Err (obj, "not a radio tuner device");
@@ -100,25 +101,25 @@ int RadioOpen (vlc_object_t *obj)
         goto error;
 
     sys->fd = fd;
-    sys->controls = ControlsInit(vlc_object_parent(obj), fd);
-    sys->start = vlc_tick_now ();
+    sys->controls = ControlsInit(heimdall_object_parent(obj), fd);
+    sys->start = heimdall_tick_now ();
 
     demux->p_sys = sys;
     demux->pf_demux = NULL;
     demux->pf_control = RadioControl;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     v4l2_close (fd);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
-void RadioClose (vlc_object_t *obj)
+void RadioClose (heimdall_object_t *obj)
 {
     demux_t *demux = (demux_t *)obj;
     demux_sys_t *sys = demux->p_sys;
 
-    ControlsDeinit(vlc_object_parent(obj), sys->controls);
+    ControlsDeinit(heimdall_object_parent(obj), sys->controls);
     v4l2_close (sys->fd);
     free (sys);
 }

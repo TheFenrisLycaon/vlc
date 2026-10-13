@@ -2,6 +2,7 @@
  * videotoolbox/encoder.c: Video Toolbox encoder
  *****************************************************************************
  * Copyright © 2023 VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Alexandre Janniaux <ajanni@videolabs.io>
  *          Marvin Scholz <epirat07 at gmail dot com>
@@ -25,12 +26,12 @@
 # import "config.h"
 #endif
 
-#import <vlc_common.h>
-#import <vlc_plugin.h>
-#import <vlc_codec.h>
+#import <heimdall_common.h>
+#import <heimdall_plugin.h>
+#import <heimdall_codec.h>
 #import "../hxxx_helper.h"
-#import <vlc_bits.h>
-#import <vlc_threads.h>
+#import <heimdall_bits.h>
+#import <heimdall_threads.h>
 #import "../vt_utils.h"
 #import "../../packetizer/h264_nal.h"
 #import "../../packetizer/h264_slice.h"
@@ -56,7 +57,7 @@ typedef struct encoder_sys_t
     VTCompressionSessionRef session;
     CMTime lastDate;
     bool isDraining;
-    vlc_fifo_t *fifo;
+    heimdall_fifo_t *fifo;
     bool header;
 
     int NALUnitHeaderLengthOut;
@@ -95,25 +96,25 @@ return_block:
         VTCompressionSessionCompleteFrames(sys->session, kCMTimeInvalid);
 
     /* Dequeue all available blocks. */
-    vlc_fifo_Lock(sys->fifo);
-    block_t *block = vlc_fifo_DequeueAllUnlocked(sys->fifo);
-    vlc_fifo_Unlock(sys->fifo);
+    heimdall_fifo_Lock(sys->fifo);
+    block_t *block = heimdall_fifo_DequeueAllUnlocked(sys->fifo);
+    heimdall_fifo_Unlock(sys->fifo);
 
     if (pic)
         sys->lastDate = CMTimeMake(pic->date, CLOCK_FREQ);
 
-    vlc_fifo_Signal(sys->fifo);
+    heimdall_fifo_Signal(sys->fifo);
 
     return block;
 }
 
-static vlc_tick_t vlc_CMTime_to_tick(CMTime timestamp)
+static heimdall_tick_t heimdall_CMTime_to_tick(CMTime timestamp)
 {
     CMTime scaled = CMTimeConvertScale(
             timestamp, CLOCK_FREQ,
             kCMTimeRoundingMethod_Default);
 
-    return VLC_TICK_0 + scaled.value;
+    return HEIMDALL_TICK_0 + scaled.value;
 }
 
 static int PushBlockUnlocked(encoder_t *enc, CMSampleBufferRef sampleBuffer)
@@ -124,12 +125,12 @@ static int PushBlockUnlocked(encoder_t *enc, CMSampleBufferRef sampleBuffer)
     CMTime pts = CMSampleBufferGetPresentationTimeStamp(sampleBuffer);
     CMTime dts = CMSampleBufferGetDecodeTimeStamp(sampleBuffer);
 
-    vlc_tick_t vlc_pts = vlc_CMTime_to_tick(pts);
+    heimdall_tick_t heimdall_pts = heimdall_CMTime_to_tick(pts);
     /* Note: dts can be !CMTIME_IS_VALID() when there are B-frames.
      * We need to reorder the frames when it happens, but B-frames are
      * disabled for now. */
-    vlc_tick_t vlc_dts = CMTIME_IS_VALID(dts) ?
-        vlc_CMTime_to_tick(dts) : vlc_pts;
+    heimdall_tick_t heimdall_dts = CMTIME_IS_VALID(dts) ?
+        heimdall_CMTime_to_tick(dts) : heimdall_pts;
 
     CMBlockBufferRef buffer = CMSampleBufferGetDataBuffer(sampleBuffer);
 
@@ -244,8 +245,8 @@ parse_block:
             memcpy(&block->p_buffer[block_offset + sizeof startcode], hh_start, hh_size);
             block_offset += sizeof(startcode) + hh_size;
         }
-        block->i_pts = vlc_pts;
-        block->i_dts = vlc_dts;
+        block->i_pts = heimdall_pts;
+        block->i_dts = heimdall_dts;
         block->i_flags = isIDR ? BLOCK_FLAG_TYPE_I : 0;
         block->i_flags |= BLOCK_FLAG_AU_END;
 
@@ -255,10 +256,10 @@ parse_block:
             block = block_ChainGather(header);
             assert(block != NULL);
         }
-        vlc_fifo_QueueUnlocked(sys->fifo, block);
+        heimdall_fifo_QueueUnlocked(sys->fifo, block);
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static OSStatus PushEachBlockUnlocked(CMSampleBufferRef sampleBuffer,
@@ -275,7 +276,7 @@ static void EncoderOutputCallback(void *cookie,
     void *sourceFrameRefCon, OSStatus status,
     VTEncodeInfoFlags infoFlags, CMSampleBufferRef sampleBuffer)
 {
-    VLC_UNUSED(infoFlags);
+    HEIMDALL_UNUSED(infoFlags);
 
     encoder_t *encoder = cookie;
     encoder_sys_t *sys = encoder->p_sys;
@@ -287,9 +288,9 @@ static void EncoderOutputCallback(void *cookie,
     picture_t *pic = sourceFrameRefCon;
 
     picture_Release(pic);
-    vlc_fifo_Lock(sys->fifo);
+    heimdall_fifo_Lock(sys->fifo);
     CMSampleBufferCallForEachSample(sampleBuffer, PushEachBlockUnlocked, encoder);
-    vlc_fifo_Unlock(sys->fifo);
+    heimdall_fifo_Unlock(sys->fifo);
 }
 
 static void CloseEncoder(encoder_t *encoder)
@@ -305,21 +306,21 @@ static void CloseEncoder(encoder_t *encoder)
     p_sys->session = NULL;
 }
 
-static int OpenEncoder(vlc_object_t *obj)
+static int OpenEncoder(heimdall_object_t *obj)
 {
     encoder_t *enc = (encoder_t *)obj;
     encoder_sys_t *sys;
 
-    if (enc->fmt_out.i_codec != VLC_CODEC_H264)
-        return VLC_EGENERIC;
+    if (enc->fmt_out.i_codec != HEIMDALL_CODEC_H264)
+        return HEIMDALL_EGENERIC;
 
-    sys = vlc_obj_malloc(obj, sizeof *sys);
+    sys = heimdall_obj_malloc(obj, sizeof *sys);
     if (sys == NULL)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     sys->fifo = block_FifoNew();
     if (sys->fifo == NULL)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     sys->lastDate = CMTimeMake(0, CLOCK_FREQ);
     sys->header = false;
 
@@ -344,7 +345,7 @@ static int OpenEncoder(vlc_object_t *obj)
     if (ret != noErr)
         goto error_property;
 
-    static const struct vlc_encoder_operations ops =
+    static const struct heimdall_encoder_operations ops =
     {
         .encode_video = EncodeCallback,
         .close = CloseEncoder,
@@ -354,16 +355,16 @@ static int OpenEncoder(vlc_object_t *obj)
 
     switch (enc->fmt_in.i_codec)
     {
-        case VLC_CODEC_CVPX_NV12:
-        case VLC_CODEC_CVPX_BGRA:
-        case VLC_CODEC_CVPX_UYVY:
-        case VLC_CODEC_CVPX_P010:
-        case VLC_CODEC_CVPX_I420:
+        case HEIMDALL_CODEC_CVPX_NV12:
+        case HEIMDALL_CODEC_CVPX_BGRA:
+        case HEIMDALL_CODEC_CVPX_UYVY:
+        case HEIMDALL_CODEC_CVPX_P010:
+        case HEIMDALL_CODEC_CVPX_I420:
             break;
 
         default:
             /* Note: QuickTime prefers I420 rather than NV12. */
-            enc->fmt_in.i_codec = VLC_CODEC_CVPX_I420;
+            enc->fmt_in.i_codec = HEIMDALL_CODEC_CVPX_I420;
     }
 
     video_format_Copy(&enc->fmt_out.video, &enc->fmt_in.video);
@@ -371,7 +372,7 @@ static int OpenEncoder(vlc_object_t *obj)
         enc->fmt_in.video.i_frame_rate;
     enc->fmt_out.video.i_frame_rate_base =
         enc->fmt_in.video.i_frame_rate_base;
-    enc->fmt_out.i_codec = VLC_CODEC_H264;
+    enc->fmt_out.i_codec = HEIMDALL_CODEC_H264;
 
     msg_Info(enc, "Videotoolbox encoding %4.4s framerate %d/%d size %dx%d",
              (const char *)&enc->fmt_out.i_codec,
@@ -380,21 +381,21 @@ static int OpenEncoder(vlc_object_t *obj)
              enc->fmt_in.video.i_visible_width,
              enc->fmt_in.video.i_visible_height);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 error_property:
     VTCompressionSessionInvalidate(sys->session);
     CFRelease(sys->session);
 error_session:
     block_FifoRelease(sys->fifo);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 #pragma mark - Module descriptor
 
-vlc_module_begin()
+heimdall_module_begin()
     set_section(N_("Encoding") , NULL)
     set_subcategory(SUBCAT_INPUT_VCODEC)
     set_description(N_("VideoToolbox video encoder"))
     set_capability("video encoder", 1000)
     set_callback(OpenEncoder)
-vlc_module_end()
+heimdall_module_end()

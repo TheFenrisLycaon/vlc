@@ -2,6 +2,7 @@
  * input_decoder_scenario.c: testflight for input_decoder state machine
  *****************************************************************************
  * Copyright (C) 2022-2023 VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Alexandre Janniaux <ajanni@videolabs.io>
  *
@@ -26,22 +27,22 @@
 
 #define MODULE_STRING "test_input_decoder_mock"
 
-#include <vlc_common.h>
-#include <vlc_messages.h>
-#include <vlc_player.h>
-#include <vlc_interface.h>
-#include <vlc_frame.h>
-#include <vlc_codec.h>
-#include <vlc_filter.h>
-#include <vlc_vout_display.h>
+#include <heimdall_common.h>
+#include <heimdall_messages.h>
+#include <heimdall_player.h>
+#include <heimdall_interface.h>
+#include <heimdall_frame.h>
+#include <heimdall_codec.h>
+#include <heimdall_filter.h>
+#include <heimdall_vout_display.h>
 
 #include "input_decoder.h"
 
 static struct scenario_data
 {
-    vlc_sem_t wait_stop;
-    vlc_sem_t wait_ready_to_flush;
-    struct vlc_video_context *decoder_vctx;
+    heimdall_sem_t wait_stop;
+    heimdall_sem_t wait_ready_to_flush;
+    struct heimdall_video_context *decoder_vctx;
     bool skip_decoder;
     bool has_reload;
     bool stream_out_sent;
@@ -49,7 +50,7 @@ static struct scenario_data
     size_t cc_track_idx;
 } scenario_data;
 
-static void decoder_fixed_size(decoder_t *dec, vlc_fourcc_t chroma,
+static void decoder_fixed_size(decoder_t *dec, heimdall_fourcc_t chroma,
         unsigned width, unsigned height)
 {
     dec->fmt_out.video.i_chroma
@@ -64,37 +65,37 @@ static void decoder_fixed_size(decoder_t *dec, vlc_fourcc_t chroma,
 }
 
 static void decoder_i420_800_600(decoder_t *dec)
-    { decoder_fixed_size(dec, VLC_CODEC_I420, 800, 600); }
+    { decoder_fixed_size(dec, HEIMDALL_CODEC_I420, 800, 600); }
 
 static void decoder_i420_800_600_update(decoder_t *dec)
 {
-    decoder_fixed_size(dec, VLC_CODEC_I420, 800, 600);
+    decoder_fixed_size(dec, HEIMDALL_CODEC_I420, 800, 600);
     int ret = decoder_UpdateVideoOutput(dec, NULL);
-    assert(ret == VLC_SUCCESS);
+    assert(ret == HEIMDALL_SUCCESS);
 }
 
 static void decoder_i420_800_600_stop(decoder_t *dec)
 {
     decoder_i420_800_600(dec);
-    vlc_sem_post(&scenario_data.wait_stop);
+    heimdall_sem_post(&scenario_data.wait_stop);
 }
 
 static const char cc_block_input[] = "cc01_input";
-static vlc_frame_t *create_cc_frame(vlc_tick_t ts)
+static heimdall_frame_t *create_cc_frame(heimdall_tick_t ts)
 {
-    vlc_frame_t *f = vlc_frame_Alloc(sizeof(cc_block_input));
+    heimdall_frame_t *f = heimdall_frame_Alloc(sizeof(cc_block_input));
     assert(f != NULL);
     memcpy(f->p_buffer, cc_block_input, sizeof(cc_block_input));
     f->i_dts = f->i_pts = ts;
-    f->i_length = VLC_TICK_FROM_MS(20);
+    f->i_length = HEIMDALL_TICK_FROM_MS(20);
     return f;
 }
 
 static void decoder_decode_check_cc_common(decoder_t *dec, picture_t *pic)
 {
-    vlc_tick_t date = pic->date;
+    heimdall_tick_t date = pic->date;
 
-    vlc_frame_t *cc = create_cc_frame(date);
+    heimdall_frame_t *cc = create_cc_frame(date);
 
     decoder_cc_desc_t desc = {
         .i_608_channels = 1,
@@ -108,9 +109,9 @@ static int decoder_decode_check_cc(decoder_t *dec, picture_t *pic)
     decoder_decode_check_cc_common(dec, pic);
     picture_Release(pic);
 
-    vlc_sem_post(&scenario_data.wait_ready_to_flush);
+    heimdall_sem_post(&scenario_data.wait_ready_to_flush);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int decoder_decode_check_cc_queue_video(decoder_t *dec, picture_t *pic)
@@ -118,14 +119,14 @@ static int decoder_decode_check_cc_queue_video(decoder_t *dec, picture_t *pic)
     decoder_decode_check_cc_common(dec, pic);
     decoder_QueueVideo(dec, pic);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 struct picture_watcher_context {
     picture_context_t context;
-    vlc_sem_t wait_picture;
-    vlc_sem_t wait_prepare;
-    vlc_atomic_rc_t rc;
+    heimdall_sem_t wait_picture;
+    heimdall_sem_t wait_prepare;
+    heimdall_atomic_rc_t rc;
 };
 
 static void context_destroy(picture_context_t *context)
@@ -133,15 +134,15 @@ static void context_destroy(picture_context_t *context)
     struct picture_watcher_context *watcher =
         container_of(context, struct picture_watcher_context, context);
 
-    if (vlc_atomic_rc_dec(&watcher->rc))
-        vlc_sem_post(&watcher->wait_picture);
+    if (heimdall_atomic_rc_dec(&watcher->rc))
+        heimdall_sem_post(&watcher->wait_picture);
 }
 
 static picture_context_t * context_copy(picture_context_t *context)
 {
     struct picture_watcher_context *watcher =
         container_of(context, struct picture_watcher_context, context);
-    vlc_atomic_rc_inc(&watcher->rc);
+    heimdall_atomic_rc_inc(&watcher->rc);
     return context;
 }
 
@@ -149,13 +150,13 @@ static int decoder_decode_drop(decoder_t *dec, picture_t *pic)
 {
     (void)dec;
     picture_Release(pic);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int decoder_decode(decoder_t *dec, picture_t *pic)
 {
     decoder_QueueVideo(dec, pic);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int decoder_decode_check_flush_video(decoder_t *dec, picture_t *pic)
@@ -163,14 +164,14 @@ static int decoder_decode_check_flush_video(decoder_t *dec, picture_t *pic)
     if (scenario_data.skip_decoder)
     {
         picture_Release(pic);
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
     /* Only update the output format the first time. */
     if (scenario_data.decoder_image_sent == 0)
     {
         int ret = decoder_UpdateVideoOutput(dec, NULL);
-        assert(ret == VLC_SUCCESS);
+        assert(ret == HEIMDALL_SUCCESS);
     }
 
     /* Workaround: the input decoder needs multiple frame (at least 2
@@ -183,7 +184,7 @@ static int decoder_decode_check_flush_video(decoder_t *dec, picture_t *pic)
         msg_Info(dec, "Queueing workaround picture number %zu", scenario_data.decoder_image_sent);
         decoder_QueueVideo(dec, pic);
         scenario_data.decoder_image_sent++;
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
     /* Now the input decoder should be completely started. */
@@ -192,12 +193,12 @@ static int decoder_decode_check_flush_video(decoder_t *dec, picture_t *pic)
         .context.destroy = context_destroy,
         .context.copy = context_copy,
     };
-    vlc_sem_init(&context1.wait_picture, 0);
-    vlc_atomic_rc_init(&context1.rc);
+    heimdall_sem_init(&context1.wait_picture, 0);
+    heimdall_atomic_rc_init(&context1.rc);
 
     picture_t *second_pic = picture_Clone(pic);
     second_pic->b_force = true;
-    second_pic->date = VLC_TICK_0;
+    second_pic->date = HEIMDALL_TICK_0;
     second_pic->b_progressive = true;
     second_pic->context = &context1.context;
 
@@ -205,14 +206,14 @@ static int decoder_decode_check_flush_video(decoder_t *dec, picture_t *pic)
     decoder_QueueVideo(dec, second_pic);
 
     msg_Info(dec, "Wait for the display to prepare the frame");
-    vlc_sem_wait(&context1.wait_prepare);
+    heimdall_sem_wait(&context1.wait_prepare);
 
     msg_Info(dec, "Trigger decoder and vout flush");
-    vlc_sem_post(&scenario_data.wait_ready_to_flush);
+    heimdall_sem_post(&scenario_data.wait_ready_to_flush);
 
     /* Wait for the picture to be flushed by the vout. */
     msg_Info(dec, "Wait for the picture to be flushed from the vout");
-    vlc_sem_wait(&context1.wait_picture);
+    heimdall_sem_wait(&context1.wait_picture);
 
     /* Reinit the picture context waiter. */
 
@@ -220,12 +221,12 @@ static int decoder_decode_check_flush_video(decoder_t *dec, picture_t *pic)
         .context.destroy = context_destroy,
         .context.copy = context_copy,
     };
-    vlc_sem_init(&context2.wait_picture, 0);
-    vlc_atomic_rc_init(&context2.rc);
+    heimdall_sem_init(&context2.wait_picture, 0);
+    heimdall_atomic_rc_init(&context2.rc);
 
     picture_t *third_pic = picture_Clone(pic);
     third_pic->b_force = true;
-    third_pic->date = VLC_TICK_0 + 1;
+    third_pic->date = HEIMDALL_TICK_0 + 1;
     third_pic->b_progressive = true;
     third_pic->context = &context2.context;
 
@@ -234,7 +235,7 @@ static int decoder_decode_check_flush_video(decoder_t *dec, picture_t *pic)
 
     /* Wait for the picture to be flushed by the input decoder. */
     msg_Info(dec, "Ensure the picture has been discarded by the input decoder");
-    vlc_sem_wait(&context2.wait_picture);
+    heimdall_sem_wait(&context2.wait_picture);
 
     /* Ok, since the picture has been released, we should have decode succeed
      * and we can now check that flush is called. */
@@ -243,13 +244,13 @@ static int decoder_decode_check_flush_video(decoder_t *dec, picture_t *pic)
 
     msg_Info(dec, "Nothing to do from pf_decode, let pf_flush be called by the input decoder");
     scenario_data.skip_decoder = true;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void decoder_flush_signal(decoder_t *dec)
 {
     (void)dec;
-    vlc_sem_post(&scenario_data.wait_stop);
+    heimdall_sem_post(&scenario_data.wait_stop);
 }
 
 static void* SendUpdateOutput(void *opaque)
@@ -263,10 +264,10 @@ static void decoder_destroy_trigger_update(decoder_t *dec)
 {
     /* Use another thread to ensure we don't double-lock, but
      * at most deadlock instead. */
-    vlc_thread_t thread;
-    int ret = vlc_clone(&thread, SendUpdateOutput, dec);
-    assert(ret == VLC_SUCCESS);
-    vlc_join(thread, NULL);
+    heimdall_thread_t thread;
+    int ret = heimdall_clone(&thread, SendUpdateOutput, dec);
+    assert(ret == HEIMDALL_SUCCESS);
+    heimdall_join(thread, NULL);
 }
 
 static int decoder_decode_trigger_reload(decoder_t *dec, picture_t *pic)
@@ -276,10 +277,10 @@ static int decoder_decode_trigger_reload(decoder_t *dec, picture_t *pic)
 
     if (!scenario_data.has_reload)
     {
-        vlc_sem_post(&scenario_data.wait_stop);
-        return VLCDEC_RELOAD;
+        heimdall_sem_post(&scenario_data.wait_stop);
+        return HEIMDALLDEC_RELOAD;
     }
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }
 
 static void display_prepare_signal(vout_display_t *vd, picture_t *pic)
@@ -292,56 +293,56 @@ static void display_prepare_signal(vout_display_t *vd, picture_t *pic)
     msg_Info(vd, "Signal that the frame has been prepared from display");
     struct picture_watcher_context *watcher =
         container_of(pic->context, struct picture_watcher_context, context);
-    vlc_sem_post(&watcher->wait_prepare);
+    heimdall_sem_post(&watcher->wait_prepare);
 }
 
-static void PlayerOnTrackListChanged(vlc_player_t *player,
-        enum vlc_player_list_action action,
-        const struct vlc_player_track *track,
+static void PlayerOnTrackListChanged(heimdall_player_t *player,
+        enum heimdall_player_list_action action,
+        const struct heimdall_player_track *track,
         void *data)
 {
     (void)data;
 
-    if (action != VLC_PLAYER_LIST_ADDED ||
+    if (action != HEIMDALL_PLAYER_LIST_ADDED ||
         track->fmt.i_cat != SPU_ES)
         return;
 
-    vlc_player_SelectTrack(player, track, VLC_PLAYER_SELECT_EXCLUSIVE);
+    heimdall_player_SelectTrack(player, track, HEIMDALL_PLAYER_SELECT_EXCLUSIVE);
 }
 
 static void interface_setup_select_cc(intf_thread_t *intf)
 {
-    vlc_player_t *player = (vlc_player_t *)intf->p_sys;
+    heimdall_player_t *player = (heimdall_player_t *)intf->p_sys;
 
-    static const struct vlc_player_cbs player_cbs =
+    static const struct heimdall_player_cbs player_cbs =
     {
         .on_track_list_changed = PlayerOnTrackListChanged,
     };
 
-    vlc_player_Lock(player);
-    vlc_player_listener_id *listener_id =
-        vlc_player_AddListener(player, &player_cbs, NULL);
-    vlc_player_Unlock(player);
+    heimdall_player_Lock(player);
+    heimdall_player_listener_id *listener_id =
+        heimdall_player_AddListener(player, &player_cbs, NULL);
+    heimdall_player_Unlock(player);
 
-    vlc_sem_wait(&scenario_data.wait_ready_to_flush);
-    vlc_player_Lock(player);
-    vlc_player_SetPosition(player, 0);
-    vlc_player_Unlock(player);
+    heimdall_sem_wait(&scenario_data.wait_ready_to_flush);
+    heimdall_player_Lock(player);
+    heimdall_player_SetPosition(player, 0);
+    heimdall_player_Unlock(player);
 
-    vlc_sem_wait(&scenario_data.wait_ready_to_flush);
-    vlc_player_Lock(player);
-    vlc_player_RemoveListener(player, listener_id);
-    vlc_player_Unlock(player);
+    heimdall_sem_wait(&scenario_data.wait_ready_to_flush);
+    heimdall_player_Lock(player);
+    heimdall_player_RemoveListener(player, listener_id);
+    heimdall_player_Unlock(player);
 }
 
 static void interface_setup_check_flush(intf_thread_t *intf)
 {
-    vlc_player_t *player = (vlc_player_t *)intf->p_sys;
-    vlc_sem_wait(&scenario_data.wait_ready_to_flush);
+    heimdall_player_t *player = (heimdall_player_t *)intf->p_sys;
+    heimdall_sem_wait(&scenario_data.wait_ready_to_flush);
 
-    vlc_player_Lock(player);
-    vlc_player_SetPosition(player, 0);
-    vlc_player_Unlock(player);
+    heimdall_player_Lock(player);
+    heimdall_player_SetPosition(player, 0);
+    heimdall_player_Unlock(player);
 }
 
 static int sout_filter_send(sout_stream_t *stream, void *id, block_t *block)
@@ -349,31 +350,31 @@ static int sout_filter_send(sout_stream_t *stream, void *id, block_t *block)
     (void)stream; (void)id;
     block_Release(block);
     scenario_data.stream_out_sent = true;
-    vlc_sem_post(&scenario_data.wait_ready_to_flush);
-    return VLC_SUCCESS;
+    heimdall_sem_post(&scenario_data.wait_ready_to_flush);
+    return HEIMDALL_SUCCESS;
 }
 
 static int sout_filter_wait_cc(sout_stream_t *stream, void *id, block_t *block)
 {
     (void)stream; (void)id;
     block_Release(block);
-    vlc_fourcc_t *codec = id;
-    if (*codec == VLC_CODEC_CEA608)
+    heimdall_fourcc_t *codec = id;
+    if (*codec == HEIMDALL_CODEC_CEA608)
     {
         scenario_data.stream_out_sent = true;
-        vlc_sem_post(&scenario_data.wait_ready_to_flush);
+        heimdall_sem_post(&scenario_data.wait_ready_to_flush);
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void sout_filter_flush(sout_stream_t *stream, void *id)
 {
     (void)stream; (void)id;
     assert(scenario_data.stream_out_sent);
-    vlc_sem_post(&scenario_data.wait_stop);
+    heimdall_sem_post(&scenario_data.wait_stop);
 }
 
-static vlc_frame_t *packetizer_getcc(decoder_t *dec, decoder_cc_desc_t *cc_desc)
+static heimdall_frame_t *packetizer_getcc(decoder_t *dec, decoder_cc_desc_t *cc_desc)
 {
     (void)dec;
 
@@ -381,10 +382,10 @@ static vlc_frame_t *packetizer_getcc(decoder_t *dec, decoder_cc_desc_t *cc_desc)
     cc_desc->i_708_channels = 0;
     cc_desc->i_reorder_depth = 4;
 
-    return create_cc_frame(VLC_TICK_0);
+    return create_cc_frame(HEIMDALL_TICK_0);
 }
 
-static vlc_frame_t *packetizer_getcc_cea608_max(decoder_t *dec, decoder_cc_desc_t *cc_desc)
+static heimdall_frame_t *packetizer_getcc_cea608_max(decoder_t *dec, decoder_cc_desc_t *cc_desc)
 {
     (void)dec;
 
@@ -392,10 +393,10 @@ static vlc_frame_t *packetizer_getcc_cea608_max(decoder_t *dec, decoder_cc_desc_
     cc_desc->i_708_channels = 0;
     cc_desc->i_reorder_depth = 4;
 
-    return create_cc_frame(VLC_TICK_0);
+    return create_cc_frame(HEIMDALL_TICK_0);
 }
 
-static vlc_frame_t *packetizer_getcc_cea708_max(decoder_t *dec, decoder_cc_desc_t *cc_desc)
+static heimdall_frame_t *packetizer_getcc_cea708_max(decoder_t *dec, decoder_cc_desc_t *cc_desc)
 {
     (void)dec;
 
@@ -403,36 +404,36 @@ static vlc_frame_t *packetizer_getcc_cea708_max(decoder_t *dec, decoder_cc_desc_
     cc_desc->i_708_channels = UINT64_MAX;
     cc_desc->i_reorder_depth = 4;
 
-    return create_cc_frame(VLC_TICK_0);
+    return create_cc_frame(HEIMDALL_TICK_0);
 }
 
 static void on_track_list_changed_check_cea608(
-        enum vlc_player_list_action action,
-        const struct vlc_player_track *track)
+        enum heimdall_player_list_action action,
+        const struct heimdall_player_track *track)
 {
-    if (action != VLC_PLAYER_LIST_ADDED)
+    if (action != HEIMDALL_PLAYER_LIST_ADDED)
         return;
 
-    if (strcmp(vlc_es_id_GetStrId(track->es_id), "video/0/cc/spu/1") != 0)
+    if (strcmp(heimdall_es_id_GetStrId(track->es_id), "video/0/cc/spu/1") != 0)
         return;
 
-    assert(track->fmt.i_codec == VLC_CODEC_CEA608);
-    vlc_sem_post(&scenario_data.wait_stop);
+    assert(track->fmt.i_codec == HEIMDALL_CODEC_CEA608);
+    heimdall_sem_post(&scenario_data.wait_stop);
 }
 
 static void on_track_list_changed_check_count(
-        enum vlc_player_list_action action,
-        const struct vlc_player_track *track,
-        vlc_fourcc_t codec, unsigned track_max)
+        enum heimdall_player_list_action action,
+        const struct heimdall_player_track *track,
+        heimdall_fourcc_t codec, unsigned track_max)
 {
-    if (action != VLC_PLAYER_LIST_ADDED)
+    if (action != HEIMDALL_PLAYER_LIST_ADDED)
         return;
 
     char buffer[] = "video/0/cc/spu/xx";
     assert(scenario_data.cc_track_idx < 100);
     sprintf(buffer, "video/0/cc/spu/%zu", scenario_data.cc_track_idx);
 
-    if (strcmp(vlc_es_id_GetStrId(track->es_id), buffer) != 0)
+    if (strcmp(heimdall_es_id_GetStrId(track->es_id), buffer) != 0)
         return;
 
     assert(track->fmt.i_codec == codec);
@@ -440,38 +441,38 @@ static void on_track_list_changed_check_count(
     scenario_data.cc_track_idx++;
 
     if (scenario_data.cc_track_idx == track_max)
-        vlc_sem_post(&scenario_data.wait_stop);
+        heimdall_sem_post(&scenario_data.wait_stop);
 }
 
 static void on_track_list_changed_check_cea608_count(
-        enum vlc_player_list_action action,
-        const struct vlc_player_track *track)
+        enum heimdall_player_list_action action,
+        const struct heimdall_player_track *track)
 {
-    on_track_list_changed_check_count(action, track, VLC_CODEC_CEA608, 4);
+    on_track_list_changed_check_count(action, track, HEIMDALL_CODEC_CEA608, 4);
 }
 
 static void on_track_list_changed_check_cea708_count(
-        enum vlc_player_list_action action,
-        const struct vlc_player_track *track)
+        enum heimdall_player_list_action action,
+        const struct heimdall_player_track *track)
 {
-    on_track_list_changed_check_count(action, track, VLC_CODEC_CEA708, 64);
+    on_track_list_changed_check_count(action, track, HEIMDALL_CODEC_CEA708, 64);
 }
 
-static void player_setup_select_cc(vlc_player_t *player)
+static void player_setup_select_cc(heimdall_player_t *player)
 {
-    vlc_player_SelectTracksByStringIds(player, SPU_ES, "video/0/cc/spu/1");
+    heimdall_player_SelectTracksByStringIds(player, SPU_ES, "video/0/cc/spu/1");
 }
 
 static void cc_decoder_setup_01(decoder_t *dec)
 {
-    assert(dec->fmt_in->i_codec == VLC_CODEC_CEA608);
+    assert(dec->fmt_in->i_codec == HEIMDALL_CODEC_CEA608);
     assert(dec->fmt_in->subs.cc.i_channel == 0);
     assert(dec->fmt_in->subs.cc.i_reorder_depth == 4);
 
-    dec->fmt_out.i_codec = VLC_CODEC_TEXT;
+    dec->fmt_out.i_codec = HEIMDALL_CODEC_TEXT;
 }
 
-static int cc_decoder_decode_common(decoder_t *dec, vlc_frame_t *in,
+static int cc_decoder_decode_common(decoder_t *dec, heimdall_frame_t *in,
                                     const char *text)
 {
     assert(memcmp(in->p_buffer, cc_block_input, sizeof(cc_block_input)) == 0);
@@ -484,7 +485,7 @@ static int cc_decoder_decode_common(decoder_t *dec, vlc_frame_t *in,
 
     subpicture_region_t *p_region = subpicture_region_NewText();;
     assert(p_region != NULL);
-    vlc_spu_regions_push( &subpic->regions, p_region );
+    heimdall_spu_regions_push( &subpic->regions, p_region );
 
     p_region->b_absolute = true; p_region->b_in_window = false;
     p_region->i_x = 0;
@@ -494,11 +495,11 @@ static int cc_decoder_decode_common(decoder_t *dec, vlc_frame_t *in,
 
     decoder_QueueSub(dec, subpic);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static const char cc_block_decoded[] = "cc01_dec";
-static int cc_decoder_decode(decoder_t *dec, vlc_frame_t *in)
+static int cc_decoder_decode(decoder_t *dec, heimdall_frame_t *in)
 {
     return cc_decoder_decode_common(dec, in, cc_block_decoded);
 }
@@ -512,10 +513,10 @@ static void cc_text_renderer_render(filter_t *filter, const subpicture_region_t 
 {
     (void) filter;
     assert(strcmp(region_in->p_text->psz_text, cc_block_decoded) == 0);
-    vlc_sem_post(&scenario_data.wait_stop);
+    heimdall_sem_post(&scenario_data.wait_stop);
 }
 
-static vlc_frame_t *packetizer_getcc_cea708_1064(decoder_t *dec, decoder_cc_desc_t *cc_desc)
+static heimdall_frame_t *packetizer_getcc_cea708_1064(decoder_t *dec, decoder_cc_desc_t *cc_desc)
 {
     (void)dec;
 
@@ -523,20 +524,20 @@ static vlc_frame_t *packetizer_getcc_cea708_1064(decoder_t *dec, decoder_cc_desc
     cc_desc->i_708_channels = (1ULL << 9) | (1ULL << 63);
     cc_desc->i_reorder_depth = 4;
 
-    return create_cc_frame(VLC_TICK_0);
+    return create_cc_frame(HEIMDALL_TICK_0);
 }
 
 static void cc_decoder_setup_708_1064(decoder_t *dec)
 {
-    assert(dec->fmt_in->i_codec == VLC_CODEC_CEA708);
+    assert(dec->fmt_in->i_codec == HEIMDALL_CODEC_CEA708);
     assert(dec->fmt_in->subs.cc.i_channel == 9
         || dec->fmt_in->subs.cc.i_channel == 63);
     assert(dec->fmt_in->subs.cc.i_reorder_depth == 4);
 
-    dec->fmt_out.i_codec = VLC_CODEC_TEXT;
+    dec->fmt_out.i_codec = HEIMDALL_CODEC_TEXT;
 }
 
-static int cc_decoder_decode_channel(decoder_t *dec, vlc_frame_t *in)
+static int cc_decoder_decode_channel(decoder_t *dec, heimdall_frame_t *in)
 {
     char buf[] = "ccxxx_dec";
     assert(dec->fmt_in->subs.cc.i_channel < 64);
@@ -572,16 +573,16 @@ static void cc_text_renderer_render_708_1064(filter_t *filter,
             return;
     }
 
-    vlc_sem_post(&scenario_data.wait_stop);
+    heimdall_sem_post(&scenario_data.wait_stop);
 }
 
-static void player_setup_select_ccdec_708_1064(vlc_player_t *player)
+static void player_setup_select_ccdec_708_1064(heimdall_player_t *player)
 {
-    vlc_player_SelectTracksByStringIds(player, SPU_ES,
+    heimdall_player_SelectTracksByStringIds(player, SPU_ES,
         "video/0/cc/spu/10,video/0/cc/spu/64");
 }
 
-static vlc_frame_t *packetizer_getcc_cea608_02(decoder_t *dec, decoder_cc_desc_t *cc_desc)
+static heimdall_frame_t *packetizer_getcc_cea608_02(decoder_t *dec, decoder_cc_desc_t *cc_desc)
 {
     (void)dec;
 
@@ -589,14 +590,14 @@ static vlc_frame_t *packetizer_getcc_cea608_02(decoder_t *dec, decoder_cc_desc_t
     cc_desc->i_708_channels = 0;
     cc_desc->i_reorder_depth = 4;
 
-    return create_cc_frame(VLC_TICK_0);
+    return create_cc_frame(HEIMDALL_TICK_0);
 }
 
 static void cc_decoder_setup_608(decoder_t *dec)
 {
-    assert(dec->fmt_in->i_codec == VLC_CODEC_CEA608);
+    assert(dec->fmt_in->i_codec == HEIMDALL_CODEC_CEA608);
 
-    dec->fmt_out.i_codec = VLC_CODEC_TEXT;
+    dec->fmt_out.i_codec = HEIMDALL_CODEC_TEXT;
 }
 
 static void cc_text_renderer_render_608_02(filter_t *filter,
@@ -604,11 +605,11 @@ static void cc_text_renderer_render_608_02(filter_t *filter,
 {
     (void) filter;
     assert(strcmp(region_in->p_text->psz_text, "cc02_dec") == 0);
-    vlc_sem_post(&scenario_data.wait_stop);
+    heimdall_sem_post(&scenario_data.wait_stop);
 }
 
-static const vlc_fourcc_t subpicture_chromas[] = {
-    VLC_CODEC_RGBA, 0
+static const heimdall_fourcc_t subpicture_chromas[] = {
+    HEIMDALL_CODEC_RGBA, 0
 };
 
 #define source_800_600 "mock://video_track_count=1;length=100000000000;video_width=800;video_height=600"
@@ -684,7 +685,7 @@ struct input_decoder_scenario input_decoder_scenarios[] =
 {
     /* Check that the CC coming from the packetizer is decoded and rendered:
      * - A valid vout is needed (to blend subtitles into)
-     * - Text vlc_frames are passed from the packetizer to the cc decoder to
+     * - Text heimdall_frames are passed from the packetizer to the cc decoder to
      *   the text renderer and are checked at each step
      *  - A text renderer is used, this is the last place a text can be checked
      *  before it is rendered (and converted to RGB/YUV)
@@ -771,8 +772,8 @@ void input_decoder_scenario_init(void)
     scenario_data.stream_out_sent = false;
     scenario_data.decoder_image_sent = 0;
     scenario_data.cc_track_idx = 1;
-    vlc_sem_init(&scenario_data.wait_stop, 0);
-    vlc_sem_init(&scenario_data.wait_ready_to_flush, 0);
+    heimdall_sem_init(&scenario_data.wait_stop, 0);
+    heimdall_sem_init(&scenario_data.wait_ready_to_flush, 0);
 }
 
 void input_decoder_scenario_wait(intf_thread_t *intf, struct input_decoder_scenario *scenario)
@@ -780,7 +781,7 @@ void input_decoder_scenario_wait(intf_thread_t *intf, struct input_decoder_scena
     if (scenario->interface_setup)
         scenario->interface_setup(intf);
 
-    vlc_sem_wait(&scenario_data.wait_stop);
+    heimdall_sem_wait(&scenario_data.wait_stop);
 }
 
 void input_decoder_scenario_check(struct input_decoder_scenario *scenario)

@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes" ?>
-<?vlc --[[
+<?heimdall --[[
 vim:syntax=lua
 <!--  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - >
-<  rd.xml: VLC media player web interface
+<  rd.xml: Heimdall media player web interface
 < - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - >
 <  Copyright (C) 2020 the VideoLAN team
 <
@@ -22,7 +22,7 @@ vim:syntax=lua
 < - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
 ]]?>
 
-<?vlc
+<?heimdall
 
 local httprequests = require "httprequests"
 

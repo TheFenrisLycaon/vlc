@@ -2,6 +2,7 @@
  * SegmentTracker.hpp
  *****************************************************************************
  * Copyright (C) 2014 - VideoLAN and VLC authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -26,7 +27,7 @@
 #include "playlist/Role.hpp"
 #include "tools/Macros.hpp"
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 #include <list>
 
 namespace adaptive
@@ -146,14 +147,14 @@ namespace adaptive
         public:
             SegmentChangedEvent() = delete;
             SegmentChangedEvent(const ID &, uint64_t,
-                                vlc_tick_t, vlc_tick_t, vlc_tick_t = VLC_TICK_INVALID);
+                                heimdall_tick_t, heimdall_tick_t, heimdall_tick_t = HEIMDALL_TICK_INVALID);
             virtual ~SegmentChangedEvent() = default;
 
             const ID *id;
             uint64_t sequence;
-            vlc_tick_t displaytime;
-            vlc_tick_t starttime;
-            vlc_tick_t duration;
+            heimdall_tick_t displaytime;
+            heimdall_tick_t starttime;
+            heimdall_tick_t duration;
     };
 
     class BufferingStateUpdatedEvent : public TrackerEvent
@@ -172,23 +173,23 @@ namespace adaptive
         public:
             BufferingLevelChangedEvent() = delete;
             BufferingLevelChangedEvent(const ID &,
-                                       vlc_tick_t, vlc_tick_t, vlc_tick_t, vlc_tick_t);
+                                       heimdall_tick_t, heimdall_tick_t, heimdall_tick_t, heimdall_tick_t);
             virtual ~BufferingLevelChangedEvent() = default;
 
             const ID *id;
-            vlc_tick_t minimum;
-            vlc_tick_t maximum;
-            vlc_tick_t current;
-            vlc_tick_t target;
+            heimdall_tick_t minimum;
+            heimdall_tick_t maximum;
+            heimdall_tick_t current;
+            heimdall_tick_t target;
     };
 
     class PositionChangedEvent : public TrackerEvent
     {
         public:
-            PositionChangedEvent(vlc_tick_t);
+            PositionChangedEvent(heimdall_tick_t);
             virtual ~PositionChangedEvent() = default;
 
-            vlc_tick_t resumeTime;
+            heimdall_tick_t resumeTime;
     };
 
     class SegmentTrackerListenerInterface
@@ -227,17 +228,17 @@ namespace adaptive
             const Role & getStreamRole() const;
             void reset();
             ChunkInterface* getNextChunk(bool);
-            bool setPositionByTime(vlc_tick_t, bool, bool);
+            bool setPositionByTime(heimdall_tick_t, bool, bool);
             void setPosition(const Position &, bool);
             bool setStartPosition();
             Position getStartPosition() const;
-            vlc_tick_t getPlaybackTime(bool = false) const; /* Current segment start time if selected */
-            bool getMediaPlaybackRange(vlc_tick_t *, vlc_tick_t *, vlc_tick_t *) const;
-            vlc_tick_t getMinAheadTime() const;
-            bool getSynchronizationReference(uint64_t, vlc_tick_t, SynchronizationReference &) const;
+            heimdall_tick_t getPlaybackTime(bool = false) const; /* Current segment start time if selected */
+            bool getMediaPlaybackRange(heimdall_tick_t *, heimdall_tick_t *, heimdall_tick_t *) const;
+            heimdall_tick_t getMinAheadTime() const;
+            bool getSynchronizationReference(uint64_t, heimdall_tick_t, SynchronizationReference &) const;
             void updateSynchronizationReference(uint64_t, const Times &);
             void notifyBufferingState(bool) const;
-            void notifyBufferingLevel(vlc_tick_t, vlc_tick_t, vlc_tick_t, vlc_tick_t) const;
+            void notifyBufferingLevel(heimdall_tick_t, heimdall_tick_t, heimdall_tick_t, heimdall_tick_t) const;
             void registerListener(SegmentTrackerListenerInterface *);
             bool updateSelected();
             bool bufferingAvailable() const;
@@ -247,13 +248,13 @@ namespace adaptive
             {
                 public:
                     ChunkEntry();
-                    ChunkEntry(SegmentChunk *c, Position p, vlc_tick_t s, vlc_tick_t d, vlc_tick_t dt);
+                    ChunkEntry(SegmentChunk *c, Position p, heimdall_tick_t s, heimdall_tick_t d, heimdall_tick_t dt);
                     bool isValid() const;
                     SegmentChunk *chunk;
                     Position pos;
-                    vlc_tick_t displaytime;
-                    vlc_tick_t starttime;
-                    vlc_tick_t duration;
+                    heimdall_tick_t displaytime;
+                    heimdall_tick_t starttime;
+                    heimdall_tick_t duration;
             };
             std::list<ChunkEntry> chunkssequence;
             ChunkEntry prepareChunk(bool switch_allowed, Position pos) const;

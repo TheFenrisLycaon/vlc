@@ -2,10 +2,11 @@
  * misc.h: custom code
  *****************************************************************************
  * Copyright (C) 2012 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Felix Paul Kühne <fkuehne at videolan dot org>
+ * Authors: Felix Paul Kühne <fkuehne at lycaria dot org>
  *          David Fuhrmann <david dot fuhrmann at googlemail dot com>
- *          Pierre d'Herbemont <pdherbemont # videolan dot org>
+ *          Pierre d'Herbemont <pdherbemont # lycaria dot org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -24,7 +25,7 @@
 
 #import <Cocoa/Cocoa.h>
 
-@interface NSScreen (VLCAdditions)
+@interface NSScreen (HeimdallAdditions)
 - (BOOL)hasMenuBar;
 - (BOOL)hasDock;
 - (CGDirectDisplayID)displayID;

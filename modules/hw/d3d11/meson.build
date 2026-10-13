@@ -3,7 +3,7 @@
 #
 
 if get_option('directx').allowed()
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'direct3d11_filters',
         'sources' : files(
             'd3d11_filters.c',
@@ -15,7 +15,7 @@ if get_option('directx').allowed()
             ),
         'link_with' : [ d3d11_common_lib, chroma_copy_lib, deinterlacecommon_lib ],
         'cpp_args' : libcom_cppflags,
-        'include_directories' : [vlc_include_dirs],
+        'include_directories' : [heimdall_include_dirs],
         'plugin_dir' : 'd3d11',
     }
 endif

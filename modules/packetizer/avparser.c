@@ -2,6 +2,7 @@
  * avparser.c
  *****************************************************************************
  * Copyright (C) 2015 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Denis Charmet <typx@videolan.org>
  *
@@ -28,10 +29,10 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
-#include <vlc_block.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
+#include <heimdall_block.h>
 
 #include "../codec/avcodec/avcodec.h"
 #include "../codec/avcodec/avcommon.h"
@@ -41,9 +42,9 @@
  * Module descriptor
  *****************************************************************************/
 #ifndef MERGE_FFMPEG
-vlc_module_begin ()
+heimdall_module_begin ()
     AVPARSER_MODULE
-vlc_module_end ()
+heimdall_module_end ()
 #endif
 
 /*****************************************************************************
@@ -64,12 +65,12 @@ static block_t * PacketizeClosed( decoder_t *, block_t ** );
  *****************************************************************************/
 static void FlushPacketizer( decoder_t *p_dec )
 {
-    avparser_ClosePacketizer( VLC_OBJECT( p_dec ) );
+    avparser_ClosePacketizer( HEIMDALL_OBJECT( p_dec ) );
     p_dec->p_sys = NULL;
     es_format_Clean( &p_dec->fmt_out );
     es_format_Init( &p_dec->fmt_out, p_dec->fmt_in->i_cat, 0 );
-    int res = avparser_OpenPacketizer( VLC_OBJECT( p_dec ) );
-    if ( res != VLC_SUCCESS )
+    int res = avparser_OpenPacketizer( HEIMDALL_OBJECT( p_dec ) );
+    if ( res != HEIMDALL_SUCCESS )
     {
         msg_Err( p_dec, "failed to flush with error %d", res );
         p_dec->pf_packetize = PacketizeClosed;
@@ -82,7 +83,7 @@ static void FlushPacketizer( decoder_t *p_dec )
  * Tries to launch a decoder and return score so that the interface is able
  * to choose.
  *****************************************************************************/
-int avparser_OpenPacketizer( vlc_object_t *p_this )
+int avparser_OpenPacketizer( heimdall_object_t *p_this )
 {
     decoder_t     *p_dec = (decoder_t*)p_this;
     decoder_sys_t *p_sys;
@@ -90,36 +91,36 @@ int avparser_OpenPacketizer( vlc_object_t *p_this )
     /* Restrict to VP9 for now */
     /* XXX: add spu and audio packetizers in modules/packetizer/avparser.h when
      * removing this constraint */
-    if( p_dec->fmt_in->i_codec != VLC_CODEC_VP9 )
-        return VLC_ENOTSUP;
+    if( p_dec->fmt_in->i_codec != HEIMDALL_CODEC_VP9 )
+        return HEIMDALL_ENOTSUP;
     if( es_format_HasVpxAlpha(p_dec->fmt_in) ) // contains alpha extradata
-        return VLC_ENOTSUP;
+        return HEIMDALL_ENOTSUP;
 
     enum AVCodecID i_avcodec_id;
 
     if( !GetFfmpegCodec( p_dec->fmt_in, &i_avcodec_id, NULL ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* init avcodec */
-    vlc_init_avcodec(p_this);
+    heimdall_init_avcodec(p_this);
 
     /* It is less likely to have a parser than a codec, start by that */
     AVCodecParserContext * p_ctx = av_parser_init( i_avcodec_id );
     if( !p_ctx )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     const AVCodec * p_codec = avcodec_find_decoder( i_avcodec_id );
     if( unlikely( !p_codec ) )
     {
         av_parser_close( p_ctx );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     AVCodecContext * p_codec_ctx = avcodec_alloc_context3( p_codec );
     if( unlikely( !p_codec_ctx ) )
     {
         av_parser_close( p_ctx );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     p_dec->p_sys = p_sys = malloc( sizeof(*p_sys) );
@@ -128,7 +129,7 @@ int avparser_OpenPacketizer( vlc_object_t *p_this )
     {
         avcodec_free_context( &p_codec_ctx );
         av_parser_close( p_ctx );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
     p_dec->pf_packetize = Packetize;
     p_dec->pf_flush = FlushPacketizer;
@@ -138,13 +139,13 @@ int avparser_OpenPacketizer( vlc_object_t *p_this )
     p_sys->i_offset = 0;
     es_format_Copy( &p_dec->fmt_out, p_dec->fmt_in );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * avparser_ClosePacketizer:
  *****************************************************************************/
-void avparser_ClosePacketizer( vlc_object_t *p_this )
+void avparser_ClosePacketizer( heimdall_object_t *p_this )
 {
     decoder_t     *p_dec = (decoder_t*)p_this;
     decoder_sys_t *p_sys = p_dec->p_sys;
@@ -210,7 +211,7 @@ static block_t *Packetize ( decoder_t *p_dec, block_t **pp_block )
         memcpy( p_ret->p_buffer, p_outdata, i_outlen );
         p_ret->i_pts = p_block->i_pts;
         p_ret->i_dts = p_block->i_dts;
-        p_block->i_pts = p_block->i_dts = VLC_TICK_INVALID;
+        p_block->i_pts = p_block->i_dts = HEIMDALL_TICK_INVALID;
     }
     else /* as-is block is now used */
     {

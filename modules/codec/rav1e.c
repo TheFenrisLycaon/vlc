@@ -2,6 +2,7 @@
  * rav1e.c : rav1e encoder (AV1) module
  *****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Kartik Ohri <kartikohri13@gmail.com>
  *          Thomas Guillem <thomas@gllm.fr>
@@ -25,17 +26,17 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
 #include <rav1e.h>
 
 #define SOUT_CFG_PREFIX "sout-rav1e-"
 
 struct frame_priv_s
 {
-    vlc_tick_t pts;
+    heimdall_tick_t pts;
 };
 
 typedef struct
@@ -147,13 +148,13 @@ static void CloseEncoder(encoder_t* enc)
     free(sys);
 }
 
-static int OpenEncoder(vlc_object_t *this)
+static int OpenEncoder(heimdall_object_t *this)
 {
     encoder_t *enc = (encoder_t *) this;
     encoder_sys_t *sys;
 
-    if (enc->fmt_out.i_codec != VLC_CODEC_AV1)
-        return VLC_EGENERIC;
+    if (enc->fmt_out.i_codec != HEIMDALL_CODEC_AV1)
+        return HEIMDALL_EGENERIC;
 
     static const char *const ppsz_rav1e_options[] = {
         "bitdepth", "tile-rows", "tile-columns", NULL
@@ -163,7 +164,7 @@ static int OpenEncoder(vlc_object_t *this)
 
     sys = malloc(sizeof(*sys));
     if (sys == NULL)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     enc->p_sys = sys;
 
@@ -172,11 +173,11 @@ static int OpenEncoder(vlc_object_t *this)
     {
         msg_Err(enc, "Unable to initialize configuration\n");
         free(sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     int ret;
-    int err = VLC_EGENERIC;
+    int err = HEIMDALL_EGENERIC;
 
     ret = rav1e_config_parse_int(ra_config, "height", enc->fmt_in.video.i_visible_height);
     if (ret < 0)
@@ -222,16 +223,16 @@ static int OpenEncoder(vlc_object_t *this)
     {
         case 2:
             chroma_sampling = RA_CHROMA_SAMPLING_CS422;
-            enc->fmt_in.video.i_chroma = bitdepth == 8 ? VLC_CODEC_I422 : VLC_CODEC_I422_10L;
+            enc->fmt_in.video.i_chroma = bitdepth == 8 ? HEIMDALL_CODEC_I422 : HEIMDALL_CODEC_I422_10L;
             break;
         case 1:
             chroma_sampling = RA_CHROMA_SAMPLING_CS444;
-            enc->fmt_in.video.i_chroma = bitdepth == 8 ? VLC_CODEC_I444 : VLC_CODEC_I444_10L;
+            enc->fmt_in.video.i_chroma = bitdepth == 8 ? HEIMDALL_CODEC_I444 : HEIMDALL_CODEC_I444_10L;
             break;
         default:
         case 0:
             chroma_sampling = RA_CHROMA_SAMPLING_CS420;
-            enc->fmt_in.video.i_chroma = bitdepth == 8 ? VLC_CODEC_I420 : VLC_CODEC_I420_10L;
+            enc->fmt_in.video.i_chroma = bitdepth == 8 ? HEIMDALL_CODEC_I420 : HEIMDALL_CODEC_I420_10L;
             break;
     }
     enc->fmt_in.i_codec = enc->fmt_in.video.i_chroma;
@@ -274,19 +275,19 @@ static int OpenEncoder(vlc_object_t *this)
     if (!sys->ra_context)
     {
         msg_Err(enc, "Unable to allocate a new context\n");
-        err = VLC_ENOMEM;
+        err = HEIMDALL_ENOMEM;
         goto error;
     }
     rav1e_config_unref(ra_config);
 
-    static const struct vlc_encoder_operations ops =
+    static const struct heimdall_encoder_operations ops =
     {
         .close = CloseEncoder,
         .encode_video = Encode,
     };
     enc->ops = &ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     rav1e_config_unref(ra_config);
@@ -297,7 +298,7 @@ error:
 static const int bitdepth_values_list[] = {8, 10};
 static const char *bitdepth_values_name_list[] = {N_("8 bpp"), N_("10 bpp")};
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname("rav1e")
     set_description(N_("rav1e video encoder"))
     set_capability("video encoder", 105)
@@ -312,4 +313,4 @@ vlc_module_begin()
         change_integer_range(0, 6)
     add_integer(SOUT_CFG_PREFIX "tile-columns", 0, "Tile Columns (in log2 units)", NULL)
         change_integer_range(0, 6)
-vlc_module_end()
+heimdall_module_end()

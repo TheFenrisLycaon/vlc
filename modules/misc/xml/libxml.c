@@ -2,6 +2,7 @@
  * libxml.c: XML parser using libxml2
  *****************************************************************************
  * Copyright (C) 2004 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gildas Bazin <gbazin@videolan.org>
  *
@@ -24,12 +25,12 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
 
-#include <vlc_block.h>
-#include <vlc_stream.h>
-#include <vlc_xml.h>
+#include <heimdall_block.h>
+#include <heimdall_stream.h>
+#include <heimdall_xml.h>
 
 #include <libxml/xmlreader.h>
 #include <libxml/catalog.h>
@@ -39,7 +40,7 @@
  *****************************************************************************/
 static void CatalogLoad( xml_t *p_xml, const char *psz_filename )
 {
-    VLC_UNUSED(p_xml);
+    HEIMDALL_UNUSED(p_xml);
     if( !psz_filename ) xmlInitializeCatalog();
     else xmlLoadCatalog( psz_filename );
 }
@@ -47,37 +48,37 @@ static void CatalogLoad( xml_t *p_xml, const char *psz_filename )
 static void CatalogAdd( xml_t *p_xml, const char *psz_arg1,
                           const char *psz_arg2, const char *psz_filename )
 {
-    VLC_UNUSED(p_xml);
+    HEIMDALL_UNUSED(p_xml);
     xmlCatalogAdd( (unsigned char*)psz_arg1, (unsigned char*)psz_arg2,
         (unsigned char*)psz_filename );
 }
 
-static vlc_mutex_t lock = VLC_STATIC_MUTEX;
+static heimdall_mutex_t lock = HEIMDALL_STATIC_MUTEX;
 
 /*****************************************************************************
  * Module initialization
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     xml_t *p_xml = (xml_t *)p_this;
 
     if( !xmlHasFeature( XML_WITH_THREAD ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    vlc_mutex_lock( &lock );
+    heimdall_mutex_lock( &lock );
     xmlInitParser();
-    vlc_mutex_unlock( &lock );
+    heimdall_mutex_unlock( &lock );
 
     p_xml->pf_catalog_load = CatalogLoad;
     p_xml->pf_catalog_add  = CatalogAdd;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * Module deinitialization
  *****************************************************************************/
-static void Close( vlc_object_t *p_this )
+static void Close( heimdall_object_t *p_this )
 {
     /* /!\
      * In theory, xmlCleanupParser() should be called here.
@@ -85,7 +86,7 @@ static void Close( vlc_object_t *p_this )
      * operating on global state. So even if we would be
      * able to know when this module is unloaded, we could
      * still not call it then, as other libraries or the apps
-     * using libVLC could still use libxml themselves.
+     * using libHeimdall could still use libxml themselves.
      *
      * Citing the libxml docs for xmlCleanupParser:
      *
@@ -97,7 +98,7 @@ static void Close( vlc_object_t *p_this )
      * > from calling this function or do it just before calling exit()
      * > to avoid leak reports from valgrind!
      */
-    VLC_UNUSED(p_this);
+    HEIMDALL_UNUSED(p_this);
 }
 
 /*****************************************************************************
@@ -107,7 +108,7 @@ static void ReaderErrorHandler( void *p_arg, const char *p_msg,
                                 xmlParserSeverities severity,
                                 xmlTextReaderLocatorPtr locator)
 {
-    VLC_UNUSED(severity);
+    HEIMDALL_UNUSED(severity);
     xml_reader_t *p_reader = (xml_reader_t *)p_arg;
     int line = xmlTextReaderLocatorLineNumber( locator );
     msg_Err( p_reader, "XML parser error (line %d) : %s", line, p_msg );
@@ -129,7 +130,7 @@ static int ReaderUseDTD ( xml_reader_t *p_reader )
     xmlTextReaderSetParserProp( p_sys->xml,
                                 XML_PARSER_VALIDATE, true );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int ReaderNextNode( xml_reader_t *p_reader, const char **pval,
@@ -215,7 +216,7 @@ static const char *ReaderNextAttr( xml_reader_t *p_reader, const char **pval,
 static int StreamRead( void *p_context, char *p_buffer, int i_buffer )
 {
     stream_t *s = (stream_t*)p_context;
-    return vlc_stream_Read( s, p_buffer, i_buffer );
+    return heimdall_stream_Read( s, p_buffer, i_buffer );
 }
 
 static int ReaderIsEmptyElement( xml_reader_t *p_reader )
@@ -224,21 +225,21 @@ static int ReaderIsEmptyElement( xml_reader_t *p_reader )
     return xmlTextReaderIsEmptyElement( p_sys->xml );
 }
 
-static int ReaderOpen( vlc_object_t *p_this )
+static int ReaderOpen( heimdall_object_t *p_this )
 {
     if( !xmlHasFeature( XML_WITH_THREAD ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     xml_reader_t *p_reader = (xml_reader_t *)p_this;
     xml_reader_sys_t *p_sys = malloc( sizeof( *p_sys ) );
     xmlTextReaderPtr p_libxml_reader;
 
     if( unlikely(!p_sys) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    vlc_mutex_lock( &lock );
+    heimdall_mutex_lock( &lock );
     xmlInitParser();
-    vlc_mutex_unlock( &lock );
+    heimdall_mutex_unlock( &lock );
 
     p_libxml_reader = xmlReaderForIO( StreamRead, NULL, p_reader->p_stream,
                                       NULL, NULL, 0 );
@@ -249,7 +250,7 @@ static int ReaderOpen( vlc_object_t *p_this )
          * xmlCleanupParser should but can't be called here,
          * for the same reason as in Close().
          */
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     /* Set the error handler */
@@ -265,10 +266,10 @@ static int ReaderOpen( vlc_object_t *p_this )
     p_reader->pf_is_empty = ReaderIsEmptyElement;
     p_reader->pf_use_dtd = ReaderUseDTD;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void ReaderClose( vlc_object_t *p_this )
+static void ReaderClose( heimdall_object_t *p_this )
 {
     xml_reader_t *p_reader = (xml_reader_t *)p_this;
     xml_reader_sys_t *p_sys = p_reader->p_sys;
@@ -284,7 +285,7 @@ static void ReaderClose( vlc_object_t *p_this )
      */
 }
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("XML Parser (using libxml2)") )
     set_capability( "xml", 10 )
     set_callbacks( Open, Close )
@@ -297,4 +298,4 @@ vlc_module_begin ()
     set_capability( "xml reader", 10 )
     set_callbacks( ReaderOpen, ReaderClose )
 
-vlc_module_end ()
+heimdall_module_end ()

@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (c) 2015 Moti Zilberman
  * Copyright (c) 2023 Videolabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Moti Zilberman
  *          Jean-Baptiste Kempf
@@ -33,14 +34,14 @@
 # include "config.h"
 #endif
 
-/* VLC core API headers */
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_charset.h>
-#include <vlc_subpicture.h>
-#include <vlc_threads.h>
-#include <vlc_cxx_helpers.hpp>
+/* Heimdall core API headers */
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_charset.h>
+#include <heimdall_subpicture.h>
+#include <heimdall_threads.h>
+#include <heimdall_cxx_helpers.hpp>
 
 #include <windows.h>
 #include <sapi.h>
@@ -58,10 +59,10 @@ static int Create (filter_t *);
 static void Destroy(filter_t *);
 static subpicture_region_t *RenderText(filter_t *,
                       const subpicture_region_t *,
-                      const vlc_fourcc_t *);
+                      const heimdall_fourcc_t *);
 }
 
-vlc_module_begin ()
+heimdall_module_begin ()
  set_description(N_("Speech synthesis for Windows"))
 
  set_subcategory(SUBCAT_VIDEO_SUBPIC)
@@ -69,7 +70,7 @@ vlc_module_begin ()
  set_callback_text_renderer(Create, 0)
  /* Note: Skip label translation - too technical */
  add_integer("sapi-voice", -1, "Voice Index", "Voice Index")
-vlc_module_end ()
+heimdall_module_end ()
 
 namespace {
 
@@ -82,15 +83,15 @@ struct filter_sapi
 {
     /* We need a MTA thread, so we ensure it's possible by creating a
      * dedicated thread for that mode. */
-    vlc_thread_t thread;
+    heimdall_thread_t thread;
 
     ISpVoice* cpVoice;
     char* lastString;
 
     bool initialized;
-    vlc::threads::semaphore sem_ready;
-    vlc::threads::semaphore cmd_available;
-    vlc::threads::semaphore cmd_ready;
+    heimdall::threads::semaphore sem_ready;
+    heimdall::threads::semaphore cmd_available;
+    heimdall::threads::semaphore cmd_ready;
 
     struct {
         FilterCommand query;
@@ -157,7 +158,7 @@ static int RenderTextMTA(filter_t *p_filter,
             msg_Err(p_filter, "Speak() error");
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int SelectVoice(filter_t *filter, ISpVoice* cpVoice)
@@ -209,7 +210,7 @@ error:
 
 static subpicture_region_t *RenderText(filter_t *p_filter,
         const subpicture_region_t *region_in,
-        const vlc_fourcc_t *)
+        const heimdall_fourcc_t *)
 {
     auto *sys = static_cast<struct filter_sapi *>( p_filter->p_sys );
     sys->cmd.query = FilterCommand::CMD_RENDER_TEXT;
@@ -219,8 +220,8 @@ static subpicture_region_t *RenderText(filter_t *p_filter,
     return NULL; /* We don't generate output region. */
 }
 
-static const struct vlc_filter_operations filter_ops = []{
-    struct vlc_filter_operations ops {};
+static const struct heimdall_filter_operations filter_ops = []{
+    struct heimdall_filter_operations ops {};
     ops.render = RenderText;
     ops.close  = Destroy;
     return ops;
@@ -268,7 +269,7 @@ static void *Run(void *opaque)
                 sys->cmd_ready.post();
                 break;
             default:
-                vlc_assert_unreachable();
+                heimdall_assert_unreachable();
         }
     }
 
@@ -282,7 +283,7 @@ static int Create (filter_t *p_filter)
     };
 
     if (sys == nullptr)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_filter->ops = &filter_ops;
     p_filter->p_sys = sys.get();
@@ -294,21 +295,21 @@ static int Create (filter_t *p_filter)
     }};
 
 
-    int ret = vlc_clone(&sys->thread, Run, p_filter);
+    int ret = heimdall_clone(&sys->thread, Run, p_filter);
 
-    if (ret != VLC_SUCCESS)
-        return VLC_ENOMEM;
+    if (ret != HEIMDALL_SUCCESS)
+        return HEIMDALL_ENOMEM;
 
     sys->sem_ready.wait();
     if (!sys->initialized)
     {
-        vlc_join(sys->thread, NULL);
-        return VLC_ENOTSUP;
+        heimdall_join(sys->thread, NULL);
+        return HEIMDALL_ENOTSUP;
     }
 
     guard.release(); /* No need to clean filter. */
     sys.release(); /* leak to p_filter */
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void Destroy(filter_t *p_filter)
@@ -323,5 +324,5 @@ static void Destroy(filter_t *p_filter)
 
     sys->cmd.query = FilterCommand::CMD_EXIT;
     sys->cmd_available.post();
-    vlc_join(sys->thread, NULL);
+    heimdall_join(sys->thread, NULL);
 }

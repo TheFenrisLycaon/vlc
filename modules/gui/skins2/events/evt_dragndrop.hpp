@@ -2,8 +2,9 @@
  * evt_dragndrop.hpp
  *****************************************************************************
  * Copyright (C) 2011 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Author: Erwan Tulou      <erwan10 At videolan Dot org>
+ * Author: Erwan Tulou      <erwan10 At lycaria Dot org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

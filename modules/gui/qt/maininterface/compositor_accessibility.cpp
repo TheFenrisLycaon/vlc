@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2023 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,7 +37,7 @@
 #  include "compositor_dcomp.hpp"
 #endif
 
-namespace vlc {
+namespace heimdall {
 
 /*
  * we could have use QAccessibleQuickWindow like in QAccessibleQuickWidget
@@ -258,7 +259,7 @@ private:
 QAccessibleInterface* compositionAccessibleFactory(const QString &classname, QObject *object)
 {
 #ifdef QT_HAS_X11_COMPOSITOR
-    if (classname == QLatin1String("vlc::CompositorX11RenderWindow"))
+    if (classname == QLatin1String("heimdall::CompositorX11RenderWindow"))
     {
 
         CompositorX11RenderWindow* renderWindow =  qobject_cast<CompositorX11RenderWindow *>(object);
@@ -267,8 +268,8 @@ QAccessibleInterface* compositionAccessibleFactory(const QString &classname, QOb
     }
 #endif
 
-    if (classname == QLatin1String("vlc::CompositorOffscreenWindow")
-        || (classname == QLatin1String("vlc::DCompOffscreenWindow")) )
+    if (classname == QLatin1String("heimdall::CompositorOffscreenWindow")
+        || (classname == QLatin1String("heimdall::DCompOffscreenWindow")) )
     {
         return new QAccessibleOffscreenWindow(qobject_cast<QQuickWindow *>(object));
     }

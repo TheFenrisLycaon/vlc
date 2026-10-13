@@ -2,6 +2,7 @@
  * SegmentTimeline.cpp: Implement the SegmentTimeline tag.
  *****************************************************************************
  * Copyright (C) 1998-2007 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Hugo Beauzée-Luyssen <hugo@beauzee.fr>
  *
@@ -181,7 +182,7 @@ uint64_t SegmentTimeline::getElementIndexBySequence(uint64_t number) const
     return std::numeric_limits<uint64_t>::max();
 }
 
-void SegmentTimeline::pruneByPlaybackTime(vlc_tick_t time)
+void SegmentTimeline::pruneByPlaybackTime(heimdall_tick_t time)
 {
     const Timescale timescale = inheritTimescale();
     uint64_t num = getElementNumberByScaledPlaybackTime(timescale.ToScaled(time));
@@ -260,7 +261,7 @@ void SegmentTimeline::updateWith(SegmentTimeline &other)
     }
 }
 
-void SegmentTimeline::debug(vlc_object_t *obj, int indent) const
+void SegmentTimeline::debug(heimdall_object_t *obj, int indent) const
 {
     std::stringstream ss;
     ss << std::string(indent, ' ') << "Timeline";
@@ -286,7 +287,7 @@ bool SegmentTimeline::Element::contains(stime_t time) const
     return false;
 }
 
-void SegmentTimeline::Element::debug(vlc_object_t *obj, int indent) const
+void SegmentTimeline::Element::debug(heimdall_object_t *obj, int indent) const
 {
     std::stringstream ss;
     ss.imbue(std::locale("C"));

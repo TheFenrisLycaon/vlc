@@ -2,6 +2,7 @@
  * outfile.h: HTTP write-only file
  *****************************************************************************
  * Copyright (C) 2015, 2020 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -27,8 +28,8 @@
  * @{
  */
 
-struct vlc_http_mgr;
-struct vlc_http_outfile;
+struct heimdall_http_mgr;
+struct heimdall_http_outfile;
 
 /**
  * Creates an HTTP output file.
@@ -41,13 +42,13 @@ struct vlc_http_outfile;
  *
  * @return an HTTP resource object pointer, or NULL on error
  */
-struct vlc_http_outfile *vlc_http_outfile_create(struct vlc_http_mgr *mgr,
+struct heimdall_http_outfile *heimdall_http_outfile_create(struct heimdall_http_mgr *mgr,
     const char *url, const char *ua, const char *user, const char *pwd);
 
 /**
  * Writes data.
  */
-ssize_t vlc_http_outfile_write(struct vlc_http_outfile *, block_t *b);
-int vlc_http_outfile_close(struct vlc_http_outfile *);
+ssize_t heimdall_http_outfile_write(struct heimdall_http_outfile *, block_t *b);
+int heimdall_http_outfile_close(struct heimdall_http_outfile *);
 
 /** @} */

@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 2006 VLC authors and VideoLAN
  * Copyright (C) 2008-2012 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -40,16 +41,16 @@
 
 #endif
 
-#include <vlc_common.h>
-#include <vlc_memstream.h>
-#include <vlc_url.h>
-#include <vlc_fs.h>
+#include <heimdall_common.h>
+#include <heimdall_memstream.h>
+#include <heimdall_url.h>
+#include <heimdall_fs.h>
 #include <ctype.h>
 
-char *vlc_uri_decode_duplicate (const char *str)
+char *heimdall_uri_decode_duplicate (const char *str)
 {
     char *buf = strdup (str);
-    if (vlc_uri_decode (buf) == NULL)
+    if (heimdall_uri_decode (buf) == NULL)
     {
         free (buf);
         buf = NULL;
@@ -71,7 +72,7 @@ static int_fast8_t hex_to_char(unsigned char c)
     return -1;
 }
 
-char *vlc_uri_decode (char *str)
+char *heimdall_uri_decode (char *str)
 {
     char *in = str, *out = str;
     if (in == NULL)
@@ -154,7 +155,7 @@ static char *encode_URI_bytes (const char *str, size_t *restrict lenp)
     return likely(out != NULL) ? out : buf;
 }
 
-char *vlc_uri_encode (const char *str)
+char *heimdall_uri_encode (const char *str)
 {
     size_t len = strlen (str);
     char *ret = encode_URI_bytes (str, &len);
@@ -163,7 +164,7 @@ char *vlc_uri_encode (const char *str)
     return ret;
 }
 
-char *vlc_path2uri (const char *path, const char *scheme)
+char *heimdall_path2uri (const char *path, const char *scheme)
 {
     if (path == NULL)
     {
@@ -172,7 +173,7 @@ char *vlc_path2uri (const char *path, const char *scheme)
     }
     if (scheme == NULL && !strcmp (path, "-"))
         return strdup ("fd://0"); // standard input
-    /* Note: VLC cannot handle URI schemes without double slash after the
+    /* Note: Heimdall cannot handle URI schemes without double slash after the
      * scheme name (such as mailto: or news:). */
 
     char *buf;
@@ -223,13 +224,13 @@ char *vlc_path2uri (const char *path, const char *scheme)
 
         if (path[0] == '\0')
             return NULL;
-        if ((cwd = vlc_getcwd ()) == NULL)
+        if ((cwd = heimdall_getcwd ()) == NULL)
             return NULL;
         if (asprintf (&buf, "%s"DIR_SEP"%s", cwd, path) == -1)
             buf = NULL;
 
         free (cwd);
-        ret = (buf != NULL) ? vlc_path2uri (buf, scheme) : NULL;
+        ret = (buf != NULL) ? heimdall_path2uri (buf, scheme) : NULL;
         free (buf);
         return ret;
     }
@@ -267,7 +268,7 @@ char *vlc_path2uri (const char *path, const char *scheme)
     return buf;
 }
 
-char *vlc_uri2path (const char *url)
+char *heimdall_uri2path (const char *url)
 {
     char *ret = NULL;
     char *path = NULL;
@@ -290,7 +291,7 @@ char *vlc_uri2path (const char *url)
     }
 
     /* Decode path */
-    vlc_uri_decode (path);
+    heimdall_uri_decode (path);
 
     if (schemelen == 4 && !strncasecmp (url, "file", 4))
     {
@@ -357,10 +358,10 @@ out:
     return ret; /* unknown scheme */
 }
 
-static char *vlc_idna_to_ascii (const char *);
+static char *heimdall_idna_to_ascii (const char *);
 
 /* RFC3987 §3.1 */
-static char *vlc_iri2uri(const char *iri)
+static char *heimdall_iri2uri(const char *iri)
 {
     size_t a = 0, u = 0;
 
@@ -402,7 +403,7 @@ static char *vlc_iri2uri(const char *iri)
     return uri;
 }
 
-static bool vlc_uri_component_validate(const char *str, const char *extras)
+static bool heimdall_uri_component_validate(const char *str, const char *extras)
 {
     assert(str != NULL);
 
@@ -424,17 +425,17 @@ static bool vlc_uri_component_validate(const char *str, const char *extras)
     return true;
 }
 
-static bool vlc_uri_host_validate(const char *str)
+static bool heimdall_uri_host_validate(const char *str)
 {
-    return vlc_uri_component_validate(str, ":");
+    return heimdall_uri_component_validate(str, ":");
 }
 
-static bool vlc_uri_path_validate(const char *str)
+static bool heimdall_uri_path_validate(const char *str)
 {
-    return vlc_uri_component_validate(str, "/@:[]");
+    return heimdall_uri_component_validate(str, "/@:[]");
 }
 
-static int vlc_UrlParseInner(vlc_url_t *restrict url, const char *str)
+static int heimdall_UrlParseInner(heimdall_url_t *restrict url, const char *str)
 {
     url->psz_protocol = NULL;
     url->psz_username = NULL;
@@ -453,7 +454,7 @@ static int vlc_UrlParseInner(vlc_url_t *restrict url, const char *str)
         return -1;
     }
 
-    char *buf = vlc_iri2uri(str);
+    char *buf = heimdall_iri2uri(str);
     if (unlikely(buf == NULL))
         return -1;
     url->psz_buffer = buf;
@@ -478,7 +479,7 @@ static int vlc_UrlParseInner(vlc_url_t *restrict url, const char *str)
     if (next != NULL)
     {
        *(next++) = '\0';
-       if (vlc_uri_component_validate(next, "/?"))
+       if (heimdall_uri_component_validate(next, "/?"))
            url->psz_fragment = next;
     }
 
@@ -519,9 +520,9 @@ static int vlc_UrlParseInner(vlc_url_t *restrict url, const char *str)
             {
                 *(next++) = '\0';
                 url->psz_password = next;
-                vlc_uri_decode(url->psz_password);
+                heimdall_uri_decode(url->psz_password);
             }
-            vlc_uri_decode(url->psz_username);
+            heimdall_uri_decode(url->psz_username);
         }
 
         /* Host name */
@@ -541,14 +542,14 @@ static int vlc_UrlParseInner(vlc_url_t *restrict url, const char *str)
             if (next != NULL)
                 *(next++) = '\0';
 
-            const char *host = vlc_uri_decode(cur);
-            url->psz_host = (host != NULL) ? vlc_idna_to_ascii(host) : NULL;
+            const char *host = heimdall_uri_decode(cur);
+            url->psz_host = (host != NULL) ? heimdall_idna_to_ascii(host) : NULL;
         }
 
         if (url->psz_host == NULL)
             ret = -1;
         else
-        if (!vlc_uri_host_validate(url->psz_host))
+        if (!heimdall_uri_host_validate(url->psz_host))
         {
             free(url->psz_host);
             url->psz_host = NULL;
@@ -582,11 +583,11 @@ static int vlc_UrlParseInner(vlc_url_t *restrict url, const char *str)
     return ret;
 }
 
-int vlc_UrlParse(vlc_url_t *url, const char *str)
+int heimdall_UrlParse(heimdall_url_t *url, const char *str)
 {
-    int ret = vlc_UrlParseInner(url, str);
+    int ret = heimdall_UrlParseInner(url, str);
 
-    if (url->psz_path != NULL && !vlc_uri_path_validate(url->psz_path))
+    if (url->psz_path != NULL && !heimdall_uri_path_validate(url->psz_path))
     {
         url->psz_path = NULL;
         errno = EINVAL;
@@ -595,18 +596,18 @@ int vlc_UrlParse(vlc_url_t *url, const char *str)
     return ret;
 }
 
-static char *vlc_uri_fixup_inner(const char *str, const char *extras);
+static char *heimdall_uri_fixup_inner(const char *str, const char *extras);
 
-int vlc_UrlParseFixup(vlc_url_t *url, const char *str)
+int heimdall_UrlParseFixup(heimdall_url_t *url, const char *str)
 {
-    int ret = vlc_UrlParseInner(url, str);
+    int ret = heimdall_UrlParseInner(url, str);
 
     static const char pathextras[] = "/@:";
 
     if (url->psz_path != NULL
-     && !vlc_uri_component_validate(url->psz_path, pathextras))
+     && !heimdall_uri_component_validate(url->psz_path, pathextras))
     {
-        url->psz_pathbuffer = vlc_uri_fixup_inner(url->psz_path, pathextras);
+        url->psz_pathbuffer = heimdall_uri_fixup_inner(url->psz_path, pathextras);
         if (url->psz_pathbuffer == NULL)
         {
             url->psz_path = NULL;
@@ -616,13 +617,13 @@ int vlc_UrlParseFixup(vlc_url_t *url, const char *str)
         else
         {
             url->psz_path = url->psz_pathbuffer;
-            assert(vlc_uri_path_validate(url->psz_path));
+            assert(heimdall_uri_path_validate(url->psz_path));
         }
     }
     return ret;
 }
 
-void vlc_UrlClean (vlc_url_t *restrict url)
+void heimdall_UrlClean (heimdall_url_t *restrict url)
 {
     free (url->psz_host);
     free (url->psz_buffer);
@@ -634,7 +635,7 @@ void vlc_UrlClean (vlc_url_t *restrict url)
  *
  * See IETF RFC3986 section 5.2.3 for details.
  */
-static char *vlc_uri_merge_paths(const char *base, const char *ref)
+static char *heimdall_uri_merge_paths(const char *base, const char *ref)
 {
     char *str;
     int len;
@@ -663,7 +664,7 @@ static char *vlc_uri_merge_paths(const char *base, const char *ref)
  *
  * See IETF RFC3986 section 5.2.4 for details.
  */
-static char *vlc_uri_remove_dot_segments(char *str)
+static char *heimdall_uri_remove_dot_segments(char *str)
 {
     char *input = str, *output = str;
 
@@ -734,39 +735,39 @@ static char *vlc_uri_remove_dot_segments(char *str)
     return str;
 }
 
-char *vlc_uri_compose(const vlc_url_t *uri)
+char *heimdall_uri_compose(const heimdall_url_t *uri)
 {
-    struct vlc_memstream stream;
+    struct heimdall_memstream stream;
     char *enc;
 
-    vlc_memstream_open(&stream);
+    heimdall_memstream_open(&stream);
 
     if (uri->psz_protocol != NULL)
-        vlc_memstream_printf(&stream, "%s:", uri->psz_protocol);
+        heimdall_memstream_printf(&stream, "%s:", uri->psz_protocol);
 
     if (uri->psz_host != NULL)
     {
-        vlc_memstream_write(&stream, "//", 2);
+        heimdall_memstream_write(&stream, "//", 2);
 
         if (uri->psz_username != NULL)
         {
-            enc = vlc_uri_encode(uri->psz_username);
+            enc = heimdall_uri_encode(uri->psz_username);
             if (enc == NULL)
                 goto error;
 
-            vlc_memstream_puts(&stream, enc);
+            heimdall_memstream_puts(&stream, enc);
             free(enc);
 
             if (uri->psz_password != NULL)
             {
-                enc = vlc_uri_encode(uri->psz_password);
+                enc = heimdall_uri_encode(uri->psz_password);
                 if (unlikely(enc == NULL))
                     goto error;
 
-                vlc_memstream_printf(&stream, ":%s", enc);
+                heimdall_memstream_printf(&stream, ":%s", enc);
                 free(enc);
             }
-            vlc_memstream_putc(&stream, '@');
+            heimdall_memstream_putc(&stream, '@');
         }
 
         const char *fmt;
@@ -776,45 +777,45 @@ char *vlc_uri_compose(const vlc_url_t *uri)
         else
             fmt = (uri->i_port != 0) ? "%s:%d" : "%s";
         /* No IDNA decoding here. Seems unnecessary, dangerous even. */
-        vlc_memstream_printf(&stream, fmt, uri->psz_host, uri->i_port);
+        heimdall_memstream_printf(&stream, fmt, uri->psz_host, uri->i_port);
     }
 
     if (uri->psz_path != NULL)
-        vlc_memstream_puts(&stream, uri->psz_path);
+        heimdall_memstream_puts(&stream, uri->psz_path);
     if (uri->psz_option != NULL)
-        vlc_memstream_printf(&stream, "?%s", uri->psz_option);
+        heimdall_memstream_printf(&stream, "?%s", uri->psz_option);
     if (uri->psz_fragment != NULL)
-        vlc_memstream_printf(&stream, "#%s", uri->psz_fragment);
+        heimdall_memstream_printf(&stream, "#%s", uri->psz_fragment);
 
-    if (vlc_memstream_close(&stream))
+    if (heimdall_memstream_close(&stream))
         return NULL;
     return stream.ptr;
 
 error:
-    if (vlc_memstream_close(&stream) == 0)
+    if (heimdall_memstream_close(&stream) == 0)
         free(stream.ptr);
     return NULL;
 }
 
-char *vlc_uri_resolve(const char *base, const char *ref)
+char *heimdall_uri_resolve(const char *base, const char *ref)
 {
-    vlc_url_t base_uri, rel_uri;
-    vlc_url_t tgt_uri;
+    heimdall_url_t base_uri, rel_uri;
+    heimdall_url_t tgt_uri;
     char *pathbuf = NULL, *ret = NULL;
 
-    if (vlc_UrlParse(&rel_uri, ref))
+    if (heimdall_UrlParse(&rel_uri, ref))
     {
-        vlc_UrlClean(&rel_uri);
+        heimdall_UrlClean(&rel_uri);
         return NULL;
     }
 
     if (rel_uri.psz_protocol != NULL)
     {   /* Short circuit in case of absolute URI */
-        vlc_UrlClean(&rel_uri);
+        heimdall_UrlClean(&rel_uri);
         return strdup(ref);
     }
 
-    vlc_UrlParse(&base_uri, base);
+    heimdall_UrlParse(&base_uri, base);
 
     /* RFC3986 section 5.2.2 */
     do
@@ -841,7 +842,7 @@ char *vlc_uri_resolve(const char *base, const char *ref)
         if (rel_uri.psz_path[0] == '/')
             break;
 
-        pathbuf = vlc_uri_merge_paths(base_uri.psz_path, rel_uri.psz_path);
+        pathbuf = heimdall_uri_merge_paths(base_uri.psz_path, rel_uri.psz_path);
         if (unlikely(pathbuf == NULL))
             goto error;
 
@@ -850,17 +851,17 @@ char *vlc_uri_resolve(const char *base, const char *ref)
     while (0);
 
     if (tgt_uri.psz_path != NULL)
-        vlc_uri_remove_dot_segments(tgt_uri.psz_path);
+        heimdall_uri_remove_dot_segments(tgt_uri.psz_path);
 
-    ret = vlc_uri_compose(&tgt_uri);
+    ret = heimdall_uri_compose(&tgt_uri);
 error:
     free(pathbuf);
-    vlc_UrlClean(&base_uri);
-    vlc_UrlClean(&rel_uri);
+    heimdall_UrlClean(&base_uri);
+    heimdall_UrlClean(&rel_uri);
     return ret;
 }
 
-VLC_MALLOC static char *vlc_uri_fixup_inner(const char *str, const char *extras)
+HEIMDALL_MALLOC static char *heimdall_uri_fixup_inner(const char *str, const char *extras)
 {
     assert(str && extras);
 
@@ -872,9 +873,9 @@ VLC_MALLOC static char *vlc_uri_fixup_inner(const char *str, const char *extras)
             break;
         }
 
-    struct vlc_memstream stream;
+    struct heimdall_memstream stream;
 
-    vlc_memstream_open(&stream);
+    heimdall_memstream_open(&stream);
 
     for (size_t i = 0; str[i] != '\0'; i++)
     {
@@ -882,25 +883,25 @@ VLC_MALLOC static char *vlc_uri_fixup_inner(const char *str, const char *extras)
 
         if (isurisafe(c) || isurisubdelim(c) || (strchr(extras, c) != NULL)
          || (c == '%' && !encode_percent))
-            vlc_memstream_putc(&stream, c);
+            heimdall_memstream_putc(&stream, c);
         else
-            vlc_memstream_printf(&stream, "%%%02hhX", c);
+            heimdall_memstream_printf(&stream, "%%%02hhX", c);
     }
 
-    if (vlc_memstream_close(&stream))
+    if (heimdall_memstream_close(&stream))
         return NULL;
     return stream.ptr;
 }
 
-static void vlc_uri_putc(struct vlc_memstream *s, int c, const char *extras)
+static void heimdall_uri_putc(struct heimdall_memstream *s, int c, const char *extras)
 {
     if (isurisafe(c) || isurisubdelim(c) || (strchr(extras, c) != NULL))
-        vlc_memstream_putc(s, c);
+        heimdall_memstream_putc(s, c);
     else
-        vlc_memstream_printf(s, "%%%02hhX", (unsigned char)c);
+        heimdall_memstream_printf(s, "%%%02hhX", (unsigned char)c);
 }
 
-char *vlc_uri_fixup(const char *str)
+char *heimdall_uri_fixup(const char *str)
 {
     assert(str != NULL);
 
@@ -917,8 +918,8 @@ char *vlc_uri_fixup(const char *str)
             break;
         }
 
-    struct vlc_memstream stream;
-    vlc_memstream_open(&stream);
+    struct heimdall_memstream stream;
+    heimdall_memstream_open(&stream);
 
     /* Handle URI scheme */
     const char *p = str;
@@ -926,11 +927,11 @@ char *vlc_uri_fixup(const char *str)
     bool encode_brackets = true;
 
     while (isurialnum(*p) || memchr("+-.", *p, 3) != NULL)
-        vlc_memstream_putc(&stream, *(p++));
+        heimdall_memstream_putc(&stream, *(p++));
 
     if (p > str && *p == ':')
     {   /* There is an URI scheme, assume an absolute URI. */
-        vlc_memstream_putc(&stream, *(p++));
+        heimdall_memstream_putc(&stream, *(p++));
         absolute = true;
         encode_brackets = false;
     }
@@ -938,28 +939,28 @@ char *vlc_uri_fixup(const char *str)
     /* Handle URI authority */
     if ((absolute || p == str) && strncmp(p, "//", 2) == 0)
     {
-        vlc_memstream_write(&stream, p, 2);
+        heimdall_memstream_write(&stream, p, 2);
         p += 2;
         encode_brackets = true;
 
         while (memchr("/?#", *p, 4) == NULL)
-            vlc_uri_putc(&stream, *(p++), &"%:[]@"[encode_percent]);
+            heimdall_uri_putc(&stream, *(p++), &"%:[]@"[encode_percent]);
     }
 
     /* Handle URI path and what follows */
     const char *extras = encode_brackets ? "%/?#@" : "%:/?#[]@";
 
     while (*p != '\0')
-        vlc_uri_putc(&stream, *(p++), extras + encode_percent);
+        heimdall_uri_putc(&stream, *(p++), extras + encode_percent);
 
-    return vlc_memstream_close(&stream) ? NULL : stream.ptr;
+    return heimdall_memstream_close(&stream) ? NULL : stream.ptr;
 }
 
 #if defined (HAVE_IDN)
 # include <idna.h>
 #elif defined (_WIN32)
 # include <windows.h>
-# include <vlc_charset.h>
+# include <heimdall_charset.h>
 #endif
 
 /**
@@ -967,7 +968,7 @@ char *vlc_uri_fixup(const char *str)
  * \param idn UTF-8 Internationalized Domain Name to convert
  * \return a heap-allocated string or NULL on error.
  */
-static char *vlc_idna_to_ascii (const char *idn)
+static char *heimdall_idna_to_ascii (const char *idn)
 {
 #if defined (HAVE_IDN)
     char *adn;
@@ -1004,7 +1005,7 @@ static char *vlc_idna_to_ascii (const char *idn)
         goto error;
     }
 
-    wchar_t *buf = vlc_alloc (len, sizeof (*buf));
+    wchar_t *buf = heimdall_alloc (len, sizeof (*buf));
     if (unlikely(buf == NULL))
         goto error;
     if (!IdnToAscii (IDN_ALLOW_UNASSIGNED, wide, -1, buf, len))

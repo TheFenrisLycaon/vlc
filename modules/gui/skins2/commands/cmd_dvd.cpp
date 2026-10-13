@@ -2,6 +2,7 @@
  * cmd_dvd.cpp
  *****************************************************************************
  * Copyright (C) 2003 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Olivier Teulière <ipkiss@via.ecp.fr>
  *
@@ -21,50 +22,50 @@
  *****************************************************************************/
 
 #include "cmd_dvd.hpp"
-#include <vlc_player.h>
-#include <vlc_playlist.h>
+#include <heimdall_player.h>
+#include <heimdall_playlist.h>
 
 void CmdDvdNextTitle::execute()
 {
-    vlc_playlist_Lock( getPL() );
-    vlc_player_t *player = vlc_playlist_GetPlayer( getPL() );
-    vlc_player_SelectNextTitle( player );
-    vlc_playlist_Unlock( getPL() );
+    heimdall_playlist_Lock( getPL() );
+    heimdall_player_t *player = heimdall_playlist_GetPlayer( getPL() );
+    heimdall_player_SelectNextTitle( player );
+    heimdall_playlist_Unlock( getPL() );
 }
 
 
 void CmdDvdPreviousTitle::execute()
 {
-    vlc_playlist_Lock( getPL() );
-    vlc_player_t *player = vlc_playlist_GetPlayer( getPL() );
-    vlc_player_SelectPrevTitle( player );
-    vlc_playlist_Unlock( getPL() );
+    heimdall_playlist_Lock( getPL() );
+    heimdall_player_t *player = heimdall_playlist_GetPlayer( getPL() );
+    heimdall_player_SelectPrevTitle( player );
+    heimdall_playlist_Unlock( getPL() );
 }
 
 
 void CmdDvdNextChapter::execute()
 {
-    vlc_playlist_Lock( getPL() );
-    vlc_player_t *player = vlc_playlist_GetPlayer( getPL() );
-    vlc_player_SelectNextChapter( player );
-    vlc_playlist_Unlock( getPL() );
+    heimdall_playlist_Lock( getPL() );
+    heimdall_player_t *player = heimdall_playlist_GetPlayer( getPL() );
+    heimdall_player_SelectNextChapter( player );
+    heimdall_playlist_Unlock( getPL() );
 }
 
 
 void CmdDvdPreviousChapter::execute()
 {
-    vlc_playlist_Lock( getPL() );
-    vlc_player_t *player = vlc_playlist_GetPlayer( getPL() );
-    vlc_player_SelectPrevChapter( player );
-    vlc_playlist_Unlock( getPL() );
+    heimdall_playlist_Lock( getPL() );
+    heimdall_player_t *player = heimdall_playlist_GetPlayer( getPL() );
+    heimdall_player_SelectPrevChapter( player );
+    heimdall_playlist_Unlock( getPL() );
 }
 
 
 void CmdDvdRootMenu::execute()
 {
-    vlc_playlist_Lock( getPL() );
-    vlc_player_t *player = vlc_playlist_GetPlayer( getPL() );
-    vlc_player_Navigate( player, VLC_PLAYER_NAV_MENU );
-    vlc_playlist_Unlock( getPL() );
+    heimdall_playlist_Lock( getPL() );
+    heimdall_player_t *player = heimdall_playlist_GetPlayer( getPL() );
+    heimdall_player_Navigate( player, HEIMDALL_PLAYER_NAV_MENU );
+    heimdall_playlist_Unlock( getPL() );
 }
 

@@ -2,6 +2,7 @@
  * ports.c: special ports block list
  *****************************************************************************
  * Copyright © 2019 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -25,7 +26,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include "transport.h"
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
 /* Must be in ascending order */
 static const unsigned short blocked_ports[] = {
@@ -103,7 +104,7 @@ static int portcmp(const void *key, const void *entry)
     return ((int)*port) - ((int)*blocked_port);
 }
 
-bool vlc_http_port_blocked(unsigned port)
+bool heimdall_http_port_blocked(unsigned port)
 {
     if (port > 0xffff)
         return true;

@@ -2,6 +2,7 @@
  * deinterlace.c: X86 deinterlacing functions
  *****************************************************************************
  * Copyright (C) 2011, 2026 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  * 
  * Author: Sam Hocevar <sam@zoy.org>                      (generic C routine)
  *         Sigmund Augdal Helberg <sigmunau@videolan.org> (MMXEXT, 3DNow, SSE2)
@@ -25,12 +26,12 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_cpu.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_cpu.h>
+#include <heimdall_plugin.h>
 #include <stdint.h>
 #include "../../video_filter/deinterlace/merge.h"
-VLC_SSE
+HEIMDALL_SSE
 static void Merge8BitSSE2( void *_p_dest, const void *_p_s1, const void *_p_s2,
                     size_t i_bytes )
 {
@@ -57,7 +58,7 @@ static void Merge8BitSSE2( void *_p_dest, const void *_p_s1, const void *_p_s2,
         *p_dest++ = ( *p_s1++ + *p_s2++ + 1) >> 1;
 }
 
-VLC_SSE
+HEIMDALL_SSE
 static void Merge16BitSSE2( void *_p_dest, const void *_p_s1, const void *_p_s2,
                      size_t i_bytes )
 {
@@ -88,7 +89,7 @@ static void Merge16BitSSE2( void *_p_dest, const void *_p_s1, const void *_p_s2,
 
 static void Probe(void *data)
 {
-    if (vlc_CPU_SSE2()) {
+    if (heimdall_CPU_SSE2()) {
         struct deinterlace_functions *const f = data;
 
         f->merges[0] = Merge8BitSSE2;
@@ -96,7 +97,7 @@ static void Probe(void *data)
     }
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_description("X86 optimisation for deinterlacing")
     set_cpu_funcs("deinterlace functions", Probe, 20)
-vlc_module_end()
+heimdall_module_end()

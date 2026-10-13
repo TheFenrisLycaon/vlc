@@ -1,6 +1,7 @@
 --[[
 
  Copyright © 2011 the VideoLAN team
+ Copyright (C) 2026 TheFenrisLycaon
 
  Authors: Konstantin Pavlov (thresh@videolan.org)
 
@@ -21,18 +22,18 @@
 
 -- Probe function.
 function probe()
-    local path = vlc.path:gsub("^www%.", "")
-    return vlc.access == "http"
-        and ( string.match( vlc.path, "^zapiks%.fr/(.*)%.html" )
-            or string.match( vlc.path, "^zapiks%.fr/view/.+" )
-            or string.match( vlc.path, "^26in%.fr/videos/.+" ) )
+    local path = heimdall.path:gsub("^www%.", "")
+    return heimdall.access == "http"
+        and ( string.match( heimdall.path, "^zapiks%.fr/(.*)%.html" )
+            or string.match( heimdall.path, "^zapiks%.fr/view/.+" )
+            or string.match( heimdall.path, "^26in%.fr/videos/.+" ) )
 end
 
 -- Parse function.
 function parse()
-    if string.match ( vlc.path, "zapiks.fr/(.+).html" ) or string.match( vlc.path, "26in.fr/videos/" ) then
+    if string.match ( heimdall.path, "zapiks.fr/(.+).html" ) or string.match( heimdall.path, "26in.fr/videos/" ) then
         while true do
-            line = vlc.readline()
+            line = heimdall.readline()
             if not line then break end
             -- Try to find video id number
             if string.match( line, "video_src(.+)file=(%d+)\"" ) then
@@ -46,10 +47,10 @@ function parse()
         return { { path = "http://www.zapiks.fr/view/index.php?file=" .. id, name = name } }
     end
 
-    if string.match ( vlc.path, "zapiks.fr/view/." ) then
-        prefres = vlc.var.inherit(nil, "preferred-resolution")
+    if string.match ( heimdall.path, "zapiks.fr/view/." ) then
+        prefres = heimdall.var.inherit(nil, "preferred-resolution")
         while true do
-            line = vlc.readline()
+            line = heimdall.readline()
             if not line then break end
             -- Try to find URL of video
             if string.match( line, "<file>(.*)</file>" ) then
@@ -71,6 +72,6 @@ function parse()
         end
         return { { path = path; name = name; arturl = arturl } }
     end
-    vlc.msg.err( "Could not extract the video URL from zapiks.fr" )
+    heimdall.msg.err( "Could not extract the video URL from zapiks.fr" )
     return {}
 end

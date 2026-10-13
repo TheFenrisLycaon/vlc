@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2023 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Prince Gupta <guptaprince8832@gmail.com>
  *
@@ -22,10 +23,10 @@ import QtQuick
 import QtQml.Models
 
 
-import VLC.MainInterface
-import VLC.Widgets as Widgets
-import VLC.Util
-import VLC.Style
+import Heimdall.MainInterface
+import Heimdall.Widgets as Widgets
+import Heimdall.Util
+import Heimdall.Style
 
 Loader {
     id: root
@@ -237,7 +238,7 @@ Loader {
     Timer {
         running: isLoading && _loadingItem
 
-        interval: VLCStyle.duration_humanMoment
+        interval: HeimdallStyle.duration_humanMoment
 
         onTriggered: {
             _loadingItem.visible = true

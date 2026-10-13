@@ -2,6 +2,7 @@
  * MLContainer.hpp : CDS MediaLibrary container implementation
  *****************************************************************************
  * Copyright © 2024 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Alaric Senat <alaric@videolabs.io>
  *
@@ -23,8 +24,8 @@
 #ifndef MLCONTAINER_HPP
 #define MLCONTAINER_HPP
 
-#include <vlc_cxx_helpers.hpp>
-#include <vlc_url.h>
+#include <heimdall_cxx_helpers.hpp>
+#include <heimdall_url.h>
 
 #include "../ml.hpp"
 #include "Container.hpp"
@@ -72,7 +73,7 @@ template <typename MLHelper> class MLContainer : public Container
                                        const BrowseParams params,
                                        const Object::ExtraId &extra) const final
     {
-        const vlc_ml_query_params_t query_params = params.to_query_params();
+        const heimdall_ml_query_params_t query_params = params.to_query_params();
         std::optional<int64_t> ml_id;
         if (extra.has_value())
             ml_id = static_cast<int64_t>(extra->ml_id);
@@ -92,12 +93,12 @@ template <typename MLHelper> class MLContainer : public Container
     }
 
   private:
-    void dump_mlobject_metadata(xml::Element &dest, const vlc_ml_media_t &media) const
+    void dump_mlobject_metadata(xml::Element &dest, const heimdall_ml_media_t &media) const
     {
         Item::dump_mlobject_metadata(dest, media, ml_);
     }
 
-    void dump_mlobject_metadata(xml::Element &dest, const vlc_ml_playlist_t &playlist) const
+    void dump_mlobject_metadata(xml::Element &dest, const heimdall_ml_playlist_t &playlist) const
     {
         xml::Document &doc = dest.owner;
 
@@ -109,7 +110,7 @@ template <typename MLHelper> class MLContainer : public Container
             doc.create_element("dc:title", doc.create_text_node(playlist.psz_name)));
     }
 
-    void dump_mlobject_metadata(xml::Element &dest, const vlc_ml_album_t &album) const
+    void dump_mlobject_metadata(xml::Element &dest, const heimdall_ml_album_t &album) const
     {
         xml::Document &doc = dest.owner;
 
@@ -126,7 +127,7 @@ template <typename MLHelper> class MLContainer : public Container
                                doc.create_text_node(album_thumbnail_url.c_str())));
     }
 
-    void dump_mlobject_metadata(xml::Element &dest, const vlc_ml_artist_t &artist) const
+    void dump_mlobject_metadata(xml::Element &dest, const heimdall_ml_artist_t &artist) const
     {
         xml::Document &doc = dest.owner;
 
@@ -138,7 +139,7 @@ template <typename MLHelper> class MLContainer : public Container
             doc.create_element("dc:title", doc.create_text_node(artist.psz_name)));
     }
 
-    void dump_mlobject_metadata(xml::Element &dest, const vlc_ml_genre_t &genre) const
+    void dump_mlobject_metadata(xml::Element &dest, const heimdall_ml_genre_t &genre) const
     {
         xml::Document &doc = dest.owner;
 
@@ -150,13 +151,13 @@ template <typename MLHelper> class MLContainer : public Container
             doc.create_element("dc:title", doc.create_text_node(genre.psz_name)));
     }
 
-    void dump_mlobject_metadata(xml::Element &dest, const vlc_ml_folder_t &folder) const
+    void dump_mlobject_metadata(xml::Element &dest, const heimdall_ml_folder_t &folder) const
     {
         xml::Document &doc = dest.owner;
 
         assert(!folder.b_banned);
 
-        const auto path = vlc::wrap_cptr(vlc_uri2path(folder.psz_mrl), &free);
+        const auto path = heimdall::wrap_cptr(heimdall_uri2path(folder.psz_mrl), &free);
         dest.add_children(
             doc.create_element("upnp:class", doc.create_text_node("object.container")),
             doc.create_element("dc:title", doc.create_text_node(path.get())));

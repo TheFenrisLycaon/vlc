@@ -2,6 +2,7 @@
  * media_source/test.c
  *****************************************************************************
  * Copyright (C) 2018 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -23,22 +24,22 @@
 #endif
 
 #include <assert.h>
-#include <vlc_common.h>
-#include <vlc_vector.h>
+#include <heimdall_common.h>
+#include <heimdall_vector.h>
 #include "media_source.h"
 
 static void
 test_media_tree(void)
 {
-    vlc_media_tree_t *tree = vlc_media_tree_New();
-    vlc_media_tree_Lock(tree);
+    heimdall_media_tree_t *tree = heimdall_media_tree_New();
+    heimdall_media_tree_Lock(tree);
 
     assert(!tree->root.p_item);
     assert(tree->root.i_children == 0);
 
-    input_item_t *media = input_item_New("vlc://item", "aaa");
+    input_item_t *media = input_item_New("heimdall://item", "aaa");
     assert(media);
-    input_item_node_t *node = vlc_media_tree_Add(tree, &tree->root, media);
+    input_item_node_t *node = heimdall_media_tree_Add(tree, &tree->root, media);
     assert(node);
     input_item_Release(media); /* there is still 1 ref after that */
 
@@ -47,9 +48,9 @@ test_media_tree(void)
     assert(node->p_item == media);
     assert(node->i_children == 0);
 
-    input_item_t *media2 = input_item_New("vlc://child", "bbb");
+    input_item_t *media2 = input_item_New("heimdall://child", "bbb");
     assert(media2);
-    input_item_node_t *node2 = vlc_media_tree_Add(tree, node, media2);
+    input_item_node_t *node2 = heimdall_media_tree_Add(tree, node, media2);
     assert(node2);
     input_item_Release(media2);
 
@@ -58,9 +59,9 @@ test_media_tree(void)
     assert(node2->p_item == media2);
     assert(node2->i_children == 0);
 
-    input_item_t *media3 = input_item_New("vlc://child2", "ccc");
+    input_item_t *media3 = input_item_New("heimdall://child2", "ccc");
     assert(media3);
-    input_item_node_t *node3 = vlc_media_tree_Add(tree, node, media3);
+    input_item_node_t *node3 = heimdall_media_tree_Add(tree, node, media3);
     assert(node3);
     input_item_Release(media3);
 
@@ -70,13 +71,13 @@ test_media_tree(void)
     assert(node3->p_item == media3);
     assert(node3->i_children == 0);
 
-    bool removed = vlc_media_tree_Remove(tree, media2);
+    bool removed = heimdall_media_tree_Remove(tree, media2);
     assert(removed);
     assert(node->i_children == 1);
     assert(node->pp_children[0] == node3);
 
-    vlc_media_tree_Unlock(tree);
-    vlc_media_tree_Release(tree);
+    heimdall_media_tree_Unlock(tree);
+    heimdall_media_tree_Release(tree);
 }
 
 struct children_reset_report
@@ -100,16 +101,16 @@ struct children_removed_report
 
 struct callback_ctx
 {
-    struct VLC_VECTOR(struct children_reset_report) vec_children_reset;
-    struct VLC_VECTOR(struct children_added_report) vec_children_added;
-    struct VLC_VECTOR(struct children_removed_report) vec_children_removed;
+    struct HEIMDALL_VECTOR(struct children_reset_report) vec_children_reset;
+    struct HEIMDALL_VECTOR(struct children_added_report) vec_children_added;
+    struct HEIMDALL_VECTOR(struct children_removed_report) vec_children_removed;
 };
 
 #define CALLBACK_CTX_INITIALIZER \
 { \
-    VLC_VECTOR_INITIALIZER, \
-    VLC_VECTOR_INITIALIZER, \
-    VLC_VECTOR_INITIALIZER, \
+    HEIMDALL_VECTOR_INITIALIZER, \
+    HEIMDALL_VECTOR_INITIALIZER, \
+    HEIMDALL_VECTOR_INITIALIZER, \
 }
 
 static inline void
@@ -125,40 +126,40 @@ static inline void
 callback_ctx_reset(struct callback_ctx *ctx)
 {
     callback_ctx_destroy_reports(ctx);
-    vlc_vector_clear(&ctx->vec_children_reset);
-    vlc_vector_clear(&ctx->vec_children_added);
-    vlc_vector_clear(&ctx->vec_children_removed);
+    heimdall_vector_clear(&ctx->vec_children_reset);
+    heimdall_vector_clear(&ctx->vec_children_added);
+    heimdall_vector_clear(&ctx->vec_children_removed);
 }
 
 static inline void
 callback_ctx_destroy(struct callback_ctx *ctx)
 {
     callback_ctx_destroy_reports(ctx);
-    vlc_vector_destroy(&ctx->vec_children_reset);
-    vlc_vector_destroy(&ctx->vec_children_added);
-    vlc_vector_destroy(&ctx->vec_children_removed);
+    heimdall_vector_destroy(&ctx->vec_children_reset);
+    heimdall_vector_destroy(&ctx->vec_children_added);
+    heimdall_vector_destroy(&ctx->vec_children_removed);
 }
 
 static void
-on_children_reset(vlc_media_tree_t *tree, input_item_node_t *node,
+on_children_reset(heimdall_media_tree_t *tree, input_item_node_t *node,
                   void *userdata)
 {
-    VLC_UNUSED(tree);
+    HEIMDALL_UNUSED(tree);
 
     struct callback_ctx *ctx = userdata;
 
     struct children_reset_report report;
     report.node = node;
-    bool ok = vlc_vector_push(&ctx->vec_children_reset, report);
+    bool ok = heimdall_vector_push(&ctx->vec_children_reset, report);
     assert(ok);
 }
 
 static void
-on_children_added(vlc_media_tree_t *tree, input_item_node_t *node,
+on_children_added(heimdall_media_tree_t *tree, input_item_node_t *node,
                   input_item_node_t *const children[], size_t count,
                   void *userdata)
 {
-    VLC_UNUSED(tree);
+    HEIMDALL_UNUSED(tree);
 
     struct callback_ctx *ctx = userdata;
 
@@ -166,16 +167,16 @@ on_children_added(vlc_media_tree_t *tree, input_item_node_t *node,
     report.node = node;
     report.first_media = input_item_Hold(children[0]->p_item);
     report.count = count;
-    bool ok = vlc_vector_push(&ctx->vec_children_added, report);
+    bool ok = heimdall_vector_push(&ctx->vec_children_added, report);
     assert(ok);
 }
 
 static void
-on_children_removed(vlc_media_tree_t *tree, input_item_node_t *node,
+on_children_removed(heimdall_media_tree_t *tree, input_item_node_t *node,
                     input_item_node_t *const children[], size_t count,
                     void *userdata)
 {
-    VLC_UNUSED(tree);
+    HEIMDALL_UNUSED(tree);
 
     struct callback_ctx *ctx = userdata;
 
@@ -183,29 +184,29 @@ on_children_removed(vlc_media_tree_t *tree, input_item_node_t *node,
     report.node = node;
     report.first_media = input_item_Hold(children[0]->p_item);
     report.count = count;
-    bool ok = vlc_vector_push(&ctx->vec_children_removed, report);
+    bool ok = heimdall_vector_push(&ctx->vec_children_removed, report);
     assert(ok);
 }
 
 static void test_media_tree_callbacks(void)
 {
-    struct vlc_media_tree_callbacks cbs = {
+    struct heimdall_media_tree_callbacks cbs = {
         .on_children_reset = on_children_reset,
         .on_children_added = on_children_added,
         .on_children_removed = on_children_removed,
     };
 
-    vlc_media_tree_t *tree = vlc_media_tree_New();
+    heimdall_media_tree_t *tree = heimdall_media_tree_New();
     struct callback_ctx ctx = CALLBACK_CTX_INITIALIZER;
-    vlc_media_tree_listener_id *listener =
-            vlc_media_tree_AddListener(tree, &cbs, &ctx, false);
+    heimdall_media_tree_listener_id *listener =
+            heimdall_media_tree_AddListener(tree, &cbs, &ctx, false);
     assert(listener);
 
-    vlc_media_tree_Lock(tree);
+    heimdall_media_tree_Lock(tree);
 
-    input_item_t *media = input_item_New("vlc://item", "aaa");
+    input_item_t *media = input_item_New("heimdall://item", "aaa");
     assert(media);
-    input_item_node_t *node = vlc_media_tree_Add(tree, &tree->root, media);
+    input_item_node_t *node = heimdall_media_tree_Add(tree, &tree->root, media);
     assert(node);
     input_item_Release(media); /* there is still 1 ref after that */
 
@@ -217,9 +218,9 @@ static void test_media_tree_callbacks(void)
 
     callback_ctx_reset(&ctx);
 
-    input_item_t *media2 = input_item_New("vlc://child", "bbb");
+    input_item_t *media2 = input_item_New("heimdall://child", "bbb");
     assert(media2);
-    input_item_node_t *node2 = vlc_media_tree_Add(tree, node, media2);
+    input_item_node_t *node2 = heimdall_media_tree_Add(tree, node, media2);
     assert(node2);
     input_item_Release(media2);
 
@@ -231,9 +232,9 @@ static void test_media_tree_callbacks(void)
 
     callback_ctx_reset(&ctx);
 
-    input_item_t *media3 = input_item_New("vlc://child2", "ccc");
+    input_item_t *media3 = input_item_New("heimdall://child2", "ccc");
     assert(media3);
-    input_item_node_t *node3 = vlc_media_tree_Add(tree, node, media3);
+    input_item_node_t *node3 = heimdall_media_tree_Add(tree, node, media3);
     assert(node3);
     input_item_Release(media3);
 
@@ -245,7 +246,7 @@ static void test_media_tree_callbacks(void)
 
     callback_ctx_reset(&ctx);
 
-    bool removed = vlc_media_tree_Remove(tree, media2);
+    bool removed = heimdall_media_tree_Remove(tree, media2);
     assert(removed);
     assert(node->i_children == 1);
     assert(node->pp_children[0] == node3);
@@ -256,43 +257,43 @@ static void test_media_tree_callbacks(void)
     assert(ctx.vec_children_removed.data[0].node == node);
     assert(ctx.vec_children_removed.data[0].first_media == media2);
 
-    vlc_media_tree_Unlock(tree);
+    heimdall_media_tree_Unlock(tree);
 
-    vlc_media_tree_RemoveListener(tree, listener);
+    heimdall_media_tree_RemoveListener(tree, listener);
     callback_ctx_destroy(&ctx);
 
-    vlc_media_tree_Release(tree);
+    heimdall_media_tree_Release(tree);
 }
 
 static void
 test_media_tree_callbacks_on_add_listener(void)
 {
-    struct vlc_media_tree_callbacks cbs = {
+    struct heimdall_media_tree_callbacks cbs = {
         .on_children_reset = on_children_reset,
     };
 
 
-    vlc_media_tree_t *tree = vlc_media_tree_New();
+    heimdall_media_tree_t *tree = heimdall_media_tree_New();
 
-    vlc_media_tree_Lock(tree);
+    heimdall_media_tree_Lock(tree);
 
-    input_item_t *media = input_item_New("vlc://item", "aaa");
+    input_item_t *media = input_item_New("heimdall://item", "aaa");
     assert(media);
-    input_item_node_t *node = vlc_media_tree_Add(tree, &tree->root, media);
+    input_item_node_t *node = heimdall_media_tree_Add(tree, &tree->root, media);
     assert(node);
     input_item_Release(media);
 
-    input_item_t *media2 = input_item_New("vlc://child", "bbb");
+    input_item_t *media2 = input_item_New("heimdall://child", "bbb");
     assert(media2);
-    input_item_node_t *node2 = vlc_media_tree_Add(tree, node, media2);
+    input_item_node_t *node2 = heimdall_media_tree_Add(tree, node, media2);
     assert(node2);
     input_item_Release(media2);
 
-    vlc_media_tree_Unlock(tree);
+    heimdall_media_tree_Unlock(tree);
 
     struct callback_ctx ctx = CALLBACK_CTX_INITIALIZER;
-    vlc_media_tree_listener_id *listener =
-            vlc_media_tree_AddListener(tree, &cbs, &ctx, true);
+    heimdall_media_tree_listener_id *listener =
+            heimdall_media_tree_AddListener(tree, &cbs, &ctx, true);
     assert(listener);
 
     assert(ctx.vec_children_reset.size == 1);
@@ -300,10 +301,10 @@ test_media_tree_callbacks_on_add_listener(void)
     assert(ctx.vec_children_reset.data[0].node->i_children == 1);
     assert(ctx.vec_children_reset.data[0].node->pp_children[0] == node);
 
-    vlc_media_tree_RemoveListener(tree, listener);
+    heimdall_media_tree_RemoveListener(tree, listener);
     callback_ctx_destroy(&ctx);
 
-    vlc_media_tree_Release(tree);
+    heimdall_media_tree_Release(tree);
 }
 
 int main(void)

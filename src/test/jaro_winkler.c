@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright 2015 Danny Guo
  * Copyright 2018 Lyndon Brown
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -28,22 +29,22 @@
 #include <assert.h>
 #include <math.h> /* fabs() */
 
-#include <vlc_common.h>
-#include <vlc_strings.h>
+#include <heimdall_common.h>
+#include <heimdall_strings.h>
 
-#include "../config/vlc_jaro_winkler.h"
+#include "../config/heimdall_jaro_winkler.h"
 
-const char vlc_module_name[] = "test_jarowinkler";
+const char heimdall_module_name[] = "test_jarowinkler";
 
 # define test1( expected, a, b ) \
-    assert(vlc_jaro_winkler(a, b, &actual) == 0); \
+    assert(heimdall_jaro_winkler(a, b, &actual) == 0); \
     failed = (actual != expected); \
     problems |= failed; \
     printf("[TEST] expected: %f, actual: %f, accuracy: n/a, result: %s, (a: %s), (b: %s)\n", \
         expected, actual, (failed) ? "FAIL" : "pass", a, b);
 
 # define test2( expected, a, b, accuracy ) \
-    assert(vlc_jaro_winkler(a, b, &actual) == 0); \
+    assert(heimdall_jaro_winkler(a, b, &actual) == 0); \
     failed = (fabs(expected - actual) >= accuracy); \
     problems |= failed; \
     printf("[TEST] expected: %f, actual: %f, accuracy: %f, result: %s, (a: %s), (b: %s)\n", \

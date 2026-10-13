@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,11 +20,11 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Templates as T
 
-import VLC.MainInterface
-import VLC.Widgets as Widgets
-import VLC.Util
-import VLC.Style
-import VLC.Player
+import Heimdall.MainInterface
+import Heimdall.Widgets as Widgets
+import Heimdall.Util
+import Heimdall.Style
+import Heimdall.Player
 
 T.Pane {
     id: root
@@ -64,15 +65,15 @@ T.Pane {
             paintOnly: root.paintOnly
             text: {
                 if (_player.muted)
-                    return VLCIcons.volume_muted
+                    return HeimdallIcons.volume_muted
                 else if (_player.volume === 0)
-                    return VLCIcons.volume_zero
+                    return HeimdallIcons.volume_zero
                 else if (_player.volume < .33)
-                    return VLCIcons.volume_low
+                    return HeimdallIcons.volume_low
                 else if (_player.volume <= .66)
-                    return VLCIcons.volume_medium
+                    return HeimdallIcons.volume_medium
                 else
-                    return VLCIcons.volume_high
+                    return HeimdallIcons.volume_high
             }
             description: qsTr("Mute")
 
@@ -97,21 +98,21 @@ T.Pane {
         Widgets.SliderExt {
             id: volControl
 
-            // FIXME: use VLCStyle
-            implicitWidth: VLCStyle.dp(100, VLCStyle.scale)
+            // FIXME: use HeimdallStyle
+            implicitWidth: HeimdallStyle.dp(100, HeimdallStyle.scale)
 
             // WARNING: Directly setting the insets break handle and background positioning.
             Binding on topInset {
                 when: MainCtx.usingTouch
-                value: VLCStyle.touchHandlerMargin
+                value: HeimdallStyle.touchHandlerMargin
             }
             Binding on bottomInset {
                 when: MainCtx.usingTouch
-                value: VLCStyle.touchHandlerMargin
+                value: HeimdallStyle.touchHandlerMargin
             }
 
             Layout.fillHeight: true
-            Layout.margins: VLCStyle.margin_xsmall
+            Layout.margins: HeimdallStyle.margin_xsmall
 
             property bool _inhibitPlayerVolumeUpdate: false
 
@@ -241,9 +242,9 @@ T.Pane {
                 parent: volControl.background
 
                 x : parent.width * root._fullvolpos
-                width: VLCStyle.dp(1, VLCStyle.scale)
+                width: HeimdallStyle.dp(1, HeimdallStyle.scale)
                 height: parent.height
-                radius: VLCStyle.dp(2, VLCStyle.scale)
+                radius: HeimdallStyle.dp(2, HeimdallStyle.scale)
 
                 // NOTE: This shouldn't be visible when the volume stops before a 100.
                 visible: (root._maxvol > 100)
@@ -257,7 +258,7 @@ T.Pane {
                 MouseArea {
                     anchors.fill: parent
 
-                    anchors.margins: -(VLCStyle.dp(4, VLCStyle.scale))
+                    anchors.margins: -(HeimdallStyle.dp(4, HeimdallStyle.scale))
 
                     onPressed: (mouse) => {
                         mouse.accepted = false
@@ -314,7 +315,7 @@ T.Pane {
                         volControl.value += 0.001 * delta
                     }
                     else
-                        wheelToVLC.qmlWheelEvent(wheel)
+                        wheelToHeimdall.qmlWheelEvent(wheel)
 
                     wheel.accepted = true
                 }
@@ -334,8 +335,8 @@ T.Pane {
                         volControl.value = 1.25
                 }
 
-                WheelToVLCConverter {
-                    id: wheelToVLC
+                WheelToHeimdallConverter {
+                    id: wheelToHeimdall
 
                     function handle(steps: int) {
                         if (steps > 0)
@@ -345,8 +346,8 @@ T.Pane {
                     }
 
                     Component.onCompleted: {
-                        wheelUpDown.connect(wheelToVLC.handle)
-                        wheelLeftRight.connect(wheelToVLC.handle)
+                        wheelUpDown.connect(wheelToHeimdall.handle)
+                        wheelLeftRight.connect(wheelToHeimdall.handle)
                     }
                 }
             }

@@ -2,6 +2,7 @@
  * packetizer.h: packetizer unit testing
  *****************************************************************************
  * Copyright (C) 2019 VideoLabs, VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -17,24 +18,24 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_modules.h>
-#include <vlc_demux.h>
-#include <vlc_codec.h>
-#include <vlc_meta.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_modules.h>
+#include <heimdall_demux.h>
+#include <heimdall_codec.h>
+#include <heimdall_meta.h>
 
 enum
 {
-    OK = VLC_SUCCESS,
-    FAIL = VLC_EGENERIC,
+    OK = HEIMDALL_SUCCESS,
+    FAIL = HEIMDALL_EGENERIC,
 };
 
 struct params_s
 {
-    libvlc_instance_t *vlc;
-    vlc_object_t *obj;
-    vlc_fourcc_t codec;
+    libheimdall_instance_t *heimdall;
+    heimdall_object_t *obj;
+    heimdall_fourcc_t codec;
     unsigned i_rate_num;
     unsigned i_rate_den;
     unsigned i_read_size;
@@ -63,16 +64,16 @@ static void delete_packetizer(decoder_t *p_pack)
     es_format_Clean(&owner->fmt_in);
     es_format_Clean(&p_pack->fmt_out);
     if(p_pack->p_description)
-        vlc_meta_Delete(p_pack->p_description);
-    vlc_object_delete(p_pack);
+        heimdall_meta_Delete(p_pack->p_description);
+    heimdall_object_delete(p_pack);
 }
 
-static decoder_t *create_packetizer(libvlc_instance_t *vlc,
+static decoder_t *create_packetizer(libheimdall_instance_t *heimdall,
                                     unsigned num, unsigned den,
-                                    vlc_fourcc_t codec)
+                                    heimdall_fourcc_t codec)
 {
     struct packetizer_owner *owner;
-    owner = vlc_object_create(vlc->p_libvlc_int, sizeof(*owner));
+    owner = heimdall_object_create(heimdall->p_libheimdall_int, sizeof(*owner));
     if(!owner)
         return NULL;
     decoder_t *p_pack = &owner->packetizer;
@@ -96,13 +97,13 @@ static int test_packetize(const char *run,
                           const uint8_t *p_data, size_t i_data,
                           const struct params_s *params)
 {
-    decoder_t *p = create_packetizer(params->vlc,
+    decoder_t *p = create_packetizer(params->heimdall,
                                      params->i_rate_num,
                                      params->i_rate_den,
                                      params->codec);
     EXPECT(p != NULL);
 
-    stream_t *s = vlc_stream_MemoryNew(params->obj,
+    stream_t *s = heimdall_stream_MemoryNew(params->obj,
                                        (uint8_t *)p_data, i_data, true);
     EXPECT(s != NULL);
     block_t *outchain = NULL;
@@ -111,10 +112,10 @@ static int test_packetize(const char *run,
     unsigned i_count = 0;
     do
     {
-        p_block = vlc_stream_Block(s, params->i_read_size);
+        p_block = heimdall_stream_Block(s, params->i_read_size);
         block_t *in = p_block;
         if(in && outchain == NULL)
-            in->i_dts = VLC_TICK_0;
+            in->i_dts = HEIMDALL_TICK_0;
         block_t *out;
         do
         {
@@ -151,7 +152,7 @@ static int test_packetize(const char *run,
 
     delete_packetizer(p);
 
-    vlc_stream_Delete(s);
+    heimdall_stream_Delete(s);
 
     return OK;
 }

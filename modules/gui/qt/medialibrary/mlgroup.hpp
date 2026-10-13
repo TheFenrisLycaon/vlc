@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Benjamin Arnaud <bunjee@omega.gg>
  *
@@ -30,17 +31,17 @@
 
 #include <QDateTime>
 
-class VLCDuration;
+class HeimdallDuration;
 
 class MLGroup : public MLItem
 {
 public:
-    MLGroup(const vlc_ml_group_t * data);
+    MLGroup(const heimdall_ml_group_t * data);
 
 public: // Interface
     QString getTitle() const;
 
-    VLCDuration getDuration() const;
+    HeimdallDuration getDuration() const;
 
     QDateTime getDate() const;
 

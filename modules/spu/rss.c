@@ -1,10 +1,11 @@
 /*****************************************************************************
- * rss.c : rss/atom feed display video plugin for vlc
+ * rss.c : rss/atom feed display video plugin for heimdall
  *****************************************************************************
  * Copyright (C) 2003-2006 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Antoine Cellerier <dionoea -at- videolan -dot- org>
- *          Rémi Duraffort <ivoire -at- videolan -dot- org>
+ * Authors: Antoine Cellerier <dionoea -at- lycaria -dot- org>
+ *          Rémi Duraffort <ivoire -at- lycaria -dot- org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -38,23 +39,23 @@
 
 #include "common.h"
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_subpicture.h>
-#include <vlc_block.h>
-#include <vlc_stream.h>
-#include <vlc_xml.h>
-#include <vlc_charset.h>
-#include <vlc_image.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_subpicture.h>
+#include <heimdall_block.h>
+#include <heimdall_stream.h>
+#include <heimdall_xml.h>
+#include <heimdall_charset.h>
+#include <heimdall_image.h>
 
 /*****************************************************************************
  * Local prototypes
  *****************************************************************************/
 static int  CreateFilter ( filter_t * );
 static void DestroyFilter( filter_t * );
-static subpicture_t *Filter( filter_t *, vlc_tick_t );
+static subpicture_t *Filter( filter_t *, heimdall_tick_t );
 
 static struct rss_feed_t *FetchRSS( filter_t * );
 static void FreeRSS( struct rss_feed_t *, int );
@@ -102,21 +103,21 @@ typedef struct rss_feed_t
 
 typedef struct
 {
-    vlc_mutex_t lock;
-    vlc_timer_t timer;  /* Timer to refresh the rss feeds */
+    heimdall_mutex_t lock;
+    heimdall_timer_t timer;  /* Timer to refresh the rss feeds */
     bool b_fetched;
 
     int i_xoff, i_yoff; /* positioning offsets */
     int i_pos; /* positioning: absolute, or relative location (top, bottom, left, right, center) */
 
-    vlc_tick_t i_speed;
+    heimdall_tick_t i_speed;
     int i_length;
 
     char *psz_marquee;    /* marquee string */
 
     text_style_t *p_style; /* font control */
 
-    vlc_tick_t last_date;
+    heimdall_tick_t last_date;
 
     int i_feeds;
     rss_feed_t *p_feeds;
@@ -172,7 +173,7 @@ static const char *const ppsz_title_modes[] =
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( N_("RSS / Atom") )
     set_help(RSS_HELP)
     set_callback_sub_source( CreateFilter, 1 )
@@ -204,7 +205,7 @@ vlc_module_begin ()
 
     set_description( N_("RSS and Atom feed display") )
     add_shortcut( "rss", "atom" )
-vlc_module_end ()
+heimdall_module_end ()
 
 static const char *const ppsz_filter_options[] = {
     "urls", "x", "y", "position", "opacity", "color", "size", "speed", "length",
@@ -220,7 +221,7 @@ static void InitCurrentContext(filter_sys_t *p_sys)
     p_sys->i_cur_char = -1;
 }
 
-static const struct vlc_filter_operations filter_ops = {
+static const struct heimdall_filter_operations filter_ops = {
     .source_sub = Filter, .close = DestroyFilter,
 };
 
@@ -236,7 +237,7 @@ static int CreateFilter( filter_t *p_filter )
     /* Allocate structure */
     p_sys = p_filter->p_sys = malloc( sizeof( filter_sys_t ) );
     if( p_sys == NULL )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     config_ChainParse( p_filter, CFG_PREFIX, ppsz_filter_options,
                        p_filter->p_cfg );
@@ -247,7 +248,7 @@ static int CreateFilter( filter_t *p_filter )
     {
         msg_Err( p_filter, "The list of urls must not be empty" );
         free( p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Fill the p_sys structure with the configuration */
@@ -255,7 +256,7 @@ static int CreateFilter( filter_t *p_filter )
     InitCurrentContext(p_sys);
     p_sys->i_feeds = 0;
     p_sys->p_feeds = NULL;
-    p_sys->i_speed = VLC_TICK_FROM_US( var_CreateGetInteger( p_filter, CFG_PREFIX "speed" ) );
+    p_sys->i_speed = HEIMDALL_TICK_FROM_US( var_CreateGetInteger( p_filter, CFG_PREFIX "speed" ) );
     p_sys->i_length = var_CreateGetInteger( p_filter, CFG_PREFIX "length" );
     p_sys->b_images = var_CreateGetBool( p_filter, CFG_PREFIX "images" );
 
@@ -266,7 +267,7 @@ static int CreateFilter( filter_t *p_filter )
     {
         free( psz_urls );
         free( p_sys );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
     p_sys->psz_marquee[p_sys->i_length] = '\0';
 
@@ -293,18 +294,18 @@ static int CreateFilter( filter_t *p_filter )
         goto error;
 
     /* Misc init */
-    vlc_mutex_init( &p_sys->lock );
+    heimdall_mutex_init( &p_sys->lock );
     p_filter->ops = &filter_ops;
-    p_sys->last_date = (vlc_tick_t)0;
+    p_sys->last_date = (heimdall_tick_t)0;
     p_sys->b_fetched = false;
 
     /* Create and arm the timer */
-    if( vlc_timer_create( &p_sys->timer, Fetch, p_filter ) )
+    if( heimdall_timer_create( &p_sys->timer, Fetch, p_filter ) )
         goto error;
-    vlc_timer_schedule_asap( p_sys->timer, vlc_tick_from_sec(i_ttl) );
+    heimdall_timer_schedule_asap( p_sys->timer, heimdall_tick_from_sec(i_ttl) );
 
     free( psz_urls );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     if( p_sys->p_style )
@@ -312,7 +313,7 @@ error:
     free( p_sys->psz_marquee );
     free( psz_urls );
     free( p_sys );
-    return VLC_ENOMEM;
+    return HEIMDALL_ENOMEM;
 }
 /*****************************************************************************
  * DestroyFilter: destroy RSS video filter
@@ -321,7 +322,7 @@ static void DestroyFilter( filter_t *p_filter )
 {
     filter_sys_t *p_sys = p_filter->p_sys;
 
-    vlc_timer_destroy( p_sys->timer );
+    heimdall_timer_destroy( p_sys->timer );
 
     text_style_Delete( p_sys->p_style );
     free( p_sys->psz_marquee );
@@ -339,7 +340,7 @@ static void switchToNextFeed(filter_sys_t *p_sys)
  ****************************************************************************
  * This function outputs subpictures at regular time intervals.
  ****************************************************************************/
-static subpicture_t *Filter( filter_t *p_filter, vlc_tick_t date )
+static subpicture_t *Filter( filter_t *p_filter, heimdall_tick_t date )
 {
     filter_sys_t *p_sys = p_filter->p_sys;
     subpicture_t *p_spu;
@@ -347,12 +348,12 @@ static subpicture_t *Filter( filter_t *p_filter, vlc_tick_t date )
     int i_item;
     rss_feed_t *p_feed;
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
 
     /* Check if the feeds have been fetched and that we have some feeds */
     if( !p_sys->b_fetched && p_sys->i_feeds > 0 )
     {
-        vlc_mutex_unlock( &p_sys->lock );
+        heimdall_mutex_unlock( &p_sys->lock );
         return NULL;
     }
 
@@ -361,7 +362,7 @@ static subpicture_t *Filter( filter_t *p_filter, vlc_tick_t date )
     if (p_sys->p_feeds[p_sys->i_cur_feed].i_items == 0)
     {
         switchToNextFeed(p_sys);
-        vlc_mutex_unlock( &p_sys->lock );
+        heimdall_mutex_unlock( &p_sys->lock );
         return NULL;
     }
 
@@ -371,7 +372,7 @@ static subpicture_t *Filter( filter_t *p_filter, vlc_tick_t date )
            /* ( ... ? 5 : 1 ) means "wait 5 times more for the 1st char" */
        * p_sys->i_speed > date )
     {
-        vlc_mutex_unlock( &p_sys->lock );
+        heimdall_mutex_unlock( &p_sys->lock );
         return NULL;
     }
 
@@ -397,7 +398,7 @@ static subpicture_t *Filter( filter_t *p_filter, vlc_tick_t date )
     p_spu = filter_NewSubpicture( p_filter );
     if( !p_spu )
     {
-        vlc_mutex_unlock( &p_sys->lock );
+        heimdall_mutex_unlock( &p_sys->lock );
         return NULL;
     }
 
@@ -405,10 +406,10 @@ static subpicture_t *Filter( filter_t *p_filter, vlc_tick_t date )
     if( !region )
     {
         subpicture_Delete( p_spu );
-        vlc_mutex_unlock( &p_sys->lock );
+        heimdall_mutex_unlock( &p_sys->lock );
         return NULL;
     }
-    vlc_spu_regions_push( &p_spu->regions, region );
+    heimdall_spu_regions_push( &p_spu->regions, region );
 
     /* Generate the string that will be displayed. This string is supposed to
        be p_sys->i_length characters long. */
@@ -476,7 +477,7 @@ static subpicture_t *Filter( filter_t *p_filter, vlc_tick_t date )
     if( p_sys->p_style->i_font_size > 0 )
         region->fmt.i_visible_height = p_sys->p_style->i_font_size;
     p_spu->i_start = date;
-    p_spu->i_stop  = VLC_TICK_INVALID;
+    p_spu->i_stop  = HEIMDALL_TICK_INVALID;
     p_spu->b_ephemer = true;
 
     /*  where to locate the string: */
@@ -505,14 +506,14 @@ static subpicture_t *Filter( filter_t *p_filter, vlc_tick_t date )
         {
             p_region->i_x = region->i_x;
             p_region->i_y = region->i_y;
-            vlc_spu_regions_push( &p_spu->regions, p_region );
+            heimdall_spu_regions_push( &p_spu->regions, p_region );
 
             /* Offset text to display right next to the image */
             region->i_x += p_pic->format.i_visible_width;
         }
     }
 
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
     return p_spu;
 }
 
@@ -534,7 +535,7 @@ static picture_t *LoadPicture( filter_t *p_filter, const char *psz_url )
     picture_t *p_pic = NULL;
     image_handler_t *p_handler = image_HandlerCreate( p_filter );
 
-    video_format_Init( &fmt_out, VLC_CODEC_YUVA );
+    video_format_Init( &fmt_out, HEIMDALL_CODEC_YUVA );
 
     p_orig = image_ReadUrl( p_handler, psz_url, &fmt_out );
 
@@ -618,9 +619,9 @@ static int ParseUrls( filter_t *p_filter, char *psz_urls )
     }
 
     /* Allocate the structure */
-    p_sys->p_feeds = vlc_alloc( p_sys->i_feeds, sizeof( rss_feed_t ) );
+    p_sys->p_feeds = heimdall_alloc( p_sys->i_feeds, sizeof( rss_feed_t ) );
     if( !p_sys->p_feeds )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     /* Loop on all urls and fill in the struct */
     psz_urls = psz_urls2;
@@ -649,7 +650,7 @@ static int ParseUrls( filter_t *p_filter, char *psz_urls )
         psz_urls = psz_end + 1;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 
@@ -660,7 +661,7 @@ static int ParseUrls( filter_t *p_filter, char *psz_urls )
 static bool ParseFeed( filter_t *p_filter, xml_reader_t *p_xml_reader,
                       rss_feed_t *p_feed )
 {
-    VLC_UNUSED(p_filter);
+    HEIMDALL_UNUSED(p_filter);
     const char *node;
     char *psz_eltname = NULL;
 
@@ -872,7 +873,7 @@ static rss_feed_t* FetchRSS( filter_t *p_filter )
     bool b_images = p_sys->b_images;
 
     /* Allocate a new structure */
-    rss_feed_t *p_feeds = vlc_alloc( i_feeds, sizeof( rss_feed_t ) );
+    rss_feed_t *p_feeds = heimdall_alloc( i_feeds, sizeof( rss_feed_t ) );
     if( !p_feeds )
         return NULL;
 
@@ -896,7 +897,7 @@ static rss_feed_t* FetchRSS( filter_t *p_filter )
         /* Fetch the feed */
         msg_Dbg( p_filter, "opening %s RSS/Atom feed ...", p_feed->psz_url );
 
-        p_stream = vlc_stream_NewURL( p_filter, p_feed->psz_url );
+        p_stream = heimdall_stream_NewURL( p_filter, p_feed->psz_url );
         if( !p_stream )
         {
             msg_Err( p_filter, "Failed to open %s for reading", p_feed->psz_url );
@@ -923,7 +924,7 @@ static rss_feed_t* FetchRSS( filter_t *p_filter )
 
         msg_Dbg( p_filter, "done with %s RSS/Atom feed", p_feed->psz_url );
         xml_ReaderDelete( p_xml_reader );
-        vlc_stream_Delete( p_stream );
+        heimdall_stream_Delete( p_stream );
     }
 
     return p_feeds;
@@ -933,7 +934,7 @@ error:
     if( p_xml_reader )
         xml_ReaderDelete( p_xml_reader );
     if( p_stream )
-        vlc_stream_Delete( p_stream );
+        heimdall_stream_Delete( p_stream );
 
     return NULL;
 }
@@ -982,13 +983,13 @@ static void Fetch( void *p_data )
 
     rss_feed_t *p_old_feeds = p_sys->p_feeds;
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     /* Update the feeds */
     p_sys->p_feeds = p_feeds;
     p_sys->b_fetched = true;
     /* Set all current info to the original values */
     InitCurrentContext(p_sys);
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 
     if( p_old_feeds )
         FreeRSS( p_old_feeds, p_sys->i_feeds );

@@ -2,6 +2,7 @@
  * x11_timer.cpp
  *****************************************************************************
  * Copyright (C) 2003 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cyril Deguet     <asmax@via.ecp.fr>
  *          Olivier Teulière <ipkiss@via.ecp.fr>
@@ -48,9 +49,9 @@ X11Timer::~X11Timer()
 
 void X11Timer::start( int delay, bool oneShot )
 {
-    m_interval = 1000LL * (vlc_tick_t)delay;
+    m_interval = 1000LL * (heimdall_tick_t)delay;
     m_oneShot = oneShot;
-    m_nextDate = vlc_tick_now() + m_interval;
+    m_nextDate = heimdall_tick_now() + m_interval;
     m_pTimerLoop->addTimer( *this );
 }
 
@@ -61,7 +62,7 @@ void X11Timer::stop()
 }
 
 
-vlc_tick_t X11Timer::getNextDate() const
+heimdall_tick_t X11Timer::getNextDate() const
 {
     return m_nextDate;
 }
@@ -102,8 +103,8 @@ void X11TimerLoop::removeTimer( X11Timer &rTimer )
 
 void X11TimerLoop::waitNextTimer()
 {
-    vlc_tick_t curDate = vlc_tick_now();
-    vlc_tick_t nextDate = VLC_TICK_MAX;
+    heimdall_tick_t curDate = heimdall_tick_now();
+    heimdall_tick_t nextDate = HEIMDALL_TICK_MAX;
 
     X11Timer *nextTimer = NULL;
 
@@ -111,7 +112,7 @@ void X11TimerLoop::waitNextTimer()
     std::list<X11Timer*>::const_iterator timer;
     for( timer = m_timers.begin(); timer != m_timers.end(); ++timer )
     {
-        vlc_tick_t timerDate = (*timer)->getNextDate();
+        heimdall_tick_t timerDate = (*timer)->getNextDate();
         if( timerDate < nextDate )
         {
             nextTimer = *timer;
@@ -127,7 +128,7 @@ void X11TimerLoop::waitNextTimer()
     {
         if( nextDate > curDate )
         {
-            if( this->sleep( MS_FROM_VLC_TICK(nextDate - curDate ) ) )
+            if( this->sleep( MS_FROM_HEIMDALL_TICK(nextDate - curDate ) ) )
             {
                 // The sleep has been interrupted: stop here
                 return;

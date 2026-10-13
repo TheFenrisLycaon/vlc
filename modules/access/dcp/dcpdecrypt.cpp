@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2013 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author:
  *          Simona-Marinela Prodea <simona dot marinela dot prodea at gmail dot com>
@@ -34,11 +35,11 @@
 # include "config.h"
 #endif
 
-/* VLC core API headers */
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_xml.h>
-#include <vlc_strings.h>
+/* Heimdall core API headers */
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_xml.h>
+#include <heimdall_strings.h>
 
 #include <fstream>
 #include <algorithm>
@@ -94,7 +95,7 @@ int KDM::Parse()
     if( this->OpenXml() )
     {
         msg_Err( p_demux, "failed to initialize KDM XML parser" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     msg_Dbg( this->p_demux, "parsing KDM..." );
@@ -128,10 +129,10 @@ int KDM::Parse()
 
     /* close KDM XML */
     this->CloseXml();
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 error:
     this->CloseXml();
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 int KDM::ParsePrivate( const string _s_node, int _i_type )
@@ -156,18 +157,18 @@ int KDM::ParsePrivate( const string _s_node, int _i_type )
                     goto error;
                 p_key = new (nothrow) AESKey( this->p_demux );
                 if( unlikely( p_key == NULL ) )
-                    return VLC_EGENERIC;
+                    return HEIMDALL_EGENERIC;
                 if( p_key->Parse( p_xmlReader, s_node, i_type ) )
                 {
                     delete p_key;
-                    return VLC_EGENERIC;
+                    return HEIMDALL_EGENERIC;
                 }
                 p_dcp->p_key_list->push_back( p_key );
                 break;
 
             case XML_READER_ENDELEM:
                 if( s_node == _s_node )
-                    return VLC_SUCCESS;
+                    return HEIMDALL_SUCCESS;
                 break;
             default:
             case XML_READER_TEXT:
@@ -178,7 +179,7 @@ int KDM::ParsePrivate( const string _s_node, int _i_type )
     /* shouldn't get here */
 error:
     msg_Err( p_demux, "error while parsing AuthenticatedPrivate portion of KDM" );
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /*
@@ -206,12 +207,12 @@ int AESKey::Parse( xml_reader_t *p_xml_reader, string _s_node, int _i_type)
                     if( XmlFile::ReadEndNode( this->p_demux, p_xml_reader, s_node, i_type, s_value ) )
                         goto error;
                     if( this->decryptRSA( s_value ) )
-                        return VLC_EGENERIC;
+                        return HEIMDALL_EGENERIC;
                 }
                 break;
             case XML_READER_ENDELEM:
                 if( s_node == _s_node )
-                    return VLC_SUCCESS;
+                    return HEIMDALL_SUCCESS;
                 break;
             default:
             case XML_READER_TEXT:
@@ -222,7 +223,7 @@ int AESKey::Parse( xml_reader_t *p_xml_reader, string _s_node, int _i_type)
     /* shouldn't get here */
 error:
     msg_Err( this->p_demux, "error while parsing EncryptedKey" );
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /* decrypts the RSA encrypted text read from the XML file,
@@ -241,7 +242,7 @@ int AESKey::decryptRSA( string s_cipher_text_b64 )
     gcry_sexp_t tmp_sexp = NULL;
     gcry_error_t err;
     size_t length;
-    int i_ret = VLC_EGENERIC;
+    int i_ret = HEIMDALL_EGENERIC;
 
     /* get RSA private key file path */
     if( rsa_key.setPath() )
@@ -266,14 +267,14 @@ int AESKey::decryptRSA( string s_cipher_text_b64 )
     }
 
     /* decode cipher from BASE64 to binary */
-    if( ! ( length = vlc_b64_decode_binary( &ps_cipher_text, s_cipher_text_b64.c_str() ) ) )
+    if( ! ( length = heimdall_b64_decode_binary( &ps_cipher_text, s_cipher_text_b64.c_str() ) ) )
     {
         msg_Err( this->p_demux, "could not decode cipher from Base64" );
         goto end;
     }
 
     /* initialize libgcrypt */
-    vlc_gcrypt_init ();
+    heimdall_gcrypt_init ();
 
     /* create S-expression for ciphertext */
     if( ( err = gcry_mpi_scan( &cipher_text_mpi, GCRYMPI_FMT_USG, ps_cipher_text, 256, NULL ) ) )
@@ -336,7 +337,7 @@ int AESKey::decryptRSA( string s_cipher_text_b64 )
             goto end;
     }
 
-    i_ret = VLC_SUCCESS;
+    i_ret = HEIMDALL_SUCCESS;
 
 end:
     free( ps_cipher_text );
@@ -368,7 +369,7 @@ int AESKey::extractInfo( unsigned char * ps_plain_text, bool smpte )
         if( i_ret != 2 )
         {
             msg_Err( this->p_demux, "error while extracting structure ID from decrypted cipher" );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
         try
         {
@@ -377,14 +378,14 @@ int AESKey::extractInfo( unsigned char * ps_plain_text, bool smpte )
         catch( ... )
         {
             msg_Err( this->p_demux, "error while handling string" );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
         i_pos++;
     }
     if( s_carrier.compare( s_rsa_structID ) )
     {
         msg_Err( this->p_demux, "incorrect RSA structure ID: KDM may be broken" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     i_pos += 36;        /* TODO thumbprint, CPL ID */
@@ -395,7 +396,7 @@ int AESKey::extractInfo( unsigned char * ps_plain_text, bool smpte )
     if( ( this->s_key_id = createUUID( ps_plain_text + i_pos ) ).empty() )
     {
         msg_Err( this->p_demux, "error while extracting AES Key UUID" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     i_pos += 16;
 
@@ -404,7 +405,7 @@ int AESKey::extractInfo( unsigned char * ps_plain_text, bool smpte )
     /* extract the AES key */
     memcpy( this->ps_key, ps_plain_text + i_pos, 16 );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 
@@ -413,13 +414,13 @@ int AESKey::extractInfo( unsigned char * ps_plain_text, bool smpte )
  */
 
 /*
- * gets the private key path (always stored in the VLC config dir and called "priv.key" )
+ * gets the private key path (always stored in the Heimdall config dir and called "priv.key" )
  */
 int RSAKey::setPath( )
 {
     char *psz_config_dir = NULL;
 
-    if( ! ( psz_config_dir = config_GetUserDir( VLC_CONFIG_DIR ) ) )
+    if( ! ( psz_config_dir = config_GetUserDir( HEIMDALL_CONFIG_DIR ) ) )
     {
         msg_Err( this->p_demux, "could not read user config dir" );
         goto error;
@@ -436,11 +437,11 @@ int RSAKey::setPath( )
     }
 
     free( psz_config_dir );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     free( psz_config_dir );
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /*
@@ -498,7 +499,7 @@ int RSAKey::readPEM( )
     }
 
     /* decode data from Base64 */
-    if( ! ( length = vlc_b64_decode_binary( &ps_data_der, s_data_b64.c_str() ) ) )
+    if( ! ( length = heimdall_b64_decode_binary( &ps_data_der, s_data_b64.c_str() ) ) )
     {
         msg_Err( this->p_demux, "could not decode from Base64" );
         goto error;
@@ -510,11 +511,11 @@ int RSAKey::readPEM( )
 
     /* clear data */
     free( ps_data_der );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     free( ps_data_der );
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /*
@@ -577,7 +578,7 @@ int RSAKey::readDER( unsigned char const* ps_data_der, size_t length )
     /* clear data */
     for( int i = 0; i < 8; i++ )
         gcry_mpi_release( key_params[i] );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 bad_asn1:
     msg_Err( this->p_demux, "could not parse ASN1 structure; key might be corrupted" );
@@ -585,7 +586,7 @@ bad_asn1:
 error:
     for( int i = 0; i < 8; i++ )
         gcry_mpi_release( key_params[i] );
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /*

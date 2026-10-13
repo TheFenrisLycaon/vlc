@@ -2,6 +2,7 @@
  * h26x_nal_common.h: h26x shared code
  *****************************************************************************
  * Copyright © 2010-2024 VideoLabs, VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -21,7 +22,7 @@
 # define H26X_NAL_COMMON_H
 
 #include <assert.h>
-#include <vlc_common.h>
+#include <heimdall_common.h>
 #include "iso_color_tables.h"
 
 typedef uint8_t  nal_u1_t;
@@ -37,10 +38,10 @@ typedef uint32_t nal_ue_t;
 
 /* look at libavutil av_log2 ;) */
 static inline
-unsigned vlc_log2( unsigned int v )
+unsigned heimdall_log2( unsigned int v )
 {
     unsigned n = 0;
-    static const unsigned vlc_log2_table[16] =
+    static const unsigned heimdall_log2_table[16] =
     {
         0,0,1,1,2,2,2,2, 3,3,3,3,3,3,3,3
     };
@@ -60,7 +61,7 @@ unsigned vlc_log2( unsigned int v )
         v >>= 4;
         n += 4;
     }
-    n += vlc_log2_table[v];
+    n += heimdall_log2_table[v];
 
     return n;
 }
@@ -173,11 +174,11 @@ bool h26x_get_colorimetry( const h26x_colour_description_t *colour,
                            video_color_range_t *p_full_range )
 {
     *p_primaries =
-        iso_23001_8_cp_to_vlc_primaries( colour->colour_primaries );
+        iso_23001_8_cp_to_heimdall_primaries( colour->colour_primaries );
     *p_transfer =
-        iso_23001_8_tc_to_vlc_xfer( colour->transfer_characteristics );
+        iso_23001_8_tc_to_heimdall_xfer( colour->transfer_characteristics );
     *p_colorspace =
-        iso_23001_8_mc_to_vlc_coeffs( colour->matrix_coeffs );
+        iso_23001_8_mc_to_heimdall_coeffs( colour->matrix_coeffs );
     *p_full_range = colour->full_range_flag ? COLOR_RANGE_FULL : COLOR_RANGE_LIMITED;
     return true;
 }

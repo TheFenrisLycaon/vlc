@@ -1,13 +1,14 @@
 /*****************************************************************************
- * video.c: libvlc new API video functions
+ * video.c: libheimdall new API video functions
  *****************************************************************************
  * Copyright (C) 2005-2010 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  *
  * Authors: Clément Stenac <zorglub@videolan.org>
  *          Filippo Carone <littlejohn@videolan.org>
  *          Jean-Paul Saman <jpsaman _at_ m2x _dot_ nl>
- *          Damien Fouilleul <damienf a_t videolan dot org>
+ *          Damien Fouilleul <damienf a_t lycaria dot org>
  *          Alexandre Janniaux <ajanni@videolabs.io>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -29,18 +30,18 @@
 # include "config.h"
 #endif
 
-#include <vlc/libvlc.h>
-#include <vlc/libvlc_renderer_discoverer.h>
-#include <vlc/libvlc_picture.h>
-#include <vlc/libvlc_media.h>
-#include <vlc/libvlc_media_player.h>
+#include <heimdall/libheimdall.h>
+#include <heimdall/libheimdall_renderer_discoverer.h>
+#include <heimdall/libheimdall_picture.h>
+#include <heimdall/libheimdall_media.h>
+#include <heimdall/libheimdall_media_player.h>
 
-#include <vlc_common.h>
-#include <vlc_modules.h>
-#include <vlc_vout.h>
-#include <vlc_url.h>
+#include <heimdall_common.h>
+#include <heimdall_modules.h>
+#include <heimdall_vout.h>
+#include <heimdall_url.h>
 
-#include "libvlc_internal.h"
+#include "libheimdall_internal.h"
 #include "media_player_internal.h"
 #include <math.h>
 #include <assert.h>
@@ -48,13 +49,13 @@
 /*
  * Remember to release the returned vout_thread_t.
  */
-static vout_thread_t **GetVouts( libvlc_media_player_t *p_mi, size_t *n )
+static vout_thread_t **GetVouts( libheimdall_media_player_t *p_mi, size_t *n )
 {
-    vlc_player_t *player = p_mi->player;
-    return vlc_player_vout_HoldAll(player, n);
+    heimdall_player_t *player = p_mi->player;
+    return heimdall_player_vout_HoldAll(player, n);
 }
 
-static vout_thread_t *GetVout (libvlc_media_player_t *mp, size_t num)
+static vout_thread_t *GetVout (libheimdall_media_player_t *mp, size_t num)
 {
     vout_thread_t *p_vout = NULL;
     size_t n;
@@ -72,7 +73,7 @@ static vout_thread_t *GetVout (libvlc_media_player_t *mp, size_t num)
 
     if (p_vout == NULL)
 err:
-        libvlc_printerr ("Video output not active");
+        libheimdall_printerr ("Video output not active");
     return p_vout;
 }
 
@@ -80,7 +81,7 @@ err:
  * Exported functions
  **********************************************************************/
 
-void libvlc_set_fullscreen(libvlc_media_player_t *p_mi, bool b_fullscreen)
+void libheimdall_set_fullscreen(libheimdall_media_player_t *p_mi, bool b_fullscreen)
 {
     /* This will work even if the video is not currently active */
     var_SetBool(p_mi, "fullscreen", b_fullscreen);
@@ -96,12 +97,12 @@ void libvlc_set_fullscreen(libvlc_media_player_t *p_mi, bool b_fullscreen)
     free (pp_vouts);
 }
 
-bool libvlc_get_fullscreen( libvlc_media_player_t *p_mi )
+bool libheimdall_get_fullscreen( libheimdall_media_player_t *p_mi )
 {
     return var_GetBool (p_mi, "fullscreen");
 }
 
-void libvlc_toggle_fullscreen( libvlc_media_player_t *p_mi )
+void libheimdall_toggle_fullscreen( libheimdall_media_player_t *p_mi )
 {
     bool b_fullscreen = var_ToggleBool (p_mi, "fullscreen");
 
@@ -118,18 +119,18 @@ void libvlc_toggle_fullscreen( libvlc_media_player_t *p_mi )
     free (pp_vouts);
 }
 
-void libvlc_video_set_key_input( libvlc_media_player_t *p_mi, unsigned on )
+void libheimdall_video_set_key_input( libheimdall_media_player_t *p_mi, unsigned on )
 {
     var_SetBool (p_mi, "keyboard-events", !!on);
 }
 
-void libvlc_video_set_mouse_input( libvlc_media_player_t *p_mi, unsigned on )
+void libheimdall_video_set_mouse_input( libheimdall_media_player_t *p_mi, unsigned on )
 {
     var_SetBool (p_mi, "mouse-events", !!on);
 }
 
 int
-libvlc_video_take_snapshot( libvlc_media_player_t *p_mi, unsigned num,
+libheimdall_video_take_snapshot( libheimdall_media_player_t *p_mi, unsigned num,
                             const char *psz_filepath,
                             unsigned int i_width, unsigned int i_height )
 {
@@ -140,43 +141,43 @@ libvlc_video_take_snapshot( libvlc_media_player_t *p_mi, unsigned num,
         return -1;
 
     /* FIXME: This is not atomic. All parameters should be passed at once
-     * (obviously _not_ with var_*()). Also, the libvlc object should not be
+     * (obviously _not_ with var_*()). Also, the libheimdall object should not be
      * used for the callbacks: that breaks badly if there are concurrent
      * media players in the instance. */
-    var_Create( p_vout, "snapshot-width", VLC_VAR_INTEGER );
+    var_Create( p_vout, "snapshot-width", HEIMDALL_VAR_INTEGER );
     var_SetInteger( p_vout, "snapshot-width", i_width);
-    var_Create( p_vout, "snapshot-height", VLC_VAR_INTEGER );
+    var_Create( p_vout, "snapshot-height", HEIMDALL_VAR_INTEGER );
     var_SetInteger( p_vout, "snapshot-height", i_height );
-    var_Create( p_vout, "snapshot-path", VLC_VAR_STRING );
+    var_Create( p_vout, "snapshot-path", HEIMDALL_VAR_STRING );
     var_SetString( p_vout, "snapshot-path", psz_filepath );
-    var_Create( p_vout, "snapshot-format", VLC_VAR_STRING );
+    var_Create( p_vout, "snapshot-format", HEIMDALL_VAR_STRING );
     var_SetString( p_vout, "snapshot-format", "png" );
     var_TriggerCallback( p_vout, "video-snapshot" );
     vout_Release(p_vout);
     return 0;
 }
 
-int libvlc_video_get_size( libvlc_media_player_t *p_mi, unsigned ignored,
+int libheimdall_video_get_size( libheimdall_media_player_t *p_mi, unsigned ignored,
                            unsigned *restrict px, unsigned *restrict py )
 {
     (void) ignored;
 
     int ret = -1;
-    libvlc_media_track_t *track =
-        libvlc_media_player_get_selected_track( p_mi, libvlc_track_video );
+    libheimdall_media_track_t *track =
+        libheimdall_media_player_get_selected_track( p_mi, libheimdall_track_video );
 
     if (track)
     {
         *px = track->u.video->i_width;
         *py = track->u.video->i_height;
         ret = 0;
-        libvlc_media_track_release(track);
+        libheimdall_media_track_release(track);
     }
 
     return ret;
 }
 
-int libvlc_video_get_cursor( libvlc_media_player_t *mp, unsigned num,
+int libheimdall_video_get_cursor( libheimdall_media_player_t *mp, unsigned num,
                              int *restrict px, int *restrict py )
 {
     vout_thread_t *p_vout = GetVout (mp, num);
@@ -188,7 +189,7 @@ int libvlc_video_get_cursor( libvlc_media_player_t *mp, unsigned num,
     return 0;
 }
 
-unsigned libvlc_media_player_has_vout( libvlc_media_player_t *p_mi )
+unsigned libheimdall_media_player_has_vout( libheimdall_media_player_t *p_mi )
 {
     size_t n;
     vout_thread_t **pp_vouts = GetVouts (p_mi, &n);
@@ -198,7 +199,7 @@ unsigned libvlc_media_player_has_vout( libvlc_media_player_t *p_mi )
     return n;
 }
 
-float libvlc_video_get_scale( libvlc_media_player_t *mp )
+float libheimdall_video_get_scale( libheimdall_media_player_t *mp )
 {
     float f_scale = var_GetFloat (mp, "zoom");
     if (var_GetBool (mp, "autoscale"))
@@ -206,7 +207,7 @@ float libvlc_video_get_scale( libvlc_media_player_t *mp )
     return f_scale;
 }
 
-void libvlc_video_set_scale( libvlc_media_player_t *p_mp, float f_scale )
+void libheimdall_video_set_scale( libheimdall_media_player_t *p_mp, float f_scale )
 {
     if (isfinite(f_scale) && f_scale != 0.f)
         var_SetFloat (p_mp, "zoom", f_scale);
@@ -227,12 +228,12 @@ void libvlc_video_set_scale( libvlc_media_player_t *p_mp, float f_scale )
     free (pp_vouts);
 }
 
-char *libvlc_video_get_aspect_ratio( libvlc_media_player_t *p_mi )
+char *libheimdall_video_get_aspect_ratio( libheimdall_media_player_t *p_mi )
 {
     return var_GetNonEmptyString (p_mi, "aspect-ratio");
 }
 
-void libvlc_video_set_aspect_ratio( libvlc_media_player_t *p_mi,
+void libheimdall_video_set_aspect_ratio( libheimdall_media_player_t *p_mi,
                                     const char *psz_aspect )
 {
     if (psz_aspect == NULL)
@@ -251,12 +252,12 @@ void libvlc_video_set_aspect_ratio( libvlc_media_player_t *p_mi,
     free (pp_vouts);
 }
 
-libvlc_video_fit_mode_t libvlc_video_get_display_fit( libvlc_media_player_t *p_mi )
+libheimdall_video_fit_mode_t libheimdall_video_get_display_fit( libheimdall_media_player_t *p_mi )
 {
     return var_GetInteger (p_mi, "fit");
 }
 
-void libvlc_video_set_display_fit( libvlc_media_player_t *p_mi, libvlc_video_fit_mode_t fit )
+void libheimdall_video_set_display_fit( libheimdall_media_player_t *p_mi, libheimdall_video_fit_mode_t fit )
 {
     var_SetInteger (p_mi, "fit", fit);
 
@@ -273,53 +274,53 @@ void libvlc_video_set_display_fit( libvlc_media_player_t *p_mi, libvlc_video_fit
 }
 
 
-libvlc_video_viewpoint_t *libvlc_video_new_viewpoint(void)
+libheimdall_video_viewpoint_t *libheimdall_video_new_viewpoint(void)
 {
-    libvlc_video_viewpoint_t *p_vp = malloc(sizeof *p_vp);
+    libheimdall_video_viewpoint_t *p_vp = malloc(sizeof *p_vp);
     if (unlikely(p_vp == NULL))
         return NULL;
     p_vp->f_yaw = p_vp->f_pitch = p_vp->f_roll = p_vp->f_field_of_view = 0.0f;
     return p_vp;
 }
 
-int libvlc_video_update_viewpoint( libvlc_media_player_t *p_mi,
-                                   const libvlc_video_viewpoint_t *p_viewpoint,
+int libheimdall_video_update_viewpoint( libheimdall_media_player_t *p_mi,
+                                   const libheimdall_video_viewpoint_t *p_viewpoint,
                                    bool b_absolute )
 {
-    vlc_viewpoint_t update = { .fov = p_viewpoint->f_field_of_view };
-    vlc_viewpoint_from_euler( &update,
+    heimdall_viewpoint_t update = { .fov = p_viewpoint->f_field_of_view };
+    heimdall_viewpoint_from_euler( &update,
                               p_viewpoint->f_yaw,
                               p_viewpoint->f_pitch,
                               p_viewpoint->f_roll);
 
-    enum vlc_player_whence whence = b_absolute ? VLC_PLAYER_WHENCE_ABSOLUTE
-                                               : VLC_PLAYER_WHENCE_RELATIVE;
+    enum heimdall_player_whence whence = b_absolute ? HEIMDALL_PLAYER_WHENCE_ABSOLUTE
+                                               : HEIMDALL_PLAYER_WHENCE_RELATIVE;
 
-    vlc_player_t *player = p_mi->player;
-    vlc_player_Lock(player);
+    heimdall_player_t *player = p_mi->player;
+    heimdall_player_Lock(player);
 
-    vlc_player_UpdateViewpoint(player, &update, whence);
+    heimdall_player_UpdateViewpoint(player, &update, whence);
 
-    vlc_player_Unlock(player);
+    heimdall_player_Unlock(player);
 
     /* may not fail anymore, keep int not to break the API */
     return 0;
 }
 
-libvlc_video_stereo_mode_t libvlc_video_get_video_stereo_mode(libvlc_media_player_t *p_mi)
+libheimdall_video_stereo_mode_t libheimdall_video_get_video_stereo_mode(libheimdall_media_player_t *p_mi)
 {
-    static_assert( libvlc_VideoStereoAuto       == (int)VIDEO_STEREO_OUTPUT_AUTO &&
-                   libvlc_VideoStereoStereo     == (int)VIDEO_STEREO_OUTPUT_STEREO &&
-                   libvlc_VideoStereoLeftEye    == (int)VIDEO_STEREO_OUTPUT_LEFT_ONLY &&
-                   libvlc_VideoStereoRightEye   == (int)VIDEO_STEREO_OUTPUT_RIGHT_ONLY &&
-                   libvlc_VideoStereoSideBySide == (int)VIDEO_STEREO_OUTPUT_SIDE_BY_SIDE,
+    static_assert( libheimdall_VideoStereoAuto       == (int)VIDEO_STEREO_OUTPUT_AUTO &&
+                   libheimdall_VideoStereoStereo     == (int)VIDEO_STEREO_OUTPUT_STEREO &&
+                   libheimdall_VideoStereoLeftEye    == (int)VIDEO_STEREO_OUTPUT_LEFT_ONLY &&
+                   libheimdall_VideoStereoRightEye   == (int)VIDEO_STEREO_OUTPUT_RIGHT_ONLY &&
+                   libheimdall_VideoStereoSideBySide == (int)VIDEO_STEREO_OUTPUT_SIDE_BY_SIDE,
                    "stereo mode mismatch" );
 
     return var_GetInteger(p_mi, "video-stereo-mode");
 }
 
-void libvlc_video_set_video_stereo_mode(libvlc_media_player_t *p_mi,
-                                       const libvlc_video_stereo_mode_t i_mode)
+void libheimdall_video_set_video_stereo_mode(libheimdall_media_player_t *p_mi,
+                                       const libheimdall_video_stereo_mode_t i_mode)
 {
     /* This will work even if the video is not currently active */
     var_SetInteger(p_mi, "video-stereo-mode", i_mode);
@@ -335,56 +336,56 @@ void libvlc_video_set_video_stereo_mode(libvlc_media_player_t *p_mi,
     free (pp_vouts);
 }
 
-libvlc_time_t libvlc_video_get_spu_delay( libvlc_media_player_t *p_mi )
+libheimdall_time_t libheimdall_video_get_spu_delay( libheimdall_media_player_t *p_mi )
 {
-    vlc_player_t *player = p_mi->player;
-    vlc_player_Lock(player);
+    heimdall_player_t *player = p_mi->player;
+    heimdall_player_Lock(player);
 
-    vlc_tick_t delay = vlc_player_GetSubtitleDelay(player);
+    heimdall_tick_t delay = heimdall_player_GetSubtitleDelay(player);
 
-    vlc_player_Unlock(player);
+    heimdall_player_Unlock(player);
 
-    return US_FROM_VLC_TICK(delay);
+    return US_FROM_HEIMDALL_TICK(delay);
 }
 
-int libvlc_video_set_spu_delay( libvlc_media_player_t *p_mi,
-                                libvlc_time_t i_delay )
+int libheimdall_video_set_spu_delay( libheimdall_media_player_t *p_mi,
+                                libheimdall_time_t i_delay )
 {
-    vlc_player_t *player = p_mi->player;
-    vlc_player_Lock(player);
+    heimdall_player_t *player = p_mi->player;
+    heimdall_player_Lock(player);
 
-    vlc_player_SetSubtitleDelay(player, VLC_TICK_FROM_US(i_delay),
-                                VLC_PLAYER_WHENCE_ABSOLUTE);
+    heimdall_player_SetSubtitleDelay(player, HEIMDALL_TICK_FROM_US(i_delay),
+                                HEIMDALL_PLAYER_WHENCE_ABSOLUTE);
 
-    vlc_player_Unlock(player);
+    heimdall_player_Unlock(player);
     /* may not fail anymore, keep int not to break the API */
     return 0;
 }
 
-float libvlc_video_get_spu_text_scale( libvlc_media_player_t *p_mi )
+float libheimdall_video_get_spu_text_scale( libheimdall_media_player_t *p_mi )
 {
-    vlc_player_t *player = p_mi->player;
-    vlc_player_Lock(player);
+    heimdall_player_t *player = p_mi->player;
+    heimdall_player_Lock(player);
 
-    unsigned scale = vlc_player_GetSubtitleTextScale(player);
+    unsigned scale = heimdall_player_GetSubtitleTextScale(player);
 
-    vlc_player_Unlock(player);
+    heimdall_player_Unlock(player);
 
     return scale / 100.f;
 }
 
-void libvlc_video_set_spu_text_scale( libvlc_media_player_t *p_mi,
+void libheimdall_video_set_spu_text_scale( libheimdall_media_player_t *p_mi,
                                       float f_scale )
 {
-    vlc_player_t *player = p_mi->player;
-    vlc_player_Lock(player);
+    heimdall_player_t *player = p_mi->player;
+    heimdall_player_Lock(player);
 
-    vlc_player_SetSubtitleTextScale(player, lroundf(f_scale * 100.f));
+    heimdall_player_SetSubtitleTextScale(player, lroundf(f_scale * 100.f));
 
-    vlc_player_Unlock(player);
+    heimdall_player_Unlock(player);
 }
 
-static void libvlc_video_set_crop(libvlc_media_player_t *mp,
+static void libheimdall_video_set_crop(libheimdall_media_player_t *mp,
                                   const char *geometry)
 {
     var_SetString(mp, "crop", geometry);
@@ -400,7 +401,7 @@ static void libvlc_video_set_crop(libvlc_media_player_t *mp,
     free(vouts);
 }
 
-void libvlc_video_set_crop_ratio(libvlc_media_player_t *mp,
+void libheimdall_video_set_crop_ratio(libheimdall_media_player_t *mp,
                                  unsigned num, unsigned den)
 {
     char geometry[2 * (3 * sizeof (unsigned) + 1)];
@@ -410,10 +411,10 @@ void libvlc_video_set_crop_ratio(libvlc_media_player_t *mp,
     else
         snprintf(geometry, ARRAY_SIZE(geometry), "%u:%u", num, den);
 
-    libvlc_video_set_crop(mp, geometry);
+    libheimdall_video_set_crop(mp, geometry);
 }
 
-void libvlc_video_set_crop_window(libvlc_media_player_t *mp,
+void libheimdall_video_set_crop_window(libheimdall_media_player_t *mp,
                                   unsigned x, unsigned y,
                                   unsigned width, unsigned height)
 {
@@ -421,86 +422,86 @@ void libvlc_video_set_crop_window(libvlc_media_player_t *mp,
 
     assert(width != 0 && height != 0);
     snprintf(geometry, ARRAY_SIZE(geometry), "%ux%u+%u+%u", width, height, x, y);
-    libvlc_video_set_crop(mp, geometry);
+    libheimdall_video_set_crop(mp, geometry);
 }
 
-void libvlc_video_set_crop_border(libvlc_media_player_t *mp,
+void libheimdall_video_set_crop_border(libheimdall_media_player_t *mp,
                                   unsigned left, unsigned right,
                                   unsigned top, unsigned bottom)
 {
     char geometry[4 * (3 * sizeof (unsigned) + 1)];
 
     snprintf(geometry, ARRAY_SIZE(geometry), "%u+%u+%u+%u", left, top, right, bottom);
-    libvlc_video_set_crop(mp, geometry);
+    libheimdall_video_set_crop(mp, geometry);
 }
 
-int libvlc_video_get_teletext( libvlc_media_player_t *p_mi )
+int libheimdall_video_get_teletext( libheimdall_media_player_t *p_mi )
 {
     return var_GetInteger (p_mi, "vbi-page");
 }
 
-void libvlc_video_set_teletext( libvlc_media_player_t *p_mi, int i_page )
+void libheimdall_video_set_teletext( libheimdall_media_player_t *p_mi, int i_page )
 {
-    vlc_player_t *player = p_mi->player;
-    vlc_player_Lock(player);
+    heimdall_player_t *player = p_mi->player;
+    heimdall_player_Lock(player);
 
     if (i_page == 0)
-        vlc_player_SetTeletextEnabled(player, false);
+        heimdall_player_SetTeletextEnabled(player, false);
     else if (i_page > 0)
     {
         if (i_page >= 1000)
         {
-            bool is_key = i_page == libvlc_teletext_key_red
-                       || i_page == libvlc_teletext_key_green
-                       || i_page == libvlc_teletext_key_yellow
-                       || i_page == libvlc_teletext_key_blue
-                       || i_page == libvlc_teletext_key_index;
+            bool is_key = i_page == libheimdall_teletext_key_red
+                       || i_page == libheimdall_teletext_key_green
+                       || i_page == libheimdall_teletext_key_yellow
+                       || i_page == libheimdall_teletext_key_blue
+                       || i_page == libheimdall_teletext_key_index;
             if (!is_key)
             {
-                libvlc_printerr("Invalid key action");
-                vlc_player_Unlock(player);
+                libheimdall_printerr("Invalid key action");
+                heimdall_player_Unlock(player);
                 return;
             }
         }
-        vlc_player_SetTeletextEnabled(player, true);
-        vlc_player_SelectTeletextPage(player, i_page);
+        heimdall_player_SetTeletextEnabled(player, true);
+        heimdall_player_SelectTeletextPage(player, i_page);
     }
     else
     {
-        libvlc_printerr("Invalid page number");
-        vlc_player_Unlock(player);
+        libheimdall_printerr("Invalid page number");
+        heimdall_player_Unlock(player);
         return;
     }
 
-    vlc_player_Unlock(player);
+    heimdall_player_Unlock(player);
 }
 
-void libvlc_video_set_teletext_transparency( libvlc_media_player_t *p_mi, bool transparent )
+void libheimdall_video_set_teletext_transparency( libheimdall_media_player_t *p_mi, bool transparent )
 {
-    vlc_player_t *player = p_mi->player;
-    vlc_player_Lock(player);
+    heimdall_player_t *player = p_mi->player;
+    heimdall_player_Lock(player);
 
-    vlc_player_SetTeletextTransparency(player, transparent);
+    heimdall_player_SetTeletextTransparency(player, transparent);
 
-    vlc_player_Unlock(player);
+    heimdall_player_Unlock(player);
 }
 
-bool libvlc_video_get_teletext_transparency( libvlc_media_player_t *p_mi )
+bool libheimdall_video_get_teletext_transparency( libheimdall_media_player_t *p_mi )
 {
-    vlc_player_t *player = p_mi->player;
-    vlc_player_Lock(player);
+    heimdall_player_t *player = p_mi->player;
+    heimdall_player_Lock(player);
 
-    bool transparent = vlc_player_IsTeletextTransparent(player);
+    bool transparent = heimdall_player_IsTeletextTransparent(player);
 
-    vlc_player_Unlock(player);
+    heimdall_player_Unlock(player);
 
     return transparent;
 }
 
 /******************************************************************************
- * libvlc_video_set_deinterlace : enable/disable/auto deinterlace and filter
+ * libheimdall_video_set_deinterlace : enable/disable/auto deinterlace and filter
  *****************************************************************************/
-int libvlc_video_set_deinterlace( libvlc_media_player_t *p_mi, int deinterlace,
+int libheimdall_video_set_deinterlace( libheimdall_media_player_t *p_mi, int deinterlace,
                                   const char *psz_mode )
 {
     if (deinterlace != 0 && deinterlace != 1)
@@ -536,7 +537,7 @@ int libvlc_video_set_deinterlace( libvlc_media_player_t *p_mi, int deinterlace,
     return 0;
 }
 
-int libvlc_video_get_deinterlace(libvlc_media_player_t *mp, char **modep)
+int libheimdall_video_get_deinterlace(libheimdall_media_player_t *mp, char **modep)
 {
     int tristate = var_GetInteger(mp, "deinterlace");
 
@@ -554,7 +555,7 @@ int libvlc_video_get_deinterlace(libvlc_media_player_t *mp, char **modep)
 /* module helpers */
 /* ************** */
 
-static int get_filter_str( vlc_object_t *p_parent, const char *psz_name,
+static int get_filter_str( heimdall_object_t *p_parent, const char *psz_name,
                            bool b_add, const char **ppsz_filter_type,
                            char **ppsz_filter_value)
 {
@@ -566,7 +567,7 @@ static int get_filter_str( vlc_object_t *p_parent, const char *psz_name,
     if( !p_obj )
     {
         msg_Err( p_parent, "Unable to find filter module \"%s\".", psz_name );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( module_provides( p_obj, "video filter" ) )
@@ -584,7 +585,7 @@ static int get_filter_str( vlc_object_t *p_parent, const char *psz_name,
     else
     {
         msg_Err( p_parent, "Unknown video filter type." );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     psz_string = var_GetString( p_parent, psz_filter_type );
@@ -602,14 +603,14 @@ static int get_filter_str( vlc_object_t *p_parent, const char *psz_name,
                           psz_string, psz_name ) == -1 )
             {
                 free( psz_parser );
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             }
             free( psz_parser );
         }
         else
         {
             free( psz_string );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
     else
@@ -627,16 +628,16 @@ static int get_filter_str( vlc_object_t *p_parent, const char *psz_name,
         else
         {
             free( psz_string );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
 
     *ppsz_filter_type = psz_filter_type;
     *ppsz_filter_value = psz_string;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static bool find_sub_source_by_name( libvlc_media_player_t *p_mi, const char *restrict name )
+static bool find_sub_source_by_name( libheimdall_media_player_t *p_mi, const char *restrict name )
 {
     vout_thread_t *vout = GetVout( p_mi, 0 );
     if (!vout)
@@ -645,7 +646,7 @@ static bool find_sub_source_by_name( libvlc_media_player_t *p_mi, const char *re
     char *psz_sources = var_GetString( vout, "sub-source" );
     if( !psz_sources )
     {
-        libvlc_printerr( "%s not enabled", name );
+        libheimdall_printerr( "%s not enabled", name );
         vout_Release(vout);
         return false;
     }
@@ -663,37 +664,37 @@ typedef const struct {
 } opt_t;
 
 static void
-set_value( libvlc_media_player_t *p_mi, const char *restrict name,
+set_value( libheimdall_media_player_t *p_mi, const char *restrict name,
            const opt_t *restrict opt, unsigned i_expected_type,
-           const vlc_value_t *val, bool b_sub_source )
+           const heimdall_value_t *val, bool b_sub_source )
 {
     if( !opt ) return;
 
     int i_type = opt->type;
-    vlc_value_t new_val = *val;
+    heimdall_value_t new_val = *val;
     const char *psz_opt_name = opt->name;
     switch( i_type )
     {
         case 0: /* the enabler */
         {
-            int i_ret = get_filter_str( VLC_OBJECT( p_mi ), opt->name, val->i_int,
+            int i_ret = get_filter_str( HEIMDALL_OBJECT( p_mi ), opt->name, val->i_int,
                                         &psz_opt_name, &new_val.psz_string );
-            if( i_ret != VLC_SUCCESS )
+            if( i_ret != HEIMDALL_SUCCESS )
                 return;
-            i_type = VLC_VAR_STRING;
+            i_type = HEIMDALL_VAR_STRING;
             break;
         }
-        case VLC_VAR_INTEGER:
-        case VLC_VAR_FLOAT:
-        case VLC_VAR_STRING:
+        case HEIMDALL_VAR_INTEGER:
+        case HEIMDALL_VAR_FLOAT:
+        case HEIMDALL_VAR_STRING:
             if( i_expected_type != opt->type )
             {
-                libvlc_printerr( "Invalid argument to %s", name );
+                libheimdall_printerr( "Invalid argument to %s", name );
                 return;
             }
             break;
         default:
-            libvlc_printerr( "Invalid argument to %s", name );
+            libheimdall_printerr( "Invalid argument to %s", name );
             return;
     }
 
@@ -718,7 +719,7 @@ set_value( libvlc_media_player_t *p_mi, const char *restrict name,
 }
 
 static int
-get_int( libvlc_media_player_t *p_mi, const char *restrict name,
+get_int( libheimdall_media_player_t *p_mi, const char *restrict name,
          const opt_t *restrict opt )
 {
     if( !opt ) return 0;
@@ -730,25 +731,25 @@ get_int( libvlc_media_player_t *p_mi, const char *restrict name,
             bool b_enabled = find_sub_source_by_name( p_mi, name );
             return b_enabled ? 1 : 0;
         }
-    case VLC_VAR_INTEGER:
+    case HEIMDALL_VAR_INTEGER:
         return var_GetInteger(p_mi, opt->name);
-    case VLC_VAR_FLOAT:
+    case HEIMDALL_VAR_FLOAT:
         return lroundf(var_GetFloat(p_mi, opt->name));
     default:
-        libvlc_printerr( "Invalid argument to %s in %s", name, "get int" );
+        libheimdall_printerr( "Invalid argument to %s in %s", name, "get int" );
         return 0;
     }
 }
 
 static float
-get_float( libvlc_media_player_t *p_mi, const char *restrict name,
+get_float( libheimdall_media_player_t *p_mi, const char *restrict name,
             const opt_t *restrict opt )
 {
     if( !opt ) return 0.0;
 
-    if( opt->type != VLC_VAR_FLOAT )
+    if( opt->type != HEIMDALL_VAR_FLOAT )
     {
-        libvlc_printerr( "Invalid argument to %s in %s", name, "get float" );
+        libheimdall_printerr( "Invalid argument to %s in %s", name, "get float" );
         return 0.0;
     }
 
@@ -761,51 +762,51 @@ marq_option_bynumber(unsigned option)
     static const opt_t optlist[] =
     {
         { "marq",          0 },
-        { "marq-marquee",  VLC_VAR_STRING },
-        { "marq-color",    VLC_VAR_INTEGER },
-        { "marq-opacity",  VLC_VAR_INTEGER },
-        { "marq-position", VLC_VAR_INTEGER },
-        { "marq-refresh",  VLC_VAR_INTEGER },
-        { "marq-size",     VLC_VAR_INTEGER },
-        { "marq-timeout",  VLC_VAR_INTEGER },
-        { "marq-x",        VLC_VAR_INTEGER },
-        { "marq-y",        VLC_VAR_INTEGER },
+        { "marq-marquee",  HEIMDALL_VAR_STRING },
+        { "marq-color",    HEIMDALL_VAR_INTEGER },
+        { "marq-opacity",  HEIMDALL_VAR_INTEGER },
+        { "marq-position", HEIMDALL_VAR_INTEGER },
+        { "marq-refresh",  HEIMDALL_VAR_INTEGER },
+        { "marq-size",     HEIMDALL_VAR_INTEGER },
+        { "marq-timeout",  HEIMDALL_VAR_INTEGER },
+        { "marq-x",        HEIMDALL_VAR_INTEGER },
+        { "marq-y",        HEIMDALL_VAR_INTEGER },
     };
     enum { num_opts = sizeof(optlist) / sizeof(*optlist) };
 
     const opt_t *r = option < num_opts ? optlist+option : NULL;
     if( !r )
-        libvlc_printerr( "Unknown marquee option" );
+        libheimdall_printerr( "Unknown marquee option" );
     return r;
 }
 
 /*****************************************************************************
- * libvlc_video_get_marquee_int : get a marq option value
+ * libheimdall_video_get_marquee_int : get a marq option value
  *****************************************************************************/
-int libvlc_video_get_marquee_int( libvlc_media_player_t *p_mi,
+int libheimdall_video_get_marquee_int( libheimdall_media_player_t *p_mi,
                                   unsigned option )
 {
     return get_int( p_mi, "marq", marq_option_bynumber(option) );
 }
 
 /*****************************************************************************
- * libvlc_video_set_marquee_int: enable, disable or set an int option
+ * libheimdall_video_set_marquee_int: enable, disable or set an int option
  *****************************************************************************/
-void libvlc_video_set_marquee_int( libvlc_media_player_t *p_mi,
+void libheimdall_video_set_marquee_int( libheimdall_media_player_t *p_mi,
                          unsigned option, int value )
 {
-    set_value( p_mi, "marq", marq_option_bynumber(option), VLC_VAR_INTEGER,
-               &(vlc_value_t) { .i_int = value }, true );
+    set_value( p_mi, "marq", marq_option_bynumber(option), HEIMDALL_VAR_INTEGER,
+               &(heimdall_value_t) { .i_int = value }, true );
 }
 
 /*****************************************************************************
- * libvlc_video_set_marquee_string: set a string option
+ * libheimdall_video_set_marquee_string: set a string option
  *****************************************************************************/
-void libvlc_video_set_marquee_string( libvlc_media_player_t *p_mi,
+void libheimdall_video_set_marquee_string( libheimdall_media_player_t *p_mi,
                 unsigned option, const char * value )
 {
-    set_value( p_mi, "marq", marq_option_bynumber(option), VLC_VAR_STRING,
-               &(vlc_value_t){ .psz_string = (char *)value }, true );
+    set_value( p_mi, "marq", marq_option_bynumber(option), HEIMDALL_VAR_STRING,
+               &(heimdall_value_t){ .psz_string = (char *)value }, true );
 }
 
 
@@ -815,42 +816,42 @@ static const opt_t *
 logo_option_bynumber( unsigned option )
 {
     static const opt_t vlogo_optlist[] =
-    /* depends on libvlc_video_logo_option_t */
+    /* depends on libheimdall_video_logo_option_t */
     {
         { "logo",          0 },
-        { "logo-file",     VLC_VAR_STRING },
-        { "logo-x",        VLC_VAR_INTEGER },
-        { "logo-y",        VLC_VAR_INTEGER },
-        { "logo-delay",    VLC_VAR_INTEGER },
-        { "logo-repeat",   VLC_VAR_INTEGER },
-        { "logo-opacity",  VLC_VAR_INTEGER },
-        { "logo-position", VLC_VAR_INTEGER },
+        { "logo-file",     HEIMDALL_VAR_STRING },
+        { "logo-x",        HEIMDALL_VAR_INTEGER },
+        { "logo-y",        HEIMDALL_VAR_INTEGER },
+        { "logo-delay",    HEIMDALL_VAR_INTEGER },
+        { "logo-repeat",   HEIMDALL_VAR_INTEGER },
+        { "logo-opacity",  HEIMDALL_VAR_INTEGER },
+        { "logo-position", HEIMDALL_VAR_INTEGER },
     };
     enum { num_vlogo_opts = sizeof(vlogo_optlist) / sizeof(*vlogo_optlist) };
 
     const opt_t *r = option < num_vlogo_opts ? vlogo_optlist+option : NULL;
     if( !r )
-        libvlc_printerr( "Unknown logo option" );
+        libheimdall_printerr( "Unknown logo option" );
     return r;
 }
 
-void libvlc_video_set_logo_string( libvlc_media_player_t *p_mi,
+void libheimdall_video_set_logo_string( libheimdall_media_player_t *p_mi,
                                    unsigned option, const char *psz_value )
 {
-    set_value( p_mi,"logo",logo_option_bynumber(option), VLC_VAR_STRING,
-               &(vlc_value_t){ .psz_string = (char *)psz_value }, true );
+    set_value( p_mi,"logo",logo_option_bynumber(option), HEIMDALL_VAR_STRING,
+               &(heimdall_value_t){ .psz_string = (char *)psz_value }, true );
 }
 
 
-void libvlc_video_set_logo_int( libvlc_media_player_t *p_mi,
+void libheimdall_video_set_logo_int( libheimdall_media_player_t *p_mi,
                                 unsigned option, int value )
 {
-    set_value( p_mi, "logo", logo_option_bynumber(option), VLC_VAR_INTEGER,
-               &(vlc_value_t) { .i_int = value }, true );
+    set_value( p_mi, "logo", logo_option_bynumber(option), HEIMDALL_VAR_INTEGER,
+               &(heimdall_value_t) { .i_int = value }, true );
 }
 
 
-int libvlc_video_get_logo_int( libvlc_media_player_t *p_mi,
+int libheimdall_video_get_logo_int( libheimdall_media_player_t *p_mi,
                                unsigned option )
 {
     return get_int( p_mi, "logo", logo_option_bynumber(option) );
@@ -866,51 +867,51 @@ adjust_option_bynumber( unsigned option )
     static const opt_t optlist[] =
     {
         { "adjust",     0 },
-        { "contrast",   VLC_VAR_FLOAT },
-        { "brightness", VLC_VAR_FLOAT },
-        { "hue",        VLC_VAR_FLOAT },
-        { "saturation", VLC_VAR_FLOAT },
-        { "gamma",      VLC_VAR_FLOAT },
+        { "contrast",   HEIMDALL_VAR_FLOAT },
+        { "brightness", HEIMDALL_VAR_FLOAT },
+        { "hue",        HEIMDALL_VAR_FLOAT },
+        { "saturation", HEIMDALL_VAR_FLOAT },
+        { "gamma",      HEIMDALL_VAR_FLOAT },
     };
     enum { num_opts = sizeof(optlist) / sizeof(*optlist) };
 
     const opt_t *r = option < num_opts ? optlist+option : NULL;
     if( !r )
-        libvlc_printerr( "Unknown adjust option" );
+        libheimdall_printerr( "Unknown adjust option" );
     return r;
 }
 
 
-void libvlc_video_set_adjust_int( libvlc_media_player_t *p_mi,
+void libheimdall_video_set_adjust_int( libheimdall_media_player_t *p_mi,
                                   unsigned option, int value )
 {
-    set_value( p_mi, "adjust", adjust_option_bynumber(option), VLC_VAR_INTEGER,
-               &(vlc_value_t) { .i_int = value }, false );
+    set_value( p_mi, "adjust", adjust_option_bynumber(option), HEIMDALL_VAR_INTEGER,
+               &(heimdall_value_t) { .i_int = value }, false );
 }
 
 
-int libvlc_video_get_adjust_int( libvlc_media_player_t *p_mi,
+int libheimdall_video_get_adjust_int( libheimdall_media_player_t *p_mi,
                                  unsigned option )
 {
     return get_int( p_mi, "adjust", adjust_option_bynumber(option) );
 }
 
 
-void libvlc_video_set_adjust_float( libvlc_media_player_t *p_mi,
+void libheimdall_video_set_adjust_float( libheimdall_media_player_t *p_mi,
                                     unsigned option, float value )
 {
-    set_value( p_mi, "adjust", adjust_option_bynumber(option), VLC_VAR_FLOAT,
-               &(vlc_value_t) { .f_float = value }, false );
+    set_value( p_mi, "adjust", adjust_option_bynumber(option), HEIMDALL_VAR_FLOAT,
+               &(heimdall_value_t) { .f_float = value }, false );
 }
 
 
-float libvlc_video_get_adjust_float( libvlc_media_player_t *p_mi,
+float libheimdall_video_get_adjust_float( libheimdall_media_player_t *p_mi,
                                      unsigned option )
 {
     return get_float( p_mi, "adjust", adjust_option_bynumber(option) );
 }
 
-void libvlc_video_unset_projection_mode(libvlc_media_player_t *player)
+void libheimdall_video_unset_projection_mode(libheimdall_media_player_t *player)
 {
     var_SetInteger(player, "projection-mode", -1);
 
@@ -925,8 +926,8 @@ void libvlc_video_unset_projection_mode(libvlc_media_player_t *player)
     free (pp_vouts);
 }
 
-void libvlc_video_set_projection_mode(libvlc_media_player_t *player,
-                                      libvlc_video_projection_t projection_mode)
+void libheimdall_video_set_projection_mode(libheimdall_media_player_t *player,
+                                      libheimdall_video_projection_t projection_mode)
 {
     var_SetInteger(player, "projection-mode", projection_mode);
 

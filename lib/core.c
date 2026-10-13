@@ -1,7 +1,8 @@
 /*****************************************************************************
- * core.c: Core libvlc new API functions : initialization
+ * core.c: Core libheimdall new API functions : initialization
  *****************************************************************************
  * Copyright (C) 2005 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Clément Stenac <zorglub@videolan.org>
  *
@@ -24,140 +25,140 @@
 # include "config.h"
 #endif
 
-#include "libvlc_internal.h"
-#include <vlc_modules.h>
-#include <vlc/vlc.h>
+#include "libheimdall_internal.h"
+#include <heimdall_modules.h>
+#include <heimdall/heimdall.h>
 
-#include <vlc_interface.h>
+#include <heimdall_interface.h>
 
 #include <stdarg.h>
 #include <limits.h>
 #include <assert.h>
 
-static_assert(LIBVLC_VERSION_MAJOR    == PACKAGE_VERSION_MAJOR, "Major VLC version mismatch");
-static_assert(LIBVLC_VERSION_MINOR    == PACKAGE_VERSION_MINOR, "Minor VLC version mismatch");
-static_assert(LIBVLC_VERSION_REVISION == PACKAGE_VERSION_REVISION, "VLC Revision version mismatch");
-static_assert(LIBVLC_VERSION_EXTRA    == PACKAGE_VERSION_EXTRA, "VLC Extra version mismatch");
-static_assert(LIBVLC_ABI_VERSION_MAJOR == LIBVLC_ABI_MAJOR, "Major LibVLC version mismatch");
-static_assert(LIBVLC_ABI_VERSION_MINOR == LIBVLC_ABI_MINOR, "Minor LibVLC version mismatch");
-static_assert(LIBVLC_ABI_VERSION_MICRO == LIBVLC_ABI_MICRO, "Micro LibVLC version mismatch");
+static_assert(LIBHEIMDALL_VERSION_MAJOR    == PACKAGE_VERSION_MAJOR, "Major Heimdall version mismatch");
+static_assert(LIBHEIMDALL_VERSION_MINOR    == PACKAGE_VERSION_MINOR, "Minor Heimdall version mismatch");
+static_assert(LIBHEIMDALL_VERSION_REVISION == PACKAGE_VERSION_REVISION, "Heimdall Revision version mismatch");
+static_assert(LIBHEIMDALL_VERSION_EXTRA    == PACKAGE_VERSION_EXTRA, "Heimdall Extra version mismatch");
+static_assert(LIBHEIMDALL_ABI_VERSION_MAJOR == LIBHEIMDALL_ABI_MAJOR, "Major LibHeimdall version mismatch");
+static_assert(LIBHEIMDALL_ABI_VERSION_MINOR == LIBHEIMDALL_ABI_MINOR, "Minor LibHeimdall version mismatch");
+static_assert(LIBHEIMDALL_ABI_VERSION_MICRO == LIBHEIMDALL_ABI_MICRO, "Micro LibHeimdall version mismatch");
 
-int libvlc_abi_version(void)
+int libheimdall_abi_version(void)
 {
-    return LIBVLC_ABI_VERSION_INT;
+    return LIBHEIMDALL_ABI_VERSION_INT;
 }
 
-libvlc_instance_t * libvlc_new( int argc, const char *const *argv )
+libheimdall_instance_t * libheimdall_new( int argc, const char *const *argv )
 {
-    libvlc_threads_init ();
+    libheimdall_threads_init ();
 
-    libvlc_instance_t *p_new = malloc (sizeof (*p_new));
+    libheimdall_instance_t *p_new = malloc (sizeof (*p_new));
     if (unlikely(p_new == NULL))
         return NULL;
 
     const char *my_argv[argc + 2];
-    my_argv[0] = "libvlc"; /* dummy arg0, skipped by getopt() et al */
+    my_argv[0] = "libheimdall"; /* dummy arg0, skipped by getopt() et al */
     for( int i = 0; i < argc; i++ )
          my_argv[i + 1] = argv[i];
     my_argv[argc + 1] = NULL; /* C calling conventions require a NULL */
 
-    libvlc_int_t *p_libvlc_int = libvlc_InternalCreate();
-    if (unlikely (p_libvlc_int == NULL))
+    libheimdall_int_t *p_libheimdall_int = libheimdall_InternalCreate();
+    if (unlikely (p_libheimdall_int == NULL))
         goto error;
 
-    const int ret = libvlc_InternalInit( p_libvlc_int, argc + 1, my_argv );
-    if (ret != VLC_SUCCESS)
+    const int ret = libheimdall_InternalInit( p_libheimdall_int, argc + 1, my_argv );
+    if (ret != HEIMDALL_SUCCESS)
     {
-        libvlc_InternalDestroy( p_libvlc_int );
-        const char *error = (ret == VLC_EGENERIC) ? _( "Generic VLC error" )
-                                                  : vlc_strerror_c( -ret );
-        libvlc_printerr( "%s", error );
+        libheimdall_InternalDestroy( p_libheimdall_int );
+        const char *error = (ret == HEIMDALL_EGENERIC) ? _( "Generic Heimdall error" )
+                                                  : heimdall_strerror_c( -ret );
+        libheimdall_printerr( "%s", error );
         goto error;
     }
 
-    p_new->p_libvlc_int = p_libvlc_int;
-    vlc_atomic_rc_init( &p_new->ref_count );
+    p_new->p_libheimdall_int = p_libheimdall_int;
+    heimdall_atomic_rc_init( &p_new->ref_count );
     p_new->p_callback_list = NULL;
 
     return p_new;
 
 error:
     free (p_new);
-    libvlc_threads_deinit ();
+    libheimdall_threads_deinit ();
     return NULL;
 }
 
-libvlc_instance_t *libvlc_retain( libvlc_instance_t *p_instance )
+libheimdall_instance_t *libheimdall_retain( libheimdall_instance_t *p_instance )
 {
     assert( p_instance != NULL );
 
-    vlc_atomic_rc_inc( &p_instance->ref_count );
+    heimdall_atomic_rc_inc( &p_instance->ref_count );
     return p_instance;
 }
 
-void libvlc_release( libvlc_instance_t *p_instance )
+void libheimdall_release( libheimdall_instance_t *p_instance )
 {
-    if(vlc_atomic_rc_dec( &p_instance->ref_count ))
+    if(heimdall_atomic_rc_dec( &p_instance->ref_count ))
     {
-        libvlc_Quit( p_instance->p_libvlc_int );
+        libheimdall_Quit( p_instance->p_libheimdall_int );
 
-        libvlc_InternalCleanup( p_instance->p_libvlc_int );
-        libvlc_InternalDestroy( p_instance->p_libvlc_int );
+        libheimdall_InternalCleanup( p_instance->p_libheimdall_int );
+        libheimdall_InternalDestroy( p_instance->p_libheimdall_int );
         free( p_instance );
-        libvlc_threads_deinit ();
+        libheimdall_threads_deinit ();
     }
 }
 
-void libvlc_set_user_agent (libvlc_instance_t *p_i,
+void libheimdall_set_user_agent (libheimdall_instance_t *p_i,
                             const char *name, const char *http)
 {
-    libvlc_int_t *p_libvlc = p_i->p_libvlc_int;
+    libheimdall_int_t *p_libheimdall = p_i->p_libheimdall_int;
     char *str;
 
-    var_SetString (p_libvlc, "user-agent", name);
+    var_SetString (p_libheimdall, "user-agent", name);
     if ((http != NULL)
-     && (asprintf (&str, "%s LibVLC/"PACKAGE_VERSION, http) != -1))
+     && (asprintf (&str, "%s LibHeimdall/"PACKAGE_VERSION, http) != -1))
     {
-        var_SetString (p_libvlc, "http-user-agent", str);
+        var_SetString (p_libheimdall, "http-user-agent", str);
         free (str);
     }
 }
 
-void libvlc_set_app_id(libvlc_instance_t *p_i, const char *id,
+void libheimdall_set_app_id(libheimdall_instance_t *p_i, const char *id,
                        const char *version, const char *icon)
 {
-    libvlc_int_t *p_libvlc = p_i->p_libvlc_int;
+    libheimdall_int_t *p_libheimdall = p_i->p_libheimdall_int;
 
-    var_SetString(p_libvlc, "app-id", id ? id : "");
-    var_SetString(p_libvlc, "app-version", version ? version : "");
-    var_SetString(p_libvlc, "app-icon-name", icon ? icon : "");
+    var_SetString(p_libheimdall, "app-id", id ? id : "");
+    var_SetString(p_libheimdall, "app-version", version ? version : "");
+    var_SetString(p_libheimdall, "app-icon-name", icon ? icon : "");
 }
 
-const char * libvlc_get_version(void)
+const char * libheimdall_get_version(void)
 {
     return VERSION_MESSAGE;
 }
 
-const char * libvlc_get_compiler(void)
+const char * libheimdall_get_compiler(void)
 {
-    return VLC_Compiler();
+    return Heimdall_Compiler();
 }
 
-const char * libvlc_get_changeset(void)
+const char * libheimdall_get_changeset(void)
 {
-    extern const char psz_vlc_changeset[];
-    return psz_vlc_changeset;
+    extern const char psz_heimdall_changeset[];
+    return psz_heimdall_changeset;
 }
 
-void libvlc_free( void *ptr )
+void libheimdall_free( void *ptr )
 {
     free( ptr );
 }
 
-static libvlc_module_description_t *module_description_list_get(
-                libvlc_instance_t *p_instance, const char *capability )
+static libheimdall_module_description_t *module_description_list_get(
+                libheimdall_instance_t *p_instance, const char *capability )
 {
-    libvlc_module_description_t *p_list = NULL,
+    libheimdall_module_description_t *p_list = NULL,
                           *p_actual = NULL,
                           *p_previous = NULL;
     size_t count;
@@ -170,11 +171,11 @@ static libvlc_module_description_t *module_description_list_get(
         if ( !module_provides( p_module, capability ) )
             continue;
 
-        p_actual = ( libvlc_module_description_t * ) malloc( sizeof( libvlc_module_description_t ) );
+        p_actual = ( libheimdall_module_description_t * ) malloc( sizeof( libheimdall_module_description_t ) );
         if ( p_actual == NULL )
         {
-            libvlc_printerr( "Not enough memory" );
-            libvlc_module_description_list_release( p_list );
+            libheimdall_printerr( "Not enough memory" );
+            libheimdall_module_description_list_release( p_list );
             module_list_free( module_list );
             return NULL;
         }
@@ -200,13 +201,13 @@ static libvlc_module_description_t *module_description_list_get(
     }
 
     module_list_free( module_list );
-    VLC_UNUSED( p_instance );
+    HEIMDALL_UNUSED( p_instance );
     return p_list;
 }
 
-void libvlc_module_description_list_release( libvlc_module_description_t *p_list )
+void libheimdall_module_description_list_release( libheimdall_module_description_t *p_list )
 {
-    libvlc_module_description_t *p_actual, *p_before;
+    libheimdall_module_description_t *p_actual, *p_before;
     p_actual = p_list;
 
     while ( p_actual )
@@ -222,19 +223,19 @@ void libvlc_module_description_list_release( libvlc_module_description_t *p_list
     }
 }
 
-libvlc_module_description_t *libvlc_audio_filter_list_get( libvlc_instance_t *p_instance )
+libheimdall_module_description_t *libheimdall_audio_filter_list_get( libheimdall_instance_t *p_instance )
 {
     return module_description_list_get( p_instance, "audio filter" );
 }
 
-libvlc_module_description_t *libvlc_video_filter_list_get( libvlc_instance_t *p_instance )
+libheimdall_module_description_t *libheimdall_video_filter_list_get( libheimdall_instance_t *p_instance )
 {
     return module_description_list_get( p_instance, "video filter" );
 }
 
-libvlc_time_t libvlc_clock(void)
+libheimdall_time_t libheimdall_clock(void)
 {
-    return US_FROM_VLC_TICK(vlc_tick_now());
+    return US_FROM_HEIMDALL_TICK(heimdall_tick_now());
 }
 
-const char vlc_module_name[] = "libvlc";
+const char heimdall_module_name[] = "libheimdall";

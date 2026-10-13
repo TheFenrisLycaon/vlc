@@ -2,6 +2,7 @@
  * SmoothIndexReader.cpp
  *****************************************************************************
  * Copyright (C) 2015 - VideoLAN and VLC authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -31,7 +32,7 @@
 using namespace adaptive::mp4;
 using namespace smooth::mp4;
 
-SmoothIndexReader::SmoothIndexReader(vlc_object_t *obj)
+SmoothIndexReader::SmoothIndexReader(heimdall_object_t *obj)
     : AtomsReader(obj)
 {
 }
@@ -83,8 +84,8 @@ bool SmoothIndexReader::parseIndex(block_t *p_block, BaseRepresentation *rep, ui
         delete timelineadd;
 
 #ifndef NDEBUG
-        msg_Dbg(rep->getPlaylist()->getVLCObject(), "Updated timeline from tfrf");
-        rep->debug(rep->getPlaylist()->getVLCObject(), 0);
+        msg_Dbg(rep->getPlaylist()->getHeimdallObject(), "Updated timeline from tfrf");
+        rep->debug(rep->getPlaylist()->getHeimdallObject(), 0);
 #endif
     }
 

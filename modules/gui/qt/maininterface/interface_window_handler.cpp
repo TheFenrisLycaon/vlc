@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2020 VideoLAN and AUTHORS
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,7 +23,7 @@
 #include <playlist/playlist_controller.hpp>
 #include "util/keyhelper.hpp"
 #include "dialogs/systray/systray.hpp"
-#include "widgets/native/qvlcframe.hpp"
+#include "widgets/native/qheimdallframe.hpp"
 #include "dialogs/dialogs/dialogmodel.hpp"
 #include <QScreen>
 #include <QQmlProperty>
@@ -69,7 +70,7 @@ InterfaceWindowHandler::InterfaceWindowHandler(qt_intf_t *_p_intf, MainCtx* main
     m_window->setIcon( QApplication::windowIcon() );
     m_window->setOpacity( var_InheritFloat( p_intf, "qt-opacity" ) );
 
-    QVLCTools::restoreWindowPosition( getSettings(), m_window, QSize(600, 420) );
+    QHeimdallTools::restoreWindowPosition( getSettings(), m_window, QSize(600, 420) );
 
     // this needs to be called asynchronously
     // otherwise QQuickWidget won't initialize properly
@@ -162,7 +163,7 @@ InterfaceWindowHandler::InterfaceWindowHandler(qt_intf_t *_p_intf, MainCtx* main
     });
 
     connect(
-        &m_wheelAccumulator, &WheelToVLCConverter::wheelUpDown,
+        &m_wheelAccumulator, &WheelToHeimdallConverter::wheelUpDown,
         this, [this] (int steps, Qt::KeyboardModifiers modifiers) {
             if (modifiers != Qt::ControlModifier)
                 return;
@@ -176,7 +177,7 @@ InterfaceWindowHandler::~InterfaceWindowHandler()
 {
     m_window->removeEventFilter(this);
     /* Save this size */
-    QVLCTools::saveWindowPosition(getSettings(), m_window);
+    QHeimdallTools::saveWindowPosition(getSettings(), m_window);
     assert(qApp);
     if (!qApp->property("isDying").toBool())
     {
@@ -452,7 +453,7 @@ void InterfaceWindowHandler::setInterfaceHiden()
         // type() == WaylandCompositor is not used because any video embedding methodology may
         // depend on window resources:
         const bool ret = qGuiApp->platformName().startsWith(QLatin1String("wayland")) &&
-                         (intf->p_compositor && (intf->p_compositor->type() != vlc::Compositor::DummyCompositor));
+                         (intf->p_compositor && (intf->p_compositor->type() != heimdall::Compositor::DummyCompositor));
         if (ret)
             msg_Warn(intf, "In this configuration, the interface window can not get hidden.");
         return ret;

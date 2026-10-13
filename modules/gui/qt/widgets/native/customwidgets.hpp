@@ -2,6 +2,7 @@
  * customwidgets.hpp: Custom widgets
  ****************************************************************************
  * Copyright (C) 2006 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Clément Stenac <zorglub@videolan.org>
  *
@@ -20,8 +21,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_QT_CUSTOMWIDGETS_HPP_
-#define VLC_QT_CUSTOMWIDGETS_HPP_
+#ifndef HEIMDALL_QT_CUSTOMWIDGETS_HPP_
+#define HEIMDALL_QT_CUSTOMWIDGETS_HPP_
 
 #include <QPushButton>
 #include <QLabel>
@@ -45,11 +46,11 @@ protected:
     void paintEvent( QPaintEvent * event ) override;
 };
 
-class VLCQDial : public QDial
+class HeimdallQDial : public QDial
 {
     Q_OBJECT
 public:
-    VLCQDial( QWidget *parent = NULL );
+    HeimdallQDial( QWidget *parent = NULL );
 protected:
     void paintEvent( QPaintEvent * event ) override;
 };
@@ -70,18 +71,18 @@ signals:
     void longClicked();
 };
 
-class QVLCDebugLevelSpinBox : public QSpinBox
+class QHeimdallDebugLevelSpinBox : public QSpinBox
 {
     Q_OBJECT
 public:
-    QVLCDebugLevelSpinBox( QWidget *parent ) : QSpinBox( parent ) { }
+    QHeimdallDebugLevelSpinBox( QWidget *parent ) : QSpinBox( parent ) { }
 protected:
     QString textFromValue( int ) const override;
-    /* QVLCDebugLevelSpinBox is read-only */
+    /* QHeimdallDebugLevelSpinBox is read-only */
     int valueFromText( const QString& ) const override { return -1; }
 };
 
-/** This spinning icon, to the colors of the VLC cone, will show
+/** This spinning icon, to the colors of the Heimdall cone, will show
  * that there is some background activity running
  **/
 class SpinningIcon : public QLabel

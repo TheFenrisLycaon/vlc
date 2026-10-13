@@ -1,7 +1,8 @@
 /*****************************************************************************
- * demuxdump.c : Pseudo demux module for vlc (dump raw stream)
+ * demuxdump.c : Pseudo demux module for heimdall (dump raw stream)
  *****************************************************************************
  * Copyright (C) 2001-2004 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *
@@ -24,10 +25,10 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_demux.h>
-#include <vlc_sout.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_demux.h>
+#include <heimdall_sout.h>
 
 #define ACCESS_TEXT N_("Dump module")
 #define FILE_TEXT N_("Dump filename")
@@ -37,10 +38,10 @@
 #define APPEND_LONGTEXT N_( \
     "If the file already exists, it will not be overwritten." )
 
-static int  Open( vlc_object_t * );
-static void Close ( vlc_object_t * );
+static int  Open( heimdall_object_t * );
+static void Close ( heimdall_object_t * );
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname("Dump")
     set_subcategory( SUBCAT_INPUT_DEMUX )
     set_description( N_("File dumper") )
@@ -52,7 +53,7 @@ vlc_module_begin ()
     add_bool( "demuxdump-append", false, APPEND_TEXT, APPEND_LONGTEXT )
     set_callbacks( Open, Close )
     add_shortcut( "dump" )
-vlc_module_end ()
+heimdall_module_end ()
 
 #define DUMP_BLOCKSIZE  16384
 
@@ -62,31 +63,31 @@ static int Control( demux_t *, int,va_list );
 /**
  * Initializes the raw dump pseudo-demuxer.
  */
-static int Open( vlc_object_t * p_this )
+static int Open( heimdall_object_t * p_this )
 {
     demux_t *p_demux = (demux_t*)p_this;
 
     /* Accept only if forced */
     if( !p_demux->obj.force )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     char *access = var_InheritString( p_demux, "demuxdump-access" );
     if( access == NULL )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* --sout-file-append (defaults to false) */
-    var_Create( p_demux, "sout-file-append", VLC_VAR_BOOL );
+    var_Create( p_demux, "sout-file-append", HEIMDALL_VAR_BOOL );
     if( var_InheritBool( p_demux, "demuxdump-append" ) )
         var_SetBool( p_demux, "sout-file-append", true );
     /* --sout-file-format (always false) */
-    var_Create( p_demux, "sout-file-format", VLC_VAR_BOOL );
+    var_Create( p_demux, "sout-file-format", HEIMDALL_VAR_BOOL );
 
     char *path = var_InheritString( p_demux, "demuxdump-file" );
     if( path == NULL )
     {
         free( access );
         msg_Err( p_demux, "no dump file name given" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     sout_access_out_t *out = sout_AccessOutNew( p_demux, access, path );
@@ -95,19 +96,19 @@ static int Open( vlc_object_t * p_this )
     if( out == NULL )
     {
         msg_Err( p_demux, "cannot create output" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     p_demux->p_sys = (void *)out;
     p_demux->pf_demux = Demux;
     p_demux->pf_control = Control;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /**
  * Destroys the pseudo-demuxer.
  */
-static void Close( vlc_object_t *p_this )
+static void Close( heimdall_object_t *p_this )
 {
     demux_t *p_demux = (demux_t*)p_this;
     sout_access_out_t *out = (void *)p_demux->p_sys;
@@ -126,7 +127,7 @@ static int Demux( demux_t *p_demux )
     if( unlikely(block == NULL) )
         return -1;
 
-    int rd = vlc_stream_Read( p_demux->s, block->p_buffer, DUMP_BLOCKSIZE );
+    int rd = heimdall_stream_Read( p_demux->s, block->p_buffer, DUMP_BLOCKSIZE );
     if ( rd <= 0 )
     {
         block_Release( block );

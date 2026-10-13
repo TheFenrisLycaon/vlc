@@ -1,7 +1,8 @@
 /*****************************************************************************
- * nfs.c: NFS VLC access plug-in
+ * nfs.c: NFS Heimdall access plug-in
  *****************************************************************************
  * Copyright © 2016  VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -33,13 +34,13 @@
 # include <poll.h>
 #endif
 
-#include <vlc_common.h>
-#include <vlc_access.h>
-#include <vlc_dialog.h>
-#include <vlc_input_item.h>
-#include <vlc_plugin.h>
-#include <vlc_url.h>
-#include <vlc_interrupt.h>
+#include <heimdall_common.h>
+#include <heimdall_access.h>
+#include <heimdall_dialog.h>
+#include <heimdall_input_item.h>
+#include <heimdall_plugin.h>
+#include <heimdall_url.h>
+#include <heimdall_interrupt.h>
 
 #include <nfsc/libnfs.h>
 #include <nfsc/libnfs-raw.h>
@@ -48,12 +49,12 @@
 
 #define AUTO_GUID_TEXT N_("Set NFS uid/guid automatically")
 #define AUTO_GUID_LONGTEXT N_("If uid/gid are not specified in " \
-    "the url, VLC will automatically set a uid/gid.")
+    "the url, Heimdall will automatically set a uid/gid.")
 
-static int Open(vlc_object_t *);
-static void Close(vlc_object_t *);
+static int Open(heimdall_object_t *);
+static void Close(heimdall_object_t *);
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname(N_("NFS"))
     set_description(N_("NFS input"))
     set_subcategory(SUBCAT_INPUT_ACCESS)
@@ -61,7 +62,7 @@ vlc_module_begin()
     set_capability("access", 0)
     add_shortcut("nfs")
     set_callbacks(Open, Close)
-vlc_module_end()
+heimdall_module_end()
 
 typedef struct
 {
@@ -71,7 +72,7 @@ typedef struct
     struct nfs_stat_64      stat;
     struct nfsfh *          p_nfsfh;
     struct nfsdir *         p_nfsdir;
-    vlc_url_t               encoded_url;
+    heimdall_url_t               encoded_url;
     char *                  psz_url_decoded;
     char *                  psz_url_decoded_slash;
     bool                    b_eof;
@@ -109,7 +110,7 @@ nfs_check_status(stream_t *p_access, int i_status, const char *psz_error,
             msg_Err(p_access, "%s failed: %d, '%s'", psz_func, i_status,
                     psz_error);
             if (!sys->b_error)
-                vlc_dialog_display_error(p_access,
+                heimdall_dialog_display_error(p_access,
                                          _("NFS operation failed"), "%s",
                                          psz_error);
         }
@@ -125,7 +126,7 @@ nfs_check_status(stream_t *p_access, int i_status, const char *psz_error,
     nfs_check_status(p_access, i_status, (const char *)p_data, __func__)
 
 static int
-vlc_rpc_mainloop(stream_t *p_access, struct rpc_context *p_rpc_ctx,
+heimdall_rpc_mainloop(stream_t *p_access, struct rpc_context *p_rpc_ctx,
                  bool (*pf_until_cb)(stream_t *))
 {
     access_sys_t *p_sys = p_access->p_sys;
@@ -137,12 +138,12 @@ vlc_rpc_mainloop(stream_t *p_access, struct rpc_context *p_rpc_ctx,
         p_fds[0].fd = rpc_get_fd(p_rpc_ctx);
         p_fds[0].events = rpc_which_events(p_rpc_ctx);
 
-        if ((i_ret = vlc_poll_i11e(p_fds, 1, -1)) < 0)
+        if ((i_ret = heimdall_poll_i11e(p_fds, 1, -1)) < 0)
         {
             if (errno == EINTR)
-                msg_Warn(p_access, "vlc_poll_i11e interrupted");
+                msg_Warn(p_access, "heimdall_poll_i11e interrupted");
             else
-                msg_Err(p_access, "vlc_poll_i11e failed");
+                msg_Err(p_access, "heimdall_poll_i11e failed");
             p_sys->b_error = true;
         }
         else if (i_ret > 0 && p_fds[0].revents
@@ -156,27 +157,27 @@ vlc_rpc_mainloop(stream_t *p_access, struct rpc_context *p_rpc_ctx,
 }
 
 static int
-vlc_nfs_mainloop(stream_t *p_access, bool (*pf_until_cb)(stream_t *))
+heimdall_nfs_mainloop(stream_t *p_access, bool (*pf_until_cb)(stream_t *))
 {
     access_sys_t *p_sys = p_access->p_sys;
     assert(p_sys->p_nfs != NULL);
-    return vlc_rpc_mainloop(p_access, nfs_get_rpc_context(p_sys->p_nfs),
+    return heimdall_rpc_mainloop(p_access, nfs_get_rpc_context(p_sys->p_nfs),
                             pf_until_cb);
 }
 
 static int
-vlc_mount_mainloop(stream_t *p_access, bool (*pf_until_cb)(stream_t *))
+heimdall_mount_mainloop(stream_t *p_access, bool (*pf_until_cb)(stream_t *))
 {
     access_sys_t *p_sys = p_access->p_sys;
     assert(p_sys->p_mount != NULL);
-    return vlc_rpc_mainloop(p_access, p_sys->p_mount, pf_until_cb);
+    return heimdall_rpc_mainloop(p_access, p_sys->p_mount, pf_until_cb);
 }
 
 static void
 nfs_read_cb(int i_status, struct nfs_context *p_nfs, void *p_data,
             void *p_private_data)
 {
-    VLC_UNUSED(p_nfs);
+    HEIMDALL_UNUSED(p_nfs);
     stream_t *p_access = p_private_data;
     access_sys_t *p_sys = p_access->p_sys;
     assert(p_sys->p_nfs == p_nfs);
@@ -223,7 +224,7 @@ FileRead(stream_t *p_access, void *p_buf, size_t i_len)
         return 0;
     }
 
-    if (vlc_nfs_mainloop(p_access, nfs_read_finished_cb) < 0)
+    if (heimdall_nfs_mainloop(p_access, nfs_read_finished_cb) < 0)
         return 0;
 
     return p_sys->res.read.i_len;
@@ -233,7 +234,7 @@ static void
 nfs_seek_cb(int i_status, struct nfs_context *p_nfs, void *p_data,
             void *p_private_data)
 {
-    VLC_UNUSED(p_nfs);
+    HEIMDALL_UNUSED(p_nfs);
     stream_t *p_access = p_private_data;
     access_sys_t *p_sys = p_access->p_sys;
     assert(p_sys->p_nfs == p_nfs);
@@ -261,15 +262,15 @@ FileSeek(stream_t *p_access, uint64_t i_pos)
                         nfs_seek_cb, p_access) < 0)
     {
         msg_Err(p_access, "nfs_seek_async failed");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    if (vlc_nfs_mainloop(p_access, nfs_seek_finished_cb) < 0)
-        return VLC_EGENERIC;
+    if (heimdall_nfs_mainloop(p_access, nfs_seek_finished_cb) < 0)
+        return HEIMDALL_EGENERIC;
 
     p_sys->b_eof = false;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int
@@ -300,7 +301,7 @@ FileControl(stream_t *p_access, int i_query, va_list args)
         }
 
         case STREAM_GET_PTS_DELAY:
-            *va_arg(args, vlc_tick_t *) = VLC_TICK_FROM_MS(
+            *va_arg(args, heimdall_tick_t *) = HEIMDALL_TICK_FROM_MS(
                     var_InheritInteger(p_access, "network-caching") );
             break;
 
@@ -308,13 +309,13 @@ FileControl(stream_t *p_access, int i_query, va_list args)
             break;
 
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static char *
-NfsGetUrl(vlc_url_t *p_url, const char *psz_file)
+NfsGetUrl(heimdall_url_t *p_url, const char *psz_file)
 {
     /* nfs://<psz_host><psz_path><psz_file>?<psz_option> */
     char *psz_url;
@@ -335,26 +336,26 @@ DirRead(stream_t *p_access, input_item_node_t *p_node)
 {
     access_sys_t *p_sys = p_access->p_sys;
     struct nfsdirent *p_nfsdirent;
-    int i_ret = VLC_SUCCESS;
+    int i_ret = HEIMDALL_SUCCESS;
     assert(p_sys->p_nfsdir);
 
-    struct vlc_readdir_helper rdh;
-    vlc_readdir_helper_init(&rdh, p_access, p_node);
+    struct heimdall_readdir_helper rdh;
+    heimdall_readdir_helper_init(&rdh, p_access, p_node);
 
-    while (i_ret == VLC_SUCCESS
+    while (i_ret == HEIMDALL_SUCCESS
         && (p_nfsdirent = nfs_readdir(p_sys->p_nfs, p_sys->p_nfsdir)) != NULL)
     {
-        char *psz_name_encoded = vlc_uri_encode(p_nfsdirent->name);
+        char *psz_name_encoded = heimdall_uri_encode(p_nfsdirent->name);
         if (psz_name_encoded == NULL)
         {
-            i_ret = VLC_ENOMEM;
+            i_ret = HEIMDALL_ENOMEM;
             break;
         }
         char *psz_url = NfsGetUrl(&p_sys->encoded_url, psz_name_encoded);
         free(psz_name_encoded);
         if (psz_url == NULL)
         {
-            i_ret = VLC_ENOMEM;
+            i_ret = HEIMDALL_ENOMEM;
             break;
         }
 
@@ -373,9 +374,9 @@ DirRead(stream_t *p_access, input_item_node_t *p_node)
 
         input_item_t *p_item;
 
-        i_ret = vlc_readdir_helper_additem(&rdh, psz_url, NULL, p_nfsdirent->name,
+        i_ret = heimdall_readdir_helper_additem(&rdh, psz_url, NULL, p_nfsdirent->name,
                                            i_type, ITEM_NET, &p_item);
-        if (i_ret == VLC_SUCCESS && p_item && p_nfsdirent->mtime.tv_sec >= 0)
+        if (i_ret == HEIMDALL_SUCCESS && p_item && p_nfsdirent->mtime.tv_sec >= 0)
         {
             input_item_AddStat(p_item, "mtime", p_nfsdirent->mtime.tv_sec);
             input_item_AddStat(p_item, "size", p_nfsdirent->size);
@@ -383,7 +384,7 @@ DirRead(stream_t *p_access, input_item_node_t *p_node)
         free(psz_url);
     }
 
-    vlc_readdir_helper_finish(&rdh, i_ret == VLC_SUCCESS);
+    heimdall_readdir_helper_finish(&rdh, i_ret == HEIMDALL_SUCCESS);
 
     return i_ret;
 }
@@ -393,27 +394,27 @@ MountRead(stream_t *p_access, input_item_node_t *p_node)
 {
     access_sys_t *p_sys = p_access->p_sys;
     assert(p_sys->p_mount != NULL && p_sys->res.exports.i_count >= 0);
-    int i_ret = VLC_SUCCESS;
+    int i_ret = HEIMDALL_SUCCESS;
 
-    struct vlc_readdir_helper rdh;
-    vlc_readdir_helper_init(&rdh, p_access, p_node);
+    struct heimdall_readdir_helper rdh;
+    heimdall_readdir_helper_init(&rdh, p_access, p_node);
 
-    for (int i = 0; i < p_sys->res.exports.i_count && i_ret == VLC_SUCCESS; ++i)
+    for (int i = 0; i < p_sys->res.exports.i_count && i_ret == HEIMDALL_SUCCESS; ++i)
     {
         char *psz_name = p_sys->res.exports.ppsz_names[i];
 
         char *psz_url = NfsGetUrl(&p_sys->encoded_url, psz_name);
         if (psz_url == NULL)
         {
-            i_ret = VLC_ENOMEM;
+            i_ret = HEIMDALL_ENOMEM;
             break;
         }
-        i_ret = vlc_readdir_helper_additem(&rdh, psz_url, NULL, psz_name,
+        i_ret = heimdall_readdir_helper_additem(&rdh, psz_url, NULL, psz_name,
                                             ITEM_TYPE_DIRECTORY, ITEM_NET, NULL);
         free(psz_url);
     }
 
-    vlc_readdir_helper_finish(&rdh, i_ret == VLC_SUCCESS);
+    heimdall_readdir_helper_finish(&rdh, i_ret == HEIMDALL_SUCCESS);
 
     return i_ret;
 }
@@ -422,7 +423,7 @@ static void
 nfs_opendir_cb(int i_status, struct nfs_context *p_nfs, void *p_data,
                void *p_private_data)
 {
-    VLC_UNUSED(p_nfs);
+    HEIMDALL_UNUSED(p_nfs);
     stream_t *p_access = p_private_data;
     access_sys_t *p_sys = p_access->p_sys;
     assert(p_sys->p_nfs == p_nfs);
@@ -436,7 +437,7 @@ static void
 nfs_open_cb(int i_status, struct nfs_context *p_nfs, void *p_data,
             void *p_private_data)
 {
-    VLC_UNUSED(p_nfs);
+    HEIMDALL_UNUSED(p_nfs);
     stream_t *p_access = p_private_data;
     access_sys_t *p_sys = p_access->p_sys;
     assert(p_sys->p_nfs == p_nfs);
@@ -450,7 +451,7 @@ static void
 nfs_stat64_cb(int i_status, struct nfs_context *p_nfs, void *p_data,
               void *p_private_data)
 {
-    VLC_UNUSED(p_nfs);
+    HEIMDALL_UNUSED(p_nfs);
     stream_t *p_access = p_private_data;
     access_sys_t *p_sys = p_access->p_sys;
     assert(p_sys->p_nfs == p_nfs);
@@ -497,7 +498,7 @@ static void
 nfs_mount_cb(int i_status, struct nfs_context *p_nfs, void *p_data,
              void *p_private_data)
 {
-    VLC_UNUSED(p_nfs);
+    HEIMDALL_UNUSED(p_nfs);
     stream_t *p_access = p_private_data;
     access_sys_t *p_sys = p_access->p_sys;
     assert(p_sys->p_nfs == p_nfs);
@@ -510,19 +511,19 @@ nfs_mount_cb(int i_status, struct nfs_context *p_nfs, void *p_data,
      * the url by adding a '/' to the decoded path. */
     if (i_status == -EACCES && p_sys->psz_url_decoded_slash == NULL)
     {
-        vlc_url_t url;
-        vlc_UrlParseFixup(&url, p_access->psz_url);
+        heimdall_url_t url;
+        heimdall_UrlParseFixup(&url, p_access->psz_url);
         if (url.psz_path == NULL || url.psz_path[0] == '\0'
          || url.psz_path[strlen(url.psz_path) - 1] == '/'
          || (p_sys->psz_url_decoded_slash = NfsGetUrl(&url, "/")) == NULL)
         {
-            vlc_UrlClean(&url);
+            heimdall_UrlClean(&url);
             NFS_CHECK_STATUS(p_access, i_status, p_data);
             return;
         }
         else
         {
-            vlc_UrlClean(&url);
+            heimdall_UrlClean(&url);
             msg_Warn(p_access, "trying to mount '%s' again by adding a '/'",
                      p_access->psz_url);
             return;
@@ -559,7 +560,7 @@ static void
 mount_export_cb(struct rpc_context *p_ctx, int i_status, void *p_data,
                 void *p_private_data)
 {
-    VLC_UNUSED(p_ctx);
+    HEIMDALL_UNUSED(p_ctx);
     stream_t *p_access = p_private_data;
     access_sys_t *p_sys = p_access->p_sys;
     assert(p_sys->p_mount == p_ctx);
@@ -635,24 +636,24 @@ NfsInit(stream_t *p_access, const char *psz_url_decoded)
 }
 
 static int
-Open(vlc_object_t *p_obj)
+Open(heimdall_object_t *p_obj)
 {
     stream_t *p_access = (stream_t *)p_obj;
-    access_sys_t *p_sys = vlc_obj_calloc(p_obj, 1, sizeof (*p_sys));
+    access_sys_t *p_sys = heimdall_obj_calloc(p_obj, 1, sizeof (*p_sys));
 
     if (unlikely(p_sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     p_access->p_sys = p_sys;
 
     p_sys->b_auto_guid = var_InheritBool(p_obj, "nfs-auto-guid");
 
     /* nfs_* functions need a decoded url */
-    p_sys->psz_url_decoded = vlc_uri_decode_duplicate(p_access->psz_url);
+    p_sys->psz_url_decoded = heimdall_uri_decode_duplicate(p_access->psz_url);
     if (p_sys->psz_url_decoded == NULL)
         goto error;
 
     /* Parse the encoded URL */
-    if (vlc_UrlParseFixup(&p_sys->encoded_url, p_access->psz_url) != 0)
+    if (heimdall_UrlParseFixup(&p_sys->encoded_url, p_access->psz_url) != 0)
         goto error;
     if (p_sys->encoded_url.psz_option)
     {
@@ -678,7 +679,7 @@ Open(vlc_object_t *p_obj)
             goto error;
         }
 
-        if (vlc_nfs_mainloop(p_access, nfs_mount_open_finished_cb) < 0)
+        if (heimdall_nfs_mainloop(p_access, nfs_mount_open_finished_cb) < 0)
             goto error;
 
         if (p_sys->psz_url_decoded_slash != NULL)
@@ -701,7 +702,7 @@ Open(vlc_object_t *p_obj)
                 goto error;
             }
 
-            if (vlc_nfs_mainloop(p_access, nfs_mount_open_slash_finished_cb) < 0)
+            if (heimdall_nfs_mainloop(p_access, nfs_mount_open_slash_finished_cb) < 0)
                 goto error;
         }
 
@@ -718,7 +719,7 @@ Open(vlc_object_t *p_obj)
             p_access->pf_control = access_vaDirectoryControlHelper;
         }
         else
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
     else
     {
@@ -743,7 +744,7 @@ Open(vlc_object_t *p_obj)
             goto error;
         }
 
-        if (vlc_mount_mainloop(p_access, mount_getexports_finished_cb) < 0)
+        if (heimdall_mount_mainloop(p_access, mount_getexports_finished_cb) < 0)
             goto error;
 
         p_access->pf_readdir = MountRead;
@@ -751,15 +752,15 @@ Open(vlc_object_t *p_obj)
         p_access->pf_control = access_vaDirectoryControlHelper;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     Close(p_obj);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 static void
-Close(vlc_object_t *p_obj)
+Close(heimdall_object_t *p_obj)
 {
     stream_t *p_access = (stream_t *)p_obj;
     access_sys_t *p_sys = p_access->p_sys;
@@ -784,7 +785,7 @@ Close(vlc_object_t *p_obj)
     if (p_sys->p_nfs_url != NULL)
         nfs_destroy_url(p_sys->p_nfs_url);
 
-    vlc_UrlClean(&p_sys->encoded_url);
+    heimdall_UrlClean(&p_sys->encoded_url);
 
     free(p_sys->psz_url_decoded);
     free(p_sys->psz_url_decoded_slash);

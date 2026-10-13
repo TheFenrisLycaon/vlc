@@ -2,6 +2,7 @@
  * Ebml_dispatcher.hpp : matroska demuxer
  *****************************************************************************
  * Copyright (C) 2016 VLC authors, VideoLAN, Videolabs SAS
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Filip Roseen <filip@videolabs.io>
  *
@@ -19,8 +20,8 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
-#ifndef VLC_MKV_EBML_DISPATCHER_HPP_
-#define VLC_MKV_EBML_DISPATCHER_HPP_
+#ifndef HEIMDALL_MKV_EBML_DISPATCHER_HPP_
+#define HEIMDALL_MKV_EBML_DISPATCHER_HPP_
 
 #include "dispatcher.hpp"
 

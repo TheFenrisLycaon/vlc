@@ -2,6 +2,7 @@
  * ts_psi_eit.c : TS demuxer SI handling
  *****************************************************************************
  * Copyright (C) 2014-2016 - VideoLAN Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -20,12 +21,12 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_demux.h>
-#include <vlc_meta.h>
-#include <vlc_epg.h>
-#include <vlc_charset.h>   /* FromCharset, for EIT */
-#include <vlc_input.h>
+#include <heimdall_common.h>
+#include <heimdall_demux.h>
+#include <heimdall_meta.h>
+#include <heimdall_epg.h>
+#include <heimdall_charset.h>   /* FromCharset, for EIT */
+#include <heimdall_input.h>
 
 #ifndef _DVBPSI_DVBPSI_H_
  #include <dvbpsi/dvbpsi.h>
@@ -118,7 +119,7 @@ static char *EITConvertToUTF8( demux_t *p_demux,
         return psz_outstring;
     }
 #else
-    VLC_UNUSED(p_sys);
+    HEIMDALL_UNUSED(p_sys);
 #endif
     /* Deal with no longer broken providers (no switch byte
       but sending ISO_8859-1 instead of ISO_6937) without
@@ -129,7 +130,7 @@ static char *EITConvertToUTF8( demux_t *p_demux,
 
     if( b_broken )
         return FromCharset( "ISO_8859-1", psz_instring, i_length );
-    return vlc_from_EIT( psz_instring, i_length );
+    return heimdall_from_EIT( psz_instring, i_length );
 }
 
 #define attach_SI_decoders(i_pid, name, member) do {\
@@ -189,7 +190,7 @@ static void SDTCallBack( void *opaque, dvbpsi_sdt_t *p_sdt )
     for( p_srv = p_sdt->p_first_service; p_srv; p_srv = p_srv->p_next )
     {
         ts_pmt_t            *p_pmt = ts_pat_Get_pmt( p_pat, p_srv->i_service_id );
-        vlc_meta_t          *p_meta;
+        heimdall_meta_t          *p_meta;
         dvbpsi_descriptor_t *p_dr;
 
         const char *psz_type = NULL;
@@ -208,7 +209,7 @@ static void SDTCallBack( void *opaque, dvbpsi_sdt_t *p_sdt )
             continue;
         }
 
-        p_meta = vlc_meta_New();
+        p_meta = heimdall_meta_New();
         for( p_dr = p_srv->p_first_descriptor; p_dr; p_dr = p_dr->p_next )
         {
             if( p_dr->i_tag == 0x48 )
@@ -273,8 +274,8 @@ static void SDTCallBack( void *opaque, dvbpsi_sdt_t *p_sdt )
 
                 if( !str2 || strcmp( "Service01", str2 ) ) /* Skip bogus libav/ffmpeg SDT */
                 {
-                    vlc_meta_SetTitle( p_meta, str2 );
-                    vlc_meta_SetPublisher( p_meta, str1 );
+                    heimdall_meta_SetTitle( p_meta, str2 );
+                    heimdall_meta_SetPublisher( p_meta, str1 );
                     if( pD->i_service_type >= 0x01 && pD->i_service_type <= 0x10 )
                         psz_type = ppsz_type[pD->i_service_type];
                 }
@@ -308,8 +309,8 @@ static void SDTCallBack( void *opaque, dvbpsi_sdt_t *p_sdt )
                                       p_sdt->i_network_id, p_logodr->i_logo_id,
                                       TS_ARIB_LOGO_TYPE_HD_LARGE ) > -1 )
                         {
-                            vlc_meta_SetArtURL( p_meta, psz_name );
-                            vlc_meta_SetExtra( p_meta, "ARTURL", psz_name );
+                            heimdall_meta_SetArtURL( p_meta, psz_name );
+                            heimdall_meta_SetExtra( p_meta, "ARTURL", psz_name );
                             free( psz_name );
                         }
                     }
@@ -332,13 +333,13 @@ static void SDTCallBack( void *opaque, dvbpsi_sdt_t *p_sdt )
         }
 
         if( psz_type )
-            vlc_meta_SetExtra( p_meta, "Type", psz_type );
+            heimdall_meta_SetExtra( p_meta, "Type", psz_type );
         if( psz_status )
-            vlc_meta_SetExtra( p_meta, "Status", psz_status );
+            heimdall_meta_SetExtra( p_meta, "Status", psz_status );
 
         es_out_Control( p_demux->out, ES_OUT_SET_GROUP_META,
                         p_srv->i_service_id, p_meta );
-        vlc_meta_Delete( p_meta );
+        heimdall_meta_Delete( p_meta );
     }
 
     sdt->u.p_si->p_ctx->i_version = p_sdt->i_version;
@@ -412,7 +413,7 @@ static void TDTCallBack( void *opaque, dvbpsi_tot_t *p_tdt )
 }
 
 static void EITExtractDrDescItems( demux_t *p_demux, const dvbpsi_extended_event_dr_t *pE,
-                                   vlc_epg_event_t *p_evt )
+                                   heimdall_epg_event_t *p_evt )
 {
     demux_sys_t *p_sys = p_demux->p_sys;
 
@@ -499,7 +500,7 @@ static void EITCallBack( void *opaque, dvbpsi_eit_t *p_eit )
     const dvbpsi_eit_event_t *p_evt;
     uint64_t i_runevt = 0;
     uint64_t i_fallbackevt = 0;
-    vlc_epg_t *p_epg;
+    heimdall_epg_t *p_epg;
 
     msg_Dbg( p_demux, "EITCallBack called" );
     if( !p_eit->b_current_next )
@@ -520,7 +521,7 @@ static void EITCallBack( void *opaque, dvbpsi_eit_t *p_eit )
      * represents 8 segments of 32 sections each. Thus a max of 24 hours per table ID
      * (Should be even better with tableid+segmentid compound if dvbpsi would export segment id)
      * see TS 101 211, 4.1.4.2.1 */
-    p_epg = vlc_epg_New( p_eit->i_table_id, p_eit->i_extension );
+    p_epg = heimdall_epg_New( p_eit->i_table_id, p_eit->i_extension );
     if( !p_epg )
     {
         dvbpsi_eit_delete( p_eit );
@@ -553,14 +554,14 @@ static void EITCallBack( void *opaque, dvbpsi_eit_t *p_eit )
         if( i_start <= 0 )
             continue;
 
-        vlc_epg_event_t *p_epgevt = vlc_epg_event_New( p_evt->i_event_id,
+        heimdall_epg_event_t *p_epgevt = heimdall_epg_event_New( p_evt->i_event_id,
                                                        i_start, i_duration );
         if( !p_epgevt )
             continue;
 
-        if( !vlc_epg_AddEvent( p_epg, p_epgevt ) )
+        if( !heimdall_epg_AddEvent( p_epg, p_epgevt ) )
         {
-            vlc_epg_event_Delete( p_epgevt );
+            heimdall_epg_event_Delete( p_epgevt );
             continue;
         }
 
@@ -682,7 +683,7 @@ static void EITCallBack( void *opaque, dvbpsi_eit_t *p_eit )
 
     /* Update "now playing" field */
     if( i_runevt || i_fallbackevt )
-        vlc_epg_SetCurrent( p_epg, (i_runevt) ? i_runevt : i_fallbackevt );
+        heimdall_epg_SetCurrent( p_epg, (i_runevt) ? i_runevt : i_fallbackevt );
 
     if( p_epg->i_event > 0 )
     {
@@ -699,7 +700,7 @@ static void EITCallBack( void *opaque, dvbpsi_eit_t *p_eit )
         p_epg->b_present = (p_eit->i_table_id == 0x4e);
         es_out_Control( p_demux->out, ES_OUT_SET_GROUP_EPG, p_eit->i_extension, p_epg );
     }
-    vlc_epg_Delete( p_epg );
+    heimdall_epg_Delete( p_epg );
 
     dvbpsi_eit_delete( p_eit );
 }
@@ -707,7 +708,7 @@ static void EITCallBack( void *opaque, dvbpsi_eit_t *p_eit )
 static void ARIB_CDT_RawCallback( dvbpsi_t *p_handle, const dvbpsi_psi_section_t* p_section,
                                   void *p_cdtpid )
 {
-    VLC_UNUSED(p_cdtpid);
+    HEIMDALL_UNUSED(p_cdtpid);
     demux_t *p_demux = (demux_t *) p_handle->p_sys;
     demux_sys_t *p_sys = p_demux->p_sys;
     const ts_pat_t *p_pat = GetPID(p_sys, 0)->u.p_pat;
@@ -749,14 +750,14 @@ static void ARIB_CDT_RawCallback( dvbpsi_t *p_handle, const dvbpsi_psi_section_t
                                   i_onid, i_logo_id, i_logo_type ) > -1 )
                     {
                         uint8_t *p_png; size_t i_png;
-                        if( !vlc_dictionary_has_key( &p_sys->attachments, psz_name ) &&
+                        if( !heimdall_dictionary_has_key( &p_sys->attachments, psz_name ) &&
                             ts_arib_inject_png_palette( &p_dmb[7], i_size, &p_png, &i_png ) )
                         {
-                            input_attachment_t *p_att = vlc_input_attachment_New(
+                            input_attachment_t *p_att = heimdall_input_attachment_New(
                                                         psz_name, "image/png", NULL, p_png, i_png );
                             if( p_att )
                             {
-                                vlc_dictionary_insert( &p_sys->attachments, psz_name, p_att );
+                                heimdall_dictionary_insert( &p_sys->attachments, psz_name, p_att );
                                 p_sys->updates |= INPUT_UPDATE_META;
                             }
                             free( p_png );

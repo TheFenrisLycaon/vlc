@@ -1,7 +1,8 @@
 /*****************************************************************************
- * subsdelay.c : Subsdelay plugin for vlc
+ * subsdelay.c : Subsdelay plugin for heimdall
  *****************************************************************************
  * Copyright © 2011 VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Yuval Tze <yuvaltze@gmail.com>
  *
@@ -28,12 +29,12 @@
 #include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_subpicture.h>
-#include <vlc_es.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_subpicture.h>
+#include <heimdall_es.h>
 #include <stdlib.h>
 
 /*****************************************************************************
@@ -126,7 +127,7 @@ struct subsdelay_heap_entry_t
 
     bool b_check_empty; /* subtitle content should be checked */
 
-    vlc_tick_t i_new_stop; /* new stop value */
+    heimdall_tick_t i_new_stop; /* new stop value */
 
     /* last region data*/
 
@@ -149,7 +150,7 @@ struct subsdelay_heap_entry_t
 
 typedef struct
 {
-    vlc_mutex_t lock; /* heap global lock */
+    heimdall_mutex_t lock; /* heap global lock */
 
     subsdelay_heap_entry_t *p_list[SUBSDELAY_MAX_ENTRIES]; /* subtitles entries array */
 
@@ -175,11 +176,11 @@ typedef struct
 
     int i_min_alpha; /* oldest subtitle alpha value */
 
-    vlc_tick_t i_min_stops_interval;
+    heimdall_tick_t i_min_stops_interval;
 
-    vlc_tick_t i_min_stop_start_interval;
+    heimdall_tick_t i_min_stop_start_interval;
 
-    vlc_tick_t i_min_start_stop_interval;
+    heimdall_tick_t i_min_start_stop_interval;
 
     subsdelay_heap_t heap; /* subpictures list */
 } filter_sys_t;
@@ -195,7 +196,7 @@ static void SubsdelayDestroy( filter_t * );
 
 static subpicture_t * SubsdelayFilter( filter_t *p_filter, subpicture_t* p_subpic );
 
-static int SubsdelayCallback( vlc_object_t *p_this, char const *psz_var, vlc_value_t oldval, vlc_value_t newval,
+static int SubsdelayCallback( heimdall_object_t *p_this, char const *psz_var, heimdall_value_t oldval, heimdall_value_t newval,
         void *p_data );
 
 /*****************************************************************************
@@ -204,7 +205,7 @@ static int SubsdelayCallback( vlc_object_t *p_this, char const *psz_var, vlc_val
 
 static void SubsdelayEnforceDelayRules( filter_t *p_filter );
 
-static vlc_tick_t SubsdelayEstimateDelay( filter_t *p_filter, subsdelay_heap_entry_t *p_entry );
+static heimdall_tick_t SubsdelayEstimateDelay( filter_t *p_filter, subsdelay_heap_entry_t *p_entry );
 
 static void SubsdelayRecalculateDelays( filter_t *p_filter );
 
@@ -218,11 +219,11 @@ static bool SubsdelayIsTextEmpty( const subpicture_region_t * );
  * Subpicture functions
  *****************************************************************************/
 
-static void SubpicUpdateWrapper( subpicture_t *, const struct vlc_spu_updater_configuration * );
+static void SubpicUpdateWrapper( subpicture_t *, const struct heimdall_spu_updater_configuration * );
 
 static void SubpicDestroyWrapper( subpicture_t *p_subpic );
 
-static void SubpicLocalUpdate( subpicture_t* p_subpic, vlc_tick_t i_ts );
+static void SubpicLocalUpdate( subpicture_t* p_subpic, heimdall_tick_t i_ts );
 
 static bool SubpicIsEmpty( subpicture_t* p_subpic );
 
@@ -254,7 +255,7 @@ static void SubsdelayEntryDestroy( subsdelay_heap_entry_t *p_entry );
 
 /* heap / entries special functionality */
 
-static int SubsdelayHeapCountOverlap( subsdelay_heap_t *p_heap, subsdelay_heap_entry_t *p_entry, vlc_tick_t i_date );
+static int SubsdelayHeapCountOverlap( subsdelay_heap_t *p_heap, subsdelay_heap_entry_t *p_entry, heimdall_tick_t i_date );
 
 static void SubsdelayEntryNewStopValueUpdated( subsdelay_heap_entry_t *p_entry );
 
@@ -262,7 +263,7 @@ static void SubsdelayEntryNewStopValueUpdated( subsdelay_heap_entry_t *p_entry )
  * Module descriptor
  *****************************************************************************/
 
-vlc_module_begin()
+heimdall_module_begin()
         set_shortname( N_("Subsdelay") )
         set_description( N_("Subtitle delay") )
         set_help( SUBSDELAY_HELP )
@@ -288,11 +289,11 @@ vlc_module_begin()
         add_integer( CFG_MIN_STOP_START_INTERVAL, 1000, MIN_STOP_START_INTERVAL_TEXT,
                      MIN_STOP_START_INTERVAL_LONGTEXT )
 
-    vlc_module_end ()
+    heimdall_module_end ()
 
 static const char * const ppsz_filter_options[] = { "mode", "factor", "overlap", NULL };
 
-static const struct vlc_filter_operations filter_ops = {
+static const struct heimdall_filter_operations filter_ops = {
     .filter_sub = SubsdelayFilter, .close = SubsdelayDestroy,
 };
 
@@ -308,7 +309,7 @@ static int SubsdelayCreate( filter_t *p_filter )
 
     if( !p_sys )
     {
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     /* init parameters */
@@ -326,15 +327,15 @@ static int SubsdelayCreate( filter_t *p_filter )
     var_AddCallback( p_filter, CFG_MIN_ALPHA, SubsdelayCallback, p_sys );
 
     p_sys->i_min_stops_interval
-            = VLC_TICK_FROM_MS( var_CreateGetIntegerCommand( p_filter, CFG_MIN_STOPS_INTERVAL ) );
+            = HEIMDALL_TICK_FROM_MS( var_CreateGetIntegerCommand( p_filter, CFG_MIN_STOPS_INTERVAL ) );
     var_AddCallback( p_filter, CFG_MIN_STOPS_INTERVAL, SubsdelayCallback, p_sys );
 
     p_sys->i_min_stop_start_interval
-            = VLC_TICK_FROM_MS( var_CreateGetIntegerCommand( p_filter, CFG_MIN_STOP_START_INTERVAL ) );
+            = HEIMDALL_TICK_FROM_MS( var_CreateGetIntegerCommand( p_filter, CFG_MIN_STOP_START_INTERVAL ) );
     var_AddCallback( p_filter, CFG_MIN_STOP_START_INTERVAL, SubsdelayCallback, p_sys );
 
     p_sys->i_min_start_stop_interval
-            = VLC_TICK_FROM_MS( var_CreateGetIntegerCommand( p_filter, CFG_MIN_START_STOP_INTERVAL ) );
+            = HEIMDALL_TICK_FROM_MS( var_CreateGetIntegerCommand( p_filter, CFG_MIN_START_STOP_INTERVAL ) );
     var_AddCallback( p_filter, CFG_MIN_START_STOP_INTERVAL, SubsdelayCallback, p_sys );
 
     p_filter->p_sys = p_sys;
@@ -344,7 +345,7 @@ static int SubsdelayCreate( filter_t *p_filter )
 
     SubsdelayHeapInit( &p_sys->heap );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -429,7 +430,7 @@ static subpicture_t * SubsdelayFilter( filter_t *p_filter, subpicture_t* p_subpi
         /* set a relatively long delay in hope that the next subtitle
            will arrive in this time and the real delay could be determined */
 
-        p_subpic->i_stop = p_subpic->i_start + VLC_TICK_FROM_SEC(20); /* start + 20 sec */
+        p_subpic->i_stop = p_subpic->i_start + HEIMDALL_TICK_FROM_SEC(20); /* start + 20 sec */
         p_subpic->b_ephemer = false;
     }
 
@@ -444,12 +445,12 @@ static subpicture_t * SubsdelayFilter( filter_t *p_filter, subpicture_t* p_subpi
 /*****************************************************************************
  * SubsdelayCallback: Subsdelay parameters callback
  *****************************************************************************/
-static int SubsdelayCallback( vlc_object_t *p_this, char const *psz_var, vlc_value_t oldval, vlc_value_t newval,
+static int SubsdelayCallback( heimdall_object_t *p_this, char const *psz_var, heimdall_value_t oldval, heimdall_value_t newval,
         void *p_data )
 {
     filter_sys_t *p_sys = p_data;
 
-    VLC_UNUSED( oldval );
+    HEIMDALL_UNUSED( oldval );
 
     SubsdelayHeapLock( &p_sys->heap );
 
@@ -471,25 +472,25 @@ static int SubsdelayCallback( vlc_object_t *p_this, char const *psz_var, vlc_val
     }
     else if( !strcmp( psz_var, CFG_MIN_STOPS_INTERVAL ) )
     {
-        p_sys->i_min_stops_interval = VLC_TICK_FROM_MS( newval.i_int );
+        p_sys->i_min_stops_interval = HEIMDALL_TICK_FROM_MS( newval.i_int );
     }
     else if( !strcmp( psz_var, CFG_MIN_STOP_START_INTERVAL ) )
     {
-        p_sys->i_min_stop_start_interval = VLC_TICK_FROM_MS( newval.i_int );
+        p_sys->i_min_stop_start_interval = HEIMDALL_TICK_FROM_MS( newval.i_int );
     }
     else if( !strcmp( psz_var, CFG_MIN_START_STOP_INTERVAL ) )
     {
-        p_sys->i_min_start_stop_interval = VLC_TICK_FROM_MS( newval.i_int );
+        p_sys->i_min_start_stop_interval = HEIMDALL_TICK_FROM_MS( newval.i_int );
     }
     else
     {
-        vlc_assert_unreachable();
+        heimdall_assert_unreachable();
     }
 
     SubsdelayRecalculateDelays( (filter_t *) p_this );
 
     SubsdelayHeapUnlock( &p_sys->heap );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -500,7 +501,7 @@ static void SubsdelayHeapInit( subsdelay_heap_t *p_heap )
     p_heap->i_count = 0;
     p_heap->p_head = NULL;
 
-    vlc_mutex_init( &p_heap->lock );
+    heimdall_mutex_init( &p_heap->lock );
 }
 
 /*****************************************************************************
@@ -638,7 +639,7 @@ static void SubsdelayRebuildList( subsdelay_heap_t *p_heap )
  *****************************************************************************/
 static void SubsdelayHeapLock( subsdelay_heap_t *p_heap )
 {
-    vlc_mutex_lock( &p_heap->lock );
+    heimdall_mutex_lock( &p_heap->lock );
 }
 
 /*****************************************************************************
@@ -646,7 +647,7 @@ static void SubsdelayHeapLock( subsdelay_heap_t *p_heap )
  *****************************************************************************/
 static void SubsdelayHeapUnlock( subsdelay_heap_t *p_heap )
 {
-    vlc_mutex_unlock( &p_heap->lock );
+    heimdall_mutex_unlock( &p_heap->lock );
 }
 
 
@@ -669,7 +670,7 @@ static subsdelay_heap_entry_t * SubsdelayEntryCreate( subpicture_t *p_source, fi
     }
 
     /* initialize local updater */
-    static const struct vlc_spu_updater_ops spu_ops =
+    static const struct heimdall_spu_updater_ops spu_ops =
     {
         .update   = SubpicUpdateWrapper,
         .destroy  = SubpicDestroyWrapper,
@@ -724,11 +725,11 @@ static void SubsdelayEntryDestroy( subsdelay_heap_entry_t *p_entry )
 /*****************************************************************************
  * SubsdelayHeapCountOverlap: Count overlapping subtitles at a given time
  *****************************************************************************/
-static int SubsdelayHeapCountOverlap( subsdelay_heap_t *p_heap, subsdelay_heap_entry_t *p_entry, vlc_tick_t i_date )
+static int SubsdelayHeapCountOverlap( subsdelay_heap_t *p_heap, subsdelay_heap_entry_t *p_entry, heimdall_tick_t i_date )
 {
     int i_overlaps;
 
-    VLC_UNUSED( p_heap );
+    HEIMDALL_UNUSED( p_heap );
 
     i_overlaps = 0;
 
@@ -757,7 +758,7 @@ static void SubsdelayEntryNewStopValueUpdated( subsdelay_heap_entry_t *p_entry )
 {
     if( !p_entry->b_update_stop )
     {
-        p_entry->p_subpic->i_stop = p_entry->i_new_stop - VLC_TICK_FROM_MS(100); /* 0.1 sec less */
+        p_entry->p_subpic->i_stop = p_entry->i_new_stop - HEIMDALL_TICK_FROM_MS(100); /* 0.1 sec less */
     }
 }
 
@@ -769,10 +770,10 @@ static void SubsdelayEnforceDelayRules( filter_t *p_filter )
 {
     subsdelay_heap_entry_t ** p_list;
     int i_count, i_overlap;
-    vlc_tick_t i_offset;
-    vlc_tick_t i_min_stops_interval;
-    vlc_tick_t i_min_stop_start_interval;
-    vlc_tick_t i_min_start_stop_interval;
+    heimdall_tick_t i_offset;
+    heimdall_tick_t i_min_stops_interval;
+    heimdall_tick_t i_min_stop_start_interval;
+    heimdall_tick_t i_min_start_stop_interval;
 
     filter_sys_t *p_sys = p_filter->p_sys;
 
@@ -920,7 +921,7 @@ static void SubsdelayRecalculateDelays( filter_t *p_filter )
  * SubpicUpdateWrapper: Subpicture update callback wrapper
  *****************************************************************************/
 static void SubpicUpdateWrapper( subpicture_t *p_subpic,
-                                 const struct vlc_spu_updater_configuration *cfg )
+                                 const struct heimdall_spu_updater_configuration *cfg )
 {
     subsdelay_heap_entry_t *p_entry;
 
@@ -933,7 +934,7 @@ static void SubpicUpdateWrapper( subpicture_t *p_subpic,
     p_entry->b_last_region_saved = false;
 
     subpicture_region_t *p_region =
-        vlc_spu_regions_first_or_null(&p_subpic->regions);
+        heimdall_spu_regions_first_or_null(&p_subpic->regions);
     if( p_region )
     {
         /* save copy */
@@ -946,10 +947,10 @@ static void SubpicUpdateWrapper( subpicture_t *p_subpic,
         p_entry->b_last_region_saved = true;
     }
 
-    vlc_spu_regions_Clear( &p_subpic->regions );
+    heimdall_spu_regions_Clear( &p_subpic->regions );
 
     /* call source update */
-    struct vlc_spu_updater_configuration new_cfg = *cfg;
+    struct heimdall_spu_updater_configuration new_cfg = *cfg;
     new_cfg.pts = p_entry->p_source->i_start +
                 ( (double)( p_entry->p_source->i_stop - p_entry->p_source->i_start ) * ( cfg->pts - p_entry->p_source->i_start ) ) /
                 ( p_entry->i_new_stop - p_entry->p_source->i_start );
@@ -995,7 +996,7 @@ static void SubpicDestroyWrapper( subpicture_t *p_subpic )
 /*****************************************************************************
  * SubpicLocalUpdate: rewrite some of the subpicture parameters
  *****************************************************************************/
-static void SubpicLocalUpdate( subpicture_t* p_subpic, vlc_tick_t i_ts )
+static void SubpicLocalUpdate( subpicture_t* p_subpic, heimdall_tick_t i_ts )
 {
     subsdelay_heap_entry_t *p_entry;
     subsdelay_heap_t *p_heap;
@@ -1016,7 +1017,7 @@ static void SubpicLocalUpdate( subpicture_t* p_subpic, vlc_tick_t i_ts )
     SubsdelayHeapLock( p_heap );
 
     subpicture_region_t *p_region =
-        vlc_spu_regions_first_or_null(&p_subpic->regions);
+        heimdall_spu_regions_first_or_null(&p_subpic->regions);
     if( p_entry->b_check_empty && p_region )
     {
         if( SubsdelayIsTextEmpty( p_region ) )
@@ -1082,7 +1083,7 @@ static void SubpicLocalUpdate( subpicture_t* p_subpic, vlc_tick_t i_ts )
 static bool SubpicIsEmpty( subpicture_t* p_subpic )
 {
     subpicture_region_t *p_region =
-        vlc_spu_regions_first_or_null(&p_subpic->regions);
+        heimdall_spu_regions_first_or_null(&p_subpic->regions);
     return p_region != NULL && SubsdelayIsTextEmpty( p_region );
 }
 
@@ -1122,7 +1123,7 @@ static subpicture_t *SubpicClone( subpicture_t *p_source, subpicture_updater_t *
  *****************************************************************************/
 static void SubpicDestroyClone( subpicture_t *p_subpic )
 {
-    vlc_spu_regions_init(&p_subpic->regions); /* don't destroy region */
+    heimdall_spu_regions_init(&p_subpic->regions); /* don't destroy region */
     subpicture_Delete( p_subpic );
 }
 
@@ -1130,7 +1131,7 @@ static void SubpicDestroyClone( subpicture_t *p_subpic )
  * SubsdelayEstimateDelay: Calculate new subtitle delay according to its
  *     content and the calculation mode
  *****************************************************************************/
-static vlc_tick_t SubsdelayEstimateDelay( filter_t *p_filter, subsdelay_heap_entry_t *p_entry )
+static heimdall_tick_t SubsdelayEstimateDelay( filter_t *p_filter, subsdelay_heap_entry_t *p_entry )
 {
     int i_mode;
     int i_rank;
@@ -1141,7 +1142,7 @@ static vlc_tick_t SubsdelayEstimateDelay( filter_t *p_filter, subsdelay_heap_ent
 
     if( i_mode == SUBSDELAY_MODE_ABSOLUTE )
     {
-        return ( p_entry->p_source->i_stop - p_entry->p_source->i_start + vlc_tick_from_sec( p_sys->f_factor ) );
+        return ( p_entry->p_source->i_stop - p_entry->p_source->i_start + heimdall_tick_from_sec( p_sys->f_factor ) );
     }
 
     if( i_mode == SUBSDELAY_MODE_RELATIVE_SOURCE_CONTENT )
@@ -1149,13 +1150,13 @@ static vlc_tick_t SubsdelayEstimateDelay( filter_t *p_filter, subsdelay_heap_ent
         if( p_entry->p_subpic )
         {
             subpicture_region_t *p_region =
-                vlc_spu_regions_first_or_null( &p_entry->p_subpic->regions );
+                heimdall_spu_regions_first_or_null( &p_entry->p_subpic->regions );
             if( p_region && ( p_region->p_text ) )
             {
             //FIXME: We only use a single segment here
             i_rank = SubsdelayGetTextRank( p_region->p_text->psz_text );
 
-            return vlc_tick_from_sec( p_sys->f_factor * i_rank );
+            return heimdall_tick_from_sec( p_sys->f_factor * i_rank );
             }
         }
 
@@ -1165,10 +1166,10 @@ static vlc_tick_t SubsdelayEstimateDelay( filter_t *p_filter, subsdelay_heap_ent
 
     if( likely(i_mode == SUBSDELAY_MODE_RELATIVE_SOURCE_DELAY) )
     {
-        return (vlc_tick_t)( p_sys->f_factor * ( p_entry->p_source->i_stop - p_entry->p_source->i_start ) );
+        return (heimdall_tick_t)( p_sys->f_factor * ( p_entry->p_source->i_stop - p_entry->p_source->i_start ) );
     }
 
-    return VLC_TICK_FROM_SEC(10); /* 10 sec */
+    return HEIMDALL_TICK_FROM_SEC(10); /* 10 sec */
 }
 
 /*****************************************************************************

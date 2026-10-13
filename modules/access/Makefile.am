@@ -80,14 +80,14 @@ endif
 
 libpipewiresrc_plugin_la_SOURCES = access/pipewire.c
 libpipewiresrc_plugin_la_CFLAGS = $(AM_CFLAGS) $(PIPEWIRE_CFLAGS)
-libpipewiresrc_plugin_la_LIBADD = libvlc_pipewire.la $(PIPEWIRE_LIBS)
+libpipewiresrc_plugin_la_LIBADD = libheimdall_pipewire.la $(PIPEWIRE_LIBS)
 if HAVE_PIPEWIRE
 access_PLUGINS += libpipewiresrc_plugin.la
 endif
 
 libpulsesrc_plugin_la_SOURCES = access/pulse.c
 libpulsesrc_plugin_la_CFLAGS= $(AM_CFLAGS) $(PULSE_CFLAGS)
-libpulsesrc_plugin_la_LIBADD = libvlc_pulse.la $(PULSE_LIBS)
+libpulsesrc_plugin_la_LIBADD = libheimdall_pulse.la $(PULSE_LIBS)
 if HAVE_PULSE
 access_PLUGINS += libpulsesrc_plugin.la
 endif
@@ -143,7 +143,7 @@ liblinsys_sdi_plugin_la_LDFLAGS = $(AM_LDFLAGS) $(access_RPATH)
 access_PLUGINS += $(LTLIBlinsys_hdsdi) $(LTLIBlinsys_sdi)
 EXTRA_LTLIBRARIES += liblinsys_hdsdi_plugin.la liblinsys_sdi_plugin.la
 
-libdecklink_plugin_la_SOURCES = access/decklink.cpp access/sdi.c access/sdi.h access/vlc_decklink.h
+libdecklink_plugin_la_SOURCES = access/decklink.cpp access/sdi.c access/sdi.h access/heimdall_decklink.h
 libdecklink_plugin_la_CXXFLAGS = $(AM_CXXFLAGS) $(CPPFLAGS_decklink)
 libdecklink_plugin_la_LIBADD = $(LIBS_decklink)
 if HAVE_WIN32
@@ -262,7 +262,7 @@ libcdda_plugin_la_SOURCES = access/cdda.c access/disc_helper.h access/vcd/cdrom.
                             misc/webservices/musicbrainz.h
 
 libcdda_plugin_la_CFLAGS = $(AM_CFLAGS)
-libcdda_plugin_la_LIBADD = libvlc_json.la $(LIBM)
+libcdda_plugin_la_LIBADD = libheimdall_json.la $(LIBM)
 libcdda_plugin_la_LDFLAGS = $(AM_LDFLAGS) $(access_RPATH)
 if HAVE_DARWIN
 libcdda_plugin_la_LIBADD += -liconv
@@ -373,7 +373,7 @@ libhttp_plugin_la_LIBADD = $(SOCKET_LIBS)
 access_PLUGINS += libhttp_plugin.la
 
 libwebdav_plugin_la_SOURCES = access/webdav.c
-libwebdav_plugin_la_LIBADD = libvlc_http.la
+libwebdav_plugin_la_LIBADD = libheimdall_http.la
 access_PLUGINS += libwebdav_plugin.la
 
 liblive555_plugin_la_SOURCES = access/live555.cpp access/mms/asf.c access/mms/buffer.c \
@@ -405,14 +405,14 @@ EXTRA_LTLIBRARIES += libsmbc_plugin.la
 
 libdsm_plugin_la_SOURCES = access/dsm/access.c access/dsm/sd.c access/smb_common.h
 libdsm_plugin_la_CFLAGS = $(AM_CFLAGS) $(DSM_CFLAGS)
-libdsm_plugin_la_LIBADD = $(DSM_LIBS) libvlc_access_cache.la
+libdsm_plugin_la_LIBADD = $(DSM_LIBS) libheimdall_access_cache.la
 if HAVE_DSM
 access_PLUGINS += libdsm_plugin.la
 endif
 
 libsmb2_plugin_la_SOURCES = access/smb2.c
 libsmb2_plugin_la_CFLAGS = $(AM_CFLAGS) $(SMB2_CFLAGS)
-libsmb2_plugin_la_LIBADD = $(SMB2_LIBS) $(SOCKET_LIBS) libvlc_access_cache.la
+libsmb2_plugin_la_LIBADD = $(SMB2_LIBS) $(SOCKET_LIBS) libheimdall_access_cache.la
 libsmb2_plugin_la_LDFLAGS = $(AM_LDFLAGS) $(access_RPATH)
 if HAVE_DSM
 libsmb2_plugin_la_CFLAGS += $(DSM_CFLAGS) -DHAVE_DSM
@@ -509,7 +509,7 @@ EXTRA_LTLIBRARIES += librist_plugin.la
 
 ### TOOLS ###
 
-libvlc_access_cache_la_SOURCES = access/cache.c access/cache.h
-libvlc_access_cache_la_LIBADD = $(LTLIBVLCCORE)
-libvlc_access_cache_la_LDFLAGS = -static
-noinst_LTLIBRARIES += libvlc_access_cache.la
+libheimdall_access_cache_la_SOURCES = access/cache.c access/cache.h
+libheimdall_access_cache_la_LIBADD = $(LTLIBHEIMDALLCORE)
+libheimdall_access_cache_la_LDFLAGS = -static
+noinst_LTLIBRARIES += libheimdall_access_cache.la

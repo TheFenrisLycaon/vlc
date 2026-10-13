@@ -2,6 +2,7 @@
  * deinterlace.c: ppc deinterlacing functions
  *****************************************************************************
  * Copyright (C) 2011, 2026 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  * 
  * Author: Sam Hocevar <sam@zoy.org>                      (generic C routine)
  *         Eric Petit <eric.petit@lapsus.org>             (Altivec)
@@ -25,9 +26,9 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_cpu.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_cpu.h>
+#include <heimdall_plugin.h>
 #include <stdint.h>
 #include "../../video_filter/deinterlace/merge.h"
 
@@ -35,7 +36,7 @@
     #include <altivec.h>
 #endif
 
-VLC_ALTIVEC
+HEIMDALL_ALTIVEC
 static void MergeAltivec( void *_p_dest, const void *_p_s1,
                    const void *_p_s2, size_t i_bytes )
 {
@@ -105,13 +106,13 @@ static void MergeAltivec( void *_p_dest, const void *_p_s1,
 
 static void Probe(void *data)
 {
-    if (vlc_CPU_ALTIVEC()) {
+    if (heimdall_CPU_ALTIVEC()) {
         struct deinterlace_functions *const f = data;
         f->merges[0] = MergeAltivec;
     }
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_description("PowerPC optimisation for deinterlacing")
     set_cpu_funcs("deinterlace functions", Probe, 20 )
-vlc_module_end()
+heimdall_module_end()

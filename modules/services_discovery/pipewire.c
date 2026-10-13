@@ -1,8 +1,9 @@
 /*****************************************************************************
  * @file pipewire.c
- * @brief List of PipeWire sources for VLC media player
+ * @brief List of PipeWire sources for Heimdall media player
  *****************************************************************************
  * Copyright (C) 2024 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Ayush Dey <deyayush6@gmail.com>
  *          Thomas Guillem <tguillem@videolan.org>
@@ -29,21 +30,21 @@
 #include <search.h>
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_services_discovery.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_services_discovery.h>
 #include <pipewire/pipewire.h>
-#include "audio_output/vlc_pipewire.h"
+#include "audio_output/heimdall_pipewire.h"
 
 struct services_discovery_sys_t
 {
-    struct vlc_pw_context *context;
+    struct heimdall_pw_context *context;
     struct spa_hook listener;
     void *nodes;
     void *root_card;
 };
 
-struct vlc_pw_node
+struct heimdall_pw_node
 {
     uint32_t id;
     uint64_t serial;
@@ -60,7 +61,7 @@ struct card
 
 static void DestroySource (void *data)
 {
-    struct vlc_pw_node *node = data;
+    struct heimdall_pw_node *node = data;
 
     services_discovery_RemoveItem (node->sd, node->item);
     input_item_Release (node->item);
@@ -81,7 +82,7 @@ static void DestroyCard(void *data)
  */
 static int node_by_id(const void *a, const void *b)
 {
-    const struct vlc_pw_node *na = a, *nb = b;
+    const struct heimdall_pw_node *na = a, *nb = b;
 
     if (na->id > nb->id)
         return 1;
@@ -123,7 +124,7 @@ static input_item_t *AddCard (services_discovery_t *sd, const struct spa_dict *p
         return c->item;
     }
 
-    c->item = input_item_NewExt("vlc://nop", c->name,
+    c->item = input_item_NewExt("heimdall://nop", c->name,
                                 INPUT_DURATION_INDEFINITE,
                                 ITEM_TYPE_NODE, ITEM_LOCAL);
 
@@ -170,13 +171,13 @@ static void registry_node(services_discovery_t *sd, uint32_t id, uint32_t perms,
     if (unlikely(desc == NULL))
         desc = "???";
 
-    vlc_pw_debug(sys->context, "adding %s (%s)", name, desc);
+    heimdall_pw_debug(sys->context, "adding %s (%s)", name, desc);
     input_item_t *item = input_item_NewCard (mrl, desc);
     free (mrl);
     if (unlikely(item == NULL))
         return;
 
-    struct vlc_pw_node *node = malloc(sizeof (*node));
+    struct heimdall_pw_node *node = malloc(sizeof (*node));
     if (unlikely(node == NULL))
     {
         input_item_Release (item);
@@ -187,7 +188,7 @@ static void registry_node(services_discovery_t *sd, uint32_t id, uint32_t perms,
     node->serial = serial;
     node->item = item;
 
-    struct vlc_pw_node **pp = tsearch(node, &sys->nodes, node_by_id);
+    struct heimdall_pw_node **pp = tsearch(node, &sys->nodes, node_by_id);
     if (unlikely(pp == NULL))
     { /* Memory allocation error in the tree */
         free(node);
@@ -235,12 +236,12 @@ static void registry_global_remove(void *data, uint32_t id)
 {
     services_discovery_t *sd = data;
     struct services_discovery_sys_t *sys = sd->p_sys;
-    struct vlc_pw_node key = { .id = id };
-    struct vlc_pw_node **pp = tfind(&key, &sys->nodes, node_by_id);
+    struct heimdall_pw_node key = { .id = id };
+    struct heimdall_pw_node **pp = tfind(&key, &sys->nodes, node_by_id);
     if (pp == NULL)
         return;
 
-    struct vlc_pw_node *node = *pp;
+    struct heimdall_pw_node *node = *pp;
     tdelete(node, &sys->nodes, node_by_id);
     DestroySource (node);
 }
@@ -251,19 +252,19 @@ static const struct pw_registry_events events = {
     .global_remove =  registry_global_remove
 };
 
-static int Open (vlc_object_t *obj)
+static int Open (heimdall_object_t *obj)
 {
     services_discovery_t *sd = (services_discovery_t *)obj;
     
     struct services_discovery_sys_t *sys = malloc(sizeof (*sys));
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    sys->context = vlc_pw_connect(obj, "services discovery");
+    sys->context = heimdall_pw_connect(obj, "services discovery");
     if (sys->context == NULL)
     {
         free(sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     sd->p_sys = sys;
@@ -272,28 +273,28 @@ static int Open (vlc_object_t *obj)
     sys->root_card = NULL;
     sys->listener = (struct spa_hook){ };
 
-    vlc_pw_lock(sys->context);
+    heimdall_pw_lock(sys->context);
     /* Subscribe for source events */
-    vlc_pw_registry_listen(sys->context, &sys->listener, &events, sd);
-    vlc_pw_roundtrip_unlocked(sys->context); /* Enumerate existing sources */
-    vlc_pw_unlock(sys->context);
-    return VLC_SUCCESS;
+    heimdall_pw_registry_listen(sys->context, &sys->listener, &events, sd);
+    heimdall_pw_roundtrip_unlocked(sys->context); /* Enumerate existing sources */
+    heimdall_pw_unlock(sys->context);
+    return HEIMDALL_SUCCESS;
 }
 
-static void Close (vlc_object_t *obj)
+static void Close (heimdall_object_t *obj)
 {
     services_discovery_t *sd = (services_discovery_t *)obj;
     struct services_discovery_sys_t *sys = sd->p_sys;
 
-    vlc_pw_disconnect(sys->context);
+    heimdall_pw_disconnect(sys->context);
     tdestroy(sys->nodes, DestroySource);
     tdestroy(sys->root_card, DestroyCard);
     free (sys);
 }
 
-VLC_SD_PROBE_HELPER("pipewire", N_("Audio and Video capture"), SD_CAT_DEVICES);
+HEIMDALL_SD_PROBE_HELPER("pipewire", N_("Audio and Video capture"), SD_CAT_DEVICES);
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname (N_("Audio and Video capture"))
     set_description (N_("Audio and Video capture (PipeWire)"))
     set_subcategory (SUBCAT_PLAYLIST_SD)
@@ -301,5 +302,5 @@ vlc_module_begin ()
     set_callbacks (Open, Close)
     add_shortcut ("pipewire", "pw")
 
-    VLC_SD_PROBE_SUBMODULE
-vlc_module_end ()
+    HEIMDALL_SD_PROBE_SUBMODULE
+heimdall_module_end ()

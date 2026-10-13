@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,10 +20,10 @@ import QtQuick
 import QtQuick.Templates as T
 import QtQuick.Layouts
 
-import VLC.MainInterface
-import VLC.Widgets as Widgets
-import VLC.Style
-import VLC.Dialogs
+import Heimdall.MainInterface
+import Heimdall.Widgets as Widgets
+import Heimdall.Style
+import Heimdall.Dialogs
 
 
 WindowDialog {
@@ -84,12 +85,12 @@ WindowDialog {
         ColumnLayout {
             anchors.fill: parent
 
-            spacing: VLCStyle.margin_small
+            spacing: HeimdallStyle.margin_small
 
             RowLayout {
                 Layout.fillHeight: false
 
-                spacing: VLCStyle.margin_xsmall
+                spacing: HeimdallStyle.margin_xsmall
 
                 Widgets.MenuLabel {
                     Layout.fillWidth: true
@@ -103,14 +104,14 @@ WindowDialog {
                     id: comboBox
 
                     Layout.fillWidth: (implicitWidth > Layout.minimumWidth)
-                    Layout.minimumWidth: VLCStyle.combobox_width_large
-                    Layout.minimumHeight: VLCStyle.combobox_height_normal
+                    Layout.minimumWidth: HeimdallStyle.combobox_width_large
+                    Layout.minimumHeight: HeimdallStyle.combobox_height_normal
 
                     // this is not proper way to do it,
                     // but ComboBoxExt does not provide
                     // correct implicit width:
                     implicitWidth: implicitContentWidth
-                    font.pixelSize: VLCStyle.fontSize_normal
+                    font.pixelSize: HeimdallStyle.fontSize_normal
 
                     delegate: ItemDelegate {
                         width: comboBox.width
@@ -156,7 +157,7 @@ WindowDialog {
 
                 Widgets.IconToolButton {
                     description: qsTr("Clone the selected profile")
-                    text: VLCIcons.ic_fluent_document_copy_24_regular
+                    text: HeimdallIcons.ic_fluent_document_copy_24_regular
 
                     onClicked: {
                         root.newProfile(MainCtx.controlbarProfileModel.cloneSelectedProfile)
@@ -165,7 +166,7 @@ WindowDialog {
 
                 Widgets.IconToolButton {
                     description: qsTr("New profile")
-                    text: VLCIcons.ic_fluent_document_add_24_regular
+                    text: HeimdallIcons.ic_fluent_document_add_24_regular
 
                     onClicked: {
                         root.newProfile(MainCtx.controlbarProfileModel.newProfile)
@@ -174,7 +175,7 @@ WindowDialog {
 
                 Widgets.IconToolButton {
                     description: qsTr("Delete the current profile.\nDeleting all profiles brings back the default styles.")
-                    text: VLCIcons.del
+                    text: HeimdallIcons.del
 
                     onClicked: {
                           MainCtx.controlbarProfileModel.deleteSelectedProfile()

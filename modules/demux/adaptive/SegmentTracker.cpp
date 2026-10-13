@@ -2,6 +2,7 @@
  * SegmentTracker.cpp
  *****************************************************************************
  * Copyright (C) 2014 - VideoLAN and VLC authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -92,8 +93,8 @@ FormatChangedEvent::FormatChangedEvent(const StreamFormat *f)
     this->format = f;
 }
 
-SegmentChangedEvent::SegmentChangedEvent(const ID &id, uint64_t sequence, vlc_tick_t starttime,
-                                         vlc_tick_t duration, vlc_tick_t displaytime)
+SegmentChangedEvent::SegmentChangedEvent(const ID &id, uint64_t sequence, heimdall_tick_t starttime,
+                                         heimdall_tick_t duration, heimdall_tick_t displaytime)
     : TrackerEvent(Type::SegmentChange)
 {
     this->id = &id;
@@ -111,8 +112,8 @@ BufferingStateUpdatedEvent::BufferingStateUpdatedEvent(const ID &id, bool enable
 }
 
 BufferingLevelChangedEvent::BufferingLevelChangedEvent(const ID &id,
-                                                       vlc_tick_t minimum, vlc_tick_t maximum,
-                                                       vlc_tick_t current, vlc_tick_t target)
+                                                       heimdall_tick_t minimum, heimdall_tick_t maximum,
+                                                       heimdall_tick_t current, heimdall_tick_t target)
     : TrackerEvent(Type::BufferingLevelChange)
 {
     this->id = &id;
@@ -122,7 +123,7 @@ BufferingLevelChangedEvent::BufferingLevelChangedEvent(const ID &id,
     this->target = target;
 }
 
-PositionChangedEvent::PositionChangedEvent(vlc_tick_t r)
+PositionChangedEvent::PositionChangedEvent(heimdall_tick_t r)
     : TrackerEvent(Type::PositionChange)
 {
     resumeTime = r;
@@ -235,7 +236,7 @@ SegmentTracker::ChunkEntry::ChunkEntry()
     chunk = nullptr;
 }
 
-SegmentTracker::ChunkEntry::ChunkEntry(SegmentChunk *c, Position p, vlc_tick_t s, vlc_tick_t d, vlc_tick_t dt)
+SegmentTracker::ChunkEntry::ChunkEntry(SegmentChunk *c, Position p, heimdall_tick_t s, heimdall_tick_t d, heimdall_tick_t dt)
 {
     chunk = c;
     pos = p;
@@ -325,12 +326,12 @@ SegmentTracker::prepareChunk(bool switch_allowed, Position pos) const
     if(segment != datasegment && datasegment) /* need to set for init */
         segmentChunk->discontinuitySequenceNumber = datasegment->getDiscontinuitySequenceNumber();
 
-    vlc_tick_t startTime = VLC_TICK_INVALID;
-    vlc_tick_t duration = 0;
-    vlc_tick_t displayTime = datasegment ? datasegment->getDisplayTime() : VLC_TICK_INVALID;
+    heimdall_tick_t startTime = HEIMDALL_TICK_INVALID;
+    heimdall_tick_t duration = 0;
+    heimdall_tick_t displayTime = datasegment ? datasegment->getDisplayTime() : HEIMDALL_TICK_INVALID;
     /* timings belong to timeline and are not set on the segment or need profile timescale */
     if(pos.rep->getPlaybackTimeDurationBySegmentNumber(pos.number, &startTime, &duration))
-        startTime += VLC_TICK_0;
+        startTime += HEIMDALL_TICK_0;
 
     return ChunkEntry(segmentChunk, pos, startTime, duration, displayTime);
 }
@@ -441,7 +442,7 @@ ChunkInterface * SegmentTracker::getNextChunk(bool switch_allowed)
     return returnedChunk;
 }
 
-bool SegmentTracker::setPositionByTime(vlc_tick_t time, bool restarted, bool tryonly)
+bool SegmentTracker::setPositionByTime(heimdall_tick_t time, bool restarted, bool tryonly)
 {
     Position pos = Position(current.rep, current.number);
     if(!pos.isValid())
@@ -455,7 +456,7 @@ bool SegmentTracker::setPositionByTime(vlc_tick_t time, bool restarted, bool try
     {
         if(!pos.rep->runLocalUpdates(resources))
         {
-            msg_Err(adaptationSet->getPlaylist()->getVLCObject(),
+            msg_Err(adaptationSet->getPlaylist()->getHeimdallObject(),
                     "Failed to update Representation %s",
                     pos.rep->getID().str().c_str());
             return false;
@@ -512,9 +513,9 @@ bool SegmentTracker::setStartPosition()
     return true;
 }
 
-vlc_tick_t SegmentTracker::getPlaybackTime(bool b_next) const
+heimdall_tick_t SegmentTracker::getPlaybackTime(bool b_next) const
 {
-    vlc_tick_t time, duration;
+    heimdall_tick_t time, duration;
 
     BaseRepresentation *rep = current.rep;
     if(!rep)
@@ -528,15 +529,15 @@ vlc_tick_t SegmentTracker::getPlaybackTime(bool b_next) const
     return 0;
 }
 
-bool SegmentTracker::getMediaPlaybackRange(vlc_tick_t *start, vlc_tick_t *end,
-                                           vlc_tick_t *length) const
+bool SegmentTracker::getMediaPlaybackRange(heimdall_tick_t *start, heimdall_tick_t *end,
+                                           heimdall_tick_t *length) const
 {
     if(!current.rep)
         return false;
     return current.rep->getMediaPlaybackRange(start, end, length);
 }
 
-vlc_tick_t SegmentTracker::getMinAheadTime() const
+heimdall_tick_t SegmentTracker::getMinAheadTime() const
 {
     BaseRepresentation *rep = current.rep;
     if(!rep)
@@ -561,7 +562,7 @@ vlc_tick_t SegmentTracker::getMinAheadTime() const
 }
 
 bool SegmentTracker::getSynchronizationReference(uint64_t discontinuitysequence,
-                                                 vlc_tick_t time,
+                                                 heimdall_tick_t time,
                                                  SynchronizationReference &r) const
 {
     return synchronizationReferences->getReference(discontinuitysequence, time, r);
@@ -578,8 +579,8 @@ void SegmentTracker::notifyBufferingState(bool enabled) const
     notify(BufferingStateUpdatedEvent(adaptationSet->getID(), enabled));
 }
 
-void SegmentTracker::notifyBufferingLevel(vlc_tick_t min, vlc_tick_t max,
-                                          vlc_tick_t current, vlc_tick_t target) const
+void SegmentTracker::notifyBufferingLevel(heimdall_tick_t min, heimdall_tick_t max,
+                                          heimdall_tick_t current, heimdall_tick_t target) const
 {
     notify(BufferingLevelChangedEvent(adaptationSet->getID(), min, max, current, target));
 }

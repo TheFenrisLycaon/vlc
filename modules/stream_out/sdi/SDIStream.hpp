@@ -1,7 +1,8 @@
 /*****************************************************************************
- * SDIStream.hpp: SDI sout module for vlc
+ * SDIStream.hpp: SDI sout module for heimdall
  *****************************************************************************
  * Copyright © 2018 VideoLabs, VideoLAN and VideoLAN Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -20,11 +21,11 @@
 #ifndef SDISTREAM_HPP
 #define SDISTREAM_HPP
 
-#include <vlc_common.h>
-#include <vlc_threads.h>
-#include <vlc_filter.h>
-#include <vlc_aout.h>
-#include <vlc_codec.h>
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
+#include <heimdall_filter.h>
+#include <heimdall_aout.h>
+#include <heimdall_codec.h>
 #include <queue>
 #include <string>
 #include <list>
@@ -54,7 +55,7 @@ namespace sdi_sout
 
         protected:
             bool b_draining;
-            vlc_mutex_t buffer_mutex;
+            heimdall_mutex_t buffer_mutex;
             std::queue<void *> queued;
     };
 
@@ -72,12 +73,12 @@ namespace sdi_sout
             PictureStreamOutputBuffer();
             virtual ~PictureStreamOutputBuffer();
             virtual void FlushQueued();
-            vlc_tick_t NextPictureTime();
+            heimdall_tick_t NextPictureTime();
             virtual void Enqueue(void *); /* reimpl */
             virtual void * Dequeue(); /* reimpl */
 
         private:
-            vlc_sem_t pool_semaphore;
+            heimdall_sem_t pool_semaphore;
     };
 
     class StreamID
@@ -99,19 +100,19 @@ namespace sdi_sout
     class AbstractStream
     {
         public:
-            AbstractStream(vlc_object_t *, const StreamID &,
+            AbstractStream(heimdall_object_t *, const StreamID &,
                            AbstractStreamOutputBuffer *);
             virtual ~AbstractStream();
             virtual bool init(const es_format_t *) = 0;
             virtual int Send(block_t*) = 0;
             virtual void Drain() = 0;
             virtual void Flush() = 0;
-            virtual bool ReachedPlaybackTime(vlc_tick_t) = 0;
+            virtual bool ReachedPlaybackTime(heimdall_tick_t) = 0;
             virtual bool isEOS() = 0;
             const StreamID & getID() const;
 
         protected:
-            vlc_object_t *p_stream;
+            heimdall_object_t *p_stream;
             AbstractStreamOutputBuffer *outputbuffer;
 
         private:
@@ -121,14 +122,14 @@ namespace sdi_sout
     class AbstractDecodedStream : public AbstractStream
     {
         public:
-            AbstractDecodedStream(vlc_object_t *, const StreamID &,
+            AbstractDecodedStream(heimdall_object_t *, const StreamID &,
                                   AbstractStreamOutputBuffer *);
             virtual ~AbstractDecodedStream();
             virtual bool init(const es_format_t *); /* impl */
             virtual int Send(block_t*);
             virtual void Flush();
             virtual void Drain();
-            virtual bool ReachedPlaybackTime(vlc_tick_t); /* impl */
+            virtual bool ReachedPlaybackTime(heimdall_tick_t); /* impl */
             virtual bool isEOS(); /* impl */
             void setOutputFormat(const es_format_t *);
 
@@ -141,9 +142,9 @@ namespace sdi_sout
             virtual void ReleaseDecoder();
             es_format_t requestedoutput;
             std::queue<block_t *> inputQueue;
-            vlc_mutex_t inputLock;
-            vlc_cond_t inputWait;
-            vlc_thread_t thread;
+            heimdall_mutex_t inputLock;
+            heimdall_cond_t inputWait;
+            heimdall_thread_t thread;
             bool threadEnd;
             enum
             {
@@ -152,13 +153,13 @@ namespace sdi_sout
                 DRAINED,
                 FAILED,
             } status;
-            vlc_tick_t pcr;
+            heimdall_tick_t pcr;
     };
 
     class VideoDecodedStream : public AbstractDecodedStream
     {
         public:
-            VideoDecodedStream(vlc_object_t *, const StreamID &,
+            VideoDecodedStream(heimdall_object_t *, const StreamID &,
                                AbstractStreamOutputBuffer *);
             virtual ~VideoDecodedStream();
             virtual void setCallbacks();
@@ -168,9 +169,9 @@ namespace sdi_sout
             static void VideoDecCallback_queue(decoder_t *, picture_t *);
             static void VideoDecCallback_queue_cc( decoder_t *, block_t *,
                                                    const decoder_cc_desc_t * );
-            static vlc_decoder_device * VideoDecCallback_get_device(decoder_t *);
-            static int VideoDecCallback_update_format(decoder_t *, vlc_video_context *);
-            filter_chain_t * VideoFilterCreate(const es_format_t *, vlc_video_context *);
+            static heimdall_decoder_device * VideoDecCallback_get_device(decoder_t *);
+            static int VideoDecCallback_update_format(decoder_t *, heimdall_video_context *);
+            filter_chain_t * VideoFilterCreate(const es_format_t *, heimdall_video_context *);
             virtual void ReleaseDecoder();
             void Output(picture_t *);
             void QueueCC(block_t *);
@@ -181,7 +182,7 @@ namespace sdi_sout
     class AudioDecodedStream : public AbstractDecodedStream
     {
         public:
-            AudioDecodedStream(vlc_object_t *, const StreamID &,
+            AudioDecodedStream(heimdall_object_t *, const StreamID &,
                                AbstractStreamOutputBuffer *);
             virtual ~AudioDecodedStream();
             virtual void setCallbacks();
@@ -197,18 +198,18 @@ namespace sdi_sout
     class AbstractRawStream : public AbstractStream
     {
         public:
-            AbstractRawStream(vlc_object_t *, const StreamID &,
+            AbstractRawStream(heimdall_object_t *, const StreamID &,
                               AbstractStreamOutputBuffer *);
             virtual ~AbstractRawStream();
             virtual int Send(block_t*); /* impl */
             virtual void Flush(); /* impl */
             virtual void Drain(); /* impl */
-            virtual bool ReachedPlaybackTime(vlc_tick_t); /* impl */
+            virtual bool ReachedPlaybackTime(heimdall_tick_t); /* impl */
             virtual bool isEOS(); /* impl */
 
         protected:
-            vlc_mutex_t buffer_mutex;
-            vlc_tick_t pcr;
+            heimdall_mutex_t buffer_mutex;
+            heimdall_tick_t pcr;
             bool b_draining;
             void FlushQueued();
     };
@@ -216,7 +217,7 @@ namespace sdi_sout
     class AbstractReorderedStream : public AbstractRawStream
     {
         public:
-            AbstractReorderedStream(vlc_object_t *, const StreamID &,
+            AbstractReorderedStream(heimdall_object_t *, const StreamID &,
                                     AbstractStreamOutputBuffer *);
             virtual ~AbstractReorderedStream();
             virtual int Send(block_t*); /* impl */
@@ -233,7 +234,7 @@ namespace sdi_sout
     class AudioCompressedStream : public AbstractRawStream
     {
         public:
-            AudioCompressedStream(vlc_object_t *, const StreamID &,
+            AudioCompressedStream(heimdall_object_t *, const StreamID &,
                                   AbstractStreamOutputBuffer *);
             virtual ~AudioCompressedStream();
             virtual int Send(block_t*); /* reimpl */
@@ -243,7 +244,7 @@ namespace sdi_sout
     class CaptionsStream : public AbstractReorderedStream
     {
         public:
-            CaptionsStream(vlc_object_t *, const StreamID &,
+            CaptionsStream(heimdall_object_t *, const StreamID &,
                            AbstractStreamOutputBuffer *);
             virtual ~CaptionsStream();
             virtual bool init(const es_format_t *); /* impl */

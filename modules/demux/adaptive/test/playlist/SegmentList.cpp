@@ -2,6 +2,7 @@
  *
  *****************************************************************************
  * Copyright (C) 2020 VideoLabs, VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -50,7 +51,7 @@ int SegmentList_test() try
     Expect(segmentList->getMediaSegment(0) == nullptr);
     Expect(segmentList->getNextMediaSegment(0, &number, &discont) == nullptr);
     Expect(segmentList->getMinAheadTime(0) == 0);
-    vlc_tick_t time, duration;
+    heimdall_tick_t time, duration;
     Expect(segmentList->getPlaybackTimeDurationBySegmentNumber(0, &time, &duration) == false);
 
     /* Simple elements list */

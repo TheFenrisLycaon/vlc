@@ -3,42 +3,43 @@
  * modules.c: modules used for the player test
  *****************************************************************************
  * Copyright (C) 2018-2025 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *****************************************************************************/
 
 #include "common.h"
 
 #define MODULE_NAME test_src_player
-#undef VLC_DYNAMIC_PLUGIN
-#include <vlc_plugin.h>
+#undef HEIMDALL_DYNAMIC_PLUGIN
+#include <heimdall_plugin.h>
 /* Define a builtin module for mocked parts */
-const char vlc_module_name[] = MODULE_STRING;
+const char heimdall_module_name[] = MODULE_STRING;
 
 struct aout_sys
 {
-    vlc_tick_t first_pts;
-    vlc_tick_t first_play_date;
-    vlc_tick_t pos;
+    heimdall_tick_t first_pts;
+    heimdall_tick_t first_play_date;
+    heimdall_tick_t pos;
 
     struct ctx *ctx;
 };
 
-static void aout_Play(audio_output_t *aout, block_t *block, vlc_tick_t date)
+static void aout_Play(audio_output_t *aout, block_t *block, heimdall_tick_t date)
 {
     struct aout_sys *sys = aout->sys;
 
-    if (sys->first_play_date == VLC_TICK_INVALID)
+    if (sys->first_play_date == HEIMDALL_TICK_INVALID)
     {
-        assert(sys->first_pts == VLC_TICK_INVALID);
+        assert(sys->first_pts == HEIMDALL_TICK_INVALID);
         sys->first_play_date = date;
         sys->first_pts = block->i_pts;
 
         struct ctx *ctx = sys->ctx;
-        vlc_player_Lock(ctx->player);
+        heimdall_player_Lock(ctx->player);
         VEC_PUSH(on_aout_first_pts, sys->first_pts);
-        vlc_player_Unlock(ctx->player);
+        heimdall_player_Unlock(ctx->player);
     }
 
-    aout_TimingReport(aout, sys->first_play_date + sys->pos - VLC_TICK_0,
+    aout_TimingReport(aout, sys->first_play_date + sys->pos - HEIMDALL_TICK_0,
                       sys->first_pts + sys->pos);
     sys->pos += block->i_length;
     block_Release(block);
@@ -48,31 +49,31 @@ static void aout_Flush(audio_output_t *aout)
 {
     struct aout_sys *sys = aout->sys;
     sys->pos = 0;
-    sys->first_pts = sys->first_play_date = VLC_TICK_INVALID;
+    sys->first_pts = sys->first_play_date = HEIMDALL_TICK_INVALID;
 }
 
 static void aout_Stop(audio_output_t *aout)
 {
     struct aout_sys *sys = aout->sys;
 
-    if (sys->first_play_date != VLC_TICK_INVALID)
+    if (sys->first_play_date != HEIMDALL_TICK_INVALID)
     {
         /* Same dates as the timing reports from Play() */
         struct report_aout_stop report = {
-            .date = vlc_tick_now(),
-            .end_date = sys->first_play_date + sys->pos - VLC_TICK_0,
+            .date = heimdall_tick_now(),
+            .end_date = sys->first_play_date + sys->pos - HEIMDALL_TICK_0,
         };
 
         struct ctx *ctx = sys->ctx;
-        vlc_player_Lock(ctx->player);
+        heimdall_player_Lock(ctx->player);
         VEC_PUSH(on_aout_stop, report);
-        vlc_player_Unlock(ctx->player);
+        heimdall_player_Unlock(ctx->player);
     }
 
     aout_Flush(aout);
 }
 
-static void aout_Pause(audio_output_t *aout, bool pause, vlc_tick_t date)
+static void aout_Pause(audio_output_t *aout, bool pause, heimdall_tick_t date)
 {
     (void) date;
     if (pause)
@@ -87,17 +88,17 @@ static void aout_InstantDrain(audio_output_t *aout)
 static int aout_Start(audio_output_t *aout, audio_sample_format_t *restrict fmt)
 {
     (void) aout;
-    return AOUT_FMT_LINEAR(fmt) ? VLC_SUCCESS : VLC_EGENERIC;
+    return AOUT_FMT_LINEAR(fmt) ? HEIMDALL_SUCCESS : HEIMDALL_EGENERIC;
 }
 
 static void
-aout_Close(vlc_object_t *obj)
+aout_Close(heimdall_object_t *obj)
 {
     audio_output_t *aout = (audio_output_t *)obj;
     free(aout->sys);
 }
 
-static int aout_Open(vlc_object_t *obj)
+static int aout_Open(heimdall_object_t *obj)
 {
     audio_output_t *aout = (audio_output_t *)obj;
 
@@ -120,30 +121,30 @@ static int aout_Open(vlc_object_t *obj)
 
     aout_Flush(aout);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static block_t *resampler_Resample(filter_t *filter, block_t *in)
 {
-    VLC_UNUSED(filter);
+    HEIMDALL_UNUSED(filter);
     return in;
 }
 
 static void resampler_Close(filter_t *filter)
 {
-    VLC_UNUSED(filter);
+    HEIMDALL_UNUSED(filter);
 }
 
-static int resampler_Open(vlc_object_t *obj)
+static int resampler_Open(heimdall_object_t *obj)
 {
     filter_t *filter = (filter_t *)obj;
-    static const struct vlc_filter_operations filter_ops =
+    static const struct heimdall_filter_operations filter_ops =
     { .filter_audio = resampler_Resample, .close = resampler_Close, };
     filter->ops = &filter_ops;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     /* This aout module will report audio timings perfectly, but without any
      * delay, in order to be usable for player tests. Indeed, this aout will
      * report timings immediately from Play(), but points will be in the
@@ -155,9 +156,9 @@ vlc_module_begin()
      * Insert our own resampler that keeps blocks and pts untouched. */
     set_capability ("audio resampler", 9999)
     set_callback (resampler_Open)
-vlc_module_end()
+heimdall_module_end()
 
-VLC_EXPORT const vlc_plugin_cb vlc_static_modules[] = {
-    VLC_SYMBOL(vlc_entry),
+HEIMDALL_EXPORT const heimdall_plugin_cb heimdall_static_modules[] = {
+    HEIMDALL_SYMBOL(heimdall_entry),
     NULL
 };

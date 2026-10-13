@@ -2,6 +2,7 @@
  * chunked.c: HTTP 1.1 chunked encoding
  *****************************************************************************
  * Copyright © 2015 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -29,14 +30,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <vlc_common.h>
-#include <vlc_block.h>
-#include <vlc_tls.h> /* TODO: remove this */
+#include <heimdall_common.h>
+#include <heimdall_block.h>
+#include <heimdall_tls.h> /* TODO: remove this */
 
 #include "message.h"
 #include "conn.h"
 
-ssize_t vlc_https_chunked_write(struct vlc_tls *tls, const void *base,
+ssize_t heimdall_https_chunked_write(struct heimdall_tls *tls, const void *base,
                                 size_t len, bool eos)
 {
     if (len > 0)
@@ -45,40 +46,40 @@ ssize_t vlc_https_chunked_write(struct vlc_tls *tls, const void *base,
         int hlen = snprintf(hdr, sizeof (hdr), "%zx\r\n", len);
 
         /* TODO: use iovec */
-        if (vlc_tls_Write(tls, hdr, hlen) < hlen)
+        if (heimdall_tls_Write(tls, hdr, hlen) < hlen)
             return -1;
-        if (vlc_tls_Write(tls, base, len) < (ssize_t)len)
+        if (heimdall_tls_Write(tls, base, len) < (ssize_t)len)
             return -1;
-        if (vlc_tls_Write(tls, "\r\n", 2) < 2)
+        if (heimdall_tls_Write(tls, "\r\n", 2) < 2)
             return -1;
     }
 
     if (eos)
     {
-        if (vlc_tls_Write(tls, "0\r\n\r\n", 5) < 5)
+        if (heimdall_tls_Write(tls, "0\r\n\r\n", 5) < 5)
             return -1;
     }
 
     return len;
 }
 
-struct vlc_chunked_stream
+struct heimdall_chunked_stream
 {
-    struct vlc_http_stream stream;
-    struct vlc_http_stream *parent;
-    struct vlc_tls *tls;
+    struct heimdall_http_stream stream;
+    struct heimdall_http_stream *parent;
+    struct heimdall_tls *tls;
     uintmax_t chunk_length;
     bool eof;
     bool error;
 };
 
-static void *vlc_chunked_fatal(struct vlc_chunked_stream *s)
+static void *heimdall_chunked_fatal(struct heimdall_chunked_stream *s)
 {
     s->error = true;
-    return vlc_http_error;
+    return heimdall_http_error;
 }
 
-static struct vlc_http_msg *vlc_chunked_wait(struct vlc_http_stream *stream)
+static struct heimdall_http_msg *heimdall_chunked_wait(struct heimdall_http_stream *stream)
 {
     /* Request trailers are not supported so far.
      * There cannot be headers during chunked encoding. */
@@ -86,25 +87,25 @@ static struct vlc_http_msg *vlc_chunked_wait(struct vlc_http_stream *stream)
     return NULL;
 }
 
-static block_t *vlc_chunked_read(struct vlc_http_stream *stream)
+static block_t *heimdall_chunked_read(struct heimdall_http_stream *stream)
 {
-    struct vlc_chunked_stream *s =
-        container_of(stream, struct vlc_chunked_stream, stream);
+    struct heimdall_chunked_stream *s =
+        container_of(stream, struct heimdall_chunked_stream, stream);
     block_t *block = NULL;
 
     if (s->eof)
         return NULL;
     if (s->error)
-        return vlc_http_error;
+        return heimdall_http_error;
 
     /* Read chunk size (hexadecimal length) */
     if (s->chunk_length == 0)
     {   /* NOTE: This accepts LF in addition to CRLF. No big deal. */
-        char *line = vlc_tls_GetLine(s->tls);
+        char *line = heimdall_tls_GetLine(s->tls);
         if (line == NULL)
         {
             errno = EPROTO;
-            return vlc_chunked_fatal(s);
+            return heimdall_chunked_fatal(s);
         }
 
         int end;
@@ -118,7 +119,7 @@ static block_t *vlc_chunked_read(struct vlc_http_stream *stream)
         if (s->chunk_length == UINTMAX_MAX)
         {
             errno = EPROTO;
-            return vlc_chunked_fatal(s);
+            return heimdall_chunked_fatal(s);
         }
     }
 
@@ -133,11 +134,11 @@ static block_t *vlc_chunked_read(struct vlc_http_stream *stream)
         if (unlikely(block == NULL))
             return NULL;
 
-        ssize_t val = vlc_tls_Read(s->tls, block->p_buffer, size, false);
+        ssize_t val = heimdall_tls_Read(s->tls, block->p_buffer, size, false);
         if (val <= 0)
         {   /* Connection error (-) or unexpected end of connection (0) */
             block_Release(block);
-            return vlc_chunked_fatal(s);
+            return heimdall_chunked_fatal(s);
         }
 
         block->i_buffer = val;
@@ -151,40 +152,40 @@ static block_t *vlc_chunked_read(struct vlc_http_stream *stream)
     {
         char crlf[2];
 
-        if (vlc_tls_Read(s->tls, crlf, 2, true) < 2 || memcmp(crlf, "\r\n", 2))
-            vlc_chunked_fatal(s);
+        if (heimdall_tls_Read(s->tls, crlf, 2, true) < 2 || memcmp(crlf, "\r\n", 2))
+            heimdall_chunked_fatal(s);
     }
     return block;
 }
 
-static void vlc_chunked_close(struct vlc_http_stream *stream, bool abort)
+static void heimdall_chunked_close(struct heimdall_http_stream *stream, bool abort)
 {
-    struct vlc_chunked_stream *s =
-        container_of(stream, struct vlc_chunked_stream, stream);
+    struct heimdall_chunked_stream *s =
+        container_of(stream, struct heimdall_chunked_stream, stream);
 
     if (!s->eof) /* Abort connection if stream is closed before end */
-        vlc_chunked_fatal(s);
+        heimdall_chunked_fatal(s);
 
-    vlc_http_stream_close(s->parent, abort || s->error);
+    heimdall_http_stream_close(s->parent, abort || s->error);
     free(s);
 }
 
-static struct vlc_http_stream_cbs vlc_chunked_callbacks =
+static struct heimdall_http_stream_cbs heimdall_chunked_callbacks =
 {
-    vlc_chunked_wait,
+    heimdall_chunked_wait,
     NULL,
-    vlc_chunked_read,
-    vlc_chunked_close,
+    heimdall_chunked_read,
+    heimdall_chunked_close,
 };
 
-struct vlc_http_stream *vlc_chunked_open(struct vlc_http_stream *parent,
-                                         struct vlc_tls *tls)
+struct heimdall_http_stream *heimdall_chunked_open(struct heimdall_http_stream *parent,
+                                         struct heimdall_tls *tls)
 {
-    struct vlc_chunked_stream *s = malloc(sizeof (*s));
+    struct heimdall_chunked_stream *s = malloc(sizeof (*s));
     if (unlikely(s == NULL))
         return NULL;
 
-    s->stream.cbs = &vlc_chunked_callbacks;
+    s->stream.cbs = &heimdall_chunked_callbacks;
     s->parent = parent;
     s->tls = tls;
     s->chunk_length = 0;

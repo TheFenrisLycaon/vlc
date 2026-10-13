@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,15 +17,15 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef QVLC_INPUT_MANAGER_H_
-#define QVLC_INPUT_MANAGER_H_
+#ifndef QHEIMDALL_INPUT_MANAGER_H_
+#define QHEIMDALL_INPUT_MANAGER_H_
 
 #ifdef HAVE_CONFIG_H
 # include "config.h"
 #endif
 
 #include "../qt.hpp"
-#include <vlc_cxx_helpers.hpp>
+#include <heimdall_cxx_helpers.hpp>
 #include <QObject>
 #include <QEvent>
 #include <QScopedPointer>
@@ -36,14 +37,14 @@
 #include "player/input_models.hpp"
 #include "util/audio_device_model.hpp"
 #include "util/varchoicemodel.hpp"
-#include "util/vlctick.hpp"
+#include "util/heimdalltick.hpp"
 
 Q_MOC_INCLUDE("util/renderer_manager.hpp")
 
-using vlc_player_locker = vlc_locker<vlc_player_t, vlc_player_Lock, vlc_player_Unlock>;
+using heimdall_player_locker = heimdall_locker<heimdall_player_t, heimdall_player_Lock, heimdall_player_Unlock>;
 
-using SharedVOutThread = ::vlc::vlc_shared_data_ptr<vout_thread_t, &vout_Hold, &vout_Release>;
-using SharedAOut = ::vlc::vlc_shared_data_ptr<audio_output_t, &aout_Hold, &aout_Release>;
+using SharedVOutThread = ::heimdall::heimdall_shared_data_ptr<vout_thread_t, &vout_Hold, &vout_Release>;
+using SharedAOut = ::heimdall::heimdall_shared_data_ptr<audio_output_t, &aout_Hold, &aout_Release>;
 
 class RendererManager;
 class QSignalMapper;
@@ -83,21 +84,21 @@ class TimedText
     QML_VALUE_TYPE(timedText)
 
     Q_PROPERTY(QString text READ text CONSTANT FINAL)
-    Q_PROPERTY(VLCTime time READ time CONSTANT FINAL)
+    Q_PROPERTY(HeimdallTime time READ time CONSTANT FINAL)
 
 public:
     TimedText() = default;
-    TimedText(QString text, VLCTime time)
+    TimedText(QString text, HeimdallTime time)
         : m_text(std::move(text))
         , m_time(time)
     { }
 
     QString text() const { return m_text; }
-    VLCTime time() const { return m_time; }
+    HeimdallTime time() const { return m_time; }
 
 private:
     QString m_text;
-    VLCTime m_time;
+    HeimdallTime m_time;
 };
 
 class PlayerControllerPrivate;
@@ -107,28 +108,28 @@ class PlayerController : public QObject
 
 public:
     enum ABLoopState {
-        ABLOOP_STATE_NONE= VLC_PLAYER_ABLOOP_NONE,
-        ABLOOP_STATE_A = VLC_PLAYER_ABLOOP_A,
-        ABLOOP_STATE_B = VLC_PLAYER_ABLOOP_B
+        ABLOOP_STATE_NONE= HEIMDALL_PLAYER_ABLOOP_NONE,
+        ABLOOP_STATE_A = HEIMDALL_PLAYER_ABLOOP_A,
+        ABLOOP_STATE_B = HEIMDALL_PLAYER_ABLOOP_B
     };
     Q_ENUM(ABLoopState)
 
     enum PlayingState
     {
-        PLAYING_STATE_STARTED = VLC_PLAYER_STATE_STARTED,
-        PLAYING_STATE_PLAYING = VLC_PLAYER_STATE_PLAYING,
-        PLAYING_STATE_PAUSED = VLC_PLAYER_STATE_PAUSED,
-        PLAYING_STATE_STOPPING = VLC_PLAYER_STATE_STOPPING,
-        PLAYING_STATE_STOPPED = VLC_PLAYER_STATE_STOPPED
+        PLAYING_STATE_STARTED = HEIMDALL_PLAYER_STATE_STARTED,
+        PLAYING_STATE_PLAYING = HEIMDALL_PLAYER_STATE_PLAYING,
+        PLAYING_STATE_PAUSED = HEIMDALL_PLAYER_STATE_PAUSED,
+        PLAYING_STATE_STOPPING = HEIMDALL_PLAYER_STATE_STOPPING,
+        PLAYING_STATE_STOPPED = HEIMDALL_PLAYER_STATE_STOPPED
     };
     Q_ENUM(PlayingState)
 
     enum Telekeys{
-        TELE_RED = VLC_PLAYER_TELETEXT_KEY_RED,
-        TELE_GREEN = VLC_PLAYER_TELETEXT_KEY_GREEN,
-        TELE_YELLOW = VLC_PLAYER_TELETEXT_KEY_YELLOW,
-        TELE_BLUE = VLC_PLAYER_TELETEXT_KEY_BLUE,
-        TELE_INDEX = VLC_PLAYER_TELETEXT_KEY_INDEX
+        TELE_RED = HEIMDALL_PLAYER_TELETEXT_KEY_RED,
+        TELE_GREEN = HEIMDALL_PLAYER_TELETEXT_KEY_GREEN,
+        TELE_YELLOW = HEIMDALL_PLAYER_TELETEXT_KEY_YELLOW,
+        TELE_BLUE = HEIMDALL_PLAYER_TELETEXT_KEY_BLUE,
+        TELE_INDEX = HEIMDALL_PLAYER_TELETEXT_KEY_INDEX
     };
     Q_ENUM(Telekeys)
 
@@ -140,10 +141,10 @@ public:
     Q_PROPERTY(float rate READ getRate WRITE setRate NOTIFY rateChanged FINAL)
     Q_PROPERTY(QUrl url READ getUrl NOTIFY inputChanged FINAL)
 
-    Q_PROPERTY(VLCTime time READ getTime WRITE setTime NOTIFY timeChanged FINAL)
-    Q_PROPERTY(VLCTime remainingTime READ getRemainingTime NOTIFY remainingTimeChanged FINAL)
+    Q_PROPERTY(HeimdallTime time READ getTime WRITE setTime NOTIFY timeChanged FINAL)
+    Q_PROPERTY(HeimdallTime remainingTime READ getRemainingTime NOTIFY remainingTimeChanged FINAL)
     Q_PROPERTY(double position READ getPosition WRITE setPosition NOTIFY positionChanged FINAL)
-    Q_PROPERTY(VLCDuration length READ getLength NOTIFY lengthChanged FINAL)
+    Q_PROPERTY(HeimdallDuration length READ getLength NOTIFY lengthChanged FINAL)
 
     Q_PROPERTY(bool seekable READ isSeekable NOTIFY seekableChanged FINAL)
     Q_PROPERTY(bool rewindable READ isRewindable NOTIFY rewindableChanged FINAL)
@@ -163,9 +164,9 @@ public:
     Q_PROPERTY(TrackListModel* audioTracks READ getAudioTracks CONSTANT FINAL)
     Q_PROPERTY(TrackListModel* subtitleTracks READ getSubtitleTracks CONSTANT FINAL)
 
-    Q_PROPERTY(VLCDuration audioDelay READ getAudioDelay WRITE setAudioDelay NOTIFY audioDelayChanged FINAL)
-    Q_PROPERTY(VLCDuration subtitleDelay READ getSubtitleDelay WRITE setSubtitleDelay NOTIFY subtitleDelayChanged FINAL)
-    Q_PROPERTY(VLCDuration secondarySubtitleDelay READ getSecondarySubtitleDelay WRITE setSecondarySubtitleDelay NOTIFY secondarySubtitleDelayChanged FINAL)
+    Q_PROPERTY(HeimdallDuration audioDelay READ getAudioDelay WRITE setAudioDelay NOTIFY audioDelayChanged FINAL)
+    Q_PROPERTY(HeimdallDuration subtitleDelay READ getSubtitleDelay WRITE setSubtitleDelay NOTIFY subtitleDelayChanged FINAL)
+    Q_PROPERTY(HeimdallDuration secondarySubtitleDelay READ getSecondarySubtitleDelay WRITE setSecondarySubtitleDelay NOTIFY secondarySubtitleDelayChanged FINAL)
     Q_PROPERTY(int audioDelayMS READ getAudioDelayMS WRITE setAudioDelayMS NOTIFY audioDelayChanged FINAL)
     Q_PROPERTY(int subtitleDelayMS READ getSubtitleDelayMS WRITE setSubtitleDelayMS NOTIFY subtitleDelayChanged FINAL)
     Q_PROPERTY(int secondarySubtitleDelayMS READ getSecondarySubtitleDelayMS WRITE setSecondarySubtitleDelayMS NOTIFY secondarySubtitleDelayChanged FINAL)
@@ -199,13 +200,13 @@ public:
 
     //vout properties
     Q_PROPERTY(bool hasVideoOutput READ hasVideoOutput NOTIFY hasVideoOutputChanged FINAL)
-    Q_PROPERTY(VLCVarChoiceModel* videoStereoMode READ getVideoStereoMode CONSTANT FINAL)
-    Q_PROPERTY(VLCVarChoiceModel* zoom READ getZoom CONSTANT FINAL)
-    Q_PROPERTY(VLCVarChoiceModel* aspectRatio READ getAspectRatio CONSTANT FINAL)
-    Q_PROPERTY(VLCVarChoiceModel* crop READ getCrop CONSTANT FINAL)
-    Q_PROPERTY(VLCVarChoiceModel* fit READ getFit CONSTANT FINAL)
-    Q_PROPERTY(VLCVarChoiceModel* deinterlace READ getDeinterlace CONSTANT FINAL)
-    Q_PROPERTY(VLCVarChoiceModel* deinterlaceMode READ getDeinterlaceMode CONSTANT FINAL)
+    Q_PROPERTY(HeimdallVarChoiceModel* videoStereoMode READ getVideoStereoMode CONSTANT FINAL)
+    Q_PROPERTY(HeimdallVarChoiceModel* zoom READ getZoom CONSTANT FINAL)
+    Q_PROPERTY(HeimdallVarChoiceModel* aspectRatio READ getAspectRatio CONSTANT FINAL)
+    Q_PROPERTY(HeimdallVarChoiceModel* crop READ getCrop CONSTANT FINAL)
+    Q_PROPERTY(HeimdallVarChoiceModel* fit READ getFit CONSTANT FINAL)
+    Q_PROPERTY(HeimdallVarChoiceModel* deinterlace READ getDeinterlace CONSTANT FINAL)
+    Q_PROPERTY(HeimdallVarChoiceModel* deinterlaceMode READ getDeinterlaceMode CONSTANT FINAL)
     Q_PROPERTY(bool fullscreen READ isFullscreen WRITE setFullscreen NOTIFY fullscreenChanged FINAL)
     Q_PROPERTY(bool wallpaperMode READ getWallpaperMode WRITE setWallpaperMode NOTIFY wallpaperModeChanged FINAL)
     Q_PROPERTY(bool autoscale READ getAutoscale WRITE setAutoscale NOTIFY autoscaleChanged FINAL)
@@ -214,15 +215,15 @@ public:
     Q_PROPERTY(float volume READ getVolume WRITE setVolume NOTIFY volumeChanged FINAL)
     Q_PROPERTY(bool muted READ isMuted WRITE setMuted NOTIFY soundMuteChanged FINAL)
     Q_PROPERTY(AudioDeviceModel* audioDevices READ getAudioDevices CONSTANT FINAL)
-    Q_PROPERTY(VLCVarChoiceModel* audioStereoMode READ getAudioStereoMode CONSTANT FINAL)
-    Q_PROPERTY(VLCVarChoiceModel* audioMixMode READ getAudioMixMode CONSTANT FINAL)
-    Q_PROPERTY(VLCVarChoiceModel* audioVisualization READ getAudioVisualizations CONSTANT FINAL)
+    Q_PROPERTY(HeimdallVarChoiceModel* audioStereoMode READ getAudioStereoMode CONSTANT FINAL)
+    Q_PROPERTY(HeimdallVarChoiceModel* audioMixMode READ getAudioMixMode CONSTANT FINAL)
+    Q_PROPERTY(HeimdallVarChoiceModel* audioVisualization READ getAudioVisualizations CONSTANT FINAL)
     Q_PROPERTY(bool hasAudioVisualization READ hasAudioVisualization NOTIFY hasAudioVisualizationChanged FINAL)
 
     //misc
     Q_PROPERTY(ABLoopState ABloopState READ getABloopState WRITE setABloopState NOTIFY ABLoopStateChanged FINAL)
-    Q_PROPERTY(VLCTime ABLoopA READ getABLoopA NOTIFY ABLoopAChanged FINAL)
-    Q_PROPERTY(VLCTime ABLoopB READ getABLoopB NOTIFY ABLoopBChanged FINAL)
+    Q_PROPERTY(HeimdallTime ABLoopA READ getABLoopA NOTIFY ABLoopAChanged FINAL)
+    Q_PROPERTY(HeimdallTime ABLoopB READ getABLoopB NOTIFY ABLoopBChanged FINAL)
     Q_PROPERTY(bool recording READ isRecording WRITE setRecording NOTIFY recordingChanged FINAL)
     Q_PROPERTY(RendererManager* rendererManager READ getRendererManager CONSTANT FINAL)
 
@@ -240,7 +241,7 @@ public slots:
 
     void jumpFwd();
     void jumpBwd();
-    void jumpTime( VLCTime i_time );
+    void jumpTime( HeimdallTime i_time );
     void jumpToPos( double );
     void frameNext();
     void framePrev();
@@ -292,7 +293,7 @@ public:
 
 
 public:
-    vlc_player_t * getPlayer() const;
+    heimdall_player_t * getPlayer() const;
 
     input_item_t *getInput() const;
 
@@ -306,7 +307,7 @@ public:
     void refreshMediaMeta( input_item_t *p_item );
     static const QString decodeArtURL( input_item_t *p_item );
     void updatePosition();
-    void updateTime(vlc_tick_t system_now, bool forceTimer);
+    void updateTime(heimdall_tick_t system_now, bool forceTimer);
 
     //getter/setters binded to a Q_PROPERTY
 public slots:
@@ -318,12 +319,12 @@ public slots:
     float getBuffering() const;
     float getRate() const;
     void setRate( float );
-    VLCTime getTime() const;
-    void setTime(VLCTime);
-    VLCDuration getRemainingTime() const;
+    HeimdallTime getTime() const;
+    void setTime(HeimdallTime);
+    HeimdallDuration getRemainingTime() const;
     double getPosition() const;
     void setPosition(double);
-    VLCDuration getLength() const;
+    HeimdallDuration getLength() const;
     bool isSeekable() const;
     bool isRewindable() const;
     bool isPausable() const;
@@ -341,15 +342,15 @@ public slots:
     TrackListModel* getAudioTracks();
     TrackListModel* getSubtitleTracks();
 
-    VLCDuration getAudioDelay() const;
-    void setAudioDelay( VLCDuration );
-    Q_INVOKABLE void addAudioDelay( VLCDuration );
-    VLCDuration getSubtitleDelay() const;
-    VLCDuration getSecondarySubtitleDelay() const;
-    void setSubtitleDelay( VLCDuration );
-    Q_INVOKABLE void addSubtitleDelay( VLCDuration );
-    void setSecondarySubtitleDelay( VLCDuration );
-    Q_INVOKABLE void addSecondarySubtitleDelay( VLCDuration );
+    HeimdallDuration getAudioDelay() const;
+    void setAudioDelay( HeimdallDuration );
+    Q_INVOKABLE void addAudioDelay( HeimdallDuration );
+    HeimdallDuration getSubtitleDelay() const;
+    HeimdallDuration getSecondarySubtitleDelay() const;
+    void setSubtitleDelay( HeimdallDuration );
+    Q_INVOKABLE void addSubtitleDelay( HeimdallDuration );
+    void setSecondarySubtitleDelay( HeimdallDuration );
+    Q_INVOKABLE void addSecondarySubtitleDelay( HeimdallDuration );
     int getAudioDelayMS() const;
     void setAudioDelayMS( int );
     int getSubtitleDelayMS() const;
@@ -384,13 +385,13 @@ public slots:
 
     //vout properties
     bool hasVideoOutput() const;
-    VLCVarChoiceModel* getVideoStereoMode();
-    VLCVarChoiceModel* getZoom();
-    VLCVarChoiceModel* getAspectRatio();
-    VLCVarChoiceModel* getCrop();
-    VLCVarChoiceModel* getFit();
-    VLCVarChoiceModel* getDeinterlace();
-    VLCVarChoiceModel* getDeinterlaceMode();
+    HeimdallVarChoiceModel* getVideoStereoMode();
+    HeimdallVarChoiceModel* getZoom();
+    HeimdallVarChoiceModel* getAspectRatio();
+    HeimdallVarChoiceModel* getCrop();
+    HeimdallVarChoiceModel* getFit();
+    HeimdallVarChoiceModel* getDeinterlace();
+    HeimdallVarChoiceModel* getDeinterlaceMode();
     bool isFullscreen() const;
     void setFullscreen( bool );
     bool getWallpaperMode() const;
@@ -404,9 +405,9 @@ public slots:
     bool isMuted() const;
     void setMuted( bool muted );
     AudioDeviceModel* getAudioDevices();
-    VLCVarChoiceModel* getAudioStereoMode();
-    VLCVarChoiceModel* getAudioMixMode();
-    VLCVarChoiceModel* getAudioVisualizations();
+    HeimdallVarChoiceModel* getAudioStereoMode();
+    HeimdallVarChoiceModel* getAudioMixMode();
+    HeimdallVarChoiceModel* getAudioVisualizations();
     bool hasAudioVisualization() const;
 
 
@@ -415,8 +416,8 @@ public slots:
     void setRecording(bool record);
     void setABloopState(ABLoopState);
     ABLoopState getABloopState() const;
-    VLCTime getABLoopA() const;
-    VLCTime getABLoopB() const;
+    HeimdallTime getABLoopA() const;
+    HeimdallTime getABLoopB() const;
 
     // High resolution time fed by SMPTE timer
     QString highResolutionTime() const;
@@ -446,11 +447,11 @@ signals:
     void bufferingChanged( float );
     void rateChanged( float );
 
-    void timeChanged( VLCTime );
-    void remainingTimeChanged( VLCTime );
+    void timeChanged( HeimdallTime );
+    void remainingTimeChanged( HeimdallTime );
     void positionChanged( double );
-    void lengthChanged( VLCDuration );
-    void positionUpdated( double , VLCTime, VLCDuration );
+    void lengthChanged( HeimdallDuration );
+    void positionUpdated( double , HeimdallTime, HeimdallDuration );
     void seekRequested( double pos ); //not exposed through Q_PROPERTY
 
     void seekableChanged( bool );
@@ -462,9 +463,9 @@ signals:
     void playbackRestoreQueried();
 
     //tracks
-    void audioDelayChanged(VLCDuration);
-    void subtitleDelayChanged(VLCDuration);
-    void secondarySubtitleDelayChanged(VLCDuration);
+    void audioDelayChanged(HeimdallDuration);
+    void subtitleDelayChanged(HeimdallDuration);
+    void secondarySubtitleDelayChanged(HeimdallDuration);
     void subtitleFPSChanged(float);
 
     //title/chapters/menu
@@ -499,8 +500,8 @@ signals:
     //misc
     void recordingChanged( bool );
     void ABLoopStateChanged(ABLoopState);
-    void ABLoopAChanged(VLCTime);
-    void ABLoopBChanged(VLCTime);
+    void ABLoopAChanged(HeimdallTime);
+    void ABLoopBChanged(HeimdallTime);
 
     // High resolution time fed by SMPTE timer
     void highResolutionTimeChanged(const QString&);
@@ -508,7 +509,7 @@ signals:
     // Other signals
 
     // You can resume playback
-    void resumePlayback( VLCTime );
+    void resumePlayback( HeimdallTime );
     // Statistics are updated
     void statisticsUpdated( const input_stats_t& stats );
     void infoChanged( input_item_t* );

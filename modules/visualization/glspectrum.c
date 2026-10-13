@@ -2,6 +2,7 @@
  * glspectrum.c: spectrum visualization module based on OpenGL
  *****************************************************************************
  * Copyright © 2009-2013 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Adrien Maglo <magsoft@videolan.org>
  *
@@ -26,14 +27,14 @@
 
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_aout.h>
-#include <vlc_window.h>
-#include <vlc_opengl.h>
-#include <vlc_filter.h>
-#include <vlc_queue.h>
-#include <vlc_rand.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_aout.h>
+#include <heimdall_window.h>
+#include <heimdall_opengl.h>
+#include <heimdall_filter.h>
+#include <heimdall_queue.h>
+#include <heimdall_rand.h>
 
 #include <math.h>
 
@@ -46,7 +47,7 @@
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int Open(vlc_object_t *);
+static int Open(heimdall_object_t *);
 static void Close(filter_t *);
 
 #define WIDTH_TEXT N_("Video width")
@@ -57,7 +58,7 @@ static void Close(filter_t *);
 
 #define LOG_OFFSET 0.1
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname(N_("glSpectrum"))
     set_description(N_("3D OpenGL spectrum visualization"))
     set_capability("visualization", 0)
@@ -68,7 +69,7 @@ vlc_module_begin()
 
     add_shortcut("glspectrum")
     set_callback(Open)
-vlc_module_end()
+heimdall_module_end()
 
 /* Legacy glBegin()/glEnd() API */
 typedef void (APIENTRY *PFNGLMATRIXMODEPROC)(GLenum);
@@ -127,17 +128,17 @@ OPENGL_VTABLE_F(DECLARE_VTABLE)
  *****************************************************************************/
 typedef struct
 {
-    vlc_thread_t thread;
+    heimdall_thread_t thread;
 
     /* Audio data */
-    vlc_queue_t queue;
+    heimdall_queue_t queue;
     bool dead;
     unsigned i_channels;
     unsigned i_prev_nb_samples;
     int16_t *p_prev_s16_buff;
 
     /* Opengl */
-    vlc_gl_t *gl;
+    heimdall_gl_t *gl;
     struct glspectrum_opengl_vtable vt;
 
     float f_rotationAngle;
@@ -160,22 +161,22 @@ static void *Thread(void *);
 const GLfloat lightZeroColor[] = {1.0f, 1.0f, 1.0f, 1.0f};
 const GLfloat lightZeroPosition[] = {0.0f, 3.0f, 10.0f, 0.0f};
 
-static const struct vlc_filter_operations filter_ops = {
+static const struct heimdall_filter_operations filter_ops = {
     .filter_audio = DoWork, .close = Close,
 };
 
 /**
  * Open the module.
  * @param p_this: the filter object
- * @return VLC_SUCCESS or vlc error codes
+ * @return HEIMDALL_SUCCESS or heimdall error codes
  */
-static int Open(vlc_object_t * p_this)
+static int Open(heimdall_object_t * p_this)
 {
     filter_t *p_filter = (filter_t *)p_this;
-    filter_sys_t *p_sys = vlc_obj_malloc(p_this, sizeof (*p_sys));
+    filter_sys_t *p_sys = heimdall_obj_malloc(p_this, sizeof (*p_sys));
 
     if (p_sys == NULL)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_filter->p_sys = p_sys;
 
@@ -188,56 +189,56 @@ static int Open(vlc_object_t * p_this)
     p_sys->f_rotationIncrement = ROTATION_INCREMENT;
 
     /* Fetch the FFT window parameters */
-    window_get_param( VLC_OBJECT( p_filter ), &p_sys->wind_param );
+    window_get_param( HEIMDALL_OBJECT( p_filter ), &p_sys->wind_param );
 
     /* Create the FIFO for the audio data. */
-    vlc_queue_Init(&p_sys->queue, offsetof (block_t, p_next));
+    heimdall_queue_Init(&p_sys->queue, offsetof (block_t, p_next));
     p_sys->dead = false;
 
     /* Create the openGL provider */
-    vlc_window_cfg_t cfg = {
+    heimdall_window_cfg_t cfg = {
         .is_decorated = true,
         .width = var_InheritInteger(p_filter, "glspectrum-width"),
         .height = var_InheritInteger(p_filter, "glspectrum-height"),
     };
 
-    p_sys->gl = vlc_gl_surface_Create(p_this, &cfg, NULL, NULL);
+    p_sys->gl = heimdall_gl_surface_Create(p_this, &cfg, NULL, NULL);
     if (p_sys->gl == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    if (vlc_gl_MakeCurrent(p_sys->gl) != VLC_SUCCESS)
+    if (heimdall_gl_MakeCurrent(p_sys->gl) != HEIMDALL_SUCCESS)
     {
         msg_Err(p_filter, "Can't attach gl context");
         goto error;
     }
 
 #define LOAD_SYMBOL(type, name) do { \
-    p_sys->vt.name = vlc_gl_GetProcAddress(p_sys->gl, "gl" #name); \
+    p_sys->vt.name = heimdall_gl_GetProcAddress(p_sys->gl, "gl" #name); \
     if (p_sys->vt.name == NULL) { \
-        vlc_gl_ReleaseCurrent(p_sys->gl); \
+        heimdall_gl_ReleaseCurrent(p_sys->gl); \
         goto error; \
     } \
 } while(0);
 
     OPENGL_VTABLE_F(LOAD_SYMBOL);
 
-    vlc_gl_ReleaseCurrent(p_sys->gl);
+    heimdall_gl_ReleaseCurrent(p_sys->gl);
 
     /* Create the thread */
-    if (vlc_clone(&p_sys->thread, Thread, p_filter)) {
-        vlc_gl_surface_Destroy(p_sys->gl);
-        return VLC_ENOMEM;
+    if (heimdall_clone(&p_sys->thread, Thread, p_filter)) {
+        heimdall_gl_surface_Destroy(p_sys->gl);
+        return HEIMDALL_ENOMEM;
     }
 
-    p_filter->fmt_in.audio.i_format = VLC_CODEC_FL32;
+    p_filter->fmt_in.audio.i_format = HEIMDALL_CODEC_FL32;
     p_filter->fmt_out.audio = p_filter->fmt_in.audio;
     p_filter->ops = &filter_ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
-    vlc_gl_surface_Destroy(p_sys->gl);
-    return VLC_EGENERIC;
+    heimdall_gl_surface_Destroy(p_sys->gl);
+    return HEIMDALL_EGENERIC;
 }
 
 
@@ -250,11 +251,11 @@ static void Close(filter_t *p_filter)
     filter_sys_t *p_sys = p_filter->p_sys;
 
     /* Terminate the thread. */
-    vlc_queue_Kill(&p_sys->queue, &p_sys->dead);
-    vlc_join(p_sys->thread, NULL);
+    heimdall_queue_Kill(&p_sys->queue, &p_sys->dead);
+    heimdall_join(p_sys->thread, NULL);
 
     /* Free the resources */
-    vlc_gl_surface_Destroy(p_sys->gl);
+    heimdall_gl_surface_Destroy(p_sys->gl);
     free(p_sys->p_prev_s16_buff);
 }
 
@@ -268,7 +269,7 @@ static block_t *DoWork(filter_t *p_filter, block_t *p_in_buf)
 {
     filter_sys_t *p_sys = p_filter->p_sys;
 
-    vlc_queue_Enqueue(&p_sys->queue, block_Duplicate(p_in_buf));
+    heimdall_queue_Enqueue(&p_sys->queue, block_Duplicate(p_in_buf));
     return p_in_buf;
 }
 
@@ -426,14 +427,14 @@ static void drawBars(filter_t *p_filter, float heights[])
  */
 static void *Thread( void *p_data )
 {
-    vlc_thread_set_name("vlc-glspectrum");
+    heimdall_thread_set_name("heimdall-glspectrum");
 
     filter_t  *p_filter = (filter_t*)p_data;
     filter_sys_t *p_sys = p_filter->p_sys;
-    vlc_gl_t *gl = p_sys->gl;
+    heimdall_gl_t *gl = p_sys->gl;
     block_t *block;
 
-    if (vlc_gl_MakeCurrent(gl) != VLC_SUCCESS)
+    if (heimdall_gl_MakeCurrent(gl) != HEIMDALL_SUCCESS)
     {
         msg_Err(p_filter, "Can't attach gl context");
         return NULL;
@@ -444,11 +445,11 @@ static void *Thread( void *p_data )
     initOpenGLScene(p_filter);
     float height[NB_BANDS] = {0};
 
-    while ((block = vlc_queue_DequeueKillable(&p_sys->queue, &p_sys->dead)))
+    while ((block = heimdall_queue_DequeueKillable(&p_sys->queue, &p_sys->dead)))
     {
         unsigned win_width, win_height;
 
-        if (vlc_gl_surface_CheckSize(gl, &win_width, &win_height))
+        if (heimdall_gl_surface_CheckSize(gl, &win_width, &win_height))
             vt->Viewport(0, 0, win_width, win_height);
 
         /* Horizontal scale for 20-band equalizer */
@@ -570,15 +571,15 @@ static void *Thread( void *p_data )
         vt->PopMatrix();
 
         /* Wait to swapp the frame on time. */
-        vlc_tick_wait(block->i_pts + (block->i_length / 2));
-        vlc_gl_Swap(gl);
+        heimdall_tick_wait(block->i_pts + (block->i_length / 2));
+        heimdall_gl_Swap(gl);
 
 release:
         window_close(&wind_ctx);
         fft_close(p_state);
         block_Release(block);
     }
-    vlc_gl_ReleaseCurrent(gl);
+    heimdall_gl_ReleaseCurrent(gl);
 
     return NULL;
 }

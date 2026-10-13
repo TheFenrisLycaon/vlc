@@ -3,13 +3,14 @@
  *****************************************************************************
  * Copyright (C) 2004-2020 VLC authors and VideoLAN
  * Copyright (C) 2009, 2011 Laurent Aimar
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Laurent Aimar <fenrir _AT_ videolan _DOT_ org>
+ * Authors: Laurent Aimar <fenrir _AT_ lycaria _DOT_ org>
  *          Ilkka Ollakka <ileoo@videolan.org>
  *          Rémi Denis-Courmont
- *          Adrien Maglo <magsoft at videolan dot org>
- *          Felix Paul Kühne <fkuehne at videolan dot org>
- *          Pierre d'Herbemont <pdherbemont at videolan dot org>
+ *          Adrien Maglo <magsoft at lycaria dot org>
+ *          Felix Paul Kühne <fkuehne at lycaria dot org>
+ *          Pierre d'Herbemont <pdherbemont at lycaria dot org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -34,11 +35,11 @@
 
 #include <assert.h>
 #include <stdbit.h>
-#include <vlc_common.h>
-#include <vlc_arrays.h>
-#include <vlc_es.h>
-#include <vlc_subpicture.h>
-#include <vlc_opengl_interop.h>
+#include <heimdall_common.h>
+#include <heimdall_arrays.h>
+#include <heimdall_es.h>
+#include <heimdall_subpicture.h>
+#include <heimdall_opengl_interop.h>
 
 #include "gl_util.h"
 
@@ -58,13 +59,13 @@ typedef struct {
     float    tex_height;
 } gl_region_t;
 
-struct vlc_gl_sub_renderer
+struct heimdall_gl_sub_renderer
 {
-    vlc_gl_t *gl;
-    const struct vlc_gl_api *api;
+    heimdall_gl_t *gl;
+    const struct heimdall_gl_api *api;
     const opengl_vtable_t *vt; /* for convenience, same as &api->vt */
 
-    struct vlc_gl_interop *interop;
+    struct heimdall_gl_interop *interop;
 
     gl_region_t *regions;
     unsigned region_count;
@@ -85,7 +86,7 @@ struct vlc_gl_sub_renderer
 };
 
 static int
-FetchLocations(struct vlc_gl_sub_renderer *sr)
+FetchLocations(struct heimdall_gl_sub_renderer *sr)
 {
     assert(sr->program_id);
 
@@ -96,7 +97,7 @@ FetchLocations(struct vlc_gl_sub_renderer *sr)
     assert(x != -1); \
     if (x == -1) { \
         msg_Err(sr->gl, "Unable to Get"#type"Location(%s)", str); \
-        return VLC_EGENERIC; \
+        return HEIMDALL_EGENERIC; \
     } \
 } while (0)
 #define GET_ULOC(x, str) GET_LOC(Uniform, x, str)
@@ -110,16 +111,16 @@ FetchLocations(struct vlc_gl_sub_renderer *sr)
 #undef GET_ULOC
 #undef GET_ALOC
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-struct vlc_gl_sub_renderer *
-vlc_gl_sub_renderer_New(vlc_gl_t *gl, const struct vlc_gl_api *api,
-                        struct vlc_gl_interop *interop)
+struct heimdall_gl_sub_renderer *
+heimdall_gl_sub_renderer_New(heimdall_gl_t *gl, const struct heimdall_gl_api *api,
+                        struct heimdall_gl_interop *interop)
 {
     const opengl_vtable_t *vt = &api->vt;
 
-    struct vlc_gl_sub_renderer *sr = malloc(sizeof(*sr));
+    struct heimdall_gl_sub_renderer *sr = malloc(sizeof(*sr));
     if (!sr)
         return NULL;
 
@@ -160,9 +161,9 @@ vlc_gl_sub_renderer_New(vlc_gl_t *gl, const struct vlc_gl_api *api,
         "#endif\n"
 
         "#if (defined(GL_ES) && __VERSION__ >= 300) || (!defined(GL_ES) && __VERSION__ >= 130)\n"
-          "#define vlc_texture texture\n"
+          "#define heimdall_texture texture\n"
         "#else\n"
-          "#define vlc_texture texture2D\n"
+          "#define heimdall_texture texture2D\n"
         "#endif\n"
 
         "#if __VERSION__ < 300\n"
@@ -179,14 +180,14 @@ vlc_gl_sub_renderer_New(vlc_gl_t *gl, const struct vlc_gl_api *api,
           "in vec2 tex_coords;\n"
         "#endif\n"
         "void main() {\n"
-        "  vec4 color = vlc_texture(sampler, tex_coords);\n"
+        "  vec4 color = heimdall_texture(sampler, tex_coords);\n"
         "  color.a *= alpha;\n"
         "  FragColor = color;\n"
         "}\n";
 
     char *glsl_version = NULL;
 
-    if (gl->api_type == VLC_OPENGL_ES2)
+    if (gl->api_type == HEIMDALL_OPENGL_ES2)
         glsl_version = strdup("#version 100\n");
     else
     {
@@ -208,19 +209,19 @@ vlc_gl_sub_renderer_New(vlc_gl_t *gl, const struct vlc_gl_api *api,
     };
 
     sr->program_id =
-        vlc_gl_BuildProgram(VLC_OBJECT(sr->gl), vt,
+        heimdall_gl_BuildProgram(HEIMDALL_OBJECT(sr->gl), vt,
                             ARRAY_SIZE(vertex_shader), vertex_shader,
                             ARRAY_SIZE(fragment_shader), fragment_shader);
     if (!sr->program_id)
         goto error_1;
 
     int ret = FetchLocations(sr);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
         goto error_2;
 
     /* Initial number of allocated buffer objects for subpictures, will grow dynamically. */
     static const unsigned INITIAL_BUFFER_OBJECT_COUNT = 8;
-    sr->buffer_objects = vlc_alloc(INITIAL_BUFFER_OBJECT_COUNT, sizeof(GLuint));
+    sr->buffer_objects = heimdall_alloc(INITIAL_BUFFER_OBJECT_COUNT, sizeof(GLuint));
     if (!sr->buffer_objects)
         goto error_2;
 
@@ -241,7 +242,7 @@ error_1:
 }
 
 void
-vlc_gl_sub_renderer_Delete(struct vlc_gl_sub_renderer *sr)
+heimdall_gl_sub_renderer_Delete(struct heimdall_gl_sub_renderer *sr)
 {
     if (sr->buffer_object_count)
         sr->vt->DeleteBuffers(sr->buffer_object_count, sr->buffer_objects);
@@ -250,7 +251,7 @@ vlc_gl_sub_renderer_Delete(struct vlc_gl_sub_renderer *sr)
     for (unsigned i = 0; i < sr->region_count; ++i)
     {
         if (sr->regions[i].texture)
-            vlc_gl_interop_DeleteTextures(sr->interop, &sr->regions[i].texture);
+            heimdall_gl_interop_DeleteTextures(sr->interop, &sr->regions[i].texture);
     }
     free(sr->regions);
 
@@ -261,7 +262,7 @@ vlc_gl_sub_renderer_Delete(struct vlc_gl_sub_renderer *sr)
 }
 
 void
-vlc_gl_sub_renderer_SetOutputSize(struct vlc_gl_sub_renderer *sr,
+heimdall_gl_sub_renderer_SetOutputSize(struct heimdall_gl_sub_renderer *sr,
                                   unsigned width, unsigned height)
 {
     sr->output_width = width;
@@ -269,15 +270,15 @@ vlc_gl_sub_renderer_SetOutputSize(struct vlc_gl_sub_renderer *sr,
 }
 
 int
-vlc_gl_sub_renderer_Prepare(struct vlc_gl_sub_renderer *sr,
-                            const vlc_render_subpicture *subpicture)
+heimdall_gl_sub_renderer_Prepare(struct heimdall_gl_sub_renderer *sr,
+                            const heimdall_render_subpicture *subpicture)
 {
     GL_ASSERT_NOERROR(sr->vt);
 
     if (unlikely(sr->output_width == 0 || sr->output_height == 0))
-        return VLC_EINVAL;
+        return HEIMDALL_EINVAL;
 
-    const struct vlc_gl_interop *interop = sr->interop;
+    const struct heimdall_gl_interop *interop = sr->interop;
 
     int last_count = sr->region_count;
     gl_region_t *last = sr->regions;
@@ -288,13 +289,13 @@ vlc_gl_sub_renderer_Prepare(struct vlc_gl_sub_renderer *sr,
 
         gl_region_t *regions = calloc(count, sizeof(*regions));
         if (!regions)
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
 
         sr->region_count = count;
         sr->regions = regions;
 
         int i = 0;
-        vlc_vector_foreach(r, &subpicture->regions) {
+        heimdall_vector_foreach(r, &subpicture->regions) {
             gl_region_t *glr = &sr->regions[i];
 
             glr->width  = stdc_bit_ceil(r->p_picture->format.i_visible_width);
@@ -326,10 +327,10 @@ vlc_gl_sub_renderer_Prepare(struct vlc_gl_sub_renderer *sr,
             if (!glr->texture)
             {
                 /* Could not recycle a previous texture, generate a new one. */
-                int ret = vlc_gl_interop_GenerateTextures(interop, &glr->width,
+                int ret = heimdall_gl_interop_GenerateTextures(interop, &glr->width,
                                                           &glr->height,
                                                           &glr->texture);
-                if (ret != VLC_SUCCESS)
+                if (ret != HEIMDALL_SUCCESS)
                     break;
             }
             /* Use the visible pitch of the region */
@@ -341,7 +342,7 @@ vlc_gl_sub_renderer_Prepare(struct vlc_gl_sub_renderer *sr,
             int ret = interop->ops->update_textures(interop, &glr->texture,
                                                     &width, &height,
                                                     r->p_picture, &pixels_offset);
-            if (ret != VLC_SUCCESS)
+            if (ret != HEIMDALL_SUCCESS)
                 break;
             i++;
         }
@@ -354,19 +355,19 @@ vlc_gl_sub_renderer_Prepare(struct vlc_gl_sub_renderer *sr,
 
     for (int i = 0; i < last_count; i++) {
         if (last[i].texture)
-            vlc_gl_interop_DeleteTextures(interop, &last[i].texture);
+            heimdall_gl_interop_DeleteTextures(interop, &last[i].texture);
     }
     free(last);
 
     GL_ASSERT_NOERROR(sr->vt);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 int
-vlc_gl_sub_renderer_Draw(struct vlc_gl_sub_renderer *sr)
+heimdall_gl_sub_renderer_Draw(struct heimdall_gl_sub_renderer *sr)
 {
-    const struct vlc_gl_interop *interop = sr->interop;
+    const struct heimdall_gl_interop *interop = sr->interop;
     const opengl_vtable_t *vt = sr->vt;
 
     GL_ASSERT_NOERROR(vt);
@@ -386,12 +387,12 @@ vlc_gl_sub_renderer_Draw(struct vlc_gl_sub_renderer *sr)
         sr->buffer_object_count = 0;
 
         int new_count = 2 * sr->region_count;
-        void *r_objects = vlc_reallocarray(sr->buffer_objects, new_count, sizeof(GLuint));
+        void *r_objects = heimdall_reallocarray(sr->buffer_objects, new_count, sizeof(GLuint));
         if ( unlikely( r_objects == NULL ) )
         {
             free( sr->buffer_objects );
             sr->buffer_objects = NULL;
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         }
         sr->buffer_objects = r_objects;
 
@@ -457,7 +458,7 @@ vlc_gl_sub_renderer_Draw(struct vlc_gl_sub_renderer *sr)
                 textureCoord = textureCoord90;
                 break;
             default:
-                vlc_assert_unreachable();
+                heimdall_assert_unreachable();
         }
 
         if (ORIENT_IS_MIRROR(sr->gl->orientation))
@@ -477,7 +478,7 @@ vlc_gl_sub_renderer_Draw(struct vlc_gl_sub_renderer *sr)
                     break;
 
                 default:
-                    vlc_assert_unreachable();
+                    heimdall_assert_unreachable();
             }
         }
 
@@ -512,5 +513,5 @@ vlc_gl_sub_renderer_Draw(struct vlc_gl_sub_renderer *sr)
 
     GL_ASSERT_NOERROR(vt);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

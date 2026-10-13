@@ -2,6 +2,7 @@
  * dc1394.c: IIDC (DCAM) FireWire input module
  *****************************************************************************
  * Copyright (C) 2006-2009 VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Xant Majere <xant@xant.net>
  *          Rob Shortt <rob@tvcentric.com> - libdc1394 V2 API updates
@@ -32,9 +33,9 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_demux.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_demux.h>
 
 #include <dc1394/dc1394.h>
 
@@ -44,15 +45,15 @@
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  Open ( vlc_object_t * );
-static void Close( vlc_object_t * );
+static int  Open ( heimdall_object_t * );
+static void Close( heimdall_object_t * );
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname( N_("DC1394") )
     set_description( N_("IIDC Digital Camera (FireWire) input") )
     set_capability( "access", 0 )
     set_callbacks( Open, Close )
-vlc_module_end()
+heimdall_module_end()
 
 typedef struct
 {
@@ -93,7 +94,7 @@ static int process_options( demux_t *p_demux);
 static int FindCamera( demux_sys_t *sys, demux_t *p_demux )
 {
     dc1394camera_list_t *list;
-    int i_ret = VLC_EGENERIC;
+    int i_ret = HEIMDALL_EGENERIC;
 
     msg_Dbg( p_demux, "Scanning for ieee1394 ports ..." );
 
@@ -149,7 +150,7 @@ static int FindCamera( demux_sys_t *sys, demux_t *p_demux )
                                           list->ids[0].guid);
     }
 
-    i_ret = VLC_SUCCESS;
+    i_ret = HEIMDALL_SUCCESS;
 
 end:
     dc1394_camera_free_list (list);
@@ -159,7 +160,7 @@ end:
 /*****************************************************************************
  * Open:
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     demux_t      *p_demux = (demux_t*)p_this;
     demux_sys_t  *p_sys;
@@ -167,15 +168,15 @@ static int Open( vlc_object_t *p_this )
     dc1394error_t res;
 
     if (p_demux->out == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* Set up p_demux */
     p_demux->pf_demux = Demux;
     p_demux->pf_control = Control;
 
-    p_demux->p_sys = p_sys = vlc_obj_calloc( p_this, 1, sizeof( demux_sys_t ) );
+    p_demux->p_sys = p_sys = heimdall_obj_calloc( p_this, 1, sizeof( demux_sys_t ) );
     if( !p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     memset( &fmt, 0, sizeof( es_format_t ) );
 
@@ -193,32 +194,32 @@ static int Open( vlc_object_t *p_this )
     p_sys->reset_bus       = 0;
 
     /* PROCESS INPUT OPTIONS */
-    if( process_options(p_demux) != VLC_SUCCESS )
+    if( process_options(p_demux) != HEIMDALL_SUCCESS )
     {
         msg_Err( p_demux, "Bad MRL, please check the option line "
                           "(MRL was: %s)",
                           p_demux->psz_location );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     p_sys->p_dccontext = dc1394_new();
     if( !p_sys->p_dccontext )
     {
         msg_Err( p_demux, "Failed to initialise libdc1394");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    if( FindCamera( p_sys, p_demux ) != VLC_SUCCESS )
+    if( FindCamera( p_sys, p_demux ) != HEIMDALL_SUCCESS )
     {
         dc1394_free( p_sys->p_dccontext );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( !p_sys->camera )
     {
         msg_Err( p_demux, "No camera found !!" );
         dc1394_free( p_sys->p_dccontext );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( p_sys->reset_bus )
@@ -227,7 +228,7 @@ static int Open( vlc_object_t *p_this )
         {
             msg_Err( p_demux, "Unable to reset IEEE 1394 bus");
             Close( p_this );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
         else msg_Dbg( p_demux, "Successfully reset IEEE 1394 bus");
     }
@@ -236,7 +237,7 @@ static int Open( vlc_object_t *p_this )
     {
         msg_Err( p_demux, "Unable to reset camera");
         Close( p_this );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( dc1394_camera_print_info( p_sys->camera,
@@ -244,7 +245,7 @@ static int Open( vlc_object_t *p_this )
     {
         msg_Err( p_demux, "Unable to print camera info");
         Close( p_this );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( dc1394_feature_get_all( p_sys->camera,
@@ -252,7 +253,7 @@ static int Open( vlc_object_t *p_this )
     {
         msg_Err( p_demux, "Unable to get feature set");
         Close( p_this );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     // TODO: only print features if verbosity increased
     dc1394_feature_print_all(&p_sys->features, stderr);
@@ -265,7 +266,7 @@ static int Open( vlc_object_t *p_this )
         {
             msg_Err( p_demux, "Unable to set video device");
             Close( p_this );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
 #endif
@@ -298,7 +299,7 @@ static int Open( vlc_object_t *p_this )
     {
         msg_Err( p_demux, "Unable to set framerate");
         Close( p_this );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( dc1394_video_set_mode( p_sys->camera,
@@ -306,7 +307,7 @@ static int Open( vlc_object_t *p_this )
     {
         msg_Err( p_demux, "Unable to set video mode");
         Close( p_this );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( dc1394_video_set_iso_speed( p_sys->camera,
@@ -314,7 +315,7 @@ static int Open( vlc_object_t *p_this )
     {
         msg_Err( p_demux, "Unable to set iso speed");
         Close( p_this );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* and setup capture */
@@ -333,13 +334,13 @@ static int Open( vlc_object_t *p_this )
             msg_Err( p_demux ,"Unable to setup capture" );
         }
         Close( p_this );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* TODO - UYV444 chroma converter is missing, when it will be available
      * fourcc will become variable (and not just a fixed value for UYVY)
      */
-    es_format_Init( &fmt, VIDEO_ES, VLC_CODEC_UYVY );
+    es_format_Init( &fmt, VIDEO_ES, HEIMDALL_CODEC_UYVY );
 
     fmt.video.i_width = p_sys->width;
     fmt.video.i_height = p_sys->height;
@@ -356,17 +357,17 @@ static int Open( vlc_object_t *p_this )
         msg_Err( p_demux, "Unable to start camera iso transmission" );
         dc1394_capture_stop( p_sys->camera );
         Close( p_this );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     msg_Dbg( p_demux, "Set iso transmission" );
     // TODO: reread camera
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * Close:
  *****************************************************************************/
-static void Close( vlc_object_t *p_this )
+static void Close( heimdall_object_t *p_this )
 {
     demux_t     *p_demux = (demux_t*)p_this;
     demux_sys_t *p_sys = p_demux->p_sys;
@@ -452,7 +453,7 @@ static block_t *GrabVideo( demux_t *p_demux )
     memcpy( p_block->p_buffer, (const char *)p_sys->frame->image,
             p_sys->width * p_sys->height * 2 );
 
-    p_block->i_pts = p_block->i_dts = vlc_tick_now();
+    p_block->i_pts = p_block->i_dts = heimdall_tick_now();
     dc1394_capture_enqueue( p_sys->camera, p_sys->frame );
     return p_block;
 }
@@ -470,7 +471,7 @@ static int Demux( demux_t *p_demux )
         /* Sleep so we do not consume all the cpu, 10ms seems
          * like a good value (100fps)
          */
-        vlc_tick_sleep( VLC_HARD_MIN_SLEEP );
+        heimdall_tick_sleep( HEIMDALL_HARD_MIN_SLEEP );
         return 1;
     }
 
@@ -487,7 +488,7 @@ static int Demux( demux_t *p_demux )
  *****************************************************************************/
 static int Control( demux_t *p_demux, int i_query, va_list args )
 {
-    VLC_UNUSED( p_demux );
+    HEIMDALL_UNUSED( p_demux );
     switch( i_query )
     {
         /* Special for access_demux */
@@ -495,21 +496,21 @@ static int Control( demux_t *p_demux, int i_query, va_list args )
         case DEMUX_CAN_SEEK:
         case DEMUX_CAN_CONTROL_PACE:
             *va_arg( args, bool * ) = false;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
 
         case DEMUX_GET_PTS_DELAY:
-            *va_arg( args, vlc_tick_t * ) = DEFAULT_PTS_DELAY;
-            return VLC_SUCCESS;
+            *va_arg( args, heimdall_tick_t * ) = DEFAULT_PTS_DELAY;
+            return HEIMDALL_SUCCESS;
 
         case DEMUX_GET_TIME:
-            *va_arg( args, vlc_tick_t * ) = vlc_tick_now();
-            return VLC_SUCCESS;
+            *va_arg( args, heimdall_tick_t * ) = heimdall_tick_now();
+            return HEIMDALL_SUCCESS;
 
         /* TODO implement others */
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 static int process_options( demux_t *p_demux )
@@ -541,7 +542,7 @@ static int process_options( demux_t *p_demux )
                     "chroma support. It will be released ASAP, until then try "
                     "an higher size (320x240 and 640x480 are fully supported)" );
                 free(psz_dup);
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
 #if 0
                 in_size = "160x120";
                 p_sys->width = 160;
@@ -568,7 +569,7 @@ static int process_options( demux_t *p_demux )
                     "Please specify one of them. You have specified %s.",
                     token );
                 free(psz_dup);
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             }
             msg_Dbg( p_demux, "Requested video size : %s",token );
         }
@@ -603,7 +604,7 @@ static int process_options( demux_t *p_demux )
             {
                 msg_Err( p_demux, "Invalid format %s.", token );
                 free(psz_dup);
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             }
             msg_Dbg( p_demux, "Requested video format : %s", token );
         }
@@ -631,7 +632,7 @@ static int process_options( demux_t *p_demux )
                     "Please specify one of them. You have specified %s.",
                     token);
                 free(psz_dup);
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             }
             msg_Dbg( p_demux, "Requested frame rate : %s",token );
         }
@@ -651,7 +652,7 @@ static int process_options( demux_t *p_demux )
                                   "must be an unsigned integer.",
                                   token );
                 free(psz_dup);
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             }
         }
         else if( strncmp( token, "buffers=", strlen( "buffers=" ) ) == 0 )
@@ -664,7 +665,7 @@ static int process_options( demux_t *p_demux )
             {
                 msg_Err( p_demux, "DMA buffers must be 1 or greater." );
                 free(psz_dup);
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             }
             else p_sys->dma_buffers = in_buf;
         }
@@ -681,7 +682,7 @@ static int process_options( demux_t *p_demux )
                 msg_Err(p_demux, "Bad controller value '%s', "
                                  "must be an unsigned integer.",
                                  token );
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             }
         }
 #endif
@@ -696,7 +697,7 @@ static int process_options( demux_t *p_demux )
                                   "must be an unsigned integer.",
                                   token );
                 free(psz_dup);
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             }
         }
         else if( strncmp( token, "vdev=", strlen( "vdev=" ) ) == 0)
@@ -716,7 +717,7 @@ static int process_options( demux_t *p_demux )
                                   "must be an unsigned integer.",
                                   token );
                 free(psz_dup);
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             }
         }
         else if( strncmp( token, "uid=", strlen("uid=") ) == 0)
@@ -763,5 +764,5 @@ static int process_options( demux_t *p_demux )
     }
 
     free( psz_dup );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

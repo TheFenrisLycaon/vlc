@@ -20,7 +20,7 @@ function generate_info_plist()
     echo '<dict>'
     plist_key CFBundleDevelopmentRegion "en"
     plist_key CFBundleExecutable "${EXECUTABLE_NAME}"
-    plist_key CFBundleIdentifier "org.videolan.vlc.plugins.${BUNDLE_ID_NAME}.framework"
+    plist_key CFBundleIdentifier "com.lycaria.heimdall.plugins.${BUNDLE_ID_NAME}.framework"
     plist_key CFBundleInfoDictionaryVersion "6.0"
     plist_key CFBundlePackageType "FMWK"
     plist_key CFBundleSignature "???"
@@ -28,7 +28,7 @@ function generate_info_plist()
     echo '</plist>'
 }
 
-# Parse vlc_modules_list with format: plugin_name: relative/path/to/plugin.dylib
+# Parse heimdall_modules_list with format: plugin_name: relative/path/to/plugin.dylib
 PLUGIN_ENTRIES=()
 for arch in ${ARCHS}; do
   while IFS= read -r line; do
@@ -45,7 +45,7 @@ for arch in ${ARCHS}; do
     if [ $found -eq 0 ]; then
       PLUGIN_ENTRIES+=( "$line" )
     fi
-  done < "${BUILT_PRODUCTS_DIR}/build-${PLATFORM_NAME}-${arch}/build/modules/vlc_modules_list"
+  done < "${BUILT_PRODUCTS_DIR}/build-${PLATFORM_NAME}-${arch}/build/modules/heimdall_modules_list"
 done
 
 for entry in "${PLUGIN_ENTRIES[@]}"; do
@@ -73,7 +73,7 @@ for entry in "${PLUGIN_ENTRIES[@]}"; do
         lipo -create \
             -output "${FRAMEWORK_BIN_PATH}" \
             "${INPUT_FILES[@]}"
-        install_name_tool -change "@rpath/libvlccore.dylib" "@rpath/vlccore.framework/vlccore" \
+        install_name_tool -change "@rpath/libheimdallcore.dylib" "@rpath/heimdallcore.framework/heimdallcore" \
             "${FRAMEWORK_BIN_PATH}"
         dsymutil -o "${FRAMEWORK_DIR}.dSYM" "${FRAMEWORK_BIN_PATH}"
         generate_info_plist "${plugin}" > "${FRAMEWORK_DIR}/Info.plist"

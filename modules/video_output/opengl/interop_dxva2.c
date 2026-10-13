@@ -2,6 +2,7 @@
  * direct3d9.c: Windows Direct3D9 video output module
  *****************************************************************************
  * Copyright (C) 2006-2014 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Martell Malone <martellmalone@gmail.com>,
  *          Damien Fouilleul <damienf@videolan.org>,
@@ -39,9 +40,9 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_vout_display.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_vout_display.h>
 
 #include <windows.h>
 #include <d3d9.h>
@@ -80,22 +81,22 @@ struct glpriv
 };
 
 static int
-GLConvUpdate(const struct vlc_gl_interop *interop, uint32_t textures[],
+GLConvUpdate(const struct heimdall_gl_interop *interop, uint32_t textures[],
              const int32_t tex_width[], const int32_t tex_height[],
              picture_t *pic, const size_t *plane_offset)
 {
-    VLC_UNUSED(textures); VLC_UNUSED(tex_width); VLC_UNUSED(tex_height); VLC_UNUSED(plane_offset);
+    HEIMDALL_UNUSED(textures); HEIMDALL_UNUSED(tex_width); HEIMDALL_UNUSED(tex_height); HEIMDALL_UNUSED(plane_offset);
     struct glpriv *priv = interop->priv;
     HRESULT hr;
 
     picture_sys_d3d9_t *picsys = ActiveD3D9PictureSys(pic);
     if (unlikely(!picsys || !priv->gl_render))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if (!priv->vt.DXUnlockObjectsNV(priv->gl_handle_d3d, 1, &priv->gl_render))
     {
         msg_Warn(interop->gl, "DXUnlockObjectsNV failed");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     d3d9_decoder_device_t *d3d9_decoder = GetD3D9OpaqueContext(interop->vctx);
@@ -114,14 +115,14 @@ GLConvUpdate(const struct vlc_gl_interop *interop, uint32_t textures[],
             msg_Dbg(interop->gl, "Failed VideoProcessBltHD src:%4.4s (%d) dst:%4.4s (%d) (hr=0x%lX)",
                     (const char*)&srcDesc.Format, srcDesc.Format,
                     (const char*)&dstDesc.Format, dstDesc.Format, hr);
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         hr = IDirect3DDevice9Ex_PresentEx(d3d9_decoder->d3ddev.devex, NULL, NULL, NULL, NULL, D3DPRESENT_INTERVAL_IMMEDIATE);
         if (FAILED(hr))
         {
             msg_Warn(interop->gl, "IDirect3DDevice9_Present failed. (0x%lX)", hr);
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
     else
@@ -137,7 +138,7 @@ GLConvUpdate(const struct vlc_gl_interop *interop, uint32_t textures[],
         if (FAILED(hr))
         {
             msg_Warn(interop->gl, "IDirect3DDevice9Ex_StretchRect failed. (0x%lX)", hr);
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
 
@@ -146,17 +147,17 @@ GLConvUpdate(const struct vlc_gl_interop *interop, uint32_t textures[],
         msg_Warn(interop->gl, "DXLockObjectsNV failed");
         priv->vt.DXUnregisterObjectNV(priv->gl_handle_d3d, priv->gl_render);
         priv->gl_render = NULL;
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int
-GLConvAllocateTextures(const struct vlc_gl_interop *interop, uint32_t textures[],
+GLConvAllocateTextures(const struct heimdall_gl_interop *interop, uint32_t textures[],
                        const int32_t tex_width[], const int32_t tex_height[])
 {
-    VLC_UNUSED(tex_width); VLC_UNUSED(tex_height);
+    HEIMDALL_UNUSED(tex_width); HEIMDALL_UNUSED(tex_height);
     struct glpriv *priv = interop->priv;
 
     priv->gl_render =
@@ -165,7 +166,7 @@ GLConvAllocateTextures(const struct vlc_gl_interop *interop, uint32_t textures[]
     if (!priv->gl_render)
     {
         msg_Warn(interop->gl, "DXRegisterObjectNV failed: %lu", GetLastError());
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if (!priv->vt.DXLockObjectsNV(priv->gl_handle_d3d, 1, &priv->gl_render))
@@ -173,14 +174,14 @@ GLConvAllocateTextures(const struct vlc_gl_interop *interop, uint32_t textures[]
         msg_Warn(interop->gl, "DXLockObjectsNV failed");
         priv->vt.DXUnregisterObjectNV(priv->gl_handle_d3d, priv->gl_render);
         priv->gl_render = NULL;
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void
-GLConvDeallocateTextures(const struct vlc_gl_interop *interop, uint32_t textures[])
+GLConvDeallocateTextures(const struct heimdall_gl_interop *interop, uint32_t textures[])
 {
     (void)textures;
     struct glpriv *priv = interop->priv;
@@ -194,7 +195,7 @@ GLConvDeallocateTextures(const struct vlc_gl_interop *interop, uint32_t textures
 }
 
 static void
-GLConvClose(struct vlc_gl_interop *interop)
+GLConvClose(struct heimdall_gl_interop *interop)
 {
     struct glpriv *priv = interop->priv;
 
@@ -213,7 +214,7 @@ GLConvClose(struct vlc_gl_interop *interop)
     free(priv);
 }
 
-static void SetupProcessorInput(struct vlc_gl_interop *interop, const video_format_t *fmt, D3DFORMAT src_format)
+static void SetupProcessorInput(struct heimdall_gl_interop *interop, const video_format_t *fmt, D3DFORMAT src_format)
 {
     struct glpriv *sys = interop->priv;
     DXVAHD_STREAM_STATE_D3DFORMAT_DATA d3dformat = { src_format };
@@ -265,7 +266,7 @@ static void GetFrameRate(DXVAHD_RATIONAL *r, const video_format_t *fmt)
     }
 }
 
-static int InitRangeProcessor(struct vlc_gl_interop *interop, IDirect3DDevice9Ex *devex, D3DFORMAT src_format)
+static int InitRangeProcessor(struct heimdall_gl_interop *interop, IDirect3DDevice9Ex *devex, D3DFORMAT src_format)
 {
     struct glpriv *sys = interop->priv;
 
@@ -304,7 +305,7 @@ static int InitRangeProcessor(struct vlc_gl_interop *interop, IDirect3DDevice9Ex
         goto error;
     }
 
-    formatsList = vlc_alloc(devcaps.InputFormatCount, sizeof(*formatsList));
+    formatsList = heimdall_alloc(devcaps.InputFormatCount, sizeof(*formatsList));
     if (unlikely(formatsList == NULL))
     {
         msg_Dbg(interop, "Failed to allocate %u input formats", devcaps.InputFormatCount);
@@ -325,7 +326,7 @@ static int InitRangeProcessor(struct vlc_gl_interop *interop, IDirect3DDevice9Ex
     }
 
     free(formatsList);
-    formatsList = vlc_alloc(devcaps.OutputFormatCount, sizeof(*formatsList));
+    formatsList = heimdall_alloc(devcaps.OutputFormatCount, sizeof(*formatsList));
     if (unlikely(formatsList == NULL))
     {
         msg_Dbg(interop, "Failed to allocate %u output formats", devcaps.OutputFormatCount);
@@ -344,7 +345,7 @@ static int InitRangeProcessor(struct vlc_gl_interop *interop, IDirect3DDevice9Ex
         goto error;
     }
 
-    capsList = vlc_alloc(devcaps.VideoProcessorCount, sizeof(*capsList));
+    capsList = heimdall_alloc(devcaps.VideoProcessorCount, sizeof(*capsList));
     if (unlikely(capsList == NULL))
     {
         msg_Dbg(interop, "Failed to allocate %u video processors", devcaps.VideoProcessorCount);
@@ -378,44 +379,44 @@ static int InitRangeProcessor(struct vlc_gl_interop *interop, IDirect3DDevice9Ex
     };
     hr = IDXVAHD_VideoProcessor_SetVideoProcessBltState( sys->processor.proc, DXVAHD_BLT_STATE_OUTPUT_COLOR_SPACE, sizeof(colorspace), &colorspace);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     free(capsList);
     free(formatsList);
     if (hd_device)
         IDXVAHD_Device_Release(hd_device);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 static int
-GLConvOpen(struct vlc_gl_interop *interop)
+GLConvOpen(struct heimdall_gl_interop *interop)
 {
-    if (interop->fmt_in.i_chroma != VLC_CODEC_D3D9_OPAQUE
-     && interop->fmt_in.i_chroma != VLC_CODEC_D3D9_OPAQUE_10B)
-        return VLC_EGENERIC;
+    if (interop->fmt_in.i_chroma != HEIMDALL_CODEC_D3D9_OPAQUE
+     && interop->fmt_in.i_chroma != HEIMDALL_CODEC_D3D9_OPAQUE_10B)
+        return HEIMDALL_EGENERIC;
 
     d3d9_video_context_t *vctx_sys = GetD3D9ContextPrivate( interop->vctx );
     d3d9_decoder_device_t *d3d9_decoder = GetD3D9OpaqueContext(interop->vctx);
     if ( vctx_sys == NULL || d3d9_decoder == NULL )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if (!d3d9_decoder->hd3d.use_ex)
     {
         msg_Warn(interop, "DX/GL interrop only working on d3d9x");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     HGLRC hGLRC = wglGetCurrentContext();
     if (hGLRC == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     struct wgl_vt vt;
 
 #define LOAD_EXT(name, type) do { \
-    vt.name = (type) vlc_gl_GetProcAddress(interop->gl, "wgl" #name); \
+    vt.name = (type) heimdall_gl_GetProcAddress(interop->gl, "wgl" #name); \
     if (!vt.name) { \
         msg_Warn(interop, "'wgl " #name "' could not be loaded"); \
-        return VLC_EGENERIC; \
+        return HEIMDALL_EGENERIC; \
     } \
 } while(0)
 
@@ -431,12 +432,12 @@ GLConvOpen(struct vlc_gl_interop *interop)
     {
         HDC hGLDC = wglGetCurrentDC();
         if (hGLDC == NULL)
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         wglExt = vt.GetExtensionsStringARB(hGLDC);
     }
 
-    if (wglExt == NULL || !vlc_gl_StrHasToken(wglExt, "WGL_NV_DX_interop"))
-        return VLC_EGENERIC;
+    if (wglExt == NULL || !heimdall_gl_StrHasToken(wglExt, "WGL_NV_DX_interop"))
+        return HEIMDALL_EGENERIC;
     LOAD_EXT(DXSetResourceShareHandleNV, PFNWGLDXSETRESOURCESHAREHANDLENVPROC);
     LOAD_EXT(DXOpenDeviceNV, PFNWGLDXOPENDEVICENVPROC);
     LOAD_EXT(DXCloseDeviceNV, PFNWGLDXCLOSEDEVICENVPROC);
@@ -447,7 +448,7 @@ GLConvOpen(struct vlc_gl_interop *interop)
 
     struct glpriv *priv = calloc(1, sizeof(struct glpriv));
     if (!priv)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     interop->priv = priv;
     priv->OutputFormat = D3DFMT_A8R8G8B8;
     priv->vt = vt;
@@ -460,7 +461,7 @@ GLConvOpen(struct vlc_gl_interop *interop)
         // NVIDIA bug, YUV to RGB internal conversion in StretchRect always converts from limited to limited range
         msg_Dbg(interop->gl, "init DXVA-HD processor from %4.4s to RGB", (const char*)&vctx_sys->format);
         int err = InitRangeProcessor(interop, d3d9_decoder->d3ddev.devex, vctx_sys->format);
-        if (err != VLC_SUCCESS)
+        if (err != HEIMDALL_SUCCESS)
             force_dxva_hd = false;
     }
     if (!force_dxva_hd)
@@ -501,7 +502,7 @@ GLConvOpen(struct vlc_gl_interop *interop)
         goto error;
     }
 
-    static const struct vlc_gl_interop_ops ops = {
+    static const struct heimdall_gl_interop_ops ops = {
         .allocate_textures = GLConvAllocateTextures,
         .deallocate_textures = GLConvDeallocateTextures,
         .update_textures = GLConvUpdate,
@@ -513,11 +514,11 @@ GLConvOpen(struct vlc_gl_interop *interop)
     video_format_TransformBy(&interop->fmt_out, TRANSFORM_VFLIP);
 
     interop->tex_target = GL_TEXTURE_2D;
-    interop->fmt_out.i_chroma = VLC_CODEC_BGRA;
+    interop->fmt_out.i_chroma = HEIMDALL_CODEC_BGRA;
     interop->fmt_out.space = COLOR_SPACE_UNDEF;
 
     interop->tex_count = 1;
-    interop->texs[0] = (struct vlc_gl_tex_cfg) {
+    interop->texs[0] = (struct heimdall_gl_tex_cfg) {
         .w = {1, 1},
         .h = {1, 1},
         .internal = GL_RGBA,
@@ -525,14 +526,14 @@ GLConvOpen(struct vlc_gl_interop *interop)
         .type = GL_UNSIGNED_BYTE,
     };
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     GLConvClose(interop);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname("dxva2")
     set_subcategory(SUBCAT_VIDEO_VOUT)
     set_description("DXVA2 surface converter")
@@ -540,4 +541,4 @@ vlc_module_begin ()
     set_callback(GLConvOpen)
 
     add_bool("direct3d9-dxvahd", true, DXVAHD_TEXT, NULL)
-vlc_module_end ()
+heimdall_module_end ()

@@ -2,6 +2,7 @@
  * ttml.h : TTML helpers
  *****************************************************************************
  * Copyright (C) 2017 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -18,17 +19,17 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#include <vlc_tick.h>
-#include <vlc_arrays.h>
-#include <vlc_memstream.h>
-#include <vlc_list.h>
+#include <heimdall_tick.h>
+#include <heimdall_arrays.h>
+#include <heimdall_memstream.h>
+#include <heimdall_list.h>
 
-int tt_OpenDemux( vlc_object_t* p_this );
-void tt_CloseDemux( vlc_object_t* p_demux );
+int tt_OpenDemux( heimdall_object_t* p_this );
+void tt_CloseDemux( heimdall_object_t* p_demux );
 
-int  tt_OpenDecoder   ( vlc_object_t * );
+int  tt_OpenDecoder   ( heimdall_object_t * );
 
-int  tt_OpenEncoder   ( vlc_object_t * );
+int  tt_OpenEncoder   ( heimdall_object_t * );
 
 enum
 {
@@ -41,7 +42,7 @@ enum
 
 typedef struct
 {
-    vlc_tick_t base;
+    heimdall_tick_t base;
     unsigned frames;
     //unsigned ticks;
 } tt_time_t;
@@ -73,7 +74,7 @@ struct tt_searchkey
 
 typedef struct
 {
-    struct vlc_list nodes;
+    struct heimdall_list nodes;
 } tt_namespaces_t;
 
 void tt_namespaces_Init( tt_namespaces_t *nss );
@@ -110,7 +111,7 @@ struct tt_node_t
     tt_basenode_t *p_child;
     char *psz_node_name;
     tt_timings_t timings;
-    vlc_dictionary_t attr_dict;
+    heimdall_dictionary_t attr_dict;
     char *psz_namespace;
 };
 
@@ -152,7 +153,7 @@ static inline void tt_time_Init( tt_time_t *t )
     t->frames = 0;
 }
 
-static inline tt_time_t tt_time_Create( vlc_tick_t i )
+static inline tt_time_t tt_time_Create( heimdall_tick_t i )
 {
     tt_time_t t;
     t.base = i;
@@ -165,18 +166,18 @@ static inline bool tt_time_Valid( const tt_time_t *t )
     return t->base != -1;
 }
 
-static inline vlc_tick_t tt_time_Convert( const tt_time_t *t )
+static inline heimdall_tick_t tt_time_Convert( const tt_time_t *t )
 {
     if( !tt_time_Valid( t ) )
-        return VLC_TICK_INVALID;
+        return HEIMDALL_TICK_INVALID;
     else
-        return t->base + vlc_tick_from_samples( t->frames, TT_FRAME_RATE);
+        return t->base + heimdall_tick_from_samples( t->frames, TT_FRAME_RATE);
 }
 
 static inline int tt_time_Compare( const tt_time_t *t1, const tt_time_t *t2 )
 {
-    vlc_tick_t ttt1 = tt_time_Convert( t1 );
-    vlc_tick_t ttt2 = tt_time_Convert( t2 );
+    heimdall_tick_t ttt1 = tt_time_Convert( t1 );
+    heimdall_tick_t ttt2 = tt_time_Convert( t2 );
     if (ttt1 < ttt2)
         return -1;
     return ttt1 > ttt2;
@@ -186,7 +187,7 @@ static inline tt_time_t tt_time_Add( tt_time_t t1, tt_time_t t2 )
 {
     t1.base += t2.base;
     t1.frames += t2.frames;
-    t1.base += vlc_tick_from_samples( t1.frames, TT_FRAME_RATE );
+    t1.base += heimdall_tick_from_samples( t1.frames, TT_FRAME_RATE );
     t1.frames = t1.frames % TT_FRAME_RATE;
     return t1;
 }
@@ -196,7 +197,7 @@ static inline tt_time_t tt_time_Sub( tt_time_t t1, tt_time_t t2 )
     if( t2.frames > t1.frames )
     {
         unsigned diff = 1 + (t2.frames - t1.frames) / TT_FRAME_RATE;
-        t1.base -= vlc_tick_from_sec( diff );
+        t1.base -= heimdall_tick_from_sec( diff );
         t1.frames += diff * TT_FRAME_RATE;
     }
     t1.frames -= t2.frames;
@@ -207,6 +208,6 @@ static inline tt_time_t tt_time_Sub( tt_time_t t1, tt_time_t t2 )
 /* Encoding */
 
 char *tt_genTiming( tt_time_t t );
-void tt_node_AttributesToText( struct vlc_memstream *p_stream, const tt_node_t* p_node );
-void tt_node_ToText( struct vlc_memstream *p_stream, const tt_basenode_t *p_basenode,
+void tt_node_AttributesToText( struct heimdall_memstream *p_stream, const tt_node_t* p_node );
+void tt_node_ToText( struct heimdall_memstream *p_stream, const tt_basenode_t *p_basenode,
                      const tt_time_t *playbacktime );

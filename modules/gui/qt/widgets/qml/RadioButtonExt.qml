@@ -1,6 +1,7 @@
 /*****************************************************************************
  * Copyright (C) 2025 VLC authors and VideoLAN
  * Copyright (C) 2017 The Qt Company Ltd.
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,8 +21,8 @@
 import QtQuick
 import QtQuick.Templates as T
 
-import VLC.MainInterface
-import VLC.Style
+import Heimdall.MainInterface
+import Heimdall.Style
 
 // Based on Qt Quick Basic Style:
 T.RadioButton {
@@ -33,8 +34,8 @@ T.RadioButton {
                              implicitContentHeight + topPadding + bottomPadding,
                              implicitIndicatorHeight + topPadding + bottomPadding)
 
-    padding: VLCStyle.margin_xxsmall
-    spacing: VLCStyle.margin_xxsmall
+    padding: HeimdallStyle.margin_xxsmall
+    spacing: HeimdallStyle.margin_xxsmall
 
     Keys.priority: Keys.AfterItem
     Keys.onPressed: function(event) {
@@ -53,15 +54,15 @@ T.RadioButton {
 
     // keep in sync with RadioDelegate.qml (shared RadioIndicator.qml was removed for performance reasons)
     indicator: Rectangle {
-        implicitWidth: control.contentItem ? implicitHeight : VLCStyle.dp(28, VLCStyle.scale)
-        implicitHeight: control.contentItem ? control.contentItem.implicitHeight : VLCStyle.dp(28, VLCStyle.scale)
+        implicitWidth: control.contentItem ? implicitHeight : HeimdallStyle.dp(28, HeimdallStyle.scale)
+        implicitHeight: control.contentItem ? control.contentItem.implicitHeight : HeimdallStyle.dp(28, HeimdallStyle.scale)
 
         x: control.text ? (control.mirrored ? control.width - width - control.rightPadding : control.leftPadding) : control.leftPadding + (control.availableWidth - width) / 2
         y: control.topPadding + (control.availableHeight - height) / 2
 
         radius: width / 2
         color: control.down ? Qt.lighter(theme.accent) : theme.bg.primary
-        border.width: control.visualFocus ? VLCStyle.dp(2, VLCStyle.scale) : VLCStyle.dp(1, VLCStyle.scale)
+        border.width: control.visualFocus ? HeimdallStyle.dp(2, HeimdallStyle.scale) : HeimdallStyle.dp(1, HeimdallStyle.scale)
         border.color: control.visualFocus ? theme.accent : theme.fg.primary
         border.pixelAligned: (radius < Number.EPSILON)
 

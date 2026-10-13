@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 2001-2007 VLC authors and VideoLAN
  * Copyright (C) 2012 KO Myung-Hun
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Sam Hocevar <sam@zoy.org>
  *          Ethan C. Baldridge <BaldridgeE@cadmus.com>
@@ -33,11 +34,11 @@
 #include <sys/types.h>
 #include <dlfcn.h>
 
-#include <vlc_common.h>
-#include <vlc_charset.h>
+#include <heimdall_common.h>
+#include <heimdall_charset.h>
 #include "modules/modules.h"
 
-void *vlc_dlopen(const char *psz_file, bool lazy )
+void *heimdall_dlopen(const char *psz_file, bool lazy )
 {
     const int flags = lazy ? RTLD_LAZY : RTLD_NOW;
     char *path = ToLocaleDup( psz_file );
@@ -49,12 +50,12 @@ void *vlc_dlopen(const char *psz_file, bool lazy )
     return handle;
 }
 
-int vlc_dlclose(void *handle)
+int heimdall_dlclose(void *handle)
 {
     return dlclose( handle );
 }
 
-void *vlc_dlsym(void *handle, const char *psz_function)
+void *heimdall_dlsym(void *handle, const char *psz_function)
 {
     char buf[strlen(psz_function) + 2];
     buf[0] = '_';
@@ -62,7 +63,7 @@ void *vlc_dlsym(void *handle, const char *psz_function)
     return dlsym( handle, buf );
 }
 
-char *vlc_dlerror(void)
+char *heimdall_dlerror(void)
 {
     const char *errmsg = dlerror();
     return (errmsg != NULL) ? FromLocaleDup(errmsg) : NULL;

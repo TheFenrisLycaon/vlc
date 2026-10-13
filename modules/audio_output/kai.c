@@ -1,7 +1,8 @@
 /*****************************************************************************
- * kai.c : KAI audio output plugin for vlc
+ * kai.c : KAI audio output plugin for heimdall
  *****************************************************************************
  * Copyright (C) 2010-2013 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: KO Myung-Hun <komh@chollian.net>
  *
@@ -27,9 +28,9 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_aout.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_aout.h>
 
 #include <float.h>
 
@@ -37,7 +38,7 @@
 
 #define FRAME_SIZE 2048
 
-#define AUDIO_BUFFER_SIZE_IN_SECONDS  SEC_FROM_VLC_TICK( AOUT_MAX_ADVANCE_TIME )
+#define AUDIO_BUFFER_SIZE_IN_SECONDS  SEC_FROM_HEIMDALL_TICK( AOUT_MAX_ADVANCE_TIME )
 
 struct audio_buffer_t
 {
@@ -46,7 +47,7 @@ struct audio_buffer_t
     int         write_pos;
     int         length;
     int         size;
-    vlc_mutex_t mutex;
+    heimdall_mutex_t mutex;
 };
 
 typedef struct audio_buffer_t audio_buffer_t;
@@ -64,20 +65,20 @@ typedef struct
     float           soft_gain;
     bool            soft_mute;
     audio_sample_format_t format;
-    vlc_tick_t      latency;
-    vlc_tick_t      first_play_date;
-    vlc_tick_t      last_timing_date;
-    vlc_tick_t      paused_date;
+    heimdall_tick_t      latency;
+    heimdall_tick_t      first_play_date;
+    heimdall_tick_t      last_timing_date;
+    heimdall_tick_t      paused_date;
     atomic_bool     draining;
 } aout_sys_t;
 
 /*****************************************************************************
  * Local prototypes
  *****************************************************************************/
-static int  Open    ( vlc_object_t * );
-static void Close   ( vlc_object_t * );
-static void Play    ( audio_output_t *_p_aout, block_t *block, vlc_tick_t );
-static void Pause   ( audio_output_t *, bool, vlc_tick_t );
+static int  Open    ( heimdall_object_t * );
+static void Close   ( heimdall_object_t * );
+static void Play    ( audio_output_t *_p_aout, block_t *block, heimdall_tick_t );
+static void Pause   ( audio_output_t *, bool, heimdall_tick_t );
 static void Flush   ( audio_output_t * );
 static void Drain   ( audio_output_t * );
 
@@ -109,7 +110,7 @@ static const char *const ppsz_kai_audio_device[] = {
 static const char *const ppsz_kai_audio_device_text[] = {
     N_("Auto"), "DART", "UNIAUD" };
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( "KAI" )
     set_description( N_("K Audio Interface audio output") )
     set_capability( "audio output", 100 )
@@ -121,7 +122,7 @@ vlc_module_begin ()
     add_bool( "kai-audio-exclusive-mode", false,
               KAI_AUDIO_EXCLUSIVE_MODE_TEXT, KAI_AUDIO_EXCLUSIVE_MODE_LONGTEXT )
     set_callbacks( Open, Close )
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * Open: open the audio device
@@ -137,7 +138,7 @@ static int Start ( audio_output_t *p_aout, audio_sample_format_t *fmt )
     audio_sample_format_t format = *fmt;
 
     if( aout_FormatNbChannels( fmt ) == 0 )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     psz_mode = var_InheritString( p_aout, "kai-audio-device" );
     if( !psz_mode )
@@ -164,7 +165,7 @@ static int Start ( audio_output_t *p_aout, audio_sample_format_t *fmt )
         format.i_physical_channels = AOUT_CHAN_CENTER;
 
     /* Support S16 only */
-    format.i_format = VLC_CODEC_S16N;
+    format.i_format = HEIMDALL_CODEC_S16N;
 
     aout_FormatPrepare( &format );
 
@@ -175,7 +176,7 @@ static int Start ( audio_output_t *p_aout, audio_sample_format_t *fmt )
     {
         msg_Err( p_aout, "cannot initialize KAI");
 
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     ks_wanted.usDeviceIndex   = 0;
@@ -208,7 +209,7 @@ static int Start ( audio_output_t *p_aout, audio_sample_format_t *fmt )
              format.i_bytes_per_frame );
 
     /* Latency to play all buffers */
-    p_sys->latency = vlc_tick_from_samples( ks_obtained.ulBufferSize *
+    p_sys->latency = heimdall_tick_from_samples( ks_obtained.ulBufferSize *
                                             ks_obtained.ulNumBuffers /
                                             format.i_bytes_per_frame,
                                             format.i_rate );
@@ -226,55 +227,55 @@ static int Start ( audio_output_t *p_aout, audio_sample_format_t *fmt )
     CreateBuffer( p_aout, AUDIO_BUFFER_SIZE_IN_SECONDS *
                           format.i_rate * format.i_bytes_per_frame );
 
-    p_sys->first_play_date = p_sys->last_timing_date = VLC_TICK_INVALID;
-    p_sys->paused_date = VLC_TICK_INVALID;
+    p_sys->first_play_date = p_sys->last_timing_date = HEIMDALL_TICK_INVALID;
+    p_sys->paused_date = HEIMDALL_TICK_INVALID;
     atomic_init( &p_sys->draining, false );
 
     /* Prevent SIG_FPE */
     _control87(MCW_EM, MCW_EM);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 exit_kai_done :
     kaiDone();
 
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /*****************************************************************************
  * Play: play a sound samples buffer
  *****************************************************************************/
-static void Play(audio_output_t *p_aout, block_t *block, vlc_tick_t date)
+static void Play(audio_output_t *p_aout, block_t *block, heimdall_tick_t date)
 {
     aout_sys_t *p_sys = p_aout->sys;
-    vlc_tick_t audio_pts = block->i_pts;
-    vlc_tick_t delay;
+    heimdall_tick_t audio_pts = block->i_pts;
+    heimdall_tick_t delay;
 
-    vlc_mutex_lock( &p_sys->buffer->mutex );
+    heimdall_mutex_lock( &p_sys->buffer->mutex );
 
     /* This block is played after exhausting a buffer */
-    delay = vlc_tick_from_samples( p_sys->buffer->length /
+    delay = heimdall_tick_from_samples( p_sys->buffer->length /
                                    p_sys->format.i_bytes_per_frame,
                                    p_sys->format.i_rate );
 
-    vlc_mutex_unlock( &p_sys->buffer->mutex );
+    heimdall_mutex_unlock( &p_sys->buffer->mutex );
 
     WriteBuffer( p_aout, block->p_buffer, block->i_buffer );
 
     block_Release( block );
 
-    if( unlikely( p_sys->first_play_date == VLC_TICK_INVALID ))
+    if( unlikely( p_sys->first_play_date == HEIMDALL_TICK_INVALID ))
         p_sys->first_play_date = date;
 
-    vlc_tick_t system_ts = vlc_tick_now();
+    heimdall_tick_t system_ts = heimdall_tick_now();
 
     if( system_ts < p_sys->first_play_date )
         return;
 
     kaiPlay( p_sys->hkai );
 
-    if( p_sys->last_timing_date == VLC_TICK_INVALID ||
-        system_ts - p_sys->last_timing_date >= VLC_TICK_FROM_SEC( 1 ))
+    if( p_sys->last_timing_date == HEIMDALL_TICK_INVALID ||
+        system_ts - p_sys->last_timing_date >= HEIMDALL_TICK_FROM_SEC( 1 ))
     {
         p_sys->last_timing_date = system_ts;
         aout_TimingReport( p_aout,
@@ -322,22 +323,22 @@ static ULONG APIENTRY KaiCallback( PVOID p_cb_data,
     return i_buf_size;
 }
 
-static int Open (vlc_object_t *obj)
+static int Open (heimdall_object_t *obj)
 {
     audio_output_t *aout = (audio_output_t *)obj;
     aout_sys_t *sys = calloc( 1, sizeof( aout_sys_t ) );
 
     if( unlikely( sys == NULL ))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     aout->sys = sys;
     aout->start = Start;
     aout->stop = Stop;
     aout_SoftVolumeInit( aout );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void Close( vlc_object_t *obj )
+static void Close( heimdall_object_t *obj )
 {
     audio_output_t *aout = (audio_output_t *)obj;
     aout_sys_t *sys = aout->sys;
@@ -345,9 +346,9 @@ static void Close( vlc_object_t *obj )
     free(sys);
 }
 
-static void Pause( audio_output_t *aout, bool pause, vlc_tick_t date )
+static void Pause( audio_output_t *aout, bool pause, heimdall_tick_t date )
 {
-    VLC_UNUSED( date );
+    HEIMDALL_UNUSED( date );
 
     aout_sys_t *sys = aout->sys;
 
@@ -362,7 +363,7 @@ static void Pause( audio_output_t *aout, bool pause, vlc_tick_t date )
         kaiResume( sys->hkai );
 
         sys->first_play_date -= sys->paused_date - date;
-        sys->paused_date = VLC_TICK_INVALID;
+        sys->paused_date = HEIMDALL_TICK_INVALID;
     }
 }
 
@@ -373,15 +374,15 @@ static void Flush( audio_output_t *aout )
 
     atomic_store_explicit( &sys->draining, false, memory_order_relaxed );
 
-    vlc_mutex_lock( &buffer->mutex );
+    heimdall_mutex_lock( &buffer->mutex );
 
     buffer->read_pos = buffer->write_pos;
     buffer->length   = 0;
 
-    vlc_mutex_unlock( &buffer->mutex );
+    heimdall_mutex_unlock( &buffer->mutex );
 
-    sys->first_play_date = sys->last_timing_date = VLC_TICK_INVALID;
-    sys->paused_date = VLC_TICK_INVALID;
+    sys->first_play_date = sys->last_timing_date = HEIMDALL_TICK_INVALID;
+    sys->paused_date = HEIMDALL_TICK_INVALID;
 }
 
 static void Drain( audio_output_t *aout )
@@ -409,7 +410,7 @@ static int CreateBuffer( audio_output_t *aout, int size )
 
     buffer->size = size;
 
-    vlc_mutex_init( &buffer->mutex );
+    heimdall_mutex_init( &buffer->mutex );
 
     aout_sys_t *sys = aout->sys;
     sys->buffer = buffer;
@@ -433,7 +434,7 @@ static int ReadBuffer( audio_output_t *aout, uint8_t *data, int size )
     int             len;
     int             remain_len = 0;
 
-    vlc_mutex_lock( &buffer->mutex );
+    heimdall_mutex_lock( &buffer->mutex );
 
     len = MIN( buffer->length, size );
     if( buffer->read_pos + len > buffer->size )
@@ -454,7 +455,7 @@ static int ReadBuffer( audio_output_t *aout, uint8_t *data, int size )
 
     buffer->length -= len;
 
-    vlc_mutex_unlock( &buffer->mutex );
+    heimdall_mutex_unlock( &buffer->mutex );
 
     return len;
 }
@@ -466,7 +467,7 @@ static int WriteBuffer( audio_output_t *aout, uint8_t *data, int size )
     int             len;
     int             remain_len = 0;
 
-    vlc_mutex_lock( &buffer->mutex );
+    heimdall_mutex_lock( &buffer->mutex );
 
     if( buffer->length + size > buffer->size )
     {
@@ -487,7 +488,7 @@ static int WriteBuffer( audio_output_t *aout, uint8_t *data, int size )
         {
             msg_Err( aout, "Enlarging audio buffer failed! Drop a block!");
 
-            vlc_mutex_unlock( &buffer->mutex );
+            heimdall_mutex_unlock( &buffer->mutex );
 
             return 0;
         }
@@ -513,7 +514,7 @@ static int WriteBuffer( audio_output_t *aout, uint8_t *data, int size )
 
     buffer->length += size;
 
-    vlc_mutex_unlock( &buffer->mutex );
+    heimdall_mutex_unlock( &buffer->mutex );
 
     return size;
 }

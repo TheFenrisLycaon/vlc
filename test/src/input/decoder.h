@@ -2,6 +2,7 @@
  * decoder.c
  *****************************************************************************
  * Copyright (C) 2017 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Shaleen Jain <shaleen.jain95@gmail.com>
  *
@@ -20,6 +21,6 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-decoder_t *test_decoder_create(vlc_object_t *parent, const es_format_t *fmt);
+decoder_t *test_decoder_create(heimdall_object_t *parent, const es_format_t *fmt);
 void test_decoder_destroy(decoder_t *decoder);
 int test_decoder_process(decoder_t *decoder, block_t *block);

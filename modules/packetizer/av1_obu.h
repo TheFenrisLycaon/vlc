@@ -2,6 +2,7 @@
  * av1_obu: AV1 OBU parser
  *****************************************************************************
  * Copyright (C) 2018 VideoLabs, VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -17,8 +18,8 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
-#ifndef VLC_AV1_OBU_H
-#define VLC_AV1_OBU_H
+#ifndef HEIMDALL_AV1_OBU_H
+#define HEIMDALL_AV1_OBU_H
 
 static inline uint64_t leb128(const uint8_t *p_buf, size_t i_buf, uint8_t *pi_len)
 {
@@ -168,7 +169,7 @@ bool AV1_get_colorimetry( const av1_OBU_sequence_header_t *,
                           video_color_space_t *, video_color_range_t *);
 bool AV1_get_frame_rate(const av1_OBU_sequence_header_t *, unsigned *, unsigned *);
 bool AV1_get_super_res(const av1_OBU_sequence_header_t *);
-vlc_fourcc_t AV1_get_chroma(const av1_OBU_sequence_header_t *);
+heimdall_fourcc_t AV1_get_chroma(const av1_OBU_sequence_header_t *);
 
 bool AV1_sequence_header_equal(const av1_OBU_sequence_header_t *,const av1_OBU_sequence_header_t *);
 

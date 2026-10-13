@@ -158,7 +158,7 @@ run_test() {
 
     set +m
     while :; do
-        VLC_TEST_TIMEOUT=-1 "$TEST_BIN" > "$log_file" 2>&1 &
+        HEIMDALL_TEST_TIMEOUT=-1 "$TEST_BIN" > "$log_file" 2>&1 &
         test_pid=$!
         if ! printf '%s\n' "$test_pid" > "$pid_file"; then
             kill -KILL "$test_pid" 2>/dev/null || true

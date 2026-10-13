@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2024 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,9 +18,9 @@
  *****************************************************************************/
 #include "util/csdmenu_x11.h"
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname(N_("QtX11"))
     set_description(N_("Qt extra X11 features"))
     set_capability("qtcsdmenu", 10)
     set_callback(X11CSDMenuOpen)
-vlc_module_end()
+heimdall_module_end()

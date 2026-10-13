@@ -2,6 +2,7 @@
  * adaptive.cpp: Adaptive streaming module
  *****************************************************************************
  * Copyright © 2015 - VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -28,9 +29,9 @@
 
 #include <stdint.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_demux.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_demux.h>
 
 #include "SharedResources.hpp"
 #include "logic/BufferingLogic.hpp"
@@ -62,8 +63,8 @@ using namespace smooth::playlist;
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  Open    (vlc_object_t *);
-static void Close   (vlc_object_t *);
+static int  Open    (heimdall_object_t *);
+static void Close   (heimdall_object_t *);
 
 #define ADAPT_WIDTH_TEXT N_("Maximum device width")
 #define ADAPT_HEIGHT_TEXT N_("Maximum device height")
@@ -122,7 +123,7 @@ static const char *const ppsz_latency[] = { N_("Auto"),
                                             N_("Force"),
                                             N_("Disable") };
 
-vlc_module_begin ()
+heimdall_module_begin ()
         set_shortname( N_("Adaptive"))
         set_description( N_("Unified adaptive streaming for DASH/HLS") )
         set_capability( "demux", 12 )
@@ -136,15 +137,15 @@ vlc_module_begin ()
         add_integer( "adaptive-bw",     250, ADAPT_BW_TEXT,     ADAPT_BW_LONGTEXT )
         add_bool   ( "adaptive-use-access", false, ADAPT_ACCESS_TEXT, ADAPT_ACCESS_LONGTEXT )
         add_integer( "adaptive-livedelay",
-                     MS_FROM_VLC_TICK(AbstractBufferingLogic::DEFAULT_LIVE_BUFFERING),
+                     MS_FROM_HEIMDALL_TICK(AbstractBufferingLogic::DEFAULT_LIVE_BUFFERING),
                      ADAPT_BUFFER_TEXT, ADAPT_BUFFER_LONGTEXT )
         add_integer( "adaptive-maxbuffer",
-                     MS_FROM_VLC_TICK(AbstractBufferingLogic::DEFAULT_MAX_BUFFERING),
+                     MS_FROM_HEIMDALL_TICK(AbstractBufferingLogic::DEFAULT_MAX_BUFFERING),
                      ADAPT_MAXBUFFER_TEXT, nullptr )
         add_integer( "adaptive-lowlatency", -1, ADAPT_LOWLATENCY_TEXT, ADAPT_LOWLATENCY_LONGTEXT )
             change_integer_list(rgi_latency, ppsz_latency)
         set_callbacks( Open, Close )
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * Local prototypes
@@ -159,12 +160,12 @@ static PlaylistManager * HandleHLS(demux_t *,
 /*****************************************************************************
  * Open:
  *****************************************************************************/
-static int Open(vlc_object_t *p_obj)
+static int Open(heimdall_object_t *p_obj)
 {
     demux_t *p_demux = (demux_t*) p_obj;
 
     if(!p_demux->s->psz_url)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     std::string mimeType;
 
@@ -221,10 +222,10 @@ static int Open(vlc_object_t *p_obj)
         {
             /* We need to probe content */
             const uint8_t *p_peek;
-            const ssize_t i_peek = vlc_stream_Peek(p_demux->s, &p_peek, 2048);
+            const ssize_t i_peek = heimdall_stream_Peek(p_demux->s, &p_peek, 2048);
             if(i_peek > 0)
             {
-                stream_t *peekstream = vlc_stream_MemoryNew(p_demux, const_cast<uint8_t *>(p_peek), (size_t)i_peek, true);
+                stream_t *peekstream = heimdall_stream_MemoryNew(p_demux, const_cast<uint8_t *>(p_peek), (size_t)i_peek, true);
                 if(peekstream)
                 {
                     if(xmlParser.reset(peekstream) && xmlParser.parse(false))
@@ -238,7 +239,7 @@ static int Open(vlc_object_t *p_obj)
                             p_manager = HandleSmooth(p_demux, xmlParser, playlisturl, logic);
                         }
                     }
-                    vlc_stream_Delete(peekstream);
+                    heimdall_stream_Delete(peekstream);
                 }
             }
         }
@@ -247,11 +248,11 @@ static int Open(vlc_object_t *p_obj)
     if(!p_manager || !p_manager->init(p_demux->b_preparsing))
     {
         delete p_manager;
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* disable annoying stuff */
-    if(VLC_SUCCESS == var_Create( p_demux, "lua", VLC_VAR_BOOL))
+    if(HEIMDALL_SUCCESS == var_Create( p_demux, "lua", HEIMDALL_VAR_BOOL))
         var_SetBool(p_demux, "lua", false);
 
     p_demux->p_sys         = p_manager;
@@ -260,13 +261,13 @@ static int Open(vlc_object_t *p_obj)
 
     msg_Dbg(p_obj,"opening playlist file (%s)", p_demux->psz_location);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * Close:
  *****************************************************************************/
-static void Close(vlc_object_t *p_obj)
+static void Close(heimdall_object_t *p_obj)
 {
     demux_t         *p_demux       = (demux_t*) p_obj;
     PlaylistManager *p_manager  = reinterpret_cast<PlaylistManager *>(p_demux->p_sys);
@@ -287,7 +288,7 @@ static PlaylistManager * HandleDash(demux_t *p_demux, DOMParser &xmlParser,
         msg_Err(p_demux, "Cannot parse MPD");
         return nullptr;
     }
-    IsoffMainParser mpdparser(xmlParser.getRootNode(), VLC_OBJECT(p_demux),
+    IsoffMainParser mpdparser(xmlParser.getRootNode(), HEIMDALL_OBJECT(p_demux),
                               p_demux->s, playlisturl);
     MPD *p_playlist = mpdparser.parse();
     if(p_playlist == nullptr)
@@ -297,7 +298,7 @@ static PlaylistManager * HandleDash(demux_t *p_demux, DOMParser &xmlParser,
     }
 
     SharedResources *resources =
-            SharedResources::createDefault(VLC_OBJECT(p_demux), playlisturl);
+            SharedResources::createDefault(HEIMDALL_OBJECT(p_demux), playlisturl);
     DASHStreamFactory *factory = new (std::nothrow) DASHStreamFactory;
     DASHManager *manager = nullptr;
     if(!resources || !factory ||
@@ -320,7 +321,7 @@ static PlaylistManager * HandleSmooth(demux_t *p_demux, DOMParser &xmlParser,
         msg_Err(p_demux, "Cannot parse Manifest");
         return nullptr;
     }
-    ManifestParser mparser(xmlParser.getRootNode(), VLC_OBJECT(p_demux),
+    ManifestParser mparser(xmlParser.getRootNode(), HEIMDALL_OBJECT(p_demux),
                            p_demux->s, playlisturl);
     Manifest *p_playlist = mparser.parse();
     if(p_playlist == nullptr)
@@ -330,7 +331,7 @@ static PlaylistManager * HandleSmooth(demux_t *p_demux, DOMParser &xmlParser,
     }
 
     SharedResources *resources =
-            SharedResources::createDefault(VLC_OBJECT(p_demux), playlisturl);
+            SharedResources::createDefault(HEIMDALL_OBJECT(p_demux), playlisturl);
     SmoothStreamFactory *factory = new (std::nothrow) SmoothStreamFactory;
     SmoothManager *manager = nullptr;
     if(!resources || !factory ||
@@ -349,12 +350,12 @@ static PlaylistManager * HandleHLS(demux_t *p_demux,
                                    AbstractAdaptationLogic::LogicType logic)
 {
     SharedResources *resources =
-            SharedResources::createDefault(VLC_OBJECT(p_demux), playlisturl);
+            SharedResources::createDefault(HEIMDALL_OBJECT(p_demux), playlisturl);
     if(!resources)
         return nullptr;
 
     M3U8Parser parser(resources);
-    M3U8 *p_playlist = parser.parse(VLC_OBJECT(p_demux),p_demux->s, playlisturl);
+    M3U8 *p_playlist = parser.parse(HEIMDALL_OBJECT(p_demux),p_demux->s, playlisturl);
     if(!p_playlist)
     {
         msg_Err( p_demux, "Could not parse playlist" );

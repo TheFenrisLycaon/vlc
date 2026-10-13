@@ -2,6 +2,7 @@
  * svg.c : Put SVG on the video
  *****************************************************************************
  * Copyright (C) 2002, 2003 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Olivier Aubert <oaubert@lisi.univ-lyon1.fr>
  *
@@ -28,12 +29,12 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_fs.h>
-#include <vlc_filter.h>
-#include <vlc_subpicture.h>
-#include <vlc_strings.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_fs.h>
+#include <heimdall_filter.h>
+#include <heimdall_subpicture.h>
+#include <heimdall_strings.h>
 
 #include <sys/types.h>
 #include <math.h>
@@ -42,7 +43,7 @@
 #include <glib.h>
 #include <glib/gstdio.h>
 #include <glib-object.h>                                  /* g_object_unref( ) */
-#include <vlc_memstream.h>
+#include <heimdall_memstream.h>
 #include <librsvg/rsvg.h>
 #include <cairo.h>
 
@@ -53,7 +54,7 @@ static int  Create    ( filter_t * );
 static void Destroy   ( filter_t * );
 static subpicture_region_t *RenderText( filter_t *p_filter,
                         const subpicture_region_t *p_region_in,
-                        const vlc_fourcc_t * );
+                        const heimdall_fourcc_t * );
 
 typedef struct
 {
@@ -72,12 +73,12 @@ typedef struct
 #define TEMPLATE_LONGTEXT N_( "Location of a file holding a SVG template "\
         "for automatic string conversion" )
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_subcategory( SUBCAT_INPUT_SCODEC )
     add_shortcut( "svg" )
     add_string( "svg-template-file", "", TEMPLATE_TEXT, TEMPLATE_LONGTEXT )
     set_callback_text_renderer( Create, 99 )
-vlc_module_end ()
+heimdall_module_end ()
 
 static void svg_RescaletoFit (filter_t *, double *width, double *height);
 static picture_t * svg_RenderPicture ( filter_t *p_filter, const char * );
@@ -90,7 +91,7 @@ static void svg_LoadTemplate( filter_t *p_filter )
     if( psz_filename && psz_filename[0] )
     {
         /* Read the template */
-        FILE *file = vlc_fopen( psz_filename, "rt" );
+        FILE *file = heimdall_fopen( psz_filename, "rt" );
         if( !file )
         {
             msg_Warn( p_filter, "SVG template file %s does not exist.",
@@ -144,7 +145,7 @@ static char *svg_GetDocument( filter_t *p_filter, int i_width, int i_height, con
 {
     filter_sys_t *p_sys = p_filter->p_sys;
     char *psz_result;
-    VLC_UNUSED(i_width);VLC_UNUSED(i_height);
+    HEIMDALL_UNUSED(i_width);HEIMDALL_UNUSED(i_height);
 
     if( p_sys->psz_file_template )
     {
@@ -170,7 +171,7 @@ static char *svg_GetDocument( filter_t *p_filter, int i_width, int i_height, con
     return psz_result;
 }
 
-static const struct vlc_filter_operations filter_ops = {
+static const struct heimdall_filter_operations filter_ops = {
     .render = RenderText, .close = Destroy,
 };
 
@@ -184,7 +185,7 @@ static int Create( filter_t *p_filter )
 {
     filter_sys_t *p_sys = calloc( 1, sizeof(*p_sys) );
     if( !p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     p_filter->p_sys = p_sys;
 
     p_filter->ops = &filter_ops;
@@ -194,7 +195,7 @@ static int Create( filter_t *p_filter )
     g_type_init( );
 #endif
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -276,8 +277,8 @@ static picture_t * svg_RenderPicture( filter_t *p_filter,
 
     /* Create a new subpicture region */
     video_format_t fmt;
-    video_format_Init( &fmt, VLC_CODEC_BGRA ); /* CAIRO_FORMAT_ARGB32 == VLC_CODEC_BGRA, go figure */
-    fmt.i_chroma = VLC_CODEC_BGRA;
+    video_format_Init( &fmt, HEIMDALL_CODEC_BGRA ); /* CAIRO_FORMAT_ARGB32 == HEIMDALL_CODEC_BGRA, go figure */
+    fmt.i_chroma = HEIMDALL_CODEC_BGRA;
     fmt.i_width = fmt.i_visible_width = ceil(width);
     fmt.i_height = fmt.i_visible_height = height;
     fmt.transfer = TRANSFER_FUNC_SRGB;
@@ -338,26 +339,26 @@ static picture_t * svg_RenderPicture( filter_t *p_filter,
 
 static char * SegmentsToSVG( text_segment_t *p_segment, int i_height, int *pi_total_size )
 {
-    struct vlc_memstream stream;
-    vlc_memstream_open(&stream);
+    struct heimdall_memstream stream;
+    heimdall_memstream_open(&stream);
 
     i_height = 6 * i_height / 100;
     *pi_total_size = 0;
 
     for( ; p_segment; p_segment = p_segment->p_next )
     {
-        char *psz_encoded = vlc_xml_encode( p_segment->psz_text );
+        char *psz_encoded = heimdall_xml_encode( p_segment->psz_text );
         if ( !psz_encoded )
             continue;
 
-        vlc_memstream_printf( &stream, "<tspan x='0' dy='%upx'>%s</tspan>\n",
+        heimdall_memstream_printf( &stream, "<tspan x='0' dy='%upx'>%s</tspan>\n",
                               i_height, psz_encoded );
         free( psz_encoded );
 
         *pi_total_size += i_height;
     }
 
-    if (vlc_memstream_close( &stream ))
+    if (heimdall_memstream_close( &stream ))
         return NULL;
 
     return stream.ptr;
@@ -365,11 +366,11 @@ static char * SegmentsToSVG( text_segment_t *p_segment, int i_height, int *pi_to
 
 static subpicture_region_t *RenderText( filter_t *p_filter,
                        const subpicture_region_t *p_region_in,
-                       const vlc_fourcc_t *p_chroma_list )
+                       const heimdall_fourcc_t *p_chroma_list )
 {
     for( size_t i=0; p_chroma_list[i]; i++ )
     {
-        if( p_chroma_list[i] == VLC_CODEC_BGRA )
+        if( p_chroma_list[i] == HEIMDALL_CODEC_BGRA )
             break;
         if( p_chroma_list[i] == 0 )
         {

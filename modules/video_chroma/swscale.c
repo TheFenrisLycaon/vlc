@@ -2,6 +2,7 @@
  * swscale.c: scaling and chroma conversion using libswscale
  *****************************************************************************
  * Copyright (C) 1999-2008 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *          Gildas Bazin <gbazin@videolan.org>
@@ -29,12 +30,12 @@
 #endif
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_picture.h>
-#include <vlc_chroma_probe.h>
-#include <vlc_cpu.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
+#include <heimdall_chroma_probe.h>
+#include <heimdall_cpu.h>
 
 #include <libswscale/swscale.h>
 #include <libswscale/version.h>
@@ -43,7 +44,7 @@
 # include <TargetConditionals.h>
 #endif
 
-#include "../codec/avcodec/chroma.h" // Chroma Avutil <-> VLC conversion
+#include "../codec/avcodec/chroma.h" // Chroma Avutil <-> Heimdall conversion
 
 /*****************************************************************************
  * Module descriptor
@@ -61,16 +62,16 @@ static const char *const ppsz_mode_descriptions[] =
   N_("Area"), N_("Luma bicubic / chroma bilinear"), N_("Gauss"),
   N_("SincR"), N_("Lanczos"), N_("Bicubic spline") };
 
-static void ProbeChroma(vlc_chroma_conv_vec *vec)
+static void ProbeChroma(heimdall_chroma_conv_vec *vec)
 {
 #define COST_FACTOR 1
     size_t count;
-    const struct vlc_chroma_ffmpeg *table = GetVlcChromaFfmpegTable(&count);
+    const struct heimdall_chroma_ffmpeg *table = GetHeimdallChromaFfmpegTable(&count);
     assert(table != NULL && count > 0);
 
     for (size_t i = 0; i < count; i++)
     {
-        vlc_fourcc_t cur_chroma = table[i].i_chroma;
+        heimdall_fourcc_t cur_chroma = table[i].i_chroma;
         enum AVPixelFormat cur_avpf = table[i].i_chroma_id;
         bool cur_supported_input = sws_isSupportedInput(cur_avpf);
         bool cur_supported_output = sws_isSupportedOutput(cur_avpf);
@@ -80,7 +81,7 @@ static void ProbeChroma(vlc_chroma_conv_vec *vec)
 
         for (size_t j = i + 1; j < count; j++)
         {
-            vlc_fourcc_t next_chroma = table[j].i_chroma;
+            heimdall_fourcc_t next_chroma = table[j].i_chroma;
 
             if (next_chroma == cur_chroma)
                 continue;
@@ -96,23 +97,23 @@ static void ProbeChroma(vlc_chroma_conv_vec *vec)
              && next_supported_input && next_supported_output)
             {
                 /* Likely case: add in <-> out two way conversion */
-                vlc_chroma_conv_add(vec, COST_FACTOR, cur_chroma, next_chroma,
+                heimdall_chroma_conv_add(vec, COST_FACTOR, cur_chroma, next_chroma,
                                     true);
             }
             else
             {
                 if (cur_supported_input && next_supported_output)
-                    vlc_chroma_conv_add(vec, COST_FACTOR, cur_chroma, next_chroma,
+                    heimdall_chroma_conv_add(vec, COST_FACTOR, cur_chroma, next_chroma,
                                         false);
                 else if (cur_supported_output && next_supported_input)
-                    vlc_chroma_conv_add(vec, COST_FACTOR, next_chroma, cur_chroma,
+                    heimdall_chroma_conv_add(vec, COST_FACTOR, next_chroma, cur_chroma,
                                         false);
             }
         }
     }
 }
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("Video scaling filter") )
     set_shortname( N_("Swscale" ) )
     set_subcategory( SUBCAT_VIDEO_VFILTER )
@@ -121,7 +122,7 @@ vlc_module_begin ()
         change_integer_list( pi_mode_values, ppsz_mode_descriptions )
     add_submodule()
         set_callback_chroma_conv_probe(ProbeChroma)
-vlc_module_end ()
+heimdall_module_end ()
 
 /* Version checking */
 /****************************************************************************
@@ -138,8 +139,8 @@ typedef struct
 
     video_format_t fmt_in;
     video_format_t fmt_out;
-    const vlc_chroma_description_t *desc_in;
-    const vlc_chroma_description_t *desc_out;
+    const heimdall_chroma_description_t *desc_in;
+    const heimdall_chroma_description_t *desc_out;
 
     struct SwsContext *ctx;
     struct SwsContext *ctxA;
@@ -184,7 +185,7 @@ static int GetParameters( ScalerConfiguration *,
 /* XXX is it always 3 even for BIG_ENDIAN (blend.c seems to think so) ? */
 #define OFFSET_A (3)
 
-static const struct vlc_filter_operations filter_ops = {
+static const struct heimdall_filter_operations filter_ops = {
     .filter_video = Filter, .close = CloseScaler,
 };
 
@@ -252,11 +253,11 @@ static int OpenScaler( filter_t *p_filter )
     if( GetParameters( NULL,
                        &p_filter->fmt_in.video,
                        &p_filter->fmt_out.video, 0 ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* Allocate the memory needed to store the decoder's structure */
     if( ( p_filter->p_sys = p_sys = calloc(1, sizeof(filter_sys_t)) ) == NULL )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     /* */
     i_sws_mode = var_CreateGetInteger( p_filter, "swscale-mode" );
@@ -285,7 +286,7 @@ static int OpenScaler( filter_t *p_filter )
         if( p_sys->p_filter )
             sws_freeFilter( p_sys->p_filter );
         free( p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* */
@@ -300,7 +301,7 @@ static int OpenScaler( filter_t *p_filter )
              (char *)&p_filter->fmt_out.video.i_chroma, GetColorspaceName( p_filter->fmt_out.video.space ),
              ppsz_mode_descriptions[i_sws_mode] );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -319,35 +320,35 @@ static void CloseScaler( filter_t *p_filter )
 /*****************************************************************************
  * Helpers
  *****************************************************************************/
-static void FixParameters( enum AVPixelFormat *pi_fmt, bool *pb_has_a, vlc_fourcc_t fmt )
+static void FixParameters( enum AVPixelFormat *pi_fmt, bool *pb_has_a, heimdall_fourcc_t fmt )
 {
     switch( fmt )
     {
-    case VLC_CODEC_YUV422A:
+    case HEIMDALL_CODEC_YUV422A:
         *pi_fmt = AV_PIX_FMT_YUVA422P;
         *pb_has_a = true;
         break;
-    case VLC_CODEC_YUV420A:
+    case HEIMDALL_CODEC_YUV420A:
         *pi_fmt = AV_PIX_FMT_YUVA420P;
         *pb_has_a = true;
         break;
-    case VLC_CODEC_YUVA:
+    case HEIMDALL_CODEC_YUVA:
         *pi_fmt = AV_PIX_FMT_YUV444P;
         *pb_has_a = true;
         break;
-    case VLC_CODEC_RGBA:
+    case HEIMDALL_CODEC_RGBA:
         *pi_fmt = AV_PIX_FMT_RGBA;
         *pb_has_a = true;
         break;
-    case VLC_CODEC_ARGB:
+    case HEIMDALL_CODEC_ARGB:
         *pi_fmt = AV_PIX_FMT_ARGB;
         *pb_has_a = true;
         break;
-    case VLC_CODEC_BGRA:
+    case HEIMDALL_CODEC_BGRA:
         *pi_fmt = AV_PIX_FMT_BGRA;
         *pb_has_a = true;
         break;
-    case VLC_CODEC_ABGR:
+    case HEIMDALL_CODEC_ABGR:
         *pi_fmt = AV_PIX_FMT_ABGR;
         *pb_has_a = true;
         break;
@@ -375,7 +376,7 @@ static int GetParameters( ScalerConfiguration *p_cfg,
 
     if( p_fmti->i_chroma == p_fmto->i_chroma )
     {
-        if( p_fmti->i_chroma == VLC_CODEC_YUVP && ALLOW_YUVP )
+        if( p_fmti->i_chroma == HEIMDALL_CODEC_YUVP && ALLOW_YUVP )
         {
             i_fmti = i_fmto = AV_PIX_FMT_GRAY8;
             i_sws_flags = SWS_POINT;
@@ -415,9 +416,9 @@ static int GetParameters( ScalerConfiguration *p_cfg,
     }
 
     if( i_fmti < 0 || i_fmto < 0 )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int Init( filter_t *p_filter )
@@ -427,13 +428,13 @@ static int Init( filter_t *p_filter )
     video_format_t       *p_fmto = &p_filter->fmt_out.video;
 
     if( p_fmti->orientation != p_fmto->orientation )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if( video_format_IsSimilar( p_fmti, &p_sys->fmt_in ) &&
         video_format_IsSimilar( p_fmto, &p_sys->fmt_out ) &&
         p_sys->ctx )
     {
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
     Clean( p_filter );
@@ -445,7 +446,7 @@ static int Init( filter_t *p_filter )
         msg_Err( p_filter, "format not supported '%4.4s' %ux%u -> '%4.4s' %ux%u",
                  (const char *)&p_fmti->i_chroma, p_fmti->i_visible_width, p_fmti->i_visible_height,
                  (const char *)&p_fmto->i_chroma, p_fmto->i_visible_width, p_fmto->i_visible_height );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     if( p_fmti->i_visible_width == 0 || p_fmti->i_visible_height == 0 ||
         p_fmto->i_visible_width == 0 || p_fmto->i_visible_height == 0 )
@@ -453,16 +454,16 @@ static int Init( filter_t *p_filter )
         msg_Err( p_filter, "invalid scaling: %ix%i -> %ix%i",
                  p_fmti->i_visible_width, p_fmti->i_visible_height,
                  p_fmto->i_visible_width, p_fmto->i_visible_height);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    p_sys->desc_in = vlc_fourcc_GetChromaDescription( p_fmti->i_chroma );
-    p_sys->desc_out = vlc_fourcc_GetChromaDescription( p_fmto->i_chroma );
+    p_sys->desc_in = heimdall_fourcc_GetChromaDescription( p_fmti->i_chroma );
+    p_sys->desc_out = heimdall_fourcc_GetChromaDescription( p_fmto->i_chroma );
     if( p_sys->desc_in == NULL || p_sys->desc_out == NULL )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if( p_sys->desc_in->plane_count == 0 || p_sys->desc_out->plane_count == 0 )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* swscale does not like too small width */
     p_sys->i_extend_factor = 1;
@@ -488,8 +489,8 @@ static int Init( filter_t *p_filter )
     }
     if( p_sys->ctxA )
     {
-        p_sys->p_src_a = picture_New( VLC_CODEC_GREY, i_fmti_visible_width, p_fmti->i_visible_height, 0, 1 );
-        p_sys->p_dst_a = picture_New( VLC_CODEC_GREY, i_fmto_visible_width, p_fmto->i_visible_height, 0, 1 );
+        p_sys->p_src_a = picture_New( HEIMDALL_CODEC_GREY, i_fmti_visible_width, p_fmti->i_visible_height, 0, 1 );
+        p_sys->p_dst_a = picture_New( HEIMDALL_CODEC_GREY, i_fmto_visible_width, p_fmto->i_visible_height, 0, 1 );
     }
     if( p_sys->i_extend_factor != 1 )
     {
@@ -508,7 +509,7 @@ static int Init( filter_t *p_filter )
     {
         msg_Err( p_filter, "could not init SwScaler and/or allocate memory" );
         Clean( p_filter );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if (p_filter->b_allow_fmt_out_change)
@@ -523,10 +524,10 @@ static int Init( filter_t *p_filter )
          */
         unsigned i_sar_num = p_fmti->i_sar_num * p_fmti->i_visible_width;
         unsigned i_sar_den = p_fmti->i_sar_den * p_fmto->i_visible_width;
-        vlc_ureduce(&i_sar_num, &i_sar_den, i_sar_num, i_sar_den, 65536);
+        heimdall_ureduce(&i_sar_num, &i_sar_den, i_sar_num, i_sar_den, 65536);
         i_sar_num *= p_fmto->i_visible_height;
         i_sar_den *= p_fmti->i_visible_height;
-        vlc_ureduce(&i_sar_num, &i_sar_den, i_sar_num, i_sar_den, 65536);
+        heimdall_ureduce(&i_sar_num, &i_sar_den, i_sar_num, i_sar_den, 65536);
         p_fmto->i_sar_num = i_sar_num;
         p_fmto->i_sar_den = i_sar_den;
     }
@@ -540,7 +541,7 @@ static int Init( filter_t *p_filter )
 
     SetColorspace( p_sys );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void Clean( filter_t *p_filter )
@@ -573,7 +574,7 @@ static void Clean( filter_t *p_filter )
 }
 
 static void GetPixels( uint8_t *pp_pixel[4], int pi_pitch[4],
-                       const vlc_chroma_description_t *desc,
+                       const heimdall_chroma_description_t *desc,
                        const video_format_t *fmt,
                        const picture_t *p_picture, unsigned planes,
                        bool b_swap_uv )
@@ -687,14 +688,14 @@ static void Convert( filter_t *p_filter, struct SwsContext *ctx,
 
     GetPixels( src, src_stride, p_sys->desc_in, &p_filter->fmt_in.video,
                p_src, i_plane_count, b_swap_uvi );
-    if( p_filter->fmt_in.video.i_chroma == VLC_CODEC_RGBP )
+    if( p_filter->fmt_in.video.i_chroma == HEIMDALL_CODEC_RGBP )
     {
         /* The palette may change every picture, that's why we check it here. */
         const video_palette_t *p_palette = p_src->format.p_palette;
         if( p_palette )
         {
             static_assert(sizeof(p_palette->palette) == AVPALETTE_SIZE,
-                          "Palette size mismatch between vlc and libavutil");
+                          "Palette size mismatch between heimdall and libavutil");
             uint8_t *dstp = palette;
             for(int i=0; i<p_palette->i_entries; i++)
             {
@@ -784,9 +785,9 @@ static picture_t *Filter( filter_t *p_filter, picture_t *p_pic )
     if( p_sys->ctxA )
     {
         /* We extract the A plane to rescale it, and then we reinject it. */
-        if( p_fmti->i_chroma == VLC_CODEC_RGBA || p_fmti->i_chroma == VLC_CODEC_BGRA )
+        if( p_fmti->i_chroma == HEIMDALL_CODEC_RGBA || p_fmti->i_chroma == HEIMDALL_CODEC_BGRA )
             ExtractA( p_sys->p_src_a, p_src, p_fmti->i_x_offset, p_fmti->i_y_offset, OFFSET_A );
-        else if( p_fmti->i_chroma == VLC_CODEC_ARGB || p_fmti->i_chroma == VLC_CODEC_ABGR )
+        else if( p_fmti->i_chroma == HEIMDALL_CODEC_ARGB || p_fmti->i_chroma == HEIMDALL_CODEC_ABGR )
             ExtractA( p_sys->p_src_a, p_src, p_fmti->i_x_offset, p_fmti->i_y_offset, 0 );
         else
         {
@@ -798,9 +799,9 @@ static picture_t *Filter( filter_t *p_filter, picture_t *p_pic )
 
         ConvertA( p_sys->ctxA, &p_sys->p_dst_a->p[0], &p_sys->p_src_a->p[0],
                   p_fmti->i_visible_height );
-        if( p_fmto->i_chroma == VLC_CODEC_RGBA || p_fmto->i_chroma == VLC_CODEC_BGRA )
+        if( p_fmto->i_chroma == HEIMDALL_CODEC_RGBA || p_fmto->i_chroma == HEIMDALL_CODEC_BGRA )
             InjectA( p_dst, p_sys->p_dst_a, OFFSET_A );
-        else if( p_fmto->i_chroma == VLC_CODEC_ARGB || p_fmto->i_chroma == VLC_CODEC_ABGR )
+        else if( p_fmto->i_chroma == HEIMDALL_CODEC_ARGB || p_fmto->i_chroma == HEIMDALL_CODEC_ABGR )
             InjectA( p_dst, p_sys->p_dst_a, 0 );
         else
             plane_CopyPixels( p_dst->p+A_PLANE, p_sys->p_dst_a->p );
@@ -808,9 +809,9 @@ static picture_t *Filter( filter_t *p_filter, picture_t *p_pic )
     else if( p_sys->b_add_a )
     {
         /* We inject a complete opaque alpha plane */
-        if( p_fmto->i_chroma == VLC_CODEC_RGBA || p_fmto->i_chroma == VLC_CODEC_BGRA )
+        if( p_fmto->i_chroma == HEIMDALL_CODEC_RGBA || p_fmto->i_chroma == HEIMDALL_CODEC_BGRA )
             FillA( &p_dst->p[0], OFFSET_A );
-        else if( p_fmto->i_chroma == VLC_CODEC_ARGB || p_fmto->i_chroma == VLC_CODEC_ABGR )
+        else if( p_fmto->i_chroma == HEIMDALL_CODEC_ARGB || p_fmto->i_chroma == HEIMDALL_CODEC_ABGR )
             FillA( &p_dst->p[0], 0 );
         else
             FillA( &p_dst->p[A_PLANE], 0 );

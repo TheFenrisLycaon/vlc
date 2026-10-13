@@ -2,6 +2,7 @@
  * parse.c: SPU parser
  *****************************************************************************
  * Copyright (C) 2000-2001, 2005, 2006 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Sam Hocevar <sam@zoy.org>
  *          Laurent Aimar <fenrir@via.ecp.fr>
@@ -29,8 +30,8 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_codec.h>
+#include <heimdall_common.h>
+#include <heimdall_codec.h>
 
 #include "spudec.h"
 
@@ -43,8 +44,8 @@ typedef struct
     int i_height;
     int i_x;
     int i_y;
-    vlc_tick_t i_start;
-    vlc_tick_t i_stop;
+    heimdall_tick_t i_start;
+    heimdall_tick_t i_stop;
     bool b_ephemer;
     bool b_subtitle;
     bool b_forced;
@@ -69,7 +70,7 @@ typedef struct
 
 } subpicture_data_t;
 
-static int  ParseControlSeq( decoder_t *, vlc_tick_t i_pts,
+static int  ParseControlSeq( decoder_t *, heimdall_tick_t i_pts,
                              void(*pf_queue)(decoder_t *, subpicture_t *) );
 static int  ParseRLE       ( decoder_t *, subpicture_data_t *,
                              const spu_properties_t *, uint16_t *, size_t * );
@@ -189,7 +190,7 @@ static void ParsePXCTLI( decoder_t *p_dec, const subpicture_data_t *p_spu_data,
 }
 
 static void UpdateDvdSpu(subpicture_t * p_spu,
-                         const struct vlc_spu_updater_configuration * cfg)
+                         const struct heimdall_spu_updater_configuration * cfg)
 {
     p_spu->i_original_picture_width  = cfg->current.video_src->i_visible_width;
     p_spu->i_original_picture_height = cfg->current.video_src->i_visible_height;
@@ -209,7 +210,7 @@ static void OutputPicture( decoder_t *p_dec,
     uint16_t *p_pixeldata;
 
     /* Allocate the subpicture internal data. */
-    static const struct vlc_spu_updater_ops spu_ops =
+    static const struct heimdall_spu_updater_ops spu_ops =
     {
         .update = UpdateDvdSpu,
     };
@@ -229,11 +230,11 @@ static void OutputPicture( decoder_t *p_dec,
     p_spu->b_ephemer = p_spu_properties->b_ephemer;
     p_spu->b_subtitle = p_spu_properties->b_subtitle;
 
-    if( (p_spu->i_stop == VLC_TICK_INVALID || p_spu->i_stop <= p_spu->i_start) &&
+    if( (p_spu->i_stop == HEIMDALL_TICK_INVALID || p_spu->i_stop <= p_spu->i_start) &&
         !p_spu->b_ephemer )
     {
         /* This subtitle will live for 5 seconds or until the next subtitle */
-        p_spu->i_stop = p_spu->i_start + VLC_TICK_FROM_MS(500 * 11);
+        p_spu->i_stop = p_spu->i_start + HEIMDALL_TICK_FROM_MS(500 * 11);
         p_spu->b_ephemer = true;
     }
 
@@ -245,7 +246,7 @@ static void OutputPicture( decoder_t *p_dec,
      *  one byte gaves two nibbles and may be used twice (once per field)
      * generating 4 codes.
      */
-    p_pixeldata = vlc_alloc( p_sys->i_rle_size, sizeof(*p_pixeldata) * 2 * 2 );
+    p_pixeldata = heimdall_alloc( p_sys->i_rle_size, sizeof(*p_pixeldata) * 2 * 2 );
 
     size_t pixeldata_size = p_sys->i_rle_size * 2 * 2; // in 16-bit
 
@@ -276,7 +277,7 @@ static void OutputPicture( decoder_t *p_dec,
 
     if( p_spu_data->p_pxctli && p_spu )
         ParsePXCTLI( p_dec, p_spu_data,
-                    vlc_spu_regions_first_or_null(&p_spu->regions) );
+                    heimdall_spu_regions_first_or_null(&p_spu->regions) );
 
     pf_queue( p_dec, p_spu );
 }
@@ -293,14 +294,14 @@ static int Validate( decoder_t *p_dec, unsigned i_index,
     {
         msg_Err( p_dec, "index mismatch (0x%.4x < 0x%.4x)",
                  i_next_seq, i_cur_seq );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( i_index > p_sys->i_spu_size )
     {
         msg_Err( p_dec, "uh-oh, we went too far (0x%.4x > 0x%.4x)",
                  i_index, p_sys->i_spu_size );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     const int i_spu_size = p_sys->i_spu - 4;
@@ -308,13 +309,13 @@ static int Validate( decoder_t *p_dec, unsigned i_index,
         p_spu_data->pi_offset[1] < 0 || p_spu_data->pi_offset[1] >= i_spu_size )
     {
         msg_Err( p_dec, "invalid offset values" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    if( p_spu_properties->i_start == VLC_TICK_INVALID )
+    if( p_spu_properties->i_start == HEIMDALL_TICK_INVALID )
     {
         msg_Err( p_dec, "no `start display' command" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Get rid of padding bytes */
@@ -327,7 +328,7 @@ static int Validate( decoder_t *p_dec, unsigned i_index,
                   p_sys->i_spu_size - i_index );
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -352,7 +353,7 @@ void ParsePacket( decoder_t *p_dec, void(*pf_queue)(decoder_t *, subpicture_t *)
  * information, coordinates, and so on. For more information on the
  * subtitles format, see http://sam.zoy.org/doc/dvd/subtitles/index.html
  *****************************************************************************/
-static int ParseControlSeq( decoder_t *p_dec, vlc_tick_t i_pts,
+static int ParseControlSeq( decoder_t *p_dec, heimdall_tick_t i_pts,
                             void(*pf_queue)(decoder_t *, subpicture_t *) )
 {
     decoder_sys_t *p_sys = p_dec->p_sys;
@@ -365,7 +366,7 @@ static int ParseControlSeq( decoder_t *p_dec, vlc_tick_t i_pts,
 
     /* Command and date */
     uint8_t i_command = SPU_CMD_END;
-    vlc_tick_t date = 0;
+    heimdall_tick_t date = 0;
     bool b_cmd_offset = false;
     bool b_cmd_alpha = false;
 
@@ -388,8 +389,8 @@ static int ParseControlSeq( decoder_t *p_dec, vlc_tick_t i_pts,
     /* Initialize the structure */
     spu_properties_t spu_properties;
     memset( &spu_properties, 0, sizeof(spu_properties) );
-    spu_properties.i_start = VLC_TICK_INVALID;
-    spu_properties.i_stop = VLC_TICK_INVALID;
+    spu_properties.i_start = HEIMDALL_TICK_INVALID;
+    spu_properties.i_stop = HEIMDALL_TICK_INVALID;
     spu_properties.b_subtitle = true;
     spu_properties.b_forced = false;
 
@@ -402,14 +403,14 @@ static int ParseControlSeq( decoder_t *p_dec, vlc_tick_t i_pts,
             if( i_index + 4 > p_sys->i_spu_size )
             {
                 msg_Err( p_dec, "overflow in SPU command sequence" );
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             }
 
             /* */
             b_cmd_offset = false;
             b_cmd_alpha = false;
             /* Get the control sequence date */
-            date = VLC_TICK_FROM_MS(GetWBE( &p_sys->buffer[i_index] ) * 11);
+            date = HEIMDALL_TICK_FROM_MS(GetWBE( &p_sys->buffer[i_index] ) * 11);
 
             /* Next offset */
             i_cur_seq = i_index;
@@ -418,7 +419,7 @@ static int ParseControlSeq( decoder_t *p_dec, vlc_tick_t i_pts,
             if( i_next_seq > p_sys->i_spu_size )
             {
                 msg_Err( p_dec, "overflow in SPU next command sequence" );
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             }
 
             /* Skip what we just read */
@@ -456,7 +457,7 @@ static int ParseControlSeq( decoder_t *p_dec, vlc_tick_t i_pts,
             if( i_index + 3 > p_sys->i_spu_size )
             {
                 msg_Err( p_dec, "overflow in SPU command" );
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             }
 
             if( p_dec->fmt_in->subs.spu.b_palette )
@@ -480,7 +481,7 @@ static int ParseControlSeq( decoder_t *p_dec, vlc_tick_t i_pts,
             if( i_index + 3 > p_sys->i_spu_size )
             {
                 msg_Err( p_dec, "overflow in SPU command" );
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             }
 
             if(!p_sys->b_disabletrans)
@@ -499,7 +500,7 @@ static int ParseControlSeq( decoder_t *p_dec, vlc_tick_t i_pts,
             if( i_index + 7 > p_sys->i_spu_size )
             {
                 msg_Err( p_dec, "overflow in SPU command" );
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             }
 
             spu_properties.i_x = (p_sys->buffer[i_index+1]<<4)|
@@ -513,7 +514,7 @@ static int ParseControlSeq( decoder_t *p_dec, vlc_tick_t i_pts,
                               p_sys->buffer[i_index+6]) - spu_properties.i_y + 1;
             if (spu_properties.i_width < 0 || spu_properties.i_height < 0) {
                 msg_Err( p_dec, "integer overflow in SPU command" );
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             }
 
             /* Auto crop fullscreen subtitles */
@@ -527,7 +528,7 @@ static int ParseControlSeq( decoder_t *p_dec, vlc_tick_t i_pts,
             if( i_index + 5 > p_sys->i_spu_size )
             {
                 msg_Err( p_dec, "overflow in SPU command" );
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             }
 
             b_cmd_offset = true;
@@ -540,7 +541,7 @@ static int ParseControlSeq( decoder_t *p_dec, vlc_tick_t i_pts,
             if( i_index + 7 > p_sys->i_spu_size )
             {
                 msg_Err( p_dec, "overflow in SPU command" );
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             }
 
             spu_properties.i_start = i_pts + date;
@@ -572,7 +573,7 @@ static int ParseControlSeq( decoder_t *p_dec, vlc_tick_t i_pts,
             i_index += 1;
 
             if( Validate( p_dec, i_index, i_cur_seq, i_next_seq,
-                          &spu_data, &spu_properties ) == VLC_SUCCESS && (!p_sys->b_forcedonly || spu_properties.b_forced))
+                          &spu_data, &spu_properties ) == HEIMDALL_SUCCESS && (!p_sys->b_forcedonly || spu_properties.b_forced))
                 OutputPicture( p_dec, &spu_data, &spu_properties, pf_queue );
 
             break;
@@ -591,7 +592,7 @@ static int ParseControlSeq( decoder_t *p_dec, vlc_tick_t i_pts,
                  {
                      /* There were other commands. */
                      msg_Warn( p_dec, "cannot recover, dropping subtitle" );
-                     return VLC_EGENERIC;
+                     return HEIMDALL_EGENERIC;
                  }
             }
             else
@@ -610,7 +611,7 @@ static int ParseControlSeq( decoder_t *p_dec, vlc_tick_t i_pts,
 
     /* Successfully parsed ! */
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -671,7 +672,7 @@ static int ParseRLE( decoder_t *p_dec,
                 if( (*pi_offset >> 1) + 4 >= p_sys->i_spu_size )
                 {
                     msg_Err( p_dec, "out of bounds while reading rle" );
-                    return VLC_EGENERIC;
+                    return HEIMDALL_EGENERIC;
                 }
                 i_code = AddNibble( i_code, &p_sys->buffer[4], pi_offset );
             }
@@ -686,7 +687,7 @@ static int ParseRLE( decoder_t *p_dec,
             {
                 msg_Err( p_dec, "out of bounds, %i at (%i,%i) is out of %ix%i",
                          i_code >> 2, i_x, i_y, i_width, i_height );
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             }
 
             /* Try to find the border color */
@@ -750,7 +751,7 @@ static int ParseRLE( decoder_t *p_dec,
         if( i_x > i_width )
         {
             msg_Err( p_dec, "i_x overflowed, %i > %i", i_x, i_width );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         /* Byte-align the stream */
@@ -777,7 +778,7 @@ static int ParseRLE( decoder_t *p_dec,
             i_y++;
         }
 
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
 #ifdef DEBUG_SPUDEC
@@ -862,7 +863,7 @@ static int ParseRLE( decoder_t *p_dec,
 
     *pixeldata_size = *pixeldata_size - dest_left;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int Render( decoder_t *p_dec, subpicture_t *p_spu,
@@ -878,17 +879,17 @@ static int Render( decoder_t *p_dec, subpicture_t *p_spu,
     video_palette_t palette;
 
     if (p_spu_properties->i_width <= 0)
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     if (p_spu_properties->i_height <= (p_spu_data->i_y_top_offset + p_spu_data->i_y_bottom_offset))
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
     const int width = p_spu_properties->i_width;
     const int height = p_spu_properties->i_height -
         p_spu_data->i_y_top_offset - p_spu_data->i_y_bottom_offset;
 
     /* Create a new subpicture region */
-    video_format_Init( &fmt, VLC_CODEC_YUVP );
-    video_format_Setup( &fmt, VLC_CODEC_YUVP, width, height, width, height,
+    video_format_Init( &fmt, HEIMDALL_CODEC_YUVP );
+    video_format_Setup( &fmt, HEIMDALL_CODEC_YUVP, width, height, width, height,
                         0, /* 0 means use aspect ratio of background video */
                         1 );
     fmt.p_palette = &palette;
@@ -908,7 +909,7 @@ static int Render( decoder_t *p_dec, subpicture_t *p_spu,
     if( !p_region )
     {
         msg_Err( p_dec, "cannot allocate SPU region" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     p_region->b_absolute = true; p_region->b_in_window = false;
@@ -927,7 +928,7 @@ static int Render( decoder_t *p_dec, subpicture_t *p_spu,
             {
                 msg_Err( p_dec, "missing RLE data" );
                 subpicture_region_Delete( p_region );
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             }
             /* Get the RLE part, then draw the line */
             i_color = *p_source & 0x3;
@@ -936,7 +937,7 @@ static int Render( decoder_t *p_dec, subpicture_t *p_spu,
             memset( p_p + i_x + i_y, i_color, i_len );
         }
     }
-    vlc_spu_regions_push(&p_spu->regions, p_region);
+    heimdall_spu_regions_push(&p_spu->regions, p_region);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

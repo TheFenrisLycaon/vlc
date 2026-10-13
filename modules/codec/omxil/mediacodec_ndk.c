@@ -2,6 +2,7 @@
  * mediacodec_ndk.c: mc_api implementation using NDK
  *****************************************************************************
  * Copyright © 2015 VLC authors and VideoLAN, VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -30,7 +31,7 @@
 #include <stdint.h>
 #include <assert.h>
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
 #include <media/NdkMediaCodec.h>
 #include <OMX_Core.h>
@@ -46,7 +47,7 @@ static_assert(MC_API_NO_QUIRKS == OMXCODEC_NO_QUIRKS
     && MC_API_AUDIO_QUIRKS_NEED_CHANNELS == OMXCODEC_AUDIO_QUIRKS_NEED_CHANNELS,
     "mediacodec.h/omx_utils.h mismatch");
 
-char* MediaCodec_GetName(vlc_object_t *p_obj, vlc_fourcc_t codec,
+char* MediaCodec_GetName(heimdall_object_t *p_obj, heimdall_fourcc_t codec,
                          const char *psz_mime, int profile, int *p_quirks);
 
 #define THREAD_NAME "mediacodec_ndk"
@@ -73,11 +74,11 @@ static struct syms syms;
  * Done only one time during the first initialisation */
 static bool
 InitSymbols(mc_api *api) {
-    static vlc_mutex_t lock = VLC_STATIC_MUTEX;
+    static heimdall_mutex_t lock = HEIMDALL_STATIC_MUTEX;
     static int i_init_state = -1;
     bool ret;
 
-    vlc_mutex_lock(&lock);
+    heimdall_mutex_lock(&lock);
 
     if (i_init_state != -1)
         goto end;
@@ -106,7 +107,7 @@ end:
     if (!ret)
         msg_Err(api->p_obj, "MediaCodec NDK init failed");
 
-    vlc_mutex_unlock(&lock);
+    heimdall_mutex_unlock(&lock);
     return ret;
 }
 
@@ -260,7 +261,7 @@ static int Flush(mc_api *api)
 /*****************************************************************************
  * DequeueInput
  *****************************************************************************/
-static int DequeueInput(mc_api *api, vlc_tick_t i_timeout)
+static int DequeueInput(mc_api *api, heimdall_tick_t i_timeout)
 {
     mc_api_sys *p_sys = api->p_sys;
     ssize_t i_index;
@@ -281,7 +282,7 @@ static int DequeueInput(mc_api *api, vlc_tick_t i_timeout)
  * QueueInput
  *****************************************************************************/
 static int QueueInput(mc_api *api, int i_index, const void *p_buf,
-                      size_t i_size, vlc_tick_t i_ts, bool b_config)
+                      size_t i_size, heimdall_tick_t i_ts, bool b_config)
 {
     mc_api_sys *p_sys = api->p_sys;
     uint8_t *p_mc_buf;
@@ -320,7 +321,7 @@ static int32_t GetFormatInteger(AMediaFormat *p_format, const char *psz_name)
 /*****************************************************************************
  * DequeueOutput
  *****************************************************************************/
-static int DequeueOutput(mc_api *api, vlc_tick_t i_timeout)
+static int DequeueOutput(mc_api *api, heimdall_tick_t i_timeout)
 {
     mc_api_sys *p_sys = api->p_sys;
     ssize_t i_index;

@@ -2,6 +2,7 @@
  * plugins.hpp : Plug-ins and extensions listing
  ****************************************************************************
  * Copyright (C) 2008 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Jean-Baptiste Kempf <jb (at) videolan.org>
  *
@@ -20,10 +21,10 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef QVLC_PLUGIN_DIALOG_H_
-#define QVLC_PLUGIN_DIALOG_H_ 1
+#ifndef QHEIMDALL_PLUGIN_DIALOG_H_
+#define QHEIMDALL_PLUGIN_DIALOG_H_ 1
 
-#include "widgets/native/qvlcframe.hpp"
+#include "widgets/native/qheimdallframe.hpp"
 
 #include <QStringList>
 #include <QTreeWidgetItem>
@@ -58,7 +59,7 @@ extern "C" {
     typedef struct extension_t extension_t;
 };
 
-class PluginDialog : public QVLCFrame
+class PluginDialog : public QHeimdallFrame
 {
     Q_OBJECT
 
@@ -73,7 +74,7 @@ private:
     AddonsTab *addonsTab;
 };
 
-class PluginTab : public QVLCFrame
+class PluginTab : public QHeimdallFrame
 {
     Q_OBJECT
 public:
@@ -101,7 +102,7 @@ private slots:
     friend class PluginDialog;
 };
 
-class ExtensionTab : public QVLCFrame
+class ExtensionTab : public QHeimdallFrame
 {
     Q_OBJECT
 
@@ -123,7 +124,7 @@ private:
     friend class PluginDialog;
 };
 
-class AddonsTab : public QVLCFrame
+class AddonsTab : public QHeimdallFrame
 {
     Q_OBJECT
     friend class PluginDialog;
@@ -265,14 +266,14 @@ protected:
     QWidget *progressbar = nullptr;
 };
 
-class ExtensionInfoDialog : public QVLCDialog
+class ExtensionInfoDialog : public QHeimdallDialog
 {
 public:
     ExtensionInfoDialog(const QModelIndex &index,
                          qt_intf_t *p_intf, QWindow *parent );
 };
 
-class AddonInfoDialog : public QVLCDialog
+class AddonInfoDialog : public QHeimdallDialog
 {
 public:
     AddonInfoDialog(const QModelIndex &index,

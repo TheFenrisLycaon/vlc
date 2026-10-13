@@ -2,6 +2,7 @@
  * common.c : audio output management of common data structures
  *****************************************************************************
  * Copyright (C) 2002-2007 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Christophe Massiot <massiot@via.ecp.fr>
  *
@@ -27,8 +28,8 @@
 #include <limits.h>
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_aout.h>
+#include <heimdall_common.h>
+#include <heimdall_aout.h>
 #include "aout_internal.h"
 
 /*
@@ -38,40 +39,40 @@
 /*****************************************************************************
  * aout_BitsPerSample : get the number of bits per sample
  *****************************************************************************/
-unsigned int aout_BitsPerSample( vlc_fourcc_t i_format )
+unsigned int aout_BitsPerSample( heimdall_fourcc_t i_format )
 {
-    switch( vlc_fourcc_GetCodec( AUDIO_ES, i_format ) )
+    switch( heimdall_fourcc_GetCodec( AUDIO_ES, i_format ) )
     {
-    case VLC_CODEC_U8:
-    case VLC_CODEC_S8:
-    case VLC_CODEC_ALAW:
-    case VLC_CODEC_MULAW:
+    case HEIMDALL_CODEC_U8:
+    case HEIMDALL_CODEC_S8:
+    case HEIMDALL_CODEC_ALAW:
+    case HEIMDALL_CODEC_MULAW:
         return 8;
 
-    case VLC_CODEC_U16L:
-    case VLC_CODEC_S16L:
-    case VLC_CODEC_U16B:
-    case VLC_CODEC_S16B:
+    case HEIMDALL_CODEC_U16L:
+    case HEIMDALL_CODEC_S16L:
+    case HEIMDALL_CODEC_U16B:
+    case HEIMDALL_CODEC_S16B:
         return 16;
 
-    case VLC_CODEC_U24L:
-    case VLC_CODEC_S24L:
-    case VLC_CODEC_U24B:
-    case VLC_CODEC_S24B:
+    case HEIMDALL_CODEC_U24L:
+    case HEIMDALL_CODEC_S24L:
+    case HEIMDALL_CODEC_U24B:
+    case HEIMDALL_CODEC_S24B:
         return 24;
 
-    case VLC_CODEC_S24L32:
-    case VLC_CODEC_S24B32:
-    case VLC_CODEC_U32L:
-    case VLC_CODEC_U32B:
-    case VLC_CODEC_S32L:
-    case VLC_CODEC_S32B:
-    case VLC_CODEC_F32L:
-    case VLC_CODEC_F32B:
+    case HEIMDALL_CODEC_S24L32:
+    case HEIMDALL_CODEC_S24B32:
+    case HEIMDALL_CODEC_U32L:
+    case HEIMDALL_CODEC_U32B:
+    case HEIMDALL_CODEC_S32L:
+    case HEIMDALL_CODEC_S32B:
+    case HEIMDALL_CODEC_F32L:
+    case HEIMDALL_CODEC_F32B:
         return 32;
 
-    case VLC_CODEC_F64L:
-    case VLC_CODEC_F64B:
+    case HEIMDALL_CODEC_F64L:
+    case HEIMDALL_CODEC_F64B:
         return 64;
 
     default:
@@ -222,7 +223,7 @@ const char * aout_FormatPrintChannels( const audio_sample_format_t * p_format )
 }
 
 #undef aout_FormatPrint
-void aout_FormatPrint( vlc_object_t *obj, const char *psz_text,
+void aout_FormatPrint( heimdall_object_t *obj, const char *psz_text,
                        const audio_sample_format_t *p_format )
 {
     msg_Dbg( obj, "%s '%4.4s' %d Hz %s frame=%u samples/%u bytes", psz_text,
@@ -235,7 +236,7 @@ void aout_FormatPrint( vlc_object_t *obj, const char *psz_text,
 /**
  * Prints two formats in a human-readable form
  */
-void aout_FormatsPrint( vlc_object_t *obj, const char * psz_text,
+void aout_FormatsPrint( heimdall_object_t *obj, const char * psz_text,
                         const audio_sample_format_t * p_format1,
                         const audio_sample_format_t * p_format2 )
 {
@@ -259,9 +260,9 @@ unsigned aout_CheckChannelReorder( const uint32_t *chans_in,
     unsigned channels = 0;
 
     if( chans_in == NULL )
-        chans_in = pi_vlc_chan_order_wg4;
+        chans_in = pi_heimdall_chan_order_wg4;
     if( chans_out == NULL )
-        chans_out = pi_vlc_chan_order_wg4;
+        chans_out = pi_heimdall_chan_order_wg4;
 
     for( unsigned i = 0; chans_in[i]; i++ )
     {
@@ -284,7 +285,7 @@ unsigned aout_CheckChannelReorder( const uint32_t *chans_in,
 }
 
 void aout_ChannelReorder( void *ptr, size_t bytes, uint8_t channels,
-                          const uint8_t *restrict chans_table, vlc_fourcc_t fourcc )
+                          const uint8_t *restrict chans_table, heimdall_fourcc_t fourcc )
 {
     if( unlikely(bytes == 0) )
         return;
@@ -314,11 +315,11 @@ do { \
     {
         switch( fourcc )
         {
-            case VLC_CODEC_U8:   REORDER_TYPE(uint8_t); return;
-            case VLC_CODEC_S16N: REORDER_TYPE(int16_t); return;
-            case VLC_CODEC_FL32: REORDER_TYPE(float);   return;
-            case VLC_CODEC_S32N: REORDER_TYPE(int32_t); return;
-            case VLC_CODEC_FL64: REORDER_TYPE(double);  return;
+            case HEIMDALL_CODEC_U8:   REORDER_TYPE(uint8_t); return;
+            case HEIMDALL_CODEC_S16N: REORDER_TYPE(int16_t); return;
+            case HEIMDALL_CODEC_FL32: REORDER_TYPE(float);   return;
+            case HEIMDALL_CODEC_S32N: REORDER_TYPE(int32_t); return;
+            case HEIMDALL_CODEC_FL64: REORDER_TYPE(double);  return;
         }
     }
 
@@ -350,7 +351,7 @@ do { \
  * \warning Destination and source buffers MUST NOT overlap.
  */
 void aout_Interleave( void *restrict dst, const void *const *srcv,
-                      unsigned samples, unsigned chans, vlc_fourcc_t fourcc )
+                      unsigned samples, unsigned chans, heimdall_fourcc_t fourcc )
 {
 #define INTERLEAVE_TYPE(type) \
 do { \
@@ -365,12 +366,12 @@ do { \
 
     switch( fourcc )
     {
-        case VLC_CODEC_U8:   INTERLEAVE_TYPE(uint8_t);  break;
-        case VLC_CODEC_S16N: INTERLEAVE_TYPE(int16_t);  break;
-        case VLC_CODEC_FL32: INTERLEAVE_TYPE(float);    break;
-        case VLC_CODEC_S32N: INTERLEAVE_TYPE(int32_t);  break;
-        case VLC_CODEC_FL64: INTERLEAVE_TYPE(double);   break;
-        default:             vlc_assert_unreachable();
+        case HEIMDALL_CODEC_U8:   INTERLEAVE_TYPE(uint8_t);  break;
+        case HEIMDALL_CODEC_S16N: INTERLEAVE_TYPE(int16_t);  break;
+        case HEIMDALL_CODEC_FL32: INTERLEAVE_TYPE(float);    break;
+        case HEIMDALL_CODEC_S32N: INTERLEAVE_TYPE(int32_t);  break;
+        case HEIMDALL_CODEC_FL64: INTERLEAVE_TYPE(double);   break;
+        default:             heimdall_assert_unreachable();
     }
 #undef INTERLEAVE_TYPE
 }
@@ -386,7 +387,7 @@ do { \
  * \warning Destination and source buffers MUST NOT overlap.
  */
 void aout_Deinterleave( void *restrict dst, const void *restrict src,
-                      unsigned samples, unsigned chans, vlc_fourcc_t fourcc )
+                      unsigned samples, unsigned chans, heimdall_fourcc_t fourcc )
 {
 #define DEINTERLEAVE_TYPE(type) \
 do { \
@@ -401,12 +402,12 @@ do { \
 
     switch( fourcc )
     {
-        case VLC_CODEC_U8:   DEINTERLEAVE_TYPE(uint8_t);  break;
-        case VLC_CODEC_S16N: DEINTERLEAVE_TYPE(int16_t);  break;
-        case VLC_CODEC_FL32: DEINTERLEAVE_TYPE(float);    break;
-        case VLC_CODEC_S32N: DEINTERLEAVE_TYPE(int32_t);  break;
-        case VLC_CODEC_FL64: DEINTERLEAVE_TYPE(double);   break;
-        default:             vlc_assert_unreachable();
+        case HEIMDALL_CODEC_U8:   DEINTERLEAVE_TYPE(uint8_t);  break;
+        case HEIMDALL_CODEC_S16N: DEINTERLEAVE_TYPE(int16_t);  break;
+        case HEIMDALL_CODEC_FL32: DEINTERLEAVE_TYPE(float);    break;
+        case HEIMDALL_CODEC_S32N: DEINTERLEAVE_TYPE(int32_t);  break;
+        case HEIMDALL_CODEC_FL64: DEINTERLEAVE_TYPE(double);   break;
+        default:             heimdall_assert_unreachable();
     }
 #undef DEINTERLEAVE_TYPE
 }
@@ -460,7 +461,7 @@ bool aout_CheckChannelExtraction( int *pi_selection,
 
     /* */
     if( !pi_order_dst )
-        pi_order_dst = pi_vlc_chan_order_wg4;
+        pi_order_dst = pi_heimdall_chan_order_wg4;
 
     /* */
     for( int i = 0; i < i_channels; i++ )
@@ -525,7 +526,7 @@ static int FilterOrder( const char *psz_name )
 int aout_EnableFilter( audio_output_t *p_aout, const char *psz_name, bool b_add )
 {
     if( *psz_name == '\0' )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     const char *psz_variable = "audio-filter";
     char *psz_list;
@@ -541,7 +542,7 @@ int aout_EnableFilter( audio_output_t *p_aout, const char *psz_name, bool b_add 
     if( !ppsz_filter )
     {
         free( psz_list );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
     bool b_present = false;
     i_count = 0;
@@ -563,7 +564,7 @@ int aout_EnableFilter( audio_output_t *p_aout, const char *psz_name, bool b_add 
     {
         free( ppsz_filter );
         free( psz_list );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( b_add )
@@ -598,7 +599,7 @@ int aout_EnableFilter( audio_output_t *p_aout, const char *psz_name, bool b_add 
     {
         free( ppsz_filter );
         free( psz_list );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     *psz_new = '\0';
@@ -616,5 +617,5 @@ int aout_EnableFilter( audio_output_t *p_aout, const char *psz_name, bool b_add 
     var_SetString( p_aout, psz_variable, psz_new );
     free( psz_new );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

@@ -1,9 +1,10 @@
 --[==========================================================================[
- luac.lua: lua compilation module for VLC (duplicates luac)
+ luac.lua: lua compilation module for Heimdall (duplicates luac)
 --[==========================================================================[
  Copyright (C) 2010 Antoine Cellerier
+ Copyright (C) 2026 TheFenrisLycaon
 
- Authors: Antoine Cellerier <dionoea at videolan dot org>
+ Authors: Antoine Cellerier <dionoea at lycaria dot org>
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -23,29 +24,29 @@
 usage = 
 [[
 To compile a lua script to bytecode (luac) run:
-  vlc -I luaintf --lua-intf luac --lua-config 'luac={input="file.lua",output="file.luac"}'
+  heimdall -I luaintf --lua-intf luac --lua-config 'luac={input="file.lua",output="file.luac"}'
 Output will be similar to that of the luac command line tool provided with lua with the following arguments:
   luac -o file.luac file.lua
 ]]
 
 function compile()
-    vlc.msg.info("About to compile lua file")
-    vlc.msg.info("  Input is '"..tostring(config.input).."'")
-    vlc.msg.info("  Output is '"..tostring(config.output).."'")
+    heimdall.msg.info("About to compile lua file")
+    heimdall.msg.info("  Input is '"..tostring(config.input).."'")
+    heimdall.msg.info("  Output is '"..tostring(config.output).."'")
     if not config.input or not config.output then
-        vlc.msg.err("Input and output config options must be set")
+        heimdall.msg.err("Input and output config options must be set")
         return false
     end
 
     local bytecode, msg = loadfile(config.input)
     if not bytecode then
-        vlc.msg.err("Error while loading file '"..config.input.."': "..msg)
+        heimdall.msg.err("Error while loading file '"..config.input.."': "..msg)
         return false
     end
 
     local output, msg = io.open(config.output, "wb")
     if not output then
-        vlc.msg.err("Error while opening file '"..config.output.."' for output: "..msg)
+        heimdall.msg.err("Error while opening file '"..config.output.."' for output: "..msg)
         return false
     else
         output:write(string.dump(bytecode))
@@ -56,8 +57,8 @@ end
 
 if not compile() then
     for line in string.gmatch(usage,"([^\n]+)\n*") do
-        vlc.msg.err(line)
+        heimdall.msg.err(line)
     end
 end
-vlc.misc.quit()
+heimdall.misc.quit()
 

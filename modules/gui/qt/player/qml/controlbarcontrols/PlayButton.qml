@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,12 +21,12 @@ import QtQuick
 import QtQuick.Templates as T
 
 
-import VLC.MainInterface
-import VLC.Widgets as Widgets
-import VLC.Style
-import VLC.Player
-import VLC.Playlist
-import VLC.Util
+import Heimdall.MainInterface
+import Heimdall.Widgets as Widgets
+import Heimdall.Style
+import Heimdall.Player
+import Heimdall.Playlist
+import Heimdall.Util
 
 T.Control {
     id: root
@@ -71,7 +72,7 @@ T.Control {
     // Tooltip
 
     T.ToolTip.visible: (hovered || visualFocus)
-    T.ToolTip.delay: VLCStyle.delayToolTipAppear
+    T.ToolTip.delay: HeimdallStyle.delayToolTipAppear
     T.ToolTip.text: root.Accessible.name
 
     // States
@@ -94,7 +95,7 @@ T.Control {
         NumberAnimation {
             properties: "opacity"
             easing.type: Easing.InOutSine
-            duration: VLCStyle.duration_veryShort
+            duration: HeimdallStyle.duration_veryShort
         }
     }
 
@@ -212,9 +213,9 @@ T.Control {
             if (!paintOnly
                     && state !== Player.PLAYING_STATE_PAUSED
                     && state !== Player.PLAYING_STATE_STOPPED)
-                return VLCIcons.pause_filled
+                return HeimdallIcons.pause_filled
             else
-                return VLCIcons.play_filled
+                return HeimdallIcons.play_filled
         }
 
         color: cursorInside ? theme.accent
@@ -222,7 +223,7 @@ T.Control {
 
         font.pixelSize: Math.round(parent.height / 1.7)
 
-        font.family: VLCIcons.fontFamily
+        font.family: HeimdallIcons.fontFamily
 
         verticalAlignment: Text.AlignVCenter
         horizontalAlignment: Text.AlignHCenter
@@ -233,7 +234,7 @@ T.Control {
             delayedEnabled: theme.initialized
 
             ColorAnimation {
-                duration: VLCStyle.duration_veryShort
+                duration: HeimdallStyle.duration_veryShort
                 easing.type: Easing.InOutSine
             }
         }
@@ -241,7 +242,7 @@ T.Control {
 
     background: Item {
         implicitWidth: height
-        implicitHeight: VLCStyle.icon_medium
+        implicitHeight: HeimdallStyle.icon_medium
 
         Widgets.AnimatedBackground {
             anchors.fill: parent
@@ -271,8 +272,8 @@ T.Control {
                 visible: opacity > 0
                 opacity: 0
 
-                blurRadius: VLCStyle.dp(9, VLCStyle.scale)
-                yOffset: VLCStyle.dp(4, VLCStyle.scale)
+                blurRadius: HeimdallStyle.dp(9, HeimdallStyle.scale)
+                yOffset: HeimdallStyle.dp(4, HeimdallStyle.scale)
 
                 color: theme.accent.alpha(0.29)
             }
@@ -284,7 +285,7 @@ T.Control {
 
                 anchors.fill: parent
                 anchors.margins: _diminished ? (parent.width / 2)
-                                             : VLCStyle.dp(2, VLCStyle.scale)
+                                             : HeimdallStyle.dp(2, HeimdallStyle.scale)
 
                 radius: width / 2
 

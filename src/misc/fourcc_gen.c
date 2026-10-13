@@ -2,6 +2,7 @@
  * fourcc_gen.c: FourCC preprocessor
  *****************************************************************************
  * Copyright © 2015 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -28,13 +29,13 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define VLC_API
-#define VLC_USED
-typedef uint32_t vlc_fourcc_t;
-typedef struct { unsigned num, den; } vlc_rational_t;
-#include "../include/vlc_fourcc.h"
+#define HEIMDALL_API
+#define HEIMDALL_USED
+typedef uint32_t heimdall_fourcc_t;
+typedef struct { unsigned num, den; } heimdall_rational_t;
+#include "../include/heimdall_fourcc.h"
 
-#define VLC_FOURCC(a,b,c,d) { a, b, c, d }
+#define HEIMDALL_FOURCC(a,b,c,d) { a, b, c, d }
 #define A(sfcc) E(sfcc, NULL)
 #define B(fcc,dsc) { true, fcc, dsc }
 #define E(sfcc,dsc) { false, sfcc, dsc }
@@ -136,11 +137,11 @@ int main(void)
 {
     puts("/* This file is generated automatically. DO NOT EDIT! */");
     puts("struct fourcc_mapping {");
-    puts("    union { unsigned char alias_str[4]; vlc_fourcc_t alias; };");
-    puts("    union { unsigned char fourcc_str[4]; vlc_fourcc_t fourcc; };");
+    puts("    union { unsigned char alias_str[4]; heimdall_fourcc_t alias; };");
+    puts("    union { unsigned char fourcc_str[4]; heimdall_fourcc_t fourcc; };");
     puts("};");
     puts("struct fourcc_desc {");
-    puts("    union { unsigned char alias_str[4]; vlc_fourcc_t alias; };");
+    puts("    union { unsigned char alias_str[4]; heimdall_fourcc_t alias; };");
     puts("    const char desc[52];");
     puts("};");
 

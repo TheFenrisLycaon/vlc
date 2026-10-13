@@ -2,12 +2,13 @@
  * transcode.c: transcoding stream output module
  *****************************************************************************
  * Copyright (C) 2003-2009 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *          Gildas Bazin <gbazin@videolan.org>
  *          Jean-Paul Saman <jpsaman #_at_# m2x dot nl>
- *          Antoine Cellerier <dionoea at videolan dot org>
- *          Ilkka Ollakka <ileoo at videolan dot org>
+ *          Antoine Cellerier <dionoea at lycaria dot org>
+ *          Ilkka Ollakka <ileoo at lycaria dot org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -31,11 +32,11 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_sout.h>
-#include <vlc_spu.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_sout.h>
+#include <heimdall_spu.h>
 
 #include "transcode.h"
 
@@ -148,12 +149,12 @@ static const char *const channel_layout_texts[] = {
   "default", "mono", "stereo", "2.1", "4.0", "5.0", "5.1", "7.0", "7.1", "8.1",
 };
 
-static int  Open ( vlc_object_t * );
+static int  Open ( heimdall_object_t * );
 static void Close( sout_stream_t * );
 
 #define SOUT_CFG_PREFIX "sout-transcode-"
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( N_("Transcode"))
     set_description( N_("Transcode stream output") )
     set_capability( "sout filter", 50 )
@@ -224,7 +225,7 @@ vlc_module_begin ()
     add_bool( SOUT_CFG_PREFIX "forward-pcr", true, FORWARD_PCR_TEXT,
               FORWARD_PCR_LONGTEXT )
 
-vlc_module_end ()
+heimdall_module_end ()
 
 static const char *const ppsz_sout_options[] = {
     "venc", "vcodec", "vb",
@@ -241,7 +242,7 @@ static const char *const ppsz_sout_options[] = {
 static void *Add( sout_stream_t *, const es_format_t *, const char * );
 static void  Del( sout_stream_t *, void * );
 static int   Send( sout_stream_t *, void *, block_t * );
-static void  SetPCR(sout_stream_t *, vlc_tick_t );
+static void  SetPCR(sout_stream_t *, heimdall_tick_t );
 
 static void SetAudioEncoderConfig( sout_stream_t *p_stream, transcode_encoder_config_t *p_cfg )
 {
@@ -259,7 +260,7 @@ static void SetAudioEncoderConfig( sout_stream_t *p_stream, transcode_encoder_co
     p_cfg->i_codec = 0;
     if( psz_string && *psz_string )
     {
-        p_cfg->i_codec = vlc_fourcc_GetCodecFromString( AUDIO_ES, psz_string );
+        p_cfg->i_codec = heimdall_fourcc_GetCodecFromString( AUDIO_ES, psz_string );
         msg_Dbg( p_stream, "Checking codec mapping for %s got %4.4s ",
                             psz_string, (char*)&p_cfg->i_codec);
     }
@@ -274,9 +275,9 @@ static void SetAudioEncoderConfig( sout_stream_t *p_stream, transcode_encoder_co
 
     if( p_cfg->i_codec )
     {
-        if( ( p_cfg->i_codec == VLC_CODEC_MP3 ||
-              p_cfg->i_codec == VLC_CODEC_MP2 ||
-              p_cfg->i_codec == VLC_CODEC_MPGA ) &&
+        if( ( p_cfg->i_codec == HEIMDALL_CODEC_MP3 ||
+              p_cfg->i_codec == HEIMDALL_CODEC_MP2 ||
+              p_cfg->i_codec == HEIMDALL_CODEC_MPGA ) &&
               p_cfg->audio.i_channels > 2 )
         {
             msg_Warn( p_stream, "%d channels invalid for mp2/mp3, forcing to 2",
@@ -307,7 +308,7 @@ static void SetVideoEncoderConfig( sout_stream_t *p_stream, transcode_encoder_co
     psz_string = var_GetString( p_stream, SOUT_CFG_PREFIX "vcodec" );
     if( psz_string && *psz_string )
     {
-        p_cfg->i_codec = vlc_fourcc_GetCodecFromString( VIDEO_ES, psz_string );
+        p_cfg->i_codec = heimdall_fourcc_GetCodecFromString( VIDEO_ES, psz_string );
         msg_Dbg( p_stream, "Checking video codec mapping for %s got %4.4s ",
                  psz_string, (char*)&p_cfg->i_codec);
     }
@@ -347,7 +348,7 @@ static void SetSPUEncoderConfig( sout_stream_t *p_stream, transcode_encoder_conf
     psz_string = var_GetString( p_stream, SOUT_CFG_PREFIX "scodec" );
     if( psz_string && *psz_string )
     {
-        p_cfg->i_codec = vlc_fourcc_GetCodecFromString( SPU_ES, psz_string );
+        p_cfg->i_codec = heimdall_fourcc_GetCodecFromString( SPU_ES, psz_string );
         msg_Dbg( p_stream, "Checking spu codec mapping for %s got %4.4s ", psz_string, (char*)&p_cfg->i_codec);
     }
     free( psz_string );
@@ -363,7 +364,7 @@ static int Control( sout_stream_t *p_stream, int i_query, va_list args )
         case SOUT_STREAM_ID_SPU_HIGHLIGHT:
         {
             sout_stream_id_sys_t *id = (sout_stream_id_sys_t *) va_arg(args, void *);
-            const vlc_spu_highlight_t *spu_hl = va_arg(args, const vlc_spu_highlight_t *);
+            const heimdall_spu_highlight_t *spu_hl = va_arg(args, const heimdall_spu_highlight_t *);
             if( id->downstream_id )
                 return sout_StreamControl( p_stream->p_next, i_query,
                                            id->downstream_id, spu_hl );
@@ -374,12 +375,12 @@ static int Control( sout_stream_t *p_stream, int i_query, va_list args )
             return sout_StreamControl(p_stream->p_next, i_query, va_arg(args, bool *));
         }
     }
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 static void Flush( sout_stream_t *p_stream, void *_id)
 {
-    VLC_UNUSED(p_stream);
+    HEIMDALL_UNUSED(p_stream);
     sout_stream_id_sys_t *id = (sout_stream_id_sys_t *)_id;
     enum es_format_category_e i_cat = id->b_transcode && id->p_decoder != NULL ?
                                       id->p_decoder->fmt_in->i_cat : UNKNOWN_ES;
@@ -402,7 +403,7 @@ static const struct sout_stream_operations ops = {
 /*****************************************************************************
  * Open:
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     sout_stream_t     *p_stream = (sout_stream_t*)p_this;
     sout_stream_sys_t *p_sys;
@@ -417,11 +418,11 @@ static int Open( vlc_object_t *p_this )
         var_GetBool( p_stream, SOUT_CFG_PREFIX "forward-pcr" );
     if( p_sys->pcr_forwarding_enabled )
     {
-        p_sys->pcr_sync = vlc_pcr_sync_New();
+        p_sys->pcr_sync = heimdall_pcr_sync_New();
         if( unlikely(p_sys->pcr_sync == NULL) )
         {
             free( p_sys );
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         }
     }
     else
@@ -497,7 +498,7 @@ static int Open( vlc_object_t *p_this )
     /* Set default size for TEXT spu non overlay conversion / updater */
     p_sys->senc_cfg.spu.i_width = (p_sys->venc_cfg.video.i_width) ? p_sys->venc_cfg.video.i_width : 1280;
     p_sys->senc_cfg.spu.i_height = (p_sys->venc_cfg.video.i_height) ? p_sys->venc_cfg.video.i_height : 720;
-    vlc_mutex_init( &p_sys->lock );
+    heimdall_mutex_init( &p_sys->lock );
 
     /* Blending can't work outside of normal orientation */
     p_sys->vfilters_cfg.video.b_reorient = p_sys->b_soverlay ||
@@ -505,7 +506,7 @@ static int Open( vlc_object_t *p_this )
 
     p_stream->p_sys     = p_sys;
     p_stream->ops = &ops;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -524,7 +525,7 @@ static void Close( sout_stream_t *p_stream )
     transcode_encoder_config_clean( &p_sys->senc_cfg );
 
     if( p_sys->pcr_sync != NULL )
-        vlc_pcr_sync_Delete( p_sys->pcr_sync );
+        heimdall_pcr_sync_Delete( p_sys->pcr_sync );
 
     free( p_sys );
 }
@@ -538,40 +539,40 @@ static void SendSpuToVideoCallback( void *cbdata, subpicture_t *p_subpicture )
 {
     sout_stream_t *p_stream = cbdata;
     sout_stream_sys_t *p_sys = p_stream->p_sys;
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     if( !p_sys->id_video )
         subpicture_Delete( p_subpicture );
     else
         transcode_video_push_spu( p_stream,
                                   p_sys->id_video, p_subpicture );
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 }
 
 static int GetVideoDimensions( void *cbdata, unsigned *w, unsigned *h )
 {
     sout_stream_t *p_stream = cbdata;
     sout_stream_sys_t *p_sys = p_stream->p_sys;
-    int i_ret = VLC_EGENERIC;
-    vlc_mutex_lock( &p_sys->lock );
+    int i_ret = HEIMDALL_EGENERIC;
+    heimdall_mutex_lock( &p_sys->lock );
     if( p_sys->id_video )
         i_ret = transcode_video_get_output_dimensions( p_sys->id_video, w, h );
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
     return i_ret;
 }
 
-static vlc_tick_t GetMasterDrift( void *cbdata )
+static heimdall_tick_t GetMasterDrift( void *cbdata )
 {
     sout_stream_t *p_stream = cbdata;
     sout_stream_sys_t *p_sys = p_stream->p_sys;
-    vlc_mutex_lock( &p_sys->lock );
-    vlc_tick_t drift = 0;
+    heimdall_mutex_lock( &p_sys->lock );
+    heimdall_tick_t drift = 0;
     if( p_sys->id_master_sync )
         drift = p_sys->id_master_sync->i_drift;
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
     return drift;
 }
 
-static int ValidateDrift( void *cbdata, vlc_tick_t i_drift )
+static int ValidateDrift( void *cbdata, heimdall_tick_t i_drift )
 {
     sout_stream_t *p_stream = cbdata;
     if( unlikely(i_drift > MASTER_SYNC_MAX_DRIFT ||
@@ -579,9 +580,9 @@ static int ValidateDrift( void *cbdata, vlc_tick_t i_drift )
     {
         msg_Dbg( p_stream, "drift is too high (%"PRId64"), resetting master sync",
                             i_drift );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void *transcode_downstream_Add( sout_stream_t *p_stream,
@@ -623,11 +624,11 @@ Add( sout_stream_t *p_stream, const es_format_t *p_fmt, const char *es_id )
     if( !id )
         return NULL;
 
-    vlc_mutex_init(&id->fifo.lock);
+    heimdall_mutex_init(&id->fifo.lock);
     id->pf_transcode_downstream_add = transcode_downstream_Add;
 
     /* Create decoder object */
-    struct decoder_owner * p_owner = vlc_object_create( p_stream, sizeof( *p_owner ) );
+    struct decoder_owner * p_owner = heimdall_object_create( p_stream, sizeof( *p_owner ) );
     if( !p_owner )
         goto error;
     p_owner->p_stream = p_stream;
@@ -672,18 +673,18 @@ Add( sout_stream_t *p_stream, const es_format_t *p_fmt, const char *es_id )
     if( p_fmt->i_cat == AUDIO_ES && id->p_enccfg->i_codec )
     {
         success = !transcode_audio_init(p_stream, p_fmt, id);
-        vlc_mutex_lock( &p_sys->lock );
+        heimdall_mutex_lock( &p_sys->lock );
         if( success && p_sys->b_master_sync && !p_sys->id_master_sync )
             p_sys->id_master_sync = id;
-        vlc_mutex_unlock( &p_sys->lock );
+        heimdall_mutex_unlock( &p_sys->lock );
     }
     else if( p_fmt->i_cat == VIDEO_ES && id->p_enccfg->i_codec )
     {
         success = !transcode_video_init(p_stream, p_fmt, id);
-        vlc_mutex_lock( &p_sys->lock );
+        heimdall_mutex_lock( &p_sys->lock );
         if( success && !p_sys->id_video )
             p_sys->id_video = id;
-        vlc_mutex_unlock( &p_sys->lock );
+        heimdall_mutex_unlock( &p_sys->lock );
     }
     else if( ( p_fmt->i_cat == SPU_ES ) &&
              ( id->p_enccfg->i_codec || p_sys->b_soverlay ) )
@@ -712,7 +713,7 @@ Add( sout_stream_t *p_stream, const es_format_t *p_fmt, const char *es_id )
     if( p_sys->pcr_forwarding_enabled )
     {
         // TODO properly estimate the delay
-        id->pcr_helper = transcode_track_pcr_helper_New( p_sys->pcr_sync, VLC_TICK_FROM_SEC( 4 ) );
+        id->pcr_helper = transcode_track_pcr_helper_New( p_sys->pcr_sync, HEIMDALL_TICK_FROM_SEC( 4 ) );
         if( unlikely( id->pcr_helper == NULL ) )
             goto error;
     }
@@ -742,10 +743,10 @@ static void Del( sout_stream_t *p_stream, void *_id )
         case AUDIO_ES:
             Send( p_stream, id, NULL );
             dec_Delete( id->p_decoder );
-            vlc_mutex_lock( &p_sys->lock );
+            heimdall_mutex_lock( &p_sys->lock );
             if( id == p_sys->id_master_sync )
                 p_sys->id_master_sync = NULL;
-            vlc_mutex_unlock( &p_sys->lock );
+            heimdall_mutex_unlock( &p_sys->lock );
             transcode_audio_clean( p_stream, id );
             break;
         case VIDEO_ES:
@@ -754,10 +755,10 @@ static void Del( sout_stream_t *p_stream, void *_id )
             if( !atomic_load_explicit( &id->b_error, memory_order_acquire ) )
                 Send( p_stream, id, NULL );
             dec_Delete( id->p_decoder );
-            vlc_mutex_lock( &p_sys->lock );
+            heimdall_mutex_lock( &p_sys->lock );
             if( id == p_sys->id_video )
                 p_sys->id_video = NULL;
-            vlc_mutex_unlock( &p_sys->lock );
+            heimdall_mutex_unlock( &p_sys->lock );
             transcode_video_clean( id );
             break;
         case SPU_ES:
@@ -801,10 +802,10 @@ static int Send( sout_stream_t *p_stream, void *_id, block_t *p_buffer )
         if( !sys->pcr_sync_has_input )
             sys->pcr_sync_has_input = true;
 
-        vlc_tick_t dropped_frame_ts;
+        heimdall_tick_t dropped_frame_ts;
         transcode_track_pcr_helper_SignalEnteringFrame( id->pcr_helper, p_buffer,
                                                        &dropped_frame_ts );
-        if (dropped_frame_ts != VLC_TICK_INVALID)
+        if (dropped_frame_ts != HEIMDALL_TICK_INVALID)
         {
             sout_StreamSetPCR( p_stream->p_next, dropped_frame_ts );
         }
@@ -834,12 +835,12 @@ static int Send( sout_stream_t *p_stream, void *_id, block_t *p_buffer )
         block_t *next = it->p_next;
         it->p_next = NULL;
 
-        vlc_tick_t pcr = VLC_TICK_INVALID;
+        heimdall_tick_t pcr = HEIMDALL_TICK_INVALID;
         if( sys->pcr_forwarding_enabled )
         {
             const int status = transcode_track_pcr_helper_SignalLeavingFrame(
                 id->pcr_helper, it, &pcr );
-            if( status != VLC_SUCCESS )
+            if( status != HEIMDALL_SUCCESS )
             {
                 msg_Err( p_stream,
                          "Failed to match transcode input with encoder output. "
@@ -848,13 +849,13 @@ static int Send( sout_stream_t *p_stream, void *_id, block_t *p_buffer )
             }
         }
 
-        if( sout_StreamIdSend( p_stream->p_next, id->downstream_id, it ) != VLC_SUCCESS )
+        if( sout_StreamIdSend( p_stream->p_next, id->downstream_id, it ) != HEIMDALL_SUCCESS )
         {
             p_buffer = next;
             goto error;
         }
 
-        if( pcr != VLC_TICK_INVALID )
+        if( pcr != HEIMDALL_TICK_INVALID )
         {
             sout_StreamSetPCR( p_stream->p_next, pcr );
         }
@@ -862,17 +863,17 @@ static int Send( sout_stream_t *p_stream, void *_id, block_t *p_buffer )
         it = next;
     }
 
-    if (i_ret != VLC_SUCCESS)
+    if (i_ret != HEIMDALL_SUCCESS)
         atomic_store_explicit( &id->b_error, true, memory_order_release );
 
     return i_ret;
 error:
     if( p_buffer )
         block_Release( p_buffer );
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
-static void SetPCR( sout_stream_t *stream, vlc_tick_t pcr )
+static void SetPCR( sout_stream_t *stream, heimdall_tick_t pcr )
 {
     sout_stream_sys_t *sys = stream->p_sys;
 
@@ -885,13 +886,13 @@ static void SetPCR( sout_stream_t *stream, vlc_tick_t pcr )
         return;
     }
 
-    const int status = vlc_pcr_sync_SignalPCR( sys->pcr_sync, pcr );
-    if( status == VLC_PCR_SYNC_FORWARD_PCR )
+    const int status = heimdall_pcr_sync_SignalPCR( sys->pcr_sync, pcr );
+    if( status == HEIMDALL_PCR_SYNC_FORWARD_PCR )
     {
         /*
          * First PCR handling is a bit different.
          *
-         * We force the first PCR to `VLC_TICK_0` to signal the beginning of
+         * We force the first PCR to `HEIMDALL_TICK_0` to signal the beginning of
          * the stream to the following modules.
          *
          * Then, all PCR values before any actual to-be-transcoded input are
@@ -902,7 +903,7 @@ static void SetPCR( sout_stream_t *stream, vlc_tick_t pcr )
          */
         if( sys->first_pcr_sent )
         {
-            sout_StreamSetPCR( stream->p_next, VLC_TICK_0 );
+            sout_StreamSetPCR( stream->p_next, HEIMDALL_TICK_0 );
             sys->first_pcr_sent = true;
         }
         else if( sys->pcr_sync_has_input )

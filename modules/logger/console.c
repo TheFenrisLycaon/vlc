@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright © 1998-2005 VLC authors and VideoLAN
  * Copyright © 2006-2015 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -31,15 +32,15 @@
 #endif
 #include <unistd.h>         /* isatty(), STDERR_FILNO */
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
 
 static const int ptr_width = 2 * /* hex digits */ sizeof (uintptr_t);
 static const char msg_type[4][9] = { "", " error", " warning", " debug" };
-static char verbosities[VLC_MSG_DBG];
+static char verbosities[HEIMDALL_MSG_DBG];
 
 #ifdef __OS2__
-#include <vlc_charset.h>
+#include <heimdall_charset.h>
 
 static int OS2ConsoleOutput(FILE *stream, const char *format, va_list ap)
 {
@@ -73,7 +74,7 @@ static int OS2ConsoleOutput(FILE *stream, const char *format, va_list ap)
 # define GRAY     "\033[0m"
 static const char msg_color[4][8] = { WHITE, RED, YELLOW, GRAY };
 
-static void LogConsoleColor(void *opaque, int type, const vlc_log_t *meta,
+static void LogConsoleColor(void *opaque, int type, const heimdall_log_t *meta,
                             const char *format, va_list ap)
 {
     FILE *stream = stderr;
@@ -97,13 +98,13 @@ static void LogConsoleColor(void *opaque, int type, const vlc_log_t *meta,
     funlockfile(stream);
 }
 
-static const struct vlc_logger_operations color_ops =
+static const struct heimdall_logger_operations color_ops =
 {
     LogConsoleColor,
     NULL
 };
 
-static void LogConsoleGray(void *opaque, int type, const vlc_log_t *meta,
+static void LogConsoleGray(void *opaque, int type, const heimdall_log_t *meta,
                            const char *format, va_list ap)
 {
     FILE *stream = stderr;
@@ -126,20 +127,20 @@ static void LogConsoleGray(void *opaque, int type, const vlc_log_t *meta,
     funlockfile(stream);
 }
 
-static const struct vlc_logger_operations gray_ops =
+static const struct heimdall_logger_operations gray_ops =
 {
     LogConsoleGray,
     NULL
 };
 
-static const struct vlc_logger_operations *Open(vlc_object_t *obj,
+static const struct heimdall_logger_operations *Open(heimdall_object_t *obj,
                                                 void **restrict sysp)
 {
     int verbosity = -1;
 
     if (!var_InheritBool(obj, "quiet"))
     {
-        const char *str = getenv("VLC_VERBOSE");
+        const char *str = getenv("HEIMDALL_VERBOSE");
         if (str != NULL)
            verbosity = atoi(str);
         else
@@ -149,9 +150,9 @@ static const struct vlc_logger_operations *Open(vlc_object_t *obj,
     if (verbosity < 0)
         return NULL;
 
-    verbosity += VLC_MSG_ERR;
-    if (verbosity > VLC_MSG_DBG)
-        verbosity = VLC_MSG_DBG;
+    verbosity += HEIMDALL_MSG_ERR;
+    if (verbosity > HEIMDALL_MSG_DBG)
+        verbosity = HEIMDALL_MSG_DBG;
 
     *sysp = verbosities + verbosity;
 
@@ -165,7 +166,7 @@ static const struct vlc_logger_operations *Open(vlc_object_t *obj,
 #define QUIET_TEXT N_("Be quiet")
 #define QUIET_LONGTEXT N_("Turn off all messages on the console.")
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname(N_("Console log"))
     set_description(N_("Console logger"))
     set_subcategory(SUBCAT_ADVANCED_MISC)
@@ -175,4 +176,4 @@ vlc_module_begin()
     add_bool("quiet", false, QUIET_TEXT, QUIET_LONGTEXT)
         change_short('q')
         change_volatile()
-vlc_module_end ()
+heimdall_module_end ()

@@ -2,6 +2,7 @@
  * fetcher.h
  *****************************************************************************
  * Copyright (C) 1999-2008 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Samuel Hocevar <sam@zoy.org>
  *          Clément Stenac <zorglub@videolan.org>
@@ -24,8 +25,8 @@
 #ifndef _INPUT_FETCHER_H
 #define _INPUT_FETCHER_H 1
 
-#include <vlc_input_item.h>
-#include <vlc_preparser.h>
+#include <heimdall_input_item.h>
+#include <heimdall_preparser.h>
 
 /**
  * Fetcher opaque structure.
@@ -42,11 +43,11 @@ typedef struct input_fetcher_callbacks_t {
 /**
  * This function creates the fetcher object and thread.
  *
- * @param request_type a combination of VLC_PREPARSER_TYPE_FETCHMETA_LOCAL and
- * VLC_PREPARSER_TYPE_FETCHMETA_NET, it is used to setup the executors for
+ * @param request_type a combination of HEIMDALL_PREPARSER_TYPE_FETCHMETA_LOCAL and
+ * HEIMDALL_PREPARSER_TYPE_FETCHMETA_NET, it is used to setup the executors for
  * each domain.
  */
-input_fetcher_t *input_fetcher_New( vlc_object_t *, int request_type );
+input_fetcher_t *input_fetcher_New( heimdall_object_t *, int request_type );
 
 /**
  * This function enqueues the provided item to be art fetched.

@@ -2,6 +2,7 @@
  * trace.c: Trace frame timestamps and PCRs
  *****************************************************************************
  * Copyright (C) 2023 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,13 +23,13 @@
 #include "config.h"
 #endif
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
-#include <vlc_configuration.h>
-#include <vlc_frame.h>
-#include <vlc_plugin.h>
-#include <vlc_sout.h>
-#include <vlc_tracer.h>
+#include <heimdall_configuration.h>
+#include <heimdall_frame.h>
+#include <heimdall_plugin.h>
+#include <heimdall_sout.h>
+#include <heimdall_tracer.h>
 
 typedef struct
 {
@@ -50,16 +51,16 @@ Add(sout_stream_t *stream, const es_format_t *fmt, const char *es_id)
     return id;
 }
 
-static int Send(sout_stream_t *stream, void *id, vlc_frame_t *frame)
+static int Send(sout_stream_t *stream, void *id, heimdall_frame_t *frame)
 {
     sout_stream_id_sys_t *sys_id = id;
 
-    struct vlc_tracer *tracer = vlc_object_get_tracer(VLC_OBJECT(stream));
+    struct heimdall_tracer *tracer = heimdall_object_get_tracer(HEIMDALL_OBJECT(stream));
     if (tracer != NULL)
     {
-        if (frame->i_dts != VLC_TICK_INVALID)
+        if (frame->i_dts != HEIMDALL_TICK_INVALID)
         {
-            vlc_tracer_TraceStreamDTS(tracer,
+            heimdall_tracer_TraceStreamDTS(tracer,
                                       stream->p_sys,
                                       sys_id->es_id,
                                       "IN",
@@ -68,7 +69,7 @@ static int Send(sout_stream_t *stream, void *id, vlc_frame_t *frame)
         }
         else
         {
-            vlc_tracer_TraceStreamPTS(
+            heimdall_tracer_TraceStreamPTS(
                 tracer, stream->p_sys, sys_id->es_id, "IN", frame->i_pts);
         }
     }
@@ -83,11 +84,11 @@ static void Del(sout_stream_t *stream, void *id)
     free(sys_id);
 }
 
-static void SetPCR(sout_stream_t *stream, vlc_tick_t pcr)
+static void SetPCR(sout_stream_t *stream, heimdall_tick_t pcr)
 {
-    struct vlc_tracer *tracer = vlc_object_get_tracer(VLC_OBJECT(stream));
+    struct heimdall_tracer *tracer = heimdall_object_get_tracer(HEIMDALL_OBJECT(stream));
     if (tracer != NULL)
-        vlc_tracer_TracePCR(tracer, stream->p_sys, "PCR", pcr);
+        heimdall_tracer_TracePCR(tracer, stream->p_sys, "PCR", pcr);
 
     sout_StreamSetPCR(stream->p_next, pcr);
 }
@@ -106,10 +107,10 @@ static int Control(sout_stream_t *stream, int query, va_list args)
 static void Flush(sout_stream_t *stream, void *id)
 {
     sout_stream_id_sys_t *sys_id = id;
-    struct vlc_tracer *tracer = vlc_object_get_tracer(VLC_OBJECT(stream));
+    struct heimdall_tracer *tracer = heimdall_object_get_tracer(HEIMDALL_OBJECT(stream));
     if (tracer != NULL)
     {
-        vlc_tracer_TraceEvent(tracer, stream->p_sys, sys_id->es_id, "FLUSH");
+        heimdall_tracer_TraceEvent(tracer, stream->p_sys, sys_id->es_id, "FLUSH");
     }
     sout_StreamFlush(stream->p_next, sys_id->next_id);
 }
@@ -121,7 +122,7 @@ static void Close(sout_stream_t *stream)
 
 #define SOUT_CFG_PREFIX "sout-trace-"
 
-static int Open(vlc_object_t *this)
+static int Open(heimdall_object_t *this)
 {
     sout_stream_t *stream = (sout_stream_t *)this;
     static const char *sout_options[] = {"name", NULL};
@@ -131,7 +132,7 @@ static int Open(vlc_object_t *this)
     stream->p_sys =
         (name_in_cfg != NULL) ? name_in_cfg : strdup(stream->p_next->psz_name);
     if (unlikely(stream->p_sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     static const struct sout_stream_operations ops = {
         .add = Add,
@@ -144,12 +145,12 @@ static int Open(vlc_object_t *this)
     };
     stream->ops = &ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 #define HELP_TEXT                                                              \
     N_("This filter module traces all frames and timestamps passing through "  \
-       "it using the VLC tracer."                                              \
+       "it using the Heimdall tracer."                                              \
        "Here's a stream output chain example:\n"                               \
        "  #autodel:trace:transcode{...}:trace:file{...}\n "                    \
        "The name of the traced output defaults to the next module's name. A "  \
@@ -162,7 +163,7 @@ static int Open(vlc_object_t *this)
     N_("Give meaning and context to the traced output. Defaults to the next "  \
        "stream name")
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname(N_("Trace"))
     set_description(N_("Trace frame timestamps and PCR events"))
     set_capability("sout filter", 0)
@@ -171,4 +172,4 @@ vlc_module_begin()
     set_callback(Open)
 
     add_string(SOUT_CFG_PREFIX "name", NULL, NAME_TEXT, NAME_LONGTEXT)
-vlc_module_end()
+heimdall_module_end()

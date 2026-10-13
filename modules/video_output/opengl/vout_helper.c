@@ -3,13 +3,14 @@
  *****************************************************************************
  * Copyright (C) 2004-2016 VLC authors and VideoLAN
  * Copyright (C) 2009, 2011 Laurent Aimar
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Laurent Aimar <fenrir _AT_ videolan _DOT_ org>
+ * Authors: Laurent Aimar <fenrir _AT_ lycaria _DOT_ org>
  *          Ilkka Ollakka <ileoo@videolan.org>
  *          Rémi Denis-Courmont
- *          Adrien Maglo <magsoft at videolan dot org>
- *          Felix Paul Kühne <fkuehne at videolan dot org>
- *          Pierre d'Herbemont <pdherbemont at videolan dot org>
+ *          Adrien Maglo <magsoft at lycaria dot org>
+ *          Felix Paul Kühne <fkuehne at lycaria dot org>
+ *          Pierre d'Herbemont <pdherbemont at lycaria dot org>
  *          Alexandre Janniaux <ajanni@videolabs.io>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -33,14 +34,14 @@
 #include <assert.h>
 #include <math.h>
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_list.h>
-#include <vlc_subpicture.h>
-#include <vlc_opengl.h>
-#include <vlc_modules.h>
-#include <vlc_vout.h>
-#include <vlc_viewpoint.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_list.h>
+#include <heimdall_subpicture.h>
+#include <heimdall_opengl.h>
+#include <heimdall_modules.h>
+#include <heimdall_vout.h>
+#include <heimdall_viewpoint.h>
 
 #include "filters.h"
 #include "gl_api.h"
@@ -51,25 +52,25 @@
 
 struct vout_display_opengl_t {
 
-    vlc_gl_t   *gl;
-    struct vlc_gl_api api;
+    heimdall_gl_t   *gl;
+    struct heimdall_gl_api api;
 
-    struct vlc_gl_interop *interop;
-    struct vlc_gl_renderer *renderer; /**< weak reference */
-    struct vlc_gl_filter *renderer_filter; /**< weak reference */
+    struct heimdall_gl_interop *interop;
+    struct heimdall_gl_renderer *renderer; /**< weak reference */
+    struct heimdall_gl_filter *renderer_filter; /**< weak reference */
 
-    struct vlc_gl_filters *filters;
+    struct heimdall_gl_filters *filters;
 
-    struct vlc_gl_interop *sub_interop;
-    struct vlc_gl_sub_renderer *sub_renderer;
+    struct heimdall_gl_interop *sub_interop;
+    struct heimdall_gl_sub_renderer *sub_renderer;
 
-    vlc_viewpoint_t viewpoint;
+    heimdall_viewpoint_t viewpoint;
     video_projection_mode_t projection;
-    vlc_stereoscopic_mode_t stereo_mode;
+    heimdall_stereoscopic_mode_t stereo_mode;
 };
 
-static const vlc_fourcc_t gl_subpicture_chromas[] = {
-    VLC_CODEC_RGBA,
+static const heimdall_fourcc_t gl_subpicture_chromas[] = {
+    HEIMDALL_CODEC_RGBA,
     0
 };
 
@@ -102,12 +103,12 @@ ResizeFormatToGLMaxTexSize(video_format_t *fmt, unsigned int max_tex_size)
     }
 }
 
-static struct vlc_gl_filters *
-CreateFilters(vlc_gl_t *gl, const struct vlc_gl_api *api,
-              struct vlc_gl_interop *interop,
-              struct vlc_gl_filter **out_renderer)
+static struct heimdall_gl_filters *
+CreateFilters(heimdall_gl_t *gl, const struct heimdall_gl_api *api,
+              struct heimdall_gl_interop *interop,
+              struct heimdall_gl_filter **out_renderer)
 {
-    struct vlc_gl_filters *filters = vlc_gl_filters_New(gl, api, interop, gl->orientation);
+    struct heimdall_gl_filters *filters = heimdall_gl_filters_New(gl, api, interop, gl->orientation);
     if (!filters)
     {
         msg_Err(gl, "Could not create filters");
@@ -140,8 +141,8 @@ CreateFilters(vlc_gl_t *gl, const struct vlc_gl_api *api,
             },
         };
 
-        struct vlc_gl_filter *scale_filter =
-            vlc_gl_filters_Append(filters, "pl_scale", &cfg);
+        struct heimdall_gl_filter *scale_filter =
+            heimdall_gl_filters_Append(filters, "pl_scale", &cfg);
         if (!scale_filter)
         {
             if (upscaler)
@@ -153,8 +154,8 @@ CreateFilters(vlc_gl_t *gl, const struct vlc_gl_api *api,
         }
     }
 
-    struct vlc_gl_filter *renderer_filter =
-        vlc_gl_filters_Append(filters, "renderer", NULL);
+    struct heimdall_gl_filter *renderer_filter =
+        heimdall_gl_filters_Append(filters, "renderer", NULL);
     if (!renderer_filter)
     {
         msg_Warn(gl, "Could not create renderer for %4.4s",
@@ -163,8 +164,8 @@ CreateFilters(vlc_gl_t *gl, const struct vlc_gl_api *api,
     }
     GL_ASSERT_NOERROR(vt);
 
-    int ret = vlc_gl_filters_InitFramebuffers(filters);
-    if (ret != VLC_SUCCESS)
+    int ret = heimdall_gl_filters_InitFramebuffers(filters);
+    if (ret != HEIMDALL_SUCCESS)
     {
         msg_Err(gl, "Could not init filters framebuffers");
         goto error;
@@ -177,14 +178,14 @@ CreateFilters(vlc_gl_t *gl, const struct vlc_gl_api *api,
     return filters;
 
 error:
-    vlc_gl_filters_Delete(filters);
+    heimdall_gl_filters_Delete(filters);
     return NULL;
 }
 
 struct renderer_config
 {
     video_projection_mode_t projection;
-    vlc_stereoscopic_mode_t stereo_mode;
+    heimdall_stereoscopic_mode_t stereo_mode;
 };
 
 static int RestartRenderer(vout_display_opengl_t *vgl,
@@ -208,11 +209,11 @@ static int RestartRenderer(vout_display_opengl_t *vgl,
         free(chain_projection.psz_value);
         free(chain_stereo.psz_name);
         free(chain_stereo.psz_value);
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
-    struct vlc_gl_filter *new_renderer =
-        vlc_gl_filters_Replace(vgl->filters, vgl->renderer_filter, "renderer", &chain_stereo);
+    struct heimdall_gl_filter *new_renderer =
+        heimdall_gl_filters_Replace(vgl->filters, vgl->renderer_filter, "renderer", &chain_stereo);
     free(chain_projection.psz_name);
     free(chain_projection.psz_value);
     free(chain_stereo.psz_name);
@@ -221,21 +222,21 @@ static int RestartRenderer(vout_display_opengl_t *vgl,
     {
         msg_Err(vgl->gl, "Could not re-create renderer filter for projection=%d stereo_mode=%d",
                 (int)config->projection, (int)config->stereo_mode);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    int ret = vlc_gl_filters_InitFramebuffers(vgl->filters);
-    if (ret != VLC_SUCCESS)
+    int ret = heimdall_gl_filters_InitFramebuffers(vgl->filters);
+    if (ret != HEIMDALL_SUCCESS)
     {
         msg_Err(vgl->gl, "Could not init filters framebuffers");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     vgl->renderer_filter = new_renderer;
     vgl->renderer = new_renderer->sys;
 
-    vlc_gl_renderer_SetViewpoint(vgl->renderer, &vgl->viewpoint);
-    return VLC_SUCCESS;
+    heimdall_gl_renderer_SetViewpoint(vgl->renderer, &vgl->viewpoint);
+    return HEIMDALL_SUCCESS;
 }
 
 int vout_display_opengl_ChangeProjection(vout_display_opengl_t *vgl,
@@ -246,35 +247,35 @@ int vout_display_opengl_ChangeProjection(vout_display_opengl_t *vgl,
         .stereo_mode = vgl->stereo_mode,
     };
     int ret = RestartRenderer(vgl, &config);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
         return ret;
 
     vgl->projection = projection;
     msg_Dbg(vgl->gl, "Changed to projection mode %d", projection);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 int vout_display_opengl_ChangeStereoMode(vout_display_opengl_t *vgl,
-                                         vlc_stereoscopic_mode_t stereo_mode)
+                                         heimdall_stereoscopic_mode_t stereo_mode)
 {
     struct renderer_config config = {
         .projection = vgl->projection,
         .stereo_mode = stereo_mode,
     };
     int ret = RestartRenderer(vgl, &config);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
         return ret;
 
     vgl->stereo_mode = stereo_mode;
     msg_Dbg(vgl->gl, "Changed to stereo mode %d", stereo_mode);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 vout_display_opengl_t *vout_display_opengl_New(video_format_t *fmt,
-                                               const vlc_fourcc_t **subpicture_chromas,
-                                               vlc_gl_t *gl,
-                                               const vlc_viewpoint_t *viewpoint,
-                                               vlc_video_context *context)
+                                               const heimdall_fourcc_t **subpicture_chromas,
+                                               heimdall_gl_t *gl,
+                                               const heimdall_viewpoint_t *viewpoint,
+                                               heimdall_video_context *context)
 {
     vout_display_opengl_t *vgl = calloc(1, sizeof(*vgl));
     if (!vgl)
@@ -282,11 +283,11 @@ vout_display_opengl_t *vout_display_opengl_New(video_format_t *fmt,
 
     vgl->gl = gl;
 
-    int ret = vlc_gl_api_Init(&vgl->api, gl);
-    if (ret != VLC_SUCCESS)
+    int ret = heimdall_gl_api_Init(&vgl->api, gl);
+    if (ret != HEIMDALL_SUCCESS)
         goto free_vgl;
 
-    const struct vlc_gl_api *api = &vgl->api;
+    const struct heimdall_gl_api *api = &vgl->api;
     const opengl_vtable_t *vt = &api->vt;
 
 #if !defined(USE_OPENGL_ES2)
@@ -308,7 +309,7 @@ vout_display_opengl_t *vout_display_opengl_New(video_format_t *fmt,
         (GLint)fmt->i_height > max_tex_size)
         ResizeFormatToGLMaxTexSize(fmt, max_tex_size);
 
-    vgl->interop = vlc_gl_interop_New(gl, context, fmt);
+    vgl->interop = heimdall_gl_interop_New(gl, context, fmt);
     if (!vgl->interop)
     {
         msg_Err(gl, "Could not create interop");
@@ -325,7 +326,7 @@ vout_display_opengl_t *vout_display_opengl_New(video_format_t *fmt,
     vgl->renderer = vgl->renderer_filter->sys;
     GL_ASSERT_NOERROR(vt);
 
-    vgl->sub_interop = vlc_gl_interop_NewForSubpictures(gl);
+    vgl->sub_interop = heimdall_gl_interop_NewForSubpictures(gl);
     if (!vgl->sub_interop)
     {
         msg_Err(gl, "Could not create sub interop");
@@ -334,7 +335,7 @@ vout_display_opengl_t *vout_display_opengl_New(video_format_t *fmt,
     GL_ASSERT_NOERROR(vt);
 
     vgl->sub_renderer =
-        vlc_gl_sub_renderer_New(gl, api, vgl->sub_interop);
+        heimdall_gl_sub_renderer_New(gl, api, vgl->sub_interop);
     if (!vgl->sub_renderer)
     {
         msg_Err(gl, "Could not create sub renderer");
@@ -343,9 +344,9 @@ vout_display_opengl_t *vout_display_opengl_New(video_format_t *fmt,
 
     GL_ASSERT_NOERROR(vt);
 
-    vlc_viewpoint_init(&vgl->viewpoint);
+    heimdall_viewpoint_init(&vgl->viewpoint);
     if (fmt->projection_mode != PROJECTION_MODE_RECTANGULAR
-     && vout_display_opengl_SetViewpoint(vgl, viewpoint) != VLC_SUCCESS)
+     && vout_display_opengl_SetViewpoint(vgl, viewpoint) != HEIMDALL_SUCCESS)
         msg_Err(gl, "Could not set viewpoint");
 
     int projection_mode = var_InheritInteger(gl, "projection-mode");
@@ -375,11 +376,11 @@ vout_display_opengl_t *vout_display_opengl_New(video_format_t *fmt,
     return vgl;
 
 delete_sub_interop:
-    vlc_gl_interop_Delete(vgl->sub_interop);
+    heimdall_gl_interop_Delete(vgl->sub_interop);
 delete_filters:
-    vlc_gl_filters_Delete(vgl->filters);
+    heimdall_gl_filters_Delete(vgl->filters);
 delete_interop:
-    vlc_gl_interop_Delete(vgl->interop);
+    heimdall_gl_interop_Delete(vgl->interop);
 free_vgl:
     free(vgl);
 
@@ -388,21 +389,21 @@ free_vgl:
 
 int vout_display_opengl_UpdateFormat(vout_display_opengl_t *vgl,
                                      const video_format_t *fmt,
-                                     vlc_video_context *vctx)
+                                     heimdall_video_context *vctx)
 {
     /* If the format can't be changed, the state must remain valid to accept the
      * initial format. */
 
-    vlc_gl_t *gl = vgl->gl;
-    const struct vlc_gl_api *api = &vgl->api;
+    heimdall_gl_t *gl = vgl->gl;
+    const struct heimdall_gl_api *api = &vgl->api;
 
     assert(!fmt->p_palette);
 
-    struct vlc_gl_interop *interop = vlc_gl_interop_New(gl, vctx, fmt);
+    struct heimdall_gl_interop *interop = heimdall_gl_interop_New(gl, vctx, fmt);
     if (!interop)
     {
         msg_Err(gl, "Could not create interop");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if ( !video_format_IsSameChroma( &interop->fmt_in, fmt ) )
@@ -410,31 +411,31 @@ int vout_display_opengl_UpdateFormat(vout_display_opengl_t *vgl,
         msg_Warn(gl, "Could not update format, the interop changed the "
                      "requested chroma from %4.4s to %4.4s\n",
                      (char *) &fmt->i_chroma, (char *) &interop->fmt_in.i_chroma);
-        vlc_gl_interop_Delete(interop);
-        return VLC_EGENERIC;
+        heimdall_gl_interop_Delete(interop);
+        return HEIMDALL_EGENERIC;
     }
 
-    struct vlc_gl_filter *renderer;
-    struct vlc_gl_filters *filters = CreateFilters(gl, api, interop, &renderer);
+    struct heimdall_gl_filter *renderer;
+    struct heimdall_gl_filters *filters = CreateFilters(gl, api, interop, &renderer);
     if (!filters)
     {
-        vlc_gl_interop_Delete(interop);
-        return VLC_EGENERIC;
+        heimdall_gl_interop_Delete(interop);
+        return HEIMDALL_EGENERIC;
     }
 
     /* We created everything necessary, it worked, now the old ones could be
      * replaced. */
-    vlc_gl_filters_Delete(vgl->filters);
-    vlc_gl_interop_Delete(vgl->interop);
+    heimdall_gl_filters_Delete(vgl->filters);
+    heimdall_gl_interop_Delete(vgl->interop);
 
     vgl->interop = interop;
     vgl->filters = filters;
     vgl->renderer = renderer->sys;
     vgl->renderer_filter = renderer;
 
-    vlc_gl_renderer_SetViewpoint(vgl->renderer, &vgl->viewpoint);
+    heimdall_gl_renderer_SetViewpoint(vgl->renderer, &vgl->viewpoint);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 void vout_display_opengl_Delete(vout_display_opengl_t *vgl)
@@ -447,11 +448,11 @@ void vout_display_opengl_Delete(vout_display_opengl_t *vgl)
     vt->Finish();
     vt->Flush();
 
-    vlc_gl_sub_renderer_Delete(vgl->sub_renderer);
-    vlc_gl_interop_Delete(vgl->sub_interop);
+    heimdall_gl_sub_renderer_Delete(vgl->sub_renderer);
+    heimdall_gl_interop_Delete(vgl->sub_interop);
 
-    vlc_gl_filters_Delete(vgl->filters);
-    vlc_gl_interop_Delete(vgl->interop);
+    heimdall_gl_filters_Delete(vgl->filters);
+    heimdall_gl_interop_Delete(vgl->interop);
 
     GL_ASSERT_NOERROR(vt);
 
@@ -459,10 +460,10 @@ void vout_display_opengl_Delete(vout_display_opengl_t *vgl)
 }
 
 int vout_display_opengl_SetViewpoint(vout_display_opengl_t *vgl,
-                                     const vlc_viewpoint_t *p_vp)
+                                     const heimdall_viewpoint_t *p_vp)
 {
-    int ret = vlc_gl_renderer_SetViewpoint(vgl->renderer, p_vp);
-    if (ret == VLC_SUCCESS)
+    int ret = heimdall_gl_renderer_SetViewpoint(vgl->renderer, p_vp);
+    if (ret == HEIMDALL_SUCCESS)
         vgl->viewpoint = *p_vp;
     return ret;
 }
@@ -470,31 +471,31 @@ int vout_display_opengl_SetViewpoint(vout_display_opengl_t *vgl,
 void vout_display_opengl_SetOutputSize(vout_display_opengl_t *vgl,
                                        unsigned width, unsigned height)
 {
-    int ret = vlc_gl_filters_SetOutputSize(vgl->filters, width, height);
+    int ret = heimdall_gl_filters_SetOutputSize(vgl->filters, width, height);
     /* The renderer, last filter in the chain, necessarily accepts the new
      * output size */
-    assert(ret == VLC_SUCCESS);
-    vlc_gl_sub_renderer_SetOutputSize(vgl->sub_renderer, width, height);
+    assert(ret == HEIMDALL_SUCCESS);
+    heimdall_gl_sub_renderer_SetOutputSize(vgl->sub_renderer, width, height);
     (void) ret;
 }
 
 void vout_display_opengl_Viewport(vout_display_opengl_t *vgl, int x, int y,
                                   unsigned width, unsigned height)
 {
-    vlc_gl_filters_SetViewport(vgl->filters, x, y, width, height);
+    heimdall_gl_filters_SetViewport(vgl->filters, x, y, width, height);
 }
 
 int vout_display_opengl_Prepare(vout_display_opengl_t *vgl,
                                 picture_t *picture,
-                                const vlc_render_subpicture *subpicture)
+                                const heimdall_render_subpicture *subpicture)
 {
     GL_ASSERT_NOERROR(&vgl->api.vt);
 
-    int ret = vlc_gl_filters_UpdatePicture(vgl->filters, picture);
-    if (ret != VLC_SUCCESS)
+    int ret = heimdall_gl_filters_UpdatePicture(vgl->filters, picture);
+    if (ret != HEIMDALL_SUCCESS)
         return ret;
 
-    ret = vlc_gl_sub_renderer_Prepare(vgl->sub_renderer, subpicture);
+    ret = heimdall_gl_sub_renderer_Prepare(vgl->sub_renderer, subpicture);
     GL_ASSERT_NOERROR(&vgl->api.vt);
     return ret;
 }
@@ -502,15 +503,15 @@ int vout_display_opengl_Display(vout_display_opengl_t *vgl)
 {
     GL_ASSERT_NOERROR(&vgl->api.vt);
 
-    int ret = vlc_gl_filters_Draw(vgl->filters);
-    if (ret != VLC_SUCCESS)
+    int ret = heimdall_gl_filters_Draw(vgl->filters);
+    if (ret != HEIMDALL_SUCCESS)
         return ret;
 
-    ret = vlc_gl_sub_renderer_Draw(vgl->sub_renderer);
-    if (ret != VLC_SUCCESS)
+    ret = heimdall_gl_sub_renderer_Draw(vgl->sub_renderer);
+    if (ret != HEIMDALL_SUCCESS)
         return ret;
 
     GL_ASSERT_NOERROR(&vgl->api.vt);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

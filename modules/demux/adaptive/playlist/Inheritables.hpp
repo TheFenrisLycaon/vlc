@@ -2,6 +2,7 @@
  * Inheritables.hpp Nodes inheritables properties
  *****************************************************************************
  * Copyright (C) 2016-2020 VideoLabs, VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -84,7 +85,7 @@ namespace adaptive
                 uint64_t          inheritStartNumber() const;
                 stime_t           inheritDuration() const;
                 Timescale         inheritTimescale() const;
-                vlc_tick_t        inheritAvailabilityTimeOffset() const;
+                heimdall_tick_t        inheritAvailabilityTimeOffset() const;
                 bool              inheritAvailabilityTimeComplete() const;
                 SegmentTimeline * inheritSegmentTimeline() const;
                 SegmentTemplate * inheritSegmentTemplate() const;
@@ -117,7 +118,7 @@ namespace adaptive
                 T value;
         };
 
-        using AvailabilityTimeOffsetAttr   = AttrWrapper<AbstractAttr::Type::AvailabilityTimeOffset, vlc_tick_t>;
+        using AvailabilityTimeOffsetAttr   = AttrWrapper<AbstractAttr::Type::AvailabilityTimeOffset, heimdall_tick_t>;
         using AvailabilityTimeCompleteAttr = AttrWrapper<AbstractAttr::Type::AvailabilityTimeComplete, bool>;
         using StartnumberAttr              = AttrWrapper<AbstractAttr::Type::StartNumber, uint64_t>;
 

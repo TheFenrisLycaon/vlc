@@ -2,6 +2,7 @@
  * SegmentBase.cpp
  *****************************************************************************
  * Copyright (C) 2010 - 2012 Klagenfurt University
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Created on: Jan 27, 2012
  * Authors: Christopher Mueller <christopher.mueller@itec.uni-klu.ac.at>
@@ -43,7 +44,7 @@ SegmentBase::~SegmentBase   ()
 {
 }
 
-vlc_tick_t SegmentBase::getMinAheadTime(uint64_t curnum) const
+heimdall_tick_t SegmentBase::getMinAheadTime(uint64_t curnum) const
 {
     if(subsegments.size() == 0 || curnum >= subsegments.size() - 1)
         return 0;
@@ -79,7 +80,7 @@ uint64_t SegmentBase::getStartSegmentNumber() const
     return 0;
 }
 
-bool SegmentBase::getSegmentNumberByTime(vlc_tick_t time, uint64_t *ret) const
+bool SegmentBase::getSegmentNumberByTime(heimdall_tick_t time, uint64_t *ret) const
 {
     const Timescale timescale = inheritTimescale();
     if(!timescale.isValid())
@@ -90,8 +91,8 @@ bool SegmentBase::getSegmentNumberByTime(vlc_tick_t time, uint64_t *ret) const
 }
 
 bool SegmentBase::getPlaybackTimeDurationBySegmentNumber(uint64_t number,
-                                                         vlc_tick_t *time,
-                                                         vlc_tick_t *dur) const
+                                                         heimdall_tick_t *time,
+                                                         heimdall_tick_t *dur) const
 {
     const Timescale timescale = inheritTimescale();
     const ISegment *segment = getMediaSegment(number);
@@ -104,7 +105,7 @@ bool SegmentBase::getPlaybackTimeDurationBySegmentNumber(uint64_t number,
     return false;
 }
 
-void SegmentBase::debug(vlc_object_t *obj, int indent) const
+void SegmentBase::debug(heimdall_object_t *obj, int indent) const
 {
     AbstractSegmentBaseType::debug(obj, indent);
     std::for_each(subsegments.cbegin(), subsegments.cend(),

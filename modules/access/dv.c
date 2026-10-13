@@ -2,6 +2,7 @@
  * dv.c: Digital video/Firewire input (file: access plug-in)
  *****************************************************************************
  * Copyright (C) 2005 M2X
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Jean-Paul Saman <jpsaman at m2x dot nl>
  *
@@ -29,11 +30,11 @@
 
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_threads.h>
-#include <vlc_poll.h>
-#include <vlc_plugin.h>
-#include <vlc_access.h>
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
+#include <heimdall_poll.h>
+#include <heimdall_plugin.h>
+#include <heimdall_access.h>
 
 #include <errno.h>
 #include <sys/types.h>
@@ -49,25 +50,25 @@
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  Open ( vlc_object_t * );
-static void Close( vlc_object_t * );
+static int  Open ( heimdall_object_t * );
+static void Close( heimdall_object_t * );
 static block_t *Block( stream_t *, bool * );
 static int Control( stream_t *, int, va_list );
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("Digital Video (Firewire/ieee1394) input") )
     set_shortname( N_("DV") )
     set_subcategory( SUBCAT_INPUT_ACCESS )
     set_capability( "access", 0 )
     add_shortcut( "dv", "raw1394" )
     set_callbacks( Open, Close )
-vlc_module_end ()
+heimdall_module_end ()
 
 typedef struct
 {
-    vlc_thread_t    thread;
+    heimdall_thread_t    thread;
     stream_t        *p_access;
-    vlc_mutex_t     lock;
+    heimdall_mutex_t     lock;
     block_t         *p_frame;
     block_t         **pp_last;
 
@@ -106,7 +107,7 @@ typedef struct
 
     /* event */
     event_thread_t *p_ev;
-    vlc_mutex_t lock;
+    heimdall_mutex_t lock;
     block_t *p_frame;
 } access_sys_t;
 
@@ -116,7 +117,7 @@ typedef struct
 /*****************************************************************************
  * Open: open the file
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     stream_t     *p_access = (stream_t*)p_this;
     access_sys_t *p_sys;
@@ -128,9 +129,9 @@ static int Open( vlc_object_t *p_this )
     /* Set up p_access */
     ACCESS_SET_CALLBACKS( NULL, Block, Control, NULL );
 
-    p_access->p_sys = p_sys = vlc_obj_malloc( p_this, sizeof( *p_sys ) );
+    p_access->p_sys = p_sys = heimdall_obj_malloc( p_this, sizeof( *p_sys ) );
     if( !p_sys )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     p_sys->i_cards = 0;
     p_sys->i_node = 0;
@@ -142,14 +143,14 @@ static int Open( vlc_object_t *p_this )
     p_sys->p_frame = NULL;
     p_sys->p_ev = NULL;
 
-    vlc_mutex_init( &p_sys->lock );
+    heimdall_mutex_init( &p_sys->lock );
 
     p_sys->i_node = DiscoverAVC( p_access, &p_sys->i_port, p_sys->i_guid );
     if( p_sys->i_node < 0 )
     {
         msg_Err( p_access, "failed to open a Firewire (IEEE1394) connection" );
         Close( p_this );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     p_sys->p_avc1394 = AVCOpen( p_access, p_sys->i_port );
@@ -157,7 +158,7 @@ static int Open( vlc_object_t *p_this )
     {
         msg_Err( p_access, "no Digital Video Control device found" );
         Close( p_this );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     p_sys->p_raw1394 = raw1394_new_handle();
@@ -165,7 +166,7 @@ static int Open( vlc_object_t *p_this )
     {
         msg_Err( p_access, "no Digital Video device found" );
         Close( p_this );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     p_sys->i_cards = raw1394_get_port_info( p_sys->p_raw1394, port_inf, 16 );
@@ -173,14 +174,14 @@ static int Open( vlc_object_t *p_this )
     {
         msg_Err( p_access, "failed to get port info" );
         Close( p_this );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( raw1394_set_port( p_sys->p_raw1394, p_sys->i_port ) < 0 )
     {
         msg_Err( p_access, "failed to set port info" );
         Close( p_this );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if ( raw1394_iso_recv_init( p_sys->p_raw1394, Raw1394Handler,
@@ -189,7 +190,7 @@ static int Open( vlc_object_t *p_this )
     {
         msg_Err( p_access, "failed to init isochronous recv" );
         Close( p_this );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     raw1394_set_userdata( p_sys->p_raw1394, p_access );
@@ -203,27 +204,27 @@ static int Open( vlc_object_t *p_this )
     if( !p_sys->p_ev )
     {
         Close( p_this );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     p_sys->p_ev->p_frame = NULL;
     p_sys->p_ev->pp_last = &p_sys->p_ev->p_frame;
     p_sys->p_ev->p_access = p_access;
-    vlc_mutex_init( &p_sys->p_ev->lock );
-    if( vlc_clone( &p_sys->p_ev->thread, Raw1394EventThread, p_sys->p_ev ) )
+    heimdall_mutex_init( &p_sys->p_ev->lock );
+    if( heimdall_clone( &p_sys->p_ev->thread, Raw1394EventThread, p_sys->p_ev ) )
     {
         msg_Err( p_access, "failed to clone event thread" );
         Close( p_this );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * Close: free unused data structures
  *****************************************************************************/
-static void Close( vlc_object_t *p_this )
+static void Close( heimdall_object_t *p_this )
 {
     stream_t     *p_access = (stream_t*)p_this;
     access_sys_t *p_sys = p_access->p_sys;
@@ -231,12 +232,12 @@ static void Close( vlc_object_t *p_this )
     if( p_sys->p_ev )
     {
         /* stop the event handler */
-        vlc_cancel( p_sys->p_ev->thread );
+        heimdall_cancel( p_sys->p_ev->thread );
 
         if( p_sys->p_raw1394 )
             raw1394_iso_shutdown( p_sys->p_raw1394 );
 
-        vlc_join( p_sys->p_ev->thread, NULL );
+        heimdall_join( p_sys->p_ev->thread, NULL );
 
         /* Cleanup frame data */
         if( p_sys->p_ev->p_frame )
@@ -277,8 +278,8 @@ static int Control( stream_t *p_access, int i_query, va_list args )
             break;
 
         case STREAM_GET_PTS_DELAY:
-            *va_arg( args, vlc_tick_t * ) =
-                VLC_TICK_FROM_MS( var_InheritInteger( p_access, "live-caching" ) );
+            *va_arg( args, heimdall_tick_t * ) =
+                HEIMDALL_TICK_FROM_MS( var_InheritInteger( p_access, "live-caching" ) );
             break;
 
         /* */
@@ -287,10 +288,10 @@ static int Control( stream_t *p_access, int i_query, va_list args )
             break;
 
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static block_t *Block( stream_t *p_access, bool *restrict eof )
@@ -298,11 +299,11 @@ static block_t *Block( stream_t *p_access, bool *restrict eof )
     access_sys_t *p_sys = p_access->p_sys;
     block_t *p_block = NULL;
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     p_block = p_sys->p_frame;
     //msg_Dbg( p_access, "sending frame %p", (void *)p_block );
     p_sys->p_frame = NULL;
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 
     (void) eof;
     return p_block;
@@ -322,33 +323,33 @@ static void* Raw1394EventThread( void *obj )
     stream_t *p_access = (stream_t *) p_ev->p_access;
     access_sys_t *p_sys = (access_sys_t *) p_access->p_sys;
     int result = 0;
-    int canc = vlc_savecancel();
+    int canc = heimdall_savecancel();
 
-    vlc_thread_set_name("vlc-dv-1394");
+    heimdall_thread_set_name("heimdall-dv-1394");
 
     AVCPlay( p_access, p_sys->i_node );
-    vlc_cleanup_push( Raw1394EventThreadCleanup, p_ev );
-    vlc_restorecancel( canc );
+    heimdall_cleanup_push( Raw1394EventThreadCleanup, p_ev );
+    heimdall_restorecancel( canc );
 
     for( ;; )
     {
         while( ( result = poll( &p_sys->raw1394_poll, 1, -1 ) ) < 0 )
         {
             if( errno != EINTR )
-                msg_Err( p_access, "poll error: %s", vlc_strerror_c(errno) );
+                msg_Err( p_access, "poll error: %s", heimdall_strerror_c(errno) );
         }
 
         if( result > 0 && ( ( p_sys->raw1394_poll.revents & POLLIN )
                          || ( p_sys->raw1394_poll.revents & POLLPRI ) ) )
         {
-            canc = vlc_savecancel();
+            canc = heimdall_savecancel();
             result = raw1394_loop_iterate( p_sys->p_raw1394 );
-            vlc_restorecancel( canc );
+            heimdall_restorecancel( canc );
         }
     }
 
-    vlc_cleanup_pop();
-    vlc_assert_unreachable();
+    heimdall_cleanup_pop();
+    heimdall_assert_unreachable();
 }
 
 static enum raw1394_iso_disposition
@@ -360,8 +361,8 @@ Raw1394Handler(raw1394handle_t handle, unsigned char *data,
     stream_t *p_access = NULL;
     access_sys_t *p_sys = NULL;
     block_t *p_block = NULL;
-    VLC_UNUSED(channel); VLC_UNUSED(tag);
-    VLC_UNUSED(sy); VLC_UNUSED(cycle); VLC_UNUSED(dropped);
+    HEIMDALL_UNUSED(channel); HEIMDALL_UNUSED(tag);
+    HEIMDALL_UNUSED(sy); HEIMDALL_UNUSED(cycle); HEIMDALL_UNUSED(dropped);
 
     p_access = (stream_t *) raw1394_get_userdata( handle );
     if( !p_access ) return 0;
@@ -376,23 +377,23 @@ Raw1394Handler(raw1394handle_t handle, unsigned char *data,
         int dif_sequence = p[ 1 ] >> 4;           /* dif sequence number is in bits 4 - 7 */
         int dif_block = p[ 2 ];
 
-        vlc_mutex_lock( &p_sys->p_ev->lock );
+        heimdall_mutex_lock( &p_sys->p_ev->lock );
 
         /* if we are at the beginning of a frame, we put the previous
            frame in our output_queue. */
         if( (section_type == 0) && (dif_sequence == 0) )
         {
-            vlc_mutex_lock( &p_sys->lock );
+            heimdall_mutex_lock( &p_sys->lock );
             if( p_sys->p_ev->p_frame )
             {
                 /* Push current frame to p_access thread. */
-                //p_sys->p_ev->p_frame->i_pts = vlc_tick_now();
+                //p_sys->p_ev->p_frame->i_pts = heimdall_tick_now();
                 block_ChainAppend( &p_sys->p_frame, p_sys->p_ev->p_frame );
             }
             /* reset list */
             p_sys->p_ev->p_frame = block_Alloc( 144000 );
             p_sys->p_ev->pp_last = &p_sys->p_frame;
-            vlc_mutex_unlock( &p_sys->lock );
+            heimdall_mutex_unlock( &p_sys->lock );
         }
 
         p_block = p_sys->p_ev->p_frame;
@@ -428,7 +429,7 @@ Raw1394Handler(raw1394handle_t handle, unsigned char *data,
             }
         }
 
-        vlc_mutex_unlock( &p_sys->p_ev->lock );
+        heimdall_mutex_unlock( &p_sys->p_ev->lock );
     }
     return 0;
 }
@@ -448,16 +449,16 @@ static int Raw1394GetNumPorts( stream_t *p_access )
     if( !( handle = raw1394_new_handle() ) )
     {
         msg_Err( p_access, "raw1394 - failed to get handle: %s",
-                 vlc_strerror_c(errno) );
-        return VLC_EGENERIC;
+                 heimdall_strerror_c(errno) );
+        return HEIMDALL_EGENERIC;
     }
 
     if( ( n_ports = raw1394_get_port_info( handle, pinf, 16 ) ) < 0 )
     {
         msg_Err( p_access, "raw1394 - failed to get port info: %s",
-                 vlc_strerror_c(errno) );
+                 heimdall_strerror_c(errno) );
         raw1394_destroy_handle( handle );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     raw1394_destroy_handle( handle );
 
@@ -475,14 +476,14 @@ static raw1394handle_t Raw1394Open( stream_t *p_access, int port )
     if( !handle )
     {
         msg_Err( p_access, "raw1394 - failed to get handle: %s",
-                 vlc_strerror_c(errno) );
+                 heimdall_strerror_c(errno) );
         return NULL;
     }
 
     if( ( n_ports = raw1394_get_port_info( handle, pinf, 16 ) ) < 0 )
     {
         msg_Err( p_access, "raw1394 - failed to get port info: %s",
-                 vlc_strerror_c(errno) );
+                 heimdall_strerror_c(errno) );
         raw1394_destroy_handle( handle );
         return NULL;
     }
@@ -491,7 +492,7 @@ static raw1394handle_t Raw1394Open( stream_t *p_access, int port )
     if( raw1394_set_port( handle, port ) < 0 )
     {
         msg_Err( p_access, "raw1394 - failed to set set port: %s",
-                 vlc_strerror_c(errno) );
+                 heimdall_strerror_c(errno) );
         return NULL;
     }
 

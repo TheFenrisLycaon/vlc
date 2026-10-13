@@ -2,6 +2,7 @@
  * cache_read.c
  *****************************************************************************
  * Copyright (C) 1999-2004 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *
@@ -28,10 +29,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_stream.h>
-#include <vlc_interrupt.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_stream.h>
+#include <heimdall_interrupt.h>
 
 // #define STREAM_DEBUG 1
 
@@ -73,7 +74,7 @@
 
 typedef struct
 {
-    vlc_tick_t date;
+    heimdall_tick_t date;
 
     uint64_t i_start;
     uint64_t i_end;
@@ -102,7 +103,7 @@ typedef struct
         /* Stat about reading data */
         uint64_t i_read_count;
         uint64_t i_bytes;
-        vlc_tick_t i_read_time;
+        heimdall_tick_t i_read_time;
     } stat;
 } stream_sys_t;
 
@@ -116,24 +117,24 @@ static int AStreamRefillStream(stream_t *s)
         __MIN(sys->i_used, STREAM_CACHE_TRACK_SIZE -
                (tk->i_end - tk->i_start - sys->i_offset));
 
-    if (i_toread <= 0) return VLC_SUCCESS; /* EOF */
+    if (i_toread <= 0) return HEIMDALL_SUCCESS; /* EOF */
 
 #ifdef STREAM_DEBUG
     msg_Dbg(s, "AStreamRefillStream: used=%d toread=%d",
                  sys->i_used, i_toread);
 #endif
 
-    vlc_tick_t start = vlc_tick_now();
+    heimdall_tick_t start = heimdall_tick_now();
     while (i_toread > 0)
     {
         int i_off = tk->i_end % STREAM_CACHE_TRACK_SIZE;
         int i_read;
 
-        if (vlc_killed())
-            return VLC_EGENERIC;
+        if (heimdall_killed())
+            return HEIMDALL_EGENERIC;
 
         i_read = __MIN(i_toread, STREAM_CACHE_TRACK_SIZE - i_off);
-        i_read = vlc_stream_Read(s->s, &tk->p_buffer[i_off], i_read);
+        i_read = heimdall_stream_Read(s->s, &tk->p_buffer[i_off], i_read);
 
         /* msg_Dbg(s, "AStreamRefillStream: read=%d", i_read); */
         if (i_read <  0)
@@ -141,7 +142,7 @@ static int AStreamRefillStream(stream_t *s)
             continue;
         }
         else if (i_read == 0)
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
 
         /* Update end */
         tk->i_end += i_read;
@@ -162,26 +163,26 @@ static int AStreamRefillStream(stream_t *s)
         sys->stat.i_read_count++;
     }
 
-    sys->stat.i_read_time += vlc_tick_now() - start;
-    return VLC_SUCCESS;
+    sys->stat.i_read_time += heimdall_tick_now() - start;
+    return HEIMDALL_SUCCESS;
 }
 
 static void AStreamPrebufferStream(stream_t *s)
 {
     stream_sys_t *sys = s->p_sys;
-    vlc_tick_t start = vlc_tick_now();
+    heimdall_tick_t start = heimdall_tick_now();
     bool first = true;
 
     msg_Dbg(s, "starting pre-buffering");
     for (;;)
     {
         stream_track_t *tk = &sys->tk[sys->i_tk];
-        vlc_tick_t now = vlc_tick_now();
+        heimdall_tick_t now = heimdall_tick_now();
 
         int i_read;
         int i_buffered = tk->i_end - tk->i_start;
 
-        if (vlc_killed() || i_buffered >= STREAM_CACHE_PREBUFFER_SIZE)
+        if (heimdall_killed() || i_buffered >= STREAM_CACHE_PREBUFFER_SIZE)
         {
             int64_t i_byterate;
 
@@ -193,13 +194,13 @@ static void AStreamPrebufferStream(stream_t *s)
 
             msg_Dbg(s, "pre-buffering done %"PRId64" bytes in %"PRId64"s - "
                     "%"PRId64" KiB/s", sys->stat.i_bytes,
-                    SEC_FROM_VLC_TICK(sys->stat.i_read_time), i_byterate / 1024);
+                    SEC_FROM_HEIMDALL_TICK(sys->stat.i_read_time), i_byterate / 1024);
             break;
         }
 
         i_read = STREAM_CACHE_TRACK_SIZE - i_buffered;
         i_read = __MIN((int)sys->i_read_size, i_read);
-        i_read = vlc_stream_Read(s->s, &tk->p_buffer[i_buffered], i_read);
+        i_read = heimdall_stream_Read(s->s, &tk->p_buffer[i_buffered], i_read);
         if (i_read <  0)
             continue;
         else if (i_read == 0)
@@ -208,7 +209,7 @@ static void AStreamPrebufferStream(stream_t *s)
         if (first)
         {
             msg_Dbg(s, "received first data after %"PRId64" ms",
-                    MS_FROM_VLC_TICK(vlc_tick_now() - start));
+                    MS_FROM_HEIMDALL_TICK(heimdall_tick_now() - start));
             first = false;
         }
 
@@ -277,7 +278,7 @@ static ssize_t AStreamReadStream(stream_t *s, void *buf, size_t len)
 
     if (tk->i_end + i_copy <= tk->i_start + sys->i_offset + len)
     {
-        const size_t i_read_requested = VLC_CLIP(len - i_copy,
+        const size_t i_read_requested = HEIMDALL_CLIP(len - i_copy,
                                                  STREAM_READ_ATONCE / 2,
                                                  STREAM_READ_ATONCE * 10);
         if (sys->i_used < i_read_requested)
@@ -305,15 +306,15 @@ static int AStreamSeekStream(stream_t *s, uint64_t i_pos)
 #endif
 
     bool   b_aseek;
-    vlc_stream_Control(s->s, STREAM_CAN_SEEK, &b_aseek);
+    heimdall_stream_Control(s->s, STREAM_CAN_SEEK, &b_aseek);
     if (!b_aseek && i_pos < p_current->i_start)
     {
         msg_Warn(s, "AStreamSeekStream: can't seek");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     bool   b_afastseek;
-    vlc_stream_Control(s->s, STREAM_CAN_FASTSEEK, &b_afastseek);
+    heimdall_stream_Control(s->s, STREAM_CAN_FASTSEEK, &b_afastseek);
 
     /* FIXME compute seek cost (instead of static 'stupid' value) */
     uint64_t i_skip_threshold;
@@ -323,7 +324,7 @@ static int AStreamSeekStream(stream_t *s, uint64_t i_pos)
         i_skip_threshold = INT64_MAX;
 
     /* Date the current track */
-    p_current->date = vlc_tick_now();
+    p_current->date = heimdall_tick_now();
 
     /* Search a new track slot */
     stream_track_t *tk = NULL;
@@ -385,10 +386,10 @@ static int AStreamSeekStream(stream_t *s, uint64_t i_pos)
             /* Seek at the end of the buffer
              * TODO it is stupid to seek now, it would be better to delay it
              */
-            if (vlc_stream_Seek(s->s, tk->i_end))
+            if (heimdall_stream_Seek(s->s, tk->i_end))
             {
                 msg_Err(s, "AStreamSeekStream: hard seek failed");
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             }
         }
         else if (i_pos > tk->i_end)
@@ -401,9 +402,9 @@ static int AStreamSeekStream(stream_t *s, uint64_t i_pos)
                 if ((i_read = AStreamReadStream(s, NULL, i_read_max)) < 0)
                 {
                     msg_Err(s, "AStreamSeekStream: skip failed");
-                    return VLC_EGENERIC;
+                    return HEIMDALL_EGENERIC;
                 } else if (i_read == 0)
-                    return VLC_SUCCESS; /* EOF */
+                    return HEIMDALL_SUCCESS; /* EOF */
                 i_skip -= i_read_max;
             }
         }
@@ -414,10 +415,10 @@ static int AStreamSeekStream(stream_t *s, uint64_t i_pos)
         msg_Err(s, "AStreamSeekStream: hard seek");
 #endif
         /* Nothing good, seek and choose oldest segment */
-        if (vlc_stream_Seek(s->s, i_pos))
+        if (heimdall_stream_Seek(s->s, i_pos))
         {
             msg_Err(s, "AStreamSeekStream: hard seek failed");
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         tk->i_start = i_pos;
@@ -438,9 +439,9 @@ static int AStreamSeekStream(stream_t *s, uint64_t i_pos)
             sys->i_used = STREAM_READ_ATONCE / 2;
 
         if (AStreamRefillStream(s))
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /****************************************************************************
@@ -469,35 +470,35 @@ static int AStreamControl(stream_t *s, int i_query, va_list args)
         case STREAM_SET_PRIVATE_ID_CA:
         case STREAM_GET_PRIVATE_ID_STATE:
         case STREAM_GET_MTIME:
-            return vlc_stream_vaControl(s->s, i_query, args);
+            return heimdall_stream_vaControl(s->s, i_query, args);
 
         case STREAM_SET_TITLE:
         case STREAM_SET_SEEKPOINT:
         {
-            int ret = vlc_stream_vaControl(s->s, i_query, args);
-            if (ret == VLC_SUCCESS)
+            int ret = heimdall_stream_vaControl(s->s, i_query, args);
+            if (ret == HEIMDALL_SUCCESS)
                 AStreamControlReset(s);
             return ret;
         }
 
         case STREAM_SET_RECORD_STATE:
         default:
-            msg_Err(s, "invalid vlc_stream_vaControl query=0x%x", i_query);
-            return VLC_EGENERIC;
+            msg_Err(s, "invalid heimdall_stream_vaControl query=0x%x", i_query);
+            return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int Open(vlc_object_t *obj)
+static int Open(heimdall_object_t *obj)
 {
     stream_t *s = (stream_t *)obj;
 
     if (s->s->pf_read == NULL && s->s->pf_block == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     stream_sys_t *sys = malloc(sizeof (*sys));
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     /* Common field */
     sys->i_pos = 0;
@@ -516,7 +517,7 @@ static int Open(vlc_object_t *obj)
     if (sys->p_buffer == NULL)
     {
         free(sys);
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     sys->i_used   = 0;
@@ -542,19 +543,19 @@ static int Open(vlc_object_t *obj)
         msg_Err(s, "cannot pre fill buffer");
         free(sys->p_buffer);
         free(sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     s->pf_read = AStreamReadStream;
     s->pf_seek = AStreamSeekStream;
     s->pf_control = AStreamControl;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /****************************************************************************
  * AStreamDestroy:
  ****************************************************************************/
-static void Close(vlc_object_t *obj)
+static void Close(heimdall_object_t *obj)
 {
     stream_t *s = (stream_t *)obj;
     stream_sys_t *sys = s->p_sys;
@@ -563,11 +564,11 @@ static void Close(vlc_object_t *obj)
     free(sys);
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_subcategory(SUBCAT_INPUT_STREAM_FILTER)
     set_capability("stream_filter", 0)
     add_shortcut("cache")
 
     set_description(N_("Byte stream cache"))
     set_callbacks(Open, Close)
-vlc_module_end()
+heimdall_module_end()

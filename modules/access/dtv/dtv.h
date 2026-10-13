@@ -4,6 +4,7 @@
  */
 /*****************************************************************************
  * Copyright © 2011 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -20,8 +21,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_DTV_H
-# define VLC_DTV_H 1
+#ifndef HEIMDALL_DTV_H
+# define HEIMDALL_DTV_H 1
 # ifdef __cplusplus
 extern "C" {
 # endif
@@ -57,10 +58,10 @@ typedef enum {
 
 typedef struct dvb_device dvb_device_t;
 
-typedef int (* tuner_setup_t) (vlc_object_t *, dvb_device_t *, uint64_t freq);
+typedef int (* tuner_setup_t) (heimdall_object_t *, dvb_device_t *, uint64_t freq);
 tuner_setup_t dtv_get_delivery_tuner_setup( dtv_delivery_t );
 
-dvb_device_t *dvb_open (vlc_object_t *obj);
+dvb_device_t *dvb_open (heimdall_object_t *obj);
 void dvb_close (dvb_device_t *);
 ssize_t dvb_read (dvb_device_t *, void *, size_t, int);
 
@@ -97,10 +98,10 @@ typedef struct
 
 int dvb_fill_device_caps( dvb_device_t *, dvb_device_caps_t * );
 
-#define VLC_FEC(a,b)   (((a) << 16u) | (b))
-#define VLC_FEC_AUTO   0xFFFFFFFF
-#define VLC_GUARD(a,b) (((a) << 16u) | (b))
-#define VLC_GUARD_AUTO 0xFFFFFFFF
+#define HEIMDALL_FEC(a,b)   (((a) << 16u) | (b))
+#define HEIMDALL_FEC_AUTO   0xFFFFFFFF
+#define HEIMDALL_GUARD(a,b) (((a) << 16u) | (b))
+#define HEIMDALL_GUARD_AUTO 0xFFFFFFFF
 
 /* DVB-C */
 int dvb_set_dvbc (dvb_device_t *, uint32_t freq, const char *mod,

@@ -2,6 +2,7 @@
  * ForgedInitSegment.hpp
  *****************************************************************************
  * Copyright (C) 2015 - VideoLAN Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -23,8 +24,8 @@
 #include "../../adaptive/playlist/Segment.h"
 #include "CodecParameters.hpp"
 
-#include <vlc_es.h>
-#include <vlc_codecs.h>
+#include <heimdall_es.h>
+#include <heimdall_codecs.h>
 
 namespace smooth
 {
@@ -40,7 +41,7 @@ namespace smooth
         {
             public:
                 ForgedInitSegment(ICanonicalUrl *parent, const std::string &,
-                                  uint64_t, vlc_tick_t);
+                                  uint64_t, heimdall_tick_t);
                 virtual ~ForgedInitSegment();
                 SegmentChunk* toChunk(SharedResources *, size_t,
                                       BaseRepresentation *) override;

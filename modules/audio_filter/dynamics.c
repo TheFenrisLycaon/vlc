@@ -3,6 +3,7 @@
  *             limiter modules. Ported from plugins from LADSPA SWH.
  *****************************************************************************
  * Copyright (C) 2010 Ronald Wright
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Ronald Wright <logiconcepts819@gmail.com>
  * Original author: Steve Harris <steve@plugin.org.uk>
@@ -37,9 +38,9 @@
 #include <math.h>
 #include <stdint.h>
 
-#include <vlc_common.h>
-#include <vlc_aout.h>
-#include <vlc_filter.h>
+#include <heimdall_common.h>
+#include <heimdall_aout.h>
+#include <heimdall_filter.h>
 
 #include "dynamics.h"
 
@@ -96,7 +97,7 @@ struct filter_sys
     float pf_db_data[DB_TABLE_SIZE];
     float pf_lin_data[LIN_TABLE_SIZE];
 
-    vlc_mutex_t lock;
+    heimdall_mutex_t lock;
 
     float f_rms_peak;
     float f_attack;
@@ -108,7 +109,7 @@ struct filter_sys
 
     gain_fn_t   pf_gain;
     float       f_threshold_min;
-    const vlc_dynamics_varnames_t *p_varnames;
+    const heimdall_dynamics_varnames_t *p_varnames;
 };
 
 typedef union
@@ -200,7 +201,7 @@ static void DbInit( filter_sys_t * p_sys )
     }
 }
 
-float vlc_dynamics_Db2Lin( float f_db, filter_sys_t * p_sys )
+float heimdall_dynamics_Db2Lin( float f_db, filter_sys_t * p_sys )
 {
     float f_scale = ( f_db - DB_MIN ) * LIN_TABLE_SIZE / ( DB_MAX - DB_MIN );
     int i_base = Round( f_scale - 0.5f );
@@ -227,7 +228,7 @@ float vlc_dynamics_Db2Lin( float f_db, filter_sys_t * p_sys )
 #endif
 }
 
-float vlc_dynamics_Lin2Db( float f_lin, filter_sys_t * p_sys )
+float heimdall_dynamics_Lin2Db( float f_lin, filter_sys_t * p_sys )
 {
     float f_scale = ( f_lin - LIN_MIN ) * DB_TABLE_SIZE / ( LIN_MAX - LIN_MIN );
     int i_base = Round( f_scale - 0.5f );
@@ -316,7 +317,7 @@ static block_t * DoWork( filter_t * p_filter, block_t * p_in_buf )
     filter_sys_t *p_sys = p_filter->p_sys;
 
     /* Fetch the configurable parameters */
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
 
     float f_rms_peak    = p_sys->f_rms_peak;     /* RMS/peak */
     float f_attack      = p_sys->f_attack;       /* Attack time (ms) */
@@ -326,7 +327,7 @@ static block_t * DoWork( filter_t * p_filter, block_t * p_in_buf )
     float f_knee        = p_sys->f_knee;         /* Knee radius (dB) */
     float f_makeup_gain = p_sys->f_makeup_gain;  /* Makeup gain (dB) */
 
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 
     /* Fetch the internal parameters */
     float f_amp      =  p_sys->f_amp;
@@ -345,9 +346,9 @@ static block_t * DoWork( filter_t * p_filter, block_t * p_in_buf )
                        pf_as[Round( f_attack  * 0.001f * ( A_TBL - 1 ) )];
     float f_gr       = pf_as[Round( f_release * 0.001f * ( A_TBL - 1 ) )];
     float f_rs       = ( f_ratio - 1.0f ) / f_ratio;
-    float f_mug      = vlc_dynamics_Db2Lin( f_makeup_gain, p_sys );
-    float f_knee_min = vlc_dynamics_Db2Lin( f_threshold - f_knee, p_sys );
-    float f_knee_max = vlc_dynamics_Db2Lin( f_threshold + f_knee, p_sys );
+    float f_mug      = heimdall_dynamics_Db2Lin( f_makeup_gain, p_sys );
+    float f_knee_min = heimdall_dynamics_Db2Lin( f_threshold - f_knee, p_sys );
+    float f_knee_max = heimdall_dynamics_Db2Lin( f_threshold + f_knee, p_sys );
     float f_ef_a     = f_ga * 0.25f;
     float f_ef_ai    = 1.0f - f_ef_a;
 
@@ -441,102 +442,102 @@ static block_t * DoWork( filter_t * p_filter, block_t * p_in_buf )
  * Callback functions
  *****************************************************************************/
 
-static int RMSPeakCallback( vlc_object_t *p_this, char const *psz_cmd,
-                            vlc_value_t oldval, vlc_value_t newval,
+static int RMSPeakCallback( heimdall_object_t *p_this, char const *psz_cmd,
+                            heimdall_value_t oldval, heimdall_value_t newval,
                             void *p_data )
 {
-    VLC_UNUSED(p_this); VLC_UNUSED(psz_cmd); VLC_UNUSED(oldval);
+    HEIMDALL_UNUSED(p_this); HEIMDALL_UNUSED(psz_cmd); HEIMDALL_UNUSED(oldval);
     filter_sys_t *p_sys = p_data;
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     p_sys->f_rms_peak = Clamp( newval.f_float, 0.0f, 1.0f );
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int AttackCallback( vlc_object_t *p_this, char const *psz_cmd,
-                           vlc_value_t oldval, vlc_value_t newval,
+static int AttackCallback( heimdall_object_t *p_this, char const *psz_cmd,
+                           heimdall_value_t oldval, heimdall_value_t newval,
                            void *p_data )
 {
-    VLC_UNUSED(p_this); VLC_UNUSED(psz_cmd); VLC_UNUSED(oldval);
+    HEIMDALL_UNUSED(p_this); HEIMDALL_UNUSED(psz_cmd); HEIMDALL_UNUSED(oldval);
     filter_sys_t *p_sys = p_data;
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     p_sys->f_attack = Clamp( newval.f_float, 1.5f, 400.0f );
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int ReleaseCallback( vlc_object_t *p_this, char const *psz_cmd,
-                            vlc_value_t oldval, vlc_value_t newval,
+static int ReleaseCallback( heimdall_object_t *p_this, char const *psz_cmd,
+                            heimdall_value_t oldval, heimdall_value_t newval,
                             void *p_data )
 {
-    VLC_UNUSED(p_this); VLC_UNUSED(psz_cmd); VLC_UNUSED(oldval);
+    HEIMDALL_UNUSED(p_this); HEIMDALL_UNUSED(psz_cmd); HEIMDALL_UNUSED(oldval);
     filter_sys_t *p_sys = p_data;
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     p_sys->f_release = Clamp( newval.f_float, 2.0f, 800.0f );
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int ThresholdCallback( vlc_object_t *p_this, char const *psz_cmd,
-                              vlc_value_t oldval, vlc_value_t newval,
+static int ThresholdCallback( heimdall_object_t *p_this, char const *psz_cmd,
+                              heimdall_value_t oldval, heimdall_value_t newval,
                               void *p_data )
 {
-    VLC_UNUSED(p_this); VLC_UNUSED(psz_cmd); VLC_UNUSED(oldval);
+    HEIMDALL_UNUSED(p_this); HEIMDALL_UNUSED(psz_cmd); HEIMDALL_UNUSED(oldval);
     filter_sys_t *p_sys = p_data;
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     p_sys->f_threshold = Clamp( newval.f_float, p_sys->f_threshold_min, 0.0f );
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int RatioCallback( vlc_object_t *p_this, char const *psz_cmd,
-                          vlc_value_t oldval, vlc_value_t newval,
+static int RatioCallback( heimdall_object_t *p_this, char const *psz_cmd,
+                          heimdall_value_t oldval, heimdall_value_t newval,
                           void *p_data )
 {
-    VLC_UNUSED(p_this); VLC_UNUSED(psz_cmd); VLC_UNUSED(oldval);
+    HEIMDALL_UNUSED(p_this); HEIMDALL_UNUSED(psz_cmd); HEIMDALL_UNUSED(oldval);
     filter_sys_t *p_sys = p_data;
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     p_sys->f_ratio = Clamp( newval.f_float, 1.0f, 20.0f );
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int KneeCallback( vlc_object_t *p_this, char const *psz_cmd,
-                         vlc_value_t oldval, vlc_value_t newval,
+static int KneeCallback( heimdall_object_t *p_this, char const *psz_cmd,
+                         heimdall_value_t oldval, heimdall_value_t newval,
                          void *p_data )
 {
-    VLC_UNUSED(p_this); VLC_UNUSED(psz_cmd); VLC_UNUSED(oldval);
+    HEIMDALL_UNUSED(p_this); HEIMDALL_UNUSED(psz_cmd); HEIMDALL_UNUSED(oldval);
     filter_sys_t *p_sys = p_data;
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     p_sys->f_knee = Clamp( newval.f_float, 1.0f, 10.0f );
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int MakeupGainCallback( vlc_object_t *p_this, char const *psz_cmd,
-                               vlc_value_t oldval, vlc_value_t newval,
+static int MakeupGainCallback( heimdall_object_t *p_this, char const *psz_cmd,
+                               heimdall_value_t oldval, heimdall_value_t newval,
                                void *p_data )
 {
-    VLC_UNUSED(p_this); VLC_UNUSED(psz_cmd); VLC_UNUSED(oldval);
+    HEIMDALL_UNUSED(p_this); HEIMDALL_UNUSED(psz_cmd); HEIMDALL_UNUSED(oldval);
     filter_sys_t *p_sys = p_data;
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     p_sys->f_makeup_gain = Clamp( newval.f_float, 0.0f, 24.0f );
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -545,9 +546,9 @@ static int MakeupGainCallback( vlc_object_t *p_this, char const *psz_cmd,
 
 static void Close( filter_t *p_filter )
 {
-    vlc_object_t *p_aout = vlc_object_parent(p_filter);
+    heimdall_object_t *p_aout = heimdall_object_parent(p_filter);
     filter_sys_t *p_sys = p_filter->p_sys;
-    const vlc_dynamics_varnames_t *p_varnames = p_sys->p_varnames;
+    const heimdall_dynamics_varnames_t *p_varnames = p_sys->p_varnames;
 
     var_DelCallback( p_aout, p_varnames->rms_peak,    RMSPeakCallback,    p_sys );
     var_DelCallback( p_aout, p_varnames->attack,      AttackCallback,     p_sys );
@@ -561,14 +562,14 @@ static void Close( filter_t *p_filter )
 }
 
 /*****************************************************************************
- * vlc_dynamics_OpenCommon: shared filter init
+ * heimdall_dynamics_OpenCommon: shared filter init
  *****************************************************************************/
 
-int vlc_dynamics_OpenCommon( filter_t *p_filter,
-                             const vlc_dynamics_varnames_t *p_varnames,
+int heimdall_dynamics_OpenCommon( filter_t *p_filter,
+                             const heimdall_dynamics_varnames_t *p_varnames,
                              gain_fn_t pf_gain, float f_threshold_min )
 {
-    vlc_object_t *p_aout = vlc_object_parent(p_filter);
+    heimdall_object_t *p_aout = heimdall_object_parent(p_filter);
     float f_sample_rate = p_filter->fmt_in.audio.i_rate;
     float f_num;
 
@@ -576,7 +577,7 @@ int vlc_dynamics_OpenCommon( filter_t *p_filter,
     filter_sys_t *p_sys = p_filter->p_sys = calloc( 1, sizeof(*p_sys) );
     if( !p_sys )
     {
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     p_sys->pf_gain         = pf_gain;
@@ -599,7 +600,7 @@ int vlc_dynamics_OpenCommon( filter_t *p_filter,
     DbInit( p_sys );
 
     /* Initialize the mutex */
-    vlc_mutex_init( &p_sys->lock );
+    heimdall_mutex_init( &p_sys->lock );
 
     /* Bind each configuration variable */
 #define BIND( field, name, cb ) \
@@ -616,15 +617,15 @@ int vlc_dynamics_OpenCommon( filter_t *p_filter,
 #undef BIND
 
     /* Set the filter function */
-    p_filter->fmt_in.audio.i_format = VLC_CODEC_FL32;
+    p_filter->fmt_in.audio.i_format = HEIMDALL_CODEC_FL32;
     aout_FormatPrepare(&p_filter->fmt_in.audio);
     p_filter->fmt_out.audio = p_filter->fmt_in.audio;
 
-    static const struct vlc_filter_operations filter_ops =
+    static const struct heimdall_filter_operations filter_ops =
     {
         .filter_audio = DoWork, .close = Close,
     };
     p_filter->ops = &filter_ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

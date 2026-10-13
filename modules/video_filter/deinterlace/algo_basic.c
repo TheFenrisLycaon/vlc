@@ -1,7 +1,8 @@
 /*****************************************************************************
- * algo_basic.c : Basic algorithms for the VLC deinterlacer
+ * algo_basic.c : Basic algorithms for the Heimdall deinterlacer
  *****************************************************************************
  * Copyright (C) 2000-2011 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Sam Hocevar <sam@zoy.org>
  *         Damien Lucas <nitrox@videolan.org>  (Bob, Blend)
@@ -29,9 +30,9 @@
 #include <stdint.h>
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_picture.h>
-#include <vlc_filter.h>
+#include <heimdall_common.h>
+#include <heimdall_picture.h>
+#include <heimdall_filter.h>
 
 #include "merge.h"
 #include "deinterlace.h" /* definition of p_sys, needed for Merge() */
@@ -44,7 +45,7 @@
 
 int RenderDiscard( filter_t *p_filter, picture_t *p_outpic, picture_t *p_pic )
 {
-    VLC_UNUSED(p_filter);
+    HEIMDALL_UNUSED(p_filter);
     int i_plane;
 
     /* Copy image and skip lines */
@@ -66,7 +67,7 @@ int RenderDiscard( filter_t *p_filter, picture_t *p_outpic, picture_t *p_pic )
             p_in += 2 * p_pic->p[i_plane].i_pitch;
         }
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -76,8 +77,8 @@ int RenderDiscard( filter_t *p_filter, picture_t *p_outpic, picture_t *p_pic )
 int RenderBob( filter_t *p_filter, picture_t *p_outpic, picture_t *p_pic,
                int order, int i_field )
 {
-    VLC_UNUSED(p_filter);
-    VLC_UNUSED(order);
+    HEIMDALL_UNUSED(p_filter);
+    HEIMDALL_UNUSED(order);
     int i_plane;
 
     /* Copy image and skip lines */
@@ -122,7 +123,7 @@ int RenderBob( filter_t *p_filter, picture_t *p_outpic, picture_t *p_pic,
             memcpy( p_out, p_in, p_pic->p[i_plane].i_pitch );
         }
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -132,7 +133,7 @@ int RenderBob( filter_t *p_filter, picture_t *p_outpic, picture_t *p_pic,
 int RenderLinear( filter_t *p_filter,
                   picture_t *p_outpic, picture_t *p_pic, int order, int i_field )
 {
-    VLC_UNUSED(order);
+    HEIMDALL_UNUSED(order);
     int i_plane;
 
     filter_sys_t *p_sys = p_filter->p_sys;
@@ -180,7 +181,7 @@ int RenderLinear( filter_t *p_filter,
             memcpy( p_out, p_in, p_pic->p[i_plane].i_pitch );
         }
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -214,7 +215,7 @@ int RenderMean( filter_t *p_filter, picture_t *p_outpic, picture_t *p_pic )
             p_in += 2 * p_pic->p[i_plane].i_pitch;
         }
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -252,5 +253,5 @@ int RenderBlend( filter_t *p_filter, picture_t *p_outpic, picture_t *p_pic )
             p_in  += p_pic->p[i_plane].i_pitch;
         }
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

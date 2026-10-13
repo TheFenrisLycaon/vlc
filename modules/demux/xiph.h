@@ -2,8 +2,9 @@
  * xiph.h: Xiph helpers
  *****************************************************************************
  * Copyright (C) 2010 Laurent Aimar
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Laurent Aimar <fenrir _AT_ videolan _DOT_ org>
+ * Authors: Laurent Aimar <fenrir _AT_ lycaria _DOT_ org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -26,13 +27,13 @@
 
 /* Temp ffmpeg vorbis format */
 static inline bool xiph_IsLavcFormat(const void *extra, size_t i_extra,
-                                     vlc_fourcc_t i_codec)
+                                     heimdall_fourcc_t i_codec)
 {
     switch(i_codec)
     {
-        case VLC_CODEC_VORBIS:
+        case HEIMDALL_CODEC_VORBIS:
             return i_extra >= 6 && GetWBE(extra) == 30;
-        case VLC_CODEC_THEORA:
+        case HEIMDALL_CODEC_THEORA:
             return i_extra >= 6 && GetWBE(extra) == 42;
         default:
             return false;
@@ -68,7 +69,7 @@ static inline unsigned xiph_CountHeaders(const void *p_extra, size_t i_extra)
 }
 
 static inline unsigned xiph_CountUnknownHeaders(const void *p_extra, unsigned i_extra,
-                                                vlc_fourcc_t i_codec)
+                                                heimdall_fourcc_t i_codec)
 {
     if (xiph_IsLavcFormat(p_extra, i_extra, i_codec))
         return xiph_CountLavcHeaders(p_extra, i_extra);
@@ -83,11 +84,11 @@ static inline int xiph_SplitLavcHeaders(size_t packet_size[],
     const uint8_t *current = (const uint8_t *)p_extra;
     const uint8_t *end = &current[i_extra];
     if (i_extra < 2)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     /* Parse the packet count and their sizes */
     const unsigned count = xiph_CountLavcHeaders(current, i_extra);
     if(count == 0)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     if (packet_count)
         *packet_count = count;
     /* count is trusted here (xiph_CountHeaders) */
@@ -96,11 +97,11 @@ static inline int xiph_SplitLavcHeaders(size_t packet_size[],
         /* each payload is prefixed by word size */
         packet_size[i] = GetWBE(current);
         if(&current[2U + packet_size[i]] > end)
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         packet[i] = current + 2;
         current += packet_size[i] + 2;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static inline int xiph_SplitHeaders(size_t packet_size[],
@@ -110,12 +111,12 @@ static inline int xiph_SplitHeaders(size_t packet_size[],
     const uint8_t *current = (const uint8_t *)p_extra;
     const uint8_t *end = &current[i_extra];
     if (i_extra < 1)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* Parse the packet count and their sizes */
     const unsigned count = xiph_CountHeaders(current, i_extra);
     if(count == 0)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if (packet_count)
         *packet_count = count;
@@ -134,17 +135,17 @@ static inline int xiph_SplitHeaders(size_t packet_size[],
         packet_size[i] = 0;
         for (;;) {
             if (current >= end)
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             packet_size[i] += *current;
             if (*current++ != 255)
                 break;
         }
         if(UINT_MAX - total_payload_minus_last < packet_size[i])
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         total_payload_minus_last += packet_size[i];
     }
     if(current + total_payload_minus_last > end)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     /* set pointers for N-1 packets */
     for (unsigned i = 0; i < count - 1; i++)
     {
@@ -155,7 +156,7 @@ static inline int xiph_SplitHeaders(size_t packet_size[],
     packet_size[count - 1] = end - current;
     packet[count - 1] = current;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static inline int xiph_PackHeaders(size_t *extra_size, void **extra,
@@ -164,7 +165,7 @@ static inline int xiph_PackHeaders(size_t *extra_size, void **extra,
                                    size_t packet_count)
 {
     if (packet_count <= 0 || packet_count > XIPH_MAX_HEADER_COUNT)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* Compute the size needed for the whole extra data */
     size_t payload_size = 0;
@@ -179,7 +180,7 @@ static inline int xiph_PackHeaders(size_t *extra_size, void **extra,
     *extra_size = header_size + payload_size;
     *extra = malloc(*extra_size);
     if (*extra == NULL)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     /* Write the header */
     uint8_t *current = (uint8_t*)*extra;
@@ -205,7 +206,7 @@ static inline int xiph_PackHeaders(size_t *extra_size, void **extra,
         }
     }
     assert(current == (uint8_t*)*extra + *extra_size);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static inline int xiph_AppendHeaders(size_t *extra_size, void **extra,
@@ -217,12 +218,12 @@ static inline int xiph_AppendHeaders(size_t *extra_size, void **extra,
 
     if (*extra_size > 0 && *extra) {
         if (xiph_SplitHeaders(packet_size, packet, &count, *extra_size, *extra))
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     } else {
         count = 0;
     }
     if (count >= XIPH_MAX_HEADER_COUNT)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     void *old = *extra;
 
@@ -237,6 +238,6 @@ static inline int xiph_AppendHeaders(size_t *extra_size, void **extra,
     free(old);
 
     if (*extra_size == 0)
-        return VLC_EGENERIC;
-    return VLC_SUCCESS;
+        return HEIMDALL_EGENERIC;
+    return HEIMDALL_SUCCESS;
 }

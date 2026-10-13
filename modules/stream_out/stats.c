@@ -2,8 +2,9 @@
  * delay.c: delay a stream
  *****************************************************************************
  * Copyright © 2014 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Ilkka Ollakka <ileoo at videolan dot org>
+ * Authors: Ilkka Ollakka <ileoo at lycaria dot org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -27,14 +28,14 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_sout.h>
-#include <vlc_block.h>
-#include <vlc_strings.h>
-#include <vlc_hash.h>
-#include <vlc_fs.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_sout.h>
+#include <heimdall_block.h>
+#include <heimdall_strings.h>
+#include <heimdall_hash.h>
+#include <heimdall_fs.h>
 
 /*****************************************************************************
  * Local prototypes
@@ -51,8 +52,8 @@ typedef struct
     uint64_t segment_number;
     void *next_id;
     const char *type;
-    vlc_tick_t previous_dts,track_duration;
-    vlc_hash_md5_t hash;
+    heimdall_tick_t previous_dts,track_duration;
+    heimdall_hash_md5_t hash;
 } sout_stream_id_sys_t;
 
 static void *
@@ -83,9 +84,9 @@ Add( sout_stream_t *p_stream, const es_format_t *p_fmt, const char *es_id )
     }
     id->next_id = NULL;
     id->segment_number = 0;
-    id->previous_dts = VLC_TICK_INVALID;
+    id->previous_dts = HEIMDALL_TICK_INVALID;
     id->track_duration = 0;
-    vlc_hash_md5_Init( &id->hash );
+    heimdall_hash_md5_Init( &id->hash );
 
     msg_Dbg( p_stream, "%s: Adding track type:%s id:%d", p_sys->prefix, id->type, id->id);
     (void)es_id;
@@ -94,13 +95,13 @@ Add( sout_stream_t *p_stream, const es_format_t *p_fmt, const char *es_id )
 
 static void Del( sout_stream_t *p_stream, void *_id )
 {
-    char outputhash[VLC_HASH_MD5_DIGEST_HEX_SIZE];
+    char outputhash[HEIMDALL_HASH_MD5_DIGEST_HEX_SIZE];
     sout_stream_sys_t *p_sys = (sout_stream_sys_t *)p_stream->p_sys;
     sout_stream_id_sys_t *id = (sout_stream_id_sys_t *)_id;
 
-    vlc_hash_FinishHex( &id->hash, outputhash );
+    heimdall_hash_FinishHex( &id->hash, outputhash );
     unsigned int num,den;
-    vlc_ureduce( &num, &den, id->track_duration, id->segment_number, 0 );
+    heimdall_ureduce( &num, &den, id->track_duration, id->segment_number, 0 );
     msg_Dbg( p_stream, "%s: Removing track type:%s id:%d", p_sys->prefix, id->type, id->id );
     if( p_sys->output )
     {
@@ -117,22 +118,22 @@ static int Send( sout_stream_t *p_stream, void *_id, block_t *p_buffer )
 {
     sout_stream_sys_t *p_sys = (sout_stream_sys_t *)p_stream->p_sys;
     sout_stream_id_sys_t *id = (sout_stream_id_sys_t *)_id;
-    vlc_hash_md5_t hash;
+    heimdall_hash_md5_t hash;
 
     block_t *p_block = p_buffer;
     while ( p_block != NULL )
     {
-        char outputhash[VLC_HASH_MD5_DIGEST_HEX_SIZE];
-        vlc_hash_md5_Init( &hash );
-        vlc_hash_md5_Update( &hash, p_block->p_buffer, p_block->i_buffer );
-        vlc_hash_md5_Update( &id->hash, p_block->p_buffer, p_block->i_buffer );
-        vlc_hash_FinishHex( &hash, outputhash );
+        char outputhash[HEIMDALL_HASH_MD5_DIGEST_HEX_SIZE];
+        heimdall_hash_md5_Init( &hash );
+        heimdall_hash_md5_Update( &hash, p_block->p_buffer, p_block->i_buffer );
+        heimdall_hash_md5_Update( &id->hash, p_block->p_buffer, p_block->i_buffer );
+        heimdall_hash_FinishHex( &hash, outputhash );
 
         /* We could just set p_sys->output to stdout and remove user of msg_Dbg
          * if we don't need ability to output info to gui modules (like qt messages window
          */
-        vlc_tick_t dts_difference = VLC_TICK_INVALID;
-        if( likely( id->previous_dts != VLC_TICK_INVALID ) )
+        heimdall_tick_t dts_difference = HEIMDALL_TICK_INVALID;
+        if( likely( id->previous_dts != HEIMDALL_TICK_INVALID ) )
             dts_difference = p_block->i_dts - id->previous_dts;
 
         id->track_duration += p_block->i_length ? p_block->i_length : dts_difference;
@@ -152,10 +153,10 @@ static int Send( sout_stream_t *p_stream, void *_id, block_t *p_buffer )
         }
         p_block = p_block->p_next;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void SetPCR( sout_stream_t *stream, vlc_tick_t pcr )
+static void SetPCR( sout_stream_t *stream, heimdall_tick_t pcr )
 {
     /*
      * XXX: Don't trace the PCR for now as it wouldn't match the tracing scheme
@@ -180,7 +181,7 @@ static int Open(sout_stream_t *p_stream)
 
     p_sys = calloc( 1, sizeof( sout_stream_sys_t ) );
     if( !p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
 
     config_ChainParse( p_stream, SOUT_CFG_PREFIX, ppsz_sout_options,
@@ -191,13 +192,13 @@ static int Open(sout_stream_t *p_stream)
 
     if( outputFile )
     {
-        p_sys->output = vlc_fopen( outputFile, "wt" );
+        p_sys->output = heimdall_fopen( outputFile, "wt" );
         if( !p_sys->output )
         {
             msg_Err( p_stream, "Unable to open file '%s' for writing", outputFile );
             free( p_sys );
             free( outputFile );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         } else {
             fprintf( p_sys->output,"#prefix\ttrack\ttype\tsegment_number\tdts_difference\tlength\tmd5\n");
         }
@@ -206,14 +207,14 @@ static int Open(sout_stream_t *p_stream)
     p_sys->prefix = var_InheritString( p_stream, SOUT_CFG_PREFIX "prefix" );
 
     p_stream->p_sys     = p_sys;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int OutputSend(sout_stream_t *stream, void *id, block_t *block)
 {
     Send(stream, id, block);
     block_Release(block);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -237,16 +238,16 @@ static const struct sout_stream_operations output_ops = {
     .close = Close,
 };
 
-static int OutputOpen(vlc_object_t *obj)
+static int OutputOpen(heimdall_object_t *obj)
 {
     sout_stream_t *stream = (sout_stream_t *)obj;
 
     if (stream->p_next != NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     int val = Open(stream);
 
-    if (val == VLC_SUCCESS)
+    if (val == HEIMDALL_SUCCESS)
         stream->ops = &output_ops;
 
     return val;
@@ -288,16 +289,16 @@ static const struct sout_stream_operations filter_ops = {
     .close = Close,
 };
 
-static int FilterOpen(vlc_object_t *obj)
+static int FilterOpen(heimdall_object_t *obj)
 {
     sout_stream_t *stream = (sout_stream_t *)obj;
 
     if (stream->p_next == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     int val = Open(stream);
 
-    if (val == VLC_SUCCESS)
+    if (val == HEIMDALL_SUCCESS)
         stream->ops = &filter_ops;
 
     return val;
@@ -311,7 +312,7 @@ static int FilterOpen(vlc_object_t *obj)
     "Writes stats to file instead of stdout" )
 #define PREFIX_TEXT N_("Prefix to show on output line")
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname( N_("Stats"))
     set_description( N_("Writes statistic info about stream"))
     set_capability( "sout output", 0 )
@@ -324,4 +325,4 @@ vlc_module_begin()
     set_capability( "sout filter", 0 )
     add_shortcut( "stats" )
     set_callback( FilterOpen )
-vlc_module_end()
+heimdall_module_end()

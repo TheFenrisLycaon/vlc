@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,10 +22,10 @@ import QtQml.Models
 import QtQuick.Layouts
 
 
-import VLC.Player
-import VLC.Style
-import VLC.Widgets as Widgets
-import VLC.Util
+import Heimdall.Player
+import Heimdall.Style
+import Heimdall.Widgets as Widgets
+import Heimdall.Util
 
 GridView {
     id: root
@@ -37,7 +38,7 @@ GridView {
     currentIndex: -1
     highlightFollowsCurrentItem: false
 
-    cellWidth: VLCStyle.cover_small
+    cellWidth: HeimdallStyle.cover_small
     cellHeight: cellWidth
 
     boundsBehavior: Flickable.StopAtBounds
@@ -105,19 +106,19 @@ GridView {
         color: theme.bg.primary
 
         border.color: theme.border
-        border.width: VLCStyle.dp(2, VLCStyle.scale)
+        border.width: HeimdallStyle.dp(2, HeimdallStyle.scale)
         border.pixelAligned: (radius < Number.EPSILON)
 
         Text {
             anchors.centerIn: parent
 
-            text: VLCIcons.del
+            text: HeimdallIcons.del
             verticalAlignment: Text.AlignVCenter
             horizontalAlignment: Text.AlignHCenter
 
-            font.pointSize: VLCStyle.fontHeight_xxxlarge
+            font.pointSize: HeimdallStyle.fontHeight_xxxlarge
 
-            font.family: VLCIcons.fontFamily
+            font.family: HeimdallIcons.fontFamily
             color: theme.fg.secondary
         }
 
@@ -176,8 +177,8 @@ GridView {
 
         onPressed: (mouse) => {
             const pos = mapToItem(buttonDragItem.parent, mouseX, mouseY)
-            buttonDragItem.y = pos.y + VLCStyle.dragDelta
-            buttonDragItem.x = pos.x + VLCStyle.dragDelta
+            buttonDragItem.y = pos.y + HeimdallStyle.dragDelta
+            buttonDragItem.x = pos.x + HeimdallStyle.dragDelta
         }
 
         Rectangle {
@@ -188,7 +189,7 @@ GridView {
 
             color: "transparent"
 
-            border.width: VLCStyle.dp(1, VLCStyle.scale)
+            border.width: HeimdallStyle.dp(1, HeimdallStyle.scale)
             border.color: containsMouse && !buttonDragItem.Drag.active ? colorContext.border
                                                                        : "transparent"
             border.pixelAligned: (radius < Number.EPSILON)
@@ -198,8 +199,8 @@ GridView {
                 anchors.margins: 10
 
                 EditorDummyButton {
-                    Layout.preferredWidth: VLCStyle.icon_medium
-                    Layout.preferredHeight: VLCStyle.icon_medium
+                    Layout.preferredWidth: HeimdallStyle.icon_medium
+                    Layout.preferredHeight: HeimdallStyle.icon_medium
                     Layout.alignment: Qt.AlignHCenter
 
                     color: colorContext.fg.primary

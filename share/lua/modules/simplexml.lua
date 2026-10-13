@@ -2,8 +2,9 @@
  simplexml.lua: Lua simple xml parser wrapper
 --[==========================================================================[
  Copyright (C) 2010 Antoine Cellerier
+ Copyright (C) 2026 TheFenrisLycaon
 
- Authors: Antoine Cellerier <dionoea at videolan dot org>
+ Authors: Antoine Cellerier <dionoea at lycaria dot org>
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -30,7 +31,7 @@ local simplexml = {}
 
 local function parsexml(stream, errormsg)
     if not stream then return nil, errormsg end
-    local xml = vlc.xml()
+    local xml = heimdall.xml()
     local reader = xml:create_reader(stream)
 
     local tree
@@ -86,7 +87,7 @@ local function parsexml(stream, errormsg)
 end
 
 function simplexml.parse_url(url)
-    return parsexml(vlc.stream(url))
+    return parsexml(heimdall.stream(url))
 end
 
 function simplexml.parse_stream(stream)
@@ -94,7 +95,7 @@ function simplexml.parse_stream(stream)
 end
 
 function simplexml.parse_string(str)
-    return parsexml(vlc.memory_stream(str))
+    return parsexml(heimdall.memory_stream(str))
 end
 
 function simplexml.add_name_maps(tree)

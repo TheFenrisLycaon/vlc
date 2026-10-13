@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2024 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,6 +22,6 @@
 #include "csdmenu_module.h"
 
 int WaylandCSDMenuOpen(qt_csd_menu_t* obj, qt_csd_menu_info* info);
-void WaylandCSDMenuClose(vlc_object_t* obj);
+void WaylandCSDMenuClose(heimdall_object_t* obj);
 
 #endif // CSDMENU_WAYLAND_HPP

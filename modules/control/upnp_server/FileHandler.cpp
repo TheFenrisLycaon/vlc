@@ -2,6 +2,7 @@
  * FileHandler.cpp
  *****************************************************************************
  * Copyright © 2024 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Alaric Senat <alaric@videolabs.io>
  *
@@ -26,17 +27,17 @@
 #include <ctime>
 #include <sstream>
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
-#include <vlc_addons.h>
-#include <vlc_cxx_helpers.hpp>
-#include <vlc_fourcc.h>
-#include <vlc_interface.h>
-#include <vlc_player.h>
-#include <vlc_rand.h>
-#include <vlc_stream.h>
-#include <vlc_stream_extractor.h>
-#include <vlc_url.h>
+#include <heimdall_addons.h>
+#include <heimdall_cxx_helpers.hpp>
+#include <heimdall_fourcc.h>
+#include <heimdall_interface.h>
+#include <heimdall_player.h>
+#include <heimdall_rand.h>
+#include <heimdall_stream.h>
+#include <heimdall_stream_extractor.h>
+#include <heimdall_url.h>
 
 #include "FileHandler.hpp"
 #include "ml.hpp"
@@ -46,7 +47,7 @@
 static constexpr char DLNA_CONTENT_FEATURE[] = "contentfeatures.dlna.org";
 // static constexpr char DLNA_TIME_SEEK_RANGE[] = "timeseekrange.dlna.org";
 
-/// Convenient C++ replacement of vlc_ml_file_t to not have to deal with allocations
+/// Convenient C++ replacement of heimdall_ml_file_t to not have to deal with allocations
 struct MLFile
 {
     std::string mrl;
@@ -62,7 +63,7 @@ class MLFileHandler : public FileHandler
     MLFile file;
     utils::MimeType mime_type;
 
-    std::unique_ptr<stream_t, decltype(&vlc_stream_Delete)> stream = {nullptr, &vlc_stream_Delete};
+    std::unique_ptr<stream_t, decltype(&heimdall_stream_Delete)> stream = {nullptr, &heimdall_stream_Delete};
 
     MLFileHandler(MLFile &&file, utils::MimeType &&mime_type) :
         file(std::move(file)),
@@ -83,15 +84,15 @@ class MLFileHandler : public FileHandler
         return true;
     }
 
-    bool open(vlc_object_t *parent) final
+    bool open(heimdall_object_t *parent) final
     {
-        stream = vlc::wrap_cptr(vlc_stream_NewMRL(parent, file.mrl.c_str()), &vlc_stream_Delete);
+        stream = heimdall::wrap_cptr(heimdall_stream_NewMRL(parent, file.mrl.c_str()), &heimdall_stream_Delete);
         return stream != nullptr;
     }
 
     size_t read(uint8_t buffer[], size_t buffer_len) noexcept final
     {
-        return vlc_stream_Read(stream.get(), buffer, buffer_len);
+        return heimdall_stream_Read(stream.get(), buffer, buffer_len);
     }
 
     bool seek(SeekType type, off_t offset) noexcept final
@@ -100,10 +101,10 @@ class MLFileHandler : public FileHandler
         switch (type)
         {
             case SeekType::Current:
-                real_offset = vlc_stream_Tell(stream.get()) + offset;
+                real_offset = heimdall_stream_Tell(stream.get()) + offset;
                 break;
             case SeekType::End:
-                if (vlc_stream_GetSize(stream.get(), &real_offset) != VLC_SUCCESS)
+                if (heimdall_stream_GetSize(stream.get(), &real_offset) != HEIMDALL_SUCCESS)
                 {
                     return false;
                 }
@@ -116,7 +117,7 @@ class MLFileHandler : public FileHandler
                 return false;
         }
 
-        return vlc_stream_Seek(stream.get(), real_offset) == 0;
+        return heimdall_stream_Seek(stream.get(), real_offset) == 0;
     }
 };
 
@@ -163,12 +164,12 @@ static std::unique_ptr<FileHandler> parse_media_url(std::stringstream &ss,
         return nullptr;
     }
 
-    const auto main_files = utils::get_media_files(*media, VLC_ML_FILE_TYPE_MAIN);
+    const auto main_files = utils::get_media_files(*media, HEIMDALL_ML_FILE_TYPE_MAIN);
     if (main_files.empty())
     {
         return nullptr;
     }
-    const vlc_ml_file_t &main_file = main_files.front();
+    const heimdall_ml_file_t &main_file = main_files.front();
 
     auto mime_type = utils::get_mimetype(media->i_type, extension);
     auto ret = std::make_unique<MLFileHandler>(
@@ -182,11 +183,11 @@ static std::unique_ptr<FileHandler> parse_thumbnail_url(std::stringstream &ss,
 {
     std::string token;
     std::getline(ss, token, '/');
-    vlc_ml_thumbnail_size_t size;
+    heimdall_ml_thumbnail_size_t size;
     if (token == "small")
-        size = VLC_ML_THUMBNAIL_SMALL;
+        size = HEIMDALL_ML_THUMBNAIL_SMALL;
     else if (token == "banner")
-        size = VLC_ML_THUMBNAIL_BANNER;
+        size = HEIMDALL_ML_THUMBNAIL_BANNER;
     else
         return nullptr;
 
@@ -197,14 +198,14 @@ static std::unique_ptr<FileHandler> parse_thumbnail_url(std::stringstream &ss,
     {
         std::getline(ss, token);
         const auto media = get_ml_object<ml::Media>(token, extension, ml);
-        if (media && media->thumbnails[size].i_status == VLC_ML_THUMBNAIL_STATUS_AVAILABLE)
+        if (media && media->thumbnails[size].i_status == HEIMDALL_ML_THUMBNAIL_STATUS_AVAILABLE)
             mrl = media->thumbnails[size].psz_mrl;
     }
     else if (token == "album")
     {
         std::getline(ss, token);
         const auto album = get_ml_object<ml::Album>(token, extension, ml);
-        if (album && album->thumbnails[size].i_status == VLC_ML_THUMBNAIL_STATUS_AVAILABLE)
+        if (album && album->thumbnails[size].i_status == HEIMDALL_ML_THUMBNAIL_STATUS_AVAILABLE)
             mrl = album->thumbnails[size].psz_mrl;
     }
 
@@ -230,13 +231,13 @@ static std::unique_ptr<FileHandler> parse_subtitle_url(std::stringstream &ss,
         return nullptr;
     }
 
-    const auto subtitles = utils::get_media_files(*media, VLC_ML_FILE_TYPE_SUBTITLE);
+    const auto subtitles = utils::get_media_files(*media, HEIMDALL_ML_FILE_TYPE_SUBTITLE);
     if (subtitles.empty())
     {
         return nullptr;
     }
 
-    const vlc_ml_file_t &sub = subtitles.front();
+    const heimdall_ml_file_t &sub = subtitles.front();
     return std::make_unique<MLFileHandler>(
         MLFile{sub.psz_mrl, sub.i_size, sub.i_last_modification_date},
         utils::MimeType{"text", extension});

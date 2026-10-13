@@ -2,6 +2,7 @@
  * utils.c: shared code between Android vout modules.
  *****************************************************************************
  * Copyright (C) 2014-2015 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Felix Abecassis <felix.abecassis@gmail.com>
  *          Thomas Guillem <thomas@gllm.fr>
@@ -27,7 +28,7 @@
 
 #include "utils.h"
 #include "env.h"
-#include <vlc_threads.h>
+#include <heimdall_threads.h>
 
 #include <dlfcn.h>
 #include <jni.h>
@@ -55,8 +56,8 @@ typedef void (*ptr_ASurfaceTexture_release)(ASurfaceTexture *st);
 /*
  * Android SurfaceTexture handle
  */
-struct vlc_asurfacetexture_priv {
-    struct vlc_asurfacetexture surface;
+struct heimdall_asurfacetexture_priv {
+    struct heimdall_asurfacetexture surface;
 
     /* Underlying SurfaceTexture objects  (JNI and NDK)*/
     jobject         jtexture;
@@ -83,7 +84,7 @@ struct ASurfaceTextureAPI
     ptr_ANativeWindow_toSurface pf_anwToSurface;
 };
 
-struct vlc_android_jfields
+struct heimdall_android_jfields
 {
     struct {
         jclass clazz;
@@ -115,9 +116,9 @@ struct AWindowHandler
 {
     JavaVM *p_jvm;
     jobject jobj;
-    vlc_window_t *wnd;
+    heimdall_window_t *wnd;
 
-    struct vlc_android_jfields jfields;
+    struct heimdall_android_jfields jfields;
 
     struct {
         jobject jsurface;
@@ -157,47 +158,47 @@ struct AWindowHandler
 
 static int
 NDKSurfaceTexture_attachToGLContext(
-        struct vlc_asurfacetexture *surface,
+        struct heimdall_asurfacetexture *surface,
         uint32_t texName)
 {
-    struct vlc_asurfacetexture_priv *handle =
-        container_of(surface, struct vlc_asurfacetexture_priv, surface);
+    struct heimdall_asurfacetexture_priv *handle =
+        container_of(surface, struct heimdall_asurfacetexture_priv, surface);
     return handle->awh->ndk_ast_api.pf_attachToGL(handle->texture, texName);
 }
 
 static void
 NDKSurfaceTexture_detachFromGLContext(
-        struct vlc_asurfacetexture *surface)
+        struct heimdall_asurfacetexture *surface)
 {
-    struct vlc_asurfacetexture_priv *handle =
-        container_of(surface, struct vlc_asurfacetexture_priv, surface);
+    struct heimdall_asurfacetexture_priv *handle =
+        container_of(surface, struct heimdall_asurfacetexture_priv, surface);
     handle->awh->ndk_ast_api.pf_detachFromGL(handle->texture);
 }
 
 static int
 NDKSurfaceTexture_updateTexImage(
-        struct vlc_asurfacetexture *surface,
+        struct heimdall_asurfacetexture *surface,
         const float **pp_transform_mtx)
 {
-    struct vlc_asurfacetexture_priv *handle =
-        container_of(surface, struct vlc_asurfacetexture_priv, surface);
+    struct heimdall_asurfacetexture_priv *handle =
+        container_of(surface, struct heimdall_asurfacetexture_priv, surface);
 
     /* ASurfaceTexture_updateTexImage can fail, for example if calling it
      * before having produced a new image. */
     if (handle->awh->ndk_ast_api.pf_updateTexImage(handle->texture))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     handle->awh->ndk_ast_api.pf_getTransMatrix(handle->texture,
                                                handle->awh->ndk_ast_api.transMat);
     *pp_transform_mtx = handle->awh->ndk_ast_api.transMat;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void NDKSurfaceTexture_destroy(
-        struct vlc_asurfacetexture *surface)
+        struct heimdall_asurfacetexture *surface)
 {
-    struct vlc_asurfacetexture_priv *handle =
-        container_of(surface, struct vlc_asurfacetexture_priv, surface);
+    struct heimdall_asurfacetexture_priv *handle =
+        container_of(surface, struct heimdall_asurfacetexture_priv, surface);
 
     JNIEnv *p_env = android_getEnvCommon(NULL, handle->awh->p_jvm, "SurfaceTexture");
     if (!p_env)
@@ -219,9 +220,9 @@ static void NDKSurfaceTexture_destroy(
 }
 
 static void
-JNISurfaceTexture_releaseTexImage(struct vlc_asurfacetexture *surface);
+JNISurfaceTexture_releaseTexImage(struct heimdall_asurfacetexture *surface);
 
-static const struct vlc_asurfacetexture_operations NDKSurfaceAPI =
+static const struct heimdall_asurfacetexture_operations NDKSurfaceAPI =
 {
     .attach_to_gl_context = NDKSurfaceTexture_attachToGLContext,
     .update_tex_image = NDKSurfaceTexture_updateTexImage,
@@ -232,29 +233,29 @@ static const struct vlc_asurfacetexture_operations NDKSurfaceAPI =
 
 static int
 JNISurfaceTexture_attachToGLContext(
-        struct vlc_asurfacetexture *surface,
+        struct heimdall_asurfacetexture *surface,
         uint32_t tex_name)
 {
-    struct vlc_asurfacetexture_priv *handle =
-        container_of(surface, struct vlc_asurfacetexture_priv, surface);
+    struct heimdall_asurfacetexture_priv *handle =
+        container_of(surface, struct heimdall_asurfacetexture_priv, surface);
 
     JNIEnv *p_env = android_getEnvCommon(NULL, handle->awh->p_jvm, "SurfaceTexture");
     if (!p_env)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     (*p_env)->CallVoidMethod(p_env, handle->jtexture,
                              handle->awh->jfields.SurfaceTexture.attachToGLContext,
                              tex_name);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void
 JNISurfaceTexture_detachFromGLContext(
-        struct vlc_asurfacetexture *surface)
+        struct heimdall_asurfacetexture *surface)
 {
-    struct vlc_asurfacetexture_priv *handle =
-        container_of(surface, struct vlc_asurfacetexture_priv, surface);
+    struct heimdall_asurfacetexture_priv *handle =
+        container_of(surface, struct heimdall_asurfacetexture_priv, surface);
 
     AWindowHandler *p_awh = handle->awh;
     JNIEnv *p_env = android_getEnvCommon(NULL, p_awh->p_jvm, "SurfaceTexture");
@@ -275,16 +276,16 @@ JNISurfaceTexture_detachFromGLContext(
 
 static int
 JNISurfaceTexture_updateTexImage(
-        struct vlc_asurfacetexture *surface,
+        struct heimdall_asurfacetexture *surface,
         const float **pp_transform_mtx)
 {
-    struct vlc_asurfacetexture_priv *handle =
-        container_of(surface, struct vlc_asurfacetexture_priv, surface);
+    struct heimdall_asurfacetexture_priv *handle =
+        container_of(surface, struct heimdall_asurfacetexture_priv, surface);
 
     AWindowHandler *p_awh = handle->awh;
     JNIEnv *p_env = android_getEnvCommon(NULL, p_awh->p_jvm, "SurfaceTexture");
     if (!p_env)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if (handle->awh->stex.jtransform_mtx != NULL)
         (*p_env)->ReleaseFloatArrayElements(p_env, handle->awh->stex.jtransform_mtx_array,
@@ -301,15 +302,15 @@ JNISurfaceTexture_updateTexImage(
                                         handle->awh->stex.jtransform_mtx_array, NULL);
 
     *pp_transform_mtx = handle->awh->stex.jtransform_mtx;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void
 JNISurfaceTexture_releaseTexImage(
-        struct vlc_asurfacetexture *surface)
+        struct heimdall_asurfacetexture *surface)
 {
-    struct vlc_asurfacetexture_priv *handle =
-        container_of(surface, struct vlc_asurfacetexture_priv, surface);
+    struct heimdall_asurfacetexture_priv *handle =
+        container_of(surface, struct heimdall_asurfacetexture_priv, surface);
 
     JNIEnv *p_env = android_getEnvCommon(NULL, handle->awh->p_jvm, "SurfaceTexture");
     if (!p_env)
@@ -320,10 +321,10 @@ JNISurfaceTexture_releaseTexImage(
 }
 
 static void JNISurfaceTexture_destroy(
-        struct vlc_asurfacetexture *surface)
+        struct heimdall_asurfacetexture *surface)
 {
-    struct vlc_asurfacetexture_priv *handle =
-        container_of(surface, struct vlc_asurfacetexture_priv, surface);
+    struct heimdall_asurfacetexture_priv *handle =
+        container_of(surface, struct heimdall_asurfacetexture_priv, surface);
 
     JNIEnv *p_env = android_getEnvCommon(NULL, handle->awh->p_jvm, "SurfaceTexture");
     if (!p_env)
@@ -340,7 +341,7 @@ static void JNISurfaceTexture_destroy(
     free(handle);
 }
 
-static const struct vlc_asurfacetexture_operations JNISurfaceAPI =
+static const struct heimdall_asurfacetexture_operations JNISurfaceAPI =
 {
     .attach_to_gl_context = JNISurfaceTexture_attachToGLContext,
     .update_tex_image = JNISurfaceTexture_updateTexImage,
@@ -354,37 +355,37 @@ LoadNDKSurfaceTextureAPI(AWindowHandler *p_awh, void *p_library)
 {
     p_awh->ndk_ast_api.pf_astFromst = (ptr_ASurfaceTexture_fromSurfaceTexture)
         dlsym(p_library, "ASurfaceTexture_fromSurfaceTexture");
-    if (p_awh->ndk_ast_api.pf_astFromst == NULL) return VLC_EGENERIC;
+    if (p_awh->ndk_ast_api.pf_astFromst == NULL) return HEIMDALL_EGENERIC;
 
     p_awh->ndk_ast_api.pf_updateTexImage = (ptr_ASurfaceTexture_updateTexImage)
         dlsym(p_library, "ASurfaceTexture_updateTexImage");
-    if (p_awh->ndk_ast_api.pf_updateTexImage == NULL) return VLC_EGENERIC;
+    if (p_awh->ndk_ast_api.pf_updateTexImage == NULL) return HEIMDALL_EGENERIC;
 
     p_awh->ndk_ast_api.pf_attachToGL = (ptr_ASurfaceTexture_attachToGLContext)
         dlsym(p_library, "ASurfaceTexture_attachToGLContext");
-    if (p_awh->ndk_ast_api.pf_attachToGL == NULL) return VLC_EGENERIC;
+    if (p_awh->ndk_ast_api.pf_attachToGL == NULL) return HEIMDALL_EGENERIC;
 
     p_awh->ndk_ast_api.pf_detachFromGL = (ptr_ASurfaceTexture_detachFromGLContext)
         dlsym(p_library, "ASurfaceTexture_detachFromGLContext");
-    if (p_awh->ndk_ast_api.pf_detachFromGL == NULL) return VLC_EGENERIC;
+    if (p_awh->ndk_ast_api.pf_detachFromGL == NULL) return HEIMDALL_EGENERIC;
 
     p_awh->ndk_ast_api.pf_getTransMatrix = (ptr_ASurfaceTexture_getTransformMatrix)
         dlsym(p_library, "ASurfaceTexture_getTransformMatrix");
-    if (p_awh->ndk_ast_api.pf_getTransMatrix == NULL) return VLC_EGENERIC;
+    if (p_awh->ndk_ast_api.pf_getTransMatrix == NULL) return HEIMDALL_EGENERIC;
 
     p_awh->ndk_ast_api.pf_releaseAst = (ptr_ASurfaceTexture_release)
         dlsym(p_library, "ASurfaceTexture_release");
-    if (p_awh->ndk_ast_api.pf_releaseAst == NULL) return VLC_EGENERIC;
+    if (p_awh->ndk_ast_api.pf_releaseAst == NULL) return HEIMDALL_EGENERIC;
 
     p_awh->ndk_ast_api.pf_acquireAnw = (ptr_ASurfaceTexture_acquireANativeWindow)
         dlsym(p_library, "ASurfaceTexture_acquireANativeWindow");
-    if (p_awh->ndk_ast_api.pf_acquireAnw == NULL) return VLC_EGENERIC;
+    if (p_awh->ndk_ast_api.pf_acquireAnw == NULL) return HEIMDALL_EGENERIC;
 
     p_awh->ndk_ast_api.pf_anwToSurface = (ptr_ANativeWindow_toSurface)
         dlsym(p_library, "ANativeWindow_toSurface");
-    if (p_awh->ndk_ast_api.pf_anwToSurface == NULL) return VLC_EGENERIC;
+    if (p_awh->ndk_ast_api.pf_anwToSurface == NULL) return HEIMDALL_EGENERIC;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int
@@ -393,7 +394,7 @@ LoadAimageReaderAPI(AWindowHandler *p_awh, void *p_android_lib)
     /* AHardwareBuffer functions are in libandroid.so, API 31+ */
 #define LOAD(object, name) \
     p_awh->ndk_air_api.object.name = dlsym(p_android_lib, #object "_" #name); \
-    if (p_awh->ndk_air_api.object.name == NULL) return VLC_EGENERIC
+    if (p_awh->ndk_air_api.object.name == NULL) return HEIMDALL_EGENERIC
 
     LOAD(AHardwareBuffer, getId);
     LOAD(AHardwareBuffer, describe);
@@ -402,7 +403,7 @@ LoadAimageReaderAPI(AWindowHandler *p_awh, void *p_android_lib)
 
     void *p_library = dlopen("libmediandk.so", RTLD_NOW);
     if (p_library == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
 #define LOAD(object, name) \
     p_awh->ndk_air_api.object.name = dlsym(p_library, #object "_" #name); \
@@ -438,11 +439,11 @@ LoadAimageReaderAPI(AWindowHandler *p_awh, void *p_android_lib)
     }
 
     p_awh->ndk_air_lib = p_library;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     dlclose(p_library);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 static int
@@ -450,7 +451,7 @@ LoadASurfaceControlAPI(AWindowHandler *p_awh, void *p_library)
 {
 #define LOAD(object, name) \
     p_awh->ndk_asc_api.object.name = dlsym(p_library, #object "_" #name); \
-    if (p_awh->ndk_asc_api.object.name == NULL) return VLC_EGENERIC
+    if (p_awh->ndk_asc_api.object.name == NULL) return HEIMDALL_EGENERIC
 
     /* API 31+ functions */
     LOAD(ASurfaceTransaction, setCrop);
@@ -476,7 +477,7 @@ LoadASurfaceControlAPI(AWindowHandler *p_awh, void *p_library)
 
 #undef LOAD
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*
@@ -489,9 +490,9 @@ LoadNativeWindowAPI(AWindowHandler *p_awh)
     if (!p_library)
         return;
 
-    p_awh->b_has_ndk_ast_api = LoadNDKSurfaceTextureAPI(p_awh, p_library) == VLC_SUCCESS;
-    p_awh->b_has_ndk_air_api = LoadAimageReaderAPI(p_awh, p_library) == VLC_SUCCESS;
-    p_awh->b_has_ndk_asc_api = LoadASurfaceControlAPI(p_awh, p_library) == VLC_SUCCESS;
+    p_awh->b_has_ndk_ast_api = LoadNDKSurfaceTextureAPI(p_awh, p_library) == HEIMDALL_SUCCESS;
+    p_awh->b_has_ndk_air_api = LoadAimageReaderAPI(p_awh, p_library) == HEIMDALL_SUCCESS;
+    p_awh->b_has_ndk_asc_api = LoadASurfaceControlAPI(p_awh, p_library) == HEIMDALL_SUCCESS;
     p_awh->p_anw_dl = p_library;
 }
 
@@ -508,14 +509,14 @@ const JNINativeMethod jni_callbacks[] = {
 };
 
 static int
-InitJNIFields(JNIEnv *env, vlc_object_t *p_obj, jobject *jobj, AWindowHandler *awh)
+InitJNIFields(JNIEnv *env, heimdall_object_t *p_obj, jobject *jobj, AWindowHandler *awh)
 {
-    static vlc_mutex_t lock = VLC_STATIC_MUTEX;
+    static heimdall_mutex_t lock = HEIMDALL_STATIC_MUTEX;
     int i_init_state = -1;
     int ret;
     jclass clazz;
 
-    vlc_mutex_lock(&lock);
+    heimdall_mutex_lock(&lock);
 
     if (i_init_state != -1)
         goto end;
@@ -622,10 +623,10 @@ InitJNIFields(JNIEnv *env, vlc_object_t *p_obj, jobject *jobj, AWindowHandler *a
 
     i_init_state = 1;
 end:
-    ret = i_init_state == 1 ? VLC_SUCCESS : VLC_EGENERIC;
+    ret = i_init_state == 1 ? HEIMDALL_SUCCESS : HEIMDALL_EGENERIC;
     if (ret)
         msg_Err(p_obj, "AndroidNativeWindow jni init failed" );
-    vlc_mutex_unlock(&lock);
+    heimdall_mutex_unlock(&lock);
     return ret;
 
 error:
@@ -638,9 +639,9 @@ error:
         (*env)->DeleteGlobalRef(env, awh->jfields.Surface.clazz);
     awh->jfields.Surface.clazz = NULL;
 
-    vlc_mutex_unlock(&lock);
+    heimdall_mutex_unlock(&lock);
     msg_Err(p_obj, "Failed to load jfields table");
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 static JNIEnv*
@@ -652,7 +653,7 @@ AWindowHandler_getEnv(AWindowHandler *p_awh)
 }
 
 AWindowHandler *
-AWindowHandler_new(vlc_object_t *obj, vlc_window_t *wnd, awh_events_t *p_events)
+AWindowHandler_new(heimdall_object_t *obj, heimdall_window_t *wnd, awh_events_t *p_events)
 {
 #define AWINDOW_REGISTER_FLAGS_SUCCESS 0x1
 #define AWINDOW_REGISTER_FLAGS_HAS_VIDEO_LAYOUT_LISTENER 0x2
@@ -664,7 +665,7 @@ AWindowHandler_new(vlc_object_t *obj, vlc_window_t *wnd, awh_events_t *p_events)
 
     if (!p_jvm)
     {
-        msg_Err(obj, "libvlc_media_player options not set");
+        msg_Err(obj, "libheimdall_media_player options not set");
         return NULL;
     }
 
@@ -683,7 +684,7 @@ AWindowHandler_new(vlc_object_t *obj, vlc_window_t *wnd, awh_events_t *p_events)
     p_awh->jobj = jobj ? (*p_env)->NewGlobalRef(p_env, jobj) : NULL;
 
     /* Zero the jfields structure before usage. */
-    p_awh->jfields = (struct vlc_android_jfields) { .AWindow.clazz = NULL };
+    p_awh->jfields = (struct heimdall_android_jfields) { .AWindow.clazz = NULL };
 
     p_awh->wnd = wnd;
     if (p_events)
@@ -700,7 +701,7 @@ AWindowHandler_new(vlc_object_t *obj, vlc_window_t *wnd, awh_events_t *p_events)
     (*p_env)->DeleteLocalRef(p_env, jarray);
     p_awh->stex.jtransform_mtx = NULL;
 
-    if (InitJNIFields(p_env, obj, jobj, p_awh) != VLC_SUCCESS)
+    if (InitJNIFields(p_env, obj, jobj, p_awh) != HEIMDALL_SUCCESS)
     {
         msg_Err(obj, "InitJNIFields failed");
         return NULL;
@@ -754,7 +755,7 @@ AWindowHandler_new(vlc_object_t *obj, vlc_window_t *wnd, awh_events_t *p_events)
 }
 
 AWindowHandler *
-AWindowHandler_newFromANWs(vlc_object_t *obj, ANativeWindow *video,
+AWindowHandler_newFromANWs(heimdall_object_t *obj, ANativeWindow *video,
                            ANativeWindow *subtitle)
 {
     (void) obj;
@@ -764,7 +765,7 @@ AWindowHandler_newFromANWs(vlc_object_t *obj, ANativeWindow *video,
 
     awh->p_jvm = NULL;
     awh->jobj = NULL;
-    awh->jfields = (struct vlc_android_jfields) { .AWindow.clazz = NULL };
+    awh->jfields = (struct heimdall_android_jfields) { .AWindow.clazz = NULL };
     awh->wnd = NULL;
 
     LoadNativeWindowAPI(awh);
@@ -849,7 +850,7 @@ AWindowHandler_getASurfaceControlApi(AWindowHandler *p_awh)
            &p_awh->ndk_asc_api : NULL;
 }
 
-static struct vlc_asurfacetexture_priv* CreateSurfaceTexture(
+static struct heimdall_asurfacetexture_priv* CreateSurfaceTexture(
         AWindowHandler *p_awh, JNIEnv *p_env, bool single_buffer)
 {
     /* Needed in case of old API, see comments below. */
@@ -862,7 +863,7 @@ static struct vlc_asurfacetexture_priv* CreateSurfaceTexture(
 
     jobject surfacetexture;
 
-    struct vlc_asurfacetexture_priv *handle = malloc(sizeof *handle);
+    struct heimdall_asurfacetexture_priv *handle = malloc(sizeof *handle);
     if (handle == NULL)
         return NULL;
 
@@ -983,7 +984,7 @@ success:
 
     if (p_awh->b_has_ndk_ast_api)
     {
-        msg_Dbg(p_awh->wnd, "Using NDK API to init vlc_asurfacetexture");
+        msg_Dbg(p_awh->wnd, "Using NDK API to init heimdall_asurfacetexture");
         handle->texture = p_awh->ndk_ast_api.pf_astFromst(p_env, handle->jtexture);
         handle->surface.ops = &NDKSurfaceAPI;
         handle->surface.window = p_awh->ndk_ast_api.pf_acquireAnw(handle->texture);
@@ -999,7 +1000,7 @@ success:
     }
     else
     {
-        msg_Dbg(p_awh->wnd, "Using JNI API to init vlc_asurfacetexture");
+        msg_Dbg(p_awh->wnd, "Using JNI API to init heimdall_asurfacetexture");
         handle->texture = NULL;
         /* Create Surface(SurfaceTexture), ie. producer side of the buffer
          * queue in Android. */
@@ -1061,13 +1062,13 @@ error:
     return NULL;
 }
 
-struct vlc_asurfacetexture *
-vlc_asurfacetexture_New(AWindowHandler *p_awh, bool single_buffer)
+struct heimdall_asurfacetexture *
+heimdall_asurfacetexture_New(AWindowHandler *p_awh, bool single_buffer)
 {
     if (p_awh->p_jvm == NULL)
         return NULL;
     JNIEnv *p_env = android_getEnvCommon(NULL, p_awh->p_jvm, "SurfaceTexture");
-    struct vlc_asurfacetexture_priv *surfacetexture =
+    struct heimdall_asurfacetexture_priv *surfacetexture =
         CreateSurfaceTexture(p_awh, p_env, single_buffer);
     if (surfacetexture == NULL)
         return NULL;
@@ -1083,24 +1084,24 @@ WindowHandler_NewSurfaceEnv(AWindowHandler *p_awh, JNIEnv *p_env,
     switch (id)
     {
         case AWindow_Video:
-            if (p_awh->wnd == NULL) return VLC_EGENERIC;
+            if (p_awh->wnd == NULL) return HEIMDALL_EGENERIC;
             assert(p_awh->jfields.AWindow.getVideoSurface != NULL);
             jsurface = JNI_ANWCALL(CallObjectMethod, getVideoSurface);
             break;
         case AWindow_Subtitles:
-            if (p_awh->wnd == NULL) return VLC_EGENERIC;
+            if (p_awh->wnd == NULL) return HEIMDALL_EGENERIC;
             assert(p_awh->jfields.AWindow.getSubtitlesSurface!= NULL);
             jsurface = JNI_ANWCALL(CallObjectMethod, getSubtitlesSurface);
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
     if (!jsurface)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     p_awh->views[id].jsurface = (*p_env)->NewGlobalRef(p_env, jsurface);
     (*p_env)->DeleteLocalRef(p_env, jsurface);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 ANativeWindow *
@@ -1115,7 +1116,7 @@ AWindowHandler_getANativeWindow(AWindowHandler *p_awh, enum AWindow_ID id)
     if (!p_env)
         return NULL;
 
-    if (WindowHandler_NewSurfaceEnv(p_awh, p_env, id) != VLC_SUCCESS)
+    if (WindowHandler_NewSurfaceEnv(p_awh, p_env, id) != HEIMDALL_SUCCESS)
         return NULL;
     assert(p_awh->views[id].jsurface != NULL);
 
@@ -1174,7 +1175,7 @@ AWindowHandler_setVideoLayout(AWindowHandler *p_awh,
     assert(p_awh->capabilities & AWH_CAPS_SET_VIDEO_LAYOUT);
     JNIEnv *p_env = AWindowHandler_getEnv(p_awh);
     if (!p_env)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     vout_display_place_t zero = {0};
     if (place == NULL)
@@ -1182,29 +1183,29 @@ AWindowHandler_setVideoLayout(AWindowHandler *p_awh,
 
     JNI_ANWCALL(CallVoidMethod, setVideoLayout, i_display_width, i_display_height,
                 (int)place->width, (int)place->height, place->x, place->y);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 int
-SurfaceTexture_attachToGLContext(struct vlc_asurfacetexture *st, uint32_t tex_name)
+SurfaceTexture_attachToGLContext(struct heimdall_asurfacetexture *st, uint32_t tex_name)
 {
     return st->ops->attach_to_gl_context(st, tex_name);
 }
 
 void
-SurfaceTexture_detachFromGLContext(struct vlc_asurfacetexture *st)
+SurfaceTexture_detachFromGLContext(struct heimdall_asurfacetexture *st)
 {
     st->ops->detach_from_gl_context(st);
 }
 
 int
-SurfaceTexture_updateTexImage(struct vlc_asurfacetexture *st, const float **pp_transform_mtx)
+SurfaceTexture_updateTexImage(struct heimdall_asurfacetexture *st, const float **pp_transform_mtx)
 {
     return st->ops->update_tex_image(st, pp_transform_mtx);
 }
 
 void
-SurfaceTexture_releaseTexImage(struct vlc_asurfacetexture *st)
+SurfaceTexture_releaseTexImage(struct heimdall_asurfacetexture *st)
 {
     return st->ops->release_tex_image(st);
 }

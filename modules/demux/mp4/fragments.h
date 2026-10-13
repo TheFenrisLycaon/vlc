@@ -2,6 +2,7 @@
  * fragments.h : MP4 fragments
  *****************************************************************************
  * Copyright (C) 2001-2015 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -17,10 +18,10 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
-#ifndef VLC_MP4_FRAGMENTS_H_
-#define VLC_MP4_FRAGMENTS_H_
+#ifndef HEIMDALL_MP4_FRAGMENTS_H_
+#define HEIMDALL_MP4_FRAGMENTS_H_
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 #include "libmp4.h"
 
 typedef struct mp4_fragments_index_t
@@ -43,7 +44,7 @@ bool MP4_Fragments_Index_Lookup( mp4_fragments_index_t *p_index,
                                  stime_t *pi_time, uint64_t *pi_pos, unsigned i_track_index );
 
 #ifdef MP4_VERBOSE
-void MP4_Fragments_Index_Dump( vlc_object_t *p_obj, const mp4_fragments_index_t *p_index,
+void MP4_Fragments_Index_Dump( heimdall_object_t *p_obj, const mp4_fragments_index_t *p_index,
                                 uint32_t i_movie_timescale );
 #endif
 

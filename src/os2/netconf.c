@@ -2,6 +2,7 @@
  * netconf.c : Network configuration
  *****************************************************************************
  * Copyright (C) 2013 KO Myung-Hun <komh@chollian.net>
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,12 +23,12 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_network.h>
+#include <heimdall_common.h>
+#include <heimdall_network.h>
 
-char *vlc_getProxyUrl(const char *url)
+char *heimdall_getProxyUrl(const char *url)
 {
-    VLC_UNUSED(url);
+    HEIMDALL_UNUSED(url);
 
     return NULL;
 }

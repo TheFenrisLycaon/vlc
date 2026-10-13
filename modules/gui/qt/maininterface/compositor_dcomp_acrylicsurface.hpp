@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Prince Gupta <guptaprince8832@gmail.com>
  *
@@ -143,7 +144,7 @@ typedef BOOL(WINAPI* GetWindowCompositionAttribute)(
     OUT WINDOWCOMPOSITIONATTRIBDATA* pAttrData
 );
 
-namespace vlc
+namespace heimdall
 {
 
 class CompositorDirectComposition;

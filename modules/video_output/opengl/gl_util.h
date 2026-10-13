@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
  * Copyright (C) 2020 Videolabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -19,15 +20,15 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_GL_UTIL_H
-#define VLC_GL_UTIL_H
+#ifndef HEIMDALL_GL_UTIL_H
+#define HEIMDALL_GL_UTIL_H
 
 #ifdef HAVE_CONFIG_H
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_opengl.h>
+#include <heimdall_common.h>
+#include <heimdall_opengl.h>
 #include "gl_common.h"
 
 static const float MATRIX4_IDENTITY[4*4] = {
@@ -57,7 +58,7 @@ static const float MATRIX2x3_IDENTITY[2*3] = {
  * strings, forming the shader source code once concatenated, like
  * glShaderSource().
  *
- * \param obj a VLC object, used to log messages
+ * \param obj a Heimdall object, used to log messages
  * \param vt the OpenGL virtual table
  * \param vstring_count the number of strings in vstrings
  * \param vstrings a list of NUL-terminated strings containing the vertex
@@ -67,7 +68,7 @@ static const float MATRIX2x3_IDENTITY[2*3] = {
  *                 shader source code
  */
 GLuint
-vlc_gl_BuildProgram(vlc_object_t *obj, const opengl_vtable_t *vt,
+heimdall_gl_BuildProgram(heimdall_object_t *obj, const opengl_vtable_t *vt,
                     GLsizei vstring_count, const GLchar **vstrings,
                     GLsizei fstring_count, const GLchar **fstrings);
 
@@ -81,9 +82,9 @@ vlc_gl_BuildProgram(vlc_object_t *obj, const opengl_vtable_t *vt,
  * with the given name.
  */
 module_t *
-vlc_gl_WrapOpenGLFilter(filter_t *filter, const char *opengl_filter_name);
+heimdall_gl_WrapOpenGLFilter(filter_t *filter, const char *opengl_filter_name);
 
-struct vlc_gl_extension_vt {
+struct heimdall_gl_extension_vt {
     PFNGLGETSTRINGPROC      GetString;
     PFNGLGETSTRINGIPROC     GetStringi;
     PFNGLGETINTEGERVPROC    GetIntegerv;
@@ -91,7 +92,7 @@ struct vlc_gl_extension_vt {
 };
 
 static inline unsigned
-vlc_gl_GetVersionMajor(struct vlc_gl_extension_vt *vt)
+heimdall_gl_GetVersionMajor(struct heimdall_gl_extension_vt *vt)
 {
     GLint version;
     vt->GetIntegerv(GL_MAJOR_VERSION, &version);
@@ -109,32 +110,32 @@ vlc_gl_GetVersionMajor(struct vlc_gl_extension_vt *vt)
 
 
 static inline void
-vlc_gl_LoadExtensionFunctions(vlc_gl_t *gl, struct vlc_gl_extension_vt *vt)
+heimdall_gl_LoadExtensionFunctions(heimdall_gl_t *gl, struct heimdall_gl_extension_vt *vt)
 {
-    vt->GetString = vlc_gl_GetProcAddress(gl, "glGetString");
-    vt->GetIntegerv = vlc_gl_GetProcAddress(gl, "glGetIntegerv");
-    vt->GetError = vlc_gl_GetProcAddress(gl, "glGetError");
+    vt->GetString = heimdall_gl_GetProcAddress(gl, "glGetString");
+    vt->GetIntegerv = heimdall_gl_GetProcAddress(gl, "glGetIntegerv");
+    vt->GetError = heimdall_gl_GetProcAddress(gl, "glGetError");
     vt->GetStringi = NULL;
 
-    unsigned version = vlc_gl_GetVersionMajor(vt);
+    unsigned version = heimdall_gl_GetVersionMajor(vt);
 
     /* glGetStringi is available in OpenGL>=3 and GLES>=3.
      * https://www.khronos.org/registry/OpenGL-Refpages/gl4/html/glGetString.xhtml
      * https://www.khronos.org/registry/OpenGL-Refpages/es3/html/glGetString.xhtml
      */
     if (version >= 3)
-        vt->GetStringi = vlc_gl_GetProcAddress(gl, "glGetStringi");
+        vt->GetStringi = heimdall_gl_GetProcAddress(gl, "glGetStringi");
 }
 
 static inline bool
-vlc_gl_HasExtension(
-    struct vlc_gl_extension_vt *vt,
+heimdall_gl_HasExtension(
+    struct heimdall_gl_extension_vt *vt,
     const char *name
 ){
     if (vt->GetStringi == NULL)
     {
         const GLubyte *extensions = vt->GetString(GL_EXTENSIONS);
-        return vlc_gl_StrHasToken((const char *)extensions, name);
+        return heimdall_gl_StrHasToken((const char *)extensions, name);
     }
 
     int32_t count = 0;

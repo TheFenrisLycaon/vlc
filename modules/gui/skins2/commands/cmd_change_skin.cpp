@@ -2,6 +2,7 @@
  * cmd_change_skin.cpp
  *****************************************************************************
  * Copyright (C) 2003 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cyril Deguet     <asmax@via.ecp.fr>
  *          Olivier Teulière <ipkiss@via.ecp.fr>
@@ -30,7 +31,7 @@
 #include "../src/theme_repository.hpp"
 #include "../src/window_manager.hpp"
 #include "../src/vout_manager.hpp"
-#include "../src/vlcproc.hpp"
+#include "../src/heimdallproc.hpp"
 
 
 void CmdChangeSkin::execute()

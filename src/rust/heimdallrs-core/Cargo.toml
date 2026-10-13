@@ -1,0 +1,15 @@
+[package]
+name = "heimdallrs-core"
+edition = "2021"
+version.workspace = true
+license.workspace = true
+links = "heimdallcore"
+
+[dependencies]
+heimdallrs-messages = { path = "../heimdallrs-messages" }
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(heimdallcore_not_linked)'] }
+
+[dev-dependencies]
+heimdallrs-macros.workspace = true

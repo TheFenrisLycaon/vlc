@@ -2,6 +2,7 @@
  * samba.c: Samba / libsmbclient input module
  *****************************************************************************
  * Copyright (C) 2001-2015 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gildas Bazin <gbazin@videolan.org>
  *
@@ -28,13 +29,13 @@
 #include <errno.h>
 #include <libsmbclient.h>
 
-#include <vlc_common.h>
-#include <vlc_fs.h>
-#include <vlc_plugin.h>
-#include <vlc_access.h>
-#include <vlc_input_item.h>
-#include <vlc_url.h>
-#include <vlc_keystore.h>
+#include <heimdall_common.h>
+#include <heimdall_fs.h>
+#include <heimdall_plugin.h>
+#include <heimdall_access.h>
+#include <heimdall_input_item.h>
+#include <heimdall_url.h>
+#include <heimdall_keystore.h>
 
 #include "smb_common.h"
 
@@ -43,7 +44,7 @@ typedef struct
     SMBCCTX *ctx;
     SMBCFILE *file;
 
-    vlc_credential credential;
+    heimdall_credential credential;
     char *var_domain;
 
     union
@@ -61,7 +62,7 @@ typedef struct
     };
 
     uint64_t size;
-    vlc_url_t url;
+    heimdall_url_t url;
 } access_sys_t;
 
 /* Build an SMB URI
@@ -88,18 +89,18 @@ static int Seek( stream_t *p_access, uint64_t i_pos )
     int64_t      i_ret;
 
     if( i_pos >= INT64_MAX )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     msg_Dbg( p_access, "seeking to %"PRId64, i_pos );
 
     i_ret = p_sys->filevt.lseek( p_sys->ctx, p_sys->file, i_pos, SEEK_SET );
     if( i_ret == -1 )
     {
-        msg_Err( p_access, "seek failed (%s)", vlc_strerror_c(errno) );
-        return VLC_EGENERIC;
+        msg_Err( p_access, "seek failed (%s)", heimdall_strerror_c(errno) );
+        return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -121,7 +122,7 @@ static ssize_t Read( stream_t *p_access, void *p_buffer, size_t i_len )
     i_read = p_sys->filevt.read( p_sys->ctx, p_sys->file, p_buffer, i_len );
     if( i_read < 0 )
     {
-        msg_Err( p_access, "read failed (%s)", vlc_strerror_c(errno) );
+        msg_Err( p_access, "read failed (%s)", heimdall_strerror_c(errno) );
         i_read = 0;
     }
 
@@ -134,14 +135,14 @@ static ssize_t Read( stream_t *p_access, void *p_buffer, size_t i_len )
 static int DirRead (stream_t *p_access, input_item_node_t *p_node )
 {
     access_sys_t *p_sys = p_access->p_sys;
-    int i_ret = VLC_SUCCESS;
+    int i_ret = HEIMDALL_SUCCESS;
 
-    struct vlc_readdir_helper rdh;
-    vlc_readdir_helper_init( &rdh, p_access, p_node );
+    struct heimdall_readdir_helper rdh;
+    heimdall_readdir_helper_init( &rdh, p_access, p_node );
 
     struct smbc_dirent *p_entry;
 
-    while( i_ret == VLC_SUCCESS && ( p_entry = p_sys->dirvt.readdir( p_sys->ctx, p_sys->file ) ) )
+    while( i_ret == HEIMDALL_SUCCESS && ( p_entry = p_sys->dirvt.readdir( p_sys->ctx, p_sys->file ) ) )
     {
         const char *psz_server = p_sys->url.psz_host;
         const char *psz_path = p_sys->url.psz_path;
@@ -173,16 +174,16 @@ static int DirRead (stream_t *p_access, input_item_node_t *p_node )
 
         char *psz_encoded_name = NULL;
         if( psz_name != NULL
-         && ( psz_encoded_name = vlc_uri_encode( psz_name ) ) == NULL )
+         && ( psz_encoded_name = heimdall_uri_encode( psz_name ) ) == NULL )
         {
-            i_ret = VLC_ENOMEM;
+            i_ret = HEIMDALL_ENOMEM;
             break;
         }
 
         char *uri = smb_get_uri(psz_server, psz_path, psz_encoded_name);
         if (uri == NULL) {
             free(psz_encoded_name);
-            i_ret = VLC_ENOMEM;
+            i_ret = HEIMDALL_ENOMEM;
             break;
         }
         struct stat st;
@@ -190,9 +191,9 @@ static int DirRead (stream_t *p_access, input_item_node_t *p_node )
 
         input_item_t *p_item;
         free(psz_encoded_name);
-        i_ret = vlc_readdir_helper_additem(&rdh, uri, NULL, p_entry->name,
+        i_ret = heimdall_readdir_helper_additem(&rdh, uri, NULL, p_entry->name,
                                            i_type, ITEM_NET, &p_item);
-        if (i_ret == VLC_SUCCESS && p_item)
+        if (i_ret == HEIMDALL_SUCCESS && p_item)
         {
             input_item_AddStat( p_item, "mtime", st.st_mtime );
             input_item_AddStat( p_item, "size", st.st_size );
@@ -200,7 +201,7 @@ static int DirRead (stream_t *p_access, input_item_node_t *p_node )
         free(uri);
     }
 
-    vlc_readdir_helper_finish( &rdh, i_ret == VLC_SUCCESS );
+    heimdall_readdir_helper_finish( &rdh, i_ret == HEIMDALL_SUCCESS );
 
     return i_ret;
 }
@@ -227,12 +228,12 @@ static int Control( stream_t *p_access, int i_query, va_list args )
 
     case STREAM_GET_SIZE:
         if( p_access->pf_readdir != NULL )
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         *va_arg( args, uint64_t * ) = sys->size;
         break;
 
     case STREAM_GET_PTS_DELAY:
-        *va_arg( args, vlc_tick_t * ) = VLC_TICK_FROM_MS(
+        *va_arg( args, heimdall_tick_t * ) = HEIMDALL_TICK_FROM_MS(
             var_InheritInteger( p_access, "network-caching" ) );
         break;
 
@@ -241,10 +242,10 @@ static int Control( stream_t *p_access, int i_query, va_list args )
         break;
 
     default:
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void smb_auth(SMBCCTX *ctx, const char *srv, const char *shr,
@@ -252,8 +253,8 @@ static void smb_auth(SMBCCTX *ctx, const char *srv, const char *shr,
                      char *un, int unlen,
                      char *pw, int pwlen)
 {
-    VLC_UNUSED(srv);
-    VLC_UNUSED(shr);
+    HEIMDALL_UNUSED(srv);
+    HEIMDALL_UNUSED(shr);
 
     access_sys_t *sys = smbc_getOptionUserData(ctx);
     assert(sys != NULL);
@@ -274,22 +275,22 @@ static void smb_auth(SMBCCTX *ctx, const char *srv, const char *shr,
     }
 }
 
-static int Open(vlc_object_t *obj)
+static int Open(heimdall_object_t *obj)
 {
     stream_t *access = (stream_t *)obj;
-    vlc_url_t url;
+    heimdall_url_t url;
     char *psz_decoded_path = NULL, *uri;
     bool is_dir;
-    int ret = VLC_EGENERIC;
+    int ret = HEIMDALL_EGENERIC;
 
     /* Init access */
-    access_sys_t *sys = vlc_obj_calloc(obj, 1, sizeof (*sys));
+    access_sys_t *sys = heimdall_obj_calloc(obj, 1, sizeof (*sys));
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     sys->ctx = smbc_new_context();
     if (sys->ctx == NULL)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     smbc_setDebug(sys->ctx, 0);
     smbc_setOptionUserData(sys->ctx, sys);
@@ -298,30 +299,30 @@ static int Open(vlc_object_t *obj)
     if (!smbc_init_context(sys->ctx))
         goto error;
 
-    if (vlc_UrlParseFixup(&url, access->psz_url) != 0)
+    if (heimdall_UrlParseFixup(&url, access->psz_url) != 0)
     {
-        vlc_UrlClean(&url);
+        heimdall_UrlClean(&url);
         goto error;
     }
 
     if (url.psz_path != NULL)
     {
-        psz_decoded_path = vlc_uri_decode_duplicate(url.psz_path);
+        psz_decoded_path = heimdall_uri_decode_duplicate(url.psz_path);
         if (psz_decoded_path == NULL)
         {
-            vlc_UrlClean(&url);
+            heimdall_UrlClean(&url);
             goto error;
         }
     }
 
-    vlc_credential_init(&sys->credential, &url);
+    heimdall_credential_init(&sys->credential, &url);
     sys->var_domain = var_InheritString(access, "smb-domain");
     sys->credential.psz_realm = sys->var_domain;
-    if (vlc_credential_get(&sys->credential, access, "smb-user", "smb-pwd",
+    if (heimdall_credential_get(&sys->credential, access, "smb-user", "smb-pwd",
                            NULL, NULL)
         == -EINTR)
     {
-        vlc_UrlClean(&url);
+        heimdall_UrlClean(&url);
         goto error;
     }
 
@@ -336,8 +337,8 @@ static int Open(vlc_object_t *obj)
         if (uri == NULL)
         {
             free(psz_decoded_path);
-            vlc_UrlClean(&url);
-            ret = VLC_ENOMEM;
+            heimdall_UrlClean(&url);
+            ret = HEIMDALL_ENOMEM;
             goto error;
         }
 
@@ -357,7 +358,7 @@ static int Open(vlc_object_t *obj)
             break;
 
         errno = 0;
-        if (vlc_credential_get(&sys->credential, access, "smb-user",
+        if (heimdall_credential_get(&sys->credential, access, "smb-user",
                                "smb-pwd", SMB_LOGIN_DIALOG_TITLE,
                                SMB_LOGIN_DIALOG_TEXT, url.psz_host) != 0)
             break;
@@ -383,7 +384,7 @@ static int Open(vlc_object_t *obj)
         access->pf_control = access_vaDirectoryControlHelper;
         sys->file = opendir_fn(sys->ctx, uri);
         if (sys->file == NULL)
-            vlc_UrlClean(&sys->url);
+            heimdall_UrlClean(&sys->url);
     }
     else
     {
@@ -401,36 +402,36 @@ static int Open(vlc_object_t *obj)
         access->pf_control = Control;
         access->pf_seek = Seek;
         sys->file = open_fn(sys->ctx, uri, O_RDONLY, 0);
-        vlc_UrlClean(&url);
+        heimdall_UrlClean(&url);
     }
     free(uri);
 
     if (sys->file == NULL)
     {
         msg_Err(obj, "cannot open %s: %s",
-                access->psz_location, vlc_strerror_c(errno));
+                access->psz_location, heimdall_strerror_c(errno));
         goto error;
     }
 
-    vlc_credential_store(&sys->credential, access);
-    return VLC_SUCCESS;
+    heimdall_credential_store(&sys->credential, access);
+    return HEIMDALL_SUCCESS;
 
 error:
-    vlc_credential_clean(&sys->credential);
+    heimdall_credential_clean(&sys->credential);
     free(sys->var_domain);
     smbc_free_context(sys->ctx, 1);
     return ret;
 }
 
-static void Close(vlc_object_t *obj)
+static void Close(heimdall_object_t *obj)
 {
     stream_t *access = (stream_t *)obj;
     access_sys_t *sys = access->p_sys;
 
-    vlc_credential_clean(&sys->credential);
+    heimdall_credential_clean(&sys->credential);
     free(sys->var_domain);
 
-    vlc_UrlClean(&sys->url);
+    heimdall_UrlClean(&sys->url);
 
     if (access->pf_readdir != NULL)
         sys->dirvt.closedir(sys->ctx, sys->file);
@@ -440,7 +441,7 @@ static void Close(vlc_object_t *obj)
     smbc_free_context(sys->ctx, 1);
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname("SMB")
     set_description(N_("SMB input"))
     set_help(N_("Samba (Windows network shares) input"))
@@ -451,4 +452,4 @@ vlc_module_begin()
     add_string("smb-domain", NULL, SMB_DOMAIN_TEXT, SMB_DOMAIN_LONGTEXT)
     add_shortcut("smb")
     set_callbacks(Open, Close)
-vlc_module_end()
+heimdall_module_end()

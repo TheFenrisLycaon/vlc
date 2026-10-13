@@ -2,7 +2,7 @@
 
 ## Autotools
 
-VLC uses the Autotools build system tools, that is composed of various tools:
+Heimdall uses the Autotools build system tools, that is composed of various tools:
 
 - m4  
   Used for macro expansions in the configure.ac file.
@@ -17,9 +17,9 @@ VLC uses the Autotools build system tools, that is composed of various tools:
 ## Meson
 
 In addition to the "traditional" autotools build system, recently there has
-been an ongoing effort to migrate the VLC build system to meson. Currently
+been an ongoing effort to migrate the Heimdall build system to meson. Currently
 the meson buildsystem is in an **experimental state** and should not be used for
-release builds of VLC!
+release builds of Heimdall!
 
 However we encourage developers to try out the meson buildsystem and report
 any issues with it or help add missing module builds to meson.
@@ -77,23 +77,23 @@ which has the same syntax as the meson build files but only accepts the
 
 ### Adding a module
 
-VLC modules are meson dicts added to a special array named `vlc_modules`. To add a new module, simply
+Heimdall modules are meson dicts added to a special array named `heimdall_modules`. To add a new module, simply
 append to that variable:
 
 ```meson
-vlc_modules += {
+heimdall_modules += {
     'name' : 'file_logger',
     'sources' : files('file.c')
 }
 ```
 
-@warning 	Make sure to not accidentally overwrite the `vlc_modules` variable by using
+@warning 	Make sure to not accidentally overwrite the `heimdall_modules` variable by using
 		 	an `=` instead of `+=` when appending the dictionary.
 
 Currently the modules dict accepts the following keys:
 
 @param 	name
-		The name of the VLC plugin (used for the `MODULE_STRING` define). **Required**
+		The name of the Heimdall plugin (used for the `MODULE_STRING` define). **Required**
 
 @param 	sources
 		The source files for the module, use [`files()`][mref_files] to specify them. **Required**
@@ -103,7 +103,7 @@ Currently the modules dict accepts the following keys:
 
 @param  dependencies
 		The dependencies needed by the module. Only list external dependencies
-		here, not libraries that are built as part of the VLC build, for these
+		here, not libraries that are built as part of the Heimdall build, for these
 		use `link_with` instead.
 
 @param 	include_directories
@@ -141,7 +141,7 @@ For now, `host_system` is equivalent to `host_machine.system()`, however this mi
 always be the case, hence the special variable for that.
 
 ### Finding dependencies
-As most VLC modules likely require an external dependency too, let's have a look how to find a
+As most Heimdall modules likely require an external dependency too, let's have a look how to find a
 dependency and add an option for it.
 
 To find dependencies, Meson has essentially two options:
@@ -179,7 +179,7 @@ Now we can just look up the option and use that for the `required` argument of t
 ```meson
 # dav1d AV1 decoder
 dav1d_dep = dependency('dav1d', version: '>= 0.5.0', required: get_option('dav1d'))
-vlc_modules += {
+heimdall_modules += {
     'name' : 'dav1d',
     'sources' : files('dav1d.c'),
     'dependencies' : [dav1d_dep],
@@ -196,7 +196,7 @@ cases of conditional dependencies. For example suppose we want an option to be d
 cases when it is set to `auto`:
 
 ```meson
-vlc_modules += {
+heimdall_modules += {
     'name' : 'xcb',
     'sources' : files('xcb.c'),
     'enabled' : get_option('x11') \
@@ -221,29 +221,29 @@ existing one. The returned option object is never assigned to any variable, so i
 
 ### Adding new tests
 
-VLC tests are also meson dictionaries added to the special array named `vlc_tests`.
+Heimdall tests are also meson dictionaries added to the special array named `heimdall_tests`.
 This mechanism allows a test to reference modules that should be available when
 running the test.
 
 To add a new test, simply append to that variable:
 
 ```meson
-vlc_tests += {
+heimdall_tests += {
     'name' : 'test_src_input_thumbnail',
     'sources' : files('input/thumbnail.c'),
     'suite' : ['src', 'test_src'],
-    'link_with' : [libvlc, libvlccore],
+    'link_with' : [libheimdall, libheimdallcore],
     'module_depends' : ['demux_mock', 'rawvideo']
 }
 ```
 
-@warning    Make sure to not accidentally overwrite the `vlc_tests` variable
+@warning    Make sure to not accidentally overwrite the `heimdall_tests` variable
             by using an `=` instead of `+=` when appending the dictionary.
 
 Currently the modules dictionary accepts the following keys:
 
 @param  name
-        The name of the new VLC test, which will map to the executable name. **Required**
+        The name of the new Heimdall test, which will map to the executable name. **Required**
 
 @param  sources
         The source files for the new test, use [`files()`][mref_files] to specify them. **Required**
@@ -253,11 +253,11 @@ Currently the modules dictionary accepts the following keys:
 
 @param  dependencies
 		The dependencies needed by the test. Only list external dependencies
-		here, not libraries that are built as part of the VLC build, for these
+		here, not libraries that are built as part of the Heimdall build, for these
 		use `link_with` instead.
 
 @param  link_with
-		The dependencies needed by the test that are part of the VLC build.
+		The dependencies needed by the test that are part of the Heimdall build.
         For external dependencies, use `dependencies` instead.
 
 @param  include_directories
@@ -290,7 +290,7 @@ meson test -C build-meson test_src_input_thumbnail
 where `test_src_input_thumbnail` can be replaced by the `name` of the test.
 Make sure that a module really depends upon the module it's using through the
 `module_depends` variable. If every modules should be used to run the test,
-you can use the special value `vlc_plugins_targets.keys()`, but adding more
+you can use the special value `heimdall_plugins_targets.keys()`, but adding more
 module dependencies than necessary will drastically increase the compile time
 when running a specific test in cases like automated `git bisect`.
 
@@ -303,10 +303,10 @@ Once the contrib has been prepared, a meson machine file will be generated
 in the installation prefix. For native linux x86_64, it will typically be
 found at the following location:
 
-    vlc/contrib/x86_64-pc-linux-gnu/share/meson/native/contrib.ini
+    heimdall/contrib/x86_64-pc-linux-gnu/share/meson/native/contrib.ini
 
 When using prebuilt contribs, `make prebuilt` regenerates this file for the
-local tool paths. Run `make tools` before configuring VLC if the required
+local tool paths. Run `make tools` before configuring Heimdall if the required
 build tools are not available on the system.
 
 Then you can setup meson with this file using the following command:

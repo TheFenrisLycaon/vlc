@@ -2,6 +2,7 @@
  * file.c: configuration file handling
  *****************************************************************************
  * Copyright (C) 2001-2007 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gildas Bazin <gbazin@videolan.org>
  *
@@ -37,13 +38,13 @@
 #endif
 #include <unistd.h>
 
-#include <vlc_common.h>
-#include "../libvlc.h"
-#include <vlc_charset.h>
-#include <vlc_fs.h>
-#include <vlc_actions.h>
-#include <vlc_modules.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include "../libheimdall.h"
+#include <heimdall_charset.h>
+#include <heimdall_fs.h>
+#include <heimdall_actions.h>
+#include <heimdall_modules.h>
+#include <heimdall_plugin.h>
 
 #include "configuration.h"
 #include "modules/modules.h"
@@ -52,12 +53,12 @@
 /**
  * Get the user's configuration file
  */
-static char *config_GetConfigFile( libvlc_int_t *obj )
+static char *config_GetConfigFile( libheimdall_int_t *obj )
 {
     char *psz_file = var_InheritString( obj, "config" );
     if( psz_file == NULL )
     {
-        char *psz_dir = config_GetUserDir( VLC_CONFIG_DIR );
+        char *psz_dir = config_GetUserDir( HEIMDALL_CONFIG_DIR );
         if (psz_dir == NULL)
             return NULL;
 
@@ -68,7 +69,7 @@ static char *config_GetConfigFile( libvlc_int_t *obj )
     return psz_file;
 }
 
-static FILE *config_OpenConfigFile( libvlc_int_t *p_obj )
+static FILE *config_OpenConfigFile( libheimdall_int_t *p_obj )
 {
     char *psz_filename = config_GetConfigFile( p_obj );
     if( psz_filename == NULL )
@@ -76,11 +77,11 @@ static FILE *config_OpenConfigFile( libvlc_int_t *p_obj )
 
     msg_Dbg( p_obj, "opening config file (%s)", psz_filename );
 
-    FILE *p_stream = vlc_fopen( psz_filename, "rt" );
+    FILE *p_stream = heimdall_fopen( psz_filename, "rt" );
     if( p_stream == NULL && errno != ENOENT )
     {
         msg_Err( p_obj, "cannot open config file (%s): %s",
-                 psz_filename, vlc_strerror_c(errno) );
+                 psz_filename, heimdall_strerror_c(errno) );
 
     }
 #if !( defined(_WIN32) || defined(__APPLE__) || defined(__OS2__) )
@@ -88,14 +89,14 @@ static FILE *config_OpenConfigFile( libvlc_int_t *p_obj )
     {
         /* This is the fallback for pre XDG Base Directory
          * Specification configs */
-        char *home = config_GetUserDir(VLC_HOME_DIR);
+        char *home = config_GetUserDir(HEIMDALL_HOME_DIR);
         char *psz_old;
 
         if( home != NULL
-         && asprintf( &psz_old, "%s/.vlc/" CONFIG_FILE,
+         && asprintf( &psz_old, "%s/.heimdall/" CONFIG_FILE,
                       home ) != -1 )
         {
-            p_stream = vlc_fopen( psz_old, "rt" );
+            p_stream = heimdall_fopen( psz_old, "rt" );
             if( p_stream )
             {
                 /* Old config file found. We want to write it at the
@@ -103,13 +104,13 @@ static FILE *config_OpenConfigFile( libvlc_int_t *p_obj )
                 msg_Info( p_obj, "Found old config file at %s. "
                           "now using %s.", psz_old, psz_filename );
                 char *psz_readme;
-                if( asprintf(&psz_readme,"%s/.vlc/README",
+                if( asprintf(&psz_readme,"%s/.heimdall/README",
                              home ) != -1 )
                 {
-                    FILE *p_readme = vlc_fopen( psz_readme, "wt" );
+                    FILE *p_readme = heimdall_fopen( psz_readme, "wt" );
                     if( p_readme )
                     {
-                        fprintf( p_readme, "The VLC media player "
+                        fprintf( p_readme, "The Heimdall media player "
                                  "configuration folder has moved to comply\n"
                                  "with the XDG Base Directory Specification "
                                  "version 0.6. Your\nconfiguration has been "
@@ -134,7 +135,7 @@ static FILE *config_OpenConfigFile( libvlc_int_t *p_obj )
     return p_stream;
 }
 
-static int64_t vlc_strtoi (const char *str)
+static int64_t heimdall_strtoi (const char *str)
 {
     char *end;
     long long l;
@@ -161,13 +162,13 @@ static int64_t vlc_strtoi (const char *str)
  * This function is called to load the config options stored in the config
  * file.
  *****************************************************************************/
-int config_LoadConfigFile( libvlc_int_t *p_this )
+int config_LoadConfigFile( libheimdall_int_t *p_this )
 {
     FILE *file;
 
     file = config_OpenConfigFile (p_this);
     if (file == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* Skip UTF-8 Byte Order Mark if present */
     char bom[3];
@@ -199,7 +200,7 @@ int config_LoadConfigFile( libvlc_int_t *p_this )
             continue; /* syntax error */
         *ptr = '\0';
 
-        struct vlc_param *param = vlc_param_Find(psz_option_name);
+        struct heimdall_param *param = heimdall_param_Find(psz_option_name);
         if (param == NULL)
             continue;
 
@@ -220,13 +221,13 @@ int config_LoadConfigFile( libvlc_int_t *p_this )
                 int64_t l;
 
                 errno = 0;
-                l = vlc_strtoi (psz_option_value);
+                l = heimdall_strtoi (psz_option_value);
                 if ((l > item->max.i) || (l < item->min.i))
                     errno = ERANGE;
                 if (errno)
                     msg_Warn (p_this, "Integer value (%s) for %s: %s",
                               psz_option_value, psz_option_name,
-                              vlc_strerror_c(errno));
+                              heimdall_strerror_c(errno));
                 else
                 {
                     atomic_store_explicit(&param->value.i, l,
@@ -249,7 +250,7 @@ int config_LoadConfigFile( libvlc_int_t *p_this )
             }
 
             default:
-                vlc_param_SetString(param, psz_option_value);
+                heimdall_param_SetString(param, psz_option_value);
                 break;
         }
     }
@@ -259,7 +260,7 @@ int config_LoadConfigFile( libvlc_int_t *p_this )
     if (ferror (file))
     {
         msg_Err (p_this, "error reading configuration: %s",
-                 vlc_strerror_c(errno));
+                 heimdall_strerror_c(errno));
         clearerr (file);
     }
     fclose (file);
@@ -275,16 +276,16 @@ int config_LoadConfigFile( libvlc_int_t *p_this )
 /*****************************************************************************
  * config_CreateDir: Create configuration directory if it doesn't exist.
  *****************************************************************************/
-static int config_CreateDir( libvlc_int_t *p_this, char *psz_dirname )
+static int config_CreateDir( libheimdall_int_t *p_this, char *psz_dirname )
 {
-    if (vlc_mkdir_parent(psz_dirname, 0700) == 0)
+    if (heimdall_mkdir_parent(psz_dirname, 0700) == 0)
         return 0;
     msg_Warn( p_this, "could not create %s: %s", psz_dirname,
-              vlc_strerror_c(errno) );
+              heimdall_strerror_c(errno) );
     return -1;
 }
 
-VLC_FORMAT(6, 7) static int
+HEIMDALL_FORMAT(6, 7) static int
 config_Write (FILE *file, const char *desc, const char *type,
               bool comment, const char *name, const char *fmt, ...)
 {
@@ -294,7 +295,7 @@ config_Write (FILE *file, const char *desc, const char *type,
     if (desc == NULL)
         desc = "?";
 
-    if (fprintf (file, "# %s (%s)\n%s%s=", desc, vlc_gettext (type),
+    if (fprintf (file, "# %s (%s)\n%s%s=", desc, heimdall_gettext (type),
                  comment ? "#" : "", name) < 0)
         return -1;
 
@@ -310,9 +311,9 @@ config_Write (FILE *file, const char *desc, const char *type,
 }
 
 
-static int config_PrepareDir (libvlc_int_t *obj)
+static int config_PrepareDir (libheimdall_int_t *obj)
 {
-    char *psz_configdir = config_GetUserDir (VLC_CONFIG_DIR);
+    char *psz_configdir = config_GetUserDir (HEIMDALL_CONFIG_DIR);
     if (psz_configdir == NULL)
         return -1;
 
@@ -325,7 +326,7 @@ static int config_PrepareDir (libvlc_int_t *obj)
  * Saves the in-memory configuration into a file.
  * @return 0 on success, -1 on error.
  */
-int (config_SaveConfigFile) (libvlc_int_t *p_this)
+int (config_SaveConfigFile) (libheimdall_int_t *p_this)
 {
 
     if( config_PrepareDir( p_this ) )
@@ -350,7 +351,7 @@ int (config_SaveConfigFile) (libvlc_int_t *p_this)
     {
         struct stat st;
 
-        /* Some users make vlcrc read-only to prevent changes.
+        /* Some users make heimdallrc read-only to prevent changes.
          * The atomic replacement scheme breaks this "feature",
          * so we check for read-only by hand. */
         if (stat (permanent, &st) == 0 && !(st.st_mode & S_IWUSR))
@@ -362,22 +363,22 @@ int (config_SaveConfigFile) (libvlc_int_t *p_this)
 
     /* The temporary configuration file is per-PID. Therefore this function
      * should be serialized against itself within a given process. */
-    static vlc_mutex_t lock = VLC_STATIC_MUTEX;
-    vlc_mutex_lock (&lock);
+    static heimdall_mutex_t lock = HEIMDALL_STATIC_MUTEX;
+    heimdall_mutex_lock (&lock);
 
-    int fd = vlc_open (temporary, O_CREAT|O_WRONLY|O_TRUNC, S_IRUSR|S_IWUSR);
+    int fd = heimdall_open (temporary, O_CREAT|O_WRONLY|O_TRUNC, S_IRUSR|S_IWUSR);
     if (fd == -1)
     {
-        vlc_mutex_unlock (&lock);
+        heimdall_mutex_unlock (&lock);
         goto error;
     }
     FILE *file = fdopen (fd, "wt");
     if (file == NULL)
     {
         msg_Err (p_this, "cannot create configuration file: %s",
-                 vlc_strerror_c(errno));
-        vlc_close (fd);
-        vlc_mutex_unlock (&lock);
+                 heimdall_strerror_c(errno));
+        heimdall_close (fd);
+        heimdall_mutex_unlock (&lock);
         goto error;
     }
 
@@ -395,10 +396,10 @@ int (config_SaveConfigFile) (libvlc_int_t *p_this)
     locale_t loc = newlocale (LC_NUMERIC_MASK, "C", NULL);
     locale_t baseloc = uselocale (loc);
 
-    vlc_rcu_read_lock(); /* preserve string values */
+    heimdall_rcu_read_lock(); /* preserve string values */
 
     /* Look for the selected module, if NULL then save everything */
-    for (vlc_plugin_t *p = vlc_plugins; p != NULL; p = p->next)
+    for (heimdall_plugin_t *p = heimdall_plugins; p != NULL; p = p->next)
     {
         module_t *p_parser = p->module;
 
@@ -411,7 +412,7 @@ int (config_SaveConfigFile) (libvlc_int_t *p_this)
         else
             fprintf( file, "\n\n" );
 
-        for (struct vlc_param *param = p->conf.params,
+        for (struct heimdall_param *param = p->conf.params,
                               *end = param + p->conf.size;
              param < end;
              param++)
@@ -460,7 +461,7 @@ int (config_SaveConfigFile) (libvlc_int_t *p_this)
             }
         }
     }
-    vlc_rcu_read_unlock();
+    heimdall_rcu_read_unlock();
 
     if (loc != (locale_t)0)
     {
@@ -474,8 +475,8 @@ int (config_SaveConfigFile) (libvlc_int_t *p_this)
     fflush (file); /* Flush from run-time */
     if (ferror (file))
     {
-        vlc_unlink (temporary);
-        vlc_mutex_unlock (&lock);
+        heimdall_unlink (temporary);
+        heimdall_mutex_unlock (&lock);
         msg_Err (p_this, "cannot write configuration file");
         fclose (file);
         goto error;
@@ -484,14 +485,14 @@ int (config_SaveConfigFile) (libvlc_int_t *p_this)
 #if defined (_WIN32) || defined (__OS2__)
     /* Windows cannot (re)move open files nor overwrite existing ones */
     fclose (file);
-    vlc_unlink (permanent);
+    heimdall_unlink (permanent);
 #endif
     /* Atomically replace the file... */
-    if (vlc_rename (temporary, permanent))
-        vlc_unlink (temporary);
+    if (heimdall_rename (temporary, permanent))
+        heimdall_unlink (temporary);
     /* (...then synchronize the directory, err, TODO...) */
     /* ...and finally close the file */
-    vlc_mutex_unlock (&lock);
+    heimdall_mutex_unlock (&lock);
 #if !defined (_WIN32) && !defined (__OS2__)
     fclose (file);
 #endif

@@ -2,6 +2,7 @@
  * EPGWidget.hpp : EPGWidget
  ****************************************************************************
  * Copyright © 2009-2010 VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Ludovic Fauvet <etix@l0cal.com>
  *
@@ -25,7 +26,7 @@
 
 #include "qt.hpp"
 
-#include <vlc_input_item.h>
+#include <heimdall_input_item.h>
 
 #include <QWidget>
 

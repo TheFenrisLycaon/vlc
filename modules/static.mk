@@ -1,17 +1,17 @@
 # Extract plugins and convenience libraries from the libtool libraries
 # being built, excluding the ones using them.
 
-PLUGINS = $(VLC_PLUGINS:%=lib%.la)
+PLUGINS = $(HEIMDALL_PLUGINS:%=lib%.la)
 PARTIAL_PLUGINS = $(PLUGINS:_plugin.la=_plugin.partial.la)
 
 # With Mach-O, ld64's -exported_symbol promotes the listed pattern to
 # the only globally visible symbols in the relocatable output and
 # demotes everything else. On ELF this is handled by the
-# `objcopy -G 'vlc_entry*'` step below because it only works at the
+# `objcopy -G 'heimdall_entry*'` step below because it only works at the
 # final link otherwise.
 PARTIAL_LINK_EXPORT_FLAGS =
 if HAVE_DARWIN
-PARTIAL_LINK_EXPORT_FLAGS += -Wl,-exported_symbol,_vlc_entry*
+PARTIAL_LINK_EXPORT_FLAGS += -Wl,-exported_symbol,_heimdall_entry*
 endif
 
 .PRECIOUS: $(PARTIAL_PLUGINS) $(PLUGINS:.la=.la.symbollist) $(PARTIAL_PLUGINS:=.symbollist) \
@@ -31,22 +31,22 @@ endif
 	$(AM_V_at)$(MKDIR_P) $(@D)
 	$(AM_V_at)$(AM_V_P) && set -x; \
 	libpath=`grep old_library= "$<" | cut -d"'" -f 2`; \
-	vlc_entrypoint=`$(NM) ".libs/$${libpath}" | \
-		awk '$$2 == "T" && $$3 ~ /^_?vlc_entry__[A-Za-z0-9_]+$$/ { print $$3; exit }'`; \
+	heimdall_entrypoint=`$(NM) ".libs/$${libpath}" | \
+		awk '$$2 == "T" && $$3 ~ /^_?heimdall_entry__[A-Za-z0-9_]+$$/ { print $$3; exit }'`; \
 	static_dependencies=`$(top_srcdir)/buildsystem/dependencies.sh static $<`; \
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) \
 		-r -o $@ -fPIC \
 		$(FORCE_GROUP_ALLOCATION_LDFLAGS) \
 		$(PARTIAL_LINK_EXPORT_FLAGS) \
-		-Wl,-u,$${vlc_entrypoint} \
+		-Wl,-u,$${heimdall_entrypoint} \
 		".libs/$${libpath}" \
 		$${static_dependencies}
 	@# Resolve COMDAT groups so they don't cause cross-plugin dedup at final link
-	@# Then localize ALL symbols except VLC entry points.
+	@# Then localize ALL symbols except Heimdall entry points.
 	@# On Darwin, ld64 -exported_symbol already handles this (see PARTIAL_LINK_EXPORT_FLAGS).
 if !HAVE_DARWIN
 	$(AM_V_at)$(OBJCOPY) --wildcard \
-		-G 'vlc_entry*' \
+		-G 'heimdall_entry*' \
 		$@ || rm -f $@
 endif
 # Unfortunately libtool checks that the following comment is there to check that
@@ -62,7 +62,7 @@ endif
 # didn't want to link.
 %_plugin.partial.la: %_plugin.la %_plugin.la.symbollist .deps/%_plugin.partial.la.o
 	$(AM_V_at)$(LIBTOOL) $(AM_V_lt) --mode=link --tag=CXX c++ -Wl,-Ur -fPIC -o $@ "$@.lo" \
-		-export-symbols-regex "^vlc_entry__"
+		-export-symbols-regex "^heimdall_entry__"
 	$(AM_V_GEN)dependencies=`$(top_srcdir)/buildsystem/dependencies.sh forward $<`; \
 	frameworks=`echo "$($*_plugin_la_LDFLAGS)" \
 		| grep -oE '\-(framework|weak_framework),[A-Za-z][A-Za-z0-9_]*' \
@@ -80,29 +80,29 @@ if HAVE_PARTIAL_LINKING
 %_plugin.la.symbollist: %_plugin.la
 	$(AM_V_GEN)libpath=`grep old_library= "$<" | cut -d"'" -f 2`; \
 	entrypoint=`$(NM) ".libs/$${libpath}" | \
-	    awk '$$2 == "T" && $$3 ~ /^_?vlc_entry__[A-Za-z0-9_]+$$/ { s=$$3; sub(/^_/,"",s); print s; exit }'`; \
+	    awk '$$2 == "T" && $$3 ~ /^_?heimdall_entry__[A-Za-z0-9_]+$$/ { s=$$3; sub(/^_/,"",s); print s; exit }'`; \
 	echo $${entrypoint} > $@
 
 # Symbollist from partial-linked .partial.la file (needed by manifest)
 # On macOS/Mach-O, objcopy -G applied during partial-linking can
-# localize the entry symbol but it remains the only vlc_entry__ name
+# localize the entry symbol but it remains the only heimdall_entry__ name
 # defined in the archive.
 %_plugin.partial.la.symbollist: %_plugin.partial.la
 	$(AM_V_GEN)libpath=`grep old_library= "$<" | cut -d"'" -f 2`; \
 	entrypoint=`$(NM) ".libs/$${libpath}" | \
-	    awk 'tolower($$2) == "t" && $$3 ~ /^_?vlc_entry__[A-Za-z0-9_]+$$/ { s=$$3; sub(/^_/,"",s); print s; exit }'`; \
+	    awk 'tolower($$2) == "t" && $$3 ~ /^_?heimdall_entry__[A-Za-z0-9_]+$$/ { s=$$3; sub(/^_/,"",s); print s; exit }'`; \
 	echo $${entrypoint} > $@
 
 # Generate a manifest file that allows linking against all the plugins
 # we've built, by providing an X-macro which reference each plugin.
 # It it particularily userful when building tests or binaries, but also
 # for downstream projects that might want to pick all those plugins.
-vlc_modules_manifest.h: $(PARTIAL_PLUGINS) $(PARTIAL_PLUGINS:=.symbollist) Makefile
+heimdall_modules_manifest.h: $(PARTIAL_PLUGINS) $(PARTIAL_PLUGINS:=.symbollist) Makefile
 	## Collect paths of all static libraries needed (plugins and contribs)
-	$(AM_V_at)echo "#define VLC_MODULE_LIST(F) \\" > $@.tmp
+	$(AM_V_at)echo "#define HEIMDALL_MODULE_LIST(F) \\" > $@.tmp
 	## Note: $(NULL) here is to fix syntax interpretation of \\ in the string
 	$(AM_V_GEN)for ltlib in $(PARTIAL_PLUGINS); do \
-		module_name=`cat $${ltlib}.symbollist | sed s/.*vlc_entry__//`; \
+		module_name=`cat $${ltlib}.symbollist | sed s/.*heimdall_entry__//`; \
 		if [ -z "$${module_name}" ]; then \
 			echo "Cannot parse $${ltlib} symbol"; \
 			exit 1; \
@@ -112,31 +112,31 @@ vlc_modules_manifest.h: $(PARTIAL_PLUGINS) $(PARTIAL_PLUGINS:=.symbollist) Makef
 	$(AM_V_at)echo "" >> $@.tmp
 	$(AM_V_at)mv $@.tmp $@
 
-BUILT_SOURCES += vlc_modules_manifest.h
+BUILT_SOURCES += heimdall_modules_manifest.h
 CLEANFILES += \
 	$(PLUGINS:=.symbollist) \
 	$(PARTIAL_PLUGINS) \
 	$(PARTIAL_PLUGINS:%.partial.la=.deps/%.partial.la.o) \
 	$(PARTIAL_PLUGINS:=.symbollist) \
-	vlc_modules_manifest.h
+	heimdall_modules_manifest.h
 endif
 
 # Static modules bundle gathering all plugins into a single
 # non-installed archive library, that can be used by downstream projects
 # or executables in the project to link against the static module bank.
-libvlc_static_modules_la_SOURCES =
-libvlc_static_modules_la_LDFLAGS = \
-	-static -export-symbols-regex ^vlc_entry \
-	$(top_builddir)/compat/libcompat.la $(LTLIBVLCCORE)
-libvlc_static_modules_la_LIBADD = $(PARTIAL_PLUGINS)
+libheimdall_static_modules_la_SOURCES =
+libheimdall_static_modules_la_LDFLAGS = \
+	-static -export-symbols-regex ^heimdall_entry \
+	$(top_builddir)/compat/libcompat.la $(LTLIBHEIMDALLCORE)
+libheimdall_static_modules_la_LIBADD = $(PARTIAL_PLUGINS)
 
-# NOTE: It's easier to define libvlc_static_modules_la_DEPENDENCIES since
+# NOTE: It's easier to define libheimdall_static_modules_la_DEPENDENCIES since
 # dependencies on POSIX2024 Make percent substitution is not properly
 # parsed by automake, and it would then depends upon pkglib_LTLIBRARIES,
 # which creates a circular dependency.
-libvlc_static_modules_la_DEPENDENCIES = $(PARTIAL_PLUGINS)
-EXTRA_libvlc_static_modules_la_DEPENDENCIES = vlc_modules_manifest.h
+libheimdall_static_modules_la_DEPENDENCIES = $(PARTIAL_PLUGINS)
+EXTRA_libheimdall_static_modules_la_DEPENDENCIES = heimdall_modules_manifest.h
 
 if HAVE_PARTIAL_LINKING
-pkglib_LTLIBRARIES += libvlc_static_modules.la
+pkglib_LTLIBRARIES += libheimdall_static_modules.la
 endif

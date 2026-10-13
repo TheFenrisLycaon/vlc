@@ -2,6 +2,7 @@
  * Time.hpp: Adaptative streaming time definitions
  *****************************************************************************
  * Copyright © 2015 - VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -20,8 +21,8 @@
 #ifndef TIME_HPP
 #define TIME_HPP
 
-#include <vlc_common.h>
-#include <vlc_tick.h>
+#include <heimdall_common.h>
+#include <heimdall_tick.h>
 #include <list>
 
 namespace adaptive
@@ -35,7 +36,7 @@ class Timescale
     public:
         Timescale(uint64_t v = 0) : scale(v) {}
 
-        vlc_tick_t ToTime(stime_t t) const
+        heimdall_tick_t ToTime(stime_t t) const
         {
             if( !scale ) return 0;
             stime_t v = t / scale;
@@ -43,7 +44,7 @@ class Timescale
             return v * CLOCK_FREQ + r * CLOCK_FREQ / scale;
         }
 
-        stime_t ToScaled(vlc_tick_t t) const
+        stime_t ToScaled(heimdall_tick_t t) const
         {
             int64_t v = t / CLOCK_FREQ;
             int64_t r = t % CLOCK_FREQ;
@@ -62,30 +63,30 @@ class SegmentTimes
     public:
         SegmentTimes()
         {
-            demux = VLC_TICK_INVALID;
-            media = VLC_TICK_INVALID;
-            display = VLC_TICK_INVALID;
+            demux = HEIMDALL_TICK_INVALID;
+            media = HEIMDALL_TICK_INVALID;
+            display = HEIMDALL_TICK_INVALID;
         }
-        SegmentTimes(vlc_tick_t a, vlc_tick_t b, vlc_tick_t c = VLC_TICK_INVALID)
+        SegmentTimes(heimdall_tick_t a, heimdall_tick_t b, heimdall_tick_t c = HEIMDALL_TICK_INVALID)
         {
             demux = a;
             media = b;
             display = c;
         }
-        void offsetBy(vlc_tick_t v)
+        void offsetBy(heimdall_tick_t v)
         {
             if(v == 0)
                 return;
-            if(demux != VLC_TICK_INVALID)
+            if(demux != HEIMDALL_TICK_INVALID)
                 demux += v;
-            if(media != VLC_TICK_INVALID)
+            if(media != HEIMDALL_TICK_INVALID)
                 media += v;
-            if(display != VLC_TICK_INVALID)
+            if(display != HEIMDALL_TICK_INVALID)
                 display += v;
         }
-        vlc_tick_t demux;
-        vlc_tick_t media;
-        vlc_tick_t display;
+        heimdall_tick_t demux;
+        heimdall_tick_t media;
+        heimdall_tick_t display;
 };
 
 class Times
@@ -93,20 +94,20 @@ class Times
     public:
         Times()
         {
-            continuous = VLC_TICK_INVALID;
+            continuous = HEIMDALL_TICK_INVALID;
         }
-        Times(const SegmentTimes &s, vlc_tick_t a)
+        Times(const SegmentTimes &s, heimdall_tick_t a)
         {
             segment = s;
             continuous = a;
         }
-        void offsetBy(vlc_tick_t v)
+        void offsetBy(heimdall_tick_t v)
         {
-            if(continuous != VLC_TICK_INVALID)
+            if(continuous != HEIMDALL_TICK_INVALID)
                 continuous += v;
             segment.offsetBy(v);
         }
-        vlc_tick_t continuous;
+        heimdall_tick_t continuous;
         SegmentTimes segment;
 };
 
@@ -122,7 +123,7 @@ class SynchronizationReferences
                 if(r.first == seq)
                 {
                     /* update reference when the timestamps are really old to prevent false roll */
-                    constexpr vlc_tick_t quarterroll = (INT64_C(0x1FFFFFFFF) * 100 / 9) >> 2;
+                    constexpr heimdall_tick_t quarterroll = (INT64_C(0x1FFFFFFFF) * 100 / 9) >> 2;
                     if(t.continuous - r.second.continuous > quarterroll)
                         r.second = t;
                     return;
@@ -131,7 +132,7 @@ class SynchronizationReferences
                 refs.pop_back();
             refs.push_front(SynchronizationReference(seq, t));
         }
-        bool getReference(uint64_t seq, vlc_tick_t,
+        bool getReference(uint64_t seq, heimdall_tick_t,
                           SynchronizationReference &ref) const
         {
             for(auto t : refs)

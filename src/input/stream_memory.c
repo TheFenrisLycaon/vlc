@@ -2,6 +2,7 @@
  * stream_memory.c: stream_t wrapper around memory buffer
  *****************************************************************************
  * Copyright (C) 1999-2008 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Sigmund Augdal Helberg <dnumgis@videolan.org>
  *
@@ -24,19 +25,19 @@
 # include "config.h"
 #endif
 
-#include <vlc_input.h>
+#include <heimdall_input.h>
 #include "stream.h"
 
-struct vlc_stream_memory_private
+struct heimdall_stream_memory_private
 {
     size_t    i_pos;      /* Current reading offset */
     size_t    i_size;
     uint8_t  *p_buffer;
 };
 
-struct vlc_stream_attachment_private
+struct heimdall_stream_attachment_private
 {
-    struct vlc_stream_memory_private memory;
+    struct heimdall_stream_memory_private memory;
     input_attachment_t *attachment;
 };
 
@@ -51,31 +52,31 @@ static void stream_MemoryPreserveDelete(stream_t *s)
 
 static void stream_MemoryDelete(stream_t *s)
 {
-    struct vlc_stream_memory_private *sys = vlc_stream_Private(s);
+    struct heimdall_stream_memory_private *sys = heimdall_stream_Private(s);
 
     free(sys->p_buffer);
 }
 
 static void stream_AttachmentDelete(stream_t *s)
 {
-    struct vlc_stream_attachment_private *sys = vlc_stream_Private(s);
+    struct heimdall_stream_attachment_private *sys = heimdall_stream_Private(s);
 
-    vlc_input_attachment_Release(sys->attachment);
+    heimdall_input_attachment_Release(sys->attachment);
     free(s->psz_name);
 }
 
-stream_t *(vlc_stream_MemoryNew)(vlc_object_t *p_this, uint8_t *p_buffer,
+stream_t *(heimdall_stream_MemoryNew)(heimdall_object_t *p_this, uint8_t *p_buffer,
                                  size_t i_size, bool preserve)
 {
-    struct vlc_stream_memory_private *p_sys;
-    stream_t *s = vlc_stream_CustomNew(p_this,
+    struct heimdall_stream_memory_private *p_sys;
+    stream_t *s = heimdall_stream_CustomNew(p_this,
                                        preserve ? stream_MemoryPreserveDelete
                                                 : stream_MemoryDelete,
                                        sizeof (*p_sys), "stream");
     if (unlikely(s == NULL))
         return NULL;
 
-    p_sys = vlc_stream_Private(s);
+    p_sys = heimdall_stream_Private(s);
     p_sys->i_pos = 0;
     p_sys->i_size = i_size;
     p_sys->p_buffer = p_buffer;
@@ -87,11 +88,11 @@ stream_t *(vlc_stream_MemoryNew)(vlc_object_t *p_this, uint8_t *p_buffer,
     return s;
 }
 
-stream_t *vlc_stream_AttachmentNew(vlc_object_t *p_this,
+stream_t *heimdall_stream_AttachmentNew(heimdall_object_t *p_this,
                                    input_attachment_t *attachment)
 {
-    struct vlc_stream_attachment_private *p_sys;
-    stream_t *s = vlc_stream_CustomNew(p_this, stream_AttachmentDelete,
+    struct heimdall_stream_attachment_private *p_sys;
+    stream_t *s = heimdall_stream_CustomNew(p_this, stream_AttachmentDelete,
                                        sizeof (*p_sys), "stream");
     if (unlikely(s == NULL))
         return NULL;
@@ -103,7 +104,7 @@ stream_t *vlc_stream_AttachmentNew(vlc_object_t *p_this,
         return NULL;
     }
 
-    p_sys = vlc_stream_Private(s);
+    p_sys = heimdall_stream_Private(s);
     p_sys->memory.i_pos = 0;
     p_sys->memory.i_size = attachment->i_data;
     p_sys->memory.p_buffer = attachment->p_data;
@@ -121,7 +122,7 @@ stream_t *vlc_stream_AttachmentNew(vlc_object_t *p_this,
  ****************************************************************************/
 static int Control( stream_t *s, int i_query, va_list args )
 {
-    struct vlc_stream_memory_private *p_sys = vlc_stream_Private(s);
+    struct heimdall_stream_memory_private *p_sys = heimdall_stream_Private(s);
 
     uint64_t   *pi_64;
 
@@ -140,7 +141,7 @@ static int Control( stream_t *s, int i_query, va_list args )
             break;
 
         case STREAM_GET_PTS_DELAY:
-            *va_arg( args, vlc_tick_t * ) = 0;
+            *va_arg( args, heimdall_tick_t * ) = 0;
             break;
 
         case STREAM_GET_TITLE_INFO:
@@ -151,7 +152,7 @@ static int Control( stream_t *s, int i_query, va_list args )
         case STREAM_GET_SIGNAL:
         case STREAM_SET_TITLE:
         case STREAM_SET_SEEKPOINT:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
         case STREAM_SET_PAUSE_STATE:
             break; /* nothing to do */
@@ -161,18 +162,18 @@ static int Control( stream_t *s, int i_query, va_list args )
         case STREAM_GET_PRIVATE_ID_STATE:
             msg_Err( s, "Hey, what are you thinking? "
                      "DO NOT USE PRIVATE STREAM CONTROLS!!!" );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
         default:
-            msg_Err( s, "invalid vlc_stream_vaControl query=0x%x", i_query );
-            return VLC_EGENERIC;
+            msg_Err( s, "invalid heimdall_stream_vaControl query=0x%x", i_query );
+            return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static ssize_t Read( stream_t *s, void *p_read, size_t i_read )
 {
-    struct vlc_stream_memory_private *p_sys = vlc_stream_Private(s);
+    struct heimdall_stream_memory_private *p_sys = heimdall_stream_Private(s);
 
     if( i_read > p_sys->i_size - p_sys->i_pos )
         i_read = p_sys->i_size - p_sys->i_pos;
@@ -184,11 +185,11 @@ static ssize_t Read( stream_t *s, void *p_read, size_t i_read )
 
 static int Seek( stream_t *s, uint64_t offset )
 {
-    struct vlc_stream_memory_private *p_sys = vlc_stream_Private(s);
+    struct heimdall_stream_memory_private *p_sys = heimdall_stream_Private(s);
 
     if( offset > p_sys->i_size )
         offset = p_sys->i_size;
 
     p_sys->i_pos = offset;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

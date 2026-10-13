@@ -2,6 +2,7 @@
  * src/test/executor.c
  *****************************************************************************
  * Copyright (C) 2020 Videolabs, VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -26,24 +27,24 @@
 
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_threads.h>
-#include <vlc_executor.h>
-#include <vlc_tick.h>
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
+#include <heimdall_executor.h>
+#include <heimdall_tick.h>
 
 struct data
 {
-    vlc_mutex_t lock;
-    vlc_cond_t cond;
+    heimdall_mutex_t lock;
+    heimdall_cond_t cond;
     int started;
     int ended;
-    vlc_tick_t delay;
+    heimdall_tick_t delay;
 };
 
 static void InitData(struct data *data)
 {
-    vlc_mutex_init(&data->lock);
-    vlc_cond_init(&data->cond);
+    heimdall_mutex_init(&data->lock);
+    heimdall_cond_init(&data->cond);
     data->started = 0;
     data->ended = 0;
     data->delay = 0;
@@ -53,144 +54,144 @@ static void RunIncrement(void *userdata)
 {
     struct data *data = userdata;
 
-    vlc_mutex_lock(&data->lock);
+    heimdall_mutex_lock(&data->lock);
     ++data->started;
-    vlc_mutex_unlock(&data->lock);
+    heimdall_mutex_unlock(&data->lock);
 
     if (data->delay > 0)
-        vlc_tick_sleep(data->delay);
+        heimdall_tick_sleep(data->delay);
 
-    vlc_mutex_lock(&data->lock);
+    heimdall_mutex_lock(&data->lock);
     ++data->ended;
-    vlc_cond_signal(&data->cond);
-    vlc_mutex_unlock(&data->lock);
+    heimdall_cond_signal(&data->cond);
+    heimdall_mutex_unlock(&data->lock);
 }
 
 static void test_single_runnable(void)
 {
-    vlc_executor_t *executor = vlc_executor_New(1);
+    heimdall_executor_t *executor = heimdall_executor_New(1);
     assert(executor);
 
     struct data data;
     InitData(&data);
 
-    struct vlc_runnable runnable = {
+    struct heimdall_runnable runnable = {
         .run = RunIncrement,
         .userdata = &data,
     };
 
-    vlc_executor_Submit(executor, &runnable);
+    heimdall_executor_Submit(executor, &runnable);
 
-    vlc_mutex_lock(&data.lock);
+    heimdall_mutex_lock(&data.lock);
     while (data.ended == 0)
-        vlc_cond_wait(&data.cond, &data.lock);
-    vlc_mutex_unlock(&data.lock);
+        heimdall_cond_wait(&data.cond, &data.lock);
+    heimdall_mutex_unlock(&data.lock);
 
     assert(data.ended == 1);
 
-    vlc_executor_Delete(executor);
+    heimdall_executor_Delete(executor);
 }
 
 static void test_multiple_runnables(void)
 {
-    vlc_executor_t *executor = vlc_executor_New(3);
+    heimdall_executor_t *executor = heimdall_executor_New(3);
     assert(executor);
 
     struct data shared_data;
     InitData(&shared_data);
 
-    struct vlc_runnable runnables[300];
+    struct heimdall_runnable runnables[300];
     for (int i = 0; i < 300; ++i)
     {
-        struct vlc_runnable *runnable = &runnables[i];
+        struct heimdall_runnable *runnable = &runnables[i];
         runnable->run = RunIncrement;
         runnable->userdata = &shared_data;
-        vlc_executor_Submit(executor, runnable);
+        heimdall_executor_Submit(executor, runnable);
     }
 
-    vlc_mutex_lock(&shared_data.lock);
+    heimdall_mutex_lock(&shared_data.lock);
     while (shared_data.ended < 300)
-        vlc_cond_wait(&shared_data.cond, &shared_data.lock);
-    vlc_mutex_unlock(&shared_data.lock);
+        heimdall_cond_wait(&shared_data.cond, &shared_data.lock);
+    heimdall_mutex_unlock(&shared_data.lock);
 
     assert(shared_data.ended == 300);
 
-    vlc_executor_Delete(executor);
+    heimdall_executor_Delete(executor);
 }
 
 static void test_blocking_delete(void)
 {
-    vlc_executor_t *executor = vlc_executor_New(1);
+    heimdall_executor_t *executor = heimdall_executor_New(1);
     assert(executor);
 
     struct data data;
     InitData(&data);
 
-    data.delay = VLC_TICK_FROM_MS(100);
+    data.delay = HEIMDALL_TICK_FROM_MS(100);
 
-    struct vlc_runnable runnable = {
+    struct heimdall_runnable runnable = {
         .run = RunIncrement,
         .userdata = &data,
     };
 
-    vlc_executor_Submit(executor, &runnable);
+    heimdall_executor_Submit(executor, &runnable);
 
     /* Wait for the runnable to be started */
-    vlc_mutex_lock(&data.lock);
+    heimdall_mutex_lock(&data.lock);
     while (data.started == 0)
-        vlc_cond_wait(&data.cond, &data.lock);
-    vlc_mutex_unlock(&data.lock);
+        heimdall_cond_wait(&data.cond, &data.lock);
+    heimdall_mutex_unlock(&data.lock);
 
     /* The runnable sleeps for about 100ms */
 
-    vlc_executor_Delete(executor);
+    heimdall_executor_Delete(executor);
 
-    vlc_mutex_lock(&data.lock);
+    heimdall_mutex_lock(&data.lock);
     /* The executor must wait the end of running tasks on delete */
     assert(data.ended == 1);
-    vlc_mutex_unlock(&data.lock);
+    heimdall_mutex_unlock(&data.lock);
 }
 
 static void test_cancel(void)
 {
-    vlc_executor_t *executor = vlc_executor_New(4);
+    heimdall_executor_t *executor = heimdall_executor_New(4);
     assert(executor);
 
     struct data shared_data;
     InitData(&shared_data);
 
-    shared_data.delay = VLC_TICK_FROM_MS(100);
+    shared_data.delay = HEIMDALL_TICK_FROM_MS(100);
 
     /* Submit 40 tasks taking at least 100ms on an executor with at most 4
      * threads */
 
-    struct vlc_runnable runnables[40];
+    struct heimdall_runnable runnables[40];
     for (int i = 0; i < 40; ++i)
     {
-        struct vlc_runnable *runnable = &runnables[i];
+        struct heimdall_runnable *runnable = &runnables[i];
         runnable->run = RunIncrement;
         runnable->userdata = &shared_data;
-        vlc_executor_Submit(executor, runnable);
+        heimdall_executor_Submit(executor, runnable);
     }
 
     /* Wait a bit (in two lines to avoid harmful_delay() warning) */
-    vlc_tick_t delay = VLC_TICK_FROM_MS(150);
-    vlc_tick_sleep(delay);
+    heimdall_tick_t delay = HEIMDALL_TICK_FROM_MS(150);
+    heimdall_tick_sleep(delay);
 
     int canceled = 0;
     for (int i = 0; i < 40; ++i)
     {
-        if (vlc_executor_Cancel(executor, &runnables[i]))
+        if (heimdall_executor_Cancel(executor, &runnables[i]))
             ++canceled;
     }
 
-    vlc_mutex_lock(&shared_data.lock);
+    heimdall_mutex_lock(&shared_data.lock);
     /* All started must not be canceled (but some non-started-yet may not be
      * canceled either) */
     assert(canceled + shared_data.started <= 40);
-    vlc_mutex_unlock(&shared_data.lock);
+    heimdall_mutex_unlock(&shared_data.lock);
 
-    vlc_executor_Delete(executor);
+    heimdall_executor_Delete(executor);
 
     /* Every started task must also be ended */
     assert(shared_data.started == shared_data.ended);
@@ -200,16 +201,16 @@ static void test_cancel(void)
 
 struct doubler_task
 {
-    vlc_executor_t *executor;
+    heimdall_executor_t *executor;
     int *array;
     size_t count;
-    struct vlc_runnable runnable;
+    struct heimdall_runnable runnable;
 };
 
 static void DoublerRun(void *);
 
 static bool
-SpawnDoublerTask(vlc_executor_t *executor, int *array, size_t count)
+SpawnDoublerTask(heimdall_executor_t *executor, int *array, size_t count)
 {
     struct doubler_task *task = malloc(sizeof(*task));
     if (!task)
@@ -221,7 +222,7 @@ SpawnDoublerTask(vlc_executor_t *executor, int *array, size_t count)
     task->runnable.run = DoublerRun;
     task->runnable.userdata = task;
 
-    vlc_executor_Submit(executor, &task->runnable);
+    heimdall_executor_Submit(executor, &task->runnable);
 
     return true;
 }
@@ -250,7 +251,7 @@ static void DoublerRun(void *userdata)
 
 static void test_task_chain(void)
 {
-    vlc_executor_t *executor = vlc_executor_New(4);
+    heimdall_executor_t *executor = heimdall_executor_New(4);
     assert(executor);
 
     /* Numbers from 0 to 99 */
@@ -263,8 +264,8 @@ static void test_task_chain(void)
      * doubled */
     SpawnDoublerTask(executor, array, 100);
 
-    vlc_executor_WaitIdle(executor);
-    vlc_executor_Delete(executor);
+    heimdall_executor_WaitIdle(executor);
+    heimdall_executor_Delete(executor);
 
     /* All values must have been doubled */
     for (int i = 0; i < 100; ++i)

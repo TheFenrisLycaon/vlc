@@ -1,8 +1,9 @@
 /*****************************************************************************
  * @file pipewire.c
- * @brief PipeWire input plugin for vlc
+ * @brief PipeWire input plugin for heimdall
  *****************************************************************************
  * Copyright (C) 2024 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Ayush Dey <deyayush6@gmail.com>
  *          Thomas Guillem <tguillem@videolan.org>
@@ -26,23 +27,23 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_aout.h>
-#include <vlc_demux.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_aout.h>
+#include <heimdall_demux.h>
+#include <heimdall_plugin.h>
 #include <spa/param/audio/format-utils.h>
 #include <spa/param/props.h>
 #include <spa/param/video/format-utils.h>
 #include <pipewire/pipewire.h>
-#include "audio_output/vlc_pipewire.h"
+#include "audio_output/heimdall_pipewire.h"
 
 #define HELP_TEXT N_( \
     "Pass pipewire:// to open the default PipeWire source, " \
     "or pipewire://SOURCE to open a specific source named SOURCE.")
 
-struct vlc_pw_stream
+struct heimdall_pw_stream
 {
-    struct vlc_pw_context *context;
+    struct heimdall_pw_context *context;
     struct pw_stream *stream;
     struct spa_hook listener;
     demux_t *demux;
@@ -53,78 +54,78 @@ struct vlc_pw_stream
 
 struct demux_sys_t
 {
-    struct vlc_pw_context *context;
-    struct vlc_pw_stream *stream;
+    struct heimdall_pw_context *context;
+    struct heimdall_pw_stream *stream;
     struct spa_hook listener;
     es_out_id_t *es;
     unsigned framesize; /**< Byte size of a sample */
-    vlc_tick_t caching; /**< Caching value */
-    vlc_tick_t interval;
+    heimdall_tick_t caching; /**< Caching value */
+    heimdall_tick_t interval;
     bool discontinuity; /**< The next frame will not follow the last one */
     enum es_format_category_e media_type;
     uint8_t chans_table[AOUT_CHAN_MAX]; /**< Channels order table */
     uint8_t chans_to_reorder; /**< Number of channels to reorder */
-    vlc_fourcc_t format; /**< Sample format */
+    heimdall_fourcc_t format; /**< Sample format */
 };
 
-/** PipeWire audio sample (PCM) format to VLC codec */
-static vlc_fourcc_t spa_audio_format_to_fourcc(enum spa_audio_format spa_format)
+/** PipeWire audio sample (PCM) format to Heimdall codec */
+static heimdall_fourcc_t spa_audio_format_to_fourcc(enum spa_audio_format spa_format)
 {
     switch (spa_format)
     {
         case SPA_AUDIO_FORMAT_U8:
-            return VLC_CODEC_U8;
+            return HEIMDALL_CODEC_U8;
         case SPA_AUDIO_FORMAT_ALAW:
-            return VLC_CODEC_ALAW;
+            return HEIMDALL_CODEC_ALAW;
         case SPA_AUDIO_FORMAT_ULAW:
-            return VLC_CODEC_MULAW;
+            return HEIMDALL_CODEC_MULAW;
         case SPA_AUDIO_FORMAT_S16_LE:
-            return VLC_CODEC_S16L;
+            return HEIMDALL_CODEC_S16L;
         case SPA_AUDIO_FORMAT_S16_BE:
-            return VLC_CODEC_S16B;
+            return HEIMDALL_CODEC_S16B;
         case SPA_AUDIO_FORMAT_F32_LE:
-            return VLC_CODEC_F32L;
+            return HEIMDALL_CODEC_F32L;
         case SPA_AUDIO_FORMAT_F32_BE:
-            return VLC_CODEC_F32B;
+            return HEIMDALL_CODEC_F32B;
         case SPA_AUDIO_FORMAT_S32_LE:
-            return VLC_CODEC_S32L;
+            return HEIMDALL_CODEC_S32L;
         case SPA_AUDIO_FORMAT_S32_BE:
-            return VLC_CODEC_S32B;
+            return HEIMDALL_CODEC_S32B;
         case SPA_AUDIO_FORMAT_S24_LE:
-            return VLC_CODEC_S24L;
+            return HEIMDALL_CODEC_S24L;
         case SPA_AUDIO_FORMAT_S24_BE:
-            return VLC_CODEC_S24B;
+            return HEIMDALL_CODEC_S24B;
         case SPA_AUDIO_FORMAT_S24_32_LE:
-            return VLC_CODEC_S24L32;
+            return HEIMDALL_CODEC_S24L32;
         case SPA_AUDIO_FORMAT_S24_32_BE:
-            return VLC_CODEC_S24B32;
+            return HEIMDALL_CODEC_S24B32;
         default:
             return 0;
     }
 }
 
-/** PipeWire video sample (PCM) format to VLC codec */
-static vlc_fourcc_t spa_video_format_to_fourcc(enum spa_video_format spa_format)
+/** PipeWire video sample (PCM) format to Heimdall codec */
+static heimdall_fourcc_t spa_video_format_to_fourcc(enum spa_video_format spa_format)
 {
     switch (spa_format)
     {
         case SPA_VIDEO_FORMAT_YUY2:
-            return VLC_CODEC_YUYV;
+            return HEIMDALL_CODEC_YUYV;
         case SPA_VIDEO_FORMAT_RGB:
-            return VLC_CODEC_RGB24;
+            return HEIMDALL_CODEC_RGB24;
         case SPA_VIDEO_FORMAT_RGBA:
-            return VLC_CODEC_RGBA;
+            return HEIMDALL_CODEC_RGBA;
         case SPA_VIDEO_FORMAT_RGBx:
-            return VLC_CODEC_RGBX;
+            return HEIMDALL_CODEC_RGBX;
         case SPA_VIDEO_FORMAT_BGRx:
-            return VLC_CODEC_BGRX;
+            return HEIMDALL_CODEC_BGRX;
         default:
             return 0;
     }
 }
 
-/** PipeWire to VLC channel mapping */
-static const uint16_t vlc_chans[] = {
+/** PipeWire to Heimdall channel mapping */
+static const uint16_t heimdall_chans[] = {
     [SPA_AUDIO_CHANNEL_MONO] = AOUT_CHAN_CENTER,
     [SPA_AUDIO_CHANNEL_FL]   = AOUT_CHAN_LEFT,
     [SPA_AUDIO_CHANNEL_FR]   = AOUT_CHAN_RIGHT,
@@ -140,7 +141,7 @@ static const uint16_t vlc_chans[] = {
 /**
  * Initializes the `es_format_t fmt` object (audio properties)
  */
-static int initialize_audio_format(struct vlc_pw_stream *s, es_format_t *fmt, vlc_fourcc_t format)
+static int initialize_audio_format(struct heimdall_pw_stream *s, es_format_t *fmt, heimdall_fourcc_t format)
 {
     demux_t *demux = s->demux;
     struct demux_sys_t *sys = demux->p_sys;
@@ -149,25 +150,25 @@ static int initialize_audio_format(struct vlc_pw_stream *s, es_format_t *fmt, vl
 
     if (channels == 0)
     {
-        vlc_pw_error(sys->context, "source should have at least one channel");
+        heimdall_pw_error(sys->context, "source should have at least one channel");
         return -1;
     }
 
     uint32_t chans_in[AOUT_CHAN_MAX + 1] = {0};
     for (uint32_t i = 0; i < channels && i < AOUT_CHAN_MAX; i++)
     {
-        uint16_t vlc_chan = 0;
+        uint16_t heimdall_chan = 0;
         uint32_t pos = s->audio_format.info.raw.position[i];
-        if (pos < ARRAY_SIZE(vlc_chans))
-            vlc_chan = vlc_chans[pos];
+        if (pos < ARRAY_SIZE(heimdall_chans))
+            heimdall_chan = heimdall_chans[pos];
 
-        if (vlc_chan == 0)
+        if (heimdall_chan == 0)
         {
-            vlc_pw_error(sys->context, "%s channel %u position %u", "unsupported", i, pos);
+            heimdall_pw_error(sys->context, "%s channel %u position %u", "unsupported", i, pos);
             return -1;
         }
-        chans_in[i] = vlc_chan;
-        fmt->audio.i_physical_channels |= vlc_chan;
+        chans_in[i] = heimdall_chan;
+        fmt->audio.i_physical_channels |= heimdall_chan;
     }
 
     sys->chans_to_reorder = aout_CheckChannelReorder(chans_in, NULL, fmt->audio.i_physical_channels,
@@ -185,7 +186,7 @@ static int initialize_audio_format(struct vlc_pw_stream *s, es_format_t *fmt, vl
 /**
  * Initializes the `es_format_t fmt` object (video properties)
  */
-static void initialize_video_format(struct vlc_pw_stream *s, es_format_t *fmt, vlc_fourcc_t format)
+static void initialize_video_format(struct heimdall_pw_stream *s, es_format_t *fmt, heimdall_fourcc_t format)
 {
     demux_t *demux = s->demux;
     struct demux_sys_t *sys = demux->p_sys;
@@ -197,7 +198,7 @@ static void initialize_video_format(struct vlc_pw_stream *s, es_format_t *fmt, v
                         s->video_format.info.raw.size.height,
                         s->video_format.info.raw.pixel_aspect_ratio.num,
                         s->video_format.info.raw.pixel_aspect_ratio.denom);
-    sys->interval = vlc_tick_from_samples(fmt->video.i_frame_rate,
+    sys->interval = heimdall_tick_from_samples(fmt->video.i_frame_rate,
                                             fmt->video.i_frame_rate_base);
 }
 
@@ -209,7 +210,7 @@ static void initialize_video_format(struct vlc_pw_stream *s, es_format_t *fmt, v
  */
 static void on_stream_param_changed(void *data, uint32_t id, const struct spa_pod *param)
 {
-    struct vlc_pw_stream *s = data;
+    struct heimdall_pw_stream *s = data;
 
     if(s->es_out_added) /* ES already initialized and added */
         return;
@@ -232,10 +233,10 @@ static void on_stream_param_changed(void *data, uint32_t id, const struct spa_po
         if (spa_format_audio_raw_parse(param, &s->audio_format.info.raw) < 0)
             return;
 
-        vlc_fourcc_t format = spa_audio_format_to_fourcc(s->audio_format.info.raw.format);
+        heimdall_fourcc_t format = spa_audio_format_to_fourcc(s->audio_format.info.raw.format);
         if (format == 0)
         {
-            vlc_pw_error(sys->context, "unsupported PipeWire sample format %u",
+            heimdall_pw_error(sys->context, "unsupported PipeWire sample format %u",
                         (unsigned)s->audio_format.info.raw.format);
             return;
         }
@@ -255,10 +256,10 @@ static void on_stream_param_changed(void *data, uint32_t id, const struct spa_po
         if (spa_format_video_raw_parse(param, &s->video_format.info.raw) < 0)
             return;
 
-        vlc_fourcc_t format = spa_video_format_to_fourcc(s->video_format.info.raw.format);
+        heimdall_fourcc_t format = spa_video_format_to_fourcc(s->video_format.info.raw.format);
         if (format == 0)
         {
-            vlc_pw_error(sys->context, "unsupported PipeWire sample format %u",
+            heimdall_pw_error(sys->context, "unsupported PipeWire sample format %u",
                         (unsigned)s->video_format.info.raw.format);
             return;
         }
@@ -278,36 +279,36 @@ static void on_stream_param_changed(void *data, uint32_t id, const struct spa_po
 static void stream_state_changed(void *data, enum pw_stream_state old,
                                  enum pw_stream_state state, const char *err)
 {
-    struct vlc_pw_stream *s = data;
+    struct heimdall_pw_stream *s = data;
 
     if (state == PW_STREAM_STATE_ERROR)
-        vlc_pw_error(s->context, "stream error: %s", err);
+        heimdall_pw_error(s->context, "stream error: %s", err);
     else
-        vlc_pw_debug(s->context, "stream %s",
+        heimdall_pw_debug(s->context, "stream %s",
                                 pw_stream_state_as_string(state));
     if (old != state)
-        vlc_pw_signal(s->context);
+        heimdall_pw_signal(s->context);
 }
 
 /**
  * Retrieve latest timings
  */
-static vlc_tick_t stream_update_latency(struct vlc_pw_stream *s, vlc_tick_t *now)
+static heimdall_tick_t stream_update_latency(struct heimdall_pw_stream *s, heimdall_tick_t *now)
 {
     struct pw_time ts;
 
 #if PW_CHECK_VERSION(1, 1, 0)
-    /* PW monotonic clock, same than vlc_tick_now() */
-    *now = VLC_TICK_FROM_NS(pw_stream_get_nsec(s->stream));
+    /* PW monotonic clock, same than heimdall_tick_now() */
+    *now = HEIMDALL_TICK_FROM_NS(pw_stream_get_nsec(s->stream));
 #else
-    *now = vlc_tick_now();
+    *now = heimdall_tick_now();
 #endif
 
     if (pw_stream_get_time_n(s->stream, &ts, sizeof (ts)) < 0
      || ts.rate.denom == 0)
-        return VLC_TICK_INVALID;
+        return HEIMDALL_TICK_INVALID;
 
-    return (VLC_TICK_FROM_NS(ts.now) + vlc_tick_from_frac(ts.delay * ts.rate.num, ts.rate.denom));
+    return (HEIMDALL_TICK_FROM_NS(ts.now) + heimdall_tick_from_frac(ts.delay * ts.rate.num, ts.rate.denom));
 }
 
 /**
@@ -317,11 +318,11 @@ static vlc_tick_t stream_update_latency(struct vlc_pw_stream *s, vlc_tick_t *now
  */
 static void on_process(void *data)
 {
-    struct vlc_pw_stream *s = data;
+    struct heimdall_pw_stream *s = data;
     demux_t *demux = s->demux;
     struct demux_sys_t *sys = demux->p_sys;
-    vlc_tick_t now;
-    vlc_tick_t val = stream_update_latency(s, &now);
+    heimdall_tick_t now;
+    heimdall_tick_t val = stream_update_latency(s, &now);
     struct pw_buffer *b = pw_stream_dequeue_buffer(s->stream);
 
     if (unlikely(b == NULL))
@@ -334,15 +335,15 @@ static void on_process(void *data)
     size_t length = chunk->size;
 
     /*
-     * If timing data is not available (val == VLC_TICK_INVALID), we can at least
+     * If timing data is not available (val == HEIMDALL_TICK_INVALID), we can at least
      * assume that the capture delay is no less than zero.
      */
-    vlc_tick_t pts = (val != VLC_TICK_INVALID) ? val : now;
+    heimdall_tick_t pts = (val != HEIMDALL_TICK_INVALID) ? val : now;
     es_out_SetPCR(demux->out, pts);
     if (unlikely(sys->es == NULL))
         goto end;
 
-    vlc_frame_t *frame = vlc_frame_Alloc(length);
+    heimdall_frame_t *frame = heimdall_frame_Alloc(length);
     if (likely(frame != NULL))
     {
         memcpy(frame->p_buffer, dst + chunk->offset, length);
@@ -357,7 +358,7 @@ static void on_process(void *data)
         frame->i_dts = frame->i_pts = pts;
         if (sys->discontinuity)
         {
-            frame->i_flags |= VLC_FRAME_FLAG_DISCONTINUITY;
+            frame->i_flags |= HEIMDALL_FRAME_FLAG_DISCONTINUITY;
             sys->discontinuity = false;
         }
 
@@ -373,13 +374,13 @@ static void on_process(void *data)
 /**
  * Disconnects a stream from source and destroys it.
  */
-static void vlc_pw_stream_destroy(struct vlc_pw_stream *s)
+static void heimdall_pw_stream_destroy(struct heimdall_pw_stream *s)
 {
-    vlc_pw_lock(s->context);
+    heimdall_pw_lock(s->context);
     pw_stream_flush(s->stream, false);
     pw_stream_disconnect(s->stream);
     pw_stream_destroy(s->stream);
-    vlc_pw_unlock(s->context);
+    heimdall_pw_unlock(s->context);
     free(s);
 }
 
@@ -393,7 +394,7 @@ static const struct pw_stream_events stream_events = {
 static int Control(demux_t *demux, int query, va_list ap)
 {
     struct demux_sys_t *sys = demux->p_sys;
-    struct vlc_pw_stream *s = sys->stream;
+    struct heimdall_pw_stream *s = sys->stream;
     
     switch (query)
     {
@@ -402,14 +403,14 @@ static int Control(demux_t *demux, int query, va_list ap)
             struct pw_time ts;
             
             if (pw_stream_get_time_n(s->stream, &ts, sizeof(ts)) < 0)
-                return VLC_EGENERIC;
-            *(va_arg(ap, vlc_tick_t *)) = VLC_TICK_FROM_NS(ts.now);
+                return HEIMDALL_EGENERIC;
+            *(va_arg(ap, heimdall_tick_t *)) = HEIMDALL_TICK_FROM_NS(ts.now);
             break;
         }
 
         case DEMUX_GET_PTS_DELAY:
         {
-            vlc_tick_t *pd = va_arg(ap, vlc_tick_t *);
+            heimdall_tick_t *pd = va_arg(ap, heimdall_tick_t *);
 
             *pd = sys->caching;
             /* in case of VIDEO_ES, cap at one frame, more than enough */
@@ -428,10 +429,10 @@ static int Control(demux_t *demux, int query, va_list ap)
             break;
 
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /**
@@ -472,38 +473,38 @@ static const struct pw_registry_events global_events = {
     .global = registry_global
 };
 
-static int Open(vlc_object_t *obj)
+static int Open(heimdall_object_t *obj)
 {
     demux_t *demux = (demux_t *)obj;
 
     if (demux->out == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     struct demux_sys_t *sys = malloc(sizeof (*sys));
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    sys->context = vlc_pw_connect(obj, "access");
+    sys->context = heimdall_pw_connect(obj, "access");
     if (sys->context == NULL)
     {
         free(sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     sys->stream = NULL;
     sys->es = NULL;
     sys->discontinuity = false;
-    sys->caching = VLC_TICK_FROM_MS( var_InheritInteger(obj, "live-caching") );
+    sys->caching = HEIMDALL_TICK_FROM_MS( var_InheritInteger(obj, "live-caching") );
     sys->listener = (struct spa_hook){ };
     sys->media_type = AUDIO_ES;
     demux->p_sys = sys;
 
     /* The `sys->media_type` is set to either `AUDIO_ES` or `VIDEO_ES` during this call,
        depending on the media type of the capture node. */
-    vlc_pw_lock(sys->context);
-    vlc_pw_registry_listen(sys->context, &sys->listener, &global_events, demux);
-    vlc_pw_roundtrip_unlocked(sys->context);
-    vlc_pw_unlock(sys->context);
+    heimdall_pw_lock(sys->context);
+    heimdall_pw_registry_listen(sys->context, &sys->listener, &global_events, demux);
+    heimdall_pw_roundtrip_unlocked(sys->context);
+    heimdall_pw_unlock(sys->context);
 
     /* Stream parameters */
     struct spa_audio_info_raw rawaudiofmt = {
@@ -563,13 +564,13 @@ static int Open(vlc_object_t *obj)
     pw_properties_set(props, PW_KEY_TARGET_OBJECT, demux->psz_location);
 
     /* Create the stream */
-    struct vlc_pw_stream *s = malloc(sizeof (*s));
+    struct heimdall_pw_stream *s = malloc(sizeof (*s));
     if (unlikely(s == NULL))
     {
         pw_properties_free(props);
-        vlc_pw_disconnect(sys->context);
+        heimdall_pw_disconnect(sys->context);
         free(sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     enum pw_stream_flags flags =
@@ -583,15 +584,15 @@ static int Open(vlc_object_t *obj)
     s->es_out_added = false;
     s->demux = demux;
 
-    vlc_pw_lock(s->context);
-    s->stream = vlc_pw_stream_new(s->context, stream_name, props);
+    heimdall_pw_lock(s->context);
+    s->stream = heimdall_pw_stream_new(s->context, stream_name, props);
     if (unlikely(s->stream == NULL))
     {
-        vlc_pw_unlock(s->context);
+        heimdall_pw_unlock(s->context);
         free(s);
-        vlc_pw_disconnect(sys->context);
+        heimdall_pw_disconnect(sys->context);
         free(sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     sys->stream = s;
@@ -602,9 +603,9 @@ static int Open(vlc_object_t *obj)
     /* Wait for the stream to be ready */
     while ((state = pw_stream_get_state(s->stream,
                                         NULL)) == PW_STREAM_STATE_CONNECTING)
-        vlc_pw_wait(s->context);
+        heimdall_pw_wait(s->context);
 
-    vlc_pw_unlock(s->context);
+    heimdall_pw_unlock(s->context);
 
     switch (state)
     {
@@ -612,27 +613,27 @@ static int Open(vlc_object_t *obj)
         case PW_STREAM_STATE_STREAMING:
             break;
         default:
-            vlc_pw_stream_destroy(s);
-            vlc_pw_disconnect(sys->context);
+            heimdall_pw_stream_destroy(s);
+            heimdall_pw_disconnect(sys->context);
             free(sys);
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 
     demux->pf_demux = NULL;
     demux->pf_control = Control;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void Close (vlc_object_t *obj)
+static void Close (heimdall_object_t *obj)
 {
     demux_t *demux = (demux_t *)obj;
     struct demux_sys_t *sys = demux->p_sys;
-    vlc_pw_stream_destroy(sys->stream);
-    vlc_pw_disconnect(sys->context);
+    heimdall_pw_stream_destroy(sys->stream);
+    heimdall_pw_disconnect(sys->context);
     free(sys);
 }
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname (N_("PipeWire"))
     set_description (N_("PipeWire input"))
     set_capability ("access", 0)
@@ -641,4 +642,4 @@ vlc_module_begin ()
 
     add_shortcut ("pipewire", "pw")
     set_callbacks (Open, Close)
-vlc_module_end ()
+heimdall_module_end ()

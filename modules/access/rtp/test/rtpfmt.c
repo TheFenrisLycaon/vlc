@@ -3,6 +3,7 @@
  */
 /*****************************************************************************
  * Copyright © 2021 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License
@@ -28,18 +29,18 @@
 #include <stdbool.h>
 #include <string.h>
 #include "../sdp.h"
-#include <vlc_common.h>
-#include <vlc_block.h>
+#include <heimdall_common.h>
+#include <heimdall_block.h>
 #include "../rtp.h"
 
-const char vlc_module_name[] = "rtpfmt_test";
+const char heimdall_module_name[] = "rtpfmt_test";
 
-static const struct vlc_rtp_pt_operations ops = {
+static const struct heimdall_rtp_pt_operations ops = {
     NULL, NULL, NULL, NULL,
 };
 
-int vlc_rtp_pt_instantiate(vlc_object_t *obj, struct vlc_rtp_pt *restrict pt,
-                           const struct vlc_sdp_pt *restrict desc)
+int heimdall_rtp_pt_instantiate(heimdall_object_t *obj, struct heimdall_rtp_pt *restrict pt,
+                           const struct heimdall_sdp_pt *restrict desc)
 {
     assert(obj == NULL);
     assert(pt != NULL);
@@ -50,7 +51,7 @@ int vlc_rtp_pt_instantiate(vlc_object_t *obj, struct vlc_rtp_pt *restrict pt,
 
 uint8_t ptmask[16];
 
-int rtp_add_type(rtp_session_t *s, struct vlc_rtp_pt *pt)
+int rtp_add_type(rtp_session_t *s, struct heimdall_rtp_pt *pt)
 {
     unsigned int num = pt->number;
 
@@ -58,11 +59,11 @@ int rtp_add_type(rtp_session_t *s, struct vlc_rtp_pt *pt)
     assert(num < 128);
     assert((ptmask[num / 8] >> (num % 8)) & 1);
     ptmask[num / 8] &= ~(1 << (num % 8));
-    vlc_rtp_pt_release(pt);
+    heimdall_rtp_pt_release(pt);
     return 0;
 }
 
-static const struct vlc_rtp_pt_owner owner = {
+static const struct heimdall_rtp_pt_owner owner = {
     NULL, NULL,
 };
 
@@ -102,49 +103,49 @@ int main(void)
 
     int val;
 
-    struct vlc_sdp *sdp = vlc_sdp_parse(sdptext, strlen(sdptext));
+    struct heimdall_sdp *sdp = heimdall_sdp_parse(sdptext, strlen(sdptext));
     assert(sdp != NULL);
 
     /* audio */
-    struct vlc_sdp_media *media = sdp->media;
+    struct heimdall_sdp_media *media = sdp->media;
     assert(media != NULL);
     EXPECT_PTS(0, 3, 8, 12, 14, 33, 96, 97);
-    val = vlc_rtp_add_media_types(NULL, NULL, media, &owner);
+    val = heimdall_rtp_add_media_types(NULL, NULL, media, &owner);
     assert(val == 0);
 
     /* video */
     media = media->next;
     assert(media != NULL);
     EXPECT_PTS(32, 33, 98);
-    val = vlc_rtp_add_media_types(NULL, NULL, media, &owner);
+    val = heimdall_rtp_add_media_types(NULL, NULL, media, &owner);
     assert(val == 0);
     /* text */
     media = media->next;
     assert(media != NULL);
     EXPECT_PTS(127);
-    val = vlc_rtp_add_media_types(NULL, NULL, media, &owner);
+    val = heimdall_rtp_add_media_types(NULL, NULL, media, &owner);
     assert(val == 0);
     /* naughty */
     media = media->next;
     assert(media != NULL);
     EXPECT_PTS();
-    vlc_rtp_add_media_types(NULL, NULL, media, &owner);
+    heimdall_rtp_add_media_types(NULL, NULL, media, &owner);
     /* evil */
     media = media->next;
     assert(media != NULL);
     EXPECT_PTS();
-    vlc_rtp_add_media_types(NULL, NULL, media, &owner);
+    heimdall_rtp_add_media_types(NULL, NULL, media, &owner);
 
     /* undead: attributes without a value must be skipped, not dereferenced */
     media = media->next;
     assert(media != NULL);
     EXPECT_PTS(96);
-    val = vlc_rtp_add_media_types(NULL, NULL, media, &owner);
+    val = heimdall_rtp_add_media_types(NULL, NULL, media, &owner);
     assert(val == 0);
 
     media = media->next;
     EXPECT_PTS();
     assert(media == NULL);
-    vlc_sdp_free(sdp);
+    heimdall_sdp_free(sdp);
     return 0;
 }

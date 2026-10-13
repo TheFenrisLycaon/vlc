@@ -10,6 +10,7 @@
  *  Copyright (C) 2006 Alexey Proskuryakov (ap@nypop.com)
  *  Copyright (C) 2008 Eric Seidel <eric@webkit.org>
  *  Copyright (C) 2012 Intel Corporation. All rights reserved.
+ *  Copyright (C) 2026 TheFenrisLycaon
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -30,14 +31,14 @@
 %define api.prefix {css}
 
 %param { yyscan_t scanner }
-%parse-param { vlc_css_parser_t *css_parser }
+%parse-param { heimdall_css_parser_t *css_parser }
 
 
 %{
 #ifdef HAVE_CONFIG_H
 # include "config.h"
 #endif
-#include <vlc_common.h>
+#include <heimdall_common.h>
 #include "css_parser.h"
 
 #ifndef YY_TYPEDEF_YY_SCANNER_T
@@ -55,15 +56,15 @@ typedef void* yyscan_t;
     char character;
     int integer;
     char *string;
-    enum vlc_css_relation_e relation;
+    enum heimdall_css_relation_e relation;
 
-    vlc_css_term_t term;
-    vlc_css_expr_t *expr;
-    vlc_css_rule_t  *rule;
-    vlc_css_declaration_t *declaration;
-    vlc_css_declaration_t *declarationList;
-    vlc_css_selector_t *selector;
-    vlc_css_selector_t *selectorList;
+    heimdall_css_term_t term;
+    heimdall_css_expr_t *expr;
+    heimdall_css_rule_t  *rule;
+    heimdall_css_declaration_t *declaration;
+    heimdall_css_declaration_t *declarationList;
+    heimdall_css_selector_t *selector;
+    heimdall_css_selector_t *selectorList;
 }
 
 %{
@@ -71,9 +72,9 @@ typedef void* yyscan_t;
 #define YY_DECL int yylex(union YYSTYPE *, yyscan_t)
 YY_DECL;
 
-static void yyerror(yyscan_t scanner, vlc_css_parser_t *p, const char *msg)
+static void yyerror(yyscan_t scanner, heimdall_css_parser_t *p, const char *msg)
 {
-    VLC_UNUSED(scanner);VLC_UNUSED(p);VLC_UNUSED(msg);
+    HEIMDALL_UNUSED(scanner);HEIMDALL_UNUSED(p);HEIMDALL_UNUSED(msg);
 }
 
 %}
@@ -121,7 +122,7 @@ static void yyerror(yyscan_t scanner, vlc_css_parser_t *p, const char *msg)
 %token <term> PERCENTAGE
 %token <term> NUMBER
 
-%destructor { vlc_css_term_Clean($$); } <term>
+%destructor { heimdall_css_term_Clean($$); } <term>
 
 %token <string> URI
 %token <string> FUNCTION
@@ -136,7 +137,7 @@ static void yyerror(yyscan_t scanner, vlc_css_parser_t *p, const char *msg)
 %type <rule> invalid_rule
 %type <rule> rule
 %type <rule> valid_rule
-%destructor { vlc_css_rules_Delete($$); } <rule>
+%destructor { heimdall_css_rules_Delete($$); } <rule>
 
 %type <string> ident_or_string
 %type <string> property
@@ -150,12 +151,12 @@ static void yyerror(yyscan_t scanner, vlc_css_parser_t *p, const char *msg)
 %type <selector> class
 %type <selector> attrib
 %type <selector> pseudo
-%destructor { vlc_css_selectors_Delete($$); } <selector> <selectorList>
+%destructor { heimdall_css_selectors_Delete($$); } <selector> <selectorList>
 
 %type <declarationList> declaration_list
 %type <declarationList> decl_list
 %type <declaration> declaration
-%destructor { vlc_css_declarations_Delete($$); } <declaration> <declarationList>
+%destructor { heimdall_css_declarations_Delete($$); } <declaration> <declarationList>
 
 %type <boolean> prio
 
@@ -168,7 +169,7 @@ static void yyerror(yyscan_t scanner, vlc_css_parser_t *p, const char *msg)
 %type <term> term
 %type <term> unary_term
 %type <term> function
-%destructor { vlc_css_expression_Delete($$); } <expr>
+%destructor { heimdall_css_expression_Delete($$); } <expr>
 
 %type <string> element_name
 %type <string> attr_name
@@ -233,7 +234,7 @@ rule_list:
    /* empty */
  | rule_list rule maybe_sgml {
      if( $2 )
-         vlc_css_parser_AddRule( css_parser, $2 );
+         heimdall_css_parser_AddRule( css_parser, $2 );
  }
  ;
 
@@ -255,7 +256,7 @@ rule:
 font_face:
     FONT_FACE_SYM maybe_space
     '{' maybe_space declaration_list closing_brace {
-        vlc_css_declarations_Delete( $5 );
+        heimdall_css_declarations_Delete( $5 );
         $$ = NULL;
     }
     | FONT_FACE_SYM error invalid_block {
@@ -284,7 +285,7 @@ unary_operator:
 
 ruleset:
     selector_list '{' maybe_space declaration_list closing_brace {
-        $$ = vlc_css_rule_New();
+        $$ = heimdall_css_rule_New();
         if( !$$ )
             YYNOMEM;
         $$->p_selectors = $1;
@@ -300,17 +301,17 @@ selector_list:
         if ($1 && $4 )
         {
             $$ = $1;
-            vlc_css_selector_Append( $$, $4 );
+            heimdall_css_selector_Append( $$, $4 );
         }
         else
         {
-            vlc_css_selectors_Delete( $1 );
-            vlc_css_selectors_Delete( $4 );
+            heimdall_css_selectors_Delete( $1 );
+            heimdall_css_selectors_Delete( $4 );
             $$ = NULL;
         }
     }
   | selector_list error {
-        vlc_css_selectors_Delete( $1 );
+        heimdall_css_selectors_Delete( $1 );
         $$ = NULL;
     }
    ;
@@ -333,33 +334,33 @@ selector:
     {
         if( $1 && $2 )
         {
-            vlc_css_selector_AddSpecifier( $1, $2 );
+            heimdall_css_selector_AddSpecifier( $1, $2 );
             $2->combinator = RELATION_DESCENDENT;
             $$ = $1;
         }
         else
         {
-            vlc_css_selectors_Delete( $1 );
-            vlc_css_selectors_Delete( $2 );
+            heimdall_css_selectors_Delete( $1 );
+            heimdall_css_selectors_Delete( $2 );
             $$ = NULL;
         }
     }
     | selector combinator simple_selector {
         if( $1 && $3 )
         {
-            vlc_css_selector_AddSpecifier( $1, $3 );
+            heimdall_css_selector_AddSpecifier( $1, $3 );
             $3->combinator = $2;
             $$ = $1;
         }
         else
         {
-            vlc_css_selectors_Delete( $1 );
-            vlc_css_selectors_Delete( $3 );
+            heimdall_css_selectors_Delete( $1 );
+            heimdall_css_selectors_Delete( $3 );
             $$ = NULL;
         }
     }
     | selector error {
-        vlc_css_selectors_Delete( $1 );
+        heimdall_css_selectors_Delete( $1 );
         $$ = NULL;
     }
     ;
@@ -371,7 +372,7 @@ simple_selector:
             $$ = NULL;
             YYERROR;
         }
-        $$ = vlc_css_selector_New( SELECTOR_SIMPLE, $1 );
+        $$ = heimdall_css_selector_New( SELECTOR_SIMPLE, $1 );
         if( !$$ )
             YYNOMEM; // destructors called
         free( $1 );
@@ -382,11 +383,11 @@ simple_selector:
             $$ = NULL;
             YYERROR;
         }
-        $$ = vlc_css_selector_New( SELECTOR_SIMPLE, $1 );
+        $$ = heimdall_css_selector_New( SELECTOR_SIMPLE, $1 );
         if( !$$ )
             YYNOMEM; // destructors called
         if( $2 )
-            vlc_css_selector_AddSpecifier( $$, $2 );
+            heimdall_css_selector_AddSpecifier( $$, $2 );
         free( $1 );
     }
     | specifier_list {
@@ -410,12 +411,12 @@ specifier_list:
             while( $1->specifiers.p_first )
                 $1 = $1->specifiers.p_first;
             if( $2 )
-                vlc_css_selector_AddSpecifier( $1, $2 );
+                heimdall_css_selector_AddSpecifier( $1, $2 );
         }
         else $$ = $2;
     }
     | specifier_list error {
-        vlc_css_selectors_Delete( $1 );
+        heimdall_css_selectors_Delete( $1 );
         $$ = NULL;
     }
 ;
@@ -427,7 +428,7 @@ specifier:
             $$ = NULL;
             YYERROR;
         }
-        $$ = vlc_css_selector_New( SPECIFIER_ID, $1 );
+        $$ = heimdall_css_selector_New( SPECIFIER_ID, $1 );
         if( !$$ )
             YYNOMEM; // $1 destructor called
         free( $1 );
@@ -439,7 +440,7 @@ specifier:
             $$ = NULL;
             YYERROR; // $1 destructor called
         } else {
-            $$ = vlc_css_selector_New( SPECIFIER_ID, $1 );
+            $$ = heimdall_css_selector_New( SPECIFIER_ID, $1 );
             if( !$$ )
                 YYNOMEM;  // $1 destructor called
             free( $1 );
@@ -457,7 +458,7 @@ class:
             $$ = NULL;
             YYERROR;
         }
-        $$ = vlc_css_selector_New( SPECIFIER_CLASS, $2 );
+        $$ = heimdall_css_selector_New( SPECIFIER_CLASS, $2 );
         if( !$$ )
             YYNOMEM; // $2 destructor called
         free( $2 );
@@ -477,7 +478,7 @@ attrib:
             $$ = NULL;
             YYERROR;
         }
-        $$ = vlc_css_selector_New( SPECIFIER_ATTRIB, $3 );
+        $$ = heimdall_css_selector_New( SPECIFIER_ATTRIB, $3 );
         free( $3 );
     }
     | '[' maybe_space attr_name match maybe_space ident_or_string maybe_space ']' {
@@ -486,14 +487,14 @@ attrib:
             $$ = NULL;
             YYERROR;
         }
-        $$ = vlc_css_selector_New( SPECIFIER_ATTRIB, $3 );
+        $$ = heimdall_css_selector_New( SPECIFIER_ATTRIB, $3 );
         if( !$$ )
             YYNOMEM;
         $$->match = $4;
-        $$->p_matchsel = vlc_css_selector_New( SPECIFIER_ID, $6 );
+        $$->p_matchsel = heimdall_css_selector_New( SPECIFIER_ID, $6 );
         if ( !$$->p_matchsel )
         {
-            vlc_css_selectors_Delete( $$ );
+            heimdall_css_selectors_Delete( $$ );
             YYNOMEM;
         }
         free( $3 );
@@ -534,7 +535,7 @@ pseudo:
             $$ = NULL;
             YYERROR;
         }
-        $$ = vlc_css_selector_New( SELECTOR_PSEUDOCLASS, $2 );
+        $$ = heimdall_css_selector_New( SELECTOR_PSEUDOCLASS, $2 );
         if( !$$ )
             YYNOMEM;
         free( $2 );
@@ -545,7 +546,7 @@ pseudo:
             $$ = NULL;
             YYERROR;
         }
-        $$ = vlc_css_selector_New( SELECTOR_PSEUDOELEMENT, $3 );
+        $$ = heimdall_css_selector_New( SELECTOR_PSEUDOELEMENT, $3 );
         if( !$$ )
             YYNOMEM;
         free( $3 );
@@ -560,13 +561,13 @@ pseudo:
 
         if(*$2 != 0)
             $2[strlen($2) - 1] = 0;
-        $$ = vlc_css_selector_New( SELECTOR_PSEUDOCLASS, $2 );
+        $$ = heimdall_css_selector_New( SELECTOR_PSEUDOCLASS, $2 );
         if( !$$ )
             YYNOMEM;
         $5.val *= $4;
 
         free( $2 );
-        vlc_css_term_Clean( $5 );
+        heimdall_css_term_Clean( $5 );
     }
     // required for WEBVTT weirdos cue::(::past)
     | ':' ':' FUNCTION maybe_space selector maybe_space ')' {
@@ -578,13 +579,13 @@ pseudo:
 
         if(*$3 != 0)
             $3[strlen($3) - 1] = 0;
-        $$ = vlc_css_selector_New( SELECTOR_PSEUDOELEMENT, $3 );
+        $$ = heimdall_css_selector_New( SELECTOR_PSEUDOELEMENT, $3 );
         if( !$$ )
             YYNOMEM;
 
         if( $5 )
         {
-            vlc_css_selector_AddSpecifier( $$, $5 );
+            heimdall_css_selector_AddSpecifier( $$, $5 );
             $5->combinator = RELATION_SELF;
         }
 
@@ -600,7 +601,7 @@ pseudo:
 
         if(*$2 != 0)
             $2[strlen($2) - 1] = 0;
-        $$ = vlc_css_selector_New( SELECTOR_PSEUDOCLASS, $2 );
+        $$ = heimdall_css_selector_New( SELECTOR_PSEUDOCLASS, $2 );
         if( !$$ )
             YYNOMEM;
 
@@ -616,7 +617,7 @@ declaration_list:
     | decl_list declaration {
         if ($1) {
             $$ = $1;
-            vlc_css_declarations_Append( $$, $2 );
+            heimdall_css_declarations_Append( $$, $2 );
         } else {
             $$ = $2;
         }
@@ -643,11 +644,11 @@ decl_list:
         $$ = $1;
     }
     | declaration invalid_block_list maybe_space {
-        vlc_css_declarations_Delete( $1 );
+        heimdall_css_declarations_Delete( $1 );
         $$ = NULL;
     }
     | declaration invalid_block_list ';' maybe_space {
-        vlc_css_declarations_Delete( $1 );
+        heimdall_css_declarations_Delete( $1 );
         $$ = NULL;
     }
     | error ';' maybe_space {
@@ -660,7 +661,7 @@ decl_list:
         if( $1 )
         {
             $$ = $1;
-            vlc_css_declarations_Append( $$, $2 );
+            heimdall_css_declarations_Append( $$, $2 );
         }
         else $$ = $2;
     }
@@ -679,7 +680,7 @@ declaration:
             $$ = NULL;
             YYERROR;
         }
-        $$ = vlc_css_declaration_New( $1 );
+        $$ = heimdall_css_declaration_New( $1 );
         if( !$$ )
             YYNOMEM;
         $$->expr = $4;
@@ -688,7 +689,7 @@ declaration:
     | property ':' maybe_space expr error {
         /* e.g. color: red !important fail;  or color: red; garbage */
         free( $1 );
-        vlc_css_expression_Delete( $4 );
+        heimdall_css_expression_Delete( $4 );
         $$ = NULL;
     }
     | property ':' maybe_space error {
@@ -729,7 +730,7 @@ prio:
 
 expr:
     term {
-        $$ = vlc_css_expression_New( $1 );
+        $$ = heimdall_css_expression_New( $1 );
         if( !$$ )
             YYNOMEM;
     }
@@ -740,7 +741,7 @@ expr:
             YYERROR;
         }
         $$ = $1;
-        if( !vlc_css_expression_AddTerm( $1, ' ', $2 ) )
+        if( !heimdall_css_expression_AddTerm( $1, ' ', $2 ) )
             YYNOMEM;
     }
     | expr operator term {
@@ -750,7 +751,7 @@ expr:
             YYERROR;
         }
         $$ = $1;
-        if( !vlc_css_expression_AddTerm( $1, $2, $3 ) )
+        if( !heimdall_css_expression_AddTerm( $1, $2, $3 ) )
             YYNOMEM;
     }
   ;

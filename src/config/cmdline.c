@@ -2,6 +2,7 @@
  * cmdline.c: command line parsing
  *****************************************************************************
  * Copyright (C) 2001-2007 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gildas Bazin <gbazin@videolan.org>
  *
@@ -24,15 +25,15 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include "../libvlc.h"
-#include <vlc_actions.h>
-#include <vlc_charset.h>
-#include <vlc_modules.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include "../libheimdall.h"
+#include <heimdall_actions.h>
+#include <heimdall_charset.h>
+#include <heimdall_modules.h>
+#include <heimdall_plugin.h>
 
-#include "vlc_getopt.h"
-#include "vlc_jaro_winkler.h"
+#include "heimdall_getopt.h"
+#include "heimdall_jaro_winkler.h"
 
 #include "ansi_term.h"
 #include "configuration.h"
@@ -95,10 +96,10 @@
  * @param argc number of command line arguments
  * @param argv command line arguments
  */
-void config_CmdLineEarlyScan( libvlc_int_t *p_this, int argc, const char *argv[] )
+void config_CmdLineEarlyScan( libheimdall_int_t *p_this, int argc, const char *argv[] )
 {
 #if !defined(HAVE_DYNAMIC_PLUGINS) && !defined(_WIN32)
-    VLC_UNUSED(p_this); VLC_UNUSED(argc); VLC_UNUSED(argv);
+    HEIMDALL_UNUSED(p_this); HEIMDALL_UNUSED(argc); HEIMDALL_UNUSED(argv);
 #else
     for( int i = 0; i < argc; i++ )
     {
@@ -111,7 +112,7 @@ void config_CmdLineEarlyScan( libvlc_int_t *p_this, int argc, const char *argv[]
 #define check_option_variant(option, option_name, value) \
     if( strcmp( arg, option ) == 0 ) \
     { \
-        var_Create (p_this, option_name, VLC_VAR_BOOL); \
+        var_Create (p_this, option_name, HEIMDALL_VAR_BOOL); \
         var_SetBool (p_this, option_name, value); \
         continue; \
     }
@@ -123,7 +124,7 @@ void config_CmdLineEarlyScan( libvlc_int_t *p_this, int argc, const char *argv[]
     if( strncmp( arg, "--" option_name "=", strlen("--" option_name "=") ) == 0 ) \
     { \
         const char *value = arg + strlen("--" option_name "="); \
-        var_Create (p_this, option_name, VLC_VAR_STRING); \
+        var_Create (p_this, option_name, HEIMDALL_VAR_STRING); \
         var_SetString (p_this, option_name, value); \
         continue; \
     }
@@ -162,11 +163,11 @@ void config_CmdLineEarlyScan( libvlc_int_t *p_this, int argc, const char *argv[]
  * @param pindex index of the first non-option argument [OUT]
  * @return 0 on success, -1 on error.
  */
-int config_LoadCmdLine( libvlc_int_t *p_this, int i_argc,
+int config_LoadCmdLine( libheimdall_int_t *p_this, int i_argc,
                         const char *ppsz_argv[], int *pindex )
 {
     int i_cmd, i_index, i_opts, i_shortopts, flag, i_verbose = 0;
-    struct vlc_option *p_longopts;
+    struct heimdall_option *p_longopts;
 
     /* Short options */
     i_shortopts = 0;
@@ -178,13 +179,13 @@ int config_LoadCmdLine( libvlc_int_t *p_this, int i_argc,
      */
 
     i_opts = 0;
-    for (const vlc_plugin_t *p = vlc_plugins; p != NULL; p = p->next)
+    for (const heimdall_plugin_t *p = heimdall_plugins; p != NULL; p = p->next)
         /* count the number of exported configuration options (to allocate
          * longopts). We also need to allocate space for two options when
          * dealing with boolean to allow for --foo and --no-foo */
         i_opts += p->conf.count + 2 * p->conf.booleans;
 
-    p_longopts = vlc_alloc( i_opts + 1, sizeof(*p_longopts)  );
+    p_longopts = heimdall_alloc( i_opts + 1, sizeof(*p_longopts)  );
     if( p_longopts == NULL )
         return -1;
 
@@ -202,11 +203,11 @@ int config_LoadCmdLine( libvlc_int_t *p_this, int i_argc,
 
     /* Fill the p_longopts and psz_shortopts structures */
     i_index = 0;
-    for (const vlc_plugin_t *p = vlc_plugins; p != NULL; p = p->next)
+    for (const heimdall_plugin_t *p = heimdall_plugins; p != NULL; p = p->next)
     {
         for (size_t i = 0; i < p->conf.size; i++)
         {
-            const struct vlc_param *param = p->conf.params + i;
+            const struct heimdall_param *param = p->conf.params + i;
             const module_config_t *p_item = &param->item;
 
             /* Ignore hints */
@@ -278,9 +279,9 @@ int config_LoadCmdLine( libvlc_int_t *p_this, int i_argc,
     /*
      * Parse the command line options
      */
-    vlc_getopt_t state;
+    heimdall_getopt_t state;
     state.ind = 0 ; /* set to 0 to tell GNU getopt to reinitialize */
-    while( ( i_cmd = vlc_getopt_long( i_argc, (char **)ppsz_argv,
+    while( ( i_cmd = heimdall_getopt_long( i_argc, (char **)ppsz_argv,
                                       psz_shortopts,
                                       p_longopts, &i_index, &state ) ) != -1 )
     {
@@ -298,8 +299,8 @@ int config_LoadCmdLine( libvlc_int_t *p_this, int i_argc,
             p_conf = config_FindConfig( psz_name );
             if( p_conf )
             {
-                struct vlc_param *param = container_of(p_conf,
-                                                       struct vlc_param, item);
+                struct heimdall_param *param = container_of(p_conf,
+                                                       struct heimdall_param, item);
                 /* Check if the option is deprecated */
                 if (param->obsolete)
                 {
@@ -314,30 +315,30 @@ int config_LoadCmdLine( libvlc_int_t *p_this, int i_argc,
                 switch( CONFIG_CLASS(p_conf->i_type) )
                 {
                     case CONFIG_ITEM_STRING:
-                        var_Create( p_this, psz_name, VLC_VAR_STRING );
+                        var_Create( p_this, psz_name, HEIMDALL_VAR_STRING );
                         var_SetString( p_this, psz_name, state.arg );
                         break;
                     case CONFIG_ITEM_INTEGER:
-                        var_Create( p_this, psz_name, VLC_VAR_INTEGER );
-                        var_Change( p_this, psz_name, VLC_VAR_SETMINMAX,
-                            (vlc_value_t){ .i_int = p_conf->min.i },
-                            (vlc_value_t){ .i_int = p_conf->max.i } );
+                        var_Create( p_this, psz_name, HEIMDALL_VAR_INTEGER );
+                        var_Change( p_this, psz_name, HEIMDALL_VAR_SETMINMAX,
+                            (heimdall_value_t){ .i_int = p_conf->min.i },
+                            (heimdall_value_t){ .i_int = p_conf->max.i } );
                         var_SetInteger( p_this, psz_name,
                                         strtoll(state.arg, NULL, 0));
                         break;
                     case CONFIG_ITEM_FLOAT:
-                        var_Create( p_this, psz_name, VLC_VAR_FLOAT );
-                        var_Change( p_this, psz_name, VLC_VAR_SETMINMAX,
-                            (vlc_value_t){ .f_float = p_conf->min.f },
-                            (vlc_value_t){ .f_float = p_conf->max.f } );
-                        var_SetFloat( p_this, psz_name, vlc_atof_c(state.arg) );
+                        var_Create( p_this, psz_name, HEIMDALL_VAR_FLOAT );
+                        var_Change( p_this, psz_name, HEIMDALL_VAR_SETMINMAX,
+                            (heimdall_value_t){ .f_float = p_conf->min.f },
+                            (heimdall_value_t){ .f_float = p_conf->max.f } );
+                        var_SetFloat( p_this, psz_name, heimdall_atof_c(state.arg) );
                         break;
                     case CONFIG_ITEM_BOOL:
-                        var_Create( p_this, psz_name, VLC_VAR_BOOL );
+                        var_Create( p_this, psz_name, HEIMDALL_VAR_BOOL );
                         var_SetBool( p_this, psz_name, !flag );
                         break;
                     default:
-                        vlc_assert_unreachable();
+                        heimdall_assert_unreachable();
                 }
                 continue;
             }
@@ -350,11 +351,11 @@ int config_LoadCmdLine( libvlc_int_t *p_this, int i_argc,
             switch( CONFIG_CLASS(pp_shortopts[i_cmd]->i_type) )
             {
                 case CONFIG_ITEM_STRING:
-                    var_Create( p_this, name, VLC_VAR_STRING );
+                    var_Create( p_this, name, HEIMDALL_VAR_STRING );
                     var_SetString( p_this, name, state.arg );
                     break;
                 case CONFIG_ITEM_INTEGER:
-                    var_Create( p_this, name, VLC_VAR_INTEGER );
+                    var_Create( p_this, name, HEIMDALL_VAR_INTEGER );
                     if( i_cmd == 'v' )
                     {
                         i_verbose++; /* -v */
@@ -367,15 +368,15 @@ int config_LoadCmdLine( libvlc_int_t *p_this, int i_argc,
                     }
                     break;
                 case CONFIG_ITEM_FLOAT:
-                    var_Create( p_this, name, VLC_VAR_FLOAT );
-                    var_SetFloat( p_this, name, vlc_atof_c(state.arg) );
+                    var_Create( p_this, name, HEIMDALL_VAR_FLOAT );
+                    var_SetFloat( p_this, name, heimdall_atof_c(state.arg) );
                     break;
                 case CONFIG_ITEM_BOOL:
-                    var_Create( p_this, name, VLC_VAR_BOOL );
+                    var_Create( p_this, name, HEIMDALL_VAR_BOOL );
                     var_SetBool( p_this, name, true );
                     break;
                 default:
-                    vlc_assert_unreachable();
+                    heimdall_assert_unreachable();
             }
 
             continue;
@@ -417,7 +418,7 @@ int config_LoadCmdLine( libvlc_int_t *p_this, int i_argc,
                     if (p_longopts[i].is_obsolete)
                         continue;
                     const char *jw_b = p_longopts[i].name;
-                    if (vlc_jaro_winkler(jw_a, jw_b, &metric) == 0) { //ignore failed malloc calls
+                    if (heimdall_jaro_winkler(jw_a, jw_b, &metric) == 0) { //ignore failed malloc calls
                         if (metric > best_metric || (!best && metric >= jw_filter)) {
                             best = jw_b;
                             best_metric = metric;

@@ -3,6 +3,7 @@
     video stream URLs.
 
  Copyright © 2007-2020 the VideoLAN team
+ Copyright (C) 2026 TheFenrisLycaon
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -21,25 +22,25 @@
 
 -- Probe function.
 function probe()
-    return ( vlc.access == "http" or vlc.access == "https" )
-        and string.match( vlc.path, "^www%.dailymotion%.com/video/" )
+    return ( heimdall.access == "http" or heimdall.access == "https" )
+        and string.match( heimdall.path, "^www%.dailymotion%.com/video/" )
 end
 
 -- Parse function.
 function parse()
 	while true
     do
-        line = vlc.readline()
+        line = heimdall.readline()
         if not line then break end
 		if string.match( line, "<meta property=\"og:title\"" ) then
 			_,_,name = string.find( line, "content=\"(.-)\"" )
-			name = vlc.strings.resolve_xml_special_chars( name )
+			name = heimdall.strings.resolve_xml_special_chars( name )
 			name = string.gsub( name, " %- [^ ]+ [Dd]ailymotion$", "" )
 		end
 		if string.match( line, "<meta name=\"description\"" ) then
 			_,_,description = string.find( line, "content=\"(.-)\"" )
             if (description ~= nil) then
-                description = vlc.strings.resolve_xml_special_chars( description )
+                description = heimdall.strings.resolve_xml_special_chars( description )
             end
 		end
 		if string.match( line, "<meta property=\"og:image\"" ) then
@@ -47,9 +48,9 @@ function parse()
 		end
     end
 
-    local video_id = string.match( vlc.path, "^www%.dailymotion%.com/video/([^/?#]+)" )
+    local video_id = string.match( heimdall.path, "^www%.dailymotion%.com/video/([^/?#]+)" )
     if video_id then
-        local metadata = vlc.stream( vlc.access.."://www.dailymotion.com/player/metadata/video/"..video_id )
+        local metadata = heimdall.stream( heimdall.access.."://www.dailymotion.com/player/metadata/video/"..video_id )
         if metadata then
             local line = metadata:readline() -- data is on one line only
 
@@ -77,7 +78,7 @@ function parse()
                 -- Most of this has become unused, as in practice Dailymotion
                 -- has currently stopped offering progressive download and
                 -- been offering only adaptive streaming for a while now.
-                local prefres = vlc.var.inherit(nil, "preferred-resolution")
+                local prefres = heimdall.var.inherit(nil, "preferred-resolution")
                 local file = nil
                 local live = nil
                 for height,stream in string.gmatch( streams, "\"(%w+)\":%[(.-)%]" ) do
@@ -105,7 +106,7 @@ function parse()
     end
 
     if not path then
-        vlc.msg.err("Couldn't extract dailymotion video URL, please check for updates to this script")
+        heimdall.msg.err("Couldn't extract dailymotion video URL, please check for updates to this script")
         return { }
     end
 

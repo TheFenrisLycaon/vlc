@@ -2,6 +2,7 @@
  * rtp-rawvid.c: RTP raw video decoder
  *****************************************************************************
  * Copyright (C) 2022 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -29,9 +30,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
 
 #define PLANES_3(bits) \
     uint##bits##_t *restrict p0 = planes[0]; \
@@ -546,19 +547,19 @@ static void decode_yuv411_8(void *restrict *restrict planes,
     }
 }
 
-typedef void (*vlc_rtp_video_raw_cb)(void *restrict * restrict,
+typedef void (*heimdall_rtp_video_raw_cb)(void *restrict * restrict,
                                      const unsigned char * restrict, size_t);
 
-struct vlc_rtp_video_raw_dec {
+struct heimdall_rtp_video_raw_dec {
     unsigned int pgroup;
     bool half_height_uv;
-    vlc_rtp_video_raw_cb decode_line;
+    heimdall_rtp_video_raw_cb decode_line;
     picture_t *pic;
 };
 
-static int Decode(decoder_t *dec, vlc_frame_t *block)
+static int Decode(decoder_t *dec, heimdall_frame_t *block)
 {
-    struct vlc_rtp_video_raw_dec *sys = dec->p_sys;
+    struct heimdall_rtp_video_raw_dec *sys = dec->p_sys;
     picture_t *pic = sys->pic;
     bool continuation;
 
@@ -567,10 +568,10 @@ static int Decode(decoder_t *dec, vlc_frame_t *block)
         if (pic != NULL) /* Send incomplete picture */
             decoder_QueueVideo(dec, pic);
         sys->pic = NULL;
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
     }
 
-    if ((block->i_flags & VLC_FRAME_FLAG_DISCONTINUITY)
+    if ((block->i_flags & HEIMDALL_FRAME_FLAG_DISCONTINUITY)
      && pic != NULL && pic->date != block->i_pts) {
         /* Ideally, the EOS is set on the last block for a picture.
          * This manual check is necessary to deal with packet loss. */
@@ -583,7 +584,7 @@ static int Decode(decoder_t *dec, vlc_frame_t *block)
 
         if (pic == NULL) {
             block_Release(block);
-            return VLCDEC_SUCCESS;
+            return HEIMDALLDEC_SUCCESS;
         }
 
         pic->date = block->i_pts;
@@ -652,27 +653,27 @@ corrupt:    msg_Err(dec, "corrupt packet, %zu bytes remaining", inlen);
         sys->decode_line(planes, in, length);
     } while (continuation);
 
-    if (block->i_flags & VLC_FRAME_FLAG_END_OF_SEQUENCE) {
+    if (block->i_flags & HEIMDALL_FRAME_FLAG_END_OF_SEQUENCE) {
         decoder_QueueVideo(dec, pic);
         sys->pic = NULL;
     }
 
     block_Release(block);
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }
 
-static void Close(vlc_object_t *obj)
+static void Close(heimdall_object_t *obj)
 {
     decoder_t *dec = (decoder_t *)obj;
-    struct vlc_rtp_video_raw_dec *sys = dec->p_sys;
+    struct heimdall_rtp_video_raw_dec *sys = dec->p_sys;
 
     if (sys->pic != NULL)
         picture_Release(sys->pic);
 }
 
-struct vlc_rtp_video_raw_format {
-    vlc_fourcc_t fourcc;
-    vlc_rtp_video_raw_cb line_cb;
+struct heimdall_rtp_video_raw_format {
+    heimdall_fourcc_t fourcc;
+    heimdall_rtp_video_raw_cb line_cb;
 };
 
 /**
@@ -680,11 +681,11 @@ struct vlc_rtp_video_raw_format {
  *
  * This defines the list of all supported (per component) bit depths.
  */
-struct vlc_rtp_video_raw_sampling {
-    struct vlc_rtp_video_raw_format depth8;
-    struct vlc_rtp_video_raw_format depth10;
-    struct vlc_rtp_video_raw_format depth12;
-    struct vlc_rtp_video_raw_format depth16;
+struct heimdall_rtp_video_raw_sampling {
+    struct heimdall_rtp_video_raw_format depth8;
+    struct heimdall_rtp_video_raw_format depth10;
+    struct heimdall_rtp_video_raw_format depth12;
+    struct heimdall_rtp_video_raw_format depth16;
 };
 
 /**
@@ -694,15 +695,15 @@ struct vlc_rtp_video_raw_sampling {
  * \note This is purposedly a structure rather than an array so that CPU
  * optimisations can readily cherry-pick which samplings to optimise.
  */
-struct vlc_rtp_video_raw_samplings {
-    struct vlc_rtp_video_raw_sampling rgb;
-    struct vlc_rtp_video_raw_sampling rgba;
-    struct vlc_rtp_video_raw_sampling bgr;
-    struct vlc_rtp_video_raw_sampling bgra;
-    struct vlc_rtp_video_raw_sampling yuv444;
-    struct vlc_rtp_video_raw_sampling yuv422;
-    struct vlc_rtp_video_raw_sampling yuv420;
-    struct vlc_rtp_video_raw_sampling yuv411;
+struct heimdall_rtp_video_raw_samplings {
+    struct heimdall_rtp_video_raw_sampling rgb;
+    struct heimdall_rtp_video_raw_sampling rgba;
+    struct heimdall_rtp_video_raw_sampling bgr;
+    struct heimdall_rtp_video_raw_sampling bgra;
+    struct heimdall_rtp_video_raw_sampling yuv444;
+    struct heimdall_rtp_video_raw_sampling yuv422;
+    struct heimdall_rtp_video_raw_sampling yuv420;
+    struct heimdall_rtp_video_raw_sampling yuv411;
 };
 
 #ifdef WORDS_BIGENDIAN
@@ -711,69 +712,69 @@ struct vlc_rtp_video_raw_samplings {
 #define NE(x) x##L
 #endif
 
-static const struct vlc_rtp_video_raw_samplings samplings = {
+static const struct heimdall_rtp_video_raw_samplings samplings = {
     .rgb = {
-        {    VLC_CODEC_GBR_PLANAR,     decode_rgb_8,  },
-        { NE(VLC_CODEC_GBR_PLANAR_10), decode_rgb_10, },
-        { NE(VLC_CODEC_GBR_PLANAR_12), decode_rgb_12, },
-        { NE(VLC_CODEC_GBR_PLANAR_16), decode_rgb_16, },
+        {    HEIMDALL_CODEC_GBR_PLANAR,     decode_rgb_8,  },
+        { NE(HEIMDALL_CODEC_GBR_PLANAR_10), decode_rgb_10, },
+        { NE(HEIMDALL_CODEC_GBR_PLANAR_12), decode_rgb_12, },
+        { NE(HEIMDALL_CODEC_GBR_PLANAR_16), decode_rgb_16, },
     },
     .rgba = {
-        {    VLC_CODEC_GBR_PLANAR,     decode_rgba_8,  },
-        { NE(VLC_CODEC_GBR_PLANAR_10), decode_rgba_10, },
-        { NE(VLC_CODEC_GBR_PLANAR_12), decode_rgba_12, },
-        { NE(VLC_CODEC_GBR_PLANAR_16), decode_rgba_16, },
+        {    HEIMDALL_CODEC_GBR_PLANAR,     decode_rgba_8,  },
+        { NE(HEIMDALL_CODEC_GBR_PLANAR_10), decode_rgba_10, },
+        { NE(HEIMDALL_CODEC_GBR_PLANAR_12), decode_rgba_12, },
+        { NE(HEIMDALL_CODEC_GBR_PLANAR_16), decode_rgba_16, },
     },
     .bgr = {
-        {    VLC_CODEC_GBR_PLANAR,     decode_bgr_8,  },
-        { NE(VLC_CODEC_GBR_PLANAR_10), decode_bgr_10, },
-        { NE(VLC_CODEC_GBR_PLANAR_12), decode_bgr_12, },
-        { NE(VLC_CODEC_GBR_PLANAR_16), decode_bgr_16, },
+        {    HEIMDALL_CODEC_GBR_PLANAR,     decode_bgr_8,  },
+        { NE(HEIMDALL_CODEC_GBR_PLANAR_10), decode_bgr_10, },
+        { NE(HEIMDALL_CODEC_GBR_PLANAR_12), decode_bgr_12, },
+        { NE(HEIMDALL_CODEC_GBR_PLANAR_16), decode_bgr_16, },
     },
     .bgra = {
-        {    VLC_CODEC_GBR_PLANAR,     decode_bgra_8,  },
-        { NE(VLC_CODEC_GBR_PLANAR_10), decode_bgra_10, },
-        { NE(VLC_CODEC_GBR_PLANAR_12), decode_bgra_12, },
-        { NE(VLC_CODEC_GBR_PLANAR_16), decode_bgra_16, },
+        {    HEIMDALL_CODEC_GBR_PLANAR,     decode_bgra_8,  },
+        { NE(HEIMDALL_CODEC_GBR_PLANAR_10), decode_bgra_10, },
+        { NE(HEIMDALL_CODEC_GBR_PLANAR_12), decode_bgra_12, },
+        { NE(HEIMDALL_CODEC_GBR_PLANAR_16), decode_bgra_16, },
     },
     .yuv444 = {
-        {    VLC_CODEC_I444,           decode_yuv444_8,  },
-        { NE(VLC_CODEC_I444_10),       decode_yuv444_10, },
-        { NE(VLC_CODEC_I444_12),       decode_yuv444_12, },
-        { NE(VLC_CODEC_I444_16),       decode_yuv444_16, },
+        {    HEIMDALL_CODEC_I444,           decode_yuv444_8,  },
+        { NE(HEIMDALL_CODEC_I444_10),       decode_yuv444_10, },
+        { NE(HEIMDALL_CODEC_I444_12),       decode_yuv444_12, },
+        { NE(HEIMDALL_CODEC_I444_16),       decode_yuv444_16, },
     },
     .yuv422 = {
-        {    VLC_CODEC_I422,           decode_yuv422_8,  },
-        { NE(VLC_CODEC_I422_10),       decode_yuv422_10, },
-        { NE(VLC_CODEC_I422_12),       decode_yuv422_12, },
-        { NE(VLC_CODEC_I422_16),       decode_yuv422_16, },
+        {    HEIMDALL_CODEC_I422,           decode_yuv422_8,  },
+        { NE(HEIMDALL_CODEC_I422_10),       decode_yuv422_10, },
+        { NE(HEIMDALL_CODEC_I422_12),       decode_yuv422_12, },
+        { NE(HEIMDALL_CODEC_I422_16),       decode_yuv422_16, },
     },
     .yuv420 = {
-        {    VLC_CODEC_I420,           decode_yuv420_8,  },
-        { NE(VLC_CODEC_I420_10),       decode_yuv420_10, },
-        { NE(VLC_CODEC_I420_12),       decode_yuv420_12, },
-        { NE(VLC_CODEC_I420_16),       decode_yuv420_16, },
+        {    HEIMDALL_CODEC_I420,           decode_yuv420_8,  },
+        { NE(HEIMDALL_CODEC_I420_10),       decode_yuv420_10, },
+        { NE(HEIMDALL_CODEC_I420_12),       decode_yuv420_12, },
+        { NE(HEIMDALL_CODEC_I420_16),       decode_yuv420_16, },
     },
     .yuv411 = {
-        {    VLC_CODEC_I411,           decode_yuv411_8,  },
+        {    HEIMDALL_CODEC_I411,           decode_yuv411_8,  },
         /* High-definition 4:1:1 not supported */
         {  0, NULL }, { 0, NULL }, { 0, NULL }
     },
 };
 
-static int Open(vlc_object_t *obj)
+static int Open(heimdall_object_t *obj)
 {
     decoder_t *dec = (decoder_t *)obj;
     const char *sname = dec->fmt_in->p_extra;
 
-    if (dec->fmt_in->i_codec != VLC_CODEC_RTP_VIDEO_RAW)
-        return VLC_ENOTSUP;
+    if (dec->fmt_in->i_codec != HEIMDALL_CODEC_RTP_VIDEO_RAW)
+        return HEIMDALL_ENOTSUP;
     if (dec->fmt_in->i_extra <= 0 || sname[dec->fmt_in->i_extra - 1] != '\0')
-        return VLC_EINVAL;
+        return HEIMDALL_EINVAL;
 
     /* Sampling is supplied as extra data, bit depth as level */
     unsigned int depth = dec->fmt_in->i_level;
-    const struct vlc_rtp_video_raw_sampling *sampling;
+    const struct heimdall_rtp_video_raw_sampling *sampling;
     unsigned int spmp; /* samples per macropixel */
     bool half_height_uv = false;
 
@@ -804,10 +805,10 @@ static int Open(vlc_object_t *obj)
         spmp = 6;
     } else {
         msg_Err(obj, "unknown RTP video sampling %s", sname);
-        return VLC_ENOTSUP;
+        return HEIMDALL_ENOTSUP;
     }
 
-    const struct vlc_rtp_video_raw_format *format;
+    const struct heimdall_rtp_video_raw_format *format;
 
     switch (depth) {
         case 8:
@@ -824,25 +825,25 @@ static int Open(vlc_object_t *obj)
             break;
         default:
             msg_Err(obj, "unsupported RTP video bit depth %u", depth);
-            return VLC_ENOTSUP;
+            return HEIMDALL_ENOTSUP;
     }
 
     if (format->fourcc == 0) {
         msg_Err(obj, "unimplemented RTP video format %u-bit %s",
                 depth, sname);
-        return VLC_ENOTSUP;
+        return HEIMDALL_ENOTSUP;
     }
 
-    struct vlc_rtp_video_raw_dec *sys = vlc_obj_malloc(obj, sizeof (*sys));
+    struct heimdall_rtp_video_raw_dec *sys = heimdall_obj_malloc(obj, sizeof (*sys));
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     es_format_Copy(&dec->fmt_out, dec->fmt_in);
     dec->fmt_out.i_codec = format->fourcc;
     dec->fmt_out.video.i_chroma = format->fourcc;
 
     int ret = decoder_UpdateVideoFormat(dec);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
         return ret;
 
     unsigned int bpmp = depth * spmp;
@@ -854,12 +855,12 @@ static int Open(vlc_object_t *obj)
     sys->pic = NULL;
     dec->p_sys = sys;
     dec->pf_decode = Decode;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_description(N_("RTP raw video decoder"))
     set_capability("video decoder", 50)
     set_subcategory(SUBCAT_INPUT_VCODEC)
     set_callbacks(Open, Close)
-vlc_module_end()
+heimdall_module_end()

@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 2003-2004, 2010 the VideoLAN team
  * Copyright © 2007-2008 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *          Pierre Ynard
@@ -30,26 +31,26 @@
 # include "config.h"
 #endif
 
-#define VLC_MODULE_LICENSE VLC_LICENSE_GPL_2_PLUS
-#include <vlc_common.h>
-#include <vlc_arrays.h>
-#include <vlc_configuration.h>
-#include <vlc_threads.h>
-#include <vlc_plugin.h>
-#include <vlc_sout.h>
-#include <vlc_block.h>
+#define HEIMDALL_MODULE_LICENSE HEIMDALL_LICENSE_GPL_2_PLUS
+#include <heimdall_common.h>
+#include <heimdall_arrays.h>
+#include <heimdall_configuration.h>
+#include <heimdall_threads.h>
+#include <heimdall_plugin.h>
+#include <heimdall_sout.h>
+#include <heimdall_block.h>
 
-#include <vlc_httpd.h>
-#include <vlc_url.h>
-#include <vlc_network.h>
-#include <vlc_fs.h>
-#include <vlc_queue.h>
-#include <vlc_rand.h>
-#include <vlc_memstream.h>
+#include <heimdall_httpd.h>
+#include <heimdall_url.h>
+#include <heimdall_network.h>
+#include <heimdall_fs.h>
+#include <heimdall_queue.h>
+#include <heimdall_rand.h>
+#include <heimdall_memstream.h>
 #ifdef HAVE_SRTP
 # include <srtp.h>
 # include <gcrypt.h>
-# include <vlc_gcrypt.h>
+# include <heimdall_gcrypt.h>
 #endif
 
 #include "rtp.h"
@@ -169,13 +170,13 @@ static const char *const ppsz_protocols[] = {
 #define RTSP_PASS_LONGTEXT N_("Password that will be " \
                               "requested to access the stream." )
 
-static int  Open ( vlc_object_t * );
+static int  Open ( heimdall_object_t * );
 static void Close( sout_stream_t * );
 
 #define SOUT_CFG_PREFIX "sout-rtp-"
 #define MAX_EMPTY_BLOCKS 200
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( N_("RTP"))
     set_description( N_("RTP stream output") )
     set_capability( "sout output", 0 )
@@ -213,7 +214,7 @@ vlc_module_begin ()
                  TTL_LONGTEXT )
     add_bool( SOUT_CFG_PREFIX "rtcp-mux", false,
               RTCP_MUX_TEXT, RTCP_MUX_LONGTEXT )
-    add_integer( SOUT_CFG_PREFIX "caching", MS_FROM_VLC_TICK(DEFAULT_PTS_DELAY),
+    add_integer( SOUT_CFG_PREFIX "caching", MS_FROM_HEIMDALL_TICK(DEFAULT_PTS_DELAY),
                  CACHING_TEXT, CACHING_LONGTEXT )
     add_integer( "rtsp-timeout", 60, RTSP_TIMEOUT_TEXT,
                  RTSP_TIMEOUT_LONGTEXT )
@@ -232,7 +233,7 @@ vlc_module_begin ()
                  RFC3016_LONGTEXT )
 
     set_callback( Open )
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * Exported prototypes
@@ -262,13 +263,13 @@ static void SDPHandleUrl( sout_stream_t *, const char * );
 
 static int SapSetup( sout_stream_t *p_stream );
 static int FileSetup( sout_stream_t *p_stream );
-static int HttpSetup( sout_stream_t *p_stream, const vlc_url_t * );
+static int HttpSetup( sout_stream_t *p_stream, const heimdall_url_t * );
 
 typedef struct
 {
     /* SDP */
     char    *psz_sdp;
-    vlc_mutex_t  lock_sdp;
+    heimdall_mutex_t  lock_sdp;
 
     /* SDP to disk */
     char *psz_sdp_file;
@@ -285,10 +286,10 @@ typedef struct
     rtsp_stream_t *rtsp;
 
     /* RTSP NPT and timestamp computations */
-    vlc_tick_t   i_npt_zero;    /* when NPT=0 packet is sent */
-    vlc_tick_t   i_pts_zero;    /* predicts PTS of NPT=0 packet */
-    vlc_tick_t   i_pts_offset;  /* matches actual PTS to prediction */
-    vlc_mutex_t  lock_ts;
+    heimdall_tick_t   i_npt_zero;    /* when NPT=0 packet is sent */
+    heimdall_tick_t   i_pts_zero;    /* predicts PTS of NPT=0 packet */
+    heimdall_tick_t   i_pts_offset;  /* matches actual PTS to prediction */
+    heimdall_mutex_t  lock_ts;
 
     /* */
     char     *psz_destination;
@@ -305,7 +306,7 @@ typedef struct
     block_t           *packet;
 
     /* */
-    vlc_mutex_t      lock_es;
+    heimdall_mutex_t      lock_es;
     int              i_es;
     sout_stream_id_sys_t **es;
 } sout_stream_sys_t;
@@ -341,19 +342,19 @@ struct sout_stream_id_sys_t
 #endif
 
     /* Packets sinks */
-    vlc_thread_t      thread;
-    vlc_mutex_t       lock_sink;
-    vlc_queue_t       queue;
+    heimdall_thread_t      thread;
+    heimdall_mutex_t       lock_sink;
+    heimdall_queue_t       queue;
     bool              dead;
     int               sinkc;
     rtp_sink_t       *sinkv;
     rtsp_stream_id_t *rtsp_id;
     struct {
         int          *fd;
-        vlc_thread_t  thread;
+        heimdall_thread_t  thread;
     } listen;
 
-    vlc_tick_t        i_caching;
+    heimdall_tick_t        i_caching;
 };
 
 static int Control(sout_stream_t *stream, int query, va_list args)
@@ -367,10 +368,10 @@ static int Control(sout_stream_t *stream, int query, va_list args)
             break;
 
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static const struct sout_stream_operations stream_ops = {
@@ -392,7 +393,7 @@ static const struct sout_stream_operations mux_ops = {
 /*****************************************************************************
  * Open:
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     sout_stream_t       *p_stream = (sout_stream_t*)p_this;
     sout_stream_sys_t   *p_sys = NULL;
@@ -404,7 +405,7 @@ static int Open( vlc_object_t *p_this )
 
     p_sys = malloc( sizeof( sout_stream_sys_t ) );
     if( p_sys == NULL )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_sys->psz_destination = var_GetNonEmptyString( p_stream, SOUT_CFG_PREFIX "dst" );
 
@@ -418,7 +419,7 @@ static int Open( vlc_object_t *p_this )
         msg_Err( p_stream, "audio and video RTP port must be distinct" );
         free( p_sys->psz_destination );
         free( p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     for( config_chain_t *p_cfg = p_stream->p_cfg; p_cfg != NULL; p_cfg = p_cfg->p_next )
@@ -471,19 +472,19 @@ static int Open( vlc_object_t *p_this )
         msg_Warn (p_this, "unknown or unsupported transport protocol \"%s\"",
                   psz);
     free (psz);
-    var_Create (p_this, "dccp-service", VLC_VAR_STRING);
+    var_Create (p_this, "dccp-service", HEIMDALL_VAR_STRING);
 
     if( p_sys->psz_destination == NULL && !b_rtsp )
     {
         msg_Err( p_stream, "missing destination and not in RTSP mode" );
         free( p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     int i_ttl = var_GetInteger( p_stream, SOUT_CFG_PREFIX "ttl" );
     if( i_ttl != -1 )
     {
-        var_Create( p_stream, "ttl", VLC_VAR_INTEGER );
+        var_Create( p_stream, "ttl", HEIMDALL_VAR_INTEGER );
         var_SetInteger( p_stream, "ttl", i_ttl );
     }
 
@@ -494,8 +495,8 @@ static int Open( vlc_object_t *p_this )
      * without waiting. So until then,
      * we use an arbitrary reference PTS for timestamp computations, and
      * then actual PTS will catch up using offsets. */
-    p_sys->i_npt_zero = VLC_TICK_INVALID;
-    p_sys->i_pts_zero = vlc_tick_now();
+    p_sys->i_npt_zero = HEIMDALL_TICK_INVALID;
+    p_sys->i_pts_zero = heimdall_tick_now();
     p_sys->i_es = 0;
     p_sys->es   = NULL;
     p_sys->rtsp = NULL;
@@ -510,9 +511,9 @@ static int Open( vlc_object_t *p_this )
 
     p_stream->p_sys     = p_sys;
 
-    vlc_mutex_init( &p_sys->lock_sdp );
-    vlc_mutex_init( &p_sys->lock_ts );
-    vlc_mutex_init( &p_sys->lock_es );
+    heimdall_mutex_init( &p_sys->lock_sdp );
+    heimdall_mutex_init( &p_sys->lock_ts );
+    heimdall_mutex_init( &p_sys->lock_es );
 
     psz = var_GetNonEmptyString( p_stream, SOUT_CFG_PREFIX "mux" );
     if( psz != NULL )
@@ -526,7 +527,7 @@ static int Open( vlc_object_t *p_this )
             free( psz );
             free( p_sys->psz_destination );
             free( p_sys );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         p_sys->p_grab = GrabberCreate( p_stream );
@@ -539,7 +540,7 @@ static int Open( vlc_object_t *p_this )
             sout_AccessOutDelete( p_sys->p_grab );
             free( p_sys->psz_destination );
             free( p_sys );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         p_sys->packet = NULL;
@@ -585,11 +586,11 @@ static int Open( vlc_object_t *p_this )
         if( id == NULL )
         {
             Close( p_stream );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -640,9 +641,9 @@ static void Close( sout_stream_t *p_stream )
 static void SDPHandleUrl( sout_stream_t *p_stream, const char *psz_url )
 {
     sout_stream_sys_t *p_sys = p_stream->p_sys;
-    vlc_url_t url;
+    heimdall_url_t url;
 
-    vlc_UrlParse( &url, psz_url );
+    heimdall_UrlParse( &url, psz_url );
     if( url.psz_protocol && !strcasecmp( url.psz_protocol, "http" ) )
     {
         if( p_sys->p_httpd_file )
@@ -672,7 +673,7 @@ static void SDPHandleUrl( sout_stream_t *p_stream, const char *psz_url )
             msg_Info( p_stream, "Consider passing --rtsp-host=IP on the "
                                 "command line instead." );
 
-            var_Create( p_stream, "rtsp-host", VLC_VAR_STRING );
+            var_Create( p_stream, "rtsp-host", HEIMDALL_VAR_STRING );
             var_SetString( p_stream, "rtsp-host", url.psz_host );
         }
         if( url.i_port != 0 )
@@ -680,11 +681,11 @@ static void SDPHandleUrl( sout_stream_t *p_stream, const char *psz_url )
             /* msg_Info( p_stream, "Consider passing --rtsp-port=%u on "
                       "the command line instead.", url.i_port ); */
 
-            var_Create( p_stream, "rtsp-port", VLC_VAR_INTEGER );
+            var_Create( p_stream, "rtsp-port", HEIMDALL_VAR_INTEGER );
             var_SetInteger( p_stream, "rtsp-port", url.i_port );
         }
 
-        p_sys->rtsp = RtspSetup( VLC_OBJECT(p_stream), url.psz_path );
+        p_sys->rtsp = RtspSetup( HEIMDALL_OBJECT(p_stream), url.psz_path );
         if( p_sys->rtsp == NULL )
             msg_Err( p_stream, "cannot export SDP as RTSP" );
     }
@@ -701,7 +702,7 @@ static void SDPHandleUrl( sout_stream_t *p_stream, const char *psz_url )
             msg_Err( p_stream, "you can use sdp=file:// only once" );
             goto out;
         }
-        p_sys->psz_sdp_file = vlc_uri2path( psz_url );
+        p_sys->psz_sdp_file = heimdall_uri2path( psz_url );
         if( p_sys->psz_sdp_file == NULL )
             goto out;
         FileSetup( p_stream );
@@ -713,7 +714,7 @@ static void SDPHandleUrl( sout_stream_t *p_stream, const char *psz_url )
     }
 
 out:
-    vlc_UrlClean( &url );
+    heimdall_UrlClean( &url );
 }
 
 /*****************************************************************************
@@ -723,8 +724,8 @@ out:
 char *SDPGenerate( sout_stream_t *p_stream, const char *rtsp_url )
 {
     sout_stream_sys_t *p_sys = p_stream->p_sys;
-    struct vlc_memstream sdp;
-    vlc_sockaddr dst;
+    struct heimdall_memstream sdp;
+    heimdall_sockaddr dst;
     char *psz_sdp = NULL;
     socklen_t dstlen;
     int i;
@@ -745,7 +746,7 @@ char *SDPGenerate( sout_stream_t *p_stream, const char *rtsp_url )
      */
     bool inclport;
 
-    vlc_mutex_lock( &p_sys->lock_es );
+    heimdall_mutex_lock( &p_sys->lock_es );
     if( unlikely(p_sys->i_es == 0 || (rtsp_url != NULL && !p_sys->es[0]->rtsp_id)) )
         goto out; /* hmm... */
 
@@ -778,16 +779,16 @@ char *SDPGenerate( sout_stream_t *p_stream, const char *rtsp_url )
 #endif
     }
 
-    if( vlc_sdp_Start( &sdp, VLC_OBJECT( p_stream ), SOUT_CFG_PREFIX,
+    if( heimdall_sdp_Start( &sdp, HEIMDALL_OBJECT( p_stream ), SOUT_CFG_PREFIX,
                        NULL, 0, &dst.sa, dstlen ) )
         goto out;
 
     /* TODO: a=source-filter */
     if( p_sys->rtcp_mux )
-        vlc_memstream_puts(&sdp, "a=rtcp-mux\r\n");
+        heimdall_memstream_puts(&sdp, "a=rtcp-mux\r\n");
 
     if( rtsp_url != NULL )
-        vlc_memstream_printf(&sdp, "a=control:%s\r\n", rtsp_url);
+        heimdall_memstream_printf(&sdp, "a=control:%s\r\n", rtsp_url);
 
     const char *proto = "RTP/AVP"; /* protocol */
     if( rtsp_url == NULL )
@@ -826,54 +827,54 @@ char *SDPGenerate( sout_stream_t *p_stream, const char *rtsp_url )
                 continue;
         }
 
-        vlc_memstream_printf(&sdp, "m=%s %u %s %"PRIu8"\r\n", mime_major,
+        heimdall_memstream_printf(&sdp, "m=%s %u %s %"PRIu8"\r\n", mime_major,
                              inclport ? id->i_port : 0, proto,
                              rtp_fmt->payload_type);
 
         if (rtp_fmt->bitrate > 0)
-            vlc_memstream_printf(&sdp, "b=AS:%u\r\n", rtp_fmt->bitrate);
-        vlc_memstream_puts(&sdp, "b=RR:0\r\n");
+            heimdall_memstream_printf(&sdp, "b=AS:%u\r\n", rtp_fmt->bitrate);
+        heimdall_memstream_puts(&sdp, "b=RR:0\r\n");
 
         /* RTP payload type map */
-        vlc_memstream_printf(&sdp, "a=rtpmap:%"PRIu8" %s/%u",
+        heimdall_memstream_printf(&sdp, "a=rtpmap:%"PRIu8" %s/%u",
                              rtp_fmt->payload_type, rtp_fmt->ptname,
                              rtp_fmt->clock_rate);
         if (rtp_fmt->cat == AUDIO_ES && rtp_fmt->channels != 1)
-            vlc_memstream_printf(&sdp, "/%u", rtp_fmt->channels);
-        vlc_memstream_puts(&sdp, "\r\n");
+            heimdall_memstream_printf(&sdp, "/%u", rtp_fmt->channels);
+        heimdall_memstream_puts(&sdp, "\r\n");
 
         /* Format parameters */
         if (rtp_fmt->fmtp != NULL)
-            vlc_memstream_printf(&sdp, "a=fmtp:%"PRIu8" %s\r\n",
+            heimdall_memstream_printf(&sdp, "a=fmtp:%"PRIu8" %s\r\n",
                                  rtp_fmt->payload_type, rtp_fmt->fmtp);
 
         /* cf RFC4566 §5.14 */
         if( inclport && !p_sys->rtcp_mux && (id->i_port & 1) )
-            vlc_memstream_printf(&sdp, "a=rtcp:%u\r\n", id->i_port + 1);
+            heimdall_memstream_printf(&sdp, "a=rtcp:%u\r\n", id->i_port + 1);
 
         if( rtsp_url != NULL )
         {
             char *track_url = RtspAppendTrackPath( id->rtsp_id, rtsp_url );
             if( track_url != NULL )
             {
-                vlc_memstream_printf(&sdp, "a=control:%s\r\n", track_url);
+                heimdall_memstream_printf(&sdp, "a=control:%s\r\n", track_url);
                 free( track_url );
             }
         }
         else
         {
             if( id->listen.fd != NULL )
-                vlc_memstream_puts(&sdp, "a=setup:passive\r\n");
+                heimdall_memstream_puts(&sdp, "a=setup:passive\r\n");
             if( p_sys->proto == IPPROTO_DCCP )
-                vlc_memstream_printf(&sdp, "a=dccp-service-code:SC:RTP%c",
+                heimdall_memstream_printf(&sdp, "a=dccp-service-code:SC:RTP%c",
                                      toupper((unsigned char)mime_major[0]));
         }
     }
 
-    if( vlc_memstream_close( &sdp ) == 0 )
+    if( heimdall_memstream_close( &sdp ) == 0 )
         psz_sdp = sdp.ptr;
 out:
-    vlc_mutex_unlock( &p_sys->lock_es );
+    heimdall_mutex_unlock( &p_sys->lock_es );
     return psz_sdp;
 }
 
@@ -898,7 +899,7 @@ rtp_set_ptime (sout_stream_id_sys_t *id, unsigned ptime_ms, size_t bytes)
         id->i_mtu = 12 + (((id->i_mtu - 12) / bytes) * bytes);
 }
 
-uint32_t rtp_compute_ts( unsigned i_clock_rate, vlc_tick_t i_pts )
+uint32_t rtp_compute_ts( unsigned i_clock_rate, heimdall_tick_t i_pts )
 {
     /* This is an overflow-proof way of doing:
      * return i_pts * (int64_t)i_clock_rate / CLOCK_FREQ;
@@ -932,20 +933,20 @@ static void *Add( sout_stream_t *p_stream, const es_format_t *p_fmt, const char 
 #ifdef HAVE_SRTP
     id->srtp = NULL;
 #endif
-    vlc_mutex_init( &id->lock_sink );
+    heimdall_mutex_init( &id->lock_sink );
     id->sinkc = 0;
     id->sinkv = NULL;
     id->rtsp_id = NULL;
-    vlc_queue_Init(&id->queue, offsetof (block_t, p_next));
+    heimdall_queue_Init(&id->queue, offsetof (block_t, p_next));
     id->dead = true;
     id->listen.fd = NULL;
 
     id->b_first_packet = true;
     id->i_caching =
-        VLC_TICK_FROM_MS(var_GetInteger( p_stream, SOUT_CFG_PREFIX "caching"));
+        HEIMDALL_TICK_FROM_MS(var_GetInteger( p_stream, SOUT_CFG_PREFIX "caching"));
 
-    vlc_rand_bytes (&id->i_sequence, sizeof (id->i_sequence));
-    vlc_rand_bytes (id->ssrc, sizeof (id->ssrc));
+    heimdall_rand_bytes (&id->i_sequence, sizeof (id->i_sequence));
+    heimdall_rand_bytes (id->ssrc, sizeof (id->ssrc));
 
     bool format = false;
 
@@ -955,9 +956,9 @@ static void *Add( sout_stream_t *p_stream, const es_format_t *p_fmt, const char 
         char *psz = var_GetNonEmptyString( p_stream, SOUT_CFG_PREFIX "mux" );
         if (p_fmt == NULL && psz == NULL)
             goto error;
-        int val = rtp_get_fmt(VLC_OBJECT(p_stream), p_fmt, psz, &id->rtp_fmt);
+        int val = rtp_get_fmt(HEIMDALL_OBJECT(p_stream), p_fmt, psz, &id->rtp_fmt);
         free( psz );
-        if (val != VLC_SUCCESS)
+        if (val != HEIMDALL_SUCCESS)
             goto error;
     }
 
@@ -965,7 +966,7 @@ static void *Add( sout_stream_t *p_stream, const es_format_t *p_fmt, const char 
     char *key = var_GetNonEmptyString (p_stream, SOUT_CFG_PREFIX"key");
     if (key)
     {
-        vlc_gcrypt_init ();
+        heimdall_gcrypt_init ();
         id->srtp = srtp_create (SRTP_ENCR_AES_CM, SRTP_AUTH_HMAC_SHA1, 10,
                                    SRTP_PRF_AES_CM, SRTP_RCC_MODE1);
         if (id->srtp == NULL)
@@ -981,10 +982,10 @@ static void *Add( sout_stream_t *p_stream, const es_format_t *p_fmt, const char 
         if (val)
         {
             msg_Err (p_stream, "bad SRTP key/salt combination (%s)",
-                     vlc_strerror_c(val));
+                     heimdall_strerror_c(val));
             goto error;
         }
-        id->i_sequence = 0; /* FIXME: awful hack for libvlc_srtp */
+        id->i_sequence = 0; /* FIXME: awful hack for libheimdall_srtp */
     }
 #endif
 
@@ -1045,7 +1046,7 @@ static void *Add( sout_stream_t *p_stream, const es_format_t *p_fmt, const char 
 #endif
             /* fall through */
             case IPPROTO_TCP:
-                id->listen.fd = net_Listen( VLC_OBJECT(p_stream),
+                id->listen.fd = net_Listen( HEIMDALL_OBJECT(p_stream),
                                             p_sys->psz_destination, i_port,
                                             type, p_sys->proto );
                 if( id->listen.fd == NULL )
@@ -1053,7 +1054,7 @@ static void *Add( sout_stream_t *p_stream, const es_format_t *p_fmt, const char 
                     msg_Err( p_stream, "passive COMEDIA RTP socket failed" );
                     goto error;
                 }
-                if( vlc_clone( &id->listen.thread, rtp_listen_thread, id ) )
+                if( heimdall_clone( &id->listen.thread, rtp_listen_thread, id ) )
                 {
                     net_ListenClose( id->listen.fd );
                     id->listen.fd = NULL;
@@ -1084,16 +1085,16 @@ static void *Add( sout_stream_t *p_stream, const es_format_t *p_fmt, const char 
     if( p_fmt != NULL )
         switch( p_fmt->i_codec )
         {
-            case VLC_CODEC_MULAW:
-            case VLC_CODEC_ALAW:
-            case VLC_CODEC_U8:
+            case HEIMDALL_CODEC_MULAW:
+            case HEIMDALL_CODEC_ALAW:
+            case HEIMDALL_CODEC_U8:
                 rtp_set_ptime (id, 20, 1);
                 break;
-            case VLC_CODEC_S16B:
-            case VLC_CODEC_S16L:
+            case HEIMDALL_CODEC_S16B:
+            case HEIMDALL_CODEC_S16L:
                 rtp_set_ptime (id, 20, 2);
                 break;
-            case VLC_CODEC_S24B:
+            case HEIMDALL_CODEC_S24B:
                 rtp_set_ptime (id, 20, 3);
                 break;
             default:
@@ -1108,9 +1109,9 @@ static void *Add( sout_stream_t *p_stream, const es_format_t *p_fmt, const char 
         net_SetCSCov( id->sinkv[0].rtp_fd, cscov, -1 );
 #endif
 
-    vlc_mutex_lock( &p_sys->lock_ts );
-    id->b_ts_init = ( p_sys->i_npt_zero != VLC_TICK_INVALID );
-    vlc_mutex_unlock( &p_sys->lock_ts );
+    heimdall_mutex_lock( &p_sys->lock_ts );
+    id->b_ts_init = ( p_sys->i_npt_zero != HEIMDALL_TICK_INVALID );
+    heimdall_mutex_unlock( &p_sys->lock_ts );
     if( id->b_ts_init )
         id->i_ts_offset = rtp_compute_ts( id->rtp_fmt.clock_rate,
                                           p_sys->i_pts_offset );
@@ -1120,23 +1121,23 @@ static void *Add( sout_stream_t *p_stream, const es_format_t *p_fmt, const char 
                                  id->rtp_fmt.clock_rate, mcast_fd );
 
     id->dead = false;
-    if( vlc_clone( &id->thread, ThreadSend, id ) )
+    if( heimdall_clone( &id->thread, ThreadSend, id ) )
     {
         id->dead = true;
         goto error;
     }
 
     /* Update p_sys context */
-    vlc_mutex_lock( &p_sys->lock_es );
+    heimdall_mutex_lock( &p_sys->lock_es );
     TAB_APPEND( p_sys->i_es, p_sys->es, id );
-    vlc_mutex_unlock( &p_sys->lock_es );
+    heimdall_mutex_unlock( &p_sys->lock_es );
 
     psz_sdp = SDPGenerate( p_stream, NULL );
 
-    vlc_mutex_lock( &p_sys->lock_sdp );
+    heimdall_mutex_lock( &p_sys->lock_sdp );
     free( p_sys->psz_sdp );
     p_sys->psz_sdp = psz_sdp;
-    vlc_mutex_unlock( &p_sys->lock_sdp );
+    heimdall_mutex_unlock( &p_sys->lock_sdp );
 
     msg_Dbg( p_stream, "sdp=\n%s", p_sys->psz_sdp );
 
@@ -1156,14 +1157,14 @@ static void Del( sout_stream_t *p_stream, void *_id )
     sout_stream_sys_t *p_sys = p_stream->p_sys;
     sout_stream_id_sys_t *id = (sout_stream_id_sys_t *)_id;
 
-    vlc_mutex_lock( &p_sys->lock_es );
+    heimdall_mutex_lock( &p_sys->lock_es );
     TAB_REMOVE( p_sys->i_es, p_sys->es, id );
-    vlc_mutex_unlock( &p_sys->lock_es );
+    heimdall_mutex_unlock( &p_sys->lock_es );
 
     if (!id->dead)
     {
-        vlc_queue_Kill(&id->queue, &id->dead);
-        vlc_join( id->thread, NULL );
+        heimdall_queue_Kill(&id->queue, &id->dead);
+        heimdall_join( id->thread, NULL );
      }
     free( id->rtp_fmt.fmtp );
 
@@ -1171,8 +1172,8 @@ static void Del( sout_stream_t *p_stream, void *_id )
         RtspDelId( p_sys->rtsp, id->rtsp_id );
     if( id->listen.fd != NULL )
     {
-        vlc_cancel( id->listen.thread );
-        vlc_join( id->listen.thread, NULL );
+        heimdall_cancel( id->listen.thread );
+        heimdall_join( id->listen.thread, NULL );
         net_ListenClose( id->listen.fd );
     }
     /* Delete remaining sinks (incoming connections or explicit
@@ -1224,7 +1225,7 @@ static int Send( sout_stream_t *p_stream, void *_id, block_t *p_buffer )
 
         p_buffer = p_next;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /****************************************************************************
@@ -1246,7 +1247,7 @@ static int SapSetup( sout_stream_t *p_stream )
                                                      p_sys->psz_sdp,
                                                      p_sys->psz_destination );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /****************************************************************************
@@ -1258,19 +1259,19 @@ static int FileSetup( sout_stream_t *p_stream )
     FILE            *f;
 
     if( p_sys->psz_sdp == NULL )
-        return VLC_EGENERIC; /* too early */
+        return HEIMDALL_EGENERIC; /* too early */
 
-    if( ( f = vlc_fopen( p_sys->psz_sdp_file, "wt" ) ) == NULL )
+    if( ( f = heimdall_fopen( p_sys->psz_sdp_file, "wt" ) ) == NULL )
     {
         msg_Err( p_stream, "cannot open file '%s' (%s)",
-                 p_sys->psz_sdp_file, vlc_strerror_c(errno) );
-        return VLC_EGENERIC;
+                 p_sys->psz_sdp_file, heimdall_strerror_c(errno) );
+        return HEIMDALL_EGENERIC;
     }
 
     fputs( p_sys->psz_sdp, f );
     fclose( f );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /****************************************************************************
@@ -1280,11 +1281,11 @@ static int  HttpCallback( httpd_file_sys_t *p_args,
                           httpd_file_t *, uint8_t *p_request,
                           uint8_t **pp_data, size_t *pi_data );
 
-static int HttpSetup( sout_stream_t *p_stream, const vlc_url_t *url)
+static int HttpSetup( sout_stream_t *p_stream, const heimdall_url_t *url)
 {
     sout_stream_sys_t *p_sys = p_stream->p_sys;
 
-    p_sys->p_httpd_host = vlc_http_HostNew( VLC_OBJECT(p_stream) );
+    p_sys->p_httpd_host = heimdall_http_HostNew( HEIMDALL_OBJECT(p_stream) );
     if( p_sys->p_httpd_host )
     {
         p_sys->p_httpd_file = httpd_FileNew( p_sys->p_httpd_host,
@@ -1295,27 +1296,27 @@ static int HttpSetup( sout_stream_t *p_stream, const vlc_url_t *url)
     }
     if( p_sys->p_httpd_file == NULL )
     {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int  HttpCallback( httpd_file_sys_t *p_args,
                           httpd_file_t *f, uint8_t *p_request,
                           uint8_t **pp_data, size_t *pi_data )
 {
-    VLC_UNUSED(f); VLC_UNUSED(p_request);
+    HEIMDALL_UNUSED(f); HEIMDALL_UNUSED(p_request);
     sout_stream_sys_t *p_sys = (sout_stream_sys_t*)p_args;
 
-    vlc_mutex_lock( &p_sys->lock_sdp );
+    heimdall_mutex_lock( &p_sys->lock_sdp );
     if( p_sys->psz_sdp && *p_sys->psz_sdp )
     {
         *pi_data = strlen( p_sys->psz_sdp );
         *pp_data = malloc( *pi_data );
         if (*pp_data == NULL)
         {
-            vlc_mutex_unlock(&p_sys->lock_sdp);
-            return VLC_ENOMEM;
+            heimdall_mutex_unlock(&p_sys->lock_sdp);
+            return HEIMDALL_ENOMEM;
         }
         memcpy( *pp_data, p_sys->psz_sdp, *pi_data );
     }
@@ -1324,9 +1325,9 @@ static int  HttpCallback( httpd_file_sys_t *p_args,
         *pp_data = NULL;
         *pi_data = 0;
     }
-    vlc_mutex_unlock( &p_sys->lock_sdp );
+    heimdall_mutex_unlock( &p_sys->lock_sdp );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /****************************************************************************
@@ -1334,7 +1335,7 @@ static int  HttpCallback( httpd_file_sys_t *p_args,
  ****************************************************************************/
 static void* ThreadSend( void *data )
 {
-    vlc_thread_set_name("vlc-rt-send");
+    heimdall_thread_set_name("heimdall-rt-send");
 
 #ifdef _WIN32
 # undef ENOBUFS
@@ -1345,10 +1346,10 @@ static void* ThreadSend( void *data )
 # define EWOULDBLOCK  WSAEWOULDBLOCK
 #endif
     sout_stream_id_sys_t *id = data;
-    vlc_tick_t i_caching = id->i_caching;
+    heimdall_tick_t i_caching = id->i_caching;
     block_t *out;
 
-    while ((out = vlc_queue_DequeueKillable(&id->queue, &id->dead)) != NULL)
+    while ((out = heimdall_queue_DequeueKillable(&id->queue, &id->dead)) != NULL)
     {
 #ifdef HAVE_SRTP
         if( id->srtp )
@@ -1361,18 +1362,18 @@ static void* ThreadSend( void *data )
             if( val )
             {
                 msg_Dbg( id->p_stream, "SRTP sending error: %s",
-                         vlc_strerror_c(val) );
+                         heimdall_strerror_c(val) );
                 block_Release( out );
                 continue;
             }
             out->i_buffer = len;
         }
 #endif
-        vlc_tick_wait (out->i_dts + i_caching);
+        heimdall_tick_wait (out->i_dts + i_caching);
 
         ssize_t len = out->i_buffer;
 
-        vlc_mutex_lock( &id->lock_sink );
+        heimdall_mutex_lock( &id->lock_sink );
         unsigned deadc = 0; /* How many dead sockets? */
         int deadv[id->sinkc ? id->sinkc : 1]; /* Dead sockets list */
 
@@ -1399,7 +1400,7 @@ static void* ThreadSend( void *data )
             }
         }
         id->i_seq_sent_next = ntohs(((uint16_t *) out->p_buffer)[1]) + 1;
-        vlc_mutex_unlock( &id->lock_sink );
+        heimdall_mutex_unlock( &id->lock_sink );
         block_Release( out );
 
         for( unsigned i = 0; i < deadc; i++ )
@@ -1415,7 +1416,7 @@ static void* ThreadSend( void *data )
 /* This thread dequeues incoming connections (DCCP streaming) */
 static void *rtp_listen_thread( void *data )
 {
-    vlc_thread_set_name("vlc-rtp-listen");
+    heimdall_thread_set_name("heimdall-rtp-listen");
 
     sout_stream_id_sys_t *id = data;
 
@@ -1426,29 +1427,29 @@ static void *rtp_listen_thread( void *data )
         int fd = net_Accept( id->p_stream, id->listen.fd );
         if( fd == -1 )
             continue;
-        int canc = vlc_savecancel( );
+        int canc = heimdall_savecancel( );
         rtp_add_sink( id, fd, true, NULL );
-        vlc_restorecancel( canc );
+        heimdall_restorecancel( canc );
     }
 
-    vlc_assert_unreachable();
+    heimdall_assert_unreachable();
 }
 
 
 int rtp_add_sink( sout_stream_id_sys_t *id, int fd, bool rtcp_mux, uint16_t *seq )
 {
     rtp_sink_t sink = { fd, NULL };
-    sink.rtcp = OpenRTCP( VLC_OBJECT( id->p_stream ), fd, IPPROTO_UDP,
+    sink.rtcp = OpenRTCP( HEIMDALL_OBJECT( id->p_stream ), fd, IPPROTO_UDP,
                           rtcp_mux );
     if( sink.rtcp == NULL )
         msg_Err( id->p_stream, "RTCP failed!" );
 
-    vlc_mutex_lock( &id->lock_sink );
+    heimdall_mutex_lock( &id->lock_sink );
     TAB_APPEND(id->sinkc, id->sinkv, sink);
     if( seq != NULL )
         *seq = id->i_seq_sent_next;
-    vlc_mutex_unlock( &id->lock_sink );
-    return VLC_SUCCESS;
+    heimdall_mutex_unlock( &id->lock_sink );
+    return HEIMDALL_SUCCESS;
 }
 
 void rtp_del_sink( sout_stream_id_sys_t *id, int fd )
@@ -1456,7 +1457,7 @@ void rtp_del_sink( sout_stream_id_sys_t *id, int fd )
     rtp_sink_t sink = { fd, NULL };
 
     /* NOTE: must be safe to use if fd is not included */
-    vlc_mutex_lock( &id->lock_sink );
+    heimdall_mutex_lock( &id->lock_sink );
     for( int i = 0; i < id->sinkc; i++ )
     {
         if (id->sinkv[i].rtp_fd == fd)
@@ -1466,7 +1467,7 @@ void rtp_del_sink( sout_stream_id_sys_t *id, int fd )
             break;
         }
     }
-    vlc_mutex_unlock( &id->lock_sink );
+    heimdall_mutex_unlock( &id->lock_sink );
 
     CloseRTCP( sink.rtcp );
     net_Close( sink.rtp_fd );
@@ -1477,9 +1478,9 @@ uint16_t rtp_get_seq( sout_stream_id_sys_t *id )
     /* This will return values for the next packet. */
     uint16_t seq;
 
-    vlc_mutex_lock( &id->lock_sink );
+    heimdall_mutex_lock( &id->lock_sink );
     seq = id->i_seq_sent_next;
-    vlc_mutex_unlock( &id->lock_sink );
+    heimdall_mutex_unlock( &id->lock_sink );
 
     return seq;
 }
@@ -1489,8 +1490,8 @@ uint16_t rtp_get_seq( sout_stream_id_sys_t *id )
  * Also return the NPT corresponding to this timestamp. If the stream
  * output is not started, the initial timestamp that will be used with
  * the first packets for NPT=0 is returned instead. */
-vlc_tick_t rtp_get_ts( const sout_stream_t *p_stream, const sout_stream_id_sys_t *id,
-                    vlc_tick_t *p_npt )
+heimdall_tick_t rtp_get_ts( const sout_stream_t *p_stream, const sout_stream_id_sys_t *id,
+                    heimdall_tick_t *p_npt )
 {
     if (p_npt != NULL)
         *p_npt = 0;
@@ -1499,22 +1500,22 @@ vlc_tick_t rtp_get_ts( const sout_stream_t *p_stream, const sout_stream_id_sys_t
         p_stream = id->p_stream;
 
     if (p_stream == NULL)
-        return vlc_tick_now();
+        return heimdall_tick_now();
 
     sout_stream_sys_t *p_sys = p_stream->p_sys;
-    vlc_tick_t i_npt_zero;
-    vlc_mutex_lock( &p_sys->lock_ts );
+    heimdall_tick_t i_npt_zero;
+    heimdall_mutex_lock( &p_sys->lock_ts );
     i_npt_zero = p_sys->i_npt_zero;
-    vlc_mutex_unlock( &p_sys->lock_ts );
+    heimdall_mutex_unlock( &p_sys->lock_ts );
 
-    if( i_npt_zero == VLC_TICK_INVALID )
+    if( i_npt_zero == HEIMDALL_TICK_INVALID )
         return p_sys->i_pts_zero;
 
-    vlc_tick_t now = vlc_tick_now();
+    heimdall_tick_t now = heimdall_tick_now();
     if( now < i_npt_zero )
         return p_sys->i_pts_zero;
 
-    vlc_tick_t npt = now - i_npt_zero;
+    heimdall_tick_t npt = now - i_npt_zero;
     if (p_npt != NULL)
         *p_npt = npt;
 
@@ -1522,13 +1523,13 @@ vlc_tick_t rtp_get_ts( const sout_stream_t *p_stream, const sout_stream_id_sys_t
 }
 
 void rtp_packetize_common( sout_stream_id_sys_t *id, block_t *out,
-                           bool b_m_bit, vlc_tick_t i_pts )
+                           bool b_m_bit, heimdall_tick_t i_pts )
 {
     if( !id->b_ts_init )
     {
         sout_stream_sys_t *p_sys = id->p_stream->p_sys;
-        vlc_mutex_lock( &p_sys->lock_ts );
-        if( p_sys->i_npt_zero == VLC_TICK_INVALID )
+        heimdall_mutex_lock( &p_sys->lock_ts );
+        if( p_sys->i_npt_zero == HEIMDALL_TICK_INVALID )
         {
             /* This is the first packet of any ES. We initialize the
              * NPT=0 time reference, and the offset to match the
@@ -1536,7 +1537,7 @@ void rtp_packetize_common( sout_stream_id_sys_t *id, block_t *out,
             p_sys->i_npt_zero = i_pts + id->i_caching;
             p_sys->i_pts_offset = p_sys->i_pts_zero - i_pts;
         }
-        vlc_mutex_unlock( &p_sys->lock_ts );
+        heimdall_mutex_unlock( &p_sys->lock_ts );
 
         /* And in any case this is the first packet of this ES, so we
          * initialize the offset for this ES. */
@@ -1569,7 +1570,7 @@ uint16_t rtp_get_extended_sequence( sout_stream_id_sys_t *id )
 
 void rtp_packetize_send( sout_stream_id_sys_t *id, block_t *out )
 {
-    vlc_queue_Enqueue(&id->queue, out);
+    heimdall_queue_Enqueue(&id->queue, out);
 }
 
 /**
@@ -1633,7 +1634,7 @@ static ssize_t AccessOutGrabberWriteBuffer( sout_stream_t *p_stream,
     sout_stream_sys_t *p_sys = p_stream->p_sys;
     sout_stream_id_sys_t *id = p_sys->es[0];
 
-    vlc_tick_t  i_dts = p_buffer->i_dts;
+    heimdall_tick_t  i_dts = p_buffer->i_dts;
 
     uint8_t         *p_data = p_buffer->p_buffer;
     size_t          i_data  = p_buffer->i_buffer;
@@ -1678,7 +1679,7 @@ static ssize_t AccessOutGrabberWriteBuffer( sout_stream_t *p_stream,
         i_data -= i_size;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 
@@ -1698,7 +1699,7 @@ static ssize_t AccessOutGrabberWrite( sout_access_out_t *p_access,
         p_buffer = p_next;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 
@@ -1706,7 +1707,7 @@ static sout_access_out_t *GrabberCreate( sout_stream_t *p_stream )
 {
     sout_access_out_t *p_grab;
 
-    p_grab = vlc_object_create( p_stream, sizeof( *p_grab ) );
+    p_grab = heimdall_object_create( p_stream, sizeof( *p_grab ) );
     if( p_grab == NULL )
         return NULL;
 
@@ -1724,7 +1725,7 @@ int rtp_get_video_geometry( sout_stream_id_sys_t *id, int *width, int *height )
 {
     int ret = sscanf( id->rtp_fmt.fmtp, "%*s width=%d; height=%d; ", width, height );
     if( ret != 2 )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

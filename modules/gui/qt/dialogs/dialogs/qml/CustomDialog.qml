@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,9 +20,9 @@
 import QtQuick
 import QtQuick.Layouts
 
-import VLC.MainInterface
-import VLC.Style
-import VLC.Widgets as Widgets
+import Heimdall.MainInterface
+import Heimdall.Style
+import Heimdall.Widgets as Widgets
 
 ModalDialog {
     id: root
@@ -66,7 +67,7 @@ ModalDialog {
 
     contentItem: Text {
         focus: false
-        font.pixelSize: VLCStyle.fontSize_normal
+        font.pixelSize: HeimdallStyle.fontSize_normal
         color: root.colorContext.fg.primary
         wrapMode: Text.WordWrap
         text: root.text
@@ -75,7 +76,7 @@ ModalDialog {
     footer: FocusScope {
         focus: true
         id: questionButtons
-        implicitHeight: VLCStyle.icon_normal
+        implicitHeight: HeimdallStyle.icon_normal
 
         readonly property ColorContext colorContext: ColorContext {
             id: footerTheme
@@ -86,8 +87,8 @@ ModalDialog {
         Rectangle {
             color: footerTheme.bg.primary
             anchors.fill: parent
-            anchors.leftMargin: VLCStyle.margin_xxsmall
-            anchors.rightMargin: VLCStyle.margin_xxsmall
+            anchors.leftMargin: HeimdallStyle.margin_xxsmall
+            anchors.rightMargin: HeimdallStyle.margin_xxsmall
 
             RowLayout {
                 anchors.fill: parent

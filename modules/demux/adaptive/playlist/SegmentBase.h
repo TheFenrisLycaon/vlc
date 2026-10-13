@@ -2,6 +2,7 @@
  * SegmentBase.h
  *****************************************************************************
  * Copyright (C) 2010 - 2012 Klagenfurt University
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Created on: Jan 27, 2012
  * Authors: Christopher Mueller <christopher.mueller@itec.uni-klu.ac.at>
@@ -42,16 +43,16 @@ namespace adaptive
                 SegmentBase             (SegmentInformation * = nullptr);
                 virtual ~SegmentBase    ();
 
-                vlc_tick_t getMinAheadTime(uint64_t curnum) const override;
+                heimdall_tick_t getMinAheadTime(uint64_t curnum) const override;
                 Segment *getMediaSegment(uint64_t number) const override;
                 Segment *getNextMediaSegment(uint64_t, uint64_t *, bool *) const override;
                 uint64_t getStartSegmentNumber() const override;
 
-                bool getSegmentNumberByTime(vlc_tick_t time, uint64_t *ret) const override;
+                bool getSegmentNumberByTime(heimdall_tick_t time, uint64_t *ret) const override;
                 bool getPlaybackTimeDurationBySegmentNumber(uint64_t number,
-                                            vlc_tick_t *time, vlc_tick_t *duration) const override;
+                                            heimdall_tick_t *time, heimdall_tick_t *duration) const override;
 
-                void debug(vlc_object_t *,int = 0) const override;
+                void debug(heimdall_object_t *,int = 0) const override;
 
             protected:
                 SegmentInformation *parent;

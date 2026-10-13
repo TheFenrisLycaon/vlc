@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,7 +17,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 import QtQuick
-import VLC.Style
+import Heimdall.Style
 
 Text {
     elide: Text.ElideNone
@@ -25,8 +26,8 @@ Text {
     horizontalAlignment: Text.AlignHCenter
 
     font {
-        pixelSize: VLCStyle.icon_normal
-        family: VLCIcons.fontFamily
+        pixelSize: HeimdallStyle.icon_normal
+        family: HeimdallIcons.fontFamily
     }
     textFormat: Text.PlainText
 

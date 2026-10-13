@@ -2,6 +2,7 @@
  * directory.cpp: Media library network directory
  *****************************************************************************
  * Copyright (C) 2018 VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -26,13 +27,13 @@
 #include "file.h"
 #include "util.h"
 
-#include <vlc_common.h>
-#include <vlc_url.h>
-#include <vlc_input_item.h>
-#include <vlc_fs.h>
-#include <vlc_input.h>
-#include <vlc_threads.h>
-#include <vlc_cxx_helpers.hpp>
+#include <heimdall_common.h>
+#include <heimdall_url.h>
+#include <heimdall_input_item.h>
+#include <heimdall_fs.h>
+#include <heimdall_input.h>
+#include <heimdall_threads.h>
+#include <heimdall_cxx_helpers.hpp>
 
 #include <algorithm>
 #include <cassert>
@@ -41,7 +42,7 @@
 #include <system_error>
 #include <vector>
 
-namespace vlc {
+namespace heimdall {
   namespace medialibrary {
 
 SDDirectory::SDDirectory(const std::string &mrl, SDFileSystemFactory &fs)
@@ -107,8 +108,8 @@ bool SDDirectory::contains(const std::string& fileName) const
 }
 
 struct metadata_request {
-    vlc::threads::mutex lock;
-    vlc::threads::condition_variable cond;
+    heimdall::threads::mutex lock;
+    heimdall::threads::condition_variable cond;
     /* results */
     int status;
     bool probe;
@@ -116,25 +117,25 @@ struct metadata_request {
 };
 
   } /* namespace medialibrary */
-} /* namespace vlc */
+} /* namespace heimdall */
 
 extern "C" {
 
-static void onParserEnded( vlc_preparser_req *preparser_req, int status, void *data )
+static void onParserEnded( heimdall_preparser_req *preparser_req, int status, void *data )
 {
-    auto req = static_cast<vlc::medialibrary::metadata_request*>( data );
+    auto req = static_cast<heimdall::medialibrary::metadata_request*>( data );
 
-    vlc::threads::mutex_locker lock( req->lock );
+    heimdall::threads::mutex_locker lock( req->lock );
     req->status = status;
     req->probe = true;
     req->cond.signal();
-    vlc_preparser_req_Release(preparser_req);
+    heimdall_preparser_req_Release(preparser_req);
 }
 
-static void onParserSubtreeAdded( vlc_preparser_req *, input_item_node_t *subtree,
+static void onParserSubtreeAdded( heimdall_preparser_req *, input_item_node_t *subtree,
                                   void *data )
 {
-    auto req = static_cast<vlc::medialibrary::metadata_request*>( data );
+    auto req = static_cast<heimdall::medialibrary::metadata_request*>( data );
 
     for ( int i = 0; i < subtree->i_children; ++i )
     {
@@ -149,7 +150,7 @@ static void onParserSubtreeAdded( vlc_preparser_req *, input_item_node_t *subtre
 
 } /* extern C */
 
-namespace vlc {
+namespace heimdall {
   namespace medialibrary {
 
 bool
@@ -160,51 +161,51 @@ SDDirectory::requestMetadataSync(input_item_t *media,
     req.children = out_children;
     req.probe = false;
 
-    vlc::threads::mutex_locker lock( req.lock );
+    heimdall::threads::mutex_locker lock( req.lock );
 
-    static const struct vlc_preparser_cbs cbs = {
+    static const struct heimdall_preparser_cbs cbs = {
         onParserEnded,
         onParserSubtreeAdded,
         nullptr,
     };
-    int options = VLC_PREPARSER_TYPE_PARSE | VLC_PREPARSER_OPTION_SUBITEMS;
+    int options = HEIMDALL_PREPARSER_TYPE_PARSE | HEIMDALL_PREPARSER_OPTION_SUBITEMS;
 
-    vlc_preparser_t *preparser = m_fs.getPreparser().instance();
+    heimdall_preparser_t *preparser = m_fs.getPreparser().instance();
     if (preparser == nullptr) {
         return false;
     }
-    vlc_preparser_req *preparser_req =
-        vlc_preparser_req_NewParse(preparser, media, options, &cbs, &req);
+    heimdall_preparser_req *preparser_req =
+        heimdall_preparser_req_NewParse(preparser, media, options, &cbs, &req);
     if (preparser_req == nullptr) {
         return false;
     }
-    if (vlc_preparser_Submit(preparser, preparser_req) != VLC_SUCCESS) {
-        vlc_preparser_req_Release(preparser_req);
+    if (heimdall_preparser_Submit(preparser, preparser_req) != HEIMDALL_SUCCESS) {
+        heimdall_preparser_req_Release(preparser_req);
         return false;
     }
     while (req.probe == false) {
         req.cond.wait(req.lock);
     }
-    if (req.status == VLC_ETIMEOUT) {
+    if (req.status == HEIMDALL_ETIMEOUT) {
             throw medialibrary::fs::errors::System(
                 ETIMEDOUT, "Failed to browse directory: Operation timed out" );
     }
-    return req.status == VLC_SUCCESS;
+    return req.status == HEIMDALL_SUCCESS;
 }
 
 void
 SDDirectory::read() const
 {
     auto media =
-        vlc::wrap_cptr( input_item_New( m_mrl.c_str(), m_mrl.c_str() ), &input_item_Release );
+        heimdall::wrap_cptr( input_item_New( m_mrl.c_str(), m_mrl.c_str() ), &input_item_Release );
     if ( !media )
         throw std::bad_alloc();
 
     std::vector<InputItemPtr> children;
 
-    input_item_AddOption( media.get(), "show-hiddenfiles", VLC_INPUT_OPTION_TRUSTED );
-    input_item_AddOption( media.get(), "ignore-filetypes=''", VLC_INPUT_OPTION_TRUSTED );
-    input_item_AddOption( media.get(), "sub-autodetect-fuzzy=2", VLC_INPUT_OPTION_TRUSTED );
+    input_item_AddOption( media.get(), "show-hiddenfiles", HEIMDALL_INPUT_OPTION_TRUSTED );
+    input_item_AddOption( media.get(), "ignore-filetypes=''", HEIMDALL_INPUT_OPTION_TRUSTED );
+    input_item_AddOption( media.get(), "sub-autodetect-fuzzy=2", HEIMDALL_INPUT_OPTION_TRUSTED );
     auto status = requestMetadataSync( media.get(), &children );
 
     if ( status == false )
@@ -245,10 +246,10 @@ SDDirectory::addFile(std::string mrl, IFile::LinkedFileType fType, std::string l
 
     if ( m_fs.isNetworkFileSystem() == false )
     {
-        const auto path = vlc::wrap_cptr( vlc_uri2path( mrl.c_str() ) );
+        const auto path = heimdall::wrap_cptr( heimdall_uri2path( mrl.c_str() ) );
         struct stat stat;
 
-        if ( vlc_stat( path.get(), &stat ) != 0 )
+        if ( heimdall_stat( path.get(), &stat ) != 0 )
         {
             if ( errno == EACCES )
                 return;
@@ -270,4 +271,4 @@ SDDirectory::addFile(std::string mrl, IFile::LinkedFileType fType, std::string l
     }
 }
   } /* namespace medialibrary */
-} /* namespace vlc */
+} /* namespace heimdall */

@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Name=Heimdall media player (Audio CD)
+Name[fr]=Lecteur multimédia Heimdall (CD Audio)
+NoDisplay=true
+Exec=@bindir@/heimdall --started-from-file cdda://%f
+Icon=heimdall
+Terminal=false
+Type=Application
+MimeType=x-content/audio-cdda

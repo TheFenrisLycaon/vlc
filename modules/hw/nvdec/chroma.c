@@ -2,6 +2,7 @@
  * chroma.c: NVDEC/CUDA chroma conversion filter
  *****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Steve Lhomme <robux4@videolabs.io>
  *
@@ -24,41 +25,41 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_codec.h>
-#include <vlc_chroma_probe.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_codec.h>
+#include <heimdall_chroma_probe.h>
 
 #include "nvdec_fmt.h"
 #include "nvdec_priv.h"
 
 static int OpenCUDAToCPU( filter_t * );
 
-static void ProbeChroma(vlc_chroma_conv_vec *vec)
+static void ProbeChroma(heimdall_chroma_conv_vec *vec)
 {
-    vlc_chroma_conv_add(vec, 1.1, VLC_CODEC_NVDEC_OPAQUE, VLC_CODEC_NV12,
+    heimdall_chroma_conv_add(vec, 1.1, HEIMDALL_CODEC_NVDEC_OPAQUE, HEIMDALL_CODEC_NV12,
                         false);
-    vlc_chroma_conv_add(vec, 1.1, VLC_CODEC_NVDEC_OPAQUE_10B, VLC_CODEC_P010,
+    heimdall_chroma_conv_add(vec, 1.1, HEIMDALL_CODEC_NVDEC_OPAQUE_10B, HEIMDALL_CODEC_P010,
                         false);
-    vlc_chroma_conv_add(vec, 1.1, VLC_CODEC_NVDEC_OPAQUE_16B, VLC_CODEC_P016,
+    heimdall_chroma_conv_add(vec, 1.1, HEIMDALL_CODEC_NVDEC_OPAQUE_16B, HEIMDALL_CODEC_P016,
                         false);
-    vlc_chroma_conv_add_in_outlist(vec, 1.1, VLC_CODEC_NVDEC_OPAQUE_444,
-        VLC_CODEC_I444, VLC_CODEC_YUVA);
-    vlc_chroma_conv_add(vec, 1.1, VLC_CODEC_NVDEC_OPAQUE_444_16B, VLC_CODEC_I444_16L,
+    heimdall_chroma_conv_add_in_outlist(vec, 1.1, HEIMDALL_CODEC_NVDEC_OPAQUE_444,
+        HEIMDALL_CODEC_I444, HEIMDALL_CODEC_YUVA);
+    heimdall_chroma_conv_add(vec, 1.1, HEIMDALL_CODEC_NVDEC_OPAQUE_444_16B, HEIMDALL_CODEC_I444_16L,
                         false);
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname(N_("CUDA converter"))
     set_description(N_("CUDA/NVDEC Chroma Converter filter"))
     set_subcategory(SUBCAT_VIDEO_VFILTER)
     set_callback_video_converter(OpenCUDAToCPU, 10)
     add_submodule()
         set_callback_chroma_conv_probe(ProbeChroma)
-vlc_module_end()
+heimdall_module_end()
 
-#define CALL_CUDA(func, ...) CudaCheckErr(VLC_OBJECT(p_filter), devsys->cudaFunctions, devsys->cudaFunctions->func(__VA_ARGS__), #func)
+#define CALL_CUDA(func, ...) CudaCheckErr(HEIMDALL_OBJECT(p_filter), devsys->cudaFunctions, devsys->cudaFunctions->func(__VA_ARGS__), #func)
 
 
 static picture_t * FilterCUDAToCPU( filter_t *p_filter, picture_t *src )
@@ -71,16 +72,16 @@ static picture_t * FilterCUDAToCPU( filter_t *p_filter, picture_t *src )
     }
 
     pic_context_nvdec_t *srcpic = container_of(src->context, pic_context_nvdec_t, ctx);
-    vlc_decoder_device *dec_dev = vlc_video_context_HoldDevice(p_filter->vctx_in);
+    heimdall_decoder_device *dec_dev = heimdall_video_context_HoldDevice(p_filter->vctx_in);
     decoder_device_nvdec_t *devsys =  GetNVDECOpaqueDevice(dec_dev);
 
     int result;
     result = CALL_CUDA(cuCtxPushCurrent, devsys->cuCtx);
-    if (result != VLC_SUCCESS)
+    if (result != HEIMDALL_SUCCESS)
     {
         picture_Release(dst);
         picture_Release(src);
-        vlc_decoder_device_Release(dec_dev);
+        heimdall_decoder_device_Release(dec_dev);
         return NULL;
     }
 
@@ -88,7 +89,7 @@ static picture_t * FilterCUDAToCPU( filter_t *p_filter, picture_t *src )
     size_t srcY = 0;
     for (int i_plane = 0; i_plane < dst->i_planes; i_plane++) {
         plane_t plane = dst->p[i_plane];
-        if (dst->format.i_chroma == VLC_CODEC_YUVA && i_plane == 3)
+        if (dst->format.i_chroma == HEIMDALL_CODEC_YUVA && i_plane == 3)
         {
             memset(plane.p_pixels, 0xFF, plane.i_pitch * plane.i_visible_lines);
             continue;
@@ -105,7 +106,7 @@ static picture_t * FilterCUDAToCPU( filter_t *p_filter, picture_t *src )
             .Height         = __MIN(srcpic->bufferHeight, (unsigned)plane.i_visible_lines),
         };
         result = CALL_CUDA(cuMemcpy2DAsync, &cu_cpy, 0);
-        if (result != VLC_SUCCESS)
+        if (result != HEIMDALL_SUCCESS)
             goto done;
         srcY += srcpic->bufferHeight;
     }
@@ -119,37 +120,37 @@ done:
     // Keep result as it was if it was an error
     // Otherwise use the result of cuStreamSynchronize, which
     // may return an error related to the async copies as well
-    result = result != VLC_SUCCESS ? result : sync_result;
+    result = result != HEIMDALL_SUCCESS ? result : sync_result;
 
     CALL_CUDA(cuCtxPopCurrent, NULL);
 
-    if (result != VLC_SUCCESS)
+    if (result != HEIMDALL_SUCCESS)
     {
         picture_Release(dst);
         dst = NULL;
     }
     picture_Release(src);
-    vlc_decoder_device_Release(dec_dev);
+    heimdall_decoder_device_Release(dec_dev);
     return dst;
 }
 
-static const struct vlc_filter_operations filter_ops = {
+static const struct heimdall_filter_operations filter_ops = {
     .filter_video = FilterCUDAToCPU,
 };
 
 static int OpenCUDAToCPU( filter_t *p_filter )
 {
     if ( p_filter->vctx_in == NULL ||
-         vlc_video_context_GetType(p_filter->vctx_in) != VLC_VIDEO_CONTEXT_NVDEC )
-        return VLC_EGENERIC;
+         heimdall_video_context_GetType(p_filter->vctx_in) != HEIMDALL_VIDEO_CONTEXT_NVDEC )
+        return HEIMDALL_EGENERIC;
     assert(is_nvdec_opaque(p_filter->fmt_in.video.i_chroma));
-    vlc_fourcc_t outfcc = NVDECToVlcChroma(p_filter->fmt_in.video.i_chroma);
+    heimdall_fourcc_t outfcc = NVDECToHeimdallChroma(p_filter->fmt_in.video.i_chroma);
     if (p_filter->fmt_out.video.i_chroma != outfcc &&
-        !(p_filter->fmt_in.video.i_chroma == VLC_CODEC_NVDEC_OPAQUE_444 &&
-          p_filter->fmt_out.video.i_chroma == VLC_CODEC_YUVA))
-        return VLC_EGENERIC;
+        !(p_filter->fmt_in.video.i_chroma == HEIMDALL_CODEC_NVDEC_OPAQUE_444 &&
+          p_filter->fmt_out.video.i_chroma == HEIMDALL_CODEC_YUVA))
+        return HEIMDALL_EGENERIC;
 
     p_filter->ops = &filter_ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

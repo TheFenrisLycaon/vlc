@@ -5,17 +5,17 @@ build-npapi: fetch-npapi
 
 fetch-npapi:
 	rm -f -- stamp-npapi.tmp
-	if test -d npapi-vlc; then \
-		cd npapi-vlc && \
+	if test -d npapi-heimdall; then \
+		cd npapi-heimdall && \
 		git fetch origin && \
 		git reset --hard origin/master; \
 		git submodule update; \
 	else \
-		git clone https://code.videolan.org/videolan/npapi-vlc.git npapi-vlc && \
-		cd npapi-vlc && \
+		git clone https://code.videolan.org/videolan/npapi-vlc.git npapi-heimdall && \
+		cd npapi-heimdall && \
 		git submodule update --init; \
 	fi
-	git --git-dir=npapi-vlc/.git describe --long --always > stamp-npapi.tmp
+	git --git-dir=npapi-heimdall/.git describe --long --always > stamp-npapi.tmp
 	if diff stamp-npapi.tmp stamp-npapi >/dev/null 2>&1; then \
 		rm -f -- stamp-npapi.tmp ; \
 	else \
@@ -25,8 +25,8 @@ fetch-npapi:
 stamp-npapi:
 	$(MAKE) fetch-npapi
 
-npapi-vlc/configure: stamp-npapi
-	cd npapi-vlc && \
+npapi-heimdall/configure: stamp-npapi
+	cd npapi-heimdall && \
 	$(SHELL) ./autogen.sh
 	touch $@
 
@@ -34,8 +34,8 @@ if ENABLE_PDB
 ENABLE_PDB_OPTION = --enable-pdb
 endif
 
-npapi-vlc/Makefile: npapi-vlc/configure
-	cd npapi-vlc && \
+npapi-heimdall/Makefile: npapi-heimdall/configure
+	cd npapi-heimdall && \
 	$(SHELL) ./configure \
 		--prefix=/ \
 		--host=$(host_alias) --build=$(build_alias) \
@@ -49,9 +49,9 @@ npapi-vlc/Makefile: npapi-vlc/configure
 		PKG_CONFIG="$(PKG_CONFIG)"
 	touch $@
 
-npapi-vlc/activex/axvlc.la: npapi-vlc/Makefile
-	$(MAKE) -C npapi-vlc
+npapi-heimdall/activex/axheimdall.la: npapi-heimdall/Makefile
+	$(MAKE) -C npapi-heimdall
 
-install-npapi: npapi-vlc/activex/axvlc.la
-	$(MAKE) -C npapi-vlc \
-		DESTDIR="$(abs_builddir)/npapi-vlc/installed" install
+install-npapi: npapi-heimdall/activex/axheimdall.la
+	$(MAKE) -C npapi-heimdall \
+		DESTDIR="$(abs_builddir)/npapi-heimdall/installed" install

@@ -2,6 +2,7 @@
  * importer_priv.h
  *****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -18,8 +19,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_GL_IMPORTER_PRIV_H
-#define VLC_GL_IMPORTER_PRIV_H
+#ifndef HEIMDALL_GL_IMPORTER_PRIV_H
+#define HEIMDALL_GL_IMPORTER_PRIV_H
 
 #include "importer.h"
 
@@ -29,15 +30,15 @@
 #include "interop.h"
 #include "picture.h"
 
-struct vlc_gl_importer {
-    struct vlc_gl_format glfmt;
-    struct vlc_gl_interop *interop;
+struct heimdall_gl_importer {
+    struct heimdall_gl_format glfmt;
+    struct heimdall_gl_interop *interop;
 
     /* For convenience, same as interop->api and interop->api->vt */
-    const struct vlc_gl_api *api;
+    const struct heimdall_gl_api *api;
     const opengl_vtable_t *vt;
 
-    struct vlc_gl_picture pic;
+    struct heimdall_gl_picture pic;
 
     struct {
         unsigned int i_x_offset;

@@ -1,10 +1,11 @@
 /*****************************************************************************
- * adjust_sat_hue.c : Hue/Saturation executive part of adjust plugin for vlc
+ * adjust_sat_hue.c : Hue/Saturation executive part of adjust plugin for heimdall
  *****************************************************************************
  * Copyright (C) 2000-2011 VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Simon Latapie <garf@via.ecp.fr>
- *          Antoine Cellerier <dionoea -at- videolan d0t org>
+ *          Antoine Cellerier <dionoea -at- lycaria d0t org>
  *          Martin Briza <gamajun@seznam.cz> (SSE)
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -27,8 +28,8 @@
 #endif
 
 #include <assert.h>
-#include <vlc_filter.h>
-#include <vlc_picture.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
 #include "filter_picture.h"
 #include "adjust_sat_hue.h"
 
@@ -38,9 +39,9 @@
 
 #define PLANAR_WRITE_UV_CLIP( i_bpp ) \
     i_u = *p_in++ ; i_v = *p_in_v++ ; \
-    *p_out++ = VLC_CLIP( ((( (((i_u * i_cos + i_v * i_sin - i_x) + I_MID( i_bpp )) >> i_bpp) \
+    *p_out++ = HEIMDALL_CLIP( ((( (((i_u * i_cos + i_v * i_sin - i_x) + I_MID( i_bpp )) >> i_bpp) \
                      * i_sat) + I_MID( i_bpp )) >> i_bpp) + I_MID( i_bpp ), 0, I_MAX( i_bpp ) ); \
-    *p_out_v++ = VLC_CLIP( ((( (((i_v * i_cos - i_u * i_sin - i_y) + I_MID( i_bpp )) >> i_bpp) \
+    *p_out_v++ = HEIMDALL_CLIP( ((( (((i_v * i_cos - i_u * i_sin - i_y) + I_MID( i_bpp )) >> i_bpp) \
                        * i_sat) + I_MID( i_bpp )) >> i_bpp) + I_MID( i_bpp ), 0, I_MAX( i_bpp ) )
 
 #define PLANAR_WRITE_UV( i_bpp ) \
@@ -52,10 +53,10 @@
 
 #define PACKED_WRITE_UV_CLIP() \
     i_u = *p_in; p_in += 4; i_v = *p_in_v; p_in_v += 4; \
-    *p_out = clip_uint8_vlc( ((( (((i_u * i_cos + i_v * i_sin - i_x) + I_MID( 8 )) >> 8) \
+    *p_out = clip_uint8_heimdall( ((( (((i_u * i_cos + i_v * i_sin - i_x) + I_MID( 8 )) >> 8) \
                            * i_sat) + I_MID( 8 )) >> 8) + 128); \
     p_out += 4; \
-    *p_out_v = clip_uint8_vlc( ((( (((i_v * i_cos - i_u * i_sin - i_y) + I_MID( 8 )) >> 8) \
+    *p_out_v = clip_uint8_heimdall( ((( (((i_v * i_cos - i_u * i_sin - i_y) + I_MID( 8 )) >> 8) \
                            * i_sat) + I_MID( 8 )) >> 8) + 128); \
     p_out_v += 4
 
@@ -117,7 +118,7 @@ int planar_sat_hue_clip_C( picture_t * p_pic, picture_t * p_outpic, int i_sin, i
                     - p_outpic->p[V_PLANE].i_visible_pitch;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 int planar_sat_hue_C( picture_t * p_pic, picture_t * p_outpic, int i_sin, int i_cos,
@@ -163,7 +164,7 @@ int planar_sat_hue_C( picture_t * p_pic, picture_t * p_outpic, int i_sin, int i_
                     - p_outpic->p[V_PLANE].i_visible_pitch;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 int planar_sat_hue_clip_C_16( picture_t * p_pic, picture_t * p_outpic, int i_sin, int i_cos,
@@ -182,7 +183,7 @@ int planar_sat_hue_clip_C_16( picture_t * p_pic, picture_t * p_outpic, int i_sin
             i_bpp = 9;
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 
     p_in = (uint16_t *) p_pic->p[U_PLANE].p_pixels;
@@ -222,7 +223,7 @@ int planar_sat_hue_clip_C_16( picture_t * p_pic, picture_t * p_outpic, int i_sin
                     - (p_outpic->p[V_PLANE].i_visible_pitch >> 1);
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 int planar_sat_hue_C_16( picture_t * p_pic, picture_t * p_outpic, int i_sin, int i_cos,
@@ -241,7 +242,7 @@ int planar_sat_hue_C_16( picture_t * p_pic, picture_t * p_outpic, int i_sin, int
             i_bpp = 9;
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 
     p_in = (uint16_t *) p_pic->p[U_PLANE].p_pixels;
@@ -281,7 +282,7 @@ int planar_sat_hue_C_16( picture_t * p_pic, picture_t * p_outpic, int i_sin, int
                  - (p_outpic->p[V_PLANE].i_visible_pitch >> 1);
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 int packed_sat_hue_clip_C( picture_t * p_pic, picture_t * p_outpic, int i_sin, int i_cos,
@@ -295,8 +296,8 @@ int packed_sat_hue_clip_C( picture_t * p_pic, picture_t * p_outpic, int i_sin, i
 
 
     if ( GetPackedYuvOffsets( p_pic->format.i_chroma, &i_y_offset,
-                              &i_u_offset, &i_v_offset ) != VLC_SUCCESS )
-        return VLC_EGENERIC;
+                              &i_u_offset, &i_v_offset ) != HEIMDALL_SUCCESS )
+        return HEIMDALL_EGENERIC;
 
     i_visible_lines = p_pic->p->i_visible_lines;
     i_pitch = p_pic->p->i_pitch;
@@ -334,7 +335,7 @@ int packed_sat_hue_clip_C( picture_t * p_pic, picture_t * p_outpic, int i_sin, i
         p_out_v += i_pitch - i_visible_pitch;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 int packed_sat_hue_C( picture_t * p_pic, picture_t * p_outpic, int i_sin,
@@ -348,8 +349,8 @@ int packed_sat_hue_C( picture_t * p_pic, picture_t * p_outpic, int i_sin,
 
 
     if ( GetPackedYuvOffsets( p_pic->format.i_chroma, &i_y_offset,
-                              &i_u_offset, &i_v_offset ) != VLC_SUCCESS )
-        return VLC_EGENERIC;
+                              &i_u_offset, &i_v_offset ) != HEIMDALL_SUCCESS )
+        return HEIMDALL_EGENERIC;
 
     i_visible_lines = p_pic->p->i_visible_lines;
     i_pitch = p_pic->p->i_pitch;
@@ -387,5 +388,5 @@ int packed_sat_hue_C( picture_t * p_pic, picture_t * p_outpic, int i_sin,
         p_out_v += i_pitch - i_visible_pitch;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

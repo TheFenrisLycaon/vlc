@@ -2,6 +2,7 @@
  * visual.c : Visualisation system
  *****************************************************************************
  * Copyright (C) 2002-2009 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Clément Stenac <zorglub@via.ecp.fr>
  *
@@ -30,14 +31,14 @@
 #include <assert.h>
 #include <limits.h>
 
-#include <vlc_common.h>
-#include <vlc_arrays.h>
-#include <vlc_plugin.h>
-#include <vlc_vout.h>
-#include <vlc_aout.h>
-#include <vlc_filter.h>
-#include <vlc_queue.h>
-#include <vlc_picture_pool.h>
+#include <heimdall_common.h>
+#include <heimdall_arrays.h>
+#include <heimdall_plugin.h>
+#include <heimdall_vout.h>
+#include <heimdall_aout.h>
+#include <heimdall_filter.h>
+#include <heimdall_queue.h>
+#include <heimdall_picture_pool.h>
 
 #include "visual.h"
 
@@ -113,10 +114,10 @@
 #define VOUT_WIDTH  800
 #define VOUT_HEIGHT 500
 
-static int  Open         ( vlc_object_t * );
+static int  Open         ( heimdall_object_t * );
 static void Close        ( filter_t * );
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( N_("Visualizer"))
     set_subcategory( SUBCAT_AUDIO_VISUAL )
     set_description( N_("Visualizer filter") )
@@ -165,7 +166,7 @@ vlc_module_begin ()
     set_capability( "visualization", 0 )
     set_callback( Open )
     add_shortcut( "visualizer")
-vlc_module_end ()
+heimdall_module_end ()
 
 
 /*****************************************************************************
@@ -177,16 +178,16 @@ static void *Thread( void *);
 
 typedef struct
 {
-    vlc_queue_t     queue;
+    heimdall_queue_t     queue;
     vout_thread_t   *p_vout;
     picture_pool_t  *pool;
     visual_effect_t **effect;
     int             i_effect;
     bool            dead;
-    vlc_thread_t    thread;
+    heimdall_thread_t    thread;
 } filter_sys_t;
 
-static const struct vlc_filter_operations filter_ops = {
+static const struct heimdall_filter_operations filter_ops = {
     .filter_audio = DoWork,
     .flush = Flush,
     .close = Close,
@@ -195,7 +196,7 @@ static const struct vlc_filter_operations filter_ops = {
 /*****************************************************************************
  * Open: open the visualizer
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     filter_t     *p_filter = (filter_t *)p_this;
     filter_sys_t *p_sys;
@@ -204,7 +205,7 @@ static int Open( vlc_object_t *p_this )
 
     p_sys = p_filter->p_sys = malloc( sizeof( filter_sys_t ) );
     if( unlikely (p_sys == NULL ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     p_sys->pool = NULL;
 
     int width = var_InheritInteger( p_filter , "effect-width");
@@ -298,7 +299,7 @@ static int Open( vlc_object_t *p_this )
 
     /* Open the video output */
     video_format_t fmt = {
-        .i_chroma = VLC_CODEC_I420,
+        .i_chroma = HEIMDALL_CODEC_I420,
         .i_width = width,
         .i_height = height,
         .i_visible_width = width,
@@ -323,18 +324,18 @@ static int Open( vlc_object_t *p_this )
     }
 
     p_sys->dead = false;
-    vlc_queue_Init(&p_sys->queue, offsetof (block_t, p_next));
+    heimdall_queue_Init(&p_sys->queue, offsetof (block_t, p_next));
 
-    if( vlc_clone( &p_sys->thread, Thread, p_filter ) )
+    if( heimdall_clone( &p_sys->thread, Thread, p_filter ) )
     {
         vout_Close( p_sys->p_vout );
         goto error;
     }
 
-    p_filter->fmt_in.audio.i_format = VLC_CODEC_FL32;
+    p_filter->fmt_in.audio.i_format = HEIMDALL_CODEC_FL32;
     p_filter->fmt_out.audio = p_filter->fmt_in.audio;
     p_filter->ops = &filter_ops;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     if (p_sys->pool)
@@ -344,7 +345,7 @@ error:
         free( p_sys->effect[i] );
     free( p_sys->effect );
     free( p_sys );
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 static block_t *DoRealWork( filter_t *p_filter, block_t *p_in_buf )
@@ -370,7 +371,7 @@ static block_t *DoRealWork( filter_t *p_filter, block_t *p_in_buf )
 #define p_effect p_sys->effect[i]
         if( p_effect->pf_run )
         {
-            p_effect->pf_run( p_effect, VLC_OBJECT(p_filter),
+            p_effect->pf_run( p_effect, HEIMDALL_OBJECT(p_filter),
                               p_in_buf, p_outpic );
         }
 #undef p_effect
@@ -384,13 +385,13 @@ static block_t *DoRealWork( filter_t *p_filter, block_t *p_in_buf )
 
 static void *Thread( void *data )
 {
-    vlc_thread_set_name("vlc-visual");
+    heimdall_thread_set_name("heimdall-visual");
 
     filter_t *p_filter = data;
     filter_sys_t *sys = p_filter->p_sys;
     block_t *block;
 
-    while ((block = vlc_queue_DequeueKillable(&sys->queue, &sys->dead)))
+    while ((block = heimdall_queue_DequeueKillable(&sys->queue, &sys->dead)))
         block_Release( DoRealWork( p_filter, block ) );
 
     return NULL;
@@ -400,7 +401,7 @@ static block_t *DoWork( filter_t *p_filter, block_t *p_in_buf )
 {
     filter_sys_t *p_sys = p_filter->p_sys;
 
-    vlc_queue_Enqueue(&p_sys->queue, block_Duplicate(p_in_buf));
+    heimdall_queue_Enqueue(&p_sys->queue, block_Duplicate(p_in_buf));
     return p_in_buf;
 }
 
@@ -417,8 +418,8 @@ static void Close( filter_t * p_filter )
 {
     filter_sys_t *p_sys = p_filter->p_sys;
 
-    vlc_queue_Kill(&p_sys->queue, &p_sys->dead);
-    vlc_join( p_sys->thread, NULL );
+    heimdall_queue_Kill(&p_sys->queue, &p_sys->dead);
+    heimdall_join( p_sys->thread, NULL );
 
     /* Free the list */
     for( int i = 0; i < p_sys->i_effect; i++ )

@@ -2,6 +2,7 @@
  * epg.c: Electronic Program Guide
  *****************************************************************************
  * Copyright (C) 2007 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *
@@ -28,11 +29,11 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_arrays.h>
-#include <vlc_epg.h>
+#include <heimdall_common.h>
+#include <heimdall_arrays.h>
+#include <heimdall_epg.h>
 
-static void vlc_epg_event_Clean(vlc_epg_event_t *p_event)
+static void heimdall_epg_event_Clean(heimdall_epg_event_t *p_event)
 {
     for(int i=0; i<p_event->i_description_items; i++)
     {
@@ -45,13 +46,13 @@ static void vlc_epg_event_Clean(vlc_epg_event_t *p_event)
     free(p_event->psz_name);
 }
 
-void vlc_epg_event_Delete(vlc_epg_event_t *p_event)
+void heimdall_epg_event_Delete(heimdall_epg_event_t *p_event)
 {
-    vlc_epg_event_Clean(p_event);
+    heimdall_epg_event_Clean(p_event);
     free(p_event);
 }
 
-static void vlc_epg_event_Init(vlc_epg_event_t *p_event, uint16_t i_id,
+static void heimdall_epg_event_Init(heimdall_epg_event_t *p_event, uint16_t i_id,
                                int64_t i_start, uint32_t i_duration)
 {
     memset(p_event, 0, sizeof(*p_event));
@@ -62,19 +63,19 @@ static void vlc_epg_event_Init(vlc_epg_event_t *p_event, uint16_t i_id,
     p_event->description_items = NULL;
 }
 
-vlc_epg_event_t * vlc_epg_event_New(uint16_t i_id,
+heimdall_epg_event_t * heimdall_epg_event_New(uint16_t i_id,
                                     int64_t i_start, uint32_t i_duration)
 {
-    vlc_epg_event_t *p_event = (vlc_epg_event_t *) malloc(sizeof(*p_event));
+    heimdall_epg_event_t *p_event = (heimdall_epg_event_t *) malloc(sizeof(*p_event));
     if(p_event)
-        vlc_epg_event_Init(p_event, i_id, i_start, i_duration);
+        heimdall_epg_event_Init(p_event, i_id, i_start, i_duration);
 
     return p_event;
 }
 
-vlc_epg_event_t * vlc_epg_event_Duplicate( const vlc_epg_event_t *p_src )
+heimdall_epg_event_t * heimdall_epg_event_Duplicate( const heimdall_epg_event_t *p_src )
 {
-    vlc_epg_event_t *p_evt = vlc_epg_event_New( p_src->i_id, p_src->i_start,
+    heimdall_epg_event_t *p_evt = heimdall_epg_event_New( p_src->i_id, p_src->i_start,
                                                 p_src->i_duration );
     if( likely(p_evt) )
     {
@@ -86,7 +87,7 @@ vlc_epg_event_t * vlc_epg_event_Duplicate( const vlc_epg_event_t *p_src )
             p_evt->psz_short_description = strdup( p_src->psz_short_description );
         if( p_src->i_description_items )
         {
-            p_evt->description_items = vlc_alloc( p_src->i_description_items,
+            p_evt->description_items = heimdall_alloc( p_src->i_description_items,
                                                   sizeof(*p_evt->description_items ) );
             if( p_evt->description_items )
             {
@@ -112,7 +113,7 @@ vlc_epg_event_t * vlc_epg_event_Duplicate( const vlc_epg_event_t *p_src )
     return p_evt;
 }
 
-static void vlc_epg_Init( vlc_epg_t *p_epg, uint32_t i_id, uint16_t i_source_id )
+static void heimdall_epg_Init( heimdall_epg_t *p_epg, uint32_t i_id, uint16_t i_source_id )
 {
     p_epg->i_id = i_id;
     p_epg->i_source_id = i_source_id;
@@ -122,16 +123,16 @@ static void vlc_epg_Init( vlc_epg_t *p_epg, uint32_t i_id, uint16_t i_source_id 
     TAB_INIT( p_epg->i_event, p_epg->pp_event );
 }
 
-static void vlc_epg_Clean( vlc_epg_t *p_epg )
+static void heimdall_epg_Clean( heimdall_epg_t *p_epg )
 {
     size_t i;
     for( i = 0; i < p_epg->i_event; i++ )
-        vlc_epg_event_Delete( p_epg->pp_event[i] );
+        heimdall_epg_event_Delete( p_epg->pp_event[i] );
     TAB_CLEAN( p_epg->i_event, p_epg->pp_event );
     free( p_epg->psz_name );
 }
 
-bool vlc_epg_AddEvent( vlc_epg_t *p_epg, vlc_epg_event_t *p_evt )
+bool heimdall_epg_AddEvent( heimdall_epg_t *p_epg, heimdall_epg_event_t *p_evt )
 {
     ssize_t i_pos = -1;
 
@@ -151,7 +152,7 @@ bool vlc_epg_AddEvent( vlc_epg_t *p_epg, vlc_epg_event_t *p_evt )
             while( i_lower < i_upper )
             {
                 size_t i_split = ( i_lower + i_upper ) / 2;
-                vlc_epg_event_t *p_cur = p_epg->pp_event[i_split];
+                heimdall_epg_event_t *p_cur = p_epg->pp_event[i_split];
 
                 if( p_cur->i_start < p_evt->i_start )
                 {
@@ -171,7 +172,7 @@ bool vlc_epg_AddEvent( vlc_epg_t *p_epg, vlc_epg_event_t *p_evt )
         /* There can be only one event at same time */
         if( p_epg->pp_event[i_pos]->i_start == p_evt->i_start )
         {
-            vlc_epg_event_Delete( p_epg->pp_event[i_pos] );
+            heimdall_epg_event_Delete( p_epg->pp_event[i_pos] );
             if( p_epg->p_current == p_epg->pp_event[i_pos] )
                 p_epg->p_current = p_evt;
             p_epg->pp_event[i_pos] = p_evt;
@@ -188,21 +189,21 @@ bool vlc_epg_AddEvent( vlc_epg_t *p_epg, vlc_epg_event_t *p_evt )
     return true;
 }
 
-vlc_epg_t *vlc_epg_New( uint32_t i_id, uint16_t i_source_id )
+heimdall_epg_t *heimdall_epg_New( uint32_t i_id, uint16_t i_source_id )
 {
-    vlc_epg_t *p_epg = malloc( sizeof(*p_epg) );
+    heimdall_epg_t *p_epg = malloc( sizeof(*p_epg) );
     if( p_epg )
-        vlc_epg_Init( p_epg, i_id, i_source_id );
+        heimdall_epg_Init( p_epg, i_id, i_source_id );
     return p_epg;
 }
 
-void vlc_epg_Delete( vlc_epg_t *p_epg )
+void heimdall_epg_Delete( heimdall_epg_t *p_epg )
 {
-    vlc_epg_Clean( p_epg );
+    heimdall_epg_Clean( p_epg );
     free( p_epg );
 }
 
-void vlc_epg_SetCurrent( vlc_epg_t *p_epg, int64_t i_start )
+void heimdall_epg_SetCurrent( heimdall_epg_t *p_epg, int64_t i_start )
 {
     size_t i;
     p_epg->p_current = NULL;
@@ -219,16 +220,16 @@ void vlc_epg_SetCurrent( vlc_epg_t *p_epg, int64_t i_start )
     }
 }
 
-vlc_epg_t * vlc_epg_Duplicate( const vlc_epg_t *p_src )
+heimdall_epg_t * heimdall_epg_Duplicate( const heimdall_epg_t *p_src )
 {
-    vlc_epg_t *p_epg = vlc_epg_New( p_src->i_id, p_src->i_source_id );
+    heimdall_epg_t *p_epg = heimdall_epg_New( p_src->i_id, p_src->i_source_id );
     if( p_epg )
     {
         p_epg->psz_name = ( p_src->psz_name ) ? strdup( p_src->psz_name ) : NULL;
         p_epg->b_present = p_src->b_present;
         for( size_t i=0; i<p_src->i_event; i++ )
         {
-            vlc_epg_event_t *p_dup = vlc_epg_event_Duplicate( p_src->pp_event[i] );
+            heimdall_epg_event_t *p_dup = heimdall_epg_event_Duplicate( p_src->pp_event[i] );
             if( p_dup )
             {
                 if( p_src->p_current == p_src->pp_event[i] )

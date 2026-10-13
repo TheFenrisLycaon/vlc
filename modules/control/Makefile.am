@@ -33,9 +33,9 @@ if HAVE_LIRC
 control_PLUGINS += liblirc_plugin.la
 endif
 
-libvlc_motion_la_SOURCES = control/motionlib.c control/motionlib.h
-libvlc_motion_la_LDFLAGS = -static
-noinst_LTLIBRARIES += libvlc_motion.la
+libheimdall_motion_la_SOURCES = control/motionlib.c control/motionlib.h
+libheimdall_motion_la_LDFLAGS = -static
+noinst_LTLIBRARIES += libheimdall_motion.la
 
 libdbus_plugin_la_SOURCES = \
 	control/dbus/dbus_introspect.h control/dbus/dbus_common.h \

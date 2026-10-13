@@ -2,6 +2,7 @@
  * platform.h: Vulkan platform abstraction
  *****************************************************************************
  * Copyright (C) 2018 Niklas Haas
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -18,48 +19,48 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_VULKAN_PLATFORM_H
-#define VLC_VULKAN_PLATFORM_H
+#ifndef HEIMDALL_VULKAN_PLATFORM_H
+#define HEIMDALL_VULKAN_PLATFORM_H
 
-#include <vlc_common.h>
-#include <vlc_window.h>
+#include <heimdall_common.h>
+#include <heimdall_window.h>
 
 #include "instance.h"
 
-struct vlc_vk_platform_t;
-struct vlc_vk_platform_operations
+struct heimdall_vk_platform_t;
+struct heimdall_vk_platform_operations
 {
-    void (*close)(struct vlc_vk_platform_t *);
-    int (*create_surface)(struct vlc_vk_platform_t *, const vlc_vk_instance_t *, VkSurfaceKHR *);
+    void (*close)(struct heimdall_vk_platform_t *);
+    int (*create_surface)(struct heimdall_vk_platform_t *, const heimdall_vk_instance_t *, VkSurfaceKHR *);
 };
 
 
 // Struct for platform-specific Vulkan state
-typedef struct vlc_vk_platform_t
+typedef struct heimdall_vk_platform_t
 {
     // set by platform.c
-    struct vlc_object_t obj;
-    struct vlc_window *window;
+    struct heimdall_object_t obj;
+    struct heimdall_window *window;
     module_t *module;
 
     // set by the platform
     void *platform_sys;
     const char *platform_ext;
-    const struct vlc_vk_platform_operations *ops;
-} vlc_vk_platform_t;
+    const struct heimdall_vk_platform_operations *ops;
+} heimdall_vk_platform_t;
 
-vlc_vk_platform_t *vlc_vk_platform_Create(struct vlc_window *, const char *) VLC_USED;
-void vlc_vk_platform_Release(vlc_vk_platform_t *);
+heimdall_vk_platform_t *heimdall_vk_platform_Create(struct heimdall_window *, const char *) HEIMDALL_USED;
+void heimdall_vk_platform_Release(heimdall_vk_platform_t *);
 
 // Create a vulkan surface and store it to `surface_out`
-static inline int vlc_vk_CreateSurface(vlc_vk_platform_t * vk,
-                                       const vlc_vk_instance_t *instance,
+static inline int heimdall_vk_CreateSurface(heimdall_vk_platform_t * vk,
+                                       const heimdall_vk_instance_t *instance,
                                        VkSurfaceKHR *surface_out)
 {
     return vk->ops->create_surface(vk, instance, surface_out);
 }
 
-static inline void vlc_vk_DestroySurface(const vlc_vk_instance_t *inst,
+static inline void heimdall_vk_DestroySurface(const heimdall_vk_instance_t *inst,
                                          VkSurfaceKHR surface)
 {
     PFN_vkDestroySurfaceKHR DestroySurfaceKHR = (PFN_vkDestroySurfaceKHR)
@@ -68,4 +69,4 @@ static inline void vlc_vk_DestroySurface(const vlc_vk_instance_t *inst,
     DestroySurfaceKHR(inst->instance, surface, NULL);
 }
 
-#endif // VLC_VULKAN_PLATFORM_H
+#endif // HEIMDALL_VULKAN_PLATFORM_H

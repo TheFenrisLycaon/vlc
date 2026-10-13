@@ -3,6 +3,7 @@
  * preparser.h: internal header of the preparser binary
  *****************************************************************************
  * Copyright © 2025 Videolabs, VideoLAN and VLC authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gabriel Lafond Thenaille <gabriel@videolabs.io>
  *****************************************************************************/
@@ -10,22 +11,22 @@
 #ifndef PREPARSER_CMDLINE_H
 #define PREPARSER_CMDLINE_H
 
-#include <vlc_common.h>
-#include <vlc_preparser.h>
+#include <heimdall_common.h>
+#include <heimdall_preparser.h>
 
 struct preparser_args {
-    vlc_tick_t timeout;
+    heimdall_tick_t timeout;
     int types;
     bool daemon;
     struct {
         int type;
         float pos;
-        vlc_tick_t time;
+        heimdall_tick_t time;
         int speed;
     } seek;
 
     struct {
-        enum vlc_thumbnailer_format format;
+        enum heimdall_thumbnailer_format format;
         uint64_t width;
         uint64_t height;
         const char *file_path;

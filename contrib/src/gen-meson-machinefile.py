@@ -26,7 +26,7 @@ parser.add_argument('--type',
 internal:   Internal crossfile used when contribs are cross-compiled.
             Not meant for use outside the contribs build.
 external-*: External machine file (either cross or native).
-            This is meant to be used by VLCs meson build system to easily
+            This is meant to be used by Heimdalls meson build system to easily
             use the given contribs, similar to --with-contrib=DIR for ./configure
 """)
 parser.add_argument('--binary', action=BinaryAction, nargs='*')

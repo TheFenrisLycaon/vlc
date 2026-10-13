@@ -2,6 +2,7 @@
  * PredictiveAdaptationLogic.cpp
  *****************************************************************************
  * Copyright (C) 2016 - VideoLAN Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -58,11 +59,11 @@ bool PredictiveStats::starting() const
     return (segments_count < 3) || !last_download_rate;
 }
 
-PredictiveAdaptationLogic::PredictiveAdaptationLogic(vlc_object_t *obj)
+PredictiveAdaptationLogic::PredictiveAdaptationLogic(heimdall_object_t *obj)
     : AbstractAdaptationLogic(obj)
 {
     usedBps = 0;
-    vlc_mutex_init(&lock);
+    heimdall_mutex_init(&lock);
 }
 
 BaseRepresentation *PredictiveAdaptationLogic::getNextRepresentation(BaseAdaptationSet *adaptSet, BaseRepresentation *prevRep)
@@ -70,7 +71,7 @@ BaseRepresentation *PredictiveAdaptationLogic::getNextRepresentation(BaseAdaptat
     RepresentationSelector selector(maxwidth, maxheight);
     BaseRepresentation *rep;
 
-    vlc_mutex_locker locker(&lock);
+    heimdall_mutex_locker locker(&lock);
 
     std::map<ID, PredictiveStats>::iterator it = streams.find(adaptSet->getID());
     if(it == streams.end())
@@ -150,9 +151,9 @@ BaseRepresentation *PredictiveAdaptationLogic::getNextRepresentation(BaseAdaptat
 }
 
 void PredictiveAdaptationLogic::updateDownloadRate(const ID &id, size_t dlsize,
-                                                   vlc_tick_t time, vlc_tick_t)
+                                                   heimdall_tick_t time, heimdall_tick_t)
 {
-    vlc_mutex_locker locker(&lock);
+    heimdall_mutex_locker locker(&lock);
     std::map<ID, PredictiveStats>::iterator it = streams.find(id);
     if(it != streams.end())
     {
@@ -181,7 +182,7 @@ void PredictiveAdaptationLogic::trackerEvent(const TrackerEvent &ev)
         {
             const RepresentationSwitchEvent &event =
                     static_cast<const RepresentationSwitchEvent &>(ev);
-            vlc_mutex_locker locker(&lock);
+            heimdall_mutex_locker locker(&lock);
             if(event.prev)
                 usedBps -= event.prev->getBandwidth();
             if(event.next)
@@ -196,7 +197,7 @@ void PredictiveAdaptationLogic::trackerEvent(const TrackerEvent &ev)
             const BufferingStateUpdatedEvent &event =
                     static_cast<const BufferingStateUpdatedEvent &>(ev);
             const ID &id = *event.id;
-            vlc_mutex_locker locker(&lock);
+            heimdall_mutex_locker locker(&lock);
             if(event.enabled)
             {
                 if(streams.find(id) == streams.end())
@@ -221,7 +222,7 @@ void PredictiveAdaptationLogic::trackerEvent(const TrackerEvent &ev)
             const BufferingLevelChangedEvent &event =
                     static_cast<const BufferingLevelChangedEvent &>(ev);
             const ID &id = *event.id;
-            vlc_mutex_locker locker(&lock);
+            heimdall_mutex_locker locker(&lock);
             PredictiveStats &stats = streams[id];
             stats.buffering_level = event.current;
             stats.buffering_target = event.target;
@@ -233,7 +234,7 @@ void PredictiveAdaptationLogic::trackerEvent(const TrackerEvent &ev)
             const SegmentChangedEvent &event =
                     static_cast<const SegmentChangedEvent &>(ev);
             const ID &id = *event.id;
-            vlc_mutex_locker locker(&lock);
+            heimdall_mutex_locker locker(&lock);
             PredictiveStats &stats = streams[id];
             stats.last_duration = event.duration;
         }

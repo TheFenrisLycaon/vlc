@@ -2,6 +2,7 @@
  * libc.c: Extra libc function for some systems.
  *****************************************************************************
  * Copyright (C) 2002-2006 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gildas Bazin <gbazin@videolan.org>
  *
@@ -23,8 +24,8 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_charset.h>
+#include <heimdall_common.h>
+#include <heimdall_charset.h>
 
 #include <errno.h>
 #include <assert.h>
@@ -396,13 +397,13 @@ static size_t ISO6937toUTF8( const char **inbuf, size_t *inbytesleft,
 /*****************************************************************************
  * iconv wrapper
  *****************************************************************************/
-vlc_iconv_t vlc_iconv_open( const char *tocode, const char *fromcode )
+heimdall_iconv_t heimdall_iconv_open( const char *tocode, const char *fromcode )
 {
 #ifndef __linux__
     if( !strcasecmp(tocode, "UTF-8") && !strcasecmp(fromcode, "ISO_6937") )
-        return (vlc_iconv_t)(-2);
+        return (heimdall_iconv_t)(-2);
     else if( !strcasecmp(tocode, "UTF-8") && !strcasecmp(fromcode, "ISO_6937-2") )
-        return (vlc_iconv_t)(-3);
+        return (heimdall_iconv_t)(-3);
 #endif
 #if defined(HAVE_ICONV)
 # if defined(__OS2__) && defined(__INNOTEK_LIBC__)
@@ -437,28 +438,28 @@ vlc_iconv_t vlc_iconv_open( const char *tocode, const char *fromcode )
         UniSetUconvObject( p_os2_iconv->from, &attr );
     }
 
-    return ( vlc_iconv_t )p_os2_iconv;
+    return ( heimdall_iconv_t )p_os2_iconv;
 # else
     return iconv_open( tocode, fromcode );
 # endif
 #else
-    return (vlc_iconv_t)(-1);
+    return (heimdall_iconv_t)(-1);
 #endif
 }
 
-size_t vlc_iconv( vlc_iconv_t cd, const char **inbuf, size_t *inbytesleft,
+size_t heimdall_iconv( heimdall_iconv_t cd, const char **inbuf, size_t *inbytesleft,
                   char **outbuf, size_t *outbytesleft )
 {
     size_t ret;
 
 #ifndef __linux__
-    if ( cd == (vlc_iconv_t)(-2) || cd == (vlc_iconv_t)(-3) )
+    if ( cd == (heimdall_iconv_t)(-2) || cd == (heimdall_iconv_t)(-3) )
     {
         unsigned char *out = NULL;
         if (outbuf != NULL)
             out = (unsigned char *)*outbuf;
 
-        const uint16_t *ucs4_table = ( cd == (vlc_iconv_t)(-2) ? ISO6937toUCS4 : ISO6937_2toUCS4 );
+        const uint16_t *ucs4_table = ( cd == (heimdall_iconv_t)(-2) ? ISO6937toUCS4 : ISO6937_2toUCS4 );
 
         ret = ISO6937toUTF8( inbuf, inbytesleft, &out, outbytesleft, ucs4_table );
         if (outbuf != NULL)
@@ -482,10 +483,10 @@ size_t vlc_iconv( vlc_iconv_t cd, const char **inbuf, size_t *inbytesleft,
     return ret;
 }
 
-int vlc_iconv_close( vlc_iconv_t cd )
+int heimdall_iconv_close( heimdall_iconv_t cd )
 {
 #ifndef __linux__
-    if ( cd == (vlc_iconv_t)(-2) || cd == (vlc_iconv_t)(-3) )
+    if ( cd == (heimdall_iconv_t)(-2) || cd == (heimdall_iconv_t)(-3) )
         return 0;
 #endif
 #if defined(HAVE_ICONV)
@@ -499,7 +500,7 @@ int vlc_iconv_close( vlc_iconv_t cd )
  * reduce a fraction
  *   (adapted from libavcodec, author Michael Niedermayer <michaelni@gmx.at>)
  *****************************************************************************/
-bool vlc_ureduce( unsigned *pi_dst_nom, unsigned *pi_dst_den,
+bool heimdall_ureduce( unsigned *pi_dst_nom, unsigned *pi_dst_den,
                         uint64_t i_nom, uint64_t i_den, uint64_t i_max )
 {
     bool b_exact = 1;

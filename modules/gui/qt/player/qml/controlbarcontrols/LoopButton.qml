@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,18 +19,18 @@
 import QtQuick
 
 
-import VLC.Widgets as Widgets
-import VLC.Style
-import VLC.Playlist
-import VLC.Util
+import Heimdall.Widgets as Widgets
+import Heimdall.Style
+import Heimdall.Playlist
+import Heimdall.Util
 
 Widgets.IconToolButton {
     id: repeatBtn
 
     checked: MainPlaylistController.repeatMode !== PlaylistController.PLAYBACK_REPEAT_NONE
     text: (MainPlaylistController.repeatMode === PlaylistController.PLAYBACK_REPEAT_CURRENT)
-          ? VLCIcons.repeat_one
-          : VLCIcons.repeat_all
+          ? HeimdallIcons.repeat_one
+          : HeimdallIcons.repeat_all
     onClicked: MainPlaylistController.toggleRepeatMode()
     description: qsTr("Repeat")
 

@@ -2,6 +2,7 @@
  * avsamplebuffer.m: AVSampleBufferRender plugin for iOS and macOS
  *****************************************************************************
  * Copyright (C) 2024 VLC authors, VideoLAN and VideoLABS
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -24,9 +25,9 @@
 #import <Foundation/Foundation.h>
 #import <AVFoundation/AVFoundation.h>
 
-#import <vlc_common.h>
-#import <vlc_plugin.h>
-#import <vlc_aout.h>
+#import <heimdall_common.h>
+#import <heimdall_plugin.h>
+#import <heimdall_aout.h>
 
 #if TARGET_OS_IPHONE || TARGET_OS_TV || TARGET_OS_VISION
 #define HAS_AVAUDIOSESSION
@@ -61,7 +62,7 @@
 #pragma mark Private
 
 API_AVAILABLE(macos(MIN_MACOS), ios(MIN_IOS), tvos(MIN_TVOS) VISIONOS_API_AVAILABLE)
-@interface VLCAVSample : NSObject
+@interface HeimdallAVSample : NSObject
 {
     audio_output_t *_aout;
 
@@ -73,40 +74,40 @@ API_AVAILABLE(macos(MIN_MACOS), ios(MIN_IOS), tvos(MIN_TVOS) VISIONOS_API_AVAILA
     dispatch_queue_t _timeQueue;
     size_t _bytesPerFrame;
 
-    vlc_mutex_t _bufferLock;
-    vlc_cond_t _bufferWait;
+    heimdall_mutex_t _bufferLock;
+    heimdall_cond_t _bufferWait;
 
     block_t *_outChain;
     block_t **_outChainLast;
 
     int64_t _ptsSamples;
-    vlc_tick_t _firstPts;
-    vlc_tick_t _lastDate;
+    heimdall_tick_t _firstPts;
+    heimdall_tick_t _lastDate;
     unsigned _sampleRate;
     BOOL _stopped;
     BOOL _dateReached;
-    vlc_mutex_t _sessionLock;
+    heimdall_mutex_t _sessionLock;
     BOOL _corked;
     BOOL _uncorkOnPlay;
 }
 @end
 
-@implementation VLCAVSample
+@implementation HeimdallAVSample
 
 - (id)init:(audio_output_t*)aout
 {
     _aout = aout;
-    _dataQueue = dispatch_queue_create("VLC AVSampleBuffer data queue", DISPATCH_QUEUE_SERIAL);
+    _dataQueue = dispatch_queue_create("Heimdall AVSampleBuffer data queue", DISPATCH_QUEUE_SERIAL);
     if (_dataQueue == nil)
         return nil;
 
-    _timeQueue = dispatch_queue_create("VLC AVSampleBuffer time queue", DISPATCH_QUEUE_SERIAL);
+    _timeQueue = dispatch_queue_create("Heimdall AVSampleBuffer time queue", DISPATCH_QUEUE_SERIAL);
     if (_timeQueue == nil)
         return nil;
 
-    vlc_mutex_init(&_bufferLock);
-    vlc_cond_init(&_bufferWait);
-    vlc_mutex_init(&_sessionLock);
+    heimdall_mutex_init(&_bufferLock);
+    heimdall_cond_init(&_bufferWait);
+    heimdall_mutex_init(&_sessionLock);
 
     _outChain = NULL;
     _outChainLast = &_outChain;
@@ -227,7 +228,7 @@ customBlock_Free(void *refcon, void *doomedMemoryBlock, size_t sizeInBytes)
     aout_VolumeReport(_aout, volume);
 }
 
-+ (vlc_tick_t)CMTimeTotick:(CMTime) timestamp
++ (heimdall_tick_t)CMTimeTotick:(CMTime) timestamp
 {
     CMTime scaled = CMTimeConvertScale(
             timestamp, CLOCK_FREQ,
@@ -243,11 +244,11 @@ customBlock_Free(void *refcon, void *doomedMemoryBlock, size_t sizeInBytes)
 
     _ptsSamples = -1;
     _dateReached = NO;
-    _firstPts = VLC_TICK_INVALID;
-    _lastDate = VLC_TICK_INVALID;
+    _firstPts = HEIMDALL_TICK_INVALID;
+    _lastDate = HEIMDALL_TICK_INVALID;
 }
 
-- (void)pause:(BOOL)pause date:(vlc_tick_t)date
+- (void)pause:(BOOL)pause date:(heimdall_tick_t)date
 {
     (void) date;
 
@@ -262,17 +263,17 @@ customBlock_Free(void *refcon, void *doomedMemoryBlock, size_t sizeInBytes)
 
 - (void)whenTimeObserved:(CMTime) time
 {
-    assert(_firstPts != VLC_TICK_INVALID);
+    assert(_firstPts != HEIMDALL_TICK_INVALID);
 
     if (time.value == 0)
         return;
-    vlc_tick_t system_now = vlc_tick_now();
-    vlc_tick_t pos_ticks = [VLCAVSample CMTimeTotick:time] + _firstPts;
+    heimdall_tick_t system_now = heimdall_tick_now();
+    heimdall_tick_t pos_ticks = [HeimdallAVSample CMTimeTotick:time] + _firstPts;
 
     aout_TimingReport(_aout, system_now, pos_ticks);
 }
 
-- (void)startNow:(vlc_tick_t)delta
+- (void)startNow:(heimdall_tick_t)delta
 {
     assert(!_dateReached);
 
@@ -291,7 +292,7 @@ customBlock_Free(void *refcon, void *doomedMemoryBlock, size_t sizeInBytes)
 
 - (void)whenDataReady
 {
-    vlc_mutex_lock(&_bufferLock);
+    heimdall_mutex_lock(&_bufferLock);
 
     while (_renderer.readyForMoreMediaData || !_dateReached)
     {
@@ -300,10 +301,10 @@ customBlock_Free(void *refcon, void *doomedMemoryBlock, size_t sizeInBytes)
             /* Start playback at the requested date */
 
             CMTime writtenTime = CMTimeMake(_ptsSamples, _sampleRate);
-            vlc_tick_t writtenTicks = [VLCAVSample CMTimeTotick:writtenTime];
-            vlc_tick_t now = vlc_tick_now();
-            vlc_tick_t deadline = _lastDate - writtenTicks;
-            vlc_tick_t delta = deadline - now;
+            heimdall_tick_t writtenTicks = [HeimdallAVSample CMTimeTotick:writtenTime];
+            heimdall_tick_t now = heimdall_tick_now();
+            heimdall_tick_t deadline = _lastDate - writtenTicks;
+            heimdall_tick_t delta = deadline - now;
 
             if (delta <= 0)
             {
@@ -318,7 +319,7 @@ customBlock_Free(void *refcon, void *doomedMemoryBlock, size_t sizeInBytes)
                 /* Wait for the start date if there are no buffers to enqueue */
                 while (!_stopped && _outChain == NULL && timeout == 0)
                 {
-                    timeout = vlc_cond_timedwait(&_bufferWait, &_bufferLock,
+                    timeout = heimdall_cond_timedwait(&_bufferWait, &_bufferLock,
                                                  deadline);
                     deadline = _lastDate - writtenTicks;
                 }
@@ -332,11 +333,11 @@ customBlock_Free(void *refcon, void *doomedMemoryBlock, size_t sizeInBytes)
         }
 
         while (!_stopped && _outChain == NULL)
-            vlc_cond_wait(&_bufferWait, &_bufferLock);
+            heimdall_cond_wait(&_bufferWait, &_bufferLock);
 
         if (_stopped)
         {
-            vlc_mutex_unlock(&_bufferLock);
+            heimdall_mutex_unlock(&_bufferLock);
             return;
         }
 
@@ -348,7 +349,7 @@ customBlock_Free(void *refcon, void *doomedMemoryBlock, size_t sizeInBytes)
         CMSampleBufferRef buffer = [self wrapBuffer:&block];
         if (buffer == nil)
         {
-            vlc_mutex_unlock(&_bufferLock);
+            heimdall_mutex_unlock(&_bufferLock);
             return;
         }
 
@@ -359,10 +360,10 @@ customBlock_Free(void *refcon, void *doomedMemoryBlock, size_t sizeInBytes)
         CFRelease(buffer);
     }
 
-    vlc_mutex_unlock(&_bufferLock);
+    heimdall_mutex_unlock(&_bufferLock);
 }
 
-- (void)play:(block_t *)block date:(vlc_tick_t)date
+- (void)play:(block_t *)block date:(heimdall_tick_t)date
 {
 #ifdef HAS_AVAUDIOSESSION
     if (_uncorkOnPlay)
@@ -372,7 +373,7 @@ customBlock_Free(void *refcon, void *doomedMemoryBlock, size_t sizeInBytes)
     }
 #endif
 
-    vlc_mutex_lock(&_bufferLock);
+    heimdall_mutex_lock(&_bufferLock);
 
     if (_ptsSamples == -1)
     {
@@ -389,8 +390,8 @@ customBlock_Free(void *refcon, void *doomedMemoryBlock, size_t sizeInBytes)
 
     block_ChainLastAppend(&_outChainLast, block);
 
-    vlc_cond_signal(&_bufferWait);
-    vlc_mutex_unlock(&_bufferLock);
+    heimdall_cond_signal(&_bufferWait);
+    heimdall_mutex_unlock(&_bufferLock);
 
     if (_renderer.status == AVQueuedSampleBufferRenderingStatusFailed)
     {
@@ -401,7 +402,7 @@ customBlock_Free(void *refcon, void *doomedMemoryBlock, size_t sizeInBytes)
 
 - (void)stopSyncRenderer
 {
-    vlc_mutex_lock(&_bufferLock);
+    heimdall_mutex_lock(&_bufferLock);
     _sync.rate = 0.0f;
 
     [_renderer stopRequestingMediaData];
@@ -416,8 +417,8 @@ customBlock_Free(void *refcon, void *doomedMemoryBlock, size_t sizeInBytes)
     _outChain = NULL;
     _outChainLast = &_outChain;
 
-    vlc_cond_signal(&_bufferWait);
-    vlc_mutex_unlock(&_bufferLock);
+    heimdall_cond_signal(&_bufferWait);
+    heimdall_mutex_unlock(&_bufferLock);
 
     /* From the doc: "Call dispatch_sync after removeTimeObserver: to wait for
      * any in-flight blocks to finish executing." */
@@ -462,18 +463,18 @@ customBlock_Free(void *refcon, void *doomedMemoryBlock, size_t sizeInBytes)
 #ifdef HAS_AVAUDIOSESSION
 - (void)beginInterruption
 {
-    vlc_mutex_lock(&_sessionLock);
+    heimdall_mutex_lock(&_sessionLock);
     if (!_corked)
     {
         _corked = YES;
         aout_PolicyReport(_aout, true);
     }
-    vlc_mutex_unlock(&_sessionLock);
+    heimdall_mutex_unlock(&_sessionLock);
 }
 
 - (void)endInterruption
 {
-    vlc_mutex_lock(&_sessionLock);
+    heimdall_mutex_lock(&_sessionLock);
     if (_corked)
     {
         NSError *error = nil;
@@ -486,7 +487,7 @@ customBlock_Free(void *refcon, void *doomedMemoryBlock, size_t sizeInBytes)
             msg_Err(_aout, "AVAudioSession reactivation failed: %s(%d)",
                     error.domain.UTF8String, (int)error.code);
     }
-    vlc_mutex_unlock(&_sessionLock);
+    heimdall_mutex_unlock(&_sessionLock);
 }
 
 #if IS_AVAS_ACTIVATION_LIFECYCLE_API_AVAILABLE
@@ -530,16 +531,16 @@ customBlock_Free(void *refcon, void *doomedMemoryBlock, size_t sizeInBytes)
 
     NSNotificationCenter *notifCenter = [NSNotificationCenter defaultCenter];
 
-    fmt->i_format = VLC_CODEC_FL32;
+    fmt->i_format = HEIMDALL_CODEC_FL32;
 
 #ifdef HAS_AVAUDIOSESSION
     AVAudioSession *instance = [AVAudioSession sharedInstance];
-    if (avas_SetActive(_aout, instance, true, 0) != VLC_SUCCESS)
+    if (avas_SetActive(_aout, instance, true, 0) != HEIMDALL_SUCCESS)
         return NO;
     avas_PrepareFormat(_aout, instance, fmt, true);
 
     enum port_type port_type;
-    if (avas_GetPortType(_aout, instance, &port_type) == VLC_SUCCESS)
+    if (avas_GetPortType(_aout, instance, &port_type) == HEIMDALL_SUCCESS)
     {
         msg_Dbg(_aout, "Output on %s, channel count: %u",
                 port_type == PORT_TYPE_HDMI ? "HDMI" :
@@ -553,9 +554,9 @@ customBlock_Free(void *refcon, void *doomedMemoryBlock, size_t sizeInBytes)
 
     AudioChannelLayout *inlayout_buf = NULL;
     size_t inlayout_size = 0;
-    int err = channel_layout_MapFromVLC(_aout, fmt, &inlayout_buf,
+    int err = channel_layout_MapFromHeimdall(_aout, fmt, &inlayout_buf,
                                         &inlayout_size);
-    if (err != VLC_SUCCESS)
+    if (err != HEIMDALL_SUCCESS)
         goto error_avas;
 
     AudioStreamBasicDescription desc = {
@@ -609,14 +610,14 @@ customBlock_Free(void *refcon, void *doomedMemoryBlock, size_t sizeInBytes)
     _stopped = NO;
     _dateReached = NO;
 #ifdef HAS_AVAUDIOSESSION
-    vlc_mutex_lock(&_sessionLock);
+    heimdall_mutex_lock(&_sessionLock);
     _uncorkOnPlay = _corked;
-    vlc_mutex_unlock(&_sessionLock);
+    heimdall_mutex_unlock(&_sessionLock);
 #endif
 
     _ptsSamples = -1;
-    _firstPts = VLC_TICK_INVALID;
-    _lastDate = VLC_TICK_INVALID;
+    _firstPts = HEIMDALL_TICK_INVALID;
+    _lastDate = HEIMDALL_TICK_INVALID;
     _sampleRate = fmt->i_rate;
     _bytesPerFrame = desc.mBytesPerFrame;
 
@@ -675,53 +676,53 @@ error_avas:
 static int API_AVAILABLE(macos(MIN_MACOS), ios(MIN_IOS), tvos(MIN_TVOS), watchos(MIN_WATCHOS) VISIONOS_API_AVAILABLE)
 DeviceSelect(audio_output_t *aout, const char *name)
 {
-    VLCAVSample *sys = (__bridge VLCAVSample*)aout->sys;
+    HeimdallAVSample *sys = (__bridge HeimdallAVSample*)aout->sys;
 
     [sys selectDevice:name];
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int API_AVAILABLE(macos(MIN_MACOS), ios(MIN_IOS), tvos(MIN_TVOS), watchos(MIN_WATCHOS) VISIONOS_API_AVAILABLE)
 MuteSet(audio_output_t *aout, bool mute)
 {
-    VLCAVSample *sys = (__bridge VLCAVSample*)aout->sys;
+    HeimdallAVSample *sys = (__bridge HeimdallAVSample*)aout->sys;
 
     [sys setMute:mute];
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int API_AVAILABLE(macos(MIN_MACOS), ios(MIN_IOS), tvos(MIN_TVOS), watchos(MIN_WATCHOS) VISIONOS_API_AVAILABLE)
 VolumeSet(audio_output_t *aout, float volume)
 {
-    VLCAVSample *sys = (__bridge VLCAVSample*)aout->sys;
+    HeimdallAVSample *sys = (__bridge HeimdallAVSample*)aout->sys;
 
     [sys setVolume:volume];
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void API_AVAILABLE(macos(MIN_MACOS), ios(MIN_IOS), tvos(MIN_TVOS), watchos(MIN_WATCHOS) VISIONOS_API_AVAILABLE)
 Flush(audio_output_t *aout)
 {
-    VLCAVSample *sys = (__bridge VLCAVSample*)aout->sys;
+    HeimdallAVSample *sys = (__bridge HeimdallAVSample*)aout->sys;
 
     [sys flush];
 }
 
 static void API_AVAILABLE(macos(MIN_MACOS), ios(MIN_IOS), tvos(MIN_TVOS), watchos(MIN_WATCHOS) VISIONOS_API_AVAILABLE)
-Pause(audio_output_t *aout, bool pause, vlc_tick_t date)
+Pause(audio_output_t *aout, bool pause, heimdall_tick_t date)
 {
-    VLCAVSample *sys = (__bridge VLCAVSample*)aout->sys;
+    HeimdallAVSample *sys = (__bridge HeimdallAVSample*)aout->sys;
 
     [sys pause:pause date:date];
 }
 
 static void API_AVAILABLE(macos(MIN_MACOS), ios(MIN_IOS), tvos(MIN_TVOS), watchos(MIN_WATCHOS) VISIONOS_API_AVAILABLE)
-Play(audio_output_t *aout, block_t *block, vlc_tick_t date)
+Play(audio_output_t *aout, block_t *block, heimdall_tick_t date)
 {
-    VLCAVSample *sys = (__bridge VLCAVSample*)aout->sys;
+    HeimdallAVSample *sys = (__bridge HeimdallAVSample*)aout->sys;
 
     [sys play:block date:date];
 }
@@ -729,7 +730,7 @@ Play(audio_output_t *aout, block_t *block, vlc_tick_t date)
 static void API_AVAILABLE(macos(MIN_MACOS), ios(MIN_IOS), tvos(MIN_TVOS), watchos(MIN_WATCHOS) VISIONOS_API_AVAILABLE)
 Stop(audio_output_t *aout)
 {
-    VLCAVSample *sys = (__bridge VLCAVSample*)aout->sys;
+    HeimdallAVSample *sys = (__bridge HeimdallAVSample*)aout->sys;
 
     [sys stop];
 }
@@ -737,33 +738,33 @@ Stop(audio_output_t *aout)
 static int API_AVAILABLE(macos(MIN_MACOS), ios(MIN_IOS), tvos(MIN_TVOS), watchos(MIN_WATCHOS) VISIONOS_API_AVAILABLE)
 Start(audio_output_t *aout, audio_sample_format_t *restrict fmt)
 {
-    VLCAVSample *sys = (__bridge VLCAVSample*)aout->sys;
+    HeimdallAVSample *sys = (__bridge HeimdallAVSample*)aout->sys;
 
-    return [sys start:fmt] ? VLC_SUCCESS : VLC_EGENERIC;
+    return [sys start:fmt] ? HEIMDALL_SUCCESS : HEIMDALL_EGENERIC;
 }
 
 static void
-Close(vlc_object_t *obj)
+Close(heimdall_object_t *obj)
 {
     if (@available(macOS MIN_MACOS, iOS MIN_IOS, tvOS MIN_TVOS, watchOS MIN_WATCHOS, *))
     {
         audio_output_t *aout = (audio_output_t *)obj;
-        /* Transfer ownership back from VLC to ARC so that it can be released. */
-        VLCAVSample *sys = (__bridge_transfer VLCAVSample*)aout->sys;
+        /* Transfer ownership back from Heimdall to ARC so that it can be released. */
+        HeimdallAVSample *sys = (__bridge_transfer HeimdallAVSample*)aout->sys;
         (void) sys;
     }
 }
 
 static int
-Open(vlc_object_t *obj)
+Open(heimdall_object_t *obj)
 {
     audio_output_t *aout = (audio_output_t *)obj;
 
     if (@available(macOS MIN_MACOS, iOS MIN_IOS, tvOS MIN_TVOS, watchOS MIN_WATCHOS, *))
     {
-        aout->sys = (__bridge_retained void*) [[VLCAVSample alloc] init:aout];
+        aout->sys = (__bridge_retained void*) [[HeimdallAVSample alloc] init:aout];
         if (aout->sys == nil)
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
         aout->start = Start;
         aout->stop = Stop;
@@ -774,15 +775,15 @@ Open(vlc_object_t *obj)
         aout->mute_set = MuteSet;
         aout->device_select = DeviceSelect;
 
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname("avsample")
     set_description(N_("AVSampleBufferAudioRenderer output"))
     set_capability("audio output", 100)
     set_subcategory(SUBCAT_AUDIO_AOUT)
     set_callbacks(Open, Close)
-vlc_module_end ()
+heimdall_module_end ()

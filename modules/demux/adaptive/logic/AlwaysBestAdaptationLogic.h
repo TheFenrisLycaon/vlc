@@ -2,6 +2,7 @@
  * AlwaysBestAdaptationLogic.h
  *****************************************************************************
  * Copyright (C) 2010 - 2011 Klagenfurt University
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Created on: Aug 10, 2010
  * Authors: Christopher Mueller <christopher.mueller@itec.uni-klu.ac.at>
@@ -34,7 +35,7 @@ namespace adaptive
         class AlwaysBestAdaptationLogic : public AbstractAdaptationLogic
         {
             public:
-                AlwaysBestAdaptationLogic           (vlc_object_t *);
+                AlwaysBestAdaptationLogic           (heimdall_object_t *);
                 virtual ~AlwaysBestAdaptationLogic() = default;
 
                 BaseRepresentation *getNextRepresentation(BaseAdaptationSet *,

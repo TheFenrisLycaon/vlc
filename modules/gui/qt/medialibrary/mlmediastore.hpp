@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2024 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Prince Gupta <guptaprince8832@gmail.com>
  *
@@ -19,7 +20,7 @@
  *****************************************************************************/
 #pragma once
 
-#include <vlc_media_library.h>
+#include <heimdall_media_library.h>
 
 #include <QObject>
 #include <QHash>
@@ -52,8 +53,8 @@ signals:
     void updated(const QString &mrl, const MLMedia &media);
 
 private:
-    static void onVlcMlEvent(void* data
-                             , const vlc_ml_event_t* event);
+    static void onHeimdallMlEvent(void* data
+                             , const heimdall_ml_event_t* event);
 
     // updates associated Media
     void update(const MLItemId &id);
@@ -62,8 +63,8 @@ private:
 
     MediaLib *m_ml;
 
-    std::unique_ptr<vlc_ml_event_callback_t,
-                    std::function<void(vlc_ml_event_callback_t*)>> m_ml_event_handle;
+    std::unique_ptr<heimdall_ml_event_callback_t,
+                    std::function<void(heimdall_ml_event_callback_t*)>> m_ml_event_handle;
 
     // maintain set of MRL to handle media creation events
     QSet<QString> m_files;

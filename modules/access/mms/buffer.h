@@ -2,6 +2,7 @@
  * buffer.h: MMS access plug-in
  *****************************************************************************
  * Copyright (C) 2001, 2002 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *
@@ -20,8 +21,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_MMS_BUFFER_H_
-#define VLC_MMS_BUFFER_H_
+#ifndef HEIMDALL_MMS_BUFFER_H_
+#define HEIMDALL_MMS_BUFFER_H_
 
 typedef struct
 {
@@ -53,7 +54,7 @@ uint32_t  var_buffer_get32( var_buffer_t *p_buf );
 uint64_t  var_buffer_get64( var_buffer_t *p_buf );
 int       var_buffer_getmemory ( var_buffer_t *p_buf, void *p_mem, int64_t i_mem );
 int       var_buffer_readempty( const var_buffer_t *p_buf );
-void      var_buffer_getguid( var_buffer_t *p_buf, vlc_guid_t *p_guid );
+void      var_buffer_getguid( var_buffer_t *p_buf, heimdall_guid_t *p_guid );
 int       var_buffer_remain( const var_buffer_t *p_buf );
 
 #endif

@@ -2,6 +2,7 @@
  * SharedResources.cpp
  *****************************************************************************
  * Copyright © 2019 VideoLabs, VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -59,14 +60,14 @@ AbstractConnectionManager * SharedResources::getConnManager()
     return connManager;
 }
 
-SharedResources * SharedResources::createDefault(vlc_object_t *obj,
+SharedResources * SharedResources::createDefault(heimdall_object_t *obj,
                                                  const std::string & playlisturl)
 {
     AuthStorage *auth = new AuthStorage(obj);
     Keyring *keyring = new Keyring(obj);
     HTTPConnectionManager *m = new HTTPConnectionManager(obj);
     if(!var_InheritBool(obj, "adaptive-use-access")) /* only use http from access */
-        m->addFactory(new LibVLCHTTPConnectionFactory(auth));
+        m->addFactory(new LibHeimdallHTTPConnectionFactory(auth));
     m->addFactory(new StreamUrlConnectionFactory());
     ConnectionParams params(playlisturl);
     if(params.isLocal())

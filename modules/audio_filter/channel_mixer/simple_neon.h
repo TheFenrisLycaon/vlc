@@ -2,6 +2,7 @@
  * simple_neon.h : simple channel mixer plug-in using NEON assembly
  *****************************************************************************
  * Copyright (C) 2002, 2004, 2006-2009, 2012, 2015 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gildas Bazin <gbazin@videolan.org>
  *          David Geldreich <david.geldreich@free.fr>
@@ -26,7 +27,7 @@
 #ifdef HAVE_CONFIG_H
 # include "config.h"
 #endif
-#include <vlc_cpu.h>
+#include <heimdall_cpu.h>
 
 /* Only conversion to Mono, Stereo and 4.0 right now */
 /* Only from 7/7.1/5/5.1/3/3.1/2.0
@@ -43,7 +44,7 @@
     } \
     static inline void (*GET_WORK_##in##_to_##out##_neon())(filter_t*, block_t*, block_t*) \
     { \
-        return vlc_CPU_ARM_NEON() ? DoWork_##in##_to_##out##_neon : DoWork_##in##_to_##out; \
+        return heimdall_CPU_ARM_NEON() ? DoWork_##in##_to_##out##_neon : DoWork_##in##_to_##out; \
     }
 
 NEON_WRAPPER(7_x,2_0)

@@ -2,6 +2,7 @@
  * mediainfo.hpp : Information about a stream
  ****************************************************************************
  * Copyright (C) 2006-2007 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Clément Stenac <zorglub@videolan.org>
  *          Jean-Baptiste Kempf <jb@videolan.org>
@@ -21,16 +22,16 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  ******************************************************************************/
 
-#ifndef QVLC_MEDIAINFO_DIALOG_H_
-#define QVLC_MEDIAINFO_DIALOG_H_ 1
+#ifndef QHEIMDALL_MEDIAINFO_DIALOG_H_
+#define QHEIMDALL_MEDIAINFO_DIALOG_H_ 1
 
-#include "widgets/native/qvlcframe.hpp"
+#include "widgets/native/qheimdallframe.hpp"
 #include "info_panels.hpp"
 #include "util/shared_input_item.hpp"
 
 class QTabWidget;
 
-class MediaInfoDialog : public QVLCFrame
+class MediaInfoDialog : public QHeimdallFrame
 {
     Q_OBJECT
 public:

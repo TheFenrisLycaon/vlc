@@ -1,14 +1,14 @@
 import QtQuick
 
-import VLC.MainInterface
-import VLC.Style
-import VLC.Util
-import VLC.Menus
+import Heimdall.MainInterface
+import Heimdall.Style
+import Heimdall.Util
+import Heimdall.Menus
 
 NavigableRow {
     id: root
 
-    spacing: VLCStyle.margin_normal
+    spacing: HeimdallStyle.margin_normal
     enabled: gridListBtn.visible || sortControl.visible || searchBox.visible
 
     property SortMenu sortMenu: null
@@ -23,10 +23,10 @@ NavigableRow {
         visible: MainCtx.hasGridListMode
 
         enabled: visible
-        width: VLCStyle.bannerButton_width
-        height: VLCStyle.bannerButton_height
-        font.pixelSize: VLCStyle.icon_banner
-        text: MainCtx.gridView ? VLCIcons.list : VLCIcons.grid
+        width: HeimdallStyle.bannerButton_width
+        height: HeimdallStyle.bannerButton_height
+        font.pixelSize: HeimdallStyle.icon_banner
+        text: MainCtx.gridView ? HeimdallIcons.list : HeimdallIcons.grid
         description: qsTr("List/Grid")
         onClicked: MainCtx.gridView = !MainCtx.gridView
     }
@@ -36,9 +36,9 @@ NavigableRow {
 
         visible: root.sort.available
         enabled: visible
-        width: VLCStyle.bannerButton_width
-        height: VLCStyle.bannerButton_height
-        font.pixelSize: VLCStyle.icon_banner
+        width: HeimdallStyle.bannerButton_width
+        height: HeimdallStyle.bannerButton_height
+        font.pixelSize: HeimdallStyle.icon_banner
         description: qsTr("Sort")
 
         model: root.sort.model
@@ -61,8 +61,8 @@ NavigableRow {
 
         //TODO: initialise visible value with MainCtx
         visible: root.search.available
-        height: VLCStyle.bannerButton_height
-        buttonWidth: VLCStyle.bannerButton_width
+        height: HeimdallStyle.bannerButton_height
+        buttonWidth: HeimdallStyle.bannerButton_width
 
         Binding {
             target: root.search

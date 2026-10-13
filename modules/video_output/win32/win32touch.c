@@ -2,6 +2,7 @@
  * win32touch.c: touch gestures recognition
  *****************************************************************************
  * Copyright © 2013-2014 VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Ludovic Fauvet <etix@videolan.org>
  *          Jean-Baptiste Kempf <jb@videolan.org>
@@ -27,7 +28,7 @@
 
 #include "win32touch.h"
 
-#include <vlc_actions.h>
+#include <heimdall_actions.h>
 
 #include <assert.h>
 
@@ -52,11 +53,11 @@ struct win32_gesture_sys_t
     ULONGLONG   i_ullArguments;         /* Base values to compare between 2 zoom gestures */
     bool        b_2fingers;             /* Did we detect 2 fingers? */
 
-    bool (*DecodeGestureImpl)( vlc_object_t *, struct win32_gesture_sys_t *, const GESTUREINFO* );
+    bool (*DecodeGestureImpl)( heimdall_object_t *, struct win32_gesture_sys_t *, const GESTUREINFO* );
 };
 
 
-static bool DecodeGestureAction( vlc_object_t *p_this, struct win32_gesture_sys_t *p_gesture, const GESTUREINFO* p_gi )
+static bool DecodeGestureAction( heimdall_object_t *p_this, struct win32_gesture_sys_t *p_gesture, const GESTUREINFO* p_gi )
 {
     bool bHandled = false; /* Needed to release the handle */
     switch ( p_gi->dwID )
@@ -87,7 +88,7 @@ static bool DecodeGestureAction( vlc_object_t *p_this, struct win32_gesture_sys_
                     else
                         action_id = ACTIONID_JUMP_FORWARD_SHORT;
                 }
-                var_SetInteger( vlc_object_instance(p_this), "key-action", action_id );
+                var_SetInteger( heimdall_object_instance(p_this), "key-action", action_id );
             }
             /* Reset the values */
             p_gesture->i_action = GESTURE_ACTION_UNDEFINED;
@@ -126,9 +127,9 @@ static bool DecodeGestureAction( vlc_object_t *p_this, struct win32_gesture_sys_
                 int offset = p_gesture->i_lasty - p_gi->ptsLocation.y;
 
                 if( offset > 100)
-                    var_SetInteger( vlc_object_instance(p_this), "key-action", ACTIONID_VOL_UP );
+                    var_SetInteger( heimdall_object_instance(p_this), "key-action", ACTIONID_VOL_UP );
                 else if( offset < -100)
-                    var_SetInteger( vlc_object_instance(p_this), "key-action", ACTIONID_VOL_DOWN );
+                    var_SetInteger( heimdall_object_instance(p_this), "key-action", ACTIONID_VOL_DOWN );
                 else
                     break;
 
@@ -142,19 +143,19 @@ static bool DecodeGestureAction( vlc_object_t *p_this, struct win32_gesture_sys_
 
                 if( p_gesture->i_lasty - p_gesture->i_beginy > 80 )
                 {
-                    var_SetInteger( vlc_object_instance(p_this), "key-action", ACTIONID_BRIGHTNESS_DOWN );
+                    var_SetInteger( heimdall_object_instance(p_this), "key-action", ACTIONID_BRIGHTNESS_DOWN );
                     p_gesture->i_lasty = p_gi->ptsLocation.y;
                 }
                 else if ( p_gesture->i_lasty - p_gesture->i_beginy < 80 )
                 {
-                    var_SetInteger( vlc_object_instance(p_this), "key-action", ACTIONID_BRIGHTNESS_UP );
+                    var_SetInteger( heimdall_object_instance(p_this), "key-action", ACTIONID_BRIGHTNESS_UP );
                     p_gesture->i_lasty = p_gi->ptsLocation.y;
                 } */
             }
             break;
         case GID_TWOFINGERTAP:
             p_gesture->i_type = GID_TWOFINGERTAP;
-            var_SetInteger( vlc_object_instance(p_this), "key-action", ACTIONID_PLAY_PAUSE );
+            var_SetInteger( heimdall_object_instance(p_this), "key-action", ACTIONID_PLAY_PAUSE );
             bHandled = true;
             break;
         case GID_ZOOM:
@@ -169,10 +170,10 @@ static bool DecodeGestureAction( vlc_object_t *p_this, struct win32_gesture_sys_
                         double k = (double)(p_gi->ullArguments) /
                                    (double)(p_gesture->i_ullArguments);
                         if( k > 1 )
-                            var_SetInteger( vlc_object_instance(p_this), "key-action",
+                            var_SetInteger( heimdall_object_instance(p_this), "key-action",
                                     ACTIONID_TOGGLE_FULLSCREEN );
                         else
-                            var_SetInteger( vlc_object_instance(p_this), "key-action",
+                            var_SetInteger( heimdall_object_instance(p_this), "key-action",
                                     ACTIONID_LEAVE_FULLSCREEN );
                     }
                     break;
@@ -191,7 +192,7 @@ static bool DecodeGestureAction( vlc_object_t *p_this, struct win32_gesture_sys_
 }
 
 
-static bool DecodeGestureProjection( vlc_object_t *p_this, struct win32_gesture_sys_t *p_gesture, const GESTUREINFO* p_gi )
+static bool DecodeGestureProjection( heimdall_object_t *p_this, struct win32_gesture_sys_t *p_gesture, const GESTUREINFO* p_gi )
 {
     //vout_display_t *vd = (vout_display_t *)p_this;
 
@@ -216,7 +217,7 @@ static bool DecodeGestureProjection( vlc_object_t *p_this, struct win32_gesture_
                         action_id = ACTIONID_JUMP_BACKWARD_SHORT;
                     else
                         action_id = ACTIONID_JUMP_FORWARD_SHORT;
-                    var_SetInteger( vlc_object_instance(p_this), "key-action", action_id );
+                    var_SetInteger( heimdall_object_instance(p_this), "key-action", action_id );
                 }
             }
             /* Reset the values */
@@ -254,9 +255,9 @@ static bool DecodeGestureProjection( vlc_object_t *p_this, struct win32_gesture_
                 int offset = p_gesture->i_lasty - p_gi->ptsLocation.y;
 
                 if( offset > 100)
-                    var_SetInteger( vlc_object_instance(p_this), "key-action", ACTIONID_VOL_UP );
+                    var_SetInteger( heimdall_object_instance(p_this), "key-action", ACTIONID_VOL_UP );
                 else if( offset < -100)
-                    var_SetInteger( vlc_object_instance(p_this), "key-action", ACTIONID_VOL_DOWN );
+                    var_SetInteger( heimdall_object_instance(p_this), "key-action", ACTIONID_VOL_DOWN );
                 else
                     break;
 
@@ -265,7 +266,7 @@ static bool DecodeGestureProjection( vlc_object_t *p_this, struct win32_gesture_
             break;
         case GID_TWOFINGERTAP:
             p_gesture->i_type = GID_TWOFINGERTAP;
-            var_SetInteger( vlc_object_instance(p_this), "key-action", ACTIONID_PLAY_PAUSE );
+            var_SetInteger( heimdall_object_instance(p_this), "key-action", ACTIONID_PLAY_PAUSE );
             bHandled = true;
             break;
         case GID_ZOOM:
@@ -284,12 +285,12 @@ static bool DecodeGestureProjection( vlc_object_t *p_this, struct win32_gesture_
 
                     if (k > p_gesture->f_lastzoom * 1.01)
                     {
-                        var_SetInteger( vlc_object_instance(p_this), "key-action", ACTIONID_VIEWPOINT_FOV_IN );
+                        var_SetInteger( heimdall_object_instance(p_this), "key-action", ACTIONID_VIEWPOINT_FOV_IN );
                         p_gesture->f_lastzoom = k;
                     }
                     else if (k < p_gesture->f_lastzoom * 0.99)
                     {
-                        var_SetInteger( vlc_object_instance(p_this), "key-action", ACTIONID_VIEWPOINT_FOV_OUT );
+                        var_SetInteger( heimdall_object_instance(p_this), "key-action", ACTIONID_VIEWPOINT_FOV_OUT );
                         p_gesture->f_lastzoom = k;
                     }
                     break;
@@ -305,7 +306,7 @@ static bool DecodeGestureProjection( vlc_object_t *p_this, struct win32_gesture_
     return bHandled;
 }
 
-bool DecodeGesture( vlc_object_t *p_this, struct win32_gesture_sys_t *p_gesture,
+bool DecodeGesture( heimdall_object_t *p_this, struct win32_gesture_sys_t *p_gesture,
                     HGESTUREINFO hGestureInfo )
 {
     if( !p_gesture )

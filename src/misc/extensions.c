@@ -2,6 +2,7 @@
  * extensions.c
  *****************************************************************************
  * Copyright (C) 2024 VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Vikram Kangotra <vikramkangotra8055@gmail.com>
  *
@@ -26,10 +27,10 @@
 
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_extensions.h>
+#include <heimdall_common.h>
+#include <heimdall_extensions.h>
 
-int vlc_extension_VaControl( extensions_manager_t *p_mgr,
+int heimdall_extension_VaControl( extensions_manager_t *p_mgr,
                          int i_control,
                          extension_t *ext,
                          va_list args )
@@ -41,11 +42,11 @@ int vlc_extension_VaControl( extensions_manager_t *p_mgr,
         case EXTENSION_ACTIVATE:
             if (p_mgr->ops->activate != NULL)
                 return p_mgr->ops->activate(p_mgr, ext);
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         case EXTENSION_DEACTIVATE:
             if (p_mgr->ops->deactivate != NULL)
                 return p_mgr->ops->deactivate(p_mgr, ext);
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         case EXTENSION_IS_ACTIVATED:
         {
             bool *is_activated = va_arg(args, bool *);
@@ -53,7 +54,7 @@ int vlc_extension_VaControl( extensions_manager_t *p_mgr,
                 *is_activated = p_mgr->ops->is_activated(p_mgr, ext);
             else
                 *is_activated = false;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
         case EXTENSION_HAS_MENU:
         {
@@ -62,7 +63,7 @@ int vlc_extension_VaControl( extensions_manager_t *p_mgr,
                 *has_menu = p_mgr->ops->has_menu(p_mgr, ext);
             else
                 *has_menu = false;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
         case EXTENSION_GET_MENU:
             if (p_mgr->ops->get_menu != NULL) {
@@ -70,7 +71,7 @@ int vlc_extension_VaControl( extensions_manager_t *p_mgr,
                 uint16_t **ppi_ids = va_arg(args, uint16_t **);
                 return p_mgr->ops->get_menu(p_mgr, ext, pppsz_titles, ppi_ids);
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         case EXTENSION_TRIGGER_ONLY: 
         {
             bool *p_trigger_only = va_arg(args, bool *);
@@ -78,36 +79,36 @@ int vlc_extension_VaControl( extensions_manager_t *p_mgr,
                 *p_trigger_only = p_mgr->ops->trigger_only(p_mgr, ext);
             else
                 *p_trigger_only = false;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
         case EXTENSION_TRIGGER:
             if (p_mgr->ops->trigger != NULL)
                 return p_mgr->ops->trigger(p_mgr, ext);
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         case EXTENSION_TRIGGER_MENU:
             if (p_mgr->ops->trigger_menu != NULL) {
                 int i = va_arg(args, int);
                 return p_mgr->ops->trigger_menu(p_mgr, ext, i);
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         case EXTENSION_SET_INPUT:
             if (p_mgr->ops->set_input != NULL) {
                 input_item_t *p_item = va_arg(args, input_item_t *);
                 return p_mgr->ops->set_input(p_mgr, ext, p_item);
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         case EXTENSION_PLAYING_CHANGED:
             if (p_mgr->ops->playing_changed != NULL) {
                 int i = va_arg(args, int);
                 return p_mgr->ops->playing_changed(p_mgr, ext, i);
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         case EXTENSION_META_CHANGED:
             if (p_mgr->ops->meta_changed != NULL)
                 return p_mgr->ops->meta_changed(p_mgr, ext);
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 }
 

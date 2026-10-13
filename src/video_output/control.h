@@ -2,8 +2,9 @@
  * control.h : vout internal control
  *****************************************************************************
  * Copyright (C) 2009-2010 Laurent Aimar
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Laurent Aimar <fenrir _AT_ videolan _DOT_ org>
+ * Authors: Laurent Aimar <fenrir _AT_ lycaria _DOT_ org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -20,17 +21,17 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef LIBVLC_VOUT_INTERNAL_CONTROL_H
-#define LIBVLC_VOUT_INTERNAL_CONTROL_H
+#ifndef LIBHEIMDALL_VOUT_INTERNAL_CONTROL_H
+#define LIBHEIMDALL_VOUT_INTERNAL_CONTROL_H
 
-#include <vlc_viewpoint.h>
-#include <vlc_threads.h>
+#include <heimdall_viewpoint.h>
+#include <heimdall_threads.h>
 
 /* */
 typedef struct {
-    vlc_mutex_t lock;
-    vlc_cond_t wait_request;
-    vlc_cond_t wait_available; /* available: yielding && !is_held */
+    heimdall_mutex_t lock;
+    heimdall_cond_t wait_request;
+    heimdall_cond_t wait_available; /* available: yielding && !is_held */
 
     /* */
     bool forced_awake;
@@ -49,6 +50,6 @@ void vout_control_Release(vout_control_t *);
 void vout_control_ReleaseAndWake(vout_control_t *);
 
 /* control inside of the vout thread */
-void vout_control_Wait(vout_control_t *, vlc_tick_t deadline);
+void vout_control_Wait(vout_control_t *, heimdall_tick_t deadline);
 
 #endif

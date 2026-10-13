@@ -1,7 +1,8 @@
 /*****************************************************************************
- * thread.c : android pthread back-end for LibVLC
+ * thread.c : android pthread back-end for LibHeimdall
  *****************************************************************************
  * Copyright (C) 1999-2016 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Jean-Marc Dressler <polux@via.ecp.fr>
  *          Samuel Hocevar <sam@zoy.org>
@@ -28,10 +29,10 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_threads.h>
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
 
-#include "../libvlc.h"
+#include "../libheimdall.h"
 #include <signal.h>
 #include <errno.h>
 #include <stdatomic.h>
@@ -43,43 +44,43 @@
 #include <pthread.h>
 #include <sched.h>
 
-#include <vlc_atomic.h>
+#include <heimdall_atomic.h>
 
-static unsigned vlc_clock_prec;
+static unsigned heimdall_clock_prec;
 
-static void vlc_clock_setup_once (void)
+static void heimdall_clock_setup_once (void)
 {
     struct timespec res;
     if (unlikely(clock_getres(CLOCK_MONOTONIC, &res) != 0 || res.tv_sec != 0))
         abort ();
-    vlc_clock_prec = (res.tv_nsec + 500) / 1000;
+    heimdall_clock_prec = (res.tv_nsec + 500) / 1000;
 }
 
 /* debug */
 
 #ifndef NDEBUG
 static void
-vlc_thread_fatal_print (const char *action, int error,
+heimdall_thread_fatal_print (const char *action, int error,
                         const char *function, const char *file, unsigned line)
 {
-    const char *msg = vlc_strerror_c(error);
-    fprintf(stderr, "LibVLC fatal error %s (%d) in thread %lu "
+    const char *msg = heimdall_strerror_c(error);
+    fprintf(stderr, "LibHeimdall fatal error %s (%d) in thread %lu "
             "at %s:%u in %s\n Error message: %s\n",
-            action, error, vlc_thread_id (), file, line, function, msg);
+            action, error, heimdall_thread_id (), file, line, function, msg);
     fflush (stderr);
 }
 
-# define VLC_THREAD_ASSERT( action ) do { \
+# define HEIMDALL_THREAD_ASSERT( action ) do { \
     if (unlikely(val)) { \
-        vlc_thread_fatal_print (action, val, __func__, __FILE__, __LINE__); \
+        heimdall_thread_fatal_print (action, val, __func__, __FILE__, __LINE__); \
         assert (!action); \
     } \
 } while(0)
 #else
-# define VLC_THREAD_ASSERT( action ) ((void)val)
+# define HEIMDALL_THREAD_ASSERT( action ) ((void)val)
 #endif
 
-struct vlc_thread
+struct heimdall_thread
 {
     pthread_t      thread;
 
@@ -90,28 +91,28 @@ struct vlc_thread
     bool killable;
 };
 
-static thread_local struct vlc_thread *thread = NULL;
+static thread_local struct heimdall_thread *thread = NULL;
 
-void vlc_threads_setup (libvlc_int_t *p_libvlc)
+void heimdall_threads_setup (libheimdall_int_t *p_libheimdall)
 {
-    (void)p_libvlc;
+    (void)p_libheimdall;
 }
 
 /* pthread */
 static void *joinable_thread(void *data)
 {
-    vlc_thread_t th = data;
+    heimdall_thread_t th = data;
 
     thread = th;
     void *result = th->entry(th->data);
-    assert(result != VLC_THREAD_CANCELED); // don't hijack our internal values
+    assert(result != HEIMDALL_THREAD_CANCELED); // don't hijack our internal values
     return result;
 }
 
-static int vlc_clone_attr (vlc_thread_t *th, void *(*entry) (void *),
+static int heimdall_clone_attr (heimdall_thread_t *th, void *(*entry) (void *),
                            void *data)
 {
-    vlc_thread_t thread = malloc (sizeof (*thread));
+    heimdall_thread_t thread = malloc (sizeof (*thread));
     if (unlikely(thread == NULL))
         return ENOMEM;
 
@@ -147,30 +148,30 @@ static int vlc_clone_attr (vlc_thread_t *th, void *(*entry) (void *),
     return ret;
 }
 
-int vlc_clone (vlc_thread_t *th, void *(*entry) (void *), void *data)
+int heimdall_clone (heimdall_thread_t *th, void *(*entry) (void *), void *data)
 {
-    return vlc_clone_attr (th, entry, data);
+    return heimdall_clone_attr (th, entry, data);
 }
 
-void vlc_join (vlc_thread_t handle, void **result)
+void heimdall_join (heimdall_thread_t handle, void **result)
 {
     int val = pthread_join (handle->thread, result);
-    VLC_THREAD_ASSERT ("joining thread");
-    struct vlc_thread *th = handle;
+    HEIMDALL_THREAD_ASSERT ("joining thread");
+    struct heimdall_thread *th = handle;
 
     /* release thread handle */
     free(th);
 }
 
-void vlc_cancel (vlc_thread_t thread_id)
+void heimdall_cancel (heimdall_thread_t thread_id)
 {
     atomic_store(&thread_id->killed, true);
-    vlc_atomic_notify_one(&thread_id->killed);
+    heimdall_atomic_notify_one(&thread_id->killed);
 }
 
-int vlc_savecancel (void)
+int heimdall_savecancel (void)
 {
-    if (!thread) /* not created by VLC, can't be cancelled */
+    if (!thread) /* not created by Heimdall, can't be cancelled */
         return true;
 
     int oldstate = thread->killable;
@@ -178,91 +179,91 @@ int vlc_savecancel (void)
     return oldstate;
 }
 
-void vlc_restorecancel (int state)
+void heimdall_restorecancel (int state)
 {
-    if (!thread) /* not created by VLC, can't be cancelled */
+    if (!thread) /* not created by Heimdall, can't be cancelled */
         return;
 
     thread->killable = state;
 }
 
-void vlc_testcancel (void)
+void heimdall_testcancel (void)
 {
-    if (!thread) /* not created by VLC, can't be cancelled */
+    if (!thread) /* not created by Heimdall, can't be cancelled */
         return;
     if (!thread->killable)
         return;
     if (!atomic_load(&thread->killed))
         return;
 
-    pthread_exit(VLC_THREAD_CANCELED);
+    pthread_exit(HEIMDALL_THREAD_CANCELED);
 }
 
 /* threadvar */
 
-int vlc_threadvar_create (vlc_threadvar_t *key, void (*destr) (void *))
+int heimdall_threadvar_create (heimdall_threadvar_t *key, void (*destr) (void *))
 {
     return pthread_key_create (key, destr);
 }
 
-void vlc_threadvar_delete (vlc_threadvar_t *p_tls)
+void heimdall_threadvar_delete (heimdall_threadvar_t *p_tls)
 {
     pthread_key_delete (*p_tls);
 }
 
-int vlc_threadvar_set (vlc_threadvar_t key, void *value)
+int heimdall_threadvar_set (heimdall_threadvar_t key, void *value)
 {
     return pthread_setspecific (key, value);
 }
 
-void *vlc_threadvar_get (vlc_threadvar_t key)
+void *heimdall_threadvar_get (heimdall_threadvar_t key)
 {
     return pthread_getspecific (key);
 }
 
 /* time */
-void (vlc_tick_wait)(vlc_tick_t deadline)
+void (heimdall_tick_wait)(heimdall_tick_t deadline)
 {
-    static pthread_once_t vlc_clock_once = PTHREAD_ONCE_INIT;
+    static pthread_once_t heimdall_clock_once = PTHREAD_ONCE_INIT;
 
     if (likely(thread != NULL) && thread->killable)
     {
         do
-            vlc_testcancel();
-        while (vlc_atomic_timedwait(&thread->killed, false, deadline) == 0);
+            heimdall_testcancel();
+        while (heimdall_atomic_timedwait(&thread->killed, false, deadline) == 0);
     }
     else
     {
         /* If the deadline is already elapsed, or within the clock precision,
          * do not even bother the system timer. */
-        pthread_once(&vlc_clock_once, vlc_clock_setup_once);
-        deadline -= vlc_clock_prec;
+        pthread_once(&heimdall_clock_once, heimdall_clock_setup_once);
+        deadline -= heimdall_clock_prec;
 
         struct timespec ts;
 
-        vlc_tick_to_timespec(&ts, deadline);
+        heimdall_tick_to_timespec(&ts, deadline);
         while (clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &ts, NULL) == EINTR);
     }
 }
 
-void (vlc_tick_sleep)(vlc_tick_t delay)
+void (heimdall_tick_sleep)(heimdall_tick_t delay)
 {
-    vlc_tick_wait(vlc_tick_now() + delay);
+    heimdall_tick_wait(heimdall_tick_now() + delay);
 }
 
-vlc_tick_t vlc_tick_now (void)
+heimdall_tick_t heimdall_tick_now (void)
 {
     struct timespec ts;
 
     if (unlikely(clock_gettime (CLOCK_MONOTONIC, &ts) != 0))
         abort ();
 
-    return vlc_tick_from_timespec( &ts );
+    return heimdall_tick_from_timespec( &ts );
 }
 
 /* cpu */
 
-unsigned vlc_GetCPUCount(void)
+unsigned heimdall_GetCPUCount(void)
 {
     return sysconf(_SC_NPROCESSORS_ONLN);
 }

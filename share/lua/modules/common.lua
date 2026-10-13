@@ -23,9 +23,9 @@ end
 
 -- Trigger a hotkey
 function common.hotkey(arg)
-    local id = vlc.misc.action_id( arg )
+    local id = heimdall.misc.action_id( arg )
     if id ~= nil then
-        vlc.var.set( vlc.object.libvlc(), "key-action", id )
+        heimdall.var.set( heimdall.object.libheimdall(), "key-action", id )
         return true
     else
         return false
@@ -34,9 +34,9 @@ end
 
 -- Take a video snapshot
 function common.snapshot()
-    local vout = vlc.object.vout()
+    local vout = heimdall.object.vout()
     if not vout then return end
-    vlc.var.set(vout,"video-snapshot",nil)
+    heimdall.var.set(vout,"video-snapshot",nil)
 end
 
 -- Naive (non recursive) table copy
@@ -99,7 +99,7 @@ end
 -- useful for debug purposes
 function common.print_callbacks()
     print "callbacks:"
-    common.table_print(vlc.callbacks)
+    common.table_print(heimdall.callbacks)
 end 
 
 -- convert a duration (in seconds) to a string
@@ -183,17 +183,17 @@ function common.seek(value)
             if number ~= nil then
                 local posPercent = number/100
                 if string.sub(value,1,1) == "+" or string.sub(value,1,1) == "-" then
-                    vlc.player.seek_by_pos_relative(posPercent);
+                    heimdall.player.seek_by_pos_relative(posPercent);
                 else
-                    vlc.player.seek_by_pos_absolute(posPercent);
+                    heimdall.player.seek_by_pos_absolute(posPercent);
                 end
             end
         else
             local posTime = common.parsetime(value) * 1000000 -- secs to usecs
             if string.sub(value,1,1) == "+" or string.sub(value,1,1) == "-" then
-                vlc.player.seek_by_time_relative(posTime)
+                heimdall.player.seek_by_time_relative(posTime)
             else
-                vlc.player.seek_by_time_absolute(posTime)
+                heimdall.player.seek_by_time_absolute(posTime)
             end
         end
     end
@@ -201,9 +201,9 @@ end
 
 function common.volume(value)
     if type(value)=="string" and string.sub(value,1,1) == "+" or string.sub(value,1,1) == "-" then
-        vlc.volume.set(vlc.volume.get()+tonumber(value))
+        heimdall.volume.set(heimdall.volume.get()+tonumber(value))
     else
-        vlc.volume.set(tostring(value))
+        heimdall.volume.set(tostring(value))
     end
 end
 

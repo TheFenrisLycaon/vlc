@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,13 +20,13 @@
 #include <algorithm>
 #include <cstring>
 
-#include <vlc_cxx_helpers.hpp>
+#include <heimdall_cxx_helpers.hpp>
 
 #include <xcb/xfixes.h>
 
 #include "compositor_x11_utils.hpp"
 
-namespace vlc {
+namespace heimdall {
 
 bool queryExtension(xcb_connection_t* conn, const char* name, uint8_t* first_event_out, uint8_t* first_error_out)
 {

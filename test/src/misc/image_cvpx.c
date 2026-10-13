@@ -2,6 +2,7 @@
  * image_cvpx.c: export test for image_handler with cvpx sources
  *****************************************************************************
  * Copyright (C) 2023 Videolabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Alexandre Janniaux <ajanni@videolabs.io>
  *
@@ -26,32 +27,32 @@
 
 /* Define a builtin module for mocked parts */
 #define MODULE_NAME test_misc_image_cvpx
-#undef VLC_DYNAMIC_PLUGIN
+#undef HEIMDALL_DYNAMIC_PLUGIN
 
-#include "../../libvlc/test.h"
+#include "../../libheimdall/test.h"
 #include "../../../modules/codec/vt_utils.h"
 
-#include <vlc/vlc.h>
+#include <heimdall/heimdall.h>
 
-#include <vlc_common.h>
-#include <vlc_image.h>
-#include <vlc_picture.h>
-#include <vlc_plugin.h>
-#include <vlc_block.h>
+#include <heimdall_common.h>
+#include <heimdall_image.h>
+#include <heimdall_picture.h>
+#include <heimdall_plugin.h>
+#include <heimdall_block.h>
 
 #include <limits.h>
 
-#include "../lib/libvlc_internal.h"
+#include "../lib/libheimdall_internal.h"
 
-const char vlc_module_name[] = MODULE_STRING;
+const char heimdall_module_name[] = MODULE_STRING;
 
-static int OpenIntf(vlc_object_t *root)
+static int OpenIntf(heimdall_object_t *root)
 {
     image_handler_t *ih = image_HandlerCreate(root);
     assert(ih != NULL);
 
     video_format_t fmt_in;
-    video_format_Init(&fmt_in, VLC_CODEC_CVPX_NV12);
+    video_format_Init(&fmt_in, HEIMDALL_CODEC_CVPX_NV12);
     fmt_in.i_width = fmt_in.i_visible_width = 800;
     fmt_in.i_height = fmt_in.i_visible_height = 600;
 
@@ -64,16 +65,16 @@ static int OpenIntf(vlc_object_t *root)
     picture_t *picture = picture_NewFromFormat(&fmt_in);
     assert(picture != NULL);
 
-    struct vlc_decoder_device *device = NULL;
-    static const struct vlc_video_context_operations ops = {
+    struct heimdall_decoder_device *device = NULL;
+    static const struct heimdall_video_context_operations ops = {
         NULL
     };
 
-    struct vlc_video_context *vctx =vlc_video_context_CreateCVPX(
+    struct heimdall_video_context *vctx =heimdall_video_context_CreateCVPX(
       device, CVPX_VIDEO_CONTEXT_DEFAULT, 0, &ops);
     int ret = cvpxpic_attach(picture, buffer, vctx,
                              NULL /* TODO: check everything is released */);
-    assert(ret == VLC_SUCCESS);
+    assert(ret == HEIMDALL_SUCCESS);
 
     video_format_t fmt_out;
     video_format_Init(&fmt_out, 0);
@@ -82,24 +83,24 @@ static int OpenIntf(vlc_object_t *root)
 
     block_t *block;
 
-    block = image_Write(ih, picture, &fmt_in, VLC_CODEC_PNG, &fmt_out);
+    block = image_Write(ih, picture, &fmt_in, HEIMDALL_CODEC_PNG, &fmt_out);
     assert(block != NULL);
     block_Release(block);
     image_HandlerDelete(ih);
 
     picture_Release(picture);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /** Inject the mocked modules as a static plugin: **/
-vlc_module_begin()
+heimdall_module_begin()
     set_callback(OpenIntf)
     set_capability("interface", 0)
-vlc_module_end()
+heimdall_module_end()
 
-VLC_EXPORT const vlc_plugin_cb vlc_static_modules[] = {
-    VLC_SYMBOL(vlc_entry),
+HEIMDALL_EXPORT const heimdall_plugin_cb heimdall_static_modules[] = {
+    HEIMDALL_SYMBOL(heimdall_entry),
     NULL
 };
 
@@ -113,12 +114,12 @@ int main()
         "--no-auto-preparse",
     };
 
-    libvlc_instance_t *vlc = libvlc_new(ARRAY_SIZE(args), args);
+    libheimdall_instance_t *heimdall = libheimdall_new(ARRAY_SIZE(args), args);
 
-    libvlc_InternalAddIntf(vlc->p_libvlc_int, MODULE_STRING);
-    libvlc_InternalPlay(vlc->p_libvlc_int);
+    libheimdall_InternalAddIntf(heimdall->p_libheimdall_int, MODULE_STRING);
+    libheimdall_InternalPlay(heimdall->p_libheimdall_int);
 
-    libvlc_release(vlc);
+    libheimdall_release(heimdall);
 
 }
 

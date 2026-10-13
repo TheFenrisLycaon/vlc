@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,8 +20,8 @@ import QtQuick
 import QtQuick.Templates as T
 
 
-import VLC.Widgets as Widgets
-import VLC.Style
+import Heimdall.Widgets as Widgets
+import Heimdall.Style
 
 
 Item {
@@ -29,9 +30,9 @@ Item {
 
     // NOTE: We already have spacing between components in the ControlLayout so this should be set
     //       to zero, except in the customize panel.
-    implicitWidth: (paintOnly) ? VLCStyle.icon_toolbar : 0
+    implicitWidth: (paintOnly) ? HeimdallStyle.icon_toolbar : 0
 
-    implicitHeight: VLCStyle.icon_toolbar
+    implicitHeight: HeimdallStyle.icon_toolbar
 
     property alias spacetextExt: spacetext
     property bool paintOnly: false
@@ -45,14 +46,14 @@ Item {
 
     T.Label {
         id: spacetext
-        text: VLCIcons.space
+        text: HeimdallIcons.space
         color: theme.fg.secondary
         visible: parent.paintOnly
 
         anchors.centerIn: parent
 
-        font.pixelSize: VLCStyle.icon_toolbar
-        font.family: VLCIcons.fontFamily
+        font.pixelSize: HeimdallStyle.icon_toolbar
+        font.family: HeimdallIcons.fontFamily
 
         verticalAlignment: Text.AlignVCenter
         horizontalAlignment: Text.AlignHCenter

@@ -2,6 +2,7 @@
  * dxgi.cpp: Screen capture module for DXGI.
  *****************************************************************************
  * Copyright (C) 2018-2022 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Steve Lhomme <robux4@gmail.com>
  *
@@ -24,7 +25,7 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
 #include "screen.h"
 
@@ -41,7 +42,7 @@ namespace {
 struct dxgi_screen
 {
     const d3d_format_t             *output_format = nullptr;
-    vlc_video_context              *vctx = nullptr;
+    heimdall_video_context              *vctx = nullptr;
 
     int screen_x = 0;
     int screen_y = 0;
@@ -51,7 +52,7 @@ struct dxgi_screen
     ~dxgi_screen()
     {
         if (vctx)
-            vlc_video_context_Release(vctx);
+            heimdall_video_context_Release(vctx);
     }
 };
 } // namespace
@@ -78,12 +79,12 @@ static block_t *screen_Capture(demux_t *p_demux)
 
     d3d11_decoder_device_t *d3d_dev = GetD3D11OpaqueContext(p_data->vctx);
 
-    static const struct vlc_frame_callbacks cbs = {
+    static const struct heimdall_frame_callbacks cbs = {
         CaptureBlockRelease,
     };
     block_Init( &d3d11_block->self, &cbs, nullptr, 1 );
 
-    d3d11_block->d3d11_pic = D3D11_AllocPicture(VLC_OBJECT(p_demux),
+    d3d11_block->d3d11_pic = D3D11_AllocPicture(HEIMDALL_OBJECT(p_demux),
                                                 &p_sys->fmt.video, p_data->vctx,
                                                 true, p_data->output_format);
     if ( d3d11_block->d3d11_pic == nullptr )
@@ -163,13 +164,13 @@ int screen_InitCaptureDXGI(demux_t *p_demux)
 {
     demux_sys_t *p_sys = static_cast<demux_sys_t*>(p_demux->p_sys);
     dxgi_screen *p_data;
-    vlc_decoder_device *dec_dev;
+    heimdall_decoder_device *dec_dev;
     HRESULT hr;
 
     if (var_CreateGetInteger( p_demux, "screen-fragment-size" ) != 0)
     {
         msg_Dbg(p_demux, "screen-fragment-size not supported in DXGI");
-        return VLC_ENOTSUP;
+        return HEIMDALL_ENOTSUP;
     }
 
     char *mousefile = var_InheritString( p_demux, "screen-mouse-image" );
@@ -177,27 +178,27 @@ int screen_InitCaptureDXGI(demux_t *p_demux)
     if (mousefile)
     {
         msg_Dbg(p_demux, "screen-mouse-image not supported in DXGI");
-        return VLC_ENOTSUP;
+        return HEIMDALL_ENOTSUP;
     }
 
 #if !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
     if (p_sys->b_follow_mouse)
     {
         msg_Dbg(p_demux, "screen-follow-mouse not supported in UWP DXGI");
-        return VLC_ENOTSUP;
+        return HEIMDALL_ENOTSUP;
     }
 #endif // !WINAPI_PARTITION_DESKTOP
 
     p_data = new (std::nothrow) dxgi_screen();
     if (unlikely(p_data == nullptr))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
     p_data->screen_x = GetSystemMetrics( SM_XVIRTUALSCREEN );
     p_data->screen_y = GetSystemMetrics( SM_YVIRTUALSCREEN );
 #endif
 
-    dec_dev = vlc_decoder_device_Create(VLC_OBJECT(p_demux), nullptr);
+    dec_dev = heimdall_decoder_device_Create(HEIMDALL_OBJECT(p_demux), nullptr);
     d3d11_decoder_device_t *d3d11_dev = GetD3D11OpaqueDevice(dec_dev);
     if (d3d11_dev == nullptr)
     {
@@ -205,8 +206,8 @@ int screen_InitCaptureDXGI(demux_t *p_demux)
     }
     else
     {
-        ComPtr<ID3D11Device1> d3d11VLC1;
-        hr = d3d11_dev->d3d_dev.d3ddevice->QueryInterface(IID_GRAPHICS_PPV_ARGS(&d3d11VLC1));
+        ComPtr<ID3D11Device1> d3d11Heimdall1;
+        hr = d3d11_dev->d3d_dev.d3ddevice->QueryInterface(IID_GRAPHICS_PPV_ARGS(&d3d11Heimdall1));
         if (FAILED(hr)) {
             msg_Warn(p_demux, "D3D11 device cannot share textures. (hr=0x%lX)", hr);
             goto error;
@@ -256,7 +257,7 @@ int screen_InitCaptureDXGI(demux_t *p_demux)
     }
 
     p_data->vctx = D3D11CreateVideoContext(dec_dev, p_data->output_format->formatTexture, p_data->output_format->alphaTexture);
-    vlc_decoder_device_Release(dec_dev);
+    heimdall_decoder_device_Release(dec_dev);
     dec_dev = nullptr;
     if (unlikely(p_data->vctx == nullptr))
         goto error;
@@ -275,19 +276,19 @@ int screen_InitCaptureDXGI(demux_t *p_demux)
     };
     p_sys->ops = &ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 error:
     if (dec_dev)
-        vlc_decoder_device_Release(dec_dev);
+        heimdall_decoder_device_Release(dec_dev);
     delete p_data;
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 int screen_InitCapture(demux_t *p_demux)
 {
     int ret = screen_InitCaptureDXGI(p_demux);
-    if (ret == VLC_SUCCESS)
-        return VLC_SUCCESS;
+    if (ret == HEIMDALL_SUCCESS)
+        return HEIMDALL_SUCCESS;
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
     return screen_InitCaptureGDI(p_demux);
 #else

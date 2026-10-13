@@ -2,6 +2,7 @@
  * device.h: Media library network device
  *****************************************************************************
  * Copyright (C) 2018 VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -24,11 +25,11 @@
 #include <medialibrary/filesystem/IDevice.h>
 #include <vector>
 
-#include <vlc_common.h>
-#include <vlc_url.h>
-#include <vlc_cxx_helpers.hpp>
+#include <heimdall_common.h>
+#include <heimdall_url.h>
+#include <heimdall_cxx_helpers.hpp>
 
-namespace vlc {
+namespace heimdall {
   namespace medialibrary {
 
 using namespace ::medialibrary::fs;
@@ -60,7 +61,7 @@ private:
         {
         }
         std::string mrl;
-        vlc::url url;
+        heimdall::url url;
     };
     std::string m_uuid;
     std::vector<Mountpoint> m_mountpoints;
@@ -70,6 +71,6 @@ private:
 };
 
   } /* namespace medialibrary */
-} /* namespace vlc */
+} /* namespace heimdall */
 
 #endif

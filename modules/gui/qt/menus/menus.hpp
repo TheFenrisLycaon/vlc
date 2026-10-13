@@ -2,6 +2,7 @@
  * menus.hpp : Menus handling
  ****************************************************************************
  * Copyright (C) 2006 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Clément Stenac <zorglub@videolan.org>
  *          Jean-Baptiste Kempf <jb@videolan.org>
@@ -21,48 +22,48 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef QVLC_MENUS_H_
-#define QVLC_MENUS_H_
+#ifndef QHEIMDALL_MENUS_H_
+#define QHEIMDALL_MENUS_H_
 
 #include "qt.hpp"
 
 #include "custom_menus.hpp"
-#include "widgets/native/qvlcframe.hpp"
+#include "widgets/native/qheimdallframe.hpp"
 
 #include <QObject>
 
-class VLCMenu : public QMenu
+class HeimdallMenu : public QMenu
 {
     Q_OBJECT
 
 public:
-    explicit VLCMenu(qt_intf_t* p_intf) : QMenu()
+    explicit HeimdallMenu(qt_intf_t* p_intf) : QMenu()
     {
         assert(p_intf);
         if (isWindow())
         {
-            QVLCDialog::setWindowTransientParent(this, nullptr, p_intf);
+            QHeimdallDialog::setWindowTransientParent(this, nullptr, p_intf);
         }
     }
 
-    explicit VLCMenu(const QString& title, qt_intf_t* p_intf) : VLCMenu(p_intf)
+    explicit HeimdallMenu(const QString& title, qt_intf_t* p_intf) : HeimdallMenu(p_intf)
     {
         setTitle(title);
     }
 
-    explicit VLCMenu(const QString &title, QWidget *parent) : QMenu(title, parent)
+    explicit HeimdallMenu(const QString &title, QWidget *parent) : QMenu(title, parent)
     {
-        assert(parent); // use VLCMenu(qt_intf_t* p_intf) if parent is null pointer
+        assert(parent); // use HeimdallMenu(qt_intf_t* p_intf) if parent is null pointer
     }
 };
 
-class VLCMenuBar : public QObject
+class HeimdallMenuBar : public QObject
 {
     Q_OBJECT
     friend class MenuFunc;
 
 public:
-    VLCMenuBar(QObject* parent = nullptr);
+    HeimdallMenuBar(QObject* parent = nullptr);
 
     /* Popups Menus */
     static QMenu* PopupMenu( qt_intf_t *, bool );

@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,7 +24,7 @@
 #include "mlbasemodel.hpp"
 
 // Forward declarations
-struct vlc_medialibrary_t;
+struct heimdall_medialibrary_t;
 class MLPlaylist;
 
 class MLPlaylistListModel : public MLBaseModel
@@ -102,7 +103,7 @@ private: // Functions
     bool setTransactionPending(bool);
 
 private: // MLBaseModel implementation
-    void onVlcMlEvent(const MLEvent & event) override;
+    void onHeimdallMlEvent(const MLEvent & event) override;
 
 signals:
     void coverSizeChanged   ();
@@ -138,11 +139,11 @@ private:
     {
         Loader(const MLPlaylistListModel & model, PlaylistType playlistType);
 
-        size_t count(vlc_medialibrary_t* ml, const vlc_ml_query_params_t* queryParams) const override;
+        size_t count(heimdall_medialibrary_t* ml, const heimdall_ml_query_params_t* queryParams) const override;
 
-        std::vector<std::unique_ptr<MLItem>> load(vlc_medialibrary_t* ml, const vlc_ml_query_params_t* queryParams) const override;
+        std::vector<std::unique_ptr<MLItem>> load(heimdall_medialibrary_t* ml, const heimdall_ml_query_params_t* queryParams) const override;
 
-        std::unique_ptr<MLItem> loadItemById(vlc_medialibrary_t* ml, MLItemId itemId) const override;
+        std::unique_ptr<MLItem> loadItemById(heimdall_medialibrary_t* ml, MLItemId itemId) const override;
 
         PlaylistType m_playlistType;
     };

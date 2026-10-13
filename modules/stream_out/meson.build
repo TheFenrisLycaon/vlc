@@ -1,7 +1,7 @@
 # Stream output modules
 
 # dummy
-vlc_modules += {
+heimdall_modules += {
     'name' : 'stream_out_dummy',
     'sources' : files('dummy.c'),
     'shortname' : 's_o_dumm',
@@ -9,7 +9,7 @@ vlc_modules += {
 }
 
 # cycle
-vlc_modules += {
+heimdall_modules += {
     'name' : 'stream_out_cycle',
     'sources' : files('cycle.c'),
     'shortname' : 's_o_cycl',
@@ -17,7 +17,7 @@ vlc_modules += {
 }
 
 # delay
-vlc_modules += {
+heimdall_modules += {
     'name' : 'stream_out_delay',
     'sources' : files('delay.c'),
     'shortname' : 's_o_dela',
@@ -25,7 +25,7 @@ vlc_modules += {
 }
 
 # stats
-vlc_modules += {
+heimdall_modules += {
     'name' : 'stream_out_stats',
     'sources' : files('stats.c'),
     'shortname' : 's_o_stat',
@@ -33,7 +33,7 @@ vlc_modules += {
 }
 
 # standard
-vlc_modules += {
+heimdall_modules += {
     'name' : 'stream_out_standard',
     'sources' : files(
       'standard.c',
@@ -45,7 +45,7 @@ vlc_modules += {
 }
 
 # duplicate
-vlc_modules += {
+heimdall_modules += {
     'name' : 'stream_out_duplicate',
     'sources' : files('duplicate.c'),
     'shortname' : 's_o_dupl',
@@ -53,7 +53,7 @@ vlc_modules += {
 }
 
 # es
-vlc_modules += {
+heimdall_modules += {
     'name' : 'stream_out_es',
     'sources' : files('es.c'),
     'shortname' : 's_o_es',
@@ -61,7 +61,7 @@ vlc_modules += {
 }
 
 # display
-vlc_modules += {
+heimdall_modules += {
     'name' : 'stream_out_display',
     'sources' : files('display.c'),
     'shortname' : 's_o_disp',
@@ -69,7 +69,7 @@ vlc_modules += {
 }
 
 # gather
-vlc_modules += {
+heimdall_modules += {
     'name' : 'stream_out_gather',
     'sources' : files('gather.c'),
     'shortname' : 's_o_gath',
@@ -77,7 +77,7 @@ vlc_modules += {
 }
 
 # bridge
-vlc_modules += {
+heimdall_modules += {
     'name' : 'stream_out_bridge',
     'sources' : files('bridge.c'),
     'shortname' : 's_o_brid',
@@ -85,7 +85,7 @@ vlc_modules += {
 }
 
 # mosaic_bridge
-vlc_modules += {
+heimdall_modules += {
     'name' : 'stream_out_mosaic_bridge',
     'sources' : files('mosaic_bridge.c'),
     'shortname' : 's_o_mosa',
@@ -93,7 +93,7 @@ vlc_modules += {
 }
 
 # autodel
-vlc_modules += {
+heimdall_modules += {
     'name' : 'stream_out_autodel',
     'sources' : files('autodel.c'),
     'shortname' : 's_o_auto',
@@ -101,7 +101,7 @@ vlc_modules += {
 }
 
 # record
-vlc_modules += {
+heimdall_modules += {
     'name' : 'stream_out_record',
     'sources' : files('record.c'),
     'shortname' : 's_o_reco',
@@ -109,7 +109,7 @@ vlc_modules += {
 }
 
 # smem
-vlc_modules += {
+heimdall_modules += {
     'name' : 'stream_out_smem',
     'sources' : files('smem.c'),
     'shortname' : 's_o_smem',
@@ -117,7 +117,7 @@ vlc_modules += {
 }
 
 # setid
-vlc_modules += {
+heimdall_modules += {
     'name' : 'stream_out_setid',
     'sources' : files('setid.c'),
     'shortname' : 's_o_seti',
@@ -125,7 +125,7 @@ vlc_modules += {
 }
 
 # transcode
-vlc_modules += {
+heimdall_modules += {
     'name' : 'stream_out_transcode',
     'sources' : files(
         'transcode/transcode.c',
@@ -145,7 +145,7 @@ vlc_modules += {
 }
 
 # trace
-vlc_modules += {
+heimdall_modules += {
     'name' : 'stream_out_trace',
     'sources' : files('trace.c'),
     'shortname' : 's_o_trac',
@@ -153,7 +153,7 @@ vlc_modules += {
 }
 
 # UDP
-vlc_modules += {
+heimdall_modules += {
     'name' : 'stream_out_udp',
     'sources' : files('sdp_helper.c', 'udp.c'),
     'dependencies' : [socket_libs],
@@ -167,7 +167,7 @@ if srtp_dep.found()
     rtp_sout_deps += srtp_dep
 endif
 
-vlc_modules += {
+heimdall_modules += {
     'name' : 'stream_out_rtp',
     'sources' : files(
         'sdp_helper.c',
@@ -183,7 +183,7 @@ vlc_modules += {
 
 # Chromaprint module
 libchromaprint_dep = dependency('libchromaprint', version: '>= 0.6.0', required: get_option('libchromaprint'))
-vlc_modules += {
+heimdall_modules += {
     'name' : 'stream_out_chromaprint',
     'sources' : files('chromaprint.c'),
     'dependencies' : [libchromaprint_dep],
@@ -193,7 +193,7 @@ vlc_modules += {
 }
 
 
-vlc_modules += {
+heimdall_modules += {
     'name' : 'stream_out_sdi',
     'sources' : files(
         'sdi/sdiout.cpp',

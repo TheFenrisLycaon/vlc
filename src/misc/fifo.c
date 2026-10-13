@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 2003-2004 VLC authors and VideoLAN
  * Copyright (C) 2007-2015 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@videolan.org>
  *
@@ -28,52 +29,52 @@
 #include <assert.h>
 #include <stdlib.h>
 
-#include <vlc_common.h>
-#include <vlc_block.h>
-#include "../libvlc.h"
+#include <heimdall_common.h>
+#include <heimdall_block.h>
+#include "../libheimdall.h"
 
 /**
  * Internal state for block queues
  */
-struct vlc_fifo_t
+struct heimdall_fifo_t
 {
-    vlc_queue_t         q;
+    heimdall_queue_t         q;
     size_t              i_depth;
     size_t              i_size;
 };
 
-static_assert (offsetof (block_fifo_t, q) == 0, "Problems in <vlc_block.h>");
+static_assert (offsetof (block_fifo_t, q) == 0, "Problems in <heimdall_block.h>");
 
-bool vlc_fifo_Held(const block_fifo_t *fifo)
+bool heimdall_fifo_Held(const block_fifo_t *fifo)
 {
-    return vlc_mutex_held(&fifo->q.lock);
+    return heimdall_mutex_held(&fifo->q.lock);
 }
 
-size_t vlc_fifo_GetCount(const block_fifo_t *fifo)
+size_t heimdall_fifo_GetCount(const block_fifo_t *fifo)
 {
-    vlc_mutex_assert(&fifo->q.lock);
+    heimdall_mutex_assert(&fifo->q.lock);
     return fifo->i_depth;
 }
 
-size_t vlc_fifo_GetBytes(const block_fifo_t *fifo)
+size_t heimdall_fifo_GetBytes(const block_fifo_t *fifo)
 {
-    vlc_mutex_assert(&fifo->q.lock);
+    heimdall_mutex_assert(&fifo->q.lock);
     return fifo->i_size;
 }
 
-void vlc_fifo_QueueUnlocked(block_fifo_t *fifo, block_t *block)
+void heimdall_fifo_QueueUnlocked(block_fifo_t *fifo, block_t *block)
 {
     for (block_t *b = block; b != NULL; b = b->p_next) {
         fifo->i_depth++;
         fifo->i_size += b->i_buffer;
     }
 
-    vlc_queue_EnqueueUnlocked(&fifo->q, block);
+    heimdall_queue_EnqueueUnlocked(&fifo->q, block);
 }
 
-block_t *vlc_fifo_DequeueUnlocked(block_fifo_t *fifo)
+block_t *heimdall_fifo_DequeueUnlocked(block_fifo_t *fifo)
 {
-    block_t *block = vlc_queue_DequeueUnlocked(&fifo->q);
+    block_t *block = heimdall_queue_DequeueUnlocked(&fifo->q);
 
     if (block != NULL) {
         assert(fifo->i_depth > 0);
@@ -85,19 +86,19 @@ block_t *vlc_fifo_DequeueUnlocked(block_fifo_t *fifo)
     return block;
 }
 
-block_t *vlc_fifo_DequeueAllUnlocked(block_fifo_t *fifo)
+block_t *heimdall_fifo_DequeueAllUnlocked(block_fifo_t *fifo)
 {
     fifo->i_depth = 0;
     fifo->i_size = 0;
-    return vlc_queue_DequeueAllUnlocked(&fifo->q);
+    return heimdall_queue_DequeueAllUnlocked(&fifo->q);
 }
 
-block_fifo_t *vlc_fifo_New( void )
+block_fifo_t *heimdall_fifo_New( void )
 {
     block_fifo_t *p_fifo = malloc( sizeof( block_fifo_t ) );
 
     if (likely(p_fifo != NULL)) {
-        vlc_queue_Init(&p_fifo->q, offsetof (block_t, p_next));
+        heimdall_queue_Init(&p_fifo->q, offsetof (block_t, p_next));
         p_fifo->i_depth = 0;
         p_fifo->i_size = 0;
     }
@@ -105,39 +106,39 @@ block_fifo_t *vlc_fifo_New( void )
     return p_fifo;
 }
 
-void vlc_fifo_Delete( block_fifo_t *p_fifo )
+void heimdall_fifo_Delete( block_fifo_t *p_fifo )
 {
-    vlc_fifo_Empty(p_fifo);
+    heimdall_fifo_Empty(p_fifo);
     free( p_fifo );
 }
 
-block_t *vlc_fifo_Get(block_fifo_t *fifo)
+block_t *heimdall_fifo_Get(block_fifo_t *fifo)
 {
     block_t *block;
 
-    vlc_testcancel();
+    heimdall_testcancel();
 
-    vlc_fifo_Lock(fifo);
-    while (vlc_fifo_IsEmpty(fifo))
+    heimdall_fifo_Lock(fifo);
+    while (heimdall_fifo_IsEmpty(fifo))
     {
-        vlc_fifo_CleanupPush(fifo);
-        vlc_fifo_Wait(fifo);
-        vlc_cleanup_pop();
+        heimdall_fifo_CleanupPush(fifo);
+        heimdall_fifo_Wait(fifo);
+        heimdall_cleanup_pop();
     }
-    block = vlc_fifo_DequeueUnlocked(fifo);
-    vlc_fifo_Unlock(fifo);
+    block = heimdall_fifo_DequeueUnlocked(fifo);
+    heimdall_fifo_Unlock(fifo);
 
     return block;
 }
 
-block_t *vlc_fifo_Show( block_fifo_t *p_fifo )
+block_t *heimdall_fifo_Show( block_fifo_t *p_fifo )
 {
     block_t *b;
 
-    vlc_fifo_Lock(p_fifo);
+    heimdall_fifo_Lock(p_fifo);
     assert(p_fifo->q.first != NULL);
     b = (block_t *)p_fifo->q.first;
-    vlc_fifo_Unlock(p_fifo);
+    heimdall_fifo_Unlock(p_fifo);
 
     return b;
 }

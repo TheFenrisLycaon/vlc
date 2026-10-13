@@ -3,6 +3,7 @@
  *                               for some Dash elements.
  *****************************************************************************
  * Copyright © 2011 VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Hugo Beauzée-Luyssen <hugo@beauzee.fr>
  *
@@ -27,8 +28,8 @@
 
 #include "CommonAttributesElements.h"
 
-#include <vlc_common.h>
-#include <vlc_arrays.h>
+#include <heimdall_common.h>
+#include <heimdall_arrays.h>
 
 using namespace adaptive::playlist;
 

@@ -2,6 +2,7 @@
  * window_manager.cpp
  *****************************************************************************
  * Copyright (C) 2003 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cyril Deguet     <asmax@via.ecp.fr>
  *          Olivier Teulière <ipkiss@via.ecp.fr>
@@ -38,7 +39,7 @@ WindowManager::WindowManager( intf_thread_t *pIntf ):
     // Create and register a variable for the "on top" status
     VarManager *pVarManager = VarManager::instance( getIntf() );
     m_cVarOnTop = VariablePtr( new VarBoolImpl( getIntf() ) );
-    pVarManager->registerVar( m_cVarOnTop, "vlc.isOnTop" );
+    pVarManager->registerVar( m_cVarOnTop, "heimdall.isOnTop" );
 
     // transparency switched on or off by user
     m_opacityEnabled = var_InheritBool( getIntf(), "skins2-transparency" );
@@ -650,5 +651,5 @@ void WindowManager::onWindowHidden()
     }
 
     // Last window closed
-    libvlc_Quit( vlc_object_instance(getIntf()) );
+    libheimdall_Quit( heimdall_object_instance(getIntf()) );
 }

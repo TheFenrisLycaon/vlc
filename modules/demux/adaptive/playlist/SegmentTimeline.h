@@ -2,6 +2,7 @@
  * SegmentTimeline.cpp: Implement the SegmentTimeline tag.
  *****************************************************************************
  * Copyright (C) 1998-2007 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Hugo Beauzée-Luyssen <hugo@beauzee.fr>
  *
@@ -25,7 +26,7 @@
 
 #include "Inheritables.hpp"
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 #include <list>
 
 namespace adaptive
@@ -50,10 +51,10 @@ namespace adaptive
                 uint64_t maxElementNumber() const;
                 uint64_t minElementNumber() const;
                 uint64_t getElementIndexBySequence(uint64_t) const;
-                void pruneByPlaybackTime(vlc_tick_t);
+                void pruneByPlaybackTime(heimdall_tick_t);
                 size_t pruneBySequenceNumber(uint64_t);
                 void updateWith(SegmentTimeline &);
-                void debug(vlc_object_t *, int = 0) const;
+                void debug(heimdall_object_t *, int = 0) const;
 
             private:
                 std::list<Element *> elements;
@@ -64,7 +65,7 @@ namespace adaptive
                 {
                     public:
                         Element(uint64_t, stime_t, uint64_t, stime_t);
-                        void debug(vlc_object_t *, int = 0) const;
+                        void debug(heimdall_object_t *, int = 0) const;
                         bool contains(stime_t) const;
                         stime_t  t;
                         stime_t  d;

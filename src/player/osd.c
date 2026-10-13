@@ -2,6 +2,7 @@
  * player_osd.c: Player osd implementation
  *****************************************************************************
  * Copyright © 2018-2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -24,14 +25,14 @@
 
 #include <limits.h>
 
-#include <vlc_common.h>
-#include <vlc_memstream.h>
-#include <vlc_vout_osd.h>
+#include <heimdall_common.h>
+#include <heimdall_memstream.h>
+#include <heimdall_vout_osd.h>
 #include "player.h"
 #include "input/resource.h"
 
 static vout_thread_t **
-vlc_player_osd_HoldAll(vlc_player_t *player, size_t *count)
+heimdall_player_osd_HoldAll(heimdall_player_t *player, size_t *count)
 {
     vout_thread_t **vouts;
     input_resource_HoldVouts(player->resource, &vouts, count);
@@ -46,7 +47,7 @@ vlc_player_osd_HoldAll(vlc_player_t *player, size_t *count)
 }
 
 static void
-vlc_player_osd_ReleaseAll(vlc_player_t *player, vout_thread_t **vouts,
+heimdall_player_osd_ReleaseAll(heimdall_player_t *player, vout_thread_t **vouts,
                             size_t count)
 {
     for (size_t i = 0; i < count; ++i)
@@ -71,14 +72,14 @@ vouts_osd_Message(vout_thread_t **vouts, size_t count, const char *fmt, ...)
 }
 
 static inline void
-vouts_osd_Icon(vout_thread_t **vouts, size_t count, vlc_osd_widget_type type)
+vouts_osd_Icon(vout_thread_t **vouts, size_t count, heimdall_osd_widget_type type)
 {
     for (size_t i = 0; i < count; ++i)
         vout_OSDIcon(vouts[i], VOUT_SPU_CHANNEL_OSD, type);
 }
 
 static inline void
-vouts_osd_Slider(vout_thread_t **vouts, size_t count, int position, vlc_osd_widget_type type)
+vouts_osd_Slider(vout_thread_t **vouts, size_t count, int position, heimdall_osd_widget_type type)
 {
     int channel = type == OSD_HOR_SLIDER ?
         VOUT_SPU_CHANNEL_OSD_HSLIDER : VOUT_SPU_CHANNEL_OSD_VSLIDER;
@@ -87,10 +88,10 @@ vouts_osd_Slider(vout_thread_t **vouts, size_t count, int position, vlc_osd_widg
 }
 
 void
-vlc_player_osd_Message(vlc_player_t *player, const char *fmt, ...)
+heimdall_player_osd_Message(heimdall_player_t *player, const char *fmt, ...)
 {
     size_t count;
-    vout_thread_t **vouts = vlc_player_osd_HoldAll(player, &count);
+    vout_thread_t **vouts = heimdall_player_osd_HoldAll(player, &count);
 
     va_list args;
     va_start(args, fmt);
@@ -103,108 +104,108 @@ vlc_player_osd_Message(vlc_player_t *player, const char *fmt, ...)
     }
     va_end(args);
 
-    vlc_player_osd_ReleaseAll(player, vouts, count);
+    heimdall_player_osd_ReleaseAll(player, vouts, count);
 }
 
 void
-vlc_player_osd_Icon(vlc_player_t *player, vlc_osd_widget_type type)
+heimdall_player_osd_Icon(heimdall_player_t *player, heimdall_osd_widget_type type)
 {
     size_t count;
-    vout_thread_t **vouts = vlc_player_osd_HoldAll(player, &count);
+    vout_thread_t **vouts = heimdall_player_osd_HoldAll(player, &count);
 
     vouts_osd_Icon(vouts, count, type);
 
-    vlc_player_osd_ReleaseAll(player, vouts, count);
+    heimdall_player_osd_ReleaseAll(player, vouts, count);
 }
 
 void
-vlc_player_osd_Position(vlc_player_t *player,
-                        struct vlc_player_input *input, vlc_tick_t time,
+heimdall_player_osd_Position(heimdall_player_t *player,
+                        struct heimdall_player_input *input, heimdall_tick_t time,
                         double position)
 {
-    if (input->length != VLC_TICK_INVALID)
+    if (input->length != HEIMDALL_TICK_INVALID)
     {
-        if (time == VLC_TICK_INVALID)
+        if (time == HEIMDALL_TICK_INVALID)
             time = position * input->length;
         else
             position = time / (double) input->length;
     }
 
     size_t count;
-    vout_thread_t **vouts = vlc_player_osd_HoldAll(player, &count);
+    vout_thread_t **vouts = heimdall_player_osd_HoldAll(player, &count);
 
-    if (time != VLC_TICK_INVALID)
+    if (time != HEIMDALL_TICK_INVALID)
     {
         char time_text[MSTRTIME_MAX_SIZE];
-        vlc_tick_to_str(time_text, time);
-        if (input->length != VLC_TICK_INVALID)
+        heimdall_tick_to_str(time_text, time);
+        if (input->length != HEIMDALL_TICK_INVALID)
         {
             char len_text[MSTRTIME_MAX_SIZE];
-            vlc_tick_to_str(len_text, input->length);
+            heimdall_tick_to_str(len_text, input->length);
             vouts_osd_Message(vouts, count, "%s / %s", time_text, len_text);
         }
         else
             vouts_osd_Message(vouts, count, "%s", time_text);
     }
 
-    if (vlc_player_vout_IsFullscreen(player))
+    if (heimdall_player_vout_IsFullscreen(player))
         vouts_osd_Slider(vouts, count, position * 100, OSD_HOR_SLIDER);
-    vlc_player_osd_ReleaseAll(player, vouts, count);
+    heimdall_player_osd_ReleaseAll(player, vouts, count);
 }
 
 void
-vlc_player_osd_Volume(vlc_player_t *player, bool mute_action)
+heimdall_player_osd_Volume(heimdall_player_t *player, bool mute_action)
 {
     size_t count;
-    vout_thread_t **vouts = vlc_player_osd_HoldAll(player, &count);
+    vout_thread_t **vouts = heimdall_player_osd_HoldAll(player, &count);
 
-    bool mute = vlc_player_aout_IsMuted(player);
-    int volume = lroundf(vlc_player_aout_GetVolume(player) * 100.f);
+    bool mute = heimdall_player_aout_IsMuted(player);
+    int volume = lroundf(heimdall_player_aout_GetVolume(player) * 100.f);
     if (mute_action && mute)
         vouts_osd_Icon(vouts, count, OSD_MUTE_ICON);
     else
     {
-        if (vlc_player_vout_IsFullscreen(player))
+        if (heimdall_player_vout_IsFullscreen(player))
             vouts_osd_Slider(vouts, count, volume, OSD_VERT_SLIDER);
         vouts_osd_Message(vouts, count, _("Volume: %ld%%"), volume);
     }
 
-    vlc_player_osd_ReleaseAll(player, vouts, count);
+    heimdall_player_osd_ReleaseAll(player, vouts, count);
 }
 
 void
-vlc_player_osd_Track(vlc_player_t *player, vlc_es_id_t *id, bool select)
+heimdall_player_osd_Track(heimdall_player_t *player, heimdall_es_id_t *id, bool select)
 {
-    enum es_format_category_e cat = vlc_es_id_GetCat(id);
-    const struct vlc_player_track *track = vlc_player_GetTrack(player, id);
+    enum es_format_category_e cat = heimdall_es_id_GetCat(id);
+    const struct heimdall_player_track *track = heimdall_player_GetTrack(player, id);
     if (!track && select)
         return;
 
     const char *cat_name = es_format_category_to_string(cat);
     assert(cat_name);
     const char *track_name = select ? track->name : _("N/A");
-    vlc_player_osd_Message(player, _("%s track: %s"), cat_name, track_name);
+    heimdall_player_osd_Message(player, _("%s track: %s"), cat_name, track_name);
 }
 
 void
-vlc_player_osd_Tracks(vlc_player_t *player, vlc_es_id_t * const *selected, vlc_es_id_t *unselect)
+heimdall_player_osd_Tracks(heimdall_player_t *player, heimdall_es_id_t * const *selected, heimdall_es_id_t *unselect)
 {
     if (!selected || !selected[0])
         return;
 
-    const enum es_format_category_e cat = vlc_es_id_GetCat(selected[0]);
+    const enum es_format_category_e cat = heimdall_es_id_GetCat(selected[0]);
     const char *cat_name = es_format_category_to_string(cat);
     int tracks_count = 0;
-    struct vlc_memstream stream;
+    struct heimdall_memstream stream;
 
     for (size_t i = 0; selected[i] != NULL; i++)
     {
         if (unselect != NULL
-         && !strcmp(vlc_es_id_GetStrId(selected[i]), vlc_es_id_GetStrId(unselect)))
+         && !strcmp(heimdall_es_id_GetStrId(selected[i]), heimdall_es_id_GetStrId(unselect)))
             continue;
 
-        const struct vlc_player_track *track =
-            vlc_player_GetTrack(player, selected[i]);
+        const struct heimdall_player_track *track =
+            heimdall_player_GetTrack(player, selected[i]);
         /* The track can be NULL if it was terminated by the playback.
          * In this case, we have nothing to display for it. */
         if (unlikely(track == NULL))
@@ -214,51 +215,51 @@ vlc_player_osd_Tracks(vlc_player_t *player, vlc_es_id_t * const *selected, vlc_e
          * On the next tracks, add comma to separate the track names. */
         if (tracks_count == 0)
         {
-            if (vlc_memstream_open(&stream) != 0)
+            if (heimdall_memstream_open(&stream) != 0)
                 return;
         }
         else
-            vlc_memstream_puts(&stream, ", ");
+            heimdall_memstream_puts(&stream, ", ");
 
-        vlc_memstream_puts(&stream, track->name);
+        heimdall_memstream_puts(&stream, track->name);
         tracks_count++;
     }
 
     if (tracks_count == 0)
     {
-        vlc_player_osd_Message(player, _("%s track: %s"), cat_name, _("N/A"));
+        heimdall_player_osd_Message(player, _("%s track: %s"), cat_name, _("N/A"));
         return;
     }
 
-    /* The vlc_memstream is opened only if tracks_count != 0. */
-    if (vlc_memstream_close(&stream) != 0)
+    /* The heimdall_memstream is opened only if tracks_count != 0. */
+    if (heimdall_memstream_close(&stream) != 0)
         return;
 
     if (tracks_count == 1)
-        vlc_player_osd_Message(player, _("%s track: %s"), cat_name,
+        heimdall_player_osd_Message(player, _("%s track: %s"), cat_name,
                                stream.ptr);
     else
-        vlc_player_osd_Message(player, _("%s tracks: %s"), cat_name,
+        heimdall_player_osd_Message(player, _("%s tracks: %s"), cat_name,
                                stream.ptr);
     free(stream.ptr);
 }
 
 void
-vlc_player_osd_Program(vlc_player_t *player, const char *name)
+heimdall_player_osd_Program(heimdall_player_t *player, const char *name)
 {
-    vlc_player_osd_Message(player, _("Program Service ID: %s"), name);
+    heimdall_player_osd_Message(player, _("Program Service ID: %s"), name);
 }
 
 static bool
 vout_osd_PrintVariableText(vout_thread_t *vout, const char *varname, int vartype,
-                           vlc_value_t varval, const char *osdfmt)
+                           heimdall_value_t varval, const char *osdfmt)
 {
     bool found = false;
-    bool isvarstring = vartype == VLC_VAR_STRING;
+    bool isvarstring = vartype == HEIMDALL_VAR_STRING;
     size_t num_choices;
-    vlc_value_t *choices;
+    heimdall_value_t *choices;
     char **choices_text;
-    var_Change(vout, varname, VLC_VAR_GETCHOICES,
+    var_Change(vout, varname, HEIMDALL_VAR_GETCHOICES,
                &num_choices, &choices, &choices_text);
     for (size_t i = 0; i < num_choices; ++i)
     {
@@ -280,15 +281,15 @@ vout_osd_PrintVariableText(vout_thread_t *vout, const char *varname, int vartype
 }
 
 int
-vlc_player_vout_OSDCallback(vlc_object_t *this, const char *var,
-                            vlc_value_t oldval, vlc_value_t newval, void *data)
+heimdall_player_vout_OSDCallback(heimdall_object_t *this, const char *var,
+                            heimdall_value_t oldval, heimdall_value_t newval, void *data)
 {
-    VLC_UNUSED(oldval);
+    HEIMDALL_UNUSED(oldval);
 
     vout_thread_t *vout = (vout_thread_t *)this;
 
     if (strcmp(var, "aspect-ratio") == 0)
-        vout_osd_PrintVariableText(vout, var, VLC_VAR_STRING,
+        vout_osd_PrintVariableText(vout, var, HEIMDALL_VAR_STRING,
                                    newval, _("Aspect ratio: %s"));
 
     else if (strcmp(var, "autoscale") == 0)
@@ -296,7 +297,7 @@ vlc_player_vout_OSDCallback(vlc_object_t *this, const char *var,
                           _("Scaled to screen") : _("Original size"));
 
     else if (strcmp(var, "crop") == 0)
-        vout_osd_PrintVariableText(vout, var, VLC_VAR_STRING, newval,
+        vout_osd_PrintVariableText(vout, var, HEIMDALL_VAR_STRING, newval,
                                    _("Crop: %s"));
 
     else if (strcmp(var, "crop-bottom") == 0)
@@ -340,7 +341,7 @@ vlc_player_vout_OSDCallback(vlc_object_t *this, const char *var,
             vouts_osd_Message(&vout, 1, _("Zooming reset"));
         else
         {
-            bool found =  vout_osd_PrintVariableText(vout, var, VLC_VAR_FLOAT,
+            bool found =  vout_osd_PrintVariableText(vout, var, HEIMDALL_VAR_FLOAT,
                                                      newval, _("Zoom mode: %s"));
             if (!found)
                 vouts_osd_Message(&vout, 1, _("Zoom: x%.2f"), newval.f_float);
@@ -348,5 +349,5 @@ vlc_player_vout_OSDCallback(vlc_object_t *this, const char *var,
     }
 
     (void) data;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

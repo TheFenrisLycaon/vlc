@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright © 2014-2016 VideoLAN and VideoLAN Authors
  *             2018-2019 VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -26,7 +27,7 @@ namespace sdi
     class Generator
     {
         public:
-            static picture_t * Picture(vlc_object_t *, const char*,
+            static picture_t * Picture(heimdall_object_t *, const char*,
                                        const video_format_t *);
     };
 }

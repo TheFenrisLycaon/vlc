@@ -732,7 +732,7 @@ SEARCH_INCLUDES        = YES
 # contain include files that are not input files but should be processed by 
 # the preprocessor.
 
-INCLUDE_PATH           = ../include ../include/vlc
+INCLUDE_PATH           = ../include ../include/heimdall
 
 # You can use the INCLUDE_FILE_PATTERNS tag to specify one or more wildcard 
 # patterns (like *.h and *.hpp) to filter out the header-files in the 
@@ -769,7 +769,7 @@ SKIP_FUNCTION_MACROS   = NO
 
 # The TAGFILES tag can be used to specify one or more tagfiles.
 
-TAGFILES               = vlc.tags
+TAGFILES               = heimdall.tags
 
 # When a file name is specified after GENERATE_TAGFILE, doxygen will create 
 # a tag file that is based on the input files it reads.

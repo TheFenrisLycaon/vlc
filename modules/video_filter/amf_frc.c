@@ -3,6 +3,7 @@
  * amf_frc: Frame Rate doubler video with low frame rate
  *****************************************************************************
  * Copyright © 2024 Videolabs, VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Steve Lhomme <robux4@videolabs.io>
  *****************************************************************************/
@@ -11,10 +12,10 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_filter.h>
-#include <vlc_plugin.h>
-#include <vlc_configuration.h>
+#include <heimdall_common.h>
+#include <heimdall_filter.h>
+#include <heimdall_plugin.h>
+#include <heimdall_configuration.h>
 
 #define COBJMACROS
 #include "../hw/amf/amf_helper.h"
@@ -24,7 +25,7 @@
 
 #include <assert.h>
 
-static GUID  AMFVLCTextureArrayIndexGUID = { 0x28115527, 0xe7c3, 0x4b66, {0x99, 0xd3, 0x4f, 0x2a, 0xe6, 0xb4, 0x7f, 0xaf} };
+static GUID  AMFHeimdallTextureArrayIndexGUID = { 0x28115527, 0xe7c3, 0x4b66, {0x99, 0xd3, 0x4f, 0x2a, 0xe6, 0xb4, 0x7f, 0xaf} };
 
 static const char *const ppsz_filter_options[] = {
     "frc-indicator", NULL
@@ -32,19 +33,19 @@ static const char *const ppsz_filter_options[] = {
 
 static int D3D11CreateAMFFRC(filter_t *);
 
-vlc_module_begin()
+heimdall_module_begin()
     set_description(N_("AMD Frame Rate Doubler"))
     add_shortcut("amf_frc")
     set_subcategory(SUBCAT_VIDEO_VFILTER)
     set_callback_video_filter(D3D11CreateAMFFRC)
 
     add_bool( "frc-indicator", false, N_("Show indicator"), NULL )
-vlc_module_end()
+heimdall_module_end()
 
 
 struct filter_sys_t
 {
-    struct vlc_amf_context         amf;
+    struct heimdall_amf_context         amf;
     AMFComponent                   *amf_frc;
     const d3d_format_t             *cfg;
 
@@ -80,7 +81,7 @@ static picture_context_t *d3d11amf_pic_context_copy(picture_context_t *ctx)
     if (unlikely(pic_ctx==NULL))
         return NULL;
     *pic_ctx = *src_ctx;
-    vlc_video_context_Hold(pic_ctx->ctx.s.vctx);
+    heimdall_video_context_Hold(pic_ctx->ctx.s.vctx);
     pic_ctx->data->pVtbl->Acquire(pic_ctx->data);
     for (int i=0;i<DXGI_MAX_SHADER_VIEW; i++)
     {
@@ -109,13 +110,13 @@ static picture_t *PictureFromTexture(filter_t *filter, d3d11_device_t *d3d_dev, 
 
     D3D11_PictureAttach(p_dst, out, sys->cfg);
 
-    if (unlikely(D3D11_AllocateResourceView(vlc_object_logger(filter), d3d_dev->d3ddevice, sys->cfg,
-                                            pic_ctx->ctx.picsys.texture, 0, pic_ctx->ctx.picsys.renderSrc) != VLC_SUCCESS))
+    if (unlikely(D3D11_AllocateResourceView(heimdall_object_logger(filter), d3d_dev->d3ddevice, sys->cfg,
+                                            pic_ctx->ctx.picsys.texture, 0, pic_ctx->ctx.picsys.renderSrc) != HEIMDALL_SUCCESS))
         goto done;
 
     pic_ctx->ctx.s = (picture_context_t) {
         d3d11amf_pic_context_destroy, d3d11amf_pic_context_copy,
-        vlc_video_context_Hold(filter->vctx_out),
+        heimdall_video_context_Hold(filter->vctx_out),
     };
     pic_ctx->ctx.picsys.sharedHandle = INVALID_HANDLE_VALUE;
     pic_ctx->data = data;
@@ -148,7 +149,7 @@ static picture_t * Filter(filter_t *filter, picture_t *p_pic)
         return p_pic;
     }
     amf_int subResourceIndex = src_sys->slice_index;
-    ID3D11Resource_SetPrivateData(src_sys->resource[KNOWN_DXGI_INDEX], &AMFVLCTextureArrayIndexGUID, sizeof(subResourceIndex), &subResourceIndex);
+    ID3D11Resource_SetPrivateData(src_sys->resource[KNOWN_DXGI_INDEX], &AMFHeimdallTextureArrayIndexGUID, sizeof(subResourceIndex), &subResourceIndex);
 
     res = sys->amf_frc->pVtbl->SubmitInput(sys->amf_frc, (AMFData*)submitSurface);
     submitSurface->pVtbl->Release(submitSurface);
@@ -202,12 +203,12 @@ static picture_t * Filter(filter_t *filter, picture_t *p_pic)
                 // teh first frame is the interpolated one with the previous frame
                 dst->date = date_Get( &sys->next_output_pts );
                 p_pic->date = date_Decrement( &sys->next_output_pts, 1 );
-                vlc_picture_chain_AppendChain(p_pic, dst);
+                heimdall_picture_chain_AppendChain(p_pic, dst);
             }
             else
             {
                 // past interpolated then source
-                vlc_picture_chain_AppendChain(dst, p_pic);
+                heimdall_picture_chain_AppendChain(dst, p_pic);
                 dst->date = date_Decrement( &sys->next_output_pts, 1 );
                 p_pic = dst;
             }
@@ -221,30 +222,30 @@ static void D3D11CloseAMFFRC(filter_t *filter)
 {
     struct filter_sys_t *sys = filter->p_sys;
     sys->amf_frc->pVtbl->Release(sys->amf_frc);
-    vlc_video_context_Release(filter->vctx_out);
+    heimdall_video_context_Release(filter->vctx_out);
 }
 
 static int D3D11CreateAMFFRC(filter_t *filter)
 {
     if (!is_d3d11_opaque(filter->fmt_in.video.i_chroma))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     if ( GetD3D11ContextPrivate(filter->vctx_in) == NULL )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     if (!video_format_IsSimilar(&filter->fmt_in.video, &filter->fmt_out.video))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     d3d11_decoder_device_t *dev_sys = GetD3D11OpaqueContext( filter->vctx_in );
     if (dev_sys->d3d_dev.adapterDesc.VendorId != GPU_MANUFACTURER_AMD)
     {
         msg_Err(filter, "AMF filter only supported with AMD GPUs");
-        return VLC_ENOTSUP;
+        return HEIMDALL_ENOTSUP;
     }
 
     config_ChainParse( filter, "", ppsz_filter_options, filter->p_cfg );
 
-    struct filter_sys_t *sys = vlc_obj_calloc(VLC_OBJECT(filter), 1, sizeof(*sys));
+    struct filter_sys_t *sys = heimdall_obj_calloc(HEIMDALL_OBJECT(filter), 1, sizeof(*sys));
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     sys->mode = FRC_x2_PRESENT; //FRC_ONLY_INTERPOLATED;
 
@@ -263,11 +264,11 @@ static int D3D11CreateAMFFRC(filter_t *filter)
     if (amf_fmt == AMF_SURFACE_UNKNOWN)
     {
         msg_Err(filter, "Unsupported DXGI format %s", cfg->name);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    int err = vlc_AMFCreateContext(&sys->amf);
-    if (err != VLC_SUCCESS)
+    int err = heimdall_AMFCreateContext(&sys->amf);
+    if (err != HEIMDALL_SUCCESS)
         return err;
 
 #if 0
@@ -351,14 +352,14 @@ static int D3D11CreateAMFFRC(filter_t *filter)
         goto error;
 
     sys->cfg = cfg;
-    static const struct vlc_filter_operations filter_ops =
+    static const struct heimdall_filter_operations filter_ops =
     {
         .filter_video = Filter,
         .close = D3D11CloseAMFFRC,
     };
     filter->ops = &filter_ops;
     filter->p_sys = sys;
-    filter->vctx_out = vlc_video_context_Hold(filter->vctx_in);
+    filter->vctx_out = heimdall_video_context_Hold(filter->vctx_in);
 
     sys->source_rate = filter->fmt_out.video.i_frame_rate_base != 0 &&
                        filter->fmt_out.video.i_frame_rate != 0;
@@ -375,10 +376,10 @@ static int D3D11CreateAMFFRC(filter_t *filter)
     date_Init( &sys->next_output_pts,
                filter->fmt_out.video.i_frame_rate, filter->fmt_out.video.i_frame_rate_base );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 error:
     if (sys->amf_frc != NULL)
         sys->amf_frc->pVtbl->Release(sys->amf_frc);
-    vlc_AMFReleaseContext(&sys->amf);
-    return VLC_EGENERIC;
+    heimdall_AMFReleaseContext(&sys->amf);
+    return HEIMDALL_EGENERIC;
 }

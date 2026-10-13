@@ -1,7 +1,8 @@
 /*****************************************************************************
- * algo_phosphor.h : Phosphor algorithm for the VLC deinterlacer
+ * algo_phosphor.h : Phosphor algorithm for the Heimdall deinterlacer
  *****************************************************************************
  * Copyright (C) 2011 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Juha Jeronen <juha.jeronen@jyu.fi>
  *
@@ -20,8 +21,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_DEINTERLACE_ALGO_PHOSPHOR_H
-#define VLC_DEINTERLACE_ALGO_PHOSPHOR_H 1
+#ifndef HEIMDALL_DEINTERLACE_ALGO_PHOSPHOR_H
+#define HEIMDALL_DEINTERLACE_ALGO_PHOSPHOR_H 1
 
 /* Forward declarations */
 struct filter_t;
@@ -92,9 +93,9 @@ typedef struct
  * @param p_dst Output frame. Must be allocated by caller.
  * @param i_order Temporal field number: 0 = first, 1 = second, 2 = rep. first.
  * @param i_field Render which field? 0 = top field, 1 = bottom field.
- * @return VLC error code (int).
- * @retval VLC_SUCCESS The requested field was rendered into p_dst.
- * @retval VLC_EGENERIC No pictures in history buffer, cannot render.
+ * @return Heimdall error code (int).
+ * @retval HEIMDALL_SUCCESS The requested field was rendered into p_dst.
+ * @retval HEIMDALL_EGENERIC No pictures in history buffer, cannot render.
  * @see RenderBob()
  * @see RenderLinear()
  * @see Deinterlace()
@@ -126,7 +127,7 @@ int RenderPhosphor( filter_t *p_filter,
  * About these modes: telecined input (such as NTSC anime DVDs) works better
  * with AltLine, while true interlaced input works better with Latest.
  * Merge is a compromise, which may or may not look acceptable.
- * The mode can be set in the VLC advanced configuration,
+ * The mode can be set in the Heimdall advanced configuration,
  * All settings > Video > Filters > Deinterlace
  *
  * Technically speaking, this is an interlaced field renderer targeted for
@@ -144,7 +145,7 @@ int RenderPhosphor( filter_t *p_filter,
  *    is also rendered
  *  - some horizontal lines don't seem to flicker as much
  *  - scanline visual effect (adjustable; the dimmer strength can be set
- *    in the VLC advanced configuration)
+ *    in the Heimdall advanced configuration)
  *  - the picture appears 25%, 38% or 44% darker on average (for dimmer
  *    strengths 1, 2 and 3)
  *  - if the input has 4:2:0 chroma, the colours may look messed up in some

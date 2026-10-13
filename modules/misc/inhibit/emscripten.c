@@ -2,6 +2,7 @@
  * emscripten.c: Web browser power management inhibition
  *****************************************************************************
  * Copyright (c) 2025-2026 Videolabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -25,26 +26,26 @@
 #include <assert.h>
 #include <stdint.h>
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
-#include <vlc_inhibit.h>
-#include <vlc_plugin.h>
+#include <heimdall_inhibit.h>
+#include <heimdall_plugin.h>
 
 #include <emscripten.h>
 
-struct vlc_inhibit_sys
+struct heimdall_inhibit_sys
 {
     uint32_t id;
 };
 
-static void Inhibit(vlc_inhibit_t *ih, unsigned flags)
+static void Inhibit(heimdall_inhibit_t *ih, unsigned flags)
 {
-    vlc_inhibit_sys_t *sys = ih->p_sys;
+    heimdall_inhibit_sys_t *sys = ih->p_sys;
 
-    if (flags == VLC_INHIBIT_AUDIO)
+    if (flags == HEIMDALL_INHIBIT_AUDIO)
         return;
 
-    const bool inhibit = (flags == VLC_INHIBIT_VIDEO);
+    const bool inhibit = (flags == HEIMDALL_INHIBIT_VIDEO);
     if (inhibit)
     {
         MAIN_THREAD_EM_ASM({
@@ -70,11 +71,11 @@ static void Inhibit(vlc_inhibit_t *ih, unsigned flags)
     }
 }
 
-static int Open(vlc_object_t *obj)
+static int Open(heimdall_object_t *obj)
 {
-    vlc_inhibit_t *ih = (vlc_inhibit_t *)obj;
+    heimdall_inhibit_t *ih = (heimdall_inhibit_t *)obj;
 
-    vlc_inhibit_sys_t *sys = malloc(sizeof(*sys));
+    heimdall_inhibit_sys_t *sys = malloc(sizeof(*sys));
     if (unlikely(sys == NULL))
         return (-ENOMEM);
 
@@ -93,16 +94,16 @@ static int Open(vlc_object_t *obj)
     return 0;
 }
 
-static void Close(vlc_object_t *obj)
+static void Close(heimdall_object_t *obj)
 {
-    vlc_inhibit_t *ih = (vlc_inhibit_t *)obj;
+    heimdall_inhibit_t *ih = (heimdall_inhibit_t *)obj;
     free(ih->p_sys);
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname(N_("Emscripten screensaver"))
     set_description(N_("Web browser screen saver inhibition"))
     set_subcategory(SUBCAT_ADVANCED_MISC)
     set_capability("inhibit", 10)
     set_callbacks(Open, Close)
-vlc_module_end()
+heimdall_module_end()

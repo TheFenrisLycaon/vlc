@@ -2,6 +2,7 @@
  * error.c: Android error messages formatting
  *****************************************************************************
  * Copyright © 2014 Edward Wang
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -24,14 +25,14 @@
 
 #include <string.h>
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
-const char* vlc_strerror(int errnum)
+const char* heimdall_strerror(int errnum)
 {
-    return vlc_strerror_c(errnum);
+    return heimdall_strerror_c(errnum);
 }
 
-const char* vlc_strerror_c(int errnum)
+const char* heimdall_strerror_c(int errnum)
 {
     static __thread char android_buf[100];
     strerror_r(errnum, android_buf, 100);

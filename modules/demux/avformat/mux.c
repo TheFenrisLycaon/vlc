@@ -2,6 +2,7 @@
  * mux.c: muxer using libavformat
  *****************************************************************************
  * Copyright (C) 2006 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gildas Bazin <gbazin@videolan.org>
  *
@@ -28,11 +29,11 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_block.h>
-#include <vlc_sout.h>
-#include <vlc_es.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_block.h>
+#include <heimdall_sout.h>
+#include <heimdall_es.h>
 
 #include <libavformat/avformat.h>
 
@@ -87,7 +88,7 @@ static int64_t IOSeek( void *opaque, int64_t offset, int whence );
 /*****************************************************************************
  * Open
  *****************************************************************************/
-int avformat_OpenMux( vlc_object_t *p_this )
+int avformat_OpenMux( heimdall_object_t *p_this )
 {
 #if LIBAVFORMAT_VERSION_CHECK(59, 0, 100)
     const AVOutputFormat *file_oformat;
@@ -100,7 +101,7 @@ int avformat_OpenMux( vlc_object_t *p_this )
 
     msg_Dbg( p_mux, "using %s", LIBAVFORMAT_IDENT );
 
-    vlc_init_avformat(p_this);
+    heimdall_init_avformat(p_this);
 
     config_ChainParse( p_mux, "sout-avformat-", ppsz_mux_options, p_mux->p_cfg );
 
@@ -119,12 +120,12 @@ int avformat_OpenMux( vlc_object_t *p_this )
     if (!file_oformat)
     {
       msg_Err( p_mux, "unable for find a suitable output format" );
-      return VLC_EGENERIC;
+      return HEIMDALL_EGENERIC;
     }
 
     sout_mux_sys_t *p_sys = malloc( sizeof( sout_mux_sys_t ) );
     if( unlikely(p_sys == NULL) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_mux->p_sys = p_sys;
     p_sys->oc = avformat_alloc_context();
@@ -161,13 +162,13 @@ int avformat_OpenMux( vlc_object_t *p_this )
     p_mux->pf_delstream = DelStream;
     p_mux->pf_mux       = Mux;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * Close
  *****************************************************************************/
-void avformat_CloseMux( vlc_object_t *p_this )
+void avformat_CloseMux( heimdall_object_t *p_this )
 {
     sout_mux_t *p_mux = (sout_mux_t*)p_this;
     sout_mux_sys_t *p_sys = p_mux->p_sys;
@@ -200,12 +201,12 @@ static int AddStream( sout_mux_t *p_mux, sout_input_t *p_input )
     {
         msg_Dbg( p_mux, "couldn't find codec for fourcc '%4.4s'",
                  (char *)&fmt->i_codec );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     size_t opus_size[XIPH_MAX_HEADER_COUNT];
     const void *opus_packet[XIPH_MAX_HEADER_COUNT];
-    if( fmt->i_codec == VLC_CODEC_OPUS )
+    if( fmt->i_codec == HEIMDALL_CODEC_OPUS )
     {
         size_t count;
         /* Only transmits the first packet (OpusHead) */
@@ -214,10 +215,10 @@ static int AddStream( sout_mux_t *p_mux, sout_input_t *p_input )
         }
         if (count != 2 || opus_size[0] < 19) {
             msg_Err(p_mux, "Invalid Opus header");
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
-    else if( fmt->i_codec == VLC_CODEC_MPGA && fmt->i_profile == 3 )
+    else if( fmt->i_codec == HEIMDALL_CODEC_MPGA && fmt->i_profile == 3 )
     {
         i_codec_id = AV_CODEC_ID_MP3;
     }
@@ -231,13 +232,13 @@ static int AddStream( sout_mux_t *p_mux, sout_input_t *p_input )
             break;
         default:
             msg_Warn( p_mux, "Unhandled ES category" );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 
     /* */
     p_input->p_sys = malloc( sizeof( int ) );
     if( unlikely(p_input->p_sys == NULL) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     *((int *)p_input->p_sys) = p_sys->oc->nb_streams;
 
@@ -246,7 +247,7 @@ static int AddStream( sout_mux_t *p_mux, sout_input_t *p_input )
     if( !stream )
     {
         free( p_input->p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     AVCodecParameters *codecpar = stream->codecpar;
@@ -330,7 +331,7 @@ static int AddStream( sout_mux_t *p_mux, sout_input_t *p_input )
         break;
 
     default:
-        vlc_assert_unreachable();
+        heimdall_assert_unreachable();
     }
 
     codecpar->bit_rate = i_bitrate;
@@ -344,7 +345,7 @@ static int AddStream( sout_mux_t *p_mux, sout_input_t *p_input )
 
     if( fmt->i_extra )
     {
-        if( fmt->i_codec == VLC_CODEC_OPUS )
+        if( fmt->i_codec == HEIMDALL_CODEC_OPUS )
         {
             codecpar->extradata_size = opus_size[0];
             codecpar->extradata = av_malloc( opus_size[0] );
@@ -358,7 +359,7 @@ static int AddStream( sout_mux_t *p_mux, sout_input_t *p_input )
         }
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -380,7 +381,7 @@ static int MuxBlock( sout_mux_t *p_mux, sout_input_t *p_input )
     if( !pkt )
     {
         block_Release( p_data );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     pkt->data = p_data->p_buffer;
@@ -399,12 +400,12 @@ static int MuxBlock( sout_mux_t *p_mux, sout_input_t *p_input )
         pkt->flags |= AV_PKT_FLAG_KEY;
     }
 
-    if( p_data->i_pts >= VLC_TICK_0 )
-        pkt->pts = av_rescale_q( p_data->i_pts - VLC_TICK_0,
-                                VLC_TIME_BASE_Q, p_stream->time_base );
-    if( p_data->i_dts >= VLC_TICK_0 )
-        pkt->dts = av_rescale_q( p_data->i_dts - VLC_TICK_0,
-                                VLC_TIME_BASE_Q, p_stream->time_base );
+    if( p_data->i_pts >= HEIMDALL_TICK_0 )
+        pkt->pts = av_rescale_q( p_data->i_pts - HEIMDALL_TICK_0,
+                                HEIMDALL_TIME_BASE_Q, p_stream->time_base );
+    if( p_data->i_dts >= HEIMDALL_TICK_0 )
+        pkt->dts = av_rescale_q( p_data->i_dts - HEIMDALL_TICK_0,
+                                HEIMDALL_TIME_BASE_Q, p_stream->time_base );
 
     if( av_write_frame( p_sys->oc, pkt ) < 0 )
     {
@@ -413,13 +414,13 @@ static int MuxBlock( sout_mux_t *p_mux, sout_input_t *p_input )
                  p_data->i_pts, p_data->i_dts, pkt->pts, pkt->dts );
         block_Release( p_data );
         av_packet_free( &pkt );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
 
     av_packet_free( &pkt );
     block_Release( p_data );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 #if FF_API_AVIO_WRITE_NONCONST
@@ -430,7 +431,7 @@ int IOWriteTyped(void *opaque, const uint8_t *buf, int buf_size,
                  enum AVIODataMarkerType type, int64_t time)
 #endif
 {
-    VLC_UNUSED(time);
+    HEIMDALL_UNUSED(time);
 
     sout_mux_t *p_mux = opaque;
     sout_mux_sys_t *p_sys = p_mux->p_sys;
@@ -446,7 +447,7 @@ static int Mux( sout_mux_t *p_mux )
 {
     sout_mux_sys_t *p_sys = p_mux->p_sys;
 
-    if( p_sys->b_error ) return VLC_EGENERIC;
+    if( p_sys->b_error ) return HEIMDALL_EGENERIC;
 
     if( p_sys->b_write_header )
     {
@@ -456,10 +457,10 @@ static int Mux( sout_mux_t *p_mux )
         char *psz_opts = var_GetNonEmptyString( p_mux, "sout-avformat-options" );
         AVDictionary *options = NULL;
         if (psz_opts) {
-            vlc_av_get_options(psz_opts, &options);
+            heimdall_av_get_options(psz_opts, &options);
             free(psz_opts);
         }
-        av_dict_set( &p_sys->oc->metadata, "encoding_tool", "VLC "VERSION, 0 );
+        av_dict_set( &p_sys->oc->metadata, "encoding_tool", "Heimdall "VERSION, 0 );
         error = avformat_write_header( p_sys->oc, options ? &options : NULL);
         AVDictionaryEntry *t = NULL;
         while ((t = av_dict_get(options, "", t, AV_DICT_IGNORE_SUFFIX))) {
@@ -469,10 +470,10 @@ static int Mux( sout_mux_t *p_mux )
         if( error < 0 )
         {
             msg_Err( p_mux, "could not write header: %s",
-                     vlc_strerror_c(AVUNERROR(error)) );
+                     heimdall_strerror_c(AVUNERROR(error)) );
             p_sys->b_write_header = false;
             p_sys->b_error = true;
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         avio_flush( p_sys->oc->pb );
@@ -481,16 +482,16 @@ static int Mux( sout_mux_t *p_mux )
 
     for( ;; )
     {
-        vlc_tick_t i_dts;
+        heimdall_tick_t i_dts;
 
         int i_stream = sout_MuxGetStream( p_mux, 1, &i_dts );
         if( i_stream < 0 )
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
 
         MuxBlock( p_mux, p_mux->pp_inputs[i_stream] );
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -505,18 +506,18 @@ static int Control( sout_mux_t *p_mux, int i_query, va_list args )
     case MUX_CAN_ADD_STREAM_WHILE_MUXING:
         pb_bool = va_arg( args, bool * );
         *pb_bool = false;
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
     case MUX_GET_MIME:
     {
         char **ppsz = va_arg( args, char ** );
         sout_mux_sys_t *p_sys = p_mux->p_sys;
         *ppsz = strdup( p_sys->oc->oformat->mime_type );
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
     default:
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 }
 

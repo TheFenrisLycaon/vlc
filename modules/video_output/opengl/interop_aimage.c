@@ -2,6 +2,7 @@
  * interop_aimage.c: OpenGL AImage/EGL interop
  *****************************************************************************
  * Copyright (C) 2026 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -26,8 +27,8 @@
 # error this file must be built from android
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
 #include "interop.h"
 #include "../android/utils.h"
 #include "gl_api.h"
@@ -117,7 +118,7 @@ ahb_cache_get(struct ahb_cache *pool, uint64_t ahb_id, bool *is_new)
 }
 
 static int
-ComputeAImageTransformMatrix(const struct vlc_gl_interop *interop, AImage *image)
+ComputeAImageTransformMatrix(const struct heimdall_gl_interop *interop, AImage *image)
 {
     struct priv *priv = interop->priv;
     AImageCropRect crop;
@@ -126,11 +127,11 @@ ComputeAImageTransformMatrix(const struct vlc_gl_interop *interop, AImage *image
     if (priv->air_api->AImage.getCropRect(image, &crop) != 0 ||
         priv->air_api->AImage.getWidth(image, &buf_width) != 0 ||
         priv->air_api->AImage.getHeight(image, &buf_height) != 0)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if (buf_width <= 0 || buf_height <= 0 ||
         crop.right <= crop.left || crop.bottom <= crop.top)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     float crop_w = crop.right - crop.left;
     float crop_h = crop.bottom - crop.top;
@@ -145,24 +146,24 @@ ComputeAImageTransformMatrix(const struct vlc_gl_interop *interop, AImage *image
     priv->mtx_2x3[0] = sx;   priv->mtx_2x3[2] = 0.0f; priv->mtx_2x3[4] = tx;
     priv->mtx_2x3[1] = 0.0f; priv->mtx_2x3[3] = sy;   priv->mtx_2x3[5] = ty;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int
-tc_aimage_allocate_textures(const struct vlc_gl_interop *interop, uint32_t textures[],
+tc_aimage_allocate_textures(const struct heimdall_gl_interop *interop, uint32_t textures[],
                           const int32_t tex_width[], const int32_t tex_height[])
 {
     (void) interop; (void) tex_width; (void) tex_height;
     assert(textures[0] != 0); (void) textures;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static EGLImageKHR
-GetCachedEGLImage(const struct vlc_gl_interop *interop, AHardwareBuffer *ahb)
+GetCachedEGLImage(const struct heimdall_gl_interop *interop, AHardwareBuffer *ahb)
 {
     struct priv *priv = interop->priv;
-    vlc_object_t *o = VLC_OBJECT(interop->gl);
+    heimdall_object_t *o = HEIMDALL_OBJECT(interop->gl);
 
     uint64_t ahb_id;
     int32_t status = priv->air_api->AHardwareBuffer.getId(ahb, &ahb_id);
@@ -221,12 +222,12 @@ GetCachedEGLImage(const struct vlc_gl_interop *interop, AHardwareBuffer *ahb)
 }
 
 static int
-tc_aimage_update(const struct vlc_gl_interop *interop, uint32_t textures[],
+tc_aimage_update(const struct heimdall_gl_interop *interop, uint32_t textures[],
                  const int32_t tex_width[], const int32_t tex_height[],
                  picture_t *pic, const size_t plane_offset[])
 {
     struct priv *priv = interop->priv;
-    vlc_object_t *o = VLC_OBJECT(interop->gl);
+    heimdall_object_t *o = HEIMDALL_OBJECT(interop->gl);
 
     (void) tex_width; (void) tex_height; (void) plane_offset;
     assert(pic->context);
@@ -295,27 +296,27 @@ tc_aimage_update(const struct vlc_gl_interop *interop, uint32_t textures[],
     }
 
     int ret = ComputeAImageTransformMatrix(interop, apctx->image);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
     {
         msg_Warn(o, "Failed to get AImage dimensions/crop");
         goto error;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 static const float *
-tc_aimage_transform_matrix(const struct vlc_gl_interop *interop)
+tc_aimage_transform_matrix(const struct heimdall_gl_interop *interop)
 {
     struct priv *priv = interop->priv;
     return priv->mtx_2x3;
 }
 
 static void
-Close(struct vlc_gl_interop *interop)
+Close(struct heimdall_gl_interop *interop)
 {
     struct priv *priv = interop->priv;
 
@@ -333,17 +334,17 @@ Close(struct vlc_gl_interop *interop)
 }
 
 static int
-InitAImage(struct vlc_gl_interop *interop, android_video_context_t *avctx)
+InitAImage(struct heimdall_gl_interop *interop, android_video_context_t *avctx)
 {
     struct priv *priv = interop->priv;
 
 #define LOAD_GL_SYMBOL(name) \
-    priv->gl.name = vlc_gl_GetProcAddress(interop->gl, "gl" # name); \
-    if (priv->gl.name == NULL) return VLC_EGENERIC
+    priv->gl.name = heimdall_gl_GetProcAddress(interop->gl, "gl" # name); \
+    if (priv->gl.name == NULL) return HEIMDALL_EGENERIC
 
 #define LOAD_EGL_SYMBOL(name) \
-    priv->egl.name = vlc_gl_GetProcAddress(interop->gl, "egl" # name); \
-    if (priv->egl.name == NULL) return VLC_EGENERIC
+    priv->egl.name = heimdall_gl_GetProcAddress(interop->gl, "egl" # name); \
+    if (priv->egl.name == NULL) return HEIMDALL_EGENERIC
 
     LOAD_GL_SYMBOL(ActiveTexture);
     LOAD_GL_SYMBOL(BindTexture);
@@ -365,63 +366,63 @@ InitAImage(struct vlc_gl_interop *interop, android_video_context_t *avctx)
 
     priv->egl.display = priv->egl.GetCurrentDisplay();
     if (priv->egl.display == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     const char *eglexts = priv->egl.QueryString(priv->egl.display,
                                                 EGL_EXTENSIONS);
     if (eglexts == NULL)
-        return VLC_EGENERIC;
-    if (!vlc_gl_StrHasToken(eglexts, "EGL_ANDROID_get_native_client_buffer")
-     || !vlc_gl_StrHasToken(eglexts, "EGL_ANDROID_image_native_buffer")
-     || !vlc_gl_StrHasToken(eglexts, "EGL_ANDROID_native_fence_sync"))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
+    if (!heimdall_gl_StrHasToken(eglexts, "EGL_ANDROID_get_native_client_buffer")
+     || !heimdall_gl_StrHasToken(eglexts, "EGL_ANDROID_image_native_buffer")
+     || !heimdall_gl_StrHasToken(eglexts, "EGL_ANDROID_native_fence_sync"))
+        return HEIMDALL_EGENERIC;
 
     priv->air_api = avctx->air_api;
     ahb_cache_init(&priv->ahb_cache);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int
-Open(struct vlc_gl_interop *interop)
+Open(struct heimdall_gl_interop *interop)
 {
-    if (interop->fmt_in.i_chroma != VLC_CODEC_ANDROID_OPAQUE
+    if (interop->fmt_in.i_chroma != HEIMDALL_CODEC_ANDROID_OPAQUE
      || !interop->vctx)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    struct vlc_gl_extension_vt extension_vt;
-    vlc_gl_LoadExtensionFunctions(interop->gl, &extension_vt);
+    struct heimdall_gl_extension_vt extension_vt;
+    heimdall_gl_LoadExtensionFunctions(interop->gl, &extension_vt);
 
-    if (!vlc_gl_HasExtension(&extension_vt, "GL_OES_EGL_image_external"))
+    if (!heimdall_gl_HasExtension(&extension_vt, "GL_OES_EGL_image_external"))
     {
         msg_Warn(&interop->obj, "GL_OES_EGL_image_external is not available,"
                 " disabling android interop.");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     android_video_context_t *avctx =
-        vlc_video_context_GetPrivate(interop->vctx, VLC_VIDEO_CONTEXT_AWINDOW);
+        heimdall_video_context_GetPrivate(interop->vctx, HEIMDALL_VIDEO_CONTEXT_AWINDOW);
     assert(avctx != NULL);
 
     bool has_aimage = avctx->air != NULL && avctx->air_api != NULL;
     if (!has_aimage)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     interop->priv = malloc(sizeof(struct priv));
     if (unlikely(interop->priv == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     struct priv *priv = interop->priv;
     priv->air_api = NULL;
 
     /* Try to use AImage path if available */
     int ret = InitAImage(interop, avctx);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
     {
         free(priv);
         return ret;
     }
 
-    static const struct vlc_gl_interop_ops aimage_ops = {
+    static const struct heimdall_gl_interop_ops aimage_ops = {
         .allocate_textures = tc_aimage_allocate_textures,
         .update_textures = tc_aimage_update,
         .get_transform_matrix = tc_aimage_transform_matrix,
@@ -430,25 +431,25 @@ Open(struct vlc_gl_interop *interop)
     interop->ops = &aimage_ops;
 
     interop->tex_target = GL_TEXTURE_EXTERNAL_OES;
-    if (vlc_gl_HasExtension(&extension_vt, "GL_EXT_YUV_target"))
+    if (heimdall_gl_HasExtension(&extension_vt, "GL_EXT_YUV_target"))
     {
         msg_Warn(&interop->obj, "GL_EXT_YUV_target is available,"
                 " using it.");
         /* We represent as Packed YUV 4:4:4 since there is a single
          * texture target available. */
-        interop->fmt_out.i_chroma = VLC_CODEC_V308;
+        interop->fmt_out.i_chroma = HEIMDALL_CODEC_V308;
         interop->fmt_out.space = interop->fmt_in.space;
         interop->fmt_out.primaries = interop->fmt_in.primaries;
         interop->fmt_out.transfer = interop->fmt_in.transfer;
     }
     else
     {
-        interop->fmt_out.i_chroma = VLC_CODEC_RGBA;
+        interop->fmt_out.i_chroma = HEIMDALL_CODEC_RGBA;
         interop->fmt_out.space = COLOR_SPACE_UNDEF;
     }
 
     interop->tex_count = 1;
-    interop->texs[0] = (struct vlc_gl_tex_cfg) {
+    interop->texs[0] = (struct heimdall_gl_tex_cfg) {
         .w = {1, 1},
         .h = {1, 1},
         .internal = GL_RGBA,
@@ -456,12 +457,12 @@ Open(struct vlc_gl_interop *interop)
         .type = GL_UNSIGNED_BYTE,
     };
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description("Android OpenGL AImage converter")
     set_capability("glinterop", 2)
     set_callback(Open)
     set_subcategory(SUBCAT_VIDEO_VOUT)
-vlc_module_end ()
+heimdall_module_end ()

@@ -2,6 +2,7 @@
  * mjpeg.c : demuxes mjpeg webcam http streams
  *****************************************************************************
  * Copyright (C) 2004 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Henry Jen (slowhog) <henryjen@ztune.net>
  *          Derk-Jan Hartman (thedj)
@@ -31,29 +32,29 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_demux.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_demux.h>
 #include "mxpeg_helper.h"
 
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  Open ( vlc_object_t * );
+static int  Open ( heimdall_object_t * );
 
 #define FPS_TEXT N_("Frames per Second")
 #define FPS_LONGTEXT N_("This is the desired frame rate when " \
     "playing MJPEG from a file. Use 0 (this is the default value) for a " \
     "live stream (from a camera).")
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( "MJPEG")
     set_description( N_("M-JPEG camera demuxer") )
     set_capability( "demux", 7 )
     set_callback( Open )
     set_subcategory( SUBCAT_INPUT_DEMUX )
     add_float( "mjpeg-fps", 0.0, FPS_TEXT, FPS_LONGTEXT )
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * Local prototypes
@@ -68,9 +69,9 @@ typedef struct
     es_out_id_t     *p_es;
 
     bool            b_still;
-    vlc_tick_t      i_still_end;
-    vlc_tick_t      i_time;
-    vlc_tick_t      i_frame_length;
+    heimdall_tick_t      i_still_end;
+    heimdall_tick_t      i_time;
+    heimdall_tick_t      i_frame_length;
     char            *psz_separator;
     int             i_frame_size_estimate;
     const uint8_t   *p_peek;
@@ -95,7 +96,7 @@ static bool Peek( demux_t *p_demux, bool b_first )
     {
         p_sys->i_frame_size_estimate += 5120;
     }
-    i_data = vlc_stream_Peek( p_demux->s, &p_sys->p_peek,
+    i_data = heimdall_stream_Peek( p_demux->s, &p_sys->p_peek,
                           p_sys->i_frame_size_estimate );
     if( i_data == p_sys->i_data_peeked )
     {
@@ -150,7 +151,7 @@ static char* GetLine( demux_t *p_demux, int *p_pos )
     {
         i--;
     }
-    p_line = vlc_obj_malloc( VLC_OBJECT(p_demux), i + 1 );
+    p_line = heimdall_obj_malloc( HEIMDALL_OBJECT(p_demux), i + 1 );
     if( unlikely( p_line == NULL ) )
         return NULL;
     strncpy ( p_line, (char*)p_buf, i );
@@ -213,7 +214,7 @@ static bool CheckMimeHeader( demux_t *p_demux, int *p_header_size )
                 msg_Warn( p_demux, "separator %s does not match %s", psz_line,
                           p_sys->psz_separator );
             }
-            vlc_obj_free( VLC_OBJECT(p_demux), psz_line );
+            heimdall_obj_free( HEIMDALL_OBJECT(p_demux), psz_line );
         }
     }
 
@@ -238,7 +239,7 @@ static bool CheckMimeHeader( demux_t *p_demux, int *p_header_size )
         {
             msg_Dbg( p_demux, "discard MIME header: %s", psz_line );
         }
-        vlc_obj_free( VLC_OBJECT(p_demux), psz_line );
+        heimdall_obj_free( HEIMDALL_OBJECT(p_demux), psz_line );
         psz_line = GetLine( p_demux, &i_pos );
     }
 
@@ -248,7 +249,7 @@ static bool CheckMimeHeader( demux_t *p_demux, int *p_header_size )
         return false;
     }
 
-    vlc_obj_free( VLC_OBJECT(p_demux), psz_line );
+    heimdall_obj_free( HEIMDALL_OBJECT(p_demux), psz_line );
 
     *p_header_size = i_pos;
     return b_jpeg;
@@ -259,20 +260,20 @@ static int SendBlock( demux_t *p_demux, int i )
     demux_sys_t *p_sys = p_demux->p_sys;
     block_t     *p_block;
 
-    if( ( p_block = vlc_stream_Block( p_demux->s, i ) ) == NULL )
+    if( ( p_block = heimdall_stream_Block( p_demux->s, i ) ) == NULL )
     {
         msg_Warn( p_demux, "cannot read data" );
-        return VLC_DEMUXER_EOF;
+        return HEIMDALL_DEMUXER_EOF;
     }
 
-    if( p_sys->i_frame_length != VLC_TICK_INVALID )
+    if( p_sys->i_frame_length != HEIMDALL_TICK_INVALID )
     {
         p_block->i_pts = p_sys->i_time;
         p_sys->i_time += p_sys->i_frame_length;
     }
     else
     {
-        p_block->i_pts = vlc_tick_now();
+        p_block->i_pts = heimdall_tick_now();
     }
     p_block->i_dts = p_block->i_pts;
 
@@ -280,15 +281,15 @@ static int SendBlock( demux_t *p_demux, int i )
     es_out_Send( p_demux->out, p_sys->p_es, p_block );
 
     if( p_sys->b_still )
-        p_sys->i_still_end = vlc_tick_now() + p_sys->i_frame_length;
+        p_sys->i_still_end = heimdall_tick_now() + p_sys->i_frame_length;
 
-    return VLC_DEMUXER_SUCCESS;
+    return HEIMDALL_DEMUXER_SUCCESS;
 }
 
 /*****************************************************************************
  * Open: check file and initializes structures
  *****************************************************************************/
-static int Open( vlc_object_t * p_this )
+static int Open( heimdall_object_t * p_this )
 {
     demux_t     *p_demux = (demux_t*)p_this;
     int         i_size;
@@ -296,15 +297,15 @@ static int Open( vlc_object_t * p_this )
 
     if( IsMxpeg( p_demux->s ) && !p_demux->obj.force )
         // let avformat handle this case
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    demux_sys_t *p_sys = vlc_obj_malloc( p_this, sizeof (*p_sys) );
+    demux_sys_t *p_sys = heimdall_obj_malloc( p_this, sizeof (*p_sys) );
     if( unlikely(p_sys == NULL) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_demux->p_sys      = p_sys;
     p_sys->p_es         = NULL;
-    p_sys->i_time       = VLC_TICK_0;
+    p_sys->i_time       = HEIMDALL_TICK_0;
     p_sys->i_level      = 0;
 
     p_sys->psz_separator = NULL;
@@ -325,11 +326,11 @@ static int Open( vlc_object_t * p_this )
                 boundary[len-1] = '\0';
                 boundary++;
             }
-            p_sys->psz_separator = vlc_obj_strdup( p_this, boundary );
+            p_sys->psz_separator = heimdall_obj_strdup( p_this, boundary );
             if( !p_sys->psz_separator )
             {
                 free( content_type );
-                return VLC_ENOMEM;
+                return HEIMDALL_ENOMEM;
             }
         }
         free( content_type );
@@ -339,8 +340,8 @@ static int Open( vlc_object_t * p_this )
     if( b_matched )
     {
         p_demux->pf_demux = MimeDemux;
-        if( vlc_stream_Read( p_demux->s, NULL, i_size ) != i_size )
-            return VLC_EGENERIC;
+        if( heimdall_stream_Read( p_demux->s, NULL, i_size ) != i_size )
+            return HEIMDALL_EGENERIC;
     }
     else if( i_size == 0 )
     {
@@ -353,18 +354,18 @@ static int Open( vlc_object_t * p_this )
         }
         else
         {
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
     else
     {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Frame rate */
     float f_fps = var_InheritFloat( p_demux, "mjpeg-fps" );
 
-    p_sys->i_still_end = VLC_TICK_INVALID;
+    p_sys->i_still_end = HEIMDALL_TICK_INVALID;
     if( demux_IsPathExtension( p_demux, ".jpeg" ) ||
         demux_IsPathExtension( p_demux, ".jpg" ) )
     {
@@ -376,17 +377,17 @@ static int Open( vlc_object_t * p_this )
     }
     else
         p_sys->b_still = false;
-    p_sys->i_frame_length = f_fps ? vlc_tick_rate_duration(f_fps) : VLC_TICK_INVALID;
+    p_sys->i_frame_length = f_fps ? heimdall_tick_rate_duration(f_fps) : HEIMDALL_TICK_INVALID;
 
-    es_format_Init( &p_sys->fmt, VIDEO_ES, VLC_CODEC_MJPG );
+    es_format_Init( &p_sys->fmt, VIDEO_ES, HEIMDALL_CODEC_MJPG );
 
     p_sys->fmt.i_id = 0;
     p_sys->p_es = es_out_Add( p_demux->out, &p_sys->fmt );
     if( unlikely(p_sys->p_es == NULL) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_demux->pf_control = Control;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -399,23 +400,23 @@ static int MjpgDemux( demux_t *p_demux )
     demux_sys_t *p_sys = p_demux->p_sys;
     int i;
 
-    if( p_sys->b_still && p_sys->i_still_end != VLC_TICK_INVALID )
+    if( p_sys->b_still && p_sys->i_still_end != HEIMDALL_TICK_INVALID )
     {
         /* Still frame, wait until the pause delay is gone */
-        vlc_tick_wait( p_sys->i_still_end );
-        p_sys->i_still_end = VLC_TICK_INVALID;
-        return VLC_DEMUXER_SUCCESS;
+        heimdall_tick_wait( p_sys->i_still_end );
+        p_sys->i_still_end = HEIMDALL_TICK_INVALID;
+        return HEIMDALL_DEMUXER_SUCCESS;
     }
 
     if( !Peek( p_demux, true ) )
     {
         msg_Warn( p_demux, "cannot peek data" );
-        return VLC_DEMUXER_EOF;
+        return HEIMDALL_DEMUXER_EOF;
     }
     if( p_sys->i_data_peeked < 4 )
     {
         msg_Warn( p_demux, "data shortage" );
-        return VLC_DEMUXER_EOF;
+        return HEIMDALL_DEMUXER_EOF;
     }
     i = 3;
 FIND_NEXT_EOI:
@@ -434,7 +435,7 @@ FIND_NEXT_EOI:
             if( !Peek( p_demux, false ) )
             {
                 msg_Warn( p_demux, "no more data is available at the moment" );
-                return VLC_DEMUXER_EOF;
+                return HEIMDALL_DEMUXER_EOF;
             }
         }
     }
@@ -457,12 +458,12 @@ static int MimeDemux( demux_t *p_demux )
 
     if( i_size > 0 )
     {
-        if( vlc_stream_Read( p_demux->s, NULL, i_size ) != i_size )
-            return VLC_DEMUXER_EOF;
+        if( heimdall_stream_Read( p_demux->s, NULL, i_size ) != i_size )
+            return HEIMDALL_DEMUXER_EOF;
     }
     else if( i_size < 0 )
     {
-        return VLC_DEMUXER_EOF;
+        return HEIMDALL_DEMUXER_EOF;
     }
     else
     {
@@ -473,7 +474,7 @@ static int MimeDemux( demux_t *p_demux )
     if( !Peek( p_demux, true ) )
     {
         msg_Warn( p_demux, "cannot peek data" );
-        return VLC_DEMUXER_EOF;
+        return HEIMDALL_DEMUXER_EOF;
     }
 
     i = 0;
@@ -482,7 +483,7 @@ static int MimeDemux( demux_t *p_demux )
     if( p_sys->i_data_peeked < i_size )
     {
         msg_Warn( p_demux, "data shortage" );
-        return VLC_DEMUXER_EOF;
+        return HEIMDALL_DEMUXER_EOF;
     }
 
     for( ;; )
@@ -500,7 +501,7 @@ static int MimeDemux( demux_t *p_demux )
                 {
                     msg_Warn( p_demux, "no more data is available at the "
                               "moment" );
-                    return VLC_DEMUXER_EOF;
+                    return HEIMDALL_DEMUXER_EOF;
                 }
             }
         }
@@ -512,7 +513,7 @@ static int MimeDemux( demux_t *p_demux )
             if (!Peek(p_demux, false))
             {
                 msg_Warn( p_demux, "data shortage" );
-                return VLC_DEMUXER_EOF;
+                return HEIMDALL_DEMUXER_EOF;
             }
         }
 
@@ -532,7 +533,7 @@ static int MimeDemux( demux_t *p_demux )
     if( !b_match )
     {
         msg_Err( p_demux, "discard non-JPEG part" );
-        return VLC_DEMUXER_EOF;
+        return HEIMDALL_DEMUXER_EOF;
     }
 
     return SendBlock( p_demux, i );

@@ -4,7 +4,7 @@ If you ever code for Qt interface, please read this before.
 
 ** Code Conventions **
 
-Please respect VLC code conventions here:
+Please respect Heimdall code conventions here:
  - NO trailing spaces
  - NO tab
  - Indentation is 4 spaces
@@ -16,8 +16,8 @@ Refer to http://wiki.videolan.org/Code_Conventions it should be up to date
 
 ** Include order **
 
-- VLC include/*.h includes
-- Other VLC .h includes (gruiking :D)
+- Heimdall include/*.h includes
+- Other Heimdall .h includes (gruiking :D)
 - Qt module includes
 - Qt includes
 
@@ -30,18 +30,18 @@ If you have spare time, prefix QString with qs_.
 
 Use aPointerName over a_pointer_name for long names.
 
-** QVLCFrame vs QVLCDialog **
+** QHeimdallFrame vs QHeimdallDialog **
 
-A QVLCFrame is just a QWidget, without any parent and used as a Qt::Windows
-A QVLCDialog is a QDialog.
+A QHeimdallFrame is just a QWidget, without any parent and used as a Qt::Windows
+A QHeimdallDialog is a QDialog.
 
-This mean that the QVLCDialog is centered on the parent and ABOVE it, will be destroyed by the parent automatically.
-This also mean that you have to destroy the QVLCFrame and to save its position/size.
+This mean that the QHeimdallDialog is centered on the parent and ABOVE it, will be destroyed by the parent automatically.
+This also mean that you have to destroy the QHeimdallFrame and to save its position/size.
 
-So if your dialog is a dialog you are used to keep during a playing of a video, then use a QVLCFrame, else use a QVLCDialog, if this is something you do over anything else.
+So if your dialog is a dialog you are used to keep during a playing of a video, then use a QHeimdallFrame, else use a QHeimdallDialog, if this is something you do over anything else.
 
-QVLCFrame: extended panel, messages...
-QVLCDialog: preferences, open...
+QHeimdallFrame: extended panel, messages...
+QHeimdallDialog: preferences, open...
 
 ** virtual vs override **
 Only mark functions with the virtual keyword if this is the initial virtual

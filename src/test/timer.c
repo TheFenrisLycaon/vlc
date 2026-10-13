@@ -2,6 +2,7 @@
  * timer.c: Test for timer API
  *****************************************************************************
  * Copyright (C) 2009 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -27,17 +28,17 @@
 #undef NDEBUG
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_threads.h>
-#undef vlc_tick_sleep
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
+#undef heimdall_tick_sleep
 
-const char vlc_module_name[] = "test_timer";
+const char heimdall_module_name[] = "test_timer";
 
 struct timer_data
 {
-    vlc_timer_t timer;
-    vlc_mutex_t lock;
-    vlc_cond_t  wait;
+    heimdall_timer_t timer;
+    heimdall_mutex_t lock;
+    heimdall_cond_t  wait;
     unsigned count;
 };
 
@@ -45,68 +46,68 @@ static void callback (void *ptr)
 {
     struct timer_data *data = ptr;
 
-    vlc_mutex_lock (&data->lock);
-    data->count += 1 + vlc_timer_getoverrun (data->timer);
-    vlc_cond_signal (&data->wait);
-    vlc_mutex_unlock (&data->lock);
+    heimdall_mutex_lock (&data->lock);
+    data->count += 1 + heimdall_timer_getoverrun (data->timer);
+    heimdall_cond_signal (&data->wait);
+    heimdall_mutex_unlock (&data->lock);
 }
 
 
 int main (void)
 {
     struct timer_data data;
-    vlc_tick_t ts;
+    heimdall_tick_t ts;
     int val;
 
-    vlc_mutex_init (&data.lock);
-    vlc_cond_init (&data.wait);
+    heimdall_mutex_init (&data.lock);
+    heimdall_cond_init (&data.wait);
     data.count = 0;
 
-    val = vlc_timer_create (&data.timer, callback, &data);
+    val = heimdall_timer_create (&data.timer, callback, &data);
     assert (val == 0);
-    vlc_timer_destroy (data.timer);
+    heimdall_timer_destroy (data.timer);
     assert (data.count == 0);
 
-    val = vlc_timer_create (&data.timer, callback, &data);
+    val = heimdall_timer_create (&data.timer, callback, &data);
     assert (val == 0);
-    vlc_timer_schedule (data.timer, false, CLOCK_FREQ << 20, CLOCK_FREQ);
-    vlc_timer_destroy (data.timer);
+    heimdall_timer_schedule (data.timer, false, CLOCK_FREQ << 20, CLOCK_FREQ);
+    heimdall_timer_destroy (data.timer);
     assert (data.count == 0);
 
-    val = vlc_timer_create (&data.timer, callback, &data);
+    val = heimdall_timer_create (&data.timer, callback, &data);
     assert (val == 0);
 
     /* Relative timer */
-    ts = vlc_tick_now ();
-    vlc_timer_schedule (data.timer, false, 1, VLC_TICK_FROM_MS(10));
+    ts = heimdall_tick_now ();
+    heimdall_timer_schedule (data.timer, false, 1, HEIMDALL_TICK_FROM_MS(10));
 
-    vlc_mutex_lock (&data.lock);
+    heimdall_mutex_lock (&data.lock);
     while (data.count <= 10)
-        vlc_cond_wait(&data.wait, &data.lock);
+        heimdall_cond_wait(&data.wait, &data.lock);
 
-    ts = vlc_tick_now () - ts;
+    ts = heimdall_tick_now () - ts;
     printf ("%u iterations in %"PRId64" us\n", data.count, ts);
     data.count = 0;
-    vlc_mutex_unlock (&data.lock);
-    assert(ts >= VLC_TICK_FROM_MS(100));
+    heimdall_mutex_unlock (&data.lock);
+    assert(ts >= HEIMDALL_TICK_FROM_MS(100));
 
-    vlc_timer_disarm (data.timer);
+    heimdall_timer_disarm (data.timer);
 
     /* Absolute timer */
-    ts = vlc_tick_now ();
+    ts = heimdall_tick_now ();
 
-    vlc_timer_schedule (data.timer, true, ts + VLC_TICK_FROM_MS(100),
-                        VLC_TICK_FROM_MS(10));
+    heimdall_timer_schedule (data.timer, true, ts + HEIMDALL_TICK_FROM_MS(100),
+                        HEIMDALL_TICK_FROM_MS(10));
 
-    vlc_mutex_lock (&data.lock);
+    heimdall_mutex_lock (&data.lock);
     while (data.count <= 10)
-        vlc_cond_wait(&data.wait, &data.lock);
+        heimdall_cond_wait(&data.wait, &data.lock);
 
-    ts = vlc_tick_now () - ts;
+    ts = heimdall_tick_now () - ts;
     printf ("%u iterations in %"PRId64" us\n", data.count, ts);
-    vlc_mutex_unlock (&data.lock);
-    assert(ts >= VLC_TICK_FROM_MS(200));
+    heimdall_mutex_unlock (&data.lock);
+    assert(ts >= HEIMDALL_TICK_FROM_MS(200));
 
-    vlc_timer_destroy (data.timer);
+    heimdall_timer_destroy (data.timer);
     return 0;
 }

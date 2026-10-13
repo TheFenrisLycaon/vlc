@@ -4,6 +4,7 @@
  * Copyright (C) 2007-2009 the VideoLAN team
  * Copyright (C) 2007 Société des arts technologiques
  * Copyright (C) 2007 Savoir-faire Linux
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Jean-Baptiste Kempf <jb@videolan.org>
  *          Pierre-Luc Beaudoin <pierre-luc.beaudoin@savoirfairelinux.com>
@@ -28,7 +29,7 @@
 #include "maininterface/mainctx.hpp"
 #include "util/soutchain.hpp"
 #include "util/qt_dirs.hpp"
-#include <vlc_intf_strings.h>
+#include <heimdall_intf_strings.h>
 
 #include <QGroupBox>
 #include <QGridLayout>

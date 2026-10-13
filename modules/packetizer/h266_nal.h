@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright © 2019 VideoLabs, VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -18,7 +19,7 @@
 #ifndef H266_NAL_H
 # define H266_NAL_H
 
-# include <vlc_es.h>
+# include <heimdall_es.h>
 
 #ifdef __cplusplus
 extern "C" {

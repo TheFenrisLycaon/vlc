@@ -2,8 +2,9 @@
  * xml.c: XML related functions
  *****************************************************************************
  * Copyright (C) 2010 Antoine Cellerier
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Antoine Cellerier <dionoea at videolan tod org>
+ * Authors: Antoine Cellerier <dionoea at lycaria tod org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,30 +32,30 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_xml.h>
+#include <heimdall_common.h>
+#include <heimdall_xml.h>
 
-#include "../vlc.h"
+#include "../heimdall.h"
 #include "../libs.h"
 
 /*****************************************************************************
  * XML
  *****************************************************************************/
-static int vlclua_xml_create_reader( lua_State * );
+static int heimdalllua_xml_create_reader( lua_State * );
 
-static const luaL_Reg vlclua_xml_reg[] = {
-    { "create_reader", vlclua_xml_create_reader },
+static const luaL_Reg heimdalllua_xml_reg[] = {
+    { "create_reader", heimdalllua_xml_create_reader },
     { NULL, NULL }
 };
 
-static int vlclua_xml_create( lua_State *L )
+static int heimdalllua_xml_create( lua_State *L )
 {
     lua_newuserdata( L, 0 );
 
     if( luaL_newmetatable( L, "xml" ) )
     {
         lua_newtable( L );
-        luaL_register( L, NULL, vlclua_xml_reg );
+        luaL_register( L, NULL, heimdalllua_xml_reg );
         lua_setfield( L, -2, "__index" );
     }
 
@@ -65,27 +66,27 @@ static int vlclua_xml_create( lua_State *L )
 /*****************************************************************************
  * XML Reader
  *****************************************************************************/
-static int vlclua_xml_reader_next_node( lua_State * );
-static int vlclua_xml_reader_next_attr( lua_State * );
-static int vlclua_xml_reader_node_empty( lua_State * );
+static int heimdalllua_xml_reader_next_node( lua_State * );
+static int heimdalllua_xml_reader_next_attr( lua_State * );
+static int heimdalllua_xml_reader_node_empty( lua_State * );
 
-static const luaL_Reg vlclua_xml_reader_reg[] = {
-    { "next_node", vlclua_xml_reader_next_node },
-    { "next_attr", vlclua_xml_reader_next_attr },
-    { "node_empty", vlclua_xml_reader_node_empty },
+static const luaL_Reg heimdalllua_xml_reader_reg[] = {
+    { "next_node", heimdalllua_xml_reader_next_node },
+    { "next_attr", heimdalllua_xml_reader_next_attr },
+    { "node_empty", heimdalllua_xml_reader_node_empty },
     { NULL, NULL }
 };
 
-static int vlclua_xml_reader_delete( lua_State *L )
+static int heimdalllua_xml_reader_delete( lua_State *L )
 {
     xml_reader_t *p_reader = *(xml_reader_t**)luaL_checkudata( L, 1, "xml_reader" );
     xml_ReaderDelete( p_reader );
     return 0;
 }
 
-static int vlclua_xml_create_reader( lua_State *L )
+static int heimdalllua_xml_create_reader( lua_State *L )
 {
-    vlc_object_t *obj = vlclua_get_this( L );
+    heimdall_object_t *obj = heimdalllua_get_this( L );
     stream_t *p_stream = *(stream_t **)luaL_checkudata( L, 2, "stream" );
 
     xml_reader_t *p_reader = xml_ReaderCreate( obj, p_stream );
@@ -98,9 +99,9 @@ static int vlclua_xml_create_reader( lua_State *L )
     if( luaL_newmetatable( L, "xml_reader" ) )
     {
         lua_newtable( L );
-        luaL_register( L, NULL, vlclua_xml_reader_reg );
+        luaL_register( L, NULL, heimdalllua_xml_reader_reg );
         lua_setfield( L, -2, "__index" );
-        lua_pushcfunction( L, vlclua_xml_reader_delete );
+        lua_pushcfunction( L, heimdalllua_xml_reader_delete );
         lua_setfield( L, -2, "__gc" );
     }
 
@@ -108,7 +109,7 @@ static int vlclua_xml_create_reader( lua_State *L )
     return 1;
 }
 
-static int vlclua_xml_reader_next_node( lua_State *L )
+static int heimdalllua_xml_reader_next_node( lua_State *L )
 {
     xml_reader_t *p_reader = *(xml_reader_t**)luaL_checkudata( L, 1, "xml_reader" );
     const char *psz_name;
@@ -124,7 +125,7 @@ static int vlclua_xml_reader_next_node( lua_State *L )
     return 2;
 }
 
-static int vlclua_xml_reader_next_attr( lua_State *L )
+static int heimdalllua_xml_reader_next_attr( lua_State *L )
 {
     xml_reader_t *p_reader = *(xml_reader_t**)luaL_checkudata( L, 1, "xml_reader" );
     const char *psz_value;
@@ -137,7 +138,7 @@ static int vlclua_xml_reader_next_attr( lua_State *L )
     return 2;
 }
 
-static int vlclua_xml_reader_node_empty( lua_State* L )
+static int heimdalllua_xml_reader_node_empty( lua_State* L )
 {
     xml_reader_t *p_reader = *(xml_reader_t**)luaL_checkudata( L, 1, "xml_reader" );
 
@@ -147,6 +148,6 @@ static int vlclua_xml_reader_node_empty( lua_State* L )
 
 void luaopen_xml( lua_State *L )
 {
-    lua_pushcfunction( L, vlclua_xml_create );
+    lua_pushcfunction( L, heimdalllua_xml_create );
     lua_setfield( L, -2, "xml" );
 }

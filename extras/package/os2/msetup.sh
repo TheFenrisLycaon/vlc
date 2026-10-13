@@ -39,7 +39,7 @@ OPTIONS="
       -Dlibxml2=enabled
       -Dlibgcrypt=enabled
       -Dgnutls=enabled
-      -Dvlc=true
+      -Dheimdall=true
 "
 
 python "$MESON_DIR"/meson.py setup $OPTIONS "$@"

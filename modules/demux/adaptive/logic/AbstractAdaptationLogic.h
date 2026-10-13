@@ -2,6 +2,7 @@
  * AbstractAdaptationLogic.h
  *****************************************************************************
  * Copyright (C) 2010 - 2011 Klagenfurt University
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Created on: Aug 10, 2010
  * Authors: Christopher Mueller <christopher.mueller@itec.uni-klu.ac.at>
@@ -45,12 +46,12 @@ namespace adaptive
         {
             public:
                 AbstractAdaptationLogic             () = delete;
-                AbstractAdaptationLogic             (vlc_object_t *);
+                AbstractAdaptationLogic             (heimdall_object_t *);
                 virtual ~AbstractAdaptationLogic    () = default;
 
                 virtual BaseRepresentation* getNextRepresentation(BaseAdaptationSet *, BaseRepresentation *) = 0;
                 void                        updateDownloadRate     (const ID &, size_t,
-                                                                    vlc_tick_t, vlc_tick_t) override;
+                                                                    heimdall_tick_t, heimdall_tick_t) override;
                 void                        trackerEvent           (const TrackerEvent &) override {}
                 void                        setMaxDeviceResolution (int, int);
 
@@ -66,7 +67,7 @@ namespace adaptive
                 };
 
             protected:
-                vlc_object_t *p_obj;
+                heimdall_object_t *p_obj;
                 int maxwidth;
                 int maxheight;
         };

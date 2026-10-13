@@ -2,6 +2,7 @@
  * CommandsQueue.cpp
  *****************************************************************************
  * Copyright © 2015 VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -24,9 +25,9 @@
 #include "CommandsQueue.hpp"
 #include "FakeESOutID.hpp"
 #include "FakeESOut.hpp"
-#include <vlc_es_out.h>
-#include <vlc_block.h>
-#include <vlc_meta.h>
+#include <heimdall_es_out.h>
+#include <heimdall_block.h>
+#include <heimdall_meta.h>
 #include <algorithm>
 #include <set>
 
@@ -115,7 +116,7 @@ void EsOutAddCommand::Execute( )
 }
 
 EsOutControlPCRCommand::EsOutControlPCRCommand( int group_,
-                                                const SegmentTimes &t, vlc_tick_t pcr )
+                                                const SegmentTimes &t, heimdall_tick_t pcr )
     : AbstractCommand( ES_OUT_SET_GROUP_PCR )
 {
     group = group_;
@@ -147,7 +148,7 @@ void EsOutControlResetPCRCommand::Execute( )
 }
 
 EsOutMetaCommand::EsOutMetaCommand( AbstractFakeEsOut *out,
-                                    int i_group, vlc_meta_t *p_meta ) :
+                                    int i_group, heimdall_meta_t *p_meta ) :
     AbstractCommand( ES_OUT_SET_GROUP_META )
 {
     group = i_group;
@@ -158,7 +159,7 @@ EsOutMetaCommand::EsOutMetaCommand( AbstractFakeEsOut *out,
 EsOutMetaCommand::~EsOutMetaCommand()
 {
     if( p_meta )
-        vlc_meta_Delete( p_meta );
+        heimdall_meta_Delete( p_meta );
 }
 
 void EsOutMetaCommand::Execute()
@@ -180,7 +181,7 @@ void EsOutMilestoneCommand::Execute()
 EsOutMediaProgressCommand::EsOutMediaProgressCommand(const SegmentTimes &t)
     : AbstractCommand( ES_OUT_PRIVATE_COMMAND_PROGRESS )
 {
-    times = Times(t, VLC_TICK_INVALID);
+    times = Times(t, HEIMDALL_TICK_INVALID);
 }
 
 void EsOutMediaProgressCommand::Execute()
@@ -211,7 +212,7 @@ EsOutAddCommand * CommandsFactory::createEsOutAddCommand( AbstractFakeESOutID *i
 
 EsOutControlPCRCommand * CommandsFactory::createEsOutControlPCRCommand( int group,
                                                                         const SegmentTimes &t,
-                                                                        vlc_tick_t pcr ) const
+                                                                        heimdall_tick_t pcr ) const
 {
     return new (std::nothrow) EsOutControlPCRCommand( group, t, pcr );
 }
@@ -227,12 +228,12 @@ EsOutControlResetPCRCommand * CommandsFactory::creatEsOutControlResetPCRCommand(
 }
 
 EsOutMetaCommand * CommandsFactory::createEsOutMetaCommand( AbstractFakeEsOut *out, int group,
-                                                            const vlc_meta_t *p_meta ) const
+                                                            const heimdall_meta_t *p_meta ) const
 {
-    vlc_meta_t *p_dup = vlc_meta_New();
+    heimdall_meta_t *p_dup = heimdall_meta_New();
     if( p_dup )
     {
-        vlc_meta_Merge( p_dup, p_meta );
+        heimdall_meta_Merge( p_dup, p_meta );
         return new (std::nothrow) EsOutMetaCommand( out, group, p_dup );
     }
     return nullptr;
@@ -258,7 +259,7 @@ EsOutMediaProgressCommand * CommandsFactory::createEsOutMediaProgressCommand( co
 std::ostream& operator<<(std::ostream& ostr, const std::list<AbstractCommand *>& list)
 {
     for (auto &i : list) {
-        ostr << "[" << i->getType() << "]" << SEC_FROM_VLC_TICK(i->getTimes().continuous) << " ";
+        ostr << "[" << i->getType() << "]" << SEC_FROM_HEIMDALL_TICK(i->getTimes().continuous) << " ";
     }
     return ostr;
 }
@@ -325,8 +326,8 @@ static bool compareCommands( const Queueentry &a, const Queueentry &b )
 
         return a.first < b.first;
     }
-    else if (a.second->getTimes().continuous == VLC_TICK_INVALID ||
-             b.second->getTimes().continuous == VLC_TICK_INVALID)
+    else if (a.second->getTimes().continuous == HEIMDALL_TICK_INVALID ||
+             b.second->getTimes().continuous == HEIMDALL_TICK_INVALID)
     {
         return a.first < b.first;
     }
@@ -350,7 +351,7 @@ void CommandsQueue::Schedule( AbstractCommand *command, EsType )
     }
     else if( command->getType() == ES_OUT_SET_GROUP_PCR )
     {
-        if(command->getTimes().continuous != VLC_TICK_INVALID)
+        if(command->getTimes().continuous != HEIMDALL_TICK_INVALID)
         {
             bufferinglevel = command->getTimes();
             LockedCommit();
@@ -360,7 +361,7 @@ void CommandsQueue::Schedule( AbstractCommand *command, EsType )
             /* Try to use the reordered/committed tail when the pcr was invalid */
             LockedCommit();
             if(!commands.empty() &&
-                commands.back().second->getTimes().continuous != VLC_TICK_INVALID)
+                commands.back().second->getTimes().continuous != HEIMDALL_TICK_INVALID)
                 bufferinglevel = commands.back().second->getTimes();
         }
         commands.push_back( Queueentry(nextsequence++, command) );
@@ -421,7 +422,7 @@ Times CommandsQueue::Process( Times barrier )
                 disabled_esids.insert( id );
                 commands.push_back( entry );
             }
-            else if( command->getTimes().continuous == VLC_TICK_INVALID )
+            else if( command->getTimes().continuous == HEIMDALL_TICK_INVALID )
             {
                 if( disabled_esids.find( id ) == disabled_esids.end() )
                     output.push_back( entry );
@@ -451,7 +452,7 @@ Times CommandsQueue::Process( Times barrier )
         if( command->getType() == ES_OUT_PRIVATE_COMMAND_SEND )
         {
             Times times = command->getTimes();
-            if( times.continuous != VLC_TICK_INVALID )
+            if( times.continuous != HEIMDALL_TICK_INVALID )
                 lastdts = times;
         }
 
@@ -508,9 +509,9 @@ void CommandsQueue::setDraining()
 Times CommandsQueue::getDemuxedAmount(Times from) const
 {
     Times bufferingstart = getFirstTimes();
-    if( bufferinglevel.continuous == VLC_TICK_INVALID ||
-        bufferingstart.continuous == VLC_TICK_INVALID ||
-        from.continuous == VLC_TICK_INVALID ||
+    if( bufferinglevel.continuous == HEIMDALL_TICK_INVALID ||
+        bufferingstart.continuous == HEIMDALL_TICK_INVALID ||
+        from.continuous == HEIMDALL_TICK_INVALID ||
         from.continuous > bufferinglevel.continuous )
         return Times(SegmentTimes(0,0),0); /* durations */
 
@@ -521,8 +522,8 @@ Times CommandsQueue::getDemuxedAmount(Times from) const
 
 Times CommandsQueue::getDemuxedMediaAmount(const Times &from) const
 {
-    if(from.continuous == VLC_TICK_INVALID ||
-       bufferinglevel_media.media == VLC_TICK_INVALID ||
+    if(from.continuous == HEIMDALL_TICK_INVALID ||
+       bufferinglevel_media.media == HEIMDALL_TICK_INVALID ||
        from.segment.media > bufferinglevel_media.media)
         return Times(SegmentTimes(0,0),0);  /* durations */
     Times t = from;
@@ -542,9 +543,9 @@ Times CommandsQueue::getFirstTimes() const
     for( it = commands.begin(); it != commands.end(); ++it )
     {
         const Times times = (*it).second->getTimes();
-        if( times.continuous != VLC_TICK_INVALID )
+        if( times.continuous != HEIMDALL_TICK_INVALID )
         {
-            if( times.continuous < first.continuous || first.continuous == VLC_TICK_INVALID )
+            if( times.continuous < first.continuous || first.continuous == HEIMDALL_TICK_INVALID )
                 first = times;
             break;
         }

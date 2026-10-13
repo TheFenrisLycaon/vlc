@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -96,35 +97,35 @@ void MLGenreModel::setCoverDefault(const QString& defaultCover)
     emit coverDefaultChanged();
 }
 
-void MLGenreModel::onVlcMlEvent(const MLEvent &event)
+void MLGenreModel::onHeimdallMlEvent(const MLEvent &event)
 {
     switch (event.i_type)
     {
-        case VLC_ML_EVENT_GENRE_ADDED:
+        case HEIMDALL_ML_EVENT_GENRE_ADDED:
             emit resetRequested();
             return;
-        case VLC_ML_EVENT_GENRE_UPDATED:
+        case HEIMDALL_ML_EVENT_GENRE_UPDATED:
         {
-            MLItemId itemId(event.modification.i_entity_id, VLC_ML_PARENT_UNKNOWN);
+            MLItemId itemId(event.modification.i_entity_id, HEIMDALL_ML_PARENT_UNKNOWN);
             updateItemInCache(itemId);
             return;
         }
-        case VLC_ML_EVENT_GENRE_DELETED:
+        case HEIMDALL_ML_EVENT_GENRE_DELETED:
         {
-            MLItemId itemId(event.deletion.i_entity_id, VLC_ML_PARENT_UNKNOWN);
+            MLItemId itemId(event.deletion.i_entity_id, HEIMDALL_ML_PARENT_UNKNOWN);
             deleteItemInCache(itemId);
             return;
         }
     }
 
-    MLBaseModel::onVlcMlEvent(event);
+    MLBaseModel::onHeimdallMlEvent(event);
 }
 
-vlc_ml_sorting_criteria_t MLGenreModel::nameToCriteria(QByteArray name) const
+heimdall_ml_sorting_criteria_t MLGenreModel::nameToCriteria(QByteArray name) const
 {
-    return QHash<QByteArray, vlc_ml_sorting_criteria_t> {
-        {QByteArrayLiteral("name"), VLC_ML_SORTING_ALPHA},
-    }.value(name, VLC_ML_SORTING_DEFAULT);
+    return QHash<QByteArray, heimdall_ml_sorting_criteria_t> {
+        {QByteArrayLiteral("name"), HEIMDALL_ML_SORTING_ALPHA},
+    }.value(name, HEIMDALL_ML_SORTING_DEFAULT);
 }
 
 QString MLGenreModel::getCover(const MLGenre * genre, int blur) const
@@ -146,31 +147,31 @@ MLGenreModel::createMLLoader() const
     return std::make_unique<MLListCacheLoader>(m_mediaLib, std::make_shared<MLGenreModel::Loader>(*this));
 }
 
-size_t MLGenreModel::Loader::count(vlc_medialibrary_t* ml, const vlc_ml_query_params_t* queryParams) const
+size_t MLGenreModel::Loader::count(heimdall_medialibrary_t* ml, const heimdall_ml_query_params_t* queryParams) const
 {
-    return vlc_ml_count_genres( ml, queryParams );
+    return heimdall_ml_count_genres( ml, queryParams );
 }
 
 std::vector<std::unique_ptr<MLItem>>
-MLGenreModel::Loader::load(vlc_medialibrary_t* ml, const vlc_ml_query_params_t* queryParams) const
+MLGenreModel::Loader::load(heimdall_medialibrary_t* ml, const heimdall_ml_query_params_t* queryParams) const
 {
-    ml_unique_ptr<vlc_ml_genre_list_t> genre_list(
-        vlc_ml_list_genres(ml, queryParams)
+    ml_unique_ptr<heimdall_ml_genre_list_t> genre_list(
+        heimdall_ml_list_genres(ml, queryParams)
     );
     if ( genre_list == nullptr )
         return {};
     std::vector<std::unique_ptr<MLItem>> res;
-    for( const vlc_ml_genre_t& genre: ml_range_iterate<vlc_ml_genre_t>( genre_list ) )
+    for( const heimdall_ml_genre_t& genre: ml_range_iterate<heimdall_ml_genre_t>( genre_list ) )
         res.emplace_back( std::make_unique<MLGenre>( &genre ) );
     return res;
 
 }
 
 std::unique_ptr<MLItem>
-MLGenreModel::Loader::loadItemById(vlc_medialibrary_t* ml, MLItemId itemId) const
+MLGenreModel::Loader::loadItemById(heimdall_medialibrary_t* ml, MLItemId itemId) const
 {
-    assert(itemId.type == VLC_ML_PARENT_GENRE);
-    ml_unique_ptr<vlc_ml_genre_t> genre(vlc_ml_get_genre(ml, itemId.id));
+    assert(itemId.type == HEIMDALL_ML_PARENT_GENRE);
+    ml_unique_ptr<heimdall_ml_genre_t> genre(heimdall_ml_get_genre(ml, itemId.id));
     if (!genre)
         return nullptr;
     return std::make_unique<MLGenre>(genre.get());

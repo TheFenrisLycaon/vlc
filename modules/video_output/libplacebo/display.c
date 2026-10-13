@@ -4,6 +4,7 @@
  */
 /*****************************************************************************
  * Copyright © 2021 Niklas Haas
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -27,11 +28,11 @@
 # include <config.h>
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_vout_display.h>
-#include <vlc_fs.h>
-#include <vlc_subpicture.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_vout_display.h>
+#include <heimdall_fs.h>
+#include <heimdall_subpicture.h>
 
 #include "utils.h"
 #include "instance.h"
@@ -43,7 +44,7 @@
 
 typedef struct vout_display_sys_t
 {
-    vlc_placebo_t *pl;
+    heimdall_placebo_t *pl;
     pl_renderer renderer;
     pl_tex plane_tex[4];
     pl_tex fbo;
@@ -79,15 +80,15 @@ typedef struct vout_display_sys_t
 } vout_display_sys_t;
 
 // Display callbacks
-static void PictureRender(vout_display_t *, picture_t *, const vlc_render_subpicture *, vlc_tick_t);
+static void PictureRender(vout_display_t *, picture_t *, const heimdall_render_subpicture *, heimdall_tick_t);
 static void PictureDisplay(vout_display_t *, picture_t *);
 static int SetDisplaySize(vout_display_t *, unsigned width, unsigned height);
 static void Close(vout_display_t *);
 static void UpdateParams(vout_display_t *);
 static void UpdateColorspaceHint(vout_display_t *, const video_format_t *);
-static void UpdateIccProfile(vout_display_t *, const vlc_icc_profile_t *);
+static void UpdateIccProfile(vout_display_t *, const heimdall_icc_profile_t *);
 
-static const struct vlc_display_operations ops = {
+static const struct heimdall_display_operations ops = {
     .close = Close,
     .prepare = PictureRender,
     .display = PictureDisplay,
@@ -96,23 +97,23 @@ static const struct vlc_display_operations ops = {
 };
 
 static int Open(vout_display_t *vd,
-                video_format_t *fmt, vlc_video_context *context)
+                video_format_t *fmt, heimdall_video_context *context)
 {
     vout_display_sys_t *sys =
-        vlc_obj_calloc(VLC_OBJECT(vd), 1, sizeof (*sys));
+        heimdall_obj_calloc(HEIMDALL_OBJECT(vd), 1, sizeof (*sys));
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     char *name = var_InheritString(vd, "pl-gpu");
-    sys->pl = vlc_placebo_Create(vd->cfg, name);
+    sys->pl = heimdall_placebo_Create(vd->cfg, name);
     free(name);
     if (sys->pl == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* From now on, the error label will reset this to NULL. */
     vd->sys = sys;
 
-    if (vlc_placebo_MakeCurrent(sys->pl) != VLC_SUCCESS)
+    if (heimdall_placebo_MakeCurrent(sys->pl) != HEIMDALL_SUCCESS)
         goto error;
 
     // Set colorspace hint *before* first swapchain resize
@@ -129,18 +130,18 @@ static int Open(vout_display_t *vd,
     if (!sys->renderer)
         goto error;
 
-    vlc_placebo_ReleaseCurrent(sys->pl);
+    heimdall_placebo_ReleaseCurrent(sys->pl);
 
     // Attempt using the input format as the display format
-    if (vlc_placebo_FormatSupported(gpu, vd->source->i_chroma)) {
+    if (heimdall_placebo_FormatSupported(gpu, vd->source->i_chroma)) {
         fmt->i_chroma = vd->source->i_chroma;
     } else {
         fmt->i_chroma = 0;
-        vlc_fourcc_t *list = vlc_fourcc_GetFallback(vd->source->i_chroma);
+        heimdall_fourcc_t *list = heimdall_fourcc_GetFallback(vd->source->i_chroma);
         if (list != NULL)
         {
-            for (const vlc_fourcc_t *fcc = list; *fcc; fcc++) {
-                if (vlc_placebo_FormatSupported(gpu, *fcc)) {
+            for (const heimdall_fourcc_t *fcc = list; *fcc; fcc++) {
+                if (heimdall_placebo_FormatSupported(gpu, *fcc)) {
                     fmt->i_chroma = *fcc;
                     break;
                 }
@@ -149,24 +150,24 @@ static int Open(vout_display_t *vd,
         }
 
         if (fmt->i_chroma == 0) {
-            fmt->i_chroma = VLC_CODEC_RGBA;
+            fmt->i_chroma = HEIMDALL_CODEC_RGBA;
             msg_Warn(vd, "Failed picking any suitable input format, falling "
                      "back to RGBA for sanity!");
         }
     }
-    sys->yuv_chroma_loc = vlc_fourcc_IsYUV(fmt->i_chroma) ?
-                          vlc_placebo_ChromaLoc(fmt) : PL_CHROMA_UNKNOWN;
+    sys->yuv_chroma_loc = heimdall_fourcc_IsYUV(fmt->i_chroma) ?
+                          heimdall_placebo_ChromaLoc(fmt) : PL_CHROMA_UNKNOWN;
 
     // Hard-coded list of supported subtitle chromas (non-planar only!)
-    static const vlc_fourcc_t subfmts[] = {
-        VLC_CODEC_RGBA,
-        VLC_CODEC_BGRA,
-        VLC_CODEC_RGB555LE,
-        VLC_CODEC_RGB565LE,
-        VLC_CODEC_RGB24,
-        VLC_CODEC_XRGB,
-        VLC_CODEC_RGB233,
-        VLC_CODEC_GREY,
+    static const heimdall_fourcc_t subfmts[] = {
+        HEIMDALL_CODEC_RGBA,
+        HEIMDALL_CODEC_BGRA,
+        HEIMDALL_CODEC_RGB555LE,
+        HEIMDALL_CODEC_RGB565LE,
+        HEIMDALL_CODEC_RGB24,
+        HEIMDALL_CODEC_XRGB,
+        HEIMDALL_CODEC_RGB233,
+        HEIMDALL_CODEC_GREY,
         0
     };
 
@@ -175,13 +176,13 @@ static int Open(vout_display_t *vd,
 
     UpdateParams(vd);
     (void) context;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     pl_renderer_destroy(&sys->renderer);
-    vlc_placebo_Release(sys->pl);
+    heimdall_placebo_Release(sys->pl);
     vd->sys = NULL;
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 static void Close(vout_display_t *vd)
@@ -189,13 +190,13 @@ static void Close(vout_display_t *vd)
     vout_display_sys_t *sys = vd->sys;
     pl_gpu gpu = sys->pl->gpu;
 
-    if (vlc_placebo_MakeCurrent(sys->pl) == VLC_SUCCESS) {
+    if (heimdall_placebo_MakeCurrent(sys->pl) == HEIMDALL_SUCCESS) {
         for (int i = 0; i < 4; i++)
             pl_tex_destroy(gpu, &sys->plane_tex[i]);
         for (int i = 0; i < sys->num_overlays; i++)
             pl_tex_destroy(gpu, &sys->overlay_tex[i]);
         pl_renderer_destroy(&sys->renderer);
-        vlc_placebo_ReleaseCurrent(sys->pl);
+        heimdall_placebo_ReleaseCurrent(sys->pl);
     }
 
     if (sys->overlays) {
@@ -210,24 +211,24 @@ static void Close(vout_display_t *vd)
     pl_mpv_user_shader_destroy(&sys->hook);
     free(sys->hook_path);
 
-    vlc_placebo_Release(sys->pl);
+    heimdall_placebo_Release(sys->pl);
 }
 
 static void PictureRender(vout_display_t *vd, picture_t *pic,
-                          const vlc_render_subpicture *subpicture,
-                          vlc_tick_t date)
+                          const heimdall_render_subpicture *subpicture,
+                          heimdall_tick_t date)
 {
-    VLC_UNUSED(date);
+    HEIMDALL_UNUSED(date);
     vout_display_sys_t *sys = vd->sys;
     pl_gpu gpu = sys->pl->gpu;
     bool failed = false;
 
-    if (vlc_placebo_MakeCurrent(sys->pl) != VLC_SUCCESS)
+    if (heimdall_placebo_MakeCurrent(sys->pl) != HEIMDALL_SUCCESS)
         return;
 
     struct pl_swapchain_frame frame;
     if (!pl_swapchain_start_frame(sys->pl->swapchain, &frame)) {
-        vlc_placebo_ReleaseCurrent(sys->pl);
+        heimdall_placebo_ReleaseCurrent(sys->pl);
         return; // Probably benign error, ignore it
     }
     sys->fbo = frame.fbo;
@@ -240,8 +241,8 @@ static void PictureRender(vout_display_t *vd, picture_t *pic,
 
     struct pl_frame img = {
         .num_planes = pic->i_planes,
-        .color      = vlc_placebo_ColorSpace(vd->fmt),
-        .repr       = vlc_placebo_ColorRepr(vd->fmt),
+        .color      = heimdall_placebo_ColorSpace(vd->fmt),
+        .repr       = heimdall_placebo_ColorRepr(vd->fmt),
         .crop = {
             .x0 = pic->format.i_x_offset,
             .y0 = pic->format.i_y_offset,
@@ -250,25 +251,25 @@ static void PictureRender(vout_display_t *vd, picture_t *pic,
         },
     };
 
-    vlc_placebo_frame_DoviMetadata(&img, pic, &sys->dovi_metadata);
+    heimdall_placebo_frame_DoviMetadata(&img, pic, &sys->dovi_metadata);
 
-    struct vlc_ancillary *iccp = picture_GetAncillary(pic, VLC_ANCILLARY_ID_ICC);
+    struct heimdall_ancillary *iccp = picture_GetAncillary(pic, HEIMDALL_ANCILLARY_ID_ICC);
     if (iccp) {
-        vlc_icc_profile_t *icc = vlc_ancillary_GetData(iccp);
+        heimdall_icc_profile_t *icc = heimdall_ancillary_GetData(iccp);
         img.profile.data = icc->data;
         img.profile.len = icc->size;
         pl_icc_profile_compute_signature(&img.profile);
     }
 
-    struct vlc_ancillary *hdrplus = picture_GetAncillary(pic, VLC_ANCILLARY_ID_HDR10PLUS);
+    struct heimdall_ancillary *hdrplus = picture_GetAncillary(pic, HEIMDALL_ANCILLARY_ID_HDR10PLUS);
     if (hdrplus) {
-        vlc_video_hdr_dynamic_metadata_t *hdm = vlc_ancillary_GetData(hdrplus);
-        vlc_placebo_HdrMetadata(hdm, &img.color.hdr);
+        heimdall_video_hdr_dynamic_metadata_t *hdm = heimdall_ancillary_GetData(hdrplus);
+        heimdall_placebo_HdrMetadata(hdm, &img.color.hdr);
     }
 
     // Upload the image data for each plane
     struct pl_plane_data data[4];
-    if (!vlc_placebo_PlaneData(pic, data)) {
+    if (!heimdall_placebo_PlaneData(pic, data)) {
         // This should never happen, in theory
         assert(!"Failed processing the picture_t into pl_plane_data!?");
     }
@@ -375,10 +376,10 @@ static void PictureRender(vout_display_t *vd, picture_t *pic,
 
         // Upload all of the regions
         int i = 0;
-        vlc_vector_foreach(r, &subpicture->regions) {
+        heimdall_vector_foreach(r, &subpicture->regions) {
             assert(r->p_picture->i_planes == 1);
             struct pl_plane_data subdata[4];
-            if (!vlc_placebo_PlaneData(r->p_picture, subdata))
+            if (!heimdall_placebo_PlaneData(r->p_picture, subdata))
                 assert(!"Failed processing the subpicture_t into pl_plane_data!?");
 
             if (!pl_upload_plane(gpu, NULL, &sys->overlay_tex[i], subdata)) {
@@ -391,8 +392,8 @@ static void PictureRender(vout_display_t *vd, picture_t *pic,
             sys->overlays[i] = (struct pl_overlay) {
                 .tex   = sys->overlay_tex[i],
                 .mode  = PL_OVERLAY_NORMAL,
-                .color = vlc_placebo_ColorSpace(&r->p_picture->format),
-                .repr  = vlc_placebo_ColorRepr(&r->p_picture->format),
+                .color = heimdall_placebo_ColorSpace(&r->p_picture->format),
+                .repr  = heimdall_placebo_ColorRepr(&r->p_picture->format),
                 .parts = &sys->overlay_parts[i],
                 .num_parts = 1,
             };
@@ -451,22 +452,22 @@ done:
 
     pl_gpu_flush(gpu);
 
-    vlc_placebo_ReleaseCurrent(sys->pl);
+    heimdall_placebo_ReleaseCurrent(sys->pl);
 }
 
 static void PictureDisplay(vout_display_t *vd, picture_t *pic)
 {
-    VLC_UNUSED(pic);
+    HEIMDALL_UNUSED(pic);
     vout_display_sys_t *sys = vd->sys;
     if (!sys->fbo)
         return;
 
     sys->fbo = NULL;
-    if (vlc_placebo_MakeCurrent(sys->pl) == VLC_SUCCESS) {
+    if (heimdall_placebo_MakeCurrent(sys->pl) == HEIMDALL_SUCCESS) {
         if (!pl_swapchain_submit_frame(sys->pl->swapchain))
             msg_Err(vd, "Failed rendering frame!");
         pl_swapchain_swap_buffers(sys->pl->swapchain);
-        vlc_placebo_ReleaseCurrent(sys->pl);
+        heimdall_placebo_ReleaseCurrent(sys->pl);
     }
 }
 
@@ -477,7 +478,7 @@ static void UpdateColorspaceHint(vout_display_t *vd, const video_format_t *fmt)
 
     switch (var_InheritInteger(vd, "pl-output-hint")) {
     case OUTPUT_AUTO: ;
-        const struct pl_color_space csp = vlc_placebo_ColorSpace(fmt);
+        const struct pl_color_space csp = heimdall_placebo_ColorSpace(fmt);
         hint.primaries = csp.primaries;
         hint.transfer = csp.transfer;
         hint.hdr = (struct pl_hdr_metadata) {
@@ -510,7 +511,7 @@ static void UpdateColorspaceHint(vout_display_t *vd, const video_format_t *fmt)
     pl_swapchain_colorspace_hint(sys->pl->swapchain, &hint);
 }
 
-static void UpdateIccProfile(vout_display_t *vd, const vlc_icc_profile_t *prof)
+static void UpdateIccProfile(vout_display_t *vd, const heimdall_icc_profile_t *prof)
 {
     vout_display_sys_t *sys = vd->sys;
     sys->target_icc_signature = 0; /* recompute signature on next PictureRender */
@@ -530,20 +531,20 @@ static int SetDisplaySize(vout_display_t *vd, unsigned width_, unsigned height_)
      * The swapchain creation won't be done twice with this call. */
     int width = (int) width_;
     int height = (int) height_;
-    if (vlc_placebo_MakeCurrent(sys->pl) != VLC_SUCCESS)
-        return VLC_SUCCESS; // ignore errors
+    if (heimdall_placebo_MakeCurrent(sys->pl) != HEIMDALL_SUCCESS)
+        return HEIMDALL_SUCCESS; // ignore errors
 
-    vlc_placebo_Resize(sys->pl, width_, height_);
+    heimdall_placebo_Resize(sys->pl, width_, height_);
     pl_swapchain_resize(sys->pl->swapchain, &width, &height);
-    vlc_placebo_ReleaseCurrent(sys->pl);
+    heimdall_placebo_ReleaseCurrent(sys->pl);
 
     /* NOTE: We currently ignore resizing failures that are transient
      * on X11. Maybe improving resizing might fix that, but we don't
      * implement reset_pictures anyway.
     if (width != (int) width_ || height != (int) height_)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     */
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void LoadCustomLUT(vout_display_sys_t *sys, const char *filepath)
@@ -562,7 +563,7 @@ static void LoadCustomLUT(vout_display_sys_t *sys, const char *filepath)
     free(sys->lut_path);
     sys->lut_path = strdup(filepath);
 
-    fs = vlc_fopen(filepath, "rb");
+    fs = heimdall_fopen(filepath, "rb");
     if (!fs)
         goto error;
     int ret = fseek(fs, 0, SEEK_END);
@@ -573,7 +574,7 @@ static void LoadCustomLUT(vout_display_sys_t *sys, const char *filepath)
         goto error;
     rewind(fs);
 
-    lut_file = vlc_alloc(length, sizeof(*lut_file));
+    lut_file = heimdall_alloc(length, sizeof(*lut_file));
     if (!lut_file)
         goto error;
     ret = fread(lut_file, length, 1, fs);
@@ -610,7 +611,7 @@ static void LoadUserShader(vout_display_sys_t *sys, const char *filepath)
     free(sys->hook_path);
     sys->hook_path = strdup(filepath);
 
-    fs = vlc_fopen(filepath, "rb");
+    fs = heimdall_fopen(filepath, "rb");
     int ret = fseek(fs, 0, SEEK_END);
     if (ret == -1)
         goto error;
@@ -619,7 +620,7 @@ static void LoadUserShader(vout_display_sys_t *sys, const char *filepath)
         goto error;
     rewind(fs);
 
-    shader_str = vlc_alloc(length, sizeof(*shader_str));
+    shader_str = heimdall_alloc(length, sizeof(*shader_str));
     if (!shader_str)
         goto error;
     ret = fread(shader_str, length, 1, fs);
@@ -646,7 +647,7 @@ error:
 #define PROVIDER_LONGTEXT N_( \
     "Extension which provides the GPU instance to use.")
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname ("libplacebo")
     set_description (N_("libplacebo video output"))
     set_subcategory (SUBCAT_VIDEO_VOUT)
@@ -765,17 +766,17 @@ vlc_module_begin ()
     add_bool("pl-force-general", false, FORCE_GENERAL_TEXT, FORCE_GENERAL_LONGTEXT)
     add_bool("pl-delayed-peak", false, DELAYED_PEAK_TEXT, DELAYED_PEAK_LONGTEXT)
 
-vlc_module_end ()
+heimdall_module_end ()
 
 // Update the renderer settings based on the current configuration.
 //
 // XXX: This could be called every time the parameters change, but currently
-// VLC does not allow that - so we're stuck with doing it once on Open().
+// Heimdall does not allow that - so we're stuck with doing it once on Open().
 // Should be changed as soon as it's possible!
 static void UpdateParams(vout_display_t *vd)
 {
     vout_display_sys_t *sys = vd->sys;
-    vlc_placebo_ColorMapParams(VLC_OBJECT(vd), "pl", &sys->color_map);
+    heimdall_placebo_ColorMapParams(HEIMDALL_OBJECT(vd), "pl", &sys->color_map);
 
     sys->deband = pl_deband_default_params;
     sys->deband.iterations = var_InheritInteger(vd, "pl-iterations");

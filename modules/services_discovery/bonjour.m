@@ -2,6 +2,7 @@
  * bonjour.m: mDNS services discovery module based on Bonjour
  *****************************************************************************
  * Copyright (C) 2016-2026 VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Felix Paul Kühne <fkuehne@videolan.org>
  *          Marvin Scholz <epirat07@gmail.com>
@@ -25,33 +26,33 @@
 # include <config.h>
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_modules.h>
-#include <vlc_services_discovery.h>
-#include <vlc_renderer_discovery.h>
-#include <vlc_network.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_modules.h>
+#include <heimdall_services_discovery.h>
+#include <heimdall_renderer_discovery.h>
+#include <heimdall_network.h>
 
 #import <Foundation/Foundation.h>
 #import <arpa/inet.h>
 
 #pragma mark Function declarations
 
-static int OpenSD( vlc_object_t * );
-static void CloseSD( vlc_object_t * );
+static int OpenSD( heimdall_object_t * );
+static void CloseSD( heimdall_object_t * );
 
-static int OpenRD( vlc_object_t * );
-static void CloseRD( vlc_object_t * );
+static int OpenRD( heimdall_object_t * );
+static void CloseRD( heimdall_object_t * );
 
-VLC_SD_PROBE_HELPER( "Bonjour", N_("Bonjour Network Discovery"), SD_CAT_LAN )
-VLC_RD_PROBE_HELPER( "Bonjour_renderer", "Bonjour Renderer Discovery" )
+HEIMDALL_SD_PROBE_HELPER( "Bonjour", N_("Bonjour Network Discovery"), SD_CAT_LAN )
+HEIMDALL_RD_PROBE_HELPER( "Bonjour_renderer", "Bonjour Renderer Discovery" )
 
 typedef struct services_discovery_sys_t
 {
     CFTypeRef _Nullable discoveryController;
 } services_discovery_sys_t;
 
-struct vlc_renderer_discovery_sys
+struct heimdall_renderer_discovery_sys
 {
     CFTypeRef _Nullable discoveryController;
 };
@@ -59,30 +60,30 @@ struct vlc_renderer_discovery_sys
 /*
  * Module descriptor
  */
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname( "Bonjour" )
     set_description( N_( "Bonjour Network Discovery" ) )
     set_subcategory( SUBCAT_PLAYLIST_SD )
     set_capability( "services_discovery", 0 )
     set_callbacks( OpenSD, CloseSD )
     add_shortcut( "mdns", "bonjour" )
-    VLC_SD_PROBE_SUBMODULE
+    HEIMDALL_SD_PROBE_SUBMODULE
     add_submodule() \
         set_description( N_( "Bonjour Renderer Discovery" ) )
         set_subcategory( SUBCAT_SOUT_RENDERER )
         set_capability( "renderer_discovery", 0 )
         set_callbacks( OpenRD, CloseRD )
         add_shortcut( "mdns_renderer", "bonjour_renderer" )
-        VLC_RD_PROBE_SUBMODULE
-vlc_module_end()
+        HEIMDALL_RD_PROBE_SUBMODULE
+heimdall_module_end()
 
-NSString *const VLCBonjourProtocolName          = @"VLCBonjourProtocolName";
-NSString *const VLCBonjourProtocolServiceName   = @"VLCBonjourProtocolServiceName";
-NSString *const VLCBonjourProtocolModules       = @"VLCBonjourProtocolModules";
-NSString *const VLCBonjourInputType             = @"VLCBonjourInputType";
-NSString *const VLCBonjourIsRenderer            = @"VLCBonjourIsRenderer";
-NSString *const VLCBonjourRendererFlags         = @"VLCBonjourRendererFlags";
-NSString *const VLCBonjourRendererDemux         = @"VLCBonjourRendererDemux";
+NSString *const HeimdallBonjourProtocolName          = @"HeimdallBonjourProtocolName";
+NSString *const HeimdallBonjourProtocolServiceName   = @"HeimdallBonjourProtocolServiceName";
+NSString *const HeimdallBonjourProtocolModules       = @"HeimdallBonjourProtocolModules";
+NSString *const HeimdallBonjourInputType             = @"HeimdallBonjourInputType";
+NSString *const HeimdallBonjourIsRenderer            = @"HeimdallBonjourIsRenderer";
+NSString *const HeimdallBonjourRendererFlags         = @"HeimdallBonjourRendererFlags";
+NSString *const HeimdallBonjourRendererDemux         = @"HeimdallBonjourRendererDemux";
 
 /*
  * For chromecast, the `ca=` is composed from (at least)
@@ -94,7 +95,7 @@ NSString *const VLCBonjourRendererDemux         = @"VLCBonjourRendererDemux";
 
 #pragma mark -
 #pragma mark Interface definition
-@interface VLCNetServiceDiscoveryController : NSObject <NSNetServiceBrowserDelegate, NSNetServiceDelegate>
+@interface HeimdallNetServiceDiscoveryController : NSObject <NSNetServiceBrowserDelegate, NSNetServiceDelegate>
 {
     /* Stores all used service browsers, one for each protocol, usually */
     NSArray *_serviceBrowsers;
@@ -105,7 +106,7 @@ NSString *const VLCBonjourRendererDemux         = @"VLCBonjourRendererDemux";
     /* Holds all successfully resolved NSNetServices */
     NSMutableArray *_resolvedNetServices;
 
-    /* Holds the respective pointers to a vlc_object for each resolved and added NSNetService */
+    /* Holds the respective pointers to a heimdall_object for each resolved and added NSNetService */
     NSMutableArray *_inputItemsForNetServices;
 
     /* Stores all protocols that are currently discovered */
@@ -113,9 +114,9 @@ NSString *const VLCBonjourRendererDemux         = @"VLCBonjourRendererDemux";
 }
 
 @property (readonly) BOOL isRendererDiscovery;
-@property (readonly, nonatomic) vlc_object_t *p_this;
+@property (readonly, nonatomic) heimdall_object_t *p_this;
 
-- (instancetype)initWithRendererDiscoveryObject:(vlc_renderer_discovery_t *)p_rd;
+- (instancetype)initWithRendererDiscoveryObject:(heimdall_renderer_discovery_t *)p_rd;
 - (instancetype)initWithServicesDiscoveryObject:(services_discovery_t *)p_sd;
 
 - (void)startDiscovery;
@@ -132,7 +133,7 @@ static NSString * ipAddressAsStringForData(NSData * data)
         return returnValue;
     }
 
-    const vlc_sockaddr *socketAddress = (const vlc_sockaddr *)[data bytes];
+    const heimdall_sockaddr *socketAddress = (const heimdall_sockaddr *)[data bytes];
 
     if (socketAddress) {
         const char *addressStr = NULL;
@@ -147,7 +148,7 @@ static NSString * ipAddressAsStringForData(NSData * data)
                                            addressBuffer,
                                            sizeof(addressBuffer));
         }
-        else vlc_assert_unreachable();
+        else heimdall_assert_unreachable();
 
         if (addressStr != NULL) {
             returnValue = [NSString stringWithUTF8String:addressStr];
@@ -156,13 +157,13 @@ static NSString * ipAddressAsStringForData(NSData * data)
     return returnValue;
 }
 
-@implementation VLCNetServiceDiscoveryController
+@implementation HeimdallNetServiceDiscoveryController
 
-- (instancetype)initWithRendererDiscoveryObject:(vlc_renderer_discovery_t *)p_rd
+- (instancetype)initWithRendererDiscoveryObject:(heimdall_renderer_discovery_t *)p_rd
 {
     self = [super init];
     if (self) {
-        _p_this = VLC_OBJECT( p_rd );
+        _p_this = HEIMDALL_OBJECT( p_rd );
         _isRendererDiscovery = YES;
     }
 
@@ -173,7 +174,7 @@ static NSString * ipAddressAsStringForData(NSData * data)
 {
     self = [super init];
     if (self) {
-        _p_this = VLC_OBJECT( p_sd );
+        _p_this = HEIMDALL_OBJECT( p_sd );
         _isRendererDiscovery = NO;
     }
 
@@ -182,64 +183,64 @@ static NSString * ipAddressAsStringForData(NSData * data)
 
 - (void)startDiscovery
 {
-    NSDictionary *VLCFtpProtocol = @{ VLCBonjourProtocolName        : @"ftp",
-                                      VLCBonjourProtocolServiceName : @"_ftp._tcp.",
-                                      VLCBonjourIsRenderer          : @(NO),
-                                      VLCBonjourInputType           : @(ITEM_TYPE_DIRECTORY),
-                                      VLCBonjourProtocolModules     : @[@"ftp"]
+    NSDictionary *HeimdallFtpProtocol = @{ HeimdallBonjourProtocolName        : @"ftp",
+                                      HeimdallBonjourProtocolServiceName : @"_ftp._tcp.",
+                                      HeimdallBonjourIsRenderer          : @(NO),
+                                      HeimdallBonjourInputType           : @(ITEM_TYPE_DIRECTORY),
+                                      HeimdallBonjourProtocolModules     : @[@"ftp"]
                                       };
-    NSDictionary *VLCSmbProtocol = @{ VLCBonjourProtocolName        : @"smb",
-                                      VLCBonjourProtocolServiceName : @"_smb._tcp.",
-                                      VLCBonjourIsRenderer          : @(NO),
-                                      VLCBonjourInputType           : @(ITEM_TYPE_DIRECTORY),
-                                      VLCBonjourProtocolModules     : @[@"dsm", @"smb2"]
+    NSDictionary *HeimdallSmbProtocol = @{ HeimdallBonjourProtocolName        : @"smb",
+                                      HeimdallBonjourProtocolServiceName : @"_smb._tcp.",
+                                      HeimdallBonjourIsRenderer          : @(NO),
+                                      HeimdallBonjourInputType           : @(ITEM_TYPE_DIRECTORY),
+                                      HeimdallBonjourProtocolModules     : @[@"dsm", @"smb2"]
                                       };
-    NSDictionary *VLCNfsProtocol = @{ VLCBonjourProtocolName        : @"nfs",
-                                      VLCBonjourProtocolServiceName : @"_nfs._tcp.",
-                                      VLCBonjourIsRenderer          : @(NO),
-                                      VLCBonjourInputType           : @(ITEM_TYPE_DIRECTORY),
-                                      VLCBonjourProtocolModules     : @[@"nfs"]
+    NSDictionary *HeimdallNfsProtocol = @{ HeimdallBonjourProtocolName        : @"nfs",
+                                      HeimdallBonjourProtocolServiceName : @"_nfs._tcp.",
+                                      HeimdallBonjourIsRenderer          : @(NO),
+                                      HeimdallBonjourInputType           : @(ITEM_TYPE_DIRECTORY),
+                                      HeimdallBonjourProtocolModules     : @[@"nfs"]
                                       };
-    NSDictionary *VLCSftpProtocol = @{ VLCBonjourProtocolName       : @"sftp",
-                                       VLCBonjourProtocolServiceName: @"_sftp-ssh._tcp.",
-                                       VLCBonjourIsRenderer         : @(NO),
-                                       VLCBonjourInputType          : @(ITEM_TYPE_DIRECTORY),
-                                       VLCBonjourProtocolModules     : @[@"sftp"]
+    NSDictionary *HeimdallSftpProtocol = @{ HeimdallBonjourProtocolName       : @"sftp",
+                                       HeimdallBonjourProtocolServiceName: @"_sftp-ssh._tcp.",
+                                       HeimdallBonjourIsRenderer         : @(NO),
+                                       HeimdallBonjourInputType          : @(ITEM_TYPE_DIRECTORY),
+                                       HeimdallBonjourProtocolModules     : @[@"sftp"]
                                        };
-    NSDictionary *VLCWebDavProtocol = @{ VLCBonjourProtocolName       : @"webdav",
-                                         VLCBonjourProtocolServiceName: @"_webdav._tcp.",
-                                         VLCBonjourIsRenderer         : @(NO),
-                                         VLCBonjourInputType          : @(ITEM_TYPE_DIRECTORY),
-                                         VLCBonjourProtocolModules    : @[@"webdav"]
+    NSDictionary *HeimdallWebDavProtocol = @{ HeimdallBonjourProtocolName       : @"webdav",
+                                         HeimdallBonjourProtocolServiceName: @"_webdav._tcp.",
+                                         HeimdallBonjourIsRenderer         : @(NO),
+                                         HeimdallBonjourInputType          : @(ITEM_TYPE_DIRECTORY),
+                                         HeimdallBonjourProtocolModules    : @[@"webdav"]
                                          };
-    NSDictionary *VLCWebDavsProtocol = @{ VLCBonjourProtocolName       : @"webdavs",
-                                          VLCBonjourProtocolServiceName: @"_webdavs._tcp.",
-                                          VLCBonjourIsRenderer         : @(NO),
-                                          VLCBonjourInputType          : @(ITEM_TYPE_DIRECTORY),
-                                          VLCBonjourProtocolModules    : @[@"webdavs"]
+    NSDictionary *HeimdallWebDavsProtocol = @{ HeimdallBonjourProtocolName       : @"webdavs",
+                                          HeimdallBonjourProtocolServiceName: @"_webdavs._tcp.",
+                                          HeimdallBonjourIsRenderer         : @(NO),
+                                          HeimdallBonjourInputType          : @(ITEM_TYPE_DIRECTORY),
+                                          HeimdallBonjourProtocolModules    : @[@"webdavs"]
                                           };
-    NSDictionary *VLCCastProtocol = @{ VLCBonjourProtocolName       : @"chromecast",
-                                       VLCBonjourProtocolServiceName: @"_googlecast._tcp.",
-                                       VLCBonjourIsRenderer         : @(YES),
-                                       VLCBonjourInputType          : @(ITEM_TYPE_DIRECTORY),
-                                       VLCBonjourRendererFlags      : @(VLC_RENDERER_CAN_AUDIO),
-                                       VLCBonjourRendererDemux      : @"cc_demux"
+    NSDictionary *HeimdallCastProtocol = @{ HeimdallBonjourProtocolName       : @"chromecast",
+                                       HeimdallBonjourProtocolServiceName: @"_googlecast._tcp.",
+                                       HeimdallBonjourIsRenderer         : @(YES),
+                                       HeimdallBonjourInputType          : @(ITEM_TYPE_DIRECTORY),
+                                       HeimdallBonjourRendererFlags      : @(HEIMDALL_RENDERER_CAN_AUDIO),
+                                       HeimdallBonjourRendererDemux      : @"cc_demux"
                                        };
-    NSDictionary *VLCNdiProtocol = @{ VLCBonjourProtocolName        : @"ndi",
-                                      VLCBonjourProtocolServiceName : @"_ndi._tcp.",
-                                      VLCBonjourIsRenderer          : @(NO),
-                                      VLCBonjourInputType           : @(ITEM_TYPE_STREAM),
-                                      VLCBonjourProtocolModules     : @[@"noidea"]
+    NSDictionary *HeimdallNdiProtocol = @{ HeimdallBonjourProtocolName        : @"ndi",
+                                      HeimdallBonjourProtocolServiceName : @"_ndi._tcp.",
+                                      HeimdallBonjourIsRenderer          : @(NO),
+                                      HeimdallBonjourInputType           : @(ITEM_TYPE_STREAM),
+                                      HeimdallBonjourProtocolModules     : @[@"noidea"]
                                       };
 
-    NSArray *VLCSupportedProtocols = @[VLCFtpProtocol,
-                                      VLCSmbProtocol,
-                                      VLCNfsProtocol,
-                                      VLCSftpProtocol,
-                                      VLCWebDavProtocol,
-                                      VLCWebDavsProtocol,
-                                      VLCCastProtocol,
-                                      VLCNdiProtocol];
+    NSArray *HeimdallSupportedProtocols = @[HeimdallFtpProtocol,
+                                      HeimdallSmbProtocol,
+                                      HeimdallNfsProtocol,
+                                      HeimdallSftpProtocol,
+                                      HeimdallWebDavProtocol,
+                                      HeimdallWebDavsProtocol,
+                                      HeimdallCastProtocol,
+                                      HeimdallNdiProtocol];
 
     _rawNetServices = [[NSMutableArray alloc] init];
     _resolvedNetServices = [[NSMutableArray alloc] init];
@@ -249,32 +250,32 @@ static NSString * ipAddressAsStringForData(NSData * data)
     NSMutableArray *protocols = [[NSMutableArray alloc] init];
 
     msg_Info(_p_this, "starting discovery");
-    for (NSDictionary *protocol in VLCSupportedProtocols) {
+    for (NSDictionary *protocol in HeimdallSupportedProtocols) {
         if (!_isRendererDiscovery) {
             /* Only discover services if we actually have at least one module that can handle their protocol */
             BOOL canHandle = NO;
-            for (NSString *name in [protocol objectForKey: VLCBonjourProtocolModules]) {
+            for (NSString *name in [protocol objectForKey: HeimdallBonjourProtocolModules]) {
                 if (module_exists([name UTF8String])) {
                     canHandle = YES;
                     break;
                 }
             }
             if (!canHandle) {
-                msg_Dbg(_p_this, "no module to handle %s, skipping", [[protocol objectForKey: VLCBonjourProtocolName] UTF8String]);
+                msg_Dbg(_p_this, "no module to handle %s, skipping", [[protocol objectForKey: HeimdallBonjourProtocolName] UTF8String]);
                 continue;
             }
         }
 
         /* Only discover hosts it they match the current mode (renderer or service) */
-        if ([[protocol objectForKey: VLCBonjourIsRenderer] boolValue] != _isRendererDiscovery) {
-            msg_Dbg(_p_this, "%s does not match current discovery mode, skipping", [[protocol objectForKey: VLCBonjourProtocolName] UTF8String]);
+        if ([[protocol objectForKey: HeimdallBonjourIsRenderer] boolValue] != _isRendererDiscovery) {
+            msg_Dbg(_p_this, "%s does not match current discovery mode, skipping", [[protocol objectForKey: HeimdallBonjourProtocolName] UTF8String]);
             continue;
         }
 
         NSNetServiceBrowser *serviceBrowser = [[NSNetServiceBrowser alloc] init];
         [serviceBrowser setDelegate:self];
-        msg_Dbg(_p_this, "starting discovery for type %s", [[protocol objectForKey: VLCBonjourProtocolServiceName] UTF8String]);
-        [serviceBrowser searchForServicesOfType:[protocol objectForKey: VLCBonjourProtocolServiceName] inDomain:@"local."];
+        msg_Dbg(_p_this, "starting discovery for type %s", [[protocol objectForKey: HeimdallBonjourProtocolServiceName] UTF8String]);
+        [serviceBrowser searchForServicesOfType:[protocol objectForKey: HeimdallBonjourProtocolServiceName] inDomain:@"local."];
         [discoverers addObject:serviceBrowser];
         [protocols addObject:protocol];
     }
@@ -351,9 +352,9 @@ static NSString * ipAddressAsStringForData(NSData * data)
         NSString *protocol = nil;
         enum input_item_type_e inputType = ITEM_TYPE_DIRECTORY;
         for (NSDictionary *protocolDefinition in _activeProtocols) {
-            if ([serviceType isEqualToString:[protocolDefinition objectForKey:VLCBonjourProtocolServiceName]]) {
-                protocol = [protocolDefinition objectForKey:VLCBonjourProtocolName];
-                inputType = [[protocolDefinition objectForKey:VLCBonjourInputType] intValue];
+            if ([serviceType isEqualToString:[protocolDefinition objectForKey:HeimdallBonjourProtocolServiceName]]) {
+                protocol = [protocolDefinition objectForKey:HeimdallBonjourProtocolName];
+                inputType = [[protocolDefinition objectForKey:HeimdallBonjourInputType] intValue];
             }
         }
 
@@ -378,7 +379,7 @@ static NSString * ipAddressAsStringForData(NSData * data)
 
 - (void)addResolvedRendererItem:(NSNetService *)netService withProtocol:(NSString *)protocol
 {
-    vlc_renderer_discovery_t *p_rd = (vlc_renderer_discovery_t *)_p_this;
+    heimdall_renderer_discovery_t *p_rd = (heimdall_renderer_discovery_t *)_p_this;
 
     NSURLComponents *components = [[NSURLComponents alloc] init];
     components.scheme = protocol;
@@ -400,10 +401,10 @@ static NSString * ipAddressAsStringForData(NSData * data)
             NSInteger flags = [flagsString intValue];
 
             if ((flags & CHROMECAST_FLAG_VIDEO) != 0) {
-                rendererFlags |= VLC_RENDERER_CAN_VIDEO;
+                rendererFlags |= HEIMDALL_RENDERER_CAN_VIDEO;
             }
             if ((flags & CHROMECAST_FLAG_AUDIO) != 0) {
-                rendererFlags |= VLC_RENDERER_CAN_AUDIO;
+                rendererFlags |= HEIMDALL_RENDERER_CAN_AUDIO;
             }
         }
 
@@ -415,14 +416,14 @@ static NSString * ipAddressAsStringForData(NSData * data)
         }
     }
 
-    const char *extra_uri = rendererFlags & VLC_RENDERER_CAN_VIDEO ? NULL : "no-video";
+    const char *extra_uri = rendererFlags & HEIMDALL_RENDERER_CAN_VIDEO ? NULL : "no-video";
 
     // TODO: Adapt to work with not just chromecast!
-    vlc_renderer_item_t *p_renderer_item = vlc_renderer_item_new("chromecast", [displayName UTF8String],
+    heimdall_renderer_item_t *p_renderer_item = heimdall_renderer_item_new("chromecast", [displayName UTF8String],
                                                                  [uri UTF8String], extra_uri, "cc_demux",
                                                                  "", rendererFlags );
     if (p_renderer_item != NULL) {
-        vlc_rd_add_item( p_rd, p_renderer_item );
+        heimdall_rd_add_item( p_rd, p_renderer_item );
         [_inputItemsForNetServices addObject:[NSValue valueWithPointer:p_renderer_item]];
         [_resolvedNetServices addObject:netService];
     }
@@ -430,12 +431,12 @@ static NSString * ipAddressAsStringForData(NSData * data)
 
 - (void)removeRawRendererItem:(NSValue *)item
 {
-    vlc_renderer_discovery_t *p_rd = (vlc_renderer_discovery_t *)_p_this;
-    vlc_renderer_item_t *input_item = [item pointerValue];
+    heimdall_renderer_discovery_t *p_rd = (heimdall_renderer_discovery_t *)_p_this;
+    heimdall_renderer_item_t *input_item = [item pointerValue];
 
     if (input_item != NULL) {
-        vlc_rd_remove_item( p_rd, input_item );
-        vlc_renderer_item_release( input_item );
+        heimdall_rd_remove_item( p_rd, input_item );
+        heimdall_renderer_item_release( input_item );
     }
 }
 
@@ -478,33 +479,33 @@ static NSString * ipAddressAsStringForData(NSData * data)
 
 @end
 
-static int OpenSD(vlc_object_t *p_this)
+static int OpenSD(heimdall_object_t *p_this)
 {
     services_discovery_t *p_sd = (services_discovery_t *)p_this;
     services_discovery_sys_t *p_sys = NULL;
 
     p_sd->p_sys = p_sys = calloc(1, sizeof(services_discovery_sys_t));
     if (!p_sys) {
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     p_sd->description = _("Bonjour Network Discovery");
 
-    VLCNetServiceDiscoveryController *discoveryController = [[VLCNetServiceDiscoveryController alloc] initWithServicesDiscoveryObject:p_sd];
+    HeimdallNetServiceDiscoveryController *discoveryController = [[HeimdallNetServiceDiscoveryController alloc] initWithServicesDiscoveryObject:p_sd];
 
     p_sys->discoveryController = CFBridgingRetain(discoveryController);
 
     [discoveryController startDiscovery];
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void CloseSD(vlc_object_t *p_this)
+static void CloseSD(heimdall_object_t *p_this)
 {
     services_discovery_t *p_sd = (services_discovery_t *)p_this;
     services_discovery_sys_t *p_sys = p_sd->p_sys;
 
-    VLCNetServiceDiscoveryController *discoveryController = (__bridge VLCNetServiceDiscoveryController *)(p_sys->discoveryController);
+    HeimdallNetServiceDiscoveryController *discoveryController = (__bridge HeimdallNetServiceDiscoveryController *)(p_sys->discoveryController);
     [discoveryController stopDiscovery];
 
     CFBridgingRelease(p_sys->discoveryController);
@@ -513,31 +514,31 @@ static void CloseSD(vlc_object_t *p_this)
     free(p_sys);
 }
 
-static int OpenRD(vlc_object_t *p_this)
+static int OpenRD(heimdall_object_t *p_this)
 {
-    vlc_renderer_discovery_t *p_rd = (vlc_renderer_discovery_t *)p_this;
-    struct vlc_renderer_discovery_sys *p_sys = NULL;
+    heimdall_renderer_discovery_t *p_rd = (heimdall_renderer_discovery_t *)p_this;
+    struct heimdall_renderer_discovery_sys *p_sys = NULL;
 
-    p_rd->p_sys = p_sys = calloc(1, sizeof(struct vlc_renderer_discovery_sys));
+    p_rd->p_sys = p_sys = calloc(1, sizeof(struct heimdall_renderer_discovery_sys));
     if (!p_sys) {
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
-    VLCNetServiceDiscoveryController *discoveryController = [[VLCNetServiceDiscoveryController alloc] initWithRendererDiscoveryObject:p_rd];
+    HeimdallNetServiceDiscoveryController *discoveryController = [[HeimdallNetServiceDiscoveryController alloc] initWithRendererDiscoveryObject:p_rd];
 
     p_sys->discoveryController = CFBridgingRetain(discoveryController);
 
     [discoveryController startDiscovery];
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void CloseRD(vlc_object_t *p_this)
+static void CloseRD(heimdall_object_t *p_this)
 {
-    vlc_renderer_discovery_t *p_rd = (vlc_renderer_discovery_t *)p_this;
-    struct vlc_renderer_discovery_sys *p_sys = p_rd->p_sys;
+    heimdall_renderer_discovery_t *p_rd = (heimdall_renderer_discovery_t *)p_this;
+    struct heimdall_renderer_discovery_sys *p_sys = p_rd->p_sys;
 
-    VLCNetServiceDiscoveryController *discoveryController = (__bridge VLCNetServiceDiscoveryController *)(p_sys->discoveryController);
+    HeimdallNetServiceDiscoveryController *discoveryController = (__bridge HeimdallNetServiceDiscoveryController *)(p_sys->discoveryController);
     [discoveryController stopDiscovery];
 
     CFBridgingRelease(p_sys->discoveryController);

@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2023 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,8 +16,8 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
-#ifndef VLC_COMPOSITOR_WAYLAND
-#define VLC_COMPOSITOR_WAYLAND
+#ifndef HEIMDALL_COMPOSITOR_WAYLAND
+#define HEIMDALL_COMPOSITOR_WAYLAND
 
 #ifdef HAVE_CONFIG_H
 # include "config.h"
@@ -37,7 +38,7 @@ extern "C" {
 typedef struct qtwayland_t qtwayland_t;
 }
 
-namespace vlc {
+namespace heimdall {
 
 class CompositorWayland : public CompositorVideo
 {
@@ -73,10 +74,10 @@ public:
     //video integration
 
 
-    bool setupVoutWindow(vlc_window_t *p_wnd, VoutDestroyCb destroyCb) override;
+    bool setupVoutWindow(heimdall_window_t *p_wnd, VoutDestroyCb destroyCb) override;
     void windowDestroy() override;
 
-    int windowEnable(const vlc_window_cfg_t *) override;
+    int windowEnable(const heimdall_window_cfg_t *) override;
     void windowDisable() override;
 
     bool canDoThreadedSurfaceUpdates() const override { return true; };
@@ -103,4 +104,4 @@ private:
 
 }
 
-#endif // VLC_COMPOSITOR_WAYLAND
+#endif // HEIMDALL_COMPOSITOR_WAYLAND

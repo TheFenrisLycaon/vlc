@@ -1,7 +1,8 @@
 /*****************************************************************************
- * chromecast_demux.cpp: Chromecast demux filter module for vlc
+ * chromecast_demux.cpp: Chromecast demux filter module for heimdall
  *****************************************************************************
  * Copyright © 2015-2016 VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Steve Lhomme <robux4@videolabs.io>
  *
@@ -28,9 +29,9 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_demux.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_demux.h>
 
 #include "chromecast_common.h"
 
@@ -53,7 +54,7 @@ struct demux_cc
     {
         resetDemuxEof();
 
-        vlc_meta_t *p_meta = vlc_meta_New();
+        heimdall_meta_t *p_meta = heimdall_meta_New();
         if( likely(p_meta != NULL) )
         {
             input_item_t *p_item = p_demux->s->p_input_item;
@@ -61,49 +62,49 @@ struct demux_cc
             {
                 /* Favor Meta from the input item of the input_thread since
                  * it's pre-processed by the meta fetcher */
-                for( int i = 0; i < VLC_META_TYPE_COUNT; ++i )
+                for( int i = 0; i < HEIMDALL_META_TYPE_COUNT; ++i )
                 {
-                    char *psz_meta = input_item_GetMeta( p_item, (vlc_meta_type_t)i );
+                    char *psz_meta = input_item_GetMeta( p_item, (heimdall_meta_type_t)i );
                     if( psz_meta )
                     {
-                        vlc_meta_Set( p_meta, (vlc_meta_type_t)i, psz_meta );
+                        heimdall_meta_Set( p_meta, (heimdall_meta_type_t)i, psz_meta );
                         free( psz_meta );
                     }
                 }
-                if( vlc_meta_Get( p_meta, vlc_meta_Title ) == NULL )
+                if( heimdall_meta_Get( p_meta, heimdall_meta_Title ) == NULL )
                 {
                     char *psz_meta = input_item_GetName( p_item );
                     if( psz_meta )
                     {
-                        vlc_meta_Set( p_meta, vlc_meta_Title, psz_meta );
+                        heimdall_meta_Set( p_meta, heimdall_meta_Title, psz_meta );
                         free( psz_meta );
                     }
                 }
                 p_renderer->pf_set_meta( p_renderer->p_opaque, p_meta );
             }
-            else if (demux_Control( p_demux->s, DEMUX_GET_META, p_meta) == VLC_SUCCESS)
+            else if (demux_Control( p_demux->s, DEMUX_GET_META, p_meta) == HEIMDALL_SUCCESS)
                 p_renderer->pf_set_meta( p_renderer->p_opaque, p_meta );
             else
-                vlc_meta_Delete( p_meta );
+                heimdall_meta_Delete( p_meta );
         }
 
-        if (demux_Control( p_demux->s, DEMUX_CAN_SEEK, &m_can_seek ) != VLC_SUCCESS)
+        if (demux_Control( p_demux->s, DEMUX_CAN_SEEK, &m_can_seek ) != HEIMDALL_SUCCESS)
             m_can_seek = false;
-        if (demux_Control( p_demux->s, DEMUX_GET_LENGTH, &m_length ) != VLC_SUCCESS)
+        if (demux_Control( p_demux->s, DEMUX_GET_LENGTH, &m_length ) != HEIMDALL_SUCCESS)
             m_length = -1;
         p_renderer->pf_set_input_length( p_renderer->p_opaque, m_length );
 
         int i_current_title;
         if( demux_Control( p_demux->s, DEMUX_GET_TITLE,
-                           &i_current_title ) == VLC_SUCCESS )
+                           &i_current_title ) == HEIMDALL_SUCCESS )
         {
             input_title_t** pp_titles;
             int i_nb_titles, i_title_offset, i_chapter_offset;
             if( demux_Control( p_demux->s, DEMUX_GET_TITLE_INFO, &pp_titles,
                               &i_nb_titles, &i_title_offset,
-                              &i_chapter_offset ) == VLC_SUCCESS )
+                              &i_chapter_offset ) == HEIMDALL_SUCCESS )
             {
-                vlc_tick_t i_longest_duration = 0;
+                heimdall_tick_t i_longest_duration = 0;
                 int i_longest_title = 0;
                 bool b_is_interactive = false;
                 for( int i = 0 ; i < i_nb_titles; ++i )
@@ -118,7 +119,7 @@ struct demux_cc
                     {
                         b_is_interactive = true;
                     }
-                    vlc_input_title_Delete( pp_titles[i] );
+                    heimdall_input_title_Delete( pp_titles[i] );
                 }
                 free( pp_titles );
 
@@ -142,7 +143,7 @@ struct demux_cc
     {
         assert(p_renderer);
         p_renderer->pf_set_meta( p_renderer->p_opaque, NULL );
-        p_renderer->pf_set_input_length( p_renderer->p_opaque, VLC_TICK_INVALID );
+        p_renderer->pf_set_input_length( p_renderer->p_opaque, HEIMDALL_TICK_INVALID );
         p_renderer->pf_set_demux_enabled(p_renderer->p_opaque, false, NULL, NULL);
     }
 
@@ -154,10 +155,10 @@ struct demux_cc
 
     void initTimes()
     {
-        if( demux_Control( p_demux->s, DEMUX_GET_TIME, &m_start_time ) != VLC_SUCCESS )
+        if( demux_Control( p_demux->s, DEMUX_GET_TIME, &m_start_time ) != HEIMDALL_SUCCESS )
             m_start_time = -1;
 
-        if( demux_Control( p_demux->s, DEMUX_GET_POSITION, &m_start_pos ) != VLC_SUCCESS )
+        if( demux_Control( p_demux->s, DEMUX_GET_POSITION, &m_start_pos ) != HEIMDALL_SUCCESS )
             m_start_pos = -1.0f;
 
         m_last_time = m_start_time;
@@ -182,20 +183,20 @@ struct demux_cc
         p_renderer->pf_set_pause_state( p_renderer->p_opaque, paused );
     }
 
-    vlc_tick_t getCCTime()
+    heimdall_tick_t getCCTime()
     {
         return p_renderer->pf_get_time( p_renderer->p_opaque );
     }
 
-    vlc_tick_t getTime()
+    heimdall_tick_t getTime()
     {
         if( m_start_time < 0 )
             return -1;
 
-        vlc_tick_t time = m_start_time;
-        vlc_tick_t cc_time = getCCTime();
+        heimdall_tick_t time = m_start_time;
+        heimdall_tick_t cc_time = getCCTime();
 
-        if( cc_time != VLC_TICK_INVALID )
+        if( cc_time != HEIMDALL_TICK_INVALID )
             time += cc_time;
         m_last_time = time;
         return time;
@@ -212,17 +213,17 @@ struct demux_cc
             return -1;
     }
 
-    void seekBack( vlc_tick_t time, double pos )
+    void seekBack( heimdall_tick_t time, double pos )
     {
         es_out_Control( p_demux->s->out, ES_OUT_RESET_PCR );
 
         if( m_can_seek )
         {
-            int ret = VLC_EGENERIC;
+            int ret = HEIMDALL_EGENERIC;
             if( time >= 0 )
                 ret = demux_Control( p_demux->s, DEMUX_SET_TIME, time, false );
 
-            if( ret != VLC_SUCCESS && pos >= 0 )
+            if( ret != HEIMDALL_SUCCESS && pos >= 0 )
                 demux_SetPosition( p_demux->s, pos, false );
         }
     }
@@ -237,7 +238,7 @@ struct demux_cc
         switch (pace)
         {
             case CC_PACE_ERR:
-                return VLC_DEMUXER_EGENERIC;
+                return HEIMDALL_DEMUXER_EGENERIC;
             case CC_PACE_ERR_RETRY:
             {
                 /* Seek back to started position */
@@ -251,22 +252,22 @@ struct demux_cc
             }
             case CC_PACE_OK_WAIT:
                 /* Yield: return to let the input thread doing controls  */
-                return VLC_DEMUXER_SUCCESS;
+                return HEIMDALL_DEMUXER_SUCCESS;
             case CC_PACE_OK:
             case CC_PACE_OK_ENDED:
                 break;
             default:
-                vlc_assert_unreachable();
+                heimdall_assert_unreachable();
         }
 
-        int ret = VLC_DEMUXER_SUCCESS;
+        int ret = HEIMDALL_DEMUXER_SUCCESS;
         if( !m_demux_eof )
         {
             ret = demux_Demux( p_demux->s );
-            if( ret != VLC_DEMUXER_EGENERIC
+            if( ret != HEIMDALL_DEMUXER_EGENERIC
              && ( m_start_time < 0 || m_start_pos < 0.0f ) )
                 initTimes();
-            if( ret == VLC_DEMUXER_EOF )
+            if( ret == HEIMDALL_DEMUXER_EOF )
                 m_demux_eof = true;
         }
 
@@ -276,7 +277,7 @@ struct demux_cc
              * DecoderThread fifo are empty) */
             bool b_empty = true;
             int ret = es_out_Control( p_demux->s->out, ES_OUT_DRAIN );
-            if( ret == VLC_SUCCESS )
+            if( ret == HEIMDALL_SUCCESS )
                 es_out_Control( p_demux->s->out, ES_OUT_IS_EMPTY, &b_empty );
             if( b_empty )
                 p_renderer->pf_send_input_event( p_renderer->p_opaque,
@@ -287,7 +288,7 @@ struct demux_cc
              * this demux filter to have more controls over the sout. Indeed,
              * we still can seek or change tracks when the input is EOF and we
              * should continue to handle CC errors. */
-            ret = pace == CC_PACE_OK ? VLC_DEMUXER_SUCCESS : VLC_DEMUXER_EOF;
+            ret = pace == CC_PACE_OK ? HEIMDALL_DEMUXER_SUCCESS : HEIMDALL_DEMUXER_EOF;
         }
 
         return ret;
@@ -306,19 +307,19 @@ struct demux_cc
             if( pos >= 0 )
             {
                 *va_arg( args, double * ) = pos;
-                return VLC_SUCCESS;
+                return HEIMDALL_SUCCESS;
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
         case DEMUX_GET_TIME:
         {
-            vlc_tick_t time = getTime();
+            heimdall_tick_t time = getTime();
             if( time >= 0 )
             {
-                *va_arg(args, vlc_tick_t *) = time;
-                return VLC_SUCCESS;
+                *va_arg(args, heimdall_tick_t *) = time;
+                return HEIMDALL_SUCCESS;
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
         case DEMUX_GET_LENGTH:
         {
@@ -327,8 +328,8 @@ struct demux_cc
 
             va_copy( ap, args );
             ret = demux_vaControl( p_demux->s, i_query, args );
-            if( ret == VLC_SUCCESS )
-                m_length = *va_arg( ap, vlc_tick_t * );
+            if( ret == HEIMDALL_SUCCESS )
+                m_length = *va_arg( ap, heimdall_tick_t * );
             va_end( ap );
             return ret;
         }
@@ -340,7 +341,7 @@ struct demux_cc
 
             va_copy( ap, args );
             ret = demux_vaControl( p_demux->s, i_query, args );
-            if( ret == VLC_SUCCESS )
+            if( ret == HEIMDALL_SUCCESS )
                 m_can_seek = *va_arg( ap, bool* );
             va_end( ap );
             return ret;
@@ -351,24 +352,24 @@ struct demux_cc
             double pos = va_arg( args, double );
             /* Force imprecise seek */
             int ret = demux_SetPosition( p_demux->s, pos, false );
-            if( ret != VLC_SUCCESS )
+            if( ret != HEIMDALL_SUCCESS )
                 return ret;
 
             resetTimes();
             resetDemuxEof();
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
         case DEMUX_SET_TIME:
         {
-            vlc_tick_t time = va_arg( args, vlc_tick_t );
+            heimdall_tick_t time = va_arg( args, heimdall_tick_t );
             /* Force imprecise seek */
             int ret = demux_Control( p_demux->s, DEMUX_SET_TIME, time, false );
-            if( ret != VLC_SUCCESS )
+            if( ret != HEIMDALL_SUCCESS )
                 return ret;
 
             resetTimes();
             resetDemuxEof();
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
         case DEMUX_SET_PAUSE_STATE:
         {
@@ -396,7 +397,7 @@ struct demux_cc
             assert(p_renderer != NULL);
             m_enabled = true;
             init();
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
 
         case DEMUX_FILTER_DISABLE:
 
@@ -410,7 +411,7 @@ struct demux_cc
             m_enabled = false;
             p_renderer = NULL;
 
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
 
         return demux_vaControl( p_demux->s, i_query, args );
@@ -419,20 +420,20 @@ struct demux_cc
 protected:
     demux_t     * const p_demux;
     chromecast_common  * p_renderer;
-    vlc_tick_t    m_length;
+    heimdall_tick_t    m_length;
     bool          m_can_seek;
     bool          m_enabled;
     bool          m_demux_eof;
     double        m_start_pos;
     double        m_last_pos;
-    vlc_tick_t    m_start_time;
-    vlc_tick_t    m_last_time;
+    heimdall_tick_t    m_start_time;
+    heimdall_tick_t    m_last_time;
 };
 
 static void on_paused_changed_cb( void *data, bool paused )
 {
     demux_t *p_demux = reinterpret_cast<demux_t*>(data);
-    vlc_object_t *obj = vlc_object_parent(p_demux->s);
+    heimdall_object_t *obj = heimdall_object_parent(p_demux->s);
 
     /* XXX: Ugly: Notify the parent of the input_thread_t that the corks state
      * changed */
@@ -445,7 +446,7 @@ static void on_paused_changed_cb( void *data, bool paused )
             ( paused ? var_IncInteger : var_DecInteger )( obj, "corks" );
             return;
         }
-        obj = vlc_object_parent(obj);
+        obj = heimdall_object_parent(obj);
     }
 }
 
@@ -463,7 +464,7 @@ static int Control( demux_t *p_demux_filter, int i_query, va_list args)
     return p_sys->Control( p_demux_filter, i_query, args );
 }
 
-int Open(vlc_object_t *p_this)
+int Open(heimdall_object_t *p_this)
 {
     demux_t *p_demux = reinterpret_cast<demux_t*>(p_this);
     chromecast_common *p_renderer = static_cast<chromecast_common *>(
@@ -471,21 +472,21 @@ int Open(vlc_object_t *p_this)
     if ( p_renderer == NULL )
     {
         msg_Warn( p_this, "using Chromecast demuxer with no sout" );
-        return VLC_EINVAL;
+        return HEIMDALL_EINVAL;
     }
 
     demux_cc *p_sys = new(std::nothrow) demux_cc( p_demux, p_renderer );
     if (unlikely(p_sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_demux->p_sys = p_sys;
     p_demux->pf_demux = Demux;
     p_demux->pf_control = Control;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-void Close(vlc_object_t *p_this)
+void Close(heimdall_object_t *p_this)
 {
     demux_t *p_demux = reinterpret_cast<demux_t*>(p_this);
     demux_cc *p_sys = reinterpret_cast<demux_cc*>(p_demux->p_sys);
@@ -493,11 +494,11 @@ void Close(vlc_object_t *p_this)
     delete p_sys;
 }
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( "cc_demux" )
     set_subcategory( SUBCAT_INPUT_DEMUX )
     set_description( N_( "Chromecast demux wrapper" ) )
     set_capability( "demux_filter", 0 )
     add_shortcut( "cc_demux" )
     set_callbacks( Open, Close )
-vlc_module_end ()
+heimdall_module_end ()

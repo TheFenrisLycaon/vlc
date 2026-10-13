@@ -2,6 +2,7 @@
  * importer.c
  *****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -23,8 +24,8 @@
 #endif
 
 #include <stdbit.h>
-#include <vlc_common.h>
-#include <vlc_picture.h>
+#include <heimdall_common.h>
+#include <heimdall_picture.h>
 
 #include "importer_priv.h"
 
@@ -35,7 +36,7 @@
 #include "picture.h"
 
 static const GLfloat *
-GetTransformMatrix(const struct vlc_gl_interop *interop)
+GetTransformMatrix(const struct heimdall_gl_interop *interop)
 {
     const GLfloat *tm = NULL;
     if (interop && interop->ops && interop->ops->get_transform_matrix)
@@ -196,12 +197,12 @@ InitOrientationMatrix(float matrix[static 2*3], video_orientation_t orientation)
     }
 }
 
-struct vlc_gl_importer *
-vlc_gl_importer_New(struct vlc_gl_interop *interop)
+struct heimdall_gl_importer *
+heimdall_gl_importer_New(struct heimdall_gl_interop *interop)
 {
     assert(interop);
 
-    struct vlc_gl_importer *importer = malloc(sizeof(*importer));
+    struct heimdall_gl_importer *importer = malloc(sizeof(*importer));
     if (!importer)
         return NULL;
 
@@ -210,8 +211,8 @@ vlc_gl_importer_New(struct vlc_gl_interop *interop)
     importer->mtx_transform_defined = false;
     importer->pic_mtx_defined = false;
 
-    struct vlc_gl_format *glfmt = &importer->glfmt;
-    struct vlc_gl_picture *pic = &importer->pic;
+    struct heimdall_gl_format *glfmt = &importer->glfmt;
+    struct heimdall_gl_picture *pic = &importer->pic;
 
     /* Formats with palette are not supported. This also allows to copy
      * video_format_t without possibility of failure. */
@@ -228,8 +229,8 @@ vlc_gl_importer_New(struct vlc_gl_interop *interop)
 
     InitOrientationMatrix(importer->mtx_orientation, glfmt->fmt.orientation);
 
-    struct vlc_gl_extension_vt extension_vt;
-    vlc_gl_LoadExtensionFunctions(interop->gl, &extension_vt);
+    struct heimdall_gl_extension_vt extension_vt;
+    heimdall_gl_LoadExtensionFunctions(interop->gl, &extension_vt);
 
     /* Texture size */
     for (unsigned j = 0; j < interop->tex_count; j++) {
@@ -245,10 +246,10 @@ vlc_gl_importer_New(struct vlc_gl_interop *interop)
 
     if (!interop->handle_texs_gen)
     {
-        int ret = vlc_gl_interop_GenerateTextures(interop, glfmt->tex_widths,
+        int ret = heimdall_gl_interop_GenerateTextures(interop, glfmt->tex_widths,
                                                   glfmt->tex_heights,
                                                   pic->textures);
-        if (ret != VLC_SUCCESS)
+        if (ret != HEIMDALL_SUCCESS)
         {
             free(importer);
             return NULL;
@@ -259,13 +260,13 @@ vlc_gl_importer_New(struct vlc_gl_interop *interop)
 }
 
 void
-vlc_gl_importer_Delete(struct vlc_gl_importer *importer)
+heimdall_gl_importer_Delete(struct heimdall_gl_importer *importer)
 {
-    struct vlc_gl_interop *interop = importer->interop;
+    struct heimdall_gl_interop *interop = importer->interop;
 
     if (interop && !interop->handle_texs_gen)
     {
-        vlc_gl_interop_DeleteTextures(interop, importer->pic.textures);
+        heimdall_gl_interop_DeleteTextures(interop, importer->pic.textures);
     }
 
     free(importer);
@@ -291,11 +292,11 @@ MatrixMultiply(float out[static 2*3],
 }
 
 static void
-UpdatePictureMatrix(struct vlc_gl_importer *importer)
+UpdatePictureMatrix(struct heimdall_gl_importer *importer)
 {
     float tmp[2*3];
 
-    struct vlc_gl_picture *pic = &importer->pic;
+    struct heimdall_gl_picture *pic = &importer->pic;
 
     float *out = importer->mtx_transform_defined ? tmp : pic->mtx;
     /* out = mtx_coords_map * mtx_orientation */
@@ -307,11 +308,11 @@ UpdatePictureMatrix(struct vlc_gl_importer *importer)
 }
 
 int
-vlc_gl_importer_Update(struct vlc_gl_importer *importer, picture_t *picture)
+heimdall_gl_importer_Update(struct heimdall_gl_importer *importer, picture_t *picture)
 {
-    struct vlc_gl_interop *interop = importer->interop;
-    struct vlc_gl_format *glfmt = &importer->glfmt;
-    struct vlc_gl_picture *pic = &importer->pic;
+    struct heimdall_gl_interop *interop = importer->interop;
+    struct heimdall_gl_format *glfmt = &importer->glfmt;
+    struct heimdall_gl_picture *pic = &importer->pic;
 
     const video_format_t *source = &picture->format;
 

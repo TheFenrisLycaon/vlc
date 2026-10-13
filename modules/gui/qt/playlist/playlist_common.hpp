@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,18 +22,18 @@
 #include <QObject>
 
 extern "C" {
-    typedef struct vlc_playlist vlc_playlist_t;
+    typedef struct heimdall_playlist heimdall_playlist_t;
 }
 
 class Playlist
 {
 public:
     Playlist() = default;
-    explicit Playlist(vlc_playlist_t * const playlist)
+    explicit Playlist(heimdall_playlist_t * const playlist)
         : m_playlist(playlist)
     { };
 
-    vlc_playlist_t * m_playlist = nullptr;
+    heimdall_playlist_t * m_playlist = nullptr;
 };
 
 Q_DECLARE_METATYPE(Playlist)

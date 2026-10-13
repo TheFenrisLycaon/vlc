@@ -2,6 +2,7 @@
  * sap.c : SAP announce handler
  *****************************************************************************
  * Copyright (C) 2002-2008 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Clément Stenac <zorglub@videolan.org>
  *          Rémi Denis-Courmont
@@ -25,19 +26,19 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
 #include <stdlib.h>                                                /* free() */
 #include <stdio.h>                                              /* sprintf() */
 #include <string.h>
 #include <assert.h>
 
-#include <vlc_sout.h>
-#include <vlc_network.h>
-#include <vlc_memstream.h>
+#include <heimdall_sout.h>
+#include <heimdall_network.h>
+#include <heimdall_memstream.h>
 
 #include "stream_output.h"
-#include "../libvlc.h"
+#include "../libheimdall.h"
 
 /* SAP is always on that port */
 #define IPPORT_SAP 9875
@@ -47,7 +48,7 @@ struct sap_address_t;
 /* A SAP session descriptor, enqueued in the SAP handler queue */
 struct session_descriptor_t
 {
-    struct vlc_list node;
+    struct heimdall_list node;
     struct sap_address_t *addr;
     size_t length;
     char *data;
@@ -57,23 +58,23 @@ struct session_descriptor_t
  * control flow algorithm */
 typedef struct sap_address_t
 {
-    struct vlc_list         node;
+    struct heimdall_list         node;
 
-    vlc_thread_t            thread;
-    vlc_cond_t              wait;
+    heimdall_thread_t            thread;
+    heimdall_cond_t              wait;
 
     char                    group[NI_MAXNUMERICHOST];
-    vlc_sockaddr            orig;
+    heimdall_sockaddr            orig;
     socklen_t               origlen;
     int                     fd;
     unsigned                interval;
 
     unsigned                session_count;
-    struct vlc_list         sessions;
+    struct heimdall_list         sessions;
 } sap_address_t;
 
-static struct vlc_list sap_addrs = VLC_LIST_INITIALIZER(&sap_addrs);
-static vlc_mutex_t sap_mutex = VLC_STATIC_MUTEX;
+static struct heimdall_list sap_addrs = HEIMDALL_LIST_INITIALIZER(&sap_addrs);
+static heimdall_mutex_t sap_mutex = HEIMDALL_STATIC_MUTEX;
 
 #define SAP_MAX_BUFFER 65534
 #define MIN_INTERVAL 2
@@ -81,7 +82,7 @@ static vlc_mutex_t sap_mutex = VLC_STATIC_MUTEX;
 
 static void *RunThread (void *);
 
-static sap_address_t *AddressCreate (vlc_object_t *obj, const char *group)
+static sap_address_t *AddressCreate (heimdall_object_t *obj, const char *group)
 {
     int fd = net_ConnectUDP (obj, group, IPPORT_SAP, 255);
     if (fd == -1)
@@ -100,9 +101,9 @@ static sap_address_t *AddressCreate (vlc_object_t *obj, const char *group)
     getsockname(fd, &addr->orig.sa, &addr->origlen);
 
     addr->interval = var_CreateGetInteger (obj, "sap-interval");
-    vlc_cond_init (&addr->wait);
+    heimdall_cond_init (&addr->wait);
     addr->session_count = 0;
-    vlc_list_init(&addr->sessions);
+    heimdall_list_init(&addr->sessions);
     return addr;
 }
 
@@ -119,30 +120,30 @@ static void AddressDestroy (sap_address_t *addr)
  */
 static void *RunThread (void *self)
 {
-    vlc_thread_set_name("vlc-sap");
+    heimdall_thread_set_name("heimdall-sap");
 
     sap_address_t *addr = self;
 
-    vlc_mutex_lock(&sap_mutex);
+    heimdall_mutex_lock(&sap_mutex);
 
-    while (!vlc_list_is_empty(&addr->sessions))
+    while (!heimdall_list_is_empty(&addr->sessions))
     {
         session_descriptor_t *p_session;
-        vlc_tick_t deadline = vlc_tick_now();
+        heimdall_tick_t deadline = heimdall_tick_now();
 
         assert (addr->session_count > 0);
 
-        vlc_list_foreach (p_session, &addr->sessions, node)
+        heimdall_list_foreach (p_session, &addr->sessions, node)
         {
             send (addr->fd, p_session->data, p_session->length, 0);
-            deadline += vlc_tick_from_samples(addr->interval, addr->session_count);
+            deadline += heimdall_tick_from_samples(addr->interval, addr->session_count);
 
-            if (vlc_cond_timedwait(&addr->wait, &sap_mutex, deadline) == 0)
+            if (heimdall_cond_timedwait(&addr->wait, &sap_mutex, deadline) == 0)
                 break; /* list may have changed! */
         }
     }
 
-    vlc_mutex_unlock(&sap_mutex);
+    heimdall_mutex_unlock(&sap_mutex);
     return NULL;
 }
 
@@ -150,24 +151,24 @@ static void *RunThread (void *self)
 /**
  *  Registers a new session with the announce handler, using a pregenerated SDP
  *
- * \param obj a VLC object
+ * \param obj a Heimdall object
  * \param sdp the SDP to register
  * \param dst session address (needed for SAP address auto detection)
  * \return the new session descriptor structure
  */
 session_descriptor_t *
-sout_AnnounceRegisterSDP (vlc_object_t *obj, const char *sdp,
+sout_AnnounceRegisterSDP (heimdall_object_t *obj, const char *sdp,
                           const char *dst)
 {
     int i;
     char psz_addr[NI_MAXNUMERICHOST];
-    vlc_sockaddr addr;
+    heimdall_sockaddr addr;
     socklen_t addrlen = 0;
     struct addrinfo *res;
 
     msg_Dbg (obj, "adding SAP session");
 
-    if (vlc_getaddrinfo (dst, 0, NULL, &res) == 0)
+    if (heimdall_getaddrinfo (dst, 0, NULL, &res) == 0)
     {
         if ((size_t)res->ai_addrlen <= sizeof (addr))
             memcpy (&addr, res->ai_addr, res->ai_addrlen);
@@ -242,7 +243,7 @@ sout_AnnounceRegisterSDP (vlc_object_t *obj, const char *sdp,
             return NULL;
     }
 
-    i = vlc_getnameinfo( &addr.sa, addrlen,
+    i = heimdall_getnameinfo( &addr.sa, addrlen,
                          psz_addr, sizeof( psz_addr ), NULL, NI_NUMERICHOST );
 
     if( i )
@@ -255,27 +256,27 @@ sout_AnnounceRegisterSDP (vlc_object_t *obj, const char *sdp,
     sap_address_t *sap_addr;
 
     msg_Dbg (obj, "using SAP address: %s", psz_addr);
-    vlc_mutex_lock (&sap_mutex);
-    vlc_list_foreach (sap_addr, &sap_addrs, node)
+    heimdall_mutex_lock (&sap_mutex);
+    heimdall_list_foreach (sap_addr, &sap_addrs, node)
         if (!strcmp (psz_addr, sap_addr->group))
             goto matched;
 
     sap_addr = AddressCreate (obj, psz_addr);
     if (sap_addr == NULL)
     {
-        vlc_mutex_unlock(&sap_mutex);
+        heimdall_mutex_unlock(&sap_mutex);
         return NULL;
     }
 matched:
-    vlc_list_append(&sap_addr->node, &sap_addrs);
+    heimdall_list_append(&sap_addr->node, &sap_addrs);
 
     session_descriptor_t *session = malloc(sizeof (*session));
     if (unlikely(session == NULL))
         goto out; /* NOTE: we should destroy the thread if left unused */
 
     /* Build the SAP Headers */
-    struct vlc_memstream stream;
-    vlc_memstream_open(&stream);
+    struct heimdall_memstream stream;
+    heimdall_memstream_open(&stream);
 
     /* SAPv1, not encrypted, not compressed */
     uint8_t flags = 0x20;
@@ -283,9 +284,9 @@ matched:
     if (sap_addr->orig.sa.sa_family == AF_INET6)
         flags |= 0x10;
 #endif
-    vlc_memstream_putc(&stream, flags);
-    vlc_memstream_putc(&stream, 0x00); /* No authentication length */
-    vlc_memstream_write(&stream, &(uint16_t){ vlc_tick_now() }, 2); /* ID hash */
+    heimdall_memstream_putc(&stream, flags);
+    heimdall_memstream_putc(&stream, 0x00); /* No authentication length */
+    heimdall_memstream_write(&stream, &(uint16_t){ heimdall_tick_now() }, 2); /* ID hash */
 
     switch (sap_addr->orig.sa.sa_family)
     {
@@ -293,27 +294,27 @@ matched:
         case AF_INET6:
         {
             const struct in6_addr *a6 = &sap_addr->orig.sin6.sin6_addr;
-            vlc_memstream_write(&stream, a6, 16);
+            heimdall_memstream_write(&stream, a6, 16);
             break;
         }
 #endif
         case AF_INET:
         {
             const struct in_addr *a4 = &sap_addr->orig.sin.sin_addr;
-            vlc_memstream_write(&stream, a4, 4);
+            heimdall_memstream_write(&stream, a4, 4);
             break;
         }
         default:
-            vlc_assert_unreachable ();
+            heimdall_assert_unreachable ();
     }
 
-    vlc_memstream_puts(&stream, "application/sdp");
-    vlc_memstream_putc(&stream, '\0');
+    heimdall_memstream_puts(&stream, "application/sdp");
+    heimdall_memstream_putc(&stream, '\0');
 
     /* Build the final message */
-    vlc_memstream_puts(&stream, sdp);
+    heimdall_memstream_puts(&stream, sdp);
 
-    if (vlc_memstream_close(&stream))
+    if (heimdall_memstream_close(&stream))
     {
         free(session);
         session = NULL;
@@ -323,11 +324,11 @@ matched:
     session->addr = sap_addr;
     session->data = stream.ptr;
     session->length = stream.length;
-    vlc_list_append(&session->node, &sap_addr->sessions);
+    heimdall_list_append(&session->node, &sap_addr->sessions);
 
     if (sap_addr->session_count++ == 0)
     {
-        if (vlc_clone(&sap_addr->thread, RunThread, sap_addr))
+        if (heimdall_clone(&sap_addr->thread, RunThread, sap_addr))
         {
             msg_Err(obj, "unable to spawn SAP announce thread");
             AddressDestroy(sap_addr);
@@ -338,9 +339,9 @@ matched:
         }
     }
     else
-        vlc_cond_signal(&sap_addr->wait);
+        heimdall_cond_signal(&sap_addr->wait);
 out:
-    vlc_mutex_unlock(&sap_mutex);
+    heimdall_mutex_unlock(&sap_mutex);
     return session;
 }
 
@@ -348,28 +349,28 @@ out:
 /**
  *  Unregisters an existing session
  *
- * \param obj a VLC object
+ * \param obj a Heimdall object
  * \param session the session descriptor
  */
-void sout_AnnounceUnRegister (vlc_object_t *obj, session_descriptor_t *session)
+void sout_AnnounceUnRegister (heimdall_object_t *obj, session_descriptor_t *session)
 {
     sap_address_t *addr = session->addr;
 
     msg_Dbg (obj, "removing SAP session");
-    vlc_mutex_lock (&sap_mutex);
-    vlc_list_remove(&session->node);
+    heimdall_mutex_lock (&sap_mutex);
+    heimdall_list_remove(&session->node);
 
-    if (vlc_list_is_empty(&addr->sessions))
+    if (heimdall_list_is_empty(&addr->sessions))
         /* Last session for this address -> unlink the address */
-        vlc_list_remove(&addr->node);
+        heimdall_list_remove(&addr->node);
 
     addr->session_count--;
-    vlc_cond_signal(&addr->wait);
-    vlc_mutex_unlock(&sap_mutex);
+    heimdall_cond_signal(&addr->wait);
+    heimdall_mutex_unlock(&sap_mutex);
 
-    if (vlc_list_is_empty(&addr->sessions))
+    if (heimdall_list_is_empty(&addr->sessions))
     {
-        vlc_join(addr->thread, NULL);
+        heimdall_join(addr->thread, NULL);
         AddressDestroy(addr);
     }
 

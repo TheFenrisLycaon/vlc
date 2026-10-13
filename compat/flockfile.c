@@ -2,6 +2,7 @@
  * flockfile.c: POSIX unlocked I/O stream stubs
  *****************************************************************************
  * Copyright © 2011-2012 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -26,7 +27,7 @@
 
 #ifdef _WIN32
 # ifndef HAVE__LOCK_FILE
-#  warning Broken SDK: VLC logs will be garbage.
+#  warning Broken SDK: Heimdall logs will be garbage.
 #  define _lock_file(s) ((void)(s))
 #  define _unlock_file(s) ((void)(s))
 #  undef _getc_nolock

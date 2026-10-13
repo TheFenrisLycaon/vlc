@@ -2,6 +2,7 @@
  * t140.c : trivial T.140 text encoder
  *****************************************************************************
  * Copyright © 2007 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,59 +23,59 @@
 # include "config.h"
 #endif
 
-#define VLC_MODULE_LICENSE VLC_LICENSE_GPL_2_PLUS
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
-#include <vlc_sout.h>
+#define HEIMDALL_MODULE_LICENSE HEIMDALL_LICENSE_GPL_2_PLUS
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
+#include <heimdall_sout.h>
 
-static int  Open ( vlc_object_t * );
+static int  Open ( heimdall_object_t * );
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("T.140 text encoder") )
     set_capability( "spu encoder", 100 )
     set_callback( Open )
-vlc_module_end ()
+heimdall_module_end ()
 
 
 static block_t *Encode ( encoder_t *, subpicture_t * );
 
 
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     encoder_t *p_enc = (encoder_t *)p_this;
 
     switch( p_enc->fmt_out.i_codec )
     {
-        case VLC_CODEC_SUBT:
+        case HEIMDALL_CODEC_SUBT:
             if( ( p_enc->fmt_out.subs.psz_encoding != NULL )
              && strcasecmp( p_enc->fmt_out.subs.psz_encoding, "utf8" )
              && strcasecmp( p_enc->fmt_out.subs.psz_encoding, "UTF-8" ) )
             {
                 msg_Err( p_this, "Only UTF-8 encoding supported" );
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             }
-        case VLC_CODEC_ITU_T140:
+        case HEIMDALL_CODEC_ITU_T140:
             break;
 
         default:
             if( !p_enc->obj.force )
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
 
-            p_enc->fmt_out.i_codec = VLC_CODEC_ITU_T140;
+            p_enc->fmt_out.i_codec = HEIMDALL_CODEC_ITU_T140;
     }
 
-    static const struct vlc_encoder_operations ops =
+    static const struct heimdall_encoder_operations ops =
         { .encode_sub = Encode };
     p_enc->ops = &ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 
 static block_t *Encode( encoder_t *p_enc, subpicture_t *p_spu )
 {
-    VLC_UNUSED( p_enc );
+    HEIMDALL_UNUSED( p_enc );
 
     subpicture_region_t *p_region;
     block_t *p_block;
@@ -83,7 +84,7 @@ static block_t *Encode( encoder_t *p_enc, subpicture_t *p_spu )
     if( p_spu == NULL )
         return NULL;
 
-    p_region = vlc_spu_regions_first_or_null(&p_spu->regions);
+    p_region = heimdall_spu_regions_first_or_null(&p_spu->regions);
     if( ( p_region == NULL )
      || (!subpicture_region_IsText( p_region ))
      || ( p_region->p_text == NULL )
@@ -118,7 +119,7 @@ static block_t *Encode( encoder_t *p_enc, subpicture_t *p_spu )
 
     p_block->i_pts = p_block->i_dts = p_spu->i_start;
     if( !p_spu->b_ephemer &&
-        ( p_spu->i_stop != VLC_TICK_INVALID && p_spu->i_stop > p_spu->i_start ) )
+        ( p_spu->i_stop != HEIMDALL_TICK_INVALID && p_spu->i_stop > p_spu->i_start ) )
         p_block->i_length = p_spu->i_stop - p_spu->i_start;
 
     return p_block;

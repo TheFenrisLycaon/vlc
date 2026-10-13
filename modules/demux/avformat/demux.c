@@ -2,6 +2,7 @@
  * demux.c: demuxer using libavformat
  *****************************************************************************
  * Copyright (C) 2004-2009 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *          Gildas Bazin <gbazin@videolan.org>
@@ -29,14 +30,14 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_arrays.h>
-#include <vlc_demux.h>
-#include <vlc_stream.h>
-#include <vlc_meta.h>
-#include <vlc_input.h>
-#include <vlc_charset.h>
-#include <vlc_avcodec.h>
+#include <heimdall_common.h>
+#include <heimdall_arrays.h>
+#include <heimdall_demux.h>
+#include <heimdall_stream.h>
+#include <heimdall_meta.h>
+#include <heimdall_input.h>
+#include <heimdall_charset.h>
+#include <heimdall_avcodec.h>
 
 #include "../../codec/avcodec/avcodec.h"
 #include "../../codec/avcodec/chroma.h"
@@ -65,7 +66,7 @@
 struct avformat_track_s
 {
     es_out_id_t *p_es;
-    vlc_tick_t i_pcr;
+    heimdall_tick_t i_pcr;
     es_format_t es_format;
 };
 
@@ -80,7 +81,7 @@ typedef struct
     struct avformat_track_s *tracks;
     unsigned i_tracks;
 
-    vlc_tick_t      i_pcr;
+    heimdall_tick_t      i_pcr;
 
     unsigned    i_ssa_order;
 
@@ -105,14 +106,14 @@ static int IORead( void *opaque, uint8_t *buf, int buf_size );
 static int64_t IOSeek( void *opaque, int64_t offset, int whence );
 
 static block_t *BuildSsaFrame( const AVPacket *p_pkt, unsigned i_order );
-static void UpdateSeekPoint( demux_t *p_demux, vlc_tick_t i_time );
+static void UpdateSeekPoint( demux_t *p_demux, heimdall_tick_t i_time );
 static void ResetTime( demux_t *p_demux, int64_t i_time );
 
-static vlc_fourcc_t CodecTagToFourcc( uint32_t codec_tag )
+static heimdall_fourcc_t CodecTagToFourcc( uint32_t codec_tag )
 {
-    // convert from little-endian avcodec codec_tag to VLC native-endian fourcc
+    // convert from little-endian avcodec codec_tag to Heimdall native-endian fourcc
 #ifdef WORDS_BIGENDIAN
-    return vlc_bswap32(codec_tag);
+    return heimdall_bswap32(codec_tag);
 #else
     return codec_tag;
 #endif
@@ -228,7 +229,7 @@ static AVDictionary * BuildAVOptions( demux_t *p_demux )
     AVDictionary *options = NULL;
     if( psz_opts )
     {
-        vlc_av_get_options( psz_opts, &options );
+        heimdall_av_get_options( psz_opts, &options );
         free( psz_opts );
     }
     return options;
@@ -258,9 +259,9 @@ static void FindStreamInfo( demux_t *p_demux, AVDictionary *options )
             av_dict_copy( &streamsoptions[i], streamsoptions[0], 0 );
     }
 
-    vlc_avcodec_lock(); /* avformat calls avcodec behind our back!!! */
+    heimdall_avcodec_lock(); /* avformat calls avcodec behind our back!!! */
     int error = avformat_find_stream_info( p_sys->ic, streamsoptions );
-    vlc_avcodec_unlock();
+    heimdall_avcodec_unlock();
 
     FreeUnclaimedOptions( p_demux, &streamsoptions[0] );
     for ( unsigned i = 1; i < nb_streams; i++ ) {
@@ -270,11 +271,11 @@ static void FindStreamInfo( demux_t *p_demux, AVDictionary *options )
     if( error < 0 )
     {
         msg_Warn( p_demux, "Could not find stream info: %s",
-                  vlc_strerror_c(AVUNERROR(error)) );
+                  heimdall_strerror_c(AVUNERROR(error)) );
     }
 }
 
-static int avformat_ProbeDemux( vlc_object_t *p_this,
+static int avformat_ProbeDemux( heimdall_object_t *p_this,
                                 AVF_MAYBE_CONST AVInputFormat **pp_fmt,
                                 const char *psz_url )
 {
@@ -283,13 +284,13 @@ static int avformat_ProbeDemux( vlc_object_t *p_this,
     const uint8_t *peek;
 
     /* Init Probe data */
-    pd.buf_size = vlc_stream_Peek( p_demux->s, &peek, 2048 + 213 );
+    pd.buf_size = heimdall_stream_Peek( p_demux->s, &peek, 2048 + 213 );
     if( pd.buf_size <= 0 )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     pd.buf = malloc( pd.buf_size + AVPROBE_PADDING_SIZE );
     if( unlikely(pd.buf == NULL) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     memcpy( pd.buf, peek, pd.buf_size );
     memset( pd.buf + pd.buf_size, 0, AVPROBE_PADDING_SIZE );
@@ -299,7 +300,7 @@ static int avformat_ProbeDemux( vlc_object_t *p_this,
 
     pd.filename = psz_url;
 
-    vlc_init_avformat(p_this);
+    heimdall_init_avformat(p_this);
 
     /* Guess format */
     char *psz_format = var_InheritString( p_this, "avformat-format" );
@@ -318,7 +319,7 @@ static int avformat_ProbeDemux( vlc_object_t *p_this,
     if( *pp_fmt == NULL )
     {
         msg_Dbg( p_demux, "couldn't guess format" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( !p_demux->obj.force )
@@ -338,7 +339,7 @@ static int avformat_ProbeDemux( vlc_object_t *p_this,
         for( int i = 0; *ppsz_blacklist[i]; i++ )
         {
             if( !strcmp( (*pp_fmt)->name, ppsz_blacklist[i] ) )
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
         }
     }
 
@@ -348,31 +349,31 @@ static int avformat_ProbeDemux( vlc_object_t *p_this,
         int i_len;
 
         if( !p_demux->psz_filepath )
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
         i_len = strlen( p_demux->psz_filepath );
         if( i_len < 4 )
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
         if( strcasecmp( &p_demux->psz_filepath[i_len - 4], ".str" ) &&
             strcasecmp( &p_demux->psz_filepath[i_len - 4], ".xai" ) &&
             strcasecmp( &p_demux->psz_filepath[i_len - 3], ".xa" ) )
         {
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
 
     msg_Dbg( p_demux, "detected format: %s", (*pp_fmt)->name );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-int avformat_OpenDemux( vlc_object_t *p_this )
+int avformat_OpenDemux( heimdall_object_t *p_this )
 {
     demux_t       *p_demux = (demux_t*)p_this;
     demux_sys_t   *p_sys;
     AVF_MAYBE_CONST AVInputFormat *fmt = NULL;
-    vlc_tick_t    i_start_time = VLC_TICK_INVALID;
+    heimdall_tick_t    i_start_time = HEIMDALL_TICK_INVALID;
     bool          b_can_seek;
     const char    *psz_url;
     int           error;
@@ -382,17 +383,17 @@ int avformat_OpenDemux( vlc_object_t *p_this )
     else
         psz_url = p_demux->psz_url;
 
-    if( avformat_ProbeDemux( p_this, &fmt, psz_url ) != VLC_SUCCESS )
-        return VLC_EGENERIC;
+    if( avformat_ProbeDemux( p_this, &fmt, psz_url ) != HEIMDALL_SUCCESS )
+        return HEIMDALL_EGENERIC;
 
-    vlc_stream_Control( p_demux->s, STREAM_CAN_SEEK, &b_can_seek );
+    heimdall_stream_Control( p_demux->s, STREAM_CAN_SEEK, &b_can_seek );
 
     /* Fill p_demux fields */
     p_demux->pf_demux = Demux;
     p_demux->pf_control = Control;
     p_demux->p_sys = p_sys = malloc( sizeof( demux_sys_t ) );
     if( !p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_sys->ic = 0;
     p_sys->fmt = fmt;
@@ -409,7 +410,7 @@ int avformat_OpenDemux( vlc_object_t *p_this )
     if( !p_io_buffer )
     {
         avformat_CloseDemux( p_this );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     p_sys->ic = avformat_alloc_context();
@@ -417,7 +418,7 @@ int avformat_OpenDemux( vlc_object_t *p_this )
     {
         av_free( p_io_buffer );
         avformat_CloseDemux( p_this );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     AVIOContext *pb = p_sys->ic->pb = avio_alloc_context( p_io_buffer,
@@ -426,7 +427,7 @@ int avformat_OpenDemux( vlc_object_t *p_this )
     {
         av_free( p_io_buffer );
         avformat_CloseDemux( p_this );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     /* get all options, open_input will consume its own options from the dict */
@@ -437,13 +438,13 @@ int avformat_OpenDemux( vlc_object_t *p_this )
     if( error < 0 )
     {
         msg_Err( p_demux, "Could not open %s: %s", psz_url,
-                 vlc_strerror_c(AVUNERROR(error)) );
+                 heimdall_strerror_c(AVUNERROR(error)) );
         av_dict_free( &options );
         av_free( pb->buffer );
         avio_context_free( &pb );
         p_sys->ic = NULL;
         avformat_CloseDemux( p_this );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* pass remaining options for as streams options */
@@ -454,20 +455,20 @@ int avformat_OpenDemux( vlc_object_t *p_this )
     {
         msg_Err( p_demux, "No streams found");
         avformat_CloseDemux( p_this );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     p_sys->tracks = calloc( nb_streams, sizeof(*p_sys->tracks) );
     if( !p_sys->tracks )
     {
         avformat_CloseDemux( p_this );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
     p_sys->i_tracks = nb_streams;
 
     if( error < 0 )
     {
         msg_Warn( p_demux, "Could not find stream info: %s",
-                  vlc_strerror_c(AVUNERROR(error)) );
+                  heimdall_strerror_c(AVUNERROR(error)) );
     }
 
     for( unsigned i = 0; i < nb_streams; i++ )
@@ -482,7 +483,7 @@ int avformat_OpenDemux( vlc_object_t *p_this )
         if( s->disposition == AV_DISPOSITION_ATTACHED_PIC )
             continue;
 
-        vlc_fourcc_t fcc = GetVlcFourcc( cp->codec_id );
+        heimdall_fourcc_t fcc = GetHeimdallFourcc( cp->codec_id );
         switch( cp->codec_type )
         {
         case AVMEDIA_TYPE_AUDIO:
@@ -501,13 +502,13 @@ int avformat_OpenDemux( vlc_object_t *p_this )
 
             if(cp->codec_id == AV_CODEC_ID_AAC_LATM)
             {
-                es_fmt.i_original_fourcc = VLC_FOURCC('L','A','T','M');
+                es_fmt.i_original_fourcc = HEIMDALL_FOURCC('L','A','T','M');
                 es_fmt.b_packetized = false;
             }
             else if(cp->codec_id == AV_CODEC_ID_AAC && p_sys->fmt->long_name &&
                     strstr(p_sys->fmt->long_name, "raw ADTS AAC"))
             {
-                es_fmt.i_original_fourcc = VLC_FOURCC('A','D','T','S');
+                es_fmt.i_original_fourcc = HEIMDALL_FOURCC('A','D','T','S');
                 es_fmt.b_packetized = false;
             }
             break;
@@ -522,7 +523,7 @@ int avformat_OpenDemux( vlc_object_t *p_this )
             if( cp->codec_id == AV_CODEC_ID_RAWVIDEO )
             {
                 msg_Dbg( p_demux, "raw video, pixel format: %i", cp->format );
-                if( GetVlcChroma( &es_fmt.video, (enum AVPixelFormat)cp->format ) != VLC_SUCCESS)
+                if( GetHeimdallChroma( &es_fmt.video, (enum AVPixelFormat)cp->format ) != HEIMDALL_SUCCESS)
                 {
                     msg_Err( p_demux, "was unable to find a FourCC match for raw video" );
                 }
@@ -532,7 +533,7 @@ int avformat_OpenDemux( vlc_object_t *p_this )
             /* We need this for the h264 packetizer */
             else if( cp->codec_id == AV_CODEC_ID_H264 && ( p_sys->fmt == av_find_input_format("flv") ||
                 p_sys->fmt == av_find_input_format("matroska") || p_sys->fmt == av_find_input_format("mp4") ) )
-                es_fmt.i_original_fourcc = VLC_FOURCC( 'a', 'v', 'c', '1' );
+                es_fmt.i_original_fourcc = HEIMDALL_FOURCC( 'a', 'v', 'c', '1' );
 
             es_fmt.video.i_width = cp->width;
             es_fmt.video.i_height = cp->height;
@@ -602,7 +603,7 @@ int avformat_OpenDemux( vlc_object_t *p_this )
                     AVDictionaryEntry *filename = av_dict_get( s->metadata, "filename", NULL, 0 );
                     if( filename && filename->value )
                     {
-                        p_attachment = vlc_input_attachment_New(
+                        p_attachment = heimdall_input_attachment_New(
                                 filename->value, "application/x-truetype-font",
                                 NULL, cp->extradata, (int)cp->extradata_size );
                         if( p_attachment )
@@ -749,13 +750,13 @@ int avformat_OpenDemux( vlc_object_t *p_this )
 
     if( p_sys->ic->nb_chapters > 0 )
     {
-        p_sys->p_title = vlc_input_title_New();
+        p_sys->p_title = heimdall_input_title_New();
         p_sys->p_title->i_length = FROM_AV_TS_NZ(p_sys->ic->duration);
     }
 
     for( unsigned i = 0; i < p_sys->ic->nb_chapters; i++ )
     {
-        seekpoint_t *s = vlc_seekpoint_New();
+        seekpoint_t *s = heimdall_seekpoint_New();
 
         AVDictionaryEntry *title = av_dict_get( p_sys->ic->metadata, "title", NULL, 0);
         if( title && title->value )
@@ -766,18 +767,18 @@ int avformat_OpenDemux( vlc_object_t *p_this )
         }
         s->i_time_offset = FROM_AVSCALE( p_sys->ic->chapters[i]->start,
                                          p_sys->ic->chapters[i]->time_base )
-                 - (i_start_time != VLC_TICK_INVALID ? i_start_time : 0 ) + VLC_TICK_0;
+                 - (i_start_time != HEIMDALL_TICK_INVALID ? i_start_time : 0 ) + HEIMDALL_TICK_0;
         TAB_APPEND( p_sys->p_title->i_seekpoint, p_sys->p_title->seekpoint, s );
     }
 
     ResetTime( p_demux, 0 );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * Close
  *****************************************************************************/
-void avformat_CloseDemux( vlc_object_t *p_this )
+void avformat_CloseDemux( heimdall_object_t *p_this )
 {
     demux_t     *p_demux = (demux_t*)p_this;
     demux_sys_t *p_sys = p_demux->p_sys;
@@ -797,11 +798,11 @@ void avformat_CloseDemux( vlc_object_t *p_this )
     }
 
     for( int i = 0; i < p_sys->i_attachments; i++ )
-        vlc_input_attachment_Release( p_sys->attachments[i] );
+        heimdall_input_attachment_Release( p_sys->attachments[i] );
     TAB_CLEAN( p_sys->i_attachments, p_sys->attachments);
 
     if( p_sys->p_title )
-        vlc_input_title_Delete( p_sys->p_title );
+        heimdall_input_title_Delete( p_sys->p_title );
 
     free( p_sys );
 }
@@ -814,7 +815,7 @@ static int Demux( demux_t *p_demux )
     demux_sys_t *p_sys = p_demux->p_sys;
     AVPacket    pkt;
     block_t     *p_frame;
-    vlc_tick_t  i_start_time;
+    heimdall_tick_t  i_start_time;
 
     /* Read a frame */
     int i_av_ret = av_read_frame( p_sys->ic, &pkt );
@@ -822,14 +823,14 @@ static int Demux( demux_t *p_demux )
     {
         /* Avoid EOF if av_read_frame returns AVERROR(EAGAIN) */
         if( i_av_ret == AVERROR(EAGAIN) )
-            return VLC_DEMUXER_SUCCESS;
+            return HEIMDALL_DEMUXER_SUCCESS;
 
-        return VLC_DEMUXER_EOF;
+        return HEIMDALL_DEMUXER_EOF;
     }
     if( pkt.stream_index < 0 || (unsigned) pkt.stream_index >= p_sys->i_tracks )
     {
         av_packet_unref( &pkt );
-        return VLC_DEMUXER_SUCCESS;
+        return HEIMDALL_DEMUXER_SUCCESS;
     }
     struct avformat_track_s *p_track = &p_sys->tracks[pkt.stream_index];
     const AVStream *p_stream = p_sys->ic->streams[pkt.stream_index];
@@ -837,7 +838,7 @@ static int Demux( demux_t *p_demux )
     {
         msg_Warn( p_demux, "Invalid time base for the stream %d", pkt.stream_index );
         av_packet_unref( &pkt );
-        return VLC_DEMUXER_SUCCESS;
+        return HEIMDALL_DEMUXER_SUCCESS;
     }
 
     // handle extra data change, this can happen for FLV
@@ -863,7 +864,7 @@ static int Demux( demux_t *p_demux )
                 memcpy( p_track->es_format.p_extra, side_data, side_data_size );
                 p_track->es_format.i_extra = side_data_size;
                 success = es_out_Control( p_demux->out, ES_OUT_SET_ES_FMT,
-                        p_track->p_es, &p_track->es_format ) == VLC_SUCCESS;
+                        p_track->p_es, &p_track->es_format ) == HEIMDALL_SUCCESS;
             }
 
             if( !success )
@@ -871,7 +872,7 @@ static int Demux( demux_t *p_demux )
                 FREENULL( p_track->es_format.p_extra );
                 p_track->es_format.i_extra = 0;
                 av_packet_unref( &pkt );
-                return VLC_DEMUXER_EOF;
+                return HEIMDALL_DEMUXER_EOF;
             }
         }
     }
@@ -882,7 +883,7 @@ static int Demux( demux_t *p_demux )
         if( !p_frame )
         {
             av_packet_unref( &pkt );
-            return VLC_DEMUXER_SUCCESS;
+            return HEIMDALL_DEMUXER_SUCCESS;
         }
     }
     else if( p_stream->codecpar->codec_id == AV_CODEC_ID_DVB_SUBTITLE )
@@ -890,7 +891,7 @@ static int Demux( demux_t *p_demux )
         if( ( p_frame = block_Alloc( pkt.size + 3 ) ) == NULL )
         {
             av_packet_unref( &pkt );
-            return VLC_DEMUXER_EOF;
+            return HEIMDALL_DEMUXER_EOF;
         }
         p_frame->p_buffer[0] = 0x20;
         p_frame->p_buffer[1] = 0x00;
@@ -902,7 +903,7 @@ static int Demux( demux_t *p_demux )
         if( ( p_frame = block_Alloc( pkt.size ) ) == NULL )
         {
             av_packet_unref( &pkt );
-            return VLC_DEMUXER_EOF;
+            return HEIMDALL_DEMUXER_EOF;
         }
         memcpy( p_frame->p_buffer, pkt.data, pkt.size );
     }
@@ -917,7 +918,7 @@ static int Demux( demux_t *p_demux )
         if( unlikely( p_frame == NULL ) )
         {
             av_packet_unref( &pkt );
-            return VLC_DEMUXER_EOF;
+            return HEIMDALL_DEMUXER_EOF;
         }
     }
 
@@ -930,19 +931,19 @@ static int Demux( demux_t *p_demux )
         i_start_time = 0;
 
     if( pkt.dts == (int64_t)AV_NOPTS_VALUE )
-        p_frame->i_dts = VLC_TICK_INVALID;
+        p_frame->i_dts = HEIMDALL_TICK_INVALID;
     else
     {
         p_frame->i_dts = FROM_AVSCALE( pkt.dts, p_stream->time_base )
-                - i_start_time + VLC_TICK_0;
+                - i_start_time + HEIMDALL_TICK_0;
     }
 
     if( pkt.pts == (int64_t)AV_NOPTS_VALUE )
-        p_frame->i_pts = VLC_TICK_INVALID;
+        p_frame->i_pts = HEIMDALL_TICK_INVALID;
     else
     {
         p_frame->i_pts = FROM_AVSCALE( pkt.pts, p_stream->time_base )
-                - i_start_time + VLC_TICK_0;
+                - i_start_time + HEIMDALL_TICK_0;
     }
     if( pkt.duration > 0 && p_frame->i_length <= 0 )
         p_frame->i_length = FROM_AVSCALE( pkt.duration, p_stream->time_base );
@@ -953,14 +954,14 @@ static int Demux( demux_t *p_demux )
         /* FLV and video PTS */
         if( p_stream->codecpar->codec_type == AVMEDIA_TYPE_VIDEO &&
             pkt.dts != (int64_t)AV_NOPTS_VALUE && pkt.dts == pkt.pts )
-                p_frame->i_pts = VLC_TICK_INVALID;
+                p_frame->i_pts = HEIMDALL_TICK_INVALID;
 
         /* Handle broken dts/pts increase with AAC. Duration is correct.
          * sky_the80s_aacplus.flv #8195 */
         if( p_stream->codecpar->codec_type == AVMEDIA_TYPE_AUDIO &&
             p_stream->codecpar->codec_id == AV_CODEC_ID_AAC )
         {
-            if( p_track->i_pcr != VLC_TICK_INVALID &&
+            if( p_track->i_pcr != HEIMDALL_TICK_INVALID &&
                 p_track->i_pcr + p_frame->i_length > p_frame->i_dts )
             {
                 p_frame->i_dts = p_frame->i_pts = p_track->i_pcr + p_frame->i_length;
@@ -971,25 +972,25 @@ static int Demux( demux_t *p_demux )
     msg_Dbg( p_demux, "tk[%d] dts=%"PRId64" pts=%"PRId64,
              pkt.stream_index, p_frame->i_dts, p_frame->i_pts );
 #endif
-    if( p_frame->i_dts != VLC_TICK_INVALID && p_track->p_es != NULL )
+    if( p_frame->i_dts != HEIMDALL_TICK_INVALID && p_track->p_es != NULL )
         p_track->i_pcr = p_frame->i_dts;
 
-    vlc_tick_t i_ts_max = VLC_TICK_MIN;
+    heimdall_tick_t i_ts_max = HEIMDALL_TICK_MIN;
     for( unsigned i = 0; i < p_sys->i_tracks; i++ )
     {
         if( p_sys->tracks[i].p_es != NULL )
             i_ts_max = __MAX( i_ts_max, p_sys->tracks[i].i_pcr );
     }
 
-    vlc_tick_t i_ts_min = VLC_TICK_MAX;
+    heimdall_tick_t i_ts_min = HEIMDALL_TICK_MAX;
     for( unsigned i = 0; i < p_sys->i_tracks; i++ )
     {
         if( p_sys->tracks[i].p_es != NULL &&
-                p_sys->tracks[i].i_pcr != VLC_TICK_INVALID &&
-                p_sys->tracks[i].i_pcr + VLC_TICK_FROM_SEC(10)>= i_ts_max )
+                p_sys->tracks[i].i_pcr != HEIMDALL_TICK_INVALID &&
+                p_sys->tracks[i].i_pcr + HEIMDALL_TICK_FROM_SEC(10)>= i_ts_max )
             i_ts_min = __MIN( i_ts_min, p_sys->tracks[i].i_pcr );
     }
-    if( i_ts_min >= p_sys->i_pcr && likely(i_ts_min != VLC_TICK_MAX) )
+    if( i_ts_min >= p_sys->i_pcr && likely(i_ts_min != HEIMDALL_TICK_MAX) )
     {
         p_sys->i_pcr = i_ts_min;
         es_out_SetPCR( p_demux->out, p_sys->i_pcr );
@@ -1002,10 +1003,10 @@ static int Demux( demux_t *p_demux )
         block_Release( p_frame );
 
     av_packet_unref( &pkt );
-    return VLC_DEMUXER_SUCCESS;
+    return HEIMDALL_DEMUXER_SUCCESS;
 }
 
-static void UpdateSeekPoint( demux_t *p_demux, vlc_tick_t i_time )
+static void UpdateSeekPoint( demux_t *p_demux, heimdall_tick_t i_time )
 {
     demux_sys_t *p_sys = p_demux->p_sys;
     int i;
@@ -1030,18 +1031,18 @@ static void UpdateSeekPoint( demux_t *p_demux, vlc_tick_t i_time )
 static void ResetTime( demux_t *p_demux, int64_t i_time )
 {
     demux_sys_t *p_sys = p_demux->p_sys;
-    vlc_tick_t t;
+    heimdall_tick_t t;
 
     if( p_sys->ic->start_time == (int64_t)AV_NOPTS_VALUE || i_time < 0 )
-        t = VLC_TICK_INVALID;
+        t = HEIMDALL_TICK_INVALID;
     else
         t = FROM_AV_TS( i_time );
 
     p_sys->i_pcr = t;
     for( unsigned i = 0; i < p_sys->i_tracks; i++ )
-        p_sys->tracks[i].i_pcr = VLC_TICK_INVALID;
+        p_sys->tracks[i].i_pcr = HEIMDALL_TICK_INVALID;
 
-    if( t != VLC_TICK_INVALID )
+    if( t != HEIMDALL_TICK_INVALID )
     {
         es_out_Control( p_demux->out, ES_OUT_SET_NEXT_DISPLAY_TIME, t );
         UpdateSeekPoint( p_demux, t );
@@ -1075,10 +1076,10 @@ static block_t *BuildSsaFrame( const AVPacket *p_pkt, unsigned i_order )
 
     block_t *p_frame = block_heap_Alloc( p, strlen(p) + 1 );
     if( p_frame )
-        p_frame->i_length = vlc_tick_from_sec((h1-h0) * 3600 +
+        p_frame->i_length = heimdall_tick_from_sec((h1-h0) * 3600 +
                                          (m1-m0) * 60 +
                                          (s1-s0) * 1) +
-                             VLC_TICK_FROM_MS (c1-c0) / 100;
+                             HEIMDALL_TICK_FROM_MS (c1-c0) / 100;
     return p_frame;
 }
 
@@ -1097,17 +1098,17 @@ static int Control( demux_t *p_demux, int i_query, va_list args )
     {
         case DEMUX_CAN_SEEK:
             *va_arg( args, bool * ) = true;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
 
         case DEMUX_GET_POSITION:
             pf = va_arg( args, double * );
-            if( vlc_stream_GetSize( p_demux->s, &u64 ) != VLC_SUCCESS )
+            if( heimdall_stream_GetSize( p_demux->s, &u64 ) != HEIMDALL_SUCCESS )
             {
                 *pf = 0.0;
             }
             else
             {
-                double current = vlc_stream_Tell( p_demux->s );
+                double current = heimdall_stream_Tell( p_demux->s );
                 *pf = current / (double)u64;
             }
 
@@ -1116,7 +1117,7 @@ static int Control( demux_t *p_demux, int i_query, va_list args )
                 *pf = (double)p_sys->i_pcr / (double)p_sys->ic->duration;
             }
 
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
 
         case DEMUX_SET_POSITION:
         {
@@ -1132,18 +1133,18 @@ static int Control( demux_t *p_demux, int i_query, va_list args )
                 (av_seek_frame( p_sys->ic, -1, i64, AVSEEK_FLAG_BACKWARD ) < 0) )
             {
                 uint64_t i_size;
-                if( vlc_stream_GetSize( p_demux->s, &i_size ) != VLC_SUCCESS ||
+                if( heimdall_stream_GetSize( p_demux->s, &i_size ) != HEIMDALL_SUCCESS ||
                     i_size > INT64_MAX )
                 {
                     msg_Err( p_demux, "Can not use stream size for SET_POSITION" );
-                    return VLC_EGENERIC;
+                    return HEIMDALL_EGENERIC;
                 }
 
                 i64 = (i_size * f);
 
                 msg_Warn( p_demux, "DEMUX_SET_BYTE_POSITION: %"PRId64, i64 );
                 if( av_seek_frame( p_sys->ic, -1, i64, AVSEEK_FLAG_BYTE ) < 0 )
-                    return VLC_EGENERIC;
+                    return HEIMDALL_EGENERIC;
 
                 ResetTime( p_demux, -1 );
             }
@@ -1154,78 +1155,78 @@ static int Control( demux_t *p_demux, int i_query, va_list args )
                 else
                     ResetTime( p_demux, -1 );
             }
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
 
         case DEMUX_GET_LENGTH:
             if( p_sys->ic->duration != (int64_t)AV_NOPTS_VALUE )
-                *va_arg( args, vlc_tick_t * ) = FROM_AV_TS_NZ(p_sys->ic->duration);
+                *va_arg( args, heimdall_tick_t * ) = FROM_AV_TS_NZ(p_sys->ic->duration);
             else
-                *va_arg( args, vlc_tick_t * ) = 0;
-            return VLC_SUCCESS;
+                *va_arg( args, heimdall_tick_t * ) = 0;
+            return HEIMDALL_SUCCESS;
 
         case DEMUX_GET_TIME:
-            *va_arg( args, vlc_tick_t * ) = p_sys->i_pcr;
-            return VLC_SUCCESS;
+            *va_arg( args, heimdall_tick_t * ) = p_sys->i_pcr;
+            return HEIMDALL_SUCCESS;
 
         case DEMUX_SET_TIME:
         {
-            i64 = TO_AV_TS(va_arg( args, vlc_tick_t ));
+            i64 = TO_AV_TS(va_arg( args, heimdall_tick_t ));
             bool precise = va_arg( args, int );
 
             msg_Warn( p_demux, "DEMUX_SET_TIME: %"PRId64, i64 );
 
             if( av_seek_frame( p_sys->ic, -1, i64 + i_start_time, AVSEEK_FLAG_BACKWARD ) < 0 )
             {
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             }
             if( precise )
                 ResetTime( p_demux, i64 - i_start_time );
             else
                 ResetTime( p_demux, -1 );
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
 
         case DEMUX_HAS_UNSUPPORTED_META:
         {
             bool *pb_bool = va_arg( args, bool* );
             *pb_bool = true;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
 
 
         case DEMUX_GET_META:
         {
             static const char names[][11] = {
-                [vlc_meta_Title] = "title",
-                [vlc_meta_Artist] = "artist",
-                [vlc_meta_Genre] = "genre",
-                [vlc_meta_Copyright] = "copyright",
-                [vlc_meta_Album] = "album",
-                //[vlc_meta_TrackNumber] -- TODO: parse number/total value
-                [vlc_meta_Description] = "comment",
-                //[vlc_meta_Rating]
-                [vlc_meta_Date] = "date",
-                [vlc_meta_Setting] = "encoder",
-                //[vlc_meta_URL]
-                [vlc_meta_Language] = "language",
-                //[vlc_meta_NowPlaying]
-                [vlc_meta_Publisher] = "publisher",
-                [vlc_meta_EncodedBy] = "encoded_by",
-                //[vlc_meta_ArtworkURL]
-                //[vlc_meta_TrackID]
-                //[vlc_meta_TrackTotal]
+                [heimdall_meta_Title] = "title",
+                [heimdall_meta_Artist] = "artist",
+                [heimdall_meta_Genre] = "genre",
+                [heimdall_meta_Copyright] = "copyright",
+                [heimdall_meta_Album] = "album",
+                //[heimdall_meta_TrackNumber] -- TODO: parse number/total value
+                [heimdall_meta_Description] = "comment",
+                //[heimdall_meta_Rating]
+                [heimdall_meta_Date] = "date",
+                [heimdall_meta_Setting] = "encoder",
+                //[heimdall_meta_URL]
+                [heimdall_meta_Language] = "language",
+                //[heimdall_meta_NowPlaying]
+                [heimdall_meta_Publisher] = "publisher",
+                [heimdall_meta_EncodedBy] = "encoded_by",
+                //[heimdall_meta_ArtworkURL]
+                //[heimdall_meta_TrackID]
+                //[heimdall_meta_TrackTotal]
             };
-            vlc_meta_t *p_meta = va_arg( args, vlc_meta_t * );
+            heimdall_meta_t *p_meta = va_arg( args, heimdall_meta_t * );
             AVDictionary *dict = p_sys->ic->metadata;
 
             for( unsigned i = 0; i < ARRAY_SIZE(names); i++)
             {
                 AVDictionaryEntry *e = av_dict_get( dict, names[i], NULL, 0 );
                 if( e != NULL && e->value != NULL && IsUTF8(e->value) )
-                    vlc_meta_Set( p_meta, i, e->value );
+                    heimdall_meta_Set( p_meta, i, e->value );
             }
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
 
         case DEMUX_GET_ATTACHMENTS:
@@ -1236,18 +1237,18 @@ static int Control( demux_t *p_demux, int i_query, va_list args )
             int i;
 
             if( p_sys->i_attachments <= 0 )
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
 
-            *ppp_attach = vlc_alloc( p_sys->i_attachments, sizeof(input_attachment_t*) );
+            *ppp_attach = heimdall_alloc( p_sys->i_attachments, sizeof(input_attachment_t*) );
             if( *ppp_attach == NULL )
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
 
             for( i = 0; i < p_sys->i_attachments; i++ )
             {
-                (*ppp_attach)[i] = vlc_input_attachment_Hold( p_sys->attachments[i] );
+                (*ppp_attach)[i] = heimdall_input_attachment_Hold( p_sys->attachments[i] );
             }
             *pi_int = i;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
 
         case DEMUX_GET_TITLE_INFO:
@@ -1258,29 +1259,29 @@ static int Control( demux_t *p_demux, int i_query, va_list args )
             int *pi_seekpoint_offset = va_arg( args, int * );
 
             if( !p_sys->p_title )
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
 
             *ppp_title = malloc( sizeof( input_title_t*) );
             if( *ppp_title == NULL )
-                return VLC_EGENERIC;
-            (*ppp_title)[0] = vlc_input_title_Duplicate( p_sys->p_title );
+                return HEIMDALL_EGENERIC;
+            (*ppp_title)[0] = heimdall_input_title_Duplicate( p_sys->p_title );
             *pi_int = (*ppp_title)[0] ? 1 : 0;
             *pi_title_offset = 0;
             *pi_seekpoint_offset = 0;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
         case DEMUX_SET_TITLE:
         {
             const int i_title = va_arg( args, int );
             if( !p_sys->p_title || i_title != 0 )
-                return VLC_EGENERIC;
-            return VLC_SUCCESS;
+                return HEIMDALL_EGENERIC;
+            return HEIMDALL_SUCCESS;
         }
         case DEMUX_SET_SEEKPOINT:
         {
             const int i_seekpoint = va_arg( args, int );
             if( !p_sys->p_title )
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
 
             i64 = TO_AV_TS(p_sys->p_title->seekpoint[i_seekpoint]->i_time_offset) +
                   i_start_time;
@@ -1289,35 +1290,35 @@ static int Control( demux_t *p_demux, int i_query, va_list args )
 
             if( av_seek_frame( p_sys->ic, -1, i64, AVSEEK_FLAG_BACKWARD ) < 0 )
             {
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             }
             ResetTime( p_demux, i64 - i_start_time );
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
         case DEMUX_TEST_AND_CLEAR_FLAGS:
         {
             unsigned *restrict flags = va_arg(args, unsigned *);
             *flags &= p_sys->i_update;
             p_sys->i_update &= ~*flags;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
         case DEMUX_GET_TITLE:
             if( p_sys->p_title == NULL )
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             *va_arg( args, int * ) = 0;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         case DEMUX_GET_SEEKPOINT:
             if( p_sys->p_title == NULL )
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             *va_arg( args, int * ) = p_sys->i_seekpoint;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         case DEMUX_CAN_PAUSE:
         case DEMUX_SET_PAUSE_STATE:
         case DEMUX_CAN_CONTROL_PACE:
         case DEMUX_GET_PTS_DELAY:
             return demux_vaControlHelper( p_demux->s, 0, -1, 0, 1, i_query, args );
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 }
 
@@ -1328,7 +1329,7 @@ static int IORead( void *opaque, uint8_t *buf, int buf_size )
 {
     demux_t *p_demux = opaque;
     if( buf_size < 0 ) return AVERROR_EOF;
-    int i_ret = vlc_stream_Read( p_demux->s, buf, buf_size );
+    int i_ret = heimdall_stream_Read( p_demux->s, buf, buf_size );
     return i_ret > 0 ? i_ret : AVERROR_EOF;
 }
 
@@ -1352,7 +1353,7 @@ static int64_t IOSeek( void *opaque, int64_t offset, int whence )
             i_absolute = (int64_t)offset;
             break;
         case SEEK_CUR:
-            i_absolute = vlc_stream_Tell( p_demux->s ) + (int64_t)offset;
+            i_absolute = heimdall_stream_Tell( p_demux->s ) + (int64_t)offset;
             break;
         case SEEK_END:
             i_absolute = i_size + (int64_t)offset;
@@ -1374,11 +1375,11 @@ static int64_t IOSeek( void *opaque, int64_t offset, int whence )
         return -1;
     }
 
-    if( vlc_stream_Seek( p_demux->s, i_absolute ) )
+    if( heimdall_stream_Seek( p_demux->s, i_absolute ) )
     {
         msg_Warn( p_demux, "we were not allowed to seek, or EOF " );
         return -1;
     }
 
-    return vlc_stream_Tell( p_demux->s );
+    return heimdall_stream_Tell( p_demux->s );
 }

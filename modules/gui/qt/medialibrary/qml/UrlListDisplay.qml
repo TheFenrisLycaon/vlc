@@ -1,6 +1,7 @@
 
 /*****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,11 +20,11 @@
 import QtQuick
 import QtQml.Models
 
-import VLC.MediaLibrary
+import Heimdall.MediaLibrary
 
-import VLC.Util
-import VLC.Widgets as Widgets
-import VLC.Style
+import Heimdall.Util
+import Heimdall.Widgets as Widgets
+import Heimdall.Style
 
 
 Widgets.TableViewExt {
@@ -40,8 +41,8 @@ Widgets.TableViewExt {
             anchors.fill: parent
             horizontalAlignment: Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter
-            font.pixelSize: VLCStyle.icon_tableHeader
-            text: VLCIcons.history
+            font.pixelSize: HeimdallStyle.icon_tableHeader
+            text: HeimdallIcons.history
             color: parent.colorContext.fg.secondary
         }
     }
@@ -80,7 +81,7 @@ Widgets.TableViewExt {
         }
     }]
 
-    rowHeight: VLCStyle.listAlbumCover_height + VLCStyle.margin_xxsmall * 2
+    rowHeight: HeimdallStyle.listAlbumCover_height + HeimdallStyle.margin_xxsmall * 2
 
     rowContextMenu: contextMenu
 

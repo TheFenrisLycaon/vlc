@@ -2,6 +2,7 @@
  * plugins.cpp : Plug-ins and extensions listing
  ****************************************************************************
  * Copyright (C) 2008-2010 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Jean-Baptiste Kempf <jb (at) videolan.org>
  *          Jean-Philippe André <jpeg (at) videolan.org>
@@ -36,8 +37,8 @@
 
 #include <cassert>
 
-#include <vlc_modules.h>
-#include <vlc_extensions.h>
+#include <heimdall_modules.h>
+#include <heimdall_extensions.h>
 
 #include <QTreeWidget>
 #include <QStringList>
@@ -76,10 +77,10 @@
 static QPixmap *loadPixmapFromData( char *, int size );
 
 
-PluginDialog::PluginDialog( qt_intf_t *_p_intf ) : QVLCFrame( _p_intf )
+PluginDialog::PluginDialog( qt_intf_t *_p_intf ) : QHeimdallFrame( _p_intf )
 {
     setWindowTitle( qtr( "Plugins and extensions" ) );
-    setWindowRole( "vlc-plugins" );
+    setWindowRole( "heimdall-plugins" );
 
     QVBoxLayout *layout = new QVBoxLayout( this );
     tabs = new QTabWidget( this );
@@ -110,7 +111,7 @@ PluginDialog::~PluginDialog()
 /* Plugins tab */
 
 PluginTab::PluginTab( qt_intf_t *p_intf_ )
-        : QVLCFrame( p_intf_ )
+        : QHeimdallFrame( p_intf_ )
 {
     QGridLayout *layout = new QGridLayout( this );
 
@@ -220,7 +221,7 @@ bool PluginTreeItem::operator< ( const QTreeWidgetItem & other ) const
 
 /* Extensions tab */
 ExtensionTab::ExtensionTab( qt_intf_t *p_intf_ )
-        : QVLCFrame( p_intf_ )
+        : QHeimdallFrame( p_intf_ )
 {
     // Layout
     QVBoxLayout *layout = new QVBoxLayout( this );
@@ -305,7 +306,7 @@ void ExtensionTab::moreInformation()
 }
 
 /* Add-ons tab */
-AddonsTab::AddonsTab( qt_intf_t *p_intf_ ) : QVLCFrame( p_intf_ )
+AddonsTab::AddonsTab( qt_intf_t *p_intf_ ) : QHeimdallFrame( p_intf_ )
 {
     b_localdone = false;
     QSplitter *splitter = new QSplitter( this );
@@ -631,7 +632,7 @@ QVariant ExtensionListModel::ExtensionCopy::data( int role ) const
     case Qt::DisplayRole:
         return title;
     case Qt::DecorationRole:
-        if ( !icon ) return QPixmap( ":/logo/vlc48.png" );
+        if ( !icon ) return QPixmap( ":/logo/heimdall48.png" );
         return *icon;
     case SummaryRole:
         return shortdesc;
@@ -688,14 +689,14 @@ void ExtensionListModel::updateList()
     if( !p_mgr )
         return;
 
-    vlc_mutex_lock( &p_mgr->lock );
+    heimdall_mutex_lock( &p_mgr->lock );
     extension_t *p_ext;
     ARRAY_FOREACH( p_ext, p_mgr->extensions )
     {
         ext = new ExtensionCopy( p_ext );
         extensions.append( ext );
     }
-    vlc_mutex_unlock( &p_mgr->lock );
+    heimdall_mutex_unlock( &p_mgr->lock );
 
     emit dataChanged( index( 0 ), index( rowCount() - 1 ) );
 }
@@ -707,9 +708,9 @@ int ExtensionListModel::rowCount( const QModelIndex& ) const
     if( !p_mgr )
         return 0;
 
-    vlc_mutex_lock( &p_mgr->lock );
+    heimdall_mutex_lock( &p_mgr->lock );
     count = p_mgr->extensions.i_size;
-    vlc_mutex_unlock( &p_mgr->lock );
+    heimdall_mutex_unlock( &p_mgr->lock );
 
     return count;
 }
@@ -1118,7 +1119,7 @@ void AddonItemDelegate::editButtonClicked()
 ExtensionInfoDialog::ExtensionInfoDialog( const QModelIndex &index,
                                           qt_intf_t *p_intf,
                                           QWindow *parent )
-       : QVLCDialog( parent, p_intf )
+       : QHeimdallDialog( parent, p_intf )
 {
     // Let's be a modal dialog
     setWindowModality( Qt::WindowModal );
@@ -1201,7 +1202,7 @@ ExtensionInfoDialog::ExtensionInfoDialog( const QModelIndex &index,
 
 AddonInfoDialog::AddonInfoDialog( const QModelIndex &index,
                                   qt_intf_t *p_intf, QWindow *parent )
-       : QVLCDialog( parent, p_intf )
+       : QHeimdallDialog( parent, p_intf )
 {
     // Let's be a modal dialog
     setWindowModality( Qt::WindowModal );

@@ -2,8 +2,9 @@
  * qcom.c : pixel format translation for Qualcomm tiled nv12
  *****************************************************************************
  * Copyright © 2012 Rafaël Carré
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Rafaël Carré <funman@videolanorg>
+ * Authors: Rafaël Carré <funman@lycariaorg>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -24,7 +25,7 @@
 # include "config.h"
 #endif
 
-#include <vlc_picture.h>
+#include <heimdall_picture.h>
 
 #include <string.h>
 #include <stdint.h>

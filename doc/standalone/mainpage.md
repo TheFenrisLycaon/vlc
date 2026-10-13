@@ -1,21 +1,21 @@
 \mainpage
-# LibVLC and libvlccore documentation
+# LibHeimdall and libheimdallcore documentation
 
 ## Introduction
 
-[libVLC](@ref libvlc) is an embeddable engine for
+[libHeimdall](@ref libheimdall) is an embeddable engine for
 3rd party applications and frameworks.
 
-It runs on the same platforms as VLC <em>(and sometimes on more)</em>
+It runs on the same platforms as Heimdall <em>(and sometimes on more)</em>
 and can provide playback, streaming and conversion of multimedia
 files and streams.
 
-[libVLC](@ref libvlc) has numerous bindings for
+[libHeimdall](@ref libheimdall) has numerous bindings for
 other languages, such as C++, Python, java, Objective-C and C#.
 
 ##  License
 
-[libVLC](@ref libvlc) and **libvlccore** are released
+[libHeimdall](@ref libheimdall) and **libheimdallcore** are released
 under the LGPLv2 <em>(or later)</em> license. This allows embedding the
 engine in 3rd party applications, while letting them to be licensed
 under other licenses.

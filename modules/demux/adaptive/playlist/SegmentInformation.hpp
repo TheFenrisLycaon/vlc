@@ -2,6 +2,7 @@
  * SegmentInformation.hpp
  *****************************************************************************
  * Copyright (C) 2014 - VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -25,7 +26,7 @@
 #include "Segment.h"
 #include "../tools/Macros.hpp"
 #include "../encryption/CommonEncryption.hpp"
-#include <vlc_common.h>
+#include <heimdall_common.h>
 #include <vector>
 
 namespace adaptive
@@ -55,8 +56,8 @@ namespace adaptive
                 explicit SegmentInformation( BasePlaylist * );
                 virtual ~SegmentInformation();
 
-                virtual vlc_tick_t getPeriodStart() const;
-                virtual vlc_tick_t getPeriodDuration() const;
+                virtual heimdall_tick_t getPeriodStart() const;
+                virtual heimdall_tick_t getPeriodDuration() const;
                 virtual BasePlaylist *getPlaylist() const;
 
                 class SplitPoint
@@ -75,7 +76,7 @@ namespace adaptive
 
                 virtual void updateWith(SegmentInformation *);
                 virtual void pruneBySegmentNumber(uint64_t);
-                virtual void pruneByPlaybackTime(vlc_tick_t);
+                virtual void pruneByPlaybackTime(heimdall_tick_t);
                 void setEncryption(const CommonEncryption &);
                 const CommonEncryption & intheritEncryption() const;
 

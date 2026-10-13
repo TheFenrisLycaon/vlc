@@ -1,6 +1,7 @@
 
 /*****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,7 +19,7 @@
  *****************************************************************************/
 import QtQuick
 
-import VLC.Style
+import Heimdall.Style
 
 Rectangle {
     readonly property ColorContext colorContext: ColorContext {
@@ -27,6 +28,6 @@ Rectangle {
 
     color: theme.accent
 
-    implicitWidth: VLCStyle.heightBar_xxxsmall
-    implicitHeight: VLCStyle.heightBar_xxxsmall
+    implicitWidth: HeimdallStyle.heightBar_xxxsmall
+    implicitHeight: HeimdallStyle.heightBar_xxxsmall
 }

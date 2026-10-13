@@ -2,6 +2,7 @@
  * plugin.c : Low-level dynamic library handling
  *****************************************************************************
  * Copyright (C) 2001-2007 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Sam Hocevar <sam@zoy.org>
  *          Ethan C. Baldridge <BaldridgeE@cadmus.com>
@@ -28,7 +29,7 @@
 #endif
 
 #include <assert.h>
-#include <vlc_common.h>
+#include <heimdall_common.h>
 #include "modules/modules.h"
 
 #include <sys/types.h>
@@ -38,21 +39,21 @@
 # include <valgrind/valgrind.h>
 #endif
 
-void *vlc_dlopen(const char *path, bool lazy)
+void *heimdall_dlopen(const char *path, bool lazy)
 {
 #if defined (RTLD_NOW)
     const int flags = lazy ? RTLD_LAZY : RTLD_NOW;
 #elif defined (DL_LAZY)
     const int flags = DL_LAZY;
-    VLC_UNUSED(lazy);
+    HEIMDALL_UNUSED(lazy);
 #else
     const int flags = 0;
-    VLC_UNUSED(lazy);
+    HEIMDALL_UNUSED(lazy);
 #endif
     return dlopen (path, flags);
 }
 
-int vlc_dlclose(void *handle)
+int heimdall_dlclose(void *handle)
 {
 #if !defined(__SANITIZE_ADDRESS__)
 #ifdef HAVE_VALGRIND_VALGRIND_H
@@ -68,12 +69,12 @@ int vlc_dlclose(void *handle)
 #endif
 }
 
-void *vlc_dlsym(void *handle, const char *name)
+void *heimdall_dlsym(void *handle, const char *name)
 {
     return dlsym(handle, name);
 }
 
-char *vlc_dlerror(void)
+char *heimdall_dlerror(void)
 {
     const char *errmsg = dlerror();
     /* XXX: This is not thread-safe at all. POSIX is helpless here. */

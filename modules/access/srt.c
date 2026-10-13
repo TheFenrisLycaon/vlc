@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 2017-2018, Collabora Ltd.
  * Copyright (C) 2018, Haivision Systems Inc.
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Justin Kim <justin.kim@collabora.com>
  *          Roman Diouskine <rdiouskine@haivision.com>
@@ -23,13 +24,13 @@
  *****************************************************************************/
 #include "srt_common.h"
 
-#include <vlc_fs.h>
-#include <vlc_plugin.h>
-#include <vlc_access.h>
-#include <vlc_interrupt.h>
+#include <heimdall_fs.h>
+#include <heimdall_plugin.h>
+#include <heimdall_access.h>
+#include <heimdall_interrupt.h>
 
-#include <vlc_network.h>
-#include <vlc_url.h>
+#include <heimdall_network.h>
+#include <heimdall_url.h>
 
 
 
@@ -37,7 +38,7 @@ typedef struct
 {
     SRTSOCKET   sock;
     int         i_poll_id;
-    vlc_mutex_t lock;
+    heimdall_mutex_t lock;
     bool        b_interrupted;
     char       *psz_host;
     int         i_port;
@@ -51,7 +52,7 @@ static void srt_wait_interrupted(void *p_data)
     stream_t *p_stream = p_data;
     stream_sys_t *p_sys = p_stream->p_sys;
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     if ( p_sys->i_poll_id >= 0 &&  p_sys->sock != SRT_INVALID_SOCK )
     {
         p_sys->b_interrupted = true;
@@ -62,12 +63,12 @@ static void srt_wait_interrupted(void *p_data)
          * wakes up SRT's threads. We only have one to remove. */
         srt_epoll_remove_usock( p_sys->i_poll_id, p_sys->sock );
     }
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 }
 
 static int Control(stream_t *p_stream, int i_query, va_list args)
 {
-    int i_ret = VLC_SUCCESS;
+    int i_ret = HEIMDALL_SUCCESS;
 
     switch( i_query )
     {
@@ -78,11 +79,11 @@ static int Control(stream_t *p_stream, int i_query, va_list args)
             *va_arg( args, bool * ) = false;
             break;
         case STREAM_GET_PTS_DELAY:
-            *va_arg( args, vlc_tick_t * ) = VLC_TICK_FROM_MS(
+            *va_arg( args, heimdall_tick_t * ) = HEIMDALL_TICK_FROM_MS(
                    var_InheritInteger(p_stream, "network-caching") );
             break;
         default:
-            i_ret = VLC_EGENERIC;
+            i_ret = HEIMDALL_EGENERIC;
             break;
     }
 
@@ -91,7 +92,7 @@ static int Control(stream_t *p_stream, int i_query, va_list args)
 
 static bool srt_schedule_reconnect(stream_t *p_stream)
 {
-    vlc_object_t *strm_obj = VLC_OBJECT(p_stream);
+    heimdall_object_t *strm_obj = HEIMDALL_OBJECT(p_stream);
     int i_latency=var_InheritInteger( p_stream, SRT_PARAM_LATENCY );
     int stat;
     char *psz_passphrase = var_InheritString( p_stream, SRT_PARAM_PASSPHRASE );
@@ -142,7 +143,7 @@ static bool srt_schedule_reconnect(stream_t *p_stream)
         struct addrinfo hints = {
             .ai_socktype = SOCK_DGRAM,
         };
-        stat = vlc_getaddrinfo( p_sys->psz_host, p_sys->i_port, &hints, &res);
+        stat = heimdall_getaddrinfo( p_sys->psz_host, p_sys->i_port, &hints, &res);
         if ( stat )
         {
             msg_Err( p_stream, "Cannot resolve [%s]:%d (reason: %s)",
@@ -240,7 +241,7 @@ static bool srt_schedule_reconnect(stream_t *p_stream)
         if (p_sys->psz_host && *p_sys->psz_host)
             node = p_sys->psz_host;
         
-        stat = vlc_getaddrinfo(node, p_sys->i_port, &hints, &res_local);
+        stat = heimdall_getaddrinfo(node, p_sys->i_port, &hints, &res_local);
         if (stat) {
             msg_Err(p_stream, "Cannot resolve local address (reason: %s)", gai_strerror(stat));
             failed = true; goto out;
@@ -331,9 +332,9 @@ static block_t *BlockSRT(stream_t *p_stream, bool *restrict eof)
     stream_sys_t *p_sys = p_stream->p_sys;
     int i_poll_timeout = var_InheritInteger( p_stream, SRT_PARAM_POLL_TIMEOUT );
     /* SRT doesn't have a concept of EOF for live streams. */
-    VLC_UNUSED(eof);
+    HEIMDALL_UNUSED(eof);
 
-    if ( vlc_killed() )
+    if ( heimdall_killed() )
     {
         /* We are told to stop. Stop. */
         return NULL;
@@ -350,7 +351,7 @@ static block_t *BlockSRT(stream_t *p_stream, bool *restrict eof)
         return NULL;
     }
 
-    vlc_interrupt_register( srt_wait_interrupted, p_stream);
+    heimdall_interrupt_register( srt_wait_interrupted, p_stream);
 
     SRTSOCKET ready[1];
     int readycnt = 1;
@@ -452,53 +453,53 @@ out:
       pkt = NULL;
     }
 
-    vlc_interrupt_unregister();
+    heimdall_interrupt_unregister();
 
     /* Re-add the socket to the poll if we were interrupted */
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     if ( p_sys->b_interrupted )
     {
         srt_epoll_add_usock( p_sys->i_poll_id, p_sys->sock,
             &(int) { SRT_EPOLL_ERR | SRT_EPOLL_IN } );
         p_sys->b_interrupted = false;
     }
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 
     return pkt;
 }
 
-static int Open(vlc_object_t *p_this)
+static int Open(heimdall_object_t *p_this)
 {
     stream_t     *p_stream = (stream_t*)p_this;
     stream_sys_t *p_sys = NULL;
-    vlc_url_t     parsed_url;
+    heimdall_url_t     parsed_url;
 
-    p_sys = vlc_obj_calloc( p_this, 1, sizeof( *p_sys ) );
+    p_sys = heimdall_obj_calloc( p_this, 1, sizeof( *p_sys ) );
     if( unlikely( p_sys == NULL ) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     srt_startup();
 
-    vlc_mutex_init( &p_sys->lock );
+    heimdall_mutex_init( &p_sys->lock );
 
     p_stream->p_sys = p_sys;
 
-    if ( vlc_UrlParse( &parsed_url, p_stream->psz_url ) == -1 )
+    if ( heimdall_UrlParse( &parsed_url, p_stream->psz_url ) == -1 )
     {
         msg_Err( p_stream, "Failed to parse input URL (%s)",
             p_stream->psz_url );
-        vlc_UrlClean( &parsed_url );
+        heimdall_UrlClean( &parsed_url );
         goto failed;
     }
 
-    p_sys->psz_host = vlc_obj_strdup( p_this, parsed_url.psz_host );
+    p_sys->psz_host = heimdall_obj_strdup( p_this, parsed_url.psz_host );
 
     if ( parsed_url.i_port != 0 )
         p_sys->i_port = parsed_url.i_port;
     else
         p_sys->i_port = SRT_DEFAULT_PORT;
 
-    vlc_UrlClean( &parsed_url );
+    heimdall_UrlClean( &parsed_url );
 
     p_sys->i_poll_id = srt_epoll_create();
     if ( p_sys->i_poll_id == -1 )
@@ -518,17 +519,17 @@ static int Open(vlc_object_t *p_this)
     p_stream->pf_block = BlockSRT;
     p_stream->pf_control = Control;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 failed:
     if ( p_sys->sock != SRT_INVALID_SOCK ) srt_close( p_sys->sock );
     if ( p_sys->i_poll_id != -1 ) srt_epoll_release( p_sys->i_poll_id );
     srt_cleanup();
 
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
-static void Close(vlc_object_t *p_this)
+static void Close(heimdall_object_t *p_this)
 {
     stream_t     *p_stream = (stream_t*)p_this;
     stream_sys_t *p_sys = p_stream->p_sys;
@@ -541,7 +542,7 @@ static void Close(vlc_object_t *p_this)
 }
 
 /* Module descriptor */
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( N_( "SRT" ) )
     set_description( N_( "SRT input" ) )
     set_subcategory( SUBCAT_INPUT_ACCESS )
@@ -569,4 +570,4 @@ vlc_module_begin ()
     add_shortcut("srt")
 
     set_callbacks(Open, Close)
-vlc_module_end ()
+heimdall_module_end ()

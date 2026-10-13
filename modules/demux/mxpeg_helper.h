@@ -2,6 +2,7 @@
  * mxpeg_helper.h: MXPEG helper functions
  *****************************************************************************
  * Copyright (C) 2012 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Sébastien Escudier
  *
@@ -42,7 +43,7 @@ static uint8_t find_jpeg_marker(int *position, const uint8_t *data, int size)
 static bool IsMxpeg(stream_t *s)
 {
     const uint8_t *header;
-    int size = vlc_stream_Peek(s, &header, 256);
+    int size = heimdall_stream_Peek(s, &header, 256);
     if(unlikely(size < 8))
         return false;
     int position = 0;
@@ -63,7 +64,7 @@ static bool IsMxpeg(stream_t *s)
     if (position + 8 > size)
     {
         size = position + 8;
-        if( vlc_stream_Peek (s, &header, size) < size )
+        if( heimdall_stream_Peek (s, &header, size) < size )
             return false;
     }
 
@@ -78,7 +79,7 @@ static bool IsMxpeg(stream_t *s)
 
     /* Skip the jpeg comment and find the MXF header after that */
     size = position + 2 + header_size + 8; //8 = FF FE 00 00 M X F 00
-    if (vlc_stream_Peek(s, &header, size ) < size)
+    if (heimdall_stream_Peek(s, &header, size ) < size)
         return false;
 
     position += 2 + header_size;

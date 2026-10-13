@@ -2,6 +2,7 @@
  * webvtt.c: WebVTT Muxer unit testing
  *****************************************************************************
  * Copyright (C) 2024 VideoLabs, VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -21,18 +22,18 @@
 #include "config.h"
 #endif
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
-#include <vlc_block.h>
-#include <vlc_plugin.h>
-#include <vlc_sout.h>
+#include <heimdall_block.h>
+#include <heimdall_plugin.h>
+#include <heimdall_sout.h>
 
-#include "../../libvlc/test.h"
-#include "../lib/libvlc_internal.h"
+#include "../../libheimdall/test.h"
+#include "../lib/libheimdall_internal.h"
 
 struct test_scenario
 {
-    vlc_fourcc_t codec;
+    heimdall_fourcc_t codec;
 
     unsigned bytes_reported;
     const char *expected;
@@ -55,17 +56,17 @@ static ssize_t AccessOutWrite(sout_access_out_t *access, block_t *block)
     return r;
 }
 
-static sout_access_out_t *CreateAccessOut(vlc_object_t *parent,
+static sout_access_out_t *CreateAccessOut(heimdall_object_t *parent,
                                           const struct test_scenario *cb)
 {
-    sout_access_out_t *access = vlc_object_create(parent, sizeof(*access));
+    sout_access_out_t *access = heimdall_object_create(parent, sizeof(*access));
     if (unlikely(access == NULL))
         return NULL;
 
     access->psz_access = strdup("mock");
     if (unlikely(access->psz_access == NULL))
     {
-        vlc_object_delete(access);
+        heimdall_object_delete(access);
         return NULL;
     }
 
@@ -83,35 +84,35 @@ static sout_access_out_t *CreateAccessOut(vlc_object_t *parent,
 
 static void send_basic(sout_mux_t *mux, sout_input_t *input)
 {
-    for (vlc_tick_t time = VLC_TICK_0; time < VLC_TICK_FROM_MS(1300);
-         time += VLC_TICK_FROM_MS(300))
+    for (heimdall_tick_t time = HEIMDALL_TICK_0; time < HEIMDALL_TICK_FROM_MS(1300);
+         time += HEIMDALL_TICK_FROM_MS(300))
     {
         char *txt = strdup("Hello world");
         assert(txt != NULL);
 
-        vlc_frame_t *spu = vlc_frame_heap_Alloc(txt, strlen(txt));
+        heimdall_frame_t *spu = heimdall_frame_heap_Alloc(txt, strlen(txt));
         assert(spu != NULL);
-        spu->i_pts = time + VLC_TICK_FROM_SEC(15 * 60);
-        spu->i_length = VLC_TICK_INVALID;
+        spu->i_pts = time + HEIMDALL_TICK_FROM_SEC(15 * 60);
+        spu->i_length = HEIMDALL_TICK_INVALID;
         const int status = sout_MuxSendBuffer(mux, input, spu);
-        assert(status == VLC_SUCCESS);
+        assert(status == HEIMDALL_SUCCESS);
     }
 }
 
 static void send_ephemer(sout_mux_t *mux, sout_input_t *input)
 {
-    for (vlc_tick_t time = VLC_TICK_0; time < VLC_TICK_FROM_MS(300);
-         time += VLC_TICK_FROM_MS(100))
+    for (heimdall_tick_t time = HEIMDALL_TICK_0; time < HEIMDALL_TICK_FROM_MS(300);
+         time += HEIMDALL_TICK_FROM_MS(100))
     {
         char *txt = strdup("Hello world");
         assert(txt != NULL);
 
-        vlc_frame_t *spu = vlc_frame_heap_Alloc(txt, strlen(txt));
+        heimdall_frame_t *spu = heimdall_frame_heap_Alloc(txt, strlen(txt));
         assert(spu != NULL);
         spu->i_pts = time;
-        spu->i_length = VLC_TICK_INVALID;
+        spu->i_length = HEIMDALL_TICK_INVALID;
         const int status = sout_MuxSendBuffer(mux, input, spu);
-        assert(status == VLC_SUCCESS);
+        assert(status == HEIMDALL_SUCCESS);
     }
 }
 
@@ -146,26 +147,26 @@ static void default_report(block_t *sub)
 
 static struct test_scenario TEST_SCENARIOS[] = {
     {
-        .codec = VLC_CODEC_TEXT,
+        .codec = HEIMDALL_CODEC_TEXT,
         .send_sub = send_basic,
         .report_sub = default_report,
         .expected = BASIC_TEXT,
     },
     {
-        .codec = VLC_CODEC_TEXT,
+        .codec = HEIMDALL_CODEC_TEXT,
         .send_sub = send_ephemer,
         .report_sub = default_report,
         .expected = EPHEMER_TEXT,
     },
 };
 
-static void RunTests(libvlc_instance_t *instance)
+static void RunTests(libheimdall_instance_t *instance)
 {
     for (size_t i = 0; i < ARRAY_SIZE(TEST_SCENARIOS); ++i)
     {
         CURRENT_SCENARIO = &TEST_SCENARIOS[i];
         sout_access_out_t *access = CreateAccessOut(
-            VLC_OBJECT(instance->p_libvlc_int), CURRENT_SCENARIO);
+            HEIMDALL_OBJECT(instance->p_libheimdall_int), CURRENT_SCENARIO);
         assert(access != NULL);
 
         sout_mux_t *mux = sout_MuxNew(access, "webvtt");
@@ -197,11 +198,11 @@ int main(void)
     const char *const args[] = {
         "-vvv",
     };
-    libvlc_instance_t *vlc = libvlc_new(ARRAY_SIZE(args), args);
-    if (vlc == NULL)
+    libheimdall_instance_t *heimdall = libheimdall_new(ARRAY_SIZE(args), args);
+    if (heimdall == NULL)
         return 1;
 
-    RunTests(vlc);
+    RunTests(heimdall);
 
-    libvlc_release(vlc);
+    libheimdall_release(heimdall);
 }

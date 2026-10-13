@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright © 2017 Steve Lhomme
  * Copyright © 2017 VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Steve Lhomme <robux4@gmail.com>
  *
@@ -22,18 +23,18 @@
  *****************************************************************************/
 
 
-#ifndef VLC_WIN32_COMMON_SENSOR_H
-#define VLC_WIN32_COMMON_SENSOR_H
+#ifndef HEIMDALL_WIN32_COMMON_SENSOR_H
+#define HEIMDALL_WIN32_COMMON_SENSOR_H
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-void* HookWindowsSensors(struct vlc_logger *, const vout_display_owner_t *, HWND);
+void* HookWindowsSensors(struct heimdall_logger *, const vout_display_owner_t *, HWND);
 void UnhookWindowsSensors(void*);
 
 # ifdef __cplusplus
 }
 # endif
 
-#endif // VLC_WIN32_COMMON_SENSOR_H
+#endif // HEIMDALL_WIN32_COMMON_SENSOR_H

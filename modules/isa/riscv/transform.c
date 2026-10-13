@@ -2,6 +2,7 @@
  * transform.c: RISC-V V video transforms
  *****************************************************************************
  * Copyright (C) 2022 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,9 +23,9 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_cpu.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_cpu.h>
+#include <heimdall_plugin.h>
 #include "../../video_chroma/orient.h"
 
 void rvv_hflip_8(void *, ptrdiff_t, const void *, ptrdiff_t, int, int);
@@ -38,7 +39,7 @@ void rvv_transpose_64(void *, ptrdiff_t, const void *, ptrdiff_t, int, int);
 
 static void Probe(void *data)
 {
-    if (vlc_CPU_RV_V()) {
+    if (heimdall_CPU_RV_V()) {
         struct plane_transforms *const transforms = data;
 
         transforms->hflip[0] = rvv_hflip_8;
@@ -52,8 +53,8 @@ static void Probe(void *data)
     }
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_subcategory(SUBCAT_VIDEO_VFILTER)
     set_description("RISC-V V optimisation for video transform")
     set_cpu_funcs("video transform", Probe, 10)
-vlc_module_end()
+heimdall_module_end()

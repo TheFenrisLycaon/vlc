@@ -2,6 +2,7 @@
  * filters.c: test for the OpenGL filter client code
  *****************************************************************************
  * Copyright (C) 2023 VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Alexandre Janniaux <ajanni@videolabs.io>
  *
@@ -24,33 +25,33 @@
 # include "config.h"
 #endif
 
-#ifndef VLC_TEST_OPENGL_API
-# error "Define VLC_TEST_OPENGL_API to the VLC_OPENGL API to use"
+#ifndef HEIMDALL_TEST_OPENGL_API
+# error "Define HEIMDALL_TEST_OPENGL_API to the HEIMDALL_OPENGL API to use"
 #endif
 
 /* Define a builtin module for mocked parts */
 #define MODULE_NAME test_opengl
-#undef VLC_DYNAMIC_PLUGIN
+#undef HEIMDALL_DYNAMIC_PLUGIN
 
-#include "../../../libvlc/test.h"
-#include "../../../../lib/libvlc_internal.h"
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
-#include <vlc_opengl.h>
-#include <vlc_filter.h>
-#include <vlc_modules.h>
-#include <vlc_vout_display.h>
+#include "../../../libheimdall/test.h"
+#include "../../../../lib/libheimdall_internal.h"
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
+#include <heimdall_opengl.h>
+#include <heimdall_filter.h>
+#include <heimdall_modules.h>
+#include <heimdall_vout_display.h>
 
 #include "../../../../modules/video_output/opengl/filters.h"
 #include "../../../../modules/video_output/opengl/gl_api.h"
 
 static_assert(
-    VLC_TEST_OPENGL_API == VLC_OPENGL ||
-    VLC_TEST_OPENGL_API == VLC_OPENGL_ES2,
-    "VLC_TEST_OPENGL_API must be assigned to VLC_OPENGL or VLC_OPENGL_ES2");
+    HEIMDALL_TEST_OPENGL_API == HEIMDALL_OPENGL ||
+    HEIMDALL_TEST_OPENGL_API == HEIMDALL_OPENGL_ES2,
+    "HEIMDALL_TEST_OPENGL_API must be assigned to HEIMDALL_OPENGL or HEIMDALL_OPENGL_ES2");
 
-const char vlc_module_name[] = MODULE_STRING;
+const char heimdall_module_name[] = MODULE_STRING;
 static const uint8_t green[] = { 0x0, 0xff, 0x00, 0xff };
 static const uint8_t red[] = { 0xff, 0x0, 0x0, 0xff };
 static const uint8_t blue[] = { 0x00, 0x0, 0xff, 0xff };
@@ -62,25 +63,25 @@ struct test_point
 };
 
 static void test_opengl_offscreen(
-        vlc_object_t *root,
+        heimdall_object_t *root,
         video_orientation_t orientation,
         struct test_point *points,
         size_t points_count
 ){
-    struct vlc_decoder_device *device =
-        vlc_decoder_device_Create(root, NULL);
-    vlc_gl_t *gl = vlc_gl_CreateOffscreen(
-            root, device, 3, 3, VLC_TEST_OPENGL_API, NULL, NULL);
+    struct heimdall_decoder_device *device =
+        heimdall_decoder_device_Create(root, NULL);
+    heimdall_gl_t *gl = heimdall_gl_CreateOffscreen(
+            root, device, 3, 3, HEIMDALL_TEST_OPENGL_API, NULL, NULL);
     assert(gl != NULL);
     if (device != NULL)
-        vlc_decoder_device_Release(device);
+        heimdall_decoder_device_Release(device);
 
-    int ret = vlc_gl_MakeCurrent(gl);
-    assert(ret == VLC_SUCCESS);
+    int ret = heimdall_gl_MakeCurrent(gl);
+    assert(ret == HEIMDALL_SUCCESS);
 
-    struct vlc_gl_api api;
-    ret = vlc_gl_api_Init(&api, gl);
-    assert(ret == VLC_SUCCESS);
+    struct heimdall_gl_api api;
+    ret = heimdall_gl_api_Init(&api, gl);
+    assert(ret == HEIMDALL_SUCCESS);
 
     GLuint out_tex;
     api.vt.GenTextures(1, &out_tex);
@@ -100,15 +101,15 @@ static void test_opengl_offscreen(
     GL_ASSERT_NOERROR(&api.vt);
 
     video_format_t fmt;
-    video_format_Init(&fmt, VLC_CODEC_RGBA);
-    video_format_Setup(&fmt, VLC_CODEC_RGBA, 3, 3, 3, 3, 1, 1);
+    video_format_Init(&fmt, HEIMDALL_CODEC_RGBA);
+    video_format_Setup(&fmt, HEIMDALL_CODEC_RGBA, 3, 3, 3, 3, 1, 1);
     fmt.primaries = COLOR_PRIMARIES_UNDEF;
     fmt.space = COLOR_SPACE_UNDEF;
     fmt.transfer = TRANSFER_FUNC_UNDEF;
     fmt.projection_mode = PROJECTION_MODE_RECTANGULAR;
 
-    struct vlc_gl_interop *interop =
-        vlc_gl_interop_New(gl, NULL, &fmt);
+    struct heimdall_gl_interop *interop =
+        heimdall_gl_interop_New(gl, NULL, &fmt);
     assert(interop != NULL);
     GL_ASSERT_NOERROR(&api.vt);
 
@@ -118,8 +119,8 @@ static void test_opengl_offscreen(
     assert(api.vt.CheckFramebufferStatus(GL_FRAMEBUFFER)
             == GL_FRAMEBUFFER_COMPLETE);
 
-    struct vlc_gl_filters *filters =
-        vlc_gl_filters_New(gl, &api, interop, orientation);
+    struct heimdall_gl_filters *filters =
+        heimdall_gl_filters_New(gl, &api, interop, orientation);
     assert(filters != NULL);
     GL_ASSERT_NOERROR(&api.vt);
 
@@ -128,8 +129,8 @@ static void test_opengl_offscreen(
     assert(api.vt.CheckFramebufferStatus(GL_FRAMEBUFFER)
             == GL_FRAMEBUFFER_COMPLETE);
 
-    struct vlc_gl_filter *filter =
-        vlc_gl_filters_Append(filters, "renderer", NULL);
+    struct heimdall_gl_filter *filter =
+        heimdall_gl_filters_Append(filters, "renderer", NULL);
     assert(filter != NULL);
     GL_ASSERT_NOERROR(&api.vt);
     assert((GLuint)fbo_binding == out_fb);
@@ -142,8 +143,8 @@ static void test_opengl_offscreen(
     assert(api.vt.CheckFramebufferStatus(GL_FRAMEBUFFER)
             == GL_FRAMEBUFFER_COMPLETE);
 
-    ret = vlc_gl_filters_InitFramebuffers(filters);
-    assert(ret == VLC_SUCCESS);
+    ret = heimdall_gl_filters_InitFramebuffers(filters);
+    assert(ret == HEIMDALL_SUCCESS);
     GL_ASSERT_NOERROR(&api.vt);
 
     api.vt.GetIntegerv(GL_FRAMEBUFFER_BINDING, &fbo_binding);
@@ -151,10 +152,10 @@ static void test_opengl_offscreen(
     assert(api.vt.CheckFramebufferStatus(GL_FRAMEBUFFER)
             == GL_FRAMEBUFFER_COMPLETE);
 
-    vlc_gl_filters_SetViewport(filters, 0, 0, 3, 3);
+    heimdall_gl_filters_SetViewport(filters, 0, 0, 3, 3);
     GL_ASSERT_NOERROR(&api.vt);
 
-    vlc_gl_filters_SetOutputSize(filters, 3, 3);
+    heimdall_gl_filters_SetOutputSize(filters, 3, 3);
     GL_ASSERT_NOERROR(&api.vt);
 
     picture_t *picture = picture_NewFromFormat(&fmt);
@@ -167,14 +168,14 @@ static void test_opengl_offscreen(
     memcpy(&picture->p[0].p_pixels[0 * 4], red, sizeof(red));
     memcpy(&picture->p[0].p_pixels[2 * 4], blue, sizeof(blue));
 
-    ret = vlc_gl_filters_UpdatePicture(filters, picture);
-    assert(ret == VLC_SUCCESS);
+    ret = heimdall_gl_filters_UpdatePicture(filters, picture);
+    assert(ret == HEIMDALL_SUCCESS);
     GL_ASSERT_NOERROR(&api.vt);
     api.vt.GetIntegerv(GL_FRAMEBUFFER_BINDING, &fbo_binding);
     assert((GLuint)fbo_binding == out_fb);
 
-    ret = vlc_gl_filters_Draw(filters);
-    assert(ret == VLC_SUCCESS);
+    ret = heimdall_gl_filters_Draw(filters);
+    assert(ret == HEIMDALL_SUCCESS);
     GL_ASSERT_NOERROR(&api.vt);
     api.vt.GetIntegerv(GL_FRAMEBUFFER_BINDING, &fbo_binding);
     assert((GLuint)fbo_binding == out_fb);
@@ -207,14 +208,14 @@ static void test_opengl_offscreen(
         assert(memcmp(pixel, points[i].color, sizeof(pixel)) == 0);
     }
 
-    vlc_gl_filters_Delete(filters);
+    heimdall_gl_filters_Delete(filters);
     GL_ASSERT_NOERROR(&api.vt);
 
-    vlc_gl_interop_Delete(interop);
+    heimdall_gl_interop_Delete(interop);
     GL_ASSERT_NOERROR(&api.vt);
 
-    vlc_gl_ReleaseCurrent(gl);
-    vlc_gl_Delete(gl);
+    heimdall_gl_ReleaseCurrent(gl);
+    heimdall_gl_Delete(gl);
 
     picture_Release(picture);
 }
@@ -224,16 +225,16 @@ int main( int argc, char **argv )
     (void)argc; (void)argv;
     test_init();
 
-    const char * const vlc_argv[] = {
+    const char * const heimdall_argv[] = {
         "-vvv", "--aout=dummy", "--text-renderer=dummy",
     };
 
-    libvlc_instance_t *vlc = libvlc_new(ARRAY_SIZE(vlc_argv), vlc_argv);
-    vlc_object_t *root = &vlc->p_libvlc_int->obj;
+    libheimdall_instance_t *heimdall = libheimdall_new(ARRAY_SIZE(heimdall_argv), heimdall_argv);
+    heimdall_object_t *root = &heimdall->p_libheimdall_int->obj;
 
     const char *cap =
-        (VLC_TEST_OPENGL_API == VLC_OPENGL)     ? "opengl offscreen" :
-        (VLC_TEST_OPENGL_API == VLC_OPENGL_ES2) ? "opengl es2 offscreen" :
+        (HEIMDALL_TEST_OPENGL_API == HEIMDALL_OPENGL)     ? "opengl offscreen" :
+        (HEIMDALL_TEST_OPENGL_API == HEIMDALL_OPENGL_ES2) ? "opengl es2 offscreen" :
         NULL;
     assert(cap != NULL);
 
@@ -241,30 +242,30 @@ int main( int argc, char **argv )
 
     module_t **providers;
     size_t strict_matches;
-    ssize_t provider_available = vlc_module_match(
+    ssize_t provider_available = heimdall_module_match(
             cap, NULL, false, &providers, &strict_matches);
     (void)strict_matches;
     free(providers);
 
     if (provider_available <= 0)
     {
-        libvlc_release(vlc);
+        libheimdall_release(heimdall);
         return 77;
     }
 
-    struct vlc_decoder_device *device =
-        vlc_decoder_device_Create(root, NULL);
-    vlc_gl_t *gl = vlc_gl_CreateOffscreen(
-            root, device, 3, 3, VLC_TEST_OPENGL_API, NULL, NULL);
+    struct heimdall_decoder_device *device =
+        heimdall_decoder_device_Create(root, NULL);
+    heimdall_gl_t *gl = heimdall_gl_CreateOffscreen(
+            root, device, 3, 3, HEIMDALL_TEST_OPENGL_API, NULL, NULL);
     if (device != NULL)
-        vlc_decoder_device_Release(device);
+        heimdall_decoder_device_Release(device);
 
     if (gl == NULL)
     {
-        libvlc_release(vlc);
+        libheimdall_release(heimdall);
         return 77;
     }
-    vlc_gl_Delete(gl);
+    heimdall_gl_Delete(gl);
 
     struct test_point points_normal[] = {
         { 1, 1, green },
@@ -332,6 +333,6 @@ int main( int argc, char **argv )
 
 
 
-    libvlc_release(vlc);
+    libheimdall_release(heimdall);
     return 0;
 }

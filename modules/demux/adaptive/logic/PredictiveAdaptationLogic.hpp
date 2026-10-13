@@ -2,6 +2,7 @@
  * PredictiveAdaptationLogic.hpp
  *****************************************************************************
  * Copyright (C) 2016 - VideoLAN Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -23,7 +24,7 @@
 #include "AbstractAdaptationLogic.h"
 #include "../tools/MovingAverage.hpp"
 #include <map>
-#include <vlc_threads.h>
+#include <heimdall_threads.h>
 
 namespace adaptive
 {
@@ -39,30 +40,30 @@ namespace adaptive
 
             private:
                 size_t  segments_count;
-                vlc_tick_t buffering_level;
-                vlc_tick_t buffering_target;
+                heimdall_tick_t buffering_level;
+                heimdall_tick_t buffering_target;
                 unsigned last_download_rate;
-                vlc_tick_t last_duration;
+                heimdall_tick_t last_duration;
                 MovingAverage<unsigned> average;
         };
 
         class PredictiveAdaptationLogic : public AbstractAdaptationLogic
         {
             public:
-                PredictiveAdaptationLogic(vlc_object_t *);
+                PredictiveAdaptationLogic(heimdall_object_t *);
                 virtual ~PredictiveAdaptationLogic();
 
                 BaseRepresentation* getNextRepresentation(BaseAdaptationSet *,
                                                           BaseRepresentation *) override;
                 void                updateDownloadRate     (const ID &, size_t,
-                                                            vlc_tick_t, vlc_tick_t) override;
+                                                            heimdall_tick_t, heimdall_tick_t) override;
                 void                trackerEvent           (const TrackerEvent &) override;
 
             private:
                 unsigned                    getAvailableBw(unsigned, const BaseRepresentation *) const;
                 std::map<adaptive::ID, PredictiveStats> streams;
                 unsigned                    usedBps;
-                vlc_mutex_t                 lock;
+                heimdall_mutex_t                 lock;
         };
     }
 }

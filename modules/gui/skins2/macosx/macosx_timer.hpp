@@ -2,6 +2,7 @@
  * macosx_timer.hpp
  *****************************************************************************
  * Copyright (C) 2026 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Fletcher Holt <fletcherholt649@gmail.com>
  *
@@ -45,7 +46,7 @@ public:
     virtual void stop();
 
     /// Get the next date at which the timer should fire
-    vlc_tick_t getNextDate() const { return m_nextDate; }
+    heimdall_tick_t getNextDate() const { return m_nextDate; }
 
     /// Execute the callback
     /// Returns false if the timer must be removed after
@@ -57,9 +58,9 @@ private:
     /// Timer loop
     MacOSXTimerLoop *m_pTimerLoop;
     /// Interval between executions (in ticks)
-    vlc_tick_t m_interval;
+    heimdall_tick_t m_interval;
     /// Next date at which the timer must be executed
-    vlc_tick_t m_nextDate;
+    heimdall_tick_t m_nextDate;
     /// Flag to indicate one-shot timer
     bool m_oneShot;
 };

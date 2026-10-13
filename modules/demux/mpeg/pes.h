@@ -2,6 +2,7 @@
  * pes.h: PES Packet helpers
  *****************************************************************************
  * Copyright (C) 2004-2015 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -17,8 +18,8 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
-#ifndef VLC_MPEG_PES_H
-#define VLC_MPEG_PES_H
+#ifndef HEIMDALL_MPEG_PES_H
+#define HEIMDALL_MPEG_PES_H
 
 #include "timestamps.h"
 
@@ -95,16 +96,16 @@ static inline void ts_pes_header_init(ts_pes_header_t *h)
 }
 
 inline
-static int ParsePESHeader( struct vlc_logger *p_logger, const uint8_t *p_header, size_t i_header,
+static int ParsePESHeader( struct heimdall_logger *p_logger, const uint8_t *p_header, size_t i_header,
                            ts_pes_header_t *h )
 {
     unsigned i_skip;
 
     if ( i_header < 9 )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if( p_header[0] != 0 || p_header[1] != 0 || p_header[2] != 1 )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     h->i_stream_id = p_header[3];
 
@@ -155,12 +156,12 @@ static int ParsePESHeader( struct vlc_logger *p_logger, const uint8_t *p_header,
             {
                 i_skip++;
                 if( i_header < i_skip + 1 )
-                    return VLC_EGENERIC;
+                    return HEIMDALL_EGENERIC;
             }
             if( i_skip == 23 )
             {
-                vlc_error( p_logger, "too much MPEG-1 stuffing" );
-                return VLC_EGENERIC;
+                heimdall_error( p_logger, "too much MPEG-1 stuffing" );
+                return HEIMDALL_EGENERIC;
             }
             /* Skip STD buffer size */
             if( ( p_header[i_skip] & 0xC0 ) == 0x40 )
@@ -169,7 +170,7 @@ static int ParsePESHeader( struct vlc_logger *p_logger, const uint8_t *p_header,
             }
 
             if( i_header < i_skip + 1 )
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
 
             if(  p_header[i_skip]&0x20 )
             {
@@ -190,7 +191,7 @@ static int ParsePESHeader( struct vlc_logger *p_logger, const uint8_t *p_header,
             else
             {
                 if( (p_header[i_skip] & 0xFF) != 0x0F ) /* No pts/dts, lowest bits set to 0x0F */
-                    return VLC_EGENERIC;
+                    return HEIMDALL_EGENERIC;
                 i_skip += 1;
             }
         }
@@ -198,7 +199,7 @@ static int ParsePESHeader( struct vlc_logger *p_logger, const uint8_t *p_header,
     }
 
     h->i_size = i_skip;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 #endif

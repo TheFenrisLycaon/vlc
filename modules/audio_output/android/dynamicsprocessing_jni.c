@@ -2,6 +2,7 @@
  * android/dynamicsprocessing_jni.c: Android DynamicsProcessing
  *****************************************************************************
  * Copyright © 2012-2023 VLC authors and VideoLAN, VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Thomas Guillem <thomas@gllm.fr>
  *
@@ -24,9 +25,9 @@
 # include <config.h>
 #endif
 
-#include <vlc_common.h>
-#include <vlc_threads.h>
-#include <vlc_fourcc.h>
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
+#include <heimdall_fourcc.h>
 
 #include <jni.h>
 #include <math.h>
@@ -57,9 +58,9 @@ struct DynamicsProcessing_fields
 };
 static struct DynamicsProcessing_fields jfields;
 
-int DynamicsProcessing_InitJNI( vlc_object_t *obj )
+int DynamicsProcessing_InitJNI( heimdall_object_t *obj )
 {
-    static vlc_mutex_t lock = VLC_STATIC_MUTEX;
+    static heimdall_mutex_t lock = HEIMDALL_STATIC_MUTEX;
     static int i_init_state = -1;
 
     jclass clazz;
@@ -67,9 +68,9 @@ int DynamicsProcessing_InitJNI( vlc_object_t *obj )
     JNIEnv *env = android_getEnv( obj, THREAD_NAME );
 
     if( env == NULL )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    vlc_mutex_lock(&lock);
+    heimdall_mutex_lock(&lock);
     if( i_init_state != -1 )
         goto end;
 
@@ -105,7 +106,7 @@ int DynamicsProcessing_InitJNI( vlc_object_t *obj )
 } while( 0 )
 
     /* Don't use DynamicsProcessing before Android 12 since it may crash
-     * randomly, cf. videolan/vlc-android#2221.
+     * randomly, cf. lycaria/heimdall-android#2221.
      *
      * ENCODING_PCM_32BIT is available on API 31, so test its availability to
      * check if we are running Android 12 */
@@ -126,12 +127,12 @@ int DynamicsProcessing_InitJNI( vlc_object_t *obj )
 
     i_init_state = 1;
 end:
-    vlc_mutex_unlock(&lock);
-    return i_init_state == 1 ? VLC_SUCCESS : VLC_EGENERIC;
+    heimdall_mutex_unlock(&lock);
+    return i_init_state == 1 ? HEIMDALL_SUCCESS : HEIMDALL_EGENERIC;
 }
 
 static inline bool
-check_exception( JNIEnv *env, vlc_object_t *obj,
+check_exception( JNIEnv *env, heimdall_object_t *obj,
                  const char *class, const char *method )
 {
     if( (*env)->ExceptionCheck( env ) )
@@ -147,14 +148,14 @@ check_exception( JNIEnv *env, vlc_object_t *obj,
 
 
 jobject
-(DynamicsProcessing_New)( vlc_object_t *obj, int session_id )
+(DynamicsProcessing_New)( heimdall_object_t *obj, int session_id )
 {
     JNIEnv *env;
     if( !( env = GET_ENV() ) )
         return NULL;
 
     int ret = DynamicsProcessing_InitJNI( obj );
-    if (ret == VLC_EGENERIC)
+    if (ret == HEIMDALL_EGENERIC)
         return NULL;
 
     jobject dp = JNI_CALL( NewObject, jfields.DynamicsProcessing.clazz,
@@ -170,7 +171,7 @@ jobject
 }
 
 void
-(DynamicsProcessing_Disable)( vlc_object_t *obj, jobject dp )
+(DynamicsProcessing_Disable)( heimdall_object_t *obj, jobject dp )
 {
     JNIEnv *env;
     if( !( env = GET_ENV() ) )
@@ -181,28 +182,28 @@ void
 }
 
 int
-(DynamicsProcessing_SetVolume)( vlc_object_t *obj, jobject dp, float volume )
+(DynamicsProcessing_SetVolume)( heimdall_object_t *obj, jobject dp, float volume )
 {
     JNIEnv *env;
     if( !( env = GET_ENV() ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* convert linear gain to dB */
     float dB = volume == 0.0f ? -144 : 20.0f * log10f( volume );
 
     JNI_CALL_VOID( dp, jfields.DynamicsProcessing.setInputGainAllChannelsTo, dB );
     if( CHECK_EXCEPTION( "DynamicsProcessing", "setInputGainAllChannelsTo" ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     int ret = JNI_CALL_INT( dp, jfields.DynamicsProcessing.setEnabled, volume != 1.0f );
     if( CHECK_EXCEPTION( "DynamicsProcessing", "setEnabled" ) || ret != 0 )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 void
-(DynamicsProcessing_Delete)( vlc_object_t *obj, jobject dp )
+(DynamicsProcessing_Delete)( heimdall_object_t *obj, jobject dp )
 {
     JNIEnv *env;
     if( !( env = GET_ENV() ) )

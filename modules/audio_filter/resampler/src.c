@@ -2,6 +2,7 @@
  * src.c : Secret Rabbit Code (a.k.a. libsamplerate) resampler
  *****************************************************************************
  * Copyright (C) 2011-2012 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -30,10 +31,10 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_aout.h>
-#include <vlc_filter.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_aout.h>
+#include <heimdall_filter.h>
 #include <samplerate.h>
 #include <math.h>
 
@@ -50,11 +51,11 @@ static const char *const conv_type_texts[] = {
     N_("Sinc function (fast)"), N_("Zero Order Hold (fastest)"), N_("Linear (fastest)"),
 };
 
-static int Open (vlc_object_t *);
-static int OpenResampler (vlc_object_t *);
+static int Open (heimdall_object_t *);
+static int OpenResampler (heimdall_object_t *);
 static void Close (filter_t *);
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname (N_("SRC resampler"))
     set_description (N_("Secret Rabbit Code (libsamplerate) resampler") )
     set_subcategory (SUBCAT_AUDIO_RESAMPLER)
@@ -67,30 +68,30 @@ vlc_module_begin ()
     add_submodule ()
     set_capability ("audio resampler", 50)
     set_callback (OpenResampler)
-vlc_module_end ()
+heimdall_module_end ()
 
 static block_t *Resample (filter_t *, block_t *);
 
-static int Open (vlc_object_t *obj)
+static int Open (heimdall_object_t *obj)
 {
     filter_t *filter = (filter_t *)obj;
 
     /* Will change rate */
     if (filter->fmt_in.audio.i_rate == filter->fmt_out.audio.i_rate)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     return OpenResampler (obj);
 }
 
-static int OpenResampler (vlc_object_t *obj)
+static int OpenResampler (heimdall_object_t *obj)
 {
     filter_t *filter = (filter_t *)obj;
 
     /* Only float->float */
-    if (filter->fmt_in.audio.i_format != VLC_CODEC_FL32
-     || filter->fmt_out.audio.i_format != VLC_CODEC_FL32
+    if (filter->fmt_in.audio.i_format != HEIMDALL_CODEC_FL32
+     || filter->fmt_out.audio.i_format != HEIMDALL_CODEC_FL32
     /* No channels remapping */
      || filter->fmt_in.audio.i_channels != filter->fmt_out.audio.i_channels )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     int type = var_InheritInteger (obj, "src-converter-type");
     int err;
@@ -99,17 +100,17 @@ static int OpenResampler (vlc_object_t *obj)
     if (s == NULL)
     {
         msg_Err (obj, "cannot initialize resampler: %s", src_strerror (err));
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    static const struct vlc_filter_operations filter_ops =
+    static const struct heimdall_filter_operations filter_ops =
     {
         .filter_audio = Resample, .close = Close,
     };
     filter->ops = &filter_ops;
     filter->p_sys = s;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void Close (filter_t *filter)
@@ -165,7 +166,7 @@ static block_t *Resample (filter_t *filter, block_t *in)
     out->i_buffer = src.output_frames_gen * framesize;
     out->i_nb_samples = src.output_frames_gen;
     out->i_pts = in->i_pts;
-    out->i_length = vlc_tick_from_samples(src.output_frames_gen, filter->fmt_out.audio.i_rate);
+    out->i_length = heimdall_tick_from_samples(src.output_frames_gen, filter->fmt_out.audio.i_rate);
 error:
     block_Release (in);
     return out;

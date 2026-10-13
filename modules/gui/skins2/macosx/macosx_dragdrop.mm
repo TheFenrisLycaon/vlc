@@ -2,6 +2,7 @@
  * macosx_dragdrop.mm
  *****************************************************************************
  * Copyright (C) 2026 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Fletcher Holt <fletcherholt649@gmail.com>
  *          Felix Paul Kühne <fkuehne@videolan.org>
@@ -31,18 +32,18 @@
 #include "../commands/async_queue.hpp"
 #include "../commands/cmd_add_item.hpp"
 
-#include <vlc_url.h>
+#include <heimdall_url.h>
 
 
 /// NSView subclass that handles drag and drop
-@interface VLCDropView : NSView
+@interface HeimdallDropView : NSView
 {
     @public MacOSXDragDrop *m_pHandler;
 }
 - (instancetype)initWithFrame:(NSRect)frame handler:(MacOSXDragDrop *)handler;
 @end
 
-@implementation VLCDropView
+@implementation HeimdallDropView
 
 - (instancetype)initWithFrame:(NSRect)frame handler:(MacOSXDragDrop *)handler
 {
@@ -142,7 +143,7 @@ MacOSXDragDrop::MacOSXDragDrop( intf_thread_t *pIntf, NSWindow *pWindow,
             NSView *contentView = [m_pWindow contentView];
             NSRect frame = [contentView bounds];
 
-            m_pDropView = [[VLCDropView alloc] initWithFrame:frame handler:this];
+            m_pDropView = [[HeimdallDropView alloc] initWithFrame:frame handler:this];
             [m_pDropView setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
             [contentView addSubview:m_pDropView positioned:NSWindowAbove relativeTo:nil];
         }
@@ -170,7 +171,7 @@ void MacOSXDragDrop::handleDrop( const char **files, int count )
         const char *file = files[i];
 
         // Convert path to URI if needed
-        char *uri = vlc_path2uri( file, NULL );
+        char *uri = heimdall_path2uri( file, NULL );
         if( !uri )
         {
             // Might already be a URI

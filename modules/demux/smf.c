@@ -1,7 +1,8 @@
 /*****************************************************************************
- * smf.c : Standard MIDI File (.mid) demux module for vlc
+ * smf.c : Standard MIDI File (.mid) demux module for heimdall
  *****************************************************************************
  * Copyright © 2007 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,10 +23,10 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_demux.h>
-#include <vlc_charset.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_demux.h>
+#include <heimdall_charset.h>
 #include <limits.h>
 
 #include <assert.h>
@@ -44,7 +45,7 @@ static int32_t ReadVarInt (stream_t *s)
 
     for (unsigned i = 0; i < 4; i++)
     {
-        if (vlc_stream_Read (s, &byte, 1) < 1)
+        if (heimdall_stream_Read (s, &byte, 1) < 1)
             return -1;
 
         val = (val << 7) | (byte & 0x7f);
@@ -72,7 +73,7 @@ static int ReadDeltaTime (stream_t *s, mtrk_t *track)
 {
     int32_t delta_time;
 
-    assert (vlc_stream_Tell (s) == track->start + track->offset);
+    assert (heimdall_stream_Tell (s) == track->start + track->offset);
 
     if (track->offset >= track->length)
     {
@@ -86,7 +87,7 @@ static int ReadDeltaTime (stream_t *s, mtrk_t *track)
         return -1;
 
     track->next += delta_time;
-    track->offset = vlc_stream_Tell (s) - track->start;
+    track->offset = heimdall_stream_Tell (s) - track->start;
     return 0;
 }
 
@@ -95,9 +96,9 @@ typedef struct
     es_out_id_t *es;
     date_t       pts; /*< Play timestamp */
     uint64_t     pulse; /*< Pulses counter */
-    vlc_tick_t   tick; /*< Last tick timestamp */
+    heimdall_tick_t   tick; /*< Last tick timestamp */
 
-    vlc_tick_t   duration; /*< Total duration */
+    heimdall_tick_t   duration; /*< Total duration */
     unsigned     ppqn;   /*< Pulses Per Quarter Note */
     /* by the way, "quarter note" is "noire" in French */
 
@@ -118,7 +119,7 @@ int HandleMeta (demux_t *p_demux, mtrk_t *tr)
     int32_t length;
     int ret = 0;
 
-    if (vlc_stream_Read (s, &type, 1) != 1)
+    if (heimdall_stream_Read (s, &type, 1) != 1)
         return -1;
 
     length = ReadVarInt (s);
@@ -127,7 +128,7 @@ int HandleMeta (demux_t *p_demux, mtrk_t *tr)
 
     payload = malloc (length + 1);
     if ((payload == NULL)
-     || (vlc_stream_Read (s, payload, length) != length))
+     || (heimdall_stream_Read (s, payload, length) != length))
     {
         free (payload);
         return -1;
@@ -185,7 +186,7 @@ int HandleMeta (demux_t *p_demux, mtrk_t *tr)
             break;
 
         case 0x2F: /* End of track */
-            if (tr->start + tr->length != vlc_stream_Tell (s))
+            if (tr->start + tr->length != heimdall_stream_Tell (s))
             {
                 msg_Err (p_demux, "misplaced end of track");
                 ret = -1;
@@ -260,8 +261,8 @@ int HandleMessage (demux_t *p_demux, mtrk_t *tr, es_out_t *out)
     uint8_t first, event;
     int datalen;
 
-    if (vlc_stream_Seek (s, tr->start + tr->offset)
-     || (vlc_stream_Read (s, &first, 1) != 1))
+    if (heimdall_stream_Seek (s, tr->start + tr->offset)
+     || (heimdall_stream_Read (s, &first, 1) != 1))
         return -1;
 
     event = (first & 0x80) ? first : tr->running_event;
@@ -279,7 +280,7 @@ int HandleMessage (demux_t *p_demux, mtrk_t *tr, es_out_t *out)
                     if (len == -1)
                         return -1;
 
-                    block = vlc_stream_Block (s, len);
+                    block = heimdall_stream_Block (s, len);
                     if (block == NULL)
                         return -1;
                     block = block_Realloc (block, 1, len);
@@ -328,7 +329,7 @@ int HandleMessage (demux_t *p_demux, mtrk_t *tr, es_out_t *out)
     block->p_buffer[0] = event;
     if (first & 0x80)
     {
-        if (vlc_stream_Read(s, block->p_buffer + 1, datalen) < datalen)
+        if (heimdall_stream_Read(s, block->p_buffer + 1, datalen) < datalen)
             goto error;
     }
     else
@@ -341,7 +342,7 @@ int HandleMessage (demux_t *p_demux, mtrk_t *tr, es_out_t *out)
 
         block->p_buffer[1] = first;
         if (datalen > 1
-         && vlc_stream_Read(s, block->p_buffer + 2, datalen - 1) < datalen - 1)
+         && heimdall_stream_Read(s, block->p_buffer + 2, datalen - 1) < datalen - 1)
             goto error;
     }
 
@@ -357,7 +358,7 @@ skip:
         /* If event is not real-time, update running status */
         tr->running_event = event;
 
-    tr->offset = vlc_stream_Tell (s) - tr->start;
+    tr->offset = heimdall_stream_Tell (s) - tr->start;
     return 0;
 
 error:
@@ -372,9 +373,9 @@ static int SeekSet0 (demux_t *demux)
 
     /* Default SMF tempo is 120BPM, i.e. half a second per quarter note */
     date_Init (&sys->pts, sys->ppqn * 2, 1);
-    date_Set (&sys->pts, VLC_TICK_0);
+    date_Set (&sys->pts, HEIMDALL_TICK_0);
     sys->pulse = 0;
-    sys->tick = VLC_TICK_0;
+    sys->tick = HEIMDALL_TICK_0;
 
     for (unsigned i = 0; i < sys->trackc; i++)
     {
@@ -387,7 +388,7 @@ static int SeekSet0 (demux_t *demux)
          * error if the first event uses running status. */
         tr->running_event = 0xF6;
 
-        if (vlc_stream_Seek (stream, tr->start)
+        if (heimdall_stream_Seek (stream, tr->start)
          || ReadDeltaTime (stream, tr))
         {
             msg_Err (demux, "fatal parsing error");
@@ -428,7 +429,7 @@ static int ReadEvents (demux_t *demux, uint64_t *restrict pulse,
     return 0;
 }
 
-#define TICK VLC_TICK_FROM_MS(10)
+#define TICK HEIMDALL_TICK_FROM_MS(10)
 
 /*****************************************************************************
  * Demux: read chunks and send them to the synthesizer
@@ -444,7 +445,7 @@ static int Demux (demux_t *demux)
     {
         block_t *tick = block_Alloc (1);
         if (unlikely(tick == NULL))
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
 
         tick->p_buffer[0] = 0xF9;
         tick->i_dts = tick->i_pts = sys->tick;
@@ -453,29 +454,29 @@ static int Demux (demux_t *demux)
         es_out_SetPCR (demux->out, sys->tick);
 
         sys->tick += TICK;
-        return VLC_DEMUXER_SUCCESS;
+        return HEIMDALL_DEMUXER_SUCCESS;
     }
 
     /* MIDI events in chronological order across all tracks */
     uint64_t pulse = sys->pulse;
 
     if (ReadEvents (demux, &pulse, demux->out))
-        return VLC_DEMUXER_EGENERIC;
+        return HEIMDALL_DEMUXER_EGENERIC;
 
     if (pulse == UINT64_MAX)
-        return VLC_DEMUXER_EOF; /* all tracks are done */
+        return HEIMDALL_DEMUXER_EOF; /* all tracks are done */
 
     sys->pulse = pulse;
-    return VLC_DEMUXER_SUCCESS;
+    return HEIMDALL_DEMUXER_SUCCESS;
 }
 
-static int Seek (demux_t *demux, vlc_tick_t pts)
+static int Seek (demux_t *demux, heimdall_tick_t pts)
 {
     demux_sys_t *sys = demux->p_sys;
 
     /* Rewind if needed */
     if (pts < date_Get (&sys->pts) && SeekSet0 (demux))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* Fast forward */
     uint64_t pulse = sys->pulse;
@@ -483,14 +484,14 @@ static int Seek (demux_t *demux, vlc_tick_t pts)
     while (pts > date_Get (&sys->pts))
     {
         if (pulse == UINT64_MAX)
-            return VLC_SUCCESS; /* premature end */
+            return HEIMDALL_SUCCESS; /* premature end */
         if (ReadEvents (demux, &pulse, NULL))
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 
     sys->pulse = pulse;
-    sys->tick = ((date_Get (&sys->pts) - VLC_TICK_0) / TICK) * TICK + VLC_TICK_0;
-    return VLC_SUCCESS;
+    sys->tick = ((date_Get (&sys->pts) - HEIMDALL_TICK_0) / TICK) * TICK + HEIMDALL_TICK_0;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -507,20 +508,20 @@ static int Control (demux_t *demux, int i_query, va_list args)
             break;
         case DEMUX_GET_POSITION:
             if (!sys->duration)
-                return VLC_EGENERIC;
-            *va_arg (args, double *) = (sys->tick - (double)VLC_TICK_0)
+                return HEIMDALL_EGENERIC;
+            *va_arg (args, double *) = (sys->tick - (double)HEIMDALL_TICK_0)
                                      / sys->duration;
             break;
         case DEMUX_SET_POSITION:
             return Seek (demux, va_arg (args, double) * sys->duration);
         case DEMUX_GET_LENGTH:
-            *va_arg (args, vlc_tick_t *) = sys->duration;
+            *va_arg (args, heimdall_tick_t *) = sys->duration;
             break;
         case DEMUX_GET_TIME:
-            *va_arg (args, vlc_tick_t *) = sys->tick - VLC_TICK_0;
+            *va_arg (args, heimdall_tick_t *) = sys->tick - HEIMDALL_TICK_0;
             break;
         case DEMUX_SET_TIME:
-            return Seek (demux, va_arg (args, vlc_tick_t));
+            return Seek (demux, va_arg (args, heimdall_tick_t));
 
         case DEMUX_CAN_PAUSE:
         case DEMUX_SET_PAUSE_STATE:
@@ -529,15 +530,15 @@ static int Control (demux_t *demux, int i_query, va_list args)
             return demux_vaControlHelper( demux->s, 0, -1, 0, 1, i_query, args );
 
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /**
  * Probes file format and starts demuxing.
  */
-static int Open (vlc_object_t *obj)
+static int Open (heimdall_object_t *obj)
 {
     demux_t *demux = (demux_t *)obj;
     stream_t *stream = demux->s;
@@ -546,8 +547,8 @@ static int Open (vlc_object_t *obj)
 
     /* (Try to) parse the SMF header */
     /* Header chunk always has 6 bytes payload */
-    if (vlc_stream_Peek (stream, &peek, 14) < 14)
-        return VLC_EGENERIC;
+    if (heimdall_stream_Peek (stream, &peek, 14) < 14)
+        return HEIMDALL_EGENERIC;
 
     /* Skip RIFF MIDI header if present */
     if (!memcmp (peek, "RIFF", 4) && !memcmp (peek + 8, "RMID", 4))
@@ -555,8 +556,8 @@ static int Open (vlc_object_t *obj)
         uint32_t riff_len = GetDWLE (peek + 4);
 
         msg_Dbg (demux, "detected RIFF MIDI file (%"PRIu32" bytes)", riff_len);
-        if (vlc_stream_Read( stream, NULL, 12 ) != 12 )
-            return VLC_EGENERIC;
+        if (heimdall_stream_Read( stream, NULL, 12 ) != 12 )
+            return HEIMDALL_EGENERIC;
 
         /* Look for the RIFF data chunk */
         for (;;)
@@ -565,29 +566,29 @@ static int Open (vlc_object_t *obj)
             uint32_t chnk_len;
 
             if ((riff_len < 8)
-             || (vlc_stream_Read (stream, chnk_hdr, 8) < 8))
-                return VLC_EGENERIC;
+             || (heimdall_stream_Read (stream, chnk_hdr, 8) < 8))
+                return HEIMDALL_EGENERIC;
 
             riff_len -= 8;
             chnk_len = GetDWLE (chnk_hdr + 4);
             if (riff_len < chnk_len)
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             riff_len -= chnk_len;
 
             if (!memcmp (chnk_hdr, "data", 4))
                 break; /* found! */
 
-            if (vlc_stream_Read( stream, NULL, chnk_len ) != chnk_len )
-                return VLC_EGENERIC;
+            if (heimdall_stream_Read( stream, NULL, chnk_len ) != chnk_len )
+                return HEIMDALL_EGENERIC;
         }
 
         /* Read real SMF header. Assume RIFF data chunk length is proper. */
-        if (vlc_stream_Peek (stream, &peek, 14) < 14)
-            return VLC_EGENERIC;
+        if (heimdall_stream_Peek (stream, &peek, 14) < 14)
+            return HEIMDALL_EGENERIC;
     }
 
     if (memcmp (peek, "MThd\x00\x00\x00\x06", 8))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     peek += 8;
 
     /* First word: SMF type */
@@ -602,7 +603,7 @@ static int Open (vlc_object_t *obj)
         default:
             /* We don't implement SMF2 (as do many) */
             msg_Err (demux, "unsupported SMF file type %u", GetWBE (peek));
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
     peek += 2;
 
@@ -612,7 +613,7 @@ static int Open (vlc_object_t *obj)
     if (!multitrack && (tracks != 1))
     {
         msg_Err (demux, "invalid SMF type 0 file");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     msg_Dbg (demux, "detected Standard MIDI File (type %u) with %u track(s)",
@@ -623,24 +624,24 @@ static int Open (vlc_object_t *obj)
     if (ppqn & 0x8000)
     {   /* FIXME */
         msg_Err (demux, "SMPTE timestamps not implemented");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     else
     {
         if (ppqn == 0)
         {
             msg_Err(demux, "invalid SMF file PPQN: %u", ppqn);
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
         msg_Dbg (demux, " %u pulses per quarter note", ppqn);
     }
 
     demux_sys_t *sys = malloc (sizeof (*sys) + (sizeof (mtrk_t) * tracks));
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     /* We've had a valid SMF header - now skip it*/
-    if (vlc_stream_Read( stream, NULL, 14 ) != 14 )
+    if (heimdall_stream_Read( stream, NULL, 14 ) != 14 )
         goto error;
 
     demux->p_sys = sys;
@@ -657,7 +658,7 @@ static int Open (vlc_object_t *obj)
         /* Seeking screws streaming up, but there is no way around this, as
          * SMF1 tracks are performed simultaneously.
          * Not a big deal as SMF1 are usually only a few kbytes anyway. */
-        if (i > 0 && vlc_stream_Seek (stream, tr[-1].start + tr[-1].length))
+        if (i > 0 && heimdall_stream_Seek (stream, tr[-1].start + tr[-1].length))
         {
             msg_Err (demux, "cannot build SMF index (corrupted file?)");
             goto error;
@@ -665,7 +666,7 @@ static int Open (vlc_object_t *obj)
 
         for (;;)
         {
-            if (vlc_stream_Read (stream, head, 8) < 8)
+            if (heimdall_stream_Read (stream, head, 8) < 8)
             {
                 /* FIXME: don't give up if we have at least one valid track */
                 msg_Err (demux, "incomplete SMF chunk, file is corrupted");
@@ -678,16 +679,16 @@ static int Open (vlc_object_t *obj)
             uint_fast32_t chunk_len = GetDWBE(head + 4);
             msg_Dbg(demux, "skipping unknown SMF chunk (%"PRIuFAST32" bytes)",
                     chunk_len);
-            if (vlc_stream_Seek(stream, vlc_stream_Tell(stream) + chunk_len))
+            if (heimdall_stream_Seek(stream, heimdall_stream_Tell(stream) + chunk_len))
                 goto error;
         }
 
-        tr->start = vlc_stream_Tell (stream);
+        tr->start = heimdall_stream_Tell (stream);
         tr->length = GetDWBE (head + 4);
     }
 
     bool b;
-    if (vlc_stream_Control (stream, STREAM_CAN_FASTSEEK, &b) == 0 && b)
+    if (heimdall_stream_Control (stream, STREAM_CAN_FASTSEEK, &b) == 0 && b)
     {
         if (SeekSet0 (demux))
             goto error;
@@ -703,7 +704,7 @@ static int Open (vlc_object_t *obj)
         goto error;
 
     es_format_t  fmt;
-    es_format_Init (&fmt, AUDIO_ES, VLC_CODEC_MIDI);
+    es_format_Init (&fmt, AUDIO_ES, HEIMDALL_CODEC_MIDI);
     fmt.audio.i_channels = 2;
     fmt.audio.i_rate = 44100; /* dummy value */
     fmt.i_id = 0;
@@ -713,17 +714,17 @@ static int Open (vlc_object_t *obj)
 
     demux->pf_demux = Demux;
     demux->pf_control = Control;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     free (sys);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /**
  * Releases allocate resources.
  */
-static void Close (vlc_object_t * p_this)
+static void Close (heimdall_object_t * p_this)
 {
     demux_t *p_demux = (demux_t *)p_this;
     demux_sys_t *p_sys = p_demux->p_sys;
@@ -731,7 +732,7 @@ static void Close (vlc_object_t * p_this)
     free (p_sys);
 }
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description (N_("SMF demuxer"))
     set_subcategory (SUBCAT_INPUT_DEMUX)
     set_capability ("demux", 20)
@@ -739,4 +740,4 @@ vlc_module_begin ()
     add_file_extension("kar")
     add_file_extension("mid")
     add_file_extension("rmi")
-vlc_module_end ()
+heimdall_module_end ()

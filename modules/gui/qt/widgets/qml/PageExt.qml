@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2025 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,10 +20,10 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Templates as T
 
-import VLC.MainInterface
-import VLC.Style
-import VLC.Menus
-import VLC.Util
+import Heimdall.MainInterface
+import Heimdall.Style
+import Heimdall.Menus
+import Heimdall.Util
 
 T.Page {
     id: root
@@ -112,8 +113,8 @@ T.Page {
     header: DefaultPageHeader {
         text: root.title
 
-        leftPadding: VLCStyle.dynamicAppMargins(width) + VLCStyle.layout_left_margin + root.leftPadding
-        rightPadding: VLCStyle.dynamicAppMargins(width) + VLCStyle.layout_right_margin + root.rightPadding
+        leftPadding: HeimdallStyle.dynamicAppMargins(width) + HeimdallStyle.layout_left_margin + root.leftPadding
+        rightPadding: HeimdallStyle.dynamicAppMargins(width) + HeimdallStyle.layout_right_margin + root.rightPadding
 
         sortMenu: root.sortMenu
 
@@ -144,13 +145,13 @@ T.Page {
 
         position: T.ToolBar.Header
 
-        topPadding: VLCStyle.layoutTitle_top_padding
-        bottomPadding: VLCStyle.layoutTitle_bottom_padding
+        topPadding: HeimdallStyle.layoutTitle_top_padding
+        bottomPadding: HeimdallStyle.layoutTitle_bottom_padding
 
         // FIXME: `GridItem`'s background extends beyond its
         //        bounding rect, violating the hypothetical
         //        clip test (see 7e6b23db).
-        bottomInset: (MainCtx.hasGridListMode && MainCtx.gridView) ? VLCStyle.gridItemSelectedBorder : undefined
+        bottomInset: (MainCtx.hasGridListMode && MainCtx.gridView) ? HeimdallStyle.gridItemSelectedBorder : undefined
 
         // Settings
 

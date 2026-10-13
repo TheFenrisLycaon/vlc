@@ -4,6 +4,7 @@
  * See also unicode.c for Unicode to locale conversion helpers.
  *
  * Copyright (C) 2003-2008 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Christophe Massiot
  *          Rémi Denis-Courmont
@@ -27,7 +28,7 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
 #if !defined _WIN32
 # include <locale.h>
@@ -40,10 +41,10 @@
 #   include <xlocale.h>
 #endif
 
-#include "../libvlc.h"
-#include <vlc_charset.h>
+#include "../libheimdall.h"
+#include <heimdall_charset.h>
 
-double vlc_strtod_c(const char *restrict str, char **restrict end)
+double heimdall_strtod_c(const char *restrict str, char **restrict end)
 {
     locale_t loc = newlocale (LC_NUMERIC_MASK, "C", NULL);
     locale_t oldloc = uselocale (loc);
@@ -57,7 +58,7 @@ double vlc_strtod_c(const char *restrict str, char **restrict end)
     return res;
 }
 
-float vlc_strtof_c(const char *restrict str, char **restrict end)
+float heimdall_strtof_c(const char *restrict str, char **restrict end)
 {
     locale_t loc = newlocale (LC_NUMERIC_MASK, "C", NULL);
     locale_t oldloc = uselocale (loc);
@@ -71,7 +72,7 @@ float vlc_strtof_c(const char *restrict str, char **restrict end)
     return res;
 }
 
-int vlc_vasprintf_c(char **restrict ret, const char *restrict format,
+int heimdall_vasprintf_c(char **restrict ret, const char *restrict format,
                     va_list ap)
 {
     locale_t loc = newlocale( LC_NUMERIC_MASK, "C", NULL );
@@ -88,19 +89,19 @@ int vlc_vasprintf_c(char **restrict ret, const char *restrict format,
     return i_rc;
 }
 
-int vlc_asprintf_c(char **restrict ret, const char *restrict format, ...)
+int heimdall_asprintf_c(char **restrict ret, const char *restrict format, ...)
 {
     va_list ap;
     int i_rc;
 
     va_start( ap, format );
-    i_rc = vlc_vasprintf_c(ret, format, ap);
+    i_rc = heimdall_vasprintf_c(ret, format, ap);
     va_end( ap );
 
     return i_rc;
 }
 
-int vlc_vfprintf_c(FILE *f, const char *format, va_list ap)
+int heimdall_vfprintf_c(FILE *f, const char *format, va_list ap)
 {
     locale_t loc = newlocale(LC_NUMERIC_MASK, "C", NULL);
     locale_t oldloc = uselocale(loc);
@@ -116,18 +117,18 @@ int vlc_vfprintf_c(FILE *f, const char *format, va_list ap)
     return rc;
 }
 
-int vlc_fprintf_c(FILE *restrict f, const char *restrict format, ...)
+int heimdall_fprintf_c(FILE *restrict f, const char *restrict format, ...)
 {
     va_list ap;
 
     va_start(ap, format);
-    int rc = vlc_vfprintf_c(f, format, ap);
+    int rc = heimdall_vfprintf_c(f, format, ap);
     va_end(ap);
 
     return rc;
 }
 
-int vlc_vsscanf_c(const char *restrict buf, const char *restrict format,
+int heimdall_vsscanf_c(const char *restrict buf, const char *restrict format,
                   va_list ap)
 {
     locale_t loc = newlocale(LC_NUMERIC_MASK, "C", NULL);
@@ -143,13 +144,13 @@ int vlc_vsscanf_c(const char *restrict buf, const char *restrict format,
     return ret;
 }
 
-int vlc_sscanf_c(const char *restrict buf, const char *restrict format, ...)
+int heimdall_sscanf_c(const char *restrict buf, const char *restrict format, ...)
 {
     va_list ap;
     int ret;
 
     va_start(ap, format);
-    ret = vlc_vsscanf_c(buf, format, ap);
+    ret = heimdall_vsscanf_c(buf, format, ap);
     va_end( ap );
 
     return ret;

@@ -2,6 +2,7 @@
  * mosaic.h:
  *****************************************************************************
  * Copyright (C) 2004-2008 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Antoine Cellerier <dionoea@videolan.org>
  *          Christophe Massiot <massiot@via.ecp.fr>
@@ -24,7 +25,7 @@
 typedef struct bridged_es_t
 {
     es_format_t fmt;
-    vlc_picture_chain_t pictures;
+    heimdall_picture_chain_t pictures;
     bool b_empty;
     const char *psz_id;
 
@@ -39,9 +40,9 @@ typedef struct bridge_t
     int i_es_num;
 } bridge_t;
 
-static bridge_t *GetBridge( vlc_object_t *p_object )
+static bridge_t *GetBridge( heimdall_object_t *p_object )
 {
-    return var_GetAddress(VLC_OBJECT(vlc_object_instance(p_object)),
+    return var_GetAddress(HEIMDALL_OBJECT(heimdall_object_instance(p_object)),
                           "mosaic-struct");
 }
-#define GetBridge(a) GetBridge( VLC_OBJECT(a) )
+#define GetBridge(a) GetBridge( HEIMDALL_OBJECT(a) )

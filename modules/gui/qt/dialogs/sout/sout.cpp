@@ -2,6 +2,7 @@
  * sout.cpp : Stream output dialog ( old-style )
  ****************************************************************************
  * Copyright (C) 2007-2009 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  *
  * Authors: Clément Stenac <zorglub@videolan.org>
@@ -29,7 +30,7 @@
 #include "dialogs/sout/sout.hpp"
 #include "util/qt_dirs.hpp"
 #include "dialogs/sout/sout_widgets.hpp"
-#include "widgets/native/qvlcframe.hpp"
+#include "widgets/native/qheimdallframe.hpp"
 #include "util/colorizedsvgicon.hpp"
 
 #include <QString>
@@ -42,13 +43,13 @@ SoutDialog::SoutDialog( QWindow *parent, qt_intf_t *_p_intf, const QString& inpu
     p_intf = _p_intf;
 
     setWindowTitle( qtr( "Stream Output" ) );
-    setWindowRole( "vlc-stream-output" );
+    setWindowRole( "heimdall-stream-output" );
 
     // NOTE: Aero style seems to be incompatible with
     //       Qt Modern Windows Style dark mode
     setWizardStyle(QWizard::ModernStyle);
 
-    QVLCDialog::setWindowTransientParent(this, parent , p_intf);
+    QHeimdallDialog::setWindowTransientParent(this, parent , p_intf);
 
     /* UI stuff */
     ui.setupUi( this );
@@ -90,7 +91,7 @@ SoutDialog::SoutDialog( QWindow *parent, qt_intf_t *_p_intf, const QString& inpu
     connect( ui.soutAll, &QCheckBox::toggled, this, &SoutDialog::updateChain );
     connect( ui.localOutput, &QCheckBox::toggled, this, &SoutDialog::updateChain );
     connect( ui.transcodeBox, &QCheckBox::toggled, this, &SoutDialog::updateChain );
-    connect( ui.profileSelect, &VLCProfileSelector::optionsChanged, this, &SoutDialog::updateChain );
+    connect( ui.profileSelect, &HeimdallProfileSelector::optionsChanged, this, &SoutDialog::updateChain );
 
     setButtonText( QWizard::BackButton, qtr("Back") );
     setButtonText( QWizard::CancelButton, qtr("Cancel") );
@@ -156,7 +157,7 @@ void SoutDialog::addDest( )
             caption = "Icecast";
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
             return;
     }
 

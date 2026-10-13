@@ -4,9 +4,10 @@
  * Copyright (C) 2009 Geoffroy Couprie
  * Copyright (C) 2009 Laurent Aimar
  * Copyright (C) 2015 Steve Lhomme
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Geoffroy Couprie <geal@videolan.org>
- *          Laurent Aimar <fenrir _AT_ videolan _DOT_ org>
+ *          Laurent Aimar <fenrir _AT_ lycaria _DOT_ org>
  *          Steve Lhomme <robux4@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -27,7 +28,7 @@
 #ifndef AVCODEC_DIRECTX_VA_H
 #define AVCODEC_DIRECTX_VA_H
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
 #include <libavcodec/avcodec.h>
 #include "va.h"
@@ -74,19 +75,19 @@ typedef struct
     /**
      * Read the list of possible input GUIDs
      */
-    int (*pf_get_input_list)(vlc_va_t *, input_list_t *);
+    int (*pf_get_input_list)(heimdall_va_t *, input_list_t *);
     /**
      * Find a suitable decoder configuration for the input and set the
      * internal state to use that output
      */
-    int (*pf_setup_output)(vlc_va_t *, const directx_va_mode_t *, const video_format_t *fmt);
+    int (*pf_setup_output)(heimdall_va_t *, const directx_va_mode_t *, const video_format_t *fmt);
 
 } directx_sys_t;
 
-const directx_va_mode_t * directx_va_Setup(vlc_va_t *, const directx_sys_t *, const AVCodecContext *, const AVPixFmtDescriptor *,
+const directx_va_mode_t * directx_va_Setup(heimdall_va_t *, const directx_sys_t *, const AVCodecContext *, const AVPixFmtDescriptor *,
                                            const es_format_t *, int flag_xbox,
                                            video_format_t *fmt_out, unsigned *surface_count);
-bool directx_va_canUseDecoder(vlc_va_t *, UINT VendorId, UINT DeviceId, const GUID *pCodec, UINT driverBuild);
+bool directx_va_canUseDecoder(heimdall_va_t *, UINT VendorId, UINT DeviceId, const GUID *pCodec, UINT driverBuild);
 
 #ifdef _MSC_VER
 // MSVC should have all the DXVA_xxx GUIDs but not the few DXVA2_xxx ones we

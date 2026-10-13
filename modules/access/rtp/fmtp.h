@@ -4,6 +4,7 @@
  */
 /*****************************************************************************
  * Copyright © 2022 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License
@@ -26,7 +27,7 @@
 #include <string.h>
 
 static inline
-const char *vlc_sdp_fmtp_get_str(const struct vlc_sdp_pt *desc,
+const char *heimdall_sdp_fmtp_get_str(const struct heimdall_sdp_pt *desc,
                                  const char *name, size_t *restrict lenp)
 {
     const char *p = desc->parameters;
@@ -35,7 +36,7 @@ const char *vlc_sdp_fmtp_get_str(const struct vlc_sdp_pt *desc,
     while (p != NULL) {
         p += strspn(p, " ");
 
-        if (vlc_ascii_strncasecmp(p, name, namelen) == 0 && p[namelen] == '=') {
+        if (heimdall_ascii_strncasecmp(p, name, namelen) == 0 && p[namelen] == '=') {
             p += namelen + 1;
             *lenp = strcspn(p, ";");
             return p;
@@ -50,11 +51,11 @@ const char *vlc_sdp_fmtp_get_str(const struct vlc_sdp_pt *desc,
 }
 
 static
-int vlc_sdp_fmtp_get_ull(const struct vlc_sdp_pt *desc, const char *name,
+int heimdall_sdp_fmtp_get_ull(const struct heimdall_sdp_pt *desc, const char *name,
                          unsigned long long *restrict res)
 {
     size_t len;
-    const char *n = vlc_sdp_fmtp_get_str(desc, name, &len);
+    const char *n = heimdall_sdp_fmtp_get_str(desc, name, &len);
     if (n == NULL)
         return -ENOENT;
     if (len == 0)
@@ -70,11 +71,11 @@ int vlc_sdp_fmtp_get_ull(const struct vlc_sdp_pt *desc, const char *name,
 }
 
 static inline
-int vlc_sdp_fmtp_get_u16(const struct vlc_sdp_pt *desc, const char *name,
+int heimdall_sdp_fmtp_get_u16(const struct heimdall_sdp_pt *desc, const char *name,
                          uint16_t *restrict res)
 {
     unsigned long long ull;
-    int err = vlc_sdp_fmtp_get_ull(desc, name, &ull);
+    int err = heimdall_sdp_fmtp_get_ull(desc, name, &ull);
     if (err == 0) {
         if (ull >> 16)
             return -ERANGE;
@@ -85,11 +86,11 @@ int vlc_sdp_fmtp_get_u16(const struct vlc_sdp_pt *desc, const char *name,
 }
 
 static inline
-int vlc_sdp_fmtp_get_u8(const struct vlc_sdp_pt *desc, const char *name,
+int heimdall_sdp_fmtp_get_u8(const struct heimdall_sdp_pt *desc, const char *name,
                         uint8_t *restrict res)
 {
     unsigned long long ull;
-    int err = vlc_sdp_fmtp_get_ull(desc, name, &ull);
+    int err = heimdall_sdp_fmtp_get_ull(desc, name, &ull);
     if (err == 0) {
         if (ull >> 8)
             return -ERANGE;
@@ -99,8 +100,8 @@ int vlc_sdp_fmtp_get_u8(const struct vlc_sdp_pt *desc, const char *name,
     return err;
 }
 
-#define vlc_sdp_fmtp_get(desc, name, vp) \
+#define heimdall_sdp_fmtp_get(desc, name, vp) \
     _Generic (*(vp), \
-        uint16_t: vlc_sdp_fmtp_get_u16(desc, name, (uint16_t *)(vp)), \
-        uint8_t:  vlc_sdp_fmtp_get_u8(desc, name, (uint8_t *)(vp)))
+        uint16_t: heimdall_sdp_fmtp_get_u16(desc, name, (uint16_t *)(vp)), \
+        uint8_t:  heimdall_sdp_fmtp_get_u8(desc, name, (uint8_t *)(vp)))
 

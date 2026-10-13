@@ -2,6 +2,7 @@
  * gnutls.c
  *****************************************************************************
  * Copyright (C) 2004-2017 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -33,29 +34,29 @@
 # include <sys/uio.h>
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_tls.h>
-#include <vlc_block.h>
-#include <vlc_dialog.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_tls.h>
+#include <heimdall_block.h>
+#include <heimdall_dialog.h>
 
 #include <gnutls/gnutls.h>
 #include <gnutls/x509.h>
 
-typedef struct vlc_tls_gnutls
+typedef struct heimdall_tls_gnutls
 {
-    vlc_tls_t tls;
+    heimdall_tls_t tls;
     gnutls_session_t session;
-    vlc_object_t *obj;
-} vlc_tls_gnutls_t;
+    heimdall_object_t *obj;
+} heimdall_tls_gnutls_t;
 
-static void gnutls_Banner(vlc_object_t *obj)
+static void gnutls_Banner(heimdall_object_t *obj)
 {
     msg_Dbg(obj, "using GnuTLS v%s (built with v"GNUTLS_VERSION")",
             gnutls_check_version(NULL));
 }
 
-static int gnutls_Error(vlc_tls_gnutls_t *priv, int val)
+static int gnutls_Error(heimdall_tls_gnutls_t *priv, int val)
 {
     switch (val)
     {
@@ -87,10 +88,10 @@ static int gnutls_Error(vlc_tls_gnutls_t *priv, int val)
     return -1;
 }
 
-static ssize_t vlc_gnutls_read(gnutls_transport_ptr_t ptr, void *buf,
+static ssize_t heimdall_gnutls_read(gnutls_transport_ptr_t ptr, void *buf,
                                size_t length)
 {
-    vlc_tls_t *sock = ptr;
+    heimdall_tls_t *sock = ptr;
     struct iovec iov = {
         .iov_base = buf,
         .iov_len = length,
@@ -99,7 +100,7 @@ static ssize_t vlc_gnutls_read(gnutls_transport_ptr_t ptr, void *buf,
     return sock->ops->readv(sock, &iov, 1);
 }
 
-static ssize_t vlc_gnutls_writev(gnutls_transport_ptr_t ptr,
+static ssize_t heimdall_gnutls_writev(gnutls_transport_ptr_t ptr,
                                  const giovec_t *giov, int iovcnt)
 {
 #ifdef IOV_MAX
@@ -115,7 +116,7 @@ static ssize_t vlc_gnutls_writev(gnutls_transport_ptr_t ptr,
     if (unlikely(iovcnt == 0))
         return 0;
 
-    vlc_tls_t *sock = ptr;
+    heimdall_tls_t *sock = ptr;
     struct iovec iov[iovcnt];
 
     for (int i = 0; i < iovcnt; i++)
@@ -127,17 +128,17 @@ static ssize_t vlc_gnutls_writev(gnutls_transport_ptr_t ptr,
     return sock->ops->writev(sock, iov, iovcnt);
 }
 
-static int gnutls_GetFD(vlc_tls_t *tls, short *restrict events)
+static int gnutls_GetFD(heimdall_tls_t *tls, short *restrict events)
 {
-    vlc_tls_gnutls_t *priv = (vlc_tls_gnutls_t *)tls;
-    vlc_tls_t *sock = gnutls_transport_get_ptr(priv->session);
+    heimdall_tls_gnutls_t *priv = (heimdall_tls_gnutls_t *)tls;
+    heimdall_tls_t *sock = gnutls_transport_get_ptr(priv->session);
 
-    return vlc_tls_GetPollFD(sock, events);
+    return heimdall_tls_GetPollFD(sock, events);
 }
 
-static ssize_t gnutls_Recv(vlc_tls_t *tls, struct iovec *iov, unsigned count)
+static ssize_t gnutls_Recv(heimdall_tls_t *tls, struct iovec *iov, unsigned count)
 {
-    vlc_tls_gnutls_t *priv = (vlc_tls_gnutls_t *)tls;
+    heimdall_tls_gnutls_t *priv = (heimdall_tls_gnutls_t *)tls;
     gnutls_session_t session = priv->session;
     size_t rcvd = 0;
 
@@ -159,10 +160,10 @@ static ssize_t gnutls_Recv(vlc_tls_t *tls, struct iovec *iov, unsigned count)
     return rcvd;
 }
 
-static ssize_t gnutls_Send (vlc_tls_t *tls, const struct iovec *iov,
+static ssize_t gnutls_Send (heimdall_tls_t *tls, const struct iovec *iov,
                             unsigned count)
 {
-    vlc_tls_gnutls_t *priv = (vlc_tls_gnutls_t *)tls;
+    heimdall_tls_gnutls_t *priv = (heimdall_tls_gnutls_t *)tls;
     gnutls_session_t session = priv->session;
     ssize_t val;
 
@@ -185,9 +186,9 @@ static ssize_t gnutls_Send (vlc_tls_t *tls, const struct iovec *iov,
     return (val < 0) ? gnutls_Error(priv, val) : val;
 }
 
-static int gnutls_Shutdown(vlc_tls_t *tls, bool duplex)
+static int gnutls_Shutdown(heimdall_tls_t *tls, bool duplex)
 {
-    vlc_tls_gnutls_t *priv = (vlc_tls_gnutls_t *)tls;
+    heimdall_tls_gnutls_t *priv = (heimdall_tls_gnutls_t *)tls;
     gnutls_session_t session = priv->session;
     ssize_t val;
 
@@ -203,15 +204,15 @@ static int gnutls_Shutdown(vlc_tls_t *tls, bool duplex)
     return 0;
 }
 
-static void gnutls_Close (vlc_tls_t *tls)
+static void gnutls_Close (heimdall_tls_t *tls)
 {
-    vlc_tls_gnutls_t *priv = (vlc_tls_gnutls_t *)tls;
+    heimdall_tls_gnutls_t *priv = (heimdall_tls_gnutls_t *)tls;
 
     gnutls_deinit(priv->session);
     free(priv);
 }
 
-static const struct vlc_tls_operations gnutls_ops =
+static const struct heimdall_tls_operations gnutls_ops =
 {
     gnutls_GetFD,
     gnutls_Recv,
@@ -220,12 +221,12 @@ static const struct vlc_tls_operations gnutls_ops =
     gnutls_Close,
 };
 
-static vlc_tls_gnutls_t *gnutls_SessionOpen(vlc_object_t *obj, int type,
+static heimdall_tls_gnutls_t *gnutls_SessionOpen(heimdall_object_t *obj, int type,
                                          gnutls_certificate_credentials_t x509,
-                                           vlc_tls_t *sock,
+                                           heimdall_tls_t *sock,
                                            const char *const *alpn)
 {
-    vlc_tls_gnutls_t *priv = malloc(sizeof (*priv));
+    heimdall_tls_gnutls_t *priv = malloc(sizeof (*priv));
     if (unlikely(priv == NULL))
         return NULL;
 
@@ -276,7 +277,7 @@ static vlc_tls_gnutls_t *gnutls_SessionOpen(vlc_object_t *obj, int type,
             alpn_count++;
         }
 
-        protv = vlc_alloc(protc, sizeof (*protv));
+        protv = heimdall_alloc(protc, sizeof (*protv));
         if (unlikely(protv == NULL))
             goto error;
 
@@ -292,13 +293,13 @@ static vlc_tls_gnutls_t *gnutls_SessionOpen(vlc_object_t *obj, int type,
     }
 
     gnutls_transport_set_ptr(session, sock);
-    gnutls_transport_set_vec_push_function(session, vlc_gnutls_writev);
-    gnutls_transport_set_pull_function(session, vlc_gnutls_read);
+    gnutls_transport_set_vec_push_function(session, heimdall_gnutls_writev);
+    gnutls_transport_set_pull_function(session, heimdall_gnutls_read);
 
     priv->session = session;
     priv->obj = obj;
 
-    vlc_tls_t *tls = &priv->tls;
+    heimdall_tls_t *tls = &priv->tls;
 
     tls->ops = &gnutls_ops;
     return priv;
@@ -316,10 +317,10 @@ error:
  * 1 if more would-be blocking recv is needed,
  * 2 if more would-be blocking send is required.
  */
-static int gnutls_Handshake(vlc_tls_t *tls, char **restrict alp)
+static int gnutls_Handshake(heimdall_tls_t *tls, char **restrict alp)
 {
-    vlc_tls_gnutls_t *priv = (vlc_tls_gnutls_t *)tls;
-    vlc_object_t *obj = priv->obj;
+    heimdall_tls_gnutls_t *priv = (heimdall_tls_gnutls_t *)tls;
+    heimdall_object_t *obj = priv->obj;
     gnutls_session_t session = priv->session;
     int val = gnutls_handshake(session);
 
@@ -375,11 +376,11 @@ static int gnutls_Handshake(vlc_tls_t *tls, char **restrict alp)
     return 0;
 }
 
-static vlc_tls_t *gnutls_ClientSessionOpen(vlc_tls_client_t *crd,
-                                           vlc_tls_t *sk, const char *hostname,
+static heimdall_tls_t *gnutls_ClientSessionOpen(heimdall_tls_client_t *crd,
+                                           heimdall_tls_t *sk, const char *hostname,
                                            const char *const *alpn)
 {
-    vlc_tls_gnutls_t *priv = gnutls_SessionOpen(VLC_OBJECT(crd), GNUTLS_CLIENT,
+    heimdall_tls_gnutls_t *priv = gnutls_SessionOpen(HEIMDALL_OBJECT(crd), GNUTLS_CLIENT,
                                                 crd->sys, sk, alpn);
     if (priv == NULL)
         return NULL;
@@ -394,12 +395,12 @@ static vlc_tls_t *gnutls_ClientSessionOpen(vlc_tls_client_t *crd,
     return &priv->tls;
 }
 
-static int gnutls_ClientHandshake(vlc_tls_t *tls,
+static int gnutls_ClientHandshake(heimdall_tls_t *tls,
                                   const char *host, const char *service,
                                   char **restrict alp)
 {
-    vlc_tls_gnutls_t *priv = (vlc_tls_gnutls_t *)tls;
-    vlc_object_t *obj = priv->obj;
+    heimdall_tls_gnutls_t *priv = (heimdall_tls_gnutls_t *)tls;
+    heimdall_object_t *obj = priv->obj;
 
     int val = gnutls_Handshake(tls, alp);
     if (val)
@@ -475,13 +476,13 @@ static int gnutls_ClientHandshake(vlc_tls_t *tls,
             goto error;
     }
 
-    if (vlc_dialog_wait_question(obj, VLC_DIALOG_QUESTION_WARNING,
+    if (heimdall_dialog_wait_question(obj, HEIMDALL_DIALOG_QUESTION_WARNING,
             _("Abort"), _("View certificate"), NULL,
             _("Insecure site"),
             _("You attempted to reach %s. %s\n"
             "This problem may be stem from an attempt to breach your security, "
             "compromise your privacy, or a configuration error.\n\n"
-            "If in doubt, abort now.\n"), host, vlc_gettext(msg)) != 1)
+            "If in doubt, abort now.\n"), host, heimdall_gettext(msg)) != 1)
         goto error;
 
     gnutls_x509_crt_t cert;
@@ -496,7 +497,7 @@ static int gnutls_ClientHandshake(vlc_tls_t *tls,
     }
     gnutls_x509_crt_deinit (cert);
 
-    val = vlc_dialog_wait_question(obj, VLC_DIALOG_QUESTION_WARNING,
+    val = heimdall_dialog_wait_question(obj, HEIMDALL_DIALOG_QUESTION_WARNING,
             _("Abort"), _("Accept 24 hours"), _("Accept permanently"),
             _("Insecure site"),
             _("This is the certificate presented by %s:\n%s\n\n"
@@ -528,14 +529,14 @@ error:
     return -1;
 }
 
-static void gnutls_ClientDestroy(vlc_tls_client_t *crd)
+static void gnutls_ClientDestroy(heimdall_tls_client_t *crd)
 {
     gnutls_certificate_credentials_t x509 = crd->sys;
 
     gnutls_certificate_free_credentials(x509);
 }
 
-static const struct vlc_tls_client_operations gnutls_ClientOps =
+static const struct heimdall_tls_client_operations gnutls_ClientOps =
 {
     .open = gnutls_ClientSessionOpen,
     .handshake = gnutls_ClientHandshake,
@@ -545,18 +546,18 @@ static const struct vlc_tls_client_operations gnutls_ClientOps =
 /**
  * Initializes a client-side TLS credentials.
  */
-static int OpenClient(vlc_tls_client_t *crd)
+static int OpenClient(heimdall_tls_client_t *crd)
 {
     gnutls_certificate_credentials_t x509;
 
-    gnutls_Banner(VLC_OBJECT(crd));
+    gnutls_Banner(HEIMDALL_OBJECT(crd));
 
     int val = gnutls_certificate_allocate_credentials (&x509);
     if (val != 0)
     {
         msg_Err (crd, "cannot allocate credentials: %s",
                  gnutls_strerror (val));
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if (var_InheritBool(crd, "gnutls-system-trust"))
@@ -587,35 +588,35 @@ static int OpenClient(vlc_tls_client_t *crd)
 
     crd->ops = &gnutls_ClientOps;
     crd->sys = x509;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 #ifdef ENABLE_SOUT
 /**
  * Server-side TLS credentials private data
  */
-typedef struct vlc_tls_creds_sys
+typedef struct heimdall_tls_creds_sys
 {
     gnutls_certificate_credentials_t x509_cred;
     gnutls_dh_params_t dh_params;
-} vlc_tls_creds_sys_t;
+} heimdall_tls_creds_sys_t;
 
 /**
  * Initializes a server-side TLS session.
  */
-static vlc_tls_t *gnutls_ServerSessionOpen(vlc_tls_server_t *crd,
-                                           vlc_tls_t *sk,
+static heimdall_tls_t *gnutls_ServerSessionOpen(heimdall_tls_server_t *crd,
+                                           heimdall_tls_t *sk,
                                            const char *const *alpn)
 {
-    vlc_tls_creds_sys_t *sys = crd->sys;
-    vlc_tls_gnutls_t *priv = gnutls_SessionOpen(VLC_OBJECT(crd), GNUTLS_SERVER,
+    heimdall_tls_creds_sys_t *sys = crd->sys;
+    heimdall_tls_gnutls_t *priv = gnutls_SessionOpen(HEIMDALL_OBJECT(crd), GNUTLS_SERVER,
                                                 sys->x509_cred, sk, alpn);
     return (priv != NULL) ? &priv->tls : NULL;
 }
 
-static void gnutls_ServerDestroy(vlc_tls_server_t *crd)
+static void gnutls_ServerDestroy(heimdall_tls_server_t *crd)
 {
-    vlc_tls_creds_sys_t *sys = crd->sys;
+    heimdall_tls_creds_sys_t *sys = crd->sys;
 
     /* all sessions depending on the server are now deinitialized */
     gnutls_certificate_free_credentials(sys->x509_cred);
@@ -623,7 +624,7 @@ static void gnutls_ServerDestroy(vlc_tls_server_t *crd)
     free(sys);
 }
 
-static const struct vlc_tls_server_operations gnutls_ServerOps =
+static const struct heimdall_tls_server_operations gnutls_ServerOps =
 {
     .open = gnutls_ServerSessionOpen,
     .handshake = gnutls_Handshake,
@@ -633,13 +634,13 @@ static const struct vlc_tls_server_operations gnutls_ServerOps =
 /**
  * Allocates a whole server's TLS credentials.
  */
-static int OpenServer(vlc_tls_server_t *crd, const char *cert, const char *key)
+static int OpenServer(heimdall_tls_server_t *crd, const char *cert, const char *key)
 {
-    gnutls_Banner(VLC_OBJECT(crd));
+    gnutls_Banner(HEIMDALL_OBJECT(crd));
 
-    vlc_tls_creds_sys_t *sys = malloc (sizeof (*sys));
+    heimdall_tls_creds_sys_t *sys = malloc (sizeof (*sys));
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     /* Sets server's credentials */
     int val = gnutls_certificate_allocate_credentials (&sys->x509_cred);
@@ -648,14 +649,14 @@ static int OpenServer(vlc_tls_server_t *crd, const char *cert, const char *key)
         msg_Err (crd, "cannot allocate credentials: %s",
                  gnutls_strerror (val));
         free (sys);
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     block_t *certblock = block_FilePath(cert, false);
     if (certblock == NULL)
     {
         msg_Err (crd, "cannot read certificate chain from %s: %s", cert,
-                 vlc_strerror_c(errno));
+                 heimdall_strerror_c(errno));
         goto error;
     }
 
@@ -663,7 +664,7 @@ static int OpenServer(vlc_tls_server_t *crd, const char *cert, const char *key)
     if (keyblock == NULL)
     {
         msg_Err (crd, "cannot read private key from %s: %s", key,
-                 vlc_strerror_c(errno));
+                 heimdall_strerror_c(errno));
         block_Release (certblock);
         goto error;
     }
@@ -712,12 +713,12 @@ static int OpenServer(vlc_tls_server_t *crd, const char *cert, const char *key)
 
     crd->ops = &gnutls_ServerOps;
     crd->sys = sys;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     gnutls_certificate_free_credentials (sys->x509_cred);
     free (sys);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 #endif
 
@@ -748,7 +749,7 @@ static const char *const priorities_text[] = {
     N_("Secure 256-bit (exclude 128-bit ciphers)"),
 };
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( "GNU TLS" )
     set_description( N_("GNU TLS transport layer security") )
     set_capability( "tls client", 1 )
@@ -768,4 +769,4 @@ vlc_module_begin ()
         set_subcategory( SUBCAT_ADVANCED_NETWORK )
         set_callback(OpenServer)
 #endif
-vlc_module_end ()
+heimdall_module_end ()

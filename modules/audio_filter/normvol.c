@@ -2,6 +2,7 @@
  * normvol.c: volume normalizer
  *****************************************************************************
  * Copyright (C) 2001, 2006 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Clément Stenac <zorglub@videolan.org>
  *
@@ -37,11 +38,11 @@
 
 #include <math.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
 
-#include <vlc_aout.h>
-#include <vlc_filter.h>
+#include <heimdall_aout.h>
+#include <heimdall_filter.h>
 
 #define MIN_FMAX 0.01f
 
@@ -49,7 +50,7 @@
  * Local prototypes
  *****************************************************************************/
 
-static int  Open     ( vlc_object_t * );
+static int  Open     ( heimdall_object_t * );
 static void Close    ( filter_t * );
 static block_t *DoWork( filter_t *, block_t * );
 
@@ -75,7 +76,7 @@ typedef struct
                "This value is a positive floating point number. A value " \
                "between 0.5 and 10 seems sensible." )
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("Volume normalizer") )
     set_shortname( N_("Volume normalizer") )
     set_subcategory( SUBCAT_AUDIO_AFILTER )
@@ -85,12 +86,12 @@ vlc_module_begin ()
                LEVEL_LONGTEXT )
     set_capability( "audio filter", 0 )
     set_callback( Open )
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * Open: initialize and create stuff
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     filter_t *p_filter = (filter_t*)p_this;
     unsigned i_channels;
@@ -100,10 +101,10 @@ static int Open( vlc_object_t *p_this )
 
     p_sys = p_filter->p_sys = malloc( sizeof( *p_sys ) );
     if( !p_sys )
-        return VLC_ENOMEM;
-    p_sys->i_nb = var_CreateGetInteger( vlc_object_parent(p_filter),
+        return HEIMDALL_ENOMEM;
+    p_sys->i_nb = var_CreateGetInteger( heimdall_object_parent(p_filter),
                                         "norm-buff-size" );
-    p_sys->f_max = var_CreateGetFloat( vlc_object_parent(p_filter),
+    p_sys->f_max = var_CreateGetFloat( heimdall_object_parent(p_filter),
                                        "norm-max-level" );
 
     if( p_sys->f_max <= 0 ) p_sys->f_max = MIN_FMAX;
@@ -113,19 +114,19 @@ static int Open( vlc_object_t *p_this )
     if( !p_sys->p_last )
     {
         free( p_sys );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
-    p_filter->fmt_in.audio.i_format = VLC_CODEC_FL32;
+    p_filter->fmt_in.audio.i_format = HEIMDALL_CODEC_FL32;
     aout_FormatPrepare(&p_filter->fmt_in.audio);
     p_filter->fmt_out.audio = p_filter->fmt_in.audio;
-    static const struct vlc_filter_operations filter_ops =
+    static const struct heimdall_filter_operations filter_ops =
     {
         .filter_audio = DoWork, .close = Close,
     };
     p_filter->ops = &filter_ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -149,7 +150,7 @@ static block_t *DoWork( filter_t *p_filter, block_t *p_in_buf )
     if( !pf_sum )
         goto out;
 
-    pf_gain = vlc_alloc( i_channels, sizeof(float) );
+    pf_gain = heimdall_alloc( i_channels, sizeof(float) );
     if( !pf_gain )
     {
         free( pf_sum );
@@ -190,7 +191,7 @@ static block_t *DoWork( filter_t *p_filter, block_t *p_in_buf )
         f_average = f_average / p_sys->i_nb;
 
         /* Seuil arbitraire */
-        p_sys->f_max = var_GetFloat( vlc_object_parent(p_filter),
+        p_sys->f_max = var_GetFloat( heimdall_object_parent(p_filter),
                                      "norm-max-level" );
         if( p_sys->f_max <= 0 ) p_sys->f_max = MIN_FMAX;
 

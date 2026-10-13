@@ -2,6 +2,7 @@
  * CodecParameters.hpp
  *****************************************************************************
  * Copyright (C) 2021 - VideoLabs, VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -20,8 +21,8 @@
 #ifndef CODECPARAMETERS_HPP
 #define CODECPARAMETERS_HPP
 
-#include <vlc_es.h>
-#include <vlc_codecs.h>
+#include <heimdall_es.h>
+#include <heimdall_codecs.h>
 
 #include <string>
 #include <vector>
@@ -47,7 +48,7 @@ namespace smooth
 
                 std::vector<uint8_t> extradata;
                 WAVEFORMATEX formatex;
-                vlc_fourcc_t fourcc;
+                heimdall_fourcc_t fourcc;
                 enum es_format_category_e es_type;
 
             private:

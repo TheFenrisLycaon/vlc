@@ -2,6 +2,7 @@
  * equalizer.hpp
  *****************************************************************************
  * Copyright (C) 2003 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cyril Deguet     <asmax@via.ecp.fr>
  *
@@ -62,7 +63,7 @@ public:
     EqualizerPreamp( intf_thread_t *pIntf );
     virtual ~EqualizerPreamp() { }
 
-    virtual void set( float percentage, bool updateVLC );
+    virtual void set( float percentage, bool updateHeimdall );
 
     void set( float percentage ) { set( percentage, true ); }
 };

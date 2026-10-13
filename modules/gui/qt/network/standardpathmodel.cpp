@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Benjamin Arnaud <bunjee@omega.gg>
  *
@@ -25,15 +26,15 @@
 
 #include "util/locallistbasemodel.hpp"
 
-// VLC includes
-#include <vlc_media_source.h>
-#include <vlc_configuration.h>
+// Heimdall includes
+#include <heimdall_media_source.h>
+#include <heimdall_configuration.h>
 
 #include <QAbstractListModel>
 #include <QStandardPaths>
 #include <QUrl>
 
-#include "vlcmediasourcewrapper.hpp"
+#include "heimdallmediasourcewrapper.hpp"
 
 struct StandardPathItem : public NetworkBaseItem
 {
@@ -121,8 +122,8 @@ public:
         std::list<UserPath> paths;
 
         assert(m_qmlInitializing == false);
-        QString homePath = QVLCUserDir(VLC_HOME_DIR);
-        //QVLCUserDir defaults to HomePath, make sure we only add it once
+        QString homePath = QHeimdallUserDir(HEIMDALL_HOME_DIR);
+        //QHeimdallUserDir defaults to HomePath, make sure we only add it once
         bool homeAdded = false;
         auto addFilterHome = [&](const QString& path, const QString& label) {
             if (path == homePath ) {
@@ -142,11 +143,11 @@ public:
         addItem(homePath, qtr("Home"), {});
         homeAdded = true;
 #endif
-        addFilterHome(QVLCUserDir(VLC_DESKTOP_DIR), qtr("Desktop"));
-        addFilterHome(QVLCUserDir(VLC_DOCUMENTS_DIR), qtr("Documents"));
-        addFilterHome(QVLCUserDir(VLC_MUSIC_DIR), qtr("Music"));
-        addFilterHome(QVLCUserDir(VLC_VIDEOS_DIR), qtr("Videos"));
-        addFilterHome(QVLCUserDir(VLC_DOWNLOAD_DIR), qtr("Download"));
+        addFilterHome(QHeimdallUserDir(HEIMDALL_DESKTOP_DIR), qtr("Desktop"));
+        addFilterHome(QHeimdallUserDir(HEIMDALL_DOCUMENTS_DIR), qtr("Documents"));
+        addFilterHome(QHeimdallUserDir(HEIMDALL_MUSIC_DIR), qtr("Music"));
+        addFilterHome(QHeimdallUserDir(HEIMDALL_VIDEOS_DIR), qtr("Videos"));
+        addFilterHome(QHeimdallUserDir(HEIMDALL_DOWNLOAD_DIR), qtr("Download"));
 
         //model is never updated, but this is still needed to fit the LocalListBaseModelPrivate requirements
         ++m_revision;
@@ -177,10 +178,10 @@ public:
         input_item_t * inputItem = input_item_NewDirectory(qtu(url.toString()), qtu(name), ITEM_LOCAL);
         item->inputItem = SharedInputItem(inputItem, false);
 
-        item->tree = MediaTreePtr(vlc_media_tree_New(), false);
+        item->tree = MediaTreePtr(heimdall_media_tree_New(), false);
         {
             MediaTreeLocker lock{item->tree};
-            vlc_media_tree_Add(item->tree.get(), &(item->tree->root), inputItem);
+            heimdall_media_tree_Add(item->tree.get(), &(item->tree->root), inputItem);
         }
 
         item->artwork = artwork;

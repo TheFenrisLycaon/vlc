@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright © 2010 - 2011 Klagenfurt University
  *             2015 VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -27,8 +28,8 @@
 #include "Streams.hpp"
 #include <vector>
 
-#include <vlc_threads.h>
-#include <vlc_cxx_helpers.hpp>
+#include <heimdall_threads.h>
+#include <heimdall_cxx_helpers.hpp>
 
 namespace adaptive
 {
@@ -65,8 +66,8 @@ namespace adaptive
             bool    started() const;
             void    stop();
 
-            AbstractStream::BufferingStatus bufferize(Times, vlc_tick_t,
-                                                      vlc_tick_t, vlc_tick_t);
+            AbstractStream::BufferingStatus bufferize(Times, heimdall_tick_t,
+                                                      heimdall_tick_t, heimdall_tick_t);
             AbstractStream::Status dequeue(Times, Times *);
 
             virtual bool needsUpdate() const;
@@ -81,17 +82,17 @@ namespace adaptive
         protected:
             /* Demux calls */
             virtual int doControl(int, va_list);
-            virtual int doDemux(vlc_tick_t);
+            virtual int doDemux(heimdall_tick_t);
 
             void    setLivePause(bool);
-            virtual bool setPosition(vlc_tick_t, double pos = -1, bool accurate = false);
+            virtual bool setPosition(heimdall_tick_t, double pos = -1, bool accurate = false);
             StreamPosition getResumePosition() const;
             Times getFirstTimes() const;
             unsigned getActiveStreamsCount() const;
 
             Times getTimes(bool = false) const;
-            vlc_tick_t getMinAheadTime() const;
-            bool isBufferingSufficient(Times, vlc_tick_t) const;
+            heimdall_tick_t getMinAheadTime() const;
+            bool isBufferingSufficient(Times, heimdall_tick_t) const;
 
             virtual bool reactivateStream(AbstractStream *);
             bool setupPeriod();
@@ -127,8 +128,8 @@ namespace adaptive
                 TimestampSynchronizationPoint pcr_syncpoint;
                 Times times, firsttimes;
                 bool rebuffering;
-                mutable vlc_mutex_t lock;
-                vlc_cond_t  cond;
+                mutable heimdall_mutex_t lock;
+                heimdall_cond_t  cond;
             } demux;
 
             /* buffering process */
@@ -139,13 +140,13 @@ namespace adaptive
             struct
             {
                 bool        b_live;
-                vlc_tick_t  i_time;
-                vlc_tick_t  i_normaltime;
+                heimdall_tick_t  i_time;
+                heimdall_tick_t  i_normaltime;
                 double      f_position;
-                mutable vlc_mutex_t lock;
-                vlc_tick_t  playlistStart;
-                vlc_tick_t  playlistEnd;
-                vlc_tick_t  playlistLength;
+                mutable heimdall_mutex_t lock;
+                heimdall_tick_t  playlistStart;
+                heimdall_tick_t  playlistEnd;
+                heimdall_tick_t  playlistLength;
                 time_t      lastupdate;
             } cached;
 
@@ -155,13 +156,13 @@ namespace adaptive
             void setBufferingRunState(bool);
             void Run();
             static void * managerThread(void *);
-            vlc::threads::mutex  lock;
-            vlc::threads::condition_variable waitcond;
-            vlc_thread_t thread;
+            heimdall::threads::mutex  lock;
+            heimdall::threads::condition_variable waitcond;
+            heimdall_thread_t thread;
             bool         b_thread;
             bool         b_buffering;
             bool         b_canceled;
-            vlc_tick_t   pause_start;
+            heimdall_tick_t   pause_start;
     };
 
 }

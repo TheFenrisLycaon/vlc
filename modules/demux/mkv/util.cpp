@@ -2,6 +2,7 @@
  * util.cpp : matroska demuxer
  *****************************************************************************
  * Copyright (C) 2003-2004 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *          Steve Lhomme <steve.lhomme@free.fr>
@@ -102,7 +103,7 @@ int32_t zlib_decompress_extra( demux_t * p_demux, mkv_track_t & tk )
     return 0;
 }
 
-block_t *block_zlib_decompress( vlc_object_t *p_this, block_t *p_in_block ) {
+block_t *block_zlib_decompress( heimdall_object_t *p_this, block_t *p_in_block ) {
     int result, dstsize, n;
     unsigned char *dst;
     block_t *p_block;
@@ -193,7 +194,7 @@ bool lzo1x_decompress_extra( demux_t * p_demux, mkv_track_t & tk )
     return true;
 }
 
-block_t *block_lzo1x_decompress( vlc_object_t *p_this, block_t *p_in_block ) {
+block_t *block_lzo1x_decompress( heimdall_object_t *p_this, block_t *p_in_block ) {
     lzokay::EResult result;
     size_t dstsize = 0, n;
     block_t *p_block;
@@ -238,13 +239,13 @@ block_t *MemToBlock( uint8_t *p_mem, size_t i_mem, size_t offset)
 }
 
 
-void handle_real_audio(demux_t * p_demux, mkv_track_t * p_tk, block_t * p_blk, vlc_tick_t i_pts)
+void handle_real_audio(demux_t * p_demux, mkv_track_t * p_tk, block_t * p_blk, heimdall_tick_t i_pts)
 {
     uint8_t * p_frame = p_blk->p_buffer;
     Cook_PrivateTrackData * p_sys = static_cast<Cook_PrivateTrackData *>(p_tk->p_sys);
     size_t size = p_blk->i_buffer;
 
-    if( p_tk->i_last_dts == VLC_TICK_INVALID )
+    if( p_tk->i_last_dts == HEIMDALL_TICK_INVALID )
     {
         for( size_t i = 0; i < p_sys->p_subpackets.size(); i++)
             if( p_sys->p_subpackets[i] )
@@ -262,8 +263,8 @@ void handle_real_audio(demux_t * p_demux, mkv_track_t * p_tk, block_t * p_blk, v
         }
     }
 
-    if( p_tk->fmt.i_codec == VLC_CODEC_COOK ||
-        p_tk->fmt.i_codec == VLC_CODEC_ATRAC3 )
+    if( p_tk->fmt.i_codec == HEIMDALL_CODEC_COOK ||
+        p_tk->fmt.i_codec == HEIMDALL_CODEC_ATRAC3 )
     {
         const uint16_t i_num = p_sys->i_frame_size / p_sys->i_subpacket_size;
         if ( i_num == 0 )
@@ -288,8 +289,8 @@ void handle_real_audio(demux_t * p_demux, mkv_track_t * p_tk, block_t * p_blk, v
                     return;
 
                 memcpy( p_block->p_buffer, p_frame, p_sys->i_subpacket_size );
-                p_block->i_dts = VLC_TICK_INVALID;
-                p_block->i_pts = VLC_TICK_INVALID;
+                p_block->i_dts = HEIMDALL_TICK_INVALID;
+                p_block->i_pts = HEIMDALL_TICK_INVALID;
                 if( p_sys->i_subpacket == 0 )
                 {
                     p_tk->i_last_dts =
@@ -394,36 +395,36 @@ int UpdatePCR( demux_t * p_demux )
     demux_sys_t *p_sys = (demux_sys_t *)p_demux->p_sys;
     matroska_segment_c *p_segment = p_sys->GetCurrentVSegment()->CurrentSegment();
 
-    vlc_tick_t i_pcr = VLC_TICK_INVALID;
+    heimdall_tick_t i_pcr = HEIMDALL_TICK_INVALID;
 
     for( const auto & it : p_segment->tracks )
     {
         const auto &track = it.second;
 
-        if( track->i_last_dts == VLC_TICK_INVALID )
+        if( track->i_last_dts == HEIMDALL_TICK_INVALID )
             continue;
 
         if( track->fmt.i_cat != VIDEO_ES && track->fmt.i_cat != AUDIO_ES )
             continue;
 
-        if( track->i_last_dts < i_pcr || i_pcr == VLC_TICK_INVALID )
+        if( track->i_last_dts < i_pcr || i_pcr == HEIMDALL_TICK_INVALID )
         {
             i_pcr = track->i_last_dts;
         }
     }
 
-    if( i_pcr != VLC_TICK_INVALID && i_pcr > p_sys->i_pcr )
+    if( i_pcr != HEIMDALL_TICK_INVALID && i_pcr > p_sys->i_pcr )
     {
         if( es_out_SetPCR( p_demux->out, i_pcr ) )
         {
             msg_Err( p_demux, "ES_OUT_SET_PCR failed, aborting." );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         p_sys->i_pcr = i_pcr;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 void send_Block( demux_t * p_demux, mkv_track_t * p_tk, block_t * p_block, unsigned int i_number_frames, uint64_t i_duration )
@@ -438,7 +439,7 @@ void send_Block( demux_t * p_demux, mkv_track_t * p_tk, block_t * p_block, unsig
                              p_tk->pi_chan_table, p_tk->fmt.i_codec );
     }
 
-    if( p_block->i_dts != VLC_TICK_INVALID &&
+    if( p_block->i_dts != HEIMDALL_TICK_INVALID &&
         ( p_tk->fmt.i_cat == VIDEO_ES || p_tk->fmt.i_cat == AUDIO_ES ) )
     {
         p_tk->i_last_dts = p_block->i_dts;
@@ -446,7 +447,7 @@ void send_Block( demux_t * p_demux, mkv_track_t * p_tk, block_t * p_block, unsig
 
     if( !p_tk->b_no_duration )
     {
-        p_block->i_length = VLC_TICK_FROM_NS(i_duration * p_tk->f_timecodescale *
+        p_block->i_length = HEIMDALL_TICK_FROM_NS(i_duration * p_tk->f_timecodescale *
                                              p_segment->i_timescale) / i_number_frames;
     }
 
@@ -456,7 +457,7 @@ void send_Block( demux_t * p_demux, mkv_track_t * p_tk, block_t * p_block, unsig
         p_tk->b_discontinuity = false;
     }
 
-    if ( p_sys->i_pcr == VLC_TICK_INVALID )
+    if ( p_sys->i_pcr == HEIMDALL_TICK_INVALID )
         UpdatePCR( p_demux );
 
     es_out_Send( p_demux->out, p_tk->p_es, p_block);
@@ -676,7 +677,7 @@ void MkvTree_va( demux_t& demuxer, int i_level, const char* fmt, va_list args)
     strcat( dst, prefix );
     strcat( dst, fmt );
 
-    msg_GenericVa( &demuxer, VLC_MSG_DBG, buffer, args );
+    msg_GenericVa( &demuxer, HEIMDALL_MSG_DBG, buffer, args );
 
     if (buffer != fixed_buffer)
         delete [] buffer;

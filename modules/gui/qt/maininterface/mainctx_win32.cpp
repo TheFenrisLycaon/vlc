@@ -2,6 +2,7 @@
  * mainctx_win32.cpp : Main interface
  ****************************************************************************
  * Copyright (C) 2006-2010 VideoLAN and AUTHORS
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Jean-Baptiste Kempf <jb@videolan.org>
  *          Hugo Beauzée-Luyssen <hugo@beauzee.fr>
@@ -92,7 +93,7 @@
     #define GET_Y_LPARAM(a) ((int16_t)((a)>>16))
 #endif
 
-using namespace vlc::playlist;
+using namespace heimdall::playlist;
 
 #ifndef WM_NCUAHDRAWCAPTION
 // Not documented, only available since Windows Vista
@@ -341,7 +342,7 @@ public:
                 *result = HTMAXBUTTON;
                 return true;
             default:
-                vlc_assert_unreachable();
+                heimdall_assert_unreachable();
                 return false;
             }
 
@@ -695,11 +696,11 @@ void WinTaskbarWidget::createTaskBarButtons()
     }
     connect( THEMIM, &PlayerController::playingStateChanged,
              this, &WinTaskbarWidget::changeThumbbarButtons);
-    connect( THEMPL, &vlc::playlist::PlaylistController::countChanged,
+    connect( THEMPL, &heimdall::playlist::PlaylistController::countChanged,
             this, &WinTaskbarWidget::playlistItemCountChanged );
-    connect( THEMPL, &vlc::playlist::PlaylistController::hasPrevChanged,
+    connect( THEMPL, &heimdall::playlist::PlaylistController::hasPrevChanged,
             this, &WinTaskbarWidget::changeThumbbarButtons );
-    connect( THEMPL, &vlc::playlist::PlaylistController::hasNextChanged,
+    connect( THEMPL, &heimdall::playlist::PlaylistController::hasNextChanged,
             this, &WinTaskbarWidget::changeThumbbarButtons );
     if( THEMIM->getPlayingState() == PlayerController::PLAYING_STATE_PLAYING )
         changeThumbbarButtons( );
@@ -933,7 +934,7 @@ void InterfaceWindowHandlerWin32::toggleWindowVisibility(bool _requestActivate)
         break;
     default:
         {
-            /* check if any visible window is above vlc in the z-order,
+            /* check if any visible window is above heimdall in the z-order,
              * but ignore the ones always on top
              * and the ones which can't be activated */
             HWND winId = WinId(m_window);

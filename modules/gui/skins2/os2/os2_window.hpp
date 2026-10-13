@@ -2,6 +2,7 @@
  * os2_window.hpp
  *****************************************************************************
  * Copyright (C) 2003, 2013 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cyril Deguet      <asmax@via.ecp.fr>
  *          Olivier Teulière <ipkiss@via.ecp.fr>
@@ -28,7 +29,7 @@
 #include "../src/generic_window.hpp"
 #include "../src/os_window.hpp"
 
-#include <vlc_window.h>
+#include <heimdall_window.h>
 
 
 /// OS2 implementation of OSWindow
@@ -63,8 +64,8 @@ public:
     HWND getHandle() const { return m_hWndClient; }
 
     /// Set the window handler
-    void setOSHandle( vlc_window_t *pWnd ) const {
-        pWnd->type = VLC_WINDOW_TYPE_HWND;
+    void setOSHandle( heimdall_window_t *pWnd ) const {
+        pWnd->type = HEIMDALL_WINDOW_TYPE_HWND;
         pWnd->info.has_double_click = true;
         pWnd->handle.hwnd = ( void * )getHandle();
     }

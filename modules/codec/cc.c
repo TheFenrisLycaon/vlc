@@ -4,6 +4,7 @@
  * Copyright © 2007-2011 Laurent Aimar, VLC authors and VideoLAN
  *             2011-2016 VLC authors and VideoLAN
  *             2016-2017 VideoLabs, VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar < fenrir # via.ecp.fr>
  *
@@ -34,10 +35,10 @@
 
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
-#include <vlc_charset.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
+#include <heimdall_charset.h>
 
 #include "substext.h"
 #include "cea708.h"
@@ -51,14 +52,14 @@
 /*****************************************************************************
  * Module descriptor.
  *****************************************************************************/
-static int  Open ( vlc_object_t * );
-static void Close( vlc_object_t * );
+static int  Open ( heimdall_object_t * );
+static void Close( heimdall_object_t * );
 
 #define OPAQUE_TEXT N_("Opacity")
 #define OPAQUE_LONGTEXT N_("Setting to true " \
         "makes the text to be boxed and maybe easier to read." )
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( N_("CC 608/708"))
     set_description( N_("Closed Captions decoder") )
     set_capability( "spu decoder", 50 )
@@ -67,7 +68,7 @@ vlc_module_begin ()
 
     add_bool( "cc-opaque", true,
                  OPAQUE_TEXT, OPAQUE_LONGTEXT )
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * Local prototypes
@@ -236,7 +237,7 @@ typedef struct
 static int Decode( decoder_t *, block_t * );
 static void Flush( decoder_t * );
 
-static void DTVCC_ServiceData_Handler( void *priv, uint8_t i_sid, vlc_tick_t i_time,
+static void DTVCC_ServiceData_Handler( void *priv, uint8_t i_sid, heimdall_tick_t i_time,
                                        const uint8_t *p_data, size_t i_data )
 {
     decoder_t *p_dec = priv;
@@ -252,16 +253,16 @@ static void DTVCC_ServiceData_Handler( void *priv, uint8_t i_sid, vlc_tick_t i_t
  * Tries to launch a decoder and return score so that the interface is able
  * to chose.
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     decoder_t     *p_dec = (decoder_t*)p_this;
     decoder_sys_t *p_sys;
 
-    if( ( p_dec->fmt_in->i_codec != VLC_CODEC_CEA608 ||
+    if( ( p_dec->fmt_in->i_codec != HEIMDALL_CODEC_CEA608 ||
           p_dec->fmt_in->subs.cc.i_channel > 3 ) &&
-        ( p_dec->fmt_in->i_codec != VLC_CODEC_CEA708 ||
+        ( p_dec->fmt_in->i_codec != HEIMDALL_CODEC_CEA708 ||
           p_dec->fmt_in->subs.cc.i_channel > 63 ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     p_dec->pf_decode = Decode;
     p_dec->pf_flush  = Flush;
@@ -269,9 +270,9 @@ static int Open( vlc_object_t *p_this )
     /* Allocate the memory needed to store the decoder's structure */
     p_dec->p_sys = p_sys = calloc( 1, sizeof( *p_sys ) );
     if( p_sys == NULL )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    if( p_dec->fmt_in->i_codec == VLC_CODEC_CEA608 )
+    if( p_dec->fmt_in->i_codec == HEIMDALL_CODEC_CEA608 )
     {
         /*  0 -> i_field = 0; i_channel = 1;
             1 -> i_field = 0; i_channel = 2;
@@ -284,7 +285,7 @@ static int Open( vlc_object_t *p_this )
         if( !p_sys->p_eia608 )
         {
             free( p_sys );
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         }
         Eia608Init( p_sys->p_eia608 );
     }
@@ -294,7 +295,7 @@ static int Open( vlc_object_t *p_this )
         if( !p_sys->p_dtvcc )
         {
             free( p_sys );
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         }
 
         p_sys->p_cea708 = CEA708_Decoder_New( p_dec );
@@ -302,7 +303,7 @@ static int Open( vlc_object_t *p_this )
         {
             CEA708_DTVCC_Demuxer_Release( p_sys->p_dtvcc );
             free( p_sys );
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         }
 
          p_sys->i_channel = p_dec->fmt_in->subs.cc.i_channel;
@@ -311,9 +312,9 @@ static int Open( vlc_object_t *p_this )
     p_sys->b_opaque = var_InheritBool( p_dec, "cc-opaque" );
     p_sys->i_reorder_depth = p_dec->fmt_in->subs.cc.i_reorder_depth;
 
-    p_dec->fmt_out.i_codec = VLC_CODEC_TEXT;
+    p_dec->fmt_out.i_codec = HEIMDALL_CODEC_TEXT;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -345,7 +346,7 @@ static void Flush( decoder_t *p_dec )
  ****************************************************************************/
 static void     Push( decoder_t *, block_t * );
 static block_t *Pop( decoder_t *, bool );
-static void     Convert( decoder_t *, vlc_tick_t, const uint8_t *, size_t );
+static void     Convert( decoder_t *, heimdall_tick_t, const uint8_t *, size_t );
 
 static bool DoDecode( decoder_t *p_dec, bool b_drain )
 {
@@ -383,7 +384,7 @@ static int Decode( decoder_t *p_dec, block_t *p_block )
             if( (p_block->i_flags & BLOCK_FLAG_CORRUPTED) || p_block->i_buffer < 1 )
             {
                 block_Release( p_block );
-                return VLCDEC_SUCCESS;
+                return HEIMDALLDEC_SUCCESS;
             }
         }
 
@@ -406,13 +407,13 @@ static int Decode( decoder_t *p_dec, block_t *p_block )
     const bool b_no_reorder = (p_dec->fmt_in->subs.cc.i_reorder_depth < 0);
     for( ; DoDecode( p_dec, (p_block == NULL) || b_no_reorder ); );
 
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }
 
 /*****************************************************************************
  * CloseDecoder: clean up the decoder
  *****************************************************************************/
-static void Close( vlc_object_t *p_this )
+static void Close( heimdall_object_t *p_this )
 {
     decoder_t *p_dec = (decoder_t *)p_this;
     decoder_sys_t *p_sys = p_dec->p_sys;
@@ -445,7 +446,7 @@ static void Push( decoder_t *p_dec, block_t *p_block )
     /* find insertion point */
     for( pp_block = &p_sys->p_queue; *pp_block ; pp_block = &((*pp_block)->p_next) )
     {
-        if( p_block->i_pts == VLC_TICK_INVALID || (*pp_block)->i_pts == VLC_TICK_INVALID )
+        if( p_block->i_pts == HEIMDALL_TICK_INVALID || (*pp_block)->i_pts == HEIMDALL_TICK_INVALID )
             continue;
         if( p_block->i_pts < (*pp_block)->i_pts )
         {
@@ -487,13 +488,13 @@ static block_t *Pop( decoder_t *p_dec, bool b_forced )
     return p_block;
 }
 
-static subpicture_t *Subtitle( decoder_t *p_dec, eia608_t *h, vlc_tick_t i_pts )
+static subpicture_t *Subtitle( decoder_t *p_dec, eia608_t *h, heimdall_tick_t i_pts )
 {
     //decoder_sys_t *p_sys = p_dec->p_sys;
     subpicture_t *p_spu = NULL;
 
     /* We cannot display a subpicture with no date */
-    if( i_pts == VLC_TICK_INVALID )
+    if( i_pts == HEIMDALL_TICK_INVALID )
         return NULL;
 
     /* Create the subpicture unit */
@@ -502,7 +503,7 @@ static subpicture_t *Subtitle( decoder_t *p_dec, eia608_t *h, vlc_tick_t i_pts )
         return NULL;
 
     p_spu->i_start    = i_pts;
-    p_spu->i_stop     = i_pts + VLC_TICK_FROM_SEC(10);   /* 10s max */
+    p_spu->i_stop     = i_pts + HEIMDALL_TICK_FROM_SEC(10);   /* 10s max */
     p_spu->b_ephemer  = true;
 
     subtext_updater_sys_t *p_spu_sys = p_spu->updater.sys;
@@ -536,7 +537,7 @@ static subpicture_t *Subtitle( decoder_t *p_dec, eia608_t *h, vlc_tick_t i_pts )
     return p_spu;
 }
 
-static void Convert( decoder_t *p_dec, vlc_tick_t i_pts,
+static void Convert( decoder_t *p_dec, heimdall_tick_t i_pts,
                      const uint8_t *p_buffer, size_t i_buffer )
 {
     decoder_sys_t *p_sys = p_dec->p_sys;
@@ -546,7 +547,7 @@ static void Convert( decoder_t *p_dec, vlc_tick_t i_pts,
     {
         if( (p_buffer[0] & 0x04) /* Valid bit */ )
         {
-            const vlc_tick_t i_spupts = i_pts + vlc_tick_from_samples(i_ticks, 1200/3);
+            const heimdall_tick_t i_spupts = i_pts + heimdall_tick_from_samples(i_ticks, 1200/3);
             /* Mask off the specific i_field bit, else some sequences can be lost. */
             if ( p_sys->p_eia608 &&
                 (p_buffer[0] & 0x03) == p_sys->i_field )
@@ -650,7 +651,7 @@ static int Eia608GetWritingScreenIndex( eia608_t *h )
         return h->i_screen;
     default:
         /* It cannot happen, else it is a bug */
-        vlc_assert_unreachable();
+        heimdall_assert_unreachable();
         return 0;
     }
 }

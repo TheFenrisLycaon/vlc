@@ -2,6 +2,7 @@
  * param_eq.c:
  *****************************************************************************
  * Copyright © 2006 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Antti Huovilainen
  *          Sigmund A. Helberg <dnumgis@videolan.org>
@@ -31,15 +32,15 @@
 
 #include <math.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_aout.h>
-#include <vlc_filter.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_aout.h>
+#include <heimdall_filter.h>
 
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  Open ( vlc_object_t * );
+static int  Open ( heimdall_object_t * );
 static void Close( filter_t * );
 static void CalcPeakEQCoeffs( float, float, float, float, float * );
 static void CalcShelfEQCoeffs( float, float, float, int, float, float * );
@@ -47,7 +48,7 @@ static void ProcessEQ( const float *, float *, float *, unsigned, unsigned,
                        const float *, unsigned );
 static block_t *DoWork( filter_t *, block_t * );
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("Parametric Equalizer") )
     set_shortname( N_("Parametric Equalizer" ) )
     set_capability( "audio filter", 0 )
@@ -76,7 +77,7 @@ vlc_module_begin ()
                           N_("Freq 3 Q"),NULL )
 
     set_callback( Open )
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * Local prototypes
@@ -101,7 +102,7 @@ typedef struct
 /*****************************************************************************
  * Open:
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     filter_t     *p_filter = (filter_t *)p_this;
     unsigned     i_samplerate;
@@ -109,12 +110,12 @@ static int Open( vlc_object_t *p_this )
     /* Allocate structure */
     filter_sys_t *p_sys = p_filter->p_sys = malloc( sizeof( *p_sys ) );
     if( !p_sys )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    p_filter->fmt_in.audio.i_format = VLC_CODEC_FL32;
+    p_filter->fmt_in.audio.i_format = HEIMDALL_CODEC_FL32;
     p_filter->fmt_out.audio = p_filter->fmt_in.audio;
 
-    static const struct vlc_filter_operations filter_ops =
+    static const struct heimdall_filter_operations filter_ops =
     {
         .filter_audio = DoWork, .close = Close,
     };
@@ -152,7 +153,7 @@ static int Open( vlc_object_t *p_this )
     p_sys->p_state = (float*)calloc( p_filter->fmt_in.audio.i_channels*5*4,
                                      sizeof(float) );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void Close( filter_t *p_filter )

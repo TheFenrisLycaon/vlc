@@ -3,13 +3,14 @@
  * pause.c: pause player test
  *****************************************************************************
  * Copyright (C) 2018-2025 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *****************************************************************************/
 
 #include "common.h"
 #include "timers.h"
 
 static struct report_timer
-wait_timer_report(vlc_player_t *player, struct timer_state *timer,
+wait_timer_report(heimdall_player_t *player, struct timer_state *timer,
                   unsigned type)
 {
     struct report_timer *r_found = NULL;
@@ -30,7 +31,7 @@ wait_timer_report(vlc_player_t *player, struct timer_state *timer,
 }
 
 static struct report_timer
-get_timer_report(vlc_player_t *player, struct timer_state *timer)
+get_timer_report(heimdall_player_t *player, struct timer_state *timer)
 {
     player_lock_timer(player, timer);
     struct report_timer r = timer->vec.data[timer->vec.size -1];
@@ -42,19 +43,19 @@ static void
 test_pause(struct ctx *ctx)
 {
     test_log("pause\n");
-    vlc_player_t *player = ctx->player;
+    heimdall_player_t *player = ctx->player;
 
-    struct media_params params = DEFAULT_MEDIA_PARAMS(VLC_TICK_FROM_SEC(10));
+    struct media_params params = DEFAULT_MEDIA_PARAMS(HEIMDALL_TICK_FROM_SEC(10));
     player_set_next_mock_media(ctx, "media1", &params);
     struct timer_state video_timer, timer;
-    player_add_timer(player, &video_timer, true, VLC_TICK_INVALID);
-    player_add_timer(player, &timer, false, VLC_TICK_INVALID);
+    player_add_timer(player, &video_timer, true, HEIMDALL_TICK_INVALID);
+    player_add_timer(player, &timer, false, HEIMDALL_TICK_INVALID);
 
     /* Start paused */
-    vlc_player_SetStartPaused(player, true);
+    heimdall_player_SetStartPaused(player, true);
     player_start(ctx);
 
-    wait_state(ctx, VLC_PLAYER_STATE_PAUSED);
+    wait_state(ctx, HEIMDALL_PLAYER_STATE_PAUSED);
 
     {
         vec_on_position_changed *vec = &ctx->report.on_position_changed;
@@ -66,14 +67,14 @@ test_pause(struct ctx *ctx)
     wait_timer_report(player, &timer, REPORT_TIMER_PAUSED);
 
     /* Resume */
-    vlc_player_Resume(player);
+    heimdall_player_Resume(player);
 
-    wait_state(ctx, VLC_PLAYER_STATE_PLAYING);
+    wait_state(ctx, HEIMDALL_PLAYER_STATE_PLAYING);
 
     {
         vec_on_position_changed *vec = &ctx->report.on_position_changed;
         while (vec->size == 0)
-            vlc_player_CondWait(player, &ctx->wait);
+            heimdall_player_CondWait(player, &ctx->wait);
     }
 
     /* Ensure we got a video/audio point updated */
@@ -81,9 +82,9 @@ test_pause(struct ctx *ctx)
     wait_timer_report(player, &timer, REPORT_TIMER_POINT);
 
     /* Pause again (while playing) */
-    vlc_player_Pause(player);
+    heimdall_player_Pause(player);
 
-    wait_state(ctx, VLC_PLAYER_STATE_PAUSED);
+    wait_state(ctx, HEIMDALL_PLAYER_STATE_PAUSED);
 
     /* Ensure all timers are paused, on the second pause (and not on a stale
      * report from the first one) */
@@ -94,7 +95,7 @@ test_pause(struct ctx *ctx)
     assert(video_paused.paused_date == regular_paused.paused_date);
 
     /* Ensure we stay paused */
-    vlc_tick_sleep(VLC_TICK_FROM_MS(100));
+    heimdall_tick_sleep(HEIMDALL_TICK_FROM_MS(100));
 
     /* Ensure the last video timer report is the paused one (and that no ouput
      * are updated after) */
@@ -109,49 +110,49 @@ test_pause(struct ctx *ctx)
 static void
 test_pause_get_time_increase(struct ctx *ctx)
 {
-    /* Ensure that vlc_player_GetTime() is always increasing, even when
+    /* Ensure that heimdall_player_GetTime() is always increasing, even when
      * spamming pause/resume. Contrary to timers (async events), we can't
-     * control if vlc_player_GetTime() will be processed when paused or
+     * control if heimdall_player_GetTime() will be processed when paused or
      * resumed (async calls), hence this "brute-force" test. */
     test_log("pause_get_time_increase\n");
-    vlc_player_t *player = ctx->player;
+    heimdall_player_t *player = ctx->player;
 
-    struct media_params params = DEFAULT_MEDIA_PARAMS(VLC_TICK_FROM_SEC(10));
+    struct media_params params = DEFAULT_MEDIA_PARAMS(HEIMDALL_TICK_FROM_SEC(10));
     player_set_next_mock_media(ctx, "media1", &params);
 
     player_start(ctx);
 
-    wait_state(ctx, VLC_PLAYER_STATE_PLAYING);
+    wait_state(ctx, HEIMDALL_PLAYER_STATE_PLAYING);
 
     {
         vec_on_position_changed *vec = &ctx->report.on_position_changed;
         while (vec->size == 0)
-            vlc_player_CondWait(player, &ctx->wait);
+            heimdall_player_CondWait(player, &ctx->wait);
     }
-    vlc_tick_sleep(VLC_TICK_FROM_MS(100));
+    heimdall_tick_sleep(HEIMDALL_TICK_FROM_MS(100));
 
-    vlc_tick_t prev_time = vlc_player_GetTime(player);
-    assert(prev_time >= VLC_TICK_0);
+    heimdall_tick_t prev_time = heimdall_player_GetTime(player);
+    assert(prev_time >= HEIMDALL_TICK_0);
     for (unsigned i = 0; i < 100; i++)
     {
-        vlc_tick_t time = vlc_player_GetTime(player);
+        heimdall_tick_t time = heimdall_player_GetTime(player);
         assert(time >= prev_time);
         prev_time = time;
 
-        vlc_tick_sleep(VLC_TICK_FROM_MS(10));
+        heimdall_tick_sleep(HEIMDALL_TICK_FROM_MS(10));
 
-        time = vlc_player_GetTime(player);
+        time = heimdall_player_GetTime(player);
         assert(time >= prev_time);
         prev_time = time;
 
-        vlc_player_Pause(player);
+        heimdall_player_Pause(player);
 
-        time = vlc_player_GetTime(player);
+        time = heimdall_player_GetTime(player);
         assert(time >= prev_time);
         prev_time = time;
 
 
-        vlc_player_Resume(player);
+        heimdall_player_Resume(player);
     }
 
     /* Ensure we stay paused */

@@ -2,6 +2,7 @@
  * mpeg4audio.h: ISO/IEC 14496-3 audio definitions
  *****************************************************************************
  * Copyright (C) 2001-2024 VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -17,7 +18,7 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
-#include <vlc_bits.h>
+#include <heimdall_bits.h>
 
 enum MPEG4_audioObjectType /* ISO/IEC 14496-3:2009 1.5.1 */
 {
@@ -367,7 +368,7 @@ static inline int MPEG4_read_AudioSpecificConfig(bs_t *s, MPEG4_asc_t *p_cfg, bo
         // SymbolicMusicSpecificConfig();
     default:
         // error
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     switch(p_cfg->i_object_type)
@@ -444,7 +445,7 @@ static inline int MPEG4_read_AudioSpecificConfig(bs_t *s, MPEG4_asc_t *p_cfg, bo
             ppsz_otype[p_cfg->i_object_type], p_cfg->i_object_type,
             p_cfg->i_samplerate, p_cfg->i_channel, p_cfg->i_sbr);
 #endif
-    return bs_error(s) ? VLC_EGENERIC : VLC_SUCCESS;
+    return bs_error(s) ? HEIMDALL_EGENERIC : HEIMDALL_SUCCESS;
 }
 
 #define MPEG4_STREAM_MAX_EXTRADATA 64

@@ -2,8 +2,9 @@
  * snapshot.h : vout internal snapshot
  *****************************************************************************
  * Copyright (C) 2009 Laurent Aimar
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Laurent Aimar <fenrir _AT_ videolan _DOT_ org>
+ * Authors: Laurent Aimar <fenrir _AT_ lycaria _DOT_ org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -20,10 +21,10 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef LIBVLC_VOUT_INTERNAL_SNAPSHOT_H
-#define LIBVLC_VOUT_INTERNAL_SNAPSHOT_H
+#ifndef LIBHEIMDALL_VOUT_INTERNAL_SNAPSHOT_H
+#define LIBHEIMDALL_VOUT_INTERNAL_SNAPSHOT_H
 
-#include <vlc_picture.h>
+#include <heimdall_picture.h>
 
 typedef struct vout_snapshot vout_snapshot_t;
 
@@ -34,7 +35,7 @@ void vout_snapshot_Destroy(vout_snapshot_t *);
 void vout_snapshot_End(vout_snapshot_t *);
 
 /* */
-picture_t *vout_snapshot_Get(vout_snapshot_t *, vlc_tick_t timeout);
+picture_t *vout_snapshot_Get(vout_snapshot_t *, heimdall_tick_t timeout);
 
 /**
  * It tells if they are pending snapshot request

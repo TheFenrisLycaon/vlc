@@ -2,6 +2,7 @@
  * chain.c : configuration module chain parsing stuff
  *****************************************************************************
  * Copyright (C) 2002-2007 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Christophe Massiot <massiot@via.ecp.fr>
  *          Laurent Aimar <fenrir@via.ecp.fr>
@@ -30,12 +31,12 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include "../libvlc.h"
-#include <vlc_charset.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include "../libheimdall.h"
+#include <heimdall_charset.h>
+#include <heimdall_plugin.h>
 
-#include "vlc_interface.h"
+#include "heimdall_interface.h"
 #include "configuration.h"
 
 /*****************************************************************************
@@ -267,7 +268,7 @@ void config_ChainDestroy( config_chain_t *p_cfg )
 }
 
 #undef config_ChainParse
-void config_ChainParse( vlc_object_t *p_this, const char *psz_prefix,
+void config_ChainParse( heimdall_object_t *p_this, const char *psz_prefix,
                         const char *const *ppsz_options, const config_chain_t *cfg )
 {
     if( psz_prefix == NULL ) psz_prefix = "";
@@ -283,8 +284,8 @@ void config_ChainParse( vlc_object_t *p_this, const char *psz_prefix,
         char name[plen + strlen( optname )];
         snprintf( name, sizeof (name), "%s%s", psz_prefix, optname );
         if( var_Create( p_this, name,
-                        config_GetType( name ) | VLC_VAR_DOINHERIT ) )
-            return /* VLC_xxx */;
+                        config_GetType( name ) | HEIMDALL_VAR_DOINHERIT ) )
+            return /* Heimdall_xxx */;
 
         module_config_t* p_conf = config_FindConfig( name );
         if( p_conf )
@@ -292,14 +293,14 @@ void config_ChainParse( vlc_object_t *p_this, const char *psz_prefix,
             switch( CONFIG_CLASS( p_conf->i_type ) )
             {
                 case CONFIG_ITEM_INTEGER:
-                    var_Change( p_this, name, VLC_VAR_SETMINMAX,
-                        (vlc_value_t){ .i_int = p_conf->min.i },
-                        (vlc_value_t){ .i_int = p_conf->max.i } );
+                    var_Change( p_this, name, HEIMDALL_VAR_SETMINMAX,
+                        (heimdall_value_t){ .i_int = p_conf->min.i },
+                        (heimdall_value_t){ .i_int = p_conf->max.i } );
                     break;
                 case CONFIG_ITEM_FLOAT:
-                    var_Change( p_this, name, VLC_VAR_SETMINMAX,
-                        (vlc_value_t){ .f_float = p_conf->min.f },
-                        (vlc_value_t){ .f_float = p_conf->max.f } );
+                    var_Change( p_this, name, HEIMDALL_VAR_SETMINMAX,
+                        (heimdall_value_t){ .f_float = p_conf->min.f },
+                        (heimdall_value_t){ .f_float = p_conf->max.f } );
                     break;
             }
         }
@@ -308,7 +309,7 @@ void config_ChainParse( vlc_object_t *p_this, const char *psz_prefix,
     /* Now parse options and set value */
     for(; cfg; cfg = cfg->p_next )
     {
-        vlc_value_t val;
+        heimdall_value_t val;
         bool b_yes = true;
         bool b_once = false;
         size_t i;
@@ -352,7 +353,7 @@ void config_ChainParse( vlc_object_t *p_this, const char *psz_prefix,
         snprintf( name, sizeof (name), "%s%s", psz_prefix,
                   b_once ? (ppsz_options[i] + 1) : ppsz_options[i] );
 
-        const struct vlc_param *param = vlc_param_Find(name);
+        const struct heimdall_param *param = heimdall_param_Find(name);
 
         if (param == NULL)
         {
@@ -367,7 +368,7 @@ void config_ChainParse( vlc_object_t *p_this, const char *psz_prefix,
         {
             msg_Err(p_this, "Option %s is not supported any longer.", name);
             /* TODO: this should return an error and end option parsing
-             * ... but doing this would change the VLC API and all the
+             * ... but doing this would change the Heimdall API and all the
              * modules so i'll do it later */
            continue;
         }
@@ -396,19 +397,19 @@ void config_ChainParse( vlc_object_t *p_this, const char *psz_prefix,
                                      NULL, 0 );
                 break;
             case CONFIG_ITEM_FLOAT:
-                val.f_float = vlc_atof_c( cfg->psz_value ? cfg->psz_value : "0" );
+                val.f_float = heimdall_atof_c( cfg->psz_value ? cfg->psz_value : "0" );
                 break;
             case CONFIG_ITEM_STRING:
                 val.psz_string = cfg->psz_value;
                 break;
             default:
                 msg_Warn( p_this, "unhandled config var type (%d)", i_type );
-                memset( &val, 0, sizeof( vlc_value_t ) );
+                memset( &val, 0, sizeof( heimdall_value_t ) );
                 break;
         }
         if( b_once )
         {
-            vlc_value_t val2;
+            heimdall_value_t val2;
 
             var_Get( p_this, psz_name, &val2 );
             if( *val2.psz_string )

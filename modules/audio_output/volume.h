@@ -2,6 +2,7 @@
  * volume.c : helper for software audio amplification
  *****************************************************************************
  * Copyright (C) 2012 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -23,9 +24,9 @@
 #endif
 #include <stdio.h>
 #include <math.h>
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_aout.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_aout.h>
 
 #define add_sw_gain() \
         add_float(MODULE_STRING"-gain", 1., N_("Software gain"), \
@@ -39,7 +40,7 @@ static int aout_SoftVolumeSet(audio_output_t *aout, float volume)
      * Cubic mapping from software volume to amplification factor.
      * This provides a good tradeoff between low and high volume ranges.
      *
-     * This code is only used for the VLC software mixer. If you change this
+     * This code is only used for the Heimdall software mixer. If you change this
      * formula, be sure to update the volume-capable plugins also.
      */
     float gain = volume * volume * volume;

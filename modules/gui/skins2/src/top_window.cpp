@@ -2,6 +2,7 @@
  * top_window.cpp
  *****************************************************************************
  * Copyright (C) 2003 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cyril Deguet     <asmax@via.ecp.fr>
  *          Olivier Teulière <ipkiss@via.ecp.fr>
@@ -46,8 +47,8 @@
 #include "../utils/position.hpp"
 #include "../utils/ustring.hpp"
 
-#include <vlc_actions.h>
-#include <vlc_url.h>
+#include <heimdall_actions.h>
+#include <heimdall_url.h>
 #include <list>
 
 
@@ -220,7 +221,7 @@ void TopWindow::processEvent( EvtScroll &rEvtScroll )
     setLastHit( pNewHitControl );
 
     // send a mouse event to the right control when scrollable
-    // if none, send it directly to the vlc core
+    // if none, send it directly to the heimdall core
     CtrlGeneric *pHitControl = m_pCapturingControl ?
                                m_pCapturingControl : pNewHitControl;
 
@@ -259,13 +260,13 @@ void TopWindow::processEvent( EvtDragDrop &rEvtDragDrop )
         if( files.size() == 1 )
         {
             std::list<std::string>::const_iterator it = files.begin();
-            vlc_playlist_Lock( getPL() );
-            vlc_player_t *player = vlc_playlist_GetPlayer( getPL() );
+            heimdall_playlist_Lock( getPL() );
+            heimdall_player_t *player = heimdall_playlist_GetPlayer( getPL() );
             is_subtitle =
-                !vlc_player_AddAssociatedMedia( player, SPU_ES, it->c_str(),
+                !heimdall_player_AddAssociatedMedia( player, SPU_ES, it->c_str(),
                     true /*select*/, true /* OSD notify*/,
                     true /*check subtitle extension */ );
-            vlc_playlist_Unlock( getPL() );
+            heimdall_playlist_Unlock( getPL() );
         }
         // try it as a normal media mrl
         if( !is_subtitle )

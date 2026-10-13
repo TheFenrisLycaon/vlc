@@ -1,7 +1,7 @@
 # aribb25
 
 ARIBB25_VERSION := 0.2.7
-ARIBB25_URL := $(VIDEOLAN)/aribb25/$(ARIBB25_VERSION)/aribb25-$(ARIBB25_VERSION).tar.gz
+ARIBB25_URL := $(LYCARIA)/aribb25/$(ARIBB25_VERSION)/aribb25-$(ARIBB25_VERSION).tar.gz
 
 ifdef HAVE_WIN32
 ifndef HAVE_WINSTORE # winscard is not allowed

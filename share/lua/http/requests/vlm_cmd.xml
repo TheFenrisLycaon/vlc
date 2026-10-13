@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes" ?>
-<?vlc --[[
+<?heimdall --[[
 <!--  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - >
-<  vlm_cmd.xml: VLC media player web interface
+<  vlm_cmd.xml: Heimdall media player web interface
 < - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - >
 <  Copyright (C) 2005-2006 the VideoLAN team
 < 
-<  Authors: Antoine Cellerier <dionoea -at- videolan -dot- org>
+<  Authors: Antoine Cellerier <dionoea -at- lycaria -dot- org>
 < 
 <  This program is free software; you can redistribute it and/or modify
 <  it under the terms of the GNU General Public License as published by
@@ -22,14 +22,14 @@
 <  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
 < - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
 ]]?>
-<vlm><error><?vlc
+<vlm><error><?heimdall
 if _GET["command"] then
   local msg = vlm:execute_command(_GET["command"])
   if msg.value then
-    print(msg.name,":",vlc.strings.convert_xml_special_chars(msg.value))
+    print(msg.name,":",heimdall.strings.convert_xml_special_chars(msg.value))
   end
 else
-?>No command<?vlc
+?>No command<?heimdall
 end
 ?></error>
 </vlm>

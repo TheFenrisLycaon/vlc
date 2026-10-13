@@ -2,6 +2,7 @@
  * extended.cpp : Extended controls - Undocked
  ****************************************************************************
  * Copyright (C) 2006-2008 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Clément Stenac <zorglub@videolan.org>
  *          Jean-Baptiste Kempf <jb@videolan.org>
@@ -36,11 +37,11 @@
 #include <QDialogButtonBox>
 #include <QPushButton>
 #include <QWindow>
-#include <vlc_configuration.h>
-#include <vlc_modules.h>
+#include <heimdall_configuration.h>
+#include <heimdall_modules.h>
 
 ExtendedDialog::ExtendedDialog( qt_intf_t *_p_intf )
-               : QVLCDialog( nullptr, _p_intf )
+               : QHeimdallDialog( nullptr, _p_intf )
 {
 #ifdef __APPLE__
     setWindowFlags( Qt::Drawer );
@@ -50,7 +51,7 @@ ExtendedDialog::ExtendedDialog( qt_intf_t *_p_intf )
 
     setWindowOpacity( var_InheritFloat( p_intf, "qt-opacity" ) );
     setWindowTitle( qtr( "Adjustments and Effects" ) );
-    setWindowRole( "vlc-extended" );
+    setWindowRole( "heimdall-extended" );
 
     QVBoxLayout *layout = new QVBoxLayout( this );
     layout->setContentsMargins( 0, 2, 0, 1 );
@@ -233,7 +234,7 @@ void ExtendedDialog::saveConfig()
                 config_PutFloat( qtu(i.key()), value.toFloat() ) ;
                 break;
             default:
-                vlc_assert_unreachable();
+                heimdall_assert_unreachable();
         }
     }
     config_SaveConfigFile( p_intf );

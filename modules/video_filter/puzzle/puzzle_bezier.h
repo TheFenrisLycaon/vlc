@@ -2,8 +2,9 @@
  * puzzle_bezier.h : Bezier curves management
  *****************************************************************************
  * Copyright (C) 2013 Vianney Boyer
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Author:  Vianney Boyer <vlcvboyer -at- gmail -dot- com>
+ * Author:  Vianney Boyer <heimdallvboyer -at- gmail -dot- com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -20,8 +21,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_LIB_BEZIER_H
-#define VLC_LIB_BEZIER_H 1
+#ifndef HEIMDALL_LIB_BEZIER_H
+#define HEIMDALL_LIB_BEZIER_H 1
 
 typedef struct {
         float f_x, f_y;

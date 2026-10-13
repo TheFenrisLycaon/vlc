@@ -4,6 +4,7 @@
  */
 /*****************************************************************************
  * Copyright © 2018 Niklas Haas
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -24,24 +25,24 @@
 # include <config.h>
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
 
 #include "platform.h"
 
-static void ClosePlatform(vlc_vk_platform_t *vk);
-static int CreateSurface(vlc_vk_platform_t *vk, const vlc_vk_instance_t *, VkSurfaceKHR *);
+static void ClosePlatform(heimdall_vk_platform_t *vk);
+static int CreateSurface(heimdall_vk_platform_t *vk, const heimdall_vk_instance_t *, VkSurfaceKHR *);
 
-static const struct vlc_vk_platform_operations platform_ops =
+static const struct heimdall_vk_platform_operations platform_ops =
 {
     .close = ClosePlatform,
     .create_surface = CreateSurface,
 };
 
-static int InitPlatform(vlc_vk_platform_t *vk)
+static int InitPlatform(heimdall_vk_platform_t *vk)
 {
-    if (vk->window->type != VLC_WINDOW_TYPE_XID)
-        return VLC_EGENERIC;
+    if (vk->window->type != HEIMDALL_WINDOW_TYPE_XID)
+        return HEIMDALL_EGENERIC;
 
     const char *display = vk->window->display.x11;
     xcb_connection_t *conn = xcb_connect(display, NULL);
@@ -50,23 +51,23 @@ static int InitPlatform(vlc_vk_platform_t *vk)
         msg_Err(vk, "Failed connecting to X server (%s)",
                 display ? display : "default");
         xcb_disconnect(conn);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     vk->platform_sys = conn;
     vk->platform_ext = VK_KHR_XCB_SURFACE_EXTENSION_NAME;
     vk->ops = &platform_ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void ClosePlatform(vlc_vk_platform_t *vk)
+static void ClosePlatform(heimdall_vk_platform_t *vk)
 {
     xcb_connection_t *conn = vk->platform_sys;
     xcb_disconnect(conn);
 }
 
-static int CreateSurface(vlc_vk_platform_t *vk, const vlc_vk_instance_t *inst,
+static int CreateSurface(heimdall_vk_platform_t *vk, const heimdall_vk_instance_t *inst,
                          VkSurfaceKHR *surface_out)
 {
     xcb_connection_t *conn = vk->platform_sys;
@@ -82,17 +83,17 @@ static int CreateSurface(vlc_vk_platform_t *vk, const vlc_vk_instance_t *inst,
     VkResult res = CreateXcbSurfaceKHR(inst->instance, &xinfo, NULL, surface_out);
     if (res != VK_SUCCESS) {
         msg_Err(vk, "Failed creating XCB surface");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname("Vulkan XCB")
     set_description(N_("XCB/X11 platform support for Vulkan"))
     set_subcategory(SUBCAT_VIDEO_VOUT)
     set_capability("vulkan platform", 50)
     set_callback(InitPlatform)
     add_shortcut("vk_x11")
-vlc_module_end()
+heimdall_module_end()

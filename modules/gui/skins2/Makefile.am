@@ -153,8 +153,8 @@ libskins2_plugin_la_SOURCES = \
 	gui/skins2/src/fsc_window.hpp \
 	gui/skins2/src/var_manager.cpp \
 	gui/skins2/src/var_manager.hpp \
-	gui/skins2/src/vlcproc.cpp \
-	gui/skins2/src/vlcproc.hpp \
+	gui/skins2/src/heimdallproc.cpp \
+	gui/skins2/src/heimdallproc.hpp \
 	gui/skins2/src/vout_window.cpp \
 	gui/skins2/src/vout_window.hpp \
 	gui/skins2/src/vout_manager.cpp \

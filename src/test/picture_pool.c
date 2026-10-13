@@ -2,6 +2,7 @@
  * picture_pool.c: test cases for picture_poo_t
  *****************************************************************************
  * Copyright (C) 2014 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -26,13 +27,13 @@
 #undef NDEBUG
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_es.h>
-#include <vlc_picture_pool.h>
+#include <heimdall_common.h>
+#include <heimdall_es.h>
+#include <heimdall_picture_pool.h>
 
 #define PICTURES 10
 
-const char vlc_module_name[] = "test_picture_pool";
+const char heimdall_module_name[] = "test_picture_pool";
 
 static video_format_t fmt;
 static picture_pool_t *pool;
@@ -89,8 +90,8 @@ static void test(bool zombie)
 
 int main(void)
 {
-    video_format_Init(&fmt, VLC_CODEC_I420);
-    video_format_Setup(&fmt, VLC_CODEC_I420, 320, 200, 320, 200, 1, 1);
+    video_format_Init(&fmt, HEIMDALL_CODEC_I420);
+    video_format_Setup(&fmt, HEIMDALL_CODEC_I420, 320, 200, 320, 200, 1, 1);
 
     pool = picture_pool_NewFromFormat(&fmt, PICTURES);
     assert(pool != NULL);

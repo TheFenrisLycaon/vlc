@@ -2,6 +2,7 @@
  * stream_io_callback.hpp : matroska demuxer
  *****************************************************************************
  * Copyright (C) 2003-2004 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *          Steve Lhomme <steve.lhomme@free.fr>
@@ -21,14 +22,14 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_MKV_STREAM_IO_CALLBACK_HPP_
-#define VLC_MKV_STREAM_IO_CALLBACK_HPP_
+#ifndef HEIMDALL_MKV_STREAM_IO_CALLBACK_HPP_
+#define HEIMDALL_MKV_STREAM_IO_CALLBACK_HPP_
 
 #ifdef HAVE_CONFIG_H
 # include "config.h"
 #endif
 
-#include <vlc_demux.h>
+#include <heimdall_demux.h>
 
 #include <ebml/IOCallback.h>
 #include <ebml/EbmlStream.h>
@@ -40,7 +41,7 @@ namespace mkv {
 /*****************************************************************************
  * Stream management
  *****************************************************************************/
-class vlc_stream_io_callback: public IOCallback
+class heimdall_stream_io_callback: public IOCallback
 {
   private:
     stream_t       *s;
@@ -48,12 +49,12 @@ class vlc_stream_io_callback: public IOCallback
     bool           b_owner;
 
   public:
-    vlc_stream_io_callback( stream_t *, bool owner );
+    heimdall_stream_io_callback( stream_t *, bool owner );
 
-    virtual ~vlc_stream_io_callback()
+    virtual ~heimdall_stream_io_callback()
     {
         if( b_owner )
-            vlc_stream_Delete( s );
+            heimdall_stream_Delete( s );
     }
 
     bool IsEOF() const { return mb_eof; }
@@ -68,12 +69,12 @@ class vlc_stream_io_callback: public IOCallback
 class matroska_iostream_c : public EbmlStream
 {
 public:
-    matroska_iostream_c(vlc_stream_io_callback & io)
+    matroska_iostream_c(heimdall_stream_io_callback & io)
         :EbmlStream(io)
     {}
 
-    inline vlc_stream_io_callback & I_O() {
-        return static_cast<vlc_stream_io_callback &>(EbmlStream::I_O());
+    inline heimdall_stream_io_callback & I_O() {
+        return static_cast<heimdall_stream_io_callback &>(EbmlStream::I_O());
     }
 
 private:

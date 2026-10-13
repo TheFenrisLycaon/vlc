@@ -1,92 +1,92 @@
-# Do we build the main VLC binary?
-build_vlc = get_option('vlc')
+# Do we build the main Heimdall binary?
+build_heimdall = get_option('heimdall')
 
-if build_vlc and (host_system != 'darwin' or have_osx) and not have_win_store and host_system != 'android'
-    vlc_sources = []
+if build_heimdall and (host_system != 'darwin' or have_osx) and not have_win_store and host_system != 'android'
+    heimdall_sources = []
 
-    vlc_deps = [m_lib, dl_lib, threads_dep]
+    heimdall_deps = [m_lib, dl_lib, threads_dep]
 
     if host_system == 'darwin'
-        vlc_sources += ['darwinvlc.m']
-        vlc_deps += corefoundation_dep
+        heimdall_sources += ['darwinheimdall.m']
+        heimdall_deps += corefoundation_dep
         if have_osx
-            vlc_deps += dependency('Cocoa', required: true)
+            heimdall_deps += dependency('Cocoa', required: true)
         endif
     elif host_system == 'windows'
-        vlc_sources += ['winvlc.c']
-        vlc_deps += cc.find_library('ole32', required: true)
+        heimdall_sources += ['winheimdall.c']
+        heimdall_deps += cc.find_library('ole32', required: true)
     else
-        vlc_sources += ['vlc.c', 'override.c']
+        heimdall_sources += ['heimdall.c', 'override.c']
         if x11_dep.found()
-            vlc_deps += [x11_dep]
+            heimdall_deps += [x11_dep]
         endif
     endif
 
-    vlc_win_extra = []
+    heimdall_win_extra = []
     if host_system == 'windows'
-        vlc_rc = configure_file(
-            input: 'vlc_win32_rc.rc.in',
-            output: 'vlc_win32_rc.rc',
+        heimdall_rc = configure_file(
+            input: 'heimdall_win32_rc.rc.in',
+            output: 'heimdall_win32_rc.rc',
             configuration: rc_conf,
             install: false,
         )
-        vlc_win_extra = windows_rc.compile_resources(
-            vlc_rc,
+        heimdall_win_extra = windows_rc.compile_resources(
+            heimdall_rc,
             include_directories: [
-                vlc_src_root / 'share/icons',
-                vlc_src_root / 'extras/package/win32',
+                heimdall_src_root / 'share/icons',
+                heimdall_src_root / 'extras/package/win32',
             ],
-            depend_files: files('../extras/package/win32/vlc.exe.manifest'),
+            depend_files: files('../extras/package/win32/heimdall.exe.manifest'),
         )
     endif
 
-    executable('vlc',
-        vlc_sources + vlc_win_extra,
-        link_with: [libvlc, libvlccore],
+    executable('heimdall',
+        heimdall_sources + heimdall_win_extra,
+        link_with: [libheimdall, libheimdallcore],
         link_args: gc_sections_linkargs,
-        include_directories: [vlc_include_dirs],
-        dependencies: vlc_deps,
+        include_directories: [heimdall_include_dirs],
+        dependencies: heimdall_deps,
         install: true,
         install_dir: bindir_path,
         win_subsystem: 'windows'
     )
 
-    vlc_top_builddir_def = '-DTOP_BUILDDIR="@0@"'.format(vlc_build_root)
-    vlc_top_srcdir_def = '-DTOP_SRCDIR="@0@"'.format(vlc_src_root)
+    heimdall_top_builddir_def = '-DTOP_BUILDDIR="@0@"'.format(heimdall_build_root)
+    heimdall_top_srcdir_def = '-DTOP_SRCDIR="@0@"'.format(heimdall_src_root)
 
-    executable('vlc-static',
-        vlc_sources,
-        link_with: [libvlc, libvlccore],
+    executable('heimdall-static',
+        heimdall_sources,
+        link_with: [libheimdall, libheimdallcore],
         link_args: gc_sections_linkargs,
-        include_directories: [vlc_include_dirs],
-        dependencies: vlc_deps,
-        c_args: [vlc_top_builddir_def, vlc_top_srcdir_def],
-        objc_args: [vlc_top_builddir_def, vlc_top_srcdir_def],
+        include_directories: [heimdall_include_dirs],
+        dependencies: heimdall_deps,
+        c_args: [heimdall_top_builddir_def, heimdall_top_srcdir_def],
+        objc_args: [heimdall_top_builddir_def, heimdall_top_srcdir_def],
         win_subsystem: 'windows'
     )
 
-    vlc_cache_gen_dep = executable('vlc-cache-gen',
-        ['cachegen.c'] + vlc_win_extra,
-        link_with: [vlc_libcompat, libvlc],
+    heimdall_cache_gen_dep = executable('heimdall-cache-gen',
+        ['cachegen.c'] + heimdall_win_extra,
+        link_with: [heimdall_libcompat, libheimdall],
         link_args: gc_sections_linkargs,
-        include_directories: [vlc_include_dirs],
+        include_directories: [heimdall_include_dirs],
         install: true,
         install_dir: pkglibexecdir_path,
     )
 
     if not meson.is_cross_build() or find_program('exe_wrapper', required: false).found()
     plugins_dat  = custom_target('plugins.dat',
-        # `vlc_cache_gen_dep.full_path()` doesn't work since the executable is not built yet.
-        # `vlc_cache_gen_dep` creates a build order dependency.
-        command: [vlc_cache_gen_dep, meson.global_build_root() / 'modules'],
+        # `heimdall_cache_gen_dep.full_path()` doesn't work since the executable is not built yet.
+        # `heimdall_cache_gen_dep` creates a build order dependency.
+        command: [heimdall_cache_gen_dep, meson.global_build_root() / 'modules'],
         # ninja command will be `ninja bin/plugins.dat`
         output: 'plugins.dat',
-        depends: vlc_plugins_targets_array,
+        depends: heimdall_plugins_targets_array,
         build_by_default: not meson.is_cross_build(),
     )
     endif
 
-    vlc_preparser_sources = [
+    heimdall_preparser_sources = [
       'preparser/main.c',
       'preparser/cmdline.c',
       'preparser/cmdline.h',
@@ -94,25 +94,25 @@ if build_vlc and (host_system != 'darwin' or have_osx) and not have_win_store an
       '../src/config/jaro_winkler.c',
     ]
 
-    executable('vlc-preparser',
-        vlc_preparser_sources + vlc_win_extra,
-        link_with: [libvlc, libvlccore, vlc_libcompat],
+    executable('heimdall-preparser',
+        heimdall_preparser_sources + heimdall_win_extra,
+        link_with: [libheimdall, libheimdallcore, heimdall_libcompat],
         link_args: gc_sections_linkargs,
-        include_directories: [vlc_include_dirs],
-        dependencies: vlc_deps,
+        include_directories: [heimdall_include_dirs],
+        dependencies: heimdall_deps,
         install: true,
         install_dir: pkglibexecdir_path,
         win_subsystem: 'windows'
     )
 
-    vlc_preparser_static_dep = executable('vlc-preparser-static',
-        vlc_preparser_sources + vlc_win_extra,
-        link_with: [libvlc, libvlccore, vlc_libcompat],
+    heimdall_preparser_static_dep = executable('heimdall-preparser-static',
+        heimdall_preparser_sources + heimdall_win_extra,
+        link_with: [libheimdall, libheimdallcore, heimdall_libcompat],
         link_args: gc_sections_linkargs,
-        include_directories: [vlc_include_dirs],
-        dependencies: vlc_deps,
-        c_args: [vlc_top_builddir_def, vlc_top_srcdir_def],
-        objc_args: [vlc_top_builddir_def, vlc_top_srcdir_def],
+        include_directories: [heimdall_include_dirs],
+        dependencies: heimdall_deps,
+        c_args: [heimdall_top_builddir_def, heimdall_top_srcdir_def],
+        objc_args: [heimdall_top_builddir_def, heimdall_top_srcdir_def],
         install_dir: pkglibexecdir_path,
         win_subsystem: 'windows'
     )

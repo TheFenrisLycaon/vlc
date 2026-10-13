@@ -1,7 +1,8 @@
 /*****************************************************************************
- * dmo.h : DirectMedia Object codec module for vlc
+ * dmo.h : DirectMedia Object codec module for heimdall
  *****************************************************************************
  * Copyright (C) 2002, 2003 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Gildas Bazin <gbazin@videolan.org>
  *

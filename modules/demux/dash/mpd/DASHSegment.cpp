@@ -2,6 +2,7 @@
  * Segment.cpp
  *****************************************************************************
  * Copyright (C) 2010 - 2011 Klagenfurt University
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Created on: Aug 10, 2010
  * Authors: Christopher Mueller <christopher.mueller@itec.uni-klu.ac.at>
@@ -53,7 +54,7 @@ void DashIndexChunk::onDownload(block_t **pp_block)
     if(!rep || ((*pp_block)->i_flags & BLOCK_FLAG_HEADER) == 0 )
         return;
 
-    IndexReader br(rep->getPlaylist()->getVLCObject());
+    IndexReader br(rep->getPlaylist()->getHeimdallObject());
     br.parseIndex(*pp_block, rep, getStartByteInFile());
 }
 

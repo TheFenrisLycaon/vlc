@@ -1,9 +1,10 @@
 /**
  * @file shm.c
- * @brief Wayland shared memory video output module for VLC media player
+ * @brief Wayland shared memory video output module for Heimdall media player
  */
 /*****************************************************************************
  * Copyright © 2014, 2017 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -37,16 +38,16 @@
 #include "viewporter-client-protocol.h"
 #include "registry.h"
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_vout_display.h>
-#include <vlc_fs.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_vout_display.h>
+#include <heimdall_fs.h>
 
 #define MAX_PICTURES 4
 
 typedef struct vout_display_sys_t
 {
-    vlc_window_t *embed; /* VLC window */
+    heimdall_window_t *embed; /* Heimdall window */
     struct wl_event_queue *eventq;
     struct wl_shm *shm;
     struct wp_viewporter *viewporter;
@@ -80,10 +81,10 @@ static const struct wl_buffer_listener buffer_cbs =
 };
 
 static void Prepare(vout_display_t *vd, picture_t *pic,
-                    const struct vlc_render_subpicture *subpic,
-                    vlc_tick_t date)
+                    const struct heimdall_render_subpicture *subpic,
+                    heimdall_tick_t date)
 {
-    VLC_UNUSED(date);
+    HEIMDALL_UNUSED(date);
     vout_display_sys_t *sys = vd->sys;
     struct wl_display *display = sys->embed->display.wl;
     struct wl_surface *surface = sys->embed->handle.wl;
@@ -168,7 +169,7 @@ static int ResetPictures(vout_display_t *vd, video_format_t *fmt)
                                         / src.i_visible_width;
     fmt->i_y_offset = src.i_y_offset * vd->place->height
                                         / src.i_visible_height;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int UpdateViewport(vout_display_t *vd)
@@ -176,7 +177,7 @@ static int UpdateViewport(vout_display_t *vd)
     vout_display_sys_t *sys = vd->sys;
 
     if (sys->viewport == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     video_format_t fmt;
 
@@ -189,24 +190,24 @@ static int UpdateViewport(vout_display_t *vd)
                     wl_fixed_from_int(fmt.i_visible_height));
     wp_viewport_set_destination(sys->viewport,
                                 vd->place->width, vd->place->height);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int SetDisplaySize(vout_display_t *vd, unsigned width, unsigned height)
 {
-    VLC_UNUSED(width); VLC_UNUSED(height);
+    HEIMDALL_UNUSED(width); HEIMDALL_UNUSED(height);
     return UpdateViewport(vd);
 }
 
 static int PlacementChanged(vout_display_t *vd, const vout_display_place_t *place)
 {
-    VLC_UNUSED(place);
+    HEIMDALL_UNUSED(place);
     return UpdateViewport(vd);
 }
 
 static int AspectChanged(vout_display_t *vd, const video_format_t *source)
 {
-    VLC_UNUSED(source);
+    HEIMDALL_UNUSED(source);
     return PlacementChanged(vd, NULL);
 }
 
@@ -255,7 +256,7 @@ static void Close(vout_display_t *vd)
     free(sys);
 }
 
-static const struct vlc_display_operations ops = {
+static const struct heimdall_display_operations ops = {
     .close = Close,
     .prepare = Prepare,
     .display = Display,
@@ -267,14 +268,14 @@ static const struct vlc_display_operations ops = {
 };
 
 static int Open(vout_display_t *vd,
-                video_format_t *fmtp, vlc_video_context *context)
+                video_format_t *fmtp, heimdall_video_context *context)
 {
-    if (vd->cfg->window->type != VLC_WINDOW_TYPE_WAYLAND)
-        return VLC_EGENERIC;
+    if (vd->cfg->window->type != HEIMDALL_WINDOW_TYPE_WAYLAND)
+        return HEIMDALL_EGENERIC;
 
     vout_display_sys_t *sys = malloc(sizeof (*sys));
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     vd->sys = sys;
     sys->embed = NULL;
@@ -287,22 +288,22 @@ static int Open(vout_display_t *vd,
     assert(sys->embed != NULL);
 
     struct wl_display *display = sys->embed->display.wl;
-    struct vlc_wl_registry *registry = NULL;
+    struct heimdall_wl_registry *registry = NULL;
 
     sys->eventq = wl_display_create_queue(display);
     if (sys->eventq == NULL)
         goto error;
 
-    registry = vlc_wl_registry_get(display, sys->eventq);
+    registry = heimdall_wl_registry_get(display, sys->eventq);
     if (registry == NULL)
         goto error;
 
-    sys->shm = vlc_wl_shm_get(registry);
+    sys->shm = heimdall_wl_shm_get(registry);
     if (sys->shm == NULL)
         goto error;
 
     sys->viewporter = (struct wp_viewporter *)
-                      vlc_wl_interface_bind(registry, "wp_viewporter",
+                      heimdall_wl_interface_bind(registry, "wp_viewporter",
                                             &wp_viewporter_interface, NULL);
 
     wl_shm_add_listener(sys->shm, &shm_cbs, vd);
@@ -326,7 +327,7 @@ static int Open(vout_display_t *vd,
         [ORIENT_RIGHT_BOTTOM] = WL_OUTPUT_TRANSFORM_FLIPPED_90,
     };
 
-    if (vlc_wl_interface_get_version(registry, "wl_compositor") >= 2)
+    if (heimdall_wl_interface_get_version(registry, "wl_compositor") >= 2)
     {
         wl_surface_set_buffer_transform(surface,
                                         transforms[fmtp->orientation]);
@@ -337,31 +338,31 @@ static int Open(vout_display_t *vd,
         video_format_ApplyRotation(fmtp, &fmt);
     }
 
-    fmtp->i_chroma = VLC_CODEC_BGRX;
+    fmtp->i_chroma = HEIMDALL_CODEC_BGRX;
 
     vd->ops = &ops;
 
-    vlc_wl_registry_destroy(registry);
+    heimdall_wl_registry_destroy(registry);
     (void) context;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     if (sys->shm != NULL)
         wl_shm_destroy(sys->shm);
 
     if (registry != NULL)
-        vlc_wl_registry_destroy(registry);
+        heimdall_wl_registry_destroy(registry);
 
     if (sys->eventq != NULL)
         wl_event_queue_destroy(sys->eventq);
     free(sys);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname(N_("WL SHM"))
     set_description(N_("Wayland shared memory video output"))
     set_subcategory(SUBCAT_VIDEO_VOUT)
     set_callback_display(Open, 170)
     add_shortcut("wl")
-vlc_module_end()
+heimdall_module_end()

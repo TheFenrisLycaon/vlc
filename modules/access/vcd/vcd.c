@@ -1,7 +1,8 @@
 /*****************************************************************************
- * vcd.c : VCD input module for vlc
+ * vcd.c : VCD input module for heimdall
  *****************************************************************************
  * Copyright © 2000-2011 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Johan Bilien <jobi@via.ecp.fr>
  *
@@ -28,23 +29,23 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_input.h>
-#include <vlc_access.h>
-#include <vlc_charset.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_input.h>
+#include <heimdall_access.h>
+#include <heimdall_charset.h>
 
 #include "cdrom.h"
 
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  Open ( vlc_object_t * );
-static void Close( vlc_object_t * );
+static int  Open ( heimdall_object_t * );
+static void Close( heimdall_object_t * );
 
 #define HELP_TEXT N_("Usage hint: [vcd:][device][#[title][,[chapter]]]")
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( N_("VCD"))
     set_description( N_("VCD input") )
     set_help( HELP_TEXT )
@@ -53,7 +54,7 @@ vlc_module_begin ()
     set_subcategory( SUBCAT_INPUT_ACCESS )
 
     add_shortcut( "vcd", "svcd" )
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * Local prototypes
@@ -89,12 +90,12 @@ static int      EntryPoints( stream_t * );
 /*****************************************************************************
  * VCDOpen: open vcd
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     stream_t     *p_access = (stream_t *)p_this;
     access_sys_t *p_sys;
     if( p_access->psz_filepath == NULL )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     char *psz_dup = ToLocaleDup( p_access->psz_filepath );
     char *psz;
@@ -119,13 +120,13 @@ static int Open( vlc_object_t *p_this )
         /* Only when selected */
         if( strcmp( p_access->psz_name, "vcd" ) &&
             strcmp( p_access->psz_name, "svcd" ) )
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
         psz_dup = var_CreateGetString( p_access, "vcd" );
         if( *psz_dup == '\0' )
         {
             free( psz_dup );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
 
@@ -138,7 +139,7 @@ static int Open( vlc_object_t *p_this )
     vcddev = ioctl_Open( p_this, psz_dup );
     free( psz_dup );
     if( !vcddev )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* Set up p_access */
     p_access->p_sys = p_sys = calloc( 1, sizeof( access_sys_t ) );
@@ -151,7 +152,7 @@ static int Open( vlc_object_t *p_this )
         p_sys->titles[i].seekpoints = NULL;
 
     /* We read the Table Of Content information */
-    p_sys->p_toc = ioctl_GetTOC( VLC_OBJECT(p_access), p_sys->vcddev );
+    p_sys->p_toc = ioctl_GetTOC( HEIMDALL_OBJECT(p_access), p_sys->vcddev );
     if( p_sys->p_toc == NULL )
     {
         msg_Err( p_access, "unable to count tracks" );
@@ -203,18 +204,18 @@ static int Open( vlc_object_t *p_this )
     p_sys->offset = (uint64_t)(p_sys->i_sector - p_sys->p_toc->p_sectors[1+i_title].i_lba) *
                                VCD_DATA_SIZE;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
-    ioctl_Close( VLC_OBJECT(p_access), vcddev );
+    ioctl_Close( HEIMDALL_OBJECT(p_access), vcddev );
     free( p_sys );
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /*****************************************************************************
  * Close: closes vcd
  *****************************************************************************/
-static void Close( vlc_object_t *p_this )
+static void Close( heimdall_object_t *p_this )
 {
     stream_t     *p_access = (stream_t *)p_this;
     access_sys_t *p_sys = p_access->p_sys;
@@ -258,7 +259,7 @@ static int Control( stream_t *p_access, int i_query, va_list args )
 
         /* */
         case STREAM_GET_PTS_DELAY:
-            *va_arg( args, vlc_tick_t * ) = VLC_TICK_FROM_MS(
+            *va_arg( args, heimdall_tick_t * ) = HEIMDALL_TICK_FROM_MS(
                 var_InheritInteger(p_access, "disc-caching") );
             break;
 
@@ -269,13 +270,13 @@ static int Control( stream_t *p_access, int i_query, va_list args )
         case STREAM_GET_TITLE_INFO:
             ppp_title = va_arg( args, input_title_t*** );
             /* Duplicate title infos */
-            *ppp_title = vlc_alloc( USABLE_TITLES(p_sys->p_toc->i_tracks),
+            *ppp_title = heimdall_alloc( USABLE_TITLES(p_sys->p_toc->i_tracks),
                                     sizeof(input_title_t *) );
             if (!*ppp_title)
-                return VLC_ENOMEM;
+                return HEIMDALL_ENOMEM;
             *va_arg( args, int* ) = USABLE_TITLES(p_sys->p_toc->i_tracks);
             for( int i = 0; i < USABLE_TITLES(p_sys->p_toc->i_tracks); i++ )
-                (*ppp_title)[i] = vlc_input_title_New();
+                (*ppp_title)[i] = heimdall_input_title_New();
             break;
 
         case STREAM_GET_TITLE:
@@ -325,9 +326,9 @@ static int Control( stream_t *p_access, int i_query, va_list args )
         }
 
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -369,7 +370,7 @@ static block_t *Block( stream_t *p_access, bool *restrict eof )
         return NULL;
     }
 
-    int i_ret = ioctl_ReadSectors( VLC_OBJECT(p_access), p_sys->vcddev,
+    int i_ret = ioctl_ReadSectors( HEIMDALL_OBJECT(p_access), p_sys->vcddev,
                                    p_sys->i_sector, p_block->p_buffer, i_blocks, VCD_TYPE );
     if( i_ret < 0 )
     {
@@ -439,7 +440,7 @@ static int Seek( stream_t *p_access, uint64_t i_pos )
         p_sys->i_current_seekpoint = i_seekpoint;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -455,11 +456,11 @@ static int EntryPoints( stream_t *p_access )
     int i_nb;
 
     /* Read the entry point sector */
-    if( ioctl_ReadSectors( VLC_OBJECT(p_access), p_sys->vcddev,
+    if( ioctl_ReadSectors( HEIMDALL_OBJECT(p_access), p_sys->vcddev,
         VCD_ENTRIES_SECTOR, sector, 1, VCD_TYPE ) < 0 )
     {
         msg_Err( p_access, "could not read entry points sector" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     memcpy( &entries, sector, CD_SECTOR_SIZE );
 
@@ -467,14 +468,14 @@ static int EntryPoints( stream_t *p_access )
     if( i_nb == 0 || i_nb > 500 /* See 6.3.2 */ )
     {
         msg_Err( p_access, "invalid entry points number" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( strncmp( entries.psz_id, "ENTRYVCD", sizeof( entries.psz_id ) ) &&
         strncmp( entries.psz_id, "ENTRYSVD", sizeof( entries.psz_id ) ) )
     {
         msg_Err( p_access, "unrecognized entry points format" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     for( int i = 0; i < i_nb; i++ )
@@ -497,5 +498,5 @@ static int EntryPoints( stream_t *p_access )
             (i_sector - p_toc->p_sectors[i_title+1].i_lba) * VCD_DATA_SIZE;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

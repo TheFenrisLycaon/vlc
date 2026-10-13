@@ -1,7 +1,8 @@
 /*****************************************************************************
- * ts_pid.h: Transport Stream input module for VLC.
+ * ts_pid.h: Transport Stream input module for Heimdall.
  *****************************************************************************
  * Copyright (C) 2004-2016 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -16,8 +17,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
-#ifndef VLC_TS_PID_H
-#define VLC_TS_PID_H
+#ifndef HEIMDALL_TS_PID_H
+#define HEIMDALL_TS_PID_H
 
 #include "ts_pid_fwd.h"
 
@@ -76,8 +77,8 @@ struct ts_pid_t
 
     struct
     {
-        vlc_fourcc_t i_fourcc;
-        vlc_fourcc_t i_original_fourcc;
+        heimdall_fourcc_t i_fourcc;
+        heimdall_fourcc_t i_original_fourcc;
         int i_cat;
         int i_dts_count;
         int i_pcr_count; /* carries PCR field */

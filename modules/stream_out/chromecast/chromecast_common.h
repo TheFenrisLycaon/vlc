@@ -1,7 +1,8 @@
 /*****************************************************************************
- * chromecast_common.h: Chromecast common code between modules for vlc
+ * chromecast_common.h: Chromecast common code between modules for heimdall
  *****************************************************************************
  * Copyright © 2015-2016 VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Adrien Maglo <magsoft@videolan.org>
  *          Jean-Baptiste Kempf <jb@videolan.org>
@@ -22,10 +23,10 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_CHROMECAST_COMMON_H
-#define VLC_CHROMECAST_COMMON_H
+#ifndef HEIMDALL_CHROMECAST_COMMON_H
+#define HEIMDALL_CHROMECAST_COMMON_H
 
-#include <vlc_input.h>
+#include <heimdall_input.h>
 
 # ifdef __cplusplus
 extern "C" {
@@ -60,7 +61,7 @@ typedef struct
 
     void (*pf_set_demux_enabled)(void *, bool enabled, on_paused_changed_itf, void *);
 
-    vlc_tick_t (*pf_get_time)(void*);
+    heimdall_tick_t (*pf_get_time)(void*);
 
     int (*pf_pace)(void*);
 
@@ -68,9 +69,9 @@ typedef struct
 
     void (*pf_set_pause_state)(void*, bool paused);
 
-    void (*pf_set_meta)(void*, vlc_meta_t *p_meta);
+    void (*pf_set_meta)(void*, heimdall_meta_t *p_meta);
 
-    void (*pf_set_input_length)(void*, vlc_tick_t length);
+    void (*pf_set_input_length)(void*, heimdall_tick_t length);
 
 } chromecast_common;
 
@@ -78,5 +79,5 @@ typedef struct
 }
 # endif
 
-#endif // VLC_CHROMECAST_COMMON_H
+#endif // HEIMDALL_CHROMECAST_COMMON_H
 

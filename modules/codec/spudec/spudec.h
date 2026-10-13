@@ -2,6 +2,7 @@
  * spudec.h : sub picture unit decoder thread interface
  *****************************************************************************
  * Copyright (C) 1999, 2000, 2006 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Sam Hocevar <sam@zoy.org>
  *
@@ -28,7 +29,7 @@ typedef struct
     bool b_disabletrans;
     bool b_forcedonly;
 
-    vlc_tick_t i_pts;
+    heimdall_tick_t i_pts;
     unsigned int i_spu_size;
     unsigned int i_rle_size;
     unsigned int i_spu;

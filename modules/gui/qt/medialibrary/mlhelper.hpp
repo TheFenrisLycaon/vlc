@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,7 +26,7 @@
 
 #include <memory>
 
-#include <vlc_media_library.h>
+#include <heimdall_media_library.h>
 
 #include <QString>
 #include <QUrl>
@@ -36,7 +37,7 @@ class MLDeleter
 {
 public:
     void operator() (T* obj) {
-        vlc_ml_release(obj);
+        heimdall_ml_release(obj);
     }
 };
 
@@ -85,10 +86,10 @@ void thumbnailCopy(const MLListRange<T> &list, O dst, const int max)
     int count = 0;
     for (const auto &item : list)
     {
-        if (item.thumbnails[VLC_ML_THUMBNAIL_SMALL].i_status != VLC_ML_THUMBNAIL_STATUS_AVAILABLE)
+        if (item.thumbnails[HEIMDALL_ML_THUMBNAIL_SMALL].i_status != HEIMDALL_ML_THUMBNAIL_STATUS_AVAILABLE)
             continue;
 
-        const auto path = toValidLocalFile(item.thumbnails[VLC_ML_THUMBNAIL_SMALL].psz_mrl);
+        const auto path = toValidLocalFile(item.thumbnails[HEIMDALL_ML_THUMBNAIL_SMALL].psz_mrl);
         if (path.isEmpty())
             continue;
 

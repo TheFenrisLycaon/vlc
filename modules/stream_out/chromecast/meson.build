@@ -41,7 +41,7 @@ if protoc.found()
     chromecast_proto += [protobuf_gen.process('cast_channel.proto')]
 endif
 
-vlc_modules += {
+heimdall_modules += {
     'name' : 'demux_chromecast',
     'sources' : files(
         'chromecast_demux.cpp',
@@ -52,7 +52,7 @@ vlc_modules += {
     'enabled': get_option('stream_outputs') and protoc.found() and protobuf_dep.found(),
 }
 
-vlc_modules += {
+heimdall_modules += {
     'name' : 'stream_out_chromecast',
     'sources' : files(
         'cast.cpp',
@@ -65,7 +65,7 @@ vlc_modules += {
         '../renderer_common.hpp') +
         chromecast_proto,
     'dependencies' : [socket_libs, protobuf_dep],
-    'link_with' : vlc_json_lib,
+    'link_with' : heimdall_json_lib,
     'plugin_dir' : 'stream_out',
     'enabled': get_option('stream_outputs') and protobuf_dep.found() and protoc.found(),
 }

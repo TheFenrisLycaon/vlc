@@ -2,6 +2,7 @@
  * openurl.cpp: Open a MRL or clipboard content
  *****************************************************************************
  * Copyright © 2009 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Jean-Philippe André <jpeg@videolan.org>
  *
@@ -40,10 +41,10 @@
 
 OpenUrlDialog::OpenUrlDialog( qt_intf_t *_p_intf,
                               bool _bClipboard ) :
-        QVLCDialog( nullptr, _p_intf ), bClipboard( _bClipboard )
+        QHeimdallDialog( nullptr, _p_intf ), bClipboard( _bClipboard )
 {
     setWindowTitle( qtr( "Open URL" ) );
-    setWindowRole( "vlc-open-url" );
+    setWindowRole( "heimdall-open-url" );
 
     /* Buttons */
     QPushButton *but;
@@ -136,5 +137,5 @@ void OpenUrlDialog::showEvent( QShowEvent* )
 void OpenUrlDialog::accept()
 {
     lastUrl = edit->text().trimmed();
-    QVLCDialog::accept();
+    QHeimdallDialog::accept();
 }

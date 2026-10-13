@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,14 +21,14 @@
 
 #include <QString>
 
-#include <vlc_media_library.h>
+#include <heimdall_media_library.h>
 
 #include "mlmedia.hpp"
 
 class MLAudio : public MLMedia
 {
 public:
-    MLAudio(vlc_medialibrary_t *_ml, const vlc_ml_media_t *_data);
+    MLAudio(heimdall_medialibrary_t *_ml, const heimdall_ml_media_t *_data);
 
     QString getAlbumTitle() const;
     QString getArtist() const;

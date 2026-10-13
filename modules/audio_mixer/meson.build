@@ -1,5 +1,5 @@
 # Float mixer
-vlc_modules += {
+heimdall_modules += {
     'name' : 'float_mixer',
     'sources' : files('float.c'),
     'dependencies' : [m_lib],
@@ -7,7 +7,7 @@ vlc_modules += {
 }
 
 # Integer mixer
-vlc_modules += {
+heimdall_modules += {
     'name' : 'integer_mixer',
     'sources' : files('integer.c'),
     'dependencies' : [m_lib],

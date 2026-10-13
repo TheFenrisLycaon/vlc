@@ -3,6 +3,7 @@
  * cmdline.c: preparser command line
  *****************************************************************************
  * Copyright © 2025 Videolabs, VideoLAN and VLC authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gabriel Lafond Thenaille <gabriel@videolabs.io>
  *****************************************************************************/
@@ -13,14 +14,14 @@
 
 #include <assert.h>
 
-#include <vlc/vlc.h>
-#include <vlc_common.h>
-#include <vlc_preparser.h>
+#include <heimdall/heimdall.h>
+#include <heimdall_common.h>
+#include <heimdall_preparser.h>
 
 #include "cmdline.h"
 
-#include "../src/config/vlc_getopt.h"
-#include "../src/config/vlc_jaro_winkler.h"
+#include "../src/config/heimdall_getopt.h"
+#include "../src/config/heimdall_jaro_winkler.h"
 
 static bool
 opt_set_Timeout(struct preparser_args *args, const char *arg)
@@ -29,7 +30,7 @@ opt_set_Timeout(struct preparser_args *args, const char *arg)
     assert(arg != NULL);
 
     char *endptr = NULL;
-    args->timeout = VLC_TICK_FROM_MS(strtoull(arg, &endptr, 0));
+    args->timeout = HEIMDALL_TICK_FROM_MS(strtoull(arg, &endptr, 0));
     if (endptr != NULL && *endptr != '\0') {
         fprintf(stderr, "Error: Invalid timeout `%s'\n", arg);
         return false;
@@ -76,11 +77,11 @@ opt_set_Type(struct preparser_args *args, const char *arg)
     assert(arg != NULL);
 
     if (!strcmp(arg, "parse")) {
-        args->types |= VLC_PREPARSER_TYPE_PARSE;
+        args->types |= HEIMDALL_PREPARSER_TYPE_PARSE;
     } else if (!strcmp(arg, "thumbnail") || !strcmp(arg, "jpg")) {
-        args->types |= VLC_PREPARSER_TYPE_THUMBNAIL;
+        args->types |= HEIMDALL_PREPARSER_TYPE_THUMBNAIL;
     } else if (!strcmp(arg, "thumbnail_to_files")) {
-        args->types |= VLC_PREPARSER_TYPE_THUMBNAIL_TO_FILES;
+        args->types |= HEIMDALL_PREPARSER_TYPE_THUMBNAIL_TO_FILES;
     } else {
         fprintf(stderr, "Error: Unknown preparser type `%s'\n", arg);
         return false;
@@ -97,11 +98,11 @@ opt_set_Fetch(struct preparser_args *args, const char *arg)
     assert(arg != NULL);
 
     if (!strcmp(arg, "local")) {
-        args->types |= VLC_PREPARSER_TYPE_FETCHMETA_LOCAL;
+        args->types |= HEIMDALL_PREPARSER_TYPE_FETCHMETA_LOCAL;
     } else if (!strcmp(arg, "net") || !strcmp(arg, "jpg")) {
-        args->types |= VLC_PREPARSER_TYPE_FETCHMETA_NET;
+        args->types |= HEIMDALL_PREPARSER_TYPE_FETCHMETA_NET;
     } else if (!strcmp(arg, "all")) {
-        args->types |= VLC_PREPARSER_TYPE_FETCHMETA_ALL;
+        args->types |= HEIMDALL_PREPARSER_TYPE_FETCHMETA_ALL;
     } else {
         fprintf(stderr, "Error: Unknown preparser fetching policy `%s'\n", arg);
         return false;
@@ -128,9 +129,9 @@ opt_set_SeekSpeed(struct preparser_args *args, const char *arg)
     assert(arg != NULL);
 
     if (!strcmp(arg, "precise")) {
-        args->seek.speed = VLC_THUMBNAILER_SEEK_PRECISE;
+        args->seek.speed = HEIMDALL_THUMBNAILER_SEEK_PRECISE;
     } else if (!strcmp(arg, "fast")) {
-        args->seek.speed = VLC_THUMBNAILER_SEEK_FAST;
+        args->seek.speed = HEIMDALL_THUMBNAILER_SEEK_FAST;
     } else {
         fprintf(stderr, "Error: Unknown seek speed `%s'\n", arg);
         return false;
@@ -144,18 +145,18 @@ opt_set_SeekTime(struct preparser_args *args, const char *arg)
     assert(args != NULL);
     assert(arg != NULL);
 
-    if (args->seek.type != VLC_THUMBNAILER_SEEK_NONE) {
+    if (args->seek.type != HEIMDALL_THUMBNAILER_SEEK_NONE) {
         fprintf(stderr, "Error: --seek-time not compatible with --seek-pos\n");
         return false;
     }
 
     char *endptr = NULL;
-    args->seek.time = VLC_TICK_FROM_MS(strtoull(arg, &endptr, 0));
+    args->seek.time = HEIMDALL_TICK_FROM_MS(strtoull(arg, &endptr, 0));
     if (endptr != NULL && *endptr != '\0') {
         fprintf(stderr, "Error: Invalid time `%s'\n", arg);
         return false;
     }
-    args->seek.type = VLC_THUMBNAILER_SEEK_TIME;
+    args->seek.type = HEIMDALL_THUMBNAILER_SEEK_TIME;
     return true;
 }
 
@@ -165,7 +166,7 @@ opt_set_SeekPos(struct preparser_args *args, const char *arg)
     assert(args != NULL);
     assert(arg != NULL);
 
-    if (args->seek.type != VLC_THUMBNAILER_SEEK_NONE) {
+    if (args->seek.type != HEIMDALL_THUMBNAILER_SEEK_NONE) {
         fprintf(stderr, "Error: --seek-pos not compatible with --seek-time\n");
         return false;
     }
@@ -180,7 +181,7 @@ opt_set_SeekPos(struct preparser_args *args, const char *arg)
         fprintf(stderr, "Error: Seek pos should be greater than 0\n");
         return false;
     }
-    args->seek.type = VLC_THUMBNAILER_SEEK_POS;
+    args->seek.type = HEIMDALL_THUMBNAILER_SEEK_POS;
     return true;
 }
 
@@ -248,15 +249,15 @@ opt_set_OutputFormat(struct preparser_args *args, const char *arg)
     assert(arg != NULL);
 
     if (!strcmp(arg, "png")) {
-        args->output.format = VLC_THUMBNAILER_FORMAT_PNG;
+        args->output.format = HEIMDALL_THUMBNAILER_FORMAT_PNG;
     } else if (!strcmp(arg, "jpeg") || !strcmp(arg, "jpg")) {
-        args->output.format = VLC_THUMBNAILER_FORMAT_JPEG;
+        args->output.format = HEIMDALL_THUMBNAILER_FORMAT_JPEG;
     } else if (!strcmp(arg, "webp")) {
-        args->output.format = VLC_THUMBNAILER_FORMAT_WEBP;
+        args->output.format = HEIMDALL_THUMBNAILER_FORMAT_WEBP;
     } else if (!strcmp(arg, "rgba")) {
-        args->output.format = VLC_THUMBNAILER_FORMAT_RGBA;
+        args->output.format = HEIMDALL_THUMBNAILER_FORMAT_RGBA;
     } else if (!strcmp(arg, "argb")) {
-        args->output.format = VLC_THUMBNAILER_FORMAT_ARGB;
+        args->output.format = HEIMDALL_THUMBNAILER_FORMAT_ARGB;
     } else {
         fprintf(stderr, "Error: Unknown output format `%s'\n", arg);
         return false;
@@ -305,7 +306,7 @@ struct preparser_opt {
 static const struct preparser_opt options[] = {
     opt_add_bool("help", NULL, "Print this help"),
     opt_add_integer("timeout", opt_set_Timeout, "Preparser timeout (ms)"),
-    opt_add_integer("timeout-tick", opt_set_TimeoutTick, "Preparser timeout (vlc_tick_t)"),
+    opt_add_integer("timeout-tick", opt_set_TimeoutTick, "Preparser timeout (heimdall_tick_t)"),
     opt_add_integer("types", opt_set_Types, "Preparser types"),
     opt_add_string("type", opt_set_Type, "Preparser type (parse/thumbnail/thumbnail_to_files)"),
     opt_add_string("fetch", opt_set_Fetch, "Preparser fetching (local/net/all)"),
@@ -323,7 +324,7 @@ static const struct preparser_opt options[] = {
     opt_add_integer("verbose", opt_set_Verbose, "Verbosity (0,1,2)"),
 };
 
-static const char vlc_preparser_usage[] = N_(
+static const char heimdall_preparser_usage[] = N_(
     "Usage: %s [options] [url|path]\n"
     "\n"
     "URL syntax:\n"
@@ -337,8 +338,8 @@ static const char vlc_preparser_usage[] = N_(
     "  cdda://[device]                Audio CD device\n"
     "  udp://[[<source address>]@[<bind address>][:<bind port>]]\n"
     "                                 UDP stream sent by a streaming server\n"
-    "  vlc://pause:<seconds>          Pause the playlist for a certain time\n"
-    "  vlc://quit                     Special item to quit VLC\n"
+    "  heimdall://pause:<seconds>          Pause the playlist for a certain time\n"
+    "  heimdall://quit                     Special item to quit Heimdall\n"
     "\n"
 );
 
@@ -347,7 +348,7 @@ preparser_help(const char *arg0)
 {
     assert(arg0 != NULL);
 
-    fprintf(stderr, vlc_preparser_usage, arg0);
+    fprintf(stderr, heimdall_preparser_usage, arg0);
     fprintf(stderr, "Options:\n");
     size_t nopts = ARRAY_SIZE(options);
     for (size_t i = 0; i < nopts; i++) {
@@ -385,7 +386,7 @@ preparser_cmdline_Parse(int argc, char *const *argv,
     assert(args != NULL);
 
     size_t noptions = ARRAY_SIZE(options);
-    struct vlc_option *opts = calloc(noptions + 1, sizeof(*opts));
+    struct heimdall_option *opts = calloc(noptions + 1, sizeof(*opts));
     for (size_t i = 0; i < noptions; i++) {
         if (options[i].name == NULL) {
             opts[i].name = "";
@@ -399,11 +400,11 @@ preparser_cmdline_Parse(int argc, char *const *argv,
     }
 
     bool error = false;
-    vlc_getopt_t state = {0};
+    heimdall_getopt_t state = {0};
     int cmd = 0;
     int longid = 0;
     while (1) {
-        cmd = vlc_getopt_long(argc, argv, ":", opts, &longid, &state);
+        cmd = heimdall_getopt_long(argc, argv, ":", opts, &longid, &state);
         if (cmd == -1) {
             break;
         } else if (cmd == 0) {
@@ -445,7 +446,7 @@ preparser_cmdline_Parse(int argc, char *const *argv,
                     if (opts[i].is_obsolete)
                         continue;
                     const char *jw_b = opts[i].name;
-                    if (vlc_jaro_winkler(jw_a, jw_b, &m) == 0) {
+                    if (heimdall_jaro_winkler(jw_a, jw_b, &m) == 0) {
                         //ignore failed malloc calls
                         if (m > best_m || (!best && m >= jw_filter)) {
                             best = jw_b;
@@ -471,12 +472,12 @@ preparser_cmdline_Parse(int argc, char *const *argv,
     }
 
     if (args->types == 0) {
-        args->types = VLC_PREPARSER_TYPE_PARSE;
+        args->types = HEIMDALL_PREPARSER_TYPE_PARSE;
     }
 
     args->arg_idx = state.ind;
     if (!args->daemon) {
-        if (args->types == VLC_PREPARSER_TYPE_THUMBNAIL_TO_FILES) {
+        if (args->types == HEIMDALL_PREPARSER_TYPE_THUMBNAIL_TO_FILES) {
             if (args->output.file_path == NULL) {
                 fprintf(stderr, "Error: with `--type thummbnail_to_files' the "
                                 "option `--output-path' is mandatory!\n");

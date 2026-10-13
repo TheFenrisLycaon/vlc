@@ -1,14 +1,14 @@
 <RCC>
     <qresource prefix="/logo">
-        <file alias="vlc256.png">../../../share/icons/256x256/vlc.png</file>
-        <file alias="vlc128.png">../../../share/icons/128x128/vlc.png</file>
-        <file alias="vlc16.png">../../../share/icons/16x16/vlc.png</file>
-        <file alias="vlc48.png">../../../share/icons/48x48/vlc.png</file>
-        <file alias="vlc128-xmas.png">../../../share/icons/128x128/vlc-xmas.png</file>
-        <file alias="vlc48-xmas.png">../../../share/icons/48x48/vlc-xmas.png</file>
-        <file alias="vlc128-aprilfools.png">../../../share/icons/128x128/vlc-aprilfools.png</file>
-        <file alias="vlc48-aprilfools.png">../../../share/icons/48x48/vlc-aprilfools.png</file>
-        <file alias="vlc128-kb.png">../../../share/icons/128x128/vlc-kb.png</file>
+        <file alias="heimdall256.png">../../../share/icons/256x256/heimdall.png</file>
+        <file alias="heimdall128.png">../../../share/icons/128x128/heimdall.png</file>
+        <file alias="heimdall16.png">../../../share/icons/16x16/heimdall.png</file>
+        <file alias="heimdall48.png">../../../share/icons/48x48/heimdall.png</file>
+        <file alias="heimdall128-xmas.png">../../../share/icons/128x128/heimdall-xmas.png</file>
+        <file alias="heimdall48-xmas.png">../../../share/icons/48x48/heimdall-xmas.png</file>
+        <file alias="heimdall128-aprilfools.png">../../../share/icons/128x128/heimdall-aprilfools.png</file>
+        <file alias="heimdall48-aprilfools.png">../../../share/icons/48x48/heimdall-aprilfools.png</file>
+        <file alias="heimdall128-kb.png">../../../share/icons/128x128/heimdall-kb.png</file>
     </qresource>
     <qresource prefix="/icons">
         <file alias="atob.svg">pixmaps/icons/atob.svg</file>
@@ -99,7 +99,7 @@
         <file alias="noart_videoCover.svg">pixmaps/placeholder/noart_videoCover.svg</file>
     </qresource>
     <qresource prefix="/">
-        <file alias="VLCIcons.ttf">pixmaps/VLCIcons.ttf</file>
+        <file alias="HeimdallIcons.ttf">pixmaps/HeimdallIcons.ttf</file>
     </qresource>
     <qresource prefix="/prefsmenu">
         <file alias="advprefs_audio.svg">pixmaps/prefs/advprefs_audio.svg</file>

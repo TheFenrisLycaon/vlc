@@ -2,6 +2,7 @@
  * extensions_manager.cpp: Extensions manager for Qt
  ****************************************************************************
  * Copyright (C) 2009-2010 VideoLAN and authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Jean-Philippe André < jpeg # videolan.org >
  *
@@ -24,10 +25,10 @@
 #include "player/player_controller.hpp"
 #include "extensions.hpp"
 
-#include <vlc_modules.h>
-#include <vlc_interface.h>
-#include <vlc_playlist.h>
-#include <vlc_extensions.h>
+#include <heimdall_modules.h>
+#include <heimdall_interface.h>
+#include <heimdall_playlist.h>
+#include <heimdall_extensions.h>
 #include <cassert>
 
 #include <QMenu>
@@ -61,7 +62,7 @@ bool ExtensionsManager::loadExtensions()
 {
     if( !p_extensions_manager )
     {
-        p_extensions_manager = vlc_object_create<extensions_manager_t>( p_intf );
+        p_extensions_manager = heimdall_object_create<extensions_manager_t>( p_intf );
         if( !p_extensions_manager )
         {
             b_failed = true;
@@ -69,15 +70,15 @@ bool ExtensionsManager::loadExtensions()
             return false;
         }
 
-        vlc_playlist_t *playlist = vlc_intf_GetMainPlaylist(p_intf->intf);
-        p_extensions_manager->player = vlc_playlist_GetPlayer(playlist);
+        heimdall_playlist_t *playlist = heimdall_intf_GetMainPlaylist(p_intf->intf);
+        p_extensions_manager->player = heimdall_playlist_GetPlayer(playlist);
         p_extensions_manager->p_module =
                 module_need( p_extensions_manager, "extension", NULL, false );
 
         if( !p_extensions_manager->p_module )
         {
             msg_Err( p_intf, "Unable to load extensions module" );
-            vlc_object_delete(p_extensions_manager);
+            heimdall_object_delete(p_extensions_manager);
             p_extensions_manager = NULL;
             b_failed = true;
             emit extensionsUpdated();
@@ -106,7 +107,7 @@ void ExtensionsManager::unloadExtensions()
     }
     p_edp.reset();
     module_unneed( p_extensions_manager, p_extensions_manager->p_module );
-    vlc_object_delete(p_extensions_manager);
+    heimdall_object_delete(p_extensions_manager);
     p_extensions_manager = NULL;
 }
 
@@ -126,7 +127,7 @@ void ExtensionsManager::menu( QMenu *current )
         return;
     }
 
-    vlc_mutex_lock( &p_extensions_manager->lock );
+    heimdall_mutex_lock( &p_extensions_manager->lock );
 
     QAction *action;
     extension_t *p_ext = NULL;
@@ -149,7 +150,7 @@ void ExtensionsManager::menu( QMenu *current )
             action->setChecked( true );
 
             if( extension_GetMenu( p_extensions_manager, p_ext,
-                                   &ppsz_titles, &pi_ids ) == VLC_SUCCESS )
+                                   &ppsz_titles, &pi_ids ) == HEIMDALL_SUCCESS )
             {
                 for( int i = 0; ppsz_titles[i] != NULL; ++i )
                 {
@@ -198,7 +199,7 @@ void ExtensionsManager::menu( QMenu *current )
         i_ext++;
     }
 
-    vlc_mutex_unlock( &p_extensions_manager->lock );
+    heimdall_mutex_unlock( &p_extensions_manager->lock );
 }
 
 void ExtensionsManager::openVLsub()
@@ -209,7 +210,7 @@ void ExtensionsManager::openVLsub()
         return;
     }
 
-    vlc_mutex_lock( &p_extensions_manager->lock );
+    heimdall_mutex_lock( &p_extensions_manager->lock );
 
     extension_t *p_ext;
     ARRAY_FOREACH( p_ext, p_extensions_manager->extensions )
@@ -218,12 +219,12 @@ void ExtensionsManager::openVLsub()
         if ( !extensionName || strcmp( extensionName, "VLsub" ) )
             continue;
 
-        vlc_mutex_unlock( &p_extensions_manager->lock );
+        heimdall_mutex_unlock( &p_extensions_manager->lock );
         triggerMenu( MENU_MAP( 0, array_index_p_ext ) );
         return;
     }
 
-    vlc_mutex_unlock( &p_extensions_manager->lock );
+    heimdall_mutex_unlock( &p_extensions_manager->lock );
 }
 
 void ExtensionsManager::triggerMenu( int id )
@@ -231,20 +232,20 @@ void ExtensionsManager::triggerMenu( int id )
     uint16_t i_ext = MENU_GET_EXTENSION( id );
     uint16_t i_action = MENU_GET_ACTION( id );
 
-    vlc_mutex_lock( &p_extensions_manager->lock );
+    heimdall_mutex_lock( &p_extensions_manager->lock );
 
     if( (int) i_ext > p_extensions_manager->extensions.i_size )
     {
         msg_Dbg( p_intf, "can't trigger extension with wrong id %d",
                  (int) i_ext );
-        vlc_mutex_unlock( &p_extensions_manager->lock );
+        heimdall_mutex_unlock( &p_extensions_manager->lock );
         return;
     }
 
     extension_t *p_ext = ARRAY_VAL( p_extensions_manager->extensions, i_ext );
     assert( p_ext != NULL);
 
-    vlc_mutex_unlock( &p_extensions_manager->lock );
+    heimdall_mutex_unlock( &p_extensions_manager->lock );
 
     if( i_action == 0 )
     {
@@ -279,7 +280,7 @@ void ExtensionsManager::inputChanged( )
     ////This is unlikely, but can happen if no extension modules can be loaded.
     //if ( p_extensions_manager == NULL )
     //    return ;
-    //vlc_mutex_lock( &p_extensions_manager->lock );
+    //heimdall_mutex_lock( &p_extensions_manager->lock );
     //
     //extension_t *p_ext;
     //ARRAY_FOREACH( p_ext, p_extensions_manager->extensions )
@@ -290,7 +291,7 @@ void ExtensionsManager::inputChanged( )
     //    }
     //}
     //
-    //vlc_mutex_unlock( &p_extensions_manager->lock );
+    //heimdall_mutex_unlock( &p_extensions_manager->lock );
 }
 
 void ExtensionsManager::playingChanged( PlayerController::PlayingState state )
@@ -298,7 +299,7 @@ void ExtensionsManager::playingChanged( PlayerController::PlayingState state )
     //This is unlikely, but can happen if no extension modules can be loaded.
     if ( p_extensions_manager == NULL )
         return ;
-    vlc_mutex_lock( &p_extensions_manager->lock );
+    heimdall_mutex_lock( &p_extensions_manager->lock );
 
     extension_t *p_ext;
     ARRAY_FOREACH( p_ext, p_extensions_manager->extensions )
@@ -309,7 +310,7 @@ void ExtensionsManager::playingChanged( PlayerController::PlayingState state )
         }
     }
 
-    vlc_mutex_unlock( &p_extensions_manager->lock );
+    heimdall_mutex_unlock( &p_extensions_manager->lock );
 }
 
 void ExtensionsManager::metaChanged( input_item_t* )
@@ -317,7 +318,7 @@ void ExtensionsManager::metaChanged( input_item_t* )
     //This is unlikely, but can happen if no extension modules can be loaded.
     if ( p_extensions_manager == NULL )
         return ;
-    vlc_mutex_lock( &p_extensions_manager->lock );
+    heimdall_mutex_lock( &p_extensions_manager->lock );
     extension_t *p_ext;
     ARRAY_FOREACH( p_ext, p_extensions_manager->extensions )
     {
@@ -326,5 +327,5 @@ void ExtensionsManager::metaChanged( input_item_t* )
             extension_MetaChanged( p_extensions_manager, p_ext );
         }
     }
-    vlc_mutex_unlock( &p_extensions_manager->lock );
+    heimdall_mutex_unlock( &p_extensions_manager->lock );
 }

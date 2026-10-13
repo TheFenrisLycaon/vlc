@@ -1,7 +1,8 @@
 /*****************************************************************************
- * variables.hpp : VLC variable class
+ * variables.hpp : Heimdall variable class
  ****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,114 +19,114 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef QVLC_VARIABLES_H_
-#define QVLC_VARIABLES_H_ 1
+#ifndef QHEIMDALL_VARIABLES_H_
+#define QHEIMDALL_VARIABLES_H_ 1
 
 #ifdef HAVE_CONFIG_H
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_variables.h>
+#include <heimdall_common.h>
+#include <heimdall_variables.h>
 #include <QObject>
 
 #include "qt.hpp"
 #include "varcommon_p.hpp"
 
 /*
- * type traits to convert VLC_VAR to C++types
+ * type traits to convert HEIMDALL_VAR to C++types
  */
 template<typename T>
-struct VLCVarTypeTraits {
+struct HeimdallVarTypeTraits {
 };
 
 template<>
-struct VLCVarTypeTraits<QString>
+struct HeimdallVarTypeTraits<QString>
 {
-    static const int var_type = VLC_VAR_STRING;
-    inline static QString fromValue(const vlc_value_t& value) {
+    static const int var_type = HEIMDALL_VAR_STRING;
+    inline static QString fromValue(const heimdall_value_t& value) {
         return value.psz_string;
     }
-    inline static vlc_value_t toValue(const QString& value) {
-        vlc_value_t ret;
+    inline static heimdall_value_t toValue(const QString& value) {
+        heimdall_value_t ret;
         ret.psz_string = strdup(qtu(value));
         return ret;
     }
-    inline static void releaseValue(vlc_value_t value) {
+    inline static void releaseValue(heimdall_value_t value) {
         free(value.psz_string);
     }
 };
 
 template<>
-struct VLCVarTypeTraits<bool>
+struct HeimdallVarTypeTraits<bool>
 {
-    static const int var_type = VLC_VAR_BOOL;
-    inline static bool fromValue(const vlc_value_t& value) {
+    static const int var_type = HEIMDALL_VAR_BOOL;
+    inline static bool fromValue(const heimdall_value_t& value) {
         return value.b_bool;
     }
-    inline static vlc_value_t toValue(bool value) {
-        vlc_value_t ret;
+    inline static heimdall_value_t toValue(bool value) {
+        heimdall_value_t ret;
         ret.b_bool = value;
         return ret;
     }
-    inline static void releaseValue(vlc_value_t) {}
+    inline static void releaseValue(heimdall_value_t) {}
 };
 
 template<>
-struct VLCVarTypeTraits<int64_t>
+struct HeimdallVarTypeTraits<int64_t>
 {
-    static const int var_type = VLC_VAR_INTEGER;
-    inline static int64_t fromValue(const vlc_value_t& value) {
+    static const int var_type = HEIMDALL_VAR_INTEGER;
+    inline static int64_t fromValue(const heimdall_value_t& value) {
         return value.i_int;
     }
-    inline static vlc_value_t toValue(int64_t value) {
-        vlc_value_t ret;
+    inline static heimdall_value_t toValue(int64_t value) {
+        heimdall_value_t ret;
         ret.i_int = value;
         return ret;
     }
-    inline static void releaseValue(vlc_value_t) {}
+    inline static void releaseValue(heimdall_value_t) {}
 };
 
 template<>
-struct VLCVarTypeTraits<float>
+struct HeimdallVarTypeTraits<float>
 {
-    static const int var_type = VLC_VAR_FLOAT;
-    inline static float fromValue(const vlc_value_t& value) {
+    static const int var_type = HEIMDALL_VAR_FLOAT;
+    inline static float fromValue(const heimdall_value_t& value) {
         return value.f_float;
     }
-    inline static vlc_value_t toValue(float value) {
-        vlc_value_t ret;
+    inline static heimdall_value_t toValue(float value) {
+        heimdall_value_t ret;
         ret.f_float = value;
         return ret;
     }
-    inline static void releaseValue(vlc_value_t) {}
+    inline static void releaseValue(heimdall_value_t) {}
 };
 
 //Generic observer
 template<typename Derived, typename BaseType>
-class QVLCVariable : public QObject
+class QHeimdallVariable : public QObject
 {
-    typedef QVLCVariable<Derived, BaseType> SelfType;
+    typedef QHeimdallVariable<Derived, BaseType> SelfType;
 
-    struct QVLCVariableCRef  {
+    struct QHeimdallVariableCRef  {
         SelfType* self;
     };
-    static_assert( std::is_pod<QVLCVariableCRef>::value,  "QVLCVariableCRef must be POD");
+    static_assert( std::is_pod<QHeimdallVariableCRef>::value,  "QHeimdallVariableCRef must be POD");
 
 public:
     template<typename T>
-    QVLCVariable(T* object, const QString &property, QObject* parent)
+    QHeimdallVariable(T* object, const QString &property, QObject* parent)
         : QObject(parent)
-        , m_object(new VLCObjectHolderImpl<T>(nullptr))
+        , m_object(new HeimdallObjectHolderImpl<T>(nullptr))
         , m_property(property)
     {
         cref.self = this;
         /* This parameter is later used by derivative classes, and only helps
          * the type inference here. */
-        VLC_UNUSED(object);
+        HEIMDALL_UNUSED(object);
     }
 
-    virtual ~QVLCVariable()
+    virtual ~QHeimdallVariable()
     {
         assert(m_object->get() == nullptr);
     }
@@ -145,16 +146,16 @@ public:
                 m_object->clear();
                 return;
             }
-            assert((type & VLC_VAR_CLASS) == VLCVarTypeTraits<BaseType>::var_type);
-            vlc_value_t currentvalue;
-            if (var_Get(m_object->get(), qtu(m_property), &currentvalue) == VLC_SUCCESS)
+            assert((type & HEIMDALL_VAR_CLASS) == HeimdallVarTypeTraits<BaseType>::var_type);
+            heimdall_value_t currentvalue;
+            if (var_Get(m_object->get(), qtu(m_property), &currentvalue) == HEIMDALL_SUCCESS)
             {
                 Derived* derived = static_cast<Derived*>(this);
-                m_value = VLCVarTypeTraits<BaseType>::fromValue(currentvalue);
+                m_value = HeimdallVarTypeTraits<BaseType>::fromValue(currentvalue);
                 emit derived->valueChanged( m_value );
             }
 
-            var_Create(m_object->get(), qtu(m_property), VLCVarTypeTraits<BaseType>::var_type);
+            var_Create(m_object->get(), qtu(m_property), HeimdallVarTypeTraits<BaseType>::var_type);
             var_AddCallback(m_object->get(), qtu(m_property), value_modified, &cref);
         }
     }
@@ -182,13 +183,13 @@ protected:
     {
         if (! m_object->get())
             return;
-        vlc_value_t vlcvalue = VLCVarTypeTraits<BaseType>::toValue( value );
-        var_Set(m_object->get(), qtu(m_property), vlcvalue);
-        VLCVarTypeTraits<BaseType>::releaseValue(vlcvalue);
+        heimdall_value_t heimdallvalue = HeimdallVarTypeTraits<BaseType>::toValue( value );
+        var_Set(m_object->get(), qtu(m_property), heimdallvalue);
+        HeimdallVarTypeTraits<BaseType>::releaseValue(heimdallvalue);
     }
 
     //executed on UI thread
-    virtual void onValueChangedInternal(vlc_object_t* object, BaseType value)
+    virtual void onValueChangedInternal(heimdall_object_t* object, BaseType value)
     {
         if (m_object->get() != object)
             return;
@@ -202,37 +203,37 @@ protected:
 
 private:
     //executed on variable thread, this forwards the callback to the UI thread
-    static int value_modified( vlc_object_t * object, char const *, vlc_value_t, vlc_value_t newValue, void * data)
+    static int value_modified( heimdall_object_t * object, char const *, heimdall_value_t, heimdall_value_t newValue, void * data)
     {
-        QVLCVariableCRef* cref = static_cast<QVLCVariableCRef*>(data);
+        QHeimdallVariableCRef* cref = static_cast<QHeimdallVariableCRef*>(data);
         Derived* derived = static_cast<Derived*>(cref->self);
-        emit derived->onValueChangedInternal( object, VLCVarTypeTraits<BaseType>::fromValue( newValue ) );
-        return VLC_SUCCESS;
+        emit derived->onValueChangedInternal( object, HeimdallVarTypeTraits<BaseType>::fromValue( newValue ) );
+        return HEIMDALL_SUCCESS;
     }
 
-    std::unique_ptr<VLCObjectHolder> m_object;
+    std::unique_ptr<HeimdallObjectHolder> m_object;
     QString m_property;
     BaseType m_value;
-    QVLCVariableCRef cref;
+    QHeimdallVariableCRef cref;
 };
 
 //specialisation
 
-class QVLCBool : public QVLCVariable<QVLCBool, bool>
+class QHeimdallBool : public QHeimdallVariable<QHeimdallBool, bool>
 {
     Q_OBJECT
 public:
     Q_PROPERTY(bool value READ getValue WRITE setValue NOTIFY valueChanged FINAL)
 
     template<typename T>
-    QVLCBool(T* object, const QString &property, QObject* parent = nullptr)
-        : QVLCVariable<QVLCBool, bool>(object, property, parent)
+    QHeimdallBool(T* object, const QString &property, QObject* parent = nullptr)
+        : QHeimdallVariable<QHeimdallBool, bool>(object, property, parent)
     {
         resetObject<T>(object);
-        connect(this, &QVLCBool::valueChangedInternal, this, &QVLCBool::onValueChangedInternal, Qt::QueuedConnection);
+        connect(this, &QHeimdallBool::valueChangedInternal, this, &QHeimdallBool::onValueChangedInternal, Qt::QueuedConnection);
     }
 
-    ~QVLCBool() {
+    ~QHeimdallBool() {
         clearObject();
     }
 
@@ -241,24 +242,24 @@ public slots:
 
 signals:
     void valueChanged( bool );
-    void valueChangedInternal(vlc_object_t *, bool );
+    void valueChangedInternal(heimdall_object_t *, bool );
 };
 
-class QVLCString : public QVLCVariable<QVLCString, QString>
+class QHeimdallString : public QHeimdallVariable<QHeimdallString, QString>
 {
     Q_OBJECT
 public:
     Q_PROPERTY(QString value READ getValue WRITE setValue NOTIFY valueChanged FINAL)
 
     template<typename T>
-    QVLCString(T* object, const QString &property, QObject* parent = nullptr)
-        : QVLCVariable<QVLCString, QString>(object, property, parent)
+    QHeimdallString(T* object, const QString &property, QObject* parent = nullptr)
+        : QHeimdallVariable<QHeimdallString, QString>(object, property, parent)
     {
         resetObject<T>(object);
-        connect(this, &QVLCString::valueChangedInternal, this, &QVLCString::onValueChangedInternal, Qt::QueuedConnection);
+        connect(this, &QHeimdallString::valueChangedInternal, this, &QHeimdallString::onValueChangedInternal, Qt::QueuedConnection);
     }
 
-    ~QVLCString() {
+    ~QHeimdallString() {
         clearObject();
     }
 
@@ -267,24 +268,24 @@ public slots:
 
 signals:
     void valueChanged( QString );
-    void valueChangedInternal( vlc_object_t *, QString );
+    void valueChangedInternal( heimdall_object_t *, QString );
 };
 
-class QVLCFloat : public QVLCVariable<QVLCFloat, float>
+class QHeimdallFloat : public QHeimdallVariable<QHeimdallFloat, float>
 {
     Q_OBJECT
 public:
     Q_PROPERTY(float value READ getValue WRITE setValue NOTIFY valueChanged FINAL)
 
     template<typename T>
-    QVLCFloat(T* object, const QString &property, QObject* parent = nullptr)
-        : QVLCVariable<QVLCFloat, float>(object, property, parent)
+    QHeimdallFloat(T* object, const QString &property, QObject* parent = nullptr)
+        : QHeimdallVariable<QHeimdallFloat, float>(object, property, parent)
     {
         resetObject<T>(object);
-        connect(this, &QVLCFloat::valueChangedInternal, this, &QVLCFloat::onValueChangedInternal, Qt::QueuedConnection);
+        connect(this, &QHeimdallFloat::valueChangedInternal, this, &QHeimdallFloat::onValueChangedInternal, Qt::QueuedConnection);
     }
 
-    ~QVLCFloat() {
+    ~QHeimdallFloat() {
         clearObject();
     }
 
@@ -293,25 +294,25 @@ public slots:
 
 signals:
     void valueChanged( float );
-    void valueChangedInternal( vlc_object_t *, float );
+    void valueChangedInternal( heimdall_object_t *, float );
 };
 
 
-class QVLCInteger : public QVLCVariable<QVLCInteger, int64_t>
+class QHeimdallInteger : public QHeimdallVariable<QHeimdallInteger, int64_t>
 {
     Q_OBJECT
 public:
     Q_PROPERTY(int64_t value READ getValue WRITE setValue NOTIFY valueChanged FINAL)
 
     template<typename T>
-    QVLCInteger(T* object, const QString &property, QObject* parent = nullptr)
-        : QVLCVariable<QVLCInteger, int64_t>(object, property, parent)
+    QHeimdallInteger(T* object, const QString &property, QObject* parent = nullptr)
+        : QHeimdallVariable<QHeimdallInteger, int64_t>(object, property, parent)
     {
         resetObject<T>(object);
-        connect(this, &QVLCInteger::valueChangedInternal, this, &QVLCInteger::onValueChangedInternal, Qt::QueuedConnection);
+        connect(this, &QHeimdallInteger::valueChangedInternal, this, &QHeimdallInteger::onValueChangedInternal, Qt::QueuedConnection);
     }
 
-    ~QVLCInteger() {
+    ~QHeimdallInteger() {
         clearObject();
     }
 
@@ -320,7 +321,7 @@ public slots:
 
 signals:
     void valueChanged( int64_t );
-    void valueChangedInternal( vlc_object_t *,  int64_t );
+    void valueChangedInternal( heimdall_object_t *,  int64_t );
 };
 
 #endif

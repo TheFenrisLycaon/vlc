@@ -2,6 +2,7 @@
  * webvtt.c: WEBVTT shared code
  *****************************************************************************
  * Copyright (C) 2017 VideoLabs, VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,9 +23,9 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_charset.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_charset.h>
+#include <heimdall_plugin.h>
 
 #include "webvtt.h"
 
@@ -35,7 +36,7 @@
  * Modules descriptor.
  *****************************************************************************/
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_capability( "spu decoder", 10 )
     set_shortname( N_("WEBVTT decoder"))
     set_description( N_("WEBVTT subtitles decoder") )
@@ -68,7 +69,7 @@ vlc_module_begin ()
         add_shortcut( "webvtt", "rawvtt" )
         set_callbacks( webvtt_OpenMuxer, webvtt_CloseMuxer )
 #endif
-vlc_module_end ()
+heimdall_module_end ()
 
 struct webvtt_text_parser_t
 {
@@ -90,13 +91,13 @@ struct webvtt_text_parser_t
     webvtt_cue_t *p_cue;
 };
 
-static vlc_tick_t MakeTime( int32_t t[4] )
+static heimdall_tick_t MakeTime( int32_t t[4] )
 {
-    return vlc_tick_from_sec( (int64_t)t[0] * 3600 + t[1] * 60 + t[2] ) +
-           VLC_TICK_FROM_MS(t[3]);
+    return heimdall_tick_from_sec( (int64_t)t[0] * 3600 + t[1] * 60 + t[2] ) +
+           HEIMDALL_TICK_FROM_MS(t[3]);
 }
 
-bool webvtt_scan_time( const char *psz, vlc_tick_t *p_time )
+bool webvtt_scan_time( const char *psz, heimdall_tick_t *p_time )
 {
     int32_t t[4];
     if( sscanf( psz, "%2" SCNd32 ":%2" SCNd32 ".%3" SCNd32,
@@ -252,7 +253,7 @@ void webvtt_text_parser_Feed( webvtt_text_parser_t *p, char *psz_line )
         const char *psz_split = strstr( p->reads[1], " --> " );
         if( psz_split )
         {
-            vlc_tick_t i_start, i_stop;
+            heimdall_tick_t i_start, i_stop;
 
             if( webvtt_scan_time( p->reads[1], &i_start ) &&
                 webvtt_scan_time( psz_split + 5,  &i_stop ) && i_start <= i_stop )

@@ -1,7 +1,7 @@
 # dvbcsa
 
 DVBCSA_VERSION := 1.1.0
-DVBCSA_URL := $(VIDEOLAN)/libdvbcsa/$(DVBCSA_VERSION)/libdvbcsa-$(DVBCSA_VERSION).tar.gz
+DVBCSA_URL := $(LYCARIA)/libdvbcsa/$(DVBCSA_VERSION)/libdvbcsa-$(DVBCSA_VERSION).tar.gz
 
 ifdef GPL
 PKGS += dvbcsa

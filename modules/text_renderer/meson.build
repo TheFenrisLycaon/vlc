@@ -2,7 +2,7 @@
 # Modules that are used to render subtitles and OSD text
 
 # Dummy text renderer
-vlc_modules += {
+heimdall_modules += {
     'name' : 'tdummy',
     'sources' : files('tdummy.c'),
     'plugin_dir' : 'text_renderer',
@@ -56,7 +56,7 @@ if harfbuzz_dep.found()
     freetype_deps += harfbuzz_dep
 endif
 
-vlc_modules += {
+heimdall_modules += {
     'name' : 'freetype',
     'sources' : freetype_srcs,
     'dependencies' : freetype_deps,
@@ -67,7 +67,7 @@ vlc_modules += {
 }
 
 # SVG plugin
-vlc_modules += {
+heimdall_modules += {
     'name' : 'svg',
     'sources' : files('svg.c'),
     'dependencies' : [rsvg_dep, cairo_dep],
@@ -76,7 +76,7 @@ vlc_modules += {
 }
 
 # macOS text to speech
-vlc_modules += {
+heimdall_modules += {
     'name' : 'nsspeechsynthesizer',
     'sources' : files('nsspeechsynthesizer.m'),
     'dependencies' : [cocoa_dep],
@@ -96,7 +96,7 @@ else
     have_sapi = false
 endif
 
-vlc_modules += {
+heimdall_modules += {
     'name' : 'sapi',
     'sources' : files('sapi.cpp'),
     'cpp_args' : libcom_cppflags,

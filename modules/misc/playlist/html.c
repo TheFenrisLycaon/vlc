@@ -2,6 +2,7 @@
  * html.c : HTML playlist export module
  *****************************************************************************
  * Copyright (C) 2008-2009 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Rémi Duraffort <ivoire@videolan.org>
  *
@@ -24,16 +25,16 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_input_item.h>
-#include <vlc_playlist_export.h>
-#include <vlc_strings.h>
+#include <heimdall_common.h>
+#include <heimdall_input_item.h>
+#include <heimdall_playlist_export.h>
+#include <heimdall_strings.h>
 
 #include <assert.h>
 
 
 // Export the playlist in HTML
-int Export_HTML( vlc_object_t *p_this );
+int Export_HTML( heimdall_object_t *p_this );
 
 
 /**
@@ -41,21 +42,21 @@ int Export_HTML( vlc_object_t *p_this );
  * @param p_export: the export structure
  * @param p_root: the current node
  */
-static void DoExport( struct vlc_playlist_export *p_export )
+static void DoExport( struct heimdall_playlist_export *p_export )
 {
     /* Go through the playlist and add items */
-    size_t count = vlc_playlist_view_Count(p_export->playlist_view);
+    size_t count = heimdall_playlist_view_Count(p_export->playlist_view);
     for( size_t i = 0; i < count; ++i )
     {
-        vlc_playlist_item_t *item =
-            vlc_playlist_view_Get(p_export->playlist_view, i);
+        heimdall_playlist_item_t *item =
+            heimdall_playlist_view_Get(p_export->playlist_view, i);
 
-        input_item_t *media = vlc_playlist_item_GetMedia(item);
+        input_item_t *media = heimdall_playlist_item_GetMedia(item);
 
         char* psz_name = NULL;
         char *psz_tmp = input_item_GetName(media);
         if( psz_tmp )
-            psz_name = vlc_xml_encode( psz_tmp );
+            psz_name = heimdall_xml_encode( psz_tmp );
         free( psz_tmp );
 
         if( psz_name )
@@ -63,12 +64,12 @@ static void DoExport( struct vlc_playlist_export *p_export )
             char* psz_artist = NULL;
             psz_tmp = input_item_GetArtist(media);
             if( psz_tmp )
-                psz_artist = vlc_xml_encode( psz_tmp );
+                psz_artist = heimdall_xml_encode( psz_tmp );
             free( psz_tmp );
 
-            vlc_tick_t i_duration = input_item_GetDuration(media);
-            int min = SEC_FROM_VLC_TICK( i_duration ) / 60;
-            int sec = SEC_FROM_VLC_TICK( i_duration ) - min * 60;
+            heimdall_tick_t i_duration = input_item_GetDuration(media);
+            int min = SEC_FROM_HEIMDALL_TICK( i_duration ) / 60;
+            int sec = SEC_FROM_HEIMDALL_TICK( i_duration ) - min * 60;
 
             // Print the artist if we have one
             if( psz_artist && *psz_artist )
@@ -86,11 +87,11 @@ static void DoExport( struct vlc_playlist_export *p_export )
 /**
  * Export the playlist as an HTML page
  * @param p_this: the playlist
- * @return VLC_SUCCESS if everything goes fine
+ * @return HEIMDALL_SUCCESS if everything goes fine
  */
-int Export_HTML( vlc_object_t *p_this )
+int Export_HTML( heimdall_object_t *p_this )
 {
-    struct vlc_playlist_export *p_export = (struct vlc_playlist_export *) p_this;
+    struct heimdall_playlist_export *p_export = (struct heimdall_playlist_export *) p_this;
 
     msg_Dbg( p_export, "saving using HTML format" );
 
@@ -100,9 +101,9 @@ int Export_HTML( vlc_object_t *p_this )
 "<html xmlns=\"http://www.w3.org/1999/xhtml\" xml:lang=\"en\">\n"
 "<head>\n"
 "  <meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\" />\n"
-"  <meta name=\"Generator\" content=\"VLC media player\" />\n"
-"  <meta name=\"Author\" content=\"VLC, http://www.videolan.org/vlc/\" />\n"
-"  <title>VLC generated playlist</title>\n"
+"  <meta name=\"Generator\" content=\"Heimdall media player\" />\n"
+"  <meta name=\"Author\" content=\"Heimdall, http://www.videolan.org/vlc/\" />\n"
+"  <title>Heimdall generated playlist</title>\n"
 "  <style type=\"text/css\">\n"
 "    body {\n"
 "      background-color: #E4F3FF;\n"
@@ -131,6 +132,6 @@ int Export_HTML( vlc_object_t *p_this )
 "  <hr />\n"
 "</body>\n"
 "</html>" );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 

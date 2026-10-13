@@ -2,6 +2,7 @@
  * keychain.m: Darwin Keychain keystore module
  *****************************************************************************
  * Copyright © 2016, 2018 VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Felix Paul Kühne <fkuehne # videolabs.io>
  *
@@ -24,9 +25,9 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_keystore.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_keystore.h>
 
 #include "list_util.h"
 
@@ -35,10 +36,10 @@
 #import <Foundation/Foundation.h>
 #import <Security/Security.h>
 
-// Marker to recognize changed format in vlc 4: secret does not have \0 cut off anymore.
-int kVlc4Creator = 'vlc4';
+// Marker to recognize changed format in heimdall 4: secret does not have \0 cut off anymore.
+int kHeimdall4Creator = 'heimdall4';
 
-static int Open(vlc_object_t *);
+static int Open(heimdall_object_t *);
 
 static const int sync_list[] =
 { 0, 1, 2 };
@@ -69,7 +70,7 @@ static const char *const accessibility_list_text[] = {
 #define ACCESS_GROUP_LONGTEXT N_("Keychain access group as defined by the app entitlements.")
 
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname(N_("Keychain keystore"))
     set_description(N_("Keystore for iOS, macOS and tvOS"))
     set_subcategory(SUBCAT_ADVANCED_MISC)
@@ -80,9 +81,9 @@ vlc_module_begin()
     add_string("keychain-access-group", NULL, ACCESS_GROUP_TEXT, ACCESS_GROUP_LONGTEXT)
     set_capability("keystore", 100)
     set_callback(Open)
-vlc_module_end ()
+heimdall_module_end ()
 
-static NSMutableDictionary * CreateQuery(vlc_keystore *p_keystore)
+static NSMutableDictionary * CreateQuery(heimdall_keystore *p_keystore)
 {
     NSMutableDictionary *dictionary = [NSMutableDictionary dictionaryWithCapacity:3];
     [dictionary setObject:(__bridge id)kSecClassInternetPassword forKey:(__bridge id)kSecClass];
@@ -93,7 +94,7 @@ static NSMutableDictionary * CreateQuery(vlc_keystore *p_keystore)
      * need to handle a password migration. Using this attribute on iOS cause a
      * errSecNoSuchAttr error. */
 #if !TARGET_OS_IPHONE
-    [dictionary setObject:@"VLC-Password-Service" forKey:(__bridge id)kSecAttrService];
+    [dictionary setObject:@"Heimdall-Password-Service" forKey:(__bridge id)kSecAttrService];
 #endif
 
     char * psz_access_group = var_InheritString(p_keystore, "keychain-access-group");
@@ -177,7 +178,7 @@ static NSString * ErrorForStatus(OSStatus status)
 }
 
 
-static void SetAccessibilityForQuery(vlc_keystore *p_keystore,
+static void SetAccessibilityForQuery(heimdall_keystore *p_keystore,
                                      NSMutableDictionary *query)
 {
     int accessibilityType = var_InheritInteger(p_keystore, "keychain-accessibility-type");
@@ -212,17 +213,17 @@ static void SetAccessibilityForQuery(vlc_keystore *p_keystore,
         [query setObject:(__bridge id)secattr forKey:(__bridge id)kSecAttrAccessible];
 }
 
-struct vlc2secattr
+struct heimdall2secattr
 {
-    const char *vlc;
+    const char *heimdall;
     const CFStringRef secattr;
 };
 
-static int vlc2secattr_cmp(const void *key_, const void *entry_)
+static int heimdall2secattr_cmp(const void *key_, const void *entry_)
 {
-    const struct vlc2secattr *entry = entry_;
+    const struct heimdall2secattr *entry = entry_;
     const char *key = key_;
-    return strcasecmp(key, entry->vlc);
+    return strcasecmp(key, entry->heimdall);
 }
 
 static int SetAttributesForQuery(const char *const ppsz_values[KEY_MAX], NSMutableDictionary *query, const char *psz_label)
@@ -239,7 +240,7 @@ static int SetAttributesForQuery(const char *const ppsz_values[KEY_MAX], NSMutab
         [query setObject:[NSString stringWithUTF8String:psz_label] forKey:(__bridge id)kSecAttrLabel];
     }
     if (psz_protocol) {
-        const struct vlc2secattr tab[] =
+        const struct heimdall2secattr tab[] =
         { /* /!\ Alphabetical order /!\ */
             { "ftp", kSecAttrProtocolFTP },
             { "ftps", kSecAttrProtocolFTPS },
@@ -250,10 +251,10 @@ static int SetAttributesForQuery(const char *const ppsz_values[KEY_MAX], NSMutab
             { "smb", kSecAttrProtocolSMB },
         };
 
-        const struct vlc2secattr *entry =
-            bsearch(psz_protocol, tab, ARRAY_SIZE(tab), sizeof(tab[0]), vlc2secattr_cmp);
+        const struct heimdall2secattr *entry =
+            bsearch(psz_protocol, tab, ARRAY_SIZE(tab), sizeof(tab[0]), heimdall2secattr_cmp);
         if (!entry)
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
         [query setObject:(__bridge id)entry->secattr forKey:(__bridge id)kSecAttrProtocol];
     }
@@ -274,13 +275,13 @@ static int SetAttributesForQuery(const char *const ppsz_values[KEY_MAX], NSMutab
     }
     if (psz_authtype) {
         if (strncasecmp(psz_protocol, "http", 4) == 0) {
-            const struct vlc2secattr tab[] =
+            const struct heimdall2secattr tab[] =
             { /* /!\ Alphabetical order /!\ */
                 { "Basic", kSecAttrAuthenticationTypeHTTPBasic },
                 { "Digest", kSecAttrAuthenticationTypeHTTPDigest },
             };
-            const struct vlc2secattr *entry =
-                bsearch(psz_authtype, tab, ARRAY_SIZE(tab), sizeof(tab[0]), vlc2secattr_cmp);
+            const struct heimdall2secattr *entry =
+                bsearch(psz_authtype, tab, ARRAY_SIZE(tab), sizeof(tab[0]), heimdall2secattr_cmp);
             if (entry)
                 [query setObject:(__bridge id)entry->secattr forKey:(__bridge id)kSecAttrAuthenticationType];
         }
@@ -290,7 +291,7 @@ static int SetAttributesForQuery(const char *const ppsz_values[KEY_MAX], NSMutab
         }
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int FillEntryValues(const NSDictionary *item, char *ppsz_values[KEY_MAX])
@@ -300,7 +301,7 @@ static int FillEntryValues(const NSDictionary *item, char *ppsz_values[KEY_MAX])
     {
         ppsz_values[KEY_PROTOCOL] = strdup([protocol UTF8String]);
         if (!ppsz_values[KEY_PROTOCOL])
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
     }
 
     NSString *user = [item objectForKey:(__bridge id)kSecAttrAccount];
@@ -308,7 +309,7 @@ static int FillEntryValues(const NSDictionary *item, char *ppsz_values[KEY_MAX])
     {
         ppsz_values[KEY_USER] = strdup([user UTF8String]);
         if (!ppsz_values[KEY_USER])
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
     }
 
     NSString *server = [item objectForKey:(__bridge id)kSecAttrServer];
@@ -316,7 +317,7 @@ static int FillEntryValues(const NSDictionary *item, char *ppsz_values[KEY_MAX])
     {
         ppsz_values[KEY_SERVER] = strdup([server UTF8String]);
         if (!ppsz_values[KEY_SERVER])
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
     }
 
     NSString *path = [item objectForKey:(__bridge id)kSecAttrPath];
@@ -324,7 +325,7 @@ static int FillEntryValues(const NSDictionary *item, char *ppsz_values[KEY_MAX])
     {
         ppsz_values[KEY_PATH] = strdup([path UTF8String]);
         if (!ppsz_values[KEY_PATH])
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
     }
 
     NSNumber *port = [item objectForKey:(__bridge id)kSecAttrPort];
@@ -332,7 +333,7 @@ static int FillEntryValues(const NSDictionary *item, char *ppsz_values[KEY_MAX])
     {
         ppsz_values[KEY_PORT] = strdup([[port stringValue] UTF8String]);
         if (!ppsz_values[KEY_PORT])
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
     }
 
     NSString *realm = [item objectForKey:(__bridge id)kSecAttrSecurityDomain];
@@ -340,7 +341,7 @@ static int FillEntryValues(const NSDictionary *item, char *ppsz_values[KEY_MAX])
     {
         ppsz_values[KEY_REALM] = strdup([realm UTF8String]);
         if (!ppsz_values[KEY_REALM])
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
     }
 
     const char *auth_val = NULL;
@@ -363,13 +364,13 @@ static int FillEntryValues(const NSDictionary *item, char *ppsz_values[KEY_MAX])
     {
         ppsz_values[KEY_AUTHTYPE] = strdup(auth_val);
         if (!ppsz_values[KEY_AUTHTYPE])
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int Store(vlc_keystore *p_keystore,
+static int Store(heimdall_keystore *p_keystore,
                  const char *const ppsz_values[KEY_MAX],
                  const uint8_t *p_secret,
                  size_t i_secret_len,
@@ -378,7 +379,7 @@ static int Store(vlc_keystore *p_keystore,
     OSStatus status;
 
     if (!ppsz_values[KEY_PROTOCOL] || !p_secret) {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     msg_Dbg(p_keystore, "Store keychain entry for server %s", ppsz_values[KEY_SERVER]);
@@ -388,7 +389,7 @@ static int Store(vlc_keystore *p_keystore,
 
     /* set attributes */
     if (SetAttributesForQuery(ppsz_values, searchQuery, psz_label))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     // One return type must be added for SecItemCopyMatching, even if not used.
     // Older macOS versions (10.7) are very picky here...
@@ -406,7 +407,7 @@ static int Store(vlc_keystore *p_keystore,
         /* just set the secret data */
         NSData *secretData = [NSData dataWithBytes:p_secret length:i_secret_len];
         [query setObject:secretData forKey:(__bridge id)kSecValueData];
-        [query setObject:@(kVlc4Creator) forKey:(__bridge id)kSecAttrCreator];
+        [query setObject:@(kHeimdall4Creator) forKey:(__bridge id)kSecAttrCreator];
 
         status = SecItemUpdate((__bridge CFDictionaryRef)(searchQuery), (__bridge CFDictionaryRef)(query));
     } else if (status == errSecItemNotFound) {
@@ -423,21 +424,21 @@ static int Store(vlc_keystore *p_keystore,
         /* set secret data */
         NSData *secretData = [NSData dataWithBytes:p_secret length:i_secret_len];
         [query setObject:secretData forKey:(__bridge id)kSecValueData];
-        [query setObject:@(kVlc4Creator) forKey:(__bridge id)kSecAttrCreator];
+        [query setObject:@(kHeimdall4Creator) forKey:(__bridge id)kSecAttrCreator];
 
         status = SecItemAdd((__bridge CFDictionaryRef)query, NULL);
     }
     if (status != errSecSuccess) {
         msg_Err(p_keystore, "Storage failed (%i: '%s')", (int)status, [ErrorForStatus(status) UTF8String]);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static unsigned int Find(vlc_keystore *p_keystore,
+static unsigned int Find(heimdall_keystore *p_keystore,
                          const char *const ppsz_values[KEY_MAX],
-                         vlc_keystore_entry **pp_entries)
+                         heimdall_keystore_entry **pp_entries)
 {
     CFTypeRef result = NULL;
     NSMutableDictionary *baseLookupQuery = CreateQuery(p_keystore);
@@ -464,18 +465,18 @@ static unsigned int Find(vlc_keystore *p_keystore,
     NSUInteger count = listOfResults.count;
     msg_Dbg(p_keystore, "found %lu result(s) for the provided attributes", (unsigned long)count);
 
-    vlc_keystore_entry *p_entries = calloc(count,
-                                           sizeof(vlc_keystore_entry));
+    heimdall_keystore_entry *p_entries = calloc(count,
+                                           sizeof(heimdall_keystore_entry));
     if (!p_entries)
         return 0;
 
     for (NSUInteger i = 0; i < count; i++) {
-        vlc_keystore_entry *p_entry = &p_entries[i];
+        heimdall_keystore_entry *p_entry = &p_entries[i];
         NSDictionary *keychainItem = [listOfResults objectAtIndex:i];
 
         if (FillEntryValues(keychainItem, p_entry->ppsz_values))
         {
-            vlc_keystore_release_entries(p_entries, 1);
+            heimdall_keystore_release_entries(p_entries, 1);
             return 0;
         }
 
@@ -490,28 +491,28 @@ static unsigned int Find(vlc_keystore *p_keystore,
         status = SecItemCopyMatching((__bridge CFDictionaryRef)passwordFetchQuery, &secretResult);
         if (status != noErr) {
             msg_Err(p_keystore, "Lookup error: %i (%s)", (int)status, [ErrorForStatus(status) UTF8String]);
-            vlc_keystore_release_entries(p_entries, (unsigned int)count);
+            heimdall_keystore_release_entries(p_entries, (unsigned int)count);
             return 0;
         }
 
         NSData *secretData = (__bridge_transfer NSData *)secretResult;
         NSNumber *creator = [keychainItem objectForKey:(__bridge id)kSecAttrCreator];
-        if (creator && [creator isEqual:@(kVlc4Creator)]) {
-            msg_Dbg(p_keystore, "Found keychain entry in vlc4 format");
-            vlc_keystore_entry_set_secret(p_entry, secretData.bytes, secretData.length);
+        if (creator && [creator isEqual:@(kHeimdall4Creator)]) {
+            msg_Dbg(p_keystore, "Found keychain entry in heimdall4 format");
+            heimdall_keystore_entry_set_secret(p_entry, secretData.bytes, secretData.length);
 
         } else {
-            msg_Dbg(p_keystore, "Found keychain entry in vlc3 format");
+            msg_Dbg(p_keystore, "Found keychain entry in heimdall3 format");
 
             /* we need to do some padding here, as string is expected to be 0 terminated */
             NSUInteger secretDataLength = secretData.length;
             uint8_t *paddedSecretData = calloc(1, secretDataLength + 1);
             memcpy(paddedSecretData, secretData.bytes, secretDataLength);
-            vlc_keystore_entry_set_secret(p_entry, paddedSecretData, secretDataLength + 1);
+            heimdall_keystore_entry_set_secret(p_entry, paddedSecretData, secretDataLength + 1);
             free(paddedSecretData);
         }
 
-        vlc_keystore_entry_set_secret(p_entry, secretData.bytes, secretData.length);
+        heimdall_keystore_entry_set_secret(p_entry, secretData.bytes, secretData.length);
     }
 
     *pp_entries = p_entries;
@@ -519,7 +520,7 @@ static unsigned int Find(vlc_keystore *p_keystore,
     return (unsigned int)count;
 }
 
-static unsigned int Remove(vlc_keystore *p_keystore,
+static unsigned int Remove(heimdall_keystore *p_keystore,
                            const char *const ppsz_values[KEY_MAX])
 {
     CFTypeRef result = NULL;
@@ -549,20 +550,20 @@ static unsigned int Remove(vlc_keystore *p_keystore,
 
     if (status != errSecSuccess) {
         msg_Err(p_keystore, "deleting items matching the provided attributes failed");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     return (unsigned int)count;
 }
 
-static int Open(vlc_object_t *p_this)
+static int Open(heimdall_object_t *p_this)
 {
-    vlc_keystore *p_keystore = (vlc_keystore *)p_this;
+    heimdall_keystore *p_keystore = (heimdall_keystore *)p_this;
 
     p_keystore->p_sys = NULL;
     p_keystore->pf_store = Store;
     p_keystore->pf_find = Find;
     p_keystore->pf_remove = Remove;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

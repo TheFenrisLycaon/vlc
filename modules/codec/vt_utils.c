@@ -2,6 +2,7 @@
  * vt_utils.c: videotoolbox/cvpx utility functions
  *****************************************************************************
  * Copyright (C) 2017 VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,7 +23,7 @@
 # include "config.h"
 #endif
 
-#include <vlc_atomic.h>
+#include <heimdall_atomic.h>
 
 #include "vt_utils.h"
 #include "../packetizer/iso_color_tables.h"
@@ -49,8 +50,8 @@ struct cvpxpic_ctx
     CVPixelBufferRef cvpx;
     unsigned nb_fields;
 
-    vlc_atomic_rc_t rc;
-    void (*on_released_cb)(vlc_video_context *vctx, unsigned);
+    heimdall_atomic_rc_t rc;
+    void (*on_released_cb)(heimdall_video_context *vctx, unsigned);
 };
 
 static void
@@ -58,7 +59,7 @@ cvpxpic_destroy_cb(picture_context_t *opaque)
 {
     struct cvpxpic_ctx *ctx = (struct cvpxpic_ctx *)opaque;
 
-    if (vlc_atomic_rc_dec(&ctx->rc))
+    if (heimdall_atomic_rc_dec(&ctx->rc))
     {
         CFRelease(ctx->cvpx);
         if (ctx->on_released_cb)
@@ -71,42 +72,42 @@ static picture_context_t *
 cvpxpic_copy_cb(struct picture_context_t *opaque)
 {
     struct cvpxpic_ctx *ctx = (struct cvpxpic_ctx *)opaque;
-    vlc_atomic_rc_inc(&ctx->rc);
-    vlc_video_context_Hold(opaque->vctx);
+    heimdall_atomic_rc_inc(&ctx->rc);
+    heimdall_video_context_Hold(opaque->vctx);
     return opaque;
 }
 
 static int
 cvpxpic_attach_common(picture_t *p_pic, CVPixelBufferRef cvpx,
                       void (*pf_destroy)(picture_context_t *),
-                      vlc_video_context *vctx,
-                      void (*on_released_cb)(vlc_video_context *vctx, unsigned))
+                      heimdall_video_context *vctx,
+                      void (*on_released_cb)(heimdall_video_context *vctx, unsigned))
 {
     struct cvpxpic_ctx *ctx = malloc(sizeof(struct cvpxpic_ctx));
     if (ctx == NULL)
     {
         picture_Release(p_pic);
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
     ctx->s = (picture_context_t) {
         pf_destroy, cvpxpic_copy_cb, vctx,
     };
     ctx->cvpx = CVPixelBufferRetain(cvpx);
     ctx->nb_fields = p_pic->i_nb_fields;
-    vlc_atomic_rc_init(&ctx->rc);
+    heimdall_atomic_rc_init(&ctx->rc);
 
     assert(vctx);
-    vlc_video_context_Hold(vctx);
+    heimdall_video_context_Hold(vctx);
     ctx->on_released_cb = on_released_cb;
 
     p_pic->context = &ctx->s;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 int
-cvpxpic_attach(picture_t *p_pic, CVPixelBufferRef cvpx, vlc_video_context *vctx,
-               void (*on_released_cb)(vlc_video_context *vctx, unsigned))
+cvpxpic_attach(picture_t *p_pic, CVPixelBufferRef cvpx, heimdall_video_context *vctx,
+               void (*on_released_cb)(heimdall_video_context *vctx, unsigned))
 {
     return cvpxpic_attach_common(p_pic, cvpx, cvpxpic_destroy_cb, vctx, on_released_cb);
 }
@@ -138,17 +139,17 @@ cvpxpic_destroy_mapped_rw_cb(picture_context_t *opaque)
 
 picture_t *
 cvpxpic_create_mapped(const video_format_t *fmt, CVPixelBufferRef cvpx,
-                      vlc_video_context *vctx, bool readonly)
+                      heimdall_video_context *vctx, bool readonly)
 
 {
     unsigned planes_count;
     switch (fmt->i_chroma)
     {
-        case VLC_CODEC_BGRA:
-        case VLC_CODEC_UYVY: planes_count = 0; break;
-        case VLC_CODEC_NV12:
-        case VLC_CODEC_P010: planes_count = 2; break;
-        case VLC_CODEC_I420: planes_count = 3; break;
+        case HEIMDALL_CODEC_BGRA:
+        case HEIMDALL_CODEC_UYVY: planes_count = 0; break;
+        case HEIMDALL_CODEC_NV12:
+        case HEIMDALL_CODEC_P010: planes_count = 2; break;
+        case HEIMDALL_CODEC_I420: planes_count = 3; break;
         default: return NULL;
     }
 
@@ -165,7 +166,7 @@ cvpxpic_create_mapped(const video_format_t *fmt, CVPixelBufferRef cvpx,
 
     picture_t *pic = picture_NewFromResource(fmt, &rsc);
     if (pic == NULL
-     || cvpxpic_attach_common(pic, cvpx, pf_destroy, vctx, NULL) != VLC_SUCCESS)
+     || cvpxpic_attach_common(pic, cvpx, pf_destroy, vctx, NULL) != HEIMDALL_SUCCESS)
     {
         CVPixelBufferUnlockBaseAddress(cvpx, lock);
         return NULL;
@@ -196,11 +197,11 @@ cvpxpic_unmap(picture_t *mapped_pic)
     video_format_t fmt = mapped_pic->format;
     switch (fmt.i_chroma)
     {
-        case VLC_CODEC_UYVY: fmt.i_chroma = VLC_CODEC_CVPX_UYVY; break;
-        case VLC_CODEC_NV12: fmt.i_chroma = VLC_CODEC_CVPX_NV12; break;
-        case VLC_CODEC_P010: fmt.i_chroma = VLC_CODEC_CVPX_P010; break;
-        case VLC_CODEC_I420: fmt.i_chroma = VLC_CODEC_CVPX_I420; break;
-        case VLC_CODEC_BGRA: fmt.i_chroma = VLC_CODEC_CVPX_BGRA; break;
+        case HEIMDALL_CODEC_UYVY: fmt.i_chroma = HEIMDALL_CODEC_CVPX_UYVY; break;
+        case HEIMDALL_CODEC_NV12: fmt.i_chroma = HEIMDALL_CODEC_CVPX_NV12; break;
+        case HEIMDALL_CODEC_P010: fmt.i_chroma = HEIMDALL_CODEC_CVPX_P010; break;
+        case HEIMDALL_CODEC_I420: fmt.i_chroma = HEIMDALL_CODEC_CVPX_I420; break;
+        case HEIMDALL_CODEC_BGRA: fmt.i_chroma = HEIMDALL_CODEC_CVPX_BGRA; break;
         default:
             assert(!"invalid mapped_pic fmt");
             picture_Release(mapped_pic);
@@ -222,19 +223,19 @@ cvpxpic_unmap(picture_t *mapped_pic)
 }
 
 OSType
-cvpx_map_vlc_chroma_to_cv_pixel_format(vlc_fourcc_t chroma)
+cvpx_map_heimdall_chroma_to_cv_pixel_format(heimdall_fourcc_t chroma)
 {
     switch (chroma)
     {
-        case VLC_CODEC_CVPX_UYVY:
+        case HEIMDALL_CODEC_CVPX_UYVY:
             return kCVPixelFormatType_422YpCbCr8;
-        case VLC_CODEC_CVPX_NV12:
+        case HEIMDALL_CODEC_CVPX_NV12:
             return kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange;
-        case VLC_CODEC_CVPX_I420:
+        case HEIMDALL_CODEC_CVPX_I420:
             return kCVPixelFormatType_420YpCbCr8Planar;
-        case VLC_CODEC_CVPX_BGRA:
+        case HEIMDALL_CODEC_CVPX_BGRA:
             return kCVPixelFormatType_32BGRA;
-        case VLC_CODEC_CVPX_P010:
+        case HEIMDALL_CODEC_CVPX_P010:
             return 'x420'; /* kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange */
         default:
             return 0;
@@ -245,7 +246,7 @@ CVPixelBufferPoolRef
 cvpxpool_create(const video_format_t *fmt, unsigned count)
 {
     OSType cvpx_format =
-        cvpx_map_vlc_chroma_to_cv_pixel_format(fmt->i_chroma);
+        cvpx_map_heimdall_chroma_to_cv_pixel_format(fmt->i_chroma);
     if (cvpx_format == 0)
         return NULL;
 
@@ -336,7 +337,7 @@ cvpx_map_YCbCrMatrix_from_vcs(video_color_space_t color_space)
     default:
         if (__builtin_available(macOS 10.13, iOS 11, tvOS 11, watchOS 4, *)) {
             enum iso_23001_8_mc mc_cicp =
-                vlc_coeffs_to_iso_23001_8_mc(color_space);
+                heimdall_coeffs_to_iso_23001_8_mc(color_space);
             return CVYCbCrMatrixGetStringForIntegerCodePoint(mc_cicp);
         }
     }
@@ -360,7 +361,7 @@ cvpx_map_ColorPrimaries_from_vcp(video_color_primaries_t color_primaries)
     default:
         if (__builtin_available(macOS 10.13, iOS 11, tvOS 11, watchOS 4, *)) {
             enum iso_23001_8_cp cp_cicp =
-                vlc_primaries_to_iso_23001_8_cp(color_primaries);
+                heimdall_primaries_to_iso_23001_8_cp(color_primaries);
             return CVColorPrimariesGetStringForIntegerCodePoint(cp_cicp);
         }
     }
@@ -403,7 +404,7 @@ cvpx_map_TransferFunction_from_vtf(video_transfer_func_t transfer_func)
     default:
         if (__builtin_available(macOS 10.13, iOS 11, tvOS 11, watchOS 4, *)) {
             enum iso_23001_8_tc tc_cicp =
-                vlc_xfer_to_iso_23001_8_tc(transfer_func);
+                heimdall_xfer_to_iso_23001_8_tc(transfer_func);
             return CVTransferFunctionGetStringForIntegerCodePoint(tc_cicp);
         }
     }
@@ -495,7 +496,7 @@ void cvpx_attach_mapped_color_properties(CVPixelBufferRef cvpx,
 
 struct cvpx_video_context
 {
-    const struct vlc_video_context_operations *ops;
+    const struct heimdall_video_context_operations *ops;
     enum cvpx_video_context_type type;
     uint8_t private[];
 };
@@ -508,23 +509,23 @@ cvpx_video_context_Destroy(void *priv)
         cvpx_vctx->ops->destroy(&cvpx_vctx->private);
 }
 
-vlc_video_context *
-vlc_video_context_CreateCVPX(vlc_decoder_device *device,
+heimdall_video_context *
+heimdall_video_context_CreateCVPX(heimdall_decoder_device *device,
                               enum cvpx_video_context_type type, size_t type_size,
-                              const struct vlc_video_context_operations *ops)
+                              const struct heimdall_video_context_operations *ops)
 {
-    static const struct vlc_video_context_operations vctx_ops =
+    static const struct heimdall_video_context_operations vctx_ops =
     {
         cvpx_video_context_Destroy,
     };
-    vlc_video_context *vctx =
-        vlc_video_context_Create(device, VLC_VIDEO_CONTEXT_CVPX,
+    heimdall_video_context *vctx =
+        heimdall_video_context_Create(device, HEIMDALL_VIDEO_CONTEXT_CVPX,
                                  sizeof(struct cvpx_video_context) + type_size,
                                  &vctx_ops);
     if (!vctx)
         return NULL;
     struct cvpx_video_context *cvpx_vctx =
-        vlc_video_context_GetPrivate(vctx, VLC_VIDEO_CONTEXT_CVPX);
+        heimdall_video_context_GetPrivate(vctx, HEIMDALL_VIDEO_CONTEXT_CVPX);
     assert(cvpx_vctx != NULL);
     cvpx_vctx->type = type;
     cvpx_vctx->ops = ops;
@@ -533,11 +534,11 @@ vlc_video_context_CreateCVPX(vlc_decoder_device *device,
 }
 
 void *
-vlc_video_context_GetCVPXPrivate(vlc_video_context *vctx,
+heimdall_video_context_GetCVPXPrivate(heimdall_video_context *vctx,
                                  enum cvpx_video_context_type type)
 {
     struct cvpx_video_context *cvpx_vctx =
-        vlc_video_context_GetPrivate(vctx, VLC_VIDEO_CONTEXT_CVPX);
+        heimdall_video_context_GetPrivate(vctx, HEIMDALL_VIDEO_CONTEXT_CVPX);
 
     if (cvpx_vctx && cvpx_vctx->type == type)
         return &cvpx_vctx->private;

@@ -2,6 +2,7 @@
  * mtp.c :  MTP interface module
  *****************************************************************************
  * Copyright (C) 2009 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Fabio Ritrovato <exsephiroth87@gmail.com>
  *
@@ -24,21 +25,21 @@
 # include "config.h"
 #endif
 
-#define VLC_MODULE_LICENSE VLC_LICENSE_GPL_2_PLUS
-#include <vlc_common.h>
-#include <vlc_threads.h>
-#include <vlc_list.h>
-#include <vlc_plugin.h>
-#include <vlc_services_discovery.h>
-#include <vlc_vector.h>
+#define HEIMDALL_MODULE_LICENSE HEIMDALL_LICENSE_GPL_2_PLUS
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
+#include <heimdall_list.h>
+#include <heimdall_plugin.h>
+#include <heimdall_services_discovery.h>
+#include <heimdall_vector.h>
 
 #include <libmtp.h>
 
-typedef struct VLC_VECTOR(input_item_t *) vec_items_t;
+typedef struct HEIMDALL_VECTOR(input_item_t *) vec_items_t;
 
 typedef struct
 {
-    struct vlc_list node;
+    struct heimdall_list node;
     input_item_t *root;
     vec_items_t items;
     char *psz_name;
@@ -49,11 +50,11 @@ typedef struct
 
 typedef struct
 {
-    struct vlc_list devices; /**< list of mtp_device_t */
-    vlc_thread_t thread;
+    struct heimdall_list devices; /**< list of mtp_device_t */
+    heimdall_thread_t thread;
 } services_discovery_sys_t;
 
-static void vlc_libmtp_init(void *data)
+static void heimdall_libmtp_init(void *data)
 {
     (void) data;
     LIBMTP_Init();
@@ -67,7 +68,7 @@ DeviceNew( char *name )
     if ( !device )
         return NULL;
 
-    device->root = input_item_NewExt( "vlc://nop", name,
+    device->root = input_item_NewExt( "heimdall://nop", name,
                                       INPUT_DURATION_INDEFINITE,
                                       ITEM_TYPE_NODE, ITEM_LOCAL );
     if ( !device->root )
@@ -78,7 +79,7 @@ DeviceNew( char *name )
 
     device->psz_name = name;
 
-    vlc_vector_init( &device->items );
+    heimdall_vector_init( &device->items );
 
     return device;
 }
@@ -88,7 +89,7 @@ DeviceDelete( mtp_device_t *device )
 {
     for (size_t i = 0; i < device->items.size; ++i )
         input_item_Release( device->items.data[i] );
-    vlc_vector_destroy( &device->items );
+    heimdall_vector_destroy( &device->items );
 
     input_item_Release( device->root );
     free( device->psz_name );
@@ -146,9 +147,9 @@ static void AddTrack( services_discovery_t *p_sd, mtp_device_t *device,
         free( psz_string );
     }
     input_item_SetDate( p_input, p_track->date );
-    p_input->i_duration = VLC_TICK_FROM_MS(p_track->duration);
+    p_input->i_duration = HEIMDALL_TICK_FROM_MS(p_track->duration);
 
-    if ( !vlc_vector_push( &device->items, p_input ) )
+    if ( !heimdall_vector_push( &device->items, p_input ) )
     {
         msg_Err( p_sd, "Error adding %s, skipping it", p_track->filename );
         input_item_Release( p_input );
@@ -170,7 +171,7 @@ static int AddDevice( services_discovery_t *p_sd,
     {
         psz_name = GetDeviceName( p_device );
         if ( !psz_name )
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         msg_Dbg( p_sd, "Found device: %s", psz_name );
 
         /* The device takes ownership of the name */
@@ -178,14 +179,14 @@ static int AddDevice( services_discovery_t *p_sd,
         if ( !mtp_device )
         {
             free( psz_name );
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         }
 
         mtp_device->i_bus = p_raw_device->bus_location;
         mtp_device->i_dev = p_raw_device->devnum;
         mtp_device->i_product_id = p_raw_device->device_entry.product_id;
 
-        vlc_list_append( &mtp_device->node, &p_sys->devices );
+        heimdall_list_append( &mtp_device->node, &p_sys->devices );
 
         services_discovery_AddItem( p_sd, mtp_device->root );
 
@@ -208,12 +209,12 @@ static int AddDevice( services_discovery_t *p_sd,
         }
         LIBMTP_Release_Device( p_device );
 
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
     else
     {
         msg_Dbg( p_sd, "The device seems to be mounted, unmount it first" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 }
 
@@ -222,7 +223,7 @@ static void CloseDevice( services_discovery_t *p_sd, mtp_device_t *device )
     /* Notify the removal of the whole node and its children */
     services_discovery_RemoveItem( p_sd, device->root );
 
-    vlc_list_remove( &device->node );
+    heimdall_list_remove( &device->node );
     DeviceDelete( device );
 }
 
@@ -238,10 +239,10 @@ FindRawDevice( const LIBMTP_raw_device_t *raw_devices, int count,
 }
 
 static mtp_device_t *
-FindDevice( struct vlc_list *devices, uint32_t bus_location, uint8_t devnum )
+FindDevice( struct heimdall_list *devices, uint32_t bus_location, uint8_t devnum )
 {
     mtp_device_t *device;
-    vlc_list_foreach( device, devices, node )
+    heimdall_list_foreach( device, devices, node )
         if ( device->i_bus == bus_location &&
              device->i_dev == devnum )
             return device;
@@ -257,7 +258,7 @@ UpdateDevices( services_discovery_t *p_sd,
     /* Remove devices which have disappeared */
 
     mtp_device_t *device;
-    vlc_list_foreach( device, &p_sys->devices, node )
+    heimdall_list_foreach( device, &p_sys->devices, node )
     {
         int idx = FindRawDevice( raw_devices, count, device->i_bus,
                                  device->i_dev );
@@ -280,7 +281,7 @@ UpdateDevices( services_discovery_t *p_sd,
         {
             /* Device not found in the list, it's a new one */
             msg_Dbg( p_sd, "New device detected" );
-            if ( AddDevice( p_sd, raw_device ) != VLC_SUCCESS )
+            if ( AddDevice( p_sd, raw_device ) != HEIMDALL_SUCCESS )
                 msg_Err( p_sd, "Could not add MTP device" );
         }
     }
@@ -291,7 +292,7 @@ UpdateDevices( services_discovery_t *p_sd,
  *****************************************************************************/
 static void *Run( void *data )
 {
-    vlc_thread_set_name("vlc-mtp");
+    heimdall_thread_set_name("heimdall-mtp");
 
     LIBMTP_raw_device_t *p_rawdevices;
     int i_numrawdevices;
@@ -299,7 +300,7 @@ static void *Run( void *data )
 
     for(;;)
     {
-        int canc = vlc_savecancel();
+        int canc = heimdall_savecancel();
         int ret = LIBMTP_Detect_Raw_Devices( &p_rawdevices, &i_numrawdevices );
         if ( ret == LIBMTP_ERROR_NONE ||
              ret == LIBMTP_ERROR_NO_DEVICE_ATTACHED )
@@ -308,55 +309,55 @@ static void *Run( void *data )
             if ( ret == LIBMTP_ERROR_NONE )
                 free( p_rawdevices );
         }
-        vlc_restorecancel(canc);
+        heimdall_restorecancel(canc);
 
-        vlc_tick_sleep( VLC_TICK_FROM_MS(500) );
+        heimdall_tick_sleep( HEIMDALL_TICK_FROM_MS(500) );
     }
     return NULL;
 }
 
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     services_discovery_t *p_sd = ( services_discovery_t * )p_this;
     services_discovery_sys_t *p_sys;
 
     if( !( p_sys = malloc( sizeof( services_discovery_sys_t ) ) ) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     p_sd->p_sys = p_sys;
     p_sd->description = _("MTP devices");
 
-    vlc_list_init( &p_sys->devices );
+    heimdall_list_init( &p_sys->devices );
 
-    static vlc_once_t mtp_init_once = VLC_STATIC_ONCE;
+    static heimdall_once_t mtp_init_once = HEIMDALL_STATIC_ONCE;
 
-    vlc_once(&mtp_init_once, vlc_libmtp_init, NULL);
+    heimdall_once(&mtp_init_once, heimdall_libmtp_init, NULL);
 
-    if (vlc_clone (&p_sys->thread, Run, p_sd))
+    if (heimdall_clone (&p_sys->thread, Run, p_sd))
     {
         free (p_sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void Close( vlc_object_t *p_this )
+static void Close( heimdall_object_t *p_this )
 {
     services_discovery_t *p_sd = ( services_discovery_t * )p_this;
     services_discovery_sys_t *p_sys = p_sd->p_sys;
 
-    vlc_cancel( p_sys->thread );
-    vlc_join( p_sys->thread, NULL );
+    heimdall_cancel( p_sys->thread );
+    heimdall_join( p_sys->thread, NULL );
 
     mtp_device_t *device;
-    vlc_list_foreach( device, &p_sys->devices, node )
+    heimdall_list_foreach( device, &p_sys->devices, node )
         DeviceDelete( device );
 
     free( p_sys );
 }
 
-VLC_SD_PROBE_HELPER("mtp", N_("MTP devices"), SD_CAT_DEVICES)
+HEIMDALL_SD_PROBE_HELPER("mtp", N_("MTP devices"), SD_CAT_DEVICES)
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname( "MTP" )
     set_description( N_( "MTP devices" ) )
     set_subcategory( SUBCAT_PLAYLIST_SD )
@@ -364,5 +365,5 @@ vlc_module_begin()
     set_callbacks( Open, Close )
     cannot_unload_broken_library()
 
-    VLC_SD_PROBE_SUBMODULE
-vlc_module_end()
+    HEIMDALL_SD_PROBE_SUBMODULE
+heimdall_module_end()

@@ -3,6 +3,7 @@
  *                               for some Dash elements.
  *****************************************************************************
  * Copyright © 2011 VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Hugo Beauzée-Luyssen <hugo@beauzee.fr>
  *
@@ -30,8 +31,8 @@
 #include "ContentDescription.h"
 #include "../../adaptive/StreamFormat.hpp"
 
-#include <vlc_common.h>
-#include <vlc_arrays.h>
+#include <heimdall_common.h>
+#include <heimdall_arrays.h>
 
 using namespace dash::mpd;
 using namespace adaptive;
@@ -45,10 +46,10 @@ DASHCommonAttributesElements::DASHCommonAttributesElements() :
 
 DASHCommonAttributesElements::~DASHCommonAttributesElements()
 {
-    vlc_delete_all( this->contentProtections );
-    vlc_delete_all( this->accessibilities );
-    vlc_delete_all( this->ratings );
-    vlc_delete_all( this->viewpoints );
+    heimdall_delete_all( this->contentProtections );
+    heimdall_delete_all( this->accessibilities );
+    heimdall_delete_all( this->ratings );
+    heimdall_delete_all( this->viewpoints );
 }
 
 int     DASHCommonAttributesElements::getParX                 () const

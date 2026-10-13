@@ -1,7 +1,8 @@
 /*****************************************************************************
- * override.c: overridden function calls for VLC media player
+ * override.c: overridden function calls for Heimdall media player
  *****************************************************************************
  * Copyright (C) 2010 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -25,7 +26,7 @@
 #include <stdbool.h>
 #define MAX_ERRORS 5
 
-void vlc_enable_override (void);
+void heimdall_enable_override (void);
 
 #if defined (__GNUC__) \
  && (defined (__ELF__) && !defined (__sun__))
@@ -47,15 +48,15 @@ void vlc_enable_override (void);
 
 static bool override = false;
 
-static void vlc_reset_override (void)
+static void heimdall_reset_override (void)
 {
     override = false;
 }
 
-void vlc_enable_override (void)
+void heimdall_enable_override (void)
 {
     override = true;
-    pthread_atfork (NULL, NULL, vlc_reset_override);
+    pthread_atfork (NULL, NULL, heimdall_reset_override);
 }
 
 static void vlogbug (unsigned *pc, const char *level, const char *func,
@@ -264,7 +265,7 @@ char *setlocale (int cat, const char *locale)
 
 
 /* strerror() is not thread-safe in theory (POSIX), nor in practice (glibc).
- * This caused quite nasty crashes in the history of VLC/Linux. */
+ * This caused quite nasty crashes in the history of Heimdall/Linux. */
 char *strerror (int val)
 {
     if (override)
@@ -315,7 +316,7 @@ int (*XSetIOErrorHandler (int (*handler) (Display *))) (Display *)
 }
 #endif
 #else
-void vlc_enable_override (void)
+void heimdall_enable_override (void)
 {
 }
 #endif

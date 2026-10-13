@@ -3,6 +3,7 @@
  */
 /*****************************************************************************
  * Copyright © 2016 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,22 +35,22 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <vlc_common.h>
-#include <vlc_access.h>
-#include <vlc_block.h>
-#include <vlc_demux.h>
-#include <vlc_input.h>
-#include <vlc_meta.h>
-#include <vlc_es_out.h>
-#include <vlc_url.h>
-#include "../lib/libvlc_internal.h"
+#include <heimdall_common.h>
+#include <heimdall_access.h>
+#include <heimdall_block.h>
+#include <heimdall_demux.h>
+#include <heimdall_input.h>
+#include <heimdall_meta.h>
+#include <heimdall_es_out.h>
+#include <heimdall_url.h>
+#include "../lib/libheimdall_internal.h"
 
-#include <vlc/vlc.h>
+#include <heimdall/heimdall.h>
 
 #include "demux-run.h"
 #include "decoder.h"
 
-void vlc_object_InitInputConfig(vlc_object_t *obj,
+void heimdall_object_InitInputConfig(heimdall_object_t *obj,
                                 bool playback, bool do_inherit);
 
 struct test_es_out_t
@@ -57,7 +58,7 @@ struct test_es_out_t
     struct es_out_t out;
     struct es_out_id_t *ids;
 #ifdef HAVE_DECODERS
-    vlc_object_t *parent;
+    heimdall_object_t *parent;
 #endif
 };
 
@@ -116,7 +117,7 @@ static int EsOutSend(es_out_t *out, es_out_id_t *id, block_t *block)
     else
 #endif
         block_Release(block);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void IdDelete(es_out_id_t *id)
@@ -196,9 +197,9 @@ static int EsOutControl(es_out_t *out, input_source_t* in, int query, va_list ar
         case ES_OUT_SET_META:
             break;
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void EsOutDestroy(es_out_t *out)
@@ -223,9 +224,9 @@ static const struct es_out_callbacks es_out_cbs =
     .destroy = EsOutDestroy,
 };
 
-static es_out_t *test_es_out_create(vlc_object_t *parent)
+static es_out_t *test_es_out_create(heimdall_object_t *parent)
 {
-    vlc_object_InitInputConfig(parent, true, false);
+    heimdall_object_InitInputConfig(parent, true, false);
 
     struct test_es_out_t *ctx = malloc(sizeof (*ctx));
     if (ctx == NULL)
@@ -262,16 +263,16 @@ static void demux_get_title_list(demux_t *demux)
     input_title_t **title_list;
 
     if (demux_Control(demux, DEMUX_GET_TITLE_INFO, &title_list, &title,
-                      &title_offset, &seekpoint_offset) == VLC_SUCCESS)
+                      &title_offset, &seekpoint_offset) == HEIMDALL_SUCCESS)
     {
         for (int i = 0; i < title; i++)
-            vlc_input_title_Delete(title_list[i]);
+            heimdall_input_title_Delete(title_list[i]);
     }
 }
 
 static void demux_get_meta(demux_t *demux)
 {
-    vlc_meta_t *p_meta = vlc_meta_New();
+    heimdall_meta_t *p_meta = heimdall_meta_New();
     if (unlikely(p_meta == NULL) )
         return;
 
@@ -281,10 +282,10 @@ static void demux_get_meta(demux_t *demux)
     demux_Control(demux, DEMUX_GET_META, p_meta);
     demux_Control(demux, DEMUX_GET_ATTACHMENTS, &attachment, &i_attachment);
 
-    vlc_meta_Delete(p_meta);
+    heimdall_meta_Delete(p_meta);
 }
 
-static int demux_process_stream(const struct vlc_run_args *args, stream_t *s)
+static int demux_process_stream(const struct heimdall_run_args *args, stream_t *s)
 {
     const char *name = args->name;
     if (name == NULL)
@@ -293,15 +294,15 @@ static int demux_process_stream(const struct vlc_run_args *args, stream_t *s)
     if (s == NULL)
         return -1;
 
-    es_out_t *out = test_es_out_create(vlc_object_parent(s));
+    es_out_t *out = test_es_out_create(heimdall_object_parent(s));
     if (out == NULL)
         return -1;
 
-    demux_t *demux = demux_New(VLC_OBJECT(s), name, "vlc://nop", s, out);
+    demux_t *demux = demux_New(HEIMDALL_OBJECT(s), name, "heimdall://nop", s, out);
     if (demux == NULL)
     {
         es_out_Delete(out);
-        vlc_stream_Delete(s);
+        heimdall_stream_Delete(s);
         fprintf(stderr, "Error: cannot create demultiplexer: %s\n", name);
         return -1;
     }
@@ -309,7 +310,7 @@ static int demux_process_stream(const struct vlc_run_args *args, stream_t *s)
     uintmax_t i = 0;
     int val;
 
-    while ((val = demux_Demux(demux)) == VLC_DEMUXER_SUCCESS)
+    while ((val = demux_Demux(demux)) == HEIMDALL_DEMUXER_SUCCESS)
     {
         if (args->test_demux_controls)
         {
@@ -321,8 +322,8 @@ static int demux_process_stream(const struct vlc_run_args *args, stream_t *s)
 
             int seekpoint = 0;
             double position = 0.0;
-            vlc_tick_t time = 0;
-            vlc_tick_t length = 0;
+            heimdall_tick_t time = 0;
+            heimdall_tick_t length = 0;
 
             /* Call controls for increased code coverage */
             demux_Control(demux, DEMUX_GET_SEEKPOINT, &seekpoint);
@@ -338,43 +339,43 @@ static int demux_process_stream(const struct vlc_run_args *args, stream_t *s)
 
     debug("Completed with %" PRIuMAX " iteration(s).\n", i);
 
-    return val == VLC_DEMUXER_EOF ? 0 : -1;
+    return val == HEIMDALL_DEMUXER_EOF ? 0 : -1;
 }
 
-int vlc_demux_process_url(const struct vlc_run_args *args, const char *url)
+int heimdall_demux_process_url(const struct heimdall_run_args *args, const char *url)
 {
-    libvlc_instance_t *vlc = libvlc_create(args);
-    if (vlc == NULL)
+    libheimdall_instance_t *heimdall = libheimdall_create(args);
+    if (heimdall == NULL)
         return -1;
 
-    stream_t *s = vlc_access_NewMRL(VLC_OBJECT(vlc->p_libvlc_int), url);
+    stream_t *s = heimdall_access_NewMRL(HEIMDALL_OBJECT(heimdall->p_libheimdall_int), url);
     if (s == NULL)
         fprintf(stderr, "Error: cannot create input stream: %s\n", url);
 
     int ret = demux_process_stream(args, s);
-    libvlc_release(vlc);
+    libheimdall_release(heimdall);
     return ret;
 }
 
-int vlc_demux_process_path(const struct vlc_run_args *args, const char *path)
+int heimdall_demux_process_path(const struct heimdall_run_args *args, const char *path)
 {
-    char *url = vlc_path2uri(path, NULL);
+    char *url = heimdall_path2uri(path, NULL);
     if (url == NULL)
     {
         fprintf(stderr, "Error: cannot convert path to URL: %s\n", path);
         return -1;
     }
 
-    int ret = vlc_demux_process_url(args, url);
+    int ret = heimdall_demux_process_url(args, url);
     free(url);
     return ret;
 }
 
-int libvlc_demux_process_memory(libvlc_instance_t *vlc,
-                                const struct vlc_run_args *args,
+int libheimdall_demux_process_memory(libheimdall_instance_t *heimdall,
+                                const struct heimdall_run_args *args,
                                 const unsigned char *buf, size_t length)
 {
-    stream_t *s = vlc_stream_MemoryNew(VLC_OBJECT(vlc->p_libvlc_int),
+    stream_t *s = heimdall_stream_MemoryNew(HEIMDALL_OBJECT(heimdall->p_libheimdall_int),
                                        (void *)buf, length, true);
     if (s == NULL)
         fprintf(stderr, "Error: cannot create input stream\n");
@@ -382,20 +383,20 @@ int libvlc_demux_process_memory(libvlc_instance_t *vlc,
     return demux_process_stream(args, s);
 }
 
-int vlc_demux_process_memory(const struct vlc_run_args *args,
+int heimdall_demux_process_memory(const struct heimdall_run_args *args,
                              const unsigned char *buf, size_t length)
 {
-    libvlc_instance_t *vlc = libvlc_create(args);
-    if (vlc == NULL)
+    libheimdall_instance_t *heimdall = libheimdall_create(args);
+    if (heimdall == NULL)
         return -1;
 
-    int ret = libvlc_demux_process_memory(vlc, args, buf, length);
-    libvlc_release(vlc);
+    int ret = libheimdall_demux_process_memory(heimdall, args, buf, length);
+    libheimdall_release(heimdall);
     return ret;
 }
 
 #ifdef HAVE_STATIC_MODULES
-# include <vlc_plugin.h>
+# include <heimdall_plugin.h>
 
 #ifdef HAVE_DECODERS
 #define DECODER_PLUGINS(f) \
@@ -481,13 +482,13 @@ int vlc_demux_process_memory(const struct vlc_run_args *args,
 # define PLUGIN_MKV(f)
 #endif
 
-#define DECL_PLUGIN(p)   VLC_DECL_MODULE_ENTRY(p);
+#define DECL_PLUGIN(p)   HEIMDALL_DECL_MODULE_ENTRY(p);
 
-#define FUNC_PLUGIN(p)   VLC_MODULE_ENTRY(p),
+#define FUNC_PLUGIN(p)   HEIMDALL_MODULE_ENTRY(p),
 
 PLUGINS(DECL_PLUGIN)
 
-VLC_EXPORT const vlc_plugin_cb vlc_static_modules[] = {
+HEIMDALL_EXPORT const heimdall_plugin_cb heimdall_static_modules[] = {
     PLUGINS(FUNC_PLUGIN)
     NULL
 };

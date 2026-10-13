@@ -2,6 +2,7 @@
  * vlmshell.c: VLM interface plugin
  *****************************************************************************
  * Copyright (C) 2000-2005 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Simon Latapie <garf@videolan.org>
  *          Laurent Aimar <fenrir@videolan.org>
@@ -29,14 +30,14 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_arrays.h>
+#include <heimdall_common.h>
+#include <heimdall_arrays.h>
 
 #include <stdio.h>
 #include <ctype.h>                                              /* tolower() */
 #include <assert.h>
 
-#include <vlc_vlm.h>
+#include <heimdall_vlm.h>
 
 #ifdef ENABLE_VLM
 
@@ -45,12 +46,12 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 
-#include <vlc_stream.h>
+#include <heimdall_stream.h>
 #include "vlm_internal.h"
-#include <vlc_charset.h>
-#include <vlc_fs.h>
-#include <vlc_sout.h>
-#include <vlc_memstream.h>
+#include <heimdall_charset.h>
+#include <heimdall_fs.h>
+#include <heimdall_sout.h>
+#include <heimdall_memstream.h>
 
 /*****************************************************************************
  * Local prototypes.
@@ -59,7 +60,7 @@
 /* */
 static vlm_message_t *vlm_Show( vlm_t *, vlm_media_sys_t *, const char * );
 
-VLC_MALLOC static char *Save( vlm_t * );
+HEIMDALL_MALLOC static char *Save( vlm_t * );
 static int Load( vlm_t *, char * );
 
 /* */
@@ -126,7 +127,7 @@ static int Unescape( char *out, const char *in )
     while( (c = *in++) != '\0' )
     {
         // Don't escape the end of the string if we find a '#'
-        // that's the beginning of a vlc command
+        // that's the beginning of a heimdall command
         // TODO: find a better solution
         if( ( c == '#' && !quote ) || param )
         {
@@ -205,7 +206,7 @@ static int Unescape( char *out, const char *in )
 static int ExecuteSyntaxError( const char *psz_cmd, vlm_message_t **pp_status )
 {
     *pp_status = vlm_MessageNew( psz_cmd, "Wrong command syntax" );
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 static bool ExecuteIsMedia( vlm_t *p_vlm, const char *psz_name )
@@ -238,11 +239,11 @@ static int ExecuteDel( vlm_t *p_vlm, const char *psz_name, vlm_message_t **pp_st
     else
     {
         *pp_status = vlm_MessageNew( "del", "%s: media unknown", psz_name );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     *pp_status = vlm_MessageSimpleNew( "del" );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int ExecuteShow( vlm_t *p_vlm, const char *psz_name, vlm_message_t **pp_status )
@@ -252,7 +253,7 @@ static int ExecuteShow( vlm_t *p_vlm, const char *psz_name, vlm_message_t **pp_s
     if( !psz_name )
     {
         *pp_status = vlm_Show( p_vlm, NULL, NULL );
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
     p_media = vlm_MediaSearch( p_vlm, psz_name );
@@ -262,7 +263,7 @@ static int ExecuteShow( vlm_t *p_vlm, const char *psz_name, vlm_message_t **pp_s
     else
         *pp_status = vlm_Show( p_vlm, NULL, psz_name );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int ExecuteHelp( vlm_message_t **pp_status )
@@ -301,7 +302,7 @@ static int ExecuteHelp( vlm_message_t **pp_status )
     MessageAddChild( "stop" );
     MessageAddChild( "seek [+-](percentage) | [+-](seconds)s | [+-](milliseconds)ms" );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int ExecuteControl( vlm_t *p_vlm, const char *psz_name, const int i_arg, char ** ppsz_arg, vlm_message_t **pp_status )
@@ -316,7 +317,7 @@ static int ExecuteControl( vlm_t *p_vlm, const char *psz_name, const int i_arg, 
     if( !ExecuteIsMedia( p_vlm, psz_name ) )
     {
         *pp_status = vlm_MessageNew( "control", "%s: media unknown", psz_name );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     assert( i_arg > 0 );
@@ -398,7 +399,7 @@ static int ExecuteControl( vlm_t *p_vlm, const char *psz_name, const int i_arg, 
             else
             {
                 /* Percent */
-                double d_new_position = vlc_atof_c( psz_argument ) / 100.0;
+                double d_new_position = heimdall_atof_c( psz_argument ) / 100.0;
 
                 if( b_relative )
                 {
@@ -416,7 +417,7 @@ static int ExecuteControl( vlm_t *p_vlm, const char *psz_name, const int i_arg, 
         }
         else
         {
-            i_result = VLC_EGENERIC;
+            i_result = HEIMDALL_EGENERIC;
         }
     }
     else if( !strcmp( psz_control, "stop" ) )
@@ -429,16 +430,16 @@ static int ExecuteControl( vlm_t *p_vlm, const char *psz_name, const int i_arg, 
     }
     else
     {
-        i_result = VLC_EGENERIC;
+        i_result = HEIMDALL_EGENERIC;
     }
 
     if( i_result )
     {
         *pp_status = vlm_MessageNew( "control", "unknown error" );
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
     *pp_status = vlm_MessageSimpleNew( "control" );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int ExecuteExport( vlm_t *p_vlm, vlm_message_t **pp_status )
@@ -447,12 +448,12 @@ static int ExecuteExport( vlm_t *p_vlm, vlm_message_t **pp_status )
 
     *pp_status = vlm_MessageNew( "export", "%s", psz_export );
     free( psz_export );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int ExecuteSave( vlm_t *p_vlm, const char *psz_file, vlm_message_t **pp_status )
 {
-    FILE *f = vlc_fopen( psz_file, "wt" );
+    FILE *f = heimdall_fopen( psz_file, "wt" );
     char *psz_save = NULL;
 
     if( !f )
@@ -472,23 +473,23 @@ static int ExecuteSave( vlm_t *p_vlm, const char *psz_file, vlm_message_t **pp_s
     free( psz_save );
 
     *pp_status = vlm_MessageSimpleNew( "save" );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     free( psz_save );
     if( f )
          fclose( f );
     *pp_status = vlm_MessageNew( "save", "Unable to save to file");
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 static int ExecuteLoad( vlm_t *p_vlm, const char *psz_path, vlm_message_t **pp_status )
 {
-    int fd = vlc_open( psz_path, O_RDONLY|O_NONBLOCK );
+    int fd = heimdall_open( psz_path, O_RDONLY|O_NONBLOCK );
     if( fd == -1 )
     {
         *pp_status = vlm_MessageNew( "load", "Unable to load from file" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     struct stat st;
@@ -500,13 +501,13 @@ static int ExecuteLoad( vlm_t *p_vlm, const char *psz_path, vlm_message_t **pp_s
      || read( fd, psz_buffer, st.st_size ) < (ssize_t)st.st_size )
     {
         free( psz_buffer );
-        vlc_close( fd );
+        heimdall_close( fd );
 
         *pp_status = vlm_MessageNew( "load", "Read file error" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    vlc_close( fd );
+    heimdall_close( fd );
 
     psz_buffer[st.st_size] = '\0';
 
@@ -515,13 +516,13 @@ static int ExecuteLoad( vlm_t *p_vlm, const char *psz_path, vlm_message_t **pp_s
         free( psz_buffer );
 
         *pp_status = vlm_MessageNew( "load", "Error while loading file" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     free( psz_buffer );
 
     *pp_status = vlm_MessageSimpleNew( "load" );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int ExecuteMediaProperty( vlm_t *p_vlm, int64_t id, bool b_new,
@@ -635,7 +636,7 @@ error:
             vlm_ControlInternal( p_vlm, VLM_DEL_MEDIA, p_cfg->id );
         vlm_media_Delete( p_cfg );
     }
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 static int ExecuteNew( vlm_t *p_vlm, const char *psz_name, const char *psz_type, const int i_property, char *ppsz_property[], vlm_message_t **pp_status )
@@ -644,12 +645,12 @@ static int ExecuteNew( vlm_t *p_vlm, const char *psz_name, const char *psz_type,
     if( !strcmp( psz_name, "all" ) || !strcmp( psz_name, "media" ) )
     {
         *pp_status = vlm_MessageNew( "new", "\"all\" and \"media\" are reserved names" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     if( ExecuteIsMedia( p_vlm, psz_name ) )
     {
         *pp_status = vlm_MessageNew( "new", "%s: Name already in use", psz_name );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     /* */
     if( !strcmp( psz_type, "broadcast" ) )
@@ -664,7 +665,7 @@ static int ExecuteNew( vlm_t *p_vlm, const char *psz_name, const char *psz_type,
         {
             vlm_media_Clean( &cfg );
             *pp_status = vlm_MessageNew( "new", "could not create media" );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
         vlm_media_Clean( &cfg );
         return ExecuteMediaProperty( p_vlm, id, true, i_property, ppsz_property, pp_status );
@@ -672,7 +673,7 @@ static int ExecuteNew( vlm_t *p_vlm, const char *psz_name, const char *psz_type,
     else
     {
         *pp_status = vlm_MessageNew( "new", "%s: unsupported type", psz_type );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 }
 
@@ -688,7 +689,7 @@ static int ExecuteSetup( vlm_t *p_vlm, const char *psz_name, const int i_propert
 
 error:
     *pp_status = vlm_MessageNew( "setup", "%s unknown", psz_name );
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 int ExecuteCommand( vlm_t *p_vlm, const char *psz_command,
@@ -698,7 +699,7 @@ int ExecuteCommand( vlm_t *p_vlm, const char *psz_command,
     size_t i_command_len = strlen( psz_command );
     char *buf = malloc( i_command_len + 1 ), *psz_buf = buf;
     size_t i_ppsz_command_len = (3 + (i_command_len + 1) / 2);
-    char **ppsz_command = vlc_alloc( i_ppsz_command_len, sizeof(char *) );
+    char **ppsz_command = heimdall_alloc( i_ppsz_command_len, sizeof(char *) );
     vlm_message_t *p_message = NULL;
     int i_ret = 0;
 
@@ -781,7 +782,7 @@ success:
     *pp_message = p_message;
     free( buf );
     free( ppsz_command );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 syntax_error:
     i_ret = ExecuteSyntaxError( ppsz_command[0], pp_message );
@@ -793,7 +794,7 @@ error:
     *pp_message = p_message;
     free( buf );
     free( ppsz_command );
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /*****************************************************************************
@@ -927,16 +928,16 @@ static vlm_message_t *vlm_ShowMedia( vlm_media_sys_t *p_media )
         vlm_media_instance_sys_t *p_instance = p_media->instance[i];
         vlm_message_t *p_msg_instance;
 
-        vlc_player_Lock(p_instance->player);
-        enum vlc_player_state state = vlc_player_GetState(p_instance->player);
-        float position = vlc_player_GetPosition(p_instance->player);
-        vlc_tick_t time = vlc_player_GetTime(p_instance->player);
-        vlc_tick_t length = vlc_player_GetLength(p_instance->player);
-        float rate = vlc_player_GetRate(p_instance->player);
-        ssize_t title = vlc_player_GetSelectedTitleIdx(p_instance->player);
-        ssize_t chapter = vlc_player_GetSelectedChapterIdx(p_instance->player);
-        bool can_seek = vlc_player_CanSeek(p_instance->player);
-        vlc_player_Unlock(p_instance->player);
+        heimdall_player_Lock(p_instance->player);
+        enum heimdall_player_state state = heimdall_player_GetState(p_instance->player);
+        float position = heimdall_player_GetPosition(p_instance->player);
+        heimdall_tick_t time = heimdall_player_GetTime(p_instance->player);
+        heimdall_tick_t length = heimdall_player_GetLength(p_instance->player);
+        float rate = heimdall_player_GetRate(p_instance->player);
+        ssize_t title = heimdall_player_GetSelectedTitleIdx(p_instance->player);
+        ssize_t chapter = heimdall_player_GetSelectedChapterIdx(p_instance->player);
+        bool can_seek = heimdall_player_CanSeek(p_instance->player);
+        heimdall_player_Unlock(p_instance->player);
 
         p_msg_instance = vlm_MessageAdd( p_msg_sub, vlm_MessageSimpleNew( "instance" ) );
 
@@ -944,8 +945,8 @@ static vlm_message_t *vlm_ShowMedia( vlm_media_sys_t *p_media )
                         vlm_MessageNew( "name" , "%s", p_instance->psz_name ? p_instance->psz_name : "default" ) );
         vlm_MessageAdd( p_msg_instance,
                         vlm_MessageNew( "state",
-                            state == VLC_PLAYER_STATE_PLAYING ? "playing" :
-                            state == VLC_PLAYER_STATE_PAUSED ? "paused" :
+                            state == HEIMDALL_PLAYER_STATE_PLAYING ? "playing" :
+                            state == HEIMDALL_PLAYER_STATE_PAUSED ? "paused" :
                             "stopped" ) );
 
         /* FIXME should not do that this way */
@@ -1048,44 +1049,44 @@ static int Load( vlm_t *vlm, char *file )
     return 0;
 }
 
-VLC_MALLOC static char *Save( vlm_t *vlm )
+HEIMDALL_MALLOC static char *Save( vlm_t *vlm )
 {
     const char *psz_header = "\n"
-                             "# VLC media player VLM command batch\n"
+                             "# Heimdall media player VLM command batch\n"
                              "# https://www.videolan.org/vlc/\n\n" ;
 
-    struct vlc_memstream stream;
+    struct heimdall_memstream stream;
 
-    vlc_memstream_open( &stream );
-    vlc_memstream_puts( &stream, psz_header );
+    heimdall_memstream_open( &stream );
+    heimdall_memstream_puts( &stream, psz_header );
 
     for( int i = 0; i < vlm->i_media; i++ )
     {
         vlm_media_sys_t *media = vlm->media[i];
         vlm_media_t *p_cfg = &media->cfg;
 
-        vlc_memstream_printf( &stream, "new %s broadcast %sabled",
+        heimdall_memstream_printf( &stream, "new %s broadcast %sabled",
                               p_cfg->psz_name,
                               p_cfg->b_enabled ? "en" : "dis" );
 
         if( p_cfg->broadcast.b_loop )
-            vlc_memstream_puts( &stream, " loop" );
-        vlc_memstream_putc( &stream, '\n' );
+            heimdall_memstream_puts( &stream, " loop" );
+        heimdall_memstream_putc( &stream, '\n' );
 
         for( int j = 0; j < p_cfg->i_input; j++ )
-            vlc_memstream_printf( &stream, "setup %s input \"%s\"\n",
+            heimdall_memstream_printf( &stream, "setup %s input \"%s\"\n",
                                   p_cfg->psz_name, p_cfg->ppsz_input[j] );
 
         if( p_cfg->psz_output )
-            vlc_memstream_printf( &stream, "setup %s output %s\n",
+            heimdall_memstream_printf( &stream, "setup %s output %s\n",
                                   p_cfg->psz_name, p_cfg->psz_output );
 
         for( int j = 0; j < p_cfg->i_option; j++ )
-            vlc_memstream_printf( &stream, "setup %s option %s\n",
+            heimdall_memstream_printf( &stream, "setup %s option %s\n",
                                   p_cfg->psz_name, p_cfg->ppsz_option[j] );
     }
 
-    if( vlc_memstream_close( &stream ) )
+    if( heimdall_memstream_close( &stream ) )
         return NULL;
     return stream.ptr;
 }

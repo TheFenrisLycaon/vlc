@@ -2,6 +2,7 @@
  * display.c: display stream output module
  *****************************************************************************
  * Copyright (C) 2001-2011 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *
@@ -28,13 +29,13 @@
 #include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
 
-#include <vlc_decoder.h>
-#include <vlc_frame.h>
-#include <vlc_plugin.h>
-#include <vlc_sout.h>
+#include <heimdall_decoder.h>
+#include <heimdall_frame.h>
+#include <heimdall_plugin.h>
+#include <heimdall_sout.h>
 
 /*****************************************************************************
  * Module descriptor
@@ -46,12 +47,12 @@
 #define DELAY_TEXT N_( "Delay (ms)" )
 #define DELAY_LONGTEXT N_( "Introduces a delay in the display of the stream." )
 
-static int  Open ( vlc_object_t * );
+static int  Open ( heimdall_object_t * );
 static void Close( sout_stream_t * );
 
 #define SOUT_CFG_PREFIX "sout-display-"
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname( N_("Display") )
     set_description( N_("Display stream output") )
     set_capability( "sout output", 50 )
@@ -65,7 +66,7 @@ vlc_module_begin()
     add_integer( SOUT_CFG_PREFIX "delay", 100, DELAY_TEXT,
                  DELAY_LONGTEXT )
     set_callback( Open )
-vlc_module_end()
+heimdall_module_end()
 
 
 /*****************************************************************************
@@ -80,18 +81,18 @@ typedef struct
     bool b_audio;
     bool b_video;
 
-    vlc_tick_t i_delay;
+    heimdall_tick_t i_delay;
     input_resource_t *p_resource;
 
-    struct vlc_sout_clock_bus *main_clock;
+    struct heimdall_sout_clock_bus *main_clock;
     bool first_pcr_signaled;
     bool error;
 } sout_stream_sys_t;
 
 typedef struct
 {
-    vlc_input_decoder_t *dec;
-    vlc_clock_t *clock;
+    heimdall_input_decoder_t *dec;
+    heimdall_clock_t *clock;
 } sout_stream_id_sys_t;
 
 static void *Add( sout_stream_t *p_stream, const es_format_t *p_fmt, const char *es_id )
@@ -115,8 +116,8 @@ static void *Add( sout_stream_t *p_stream, const es_format_t *p_fmt, const char 
         return NULL;
     }
 
-    id->dec = vlc_input_decoder_Create(
-        VLC_OBJECT(p_stream), p_fmt, es_id, id->clock, p_sys->p_resource );
+    id->dec = heimdall_input_decoder_Create(
+        HEIMDALL_OBJECT(p_stream), p_fmt, es_id, id->clock, p_sys->p_resource );
     if( id->dec == NULL )
     {
         msg_Err( p_stream, "cannot create decoder for fcc=`%4.4s'",
@@ -126,8 +127,8 @@ static void *Add( sout_stream_t *p_stream, const es_format_t *p_fmt, const char 
         return NULL;
     }
 
-    if( p_sys->i_delay != VLC_TICK_INVALID )
-        vlc_input_decoder_ChangeDelay( id->dec, p_sys->i_delay );
+    if( p_sys->i_delay != HEIMDALL_TICK_INVALID )
+        heimdall_input_decoder_ChangeDelay( id->dec, p_sys->i_delay );
 
     return id;
 }
@@ -137,13 +138,13 @@ static void Del( sout_stream_t *p_stream, void *id )
     (void) p_stream;
 
     sout_stream_id_sys_t *id_sys = id;
-    vlc_input_decoder_Flush(id_sys->dec);
-    vlc_input_decoder_Delete( id_sys->dec );
+    heimdall_input_decoder_Flush(id_sys->dec);
+    heimdall_input_decoder_Delete( id_sys->dec );
     sout_ClockDelete( id_sys->clock );
     free( id_sys );
 }
 
-static int Send( sout_stream_t *p_stream, void *id, vlc_frame_t *frames )
+static int Send( sout_stream_t *p_stream, void *id, heimdall_frame_t *frames )
 {
     sout_stream_sys_t *p_sys = p_stream->p_sys;
     sout_stream_id_sys_t *id_sys = id;
@@ -156,23 +157,23 @@ static int Send( sout_stream_t *p_stream, void *id, vlc_frame_t *frames )
                      "Missing first pcr event. Forced to drop early frames." );
             p_sys->error = true;
         }
-        vlc_frame_ChainRelease( frames );
-        return VLC_EGENERIC;
+        heimdall_frame_ChainRelease( frames );
+        return HEIMDALL_EGENERIC;
     }
 
     while( frames )
     {
-        vlc_frame_t *p_next = frames->p_next;
+        heimdall_frame_t *p_next = frames->p_next;
 
         frames->p_next = NULL;
 
         if( id != NULL && frames->i_buffer > 0 )
-            vlc_input_decoder_Decode( id_sys->dec, frames, false );
+            heimdall_input_decoder_Decode( id_sys->dec, frames, false );
 
         frames = p_next;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int Control( sout_stream_t *p_stream, int i_query, va_list args )
@@ -182,8 +183,8 @@ static int Control( sout_stream_t *p_stream, int i_query, va_list args )
         case SOUT_STREAM_ID_SPU_HIGHLIGHT:
         {
             sout_stream_id_sys_t *id = va_arg( args, void * );
-            const vlc_spu_highlight_t *spu_hl = va_arg( args, const vlc_spu_highlight_t * );
-            return vlc_input_decoder_SetSpuHighlight( id->dec, spu_hl );
+            const heimdall_spu_highlight_t *spu_hl = va_arg( args, const heimdall_spu_highlight_t * );
+            return heimdall_input_decoder_SetSpuHighlight( id->dec, spu_hl );
         }
 
         case SOUT_STREAM_IS_SYNCHRONOUS:
@@ -191,13 +192,13 @@ static int Control( sout_stream_t *p_stream, int i_query, va_list args )
             break;
 
         default:
-           return VLC_EGENERIC;
+           return HEIMDALL_EGENERIC;
     }
     (void) p_stream;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void SetPCR( sout_stream_t *p_stream, vlc_tick_t pcr )
+static void SetPCR( sout_stream_t *p_stream, heimdall_tick_t pcr )
 {
     sout_stream_sys_t *sys = p_stream->p_sys;
 
@@ -220,20 +221,20 @@ static const struct sout_stream_operations ops = {
 /*****************************************************************************
  * Open:
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     sout_stream_t *p_stream = (sout_stream_t*)p_this;
     sout_stream_sys_t *p_sys;
 
     p_sys = malloc( sizeof(sout_stream_sys_t) );
     if( p_sys == NULL )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_sys->p_resource = input_resource_New( p_this );
     if( unlikely(p_sys->p_resource == NULL) )
     {
         free( p_sys );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     p_sys->main_clock = sout_ClockMainCreate(p_stream);
@@ -241,7 +242,7 @@ static int Open( vlc_object_t *p_this )
     {
         input_resource_Release( p_sys->p_resource );
         free( p_sys );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     config_ChainParse( p_stream, SOUT_CFG_PREFIX, ppsz_sout_options,
@@ -250,13 +251,13 @@ static int Open( vlc_object_t *p_this )
     p_sys->b_audio = var_GetBool( p_stream, SOUT_CFG_PREFIX "audio" );
     p_sys->b_video = var_GetBool( p_stream, SOUT_CFG_PREFIX "video" );
     p_sys->i_delay =
-        VLC_TICK_FROM_MS( var_GetInteger(p_stream, SOUT_CFG_PREFIX "delay") );
+        HEIMDALL_TICK_FROM_MS( var_GetInteger(p_stream, SOUT_CFG_PREFIX "delay") );
     p_sys->first_pcr_signaled = false;
     p_sys->error = false;
 
     p_stream->ops = &ops;
     p_stream->p_sys = p_sys;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************

@@ -1,7 +1,8 @@
 /*****************************************************************************
- * ts_pes.c: Transport Stream input module for VLC.
+ * ts_pes.c: Transport Stream input module for Heimdall.
  *****************************************************************************
  * Copyright (C) 2004-2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -21,8 +22,8 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_demux.h>
+#include <heimdall_common.h>
+#include <heimdall_demux.h>
 
 #include "ts_streams.h"
 #include "ts_pid.h"

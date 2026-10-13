@@ -2,6 +2,7 @@
  * HLSRepresentation.hpp
  *****************************************************************************
  * Copyright © 2015 - VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -49,7 +50,7 @@ namespace hls
                 bool initialized() const;
                 void scheduleNextUpdate(uint64_t, bool) override;
                 bool needsUpdate(uint64_t) const override;
-                void debug(vlc_object_t *, int) const override;
+                void debug(heimdall_object_t *, int) const override;
                 bool runLocalUpdates(SharedResources *) override;
                 bool canNoLongerUpdate() const override;
 
@@ -68,7 +69,7 @@ namespace hls
                 bool b_live;
                 bool b_loaded;
                 unsigned updateFailureCount;
-                vlc_tick_t lastUpdateTime;
+                heimdall_tick_t lastUpdateTime;
                 unsigned channels;
         };
     }

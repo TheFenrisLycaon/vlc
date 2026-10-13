@@ -2,6 +2,7 @@
  * extensions.cpp: Extensions manager for Qt: dialogs manager
  ****************************************************************************
  * Copyright (C) 2009-2010 VideoLAN and authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Jean-Philippe André < jpeg # videolan.org >
  *
@@ -23,8 +24,8 @@
 #include "extensions.hpp"
 #include "extensions_manager.hpp" // for isUnloading()
 
-#include <vlc_dialog.h>
-#include <vlc_extensions.h>
+#include <heimdall_dialog.h>
+#include <heimdall_extensions.h>
 
 #include <QGridLayout>
 #include <QPushButton>
@@ -50,7 +51,7 @@ ExtensionsDialogProvider::ExtensionsDialogProvider(qt_intf_t *_p_intf)
         : QObject( NULL ), p_intf( _p_intf )
 {
     assert(p_intf);
-    vlc_dialog_provider_set_ext_callback( p_intf, DialogCallback, this );
+    heimdall_dialog_provider_set_ext_callback( p_intf, DialogCallback, this );
 }
 
 ExtensionsDialogProvider::~ExtensionsDialogProvider()
@@ -58,7 +59,7 @@ ExtensionsDialogProvider::~ExtensionsDialogProvider()
     msg_Dbg( p_intf, "ExtensionsDialogProvider is quitting..." );
     for (ExtensionDialog* dialog: m_dialogs)
         delete dialog;
-    vlc_dialog_provider_set_ext_callback( p_intf, nullptr, nullptr );
+    heimdall_dialog_provider_set_ext_callback( p_intf, nullptr, nullptr );
 }
 
 /** Create a dialog
@@ -79,11 +80,11 @@ int ExtensionsDialogProvider::DestroyExtDialog( extension_dialog_t *p_dialog )
     assert( p_dialog );
     ExtensionDialog *dialog = ( ExtensionDialog* ) p_dialog->p_sys_intf;
     if( !dialog )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     m_dialogs.erase(dialog);
     delete dialog;
-    vlc_cond_signal( &p_dialog->cond );
-    return VLC_SUCCESS;
+    heimdall_cond_signal( &p_dialog->cond );
+    return HEIMDALL_SUCCESS;
 }
 
 /**
@@ -101,7 +102,7 @@ void ExtensionsDialogProvider::UpdateExtDialog(extension_dialog_t *p_dialog )
         return;
     }
 
-    vlc_mutex_lock( &p_dialog->lock );
+    heimdall_mutex_lock( &p_dialog->lock );
     if( !p_dialog->b_kill )
     {
         if (!dialog)
@@ -117,8 +118,8 @@ void ExtensionsDialogProvider::UpdateExtDialog(extension_dialog_t *p_dialog )
     {
         DestroyExtDialog( p_dialog );
     }
-    vlc_cond_signal( &p_dialog->cond );
-    vlc_mutex_unlock( &p_dialog->lock );
+    heimdall_cond_signal( &p_dialog->cond );
+    heimdall_mutex_unlock( &p_dialog->lock );
 }
 
 /**
@@ -166,7 +167,7 @@ ExtensionDialog::~ExtensionDialog()
 {
     msg_Dbg( p_intf, "Deleting extension dialog '%s'", qtu(windowTitle()) );
     p_dialog->p_sys_intf = nullptr;
-    vlc_cond_signal( &p_dialog->cond );
+    heimdall_cond_signal( &p_dialog->cond );
 
     //we need to manually disconnect the objects as we are listenning to their destroyed
     //signals or they will be emitted after m_widgetMapping is destroyed and cause use after free
@@ -315,12 +316,12 @@ int ExtensionDialog::TriggerClick()
     extension_widget_t *p_widget = getWidgetMapping(sender());
     assert(p_widget);
 
-    int i_ret = VLC_EGENERIC;
+    int i_ret = HEIMDALL_EGENERIC;
 
     bool lockedHere = false;
     if( !has_lock )
     {
-        vlc_mutex_lock( &p_dialog->lock );
+        heimdall_mutex_lock( &p_dialog->lock );
         has_lock = true;
         lockedHere = true;
     }
@@ -335,7 +336,7 @@ int ExtensionDialog::TriggerClick()
         {
             auto checkBox = static_cast< QCheckBox* >( p_widget->p_sys_intf );
             p_widget->b_checked = checkBox->isChecked();
-            i_ret = VLC_SUCCESS;
+            i_ret = HEIMDALL_SUCCESS;
             break;
         }
         default:
@@ -345,7 +346,7 @@ int ExtensionDialog::TriggerClick()
 
     if( lockedHere )
     {
-        vlc_mutex_unlock( &p_dialog->lock );
+        heimdall_mutex_unlock( &p_dialog->lock );
         has_lock = false;
     }
 
@@ -364,7 +365,7 @@ void ExtensionDialog::SyncInput()
     bool lockedHere = false;
     if( !has_lock )
     {
-        vlc_mutex_lock( &p_dialog->lock );
+        heimdall_mutex_lock( &p_dialog->lock );
         has_lock = true;
         lockedHere = true;
     }
@@ -379,7 +380,7 @@ void ExtensionDialog::SyncInput()
 
     if( lockedHere )
     {
-        vlc_mutex_unlock( &p_dialog->lock );
+        heimdall_mutex_unlock( &p_dialog->lock );
         has_lock = false;
     }
 }
@@ -398,7 +399,7 @@ void ExtensionDialog::SyncSelection()
     bool lockedHere = false;
     if( !has_lock )
     {
-        vlc_mutex_lock( &p_dialog->lock );
+        heimdall_mutex_lock( &p_dialog->lock );
         has_lock = true;
         lockedHere = true;
     }
@@ -451,7 +452,7 @@ void ExtensionDialog::SyncSelection()
 
     if( lockedHere )
     {
-        vlc_mutex_unlock( &p_dialog->lock );
+        heimdall_mutex_unlock( &p_dialog->lock );
         has_lock = false;
     }
 }
@@ -459,7 +460,7 @@ void ExtensionDialog::SyncSelection()
 void ExtensionDialog::UpdateWidgets()
 {
     assert( p_dialog );
-    vlc_mutex_assert(&p_dialog->lock);
+    heimdall_mutex_assert(&p_dialog->lock);
 
     if( strcmp( qtu( windowTitle() ), p_dialog->psz_title ) != 0 )
         setWindowTitle( qfu( p_dialog->psz_title ) );
@@ -638,7 +639,7 @@ void ExtensionDialog::DestroyWidget( extension_widget_t *p_widget,
     delete widget;
     p_widget->p_sys_intf = NULL;
     if( b_cond )
-        vlc_cond_signal( &p_dialog->cond );
+        heimdall_cond_signal( &p_dialog->cond );
 }
 
 void ExtensionDialog::setWidgetMapping(QObject* object, extension_widget_t *ext_widget)

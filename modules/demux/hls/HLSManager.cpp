@@ -2,6 +2,7 @@
  * HLSManager.cpp
  *****************************************************************************
  * Copyright © 2015 VideoLAN and VLC authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -26,8 +27,8 @@
 #include "../adaptive/tools/Retrieve.hpp"
 #include "../adaptive/http/HTTPConnectionManager.h"
 #include "playlist/Parser.hpp"
-#include <vlc_stream.h>
-#include <vlc_demux.h>
+#include <heimdall_stream.h>
+#include <heimdall_demux.h>
 #include <time.h>
 
 using namespace adaptive;
@@ -52,11 +53,11 @@ bool HLSManager::isHTTPLiveStreaming(stream_t *s)
 {
     const uint8_t *peek;
 
-    int size = vlc_stream_Peek(s, &peek, 7);
+    int size = heimdall_stream_Peek(s, &peek, 7);
     if (size < 7 || memcmp(peek, "#EXTM3U", 7))
         return false;
 
-    size = vlc_stream_Peek(s, &peek, 8192);
+    size = heimdall_stream_Peek(s, &peek, 8192);
     if (size < 7)
         return false;
 

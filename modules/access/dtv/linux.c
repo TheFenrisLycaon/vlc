@@ -4,6 +4,7 @@
  */
 /*****************************************************************************
  * Copyright © 2011 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -24,9 +25,9 @@
 # include <config.h>
 #endif
 
-#include <vlc_common.h>
-#include <vlc_fs.h>
-#include <vlc_interrupt.h>
+#include <heimdall_common.h>
+#include <heimdall_fs.h>
+#include <heimdall_interrupt.h>
 
 #include <errno.h>
 #include <assert.h>
@@ -51,7 +52,7 @@
 
 typedef struct
 {
-    int vlc;
+    int heimdall;
     int linux_;
 } dvb_int_map_t;
 
@@ -59,10 +60,10 @@ static int icmp (const void *a, const void *b)
 {
     const int *key = a;
     const dvb_int_map_t *entry = b;
-    return *key - entry->vlc;
+    return *key - entry->heimdall;
 }
 
-/** Maps a VLC config integer to a Linux DVB enum value */
+/** Maps a Heimdall config integer to a Linux DVB enum value */
 static int dvb_parse_int (int i, const dvb_int_map_t *map, size_t n, int def)
 {
     const dvb_int_map_t *p = bsearch(&i, map, n, sizeof (*map), icmp);
@@ -71,7 +72,7 @@ static int dvb_parse_int (int i, const dvb_int_map_t *map, size_t n, int def)
 
 typedef const struct
 {
-    char vlc[8];
+    char heimdall[8];
     int linux_;
 } dvb_str_map_t;
 
@@ -79,10 +80,10 @@ static int scmp (const void *a, const void *b)
 {
     const char *key = a;
     dvb_str_map_t *entry = b;
-    return strcmp (key, entry->vlc);
+    return strcmp (key, entry->heimdall);
 }
 
-/** Maps a VLC config string to a Linux DVB enum value */
+/** Maps a Heimdall config string to a Linux DVB enum value */
 static int dvb_parse_str (const char *str, const dvb_str_map_t *map, size_t n,
                           int def)
 {
@@ -122,19 +123,19 @@ static int dvb_parse_fec (uint32_t fec)
     static const dvb_int_map_t rates[] =
     {
         { 0,             FEC_NONE },
-        { VLC_FEC(1,2),  FEC_1_2  },
+        { HEIMDALL_FEC(1,2),  FEC_1_2  },
         // TODO: 1/3
         // TODO: 1/4
-        { VLC_FEC(2,3),  FEC_2_3  },
-        { VLC_FEC(3,4),  FEC_3_4  },
-        { VLC_FEC(3,5),  FEC_3_5  },
-        { VLC_FEC(4,5),  FEC_4_5  },
-        { VLC_FEC(5,6),  FEC_5_6  },
-        { VLC_FEC(6,7),  FEC_6_7  },
-        { VLC_FEC(7,8),  FEC_7_8  },
-        { VLC_FEC(8,9),  FEC_8_9  },
-        { VLC_FEC(9,10), FEC_9_10 },
-        { VLC_FEC_AUTO,  FEC_AUTO },
+        { HEIMDALL_FEC(2,3),  FEC_2_3  },
+        { HEIMDALL_FEC(3,4),  FEC_3_4  },
+        { HEIMDALL_FEC(3,5),  FEC_3_5  },
+        { HEIMDALL_FEC(4,5),  FEC_4_5  },
+        { HEIMDALL_FEC(5,6),  FEC_5_6  },
+        { HEIMDALL_FEC(6,7),  FEC_6_7  },
+        { HEIMDALL_FEC(7,8),  FEC_7_8  },
+        { HEIMDALL_FEC(8,9),  FEC_8_9  },
+        { HEIMDALL_FEC(9,10), FEC_9_10 },
+        { HEIMDALL_FEC_AUTO,  FEC_AUTO },
     };
     return dvb_parse_int (fec, rates, ARRAY_SIZE(rates), FEC_AUTO);
 }
@@ -142,7 +143,7 @@ static int dvb_parse_fec (uint32_t fec)
 
 struct dvb_device
 {
-    vlc_object_t *obj;
+    heimdall_object_t *obj;
     int dir;
     int demux;
     int frontend;
@@ -166,7 +167,7 @@ static int dvb_open_adapter (uint8_t adapter)
     char dir[20];
 
     snprintf (dir, sizeof (dir), "/dev/dvb/adapter%"PRIu8, adapter);
-    return vlc_open (dir, O_SEARCH|O_DIRECTORY);
+    return heimdall_open (dir, O_SEARCH|O_DIRECTORY);
 }
 
 /** Opens the DVB device node of the specified type */
@@ -175,13 +176,13 @@ static int dvb_open_node (dvb_device_t *d, const char *type, int flags)
     char path[strlen (type) + 4];
 
     snprintf (path, sizeof (path), "%s%u", type, d->device);
-    return vlc_openat (d->dir, path, flags | O_NONBLOCK);
+    return heimdall_openat (d->dir, path, flags | O_NONBLOCK);
 }
 
 /**
  * Opens the DVB tuner
  */
-dvb_device_t *dvb_open (vlc_object_t *obj)
+dvb_device_t *dvb_open (heimdall_object_t *obj)
 {
     dvb_device_t *d = malloc (sizeof (*d));
     if (unlikely(d == NULL))
@@ -196,7 +197,7 @@ dvb_device_t *dvb_open (vlc_object_t *obj)
     if (d->dir == -1)
     {
         msg_Err (obj, "cannot access adapter %"PRIu8": %s", adapter,
-                 vlc_strerror_c(errno));
+                 heimdall_strerror_c(errno));
         free (d);
         return NULL;
     }
@@ -212,15 +213,15 @@ dvb_device_t *dvb_open (vlc_object_t *obj)
        if (d->demux == -1)
        {
            msg_Err (obj, "cannot access demultiplexer: %s",
-                    vlc_strerror_c(errno));
-           vlc_close (d->dir);
+                    heimdall_strerror_c(errno));
+           heimdall_close (d->dir);
            free (d);
            return NULL;
        }
 
        if (ioctl (d->demux, DMX_SET_BUFFER_SIZE, 1 << 20) < 0)
            msg_Warn (obj, "cannot expand demultiplexing buffer: %s",
-                     vlc_strerror_c(errno));
+                     heimdall_strerror_c(errno));
 
        /* We need to filter at least one PID. The tap for TS demultiplexing
         * cannot be configured otherwise. So add the PAT. */
@@ -234,7 +235,7 @@ dvb_device_t *dvb_open (vlc_object_t *obj)
         if (ioctl (d->demux, DMX_SET_PES_FILTER, &param) < 0)
         {
             msg_Err (obj, "cannot setup TS demultiplexer: %s",
-                     vlc_strerror_c(errno));
+                     heimdall_strerror_c(errno));
             goto error;
         }
 #ifndef USE_DMX
@@ -246,8 +247,8 @@ dvb_device_t *dvb_open (vlc_object_t *obj)
         d->demux = dvb_open_node (d, "dvr", O_RDONLY);
         if (d->demux == -1)
         {
-            msg_Err (obj, "cannot access DVR: %s", vlc_strerror_c(errno));
-            vlc_close (d->dir);
+            msg_Err (obj, "cannot access DVR: %s", heimdall_strerror_c(errno));
+            heimdall_close (d->dir);
             free (d);
             return NULL;
         }
@@ -259,11 +260,11 @@ dvb_device_t *dvb_open (vlc_object_t *obj)
     {
         d->cam = en50221_Init (obj, ca);
         if (d->cam == NULL)
-            vlc_close (ca);
+            heimdall_close (ca);
     }
     else
         msg_Dbg (obj, "conditional access module not available: %s",
-                 vlc_strerror_c(errno));
+                 heimdall_strerror_c(errno));
     return d;
 
 error:
@@ -278,19 +279,19 @@ void dvb_close (dvb_device_t *d)
     {
         for (size_t i = 0; i < MAX_PIDS; i++)
             if (d->pids[i].fd != -1)
-                vlc_close (d->pids[i].fd);
+                heimdall_close (d->pids[i].fd);
     }
 #endif
     if (d->cam != NULL)
         en50221_End (d->cam);
     if (d->frontend != -1)
-        vlc_close (d->frontend);
-    vlc_close (d->demux);
-    vlc_close (d->dir);
+        heimdall_close (d->frontend);
+    heimdall_close (d->demux);
+    heimdall_close (d->dir);
     free (d);
 }
 
-static void dvb_frontend_status(vlc_object_t *obj, fe_status_t s)
+static void dvb_frontend_status(heimdall_object_t *obj, fe_status_t s)
 {
     msg_Dbg(obj, "frontend status:");
 #define S(f) \
@@ -331,7 +332,7 @@ ssize_t dvb_read (dvb_device_t *d, void *buf, size_t len, int ms)
         n = 1;
 
     errno = 0;
-    n = vlc_poll_i11e (ufd, n, ms);
+    n = heimdall_poll_i11e (ufd, n, ms);
     if (n == 0)
         errno = EAGAIN;
     if (n <= 0)
@@ -349,7 +350,7 @@ ssize_t dvb_read (dvb_device_t *d, void *buf, size_t len, int ms)
                 return -1;
             }
             msg_Err (d->obj, "cannot dequeue frontend event: %s",
-                     vlc_strerror_c(errno));
+                     heimdall_strerror_c(errno));
             return 0;
         }
 
@@ -366,7 +367,7 @@ ssize_t dvb_read (dvb_device_t *d, void *buf, size_t len, int ms)
                 msg_Err (d->obj, "cannot demux data fast enough!");
                 return -1;
             }
-            msg_Err (d->obj, "cannot demux: %s", vlc_strerror_c(errno));
+            msg_Err (d->obj, "cannot demux: %s", heimdall_strerror_c(errno));
             return 0;
         }
         return val;
@@ -405,7 +406,7 @@ int dvb_add_pid (dvb_device_t *d, uint16_t pid)
         param.flags = DMX_IMMEDIATE_START;
         if (ioctl (fd, DMX_SET_PES_FILTER, &param) < 0)
         {
-            vlc_close (fd);
+            heimdall_close (fd);
             goto error;
         }
         d->pids[i].fd = fd;
@@ -416,7 +417,7 @@ int dvb_add_pid (dvb_device_t *d, uint16_t pid)
 error:
 #endif
     msg_Err (d->obj, "cannot add PID 0x%04"PRIu16": %s", pid,
-             vlc_strerror_c(errno));
+             heimdall_strerror_c(errno));
     return -1;
 }
 
@@ -432,7 +433,7 @@ void dvb_remove_pid (dvb_device_t *d, uint16_t pid)
     {
         if (d->pids[i].pid == pid)
         {
-            vlc_close (d->pids[i].fd);
+            heimdall_close (d->pids[i].fd);
             d->pids[i].pid = d->pids[i].fd = -1;
             return;
         }
@@ -460,7 +461,7 @@ static int dvb_open_frontend (dvb_device_t *d)
     int fd = dvb_open_node (d, "frontend", O_RDWR);
     if (fd == -1)
     {
-        msg_Err (d->obj, "cannot access frontend: %s", vlc_strerror_c(errno));
+        msg_Err (d->obj, "cannot access frontend: %s", heimdall_strerror_c(errno));
         return -1;
     }
 
@@ -491,7 +492,7 @@ unsigned dvb_enum_systems (dvb_device_t *d)
     if (ioctl (d->frontend, FE_GET_PROPERTY, &props) < 0)
     {
          msg_Err (d->obj, "cannot enumerate frontend systems: %s",
-                  vlc_strerror_c(errno));
+                  heimdall_strerror_c(errno));
          goto legacy;
     }
 
@@ -549,7 +550,7 @@ legacy:
     if (ioctl (d->frontend, FE_GET_PROPERTY, &props) < 0)
     {
         msg_Err (d->obj, "unsupported kernel DVB version 3 or older (%s)",
-                 vlc_strerror_c(errno));
+                 heimdall_strerror_c(errno));
         return 0;
     }
 
@@ -559,7 +560,7 @@ legacy:
 #if !DVBv5(5)
     /* Some delivery systems cannot be detected without the DVB API v5.5.
      * To run correctly on recent kernels (Linux >= 3.3),
-     * VLC needs to be compiled with up-to-date kernel headers. */
+     * Heimdall needs to be compiled with up-to-date kernel headers. */
     if ((prop[0].u.data >> 8) > 5
      || ((prop[0].u.data >> 8) == 5 && (prop[0].u.data & 0xFF) >= 5))
         msg_Err (d->obj, "obsolete user API version running on a new kernel");
@@ -569,7 +570,7 @@ legacy:
     if (ioctl (d->frontend, FE_GET_INFO, &info) < 0)
     {
         msg_Err (d->obj, "cannot get frontend info: %s",
-                 vlc_strerror_c(errno));
+                 heimdall_strerror_c(errno));
         return 0;
     }
     msg_Dbg (d->obj, " name %s", info.name);
@@ -663,7 +664,7 @@ static int dvb_vset_props (dvb_device_t *d, size_t n, va_list ap)
     if (ioctl (d->frontend, FE_SET_PROPERTY, &props) < 0)
     {
         msg_Err (d->obj, "cannot set frontend tuning parameters: %s",
-                 vlc_strerror_c(errno));
+                 heimdall_strerror_c(errno));
         return -1;
     }
     return 0;
@@ -707,7 +708,7 @@ int dvb_fill_device_caps(dvb_device_t *d, dvb_device_caps_t *caps)
     if (ioctl (d->frontend, FE_GET_INFO, &info) < 0)
     {
         msg_Err (d->obj, "cannot get frontend info: %s",
-                 vlc_strerror_c(errno));
+                 heimdall_strerror_c(errno));
         return -1;
     }
 
@@ -762,7 +763,7 @@ int dvb_set_sec (dvb_device_t *d, uint64_t freq_Hz, char pol,
     int val = var_InheritBool (d->obj, "dvb-high-voltage");
     if (ioctl (d->frontend, FE_ENABLE_HIGH_LNB_VOLTAGE, &val) < 0 && val)
         msg_Err (d->obj, "cannot enable high LNB voltage: %s",
-                 vlc_strerror_c(errno));
+                 heimdall_strerror_c(errno));
 
     /* Windows BDA exposes a higher-level API covering LNB oscillators.
      * So lets pretend this is platform-specific stuff and do it here. */
@@ -819,7 +820,7 @@ known:
     unsigned satno = var_InheritInteger (d->obj, "dvb-satno");
     if (satno > 0)
     {
-#undef vlc_tick_sleep /* we know what we are doing! */
+#undef heimdall_tick_sleep /* we know what we are doing! */
 
         /* DiSEqC Bus Specification:
  http://www.eutelsat.com/satellites/pdf/Diseqc/Reference%20docs/bus_spec.pdf */
@@ -841,7 +842,7 @@ known:
         cmd.msg[4] = cmd.msg[5] = 0; /* unused */
         cmd.msg_len = 4; /* length */
 
-        vlc_tick_sleep (VLC_TICK_FROM_MS(15)); /* wait 15 ms before DiSEqC command */
+        heimdall_tick_sleep (HEIMDALL_TICK_FROM_MS(15)); /* wait 15 ms before DiSEqC command */
         unsigned uncommitted = var_InheritInteger (d->obj, "dvb-uncommitted");
         if (uncommitted > 0)
         {
@@ -858,7 +859,7 @@ known:
           if (ioctl (d->frontend, FE_DISEQC_SEND_MASTER_CMD, &uncmd) < 0)
           {
               msg_Err (d->obj, "cannot send uncommitted DiSEqC command: %s",
-                       vlc_strerror_c(errno));
+                       heimdall_strerror_c(errno));
               return -1;
           }
           /* Repeat uncommitted command */
@@ -867,18 +868,18 @@ known:
           {
               msg_Err (d->obj,
                        "cannot send repeated uncommitted DiSEqC command: %s",
-                       vlc_strerror_c(errno));
+                       heimdall_strerror_c(errno));
               return -1;
           }
-          vlc_tick_sleep(VLC_TICK_FROM_MS(125)); /* wait 125 ms before committed DiSEqC command */
+          heimdall_tick_sleep(HEIMDALL_TICK_FROM_MS(125)); /* wait 125 ms before committed DiSEqC command */
         }
         if (ioctl (d->frontend, FE_DISEQC_SEND_MASTER_CMD, &cmd) < 0)
         {
             msg_Err (d->obj, "cannot send committed DiSEqC command: %s",
-                     vlc_strerror_c(errno));
+                     heimdall_strerror_c(errno));
             return -1;
         }
-        vlc_tick_sleep (VLC_TICK_FROM_MS(54 + 15));
+        heimdall_tick_sleep (HEIMDALL_TICK_FROM_MS(54 + 15));
 
         /* Mini-DiSEqC */
         satno &= 1;
@@ -886,10 +887,10 @@ known:
                    satno ? SEC_MINI_B : SEC_MINI_A) < 0)
         {
             msg_Err (d->obj, "cannot send Mini-DiSEqC tone burst: %s",
-                     vlc_strerror_c(errno));
+                     heimdall_strerror_c(errno));
             return -1;
         }
-        vlc_tick_sleep (VLC_TICK_FROM_MS(15));
+        heimdall_tick_sleep (HEIMDALL_TICK_FROM_MS(15));
     }
 
     /* Continuous tone (to select high oscillator frequency) */
@@ -987,16 +988,16 @@ static int dvb_parse_transmit_mode (int i)
 static int dvb_parse_guard (uint32_t guard)
 {
     static const dvb_int_map_t tab[] = {
-        { VLC_GUARD(1,4),    GUARD_INTERVAL_1_4 },
-        { VLC_GUARD(1,8),    GUARD_INTERVAL_1_8 },
-        { VLC_GUARD(1,16),   GUARD_INTERVAL_1_16 },
-        { VLC_GUARD(1,32),   GUARD_INTERVAL_1_32 },
+        { HEIMDALL_GUARD(1,4),    GUARD_INTERVAL_1_4 },
+        { HEIMDALL_GUARD(1,8),    GUARD_INTERVAL_1_8 },
+        { HEIMDALL_GUARD(1,16),   GUARD_INTERVAL_1_16 },
+        { HEIMDALL_GUARD(1,32),   GUARD_INTERVAL_1_32 },
 #if DVBv5(3)
-        { VLC_GUARD(1,128),  GUARD_INTERVAL_1_128 },
-        { VLC_GUARD(19,128), GUARD_INTERVAL_19_128 },
-        { VLC_GUARD(19,256), GUARD_INTERVAL_19_256 },
+        { HEIMDALL_GUARD(1,128),  GUARD_INTERVAL_1_128 },
+        { HEIMDALL_GUARD(19,128), GUARD_INTERVAL_19_128 },
+        { HEIMDALL_GUARD(19,256), GUARD_INTERVAL_19_256 },
 #endif
-        { VLC_GUARD_AUTO,    GUARD_INTERVAL_AUTO },
+        { HEIMDALL_GUARD_AUTO,    GUARD_INTERVAL_AUTO },
     };
     return dvb_parse_int (guard, tab, ARRAY_SIZE(tab), GUARD_INTERVAL_AUTO);
 }

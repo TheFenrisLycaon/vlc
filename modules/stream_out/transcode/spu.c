@@ -2,11 +2,12 @@
  * spu.c: transcoding stream output module (spu)
  *****************************************************************************
  * Copyright (C) 2003-2009 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *          Gildas Bazin <gbazin@videolan.org>
  *          Jean-Paul Saman <jpsaman #_at_# m2x dot nl>
- *          Antoine Cellerier <dionoea at videolan dot org>
+ *          Antoine Cellerier <dionoea at lycaria dot org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -30,11 +31,11 @@
 #include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_meta.h>
-#include <vlc_spu.h>
-#include <vlc_modules.h>
-#include <vlc_sout.h>
+#include <heimdall_common.h>
+#include <heimdall_meta.h>
+#include <heimdall_spu.h>
+#include <heimdall_modules.h>
+#include <heimdall_sout.h>
 
 #include "transcode.h"
 
@@ -43,7 +44,7 @@
 static subpicture_t *spu_new_buffer( decoder_t *p_dec,
                                      const subpicture_updater_t *p_upd )
 {
-    VLC_UNUSED( p_dec );
+    HEIMDALL_UNUSED( p_dec );
     return subpicture_New( p_upd );
 }
 
@@ -52,19 +53,19 @@ static void decoder_queue_sub( decoder_t *p_dec, subpicture_t *p_spu )
     struct decoder_owner *p_owner = dec_get_owner( p_dec );
     sout_stream_id_sys_t *id = p_owner->id;
 
-    vlc_mutex_lock(&id->fifo.lock);
+    heimdall_mutex_lock(&id->fifo.lock);
     *id->fifo.spu.last = p_spu;
     id->fifo.spu.last = &p_spu->p_next;
-    vlc_mutex_unlock(&id->fifo.lock);
+    heimdall_mutex_unlock(&id->fifo.lock);
 }
 
 static subpicture_t *transcode_dequeue_all_subs( sout_stream_id_sys_t *id )
 {
-    vlc_mutex_lock(&id->fifo.lock);
+    heimdall_mutex_lock(&id->fifo.lock);
     subpicture_t *p_subpics = id->fifo.spu.first;
     id->fifo.spu.first = NULL;
     id->fifo.spu.last = &id->fifo.spu.first;
-    vlc_mutex_unlock(&id->fifo.lock);
+    heimdall_mutex_unlock(&id->fifo.lock);
 
     return p_subpics;
 }
@@ -103,7 +104,7 @@ int transcode_spu_init( sout_stream_t *p_stream, const es_format_t *p_fmt,
     if( !id->p_decoder->p_module )
     {
         msg_Err( p_stream, "cannot find spu decoder" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( id->p_enccfg->i_codec /* !overlay */ )
@@ -116,7 +117,7 @@ int transcode_spu_init( sout_stream_t *p_stream, const es_format_t *p_fmt,
         {
             module_unneed( id->p_decoder, id->p_decoder->p_module );
             id->p_decoder->p_module = NULL;
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         if( transcode_encoder_open( id->encoder, id->p_enccfg ) )
@@ -125,7 +126,7 @@ int transcode_spu_init( sout_stream_t *p_stream, const es_format_t *p_fmt,
             transcode_encoder_delete( id->encoder );
             module_unneed( id->p_decoder, id->p_decoder->p_module );
             id->p_decoder->p_module = NULL;
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         /* open output stream */
@@ -141,7 +142,7 @@ int transcode_spu_init( sout_stream_t *p_stream, const es_format_t *p_fmt,
             transcode_encoder_delete( id->encoder );
             module_unneed( id->p_decoder, id->p_decoder->p_module );
             id->p_decoder->p_module = NULL;
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
     else
@@ -149,12 +150,12 @@ int transcode_spu_init( sout_stream_t *p_stream, const es_format_t *p_fmt,
         assert( id->p_enccfg->i_codec == 0 /* !overlay */ );
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 void transcode_spu_clean( sout_stream_t *p_stream, sout_stream_id_sys_t *id)
 {
-    VLC_UNUSED(p_stream);
+    HEIMDALL_UNUSED(p_stream);
 
     /* Close encoder */
     if( id->encoder )
@@ -165,13 +166,13 @@ int transcode_spu_process( sout_stream_t *p_stream,
                                   sout_stream_id_sys_t *id,
                                   block_t *in, block_t **out )
 {
-    VLC_UNUSED(p_stream);
+    HEIMDALL_UNUSED(p_stream);
     *out = NULL;
     bool b_error = false;
 
     int ret = id->p_decoder->pf_decode( id->p_decoder, in );
-    if( ret != VLCDEC_SUCCESS )
-        return VLC_EGENERIC;
+    if( ret != HEIMDALLDEC_SUCCESS )
+        return HEIMDALL_EGENERIC;
 
     subpicture_t *p_subpics = transcode_dequeue_all_subs( id );
 
@@ -189,7 +190,7 @@ int transcode_spu_process( sout_stream_t *p_stream,
             continue;
         }
 
-        vlc_tick_t drift;
+        heimdall_tick_t drift;
         if( id->pf_get_master_drift &&
             (drift = id->pf_get_master_drift( id->callback_data )) )
         {
@@ -217,7 +218,7 @@ int transcode_spu_process( sout_stream_t *p_stream,
             unsigned w, h;
             if( id->pf_get_output_dimensions == NULL ||
                 id->pf_get_output_dimensions( id->callback_data,
-                                              &w, &h ) != VLC_SUCCESS )
+                                              &w, &h ) != HEIMDALL_SUCCESS )
             {
                 w = id->p_enccfg->spu.i_width;
                 h = id->p_enccfg->spu.i_height;
@@ -243,5 +244,5 @@ int transcode_spu_process( sout_stream_t *p_stream,
         }
     } while( p_subpics );
 
-    return b_error ? VLC_EGENERIC : VLC_SUCCESS;
+    return b_error ? HEIMDALL_EGENERIC : HEIMDALL_SUCCESS;
 }

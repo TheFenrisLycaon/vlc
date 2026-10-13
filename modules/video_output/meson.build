@@ -36,7 +36,7 @@ vulkan_dep = dependency('vulkan', version: '>= 1.0.26', required: get_option('vu
 if host_system == 'darwin'
     subdir('apple')
 
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'window_macosx',
         'sources' : files('window_macosx.m'),
         'objc_args' : ['-fobjc-arc', '-fobjc-exceptions'],
@@ -59,14 +59,14 @@ if host_system == 'windows'
 endif
 
 # Dummy video output
-vlc_modules += {
+heimdall_modules += {
     'name' : 'vdummy',
     'sources' : files('vdummy.c'),
     'plugin_dir' : 'video_output',
 }
 
 # Dummy window provider
-vlc_modules += {
+heimdall_modules += {
     'name' : 'wdummy',
     'sources' : files('wdummy.c'),
     'plugin_dir' : 'video_output',
@@ -79,7 +79,7 @@ if host_system == 'android'
     android_lib = cc.find_library('android')
     egl_lib = cc.find_library('EGL')
     glesv2_lib = cc.find_library('GLESv2')
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'android_window',
         'sources' : files('android/window.c'),
         'link_with' : [libandroid_utils, libandroid_env],
@@ -101,18 +101,18 @@ if host_system == 'android'
         'opengl/renderer.c',
         'opengl/vout_helper.c',
     )
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'android_display',
         'sources' : [files('android/display.c'), android_gl_sources],
         'c_args' : ['-DUSE_OPENGL_ES2'],
-        'include_directories' : [vlc_include_dirs],
+        'include_directories' : [heimdall_include_dirs],
         'link_with' : [libandroid_utils, libandroid_env],
         'dependencies' : [android_lib, egl_lib, glesv2_lib, m_lib],
         'plugin_dir' : 'video_output',
     }
 
     # EGL display module for Android
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'egl_android',
         'sources' : files('opengl/egl.c'),
         'c_args' : ['-DUSE_PLATFORM_ANDROID=1'],
@@ -122,7 +122,7 @@ if host_system == 'android'
     }
 
     # OpenGL ES 2 interop for Android Surface (SurfaceTexture / ANativeWindow)
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'glinterop_asurface',
         'sources' : files('opengl/interop_asurface.c'),
         'c_args' : ['-DUSE_OPENGL_ES2'],
@@ -132,7 +132,7 @@ if host_system == 'android'
     }
 
     # OpenGL ES 2 interop for Android Image (AImageReader)
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'glinterop_aimage',
         'sources' : files('opengl/interop_aimage.c'),
         'c_args' : ['-DUSE_OPENGL_ES2'],
@@ -143,21 +143,21 @@ if host_system == 'android'
 endif
 
 # Video splitter
-vlc_modules += {
+heimdall_modules += {
     'name' : 'video_splitter',
     'sources' : files('splitter.c'),
     'plugin_dir' : 'video_output',
 }
 
 # YUV video output
-vlc_modules += {
+heimdall_modules += {
     'name' : 'yuv',
     'sources' : files('yuv.c'),
     'plugin_dir' : 'video_output',
 }
 
 # Flaschen video output
-vlc_modules += {
+heimdall_modules += {
     'name' : 'flaschen',
     'sources' : files('flaschen.c'),
     'dependencies' : [socket_libs],
@@ -165,27 +165,27 @@ vlc_modules += {
 }
 
 # vmem
-vlc_modules += {
+heimdall_modules += {
     'name' : 'vmem',
     'sources' : files('vmem.c'),
     'plugin_dir' : 'video_output',
 }
 
 # wextern
-vlc_modules += {
+heimdall_modules += {
     'name' : 'wextern',
     'sources' : files('wextern.c'),
     'plugin_dir' : 'video_output',
 }
 
 # vgl
-vlc_modules += {
+heimdall_modules += {
     'name' : 'vgl',
     'sources' : files('vgl.c'),
     'plugin_dir' : 'video_output',
 }
 
-vlc_modules += {
+heimdall_modules += {
     'name' : 'decklinkoutput',
     'sources' : files('decklink.cpp',
                     '../stream_out/sdi/Ancillary.cpp',
@@ -204,7 +204,7 @@ vlc_modules += {
 
 # Kernel Mode Setting
 if drm_dep.found()
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'kms',
         'sources' : files('kms.c'),
         'dependencies' : [drm_dep],
@@ -219,7 +219,7 @@ if not (host_system in ['windows', 'darwin'])
     caca_deps += x11_dep
 endif
 if caca_dep.found()
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'caca',
         'sources' : files('caca.c'),
         'dependencies' : [caca_deps],
@@ -231,7 +231,7 @@ endif
 # Vulkan video outputs
 #
 if vulkan_dep.found()
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'vk_win32',
         'sources' : files('vulkan/platform.c', 'vulkan/platform_win32.c'),
         'c_args' : ['-DVK_USE_PLATFORM_WIN32_KHR', '-DPLATFORM_NAME=Win32'],
@@ -240,7 +240,7 @@ if vulkan_dep.found()
         'enabled': host_system == 'windows' and not have_win_store,
     }
 
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'vk_android',
         'sources' : files('vulkan/platform.c', 'vulkan/platform_android.c'),
         'c_args' : ['-DVK_USE_PLATFORM_ANDROID_KHR', '-DPLATFORM_NAME=Android'],
@@ -255,17 +255,17 @@ endif
 #
 
 if xcb_dep.found()
-    vlc_xcb_events_lib = library('vlc_xcb_events',
+    heimdall_xcb_events_lib = library('heimdall_xcb_events',
         files('xcb/events.c'),
-        include_directories: [vlc_include_dirs],
+        include_directories: [heimdall_include_dirs],
         link_args: gc_sections_linkargs,
-        dependencies: [xcb_dep, libvlccore_dep],
+        dependencies: [xcb_dep, libheimdallcore_dep],
         install: true,
         install_dir: pkglibdir_path,
         )
 
     if xcb_randr_dep.found() and xproto_dep.found()
-        vlc_modules += {
+        heimdall_modules += {
             'name' : 'xcb_window',
             'sources' : files('xcb/window.c'),
             'dependencies' : [xcb_dep, xcb_randr_dep, xproto_dep],
@@ -274,34 +274,34 @@ if xcb_dep.found()
     endif
 
     if xcb_render_dep.found() and xcb_shm_dep.found()
-        vlc_modules += {
+        heimdall_modules += {
             'name' : 'xcb_render',
             'sources' : files(
               'xcb/pictures.c',
               'xcb/render.c'
             ),
             'dependencies' : [xcb_dep, xcb_render_dep, xcb_shm_dep, m_lib],
-            'link_with' : [vlc_xcb_events_lib],
+            'link_with' : [heimdall_xcb_events_lib],
             'plugin_dir' : 'video_output',
         }
     endif
 
     if xcb_shm_dep.found()
-        vlc_modules += {
+        heimdall_modules += {
             'name' : 'xcb_x11',
             'sources' : files(
               'xcb/pictures.c',
               'xcb/x11.c'
             ),
             'dependencies' : [xcb_dep, xcb_shm_dep],
-            'link_with' : [vlc_xcb_events_lib],
+            'link_with' : [heimdall_xcb_events_lib],
             'plugin_dir' : 'video_output',
         }
     endif
 endif
 
 if x11_dep.found() and egl_dep.found()
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'egl_x11',
         'sources' : files('opengl/egl.c'),
         'c_args' : ['-DUSE_PLATFORM_X11=1'],
@@ -311,7 +311,7 @@ if x11_dep.found() and egl_dep.found()
 endif
 
 if x11_dep.found() and opengl_dep.found()
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'glx',
         'sources' : files('glx.c'),
         'dependencies' : [x11_dep, opengl_dep],
@@ -323,13 +323,13 @@ endif
 # OS/2 video output
 #
 if host_system == 'os/2'
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'drawable_os2',
         'sources' : files('drawable_os2.c'),
         'plugin_dir' : 'video_output',
     }
 
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'window_os2',
         'sources' : files('window_os2.c'),
         'plugin_dir' : 'video_output',
@@ -340,7 +340,7 @@ if host_system == 'os/2'
                                    has_headers: ['kva.h'],
                                    required: get_option('kva').enabled())
 
-        vlc_modules += {
+        heimdall_modules += {
             'name' : 'kva',
             'sources' : files('kva.c'),
             'dependencies' : [kva_lib],

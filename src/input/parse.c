@@ -2,6 +2,7 @@
  * parse.c: input_item parsing management
  *****************************************************************************
  * Copyright (C) 1998-2004 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Clément Stenac <zorglub@videolan.org>
  *
@@ -28,16 +29,16 @@
 #include <limits.h>
 #include <ctype.h>
 
-#include <vlc_common.h>
-#include <vlc_arrays.h>
-#include <vlc_url.h>
-#include <vlc_strings.h>
+#include <heimdall_common.h>
+#include <heimdall_arrays.h>
+#include <heimdall_url.h>
+#include <heimdall_strings.h>
 
 #include "item.h"
 #include "info.h"
 #include "input_internal.h"
 
-#include <vlc_charset.h>
+#include <heimdall_charset.h>
 
 struct input_item_parser_id_t
 {
@@ -49,7 +50,7 @@ struct input_item_parser_id_t
 
 static bool
 input_item_parser_InputEvent(input_thread_t *input,
-                             const struct vlc_input_event *event, void *parser_)
+                             const struct heimdall_input_event *event, void *parser_)
 {
     input_item_parser_id_t *parser = parser_;
 
@@ -58,7 +59,7 @@ input_item_parser_InputEvent(input_thread_t *input,
     {
         case INPUT_EVENT_TIMES:
         {
-            vlc_tick_t duration = input_GetItemDuration(input, event->times.length);
+            heimdall_tick_t duration = input_GetItemDuration(input, event->times.length);
             input_item_SetDuration(input_GetItem(input), duration);
             break;
         }
@@ -67,7 +68,7 @@ input_item_parser_InputEvent(input_thread_t *input,
             break;
         case INPUT_EVENT_DEAD:
         {
-            int status = parser->state == END_S ? VLC_SUCCESS : VLC_EGENERIC;
+            int status = parser->state == END_S ? HEIMDALL_SUCCESS : HEIMDALL_EGENERIC;
             parser->cbs->on_ended(input_GetItem(input), status, parser->userdata);
             break;
         }
@@ -93,7 +94,7 @@ input_item_parser_InputEvent(input_thread_t *input,
 }
 
 input_item_parser_id_t *
-input_item_Parse(vlc_object_t *obj, input_item_t *item,
+input_item_Parse(heimdall_object_t *obj, input_item_t *item,
                  const struct input_item_parser_cfg *cfg)
 {
     assert(cfg != NULL && cfg->cbs != NULL && cfg->cbs->on_ended);
@@ -105,11 +106,11 @@ input_item_Parse(vlc_object_t *obj, input_item_t *item,
     parser->cbs = cfg->cbs;
     parser->userdata = cfg->cbs_data;
 
-    static const struct vlc_input_thread_callbacks input_cbs = {
+    static const struct heimdall_input_thread_callbacks input_cbs = {
         .on_event = input_item_parser_InputEvent,
     };
 
-    const struct vlc_input_thread_cfg input_cfg = {
+    const struct heimdall_input_thread_cfg input_cfg = {
         .type = INPUT_TYPE_PREPARSING,
         .hw_dec = INPUT_CFG_HW_DEC_DISABLED,
         .cbs = &input_cbs,

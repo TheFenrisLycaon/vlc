@@ -5,9 +5,9 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_objects.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_objects.h>
 
 #include <stdint.h>
 
@@ -80,7 +80,7 @@ typedef struct {
 } qt_csd_menu_event;
 
 typedef struct qt_csd_menu_t {
-    struct vlc_object_t obj;
+    struct heimdall_object_t obj;
     void* p_sys;
 
     bool (*popup)(struct qt_csd_menu_t* menu, qt_csd_menu_event* event);

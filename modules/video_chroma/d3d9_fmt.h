@@ -2,6 +2,7 @@
  * d3d9_fmt.h : D3D9 helper calls
  *****************************************************************************
  * Copyright © 2017 VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Steve Lhomme <robux4@gmail.com>
  *
@@ -20,11 +21,11 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_VIDEOCHROMA_D3D9_FMT_H_
-#define VLC_VIDEOCHROMA_D3D9_FMT_H_
+#ifndef HEIMDALL_VIDEOCHROMA_D3D9_FMT_H_
+#define HEIMDALL_VIDEOCHROMA_D3D9_FMT_H_
 
-#include <vlc_picture.h>
-#include <vlc_codec.h>
+#include <heimdall_picture.h>
+#include <heimdall_codec.h>
 
 #define COBJMACROS
 #include <d3d9.h>
@@ -33,7 +34,7 @@
 
 #define DXVAHD_TEXT N_("Use DXVA-HD for color conversion")
 
-/* owned by the vout for VLC_CODEC_D3D9_OPAQUE */
+/* owned by the vout for HEIMDALL_CODEC_D3D9_OPAQUE */
 typedef struct
 {
     IDirect3DSurface9    *surface;
@@ -80,47 +81,47 @@ typedef struct
     D3DFORMAT        format;
 } d3d9_video_context_t;
 
-static inline bool is_d3d9_opaque(vlc_fourcc_t chroma)
+static inline bool is_d3d9_opaque(heimdall_fourcc_t chroma)
 {
     switch (chroma)
     {
-    case VLC_CODEC_D3D9_OPAQUE:
-    case VLC_CODEC_D3D9_OPAQUE_10B:
+    case HEIMDALL_CODEC_D3D9_OPAQUE:
+    case HEIMDALL_CODEC_D3D9_OPAQUE_10B:
         return true;
     default:
         return false;
     }
 }
 
-extern const struct vlc_video_context_operations d3d9_vctx_ops;
+extern const struct heimdall_video_context_operations d3d9_vctx_ops;
 
 picture_sys_d3d9_t *ActiveD3D9PictureSys(picture_t *);
 
-static inline d3d9_decoder_device_t *GetD3D9OpaqueDevice(vlc_decoder_device *device)
+static inline d3d9_decoder_device_t *GetD3D9OpaqueDevice(heimdall_decoder_device *device)
 {
-    if (device == NULL || device->type != VLC_DECODER_DEVICE_DXVA2)
+    if (device == NULL || device->type != HEIMDALL_DECODER_DEVICE_DXVA2)
         return NULL;
     return device->opaque;
 }
 
-static inline d3d9_decoder_device_t *GetD3D9OpaqueContext(vlc_video_context *vctx)
+static inline d3d9_decoder_device_t *GetD3D9OpaqueContext(heimdall_video_context *vctx)
 {
-    vlc_decoder_device *device = vctx ? vlc_video_context_HoldDevice(vctx) : NULL;
+    heimdall_decoder_device *device = vctx ? heimdall_video_context_HoldDevice(vctx) : NULL;
     if (unlikely(device == NULL))
         return NULL;
     d3d9_decoder_device_t *res = NULL;
-    if (device->type == VLC_DECODER_DEVICE_DXVA2)
+    if (device->type == HEIMDALL_DECODER_DEVICE_DXVA2)
     {
         assert(device->opaque != NULL);
         res = GetD3D9OpaqueDevice(device);
     }
-    vlc_decoder_device_Release(device);
+    heimdall_decoder_device_Release(device);
     return res;
 }
 
-static inline d3d9_video_context_t *GetD3D9ContextPrivate(vlc_video_context *vctx)
+static inline d3d9_video_context_t *GetD3D9ContextPrivate(heimdall_video_context *vctx)
 {
-    return (d3d9_video_context_t *) vlc_video_context_GetPrivate( vctx, VLC_VIDEO_CONTEXT_DXVA2 );
+    return (d3d9_video_context_t *) heimdall_video_context_GetPrivate( vctx, HEIMDALL_VIDEO_CONTEXT_DXVA2 );
 }
 
 static inline void AcquireD3D9PictureSys(picture_sys_d3d9_t *p_sys)
@@ -133,12 +134,12 @@ static inline void ReleaseD3D9PictureSys(picture_sys_d3d9_t *p_sys)
     IDirect3DSurface9_Release(p_sys->surface);
 }
 
-d3d9_decoder_device_t *D3D9_CreateDevice(vlc_object_t *);
-#define D3D9_CreateDevice(a) D3D9_CreateDevice( VLC_OBJECT(a) )
+d3d9_decoder_device_t *D3D9_CreateDevice(heimdall_object_t *);
+#define D3D9_CreateDevice(a) D3D9_CreateDevice( HEIMDALL_OBJECT(a) )
 
 void D3D9_ReleaseDevice(d3d9_decoder_device_t *);
 
-int D3D9_ResetDevice(vlc_object_t *, d3d9_decoder_device_t *);
+int D3D9_ResetDevice(heimdall_object_t *, d3d9_decoder_device_t *);
 
 void d3d9_pic_context_destroy(picture_context_t *);
 picture_context_t *d3d9_pic_context_copy(picture_context_t *);
@@ -146,9 +147,9 @@ picture_context_t *d3d9_pic_context_copy(picture_context_t *);
 typedef struct {
     const char   *name;
     D3DFORMAT    format;
-    vlc_fourcc_t vlc_chroma;
+    heimdall_fourcc_t heimdall_chroma;
 } d3d9_format_t;
 
 const d3d9_format_t *D3D9FormatFourcc(D3DFORMAT);
 
-#endif /* VLC_VIDEOCHROMA_D3D9_FMT_H_ */
+#endif /* HEIMDALL_VIDEOCHROMA_D3D9_FMT_H_ */

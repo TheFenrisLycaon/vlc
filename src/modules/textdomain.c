@@ -2,6 +2,7 @@
  * textdomain.c : Modules text domain management
  *****************************************************************************
  * Copyright (C) 2010 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,20 +23,20 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
 #include "modules/modules.h"
 
 #ifdef ENABLE_NLS
 # include <libintl.h>
-# include <vlc_charset.h>
+# include <heimdall_charset.h>
 #endif
 
-int vlc_bindtextdomain (const char *domain)
+int heimdall_bindtextdomain (const char *domain)
 {
 #if defined (ENABLE_NLS)
     /* Specify where to find the locales for current domain */
-    char *upath = config_GetSysPath(VLC_LOCALE_DIR, NULL);
+    char *upath = config_GetSysPath(HEIMDALL_LOCALE_DIR, NULL);
     if (unlikely(upath == NULL))
         return -1;
 
@@ -50,7 +51,7 @@ int vlc_bindtextdomain (const char *domain)
     LocaleFree(lpath);
     free (upath);
 
-    /* LibVLC wants all messages in UTF-8.
+    /* LibHeimdall wants all messages in UTF-8.
      * Unfortunately, we cannot ask UTF-8 for strerror_r(), strsignal_r()
      * and other functions that are not part of our text domain.
      */
@@ -62,8 +63,8 @@ int vlc_bindtextdomain (const char *domain)
         return -1;
     }
 
-    /* LibVLC does NOT set the default textdomain, since it is a library.
-     * This could otherwise break programs using LibVLC (other than VLC).
+    /* LibHeimdall does NOT set the default textdomain, since it is a library.
+     * This could otherwise break programs using LibHeimdall (other than Heimdall).
      * textdomain (PACKAGE_NAME);
      */
 
@@ -75,9 +76,9 @@ int vlc_bindtextdomain (const char *domain)
 }
 
 /**
- * In-tree plugins share their gettext domain with LibVLC.
+ * In-tree plugins share their gettext domain with LibHeimdall.
  */
-const char *vlc_gettext(const char *msgid)
+const char *heimdall_gettext(const char *msgid)
 {
 #ifdef ENABLE_NLS
     if (likely(*msgid))
@@ -86,7 +87,7 @@ const char *vlc_gettext(const char *msgid)
     return msgid;
 }
 
-const char *vlc_ngettext(const char *msgid, const char *plural,
+const char *heimdall_ngettext(const char *msgid, const char *plural,
                          unsigned long n)
 {
 #ifdef ENABLE_NLS

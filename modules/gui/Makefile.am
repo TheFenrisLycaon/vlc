@@ -24,7 +24,7 @@ EXTRA_DIST += gui/eject.c
 libminimal_macosx_plugin_la_SOURCES = \
 	gui/minimal_macosx/intf.h gui/minimal_macosx/intf.m \
 	gui/minimal_macosx/misc.h gui/minimal_macosx/misc.m \
-	gui/minimal_macosx/VLCMinimalVoutWindow.h gui/minimal_macosx/VLCMinimalVoutWindow.m \
+	gui/minimal_macosx/HeimdallMinimalVoutWindow.h gui/minimal_macosx/HeimdallMinimalVoutWindow.m \
 	gui/minimal_macosx/macosx.c
 libminimal_macosx_plugin_la_OBJCFLAGS = $(AM_OBJCFLAGS) -fobjc-arc -fobjc-exceptions
 libminimal_macosx_plugin_la_LDFLAGS = $(AM_LDFLAGS) $(gui_RPATH) -Wl,-framework,Cocoa

@@ -1,7 +1,8 @@
 /*****************************************************************************
- * mmdevice.c : Windows Multimedia Device API audio output plugin for VLC
+ * mmdevice.c : Windows Multimedia Device API audio output plugin for Heimdall
  *****************************************************************************
  * Copyright (C) 2012-2017 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -37,18 +38,18 @@
 DEFINE_PROPERTYKEY(PKEY_Device_FriendlyName, 0xa45c254e, 0xdf1c, 0x4efd,
    0x80, 0x20, 0x67, 0xd1, 0x46, 0xa8, 0x50, 0xe0, 14);
 
-#include <vlc_common.h>
-#include <vlc_arrays.h>
-#include <vlc_plugin.h>
-#include <vlc_aout.h>
-#include <vlc_charset.h>
-#include <vlc_modules.h>
+#include <heimdall_common.h>
+#include <heimdall_arrays.h>
+#include <heimdall_plugin.h>
+#include <heimdall_aout.h>
+#include <heimdall_charset.h>
+#include <heimdall_modules.h>
 #include "mmdevice.h"
 
-DEFINE_GUID (GUID_VLC_AUD_OUT, 0x4533f59d, 0x59ee, 0x00c6,
+DEFINE_GUID (GUID_HEIMDALL_AUD_OUT, 0x4533f59d, 0x59ee, 0x00c6,
    0xad, 0xb2, 0xc6, 0x8b, 0x50, 0x1a, 0x66, 0x55);
 
-static int TryEnterMTA(vlc_object_t *obj)
+static int TryEnterMTA(heimdall_object_t *obj)
 {
     HRESULT hr = CoInitializeEx(NULL, COINIT_MULTITHREADED | COINIT_DISABLE_OLE1DDE);
     if (unlikely(FAILED(hr)))
@@ -58,7 +59,7 @@ static int TryEnterMTA(vlc_object_t *obj)
     }
     return 0;
 }
-#define TryEnterMTA(o) TryEnterMTA(VLC_OBJECT(o))
+#define TryEnterMTA(o) TryEnterMTA(HEIMDALL_OBJECT(o))
 
 static void EnterMTA(void)
 {
@@ -103,10 +104,10 @@ typedef struct
     atomic_bool default_device_changed;
     atomic_bool session_volume_changed; /**< Flag to check if session volume/mute changed */
     HANDLE work_event;
-    vlc_sem_t init_passed;
-    vlc_mutex_t lock;
-    vlc_cond_t ready;
-    vlc_thread_t thread; /**< Thread for audio session control */
+    heimdall_sem_t init_passed;
+    heimdall_mutex_t lock;
+    heimdall_cond_t ready;
+    heimdall_thread_t thread; /**< Thread for audio session control */
 } aout_sys_t;
 
 /* NOTE: The Core Audio API documentation totally fails to specify the thread
@@ -122,7 +123,7 @@ typedef struct
  * and (trivially) the device and session notifications. */
 
 static int DeviceSelect(audio_output_t *, const char *);
-static int vlc_FromHR(audio_output_t *aout, HRESULT hr)
+static int heimdall_FromHR(audio_output_t *aout, HRESULT hr)
 {
     /* Select the default device (and restart) on unplug */
     if (unlikely(hr == AUDCLNT_E_DEVICE_INVALIDATED ||
@@ -131,29 +132,29 @@ static int vlc_FromHR(audio_output_t *aout, HRESULT hr)
     return SUCCEEDED(hr) ? 0 : -1;
 }
 
-/*** VLC audio output callbacks ***/
-static void Play(audio_output_t *aout, block_t *block, vlc_tick_t date)
+/*** Heimdall audio output callbacks ***/
+static void Play(audio_output_t *aout, block_t *block, heimdall_tick_t date)
 {
     aout_sys_t *sys = aout->sys;
 
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     aout_stream_owner_AppendBlock(sys->stream, block, date);
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
     SetEvent(sys->work_event);
 }
 
-static void Pause(audio_output_t *aout, bool paused, vlc_tick_t date)
+static void Pause(audio_output_t *aout, bool paused, heimdall_tick_t date)
 {
     aout_sys_t *sys = aout->sys;
     HRESULT hr;
 
     EnterMTA();
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     hr = aout_stream_owner_Pause(sys->stream, paused);
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
     LeaveMTA();
 
-    vlc_FromHR(aout, hr);
+    heimdall_FromHR(aout, hr);
     (void) date;
 }
 
@@ -163,12 +164,12 @@ static void Flush(audio_output_t *aout)
     HRESULT hr;
 
     EnterMTA();
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     hr = aout_stream_owner_Flush(sys->stream);
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
     LeaveMTA();
 
-    vlc_FromHR(aout, hr);
+    heimdall_FromHR(aout, hr);
 }
 
 static int VolumeSetLocked(audio_output_t *aout, float vol)
@@ -193,10 +194,10 @@ static int VolumeSet(audio_output_t *aout, float vol)
 {
     aout_sys_t *sys = aout->sys;
 
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     int ret = VolumeSetLocked(aout, vol);
     aout_GainRequest(aout, sys->gain);
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
     SetEvent(sys->work_event);
     return ret;
 }
@@ -205,16 +206,16 @@ static int MuteSet(audio_output_t *aout, bool mute)
 {
     aout_sys_t *sys = aout->sys;
 
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     sys->requested_mute = mute;
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
     SetEvent(sys->work_event);
     return 0;
 }
 
 /*** Audio session events ***/
 static STDMETHODIMP
-vlc_AudioSessionEvents_QueryInterface(IAudioSessionEvents *this, REFIID riid,
+heimdall_AudioSessionEvents_QueryInterface(IAudioSessionEvents *this, REFIID riid,
                                       void **ppv)
 {
     if (IsEqualIID(riid, &IID_IUnknown)
@@ -232,21 +233,21 @@ vlc_AudioSessionEvents_QueryInterface(IAudioSessionEvents *this, REFIID riid,
 }
 
 static STDMETHODIMP_(ULONG)
-vlc_AudioSessionEvents_AddRef(IAudioSessionEvents *this)
+heimdall_AudioSessionEvents_AddRef(IAudioSessionEvents *this)
 {
     aout_sys_t *sys = container_of(this, aout_sys_t, session_events);
     return InterlockedIncrement(&sys->refs);
 }
 
 static STDMETHODIMP_(ULONG)
-vlc_AudioSessionEvents_Release(IAudioSessionEvents *this)
+heimdall_AudioSessionEvents_Release(IAudioSessionEvents *this)
 {
     aout_sys_t *sys = container_of(this, aout_sys_t, session_events);
     return InterlockedDecrement(&sys->refs);
 }
 
 static STDMETHODIMP
-vlc_AudioSessionEvents_OnDisplayNameChanged(IAudioSessionEvents *this,
+heimdall_AudioSessionEvents_OnDisplayNameChanged(IAudioSessionEvents *this,
                                             LPCWSTR wname, LPCGUID ctx)
 {
     aout_sys_t *sys = container_of(this, aout_sys_t, session_events);
@@ -258,7 +259,7 @@ vlc_AudioSessionEvents_OnDisplayNameChanged(IAudioSessionEvents *this,
 }
 
 static STDMETHODIMP
-vlc_AudioSessionEvents_OnIconPathChanged(IAudioSessionEvents *this,
+heimdall_AudioSessionEvents_OnIconPathChanged(IAudioSessionEvents *this,
                                          LPCWSTR wpath, LPCGUID ctx)
 {
     aout_sys_t *sys = container_of(this, aout_sys_t, session_events);
@@ -270,7 +271,7 @@ vlc_AudioSessionEvents_OnIconPathChanged(IAudioSessionEvents *this,
 }
 
 static STDMETHODIMP
-vlc_AudioSessionEvents_OnSimpleVolumeChanged(IAudioSessionEvents *this,
+heimdall_AudioSessionEvents_OnSimpleVolumeChanged(IAudioSessionEvents *this,
                                              float vol, BOOL mute,
                                              LPCGUID ctx)
 {
@@ -286,7 +287,7 @@ vlc_AudioSessionEvents_OnSimpleVolumeChanged(IAudioSessionEvents *this,
 }
 
 static STDMETHODIMP
-vlc_AudioSessionEvents_OnChannelVolumeChanged(IAudioSessionEvents *this,
+heimdall_AudioSessionEvents_OnChannelVolumeChanged(IAudioSessionEvents *this,
                                               DWORD count, float *vols,
                                               DWORD changed, LPCGUID ctx)
 {
@@ -304,7 +305,7 @@ vlc_AudioSessionEvents_OnChannelVolumeChanged(IAudioSessionEvents *this,
 }
 
 static STDMETHODIMP
-vlc_AudioSessionEvents_OnGroupingParamChanged(IAudioSessionEvents *this,
+heimdall_AudioSessionEvents_OnGroupingParamChanged(IAudioSessionEvents *this,
                                               LPCGUID param, LPCGUID ctx)
 
 {
@@ -318,7 +319,7 @@ vlc_AudioSessionEvents_OnGroupingParamChanged(IAudioSessionEvents *this,
 }
 
 static STDMETHODIMP
-vlc_AudioSessionEvents_OnStateChanged(IAudioSessionEvents *this,
+heimdall_AudioSessionEvents_OnStateChanged(IAudioSessionEvents *this,
                                       AudioSessionState state)
 {
     aout_sys_t *sys = container_of(this, aout_sys_t, session_events);
@@ -329,7 +330,7 @@ vlc_AudioSessionEvents_OnStateChanged(IAudioSessionEvents *this,
 }
 
 static STDMETHODIMP
-vlc_AudioSessionEvents_OnSessionDisconnected(IAudioSessionEvents *this,
+heimdall_AudioSessionEvents_OnSessionDisconnected(IAudioSessionEvents *this,
                                            AudioSessionDisconnectReason reason)
 {
     aout_sys_t *sys = container_of(this, aout_sys_t, session_events);
@@ -363,23 +364,23 @@ vlc_AudioSessionEvents_OnSessionDisconnected(IAudioSessionEvents *this,
     return S_OK;
 }
 
-static const struct IAudioSessionEventsVtbl vlc_AudioSessionEvents =
+static const struct IAudioSessionEventsVtbl heimdall_AudioSessionEvents =
 {
-    vlc_AudioSessionEvents_QueryInterface,
-    vlc_AudioSessionEvents_AddRef,
-    vlc_AudioSessionEvents_Release,
+    heimdall_AudioSessionEvents_QueryInterface,
+    heimdall_AudioSessionEvents_AddRef,
+    heimdall_AudioSessionEvents_Release,
 
-    vlc_AudioSessionEvents_OnDisplayNameChanged,
-    vlc_AudioSessionEvents_OnIconPathChanged,
-    vlc_AudioSessionEvents_OnSimpleVolumeChanged,
-    vlc_AudioSessionEvents_OnChannelVolumeChanged,
-    vlc_AudioSessionEvents_OnGroupingParamChanged,
-    vlc_AudioSessionEvents_OnStateChanged,
-    vlc_AudioSessionEvents_OnSessionDisconnected,
+    heimdall_AudioSessionEvents_OnDisplayNameChanged,
+    heimdall_AudioSessionEvents_OnIconPathChanged,
+    heimdall_AudioSessionEvents_OnSimpleVolumeChanged,
+    heimdall_AudioSessionEvents_OnChannelVolumeChanged,
+    heimdall_AudioSessionEvents_OnGroupingParamChanged,
+    heimdall_AudioSessionEvents_OnStateChanged,
+    heimdall_AudioSessionEvents_OnSessionDisconnected,
 };
 
 static STDMETHODIMP
-vlc_AudioVolumeDuckNotification_QueryInterface(
+heimdall_AudioVolumeDuckNotification_QueryInterface(
     IAudioVolumeDuckNotification *this, REFIID riid, void **ppv)
 {
     if (IsEqualIID(riid, &IID_IUnknown)
@@ -397,21 +398,21 @@ vlc_AudioVolumeDuckNotification_QueryInterface(
 }
 
 static STDMETHODIMP_(ULONG)
-vlc_AudioVolumeDuckNotification_AddRef(IAudioVolumeDuckNotification *this)
+heimdall_AudioVolumeDuckNotification_AddRef(IAudioVolumeDuckNotification *this)
 {
     aout_sys_t *sys = container_of(this, aout_sys_t, duck);
     return InterlockedIncrement(&sys->refs);
 }
 
 static STDMETHODIMP_(ULONG)
-vlc_AudioVolumeDuckNotification_Release(IAudioVolumeDuckNotification *this)
+heimdall_AudioVolumeDuckNotification_Release(IAudioVolumeDuckNotification *this)
 {
     aout_sys_t *sys = container_of(this, aout_sys_t, duck);
     return InterlockedDecrement(&sys->refs);
 }
 
 static STDMETHODIMP
-vlc_AudioVolumeDuckNotification_OnVolumeDuckNotification(
+heimdall_AudioVolumeDuckNotification_OnVolumeDuckNotification(
     IAudioVolumeDuckNotification *this, LPCWSTR sid, UINT32 count)
 {
     aout_sys_t *sys = container_of(this, aout_sys_t, duck);
@@ -424,7 +425,7 @@ vlc_AudioVolumeDuckNotification_OnVolumeDuckNotification(
 }
 
 static STDMETHODIMP
-vlc_AudioVolumeDuckNotification_OnVolumeUnduckNotification(
+heimdall_AudioVolumeDuckNotification_OnVolumeUnduckNotification(
     IAudioVolumeDuckNotification *this, LPCWSTR sid)
 {
     aout_sys_t *sys = container_of(this, aout_sys_t, duck);
@@ -436,14 +437,14 @@ vlc_AudioVolumeDuckNotification_OnVolumeUnduckNotification(
     return S_OK;
 }
 
-static const struct IAudioVolumeDuckNotificationVtbl vlc_AudioVolumeDuckNotification =
+static const struct IAudioVolumeDuckNotificationVtbl heimdall_AudioVolumeDuckNotification =
 {
-    vlc_AudioVolumeDuckNotification_QueryInterface,
-    vlc_AudioVolumeDuckNotification_AddRef,
-    vlc_AudioVolumeDuckNotification_Release,
+    heimdall_AudioVolumeDuckNotification_QueryInterface,
+    heimdall_AudioVolumeDuckNotification_AddRef,
+    heimdall_AudioVolumeDuckNotification_Release,
 
-    vlc_AudioVolumeDuckNotification_OnVolumeDuckNotification,
-    vlc_AudioVolumeDuckNotification_OnVolumeUnduckNotification,
+    heimdall_AudioVolumeDuckNotification_OnVolumeDuckNotification,
+    heimdall_AudioVolumeDuckNotification_OnVolumeUnduckNotification,
 };
 
 
@@ -479,7 +480,7 @@ static int DeviceHotplugReport(audio_output_t *aout, LPCWSTR wid,
 {
     char *id = FromWide(wid);
     if (!id)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     char *name = DeviceGetFriendlyName(dev);
     if (name == NULL)
@@ -490,7 +491,7 @@ static int DeviceHotplugReport(audio_output_t *aout, LPCWSTR wid,
     free(id);
     if (id != name)
         free(name);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /** Checks that a device is an output device */
@@ -536,7 +537,7 @@ static HRESULT DeviceUpdated(audio_output_t *aout, LPCWSTR wid)
 }
 
 static STDMETHODIMP
-vlc_MMNotificationClient_QueryInterface(IMMNotificationClient *this,
+heimdall_MMNotificationClient_QueryInterface(IMMNotificationClient *this,
                                         REFIID riid, void **ppv)
 {
     if (IsEqualIID(riid, &IID_IUnknown)
@@ -554,21 +555,21 @@ vlc_MMNotificationClient_QueryInterface(IMMNotificationClient *this,
 }
 
 static STDMETHODIMP_(ULONG)
-vlc_MMNotificationClient_AddRef(IMMNotificationClient *this)
+heimdall_MMNotificationClient_AddRef(IMMNotificationClient *this)
 {
     aout_sys_t *sys = container_of(this, aout_sys_t, device_events);
     return InterlockedIncrement(&sys->refs);
 }
 
 static STDMETHODIMP_(ULONG)
-vlc_MMNotificationClient_Release(IMMNotificationClient *this)
+heimdall_MMNotificationClient_Release(IMMNotificationClient *this)
 {
     aout_sys_t *sys = container_of(this, aout_sys_t, device_events);
     return InterlockedDecrement(&sys->refs);
 }
 
 static STDMETHODIMP
-vlc_MMNotificationClient_OnDefaultDeviceChange(IMMNotificationClient *this,
+heimdall_MMNotificationClient_OnDefaultDeviceChange(IMMNotificationClient *this,
                                                EDataFlow flow, ERole role,
                                                LPCWSTR wid)
 {
@@ -591,7 +592,7 @@ vlc_MMNotificationClient_OnDefaultDeviceChange(IMMNotificationClient *this,
 }
 
 static STDMETHODIMP
-vlc_MMNotificationClient_OnDeviceAdded(IMMNotificationClient *this,
+heimdall_MMNotificationClient_OnDeviceAdded(IMMNotificationClient *this,
                                        LPCWSTR wid)
 {
     aout_sys_t *sys = container_of(this, aout_sys_t, device_events);
@@ -602,7 +603,7 @@ vlc_MMNotificationClient_OnDeviceAdded(IMMNotificationClient *this,
 }
 
 static STDMETHODIMP
-vlc_MMNotificationClient_OnDeviceRemoved(IMMNotificationClient *this,
+heimdall_MMNotificationClient_OnDeviceRemoved(IMMNotificationClient *this,
                                          LPCWSTR wid)
 {
     aout_sys_t *sys = container_of(this, aout_sys_t, device_events);
@@ -619,7 +620,7 @@ vlc_MMNotificationClient_OnDeviceRemoved(IMMNotificationClient *this,
 }
 
 static STDMETHODIMP
-vlc_MMNotificationClient_OnDeviceStateChanged(IMMNotificationClient *this,
+heimdall_MMNotificationClient_OnDeviceStateChanged(IMMNotificationClient *this,
                                               LPCWSTR wid, DWORD state)
 {
     aout_sys_t *sys = container_of(this, aout_sys_t, device_events);
@@ -654,7 +655,7 @@ vlc_MMNotificationClient_OnDeviceStateChanged(IMMNotificationClient *this,
 }
 
 static STDMETHODIMP
-vlc_MMNotificationClient_OnPropertyValueChanged(IMMNotificationClient *this,
+heimdall_MMNotificationClient_OnPropertyValueChanged(IMMNotificationClient *this,
                                                 LPCWSTR wid,
                                                 const PROPERTYKEY key)
 {
@@ -669,17 +670,17 @@ vlc_MMNotificationClient_OnPropertyValueChanged(IMMNotificationClient *this,
     return S_OK;
 }
 
-static const struct IMMNotificationClientVtbl vlc_MMNotificationClient =
+static const struct IMMNotificationClientVtbl heimdall_MMNotificationClient =
 {
-    vlc_MMNotificationClient_QueryInterface,
-    vlc_MMNotificationClient_AddRef,
-    vlc_MMNotificationClient_Release,
+    heimdall_MMNotificationClient_QueryInterface,
+    heimdall_MMNotificationClient_AddRef,
+    heimdall_MMNotificationClient_Release,
 
-    vlc_MMNotificationClient_OnDeviceStateChanged,
-    vlc_MMNotificationClient_OnDeviceAdded,
-    vlc_MMNotificationClient_OnDeviceRemoved,
-    vlc_MMNotificationClient_OnDefaultDeviceChange,
-    vlc_MMNotificationClient_OnPropertyValueChanged,
+    heimdall_MMNotificationClient_OnDeviceStateChanged,
+    heimdall_MMNotificationClient_OnDeviceAdded,
+    heimdall_MMNotificationClient_OnDeviceRemoved,
+    heimdall_MMNotificationClient_OnDefaultDeviceChange,
+    heimdall_MMNotificationClient_OnPropertyValueChanged,
 };
 
 static HRESULT DevicesEnum(IMMDeviceEnumerator *it,
@@ -734,7 +735,7 @@ static int DeviceRequestLocked(audio_output_t *aout)
 
     SetEvent(sys->work_event);
     while (sys->device_status == DEVICE_PENDING)
-        vlc_cond_wait(&sys->ready, &sys->lock);
+        heimdall_cond_wait(&sys->ready, &sys->lock);
 
     if (sys->stream != NULL && sys->dev != NULL)
         /* Request restart of stream with the new device */
@@ -777,9 +778,9 @@ static int DeviceRestartLocked(audio_output_t *aout)
 static int DeviceSelect(audio_output_t *aout, const char *id)
 {
     aout_sys_t *sys = aout->sys;
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     int ret = DeviceSelectLocked(aout, id);
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
     return ret;
 }
 
@@ -863,14 +864,14 @@ static void MMSessionMainloop(audio_output_t *aout, ISimpleAudioVolume *volume)
                 events[ev_count++] = sys->stream->buffer_ready_event;
         }
 
-        vlc_mutex_unlock(&sys->lock);
+        heimdall_mutex_unlock(&sys->lock);
         WaitForMultipleObjects(ev_count, events, FALSE, wait_ms);
-        vlc_mutex_lock(&sys->lock);
+        heimdall_mutex_lock(&sys->lock);
 
         if (sys->stream != NULL)
         {
             hr = aout_stream_owner_PlayAll(sys->stream);
-            /* Don't call vlc_FromHR here since this function waits for the
+            /* Don't call heimdall_FromHR here since this function waits for the
              * current thread */
             if (unlikely(hr == AUDCLNT_E_DEVICE_INVALIDATED ||
                          hr == AUDCLNT_E_RESOURCES_INVALIDATED))
@@ -889,7 +890,7 @@ static void MMSessionMainloop(audio_output_t *aout, ISimpleAudioVolume *volume)
  * This thread takes cares of the audio session control. Inconveniently enough,
  * the audio session control interface must:
  *  - be created and destroyed from the same thread, and
- *  - survive across VLC audio output calls.
+ *  - survive across Heimdall audio output calls.
  * The only way to reconcile both requirements is a custom thread.
  * The thread also ensure that the COM Multi-Thread Apartment is continuously
  * referenced so that MMDevice objects are not destroyed early.
@@ -950,8 +951,8 @@ static HRESULT MMSession(audio_output_t *aout, IMMDeviceEnumerator *it)
         }
     }
 
-    vlc_cond_broadcast(&sys->ready);
-    vlc_sem_post(&sys->init_passed);
+    heimdall_cond_broadcast(&sys->ready);
+    heimdall_sem_post(&sys->init_passed);
 
     if (FAILED(hr))
     {
@@ -984,7 +985,7 @@ static HRESULT MMSession(audio_output_t *aout, IMMDeviceEnumerator *it)
     manager = pv;
     if (SUCCEEDED(hr))
     {
-        LPCGUID guid = var_GetBool(aout, "volume-save") ? &GUID_VLC_AUD_OUT : NULL;
+        LPCGUID guid = var_GetBool(aout, "volume-save") ? &GUID_HEIMDALL_AUD_OUT : NULL;
 
         /* Register session control */
         hr = IAudioSessionManager_GetAudioSessionControl(manager, guid, 0,
@@ -1073,7 +1074,7 @@ static HRESULT MMSession(audio_output_t *aout, IMMDeviceEnumerator *it)
 
     MMSessionMainloop(aout, volume);
 
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
 
     if (endpoint != NULL)
         IAudioEndpointVolume_Release(endpoint);
@@ -1103,7 +1104,7 @@ static HRESULT MMSession(audio_output_t *aout, IMMDeviceEnumerator *it)
         IAudioSessionManager_Release(manager);
     }
 
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     IMMDevice_Release(sys->dev);
     sys->dev = NULL;
     return S_OK;
@@ -1121,7 +1122,7 @@ static void *MMThread(void *data)
     audio_output_t *aout = data;
     aout_sys_t *sys = aout->sys;
 
-    vlc_thread_set_name("vlc-mmdevice");
+    heimdall_thread_set_name("heimdall-mmdevice");
 
     /* Initialize MMDevice API */
     if (TryEnterMTA(aout))
@@ -1146,18 +1147,18 @@ static void *MMThread(void *data)
     if (FAILED(hr))
         msg_Warn(aout, "cannot enumerate audio endpoints (error 0x%lX)", hr);
 
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
 
     do
         if (sys->device_status != DEVICE_PENDING || FAILED(MMSession(aout, it)))
         {
-            vlc_mutex_unlock(&sys->lock);
+            heimdall_mutex_unlock(&sys->lock);
             WaitForSingleObject(sys->work_event, INFINITE);
-            vlc_mutex_lock(&sys->lock);
+            heimdall_mutex_lock(&sys->lock);
         }
     while (sys->it != NULL);
 
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
 
     IMMDeviceEnumerator_UnregisterEndpointNotificationCallback(it,
                                                           &sys->device_events);
@@ -1167,7 +1168,7 @@ static void *MMThread(void *data)
 
 error:
     sys->device_status = DEVICE_INITIALISATION_FAILED;
-    vlc_sem_post(&sys->init_passed);
+    heimdall_sem_post(&sys->init_passed);
     return NULL;
 }
 
@@ -1188,13 +1189,13 @@ static int aout_stream_Start(void *func, bool forced, va_list ap)
     aout_stream_t *s = va_arg(ap, aout_stream_t *);
     audio_sample_format_t *fmt = va_arg(ap, audio_sample_format_t *);
     HRESULT *hr = va_arg(ap, HRESULT *);
-    LPCGUID sid = var_InheritBool(s, "volume-save") ? &GUID_VLC_AUD_OUT : NULL;
+    LPCGUID sid = var_InheritBool(s, "volume-save") ? &GUID_HEIMDALL_AUD_OUT : NULL;
 
     (void) forced;
     *hr = start(s, fmt, sid);
     if (*hr == AUDCLNT_E_DEVICE_INVALIDATED)
-        return VLC_ETIMEOUT;
-    return SUCCEEDED(*hr) ? VLC_SUCCESS : VLC_EGENERIC;
+        return HEIMDALL_ETIMEOUT;
+    return SUCCEEDED(*hr) ? HEIMDALL_SUCCESS : HEIMDALL_EGENERIC;
 }
 
 static int Start(audio_output_t *aout, audio_sample_format_t *restrict fmt)
@@ -1225,17 +1226,17 @@ static int Start(audio_output_t *aout, audio_sample_format_t *restrict fmt)
     aout_stream_t *s = &owner->s;
 
     EnterMTA();
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
 
     while (sys->device_status == DEVICE_PENDING)
-        vlc_cond_wait(&sys->ready, &sys->lock);
+        heimdall_cond_wait(&sys->ready, &sys->lock);
 
     if ((atomic_exchange(&sys->default_device_changed, false) && DeviceRestartLocked(aout) != 0)
       || sys->dev == NULL)
     {
         /* Error if the device restart failed or if a request previously
          * failed. */
-        vlc_mutex_unlock(&sys->lock);
+        heimdall_mutex_unlock(&sys->lock);
         LeaveMTA();
         aout_stream_owner_Delete(owner);
         return -1;
@@ -1249,7 +1250,7 @@ static int Start(audio_output_t *aout, audio_sample_format_t *restrict fmt)
         HRESULT hr;
         owner->device = sys->dev;
 
-        module = vlc_module_load(vlc_object_logger(s), "aout stream", modlist,
+        module = heimdall_module_load(heimdall_object_logger(s), "aout stream", modlist,
                                  false, aout_stream_Start, s, fmt, &hr);
         free(modlist);
 
@@ -1305,7 +1306,7 @@ static int Start(audio_output_t *aout, audio_sample_format_t *restrict fmt)
     if (module == NULL)
     {
         aout_stream_owner_Delete(owner);
-        vlc_mutex_unlock(&sys->lock);
+        heimdall_mutex_unlock(&sys->lock);
         LeaveMTA();
         return -1;
     }
@@ -1313,7 +1314,7 @@ static int Start(audio_output_t *aout, audio_sample_format_t *restrict fmt)
     assert (sys->stream == NULL);
     sys->stream = owner;
 
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
     LeaveMTA();
 
     aout_GainRequest(aout, sys->gain);
@@ -1334,25 +1335,25 @@ static void Stop(audio_output_t *aout)
     sys->stream = NULL;
 }
 
-static void Close(vlc_object_t *);
+static void Close(heimdall_object_t *);
 
-static int Open(vlc_object_t *obj)
+static int Open(heimdall_object_t *obj)
 {
     audio_output_t *aout = (audio_output_t *)obj;
     wchar_t *audio_device = NULL;
 
     aout_sys_t *sys = malloc(sizeof (*sys));
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     aout->sys = sys;
     sys->stream = NULL;
     sys->aout = aout;
     sys->it = NULL;
     sys->dev = NULL;
-    sys->device_events.lpVtbl = &vlc_MMNotificationClient;
-    sys->session_events.lpVtbl = &vlc_AudioSessionEvents;
-    sys->duck.lpVtbl = &vlc_AudioVolumeDuckNotification;
+    sys->device_events.lpVtbl = &heimdall_MMNotificationClient;
+    sys->session_events.lpVtbl = &heimdall_AudioSessionEvents;
+    sys->duck.lpVtbl = &heimdall_AudioVolumeDuckNotification;
     sys->refs = 1;
     sys->ducks = 0;
 
@@ -1365,9 +1366,9 @@ static int Open(vlc_object_t *obj)
     if (!var_CreateGetBool(aout, "volume-save"))
         VolumeSetLocked(aout, var_InheritFloat(aout, "mmdevice-volume"));
 
-    vlc_sem_init(&sys->init_passed, 0);
-    vlc_mutex_init(&sys->lock);
-    vlc_cond_init(&sys->ready);
+    heimdall_sem_init(&sys->init_passed, 0);
+    heimdall_mutex_init(&sys->lock);
+    heimdall_cond_init(&sys->ready);
 
     sys->work_event = CreateEvent(NULL, FALSE, FALSE, NULL);
     if (unlikely(sys->work_event == NULL))
@@ -1391,15 +1392,15 @@ static int Open(vlc_object_t *obj)
     atomic_init(&sys->device_name, audio_device);
     sys->device_status = DEVICE_PENDING;
 
-    if (vlc_clone(&sys->thread, MMThread, aout))
+    if (heimdall_clone(&sys->thread, MMThread, aout))
         goto error;
 
-    vlc_sem_wait(&sys->init_passed);
+    heimdall_sem_wait(&sys->init_passed);
 
     if (sys->device_status == DEVICE_INITIALISATION_FAILED)
     {
         Close(obj);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     aout->start = Start;
@@ -1411,33 +1412,33 @@ static int Open(vlc_object_t *obj)
     aout->mute_set = MuteSet;
     aout->device_select = DeviceSelect;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     free(audio_device);
     if (sys->work_event != NULL)
         CloseHandle(sys->work_event);
     free(sys);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
-static void Close(vlc_object_t *obj)
+static void Close(heimdall_object_t *obj)
 {
     audio_output_t *aout = (audio_output_t *)obj;
     aout_sys_t *sys = aout->sys;
 
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     wchar_t *previous = atomic_exchange(&sys->device_name, NULL);
     sys->device_status = DEVICE_PENDING; /* break out of MMSession() loop */
     sys->it = NULL; /* break out of MMThread() loop */
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
 
     if (previous != NULL)
         free(previous);
 
     SetEvent(sys->work_event);
 
-    vlc_join(sys->thread, NULL);
+    heimdall_join(sys->thread, NULL);
     CloseHandle(sys->work_event);
 
     free(sys);
@@ -1455,10 +1456,10 @@ static void Reload_DevicesEnum_Added(void *data, LPCWSTR wid, IMMDevice *dev)
     struct mm_list *list = data;
 
     size_t new_count = list->count + 1;
-    void *r_ids = vlc_reallocarray(list->ids, new_count, sizeof(char *));
+    void *r_ids = heimdall_reallocarray(list->ids, new_count, sizeof(char *));
     if ( unlikely( r_ids == NULL ) )
         return;
-    void *r_names = vlc_reallocarray(list->names, new_count, sizeof(char *));
+    void *r_names = heimdall_reallocarray(list->names, new_count, sizeof(char *));
     if ( unlikely( r_names == NULL ) )
     {
         free( r_ids );
@@ -1546,7 +1547,7 @@ error:
     return list.count;
 }
 
-VLC_CONFIG_STRING_ENUM(ReloadAudioDevices)
+HEIMDALL_CONFIG_STRING_ENUM(ReloadAudioDevices)
 
 #define MM_PASSTHROUGH_TEXT N_( \
     "HDMI/SPDIF audio passthrough")
@@ -1569,7 +1570,7 @@ static const char *const ppsz_mmdevice_passthrough_texts[] = {
 #define VOLUME_TEXT N_("Audio volume")
 #define VOLUME_LONGTEXT N_("Audio volume in hundredths of decibels (dB).")
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname("MMDevice")
     set_description(N_("Windows Multimedia Device output"))
     set_capability("audio output", 150)
@@ -1584,4 +1585,4 @@ vlc_module_begin()
     add_string("mmdevice-audio-device", NULL, DEVICE_TEXT, DEVICE_LONGTEXT)
     add_float("mmdevice-volume", 1.f, VOLUME_TEXT, VOLUME_LONGTEXT)
         change_float_range( 0.f, 1.25f )
-vlc_module_end()
+heimdall_module_end()

@@ -1,7 +1,8 @@
 /*****************************************************************************
- * rc.c : remote control stdin/stdout module for vlc
+ * rc.c : remote control stdin/stdout module for heimdall
  *****************************************************************************
  * Copyright (C) 2004-2009 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Peter Surda <shurdeek@panorama.sth.ac.at>
  *         Jean-Paul Saman <jpsaman #_at_# m2x _replaceWith#dot_ nl>
@@ -23,8 +24,8 @@
 
 #include <stdatomic.h>
 #include <stdio.h>
-#include <vlc_common.h>
-#include <vlc_list.h>
+#include <heimdall_common.h>
+#include <heimdall_list.h>
 
 struct cli_client
 {
@@ -33,16 +34,16 @@ struct cli_client
     FILE *stream;
     int fd;
     atomic_bool zombie;
-    vlc_mutex_t output_lock;
-    struct vlc_list node;
-    vlc_thread_t thread;
+    heimdall_mutex_t output_lock;
+    struct heimdall_list node;
+    heimdall_thread_t thread;
 #endif
 };
 
-VLC_FORMAT(2, 3)
+HEIMDALL_FORMAT(2, 3)
 int cli_printf(struct cli_client *cl, const char *fmt, ...);
 
-VLC_FORMAT(2, 3)
+HEIMDALL_FORMAT(2, 3)
 void msg_print(intf_thread_t *p_intf, const char *psz_fmt, ...);
 
 #define msg_rc(...) cli_printf(cl, __VA_ARGS__)

@@ -3,12 +3,13 @@
  *****************************************************************************
  * Copyright (C) 2003-2009 VLC authors and VideoLAN
  *               2018 VideoLabs, VideoLAN and VLC authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *          Gildas Bazin <gbazin@videolan.org>
  *          Jean-Paul Saman <jpsaman #_at_# m2x dot nl>
- *          Antoine Cellerier <dionoea at videolan dot org>
- *          Ilkka Ollakka <ileoo at videolan dot org>
+ *          Antoine Cellerier <dionoea at lycaria dot org>
+ *          Ilkka Ollakka <ileoo at lycaria dot org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -27,10 +28,10 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_modules.h>
-#include <vlc_codec.h>
-#include <vlc_sout.h>
+#include <heimdall_common.h>
+#include <heimdall_modules.h>
+#include <heimdall_codec.h>
+#include <heimdall_sout.h>
 
 #include "encoder.h"
 #include "encoder_priv.h"
@@ -48,10 +49,10 @@ int transcode_encoder_spu_open( transcode_encoder_t *p_enc,
     assert( p_enc->p_encoder->p_module == NULL ||
             p_enc->p_encoder->ops != NULL);
 
-    return ( p_enc->p_encoder->p_module ) ? VLC_SUCCESS: VLC_EGENERIC;
+    return ( p_enc->p_encoder->p_module ) ? HEIMDALL_SUCCESS: HEIMDALL_EGENERIC;
 }
 
 block_t * transcode_encoder_spu_encode( transcode_encoder_t *p_enc, subpicture_t *p_spu )
 {
-    return vlc_encoder_EncodeSub( p_enc->p_encoder, p_spu );
+    return heimdall_encoder_EncodeSub( p_enc->p_encoder, p_spu );
 }

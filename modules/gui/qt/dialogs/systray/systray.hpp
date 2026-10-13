@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2024 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,12 +26,12 @@
 class MainCtx;
 struct qt_intf_t;
 
-class VLCSystray : public QSystemTrayIcon
+class HeimdallSystray : public QSystemTrayIcon
 {
     Q_OBJECT
 public:
-    VLCSystray(MainCtx* ctx, QObject* parent = nullptr);
-    virtual ~VLCSystray();
+    HeimdallSystray(MainCtx* ctx, QObject* parent = nullptr);
+    virtual ~HeimdallSystray();
 
     bool isAvailableAndVisible() const;
 

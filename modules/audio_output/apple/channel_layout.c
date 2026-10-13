@@ -2,6 +2,7 @@
  * channel_layout.c: Common Channel Layout code for iOS and macOS
  *****************************************************************************
  * Copyright (C) 2024 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,15 +23,15 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_aout.h>
+#include <heimdall_common.h>
+#include <heimdall_aout.h>
 #include "channel_layout.h"
 
 #include <stdckdint.h>
 #include <CoreAudio/CoreAudioTypes.h>
 
 static AudioChannelLabel
-VlcChanToAudioChannelLabel(unsigned chan, bool swap_rear_surround)
+HeimdallChanToAudioChannelLabel(unsigned chan, bool swap_rear_surround)
 {
     switch (chan)
     {
@@ -57,12 +58,12 @@ VlcChanToAudioChannelLabel(unsigned chan, bool swap_rear_surround)
         case AOUT_CHAN_REARCENTER:
             return kAudioChannelLabel_CenterSurround;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 }
 
 int
-channel_layout_MapFromVLC(audio_output_t *p_aout, const audio_sample_format_t *fmt,
+channel_layout_MapFromHeimdall(audio_output_t *p_aout, const audio_sample_format_t *fmt,
                           AudioChannelLayout **inlayoutp, size_t *inlayout_size)
 {
     unsigned channels = aout_FormatNbChannels(fmt);
@@ -75,7 +76,7 @@ channel_layout_MapFromVLC(audio_output_t *p_aout, const audio_sample_format_t *f
         size = sizeof(AudioChannelLayout);
         AudioChannelLayout *inlayout = malloc(size);
         if (inlayout == NULL)
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         *inlayoutp = inlayout;
         *inlayout_size = size;
 
@@ -87,15 +88,15 @@ channel_layout_MapFromVLC(audio_output_t *p_aout, const audio_sample_format_t *f
                     kAudioChannelLayoutTag_StereoHeadphones :
                     kAudioChannelLayoutTag_Stereo;
 
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
     if (ckd_mul(&size, channels, sizeof(AudioChannelDescription)) ||
         ckd_add(&size, size, sizeof(AudioChannelLayout)))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     AudioChannelLayout *inlayout = malloc(size);
     if (inlayout == NULL)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     *inlayoutp = inlayout;
     *inlayout_size = size;
@@ -109,18 +110,18 @@ channel_layout_MapFromVLC(audio_output_t *p_aout, const audio_sample_format_t *f
     unsigned chan_idx = 0;
     for (unsigned i = 0; i < AOUT_CHAN_MAX; ++i)
     {
-        unsigned vlcchan = pi_vlc_chan_order_wg4[i];
-        if ((vlcchan & fmt->i_physical_channels) == 0)
+        unsigned heimdallchan = pi_heimdall_chan_order_wg4[i];
+        if ((heimdallchan & fmt->i_physical_channels) == 0)
             continue;
 
         inlayout->mChannelDescriptions[chan_idx].mChannelLabel =
-            VlcChanToAudioChannelLabel(vlcchan, swap_rear_surround);
+            HeimdallChanToAudioChannelLabel(heimdallchan, swap_rear_surround);
         inlayout->mChannelDescriptions[chan_idx].mChannelFlags =
             kAudioChannelFlags_AllOff;
         chan_idx++;
     }
 
-    msg_Dbg(p_aout, "VLC keeping the same input layout");
+    msg_Dbg(p_aout, "Heimdall keeping the same input layout");
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

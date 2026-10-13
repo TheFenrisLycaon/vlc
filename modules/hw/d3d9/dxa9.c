@@ -1,7 +1,8 @@
 /*****************************************************************************
- * dxa9.c : DXVA2 GPU surface conversion module for vlc
+ * dxa9.c : DXVA2 GPU surface conversion module for heimdall
  *****************************************************************************
  * Copyright (C) 2015 VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Steve Lhomme <robux4@gmail.com>
  *
@@ -28,9 +29,9 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_filter.h>
-#include <vlc_picture.h>
+#include <heimdall_common.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
 
 #include "d3d9_filters.h"
 
@@ -78,7 +79,7 @@ static void DXA9_YV12(filter_t *p_filter, picture_t *src, picture_t *dst)
     if (desc.Format == MAKEFOURCC('Y','V','1','2') ||
         desc.Format == MAKEFOURCC('I','M','C','3')) {
 
-        if (dst->format.i_chroma == VLC_CODEC_I420)
+        if (dst->format.i_chroma == HEIMDALL_CODEC_I420)
             picture_SwapUV( dst );
 
         bool imc3 = desc.Format == MAKEFOURCC('I','M','C','3');
@@ -104,7 +105,7 @@ static void DXA9_YV12(filter_t *p_filter, picture_t *src, picture_t *dst)
         }
         Copy420_P_to_P(dst, plane, pitch, src->format.i_height, p_copy_cache);
 
-        if (dst->format.i_chroma == VLC_CODEC_I420)
+        if (dst->format.i_chroma == HEIMDALL_CODEC_I420)
             picture_SwapUV( dst );
     } else if (desc.Format == MAKEFOURCC('N','V','1','2')
             || desc.Format == MAKEFOURCC('P','0','1','0')) {
@@ -125,7 +126,7 @@ static void DXA9_YV12(filter_t *p_filter, picture_t *src, picture_t *dst)
                               __MIN(desc.Height, src->format.i_y_offset + src->format.i_visible_height),
                               6, p_copy_cache);
 
-        if (dst->format.i_chroma == VLC_CODEC_YV12)
+        if (dst->format.i_chroma == HEIMDALL_CODEC_YV12)
             picture_SwapUV(dst);
     } else {
         msg_Err(p_filter, "Unsupported DXA9 conversion from 0x%08X to YV12", desc.Format);
@@ -168,12 +169,12 @@ static void DXA9_NV12(filter_t *p_filter, picture_t *src, picture_t *dst)
 
 static void DeleteFilter( filter_t * p_filter )
 {
-    vlc_filter_UnloadModule( p_filter );
+    heimdall_filter_UnloadModule( p_filter );
 
     es_format_Clean( &p_filter->fmt_in );
     es_format_Clean( &p_filter->fmt_out );
 
-    vlc_object_delete(p_filter);
+    heimdall_object_delete(p_filter);
 }
 
 static picture_t *NewBuffer(filter_t *p_filter)
@@ -183,19 +184,19 @@ static picture_t *NewBuffer(filter_t *p_filter)
     return p_sys->staging;
 }
 
-static vlc_decoder_device * HoldD3D9DecoderDevice(vlc_object_t *o, void *sys)
+static heimdall_decoder_device * HoldD3D9DecoderDevice(heimdall_object_t *o, void *sys)
 {
-    VLC_UNUSED(o);
+    HEIMDALL_UNUSED(o);
     filter_t *p_this = sys;
     return filter_HoldDecoderDevice(p_this);
 }
 
 static filter_t *CreateFilter( filter_t *p_this, const es_format_t *p_fmt_in,
-                               vlc_fourcc_t dst_chroma )
+                               heimdall_fourcc_t dst_chroma )
 {
     filter_t *p_filter;
 
-    p_filter = vlc_object_create( p_this, sizeof(filter_t) );
+    p_filter = heimdall_object_create( p_this, sizeof(filter_t) );
     if (unlikely(p_filter == NULL))
         return NULL;
 
@@ -207,7 +208,7 @@ static filter_t *CreateFilter( filter_t *p_this, const es_format_t *p_fmt_in,
     es_format_InitFromVideo( &p_filter->fmt_in,  &p_fmt_in->video );
     es_format_InitFromVideo( &p_filter->fmt_out, &p_fmt_in->video );
     p_filter->fmt_out.i_codec = p_filter->fmt_out.video.i_chroma = dst_chroma;
-    p_filter->p_module = vlc_filter_LoadModule (p_filter, "video converter", NULL, false );
+    p_filter->p_module = heimdall_filter_LoadModule (p_filter, "video converter", NULL, false );
 
     if( !p_filter->p_module )
     {
@@ -237,7 +238,7 @@ static void YV12_D3D9(filter_t *p_filter, picture_t *src, picture_t *dst)
         picture_UpdatePlanes(dst, d3drect.pBits, d3drect.Pitch);
 
         /* The dx/d3d buffer is always allocated as YV12 */
-        if (dst->format.i_chroma == VLC_CODEC_I420)
+        if (dst->format.i_chroma == HEIMDALL_CODEC_I420)
             picture_SwapUV( dst );
 
         picture_CopyPixels(dst, src);
@@ -258,7 +259,7 @@ static void YV12_D3D9(filter_t *p_filter, picture_t *src, picture_t *dst)
         picture_UpdatePlanes(sys->staging, d3drect.pBits, d3drect.Pitch);
 
         /* The dx/d3d buffer is always allocated as YV12 */
-        if (sys->staging->format.i_chroma == VLC_CODEC_I420)
+        if (sys->staging->format.i_chroma == HEIMDALL_CODEC_I420)
             picture_SwapUV( sys->staging );
 
         picture_context_t *staging_pic_ctx = sys->staging->context;
@@ -310,16 +311,16 @@ static picture_t *AllocateCPUtoGPUTexture(filter_t *p_filter)
     D3DFORMAT format = D3DFMT_UNKNOWN;
     const D3DFORMAT *list;
     switch( p_filter->fmt_in.video.i_chroma ) {
-    case VLC_CODEC_I420:
-    case VLC_CODEC_YV12:
+    case HEIMDALL_CODEC_I420:
+    case HEIMDALL_CODEC_YV12:
         list = outputFormats8;
         break;
-    case VLC_CODEC_I420_10L:
-    case VLC_CODEC_P010:
+    case HEIMDALL_CODEC_I420_10L:
+    case HEIMDALL_CODEC_P010:
         list = outputFormats10;
         break;
     default:
-        vlc_assert_unreachable();
+        heimdall_assert_unreachable();
     }
     while (*list != D3DFMT_UNKNOWN)
     {
@@ -349,7 +350,7 @@ static picture_t *AllocateCPUtoGPUTexture(filter_t *p_filter)
 
     pic_ctx->s = (picture_context_t) {
         d3d9_pic_context_destroy, d3d9_pic_context_copy,
-        vlc_video_context_Hold(p_filter->vctx_out),
+        heimdall_video_context_Hold(p_filter->vctx_out),
     };
 
     video_format_Copy(&fmt_staging, &p_filter->fmt_out.video);
@@ -394,57 +395,57 @@ static picture_t *YV12_D3D9_Filter( filter_t *p_filter, picture_t *p_pic )
 
 int D3D9OpenConverter( filter_t *p_filter )
 {
-    if ( p_filter->fmt_in.video.i_chroma != VLC_CODEC_D3D9_OPAQUE &&
-         p_filter->fmt_in.video.i_chroma != VLC_CODEC_D3D9_OPAQUE_10B )
-        return VLC_EGENERIC;
+    if ( p_filter->fmt_in.video.i_chroma != HEIMDALL_CODEC_D3D9_OPAQUE &&
+         p_filter->fmt_in.video.i_chroma != HEIMDALL_CODEC_D3D9_OPAQUE_10B )
+        return HEIMDALL_EGENERIC;
     if ( GetD3D9ContextPrivate(p_filter->vctx_in) == NULL )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if ( p_filter->fmt_in.video.i_height != p_filter->fmt_out.video.i_height
          || p_filter->fmt_in.video.i_width != p_filter->fmt_out.video.i_width )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     uint8_t pixel_bytes = 1;
     switch( p_filter->fmt_out.video.i_chroma ) {
-    case VLC_CODEC_I420:
-    case VLC_CODEC_YV12:
-        if( p_filter->fmt_in.video.i_chroma != VLC_CODEC_D3D9_OPAQUE )
-            return VLC_EGENERIC;
+    case HEIMDALL_CODEC_I420:
+    case HEIMDALL_CODEC_YV12:
+        if( p_filter->fmt_in.video.i_chroma != HEIMDALL_CODEC_D3D9_OPAQUE )
+            return HEIMDALL_EGENERIC;
         p_filter->ops = &DXA9_YV12_ops;
         break;
-    case VLC_CODEC_I420_10L:
-        if( p_filter->fmt_in.video.i_chroma != VLC_CODEC_D3D9_OPAQUE_10B )
-            return VLC_EGENERIC;
+    case HEIMDALL_CODEC_I420_10L:
+        if( p_filter->fmt_in.video.i_chroma != HEIMDALL_CODEC_D3D9_OPAQUE_10B )
+            return HEIMDALL_EGENERIC;
         p_filter->ops = &DXA9_YV12_ops;
         pixel_bytes = 2;
         break;
-    case VLC_CODEC_NV12:
-        if( p_filter->fmt_in.video.i_chroma != VLC_CODEC_D3D9_OPAQUE )
-            return VLC_EGENERIC;
+    case HEIMDALL_CODEC_NV12:
+        if( p_filter->fmt_in.video.i_chroma != HEIMDALL_CODEC_D3D9_OPAQUE )
+            return HEIMDALL_EGENERIC;
         p_filter->ops = &DXA9_NV12_ops;
         break;
-    case VLC_CODEC_P010:
-        if( p_filter->fmt_in.video.i_chroma != VLC_CODEC_D3D9_OPAQUE_10B )
-            return VLC_EGENERIC;
+    case HEIMDALL_CODEC_P010:
+        if( p_filter->fmt_in.video.i_chroma != HEIMDALL_CODEC_D3D9_OPAQUE_10B )
+            return HEIMDALL_EGENERIC;
         p_filter->ops = &DXA9_NV12_ops;
         pixel_bytes = 2;
         break;
     default:
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     filter_sys_t *p_sys = calloc(1, sizeof(filter_sys_t));
     if (!p_sys)
-         return VLC_ENOMEM;
+         return HEIMDALL_ENOMEM;
 
     if (CopyInitCache(&p_sys->cache, p_filter->fmt_in.video.i_width * pixel_bytes))
     {
         free(p_sys);
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     p_filter->p_sys = p_sys;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void D3D9CloseCPUConverter( filter_t *p_filter )
@@ -454,63 +455,63 @@ static void D3D9CloseCPUConverter( filter_t *p_filter )
         DeleteFilter(p_sys->filter);
     if (p_sys->staging)
         picture_Release(p_sys->staging);
-    vlc_video_context_Release(p_filter->vctx_out);
+    heimdall_video_context_Release(p_filter->vctx_out);
     free( p_sys );
     p_filter->p_sys = NULL;
 }
 
-static const struct vlc_filter_operations YV12_D3D9_ops = {
+static const struct heimdall_filter_operations YV12_D3D9_ops = {
     .filter_video = YV12_D3D9_Filter, .close = D3D9CloseCPUConverter,
 };
 
 int D3D9OpenCPUConverter( filter_t *p_filter )
 {
-    int err = VLC_EGENERIC;
+    int err = HEIMDALL_EGENERIC;
     picture_t *p_dst = NULL;
 
-    if ( p_filter->fmt_out.video.i_chroma != VLC_CODEC_D3D9_OPAQUE
-      && p_filter->fmt_out.video.i_chroma != VLC_CODEC_D3D9_OPAQUE_10B )
-        return VLC_EGENERIC;
+    if ( p_filter->fmt_out.video.i_chroma != HEIMDALL_CODEC_D3D9_OPAQUE
+      && p_filter->fmt_out.video.i_chroma != HEIMDALL_CODEC_D3D9_OPAQUE_10B )
+        return HEIMDALL_EGENERIC;
 
     if ( p_filter->fmt_in.video.i_height != p_filter->fmt_out.video.i_height
          || p_filter->fmt_in.video.i_width != p_filter->fmt_out.video.i_width )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     switch( p_filter->fmt_in.video.i_chroma ) {
-    case VLC_CODEC_I420:
-    case VLC_CODEC_YV12:
-    case VLC_CODEC_I420_10L:
-    case VLC_CODEC_P010:
+    case HEIMDALL_CODEC_I420:
+    case HEIMDALL_CODEC_YV12:
+    case HEIMDALL_CODEC_I420_10L:
+    case HEIMDALL_CODEC_P010:
         p_filter->ops = &YV12_D3D9_ops;
         break;
     default:
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    vlc_decoder_device *dec_device = filter_HoldDecoderDeviceType( p_filter, VLC_DECODER_DEVICE_DXVA2 );
+    heimdall_decoder_device *dec_device = filter_HoldDecoderDeviceType( p_filter, HEIMDALL_DECODER_DEVICE_DXVA2 );
     if (dec_device == NULL)
     {
         msg_Err(p_filter, "Missing decoder device");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     d3d9_decoder_device_t *devsys = GetD3D9OpaqueDevice(dec_device);
     if (devsys == NULL)
     {
         msg_Err(p_filter, "Incompatible decoder device %d", dec_device->type);
-        vlc_decoder_device_Release(dec_device);
-        return VLC_EGENERIC;
+        heimdall_decoder_device_Release(dec_device);
+        return HEIMDALL_EGENERIC;
     }
 
     filter_sys_t *p_sys = calloc(1, sizeof(filter_sys_t));
     if (!p_sys)
     {
-        vlc_decoder_device_Release(dec_device);
-        return VLC_ENOMEM;
+        heimdall_decoder_device_Release(dec_device);
+        return HEIMDALL_ENOMEM;
     }
 
-    p_filter->vctx_out = vlc_video_context_Create( dec_device, VLC_VIDEO_CONTEXT_DXVA2, sizeof(d3d9_video_context_t),
+    p_filter->vctx_out = heimdall_video_context_Create( dec_device, HEIMDALL_VIDEO_CONTEXT_DXVA2, sizeof(d3d9_video_context_t),
                                                    &d3d9_vctx_ops );
-    vlc_decoder_device_Release(dec_device);
+    heimdall_decoder_device_Release(dec_device);
 
     if ( p_filter->vctx_out == NULL )
     {
@@ -537,12 +538,12 @@ int D3D9OpenCPUConverter( filter_t *p_filter )
     }
 
     p_filter->p_sys = p_sys;
-    err = VLC_SUCCESS;
+    err = HEIMDALL_SUCCESS;
 
 done:
-    if (err != VLC_SUCCESS)
+    if (err != HEIMDALL_SUCCESS)
     {
-        vlc_video_context_Release(p_filter->vctx_out);
+        heimdall_video_context_Release(p_filter->vctx_out);
         free(p_sys);
     }
     return err;

@@ -2,8 +2,9 @@
  * avaudiosession_common.h: AVAudioSession common code for iOS aouts
  *****************************************************************************
  * Copyright (C) 2012 - 2024 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Felix Paul Kühne <fkuehne at videolan dot org>
+ * Authors: Felix Paul Kühne <fkuehne at lycaria dot org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by

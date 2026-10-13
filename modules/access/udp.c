@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 2001-2005 VLC authors and VideoLAN
  * Copyright (C) 2007 Remi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Christophe Massiot <massiot@via.ecp.fr>
  *          Tristan Leteurtre <tooney@via.ecp.fr>
@@ -10,7 +11,7 @@
  *          Jean-Paul Saman <jpsaman #_at_# m2x dot nl>
  *          Remi Denis-Courmont
  *
- * Reviewed: 23 October 2003, Jean-Paul Saman <jpsaman _at_ videolan _dot_ org>
+ * Reviewed: 23 October 2003, Jean-Paul Saman <jpsaman _at_ lycaria _dot_ org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -35,12 +36,12 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_access.h>
-#include <vlc_network.h>
-#include <vlc_block.h>
-#include <vlc_interrupt.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_access.h>
+#include <heimdall_network.h>
+#include <heimdall_block.h>
+#include <heimdall_interrupt.h>
 #ifdef HAVE_POLL_H
 # include <poll.h>
 #endif
@@ -73,14 +74,14 @@ static int Control(stream_t *access, int query, va_list args)
             break;
 
         case STREAM_GET_PTS_DELAY:
-            *va_arg(args, vlc_tick_t *) =
-                VLC_TICK_FROM_MS(var_InheritInteger(access, "network-caching"));
+            *va_arg(args, heimdall_tick_t *) =
+                HEIMDALL_TICK_FROM_MS(var_InheritInteger(access, "network-caching"));
             break;
 
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static ssize_t Read(stream_t *access, void *buf, size_t len)
@@ -102,7 +103,7 @@ static ssize_t Read(stream_t *access, void *buf, size_t len)
     ufd[0].fd = sys->fd;
     ufd[0].events = POLLIN;
 
-    switch (vlc_poll_i11e(ufd, 1, sys->timeout)) {
+    switch (heimdall_poll_i11e(ufd, 1, sys->timeout)) {
         case 0:
             msg_Err(access, "receive time-out");
             return 0;
@@ -135,17 +136,17 @@ static ssize_t Read(stream_t *access, void *buf, size_t len)
 /*****************************************************************************
  * Open: open the socket
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     stream_t     *p_access = (stream_t*)p_this;
     access_sys_t *sys;
 
     if( p_access->b_preparsing )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    sys = vlc_obj_malloc( p_this, sizeof( *sys ) );
+    sys = heimdall_obj_malloc( p_this, sizeof( *sys ) );
     if( unlikely( sys == NULL ) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     sys->length = 0;
     p_access->p_sys = sys;
@@ -160,7 +161,7 @@ static int Open( vlc_object_t *p_this )
     int  i_bind_port = 1234, i_server_port = 0;
 
     if( unlikely(psz_name == NULL) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     /* Parse psz_name syntax :
      * [serveraddr[:serverport]][@[bindaddr]:[bindport]] */
@@ -210,20 +211,20 @@ static int Open( vlc_object_t *p_this )
     if( sys->fd == -1 )
     {
         msg_Err( p_access, "cannot open socket" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     sys->timeout = var_InheritInteger( p_access, "udp-timeout");
     if( sys->timeout > 0)
         sys->timeout *= 1000;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * Close: free unused data structures
  *****************************************************************************/
-static void Close( vlc_object_t *p_this )
+static void Close( heimdall_object_t *p_this )
 {
     stream_t     *p_access = (stream_t*)p_this;
     access_sys_t *sys = p_access->p_sys;
@@ -233,7 +234,7 @@ static void Close( vlc_object_t *p_this )
 
 #define TIMEOUT_TEXT N_("UDP Source timeout (sec)")
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname(N_("UDP"))
     set_description(N_("UDP input"))
     set_subcategory(SUBCAT_INPUT_ACCESS)
@@ -245,4 +246,4 @@ vlc_module_begin()
     add_shortcut("udp", "udpstream", "udp4", "udp6")
 
     set_callbacks(Open, Close)
-vlc_module_end()
+heimdall_module_end()

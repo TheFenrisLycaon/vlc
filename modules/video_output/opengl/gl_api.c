@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
  * Copyright (C) 2020 Videolabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -26,8 +27,8 @@
 #include "gl_api.h"
 
 #include <assert.h>
-#include <vlc_common.h>
-#include <vlc_opengl.h>
+#include <heimdall_common.h>
+#include <heimdall_opengl.h>
 
 #include "gl_common.h"
 #include "gl_util.h"
@@ -45,15 +46,15 @@ static void APIENTRY StubGenVertexArrays(GLsizei n, GLuint *arrays) {
     arrays[0] = 0;
 }
 static void APIENTRY StubBindVertexArray(GLuint id) {
-    VLC_UNUSED(id);
+    HEIMDALL_UNUSED(id);
 }
 static void APIENTRY StubDeleteVertexArrays(GLsizei n, const GLuint * arrays) {
-    VLC_UNUSED(n);
-    VLC_UNUSED(arrays);
+    HEIMDALL_UNUSED(n);
+    HEIMDALL_UNUSED(arrays);
 }
 
 int
-vlc_gl_api_Init(struct vlc_gl_api *api, vlc_gl_t *gl)
+heimdall_gl_api_Init(struct heimdall_gl_api *api, heimdall_gl_t *gl)
 {
 #if defined(HAVE_GL_CORE_SYMBOLS)
 #define GET_PROC_ADDR_CORE(name) api->vt.name = gl##name
@@ -62,21 +63,21 @@ vlc_gl_api_Init(struct vlc_gl_api *api, vlc_gl_t *gl)
 #endif
 
 #define GET_PROC_ADDR_EXT(name, critical) do { \
-    api->vt.name = vlc_gl_GetProcAddress(gl, "gl"#name); \
+    api->vt.name = heimdall_gl_GetProcAddress(gl, "gl"#name); \
     if (api->vt.name == NULL && critical) { \
         msg_Err(gl, "gl"#name" symbol not found, bailing out"); \
-        return VLC_EGENERIC; \
+        return HEIMDALL_EGENERIC; \
     } \
 } while(0)
 
 #define GET_PROC_ADDR(name) \
-    if (gl->api_type == VLC_OPENGL_ES2) \
+    if (gl->api_type == HEIMDALL_OPENGL_ES2) \
         GET_PROC_ADDR_CORE(name); \
     else \
         GET_PROC_ADDR_EXT(name, true)
 
 #define GET_PROC_ADDR_CORE_GL(name) \
-    if (gl->api_type == VLC_OPENGL_ES2) \
+    if (gl->api_type == HEIMDALL_OPENGL_ES2) \
         GET_PROC_ADDR_EXT(name, false); /* optional for GLES */ \
     else \
         GET_PROC_ADDR_CORE(name)
@@ -200,10 +201,10 @@ vlc_gl_api_Init(struct vlc_gl_api *api, vlc_gl_t *gl)
     while (error != GL_NO_ERROR)
         error = api->vt.GetError();
 
-    struct vlc_gl_extension_vt extension_vt;
-    vlc_gl_LoadExtensionFunctions(gl, &extension_vt);
+    struct heimdall_gl_extension_vt extension_vt;
+    heimdall_gl_LoadExtensionFunctions(gl, &extension_vt);
 
-    if (gl->api_type == VLC_OPENGL_ES2)
+    if (gl->api_type == HEIMDALL_OPENGL_ES2)
     {
         api->is_gles = true;
         /* OpenGL ES 2 includes support for non-power of 2 textures by specification
@@ -221,7 +222,7 @@ vlc_gl_api_Init(struct vlc_gl_api *api, vlc_gl_t *gl)
     if (api->is_gles)
     {
         if (api->glsl_version < 300)
-            api->supports_sampler3D = vlc_gl_HasExtension(&extension_vt, "GL_OES_texture_3D");
+            api->supports_sampler3D = heimdall_gl_HasExtension(&extension_vt, "GL_OES_texture_3D");
         else
             api->supports_sampler3D = true;
     }
@@ -241,7 +242,7 @@ vlc_gl_api_Init(struct vlc_gl_api *api, vlc_gl_t *gl)
         api->vt.DeleteVertexArrays = StubDeleteVertexArrays;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 #undef GET_PROC_ADDR

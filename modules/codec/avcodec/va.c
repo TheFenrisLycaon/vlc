@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 2009 Laurent Aimar
  * Copyright (C) 2012-2013 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -23,14 +24,14 @@
 # include <config.h>
 #endif
 
-#include <vlc_common.h>
-#include <vlc_modules.h>
-#include <vlc_fourcc.h>
+#include <heimdall_common.h>
+#include <heimdall_modules.h>
+#include <heimdall_fourcc.h>
 #include <libavutil/pixfmt.h>
 #include <libavcodec/avcodec.h>
 #include "va.h"
 
-bool vlc_va_MightDecode(enum AVPixelFormat hwfmt)
+bool heimdall_va_MightDecode(enum AVPixelFormat hwfmt)
 {
     switch (hwfmt)
     {
@@ -44,19 +45,19 @@ bool vlc_va_MightDecode(enum AVPixelFormat hwfmt)
     }
 }
 
-vlc_va_t *vlc_va_New(vlc_object_t *obj, struct vlc_va_cfg *cfg)
+heimdall_va_t *heimdall_va_New(heimdall_object_t *obj, struct heimdall_va_cfg *cfg)
 {
-    struct vlc_va_t *va = vlc_object_create(obj, sizeof (*va));
+    struct heimdall_va_t *va = heimdall_object_create(obj, sizeof (*va));
     if (unlikely(va == NULL))
         return NULL;
 
     module_t **mods;
-    ssize_t total = vlc_module_match("hw decoder", NULL, false, &mods, NULL);
+    ssize_t total = heimdall_module_match("hw decoder", NULL, false, &mods, NULL);
 
     for (ssize_t i = 0; i < total; i++) {
-        vlc_va_open open = vlc_module_map(obj->logger, mods[i]);
+        heimdall_va_open open = heimdall_module_map(obj->logger, mods[i]);
 
-        if (open != NULL && open(va, cfg) == VLC_SUCCESS)
+        if (open != NULL && open(va, cfg) == HEIMDALL_SUCCESS)
         {
             free(mods);
             return va;
@@ -64,13 +65,13 @@ vlc_va_t *vlc_va_New(vlc_object_t *obj, struct vlc_va_cfg *cfg)
     }
 
     free(mods);
-    vlc_object_delete(va);
+    heimdall_object_delete(va);
     return NULL;
 }
 
-void vlc_va_Delete(vlc_va_t *va, AVCodecContext *avctx)
+void heimdall_va_Delete(heimdall_va_t *va, AVCodecContext *avctx)
 {
     if (va->ops->close != NULL)
         va->ops->close(va, avctx);
-    vlc_object_delete(va);
+    heimdall_object_delete(va);
 }

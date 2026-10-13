@@ -2,6 +2,7 @@
  * help.cpp : Help and About dialogs
  ****************************************************************************
  * Copyright (C) 2007 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Jean-Baptiste Kempf <jb (at) videolan.org>
  *          Rémi Duraffort <ivoire (at) via.ecp.fr>
@@ -30,11 +31,11 @@
 #include "util/qt_dirs.hpp"
 #include "maininterface/mainctx.hpp"
 
-#include <vlc_about.h>
-#include <vlc_intf_strings.h>
+#include <heimdall_about.h>
+#include <heimdall_intf_strings.h>
 
 #ifdef UPDATE_CHECK
-# include <vlc_update.h>
+# include <heimdall_update.h>
 #endif
 
 #include <QTextBrowser>
@@ -52,11 +53,11 @@
 // #define UPDATE_MOCK
 #endif
 
-HelpDialog::HelpDialog( qt_intf_t *_p_intf ) : QVLCFrame( _p_intf )
+HelpDialog::HelpDialog( qt_intf_t *_p_intf ) : QHeimdallFrame( _p_intf )
 
 {
     setWindowTitle( qtr( "Help" ) );
-    setWindowRole( "vlc-help" );
+    setWindowRole( "heimdall-help" );
     setMinimumSize( 350, 300 );
 
     QVBoxLayout *layout = new QVBoxLayout( this );
@@ -83,25 +84,25 @@ HelpDialog::~HelpDialog()
 }
 
 AboutDialog::AboutDialog( qt_intf_t *_p_intf)
-            : QVLCDialog( nullptr, _p_intf ), b_advanced( false )
+            : QHeimdallDialog( nullptr, _p_intf ), b_advanced( false )
 {
     /* Build UI */
     ui.setupUi( this );
     setWindowTitle( qtr( "About" ) );
-    setWindowRole( "vlc-about" );
+    setWindowRole( "heimdall-about" );
     setWindowModality( Qt::WindowModal );
 
     ui.version->setText(qfu( " " VERSION_MESSAGE ) );
-    ui.title->setText("<html><head/><body><p><span style=\" font-size:26pt; color:#353535;\"> " + qtr( "VLC media player" ) + " </span></p></body></html>");
+    ui.title->setText("<html><head/><body><p><span style=\" font-size:26pt; color:#353535;\"> " + qtr( "Heimdall media player" ) + " </span></p></body></html>");
 
     ui.MainBlabla->setText("<html><head/><body>" +
-    qtr( "<p>VLC media player is a free and open source media player, encoder, and streamer made by the volunteers of the <a href=\"https://www.videolan.org/\"><span style=\" text-decoration: underline; color:#0057ae;\">VideoLAN</span></a> community.</p><p>VLC uses its internal codecs, works on essentially every popular platform, and can read almost all files, CDs, DVDs, network streams, capture cards and other media formats!</p><p><a href=\"https://www.videolan.org/contribute/\"><span style=\" text-decoration: underline; color:#0057ae;\">Help and join us!</span></a>" ) +
+    qtr( "<p>Heimdall media player is a free and open source media player, encoder, and streamer made by the volunteers of the <a href=\"https://www.videolan.org/\"><span style=\" text-decoration: underline; color:#0057ae;\">Lycaria</span></a> community.</p><p>Heimdall uses its internal codecs, works on essentially every popular platform, and can read almost all files, CDs, DVDs, network streams, capture cards and other media formats!</p><p><a href=\"https://www.videolan.org/contribute/\"><span style=\" text-decoration: underline; color:#0057ae;\">Help and join us!</span></a>" ) +
     "</p></body> </html>");
 
     const QDate today = QDate::currentDate();
     if( today.month() == 4 && today.day() == 1
             && var_InheritBool( p_intf, "qt-icon-change" ) )
-        ui.VLCcone->setPixmap( QPixmap( ":/logo/vlc128-aprilfools.png" ) );
+        ui.Heimdallcone->setPixmap( QPixmap( ":/logo/heimdall128-aprilfools.png" ) );
 
     ui.update->hide();
 
@@ -149,7 +150,7 @@ bool AboutDialog::eventFilter(QObject *obj, QEvent *event)
         {
             if( !b_advanced )
             {
-                ui.version->setText(qfu( VLC_CompileBy() )+ "@" + qfu( VLC_CompileHost() )
+                ui.version->setText(qfu( Heimdall_CompileBy() )+ "@" + qfu( Heimdall_CompileHost() )
                     + " " + __DATE__ + " " + __TIME__);
                 b_advanced = true;
             }
@@ -170,13 +171,13 @@ bool AboutDialog::eventFilter(QObject *obj, QEvent *event)
         return false;
     }
 
-    return QVLCDialog::eventFilter( obj, event);
+    return QHeimdallDialog::eventFilter( obj, event);
 }
 
 void AboutDialog::showEvent( QShowEvent *event )
 {
     ui.stackedWidget->setCurrentWidget( ui.blablaPage );
-    QVLCDialog::showEvent( event );
+    QHeimdallDialog::showEvent( event );
 }
 
 #ifdef UPDATE_CHECK
@@ -389,7 +390,7 @@ void UpdateModel::resetExplicitCheck()
  * UpdateDialog
  *****************************************************************************/
 
-UpdateDialog::UpdateDialog( qt_intf_t *_p_intf ) : QVLCFrame( _p_intf )
+UpdateDialog::UpdateDialog( qt_intf_t *_p_intf ) : QHeimdallFrame( _p_intf )
 {
     /* build Ui */
     ui.setupUi( this );
@@ -403,8 +404,8 @@ UpdateDialog::UpdateDialog( qt_intf_t *_p_intf ) : QVLCFrame( _p_intf )
     ui.updateNotifyButtonBox->addButton( new QPushButton( qtr("&No"), this ),
                                          QDialogButtonBox::RejectRole );
 
-    setWindowTitle( qtr( "VLC media player updates" ) );
-    setWindowRole( "vlc-update" );
+    setWindowTitle( qtr( "Heimdall media player updates" ) );
+    setWindowRole( "heimdall-update" );
 
     BUTTONACT( recheckButton, &UpdateDialog::checkOrDownload );
     connect( ui.updateDialogButtonBox, &QDialogButtonBox::rejected, this, &UpdateDialog::close );
@@ -447,7 +448,7 @@ bool UpdateDialog::event(QEvent* event)
         }
     }
 
-    return QVLCFrame::event(event);
+    return QHeimdallFrame::event(event);
 }
 
 /* Check for updates */
@@ -482,7 +483,7 @@ void UpdateDialog::updateUI( )
         ui.stackedWidget->setCurrentWidget( ui.updateNotifyPage );
         int extra = m_model->getExtra();
         QString message = QString(
-                              qtr( "A new version of VLC (%1.%2.%3%4) is available." ) )
+                              qtr( "A new version of Heimdall (%1.%2.%3%4) is available." ) )
                               .arg( m_model->getMajor() )
                               .arg( m_model->getMinor() )
                               .arg( m_model->getRevision()  )
@@ -505,7 +506,7 @@ void UpdateDialog::updateUI( )
     {
         ui.stackedWidget->setCurrentWidget( ui.updateDialogPage );
         ui.updateDialogLabel->setText(
-            qtr( "You have the latest version of VLC media player." ) );
+            qtr( "You have the latest version of Heimdall media player." ) );
         break;
     }
     case UpdateModel::CheckFailed:

@@ -3,9 +3,10 @@
  *****************************************************************************
  * Copyright (C) 2010 Steinar H. Gunderson
  * Copyright (C) 2012-2014 Rafaël Carré
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Steinar H. Gunderson <steinar+vlc@gunderson.no>
-            Rafaël Carré <funman@videolanorg>
+ * Authors: Steinar H. Gunderson <steinar+heimdall@gunderson.no>
+            Rafaël Carré <funman@lycariaorg>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -26,9 +27,9 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_demux.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_demux.h>
 
 #ifdef HAVE_ARPA_INET_H
 #include <arpa/inet.h>
@@ -39,7 +40,7 @@
 # include <netinet/in.h>
 #endif
 
-#include "vlc_decklink.h"
+#include "heimdall_decklink.h"
 #ifndef _WIN32
 #include <DeckLinkAPIDispatch.cpp>
 #endif
@@ -54,8 +55,8 @@
 #include <atomic>
 #include <vector>
 
-static int  Open (vlc_object_t *);
-static void Close(vlc_object_t *);
+static int  Open (heimdall_object_t *);
+static void Close(heimdall_object_t *);
 
 #define CARD_INDEX_TEXT N_("Input card to use")
 #define CARD_INDEX_LONGTEXT N_( \
@@ -109,7 +110,7 @@ static const char *const ppsz_audioconns_text[] = {
 #define ASPECT_RATIO_LONGTEXT N_(\
     "Aspect ratio (4:3, 16:9). Default assumes square pixels.")
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname(N_("DeckLink"))
     set_description(N_("Blackmagic DeckLink SDI input"))
     set_subcategory(SUBCAT_INPUT_ACCESS)
@@ -135,7 +136,7 @@ vlc_module_begin ()
     add_shortcut("decklink")
     set_capability("access", 0)
     set_callbacks(Open, Close)
-vlc_module_end ()
+heimdall_module_end ()
 
 static int Control(demux_t *, int, va_list);
 
@@ -165,8 +166,8 @@ struct demux_sys_t
     es_out_id_t *audio_es[8];
     es_out_id_t *cc_es;
 
-    vlc_mutex_t pts_lock;
-    vlc_tick_t last_pts;  /* protected by <pts_lock> */
+    heimdall_mutex_t pts_lock;
+    heimdall_tick_t last_pts;  /* protected by <pts_lock> */
 
     uint32_t dominance_flags;
     int channels;
@@ -222,17 +223,17 @@ static int GetModeSettings(demux_t *demux, IDeckLinkDisplayMode *m,
         frame_duration = 1;
     }
 
-    vlc_fourcc_t chroma = 0;
+    heimdall_fourcc_t chroma = 0;
     switch (fmt_flags) {
         case bmdDetectedVideoInputYCbCr422:
-            chroma = sys->tenbits ? VLC_CODEC_I422_10L : VLC_CODEC_UYVY;
+            chroma = sys->tenbits ? HEIMDALL_CODEC_I422_10L : HEIMDALL_CODEC_UYVY;
             break;
         case bmdDetectedVideoInputRGB444:
-            chroma = VLC_CODEC_ARGB;
+            chroma = HEIMDALL_CODEC_ARGB;
             break;
         default:
             msg_Err(demux, "Unsupported input format");
-            return VLC_ENOTSUP;
+            return HEIMDALL_ENOTSUP;
     }
     es_format_Init(&sys->video_fmt, VIDEO_ES, chroma);
 
@@ -253,7 +254,7 @@ static int GetModeSettings(demux_t *demux, IDeckLinkDisplayMode *m,
     }
 
     sys->dominance_flags = FieldDominanceBlockFlag(m->GetFieldDominance());
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 namespace {
 
@@ -321,7 +322,7 @@ public:
 
         es_out_Del(demux_->out, sys->video_es);
         sys->video_es = NULL;
-        if (GetModeSettings(demux_, mode, flags) != VLC_SUCCESS)
+        if (GetModeSettings(demux_, mode, flags) != HEIMDALL_SUCCESS)
             return E_NOTIMPL;
         sys->video_es = es_out_Add(demux_->out, &sys->video_fmt);
 
@@ -361,11 +362,11 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame
 
         int bpp = 0;
         switch (sys->video_fmt.i_codec) {
-            case VLC_CODEC_I422_10L:
-            case VLC_CODEC_ARGB:
+            case HEIMDALL_CODEC_I422_10L:
+            case HEIMDALL_CODEC_ARGB:
                 bpp = 4;
                 break;
-            case VLC_CODEC_UYVY:
+            case HEIMDALL_CODEC_UYVY:
                 bpp = 2;
                 break;
         };
@@ -379,9 +380,9 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame
         BMDTimeValue stream_time, frame_duration;
         videoFrame->GetStreamTime(&stream_time, &frame_duration, CLOCK_FREQ);
         video_frame->i_flags = BLOCK_FLAG_TYPE_I | sys->dominance_flags;
-        video_frame->i_pts = video_frame->i_dts = VLC_TICK_0 + stream_time;
+        video_frame->i_pts = video_frame->i_dts = HEIMDALL_TICK_0 + stream_time;
 
-        if (sys->video_fmt.i_codec == VLC_CODEC_I422_10L) {
+        if (sys->video_fmt.i_codec == HEIMDALL_CODEC_I422_10L) {
             v210_convert((uint16_t*)video_frame->p_buffer, frame_bytes, width, height);
             IDeckLinkVideoFrameAncillary *vanc;
             if (videoFrame->GetAncillaryData(&vanc) == S_OK) {
@@ -394,12 +395,12 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame
                     block_t *cc = vanc_to_cc(demux_, &dec.front(), width * 2);
                     if (!cc)
                         continue;
-                    cc->i_pts = cc->i_dts = VLC_TICK_0 + stream_time;
+                    cc->i_pts = cc->i_dts = HEIMDALL_TICK_0 + stream_time;
 
                     if (!sys->cc_es) {
                         es_format_t fmt;
 
-                        es_format_Init( &fmt, SPU_ES, VLC_CODEC_CEA608 );
+                        es_format_Init( &fmt, SPU_ES, HEIMDALL_CODEC_CEA608 );
                         fmt.psz_description = strdup(N_("Closed captions 1"));
                         if (fmt.psz_description) {
                             sys->cc_es = es_out_Add(demux_->out, &fmt);
@@ -414,7 +415,7 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame
                 }
                 vanc->Release();
             }
-        } else if (sys->video_fmt.i_codec == VLC_CODEC_UYVY) {
+        } else if (sys->video_fmt.i_codec == HEIMDALL_CODEC_UYVY) {
             for (int y = 0; y < height; ++y) {
                 const uint8_t *src = (const uint8_t *)frame_bytes + stride * y;
                 uint8_t *dst = video_frame->p_buffer + width * 2 * y;
@@ -424,10 +425,10 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame
                 memcpy(video_frame->p_buffer, frame_bytes, width * height * bpp);
         }
 
-        vlc_mutex_lock(&sys->pts_lock);
+        heimdall_mutex_lock(&sys->pts_lock);
         if (video_frame->i_pts > sys->last_pts)
             sys->last_pts = video_frame->i_pts;
-        vlc_mutex_unlock(&sys->pts_lock);
+        heimdall_mutex_unlock(&sys->pts_lock);
 
         es_out_SetPCR(demux_->out, video_frame->i_pts);
         es_out_Send(demux_->out, sys->video_es, video_frame);
@@ -458,7 +459,7 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame
                            4);
                 }
 
-                p_frame->i_pts = p_frame->i_dts = VLC_TICK_0 + packet_time;
+                p_frame->i_pts = p_frame->i_dts = HEIMDALL_TICK_0 + packet_time;
                 es_out_Send(demux_->out, sys->audio_es[i], p_frame);
             }
         }
@@ -468,16 +469,16 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame
             if (!audio_frame)
                 return S_OK;
             memcpy(audio_frame->p_buffer, frame_bytes, bytes);
-            audio_frame->i_pts = audio_frame->i_dts = VLC_TICK_0 + packet_time;
+            audio_frame->i_pts = audio_frame->i_dts = HEIMDALL_TICK_0 + packet_time;
             es_out_Send(demux_->out, sys->audio_es[0], audio_frame);
         }
 
-        vlc_mutex_lock(&sys->pts_lock);
-        if (VLC_TICK_0 + packet_time > sys->last_pts)
-            sys->last_pts = VLC_TICK_0 + packet_time;
-        vlc_mutex_unlock(&sys->pts_lock);
+        heimdall_mutex_lock(&sys->pts_lock);
+        if (HEIMDALL_TICK_0 + packet_time > sys->last_pts)
+            sys->last_pts = HEIMDALL_TICK_0 + packet_time;
+        heimdall_mutex_unlock(&sys->pts_lock);
 
-        es_out_SetPCR(demux_->out, VLC_TICK_0 + packet_time);
+        es_out_SetPCR(demux_->out, HEIMDALL_TICK_0 + packet_time);
     }
 
     return S_OK;
@@ -490,7 +491,7 @@ static int GetAudioConn(demux_t *demux)
 
     char *opt = var_CreateGetNonEmptyString(demux, "decklink-audio-connection");
     if (!opt)
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
     BMDAudioConnection c;
     if (!strcmp(opt, "embedded"))
@@ -502,16 +503,16 @@ static int GetAudioConn(demux_t *demux)
     else {
         msg_Err(demux, "Invalid audio-connection: `%s\' specified", opt);
         free(opt);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     free(opt);
     if (sys->config->SetInt(bmdDeckLinkConfigAudioInputConnection, c) != S_OK) {
         msg_Err(demux, "Failed to set audio input connection");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int GetVideoConn(demux_t *demux)
@@ -520,7 +521,7 @@ static int GetVideoConn(demux_t *demux)
 
     char *opt = var_InheritString(demux, "decklink-video-connection");
     if (!opt)
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
     BMDVideoConnection c;
     if (!strcmp(opt, "sdi"))
@@ -538,23 +539,23 @@ static int GetVideoConn(demux_t *demux)
     else {
         msg_Err(demux, "Invalid video-connection: `%s\' specified", opt);
         free(opt);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     free(opt);
     if (sys->config->SetInt(bmdDeckLinkConfigVideoInputConnection, c) != S_OK) {
         msg_Err(demux, "Failed to set video input connection");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int Open(vlc_object_t *p_this)
+static int Open(heimdall_object_t *p_this)
 {
     demux_t     *demux = (demux_t*)p_this;
     demux_sys_t *sys;
-    int         ret = VLC_EGENERIC;
+    int         ret = HEIMDALL_EGENERIC;
     int         card_index;
     int         physical_channels = 0;
     int         rate;
@@ -562,16 +563,16 @@ static int Open(vlc_object_t *p_this)
     void *pv;
 
     if (demux->out == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* Set up demux */
     demux->pf_demux = NULL;
     demux->pf_control = Control;
     demux->p_sys = sys = (demux_sys_t*)calloc(1, sizeof(demux_sys_t));
     if (!sys)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    vlc_mutex_init(&sys->pts_lock);
+    heimdall_mutex_init(&sys->pts_lock);
 
     sys->tenbits = var_InheritBool(p_this, "decklink-tenbits");
 
@@ -765,7 +766,7 @@ static int Open(vlc_object_t *p_this)
     sys->video_es = es_out_Add(demux->out, &sys->video_fmt);
 
     es_format_t audio_fmt;
-    es_format_Init(&audio_fmt, AUDIO_ES, VLC_CODEC_S16N);
+    es_format_Init(&audio_fmt, AUDIO_ES, HEIMDALL_CODEC_S16N);
     audio_fmt.audio.i_channels = sys->channels / sys->audio_streams;
     audio_fmt.audio.i_physical_channels = physical_channels;
     audio_fmt.audio.i_rate = rate;
@@ -781,19 +782,19 @@ static int Open(vlc_object_t *p_this)
         sys->audio_es[i] = es_out_Add(demux->out, &audio_fmt);
     }
 
-    ret = VLC_SUCCESS;
+    ret = HEIMDALL_SUCCESS;
 
 finish:
     if (decklink_iterator)
         decklink_iterator->Release();
 
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
         Close(p_this);
 
     return ret;
 }
 
-static void Close(vlc_object_t *p_this)
+static void Close(heimdall_object_t *p_this)
 {
     demux_t     *demux = (demux_t *)p_this;
     demux_sys_t *sys = (demux_sys_t *)demux->p_sys;
@@ -831,20 +832,20 @@ static int Control(demux_t *demux, int query, va_list args)
         case DEMUX_CAN_CONTROL_PACE:
             pb = va_arg(args, bool *);
             *pb = false;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
 
         case DEMUX_GET_PTS_DELAY:
-            *va_arg(args, vlc_tick_t *) =
-                VLC_TICK_FROM_MS(var_InheritInteger(demux, "live-caching"));
-            return VLC_SUCCESS;
+            *va_arg(args, heimdall_tick_t *) =
+                HEIMDALL_TICK_FROM_MS(var_InheritInteger(demux, "live-caching"));
+            return HEIMDALL_SUCCESS;
 
         case DEMUX_GET_TIME:
-            vlc_mutex_lock(&sys->pts_lock);
-            *va_arg(args, vlc_tick_t *) = sys->last_pts;
-            vlc_mutex_unlock(&sys->pts_lock);
-            return VLC_SUCCESS;
+            heimdall_mutex_lock(&sys->pts_lock);
+            *va_arg(args, heimdall_tick_t *) = sys->last_pts;
+            heimdall_mutex_unlock(&sys->pts_lock);
+            return HEIMDALL_SUCCESS;
 
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 }

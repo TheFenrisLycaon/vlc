@@ -2,6 +2,7 @@
  * RateBasedAdaptationLogic.h
  *****************************************************************************
  * Copyright (C) 2010 - 2011 Klagenfurt University
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Created on: Aug 10, 2010
  * Authors: Christopher Mueller <christopher.mueller@itec.uni-klu.ac.at>
@@ -27,7 +28,7 @@
 
 #include "AbstractAdaptationLogic.h"
 #include "../tools/MovingAverage.hpp"
-#include <vlc_threads.h>
+#include <heimdall_threads.h>
 
 namespace adaptive
 {
@@ -37,13 +38,13 @@ namespace adaptive
         class RateBasedAdaptationLogic : public AbstractAdaptationLogic
         {
             public:
-                RateBasedAdaptationLogic            (vlc_object_t *);
+                RateBasedAdaptationLogic            (heimdall_object_t *);
                 virtual ~RateBasedAdaptationLogic   () = default;
 
                 BaseRepresentation *getNextRepresentation(BaseAdaptationSet *,
                                                           BaseRepresentation *) override;
                 void updateDownloadRate(const ID &, size_t,
-                                        vlc_tick_t, vlc_tick_t) override;
+                                        heimdall_tick_t, heimdall_tick_t) override;
                 void trackerEvent(const TrackerEvent &) override;
 
             private:
@@ -54,15 +55,15 @@ namespace adaptive
                 MovingAverage<size_t>   average;
 
                 size_t                  dlsize;
-                vlc_tick_t              dllength;
+                heimdall_tick_t              dllength;
 
-                mutable vlc_mutex_t     lock;
+                mutable heimdall_mutex_t     lock;
         };
 
         class FixedRateAdaptationLogic : public AbstractAdaptationLogic
         {
             public:
-                FixedRateAdaptationLogic(vlc_object_t *, size_t);
+                FixedRateAdaptationLogic(heimdall_object_t *, size_t);
 
                 BaseRepresentation *getNextRepresentation(BaseAdaptationSet *,
                                                           BaseRepresentation *) override;

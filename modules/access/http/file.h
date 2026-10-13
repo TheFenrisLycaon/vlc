@@ -2,6 +2,7 @@
  * file.h: HTTP read-only file
  *****************************************************************************
  * Copyright (C) 2015 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -27,8 +28,8 @@
  * @{
  */
 
-struct vlc_http_mgr;
-struct vlc_http_resource;
+struct heimdall_http_mgr;
+struct heimdall_http_resource;
 
 /**
  * Creates an HTTP file.
@@ -42,7 +43,7 @@ struct vlc_http_resource;
  *
  * @return an HTTP resource object pointer, or NULL on error
  */
-struct vlc_http_resource *vlc_http_file_create(struct vlc_http_mgr *mgr,
+struct heimdall_http_resource *heimdall_http_file_create(struct heimdall_http_mgr *mgr,
                                                const char *url, const char *ua,
                                                const char *ref);
 
@@ -53,7 +54,7 @@ struct vlc_http_resource *vlc_http_file_create(struct vlc_http_mgr *mgr,
  *
  * @return Bytes count or (uintmax_t)-1 if unknown.
  */
-uintmax_t vlc_http_file_get_size(struct vlc_http_resource *);
+uintmax_t heimdall_http_file_get_size(struct heimdall_http_resource *);
 
 /**
  * Checks seeking support.
@@ -61,7 +62,7 @@ uintmax_t vlc_http_file_get_size(struct vlc_http_resource *);
  * @retval true if file supports seeking
  * @retval false if file does not support seeking
  */
-bool vlc_http_file_can_seek(struct vlc_http_resource *);
+bool heimdall_http_file_can_seek(struct heimdall_http_resource *);
 
 /**
  * Sets the read offset.
@@ -71,18 +72,18 @@ bool vlc_http_file_can_seek(struct vlc_http_resource *);
  * @retval 0 if seek succeeded
  * @retval -1 if seek failed
  */
-int vlc_http_file_seek(struct vlc_http_resource *file, uintmax_t offset);
+int heimdall_http_file_seek(struct heimdall_http_resource *file, uintmax_t offset);
 
 /**
  * Reads data.
  *
  * Reads data from a file and update the file offset.
  */
-block_t *vlc_http_file_read(struct vlc_http_resource *);
+block_t *heimdall_http_file_read(struct heimdall_http_resource *);
 
-#define vlc_http_file_get_status vlc_http_res_get_status
-#define vlc_http_file_get_redirect vlc_http_res_get_redirect
-#define vlc_http_file_get_type vlc_http_res_get_type
-#define vlc_http_file_destroy vlc_http_res_destroy
+#define heimdall_http_file_get_status heimdall_http_res_get_status
+#define heimdall_http_file_get_redirect heimdall_http_res_get_redirect
+#define heimdall_http_file_get_type heimdall_http_res_get_type
+#define heimdall_http_file_destroy heimdall_http_res_destroy
 
 /** @} */

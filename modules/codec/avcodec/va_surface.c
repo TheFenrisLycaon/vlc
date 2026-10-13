@@ -4,9 +4,10 @@
  * Copyright (C) 2009 Geoffroy Couprie
  * Copyright (C) 2009 Laurent Aimar
  * Copyright (C) 2015 Steve Lhomme
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Geoffroy Couprie <geal@videolan.org>
- *          Laurent Aimar <fenrir _AT_ videolan _DOT_ org>
+ *          Laurent Aimar <fenrir _AT_ lycaria _DOT_ org>
  *          Steve Lhomme <robux4@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -29,15 +30,15 @@
 
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_codec.h>
-#include <vlc_picture.h>
+#include <heimdall_common.h>
+#include <heimdall_codec.h>
+#include <heimdall_picture.h>
 
 #include "va_surface.h"
 
 #include "avcodec.h"
 
-struct vlc_va_surface_t {
+struct heimdall_va_surface_t {
     size_t               index;
     atomic_uintptr_t     refcount; // 1 ref for the surface existence, 1 per surface/clone in-flight
     va_pool_t            *va_pool;
@@ -50,12 +51,12 @@ struct va_pool_t
     unsigned     surface_width;
     unsigned     surface_height;
 
-    vlc_va_surface_t surface[MAX_SURFACE_COUNT];
+    heimdall_va_surface_t surface[MAX_SURFACE_COUNT];
 
     struct va_pool_cfg callbacks;
 
     atomic_uintptr_t  poolrefs; // 1 ref for the pool creator, 1 ref per surface alive
-    vlc_sem_t    available_surfaces;
+    heimdall_sem_t    available_surfaces;
 };
 
 static void va_pool_AddRef(va_pool_t *va_pool)
@@ -74,7 +75,7 @@ static void va_pool_Release(va_pool_t *va_pool)
 }
 
 /* */
-int va_pool_SetupDecoder(vlc_va_t *va, va_pool_t *va_pool, AVCodecContext *avctx,
+int va_pool_SetupDecoder(heimdall_va_t *va, va_pool_t *va_pool, AVCodecContext *avctx,
                          const video_format_t *fmt, size_t count)
 {
     if ( va_pool->surface_count >= count &&
@@ -91,21 +92,21 @@ int va_pool_SetupDecoder(vlc_va_t *va, va_pool_t *va_pool, AVCodecContext *avctx
     if (count > MAX_SURFACE_COUNT)
     {
         msg_Err(va, "too many surfaces requested %zu (max %d)", count, MAX_SURFACE_COUNT);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     int err = va_pool->callbacks.pf_create_decoder_surfaces(va, avctx->codec_id, fmt, count);
-    if (err != VLC_SUCCESS)
+    if (err != HEIMDALL_SUCCESS)
         return err;
 
     va_pool->surface_width  = fmt->i_width;
     va_pool->surface_height = fmt->i_height;
     va_pool->surface_count = count;
 
-    vlc_sem_init(&va_pool->available_surfaces, count);
+    heimdall_sem_init(&va_pool->available_surfaces, count);
 
     for (size_t i = 0; i < va_pool->surface_count; i++) {
-        vlc_va_surface_t *surface = &va_pool->surface[i];
+        heimdall_va_surface_t *surface = &va_pool->surface[i];
         atomic_init(&surface->refcount, 1);
         va_pool_AddRef(va_pool);
         surface->index = i;
@@ -114,13 +115,13 @@ int va_pool_SetupDecoder(vlc_va_t *va, va_pool_t *va_pool, AVCodecContext *avctx
 done:
     va_pool->callbacks.pf_setup_avcodec_ctx(va_pool->callbacks.opaque, avctx);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static vlc_va_surface_t *GetSurface(va_pool_t *va_pool)
+static heimdall_va_surface_t *GetSurface(va_pool_t *va_pool)
 {
     for (unsigned i = 0; i < va_pool->surface_count; i++) {
-        vlc_va_surface_t *surface = &va_pool->surface[i];
+        heimdall_va_surface_t *surface = &va_pool->surface[i];
         uintptr_t expected = 1; // exists but unused
 
         if (atomic_compare_exchange_strong(&surface->refcount, &expected, 2))
@@ -131,31 +132,31 @@ static vlc_va_surface_t *GetSurface(va_pool_t *va_pool)
     return NULL;
 }
 
-vlc_va_surface_t *va_pool_Get(va_pool_t *va_pool)
+heimdall_va_surface_t *va_pool_Get(va_pool_t *va_pool)
 {
-    vlc_va_surface_t *surface;
+    heimdall_va_surface_t *surface;
 
     if (unlikely(va_pool->surface_count == 0))
         return NULL;
 
-    vlc_sem_wait(&va_pool->available_surfaces);
+    heimdall_sem_wait(&va_pool->available_surfaces);
     surface = GetSurface(va_pool);
     assert(surface != NULL);
     return surface;
 }
 
-void va_surface_AddRef(vlc_va_surface_t *surface)
+void va_surface_AddRef(heimdall_va_surface_t *surface)
 {
     atomic_fetch_add(&surface->refcount, 1);
 }
 
-void va_surface_Release(vlc_va_surface_t *surface)
+void va_surface_Release(heimdall_va_surface_t *surface)
 {
     uintptr_t had_refcount = atomic_fetch_sub(&surface->refcount, 1);
     if (had_refcount == 2)
     {
         // the surface is not used anymore
-        vlc_sem_post(&surface->va_pool->available_surfaces);
+        heimdall_sem_post(&surface->va_pool->available_surfaces);
     }
     else if (had_refcount == 1)
     {
@@ -164,7 +165,7 @@ void va_surface_Release(vlc_va_surface_t *surface)
     }
 }
 
-size_t va_surface_GetIndex(const vlc_va_surface_t *surface)
+size_t va_surface_GetIndex(const heimdall_va_surface_t *surface)
 {
     return surface->index;
 }
@@ -178,7 +179,7 @@ void va_pool_Close(va_pool_t *va_pool)
     va_pool_Release(va_pool);
 }
 
-va_pool_t * va_pool_Create(vlc_va_t *va, const struct va_pool_cfg *cbs)
+va_pool_t * va_pool_Create(heimdall_va_t *va, const struct va_pool_cfg *cbs)
 {
     va_pool_t *va_pool = malloc(sizeof(*va_pool));
     if (unlikely(va_pool == NULL))

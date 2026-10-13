@@ -2,6 +2,7 @@
  * art_manager.cpp
  *****************************************************************************
  * Copyright (C) 2010 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Erwan Tulou      <erwan10@vidoelan.org>
  *
@@ -25,7 +26,7 @@
 #endif
 
 #include "art_manager.hpp"
-#include <vlc_image.h>
+#include <heimdall_image.h>
 
 #include <new>
 

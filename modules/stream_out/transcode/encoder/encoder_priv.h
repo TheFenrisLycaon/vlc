@@ -2,6 +2,7 @@
  * encoder_priv.h: transcoding encoders interface
  *****************************************************************************
  * Copyright (C) 2018 VideoLabs, VideoLAN and VLC authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -16,17 +17,17 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program; if not, If not, see https://www.gnu.org/licenses/
  *****************************************************************************/
-#include <vlc_picture_fifo.h>
+#include <heimdall_picture_fifo.h>
 
 struct transcode_encoder_t
 {
     encoder_t       *p_encoder;
-    vlc_thread_t    thread;
-    vlc_mutex_t     lock_out;
+    heimdall_thread_t    thread;
+    heimdall_mutex_t     lock_out;
     bool            b_abort;
     picture_fifo_t *pp_pics;
-    vlc_sem_t       picture_pool_has_room;
-    vlc_cond_t      cond;
+    heimdall_sem_t       picture_pool_has_room;
+    heimdall_cond_t      cond;
 
     /* output buffers */
     block_t         *p_buffers;
@@ -52,11 +53,11 @@ int transcode_encoder_video_drain( transcode_encoder_t *p_enc, block_t **out );
 int transcode_encoder_video_test( encoder_t *p_encoder,
                                   const transcode_encoder_config_t *p_cfg,
                                   const es_format_t *p_dec_fmtin,
-                                  vlc_fourcc_t i_codec_in,
+                                  heimdall_fourcc_t i_codec_in,
                                   es_format_t *p_enc_wanted_in );
 
 int transcode_encoder_audio_test( encoder_t *p_encoder,
                                   const transcode_encoder_config_t *p_cfg,
                                   const es_format_t *p_dec_out,
-                                  vlc_fourcc_t i_codec_in,
+                                  heimdall_fourcc_t i_codec_in,
                                   es_format_t *p_enc_wanted_in );

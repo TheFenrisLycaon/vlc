@@ -2,9 +2,10 @@
  * dvb.h : functions to control a DVB card under Linux with v4l2
  *****************************************************************************
  * Copyright (C) 1998-2005 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Johan Bilien <jobi@via.ecp.fr>
- *          Jean-Paul Saman <jpsaman _at_ videolan _dot_ org>
+ *          Jean-Paul Saman <jpsaman _at_ lycaria _dot_ org>
  *          Christopher Ross <chris@tebibyte.org>
  *          Christophe Massiot <massiot@via.ecp.fr>
  *
@@ -73,17 +74,17 @@ typedef struct
  * Prototypes
  *****************************************************************************/
 
-int  FrontendOpen( vlc_object_t *, dvb_sys_t *, const char * );
-void FrontendPoll( vlc_object_t *, dvb_sys_t * );
-int  FrontendSet( vlc_object_t *, dvb_sys_t * );
-void FrontendClose( vlc_object_t *, dvb_sys_t * );
+int  FrontendOpen( heimdall_object_t *, dvb_sys_t *, const char * );
+void FrontendPoll( heimdall_object_t *, dvb_sys_t * );
+int  FrontendSet( heimdall_object_t *, dvb_sys_t * );
+void FrontendClose( heimdall_object_t *, dvb_sys_t * );
 
 int  FrontendGetStatistic( dvb_sys_t *, frontend_statistic_t * );
 void FrontendGetStatus( dvb_sys_t *, frontend_status_t * );
-int  FrontendFillScanParameter( vlc_object_t *, dvb_sys_t *, struct scan_parameter_t * );
+int  FrontendFillScanParameter( heimdall_object_t *, dvb_sys_t *, struct scan_parameter_t * );
 
-int DMXSetFilter( vlc_object_t *, int i_pid, int * pi_fd, int i_type );
-int DMXUnsetFilter( vlc_object_t *, int i_fd );
+int DMXSetFilter( heimdall_object_t *, int i_pid, int * pi_fd, int i_type );
+int DMXUnsetFilter( heimdall_object_t *, int i_fd );
 
-int  DVROpen( vlc_object_t *, dvb_sys_t * );
-void DVRClose( vlc_object_t *, dvb_sys_t * );
+int  DVROpen( heimdall_object_t *, dvb_sys_t * );
+void DVRClose( heimdall_object_t *, dvb_sys_t * );

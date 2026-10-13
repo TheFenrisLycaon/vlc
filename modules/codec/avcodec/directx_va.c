@@ -4,9 +4,10 @@
  * Copyright (C) 2009 Geoffroy Couprie
  * Copyright (C) 2009 Laurent Aimar
  * Copyright (C) 2015 Steve Lhomme
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Geoffroy Couprie <geal@videolan.org>
- *          Laurent Aimar <fenrir _AT_ videolan _DOT_ org>
+ *          Laurent Aimar <fenrir _AT_ lycaria _DOT_ org>
  *          Steve Lhomme <robux4@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -45,7 +46,7 @@
 #endif
 
 #include "directx_va.h"
-#include <vlc_codecs.h> // GUID_FMT/GUID_PRINT
+#include <heimdall_codecs.h> // GUID_FMT/GUID_PRINT
 
 #include "../../packetizer/h264_nal.h"
 #include "../../packetizer/hevc_nal.h"
@@ -319,7 +320,7 @@ static const directx_va_mode_t DXVA_MODES[] = {
     DEF_DXVA_MODE_420_10B( "AV1 High profile 10",                                           &DXVA_ModeAV1_VLD_Profile1,             AV_CODEC_ID_AV1, PROF_AV1_HIGH ),
 };
 
-static const directx_va_mode_t *FindVideoServiceConversion(vlc_va_t *, const directx_sys_t *, const es_format_t *, video_format_t *fmt_out,
+static const directx_va_mode_t *FindVideoServiceConversion(heimdall_va_t *, const directx_sys_t *, const es_format_t *, video_format_t *fmt_out,
                                       const AVCodecContext *, const AVPixFmtDescriptor *);
 
 static char *directx_va_GetDecoderName(const GUID *guid)
@@ -336,7 +337,7 @@ static char *directx_va_GetDecoderName(const GUID *guid)
 }
 
 /* */
-const directx_va_mode_t *directx_va_Setup(vlc_va_t *va, const directx_sys_t *dx_sys,
+const directx_va_mode_t *directx_va_Setup(heimdall_va_t *va, const directx_sys_t *dx_sys,
                      const AVCodecContext *avctx, const AVPixFmtDescriptor *desc,
                      const es_format_t *fmt, int flag_xbox,
                      video_format_t *fmt_out, unsigned *surfaces)
@@ -385,8 +386,8 @@ const directx_va_mode_t *directx_va_Setup(vlc_va_t *va, const directx_sys_t *dx_
 
     assert((surface_alignment & (surface_alignment - 1)) == 0); /* power of 2 */
 
-    int surface_width  = vlc_align(avctx->coded_width,  surface_alignment);
-    int surface_height = vlc_align(avctx->coded_height, surface_alignment);
+    int surface_width  = heimdall_align(avctx->coded_width,  surface_alignment);
+    int surface_height = heimdall_align(avctx->coded_height, surface_alignment);
 
     if (avctx->coded_width != surface_width || avctx->coded_height != surface_height)
         msg_Warn( va, "surface dimensions (%dx%d) differ from avcodec dimensions (%dx%d)",
@@ -456,13 +457,13 @@ static bool profile_supported(const directx_va_mode_t *mode, const es_format_t *
 /**
  * Find the best suited decoder mode GUID and render format.
  */
-static const directx_va_mode_t * FindVideoServiceConversion(vlc_va_t *va, const directx_sys_t *dx_sys,
+static const directx_va_mode_t * FindVideoServiceConversion(heimdall_va_t *va, const directx_sys_t *dx_sys,
                                       const es_format_t *fmt, video_format_t *fmt_out,
                                       const AVCodecContext *avctx, const AVPixFmtDescriptor *desc)
 {
     input_list_t p_list = { 0 };
     int err = dx_sys->pf_get_input_list(va, &p_list);
-    if (err != VLC_SUCCESS)
+    if (err != HEIMDALL_SUCCESS)
         return NULL;
     if (p_list.count == 0) {
         msg_Warn( va, "No input format found for HWAccel" );
@@ -520,7 +521,7 @@ static const directx_va_mode_t * FindVideoServiceConversion(vlc_va_t *va, const 
 
         /* */
         msg_Dbg(va, "Trying to use '%s' as input", mode->name);
-        if (dx_sys->pf_setup_output(va, mode, fmt_out)==VLC_SUCCESS)
+        if (dx_sys->pf_setup_output(va, mode, fmt_out)==HEIMDALL_SUCCESS)
         {
             res = mode;
             break;

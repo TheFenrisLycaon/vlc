@@ -6,7 +6,7 @@
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <objects>
-        <customObject id="-2" userLabel="File's Owner" customClass="VLCTimeSelectionPanelController">
+        <customObject id="-2" userLabel="File's Owner" customClass="HeimdallTimeSelectionPanelController">
             <connections>
                 <outlet property="cancelButton" destination="C7h-06-Udn" id="vms-H9-Fs6"/>
                 <outlet property="goToLabel" destination="bB6-Le-Ilg" id="Psy-fF-eTf"/>
@@ -210,7 +210,7 @@ Gw
                 <constraints>
                     <constraint firstItem="bB6-Le-Ilg" firstAttribute="top" secondItem="NrR-3A-NOR" secondAttribute="top" constant="8" id="0VG-Bm-H6f"/>
                     <constraint firstItem="KFt-K5-ogc" firstAttribute="width" secondItem="Smg-Kh-Pjv" secondAttribute="width" id="24N-1L-5Qx"/>
-                    <constraint firstItem="C7h-06-Udn" firstAttribute="leading" relation="greaterThanOrEqual" secondItem="NrR-3A-NOR" secondAttribute="leading" constant="20" symbolic="YES" id="8C2-n0-ddd" customClass="VLCSpacingConstraint">
+                    <constraint firstItem="C7h-06-Udn" firstAttribute="leading" relation="greaterThanOrEqual" secondItem="NrR-3A-NOR" secondAttribute="leading" constant="20" symbolic="YES" id="8C2-n0-ddd" customClass="HeimdallSpacingConstraint">
                         <userDefinedRuntimeAttributes>
                             <userDefinedRuntimeAttribute type="number" keyPath="spacingToken">
                                 <integer key="value" value="0"/>
@@ -228,7 +228,7 @@ Gw
                     <constraint firstItem="jTf-bH-u7w" firstAttribute="centerX" secondItem="Smg-Kh-Pjv" secondAttribute="centerX" id="RYV-JZ-UBS"/>
                     <constraint firstItem="zrN-B3-Ede" firstAttribute="top" secondItem="RNE-aM-lcf" secondAttribute="bottom" constant="12" id="SiP-hv-2S0"/>
                     <constraint firstItem="nrO-yt-AnE" firstAttribute="centerY" secondItem="KFt-K5-ogc" secondAttribute="centerY" constant="-0.5" id="T2g-U9-OAh"/>
-                    <constraint firstItem="zrN-B3-Ede" firstAttribute="leading" secondItem="C7h-06-Udn" secondAttribute="trailing" constant="12" id="XLd-j6-TX5" customClass="VLCSpacingConstraint">
+                    <constraint firstItem="zrN-B3-Ede" firstAttribute="leading" secondItem="C7h-06-Udn" secondAttribute="trailing" constant="12" id="XLd-j6-TX5" customClass="HeimdallSpacingConstraint">
                         <userDefinedRuntimeAttributes>
                             <userDefinedRuntimeAttribute type="number" keyPath="spacingToken">
                                 <integer key="value" value="0"/>
@@ -238,7 +238,7 @@ Gw
                     <constraint firstItem="nrO-yt-AnE" firstAttribute="leading" secondItem="KFt-K5-ogc" secondAttribute="trailing" constant="11" id="Xny-Za-GWV"/>
                     <constraint firstAttribute="trailing" relation="lessThanOrEqual" secondItem="ovY-qj-fWV" secondAttribute="trailing" constant="35" id="agW-tb-8WG"/>
                     <constraint firstItem="jTf-bH-u7w" firstAttribute="leading" secondItem="hoj-E1-zWh" secondAttribute="trailing" constant="35" id="dxq-Lf-enG"/>
-                    <constraint firstAttribute="trailing" relation="greaterThanOrEqual" secondItem="bB6-Le-Ilg" secondAttribute="trailing" constant="20" symbolic="YES" id="epj-mp-Lnm" customClass="VLCSpacingConstraint">
+                    <constraint firstAttribute="trailing" relation="greaterThanOrEqual" secondItem="bB6-Le-Ilg" secondAttribute="trailing" constant="20" symbolic="YES" id="epj-mp-Lnm" customClass="HeimdallSpacingConstraint">
                         <userDefinedRuntimeAttributes>
                             <userDefinedRuntimeAttribute type="number" keyPath="spacingToken">
                                 <integer key="value" value="0"/>
@@ -247,7 +247,7 @@ Gw
                     </constraint>
                     <constraint firstItem="FW5-ak-aXx" firstAttribute="centerY" secondItem="KFt-K5-ogc" secondAttribute="centerY" constant="-0.5" id="hqm-TU-kPZ"/>
                     <constraint firstItem="RNE-aM-lcf" firstAttribute="centerX" secondItem="NrR-3A-NOR" secondAttribute="centerX" constant="-1" id="ipf-3f-Ndw"/>
-                    <constraint firstItem="bB6-Le-Ilg" firstAttribute="leading" relation="greaterThanOrEqual" secondItem="NrR-3A-NOR" secondAttribute="leading" constant="20" symbolic="YES" id="j6a-V4-oje" customClass="VLCSpacingConstraint">
+                    <constraint firstItem="bB6-Le-Ilg" firstAttribute="leading" relation="greaterThanOrEqual" secondItem="NrR-3A-NOR" secondAttribute="leading" constant="20" symbolic="YES" id="j6a-V4-oje" customClass="HeimdallSpacingConstraint">
                         <userDefinedRuntimeAttributes>
                             <userDefinedRuntimeAttribute type="number" keyPath="spacingToken">
                                 <integer key="value" value="0"/>

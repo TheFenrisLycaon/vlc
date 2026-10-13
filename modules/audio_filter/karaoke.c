@@ -2,6 +2,7 @@
  * karaoke.c : karaoke mode
  *****************************************************************************
  * Copyright © 2011 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,44 +23,44 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_aout.h>
-#include <vlc_filter.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_aout.h>
+#include <heimdall_filter.h>
+#include <heimdall_plugin.h>
 
-static int Open (vlc_object_t *);
+static int Open (heimdall_object_t *);
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname (N_("Karaoke"))
     set_description (N_("Simple Karaoke filter"))
     set_subcategory (SUBCAT_AUDIO_AFILTER)
 
     set_capability ("audio filter", 0)
     set_callback(Open)
-vlc_module_end ()
+heimdall_module_end ()
 
 static block_t *Process (filter_t *, block_t *);
 
-static int Open (vlc_object_t *obj)
+static int Open (heimdall_object_t *obj)
 {
     filter_t *filter = (filter_t *)obj;
 
     if (filter->fmt_in.audio.i_channels != 2)
     {
         msg_Err (filter, "voice removal requires stereo");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    filter->fmt_in.audio.i_format = VLC_CODEC_FL32;
+    filter->fmt_in.audio.i_format = HEIMDALL_CODEC_FL32;
     aout_FormatPrepare(&filter->fmt_in.audio);
     filter->fmt_out.audio = filter->fmt_in.audio;
 
-    static const struct vlc_filter_operations filter_ops =
+    static const struct heimdall_filter_operations filter_ops =
     {
         .filter_audio = Process,
     };
     filter->ops = &filter_ops;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static block_t *Process (filter_t *filter, block_t *block)

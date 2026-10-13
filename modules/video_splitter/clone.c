@@ -1,7 +1,8 @@
 /*****************************************************************************
- * clone.c : Clone video plugin for vlc
+ * clone.c : Clone video plugin for heimdall
  *****************************************************************************
  * Copyright (C) 2002-2009 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Samuel Hocevar <sam@zoy.org>
  *
@@ -28,10 +29,10 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_video_splitter.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_video_splitter.h>
 
 /*****************************************************************************
  * Module descriptor
@@ -48,10 +49,10 @@
         "and/or video output modules")
 #define CFG_PREFIX "clone-"
 
-static int  Open ( vlc_object_t * );
-static void Close( vlc_object_t * );
+static int  Open ( heimdall_object_t * );
+static void Close( heimdall_object_t * );
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("Clone video filter") )
     set_capability( "video splitter", 0 )
     set_shortname( N_("Clone" ))
@@ -64,7 +65,7 @@ vlc_module_begin ()
 
     add_shortcut( "clone" )
     set_callbacks( Open, Close )
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * Local prototypes
@@ -80,7 +81,7 @@ static int Filter( video_splitter_t *, picture_t *pp_dst[], picture_t * );
 /**
  * This function allocates and initializes a Clone splitter module
  */
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     video_splitter_t *p_splitter = (video_splitter_t*)p_this;
 
@@ -105,7 +106,7 @@ static int Open( vlc_object_t *p_this )
         if( !p_splitter->p_output )
         {
             free( psz_clonelist );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         /* Tokenize the list */
@@ -135,7 +136,7 @@ static int Open( vlc_object_t *p_this )
                                        sizeof(*p_splitter->p_output) );
 
         if( !p_splitter->p_output )
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
         for( int i = 0; i < p_splitter->i_output; i++ )
             p_splitter->p_output[i].psz_module = NULL;
@@ -154,13 +155,13 @@ static int Open( vlc_object_t *p_this )
 
     msg_Dbg( p_splitter, "spawning %i clone(s)", p_splitter->i_output );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /**
  * This function closes a clone video splitter module
  */
-static void Close( vlc_object_t *p_this )
+static void Close( heimdall_object_t *p_this )
 {
     video_splitter_t *p_splitter = (video_splitter_t*)p_this;
 
@@ -183,13 +184,13 @@ static int Filter( video_splitter_t *p_splitter,
     if( video_splitter_NewPicture( p_splitter, pp_dst ) )
     {
         picture_Release( p_src );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     for( int i = 0; i < p_splitter->i_output; i++ )
         picture_Copy( pp_dst[i], p_src );
 
     picture_Release( p_src );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 

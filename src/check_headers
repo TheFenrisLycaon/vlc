@@ -1,5 +1,6 @@
 #! /bin/sh
 # Copyright © 2008 Rémi Denis-Courmont
+# Copyright (C) 2026 TheFenrisLycaon
 
 cd "$(dirname "$0")" || exit $?
 
@@ -12,7 +13,7 @@ while read l; do
 	test -z "$d" && continue
 	test "$d" = "WORDS_BIGENDIAN" && continue
 	test "$d" = "UNICODE" && continue
-	test "$d" = "LIBVLC_INTERNAL_" && continue
+	test "$d" = "LIBHEIMDALL_INTERNAL_" && continue
 
 	if test -z "$regexp"; then
 		regexp="[^A-Za-z0-9_]\("

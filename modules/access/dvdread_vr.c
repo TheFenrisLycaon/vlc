@@ -2,6 +2,7 @@
  * dvdread_vr.c : DVD-VideoRecording support for the dvdread input module
  *****************************************************************************
  * Copyright (C) 2024-2025 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Saifelden Mohamed Ismail <saifeldenmi@gmail.com>
  *
@@ -25,8 +26,8 @@
 #endif
 
 #include "dvdread.h"
-#include <vlc_arrays.h>
-#include <vlc_charset.h>
+#include <heimdall_arrays.h>
+#include <heimdall_charset.h>
 
 #ifdef DVDREAD_HAS_DVDVIDEORECORDING
 typedef struct demux_sys_t demux_sys_t;
@@ -67,7 +68,7 @@ uint32_t DvdVRGetProgramSectorSpan( const demux_sys_t *p_sys,
     return map->nr_of_vobu_info * sects_per_vobu;
 }
 
-static vlc_tick_t DvdVRProgramDuration( const pgi_t *pgi )
+static heimdall_tick_t DvdVRProgramDuration( const pgi_t *pgi )
 {
     if( pgi->header.vob_v_e_ptm.ptm <= pgi->header.vob_v_s_ptm.ptm )
         return 0;
@@ -96,13 +97,13 @@ static bool DvdVRTimeInfosSane( const vobu_map_t *map, uint32_t total_sectors )
     return true;
 }
 
-static uint32_t DvdVRReadTimeToVobuOffset( const demux_sys_t *p_sys, vlc_tick_t t )
+static uint32_t DvdVRReadTimeToVobuOffset( const demux_sys_t *p_sys, heimdall_tick_t t )
 {
     if( p_sys->type != DVD_VR || !p_sys->pgc_gi || !p_sys->ud_pgcit ||
         p_sys->i_title_start_cell < 0 || p_sys->i_title_end_cell <= p_sys->i_title_start_cell )
         return 0;
 
-    vlc_tick_t acc = 0;
+    heimdall_tick_t acc = 0;
     uint32_t vobu_acc = 0;
 
     for( int ci = p_sys->i_title_start_cell; ci < p_sys->i_title_end_cell; ci++ )
@@ -116,12 +117,12 @@ static uint32_t DvdVRReadTimeToVobuOffset( const demux_sys_t *p_sys, vlc_tick_t 
         if( vobus == 0 )
             continue;
 
-        const vlc_tick_t dur = DvdVRProgramDuration( pgi );
+        const heimdall_tick_t dur = DvdVRProgramDuration( pgi );
         if( dur == 0 )
             continue;
         if( acc + dur >= t )
         {
-            const vlc_tick_t within = t - acc;
+            const heimdall_tick_t within = t - acc;
             const uint32_t within_vobu = (uint32_t)(within * vobus / dur);
             return vobu_acc + within_vobu;
         }
@@ -136,11 +137,11 @@ static uint32_t DvdVRReadTimeToVobuOffset( const demux_sys_t *p_sys, vlc_tick_t 
 static int DvdVRReadSetArea( demux_t *p_demux, int i_title, int i_chapter,
                       int i_angle )
 {
-    VLC_UNUSED( i_angle );
+    HEIMDALL_UNUSED( i_angle );
     demux_sys_t *p_sys = p_demux->p_sys;
 
     if( i_title >= 0 && (unsigned)i_title >= p_sys->ud_pgcit->nr_of_pgci )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* user made title selection */
     if( i_title >= 0 && i_title < p_sys->i_titles &&
@@ -153,7 +154,7 @@ static int DvdVRReadSetArea( demux_t *p_demux, int i_title, int i_chapter,
         if( !( p_sys->p_title = DVDOpenFile( p_sys->p_dvdread, 0, DVD_READ_TITLE_VOBS ) ) )
         {
             msg_Err( p_demux, "cannot open VR_MOVIE.VRO");
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         uint16_t fpid = p_sys->ud_pgcit->ud_pgci_items[i_title].first_prog_id;
@@ -162,7 +163,7 @@ static int DvdVRReadSetArea( demux_t *p_demux, int i_title, int i_chapter,
         {
             msg_Warn( p_demux, "invalid first_prog_id %u for title %d",
                       fpid, i_title );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
         i_start_cell = p_sys->i_title_start_cell = fpid - 1;
 
@@ -174,7 +175,7 @@ static int DvdVRReadSetArea( demux_t *p_demux, int i_title, int i_chapter,
         {
             msg_Warn( p_demux, "invalid end cell %d for title %d",
                       i_end_cell, i_title );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         p_sys->i_chapters = 0;
@@ -190,7 +191,7 @@ static int DvdVRReadSetArea( demux_t *p_demux, int i_title, int i_chapter,
         {
             msg_Err( p_demux, "invalid m_vobi_srpn %u for cell %d",
                      m_vobi_srpn, i_start_cell );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         /* find the corresponding address */
@@ -208,7 +209,7 @@ static int DvdVRReadSetArea( demux_t *p_demux, int i_title, int i_chapter,
             {
                 msg_Warn( p_demux, "invalid m_vobi_srpn %" PRIu16 " in title %d",
                           srpn, i_title );
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             }
             p_sys->i_title_blocks += p_sys->pgc_gi->pgi[srpn - 1].map.nr_of_vobu_info;
         }
@@ -246,7 +247,7 @@ static int DvdVRReadSetArea( demux_t *p_demux, int i_title, int i_chapter,
     }
     else if( i_title != -1 && i_title != p_sys->i_title )
     {
-        return VLC_EGENERIC; /* Couldn't set title */
+        return HEIMDALL_EGENERIC; /* Couldn't set title */
     }
 
     /* Search for chapter */
@@ -291,10 +292,10 @@ static int DvdVRReadSetArea( demux_t *p_demux, int i_title, int i_chapter,
             }
         }
         if (!found)
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
         if( chapter_program == 0 || chapter_program > p_sys->pgc_gi->nr_of_programs )
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
         const pgi_t *chapter_pgi = &p_sys->pgc_gi->pgi[chapter_program - 1];
         const vobu_map_t *map = &chapter_pgi->map;
@@ -346,7 +347,7 @@ static int DvdVRReadSetArea( demux_t *p_demux, int i_title, int i_chapter,
             }
         }
         if( p_sys->i_cur_cell < p_sys->i_title_start_cell )
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
         p_sys->i_title_offset = 0;
         for( int ci = p_sys->i_title_start_cell;
@@ -354,20 +355,20 @@ static int DvdVRReadSetArea( demux_t *p_demux, int i_title, int i_chapter,
         {
             uint16_t s = p_sys->ud_pgcit->m_c_gi[ci].m_vobi_srpn;
             if( s == 0 || s > p_sys->pgc_gi->nr_of_programs )
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             p_sys->i_title_offset += p_sys->pgc_gi->pgi[s - 1].map.nr_of_vobu_info;
         }
         /* add within-program vobu offset for position accuracy */
         p_sys->i_title_offset += within_vobu;
 
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
     else if( i_chapter != -1 )
     {
-        return VLC_EGENERIC; /* Couln't set chapter */
+        return HEIMDALL_EGENERIC; /* Couln't set chapter */
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void DvdVRFindCell( demux_t *p_demux )
@@ -414,7 +415,7 @@ static void DvdVRFindCell( demux_t *p_demux )
 
 }
 
-static vlc_tick_t DVDVRGetTitleLength( pgc_gi_t *pgc_gi, ud_pgcit_t *ud_pgcit, int program)
+static heimdall_tick_t DVDVRGetTitleLength( pgc_gi_t *pgc_gi, ud_pgcit_t *ud_pgcit, int program)
 {
     if( program < 0 || (unsigned)program >= ud_pgcit->nr_of_pgci )
         return 0;
@@ -450,7 +451,7 @@ static int DvdVRReadSeek( demux_t *p_demux, uint32_t i_block_offset )
         int cell_idx = cell_base + c;
         uint16_t srpn = p_sys->ud_pgcit->m_c_gi[cell_idx].m_vobi_srpn;
         if( srpn == 0 || srpn > p_sys->pgc_gi->nr_of_programs )
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         uint16_t cell_vobus = p_sys->pgc_gi->pgi[srpn - 1].map.nr_of_vobu_info;
 
         if( i_block_offset < vobu_accum + cell_vobus )
@@ -473,7 +474,7 @@ static int DvdVRReadSeek( demux_t *p_demux, uint32_t i_block_offset )
         p_sys->i_title_offset = p_sys->i_title_blocks;
         DvdReadResetCellTs( p_sys );
         es_out_Control( p_demux->out, ES_OUT_RESET_PCR );
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
     if( i_chapter < p_sys->i_chapters &&
@@ -484,11 +485,11 @@ static int DvdVRReadSeek( demux_t *p_demux, uint32_t i_block_offset )
     }
 
     if( p_sys->i_cur_cell < cell_base || p_sys->i_cur_cell >= cell_base + nr )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     uint16_t cur_srpn = p_sys->ud_pgcit->m_c_gi[p_sys->i_cur_cell].m_vobi_srpn;
     if( unlikely( cur_srpn == 0 || cur_srpn > p_sys->pgc_gi->nr_of_programs ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     const vobu_map_t *map = &p_sys->pgc_gi->pgi[cur_srpn - 1].map;
     uint32_t within_program = i_block_offset - vobu_accum;
@@ -527,7 +528,7 @@ static int DvdVRReadSeek( demux_t *p_demux, uint32_t i_block_offset )
     DvdReadResetCellTs( p_sys );
     es_out_Control( p_demux->out, ES_OUT_RESET_PCR );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static const char* ParseTxtEncoding( uint8_t txt_encoding )
@@ -548,21 +549,21 @@ static const char* ParseTxtEncoding( uint8_t txt_encoding )
     return charset;
 }
 
-static vlc_tick_t DvdVRReadTitleLength( const demux_sys_t *p_sys )
+static heimdall_tick_t DvdVRReadTitleLength( const demux_sys_t *p_sys )
 {
     if( p_sys->cur_title < 0 || p_sys->cur_title >= p_sys->i_titles )
         return 0;
     return p_sys->titles[p_sys->cur_title]->i_length;
 }
 
-static bool DvdVRReadTimelineBase( const demux_sys_t *p_sys, vlc_tick_t *base )
+static bool DvdVRReadTimelineBase( const demux_sys_t *p_sys, heimdall_tick_t *base )
 {
     if( p_sys->i_title_start_cell < 0 || p_sys->i_cur_cell < 0 ||
         p_sys->i_title_start_cell > p_sys->i_cur_cell ||
         p_sys->i_cur_cell >= p_sys->i_title_end_cell )
         return false;
 
-    vlc_tick_t cell_dvd_time = 0;
+    heimdall_tick_t cell_dvd_time = 0;
     for( int ci = p_sys->i_title_start_cell;
          ci < p_sys->i_cur_cell && ci < p_sys->i_title_end_cell; ci++ )
     {
@@ -570,7 +571,7 @@ static bool DvdVRReadTimelineBase( const demux_sys_t *p_sys, vlc_tick_t *base )
         if( srpn == 0 || srpn > p_sys->pgc_gi->nr_of_programs )
             return false;
         const pgi_t *scan_pgi = &p_sys->pgc_gi->pgi[srpn - 1];
-        const vlc_tick_t scan_dur = DvdVRProgramDuration( scan_pgi );
+        const heimdall_tick_t scan_dur = DvdVRProgramDuration( scan_pgi );
         if( scan_dur <= 0 )
             return false;
         cell_dvd_time += scan_dur;
@@ -581,7 +582,7 @@ static bool DvdVRReadTimelineBase( const demux_sys_t *p_sys, vlc_tick_t *base )
         return false;
 
     const pgi_t *pgi = &p_sys->pgc_gi->pgi[srpn - 1];
-    const vlc_tick_t program_duration = DvdVRProgramDuration( pgi );
+    const heimdall_tick_t program_duration = DvdVRProgramDuration( pgi );
     if( program_duration <= 0 )
         return false;
     const uint32_t total_sectors = DvdVRGetProgramSectorSpan( p_sys, &pgi->map );
@@ -593,7 +594,7 @@ static bool DvdVRReadTimelineBase( const demux_sys_t *p_sys, vlc_tick_t *base )
         else if( within_sectors >= (int64_t)total_sectors )
             within_sectors = (int64_t)total_sectors - 1;
 
-        vlc_tick_t scaled;
+        heimdall_tick_t scaled;
         if( !ckd_mul( &scaled, within_sectors, program_duration ) )
             cell_dvd_time += scaled / total_sectors;
     }
@@ -602,10 +603,10 @@ static bool DvdVRReadTimelineBase( const demux_sys_t *p_sys, vlc_tick_t *base )
     return true;
 }
 
-static uint32_t DvdVRReadTimeToSeekOffset( const demux_sys_t *p_sys, vlc_tick_t time,
+static uint32_t DvdVRReadTimeToSeekOffset( const demux_sys_t *p_sys, heimdall_tick_t time,
                                            uint32_t i_block_offset )
 {
-    VLC_UNUSED( i_block_offset );
+    HEIMDALL_UNUSED( i_block_offset );
     return DvdVRReadTimeToVobuOffset( p_sys, time );
 }
 
@@ -616,13 +617,13 @@ static int DvdVRReadPsSource( void )
 
 static void DvdVRReadAdjustAnchor( demux_sys_t *p_sys, block_t *pkt )
 {
-    if( p_sys->cell_ts.dvd == VLC_TICK_INVALID || p_sys->cell_ts.ps == VLC_TICK_INVALID )
+    if( p_sys->cell_ts.dvd == HEIMDALL_TICK_INVALID || p_sys->cell_ts.ps == HEIMDALL_TICK_INVALID )
         return;
 
-    vlc_tick_t anchor = p_sys->cell_ts.ps;
-    if( pkt->i_dts != VLC_TICK_INVALID && pkt->i_dts < anchor )
+    heimdall_tick_t anchor = p_sys->cell_ts.ps;
+    if( pkt->i_dts != HEIMDALL_TICK_INVALID && pkt->i_dts < anchor )
         anchor = pkt->i_dts;
-    if( pkt->i_pts != VLC_TICK_INVALID && pkt->i_pts < anchor )
+    if( pkt->i_pts != HEIMDALL_TICK_INVALID && pkt->i_pts < anchor )
         anchor = pkt->i_pts;
     if( anchor < p_sys->cell_ts.ps )
         p_sys->cell_ts.ps = anchor;
@@ -630,7 +631,7 @@ static void DvdVRReadAdjustAnchor( demux_sys_t *p_sys, block_t *pkt )
 
 static void DvdVRReadDemuxTitles( demux_t *p_demux, int *pi_angle )
 {
-    VLC_UNUSED( pi_angle );
+    HEIMDALL_UNUSED( pi_angle );
 
     demux_sys_t *p_sys = p_demux->p_sys;
     input_title_t *t;
@@ -658,12 +659,12 @@ static void DvdVRReadDemuxTitles( demux_t *p_demux, int *pi_angle )
 
         msg_Dbg( p_demux, "title %d has %d chapters", i, i_chapters );
 
-        t = vlc_input_title_New();
+        t = heimdall_input_title_New();
         if( unlikely( !t ) )
             return;
 
         /* ep_ptm disc-global, subtract title start for relative offset */
-        vlc_tick_t title_base = 0;
+        heimdall_tick_t title_base = 0;
         if( nr > 0 )
             title_base = FROM_SCALE_NZ( p_sys->ud_pgcit->m_c_gi[cell_base].c_v_s_ptm.ptm );
 
@@ -691,11 +692,11 @@ static void DvdVRReadDemuxTitles( demux_t *p_demux, int *pi_angle )
             {
                 for( int ep = 0; ep < cell->c_epi_n; ep++ )
                 {
-                    s = vlc_seekpoint_New();
+                    s = heimdall_seekpoint_New();
                     if( unlikely( !s ) )
                         goto fail;
 
-                    vlc_tick_t ep_time =
+                    heimdall_tick_t ep_time =
                         FROM_SCALE_NZ( cell->m_c_epi[ep].ep_ptm.ptm ) - title_base;
                     s->i_time_offset = ep_time > 0 ? ep_time : 0;
                     TAB_APPEND( t->i_seekpoint, t->seekpoint, s );
@@ -703,11 +704,11 @@ static void DvdVRReadDemuxTitles( demux_t *p_demux, int *pi_angle )
             }
             else
             {
-                s = vlc_seekpoint_New();
+                s = heimdall_seekpoint_New();
                 if( unlikely( !s ) )
                     goto fail;
 
-                vlc_tick_t cell_time = FROM_SCALE_NZ( cell->c_v_s_ptm.ptm ) - title_base;
+                heimdall_tick_t cell_time = FROM_SCALE_NZ( cell->c_v_s_ptm.ptm ) - title_base;
                 s->i_time_offset = cell_time > 0 ? cell_time : 0;
                 TAB_APPEND( t->i_seekpoint, t->seekpoint, s );
             }
@@ -718,7 +719,7 @@ static void DvdVRReadDemuxTitles( demux_t *p_demux, int *pi_angle )
     return;
 
 fail:
-    vlc_input_title_Delete( t );
+    heimdall_input_title_Delete( t );
 }
 
 const dvdread_ops_t DvdVRReadOps = {
@@ -734,14 +735,14 @@ const dvdread_ops_t DvdVRReadOps = {
     .requires_vts = false,
 };
 
-int OpenVideoRecording( vlc_object_t *p_this )
+int OpenVideoRecording( heimdall_object_t *p_this )
 {
     return OpenCommonDvdread( p_this, DVD_VR, NULL );
 }
 #else
-int OpenVideoRecording( vlc_object_t *p_this )
+int OpenVideoRecording( heimdall_object_t *p_this )
 {
-    VLC_UNUSED( p_this );
-    return VLC_ENOTSUP;
+    HEIMDALL_UNUSED( p_this );
+    return HEIMDALL_ENOTSUP;
 }
 #endif

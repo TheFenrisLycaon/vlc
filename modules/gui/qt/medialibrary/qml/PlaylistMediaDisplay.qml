@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Benjamin Arnaud <bunjee@omega.gg>
  *
@@ -22,12 +23,12 @@ import QtQuick
 import QtQuick.Layouts
 import QtQml.Models
 
-import VLC.MainInterface
-import VLC.MediaLibrary
+import Heimdall.MainInterface
+import Heimdall.MediaLibrary
 
-import VLC.Widgets as Widgets
-import VLC.Util
-import VLC.Style
+import Heimdall.Widgets as Widgets
+import Heimdall.Util
+import Heimdall.Style
 
 Widgets.PageExt {
     id: root
@@ -45,7 +46,7 @@ Widgets.PageExt {
     property alias model: model
     property alias dragItem: dragItem
 
-    property string _placeHolder: root.isMusic ? VLCStyle.noArtAlbumCover : VLCStyle.noArtVideoCover
+    property string _placeHolder: root.isMusic ? HeimdallStyle.noArtAlbumCover : HeimdallStyle.noArtVideoCover
 
     hasGridListMode: false
     isSearchable: true
@@ -131,7 +132,7 @@ Widgets.PageExt {
             id: progressIndicator
             anchors.bottom: parent.bottom
             anchors.right: parent.right
-            anchors.margins: VLCStyle.margin_small
+            anchors.margins: HeimdallStyle.margin_small
 
             visible: false
 
@@ -142,7 +143,7 @@ Widgets.PageExt {
             Timer {
                 id: visibilityTimer
 
-                interval: VLCStyle.duration_humanMoment
+                interval: HeimdallStyle.duration_humanMoment
             }
         }
 

@@ -2,6 +2,7 @@
  * ts_psip.c : TS demux ATSC A65 PSIP handling
  *****************************************************************************
  * Copyright (C) 2016 - VideoLAN Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -20,10 +21,10 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_demux.h>
-#include <vlc_meta.h>
-#include <vlc_epg.h>
+#include <heimdall_common.h>
+#include <heimdall_demux.h>
+#include <heimdall_meta.h>
+#include <heimdall_epg.h>
 
 #ifndef _DVBPSI_DVBPSI_H_
  #include <dvbpsi/dvbpsi.h>
@@ -331,18 +332,18 @@ static const char * ATSC_A53_get_service_type( uint8_t i_type )
     } while(0);
 #endif
 
-static vlc_epg_event_t * ATSC_CreateVLCEPGEvent( demux_t *p_demux, ts_psip_context_t *p_basectx,
+static heimdall_epg_event_t * ATSC_CreateHeimdallEPGEvent( demux_t *p_demux, ts_psip_context_t *p_basectx,
                                                  const dvbpsi_atsc_eit_event_t *p_evt,
                                                  const dvbpsi_atsc_ett_t *p_ett )
 {
 #ifndef ATSC_DEBUG_EIT
-    VLC_UNUSED(p_demux);
+    HEIMDALL_UNUSED(p_demux);
 #endif
     char *psz_title = atsc_a65_Decode_multiple_string( p_basectx->p_a65,
                                                        p_evt->i_title, p_evt->i_title_length );
     char *psz_shortdesc_text = NULL;
     char *psz_longdesc_text = NULL;
-    vlc_epg_event_t *p_epgevt = NULL;
+    heimdall_epg_event_t *p_epgevt = NULL;
 
     time_t i_start = atsc_a65_GPSTimeToEpoch( p_evt->i_start_time, p_basectx->p_stt->i_gps_utc_offset );
     EIT_DEBUG_TIMESHIFT( i_start );
@@ -391,13 +392,13 @@ static vlc_epg_event_t * ATSC_CreateVLCEPGEvent( demux_t *p_demux, ts_psip_conte
                                                              p_ett->p_etm_data, p_ett->i_etm_length );
     }
 
-    if( i_start != VLC_TICK_INVALID && psz_title )
+    if( i_start != HEIMDALL_TICK_INVALID && psz_title )
     {
 #ifdef ATSC_DEBUG_EIT
         msg_Dbg( p_demux, "EIT Event time %ld +%d %s id 0x%x",
                  i_start, p_evt->i_length_seconds, psz_title, p_evt->i_event_id );
 #endif
-        p_epgevt = vlc_epg_event_New( p_evt->i_event_id, i_start, p_evt->i_length_seconds );
+        p_epgevt = heimdall_epg_event_New( p_evt->i_event_id, i_start, p_evt->i_length_seconds );
         if( p_epgevt )
         {
             p_epgevt->psz_name = grab_notempty( &psz_title );
@@ -412,20 +413,20 @@ static vlc_epg_event_t * ATSC_CreateVLCEPGEvent( demux_t *p_demux, ts_psip_conte
     return p_epgevt;
 }
 
-static time_t ATSC_AddVLCEPGEvent( demux_t *p_demux, ts_psip_context_t *p_basectx,
+static time_t ATSC_AddHeimdallEPGEvent( demux_t *p_demux, ts_psip_context_t *p_basectx,
                                    const dvbpsi_atsc_eit_event_t *p_event,
                                    const dvbpsi_atsc_ett_t *p_ett,
-                                   vlc_epg_t *p_epg )
+                                   heimdall_epg_t *p_epg )
 {
-    vlc_epg_event_t *p_evt = ATSC_CreateVLCEPGEvent( p_demux, p_basectx,
+    heimdall_epg_event_t *p_evt = ATSC_CreateHeimdallEPGEvent( p_demux, p_basectx,
                                                      p_event, p_ett );
     if( p_evt )
     {
-        if( vlc_epg_AddEvent( p_epg, p_evt ) )
+        if( heimdall_epg_AddEvent( p_epg, p_evt ) )
             return p_evt->i_start;
-        vlc_epg_event_Delete( p_evt );
+        heimdall_epg_event_Delete( p_evt );
     }
-    return VLC_TICK_INVALID;
+    return HEIMDALL_TICK_INVALID;
 }
 
 
@@ -474,7 +475,7 @@ static void ATSC_EIT_Callback( void *p_pid, dvbpsi_atsc_eit_t* p_eit )
     /* Use PID for segmenting our EPG tables updates. 1 EIT/PID transmits 3 hours,
      * with a max of 16 days over 128 EIT/PID. Unlike DVD, table ID is here fixed.
      * see ATSC A/65 5.0 */
-    vlc_epg_t *p_epg = vlc_epg_New( i_table_type - ATSC_TABLE_TYPE_EIT_0,
+    heimdall_epg_t *p_epg = heimdall_epg_New( i_table_type - ATSC_TABLE_TYPE_EIT_0,
                                     i_program_number );
     if( !p_epg )
     {
@@ -500,7 +501,7 @@ static void ATSC_EIT_Callback( void *p_pid, dvbpsi_atsc_eit_t* p_eit )
                                          p_eit->i_version );
 
         /* Add Event to EPG based on EIT / available ETT */
-        time_t i_start = ATSC_AddVLCEPGEvent( p_demux, p_basectx, p_evt, p_ett, p_epg );
+        time_t i_start = ATSC_AddHeimdallEPGEvent( p_demux, p_basectx, p_evt, p_ett, p_epg );
 
         /* Try to find current event */
         if( i_start <= i_current_time && i_start + p_evt->i_length_seconds > i_current_time )
@@ -510,7 +511,7 @@ static void ATSC_EIT_Callback( void *p_pid, dvbpsi_atsc_eit_t* p_eit )
     /* Update epg current time from system time ( required for pruning ) */
     if( p_epg->b_present && i_current_event_start_time )
     {
-        vlc_epg_SetCurrent( p_epg, i_current_event_start_time );
+        heimdall_epg_SetCurrent( p_epg, i_current_event_start_time );
         ts_pat_t *p_pat = ts_pid_Get(&p_sys->pids, 0)->u.p_pat;
         ts_pmt_t *p_pmt = ts_pat_Get_pmt(p_pat, i_program_number);
         if(p_pmt)
@@ -524,7 +525,7 @@ static void ATSC_EIT_Callback( void *p_pid, dvbpsi_atsc_eit_t* p_eit )
         es_out_Control( p_demux->out, ES_OUT_SET_GROUP_EPG, (int)i_program_number, p_epg );
 
 end:
-    vlc_epg_Delete( p_epg );
+    heimdall_epg_Delete( p_epg );
     ATSC_EITInsert( p_eit_pid->u.p_psip->p_ctx, p_eit );
 }
 
@@ -572,7 +573,7 @@ static void ATSC_ETT_Callback( void *p_pid, dvbpsi_atsc_ett_t *p_ett )
 #ifdef ATSC_DEBUG_EIT
                     msg_Dbg( p_demux, "Should update EIT %x (matched EIT)", p_event->i_event_id );
 #endif
-                    vlc_epg_event_t *p_evt = ATSC_CreateVLCEPGEvent( p_demux, p_basectx, p_event, p_ett );
+                    heimdall_epg_event_t *p_evt = ATSC_CreateHeimdallEPGEvent( p_demux, p_basectx, p_event, p_ett );
                     if( likely(p_evt) )
                     {
                         es_out_Control( p_demux->out, ES_OUT_SET_GROUP_EPG_EVENT,
@@ -580,7 +581,7 @@ static void ATSC_ETT_Callback( void *p_pid, dvbpsi_atsc_ett_t *p_ett )
 #ifdef ATSC_DEBUG_EIT
                         msg_Dbg( p_demux, "Updated event %x with ETT", p_evt->i_id );
 #endif
-                        vlc_epg_event_Delete( p_evt );
+                        heimdall_epg_event_Delete( p_evt );
                     }
                 }
                 /* Insert to avoid duplicated event, and to be available to EIT if didn't appear yet */
@@ -596,7 +597,7 @@ static void ATSC_ETT_Callback( void *p_pid, dvbpsi_atsc_ett_t *p_ett )
 static void ATSC_ETT_RawCallback( dvbpsi_t *p_handle, const dvbpsi_psi_section_t* p_section,
                                   void *p_base_pid )
 {
-    VLC_UNUSED( p_handle );
+    HEIMDALL_UNUSED( p_handle );
     for( ; p_section; p_section = p_section->p_next )
     {
         dvbpsi_atsc_ett_t *p_ett = DVBPlague_ETT_Decode( p_section );
@@ -624,7 +625,7 @@ static void ATSC_VCT_Callback( void *p_cb_basepid, dvbpsi_atsc_vct_t* p_vct )
     for( const dvbpsi_atsc_vct_channel_t *p_channel = p_vct->p_first_channel;
                                           p_channel; p_channel = p_channel->p_next )
     {
-        vlc_meta_t *p_meta = vlc_meta_New();
+        heimdall_meta_t *p_meta = heimdall_meta_New();
         if( p_meta )
         {
             char *psz_name = NULL;
@@ -659,18 +660,18 @@ static void ATSC_VCT_Callback( void *p_cb_basepid, dvbpsi_atsc_vct_t* p_vct )
                                                                 p_channel->i_short_name, 14 );
             if( psz_name )
             {
-                vlc_meta_SetTitle( p_meta, psz_name );
+                heimdall_meta_SetTitle( p_meta, psz_name );
                 free( psz_name );
             }
 
             const char *psz_service_type = ATSC_A53_get_service_type( p_channel->i_service_type );
             if( psz_service_type )
-                vlc_meta_SetExtra( p_meta, "Type", psz_service_type );
+                heimdall_meta_SetExtra( p_meta, "Type", psz_service_type );
 
             es_out_Control( p_demux->out, ES_OUT_SET_GROUP_META,
                             p_channel->i_program_number, p_meta );
 
-            vlc_meta_Delete( p_meta );
+            heimdall_meta_Delete( p_meta );
         }
     }
 
@@ -836,7 +837,7 @@ static void ATSC_STT_Callback( void *p_cb_basepid, dvbpsi_atsc_stt_t* p_stt )
 static void ATSC_STT_RawCallback( dvbpsi_t *p_handle, const dvbpsi_psi_section_t* p_section,
                                   void *p_base_pid )
 {
-    VLC_UNUSED( p_handle );
+    HEIMDALL_UNUSED( p_handle );
     for( ; p_section ; p_section = p_section->p_next )
     {
         dvbpsi_atsc_stt_t *p_stt = DVBPlague_STT_Decode( p_section );

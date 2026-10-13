@@ -2,6 +2,7 @@
  * help.hpp : Help and About dialogs
  ****************************************************************************
  * Copyright (C) 2007 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Jean-Baptiste Kempf <jb (at) videolan.org>
  *
@@ -20,8 +21,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef QVLC_HELP_DIALOG_H_
-#define QVLC_HELP_DIALOG_H_ 1
+#ifndef QHEIMDALL_HELP_DIALOG_H_
+#define QHEIMDALL_HELP_DIALOG_H_ 1
 
 #ifdef HAVE_CONFIG_H
 # include "config.h"
@@ -29,7 +30,7 @@
 
 #include "qt.hpp"
 
-#include "widgets/native/qvlcframe.hpp"
+#include "widgets/native/qheimdallframe.hpp"
 #include "util/singleton.hpp"
 
 /* Auto-generated from .ui files */
@@ -38,7 +39,7 @@
 
 class QEvent;
 
-class HelpDialog : public QVLCFrame
+class HelpDialog : public QHeimdallFrame
 {
     Q_OBJECT
 public:
@@ -49,7 +50,7 @@ public slots:
     void close() override { toggleVisible(); }
 };
 
-class AboutDialog : public QVLCDialog
+class AboutDialog : public QHeimdallDialog
 {
     Q_OBJECT
 public:
@@ -137,7 +138,7 @@ private:
     QScopedPointer<UpdateModelPrivate> d_ptr;
 };
 
-class UpdateDialog : public QVLCFrame
+class UpdateDialog : public QHeimdallFrame
 {
     Q_OBJECT
 public:

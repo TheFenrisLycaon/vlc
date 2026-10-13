@@ -2,6 +2,7 @@
  * css_style.c : CSS styles conversions
  *****************************************************************************
  * Copyright (C) 2017 VideoLabs, VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -21,13 +22,13 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_text_style.h>
+#include <heimdall_common.h>
+#include <heimdall_text_style.h>
 
 #include "css_parser.h"
 #include "css_style.h"
 
-static void Color( vlc_css_term_t term,
+static void Color( heimdall_css_term_t term,
                    uint32_t *color, uint8_t *alpha,
                    uint16_t *feat, int cflag, int aflag )
 {
@@ -58,7 +59,7 @@ static void Color( vlc_css_term_t term,
              term.type == TYPE_IDENTIFIER )
     {
         bool b_valid = false;
-        unsigned i_color = vlc_html_color( term.psz, &b_valid );
+        unsigned i_color = heimdall_html_color( term.psz, &b_valid );
         if( b_valid )
         {
             *alpha = (i_color & 0xFF000000) >> 24;
@@ -68,7 +69,7 @@ static void Color( vlc_css_term_t term,
     }
 }
 
-static void OutlineWidth( vlc_css_term_t term, text_style_t *p_style )
+static void OutlineWidth( heimdall_css_term_t term, text_style_t *p_style )
 {
     if( term.type >= TYPE_PIXELS )
     {
@@ -78,13 +79,13 @@ static void OutlineWidth( vlc_css_term_t term, text_style_t *p_style )
     }
 }
 
-static void OutlineColor( vlc_css_term_t term, text_style_t *p_style )
+static void OutlineColor( heimdall_css_term_t term, text_style_t *p_style )
 {
     Color( term, &p_style->i_outline_color, &p_style->i_outline_alpha,
            &p_style->i_features, STYLE_HAS_OUTLINE_COLOR, STYLE_HAS_OUTLINE_ALPHA );
 }
 
-static void ShadowDrop( vlc_css_term_t term, text_style_t *p_style )
+static void ShadowDrop( heimdall_css_term_t term, text_style_t *p_style )
 {
     if( term.type >= TYPE_PIXELS )
     {
@@ -94,13 +95,13 @@ static void ShadowDrop( vlc_css_term_t term, text_style_t *p_style )
     }
 }
 
-static void ShadowColor( vlc_css_term_t term, text_style_t *p_style )
+static void ShadowColor( heimdall_css_term_t term, text_style_t *p_style )
 {
     Color( term, &p_style->i_shadow_color, &p_style->i_shadow_alpha,
            &p_style->i_features, STYLE_HAS_SHADOW_COLOR, STYLE_HAS_SHADOW_ALPHA );
 }
 
-void webvtt_FillStyleFromCssDeclaration( const vlc_css_declaration_t *p_decl, text_style_t *p_style )
+void webvtt_FillStyleFromCssDeclaration( const heimdall_css_declaration_t *p_decl, text_style_t *p_style )
 {
     if( !p_decl->psz_property || !p_style )
         return;
@@ -109,7 +110,7 @@ void webvtt_FillStyleFromCssDeclaration( const vlc_css_declaration_t *p_decl, te
     if( !p_decl->expr || p_decl->expr->i_count < 1 )
         return;
 
-    vlc_css_term_t term0 = p_decl->expr->seq[0].term;
+    heimdall_css_term_t term0 = p_decl->expr->seq[0].term;
 
     if( !strcasecmp( p_decl->psz_property, "color" ) )
     {
@@ -166,7 +167,7 @@ void webvtt_FillStyleFromCssDeclaration( const vlc_css_declaration_t *p_decl, te
     }
     else if( !strcasecmp( p_decl->psz_property, "font-family" ) )
     {
-        const vlc_css_term_t *term;
+        const heimdall_css_term_t *term;
         if( term0.type >= TYPE_STRING )
         {
             size_t i_total = 1 + (p_decl->expr->i_count - 1) * 2;
@@ -207,7 +208,7 @@ void webvtt_FillStyleFromCssDeclaration( const vlc_css_declaration_t *p_decl, te
             else
                 psz_font = strdup( term0.psz );
             free( p_style->psz_fontname );
-            p_style->psz_fontname = vlc_css_unquoted( psz_font );
+            p_style->psz_fontname = heimdall_css_unquoted( psz_font );
             free( psz_font );*/
         }
     }

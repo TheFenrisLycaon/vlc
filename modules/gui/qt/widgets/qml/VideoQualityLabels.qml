@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,7 +19,7 @@
 import QtQuick
 import QtQuick.Templates as T
 
-import VLC.Style
+import Heimdall.Style
 
 Row {
     id: root
@@ -32,7 +33,7 @@ Row {
             repeater.model = labels.length
     }
 
-    spacing: VLCStyle.margin_xxsmall
+    spacing: HeimdallStyle.margin_xxsmall
 
     readonly property ColorContext colorContext: ColorContext {
         id: theme
@@ -45,12 +46,12 @@ Row {
         delegate: T.Label {
             id: label
 
-            padding: VLCStyle.margin_xxxsmall
+            padding: HeimdallStyle.margin_xxxsmall
 
             visible: index < root.labels.length
             text: index >= root.labels.length ? "" :  root.labels[index]
 
-            font.pixelSize: VLCStyle.fontSize_normal
+            font.pixelSize: HeimdallStyle.fontSize_normal
 
             horizontalAlignment: Text.AlignRight
 
@@ -60,7 +61,7 @@ Row {
                 anchors.fill: label
                 color: theme.bg.primary
                 opacity: 0.5
-                radius: VLCStyle.dp(3, VLCStyle.scale)
+                radius: HeimdallStyle.dp(3, HeimdallStyle.scale)
             }
 
             Accessible.ignored: true

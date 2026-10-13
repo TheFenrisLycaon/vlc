@@ -1,7 +1,8 @@
 /*****************************************************************************
- * ts_psi.c: Transport Stream input module for VLC.
+ * ts_psi.c: Transport Stream input module for Heimdall.
  *****************************************************************************
  * Copyright (C) 2004-2016 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -21,7 +22,7 @@
 #endif
 
 #include <stdbit.h>
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
 #ifndef _DVBPSI_DVBPSI_H_
  # include <dvbpsi/dvbpsi.h>
@@ -33,8 +34,8 @@
 #include <dvbpsi/dr.h>
 #include "../../mux/mpeg/dvbpsi_compat.h" /* dvbpsi_messages */
 
-#include <vlc_demux.h>
-#include <vlc_bits.h>
+#include <heimdall_demux.h>
+#include <heimdall_bits.h>
 
 #include "ts_streams.h"
 #include "ts_psi.h"
@@ -85,11 +86,11 @@ static int PATCheck( demux_t *p_demux, dvbpsi_pat_t *p_pat )
         if( p_program->i_pid == i_prev_pid )
         {
             msg_Warn( p_demux, "PAT check failed: duplicate program pid %d", i_prev_pid );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
         i_prev_pid = p_program->i_pid;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void PATCallBack( void *data, dvbpsi_pat_t *p_dvbpsipat )
@@ -297,7 +298,7 @@ static void ParsePMTRegistrations( demux_t *p_demux, const dvbpsi_descriptor_t  
             break;
 
             case 0x1d: /* We have found an IOD descriptor */
-                p_pmt->iod = IODNew( VLC_OBJECT(p_demux), p_dr->i_length, p_dr->p_data );
+                p_pmt->iod = IODNew( HEIMDALL_OBJECT(p_demux), p_dr->i_length, p_dr->p_data );
                 break;
 
             case 0xC1:
@@ -326,7 +327,7 @@ static void ParsePMTRegistrations( demux_t *p_demux, const dvbpsi_descriptor_t  
 static void ParsePMTPrivateRegistrations( demux_t *p_demux, const dvbpsi_descriptor_t *p_firstdr,
                                           ts_pmt_t *p_pmt, ts_standards_e i_standard )
 {
-    VLC_UNUSED(p_pmt);
+    HEIMDALL_UNUSED(p_pmt);
      /* Now process private descriptors >= 0x40 */
     for( const dvbpsi_descriptor_t *p_dr = p_firstdr; p_dr != NULL; p_dr = p_dr->p_next )
     {
@@ -657,7 +658,7 @@ static void SetupMetadataDescriptors( demux_t *p_demux, ts_stream_t *p_stream, c
         {
             if( i_data < 9 )
                 return;
-            p_es->metadata.i_application_format_identifier = VLC_FOURCC(p_data[2], p_data[3], p_data[4], p_data[5]);
+            p_es->metadata.i_application_format_identifier = HEIMDALL_FOURCC(p_data[2], p_data[3], p_data[4], p_data[5]);
             p_data += 4; i_data -= 4;
         }
         p_data += 2; i_data -= 2;
@@ -666,7 +667,7 @@ static void SetupMetadataDescriptors( demux_t *p_demux, ts_stream_t *p_stream, c
         {
             if( i_data < 7 )
                 return;
-            p_es->metadata.i_format_identifier = VLC_FOURCC(p_data[1], p_data[2], p_data[3], p_data[4]);
+            p_es->metadata.i_format_identifier = HEIMDALL_FOURCC(p_data[1], p_data[2], p_data[3], p_data[4]);
             p_data += 4; i_data -= 4;
         }
         p_data += 1; i_data -= 1;
@@ -707,7 +708,7 @@ static void SetupJ2KDescriptors( demux_t *p_demux, ts_es_t *p_es, const dvbpsi_p
     const dvbpsi_descriptor_t *p_dr = PMTEsFindDescriptor( p_dvbpsies, 0x32 );
     if( p_dr && p_dr->i_length >= 24 )
     {
-        es_format_Change( &p_es->fmt, VIDEO_ES, VLC_CODEC_JPEG2000 );
+        es_format_Change( &p_es->fmt, VIDEO_ES, HEIMDALL_CODEC_JPEG2000 );
         p_es->fmt.i_profile = p_dr->p_data[0];
         p_es->fmt.i_level = p_dr->p_data[1];
         p_es->fmt.video.i_width = GetDWBE(&p_dr->p_data[2]);
@@ -896,13 +897,13 @@ static void PMTSetupEsTeletext( demux_t *p_demux, ts_stream_t *p_pes,
     }
 
     /* */
-    es_format_Change(p_fmt, SPU_ES, VLC_CODEC_TELETEXT );
+    es_format_Change(p_fmt, SPU_ES, HEIMDALL_CODEC_TELETEXT );
 
     if( !p_sys->b_split_es || i_page <= 0 )
     {
         p_fmt->subs.teletext.i_magazine = 255;
         p_fmt->subs.teletext.i_page = 0;
-        p_fmt->psz_description = strdup( vlc_gettext(ppsz_teletext_type[1]) );
+        p_fmt->psz_description = strdup( heimdall_gettext(ppsz_teletext_type[1]) );
 
         p_dr = PMTEsFindDescriptor( p_dvbpsies, 0x46 );
         if( !p_dr )
@@ -969,7 +970,7 @@ static void PMTSetupEsTeletext( demux_t *p_demux, ts_stream_t *p_pes,
                 p_page_es->fmt.i_priority = (pass == TXT_SUBTITLES) ?
                           ES_PRIORITY_SELECTABLE_MIN : ES_PRIORITY_NOT_DEFAULTABLE;
                 p_page_es->fmt.psz_language = strndup( p->p_iso639, 3 );
-                p_page_es->fmt.psz_description = strdup(vlc_gettext(ppsz_teletext_type[p->i_type]));
+                p_page_es->fmt.psz_description = strdup(heimdall_gettext(ppsz_teletext_type[p->i_type]));
                 p_page_es->fmt.subs.teletext.i_magazine = p->i_magazine;
                 p_page_es->fmt.subs.teletext.i_page = p->i_page;
 
@@ -990,7 +991,7 @@ static void PMTSetupEsDvbSubtitle( demux_t *p_demux, ts_stream_t *p_pes,
     demux_sys_t *p_sys = p_demux->p_sys;
     es_format_t *p_fmt = &p_pes->p_es->fmt;
 
-    es_format_Change( p_fmt, SPU_ES, VLC_CODEC_DVBS );
+    es_format_Change( p_fmt, SPU_ES, HEIMDALL_CODEC_DVBS );
 
     dvbpsi_descriptor_t *p_dr = PMTEsFindDescriptor( p_dvbpsies, 0x59 );
     int i_page = 0;
@@ -1176,7 +1177,7 @@ static void OpusSetup(demux_t *demux, uint8_t *p, size_t len, es_format_t *p_fmt
         size_t i_extra = 0;
         opus_write_header(&p_extra, &i_extra, &h, NULL /* FIXME */);
         if (p_extra) {
-            es_format_Change(p_fmt, AUDIO_ES, VLC_CODEC_OPUS);
+            es_format_Change(p_fmt, AUDIO_ES, HEIMDALL_CODEC_OPUS);
             p_fmt->p_extra = p_extra;
             p_fmt->i_extra = i_extra;
             p_fmt->audio.i_channels = h.channels;
@@ -1213,8 +1214,8 @@ static void PMTSetupEs0x02( ts_es_t *p_es,
                 p_es->fmt.video.i_frame_rate = code_to_frame_rate[p_vdr->i_frame_rate_code - 1][0];
                 p_es->fmt.video.i_frame_rate_base = code_to_frame_rate[p_vdr->i_frame_rate_code - 1][1];
             }
-            if( !p_vdr->b_mpeg2 && p_es->fmt.i_codec == VLC_CODEC_MPGV )
-                p_es->fmt.i_original_fourcc = VLC_CODEC_MP1V;
+            if( !p_vdr->b_mpeg2 && p_es->fmt.i_codec == HEIMDALL_CODEC_MPGV )
+                p_es->fmt.i_original_fourcc = HEIMDALL_CODEC_MP1V;
         }
     }
 
@@ -1242,7 +1243,7 @@ static void PMTSetupEs0x05PrivateData( demux_t *p_demux, ts_es_t *p_es,
 {
     demux_sys_t *p_sys = p_demux->p_sys;
 
-    VLC_UNUSED(p_es);
+    HEIMDALL_UNUSED(p_es);
     if( p_sys->standard == TS_STANDARD_DVB ||
         p_sys->standard == TS_STANDARD_AUTO )
     {
@@ -1272,13 +1273,13 @@ static void PMTSetupEs0x06( demux_t *p_demux, ts_stream_t *p_pes,
         PMTEsFindDescriptor( p_dvbpsies, 0x7a ) )
     {
         /* DVB with stream_type 0x06 (ETS EN 300 468) */
-        es_format_Change( p_fmt, AUDIO_ES, VLC_CODEC_EAC3 );
+        es_format_Change( p_fmt, AUDIO_ES, HEIMDALL_CODEC_EAC3 );
     }
     else if( PMTEsHasRegistration( p_demux, p_dvbpsies, "AC-3" ) ||
              PMTEsFindDescriptor( p_dvbpsies, 0x6a ) ||
              PMTEsFindDescriptor( p_dvbpsies, 0x81 ) ) /* AC-3 channel (also in EAC3) */
     {
-        es_format_Change( p_fmt, AUDIO_ES, VLC_CODEC_A52 );
+        es_format_Change( p_fmt, AUDIO_ES, HEIMDALL_CODEC_A52 );
     }
     else if( PMTEsHasRegistration( p_demux, p_dvbpsies, "DTS1" ) || /* 512 Bpf */
              PMTEsHasRegistration( p_demux, p_dvbpsies, "DTS2" ) || /* 1024 Bpf */
@@ -1286,18 +1287,18 @@ static void PMTSetupEs0x06( demux_t *p_demux, ts_stream_t *p_pes,
              PMTEsFindDescriptor( p_dvbpsies, 0x73 ) )
     {
         /*registration descriptor(ETSI TS 101 154 Annex F)*/
-        es_format_Change( p_fmt, AUDIO_ES, VLC_CODEC_DTS );
+        es_format_Change( p_fmt, AUDIO_ES, HEIMDALL_CODEC_DTS );
     }
     else if( PMTEsHasRegistration( p_demux, p_dvbpsies, "BSSD" ) && !p_subs_dr )
     {
         /* BSSD is AES3 DATA, but could also be subtitles
          * we need to check for secondary descriptor then s*/
-        es_format_Change( p_fmt, AUDIO_ES, VLC_CODEC_302M );
+        es_format_Change( p_fmt, AUDIO_ES, HEIMDALL_CODEC_302M );
         p_fmt->b_packetized = true;
     }
     else if( PMTEsHasRegistration( p_demux, p_dvbpsies, "HEVC" ) )
     {
-        es_format_Change( p_fmt, VIDEO_ES, VLC_CODEC_HEVC );
+        es_format_Change( p_fmt, VIDEO_ES, HEIMDALL_CODEC_HEVC );
     }
     else if( (desc = PMTEsFindDescriptor( p_dvbpsies, 0x7f )) &&
              desc->i_length >= 2 )
@@ -1312,17 +1313,17 @@ static void PMTSetupEs0x06( demux_t *p_demux, ts_stream_t *p_pes,
                     OpusSetup(p_demux, desc->p_data, desc->i_length, p_fmt);
                 break;
             case 0x0E: /* DTS HD */
-                es_format_Change( p_fmt, AUDIO_ES, VLC_CODEC_DTS );
+                es_format_Change( p_fmt, AUDIO_ES, HEIMDALL_CODEC_DTS );
                 p_fmt->i_profile = PROFILE_DTS_HD;
                 break;
             case 0x0F: /* DTS Neural */
-                es_format_Change( p_fmt, AUDIO_ES, VLC_CODEC_DTS );
+                es_format_Change( p_fmt, AUDIO_ES, HEIMDALL_CODEC_DTS );
                 break;
             case 0x15: /* Dolby AC-4 */
-                es_format_Change( p_fmt, AUDIO_ES, VLC_CODEC_AC4 );
+                es_format_Change( p_fmt, AUDIO_ES, HEIMDALL_CODEC_AC4 );
                 break;
             case 0x20:
-                es_format_Change( p_fmt, SPU_ES, VLC_CODEC_TTML_TS );
+                es_format_Change( p_fmt, SPU_ES, HEIMDALL_CODEC_TTML_TS );
                 SetupTTMLExtendedDescriptor( p_demux, desc, p_fmt );
                 break;
         }
@@ -1339,13 +1340,13 @@ static void PMTSetupEs0x06( demux_t *p_demux, ts_stream_t *p_pes,
             if( i_data_component_id == 0x0008 &&
                 PMTEsHasComponentTagBetween( p_dvbpsies, 0x30, 0x37 ) )
             {
-                es_format_Change( p_fmt, SPU_ES, VLC_CODEC_ARIB_A );
+                es_format_Change( p_fmt, SPU_ES, HEIMDALL_CODEC_ARIB_A );
                 p_fmt->psz_description = strdup( _("ARIB subtitles") );
             }
             else if( i_data_component_id == 0x0012 &&
                      PMTEsHasComponentTagBetween( p_dvbpsies, 0x87, 0x88 ) )
             {
-                es_format_Change( p_fmt, SPU_ES, VLC_CODEC_ARIB_C );
+                es_format_Change( p_fmt, SPU_ES, HEIMDALL_CODEC_ARIB_C );
                 p_fmt->psz_description = strdup( _("ARIB subtitles") );
             }
         }
@@ -1419,7 +1420,7 @@ static void PMTSetupEs0xEA( demux_t *p_demux, ts_es_t *p_es,
     }
 
     /* registration descriptor for VC-1 (SMPTE rp227) */
-    es_format_Change( &p_es->fmt, VIDEO_ES, VLC_CODEC_VC1 );
+    es_format_Change( &p_es->fmt, VIDEO_ES, HEIMDALL_CODEC_VC1 );
 
     /* XXX With Simple and Main profile the SEQUENCE
      * header is modified: video width and height are
@@ -1439,24 +1440,24 @@ static void PMTSetupEs0xD1( demux_t *p_demux, ts_es_t *p_es,
 
     /* registration descriptor for Dirac
      * (backwards compatible with VC-2 (SMPTE Sxxxx:2008)) */
-    es_format_Change( &p_es->fmt, VIDEO_ES, VLC_CODEC_DIRAC );
+    es_format_Change( &p_es->fmt, VIDEO_ES, HEIMDALL_CODEC_DIRAC );
 }
 
 static void PMTSetupEs0xA0( demux_t *p_demux, ts_es_t *p_es,
                            const dvbpsi_pmt_es_t *p_dvbpsies )
 {
-    /* MSCODEC sent by vlc */
+    /* MSCODEC sent by heimdall */
     dvbpsi_descriptor_t *p_dr = PMTEsFindDescriptor( p_dvbpsies, 0xa0 );
     if( !p_dr || p_dr->i_length < 10 )
     {
         msg_Warn( p_demux,
-                  "private MSCODEC (vlc) without bih private descriptor" );
+                  "private MSCODEC (heimdall) without bih private descriptor" );
         return;
     }
 
     es_format_t *p_fmt = &p_es->fmt;
     es_format_Change( &p_es->fmt, VIDEO_ES,
-                      VLC_FOURCC( p_dr->p_data[0], p_dr->p_data[1],
+                      HEIMDALL_FOURCC( p_dr->p_data[0], p_dr->p_data[1],
                                  p_dr->p_data[2], p_dr->p_data[3] ) );
     p_fmt->video.i_width = GetWBE( &p_dr->p_data[4] );
     p_fmt->video.i_height = GetWBE( &p_dr->p_data[6] );
@@ -1488,10 +1489,10 @@ static void PMTSetupEs0x83( const dvbpsi_pmt_t *p_pmt, ts_es_t *p_es, int i_pid 
         ( i_pid >> 8 ) == 0x11 )
     {
         /* Not enough ? might contain 0x83 private descriptor, 2 bytes 0x473F */
-        es_format_Change( &p_es->fmt, AUDIO_ES, VLC_CODEC_WIDI_LPCM );
+        es_format_Change( &p_es->fmt, AUDIO_ES, HEIMDALL_CODEC_WIDI_LPCM );
     }
     else
-        es_format_Change( &p_es->fmt, AUDIO_ES, VLC_CODEC_DVD_LPCM );
+        es_format_Change( &p_es->fmt, AUDIO_ES, HEIMDALL_CODEC_DVD_LPCM );
 }
 
 static bool PMTSetupEsHDMV( demux_t *p_demux, ts_es_t *p_es,
@@ -1503,40 +1504,40 @@ static bool PMTSetupEsHDMV( demux_t *p_demux, ts_es_t *p_es,
     switch( p_dvbpsies->i_type )
     {
     case 0x80:
-        es_format_Change( p_fmt, AUDIO_ES, VLC_CODEC_BD_LPCM );
+        es_format_Change( p_fmt, AUDIO_ES, HEIMDALL_CODEC_BD_LPCM );
         break;
     case 0x81:
-        es_format_Change( p_fmt, AUDIO_ES, VLC_CODEC_A52 );
+        es_format_Change( p_fmt, AUDIO_ES, HEIMDALL_CODEC_A52 );
         break;
     case 0x85: /* DTS-HD High resolution audio */
     case 0x86: /* DTS-HD Master audio */
-        es_format_Change( p_fmt, AUDIO_ES, VLC_CODEC_DTS );
+        es_format_Change( p_fmt, AUDIO_ES, HEIMDALL_CODEC_DTS );
         p_fmt->i_profile = PROFILE_DTS_HD;
         break;
     case 0x82:
     case 0xA2: /* Secondary DTS audio */
-        es_format_Change( p_fmt, AUDIO_ES, VLC_CODEC_DTS );
+        es_format_Change( p_fmt, AUDIO_ES, HEIMDALL_CODEC_DTS );
         break;
 
     case 0x83: /* TrueHD AC3 */
-        es_format_Change( p_fmt, AUDIO_ES, VLC_CODEC_TRUEHD );
+        es_format_Change( p_fmt, AUDIO_ES, HEIMDALL_CODEC_TRUEHD );
         break;
 
     case 0x84: /* E-AC3 */
     case 0xA1: /* Secondary E-AC3 */
-        es_format_Change( p_fmt, AUDIO_ES, VLC_CODEC_EAC3 );
+        es_format_Change( p_fmt, AUDIO_ES, HEIMDALL_CODEC_EAC3 );
         break;
     case 0x90: /* Presentation graphics */
-        es_format_Change( p_fmt, SPU_ES, VLC_CODEC_BD_PG );
+        es_format_Change( p_fmt, SPU_ES, HEIMDALL_CODEC_BD_PG );
         break;
     case 0x91: /* Interactive graphics */
         es_format_Change( p_fmt, UNKNOWN_ES, 0 ); /* prevent regular ES handler */
         break;
     case 0x92: /* Subtitle */
-        es_format_Change( p_fmt, SPU_ES, VLC_CODEC_BD_TEXT );
+        es_format_Change( p_fmt, SPU_ES, HEIMDALL_CODEC_BD_TEXT );
         break;
     case 0xEA:
-        es_format_Change( p_fmt, VIDEO_ES, VLC_CODEC_VC1 );
+        es_format_Change( p_fmt, VIDEO_ES, HEIMDALL_CODEC_VC1 );
         break;
     default:
         msg_Info( p_demux, "HDMV registration not implemented for pid 0x%x type 0x%x",
@@ -1553,16 +1554,16 @@ static bool PMTSetupEsRegistration( demux_t *p_demux, ts_es_t *p_es,
     {
         char                      psz_tag[5];
         enum es_format_category_e i_cat;
-        vlc_fourcc_t              i_codec;
+        heimdall_fourcc_t              i_codec;
     } p_regs[] = {
-        { "AC-3", AUDIO_ES, VLC_CODEC_A52   },
-        { "EAC3", AUDIO_ES, VLC_CODEC_EAC3  },
-        { "DTS1", AUDIO_ES, VLC_CODEC_DTS   },
-        { "DTS2", AUDIO_ES, VLC_CODEC_DTS   },
-        { "DTS3", AUDIO_ES, VLC_CODEC_DTS   },
-        { "BSSD", AUDIO_ES, VLC_CODEC_302M  },
-        { "VC-1", VIDEO_ES, VLC_CODEC_VC1   },
-        { "drac", VIDEO_ES, VLC_CODEC_DIRAC },
+        { "AC-3", AUDIO_ES, HEIMDALL_CODEC_A52   },
+        { "EAC3", AUDIO_ES, HEIMDALL_CODEC_EAC3  },
+        { "DTS1", AUDIO_ES, HEIMDALL_CODEC_DTS   },
+        { "DTS2", AUDIO_ES, HEIMDALL_CODEC_DTS   },
+        { "DTS3", AUDIO_ES, HEIMDALL_CODEC_DTS   },
+        { "BSSD", AUDIO_ES, HEIMDALL_CODEC_302M  },
+        { "VC-1", VIDEO_ES, HEIMDALL_CODEC_VC1   },
+        { "drac", VIDEO_ES, HEIMDALL_CODEC_DIRAC },
         { "", UNKNOWN_ES, 0 }
     };
     es_format_t *p_fmt = &p_es->fmt;
@@ -1574,8 +1575,8 @@ static bool PMTSetupEsRegistration( demux_t *p_demux, ts_es_t *p_es,
             es_format_Change( p_fmt, p_regs[i].i_cat, p_regs[i].i_codec );
 
             /* System A AC3 extension, see ATSC A/52 Annex G.2 */
-            if ( p_regs[i].i_codec == VLC_CODEC_A52 && p_dvbpsies->i_type == 0x87 )
-                p_fmt->i_codec = VLC_CODEC_EAC3;
+            if ( p_regs[i].i_codec == HEIMDALL_CODEC_A52 && p_dvbpsies->i_type == 0x87 )
+                p_fmt->i_codec = HEIMDALL_CODEC_EAC3;
 
             return true;
         }
@@ -1590,85 +1591,85 @@ static void PIDFillFormat( demux_t *p_demux, ts_stream_t *p_pes,
     switch( i_stream_type )
     {
     case 0x01:  /* MPEG-1 video */
-        es_format_Change( fmt, VIDEO_ES, VLC_CODEC_MPGV );
-        fmt->i_original_fourcc = VLC_CODEC_MP1V;
+        es_format_Change( fmt, VIDEO_ES, HEIMDALL_CODEC_MPGV );
+        fmt->i_original_fourcc = HEIMDALL_CODEC_MP1V;
         break;
     case 0x02:  /* MPEG-2 video */
     case 0x80:  /* MPEG-2 MOTO video */
-        es_format_Change( fmt, VIDEO_ES, VLC_CODEC_MPGV );
+        es_format_Change( fmt, VIDEO_ES, HEIMDALL_CODEC_MPGV );
         break;
     case 0x03:  /* MPEG-1 audio */
     case 0x04:  /* MPEG-2 audio */
-        es_format_Change( fmt, AUDIO_ES, VLC_CODEC_MPGA );
+        es_format_Change( fmt, AUDIO_ES, HEIMDALL_CODEC_MPGA );
         break;
     case 0x0f:  /* ISO/IEC 13818-7 Audio with ADTS transport syntax */
-        es_format_Change( fmt, AUDIO_ES, VLC_CODEC_MP4A );
-        fmt->i_original_fourcc = VLC_FOURCC('A','D','T','S');
+        es_format_Change( fmt, AUDIO_ES, HEIMDALL_CODEC_MP4A );
+        fmt->i_original_fourcc = HEIMDALL_FOURCC('A','D','T','S');
         break;
     case 0x10:  /* MPEG4 (video) */
-        es_format_Change( fmt, VIDEO_ES, VLC_CODEC_MP4V );
+        es_format_Change( fmt, VIDEO_ES, HEIMDALL_CODEC_MP4V );
         break;
     case 0x11:  /* MPEG4 (audio) LATM */
-        es_format_Change( fmt, AUDIO_ES, VLC_CODEC_MP4A );
+        es_format_Change( fmt, AUDIO_ES, HEIMDALL_CODEC_MP4A );
         /* https://trac.ffmpeg.org/ticket/320
          * Haivision's Makito encoder violates mapping by putting ADTS
            instead of LOAS, we can only hint that's not raw AAC */
-        fmt->i_original_fourcc = VLC_FOURCC('H','E','A','D');
+        fmt->i_original_fourcc = HEIMDALL_FOURCC('H','E','A','D');
         break;
     case 0x1B:  /* H264 <- check transport syntax/needed descriptor */
-        es_format_Change( fmt, VIDEO_ES, VLC_CODEC_H264 );
+        es_format_Change( fmt, VIDEO_ES, HEIMDALL_CODEC_H264 );
         break;
     case 0x1C:  /* ISO/IEC 14496-3 Audio, without using any additional
                    transport syntax, such as DST, ALS and SLS */
-        es_format_Change( fmt, AUDIO_ES, VLC_CODEC_MP4A );
+        es_format_Change( fmt, AUDIO_ES, HEIMDALL_CODEC_MP4A );
         break;
     case 0x24:  /* HEVC */
-        es_format_Change( fmt, VIDEO_ES, VLC_CODEC_HEVC );
+        es_format_Change( fmt, VIDEO_ES, HEIMDALL_CODEC_HEVC );
         break;
     case 0x2D:  /* MPEG-H main audio */
     //case 0x2E:  /* MPEG-H auxiliary audio */
-        es_format_Change( fmt, AUDIO_ES, VLC_CODEC_MPEGH );
+        es_format_Change( fmt, AUDIO_ES, HEIMDALL_CODEC_MPEGH );
         break;
     case 0x33:  /* VVC */
-        es_format_Change( fmt, VIDEO_ES, VLC_CODEC_VVC );
+        es_format_Change( fmt, VIDEO_ES, HEIMDALL_CODEC_VVC );
         break;
     case 0x42:  /* CAVS (Chinese AVS) */
-        es_format_Change( fmt, VIDEO_ES, VLC_CODEC_CAVS );
+        es_format_Change( fmt, VIDEO_ES, HEIMDALL_CODEC_CAVS );
         break;
 
     case 0x81:  /* A52 (audio) */
-        es_format_Change( fmt, AUDIO_ES, VLC_CODEC_A52 );
+        es_format_Change( fmt, AUDIO_ES, HEIMDALL_CODEC_A52 );
         break;
     case 0x82:  /* SCTE-27 (sub) */
-        es_format_Change( fmt, SPU_ES, VLC_CODEC_SCTE_27 );
+        es_format_Change( fmt, SPU_ES, HEIMDALL_CODEC_SCTE_27 );
         *p_datatype = TS_TRANSPORT_SECTIONS;
         ts_sections_processor_Add( p_demux, &p_pes->p_sections_proc, 0xC6, 0x00,
                                    SCTE27_Section_Callback, p_pes );
         break;
     case 0x84:  /* SDDS (audio) */
-        es_format_Change( fmt, AUDIO_ES, VLC_CODEC_SDDS );
+        es_format_Change( fmt, AUDIO_ES, HEIMDALL_CODEC_SDDS );
         break;
     case 0x85:  /* DTS (audio) FIXME: HDMV Only ? */
-        es_format_Change( fmt, AUDIO_ES, VLC_CODEC_DTS );
+        es_format_Change( fmt, AUDIO_ES, HEIMDALL_CODEC_DTS );
         break;
     case 0x87: /* E-AC3, ATSC */
-        es_format_Change( fmt, AUDIO_ES, VLC_CODEC_EAC3 );
+        es_format_Change( fmt, AUDIO_ES, HEIMDALL_CODEC_EAC3 );
         break;
     case 0x8a: /* DTS (audio) */
-        es_format_Change( fmt, AUDIO_ES, VLC_CODEC_DTS );
+        es_format_Change( fmt, AUDIO_ES, HEIMDALL_CODEC_DTS );
         break;
     case 0x91:  /* A52 vls (audio) */
-        es_format_Change( fmt, AUDIO_ES, VLC_FOURCC( 'a', '5', '2', 'b' ) );
+        es_format_Change( fmt, AUDIO_ES, HEIMDALL_FOURCC( 'a', '5', '2', 'b' ) );
         break;
     case 0x92:  /* DVD_SPU vls (sub) */
-        es_format_Change( fmt, SPU_ES, VLC_FOURCC( 's', 'p', 'u', 'b' ) );
+        es_format_Change( fmt, SPU_ES, HEIMDALL_FOURCC( 's', 'p', 'u', 'b' ) );
         break;
 
     case 0x94:  /* SDDS (audio) */
-        es_format_Change( fmt, AUDIO_ES, VLC_FOURCC( 's', 'd', 'd', 'b' ) );
+        es_format_Change( fmt, AUDIO_ES, HEIMDALL_FOURCC( 's', 'd', 'd', 'b' ) );
         break;
 
-    case 0xa0:  /* MSCODEC vlc (video) (fixed later) */
+    case 0xa0:  /* MSCODEC heimdall (video) (fixed later) */
         es_format_Change( fmt, UNKNOWN_ES, 0 );
         break;
 
@@ -1852,7 +1853,7 @@ void SendCAPMTUpdate( demux_t *p_demux, const ts_pmt_t *p_pmt )
     demux_sys_t  *p_sys = p_demux->p_sys;
     if( !p_pmt->p_ctx->p_capmt )
         return;
-    (void) vlc_stream_Control( p_sys->stream, STREAM_SET_PRIVATE_ID_CA,
+    (void) heimdall_stream_Control( p_sys->stream, STREAM_SET_PRIVATE_ID_CA,
                                (void *)p_pmt->p_ctx->p_capmt );
 }
 
@@ -2124,10 +2125,10 @@ static void PMTCallBack( void *data, dvbpsi_pmt_t *p_dvbpsipmt )
         stream_t *wrapper = ts_stream_wrapper_New( p_demux->s );
         if( wrapper )
         {
-            p_sys->stream = vlc_stream_FilterNew( wrapper, "aribcam" );
+            p_sys->stream = heimdall_stream_FilterNew( wrapper, "aribcam" );
             if( !p_sys->stream )
             {
-                vlc_stream_Delete( wrapper );
+                heimdall_stream_Delete( wrapper );
                 p_sys->stream = p_demux->s;
             }
         }
@@ -2158,7 +2159,7 @@ static void PMTCallBack( void *data, dvbpsi_pmt_t *p_dvbpsipmt )
                     ts_es_t *p_eas_es = ts_es_New( p_pmt );
                     if( likely(p_eas_es) )
                     {
-                        es_format_Change( &p_eas_es->fmt, SPU_ES, VLC_CODEC_SCTE_18 );
+                        es_format_Change( &p_eas_es->fmt, SPU_ES, HEIMDALL_CODEC_SCTE_18 );
                         p_eas_es->fmt.i_id = ATSC_BASE_PID;
                         p_eas_es->fmt.i_group = p_pmt->i_number;
                         p_eas_es->fmt.psz_description = strdup(SCTE18_DESCRIPTION);
@@ -2235,7 +2236,7 @@ static void PMTCallBack( void *data, dvbpsi_pmt_t *p_dvbpsipmt )
         ProbeStart( p_demux, p_pmt->i_number );
         ProbeEnd( p_demux, p_pmt->i_number );
         p_pmt->b_last_dts_probed = true;
-        if( p_pmt->i_last_dts != VLC_TICK_INVALID &&
+        if( p_pmt->i_last_dts != HEIMDALL_TICK_INVALID &&
             p_pmt->i_last_dts < p_pmt->pcr.i_first_dts )
             p_pmt->i_last_dts = TimeStampWrapAround( p_pmt->pcr.i_first_dts, p_pmt->i_last_dts );
     }
@@ -2251,7 +2252,7 @@ int UserPmt( demux_t *p_demux, const char *psz_fmt )
     int  i_number;
 
     if( !psz_dup )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     /* Parse PID */
     unsigned long i_pid = strtoul( psz, &psz, 0 );
@@ -2324,7 +2325,7 @@ int UserPmt( demux_t *p_demux, const char *psz_fmt )
 
             if( psz_arg && strlen( psz_arg ) == 4 )
             {
-                const vlc_fourcc_t i_codec = VLC_FOURCC( psz_arg[0], psz_arg[1],
+                const heimdall_fourcc_t i_codec = HEIMDALL_FOURCC( psz_arg[0], psz_arg[1],
                                                          psz_arg[2], psz_arg[3] );
                 int i_cat = UNKNOWN_ES;
 
@@ -2363,11 +2364,11 @@ int UserPmt( demux_t *p_demux, const char *psz_fmt )
 
     p_sys->b_user_pmt = true;
     free( psz_dup );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     free( psz_dup );
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 bool ts_psi_PAT_Attach( ts_pid_t *patpid, void *cbdata )

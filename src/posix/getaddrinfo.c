@@ -2,6 +2,7 @@
  * posix/getaddrinfo.c: interruptible DNS resolution for POSIX
  *****************************************************************************
  * Copyright (C) 2016 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -26,37 +27,37 @@
 #include <stdio.h>
 #include <netdb.h>
 
-#include <vlc_common.h>
-#include <vlc_interrupt.h>
-#include <vlc_network.h>
+#include <heimdall_common.h>
+#include <heimdall_interrupt.h>
+#include <heimdall_network.h>
 
-struct vlc_gai_req
+struct heimdall_gai_req
 {
     const char *name;
     const char *service;
     const struct addrinfo *hints;
     struct addrinfo **result;
     int error;
-    vlc_sem_t done;
+    heimdall_sem_t done;
 };
 
-static void *vlc_gai_thread(void *data)
+static void *heimdall_gai_thread(void *data)
 {
-    vlc_thread_set_name("vlc-getaddrinfo");
+    heimdall_thread_set_name("heimdall-getaddrinfo");
 
-    struct vlc_gai_req *req = data;
+    struct heimdall_gai_req *req = data;
 
     req->error = EAI_SYSTEM;
     req->error = getaddrinfo(req->name, req->service, req->hints, req->result);
-    vlc_sem_post(&req->done);
+    heimdall_sem_post(&req->done);
     return NULL;
 }
 
-int vlc_getaddrinfo_i11e(const char *name, unsigned port,
+int heimdall_getaddrinfo_i11e(const char *name, unsigned port,
                          const struct addrinfo *hints,
                          struct addrinfo **res)
 {
-    struct vlc_gai_req req =
+    struct heimdall_gai_req req =
     {
         .name = name,
         .service = NULL,
@@ -64,7 +65,7 @@ int vlc_getaddrinfo_i11e(const char *name, unsigned port,
         .result = res,
     };
     char portbuf[6];
-    vlc_thread_t th;
+    heimdall_thread_t th;
 
     if (port != 0)
     {
@@ -75,15 +76,15 @@ int vlc_getaddrinfo_i11e(const char *name, unsigned port,
         req.service = portbuf;
     }
 
-    vlc_sem_init(&req.done, 0);
+    heimdall_sem_init(&req.done, 0);
 
-    if (vlc_clone(&th, vlc_gai_thread, &req))
+    if (heimdall_clone(&th, heimdall_gai_thread, &req))
         return EAI_SYSTEM;
 
-    vlc_sem_wait_i11e(&req.done);
+    heimdall_sem_wait_i11e(&req.done);
 
-    vlc_cancel(th);
-    vlc_join(th, NULL);
+    heimdall_cancel(th);
+    heimdall_join(th, NULL);
 
     return req.error;
 }

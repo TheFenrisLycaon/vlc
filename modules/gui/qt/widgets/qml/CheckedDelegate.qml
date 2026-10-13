@@ -1,6 +1,7 @@
 
 /*****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,20 +20,20 @@
 import QtQuick
 import QtQuick.Templates as T
 
-import VLC.Widgets as Widgets
-import VLC.Style
+import Heimdall.Widgets as Widgets
+import Heimdall.Style
 
 T.ItemDelegate {
     id: control
 
     // Settings
 
-    leftPadding: VLCStyle.margin_xlarge
-    rightPadding: VLCStyle.margin_xsmall
+    leftPadding: HeimdallStyle.margin_xlarge
+    rightPadding: HeimdallStyle.margin_xsmall
 
     checkable: true
 
-    font.pixelSize: VLCStyle.fontSize_large
+    font.pixelSize: HeimdallStyle.fontSize_large
 
     // Childs
 
@@ -62,11 +63,11 @@ T.ItemDelegate {
 
             visible: control.checked
 
-            text: VLCIcons.check
+            text: HeimdallIcons.check
 
             color: theme.fg.primary
 
-            font.pixelSize: VLCStyle.icon_track
+            font.pixelSize: HeimdallStyle.icon_track
         }
 
         Widgets.MenuLabel {
@@ -77,7 +78,7 @@ T.ItemDelegate {
             height: parent.height
             width: parent.width - checkIcon.width
 
-            leftPadding: VLCStyle.margin_normal
+            leftPadding: HeimdallStyle.margin_normal
 
             verticalAlignment: Text.AlignVCenter
 

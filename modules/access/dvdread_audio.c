@@ -2,6 +2,7 @@
  * dvdread_audio.c : DVD-Audio support for the dvdread input module
  *****************************************************************************
  * Copyright (C) 2024-2025 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Saifelden Mohamed Ismail <saifeldenmi@gmail.com>
  *
@@ -25,7 +26,7 @@
 #endif
 
 #include "dvdread.h"
-#include <vlc_arrays.h>
+#include <heimdall_arrays.h>
 
 #ifdef DVDREAD_HAS_DVDAUDIO
 typedef struct demux_sys_t demux_sys_t;
@@ -34,7 +35,7 @@ typedef struct demux_sys_t demux_sys_t;
 static int DvdAudioReadSetArea( demux_t *p_demux, int i_title, int i_track,
                          int i_angle )
 {
-    VLC_UNUSED( i_angle );
+    HEIMDALL_UNUSED( i_angle );
 
     demux_sys_t *p_sys = p_demux->p_sys;
 
@@ -66,7 +67,7 @@ static int DvdAudioReadSetArea( demux_t *p_demux, int i_title, int i_track,
                p_vmg->info_table_second_sector->tracks_info[i_title].group_property ) ) )
         {
             msg_Err( p_demux, "fatal error in ats ifo" );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         const ifo_handle_t *p_vts = p_sys->p_vts_file;
@@ -78,7 +79,7 @@ static int DvdAudioReadSetArea( demux_t *p_demux, int i_title, int i_track,
          || p_sys->i_ttn > p_vts->atsi_title_table->nr_titles )
         {
             msg_Err( p_demux, "invalid ats title %d", i_title );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         const atsi_title_record_t *atsi_title_table=
@@ -90,7 +91,7 @@ static int DvdAudioReadSetArea( demux_t *p_demux, int i_title, int i_track,
         if( p_sys->i_chapters <= 0 )
         {
             msg_Err( p_demux, "invalid chapter count for title %d", i_title );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         /* there are no cells in dvd audio, bellow the start and end sectors of the title set. */
@@ -122,7 +123,7 @@ static int DvdAudioReadSetArea( demux_t *p_demux, int i_title, int i_track,
         {
             msg_Err( p_demux, "cannot open title (ATS_%02d_1.AOB)",
                      p_vmg->info_table_second_sector->tracks_info[i_title].group_property );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         /* for now we are using the "second table, which includes no VOB tracks, assuming that if a user wants to open the video side he will select the standard DVD option"*/
@@ -155,7 +156,7 @@ static int DvdAudioReadSetArea( demux_t *p_demux, int i_title, int i_track,
     else if( i_title != -1 && i_title != p_sys->i_title )
 
     {
-        return VLC_EGENERIC; /* Couldn't set title */
+        return HEIMDALL_EGENERIC; /* Couldn't set title */
     }
 
     /*
@@ -186,9 +187,9 @@ static int DvdAudioReadSetArea( demux_t *p_demux, int i_title, int i_track,
     {
 
         msg_Dbg( p_demux, "Couldn't set chapter" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int DvdAudioReadSeek( demux_t *p_demux, uint32_t i_block_offset )
@@ -214,7 +215,7 @@ static int DvdAudioReadSeek( demux_t *p_demux, uint32_t i_block_offset )
 
     /* exit if i_chapter is invalid */
     if( i_chapter >= p_sys->i_chapters )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if( p_sys->cur_chapter != i_chapter )
     {
@@ -236,20 +237,20 @@ static int DvdAudioReadSeek( demux_t *p_demux, uint32_t i_block_offset )
     p_sys->i_chapter = i_chapter;
     DvdReadResetCellTs( p_sys );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void DvdAudioReadFindCell( demux_t *p_demux )
 {
-    VLC_UNUSED( p_demux );
+    HEIMDALL_UNUSED( p_demux );
 }
 
-static vlc_tick_t DvdAudioReadTitleLength( const demux_sys_t *p_sys )
+static heimdall_tick_t DvdAudioReadTitleLength( const demux_sys_t *p_sys )
 {
     return FROM_SCALE_NZ( p_sys->p_title_table->length_pts );
 }
 
-static bool DvdAudioReadTimelineBase( const demux_sys_t *p_sys, vlc_tick_t *base )
+static bool DvdAudioReadTimelineBase( const demux_sys_t *p_sys, heimdall_tick_t *base )
 {
     if( !p_sys->p_title_table || p_sys->i_title_blocks == 0 )
         return false;
@@ -258,16 +259,16 @@ static bool DvdAudioReadTimelineBase( const demux_sys_t *p_sys, vlc_tick_t *base
         p_sys->p_title_table->atsi_track_pointer_rows[0].start_sector;
     const uint32_t current_sector = p_sys->i_cur_block > 0 ? (uint32_t)p_sys->i_cur_block : 0;
     const uint32_t current_offset = current_sector > first_sector ? current_sector - first_sector : 0;
-    const vlc_tick_t title_length = FROM_SCALE_NZ( p_sys->p_title_table->length_pts );
-    *base = (vlc_tick_t)( current_offset * title_length / p_sys->i_title_blocks );
+    const heimdall_tick_t title_length = FROM_SCALE_NZ( p_sys->p_title_table->length_pts );
+    *base = (heimdall_tick_t)( current_offset * title_length / p_sys->i_title_blocks );
     return true;
 }
 
-static uint32_t DvdAudioReadTimeToSeekOffset( const demux_sys_t *p_sys, vlc_tick_t time,
+static uint32_t DvdAudioReadTimeToSeekOffset( const demux_sys_t *p_sys, heimdall_tick_t time,
                                               uint32_t i_block_offset )
 {
-    VLC_UNUSED( p_sys );
-    VLC_UNUSED( time );
+    HEIMDALL_UNUSED( p_sys );
+    HEIMDALL_UNUSED( time );
     return i_block_offset;
 }
 
@@ -278,13 +279,13 @@ static int DvdAudioReadPsSource( void )
 
 static void DvdAudioReadAdjustAnchor( demux_sys_t *p_sys, block_t *pkt )
 {
-    VLC_UNUSED( p_sys );
-    VLC_UNUSED( pkt );
+    HEIMDALL_UNUSED( p_sys );
+    HEIMDALL_UNUSED( pkt );
 }
 
 static void DvdAudioReadDemuxTitles( demux_t *p_demux, int *pi_angle )
 {
-    VLC_UNUSED( pi_angle );
+    HEIMDALL_UNUSED( pi_angle );
 
     demux_sys_t *p_sys = p_demux->p_sys;
     input_title_t *t = NULL;
@@ -301,7 +302,7 @@ static void DvdAudioReadDemuxTitles( demux_t *p_demux, int *pi_angle )
             p_sys->p_vmg_file->info_table_second_sector->tracks_info[i].nr_chapters_in_title;
         msg_Dbg( p_demux, "title %d has %d chapters", i, i_chapters );
 
-        t = vlc_input_title_New();
+        t = heimdall_input_title_New();
         if( unlikely( !t ) )
             return;
 
@@ -336,7 +337,7 @@ static void DvdAudioReadDemuxTitles( demux_t *p_demux, int *pi_angle )
 
         for( int j = 0; j < __MAX( i_chapters, 1 ); j++ )
         {
-            s = vlc_seekpoint_New();
+            s = heimdall_seekpoint_New();
             if( unlikely( !s ) )
                 goto fail;
             if( blocks > 0 && j < p_title_rec->nr_pointer_records )
@@ -362,7 +363,7 @@ fail:
     if( p_ats_ifo != NULL )
         ifoClose( p_ats_ifo );
     if( t != NULL )
-        vlc_input_title_Delete( t );
+        heimdall_input_title_Delete( t );
 }
 
 const dvdread_ops_t DvdAudioReadOps = {
@@ -378,14 +379,14 @@ const dvdread_ops_t DvdAudioReadOps = {
     .requires_vts = true,
 };
 
-int OpenAudio( vlc_object_t *p_this )
+int OpenAudio( heimdall_object_t *p_this )
 {
     return OpenCommonDvdread( p_this, DVD_A, NULL );
 }
 #else
-int OpenAudio( vlc_object_t *p_this )
+int OpenAudio( heimdall_object_t *p_this )
 {
-    VLC_UNUSED( p_this );
-    return VLC_ENOTSUP;
+    HEIMDALL_UNUSED( p_this );
+    return HEIMDALL_ENOTSUP;
 }
 #endif

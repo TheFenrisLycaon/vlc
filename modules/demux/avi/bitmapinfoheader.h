@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 2001-2009 VLC authors and VideoLAN
  *               2018      VideoLabs, VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *
@@ -20,9 +21,9 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
-#include <vlc_common.h>
-#include <vlc_es.h>
-#include <vlc_codecs.h>
+#include <heimdall_common.h>
+#include <heimdall_es.h>
+#include <heimdall_codecs.h>
 
 #include <assert.h>
 #include <limits.h>
@@ -43,66 +44,66 @@
 
 static const struct
 {
-    vlc_fourcc_t codec;
+    heimdall_fourcc_t codec;
     uint32_t i_rmask, i_gmask, i_bmask, i_amask;
     uint8_t depth;
 } bitmap_rgb_masks[] = {
-    { VLC_CODEC_XRGB,       0x00ff0000,
+    { HEIMDALL_CODEC_XRGB,       0x00ff0000,
                             0x0000ff00,
                             0x000000ff,
                             0x00000000, 32 },
-    { VLC_CODEC_XBGR,       0x000000ff,
+    { HEIMDALL_CODEC_XBGR,       0x000000ff,
                             0x0000ff00,
                             0x00ff0000,
                             0x00000000, 32 },
-    { VLC_CODEC_RGBX,       0xff000000,
+    { HEIMDALL_CODEC_RGBX,       0xff000000,
                             0x00ff0000,
                             0x0000ff00,
                             0x00000000, 32 },
-    { VLC_CODEC_BGRX,       0x0000ff00,
+    { HEIMDALL_CODEC_BGRX,       0x0000ff00,
                             0x00ff0000,
                             0xff000000,
                             0x00000000, 32 },
-    { VLC_CODEC_ARGB,       0x00ff0000,
+    { HEIMDALL_CODEC_ARGB,       0x00ff0000,
                             0x0000ff00,
                             0x000000ff,
                             0xff000000, 32 },
-    { VLC_CODEC_ABGR,       0x000000ff,
+    { HEIMDALL_CODEC_ABGR,       0x000000ff,
                             0x0000ff00,
                             0x00ff0000,
                             0xff000000, 32 },
-    { VLC_CODEC_RGBA,       0xff000000,
+    { HEIMDALL_CODEC_RGBA,       0xff000000,
                             0x00ff0000,
                             0x0000ff00,
                             0x000000ff, 32 },
-    { VLC_CODEC_BGRA,       0x0000ff00,
+    { HEIMDALL_CODEC_BGRA,       0x0000ff00,
                             0x00ff0000,
                             0xff000000,
                             0x000000ff, 32 },
 
-    { VLC_CODEC_RGB24,      0xff0000,
+    { HEIMDALL_CODEC_RGB24,      0xff0000,
                             0x00ff00,
                             0x0000ff,
                             0x000000, 24 },
-    { VLC_CODEC_BGR24,      0x0000ff,
+    { HEIMDALL_CODEC_BGR24,      0x0000ff,
                             0x00ff00,
                             0xff0000,
                             0x000000, 24 },
 
-    { VLC_CODEC_RGB565LE,   0xf800,
+    { HEIMDALL_CODEC_RGB565LE,   0xf800,
                             0x07e0,
                             0x001f,
                             0x0000, 16 },
-    { VLC_CODEC_BGR565LE,   0x001f,
+    { HEIMDALL_CODEC_BGR565LE,   0x001f,
                             0x07e0,
                             0xf800,
                             0x0000, 16 },
 
-    { VLC_CODEC_RGB555LE,   0x7c00,
+    { HEIMDALL_CODEC_RGB555LE,   0x7c00,
                             0x03e0,
                             0x001f,
                             0x0000, 15 },
-    { VLC_CODEC_BGR555LE,   0x001f,
+    { HEIMDALL_CODEC_BGR555LE,   0x001f,
                             0x03e0,
                             0x7c00,
                             0x0000, 15 },
@@ -114,16 +115,16 @@ struct bitmapinfoheader_properties
     unsigned i_stride;
 };
 
-static inline int ParseBitmapInfoHeader( const VLC_BITMAPINFOHEADER *p_bih, size_t i_bih,
+static inline int ParseBitmapInfoHeader( const HEIMDALL_BITMAPINFOHEADER *p_bih, size_t i_bih,
                                          es_format_t *fmt,
                                          struct bitmapinfoheader_properties *p_props )
 {
     /* Extradata is the remainder of the chunk less the BIH */
     const uint8_t *p_bihextra = (const uint8_t *) &p_bih[1];
     size_t i_bihextra;
-    if( i_bih <= INT_MAX - sizeof(VLC_BITMAPINFOHEADER) &&
-            i_bih >= sizeof(VLC_BITMAPINFOHEADER) )
-        i_bihextra = i_bih - sizeof(VLC_BITMAPINFOHEADER);
+    if( i_bih <= INT_MAX - sizeof(HEIMDALL_BITMAPINFOHEADER) &&
+            i_bih >= sizeof(HEIMDALL_BITMAPINFOHEADER) )
+        i_bihextra = i_bih - sizeof(HEIMDALL_BITMAPINFOHEADER);
     else
         i_bihextra = 0;
 
@@ -139,17 +140,17 @@ static inline int ParseBitmapInfoHeader( const VLC_BITMAPINFOHEADER *p_bih, size
             case 15:
                 break;
             case 9: /* <- TODO check that */
-                fmt->video.i_chroma = fmt->i_codec = VLC_CODEC_I410;
+                fmt->video.i_chroma = fmt->i_codec = HEIMDALL_CODEC_I410;
                 break;
             case 8:
                 if ( p_bih->biClrUsed )
-                    fmt->video.i_chroma = fmt->i_codec = VLC_CODEC_RGBP;
+                    fmt->video.i_chroma = fmt->i_codec = HEIMDALL_CODEC_RGBP;
                 else
-                    fmt->video.i_chroma = fmt->i_codec = VLC_CODEC_GREY;
+                    fmt->video.i_chroma = fmt->i_codec = HEIMDALL_CODEC_GREY;
                 break;
             default:
                 if( p_bih->biClrUsed < 8 )
-                    fmt->video.i_chroma = fmt->i_codec = VLC_CODEC_RGBP;
+                    fmt->video.i_chroma = fmt->i_codec = HEIMDALL_CODEC_RGBP;
                 break;
         }
 
@@ -162,7 +163,7 @@ static inline int ParseBitmapInfoHeader( const VLC_BITMAPINFOHEADER *p_bih, size
                 uint32_t bmask = GetDWLE( &p_bihextra[8] );
                 uint32_t amask = i_bihextra >= 4 * sizeof(uint32_t) ? GetDWLE( &p_bihextra[12] ) : 0;
 
-                vlc_fourcc_t known_chroma = 0;
+                heimdall_fourcc_t known_chroma = 0;
                 for( size_t i=0; i<ARRAY_SIZE(bitmap_rgb_masks); i++ )
                 {
                     if (bitmap_rgb_masks[i].depth == p_bih->biBitCount &&
@@ -183,7 +184,7 @@ static inline int ParseBitmapInfoHeader( const VLC_BITMAPINFOHEADER *p_bih, size
                 else
                 {
                     // unsupported alpha mask
-                    return VLC_ENOTSUP;
+                    return HEIMDALL_ENOTSUP;
                 }
             }
             else
@@ -192,7 +193,7 @@ static inline int ParseBitmapInfoHeader( const VLC_BITMAPINFOHEADER *p_bih, size
                 biCompression = BI_RGB;
             }
         }
-        else if( fmt->i_codec == VLC_CODEC_RGBP )
+        else if( fmt->i_codec == HEIMDALL_CODEC_RGBP )
         {
             /* The palette should not be included in biSize, but come
              * directly after BITMAPINFORHEADER in the BITMAPINFO structure */
@@ -210,14 +211,14 @@ static inline int ParseBitmapInfoHeader( const VLC_BITMAPINFOHEADER *p_bih, size
         }
         if (biCompression == BI_RGB)
         {
-            vlc_fourcc_t bi_rgb_chroma;
+            heimdall_fourcc_t bi_rgb_chroma;
             switch (p_bih->biBitCount)
             {
-                case 32: bi_rgb_chroma = VLC_CODEC_XBGR; break;
-                case 24: bi_rgb_chroma = VLC_CODEC_BGR24; break;
-                case 16: bi_rgb_chroma = VLC_CODEC_BGR565LE; break;
-                case 15: bi_rgb_chroma = VLC_CODEC_BGR555LE; break;
-                default: return VLC_EINVAL;
+                case 32: bi_rgb_chroma = HEIMDALL_CODEC_XBGR; break;
+                case 24: bi_rgb_chroma = HEIMDALL_CODEC_BGR24; break;
+                case 16: bi_rgb_chroma = HEIMDALL_CODEC_BGR565LE; break;
+                case 15: bi_rgb_chroma = HEIMDALL_CODEC_BGR555LE; break;
+                default: return HEIMDALL_EINVAL;
             }
             fmt->video.i_chroma = fmt->i_codec = bi_rgb_chroma;
         }
@@ -232,14 +233,14 @@ static inline int ParseBitmapInfoHeader( const VLC_BITMAPINFOHEADER *p_bih, size
     }
     else /* Compressed codecs */
     {
-        fmt->i_codec = vlc_fourcc_GetCodec( VIDEO_ES, p_bih->biCompression );
+        fmt->i_codec = heimdall_fourcc_GetCodec( VIDEO_ES, p_bih->biCompression );
 
         /* Copy extradata if any */
         if( i_bihextra > 0 )
         {
             fmt->p_extra = malloc( i_bihextra );
             if( unlikely(fmt->p_extra == NULL) )
-                return VLC_ENOMEM;
+                return HEIMDALL_ENOMEM;
             fmt->i_extra = i_bihextra;
             memcpy( fmt->p_extra, p_bihextra, i_bihextra );
         }
@@ -259,45 +260,45 @@ static inline int ParseBitmapInfoHeader( const VLC_BITMAPINFOHEADER *p_bih, size
         fmt->video.i_height = -1 * p_bih->biHeight;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static inline int CreateBitmapInfoHeader( const es_format_t *fmt,
-                                          VLC_BITMAPINFOHEADER *p_bih,
+                                          HEIMDALL_BITMAPINFOHEADER *p_bih,
                                           uint8_t **p_bih_extra,
                                           size_t *pi_total )
 {
-    const vlc_chroma_description_t *desc =
-        vlc_fourcc_GetChromaDescription(fmt->i_codec);
+    const heimdall_chroma_description_t *desc =
+        heimdall_fourcc_GetChromaDescription(fmt->i_codec);
     uint16_t biBitCount = desc != NULL ? desc->pixel_size * 8 : 0;
     uint32_t biCompression;
     bool b_has_alpha = false;
     switch( fmt->i_codec )
     {
-        case VLC_CODEC_XRGB:
-        case VLC_CODEC_BGR24:
-        case VLC_CODEC_BGR565LE:
-        case VLC_CODEC_BGR555LE:
-        case VLC_CODEC_RGBP:
-        case VLC_CODEC_GREY:
+        case HEIMDALL_CODEC_XRGB:
+        case HEIMDALL_CODEC_BGR24:
+        case HEIMDALL_CODEC_BGR565LE:
+        case HEIMDALL_CODEC_BGR555LE:
+        case HEIMDALL_CODEC_RGBP:
+        case HEIMDALL_CODEC_GREY:
             biCompression = BI_RGB;
             break;
-        case VLC_CODEC_BGRX:
-        case VLC_CODEC_XBGR:
-        case VLC_CODEC_RGBX:
+        case HEIMDALL_CODEC_BGRX:
+        case HEIMDALL_CODEC_XBGR:
+        case HEIMDALL_CODEC_RGBX:
             biCompression = BI_BITFIELDS;
             break;
-        case VLC_CODEC_BGRA:
-        case VLC_CODEC_RGBA:
-        case VLC_CODEC_ARGB:
-        case VLC_CODEC_ABGR:
+        case HEIMDALL_CODEC_BGRA:
+        case HEIMDALL_CODEC_RGBA:
+        case HEIMDALL_CODEC_ARGB:
+        case HEIMDALL_CODEC_ABGR:
             biCompression = BI_BITFIELDS;
             b_has_alpha = true;
             break;
-        case VLC_CODEC_RGB24:
-            return VLC_EINVAL;
-        case VLC_CODEC_MP4V:
-            biCompression = VLC_FOURCC( 'X', 'V', 'I', 'D' );
+        case HEIMDALL_CODEC_RGB24:
+            return HEIMDALL_EINVAL;
+        case HEIMDALL_CODEC_MP4V:
+            biCompression = HEIMDALL_FOURCC( 'X', 'V', 'I', 'D' );
             break;
         default:
             biCompression = fmt->i_original_fourcc
@@ -309,14 +310,14 @@ static inline int CreateBitmapInfoHeader( const es_format_t *fmt,
     size_t i_bmiColors = 0;
     if( biCompression == BI_BITFIELDS )
         i_bmiColors = (b_has_alpha) ? 16 : 12;
-    else if ( fmt->i_codec == VLC_CODEC_RGBP )
+    else if ( fmt->i_codec == HEIMDALL_CODEC_RGBP )
         i_bmiColors = fmt->video.p_palette ? (fmt->video.p_palette->i_entries * 4) : 0;
     else
         i_bih_extra = fmt->i_extra;
 
     *p_bih_extra = malloc( i_bih_extra + i_bmiColors );
     if( *p_bih_extra == NULL && (i_bih_extra + i_bmiColors) != 0 )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     uint8_t *p_bmiColors = *p_bih_extra;
     p_bih->biClrUsed = 0;
@@ -336,7 +337,7 @@ static inline int CreateBitmapInfoHeader( const es_format_t *fmt,
             }
         }
         if (i == ARRAY_SIZE(bitmap_rgb_masks))
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
 
         SetDWLE( &p_bmiColors[0], i_rmask );
         SetDWLE( &p_bmiColors[4], i_gmask );
@@ -346,7 +347,7 @@ static inline int CreateBitmapInfoHeader( const es_format_t *fmt,
             SetDWLE( &p_bmiColors[12], i_amask );
         }
     }
-    else if( fmt->i_codec == VLC_CODEC_RGBP )
+    else if( fmt->i_codec == HEIMDALL_CODEC_RGBP )
     {
         for( int i = 0; i < fmt->video.p_palette->i_entries; i++ )
         {
@@ -361,7 +362,7 @@ static inline int CreateBitmapInfoHeader( const es_format_t *fmt,
         memcpy( *p_bih_extra, fmt->p_extra, fmt->i_extra );
     }
 
-    p_bih->biSize = sizeof(VLC_BITMAPINFOHEADER) + i_bih_extra;
+    p_bih->biSize = sizeof(HEIMDALL_BITMAPINFOHEADER) + i_bih_extra;
     p_bih->biCompression = biCompression;
     p_bih->biBitCount = biBitCount;
     p_bih->biWidth = fmt->video.i_visible_width;
@@ -373,5 +374,5 @@ static inline int CreateBitmapInfoHeader( const es_format_t *fmt,
     p_bih->biClrImportant = 0;
 
     *pi_total = i_bih_extra + i_bmiColors;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

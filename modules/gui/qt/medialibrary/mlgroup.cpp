@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Benjamin Arnaud <bunjee@omega.gg>
  *
@@ -20,17 +21,17 @@
 
 #include "mlgroup.hpp"
 
-#include "util/vlctick.hpp"
+#include "util/heimdalltick.hpp"
 
-// VLC includes
+// Heimdall includes
 #include "qt.hpp"
 
 //-------------------------------------------------------------------------------------------------
 // Ctor / dtor
 //-------------------------------------------------------------------------------------------------
 
-MLGroup::MLGroup(const vlc_ml_group_t * data)
-    : MLItem(MLItemId(data->i_id, VLC_ML_PARENT_GROUP))
+MLGroup::MLGroup(const heimdall_ml_group_t * data)
+    : MLItem(MLItemId(data->i_id, HEIMDALL_ML_PARENT_GROUP))
     , m_title(qfu(data->psz_name))
     , m_duration(data->i_duration)
     , m_date(QDateTime::fromSecsSinceEpoch(data->i_creation_date))
@@ -50,9 +51,9 @@ QString MLGroup::getTitle() const
 
 //-------------------------------------------------------------------------------------------------
 
-VLCDuration MLGroup::getDuration() const
+HeimdallDuration MLGroup::getDuration() const
 {
-    return VLCDuration::fromMS(m_duration);
+    return HeimdallDuration::fromMS(m_duration);
 }
 
 QDateTime MLGroup::getDate() const

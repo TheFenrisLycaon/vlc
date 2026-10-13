@@ -1,10 +1,11 @@
 /*****************************************************************************
- * adjust.c : Contrast/Hue/Saturation/Brightness video plugin for vlc
+ * adjust.c : Contrast/Hue/Saturation/Brightness video plugin for heimdall
  *****************************************************************************
  * Copyright (C) 2000-2006 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Simon Latapie <garf@via.ecp.fr>
- *          Antoine Cellerier <dionoea -at- videolan d0t org>
+ *          Antoine Cellerier <dionoea -at- lycaria d0t org>
  *          Martin Briza <gamajun@seznam.cz> (SSE)
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -33,11 +34,11 @@
 #include <math.h>
 #include <stdatomic.h>
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_picture.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
 #include "filter_picture.h"
 
 #include "adjust_sat_hue.h"
@@ -64,7 +65,7 @@ static picture_t *FilterPacked( filter_t *, picture_t * );
 #define GAMMA_TEXT N_("Image gamma (0-10)")
 #define GAMMA_LONGTEXT N_("Set the image gamma, between 0.01 and 10. Defaults to 1.")
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("Image properties filter") )
     set_shortname( N_("Image adjust" ))
     set_subcategory( SUBCAT_VIDEO_VFILTER )
@@ -88,7 +89,7 @@ vlc_module_begin ()
 
     add_shortcut( "adjust" )
     set_callback_video_filter( Create )
-vlc_module_end ()
+heimdall_module_end ()
 
 static const char *const ppsz_filter_options[] = {
     "contrast", "brightness", "hue", "saturation", "gamma", NULL
@@ -110,19 +111,19 @@ typedef struct
                                     int, int, int );
 } filter_sys_t;
 
-static int FloatCallback( vlc_object_t *obj, char const *varname,
-                          vlc_value_t oldval, vlc_value_t newval, void *data )
+static int FloatCallback( heimdall_object_t *obj, char const *varname,
+                          heimdall_value_t oldval, heimdall_value_t newval, void *data )
 {
     _Atomic float *atom = data;
 
     atomic_store_explicit( atom, newval.f_float, memory_order_relaxed );
     (void) obj; (void) varname; (void) oldval;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 VIDEO_FILTER_WRAPPER_CLOSE( FilterPlanar, Destroy )
 
-static const struct vlc_filter_operations packed_filter_ops =
+static const struct heimdall_filter_operations packed_filter_ops =
 {
     .filter_video = FilterPacked, .close = Destroy,
 };
@@ -136,13 +137,13 @@ static int Create( filter_t *p_filter )
                                     &p_filter->fmt_out.video ) )
     {
         msg_Err( p_filter, "Input and output chromas don't match" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Allocate structure */
-    filter_sys_t *p_sys = vlc_obj_malloc( VLC_OBJECT(p_filter), sizeof( *p_sys ) );
+    filter_sys_t *p_sys = heimdall_obj_malloc( HEIMDALL_OBJECT(p_filter), sizeof( *p_sys ) );
     if( p_sys == NULL )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     p_filter->p_sys = p_sys;
 
     /* Choose Planar/Packed function and pointer to a Hue/Saturation processing
@@ -174,7 +175,7 @@ static int Create( filter_t *p_filter )
         default:
             msg_Dbg( p_filter, "Unsupported input chroma (%4.4s)",
                      (char*)&(p_filter->fmt_in.video.i_chroma) );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 
     /* needed to get options passed in transcode using the
@@ -199,7 +200,7 @@ static int Create( filter_t *p_filter )
                      &p_sys->f_saturation );
     var_AddCallback( p_filter, "gamma", FloatCallback, &p_sys->f_gamma );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -266,13 +267,13 @@ static void FilterPlanar( filter_t *p_filter, picture_t *p_pic, picture_t *p_out
     /* Fill the gamma lookup table */
     for( unsigned i = 0 ; i < i_size; i++ )
     {
-        pi_gamma[ i ] = VLC_CLIP( powf(i / f_max, f_gamma) * f_max, 0, i_max );
+        pi_gamma[ i ] = HEIMDALL_CLIP( powf(i / f_max, f_gamma) * f_max, 0, i_max );
     }
 
     /* Fill the luma lookup table */
     for( unsigned i = 0 ; i < i_size; i++ )
     {
-        pi_luma[ i ] = pi_gamma[VLC_CLIP( (int)(i_lum + i_cont * i / i_range), 0, (int) i_max )];
+        pi_luma[ i ] = pi_gamma[HEIMDALL_CLIP( (int)(i_lum + i_cont * i / i_range), 0, (int) i_max )];
     }
 
     /*
@@ -406,7 +407,7 @@ static picture_t *FilterPacked( filter_t *p_filter, picture_t *p_pic )
     i_visible_pitch = p_pic->p->i_visible_pitch;
 
     if( GetPackedYuvOffsets( p_pic->format.i_chroma, &i_y_offset,
-                             &i_u_offset, &i_v_offset ) != VLC_SUCCESS )
+                             &i_u_offset, &i_v_offset ) != HEIMDALL_SUCCESS )
     {
         msg_Warn( p_filter, "Unsupported input chroma (%4.4s)",
                   (char*)&(p_pic->format.i_chroma) );
@@ -438,13 +439,13 @@ static picture_t *FilterPacked( filter_t *p_filter, picture_t *p_pic )
     /* Fill the gamma lookup table */
     for( int i = 0 ; i < 256 ; i++ )
     {
-        pi_gamma[ i ] = clip_uint8_vlc( pow(i / 255.0, f_gamma) * 255.0);
+        pi_gamma[ i ] = clip_uint8_heimdall( pow(i / 255.0, f_gamma) * 255.0);
     }
 
     /* Fill the luma lookup table */
     for( int i = 0 ; i < 256 ; i++ )
     {
-        pi_luma[ i ] = pi_gamma[clip_uint8_vlc( i_lum + i_cont * i / 256)];
+        pi_luma[ i ] = pi_gamma[clip_uint8_heimdall( i_lum + i_cont * i / 256)];
     }
 
     /*
@@ -497,7 +498,7 @@ static picture_t *FilterPacked( filter_t *p_filter, picture_t *p_pic )
     if ( i_sat > 256 )
     {
         if ( p_sys->pf_process_sat_hue_clip( p_pic, p_outpic, i_sin, i_cos, i_sat,
-                                             i_x, i_y ) != VLC_SUCCESS )
+                                             i_x, i_y ) != HEIMDALL_SUCCESS )
         {
             /* Currently only one error can happen in the function, but if there
              * will be more of them, this message must go away */
@@ -510,7 +511,7 @@ static picture_t *FilterPacked( filter_t *p_filter, picture_t *p_pic )
     else
     {
         if ( p_sys->pf_process_sat_hue( p_pic, p_outpic, i_sin, i_cos, i_sat,
-                                        i_x, i_y ) != VLC_SUCCESS )
+                                        i_x, i_y ) != HEIMDALL_SUCCESS )
         {
             /* Currently only one error can happen in the function, but if there
              * will be more of them, this message must go away */

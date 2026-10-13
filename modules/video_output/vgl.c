@@ -1,7 +1,8 @@
 /*****************************************************************************
- * vgl.c: virtual LibVLC OpenGL extension
+ * vgl.c: virtual LibHeimdall OpenGL extension
  *****************************************************************************
  * Copyright (c) 2018 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Pierre Lamot <pierre@videolabs.io>
  *
@@ -23,16 +24,16 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_vout_display.h>
-#include <vlc_opengl.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_vout_display.h>
+#include <heimdall_opengl.h>
 
-#include <vlc/libvlc.h>
-#include <vlc/libvlc_picture.h>
-#include <vlc/libvlc_media.h>
-#include <vlc/libvlc_renderer_discoverer.h>
-#include <vlc/libvlc_media_player.h>
+#include <heimdall/libheimdall.h>
+#include <heimdall/libheimdall_picture.h>
+#include <heimdall/libheimdall_media.h>
+#include <heimdall/libheimdall_renderer_discoverer.h>
+#include <heimdall/libheimdall_media_player.h>
 
 #ifndef GL_RGBA
 #define GL_RGBA 0x1908
@@ -40,12 +41,12 @@
 
 typedef struct vout_display_sys_t
 {
-    libvlc_video_output_cleanup_cb cleanupCb;
-    libvlc_video_output_setup_cb setupCb;
-    libvlc_video_update_output_cb resizeCb;
-    libvlc_video_swap_cb swapCb;
-    libvlc_video_makeCurrent_cb makeCurrentCb;
-    libvlc_video_getProcAddress_cb getProcAddressCb;
+    libheimdall_video_output_cleanup_cb cleanupCb;
+    libheimdall_video_output_setup_cb setupCb;
+    libheimdall_video_update_output_cb resizeCb;
+    libheimdall_video_swap_cb swapCb;
+    libheimdall_video_makeCurrent_cb makeCurrentCb;
+    libheimdall_video_getProcAddress_cb getProcAddressCb;
 
     void* opaque;
     unsigned width;
@@ -53,26 +54,26 @@ typedef struct vout_display_sys_t
 } vout_display_sys_t;
 
 
-static void *OurGetProcAddress(vlc_gl_t *gl, const char *name)
+static void *OurGetProcAddress(heimdall_gl_t *gl, const char *name)
 {
     vout_display_sys_t *sys = gl->sys;
     return sys->getProcAddressCb(sys->opaque, name);
 }
 
-static int MakeCurrent(vlc_gl_t *gl)
+static int MakeCurrent(heimdall_gl_t *gl)
 {
     vout_display_sys_t *sys = gl->sys;
     bool success = sys->makeCurrentCb(sys->opaque, true);
-    return success ? VLC_SUCCESS : VLC_EGENERIC;
+    return success ? HEIMDALL_SUCCESS : HEIMDALL_EGENERIC;
 }
 
-static void ReleaseCurrent(vlc_gl_t *gl)
+static void ReleaseCurrent(heimdall_gl_t *gl)
 {
     vout_display_sys_t *sys = gl->sys;
     sys->makeCurrentCb(sys->opaque, false);
 }
 
-static void VglSwapBuffers(vlc_gl_t *gl)
+static void VglSwapBuffers(heimdall_gl_t *gl)
 {
     vout_display_sys_t *sys = gl->sys;
     MakeCurrent(gl);
@@ -80,53 +81,53 @@ static void VglSwapBuffers(vlc_gl_t *gl)
     ReleaseCurrent(gl);
 }
 
-static int ResizeInternal(vlc_gl_t * gl, unsigned w, unsigned h)
+static int ResizeInternal(heimdall_gl_t * gl, unsigned w, unsigned h)
 {
     vout_display_sys_t *sys = gl->sys;
     if( sys->width == w && sys->height == h )
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
     MakeCurrent(gl);
-    libvlc_video_render_cfg_t output_cfg = {
+    libheimdall_video_render_cfg_t output_cfg = {
         w, h, 8, true,
-        libvlc_video_colorspace_BT709, libvlc_video_primaries_BT709,
-        libvlc_video_transfer_func_SRGB, NULL,
+        libheimdall_video_colorspace_BT709, libheimdall_video_primaries_BT709,
+        libheimdall_video_transfer_func_SRGB, NULL,
     };
-    libvlc_video_output_cfg_t render_cfg = {
+    libheimdall_video_output_cfg_t render_cfg = {
         .u.opengl_format = GL_RGBA,
         .full_range = true,
-        .colorspace = libvlc_video_colorspace_BT709,
-        .primaries = libvlc_video_primaries_BT709,
-        .transfer = libvlc_video_transfer_func_SRGB,
-        .orientation = libvlc_video_orient_top_left,
+        .colorspace = libheimdall_video_colorspace_BT709,
+        .primaries = libheimdall_video_primaries_BT709,
+        .transfer = libheimdall_video_transfer_func_SRGB,
+        .orientation = libheimdall_video_orient_top_left,
     };
     bool ret = sys->resizeCb(sys->opaque, &output_cfg, &render_cfg);
     ReleaseCurrent(gl);
 
     if (!ret)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     assert(render_cfg.u.opengl_format == GL_RGBA);
     assert(render_cfg.full_range == true);
-    assert(render_cfg.colorspace == libvlc_video_colorspace_BT709);
-    assert(render_cfg.primaries  == libvlc_video_primaries_BT709);
-    assert(render_cfg.transfer   == libvlc_video_transfer_func_SRGB);
+    assert(render_cfg.colorspace == libheimdall_video_colorspace_BT709);
+    assert(render_cfg.primaries  == libheimdall_video_primaries_BT709);
+    assert(render_cfg.transfer   == libheimdall_video_transfer_func_SRGB);
 
-    /* video_orientation_t enum is matching libvlc_video_orient_t. */
+    /* video_orientation_t enum is matching libheimdall_video_orient_t. */
     gl->orientation = (video_orientation_t)render_cfg.orientation;
 
     sys->width = w;
     sys->height = h;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void Resize(vlc_gl_t * gl, unsigned w, unsigned h)
+static void Resize(heimdall_gl_t * gl, unsigned w, unsigned h)
 {
     ResizeInternal(gl, w, h);
 }
 
-static void Close(vlc_gl_t *gl)
+static void Close(heimdall_gl_t *gl)
 {
     vout_display_sys_t *sys = gl->sys;
     if( sys->cleanupCb )
@@ -139,42 +140,42 @@ static void Close(vlc_gl_t *gl)
         var = var_InheritAddress(gl, varname);                     \
         if( !var ) {                                               \
             msg_Err( gl, "%s address is missing", varname );       \
-            return VLC_EGENERIC;                                   \
+            return HEIMDALL_EGENERIC;                                   \
         }                                                          \
     } while( 0 )
 
-static int Open(vlc_gl_t *gl, unsigned width, unsigned height,
-                const struct vlc_gl_cfg *gl_cfg)
+static int Open(heimdall_gl_t *gl, unsigned width, unsigned height,
+                const struct heimdall_gl_cfg *gl_cfg)
 {
     vout_display_sys_t * sys;
 
-    libvlc_video_engine_t engineType = var_InheritInteger( gl, "vout-cb-type" );
+    libheimdall_video_engine_t engineType = var_InheritInteger( gl, "vout-cb-type" );
     switch (engineType)
     {
-        case libvlc_video_engine_opengl:
-            if (gl->api_type != VLC_OPENGL)
-                return VLC_ENOTSUP;
+        case libheimdall_video_engine_opengl:
+            if (gl->api_type != HEIMDALL_OPENGL)
+                return HEIMDALL_ENOTSUP;
             break;
 
-        case libvlc_video_engine_gles2:
-            if (gl->api_type != VLC_OPENGL_ES2)
-                return VLC_ENOTSUP;
+        case libheimdall_video_engine_gles2:
+            if (gl->api_type != HEIMDALL_OPENGL_ES2)
+                return HEIMDALL_ENOTSUP;
             break;
 
         default:
-            return VLC_ENOTSUP;
+            return HEIMDALL_ENOTSUP;
     }
 
     if (gl_cfg->need_alpha)
     {
         msg_Err(gl, "Cannot support alpha yet");
-        return VLC_ENOTSUP;
+        return HEIMDALL_ENOTSUP;
     }
 
     /* Allocate structure */
-    gl->sys = sys = vlc_obj_calloc(VLC_OBJECT(gl), 1, sizeof(*sys));
+    gl->sys = sys = heimdall_obj_calloc(HEIMDALL_OBJECT(gl), 1, sizeof(*sys));
     if( !sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     sys->opaque = var_InheritAddress(gl, "vout-cb-opaque");
     sys->setupCb = var_InheritAddress(gl, "vout-cb-setup");
@@ -186,22 +187,22 @@ static int Open(vlc_gl_t *gl, unsigned width, unsigned height,
 
     if( sys->setupCb )
     {
-        libvlc_video_setup_device_cfg_t setup_cfg = { .hardware_decoding = false };
-        libvlc_video_setup_device_info_t configured_cfg;
+        libheimdall_video_setup_device_cfg_t setup_cfg = { .hardware_decoding = false };
+        libheimdall_video_setup_device_info_t configured_cfg;
         if( !sys->setupCb(&sys->opaque, &setup_cfg, &configured_cfg) )
         {
             msg_Err( gl, "user setup failed" );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
-    if (ResizeInternal(gl, width, height) != VLC_SUCCESS)
+    if (ResizeInternal(gl, width, height) != HEIMDALL_SUCCESS)
     {
         if( sys->cleanupCb )
             sys->cleanupCb(sys->opaque);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    static const struct vlc_gl_operations gl_ops =
+    static const struct heimdall_gl_operations gl_ops =
     {
         .make_current = MakeCurrent,
         .release_current = ReleaseCurrent,
@@ -212,7 +213,7 @@ static int Open(vlc_gl_t *gl, unsigned width, unsigned height,
     };
     gl->ops = &gl_ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 #undef SET_CALLBACK_ADDR
@@ -221,7 +222,7 @@ static int Open(vlc_gl_t *gl, unsigned width, unsigned height,
  * Module descriptor
  *****************************************************************************/
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname("GL texture")
     set_description("GL texture output")
     set_subcategory(SUBCAT_VIDEO_VOUT)
@@ -233,4 +234,4 @@ vlc_module_begin()
     add_submodule()
     set_callback_opengl_es2(Open, 0)
     add_shortcut("vglmem")
-vlc_module_end()
+heimdall_module_end()

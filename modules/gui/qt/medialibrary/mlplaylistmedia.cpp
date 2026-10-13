@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,15 +20,15 @@
 #include "mlplaylistmedia.hpp"
 #include "mlhelper.hpp"
 
-// VLC includes
+// Heimdall includes
 #include "qt.hpp"
-#include "util/vlctick.hpp"
+#include "util/heimdalltick.hpp"
 
 //-------------------------------------------------------------------------------------------------
 // Ctor / dtor
 //-------------------------------------------------------------------------------------------------
 
-MLPlaylistMedia::MLPlaylistMedia(const vlc_ml_media_t * data)
+MLPlaylistMedia::MLPlaylistMedia(const heimdall_ml_media_t * data)
     : MLMedia(data)
 {
     unsigned int width  = 0;
@@ -35,10 +36,10 @@ MLPlaylistMedia::MLPlaylistMedia(const vlc_ml_media_t * data)
 
     unsigned int nbChannels = 0;
 
-    for(const vlc_ml_media_track_t & track
-        : ml_range_iterate<vlc_ml_media_track_t>(data->p_tracks))
+    for(const heimdall_ml_media_track_t & track
+        : ml_range_iterate<heimdall_ml_media_track_t>(data->p_tracks))
     {
-        if (track.i_type == VLC_ML_TRACK_TYPE_VIDEO)
+        if (track.i_type == HEIMDALL_ML_TRACK_TYPE_VIDEO)
         {
             width  = std::max(width,  track.v.i_width);
             height = std::max(height, track.v.i_height);
@@ -50,7 +51,7 @@ MLPlaylistMedia::MLPlaylistMedia(const vlc_ml_media_t * data)
                 track.v.i_fpsNum
             });
         }
-        else if (track.i_type == VLC_ML_TRACK_TYPE_AUDIO)
+        else if (track.i_type == HEIMDALL_ML_TRACK_TYPE_AUDIO)
         {
             nbChannels = std::max(nbChannels, track.a.i_nbChannels);
 
@@ -76,7 +77,7 @@ bool MLPlaylistMedia::isNew() const
     return (m_playCount == 1 && m_progress <= 0);
 }
 
-void MLPlaylistMedia::setSmallCover(const QString& thumbnail, vlc_ml_thumbnail_status_t status)
+void MLPlaylistMedia::setSmallCover(const QString& thumbnail, heimdall_ml_thumbnail_status_t status)
 {
     m_smallThumbnail = { thumbnail, status };
 }

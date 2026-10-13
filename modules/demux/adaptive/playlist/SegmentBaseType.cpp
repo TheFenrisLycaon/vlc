@@ -2,6 +2,7 @@
  * SegmentBaseType.cpp
  *****************************************************************************
  * Copyright (C) 2020 VideoLabs, VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -85,7 +86,7 @@ IndexSegment *AbstractSegmentBaseType::getIndexSegment() const
     return indexSegment;
 }
 
-void AbstractSegmentBaseType::debug(vlc_object_t *obj, int indent) const
+void AbstractSegmentBaseType::debug(heimdall_object_t *obj, int indent) const
 {
     if(initialisationSegment)
         initialisationSegment->debug(obj, indent);

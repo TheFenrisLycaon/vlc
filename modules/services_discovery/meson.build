@@ -1,5 +1,5 @@
 # Podcast
-vlc_modules += {
+heimdall_modules += {
     'name' : 'podcast',
     'sources' : files('podcast.c'),
     'dependencies' : [threads_dep],
@@ -7,14 +7,14 @@ vlc_modules += {
 }
 
 # Radio
-vlc_modules += {
+heimdall_modules += {
     'name' : 'radio',
     'sources' : files('radio.c'),
     'plugin_dir' : 'services_discovery',
 }
 
 # SAP
-vlc_modules += {
+heimdall_modules += {
     'name' : 'sap',
     'sources' : files('sap.c', '../access/rtp/sdp.c'),
     'dependencies' : [socket_libs, z_dep],
@@ -24,7 +24,7 @@ vlc_modules += {
 # Zeroconf services discovery
 avahi_dep = dependency('avahi-client', version: '>= 0.6', required: get_option('avahi'))
 if avahi_dep.found()
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'avahi',
         'sources' : files('avahi.c'),
         'dependencies' : [avahi_dep],
@@ -35,7 +35,7 @@ endif
 # MTP devices support
 mtp_dep = dependency('libmtp', version: '>= 1.0.0', required: get_option('mtp'))
 if mtp_dep.found()
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'mtp',
         'sources' : files('mtp.c'),
         'dependencies' : [mtp_dep],
@@ -83,7 +83,7 @@ if upnp_dep.found()
         )
     endif
 
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'upnp',
         'sources' : upnp_sources,
         'dependencies' : [contrib_dep, upnp_dep, upnp_darwin_deps],
@@ -92,10 +92,10 @@ if upnp_dep.found()
 endif
 
 # PipeWire device list
-vlc_modules += {
+heimdall_modules += {
     'name' : 'pipewirelist',
     'sources' : files('pipewire.c'),
-    'link_with' : [libvlc_pipewire],
+    'link_with' : [libheimdall_pipewire],
     'dependencies' : [pipewire_dep],
     'plugin_dir' : 'services_discovery',
     'enabled' : pipewire_dep.found(),
@@ -103,10 +103,10 @@ vlc_modules += {
 
 # Pulse device list
 if pulse_dep.found()
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'pulselist',
         'sources' : files('pulse.c'),
-        'link_with' : [libvlc_pulse],
+        'link_with' : [libheimdall_pulse],
         'dependencies' : [pulse_dep],
         'plugin_dir' : 'services_discovery',
     }
@@ -115,7 +115,7 @@ endif
 # Linux udev device discovery
 libudev_dep = dependency('libudev', version: '>= 142', required: get_option('udev'))
 if libudev_dep.found()
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'udev',
         'sources' : files('udev.c'),
         'dependencies' : [libudev_dep],
@@ -125,7 +125,7 @@ endif
 
 # XCB Apps discovery
 if xcb_dep.found()
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'xcb_apps',
         'sources' : files('xcb_apps.c'),
         'dependencies' : [xcb_dep],
@@ -135,13 +135,13 @@ endif
 
 # Windows drive discovery
 if host_system == 'windows' and have_win_desktop
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'windrive',
         'sources' : files('windrive.c'),
         'plugin_dir' : 'services_discovery',
     }
 
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'winvolumes',
         'sources' : files('winvolumes.c'),
         'plugin_dir' : 'services_discovery',
@@ -150,7 +150,7 @@ endif
 
 # OS/2 drive discovery
 if host_system == 'os/2'
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'os2drive',
         'sources' : files('os2drive.c'),
         'plugin_dir' : 'services_discovery',
@@ -160,7 +160,7 @@ endif
 # mDNS using libmicrodns
 microdns_dep = dependency('microdns', required: get_option('microdns'))
 if microdns_dep.found()
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'microdns',
         'sources' : files('microdns.c'),
         'dependencies' : [microdns_dep, socket_libs],
@@ -170,7 +170,7 @@ endif
 
 # mDNS using Bonjour
 if host_system == 'darwin'
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'bonjour',
         'sources' : files('bonjour.m'),
         'objc_args' : ['-fobjc-arc'],

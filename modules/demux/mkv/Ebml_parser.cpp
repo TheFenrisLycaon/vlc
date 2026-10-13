@@ -3,6 +3,7 @@
  * EbmlParser for the matroska demuxer
  *****************************************************************************
  * Copyright (C) 2003-2004 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *          Steve Lhomme <steve.lhomme@free.fr>
@@ -125,12 +126,12 @@ static const EbmlSemanticContext & GetEbmlNoGlobal_Context()
 }
 
 // the Segment Context should not allow Void or CRC32 elements to avoid lookup false alarm
-DEFINE_START_SEMANTIC(KaxSegmentVLC)
+DEFINE_START_SEMANTIC(KaxSegmentHeimdall)
 DEFINE_SEMANTIC_ITEM(true, true, EbmlHead)
 DEFINE_SEMANTIC_ITEM(false, false, KaxSegment)
-DEFINE_END_SEMANTIC(KaxSegmentVLC)
+DEFINE_END_SEMANTIC(KaxSegmentHeimdall)
 
-DEFINE_xxx_CONTEXT(KaxSegmentVLC,GetEbmlNoGlobal_Context)
+DEFINE_xxx_CONTEXT(KaxSegmentHeimdall,GetEbmlNoGlobal_Context)
 
 
 EbmlElement *EbmlParser::Get( bool allow_overshoot )
@@ -227,8 +228,8 @@ next:
         // If the parent is a segment, use the segment context when creating children
         // (to prolong their lifetime), otherwise just continue as normal
         EbmlSemanticContext e_context =
-                (mi_level == 0 || EBML_CTX_MASTER( EBML_CONTEXT(m_el[mi_level - 1]) ) == EBML_CTX_MASTER( Context_KaxSegmentVLC ))
-                ? Context_KaxSegmentVLC
+                (mi_level == 0 || EBML_CTX_MASTER( EBML_CONTEXT(m_el[mi_level - 1]) ) == EBML_CTX_MASTER( Context_KaxSegmentHeimdall ))
+                ? Context_KaxSegmentHeimdall
                 : EBML_CONTEXT(m_el[mi_level - 1]);
 
         /* Ignore unknown level 0 or 1 elements */

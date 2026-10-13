@@ -2,6 +2,7 @@
  * registry.hpp: Windows Registry Manipulation
  ****************************************************************************
  * Copyright (C) 2008 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Andre Weber <WeberAndre # gmx - de>
  *
@@ -19,18 +20,18 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
-#ifndef QVLC_REGISTRY_H
-#define QVLC_REGISTRY_H
+#ifndef QHEIMDALL_REGISTRY_H
+#define QHEIMDALL_REGISTRY_H
 
 #include <windows.h>
 
-class QVLCRegistry
+class QHeimdallRegistry
 {
 private:
     const HKEY m_RootKey;
 public:
-    QVLCRegistry(HKEY rootKey);
-    ~QVLCRegistry(void) {}
+    QHeimdallRegistry(HKEY rootKey);
+    ~QHeimdallRegistry(void) {}
 
     void WriteRegistry( const char *path, const char *valueName, int value);
     void WriteRegistry( const char *path, const char *valueName, const char *value);

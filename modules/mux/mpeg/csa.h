@@ -2,6 +2,7 @@
  * csa.h
  *****************************************************************************
  * Copyright (C) 2004 Laurent Aimar
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *
@@ -20,16 +21,16 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_MPEG_CSA_H_
-#define VLC_MPEG_CSA_H_
+#ifndef HEIMDALL_MPEG_CSA_H_
+#define HEIMDALL_MPEG_CSA_H_
 
 typedef struct csa_t csa_t;
 
 csa_t *csa_New( void );
 void   csa_Delete( csa_t * );
 
-int    csa_SetCW( vlc_object_t *p_caller, csa_t *c, char *psz_ck, bool odd );
-void   csa_UseKey( vlc_object_t *p_caller, csa_t *, bool use_odd );
+int    csa_SetCW( heimdall_object_t *p_caller, csa_t *c, char *psz_ck, bool odd );
+void   csa_UseKey( heimdall_object_t *p_caller, csa_t *, bool use_odd );
 
 void   csa_Decrypt( csa_t *, uint8_t *pkt, int i_pkt_size );
 void   csa_Encrypt( csa_t *, uint8_t *pkt, int i_pkt_size );

@@ -2,6 +2,7 @@
  * messages.cpp : Information about an item
  ****************************************************************************
  * Copyright (C) 2006-2011 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Jean-Baptiste Kempf <jb (at) videolan.org>
  *
@@ -37,10 +38,10 @@
 
 #include <cassert>
 
-#include <vlc_common.h>
-#include <vlc_playlist.h>
-#include <vlc_interface.h>
-#include <vlc_input_item.h>
+#include <heimdall_common.h>
+#include <heimdall_playlist.h>
+#include <heimdall_interface.h>
+#include <heimdall_input_item.h>
 
 
 #include "dialogs/messages/messages.hpp"
@@ -53,7 +54,7 @@ enum {
 class MsgEvent : public QEvent
 {
 public:
-    MsgEvent( int, const vlc_log_t *, const char * );
+    MsgEvent( int, const heimdall_log_t *, const char * );
 
     int priority;
     uintptr_t object_id;
@@ -63,7 +64,7 @@ public:
     QString text;
 };
 
-MsgEvent::MsgEvent( int type, const vlc_log_t *msg, const char *text )
+MsgEvent::MsgEvent( int type, const heimdall_log_t *msg, const char *text )
     : QEvent( (QEvent::Type)MsgEvent_Type ),
       priority( type ),
       object_id( msg->i_object_id ),
@@ -75,10 +76,10 @@ MsgEvent::MsgEvent( int type, const vlc_log_t *msg, const char *text )
 }
 
 MessagesDialog::MessagesDialog( qt_intf_t *_p_intf)
-               : QVLCFrame( _p_intf )
+               : QHeimdallFrame( _p_intf )
 {
     setWindowTitle( qtr( "Messages" ) );
-    setWindowRole( "vlc-messages" );
+    setWindowRole( "heimdall-messages" );
     /* Build Ui */
     ui.setupUi( this );
     ui.bottomButtonsBox->addButton( new QPushButton( qtr("&Close"), this ),
@@ -129,7 +130,7 @@ MessagesDialog::MessagesDialog( qt_intf_t *_p_intf)
     connect( ui.filterEdit, &QLineEdit::editingFinished, this, &MessagesDialog::updateConfig );
     connect( ui.filterEdit, &QLineEdit::textChanged, this, &MessagesDialog::filterMessages );
     connect( ui.bottomButtonsBox, &QDialogButtonBox::rejected, this, &MessagesDialog::hide );
-    connect( ui.verbosityBox, QOverload<int>::of(&QVLCDebugLevelSpinBox::valueChanged),
+    connect( ui.verbosityBox, QOverload<int>::of(&QHeimdallDebugLevelSpinBox::valueChanged),
              this, &MessagesDialog::changeVerbosity );
 
     connect( ui.mainTab, &QTabWidget::currentChanged, this, &MessagesDialog::tabChanged );
@@ -137,23 +138,23 @@ MessagesDialog::MessagesDialog( qt_intf_t *_p_intf)
     /* General action */
     restoreWidgetPosition( "Messages", QSize( 600, 450 ) );
 
-    /* Hook up to LibVLC messaging */
-    static const struct vlc_logger_operations log_ops =
+    /* Hook up to LibHeimdall messaging */
+    static const struct heimdall_logger_operations log_ops =
     {
         MessagesDialog::MsgCallback,
         NULL
     };
-    libvlc_int_t *vlc = vlc_object_instance(p_intf);
+    libheimdall_int_t *heimdall = heimdall_object_instance(p_intf);
 
-    vlc_LogSet( vlc, &log_ops, this );
+    heimdall_LogSet( heimdall, &log_ops, this );
 
-    buildTree( NULL, VLC_OBJECT(vlc) );
+    buildTree( NULL, HEIMDALL_OBJECT(heimdall) );
 }
 
 MessagesDialog::~MessagesDialog()
 {
     saveWidgetPosition( "Messages" );
-    vlc_LogSet( vlc_object_instance(p_intf), NULL, NULL );
+    heimdall_LogSet( heimdall_object_instance(p_intf), NULL, NULL );
 };
 
 void MessagesDialog::changeVerbosity( int i_verbosity )
@@ -270,19 +271,19 @@ void MessagesDialog::sinkMessage( const MsgEvent *msg )
 
     switch ( msg->priority )
     {
-        case VLC_MSG_INFO:
+        case HEIMDALL_MSG_INFO:
             format.setForeground( Qt::darkBlue );
             messages->textCursor().insertText( " info: ", format );
             break;
-        case VLC_MSG_ERR:
+        case HEIMDALL_MSG_ERR:
             format.setForeground( Qt::darkRed );
             messages->textCursor().insertText( " error: ", format );
             break;
-        case VLC_MSG_WARN:
+        case HEIMDALL_MSG_WARN:
             format.setForeground( Qt::darkGreen );
             messages->textCursor().insertText( " warning: ", format );
             break;
-        case VLC_MSG_DBG:
+        case HEIMDALL_MSG_DBG:
         default:
             format.setForeground( Qt::darkGray );
             messages->textCursor().insertText( " debug: ", format );
@@ -313,7 +314,7 @@ bool MessagesDialog::save()
 {
     QString saveLogFileName = QFileDialog::getSaveFileName(
             this, qtr( "Save log file as..." ),
-            QVLCUserDir( VLC_DOCUMENTS_DIR ),
+            QHeimdallUserDir( HEIMDALL_DOCUMENTS_DIR ),
             qtr( "Texts/Logs (*.log *.txt);; All (*.*)") );
 
     if( !saveLogFileName.isNull() )
@@ -343,7 +344,7 @@ bool MessagesDialog::save()
 }
 
 void MessagesDialog::buildTree( QTreeWidgetItem *parentItem,
-                                vlc_object_t *p_obj )
+                                heimdall_object_t *p_obj )
 {
     QTreeWidgetItem *item;
 
@@ -352,9 +353,9 @@ void MessagesDialog::buildTree( QTreeWidgetItem *parentItem,
     else
         item = new QTreeWidgetItem( ui.modulesTree );
 
-    char *name = vlc_object_get_name( p_obj );
+    char *name = heimdall_object_get_name( p_obj );
     item->setText( 0, QString("%1%2 (0x%3)")
-                   .arg( qfu( vlc_object_typename(p_obj) ) )
+                   .arg( qfu( heimdall_object_typename(p_obj) ) )
                    .arg( ( name != NULL )
                          ? QString( " \"%1\"" ).arg( qfu( name ) )
                              : "" )
@@ -364,21 +365,21 @@ void MessagesDialog::buildTree( QTreeWidgetItem *parentItem,
     item->setExpanded( true );
 
     size_t count = 0, size;
-    vlc_object_t **tab = NULL;
+    heimdall_object_t **tab = NULL;
 
     do
     {
         delete[] tab;
         size = count;
-        tab = new vlc_object_t *[size];
-        count = vlc_list_children(p_obj, tab, size);
+        tab = new heimdall_object_t *[size];
+        count = heimdall_list_children(p_obj, tab, size);
     }
     while (size < count);
 
     for (size_t i = 0; i < count ; i++)
     {
         buildTree( item, tab[i] );
-        vlc_object_release(tab[i]);
+        heimdall_object_release(tab[i]);
     }
 
     delete[] tab;
@@ -389,7 +390,7 @@ void MessagesDialog::updateOrClear()
     if( ui.mainTab->currentIndex() == 2)
     {
         ui.modulesTree->clear();
-        buildTree( NULL, VLC_OBJECT( vlc_object_instance(p_intf) ) );
+        buildTree( NULL, HEIMDALL_OBJECT( heimdall_object_instance(p_intf) ) );
     }
     else if( ui.mainTab->currentIndex() == 0 )
         ui.messages->clear();
@@ -416,20 +417,20 @@ void MessagesDialog::showTab( int i )
     raise();
 }
 
-void MessagesDialog::MsgCallback( void *self, int type, const vlc_log_t *item,
+void MessagesDialog::MsgCallback( void *self, int type, const heimdall_log_t *item,
                                   const char *format, va_list ap )
 {
     MessagesDialog *dialog = (MessagesDialog *)self;
     char *str;
     int verbosity = dialog->verbosity.load();
 
-    if( verbosity < 0 || verbosity < (type - VLC_MSG_ERR)
+    if( verbosity < 0 || verbosity < (type - HEIMDALL_MSG_ERR)
      || unlikely(vasprintf( &str, format, ap ) == -1) )
         return;
 
-    int canc = vlc_savecancel();
+    int canc = heimdall_savecancel();
     QApplication::postEvent( dialog, new MsgEvent( type, item, str ) );
-    vlc_restorecancel( canc );
+    heimdall_restorecancel( canc );
     free( str );
 }
 
@@ -439,14 +440,14 @@ void MessagesDialog::updatePLTree()
 {
     pldebugTree->clear();
     {
-        vlc_playlist_t* playlist = p_intf->p_playlist;
-        vlc_playlist_Lock(playlist);
-        size_t count = vlc_playlist_Count( playlist );
+        heimdall_playlist_t* playlist = p_intf->p_playlist;
+        heimdall_playlist_Lock(playlist);
+        size_t count = heimdall_playlist_Count( playlist );
         for (size_t i = 0; i < count; i++)
         {
             QTreeWidgetItem *current = new QTreeWidgetItem();
-            vlc_playlist_item_t* item = vlc_playlist_Get( playlist, i );
-            input_item_t* media = vlc_playlist_item_GetMedia( item );
+            heimdall_playlist_item_t* item = heimdall_playlist_Get( playlist, i );
+            input_item_t* media = heimdall_playlist_item_GetMedia( item );
             current->setText( 0, qfu( media->psz_name ) );
             current->setToolTip( 0, qfu( media->psz_uri ) );
             current->setText( 1, QString("%1").arg( i ) );
@@ -455,7 +456,7 @@ void MessagesDialog::updatePLTree()
             current->setText( 3, QString("0x%1").arg( media->i_type, 0, 16 ) );
             pldebugTree->addTopLevelItem( current );
         }
-        vlc_playlist_Unlock(playlist);
+        heimdall_playlist_Unlock(playlist);
     }
 
     pldebugTree->expandAll();

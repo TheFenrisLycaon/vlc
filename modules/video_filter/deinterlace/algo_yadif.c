@@ -2,6 +2,7 @@
  * algo_yadif.c : Wrapper for FFmpeg's Yadif algorithm
  *****************************************************************************
  * Copyright (C) 2000-2011 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Laurent Aimar <fenrir@videolan.org>
  *         Juha Jeronen  <juha.jeronen@jyu.fi> (soft field repeat hack)
@@ -28,10 +29,10 @@
 #include <stdint.h>
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_cpu.h>
-#include <vlc_picture.h>
-#include <vlc_filter.h>
+#include <heimdall_common.h>
+#include <heimdall_cpu.h>
+#include <heimdall_picture.h>
+#include <heimdall_filter.h>
 
 #include "deinterlace.h" /* filter_sys_t  */
 #include "common.h"      /* FFMIN3 et al. */
@@ -54,7 +55,7 @@ int RenderYadifSingle( filter_t *p_filter, picture_t *p_dst, picture_t *p_src )
 int RenderYadif( filter_t *p_filter, picture_t *p_dst, picture_t *p_src,
                  int i_order, int i_field )
 {
-    VLC_UNUSED(p_src);
+    HEIMDALL_UNUSED(p_src);
 
     filter_sys_t *p_sys = p_filter->p_sys;
 
@@ -113,11 +114,11 @@ int RenderYadif( filter_t *p_filter, picture_t *p_dst, picture_t *p_src,
                        int w, int prefs, int mrefs, int parity, int mode);
 
 #if defined(HAVE_X86ASM)
-        if( vlc_CPU_SSSE3() )
-            filter = vlcpriv_yadif_filter_line_ssse3;
+        if( heimdall_CPU_SSSE3() )
+            filter = heimdallpriv_yadif_filter_line_ssse3;
         else
-        if( vlc_CPU_SSE2() )
-            filter = vlcpriv_yadif_filter_line_sse2;
+        if( heimdall_CPU_SSE2() )
+            filter = heimdallpriv_yadif_filter_line_sse2;
         else
 #endif
             filter = yadif_filter_line_c;
@@ -171,7 +172,7 @@ int RenderYadif( filter_t *p_filter, picture_t *p_dst, picture_t *p_src,
 
         p_sys->context.i_frame_offset = 1; /* p_cur will be rendered at next frame, too */
 
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
     else if( !p_prev && !p_cur && p_next )
     {
@@ -180,12 +181,12 @@ int RenderYadif( filter_t *p_filter, picture_t *p_dst, picture_t *p_src,
 
         /* FIXME not good as it does not use i_order/i_field */
         RenderX( p_filter, p_dst, p_next );
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
     else
     {
         p_sys->context.i_frame_offset = 1; /* p_cur will be rendered at next frame */
 
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 }

@@ -1,7 +1,8 @@
 /*****************************************************************************
- * merge.c : Merge (line blending) routines for the VLC deinterlacer
+ * merge.c : Merge (line blending) routines for the Heimdall deinterlacer
  *****************************************************************************
  * Copyright (C) 2011 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Sam Hocevar <sam@zoy.org>                      (generic C routine)
  *         Sigmund Augdal Helberg <sigmunau@videolan.org> (MMXEXT, 3DNow, SSE2)
@@ -29,7 +30,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 #include "merge.h"
 
 

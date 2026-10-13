@@ -2,6 +2,7 @@
  * dirs.c: OS/2 directories configuration
  *****************************************************************************
  * Copyright (C) 2010 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: KO Myung-Hun <komh@chollian.net>
  *
@@ -24,10 +25,10 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
-#include "../libvlc.h"
-#include <vlc_charset.h>
+#include "../libheimdall.h"
+#include <heimdall_charset.h>
 #include "../config/configuration.h"
 
 #include <assert.h>
@@ -84,7 +85,7 @@ static char *config_GetRealDir( const char *dir )
 
 char *config_GetLibDir( void )
 {
-    const char *path = getenv ("VLC_LIB_PATH");
+    const char *path = getenv ("HEIMDALL_LIB_PATH");
     if (path)
         return FromLocaleDup( path );
 
@@ -93,7 +94,7 @@ char *config_GetLibDir( void )
 
 static char *config_GetLibExecDir(void)
 {
-    const char *path = getenv ("VLC_LIB_PATH");
+    const char *path = getenv ("HEIMDALL_LIB_PATH");
     if (path)
         return FromLocaleDup( path );
 
@@ -107,36 +108,36 @@ static char *config_GetLibExecDir(void)
  */
 static char *config_GetDataDir(void)
 {
-    const char *path = getenv ("VLC_DATA_PATH");
+    const char *path = getenv ("HEIMDALL_DATA_PATH");
     if (path)
         return FromLocaleDup( path );
 
     return config_GetRealDir( PKGDATADIR );
 }
 
-char *config_GetSysPath(vlc_sysdir_t type, const char *filename)
+char *config_GetSysPath(heimdall_sysdir_t type, const char *filename)
 {
     char *dir = NULL;
 
     switch (type)
     {
-        case VLC_PKG_DATA_DIR:
+        case HEIMDALL_PKG_DATA_DIR:
             dir = config_GetDataDir();
             break;
-        case VLC_PKG_LIB_DIR:
+        case HEIMDALL_PKG_LIB_DIR:
             dir = config_GetLibDir();
             break;
-        case VLC_PKG_LIBEXEC_DIR:
+        case HEIMDALL_PKG_LIBEXEC_DIR:
             dir = config_GetLibExecDir();
             break;
-        case VLC_SYSDATA_DIR:
+        case HEIMDALL_SYSDATA_DIR:
             dir = config_GetRealDir( SYSDATADIR );
             break;
-        case VLC_LOCALE_DIR:
+        case HEIMDALL_LOCALE_DIR:
             dir = config_GetRealDir( LOCALEDIR );
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 
     if (filename == NULL || unlikely(dir == NULL))
@@ -158,23 +159,23 @@ static char *config_GetHomeDir (void)
     return config_GetLibDir();
 }
 
-char *platform_GetUserDir (vlc_userdir_t type)
+char *platform_GetUserDir (heimdall_userdir_t type)
 {
     switch (type)
     {
-        case VLC_HOME_DIR:
-        case VLC_CONFIG_DIR:
-        case VLC_USERDATA_DIR:
-        case VLC_CACHE_DIR:
-        case VLC_DESKTOP_DIR:
-        case VLC_DOWNLOAD_DIR:
-        case VLC_TEMPLATES_DIR:
-        case VLC_PUBLICSHARE_DIR:
-        case VLC_DOCUMENTS_DIR:
-        case VLC_MUSIC_DIR:
-        case VLC_SNAPSHOTS_DIR:
-        case VLC_PICTURES_DIR:
-        case VLC_VIDEOS_DIR:
+        case HEIMDALL_HOME_DIR:
+        case HEIMDALL_CONFIG_DIR:
+        case HEIMDALL_USERDATA_DIR:
+        case HEIMDALL_CACHE_DIR:
+        case HEIMDALL_DESKTOP_DIR:
+        case HEIMDALL_DOWNLOAD_DIR:
+        case HEIMDALL_TEMPLATES_DIR:
+        case HEIMDALL_PUBLICSHARE_DIR:
+        case HEIMDALL_DOCUMENTS_DIR:
+        case HEIMDALL_MUSIC_DIR:
+        case HEIMDALL_SNAPSHOTS_DIR:
+        case HEIMDALL_PICTURES_DIR:
+        case HEIMDALL_VIDEOS_DIR:
             break;
     }
     return config_GetHomeDir ();

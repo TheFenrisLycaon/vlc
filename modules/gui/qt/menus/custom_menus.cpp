@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright © 2006-2018 VideoLAN authors
  *                  2018 VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,8 +23,8 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_renderer_discovery.h>
+#include <heimdall_common.h>
+#include <heimdall_renderer_discovery.h>
 
 #include "custom_menus.hpp"
 #include "util/renderer_manager.hpp"
@@ -50,7 +51,7 @@
 #include <QMetaProperty>
 #include <QMetaMethod>
 
-#include "util/vlcaccess_image_provider.hpp"
+#include "util/heimdallaccess_image_provider.hpp"
 
 RendererMenu::RendererMenu( QMenu* parent, qt_intf_t* intf, PlayerController* player )
     : QMenu( parent)
@@ -211,7 +212,7 @@ void ListMenuHelper::setIcon(QAction* action,  const QUrl& iconUrl)
         disconnect(m_iconLoader.get(), nullptr, this, nullptr);
         m_iconLoader->cancel();
     }
-    m_iconLoader.reset(VLCAccessImageProvider::requestImageResponseUnWrapped(iconUrl, {64,64}));
+    m_iconLoader.reset(HeimdallAccessImageProvider::requestImageResponseUnWrapped(iconUrl, {64,64}));
     connect(m_iconLoader.get(), &QQuickImageResponse::finished, this, [this, action] {
         std::unique_ptr<QQuickTextureFactory> factory(m_iconLoader->textureFactory());
         if (!factory)
@@ -411,7 +412,7 @@ RecentMenu::RecentMenu(MLRecentMediaModel* model, MediaLib* ml,  QWidget* parent
 
 // BookmarkMenu
 
-BookmarkMenu::BookmarkMenu(MediaLib * mediaLib, vlc_player_t * player, QWidget * parent)
+BookmarkMenu::BookmarkMenu(MediaLib * mediaLib, heimdall_player_t * player, QWidget * parent)
     : QMenu(parent)
 {
     addAction(qtr("&Manage"), THEDP, &DialogsProvider::bookmarksDialog )->setShortcut(QKeySequence("Ctrl+B"));

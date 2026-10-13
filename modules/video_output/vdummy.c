@@ -2,6 +2,7 @@
  * vdummy.c: Dummy video output display method for testing purposes
  *****************************************************************************
  * Copyright (C) 2000-2009 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Samuel Hocevar <sam@zoy.org>
  *
@@ -28,10 +29,10 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_threads.h>
-#include <vlc_plugin.h>
-#include <vlc_vout_display.h>
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
+#include <heimdall_plugin.h>
+#include <heimdall_vout_display.h>
 
 #define CHROMA_TEXT N_("Dummy image chroma format")
 #define CHROMA_LONGTEXT N_( \
@@ -40,11 +41,11 @@
     "efficient one.")
 
 static int OpenDummy(vout_display_t *vd,
-                     video_format_t *fmtp, vlc_video_context *context);
+                     video_format_t *fmtp, heimdall_video_context *context);
 static int OpenStats(vout_display_t *vd,
-                     video_format_t *fmtp, vlc_video_context *context);
+                     video_format_t *fmtp, heimdall_video_context *context);
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( N_("Dummy") )
     set_description( N_("Dummy video output") )
     set_callback_display( OpenDummy, 0 )
@@ -57,7 +58,7 @@ vlc_module_begin ()
     set_description( N_("Statistics video output") )
     add_shortcut( "stats" )
     set_callback_display( OpenStats, 0 )
-vlc_module_end ()
+heimdall_module_end ()
 
 
 /*****************************************************************************
@@ -74,7 +75,7 @@ static void Open(vout_display_t *vd, video_format_t *fmt)
 
     char *chroma = var_InheritString(vd, "dummy-chroma");
     if (chroma) {
-        vlc_fourcc_t fcc = vlc_fourcc_GetCodecFromString(VIDEO_ES, chroma);
+        heimdall_fourcc_t fcc = heimdall_fourcc_GetCodecFromString(VIDEO_ES, chroma);
         if (fcc != 0) {
             msg_Dbg(vd, "forcing chroma 0x%.8x (%4.4s)", fcc, (char*)&fcc);
             fmt->i_chroma = fcc;
@@ -89,43 +90,43 @@ static void Display(vout_display_t *vd, picture_t *picture)
     (void) picture;
 }
 
-static const struct vlc_display_operations ops_dummy = {
+static const struct heimdall_display_operations ops_dummy = {
     .display = Display,
 };
 
 static int OpenDummy(vout_display_t *vd,
-                     video_format_t *fmtp, vlc_video_context *context)
+                     video_format_t *fmtp, heimdall_video_context *context)
 {
     (void) context;
     Open(vd, fmtp);
     vd->ops = &ops_dummy;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static const struct vlc_display_operations ops_stats = {
+static const struct heimdall_display_operations ops_stats = {
     .display = DisplayStat,
 };
 
 static int OpenStats(vout_display_t *vd,
-                     video_format_t *fmtp, vlc_video_context *context)
+                     video_format_t *fmtp, heimdall_video_context *context)
 {
     (void) context;
     Open(vd, fmtp);
     vd->ops = &ops_stats;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void DisplayStat(vout_display_t *vd, picture_t *picture)
 {
     plane_t *p = picture->p;
 
-    VLC_UNUSED(vd);
+    HEIMDALL_UNUSED(vd);
 
-    if (picture->format.i_width * picture->format.i_height >= sizeof (vlc_tick_t)
-     && (p->i_pitch * p->i_lines) >= (ssize_t)sizeof (vlc_tick_t)) {
-        vlc_tick_t date;
+    if (picture->format.i_width * picture->format.i_height >= sizeof (heimdall_tick_t)
+     && (p->i_pitch * p->i_lines) >= (ssize_t)sizeof (heimdall_tick_t)) {
+        heimdall_tick_t date;
         memcpy(&date, p->p_pixels, sizeof(date));
         msg_Dbg(vd, "VOUT got %"PRIu64" ms offset",
-                MS_FROM_VLC_TICK(vlc_tick_now() - date));
+                MS_FROM_HEIMDALL_TICK(heimdall_tick_now() - date));
     }
 }

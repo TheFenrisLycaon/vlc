@@ -1,6 +1,7 @@
 /*****************************************************************************
  * Copyright © 2010 Rémi Denis-Courmont
  * Copyright © 2024 Prince Gupta <prince@videolan.org>
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,10 +23,10 @@
 # include <config.h>
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_services_discovery.h>
-#include <vlc_threads.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_services_discovery.h>
+#include <heimdall_threads.h>
 
 #include <windows.h>
 #include <dbt.h>
@@ -35,12 +36,12 @@
 #define MAX_DRIVES 26
 
 // name and window title used for observer window
-static const char WindowClassName[] = "VLCWinVolumesDeviceObserver";
+static const char WindowClassName[] = "HeimdallWinVolumesDeviceObserver";
 
 typedef struct volumes_observer_t
 {
     // observer thread
-    vlc_thread_t thread;
+    heimdall_thread_t thread;
 
     // signal to end the observer thread
     HANDLE quit_signal;
@@ -125,7 +126,7 @@ static int Add( services_discovery_t *p_sd, const uint32_t disk_mask )
             continue;
 
         input_item_t *item = CreateInput( 'A' + i );
-        if (unlikely( !item )) return VLC_ENOMEM;
+        if (unlikely( !item )) return HEIMDALL_ENOMEM;
 
         if ( p_sys->items[i] )
         {
@@ -139,7 +140,7 @@ static int Add( services_discovery_t *p_sd, const uint32_t disk_mask )
         services_discovery_AddItem( p_sd, item );
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 
@@ -307,18 +308,18 @@ static void ReleaseItems( volumes_observer_t *p_sys )
 
 
 // Module functions -
-static int Open (vlc_object_t *obj)
+static int Open (heimdall_object_t *obj)
 {
     services_discovery_t *p_sd = (services_discovery_t *)obj;
 
     volumes_observer_t *p_sys = (volumes_observer_t *)calloc( 1, sizeof(volumes_observer_t) );
     if ( !p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_sd->p_sys = p_sys;
     p_sd->description = _("Lists volumes on host computer");
 
-    if ( AddExistingDrives( p_sd ) != VLC_SUCCESS)
+    if ( AddExistingDrives( p_sd ) != HEIMDALL_SUCCESS)
     {
         msg_Err( p_sd, "failed to find existing drives" );
         goto error;
@@ -332,13 +333,13 @@ static int Open (vlc_object_t *obj)
     }
 
     // start the thread for window handling
-    if ( vlc_clone( &p_sys->thread, Run, p_sd ) )
+    if ( heimdall_clone( &p_sys->thread, Run, p_sd ) )
     {
         msg_Err( p_sd, "failed to start observer thread");
         goto error;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     if ( p_sys->quit_signal )
@@ -346,11 +347,11 @@ error:
 
     ReleaseItems( p_sys );
     free( p_sys );
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 
-static void Close( vlc_object_t * obj )
+static void Close( heimdall_object_t * obj )
 {
     services_discovery_t *p_sd = (services_discovery_t *)obj;
     volumes_observer_t *p_sys = (volumes_observer_t *) p_sd->p_sys;
@@ -358,7 +359,7 @@ static void Close( vlc_object_t * obj )
     // signal window thread to quit
     SetEvent( p_sys->quit_signal );
 
-    vlc_join( p_sys->thread, NULL );
+    heimdall_join( p_sys->thread, NULL );
 
     // release resources
     CloseHandle( p_sys->quit_signal );
@@ -367,19 +368,19 @@ static void Close( vlc_object_t * obj )
 }
 
 
-VLC_SD_PROBE_HELPER("volume", N_("Volumes"), SD_CAT_MYCOMPUTER)
+HEIMDALL_SD_PROBE_HELPER("volume", N_("Volumes"), SD_CAT_MYCOMPUTER)
 
 /*
  * Module descriptor
  *
  * list volumes on Windows
  */
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname (N_("Volumes"))
     set_description (N_("Lists volumes on host computer"))
     set_capability ("services_discovery", 0)
     set_callbacks(Open, Close)
     add_shortcut ("volume")
 
-    VLC_SD_PROBE_SUBMODULE
-vlc_module_end ()
+    HEIMDALL_SD_PROBE_SUBMODULE
+heimdall_module_end ()

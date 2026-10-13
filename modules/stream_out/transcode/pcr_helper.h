@@ -2,6 +2,7 @@
  * pcr_helper.h:
  *****************************************************************************
  * Copyright (C) 2022 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -21,9 +22,9 @@
 #ifndef PCR_HELPER_H
 #define PCR_HELPER_H
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
-#include <vlc_frame.h>
+#include <heimdall_frame.h>
 
 #include "pcr_sync.h"
 
@@ -51,8 +52,8 @@ typedef struct transcode_track_pcr_helper transcode_track_pcr_helper_t;
  *
  * \return A pointer to the allocated pcr helper or NULL if the allocation failed.
  */
-transcode_track_pcr_helper_t *transcode_track_pcr_helper_New(vlc_pcr_sync_t *sync_ref,
-                                                             vlc_tick_t max_delay);
+transcode_track_pcr_helper_t *transcode_track_pcr_helper_New(heimdall_pcr_sync_t *sync_ref,
+                                                             heimdall_tick_t max_delay);
 
 /**
  * Delete and free the helper.
@@ -64,14 +65,14 @@ void transcode_track_pcr_helper_Delete(transcode_track_pcr_helper_t *);
  *
  * \param frame The entering frame (will be treated as a single frame).
  * \param[out] dropped_frame_pcr If a frame was dropped, contains a synthetised PCR.
- * VLC_TICK_INVALID otherwise.
+ * HEIMDALL_TICK_INVALID otherwise.
  *
- * \retval VLC_SUCCESS On success.
- * \retval VLC_ENOMEM On allocation error.
+ * \retval HEIMDALL_SUCCESS On success.
+ * \retval HEIMDALL_ENOMEM On allocation error.
  */
 int transcode_track_pcr_helper_SignalEnteringFrame(transcode_track_pcr_helper_t *,
-                                                   const vlc_frame_t *frame,
-                                                   vlc_tick_t *dropped_frame_pcr);
+                                                   const heimdall_frame_t *frame,
+                                                   heimdall_tick_t *dropped_frame_pcr);
 
 /**
  * Signal a frame output from the processing unit.
@@ -81,13 +82,13 @@ int transcode_track_pcr_helper_SignalEnteringFrame(transcode_track_pcr_helper_t 
  * \note If the frame output has seen its timestamp altered, this helper will synthetise a new PCR.
  *
  * \param[in] frame The leaving frame (will be treated as a single frame).
- * \param[out] pcr The PCR value following the frame or VLC_TICK_INVALID if no PCR is following.
+ * \param[out] pcr The PCR value following the frame or HEIMDALL_TICK_INVALID if no PCR is following.
  *
- * \retval VLC_SUCCESS On success (even if no PCR is to be forwarded).
- * \retval VLC_EGENERIC On fatal frame mismatch error.
+ * \retval HEIMDALL_SUCCESS On success (even if no PCR is to be forwarded).
+ * \retval HEIMDALL_EGENERIC On fatal frame mismatch error.
  */
 int transcode_track_pcr_helper_SignalLeavingFrame(transcode_track_pcr_helper_t *,
-                                                  const vlc_frame_t *frame,
-                                                  vlc_tick_t *pcr);
+                                                  const heimdall_frame_t *frame,
+                                                  heimdall_tick_t *pcr);
 
 #endif

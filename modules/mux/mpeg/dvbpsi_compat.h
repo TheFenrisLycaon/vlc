@@ -2,6 +2,7 @@
  * dvbpsi_compat.h: Compatibility headerfile
  *****************************************************************************
  * Copyright (C) 2013 VideoLAN Association
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Jean-Paul Saman <jpsaman@videolan.org>
  *
@@ -25,7 +26,7 @@
 
 static inline void dvbpsi_messages(dvbpsi_t *p_dvbpsi, const dvbpsi_msg_level_t level, const char* msg)
 {
-    vlc_object_t *obj = (vlc_object_t *)p_dvbpsi->p_sys;
+    heimdall_object_t *obj = (heimdall_object_t *)p_dvbpsi->p_sys;
 
     /* See dvbpsi.h for the definition of these log levels.*/
     switch(level)

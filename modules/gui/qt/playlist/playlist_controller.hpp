@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,8 +17,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_QT_PLAYLIST_NEW_HPP_
-#define VLC_QT_PLAYLIST_NEW_HPP_
+#ifndef HEIMDALL_QT_PLAYLIST_NEW_HPP_
+#define HEIMDALL_QT_PLAYLIST_NEW_HPP_
 
 #ifdef HAVE_CONFIG_H
 # include "config.h"
@@ -33,12 +34,12 @@
 #include "playlist_common.hpp"
 #include "playlist_item.hpp"
 
-namespace vlc {
+namespace heimdall {
 namespace playlist {
 
-QVector<vlc::playlist::Media> toMediaList(const QVariantList &sources);
+QVector<heimdall::playlist::Media> toMediaList(const QVariantList &sources);
 
-using vlc_playlist_locker = vlc_locker<vlc_playlist_t, vlc_playlist_Lock, vlc_playlist_Unlock>;
+using heimdall_playlist_locker = heimdall_locker<heimdall_playlist_t, heimdall_playlist_Lock, heimdall_playlist_Unlock>;
 
 class PlaylistControllerPrivate;
 class PlaylistController : public QObject
@@ -49,43 +50,43 @@ class PlaylistController : public QObject
 public:
     enum PlaybackRepeat
     {
-        PLAYBACK_REPEAT_NONE = VLC_PLAYLIST_PLAYBACK_REPEAT_NONE,
-        PLAYBACK_REPEAT_CURRENT = VLC_PLAYLIST_PLAYBACK_REPEAT_CURRENT,
-        PLAYBACK_REPEAT_ALL = VLC_PLAYLIST_PLAYBACK_REPEAT_ALL
+        PLAYBACK_REPEAT_NONE = HEIMDALL_PLAYLIST_PLAYBACK_REPEAT_NONE,
+        PLAYBACK_REPEAT_CURRENT = HEIMDALL_PLAYLIST_PLAYBACK_REPEAT_CURRENT,
+        PLAYBACK_REPEAT_ALL = HEIMDALL_PLAYLIST_PLAYBACK_REPEAT_ALL
     };
     Q_ENUM(PlaybackRepeat)
 
     enum SortKey
     {
-        SORT_KEY_TITLE = VLC_PLAYLIST_SORT_KEY_TITLE,
-        SORT_KEY_DURATION = VLC_PLAYLIST_SORT_KEY_DURATION,
-        SORT_KEY_ARTIST = VLC_PLAYLIST_SORT_KEY_ARTIST,
-        SORT_KEY_ALBUM = VLC_PLAYLIST_SORT_KEY_ALBUM,
-        SORT_KEY_ALBUM_ARTIST = VLC_PLAYLIST_SORT_KEY_ALBUM_ARTIST,
-        SORT_KEY_GENRE = VLC_PLAYLIST_SORT_KEY_GENRE,
-        SORT_KEY_DATE = VLC_PLAYLIST_SORT_KEY_DATE,
-        SORT_KEY_TRACK_NUMBER = VLC_PLAYLIST_SORT_KEY_TRACK_NUMBER,
-        SORT_KEY_DISC_NUMBER = VLC_PLAYLIST_SORT_KEY_DISC_NUMBER,
-        SORT_KEY_URL = VLC_PLAYLIST_SORT_KEY_URL,
-        SORT_KEY_RATING = VLC_PLAYLIST_SORT_KEY_RATING,
-        SORT_KEY_FILE_SIZE = VLC_PLAYLIST_SORT_KEY_FILE_SIZE,
-        SORT_KEY_FILE_MODIFIED = VLC_PLAYLIST_SORT_KEY_FILE_MODIFIED,
+        SORT_KEY_TITLE = HEIMDALL_PLAYLIST_SORT_KEY_TITLE,
+        SORT_KEY_DURATION = HEIMDALL_PLAYLIST_SORT_KEY_DURATION,
+        SORT_KEY_ARTIST = HEIMDALL_PLAYLIST_SORT_KEY_ARTIST,
+        SORT_KEY_ALBUM = HEIMDALL_PLAYLIST_SORT_KEY_ALBUM,
+        SORT_KEY_ALBUM_ARTIST = HEIMDALL_PLAYLIST_SORT_KEY_ALBUM_ARTIST,
+        SORT_KEY_GENRE = HEIMDALL_PLAYLIST_SORT_KEY_GENRE,
+        SORT_KEY_DATE = HEIMDALL_PLAYLIST_SORT_KEY_DATE,
+        SORT_KEY_TRACK_NUMBER = HEIMDALL_PLAYLIST_SORT_KEY_TRACK_NUMBER,
+        SORT_KEY_DISC_NUMBER = HEIMDALL_PLAYLIST_SORT_KEY_DISC_NUMBER,
+        SORT_KEY_URL = HEIMDALL_PLAYLIST_SORT_KEY_URL,
+        SORT_KEY_RATING = HEIMDALL_PLAYLIST_SORT_KEY_RATING,
+        SORT_KEY_FILE_SIZE = HEIMDALL_PLAYLIST_SORT_KEY_FILE_SIZE,
+        SORT_KEY_FILE_MODIFIED = HEIMDALL_PLAYLIST_SORT_KEY_FILE_MODIFIED,
         SORT_KEY_NONE
     };
     Q_ENUM(SortKey)
 
     enum SortOrder
     {
-        SORT_ORDER_ASC = VLC_PLAYLIST_SORT_ORDER_ASCENDING,
-        SORT_ORDER_DESC = VLC_PLAYLIST_SORT_ORDER_DESCENDING,
+        SORT_ORDER_ASC = HEIMDALL_PLAYLIST_SORT_ORDER_ASCENDING,
+        SORT_ORDER_DESC = HEIMDALL_PLAYLIST_SORT_ORDER_DESCENDING,
     };
     Q_ENUM(SortOrder)
 
     enum MediaStopAction
     {
-        MEDIA_STOPPED_CONTINUE = VLC_PLAYLIST_MEDIA_STOPPED_CONTINUE,
-        MEDIA_STOPPED_STOP = VLC_PLAYLIST_MEDIA_STOPPED_STOP,
-        MEDIA_STOPPED_EXIT = VLC_PLAYLIST_MEDIA_STOPPED_EXIT
+        MEDIA_STOPPED_CONTINUE = HEIMDALL_PLAYLIST_MEDIA_STOPPED_CONTINUE,
+        MEDIA_STOPPED_STOP = HEIMDALL_PLAYLIST_MEDIA_STOPPED_STOP,
+        MEDIA_STOPPED_EXIT = HEIMDALL_PLAYLIST_MEDIA_STOPPED_EXIT
     };
     Q_ENUM(MediaStopAction)
 
@@ -133,7 +134,7 @@ public:
     void remove(const QVector<PlaylistItem> &, ssize_t indexHint);
 
     Q_INVOKABLE void shuffle();
-    void sort(const QVector<vlc_playlist_sort_criterion> &);
+    void sort(const QVector<heimdall_playlist_sort_criterion> &);
 
     Q_INVOKABLE void sort(SortKey key, SortOrder order);
     Q_INVOKABLE void sort(SortKey key);
@@ -144,7 +145,7 @@ public:
     int serialize(const QString& fileName);
 
 public:
-    PlaylistController(vlc_playlist_t *playlist, QObject *parent = nullptr);
+    PlaylistController(heimdall_playlist_t *playlist, QObject *parent = nullptr);
     virtual ~PlaylistController();
 
 
@@ -205,6 +206,6 @@ private:
 };
 
 } // namespace playlist
-} // namespace vlc
+} // namespace heimdall
 
 #endif

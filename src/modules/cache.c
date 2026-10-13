@@ -2,6 +2,7 @@
  * cache.c: Plugins cache
  *****************************************************************************
  * Copyright (C) 2001-2007 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Sam Hocevar <sam@zoy.org>
  *          Ethan C. Baldridge <BaldridgeE@cadmus.com>
@@ -37,16 +38,16 @@
 #include <unistd.h>
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_block.h>
-#include "../libvlc.h"
+#include <heimdall_common.h>
+#include <heimdall_block.h>
+#include "../libheimdall.h"
 
-#include <vlc_plugin.h>
+#include <heimdall_plugin.h>
 #include <errno.h>
 
 #include "config/configuration.h"
 
-#include <vlc_fs.h>
+#include <heimdall_fs.h>
 
 #include "modules/modules.h"
 
@@ -65,7 +66,7 @@
 #define CACHE_STRING "cache "PACKAGE_NAME" "PACKAGE_VERSION
 
 
-static int vlc_cache_load_immediate(void *out, block_t *in, size_t size)
+static int heimdall_cache_load_immediate(void *out, block_t *in, size_t size)
 {
     if (in->i_buffer < size)
         return -1;
@@ -76,18 +77,18 @@ static int vlc_cache_load_immediate(void *out, block_t *in, size_t size)
     return 0;
 }
 
-static int vlc_cache_load_bool(bool *out, block_t *in)
+static int heimdall_cache_load_bool(bool *out, block_t *in)
 {
     unsigned char b;
 
-    if (vlc_cache_load_immediate(&b, in, 1) || b > 1)
+    if (heimdall_cache_load_immediate(&b, in, 1) || b > 1)
         return -1;
 
     *out = b;
     return 0;
 }
 
-static int vlc_cache_load_array(const void **p, size_t size, size_t n,
+static int heimdall_cache_load_array(const void **p, size_t size, size_t n,
                                 block_t *file)
 {
     if (n == 0)
@@ -110,11 +111,11 @@ static int vlc_cache_load_array(const void **p, size_t size, size_t n,
     return 0;
 }
 
-static int vlc_cache_load_string(const char **restrict p, block_t *file)
+static int heimdall_cache_load_string(const char **restrict p, block_t *file)
 {
     uint16_t size;
 
-    if (vlc_cache_load_immediate(&size, file, sizeof (size)) || size > 16384)
+    if (heimdall_cache_load_immediate(&size, file, sizeof (size)) || size > 16384)
         return -1;
 
     if (size == 0)
@@ -134,7 +135,7 @@ static int vlc_cache_load_string(const char **restrict p, block_t *file)
     return 0;
 }
 
-static int vlc_cache_load_align(size_t align, block_t *file)
+static int heimdall_cache_load_align(size_t align, block_t *file)
 {
     assert(align > 0);
 
@@ -154,13 +155,13 @@ static int vlc_cache_load_align(size_t align, block_t *file)
 }
 
 #define LOAD_IMMEDIATE(a) \
-    if (vlc_cache_load_immediate(&(a), file, sizeof (a))) \
+    if (heimdall_cache_load_immediate(&(a), file, sizeof (a))) \
         goto error
 #define LOAD_FLAG(a) \
     do \
     { \
         bool b; \
-        if (vlc_cache_load_bool(&b, file)) \
+        if (heimdall_cache_load_bool(&b, file)) \
             goto error; \
         (a) = b; \
     } while (0)
@@ -168,18 +169,18 @@ static int vlc_cache_load_align(size_t align, block_t *file)
     do \
     { \
         const void *base; \
-        if (vlc_cache_load_array(&base, sizeof (*(a)), (n), file)) \
+        if (heimdall_cache_load_array(&base, sizeof (*(a)), (n), file)) \
             goto error; \
         (a) = base; \
     } while (0)
 #define LOAD_STRING(a) \
-    if (vlc_cache_load_string(&(a), file)) \
+    if (heimdall_cache_load_string(&(a), file)) \
         goto error
 #define LOAD_ALIGNOF(t) \
-    if (vlc_cache_load_align(alignof(t), file)) \
+    if (heimdall_cache_load_align(alignof(t), file)) \
         goto error
 
-static int vlc_cache_load_config(struct vlc_param *param, block_t *file)
+static int heimdall_cache_load_config(struct heimdall_param *param, block_t *file)
 {
     module_config_t *cfg = &param->item;
 
@@ -201,7 +202,7 @@ static int vlc_cache_load_config(struct vlc_param *param, block_t *file)
         LOAD_STRING(psz);
         cfg->orig.psz = (char *)psz;
         atomic_init(&param->value.str, NULL);
-        vlc_param_SetString(param, psz);
+        heimdall_param_SetString(param, psz);
 
         if (cfg->list_count)
             cfg->list.psz = xmalloc (cfg->list_count * sizeof (char *));
@@ -248,7 +249,7 @@ error:
     return -1; /* FIXME: leaks */
 }
 
-static int vlc_cache_load_plugin_config(vlc_plugin_t *plugin, block_t *file)
+static int heimdall_cache_load_plugin_config(heimdall_plugin_t *plugin, block_t *file)
 {
     uint16_t lines;
 
@@ -258,7 +259,7 @@ static int vlc_cache_load_plugin_config(vlc_plugin_t *plugin, block_t *file)
     /* Allocate memory */
     if (lines)
     {
-        plugin->conf.params = calloc(lines, sizeof (struct vlc_param));
+        plugin->conf.params = calloc(lines, sizeof (struct heimdall_param));
         if (unlikely(plugin->conf.params == NULL))
         {
             plugin->conf.size = 0;
@@ -273,10 +274,10 @@ static int vlc_cache_load_plugin_config(vlc_plugin_t *plugin, block_t *file)
     /* Do the duplication job */
     for (size_t i = 0; i < lines; i++)
     {
-        struct vlc_param *param = plugin->conf.params + i;
+        struct heimdall_param *param = plugin->conf.params + i;
         module_config_t *item = &param->item;
 
-        if (vlc_cache_load_config(param, file))
+        if (heimdall_cache_load_config(param, file))
             return -1;
 
         if (CONFIG_ITEM(item->i_type))
@@ -293,9 +294,9 @@ error:
     return -1; /* FIXME: leaks */
 }
 
-static int vlc_cache_load_module(vlc_plugin_t *plugin, block_t *file)
+static int heimdall_cache_load_module(heimdall_plugin_t *plugin, block_t *file)
 {
-    module_t *module = vlc_module_create(plugin);
+    module_t *module = heimdall_module_create(plugin);
     if (unlikely(module == NULL))
         return -1;
 
@@ -324,9 +325,9 @@ error:
     return -1;
 }
 
-static vlc_plugin_t *vlc_cache_load_plugin(block_t *file)
+static heimdall_plugin_t *heimdall_cache_load_plugin(block_t *file)
 {
-    vlc_plugin_t *plugin = vlc_plugin_create();
+    heimdall_plugin_t *plugin = heimdall_plugin_create();
     if (unlikely(plugin == NULL))
         return NULL;
 
@@ -334,10 +335,10 @@ static vlc_plugin_t *vlc_cache_load_plugin(block_t *file)
     LOAD_IMMEDIATE(modules);
 
     for (size_t i = 0; i < modules; i++)
-        if (vlc_cache_load_module(plugin, file))
+        if (heimdall_cache_load_module(plugin, file))
             goto error;
 
-    if (vlc_cache_load_plugin_config(plugin, file))
+    if (heimdall_cache_load_plugin_config(plugin, file))
         goto error;
 
     LOAD_STRING(plugin->textdomain);
@@ -356,12 +357,12 @@ static vlc_plugin_t *vlc_cache_load_plugin(block_t *file)
     LOAD_IMMEDIATE(plugin->size);
 
     if (plugin->textdomain != NULL)
-        vlc_bindtextdomain(plugin->textdomain);
+        heimdall_bindtextdomain(plugin->textdomain);
 
     return plugin;
 
 error:
-    vlc_plugin_destroy(plugin);
+    heimdall_plugin_destroy(plugin);
     return NULL;
 }
 
@@ -373,7 +374,7 @@ error:
  * actually load the dynamically loadable module.
  * This allows us to only fully load plugins when they are actually used.
  */
-vlc_plugin_t *vlc_cache_load(libvlc_int_t *p_this, const char *dir,
+heimdall_plugin_t *heimdall_cache_load(libheimdall_int_t *p_this, const char *dir,
                              block_t **backingp)
 {
     char *psz_filename;
@@ -388,7 +389,7 @@ vlc_plugin_t *vlc_cache_load(libvlc_int_t *p_this, const char *dir,
     block_t *file = block_FilePath(psz_filename, false);
     if (file == NULL)
         msg_Warn(p_this, "cannot read %s: %s", psz_filename,
-                 vlc_strerror_c(errno));
+                 heimdall_strerror_c(errno));
     free(psz_filename);
     if (file == NULL)
         return NULL;
@@ -396,7 +397,7 @@ vlc_plugin_t *vlc_cache_load(libvlc_int_t *p_this, const char *dir,
     /* Check the file is a plugins cache */
     char cachestr[sizeof (CACHE_STRING) - 1];
 
-    if (vlc_cache_load_immediate(cachestr, file, sizeof (cachestr))
+    if (heimdall_cache_load_immediate(cachestr, file, sizeof (cachestr))
      || memcmp(cachestr, CACHE_STRING, sizeof (cachestr)))
     {
         msg_Warn( p_this, "This doesn't look like a valid plugins cache" );
@@ -408,7 +409,7 @@ vlc_plugin_t *vlc_cache_load(libvlc_int_t *p_this, const char *dir,
     /* Check for distribution specific version */
     char distrostr[sizeof (DISTRO_VERSION) - 1];
 
-    if (vlc_cache_load_immediate(distrostr, file, sizeof (distrostr))
+    if (heimdall_cache_load_immediate(distrostr, file, sizeof (distrostr))
      || memcmp(distrostr, DISTRO_VERSION, sizeof (distrostr)))
     {
         msg_Warn( p_this, "This doesn't look like a valid plugins cache" );
@@ -420,7 +421,7 @@ vlc_plugin_t *vlc_cache_load(libvlc_int_t *p_this, const char *dir,
     /* Check sub-version number */
     uint32_t marker;
 
-    if (vlc_cache_load_immediate(&marker, file, sizeof (marker))
+    if (heimdall_cache_load_immediate(&marker, file, sizeof (marker))
      || marker != CACHE_SUBVERSION_NUM)
     {
         msg_Warn( p_this, "This doesn't look like a valid plugins cache "
@@ -430,7 +431,7 @@ vlc_plugin_t *vlc_cache_load(libvlc_int_t *p_this, const char *dir,
     }
 
     /* Check header marker */
-    if (vlc_cache_load_immediate(&marker, file, sizeof (marker))
+    if (heimdall_cache_load_immediate(&marker, file, sizeof (marker))
 #ifdef DISTRO_VERSION
      || marker != (sizeof (cachestr) + sizeof (distrostr) + sizeof (marker))
 #else
@@ -444,11 +445,11 @@ vlc_plugin_t *vlc_cache_load(libvlc_int_t *p_this, const char *dir,
         return NULL;
     }
 
-    vlc_plugin_t *cache = NULL;
+    heimdall_plugin_t *cache = NULL;
 
     while (file->i_buffer > 0)
     {
-        vlc_plugin_t *plugin = vlc_cache_load_plugin(file);
+        heimdall_plugin_t *plugin = heimdall_cache_load_plugin(file);
         if (plugin == NULL)
             goto error;
 
@@ -456,7 +457,7 @@ vlc_plugin_t *vlc_cache_load(libvlc_int_t *p_this, const char *dir,
                               plugin->path) == -1))
         {
             plugin->abspath = NULL;
-            vlc_plugin_destroy(plugin);
+            heimdall_plugin_destroy(plugin);
             goto error;
         }
 
@@ -518,7 +519,7 @@ static int CacheSaveAlign(FILE *file, size_t align)
     if (CacheSaveAlign(file, alignof (t))) \
         goto error
 
-static int CacheSaveConfig(FILE *file, const struct vlc_param *param)
+static int CacheSaveConfig(FILE *file, const struct heimdall_param *param)
 {
     const module_config_t *cfg = &param->item;
 
@@ -563,7 +564,7 @@ error:
     return -1;
 }
 
-static int CacheSaveModuleConfig(FILE *file, const vlc_plugin_t *plugin)
+static int CacheSaveModuleConfig(FILE *file, const heimdall_plugin_t *plugin)
 {
     uint16_t lines = plugin->conf.size;
 
@@ -598,7 +599,7 @@ error:
     return -1;
 }
 
-static int CacheSaveBank(FILE *file, vlc_plugin_t *const *cache, size_t n)
+static int CacheSaveBank(FILE *file, heimdall_plugin_t *const *cache, size_t n)
 {
     uint32_t i_file_size = 0;
 
@@ -623,7 +624,7 @@ static int CacheSaveBank(FILE *file, vlc_plugin_t *const *cache, size_t n)
 
     for (size_t i = 0; i < n; i++)
     {
-        const vlc_plugin_t *plugin = cache[i];
+        const heimdall_plugin_t *plugin = cache[i];
         uint32_t count = plugin->modules_count;
 
         SAVE_IMMEDIATE(count);
@@ -657,8 +658,8 @@ error:
 /**
  * Saves a module cache to disk, and release cache data from memory.
  */
-void CacheSave(libvlc_int_t *p_this, const char *dir,
-               vlc_plugin_t *const *entries, size_t n)
+void CacheSave(libheimdall_int_t *p_this, const char *dir,
+               heimdall_plugin_t *const *entries, size_t n)
 {
     char *filename = NULL, *tmpname = NULL;
 
@@ -672,32 +673,32 @@ void CacheSave(libvlc_int_t *p_this, const char *dir,
     }
     msg_Dbg (p_this, "saving plugins cache %s", filename);
 
-    FILE *file = vlc_fopen (tmpname, "wb");
+    FILE *file = heimdall_fopen (tmpname, "wb");
     if (file == NULL)
     {
         if (errno != EACCES && errno != ENOENT)
             msg_Warn (p_this, "cannot create %s: %s", tmpname,
-                      vlc_strerror_c(errno));
+                      heimdall_strerror_c(errno));
         goto out;
     }
 
     if (CacheSaveBank(file, entries, n))
     {
         msg_Warn (p_this, "cannot write %s: %s", tmpname,
-                  vlc_strerror_c(errno));
+                  heimdall_strerror_c(errno));
         clearerr (file);
         fclose (file);
-        vlc_unlink (tmpname);
+        heimdall_unlink (tmpname);
         goto out;
     }
 
 #if !defined( _WIN32 ) && !defined( __OS2__ )
-    vlc_rename (tmpname, filename); /* atomically replace old cache */
+    heimdall_rename (tmpname, filename); /* atomically replace old cache */
     fclose (file);
 #else
-    vlc_unlink (filename);
+    heimdall_unlink (filename);
     fclose (file);
-    vlc_rename (tmpname, filename);
+    heimdall_rename (tmpname, filename);
 #endif
 out:
     free (filename);
@@ -707,9 +708,9 @@ out:
 /**
  * Looks up a plugin file in a table of cached plugins.
  */
-vlc_plugin_t *vlc_cache_lookup(vlc_plugin_t **cache, const char *path)
+heimdall_plugin_t *heimdall_cache_lookup(heimdall_plugin_t **cache, const char *path)
 {
-    vlc_plugin_t **pp = cache, *plugin;
+    heimdall_plugin_t **pp = cache, *plugin;
 
     while ((plugin = *pp) != NULL)
     {

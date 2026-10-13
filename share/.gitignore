@@ -1,4 +1,4 @@
-vlc.desktop
-vlc-*.desktop
-org.videolan.vlc.appdata.xml
-org.videolan.vlc.appdata.xml.in
+heimdall.desktop
+heimdall-*.desktop
+com.lycaria.heimdall.appdata.xml
+com.lycaria.heimdall.appdata.xml.in

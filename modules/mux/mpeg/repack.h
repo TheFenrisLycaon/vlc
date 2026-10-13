@@ -2,6 +2,7 @@
  * repack.h: Codec specific formatting for AnnexB multiplexers
  *****************************************************************************
  * Copyright (C) 2011 VideoLabs, VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -18,6 +19,6 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-block_t * PES_Repack(vlc_fourcc_t i_codec,
+block_t * PES_Repack(heimdall_fourcc_t i_codec,
                      const uint8_t *p_extra, size_t i_extra,
                      block_t **pp_pes);

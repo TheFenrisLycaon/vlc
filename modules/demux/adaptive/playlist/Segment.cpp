@@ -2,6 +2,7 @@
  * Segment.cpp
  *****************************************************************************
  * Copyright (C) 2010 - 2011 Klagenfurt University
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Created on: Aug 10, 2010
  * Authors: Christopher Mueller <christopher.mueller@itec.uni-klu.ac.at>
@@ -52,7 +53,7 @@ ISegment::ISegment(const ICanonicalUrl *parent):
     discontinuitySequenceNumber = std::numeric_limits<uint64_t>::max();
     templated = false;
     discontinuity = false;
-    displayTime = VLC_TICK_INVALID;
+    displayTime = HEIMDALL_TICK_INVALID;
 }
 
 ISegment::~ISegment()
@@ -154,7 +155,7 @@ size_t ISegment::getOffset() const
     return startByte;
 }
 
-void ISegment::debug(vlc_object_t *obj, int indent) const
+void ISegment::debug(heimdall_object_t *obj, int indent) const
 {
     std::stringstream ss;
     ss.imbue(std::locale("C"));
@@ -187,12 +188,12 @@ void ISegment::setEncryption(CommonEncryption &e)
     encryption = e;
 }
 
-void ISegment::setDisplayTime(vlc_tick_t t)
+void ISegment::setDisplayTime(heimdall_tick_t t)
 {
     displayTime = t;
 }
 
-vlc_tick_t ISegment::getDisplayTime() const
+heimdall_tick_t ISegment::getDisplayTime() const
 {
     return displayTime;
 }
@@ -232,7 +233,7 @@ void                    Segment::setSourceUrl   ( const std::string &url )
         this->sourceUrl = Url(url);
 }
 
-void Segment::debug(vlc_object_t *obj, int indent) const
+void Segment::debug(heimdall_object_t *obj, int indent) const
 {
     if (subsegments.empty())
     {

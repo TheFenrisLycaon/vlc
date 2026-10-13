@@ -3,12 +3,13 @@
  * loudness.c: audio loudness meter player test
  *****************************************************************************
  * Copyright (C) 2018-2025 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *****************************************************************************/
 
 #include "common.h"
 
 static void
-test_audio_loudness_meter_cb(vlc_tick_t date, double momentary_loudness,
+test_audio_loudness_meter_cb(heimdall_tick_t date, double momentary_loudness,
                              void *data)
 {
     (void) date;
@@ -23,9 +24,9 @@ test_audio_loudness_meter(struct ctx *ctx)
 {
     test_log("test_audio_loudness_meter\n");
 
-    vlc_player_t *player = ctx->player;
+    heimdall_player_t *player = ctx->player;
 
-    static const union vlc_player_metadata_cbs cbs = {
+    static const union heimdall_player_metadata_cbs cbs = {
         test_audio_loudness_meter_cb,
     };
 
@@ -35,7 +36,7 @@ test_audio_loudness_meter(struct ctx *ctx)
         return;
     }
 
-    struct media_params params = DEFAULT_MEDIA_PARAMS(VLC_TICK_FROM_SEC(1));
+    struct media_params params = DEFAULT_MEDIA_PARAMS(HEIMDALL_TICK_FROM_SEC(1));
     params.track_count[AUDIO_ES] = 1;
     params.track_count[VIDEO_ES] = 0;
     params.track_count[SPU_ES] = 0;
@@ -47,18 +48,18 @@ test_audio_loudness_meter(struct ctx *ctx)
     player_set_next_mock_media(ctx, "media1", &params);
 
     bool loudness_meter_received = false;
-    vlc_player_metadata_listener_id *listener_id =
-        vlc_player_AddMetadataListener(player, VLC_PLAYER_METADATA_LOUDNESS_MOMENTARY,
+    heimdall_player_metadata_listener_id *listener_id =
+        heimdall_player_AddMetadataListener(player, HEIMDALL_PLAYER_METADATA_LOUDNESS_MOMENTARY,
                                        &cbs, &loudness_meter_received);
     assert(listener_id);
 
     player_start(ctx);
-    wait_state(ctx, VLC_PLAYER_STATE_STARTED);
-    wait_state(ctx, VLC_PLAYER_STATE_STOPPED);
+    wait_state(ctx, HEIMDALL_PLAYER_STATE_STARTED);
+    wait_state(ctx, HEIMDALL_PLAYER_STATE_STOPPED);
 
     assert(loudness_meter_received);
 
-    vlc_player_RemoveMetadataListener(player, listener_id);
+    heimdall_player_RemoveMetadataListener(player, listener_id);
     test_end(ctx);
 }
 

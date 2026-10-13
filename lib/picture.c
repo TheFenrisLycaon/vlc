@@ -1,7 +1,8 @@
 /*****************************************************************************
- * picture.c:  libvlc API picture management
+ * picture.c:  libheimdall API picture management
  *****************************************************************************
  * Copyright (C) 2018 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Hugo Beauzée-Luyssen <hugo@beauzee.fr>
  *
@@ -26,59 +27,59 @@
 
 #include <stdckdint.h>
 
-#include <vlc/libvlc.h>
-#include <vlc/libvlc_picture.h>
-#include "libvlc_internal.h"
+#include <heimdall/libheimdall.h>
+#include <heimdall/libheimdall_picture.h>
+#include "libheimdall_internal.h"
 
-#include <vlc_atomic.h>
-#include <vlc_picture.h>
-#include <vlc_block.h>
-#include <vlc_image.h>
-#include <vlc_input.h>
-#include <vlc_fs.h>
+#include <heimdall_atomic.h>
+#include <heimdall_picture.h>
+#include <heimdall_block.h>
+#include <heimdall_image.h>
+#include <heimdall_input.h>
+#include <heimdall_fs.h>
 
 #include "picture_internal.h"
 
-struct libvlc_picture_t
+struct libheimdall_picture_t
 {
-    vlc_atomic_rc_t rc;
-    libvlc_picture_type_t type;
+    heimdall_atomic_rc_t rc;
+    libheimdall_picture_type_t type;
     block_t* converted;
     video_format_t fmt;
-    libvlc_time_t time;
+    libheimdall_time_t time;
     input_attachment_t* attachment;
 };
 
-struct libvlc_picture_list_t
+struct libheimdall_picture_list_t
 {
     size_t count;
-    libvlc_picture_t* pictures[];
+    libheimdall_picture_t* pictures[];
 };
 
-libvlc_picture_t* libvlc_picture_new( vlc_object_t* p_obj, picture_t* input,
-                                      libvlc_picture_type_t type,
+libheimdall_picture_t* libheimdall_picture_new( heimdall_object_t* p_obj, picture_t* input,
+                                      libheimdall_picture_type_t type,
                                       unsigned int width, unsigned int height,
                                       bool crop )
 {
-    libvlc_picture_t *pic = malloc( sizeof( *pic ) );
+    libheimdall_picture_t *pic = malloc( sizeof( *pic ) );
     if ( unlikely( pic == NULL ) )
         return NULL;
-    vlc_atomic_rc_init( &pic->rc );
+    heimdall_atomic_rc_init( &pic->rc );
     pic->type = type;
-    pic->time = libvlc_time_from_vlc_tick( input->date );
+    pic->time = libheimdall_time_from_heimdall_tick( input->date );
     pic->attachment = NULL;
 
-    static const vlc_fourcc_t table[] = {
-        [libvlc_picture_Jpg] = VLC_CODEC_JPEG,
-        [libvlc_picture_Png] = VLC_CODEC_PNG,
-        [libvlc_picture_Argb] = VLC_CODEC_ARGB,
-        [libvlc_picture_WebP] = VLC_CODEC_WEBP,
-        [libvlc_picture_Rgba] = VLC_CODEC_RGBA,
+    static const heimdall_fourcc_t table[] = {
+        [libheimdall_picture_Jpg] = HEIMDALL_CODEC_JPEG,
+        [libheimdall_picture_Png] = HEIMDALL_CODEC_PNG,
+        [libheimdall_picture_Argb] = HEIMDALL_CODEC_ARGB,
+        [libheimdall_picture_WebP] = HEIMDALL_CODEC_WEBP,
+        [libheimdall_picture_Rgba] = HEIMDALL_CODEC_RGBA,
     };
     assert(ARRAY_SIZE(table) > type && table[type] != 0);
-    vlc_fourcc_t format = table[type];
+    heimdall_fourcc_t format = table[type];
 
-    /* libvlc's API uses unsigned dimensions where both 0 means "same size as
+    /* libheimdall's API uses unsigned dimensions where both 0 means "same size as
        the media". picture_Export expresses that with negative dimensions, so
        translate the convention here. */
     int export_width = width, export_height = height;
@@ -86,7 +87,7 @@ libvlc_picture_t* libvlc_picture_new( vlc_object_t* p_obj, picture_t* input,
         export_width = export_height = -1;
 
     if ( picture_Export( p_obj, &pic->converted, &pic->fmt,
-                         input, format, export_width, export_height, crop ) != VLC_SUCCESS )
+                         input, format, export_width, export_height, crop ) != HEIMDALL_SUCCESS )
     {
         free( pic );
         return NULL;
@@ -95,36 +96,36 @@ libvlc_picture_t* libvlc_picture_new( vlc_object_t* p_obj, picture_t* input,
     return pic;
 }
 
-static void libvlc_picture_block_release( block_t* block )
+static void libheimdall_picture_block_release( block_t* block )
 {
     free( block );
 }
 
-static const struct vlc_block_callbacks block_cbs =
+static const struct heimdall_block_callbacks block_cbs =
 {
-    libvlc_picture_block_release,
+    libheimdall_picture_block_release,
 };
 
-static bool IsSupportedByLibVLC(vlc_fourcc_t fcc)
+static bool IsSupportedByLibHeimdall(heimdall_fourcc_t fcc)
 {
     switch (fcc)
     {
-        case VLC_CODEC_PNG:
-        case VLC_CODEC_JPEG:
-        case VLC_CODEC_WEBP:
+        case HEIMDALL_CODEC_PNG:
+        case HEIMDALL_CODEC_JPEG:
+        case HEIMDALL_CODEC_WEBP:
             return true;
         default:
             return false;
     }
 }
 
-static libvlc_picture_t* libvlc_picture_from_attachment( input_attachment_t* attachment )
+static libheimdall_picture_t* libheimdall_picture_from_attachment( input_attachment_t* attachment )
 {
-    vlc_fourcc_t fcc = image_Mime2Fourcc( attachment->psz_mime );
-    if (!IsSupportedByLibVLC(fcc))
+    heimdall_fourcc_t fcc = image_Mime2Fourcc( attachment->psz_mime );
+    if (!IsSupportedByLibHeimdall(fcc))
         return NULL;
 
-    libvlc_picture_t *pic = malloc( sizeof( *pic ) );
+    libheimdall_picture_t *pic = malloc( sizeof( *pic ) );
     if ( unlikely( pic == NULL ) )
         return NULL;
     pic->converted = block_New(&block_cbs, attachment->p_data,
@@ -134,49 +135,49 @@ static libvlc_picture_t* libvlc_picture_from_attachment( input_attachment_t* att
         free(pic);
         return NULL;
     }
-    vlc_atomic_rc_init( &pic->rc );
-    pic->attachment = vlc_input_attachment_Hold( attachment );
-    pic->time = VLC_TICK_INVALID;
+    heimdall_atomic_rc_init( &pic->rc );
+    pic->attachment = heimdall_input_attachment_Hold( attachment );
+    pic->time = HEIMDALL_TICK_INVALID;
     video_format_Init( &pic->fmt, 0 );
     switch ( fcc )
     {
-    case VLC_CODEC_PNG:
-        pic->type = libvlc_picture_Png;
+    case HEIMDALL_CODEC_PNG:
+        pic->type = libheimdall_picture_Png;
         break;
-    case VLC_CODEC_JPEG:
-        pic->type = libvlc_picture_Jpg;
+    case HEIMDALL_CODEC_JPEG:
+        pic->type = libheimdall_picture_Jpg;
         break;
-    case VLC_CODEC_WEBP:
-        pic->type = libvlc_picture_WebP;
+    case HEIMDALL_CODEC_WEBP:
+        pic->type = libheimdall_picture_WebP;
         break;
     default:
-        vlc_assert_unreachable();
+        heimdall_assert_unreachable();
     }
 
     return pic;
 }
 
-libvlc_picture_t *libvlc_picture_retain( libvlc_picture_t* pic )
+libheimdall_picture_t *libheimdall_picture_retain( libheimdall_picture_t* pic )
 {
-    vlc_atomic_rc_inc( &pic->rc );
+    heimdall_atomic_rc_inc( &pic->rc );
     return pic;
 }
 
-void libvlc_picture_release( libvlc_picture_t* pic )
+void libheimdall_picture_release( libheimdall_picture_t* pic )
 {
-    if ( vlc_atomic_rc_dec( &pic->rc ) == false )
+    if ( heimdall_atomic_rc_dec( &pic->rc ) == false )
         return;
     video_format_Clean( &pic->fmt );
     if ( pic->converted )
         block_Release( pic->converted );
     if ( pic->attachment )
-        vlc_input_attachment_Release( pic->attachment );
+        heimdall_input_attachment_Release( pic->attachment );
     free( pic );
 }
 
-int libvlc_picture_save( const libvlc_picture_t* pic, const char* path )
+int libheimdall_picture_save( const libheimdall_picture_t* pic, const char* path )
 {
-    FILE* file = vlc_fopen( path, "wb" );
+    FILE* file = heimdall_fopen( path, "wb" );
     if ( !file )
         return -1;
     size_t res = fwrite( pic->converted->p_buffer,
@@ -185,7 +186,7 @@ int libvlc_picture_save( const libvlc_picture_t* pic, const char* path )
     return res == 1 ? 0 : -1;
 }
 
-const unsigned char* libvlc_picture_get_buffer( const libvlc_picture_t* pic,
+const unsigned char* libheimdall_picture_get_buffer( const libheimdall_picture_t* pic,
                                                 size_t *size )
 {
     assert( size != NULL );
@@ -193,38 +194,38 @@ const unsigned char* libvlc_picture_get_buffer( const libvlc_picture_t* pic,
     return pic->converted->p_buffer;
 }
 
-libvlc_picture_type_t libvlc_picture_type( const libvlc_picture_t* pic )
+libheimdall_picture_type_t libheimdall_picture_type( const libheimdall_picture_t* pic )
 {
     return pic->type;
 }
 
-unsigned int libvlc_picture_get_stride( const libvlc_picture_t *pic )
+unsigned int libheimdall_picture_get_stride( const libheimdall_picture_t *pic )
 {
-    assert( pic->type == libvlc_picture_Argb || pic->type == libvlc_picture_Rgba );
+    assert( pic->type == libheimdall_picture_Argb || pic->type == libheimdall_picture_Rgba );
     return pic->fmt.i_width * 4;
 }
 
-unsigned int libvlc_picture_get_width( const libvlc_picture_t* pic )
+unsigned int libheimdall_picture_get_width( const libheimdall_picture_t* pic )
 {
     return pic->fmt.i_visible_width;
 }
 
-unsigned int libvlc_picture_get_height( const libvlc_picture_t* pic )
+unsigned int libheimdall_picture_get_height( const libheimdall_picture_t* pic )
 {
     return pic->fmt.i_visible_height;
 }
 
-libvlc_time_t libvlc_picture_get_time( const libvlc_picture_t* pic )
+libheimdall_time_t libheimdall_picture_get_time( const libheimdall_picture_t* pic )
 {
     return pic->time;
 }
 
-libvlc_picture_list_t* libvlc_picture_list_from_attachments( input_attachment_t* const* attachments,
+libheimdall_picture_list_t* libheimdall_picture_list_from_attachments( input_attachment_t* const* attachments,
                                                              size_t nb_attachments )
 {
     size_t size = 0;
-    libvlc_picture_list_t* list;
-    if (ckd_mul(&size, nb_attachments, sizeof (libvlc_picture_t *)) ||
+    libheimdall_picture_list_t* list;
+    if (ckd_mul(&size, nb_attachments, sizeof (libheimdall_picture_t *)) ||
         ckd_add(&size, sizeof (*list), size))
         return NULL;
 
@@ -235,7 +236,7 @@ libvlc_picture_list_t* libvlc_picture_list_from_attachments( input_attachment_t*
     for ( size_t i = 0; i < nb_attachments; ++i )
     {
         input_attachment_t* a = attachments[i];
-        libvlc_picture_t *pic = libvlc_picture_from_attachment( a );
+        libheimdall_picture_t *pic = libheimdall_picture_from_attachment( a );
         if( !pic )
             continue;
         list->pictures[list->count] = pic;
@@ -244,24 +245,24 @@ libvlc_picture_list_t* libvlc_picture_list_from_attachments( input_attachment_t*
     return list;
 }
 
-size_t libvlc_picture_list_count( const libvlc_picture_list_t* list )
+size_t libheimdall_picture_list_count( const libheimdall_picture_list_t* list )
 {
     assert( list );
     return list->count;
 }
 
-libvlc_picture_t* libvlc_picture_list_at( const libvlc_picture_list_t* list,
+libheimdall_picture_t* libheimdall_picture_list_at( const libheimdall_picture_list_t* list,
                                           size_t index )
 {
     assert( list );
     return list->pictures[index];
 }
 
-void libvlc_picture_list_destroy( libvlc_picture_list_t* list )
+void libheimdall_picture_list_destroy( libheimdall_picture_list_t* list )
 {
     if ( !list )
         return;
     for ( size_t i = 0; i < list->count; ++i )
-        libvlc_picture_release( list->pictures[i] );
+        libheimdall_picture_release( list->pictures[i] );
     free( list );
 }

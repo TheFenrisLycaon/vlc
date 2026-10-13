@@ -1,5 +1,5 @@
 # Memory keystore
-vlc_modules += {
+heimdall_modules += {
     'name' : 'memory_keystore',
     'sources' : files('memory.c', 'list_util.c'),
     'plugin_dir' : 'keystore',
@@ -18,7 +18,7 @@ if host_system == 'android'
     file_keystore_extra_link += [libandroid_env]
 endif
 
-vlc_modules += {
+heimdall_modules += {
     'name' : 'file_keystore',
     'sources' : files('file.c', 'list_util.c') + file_keystore_extra_sources,
     'dependencies' : file_keystore_extra_deps,
@@ -29,7 +29,7 @@ vlc_modules += {
 # libsecret keystore
 libsecret_dep = dependency('libsecret-1', version: '>= 0.18', required: get_option('libsecret'))
 if libsecret_dep.found()
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'secret',
         'sources' : files('secret.c'),
         'dependencies' : [libsecret_dep],
@@ -39,7 +39,7 @@ endif
 
 # KWallet keystore
 if dbus_dep.found()
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'kwallet',
         'sources' : files('kwallet.c'),
         'dependencies' : [dbus_dep, m_lib],
@@ -49,7 +49,7 @@ endif
 
 # Keychain (for appleOSes)
 if host_system == 'darwin'
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'keychain',
         'sources' : files('keychain.m', 'list_util.c'),
         'objc_args' : ['-fobjc-arc'],

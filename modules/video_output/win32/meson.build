@@ -27,7 +27,7 @@ if get_option('amf_scaler').allowed()
 endif
 
 if get_option('directx').allowed()
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'direct3d11',
         'sources' : d3d11_sources,
         'link_with' : d3d11_link_with,
@@ -41,7 +41,7 @@ endif
 if have_win_desktop
     if get_option('directx').allowed()
         # Direct3D9 video output
-        vlc_modules += {
+        heimdall_modules += {
             'name' : 'direct3d9',
             'sources' : files('direct3d9.c', 'common.c', 'events.c', 'sensors.cpp', 'win32touch.c'),
             'link_with' : [ d3d9_common_lib, chroma_copy_lib ],
@@ -54,7 +54,7 @@ if have_win_desktop
     endif
 
     # GDI video output
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'wingdi',
         'sources' : files('wingdi.c', 'common.c', 'events.c', 'win32touch.c'),
         'link_with' : [ chroma_copy_lib ],
@@ -67,7 +67,7 @@ if have_win_desktop
     opengl32_lib = cc.find_library('opengl32', required: false)
     if opengl32_lib.found() and not missing_win_glew
         # glwin32
-        vlc_modules += {
+        heimdall_modules += {
             'name' : 'glwin32',
             'sources' : [
                 files('glwin32.c', 'common.c', 'events.c', 'sensors.cpp', 'win32touch.c'),
@@ -81,7 +81,7 @@ if have_win_desktop
         }
 
         # WGL
-        vlc_modules += {
+        heimdall_modules += {
             'name' : 'wgl',
             'sources' : files('wgl.c'),
             'c_args' : [ contrib_inc_args ],
@@ -91,21 +91,21 @@ if have_win_desktop
     endif
 
     # Desktop inhibit
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'winhibit',
         'sources' : files('inhibit.c'),
         'plugin_dir' : 'video_output',
     }
 
     # Window
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'win32_window',
         'sources' : files('window.c'),
         'plugin_dir' : 'video_output',
     }
 
     # Windows drawable
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'drawable',
         'sources' : files('drawable.c'),
         'plugin_dir' : 'video_output',

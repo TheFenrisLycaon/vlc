@@ -2,6 +2,7 @@
  * cmd_vars.cpp
  *****************************************************************************
  * Copyright (C) 2004 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cyril Deguet     <asmax@via.ecp.fr>
  *
@@ -21,7 +22,7 @@
  *****************************************************************************/
 
 #include "cmd_vars.hpp"
-#include "../src/vlcproc.hpp"
+#include "../src/heimdallproc.hpp"
 #include "../utils/var_text.hpp"
 #include "../vars/equalizer.hpp"
 #include "../vars/playtree.hpp"
@@ -29,7 +30,7 @@
 
 void CmdItemUpdate::execute()
 {
-    VlcProc::instance( getIntf() )->getPlaytreeVar().onUpdateItem( m_pos );
+    HeimdallProc::instance( getIntf() )->getPlaytreeVar().onUpdateItem( m_pos );
 }
 
 bool CmdItemUpdate::checkRemove( CmdGeneric *pQueuedCommand ) const
@@ -41,17 +42,17 @@ bool CmdItemUpdate::checkRemove( CmdGeneric *pQueuedCommand ) const
 
 void CmdItemPlaying::execute()
 {
-    VlcProc::instance( getIntf() )->getPlaytreeVar().onUpdatePlaying( m_pos );
+    HeimdallProc::instance( getIntf() )->getPlaytreeVar().onUpdatePlaying( m_pos );
 }
 
 void CmdPlaytreeAppend::execute()
 {
-    VlcProc::instance( getIntf() )->getPlaytreeVar().onAppend( m_pos );
+    HeimdallProc::instance( getIntf() )->getPlaytreeVar().onAppend( m_pos );
 }
 
 void CmdPlaytreeDelete::execute()
 {
-    VlcProc::instance( getIntf() )->getPlaytreeVar().onDelete( m_pos );
+    HeimdallProc::instance( getIntf() )->getPlaytreeVar().onDelete( m_pos );
 }
 
 void CmdSetText::execute()

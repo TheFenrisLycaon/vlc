@@ -2,6 +2,7 @@
  * message.c: HTTP request/response
  *****************************************************************************
  * Copyright (C) 2015 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -31,15 +32,15 @@
 #include <string.h>
 #include <time.h>
 
-#include <vlc_common.h>
-#include <vlc_http.h>
-#include <vlc_block.h>
-#include <vlc_strings.h>
-#include <vlc_memstream.h>
+#include <heimdall_common.h>
+#include <heimdall_http.h>
+#include <heimdall_block.h>
+#include <heimdall_strings.h>
+#include <heimdall_memstream.h>
 #include "message.h"
 #include "h2frame.h"
 
-struct vlc_http_msg
+struct heimdall_http_msg
 {
     short status;
     char *method;
@@ -48,17 +49,17 @@ struct vlc_http_msg
     char *path;
     char *(*headers)[2];
     unsigned count;
-    struct vlc_http_stream *payload;
+    struct heimdall_http_stream *payload;
 };
 
 /* Maximum alignment for safe conversion to/from any specific pointer type */
-static const char alignas (max_align_t) vlc_http_error_loc;
+static const char alignas (max_align_t) heimdall_http_error_loc;
 
-void *const vlc_http_error = (char *)&vlc_http_error_loc;
+void *const heimdall_http_error = (char *)&heimdall_http_error_loc;
 
-static bool vlc_http_is_token(const char *);
+static bool heimdall_http_is_token(const char *);
 
-static ssize_t vlc_http_msg_find_header(const struct vlc_http_msg *m,
+static ssize_t heimdall_http_msg_find_header(const struct heimdall_http_msg *m,
                                         const char *name)
 {
     for (unsigned i = 0; i < m->count; i++)
@@ -67,10 +68,10 @@ static ssize_t vlc_http_msg_find_header(const struct vlc_http_msg *m,
     return -1;
 }
 
-static int vlc_http_msg_vadd_header(struct vlc_http_msg *m, const char *name,
+static int heimdall_http_msg_vadd_header(struct heimdall_http_msg *m, const char *name,
                                     const char *fmt, va_list ap)
 {
-    if (!vlc_http_is_token(name))
+    if (!heimdall_http_is_token(name))
     {   /* Not a valid field name, i.e. not an HTTP token */
         errno = EINVAL;
         return -1;
@@ -101,7 +102,7 @@ static int vlc_http_msg_vadd_header(struct vlc_http_msg *m, const char *name,
 
     /* Fold identically named header field values. This is unfortunately not
      * possible for Set-Cookie, while Cookie requires a special separator. */
-    ssize_t idx = vlc_http_msg_find_header(m, name);
+    ssize_t idx = heimdall_http_msg_find_header(m, name);
     if (idx >= 0 && strcasecmp(name, "Set-Cookie"))
     {
         char *merged;
@@ -141,22 +142,22 @@ static int vlc_http_msg_vadd_header(struct vlc_http_msg *m, const char *name,
     return 0;
 }
 
-int vlc_http_msg_add_header(struct vlc_http_msg *m, const char *name,
+int heimdall_http_msg_add_header(struct heimdall_http_msg *m, const char *name,
                             const char *fmt, ...)
 {
     va_list ap;
     int ret;
 
     va_start(ap, fmt);
-    ret = vlc_http_msg_vadd_header(m, name, fmt, ap);
+    ret = heimdall_http_msg_vadd_header(m, name, fmt, ap);
     va_end(ap);
     return ret;
 }
 
-const char *vlc_http_msg_get_header(const struct vlc_http_msg *m,
+const char *heimdall_http_msg_get_header(const struct heimdall_http_msg *m,
                                     const char *name)
 {
-    ssize_t idx = vlc_http_msg_find_header(m, name);
+    ssize_t idx = heimdall_http_msg_find_header(m, name);
     if (idx < 0)
     {
         errno = ENOENT;
@@ -165,35 +166,35 @@ const char *vlc_http_msg_get_header(const struct vlc_http_msg *m,
     return m->headers[idx][1];
 }
 
-int vlc_http_msg_get_status(const struct vlc_http_msg *m)
+int heimdall_http_msg_get_status(const struct heimdall_http_msg *m)
 {
     return m->status;
 }
 
-const char *vlc_http_msg_get_method(const struct vlc_http_msg *m)
+const char *heimdall_http_msg_get_method(const struct heimdall_http_msg *m)
 {
     return m->method;
 }
 
-const char *vlc_http_msg_get_scheme(const struct vlc_http_msg *m)
+const char *heimdall_http_msg_get_scheme(const struct heimdall_http_msg *m)
 {
     return m->scheme;
 }
 
-const char *vlc_http_msg_get_authority(const struct vlc_http_msg *m)
+const char *heimdall_http_msg_get_authority(const struct heimdall_http_msg *m)
 {
     return m->authority;
 }
 
-const char *vlc_http_msg_get_path(const struct vlc_http_msg *m)
+const char *heimdall_http_msg_get_path(const struct heimdall_http_msg *m)
 {
     return m->path;
 }
 
-void vlc_http_msg_destroy(struct vlc_http_msg *m)
+void heimdall_http_msg_destroy(struct heimdall_http_msg *m)
 {
     if (m->payload != NULL)
-        vlc_http_stream_close(m->payload, false);
+        heimdall_http_stream_close(m->payload, false);
 
     for (unsigned i = 0; i < m->count; i++)
     {
@@ -209,11 +210,11 @@ void vlc_http_msg_destroy(struct vlc_http_msg *m)
     free(m);
 }
 
-struct vlc_http_msg *
-vlc_http_req_create(const char *method, const char *scheme,
+struct heimdall_http_msg *
+heimdall_http_req_create(const char *method, const char *scheme,
                     const char *authority, const char *path)
 {
-    struct vlc_http_msg *m = malloc(sizeof (*m));
+    struct heimdall_http_msg *m = malloc(sizeof (*m));
     if (unlikely(m == NULL))
         return NULL;
 
@@ -232,15 +233,15 @@ vlc_http_req_create(const char *method, const char *scheme,
               || (authority != NULL && m->authority == NULL)
               || (path != NULL && m->path == NULL)))
     {
-        vlc_http_msg_destroy(m);
+        heimdall_http_msg_destroy(m);
         m = NULL;
     }
     return m;
 }
 
-struct vlc_http_msg *vlc_http_resp_create(unsigned status)
+struct heimdall_http_msg *heimdall_http_resp_create(unsigned status)
 {
-    struct vlc_http_msg *m = malloc(sizeof (*m));
+    struct heimdall_http_msg *m = malloc(sizeof (*m));
     if (unlikely(m == NULL))
         return NULL;
 
@@ -256,47 +257,47 @@ struct vlc_http_msg *vlc_http_resp_create(unsigned status)
     return m;
 }
 
-void vlc_http_msg_attach(struct vlc_http_msg *m, struct vlc_http_stream *s)
+void heimdall_http_msg_attach(struct heimdall_http_msg *m, struct heimdall_http_stream *s)
 {
     assert(m->payload == NULL);
     m->payload = s;
 }
 
-struct vlc_http_msg *vlc_http_msg_iterate(struct vlc_http_msg *m)
+struct heimdall_http_msg *heimdall_http_msg_iterate(struct heimdall_http_msg *m)
 {
-    struct vlc_http_msg *next = vlc_http_stream_read_headers(m->payload);
+    struct heimdall_http_msg *next = heimdall_http_stream_read_headers(m->payload);
 
     if (next != NULL)
         m->payload = NULL;
 
-    vlc_http_msg_destroy(m);
+    heimdall_http_msg_destroy(m);
     return next;
 }
 
-struct vlc_http_msg *vlc_http_msg_get_initial(struct vlc_http_stream *s)
+struct heimdall_http_msg *heimdall_http_msg_get_initial(struct heimdall_http_stream *s)
 {
-    struct vlc_http_msg *m = vlc_http_stream_read_headers(s);
+    struct heimdall_http_msg *m = heimdall_http_stream_read_headers(s);
     if (m == NULL)
-        vlc_http_stream_close(s, false);
+        heimdall_http_stream_close(s, false);
     return m;
 }
 
-struct vlc_http_msg *vlc_http_msg_get_final(struct vlc_http_msg *m)
+struct heimdall_http_msg *heimdall_http_msg_get_final(struct heimdall_http_msg *m)
 {
-    while (m != NULL && (vlc_http_msg_get_status(m) / 100) == 1)
-        m = vlc_http_msg_iterate(m);
+    while (m != NULL && (heimdall_http_msg_get_status(m) / 100) == 1)
+        m = heimdall_http_msg_iterate(m);
     return m;
 }
 
-block_t *vlc_http_msg_read(struct vlc_http_msg *m)
+block_t *heimdall_http_msg_read(struct heimdall_http_msg *m)
 {
     if (m->payload == NULL)
         return NULL;
 
-    return vlc_http_stream_read(m->payload);
+    return heimdall_http_stream_read(m->payload);
 }
 
-int vlc_http_msg_write(struct vlc_http_msg *m, block_t *block, bool eos)
+int heimdall_http_msg_write(struct heimdall_http_msg *m, block_t *block, bool eos)
 {
     if (m->payload == NULL)
         return -1;
@@ -305,14 +306,14 @@ int vlc_http_msg_write(struct vlc_http_msg *m, block_t *block, bool eos)
      * But if there are zero blocks, then we have to send it separately.
      */
     if (block == NULL && eos)
-        return vlc_http_stream_write(m->payload, NULL, 0, true);
+        return heimdall_http_stream_write(m->payload, NULL, 0, true);
 
     while (block != NULL)
     {
         block_t *next = block->p_next;
         bool end = eos && next == NULL;
 
-        if (vlc_http_stream_write(m->payload, block->p_buffer, block->i_buffer,
+        if (heimdall_http_stream_write(m->payload, block->p_buffer, block->i_buffer,
                                   end) < (ssize_t)block->i_buffer)
             goto error;
 
@@ -328,34 +329,34 @@ error:
 
 /* Serialization and deserialization */
 
-char *vlc_http_msg_format(const struct vlc_http_msg *m, size_t *restrict lenp,
+char *heimdall_http_msg_format(const struct heimdall_http_msg *m, size_t *restrict lenp,
                           bool proxied, bool chunked)
 {
-    struct vlc_memstream stream;
+    struct heimdall_memstream stream;
 
-    vlc_memstream_open(&stream);
+    heimdall_memstream_open(&stream);
 
     if (m->status < 0)
     {
-        vlc_memstream_printf(&stream, "%s ", m->method);
+        heimdall_memstream_printf(&stream, "%s ", m->method);
         if (proxied)
-            vlc_memstream_printf(&stream, "%s://%s", m->scheme, m->authority);
-        vlc_memstream_printf(&stream, "%s HTTP/1.1\r\nHost: %s\r\n",
+            heimdall_memstream_printf(&stream, "%s://%s", m->scheme, m->authority);
+        heimdall_memstream_printf(&stream, "%s HTTP/1.1\r\nHost: %s\r\n",
                              m->path ? m->path : m->authority, m->authority);
     }
     else
-        vlc_memstream_printf(&stream, "HTTP/1.1 %03hd .\r\n", m->status);
+        heimdall_memstream_printf(&stream, "HTTP/1.1 %03hd .\r\n", m->status);
 
     for (unsigned i = 0; i < m->count; i++)
-        vlc_memstream_printf(&stream, "%s: %s\r\n",
+        heimdall_memstream_printf(&stream, "%s: %s\r\n",
                              m->headers[i][0], m->headers[i][1]);
 
     if (chunked)
-        vlc_memstream_puts(&stream, "Transfer-Encoding: chunked\r\n");
+        heimdall_memstream_puts(&stream, "Transfer-Encoding: chunked\r\n");
 
-    vlc_memstream_puts(&stream, "\r\n");
+    heimdall_memstream_puts(&stream, "\r\n");
 
-    if (vlc_memstream_close(&stream))
+    if (heimdall_memstream_close(&stream))
         return NULL;
 
     if (lenp != NULL)
@@ -363,14 +364,14 @@ char *vlc_http_msg_format(const struct vlc_http_msg *m, size_t *restrict lenp,
     return stream.ptr;
 }
 
-struct vlc_http_msg *vlc_http_msg_headers(const char *msg)
+struct heimdall_http_msg *heimdall_http_msg_headers(const char *msg)
 {
-    struct vlc_http_msg *m;
+    struct heimdall_http_msg *m;
     unsigned short code;
 
     if (sscanf(msg, "HTTP/1.%*1u %3hu %*s", &code) == 1)
     {
-        m = vlc_http_resp_create(code);
+        m = heimdall_http_resp_create(code);
         if (unlikely(m == NULL))
             return NULL;
     }
@@ -406,7 +407,7 @@ struct vlc_http_msg *vlc_http_msg_headers(const char *msg)
         colon++;
         colon += strspn(colon, " \t");
 
-        if (unlikely(vlc_http_msg_add_header(m, name, "%.*s",
+        if (unlikely(heimdall_http_msg_add_header(m, name, "%.*s",
                                              (int)(eol - colon), colon)))
         {
             free(name);
@@ -418,11 +419,11 @@ struct vlc_http_msg *vlc_http_msg_headers(const char *msg)
 
     return m;
 error:
-    vlc_http_msg_destroy(m);
+    heimdall_http_msg_destroy(m);
     return NULL;
 }
 
-struct vlc_h2_frame *vlc_http_msg_h2_frame(const struct vlc_http_msg *m,
+struct heimdall_h2_frame *heimdall_http_msg_h2_frame(const struct heimdall_http_msg *m,
                                            uint_fast32_t stream_id, bool eos)
 {
     for (unsigned j = 0; j < m->count; j++)
@@ -432,17 +433,17 @@ struct vlc_h2_frame *vlc_http_msg_h2_frame(const struct vlc_http_msg *m,
         assert(strcasecmp(m->headers[j][0], "HTTP2-Settings"));
     }
 
-    const char *(*headers)[2] = vlc_alloc(m->count + 5, sizeof (char *[2]));
+    const char *(*headers)[2] = heimdall_alloc(m->count + 5, sizeof (char *[2]));
     if (unlikely(headers == NULL))
         return NULL;
 
-    struct vlc_h2_frame *f;
+    struct heimdall_h2_frame *f;
     unsigned i = 0;
     char status[4];
 
     if (m->status >= 0)
     {
-        if (m->status >= 1000) vlc_assert_unreachable();
+        if (m->status >= 1000) heimdall_assert_unreachable();
         snprintf(status, ARRAY_SIZE(status), "%hd", m->status);
         headers[i][0] = ":status";
         headers[i][1] = status;
@@ -478,16 +479,16 @@ struct vlc_h2_frame *vlc_http_msg_h2_frame(const struct vlc_http_msg *m,
         i += m->count;
     }
 
-    f = vlc_h2_frame_headers(stream_id, VLC_H2_DEFAULT_MAX_FRAME, eos,
+    f = heimdall_h2_frame_headers(stream_id, HEIMDALL_H2_DEFAULT_MAX_FRAME, eos,
                              i, headers);
     free(headers);
     return f;
 }
 
-struct vlc_http_msg *vlc_http_msg_h2_headers(unsigned n,
+struct heimdall_http_msg *heimdall_http_msg_h2_headers(unsigned n,
                                              const char *const hdrs[][2])
 {
-    struct vlc_http_msg *m = vlc_http_resp_create(0);
+    struct heimdall_http_msg *m = heimdall_http_resp_create(0);
     if (unlikely(m == NULL))
         return NULL;
 
@@ -555,14 +556,14 @@ struct vlc_http_msg *vlc_http_msg_h2_headers(unsigned n,
             continue;
         }
 
-        if (vlc_http_msg_add_header(m, name, "%s", value))
+        if (heimdall_http_msg_add_header(m, name, "%s", value))
             goto error;
     }
 
     if ((m->status < 0) == (m->method == NULL))
     {   /* Must be either a request or response. Not both, not neither. */
 error:
-        vlc_http_msg_destroy(m);
+        heimdall_http_msg_destroy(m);
         m = NULL;
     }
     return m;
@@ -570,7 +571,7 @@ error:
 
 /* Header helpers */
 
-char *vlc_http_authority(const char *host, unsigned port)
+char *heimdall_http_authority(const char *host, unsigned port)
 {
     static const char *const formats[4] = { "%s", "[%s]", "%s:%u", "[%s]:%u" };
     const bool brackets = strchr(host, ':') != NULL;
@@ -582,7 +583,7 @@ char *vlc_http_authority(const char *host, unsigned port)
     return authority;
 }
 
-static int vlc_http_istoken(int c)
+static int heimdall_http_istoken(int c)
 {   /* IETF RFC7230 §3.2.6 */
     return (c >= '0' && c <= '9')
         || (c >= 'a' && c <= 'z')
@@ -590,23 +591,23 @@ static int vlc_http_istoken(int c)
         || (c && strchr("!#$%&'*+-.^_`|~", c) != NULL);
 }
 
-static int vlc_http_isctext(int c)
+static int heimdall_http_isctext(int c)
 {   /* IETF RFC7230 §3.2.6 */
     return (c == '\t') || (c == ' ') || (c >= 0x21 && c <= 0x27)
         || (c >= 0x2A && c <= 0x5B) || (c >= 0x5D && c <= 0x7E)
         || (c >= 0x80);
 }
 
-static size_t vlc_http_token_length(const char *str)
+static size_t heimdall_http_token_length(const char *str)
 {
     size_t i = 0;
 
-    while (vlc_http_istoken(str[i]))
+    while (heimdall_http_istoken(str[i]))
         i++;
     return i;
 }
 
-static size_t vlc_http_quoted_length(const char *str)
+static size_t heimdall_http_quoted_length(const char *str)
 {
     size_t i = 0;
     unsigned char c;
@@ -633,45 +634,45 @@ static size_t vlc_http_quoted_length(const char *str)
     return i;
 }
 
-static bool vlc_http_is_token(const char *str)
+static bool heimdall_http_is_token(const char *str)
 {
-    size_t len = vlc_http_token_length(str);
+    size_t len = heimdall_http_token_length(str);
     return len > 0 && str[len] == '\0';
 }
 
-const char *vlc_http_next_token(const char *value)
+const char *heimdall_http_next_token(const char *value)
 {   /* We handle either token or token = token / quoted-string */
     value += strcspn(value, ",\"");
     if (!*value)
         return NULL;
 
-    value += vlc_http_quoted_length(value);
+    value += heimdall_http_quoted_length(value);
     return value + strspn(value, "\t ,");
 }
 
-static const char *vlc_http_get_token(const char *value, const char *token)
+static const char *heimdall_http_get_token(const char *value, const char *token)
 {
     const size_t length = strlen(token);
 
     while (value != NULL)
     {
-        if (vlc_http_token_length(value) == length
+        if (heimdall_http_token_length(value) == length
          && !strncasecmp(token, value, length))
             return value;
 
-        value = vlc_http_next_token(value);
+        value = heimdall_http_next_token(value);
     }
 
     return NULL;
 }
 
-static char *vlc_http_get_token_value(const char *value, const char *token)
+static char *heimdall_http_get_token_value(const char *value, const char *token)
 {
-    value = vlc_http_get_token(value, token);
+    value = heimdall_http_get_token(value, token);
     if (value == NULL)
         return NULL;
 
-    value += vlc_http_token_length(value);
+    value += heimdall_http_token_length(value);
     value += strspn(value, " \t"); /* BWS */
 
     if (*value != '=')
@@ -680,7 +681,7 @@ static char *vlc_http_get_token_value(const char *value, const char *token)
     value++;
     value += strspn(value, " \t"); /* BWS */
 
-    size_t len = vlc_http_quoted_length(value);
+    size_t len = heimdall_http_quoted_length(value);
     if (len == 0)
         return NULL;
 
@@ -706,13 +707,13 @@ static char *vlc_http_get_token_value(const char *value, const char *token)
     return out;
 }
 
-const char *vlc_http_msg_get_token(const struct vlc_http_msg *msg,
+const char *heimdall_http_msg_get_token(const struct heimdall_http_msg *msg,
                                    const char *field, const char *token)
 {
-    return vlc_http_get_token(vlc_http_msg_get_header(msg, field), token);
+    return heimdall_http_get_token(heimdall_http_msg_get_header(msg, field), token);
 }
 
-static size_t vlc_http_comment_length(const char *str)
+static size_t heimdall_http_comment_length(const char *str)
 {   /* IETF RFC7230 §3.2.6 */
     if (*str != '(')
         return 0;
@@ -736,30 +737,30 @@ static size_t vlc_http_comment_length(const char *str)
                 return 0;
         }
         else
-        if (!vlc_http_isctext(c))
+        if (!heimdall_http_isctext(c))
             return 0;
     }
     return i;
 }
 
-static bool vlc_http_is_agent(const char *s)
+static bool heimdall_http_is_agent(const char *s)
 {   /* IETF RFC7231 §5.5.3 and §7.4.2 */
-    if (!vlc_http_istoken(*s))
+    if (!heimdall_http_istoken(*s))
         return false;
 
     for (;;)
     {
-        size_t l = vlc_http_token_length(s);
+        size_t l = heimdall_http_token_length(s);
         if (l != 0) /* product */
         {
             if (s[l] == '/') /* product version */
             {
                 s += l + 1;
-                l = vlc_http_token_length(s);
+                l = heimdall_http_token_length(s);
             }
         }
         else
-            l = vlc_http_comment_length(s);
+            l = heimdall_http_comment_length(s);
 
         if (l == 0)
             break;
@@ -780,58 +781,58 @@ static bool vlc_http_is_agent(const char *s)
     return false;
 }
 
-int vlc_http_msg_add_agent(struct vlc_http_msg *m, const char *str)
+int heimdall_http_msg_add_agent(struct heimdall_http_msg *m, const char *str)
 {
     const char *hname = (m->status < 0) ? "User-Agent" : "Server";
 
-    if (!vlc_http_is_agent(str))
+    if (!heimdall_http_is_agent(str))
     {
         errno = EINVAL;
         return -1;
     }
-    return vlc_http_msg_add_header(m, hname, "%s", str);
+    return heimdall_http_msg_add_header(m, hname, "%s", str);
 }
 
-const char *vlc_http_msg_get_agent(const struct vlc_http_msg *m)
+const char *heimdall_http_msg_get_agent(const struct heimdall_http_msg *m)
 {
     const char *hname = (m->status < 0) ? "User-Agent" : "Server";
-    const char *str = vlc_http_msg_get_header(m, hname);
+    const char *str = heimdall_http_msg_get_header(m, hname);
 
-    return (str != NULL && vlc_http_is_agent(str)) ? str : NULL;
+    return (str != NULL && heimdall_http_is_agent(str)) ? str : NULL;
 }
 
-static const char vlc_http_days[7][4] = {
+static const char heimdall_http_days[7][4] = {
     "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"
 };
-static const char vlc_http_months[12][4] = {
+static const char heimdall_http_months[12][4] = {
     "Jan", "Feb", "Mar", "Apr", "May", "Jun",
     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
 };
 
-int vlc_http_msg_add_time(struct vlc_http_msg *m, const char *hname,
+int heimdall_http_msg_add_time(struct heimdall_http_msg *m, const char *hname,
                           const time_t *t)
 {
     struct tm tm;
 
     if (gmtime_r(t, &tm) == NULL)
         return -1;
-    return vlc_http_msg_add_header(m, hname,
+    return heimdall_http_msg_add_header(m, hname,
                                    "%s, %02d %s %04d %02d:%02d:%02d GMT",
-                                   vlc_http_days[tm.tm_wday], tm.tm_mday,
-                                   vlc_http_months[tm.tm_mon],
+                                   heimdall_http_days[tm.tm_wday], tm.tm_mday,
+                                   heimdall_http_months[tm.tm_mon],
                                    1900 + tm.tm_year,
                                    tm.tm_hour, tm.tm_min, tm.tm_sec);
 }
 
-int vlc_http_msg_add_atime(struct vlc_http_msg *m)
+int heimdall_http_msg_add_atime(struct heimdall_http_msg *m)
 {
     time_t now;
 
     time(&now);
-    return vlc_http_msg_add_time(m, "Date", &now);
+    return heimdall_http_msg_add_time(m, "Date", &now);
 }
 
-time_t vlc_http_mktime(const char *str)
+time_t heimdall_http_mktime(const char *str)
 {   /* IETF RFC7231 §7.1.1.1 */
     struct tm tm;
     char mon[4];
@@ -854,34 +855,34 @@ time_t vlc_http_mktime(const char *str)
         goto error;
 
     for (tm.tm_mon = 0; tm.tm_mon < 12; tm.tm_mon++)
-        if (!strcmp(mon, vlc_http_months[tm.tm_mon])) /* found month */
+        if (!strcmp(mon, heimdall_http_months[tm.tm_mon])) /* found month */
             return timegm(&tm);
 error:
     errno = EINVAL;
     return -1; /* invalid month */
 }
 
-time_t vlc_http_msg_get_time(const struct vlc_http_msg *m, const char *name)
+time_t heimdall_http_msg_get_time(const struct heimdall_http_msg *m, const char *name)
 {
-    const char *str = vlc_http_msg_get_header(m, name);
+    const char *str = heimdall_http_msg_get_header(m, name);
     if (str == NULL)
         return -1;
-    return vlc_http_mktime(str);
+    return heimdall_http_mktime(str);
 }
 
-time_t vlc_http_msg_get_atime(const struct vlc_http_msg *m)
+time_t heimdall_http_msg_get_atime(const struct heimdall_http_msg *m)
 {
-    return vlc_http_msg_get_time(m, "Date");
+    return heimdall_http_msg_get_time(m, "Date");
 }
 
-time_t vlc_http_msg_get_mtime(const struct vlc_http_msg *m)
+time_t heimdall_http_msg_get_mtime(const struct heimdall_http_msg *m)
 {
-    return vlc_http_msg_get_time(m, "Last-Modified");
+    return heimdall_http_msg_get_time(m, "Last-Modified");
 }
 
-unsigned vlc_http_msg_get_retry_after(const struct vlc_http_msg *m)
+unsigned heimdall_http_msg_get_retry_after(const struct heimdall_http_msg *m)
 {
-    const char *str = vlc_http_msg_get_header(m, "Retry-After");
+    const char *str = heimdall_http_msg_get_header(m, "Retry-After");
     if (str == NULL)
         return 0;
 
@@ -890,7 +891,7 @@ unsigned vlc_http_msg_get_retry_after(const struct vlc_http_msg *m)
     if (end != str && *end == '\0')
         return delay;
 
-    time_t t = vlc_http_mktime(str);
+    time_t t = heimdall_http_mktime(str);
     if (t != (time_t)-1)
     {
         time_t now;
@@ -902,7 +903,7 @@ unsigned vlc_http_msg_get_retry_after(const struct vlc_http_msg *m)
     return 0;
 }
 
-uintmax_t vlc_http_msg_get_size(const struct vlc_http_msg *m)
+uintmax_t heimdall_http_msg_get_size(const struct heimdall_http_msg *m)
 {   /* IETF RFC7230 §3.3.3 */
     if ((m->status / 100) == 1 /* Informational 1xx (implicitly void) */
      || m->status == 204 /* No Content (implicitly void) */
@@ -910,11 +911,11 @@ uintmax_t vlc_http_msg_get_size(const struct vlc_http_msg *m)
      || m->status == 304 /* Not Modified */)
         return 0;
 
-    const char *str = vlc_http_msg_get_header(m, "Transfer-Encoding");
+    const char *str = heimdall_http_msg_get_header(m, "Transfer-Encoding");
     if (str != NULL) /* Transfer-Encoding preempts Content-Length */
         return -1;
 
-    str = vlc_http_msg_get_header(m, "Content-Length");
+    str = heimdall_http_msg_get_header(m, "Content-Length");
     if (str == NULL)
     {
         if (m->status < 0)
@@ -931,8 +932,8 @@ uintmax_t vlc_http_msg_get_size(const struct vlc_http_msg *m)
     return -1;
 }
 
-void vlc_http_msg_get_cookies(const struct vlc_http_msg *m,
-                              vlc_http_cookie_jar_t *jar,
+void heimdall_http_msg_get_cookies(const struct heimdall_http_msg *m,
+                              heimdall_http_cookie_jar_t *jar,
                               const char *host, const char *path)
 {
     if (jar == NULL)
@@ -940,11 +941,11 @@ void vlc_http_msg_get_cookies(const struct vlc_http_msg *m,
 
     for (unsigned i = 0; i < m->count; i++)
         if (!strcasecmp(m->headers[i][0], "Set-Cookie"))
-            vlc_http_cookies_store(jar, m->headers[i][1], host, path);
+            heimdall_http_cookies_store(jar, m->headers[i][1], host, path);
 }
 
-int vlc_http_msg_add_cookies(struct vlc_http_msg *m,
-                             vlc_http_cookie_jar_t *jar)
+int heimdall_http_msg_add_cookies(struct heimdall_http_msg *m,
+                             heimdall_http_cookie_jar_t *jar)
 {
     char *host, *cookies;
     int val = 0;
@@ -973,18 +974,18 @@ int vlc_http_msg_add_cookies(struct vlc_http_msg *m,
     if (unlikely(host == NULL))
         return -1;
 
-    cookies = vlc_http_cookies_fetch(jar, secure, host, m->path);
+    cookies = heimdall_http_cookies_fetch(jar, secure, host, m->path);
     free(host);
 
     if (cookies != NULL)
     {
-        val = vlc_http_msg_add_header(m, "Cookie", "%s", cookies);
+        val = heimdall_http_msg_add_header(m, "Cookie", "%s", cookies);
         free(cookies);
     }
     return val;
 }
 
-char *vlc_http_msg_get_basic_realm(const struct vlc_http_msg *m)
+char *heimdall_http_msg_get_basic_realm(const struct heimdall_http_msg *m)
 {
     const char *auth;
 
@@ -992,17 +993,17 @@ char *vlc_http_msg_get_basic_realm(const struct vlc_http_msg *m)
     /* NOTE: In principles, RFC7235 allows for multiple authentication schemes,
      * including multiple times Basic with a different realm each. There are no
      * UI paradigms though. */
-    auth = vlc_http_msg_get_token(m, "WWW-Authenticate", "Basic");
+    auth = heimdall_http_msg_get_token(m, "WWW-Authenticate", "Basic");
     if (auth == NULL)
         return NULL;
 
     auth += 5;
     auth += strspn(auth, " "); /* 1*SP */
 
-    return vlc_http_get_token_value(auth, "realm");
+    return heimdall_http_get_token_value(auth, "realm");
 }
 
-int vlc_http_msg_add_creds_basic(struct vlc_http_msg *m, bool proxy,
+int heimdall_http_msg_add_creds_basic(struct heimdall_http_msg *m, bool proxy,
                                  const char *username, const char *password)
 {
     char *str, *token;
@@ -1029,12 +1030,12 @@ int vlc_http_msg_add_creds_basic(struct vlc_http_msg *m, bool proxy,
     if (unlikely(ret < 0))
         return -1;
 
-    token = vlc_b64_encode_binary((unsigned char *)str, ret);
+    token = heimdall_b64_encode_binary((unsigned char *)str, ret);
     free(str);
     if (unlikely(token == NULL))
         return -1;
 
-    ret = vlc_http_msg_add_header(m, proxy ? "Proxy-Authorization" :
+    ret = heimdall_http_msg_add_header(m, proxy ? "Proxy-Authorization" :
                                   "Authorization", "Basic %s", token);
     free(token);
     return ret;

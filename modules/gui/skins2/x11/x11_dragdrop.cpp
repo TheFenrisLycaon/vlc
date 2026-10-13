@@ -2,6 +2,7 @@
  * x11_dragdrop.cpp
  *****************************************************************************
  * Copyright (C) 2003 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cyril Deguet     <asmax@via.ecp.fr>
  *          Olivier Teulière <ipkiss@via.ecp.fr>
@@ -172,7 +173,7 @@ void X11DragDrop::dndDrop( ldata_t data )
 
     // Convert the selection into the given target
     Atom selectionAtom = XInternAtom( XDISPLAY, "XdndSelection", 0 );
-    Atom propAtom = XInternAtom( XDISPLAY, "VLC_SELECTION", 0 );
+    Atom propAtom = XInternAtom( XDISPLAY, "HEIMDALL_SELECTION", 0 );
     XConvertSelection( XDISPLAY, selectionAtom, m_target, propAtom,
                        m_wnd, time );
 
@@ -202,7 +203,7 @@ void X11DragDrop::dndSelectionNotify( )
     int format;
     unsigned long nitems, nbytes_after_return;
     char *buffer;
-    Atom propAtom = XInternAtom( XDISPLAY, "VLC_SELECTION", 0 );
+    Atom propAtom = XInternAtom( XDISPLAY, "HEIMDALL_SELECTION", 0 );
     int ret = XGetWindowProperty( XDISPLAY, m_wnd, propAtom, 0, 65536, True,
                                   AnyPropertyType, &type, &format, &nitems,
                                   &nbytes_after_return,

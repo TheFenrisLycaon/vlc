@@ -90,7 +90,7 @@ skins2_sources = files(
     'src/top_window.cpp',
     'src/fsc_window.cpp',
     'src/var_manager.cpp',
-    'src/vlcproc.cpp',
+    'src/heimdallproc.cpp',
     'src/vout_window.cpp',
     'src/vout_manager.cpp',
     'src/window_manager.cpp',
@@ -174,7 +174,7 @@ foreach iter_skins2_dep : skins2_deps
     endif
 endforeach
 
-vlc_modules += {
+heimdall_modules += {
     'name' : 'skins2',
     'sources' : [ skins2_sources ],
     'dependencies' : [ skins2_deps ],
@@ -186,7 +186,7 @@ vlc_modules += {
 }
 
 if host_system == 'darwin' and skins2_feasible
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'macosx_dialogs',
         'sources' : files('macosx/macosx_dialogs.m'),
         'dependencies' : [
@@ -241,7 +241,7 @@ if skins2_feasible
         input: default_vlt_files,
         output: 'default.vlt',
         command: [tar, 'cvvzf', '@OUTPUT@', '--format=ustar', tar_owner_args,
-                '--directory=' + vlc_src_root / 'share/skins2', relative_vlt_files
+                '--directory=' + heimdall_src_root / 'share/skins2', relative_vlt_files
         ],
         env: {'GZIP': '--no-name'},
         console: true,

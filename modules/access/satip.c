@@ -5,6 +5,7 @@
  * Copyright © 2016 jusst technologies GmbH
  * Copyright © 2016 Videolabs SAS
  * Copyright © 2016 Julian Scheel
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Julian Scheel <julian@jusst.de>
  *
@@ -31,17 +32,17 @@
 # include <sys/uio.h>
 #endif
 
-#include <vlc_common.h>
-#include <vlc_threads.h>
-#include <vlc_poll.h>
-#include <vlc_plugin.h>
-#include <vlc_access.h>
-#include <vlc_network.h>
-#include <vlc_block.h>
-#include <vlc_queue.h>
-#include <vlc_rand.h>
-#include <vlc_url.h>
-#include <vlc_interrupt.h>
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
+#include <heimdall_poll.h>
+#include <heimdall_plugin.h>
+#include <heimdall_access.h>
+#include <heimdall_network.h>
+#include <heimdall_block.h>
+#include <heimdall_queue.h>
+#include <heimdall_rand.h>
+#include <heimdall_url.h>
+#include <heimdall_interrupt.h>
 
 #ifdef HAVE_POLL_H
 #include <poll.h>
@@ -57,17 +58,17 @@
 #define KEEPALIVE_INTERVAL 60
 #define KEEPALIVE_MARGIN 5
 
-#define SATIP_USERAGENT "LibVLC/" VERSION " (SatIP)"
+#define SATIP_USERAGENT "LibHeimdall/" VERSION " (SatIP)"
 
-static int satip_open(vlc_object_t *);
-static void satip_close(vlc_object_t *);
+static int satip_open(heimdall_object_t *);
+static void satip_close(heimdall_object_t *);
 
 #define MULTICAST_TEXT N_("Request multicast stream")
 #define MULTICAST_LONGTEXT N_("Request server to send stream as multicast")
 
 #define SATIP_HOST_TEXT N_("Host")
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname("satip")
     set_description( N_("SAT>IP Receiver Plugin") )
     set_capability("access", 201)
@@ -78,7 +79,7 @@ vlc_module_begin()
     add_string("satip-host", "", SATIP_HOST_TEXT, NULL)
     change_safe()
     add_shortcut("rtsp", "satip")
-vlc_module_end()
+heimdall_module_end()
 
 enum rtsp_state {
     RTSP_IDLE,
@@ -111,14 +112,14 @@ typedef struct
     enum rtsp_state state;
     int cseq;
 
-    vlc_queue_t queue;
-    vlc_thread_t thread;
+    heimdall_queue_t queue;
+    heimdall_thread_t thread;
     uint16_t last_seq_nr;
 
     bool woken;
 } access_sys_t;
 
-VLC_FORMAT(3, 4)
+HEIMDALL_FORMAT(3, 4)
 static void net_Printf(stream_t *access, int fd, const char *fmt, ...)
 {
     va_list ap;
@@ -159,7 +160,7 @@ static int parse_port(char *str, uint16_t *port)
 {
     int p = atoi(str);
     if (p < 0 || p > UINT16_MAX)
-        return VLC_EINVAL;
+        return HEIMDALL_EINVAL;
 
     *port = p;
 
@@ -174,7 +175,7 @@ static int parse_transport(stream_t *access, char *request_line) {
 
     tok = strtok_r(request_line, ";", &state);
     if (tok == NULL || strncmp(tok, "RTP/AVP", 7) != 0)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     tok = strtok_r(NULL, ";", &state);
     if (tok == NULL || strncmp(tok, "multicast", 9) != 0)
@@ -207,7 +208,7 @@ static int parse_transport(stream_t *access, char *request_line) {
  *
  * interrupted: Informs the caller whether an interrupt occurred or not
  */
-static char *net_readln_timeout(vlc_object_t *obj, int fd, int timeout, bool *interrupted)
+static char *net_readln_timeout(heimdall_object_t *obj, int fd, int timeout, bool *interrupted)
 {
     char *buf = NULL;
     size_t size = 0, len = 0;
@@ -233,7 +234,7 @@ static char *net_readln_timeout(vlc_object_t *obj, int fd, int timeout, bool *in
 
         ssize_t val = 0;
         if (!intr) {
-            val = vlc_recv_i11e(fd, buf + len, size - len, MSG_PEEK);
+            val = heimdall_recv_i11e(fd, buf + len, size - len, MSG_PEEK);
             if (val <= 0 && errno == EINTR) {
                 intr = true;
                 if (interrupted)
@@ -273,7 +274,7 @@ static char *net_readln_timeout(vlc_object_t *obj, int fd, int timeout, bool *in
         buf[len] = '\0';
     return buf;
 error:
-    msg_Err(obj, "read error: %s", vlc_strerror_c(errno));
+    msg_Err(obj, "read error: %s", heimdall_strerror_c(errno));
     free(buf);
     return NULL;
 }
@@ -290,7 +291,7 @@ static enum rtsp_result rtsp_handle(stream_t *access, bool *interrupted) {
 
     /* Parse header */
     while (!have_header) {
-        in = net_readln_timeout(VLC_OBJECT(access), sys->tcp_sock, 5000,
+        in = net_readln_timeout(HEIMDALL_OBJECT(access), sys->tcp_sock, 5000,
                 interrupted);
         if (in == NULL)
             break;
@@ -319,7 +320,7 @@ static enum rtsp_result rtsp_handle(stream_t *access, bool *interrupted) {
             skip_whitespace(val);
 
             if (parse_transport(access, val) != 0) {
-                rtsp_result = VLC_EGENERIC;
+                rtsp_result = HEIMDALL_EGENERIC;
                 break;
             }
         } else if (strncmp("com.ses.streamID:", in, 17) == 0) {
@@ -360,11 +361,11 @@ static int check_rtp_seq(stream_t *access, block_t *block)
 
     if (seq_nr == sys->last_seq_nr) {
         msg_Warn(access, "Received duplicate packet (seq_nr=%"PRIu16")", seq_nr);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     } else if (seq_nr < (uint16_t)(sys->last_seq_nr + 1)) {
         msg_Warn(access, "Received out of order packet (seq_nr=%"PRIu16" < %"PRIu16")",
                 seq_nr, sys->last_seq_nr);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     } else if (++sys->last_seq_nr > 1 && seq_nr > sys->last_seq_nr) {
         msg_Warn(access, "Gap in seq_nr (%"PRIu16" > %"PRIu16"), probably lost a packet",
                 seq_nr, sys->last_seq_nr);
@@ -411,7 +412,7 @@ static void satip_teardown(void *data) {
                     return;
                 }
 
-                ret = vlc_send(sys->tcp_sock, msg + sent, len - sent, 0);
+                ret = heimdall_send(sys->tcp_sock, msg + sent, len - sent, 0);
                 if (ret < 0) {
                     msg_Err(access, "Failed to send RTSP teardown: %d\n", ret);
                     free(msg);
@@ -432,21 +433,21 @@ static void satip_teardown(void *data) {
 
             /* Extra sleep for compatibility with some satip servers, that
              * can't handle new sessions right after teardown */
-            vlc_tick_sleep(VLC_TICK_FROM_MS(150));
+            heimdall_tick_sleep(HEIMDALL_TICK_FROM_MS(150));
         }
     }
 }
 
-#define RECV_TIMEOUT VLC_TICK_FROM_SEC(2)
+#define RECV_TIMEOUT HEIMDALL_TICK_FROM_SEC(2)
 static void *satip_thread(void *data) {
     stream_t *access = data;
     access_sys_t *sys = access->p_sys;
     int sock = sys->udp_sock;
-    vlc_tick_t last_recv = vlc_tick_now();
+    heimdall_tick_t last_recv = heimdall_tick_now();
     ssize_t len;
-    vlc_tick_t next_keepalive = vlc_tick_now() + vlc_tick_from_sec(sys->keepalive_interval);
+    heimdall_tick_t next_keepalive = heimdall_tick_now() + heimdall_tick_from_sec(sys->keepalive_interval);
 
-    vlc_thread_set_name("vlc-satip");
+    heimdall_thread_set_name("heimdall-satip");
 
 #ifdef HAVE_RECVMMSG
     struct mmsghdr msgs[VLEN];
@@ -469,7 +470,7 @@ static void *satip_thread(void *data) {
     ufd.events = POLLIN;
 #endif
 
-    while (last_recv > vlc_tick_now() - RECV_TIMEOUT) {
+    while (last_recv > heimdall_tick_now() - RECV_TIMEOUT) {
 #ifdef HAVE_RECVMMSG
         for (size_t i = 0; i < VLEN; i++) {
             if (input_blocks[i] != NULL)
@@ -482,13 +483,13 @@ static void *satip_thread(void *data) {
             iovecs[i].iov_base = input_blocks[i]->p_buffer;
         }
 
-        vlc_cleanup_push(satip_cleanup_blocks, input_blocks);
+        heimdall_cleanup_push(satip_cleanup_blocks, input_blocks);
         retval = recvmmsg(sock, msgs, VLEN, MSG_WAITFORONE, NULL);
-        vlc_cleanup_pop();
+        heimdall_cleanup_pop();
         if (retval == -1)
             continue;
 
-        last_recv = vlc_tick_now();
+        last_recv = heimdall_tick_now();
         for (int i = 0; i < retval; ++i) {
             block_t *block = input_blocks[i];
 
@@ -498,7 +499,7 @@ static void *satip_thread(void *data) {
 
             block->p_buffer += RTP_HEADER_SIZE;
             block->i_buffer = len - RTP_HEADER_SIZE;
-            vlc_queue_Enqueue(&sys->queue, block);
+            heimdall_queue_Enqueue(&sys->queue, block);
             input_blocks[i] = NULL;
         }
 #else
@@ -513,7 +514,7 @@ static void *satip_thread(void *data) {
 
         block_cleanup_push(block);
         len = recv(sock, block->p_buffer, RTSP_RECEIVE_BUFFER, 0);
-        vlc_cleanup_pop();
+        heimdall_cleanup_pop();
 
         if (len < RTP_HEADER_SIZE) {
             block_Release(block);
@@ -524,13 +525,13 @@ static void *satip_thread(void *data) {
             block_Release(block);
             continue;
         }
-        last_recv = vlc_tick_now();
+        last_recv = heimdall_tick_now();
         block->p_buffer += RTP_HEADER_SIZE;
         block->i_buffer = len - RTP_HEADER_SIZE;
-        vlc_queue_Enqueue(&sys->queue, block);
+        heimdall_queue_Enqueue(&sys->queue, block);
 #endif
 
-        if (sys->keepalive_interval > 0 && vlc_tick_now() > next_keepalive) {
+        if (sys->keepalive_interval > 0 && heimdall_tick_now() > next_keepalive) {
             net_Printf(access, sys->tcp_sock,
                     "OPTIONS %s RTSP/1.0\r\n"
                     "CSeq: %d\r\n"
@@ -539,7 +540,7 @@ static void *satip_thread(void *data) {
             if (rtsp_handle(access, NULL) != RTSP_RESULT_OK)
                 msg_Warn(access, "Failed to keepalive RTSP session");
 
-            next_keepalive = vlc_tick_now() + vlc_tick_from_sec(sys->keepalive_interval);
+            next_keepalive = heimdall_tick_now() + heimdall_tick_from_sec(sys->keepalive_interval);
         }
     }
 
@@ -547,13 +548,13 @@ static void *satip_thread(void *data) {
     satip_cleanup_blocks(input_blocks);
 #endif
     msg_Dbg(access, "timed out waiting for data...");
-    vlc_queue_Kill(&sys->queue, &sys->woken);
+    heimdall_queue_Kill(&sys->queue, &sys->woken);
     return NULL;
 }
 
 static block_t* satip_block(stream_t *access, bool *restrict eof) {
     access_sys_t *sys = access->p_sys;
-    block_t *block = vlc_queue_DequeueKillable(&sys->queue, &sys->woken);
+    block_t *block = heimdall_queue_DequeueKillable(&sys->queue, &sys->woken);
 
     if (block == NULL)
         *eof = true;
@@ -574,15 +575,15 @@ static int satip_control(stream_t *access, int i_query, va_list args) {
             break;
 
         case STREAM_GET_PTS_DELAY:
-            *va_arg(args, vlc_tick_t *) =
-                VLC_TICK_FROM_MS(var_InheritInteger(access, "live-caching"));
+            *va_arg(args, heimdall_tick_t *) =
+                HEIMDALL_TICK_FROM_MS(var_InheritInteger(access, "live-caching"));
             break;
 
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /* Bind two adjacent free ports, of which the first one is even (for RTP data)
@@ -593,7 +594,7 @@ static int satip_bind_ports(stream_t *access)
     access_sys_t *sys = access->p_sys;
     uint8_t rnd;
 
-    vlc_rand_bytes(&rnd, 1);
+    heimdall_rand_bytes(&rnd, 1);
     sys->udp_port = 9000 + (rnd * 2); /* randomly chosen, even start point */
     while (sys->udp_sock < 0) {
         sys->udp_sock = net_OpenDgram(access, "0.0.0.0", sys->udp_port, NULL,
@@ -617,23 +618,23 @@ static int satip_bind_ports(stream_t *access)
 
     if (sys->udp_sock < 0) {
         msg_Err(access, "Could not open two adjacent ports for RTP and RTCP data");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     return 0;
 }
 
-static int satip_open(vlc_object_t *obj)
+static int satip_open(heimdall_object_t *obj)
 {
     stream_t *access = (stream_t *)obj;
     access_sys_t *sys;
-    vlc_url_t url;
+    heimdall_url_t url;
 
     bool multicast = var_InheritBool(access, "satip-multicast");
 
-    access->p_sys = sys = vlc_obj_calloc(obj, 1, sizeof(*sys));
+    access->p_sys = sys = heimdall_obj_calloc(obj, 1, sizeof(*sys));
     if (sys == NULL)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     msg_Dbg(access, "try to open '%s'", access->psz_url);
 
@@ -651,13 +652,13 @@ static int satip_open(vlc_object_t *obj)
     if (psz_lower_url == NULL)
     {
         free( psz_host );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     for (unsigned i = 0; i < strlen(psz_lower_url); i++)
         psz_lower_url[i] = tolower(psz_lower_url[i]);
 
-    vlc_UrlParse(&url, psz_lower_url);
+    heimdall_UrlParse(&url, psz_lower_url);
     if (url.i_port <= 0)
         url.i_port = RTSP_DEFAULT_PORT;
     if (psz_host == NULL && url.psz_host )
@@ -689,7 +690,7 @@ static int satip_open(vlc_object_t *obj)
     sys->last_seq_nr = 0;
     sys->keepalive_interval = (KEEPALIVE_INTERVAL - KEEPALIVE_MARGIN);
 
-    vlc_url_t setup_url = url;
+    heimdall_url_t setup_url = url;
 
     // substitute "sat.ip" if present with an the host IP that was fetched during device discovery
     if( !strncasecmp( setup_url.psz_host, "sat.ip", 6 ) ) {
@@ -703,7 +704,7 @@ static int satip_open(vlc_object_t *obj)
         setup_url.psz_protocol = (char *)"rtsp";
     }
 
-    char *psz_setup_url = vlc_uri_compose(&setup_url);
+    char *psz_setup_url = heimdall_uri_compose(&setup_url);
     if( psz_setup_url == NULL )
         goto error;
 
@@ -748,7 +749,7 @@ static int satip_open(vlc_object_t *obj)
 
     /* Extra sleep for compatibility with some satip servers, that
      * can't handle PLAY right after SETUP */
-    if (vlc_msleep_i11e(VLC_TICK_FROM_MS(50)) < 0)
+    if (heimdall_msleep_i11e(HEIMDALL_TICK_FROM_MS(50)) < 0)
         goto error;
 
     /* Open UDP socket for reading if not done */
@@ -778,9 +779,9 @@ static int satip_open(vlc_object_t *obj)
         goto error;
     }
 
-    vlc_queue_Init(&sys->queue, offsetof (block_t, p_next));
+    heimdall_queue_Init(&sys->queue, offsetof (block_t, p_next));
 
-    if (vlc_clone(&sys->thread, satip_thread, access)) {
+    if (heimdall_clone(&sys->thread, satip_thread, access)) {
         msg_Err(access, "Failed to create worker thread.");
         goto error;
     }
@@ -790,12 +791,12 @@ static int satip_open(vlc_object_t *obj)
 
     free(psz_host);
     free(psz_lower_url);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     free(psz_host);
     free(psz_lower_url);
-    vlc_UrlClean(&url);
+    heimdall_UrlClean(&url);
 
     satip_teardown(access);
 
@@ -808,20 +809,20 @@ error:
 
     free(sys->content_base);
     free(sys->control);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
-static void satip_close(vlc_object_t *obj)
+static void satip_close(heimdall_object_t *obj)
 {
     stream_t *access = (stream_t *)obj;
     access_sys_t *sys = access->p_sys;
 
-    vlc_cancel(sys->thread);
-    vlc_join(sys->thread, NULL);
+    heimdall_cancel(sys->thread);
+    heimdall_join(sys->thread, NULL);
 
     satip_teardown(access);
 
-    block_ChainRelease(vlc_queue_DequeueAll(&sys->queue));
+    block_ChainRelease(heimdall_queue_DequeueAll(&sys->queue));
     net_Close(sys->udp_sock);
     net_Close(sys->rtcp_sock);
     net_Close(sys->tcp_sock);

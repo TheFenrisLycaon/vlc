@@ -2,6 +2,7 @@
  * filters.c: VAAPI filters
  *****************************************************************************
  * Copyright (C) 2017 VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Victorien Le Couviour--Tuffet <victorien.lecouviour.tuffet@gmail.com>
  *
@@ -27,10 +28,10 @@
 #include <assert.h>
 #include <stdatomic.h>
 
-#include <vlc_common.h>
-#include <vlc_filter.h>
-#include <vlc_plugin.h>
-#include <vlc_chroma_probe.h>
+#include <heimdall_common.h>
+#include <heimdall_filter.h>
+#include <heimdall_plugin.h>
+#include <heimdall_chroma_probe.h>
 #include "filters.h"
 
 /********************************
@@ -39,7 +40,7 @@
 
 struct  va_filter_desc
 {
-    vlc_decoder_device *dec_device;
+    heimdall_decoder_device *dec_device;
     VADisplay           dpy;
     VAConfigID          conf;
     VAContextID         ctx;
@@ -63,10 +64,10 @@ struct  range
     float       max_value;
 };
 
-#define GET_DRV_SIGMA(vlc_sigma, vlc_range, drv_range)                  \
-    ((vlc_sigma - (vlc_range).min_value) *                              \
+#define GET_DRV_SIGMA(heimdall_sigma, heimdall_range, drv_range)                  \
+    ((heimdall_sigma - (heimdall_range).min_value) *                              \
      ((drv_range).max_value - (drv_range).min_value) /                  \
-     ((vlc_range).max_value - (vlc_range).min_value) + (drv_range).min_value)
+     ((heimdall_range).max_value - (heimdall_range).min_value) + (drv_range).min_value)
 
 /***********************************
  * Adjust structures and constants *
@@ -90,7 +91,7 @@ static char const       adjust_params_names[NUM_ADJUST_MODES][11] =
     [ADJUST_SAT] = "saturation"
 };
 
-static struct range const       vlc_adjust_sigma_ranges[NUM_ADJUST_MODES] =
+static struct range const       heimdall_adjust_sigma_ranges[NUM_ADJUST_MODES] =
 {
     [ADJUST_CONT] = { .0f,    2.f    },
     [ADJUST_LUM]  = { .0f,    2.f    },
@@ -136,8 +137,8 @@ adapt_adjust_sigma(char const * psz_var, float const sigma,
  * Basic filter structures and constants *
  *****************************************/
 
-static struct range const       vlc_denoise_sigma_range = { .0f, 2.f };
-static struct range const       vlc_sharpen_sigma_range = { .0f, 2.f };
+static struct range const       heimdall_denoise_sigma_range = { .0f, 2.f };
+static struct range const       heimdall_sharpen_sigma_range = { .0f, 2.f };
 
 struct  basic_filter_data
 {
@@ -145,7 +146,7 @@ struct  basic_filter_data
     {
         _Atomic float           drv_value;
         VAProcFilterValueRange  drv_range;
-        struct range const *    p_vlc_range;
+        struct range const *    p_heimdall_range;
         const char *            psz_name;
     } sigma;
 
@@ -191,7 +192,7 @@ struct  deint_data
 
     struct
     {
-        vlc_tick_t date;
+        heimdall_tick_t date;
         int     i_nb_fields;
     } meta[METADATA_SIZE];
 
@@ -216,19 +217,19 @@ Filter(filter_t * filter, picture_t * src,
     if (!dest)
         return NULL;
 
-    vlc_vaapi_PicAttachContext(dest);
+    heimdall_vaapi_PicAttachContext(dest);
     picture_CopyProperties(dest, src);
 
     void *      p_va_params;
 
-    if (vlc_vaapi_MapBuffer(VLC_OBJECT(filter), filter_sys->va.dpy,
+    if (heimdall_vaapi_MapBuffer(HEIMDALL_OBJECT(filter), filter_sys->va.dpy,
                             filter_sys->va.buf, &p_va_params))
         goto error;
 
     if (pf_update_va_filter_params)
         pf_update_va_filter_params(filter_sys->p_data, p_va_params);
 
-    if (vlc_vaapi_UnmapBuffer(VLC_OBJECT(filter),
+    if (heimdall_vaapi_UnmapBuffer(HEIMDALL_OBJECT(filter),
                               filter_sys->va.dpy, filter_sys->va.buf))
         goto error;
 
@@ -236,7 +237,7 @@ Filter(filter_t * filter, picture_t * src,
         pf_prepare_render_surface(filter_sys->p_data);
 
     VAProcPipelineParameterBuffer pipeline_params = {
-        .surface = vlc_vaapi_PicGetSurface(src),
+        .surface = heimdall_vaapi_PicGetSurface(src),
         .filters = &filter_sys->va.buf,
         .num_filters = 1,
     };
@@ -247,24 +248,24 @@ Filter(filter_t * filter, picture_t * src,
         pf_update_pipeline_params(filter_sys->p_data, &pipeline_params);
 
     pipeline_buf =
-        vlc_vaapi_CreateBuffer(VLC_OBJECT(filter),
+        heimdall_vaapi_CreateBuffer(HEIMDALL_OBJECT(filter),
                                filter_sys->va.dpy, filter_sys->va.ctx,
                                VAProcPipelineParameterBufferType,
                                sizeof(pipeline_params), 1, &pipeline_params);
     if (pipeline_buf == VA_INVALID_ID)
         goto error;
 
-    if (vlc_vaapi_BeginPicture(VLC_OBJECT(filter),
+    if (heimdall_vaapi_BeginPicture(HEIMDALL_OBJECT(filter),
                                filter_sys->va.dpy, filter_sys->va.ctx,
-                               vlc_vaapi_PicGetSurface(dest)))
+                               heimdall_vaapi_PicGetSurface(dest)))
         goto error;
 
-    if (vlc_vaapi_RenderPicture(VLC_OBJECT(filter),
+    if (heimdall_vaapi_RenderPicture(HEIMDALL_OBJECT(filter),
                                 filter_sys->va.dpy, filter_sys->va.ctx,
                                 &pipeline_buf, 1))
         goto error;
 
-    if (vlc_vaapi_EndPicture(VLC_OBJECT(filter),
+    if (heimdall_vaapi_EndPicture(HEIMDALL_OBJECT(filter),
                              filter_sys->va.dpy, filter_sys->va.ctx))
         goto error;
 
@@ -272,7 +273,7 @@ Filter(filter_t * filter, picture_t * src,
 
 error:
     if (pipeline_buf != VA_INVALID_ID)
-        vlc_vaapi_DestroyBuffer(VLC_OBJECT(filter),
+        heimdall_vaapi_DestroyBuffer(HEIMDALL_OBJECT(filter),
                                 filter_sys->va.dpy, pipeline_buf);
     if (dest)
         picture_Release(dest);
@@ -291,15 +292,15 @@ Open(filter_t * filter,
     filter_sys_t *      filter_sys;
 
     if (filter->vctx_in == NULL ||
-        vlc_video_context_GetType(filter->vctx_in) != VLC_VIDEO_CONTEXT_VAAPI)
-        return VLC_EGENERIC;
-    if (!vlc_vaapi_IsChromaOpaque(filter->fmt_out.video.i_chroma) ||
+        heimdall_video_context_GetType(filter->vctx_in) != HEIMDALL_VIDEO_CONTEXT_VAAPI)
+        return HEIMDALL_EGENERIC;
+    if (!heimdall_vaapi_IsChromaOpaque(filter->fmt_out.video.i_chroma) ||
         !video_format_IsSimilar(&filter->fmt_out.video, &filter->fmt_in.video))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     filter_sys = calloc(1, sizeof(*filter_sys));
     if (!filter_sys)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     filter->p_sys = filter_sys;
 
     filter_sys->p_data = p_data;
@@ -307,26 +308,26 @@ Open(filter_t * filter,
     filter_sys->va.conf = VA_INVALID_ID;
     filter_sys->va.ctx = VA_INVALID_ID;
     filter_sys->va.buf = VA_INVALID_ID;
-    filter_sys->va.dec_device = vlc_video_context_HoldDevice(filter->vctx_in);
+    filter_sys->va.dec_device = heimdall_video_context_HoldDevice(filter->vctx_in);
     filter_sys->va.dpy = filter_sys->va.dec_device->opaque;
     assert(filter_sys->va.dec_device);
 
     filter_sys->dest_pics =
-        vlc_vaapi_PoolNew(VLC_OBJECT(filter), filter->vctx_in,
+        heimdall_vaapi_PoolNew(HEIMDALL_OBJECT(filter), filter->vctx_in,
                           filter_sys->va.dpy, DEST_PICS_POOL_SZ,
                           &filter_sys->va.surface_ids, &filter->fmt_out.video);
     if (!filter_sys->dest_pics)
         goto error;
 
     filter_sys->va.conf =
-        vlc_vaapi_CreateConfigChecked(VLC_OBJECT(filter), filter_sys->va.dpy,
+        heimdall_vaapi_CreateConfigChecked(HEIMDALL_OBJECT(filter), filter_sys->va.dpy,
                                       VAProfileNone, VAEntrypointVideoProc,
                                       filter->fmt_out.video.i_chroma);
     if (filter_sys->va.conf == VA_INVALID_ID)
         goto error;
 
     filter_sys->va.ctx =
-        vlc_vaapi_CreateContext(VLC_OBJECT(filter),
+        heimdall_vaapi_CreateContext(HEIMDALL_OBJECT(filter),
                                 filter_sys->va.dpy, filter_sys->va.conf,
                                 filter->fmt_out.video.i_width,
                                 filter->fmt_out.video.i_height,
@@ -335,7 +336,7 @@ Open(filter_t * filter,
     if (filter_sys->va.ctx == VA_INVALID_ID)
         goto error;
 
-    if (vlc_vaapi_IsVideoProcFilterAvailable(VLC_OBJECT(filter),
+    if (heimdall_vaapi_IsVideoProcFilterAvailable(HEIMDALL_OBJECT(filter),
                                              filter_sys->va.dpy,
                                              filter_sys->va.ctx,
                                              filter_type))
@@ -350,7 +351,7 @@ Open(filter_t * filter,
         goto error;
 
     filter_sys->va.buf =
-        vlc_vaapi_CreateBuffer(VLC_OBJECT(filter),
+        heimdall_vaapi_CreateBuffer(HEIMDALL_OBJECT(filter),
                                filter_sys->va.dpy, filter_sys->va.ctx,
                                VAProcFilterParameterBufferType,
                                i_sz_param, i_num_params, p_va_params);
@@ -358,7 +359,7 @@ Open(filter_t * filter,
     if (filter_sys->va.buf == VA_INVALID_ID)
         goto error;
 
-    if (vlc_vaapi_QueryVideoProcPipelineCaps(VLC_OBJECT(filter),
+    if (heimdall_vaapi_QueryVideoProcPipelineCaps(HEIMDALL_OBJECT(filter),
                                              filter_sys->va.dpy,
                                              filter_sys->va.ctx,
                                              &filter_sys->va.buf,
@@ -372,47 +373,47 @@ Open(filter_t * filter,
         pf_use_pipeline_caps(p_data, p_pipeline_caps))
         goto error;
 
-    filter->vctx_out = vlc_video_context_Hold(filter->vctx_in);
+    filter->vctx_out = heimdall_video_context_Hold(filter->vctx_in);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     if (filter_sys->va.buf != VA_INVALID_ID)
-        vlc_vaapi_DestroyBuffer(VLC_OBJECT(filter),
+        heimdall_vaapi_DestroyBuffer(HEIMDALL_OBJECT(filter),
                                 filter_sys->va.dpy, filter_sys->va.buf);
     if (filter_sys->va.ctx != VA_INVALID_ID)
-        vlc_vaapi_DestroyContext(VLC_OBJECT(filter),
+        heimdall_vaapi_DestroyContext(HEIMDALL_OBJECT(filter),
                                  filter_sys->va.dpy, filter_sys->va.ctx);
     if (filter_sys->va.conf != VA_INVALID_ID)
-        vlc_vaapi_DestroyConfig(VLC_OBJECT(filter),
+        heimdall_vaapi_DestroyConfig(HEIMDALL_OBJECT(filter),
                                 filter_sys->va.dpy, filter_sys->va.conf);
     if (filter_sys->dest_pics)
         picture_pool_Release(filter_sys->dest_pics);
     if (filter_sys->va.dec_device)
-        vlc_decoder_device_Release(filter_sys->va.dec_device);
+        heimdall_decoder_device_Release(filter_sys->va.dec_device);
     free(filter_sys);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 static void
 Close(filter_t *filter, filter_sys_t * filter_sys)
 {
-    vlc_object_t * obj = VLC_OBJECT(filter);
+    heimdall_object_t * obj = HEIMDALL_OBJECT(filter);
     picture_pool_Release(filter_sys->dest_pics);
-    vlc_vaapi_DestroyBuffer(obj, filter_sys->va.dpy, filter_sys->va.buf);
-    vlc_vaapi_DestroyContext(obj, filter_sys->va.dpy, filter_sys->va.ctx);
-    vlc_vaapi_DestroyConfig(obj, filter_sys->va.dpy, filter_sys->va.conf);
-    vlc_decoder_device_Release(filter_sys->va.dec_device);
-    vlc_video_context_Release(filter->vctx_out);
+    heimdall_vaapi_DestroyBuffer(obj, filter_sys->va.dpy, filter_sys->va.buf);
+    heimdall_vaapi_DestroyContext(obj, filter_sys->va.dpy, filter_sys->va.ctx);
+    heimdall_vaapi_DestroyConfig(obj, filter_sys->va.dpy, filter_sys->va.conf);
+    heimdall_decoder_device_Release(filter_sys->va.dec_device);
+    heimdall_video_context_Release(filter->vctx_out);
     free(filter_sys);
 }
 
 static int
-FilterCallback(vlc_object_t * obj, char const * psz_var,
-               vlc_value_t oldval, vlc_value_t newval,
+FilterCallback(heimdall_object_t * obj, char const * psz_var,
+               heimdall_value_t oldval, heimdall_value_t newval,
                void * p_data)
-{ VLC_UNUSED(obj); VLC_UNUSED(oldval);
-    struct range const *                p_vlc_range;
+{ HEIMDALL_UNUSED(obj); HEIMDALL_UNUSED(oldval);
+    struct range const *                p_heimdall_range;
     VAProcFilterValueRange const *      p_drv_range;
     _Atomic float *                     p_drv_value;
     bool                                b_found = false;
@@ -424,9 +425,9 @@ FilterCallback(vlc_object_t * obj, char const * psz_var,
             struct adjust_data *const   p_adjust_data = p_data;
 
             if (!p_adjust_data->params.sigma[i].is_available)
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
 
-            p_vlc_range = vlc_adjust_sigma_ranges + i;
+            p_heimdall_range = heimdall_adjust_sigma_ranges + i;
             p_drv_range = &p_adjust_data->params.sigma[i].drv_range;
             p_drv_value = &p_adjust_data->params.sigma[i].drv_value;
 
@@ -439,7 +440,7 @@ FilterCallback(vlc_object_t * obj, char const * psz_var,
         {
             struct basic_filter_data *const     p_basic_filter_data = p_data;
 
-            p_vlc_range = p_basic_filter_data->sigma.p_vlc_range;
+            p_heimdall_range = p_basic_filter_data->sigma.p_heimdall_range;
             p_drv_range = &p_basic_filter_data->sigma.drv_range;
             p_drv_value = &p_basic_filter_data->sigma.drv_value;
 
@@ -447,21 +448,21 @@ FilterCallback(vlc_object_t * obj, char const * psz_var,
         }
 
     if (!b_found)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    float       vlc_sigma = VLC_CLIP(newval.f_float,
-                                     p_vlc_range->min_value,
-                                     p_vlc_range->max_value);
+    float       heimdall_sigma = HEIMDALL_CLIP(newval.f_float,
+                                     p_heimdall_range->min_value,
+                                     p_heimdall_range->max_value);
 
     if (b_adjust)
-        vlc_sigma = adapt_adjust_sigma(psz_var, vlc_sigma, p_vlc_range);
+        heimdall_sigma = adapt_adjust_sigma(psz_var, heimdall_sigma, p_heimdall_range);
 
-    float const drv_sigma = GET_DRV_SIGMA(vlc_sigma,
-                                          *p_vlc_range, *p_drv_range);
+    float const drv_sigma = GET_DRV_SIGMA(heimdall_sigma,
+                                          *p_heimdall_range, *p_drv_range);
 
     atomic_store_explicit(p_drv_value, drv_sigma, memory_order_relaxed);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /********************
@@ -504,12 +505,12 @@ OpenAdjust_InitFilterParams(filter_t * filter, void * p_data,
     VAProcFilterCapColorBalance caps[VAProcColorBalanceCount];
     unsigned int                num_caps = VAProcColorBalanceCount;
 
-    if (vlc_vaapi_QueryVideoProcFilterCaps(VLC_OBJECT(filter),
+    if (heimdall_vaapi_QueryVideoProcFilterCaps(HEIMDALL_OBJECT(filter),
                                            filter_sys->va.dpy,
                                            filter_sys->va.ctx,
                                            VAProcFilterColorBalance,
                                            caps, &num_caps))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     for (unsigned int i = 0; i < num_caps; ++i)
     {
@@ -518,20 +519,20 @@ OpenAdjust_InitFilterParams(filter_t * filter, void * p_data,
         for (j = 0; j < num_caps; ++j)
             if (caps[j].type == va_adjust_modes[i])
             {
-                float   vlc_sigma =
-                    VLC_CLIP(var_InheritFloat(filter, adjust_params_names[i]),
-                             vlc_adjust_sigma_ranges[i].min_value,
-                             vlc_adjust_sigma_ranges[i].max_value);
-                vlc_sigma =
+                float   heimdall_sigma =
+                    HEIMDALL_CLIP(var_InheritFloat(filter, adjust_params_names[i]),
+                             heimdall_adjust_sigma_ranges[i].min_value,
+                             heimdall_adjust_sigma_ranges[i].max_value);
+                heimdall_sigma =
                     adapt_adjust_sigma(adjust_params_names[i],
-                                       vlc_sigma, vlc_adjust_sigma_ranges + i);
+                                       heimdall_sigma, heimdall_adjust_sigma_ranges + i);
 
                 p_adjust_params->sigma[i].drv_range = caps[j].range;
                 p_adjust_params->sigma[i].is_available = true;
                 ++p_adjust_data->num_available_modes;
 
                 float const     drv_sigma =
-                    GET_DRV_SIGMA(vlc_sigma, vlc_adjust_sigma_ranges[i],
+                    GET_DRV_SIGMA(heimdall_sigma, heimdall_adjust_sigma_ranges[i],
                                   p_adjust_params->sigma[i].drv_range);
 
                 atomic_init(&p_adjust_params->sigma[i].drv_value, drv_sigma);
@@ -546,7 +547,7 @@ OpenAdjust_InitFilterParams(filter_t * filter, void * p_data,
 
     p_va_params = calloc(*p_num_va_params, *p_va_param_sz);
     if (!p_va_params)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     unsigned int i = 0;
     for (unsigned int j = 0; j < NUM_ADJUST_MODES; ++j)
@@ -558,7 +559,7 @@ OpenAdjust_InitFilterParams(filter_t * filter, void * p_data,
 
     *pp_va_params = p_va_params;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void
@@ -576,7 +577,7 @@ CloseAdjust(filter_t *filter)
     Close(filter, filter_sys);
 }
 
-static const struct vlc_filter_operations Adjust_ops = {
+static const struct heimdall_filter_operations Adjust_ops = {
     .filter_video = Adjust, .close = CloseAdjust,
 };
 
@@ -586,11 +587,11 @@ OpenAdjust(filter_t *filter)
     VAProcPipelineCaps          pipeline_caps;
     struct adjust_data *const   p_data = calloc(1, sizeof(*p_data));
     if (!p_data)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     for (unsigned int i = 0; i < NUM_ADJUST_MODES; ++i)
         var_Create(filter, adjust_params_names[i],
-                   VLC_VAR_FLOAT | VLC_VAR_DOINHERIT | VLC_VAR_ISCOMMAND);
+                   HEIMDALL_VAR_FLOAT | HEIMDALL_VAR_DOINHERIT | HEIMDALL_VAR_ISCOMMAND);
 
     if (Open(filter, VAProcFilterColorBalance, &pipeline_caps, p_data,
              OpenAdjust_InitFilterParams, NULL))
@@ -601,13 +602,13 @@ OpenAdjust(filter_t *filter)
 
     filter->ops = &Adjust_ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     for (unsigned int i = 0; i < NUM_ADJUST_MODES; ++i)
         var_Destroy(filter, adjust_params_names[i]);
     free(p_data);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /***************************
@@ -644,23 +645,23 @@ OpenBasicFilter_InitFilterParams(filter_t * filter, void * p_data,
     VAProcFilterCap                     caps;
     unsigned int                        num_caps = 1;
 
-    if (vlc_vaapi_QueryVideoProcFilterCaps(VLC_OBJECT(filter),
+    if (heimdall_vaapi_QueryVideoProcFilterCaps(HEIMDALL_OBJECT(filter),
                                            filter_sys->va.dpy,
                                            filter_sys->va.buf,
                                            p_basic_filter_data->filter_type,
                                            &caps, &num_caps)
         || !num_caps)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    float const vlc_sigma =
-        VLC_CLIP(var_InheritFloat(filter, p_basic_filter_data->sigma.psz_name),
-                 p_basic_filter_data->sigma.p_vlc_range->min_value,
-                 p_basic_filter_data->sigma.p_vlc_range->max_value);
+    float const heimdall_sigma =
+        HEIMDALL_CLIP(var_InheritFloat(filter, p_basic_filter_data->sigma.psz_name),
+                 p_basic_filter_data->sigma.p_heimdall_range->min_value,
+                 p_basic_filter_data->sigma.p_heimdall_range->max_value);
 
     p_basic_filter_data->sigma.drv_range = caps.range;
 
     float const drv_sigma =
-        GET_DRV_SIGMA(vlc_sigma, *p_basic_filter_data->sigma.p_vlc_range,
+        GET_DRV_SIGMA(heimdall_sigma, *p_basic_filter_data->sigma.p_heimdall_range,
                       p_basic_filter_data->sigma.drv_range);
 
     atomic_init(&p_basic_filter_data->sigma.drv_value, drv_sigma);
@@ -672,12 +673,12 @@ OpenBasicFilter_InitFilterParams(filter_t * filter, void * p_data,
 
     p_va_param = calloc(1, sizeof(*p_va_param));
     if (!p_va_param)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_va_param->type = p_basic_filter_data->filter_type;
     *pp_va_params = p_va_param;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void
@@ -692,26 +693,26 @@ CloseBasicFilter(filter_t *filter)
     Close(filter, filter_sys);
 }
 
-static const struct vlc_filter_operations BasicFilter_ops = {
+static const struct heimdall_filter_operations BasicFilter_ops = {
     .filter_video = BasicFilter, .close = CloseBasicFilter
 };
 
 static int
 OpenBasicFilter(filter_t *filter, VAProcFilterType filter_type,
-                const char *psz_sigma_name, struct range const *p_vlc_range)
+                const char *psz_sigma_name, struct range const *p_heimdall_range)
 {
     VAProcPipelineCaps                  pipeline_caps;
     assert(filter->psz_name);
     struct basic_filter_data *const     p_data = calloc(1, sizeof(*p_data));
     if (!p_data)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_data->filter_type = filter_type;
     p_data->sigma.psz_name = psz_sigma_name;
-    p_data->sigma.p_vlc_range = p_vlc_range;
+    p_data->sigma.p_heimdall_range = p_heimdall_range;
 
     var_Create(filter, p_data->sigma.psz_name,
-               VLC_VAR_FLOAT | VLC_VAR_DOINHERIT | VLC_VAR_ISCOMMAND);
+               HEIMDALL_VAR_FLOAT | HEIMDALL_VAR_DOINHERIT | HEIMDALL_VAR_ISCOMMAND);
 
     if (Open(filter, p_data->filter_type, &pipeline_caps, p_data,
              OpenBasicFilter_InitFilterParams, NULL))
@@ -721,26 +722,26 @@ OpenBasicFilter(filter_t *filter, VAProcFilterType filter_type,
 
     filter->ops = &BasicFilter_ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     var_Destroy(filter, p_data->sigma.psz_name);
     free(p_data);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 static int
 OpenDenoiseFilter(filter_t *filter)
 {
     return OpenBasicFilter(filter, VAProcFilterNoiseReduction, "denoise-sigma",
-                           &vlc_denoise_sigma_range);
+                           &heimdall_denoise_sigma_range);
 }
 
 static int
 OpenSharpenFilter(filter_t *filter)
 {
     return OpenBasicFilter(filter, VAProcFilterSharpening, "sharpen-sigma",
-                           &vlc_sharpen_sigma_range);
+                           &heimdall_sharpen_sigma_range);
 }
 
 /*************************
@@ -786,7 +787,7 @@ Deinterlace_UpdateReferenceFrames(void * p_data)
             unsigned int const  idx = p_deint_data->forward_refs.sz + 1 + i;
 
             p_deint_data->backward_refs.surfaces[i] =
-                vlc_vaapi_PicGetSurface(p_deint_data->history.pp_pics[idx]);
+                heimdall_vaapi_PicGetSurface(p_deint_data->history.pp_pics[idx]);
         }
 
     if (p_deint_data->forward_refs.sz)
@@ -795,7 +796,7 @@ Deinterlace_UpdateReferenceFrames(void * p_data)
             unsigned int const  idx = p_deint_data->forward_refs.sz - 1 - i;
 
             p_deint_data->forward_refs.surfaces[i] =
-                vlc_vaapi_PicGetSurface(p_deint_data->history.pp_pics[idx]);
+                heimdall_vaapi_PicGetSurface(p_deint_data->history.pp_pics[idx]);
         }
 }
 
@@ -852,10 +853,10 @@ DeinterlaceX2(filter_t * filter, picture_t * src)
     if (p_deint_data->history.num_pics < p_deint_data->history.sz)
         return NULL;
 
-    vlc_tick_t i_field_dur = 0;
+    heimdall_tick_t i_field_dur = 0;
     unsigned int i = 0;
     for ( ; i < METADATA_SIZE-1; i ++)
-        if (p_deint_data->meta[i].date != VLC_TICK_INVALID)
+        if (p_deint_data->meta[i].date != HEIMDALL_TICK_INVALID)
             break;
     if (i < METADATA_SIZE-1) {
         unsigned int i_fields_total = 0;
@@ -864,7 +865,7 @@ DeinterlaceX2(filter_t * filter, picture_t * src)
         i_field_dur = (src->date - p_deint_data->meta[i].date) / i_fields_total;
     }
     else if (fmt->i_frame_rate_base)
-        i_field_dur = vlc_tick_from_samples(fmt->i_frame_rate_base, fmt->i_frame_rate);
+        i_field_dur = heimdall_tick_from_samples(fmt->i_frame_rate_base, fmt->i_frame_rate);
 
     picture_t *dest[2] = {NULL, NULL};
     for (i = 0; i < 2; ++i)
@@ -881,12 +882,12 @@ DeinterlaceX2(filter_t * filter, picture_t * src)
         dest[i]->i_nb_fields = 1;
     }
 
-    vlc_picture_chain_AppendChain( dest[0], dest[1] );
+    heimdall_picture_chain_AppendChain( dest[0], dest[1] );
     dest[0]->date = cur->date;
-    if (dest[0]->date != VLC_TICK_INVALID)
+    if (dest[0]->date != HEIMDALL_TICK_INVALID)
         dest[1]->date = dest[0]->date + i_field_dur;
     else
-        dest[1]->date = VLC_TICK_INVALID;
+        dest[1]->date = HEIMDALL_TICK_INVALID;
 
     return dest[0];
 
@@ -913,7 +914,7 @@ Deinterlace_Flush(filter_t *filter)
 
     for (unsigned int i = 0; i < METADATA_SIZE; ++i)
     {
-        p_deint_data->meta[i].date = VLC_TICK_INVALID;
+        p_deint_data->meta[i].date = HEIMDALL_TICK_INVALID;
         p_deint_data->meta[i].i_nb_fields = 2;
     }
 }
@@ -950,7 +951,7 @@ OpenDeinterlace_GetMode(filter_t * filter, char const * deint_mode,
                     *p_deint_mode = deint_modes[i];
                     msg_Dbg(filter, "using %s deinterlace method",
                             deint_modes[i].name);
-                    return VLC_SUCCESS;
+                    return HEIMDALL_SUCCESS;
                 }
             }
         }
@@ -968,7 +969,7 @@ OpenDeinterlace_GetMode(filter_t * filter, char const * deint_mode,
             else
                 msg_Dbg(filter, "using %s deinterlace method",
                         deint_modes[i].name);
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
 
     /* We shouldn't be able to reach this, 'cause if there is no deinterlacing
@@ -976,7 +977,7 @@ OpenDeinterlace_GetMode(filter_t * filter, char const * deint_mode,
        deinterlace filtering is not supported at all. */
 
     msg_Err(filter, "no algorithm available");
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 static int
@@ -991,12 +992,12 @@ OpenDeinterlace_InitFilterParams(filter_t * filter, void * p_data,
                                 caps[VAProcDeinterlacingCount];
     unsigned int                num_caps = VAProcDeinterlacingCount;
 
-    if (vlc_vaapi_QueryVideoProcFilterCaps(VLC_OBJECT(filter),
+    if (heimdall_vaapi_QueryVideoProcFilterCaps(HEIMDALL_OBJECT(filter),
                                            filter_sys->va.dpy,
                                            filter_sys->va.buf,
                                            VAProcFilterDeinterlacing,
                                            &caps, &num_caps))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     struct deint_mode   deint_mode;
     char *const         psz_deint_mode =
@@ -1006,7 +1007,7 @@ OpenDeinterlace_InitFilterParams(filter_t * filter, void * p_data,
                                       &deint_mode, caps, num_caps);
     free(psz_deint_mode);
     if (ret)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     VAProcFilterParameterBufferDeinterlacing *  p_va_param;
 
@@ -1015,7 +1016,7 @@ OpenDeinterlace_InitFilterParams(filter_t * filter, void * p_data,
 
     p_va_param = calloc(1, sizeof(*p_va_param));
     if (!p_va_param)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_va_param->type = VAProcFilterDeinterlacing;
     p_va_param->algorithm = deint_mode.type;
@@ -1023,7 +1024,7 @@ OpenDeinterlace_InitFilterParams(filter_t * filter, void * p_data,
 
     p_deint_data->b_double_rate = deint_mode.b_double_rate;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int
@@ -1039,7 +1040,7 @@ OpenDeinterlace_InitHistory(void * p_data, VAProcPipelineCaps const * pipeline_c
 
     p_deint_data->history.pp_pics = calloc(history_sz, sizeof(picture_t *));
     if (!p_deint_data->history.pp_pics)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_deint_data->history.pp_cur_pic =
         p_deint_data->history.pp_pics + sz_forward_refs;
@@ -1049,9 +1050,9 @@ OpenDeinterlace_InitHistory(void * p_data, VAProcPipelineCaps const * pipeline_c
     if (history_sz - 1)
     {
         p_deint_data->forward_refs.surfaces =
-            vlc_alloc(history_sz - 1, sizeof(VASurfaceID));
+            heimdall_alloc(history_sz - 1, sizeof(VASurfaceID));
         if (!p_deint_data->forward_refs.surfaces)
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
     }
 
     p_deint_data->backward_refs.surfaces =
@@ -1060,7 +1061,7 @@ OpenDeinterlace_InitHistory(void * p_data, VAProcPipelineCaps const * pipeline_c
     p_deint_data->backward_refs.sz = sz_backward_refs;
     p_deint_data->forward_refs.sz = sz_forward_refs;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void CloseDeinterlace(filter_t *filter)
@@ -1075,10 +1076,10 @@ static void CloseDeinterlace(filter_t *filter)
     Close(filter, filter_sys);
 }
 
-static const struct vlc_filter_operations DeinterlaceX2_ops = {
+static const struct heimdall_filter_operations DeinterlaceX2_ops = {
     .filter_video = DeinterlaceX2, .flush = Deinterlace_Flush, .close = CloseDeinterlace,
 };
-static const struct vlc_filter_operations Deinterlace_ops = {
+static const struct heimdall_filter_operations Deinterlace_ops = {
     .filter_video = Deinterlace,   .flush = Deinterlace_Flush, .close = CloseDeinterlace,
 };
 
@@ -1088,7 +1089,7 @@ OpenDeinterlace(filter_t *filter)
     VAProcPipelineCaps          pipeline_caps;
     struct deint_data *const    p_data = calloc(1, sizeof(*p_data));
     if (!p_data)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     if (Open(filter, VAProcFilterDeinterlacing, &pipeline_caps, p_data,
              OpenDeinterlace_InitFilterParams, OpenDeinterlace_InitHistory))
@@ -1101,11 +1102,11 @@ OpenDeinterlace(filter_t *filter)
 
     for (unsigned int i = 0; i < METADATA_SIZE; ++i)
     {
-        p_data->meta[i].date = VLC_TICK_INVALID;
+        p_data->meta[i].date = HEIMDALL_TICK_INVALID;
         p_data->meta[i].i_nb_fields = 2;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     if (p_data->forward_refs.surfaces)
@@ -1113,28 +1114,28 @@ error:
     if (p_data->history.pp_pics)
         free(p_data->history.pp_pics);
     free(p_data);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /*********************
  * Module descriptor *
  *********************/
 
-static void ProbeChroma(vlc_chroma_conv_vec *vec)
+static void ProbeChroma(heimdall_chroma_conv_vec *vec)
 {
-    vlc_chroma_conv_add(vec, 1.1, VLC_CODEC_VAAPI_420, VLC_CODEC_I420, true);
-    vlc_chroma_conv_add(vec, 1.1, VLC_CODEC_VAAPI_420_10BPP, VLC_CODEC_P010, true);
-    vlc_chroma_conv_add(vec, 1.1, VLC_CODEC_VAAPI_420_10BPP, VLC_CODEC_I420_10L, true);
-    vlc_chroma_conv_add(vec, 1.1, VLC_CODEC_VAAPI_420_12BPP, VLC_CODEC_P012, true);
-    vlc_chroma_conv_add(vec, 1.1, VLC_CODEC_VAAPI_420_12BPP, VLC_CODEC_I420_12L, true);
-    vlc_chroma_conv_add(vec, 1.1, VLC_CODEC_VAAPI_422_10BPP, VLC_CODEC_Y210, true);
-    vlc_chroma_conv_add(vec, 1.1, VLC_CODEC_VAAPI_422_12BPP, VLC_CODEC_Y212, true);
-    vlc_chroma_conv_add(vec, 1.1, VLC_CODEC_VAAPI_444, VLC_CODEC_VUYX, true);
-    vlc_chroma_conv_add(vec, 1.1, VLC_CODEC_VAAPI_444_10BPP, VLC_CODEC_Y410, true);
-    vlc_chroma_conv_add(vec, 1.1, VLC_CODEC_VAAPI_444_12BPP, VLC_CODEC_Y412, true);
+    heimdall_chroma_conv_add(vec, 1.1, HEIMDALL_CODEC_VAAPI_420, HEIMDALL_CODEC_I420, true);
+    heimdall_chroma_conv_add(vec, 1.1, HEIMDALL_CODEC_VAAPI_420_10BPP, HEIMDALL_CODEC_P010, true);
+    heimdall_chroma_conv_add(vec, 1.1, HEIMDALL_CODEC_VAAPI_420_10BPP, HEIMDALL_CODEC_I420_10L, true);
+    heimdall_chroma_conv_add(vec, 1.1, HEIMDALL_CODEC_VAAPI_420_12BPP, HEIMDALL_CODEC_P012, true);
+    heimdall_chroma_conv_add(vec, 1.1, HEIMDALL_CODEC_VAAPI_420_12BPP, HEIMDALL_CODEC_I420_12L, true);
+    heimdall_chroma_conv_add(vec, 1.1, HEIMDALL_CODEC_VAAPI_422_10BPP, HEIMDALL_CODEC_Y210, true);
+    heimdall_chroma_conv_add(vec, 1.1, HEIMDALL_CODEC_VAAPI_422_12BPP, HEIMDALL_CODEC_Y212, true);
+    heimdall_chroma_conv_add(vec, 1.1, HEIMDALL_CODEC_VAAPI_444, HEIMDALL_CODEC_VUYX, true);
+    heimdall_chroma_conv_add(vec, 1.1, HEIMDALL_CODEC_VAAPI_444_10BPP, HEIMDALL_CODEC_Y410, true);
+    heimdall_chroma_conv_add(vec, 1.1, HEIMDALL_CODEC_VAAPI_444_12BPP, HEIMDALL_CODEC_Y412, true);
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname(N_("VAAPI filters"))
     set_description(N_("Video Accelerated API filters"))
     set_subcategory(SUBCAT_VIDEO_VFILTER)
@@ -1159,8 +1160,8 @@ vlc_module_begin()
     add_shortcut("sharpen")
 
     add_submodule()
-    set_callback_video_converter(vlc_vaapi_OpenChroma, 10)
+    set_callback_video_converter(heimdall_vaapi_OpenChroma, 10)
 
     add_submodule()
         set_callback_chroma_conv_probe(ProbeChroma)
-vlc_module_end()
+heimdall_module_end()

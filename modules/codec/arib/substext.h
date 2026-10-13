@@ -2,6 +2,7 @@
  * substext.h : ARIB subtitles subpicture decoder
  *****************************************************************************
  * Copyright (C) 2012 Naohiro KORIYAMA
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors:  Naohiro KORIYAMA <nkoriyama@gmail.com>
  *
@@ -47,7 +48,7 @@ typedef struct
 } arib_spu_updater_sys_t;
 
 static void SubpictureTextUpdate(subpicture_t *subpic,
-                                 const struct vlc_spu_updater_configuration *cfg)
+                                 const struct heimdall_spu_updater_configuration *cfg)
 {
     arib_spu_updater_sys_t *sys = subpic->updater.sys;
     const video_format_t *fmt_dst = cfg->current.video_dst;
@@ -55,7 +56,7 @@ static void SubpictureTextUpdate(subpicture_t *subpic,
     if ( !sys->first )
         return;
 
-    assert( vlc_spu_regions_is_empty( &subpic->regions ) );
+    assert( heimdall_spu_regions_is_empty( &subpic->regions ) );
 
     assert(fmt_dst->i_sar_num && fmt_dst->i_sar_den);
 
@@ -68,7 +69,7 @@ static void SubpictureTextUpdate(subpicture_t *subpic,
         {
             return;
         }
-        vlc_spu_regions_push(&subpic->regions, r);
+        heimdall_spu_regions_push(&subpic->regions, r);
         r->fmt.i_sar_num = 1;
         r->fmt.i_sar_den = 1;
 
@@ -119,7 +120,7 @@ static inline subpicture_t *decoder_NewSubpictureText(decoder_t *decoder)
     arib_spu_updater_sys_t *sys = (arib_spu_updater_sys_t*)
         calloc( 1, sizeof(arib_spu_updater_sys_t) );
 
-    static const struct vlc_spu_updater_ops spu_ops =
+    static const struct heimdall_spu_updater_ops spu_ops =
     {
         .update   = SubpictureTextUpdate,
         .destroy  = SubpictureTextDestroy,

@@ -2,6 +2,7 @@
  * chain.c: test configuration chains
  *****************************************************************************
  * Copyright (C) 2010 VideoLAN and authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Rémi Duraffort <ivoire@videolan.org>
  *
@@ -23,10 +24,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../../libvlc/test.h"
+#include "../../libheimdall/test.h"
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
 
 typedef struct
 {

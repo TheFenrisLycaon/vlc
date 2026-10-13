@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 1995,1996,1998,1999,2001,2002,
  *               2003  Free Software Foundation, Inc.
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -42,8 +43,8 @@
 #include <string.h>
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_hash.h>
+#include <heimdall_common.h>
+#include <heimdall_hash.h>
 
 typedef uint32_t u32;
 typedef uint8_t byte;
@@ -335,19 +336,19 @@ md5_read( void *context )
 #endif
 
 /* Public API */
-void vlc_hash_md5_Init(vlc_hash_md5_t *ctx)
+void heimdall_hash_md5_Init(heimdall_hash_md5_t *ctx)
 {
     md5_init(&ctx->priv);
 }
 
-void vlc_hash_md5_Update(vlc_hash_md5_t *ctx, const void *data, size_t length)
+void heimdall_hash_md5_Update(heimdall_hash_md5_t *ctx, const void *data, size_t length)
 {
     md5_write(&ctx->priv, data, length);
 }
 
-void vlc_hash_md5_Finish(vlc_hash_md5_t *ctx, void *output, size_t size)
+void heimdall_hash_md5_Finish(heimdall_hash_md5_t *ctx, void *output, size_t size)
 {
-    assert(size >= VLC_HASH_MD5_DIGEST_SIZE);
+    assert(size >= HEIMDALL_HASH_MD5_DIGEST_SIZE);
     md5_final(&ctx->priv);
-    memcpy(output, ctx->priv.buf, VLC_HASH_MD5_DIGEST_SIZE);
+    memcpy(output, ctx->priv.buf, HEIMDALL_HASH_MD5_DIGEST_SIZE);
 }

@@ -2,8 +2,9 @@
  * volume.c
  *****************************************************************************
  * Copyright (C) 2007-2008 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Antoine Cellerier <dionoea at videolan tod org>
+ * Authors: Antoine Cellerier <dionoea at lycaria tod org>
  *          Pierre d'Herbemont <pdherbemont # videolan.org>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -33,70 +34,70 @@
 #endif
 
 #include <math.h>
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_meta.h>
-#include <vlc_playlist.h>
-#include <vlc_player.h>
-#include <vlc_aout.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_meta.h>
+#include <heimdall_playlist.h>
+#include <heimdall_player.h>
+#include <heimdall_aout.h>
 
-#include "../vlc.h"
+#include "../heimdall.h"
 #include "../libs.h"
 
 /*****************************************************************************
  * Volume related
  *****************************************************************************/
-static int vlclua_volume_set(lua_State *L)
+static int heimdalllua_volume_set(lua_State *L)
 {
-    vlc_playlist_t *playlist = vlclua_get_playlist_internal(L);
-    vlc_player_t *player = vlc_playlist_GetPlayer(playlist);
+    heimdall_playlist_t *playlist = heimdalllua_get_playlist_internal(L);
+    heimdall_player_t *player = heimdall_playlist_GetPlayer(playlist);
 
     int i_volume = luaL_checkinteger(L, 1);
     if (i_volume < 0)
         i_volume = 0;
 
     float volume = i_volume / (float) AOUT_VOLUME_DEFAULT;
-    int ret = vlc_player_aout_SetVolume(player, volume);
-    return vlclua_push_ret(L, ret);
+    int ret = heimdall_player_aout_SetVolume(player, volume);
+    return heimdalllua_push_ret(L, ret);
 }
 
-static int vlclua_volume_get(lua_State *L)
+static int heimdalllua_volume_get(lua_State *L)
 {
-    vlc_playlist_t *playlist = vlclua_get_playlist_internal(L);
-    vlc_player_t *player = vlc_playlist_GetPlayer(playlist);
+    heimdall_playlist_t *playlist = heimdalllua_get_playlist_internal(L);
+    heimdall_player_t *player = heimdall_playlist_GetPlayer(playlist);
 
-    float volume = vlc_player_aout_GetVolume(player);
+    float volume = heimdall_player_aout_GetVolume(player);
 
     long i_volume = lroundf(volume * AOUT_VOLUME_DEFAULT);
     lua_pushnumber(L, i_volume);
     return 1;
 }
 
-static int vlclua_volume_up(lua_State *L)
+static int heimdalllua_volume_up(lua_State *L)
 {
-    vlc_playlist_t *playlist = vlclua_get_playlist_internal(L);
-    vlc_player_t *player = vlc_playlist_GetPlayer(playlist);
+    heimdall_playlist_t *playlist = heimdalllua_get_playlist_internal(L);
+    heimdall_player_t *player = heimdall_playlist_GetPlayer(playlist);
 
     float volume;
     int steps = luaL_optinteger(L, 1, 1);
-    int res = vlc_player_aout_IncrementVolume(player, steps, &volume);
+    int res = heimdall_player_aout_IncrementVolume(player, steps, &volume);
 
-    long i_volume = res == VLC_SUCCESS ? lroundf(volume * AOUT_VOLUME_DEFAULT)
+    long i_volume = res == HEIMDALL_SUCCESS ? lroundf(volume * AOUT_VOLUME_DEFAULT)
                                        : 0;
     lua_pushnumber(L, i_volume);
     return 1;
 }
 
-static int vlclua_volume_down(lua_State *L)
+static int heimdalllua_volume_down(lua_State *L)
 {
-    vlc_playlist_t *playlist = vlclua_get_playlist_internal(L);
-    vlc_player_t *player = vlc_playlist_GetPlayer(playlist);
+    heimdall_playlist_t *playlist = heimdalllua_get_playlist_internal(L);
+    heimdall_player_t *player = heimdall_playlist_GetPlayer(playlist);
 
     float volume;
     int steps = luaL_optinteger(L, 1, 1);
-    int res = vlc_player_aout_DecrementVolume(player, steps, &volume);
+    int res = heimdall_player_aout_DecrementVolume(player, steps, &volume);
 
-    long i_volume = res == VLC_SUCCESS ? lroundf(volume * AOUT_VOLUME_DEFAULT)
+    long i_volume = res == HEIMDALL_SUCCESS ? lroundf(volume * AOUT_VOLUME_DEFAULT)
                                        : 0;
     lua_pushnumber(L, i_volume);
     return 1;
@@ -105,17 +106,17 @@ static int vlclua_volume_down(lua_State *L)
 /*****************************************************************************
  *
  *****************************************************************************/
-static const luaL_Reg vlclua_volume_reg[] = {
-    { "get", vlclua_volume_get },
-    { "set", vlclua_volume_set },
-    { "up", vlclua_volume_up },
-    { "down", vlclua_volume_down },
+static const luaL_Reg heimdalllua_volume_reg[] = {
+    { "get", heimdalllua_volume_get },
+    { "set", heimdalllua_volume_set },
+    { "up", heimdalllua_volume_up },
+    { "down", heimdalllua_volume_down },
     { NULL, NULL }
 };
 
 void luaopen_volume( lua_State *L )
 {
     lua_newtable( L );
-    luaL_register( L, NULL, vlclua_volume_reg );
+    luaL_register( L, NULL, heimdalllua_volume_reg );
     lua_setfield( L, -2, "volume" );
 }

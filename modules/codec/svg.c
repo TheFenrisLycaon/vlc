@@ -2,6 +2,7 @@
  * svg.c: svg decoder module making use of librsvg2.
  *****************************************************************************
  * Copyright (C) 2014 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Adam Leggett <adamvleggett@gmail.com>
  *          Jean-Paul Saman <jpsaman@videolan.org>
@@ -28,9 +29,9 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
 
 #include <glib.h>
 #include <glib/gstdio.h>
@@ -42,8 +43,8 @@
 /*****************************************************************************
  * Local prototypes
  *****************************************************************************/
-static int  OpenDecoder   ( vlc_object_t * );
-static void CloseDecoder  ( vlc_object_t * );
+static int  OpenDecoder   ( heimdall_object_t * );
+static void CloseDecoder  ( heimdall_object_t * );
 
 static int DecodeBlock  ( decoder_t *, block_t * );
 
@@ -57,7 +58,7 @@ static int DecodeBlock  ( decoder_t *, block_t * );
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-vlc_module_begin ()
+heimdall_module_begin ()
     set_subcategory( SUBCAT_INPUT_VCODEC )
     set_description( N_("SVG video decoder") )
     set_capability( "video decoder", 100 )
@@ -73,7 +74,7 @@ vlc_module_begin ()
         change_safe()
 
     add_float( "svg-scale", -1.0, TEXT_SCALE, LONG_TEXT_SCALE )
-vlc_module_end ()
+heimdall_module_end ()
 
 typedef struct
 {
@@ -85,16 +86,16 @@ typedef struct
 /*****************************************************************************
  * OpenDecoder: probe the decoder and return score
  *****************************************************************************/
-static int OpenDecoder( vlc_object_t *p_this )
+static int OpenDecoder( heimdall_object_t *p_this )
 {
     decoder_t *p_dec = (decoder_t*)p_this;
 
-    if( p_dec->fmt_in->i_codec != VLC_CODEC_SVG )
-        return VLC_EGENERIC;
+    if( p_dec->fmt_in->i_codec != HEIMDALL_CODEC_SVG )
+        return HEIMDALL_EGENERIC;
 
     decoder_sys_t *p_sys = malloc( sizeof(decoder_sys_t) );
     if (!p_sys)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     p_dec->p_sys = p_sys;
 
     p_sys->i_width = var_InheritInteger( p_this, "svg-width" );
@@ -108,15 +109,15 @@ static int OpenDecoder( vlc_object_t *p_this )
 
     /* Set output properties */
 #ifdef WORDS_BIGENDIAN
-    p_dec->fmt_out.i_codec = VLC_CODEC_ARGB;
+    p_dec->fmt_out.i_codec = HEIMDALL_CODEC_ARGB;
 #else
-    p_dec->fmt_out.i_codec = VLC_CODEC_BGRA;
+    p_dec->fmt_out.i_codec = HEIMDALL_CODEC_BGRA;
 #endif
 
     /* Set callbacks */
     p_dec->pf_decode = DecodeBlock;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /****************************************************************************
@@ -135,12 +136,12 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
     cairo_t *cr = NULL;
 
     if( p_block == NULL ) /* No Drain */
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
 
     if( p_block->i_flags & BLOCK_FLAG_CORRUPTED)
     {
         block_Release( p_block );
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
     }
 
     rsvg = rsvg_handle_new_from_data( p_block->p_buffer, p_block->i_buffer, NULL );
@@ -182,9 +183,9 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
 
     p_dec->fmt_out.i_codec =
 #ifdef WORDS_BIGENDIAN
-    p_dec->fmt_out.video.i_chroma = VLC_CODEC_ARGB;
+    p_dec->fmt_out.video.i_chroma = HEIMDALL_CODEC_ARGB;
 #else
-    p_dec->fmt_out.video.i_chroma = VLC_CODEC_BGRA;
+    p_dec->fmt_out.video.i_chroma = HEIMDALL_CODEC_BGRA;
 #endif
     p_dec->fmt_out.video.i_width  = i_width;
     p_dec->fmt_out.video.i_height = i_height;
@@ -204,7 +205,7 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
 
     /* NOTE: Do not use the stride calculation from cairo, because it is wrong:
      * stride = cairo_format_stride_for_width(CAIRO_FORMAT_ARGB32, dim.width);
-     * Use the stride from VLC its picture_t::p[0].i_pitch, which is correct.
+     * Use the stride from Heimdall its picture_t::p[0].i_pitch, which is correct.
      */
     memset(p_pic->p[0].p_pixels, 0, p_pic->p[0].i_pitch * p_pic->p[0].i_lines);
     surface = cairo_image_surface_create_for_data( p_pic->p->p_pixels,
@@ -249,7 +250,7 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
         goto done;
     }
 
-    p_pic->date = p_block->i_pts != VLC_TICK_INVALID ? p_block->i_pts : p_block->i_dts;
+    p_pic->date = p_block->i_pts != HEIMDALL_TICK_INVALID ? p_block->i_pts : p_block->i_dts;
 
 done:
     if( rsvg )
@@ -262,15 +263,15 @@ done:
     block_Release( p_block );
     if( p_pic != NULL )
         decoder_QueueVideo( p_dec, p_pic );
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }
 
 /*****************************************************************************
  * CloseDecoder: png decoder destruction
  *****************************************************************************/
-static void CloseDecoder( vlc_object_t *p_this )
+static void CloseDecoder( heimdall_object_t *p_this )
 {
-    VLC_UNUSED( p_this );
+    HEIMDALL_UNUSED( p_this );
 #if (GLIB_MAJOR_VERSION < 2 || GLIB_MINOR_VERSION < 36)
     rsvg_term();
 #endif

@@ -1,7 +1,8 @@
 /*****************************************************************************
- * ogg.h : ogg stream demux module for vlc
+ * ogg.h : ogg stream demux module for heimdall
  *****************************************************************************
  * Copyright (C) 2001-2010 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gildas Bazin <gbazin@netcourrier.com>
  *          Andre Pang <Andre.Pang@csiro.au> (Annodex support)
@@ -26,7 +27,7 @@
  * Definitions of structures and functions used by this plugin
  *****************************************************************************/
 
-#include <vlc_tick.h>
+#include <heimdall_tick.h>
 
 //#define OGG_DEMUX_DEBUG 1
 #ifdef OGG_DEMUX_DEBUG
@@ -50,7 +51,7 @@ typedef struct ogg_skeleton_t ogg_skeleton_t;
 typedef struct backup_queue
 {
     block_t *p_block;
-    vlc_tick_t i_duration;
+    heimdall_tick_t i_duration;
 } backup_queue_t;
 
 typedef struct logical_stream_s
@@ -78,7 +79,7 @@ typedef struct logical_stream_s
 
     /* program clock reference (in units of 90kHz) derived from the previous
      * granulepos */
-    vlc_tick_t       i_pcr;
+    heimdall_tick_t       i_pcr;
 
     /* Misc */
     bool b_initializing;
@@ -180,8 +181,8 @@ typedef struct
 
     /* program clock reference (in units of 90kHz) derived from the pcr of
      * the sub-streams */
-    vlc_tick_t i_pcr;
-    vlc_tick_t i_nzpcr_offset;
+    heimdall_tick_t i_pcr;
+    heimdall_tick_t i_nzpcr_offset;
 
     /* new stream or starting from a chain */
     bool b_chained_boundary;
@@ -206,7 +207,7 @@ typedef struct
     ogg_page current_page;
 
     /* */
-    vlc_meta_t          *p_meta;
+    heimdall_meta_t          *p_meta;
     int                 cur_seekpoint;
     int                 i_seekpoints;
     seekpoint_t         **pp_seekpoints;
@@ -228,7 +229,7 @@ typedef struct
     bool b_es_created;
 
     /* Time length, if available. 0 otherwise. */
-    vlc_tick_t i_length;
+    heimdall_tick_t i_length;
 
     bool b_slave;
 
@@ -238,5 +239,5 @@ typedef struct
 unsigned const char * Read7BitsVariableLE( unsigned const char *,
                                            unsigned const char *,
                                            uint64_t * );
-bool Ogg_GetBoundsUsingSkeletonIndex( logical_stream_t *p_stream, vlc_tick_t i_time,
+bool Ogg_GetBoundsUsingSkeletonIndex( logical_stream_t *p_stream, heimdall_tick_t i_time,
                                       int64_t *pi_lower, int64_t *pi_upper );

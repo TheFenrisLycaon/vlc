@@ -1,10 +1,10 @@
-Instructions to code your own VLC Lua extension script.
+Instructions to code your own Heimdall Lua extension script.
 
-See lua/README.txt for generic documentation about Lua usage in VLC.
+See lua/README.txt for generic documentation about Lua usage in Heimdall.
 
 Examples: imdb.lua, lastfm.lua, subtitles.lua
 
 TODO :-)
 
-VLC defines a global vlc object with the following members:
-All the VLC specific Lua modules are available, even Extension and Dialog.
+Heimdall defines a global heimdall object with the following members:
+All the Heimdall specific Lua modules are available, even Extension and Dialog.

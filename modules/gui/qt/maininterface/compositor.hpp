@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,8 +16,8 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
-#ifndef VLC_QT_COMPOSITOR
-#define VLC_QT_COMPOSITOR
+#ifndef HEIMDALL_QT_COMPOSITOR
+#define HEIMDALL_QT_COMPOSITOR
 
 #ifdef HAVE_CONFIG_H
 # include "config.h"
@@ -28,14 +29,14 @@
 #include <QPointF>
 #include <QSizeF>
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
 #include "qt.hpp"
 
 
 extern "C" {
-    typedef struct vlc_window vlc_window_t;
-    typedef struct vlc_window_cfg vlc_window_cfg_t;
+    typedef struct heimdall_window heimdall_window_t;
+    typedef struct heimdall_window_cfg heimdall_window_cfg_t;
 }
 
 class MainCtx;
@@ -52,7 +53,7 @@ class QQuickView;
 class QQuickWindow;
 struct WindowEffectsModule;
 
-namespace vlc {
+namespace heimdall {
 
 class Compositor {
 public:
@@ -66,7 +67,7 @@ public:
         PlatformCompositor
     };
 
-    typedef void (*VoutDestroyCb)(vlc_window_t *p_wnd);
+    typedef void (*VoutDestroyCb)(heimdall_window_t *p_wnd);
 
 public:
     virtual ~Compositor() = default;
@@ -92,7 +93,7 @@ public:
      */
     virtual void unloadGUI() = 0;
 
-    [[nodiscard]] virtual bool setupVoutWindow(vlc_window_t *p_wnd, VoutDestroyCb destroyCb) = 0;
+    [[nodiscard]] virtual bool setupVoutWindow(heimdall_window_t *p_wnd, VoutDestroyCb destroyCb) = 0;
 
     virtual Type type() const = 0;
 
@@ -135,7 +136,7 @@ public:
     virtual ~CompositorVideo();
 
 public:
-    virtual int windowEnable(const vlc_window_cfg_t *) = 0;
+    virtual int windowEnable(const heimdall_window_cfg_t *) = 0;
     virtual void windowDisable() = 0;
     virtual void windowDestroy();
     virtual void windowResize(unsigned width, unsigned height);
@@ -147,7 +148,7 @@ public:
     virtual bool canDoThreadedSurfaceUpdates() const { return false; };
 
 protected:
-    void commonSetupVoutWindow(vlc_window_t* p_wnd, VoutDestroyCb destroyCb);
+    void commonSetupVoutWindow(heimdall_window_t* p_wnd, VoutDestroyCb destroyCb);
     void commonWindowEnable();
     void commonWindowDisable();
 
@@ -211,7 +212,7 @@ protected slots:
 
 protected:
     qt_intf_t *m_intf = nullptr;
-    vlc_window_t* m_wnd = nullptr;
+    heimdall_window_t* m_wnd = nullptr;
 
     MainCtx* m_mainCtx = nullptr;
 
@@ -263,4 +264,4 @@ private:
 
 }
 
-#endif /* VLC_QT_COMPOSITOR */
+#endif /* HEIMDALL_QT_COMPOSITOR */

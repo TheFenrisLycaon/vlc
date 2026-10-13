@@ -2,8 +2,9 @@
  * access.c
  *****************************************************************************
  * Copyright (C) 1999-2008 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Author: Laurent Aimar <fenrir _AT_ videolan _DOT_ org>
+ * Author: Laurent Aimar <fenrir _AT_ lycaria _DOT_ org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -28,27 +29,27 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <vlc_common.h>
-#include <vlc_url.h>
-#include <vlc_modules.h>
-#include <vlc_interrupt.h>
-#include <vlc_access.h>
+#include <heimdall_common.h>
+#include <heimdall_url.h>
+#include <heimdall_modules.h>
+#include <heimdall_interrupt.h>
+#include <heimdall_access.h>
 
 #include "stream.h"
 
-struct vlc_access_private
+struct heimdall_access_private
 {
     module_t *module;
 };
 
-struct vlc_access_stream_private
+struct heimdall_access_stream_private
 {
     input_thread_t *input;
 };
 
-static void vlc_access_Destroy(stream_t *access)
+static void heimdall_access_Destroy(stream_t *access)
 {
-    struct vlc_access_private *priv = vlc_stream_Private(access);
+    struct heimdall_access_private *priv = heimdall_stream_Private(access);
 
     module_unneed(access, priv->module);
     free(access->psz_filepath);
@@ -57,7 +58,7 @@ static void vlc_access_Destroy(stream_t *access)
 
 #define MAX_REDIR 20
 
-static stream_t *accessNewAttachment(vlc_object_t *parent,
+static stream_t *accessNewAttachment(heimdall_object_t *parent,
                                      input_thread_t *input, const char *mrl)
 {
     if (!input)
@@ -66,16 +67,16 @@ static stream_t *accessNewAttachment(vlc_object_t *parent,
     input_attachment_t *attachment = input_GetAttachment(input, mrl + 13);
     if (!attachment)
         return NULL;
-    stream_t *stream = vlc_stream_AttachmentNew(parent, attachment);
+    stream_t *stream = heimdall_stream_AttachmentNew(parent, attachment);
     if (!stream)
     {
-        vlc_input_attachment_Release(attachment);
+        heimdall_input_attachment_Release(attachment);
         return NULL;
     }
     stream->psz_url = strdup(mrl);
     if (!stream->psz_url)
     {
-        vlc_stream_Delete(stream);
+        heimdall_stream_Delete(stream);
         return NULL;
     }
     stream->psz_location = stream->psz_url + strlen("attachment://");
@@ -85,17 +86,17 @@ static stream_t *accessNewAttachment(vlc_object_t *parent,
 /*****************************************************************************
  * access_New:
  *****************************************************************************/
-static stream_t *access_New(vlc_object_t *parent, input_thread_t *input,
+static stream_t *access_New(heimdall_object_t *parent, input_thread_t *input,
                             es_out_t *out, bool preparsing, const char *mrl)
 {
-    struct vlc_access_private *priv;
+    struct heimdall_access_private *priv;
     char *redirv[MAX_REDIR];
     unsigned redirc = 0;
 
     if (strncmp(mrl, "attachment://", 13) == 0)
         return accessNewAttachment(parent, input, mrl);
 
-    stream_t *access = vlc_stream_CustomNew(parent, vlc_access_Destroy,
+    stream_t *access = heimdall_stream_CustomNew(parent, heimdall_access_Destroy,
                                             sizeof (*priv), "access");
     if (unlikely(access == NULL))
         return NULL;
@@ -106,7 +107,7 @@ static stream_t *access_New(vlc_object_t *parent, input_thread_t *input,
     access->psz_url = strdup(mrl);
     access->psz_filepath = NULL;
     access->b_preparsing = preparsing;
-    priv = vlc_stream_Private(access);
+    priv = heimdall_stream_Private(access);
 
     if (unlikely(access->psz_url == NULL))
         goto error;
@@ -125,13 +126,13 @@ static stream_t *access_New(vlc_object_t *parent, input_thread_t *input,
             goto error;
 
         access->psz_location = p + (strncmp(p + 1, "//", 2) ? 1 : 3);
-        access->psz_filepath = vlc_uri2path(url);
+        access->psz_filepath = heimdall_uri2path(url);
         if (access->psz_filepath == NULL)
         {   /* FIXME: some access plugins want a file path for non-file MRLs */
             char *file_url;
             if (asprintf(&file_url, "file://%s", access->psz_location) >= 0)
             {
-                access->psz_filepath = vlc_uri2path(file_url);
+                access->psz_filepath = heimdall_uri2path(file_url);
                 free(file_url);
             }
         }
@@ -177,7 +178,7 @@ error:
     return NULL;
 }
 
-stream_t *vlc_access_NewMRL(vlc_object_t *parent, const char *mrl)
+stream_t *heimdall_access_NewMRL(heimdall_object_t *parent, const char *mrl)
 {
     return access_New(parent, NULL, NULL, false, mrl);
 }
@@ -187,7 +188,7 @@ stream_t *vlc_access_NewMRL(vlc_object_t *parent, const char *mrl)
  *****************************************************************************/
 int access_vaDirectoryControlHelper( stream_t *p_access, int i_query, va_list args )
 {
-    VLC_UNUSED( p_access );
+    HEIMDALL_UNUSED( p_access );
 
     switch( i_query )
     {
@@ -198,12 +199,12 @@ int access_vaDirectoryControlHelper( stream_t *p_access, int i_query, va_list ar
             *va_arg( args, bool* ) = false;
             break;
         case STREAM_GET_PTS_DELAY:
-            *va_arg( args, vlc_tick_t * ) = 0;
+            *va_arg( args, heimdall_tick_t * ) = 0;
             break;
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
      }
-     return VLC_SUCCESS;
+     return HEIMDALL_SUCCESS;
 }
 
 /* Block access */
@@ -212,19 +213,19 @@ static block_t *AStreamReadBlock(stream_t *s, bool *restrict eof)
     stream_t *access = s->p_sys;
     block_t * block;
 
-    if (vlc_stream_Eof(access))
+    if (heimdall_stream_Eof(access))
     {
         *eof = true;
         return NULL;
     }
-    if (vlc_killed())
+    if (heimdall_killed())
         return NULL;
 
-    block = vlc_stream_ReadBlock(access);
+    block = heimdall_stream_ReadBlock(access);
 
     if (block != NULL)
     {
-        struct vlc_access_stream_private *priv = vlc_stream_Private(s);
+        struct heimdall_access_stream_private *priv = heimdall_stream_Private(s);
         struct input_stats *stats =
             priv->input ? input_priv(priv->input)->stats : NULL;
         if (stats != NULL)
@@ -239,16 +240,16 @@ static ssize_t AStreamReadStream(stream_t *s, void *buf, size_t len)
 {
     stream_t *access = s->p_sys;
 
-    if (vlc_stream_Eof(access))
+    if (heimdall_stream_Eof(access))
         return 0;
-    if (vlc_killed())
+    if (heimdall_killed())
         return -1;
 
-    ssize_t val = vlc_stream_ReadPartial(access, buf, len);
+    ssize_t val = heimdall_stream_ReadPartial(access, buf, len);
 
     if (val > 0)
     {
-        struct vlc_access_stream_private *priv = vlc_stream_Private(s);
+        struct heimdall_access_stream_private *priv = heimdall_stream_Private(s);
         struct input_stats *stats =
             priv->input ? input_priv(priv->input)->stats : NULL;
         if (stats != NULL)
@@ -263,24 +264,24 @@ static int AStreamSeek(stream_t *s, uint64_t offset)
 {
     stream_t *access = s->p_sys;
 
-    return vlc_stream_Seek(access, offset);
+    return heimdall_stream_Seek(access, offset);
 }
 
 static int AStreamControl(stream_t *s, int cmd, va_list args)
 {
     stream_t *access = s->p_sys;
 
-    return vlc_stream_vaControl(access, cmd, args);
+    return heimdall_stream_vaControl(access, cmd, args);
 }
 
 static void AStreamDestroy(stream_t *s)
 {
     stream_t *access = s->p_sys;
 
-    vlc_stream_Delete(access);
+    heimdall_stream_Delete(access);
 }
 
-stream_t *stream_AccessNew(vlc_object_t *parent, input_thread_t *input,
+stream_t *stream_AccessNew(heimdall_object_t *parent, input_thread_t *input,
                            es_out_t *out, bool preparsing, const char *url)
 {
     stream_t *access = access_New(parent, input, out, preparsing, url);
@@ -294,24 +295,24 @@ stream_t *stream_AccessNew(vlc_object_t *parent, input_thread_t *input,
     //     || (access->ops == NULL && (access->pf_block != NULL || access->pf_read != NULL)))
     if (access->ops == NULL && (access->pf_block != NULL || access->pf_read != NULL))
     {
-        struct vlc_access_stream_private *priv;
-        s = vlc_stream_CustomNew(VLC_OBJECT(access), AStreamDestroy,
+        struct heimdall_access_stream_private *priv;
+        s = heimdall_stream_CustomNew(HEIMDALL_OBJECT(access), AStreamDestroy,
                                  sizeof(*priv), "stream");
 
         if (unlikely(s == NULL))
         {
-            vlc_stream_Delete(access);
+            heimdall_stream_Delete(access);
             return NULL;
         }
-        priv = vlc_stream_Private(s);
+        priv = heimdall_stream_Private(s);
         priv->input = input;
 
         s->p_input_item = input ? input_GetItem(input) : NULL;
         s->psz_url = strdup(access->psz_url);
         if (unlikely(s->psz_url == NULL))
         {
-            vlc_object_delete(s);
-            vlc_stream_Delete(access);
+            heimdall_object_delete(s);
+            heimdall_stream_Delete(access);
             return NULL;
         }
 

@@ -2,6 +2,7 @@
  * standard.c: standard stream output module
  *****************************************************************************
  * Copyright (C) 2003-2011 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *
@@ -27,13 +28,13 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_sout.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_sout.h>
 
-#include <vlc_network.h>
-#include <vlc_url.h>
+#include <heimdall_network.h>
+#include <heimdall_url.h>
 
 /*****************************************************************************
  * Module descriptor
@@ -49,14 +50,14 @@
     "Destination (URL) to use for the stream. Overrides path and bind parameters" )
 #define BIND_TEXT N_("Address to bind to (helper setting for dst)")
 #define BIND_LONGTEXT N_( \
-  "address:port to bind vlc to listening incoming streams. "\
+  "address:port to bind heimdall to listening incoming streams. "\
   "Helper setting for dst, dst=bind+'/'+path. dst-parameter overrides this." )
 #define PATH_TEXT N_("Filename for stream (helper setting for dst)")
 #define PATH_LONGTEXT N_( \
   "Filename for stream. "\
   "Helper setting for dst, dst=bind+'/'+path. dst-parameter overrides this." )
 
-static int      Open    ( vlc_object_t * );
+static int      Open    ( heimdall_object_t * );
 static void     Close   ( sout_stream_t * );
 
 #define SOUT_CFG_PREFIX "sout-standard-"
@@ -67,7 +68,7 @@ static void     Close   ( sout_stream_t * );
 #define SRT_SHORTCUT
 #endif
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( N_("Standard"))
     set_description( N_("Standard stream output") )
     set_capability( "sout output", 50 )
@@ -87,7 +88,7 @@ vlc_module_begin ()
     add_obsolete_string( SOUT_CFG_PREFIX "phone" ) /* since 3.0.0 */
 
     set_callback( Open )
-vlc_module_end ()
+heimdall_module_end ()
 
 
 /*****************************************************************************
@@ -247,10 +248,10 @@ static int Control(sout_stream_t *stream, int query, va_list args)
             break;
 
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static const struct sout_stream_operations ops = {
@@ -265,13 +266,13 @@ static const struct sout_stream_operations ops = {
 /*****************************************************************************
  * Open:
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     sout_stream_t       *p_stream = (sout_stream_t*)p_this;
     sout_stream_sys_t   *p_sys;
     char *psz_mux, *psz_access, *psz_url;
     sout_access_out_t   *p_access;
-    int                 ret = VLC_EGENERIC;
+    int                 ret = HEIMDALL_EGENERIC;
 
     config_ChainParse( p_stream, SOUT_CFG_PREFIX, ppsz_sout_options,
                    p_stream->p_cfg );
@@ -304,7 +305,7 @@ static int Open( vlc_object_t *p_this )
     p_sys = p_stream->p_sys = malloc( sizeof( sout_stream_sys_t) );
     if( !p_sys )
     {
-        ret = VLC_ENOMEM;
+        ret = HEIMDALL_ENOMEM;
         goto end;
     }
 
@@ -344,11 +345,11 @@ static int Open( vlc_object_t *p_this )
     }
 
     p_stream->ops = &ops;
-    ret = VLC_SUCCESS;
+    ret = HEIMDALL_SUCCESS;
     msg_Dbg( p_this, "using `%s/%s://%s'", psz_access, psz_mux, psz_url );
 
 end:
-    if( ret != VLC_SUCCESS )
+    if( ret != HEIMDALL_SUCCESS )
         free( p_sys );
     free( psz_access );
     free( psz_mux );

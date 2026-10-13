@@ -2,6 +2,7 @@
  * macosx_loop.mm
  *****************************************************************************
  * Copyright (C) 2026 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Fletcher Holt <fletcherholt649@gmail.com>
  *          Felix Paul Kühne <fkuehne@videolan.org>
@@ -41,14 +42,14 @@
 #include "../events/evt_focus.hpp"
 #include "../events/evt_refresh.hpp"
 
-#include <vlc_actions.h>
+#include <heimdall_actions.h>
 #include "../src/dialogs.hpp"
 #include "../commands/cmd_dialogs.hpp"
 #include "../commands/cmd_fullscreen.hpp"
 #include "../commands/async_queue.hpp"
 
 /// Helper class to dispatch menu actions to skins2 commands
-@interface VLCSkinsMenuHandler : NSObject
+@interface HeimdallSkinsMenuHandler : NSObject
 {
     intf_thread_t *m_pIntf;
 }
@@ -58,7 +59,7 @@
 - (void)toggleFullscreen:(id)sender;
 @end
 
-@implementation VLCSkinsMenuHandler
+@implementation HeimdallSkinsMenuHandler
 
 - (instancetype)initWithIntf:(intf_thread_t *)pIntf
 {
@@ -97,7 +98,7 @@
 
 static inline NSString *_NS( const char *s )
 {
-    return s ? [NSString stringWithUTF8String:vlc_gettext( s )] : @"";
+    return s ? [NSString stringWithUTF8String:heimdall_gettext( s )] : @"";
 }
 
 // Double-click delay in microseconds
@@ -182,14 +183,14 @@ void MacOSXLoop::run()
                                                     forKey:@"NSQuitAlwaysKeepsWindows"];
             [NSApp finishLaunching];
 
-            VLCSkinsMenuHandler *menuHandler =
-                [[VLCSkinsMenuHandler alloc] initWithIntf:getIntf()];
+            HeimdallSkinsMenuHandler *menuHandler =
+                [[HeimdallSkinsMenuHandler alloc] initWithIntf:getIntf()];
 
             NSMenu *menuBar = [[NSMenu alloc] init];
 
             // Application menu
             NSMenuItem *appMenuItem = [[NSMenuItem alloc] init];
-            NSMenu *appMenu = [[NSMenu alloc] initWithTitle:@"VLC"];
+            NSMenu *appMenu = [[NSMenu alloc] initWithTitle:@"Heimdall"];
             [appMenu addItemWithTitle:_NS("About")
                                action:@selector(orderFrontStandardAboutPanel:)
                         keyEquivalent:@""];
@@ -338,7 +339,7 @@ void MacOSXLoop::handleEvent( void *pEvent )
         {
             case NSEventTypeLeftMouseDown:
             {
-                vlc_tick_t time = vlc_tick_now();
+                heimdall_tick_t time = heimdall_tick_now();
                 int xPos = x;
                 int yPos = y;
 
@@ -441,7 +442,7 @@ void MacOSXLoop::handleEvent( void *pEvent )
                 if( [chars length] > 0 )
                 {
                     unichar c = [chars characterAtIndex:0];
-                    key = cocoaCharToVlcKey( c );
+                    key = cocoaCharToHeimdallKey( c );
                 }
 
                 EvtKey::ActionType_t action = (eventType == NSEventTypeKeyDown)
@@ -475,8 +476,8 @@ int MacOSXLoop::cocoaModToMod( unsigned int flags )
 }
 
 
-// Mirrors CocoaKeyToVLC() in modules/gui/macosx/extensions/NSString+Helpers.m
-int MacOSXLoop::cocoaCharToVlcKey( unichar c )
+// Mirrors CocoaKeyToHeimdall() in modules/gui/macosx/extensions/NSString+Helpers.m
+int MacOSXLoop::cocoaCharToHeimdallKey( unichar c )
 {
     if( c >= 32 && c < 127 )
         return c;

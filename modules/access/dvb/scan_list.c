@@ -2,6 +2,7 @@
  * scan_list.c : Scanning parameters and transponders list
  *****************************************************************************
  * Copyright (C) 2016 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -21,8 +22,8 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_fs.h>
+#include <heimdall_common.h>
+#include <heimdall_fs.h>
 
 #include "scan.h"
 #include "scan_list.h"
@@ -279,9 +280,9 @@ void scan_list_entries_release( scan_list_entry_t *p_list )
     }
 }
 
-scan_list_entry_t * scan_list_dvbv5_load( vlc_object_t *p_obj, const char *psz_source, size_t *pi_count )
+scan_list_entry_t * scan_list_dvbv5_load( heimdall_object_t *p_obj, const char *psz_source, size_t *pi_count )
 {
-    FILE *p_file = vlc_fopen( psz_source, "r" );
+    FILE *p_file = heimdall_fopen( psz_source, "r" );
     if( !p_file )
     {
         msg_Err( p_obj, "failed to open dvbv5 file (%s)", psz_source );
@@ -360,9 +361,9 @@ scan_list_entry_t * scan_list_dvbv5_load( vlc_object_t *p_obj, const char *psz_s
     return p_list;
 }
 
-scan_list_entry_t * scan_list_dvbv3_load( vlc_object_t *p_obj, const char *psz_source, size_t *pi_count )
+scan_list_entry_t * scan_list_dvbv3_load( heimdall_object_t *p_obj, const char *psz_source, size_t *pi_count )
 {
-    FILE *p_file = vlc_fopen( psz_source, "r" );
+    FILE *p_file = heimdall_fopen( psz_source, "r" );
     if( !p_file )
     {
         msg_Err( p_obj, "failed to open satellite file (%s)", psz_source );

@@ -2,6 +2,7 @@
  * main_interface.cpp : Main interface
  ****************************************************************************
  * Copyright (C) 2006-2011 VideoLAN and AUTHORS
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Clément Stenac <zorglub@videolan.org>
  *          Jean-Baptiste Kempf <jb@videolan.org>
@@ -39,7 +40,7 @@
 #include "util/renderer_manager.hpp"
 #include "util/csdbuttonmodel.hpp"
 
-#include "util/vlchotkeyconverter.hpp"
+#include "util/heimdallhotkeyconverter.hpp"
 #include "util/qt_dirs.hpp"                     // toNativeSeparators
 
 #include "util/color_scheme_model.hpp"
@@ -82,24 +83,24 @@
 #include <QFileInfo>
 #endif
 
-#include <vlc_interface.h>
-#include <vlc_preparser.h>
+#include <heimdall_interface.h>
+#include <heimdall_preparser.h>
 
-#define VLC_REFERENCE_SCALE_FACTOR 96.
+#define HEIMDALL_REFERENCE_SCALE_FACTOR 96.
 
-using  namespace vlc::playlist;
+using  namespace heimdall::playlist;
 
 // #define DEBUG_INTF
 
 /* Callback prototypes */
-static int PopupMenuCB( vlc_object_t *p_this, const char *psz_variable,
-                        vlc_value_t old_val, vlc_value_t new_val, void *param );
-static int IntfShowCB( vlc_object_t *p_this, const char *psz_variable,
-                       vlc_value_t old_val, vlc_value_t new_val, void *param );
-static int IntfBossCB( vlc_object_t *p_this, const char *psz_variable,
-                       vlc_value_t old_val, vlc_value_t new_val, void *param );
-static int IntfRaiseMainCB( vlc_object_t *p_this, const char *psz_variable,
-                           vlc_value_t old_val, vlc_value_t new_val,
+static int PopupMenuCB( heimdall_object_t *p_this, const char *psz_variable,
+                        heimdall_value_t old_val, heimdall_value_t new_val, void *param );
+static int IntfShowCB( heimdall_object_t *p_this, const char *psz_variable,
+                       heimdall_value_t old_val, heimdall_value_t new_val, void *param );
+static int IntfBossCB( heimdall_object_t *p_this, const char *psz_variable,
+                       heimdall_value_t old_val, heimdall_value_t new_val, void *param );
+static int IntfRaiseMainCB( heimdall_object_t *p_this, const char *psz_variable,
+                           heimdall_value_t old_val, heimdall_value_t new_val,
                            void *param );
 
 const QEvent::Type MainCtx::ToolbarsNeedRebuild =
@@ -109,22 +110,22 @@ namespace
 {
 
 template <typename T>
-T loadVLCOption(vlc_object_t *obj, const char *name);
+T loadHeimdallOption(heimdall_object_t *obj, const char *name);
 
 template <>
-int loadVLCOption<int>(vlc_object_t *obj, const char *name)
+int loadHeimdallOption<int>(heimdall_object_t *obj, const char *name)
 {
     return var_InheritInteger(obj, name);
 }
 
 template <>
-float loadVLCOption<float>(vlc_object_t *obj, const char *name)
+float loadHeimdallOption<float>(heimdall_object_t *obj, const char *name)
 {
     return var_InheritFloat(obj, name);
 }
 
 template <>
-bool loadVLCOption<bool>(vlc_object_t *obj, const char *name)
+bool loadHeimdallOption<bool>(heimdall_object_t *obj, const char *name)
 {
     return var_InheritBool(obj, name);
 }
@@ -141,13 +142,13 @@ MainCtx::MainCtx(qt_intf_t *_p_intf)
     // page:
     if (var_InheritBool(p_intf, "playlist-autostart"))
     {
-        // We can not use `vlc_playlist_GetCurrentIndex()`, because
+        // We can not use `heimdall_playlist_GetCurrentIndex()`, because
         // playlist starts playing after the interface is added.
         // We also can not use the playlist controller because it
         // is not updated yet.
-        vlc_playlist_locker lock(p_intf->p_playlist);
+        heimdall_playlist_locker lock(p_intf->p_playlist);
 
-        if (vlc_playlist_Count(p_intf->p_playlist) > 0)
+        if (heimdall_playlist_Count(p_intf->p_playlist) > 0)
         {
             m_mainInterfaceModes |= MAININTERFACE_MODE_PLAYER;
         }
@@ -208,9 +209,9 @@ MainCtx::MainCtx(qt_intf_t *_p_intf)
     loadFromSettingsImpl(false);
 
     /* Get the available interfaces */
-    m_extraInterfaces = new VLCVarChoiceModel(VLC_OBJECT(p_intf->intf), "intf-add", this);
+    m_extraInterfaces = new HeimdallVarChoiceModel(HEIMDALL_OBJECT(p_intf->intf), "intf-add", this);
 
-    vlc_medialibrary_t* ml = vlc_ml_instance_get( p_intf );
+    heimdall_medialibrary_t* ml = heimdall_ml_instance_get( p_intf );
     b_hasMedialibrary = (ml != NULL);
     if (b_hasMedialibrary) {
         m_medialib = new MediaLib(p_intf, p_intf->p_mainPlaylistController);
@@ -219,7 +220,7 @@ MainCtx::MainCtx(qt_intf_t *_p_intf)
     /* Controlbar Profile Model Creation */
     m_controlbarProfileModel = new ControlbarProfileModel(p_intf->mainSettings, this);
 
-    const QUrl homeUrl = QUrl::fromLocalFile(QVLCUserDir( VLC_HOME_DIR ));
+    const QUrl homeUrl = QUrl::fromLocalFile(QHeimdallUserDir( HEIMDALL_HOME_DIR ));
     m_dialogFilepath = getSettings()->value( "filedialog-path", homeUrl ).toUrl();
 
     QString platformName = QGuiApplication::platformName();
@@ -256,13 +257,13 @@ MainCtx::MainCtx(qt_intf_t *_p_intf)
     /************
      * Callbacks
      ************/
-    libvlc_int_t* libvlc = vlc_object_instance(p_intf);
-    var_AddCallback( libvlc, "intf-toggle-fscontrol", IntfShowCB, p_intf );
-    var_AddCallback( libvlc, "intf-boss", IntfBossCB, p_intf );
-    var_AddCallback( libvlc, "intf-show", IntfRaiseMainCB, p_intf );
+    libheimdall_int_t* libheimdall = heimdall_object_instance(p_intf);
+    var_AddCallback( libheimdall, "intf-toggle-fscontrol", IntfShowCB, p_intf );
+    var_AddCallback( libheimdall, "intf-boss", IntfBossCB, p_intf );
+    var_AddCallback( libheimdall, "intf-show", IntfRaiseMainCB, p_intf );
 
     /* Register callback for the intf-popupmenu variable */
-    var_AddCallback( libvlc, "intf-popupmenu", PopupMenuCB, p_intf );
+    var_AddCallback( libheimdall, "intf-popupmenu", PopupMenuCB, p_intf );
 
     if( var_InheritBool( p_intf, "qt-privacy-ask") )
     {
@@ -276,18 +277,18 @@ MainCtx::MainCtx(qt_intf_t *_p_intf)
         QMetaObject::invokeMethod(m_medialib, &MediaLib::reload, Qt::QueuedConnection);
     }
 
-    const struct vlc_preparser_cfg cfg = []{
-        struct vlc_preparser_cfg cfg{};
-        cfg.types = VLC_PREPARSER_TYPE_PARSE;
+    const struct heimdall_preparser_cfg cfg = []{
+        struct heimdall_preparser_cfg cfg{};
+        cfg.types = HEIMDALL_PREPARSER_TYPE_PARSE;
         cfg.max_parser_threads = 1;
         cfg.timeout = 0;
         cfg.external_process = false;
         return cfg;
     }();
-    m_network_preparser = vlc_preparser_New(VLC_OBJECT(libvlc), &cfg);
+    m_network_preparser = heimdall_preparser_New(HEIMDALL_OBJECT(libheimdall), &cfg);
 
 #ifdef UPDATE_CHECK
-    /* Checking for VLC updates */
+    /* Checking for Heimdall updates */
     if( var_InheritBool( p_intf, "qt-updates-notif" ) &&
         !var_InheritBool( p_intf, "qt-privacy-ask" ) )
     {
@@ -353,17 +354,17 @@ MainCtx::~MainCtx()
         getSettings()->remove( "filedialog-path" );
 
     /* Unregister callbacks */
-    libvlc_int_t* libvlc = vlc_object_instance(p_intf);
-    var_DelCallback( libvlc, "intf-boss", IntfBossCB, p_intf );
-    var_DelCallback( libvlc, "intf-show", IntfRaiseMainCB, p_intf );
-    var_DelCallback( libvlc, "intf-toggle-fscontrol", IntfShowCB, p_intf );
-    var_DelCallback( libvlc, "intf-popupmenu", PopupMenuCB, p_intf );
+    libheimdall_int_t* libheimdall = heimdall_object_instance(p_intf);
+    var_DelCallback( libheimdall, "intf-boss", IntfBossCB, p_intf );
+    var_DelCallback( libheimdall, "intf-show", IntfRaiseMainCB, p_intf );
+    var_DelCallback( libheimdall, "intf-toggle-fscontrol", IntfShowCB, p_intf );
+    var_DelCallback( libheimdall, "intf-popupmenu", PopupMenuCB, p_intf );
 
     if (m_medialib)
         delete m_medialib;
 
     if (m_network_preparser)
-        vlc_preparser_Delete(m_network_preparser);
+        heimdall_preparser_Delete(m_network_preparser);
 
     p_intf->p_mi = NULL;
 }
@@ -414,12 +415,12 @@ void MainCtx::setWindowExtendedMargin(unsigned int margin) {
 
 void MainCtx::loadPrefs(const bool callSignals)
 {
-    const auto loadFromVLCOption = [this, callSignals](auto &variable, const char *name
+    const auto loadFromHeimdallOption = [this, callSignals](auto &variable, const char *name
             , const std::function<void(MainCtx *)> signal)
     {
         using variableType = std::remove_reference_t<decltype(variable)>;
 
-        const auto value =  loadVLCOption<variableType>(VLC_OBJECT(p_intf), name);
+        const auto value =  loadHeimdallOption<variableType>(HEIMDALL_OBJECT(p_intf), name);
         if (value == variable)
             return;
 
@@ -430,32 +431,32 @@ void MainCtx::loadPrefs(const bool callSignals)
 
     bool minimalMode = false;
     /* Are we in the enhanced always-video mode or not ? */
-    loadFromVLCOption(minimalMode, "qt-minimal-view", nullptr);
+    loadFromHeimdallOption(minimalMode, "qt-minimal-view", nullptr);
     setMinimalView(minimalMode);
 
-    loadFromVLCOption(m_bgCone, "qt-bgcone", &MainCtx::bgConeToggled);
+    loadFromHeimdallOption(m_bgCone, "qt-bgcone", &MainCtx::bgConeToggled);
 
     /* Should the UI stays on top of other windows */
-    loadFromVLCOption(b_interfaceOnTop, "video-on-top", [this](MainCtx *)
+    loadFromHeimdallOption(b_interfaceOnTop, "video-on-top", [this](MainCtx *)
     {
         emit interfaceAlwaysOnTopChanged(b_interfaceOnTop);
     });
 
-    loadFromVLCOption(m_hasToolbarMenu, "qt-menubar", &MainCtx::hasToolbarMenuChanged);
+    loadFromHeimdallOption(m_hasToolbarMenu, "qt-menubar", &MainCtx::hasToolbarMenuChanged);
 
-    loadFromVLCOption(m_windowTitlebar, "qt-titlebar" , &MainCtx::useClientSideDecorationChanged);
+    loadFromHeimdallOption(m_windowTitlebar, "qt-titlebar" , &MainCtx::useClientSideDecorationChanged);
 
-    loadFromVLCOption(m_smoothScroll, "qt-smooth-scrolling", &MainCtx::smoothScrollChanged);
+    loadFromHeimdallOption(m_smoothScroll, "qt-smooth-scrolling", &MainCtx::smoothScrollChanged);
 
-    loadFromVLCOption(m_maxVolume, "qt-max-volume", &MainCtx::maxVolumeChanged);
+    loadFromHeimdallOption(m_maxVolume, "qt-max-volume", &MainCtx::maxVolumeChanged);
 
-    loadFromVLCOption(m_pinVideoControls, "qt-pin-controls", &MainCtx::pinVideoControlsChanged);
+    loadFromHeimdallOption(m_pinVideoControls, "qt-pin-controls", &MainCtx::pinVideoControlsChanged);
 
-    loadFromVLCOption(m_pinOpacity, "qt-fs-opacity", &MainCtx::pinOpacityChanged);
+    loadFromHeimdallOption(m_pinOpacity, "qt-fs-opacity", &MainCtx::pinOpacityChanged);
 
-    loadFromVLCOption(m_safeArea, "qt-safe-area", &MainCtx::safeAreaChanged);
+    loadFromHeimdallOption(m_safeArea, "qt-safe-area", &MainCtx::safeAreaChanged);
 
-    loadFromVLCOption(m_mouseHideTimeout, "mouse-hide-timeout", &MainCtx::mouseHideTimeoutChanged);
+    loadFromHeimdallOption(m_mouseHideTimeout, "mouse-hide-timeout", &MainCtx::mouseHideTimeoutChanged);
 }
 
 void MainCtx::loadFromSettingsImpl(const bool callSignals)
@@ -543,13 +544,13 @@ void MainCtx::onVOutChanged( bool video )
 void MainCtx::sendHotkey(Qt::Key key , Qt::KeyboardModifiers modifiers)
 {
     QKeyEvent event(QEvent::KeyPress, key, modifiers );
-    int vlckey = qtEventToVLCKey(&event);
-    var_SetInteger(vlc_object_instance(p_intf), "key-pressed", vlckey);
+    int heimdallkey = qtEventToHeimdallKey(&event);
+    var_SetInteger(heimdall_object_instance(p_intf), "key-pressed", heimdallkey);
 }
 
-void MainCtx::sendVLCHotkey(int vlcHotkey)
+void MainCtx::sendHeimdallHotkey(int heimdallHotkey)
 {
-    var_SetInteger(vlc_object_instance(p_intf), "key-pressed", vlcHotkey);
+    var_SetInteger(heimdall_object_instance(p_intf), "key-pressed", heimdallHotkey);
 }
 
 void MainCtx::updateIntfScaleFactor()
@@ -561,7 +562,7 @@ void MainCtx::updateIntfScaleFactor()
         if (screen)
         {
             qreal dpi = screen->logicalDotsPerInch();
-            newValue = m_intfUserScaleFactor * dpi / VLC_REFERENCE_SCALE_FACTOR;
+            newValue = m_intfUserScaleFactor * dpi / HEIMDALL_REFERENCE_SCALE_FACTOR;
         }
     }
 
@@ -652,7 +653,7 @@ inline void MainCtx::initSystray()
     }
 
     if( b_systrayAvailable && b_systrayWanted )
-        m_systray = std::make_unique<VLCSystray>(this);
+        m_systray = std::make_unique<HeimdallSystray>(this);
 }
 
 ThreadRunner* MainCtx::threadRunner() const
@@ -854,7 +855,7 @@ void MainCtx::onWindowClose( QWindow* )
     //We need to make sure that noting is playing anymore otherwise the vout will be closed
     //after the main interface, and it requires (at least with OpenGL) that the OpenGL context
     //from the main window is still valid.
-    //vlc_window_ReportClose is currently stubbed
+    //heimdall_window_ReportClose is currently stubbed
     if (playerController && playerController->hasVideoOutput()) {
         connect(playerController, &PlayerController::playingStateChanged, [this](PlayerController::PlayingState state){
             if (state == PlayerController::PLAYING_STATE_STOPPED) {
@@ -894,7 +895,7 @@ void MainCtx::emitRaise()
     emit askRaise();
 }
 
-VLCVarChoiceModel* MainCtx::getExtraInterfaces()
+HeimdallVarChoiceModel* MainCtx::getExtraInterfaces()
 {
     return m_extraInterfaces;
 }
@@ -964,8 +965,8 @@ bool MainCtx::pasteFromClipboard()
  *  We don't show the menu directly here because we don't want the
  *  caller to block for a too long time.
  *****************************************************************************/
-static int PopupMenuCB( vlc_object_t *, const char *,
-                        vlc_value_t, vlc_value_t new_val, void *param )
+static int PopupMenuCB( heimdall_object_t *, const char *,
+                        heimdall_value_t, heimdall_value_t new_val, void *param )
 {
     qt_intf_t *p_intf = (qt_intf_t *)param;
 
@@ -975,43 +976,43 @@ static int PopupMenuCB( vlc_object_t *, const char *,
                                 new_val.b_bool, NULL );
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
- * IntfShowCB: callback triggered by the intf-toggle-fscontrol libvlc variable.
+ * IntfShowCB: callback triggered by the intf-toggle-fscontrol libheimdall variable.
  *****************************************************************************/
-static int IntfShowCB( vlc_object_t *, const char *,
-                       vlc_value_t, vlc_value_t, void *param )
+static int IntfShowCB( heimdall_object_t *, const char *,
+                       heimdall_value_t, heimdall_value_t, void *param )
 {
     qt_intf_t *p_intf = (qt_intf_t *)param;
     p_intf->p_mi->emitShow();
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
- * IntfRaiseMainCB: callback triggered by the intf-show-main libvlc variable.
+ * IntfRaiseMainCB: callback triggered by the intf-show-main libheimdall variable.
  *****************************************************************************/
-static int IntfRaiseMainCB( vlc_object_t *, const char *,
-                            vlc_value_t, vlc_value_t, void *param )
+static int IntfRaiseMainCB( heimdall_object_t *, const char *,
+                            heimdall_value_t, heimdall_value_t, void *param )
 {
     qt_intf_t *p_intf = (qt_intf_t *)param;
     p_intf->p_mi->emitRaise();
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
- * IntfBossCB: callback triggered by the intf-boss libvlc variable.
+ * IntfBossCB: callback triggered by the intf-boss libheimdall variable.
  *****************************************************************************/
-static int IntfBossCB( vlc_object_t *, const char *,
-                       vlc_value_t, vlc_value_t, void *param )
+static int IntfBossCB( heimdall_object_t *, const char *,
+                       heimdall_value_t, heimdall_value_t, void *param )
 {
     qt_intf_t *p_intf = (qt_intf_t *)param;
     p_intf->p_mi->emitBoss();
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 bool MainCtx::acrylicActive() const

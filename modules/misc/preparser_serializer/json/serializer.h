@@ -3,6 +3,7 @@
  * serializer.h: JSON serializer header
  *****************************************************************************
  * Copyright © 2025 Videolabs, VideoLAN and VLC authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gabriel Lafond Thenaille <gabriel@videolabs.io>
  *****************************************************************************/
@@ -10,15 +11,15 @@
 #ifndef SERIALIZER_H
 #define SERIALIZER_H
 
-#include <vlc_common.h>
-#include <vlc_preparser_ipc.h>
-#include <vlc_memstream.h>
-#include <vlc_vector.h>
+#include <heimdall_common.h>
+#include <heimdall_preparser_ipc.h>
+#include <heimdall_memstream.h>
+#include <heimdall_vector.h>
 
 #include "../../../demux/json/json.h"
 
 struct serdes_sys {
-    struct vlc_preparser_msg_serdes *parent;
+    struct heimdall_preparser_msg_serdes *parent;
     bool bin_data;
 
     void *userdata;
@@ -26,7 +27,7 @@ struct serdes_sys {
     int current_type;
     int error;
 
-    struct VLC_VECTOR(uint8_t) attach_data;
+    struct HEIMDALL_VECTOR(uint8_t) attach_data;
 
     size_t cap;
     size_t size;
@@ -34,7 +35,7 @@ struct serdes_sys {
 };
 
 #define serdes_set_error(err) \
-    sys->error = sys->error == VLC_SUCCESS ? err : sys->error
+    sys->error = sys->error == HEIMDALL_SUCCESS ? err : sys->error
 
 int
 serdes_buf_write(struct serdes_sys *sys, const void *_data, size_t size);
@@ -56,12 +57,12 @@ serdes_buf_read(struct serdes_sys *sys, void *_data, size_t size, bool eod);
 
 
 void
-toJSON_vlc_preparser_msg(struct serdes_sys *sys,
-                         const struct vlc_preparser_msg *msg);
+toJSON_heimdall_preparser_msg(struct serdes_sys *sys,
+                         const struct heimdall_preparser_msg *msg);
 
 bool
-fromJSON_vlc_preparser_msg(struct serdes_sys *sys,
-                           struct vlc_preparser_msg *msg,
+fromJSON_heimdall_preparser_msg(struct serdes_sys *sys,
+                           struct heimdall_preparser_msg *msg,
                            const struct json_object *obj);
 
 

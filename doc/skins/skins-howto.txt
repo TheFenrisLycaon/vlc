@@ -6,7 +6,7 @@ decent one, it will be more than welcome!
 Basic principles
 ================
 
-A skin (or theme, the two words have almost the same meaning) for VLC is made
+A skin (or theme, the two words have almost the same meaning) for Heimdall is made
 of many BMP files (Windows Bitmap format) containing all the images needed, and
 of an XML file describing how these images should be displayed, what happens
 when the user clicks on a button, etc.
@@ -19,7 +19,7 @@ many difficulties to understand how all this works.
 Bezier curves
 =============
 
-One cool thing with VLC sliders is that they are not necessarily rectilinear,
+One cool thing with Heimdall sliders is that they are not necessarily rectilinear,
 but they can follow any Bezier curve. So if you want to have a slider moving
 on a half-circle, or even doing a loop, you can !
 
@@ -56,10 +56,10 @@ XML is a markup language, like HTML. It won't be explained here any further,
 please use Google if you don't know what is XML. You'll see, it's rather easy
 to understand.
 
-The XML file used for the VLC skins follows a predefined DTD. You can find this
-DTD in VLC CVS, and its reading is strongly advised, since it contains most of
+The XML file used for the Heimdall skins follows a predefined DTD. You can find this
+DTD in Heimdall CVS, and its reading is strongly advised, since it contains most of
 the default values used for the parameters. A skin that doesn't follow the DTD
-with which VLC was compiled won't be loaded by VLC (and it might even crash
+with which Heimdall was compiled won't be loaded by Heimdall (and it might even crash
 it...).
 
 For a better comprehension of what follows, you should have a look at the DTD
@@ -77,7 +77,7 @@ OK, let's go for an enumeration of the different tags and theor attributes :
        Default is "9".
 
  - ThemeInfo: You can enter here some information about you (but this
-   information is currently unused by VLC...)
+   information is currently unused by Heimdall...)
    Attributes :
      - name: not yet supported.
      - author: not yet supported.
@@ -131,7 +131,7 @@ OK, let's go for an enumeration of the different tags and theor attributes :
  - Window: A window that will appear on screen.
       - id: this is the name of the window (it will be only used for events
         but it is important: 2 windows shouldn't have the same name).
-      - visible: sets if the window should appear or not at the launch of VLC.
+      - visible: sets if the window should appear or not at the launch of Heimdall.
         Default is "true".
       - x: sets the left position of the window.
         Default is "0".
@@ -266,7 +266,7 @@ OK, let's go for an enumeration of the different tags and theor attributes :
        scrolling.
        Default is "20".
      - display: this value is a bit special, it allows to have a text
-       auto-updated by VLC. Possible values are 'time', 'left_time',
+       auto-updated by Heimdall. Possible values are 'time', 'left_time',
        'total_time', 'file_name' (for the current file name with its path),
        'title' (for the file name without the path) and 'help' (for a help
        about the controls that defined their 'help' attribute).
@@ -320,8 +320,8 @@ Compression
 Once your skin is finished, instead of keeping many bitmap files and the XML
 file, you can compress them in a .tar.gz archive (Winzip and UmtimateZip can do
 it perfectly, for example). Before doing so, don't forget to rename your XML
-file into "theme.xml", or VLC won't be able to read it... Then rename your
-compressed file with the .vlt extension and... that's all! VLC can load
+file into "theme.xml", or Heimdall won't be able to read it... Then rename your
+compressed file with the .vlt extension and... that's all! Heimdall can load
 directly skins with the .vlt extension.
 
 
@@ -337,11 +337,11 @@ Tools and advice
    allows to load a bitmap, this could be useful if you want to follow a
    specific pattern of a slider, for example.
 
- - When you are creating your skin, you may want to see the VLC messages where
+ - When you are creating your skin, you may want to see the Heimdall messages where
    some errors are logged. For this, open a dos window, go to the directory
-   where VLC is installed, and type "vlc -I skin -v --extraintf logger". This
-   should open VLC and a log window (what's more, the logs should be saved in a
-   file called vlc-log.txt). The interesting lines are those with "skin
+   where Heimdall is installed, and type "heimdall -I skin -v --extraintf logger". This
+   should open Heimdall and a log window (what's more, the logs should be saved in a
+   file called heimdall-log.txt). The interesting lines are those with "skin
    interface"...
 
  - For the Bitmap tags, don't use absolute paths but relative paths (they are

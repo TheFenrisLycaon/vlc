@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,12 +21,12 @@ import QtQuick.Templates as T
 import QtQuick.Layouts
 
 
-import VLC.MainInterface
-import VLC.Style
-import VLC.Widgets as Widgets
-import VLC.Network
-import VLC.Menus
-import VLC.Util
+import Heimdall.MainInterface
+import Heimdall.Style
+import Heimdall.Widgets as Widgets
+import Heimdall.Network
+import Heimdall.Menus
+import Heimdall.Util
 
 T.Control {
     id: control
@@ -35,16 +36,16 @@ T.Control {
     property var _contentModel
     property var _menuModel
 
-    readonly property int maximumWidth: VLCStyle.bannerTabButton_width_large * 4
-    readonly property int minimumWidth: VLCStyle.bannerTabButton_width_large
+    readonly property int maximumWidth: HeimdallStyle.bannerTabButton_width_large * 4
+    readonly property int minimumWidth: HeimdallStyle.bannerTabButton_width_large
 
     signal browse(var tree, int reason)
     signal homeButtonClicked(int reason)
 
     onPathChanged: createContentModel()
     onAvailableWidthChanged: createContentModel()
-    implicitWidth: VLCStyle.bannerTabButton_width_large * 4
-    implicitHeight: VLCStyle.dp(24, VLCStyle.scale)
+    implicitWidth: HeimdallStyle.bannerTabButton_width_large * 4
+    implicitHeight: HeimdallStyle.dp(24, HeimdallStyle.scale)
     focus: true
     onActiveFocusChanged: if (activeFocus) contentItem.forceActiveFocus(focusReason)
 
@@ -58,7 +59,7 @@ T.Control {
         while (--i >= 0) {
             const textWidth = fontMetrics.advanceWidth(path[i].display)
                     + (i !== path.length - 1 ? iconMetrics.advanceWidth(
-                                                    VLCIcons.breadcrumb_sep) : 0) + VLCStyle.margin_xsmall * 4
+                                                    HeimdallIcons.breadcrumb_sep) : 0) + HeimdallStyle.margin_xsmall * 4
 
             if (i < path.length - 1 && textWidth > leftWidth)
                 menuModel.push(path[i])
@@ -80,14 +81,14 @@ T.Control {
     }
 
     background: Rectangle {
-        border.width: VLCStyle.dp(1, VLCStyle.scale)
+        border.width: HeimdallStyle.dp(1, HeimdallStyle.scale)
         border.color: theme.border
         border.pixelAligned: (radius < Number.EPSILON)
         color: theme.bg.primary
     }
 
     contentItem: RowLayout {
-        spacing: VLCStyle.margin_xxsmall
+        spacing: HeimdallStyle.margin_xxsmall
         width: control.availableWidth
         onActiveFocusChanged: if (activeFocus) homeButton.forceActiveFocus(focusReason)
 
@@ -96,8 +97,8 @@ T.Control {
 
             AccessibleCompat.id: "addressBarHome"
 
-            text: VLCIcons.home
-            font.pixelSize: VLCStyle.icon_addressBar
+            text: HeimdallIcons.home
+            font.pixelSize: HeimdallStyle.icon_addressBar
 
             display: AddressbarButton.IconOnly
 
@@ -122,8 +123,8 @@ T.Control {
             AccessibleCompat.id: "addressBarMenu"
 
             visible: !!control._menuModel && control._menuModel.length > 0
-            text: VLCIcons.breadcrumb_prev
-            font.pixelSize: VLCStyle.icon_addressBar
+            text: HeimdallIcons.breadcrumb_prev
+            font.pixelSize: HeimdallStyle.icon_addressBar
 
             display: AddressbarButton.IconOnly
 
@@ -149,7 +150,7 @@ T.Control {
                 Layout.minimumWidth: 0
                 Layout.maximumWidth: implicitWidth
                 focus: true
-                spacing: VLCStyle.margin_xxxsmall
+                spacing: HeimdallStyle.margin_xxxsmall
                 onActiveFocusChanged: if (activeFocus) btn.forceActiveFocus(focusReason)
 
                 Navigation.parentItem: control
@@ -190,8 +191,8 @@ T.Control {
                 Widgets.IconLabel {
                     Layout.fillHeight: true
                     visible: index !== contentRepeater.count - 1
-                    text: VLCIcons.breadcrumb_sep
-                    font.pixelSize: VLCStyle.icon_addressBar
+                    text: HeimdallIcons.breadcrumb_sep
+                    font.pixelSize: HeimdallStyle.icon_addressBar
                     color: theme.fg.secondary
                     verticalAlignment: Text.AlignVCenter
                 }
@@ -205,14 +206,14 @@ T.Control {
 
     FontMetrics {
         id: fontMetrics
-        font.pixelSize: VLCStyle.fontSize_xxxlarge
+        font.pixelSize: HeimdallStyle.fontSize_xxxlarge
     }
 
     FontMetrics {
         id: iconMetrics
         font {
-            pixelSize: VLCStyle.fontSize_large
-            family: VLCIcons.fontFamily
+            pixelSize: HeimdallStyle.fontSize_large
+            family: HeimdallIcons.fontFamily
         }
     }
 
@@ -226,7 +227,7 @@ T.Control {
                 return modelData.display
             })
 
-            const point = control.mapToGlobal(0, menuButton.height + VLCStyle.margin_xxsmall)
+            const point = control.mapToGlobal(0, menuButton.height + HeimdallStyle.margin_xxsmall)
 
             popup.popup(point, model)
         }

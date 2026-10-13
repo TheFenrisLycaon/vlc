@@ -1,7 +1,8 @@
 /*****************************************************************************
- * threads.c: LibVLC generic thread support
+ * threads.c: LibHeimdall generic thread support
  *****************************************************************************
  * Copyright (C) 2009-2016 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -27,72 +28,72 @@
 #include <limits.h>
 #include <stdatomic.h>
 
-#include <vlc_common.h>
-#include <vlc_threads.h>
-#include <vlc_atomic.h>
-#include "../libvlc.h"
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
+#include <heimdall_atomic.h>
+#include "../libheimdall.h"
 #include "threads.h"
 
-/* <stdatomic.h> types cannot be used in the C++ view of <vlc_threads.h> */
-struct vlc_suuint { union { unsigned int value; }; };
+/* <stdatomic.h> types cannot be used in the C++ view of <heimdall_threads.h> */
+struct heimdall_suuint { union { unsigned int value; }; };
 
-static_assert (sizeof (atomic_uint) <= sizeof (struct vlc_suuint),
+static_assert (sizeof (atomic_uint) <= sizeof (struct heimdall_suuint),
                "Size mismatch");
-static_assert (alignof (atomic_uint) <= alignof (struct vlc_suuint),
+static_assert (alignof (atomic_uint) <= alignof (struct heimdall_suuint),
                "Alignment mismatch");
 
 /*** Global locks ***/
 
-void vlc_global_mutex (unsigned n, bool acquire)
+void heimdall_global_mutex (unsigned n, bool acquire)
 {
-    static vlc_mutex_t locks[] = {
-        VLC_STATIC_MUTEX,
-        VLC_STATIC_MUTEX,
-        VLC_STATIC_MUTEX,
-        VLC_STATIC_MUTEX,
+    static heimdall_mutex_t locks[] = {
+        HEIMDALL_STATIC_MUTEX,
+        HEIMDALL_STATIC_MUTEX,
+        HEIMDALL_STATIC_MUTEX,
+        HEIMDALL_STATIC_MUTEX,
 #ifdef _WIN32
-        VLC_STATIC_MUTEX, // For MTA holder
+        HEIMDALL_STATIC_MUTEX, // For MTA holder
 #endif
     };
-    static_assert (VLC_MAX_MUTEX == ARRAY_SIZE(locks),
+    static_assert (HEIMDALL_MAX_MUTEX == ARRAY_SIZE(locks),
                    "Wrong number of global mutexes");
     assert (n < ARRAY_SIZE(locks));
 
-    vlc_mutex_t *lock = locks + n;
+    heimdall_mutex_t *lock = locks + n;
     if (acquire)
-        vlc_mutex_lock (lock);
+        heimdall_mutex_lock (lock);
     else
-        vlc_mutex_unlock (lock);
+        heimdall_mutex_unlock (lock);
 }
 
-static void vlc_mutex_init_common(vlc_mutex_t *mtx, bool recursive)
+static void heimdall_mutex_init_common(heimdall_mutex_t *mtx, bool recursive)
 {
     atomic_init(&mtx->value, 0);
     atomic_init(&mtx->recursion, recursive ? 1 : 0);
     atomic_init(&mtx->owner, 0);
 }
 
-void vlc_mutex_init(vlc_mutex_t *mtx)
+void heimdall_mutex_init(heimdall_mutex_t *mtx)
 {
-    vlc_mutex_init_common(mtx, false);
+    heimdall_mutex_init_common(mtx, false);
 }
 
-void vlc_mutex_init_recursive(vlc_mutex_t *mtx)
+void heimdall_mutex_init_recursive(heimdall_mutex_t *mtx)
 {
-    vlc_mutex_init_common(mtx, true);
+    heimdall_mutex_init_common(mtx, true);
 }
 
-bool vlc_mutex_held(const vlc_mutex_t *mtx)
+bool heimdall_mutex_held(const heimdall_mutex_t *mtx)
 {
     /* This comparison is thread-safe:
      * Even though other threads may modify the owner field at any time,
      * they will never make it compare equal to the calling thread.
      */
-    return vlc_thread_id() == atomic_load_explicit(&mtx->owner,
+    return heimdall_thread_id() == atomic_load_explicit(&mtx->owner,
                                                    memory_order_relaxed);
 }
 
-void vlc_mutex_lock(vlc_mutex_t *mtx)
+void heimdall_mutex_lock(heimdall_mutex_t *mtx)
 {
     /* This is the Drepper (non-recursive) mutex algorithm
      * from his "Futexes are tricky" paper. The mutex value can be:
@@ -100,19 +101,19 @@ void vlc_mutex_lock(vlc_mutex_t *mtx)
      * - 1: the mutex is locked and uncontended
      * - 2: the mutex is contended (i.e., unlock needs to wake up a waiter)
      */
-    if (vlc_mutex_trylock(mtx) == 0)
+    if (heimdall_mutex_trylock(mtx) == 0)
         return;
 
-    int canc = vlc_savecancel(); /* locking is never a cancellation point */
+    int canc = heimdall_savecancel(); /* locking is never a cancellation point */
 
     while (atomic_exchange_explicit(&mtx->value, 2, memory_order_acquire))
-        vlc_atomic_wait(&mtx->value, 2);
+        heimdall_atomic_wait(&mtx->value, 2);
 
-    vlc_restorecancel(canc);
-    atomic_store_explicit(&mtx->owner, vlc_thread_id(), memory_order_relaxed);
+    heimdall_restorecancel(canc);
+    atomic_store_explicit(&mtx->owner, heimdall_thread_id(), memory_order_relaxed);
 }
 
-int vlc_mutex_trylock(vlc_mutex_t *mtx)
+int heimdall_mutex_trylock(heimdall_mutex_t *mtx)
 {
     /* Check the recursion counter:
      * - 0: mutex is not recursive.
@@ -122,7 +123,7 @@ int vlc_mutex_trylock(vlc_mutex_t *mtx)
     unsigned recursion = atomic_load_explicit(&mtx->recursion,
                                               memory_order_relaxed);
     if (unlikely(recursion)) {
-        if (vlc_mutex_held(mtx)) {
+        if (heimdall_mutex_held(mtx)) {
             /* This thread already owns the mutex, locks recursively.
              * Other threads shall not have modified the recursion or owner fields.
              */
@@ -131,14 +132,14 @@ int vlc_mutex_trylock(vlc_mutex_t *mtx)
             return 0;
         }
     } else
-        assert(!vlc_mutex_held(mtx));
+        assert(!heimdall_mutex_held(mtx));
 
     unsigned value = 0;
 
     if (atomic_compare_exchange_strong_explicit(&mtx->value, &value, 1,
                                                 memory_order_acquire,
                                                 memory_order_relaxed)) {
-        atomic_store_explicit(&mtx->owner, vlc_thread_id(),
+        atomic_store_explicit(&mtx->owner, heimdall_thread_id(),
                               memory_order_relaxed);
         return 0;
     }
@@ -146,9 +147,9 @@ int vlc_mutex_trylock(vlc_mutex_t *mtx)
     return EBUSY;
 }
 
-void vlc_mutex_unlock(vlc_mutex_t *mtx)
+void heimdall_mutex_unlock(heimdall_mutex_t *mtx)
 {
-    assert(vlc_mutex_held(mtx));
+    assert(heimdall_mutex_held(mtx));
 
     unsigned recursion = atomic_load_explicit(&mtx->recursion,
                                               memory_order_relaxed);
@@ -163,88 +164,88 @@ void vlc_mutex_unlock(vlc_mutex_t *mtx)
 
     switch (atomic_exchange_explicit(&mtx->value, 0, memory_order_release)) {
         case 2:
-            vlc_atomic_notify_one(&mtx->value);
+            heimdall_atomic_notify_one(&mtx->value);
         case 1:
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 }
 
-void vlc_cond_init(vlc_cond_t *cond)
+void heimdall_cond_init(heimdall_cond_t *cond)
 {
     cond->head = NULL;
-    vlc_mutex_init(&cond->lock);
+    heimdall_mutex_init(&cond->lock);
 }
 
-struct vlc_cond_waiter {
-    struct vlc_cond_waiter **pprev, *next;
+struct heimdall_cond_waiter {
+    struct heimdall_cond_waiter **pprev, *next;
     atomic_uint value;
 };
 
-static void vlc_cond_signal_waiter(struct vlc_cond_waiter *waiter)
+static void heimdall_cond_signal_waiter(struct heimdall_cond_waiter *waiter)
 {
     waiter->pprev = &waiter->next;
     waiter->next = NULL;
     atomic_fetch_add_explicit(&waiter->value, 1, memory_order_relaxed);
-    vlc_atomic_notify_one(&waiter->value);
+    heimdall_atomic_notify_one(&waiter->value);
 }
 
-void vlc_cond_signal(vlc_cond_t *cond)
+void heimdall_cond_signal(heimdall_cond_t *cond)
 {
-    struct vlc_cond_waiter *waiter;
+    struct heimdall_cond_waiter *waiter;
 
     /* Some call sites signal their condition variable without holding the
      * corresponding lock. Thus an extra lock is needed here to ensure the
      * consistency of the linked list and the lifetime of its elements.
      * If all call sites locked cleanly, the inner lock would be unnecessary.
      */
-    vlc_mutex_lock(&cond->lock);
+    heimdall_mutex_lock(&cond->lock);
     waiter = cond->head;
 
     if (waiter != NULL) {
-        struct vlc_cond_waiter *next = waiter->next;
-        struct vlc_cond_waiter **pprev = waiter->pprev;
+        struct heimdall_cond_waiter *next = waiter->next;
+        struct heimdall_cond_waiter **pprev = waiter->pprev;
 
         *pprev = next;
 
         if (next != NULL)
             next->pprev = pprev;
 
-        vlc_cond_signal_waiter(waiter);
+        heimdall_cond_signal_waiter(waiter);
     }
 
-    vlc_mutex_unlock(&cond->lock);
+    heimdall_mutex_unlock(&cond->lock);
 }
 
-void vlc_cond_broadcast(vlc_cond_t *cond)
+void heimdall_cond_broadcast(heimdall_cond_t *cond)
 {
-    struct vlc_cond_waiter *waiter;
+    struct heimdall_cond_waiter *waiter;
 
-    vlc_mutex_lock(&cond->lock);
+    heimdall_mutex_lock(&cond->lock);
     waiter = cond->head;
     cond->head = NULL;
 
     /* Keep the lock here so that waiters don't go out of scope */
     while (waiter != NULL) {
-        struct vlc_cond_waiter *next = waiter->next;
+        struct heimdall_cond_waiter *next = waiter->next;
 
-        vlc_cond_signal_waiter(waiter);
+        heimdall_cond_signal_waiter(waiter);
         waiter = next;
     }
 
-    vlc_mutex_unlock(&cond->lock);
+    heimdall_mutex_unlock(&cond->lock);
 }
 
-static void vlc_cond_wait_prepare(struct vlc_cond_waiter *waiter,
-                                  vlc_cond_t *cond, vlc_mutex_t *mutex)
+static void heimdall_cond_wait_prepare(struct heimdall_cond_waiter *waiter,
+                                  heimdall_cond_t *cond, heimdall_mutex_t *mutex)
 {
-    struct vlc_cond_waiter *next;
+    struct heimdall_cond_waiter *next;
 
     waiter->pprev = &cond->head;
     atomic_init(&waiter->value, 0);
 
-    vlc_mutex_lock(&cond->lock);
+    heimdall_mutex_lock(&cond->lock);
     next = cond->head;
     cond->head = waiter;
     waiter->next = next;
@@ -252,67 +253,67 @@ static void vlc_cond_wait_prepare(struct vlc_cond_waiter *waiter,
     if (next != NULL)
         next->pprev = &waiter->next;
 
-    vlc_mutex_unlock(&cond->lock);
-    vlc_mutex_unlock(mutex);
+    heimdall_mutex_unlock(&cond->lock);
+    heimdall_mutex_unlock(mutex);
 }
 
-static void vlc_cond_wait_finish(struct vlc_cond_waiter *waiter,
-                                 vlc_cond_t *cond, vlc_mutex_t *mutex)
+static void heimdall_cond_wait_finish(struct heimdall_cond_waiter *waiter,
+                                 heimdall_cond_t *cond, heimdall_mutex_t *mutex)
 {
-    struct vlc_cond_waiter *next;
+    struct heimdall_cond_waiter *next;
 
     /* If this waiter is still on the linked list, remove it before it goes
      * out of scope. Otherwise, this is a no-op.
      */
-    vlc_mutex_lock(&cond->lock);
+    heimdall_mutex_lock(&cond->lock);
     next = waiter->next;
     *(waiter->pprev) = next;
 
     if (next != NULL)
         next->pprev = waiter->pprev;
 
-    vlc_mutex_unlock(&cond->lock);
+    heimdall_mutex_unlock(&cond->lock);
 
     /* Lock the caller's mutex as required by condition variable semantics. */
-    vlc_mutex_lock(mutex);
+    heimdall_mutex_lock(mutex);
 }
 
-void vlc_cond_wait(vlc_cond_t *cond, vlc_mutex_t *mutex)
+void heimdall_cond_wait(heimdall_cond_t *cond, heimdall_mutex_t *mutex)
 {
-    struct vlc_cond_waiter waiter;
+    struct heimdall_cond_waiter waiter;
 
     // wait on a multiply locked mutex not supported
     assert(atomic_load_explicit(&mutex->recursion, memory_order_relaxed) <= 1);
 
-    vlc_cond_wait_prepare(&waiter, cond, mutex);
-    vlc_atomic_wait(&waiter.value, 0);
-    vlc_cond_wait_finish(&waiter, cond, mutex);
+    heimdall_cond_wait_prepare(&waiter, cond, mutex);
+    heimdall_atomic_wait(&waiter.value, 0);
+    heimdall_cond_wait_finish(&waiter, cond, mutex);
 }
 
-int vlc_cond_timedwait(vlc_cond_t *cond, vlc_mutex_t *mutex,
-                       vlc_tick_t deadline)
+int heimdall_cond_timedwait(heimdall_cond_t *cond, heimdall_mutex_t *mutex,
+                       heimdall_tick_t deadline)
 {
-    struct vlc_cond_waiter waiter;
+    struct heimdall_cond_waiter waiter;
     int ret;
 
     // wait on a multiply locked mutex not supported
     assert(atomic_load_explicit(&mutex->recursion, memory_order_relaxed) <= 1);
 
-    vlc_cond_wait_prepare(&waiter, cond, mutex);
-    ret = vlc_atomic_timedwait(&waiter.value, 0, deadline);
-    vlc_cond_wait_finish(&waiter, cond, mutex);
+    heimdall_cond_wait_prepare(&waiter, cond, mutex);
+    ret = heimdall_atomic_timedwait(&waiter.value, 0, deadline);
+    heimdall_cond_wait_finish(&waiter, cond, mutex);
 
     return ret;
 }
 
 /*** Generic semaphores ***/
 
-void vlc_sem_init (vlc_sem_t *sem, unsigned value)
+void heimdall_sem_init (heimdall_sem_t *sem, unsigned value)
 {
     atomic_init(&sem->value, value);
 }
 
-int vlc_sem_post (vlc_sem_t *sem)
+int heimdall_sem_post (heimdall_sem_t *sem)
 {
     unsigned exp = atomic_load_explicit(&sem->value, memory_order_relaxed);
 
@@ -324,11 +325,11 @@ int vlc_sem_post (vlc_sem_t *sem)
                                                     memory_order_release,
                                                     memory_order_relaxed));
 
-    vlc_atomic_notify_one(&sem->value);
+    heimdall_atomic_notify_one(&sem->value);
     return 0;
 }
 
-void vlc_sem_wait (vlc_sem_t *sem)
+void heimdall_sem_wait (heimdall_sem_t *sem)
 {
     unsigned exp = 1;
 
@@ -338,13 +339,13 @@ void vlc_sem_wait (vlc_sem_t *sem)
     {
         if (likely(exp == 0))
         {
-            vlc_atomic_wait(&sem->value, 0);
+            heimdall_atomic_wait(&sem->value, 0);
             exp = 1;
         }
     }
 }
 
-int vlc_sem_timedwait(vlc_sem_t *sem, vlc_tick_t deadline)
+int heimdall_sem_timedwait(heimdall_sem_t *sem, heimdall_tick_t deadline)
 {
     unsigned exp = 1;
 
@@ -354,7 +355,7 @@ int vlc_sem_timedwait(vlc_sem_t *sem, vlc_tick_t deadline)
     {
         if (likely(exp == 0))
         {
-            int ret = vlc_atomic_timedwait(&sem->value, 0, deadline);
+            int ret = heimdall_atomic_timedwait(&sem->value, 0, deadline);
             if (ret)
                 return ret;
 
@@ -365,7 +366,7 @@ int vlc_sem_timedwait(vlc_sem_t *sem, vlc_tick_t deadline)
     return 0;
 }
 
-int vlc_sem_trywait(vlc_sem_t *sem)
+int heimdall_sem_trywait(heimdall_sem_t *sem)
 {
     unsigned exp = atomic_load_explicit(&sem->value, memory_order_relaxed);
 
@@ -379,15 +380,15 @@ int vlc_sem_trywait(vlc_sem_t *sem)
     return 0;
 }
 
-enum { VLC_LATCH_READY, VLC_LATCH_CONTEND, VLC_LATCH_PENDING };
+enum { HEIMDALL_LATCH_READY, HEIMDALL_LATCH_CONTEND, HEIMDALL_LATCH_PENDING };
 
-void vlc_latch_init(vlc_latch_t *latch, size_t value)
+void heimdall_latch_init(heimdall_latch_t *latch, size_t value)
 {
-    atomic_init(&latch->ready, value ? VLC_LATCH_PENDING : VLC_LATCH_READY);
+    atomic_init(&latch->ready, value ? HEIMDALL_LATCH_PENDING : HEIMDALL_LATCH_READY);
     atomic_init(&latch->value, value);
 }
 
-static bool vlc_latch_count_down_ready(vlc_latch_t *latch, size_t n)
+static bool heimdall_latch_count_down_ready(heimdall_latch_t *latch, size_t n)
 {
     size_t value;
 
@@ -397,62 +398,62 @@ static bool vlc_latch_count_down_ready(vlc_latch_t *latch, size_t n)
     if (value != n)
         return false;
 
-    if (atomic_exchange_explicit(&latch->ready, VLC_LATCH_READY,
-                                 memory_order_release) == VLC_LATCH_CONTEND)
-        vlc_atomic_notify_all(&latch->ready);
+    if (atomic_exchange_explicit(&latch->ready, HEIMDALL_LATCH_READY,
+                                 memory_order_release) == HEIMDALL_LATCH_CONTEND)
+        heimdall_atomic_notify_all(&latch->ready);
 
     return true;
 }
 
-void vlc_latch_count_down(vlc_latch_t *latch, size_t n)
+void heimdall_latch_count_down(heimdall_latch_t *latch, size_t n)
 {
-    (void) vlc_latch_count_down_ready(latch, n);
+    (void) heimdall_latch_count_down_ready(latch, n);
 }
 
-void vlc_latch_count_down_and_wait(vlc_latch_t *latch, size_t n)
+void heimdall_latch_count_down_and_wait(heimdall_latch_t *latch, size_t n)
 {
-    if (!vlc_latch_count_down_ready(latch, n))
-        vlc_latch_wait(latch);
+    if (!heimdall_latch_count_down_ready(latch, n))
+        heimdall_latch_wait(latch);
 }
 
-bool vlc_latch_is_ready(const vlc_latch_t *latch)
+bool heimdall_latch_is_ready(const heimdall_latch_t *latch)
 {
     return atomic_load_explicit(&latch->ready,
-                                memory_order_acquire) == VLC_LATCH_READY;
+                                memory_order_acquire) == HEIMDALL_LATCH_READY;
 }
 
-void vlc_latch_wait(vlc_latch_t *latch)
+void heimdall_latch_wait(heimdall_latch_t *latch)
 {
-    unsigned int expected = VLC_LATCH_PENDING;
+    unsigned int expected = HEIMDALL_LATCH_PENDING;
 
     if (!atomic_compare_exchange_strong_explicit(&latch->ready, &expected,
-                                                 VLC_LATCH_CONTEND,
+                                                 HEIMDALL_LATCH_CONTEND,
                                                  memory_order_acquire,
                                                  memory_order_acquire)) {
-        if (expected == VLC_LATCH_READY)
+        if (expected == HEIMDALL_LATCH_READY)
             return;
 
-        assert(expected == VLC_LATCH_CONTEND);
+        assert(expected == HEIMDALL_LATCH_CONTEND);
     }
 
     do
-        vlc_atomic_wait(&latch->ready, VLC_LATCH_CONTEND);
-    while (!vlc_latch_is_ready(latch));
+        heimdall_atomic_wait(&latch->ready, HEIMDALL_LATCH_CONTEND);
+    while (!heimdall_latch_is_ready(latch));
 }
 
-void vlc_queuedmutex_init(vlc_queuedmutex_t *m)
+void heimdall_queuedmutex_init(heimdall_queuedmutex_t *m)
 {
     atomic_init(&m->head, 0);
     atomic_init(&m->tail, 0);
     atomic_init(&m->owner, 0);
 }
 
-bool vlc_queuedmutex_held(vlc_queuedmutex_t *m)
+bool heimdall_queuedmutex_held(heimdall_queuedmutex_t *m)
 {
-    return (vlc_thread_id() == atomic_load_explicit(&m->owner, memory_order_relaxed));
+    return (heimdall_thread_id() == atomic_load_explicit(&m->owner, memory_order_relaxed));
 }
 
-void vlc_queuedmutex_lock(vlc_queuedmutex_t *m)
+void heimdall_queuedmutex_lock(heimdall_queuedmutex_t *m)
 {
     uint_fast32_t ticket = atomic_fetch_add_explicit(&m->tail, 1,
                                                      memory_order_relaxed);
@@ -460,61 +461,61 @@ void vlc_queuedmutex_lock(vlc_queuedmutex_t *m)
 
     while ((head = atomic_load_explicit(&m->head,
                                         memory_order_acquire)) != ticket)
-        vlc_atomic_wait(&m->head, head);
+        heimdall_atomic_wait(&m->head, head);
 
-    atomic_store_explicit(&m->owner, vlc_thread_id(), memory_order_relaxed);
+    atomic_store_explicit(&m->owner, heimdall_thread_id(), memory_order_relaxed);
 }
 
-void vlc_queuedmutex_unlock(vlc_queuedmutex_t *m)
+void heimdall_queuedmutex_unlock(heimdall_queuedmutex_t *m)
 {
     atomic_store_explicit(&m->owner, 0, memory_order_relaxed);
     atomic_fetch_add_explicit(&m->head, 1, memory_order_release);
-    vlc_atomic_notify_all(&m->head);
+    heimdall_atomic_notify_all(&m->head);
 }
 
-enum { VLC_ONCE_UNDONE, VLC_ONCE_DOING, VLC_ONCE_CONTEND, VLC_ONCE_DONE };
+enum { HEIMDALL_ONCE_UNDONE, HEIMDALL_ONCE_DOING, HEIMDALL_ONCE_CONTEND, HEIMDALL_ONCE_DONE };
 
-static_assert (VLC_ONCE_DONE == 3, "Check vlc_once in header file");
+static_assert (HEIMDALL_ONCE_DONE == 3, "Check heimdall_once in header file");
 
-bool (vlc_once_begin)(vlc_once_t *restrict once)
+bool (heimdall_once_begin)(heimdall_once_t *restrict once)
 {
-    unsigned int value = VLC_ONCE_UNDONE;
+    unsigned int value = HEIMDALL_ONCE_UNDONE;
 
     if (atomic_compare_exchange_strong_explicit(&once->value, &value,
-                                                VLC_ONCE_DOING,
+                                                HEIMDALL_ONCE_DOING,
                                                 memory_order_acquire,
                                                 memory_order_acquire))
         return false;
 
-    assert(value >= VLC_ONCE_DOING);
+    assert(value >= HEIMDALL_ONCE_DOING);
 
-    if (unlikely(value == VLC_ONCE_DOING)
+    if (unlikely(value == HEIMDALL_ONCE_DOING)
      && atomic_compare_exchange_strong_explicit(&once->value, &value,
-                                                VLC_ONCE_CONTEND,
+                                                HEIMDALL_ONCE_CONTEND,
                                                 memory_order_acquire,
                                                 memory_order_acquire))
-        value = VLC_ONCE_CONTEND;
+        value = HEIMDALL_ONCE_CONTEND;
 
-    assert(value >= VLC_ONCE_CONTEND);
+    assert(value >= HEIMDALL_ONCE_CONTEND);
 
-    while (unlikely(value != VLC_ONCE_DONE)) {
-        vlc_atomic_wait(&once->value, VLC_ONCE_CONTEND);
+    while (unlikely(value != HEIMDALL_ONCE_DONE)) {
+        heimdall_atomic_wait(&once->value, HEIMDALL_ONCE_CONTEND);
         value = atomic_load_explicit(&once->value, memory_order_acquire);
     }
 
     return true;
 }
 
-void vlc_once_complete(vlc_once_t *restrict once)
+void heimdall_once_complete(heimdall_once_t *restrict once)
 {
-    switch (atomic_exchange_explicit(&once->value, VLC_ONCE_DONE,
+    switch (atomic_exchange_explicit(&once->value, HEIMDALL_ONCE_DONE,
                                      memory_order_release)) {
-        case VLC_ONCE_DOING: /* No waiters, nothing (else) to do */
+        case HEIMDALL_ONCE_DOING: /* No waiters, nothing (else) to do */
             break;
-        case VLC_ONCE_CONTEND: /* Notify waiters */
-            vlc_atomic_notify_all(&once->value);
+        case HEIMDALL_ONCE_CONTEND: /* Notify waiters */
+            heimdall_atomic_notify_all(&once->value);
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 }

@@ -2,6 +2,7 @@
  * dxgi_fmt.h : DXGI helper calls
  *****************************************************************************
  * Copyright © 2015 VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Steve Lhomme <robux4@gmail.com>
  *
@@ -20,13 +21,13 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_VIDEOCHROMA_DXGI_FMT_H_
-#define VLC_VIDEOCHROMA_DXGI_FMT_H_
+#ifndef HEIMDALL_VIDEOCHROMA_DXGI_FMT_H_
+#define HEIMDALL_VIDEOCHROMA_DXGI_FMT_H_
 
 #include <dxgi.h>
 #include <dxgiformat.h>
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -49,7 +50,7 @@ typedef struct
     const char   *name;
     DXGI_FORMAT  formatTexture;
     DXGI_FORMAT  alphaTexture;
-    vlc_fourcc_t fourcc;
+    heimdall_fourcc_t fourcc;
     uint8_t      bitsPerChannel;
     uint8_t      widthDenominator;
     uint8_t      heightDenominator;
@@ -59,8 +60,8 @@ typedef struct
 } d3d_format_t;
 
 const char *DxgiFormatToStr(DXGI_FORMAT format);
-vlc_fourcc_t DxgiFormatFourcc(DXGI_FORMAT format);
-DXGI_FORMAT DxgiFourccFormat(vlc_fourcc_t format);
+heimdall_fourcc_t DxgiFormatFourcc(DXGI_FORMAT format);
+DXGI_FORMAT DxgiFourccFormat(heimdall_fourcc_t format);
 const d3d_format_t *DxgiGetRenderFormatList(void);
 const char *DxgiVendorStr(unsigned int gpu_vendor);
 UINT DxgiResourceCount(const d3d_format_t *);

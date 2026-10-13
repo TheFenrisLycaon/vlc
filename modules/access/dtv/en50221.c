@@ -6,6 +6,7 @@
  *
  * Authors: Christophe Massiot <massiot@via.ecp.fr>
  * Based on code from libdvbci Copyright (C) 2000 Klaus Schmidinger
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -26,13 +27,13 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_arrays.h>
-#include <vlc_tick.h>
-#include <vlc_threads.h>
-#include <vlc_poll.h>
-#include <vlc_charset.h>
-#include <vlc_fs.h>
+#include <heimdall_common.h>
+#include <heimdall_arrays.h>
+#include <heimdall_tick.h>
+#include <heimdall_threads.h>
+#include <heimdall_poll.h>
+#include <heimdall_charset.h>
+#include <heimdall_fs.h>
 
 #include <errno.h>
 #include <time.h>
@@ -48,7 +49,7 @@
 
 #undef ENABLE_HTTPD
 #ifdef ENABLE_HTTPD
-#   include <vlc_httpd.h>
+#   include <heimdall_httpd.h>
 #endif
 
 #include "../../demux/dvb-text.h"
@@ -121,10 +122,10 @@ static void MMIOpen( cam_t *, unsigned i_session_id );
 
 struct cam
 {
-    vlc_object_t *obj;
+    heimdall_object_t *obj;
     int fd;
     int i_ca_type;
-    vlc_tick_t i_timeout, i_next_event;
+    heimdall_tick_t i_timeout, i_next_event;
 
     unsigned i_nb_slots;
     bool pb_active_slot[MAX_CI_SLOTS];
@@ -227,7 +228,7 @@ static void Dump( bool b_outgoing, uint8_t *p_data, int i_size )
         fprintf(stderr, "%02X ", p_data[i]);
     fprintf(stderr, "%s\n", i_size >= MAX_DUMP ? "..." : "");
 #else
-    VLC_UNUSED(b_outgoing); VLC_UNUSED(p_data); VLC_UNUSED(i_size);
+    HEIMDALL_UNUSED(b_outgoing); HEIMDALL_UNUSED(p_data); HEIMDALL_UNUSED(i_size);
 #endif
 }
 
@@ -255,10 +256,10 @@ static int TPDUSend( cam_t * p_cam, uint8_t i_slot, uint8_t i_tag,
     if ( writev( p_cam->fd, iov, 2 ) <= 0 )
     {
         msg_Err( p_cam->obj, "cannot write to CAM device: %s",
-                 vlc_strerror_c(errno) );
-        return VLC_EGENERIC;
+                 heimdall_strerror_c(errno) );
+        return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 
@@ -280,14 +281,14 @@ static int TPDURecv( cam_t *p_cam, uint8_t i_slot, uint8_t *pi_tag,
     while( poll(pfd, 1, CAM_READ_TIMEOUT ) == -1 )
         if( errno != EINTR )
         {
-            msg_Err( p_cam->obj, "poll error: %s", vlc_strerror_c(errno) );
-            return VLC_EGENERIC;
+            msg_Err( p_cam->obj, "poll error: %s", heimdall_strerror_c(errno) );
+            return HEIMDALL_EGENERIC;
         }
 
     if ( !(pfd[0].revents & POLLIN) )
     {
         msg_Err( p_cam->obj, "CAM device poll time-out" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if ( pi_size == NULL )
@@ -306,10 +307,10 @@ static int TPDURecv( cam_t *p_cam, uint8_t i_slot, uint8_t *pi_tag,
     if ( i_size < 5 )
     {
         msg_Err( p_cam->obj, "cannot read from CAM device (%d): %s", i_size,
-                 vlc_strerror_c(errno) );
+                 heimdall_strerror_c(errno) );
         if( pi_size == NULL )
             free( p_data );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if ( p_data[1] != i_tcid )
@@ -318,7 +319,7 @@ static int TPDURecv( cam_t *p_cam, uint8_t i_slot, uint8_t *pi_tag,
                  p_data[1], i_tcid );
         if( pi_size == NULL )
             free( p_data );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     *pi_tag = p_data[2];
@@ -335,7 +336,7 @@ static int TPDURecv( cam_t *p_cam, uint8_t i_slot, uint8_t *pi_tag,
     else
         *pi_size = i_size;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 
@@ -393,12 +394,12 @@ static int SPDUSend( cam_t * p_cam, int i_session_id,
         if ( i_size > MAX_TPDU_DATA )
         {
             if ( TPDUSend( p_cam, i_slot, T_DATA_MORE, p,
-                           MAX_TPDU_DATA ) != VLC_SUCCESS )
+                           MAX_TPDU_DATA ) != HEIMDALL_SUCCESS )
             {
                 msg_Err( p_cam->obj, "couldn't send TPDU on session %d",
                          i_session_id );
                 free( p_spdu );
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             }
             p += MAX_TPDU_DATA;
             i_size -= MAX_TPDU_DATA;
@@ -406,28 +407,28 @@ static int SPDUSend( cam_t * p_cam, int i_session_id,
         else
         {
             if ( TPDUSend( p_cam, i_slot, T_DATA_LAST, p, i_size )
-                    != VLC_SUCCESS )
+                    != HEIMDALL_SUCCESS )
             {
                 msg_Err( p_cam->obj, "couldn't send TPDU on session %d",
                          i_session_id );
                 free( p_spdu );
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             }
             i_size = 0;
         }
 
-        if ( TPDURecv( p_cam, i_slot, &i_tag, NULL, NULL ) != VLC_SUCCESS
+        if ( TPDURecv( p_cam, i_slot, &i_tag, NULL, NULL ) != HEIMDALL_SUCCESS
                || i_tag != T_SB )
         {
             msg_Err( p_cam->obj, "couldn't recv TPDU on session %d",
                      i_session_id );
             free( p_spdu );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
 
     free( p_spdu );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -436,7 +437,7 @@ static int SPDUSend( cam_t * p_cam, int i_session_id,
 static void SessionOpen( cam_t * p_cam, uint8_t i_slot,
                          uint8_t *p_spdu, int i_size )
 {
-    VLC_UNUSED( i_size );
+    HEIMDALL_UNUSED( i_size );
 
     int i_session_id;
     int i_resource_id = ResourceIdToInt( &p_spdu[2] );
@@ -479,13 +480,13 @@ static void SessionOpen( cam_t * p_cam, uint8_t i_slot,
     p_response[8] = i_session_id & 0xff;
 
     if ( TPDUSend( p_cam, i_slot, T_DATA_LAST, p_response, 9 ) !=
-            VLC_SUCCESS )
+            HEIMDALL_SUCCESS )
     {
         msg_Err( p_cam->obj,
                  "SessionOpen: couldn't send TPDU on slot %d", i_slot );
         return;
     }
-    if ( TPDURecv( p_cam, i_slot, &i_tag, NULL, NULL ) != VLC_SUCCESS )
+    if ( TPDURecv( p_cam, i_slot, &i_tag, NULL, NULL ) != HEIMDALL_SUCCESS )
     {
         msg_Err( p_cam->obj,
                  "SessionOpen: couldn't recv TPDU on slot %d", i_slot );
@@ -545,13 +546,13 @@ static void SessionCreate( cam_t * p_cam, int i_slot, int i_resource_id )
     SetWBE( &p_response[6]. i_session_id);
 
     if ( TPDUSend( p_cam, i_slot, T_DATA_LAST, p_response, 4 ) !=
-            VLC_SUCCESS )
+            HEIMDALL_SUCCESS )
     {
         msg_Err( p_cam->obj,
                  "SessionCreate: couldn't send TPDU on slot %d", i_slot );
         return;
     }
-    if ( TPDURecv( p_cam, i_slot, &i_tag, NULL, NULL ) != VLC_SUCCESS )
+    if ( TPDURecv( p_cam, i_slot, &i_tag, NULL, NULL ) != HEIMDALL_SUCCESS )
     {
         msg_Err( p_cam->obj,
                  "SessionCreate: couldn't recv TPDU on slot %d", i_slot );
@@ -566,8 +567,8 @@ static void SessionCreate( cam_t * p_cam, int i_slot, int i_resource_id )
 static void SessionCreateResponse( cam_t * p_cam, uint8_t i_slot,
                                    uint8_t *p_spdu, int i_size )
 {
-    VLC_UNUSED( i_size );
-    VLC_UNUSED( i_slot );
+    HEIMDALL_UNUSED( i_size );
+    HEIMDALL_UNUSED( i_slot );
 
     int i_status = p_spdu[2];
     int i_resource_id = ResourceIdToInt( &p_spdu[3] );
@@ -616,13 +617,13 @@ static void SessionSendClose( cam_t *p_cam, int i_session_id )
     SetWBE( &p_response[2], i_session_id );
 
     if ( TPDUSend( p_cam, i_slot, T_DATA_LAST, p_response, 4 ) !=
-            VLC_SUCCESS )
+            HEIMDALL_SUCCESS )
     {
         msg_Err( p_cam->obj,
                  "SessionSendClose: couldn't send TPDU on slot %d", i_slot );
         return;
     }
-    if ( TPDURecv( p_cam, i_slot, &i_tag, NULL, NULL ) != VLC_SUCCESS )
+    if ( TPDURecv( p_cam, i_slot, &i_tag, NULL, NULL ) != HEIMDALL_SUCCESS )
     {
         msg_Err( p_cam->obj,
                  "SessionSendClose: couldn't recv TPDU on slot %d", i_slot );
@@ -650,13 +651,13 @@ static void SessionClose( cam_t * p_cam, int i_session_id )
     p_response[4] = i_session_id & 0xff;
 
     if ( TPDUSend( p_cam, i_slot, T_DATA_LAST, p_response, 5 ) !=
-            VLC_SUCCESS )
+            HEIMDALL_SUCCESS )
     {
         msg_Err( p_cam->obj,
                  "SessionClose: couldn't send TPDU on slot %d", i_slot );
         return;
     }
-    if ( TPDURecv( p_cam, i_slot, &i_tag, NULL, NULL ) != VLC_SUCCESS )
+    if ( TPDURecv( p_cam, i_slot, &i_tag, NULL, NULL ) != HEIMDALL_SUCCESS )
     {
         msg_Err( p_cam->obj,
                  "SessionClose: couldn't recv TPDU on slot %d", i_slot );
@@ -830,7 +831,7 @@ static int APDUSend( cam_t * p_cam, int i_session_id, int i_tag,
         if ( i_size + p - p_apdu > 256 )
         {
             msg_Err( p_cam->obj, "CAM: apdu overflow" );
-            i_ret = VLC_EGENERIC;
+            i_ret = HEIMDALL_EGENERIC;
         }
         else
         {
@@ -841,8 +842,8 @@ static int APDUSend( cam_t * p_cam, int i_session_id, int i_tag,
             if ( i_ret < 0 )
             {
                 msg_Err( p_cam->obj, "Error sending to CAM: %s",
-                         vlc_strerror_c(errno) );
-                i_ret = VLC_EGENERIC;
+                         heimdall_strerror_c(errno) );
+                i_ret = HEIMDALL_EGENERIC;
             }
         }
     }
@@ -983,7 +984,7 @@ static void ApplicationInformationEnterMenu( cam_t * p_cam, int i_session_id )
 static void ApplicationInformationHandle( cam_t * p_cam, int i_session_id,
                                           uint8_t *p_apdu, int i_size )
 {
-    VLC_UNUSED(i_session_id);
+    HEIMDALL_UNUSED(i_session_id);
     int i_tag = APDUGetTag( p_apdu, i_size );
 
     switch ( i_tag )
@@ -1271,7 +1272,7 @@ static void CAPMTAdd( cam_t * p_cam, int i_session_id,
     }
 
 #ifdef CAPMT_WAIT
-    vlc_tick_sleep( VLC_TICK_FROM_MS(CAPMT_WAIT) );
+    heimdall_tick_sleep( HEIMDALL_TICK_FROM_MS(CAPMT_WAIT) );
 #endif
 
     msg_Dbg( p_cam->obj, "adding CAPMT for SID %d on session %d",
@@ -1408,7 +1409,7 @@ static void ConditionalAccessOpen( cam_t * p_cam, unsigned i_session_id )
 typedef struct
 {
     int i_interval;
-    vlc_tick_t i_last;
+    heimdall_tick_t i_last;
 } date_time_t;
 
 /*****************************************************************************
@@ -1443,7 +1444,7 @@ static void DateTimeSend( cam_t * p_cam, int i_session_id )
 
         APDUSend( p_cam, i_session_id, AOT_DATE_TIME, p_response, 7 );
 
-        p_date->i_last = vlc_tick_now();
+        p_date->i_last = heimdall_tick_now();
     }
 }
 
@@ -1492,7 +1493,7 @@ static void DateTimeManage( cam_t * p_cam, int i_session_id )
         (date_time_t *)p_cam->p_sessions[i_session_id - 1].p_sys;
 
     if ( p_date->i_interval
-          && vlc_tick_now() > p_date->i_last + vlc_tick_from_sec( p_date->i_interval ) )
+          && heimdall_tick_now() > p_date->i_last + heimdall_tick_from_sec( p_date->i_interval ) )
     {
         DateTimeSend( p_cam, i_session_id );
     }
@@ -1681,7 +1682,7 @@ static char *MMIGetText( cam_t *p_cam, uint8_t **pp_apdu, int *pi_size )
     *pp_apdu += l + 4;
     *pi_size -= l + 4;
 
-    return vlc_from_EIT(d,l);
+    return heimdall_from_EIT(d,l);
 }
 
 /*****************************************************************************
@@ -1690,7 +1691,7 @@ static char *MMIGetText( cam_t *p_cam, uint8_t **pp_apdu, int *pi_size )
 static void MMIHandleEnq( cam_t *p_cam, int i_session_id,
                           uint8_t *p_apdu, int i_size )
 {
-    VLC_UNUSED( i_size );
+    HEIMDALL_UNUSED( i_size );
 
     mmi_t *p_mmi = (mmi_t *)p_cam->p_sessions[i_session_id - 1].p_sys;
     int i_slot = p_cam->p_sessions[i_session_id - 1].i_slot;
@@ -1718,7 +1719,7 @@ static void MMIHandleEnq( cam_t *p_cam, int i_session_id,
 static void MMIHandleMenu( cam_t *p_cam, int i_session_id, int i_tag,
                            uint8_t *p_apdu, int i_size )
 {
-    VLC_UNUSED(i_size);
+    HEIMDALL_UNUSED(i_size);
 
     mmi_t *p_mmi = (mmi_t *)p_cam->p_sessions[i_session_id - 1].p_sys;
     int i_slot = p_cam->p_sessions[i_session_id - 1].i_slot;
@@ -1858,18 +1859,18 @@ static void MMIOpen( cam_t *p_cam, unsigned i_session_id )
 
 static int InitSlot( cam_t * p_cam, int i_slot )
 {
-    if ( TPDUSend( p_cam, i_slot, T_CREATE_TC, NULL, 0 ) != VLC_SUCCESS )
+    if ( TPDUSend( p_cam, i_slot, T_CREATE_TC, NULL, 0 ) != HEIMDALL_SUCCESS )
     {
         msg_Err( p_cam->obj, "en50221_Init: couldn't send TPDU on slot %d",
                  i_slot );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* This is out of the spec */
     for ( int i = 0; i < MAX_TC_RETRIES; i++ )
     {
         uint8_t i_tag;
-        if ( TPDURecv( p_cam, i_slot, &i_tag, NULL, NULL ) == VLC_SUCCESS
+        if ( TPDURecv( p_cam, i_slot, &i_tag, NULL, NULL ) == HEIMDALL_SUCCESS
               && i_tag == T_CTC_REPLY )
         {
             p_cam->pb_active_slot[i_slot] = true;
@@ -1877,7 +1878,7 @@ static int InitSlot( cam_t * p_cam, int i_slot )
         }
 
         if ( TPDUSend( p_cam, i_slot, T_CREATE_TC, NULL, 0 )
-                != VLC_SUCCESS )
+                != HEIMDALL_SUCCESS )
         {
             msg_Err( p_cam->obj,
                      "en50221_Init: couldn't send TPDU on slot %d",
@@ -1888,11 +1889,11 @@ static int InitSlot( cam_t * p_cam, int i_slot )
 
     if ( p_cam->pb_active_slot[i_slot] )
     {
-        p_cam->i_timeout = VLC_TICK_FROM_MS(100);
-        return VLC_SUCCESS;
+        p_cam->i_timeout = HEIMDALL_TICK_FROM_MS(100);
+        return HEIMDALL_SUCCESS;
     }
 
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 
@@ -1903,7 +1904,7 @@ static int InitSlot( cam_t * p_cam, int i_slot )
 /*****************************************************************************
  * en50221_Init : Initialize the CAM for en50221
  *****************************************************************************/
-cam_t *en50221_Init( vlc_object_t *obj, int fd )
+cam_t *en50221_Init( heimdall_object_t *obj, int fd )
 {
     ca_caps_t caps;
 
@@ -1962,9 +1963,9 @@ cam_t *en50221_Init( vlc_object_t *obj, int fd )
             }
         }
 
-        p_cam->i_timeout = VLC_TICK_FROM_MS(100);
+        p_cam->i_timeout = HEIMDALL_TICK_FROM_MS(100);
         /* Wait a bit otherwise it doesn't initialize properly... */
-        vlc_tick_sleep( VLC_TICK_FROM_MS(100) );
+        heimdall_tick_sleep( HEIMDALL_TICK_FROM_MS(100) );
         p_cam->i_next_event = 0;
     }
     else
@@ -1978,7 +1979,7 @@ cam_t *en50221_Init( vlc_object_t *obj, int fd )
          * ASIC. */
         if ( ioctl( fd, CA_GET_SLOT_INFO, &info ) < 0 )
         {
-            msg_Err( obj, "cannot get slot info: %s", vlc_strerror_c(errno) );
+            msg_Err( obj, "cannot get slot info: %s", heimdall_strerror_c(errno) );
             goto error;
         }
         if( info.flags == 0 )
@@ -2034,12 +2035,12 @@ void en50221_Poll( cam_t * p_cam )
     switch( p_cam->i_ca_type )
     {
     case CA_CI_LINK:
-        if( vlc_tick_now() > p_cam->i_next_event )
+        if( heimdall_tick_now() > p_cam->i_next_event )
             break;
     case CA_CI:
         return;
     default:
-        vlc_assert_unreachable();
+        heimdall_assert_unreachable();
     }
 
     for ( unsigned i_slot = 0; i_slot < p_cam->i_nb_slots; i_slot++ )
@@ -2105,7 +2106,7 @@ void en50221_Poll( cam_t * p_cam )
         if ( !p_cam->pb_tc_has_data[i_slot] )
         {
             if ( TPDUSend( p_cam, i_slot, T_DATA_LAST, NULL, 0 ) !=
-                    VLC_SUCCESS )
+                    HEIMDALL_SUCCESS )
             {
                 msg_Err( p_cam->obj,
                          "en50221_Poll: couldn't send TPDU on slot %d",
@@ -2113,7 +2114,7 @@ void en50221_Poll( cam_t * p_cam )
                 continue;
             }
             if ( TPDURecv( p_cam, i_slot, &i_tag, NULL, NULL ) !=
-                    VLC_SUCCESS )
+                    HEIMDALL_SUCCESS )
             {
                 msg_Err( p_cam->obj,
                          "en50221_Poll: couldn't recv TPDU on slot %d",
@@ -2128,7 +2129,7 @@ void en50221_Poll( cam_t * p_cam )
             int i_size, i_session_size;
             uint8_t *p_session;
 
-            if ( TPDUSend( p_cam, i_slot, T_RCV, NULL, 0 ) != VLC_SUCCESS )
+            if ( TPDUSend( p_cam, i_slot, T_RCV, NULL, 0 ) != HEIMDALL_SUCCESS )
             {
                 msg_Err( p_cam->obj,
                          "en50221_Poll: couldn't send TPDU on slot %d",
@@ -2136,7 +2137,7 @@ void en50221_Poll( cam_t * p_cam )
                 continue;
             }
             if ( TPDURecv( p_cam, i_slot, &i_tag, p_tpdu, &i_size ) !=
-                    VLC_SUCCESS )
+                    HEIMDALL_SUCCESS )
             {
                 msg_Err( p_cam->obj,
                          "en50221_Poll: couldn't recv TPDU on slot %d",
@@ -2172,7 +2173,7 @@ void en50221_Poll( cam_t * p_cam )
         }
     }
 
-    p_cam->i_next_event = vlc_tick_now() + p_cam->i_timeout;
+    p_cam->i_next_event = heimdall_tick_now() + p_cam->i_timeout;
 }
 
 
@@ -2244,7 +2245,7 @@ int en50221_SetCAPMT( cam_t * p_cam, const en50221_capmt_info_t *p_info )
     if( p_oldinfo )
         en50221_capmt_Delete( p_oldinfo );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 #ifdef ENABLE_HTTPD
@@ -2263,7 +2264,7 @@ static int en50221_OpenMMI( cam_t * p_cam, unsigned i_slot )
                 msg_Dbg( p_cam->obj,
                          "MMI menu is already opened on slot %d (session=%u)",
                          i_slot, i );
-                return VLC_SUCCESS;
+                return HEIMDALL_SUCCESS;
             }
         }
 
@@ -2274,17 +2275,17 @@ static int en50221_OpenMMI( cam_t * p_cam, unsigned i_slot )
                   && p_cam->p_sessions[i - 1].i_slot == i_slot )
             {
                 ApplicationInformationEnterMenu( p_cam, i );
-                return VLC_SUCCESS;
+                return HEIMDALL_SUCCESS;
             }
         }
 
         msg_Err( p_cam->obj, "no application information on slot %d", i_slot );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     else
     {
         msg_Err( p_cam->obj, "MMI menu not supported" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 }
 
@@ -2301,18 +2302,18 @@ static int en50221_CloseMMI( cam_t * p_cam, unsigned i_slot )
                   && p_cam->p_sessions[i - 1].i_slot == i_slot )
             {
                 MMISendClose( p_cam, i );
-                return VLC_SUCCESS;
+                return HEIMDALL_SUCCESS;
             }
         }
 
         msg_Warn( p_cam->obj, "closing a non-existing MMI session on slot %d",
                   i_slot );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     else
     {
         msg_Err( p_cam->obj, "MMI menu not supported" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 }
 
@@ -2476,7 +2477,7 @@ char *en50221_Status( cam_t *p_cam, char *psz_request )
 
     if( ioctl( p_cam->fd, CA_GET_CAP, &caps ) < 0 )
     {
-        fprintf( p, "ioctl(CA_GET_CAP) failed: %s\n", vlc_strerror_c(errno) );
+        fprintf( p, "ioctl(CA_GET_CAP) failed: %s\n", heimdall_strerror_c(errno) );
         goto out;
     }
 
@@ -2518,7 +2519,7 @@ char *en50221_Status( cam_t *p_cam, char *psz_request )
         if ( ioctl( p_cam->fd, CA_GET_SLOT_INFO, &sinfo ) < 0 )
         {
             fprintf( p, "ioctl(CA_GET_SLOT_INFO) failed: %s<br>\n",
-                     vlc_strerror_c(errno) );
+                     heimdall_strerror_c(errno) );
             continue;
         }
 
@@ -2630,6 +2631,6 @@ void en50221_End( cam_t * p_cam )
         }
     }
 
-    vlc_close( p_cam->fd );
+    heimdall_close( p_cam->fd );
     free( p_cam );
 }

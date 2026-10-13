@@ -2,6 +2,7 @@
  * macosx_dialogs.m
  *****************************************************************************
  * Copyright (C) 2026 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Felix Paul Kühne <fkuehne@videolan.org>
  *
@@ -26,24 +27,24 @@
 
 #import <Cocoa/Cocoa.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_interface.h>
-#include <vlc_playlist.h>
-#include <vlc_input_item.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_interface.h>
+#include <heimdall_playlist.h>
+#include <heimdall_input_item.h>
 
 static void ShowDialog( intf_thread_t *, int, int, intf_dialog_args_t * );
 
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     intf_thread_t *p_intf = (intf_thread_t *)p_this;
     p_intf->pf_show_dialog = ShowDialog;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void Close( vlc_object_t *p_this )
+static void Close( heimdall_object_t *p_this )
 {
-    VLC_UNUSED( p_this );
+    HEIMDALL_UNUSED( p_this );
 }
 
 static void OpenFilePanel( intf_thread_t *p_intf, bool b_play,
@@ -63,8 +64,8 @@ static void OpenFilePanel( intf_thread_t *p_intf, bool b_play,
 
             if( [panel runModal] == NSModalResponseOK )
             {
-                vlc_playlist_t *playlist = vlc_intf_GetMainPlaylist( p_intf );
-                vlc_playlist_Lock( playlist );
+                heimdall_playlist_t *playlist = heimdall_intf_GetMainPlaylist( p_intf );
+                heimdall_playlist_Lock( playlist );
 
                 for( NSURL *url in [panel URLs] )
                 {
@@ -72,18 +73,18 @@ static void OpenFilePanel( intf_thread_t *p_intf, bool b_play,
                         [[url absoluteString] UTF8String], NULL );
                     if( p_input )
                     {
-                        vlc_playlist_AppendOne( playlist, p_input );
+                        heimdall_playlist_AppendOne( playlist, p_input );
                         input_item_Release( p_input );
                     }
                 }
 
-                if( b_play && vlc_playlist_Count( playlist ) > 0 )
+                if( b_play && heimdall_playlist_Count( playlist ) > 0 )
                 {
-                    vlc_playlist_PlayAt( playlist,
-                        vlc_playlist_Count( playlist ) - (int)[[panel URLs] count] );
+                    heimdall_playlist_PlayAt( playlist,
+                        heimdall_playlist_Count( playlist ) - (int)[[panel URLs] count] );
                 }
 
-                vlc_playlist_Unlock( playlist );
+                heimdall_playlist_Unlock( playlist );
             }
         }
     });
@@ -157,9 +158,9 @@ static void ShowDialog( intf_thread_t *p_intf, int i_dialog, int i_arg,
     }
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname( N_("macOS dialogs") )
     set_description( N_("macOS dialogs provider") )
     set_capability( "dialogs provider", 52 )
     set_callbacks( Open, Close )
-vlc_module_end()
+heimdall_module_end()

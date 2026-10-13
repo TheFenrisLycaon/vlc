@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,11 +21,11 @@ import QtQml.Models
 import QtQml
 
 
-import VLC.MainInterface
-import VLC.Widgets as Widgets
-import VLC.Util
-import VLC.Style
-import VLC.Network
+import Heimdall.MainInterface
+import Heimdall.Widgets as Widgets
+import Heimdall.Util
+import Heimdall.Style
+import Heimdall.Network
 
 Widgets.PageLoader {
     id: root
@@ -33,11 +34,11 @@ Widgets.PageLoader {
             displayText: qsTr("Services"),
             default: true,
             name: "services",
-            url: "qrc:///qt/qml/VLC/Network/ServicesHomeDisplay.qml"
+            url: "qrc:///qt/qml/Heimdall/Network/ServicesHomeDisplay.qml"
         }, {
             displayText: qsTr("URL"),
             name: "url",
-            url: "qrc:///qt/qml/VLC/Network/DiscoverUrlDisplay.qml"
+            url: "qrc:///qt/qml/Heimdall/Network/DiscoverUrlDisplay.qml"
         }
     ]
 

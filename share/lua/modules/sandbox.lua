@@ -2,8 +2,9 @@
  sandbox.lua: Lua sandboxing facilities
 --[==========================================================================[
  Copyright (C) 2007 the VideoLAN team
+ Copyright (C) 2026 TheFenrisLycaon
 
- Authors: Antoine Cellerier <dionoea at videolan dot org>
+ Authors: Antoine Cellerier <dionoea at lycaria dot org>
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by

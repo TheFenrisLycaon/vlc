@@ -2,6 +2,7 @@
  * EPGWidget.cpp : EPGWidget
  ****************************************************************************
  * Copyright © 2009-2010 VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Ludovic Fauvet <etix@l0cal.com>
  *
@@ -22,7 +23,7 @@
 
 #include "qt.hpp"
 
-#include <vlc_epg.h>
+#include <heimdall_epg.h>
 #include "player/player_controller.hpp"
 
 #include <QStackedWidget>
@@ -106,12 +107,12 @@ void EPGWidget::updateEPG( input_item_t *p_input_item )
     b_input_type_known = true;
 
     /* Fixme: input could have disappeared */
-    vlc_mutex_lock(  & p_input_item->lock );
+    heimdall_mutex_lock(  & p_input_item->lock );
     m_epgView->updateEPG( p_input_item->pp_epg, p_input_item->i_epg );
     m_epgView->setEpgTime( ( p_input_item->i_epg_time ) ?
                            QDateTime::fromSecsSinceEpoch( p_input_item->i_epg_time, QTimeZone::systemTimeZone() ) :
                            QDateTime() );
-    vlc_mutex_unlock( & p_input_item->lock );
+    heimdall_mutex_unlock( & p_input_item->lock );
 
     /* toggle our widget view */
     rootWidget->setCurrentIndex(

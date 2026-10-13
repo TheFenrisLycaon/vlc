@@ -2,8 +2,9 @@
  * vlm_event.h: VLM event functions
  *****************************************************************************
  * Copyright (C) 2009 Laurent Aimar
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Laurent Aimar <fenrir _AT_ videolan _DOT_ fr>
+ * Authors: Laurent Aimar <fenrir _AT_ lycaria _DOT_ fr>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -20,10 +21,10 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef LIBVLC_VLM_EVENT_H
-#define LIBVLC_VLM_EVENT_H 1
+#ifndef LIBHEIMDALL_VLM_EVENT_H
+#define LIBHEIMDALL_VLM_EVENT_H 1
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
 /*****************************************************************************
  *

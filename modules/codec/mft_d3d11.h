@@ -2,6 +2,7 @@
  * mft_d3d11.h : Media Foundation Transform audio/video decoder D3D11 helpers
  *****************************************************************************
  * Copyright (C) 2023 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Steve Lhomme <slhomme@videolabs.io>
  *
@@ -20,11 +21,11 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_MFT_D3D11_H
-#define VLC_MFT_D3D11_H
+#ifndef HEIMDALL_MFT_D3D11_H
+#define HEIMDALL_MFT_D3D11_H
 
-#include <vlc_common.h>
-#include <vlc_codec.h>
+#include <heimdall_common.h>
+#include <heimdall_codec.h>
 #include "../video_chroma/d3d11_fmt.h"
 #include "mft_d3d.h"
 
@@ -33,12 +34,12 @@ class MFHW_d3d11 : public MFHW_d3d
 public:
     virtual ~MFHW_d3d11() = default;
 
-    HRESULT SetD3D(vlc_logger *, vlc_decoder_device &, Microsoft::WRL::ComPtr<IMFTransform> &) final;
+    HRESULT SetD3D(heimdall_logger *, heimdall_decoder_device &, Microsoft::WRL::ComPtr<IMFTransform> &) final;
     void Release(Microsoft::WRL::ComPtr<IMFTransform> &) final;
-    picture_context_t *CreatePicContext(struct vlc_logger *, Microsoft::WRL::ComPtr<IMFDXGIBuffer> &,
-                                        vlc_mft_ref *) final;
+    picture_context_t *CreatePicContext(struct heimdall_logger *, Microsoft::WRL::ComPtr<IMFDXGIBuffer> &,
+                                        heimdall_mft_ref *) final;
 
-    HRESULT SetupVideoContext(vlc_logger *, Microsoft::WRL::ComPtr<IMFDXGIBuffer> &, es_format_t & fmt_out) final;
+    HRESULT SetupVideoContext(heimdall_logger *, Microsoft::WRL::ComPtr<IMFDXGIBuffer> &, es_format_t & fmt_out) final;
 
 private:
     const d3d_format_t *cfg = nullptr;
@@ -46,4 +47,4 @@ private:
     ID3D11ShaderResourceView *cachedSRV[32][DXGI_MAX_SHADER_VIEW] = {{nullptr}};
 };
 
-#endif // VLC_MFT_D3D11_H
+#endif // HEIMDALL_MFT_D3D11_H

@@ -2,6 +2,7 @@
  * SegmentInformation.cpp
  *****************************************************************************
  * Copyright (C) 2014 - VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -155,7 +156,7 @@ void SegmentInformation::updateWith(SegmentInformation *updated)
     /* FIXME: handle difference */
 }
 
-void SegmentInformation::pruneByPlaybackTime(vlc_tick_t time)
+void SegmentInformation::pruneByPlaybackTime(heimdall_tick_t time)
 {
     SegmentList *segmentList = static_cast<SegmentList *>(getAttribute(Type::SegmentList));
     if(segmentList)
@@ -195,7 +196,7 @@ void SegmentInformation::setEncryption(const CommonEncryption &enc)
     commonEncryption = enc;
 }
 
-vlc_tick_t SegmentInformation::getPeriodStart() const
+heimdall_tick_t SegmentInformation::getPeriodStart() const
 {
     if(parent)
         return parent->getPeriodStart();
@@ -203,7 +204,7 @@ vlc_tick_t SegmentInformation::getPeriodStart() const
         return 0;
 }
 
-vlc_tick_t SegmentInformation::getPeriodDuration() const
+heimdall_tick_t SegmentInformation::getPeriodDuration() const
 {
     if(parent)
         return parent->getPeriodDuration();

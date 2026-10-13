@@ -1,53 +1,53 @@
 NULL =
 
-LIBVLC_SAMPLES = \
-	libvlc/gtk_player.c \
-	libvlc/QtPlayer/LICENSE \
-	libvlc/QtPlayer/main.cpp \
-	libvlc/QtPlayer/player.cpp \
-	libvlc/QtPlayer/player.h \
-	libvlc/QtPlayer/QtVLC.pro \
-	libvlc/QtGL/main.cpp \
-	libvlc/QtGL/qtvlcwidget.cpp \
-	libvlc/QtGL/qtvlcwidget.h \
-	libvlc/QtGL/QtGl.pro \
-	libvlc/thumbnailer.c \
-	libvlc/wx_player.cpp \
-	libvlc/d3d11_player.cpp \
-	libvlc/d3d9_player.c \
-	libvlc/win_player.c \
-	libvlc/CMakeLists.txt \
-	libvlc/appkit_player.m \
-	libvlc/downloader.c \
-	libvlc/parser.c \
-	libvlc/media_discoverer.c \
-	libvlc/renderer_discoverer.c \
-	libvlc/player.c \
+LIBHEIMDALL_SAMPLES = \
+	libheimdall/gtk_player.c \
+	libheimdall/QtPlayer/LICENSE \
+	libheimdall/QtPlayer/main.cpp \
+	libheimdall/QtPlayer/player.cpp \
+	libheimdall/QtPlayer/player.h \
+	libheimdall/QtPlayer/QtHeimdall.pro \
+	libheimdall/QtGL/main.cpp \
+	libheimdall/QtGL/qtheimdallwidget.cpp \
+	libheimdall/QtGL/qtheimdallwidget.h \
+	libheimdall/QtGL/QtGl.pro \
+	libheimdall/thumbnailer.c \
+	libheimdall/wx_player.cpp \
+	libheimdall/d3d11_player.cpp \
+	libheimdall/d3d9_player.c \
+	libheimdall/win_player.c \
+	libheimdall/CMakeLists.txt \
+	libheimdall/appkit_player.m \
+	libheimdall/downloader.c \
+	libheimdall/parser.c \
+	libheimdall/media_discoverer.c \
+	libheimdall/renderer_discoverer.c \
+	libheimdall/player.c \
 	$(NULL)
 
-# Check that samples that depends only on LibVLC can build
+# Check that samples that depends only on LibHeimdall can build
 AUTOMAKE_OPTIONS = subdir-objects
-AM_LDFLAGS = -no-install $(LDFLAGS_vlc) -L../src/ -lvlccore -L../lib -lvlc
+AM_LDFLAGS = -no-install $(LDFLAGS_heimdall) -L../src/ -lheimdallcore -L../lib -lheimdall
 
-samples_libvlc_example_SOURCES = libvlc/example.c
-samples_libvlc_thumbnailer_SOURCES = libvlc/thumbnailer.c
-samples_libvlc_downloader_SOURCES = libvlc/downloader.c
-samples_libvlc_parser_SOURCES = libvlc/parser.c
-samples_libvlc_media_discoverer_SOURCES = libvlc/media_discoverer.c
-samples_libvlc_renderer_discoverer_SOURCES = libvlc/renderer_discoverer.c
-samples_libvlc_player_SOURCES = libvlc/player.c
+samples_libheimdall_example_SOURCES = libheimdall/example.c
+samples_libheimdall_thumbnailer_SOURCES = libheimdall/thumbnailer.c
+samples_libheimdall_downloader_SOURCES = libheimdall/downloader.c
+samples_libheimdall_parser_SOURCES = libheimdall/parser.c
+samples_libheimdall_media_discoverer_SOURCES = libheimdall/media_discoverer.c
+samples_libheimdall_renderer_discoverer_SOURCES = libheimdall/renderer_discoverer.c
+samples_libheimdall_player_SOURCES = libheimdall/player.c
 
 check_PROGRAMS = \
-	samples_libvlc_example \
-	samples_libvlc_thumbnailer \
-	samples_libvlc_downloader \
-	samples_libvlc_parser \
-	samples_libvlc_media_discoverer \
-	samples_libvlc_renderer_discoverer \
-	samples_libvlc_player \
+	samples_libheimdall_example \
+	samples_libheimdall_thumbnailer \
+	samples_libheimdall_downloader \
+	samples_libheimdall_parser \
+	samples_libheimdall_media_discoverer \
+	samples_libheimdall_renderer_discoverer \
+	samples_libheimdall_player \
 	$(NULL)
 
-nobase_doc_DATA = $(LIBVLC_SAMPLES)
+nobase_doc_DATA = $(LIBHEIMDALL_SAMPLES)
 
 doc_DATA = \
 	fortunes.txt \
@@ -85,13 +85,13 @@ CHANGELOGS = \
 	$(NULL)
 
 man1_MANS = \
-	   vlc.1 \
-	   vlc-wrapper.1
+	   heimdall.1 \
+	   heimdall-wrapper.1
 
 EXTRA_DIST = \
 	$(CHANGELOGS) \
 	$(man1_MANS) \
-	$(LIBVLC_SAMPLES) \
+	$(LIBHEIMDALL_SAMPLES) \
 	fortunes.txt \
 	release-howto.txt \
 	Doxyfile.in \

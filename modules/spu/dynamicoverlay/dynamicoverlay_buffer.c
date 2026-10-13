@@ -2,6 +2,7 @@
  * dynamicoverlay_buffer.c : dynamic overlay buffer
  *****************************************************************************
  * Copyright (C) 2008-2009 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Søren Bøg <avacore@videolan.org>
  *         Jean-Paul Saman <jpsaman@videolan.org>
@@ -25,8 +26,8 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_filter.h>
+#include <heimdall_common.h>
+#include <heimdall_filter.h>
 
 #include <ctype.h>
 
@@ -42,7 +43,7 @@ int BufferInit( buffer_t *p_buffer )
     p_buffer->p_memory = NULL;
     p_buffer->p_begin = NULL;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 int BufferDestroy( buffer_t *p_buffer )
@@ -51,7 +52,7 @@ int BufferDestroy( buffer_t *p_buffer )
     p_buffer->p_memory = NULL;
     p_buffer->p_begin = NULL;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 char *BufferGetToken( buffer_t *p_buffer )
@@ -93,7 +94,7 @@ int BufferAdd( buffer_t *p_buffer, const char *p_data, size_t i_len )
                some (most?) cases, and reset the start of the buffer. */
             char *p_newdata = malloc( i_newsize );
             if( p_newdata == NULL )
-                return VLC_ENOMEM;
+                return HEIMDALL_ENOMEM;
             if( p_buffer->p_begin != NULL )
             {
                 memcpy( p_newdata, p_buffer->p_begin, p_buffer->i_length );
@@ -107,7 +108,7 @@ int BufferAdd( buffer_t *p_buffer, const char *p_data, size_t i_len )
     /* Add the new data to the end of the current */
     memcpy( p_buffer->p_begin + p_buffer->i_length, p_data, i_len );
     p_buffer->i_length += i_len;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 int BufferPrintf( buffer_t *p_buffer, const char *p_fmt, ... )
@@ -122,7 +123,7 @@ int BufferPrintf( buffer_t *p_buffer, const char *p_fmt, ... )
     i_len = vasprintf( &psz_data, p_fmt, va );
     va_end( va );
     if( i_len == -1 )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     status = BufferAdd( p_buffer, psz_data, i_len );
     free( psz_data );
@@ -141,5 +142,5 @@ int BufferDel( buffer_t *p_buffer, int i_len )
     {
         p_buffer->p_begin += i_len;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

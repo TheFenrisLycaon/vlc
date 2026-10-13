@@ -2,6 +2,7 @@
  * win32_factory.cpp
  *****************************************************************************
  * Copyright (C) 2003 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cyril Deguet     <asmax@via.ecp.fr>
  *          Olivier Teulière <ipkiss@via.ecp.fr>
@@ -44,8 +45,8 @@
 #include "../src/generic_window.hpp"
 #include "../commands/cmd_dialogs.hpp"
 #include "../commands/cmd_minimize.hpp"
-#include <vlc_configuration.h>
-#include <vlc_charset.h>
+#include <heimdall_configuration.h>
+#include <heimdall_charset.h>
 
 // Custom message for the notifications of the system tray
 #define MY_WM_TRAYACTION (WM_APP + 1)
@@ -74,7 +75,7 @@ LRESULT CALLBACK Win32Factory::Win32Proc( HWND hwnd, UINT uMsg,
             // If closing parent window
             if( (wParam & 0xFFF0) == SC_CLOSE )
             {
-                libvlc_Quit( vlc_object_instance(p_intf) );
+                libheimdall_Quit( heimdall_object_instance(p_intf) );
                 return 0;
             }
             else if( (wParam & 0xFFF0) == SC_MINIMIZE )
@@ -149,9 +150,9 @@ Win32Factory::Win32Factory( intf_thread_t *pIntf ):
 
 bool Win32Factory::init()
 {
-    LPCTSTR vlc_name = TEXT("VLC Media Player");
-    LPCTSTR vlc_icon = TEXT("VLC_ICON");
-    LPCTSTR vlc_class = TEXT("SkinWindowClass");
+    LPCTSTR heimdall_name = TEXT("Heimdall Media Player");
+    LPCTSTR heimdall_icon = TEXT("HEIMDALL_ICON");
+    LPCTSTR heimdall_class = TEXT("SkinWindowClass");
 
     // Get instance handle
     m_hInst = GetModuleHandle( NULL );
@@ -164,13 +165,13 @@ bool Win32Factory::init()
     WNDCLASS skinWindowClass;
     skinWindowClass.style = CS_DBLCLKS;
     skinWindowClass.lpfnWndProc = Win32Factory::Win32Proc;
-    skinWindowClass.lpszClassName = vlc_class;
+    skinWindowClass.lpszClassName = heimdall_class;
     skinWindowClass.lpszMenuName = NULL;
     skinWindowClass.cbClsExtra = 0;
     skinWindowClass.cbWndExtra = 0;
     skinWindowClass.hbrBackground = NULL;
     skinWindowClass.hCursor = LoadCursor( NULL, IDC_ARROW );
-    skinWindowClass.hIcon = LoadIcon( m_hInst, vlc_icon );
+    skinWindowClass.hIcon = LoadIcon( m_hInst, heimdall_icon );
     skinWindowClass.hInstance = m_hInst;
 
     // Register class and check it
@@ -180,7 +181,7 @@ bool Win32Factory::init()
 
         // Check why it failed. If it's because the class already exists
         // then fine, otherwise return with an error.
-        if( !GetClassInfo( m_hInst, vlc_class, &wndclass ) )
+        if( !GetClassInfo( m_hInst, heimdall_class, &wndclass ) )
         {
             msg_Err( getIntf(), "cannot register window class" );
             return false;
@@ -188,8 +189,8 @@ bool Win32Factory::init()
     }
 
     // Create Window
-    m_hParentWindow = CreateWindowEx( WS_EX_TOOLWINDOW, vlc_class,
-        vlc_name, WS_POPUP | WS_SYSMENU | WS_MINIMIZEBOX,
+    m_hParentWindow = CreateWindowEx( WS_EX_TOOLWINDOW, heimdall_class,
+        heimdall_name, WS_POPUP | WS_SYSMENU | WS_MINIMIZEBOX,
         -200, -200, 0, 0, 0, 0, m_hInst, 0 );
     if( m_hParentWindow == NULL )
     {
@@ -214,8 +215,8 @@ bool Win32Factory::init()
     m_trayIcon.uID = 42;
     m_trayIcon.uFlags = NIF_ICON|NIF_TIP|NIF_MESSAGE;
     m_trayIcon.uCallbackMessage = MY_WM_TRAYACTION;
-    m_trayIcon.hIcon = LoadIcon( m_hInst, vlc_icon );
-    wcscpy( m_trayIcon.szTip, vlc_name );
+    m_trayIcon.hIcon = LoadIcon( m_hInst, heimdall_icon );
+    wcscpy( m_trayIcon.szTip, heimdall_name );
 
     // Show the systray icon if needed
     if( var_InheritBool( getIntf(), "skins2-systray" ) )
@@ -233,13 +234,13 @@ bool Win32Factory::init()
     OleInitialize( NULL );
 
     // Initialize the resource path
-    char *datadir = config_GetUserDir( VLC_USERDATA_DIR );
+    char *datadir = config_GetUserDir( HEIMDALL_USERDATA_DIR );
     if (likely(datadir != nullptr))
     {
         m_resourcePath.push_back( (std::string)datadir + "\\skins" );
         free( datadir );
     }
-    datadir = config_GetSysPath(VLC_PKG_DATA_DIR, NULL);
+    datadir = config_GetSysPath(HEIMDALL_PKG_DATA_DIR, NULL);
     if (likely(datadir != nullptr))
     {
         m_resourcePath.push_back( (std::string)datadir + "\\skins" );
@@ -490,7 +491,7 @@ void Win32Factory::rmDir( const std::string &rPath )
     LPWSTR dir_temp = ToWide( rPath.c_str() );
     size_t len = wcslen( dir_temp );
 
-    LPWSTR dir = (wchar_t *)vlc_alloc( len + 2, sizeof (wchar_t) );
+    LPWSTR dir = (wchar_t *)heimdall_alloc( len + 2, sizeof (wchar_t) );
     wcsncpy( dir, dir_temp, len + 2);
 
     SHFILEOPSTRUCTW file_op = {

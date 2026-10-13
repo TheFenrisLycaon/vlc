@@ -2,6 +2,7 @@
  * webdav.c: WebDAV directory browsing access plug-in
  *****************************************************************************
  * Copyright (C) 2026 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Felix Paul Kühne <fkuehne -at- videolan.org>
  *
@@ -31,17 +32,17 @@
 #include <string.h>
 #include <time.h>
 
-#include <vlc_common.h>
-#include <vlc_access.h>
-#include <vlc_block.h>
-#include <vlc_input_item.h>
-#include <vlc_keystore.h>
-#include <vlc_plugin.h>
-#include <vlc_stream.h>
-#include <vlc_strings.h>
-#include <vlc_url.h>
-#include <vlc_vector.h>
-#include <vlc_xml.h>
+#include <heimdall_common.h>
+#include <heimdall_access.h>
+#include <heimdall_block.h>
+#include <heimdall_input_item.h>
+#include <heimdall_keystore.h>
+#include <heimdall_plugin.h>
+#include <heimdall_stream.h>
+#include <heimdall_strings.h>
+#include <heimdall_url.h>
+#include <heimdall_vector.h>
+#include <heimdall_xml.h>
 
 #include "http/connmgr.h"
 #include "http/message.h"
@@ -57,12 +58,12 @@ struct dav_entry
     time_t   mtime;
 };
 
-typedef struct VLC_VECTOR(struct dav_entry) dav_entry_vector_t;
+typedef struct HEIMDALL_VECTOR(struct dav_entry) dav_entry_vector_t;
 
 typedef struct
 {
-    struct vlc_http_mgr *manager;
-    vlc_url_t            url;
+    struct heimdall_http_mgr *manager;
+    heimdall_url_t            url;
     bool                 secure;
     unsigned             port;
     char                *host;
@@ -71,31 +72,31 @@ typedef struct
     dav_entry_vector_t   entries;
 } access_sys_t;
 
-static int  Open(vlc_object_t *);
-static void Close(vlc_object_t *);
+static int  Open(heimdall_object_t *);
+static void Close(heimdall_object_t *);
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname("WebDAV")
     set_description(N_("WebDAV input"))
     set_capability("access", 0)
     set_subcategory(SUBCAT_INPUT_ACCESS)
     add_shortcut("dav", "davs", "webdav", "webdavs")
     set_callbacks(Open, Close)
-vlc_module_end()
+heimdall_module_end()
 
 static char *BuildChildUrl(access_sys_t *sys, const char *href)
 {
-    vlc_url_t base = {
+    heimdall_url_t base = {
         .psz_protocol = sys->secure ? (char *)"webdavs" : (char *)"webdav",
         .psz_host     = sys->host,
         .i_port       = sys->port,
         .psz_path     = sys->path,
     };
-    char *base_uri = vlc_uri_compose(&base);
+    char *base_uri = heimdall_uri_compose(&base);
     if (base_uri == NULL)
         return NULL;
 
-    char *abs = vlc_uri_resolve(base_uri, href);
+    char *abs = heimdall_uri_resolve(base_uri, href);
     free(base_uri);
     return abs;
 }
@@ -103,10 +104,10 @@ static char *BuildChildUrl(access_sys_t *sys, const char *href)
 static bool IsSelfHref(const access_sys_t *sys, const char *href,
                        bool is_collection)
 {
-    vlc_url_t u;
-    if (vlc_UrlParse(&u, href) != 0 || u.psz_path == NULL)
+    heimdall_url_t u;
+    if (heimdall_UrlParse(&u, href) != 0 || u.psz_path == NULL)
     {
-        vlc_UrlClean(&u);
+        heimdall_UrlClean(&u);
         return false;
     }
 
@@ -119,7 +120,7 @@ static bool IsSelfHref(const access_sys_t *sys, const char *href,
 
     bool match = hlen == slen && memcmp(u.psz_path, sys->path, hlen) == 0;
 
-    vlc_UrlClean(&u);
+    heimdall_UrlClean(&u);
     return match;
 }
 
@@ -137,22 +138,22 @@ static char *LeafName(const char *href)
 
     char *name = strndup(href + start, len - start);
     if (name != NULL)
-        vlc_uri_decode(name);
+        heimdall_uri_decode(name);
     return name;
 }
 
-/* Wrap an in-flight vlc_http_msg as a stream_t so the XML reader can
+/* Wrap an in-flight heimdall_http_msg as a stream_t so the XML reader can
  * pull blocks lazily without buffering the full body. */
 static void HttpRespDestroy(stream_t *s)
 {
-    vlc_http_msg_destroy(s->p_sys);
+    heimdall_http_msg_destroy(s->p_sys);
 }
 
 static block_t *HttpRespBlock(stream_t *s, bool *eof)
 {
-    struct vlc_http_msg *resp = s->p_sys;
-    block_t *b = vlc_http_msg_read(resp);
-    if (b == vlc_http_error)
+    struct heimdall_http_msg *resp = s->p_sys;
+    block_t *b = heimdall_http_msg_read(resp);
+    if (b == heimdall_http_error)
         return NULL;
     if (b == NULL)
         *eof = true;
@@ -169,21 +170,21 @@ static int HttpRespControl(stream_t *s, int query, va_list ap)
         case STREAM_CAN_PAUSE:
         case STREAM_CAN_CONTROL_PACE:
             *va_arg(ap, bool *) = false;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         case STREAM_GET_PTS_DELAY:
-            *va_arg(ap, vlc_tick_t *) = DEFAULT_PTS_DELAY;
-            return VLC_SUCCESS;
+            *va_arg(ap, heimdall_tick_t *) = DEFAULT_PTS_DELAY;
+            return HEIMDALL_SUCCESS;
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 }
 
-static stream_t *HttpRespStream(vlc_object_t *parent, struct vlc_http_msg *resp)
+static stream_t *HttpRespStream(heimdall_object_t *parent, struct heimdall_http_msg *resp)
 {
-    stream_t *s = vlc_stream_CommonNew(parent, HttpRespDestroy);
+    stream_t *s = heimdall_stream_CommonNew(parent, HttpRespDestroy);
     if (s == NULL)
     {
-        vlc_http_msg_destroy(resp);
+        heimdall_http_msg_destroy(resp);
         return NULL;
     }
     s->pf_block = HttpRespBlock;
@@ -192,42 +193,42 @@ static stream_t *HttpRespStream(vlc_object_t *parent, struct vlc_http_msg *resp)
     return s;
 }
 
-static struct vlc_http_msg *DoPropfind(stream_t *access, const char *user,
+static struct heimdall_http_msg *DoPropfind(stream_t *access, const char *user,
                                        const char *pass, int *status)
 {
     access_sys_t *sys = access->p_sys;
 
-    struct vlc_http_msg *req = vlc_http_req_create("PROPFIND",
+    struct heimdall_http_msg *req = heimdall_http_req_create("PROPFIND",
         sys->secure ? "https" : "http", sys->authority, sys->path);
     if (req == NULL)
         return NULL;
 
-    vlc_http_msg_add_header(req, "Depth", "1");
-    vlc_http_msg_add_header(req, "Content-Length", "0");
-    vlc_http_msg_add_header(req, "Accept", "application/xml, text/xml");
+    heimdall_http_msg_add_header(req, "Depth", "1");
+    heimdall_http_msg_add_header(req, "Content-Length", "0");
+    heimdall_http_msg_add_header(req, "Accept", "application/xml, text/xml");
 
     char *ua = var_InheritString(access, "http-user-agent");
     if (ua != NULL)
     {
-        vlc_http_msg_add_agent(req, ua);
+        heimdall_http_msg_add_agent(req, ua);
         free(ua);
     }
 
     if (user != NULL && pass != NULL)
-        vlc_http_msg_add_creds_basic(req, false, user, pass);
+        heimdall_http_msg_add_creds_basic(req, false, user, pass);
 
-    struct vlc_http_msg *resp = vlc_http_mgr_request(sys->manager, sys->secure,
+    struct heimdall_http_msg *resp = heimdall_http_mgr_request(sys->manager, sys->secure,
                                                      sys->host, sys->port,
                                                      req, true, false);
-    vlc_http_msg_destroy(req);
+    heimdall_http_msg_destroy(req);
 
-    resp = vlc_http_msg_get_final(resp);
+    resp = heimdall_http_msg_get_final(resp);
     if (resp == NULL)
     {
         *status = -1;
         return NULL;
     }
-    *status = vlc_http_msg_get_status(resp);
+    *status = heimdall_http_msg_get_status(resp);
     return resp;
 }
 
@@ -246,7 +247,7 @@ static char *DupXmlText(const char *s)
     return strndup(s, n);
 }
 
-static void EmitEntry(stream_t *access, struct vlc_readdir_helper *rdh,
+static void EmitEntry(stream_t *access, struct heimdall_readdir_helper *rdh,
                       const struct dav_entry *e)
 {
     access_sys_t *sys = access->p_sys;
@@ -270,7 +271,7 @@ static void EmitEntry(stream_t *access, struct vlc_readdir_helper *rdh,
 
     int type = e->is_collection ? ITEM_TYPE_DIRECTORY : ITEM_TYPE_FILE;
     input_item_t *item = NULL;
-    vlc_readdir_helper_additem(rdh, url, NULL, name, type, ITEM_NET, &item);
+    heimdall_readdir_helper_additem(rdh, url, NULL, name, type, ITEM_NET, &item);
 
     if (item != NULL && !e->is_collection)
     {
@@ -319,7 +320,7 @@ static int ParseMultistatus(stream_t *access, stream_t *body,
     access_sys_t *sys = access->p_sys;
     xml_reader_t *reader = xml_ReaderCreate(access, body);
     if (reader == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     struct dav_entry cur = { 0 };
     bool in_response = false;
@@ -413,7 +414,7 @@ static int ParseMultistatus(stream_t *access, stream_t *body,
                 }
                 case FIELD_MTIME:
                 {
-                    time_t t = vlc_http_mktime(value);
+                    time_t t = heimdall_http_mktime(value);
                     if (t != (time_t)-1)
                     {
                         cur.mtime = t;
@@ -456,7 +457,7 @@ static int ParseMultistatus(stream_t *access, stream_t *body,
                     ResetEntry(&cur);
                 }
                 else if (cur.href == NULL
-                      || !vlc_vector_push(&sys->entries, cur))
+                      || !heimdall_vector_push(&sys->entries, cur))
                     ResetEntry(&cur);
                 else
                     memset(&cur, 0, sizeof(cur));
@@ -469,48 +470,48 @@ static int ParseMultistatus(stream_t *access, stream_t *body,
 
     ResetEntry(&cur);
     xml_ReaderDelete(reader);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int DirRead(stream_t *access, input_item_node_t *node)
 {
     access_sys_t *sys = access->p_sys;
 
-    struct vlc_readdir_helper rdh;
-    vlc_readdir_helper_init(&rdh, access, node);
+    struct heimdall_readdir_helper rdh;
+    heimdall_readdir_helper_init(&rdh, access, node);
     const struct dav_entry *e;
-    vlc_vector_foreach_ref(e, &sys->entries)
+    heimdall_vector_foreach_ref(e, &sys->entries)
         EmitEntry(access, &rdh, e);
-    vlc_readdir_helper_finish(&rdh, true);
-    return VLC_SUCCESS;
+    heimdall_readdir_helper_finish(&rdh, true);
+    return HEIMDALL_SUCCESS;
 }
 
-static int Open(vlc_object_t *obj)
+static int Open(heimdall_object_t *obj)
 {
     stream_t *access = (stream_t *)obj;
-    access_sys_t *sys = vlc_obj_calloc(obj, 1, sizeof(*sys));
+    access_sys_t *sys = heimdall_obj_calloc(obj, 1, sizeof(*sys));
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     access->p_sys = sys;
-    int ret = VLC_EGENERIC;
+    int ret = HEIMDALL_EGENERIC;
 
-    if (vlc_UrlParseFixup(&sys->url, access->psz_url) != 0
+    if (heimdall_UrlParseFixup(&sys->url, access->psz_url) != 0
      || sys->url.psz_host == NULL || sys->url.psz_protocol == NULL)
         goto clean;
 
     const char *proto = sys->url.psz_protocol;
-    if (!vlc_ascii_strcasecmp(proto, "dav")
-     || !vlc_ascii_strcasecmp(proto, "webdav"))
+    if (!heimdall_ascii_strcasecmp(proto, "dav")
+     || !heimdall_ascii_strcasecmp(proto, "webdav"))
         sys->secure = false;
-    else if (!vlc_ascii_strcasecmp(proto, "davs")
-          || !vlc_ascii_strcasecmp(proto, "webdavs"))
+    else if (!heimdall_ascii_strcasecmp(proto, "davs")
+          || !heimdall_ascii_strcasecmp(proto, "webdavs"))
         sys->secure = true;
     else
         goto clean;
 
     sys->host = strdup(sys->url.psz_host);
     sys->port = sys->url.i_port;
-    sys->authority = vlc_http_authority(sys->url.psz_host, sys->url.i_port);
+    sys->authority = heimdall_http_authority(sys->url.psz_host, sys->url.i_port);
     if (sys->host == NULL || sys->authority == NULL)
         goto clean;
 
@@ -525,47 +526,47 @@ static int Open(vlc_object_t *obj)
     if (sys->path == NULL)
         goto clean;
 
-    sys->manager = vlc_http_mgr_create(obj, NULL);
+    sys->manager = heimdall_http_mgr_create(obj, NULL);
     if (sys->manager == NULL)
         goto clean;
 
     sys->url.psz_protocol = sys->secure ? (char *)"https" : (char *)"http";
 
-    vlc_credential crd;
-    vlc_credential_init(&crd, &sys->url);
+    heimdall_credential crd;
+    heimdall_credential_init(&crd, &sys->url);
 
     const char *user = sys->url.psz_username;
     const char *pass = sys->url.psz_password;
-    if (vlc_credential_get(&crd, obj, NULL, NULL, NULL, NULL) == 0)
+    if (heimdall_credential_get(&crd, obj, NULL, NULL, NULL, NULL) == 0)
     {
         user = crd.psz_username;
         pass = crd.psz_password;
     }
 
-    struct vlc_http_msg *resp = NULL;
+    struct heimdall_http_msg *resp = NULL;
     int status = -1;
 
     for (;;)
     {
         if (resp != NULL)
-            vlc_http_msg_destroy(resp);
+            heimdall_http_msg_destroy(resp);
         resp = DoPropfind(access, user, pass, &status);
         if (resp == NULL)
         {
-            vlc_credential_clean(&crd);
+            heimdall_credential_clean(&crd);
             goto clean;
         }
 
         if (status != 401)
             break;
 
-        char *realm = vlc_http_msg_get_basic_realm(resp);
+        char *realm = heimdall_http_msg_get_basic_realm(resp);
         if (realm == NULL)
             break;
 
         crd.psz_realm = realm;
         crd.psz_authtype = "Basic";
-        int ok = vlc_credential_get(&crd, obj, NULL, NULL,
+        int ok = heimdall_credential_get(&crd, obj, NULL, NULL,
                                     _("HTTP authentication"),
                                     _("Please enter a valid login name and "
                                       "a password for realm %s."), realm);
@@ -579,33 +580,33 @@ static int Open(vlc_object_t *obj)
     if (status == 401 || status < 0)
     {
         msg_Err(access, "PROPFIND failed (status %d)", status);
-        vlc_http_msg_destroy(resp);
-        vlc_credential_clean(&crd);
+        heimdall_http_msg_destroy(resp);
+        heimdall_credential_clean(&crd);
         goto clean;
     }
 
-    vlc_credential_store(&crd, obj);
+    heimdall_credential_store(&crd, obj);
 
     /* Follow Location on redirects. */
     if (status == 301 || status == 302 || status == 303
      || status == 307 || status == 308)
     {
-        const char *loc = vlc_http_msg_get_header(resp, "Location");
+        const char *loc = heimdall_http_msg_get_header(resp, "Location");
         if (loc != NULL)
         {
-            char *abs = vlc_uri_resolve(access->psz_url, loc);
+            char *abs = heimdall_uri_resolve(access->psz_url, loc);
             if (abs != NULL)
             {
                 access->psz_url = abs;
-                vlc_http_msg_destroy(resp);
-                vlc_credential_clean(&crd);
-                ret = VLC_ACCESS_REDIRECT;
+                heimdall_http_msg_destroy(resp);
+                heimdall_credential_clean(&crd);
+                ret = HEIMDALL_ACCESS_REDIRECT;
                 goto clean;
             }
         }
         msg_Err(access, "redirect without usable Location");
-        vlc_http_msg_destroy(resp);
-        vlc_credential_clean(&crd);
+        heimdall_http_msg_destroy(resp);
+        heimdall_credential_clean(&crd);
         goto clean;
     }
 
@@ -618,21 +619,21 @@ static int Open(vlc_object_t *obj)
                      sys->authority, sys->path) >= 0)
         {
             access->psz_url = abs;
-            ret = VLC_ACCESS_REDIRECT;
+            ret = HEIMDALL_ACCESS_REDIRECT;
         }
-        vlc_http_msg_destroy(resp);
-        vlc_credential_clean(&crd);
+        heimdall_http_msg_destroy(resp);
+        heimdall_credential_clean(&crd);
         goto clean;
     }
 
-    vlc_credential_clean(&crd);
+    heimdall_credential_clean(&crd);
 
     bool self_is_collection = false;
     stream_t *body = HttpRespStream(obj, resp);
     if (body != NULL)
     {
         ParseMultistatus(access, body, &self_is_collection);
-        vlc_stream_Delete(body);
+        heimdall_stream_Delete(body);
     }
 
     if (!self_is_collection)
@@ -644,7 +645,7 @@ static int Open(vlc_object_t *obj)
                      sys->authority, sys->path) >= 0)
         {
             access->psz_url = abs;
-            ret = VLC_ACCESS_REDIRECT;
+            ret = HEIMDALL_ACCESS_REDIRECT;
             goto clean;
         }
         msg_Err(access, "failed to build redirect URL");
@@ -653,41 +654,41 @@ static int Open(vlc_object_t *obj)
 
     access->pf_readdir = DirRead;
     access->pf_control = access_vaDirectoryControlHelper;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 clean:
     if (sys->manager != NULL)
-        vlc_http_mgr_destroy(sys->manager);
+        heimdall_http_mgr_destroy(sys->manager);
     struct dav_entry *e;
-    vlc_vector_foreach_ref(e, &sys->entries)
+    heimdall_vector_foreach_ref(e, &sys->entries)
     {
         free(e->href);
         free(e->name);
     }
-    vlc_vector_destroy(&sys->entries);
+    heimdall_vector_destroy(&sys->entries);
     free(sys->path);
     free(sys->authority);
     free(sys->host);
-    vlc_UrlClean(&sys->url);
+    heimdall_UrlClean(&sys->url);
     return ret;
 }
 
-static void Close(vlc_object_t *obj)
+static void Close(heimdall_object_t *obj)
 {
     stream_t *access = (stream_t *)obj;
     access_sys_t *sys = access->p_sys;
 
     if (sys->manager != NULL)
-        vlc_http_mgr_destroy(sys->manager);
+        heimdall_http_mgr_destroy(sys->manager);
     struct dav_entry *e;
-    vlc_vector_foreach_ref(e, &sys->entries)
+    heimdall_vector_foreach_ref(e, &sys->entries)
     {
         free(e->href);
         free(e->name);
     }
-    vlc_vector_destroy(&sys->entries);
+    heimdall_vector_destroy(&sys->entries);
     free(sys->path);
     free(sys->authority);
     free(sys->host);
-    vlc_UrlClean(&sys->url);
+    heimdall_UrlClean(&sys->url);
 }

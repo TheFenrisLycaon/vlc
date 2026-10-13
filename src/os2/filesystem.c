@@ -4,6 +4,7 @@
  * Copyright (C) 2005-2006 VLC authors and VideoLAN
  * Copyright © 2005-2008 Rémi Denis-Courmont
  * Copyright (C) 2012 KO Myung-Hun
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Rémi Denis-Courmont
  *          KO Myung-Hun <komh@chollian.net>
@@ -43,13 +44,13 @@
 #endif
 #include <signal.h>
 
-#include <vlc_common.h>
-#include <vlc_charset.h>
-#include <vlc_fs.h>
-#include <vlc_network.h>
-#include "../libvlc.h" /* vlc_mkdir */
+#include <heimdall_common.h>
+#include <heimdall_charset.h>
+#include <heimdall_fs.h>
+#include <heimdall_network.h>
+#include "../libheimdall.h" /* heimdall_mkdir */
 
-int vlc_open (const char *filename, int flags, ...)
+int heimdall_open (const char *filename, int flags, ...)
 {
     unsigned int mode = 0;
     va_list ap;
@@ -75,25 +76,25 @@ int vlc_open (const char *filename, int flags, ...)
     return fd;
 }
 
-int vlc_openat (int dir, const char *filename, int flags, ...)
+int heimdall_openat (int dir, const char *filename, int flags, ...)
 {
     errno = ENOSYS;
 
     return -1;
 }
 
-int vlc_memfd (void)
+int heimdall_memfd (void)
 {
     errno = ENOSYS;
     return -1;
 }
 
-int vlc_close (int fd)
+int heimdall_close (int fd)
 {
     return close (fd);
 }
 
-int vlc_mkdir (const char *dirname, mode_t mode)
+int heimdall_mkdir (const char *dirname, mode_t mode)
 {
     char *locname = ToLocaleDup (dirname);
     if (unlikely(locname == NULL))
@@ -107,7 +108,7 @@ int vlc_mkdir (const char *dirname, mode_t mode)
     return res;
 }
 
-DIR *vlc_opendir (const char *dirname)
+DIR *heimdall_opendir (const char *dirname)
 {
     const char *locname = ToLocaleDup (dirname);
     if (unlikely(locname == NULL))
@@ -123,12 +124,12 @@ DIR *vlc_opendir (const char *dirname)
     return dir;
 }
 
-void vlc_closedir(DIR *dir)
+void heimdall_closedir(DIR *dir)
 {
     closedir(dir);
 }
 
-const char *vlc_readdir(DIR *dir)
+const char *heimdall_readdir(DIR *dir)
 {
     /* Beware that readdir_r() assumes <buf> is large enough to hold the result
      * dirent including the file name. A buffer overflow could occur otherwise.
@@ -160,12 +161,12 @@ const char *vlc_readdir(DIR *dir)
     return path;
 }
 
-void vlc_rewinddir(DIR *dir)
+void heimdall_rewinddir(DIR *dir)
 {
     rewinddir(dir);
 }
 
-static int vlc_statEx (const char *filename, struct stat *buf, bool deref)
+static int heimdall_statEx (const char *filename, struct stat *buf, bool deref)
 {
     const char *local_name = ToLocaleDup (filename);
     if (unlikely(local_name == NULL))
@@ -180,17 +181,17 @@ static int vlc_statEx (const char *filename, struct stat *buf, bool deref)
     return res;
 }
 
-int vlc_stat (const char *filename, struct stat *buf)
+int heimdall_stat (const char *filename, struct stat *buf)
 {
-    return vlc_statEx (filename, buf, true);
+    return heimdall_statEx (filename, buf, true);
 }
 
-int vlc_lstat (const char *filename, struct stat *buf)
+int heimdall_lstat (const char *filename, struct stat *buf)
 {
-    return vlc_statEx (filename, buf, false);
+    return heimdall_statEx (filename, buf, false);
 }
 
-int vlc_unlink (const char *filename)
+int heimdall_unlink (const char *filename)
 {
     const char *local_name = ToLocaleDup (filename);
     if (unlikely(local_name == NULL))
@@ -204,7 +205,7 @@ int vlc_unlink (const char *filename)
     return ret;
 }
 
-int vlc_rename (const char *oldpath, const char *newpath)
+int heimdall_rename (const char *oldpath, const char *newpath)
 {
     const char *lo = ToLocaleDup (oldpath);
     if (lo == NULL)
@@ -225,7 +226,7 @@ error:
     return ret;
 }
 
-char *vlc_getcwd (void)
+char *heimdall_getcwd (void)
 {
     /* Try $PWD */
     const char *pwd = getenv ("PWD");
@@ -262,7 +263,7 @@ char *vlc_getcwd (void)
     return NULL;
 }
 
-int vlc_dup (int oldfd)
+int heimdall_dup (int oldfd)
 {
     int newfd;
 
@@ -273,7 +274,7 @@ int vlc_dup (int oldfd)
     return newfd;
 }
 
-int vlc_dup2 (int oldfd, int newfd)
+int heimdall_dup2 (int oldfd, int newfd)
 {
     int fd = dup2 (oldfd, newfd);
     if (fd != -1)
@@ -282,9 +283,9 @@ int vlc_dup2 (int oldfd, int newfd)
     return fd;
 }
 
-int vlc_pipe (int fds[2])
+int heimdall_pipe (int fds[2])
 {
-    if (vlc_socketpair (AF_LOCAL, SOCK_STREAM, 0, fds, false))
+    if (heimdall_socketpair (AF_LOCAL, SOCK_STREAM, 0, fds, false))
         return -1;
 
     shutdown (fds[0], SHUT_WR);
@@ -296,14 +297,14 @@ int vlc_pipe (int fds[2])
     return 0;
 }
 
-ssize_t vlc_write(int fd, const void *buf, size_t len)
+ssize_t heimdall_write(int fd, const void *buf, size_t len)
 {
     struct iovec iov = { .iov_base = (void *)buf, .iov_len = len };
 
-    return vlc_writev(fd, &iov, 1);
+    return heimdall_writev(fd, &iov, 1);
 }
 
-ssize_t vlc_writev(int fd, const struct iovec *iov, int count)
+ssize_t heimdall_writev(int fd, const struct iovec *iov, int count)
 {
     sigset_t set, oset;
 
@@ -326,7 +327,7 @@ ssize_t vlc_writev(int fd, const struct iovec *iov, int count)
     return val;
 }
 
-static void vlc_socket_setup(int fd, bool nonblock)
+static void heimdall_socket_setup(int fd, bool nonblock)
 {
     fcntl(fd, F_SETFD, FD_CLOEXEC);
 
@@ -334,25 +335,25 @@ static void vlc_socket_setup(int fd, bool nonblock)
         fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) | O_NONBLOCK);
 }
 
-int vlc_socket (int pf, int type, int proto, bool nonblock)
+int heimdall_socket (int pf, int type, int proto, bool nonblock)
 {
     int fd = socket(pf, type, proto);
     if (fd != -1)
-        vlc_socket_setup(fd, nonblock);
+        heimdall_socket_setup(fd, nonblock);
     return fd;
 }
 
-int vlc_socketpair(int pf, int type, int proto, int fds[2], bool nonblock)
+int heimdall_socketpair(int pf, int type, int proto, int fds[2], bool nonblock)
 {
     if (socketpair(pf, type, proto, fds))
         return -1;
 
-    vlc_socket_setup(fds[0], nonblock);
-    vlc_socket_setup(fds[1], nonblock);
+    heimdall_socket_setup(fds[0], nonblock);
+    heimdall_socket_setup(fds[1], nonblock);
     return 0;
 }
 
-int vlc_accept (int lfd, struct sockaddr *addr, socklen_t *alen, bool nonblock)
+int heimdall_accept (int lfd, struct sockaddr *addr, socklen_t *alen, bool nonblock)
 {
     do
     {
@@ -370,18 +371,18 @@ int vlc_accept (int lfd, struct sockaddr *addr, socklen_t *alen, bool nonblock)
     return -1;
 }
 
-ssize_t vlc_send(int fd, const void *buf, size_t len, int flags)
+ssize_t heimdall_send(int fd, const void *buf, size_t len, int flags)
 {
     return send(fd, buf, len, flags);
 }
 
-ssize_t vlc_sendto(int fd, const void *buf, size_t len, int flags,
+ssize_t heimdall_sendto(int fd, const void *buf, size_t len, int flags,
                    const struct sockaddr *dst, socklen_t dstlen)
 {
     return sendto(fd, buf, len, flags, dst, dstlen);
 }
 
-ssize_t vlc_sendmsg(int fd, const struct msghdr *msg, int flags)
+ssize_t heimdall_sendmsg(int fd, const struct msghdr *msg, int flags)
 {
     return sendmsg(fd, msg, flags);
 }

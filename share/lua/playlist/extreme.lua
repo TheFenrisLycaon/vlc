@@ -1,6 +1,7 @@
 --[[
 
  Copyright © 2011 the VideoLAN team
+ Copyright (C) 2026 TheFenrisLycaon
 
  Authors: Konstantin Pavlov (thresh@videolan.org)
 
@@ -21,18 +22,18 @@
 
 -- Probe function.
 function probe()
-    local path = vlc.path:gsub("^www%.", "")
-    return vlc.access == "http"
-        and ( string.match( vlc.path, "^extreme%.com/.+" )
-        or string.match( vlc.path, "^freecaster%.tv/.+" )
-        or string.match( vlc.path, "^player%.extreme%.com/info/.+") )
+    local path = heimdall.path:gsub("^www%.", "")
+    return heimdall.access == "http"
+        and ( string.match( heimdall.path, "^extreme%.com/.+" )
+        or string.match( heimdall.path, "^freecaster%.tv/.+" )
+        or string.match( heimdall.path, "^player%.extreme%.com/info/.+") )
 end
 
 -- Parse function.
 function parse()
-    if (string.match( vlc.path, "extreme%.com/." ) or string.match( vlc.path, "freecaster%.tv/." )) and not string.match( vlc.path, "player%.extreme%.com/info/") then
+    if (string.match( heimdall.path, "extreme%.com/." ) or string.match( heimdall.path, "freecaster%.tv/." )) and not string.match( heimdall.path, "player%.extreme%.com/info/") then
         while true do
-            line = vlc.readline()
+            line = heimdall.readline()
             if not line then break end
             -- Try to find id of the video
             if string.match( line, "http://player.extreme.com/FCPlayer.swf" ) then
@@ -43,11 +44,11 @@ function parse()
         return { { path = "http://player.extreme.com/info/" .. vid; name = "extreme.com video"; } }
     end
 
-    if string.match( vlc.path, "player%.extreme%.com/info/." ) then
-        prefres = vlc.var.inherit(nil, "preferred-resolution")
+    if string.match( heimdall.path, "player%.extreme%.com/info/." ) then
+        prefres = heimdall.var.inherit(nil, "preferred-resolution")
         gostraight = true
         while true do
-            line = vlc.readline()
+            line = heimdall.readline()
             if not line then break end
             -- Try to find the video's title
             if string.match( line, "title>(.*)<" ) then

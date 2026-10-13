@@ -3,10 +3,11 @@
  *****************************************************************************
  * Copyright (C) 2004-2005, 2007 VLC authors and VideoLAN
  * Copyright © 2005-2006 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@videolan.org>
  *          Rémi Denis-Courmont
- *          Christophe Mutricy <xtophe at videolan dot org>
+ *          Christophe Mutricy <xtophe at lycaria dot org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -47,10 +48,10 @@
 # define SOL_DCCP 269
 #endif
 
-#include <vlc_common.h>
-#include <vlc_network.h>
-#include <vlc_poll.h>
-#include <vlc_interrupt.h>
+#include <heimdall_common.h>
+#include <heimdall_network.h>
+#include <heimdall_poll.h>
+#include <heimdall_interrupt.h>
 #if defined (_WIN32)
 #   undef EINPROGRESS
 #   define EINPROGRESS WSAEWOULDBLOCK
@@ -63,15 +64,15 @@
 extern int rootwrap_bind (int family, int socktype, int protocol,
                           const struct sockaddr *addr, size_t alen);
 
-int net_Socket (vlc_object_t *p_this, int family, int socktype,
+int net_Socket (heimdall_object_t *p_this, int family, int socktype,
                 int protocol)
 {
-    int fd = vlc_socket (family, socktype, protocol, true);
+    int fd = heimdall_socket (family, socktype, protocol, true);
     if (fd == -1)
     {
         if (net_errno != EAFNOSUPPORT)
             msg_Err (p_this, "cannot create socket: %s",
-                     vlc_strerror_c(net_errno));
+                     heimdall_strerror_c(net_errno));
         return -1;
     }
 
@@ -112,7 +113,7 @@ int net_Socket (vlc_object_t *p_this, int family, int socktype,
     return fd;
 }
 
-int (net_Connect)(vlc_object_t *obj, const char *host, int serv,
+int (net_Connect)(heimdall_object_t *obj, const char *host, int serv,
                   int type, int proto)
 {
     struct addrinfo hints = {
@@ -122,7 +123,7 @@ int (net_Connect)(vlc_object_t *obj, const char *host, int serv,
     }, *res;
     int ret = -1;
 
-    int val = vlc_getaddrinfo_i11e(host, serv, &hints, &res);
+    int val = heimdall_getaddrinfo_i11e(host, serv, &hints, &res);
     if (val)
     {
         msg_Err(obj, "cannot resolve %s port %d : %s", host, serv,
@@ -130,7 +131,7 @@ int (net_Connect)(vlc_object_t *obj, const char *host, int serv,
         return -1;
     }
 
-    vlc_tick_t timeout = VLC_TICK_FROM_MS(var_InheritInteger(obj,
+    heimdall_tick_t timeout = HEIMDALL_TICK_FROM_MS(var_InheritInteger(obj,
                                                              "ipv4-timeout"));
 
     for (struct addrinfo *ptr = res; ptr != NULL; ptr = ptr->ai_next)
@@ -139,7 +140,7 @@ int (net_Connect)(vlc_object_t *obj, const char *host, int serv,
                             ptr->ai_socktype, ptr->ai_protocol);
         if (fd == -1)
         {
-            msg_Dbg(obj, "socket error: %s", vlc_strerror_c(net_errno));
+            msg_Dbg(obj, "socket error: %s", heimdall_strerror_c(net_errno));
             continue;
         }
 
@@ -148,35 +149,35 @@ int (net_Connect)(vlc_object_t *obj, const char *host, int serv,
             if (net_errno != EINPROGRESS && errno != EINTR)
             {
                 msg_Err(obj, "connection failed: %s",
-                        vlc_strerror_c(net_errno));
+                        heimdall_strerror_c(net_errno));
                 goto next_ai;
             }
 
             struct pollfd ufd;
-            vlc_tick_t deadline = VLC_TICK_INVALID;
+            heimdall_tick_t deadline = HEIMDALL_TICK_INVALID;
 
             ufd.fd = fd;
             ufd.events = POLLOUT;
-            deadline = vlc_tick_now() + timeout;
+            deadline = heimdall_tick_now() + timeout;
 
             do
             {
-                vlc_tick_t now = vlc_tick_now();
+                heimdall_tick_t now = heimdall_tick_now();
 
-                if (vlc_killed())
+                if (heimdall_killed())
                     goto next_ai;
 
                 if (now > deadline)
                     now = deadline;
 
-                val = vlc_poll_i11e(&ufd, 1, MS_FROM_VLC_TICK(deadline - now));
+                val = heimdall_poll_i11e(&ufd, 1, MS_FROM_HEIMDALL_TICK(deadline - now));
             }
             while (val == -1 && errno == EINTR);
 
             switch (val)
             {
                  case -1: /* error */
-                     msg_Err(obj, "polling error: %s", vlc_strerror_c(errno));
+                     msg_Err(obj, "polling error: %s", heimdall_strerror_c(errno));
                      goto next_ai;
 
                  case 0: /* timeout */
@@ -189,7 +190,7 @@ int (net_Connect)(vlc_object_t *obj, const char *host, int serv,
             if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &val,
                            &(socklen_t){ sizeof (val) }) || val)
             {
-                msg_Err(obj, "connection failed: %s", vlc_strerror_c(val));
+                msg_Err(obj, "connection failed: %s", heimdall_strerror_c(val));
                 goto next_ai;
             }
         }
@@ -206,7 +207,7 @@ next_ai: /* failure */
     return ret;
 }
 
-int *net_Listen (vlc_object_t *p_this, const char *psz_host,
+int *net_Listen (heimdall_object_t *p_this, const char *psz_host,
                  unsigned i_port, int type, int protocol)
 {
     struct addrinfo hints = {
@@ -218,7 +219,7 @@ int *net_Listen (vlc_object_t *p_this, const char *psz_host,
     msg_Dbg (p_this, "net: listening to %s port %u",
              (psz_host != NULL) ? psz_host : "*", i_port);
 
-    int i_val = vlc_getaddrinfo (psz_host, i_port, &hints, &res);
+    int i_val = heimdall_getaddrinfo (psz_host, i_port, &hints, &res);
     if (i_val)
     {
         msg_Err (p_this, "Cannot resolve %s port %u : %s",
@@ -236,7 +237,7 @@ int *net_Listen (vlc_object_t *p_this, const char *psz_host,
                              ptr->ai_protocol);
         if (fd == -1)
         {
-            msg_Dbg (p_this, "socket error: %s", vlc_strerror_c(net_errno));
+            msg_Dbg (p_this, "socket error: %s", heimdall_strerror_c(net_errno));
             continue;
         }
 
@@ -256,7 +257,7 @@ int *net_Listen (vlc_object_t *p_this, const char *psz_host,
             else
 #endif
             {
-                msg_Err (p_this, "socket bind error: %s", vlc_strerror_c(err));
+                msg_Err (p_this, "socket bind error: %s", heimdall_strerror_c(err));
                 continue;
             }
         }
@@ -265,7 +266,7 @@ int *net_Listen (vlc_object_t *p_this, const char *psz_host,
         if (listen(fd, INT_MAX))
         {
             msg_Err(p_this, "socket listen error: %s",
-                    vlc_strerror_c(net_errno));
+                    heimdall_strerror_c(net_errno));
             net_Close(fd);
             continue;
         }
@@ -300,7 +301,7 @@ void net_ListenClose(int *fds)
 }
 
 #undef net_Accept
-int net_Accept(vlc_object_t *obj, int *fds)
+int net_Accept(heimdall_object_t *obj, int *fds)
 {
     assert(fds != NULL);
 
@@ -322,7 +323,7 @@ int net_Accept(vlc_object_t *obj, int *fds)
         {
             if (errno != EINTR)
             {
-                msg_Err(obj, "poll error: %s", vlc_strerror_c(errno));
+                msg_Err(obj, "poll error: %s", heimdall_strerror_c(errno));
                 return -1;
             }
         }
@@ -333,7 +334,7 @@ int net_Accept(vlc_object_t *obj, int *fds)
                 continue;
 
             int sfd = ufd[i].fd;
-            int fd = vlc_accept(sfd, NULL, NULL, true);
+            int fd = heimdall_accept(sfd, NULL, NULL, true);
             if (fd == -1)
             {
                 if (net_errno != EAGAIN)
@@ -341,7 +342,7 @@ int net_Accept(vlc_object_t *obj, int *fds)
                 if (net_errno != EWOULDBLOCK)
 #endif
                     msg_Err(obj, "accept failed (from socket %d): %s", sfd,
-                            vlc_strerror_c(net_errno));
+                            heimdall_strerror_c(net_errno));
                 continue;
             }
 
@@ -357,24 +358,24 @@ int net_Accept(vlc_object_t *obj, int *fds)
             return fd;
         }
     }
-    vlc_assert_unreachable();
+    heimdall_assert_unreachable();
 }
 
-ssize_t (net_Read)(vlc_object_t *restrict obj, int fd,
+ssize_t (net_Read)(heimdall_object_t *restrict obj, int fd,
                    void *restrict buf, size_t len)
 {
     size_t rd = 0;
 
     do
     {
-        if (vlc_killed())
+        if (heimdall_killed())
         {
-            vlc_testcancel();
+            heimdall_testcancel();
             errno = EINTR;
             return -1;
         }
 
-        ssize_t val = vlc_recv_i11e(fd, buf, len, 0);
+        ssize_t val = heimdall_recv_i11e(fd, buf, len, 0);
         if (val < 0)
         {
             if (errno == EINTR || errno == EAGAIN)
@@ -388,7 +389,7 @@ ssize_t (net_Read)(vlc_object_t *restrict obj, int fd,
 #endif
             else
             {
-                msg_Err(obj, "read error: %s", vlc_strerror_c(errno));
+                msg_Err(obj, "read error: %s", heimdall_strerror_c(errno));
                 return rd ? (ssize_t)rd : -1;
             }
         }
@@ -407,26 +408,26 @@ ssize_t (net_Read)(vlc_object_t *restrict obj, int fd,
     return rd;
 }
 
-ssize_t (net_Write)(vlc_object_t *obj, int fd, const void *buf, size_t len)
+ssize_t (net_Write)(heimdall_object_t *obj, int fd, const void *buf, size_t len)
 {
     size_t written = 0;
 
     do
     {
-        if (vlc_killed())
+        if (heimdall_killed())
         {
-            vlc_testcancel();
+            heimdall_testcancel();
             errno = EINTR;
             return -1;
         }
 
-        ssize_t val = vlc_send_i11e(fd, buf, len, 0);
+        ssize_t val = heimdall_send_i11e(fd, buf, len, 0);
         if (val == -1)
         {
             if (errno == EINTR || errno == EAGAIN)
                 continue;
 
-            msg_Err(obj, "write error: %s", vlc_strerror_c(errno));
+            msg_Err(obj, "write error: %s", heimdall_strerror_c(errno));
             return written ? (ssize_t)written : -1;
         }
 

@@ -1,7 +1,8 @@
 /*****************************************************************************
- * vlc_thread implementation for emscripten
+ * heimdall_thread implementation for emscripten
  *****************************************************************************
  * Copyright (C) 2021 - VideoLabs, VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -22,12 +23,12 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_threads.h>
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
 #include <pthread.h>
 #include <assert.h>
 
-unsigned long vlc_thread_id(void)
+unsigned long heimdall_thread_id(void)
 {
     static_assert(sizeof(pthread_t) <= sizeof(unsigned long),"invalid pthread_t size");
     return (uintptr_t)(void *)pthread_self();

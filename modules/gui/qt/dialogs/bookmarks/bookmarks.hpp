@@ -2,6 +2,7 @@
  * bookmarks.hpp : bookmarks
  ****************************************************************************
  * Copyright (C) 2006 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Antoine Lejeune <phytos@via.ecp.fr>
  *
@@ -21,16 +22,16 @@
  *****************************************************************************/
 
 
-#ifndef QVLC_BOOKMARKS_H_
-#define QVLC_BOOKMARKS_H_ 1
+#ifndef QHEIMDALL_BOOKMARKS_H_
+#define QHEIMDALL_BOOKMARKS_H_ 1
 
-#include "widgets/native/qvlcframe.hpp"
+#include "widgets/native/qheimdallframe.hpp"
 
 class QPushButton;
 class MLBookmarkModel;
 class QTreeView;
 
-class BookmarksDialog : public QVLCFrame
+class BookmarksDialog : public QHeimdallFrame
 {
     Q_OBJECT
 

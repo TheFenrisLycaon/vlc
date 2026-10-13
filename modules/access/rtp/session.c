@@ -4,6 +4,7 @@
  */
 /*****************************************************************************
  * Copyright © 2008 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License
@@ -28,8 +29,8 @@
 #include <assert.h>
 #include <errno.h>
 
-#include <vlc_common.h>
-#include <vlc_demux.h>
+#include <heimdall_common.h>
+#include <heimdall_demux.h>
 
 #include "rtp.h"
 
@@ -43,24 +44,24 @@ struct rtp_session_t
     uint8_t        ptc;
     rtp_pt_t     **ptv;
     /* params */
-    vlc_tick_t    timeout;
+    heimdall_tick_t    timeout;
     uint16_t      max_dropout; /**< Max packet forward misordering */
     uint16_t      max_misorder; /**< Max packet backward misordering */
     uint8_t       max_src; /**< Max simultaneous RTP sources */
 };
 
 static rtp_source_t *
-rtp_source_create (struct vlc_logger *, const rtp_session_t *, uint32_t, uint16_t);
-static void rtp_source_destroy(struct vlc_logger *, rtp_source_t *);
+rtp_source_create (struct heimdall_logger *, const rtp_session_t *, uint32_t, uint16_t);
+static void rtp_source_destroy(struct heimdall_logger *, rtp_source_t *);
 
-static void rtp_decode (struct vlc_logger *, const rtp_session_t *, rtp_source_t *);
+static void rtp_decode (struct heimdall_logger *, const rtp_session_t *, rtp_source_t *);
 
 /**
  * Creates a new RTP session.
  */
 rtp_session_t *
 rtp_session_create_custom (uint16_t max_dropout, uint16_t max_misorder,
-                           uint8_t max_src, vlc_tick_t timeout)
+                           uint8_t max_src, heimdall_tick_t timeout)
 {
     rtp_session_t *session = malloc (sizeof (*session));
     if (session == NULL)
@@ -93,13 +94,13 @@ rtp_session_create (void)
 /**
  * Destroys an RTP session.
  */
-void rtp_session_destroy (struct vlc_logger *logger, rtp_session_t *session)
+void rtp_session_destroy (struct heimdall_logger *logger, rtp_session_t *session)
 {
     for (unsigned i = 0; i < session->srcc; i++)
         rtp_source_destroy(logger, session->srcv[i]);
 
     for (uint_fast8_t i = 0; i < session->ptc; i++)
-        vlc_rtp_pt_release(session->ptv[i]);
+        heimdall_rtp_pt_release(session->ptv[i]);
 
     free (session->srcv);
     free (session->ptv);
@@ -130,11 +131,11 @@ struct rtp_source_t
 {
     uint32_t ssrc;
     uint32_t jitter;  /* interarrival delay jitter estimate */
-    vlc_tick_t  last_rx; /* last received packet local timestamp */
+    heimdall_tick_t  last_rx; /* last received packet local timestamp */
     uint32_t last_ts; /* last received packet RTP timestamp */
 
     uint32_t ref_rtp; /* sender RTP timestamp reference */
-    vlc_tick_t  ref_ntp; /* sender NTP timestamp reference */
+    heimdall_tick_t  ref_ntp; /* sender NTP timestamp reference */
 
     uint16_t bad_seq; /* tentatively next expected sequence for resync */
     uint16_t max_seq; /* next expected sequence */
@@ -142,7 +143,7 @@ struct rtp_source_t
     uint16_t last_seq; /* sequence of the next dequeued packet */
     block_t *blocks; /* re-ordered blocks queue */
     struct {
-        struct vlc_rtp_pt *instance; /* Per-source current payload format */
+        struct heimdall_rtp_pt *instance; /* Per-source current payload format */
         void *opaque; /* Per-source payload format private data */
     } pt;
 };
@@ -151,7 +152,7 @@ struct rtp_source_t
  * Initializes a new RTP source within an RTP session.
  */
 static rtp_source_t *
-rtp_source_create (struct vlc_logger *logger, const rtp_session_t *session,
+rtp_source_create (struct heimdall_logger *logger, const rtp_session_t *session,
                    uint32_t ssrc, uint16_t init_seq)
 {
     rtp_source_t *source;
@@ -168,7 +169,7 @@ rtp_source_create (struct vlc_logger *logger, const rtp_session_t *session,
     source->last_seq = init_seq - 1;
     source->blocks = NULL;
     source->pt.instance = NULL;
-    vlc_debug (logger, "added RTP source (%08x)", ssrc);
+    heimdall_debug (logger, "added RTP source (%08x)", ssrc);
     return source;
 }
 
@@ -176,11 +177,11 @@ rtp_source_create (struct vlc_logger *logger, const rtp_session_t *session,
 /**
  * Destroys an RTP source and its associated streams.
  */
-static void rtp_source_destroy(struct vlc_logger *logger, rtp_source_t *source)
+static void rtp_source_destroy(struct heimdall_logger *logger, rtp_source_t *source)
 {
-    vlc_debug (logger, "removing RTP source (%08x)", source->ssrc);
+    heimdall_debug (logger, "removing RTP source (%08x)", source->ssrc);
     if (source->pt.instance != NULL)
-        vlc_rtp_pt_end(source->pt.instance, source->pt.opaque);
+        heimdall_rtp_pt_end(source->pt.instance, source->pt.opaque);
     block_ChainRelease (source->blocks);
     free (source);
 }
@@ -197,14 +198,14 @@ static inline uint32_t rtp_timestamp (const block_t *block)
     return GetDWBE (block->p_buffer + 4);
 }
 
-static struct vlc_rtp_pt *rtp_find_ptype(const rtp_session_t *session,
+static struct heimdall_rtp_pt *rtp_find_ptype(const rtp_session_t *session,
                                          const block_t *block)
 {
     uint8_t ptype = rtp_ptype (block);
 
     for (unsigned i = 0; i < session->ptc; i++)
     {
-        struct vlc_rtp_pt *pt = session->ptv[i];
+        struct heimdall_rtp_pt *pt = session->ptv[i];
 
         if (pt->number == ptype)
             return pt;
@@ -215,12 +216,12 @@ static struct vlc_rtp_pt *rtp_find_ptype(const rtp_session_t *session,
 /**
  * Receives an RTP packet and queues it. Not a cancellation point.
  *
- * @param logger VLC logger handle
+ * @param logger Heimdall logger handle
  * @param session RTP session receiving the packet
  * @param block RTP packet including the RTP header
  */
 void
-rtp_queue (struct vlc_logger *logger, rtp_session_t *session, block_t *block)
+rtp_queue (struct heimdall_logger *logger, rtp_session_t *session, block_t *block)
 {
     /* RTP header sanity checks (see RFC 3550) */
     if (block->i_buffer < 12)
@@ -238,7 +239,7 @@ rtp_queue (struct vlc_logger *logger, rtp_session_t *session, block_t *block)
         block->i_buffer -= padding;
     }
 
-    vlc_tick_t     now = vlc_tick_now ();
+    heimdall_tick_t     now = heimdall_tick_now ();
     rtp_source_t  *src  = NULL;
     const uint16_t seq  = rtp_seq (block);
     const uint32_t ssrc = GetDWBE (block->p_buffer + 8);
@@ -267,7 +268,7 @@ rtp_queue (struct vlc_logger *logger, rtp_session_t *session, block_t *block)
         /* New source */
         if (session->srcc >= session->max_src)
         {
-            vlc_warning (logger, "too many RTP sessions");
+            heimdall_warning (logger, "too many RTP sessions");
             goto drop;
         }
 
@@ -295,7 +296,7 @@ rtp_queue (struct vlc_logger *logger, rtp_session_t *session, block_t *block)
              * It is independent of RTP sequence. */
             uint32_t freq = pt->frequency;
             int64_t ts = rtp_timestamp (block);
-            int64_t d = samples_from_vlc_tick(now - src->last_rx, freq);
+            int64_t d = samples_from_heimdall_tick(now - src->last_rx, freq);
             d        -=    ts - src->last_ts;
             if (d < 0) d = -d;
             src->jitter += ((d - src->jitter) + 8) >> 4;
@@ -316,13 +317,13 @@ rtp_queue (struct vlc_logger *logger, rtp_session_t *session, block_t *block)
     if ((delta_seq.s >= 0) ? (delta_seq.u > session->max_dropout)
                            : (delta_seq.u < session->max_misorder))
     {
-        vlc_debug (logger, "sequence discontinuity"
+        heimdall_debug (logger, "sequence discontinuity"
                  " (got: %"PRIu16", expected: %"PRIu16")", seq, src->max_seq);
         if (seq == src->bad_seq)
         {
             src->max_seq = src->bad_seq = seq + 1;
             src->last_seq = seq - 0x7fffe; /* hack for rtp_decode() */
-            vlc_warning (logger, "sequence resynchronized");
+            heimdall_warning (logger, "sequence resynchronized");
             block_ChainRelease (src->blocks);
             src->blocks = NULL;
         }
@@ -346,7 +347,7 @@ rtp_queue (struct vlc_logger *logger, rtp_session_t *session, block_t *block)
             break;
         if (delta_seq.s == 0)
         {
-            vlc_debug (logger, "duplicate packet (sequence: %"PRIu16")", seq);
+            heimdall_debug (logger, "duplicate packet (sequence: %"PRIu16")", seq);
             goto drop; /* duplicate */
         }
         pp = &prev->p_next;
@@ -368,19 +369,19 @@ drop:
  * given up waiting on the missing packets (time out) from the last one
  * already decoded.
  *
- * @param logger pointer to VLC logger
+ * @param logger pointer to Heimdall logger
  * @param session RTP session receiving the packet
- * @param now monotonic clock reference for packets timing (ex: vlc_tick_now())
+ * @param now monotonic clock reference for packets timing (ex: heimdall_tick_now())
  * @param deadlinep pointer to deadline to call rtp_dequeue() again
  * @return true if the buffer is not empty, false otherwise.
  * In the later case, *deadlinep is undefined.
  */
-bool rtp_dequeue (struct vlc_logger *logger, const rtp_session_t *session,
-                  vlc_tick_t now, vlc_tick_t *restrict deadlinep)
+bool rtp_dequeue (struct heimdall_logger *logger, const rtp_session_t *session,
+                  heimdall_tick_t now, heimdall_tick_t *restrict deadlinep)
 {
     bool pending = false;
 
-    *deadlinep = VLC_TICK_MAX;
+    *deadlinep = HEIMDALL_TICK_MAX;
 
     for (unsigned i = 0, max = session->srcc; i < max; i++)
     {
@@ -400,7 +401,7 @@ bool rtp_dequeue (struct vlc_logger *logger, const rtp_session_t *session,
          * definitely a lost packets.
          *
          * The rest of the "de-jitter buffer" work is done by the internal
-         * LibVLC E/S-out clock synchronization. Here, we need to bother about
+         * LibHeimdall E/S-out clock synchronization. Here, we need to bother about
          * re-ordering packets, as decoders can't cope with mis-ordered data.
          */
         while (((block = src->blocks)) != NULL)
@@ -414,16 +415,16 @@ bool rtp_dequeue (struct vlc_logger *logger, const rtp_session_t *session,
             /* Wait for 3 times the inter-arrival delay variance (about 99.7%
              * match for random gaussian jitter).
              */
-            vlc_tick_t deadline;
+            heimdall_tick_t deadline;
             const rtp_pt_t *pt = rtp_find_ptype(session, block);
             if (pt)
-                deadline = vlc_tick_from_samples(3 * src->jitter, pt->frequency);
+                deadline = heimdall_tick_from_samples(3 * src->jitter, pt->frequency);
             else
                 deadline = 0; /* no jitter estimate with no frequency :( */
 
             /* Make sure we wait at least for 25 msec */
-            if (deadline < VLC_TICK_FROM_MS(25))
-                deadline = VLC_TICK_FROM_MS(25);
+            if (deadline < HEIMDALL_TICK_FROM_MS(25))
+                deadline = HEIMDALL_TICK_FROM_MS(25);
 
             /* Additionally, we implicitly wait for the packetization time
              * multiplied by the number of missing packets. block is the first
@@ -449,7 +450,7 @@ bool rtp_dequeue (struct vlc_logger *logger, const rtp_session_t *session,
  * Decodes one RTP packet.
  */
 static void
-rtp_decode (struct vlc_logger *logger, const rtp_session_t *session, rtp_source_t *src)
+rtp_decode (struct heimdall_logger *logger, const rtp_session_t *session, rtp_source_t *src)
 {
     block_t *block = src->blocks;
 
@@ -463,20 +464,20 @@ rtp_decode (struct vlc_logger *logger, const rtp_session_t *session, rtp_source_
     {
         if (delta_seq >= 0x8000)
         {   /* Trash too late packets (and PIM Assert duplicates) */
-            vlc_debug (logger, "ignoring late packet (sequence: %"PRIu16")",
+            heimdall_debug (logger, "ignoring late packet (sequence: %"PRIu16")",
                       rtp_seq (block));
             goto drop;
         }
-        vlc_warning (logger, "%"PRIu16" packet(s) lost", delta_seq);
+        heimdall_warning (logger, "%"PRIu16" packet(s) lost", delta_seq);
         block->i_flags |= BLOCK_FLAG_DISCONTINUITY;
     }
     src->last_seq = rtp_seq (block);
 
     /* Match the payload type */
-    struct vlc_rtp_pt *pt = rtp_find_ptype(session, block);
+    struct heimdall_rtp_pt *pt = rtp_find_ptype(session, block);
     if (pt == NULL)
     {
-        vlc_debug (logger, "unknown payload (%"PRIu8")",
+        heimdall_debug (logger, "unknown payload (%"PRIu8")",
                  rtp_ptype (block));
         goto drop;
     }
@@ -484,10 +485,10 @@ rtp_decode (struct vlc_logger *logger, const rtp_session_t *session, rtp_source_
     if (src->pt.instance != pt) {
         /* Change the active payload type for this source. */
         if (src->pt.instance != NULL)
-            vlc_rtp_pt_end(src->pt.instance, src->pt.opaque);
+            heimdall_rtp_pt_end(src->pt.instance, src->pt.opaque);
 
         src->pt.instance = pt;
-        src->pt.opaque = vlc_rtp_pt_begin(pt);
+        src->pt.opaque = heimdall_rtp_pt_begin(pt);
     }
 
     /* Computes the PTS from the RTP timestamp and payload RTP frequency.
@@ -499,7 +500,7 @@ rtp_decode (struct vlc_logger *logger, const rtp_session_t *session, rtp_source_
         uint32_t u;
         int32_t s;
     } ts_delta = { .u = timestamp - src->ref_rtp };
-    vlc_tick_t ticks = vlc_tick_from_samples(ts_delta.s, pt->frequency);
+    heimdall_tick_t ticks = heimdall_tick_from_samples(ts_delta.s, pt->frequency);
 
     block->i_pts = src->ref_ntp + ticks;
     /* TODO: proper inter-medias/sessions sync (using RTCP-SR) */
@@ -522,7 +523,7 @@ rtp_decode (struct vlc_logger *logger, const rtp_session_t *session, rtp_source_
     if (block->i_buffer < skip)
         goto drop;
 
-    struct vlc_rtp_pktinfo pktinfo = {
+    struct heimdall_rtp_pktinfo pktinfo = {
         .m = block->p_buffer[1] >> 7,
         /* TODO: extension headers (e.g. AV-1 deps) */
     };
@@ -530,7 +531,7 @@ rtp_decode (struct vlc_logger *logger, const rtp_session_t *session, rtp_source_
     block->p_buffer += skip;
     block->i_buffer -= skip;
 
-    vlc_rtp_pt_decode(pt, src->pt.opaque, block, &pktinfo);
+    heimdall_rtp_pt_decode(pt, src->pt.opaque, block, &pktinfo);
     return;
 
 drop:

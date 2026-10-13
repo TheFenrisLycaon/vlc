@@ -2,6 +2,7 @@
  * interrupt.h:
  *****************************************************************************
  * Copyright (C) 2015 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -19,19 +20,19 @@
  *****************************************************************************/
 
 /** @ingroup interrupt */
-#ifndef LIBVLC_INPUT_SIGNAL_H
-# define LIBVLC_INPUT_SIGNAL_H 1
+#ifndef LIBHEIMDALL_INPUT_SIGNAL_H
+# define LIBHEIMDALL_INPUT_SIGNAL_H 1
 
 # include <stdatomic.h>
 
-# include <vlc_interrupt.h>
+# include <heimdall_interrupt.h>
 
-void vlc_interrupt_init(vlc_interrupt_t *);
-void vlc_interrupt_deinit(vlc_interrupt_t *);
+void heimdall_interrupt_init(heimdall_interrupt_t *);
+void heimdall_interrupt_deinit(heimdall_interrupt_t *);
 
-struct vlc_interrupt
+struct heimdall_interrupt
 {
-    vlc_mutex_t lock;
+    heimdall_mutex_t lock;
     bool interrupted;
     atomic_bool killed;
     void (*callback)(void *);

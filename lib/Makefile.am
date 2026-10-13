@@ -1,6 +1,6 @@
 AUTOMAKE_OPTIONS = subdir-objects
 pkgconfigdir = $(libdir)/pkgconfig
-AM_CFLAGS = $(CFLAGS_libvlc)
+AM_CFLAGS = $(CFLAGS_libheimdall)
 
 SUFFIXES = .pc.in .pc .rc.in .rc
 
@@ -8,26 +8,26 @@ BUILT_SOURCES = $(nodist_pkginclude_HEADERS)
 CLEANFILES = $(BUILT_SOURCES) $(pkgconfig_DATA)
 
 pkginclude_HEADERS = \
-	../include/vlc/libvlc.h \
-	../include/vlc/libvlc_dialog.h \
-	../include/vlc/libvlc_downloader.h \
-	../include/vlc/libvlc_media.h \
-	../include/vlc/libvlc_media_discoverer.h \
-	../include/vlc/libvlc_media_list.h \
-	../include/vlc/libvlc_media_list_player.h \
-	../include/vlc/libvlc_media_player.h \
-	../include/vlc/libvlc_media_track.h \
-	../include/vlc/libvlc_parser.h \
-	../include/vlc/libvlc_renderer_discoverer.h \
-	../include/vlc/libvlc_picture.h \
-	../include/vlc/libvlc_version.h \
-	../include/vlc/libvlc_video.h \
-	../include/vlc/vlc.h
+	../include/heimdall/libheimdall.h \
+	../include/heimdall/libheimdall_dialog.h \
+	../include/heimdall/libheimdall_downloader.h \
+	../include/heimdall/libheimdall_media.h \
+	../include/heimdall/libheimdall_media_discoverer.h \
+	../include/heimdall/libheimdall_media_list.h \
+	../include/heimdall/libheimdall_media_list_player.h \
+	../include/heimdall/libheimdall_media_player.h \
+	../include/heimdall/libheimdall_media_track.h \
+	../include/heimdall/libheimdall_parser.h \
+	../include/heimdall/libheimdall_renderer_discoverer.h \
+	../include/heimdall/libheimdall_picture.h \
+	../include/heimdall/libheimdall_version.h \
+	../include/heimdall/libheimdall_video.h \
+	../include/heimdall/heimdall.h
 
-lib_LTLIBRARIES = libvlc.la
+lib_LTLIBRARIES = libheimdall.la
 
-libvlc_la_SOURCES = \
-	libvlc_internal.h \
+libheimdall_la_SOURCES = \
+	libheimdall_internal.h \
 	media_internal.h \
 	media_list_internal.h \
 	media_player_internal.h \
@@ -50,76 +50,76 @@ libvlc_la_SOURCES = \
 	media_discoverer.c \
 	parser.c \
 	picture.c \
-	libvlc.pc.in \
-	libvlc.sym \
+	libheimdall.pc.in \
+	libheimdall.sym \
 	../src/revision.c
 EXTRA_DIST =
 
 if HAVE_WIN32
-noinst_DATA = libvlc_win32_rc.rc
+noinst_DATA = libheimdall_win32_rc.rc
 endif
-EXTRA_DIST += libvlc_win32_rc.rc.in
+EXTRA_DIST += libheimdall_win32_rc.rc.in
 
-libvlc_win32_rc.rc: libvlc_win32_rc.rc.in $(top_builddir)/config.status
+libheimdall_win32_rc.rc: libheimdall_win32_rc.rc.in $(top_builddir)/config.status
 	$(AM_V_GEN)cd "$(top_builddir)" && \
 	$(SHELL) ./config.status --file="lib/$@"
 
-libvlc_la_LIBADD = ../src/libvlccore.la ../compat/libcompat.la $(LIBM)
-libvlc_la_LDFLAGS = \
-	$(LDFLAGS_libvlc) \
+libheimdall_la_LIBADD = ../src/libheimdallcore.la ../compat/libcompat.la $(LIBM)
+libheimdall_la_LDFLAGS = \
+	$(LDFLAGS_libheimdall) \
 	-no-undefined \
-	-version-number @LIBVLC_ABI_MAJOR@:@LIBVLC_ABI_MINOR@:@LIBVLC_ABI_MICRO@ \
-	-export-symbols $(srcdir)/libvlc.sym
-EXTRA_libvlc_la_DEPENDENCIES = libvlc.sym
-libvlc_la_CPPFLAGS = $(AM_CPPFLAGS)
+	-version-number @LIBHEIMDALL_ABI_MAJOR@:@LIBHEIMDALL_ABI_MINOR@:@LIBHEIMDALL_ABI_MICRO@ \
+	-export-symbols $(srcdir)/libheimdall.sym
+EXTRA_libheimdall_la_DEPENDENCIES = libheimdall.sym
+libheimdall_la_CPPFLAGS = $(AM_CPPFLAGS)
 if HAVE_WIN32
-EXTRA_libvlc_la_DEPENDENCIES += libvlc_win32_rc.$(OBJEXT)
-libvlc_la_LDFLAGS += -Wl,libvlc_win32_rc.$(OBJEXT) -avoid-version -Wc,-static
+EXTRA_libheimdall_la_DEPENDENCIES += libheimdall_win32_rc.$(OBJEXT)
+libheimdall_la_LDFLAGS += -Wl,libheimdall_win32_rc.$(OBJEXT) -avoid-version -Wc,-static
 if HAVE_DYNAMIC_PLUGINS
-libvlc_la_CPPFLAGS += -DLIBVLC_DLL_EXPORT
+libheimdall_la_CPPFLAGS += -DLIBHEIMDALL_DLL_EXPORT
 endif
 endif
 if HAVE_OS2
-libvlc_la_LDFLAGS += -avoid-version
+libheimdall_la_LDFLAGS += -avoid-version
 endif
 if HAVE_DARWIN
-libvlc_la_LDFLAGS += -Xlinker -install_name -Xlinker @rpath/libvlc.dylib
+libheimdall_la_LDFLAGS += -Xlinker -install_name -Xlinker @rpath/libheimdall.dylib
 endif
 
 # iOS and tvOS applications cannot install global shared libraries and
 # dylibs must be in frameworks so there's no need for libtool versioning.
 if HAVE_IOS
-libvlc_la_LDFLAGS += -avoid-version
+libheimdall_la_LDFLAGS += -avoid-version
 endif
 if HAVE_TVOS
-libvlc_la_LDFLAGS += -avoid-version
+libheimdall_la_LDFLAGS += -avoid-version
 endif
 if HAVE_ANDROID
-libvlc_la_LDFLAGS += -avoid-version
+libheimdall_la_LDFLAGS += -avoid-version
 endif
 
-pkgconfig_DATA = libvlc.pc
+pkgconfig_DATA = libheimdall.pc
 
-libvlc.pc: libvlc.pc.in $(top_builddir)/config.status
+libheimdall.pc: libheimdall.pc.in $(top_builddir)/config.status
 	$(AM_V_GEN)cd "$(top_builddir)" && \
 	$(SHELL) ./config.status --file="lib/$@"
 
-libvlc_win32_rc.$(OBJEXT): libvlc_win32_rc.rc $(top_srcdir)/extras/package/win32/libvlc.dll.manifest
+libheimdall_win32_rc.$(OBJEXT): libheimdall_win32_rc.rc $(top_srcdir)/extras/package/win32/libheimdall.dll.manifest
 	$(WINDRES) --include-dir $(top_srcdir)/share --include-dir $(top_srcdir)/extras/package/win32 -i $< -o $@
 
 checkheader_verbose = $(checkheader_verbose_$(V))
 checkheader_verbose_ = $(checkheader_verbose_$(AM_DEFAULT_VERBOSITY))
-checkheader_verbose_0 = @echo "  CHECK    $(@:checkheader_%_h=vlc/%.h)";
+checkheader_verbose_0 = @echo "  CHECK    $(@:checkheader_%_h=heimdall/%.h)";
 checkheader_verbose__0 = $(checkheader_verbose_0)
-nodist_check_SCRIPTS = $(pkginclude_HEADERS:../include/vlc/%.h=checkheader_%_h)
+nodist_check_SCRIPTS = $(pkginclude_HEADERS:../include/heimdall/%.h=checkheader_%_h)
 MOSTLYCLEANFILES = \
-	$(pkginclude_HEADERS:../include/vlc/%.h=checkheader_%_h.c) \
-	$(pkginclude_HEADERS:../include/vlc/%.h=checkheader_%_h.lo)
+	$(pkginclude_HEADERS:../include/heimdall/%.h=checkheader_%_h.c) \
+	$(pkginclude_HEADERS:../include/heimdall/%.h=checkheader_%_h.lo)
 
 checkheader_%_h:
 	@echo "#include <stdbool.h>" > $@.c
-	@echo "#include <vlc/libvlc.h>" >> $@.c
-	@echo "#include <vlc/$*.h>" >> $@.c
+	@echo "#include <heimdall/libheimdall.h>" >> $@.c
+	@echo "#include <heimdall/$*.h>" >> $@.c
 	$(checkheader_verbose)$(LTCOMPILE) -c $@.c -o $@.lo
 
 check-local:

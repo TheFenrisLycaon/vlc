@@ -2,6 +2,7 @@
  * fragments.c : MP4 fragments
  *****************************************************************************
  * Copyright (C) 2001-2015 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -108,7 +109,7 @@ static inline int64_t movietime_to_ms(stime_t time, uint32_t i_movie_timescale)
     return q * INT64_C( 1000 ) + r * INT64_C( 1000 ) / i_movie_timescale;
 }
 
-void MP4_Fragments_Index_Dump( vlc_object_t *p_obj, const mp4_fragments_index_t *p_index,
+void MP4_Fragments_Index_Dump( heimdall_object_t *p_obj, const mp4_fragments_index_t *p_index,
                                uint32_t i_movie_timescale )
 {
     for( size_t i=0; i<p_index->i_entries; i++ )

@@ -1,4 +1,5 @@
 // Copyright (C) 2003-2024 VLC authors and VideoLAN
+// Copyright (C) 2026 TheFenrisLycaon
 // SPDX-License-Identifier: LGPL-2.1-or-later
 //
 // chapter_command_dvd.hpp : DVD codec for Matroska Chapter Codecs
@@ -6,8 +7,8 @@
 //          Steve Lhomme <steve.lhomme@free.fr>
 
 
-#ifndef VLC_MKV_CHAPTER_COMMAND_DVD_HPP_
-#define VLC_MKV_CHAPTER_COMMAND_DVD_HPP_
+#ifndef HEIMDALL_MKV_CHAPTER_COMMAND_DVD_HPP_
+#define HEIMDALL_MKV_CHAPTER_COMMAND_DVD_HPP_
 
 #include "chapter_command.hpp"
 
@@ -18,7 +19,7 @@ namespace mkv {
 class dvd_command_interpretor_c
 {
 public:
-    dvd_command_interpretor_c( struct vlc_logger *log, chapter_codec_vm & vm_ )
+    dvd_command_interpretor_c( struct heimdall_logger *log, chapter_codec_vm & vm_ )
     :l( log )
     ,vm( vm_ )
     {
@@ -128,7 +129,7 @@ protected:
     }
 
     uint16_t       p_PRMs[256];
-    struct vlc_logger *l;
+    struct heimdall_logger *l;
     chapter_codec_vm & vm;
     pci_t          pci_packet = {};
 
@@ -189,7 +190,7 @@ protected:
 class dvd_chapter_codec_c : public chapter_codec_cmds_c
 {
 public:
-    dvd_chapter_codec_c( struct vlc_logger *log, chapter_codec_vm & vm_, dvd_command_interpretor_c & intepretor_ )
+    dvd_chapter_codec_c( struct heimdall_logger *log, chapter_codec_vm & vm_, dvd_command_interpretor_c & intepretor_ )
     :chapter_codec_cmds_c( log, vm_, MATROSKA_CHAPTER_CODEC_DVD )
     ,intepretor(intepretor_)
     {}
@@ -207,4 +208,4 @@ protected:
 
 } // namespace
 
-#endif // VLC_MKV_CHAPTER_COMMAND_DVD_HPP_
+#endif // HEIMDALL_MKV_CHAPTER_COMMAND_DVD_HPP_

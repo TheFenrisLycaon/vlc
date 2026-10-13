@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Prince Gupta <guptaprince8832@gmail.com>
  *
@@ -20,8 +21,8 @@
 
 import QtQuick
 
-import VLC.Style
-import VLC.Util
+import Heimdall.Style
+import Heimdall.Util
 
 Rectangle {
     id: root
@@ -30,7 +31,7 @@ Rectangle {
     // Settings
     //---------------------------------------------------------------------------------------------
 
-    property int animationDuration: VLCStyle.duration_long
+    property int animationDuration: HeimdallStyle.duration_long
 
     readonly property bool animationRunning: borderAnimation.running || bgAnimation.running
 
@@ -40,7 +41,7 @@ Rectangle {
 
     color: "transparent"
 
-    border.width: VLCStyle.focus_border
+    border.width: HeimdallStyle.focus_border
     border.pixelAligned: (radius < Number.EPSILON)
 
     //---------------------------------------------------------------------------------------------

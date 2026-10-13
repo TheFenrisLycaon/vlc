@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Benjamin Arnaud <bunjee@omega.gg>
  *
@@ -24,12 +25,12 @@
 
 #include "mlvideofoldersmodel.hpp"
 
-// VLC includes
-#include <vlc_media_library.h>
+// Heimdall includes
+#include <heimdall_media_library.h>
 
 // Util includes
 #include "util/covergenerator.hpp"
-#include "util/vlctick.hpp"
+#include "util/heimdalltick.hpp"
 
 // MediaLibrary includes
 #include "mlcustomcover.hpp"
@@ -98,12 +99,12 @@ QVariant MLVideoFoldersModel::itemRoleData(const MLItem * item, const int role) 
     }
 }
 
-vlc_ml_sorting_criteria_t MLVideoFoldersModel::nameToCriteria(QByteArray name) const /* override */
+heimdall_ml_sorting_criteria_t MLVideoFoldersModel::nameToCriteria(QByteArray name) const /* override */
 {
-    return QHash<QByteArray, vlc_ml_sorting_criteria_t> {
-        { QByteArrayLiteral("title"),    VLC_ML_SORTING_ALPHA    },
-        { QByteArrayLiteral("duration"), VLC_ML_SORTING_DURATION },
-    }.value(name, VLC_ML_SORTING_DEFAULT);
+    return QHash<QByteArray, heimdall_ml_sorting_criteria_t> {
+        { QByteArrayLiteral("title"),    HEIMDALL_ML_SORTING_ALPHA    },
+        { QByteArrayLiteral("duration"), HEIMDALL_ML_SORTING_DURATION },
+    }.value(name, HEIMDALL_ML_SORTING_DEFAULT);
 }
 
 std::unique_ptr<MLListCacheLoader>
@@ -114,26 +115,26 @@ MLVideoFoldersModel::createMLLoader() const /* override */
 
 // Protected MLBaseModel reimplementation
 
-void MLVideoFoldersModel::onVlcMlEvent(const MLEvent & event) /* override */
+void MLVideoFoldersModel::onHeimdallMlEvent(const MLEvent & event) /* override */
 {
     int type = event.i_type;
 
     switch (type)
     {
-        case VLC_ML_EVENT_FOLDER_ADDED:
+        case HEIMDALL_ML_EVENT_FOLDER_ADDED:
         {
             emit resetRequested();
             return;
         }
-        case VLC_ML_EVENT_FOLDER_UPDATED:
+        case HEIMDALL_ML_EVENT_FOLDER_UPDATED:
         {
-            MLItemId itemId(event.modification.i_entity_id, VLC_ML_PARENT_FOLDER);
+            MLItemId itemId(event.modification.i_entity_id, HEIMDALL_ML_PARENT_FOLDER);
             updateItemInCache(itemId);
             return;
         }
-        case VLC_ML_EVENT_FOLDER_DELETED:
+        case HEIMDALL_ML_EVENT_FOLDER_DELETED:
         {
-            MLItemId itemId(event.deletion.i_entity_id, VLC_ML_PARENT_FOLDER);
+            MLItemId itemId(event.deletion.i_entity_id, HEIMDALL_ML_PARENT_FOLDER);
             deleteItemInCache(itemId);
             return;
         }
@@ -141,28 +142,28 @@ void MLVideoFoldersModel::onVlcMlEvent(const MLEvent & event) /* override */
             break;
     }
 
-    MLBaseModel::onVlcMlEvent(event);
+    MLBaseModel::onHeimdallMlEvent(event);
 }
 
 // Loader
-size_t MLVideoFoldersModel::Loader::count(vlc_medialibrary_t * ml, const vlc_ml_query_params_t* queryParams) const /* override */
+size_t MLVideoFoldersModel::Loader::count(heimdall_medialibrary_t * ml, const heimdall_ml_query_params_t* queryParams) const /* override */
 {
-    return vlc_ml_count_folders_by_type(ml, queryParams, VLC_ML_MEDIA_TYPE_VIDEO);
+    return heimdall_ml_count_folders_by_type(ml, queryParams, HEIMDALL_ML_MEDIA_TYPE_VIDEO);
 }
 
 std::vector<std::unique_ptr<MLItem>>
-MLVideoFoldersModel::Loader::load(vlc_medialibrary_t * ml,
-                                  const vlc_ml_query_params_t* queryParams) const /* override */
+MLVideoFoldersModel::Loader::load(heimdall_medialibrary_t * ml,
+                                  const heimdall_ml_query_params_t* queryParams) const /* override */
 {
-    ml_unique_ptr<vlc_ml_folder_list_t> list(vlc_ml_list_folders_by_type(ml, queryParams,
-                                                                         VLC_ML_MEDIA_TYPE_VIDEO));
+    ml_unique_ptr<heimdall_ml_folder_list_t> list(heimdall_ml_list_folders_by_type(ml, queryParams,
+                                                                         HEIMDALL_ML_MEDIA_TYPE_VIDEO));
 
     if (list == nullptr)
         return {};
 
     std::vector<std::unique_ptr<MLItem>> result;
 
-    for (const vlc_ml_folder_t & folder : ml_range_iterate<vlc_ml_folder_t>(list))
+    for (const heimdall_ml_folder_t & folder : ml_range_iterate<heimdall_ml_folder_t>(list))
     {
         result.emplace_back(std::make_unique<MLFolder>(&folder));
     }
@@ -171,10 +172,10 @@ MLVideoFoldersModel::Loader::load(vlc_medialibrary_t * ml,
 }
 
 std::unique_ptr<MLItem>
-MLVideoFoldersModel::Loader::loadItemById(vlc_medialibrary_t* ml, MLItemId itemId) const
+MLVideoFoldersModel::Loader::loadItemById(heimdall_medialibrary_t* ml, MLItemId itemId) const
 {
-    assert(itemId.type == VLC_ML_PARENT_FOLDER);
-    ml_unique_ptr<vlc_ml_folder_t> folder(vlc_ml_get_folder(ml, itemId.id));
+    assert(itemId.type == HEIMDALL_ML_PARENT_FOLDER);
+    ml_unique_ptr<heimdall_ml_folder_t> folder(heimdall_ml_get_folder(ml, itemId.id));
     if (!folder)
         return nullptr;
     return std::make_unique<MLFolder>(folder.get());

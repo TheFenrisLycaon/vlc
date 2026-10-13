@@ -2,6 +2,7 @@
  * main_interface.hpp : Main Interface
  ****************************************************************************
  * Copyright (C) 2006-2010 VideoLAN and AUTHORS
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Clément Stenac <zorglub@videolan.org>
  *          Jean-Baptiste Kempf <jb@videolan.org>
@@ -21,8 +22,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef QVLC_MAIN_INTERFACE_H_
-#define QVLC_MAIN_INTERFACE_H_
+#ifndef QHEIMDALL_MAIN_INTERFACE_H_
+#define QHEIMDALL_MAIN_INTERFACE_H_
 
 #include "qt.hpp"
 
@@ -58,23 +59,23 @@ class QSize;
 class QTimer;
 class QSystemTrayIcon;
 class StandardPLPanel;
-struct vlc_window;
+struct heimdall_window;
 class VideoSurfaceProvider;
 class ControlbarProfileModel;
 class SearchCtx;
 class SortCtx;
-class VLCSystray;
+class HeimdallSystray;
 class MediaLib;
 class ColorSchemeModel;
-class VLCVarChoiceModel;
+class HeimdallVarChoiceModel;
 class SidePanelCtx;
 #ifdef UPDATE_CHECK
 class UpdateModel;
 #endif
-struct vlc_preparser_t;
+struct heimdall_preparser_t;
 class ThreadRunner;
 
-namespace vlc {
+namespace heimdall {
 namespace playlist {
 }
 }
@@ -105,7 +106,7 @@ class MainCtx : public QObject
     Q_PROPERTY(bool interfaceAlwaysOnTop READ isInterfaceAlwaysOnTop WRITE setInterfaceAlwaysOnTop NOTIFY interfaceAlwaysOnTopChanged FINAL)
     Q_PROPERTY(bool hasEmbededVideo READ hasEmbededVideo NOTIFY hasEmbededVideoChanged FINAL)
     Q_PROPERTY(bool showRemainingTime READ isShowRemainingTime WRITE setShowRemainingTime NOTIFY showRemainingTimeChanged FINAL)
-    Q_PROPERTY(VLCVarChoiceModel* extraInterfaces READ getExtraInterfaces CONSTANT FINAL)
+    Q_PROPERTY(HeimdallVarChoiceModel* extraInterfaces READ getExtraInterfaces CONSTANT FINAL)
     Q_PROPERTY(double intfScaleFactor READ getIntfScaleFactor NOTIFY intfScaleFactorChanged FINAL)
     Q_PROPERTY(bool mediaLibraryAvailable READ hasMediaLibrary CONSTANT FINAL)
     Q_PROPERTY(MediaLib* mediaLibrary READ getMediaLibrary CONSTANT FINAL)
@@ -175,10 +176,10 @@ public:
 public:
     /* Getters */
     inline qt_intf_t* getIntf() const { return p_intf; }
-    inline vlc_preparser_t *getNetworkPreparser() const { return m_network_preparser; };
+    inline heimdall_preparser_t *getNetworkPreparser() const { return m_network_preparser; };
     bool smoothScroll() const { return m_smoothScroll; }
 
-    VLCSystray* getSysTray() { return m_systray.get(); }
+    HeimdallSystray* getSysTray() { return m_systray.get(); }
 
     enum
     {
@@ -424,7 +425,7 @@ protected:
     void initSystray();
 
     qt_intf_t* p_intf = nullptr;
-    vlc_preparser_t *m_network_preparser = nullptr;
+    heimdall_preparser_t *m_network_preparser = nullptr;
 
     bool m_hasEmbededVideo = false;
     VideoSurfaceProvider* m_videoSurfaceProvider = nullptr;
@@ -433,7 +434,7 @@ protected:
     /* */
     QSettings           *settings = nullptr;
 
-    std::unique_ptr<VLCSystray> m_systray;
+    std::unique_ptr<HeimdallSystray> m_systray;
 
     /* Flags */
     double               m_intfUserScaleFactor = 1.;
@@ -452,7 +453,7 @@ protected:
     Grouping             m_grouping = GROUPING_NONE;
     ColorSchemeModel*    m_colorScheme = nullptr;
     bool                 m_windowTitlebar = true;
-    // NOTE: Ideally this should be a QVLCBool.
+    // NOTE: Ideally this should be a QHeimdallBool.
     bool                 m_hasToolbarMenu = false;
     bool                 m_canShowVideoPIP = false;
 
@@ -470,7 +471,7 @@ protected:
 
     double               m_artistAlbumsWidth = 120;
 
-    VLCVarChoiceModel* m_extraInterfaces = nullptr;
+    HeimdallVarChoiceModel* m_extraInterfaces = nullptr;
 
     ControlbarProfileModel* m_controlbarProfileModel = nullptr;
 
@@ -538,14 +539,14 @@ public slots:
     void setPlayerView(bool);
 
     void sendHotkey(Qt::Key key, Qt::KeyboardModifiers modifiers );
-    void sendVLCHotkey(int vlcHotkey);
+    void sendHeimdallHotkey(int heimdallHotkey);
 
     void emitBoss();
     void emitRaise();
     void emitShow();
 
     virtual void reloadPrefs();
-    VLCVarChoiceModel* getExtraInterfaces();
+    HeimdallVarChoiceModel* getExtraInterfaces();
 
     bool pasteFromClipboard();
 

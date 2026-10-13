@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2026 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,10 +21,10 @@ import QtQuick.Window
 import QtQuick.Layouts
 import QtQuick.Templates as T
 
-import VLC.MainInterface
-import VLC.Widgets as Widgets
-import VLC.Style
-import VLC.Util
+import Heimdall.MainInterface
+import Heimdall.Widgets as Widgets
+import Heimdall.Style
+import Heimdall.Util
 
 T.Pane {
     id: root
@@ -33,8 +34,8 @@ T.Pane {
     implicitHeight: Math.max(implicitBackgroundHeight + topInset + bottomInset,
                              implicitContentHeight + topPadding + bottomPadding)
 
-    horizontalPadding: VLCStyle.margin_large
-    verticalPadding: VLCStyle.margin_small
+    horizontalPadding: HeimdallStyle.margin_large
+    verticalPadding: HeimdallStyle.margin_small
 
     property bool animations: true
 
@@ -54,7 +55,7 @@ T.Pane {
     }
 
     contentItem: Column {
-        spacing: VLCStyle.margin_xsmall
+        spacing: HeimdallStyle.margin_xsmall
 
         RowLayout {
             id: rowLayout
@@ -62,14 +63,14 @@ T.Pane {
             anchors.left: parent.left
             anchors.right: parent.right
 
-            spacing: VLCStyle.margin_small
+            spacing: HeimdallStyle.margin_small
 
-            readonly property bool collapseText: (width < VLCStyle.colWidth(5))
+            readonly property bool collapseText: (width < HeimdallStyle.colWidth(5))
 
             Image {
                 id: cone
 
-                sourceSize: Qt.size(VLCStyle.icon_normal, VLCStyle.icon_normal)
+                sourceSize: Qt.size(HeimdallStyle.icon_normal, HeimdallStyle.icon_normal)
                 source: SVGColorImage.colorize("qrc:///misc/cone.svg").accent(theme.accent).uri()
             }
 
@@ -82,13 +83,13 @@ T.Pane {
                     switch (UpdateModel.updateStatus) {
                         case UpdateModel.NeedUpdate:
                             const extra = UpdateModel.extra
-                            return qsTr("A new version of VLC is available: <font color=\"%1\">%2.%3.%4%5</font>").arg(theme.fg.positive)
+                            return qsTr("A new version of Heimdall is available: <font color=\"%1\">%2.%3.%4%5</font>").arg(theme.fg.positive)
                                                                                                                   .arg(UpdateModel.major)
                                                                                                                   .arg(UpdateModel.minor)
                                                                                                                   .arg(UpdateModel.revision)
                                                                                                                   .arg(extra === 0 ? "" : "." + extra)
                         case UpdateModel.UpToDate:
-                            return qsTr("You have the latest version of VLC media player: <font color=\"%1\">%2</font>.").arg(theme.accent)
+                            return qsTr("You have the latest version of Heimdall media player: <font color=\"%1\">%2</font>.").arg(theme.accent)
                                                                                                                          .arg(Application.version)
                         case UpdateModel.CheckFailed:
                             return qsTr("An <font color=\"%1\">error</font> occurred while checking for updates...").arg(theme.fg.negative)
@@ -109,7 +110,7 @@ T.Pane {
 
                 elide: Text.ElideRight
 
-                font.pixelSize: VLCStyle.fontSize_large
+                font.pixelSize: HeimdallStyle.fontSize_large
 
                 color: theme.fg.primary
             }
@@ -119,7 +120,7 @@ T.Pane {
 
                 AccessibleCompat.id: "updateDetailsButton"
 
-                iconTxt: VLCIcons.chevron_up
+                iconTxt: HeimdallIcons.chevron_up
                 iconRotation: descriptionFlickable.revealed ? 180 : 0
 
                 Behavior on iconRotation {
@@ -161,7 +162,7 @@ T.Pane {
             Widgets.ActionButtonOverlay {
                 id: recheckButton
 
-                iconTxt: VLCIcons.ic_fluent_arrow_sync_24_regular
+                iconTxt: HeimdallIcons.ic_fluent_arrow_sync_24_regular
                 text: qsTr("Re-check")
                 showText: !rowLayout.collapseText
 
@@ -182,7 +183,7 @@ T.Pane {
 
                 visible: (UpdateModel.updateStatus === UpdateModel.NeedUpdate)
 
-                iconTxt: VLCIcons.ic_fluent_arrow_download_24_regular
+                iconTxt: HeimdallIcons.ic_fluent_arrow_download_24_regular
                 text: qsTr("Download")
                 showText: !rowLayout.collapseText
 
@@ -216,7 +217,7 @@ T.Pane {
             Widgets.ActionButtonOverlay {
                 id: dismissButton
 
-                iconTxt: VLCIcons.close
+                iconTxt: HeimdallIcons.close
                 text: qsTr("Dismiss")
                 showText: false // Always collapsed
 
@@ -289,7 +290,7 @@ T.Pane {
 
             property bool revealed: false
 
-            height: revealed ? Math.min(implicitHeight, VLCStyle.dp(256, VLCStyle.scale)) : 0.1 // We want 0.0, but Qt 6.2.4 is bugged
+            height: revealed ? Math.min(implicitHeight, HeimdallStyle.dp(256, HeimdallStyle.scale)) : 0.1 // We want 0.0, but Qt 6.2.4 is bugged
 
             boundsBehavior: Flickable.StopAtBounds
 
@@ -300,7 +301,7 @@ T.Pane {
                     id: heightAnimation
 
                     easing.type: Easing.InOutSine
-                    duration: VLCStyle.duration_long
+                    duration: HeimdallStyle.duration_long
                 }
             }
 
@@ -311,7 +312,7 @@ T.Pane {
 
                 width: parent.width
 
-                font.pixelSize: VLCStyle.fontSize_normal
+                font.pixelSize: HeimdallStyle.fontSize_normal
 
                 color: theme.fg.primary
 
@@ -323,7 +324,7 @@ T.Pane {
 
                 wrapMode: Text.WordWrap
 
-                padding: VLCStyle.margin_xxsmall
+                padding: HeimdallStyle.margin_xxsmall
 
                 style: Text.Raised
                 styleColor: Qt.rgba(0.0, 0.0, 0.0, 0.2)

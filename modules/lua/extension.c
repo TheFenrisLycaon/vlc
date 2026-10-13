@@ -2,6 +2,7 @@
  * extension.c: Lua Extensions (meta data, web information, ...)
  *****************************************************************************
  * Copyright (C) 2009-2010 VideoLAN and authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Jean-Philippe André < jpeg # videolan.org >
  *
@@ -28,15 +29,15 @@
 # include "config.h"
 #endif
 
-#include "vlc.h"
+#include "heimdall.h"
 #include "libs.h"
 #include "extension.h"
 #include "assert.h"
 
-#include <vlc_common.h>
-#include <vlc_interface.h>
-#include <vlc_dialog.h>
-#include <vlc_player.h>
+#include <heimdall_common.h>
+#include <heimdall_interface.h>
+#include <heimdall_dialog.h>
+#include <heimdall_player.h>
 
 /* Functions to register */
 static const luaL_Reg p_reg[] =
@@ -57,7 +58,7 @@ static const char caps[][20] = {
 };
 
 static int ScanExtensions( extensions_manager_t *p_this );
-static int ScanLuaCallback( vlc_object_t *p_this, const char *psz_script,
+static int ScanLuaCallback( heimdall_object_t *p_this, const char *psz_script,
                             const struct luabatch_context_t * );
 static int Control( extensions_manager_t *, int, extension_t *, va_list );
 static int GetMenuEntries( extensions_manager_t *p_mgr, extension_t *p_ext,
@@ -69,23 +70,23 @@ static int TriggerExtension( extensions_manager_t *p_mgr,
                              extension_t *p_ext );
 static void WatchTimerCallback( void* );
 
-static int vlclua_extension_deactivate( lua_State *L );
-static int vlclua_extension_keep_alive( lua_State *L );
+static int heimdalllua_extension_deactivate( lua_State *L );
+static int heimdalllua_extension_keep_alive( lua_State *L );
 
 /* Interactions */
-static int vlclua_extension_dialog_callback( vlc_object_t *p_this,
+static int heimdalllua_extension_dialog_callback( heimdall_object_t *p_this,
                                              char const *psz_var,
-                                             vlc_value_t oldval,
-                                             vlc_value_t newval,
+                                             heimdall_value_t oldval,
+                                             heimdall_value_t newval,
                                              void *p_data );
 
 /**
  * Module entry-point
  **/
-int Open_Extension( vlc_object_t *p_this )
+int Open_Extension( heimdall_object_t *p_this )
 {
     if( lua_Disabled( p_this ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     msg_Dbg( p_this, "Opening Lua Extension module" );
 
@@ -94,32 +95,32 @@ int Open_Extension( vlc_object_t *p_this )
     p_mgr->pf_control = Control;
 
     p_mgr->p_sys = NULL;
-    vlc_mutex_init( &p_mgr->lock );
+    heimdall_mutex_init( &p_mgr->lock );
 
     /* Scan available Lua Extensions */
-    if( ScanExtensions( p_mgr ) != VLC_SUCCESS )
+    if( ScanExtensions( p_mgr ) != HEIMDALL_SUCCESS )
     {
         msg_Err( p_mgr, "Can't load extensions modules" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     // Create the dialog-event variable
-    var_Create( p_this, "dialog-event", VLC_VAR_ADDRESS );
+    var_Create( p_this, "dialog-event", HEIMDALL_VAR_ADDRESS );
     var_AddCallback( p_this, "dialog-event",
-                     vlclua_extension_dialog_callback, NULL );
+                     heimdalllua_extension_dialog_callback, NULL );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /**
  * Module unload function
  **/
-void Close_Extension( vlc_object_t *p_this )
+void Close_Extension( heimdall_object_t *p_this )
 {
     extensions_manager_t *p_mgr = ( extensions_manager_t* ) p_this;
 
     var_DelCallback( p_this, "dialog-event",
-                     vlclua_extension_dialog_callback, NULL );
+                     heimdalllua_extension_dialog_callback, NULL );
     var_Destroy( p_mgr, "dialog-event" );
 
     extension_t *p_ext = NULL;
@@ -131,7 +132,7 @@ void Close_Extension( vlc_object_t *p_this )
             break;
         struct lua_extension *sys = p_ext->p_sys;
 
-        vlc_mutex_lock(&sys->command_lock);
+        heimdall_mutex_lock(&sys->command_lock);
         if (sys->b_activated && sys->p_progress_id == NULL &&
             !sys->b_deactivating)
         {
@@ -142,21 +143,21 @@ void Close_Extension( vlc_object_t *p_this )
         else
         {
             if (sys->L != NULL)
-                vlclua_fd_interrupt(&sys->dtable);
+                heimdalllua_fd_interrupt(&sys->dtable);
             // however here we need to manually signal the wait cond, since no command is queued.
             sys->b_exiting = true;
-            vlc_cond_signal(&sys->wait);
+            heimdall_cond_signal(&sys->wait);
         }
-        vlc_mutex_unlock(&sys->command_lock);
+        heimdall_mutex_unlock(&sys->command_lock);
 
         if (sys->b_thread_running)
-            vlc_join(sys->thread, NULL);
+            heimdall_join(sys->thread, NULL);
 
         /* Clear Lua State */
         if (sys->L)
         {
             lua_close(sys->L);
-            vlclua_fd_cleanup(&sys->dtable);
+            heimdalllua_fd_cleanup(&sys->dtable);
         }
 
         free( p_ext->psz_name );
@@ -168,7 +169,7 @@ void Close_Extension( vlc_object_t *p_this )
         free( p_ext->psz_version );
         free( p_ext->p_icondata );
 
-        vlc_timer_destroy(sys->timer);
+        heimdall_timer_destroy(sys->timer);
 
         free( p_ext->p_sys );
         free( p_ext );
@@ -184,15 +185,15 @@ void Close_Extension( vlc_object_t *p_this )
 static int ScanExtensions( extensions_manager_t *p_mgr )
 {
     int i_ret =
-        vlclua_scripts_batch_execute( VLC_OBJECT( p_mgr ),
+        heimdalllua_scripts_batch_execute( HEIMDALL_OBJECT( p_mgr ),
                                       "extensions",
                                       &ScanLuaCallback,
                                       NULL );
 
     if( !i_ret )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /**
@@ -201,7 +202,7 @@ static int ScanExtensions( extensions_manager_t *p_mgr )
  * extensions
  * Even the built-in libraries are not loaded when calling descriptor()
  **/
-static int vlclua_dummy_require( lua_State *L )
+static int heimdalllua_dummy_require( lua_State *L )
 {
     (void) L;
     return 0;
@@ -212,11 +213,11 @@ static int vlclua_dummy_require( lua_State *L )
  * @note Loads modules in the modules/ folder of a package
  * @note Try first with .luac and then with .lua
  **/
-static int vlclua_extension_require( lua_State *L )
+static int heimdalllua_extension_require( lua_State *L )
 {
     const char *psz_module = luaL_checkstring( L, 1 );
-    vlc_object_t *p_this = vlclua_get_this( L );
-    extension_t *p_ext = vlclua_extension_get( L );
+    heimdall_object_t *p_this = heimdalllua_get_this( L );
+    extension_t *p_ext = heimdalllua_extension_get( L );
     msg_Dbg( p_this, "loading module '%s' from extension package",
              psz_module );
     char *psz_fullpath, *psz_package, *sep;
@@ -234,12 +235,12 @@ static int vlclua_extension_require( lua_State *L )
         free( psz_package );
         return 1;
     }
-    int i_ret = vlclua_dofile( p_this, L, psz_fullpath );
+    int i_ret = heimdalllua_dofile( p_this, L, psz_fullpath );
     if( i_ret != 0 )
     {
         // Remove trailing 'c' --> try with .lua script
         psz_fullpath[ strlen( psz_fullpath ) - 1 ] = '\0';
-        i_ret = vlclua_dofile( p_this, L, psz_fullpath );
+        i_ret = heimdalllua_dofile( p_this, L, psz_fullpath );
     }
     free( psz_fullpath );
     free( psz_package );
@@ -267,10 +268,10 @@ GetStringFieldOrNull(lua_State *L, const char *name)
  * @param L Lua State, common to all scripts here
  * @param dummy: unused
  **/
-int ScanLuaCallback( vlc_object_t *p_this, const char *psz_filename,
+int ScanLuaCallback( heimdall_object_t *p_this, const char *psz_filename,
                      const struct luabatch_context_t *dummy )
 {
-    VLC_UNUSED(dummy);
+    HEIMDALL_UNUSED(dummy);
     extensions_manager_t *p_mgr = ( extensions_manager_t* ) p_this;
 
     msg_Dbg( p_mgr, "Scanning Lua script %s", psz_filename );
@@ -282,7 +283,7 @@ int ScanLuaCallback( vlc_object_t *p_this, const char *psz_filename,
     {
         msg_Dbg( p_this, "reading Lua script in a zip archive" );
         if (asprintf(&psz_script, "zip://%s!/script.lua", psz_filename) == -1)
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
     }
     else
     {
@@ -299,7 +300,7 @@ int ScanLuaCallback( vlc_object_t *p_this, const char *psz_filename,
         return 0;
     }
 
-    p_ext->logger = vlc_object_logger(p_mgr);
+    p_ext->logger = heimdall_object_logger(p_mgr);
     p_ext->psz_name = psz_script;
     struct lua_extension *sys
         = p_ext->p_sys
@@ -314,7 +315,7 @@ int ScanLuaCallback( vlc_object_t *p_this, const char *psz_filename,
     sys->p_mgr = p_mgr;
 
     /* Watch timer */
-    if( vlc_timer_create( &sys->timer, WatchTimerCallback, p_ext ) )
+    if( heimdall_timer_create( &sys->timer, WatchTimerCallback, p_ext ) )
     {
         free( p_ext->psz_name );
         free(sys);
@@ -323,16 +324,16 @@ int ScanLuaCallback( vlc_object_t *p_this, const char *psz_filename,
     }
 
     /* Mutexes and conditions */
-    vlc_mutex_init(&sys->command_lock);
-    vlc_mutex_init(&sys->running_lock);
-    vlc_cond_init(&sys->wait);
+    heimdall_mutex_init(&sys->command_lock);
+    heimdall_mutex_init(&sys->running_lock);
+    heimdall_cond_init(&sys->wait);
 
     /* Prepare Lua state */
     lua_State *L = luaL_newstate();
-    lua_register( L, "require", &vlclua_dummy_require );
+    lua_register( L, "require", &heimdalllua_dummy_require );
 
     /* Let's run it */
-    if( vlclua_dofile( p_this, L, psz_script ) ) // luaL_dofile
+    if( heimdalllua_dofile( p_this, L, psz_script ) ) // luaL_dofile
     {
         msg_Warn( p_mgr, "Error loading script %s: %s", psz_script,
                   lua_tostring( L, lua_gettop( L ) ) );
@@ -453,7 +454,7 @@ int ScanLuaCallback( vlc_object_t *p_this, const char *psz_filename,
     ARRAY_APPEND(p_mgr->extensions, p_ext);
 
     /* Continue batch execution */
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 discard:
     lua_close(L);
     free(p_ext->psz_name);
@@ -465,7 +466,7 @@ discard:
     free(p_ext->psz_version);
     free(p_ext);
     free(sys);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 static int Control(extensions_manager_t *p_mgr, int i_control,
@@ -488,9 +489,9 @@ static int Control(extensions_manager_t *p_mgr, int i_control,
 
         case EXTENSION_IS_ACTIVATED:
             pb = va_arg( args, bool* );
-            vlc_mutex_lock(&sys->command_lock);
+            heimdall_mutex_lock(&sys->command_lock);
             *pb = sys->b_activated;
-            vlc_mutex_unlock(&sys->command_lock);
+            heimdall_mutex_unlock(&sys->command_lock);
             break;
 
         case EXTENSION_HAS_MENU:
@@ -519,15 +520,15 @@ static int Control(extensions_manager_t *p_mgr, int i_control,
         {
             input_item_t *p_item = va_arg( args, struct input_item_t * );
 
-            vlc_mutex_lock(&sys->command_lock);
+            heimdall_mutex_lock(&sys->command_lock);
             if (sys->b_exiting)
             {
-                vlc_mutex_unlock(&sys->command_lock);
-                return VLC_EGENERIC;
+                heimdall_mutex_unlock(&sys->command_lock);
+                return HEIMDALL_EGENERIC;
             }
-            vlc_mutex_unlock(&sys->command_lock);
+            heimdall_mutex_unlock(&sys->command_lock);
 
-            vlc_mutex_lock(&sys->running_lock);
+            heimdall_mutex_lock(&sys->running_lock);
 
             // Change input
             input_item_t *old = sys->p_item;
@@ -542,7 +543,7 @@ static int Control(extensions_manager_t *p_mgr, int i_control,
                 PushCommandUnique(ext, CMD_SET_INPUT);
             }
 
-            vlc_mutex_unlock(&sys->running_lock);
+            heimdall_mutex_unlock(&sys->running_lock);
             break;
         }
         case EXTENSION_PLAYING_CHANGED:
@@ -563,10 +564,10 @@ static int Control(extensions_manager_t *p_mgr, int i_control,
         default:
             msg_Warn( p_mgr, "Control '%d' not yet implemented in Extension",
                       i_control );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 int lua_ExtensionActivate( extensions_manager_t *p_mgr, extension_t *p_ext )
@@ -580,7 +581,7 @@ int lua_ExtensionDeactivate( extensions_manager_t *p_mgr, extension_t *p_ext )
     assert( p_mgr != NULL && p_ext != NULL );
     struct lua_extension *sys = p_ext->p_sys;
 
-    vlclua_fd_interrupt(&sys->dtable);
+    heimdalllua_fd_interrupt(&sys->dtable);
 
     // Unset and release input objects
     if (sys->p_item)
@@ -598,7 +599,7 @@ int lua_ExtensionWidgetClick( extensions_manager_t *p_mgr,
 {
     struct lua_extension *sys = p_ext->p_sys;
     if (sys->L == NULL)
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
     lua_State *L = GetLuaState( p_mgr, p_ext );
     lua_pushlightuserdata( L, p_widget );
@@ -615,7 +616,7 @@ int lua_ExtensionWidgetClick( extensions_manager_t *p_mgr,
  * @param ppi_ids Pointer to NULL. Must be freed by the caller.
  * @note This function is allowed to run in the UI thread. This means
  *       that it MUST respond very fast.
- * @todo Remove the menu() hook and provide a new function vlc.set_menu()
+ * @todo Remove the menu() hook and provide a new function heimdall.set_menu()
  **/
 static int GetMenuEntries( extensions_manager_t *p_mgr, extension_t *p_ext,
                     char ***pppsz_titles, uint16_t **ppi_ids )
@@ -624,18 +625,18 @@ static int GetMenuEntries( extensions_manager_t *p_mgr, extension_t *p_ext,
     assert( *ppi_ids == NULL );
     struct lua_extension *sys = p_ext->p_sys;
 
-    vlc_mutex_lock(&sys->command_lock);
+    heimdall_mutex_lock(&sys->command_lock);
     if (!sys->b_activated || sys->b_exiting)
     {
-        vlc_mutex_unlock(&sys->command_lock);
+        heimdall_mutex_unlock(&sys->command_lock);
         msg_Dbg( p_mgr, "Can't get menu of an unactivated/dying extension!" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
-    vlc_mutex_unlock(&sys->command_lock);
+    heimdall_mutex_unlock(&sys->command_lock);
 
-    vlc_mutex_lock(&sys->running_lock);
+    heimdall_mutex_lock(&sys->running_lock);
 
-    int i_ret = VLC_EGENERIC;
+    int i_ret = HEIMDALL_EGENERIC;
     lua_State *L = GetLuaState( p_mgr, p_ext );
 
     if ((sys->i_capabilities & EXT_HAS_MENU) == 0)
@@ -697,11 +698,11 @@ static int GetMenuEntries( extensions_manager_t *p_mgr, extension_t *p_ext,
         lua_pop(L, 1);
     }
 
-    i_ret = VLC_SUCCESS;
+    i_ret = HEIMDALL_SUCCESS;
 
 exit:
-    vlc_mutex_unlock(&sys->running_lock);
-    if( i_ret != VLC_SUCCESS )
+    heimdall_mutex_unlock(&sys->running_lock);
+    if( i_ret != HEIMDALL_SUCCESS )
     {
         msg_Dbg( p_mgr, "Something went wrong in %s (%s:%d)",
                  __func__, __FILE__, __LINE__ );
@@ -725,14 +726,14 @@ static lua_State* GetLuaState( extensions_manager_t *p_mgr,
         msg_Err(p_mgr, "Could not create new Lua State");
         return NULL;
     }
-    vlclua_set_this(L, p_mgr);
-    intf_thread_t *intf = (intf_thread_t *)vlc_object_parent(p_mgr);
-    vlc_playlist_t *playlist = vlc_intf_GetMainPlaylist(intf);
-    vlclua_set_playlist_internal(L, playlist);
-    vlclua_extension_set(L, p_ext);
+    heimdalllua_set_this(L, p_mgr);
+    intf_thread_t *intf = (intf_thread_t *)heimdall_object_parent(p_mgr);
+    heimdall_playlist_t *playlist = heimdall_intf_GetMainPlaylist(intf);
+    heimdalllua_set_playlist_internal(L, playlist);
+    heimdalllua_extension_set(L, p_ext);
 
     luaL_openlibs(L);
-    luaL_register_namespace(L, "vlc", p_reg);
+    luaL_register_namespace(L, "heimdall", p_reg);
     luaopen_msg(L);
 
     /* Load more libraries */
@@ -740,7 +741,7 @@ static lua_State* GetLuaState( extensions_manager_t *p_mgr,
     luaopen_dialog(L, p_ext);
     luaopen_input(L);
     luaopen_msg(L);
-    if (vlclua_fd_init(L, &sys->dtable))
+    if (heimdalllua_fd_init(L, &sys->dtable))
     {
         lua_close(L);
         return NULL;
@@ -755,7 +756,7 @@ static lua_State* GetLuaState( extensions_manager_t *p_mgr,
     luaopen_vlm(L);
     luaopen_volume(L);
     luaopen_xml(L);
-    luaopen_vlcio(L);
+    luaopen_heimdallio(L);
     luaopen_errno(L);
     luaopen_rand(L);
     luaopen_rd(L);
@@ -767,33 +768,33 @@ static lua_State* GetLuaState( extensions_manager_t *p_mgr,
 #endif
 
     /* Register extension specific functions */
-    lua_getglobal(L, "vlc");
-    lua_pushcfunction(L, vlclua_extension_deactivate);
+    lua_getglobal(L, "heimdall");
+    lua_pushcfunction(L, heimdalllua_extension_deactivate);
     lua_setfield(L, -2, "deactivate");
-    lua_pushcfunction(L, vlclua_extension_keep_alive);
+    lua_pushcfunction(L, heimdalllua_extension_keep_alive);
     lua_setfield(L, -2, "keep_alive");
 
     /* Setup the module search path */
     if (!strncmp(p_ext->psz_name, "zip://", 6))
     {
         /* Load all required modules manually */
-        lua_register(L, "require", &vlclua_extension_require);
+        lua_register(L, "require", &heimdalllua_extension_require);
     }
-    else if (vlclua_add_modules_path(L, p_ext->psz_name))
+    else if (heimdalllua_add_modules_path(L, p_ext->psz_name))
     {
         msg_Warn(p_mgr, "Error while setting the module "
                 "search path for %s", p_ext->psz_name);
-        vlclua_fd_cleanup(&sys->dtable);
+        heimdalllua_fd_cleanup(&sys->dtable);
         lua_close(L);
         return NULL;
     }
 
     /* Load and run the script(s) */
-    if (vlclua_dofile(VLC_OBJECT(p_mgr), L, p_ext->psz_name))
+    if (heimdalllua_dofile(HEIMDALL_OBJECT(p_mgr), L, p_ext->psz_name))
     {
         msg_Warn(p_mgr, "Error loading script %s: %s", p_ext->psz_name,
                  lua_tostring(L, lua_gettop(L)));
-        vlclua_fd_cleanup(&sys->dtable);
+        heimdalllua_fd_cleanup(&sys->dtable);
         lua_close(L);
         return NULL;
     }
@@ -825,7 +826,7 @@ int lua_ExecuteFunction( extensions_manager_t *p_mgr, extension_t *p_ext,
 int lua_ExecuteFunctionVa( extensions_manager_t *p_mgr, extension_t *p_ext,
                            const char *psz_function, va_list args )
 {
-    int i_ret = VLC_SUCCESS;
+    int i_ret = HEIMDALL_SUCCESS;
     int i_args = 0;
     assert( p_mgr != NULL );
     assert( p_ext != NULL );
@@ -873,10 +874,10 @@ int lua_ExecuteFunctionVa( extensions_manager_t *p_mgr, extension_t *p_ext,
         msg_Warn( p_mgr, "Error while running script %s, "
                   "function %s(): %s", p_ext->psz_name, psz_function,
                   lua_tostring( L, lua_gettop( L ) ) );
-        i_ret = VLC_EGENERIC;
+        i_ret = HEIMDALL_EGENERIC;
     }
 
-    if (i_ret != VLC_SUCCESS)
+    if (i_ret != HEIMDALL_SUCCESS)
         lua_DialogFlush( L );
     else
         i_ret = lua_DialogFlush( L );
@@ -894,11 +895,11 @@ static inline int TriggerMenu( extension_t *p_ext, int i_id )
 int lua_ExtensionTriggerMenu( extensions_manager_t *p_mgr,
                               extension_t *p_ext, int id )
 {
-    int i_ret = VLC_SUCCESS;
+    int i_ret = HEIMDALL_SUCCESS;
     lua_State *L = GetLuaState( p_mgr, p_ext );
 
     if( !L )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     luaopen_dialog( L, p_ext );
 
@@ -907,7 +908,7 @@ int lua_ExtensionTriggerMenu( extensions_manager_t *p_mgr,
     {
         msg_Warn( p_mgr, "Error while running script %s, "
                   "function trigger_menu() not found", p_ext->psz_name );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Pass id as unique argument to the function */
@@ -918,14 +919,14 @@ int lua_ExtensionTriggerMenu( extensions_manager_t *p_mgr,
         msg_Warn( p_mgr, "Error while running script %s, "
                   "function trigger_menu(): %s", p_ext->psz_name,
                   lua_tostring( L, lua_gettop( L ) ) );
-        i_ret = VLC_EGENERIC;
+        i_ret = HEIMDALL_EGENERIC;
     }
 
-    if (i_ret != VLC_SUCCESS)
+    if (i_ret != HEIMDALL_SUCCESS)
         lua_DialogFlush( L );
     else
         i_ret = lua_DialogFlush( L );
-    if( i_ret < VLC_SUCCESS )
+    if( i_ret < HEIMDALL_SUCCESS )
     {
         msg_Dbg( p_mgr, "Something went wrong in %s (%s:%d)",
                  __func__, __FILE__, __LINE__ );
@@ -950,7 +951,7 @@ static int TriggerExtension( extensions_manager_t *p_mgr,
     /* Close lua state for trigger-only extensions */
     if (sys->L)
     {
-        vlclua_fd_cleanup(&sys->dtable);
+        heimdalllua_fd_cleanup(&sys->dtable);
         lua_close(sys->L);
     }
     sys->L = NULL;
@@ -962,9 +963,9 @@ static int TriggerExtension( extensions_manager_t *p_mgr,
  * @param L current lua_State
  * @param p_ext the extension
  */
-void vlclua_extension_set( lua_State *L, extension_t *p_ext )
+void heimdalllua_extension_set( lua_State *L, extension_t *p_ext )
 {
-    lua_pushlightuserdata( L, vlclua_extension_set );
+    lua_pushlightuserdata( L, heimdalllua_extension_set );
     lua_pushlightuserdata( L, p_ext );
     lua_rawset( L, LUA_REGISTRYINDEX );
 }
@@ -973,9 +974,9 @@ void vlclua_extension_set( lua_State *L, extension_t *p_ext )
  * @param L current lua_State
  * @return Extension pointer
  **/
-extension_t *vlclua_extension_get( lua_State *L )
+extension_t *heimdalllua_extension_get( lua_State *L )
 {
-    lua_pushlightuserdata( L, vlclua_extension_set );
+    lua_pushlightuserdata( L, heimdalllua_extension_set );
     lua_rawget( L, LUA_REGISTRYINDEX );
     extension_t *p_ext = (extension_t*) lua_topointer( L, -1 );
     lua_pop( L, 1 );
@@ -984,38 +985,38 @@ extension_t *vlclua_extension_get( lua_State *L )
 
 /** Deactivate an extension by order from the extension itself
  * @param L lua_State
- * @note This is an asynchronous call. A script calling vlc.deactivate() will
+ * @note This is an asynchronous call. A script calling heimdall.deactivate() will
  * be executed to the end before the last call to deactivate() is done.
  **/
-int vlclua_extension_deactivate( lua_State *L )
+int heimdalllua_extension_deactivate( lua_State *L )
 {
-    extension_t *p_ext = vlclua_extension_get( L );
+    extension_t *p_ext = heimdalllua_extension_get( L );
     struct lua_extension *sys = p_ext->p_sys;
 
-    vlc_mutex_lock(&sys->command_lock);
+    heimdall_mutex_lock(&sys->command_lock);
     bool b_ret = QueueDeactivateCommand( p_ext );
-    vlc_mutex_unlock(&sys->command_lock);
+    heimdall_mutex_unlock(&sys->command_lock);
     return ( b_ret == true ) ? 1 : 0;
 }
 
 /** Keep an extension alive. This resets the watch timer to 0
  * @param L lua_State
- * @note This is the "vlc.keep_alive()" function
+ * @note This is the "heimdall.keep_alive()" function
  **/
-int vlclua_extension_keep_alive( lua_State *L )
+int heimdalllua_extension_keep_alive( lua_State *L )
 {
-    extension_t *p_ext = vlclua_extension_get( L );
+    extension_t *p_ext = heimdalllua_extension_get( L );
     struct lua_extension *sys = p_ext->p_sys;
 
-    vlc_mutex_lock(&sys->command_lock);
+    heimdall_mutex_lock(&sys->command_lock);
     if (sys->p_progress_id != NULL)
     {
-        vlc_dialog_release(sys->p_mgr, sys->p_progress_id);
+        heimdall_dialog_release(sys->p_mgr, sys->p_progress_id);
         sys->p_progress_id = NULL;
     }
-    vlc_timer_schedule(sys->timer, false, WATCH_TIMER_PERIOD,
-                       VLC_TIMER_FIRE_ONCE);
-    vlc_mutex_unlock(&sys->command_lock);
+    heimdall_timer_schedule(sys->timer, false, WATCH_TIMER_PERIOD,
+                       HEIMDALL_TIMER_FIRE_ONCE);
+    heimdall_mutex_unlock(&sys->command_lock);
 
     return 1;
 }
@@ -1027,10 +1028,10 @@ int vlclua_extension_keep_alive( lua_State *L )
  * @param newval Address of the dialog
  * @param p_data Unused
  **/
-static int vlclua_extension_dialog_callback( vlc_object_t *p_this,
+static int heimdalllua_extension_dialog_callback( heimdall_object_t *p_this,
                                              char const *psz_var,
-                                             vlc_value_t oldval,
-                                             vlc_value_t newval,
+                                             heimdall_value_t oldval,
+                                             heimdall_value_t newval,
                                              void *p_data )
 {
     /* psz_var == "dialog-event" */
@@ -1062,7 +1063,7 @@ static int vlclua_extension_dialog_callback( vlc_object_t *p_this,
             break;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /** Watch timer callback
@@ -1074,7 +1075,7 @@ static void WatchTimerCallback( void *data )
     struct lua_extension *sys = p_ext->p_sys;
     extensions_manager_t *p_mgr = sys->p_mgr;
 
-    vlc_mutex_lock(&sys->command_lock);
+    heimdall_mutex_lock(&sys->command_lock);
 
     for( struct command_t *cmd = sys->command;
          cmd != NULL;
@@ -1083,18 +1084,18 @@ static void WatchTimerCallback( void *data )
         {   /* We have a pending Deactivate command... */
             if (sys->p_progress_id != NULL)
             {
-                vlc_dialog_release(p_mgr, sys->p_progress_id);
+                heimdall_dialog_release(p_mgr, sys->p_progress_id);
                 sys->p_progress_id = NULL;
             }
             KillExtension(p_ext);
-            vlc_mutex_unlock(&sys->command_lock);
+            heimdall_mutex_unlock(&sys->command_lock);
             return;
         }
 
     if (sys->p_progress_id == NULL)
     {
         sys->p_progress_id =
-            vlc_dialog_display_progress( p_mgr, true, 0.0,
+            heimdall_dialog_display_progress( p_mgr, true, 0.0,
                                          _( "Yes" ),
                                          _( "Extension not responding!" ),
                                          _( "Extension '%s' does not respond.\n"
@@ -1103,24 +1104,24 @@ static void WatchTimerCallback( void *data )
         if (sys->p_progress_id == NULL)
         {
             KillExtension(p_ext);
-            vlc_mutex_unlock(&sys->command_lock);
+            heimdall_mutex_unlock(&sys->command_lock);
             return;
         }
-        vlc_timer_schedule(sys->timer, false, VLC_TICK_FROM_MS(100),
-                           VLC_TIMER_FIRE_ONCE);
+        heimdall_timer_schedule(sys->timer, false, HEIMDALL_TICK_FROM_MS(100),
+                           HEIMDALL_TIMER_FIRE_ONCE);
     }
     else
     {
-        if (vlc_dialog_is_cancelled(p_mgr, sys->p_progress_id))
+        if (heimdall_dialog_is_cancelled(p_mgr, sys->p_progress_id))
         {
-            vlc_dialog_release(p_mgr, sys->p_progress_id);
+            heimdall_dialog_release(p_mgr, sys->p_progress_id);
             sys->p_progress_id = NULL;
             KillExtension(p_ext);
-            vlc_mutex_unlock(&sys->command_lock);
+            heimdall_mutex_unlock(&sys->command_lock);
             return;
         }
-        vlc_timer_schedule(sys->timer, false, VLC_TICK_FROM_MS(100),
-                           VLC_TIMER_FIRE_ONCE);
+        heimdall_timer_schedule(sys->timer, false, HEIMDALL_TICK_FROM_MS(100),
+                           HEIMDALL_TIMER_FIRE_ONCE);
     }
-    vlc_mutex_unlock(&sys->command_lock);
+    heimdall_mutex_unlock(&sys->command_lock);
 }

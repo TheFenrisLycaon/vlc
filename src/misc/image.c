@@ -2,6 +2,7 @@
  * image.c : wrapper for image reading/writing facilities
  *****************************************************************************
  * Copyright (C) 2004-2007 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Gildas Bazin <gbazin@videolan.org>
  *
@@ -36,17 +37,17 @@
 #include <errno.h>
 #include <limits.h>
 
-#include <vlc_common.h>
-#include <vlc_codec.h>
-#include <vlc_meta.h>
-#include <vlc_filter.h>
-#include <vlc_es.h>
-#include <vlc_image.h>
-#include <vlc_stream.h>
-#include <vlc_fs.h>
-#include <vlc_sout.h>
-#include "../libvlc.h"
-#include <vlc_modules.h>
+#include <heimdall_common.h>
+#include <heimdall_codec.h>
+#include <heimdall_meta.h>
+#include <heimdall_filter.h>
+#include <heimdall_es.h>
+#include <heimdall_image.h>
+#include <heimdall_stream.h>
+#include <heimdall_fs.h>
+#include <heimdall_sout.h>
+#include "../libheimdall.h"
+#include <heimdall_modules.h>
 
 struct decoder_owner
 {
@@ -67,33 +68,33 @@ static picture_t *ImageReadUrl( image_handler_t *, const char *,
                                 video_format_t * );
 static block_t *ImageWrite( image_handler_t *, picture_t *,
                             const video_format_t *,
-                            vlc_fourcc_t, const video_format_t * );
+                            heimdall_fourcc_t, const video_format_t * );
 static int ImageWriteUrl( image_handler_t *, picture_t *,
                           const video_format_t *,
-                          vlc_fourcc_t, const video_format_t *,
+                          heimdall_fourcc_t, const video_format_t *,
                           const char * );
 
 static picture_t *ImageConvert( image_handler_t *, picture_t *,
                                 const video_format_t *, video_format_t * );
 
 static decoder_t *CreateDecoder( image_handler_t *, const es_format_t * );
-static encoder_t *CreateEncoder( vlc_object_t *, const video_format_t *,
-                                 vlc_fourcc_t, const video_format_t * );
-static filter_t *CreateConverter( vlc_object_t *, const es_format_t *,
-                                  struct vlc_video_context *,
+static encoder_t *CreateEncoder( heimdall_object_t *, const video_format_t *,
+                                 heimdall_fourcc_t, const video_format_t * );
+static filter_t *CreateConverter( heimdall_object_t *, const es_format_t *,
+                                  struct heimdall_video_context *,
                                   const video_format_t * );
 static void DeleteConverter( filter_t * );
 
-vlc_fourcc_t image_Type2Fourcc( const char * );
-vlc_fourcc_t image_Ext2Fourcc( const char * );
-/*static const char *Fourcc2Ext( vlc_fourcc_t );*/
+heimdall_fourcc_t image_Type2Fourcc( const char * );
+heimdall_fourcc_t image_Ext2Fourcc( const char * );
+/*static const char *Fourcc2Ext( heimdall_fourcc_t );*/
 
 #undef image_HandlerCreate
 /**
  * Create an image_handler_t instance
  *
  */
-image_handler_t *image_HandlerCreate( vlc_object_t *p_this )
+image_handler_t *image_HandlerCreate( heimdall_object_t *p_this )
 {
     image_handler_t *p_image = calloc( 1, sizeof(image_handler_t) );
     if( !p_image )
@@ -125,10 +126,10 @@ void image_HandlerDelete( image_handler_t *p_image )
         struct decoder_owner *p_owner = dec_get_owner( p_image->p_dec );
         decoder_Clean( p_image->p_dec );
         es_format_Clean( &p_owner->fmt_in );
-        vlc_object_delete( p_image->p_dec );
+        heimdall_object_delete( p_image->p_dec );
     }
     if( p_image->p_enc )
-        vlc_encoder_Destroy( p_image->p_enc );
+        heimdall_encoder_Destroy( p_image->p_enc );
     if( p_image->p_converter ) DeleteConverter( p_image->p_converter );
 
     picture_fifo_Delete( p_image->outfifo );
@@ -169,7 +170,7 @@ static picture_t *ImageRead( image_handler_t *p_image, block_t *p_block,
         struct decoder_owner *p_owner = dec_get_owner( p_image->p_dec );
         decoder_Clean( p_image->p_dec );
         es_format_Clean( &p_owner->fmt_in );
-        vlc_object_delete( p_image->p_dec );
+        heimdall_object_delete( p_image->p_dec );
         p_image->p_dec = NULL;
     }
 
@@ -187,16 +188,16 @@ static picture_t *ImageRead( image_handler_t *p_image, block_t *p_block,
             struct decoder_owner *p_owner = dec_get_owner( p_image->p_dec );
             decoder_Clean( p_image->p_dec );
             es_format_Clean( &p_owner->fmt_in );
-            vlc_object_delete( p_image->p_dec );
+            heimdall_object_delete( p_image->p_dec );
             p_image->p_dec = NULL;
             block_Release(p_block);
             return NULL;
         }
     }
 
-    p_block->i_pts = p_block->i_dts = vlc_tick_now();
+    p_block->i_pts = p_block->i_dts = heimdall_tick_now();
     int ret = p_image->p_dec->pf_decode( p_image->p_dec, p_block );
-    if( ret == VLCDEC_SUCCESS )
+    if( ret == HEIMDALLDEC_SUCCESS )
     {
         /* Drain */
         p_image->p_dec->pf_decode( p_image->p_dec, NULL );
@@ -311,7 +312,7 @@ static picture_t *ImageReadUrl( image_handler_t *p_image, const char *psz_url,
     stream_t *p_stream = NULL;
     uint64_t i_size;
 
-    p_stream = vlc_stream_NewURL( p_image->p_parent, psz_url );
+    p_stream = heimdall_stream_NewURL( p_image->p_parent, psz_url );
 
     if( !p_stream )
     {
@@ -320,17 +321,17 @@ static picture_t *ImageReadUrl( image_handler_t *p_image, const char *psz_url,
         return NULL;
     }
 
-    if( vlc_stream_GetSize( p_stream, &i_size ) || i_size > SSIZE_MAX )
+    if( heimdall_stream_GetSize( p_stream, &i_size ) || i_size > SSIZE_MAX )
     {
         msg_Dbg( p_image->p_parent, "could not read %s", psz_url );
         goto error;
     }
 
-    p_block = vlc_stream_Block( p_stream, i_size );
+    p_block = heimdall_stream_Block( p_stream, i_size );
     if( p_block == NULL )
         goto error;
 
-    vlc_fourcc_t i_chroma = 0;
+    heimdall_fourcc_t i_chroma = 0;
     char *psz_mime = stream_MimeType( p_stream );
     if( psz_mime != NULL )
     {
@@ -342,7 +343,7 @@ static picture_t *ImageReadUrl( image_handler_t *p_image, const char *psz_url,
        /* Try to guess format from file name */
        i_chroma = image_Ext2Fourcc( psz_url );
     }
-    vlc_stream_Delete( p_stream );
+    heimdall_stream_Delete( p_stream );
 
 
     es_format_t fmtin;
@@ -353,7 +354,7 @@ static picture_t *ImageReadUrl( image_handler_t *p_image, const char *psz_url,
 
     return p_pic;
 error:
-    vlc_stream_Delete( p_stream );
+    heimdall_stream_Delete( p_stream );
     return NULL;
 }
 
@@ -364,7 +365,7 @@ error:
 
 static block_t *ImageWrite( image_handler_t *p_image, picture_t *p_pic,
                             const video_format_t *p_fmt_in,
-                            vlc_fourcc_t codec, const video_format_t *p_fmt_out )
+                            heimdall_fourcc_t codec, const video_format_t *p_fmt_out )
 {
     /* Check if we can reuse the current encoder */
     if( p_image->p_enc &&
@@ -372,7 +373,7 @@ static block_t *ImageWrite( image_handler_t *p_image, picture_t *p_pic,
           p_image->p_enc->fmt_out.video.i_width != p_fmt_out->i_width ||
           p_image->p_enc->fmt_out.video.i_height != p_fmt_out->i_height ) )
     {
-        vlc_encoder_Destroy( p_image->p_enc );
+        heimdall_encoder_Destroy( p_image->p_enc );
         p_image->p_enc = 0;
     }
 
@@ -438,7 +439,7 @@ static block_t *ImageWrite( image_handler_t *p_image, picture_t *p_pic,
     block_t *p_block = NULL;
     if (p_pic != NULL)
     {
-        p_block = vlc_encoder_EncodeVideo(p_image->p_enc, p_pic);
+        p_block = heimdall_encoder_EncodeVideo(p_image->p_enc, p_pic);
         picture_Release(p_pic);
     }
 
@@ -453,7 +454,7 @@ static block_t *ImageWrite( image_handler_t *p_image, picture_t *p_pic,
 
 static int ImageWriteUrl( image_handler_t *p_image, picture_t *p_pic,
                           const video_format_t *p_fmt_in,
-                          vlc_fourcc_t codec, const video_format_t *p_fmt_out,
+                          heimdall_fourcc_t codec, const video_format_t *p_fmt_out,
                           const char *psz_url )
 {
     block_t *p_block;
@@ -466,11 +467,11 @@ static int ImageWriteUrl( image_handler_t *p_image, picture_t *p_pic,
         codec = image_Ext2Fourcc( psz_url );
     }
 
-    file = vlc_fopen( psz_url, "wb" );
+    file = heimdall_fopen( psz_url, "wb" );
     if( !file )
     {
-        msg_Err( p_image->p_parent, "%s: %s", psz_url, vlc_strerror_c(errno) );
-        return VLC_EGENERIC;
+        msg_Err( p_image->p_parent, "%s: %s", psz_url, heimdall_strerror_c(errno) );
+        return HEIMDALL_EGENERIC;
     }
 
     p_block = ImageWrite( p_image, p_pic, p_fmt_in, codec, &fmt_out );
@@ -489,10 +490,10 @@ static int ImageWriteUrl( image_handler_t *p_image, picture_t *p_pic,
     if( err )
     {
        errno = err;
-       msg_Err( p_image->p_parent, "%s: %s", psz_url, vlc_strerror_c(errno) );
+       msg_Err( p_image->p_parent, "%s: %s", psz_url, heimdall_strerror_c(errno) );
     }
 
-    return err ? VLC_EGENERIC : VLC_SUCCESS;
+    return err ? HEIMDALL_EGENERIC : HEIMDALL_SUCCESS;
 }
 
 /**
@@ -573,38 +574,38 @@ static picture_t *ImageConvert( image_handler_t *p_image, picture_t *p_pic,
  */
 static const struct
 {
-    vlc_fourcc_t i_codec;
+    heimdall_fourcc_t i_codec;
     const char psz_ext[7];
 
 } ext_table[] =
 {
-    { VLC_CODEC_JPEG,              "jpeg" },
-    { VLC_CODEC_JPEG,              "jpg"  },
-    { VLC_CODEC_JPEGLS,            "ljpg" },
-    { VLC_CODEC_BPG,               "bpg" },
-    { VLC_CODEC_PNG,               "png" },
-    { VLC_CODEC_PGM,               "pgm" },
-    { VLC_CODEC_PGMYUV,            "pgmyuv" },
-    { VLC_FOURCC('p','b','m',' '), "pbm" },
-    { VLC_FOURCC('p','a','m',' '), "pam" },
-    { VLC_CODEC_TARGA,             "tga" },
-    { VLC_CODEC_BMP,               "bmp" },
-    { VLC_CODEC_FARBFELD,          "farb" },
-    { VLC_CODEC_PNM,               "pnm" },
-    { VLC_FOURCC('x','p','m',' '), "xpm" },
-    { VLC_FOURCC('x','c','f',' '), "xcf" },
-    { VLC_CODEC_PCX,               "pcx" },
-    { VLC_CODEC_GIF,               "gif" },
-    { VLC_CODEC_QOI,               "qoi" },
-    { VLC_CODEC_SVG,               "svg" },
-    { VLC_CODEC_TIFF,              "tif" },
-    { VLC_CODEC_TIFF,              "tiff" },
-    { VLC_CODEC_WEBP,              "webp" },
-    { VLC_FOURCC('l','b','m',' '), "lbm" },
-    { VLC_CODEC_PPM,               "ppm" },
+    { HEIMDALL_CODEC_JPEG,              "jpeg" },
+    { HEIMDALL_CODEC_JPEG,              "jpg"  },
+    { HEIMDALL_CODEC_JPEGLS,            "ljpg" },
+    { HEIMDALL_CODEC_BPG,               "bpg" },
+    { HEIMDALL_CODEC_PNG,               "png" },
+    { HEIMDALL_CODEC_PGM,               "pgm" },
+    { HEIMDALL_CODEC_PGMYUV,            "pgmyuv" },
+    { HEIMDALL_FOURCC('p','b','m',' '), "pbm" },
+    { HEIMDALL_FOURCC('p','a','m',' '), "pam" },
+    { HEIMDALL_CODEC_TARGA,             "tga" },
+    { HEIMDALL_CODEC_BMP,               "bmp" },
+    { HEIMDALL_CODEC_FARBFELD,          "farb" },
+    { HEIMDALL_CODEC_PNM,               "pnm" },
+    { HEIMDALL_FOURCC('x','p','m',' '), "xpm" },
+    { HEIMDALL_FOURCC('x','c','f',' '), "xcf" },
+    { HEIMDALL_CODEC_PCX,               "pcx" },
+    { HEIMDALL_CODEC_GIF,               "gif" },
+    { HEIMDALL_CODEC_QOI,               "qoi" },
+    { HEIMDALL_CODEC_SVG,               "svg" },
+    { HEIMDALL_CODEC_TIFF,              "tif" },
+    { HEIMDALL_CODEC_TIFF,              "tiff" },
+    { HEIMDALL_CODEC_WEBP,              "webp" },
+    { HEIMDALL_FOURCC('l','b','m',' '), "lbm" },
+    { HEIMDALL_CODEC_PPM,               "ppm" },
 };
 
-vlc_fourcc_t image_Type2Fourcc( const char *psz_type )
+heimdall_fourcc_t image_Type2Fourcc( const char *psz_type )
 {
     for( unsigned i = 0; i < ARRAY_SIZE(ext_table); i++ )
         if( !strcasecmp( ext_table[i].psz_ext, psz_type ) )
@@ -613,7 +614,7 @@ vlc_fourcc_t image_Type2Fourcc( const char *psz_type )
     return 0;
 }
 
-vlc_fourcc_t image_Ext2Fourcc( const char *psz_name )
+heimdall_fourcc_t image_Ext2Fourcc( const char *psz_name )
 {
     psz_name = strrchr( psz_name, '.' );
     if( !psz_name ) return 0;
@@ -624,34 +625,34 @@ vlc_fourcc_t image_Ext2Fourcc( const char *psz_name )
 
 static const struct
 {
-    vlc_fourcc_t i_codec;
+    heimdall_fourcc_t i_codec;
     const char *psz_mime;
 } mime_table[] =
 {
-    { VLC_CODEC_BMP,               "image/bmp" },
-    { VLC_CODEC_BMP,               "image/x-bmp" },
-    { VLC_CODEC_BMP,               "image/x-bitmap" },
-    { VLC_CODEC_BMP,               "image/x-ms-bmp" },
-    { VLC_CODEC_PNM,               "image/x-portable-anymap" },
-    { VLC_CODEC_PNM,               "image/x-portable-bitmap" },
-    { VLC_CODEC_PNM,               "image/x-portable-graymap" },
-    { VLC_CODEC_PNM,               "image/x-portable-pixmap" },
-    { VLC_CODEC_GIF,               "image/gif" },
-    { VLC_CODEC_JPEG,              "image/jpeg" },
-    { VLC_CODEC_BPG,               "image/bpg" },
-    { VLC_CODEC_FARBFELD,          "image/farbfeld" },
-    { VLC_CODEC_PCX,               "image/pcx" },
-    { VLC_CODEC_PNG,               "image/png" },
-    { VLC_CODEC_QOI,               "image/qoi" },
-    { VLC_CODEC_SVG,               "image/svg+xml" },
-    { VLC_CODEC_TIFF,              "image/tiff" },
-    { VLC_CODEC_TARGA,             "image/x-tga" },
-    { VLC_CODEC_WEBP,              "image/webp" },
-    { VLC_FOURCC('x','p','m',' '), "image/x-xpixmap" },
+    { HEIMDALL_CODEC_BMP,               "image/bmp" },
+    { HEIMDALL_CODEC_BMP,               "image/x-bmp" },
+    { HEIMDALL_CODEC_BMP,               "image/x-bitmap" },
+    { HEIMDALL_CODEC_BMP,               "image/x-ms-bmp" },
+    { HEIMDALL_CODEC_PNM,               "image/x-portable-anymap" },
+    { HEIMDALL_CODEC_PNM,               "image/x-portable-bitmap" },
+    { HEIMDALL_CODEC_PNM,               "image/x-portable-graymap" },
+    { HEIMDALL_CODEC_PNM,               "image/x-portable-pixmap" },
+    { HEIMDALL_CODEC_GIF,               "image/gif" },
+    { HEIMDALL_CODEC_JPEG,              "image/jpeg" },
+    { HEIMDALL_CODEC_BPG,               "image/bpg" },
+    { HEIMDALL_CODEC_FARBFELD,          "image/farbfeld" },
+    { HEIMDALL_CODEC_PCX,               "image/pcx" },
+    { HEIMDALL_CODEC_PNG,               "image/png" },
+    { HEIMDALL_CODEC_QOI,               "image/qoi" },
+    { HEIMDALL_CODEC_SVG,               "image/svg+xml" },
+    { HEIMDALL_CODEC_TIFF,              "image/tiff" },
+    { HEIMDALL_CODEC_TARGA,             "image/x-tga" },
+    { HEIMDALL_CODEC_WEBP,              "image/webp" },
+    { HEIMDALL_FOURCC('x','p','m',' '), "image/x-xpixmap" },
     { 0, NULL }
 };
 
-vlc_fourcc_t image_Mime2Fourcc( const char *psz_mime )
+heimdall_fourcc_t image_Mime2Fourcc( const char *psz_mime )
 {
     for( int i = 0; mime_table[i].i_codec; i++ )
         if( !strcmp( psz_mime, mime_table[i].psz_mime ) )
@@ -659,9 +660,9 @@ vlc_fourcc_t image_Mime2Fourcc( const char *psz_mime )
     return 0;
 }
 
-static vlc_decoder_device * image_get_device( decoder_t *p_dec )
+static heimdall_decoder_device * image_get_device( decoder_t *p_dec )
 {
-    VLC_UNUSED(p_dec);
+    HEIMDALL_UNUSED(p_dec);
     return NULL; // no hardware decoding for now
 }
 
@@ -670,7 +671,7 @@ static decoder_t *CreateDecoder( image_handler_t *p_image, const es_format_t *fm
     decoder_t *p_dec;
     struct decoder_owner *p_owner;
 
-    p_owner = vlc_custom_create( p_image->p_parent, sizeof( *p_owner ), "image decoder" );
+    p_owner = heimdall_custom_create( p_image->p_parent, sizeof( *p_owner ), "image decoder" );
     if( p_owner == NULL )
         return NULL;
     p_dec = &p_owner->dec;
@@ -692,12 +693,12 @@ static decoder_t *CreateDecoder( image_handler_t *p_image, const es_format_t *fm
     if( !p_dec->p_module )
     {
         msg_Err( p_dec, "no suitable decoder module for fourcc `%4.4s'. "
-                 "VLC probably does not support this image format.",
+                 "Heimdall probably does not support this image format.",
                  (char*)&p_dec->fmt_in->i_codec );
 
         decoder_Clean( p_dec );
         es_format_Clean( &p_owner->fmt_in );
-        vlc_object_delete( p_dec );
+        heimdall_object_delete( p_dec );
         p_dec = NULL;
     }
 
@@ -705,8 +706,8 @@ static decoder_t *CreateDecoder( image_handler_t *p_image, const es_format_t *fm
 }
 
 
-static encoder_t *CreateEncoder( vlc_object_t *p_this, const video_format_t *fmt_in,
-                                 vlc_fourcc_t codec, const video_format_t *fmt_out )
+static encoder_t *CreateEncoder( heimdall_object_t *p_this, const video_format_t *fmt_in,
+                                 heimdall_fourcc_t codec, const video_format_t *fmt_out )
 {
     encoder_t *p_enc;
 
@@ -749,10 +750,10 @@ static encoder_t *CreateEncoder( vlc_object_t *p_this, const video_format_t *fmt
     if( !p_enc->p_module )
     {
         msg_Err( p_enc, "no suitable encoder module for fourcc `%4.4s'.\n"
-                 "VLC probably does not support this image format.",
+                 "Heimdall probably does not support this image format.",
                  (char*)&p_enc->fmt_out.i_codec );
 
-        vlc_encoder_Destroy( p_enc );
+        heimdall_encoder_Destroy( p_enc );
         return NULL;
     }
     assert( p_enc->ops != NULL );
@@ -760,14 +761,14 @@ static encoder_t *CreateEncoder( vlc_object_t *p_this, const video_format_t *fmt
     return p_enc;
 }
 
-static filter_t *CreateConverter( vlc_object_t *p_this,
+static filter_t *CreateConverter( heimdall_object_t *p_this,
                                   const es_format_t *p_fmt_in,
-                                  struct vlc_video_context *p_vctx_in,
+                                  struct heimdall_video_context *p_vctx_in,
                                   const video_format_t *p_fmt_out )
 {
     filter_t *p_filter;
 
-    p_filter = vlc_custom_create( p_this, sizeof(filter_t), "filter" );
+    p_filter = heimdall_custom_create( p_this, sizeof(filter_t), "filter" );
 
     es_format_Copy( &p_filter->fmt_in, p_fmt_in );
     es_format_Copy( &p_filter->fmt_out, p_fmt_in );
@@ -779,7 +780,7 @@ static filter_t *CreateConverter( vlc_object_t *p_this,
 
     p_filter->fmt_out.i_codec = p_fmt_out->i_chroma;
     p_filter->vctx_in = p_vctx_in;
-    p_filter->p_module = vlc_filter_LoadModule( p_filter, "video converter", NULL, false );
+    p_filter->p_module = heimdall_filter_LoadModule( p_filter, "video converter", NULL, false );
 
     if( !p_filter->p_module )
     {
@@ -794,10 +795,10 @@ static filter_t *CreateConverter( vlc_object_t *p_this,
 
 static void DeleteConverter( filter_t * p_filter )
 {
-    vlc_filter_UnloadModule( p_filter );
+    heimdall_filter_UnloadModule( p_filter );
 
     es_format_Clean( &p_filter->fmt_in );
     es_format_Clean( &p_filter->fmt_out );
 
-    vlc_object_delete(p_filter);
+    heimdall_object_delete(p_filter);
 }

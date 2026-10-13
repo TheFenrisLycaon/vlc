@@ -1,7 +1,8 @@
 /*****************************************************************************
- * algo_basic.h : Basic algorithms for the VLC deinterlacer
+ * algo_basic.h : Basic algorithms for the Heimdall deinterlacer
  *****************************************************************************
  * Copyright (C) 2000-2011 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Sam Hocevar <sam@zoy.org>
  *         Damien Lucas <nitrox@videolan.org>  (Bob, Blend)
@@ -22,8 +23,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_DEINTERLACE_ALGO_BASIC_H
-#define VLC_DEINTERLACE_ALGO_BASIC_H 1
+#ifndef HEIMDALL_DEINTERLACE_ALGO_BASIC_H
+#define HEIMDALL_DEINTERLACE_ALGO_BASIC_H 1
 
 /**
  * \file

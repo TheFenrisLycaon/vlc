@@ -2,8 +2,9 @@
  * win.c: Windows specific functions
  *****************************************************************************
  * Copyright (C) 2007-2012 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Antoine Cellerier <dionoea at videolan tod org>
+ * Authors: Antoine Cellerier <dionoea at lycaria tod org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,15 +29,15 @@
 #endif
 
 #include <stdbit.h>
-#include <vlc_common.h>
-#include <vlc_charset.h>
+#include <heimdall_common.h>
+#include <heimdall_charset.h>
 
-#include "../vlc.h"
+#include "../heimdall.h"
 #include "../libs.h"
 
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
 
-/* Based on modules/control/rc.c and include/vlc_interface.h */
+/* Based on modules/control/rc.c and include/heimdall_interface.h */
 static HANDLE GetConsole( lua_State *L )
 {
     /* Get the file descriptor of the console input */
@@ -125,7 +126,7 @@ static bool ReadWin32( HANDLE *hConsoleIn, unsigned char *p_buffer, int *pi_size
     return true;
 }
 
-static int vlclua_console_init( lua_State *L )
+static int heimdalllua_console_init( lua_State *L )
 {
     (void)L;
     //if ( !AllocConsole() )
@@ -138,7 +139,7 @@ static int vlclua_console_init( lua_State *L )
     return 0;
 }
 
-static int vlclua_console_wait( lua_State *L )
+static int heimdalllua_console_wait( lua_State *L )
 {
     int i_timeout = (int)luaL_optinteger( L, 1, 0 );
     DWORD status = WaitForSingleObject( GetConsole( L ), i_timeout );
@@ -147,7 +148,7 @@ static int vlclua_console_wait( lua_State *L )
 }
 
 
-static int vlclua_console_read( lua_State *L )
+static int heimdalllua_console_read( lua_State *L )
 {
     char psz_buffer[MAX_LINE_LENGTH+1];
     int i_size = 0;
@@ -157,7 +158,7 @@ static int vlclua_console_read( lua_State *L )
     return 1;
 }
 
-static int vlclua_console_write( lua_State *L )
+static int heimdalllua_console_write( lua_State *L )
 {
     if( !lua_isstring( L, 1 ) )
         return luaL_error( L, "win.console_write usage: (text)" );
@@ -169,18 +170,18 @@ static int vlclua_console_write( lua_State *L )
 /*****************************************************************************
  *
  *****************************************************************************/
-static const luaL_Reg vlclua_win_reg[] = {
-    { "console_init", vlclua_console_init },
-    { "console_wait", vlclua_console_wait },
-    { "console_read", vlclua_console_read },
-    { "console_write", vlclua_console_write },
+static const luaL_Reg heimdalllua_win_reg[] = {
+    { "console_init", heimdalllua_console_init },
+    { "console_wait", heimdalllua_console_wait },
+    { "console_read", heimdalllua_console_read },
+    { "console_write", heimdalllua_console_write },
     { NULL, NULL }
 };
 
 void luaopen_win( lua_State *L )
 {
     lua_newtable( L );
-    luaL_register( L, NULL, vlclua_win_reg );
+    luaL_register( L, NULL, heimdalllua_win_reg );
     lua_setfield( L, -2, "win" );
 }
 

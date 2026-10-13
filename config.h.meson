@@ -1,6 +1,6 @@
 /* Config template used by meson to generate config.h */
 
-/* Define to 1 to allow running VLC as root (uid 0). */
+/* Define to 1 to allow running Heimdall as root (uid 0). */
 #mesondefine ALLOW_RUN_AS_ROOT
 
 /* Define to 1 if AVX inline assembly is available. */
@@ -49,7 +49,7 @@
 /* Define to 1 for stream output support. */
 #mesondefine ENABLE_SOUT
 
-/* Define if you want the VideoLAN manager support */
+/* Define if you want the Lycaria manager support */
 #mesondefine ENABLE_VLM
 
 /* Enable compile-time and run-time bounds-checking, and some warnings,
@@ -431,11 +431,11 @@
 /* Define to 1 if you have the `vasprintf' function. */
 #mesondefine HAVE_VASPRINTF
 
-/* Define to 1 if vlc_process_Spawn() is usable. */
-#mesondefine HAVE_VLC_PROCESS_SPAWN
+/* Define to 1 if heimdall_process_Spawn() is usable. */
+#mesondefine HAVE_HEIMDALL_PROCESS_SPAWN
 
 /* Define to 1 if the out-of-process preparser is supported. */
-#mesondefine HAVE_VLC_EXTERNAL_PREPARSER
+#mesondefine HAVE_HEIMDALL_EXTERNAL_PREPARSER
 
 /* Define to 1 if you have the `vmsplice' function. */
 #mesondefine HAVE_VMSPLICE
@@ -470,17 +470,17 @@
 /* Dynamic object extension */
 #mesondefine LIBEXT
 
-/* libvlc version major number */
-#mesondefine LIBVLC_ABI_MAJOR
+/* libheimdall version major number */
+#mesondefine LIBHEIMDALL_ABI_MAJOR
 
-/* libvlc version micro number */
-#mesondefine LIBVLC_ABI_MICRO
+/* libheimdall version micro number */
+#mesondefine LIBHEIMDALL_ABI_MICRO
 
-/* libvlc version minor number */
-#mesondefine LIBVLC_ABI_MINOR
+/* libheimdall version minor number */
+#mesondefine LIBHEIMDALL_ABI_MINOR
 
-/* Define within the LibVLC source code tree. */
-#define LIBVLC_INTERNAL_
+/* Define within the LibHeimdall source code tree. */
+#define LIBHEIMDALL_INTERNAL_
 
 /* Define to the libdir */
 #mesondefine LIBDIR
@@ -545,13 +545,13 @@
 #mesondefine VERSION_MESSAGE
 
 /* compiler */
-#mesondefine VLC_COMPILER
+#mesondefine HEIMDALL_COMPILER
 
 /* user who ran configure */
-#mesondefine VLC_COMPILE_BY
+#mesondefine HEIMDALL_COMPILE_BY
 
 /* host which ran configure */
-#mesondefine VLC_COMPILE_HOST
+#mesondefine HEIMDALL_COMPILE_HOST
 
 #ifdef _WIN32
 
@@ -597,7 +597,7 @@
 #mesondefine ssize_t
 #mesondefine SSIZE_MAX
 
-#include <vlc_fixups.h>
+#include <heimdall_fixups.h>
 
 
 #if defined(_MSC_VER) && !defined(__clang__)

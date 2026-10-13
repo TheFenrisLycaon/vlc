@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright © 2010-2014 VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Thomas Guillem <thomas.guillem@gmail.com>
  *
@@ -28,8 +29,8 @@
 #include "hxxx_nal.h"
 #include "hxxx_ep3b.h"
 
-#include <vlc_common.h>
-#include <vlc_bits.h>
+#include <heimdall_common.h>
+#include <heimdall_bits.h>
 
 #include <limits.h>
 
@@ -725,7 +726,7 @@ static bool hevc_parse_st_ref_pic_set( bs_t *p_bs, unsigned stRpsIdx,
         nal_ue_t abs_delta_rps_minus1 = bs_read_ue( p_bs );
         unsigned RefRpsIdx = stRpsIdx - delta_idx_minus_1 - 1;
         int deltaRps = ( 1 - ( delta_rps_sign << 1 ) ) * ( abs_delta_rps_minus1 + 1 );
-        VLC_UNUSED(deltaRps);
+        HEIMDALL_UNUSED(deltaRps);
 
         unsigned numDeltaPocs = p_sets[RefRpsIdx].num_delta_pocs;
         p_sets[stRpsIdx].num_delta_pocs = 0;
@@ -1325,7 +1326,7 @@ static unsigned hevc_make_indication( const hevc_inner_profile_tier_level_t *p )
     return indication;
 }
 
-enum vlc_hevc_profile_e hevc_get_vlc_profile( const hevc_sequence_parameter_set_t *p_sps )
+enum heimdall_hevc_profile_e hevc_get_heimdall_profile( const hevc_sequence_parameter_set_t *p_sps )
 {
     unsigned indication = 0;
     enum hevc_general_profile_idc_e profile = p_sps->profile_tier_level.general.profile_idc;

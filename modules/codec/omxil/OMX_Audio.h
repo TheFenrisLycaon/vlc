@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2008 The Khronos Group Inc. 
+ * Copyright (C) 2026 TheFenrisLycaon
  * 
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -265,7 +266,7 @@ typedef enum OMX_AUDIO_AACPROFILETYPE{
  * Required for ER encoder configuration and optional as decoder info output */
 #define OMX_AUDIO_AACERNone  0x00000000  /**< no AAC ER tools allowed/used */
 #define OMX_AUDIO_AACERVCB11 0x00000001  /**< VCB11: Virtual Code Books for AAC section data */
-#define OMX_AUDIO_AACERRVLC  0x00000002  /**< RVLC: Reversible Variable Length Coding */
+#define OMX_AUDIO_AACERRHEIMDALL  0x00000002  /**< RHEIMDALL: Reversible Variable Length Coding */
 #define OMX_AUDIO_AACERHCR   0x00000004  /**< HCR: Huffman Codeword Reordering */
 #define OMX_AUDIO_AACERAll   0x7FFFFFFF  /**< all AAC ER tools allowed/used */
 

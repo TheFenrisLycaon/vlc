@@ -1,7 +1,8 @@
 /*****************************************************************************
- * ts_psi.h: Transport Stream input module for VLC.
+ * ts_psi.h: Transport Stream input module for Heimdall.
  *****************************************************************************
  * Copyright (C) 2004-2016 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -16,8 +17,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
-#ifndef VLC_TS_PSI_H
-#define VLC_TS_PSI_H
+#ifndef HEIMDALL_TS_PSI_H
+#define HEIMDALL_TS_PSI_H
 
 #include "ts_pid_fwd.h"
 

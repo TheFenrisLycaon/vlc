@@ -2,6 +2,7 @@
  * help.c: command line help
  *****************************************************************************
  * Copyright (C) 1998-2011 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -31,14 +32,14 @@
 #include <limits.h>
 #include <float.h>
 
-#include <vlc_common.h>
-#include <vlc_modules.h>
-#include <vlc_plugin.h>
-#include <vlc_charset.h>
+#include <heimdall_common.h>
+#include <heimdall_modules.h>
+#include <heimdall_plugin.h>
+#include <heimdall_charset.h>
 #include "ansi_term.h"
 #include "modules/modules.h"
 #include "config/configuration.h"
-#include "../libvlc.h"
+#include "../libheimdall.h"
 
 #if defined( _WIN32 )
 # define wcwidth(cp) ((void)(cp), 1) /* LOL */
@@ -47,11 +48,11 @@
 
 #if defined( _WIN32 )
 # if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
-#  define HAVE_VLC_SHOWCONSOLE
+#  define HAVE_HEIMDALL_SHOWCONSOLE
 # endif
 #endif
 
-#ifdef HAVE_VLC_SHOWCONSOLE
+#ifdef HAVE_HEIMDALL_SHOWCONSOLE
 static void ShowConsole (void);
 static void PauseConsole (void);
 #else
@@ -59,10 +60,10 @@ static void PauseConsole (void);
 # define PauseConsole() (void)0
 #endif
 
-static void Help (libvlc_int_t *, const char *);
-static void Usage (libvlc_int_t *, const char *);
+static void Help (libheimdall_int_t *, const char *);
+static void Usage (libheimdall_int_t *, const char *);
 static void Version (void);
-static void ListModules (libvlc_int_t *, bool);
+static void ListModules (libheimdall_int_t *, bool);
 
 /**
  * Returns the console width or a best guess.
@@ -98,7 +99,7 @@ static unsigned ConsoleWidth(void)
  * \return true if a command line options caused some help message to be
  * printed, false otherwise.
  */
-bool config_PrintHelp (libvlc_int_t *obj)
+bool config_PrintHelp (libheimdall_int_t *obj)
 {
     char *str;
 
@@ -121,7 +122,7 @@ bool config_PrintHelp (libvlc_int_t *obj)
     /* Check for full help option */
     if (var_InheritBool (obj, "full-help"))
     {
-        var_Create (obj, "help-verbose", VLC_VAR_BOOL);
+        var_Create (obj, "help-verbose", HEIMDALL_VAR_BOOL);
         var_SetBool (obj, "help-verbose", true);
         Help (obj, "full-help");
         return true;
@@ -167,7 +168,7 @@ static inline void print_help_on_full_help( void )
     puts(_("To get exhaustive help, use '-H'."));
 }
 
-static const char vlc_usage[] = N_(
+static const char heimdall_usage[] = N_(
   "Usage: %s [options] [stream] ...\n"
   "You can specify multiple streams on the commandline.\n"
   "They will be enqueued in the playlist.\n"
@@ -197,29 +198,29 @@ static const char vlc_usage[] = N_(
   "  cdda://[device]                Audio CD device\n"
   "  udp://[[<source address>]@[<bind address>][:<bind port>]]\n"
   "                                 UDP stream sent by a streaming server\n"
-  "  vlc://pause:<seconds>          Pause the playlist for a certain time\n"
-  "  vlc://quit                     Special item to quit VLC\n"
+  "  heimdall://pause:<seconds>          Pause the playlist for a certain time\n"
+  "  heimdall://quit                     Special item to quit Heimdall\n"
   "\n");
 
-static void Help (libvlc_int_t *p_this, char const *psz_help_name)
+static void Help (libheimdall_int_t *p_this, char const *psz_help_name)
 {
     ShowConsole();
 
     if( psz_help_name && !strcmp( psz_help_name, "help" ) )
     {
-        printf(_(vlc_usage), "vlc");
+        printf(_(heimdall_usage), "heimdall");
         Usage( p_this, "=core" );
         print_help_on_full_help();
     }
     else if( psz_help_name && !strcmp( psz_help_name, "longhelp" ) )
     {
-        printf(_(vlc_usage), "vlc");
+        printf(_(heimdall_usage), "heimdall");
         Usage( p_this, NULL );
         print_help_on_full_help();
     }
     else if( psz_help_name && !strcmp( psz_help_name, "full-help" ) )
     {
-        printf(_(vlc_usage), "vlc");
+        printf(_(heimdall_usage), "heimdall");
         Usage( p_this, NULL );
     }
     else if( psz_help_name )
@@ -270,7 +271,7 @@ static void print_desc(const char *str, unsigned margin, bool color)
     while (str[0])
     {
         uint32_t cp;
-        ssize_t charlen = vlc_towc(str, &cp);
+        ssize_t charlen = heimdall_towc(str, &cp);
         if (unlikely(charlen == -1))
             break;
 
@@ -320,12 +321,12 @@ static void print_desc(const char *str, unsigned margin, bool color)
     printf(color ? "%s\n" TS_RESET : "%s\n", word);
 }
 
-static int vlc_swidth(const char *str)
+static int heimdall_swidth(const char *str)
 {
     for (int total = 0;;)
     {
         uint32_t cp;
-        ssize_t charlen = vlc_towc(str, &cp);
+        ssize_t charlen = heimdall_towc(str, &cp);
 
         if (charlen == 0)
             return total;
@@ -340,7 +341,7 @@ static int vlc_swidth(const char *str)
     }
 }
 
-static void print_item(const module_t *m, const struct vlc_param *param,
+static void print_item(const module_t *m, const struct heimdall_param *param,
                        const module_config_t **section, bool color, bool desc)
 {
     const module_config_t *item = &param->item;
@@ -513,9 +514,9 @@ static void print_item(const module_t *m, const struct vlc_param *param,
 
     /* Wrap description */
     int offset = PADDING_SPACES - strlen(item->psz_name)
-               - strlen(bra) - vlc_swidth(type) - strlen(ket) - 1;
+               - strlen(bra) - heimdall_swidth(type) - strlen(ket) - 1;
     if (CONFIG_CLASS(item->i_type) == CONFIG_ITEM_BOOL)
-        offset -= strlen(item->psz_name) + vlc_swidth(prefix);
+        offset -= strlen(item->psz_name) + heimdall_swidth(prefix);
     if (offset < 0)
     {
         putchar('\n');
@@ -564,11 +565,11 @@ static bool module_match(const module_t *m, const char *pattern, bool strict)
     return false;
 }
 
-static bool plugin_show(const vlc_plugin_t *plugin)
+static bool plugin_show(const heimdall_plugin_t *plugin)
 {
     for (size_t i = 0; i < plugin->conf.size; i++)
     {
-        const struct vlc_param *param = plugin->conf.params + i;
+        const struct heimdall_param *param = plugin->conf.params + i;
         const module_config_t *item = &param->item;
 
         if (!CONFIG_ITEM(item->i_type))
@@ -580,7 +581,7 @@ static bool plugin_show(const vlc_plugin_t *plugin)
     return false;
 }
 
-static void Usage (libvlc_int_t *p_this, char const *psz_search)
+static void Usage (libheimdall_int_t *p_this, char const *psz_search)
 {
     bool found = false;
     bool strict = false;
@@ -599,7 +600,7 @@ static void Usage (libvlc_int_t *p_this, char const *psz_search)
     const bool desc = var_InheritBool(p_this, "help-verbose");
 
     /* Enumerate the config for each module */
-    for (const vlc_plugin_t *p = vlc_plugins; p != NULL; p = p->next)
+    for (const heimdall_plugin_t *p = heimdall_plugins; p != NULL; p = p->next)
     {
         const module_t *m = p->module;
         const module_config_t *section = NULL;
@@ -627,7 +628,7 @@ static void Usage (libvlc_int_t *p_this, char const *psz_search)
         /* Print module options */
         for (size_t j = 0; j < p->conf.size; j++)
         {
-            const struct vlc_param *param = p->conf.params + j;
+            const struct heimdall_param *param = p->conf.params + j;
 
             if (param->obsolete)
                 continue; /* Skip removed options */
@@ -648,7 +649,7 @@ static void Usage (libvlc_int_t *p_this, char const *psz_search)
  * Print a list of all available modules (builtins and plugins) and a short
  * description for each one.
  *****************************************************************************/
-static void ListModules (libvlc_int_t *p_this, bool b_verbose)
+static void ListModules (libheimdall_int_t *p_this, bool b_verbose)
 {
     bool color = false;
 
@@ -696,15 +697,15 @@ static void ListModules (libvlc_int_t *p_this, bool b_verbose)
 static void Version( void )
 {
     ShowConsole();
-    printf(_("VLC version %s (%s)\n"), VERSION_MESSAGE, psz_vlc_changeset);
-    printf(_("Compiled by %s on %s (%s)\n"), VLC_CompileBy(),
-           VLC_CompileHost(), __DATE__" "__TIME__ );
-    printf(_("Compiler: %s\n"), VLC_Compiler());
+    printf(_("Heimdall version %s (%s)\n"), VERSION_MESSAGE, psz_heimdall_changeset);
+    printf(_("Compiled by %s on %s (%s)\n"), Heimdall_CompileBy(),
+           Heimdall_CompileHost(), __DATE__" "__TIME__ );
+    printf(_("Compiler: %s\n"), Heimdall_Compiler());
     fputs(LICENSE_MSG, stdout);
     PauseConsole();
 }
 
-#ifdef HAVE_VLC_SHOWCONSOLE
+#ifdef HAVE_HEIMDALL_SHOWCONSOLE
 /*****************************************************************************
  * ShowConsole: On Win32, create an output console for debug messages
  *****************************************************************************
@@ -716,19 +717,19 @@ static void ShowConsole( void )
 
     if( !AllocConsole() ) return;
 
-    /* Use the ANSI code page (e.g. Windows-1252) as expected by the LibVLC
+    /* Use the ANSI code page (e.g. Windows-1252) as expected by the LibHeimdall
      * Unicode/locale subsystem. By default, we have the obsolecent OEM code
      * page (e.g. CP437 or CP850). */
     SetConsoleOutputCP (GetACP ());
-    SetConsoleTitle (TEXT("VLC media player version ") TEXT(PACKAGE_VERSION));
+    SetConsoleTitle (TEXT("Heimdall media player version ") TEXT(PACKAGE_VERSION));
 
     freopen( "CONOUT$", "w", stderr );
     freopen( "CONIN$", "r", stdin );
 
-    if( freopen( "vlc-help.txt", "wt", stdout ) != NULL )
+    if( freopen( "heimdall-help.txt", "wt", stdout ) != NULL )
     {
         fputs( "\xEF\xBB\xBF", stdout );
-        fprintf( stderr, _("\nDumped content to vlc-help.txt file.\n") );
+        fprintf( stderr, _("\nDumped content to heimdall-help.txt file.\n") );
     }
     else
         freopen( "CONOUT$", "w", stdout );

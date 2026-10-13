@@ -2,6 +2,7 @@
  * avformat.c: demuxer and muxer using libavformat library
  *****************************************************************************
  * Copyright (C) 1999-2008 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *          Gildas Bazin <gbazin@videolan.org>
@@ -26,14 +27,14 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_demux.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_demux.h>
 
 #include "avformat.h"
 #include "../../codec/avcodec/avcommon.h"
 
-vlc_module_begin ()
+heimdall_module_begin ()
 #endif /* MERGE_FFMPEG */
     add_shortcut( "ffmpeg", "avformat" )
     add_file_extension("rm")
@@ -59,5 +60,5 @@ vlc_module_begin ()
     set_callbacks( avformat_OpenMux, avformat_CloseMux )
 #endif
 #ifndef MERGE_FFMPEG
-vlc_module_end ()
+heimdall_module_end ()
 #endif

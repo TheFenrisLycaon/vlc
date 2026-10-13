@@ -2,6 +2,7 @@
  * vlm.cpp : VLM Management
  ****************************************************************************
  * Copyright © 2008 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Jean-Baptiste Kempf <jb@videolan.org>
  *          Jean-François Massol <jf.massol -at- gmail.com>
@@ -47,9 +48,9 @@
 #include <QFileDialog>
 
 
-VLMDialog::VLMDialog( qt_intf_t *_p_intf ) : QVLCFrame( _p_intf )
+VLMDialog::VLMDialog( qt_intf_t *_p_intf ) : QHeimdallFrame( _p_intf )
 {
-    vlm_t *p_vlm = vlm_New( vlc_object_instance(p_intf), NULL );
+    vlm_t *p_vlm = vlm_New( heimdall_object_instance(p_intf), NULL );
 
     if( !p_vlm )
     {
@@ -247,7 +248,7 @@ bool VLMDialog::exportVLMConf()
 {
     QString saveVLMConfFileName = QFileDialog::getSaveFileName( this,
                                         qtr( "Save VLM configuration as..." ),
-                                        QVLCUserDir( VLC_DOCUMENTS_DIR ),
+                                        QHeimdallUserDir( HEIMDALL_DOCUMENTS_DIR ),
                                         qtr( "VLM conf (*.vlm);;All (*)" ) );
 
     if( !saveVLMConfFileName.isEmpty() )
@@ -307,7 +308,7 @@ bool VLMDialog::importVLMConf()
     QString openVLMConfFileName = toNativeSeparators(
             QFileDialog::getOpenFileName(
             this, qtr( "Open VLM configuration..." ),
-            QVLCUserDir( VLC_DOCUMENTS_DIR ),
+            QHeimdallUserDir( HEIMDALL_DOCUMENTS_DIR ),
             qtr( "VLM conf (*.vlm);;All (*)" ) ) );
 
     if( !openVLMConfFileName.isEmpty() )
@@ -811,7 +812,7 @@ void VLMDialog::toggleVisible()
 
     ui.vlmListItem->clear();
     mediasPopulator();
-    QVLCFrame::toggleVisible();
+    QHeimdallFrame::toggleVisible();
 }
 
 

@@ -2,6 +2,7 @@
  * EPGChannels.cpp: EPGChannels
  ****************************************************************************
  * Copyright © 2009-2010 VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Adrien Maglo <magsoft@videolan.org>
  *
@@ -22,7 +23,7 @@
 
 #include "qt.hpp"
 
-#include <vlc_epg.h>
+#include <heimdall_epg.h>
 
 #include "EPGChannels.hpp"
 #include "EPGProgram.hpp"

@@ -6,32 +6,32 @@ endif
 HEAT=$(MSIDIR)/msi-heat.py
 CANDLE=wine "@WIXPATH@/candle.exe"
 LIGHT=wine "@WIXPATH@/light.exe"
-VLCDIR=@PACKAGE_DIR@
+HEIMDALLDIR=@PACKAGE_DIR@
 MSIDIR=$(abs_srcdir)/extras/package/win32/msi
 W_MSIDIR=`$(WIN32_PATH_CMD) -w '$(MSIDIR)'`
 MSIBUILDDIR=$(abs_top_builddir)/extras/package/win32/msi
 W_MSIBUILDDIR=`$(WIN32_PATH_CMD) -w '$(MSIBUILDDIR)'`
 W_TOPBUILDDIR=`$(WIN32_PATH_CMD) -w '$(abs_top_builddir)'`
 if HAVE_ARM64
-MSIOUTFILE=vlc-$(VERSION)-winarm64.msi
+MSIOUTFILE=heimdall-$(VERSION)-winarm64.msi
 else
 if HAVE_WIN64
-MSIOUTFILE=vlc-$(VERSION)-win64.msi
+MSIOUTFILE=heimdall-$(VERSION)-win64.msi
 else
-MSIOUTFILE=vlc-$(VERSION)-win32.msi
+MSIOUTFILE=heimdall-$(VERSION)-win32.msi
 endif
 endif
 
 heat: package-win-strip
-	$(HEAT) --dir $(VLCDIR)/plugins -cg CompPluginsGroup -gg -scom -sreg -sfrag -dr APPLICATIONFOLDER -out $(MSIBUILDDIR)/Plugins.fragment.wxs
+	$(HEAT) --dir $(HEIMDALLDIR)/plugins -cg CompPluginsGroup -gg -scom -sreg -sfrag -dr APPLICATIONFOLDER -out $(MSIBUILDDIR)/Plugins.fragment.wxs
 if HAVE_NLS
-	$(HEAT) --dir $(VLCDIR)/locale -cg CompLocaleGroup -gg -scom -sreg -sfrag -dr APPLICATIONFOLDER -out $(MSIBUILDDIR)/Locale.fragment.wxs
+	$(HEAT) --dir $(HEIMDALLDIR)/locale -cg CompLocaleGroup -gg -scom -sreg -sfrag -dr APPLICATIONFOLDER -out $(MSIBUILDDIR)/Locale.fragment.wxs
 endif
 if BUILD_LUA
-	$(HEAT) --dir $(VLCDIR)/lua -cg CompLuaGroup -gg -scom -sreg -sfrag -dr APPLICATIONFOLDER -out $(MSIBUILDDIR)/Lua.fragment.wxs
+	$(HEAT) --dir $(HEIMDALLDIR)/lua -cg CompLuaGroup -gg -scom -sreg -sfrag -dr APPLICATIONFOLDER -out $(MSIBUILDDIR)/Lua.fragment.wxs
 endif
 if BUILD_SKINS
-	$(HEAT) --dir $(VLCDIR)/skins -cg CompSkinsGroup -gg -scom -sreg -sfrag -dr APPLICATIONFOLDER -out $(MSIBUILDDIR)/Skins.fragment.wxs
+	$(HEAT) --dir $(HEIMDALLDIR)/skins -cg CompSkinsGroup -gg -scom -sreg -sfrag -dr APPLICATIONFOLDER -out $(MSIBUILDDIR)/Skins.fragment.wxs
 endif
 
 candle: heat

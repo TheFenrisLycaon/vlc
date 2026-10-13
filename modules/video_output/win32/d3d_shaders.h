@@ -2,6 +2,7 @@
  * d3d_shaders.h: Direct3D Shaders
  *****************************************************************************
  * Copyright (C) 2017-2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Steve Lhomme <robux4@gmail.com>
  *
@@ -20,12 +21,12 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_D3D_SHADERS_H
-#define VLC_D3D_SHADERS_H
+#ifndef HEIMDALL_D3D_SHADERS_H
+#define HEIMDALL_D3D_SHADERS_H
 
 #include "../../video_chroma/dxgi_fmt.h"
 
-#include <vlc_es.h>
+#include <heimdall_es.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -111,22 +112,22 @@ static inline void D3D_ShaderBlobRelease(d3d_shader_blob *blob)
 #endif
 }
 
-float D3D_GetFormatLuminance(vlc_object_t *, const video_format_t *);
-#define D3D_GetFormatLuminance(a,b)  D3D_GetFormatLuminance(VLC_OBJECT(a),b)
+float D3D_GetFormatLuminance(heimdall_object_t *, const video_format_t *);
+#define D3D_GetFormatLuminance(a,b)  D3D_GetFormatLuminance(HEIMDALL_OBJECT(a),b)
 
 bool D3D_UpdateQuadOpacity(d3d_quad_t *, float opacity);
 bool D3D_UpdateQuadLuminanceScale(d3d_quad_t *, float luminanceScale);
 
-void D3D_SetupQuad(vlc_object_t *, const video_format_t *, d3d_quad_t *,
+void D3D_SetupQuad(heimdall_object_t *, const video_format_t *, d3d_quad_t *,
                    const display_info_t *);
 
-bool D3D_QuadSetupBuffers(vlc_object_t *, d3d_quad_t *, video_projection_mode_t);
-bool D3D_SetupQuadData(vlc_object_t *, d3d_quad_t *, const RECT *, d3d_vertex_t*, void *, video_transform_t);
+bool D3D_QuadSetupBuffers(heimdall_object_t *, d3d_quad_t *, video_projection_mode_t);
+bool D3D_SetupQuadData(heimdall_object_t *, d3d_quad_t *, const RECT *, d3d_vertex_t*, void *, video_transform_t);
 
-void D3D_UpdateViewpoint(d3d_quad_t *, const vlc_viewpoint_t *, float f_sar);
+void D3D_UpdateViewpoint(d3d_quad_t *, const heimdall_viewpoint_t *, float f_sar);
 
 #ifdef __cplusplus
 }
 #endif// __cplusplus
 
-#endif /* VLC_D3D_SHADERS_H */
+#endif /* HEIMDALL_D3D_SHADERS_H */

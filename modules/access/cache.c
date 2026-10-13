@@ -2,6 +2,7 @@
  * cache.c: access cache helper
  *****************************************************************************
  * Copyright (C) 2022 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,18 +23,18 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_threads.h>
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
 
 #include "cache.h"
 
 #include <assert.h>
 
-#define VLC_ACCESS_CACHE_TTL VLC_TICK_FROM_SEC(5)
-#define VLC_ACCESS_CACHE_MAX_ENTRY 5
+#define HEIMDALL_ACCESS_CACHE_TTL HEIMDALL_TICK_FROM_SEC(5)
+#define HEIMDALL_ACCESS_CACHE_MAX_ENTRY 5
 
 void
-vlc_access_cache_entry_Delete(struct vlc_access_cache_entry *entry)
+heimdall_access_cache_entry_Delete(struct heimdall_access_cache_entry *entry)
 {
     free(entry->url);
     free(entry->username);
@@ -41,11 +42,11 @@ vlc_access_cache_entry_Delete(struct vlc_access_cache_entry *entry)
     free(entry);
 }
 
-struct vlc_access_cache_entry *
-vlc_access_cache_entry_New(void *context, const char *url, const char *username,
+struct heimdall_access_cache_entry *
+heimdall_access_cache_entry_New(void *context, const char *url, const char *username,
                            void (*free_cb)(void *context))
 {
-    struct vlc_access_cache_entry *entry = malloc(sizeof(*entry));
+    struct heimdall_access_cache_entry *entry = malloc(sizeof(*entry));
     if (unlikely(entry == NULL))
         return NULL;
 
@@ -53,7 +54,7 @@ vlc_access_cache_entry_New(void *context, const char *url, const char *username,
     entry->username = username ? strdup(username) : NULL;
     if (!entry->url || (entry->username == NULL) != (username == NULL))
     {
-        vlc_access_cache_entry_Delete(entry);
+        heimdall_access_cache_entry_Delete(entry);
         return NULL;
     }
 
@@ -63,153 +64,153 @@ vlc_access_cache_entry_New(void *context, const char *url, const char *username,
     return entry;
 }
 
-#ifdef VLC_ACCESS_CACHE_CAN_REGISTER
+#ifdef HEIMDALL_ACCESS_CACHE_CAN_REGISTER
 static void *
-vlc_access_cache_Thread(void *data)
+heimdall_access_cache_Thread(void *data)
 {
-    struct vlc_access_cache *cache = data;
+    struct heimdall_access_cache *cache = data;
 
-    vlc_thread_set_name("vlc-axs-cache");
+    heimdall_thread_set_name("heimdall-axs-cache");
 
-    vlc_mutex_lock(&cache->lock);
+    heimdall_mutex_lock(&cache->lock);
     while (cache->running)
     {
-        if (!vlc_list_is_empty(&cache->entries))
+        if (!heimdall_list_is_empty(&cache->entries))
         {
-            struct vlc_access_cache_entry *entry =
-                vlc_list_first_entry_or_null(&cache->entries,
-                                             struct vlc_access_cache_entry, node);
+            struct heimdall_access_cache_entry *entry =
+                heimdall_list_first_entry_or_null(&cache->entries,
+                                             struct heimdall_access_cache_entry, node);
 
             if (entry->timeout == 0 ||
-                vlc_cond_timedwait(&cache->cond, &cache->lock, entry->timeout) != 0)
+                heimdall_cond_timedwait(&cache->cond, &cache->lock, entry->timeout) != 0)
             {
-                vlc_list_remove(&entry->node);
+                heimdall_list_remove(&entry->node);
 
-                vlc_mutex_unlock(&cache->lock);
+                heimdall_mutex_unlock(&cache->lock);
 
                 entry->free_cb(entry->context);
-                vlc_access_cache_entry_Delete(entry);
+                heimdall_access_cache_entry_Delete(entry);
 
-                vlc_mutex_lock(&cache->lock);
+                heimdall_mutex_lock(&cache->lock);
             }
         }
         else
-            vlc_cond_wait(&cache->cond, &cache->lock);
+            heimdall_cond_wait(&cache->cond, &cache->lock);
     }
-    vlc_mutex_unlock(&cache->lock);
+    heimdall_mutex_unlock(&cache->lock);
 
     return NULL;
 }
 
 static void
-vlc_access_cache_InitOnce(void *data)
+heimdall_access_cache_InitOnce(void *data)
 {
-    struct vlc_access_cache *cache = data;
+    struct heimdall_access_cache *cache = data;
 
-    vlc_mutex_lock(&cache->lock);
+    heimdall_mutex_lock(&cache->lock);
 
     cache->running = true;
-    int ret = vlc_clone(&cache->thread, vlc_access_cache_Thread, cache);
+    int ret = heimdall_clone(&cache->thread, heimdall_access_cache_Thread, cache);
     if (ret != 0)
         cache->running = false;
 
-    vlc_mutex_unlock(&cache->lock);
+    heimdall_mutex_unlock(&cache->lock);
 }
 
 void
-vlc_access_cache_Destroy(struct vlc_access_cache *cache)
+heimdall_access_cache_Destroy(struct heimdall_access_cache *cache)
 {
-    vlc_mutex_lock(&cache->lock);
+    heimdall_mutex_lock(&cache->lock);
     if (cache->running)
     {
         cache->running = false;
-        vlc_cond_signal(&cache->cond);
-        vlc_mutex_unlock(&cache->lock);
-        vlc_join(cache->thread, NULL);
+        heimdall_cond_signal(&cache->cond);
+        heimdall_mutex_unlock(&cache->lock);
+        heimdall_join(cache->thread, NULL);
     }
     else
-        vlc_mutex_unlock(&cache->lock);
+        heimdall_mutex_unlock(&cache->lock);
 
-    struct vlc_access_cache_entry *entry;
-    vlc_list_foreach(entry, &cache->entries, node)
+    struct heimdall_access_cache_entry *entry;
+    heimdall_list_foreach(entry, &cache->entries, node)
     {
         entry->free_cb(entry->context);
-        vlc_access_cache_entry_Delete(entry);
+        heimdall_access_cache_entry_Delete(entry);
     }
 }
 #endif
 
 void
-vlc_access_cache_AddEntry(struct vlc_access_cache *cache,
-                          struct vlc_access_cache_entry *entry)
+heimdall_access_cache_AddEntry(struct heimdall_access_cache *cache,
+                          struct heimdall_access_cache_entry *entry)
 {
-#ifdef VLC_ACCESS_CACHE_CAN_REGISTER
-    vlc_once(&cache->once, vlc_access_cache_InitOnce, cache);
+#ifdef HEIMDALL_ACCESS_CACHE_CAN_REGISTER
+    heimdall_once(&cache->once, heimdall_access_cache_InitOnce, cache);
 #endif
 
-    vlc_mutex_lock(&cache->lock);
+    heimdall_mutex_lock(&cache->lock);
 
-#ifdef VLC_ACCESS_CACHE_CAN_REGISTER
+#ifdef HEIMDALL_ACCESS_CACHE_CAN_REGISTER
     if (!cache->running)
     {
-        vlc_mutex_unlock(&cache->lock);
+        heimdall_mutex_unlock(&cache->lock);
         entry->free_cb(entry->context);
-        vlc_access_cache_entry_Delete(entry);
+        heimdall_access_cache_entry_Delete(entry);
         return;
     }
 #endif
 
-    struct vlc_access_cache_entry *it;
+    struct heimdall_access_cache_entry *it;
     size_t count = 0;
-    vlc_list_foreach(it, &cache->entries, node)
+    heimdall_list_foreach(it, &cache->entries, node)
         count++;
 
-    if (count >= VLC_ACCESS_CACHE_MAX_ENTRY)
+    if (count >= HEIMDALL_ACCESS_CACHE_MAX_ENTRY)
     {
         /* Too many entries, signal the thread that will delete the first one */
-        it = vlc_list_first_entry_or_null(&cache->entries,
-                                          struct vlc_access_cache_entry, node);
+        it = heimdall_list_first_entry_or_null(&cache->entries,
+                                          struct heimdall_access_cache_entry, node);
         it->timeout = 0;
     }
 
-    entry->timeout = vlc_tick_now() + VLC_ACCESS_CACHE_TTL;
-    vlc_list_append(&entry->node, &cache->entries);
+    entry->timeout = heimdall_tick_now() + HEIMDALL_ACCESS_CACHE_TTL;
+    heimdall_list_append(&entry->node, &cache->entries);
 
-#ifdef VLC_ACCESS_CACHE_CAN_REGISTER
-    vlc_cond_signal(&cache->cond);
+#ifdef HEIMDALL_ACCESS_CACHE_CAN_REGISTER
+    heimdall_cond_signal(&cache->cond);
 #endif
-    vlc_mutex_unlock(&cache->lock);
+    heimdall_mutex_unlock(&cache->lock);
 }
 
-struct vlc_access_cache_entry *
-vlc_access_cache_GetEntry(struct vlc_access_cache *cache,
+struct heimdall_access_cache_entry *
+heimdall_access_cache_GetEntry(struct heimdall_access_cache *cache,
                           const char *url, const char *username)
 {
-#ifdef VLC_ACCESS_CACHE_CAN_REGISTER
-    vlc_once(&cache->once, vlc_access_cache_InitOnce, cache);
+#ifdef HEIMDALL_ACCESS_CACHE_CAN_REGISTER
+    heimdall_once(&cache->once, heimdall_access_cache_InitOnce, cache);
 #endif
 
-    vlc_mutex_lock(&cache->lock);
+    heimdall_mutex_lock(&cache->lock);
 
-    struct vlc_access_cache_entry *it;
+    struct heimdall_access_cache_entry *it;
 
-    vlc_list_foreach(it, &cache->entries, node)
+    heimdall_list_foreach(it, &cache->entries, node)
     {
 
         if (strcmp(url, it->url) == 0
          && (username == NULL) == (it->username == NULL)
          && (username != NULL ? strcmp(username, it->username) == 0 : true))
         {
-            vlc_list_remove(&it->node);
-#ifdef VLC_ACCESS_CACHE_CAN_REGISTER
-            vlc_cond_signal(&cache->cond);
+            heimdall_list_remove(&it->node);
+#ifdef HEIMDALL_ACCESS_CACHE_CAN_REGISTER
+            heimdall_cond_signal(&cache->cond);
 #endif
-            vlc_mutex_unlock(&cache->lock);
+            heimdall_mutex_unlock(&cache->lock);
             return it;
         }
     }
 
-    vlc_mutex_unlock(&cache->lock);
+    heimdall_mutex_unlock(&cache->lock);
 
     return NULL;
 }

@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,12 +24,12 @@ import QtQml.Models
 import QtQuick.Window
 
 
-import VLC.MainInterface
-import VLC.Style
-import VLC.Playlist
-import VLC.Widgets as Widgets
-import VLC.Menus as Menus
-import VLC.Util
+import Heimdall.MainInterface
+import Heimdall.Style
+import Heimdall.Playlist
+import Heimdall.Widgets as Widgets
+import Heimdall.Menus as Menus
+import Heimdall.Util
 
 T.ToolBar {
     id: root
@@ -61,8 +62,8 @@ T.ToolBar {
 
     contentItem:  Item {
         implicitHeight: menubar.implicitHeight
-            + VLCStyle.applicationVerticalMargin
-            + VLCStyle.margin_xxsmall
+            + HeimdallStyle.applicationVerticalMargin
+            + HeimdallStyle.margin_xxsmall
 
         //drag and dbl click the titlebar in CSD mode
         Loader {
@@ -78,14 +79,14 @@ T.ToolBar {
 
             anchors {
                 left: parent.left
-                leftMargin: VLCStyle.applicationHorizontalMargin
+                leftMargin: HeimdallStyle.applicationHorizontalMargin
 
                 right: parent.right
-                rightMargin: root._showCSD && !(csdButtons.height < VLCStyle.applicationVerticalMargin) ? csdButtons.width
-                            : VLCStyle.applicationHorizontalMargin
+                rightMargin: root._showCSD && !(csdButtons.height < HeimdallStyle.applicationVerticalMargin) ? csdButtons.width
+                            : HeimdallStyle.applicationHorizontalMargin
 
                 top: parent.top
-                topMargin: VLCStyle.applicationVerticalMargin
+                topMargin: HeimdallStyle.applicationVerticalMargin
             }
             visible: MainCtx.hasToolbarMenu
             enabled: visible
@@ -96,11 +97,11 @@ T.ToolBar {
         Loader {
             id: csdButtons
             anchors.right: parent.right
-            height: Math.min(parent.implicitHeight, VLCStyle.globalToolbar_height)
+            height: Math.min(parent.implicitHeight, HeimdallStyle.globalToolbar_height)
             active: root._showCSD
-            source: VLCStyle.palette.hasCSDImage
-                      ? "qrc:///qt/qml/VLC/Widgets/CSDThemeButtonSet.qml"
-                      : "qrc:///qt/qml/VLC/Widgets/CSDWindowButtonSet.qml"
+            source: HeimdallStyle.palette.hasCSDImage
+                      ? "qrc:///qt/qml/Heimdall/Widgets/CSDThemeButtonSet.qml"
+                      : "qrc:///qt/qml/Heimdall/Widgets/CSDWindowButtonSet.qml"
         }
 
         Keys.priority: Keys.AfterItem

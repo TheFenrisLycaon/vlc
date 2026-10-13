@@ -3,9 +3,10 @@
  *****************************************************************************
  * Copyright (C) 2006 VLC authors and VideoLAN
  * Copyright (C) 2008-2009 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Antoine Cellerier <dionoea at videolan dot org>
- *          Daniel Stranger <vlc at schmaller dot de>
+ * Authors: Antoine Cellerier <dionoea at lycaria dot org>
+ *          Daniel Stranger <heimdall at schmaller dot de>
  *          Rémi Denis-Courmont
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -30,10 +31,10 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 #include <assert.h>
 
-/* Needed by vlc_strftime */
+/* Needed by heimdall_strftime */
 #include <time.h>
 #include <limits.h>
 #include <math.h>
@@ -42,16 +43,16 @@
 # define strcoll strcasecmp
 #endif
 
-/* Needed by vlc_strfplayer */
-#include <vlc_meta.h>
-#include <vlc_aout.h>
-#include <vlc_memstream.h>
+/* Needed by heimdall_strfplayer */
+#include <heimdall_meta.h>
+#include <heimdall_aout.h>
+#include <heimdall_memstream.h>
 
-#include <vlc_strings.h>
-#include <vlc_charset.h>
-#include <vlc_arrays.h>
-#include <vlc_player.h>
-#include "../libvlc.h"
+#include <heimdall_strings.h>
+#include <heimdall_charset.h>
+#include <heimdall_arrays.h>
+#include <heimdall_player.h>
+#include "../libheimdall.h"
 #include <errno.h>
 
 static const struct xml_entity_s
@@ -194,7 +195,7 @@ static int cmp_entity (const void *key, const void *elem)
     return strncmp (name, ent->psz_entity, strlen (ent->psz_entity));
 }
 
-void vlc_xml_decode( char *psz_value )
+void heimdall_xml_decode( char *psz_value )
 {
     char *p_pos = psz_value;
 
@@ -286,20 +287,20 @@ void vlc_xml_decode( char *psz_value )
     *p_pos = '\0';
 }
 
-char *vlc_xml_encode (const char *str)
+char *heimdall_xml_encode (const char *str)
 {
-    struct vlc_memstream stream;
+    struct heimdall_memstream stream;
     ssize_t n;
     uint32_t cp;
 
     assert(str != NULL);
-    vlc_memstream_open(&stream);
+    heimdall_memstream_open(&stream);
 
-    while ((n = vlc_towc (str, &cp)) != 0)
+    while ((n = heimdall_towc (str, &cp)) != 0)
     {
         if (unlikely(n == -1))
         {
-            if (vlc_memstream_close(&stream) == 0)
+            if (heimdall_memstream_close(&stream) == 0)
                 free(stream.ptr);
             errno = EILSEQ;
             return NULL;
@@ -308,26 +309,26 @@ char *vlc_xml_encode (const char *str)
         switch (cp)
         {
             case '\"':
-                vlc_memstream_puts(&stream, "&quot;");
+                heimdall_memstream_puts(&stream, "&quot;");
                 break;
             case '&':
-                vlc_memstream_puts(&stream, "&amp;");
+                heimdall_memstream_puts(&stream, "&amp;");
                 break;
             case '\'':
-                vlc_memstream_puts(&stream, "&#39;");
+                heimdall_memstream_puts(&stream, "&#39;");
                 break;
             case '<':
-                vlc_memstream_puts(&stream, "&lt;");
+                heimdall_memstream_puts(&stream, "&lt;");
                 break;
             case '>':
-                vlc_memstream_puts(&stream, "&gt;");
+                heimdall_memstream_puts(&stream, "&gt;");
                 break;
             default:
                 if (cp < 32) /* C0 code not allowed (except 9, 10 and 13) */
                     break;
                 if (cp >= 128 && cp < 160) /* C1 code encoded (except 133) */
                 {
-                    vlc_memstream_printf(&stream, "&#%"PRIu32";", cp);
+                    heimdall_memstream_printf(&stream, "&#%"PRIu32";", cp);
                     break;
                 }
                 /* fall through */
@@ -335,19 +336,19 @@ char *vlc_xml_encode (const char *str)
             case 10:
             case 13:
             case 133:
-                vlc_memstream_write(&stream, str, n);
+                heimdall_memstream_write(&stream, str, n);
                 break;
         }
         str += n;
     }
 
-    if (vlc_memstream_close(&stream))
+    if (heimdall_memstream_close(&stream))
         return NULL;
     return stream.ptr;
 }
 
 /* Hex encoding */
-void vlc_hex_encode_binary(const void *input, size_t size, char *output)
+void heimdall_hex_encode_binary(const void *input, size_t size, char *output)
 {
     const unsigned char *buffer = input;
 
@@ -357,7 +358,7 @@ void vlc_hex_encode_binary(const void *input, size_t size, char *output)
 }
 
 /* Base64 encoding */
-char *vlc_b64_encode_binary(const void *src, size_t length)
+char *heimdall_b64_encode_binary(const void *src, size_t length)
 {
     static const char b64[] =
         "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -405,15 +406,15 @@ char *vlc_b64_encode_binary(const void *src, size_t length)
     return dst;
 }
 
-char *vlc_b64_encode(const char *src)
+char *heimdall_b64_encode(const char *src)
 {
     if (src == NULL)
         src = "";
-    return vlc_b64_encode_binary(src, strlen(src));
+    return heimdall_b64_encode_binary(src, strlen(src));
 }
 
 /* Base64 decoding */
-size_t vlc_b64_decode_binary_to_buffer(void *dst, size_t size,
+size_t heimdall_b64_decode_binary_to_buffer(void *dst, size_t size,
                                        const char *restrict src)
 {
     static const signed char b64[256] = {
@@ -458,7 +459,7 @@ size_t vlc_b64_decode_binary_to_buffer(void *dst, size_t size,
     return out - (unsigned char *)dst;
 }
 
-size_t vlc_b64_decode_binary( uint8_t **pp_dst, const char *psz_src )
+size_t heimdall_b64_decode_binary( uint8_t **pp_dst, const char *psz_src )
 {
     const int i_src = strlen( psz_src );
     uint8_t   *p_dst;
@@ -466,9 +467,9 @@ size_t vlc_b64_decode_binary( uint8_t **pp_dst, const char *psz_src )
     *pp_dst = p_dst = malloc( i_src );
     if( !p_dst )
         return 0;
-    return  vlc_b64_decode_binary_to_buffer( p_dst, i_src, psz_src );
+    return  heimdall_b64_decode_binary_to_buffer( p_dst, i_src, psz_src );
 }
-char *vlc_b64_decode( const char *psz_src )
+char *heimdall_b64_decode( const char *psz_src )
 {
     const int i_src = strlen( psz_src );
     char *p_dst = malloc( i_src + 1 );
@@ -476,13 +477,13 @@ char *vlc_b64_decode( const char *psz_src )
     if( !p_dst )
         return NULL;
 
-    i_dst = vlc_b64_decode_binary_to_buffer( (uint8_t*)p_dst, i_src, psz_src );
+    i_dst = heimdall_b64_decode_binary_to_buffer( (uint8_t*)p_dst, i_src, psz_src );
     p_dst[i_dst] = '\0';
 
     return p_dst;
 }
 
-char *vlc_strftime( const char *tformat )
+char *heimdall_strftime( const char *tformat )
 {
     time_t curtime;
     struct tm loctime;
@@ -509,10 +510,10 @@ char *vlc_strftime( const char *tformat )
         }
         free (str);
     }
-    vlc_assert_unreachable ();
+    heimdall_assert_unreachable ();
 }
 
-static void write_duration(struct vlc_memstream *stream, vlc_tick_t duration)
+static void write_duration(struct heimdall_memstream *stream, heimdall_tick_t duration)
 {
     lldiv_t d;
     long long sec;
@@ -521,11 +522,11 @@ static void write_duration(struct vlc_memstream *stream, vlc_tick_t duration)
     d = lldiv(duration, 60);
     sec = d.rem;
     d = lldiv(d.quot, 60);
-    vlc_memstream_printf(stream, "%02lld:%02lld:%02lld", d.quot, d.rem, sec);
+    heimdall_memstream_printf(stream, "%02lld:%02lld:%02lld", d.quot, d.rem, sec);
 }
 
-static int write_meta(struct vlc_memstream *stream, input_item_t *item,
-                      vlc_meta_type_t type)
+static int write_meta(struct heimdall_memstream *stream, input_item_t *item,
+                      heimdall_meta_type_t type)
 {
     if (item == NULL)
         return EOF;
@@ -534,14 +535,14 @@ static int write_meta(struct vlc_memstream *stream, input_item_t *item,
     if (value == NULL)
         return EOF;
 
-    vlc_memstream_puts(stream, value);
+    heimdall_memstream_puts(stream, value);
     free(value);
     return 0;
 }
 
-char *vlc_strfplayer(vlc_player_t *player, input_item_t *item, const char *s)
+char *heimdall_strfplayer(heimdall_player_t *player, input_item_t *item, const char *s)
 {
-    struct vlc_memstream stream[1];
+    struct heimdall_memstream stream[1];
 
     char c;
     bool b_is_format = false;
@@ -550,9 +551,9 @@ char *vlc_strfplayer(vlc_player_t *player, input_item_t *item, const char *s)
     assert(s != NULL);
 
     if (!item && player)
-        item = vlc_player_GetCurrentMedia(player);
+        item = heimdall_player_GetCurrentMedia(player);
 
-    vlc_memstream_open(stream);
+    heimdall_memstream_open(stream);
 
     while ((c = *s) != '\0')
     {
@@ -567,7 +568,7 @@ char *vlc_strfplayer(vlc_player_t *player, input_item_t *item, const char *s)
                 continue;
             }
 
-            vlc_memstream_putc(stream, c);
+            heimdall_memstream_putc(stream, c);
             continue;
         }
 
@@ -576,45 +577,45 @@ char *vlc_strfplayer(vlc_player_t *player, input_item_t *item, const char *s)
         switch (c)
         {
             case 'a':
-                write_meta(stream, item, vlc_meta_Artist);
+                write_meta(stream, item, heimdall_meta_Artist);
                 break;
             case 'b':
-                write_meta(stream, item, vlc_meta_Album);
+                write_meta(stream, item, heimdall_meta_Album);
                 break;
             case 'c':
-                write_meta(stream, item, vlc_meta_Copyright);
+                write_meta(stream, item, heimdall_meta_Copyright);
                 break;
             case 'd':
-                write_meta(stream, item, vlc_meta_Description);
+                write_meta(stream, item, heimdall_meta_Description);
                 break;
             case 'e':
-                write_meta(stream, item, vlc_meta_EncodedBy);
+                write_meta(stream, item, heimdall_meta_EncodedBy);
                 break;
             case 'f':
                 if (item != NULL)
                 {
-                    vlc_mutex_lock(&item->lock);
+                    heimdall_mutex_lock(&item->lock);
                     if (item->p_stats != NULL)
-                        vlc_memstream_printf(stream, "%"PRIi64,
+                        heimdall_memstream_printf(stream, "%"PRIi64,
                             item->p_stats->i_displayed_pictures);
                     else if (!b_empty_if_na)
-                        vlc_memstream_putc(stream, '-');
-                    vlc_mutex_unlock(&item->lock);
+                        heimdall_memstream_putc(stream, '-');
+                    heimdall_mutex_unlock(&item->lock);
                 }
                 else if (!b_empty_if_na)
-                    vlc_memstream_putc(stream, '-');
+                    heimdall_memstream_putc(stream, '-');
                 break;
             case 'g':
-                write_meta(stream, item, vlc_meta_Genre);
+                write_meta(stream, item, heimdall_meta_Genre);
                 break;
             case 'l':
-                write_meta(stream, item, vlc_meta_Language);
+                write_meta(stream, item, heimdall_meta_Language);
                 break;
             case 'n':
-                write_meta(stream, item, vlc_meta_TrackNumber);
+                write_meta(stream, item, heimdall_meta_TrackNumber);
                 break;
             case 'o':
-                write_meta(stream, item, vlc_meta_TrackTotal);
+                write_meta(stream, item, heimdall_meta_TrackTotal);
                 break;
             case 'p':
                 if (item == NULL)
@@ -624,72 +625,72 @@ char *vlc_strfplayer(vlc_player_t *player, input_item_t *item, const char *s)
                     if (value == NULL)
                         break;
 
-                    vlc_memstream_puts(stream, value);
+                    heimdall_memstream_puts(stream, value);
                     free(value);
                 }
                 break;
             case 'r':
-                write_meta(stream, item, vlc_meta_Rating);
+                write_meta(stream, item, heimdall_meta_Rating);
                 break;
             case 's':
             {
                 char *lang = NULL;
 
                 if (player != NULL)
-                    lang = vlc_player_GetCategoryLanguage(player, SPU_ES);
+                    lang = heimdall_player_GetCategoryLanguage(player, SPU_ES);
                 if (lang != NULL)
                 {
-                    vlc_memstream_puts(stream, lang);
+                    heimdall_memstream_puts(stream, lang);
                     free(lang);
                 }
                 else if (!b_empty_if_na)
-                    vlc_memstream_putc(stream, '-');
+                    heimdall_memstream_putc(stream, '-');
                 break;
             }
             case 't':
-                write_meta(stream, item, vlc_meta_Title);
+                write_meta(stream, item, heimdall_meta_Title);
                 break;
             case 'u':
-                write_meta(stream, item, vlc_meta_URL);
+                write_meta(stream, item, heimdall_meta_URL);
                 break;
             case 'A':
-                write_meta(stream, item, vlc_meta_Date);
+                write_meta(stream, item, heimdall_meta_Date);
                 break;
             case 'B':
             {
                 if (player)
                 {
-                    const struct vlc_player_track *track =
-                        vlc_player_GetSelectedTrack(player, AUDIO_ES);
+                    const struct heimdall_player_track *track =
+                        heimdall_player_GetSelectedTrack(player, AUDIO_ES);
                     if (track)
                     {
-                        vlc_memstream_printf(stream, "%u",
+                        heimdall_memstream_printf(stream, "%u",
                                              track->fmt.i_bitrate);
                         break;
                     }
                 }
                 if (!b_empty_if_na)
-                    vlc_memstream_putc(stream, '-');
+                    heimdall_memstream_putc(stream, '-');
                 break;
             }
             case 'C':
                 if (player)
                 {
-                    ssize_t chapter = vlc_player_GetSelectedChapterIdx(player);
+                    ssize_t chapter = heimdall_player_GetSelectedChapterIdx(player);
                     if (chapter != -1)
                     {
-                        vlc_memstream_printf(stream, "%zd", chapter);
+                        heimdall_memstream_printf(stream, "%zd", chapter);
                         break;
                     }
                 }
                 if (!b_empty_if_na)
-                    vlc_memstream_putc(stream, '-');
+                    heimdall_memstream_putc(stream, '-');
                 break;
             case 'D':
                 if (item != NULL)
                     write_duration(stream, input_item_GetDuration(item));
                 else if (!b_empty_if_na)
-                    vlc_memstream_puts(stream, "--:--:--");
+                    heimdall_memstream_puts(stream, "--:--:--");
                 break;
             case 'F':
                 if (item != NULL)
@@ -697,7 +698,7 @@ char *vlc_strfplayer(vlc_player_t *player, input_item_t *item, const char *s)
                     char *uri = input_item_GetURI(item);
                     if (uri != NULL)
                     {
-                        vlc_memstream_puts(stream, uri);
+                        heimdall_memstream_puts(stream, uri);
                         free(uri);
                     }
                 }
@@ -705,26 +706,26 @@ char *vlc_strfplayer(vlc_player_t *player, input_item_t *item, const char *s)
             case 'I':
                 if (player)
                 {
-                    ssize_t title = vlc_player_GetSelectedTitleIdx(player);
+                    ssize_t title = heimdall_player_GetSelectedTitleIdx(player);
                     if (title != -1)
                     {
-                        vlc_memstream_printf(stream, "%zd", title);
+                        heimdall_memstream_printf(stream, "%zd", title);
                         break;
                     }
                 }
                 if (!b_empty_if_na)
-                    vlc_memstream_putc(stream, '-');
+                    heimdall_memstream_putc(stream, '-');
                 break;
             case 'L':
                 if (player)
                 {
-                    vlc_tick_t length = vlc_player_GetLength(player);
-                    vlc_tick_t time = vlc_player_GetTime(player);
-                    if (length != VLC_TICK_INVALID && time != VLC_TICK_INVALID)
+                    heimdall_tick_t length = heimdall_player_GetLength(player);
+                    heimdall_tick_t time = heimdall_player_GetTime(player);
+                    if (length != HEIMDALL_TICK_INVALID && time != HEIMDALL_TICK_INVALID)
                         write_duration(stream, length - time);
                 }
                 if (!b_empty_if_na)
-                    vlc_memstream_puts(stream, "--:--:--");
+                    heimdall_memstream_puts(stream, "--:--:--");
                 break;
             case 'N':
                 if (item != NULL)
@@ -732,7 +733,7 @@ char *vlc_strfplayer(vlc_player_t *player, input_item_t *item, const char *s)
                     char *name = input_item_GetName(item);
                     if (name != NULL)
                     {
-                        vlc_memstream_puts(stream, name);
+                        heimdall_memstream_puts(stream, name);
                         free(name);
                     }
                 }
@@ -742,66 +743,66 @@ char *vlc_strfplayer(vlc_player_t *player, input_item_t *item, const char *s)
                 char *lang = NULL;
 
                 if (player != NULL)
-                    lang = vlc_player_GetCategoryLanguage(player, AUDIO_ES);
+                    lang = heimdall_player_GetCategoryLanguage(player, AUDIO_ES);
                 if (lang != NULL)
                 {
-                    vlc_memstream_puts(stream, lang);
+                    heimdall_memstream_puts(stream, lang);
                     free(lang);
                 }
                 else if (!b_empty_if_na)
-                    vlc_memstream_putc(stream, '-');
+                    heimdall_memstream_putc(stream, '-');
                 break;
             }
             case 'P':
                 if (player)
                 {
-                    float pos = vlc_player_GetPosition(player);
+                    float pos = heimdall_player_GetPosition(player);
                     if (pos >= 0)
                     {
-                        vlc_memstream_printf(stream, "%2.1f", pos);
+                        heimdall_memstream_printf(stream, "%2.1f", pos);
                         break;
                     }
                 }
                 if (!b_empty_if_na)
-                    vlc_memstream_puts(stream, "--.-%");
+                    heimdall_memstream_puts(stream, "--.-%");
                 break;
             case 'R':
                 if (player)
-                    vlc_memstream_printf(stream, "%.3f",
-                                         vlc_player_GetRate(player));
+                    heimdall_memstream_printf(stream, "%.3f",
+                                         heimdall_player_GetRate(player));
                 else if (!b_empty_if_na)
-                    vlc_memstream_putc(stream, '-');
+                    heimdall_memstream_putc(stream, '-');
                 break;
             case 'S':
                 if (player)
                 {
-                    const struct vlc_player_track *track =
-                        vlc_player_GetSelectedTrack(player, AUDIO_ES);
+                    const struct heimdall_player_track *track =
+                        heimdall_player_GetSelectedTrack(player, AUDIO_ES);
                     if (track)
                     {
                         div_t dr = div((track->fmt.audio.i_rate + 50) / 100, 10);
-                        vlc_memstream_printf(stream, "%d.%01d", dr.quot, dr.rem);
+                        heimdall_memstream_printf(stream, "%d.%01d", dr.quot, dr.rem);
                         break;
                     }
                 }
                 if (!b_empty_if_na)
-                    vlc_memstream_putc(stream, '-');
+                    heimdall_memstream_putc(stream, '-');
                 break;
             case 'T':
                 if (player)
                 {
-                    vlc_tick_t time = vlc_player_GetTime(player);
-                    if (time != VLC_TICK_INVALID)
+                    heimdall_tick_t time = heimdall_player_GetTime(player);
+                    if (time != HEIMDALL_TICK_INVALID)
                     {
                         write_duration(stream, time);
                         break;
                     }
                 }
                 if (!b_empty_if_na)
-                    vlc_memstream_puts(stream, "--:--:--");
+                    heimdall_memstream_puts(stream, "--:--:--");
                 break;
             case 'U':
-                write_meta(stream, item, vlc_meta_Publisher);
+                write_meta(stream, item, heimdall_meta_Publisher);
                 break;
             case 'V':
             {
@@ -809,7 +810,7 @@ char *vlc_strfplayer(vlc_player_t *player, input_item_t *item, const char *s)
 
                 if (player)
                 {
-                    audio_output_t *aout = vlc_player_aout_Hold(player);
+                    audio_output_t *aout = heimdall_player_aout_Hold(player);
                     if (aout != NULL)
                     {
                         vol = aout_VolumeGet(aout);
@@ -817,13 +818,13 @@ char *vlc_strfplayer(vlc_player_t *player, input_item_t *item, const char *s)
                     }
                 }
                 if (vol >= 0.f)
-                    vlc_memstream_printf(stream, "%ld", lroundf(vol * 256.f));
+                    heimdall_memstream_printf(stream, "%ld", lroundf(vol * 256.f));
                 else if (!b_empty_if_na)
-                    vlc_memstream_puts(stream, "---");
+                    heimdall_memstream_puts(stream, "---");
                 break;
             }
             case '_':
-                vlc_memstream_putc(stream, '\n');
+                heimdall_memstream_putc(stream, '\n');
                 break;
             case 'Z':
                 if (item == NULL)
@@ -832,20 +833,20 @@ char *vlc_strfplayer(vlc_player_t *player, input_item_t *item, const char *s)
                     char *value = input_item_GetNowPlayingFb(item);
                     if (value != NULL)
                     {
-                        vlc_memstream_puts(stream, value);
+                        heimdall_memstream_puts(stream, value);
                         free(value);
                     }
                     else
                     {
                         char *title = input_item_GetTitleFbName(item);
 
-                        if (write_meta(stream, item, vlc_meta_Artist) >= 0
+                        if (write_meta(stream, item, heimdall_meta_Artist) >= 0
                             && title != NULL)
-                            vlc_memstream_puts(stream, " - ");
+                            heimdall_memstream_puts(stream, " - ");
 
                         if (title != NULL)
                         {
-                            vlc_memstream_puts(stream, title);
+                            heimdall_memstream_puts(stream, title);
                             free(title);
                         }
                     }
@@ -856,17 +857,17 @@ char *vlc_strfplayer(vlc_player_t *player, input_item_t *item, const char *s)
                 b_is_format = true;
                 break;
             default:
-                vlc_memstream_putc(stream, c);
+                heimdall_memstream_putc(stream, c);
                 break;
         }
     }
 
-    if (vlc_memstream_close(stream))
+    if (heimdall_memstream_close(stream))
         return NULL;
     return stream->ptr;
 }
 
-int vlc_filenamecmp(const char *a, const char *b)
+int heimdall_filenamecmp(const char *a, const char *b)
 {
     size_t i;
     char ca, cb;
@@ -924,7 +925,7 @@ void filename_sanitize( char *str )
         return;
     }
 
-    /* On platforms not using UTF-8, VLC cannot access non-Unicode paths.
+    /* On platforms not using UTF-8, Heimdall cannot access non-Unicode paths.
      * Also, some file systems require Unicode file names.
      * NOTE: This may inserts '?' thus is done replacing '?' with '_'. */
     EnsureUTF8( str );

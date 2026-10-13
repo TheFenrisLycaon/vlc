@@ -2,6 +2,7 @@
  * fluidsynth.c: Software MIDI synthesizer using libfluidsynth
  *****************************************************************************
  * Copyright © 2007 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,11 +23,11 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
-#include <vlc_dialog.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
+#include <heimdall_dialog.h>
 
 #include <unistd.h>
 #if defined( _POSIX_VERSION ) && !defined(__ANDROID__)
@@ -63,10 +64,10 @@
 
 #define SAMPLE_RATE_TEXT N_("Sample rate")
 
-static int  Open  (vlc_object_t *);
-static void Close (vlc_object_t *);
+static int  Open  (heimdall_object_t *);
+static void Close (heimdall_object_t *);
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description (N_("FluidSynth MIDI synthesizer"))
     set_capability ("audio decoder", 100)
     set_shortname (N_("FluidSynth"))
@@ -83,7 +84,7 @@ vlc_module_begin ()
     add_integer ("synth-sample-rate", 44100,
                  SAMPLE_RATE_TEXT, NULL)
         change_integer_range (22050, 96000)
-vlc_module_end ()
+heimdall_module_end ()
 
 
 typedef struct
@@ -98,16 +99,16 @@ typedef struct
 static int  DecodeBlock (decoder_t *p_dec, block_t *p_block);
 static void Flush (decoder_t *);
 
-static int Open (vlc_object_t *p_this)
+static int Open (heimdall_object_t *p_this)
 {
     decoder_t *p_dec = (decoder_t *)p_this;
 
-    if (p_dec->fmt_in->i_codec != VLC_CODEC_MIDI)
-        return VLC_EGENERIC;
+    if (p_dec->fmt_in->i_codec != HEIMDALL_CODEC_MIDI)
+        return HEIMDALL_EGENERIC;
 
     decoder_sys_t *p_sys = malloc (sizeof (*p_sys));
     if (unlikely(p_sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_sys->settings = new_fluid_settings ();
 
@@ -133,7 +134,7 @@ static int Open (vlc_object_t *p_this)
         glob_t gl;
         int flags = GLOB_NOESCAPE;
 
-        char *udd = config_GetUserDir(VLC_USERDATA_DIR);
+        char *udd = config_GetUserDir(HEIMDALL_USERDATA_DIR);
         if (likely(udd != NULL))
         {
             char *path;
@@ -177,15 +178,15 @@ static int Open (vlc_object_t *p_this)
     if (p_sys->soundfont == -1)
     {
         msg_Err (p_this, "sound font file required for synthesis");
-        vlc_dialog_display_error (p_this, _("MIDI synthesis not set up"),
+        heimdall_dialog_display_error (p_this, _("MIDI synthesis not set up"),
             _("A sound font file (.SF2) is required for MIDI synthesis.\n"
               "Please install a sound font and configure it "
-              "from the VLC preferences "
+              "from the Heimdall preferences "
               "(Input / Codecs > Audio codecs > FluidSynth).\n"));
         delete_fluid_synth (p_sys->synth);
         delete_fluid_settings (p_sys->settings);
         free (p_sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     fluid_synth_set_chorus_on (p_sys->synth,
@@ -200,18 +201,18 @@ static int Open (vlc_object_t *p_this)
     p_dec->fmt_out.audio.i_rate = i_samplerate;
     p_dec->fmt_out.audio.i_channels = 2;
     p_dec->fmt_out.audio.i_physical_channels = AOUT_CHAN_LEFT | AOUT_CHAN_RIGHT;
-    p_dec->fmt_out.i_codec = VLC_CODEC_FL32;
+    p_dec->fmt_out.i_codec = HEIMDALL_CODEC_FL32;
     p_dec->fmt_out.audio.i_bitspersample = 32;
     date_Init (&p_sys->end_date, p_dec->fmt_out.audio.i_rate, 1);
 
     p_dec->p_sys = p_sys;
     p_dec->pf_decode = DecodeBlock;
     p_dec->pf_flush  = Flush;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 
-static void Close (vlc_object_t *p_this)
+static void Close (heimdall_object_t *p_this)
 {
     decoder_sys_t *p_sys = ((decoder_t *)p_this)->p_sys;
 
@@ -225,7 +226,7 @@ static void Flush (decoder_t *p_dec)
 {
     decoder_sys_t *p_sys = p_dec->p_sys;
 
-    date_Set (&p_sys->end_date, VLC_TICK_INVALID);
+    date_Set (&p_sys->end_date, HEIMDALL_TICK_INVALID);
     //fluid_synth_system_reset (p_sys->synth);
     fluid_synth_program_reset (p_sys->synth);
     for (unsigned channel = 0; channel < 16; channel++)
@@ -239,7 +240,7 @@ static int DecodeBlock (decoder_t *p_dec, block_t *p_block)
     block_t *p_out = NULL;
 
     if (p_block == NULL) /* No Drain */
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
 
     if (p_block->i_flags & (BLOCK_FLAG_DISCONTINUITY|BLOCK_FLAG_CORRUPTED))
     {
@@ -247,12 +248,12 @@ static int DecodeBlock (decoder_t *p_dec, block_t *p_block)
         if (p_block->i_flags & BLOCK_FLAG_CORRUPTED)
         {
             block_Release(p_block);
-            return VLCDEC_SUCCESS;
+            return HEIMDALLDEC_SUCCESS;
         }
     }
 
-    if (p_block->i_pts != VLC_TICK_INVALID
-     && date_Get(&p_sys->end_date) == VLC_TICK_INVALID)
+    if (p_block->i_pts != HEIMDALL_TICK_INVALID
+     && date_Get(&p_sys->end_date) == HEIMDALL_TICK_INVALID)
         date_Set (&p_sys->end_date, p_block->i_pts);
     else
     if (p_block->i_pts < date_Get (&p_sys->end_date))
@@ -336,5 +337,5 @@ drop:
     block_Release (p_block);
     if (p_out != NULL)
         decoder_QueueAudio (p_dec, p_out);
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }

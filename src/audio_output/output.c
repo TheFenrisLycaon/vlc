@@ -2,6 +2,7 @@
  * output.c : internal management of output streams for the audio output
  *****************************************************************************
  * Copyright (C) 2002-2004 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Christophe Massiot <massiot@via.ecp.fr>
  *
@@ -27,18 +28,18 @@
 #include <stdlib.h>
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_aout.h>
-#include <vlc_modules.h>
-#include <vlc_atomic.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_aout.h>
+#include <heimdall_modules.h>
+#include <heimdall_atomic.h>
 
-#include "../libvlc.h"
+#include "../libheimdall.h"
 #include "aout_internal.h"
 
 typedef struct aout_dev
 {
-    struct vlc_list node;
+    struct heimdall_list node;
     char *name;
     char id[1];
 } aout_dev_t;
@@ -56,37 +57,37 @@ static inline float clampf(const float value, const float min, const float max)
         return value;
 }
 
-static int var_Copy (vlc_object_t *src, const char *name, vlc_value_t prev,
-                     vlc_value_t value, void *data)
+static int var_Copy (heimdall_object_t *src, const char *name, heimdall_value_t prev,
+                     heimdall_value_t value, void *data)
 {
-    vlc_object_t *dst = data;
+    heimdall_object_t *dst = data;
 
     (void) src; (void) prev;
     return var_Set (dst, name, value);
 }
 
-static int var_CopyDevice (vlc_object_t *src, const char *name,
-                           vlc_value_t prev, vlc_value_t value, void *data)
+static int var_CopyDevice (heimdall_object_t *src, const char *name,
+                           heimdall_value_t prev, heimdall_value_t value, void *data)
 {
-    vlc_object_t *dst = data;
+    heimdall_object_t *dst = data;
 
     (void) src; (void) name; (void) prev;
     return var_Set (dst, "audio-device", value);
 }
 
-static void aout_TimingNotify(audio_output_t *aout, vlc_tick_t system_ts,
-                              vlc_tick_t audio_ts)
+static void aout_TimingNotify(audio_output_t *aout, heimdall_tick_t system_ts,
+                              heimdall_tick_t audio_ts)
 {
     aout_owner_t *owner = aout_owner (aout);
     assert(owner->main_stream);
-    vlc_aout_stream_NotifyTiming(owner->main_stream, system_ts, audio_ts);
+    heimdall_aout_stream_NotifyTiming(owner->main_stream, system_ts, audio_ts);
 }
 
 static void aout_DrainedNotify(audio_output_t *aout)
 {
     aout_owner_t *owner = aout_owner (aout);
     assert(owner->main_stream);
-    vlc_aout_stream_NotifyDrained(owner->main_stream);
+    heimdall_aout_stream_NotifyDrained(owner->main_stream);
 }
 
 /**
@@ -97,7 +98,7 @@ static void aout_DrainedNotify(audio_output_t *aout)
  *
  * @warning The caller (i.e. the audio output plug-in) is responsible for
  * interlocking and synchronizing call to this function and to the
- * audio_output_t.volume_set callback. This ensures that VLC gets correct
+ * audio_output_t.volume_set callback. This ensures that Heimdall gets correct
  * volume information (possibly with a latency).
  */
 static void aout_VolumeNotify (audio_output_t *aout, float volume)
@@ -112,7 +113,7 @@ static void aout_MuteNotify (audio_output_t *aout, bool mute)
 
 static void aout_PolicyNotify (audio_output_t *aout, bool cork)
 {
-    (cork ? var_IncInteger : var_DecInteger)(vlc_object_parent(aout), "corks");
+    (cork ? var_IncInteger : var_DecInteger)(heimdall_object_parent(aout), "corks");
 }
 
 static void aout_DeviceNotify (audio_output_t *aout, const char *id)
@@ -126,8 +127,8 @@ static void aout_HotplugNotify (audio_output_t *aout,
     aout_owner_t *owner = aout_owner (aout);
     aout_dev_t *dev = NULL, *p;
 
-    vlc_mutex_lock (&owner->dev.lock);
-    vlc_list_foreach(p, &owner->dev.list, node)
+    heimdall_mutex_lock (&owner->dev.lock);
+    heimdall_list_foreach(p, &owner->dev.list, node)
     {
         if (!strcmp (id, p->id))
         {
@@ -144,7 +145,7 @@ static void aout_HotplugNotify (audio_output_t *aout,
             if (unlikely(dev == NULL))
                 goto out;
             strcpy (dev->id, id);
-            vlc_list_append(&dev->node, &owner->dev.list);
+            heimdall_list_append(&dev->node, &owner->dev.list);
             owner->dev.count++;
         }
         else /* Modified device */
@@ -156,13 +157,13 @@ static void aout_HotplugNotify (audio_output_t *aout,
         if (dev != NULL) /* Removed device */
         {
             owner->dev.count--;
-            vlc_list_remove(&dev->node);
+            heimdall_list_remove(&dev->node);
             free (dev->name);
             free (dev);
         }
     }
 out:
-    vlc_mutex_unlock (&owner->dev.lock);
+    heimdall_mutex_unlock (&owner->dev.lock);
 }
 
 static void aout_RestartNotify (audio_output_t *aout, bool restart_dec)
@@ -171,7 +172,7 @@ static void aout_RestartNotify (audio_output_t *aout, bool restart_dec)
     if (owner->main_stream)
     {
         unsigned mode = restart_dec ? AOUT_RESTART_OUTPUT_DEC : AOUT_RESTART_OUTPUT;
-        vlc_aout_stream_RequestRestart(owner->main_stream, mode);
+        heimdall_aout_stream_RequestRestart(owner->main_stream, mode);
     }
 }
 
@@ -179,21 +180,21 @@ void aout_InputRequestRestart(audio_output_t *aout)
 {
     aout_owner_t *owner = aout_owner (aout);
     if (owner->main_stream)
-        vlc_aout_stream_RequestRestart(owner->main_stream, AOUT_RESTART_FILTERS);
+        heimdall_aout_stream_RequestRestart(owner->main_stream, AOUT_RESTART_FILTERS);
 }
 
 static int aout_GainNotify (audio_output_t *aout, float gain)
 {
     aout_owner_t *owner = aout_owner (aout);
 
-    vlc_mutex_assert(&owner->lock);
+    heimdall_mutex_assert(&owner->lock);
     /* XXX: ideally, return -1 if format cannot be amplified */
     if (owner->main_stream != NULL)
-        vlc_aout_stream_NotifyGain(owner->main_stream, gain);
+        heimdall_aout_stream_NotifyGain(owner->main_stream, gain);
     return 0;
 }
 
-static const struct vlc_audio_output_events aout_events = {
+static const struct heimdall_audio_output_events aout_events = {
     aout_TimingNotify,
     aout_DrainedNotify,
     aout_VolumeNotify,
@@ -205,91 +206,91 @@ static const struct vlc_audio_output_events aout_events = {
     aout_GainNotify,
 };
 
-static int FilterCallback (vlc_object_t *obj, const char *var,
-                           vlc_value_t prev, vlc_value_t cur, void *data)
+static int FilterCallback (heimdall_object_t *obj, const char *var,
+                           heimdall_value_t prev, heimdall_value_t cur, void *data)
 {
     if (strcmp(prev.psz_string, cur.psz_string))
         aout_InputRequestRestart ((audio_output_t *)obj);
     (void) var; (void) data;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int StereoModeCallback (vlc_object_t *obj, const char *varname,
-                               vlc_value_t oldval, vlc_value_t newval, void *data)
+static int StereoModeCallback (heimdall_object_t *obj, const char *varname,
+                               heimdall_value_t oldval, heimdall_value_t newval, void *data)
 {
     audio_output_t *aout = (audio_output_t *)obj;
     (void)varname; (void)oldval; (void)newval; (void)data;
 
     aout_owner_t *owner = aout_owner (aout);
-    vlc_mutex_lock (&owner->lock);
+    heimdall_mutex_lock (&owner->lock);
     owner->requested_stereo_mode = newval.i_int;
-    vlc_mutex_unlock (&owner->lock);
+    heimdall_mutex_unlock (&owner->lock);
 
     if (owner->main_stream)
-        vlc_aout_stream_RequestRestart(owner->main_stream, AOUT_RESTART_OUTPUT);
+        heimdall_aout_stream_RequestRestart(owner->main_stream, AOUT_RESTART_OUTPUT);
     return 0;
 }
 
-static int MixModeCallback (vlc_object_t *obj, const char *varname,
-                               vlc_value_t oldval, vlc_value_t newval, void *data)
+static int MixModeCallback (heimdall_object_t *obj, const char *varname,
+                               heimdall_value_t oldval, heimdall_value_t newval, void *data)
 {
     audio_output_t *aout = (audio_output_t *)obj;
     (void)varname; (void)oldval; (void)newval; (void)data;
 
     aout_owner_t *owner = aout_owner (aout);
-    vlc_mutex_lock (&owner->lock);
+    heimdall_mutex_lock (&owner->lock);
     owner->requested_mix_mode = newval.i_int;
-    vlc_mutex_unlock (&owner->lock);
+    heimdall_mutex_unlock (&owner->lock);
 
     if (owner->main_stream)
-        vlc_aout_stream_RequestRestart(owner->main_stream, AOUT_RESTART_OUTPUT);
+        heimdall_aout_stream_RequestRestart(owner->main_stream, AOUT_RESTART_OUTPUT);
     return 0;
 }
 
-static void aout_ChangeViewpoint(audio_output_t *, const vlc_viewpoint_t *);
+static void aout_ChangeViewpoint(audio_output_t *, const heimdall_viewpoint_t *);
 
-static int ViewpointCallback (vlc_object_t *obj, const char *var,
-                              vlc_value_t prev, vlc_value_t cur, void *data)
+static int ViewpointCallback (heimdall_object_t *obj, const char *var,
+                              heimdall_value_t prev, heimdall_value_t cur, void *data)
 {
     if( cur.p_address != NULL )
         aout_ChangeViewpoint((audio_output_t *)obj, cur.p_address );
     (void) var; (void) data; (void) prev;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 #undef aout_New
 /**
  * Creates an audio output object and initializes an output module.
  */
-audio_output_t *aout_New (vlc_object_t *parent)
+audio_output_t *aout_New (heimdall_object_t *parent)
 {
-    vlc_value_t val;
+    heimdall_value_t val;
 
-    audio_output_t *aout = vlc_custom_create (parent, sizeof (aout_instance_t),
+    audio_output_t *aout = heimdall_custom_create (parent, sizeof (aout_instance_t),
                                               "audio output");
     if (unlikely(aout == NULL))
         return NULL;
 
     aout_owner_t *owner = aout_owner (aout);
 
-    vlc_mutex_init (&owner->lock);
-    vlc_mutex_init (&owner->dev.lock);
-    vlc_mutex_init (&owner->vp.lock);
-    vlc_viewpoint_init (&owner->vp.value);
-    vlc_list_init(&owner->dev.list);
+    heimdall_mutex_init (&owner->lock);
+    heimdall_mutex_init (&owner->dev.lock);
+    heimdall_mutex_init (&owner->vp.lock);
+    heimdall_viewpoint_init (&owner->vp.value);
+    heimdall_list_init(&owner->dev.list);
     atomic_init (&owner->vp.update, false);
-    vlc_atomic_rc_init(&owner->rc);
-    vlc_audio_meter_Init(&owner->meter, aout);
+    heimdall_atomic_rc_init(&owner->rc);
+    heimdall_audio_meter_Init(&owner->meter, aout);
 
     owner->main_stream = NULL;
 
     /* Audio output module callbacks */
-    var_Create (aout, "volume", VLC_VAR_FLOAT);
+    var_Create (aout, "volume", HEIMDALL_VAR_FLOAT);
     var_SetFloat(aout, "volume", -1.f);
     var_AddCallback (aout, "volume", var_Copy, parent);
-    var_Create (aout, "mute", VLC_VAR_BOOL);
+    var_Create (aout, "mute", HEIMDALL_VAR_BOOL);
     var_AddCallback (aout, "mute", var_Copy, parent);
-    var_Create (aout, "device", VLC_VAR_STRING);
+    var_Create (aout, "device", HEIMDALL_VAR_STRING);
     var_AddCallback (aout, "device", var_CopyDevice, parent);
 
     aout->events = &aout_events;
@@ -304,7 +305,7 @@ audio_output_t *aout_New (vlc_object_t *parent)
     if (owner->module == NULL)
     {
         msg_Err (aout, "no suitable audio output module");
-        vlc_object_delete(aout);
+        heimdall_object_delete(aout);
         return NULL;
     }
     assert(aout->start && aout->stop);
@@ -316,22 +317,22 @@ audio_output_t *aout_New (vlc_object_t *parent)
     char *str;
 
     /* Visualizations */
-    var_Create (aout, "audio-visual", VLC_VAR_STRING | VLC_VAR_DOINHERIT);
-    var_Change(aout, "audio-visual", VLC_VAR_SETTEXT,
+    var_Create (aout, "audio-visual", HEIMDALL_VAR_STRING | HEIMDALL_VAR_DOINHERIT);
+    var_Change(aout, "audio-visual", HEIMDALL_VAR_SETTEXT,
                _("Audio visualizations"));
 
-    var_Create (aout, "visual", VLC_VAR_STRING);
-    var_Change(aout, "visual", VLC_VAR_SETTEXT, _("Visualizations"));
+    var_Create (aout, "visual", HEIMDALL_VAR_STRING);
+    var_Change(aout, "visual", HEIMDALL_VAR_SETTEXT, _("Visualizations"));
     val.psz_string = (char *)"";
-    var_Change(aout, "visual", VLC_VAR_ADDCHOICE, val, _("Disable"));
+    var_Change(aout, "visual", HEIMDALL_VAR_ADDCHOICE, val, _("Disable"));
     val.psz_string = (char *)"spectrometer";
-    var_Change(aout, "visual", VLC_VAR_ADDCHOICE, val, _("Spectrometer"));
+    var_Change(aout, "visual", HEIMDALL_VAR_ADDCHOICE, val, _("Spectrometer"));
     val.psz_string = (char *)"scope";
-    var_Change(aout, "visual", VLC_VAR_ADDCHOICE, val, _("Scope"));
+    var_Change(aout, "visual", HEIMDALL_VAR_ADDCHOICE, val, _("Scope"));
     val.psz_string = (char *)"spectrum";
-    var_Change(aout, "visual", VLC_VAR_ADDCHOICE, val, _("Spectrum"));
+    var_Change(aout, "visual", HEIMDALL_VAR_ADDCHOICE, val, _("Spectrum"));
     val.psz_string = (char *)"vuMeter";
-    var_Change(aout, "visual", VLC_VAR_ADDCHOICE, val, _("VU meter"));
+    var_Change(aout, "visual", HEIMDALL_VAR_ADDCHOICE, val, _("VU meter"));
     /* Same list the preferences use; "visual" is covered by its effects. */
     char **vis_vals, **vis_texts;
     ssize_t vis_count = config_GetPszChoices ("audio-visual", &vis_vals,
@@ -342,7 +343,7 @@ audio_output_t *aout_New (vlc_object_t *parent)
          && strcmp (vis_vals[i], "visual"))
         {
             val.psz_string = vis_vals[i];
-            var_Change(aout, "visual", VLC_VAR_ADDCHOICE, val, vis_texts[i]);
+            var_Change(aout, "visual", HEIMDALL_VAR_ADDCHOICE, val, vis_texts[i]);
         }
         free (vis_vals[i]);
         free (vis_texts[i]);
@@ -366,45 +367,45 @@ audio_output_t *aout_New (vlc_object_t *parent)
     }
     free (str);
 
-    var_Create (aout, "audio-filter", VLC_VAR_STRING | VLC_VAR_DOINHERIT);
+    var_Create (aout, "audio-filter", HEIMDALL_VAR_STRING | HEIMDALL_VAR_DOINHERIT);
     var_AddCallback (aout, "audio-filter", FilterCallback, NULL);
-    var_Change(aout, "audio-filter", VLC_VAR_SETTEXT, _("Audio filters"));
+    var_Change(aout, "audio-filter", HEIMDALL_VAR_SETTEXT, _("Audio filters"));
 
-    var_Create (aout, "viewpoint", VLC_VAR_ADDRESS );
+    var_Create (aout, "viewpoint", HEIMDALL_VAR_ADDRESS );
     var_AddCallback (aout, "viewpoint", ViewpointCallback, NULL);
 
     /* Replay gain */
     var_Create (aout, "audio-replay-gain-mode",
-                VLC_VAR_STRING | VLC_VAR_DOINHERIT );
-    var_Change(aout, "audio-replay-gain-mode", VLC_VAR_SETTEXT,
+                HEIMDALL_VAR_STRING | HEIMDALL_VAR_DOINHERIT );
+    var_Change(aout, "audio-replay-gain-mode", HEIMDALL_VAR_SETTEXT,
                _("Replay gain"));
     cfg = config_FindConfig("audio-replay-gain-mode");
     if (likely(cfg != NULL))
         for (unsigned i = 0; i < cfg->list_count; i++)
         {
             val.psz_string = (char *)cfg->list.psz[i];
-            var_Change(aout, "audio-replay-gain-mode", VLC_VAR_ADDCHOICE,
-                       val, vlc_gettext(cfg->list_text[i]));
+            var_Change(aout, "audio-replay-gain-mode", HEIMDALL_VAR_ADDCHOICE,
+                       val, heimdall_gettext(cfg->list_text[i]));
         }
 
     /* Stereo mode */
-    var_Create (aout, "stereo-mode", VLC_VAR_INTEGER | VLC_VAR_DOINHERIT);
+    var_Create (aout, "stereo-mode", HEIMDALL_VAR_INTEGER | HEIMDALL_VAR_DOINHERIT);
     owner->requested_stereo_mode = var_GetInteger (aout, "stereo-mode");
 
     var_AddCallback (aout, "stereo-mode", StereoModeCallback, NULL);
-    var_Change(aout, "stereo-mode", VLC_VAR_SETTEXT, _("Stereo audio mode"));
+    var_Change(aout, "stereo-mode", HEIMDALL_VAR_SETTEXT, _("Stereo audio mode"));
 
     /* Mix mode */
-    var_Create (aout, "mix-mode", VLC_VAR_INTEGER | VLC_VAR_DOINHERIT);
+    var_Create (aout, "mix-mode", HEIMDALL_VAR_INTEGER | HEIMDALL_VAR_DOINHERIT);
     owner->requested_mix_mode = var_GetInteger (aout, "mix-mode");
     var_AddCallback (aout, "mix-mode", MixModeCallback, NULL);
-    var_Change(aout, "mix-mode", VLC_VAR_SETTEXT, _("Audio mix mode"));
+    var_Change(aout, "mix-mode", HEIMDALL_VAR_SETTEXT, _("Audio mix mode"));
 
     /* Equalizer */
-    int doinherit = module_exists("equalizer") ? VLC_VAR_DOINHERIT : 0;
-    var_Create (aout, "equalizer-preamp", VLC_VAR_FLOAT | doinherit);
-    var_Create (aout, "equalizer-bands", VLC_VAR_STRING | doinherit);
-    var_Create (aout, "equalizer-preset", VLC_VAR_STRING | doinherit);
+    int doinherit = module_exists("equalizer") ? HEIMDALL_VAR_DOINHERIT : 0;
+    var_Create (aout, "equalizer-preamp", HEIMDALL_VAR_FLOAT | doinherit);
+    var_Create (aout, "equalizer-bands", HEIMDALL_VAR_STRING | doinherit);
+    var_Create (aout, "equalizer-preset", HEIMDALL_VAR_STRING | doinherit);
 
     owner->bitexact = var_InheritBool (aout, "audio-bitexact");
 
@@ -415,7 +416,7 @@ audio_output_t *aout_Hold(audio_output_t *aout)
 {
     aout_owner_t *owner = aout_owner(aout);
 
-    vlc_atomic_rc_inc(&owner->rc);
+    heimdall_atomic_rc_inc(&owner->rc);
     return aout;
 }
 
@@ -426,40 +427,40 @@ static void aout_Destroy (audio_output_t *aout)
 {
     aout_owner_t *owner = aout_owner (aout);
 
-    vlc_mutex_lock(&owner->lock);
+    heimdall_mutex_lock(&owner->lock);
     module_unneed (aout, owner->module);
     /* Protect against late call from intf.c */
     aout->volume_set = NULL;
     aout->mute_set = NULL;
     aout->device_select = NULL;
-    vlc_audio_meter_Destroy(&owner->meter);
-    vlc_mutex_unlock(&owner->lock);
+    heimdall_audio_meter_Destroy(&owner->meter);
+    heimdall_mutex_unlock(&owner->lock);
 
     var_DelCallback (aout, "viewpoint", ViewpointCallback, NULL);
     var_DelCallback (aout, "audio-filter", FilterCallback, NULL);
-    var_DelCallback(aout, "device", var_CopyDevice, vlc_object_parent(aout));
-    var_DelCallback(aout, "mute", var_Copy, vlc_object_parent(aout));
+    var_DelCallback(aout, "device", var_CopyDevice, heimdall_object_parent(aout));
+    var_DelCallback(aout, "mute", var_Copy, heimdall_object_parent(aout));
     var_SetFloat (aout, "volume", -1.f);
-    var_DelCallback(aout, "volume", var_Copy, vlc_object_parent(aout));
+    var_DelCallback(aout, "volume", var_Copy, heimdall_object_parent(aout));
     var_DelCallback (aout, "stereo-mode", StereoModeCallback, NULL);
     var_DelCallback (aout, "mix-mode", MixModeCallback, NULL);
 
     aout_dev_t *dev;
-    vlc_list_foreach(dev, &owner->dev.list, node)
+    heimdall_list_foreach(dev, &owner->dev.list, node)
     {
-        vlc_list_remove(&dev->node);
+        heimdall_list_remove(&dev->node);
         free (dev->name);
         free (dev);
     }
 
-    vlc_object_delete(VLC_OBJECT(aout));
+    heimdall_object_delete(HEIMDALL_OBJECT(aout));
 }
 
 void aout_Release(audio_output_t *aout)
 {
     aout_owner_t *owner = aout_owner(aout);
 
-    if (!vlc_atomic_rc_dec(&owner->rc))
+    if (!heimdall_atomic_rc_dec(&owner->rc))
         return;
 
     aout_Destroy(aout);
@@ -471,7 +472,7 @@ static int aout_PrepareStereoMode(audio_output_t *aout,
     aout_owner_t *owner = aout_owner (aout);
 
     /* Fill Stereo mode choices */
-    vlc_value_t val;
+    heimdall_value_t val;
     const char *txt;
     val.i_int = 0;
 
@@ -481,7 +482,7 @@ static int aout_PrepareStereoMode(audio_output_t *aout,
     int i_default_mode = owner->requested_stereo_mode;
 
     val.i_int = AOUT_VAR_CHAN_MONO;
-    var_Change(aout, "stereo-mode", VLC_VAR_ADDCHOICE, val, _("Mono"));
+    var_Change(aout, "stereo-mode", HEIMDALL_VAR_ADDCHOICE, val, _("Mono"));
 
     if (fmt->i_chan_mode & AOUT_CHANMODE_DOLBYSTEREO)
     {
@@ -493,7 +494,7 @@ static int aout_PrepareStereoMode(audio_output_t *aout,
         val.i_int = AOUT_VAR_CHAN_STEREO;
         txt = _("Stereo");
     }
-    var_Change(aout, "stereo-mode", VLC_VAR_ADDCHOICE, val, txt);
+    var_Change(aout, "stereo-mode", HEIMDALL_VAR_ADDCHOICE, val, txt);
 
     if (fmt->i_chan_mode & AOUT_CHANMODE_DUALMONO)
         i_default_mode = AOUT_VAR_CHAN_LEFT;
@@ -501,12 +502,12 @@ static int aout_PrepareStereoMode(audio_output_t *aout,
         i_default_mode = val.i_int; /* Stereo or Dolby Surround */
 
     val.i_int = AOUT_VAR_CHAN_LEFT;
-    var_Change(aout, "stereo-mode", VLC_VAR_ADDCHOICE, val, _("Left"));
+    var_Change(aout, "stereo-mode", HEIMDALL_VAR_ADDCHOICE, val, _("Left"));
     val.i_int = AOUT_VAR_CHAN_RIGHT;
-    var_Change(aout, "stereo-mode", VLC_VAR_ADDCHOICE, val, _("Right"));
+    var_Change(aout, "stereo-mode", HEIMDALL_VAR_ADDCHOICE, val, _("Right"));
 
     val.i_int = AOUT_VAR_CHAN_RSTEREO;
-    var_Change(aout, "stereo-mode", VLC_VAR_ADDCHOICE, val,
+    var_Change(aout, "stereo-mode", HEIMDALL_VAR_ADDCHOICE, val,
                _("Reverse stereo"));
 
     return i_default_mode;
@@ -547,17 +548,17 @@ static void aout_UpdateStereoMode(audio_output_t *aout, int mode,
             break;
     }
 
-    var_Change(aout, "stereo-mode", VLC_VAR_SETVALUE,
-               (vlc_value_t) { .i_int = mode});
+    var_Change(aout, "stereo-mode", HEIMDALL_VAR_SETVALUE,
+               (heimdall_value_t) { .i_int = mode});
 }
 
 static bool aout_HasStereoMode(audio_output_t *aout, int mode)
 {
     bool mode_available = false;
-    vlc_value_t *vals;
+    heimdall_value_t *vals;
     size_t count;
 
-    if (!var_Change(aout, "stereo-mode", VLC_VAR_GETCHOICES,
+    if (!var_Change(aout, "stereo-mode", HEIMDALL_VAR_GETCHOICES,
                     &count, &vals, (char ***)NULL))
     {
         for (size_t i = 0; !mode_available && i < count; ++i)
@@ -588,8 +589,8 @@ static void aout_AddMixModeChoice(audio_output_t *aout, int mode,
         text = buffer;
     }
 
-    vlc_value_t val = { .i_int = mode };
-    var_Change(aout, "mix-mode", VLC_VAR_ADDCHOICE, val, text);
+    heimdall_value_t val = { .i_int = mode };
+    var_Change(aout, "mix-mode", HEIMDALL_VAR_ADDCHOICE, val, text);
 
     free(buffer);
 }
@@ -648,10 +649,10 @@ static void aout_SetupMixModeChoices (audio_output_t *aout,
 static bool aout_HasMixModeChoice(audio_output_t *aout, int mode)
 {
     bool mode_available = false;
-    vlc_value_t *vals;
+    heimdall_value_t *vals;
     size_t count;
 
-    if (!var_Change(aout, "mix-mode", VLC_VAR_GETCHOICES,
+    if (!var_Change(aout, "mix-mode", HEIMDALL_VAR_GETCHOICES,
                     &count, &vals, (char ***)NULL))
     {
         for (size_t i = 0; !mode_available && i < count; ++i)
@@ -695,22 +696,22 @@ static void aout_UpdateMixMode(audio_output_t *aout, int mode,
 
     assert(mode == AOUT_VAR_CHAN_UNSET || aout_HasMixModeChoice(aout, mode));
 
-    var_Change(aout, "mix-mode", VLC_VAR_SETVALUE, (vlc_value_t) { .i_int = mode});
+    var_Change(aout, "mix-mode", HEIMDALL_VAR_SETVALUE, (heimdall_value_t) { .i_int = mode});
 }
 
-int aout_OutputNew(audio_output_t *aout, vlc_aout_stream *stream,
+int aout_OutputNew(audio_output_t *aout, heimdall_aout_stream *stream,
                    audio_sample_format_t *fmt, int input_profile,
                    audio_sample_format_t *filter_fmt,
                    aout_filters_cfg_t *filters_cfg)
 {
     aout_owner_t *owner = aout_owner (aout);
 
-    vlc_fourcc_t formats[] = {
+    heimdall_fourcc_t formats[] = {
         fmt->i_format, 0, 0
     };
 
-    var_Change(aout, "stereo-mode", VLC_VAR_CLEARCHOICES);
-    var_Change(aout, "mix-mode", VLC_VAR_CLEARCHOICES);
+    var_Change(aout, "stereo-mode", HEIMDALL_VAR_CLEARCHOICES);
+    var_Change(aout, "mix-mode", HEIMDALL_VAR_CLEARCHOICES);
 
     /* Ideally, the audio filters would be created before the audio output,
      * and the ideal audio format would be the output of the filters chain.
@@ -734,8 +735,8 @@ int aout_OutputNew(audio_output_t *aout, vlc_aout_stream *stream,
         }
 
         /* Try to stay in integer domain if possible for no/slow FPU. */
-        fmt->i_format = (fmt->i_bitspersample > 16) ? VLC_CODEC_FL32
-                                                    : VLC_CODEC_S16N;
+        fmt->i_format = (fmt->i_bitspersample > 16) ? HEIMDALL_CODEC_FL32
+                                                    : HEIMDALL_CODEC_S16N;
 
         aout_SetupMixModeChoices(aout, fmt);
 
@@ -752,19 +753,19 @@ int aout_OutputNew(audio_output_t *aout, vlc_aout_stream *stream,
         switch (fmt->i_format)
         {
             static_assert(ARRAY_SIZE(formats) >= 3, "fallback array too small");
-            case VLC_CODEC_DTS:
+            case HEIMDALL_CODEC_DTS:
                 if (input_profile > 0)
                 {
                     /* DTSHD can be played as DTSHD or as DTS */
-                    formats[0] = VLC_CODEC_DTSHD;
-                    formats[1] = VLC_CODEC_DTS;
+                    formats[0] = HEIMDALL_CODEC_DTSHD;
+                    formats[1] = HEIMDALL_CODEC_DTS;
                 }
                 break;
-            case VLC_CODEC_A52:
+            case HEIMDALL_CODEC_A52:
                 if (input_profile > 0)
                 {
-                    formats[0] = VLC_CODEC_EAC3;
-                    formats[1] = VLC_CODEC_A52;
+                    formats[0] = HEIMDALL_CODEC_EAC3;
+                    formats[1] = HEIMDALL_CODEC_A52;
                 }
                 break;
             default:
@@ -780,12 +781,12 @@ int aout_OutputNew(audio_output_t *aout, vlc_aout_stream *stream,
 
     aout->current_sink_info.headphones = false;
 
-    vlc_mutex_lock(&owner->lock);
+    heimdall_mutex_lock(&owner->lock);
     /* XXX: Remove when aout/stream support is complete (in all modules) */
     assert(owner->main_stream == NULL);
 
-    int ret = VLC_EGENERIC;
-    for (size_t i = 0; formats[i] != 0 && ret != VLC_SUCCESS; ++i)
+    int ret = HEIMDALL_EGENERIC;
+    for (size_t i = 0; formats[i] != 0 && ret != HEIMDALL_SUCCESS; ++i)
     {
         filter_fmt->i_format = fmt->i_format = formats[i];
         owner->main_stream = stream;
@@ -793,7 +794,7 @@ int aout_OutputNew(audio_output_t *aout, vlc_aout_stream *stream,
         if (ret != 0)
             owner->main_stream = NULL;
     }
-    vlc_mutex_unlock(&owner->lock);
+    heimdall_mutex_unlock(&owner->lock);
     if (ret)
     {
         if (AOUT_FMT_LINEAR(fmt))
@@ -826,10 +827,10 @@ int aout_OutputNew(audio_output_t *aout, vlc_aout_stream *stream,
 void aout_OutputDelete (audio_output_t *aout)
 {
     aout_owner_t *owner = aout_owner(aout);
-    vlc_mutex_lock(&owner->lock);
+    heimdall_mutex_lock(&owner->lock);
     aout->stop (aout);
     owner->main_stream = NULL;
-    vlc_mutex_unlock(&owner->lock);
+    heimdall_mutex_unlock(&owner->lock);
 }
 
 float aout_VolumeGet (audio_output_t *aout)
@@ -842,9 +843,9 @@ int aout_VolumeSet (audio_output_t *aout, float vol)
     aout_owner_t *owner = aout_owner(aout);
     int ret;
 
-    vlc_mutex_lock(&owner->lock);
+    heimdall_mutex_lock(&owner->lock);
     ret = aout->volume_set ? aout->volume_set(aout, vol) : -1;
-    vlc_mutex_unlock(&owner->lock);
+    heimdall_mutex_unlock(&owner->lock);
     return ret ? -1 : 0;
 }
 
@@ -877,9 +878,9 @@ int aout_MuteSet (audio_output_t *aout, bool mute)
     aout_owner_t *owner = aout_owner(aout);
     int ret;
 
-    vlc_mutex_lock(&owner->lock);
+    heimdall_mutex_lock(&owner->lock);
     ret = aout->mute_set ? aout->mute_set(aout, mute) : -1;
-    vlc_mutex_unlock(&owner->lock);
+    heimdall_mutex_unlock(&owner->lock);
     return ret ? -1 : 0;
 }
 
@@ -893,9 +894,9 @@ int aout_DeviceSet (audio_output_t *aout, const char *id)
     aout_owner_t *owner = aout_owner(aout);
     int ret;
 
-    vlc_mutex_lock(&owner->lock);
+    heimdall_mutex_lock(&owner->lock);
     ret = aout->device_select ? aout->device_select(aout, id) : -1;
-    vlc_mutex_unlock(&owner->lock);
+    heimdall_mutex_unlock(&owner->lock);
     return ret ? -1 : 0;
 }
 
@@ -905,9 +906,9 @@ int aout_DevicesList (audio_output_t *aout, char ***ids, char ***names)
     char **tabid, **tabname;
     unsigned i = 0;
 
-    vlc_mutex_lock (&owner->dev.lock);
-    tabid = vlc_alloc (owner->dev.count, sizeof (*tabid));
-    tabname = vlc_alloc (owner->dev.count, sizeof (*tabname));
+    heimdall_mutex_lock (&owner->dev.lock);
+    tabid = heimdall_alloc (owner->dev.count, sizeof (*tabid));
+    tabname = heimdall_alloc (owner->dev.count, sizeof (*tabname));
 
     if (unlikely(tabid == NULL || tabname == NULL))
         goto error;
@@ -916,7 +917,7 @@ int aout_DevicesList (audio_output_t *aout, char ***ids, char ***names)
     *names = tabname;
 
     aout_dev_t *dev;
-    vlc_list_foreach(dev, &owner->dev.list, node)
+    heimdall_list_foreach(dev, &owner->dev.list, node)
     {
         tabid[i] = strdup(dev->id);
         if (unlikely(tabid[i] == NULL))
@@ -931,12 +932,12 @@ int aout_DevicesList (audio_output_t *aout, char ***ids, char ***names)
 
         i++;
     }
-    vlc_mutex_unlock (&owner->dev.lock);
+    heimdall_mutex_unlock (&owner->dev.lock);
 
     return i;
 
 error:
-    vlc_mutex_unlock(&owner->dev.lock);
+    heimdall_mutex_unlock(&owner->dev.lock);
     while (i > 0)
     {
         i--;
@@ -949,29 +950,29 @@ error:
 }
 
 static void aout_ChangeViewpoint(audio_output_t *aout,
-                                 const vlc_viewpoint_t *p_viewpoint)
+                                 const heimdall_viewpoint_t *p_viewpoint)
 {
     aout_owner_t *owner = aout_owner(aout);
 
-    vlc_mutex_lock(&owner->vp.lock);
+    heimdall_mutex_lock(&owner->vp.lock);
     owner->vp.value = *p_viewpoint;
     atomic_store_explicit(&owner->vp.update, true, memory_order_relaxed);
-    vlc_mutex_unlock(&owner->vp.lock);
+    heimdall_mutex_unlock(&owner->vp.lock);
 }
 
-vlc_audio_meter_plugin *
+heimdall_audio_meter_plugin *
 aout_AddMeterPlugin(audio_output_t *aout, const char *chain,
-                    const struct vlc_audio_meter_plugin_owner *meter_plugin_owner)
+                    const struct heimdall_audio_meter_plugin_owner *meter_plugin_owner)
 {
     aout_owner_t *owner = aout_owner(aout);
 
-    return vlc_audio_meter_AddPlugin(&owner->meter, chain, meter_plugin_owner);
+    return heimdall_audio_meter_AddPlugin(&owner->meter, chain, meter_plugin_owner);
 }
 
 void
-aout_RemoveMeterPlugin(audio_output_t *aout, vlc_audio_meter_plugin *plugin)
+aout_RemoveMeterPlugin(audio_output_t *aout, heimdall_audio_meter_plugin *plugin)
 {
     aout_owner_t *owner = aout_owner(aout);
 
-    vlc_audio_meter_RemovePlugin(&owner->meter, plugin);
+    heimdall_audio_meter_RemovePlugin(&owner->meter, plugin);
 }

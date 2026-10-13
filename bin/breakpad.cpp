@@ -2,6 +2,7 @@
  * breakpad.cpp: Wrapper to breakpad crash handler
  *****************************************************************************
  * Copyright (C) 1998-2017 VLC authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Hugo Beauzée-Luyssen <hugo@beauzee.fr>
  *
@@ -54,11 +55,11 @@ void CheckCrashDump( const wchar_t* path )
     HANDLE h = FindFirstFileW( pattern.str().c_str(), &data );
     if (h == INVALID_HANDLE_VALUE)
         return;
-    int answer = MessageBoxW( NULL, L"Ooops: VLC media player just crashed.\n" \
+    int answer = MessageBoxW( NULL, L"Ooops: Heimdall media player just crashed.\n" \
         "Would you like to send a bug report to the developers team?",
-        L"VLC crash reporting", MB_YESNO);
+        L"Heimdall crash reporting", MB_YESNO);
     std::map<std::wstring, std::wstring> params;
-    params[L"prod"] = L"VLC";
+    params[L"prod"] = L"Heimdall";
     params[L"ver"] = WIDEN(PACKAGE_VERSION);
     do
     {

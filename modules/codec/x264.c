@@ -2,9 +2,10 @@
  * x264.c: h264 video encoder
  *****************************************************************************
  * Copyright (C) 2004-2010 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
- *          Ilkka Ollakka <ileoo (at)videolan org>
+ *          Ilkka Ollakka <ileoo (at)lycaria org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,14 +29,14 @@
 # include "config.h"
 #endif
 
-#define VLC_MODULE_LICENSE VLC_LICENSE_GPL_2_PLUS
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_sout.h>
-#include <vlc_codec.h>
-#include <vlc_charset.h>
-#include <vlc_cpu.h>
+#define HEIMDALL_MODULE_LICENSE HEIMDALL_LICENSE_GPL_2_PLUS
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_sout.h>
+#include <heimdall_codec.h>
+#include <heimdall_charset.h>
+#include <heimdall_cpu.h>
 #include <math.h>
 
 #ifdef PLUGIN_X262
@@ -59,7 +60,7 @@
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  Open ( vlc_object_t * );
+static int  Open ( heimdall_object_t * );
 static void CloseEncoder( encoder_t * );
 static void x264_log( void *, int i_level, const char *psz, va_list );
 
@@ -433,7 +434,7 @@ static const int framepacking_list[] =
 static const char *const framepacking_list_text[] =
   { N_("Unset"), N_("Checkerboard"), N_("Column alternation"), N_("Row alternation"), N_("Side by side"), N_("Top bottom"), N_("Frame alternation"), N_("2D") };
 
-vlc_module_begin ()
+heimdall_module_begin ()
 #ifdef PLUGIN_X264_10B
     set_description( N_("H.264/MPEG-4 Part 10/AVC encoder (x264 10-bit)"))
     set_capability( "video encoder", 0 )
@@ -506,7 +507,7 @@ vlc_module_begin ()
 
     add_string( SOUT_CFG_PREFIX "profile", "high", PROFILE_TEXT,
                PROFILE_LONGTEXT )
-        vlc_config_set (VLC_CONFIG_LIST,
+        heimdall_config_set (HEIMDALL_CONFIG_LIST,
             ARRAY_SIZE(x264_profile_names) - 1,
             x264_profile_names, x264_profile_names);
 
@@ -522,7 +523,7 @@ vlc_module_begin ()
     add_integer( SOUT_CFG_PREFIX "slice-max-mbs", 0, SLICE_MAX_MBS, SLICE_MAX_MBS_LONGTEXT )
 
     add_string( SOUT_CFG_PREFIX "hrd", "none", HRD_TEXT, HRD_TEXT )
-        vlc_config_set (VLC_CONFIG_LIST,
+        heimdall_config_set (HEIMDALL_CONFIG_LIST,
             ARRAY_SIZE(x264_nal_hrd_names) - 1,
             x264_nal_hrd_names, x264_nal_hrd_names);
 
@@ -704,18 +705,18 @@ vlc_module_begin ()
                 STATS_LONGTEXT )
 
     add_string( SOUT_CFG_PREFIX "preset", NULL , PRESET_TEXT , NULL )
-        vlc_config_set (VLC_CONFIG_LIST,
+        heimdall_config_set (HEIMDALL_CONFIG_LIST,
             ARRAY_SIZE(x264_preset_names) - 1,
             x264_preset_names, x264_preset_names);
     add_string( SOUT_CFG_PREFIX "tune", NULL , TUNE_TEXT, NULL )
-        vlc_config_set (VLC_CONFIG_LIST,
+        heimdall_config_set (HEIMDALL_CONFIG_LIST,
             ARRAY_SIZE(x264_tune_names) - 1,
             x264_tune_names, x264_tune_names);
 
     add_string( SOUT_CFG_PREFIX "options", NULL, X264_OPTIONS_TEXT,
                 X264_OPTIONS_LONGTEXT )
 
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * Local prototypes
@@ -755,7 +756,7 @@ typedef struct
 /*****************************************************************************
  * Open: probe the encoder
  *****************************************************************************/
-static int  Open ( vlc_object_t *p_this )
+static int  Open ( heimdall_object_t *p_this )
 {
     encoder_t     *p_enc = (encoder_t *)p_this;
     encoder_sys_t *p_sys;
@@ -767,13 +768,13 @@ static int  Open ( vlc_object_t *p_this )
     int i, i_nal;
 
 #ifdef PLUGIN_X262
-    if( p_enc->fmt_out.i_codec != VLC_CODEC_MP2V &&
+    if( p_enc->fmt_out.i_codec != HEIMDALL_CODEC_MP2V &&
 #else
-    if( p_enc->fmt_out.i_codec != VLC_CODEC_H264 &&
+    if( p_enc->fmt_out.i_codec != HEIMDALL_CODEC_H264 &&
 #endif
         !p_enc->obj.force )
     {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     /* X264_POINTVER or X264_VERSION are not available */
 #ifdef PLUGIN_X262
@@ -786,13 +787,13 @@ static int  Open ( vlc_object_t *p_this )
 
     assert(p_enc->fmt_out.i_cat == VIDEO_ES);
 #ifdef PLUGIN_X262
-    p_enc->fmt_out.i_codec = VLC_CODEC_MP2V;
+    p_enc->fmt_out.i_codec = HEIMDALL_CODEC_MP2V;
 #else
-    p_enc->fmt_out.i_codec = VLC_CODEC_H264;
+    p_enc->fmt_out.i_codec = HEIMDALL_CODEC_H264;
 #endif
-    p_sys = vlc_obj_malloc( p_this, sizeof( encoder_sys_t ) );
+    p_sys = heimdall_obj_malloc( p_this, sizeof( encoder_sys_t ) );
     if( !p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     if (var_GetBool( p_enc, SOUT_CFG_PREFIX "fullrange" ))
         p_enc->fmt_in.video.color_range = COLOR_RANGE_FULL;
@@ -808,17 +809,17 @@ static int  Open ( vlc_object_t *p_this )
 
         if( !strcmp( psz_profile, "high10" ) )
         {
-            p_enc->fmt_in.video.i_chroma = mask ? VLC_CODEC_I420_10L : VLC_CODEC_I420;
+            p_enc->fmt_in.video.i_chroma = mask ? HEIMDALL_CODEC_I420_10L : HEIMDALL_CODEC_I420;
             p_sys->i_colorspace = X264_CSP_I420 | mask;
         }
         else if( !strcmp( psz_profile, "high422" ) )
         {
-            p_enc->fmt_in.video.i_chroma = mask ? VLC_CODEC_I422_10L : VLC_CODEC_I422;
+            p_enc->fmt_in.video.i_chroma = mask ? HEIMDALL_CODEC_I422_10L : HEIMDALL_CODEC_I422;
             p_sys->i_colorspace = X264_CSP_I422 | mask;
         }
         else if( !strcmp( psz_profile, "high444" ) )
         {
-            p_enc->fmt_in.video.i_chroma = mask ? VLC_CODEC_I444_10L : VLC_CODEC_I444;
+            p_enc->fmt_in.video.i_chroma = mask ? HEIMDALL_CODEC_I444_10L : HEIMDALL_CODEC_I444;
             p_sys->i_colorspace = X264_CSP_I444 | mask;
         }
         else
@@ -826,9 +827,9 @@ static int  Open ( vlc_object_t *p_this )
 # ifdef PLUGIN_X264_10B
             msg_Err( p_enc, "Only high-profiles and 10-bit are supported");
             free( psz_profile );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 # else
-            p_enc->fmt_in.video.i_chroma = VLC_CODEC_I420;
+            p_enc->fmt_in.video.i_chroma = HEIMDALL_CODEC_I420;
             p_sys->i_colorspace = X264_CSP_I420;
 # endif
         }
@@ -838,9 +839,9 @@ static int  Open ( vlc_object_t *p_this )
     {
 # ifdef PLUGIN_X264_10B
         msg_Err( p_enc, "Only high-profiles and 10-bit are supported");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 # else
-        p_enc->fmt_in.video.i_chroma = VLC_CODEC_I420;
+        p_enc->fmt_in.video.i_chroma = HEIMDALL_CODEC_I420;
         p_sys->i_colorspace = X264_CSP_I420;
 # endif
     }
@@ -1011,11 +1012,11 @@ static int  Open ( vlc_object_t *p_this )
     psz_val = var_GetString( p_enc, SOUT_CFG_PREFIX "psy-rd" );
     if( psz_val )
     {
-        if( vlc_atof_c( psz_val ) != 1.0 )
+        if( heimdall_atof_c( psz_val ) != 1.0 )
         {
             char *p = strchr( psz_val, ':' );
-            p_sys->param.analyse.f_psy_rd = vlc_atof_c( psz_val );
-            p_sys->param.analyse.f_psy_trellis = p ? vlc_atof_c( p+1 ) : 0;
+            p_sys->param.analyse.f_psy_rd = heimdall_atof_c( psz_val );
+            p_sys->param.analyse.f_psy_trellis = p ? heimdall_atof_c( p+1 ) : 0;
         }
         free( psz_val );
     }
@@ -1026,8 +1027,8 @@ static int  Open ( vlc_object_t *p_this )
     psz_val = var_GetString( p_enc, SOUT_CFG_PREFIX "level" );
     if( psz_val )
     {
-        if( vlc_atof_c(psz_val) < 6 && vlc_atof_c(psz_val) > 0 )
-            p_sys->param.i_level_idc = (int) (10 * vlc_atof_c(psz_val)
+        if( heimdall_atof_c(psz_val) < 6 && heimdall_atof_c(psz_val) > 0 )
+            p_sys->param.i_level_idc = (int) (10 * heimdall_atof_c(psz_val)
                                               + .5);
         else if( atoi(psz_val) >= 10 && atoi(psz_val) <= 51 )
             p_sys->param.i_level_idc = atoi (psz_val);
@@ -1263,7 +1264,7 @@ static int  Open ( vlc_object_t *p_this )
         p_enc->fmt_in.video.i_sar_den > 0 )
     {
         unsigned int i_dst_num, i_dst_den;
-        vlc_ureduce( &i_dst_num, &i_dst_den,
+        heimdall_ureduce( &i_dst_num, &i_dst_den,
                      p_enc->fmt_in.video.i_sar_num,
                      p_enc->fmt_in.video.i_sar_den, 0 );
         p_sys->param.vui.i_sar_width = i_dst_num;
@@ -1301,7 +1302,7 @@ static int  Open ( vlc_object_t *p_this )
     /* BUILD 29 adds support for multi-threaded encoding while BUILD 49 (r543)
        also adds support for threads = 0 for automatically selecting an optimal
        value (cores * 1.5) based on detected CPUs. Default behavior for x264 is
-       threads = 1, however VLC usage differs and uses threads = 0 (auto) by
+       threads = 1, however Heimdall usage differs and uses threads = 0 (auto) by
        default unless ofcourse transcode threads is explicitly specified.. */
     p_sys->param.i_threads = p_enc->i_threads;
 
@@ -1360,7 +1361,7 @@ static int  Open ( vlc_object_t *p_this )
     {
         msg_Err( p_enc, "cannot open x264 encoder" );
         CloseEncoder(p_enc);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* get the globals headers */
@@ -1369,7 +1370,7 @@ static int  Open ( vlc_object_t *p_this )
     if( !p_extra )
     {
         CloseEncoder(p_enc);
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     for( i = 0; i < i_nal; i++ )
@@ -1394,14 +1395,14 @@ static int  Open ( vlc_object_t *p_this )
         {
             free( p_extra );
             CloseEncoder(p_enc);
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         }
         memcpy( p_sys->p_sei, nal[i].p_payload, nal[i].i_payload );
     }
 
     p_enc->fmt_out.i_extra = i_extra;
 
-    static const struct vlc_encoder_operations ops =
+    static const struct heimdall_encoder_operations ops =
     {
         .close = CloseEncoder,
         .encode_video = Encode,
@@ -1409,7 +1410,7 @@ static int  Open ( vlc_object_t *p_this )
 
     p_enc->ops = &ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /****************************************************************************
@@ -1422,17 +1423,17 @@ static void x264_log( void *data, int i_level, const char *psz, va_list args)
     switch( i_level )
     {
         case X264_LOG_ERROR:
-            i_level = VLC_MSG_ERR;
+            i_level = HEIMDALL_MSG_ERR;
             break;
         case X264_LOG_WARNING:
-            i_level = VLC_MSG_WARN;
+            i_level = HEIMDALL_MSG_WARN;
             break;
         case X264_LOG_INFO:
-            i_level = VLC_MSG_INFO;
+            i_level = HEIMDALL_MSG_INFO;
             break;
         case X264_LOG_DEBUG:
         default:
-            i_level = VLC_MSG_DBG;
+            i_level = HEIMDALL_MSG_DBG;
     }
 
     msg_GenericVa( p_enc, i_level, psz, args );
@@ -1504,7 +1505,7 @@ static block_t *Encode( encoder_t *p_enc, picture_t *p_pict )
     if( !p_sys->param.b_vfr_input )
     {
         /* This isn't really valid for streams with B-frames */
-        p_block->i_length = vlc_tick_from_samples(
+        p_block->i_length = heimdall_tick_from_samples(
                     p_enc->fmt_out.video.i_frame_rate_base,
                     p_enc->fmt_out.video.i_frame_rate );
     }

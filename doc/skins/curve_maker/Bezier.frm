@@ -3,7 +3,7 @@ Object = "{F9043C88-F6F2-101A-A3C9-08002B2F49FB}#1.1#0"; "COMDLG32.OCX"
 Begin VB.Form ppal 
    AutoRedraw      =   -1  'True
    BackColor       =   &H00FFFFFF&
-   Caption         =   "VLC skin Curve Maker"
+   Caption         =   "Heimdall skin Curve Maker"
    ClientHeight    =   7140
    ClientLeft      =   165
    ClientTop       =   450
@@ -297,7 +297,7 @@ Set F = New FileSystemObject
 Cmd.filename = CurveFile
 Cmd.CancelError = False
 Cmd.DialogTitle = "Open Curve"
-Cmd.Filter = "Fichier VLC curve |*.curve.vlc"
+Cmd.Filter = "Fichier Heimdall curve |*.curve.heimdall"
 Cmd.FilterIndex = 0
 Cmd.InitDir = App.Path
 Cmd.ShowOpen
@@ -359,7 +359,7 @@ Set F = New FileSystemObject
 On Error GoTo error
 Cmd.CancelError = True
 Cmd.DialogTitle = "Save Curve"
-Cmd.Filter = "Fichier VLC curve |*.curve.vlc"
+Cmd.Filter = "Fichier Heimdall curve |*.curve.heimdall"
 Cmd.FilterIndex = 0
 Cmd.InitDir = App.Path
 Cmd.ShowSave

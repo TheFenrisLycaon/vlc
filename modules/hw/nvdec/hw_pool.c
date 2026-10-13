@@ -2,6 +2,7 @@
  * hw_pool.c: hw based picture pool
  *****************************************************************************
  * Copyright (C) 2019-2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Jai Luthra <me@jailuthra.in>
  *          Quentin Chateau <quentin.chateau@deepskycorp.com>
@@ -25,12 +26,12 @@
 # include "config.h"
 #endif
 
-#include <vlc_picture_pool.h>
-#include <vlc_atomic.h>
+#include <heimdall_picture_pool.h>
+#include <heimdall_atomic.h>
 #include "hw_pool.h"
 
 struct hw_pool_t {
-    vlc_video_context           *vctx;
+    heimdall_video_context           *vctx;
 
     hw_pool_owner_t             *owner;
 
@@ -39,27 +40,27 @@ struct hw_pool_t {
 
     picture_pool_t              *picture_pool;
 
-    vlc_atomic_rc_t             rc;
+    heimdall_atomic_rc_t             rc;
 };
 
 void hw_pool_AddRef(hw_pool_t *pool)
 {
-    vlc_atomic_rc_inc(&pool->rc);
+    heimdall_atomic_rc_inc(&pool->rc);
 }
 
 void hw_pool_Release(hw_pool_t *pool)
 {
-    if (!vlc_atomic_rc_dec(&pool->rc))
+    if (!heimdall_atomic_rc_dec(&pool->rc))
         return;
 
     pool->owner->release_resources(pool->owner, pool->res, pool->pool_size);
 
     picture_pool_Release(pool->picture_pool);
-    vlc_video_context_Release(pool->vctx);
+    heimdall_video_context_Release(pool->vctx);
 }
 
 hw_pool_t* hw_pool_Create(hw_pool_owner_t *owner,
-                          const video_format_t *fmt, vlc_video_context *vctx,
+                          const video_format_t *fmt, heimdall_video_context *vctx,
                           void *buffers[], size_t pics_count)
 {
     hw_pool_t *pool = calloc(1, sizeof(*pool));
@@ -87,9 +88,9 @@ hw_pool_t* hw_pool_Create(hw_pool_owner_t *owner,
     pool->owner = owner;
     pool->vctx = vctx;
     pool->pool_size = pics_count;
-    vlc_video_context_Hold(pool->vctx);
+    heimdall_video_context_Hold(pool->vctx);
 
-    vlc_atomic_rc_init(&pool->rc);
+    heimdall_atomic_rc_init(&pool->rc);
     return pool;
 
 free_pool:

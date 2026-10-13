@@ -1,0 +1,22 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+includedir=@includedir@
+datarootdir=@datarootdir@
+libdir=@libdir@
+datadir=@datadir@
+pkgincludedir=@includedir@/@PACKAGE@
+pkgdatadir=${datadir}/@PACKAGE@
+pkglibdir=${libdir}/@PACKAGE@
+pluginsdir=${pkglibdir}/plugins
+
+Name: Heimdall plugin API
+Description: Heimdall media player plugin interface
+Version: @VERSION@
+Cflags: -I${includedir} -I${pkgincludedir}/plugins \
+	-DHEIMDALL_DYNAMIC_PLUGIN \
+	-D_FILE_OFFSET_BITS=64 \
+	@DEFS_BIGENDIAN@
+Libs: -L${libdir} -lheimdallcore
+Libs.private: @LIBS_libheimdallcore@ \
+	@LTLIBINTL@ @LTLIBICONV@ \
+	@SOCKET_LIBS@ @LIBDL@ @LIBM@

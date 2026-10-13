@@ -2,6 +2,7 @@
  * equalizer.c:
  *****************************************************************************
  * Copyright (C) 2004-2012 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *
@@ -30,12 +31,12 @@
 
 #include <math.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_charset.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_charset.h>
 
-#include <vlc_aout.h>
-#include <vlc_filter.h>
+#include <heimdall_aout.h>
+#include <heimdall_filter.h>
 
 #include "equalizer_presets.h"
 
@@ -51,7 +52,7 @@
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  Open ( vlc_object_t * );
+static int  Open ( heimdall_object_t * );
 static void Close( filter_t * );
 
 #define PRESET_TEXT N_( "Equalizer preset" )
@@ -63,9 +64,9 @@ static void Close( filter_t * );
          "provide 10 values between -20dB and 20dB, separated by spaces, " \
          "e.g. \"0 2 4 2 0 -2 -4 -2 0 2\"." )
 
-#define VLC_BANDS_TEXT N_( "Use VLC frequency bands" )
-#define VLC_BANDS_LONGTEXT N_( \
-         "Use the VLC frequency bands. Otherwise, use the ISO Standard " \
+#define HEIMDALL_BANDS_TEXT N_( "Use Heimdall frequency bands" )
+#define HEIMDALL_BANDS_LONGTEXT N_( \
+         "Use the Heimdall frequency bands. Otherwise, use the ISO Standard " \
          "frequency bands." )
 
 #define TWOPASS_TEXT N_( "Two pass" )
@@ -75,7 +76,7 @@ static void Close( filter_t * );
 #define PREAMP_TEXT N_("Global gain" )
 #define PREAMP_LONGTEXT N_("Set the global gain in dB (-20 ... 20)." )
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("Equalizer with 10 bands") )
     set_shortname( N_("Equalizer" ) )
     set_capability( "audio filter", 0 )
@@ -88,13 +89,13 @@ vlc_module_begin ()
                 BANDS_LONGTEXT )
     add_bool( "equalizer-2pass", false, TWOPASS_TEXT,
               TWOPASS_LONGTEXT )
-    add_bool( "equalizer-vlcfreqs", true, VLC_BANDS_TEXT,
-              VLC_BANDS_LONGTEXT )
+    add_bool( "equalizer-heimdallfreqs", true, HEIMDALL_BANDS_TEXT,
+              HEIMDALL_BANDS_LONGTEXT )
     add_float( "equalizer-preamp", 12.0f, PREAMP_TEXT,
                PREAMP_LONGTEXT )
     set_callback( Open )
     add_shortcut( "equalizer" )
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * Local prototypes
@@ -120,7 +121,7 @@ typedef struct
     float x2[32][2];
     float y2[32][128][2];
 
-    vlc_mutex_t lock;
+    heimdall_mutex_t lock;
 } filter_sys_t;
 
 static block_t *DoWork( filter_t *, block_t * );
@@ -130,46 +131,46 @@ static int  EqzInit( filter_t *, int );
 static void EqzFilter( filter_t *, float *, float *, int, int );
 static void EqzClean( filter_t * );
 
-static int PresetCallback ( vlc_object_t *, char const *, vlc_value_t,
-                            vlc_value_t, void * );
-static int PreampCallback ( vlc_object_t *, char const *, vlc_value_t,
-                            vlc_value_t, void * );
-static int BandsCallback  ( vlc_object_t *, char const *, vlc_value_t,
-                            vlc_value_t, void * );
-static int TwoPassCallback( vlc_object_t *, char const *, vlc_value_t,
-                            vlc_value_t, void * );
+static int PresetCallback ( heimdall_object_t *, char const *, heimdall_value_t,
+                            heimdall_value_t, void * );
+static int PreampCallback ( heimdall_object_t *, char const *, heimdall_value_t,
+                            heimdall_value_t, void * );
+static int BandsCallback  ( heimdall_object_t *, char const *, heimdall_value_t,
+                            heimdall_value_t, void * );
+static int TwoPassCallback( heimdall_object_t *, char const *, heimdall_value_t,
+                            heimdall_value_t, void * );
 
 
 
 /*****************************************************************************
  * Open:
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     filter_t     *p_filter = (filter_t *)p_this;
 
     /* Allocate structure */
     filter_sys_t *p_sys = p_filter->p_sys = malloc( sizeof( *p_sys ) );
     if( !p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    vlc_mutex_init( &p_sys->lock );
-    if( EqzInit( p_filter, p_filter->fmt_in.audio.i_rate ) != VLC_SUCCESS )
+    heimdall_mutex_init( &p_sys->lock );
+    if( EqzInit( p_filter, p_filter->fmt_in.audio.i_rate ) != HEIMDALL_SUCCESS )
     {
         free( p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    p_filter->fmt_in.audio.i_format = VLC_CODEC_FL32;
+    p_filter->fmt_in.audio.i_format = HEIMDALL_CODEC_FL32;
     aout_FormatPrepare(&p_filter->fmt_in.audio);
     p_filter->fmt_out.audio = p_filter->fmt_in.audio;
-    static const struct vlc_filter_operations filter_ops =
+    static const struct heimdall_filter_operations filter_ops =
     {
         .filter_audio = DoWork, .close = Close,
     };
     p_filter->ops = &filter_ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -215,11 +216,11 @@ typedef struct
 
 /* Equalizer coefficient calculation function based on equ-xmms */
 static void EqzCoeffs( int i_rate, float f_octave_percent,
-                       bool b_use_vlc_freqs,
+                       bool b_use_heimdall_freqs,
                        eqz_config_t *p_eqz_config )
 {
-    const float *f_freq_table_10b = b_use_vlc_freqs
-                                  ? f_vlc_frequency_table_10b
+    const float *f_freq_table_10b = b_use_heimdall_freqs
+                                  ? f_heimdall_frequency_table_10b
                                   : f_iso_frequency_table_10b;
     float f_rate = (float) i_rate;
     float f_nyquist_freq = 0.5f * f_rate;
@@ -281,18 +282,18 @@ static int EqzInit( filter_t *p_filter, int i_rate )
     filter_sys_t *p_sys = p_filter->p_sys;
     eqz_config_t cfg;
     int i, ch;
-    vlc_value_t val1, val2, val3;
-    vlc_object_t *p_aout = vlc_object_parent(p_filter);
-    int i_ret = VLC_ENOMEM;
+    heimdall_value_t val1, val2, val3;
+    heimdall_object_t *p_aout = heimdall_object_parent(p_filter);
+    int i_ret = HEIMDALL_ENOMEM;
 
-    bool b_vlcFreqs = var_InheritBool( p_aout, "equalizer-vlcfreqs" );
-    EqzCoeffs( i_rate, 1.0f, b_vlcFreqs, &cfg );
+    bool b_heimdallFreqs = var_InheritBool( p_aout, "equalizer-heimdallfreqs" );
+    EqzCoeffs( i_rate, 1.0f, b_heimdallFreqs, &cfg );
 
     /* Create the static filter config */
     p_sys->i_band = cfg.i_band;
-    p_sys->f_alpha = vlc_alloc( p_sys->i_band, sizeof(float) );
-    p_sys->f_beta  = vlc_alloc( p_sys->i_band, sizeof(float) );
-    p_sys->f_gamma = vlc_alloc( p_sys->i_band, sizeof(float) );
+    p_sys->f_alpha = heimdall_alloc( p_sys->i_band, sizeof(float) );
+    p_sys->f_beta  = heimdall_alloc( p_sys->i_band, sizeof(float) );
+    p_sys->f_gamma = heimdall_alloc( p_sys->i_band, sizeof(float) );
     if( !p_sys->f_alpha || !p_sys->f_beta || !p_sys->f_gamma )
         goto error;
 
@@ -306,7 +307,7 @@ static int EqzInit( filter_t *p_filter, int i_rate )
     /* Filter dyn config */
     p_sys->b_2eqz = false;
     p_sys->f_gamp = 1.0f;
-    p_sys->f_amp  = vlc_alloc( p_sys->i_band, sizeof(float) );
+    p_sys->f_amp  = heimdall_alloc( p_sys->i_band, sizeof(float) );
     if( !p_sys->f_amp )
         goto error;
 
@@ -332,12 +333,12 @@ static int EqzInit( filter_t *p_filter, int i_rate )
         }
     }
 
-    var_Create( p_aout, "equalizer-bands", VLC_VAR_STRING | VLC_VAR_DOINHERIT );
-    var_Create( p_aout, "equalizer-preset", VLC_VAR_STRING | VLC_VAR_DOINHERIT );
+    var_Create( p_aout, "equalizer-bands", HEIMDALL_VAR_STRING | HEIMDALL_VAR_DOINHERIT );
+    var_Create( p_aout, "equalizer-preset", HEIMDALL_VAR_STRING | HEIMDALL_VAR_DOINHERIT );
 
     p_sys->b_2eqz = var_CreateGetBool( p_aout, "equalizer-2pass" );
 
-    var_Create( p_aout, "equalizer-preamp", VLC_VAR_FLOAT | VLC_VAR_DOINHERIT );
+    var_Create( p_aout, "equalizer-preamp", HEIMDALL_VAR_FLOAT | HEIMDALL_VAR_DOINHERIT );
 
     /* Get initial values */
     var_Get( p_aout, "equalizer-preset", &val1 );
@@ -346,10 +347,10 @@ static int EqzInit( filter_t *p_filter, int i_rate )
 
     /* Load the preset only if equalizer-bands is not set. */
     if ( val2.psz_string == NULL || *val2.psz_string == '\0' )
-        PresetCallback( VLC_OBJECT( p_aout ), NULL, val1, val1, p_sys );
+        PresetCallback( HEIMDALL_OBJECT( p_aout ), NULL, val1, val1, p_sys );
     free( val1.psz_string );
-    BandsCallback(  VLC_OBJECT( p_aout ), NULL, val2, val2, p_sys );
-    PreampCallback( VLC_OBJECT( p_aout ), NULL, val3, val3, p_sys );
+    BandsCallback(  HEIMDALL_OBJECT( p_aout ), NULL, val2, val2, p_sys );
+    PreampCallback( HEIMDALL_OBJECT( p_aout ), NULL, val3, val3, p_sys );
 
     /* Exit if we have no preset and no bands value */
     if (!val2.psz_string || !*val2.psz_string)
@@ -357,7 +358,7 @@ static int EqzInit( filter_t *p_filter, int i_rate )
         msg_Err(p_filter, "No preset selected");
         free( val2.psz_string );
         free( p_sys->f_amp );
-        i_ret = VLC_EGENERIC;
+        i_ret = HEIMDALL_EGENERIC;
         goto error;
     }
     free( val2.psz_string );
@@ -376,7 +377,7 @@ static int EqzInit( filter_t *p_filter, int i_rate )
                  cfg.band[i].f_frequency, p_sys->f_amp[i],
                  p_sys->f_alpha[i], p_sys->f_beta[i], p_sys->f_gamma[i]);
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     free( p_sys->f_alpha );
@@ -391,7 +392,7 @@ static void EqzFilter( filter_t *p_filter, float *out, float *in,
     filter_sys_t *p_sys = p_filter->p_sys;
     int i, ch, j;
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     for( i = 0; i < i_samples; i++ )
     {
         for( ch = 0; ch < i_channels; ch++ )
@@ -445,13 +446,13 @@ static void EqzFilter( filter_t *p_filter, float *out, float *in,
         in  += i_channels;
         out += i_channels;
     }
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 }
 
 static void EqzClean( filter_t *p_filter )
 {
     filter_sys_t *p_sys = p_filter->p_sys;
-    vlc_object_t *p_aout = vlc_object_parent(p_filter);
+    heimdall_object_t *p_aout = heimdall_object_parent(p_filter);
 
     var_DelCallback( p_aout, "equalizer-bands", BandsCallback, p_sys );
     var_DelCallback( p_aout, "equalizer-preset", PresetCallback, p_sys );
@@ -466,8 +467,8 @@ static void EqzClean( filter_t *p_filter )
 }
 
 
-static int PresetCallback( vlc_object_t *p_aout, char const *psz_cmd,
-                         vlc_value_t oldval, vlc_value_t newval, void *p_data )
+static int PresetCallback( heimdall_object_t *p_aout, char const *psz_cmd,
+                         heimdall_value_t oldval, heimdall_value_t newval, void *p_data )
 {
     const eqz_preset_t *preset = NULL;
     const char *psz_preset = newval.psz_string;
@@ -485,7 +486,7 @@ static int PresetCallback( vlc_object_t *p_aout, char const *psz_cmd,
         msg_Info( p_aout, "full list:" );
         for( unsigned i = 0; i < NB_PRESETS; i++ )
              msg_Info( p_aout, "  - '%s'", eqz_preset_10b[i].psz_name );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     char *bands = NULL;
@@ -502,7 +503,7 @@ static int PresetCallback( vlc_object_t *p_aout, char const *psz_cmd,
 
         free( bands );
         if( unlikely(psz == NULL) )
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         bands = psz;
     }
 
@@ -510,13 +511,13 @@ static int PresetCallback( vlc_object_t *p_aout, char const *psz_cmd,
     var_SetString( p_aout, "equalizer-bands", bands );
     free( bands );
     (void) psz_cmd; (void) oldval; (void) p_data;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int PreampCallback( vlc_object_t *p_this, char const *psz_cmd,
-                         vlc_value_t oldval, vlc_value_t newval, void *p_data )
+static int PreampCallback( heimdall_object_t *p_this, char const *psz_cmd,
+                         heimdall_value_t oldval, heimdall_value_t newval, void *p_data )
 {
-    VLC_UNUSED(p_this); VLC_UNUSED(psz_cmd); VLC_UNUSED(oldval);
+    HEIMDALL_UNUSED(p_this); HEIMDALL_UNUSED(psz_cmd); HEIMDALL_UNUSED(oldval);
     filter_sys_t *p_sys = p_data;
     float preamp;
 
@@ -527,27 +528,27 @@ static int PreampCallback( vlc_object_t *p_this, char const *psz_cmd,
     else
         preamp = 10.f;
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     p_sys->f_gamp = preamp;
-    vlc_mutex_unlock( &p_sys->lock );
-    return VLC_SUCCESS;
+    heimdall_mutex_unlock( &p_sys->lock );
+    return HEIMDALL_SUCCESS;
 }
 
-static int BandsCallback( vlc_object_t *p_this, char const *psz_cmd,
-                         vlc_value_t oldval, vlc_value_t newval, void *p_data )
+static int BandsCallback( heimdall_object_t *p_this, char const *psz_cmd,
+                         heimdall_value_t oldval, heimdall_value_t newval, void *p_data )
 {
-    VLC_UNUSED(p_this); VLC_UNUSED(psz_cmd); VLC_UNUSED(oldval);
+    HEIMDALL_UNUSED(p_this); HEIMDALL_UNUSED(psz_cmd); HEIMDALL_UNUSED(oldval);
     filter_sys_t *p_sys = p_data;
     const char *p = newval.psz_string;
     int i = 0;
 
     /* Same thing for bands */
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     while( i < p_sys->i_band )
     {
         char *next;
         /* Read dB -20/20 */
-        float f = vlc_strtof_c( p, &next );
+        float f = heimdall_strtof_c( p, &next );
         if( next == p || isnan( f ) )
             break; /* no conversion */
 
@@ -559,17 +560,17 @@ static int BandsCallback( vlc_object_t *p_this, char const *psz_cmd,
     }
     while( i < p_sys->i_band )
         p_sys->f_amp[i++] = EqzConvertdB( 0.f );
-    vlc_mutex_unlock( &p_sys->lock );
-    return VLC_SUCCESS;
+    heimdall_mutex_unlock( &p_sys->lock );
+    return HEIMDALL_SUCCESS;
 }
-static int TwoPassCallback( vlc_object_t *p_this, char const *psz_cmd,
-                            vlc_value_t oldval, vlc_value_t newval, void *p_data )
+static int TwoPassCallback( heimdall_object_t *p_this, char const *psz_cmd,
+                            heimdall_value_t oldval, heimdall_value_t newval, void *p_data )
 {
-    VLC_UNUSED(p_this); VLC_UNUSED(psz_cmd); VLC_UNUSED(oldval);
+    HEIMDALL_UNUSED(p_this); HEIMDALL_UNUSED(psz_cmd); HEIMDALL_UNUSED(oldval);
     filter_sys_t *p_sys = p_data;
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     p_sys->b_2eqz = newval.b_bool;
-    vlc_mutex_unlock( &p_sys->lock );
-    return VLC_SUCCESS;
+    heimdall_mutex_unlock( &p_sys->lock );
+    return HEIMDALL_SUCCESS;
 }

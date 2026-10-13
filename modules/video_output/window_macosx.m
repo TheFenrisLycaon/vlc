@@ -4,6 +4,7 @@
  */
 
 /* Copyright (C) 2020 VLC authors and VideoLAN
+/* Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Marvin Scholz <epirat 07 at gmail dot com>
  *
@@ -28,13 +29,13 @@
 
 #import <Cocoa/Cocoa.h>
 
-#include <vlc_common.h>
-#include <vlc_threads.h>
-#include <vlc_plugin.h>
-#include <vlc_window.h>
-#include <vlc_mouse.h>
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
+#include <heimdall_plugin.h>
+#include <heimdall_window.h>
+#include <heimdall_mouse.h>
 
-#define VLC_ASSERT_MAINTHREAD NSAssert([[NSThread currentThread] isMainThread], \
+#define HEIMDALL_ASSERT_MAINTHREAD NSAssert([[NSThread currentThread] isMainThread], \
     @"Must be called from the main thread!")
 
 /**
@@ -64,27 +65,27 @@ NS_ASSUME_NONNULL_BEGIN
  *
  * Acts as delegate for the Window and handles communication
  * of the window state from/to the core. This is not done directly
- * in the window controller, as the module on VLCs side might be
+ * in the window controller, as the module on Heimdalls side might be
  * already gone when the window and its controller is still around
  * so we need a separate object that we can invalidate as soon
- * as the VLC module object is gone.
+ * as the Heimdall module object is gone.
  */
-@interface VLCVideoWindowModuleDelegate : NSObject {
+@interface HeimdallVideoWindowModuleDelegate : NSObject {
     @private
-    // VLC window object, only use it on the eventQueue
-    vlc_mutex_t        _lock;
+    // Heimdall window object, only use it on the eventQueue
+    heimdall_mutex_t        _lock;
     unsigned           _requested_width;
     unsigned           _requested_height;
     unsigned           _width;
     unsigned           _height;
     BOOL               _resizing;
-    vlc_window_t*      vlc_vout_window;
+    heimdall_window_t*      heimdall_vout_window;
     dispatch_queue_t   eventQueue;
 
     BOOL               _isViewSet;
 }
 
-- (instancetype)initWithVLCVoutWindow:(vlc_window_t *)vout_window;
+- (instancetype)initWithHeimdallVoutWindow:(heimdall_window_t *)vout_window;
 
 /// Reports that the window is fullscreen now
 - (void)reportFullscreen;
@@ -116,7 +117,7 @@ NS_ASSUME_NONNULL_BEGIN
  * can become the key window even if its using the borderless
  * (undecorated) style.
  */
-@interface VLCVideoWindow : NSWindow
+@interface HeimdallVideoWindow : NSWindow
 @end
 
 
@@ -126,29 +127,29 @@ NS_ASSUME_NONNULL_BEGIN
  * Custom NSWindow subclass, used to track resizes so that
  * the core can be notified about the new sizes in a timely manner.
  */
-@interface VLCVideoWindowContentView : NSView {
+@interface HeimdallVideoWindowContentView : NSView {
     @private
-    __weak VLCVideoWindowModuleDelegate *_moduleDelegate;
+    __weak HeimdallVideoWindowModuleDelegate *_moduleDelegate;
 }
 
-- (instancetype)initWithModuleDelegate:(VLCVideoWindowModuleDelegate *)delegate;
+- (instancetype)initWithModuleDelegate:(HeimdallVideoWindowModuleDelegate *)delegate;
 @end
 
 /**
  * Video output window controller class
  *
- * Controller for the VLC standalone video window (independent of the interface)
+ * Controller for the Heimdall standalone video window (independent of the interface)
  *
  * Implements all interactions between the display module and the NSWindow
- * class, except for resizes (which is handled by VLCVideoWindowContentView).
+ * class, except for resizes (which is handled by HeimdallVideoWindowContentView).
  */
-@interface VLCVideoStandaloneWindowController : NSWindowController <NSWindowDelegate> {
+@interface HeimdallVideoStandaloneWindowController : NSWindowController <NSWindowDelegate> {
 @private
-    __weak VLCVideoWindowModuleDelegate *_moduleDelegate;
+    __weak HeimdallVideoWindowModuleDelegate *_moduleDelegate;
 }
 
-- (instancetype)initWithModuleDelegate:(VLCVideoWindowModuleDelegate *)delegate;
-- (void)showWindowWithConfig:(const vlc_window_cfg_t *restrict)config;
+- (instancetype)initWithModuleDelegate:(HeimdallVideoWindowModuleDelegate *)delegate;
+- (void)showWindowWithConfig:(const heimdall_window_cfg_t *restrict)config;
 
 /* Methods called by the callbacks to change properties of the Window */
 - (void)setWindowDecorated:(BOOL)decorated;
@@ -160,23 +161,23 @@ NS_ASSUME_NONNULL_BEGIN
 #pragma mark -
 #pragma mark Obj-C Implementations
 
-@implementation VLCVideoWindowModuleDelegate : NSObject
+@implementation HeimdallVideoWindowModuleDelegate : NSObject
 
-- (instancetype)initWithVLCVoutWindow:(vlc_window_t *)vout_window
+- (instancetype)initWithHeimdallVoutWindow:(heimdall_window_t *)vout_window
 {
     NSAssert(vout_window != NULL,
-             @"VLCVideoWindowDelegate must be initialized with a valid vout_window");
+             @"HeimdallVideoWindowDelegate must be initialized with a valid vout_window");
 
     self = [super init];
     if (self) {
-        eventQueue = dispatch_queue_create("org.videolan.vlc.vout", DISPATCH_QUEUE_SERIAL);
+        eventQueue = dispatch_queue_create("com.lycaria.heimdall.vout", DISPATCH_QUEUE_SERIAL);
         _requested_width = 0;
         _requested_height = 0;
         _width = 0;
         _height = 0;
         _resizing = NO;
-        vlc_mutex_init(&_lock);
-        vlc_vout_window = vout_window;
+        heimdall_mutex_init(&_lock);
+        heimdall_vout_window = vout_window;
     }
 
     return self;
@@ -190,99 +191,99 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)setViewObject:(id)view
 {
     NSAssert(_isViewSet == NO,
-             @"VLCVideoWindowDelegate's viewObject must only bet set once");
-    vlc_vout_window->type = VLC_WINDOW_TYPE_NSOBJECT;
-    vlc_vout_window->handle.nsobject = (__bridge void*)view;
+             @"HeimdallVideoWindowDelegate's viewObject must only bet set once");
+    heimdall_vout_window->type = HEIMDALL_WINDOW_TYPE_NSOBJECT;
+    heimdall_vout_window->handle.nsobject = (__bridge void*)view;
 }
 
 - (void)reportFullscreen
 {
     [self enqueueEventBlock:^void (void) {
-        vlc_window_ReportFullscreen(vlc_vout_window, NULL);
+        heimdall_window_ReportFullscreen(heimdall_vout_window, NULL);
     }];
 }
 
 - (void)reportWindowed
 {
     [self enqueueEventBlock:^void (void) {
-        vlc_window_ReportWindowed(vlc_vout_window);
+        heimdall_window_ReportWindowed(heimdall_vout_window);
     }];
 }
 
 - (void)reportSizeChanged:(NSSize)newSize
 {
-    vlc_mutex_lock(&_lock);
+    heimdall_mutex_lock(&_lock);
     _requested_width = (unsigned int)newSize.width;
     _requested_height = (unsigned int)newSize.height;
     if (_resizing == NO) {
         _resizing = YES;
         [self enqueueEventBlock:^void (void) {
             unsigned w, h;
-            vlc_mutex_lock(&_lock);
+            heimdall_mutex_lock(&_lock);
             while (_requested_width != _width ||
                    _requested_height != _height) {
                 w = _requested_width;
 	        h = _requested_height;
-                vlc_mutex_unlock(&_lock);
+                heimdall_mutex_unlock(&_lock);
 
-                vlc_window_ReportSize(vlc_vout_window, w, h);
+                heimdall_window_ReportSize(heimdall_vout_window, w, h);
 
-                vlc_mutex_lock(&_lock);
+                heimdall_mutex_lock(&_lock);
 		_width = w;
                 _height = h;
             }
             _resizing = NO;
-            vlc_mutex_unlock(&_lock);
+            heimdall_mutex_unlock(&_lock);
         }];
     }
-    vlc_mutex_unlock(&_lock);
+    heimdall_mutex_unlock(&_lock);
 }
 
 - (void)reportMousePressed:(int)button
 {
     [self enqueueEventBlock:^void (void) {
-        vlc_window_ReportMousePressed(vlc_vout_window, button);
+        heimdall_window_ReportMousePressed(heimdall_vout_window, button);
     }];
 }
 
 - (void)reportMouseReleased:(int)button
 {
     [self enqueueEventBlock:^void (void) {
-        vlc_window_ReportMouseReleased(vlc_vout_window, button);
+        heimdall_window_ReportMouseReleased(heimdall_vout_window, button);
     }];
 }
 
 - (void)reportMouseMoved:(NSPoint)location {
     [self enqueueEventBlock:^void (void) {
-        vlc_window_ReportMouseMoved(vlc_vout_window, location.x, location.y);
+        heimdall_window_ReportMouseMoved(heimdall_vout_window, location.x, location.y);
     }];
 }
 
 - (void)reportClose
 {
     [self enqueueEventBlock:^void (void) {
-        vlc_window_ReportClose(vlc_vout_window);
+        heimdall_window_ReportClose(heimdall_vout_window);
     }];
 }
 
 - (void)dealloc
 {
     dispatch_sync(eventQueue, ^void (void) {
-        self->vlc_vout_window = NULL;
+        self->heimdall_vout_window = NULL;
     });
 }
 
 @end
 
 
-@implementation VLCVideoStandaloneWindowController
+@implementation HeimdallVideoStandaloneWindowController
 
 /**
  * Initializes the window controller with the given module delegate
  */
-- (instancetype)initWithModuleDelegate:(VLCVideoWindowModuleDelegate *)delegate;
+- (instancetype)initWithModuleDelegate:(HeimdallVideoWindowModuleDelegate *)delegate;
 {
-    VLC_ASSERT_MAINTHREAD;
+    HEIMDALL_ASSERT_MAINTHREAD;
 
     NSWindow *window = [[NSWindow alloc] initWithContentRect:NSZeroRect
                                                    styleMask:decoratedWindowStyleMask
@@ -292,7 +293,7 @@ NS_ASSUME_NONNULL_BEGIN
     self = [super initWithWindow:window];
     if (self) {
         // Set the initial vout title
-        [window setTitle:[NSString stringWithUTF8String:VOUT_TITLE " (VLC Video Output)"]];
+        [window setTitle:[NSString stringWithUTF8String:VOUT_TITLE " (Heimdall Video Output)"]];
 
         // The content always changes during live resize
         [window setPreservesContentDuringLiveResize:NO];
@@ -304,8 +305,8 @@ NS_ASSUME_NONNULL_BEGIN
         [window setCollectionBehavior:NSWindowCollectionBehaviorFullScreenPrimary];
 
         // Create and set custom content view for the window
-        VLCVideoWindowContentView *view =
-            [[VLCVideoWindowContentView alloc] initWithModuleDelegate:delegate];
+        HeimdallVideoWindowContentView *view =
+            [[HeimdallVideoWindowContentView alloc] initWithModuleDelegate:delegate];
 
         if (view == nil)
             return nil;
@@ -317,7 +318,7 @@ NS_ASSUME_NONNULL_BEGIN
         // Position the window in the center
         [window center];
 
-        [self setWindowFrameAutosaveName:@"VLCVideoStandaloneWindow"];
+        [self setWindowFrameAutosaveName:@"HeimdallVideoStandaloneWindow"];
 
         _moduleDelegate = delegate;
 
@@ -330,9 +331,9 @@ NS_ASSUME_NONNULL_BEGIN
 /**
  * Applies the given config to the window and shows it.
  */
-- (void)showWindowWithConfig:(const vlc_window_cfg_t *restrict)config
+- (void)showWindowWithConfig:(const heimdall_window_cfg_t *restrict)config
 {
-    VLC_ASSERT_MAINTHREAD;
+    HEIMDALL_ASSERT_MAINTHREAD;
 
     // Convert from backing to window coordinates
     NSRect backingRect = NSMakeRect(0, 0, config->width, config->height);
@@ -403,15 +404,15 @@ NS_ASSUME_NONNULL_BEGIN
 
 
 
-@implementation VLCVideoWindowContentView {
+@implementation HeimdallVideoWindowContentView {
     NSTrackingArea *_trackingArea;
 }
 
-- (instancetype)initWithModuleDelegate:(VLCVideoWindowModuleDelegate *)delegate;
+- (instancetype)initWithModuleDelegate:(HeimdallVideoWindowModuleDelegate *)delegate;
 {
     self = [super init];
     if (self) {
-        NSAssert(delegate != nil, @"Invalid VLCVideoWindowModuleDelegate passed.");
+        NSAssert(delegate != nil, @"Invalid HeimdallVideoWindowModuleDelegate passed.");
         self.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
         _moduleDelegate = delegate;
     }
@@ -430,7 +431,7 @@ NS_ASSUME_NONNULL_BEGIN
 }
 
 /**
- * Report the view size in the backing size dimensions to VLC core
+ * Report the view size in the backing size dimensions to Heimdall core
  */
 - (void)reportBackingSize
 {
@@ -453,7 +454,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)viewDidChangeBackingProperties
 {
     // When the view backing size changes, it means the view effectively
-    // resizes from VLC core perspective, as it operates on the real
+    // resizes from Heimdall core perspective, as it operates on the real
     // backing dimensions, not the view point size.
     [self reportBackingSize];
     [super viewDidChangeBackingProperties];
@@ -576,7 +577,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 @end
 
-@implementation VLCVideoWindow
+@implementation HeimdallVideoWindow
 
 - (BOOL)canBecomeKeyWindow
 {
@@ -591,40 +592,40 @@ NS_ASSUME_NONNULL_END
 
 
 #pragma mark -
-#pragma mark VLC module
+#pragma mark Heimdall module
 
-@interface VLCVoutWindow : NSObject
-    @property (nonatomic) VLCVideoStandaloneWindowController *windowController;
-    @property (nonatomic) VLCVideoWindowContentView *contentView;
-    @property (nonatomic) VLCVideoWindowModuleDelegate *delegate;
+@interface HeimdallVoutWindow : NSObject
+    @property (nonatomic) HeimdallVideoStandaloneWindowController *windowController;
+    @property (nonatomic) HeimdallVideoWindowContentView *contentView;
+    @property (nonatomic) HeimdallVideoWindowModuleDelegate *delegate;
 @end
 
-@implementation VLCVoutWindow
+@implementation HeimdallVoutWindow
 @end
 
 /* Enable Window
  */
-static int WindowEnable(vlc_window_t *wnd, const vlc_window_cfg_t *restrict cfg)
+static int WindowEnable(heimdall_window_t *wnd, const heimdall_window_cfg_t *restrict cfg)
 {
-    VLCVoutWindow *sys = (__bridge VLCVoutWindow*)wnd->sys;
+    HeimdallVoutWindow *sys = (__bridge HeimdallVoutWindow*)wnd->sys;
 
     @autoreleasepool {
-        __weak VLCVideoStandaloneWindowController *weakWc = sys.windowController;
+        __weak HeimdallVideoStandaloneWindowController *weakWc = sys.windowController;
         dispatch_sync(dispatch_get_main_queue(), ^{
             [weakWc showWindowWithConfig:cfg];
         });
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /* Request to close the window */
-static void WindowDisable(vlc_window_t *wnd)
+static void WindowDisable(heimdall_window_t *wnd)
 {
-    VLCVoutWindow *sys = (__bridge VLCVoutWindow*)wnd->sys;
+    HeimdallVoutWindow *sys = (__bridge HeimdallVoutWindow*)wnd->sys;
 
     @autoreleasepool {
-        __weak VLCVideoStandaloneWindowController *weakWc = sys.windowController;
+        __weak HeimdallVideoStandaloneWindowController *weakWc = sys.windowController;
         dispatch_async(dispatch_get_main_queue(), ^{
             [weakWc close];
         });
@@ -632,14 +633,14 @@ static void WindowDisable(vlc_window_t *wnd)
 }
 
 /* Request to resize the window */
-static void WindowResize(vlc_window_t *wnd, unsigned width, unsigned height)
+static void WindowResize(heimdall_window_t *wnd, unsigned width, unsigned height)
 {
-    VLCVoutWindow *sys = (__bridge VLCVoutWindow*)wnd->sys;
+    HeimdallVoutWindow *sys = (__bridge HeimdallVoutWindow*)wnd->sys;
 
     @autoreleasepool {
-        __weak VLCVideoStandaloneWindowController *weakWc = sys.windowController;
+        __weak HeimdallVideoStandaloneWindowController *weakWc = sys.windowController;
         dispatch_async(dispatch_get_main_queue(), ^{
-            VLCVideoStandaloneWindowController *wc = weakWc;
+            HeimdallVideoStandaloneWindowController *wc = weakWc;
             // Convert from backing to window coordinates
             NSRect backingRect = NSMakeRect(0, 0, width, height);
             NSRect windowRect = [wc.window convertRectFromBacking:backingRect];
@@ -652,12 +653,12 @@ static void WindowResize(vlc_window_t *wnd, unsigned width, unsigned height)
 }
 
 /* Request to enter fullscreen */
-static void WindowSetFullscreen(vlc_window_t *wnd, const char *idstr)
+static void WindowSetFullscreen(heimdall_window_t *wnd, const char *idstr)
 {
-    VLCVoutWindow *sys = (__bridge VLCVoutWindow*)wnd->sys;
+    HeimdallVoutWindow *sys = (__bridge HeimdallVoutWindow*)wnd->sys;
 
     @autoreleasepool {
-        __weak VLCVideoStandaloneWindowController *weakWc = sys.windowController;
+        __weak HeimdallVideoStandaloneWindowController *weakWc = sys.windowController;
         dispatch_async(dispatch_get_main_queue(), ^{
             [weakWc setWindowFullscreen:YES];
         });
@@ -665,23 +666,23 @@ static void WindowSetFullscreen(vlc_window_t *wnd, const char *idstr)
 }
 
 /* Request to exit fullscreen */
-static void WindowUnsetFullscreen(vlc_window_t *wnd)
+static void WindowUnsetFullscreen(heimdall_window_t *wnd)
 {
-    VLCVoutWindow *sys = (__bridge VLCVoutWindow*)wnd->sys;
+    HeimdallVoutWindow *sys = (__bridge HeimdallVoutWindow*)wnd->sys;
 
     @autoreleasepool {
-        __weak VLCVideoStandaloneWindowController *weakWc = sys.windowController;
+        __weak HeimdallVideoStandaloneWindowController *weakWc = sys.windowController;
         dispatch_async(dispatch_get_main_queue(), ^{
             [weakWc setWindowFullscreen:NO];
         });
     }
 }
 
-static void WindowSetTitle(struct vlc_window *wnd, const char *title)
+static void WindowSetTitle(struct heimdall_window *wnd, const char *title)
 {
-    VLCVoutWindow *sys = (__bridge VLCVoutWindow*)wnd->sys;
+    HeimdallVoutWindow *sys = (__bridge HeimdallVoutWindow*)wnd->sys;
     @autoreleasepool {
-        __weak VLCVideoStandaloneWindowController *weakWc = sys.windowController;
+        __weak HeimdallVideoStandaloneWindowController *weakWc = sys.windowController;
         dispatch_async(dispatch_get_main_queue(), ^{
             [weakWc.window setTitle:[NSString stringWithUTF8String:title]];
         });
@@ -691,16 +692,16 @@ static void WindowSetTitle(struct vlc_window *wnd, const char *title)
 /*
  * Module destruction
  */
-void Close(vlc_window_t *wnd)
+void Close(heimdall_window_t *wnd)
 {
-    VLCVoutWindow *sys = (__bridge_transfer VLCVoutWindow*)wnd->sys;
-    VLC_UNUSED(sys);
+    HeimdallVoutWindow *sys = (__bridge_transfer HeimdallVoutWindow*)wnd->sys;
+    HEIMDALL_UNUSED(sys);
 }
 
 /*
  * Callbacks
  */
-static const struct vlc_window_operations ops = {
+static const struct heimdall_window_operations ops = {
     .enable = WindowEnable,
     .disable = WindowDisable,
     .resize = WindowResize,
@@ -714,7 +715,7 @@ static const struct vlc_window_operations ops = {
 /*
  * Module initialization
  */
-int Open(vlc_window_t *wnd)
+int Open(heimdall_window_t *wnd)
 {
     @autoreleasepool {
         msg_Info(wnd, "using the macOS new video output window module");
@@ -723,45 +724,45 @@ int Open(vlc_window_t *wnd)
         // to the Window Server so we can use NSWindows, NSViews, etc.
         if (NSApp == nil) {
             msg_Err(wnd, "cannot create video output window without NSApplication");
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
-        VLCVoutWindow *sys = [VLCVoutWindow new];
+        HeimdallVoutWindow *sys = [HeimdallVoutWindow new];
         if (unlikely(sys == nil))
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
 
-        VLCVideoWindowModuleDelegate *moduleDelegate;
-        moduleDelegate = [[VLCVideoWindowModuleDelegate alloc] initWithVLCVoutWindow:wnd];
+        HeimdallVideoWindowModuleDelegate *moduleDelegate;
+        moduleDelegate = [[HeimdallVideoWindowModuleDelegate alloc] initWithHeimdallVoutWindow:wnd];
         if (unlikely(moduleDelegate == nil))
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         sys.delegate = moduleDelegate;
 
-        __block VLCVideoStandaloneWindowController *windowController;
+        __block HeimdallVideoStandaloneWindowController *windowController;
         if (CFRunLoopGetCurrent() != CFRunLoopGetMain())
             dispatch_sync(dispatch_get_main_queue(), ^{
-                windowController = [[VLCVideoStandaloneWindowController alloc] initWithModuleDelegate:moduleDelegate];
+                windowController = [[HeimdallVideoStandaloneWindowController alloc] initWithModuleDelegate:moduleDelegate];
             });
         else
-            windowController = [[VLCVideoStandaloneWindowController alloc] initWithModuleDelegate:moduleDelegate];
+            windowController = [[HeimdallVideoStandaloneWindowController alloc] initWithModuleDelegate:moduleDelegate];
 
         if (unlikely(windowController == nil))
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         sys.windowController = windowController;
 
         wnd->ops = &ops;
         wnd->sys = (__bridge_retained void*)sys;
 
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 }
 
-static int EmbedOpen(vlc_window_t *wnd)
+static int EmbedOpen(heimdall_window_t *wnd)
 {
     NSView *drawable = (__bridge NSView*)
         var_InheritAddress(wnd, "drawable-nsobject");
     if (drawable == nil) {
         msg_Err(wnd, "cannot create video output window without NSApplication");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     msg_Info(wnd, "using the macOS embed window module");
@@ -770,28 +771,28 @@ static int EmbedOpen(vlc_window_t *wnd)
     // to the Window Server so we can use NSWindows, NSViews, etc.
     if (NSApp == nil) {
         msg_Err(wnd, "cannot create video output window without NSApplication");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     @autoreleasepool {
-        VLCVoutWindow *sys = [VLCVoutWindow new];
+        HeimdallVoutWindow *sys = [HeimdallVoutWindow new];
         if (unlikely(sys == nil))
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
 
-        VLCVideoWindowModuleDelegate *moduleDelegate;
-        moduleDelegate = [[VLCVideoWindowModuleDelegate alloc] initWithVLCVoutWindow:wnd];
+        HeimdallVideoWindowModuleDelegate *moduleDelegate;
+        moduleDelegate = [[HeimdallVideoWindowModuleDelegate alloc] initWithHeimdallVoutWindow:wnd];
         if (unlikely(moduleDelegate == nil))
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         sys.delegate = moduleDelegate;
 
-        __block VLCVideoWindowContentView *contentView;
+        __block HeimdallVideoWindowContentView *contentView;
         dispatch_sync(dispatch_get_main_queue(), ^{
-            contentView = [[VLCVideoWindowContentView alloc] initWithModuleDelegate:moduleDelegate];
+            contentView = [[HeimdallVideoWindowContentView alloc] initWithModuleDelegate:moduleDelegate];
             contentView.frame = drawable.frame;
             [drawable addSubview:contentView];
         });
         if (unlikely(contentView == nil))
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         sys.contentView = contentView;
 
         [moduleDelegate setViewObject:contentView];
@@ -799,16 +800,16 @@ static int EmbedOpen(vlc_window_t *wnd)
         wnd->ops = &ops;
         wnd->sys = (__bridge_retained void*)sys;
 
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*
  * Module declaration
  */
-vlc_module_begin()
+heimdall_module_begin()
     set_description("macOS Video Output Window")
     set_capability("vout window", 1)
     set_callback(Open)
@@ -820,4 +821,4 @@ vlc_module_begin()
     set_capability("vout window", 10)
     set_callback(EmbedOpen)
     add_shortcut("macos-embed")
-vlc_module_end()
+heimdall_module_end()

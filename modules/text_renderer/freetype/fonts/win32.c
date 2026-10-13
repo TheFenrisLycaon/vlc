@@ -2,6 +2,7 @@
  * freetype.c : Put text on the video, using freetype2
  *****************************************************************************
  * Copyright (C) 2002 - 2015 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Sigmund Augdal Helberg <dnumgis@videolan.org>
  *          Gildas Bazin <gbazin@videolan.org>
@@ -39,8 +40,8 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_filter.h>
+#include <heimdall_common.h>
+#include <heimdall_filter.h>
 
 #include <ft2build.h>
 #include FT_SFNT_NAMES_H
@@ -50,7 +51,7 @@
 # include <windows.h>
 # include <shlobj.h>
 # include <usp10.h>
-# include <vlc_charset.h>
+# include <heimdall_charset.h>
 # undef HAVE_FONTCONFIG
 #endif
 
@@ -61,7 +62,7 @@
 #define FONT_DIR_NT  TEXT("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Fonts")
 #define FONT_LINKING_NT TEXT("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\FontLink\\SystemLink")
 
-static inline void AppendFamily( vlc_family_t **pp_list, vlc_family_t *p_family )
+static inline void AppendFamily( heimdall_family_t **pp_list, heimdall_family_t *p_family )
 {
     while( *pp_list )
         pp_list = &( *pp_list )->p_next;
@@ -198,7 +199,7 @@ static char* GetWindowsFontPath(void)
  * \param p_table_end the position after the last byte of the table [IN]
  * \param p_sfnt_name pointer to a \ref FT_SfntName to fill [OUT]
  *
- * \return \ref VLC_SUCCESS or \ref VLC_EGENERIC
+ * \return \ref HEIMDALL_SUCCESS or \ref HEIMDALL_EGENERIC
  */
 static int GetSfntNameEntry( FT_Byte *p_name_data, FT_Byte *p_storage_start,
                              FT_Byte *p_table_end, FT_SfntName *p_sfnt_name )
@@ -207,7 +208,7 @@ static int GetSfntNameEntry( FT_Byte *p_name_data, FT_Byte *p_storage_start,
     uint16_t i_string_offset   = U16_AT( p_name_data + 10 );
     if( i_string_len == 0
      || p_storage_start + i_string_offset + i_string_len > p_table_end )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     p_sfnt_name->platform_id = U16_AT( p_name_data + 0 );
     p_sfnt_name->encoding_id = U16_AT( p_name_data + 2 );
@@ -216,7 +217,7 @@ static int GetSfntNameEntry( FT_Byte *p_name_data, FT_Byte *p_storage_start,
     p_sfnt_name->string_len  = i_string_len;
     p_sfnt_name->string      = p_storage_start + i_string_offset;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /**
@@ -233,7 +234,7 @@ static int GetSfntNameEntry( FT_Byte *p_name_data, FT_Byte *p_storage_start,
  *       based on the specified platform/encoding IDs [OUT]
  *\param i_name_length the length in bytes of the returned name [OUT]
  *
- *\return \ref VLC_SUCCESS or \ref VLC_EGENERIC
+ *\return \ref HEIMDALL_SUCCESS or \ref HEIMDALL_EGENERIC
  */
 static int GetSfntNameString( FT_Byte *p_table, FT_UInt i_size, FT_UShort i_platform_id,
                               FT_UShort i_encoding_id, FT_UShort i_name_id, FT_UShort i_language_id,
@@ -251,7 +252,7 @@ static int GetSfntNameString( FT_Byte *p_table, FT_UInt i_size, FT_UShort i_plat
         FT_SfntName sfnt_name;
 
         if( GetSfntNameEntry( p_names + i * i_entry_size, p_storage, p_table + i_size, &sfnt_name ) )
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
         if( sfnt_name.platform_id == i_platform_id && sfnt_name.encoding_id == i_encoding_id
          && sfnt_name.name_id == i_name_id && sfnt_name.language_id == i_language_id )
@@ -259,11 +260,11 @@ static int GetSfntNameString( FT_Byte *p_table, FT_UInt i_size, FT_UShort i_plat
             *i_name_length = sfnt_name.string_len;
             *pp_name = sfnt_name.string;
 
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
     }
 
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /**
@@ -325,7 +326,7 @@ static WCHAR *GetFullEnglishName( const ENUMLOGFONTEXW *lpelfe )
         goto done;
 
     int i_length_in_wchars = i_name_length / 2;
-    wchar_t *psz_name = vlc_alloc( i_length_in_wchars + 1, sizeof( *psz_name ) );
+    wchar_t *psz_name = heimdall_alloc( i_length_in_wchars + 1, sizeof( *psz_name ) );
 
     if( !psz_name )
         goto done;
@@ -347,20 +348,20 @@ done:
 
 struct enumFontCallbackContext
 {
-    vlc_font_select_t *fs;
-    vlc_family_t *p_family;
+    heimdall_font_select_t *fs;
+    heimdall_family_t *p_family;
     WCHAR prevFullName[LF_FULLFACESIZE];
 };
 
 static int CALLBACK EnumFontCallback(const LOGFONTW *lp, const TEXTMETRICW *metric,
                                      DWORD type, LPARAM lParam)
 {
-    VLC_UNUSED( metric );
+    HEIMDALL_UNUSED( metric );
     if( (type & RASTER_FONTTYPE) ) return 1;
 
     const ENUMLOGFONTEXW *lpelfe = container_of(lp, ENUMLOGFONTEXW, elfLogFont);
     struct enumFontCallbackContext *ctx = ( struct enumFontCallbackContext * ) lParam;
-    vlc_family_t *p_family = ctx->p_family;
+    heimdall_family_t *p_family = ctx->p_family;
 
     /*
      * This function will be called by Windows as many times for each font
@@ -373,9 +374,9 @@ static int CALLBACK EnumFontCallback(const LOGFONTW *lp, const TEXTMETRICW *metr
 
     int i_flags = 0;
     if( lpelfe->elfLogFont.lfWeight >= FW_BOLD )
-        i_flags |= VLC_FONT_FLAG_BOLD;
+        i_flags |= HEIMDALL_FONT_FLAG_BOLD;
     if( lpelfe->elfLogFont.lfItalic != 0 )
-        i_flags |= VLC_FONT_FLAG_ITALIC;
+        i_flags |= HEIMDALL_FONT_FLAG_ITALIC;
 
     char *psz_filename = NULL;
     char *psz_fontfile = NULL;
@@ -412,8 +413,8 @@ static int CALLBACK EnumFontCallback(const LOGFONTW *lp, const TEXTMETRICW *metr
     return 1;
 }
 
-static void FillLinkedFontsForFamily( vlc_font_select_t *fs,
-                                      const WCHAR *name, vlc_family_t *p_family )
+static void FillLinkedFontsForFamily( heimdall_font_select_t *fs,
+                                      const WCHAR *name, heimdall_family_t *p_family )
 {
     HDC hDC = GetDC( NULL );
     if( !hDC )
@@ -432,19 +433,19 @@ static void FillLinkedFontsForFamily( vlc_font_select_t *fs,
     ReleaseDC( NULL, hDC );
 }
 
-static int AddLinkedFonts( vlc_font_select_t *fs, const char *psz_family,
-                           vlc_family_t *p_family )
+static int AddLinkedFonts( heimdall_font_select_t *fs, const char *psz_family,
+                           heimdall_family_t *p_family )
 {
     HKEY fontLinkKey;
     if (FAILED(RegOpenKeyEx( HKEY_LOCAL_MACHINE, FONT_LINKING_NT,
                              0, KEY_READ, &fontLinkKey )))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     WCHAR *psz_buffer = ToWide( psz_family );
     if( !psz_buffer )
     {
         RegCloseKey( fontLinkKey );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     DWORD linkedFontsBufferSize = 0;
@@ -454,7 +455,7 @@ static int AddLinkedFonts( vlc_font_select_t *fs, const char *psz_family,
     {
         free( psz_buffer );
         RegCloseKey( fontLinkKey );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     WCHAR* linkedFonts = (WCHAR*) malloc(linkedFontsBufferSize);
@@ -485,25 +486,25 @@ static int AddLinkedFonts( vlc_font_select_t *fs, const char *psz_family,
     free(linkedFonts);
     RegCloseKey(fontLinkKey);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-int Win32_GetFamily( vlc_font_select_t *fs, const char *psz_lcname, const vlc_family_t **pp_result )
+int Win32_GetFamily( heimdall_font_select_t *fs, const char *psz_lcname, const heimdall_family_t **pp_result )
 {
-    vlc_family_t *p_family =
-        vlc_dictionary_value_for_key( &fs->family_map, psz_lcname );
+    heimdall_family_t *p_family =
+        heimdall_dictionary_value_for_key( &fs->family_map, psz_lcname );
 
     if( p_family )
     {
         *pp_result = p_family;
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
     p_family = NewFamily( fs, psz_lcname, &fs->p_families,
                           &fs->family_map, psz_lcname );
 
     if( unlikely( !p_family ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     LOGFONTW lf;
     lf.lfCharSet = DEFAULT_CHARSET;
@@ -522,16 +523,16 @@ int Win32_GetFamily( vlc_font_select_t *fs, const char *psz_lcname, const vlc_fa
     ReleaseDC(NULL, hDC);
 
     *pp_result = p_family;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int CALLBACK MetaFileEnumProc( HDC hdc, HANDLETABLE* table,
                                       CONST ENHMETARECORD* record,
                                       int table_entries, LPARAM log_font )
 {
-    VLC_UNUSED( hdc );
-    VLC_UNUSED( table );
-    VLC_UNUSED( table_entries );
+    HEIMDALL_UNUSED( hdc );
+    HEIMDALL_UNUSED( table );
+    HEIMDALL_UNUSED( table_entries );
 
     if( record->iType == EMR_EXTCREATEFONTINDIRECTW )
     {
@@ -618,16 +619,16 @@ error:
     return NULL;
 }
 
-int Win32_GetFallbacks( vlc_font_select_t *fs, const char *psz_lcname,
-                        uni_char_t codepoint, vlc_family_t **pp_result )
+int Win32_GetFallbacks( heimdall_font_select_t *fs, const char *psz_lcname,
+                        uni_char_t codepoint, heimdall_family_t **pp_result )
 {
-    vlc_family_t  *p_family      = NULL;
-    vlc_family_t  *p_fallbacks   = NULL;
+    heimdall_family_t  *p_family      = NULL;
+    heimdall_family_t  *p_fallbacks   = NULL;
     char          *psz_uniscribe = NULL;
     char          *psz_linkname  = NULL;
-    int            i_ret         = VLC_EGENERIC;
+    int            i_ret         = HEIMDALL_EGENERIC;
 
-    p_fallbacks = vlc_dictionary_value_for_key( &fs->fallback_map, psz_lcname );
+    p_fallbacks = heimdall_dictionary_value_for_key( &fs->fallback_map, psz_lcname );
 
     if( p_fallbacks )
         p_family = SearchFallbacks( fs, p_fallbacks, codepoint );
@@ -643,25 +644,25 @@ int Win32_GetFallbacks( vlc_font_select_t *fs, const char *psz_lcname,
         psz_uniscribe = UniscribeFallback( psz_lcname, codepoint );
         if( !psz_uniscribe )
         {
-            i_ret = VLC_SUCCESS;
+            i_ret = HEIMDALL_SUCCESS;
             goto done;
         }
 
         /* Search for existing listing inserted from a different
          * codepoint in fallbacks (and that means the fallback will not work) */
-        for( vlc_family_t *p = p_fallbacks; p; p = p->p_next )
+        for( heimdall_family_t *p = p_fallbacks; p; p = p->p_next )
         {
             if( !strcasecmp( p->psz_name, psz_uniscribe ) )
             {
-                i_ret = VLC_SUCCESS;
+                i_ret = HEIMDALL_SUCCESS;
                 goto done;
             }
         }
 
         /* Load the replied font, but might still can't provide codepoint
          * as it could rely on font linking */
-        const vlc_family_t *p_uniscribe = NULL;
-        if( Win32_GetFamily( fs, psz_uniscribe, &p_uniscribe ) != VLC_SUCCESS ||
+        const heimdall_family_t *p_uniscribe = NULL;
+        if( Win32_GetFamily( fs, psz_uniscribe, &p_uniscribe ) != HEIMDALL_SUCCESS ||
             p_uniscribe == NULL )
             goto done;
 
@@ -676,22 +677,22 @@ int Win32_GetFallbacks( vlc_font_select_t *fs, const char *psz_lcname,
             goto done;
         }
 
-        vlc_family_t *withlinked = NewFamily( fs, psz_linkname, NULL, NULL, NULL );
+        heimdall_family_t *withlinked = NewFamily( fs, psz_linkname, NULL, NULL, NULL );
         if( withlinked )
         {
             p_family->p_next = withlinked;
             AddLinkedFonts( fs, psz_uniscribe, withlinked );
-            vlc_dictionary_insert( &fs->fontlinking_map, psz_linkname, withlinked );
+            heimdall_dictionary_insert( &fs->fontlinking_map, psz_linkname, withlinked );
         }
 
         if( p_fallbacks )
             AppendFamily( &p_fallbacks, p_family );
         else
-            vlc_dictionary_insert( &fs->fallback_map,
+            heimdall_dictionary_insert( &fs->fallback_map,
                                    psz_lcname, p_family );
     }
 
-    i_ret = VLC_SUCCESS;
+    i_ret = HEIMDALL_SUCCESS;
 
 done:
     free( psz_linkname );
@@ -703,9 +704,9 @@ done:
 #define GetWindowsFontPath()  (NULL)
 #endif // !WINAPI_PARTITION_DESKTOP
 
-char * MakeFilePath( vlc_font_select_t *fs, const char *psz_filename )
+char * MakeFilePath( heimdall_font_select_t *fs, const char *psz_filename )
 {
-    VLC_UNUSED(fs);
+    HEIMDALL_UNUSED(fs);
 
     if( !psz_filename )
         return NULL;

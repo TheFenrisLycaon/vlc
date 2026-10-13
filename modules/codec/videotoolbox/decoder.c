@@ -2,6 +2,7 @@
  * videotoolbox.c: Video Toolbox decoder
  *****************************************************************************
  * Copyright © 2014-2015 VideoLabs SAS
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Felix Paul Kühne <fkuehne # videolan.org>
  *
@@ -26,12 +27,12 @@
 # import "config.h"
 #endif
 
-#import <vlc_common.h>
-#import <vlc_plugin.h>
-#import <vlc_codec.h>
+#import <heimdall_common.h>
+#import <heimdall_plugin.h>
+#import <heimdall_codec.h>
 #import "../hxxx_helper.h"
-#import <vlc_bits.h>
-#import <vlc_boxes.h>
+#import <heimdall_bits.h>
+#import <heimdall_boxes.h>
 #import "../vt_utils.h"
 #import "../../packetizer/h264_nal.h"
 #import "../../packetizer/h264_slice.h"
@@ -122,7 +123,7 @@ typedef struct decoder_sys_t
     CMVideoFormatDescriptionRef videoFormatDescription;
 
     /* Decoder Callback Synchronization */
-    vlc_mutex_t                 lock;
+    heimdall_mutex_t                 lock;
     bool                        b_discard_decoder_output;
 
     struct dpb_s                dpb;
@@ -136,7 +137,7 @@ typedef struct decoder_sys_t
 
     date_t                      pts;
 
-    vlc_video_context          *vctx;
+    heimdall_video_context          *vctx;
     /* Picture pacer to work-around the VT session allocating too many CVPX buffers
      * that can lead to a OOM. */
     struct pic_pacer           *pic_pacer;
@@ -178,7 +179,7 @@ static OSType GetBestChroma(uint8_t i_chroma_format, uint8_t i_depth_luma,
 static OSType GetBestChromaFromHxxx(struct hxxx_helper *hh)
 {
     uint8_t a, b, c;
-    if (hxxx_helper_get_chroma_chroma(hh, &a, &b, &c) != VLC_SUCCESS)
+    if (hxxx_helper_get_chroma_chroma(hh, &a, &b, &c) != HEIMDALL_SUCCESS)
         return 0;
     return GetBestChroma(a, b, c);
 }
@@ -221,7 +222,7 @@ static bool ParseH264SEI(const hxxx_sei_data_t *p_sei_data, void *priv)
             h264_decode_sei_pic_timing( p_sei_data->p_bs, s->p_sps,
                                        &s->i_pic_struct,
                                        &i_dpb_output_delay );
-            VLC_UNUSED(i_dpb_output_delay);
+            HEIMDALL_UNUSED(i_dpb_output_delay);
         }
         return false;
     }
@@ -339,10 +340,10 @@ static bool InitH264(decoder_t *p_dec)
     if(!ctx)
         return false;
     h264_poc_context_init(&ctx->poc);
-    hxxx_helper_init(&ctx->hh, VLC_OBJECT(p_dec),
+    hxxx_helper_init(&ctx->hh, HEIMDALL_OBJECT(p_dec),
                      p_dec->fmt_in->i_codec, 0, 4);
     if(hxxx_helper_set_extra(&ctx->hh, p_dec->fmt_in->p_extra,
-                                       p_dec->fmt_in->i_extra) != VLC_SUCCESS)
+                                       p_dec->fmt_in->i_extra) != HEIMDALL_SUCCESS)
     {
         CleanH264(ctx);
         return false;
@@ -458,7 +459,7 @@ static bool ConfigureVoutH264(decoder_t *p_dec)
                                         &primaries,
                                         &transfer,
                                         &colorspace,
-                                        &full_range) == VLC_SUCCESS)
+                                        &full_range) == HEIMDALL_SUCCESS)
         {
             p_dec->fmt_out.video.primaries = primaries;
             p_dec->fmt_out.video.transfer = transfer;
@@ -470,7 +471,7 @@ static bool ConfigureVoutH264(decoder_t *p_dec)
     if (!p_dec->fmt_in->video.i_visible_width || !p_dec->fmt_in->video.i_visible_height)
     {
         unsigned i_offset_x, i_offset_y, i_width, i_height, i_vis_width, i_vis_height;
-        if (VLC_SUCCESS ==
+        if (HEIMDALL_SUCCESS ==
            hxxx_helper_get_current_picture_size(&h264ctx->hh,
                                                 &i_offset_x, &i_offset_y,
                                                 &i_width, &i_height,
@@ -479,9 +480,9 @@ static bool ConfigureVoutH264(decoder_t *p_dec)
             p_dec->fmt_out.video.i_x_offset = i_offset_x;
             p_dec->fmt_out.video.i_y_offset = i_offset_y;
             p_dec->fmt_out.video.i_visible_width = i_vis_width;
-            p_dec->fmt_out.video.i_width = vlc_align(i_width, VT_ALIGNMENT);
+            p_dec->fmt_out.video.i_width = heimdall_align(i_width, VT_ALIGNMENT);
             p_dec->fmt_out.video.i_visible_height = i_vis_height;
-            p_dec->fmt_out.video.i_height = vlc_align(i_height, VT_ALIGNMENT);
+            p_dec->fmt_out.video.i_height = heimdall_align(i_height, VT_ALIGNMENT);
         }
         else return false;
     }
@@ -489,7 +490,7 @@ static bool ConfigureVoutH264(decoder_t *p_dec)
     if (!p_dec->fmt_in->video.i_sar_num || !p_dec->fmt_in->video.i_sar_den)
     {
         int i_sar_num, i_sar_den;
-        if (VLC_SUCCESS ==
+        if (HEIMDALL_SUCCESS ==
             hxxx_helper_get_current_sar(&h264ctx->hh, &i_sar_num, &i_sar_den))
         {
             p_dec->fmt_out.video.i_sar_num = i_sar_num;
@@ -510,10 +511,10 @@ static bool VideoToolboxNeedsToRestartH264(decoder_t *p_dec,
     unsigned ox, oy, w, h, vw, vh;
     int sarn, sard;
 
-    if (hxxx_helper_get_current_picture_size(hh, &ox, &oy, &w, &h, &vw, &vh) != VLC_SUCCESS)
+    if (hxxx_helper_get_current_picture_size(hh, &ox, &oy, &w, &h, &vw, &vh) != HEIMDALL_SUCCESS)
         return true;
 
-    if (hxxx_helper_get_current_sar(hh, &sarn, &sard) != VLC_SUCCESS)
+    if (hxxx_helper_get_current_sar(hh, &sarn, &sard) != HEIMDALL_SUCCESS)
         return true;
 
     bool b_ret = true;
@@ -563,10 +564,10 @@ static bool InitHEVC(decoder_t *p_dec)
     if(!ctx)
         return false;
     hevc_poc_cxt_init(&ctx->poc);
-    hxxx_helper_init(&ctx->hh, VLC_OBJECT(p_dec),
+    hxxx_helper_init(&ctx->hh, HEIMDALL_OBJECT(p_dec),
                      p_dec->fmt_in->i_codec, 0, 4);
     if(hxxx_helper_set_extra(&ctx->hh, p_dec->fmt_in->p_extra,
-                                       p_dec->fmt_in->i_extra) != VLC_SUCCESS)
+                                       p_dec->fmt_in->i_extra) != HEIMDALL_SUCCESS)
     {
         CleanHEVC(ctx);
         return false;
@@ -892,7 +893,7 @@ static void OnDecodedFrame(decoder_t *p_dec, frame_info_t *p_info)
             msg_Dbg(p_dec, "Raising max DPB to %"PRIu8, p_sys->dpb.i_max_pics);
         }
         else if (!p_sys->dpb.b_poc_based_reorder &&
-                 p_info->pts > VLC_TICK_INVALID &&
+                 p_info->pts > HEIMDALL_TICK_INVALID &&
                  p_sys->dpb.p_entries->pts > p_info->pts)
         {
             p_sys->dpb.b_invalid_pic_reorder_max = true;
@@ -918,10 +919,10 @@ static CMVideoCodecType CodecPrecheck(decoder_t *p_dec)
 {
     /* check for the codec we can and want to decode */
     switch (p_dec->fmt_in->i_codec) {
-        case VLC_CODEC_H264:
+        case HEIMDALL_CODEC_H264:
             return kCMVideoCodecType_H264;
 
-        case VLC_CODEC_HEVC:
+        case HEIMDALL_CODEC_HEVC:
             if (!deviceSupportsHEVC())
             {
                 msg_Warn(p_dec, "device doesn't support HEVC");
@@ -929,48 +930,48 @@ static CMVideoCodecType CodecPrecheck(decoder_t *p_dec)
             }
             return kCMVideoCodecType_HEVC;
 
-        case VLC_CODEC_MP4V:
+        case HEIMDALL_CODEC_MP4V:
         {
             msg_Dbg(p_dec, "Will decode MP4V with original FourCC '%4.4s'", (char *)&p_dec->fmt_in->i_original_fourcc);
             return kCMVideoCodecType_MPEG4Video;
         }
 #if !TARGET_OS_IPHONE
-        case VLC_CODEC_H263:
+        case HEIMDALL_CODEC_H263:
             return kCMVideoCodecType_H263;
 
             /* there are no DV or ProRes decoders on iOS, so bailout early */
-        case VLC_CODEC_PRORES:
+        case HEIMDALL_CODEC_PRORES:
             /* the VT decoder can't differentiate between the ProRes flavors, so we do it */
             switch (p_dec->fmt_in->i_original_fourcc) {
-                case VLC_FOURCC( 'a','p','4','c' ):
-                case VLC_FOURCC( 'a','p','4','h' ):
-                case VLC_FOURCC( 'a','p','4','x' ):
+                case HEIMDALL_FOURCC( 'a','p','4','c' ):
+                case HEIMDALL_FOURCC( 'a','p','4','h' ):
+                case HEIMDALL_FOURCC( 'a','p','4','x' ):
                     return kCMVideoCodecType_AppleProRes4444;
 
-                case VLC_FOURCC( 'a','p','c','h' ):
+                case HEIMDALL_FOURCC( 'a','p','c','h' ):
                     return kCMVideoCodecType_AppleProRes422HQ;
 
-                case VLC_FOURCC( 'a','p','c','s' ):
+                case HEIMDALL_FOURCC( 'a','p','c','s' ):
                     return kCMVideoCodecType_AppleProRes422LT;
 
-                case VLC_FOURCC( 'a','p','c','o' ):
+                case HEIMDALL_FOURCC( 'a','p','c','o' ):
                     return kCMVideoCodecType_AppleProRes422Proxy;
 
                 default:
                     return kCMVideoCodecType_AppleProRes422;
             }
 
-        case VLC_CODEC_DV:
+        case HEIMDALL_CODEC_DV:
             /* the VT decoder can't differentiate between PAL and NTSC, so we need to do it */
             switch (p_dec->fmt_in->i_original_fourcc) {
-                case VLC_FOURCC( 'd', 'v', 'c', ' '):
-                case VLC_FOURCC( 'd', 'v', ' ', ' '):
+                case HEIMDALL_FOURCC( 'd', 'v', 'c', ' '):
+                case HEIMDALL_FOURCC( 'd', 'v', ' ', ' '):
                     msg_Dbg(p_dec, "Decoding DV NTSC");
                     return kCMVideoCodecType_DVCNTSC;
 
-                case VLC_FOURCC( 'd', 'v', 's', 'd'):
-                case VLC_FOURCC( 'd', 'v', 'c', 'p'):
-                case VLC_FOURCC( 'D', 'V', 'S', 'D'):
+                case HEIMDALL_FOURCC( 'd', 'v', 's', 'd'):
+                case HEIMDALL_FOURCC( 'd', 'v', 'c', 'p'):
+                case HEIMDALL_FOURCC( 'D', 'V', 'S', 'D'):
                     msg_Dbg(p_dec, "Decoding DV PAL");
                     return kCMVideoCodecType_DVCPAL;
                 default:
@@ -979,9 +980,9 @@ static CMVideoCodecType CodecPrecheck(decoder_t *p_dec)
 #endif
             /* mpgv / mp2v needs fixing, so disable it for now */
 #if 0
-        case VLC_CODEC_MPGV:
+        case HEIMDALL_CODEC_MPGV:
             return kCMVideoCodecType_MPEG1Video;
-        case VLC_CODEC_MP2V:
+        case HEIMDALL_CODEC_MP2V:
             return kCMVideoCodecType_MPEG2Video;
 #endif
 
@@ -992,7 +993,7 @@ static CMVideoCodecType CodecPrecheck(decoder_t *p_dec)
             return -1;
     }
 
-    vlc_assert_unreachable();
+    heimdall_assert_unreachable();
 }
 
 static void
@@ -1135,17 +1136,17 @@ static int StartVideoToolbox(decoder_t *p_dec)
     if (p_sys->pf_late_start && p_sys->pf_late_start(p_dec))
     {
         assert(p_sys->session == NULL);
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
     /* Fills fmt_out (from extradata if any) */
-    if (ConfigureVout(p_dec) != VLC_SUCCESS)
-        return VLC_EGENERIC;
+    if (ConfigureVout(p_dec) != HEIMDALL_SUCCESS)
+        return HEIMDALL_EGENERIC;
 
     /* destination pixel buffer attributes */
     destinationPixelBufferAttributes = cfdict_create(0);
     if (destinationPixelBufferAttributes == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     decoderConfiguration =
         CreateSessionDescriptionFormat(p_dec,
@@ -1213,10 +1214,10 @@ static int StartVideoToolbox(decoder_t *p_dec)
     CFRelease(decoderConfiguration);
     CFRelease(destinationPixelBufferAttributes);
 
-    if (HandleVTStatus(p_dec, status, NULL) != VLC_SUCCESS)
-        return VLC_EGENERIC;
+    if (HandleVTStatus(p_dec, status, NULL) != HEIMDALL_SUCCESS)
+        return HEIMDALL_EGENERIC;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     if (decoderConfiguration != NULL)
@@ -1225,7 +1226,7 @@ error:
     if (destinationPixelBufferAttributes != NULL)
         CFRelease(destinationPixelBufferAttributes);
 
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 static void StopVideoToolbox(decoder_t *p_dec)
@@ -1263,40 +1264,40 @@ CreateVideoContext(decoder_t *p_dec)
 {
     decoder_sys_t *p_sys = p_dec->p_sys;
 
-    vlc_decoder_device *dec_dev = decoder_GetDecoderDevice(p_dec);
-    if (!dec_dev || dec_dev->type != VLC_DECODER_DEVICE_VIDEOTOOLBOX)
+    heimdall_decoder_device *dec_dev = decoder_GetDecoderDevice(p_dec);
+    if (!dec_dev || dec_dev->type != HEIMDALL_DECODER_DEVICE_VIDEOTOOLBOX)
     {
         msg_Warn(p_dec, "Could not find an VIDEOTOOLBOX decoder device");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    static const struct vlc_video_context_operations ops =
+    static const struct heimdall_video_context_operations ops =
     {
         pic_pacer_Destroy,
     };
     p_sys->vctx =
-        vlc_video_context_CreateCVPX(dec_dev,
+        heimdall_video_context_CreateCVPX(dec_dev,
                                      CVPX_VIDEO_CONTEXT_VIDEOTOOLBOX,
                                      sizeof(struct pic_pacer), &ops);
-    vlc_decoder_device_Release(dec_dev);
+    heimdall_decoder_device_Release(dec_dev);
 
     if (!p_sys->vctx)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     /* Since pictures can outlive the decoder, the private video context is a
      * good place to place the pic_pacer that need to be valid during the
      * lifetime of all pictures */
     p_sys->pic_pacer =
-        vlc_video_context_GetCVPXPrivate(p_sys->vctx,
+        heimdall_video_context_GetCVPXPrivate(p_sys->vctx,
                                          CVPX_VIDEO_CONTEXT_VIDEOTOOLBOX);
     assert(p_sys->pic_pacer);
 
     pic_pacer_Init(p_sys->pic_pacer);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void CloseDecoder(vlc_object_t *p_this)
+static void CloseDecoder(heimdall_object_t *p_this)
 {
     decoder_t *p_dec = (decoder_t *)p_this;
     decoder_sys_t *p_sys = p_dec->p_sys;
@@ -1306,33 +1307,33 @@ static void CloseDecoder(vlc_object_t *p_this)
     if (p_sys->pf_codec_clean)
         p_sys->pf_codec_clean(p_sys->p_codec_context);
 
-    vlc_video_context_Release(p_sys->vctx);
+    heimdall_video_context_Release(p_sys->vctx);
 
     free(p_sys);
 }
 
-static int OpenDecoder(vlc_object_t *p_this)
+static int OpenDecoder(heimdall_object_t *p_this)
 {
     int i_ret;
     decoder_t *p_dec = (decoder_t *)p_this;
 
     /* Fail if this module already failed to decode this ES */
     if (var_Type(p_dec, "videotoolbox-failed") != 0)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* check quickly if we can digest the offered data */
     CMVideoCodecType codec;
 
     codec = CodecPrecheck(p_dec);
     if (codec == 0)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* now that we see a chance to decode anything, allocate the
      * internals and start the decoding session */
     decoder_sys_t *p_sys;
     p_sys = calloc(1, sizeof(*p_sys));
     if (!p_sys)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     p_dec->p_sys = p_sys;
     p_sys->session = NULL;
     p_sys->codec = codec;
@@ -1354,7 +1355,7 @@ static int OpenDecoder(vlc_object_t *p_this)
             msg_Err(p_dec, "invalid videotoolbox-cvpx-chroma option");
             free(cvpx_chroma);
             free(p_sys);
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
         memcpy(&p_sys->i_cvpx_format, cvpx_chroma, 4);
         p_sys->i_cvpx_format = ntohl(p_sys->i_cvpx_format);
@@ -1372,13 +1373,13 @@ static int OpenDecoder(vlc_object_t *p_this)
     }
 
     i_ret = CreateVideoContext(p_dec);
-    if (i_ret != VLC_SUCCESS)
+    if (i_ret != HEIMDALL_SUCCESS)
     {
         free(p_sys);
         return i_ret;
     }
 
-    vlc_mutex_init(&p_sys->lock);
+    heimdall_mutex_init(&p_sys->lock);
 
     p_dec->pf_decode = DecodeBlock;
     p_dec->pf_flush  = RequestFlush;
@@ -1432,17 +1433,17 @@ static int OpenDecoder(vlc_object_t *p_this)
     {
         p_sys->pf_codec_clean = NULL; /* avoid double free */
         CloseDecoder(p_this);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     if (p_sys->pf_codec_supported && !p_sys->pf_codec_supported(p_dec))
     {
         CloseDecoder(p_this);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     i_ret = StartVideoToolbox(p_dec);
-    if (i_ret == VLC_SUCCESS) {
-        date_Set(&p_sys->pts, VLC_TICK_INVALID);
+    if (i_ret == HEIMDALL_SUCCESS) {
+        date_Set(&p_sys->pts, HEIMDALL_TICK_INVALID);
         msg_Info(p_dec, "Using Video Toolbox to decode '%4.4s'",
                         (char *)&p_dec->fmt_in->i_codec);
     } else {
@@ -1527,7 +1528,7 @@ static CFDictionaryRef ESDSExtradataInfoCreate(decoder_t *p_dec,
                                                uint8_t *p_buf,
                                                uint32_t i_buf_size)
 {
-    VLC_UNUSED(p_dec);
+    HEIMDALL_UNUSED(p_dec);
     int full_size = 3 + 5 +13 + 5 + i_buf_size + 3;
     int config_size = 13 + 5 + i_buf_size;
 
@@ -1571,11 +1572,11 @@ static int ConfigureVout(decoder_t *p_dec)
 {
     decoder_sys_t *p_sys = p_dec->p_sys;
 
-    /* return our proper VLC internal state */
+    /* return our proper Heimdall internal state */
     p_dec->fmt_out.i_codec = 0;
 
     if (p_sys->pf_configure_vout && !p_sys->pf_configure_vout(p_dec))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if (!p_dec->fmt_out.video.i_visible_width || !p_dec->fmt_out.video.i_visible_height)
     {
@@ -1583,10 +1584,10 @@ static int ConfigureVout(decoder_t *p_dec)
         p_dec->fmt_out.video.i_visible_height = p_dec->fmt_out.video.i_height;
     }
 
-    p_dec->fmt_out.video.i_width = vlc_align(p_dec->fmt_out.video.i_width, VT_ALIGNMENT);
-    p_dec->fmt_out.video.i_height = vlc_align(p_dec->fmt_out.video.i_height, VT_ALIGNMENT);
+    p_dec->fmt_out.video.i_width = heimdall_align(p_dec->fmt_out.video.i_width, VT_ALIGNMENT);
+    p_dec->fmt_out.video.i_height = heimdall_align(p_dec->fmt_out.video.i_height, VT_ALIGNMENT);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static CFDictionaryRef ExtradataInfoCreate(CFStringRef name,
@@ -1619,7 +1620,7 @@ static CMSampleBufferRef VTSampleBufferCreate(decoder_t *p_dec,
     CMBlockBufferRef  block_buf = NULL;
     CMSampleBufferRef sample_buf = NULL;
     CMTime pts;
-    if (!p_sys->dpb.b_poc_based_reorder && p_block->i_pts == VLC_TICK_INVALID)
+    if (!p_sys->dpb.b_poc_based_reorder && p_block->i_pts == HEIMDALL_TICK_INVALID)
         pts = CMTimeMake(p_block->i_dts, CLOCK_FREQ);
     else
         pts = CMTimeMake(p_block->i_pts, CLOCK_FREQ);
@@ -1686,7 +1687,7 @@ static int HandleVTStatus(decoder_t *p_dec, OSStatus status,
     switch (status)
     {
         case noErr:
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
 
         VTERRCASE(kVTPropertyNotSupportedErr)
         VTERRCASE(kVTPropertyReadOnlyErr)
@@ -1755,7 +1756,7 @@ static int HandleVTStatus(decoder_t *p_dec, OSStatus status,
                 break;
         }
     }
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 #pragma mark - actual decoding
@@ -1764,7 +1765,7 @@ static void RequestFlush(decoder_t *p_dec)
 {
     decoder_sys_t *p_sys = p_dec->p_sys;
     Drain(p_dec, true);
-    date_Set(&p_sys->pts, VLC_TICK_INVALID);
+    date_Set(&p_sys->pts, HEIMDALL_TICK_INVALID);
     if(p_sys->pf_codec_flush)
         p_sys->pf_codec_flush(p_dec);
 }
@@ -1774,20 +1775,20 @@ static void Drain(decoder_t *p_dec, bool flush)
     decoder_sys_t *p_sys = p_dec->p_sys;
 
     /* draining: return last pictures of the reordered queue */
-    vlc_mutex_lock(&p_sys->lock);
+    heimdall_mutex_lock(&p_sys->lock);
     p_sys->b_discard_decoder_output = flush;
-    vlc_mutex_unlock(&p_sys->lock);
+    heimdall_mutex_unlock(&p_sys->lock);
 
     if (p_sys->session && p_sys->decoder_state == STATE_DECODER_STARTED)
         VTDecompressionSessionWaitForAsynchronousFrames(p_sys->session);
 
-    vlc_mutex_lock(&p_sys->lock);
+    heimdall_mutex_lock(&p_sys->lock);
     DrainDPBLocked(p_dec, flush);
     assert(p_sys->dpb.i_size == 0);
     assert(p_sys->dpb.p_entries == NULL);
     p_sys->b_discard_decoder_output = false;
     p_sys->sync_state = p_sys->start_sync_state;
-    vlc_mutex_unlock(&p_sys->lock);
+    heimdall_mutex_unlock(&p_sys->lock);
 }
 
 static int DecodeBlock(decoder_t *p_dec, block_t *p_block)
@@ -1797,10 +1798,10 @@ static int DecodeBlock(decoder_t *p_dec, block_t *p_block)
     if (p_block == NULL)
     {
         Drain(p_dec, false);
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
     }
 
-    vlc_mutex_lock(&p_sys->lock);
+    heimdall_mutex_lock(&p_sys->lock);
 
     if (p_block->i_flags & BLOCK_FLAG_INTERLACED_MASK)
     {
@@ -1821,13 +1822,13 @@ static int DecodeBlock(decoder_t *p_dec, block_t *p_block)
             if (p_sys->session != NULL && p_sys->vtsession_status == VTSESSION_STATUS_OK)
             {
                 msg_Warn(p_dec, "restarting vt session (color changed)");
-                vlc_mutex_unlock(&p_sys->lock);
+                heimdall_mutex_unlock(&p_sys->lock);
 
                 /* Drain before stopping */
                 Drain(p_dec, false);
                 StopVideoToolbox(p_dec);
 
-                vlc_mutex_lock(&p_sys->lock);
+                heimdall_mutex_lock(&p_sys->lock);
             }
         }
 #endif
@@ -1855,12 +1856,12 @@ static int DecodeBlock(decoder_t *p_dec, block_t *p_block)
         if (do_restart)
         {
             msg_Warn(p_dec, "restarting vt session (dec callback failed)");
-            vlc_mutex_unlock(&p_sys->lock);
+            heimdall_mutex_unlock(&p_sys->lock);
 
             /* Session will be started by Late Start code block */
             StopVideoToolbox(p_dec);
 
-            vlc_mutex_lock(&p_sys->lock);
+            heimdall_mutex_lock(&p_sys->lock);
             p_sys->vtsession_status = VTSESSION_STATUS_OK;
         }
         else
@@ -1872,28 +1873,28 @@ static int DecodeBlock(decoder_t *p_dec, block_t *p_block)
 
     if (p_sys->vtsession_status == VTSESSION_STATUS_ABORT)
     {
-        vlc_mutex_unlock(&p_sys->lock);
+        heimdall_mutex_unlock(&p_sys->lock);
 
         msg_Err(p_dec, "decoder failure, Abort.");
         /* Add an empty variable so that videotoolbox won't be loaded again for
          * this ES */
-        var_Create(p_dec, "videotoolbox-failed", VLC_VAR_VOID);
-        return VLCDEC_RELOAD;
+        var_Create(p_dec, "videotoolbox-failed", HEIMDALL_VAR_VOID);
+        return HEIMDALLDEC_RELOAD;
     }
     else if (p_sys->vtsession_status == VTSESSION_STATUS_VOUT_FAILURE)
     {
-        vlc_mutex_unlock(&p_sys->lock);
-        return VLCDEC_RELOAD;
+        heimdall_mutex_unlock(&p_sys->lock);
+        return HEIMDALLDEC_RELOAD;
     }
 
-    vlc_mutex_unlock(&p_sys->lock);
+    heimdall_mutex_unlock(&p_sys->lock);
 
     if (unlikely(p_block->i_flags&(BLOCK_FLAG_CORRUPTED)))
     {
         if (p_sys->sync_state == STATE_BITSTREAM_SYNCED)
         {
             Drain(p_dec, false);
-            date_Set(&p_sys->pts, VLC_TICK_INVALID);
+            date_Set(&p_sys->pts, HEIMDALL_TICK_INVALID);
         }
         goto skip;
     }
@@ -1903,7 +1904,7 @@ static int DecodeBlock(decoder_t *p_dec, block_t *p_block)
     {
         p_block = p_sys->pf_process_block(p_dec, p_block, &b_config_changed);
         if (!p_block)
-            return VLCDEC_SUCCESS;
+            return HEIMDALLDEC_SUCCESS;
     }
 
     frame_info_t *p_info = CreateReorderInfo(p_dec, p_block);
@@ -1926,12 +1927,12 @@ static int DecodeBlock(decoder_t *p_dec, block_t *p_block)
         if (!p_sys->session)
         {
             if ((p_sys->pf_codec_supported && !p_sys->pf_codec_supported(p_dec))
-              || StartVideoToolbox(p_dec) != VLC_SUCCESS)
+              || StartVideoToolbox(p_dec) != HEIMDALL_SUCCESS)
             {
                 /* The current device doesn't handle the profile/level, abort */
-                vlc_mutex_lock(&p_sys->lock);
+                heimdall_mutex_lock(&p_sys->lock);
                 p_sys->vtsession_status = VTSESSION_STATUS_ABORT;
-                vlc_mutex_unlock(&p_sys->lock);
+                heimdall_mutex_unlock(&p_sys->lock);
             }
         }
 
@@ -1981,7 +1982,7 @@ static int DecodeBlock(decoder_t *p_dec, block_t *p_block)
                                           decoderFlags, p_info, &flagOut);
 
     enum vtsession_status vtsession_status;
-    if (HandleVTStatus(p_dec, status, &vtsession_status) == VLC_SUCCESS)
+    if (HandleVTStatus(p_dec, status, &vtsession_status) == HEIMDALL_SUCCESS)
     {
         pic_pacer_AccountScheduledDecode(p_sys->pic_pacer, p_info->b_field);
 
@@ -1997,17 +1998,17 @@ static int DecodeBlock(decoder_t *p_dec, block_t *p_block)
     {
         msg_Dbg(p_dec, "session rejected frame %"PRId64" with status %d", p_info->pts, (int)status);
         p_sys->sync_state = p_sys->start_sync_state;
-        vlc_mutex_lock(&p_sys->lock);
+        heimdall_mutex_lock(&p_sys->lock);
         p_sys->vtsession_status = vtsession_status;
         /* In case of abort, the decoder module will be reloaded next time
          * since we already modified the input block */
-        vlc_mutex_unlock(&p_sys->lock);
+        heimdall_mutex_unlock(&p_sys->lock);
     }
     CFRelease(sampleBuffer);
 
 skip:
     block_Release(p_block);
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }
 
 static int UpdateVideoFormat(decoder_t *p_dec, CVPixelBufferRef imageBuffer)
@@ -2054,25 +2055,25 @@ static int UpdateVideoFormat(decoder_t *p_dec, CVPixelBufferRef imageBuffer)
     {
         case kCVPixelFormatType_422YpCbCr8:
         case 'yuv2':
-            p_dec->fmt_out.i_codec = VLC_CODEC_CVPX_UYVY;
+            p_dec->fmt_out.i_codec = HEIMDALL_CODEC_CVPX_UYVY;
             assert(CVPixelBufferIsPlanar(imageBuffer) == false);
             break;
         case kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange:
         case kCVPixelFormatType_420YpCbCr8BiPlanarFullRange:
-            p_dec->fmt_out.i_codec = VLC_CODEC_CVPX_NV12;
+            p_dec->fmt_out.i_codec = HEIMDALL_CODEC_CVPX_NV12;
             assert(CVPixelBufferIsPlanar(imageBuffer) == true);
             break;
         case kCVPixelFormatType_420YpCbCr10BiPlanarFullRange:
         case kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange:
-            p_dec->fmt_out.i_codec = VLC_CODEC_CVPX_P010;
+            p_dec->fmt_out.i_codec = HEIMDALL_CODEC_CVPX_P010;
             assert(CVPixelBufferIsPlanar(imageBuffer) == true);
             break;
         case kCVPixelFormatType_420YpCbCr8Planar:
-            p_dec->fmt_out.i_codec = VLC_CODEC_CVPX_I420;
+            p_dec->fmt_out.i_codec = HEIMDALL_CODEC_CVPX_I420;
             assert(CVPixelBufferIsPlanar(imageBuffer) == true);
             break;
         case kCVPixelFormatType_32BGRA:
-            p_dec->fmt_out.i_codec = VLC_CODEC_CVPX_BGRA;
+            p_dec->fmt_out.i_codec = HEIMDALL_CODEC_CVPX_BGRA;
             assert(CVPixelBufferIsPlanar(imageBuffer) == false);
             break;
         default:
@@ -2089,10 +2090,10 @@ static int UpdateVideoFormat(decoder_t *p_dec, CVPixelBufferRef imageBuffer)
 }
 
 static void
-video_context_OnPicReleased(vlc_video_context *vctx, unsigned nb_fields)
+video_context_OnPicReleased(heimdall_video_context *vctx, unsigned nb_fields)
 {
     struct pic_pacer *pic_pacer =
-        vlc_video_context_GetCVPXPrivate(vctx, CVPX_VIDEO_CONTEXT_VIDEOTOOLBOX);
+        heimdall_video_context_GetCVPXPrivate(vctx, CVPX_VIDEO_CONTEXT_VIDEOTOOLBOX);
 
     pic_pacer_AccountDeallocation(pic_pacer, nb_fields == 1);
 }
@@ -2105,18 +2106,18 @@ static void DecoderCallback(void *decompressionOutputRefCon,
                             CMTime pts,
                             CMTime duration)
 {
-    VLC_UNUSED(duration);
+    HEIMDALL_UNUSED(duration);
     decoder_t *p_dec = (decoder_t *)decompressionOutputRefCon;
     decoder_sys_t *p_sys = p_dec->p_sys;
     frame_info_t *p_info = (frame_info_t *) sourceFrameRefCon;
     const bool b_field = p_info->b_field;
 
-    vlc_mutex_lock(&p_sys->lock);
+    heimdall_mutex_lock(&p_sys->lock);
     if (p_sys->b_discard_decoder_output)
         goto end;
 
     enum vtsession_status vtsession_status;
-    if (HandleVTStatus(p_dec, status, &vtsession_status) != VLC_SUCCESS)
+    if (HandleVTStatus(p_dec, status, &vtsession_status) != HEIMDALL_SUCCESS)
     {
         if (p_sys->vtsession_status != VTSESSION_STATUS_ABORT)
             p_sys->vtsession_status = vtsession_status;
@@ -2140,7 +2141,7 @@ static void DecoderCallback(void *decompressionOutputRefCon,
 
     if (unlikely(!p_sys->b_format_propagated)) {
         p_sys->b_format_propagated =
-            UpdateVideoFormat(p_dec, imageBuffer) == VLC_SUCCESS;
+            UpdateVideoFormat(p_dec, imageBuffer) == HEIMDALL_SUCCESS;
 
         if (!p_sys->b_format_propagated)
             goto end;
@@ -2165,7 +2166,7 @@ static void DecoderCallback(void *decompressionOutputRefCon,
     /* Unlock the mutex because decoder_NewPicture() is blocking. Indeed,
          * it can wait indefinitely when the input is paused. */
 
-    vlc_mutex_unlock(&p_sys->lock);
+    heimdall_mutex_unlock(&p_sys->lock);
 
     picture_t *p_pic = decoder_NewPicture(p_dec);
     if (p_pic)
@@ -2181,7 +2182,7 @@ static void DecoderCallback(void *decompressionOutputRefCon,
         }
 
         if (cvpxpic_attach(p_pic, imageBuffer, p_sys->vctx,
-                           video_context_OnPicReleased) == VLC_SUCCESS)
+                           video_context_OnPicReleased) == HEIMDALL_SUCCESS)
         {
             /* VT is not pacing frame allocation. If we are not fast enough to
                  * render (release) the output pictures, the VT session can end up
@@ -2192,7 +2193,7 @@ static void DecoderCallback(void *decompressionOutputRefCon,
         }
     }
 
-    vlc_mutex_lock(&p_sys->lock);
+    heimdall_mutex_lock(&p_sys->lock);
 
     if (p_sys->b_discard_decoder_output)
         picture_Release(p_pic);
@@ -2204,23 +2205,23 @@ static void DecoderCallback(void *decompressionOutputRefCon,
 
 end:
     free(p_info);
-    vlc_mutex_unlock(&p_sys->lock);
+    heimdall_mutex_unlock(&p_sys->lock);
     pic_pacer_AccountFinishedDecode(p_sys->pic_pacer, b_field);
     return;
 }
 
 static int
-OpenDecDevice(vlc_decoder_device *device, vlc_window_t *window)
+OpenDecDevice(heimdall_decoder_device *device, heimdall_window_t *window)
 {
-    VLC_UNUSED(window);
-    static const struct vlc_decoder_device_operations ops =
+    HEIMDALL_UNUSED(window);
+    static const struct heimdall_decoder_device_operations ops =
     {
         NULL,
     };
     device->ops = &ops;
-    device->type = VLC_DECODER_DEVICE_VIDEOTOOLBOX;
+    device->type = HEIMDALL_DECODER_DEVICE_VIDEOTOOLBOX;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 #pragma mark - Module descriptor
@@ -2251,7 +2252,7 @@ static const char *const chroma_list_names[] =
         "Y'CbCr 8-bit 4:2:2",
     };
 
-vlc_module_begin()
+heimdall_module_begin()
     set_subcategory(SUBCAT_INPUT_VCODEC)
     set_description(N_("VideoToolbox video decoder"))
     set_capability("video decoder", 800)
@@ -2267,4 +2268,4 @@ vlc_module_begin()
 
     add_submodule()
         set_callback_dec_device(OpenDecDevice, 1)
-vlc_module_end()
+heimdall_module_end()

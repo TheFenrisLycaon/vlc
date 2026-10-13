@@ -2,6 +2,7 @@
  * url.c: Test for url encoding/decoding stuff
  *****************************************************************************
  * Copyright (C) 2006 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -27,11 +28,11 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#include <vlc_common.h>
-#include <vlc_url.h>
-#include <vlc_strings.h>
+#include <heimdall_common.h>
+#include <heimdall_url.h>
+#include <heimdall_strings.h>
 
-const char vlc_module_name[] = "test_url";
+const char heimdall_module_name[] = "test_url";
 
 static int exitcode = 0;
 
@@ -71,18 +72,18 @@ static void test (conv_t f, const char *in, const char *out)
 
 static inline void test_decode (const char *in, const char *out)
 {
-    test (vlc_uri_decode_duplicate, in, out);
+    test (heimdall_uri_decode_duplicate, in, out);
 }
 
 static inline void test_b64 (const char *in, const char *out)
 {
-    test(vlc_b64_encode, in, out);
-    test(vlc_b64_decode, out, in);
+    test(heimdall_b64_encode, in, out);
+    test(heimdall_b64_decode, out, in);
 }
 
 static char *make_URI_def (const char *in)
 {
-    return vlc_path2uri (in, NULL);
+    return heimdall_path2uri (in, NULL);
 }
 
 static inline void test_path (const char *in, const char *out)
@@ -113,15 +114,15 @@ static void test_url_parse_internal(const char *in, bool fixup,
                                     const char *host, unsigned port,
                                     const char *path, const char *option)
 {
-    vlc_url_t url;
-    int ret = fixup ? vlc_UrlParseFixup(&url, in) : vlc_UrlParse(&url, in);
+    heimdall_url_t url;
+    int ret = fixup ? heimdall_UrlParseFixup(&url, in) : heimdall_UrlParse(&url, in);
 
     /* XXX: only checking that the port-part is parsed correctly, and
      *      equal to 0, is currently not supported due to the below. */
     if (protocol == NULL && user == NULL && pass == NULL && host == NULL
      && port == 0 && path == NULL && option == NULL)
     {
-        vlc_UrlClean(&url);
+        heimdall_UrlClean(&url);
 
         if (ret != -1)
         {
@@ -152,17 +153,17 @@ static void test_url_parse_internal(const char *in, bool fixup,
 
     test_compare(in, path, url.psz_path);
     test_compare(in, option, url.psz_option);
-    vlc_UrlClean(&url);
+    heimdall_UrlClean(&url);
 }
 
-static char *vlc_uri_resolve_rfc3986_test(const char *in)
+static char *heimdall_uri_resolve_rfc3986_test(const char *in)
 {
-    return vlc_uri_resolve("http://a/b/c/d;p?q", in);
+    return heimdall_uri_resolve("http://a/b/c/d;p?q", in);
 }
 
 static void test_rfc3986(const char *reference, const char *expected)
 {
-    test(vlc_uri_resolve_rfc3986_test, reference, expected);
+    test(heimdall_uri_resolve_rfc3986_test, reference, expected);
 }
 
 int main (void)
@@ -237,7 +238,7 @@ int main (void)
     assert (val != -1);*/
 
     /* URI to path tests */
-#define test( a, b ) test (vlc_uri2path, a, b)
+#define test( a, b ) test (heimdall_uri2path, a, b)
     test ("mailto:john@example.com", NULL);
     test ("http://www.example.com/file.html#ref", NULL);
     test ("file://", NULL);
@@ -398,7 +399,7 @@ int main (void)
     };
 
     for (size_t i = 0; i < ARRAY_SIZE(valid_uris); i++)
-        test(vlc_uri_fixup, valid_uris[i], valid_uris[i]);
+        test(heimdall_uri_fixup, valid_uris[i], valid_uris[i]);
 
     /* Check how invalid URIs are fixed up */
     static const char *invalid_uris[][2] =
@@ -412,7 +413,7 @@ int main (void)
     };
 
     for (size_t i = 0; i < ARRAY_SIZE(invalid_uris); i++)
-        test(vlc_uri_fixup, invalid_uris[i][0], invalid_uris[i][1]);
+        test(heimdall_uri_fixup, invalid_uris[i][0], invalid_uris[i][1]);
 
     return exitcode;
 }

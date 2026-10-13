@@ -2,6 +2,7 @@
  * specific.c: stubs for Android OS-specific initialization
  *****************************************************************************
  * Copyright © 2016 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -25,17 +26,17 @@
 #include <assert.h>
 #include <errno.h>
 
-#include <vlc_common.h>
-#include <vlc_network.h>
-#include <vlc_fs.h>
-#include "../libvlc.h"
+#include <heimdall_common.h>
+#include <heimdall_network.h>
+#include <heimdall_fs.h>
+#include "../libheimdall.h"
 #include "../config/configuration.h"
 
 #include <string.h>
 #include <jni.h>
 
 static JavaVM *s_jvm = NULL;
-#define GENERIC_DIR_COUNT (VLC_SNAPSHOTS_DIR - VLC_DESKTOP_DIR + 1)
+#define GENERIC_DIR_COUNT (HEIMDALL_SNAPSHOTS_DIR - HEIMDALL_DESKTOP_DIR + 1)
 static char *ppsz_generic_names[GENERIC_DIR_COUNT] = {};
 static struct {
     struct {
@@ -95,9 +96,9 @@ JNI_OnUnload(JavaVM* vm, void* reserved)
         (*env)->DeleteGlobalRef(env, fields.System.clazz);
 }
 
-/* This function is called when the libvlcore dynamic library is loaded via the
+/* This function is called when the libheimdallore dynamic library is loaded via the
  * java.lang.System.loadLibrary method. Therefore, s_jvm will be already set
- * when libvlc_InternalInit is called. */
+ * when libheimdall_InternalInit is called. */
 jint
 JNI_OnLoad(JavaVM *vm, void *reserved)
 {
@@ -112,15 +113,15 @@ JNI_OnLoad(JavaVM *vm, void *reserved)
         return -1;
 
     static const char *ppsz_env_names[GENERIC_DIR_COUNT] = {
-        NULL,                   /* VLC_DESKTOP_DIR */
-        "DIRECTORY_DOWNLOADS",  /* VLC_DOWNLOAD_DIR */
-        NULL,                   /* VLC_TEMPLATES_DIR */
-        NULL,                   /* VLC_PUBLICSHARE_DIR */
-        "DIRECTORY_DOCUMENTS",  /* VLC_DOCUMENTS_DIR */
-        "DIRECTORY_MUSIC",      /* VLC_MUSIC_DIR */
-        "DIRECTORY_PICTURES",   /* VLC_PICTURES_DIR */
-        "DIRECTORY_MOVIES",     /* VLC_VIDEOS_DIR */
-        "DIRECTORY_SCREENSHOTS",/* VLC_SNAPSHOTS_DIR */
+        NULL,                   /* HEIMDALL_DESKTOP_DIR */
+        "DIRECTORY_DOWNLOADS",  /* HEIMDALL_DOWNLOAD_DIR */
+        NULL,                   /* HEIMDALL_TEMPLATES_DIR */
+        NULL,                   /* HEIMDALL_PUBLICSHARE_DIR */
+        "DIRECTORY_DOCUMENTS",  /* HEIMDALL_DOCUMENTS_DIR */
+        "DIRECTORY_MUSIC",      /* HEIMDALL_MUSIC_DIR */
+        "DIRECTORY_PICTURES",   /* HEIMDALL_PICTURES_DIR */
+        "DIRECTORY_MOVIES",     /* HEIMDALL_VIDEOS_DIR */
+        "DIRECTORY_SCREENSHOTS",/* HEIMDALL_SNAPSHOTS_DIR */
     };
     for (size_t i = 0; i < GENERIC_DIR_COUNT; ++i)
     {
@@ -170,12 +171,12 @@ system_Init(void)
 }
 
 void
-system_Configure(libvlc_int_t *p_libvlc, int i_argc, const char *const pp_argv[])
+system_Configure(libheimdall_int_t *p_libheimdall, int i_argc, const char *const pp_argv[])
 {
     (void)i_argc; (void)pp_argv;
     assert(s_jvm != NULL);
-    var_Create(p_libvlc, "android-jvm", VLC_VAR_ADDRESS);
-    var_SetAddress(p_libvlc, "android-jvm", s_jvm);
+    var_Create(p_libheimdall, "android-jvm", HEIMDALL_VAR_ADDRESS);
+    var_SetAddress(p_libheimdall, "android-jvm", s_jvm);
 }
 
 static char *config_GetHomeDir(const char *psz_dir, const char *psz_default_dir)
@@ -190,7 +191,7 @@ static char *config_GetHomeDir(const char *psz_dir, const char *psz_default_dir)
     char *psz_fullpath;
     if (asprintf(&psz_fullpath, "%s/%s", psz_home, psz_dir) == -1)
         goto fallback;
-    if (vlc_mkdir(psz_fullpath, 0700) == -1 && errno != EEXIST)
+    if (heimdall_mkdir(psz_fullpath, 0700) == -1 && errno != EEXIST)
     {
         free(psz_fullpath);
         goto fallback;
@@ -271,33 +272,33 @@ error:
     return psz_ret;
 }
 
-char *platform_GetUserDir (vlc_userdir_t type)
+char *platform_GetUserDir (heimdall_userdir_t type)
 {
     switch (type)
     {
-        case VLC_USERDATA_DIR:
+        case HEIMDALL_USERDATA_DIR:
             return config_GetHomeDir(".share",
-                "/sdcard/Android/data/org.videolan.vlc");
-        case VLC_CACHE_DIR:
+                "/sdcard/Android/data/com.lycaria.heimdall");
+        case HEIMDALL_CACHE_DIR:
             return config_GetHomeDir(".cache",
-                "/sdcard/Android/data/org.videolan.vlc/cache");
-        case VLC_HOME_DIR:
+                "/sdcard/Android/data/com.lycaria.heimdall/cache");
+        case HEIMDALL_HOME_DIR:
             return config_GetHomeDir(NULL, NULL);
-        case VLC_CONFIG_DIR:
+        case HEIMDALL_CONFIG_DIR:
             return config_GetHomeDir(".config", NULL);
 
-        case VLC_DESKTOP_DIR:
-        case VLC_DOWNLOAD_DIR:
-        case VLC_TEMPLATES_DIR:
-        case VLC_PUBLICSHARE_DIR:
-        case VLC_DOCUMENTS_DIR:
-        case VLC_MUSIC_DIR:
-        case VLC_SNAPSHOTS_DIR:
-        case VLC_PICTURES_DIR:
-        case VLC_VIDEOS_DIR:
+        case HEIMDALL_DESKTOP_DIR:
+        case HEIMDALL_DOWNLOAD_DIR:
+        case HEIMDALL_TEMPLATES_DIR:
+        case HEIMDALL_PUBLICSHARE_DIR:
+        case HEIMDALL_DOCUMENTS_DIR:
+        case HEIMDALL_MUSIC_DIR:
+        case HEIMDALL_SNAPSHOTS_DIR:
+        case HEIMDALL_PICTURES_DIR:
+        case HEIMDALL_VIDEOS_DIR:
         {
-            assert(type >= VLC_DESKTOP_DIR && type <= VLC_VIDEOS_DIR);
-            const char *psz_name = ppsz_generic_names[type - VLC_DESKTOP_DIR];
+            assert(type >= HEIMDALL_DESKTOP_DIR && type <= HEIMDALL_VIDEOS_DIR);
+            const char *psz_name = ppsz_generic_names[type - HEIMDALL_DESKTOP_DIR];
             if (psz_name != NULL)
                 return config_GetGenericDir(psz_name);
         }
@@ -305,16 +306,16 @@ char *platform_GetUserDir (vlc_userdir_t type)
     return NULL;
 }
 
-char *config_GetSysPath(vlc_sysdir_t type, const char *filename)
+char *config_GetSysPath(heimdall_sysdir_t type, const char *filename)
 {
     char *dir = NULL;
 
     switch (type)
     {
-        case VLC_SYSDATA_DIR:
+        case HEIMDALL_SYSDATA_DIR:
             dir = strdup("/system/usr/share");
             break;
-        case VLC_LIB_DIR:
+        case HEIMDALL_LIB_DIR:
             dir = config_GetLibDir();
             break;
         default:
@@ -331,9 +332,9 @@ char *config_GetSysPath(vlc_sysdir_t type, const char *filename)
     return path;
 }
 
-char *vlc_getProxyUrl(const char *url)
+char *heimdall_getProxyUrl(const char *url)
 {
-    VLC_UNUSED(url);
+    HEIMDALL_UNUSED(url);
 
     /**
      * Determines the network proxy server to use (if any).

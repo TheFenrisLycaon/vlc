@@ -2,6 +2,7 @@
  * h264_slice.c: h264 slice parser
  *****************************************************************************
  * Copyright (C) 2001-17 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -21,8 +22,8 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_bits.h>
+#include <heimdall_common.h>
+#include <heimdall_bits.h>
 
 #include "h264_nal.h"
 #include "h264_slice.h"
@@ -518,5 +519,5 @@ bool h264_CanSwapPTSWithDTS( const h264_slice_t *p_slice, const h264_sequence_pa
     else if( p_sps->vui_parameters_present_flag )
         return p_sps->vui.i_max_num_reorder_frames == 0;
     else
-        return p_sps->i_profile == PROFILE_H264_CAVLC_INTRA;
+        return p_sps->i_profile == PROFILE_H264_CAHEIMDALL_INTRA;
 }

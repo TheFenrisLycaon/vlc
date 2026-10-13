@@ -2,6 +2,7 @@
  * thumbnail_to_files.c: test thumbnailing to files API
  *****************************************************************************
  * Copyright (C) 2024 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -18,15 +19,15 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#include "../../libvlc/test.h"
-#include "../lib/libvlc_internal.h"
+#include "../../libheimdall/test.h"
+#include "../lib/libheimdall_internal.h"
 
-#include <vlc_common.h>
-#include <vlc_preparser.h>
-#include <vlc_input_item.h>
-#include <vlc_picture.h>
-#include <vlc_modules.h>
-#include <vlc_fs.h>
+#include <heimdall_common.h>
+#include <heimdall_preparser.h>
+#include <heimdall_input_item.h>
+#include <heimdall_picture.h>
+#include <heimdall_modules.h>
+#include <heimdall_fs.h>
 
 #include <stdint.h>
 #include <stdio.h>
@@ -75,21 +76,21 @@ static const struct test_entry test_entries[] =
 struct context
 {
     size_t test_count;
-    const struct vlc_thumbnailer_output *entries;
+    const struct heimdall_thumbnailer_output *entries;
     const struct test_entry *test_entries;
-    vlc_preparser_t *preparser;
+    heimdall_preparser_t *preparser;
 
-    vlc_fourcc_t parsed_fourcc;
+    heimdall_fourcc_t parsed_fourcc;
     const char *forced_demux;
 
-    vlc_sem_t sem;
+    heimdall_sem_t sem;
 };
 
-static void parser_on_ended(vlc_preparser_req *req, int status, void *userdata)
+static void parser_on_ended(heimdall_preparser_req *req, int status, void *userdata)
 {
-    input_item_t *item = vlc_preparser_req_GetItem(req);
+    input_item_t *item = heimdall_preparser_req_GetItem(req);
     struct context *context = userdata;
-    assert(status == VLC_SUCCESS);
+    assert(status == HEIMDALL_SUCCESS);
 
     /* Retrieve the test_entry from the uri */
     const struct test_entry *test_entry = NULL;
@@ -114,31 +115,31 @@ static void parser_on_ended(vlc_preparser_req *req, int status, void *userdata)
     assert(es_fmt->video.i_width == test_entry->out_width);
     assert(es_fmt->video.i_height == test_entry->out_height);
 
-    vlc_sem_post(&context->sem);
-    vlc_preparser_req_Release(req);
+    heimdall_sem_post(&context->sem);
+    heimdall_preparser_req_Release(req);
 }
 
-static void on_ended(vlc_preparser_req *thumbnailer_req, int status,
+static void on_ended(heimdall_preparser_req *thumbnailer_req, int status,
                      const bool *result_array, size_t result_count, void *data)
 {
     (void) thumbnailer_req;
     struct context *context = data;
-    assert(status == VLC_SUCCESS);
+    assert(status == HEIMDALL_SUCCESS);
     assert(context->test_count == result_count);
 
-    static const struct vlc_preparser_cbs parser_cbs = {
+    static const struct heimdall_preparser_cbs parser_cbs = {
         .on_ended = parser_on_ended,
     };
 
     for (size_t i = 0; i < result_count; ++i)
     {
-        const struct vlc_thumbnailer_output *entry = &context->entries[i];
+        const struct heimdall_thumbnailer_output *entry = &context->entries[i];
         const struct test_entry *test_entry = &context->test_entries[i];
 
         assert(test_entry->should_succeed == result_array[i]);
 
         if (!result_array[i])
-            vlc_sem_post(&context->sem);
+            heimdall_sem_post(&context->sem);
         else
         {
             /* Parse the thumbnail to check its validity */
@@ -155,47 +156,47 @@ static void on_ended(vlc_preparser_req *thumbnailer_req, int status,
                 char *option;
                 ret = asprintf(&option, ":demux=%s", context->forced_demux);
                 assert(ret > 0);
-                input_item_AddOption(thumb, option, VLC_INPUT_OPTION_TRUSTED);
+                input_item_AddOption(thumb, option, HEIMDALL_INPUT_OPTION_TRUSTED);
                 free(option);
             }
 
-            vlc_preparser_req *parser_req =
-                vlc_preparser_req_NewParse(context->preparser, thumb,
-                                           VLC_PREPARSER_TYPE_PARSE,
+            heimdall_preparser_req *parser_req =
+                heimdall_preparser_req_NewParse(context->preparser, thumb,
+                                           HEIMDALL_PREPARSER_TYPE_PARSE,
                                            &parser_cbs, context);
             assert(parser_req != NULL);
-            assert(vlc_preparser_Submit(context->preparser, parser_req)
-                   == VLC_SUCCESS);
+            assert(heimdall_preparser_Submit(context->preparser, parser_req)
+                   == HEIMDALL_SUCCESS);
             input_item_Release(thumb);
         }
     }
 }
 
-static int get_formats(enum vlc_thumbnailer_format *out_format,
-                       vlc_fourcc_t *parsed_fourcc, const char **forced_demux,
+static int get_formats(enum heimdall_thumbnailer_format *out_format,
+                       heimdall_fourcc_t *parsed_fourcc, const char **forced_demux,
                        const char **ext)
 {
     /* This test require any of these images encoders */
     static const struct format
     {
-        enum vlc_thumbnailer_format format;
-        vlc_fourcc_t parsed_fourcc;
+        enum heimdall_thumbnailer_format format;
+        heimdall_fourcc_t parsed_fourcc;
         const char *ext;
         const char *forced_demux;
     } formats[] = {
         {
-            .format = VLC_THUMBNAILER_FORMAT_PNG,
-            .parsed_fourcc = VLC_CODEC_RGB24,
+            .format = HEIMDALL_THUMBNAILER_FORMAT_PNG,
+            .parsed_fourcc = HEIMDALL_CODEC_RGB24,
             .ext = "png"
         },
         {
-            .format = VLC_THUMBNAILER_FORMAT_WEBP,
-            .parsed_fourcc = VLC_CODEC_I420,
+            .format = HEIMDALL_THUMBNAILER_FORMAT_WEBP,
+            .parsed_fourcc = HEIMDALL_CODEC_I420,
             .ext = "webp"
         },
         {
-            .format = VLC_THUMBNAILER_FORMAT_JPEG,
-            .parsed_fourcc = VLC_CODEC_MJPG,
+            .format = HEIMDALL_THUMBNAILER_FORMAT_JPEG,
+            .parsed_fourcc = HEIMDALL_CODEC_MJPG,
             .ext = "jpg",
             /* XXX: The mjpeg demux won't parse width/height */
             .forced_demux = "avformat"
@@ -203,13 +204,13 @@ static int get_formats(enum vlc_thumbnailer_format *out_format,
     };
 
     /* Retrieve the best format */
-    enum vlc_thumbnailer_format format;
-    int ret = vlc_preparser_GetBestThumbnailerFormat(&format, ext);
+    enum heimdall_thumbnailer_format format;
+    int ret = heimdall_preparser_GetBestThumbnailerFormat(&format, ext);
     if (ret != 0)
         return ret;
 
     /* Check that the best format is checked and succeed */
-    ret = vlc_preparser_CheckThumbnailerFormat(format);
+    ret = heimdall_preparser_CheckThumbnailerFormat(format);
     assert(ret == 0);
 
     for (size_t i = 0; i < ARRAY_SIZE(formats); ++i)
@@ -220,7 +221,7 @@ static int get_formats(enum vlc_thumbnailer_format *out_format,
         /* Check if the forced demux module (for preparsing) is present */
         if (formats[i].forced_demux != NULL
          && !module_exists(formats[i].forced_demux))
-            return VLC_ENOENT;
+            return HEIMDALL_ENOENT;
 
         assert(strcmp(*ext, formats[i].ext) == 0);
 
@@ -230,21 +231,21 @@ static int get_formats(enum vlc_thumbnailer_format *out_format,
         return 0;
     }
 
-    vlc_assert_unreachable();
+    heimdall_assert_unreachable();
 }
 
-static int run_test(libvlc_instance_t *vlc, bool external)
+static int run_test(libheimdall_instance_t *heimdall, bool external)
 {
     size_t test_count = ARRAY_SIZE(test_entries);
-    struct vlc_thumbnailer_output entries[test_count];
+    struct heimdall_thumbnailer_output entries[test_count];
     int fd_array[test_count];
-    char path_array[test_count][sizeof("/tmp/libvlc_XXXXXX")];
+    char path_array[test_count][sizeof("/tmp/libheimdall_XXXXXX")];
 
-    enum vlc_thumbnailer_format format;
+    enum heimdall_thumbnailer_format format;
     const char *forced_demux, *ext;
-    vlc_fourcc_t parsed_fourcc;
+    heimdall_fourcc_t parsed_fourcc;
     int ret = get_formats(&format, &parsed_fourcc, &forced_demux, &ext);
-    if (ret == VLC_ENOENT)
+    if (ret == HEIMDALL_ENOENT)
     {
         fprintf(stderr, "skip: no \"image encoder\" modules\n");
         goto skip;
@@ -257,16 +258,16 @@ static int run_test(libvlc_instance_t *vlc, bool external)
     for (size_t i = 0; i < test_count; ++i)
     {
         const struct test_entry *test_entry = &test_entries[i];
-        struct vlc_thumbnailer_output *entry = &entries[i];
+        struct heimdall_thumbnailer_output *entry = &entries[i];
 
         if (test_entry->should_succeed)
         {
             /* Fill the output entry with a valid tmp path */
-            strcpy(path_array[i], "/tmp/libvlc_XXXXXX");
-            fd_array[i] = vlc_mkstemp(path_array[i]);
+            strcpy(path_array[i], "/tmp/libheimdall_XXXXXX");
+            fd_array[i] = heimdall_mkstemp(path_array[i]);
             if (i == 0 && fd_array[i] == -1)
             {
-                fprintf(stderr, "skip: vlc_mkstemp failed\n");
+                fprintf(stderr, "skip: heimdall_mkstemp failed\n");
                 goto skip;
             }
             assert(fd_array[i] != -1);
@@ -285,14 +286,14 @@ static int run_test(libvlc_instance_t *vlc, bool external)
     }
 
     /* Preparser configuration: thumbnailer + parser */
-    const struct vlc_preparser_cfg cfg = {
-        .types = VLC_PREPARSER_TYPE_THUMBNAIL_TO_FILES|VLC_PREPARSER_TYPE_PARSE,
+    const struct heimdall_preparser_cfg cfg = {
+        .types = HEIMDALL_PREPARSER_TYPE_THUMBNAIL_TO_FILES|HEIMDALL_PREPARSER_TYPE_PARSE,
         .max_parser_threads = 1,
         .max_thumbnailer_threads = 1,
         .timeout = 0,
         .external_process = external,
     };
-    vlc_preparser_t *preparser = vlc_preparser_New(VLC_OBJECT(vlc->p_libvlc_int),
+    heimdall_preparser_t *preparser = heimdall_preparser_New(HEIMDALL_OBJECT(heimdall->p_libheimdall_int),
                                                    &cfg);
     assert(preparser != NULL);
 
@@ -304,39 +305,39 @@ static int run_test(libvlc_instance_t *vlc, bool external)
         .parsed_fourcc = parsed_fourcc,
         .forced_demux = forced_demux,
     };
-    vlc_sem_init(&context.sem, 0);
+    heimdall_sem_init(&context.sem, 0);
 
     /* Common arguments */
-    const struct vlc_thumbnailer_arg arg =
+    const struct heimdall_thumbnailer_arg arg =
     {
         .seek = {
-            .type = VLC_THUMBNAILER_SEEK_POS,
+            .type = HEIMDALL_THUMBNAILER_SEEK_POS,
             .pos = 0.2,
-            .speed = VLC_THUMBNAILER_SEEK_FAST,
+            .speed = HEIMDALL_THUMBNAILER_SEEK_FAST,
         },
         .hw_dec = false,
     };
-    static const struct vlc_thumbnailer_to_files_cbs cbs = {
+    static const struct heimdall_thumbnailer_to_files_cbs cbs = {
         .on_ended = on_ended,
     };
 
     input_item_t *item = input_item_New(MOCK_URL, "mock");
     assert(item != NULL);
 
-    vlc_preparser_req *req =
-        vlc_preparser_req_NewThumbnailToFiles(preparser, item, &arg,
+    heimdall_preparser_req *req =
+        heimdall_preparser_req_NewThumbnailToFiles(preparser, item, &arg,
                                               entries, test_count,
                                               &cbs, &context);
     assert(req != NULL);
-    assert(vlc_preparser_Submit(preparser, req) == VLC_SUCCESS);
+    assert(heimdall_preparser_Submit(preparser, req) == HEIMDALL_SUCCESS);
 
     /* Wait for all tests */
     for (size_t i = 0; i < test_count; ++i)
-        vlc_sem_wait(&context.sem);
+        heimdall_sem_wait(&context.sem);
 
-    size_t count = vlc_preparser_Cancel(preparser, req);
+    size_t count = heimdall_preparser_Cancel(preparser, req);
     assert(count == 0); /* Should not be cancelled and already processed */
-    vlc_preparser_req_Release(req);
+    heimdall_preparser_req_Release(req);
 
     for (size_t i = 0; i < test_count; ++i)
         if (fd_array[i] != -1)
@@ -347,7 +348,7 @@ static int run_test(libvlc_instance_t *vlc, bool external)
 
     input_item_Release(item);
 
-    vlc_preparser_Delete(preparser);
+    heimdall_preparser_Delete(preparser);
     return 0;
 
 skip:
@@ -356,40 +357,40 @@ skip:
 
 struct alpha_context
 {
-    vlc_sem_t sem;
+    heimdall_sem_t sem;
     bool success;
 };
 
-static void alpha_on_ended(vlc_preparser_req *req, int status,
+static void alpha_on_ended(heimdall_preparser_req *req, int status,
                            const bool *result_array, size_t result_count,
                            void *data)
 {
     struct alpha_context *ctx = data;
     (void) req;
-    assert(status == VLC_SUCCESS);
+    assert(status == HEIMDALL_SUCCESS);
     assert(result_count == 1);
     ctx->success = result_array[0];
-    vlc_sem_post(&ctx->sem);
+    heimdall_sem_post(&ctx->sem);
 }
 
 /* Regression test for:
  *  - test_align=false: "swscale: fix OOB read when scaling a cropped alpha plane"
  *  - test_align=true: "swscale: extract the alpha plane from the cropped origin"
  */
-static int run_alpha_crop_test(libvlc_instance_t *vlc, bool test_align)
+static int run_alpha_crop_test(libheimdall_instance_t *heimdall, bool test_align)
 {
     /* Needs an RGBA image encoder (avcodec); skip otherwise. */
-    if (vlc_preparser_CheckThumbnailerFormat(VLC_THUMBNAILER_FORMAT_RGBA) != 0)
+    if (heimdall_preparser_CheckThumbnailerFormat(HEIMDALL_THUMBNAILER_FORMAT_RGBA) != 0)
     {
         fprintf(stderr, "skip: no RGBA thumbnailer format\n");
         return 0;
     }
 
-    char path[] = "/tmp/libvlc_XXXXXX";
-    int fd = vlc_mkstemp(path);
+    char path[] = "/tmp/libheimdall_XXXXXX";
+    int fd = heimdall_mkstemp(path);
     if (fd == -1)
     {
-        fprintf(stderr, "skip: vlc_mkstemp failed\n");
+        fprintf(stderr, "skip: heimdall_mkstemp failed\n");
         return 0;
     }
 
@@ -397,32 +398,32 @@ static int run_alpha_crop_test(libvlc_instance_t *vlc, bool test_align)
      * (640x320, y_offset 80), which the colorbar alignment check below relies
      * on to keep the bottom opaque band. */
     const unsigned ow = 256, oh = 128;
-    const struct vlc_thumbnailer_output output = {
-        .format = VLC_THUMBNAILER_FORMAT_RGBA,
+    const struct heimdall_thumbnailer_output output = {
+        .format = HEIMDALL_THUMBNAILER_FORMAT_RGBA,
         .width = ow, .height = oh, .crop = true,
         .file_path = path, .creat_mode = 0666,
     };
 
-    const struct vlc_preparser_cfg cfg = {
-        .types = VLC_PREPARSER_TYPE_THUMBNAIL_TO_FILES,
+    const struct heimdall_preparser_cfg cfg = {
+        .types = HEIMDALL_PREPARSER_TYPE_THUMBNAIL_TO_FILES,
         .max_parser_threads = 1,
         .max_thumbnailer_threads = 1,
         .timeout = 0,
         .external_process = false,
     };
-    vlc_preparser_t *preparser = vlc_preparser_New(VLC_OBJECT(vlc->p_libvlc_int),
+    heimdall_preparser_t *preparser = heimdall_preparser_New(HEIMDALL_OBJECT(heimdall->p_libheimdall_int),
                                                    &cfg);
     assert(preparser != NULL);
 
     struct alpha_context ctx = { .success = false };
-    vlc_sem_init(&ctx.sem, 0);
+    heimdall_sem_init(&ctx.sem, 0);
 
-    const struct vlc_thumbnailer_arg arg = {
-        .seek = { .type = VLC_THUMBNAILER_SEEK_POS, .pos = 0.2,
-                  .speed = VLC_THUMBNAILER_SEEK_FAST },
+    const struct heimdall_thumbnailer_arg arg = {
+        .seek = { .type = HEIMDALL_THUMBNAILER_SEEK_POS, .pos = 0.2,
+                  .speed = HEIMDALL_THUMBNAILER_SEEK_FAST },
         .hw_dec = false,
     };
-    static const struct vlc_thumbnailer_to_files_cbs cbs = {
+    static const struct heimdall_thumbnailer_to_files_cbs cbs = {
         .on_ended = alpha_on_ended,
     };
 
@@ -432,16 +433,16 @@ static int run_alpha_crop_test(libvlc_instance_t *vlc, bool test_align)
                    : MOCK_URL ";video_chroma=RGBA", "mock");
     assert(item != NULL);
 
-    vlc_preparser_req *req =
-        vlc_preparser_req_NewThumbnailToFiles(preparser, item, &arg, &output, 1,
+    heimdall_preparser_req *req =
+        heimdall_preparser_req_NewThumbnailToFiles(preparser, item, &arg, &output, 1,
                                               &cbs, &ctx);
     assert(req != NULL);
-    assert(vlc_preparser_Submit(preparser, req) == VLC_SUCCESS);
-    vlc_sem_wait(&ctx.sem);
+    assert(heimdall_preparser_Submit(preparser, req) == HEIMDALL_SUCCESS);
+    heimdall_sem_wait(&ctx.sem);
 
-    vlc_preparser_req_Release(req);
+    heimdall_preparser_req_Release(req);
     input_item_Release(item);
-    vlc_preparser_Delete(preparser);
+    heimdall_preparser_Delete(preparser);
 
     assert(ctx.success);
 
@@ -499,8 +500,8 @@ int main(int argc, const char *argv[])
     argc--;
     argv++;
 
-    libvlc_instance_t *vlc = libvlc_new(argc, argv);
-    assert(vlc);
+    libheimdall_instance_t *heimdall = libheimdall_new(argc, argv);
+    assert(heimdall);
 
     int ret = 0;
 
@@ -512,29 +513,29 @@ int main(int argc, const char *argv[])
     }
 
     fprintf(stderr, "Run with internal preparser...\n");
-    ret = run_test(vlc, false);
+    ret = run_test(heimdall, false);
     if (ret != 0) {
         goto end;
     }
     fprintf(stderr, "Run alpha crop test with internal preparser...\n");
-    ret = run_alpha_crop_test(vlc, false);
+    ret = run_alpha_crop_test(heimdall, false);
     if (ret != 0) {
         goto end;
     }
     fprintf(stderr, "Run alpha align test with internal preparser...\n");
-    ret = run_alpha_crop_test(vlc, true);
+    ret = run_alpha_crop_test(heimdall, true);
     if (ret != 0) {
         goto end;
     }
-#if !defined(HAVE_VLC_PROCESS_SPAWN)
+#if !defined(HAVE_HEIMDALL_PROCESS_SPAWN)
     fprintf(stderr, "Run with external preparser...\n");
-    ret = run_test(vlc, true);
+    ret = run_test(heimdall, true);
     if (ret != 0) {
         goto end;
     }
 #endif
 
 end:
-    libvlc_release(vlc);
+    libheimdall_release(heimdall);
     return ret;
 }

@@ -1,7 +1,8 @@
 /*****************************************************************************
- * connmgr.c: HTTP/TLS VLC connection manager
+ * connmgr.c: HTTP/TLS Heimdall connection manager
  *****************************************************************************
  * Copyright © 2015 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -23,10 +24,10 @@
 #endif
 
 #include <assert.h>
-#include <vlc_common.h>
-#include <vlc_network.h>
-#include <vlc_tls.h>
-#include <vlc_url.h>
+#include <heimdall_common.h>
+#include <heimdall_network.h>
+#include <heimdall_tls.h>
+#include <heimdall_url.h>
 #include "transport.h"
 #include "conn.h"
 #include "connmgr.h"
@@ -34,29 +35,29 @@
 
 #pragma GCC visibility push(default)
 
-void vlc_http_err(void *ctx, const char *fmt, ...)
+void heimdall_http_err(void *ctx, const char *fmt, ...)
 {
-    struct vlc_logger *logger = ctx;
+    struct heimdall_logger *logger = ctx;
     va_list ap;
 
     va_start(ap, fmt);
-    vlc_vaLog(&logger, VLC_MSG_ERR, "generic", "http",
+    heimdall_vaLog(&logger, HEIMDALL_MSG_ERR, "generic", "http",
               __FILE__, __LINE__, __func__, fmt, ap);
     va_end(ap);
 }
 
-void vlc_http_dbg(void *ctx, const char *fmt, ...)
+void heimdall_http_dbg(void *ctx, const char *fmt, ...)
 {
-    struct vlc_logger *logger = ctx;
+    struct heimdall_logger *logger = ctx;
     va_list ap;
 
     va_start(ap, fmt);
-    vlc_vaLog(&logger, VLC_MSG_DBG, "generic", "http",
+    heimdall_vaLog(&logger, HEIMDALL_MSG_DBG, "generic", "http",
               __FILE__, __LINE__, __func__, fmt, ap);
     va_end(ap);
 }
 
-vlc_tls_t *vlc_https_connect(vlc_tls_client_t *creds, const char *name,
+heimdall_tls_t *heimdall_https_connect(heimdall_tls_client_t *creds, const char *name,
                              unsigned port, bool *restrict two)
 {
     if (port == 0)
@@ -66,7 +67,7 @@ vlc_tls_t *vlc_https_connect(vlc_tls_client_t *creds, const char *name,
     const char *alpn[] = { "h2", "http/1.1", NULL };
     char *alp;
 
-    vlc_tls_t *tls = vlc_tls_SocketOpenTLS(creds, name, port, "https",
+    heimdall_tls_t *tls = heimdall_tls_SocketOpenTLS(creds, name, port, "https",
                                            alpn + !*two, &alp);
     if (tls != NULL)
     {
@@ -76,7 +77,7 @@ vlc_tls_t *vlc_https_connect(vlc_tls_client_t *creds, const char *name,
     return tls;
 }
 
-static char *vlc_http_proxy_find(const char *hostname, unsigned port,
+static char *heimdall_http_proxy_find(const char *hostname, unsigned port,
                                  bool secure)
 {
     const char *fmt;
@@ -89,66 +90,66 @@ static char *vlc_http_proxy_find(const char *hostname, unsigned port,
 
     if (likely(asprintf(&url, fmt, secure ? "s" : "", hostname, port) >= 0))
     {
-        proxy = vlc_getProxyUrl(url);
+        proxy = heimdall_getProxyUrl(url);
         free(url);
     }
     return proxy;
 }
 
 
-struct vlc_http_mgr
+struct heimdall_http_mgr
 {
-    struct vlc_logger *logger;
-    vlc_object_t *obj;
-    vlc_tls_client_t *creds;
-    struct vlc_http_cookie_jar_t *jar;
-    struct vlc_http_conn *conn;
+    struct heimdall_logger *logger;
+    heimdall_object_t *obj;
+    heimdall_tls_client_t *creds;
+    struct heimdall_http_cookie_jar_t *jar;
+    struct heimdall_http_conn *conn;
 };
 
-static struct vlc_http_conn *vlc_http_mgr_find(struct vlc_http_mgr *mgr,
+static struct heimdall_http_conn *heimdall_http_mgr_find(struct heimdall_http_mgr *mgr,
                                                const char *host, unsigned port)
 {
     (void) host; (void) port;
     return mgr->conn;
 }
 
-static void vlc_http_mgr_release(struct vlc_http_mgr *mgr,
-                                 struct vlc_http_conn *conn)
+static void heimdall_http_mgr_release(struct heimdall_http_mgr *mgr,
+                                 struct heimdall_http_conn *conn)
 {
     assert(mgr->conn == conn);
     mgr->conn = NULL;
 
-    vlc_http_conn_release(conn);
+    heimdall_http_conn_release(conn);
 }
 
 static
-struct vlc_http_msg *vlc_http_mgr_reuse(struct vlc_http_mgr *mgr,
+struct heimdall_http_msg *heimdall_http_mgr_reuse(struct heimdall_http_mgr *mgr,
                                         const char *host, unsigned port,
-                                        const struct vlc_http_msg *req,
+                                        const struct heimdall_http_msg *req,
                                         bool payload)
 {
-    struct vlc_http_conn *conn = vlc_http_mgr_find(mgr, host, port);
+    struct heimdall_http_conn *conn = heimdall_http_mgr_find(mgr, host, port);
     if (conn == NULL)
         return NULL;
 
-    struct vlc_http_stream *stream = vlc_http_stream_open(conn, req, payload);
+    struct heimdall_http_stream *stream = heimdall_http_stream_open(conn, req, payload);
     if (stream != NULL)
     {
-        struct vlc_http_msg *m = vlc_http_msg_get_initial(stream);
+        struct heimdall_http_msg *m = heimdall_http_msg_get_initial(stream);
         if (m != NULL)
             return m;
     }
     /* Get rid of closing or reset connection */
-    vlc_http_mgr_release(mgr, conn);
+    heimdall_http_mgr_release(mgr, conn);
     return NULL;
 }
 
-static struct vlc_http_msg *vlc_https_request(struct vlc_http_mgr *mgr,
+static struct heimdall_http_msg *heimdall_https_request(struct heimdall_http_mgr *mgr,
                                               const char *host, unsigned port,
-                                              const struct vlc_http_msg *req,
+                                              const struct heimdall_http_msg *req,
                                               bool idempotent, bool payload)
 {
-    vlc_tls_t *tls;
+    heimdall_tls_t *tls;
     bool http2 = true;
 
     if (mgr->creds == NULL && mgr->conn != NULL)
@@ -156,7 +157,7 @@ static struct vlc_http_msg *vlc_https_request(struct vlc_http_mgr *mgr,
 
     if (mgr->creds == NULL)
     {   /* First TLS connection: load x509 credentials */
-        mgr->creds = vlc_tls_ClientCreate(mgr->obj);
+        mgr->creds = heimdall_tls_ClientCreate(mgr->obj);
         if (mgr->creds == NULL)
             return NULL;
     }
@@ -167,26 +168,26 @@ static struct vlc_http_msg *vlc_https_request(struct vlc_http_mgr *mgr,
          * the nonidempotent request was processed if the connection fails
          * before the response is received.
          */
-        struct vlc_http_msg *resp = vlc_http_mgr_reuse(mgr, host, port, req,
+        struct heimdall_http_msg *resp = heimdall_http_mgr_reuse(mgr, host, port, req,
                                                        payload);
         if (resp != NULL)
             return resp; /* existing connection reused */
     }
 
-    char *proxy = vlc_http_proxy_find(host, port, true);
+    char *proxy = heimdall_http_proxy_find(host, port, true);
     if (proxy != NULL)
     {
-        tls = vlc_https_connect_proxy(mgr->creds, mgr->creds,
+        tls = heimdall_https_connect_proxy(mgr->creds, mgr->creds,
                                       host, port, &http2, proxy);
         free(proxy);
     }
     else
-        tls = vlc_https_connect(mgr->creds, host, port, &http2);
+        tls = heimdall_https_connect(mgr->creds, host, port, &http2);
 
     if (tls == NULL)
         return NULL;
 
-    struct vlc_http_conn *conn;
+    struct heimdall_http_conn *conn;
 
     /* For HTTPS, TLS-ALPN determines whether HTTP version 2.0 ("h2") or 1.1
      * ("http/1.1") is used.
@@ -196,26 +197,26 @@ static struct vlc_http_msg *vlc_https_request(struct vlc_http_mgr *mgr,
      * NOTE: We do not enforce TLS version 1.2 for HTTP 2.0 explicitly.
      */
     if (http2)
-        conn = vlc_h2_conn_create(mgr->logger, tls);
+        conn = heimdall_h2_conn_create(mgr->logger, tls);
     else
-        conn = vlc_h1_conn_create(mgr->logger, tls, false);
+        conn = heimdall_h1_conn_create(mgr->logger, tls, false);
 
     if (unlikely(conn == NULL))
     {
-        vlc_tls_Close(tls);
+        heimdall_tls_Close(tls);
         return NULL;
     }
 
     if (mgr->conn != NULL)
-        vlc_http_mgr_release(mgr, mgr->conn);
+        heimdall_http_mgr_release(mgr, mgr->conn);
 
     mgr->conn = conn;
-    return vlc_http_mgr_reuse(mgr, host, port, req, payload);
+    return heimdall_http_mgr_reuse(mgr, host, port, req, payload);
 }
 
-static struct vlc_http_msg *vlc_http_request(struct vlc_http_mgr *mgr,
+static struct heimdall_http_msg *heimdall_http_request(struct heimdall_http_mgr *mgr,
                                              const char *host, unsigned port,
-                                             const struct vlc_http_msg *req,
+                                             const struct heimdall_http_msg *req,
                                              bool idempotent, bool payload)
 {
     if (mgr->creds != NULL && mgr->conn != NULL)
@@ -223,74 +224,74 @@ static struct vlc_http_msg *vlc_http_request(struct vlc_http_mgr *mgr,
 
     if (idempotent)
     {
-        struct vlc_http_msg *resp = vlc_http_mgr_reuse(mgr, host, port, req,
+        struct heimdall_http_msg *resp = heimdall_http_mgr_reuse(mgr, host, port, req,
                                                        payload);
         if (resp != NULL)
             return resp;
     }
 
-    struct vlc_http_conn *conn;
-    struct vlc_http_stream *stream;
+    struct heimdall_http_conn *conn;
+    struct heimdall_http_stream *stream;
 
-    char *proxy = vlc_http_proxy_find(host, port, false);
+    char *proxy = heimdall_http_proxy_find(host, port, false);
     if (proxy != NULL)
     {
-        vlc_url_t url;
+        heimdall_url_t url;
 
-        vlc_UrlParse(&url, proxy);
+        heimdall_UrlParse(&url, proxy);
         free(proxy);
 
         if (url.psz_host != NULL)
-            stream = vlc_h1_request(mgr->logger, url.psz_host,
+            stream = heimdall_h1_request(mgr->logger, url.psz_host,
                                     url.i_port ? url.i_port : 80, true, req,
                                     idempotent, payload, &conn);
         else
             stream = NULL;
 
-        vlc_UrlClean(&url);
+        heimdall_UrlClean(&url);
     }
     else
-        stream = vlc_h1_request(mgr->logger, host, port ? port : 80, false,
+        stream = heimdall_h1_request(mgr->logger, host, port ? port : 80, false,
                                 req, idempotent, payload, &conn);
 
     if (stream == NULL)
         return NULL;
 
-    struct vlc_http_msg *resp = vlc_http_msg_get_initial(stream);
+    struct heimdall_http_msg *resp = heimdall_http_msg_get_initial(stream);
     if (resp == NULL)
     {
-        vlc_http_conn_release(conn);
+        heimdall_http_conn_release(conn);
         return NULL;
     }
 
     if (mgr->conn != NULL)
-        vlc_http_mgr_release(mgr, mgr->conn);
+        heimdall_http_mgr_release(mgr, mgr->conn);
 
     mgr->conn = conn;
     return resp;
 }
 
-struct vlc_http_msg *vlc_http_mgr_request(struct vlc_http_mgr *mgr, bool https,
+struct heimdall_http_msg *heimdall_http_mgr_request(struct heimdall_http_mgr *mgr, bool https,
                                           const char *host, unsigned port,
-                                          const struct vlc_http_msg *m,
+                                          const struct heimdall_http_msg *m,
                                           bool idempotent, bool payload)
 {
-    if (port && vlc_http_port_blocked(port))
+    if (port && heimdall_http_port_blocked(port))
         return NULL;
 
-    return (https ? vlc_https_request : vlc_http_request)(mgr, host, port, m,
+    return (https ? heimdall_https_request : heimdall_http_request)(mgr, host, port, m,
                                                           idempotent, payload);
 }
 
-struct vlc_http_cookie_jar_t *vlc_http_mgr_get_jar(struct vlc_http_mgr *mgr)
+struct heimdall_http_cookie_jar_t *heimdall_http_mgr_get_jar(struct heimdall_http_mgr *mgr)
 {
     return mgr->jar;
 }
 
-struct vlc_http_mgr *vlc_http_mgr_create(vlc_object_t *obj,
-                                         struct vlc_http_cookie_jar_t *jar)
+struct heimdall_http_mgr *heimdall_http_mgr_create(heimdall_object_t *obj,
+                                         struct heimdall_http_cookie_jar_t *jar)
 {
-    struct vlc_http_mgr *mgr = malloc(sizeof (*mgr));
+    struct heimdall_http_mgr *mgr = malloc(sizeof (*mgr));
     if (unlikely(mgr == NULL))
         return NULL;
 
@@ -302,11 +303,11 @@ struct vlc_http_mgr *vlc_http_mgr_create(vlc_object_t *obj,
     return mgr;
 }
 
-void vlc_http_mgr_destroy(struct vlc_http_mgr *mgr)
+void heimdall_http_mgr_destroy(struct heimdall_http_mgr *mgr)
 {
     if (mgr->conn != NULL)
-        vlc_http_mgr_release(mgr, mgr->conn);
+        heimdall_http_mgr_release(mgr, mgr->conn);
     if (mgr->creds != NULL)
-        vlc_tls_ClientDelete(mgr->creds);
+        heimdall_tls_ClientDelete(mgr->creds);
     free(mgr);
 }

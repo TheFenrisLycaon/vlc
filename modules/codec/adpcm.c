@@ -2,6 +2,7 @@
  * adpcm.c : adpcm variant audio decoder
  *****************************************************************************
  * Copyright (C) 2001, 2002 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *          Rémi Denis-Courmont
@@ -30,25 +31,25 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
 
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  OpenDecoder( vlc_object_t * );
-static void CloseDecoder( vlc_object_t * );
+static int  OpenDecoder( heimdall_object_t * );
+static void CloseDecoder( heimdall_object_t * );
 
 static int DecodeAudio( decoder_t *, block_t * );
 static void Flush( decoder_t * );
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("ADPCM audio decoder") )
     set_capability( "audio decoder", 50 )
     set_subcategory( SUBCAT_INPUT_ACODEC )
     set_callbacks( OpenDecoder, CloseDecoder )
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * Local prototypes
@@ -120,34 +121,34 @@ static const int i_adaptation_coeff2[7] =
 /*****************************************************************************
  * OpenDecoder: probe the decoder and return score
  *****************************************************************************/
-static int OpenDecoder( vlc_object_t *p_this )
+static int OpenDecoder( heimdall_object_t *p_this )
 {
     decoder_t *p_dec = (decoder_t*)p_this;
     decoder_sys_t *p_sys;
 
     switch( p_dec->fmt_in->i_codec )
     {
-        case VLC_CODEC_ADPCM_IMA_QT:
-        case VLC_CODEC_ADPCM_IMA_WAV:
-        case VLC_CODEC_ADPCM_MS:
-        case VLC_CODEC_ADPCM_DK4:
-        case VLC_CODEC_ADPCM_DK3:
-        case VLC_CODEC_ADPCM_XA_EA:
+        case HEIMDALL_CODEC_ADPCM_IMA_QT:
+        case HEIMDALL_CODEC_ADPCM_IMA_WAV:
+        case HEIMDALL_CODEC_ADPCM_MS:
+        case HEIMDALL_CODEC_ADPCM_DK4:
+        case HEIMDALL_CODEC_ADPCM_DK3:
+        case HEIMDALL_CODEC_ADPCM_XA_EA:
             break;
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 
     if( p_dec->fmt_in->audio.i_rate <= 0 )
     {
         msg_Err( p_dec, "bad samplerate" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Allocate the memory needed to store the decoder's structure */
     p_sys = malloc(sizeof(*p_sys));
     if( unlikely(p_sys == NULL) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_sys->prev = NULL;
     p_sys->i_samplesperblock = 0;
@@ -156,34 +157,34 @@ static int OpenDecoder( vlc_object_t *p_this )
     uint8_t i_max_channels = 5;
     switch( p_dec->fmt_in->i_codec )
     {
-        case VLC_CODEC_ADPCM_IMA_QT: /* IMA ADPCM */
+        case HEIMDALL_CODEC_ADPCM_IMA_QT: /* IMA ADPCM */
             p_sys->codec = ADPCM_IMA_QT;
             i_max_channels = 2;
             break;
-        case VLC_CODEC_ADPCM_IMA_WAV: /* IMA ADPCM */
+        case HEIMDALL_CODEC_ADPCM_IMA_WAV: /* IMA ADPCM */
             p_sys->codec = ADPCM_IMA_WAV;
             i_max_channels = 2;
             break;
-        case VLC_CODEC_ADPCM_MS: /* MS ADPCM */
+        case HEIMDALL_CODEC_ADPCM_MS: /* MS ADPCM */
             p_sys->codec = ADPCM_MS;
             i_max_channels = 2;
             break;
-        case VLC_CODEC_ADPCM_DK4: /* Duck DK4 ADPCM */
+        case HEIMDALL_CODEC_ADPCM_DK4: /* Duck DK4 ADPCM */
             p_sys->codec = ADPCM_DK4;
             i_max_channels = 2;
             break;
-        case VLC_CODEC_ADPCM_DK3: /* Duck DK3 ADPCM */
+        case HEIMDALL_CODEC_ADPCM_DK3: /* Duck DK3 ADPCM */
             p_sys->codec = ADPCM_DK3;
             i_max_channels = 2;
             break;
-        case VLC_CODEC_ADPCM_XA_EA: /* EA ADPCM */
+        case HEIMDALL_CODEC_ADPCM_XA_EA: /* EA ADPCM */
             p_sys->codec = ADPCM_EA;
             p_sys->prev = calloc( 2 * p_dec->fmt_in->audio.i_channels,
                                   sizeof( int16_t ) );
             if( unlikely(p_sys->prev == NULL) )
             {
                 free( p_sys );
-                return VLC_ENOMEM;
+                return HEIMDALL_ENOMEM;
             }
             break;
     }
@@ -193,7 +194,7 @@ static int OpenDecoder( vlc_object_t *p_this )
         free(p_sys->prev);
         free(p_sys);
         msg_Err( p_dec, "Invalid number of channels %i", p_dec->fmt_in->audio.i_channels );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( p_dec->fmt_in->audio.i_blockalign <= 0 )
@@ -276,21 +277,21 @@ static int OpenDecoder( vlc_object_t *p_this )
         free(p_sys->prev);
         free(p_sys);
         msg_Err( p_dec, "Error computing number of samples per block");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     p_dec->p_sys = p_sys;
-    p_dec->fmt_out.i_codec = VLC_CODEC_S16N;
+    p_dec->fmt_out.i_codec = HEIMDALL_CODEC_S16N;
     p_dec->fmt_out.audio.i_rate = p_dec->fmt_in->audio.i_rate;
     p_dec->fmt_out.audio.i_channels = i_channels;
-    p_dec->fmt_out.audio.i_physical_channels = vlc_chan_maps[i_channels];
+    p_dec->fmt_out.audio.i_physical_channels = heimdall_chan_maps[i_channels];
 
     date_Init( &p_sys->end_date, p_dec->fmt_out.audio.i_rate, 1 );
 
     p_dec->pf_decode = DecodeAudio;
     p_dec->pf_flush  = Flush;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -300,7 +301,7 @@ static void Flush( decoder_t *p_dec )
 {
     decoder_sys_t *p_sys = p_dec->p_sys;
 
-    date_Set( &p_sys->end_date, VLC_TICK_INVALID );
+    date_Set( &p_sys->end_date, HEIMDALL_TICK_INVALID );
 }
 
 /*****************************************************************************
@@ -322,17 +323,17 @@ static block_t *DecodeBlock( decoder_t *p_dec, block_t **pp_block )
             goto drop;
     }
 
-    if( p_block->i_pts != VLC_TICK_INVALID &&
+    if( p_block->i_pts != HEIMDALL_TICK_INVALID &&
         p_block->i_pts != date_Get( &p_sys->end_date ) )
     {
         date_Set( &p_sys->end_date, p_block->i_pts );
     }
-    else if( date_Get( &p_sys->end_date ) == VLC_TICK_INVALID )
+    else if( date_Get( &p_sys->end_date ) == HEIMDALL_TICK_INVALID )
         /* We've just started the stream, wait for the first PTS. */
         goto drop;
 
     /* Don't re-use the same pts twice */
-    p_block->i_pts = VLC_TICK_INVALID;
+    p_block->i_pts = HEIMDALL_TICK_INVALID;
 
     if( p_block->i_buffer >= p_sys->i_block )
     {
@@ -391,18 +392,18 @@ drop:
 static int DecodeAudio( decoder_t *p_dec, block_t *p_block )
 {
     if( p_block == NULL ) /* No Drain */
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
 
     block_t **pp_block = &p_block, *p_out;
     while( ( p_out = DecodeBlock( p_dec, pp_block ) ) != NULL )
         decoder_QueueAudio( p_dec, p_out );
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }
 
 /*****************************************************************************
  * CloseDecoder:
  *****************************************************************************/
-static void CloseDecoder( vlc_object_t *p_this )
+static void CloseDecoder( heimdall_object_t *p_this )
 {
     decoder_t *p_dec = (decoder_t *)p_this;
     decoder_sys_t *p_sys = p_dec->p_sys;

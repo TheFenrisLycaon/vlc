@@ -2,6 +2,7 @@
  * radio.c:  Online Radio Browser services discovery module
  *****************************************************************************
  * Copyright (C) 2025 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Zyad M. Ayad <zyad.moh.1011@gmail.com>
  *
@@ -24,13 +25,13 @@
 #include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_services_discovery.h>
-#include <vlc_stream.h>
-#include <vlc_access.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_services_discovery.h>
+#include <heimdall_stream.h>
+#include <heimdall_access.h>
 #include <string.h>
-#include <vlc_interrupt.h>
+#include <heimdall_interrupt.h>
 #include <ctype.h>
 
 #define DEFAULT_BASE_URL "https://radio.videolan.org/"
@@ -40,8 +41,8 @@
 
 typedef struct
 {
-    vlc_thread_t thread;
-    vlc_interrupt_t *interrupt;
+    heimdall_thread_t thread;
+    heimdall_interrupt_t *interrupt;
 
 } services_discovery_sys_t;
 
@@ -63,7 +64,7 @@ typedef struct
 /*
     TODO: Handle CSV Fields that has '\n' inside quoted fields
     Currently this module skips stations with such fields
-    Reason: we are using vlc_stream_ReadLine which reads until '\n'
+    Reason: we are using heimdall_stream_ReadLine which reads until '\n'
 */
 static int parse_csv_line(char *line, char **fields, size_t max_fields)
 {
@@ -167,7 +168,7 @@ static int csv_parser_read_line(csv_parser *parser)
     parser->line = NULL;
 
     /* read next line */
-    parser->line = vlc_stream_ReadLine(parser->stream);
+    parser->line = heimdall_stream_ReadLine(parser->stream);
     if (!parser->line)
     {
         return 0; // End of stream
@@ -187,7 +188,7 @@ static void csv_parser_free(csv_parser *parser)
 {
     if (parser->stream)
     {
-        vlc_stream_Delete(parser->stream);
+        heimdall_stream_Delete(parser->stream);
     }
     free(parser->header_line);
     free(parser->line);
@@ -225,7 +226,7 @@ static csv_parser *csv_parser_init(void *data, char *psz_url, int max_fields)
         return NULL;
     }
 
-    parser->stream = vlc_stream_NewURL(p_sd, psz_url);
+    parser->stream = heimdall_stream_NewURL(p_sd, psz_url);
     if (!parser->stream)
     {
         free(parser);
@@ -238,7 +239,7 @@ static csv_parser *csv_parser_init(void *data, char *psz_url, int max_fields)
     parser->fields = malloc(max_fields * sizeof(char *));
     if (!parser->fields)
     {
-        vlc_stream_Delete(parser->stream);
+        heimdall_stream_Delete(parser->stream);
         free(parser);
         return NULL;
     }
@@ -246,17 +247,17 @@ static csv_parser *csv_parser_init(void *data, char *psz_url, int max_fields)
     if (!parser->header_fields)
     {
         free(parser->fields);
-        vlc_stream_Delete(parser->stream);
+        heimdall_stream_Delete(parser->stream);
         free(parser);
         return NULL;
     }
 
-    parser->header_line = vlc_stream_ReadLine(parser->stream);
+    parser->header_line = heimdall_stream_ReadLine(parser->stream);
     if (!parser->header_line)
     {
         free(parser->fields);
         free(parser->header_fields);
-        vlc_stream_Delete(parser->stream);
+        heimdall_stream_Delete(parser->stream);
         free(parser);
         return NULL;
     }
@@ -267,7 +268,7 @@ static csv_parser *csv_parser_init(void *data, char *psz_url, int max_fields)
         free(parser->fields);
         free(parser->header_line);
         free(parser->header_fields);
-        vlc_stream_Delete(parser->stream);
+        heimdall_stream_Delete(parser->stream);
         free(parser);
         return NULL;
     }
@@ -285,7 +286,7 @@ static bool FieldHasValue(csv_parser *parser, int index)
            strcmp(parser->fields[index], "null") != 0;
 }
 
-static void SetMetaFromField(input_item_t *item, csv_parser *parser, int index, vlc_meta_type_t type)
+static void SetMetaFromField(input_item_t *item, csv_parser *parser, int index, heimdall_meta_type_t type)
 {
     if (!FieldHasValue(parser, index))
         return;
@@ -304,7 +305,7 @@ static void SetMetaExtraFromField(input_item_t *item, csv_parser *parser, int in
 static void *Run(void *data)
 {
 
-    vlc_thread_set_name("vlc-radio");
+    heimdall_thread_set_name("heimdall-radio");
 
     services_discovery_t *p_sd = (services_discovery_t *)data;
     services_discovery_sys_t *p_sys = p_sd->p_sys;
@@ -321,7 +322,7 @@ static void *Run(void *data)
     }
     free(base_url);
 
-    vlc_interrupt_set(p_sys->interrupt);
+    heimdall_interrupt_set(p_sys->interrupt);
 
     csv_parser *parser = csv_parser_init(p_sd, countries_endpoint, CSV_MAX_FIELDS);
     free(countries_endpoint);
@@ -344,7 +345,7 @@ static void *Run(void *data)
     int ret;
     while ((ret = csv_parser_read_line(parser)))
     {
-        if (vlc_killed())
+        if (heimdall_killed())
             break;
         if (ret < 0)
         {
@@ -371,7 +372,7 @@ static void *Run(void *data)
 
         char flag[256];
         snprintf(flag, sizeof(flag), "https://flags.videolan.org/%s/flat/64.png", parser->fields[iso_3166_1_index]);
-        input_item_SetMeta(country_node, vlc_meta_ArtworkURL, flag);
+        input_item_SetMeta(country_node, heimdall_meta_ArtworkURL, flag);
         SetMetaExtraFromField(country_node, parser, stationcount_index, "stationcount");
 
         services_discovery_AddItem(p_sd, country_node);
@@ -380,40 +381,40 @@ static void *Run(void *data)
     return NULL;
 }
 
-static int Open(vlc_object_t *p_this)
+static int Open(heimdall_object_t *p_this)
 {
     services_discovery_t *p_sd = (services_discovery_t *)p_this;
     services_discovery_sys_t *p_sys = malloc(sizeof(*p_sys));
     if (!p_sys)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_sd->p_sys = p_sys;
-    p_sys->interrupt = vlc_interrupt_create();
+    p_sys->interrupt = heimdall_interrupt_create();
     if (!p_sys->interrupt)
     {
         free(p_sys);
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     p_sd->description = _("Radio");
 
-    if (vlc_clone(&p_sys->thread, Run, p_sd))
+    if (heimdall_clone(&p_sys->thread, Run, p_sd))
     {
-        vlc_interrupt_destroy(p_sys->interrupt);
+        heimdall_interrupt_destroy(p_sys->interrupt);
         free(p_sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void Close(vlc_object_t *p_this)
+static void Close(heimdall_object_t *p_this)
 {
     services_discovery_t *p_sd = (services_discovery_t *)p_this;
     services_discovery_sys_t *p_sys = p_sd->p_sys;
 
-    vlc_interrupt_kill(p_sys->interrupt);
-    vlc_join(p_sys->thread, NULL);
-    vlc_interrupt_destroy(p_sys->interrupt);
+    heimdall_interrupt_kill(p_sys->interrupt);
+    heimdall_join(p_sys->thread, NULL);
+    heimdall_interrupt_destroy(p_sys->interrupt);
     free(p_sys);
 }
 
@@ -423,13 +424,13 @@ static int ReadDirectory(stream_t *p_access, input_item_node_t *p_node)
 
     if (!p_sys || !p_sys->base_url)
     {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     // Make sure the location is TWO characters, because empty countrycode will cause this moudle to load "ALL" stations
     if (strlen(p_access->psz_location) != 2)
     {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     size_t offset = 0;
@@ -441,7 +442,7 @@ static int ReadDirectory(stream_t *p_access, input_item_node_t *p_node)
                      p_sys->base_url, p_access->psz_location,
                      (size_t)STATIONS_PAGE_SIZE, offset) < 0)
         {
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         }
 
         csv_parser *parser = csv_parser_init(p_access, stations_endpoint, CSV_MAX_FIELDS);
@@ -449,7 +450,7 @@ static int ReadDirectory(stream_t *p_access, input_item_node_t *p_node)
 
         if (!parser)
         {
-            return offset == 0 ? VLC_EGENERIC : VLC_SUCCESS;
+            return offset == 0 ? HEIMDALL_EGENERIC : HEIMDALL_SUCCESS;
         }
 
         int name_index = csv_parser_get_field_index(parser, "name");
@@ -468,7 +469,7 @@ static int ReadDirectory(stream_t *p_access, input_item_node_t *p_node)
         {
             msg_Err(p_access, "Missing required fields in station data");
             csv_parser_free(parser);
-            return offset == 0 ? VLC_EGENERIC : VLC_SUCCESS;
+            return offset == 0 ? HEIMDALL_EGENERIC : HEIMDALL_SUCCESS;
         }
 
         size_t rows = 0;
@@ -476,7 +477,7 @@ static int ReadDirectory(stream_t *p_access, input_item_node_t *p_node)
         int ret;
         while ((ret = csv_parser_read_line(parser)))
         {
-            if (vlc_killed())
+            if (heimdall_killed())
             {
                 killed = true;
                 break;
@@ -500,10 +501,10 @@ static int ReadDirectory(stream_t *p_access, input_item_node_t *p_node)
                 continue;
             }
 
-            SetMetaFromField(station_item, parser, favicon_index, vlc_meta_ArtworkURL);
-            SetMetaFromField(station_item, parser, homepage_index, vlc_meta_URL);
-            SetMetaFromField(station_item, parser, tags_index, vlc_meta_Genre);
-            SetMetaFromField(station_item, parser, language_index, vlc_meta_Language);
+            SetMetaFromField(station_item, parser, favicon_index, heimdall_meta_ArtworkURL);
+            SetMetaFromField(station_item, parser, homepage_index, heimdall_meta_URL);
+            SetMetaFromField(station_item, parser, tags_index, heimdall_meta_Genre);
+            SetMetaFromField(station_item, parser, language_index, heimdall_meta_Language);
 
             SetMetaExtraFromField(station_item, parser, codec_index, "codec");
             SetMetaExtraFromField(station_item, parser, bitrate_index, "bitrate");
@@ -523,31 +524,31 @@ static int ReadDirectory(stream_t *p_access, input_item_node_t *p_node)
         }
         offset += rows;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int OpenAccess(vlc_object_t *p_this)
+static int OpenAccess(heimdall_object_t *p_this)
 {
     stream_t *p_access = (stream_t *)p_this;
     access_sys_t *p_sys = malloc(sizeof(*p_sys));
     if (!p_sys)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_sys->base_url = var_InheritString(p_access, "radio-browser-baseurl");
     if (!p_sys->base_url)
     {
         free(p_sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     p_access->p_sys = p_sys;
     p_access->pf_readdir = ReadDirectory;
     p_access->pf_control = access_vaDirectoryControlHelper;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void CloseAccess(vlc_object_t *p_this)
+static void CloseAccess(heimdall_object_t *p_this)
 {
     stream_t *p_access = (stream_t *)p_this;
     access_sys_t *p_sys = p_access->p_sys;
@@ -556,12 +557,12 @@ static void CloseAccess(vlc_object_t *p_this)
     free(p_sys);
 }
 
-VLC_SD_PROBE_HELPER("radio", N_("Radio Browser"), SD_CAT_INTERNET)
+HEIMDALL_SD_PROBE_HELPER("radio", N_("Radio Browser"), SD_CAT_INTERNET)
 
 #define BASE_URL_TEXT N_("Radio Browser Api Base URL")
 #define BASE_URL_LONGTEXT N_("Enter the base URL for the Radio Browser API. The default is " DEFAULT_BASE_URL)
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname("Radio")
     set_description(N_("Radio Browser services discovery"))
     set_subcategory(SUBCAT_PLAYLIST_SD)
@@ -578,5 +579,5 @@ vlc_module_begin()
     set_callbacks(OpenAccess, CloseAccess)
     add_shortcut("radio")
 
-    VLC_SD_PROBE_SUBMODULE
-    vlc_module_end()
+    HEIMDALL_SD_PROBE_SUBMODULE
+    heimdall_module_end()

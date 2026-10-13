@@ -2,6 +2,7 @@
  * sdp.c: Fake input for sdp:// scheme
  *****************************************************************************
  * Copyright (C) 2010 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -25,9 +26,9 @@
 #include <limits.h>
 #include <string.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_access.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_access.h>
 
 static ssize_t Read (stream_t *access, void *buf, size_t len)
 {
@@ -51,7 +52,7 @@ static int Seek (stream_t *access, uint64_t position)
         position = SIZE_MAX;
 #endif
     *inp = access->psz_location + strnlen(access->psz_location, position);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int Control (stream_t *access, int query, va_list args)
@@ -65,30 +66,30 @@ static int Control (stream_t *access, int query, va_list args)
         {
             bool *b = va_arg(args, bool *);
             *b = true;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
 
         case STREAM_GET_SIZE:
             *va_arg(args, uint64_t *) = strlen(access->psz_location);
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
 
         case STREAM_GET_PTS_DELAY:
-            *va_arg(args, vlc_tick_t *) =  DEFAULT_PTS_DELAY;
-            return VLC_SUCCESS;
+            *va_arg(args, heimdall_tick_t *) =  DEFAULT_PTS_DELAY;
+            return HEIMDALL_SUCCESS;
     
         case STREAM_SET_PAUSE_STATE:
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
     }
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
-static int Open (vlc_object_t *obj)
+static int Open (heimdall_object_t *obj)
 {
     stream_t *access = (stream_t *)obj;
 
-    const char **sys = vlc_obj_malloc(obj, sizeof (*sys));
+    const char **sys = heimdall_obj_malloc(obj, sizeof (*sys));
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     *sys = access->psz_location;
 
@@ -98,10 +99,10 @@ static int Open (vlc_object_t *obj)
     access->pf_control = Control;
     access->p_sys = sys;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname(N_("SDP"))
     set_description(N_("Session Description Protocol"))
     set_subcategory(SUBCAT_INPUT_ACCESS)
@@ -109,4 +110,4 @@ vlc_module_begin()
     set_capability("access", 0)
     set_callback(Open)
     add_shortcut("sdp")
-vlc_module_end()
+heimdall_module_end()

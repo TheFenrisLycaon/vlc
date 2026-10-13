@@ -2,6 +2,7 @@
  * flac.c: flac decoder/encoder module making use of libflac
  *****************************************************************************
  * Copyright (C) 1999-2001 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gildas Bazin <gbazin@videolan.org>
  *          Sigmund Augdal Helberg <dnumgis@videolan.org>
@@ -34,11 +35,11 @@
 
 #include <stdbit.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
-#include <vlc_codecs.h>
-#include <vlc_aout.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
+#include <heimdall_codecs.h>
+#include <heimdall_aout.h>
 
 #ifdef _WIN32
 # define FLAC__NO_DLL
@@ -47,8 +48,8 @@
 #include <FLAC/stream_decoder.h>
 #include <FLAC/stream_encoder.h>
 
-#include <vlc_block_helper.h>
-#include <vlc_bits.h>
+#include <heimdall_block_helper.h>
+#include <heimdall_bits.h>
 
 #if defined(FLAC_API_VERSION_CURRENT) && FLAC_API_VERSION_CURRENT >= 8
 #   define USE_NEW_FLAC_API
@@ -142,11 +143,11 @@ static const uint32_t wfx_chans_order[MAPPED_WFX_CHANNELS + 1] =
 /*****************************************************************************
  * Local prototypes
  *****************************************************************************/
-static int  OpenDecoder   ( vlc_object_t * );
-static void CloseDecoder  ( vlc_object_t * );
+static int  OpenDecoder   ( heimdall_object_t * );
+static void CloseDecoder  ( heimdall_object_t * );
 
 #ifdef ENABLE_SOUT
-static int OpenEncoder   ( vlc_object_t * );
+static int OpenEncoder   ( heimdall_object_t * );
 static void CloseEncoder ( encoder_t * );
 #endif
 
@@ -156,7 +157,7 @@ static void Flush( decoder_t * );
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-vlc_module_begin ()
+heimdall_module_begin ()
 
     set_subcategory( SUBCAT_INPUT_ACODEC )
     add_shortcut( "flac" )
@@ -173,7 +174,7 @@ vlc_module_begin ()
     set_callback( OpenEncoder )
 #endif
 
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * Interleave: helper function to interleave channels
@@ -205,7 +206,7 @@ static int DecoderSetOutputFormat( unsigned i_channels, unsigned i_rate,
 {
     if( i_channels == 0 || i_channels > FLAC__MAX_CHANNELS ||
         i_bitspersample == 0 || (i_rate == 0 && i_streaminfo_rate == 0) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     fmt->i_channels = i_channels;
     fmt->i_rate = (i_rate > 0 ) ? i_rate : i_streaminfo_rate;
@@ -213,7 +214,7 @@ static int DecoderSetOutputFormat( unsigned i_channels, unsigned i_rate,
     memcpy( pi_channels_reorder, ppi_reorder[i_channels], i_channels );
     fmt->i_bitspersample = i_bitspersample;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -224,7 +225,7 @@ DecoderWriteCallback( const FLAC__StreamDecoder *decoder,
                       const FLAC__Frame *frame,
                       const FLAC__int32 *const buffer[], void *client_data )
 {
-    VLC_UNUSED(decoder);
+    HEIMDALL_UNUSED(decoder);
     decoder_t *p_dec = (decoder_t *)client_data;
     decoder_sys_t *p_sys = p_dec->p_sys;
 
@@ -247,7 +248,7 @@ DecoderWriteCallback( const FLAC__StreamDecoder *decoder,
     if( decoder_UpdateAudioFormat( p_dec ) )
         return FLAC__STREAM_DECODER_WRITE_STATUS_CONTINUE;
 
-    if( date_Get( &p_sys->end_date ) == VLC_TICK_INVALID )
+    if( date_Get( &p_sys->end_date ) == HEIMDALL_TICK_INVALID )
         return FLAC__STREAM_DECODER_WRITE_STATUS_CONTINUE;
 
     p_sys->p_aout_buffer =
@@ -277,7 +278,7 @@ static FLAC__StreamDecoderReadStatus
 DecoderReadCallback( const FLAC__StreamDecoder *decoder, FLAC__byte buffer[],
                      size_t *bytes, void *client_data )
 {
-    VLC_UNUSED(decoder);
+    HEIMDALL_UNUSED(decoder);
     decoder_t *p_dec = (decoder_t *)client_data;
     decoder_sys_t *p_sys = p_dec->p_sys;
 
@@ -304,7 +305,7 @@ static void DecoderMetadataCallback( const FLAC__StreamDecoder *decoder,
                                      const FLAC__StreamMetadata *metadata,
                                      void *client_data )
 {
-    VLC_UNUSED(decoder);
+    HEIMDALL_UNUSED(decoder);
     decoder_t *p_dec = (decoder_t *)client_data;
     decoder_sys_t *p_sys = p_dec->p_sys;
 
@@ -342,8 +343,8 @@ static void DecoderMetadataCallback( const FLAC__StreamDecoder *decoder,
                     const unsigned i_wfxchannels = stdc_count_ones( i_wfxmask );
                     if( i_wfxchannels > 0 && i_wfxchannels <= AOUT_CHAN_MAX )
                     {
-                        /* Create the vlc bitmap from wfx channels */
-                        uint32_t i_vlcmask = 0;
+                        /* Create the heimdall bitmap from wfx channels */
+                        uint32_t i_heimdallmask = 0;
                         for( uint32_t i_chan = 1; i_chan && i_chan <= i_wfxmask; i_chan <<= 1 )
                         {
                             if( (i_chan & i_wfxmask) == 0 )
@@ -351,11 +352,11 @@ static void DecoderMetadataCallback( const FLAC__StreamDecoder *decoder,
                             for( size_t j=0; j<MAPPED_WFX_CHANNELS; j++ )
                             {
                                 if( wfx_remapping[j][0] == i_chan )
-                                    i_vlcmask |= wfx_remapping[j][1];
+                                    i_heimdallmask |= wfx_remapping[j][1];
                             }
                         }
                         /* Check if we have the 1 to 1 mapping */
-                        if( stdc_count_ones(i_vlcmask) != i_wfxchannels )
+                        if( stdc_count_ones(i_heimdallmask) != i_wfxchannels )
                         {
                             msg_Warn( p_dec, "Unsupported channel mask %x", i_wfxmask );
                             return;
@@ -364,14 +365,14 @@ static void DecoderMetadataCallback( const FLAC__StreamDecoder *decoder,
                         /* Compute the remapping */
                         uint8_t neworder[AOUT_CHAN_MAX] = {0};
                         aout_CheckChannelReorder( wfx_chans_order, NULL,
-                                                  i_vlcmask, neworder );
+                                                  i_heimdallmask, neworder );
 
                         /* /!\ Invert our source/dest reordering,
                          * as Interleave() here works source indexes */
                         for( unsigned j=0; j<i_wfxchannels; j++ )
                             p_sys->rgi_channels_reorder[neworder[j]] = j;
 
-                        p_dec->fmt_out.audio.i_physical_channels = i_vlcmask;
+                        p_dec->fmt_out.audio.i_physical_channels = i_heimdallmask;
                         p_dec->fmt_out.audio.i_channels = i_wfxchannels;
                     }
 
@@ -391,7 +392,7 @@ static void DecoderErrorCallback( const FLAC__StreamDecoder *decoder,
                                   FLAC__StreamDecoderErrorStatus status,
                                   void *client_data )
 {
-    VLC_UNUSED(decoder);
+    HEIMDALL_UNUSED(decoder);
     decoder_t *p_dec = (decoder_t *)client_data;
     decoder_sys_t *p_sys = p_dec->p_sys;
 
@@ -422,19 +423,19 @@ static void DecoderErrorCallback( const FLAC__StreamDecoder *decoder,
 /*****************************************************************************
  * OpenDecoder: probe the decoder and return score
  *****************************************************************************/
-static int OpenDecoder( vlc_object_t *p_this )
+static int OpenDecoder( heimdall_object_t *p_this )
 {
     decoder_t *p_dec = (decoder_t*)p_this;
     decoder_sys_t *p_sys;
 
-    if( p_dec->fmt_in->i_codec != VLC_CODEC_FLAC )
+    if( p_dec->fmt_in->i_codec != HEIMDALL_CODEC_FLAC )
     {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Allocate the memory needed to store the decoder's structure */
     if( ( p_dec->p_sys = p_sys = malloc(sizeof(*p_sys)) ) == NULL )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     /* Misc init */
     p_sys->b_stream_info = false;
@@ -446,7 +447,7 @@ static int OpenDecoder( vlc_object_t *p_this )
     {
         msg_Err( p_dec, "FLAC__stream_decoder_new() failed" );
         free( p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Enable STREAMINFO + COMMENTS */
@@ -469,7 +470,7 @@ static int OpenDecoder( vlc_object_t *p_this )
         msg_Err( p_dec, "FLAC__stream_decoder_init_stream() failed" );
         FLAC__stream_decoder_delete( p_sys->p_flac );
         free( p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 #else
     FLAC__stream_decoder_set_read_callback( p_sys->p_flac,
@@ -486,19 +487,19 @@ static int OpenDecoder( vlc_object_t *p_this )
 #endif
 
     /* Set output properties */
-    p_dec->fmt_out.i_codec = VLC_CODEC_S32N;
+    p_dec->fmt_out.i_codec = HEIMDALL_CODEC_S32N;
 
     /* Set callbacks */
     p_dec->pf_decode = DecodeBlock;
     p_dec->pf_flush  = Flush;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * CloseDecoder: flac decoder destruction
  *****************************************************************************/
-static void CloseDecoder( vlc_object_t *p_this )
+static void CloseDecoder( heimdall_object_t *p_this )
 {
     decoder_t *p_dec = (decoder_t *)p_this;
     decoder_sys_t *p_sys = p_dec->p_sys;
@@ -627,7 +628,7 @@ static void Flush( decoder_t *p_dec )
 
     if( p_sys->b_stream_info )
         FLAC__stream_decoder_flush( p_sys->p_flac );
-    date_Set( &p_sys->end_date, VLC_TICK_INVALID );
+    date_Set( &p_sys->end_date, HEIMDALL_TICK_INVALID );
 }
 
 /****************************************************************************
@@ -638,14 +639,14 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
     decoder_sys_t *p_sys = p_dec->p_sys;
 
     if( p_block == NULL ) /* No Drain */
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
     if( p_block->i_flags & (BLOCK_FLAG_DISCONTINUITY | BLOCK_FLAG_CORRUPTED) )
     {
         Flush( p_dec );
         if( p_block->i_flags & BLOCK_FLAG_CORRUPTED )
         {
             block_Release( p_block );
-            return VLCDEC_SUCCESS;
+            return HEIMDALLDEC_SUCCESS;
         }
     }
 
@@ -655,13 +656,13 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
         if( !p_sys->b_stream_info )
         {
             block_Release( p_block );
-            return VLCDEC_ECRITICAL;
+            return HEIMDALLDEC_ECRITICAL;
         }
     }
 
     p_sys->p_block = p_block;
 
-    if( p_sys->p_block->i_pts != VLC_TICK_INVALID &&
+    if( p_sys->p_block->i_pts != HEIMDALL_TICK_INVALID &&
         p_sys->p_block->i_pts != date_Get( &p_sys->end_date ) )
         date_Set( &p_sys->end_date, p_sys->p_block->i_pts );
 
@@ -693,7 +694,7 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
 
     if( p_sys->p_aout_buffer != NULL )
         decoder_QueueAudio( p_dec, p_sys->p_aout_buffer );
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }
 
 #ifdef ENABLE_SOUT
@@ -724,7 +725,7 @@ typedef struct
     /*
      * Common properties
      */
-    vlc_tick_t i_pts;
+    heimdall_tick_t i_pts;
 } encoder_sys_t;
 
 #define STREAMINFO_SIZE 34
@@ -740,7 +741,7 @@ EncoderWriteCallback( const FLAC__StreamEncoder *encoder,
                       size_t bytes, unsigned samples,
                       unsigned current_frame, void *client_data )
 {
-    VLC_UNUSED(encoder); VLC_UNUSED(current_frame);
+    HEIMDALL_UNUSED(encoder); HEIMDALL_UNUSED(current_frame);
     encoder_t *p_enc = (encoder_t *)client_data;
     encoder_sys_t *p_sys = p_enc->p_sys;
     block_t *p_block;
@@ -775,7 +776,7 @@ EncoderWriteCallback( const FLAC__StreamEncoder *encoder,
 
     p_sys->i_samples_delay -= samples;
 
-    p_block->i_length = vlc_tick_from_samples(samples, p_enc->fmt_in.audio.i_rate);
+    p_block->i_length = heimdall_tick_from_samples(samples, p_enc->fmt_in.audio.i_rate);
 
     /* Update pts */
     p_sys->i_pts += p_block->i_length;
@@ -791,7 +792,7 @@ static void EncoderMetadataCallback( const FLAC__StreamEncoder *encoder,
                                      const FLAC__StreamMetadata *metadata,
                                      void *client_data )
 {
-    VLC_UNUSED(encoder);
+    HEIMDALL_UNUSED(encoder);
     encoder_t *p_enc = (encoder_t *)client_data;
 
     msg_Err( p_enc, "MetadataCallback: %i", metadata->type );
@@ -801,22 +802,22 @@ static void EncoderMetadataCallback( const FLAC__StreamEncoder *encoder,
 /*****************************************************************************
  * OpenEncoder: probe the encoder and return score
  *****************************************************************************/
-static int OpenEncoder( vlc_object_t *p_this )
+static int OpenEncoder( heimdall_object_t *p_this )
 {
     encoder_t *p_enc = (encoder_t *)p_this;
     encoder_sys_t *p_sys;
 
-    if( p_enc->fmt_out.i_codec != VLC_CODEC_FLAC &&
+    if( p_enc->fmt_out.i_codec != HEIMDALL_CODEC_FLAC &&
         !p_enc->obj.force )
     {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Allocate the memory needed to store the decoder's structure */
     if( ( p_sys = (encoder_sys_t *)malloc(sizeof(encoder_sys_t)) ) == NULL )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     p_enc->p_sys = p_sys;
-    p_enc->fmt_out.i_codec = VLC_CODEC_FLAC;
+    p_enc->fmt_out.i_codec = HEIMDALL_CODEC_FLAC;
 
     p_sys->i_headers = 0;
     p_sys->p_buffer = 0;
@@ -828,7 +829,7 @@ static int OpenEncoder( vlc_object_t *p_this )
     {
         msg_Err( p_enc, "FLAC__stream_encoder_new() failed" );
         free( p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     FLAC__stream_encoder_set_streamable_subset( p_sys->p_flac, 1 );
@@ -837,7 +838,7 @@ static int OpenEncoder( vlc_object_t *p_this )
     FLAC__stream_encoder_set_sample_rate( p_sys->p_flac,
                                           p_enc->fmt_in.audio.i_rate );
     FLAC__stream_encoder_set_bits_per_sample( p_sys->p_flac, 16 );
-    p_enc->fmt_in.i_codec = VLC_CODEC_S16N;
+    p_enc->fmt_in.i_codec = HEIMDALL_CODEC_S16N;
 
     /* Get and store the STREAMINFO metadata block as a p_extra */
     p_sys->p_chain = 0;
@@ -854,7 +855,7 @@ static int OpenEncoder( vlc_object_t *p_this )
         msg_Err( p_enc, "FLAC__stream_encoder_init_stream() failed" );
         FLAC__stream_encoder_delete( p_sys->p_flac );
         free( p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 #else
     FLAC__stream_encoder_set_write_callback( p_sys->p_flac,
@@ -866,14 +867,14 @@ static int OpenEncoder( vlc_object_t *p_this )
     FLAC__stream_encoder_init( p_sys->p_flac );
 #endif
 
-    static const struct vlc_encoder_operations ops =
+    static const struct heimdall_encoder_operations ops =
     {
         .close = CloseEncoder,
         .encode_audio = Encode,
     };
     p_enc->ops = &ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /****************************************************************************
@@ -890,7 +891,7 @@ static block_t *Encode( encoder_t *p_enc, block_t *p_aout_buf )
     if( unlikely( !p_aout_buf ) ) return NULL;
 
     p_sys->i_pts = p_aout_buf->i_pts -
-                vlc_tick_from_samples( p_sys->i_samples_delay,
+                heimdall_tick_from_samples( p_sys->i_samples_delay,
                             p_enc->fmt_in.audio.i_rate );
 
     p_sys->i_samples_delay += p_aout_buf->i_nb_samples;

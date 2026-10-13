@@ -1,7 +1,8 @@
 /*****************************************************************************
- * cli.c : remote control stdin/stdout module for vlc
+ * cli.c : remote control stdin/stdout module for heimdall
  *****************************************************************************
  * Copyright (C) 2004-2009 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Peter Surda <shurdeek@panorama.sth.ac.at>
  *         Jean-Paul Saman <jpsaman #_at_# m2x _replaceWith#dot_ nl>
@@ -44,17 +45,17 @@
 #include <search.h>
 #endif
 
-#define VLC_MODULE_LICENSE VLC_LICENSE_GPL_2_PLUS
-#include <vlc_common.h>
-#include <vlc_threads.h>
-#include <vlc_plugin.h>
-#include <vlc_interface.h>
-#include <vlc_player.h>
-#include <vlc_actions.h>
-#include <vlc_fs.h>
-#include <vlc_network.h>
-#include <vlc_url.h>
-#include <vlc_charset.h>
+#define HEIMDALL_MODULE_LICENSE HEIMDALL_LICENSE_GPL_2_PLUS
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
+#include <heimdall_plugin.h>
+#include <heimdall_interface.h>
+#include <heimdall_player.h>
+#include <heimdall_actions.h>
+#include <heimdall_fs.h>
+#include <heimdall_network.h>
+#include <heimdall_url.h>
+#include <heimdall_charset.h>
 
 #if defined(PF_UNIX) && !defined(PF_LOCAL)
 #    define PF_LOCAL PF_UNIX
@@ -68,13 +69,13 @@
 
 struct intf_sys_t
 {
-    vlc_thread_t thread;
+    heimdall_thread_t thread;
     void *commands;
     void *player_cli;
 
 #ifndef _WIN32
-    vlc_mutex_t clients_lock;
-    struct vlc_list clients;
+    heimdall_mutex_t clients_lock;
+    struct heimdall_list clients;
 #else
 #if NTDDI_VERSION >= NTDDI_WIN10_RS1 || WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
     HANDLE hConsoleIn;
@@ -186,7 +187,7 @@ static int Help(struct cli_client *cl, const char *const *args, size_t count,
     msg_rc(  "| ");
     msg_rc("%s", _("| help . . . . . . . . . . . . . . . this help message"));
     msg_rc("%s", _("| logout . . . . . . .  exit (if in socket connection)"));
-    msg_rc("%s", _("| quit . . . . . . . . . . . . . . . . . . .  quit vlc"));
+    msg_rc("%s", _("| quit . . . . . . . . . . . . . . . . . . .  quit heimdall"));
     msg_rc(  "| ");
     msg_rc("%s", _("+----[ end of help ]"));
     (void) args; (void) count; (void) data;
@@ -200,7 +201,7 @@ static int Intf(struct cli_client *cl, const char *const *args, size_t count,
 
     (void) cl;
 
-    return intf_Create(vlc_object_instance(intf), count == 1 ? "" : args[1]);
+    return intf_Create(heimdall_object_instance(intf), count == 1 ? "" : args[1]);
 }
 
 static int Quit(struct cli_client *cl, const char *const *args, size_t count,
@@ -208,7 +209,7 @@ static int Quit(struct cli_client *cl, const char *const *args, size_t count,
 {
     intf_thread_t *intf = data;
 
-    libvlc_Quit(vlc_object_instance(intf));
+    libheimdall_Quit(heimdall_object_instance(intf));
     (void) cl; (void) args; (void) count;
     return 0;
 }
@@ -219,7 +220,7 @@ static int LogOut(struct cli_client *cl, const char *const *args, size_t count,
     /* Close connection */
 #ifndef _WIN32
     /* Force end-of-file on the file descriptor. */
-    int fd = vlc_open("/dev/null", O_RDONLY);
+    int fd = heimdall_open("/dev/null", O_RDONLY);
     if (fd != -1)
     {   /* POSIX requires flushing before, and seeking after, replacing a
          * file descriptor underneath an I/O stream.
@@ -228,11 +229,11 @@ static int LogOut(struct cli_client *cl, const char *const *args, size_t count,
 
         fflush(cl->stream);
         if (fd2 != 1)
-            vlc_dup2(fd, fd2);
+            heimdall_dup2(fd, fd2);
         else
             dup2(fd, fd2);
         fseek(cl->stream, 0, SEEK_SET);
-        vlc_close(fd);
+        heimdall_close(fd);
     }
     (void) data;
 #else
@@ -254,12 +255,12 @@ static int KeyAction(struct cli_client *cl, const char *const *args, size_t n,
                      void *data)
 {
     intf_thread_t *intf = data;
-    vlc_object_t *vlc = VLC_OBJECT(vlc_object_instance(intf));
+    heimdall_object_t *heimdall = HEIMDALL_OBJECT(heimdall_object_instance(intf));
 
     if (n != 2)
-        return VLC_EGENERIC; /* EINVAL */
+        return HEIMDALL_EGENERIC; /* EINVAL */
 
-    var_SetInteger(vlc, "key-action", vlc_actions_get_id(args[1]));
+    var_SetInteger(heimdall, "key-action", heimdall_actions_get_id(args[1]));
     (void) cl;
     return 0;
 }
@@ -297,11 +298,11 @@ static int Process(intf_thread_t *intf, struct cli_client *cl, const char *line)
     {
         if (val == WRDE_NOSPACE)
         {
-            ret = VLC_ENOMEM;
+            ret = HEIMDALL_ENOMEM;
 error:      wordfree(&we);
         }
         else
-            ret = VLC_EGENERIC;
+            ret = HEIMDALL_EGENERIC;
 
         cli_printf(cl, N_("parse error"));
         return ret;
@@ -309,14 +310,14 @@ error:      wordfree(&we);
 
     size_t count = we.we_wordc;
     if (count == 0) {
-        ret = VLC_EGENERIC;
+        ret = HEIMDALL_EGENERIC;
         goto error;
     }
 
-    const char **args = vlc_alloc(count, sizeof (*args));
+    const char **args = heimdall_alloc(count, sizeof (*args));
     if (unlikely(args == NULL))
     {
-        ret = VLC_ENOMEM;
+        ret = HEIMDALL_ENOMEM;
         goto error;
     }
 
@@ -325,7 +326,7 @@ error:      wordfree(&we);
 #else
     char *cmd_dup = strdup(cmd);
     if (unlikely(cmd_dup == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     /* Split psz_cmd at the first space and make sure that
      * psz_arg is valid */
     const char *args[] = { cmd_dup, NULL };
@@ -354,7 +355,7 @@ error:      wordfree(&we);
     {
         cli_printf(cl, _("Unknown command `%s'. Type `help' for help."),
                   args[0]);
-        ret = VLC_EGENERIC;
+        ret = HEIMDALL_EGENERIC;
     }
 
 #ifdef HAVE_WORDEXP
@@ -372,12 +373,12 @@ static ssize_t cli_writev(struct cli_client *cl,
 {
     ssize_t val;
 
-    vlc_mutex_lock(&cl->output_lock);
+    heimdall_mutex_lock(&cl->output_lock);
     if (cl->fd != -1)
-        val = vlc_writev(cl->fd, iov, iovlen);
+        val = heimdall_writev(cl->fd, iov, iovlen);
     else
         errno = EPIPE, val = -1;
-    vlc_mutex_unlock(&cl->output_lock);
+    heimdall_mutex_unlock(&cl->output_lock);
     return val;
 }
 
@@ -413,15 +414,15 @@ static void msg_vprint(intf_thread_t *p_intf, const char *fmt, va_list args)
     intf_sys_t *sys = p_intf->p_sys;
     struct cli_client *cl;
 
-    vlc_mutex_lock(&sys->clients_lock);
-    vlc_list_foreach (cl, &sys->clients, node)
+    heimdall_mutex_lock(&sys->clients_lock);
+    heimdall_list_foreach (cl, &sys->clients, node)
     {
         va_list ap;
         va_copy(ap, args);
         cli_vprintf(cl, fmt, ap);
         va_end(ap);
     }
-    vlc_mutex_unlock(&sys->clients_lock);
+    heimdall_mutex_unlock(&sys->clients_lock);
 }
 
 void msg_print(intf_thread_t *intf, const char *fmt, ...)
@@ -443,10 +444,10 @@ static char *os2_fgets(char *buffer, int n, FILE *stream)
         KBDKEYINFO key;
 
         while( KbdPeek( &key, 0 ) || !( key.fbStatus & 0x40 ))
-            vlc_tick_sleep( INTF_IDLE_SLEEP );
+            heimdall_tick_sleep( INTF_IDLE_SLEEP );
     }
 
-    vlc_testcancel();
+    heimdall_testcancel();
 
     return fgets(buffer, n, stream);
 }
@@ -460,22 +461,22 @@ static void *cli_client_thread(void *data)
     intf_thread_t *intf = cl->intf;
     char cmd[MAX_LINE_LENGTH + 1];
 
-    vlc_thread_set_name("vlc-cli-client");
+    heimdall_thread_set_name("heimdall-cli-client");
 
     while (fgets(cmd, sizeof (cmd), cl->stream) != NULL)
     {
-        int canc = vlc_savecancel();
+        int canc = heimdall_savecancel();
         if (cmd[0] != '\0')
             cmd[strlen(cmd) - 1] = '\0'; /* remove trailing LF */
         Process(intf, cl, cmd);
-        vlc_restorecancel(canc);
+        heimdall_restorecancel(canc);
     }
 
     if (cl->stream == stdin)
     {
-        int canc = vlc_savecancel();
-        libvlc_Quit(vlc_object_instance(intf));
-        vlc_restorecancel(canc);
+        int canc = heimdall_savecancel();
+        libheimdall_Quit(heimdall_object_instance(intf));
+        heimdall_restorecancel(canc);
     }
     else
     {
@@ -498,9 +499,9 @@ static struct cli_client *cli_client_new(intf_thread_t *intf, int fd,
     cl->fd = fd;
     atomic_init(&cl->zombie, false);
     cl->intf = intf;
-    vlc_mutex_init(&cl->output_lock);
+    heimdall_mutex_init(&cl->output_lock);
 
-    if (vlc_clone(&cl->thread, cli_client_thread, cl))
+    if (heimdall_clone(&cl->thread, cli_client_thread, cl))
     {
         free(cl);
         cl = NULL;
@@ -520,7 +521,7 @@ static struct cli_client *cli_client_new_fd(intf_thread_t *intf, int fd)
     FILE *stream = fdopen(fd, "r");
     if (stream == NULL)
     {
-        vlc_close(fd);
+        heimdall_close(fd);
         return NULL;
     }
 
@@ -540,8 +541,8 @@ static struct cli_client *cli_client_new_std(intf_thread_t *intf)
 
 static void cli_client_delete(struct cli_client *cl)
 {
-    vlc_cancel(cl->thread);
-    vlc_join(cl->thread, NULL);
+    heimdall_cancel(cl->thread);
+    heimdall_join(cl->thread, NULL);
 
     if (cl->stream != stdin)
         fclose(cl->stream);
@@ -553,7 +554,7 @@ _Noreturn static void *Run(void *data)
     intf_thread_t *intf = data;
     intf_sys_t *sys = intf->p_sys;
 
-    vlc_thread_set_name("vlc-cli-server");
+    heimdall_thread_set_name("heimdall-cli-server");
 
     assert(sys->pi_socket_listen != NULL);
 
@@ -563,27 +564,27 @@ _Noreturn static void *Run(void *data)
         if (fd == -1)
             continue;
 
-        int canc = vlc_savecancel();
+        int canc = heimdall_savecancel();
         struct cli_client *cl = cli_client_new_fd(intf, fd);
 
         if (cl != NULL)
         {
-            vlc_mutex_lock(&sys->clients_lock);
-            vlc_list_append(&cl->node, &sys->clients);
-            vlc_mutex_unlock(&sys->clients_lock);
+            heimdall_mutex_lock(&sys->clients_lock);
+            heimdall_list_append(&cl->node, &sys->clients);
+            heimdall_mutex_unlock(&sys->clients_lock);
         }
 
         /* Reap any dead client */
-        vlc_list_foreach (cl, &sys->clients, node)
+        heimdall_list_foreach (cl, &sys->clients, node)
             if (atomic_load_explicit(&cl->zombie, memory_order_acquire))
             {
-                vlc_mutex_lock(&sys->clients_lock);
-                vlc_list_remove(&cl->node);
-                vlc_mutex_unlock(&sys->clients_lock);
+                heimdall_mutex_lock(&sys->clients_lock);
+                heimdall_list_remove(&cl->node);
+                heimdall_mutex_unlock(&sys->clients_lock);
                 cli_client_delete(cl);
             }
 
-        vlc_restorecancel(canc);
+        heimdall_restorecancel(canc);
     }
 }
 
@@ -623,7 +624,7 @@ int cli_printf(struct cli_client *cl, const char *fmt, ...)
     va_start(ap, fmt);
     msg_vprint(cl->intf, fmt, ap);
     va_end(ap);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 #if NTDDI_VERSION >= NTDDI_WIN10_RS1 || WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
@@ -634,7 +635,7 @@ static bool ReadWin32( intf_thread_t *p_intf, unsigned char *p_buffer, int *pi_s
 
     /* On Win32, select() only works on socket descriptors */
     while( WaitForSingleObjectEx( p_intf->p_sys->hConsoleIn,
-                                MS_FROM_VLC_TICK(INTF_IDLE_SLEEP), TRUE ) == WAIT_OBJECT_0 )
+                                MS_FROM_HEIMDALL_TICK(INTF_IDLE_SLEEP), TRUE ) == WAIT_OBJECT_0 )
     {
         // Prefer to fail early when there's not enough space to store a 4 bytes
         // UTF8 character. The function will be immediately called again and we won't
@@ -706,7 +707,7 @@ static bool ReadWin32( intf_thread_t *p_intf, unsigned char *p_buffer, int *pi_s
         return true;
     }
 
-    vlc_testcancel ();
+    heimdall_testcancel ();
 
     return false;
 }
@@ -719,7 +720,7 @@ static bool ReadCommand(intf_thread_t *p_intf, char *p_buffer, int *pi_size)
         return ReadWin32( p_intf, (unsigned char*)p_buffer, pi_size );
     else if( p_intf->p_sys->i_socket == -1 )
     {
-        vlc_tick_sleep( INTF_IDLE_SLEEP );
+        heimdall_tick_sleep( INTF_IDLE_SLEEP );
         return false;
     }
 #endif
@@ -730,7 +731,7 @@ static bool ReadCommand(intf_thread_t *p_intf, char *p_buffer, int *pi_size)
         {
             if( read( 0/*STDIN_FILENO*/, p_buffer + *pi_size, 1 ) <= 0 )
             {   /* Standard input closed: exit */
-                libvlc_Quit( vlc_object_instance(p_intf) );
+                libheimdall_Quit( heimdall_object_instance(p_intf) );
                 p_buffer[*pi_size] = 0;
                 return true;
             }
@@ -774,12 +775,12 @@ static void *Run( void *data )
     intf_thread_t *p_intf = data;
     intf_sys_t *p_sys = p_intf->p_sys;
 
-    vlc_thread_set_name("vlc-cli-server");
+    heimdall_thread_set_name("heimdall-cli-server");
 
     char p_buffer[ MAX_LINE_LENGTH + 1 ];
 
     int  i_size = 0;
-    int  canc = vlc_savecancel( );
+    int  canc = heimdall_savecancel( );
 
     p_buffer[0] = 0;
 
@@ -797,7 +798,7 @@ static void *Run( void *data )
     {
         bool b_complete;
 
-        vlc_restorecancel( canc );
+        heimdall_restorecancel( canc );
 
         if( p_sys->pi_socket_listen != NULL && p_sys->i_socket == -1 )
         {
@@ -807,7 +808,7 @@ static void *Run( void *data )
         }
 
         b_complete = ReadCommand( p_intf, p_buffer, &i_size );
-        canc = vlc_savecancel( );
+        canc = heimdall_savecancel( );
 
         /* Is there something to do? */
         if( !b_complete ) continue;
@@ -820,7 +821,7 @@ static void *Run( void *data )
         i_size = 0; p_buffer[0] = 0;
     }
 
-    vlc_assert_unreachable();
+    heimdall_assert_unreachable();
 }
 
 #undef msg_rc
@@ -831,7 +832,7 @@ static void *Run( void *data )
 /*****************************************************************************
  * Activate: initialize and create stuff
  *****************************************************************************/
-static int Activate( vlc_object_t *p_this )
+static int Activate( heimdall_object_t *p_this )
 {
     intf_thread_t *p_intf = (intf_thread_t*)p_this;
 #ifndef _WIN32
@@ -840,15 +841,15 @@ static int Activate( vlc_object_t *p_this )
     char *psz_host;
     int  *pi_socket = NULL;
 
-    intf_sys_t *p_sys = vlc_obj_malloc(p_this, sizeof (*p_sys));
+    intf_sys_t *p_sys = heimdall_obj_malloc(p_this, sizeof (*p_sys));
     if (unlikely(p_sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_intf->p_sys = p_sys;
     p_sys->commands = NULL;
 #ifndef _WIN32
-    vlc_mutex_init(&p_sys->clients_lock);
-    vlc_list_init(&p_sys->clients);
+    heimdall_mutex_init(&p_sys->clients_lock);
+    heimdall_list_init(&p_sys->clients);
 #endif
     RegisterHandlers(p_intf, cmds, ARRAY_SIZE(cmds), p_intf);
 
@@ -868,7 +869,7 @@ static int Activate( vlc_object_t *p_this )
         cl = cli_client_new_std(p_intf);
         if (cl == NULL)
             goto error;
-        vlc_list_append(&cl->node, &p_sys->clients);
+        heimdall_list_append(&cl->node, &p_sys->clients);
     }
 
 #ifdef AF_LOCAL
@@ -893,13 +894,13 @@ static int Activate( vlc_object_t *p_this )
         memcpy(addr.sun_path, psz_unix_path, len + 1);
         free(psz_unix_path);
 
-        if( (i_socket = vlc_socket( PF_LOCAL, SOCK_STREAM, 0, false ) ) < 0 )
+        if( (i_socket = heimdall_socket( PF_LOCAL, SOCK_STREAM, 0, false ) ) < 0 )
         {
-            msg_Warn( p_intf, "can't open socket: %s", vlc_strerror_c(errno) );
+            msg_Warn( p_intf, "can't open socket: %s", heimdall_strerror_c(errno) );
             goto error;
         }
 
-        if (vlc_stat(addr.sun_path, &st) == 0 && S_ISSOCK(st.st_mode))
+        if (heimdall_stat(addr.sun_path, &st) == 0 && S_ISSOCK(st.st_mode))
         {
             msg_Dbg(p_intf, "unlinking old %s socket", addr.sun_path);
             unlink(addr.sun_path);
@@ -909,7 +910,7 @@ static int Activate( vlc_object_t *p_this )
          || listen(i_socket, 1))
         {
             msg_Warn (p_intf, "can't listen on socket: %s",
-                      vlc_strerror_c(errno));
+                      heimdall_strerror_c(errno));
             net_Close( i_socket );
             goto error;
         }
@@ -930,12 +931,12 @@ static int Activate( vlc_object_t *p_this )
     if( ( pi_socket == NULL ) &&
         ( psz_host = var_InheritString( p_intf, "rc-host" ) ) != NULL )
     {
-        vlc_url_t url;
+        heimdall_url_t url;
 
-        vlc_UrlParse( &url, psz_host );
+        heimdall_UrlParse( &url, psz_host );
         if( url.psz_host == NULL )
         {
-            vlc_UrlClean( &url );
+            heimdall_UrlClean( &url );
             char *psz_backward_compat_host;
             if( asprintf( &psz_backward_compat_host, "//%s", psz_host ) < 0 )
             {
@@ -944,7 +945,7 @@ static int Activate( vlc_object_t *p_this )
             }
             free( psz_host );
             psz_host = psz_backward_compat_host;
-            vlc_UrlParse( &url, psz_host );
+            heimdall_UrlParse( &url, psz_host );
         }
 
         msg_Dbg( p_intf, "base: %s, port: %d", url.psz_host, url.i_port );
@@ -954,12 +955,12 @@ static int Activate( vlc_object_t *p_this )
         {
             msg_Warn( p_intf, "can't listen to %s port %i",
                       url.psz_host, url.i_port );
-            vlc_UrlClean( &url );
+            heimdall_UrlClean( &url );
             free( psz_host );
             goto error;
         }
 
-        vlc_UrlClean( &url );
+        heimdall_UrlClean( &url );
         free( psz_host );
     }
 
@@ -980,30 +981,30 @@ static int Activate( vlc_object_t *p_this )
         intf_consoleIntroMsg( p_intf );
 #endif
 #endif
-    if( vlc_clone( &p_sys->thread, Run, p_intf ) )
+    if( heimdall_clone( &p_sys->thread, Run, p_intf ) )
         goto error;
 
     msg_print(p_intf, "%s",
              _("Remote control interface initialized. Type `help' for help."));
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     if (p_sys->player_cli != NULL)
         DeregisterPlayer(p_intf, p_sys->player_cli);
 #ifndef _WIN32
-    vlc_list_foreach (cl, &p_sys->clients, node)
+    heimdall_list_foreach (cl, &p_sys->clients, node)
         cli_client_delete(cl);
 #endif
     tdestroy(p_sys->commands, free);
     net_ListenClose( pi_socket );
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /*****************************************************************************
  * Deactivate: uninitialize and cleanup
  *****************************************************************************/
-static void Deactivate( vlc_object_t *p_this )
+static void Deactivate( heimdall_object_t *p_this )
 {
     intf_thread_t *p_intf = (intf_thread_t*)p_this;
     intf_sys_t *p_sys = p_intf->p_sys;
@@ -1012,8 +1013,8 @@ static void Deactivate( vlc_object_t *p_this )
     if (p_sys->pi_socket_listen != NULL)
 #endif
     {
-        vlc_cancel(p_sys->thread);
-        vlc_join(p_sys->thread, NULL);
+        heimdall_cancel(p_sys->thread);
+        heimdall_join(p_sys->thread, NULL);
     }
 
     DeregisterPlayer(p_intf, p_sys->player_cli);
@@ -1021,7 +1022,7 @@ static void Deactivate( vlc_object_t *p_this )
 #ifndef _WIN32
     struct cli_client *cl;
 
-    vlc_list_foreach (cl, &p_sys->clients, node)
+    heimdall_list_foreach (cl, &p_sys->clients, node)
         cli_client_delete(cl);
 #endif
     tdestroy(p_sys->commands, free);
@@ -1059,11 +1060,11 @@ static void Deactivate( vlc_object_t *p_this )
 #define QUIET_LONGTEXT N_( \
     "By default the rc interface plugin will start a DOS command box. " \
     "Enabling the quiet mode will not bring this command box but can also " \
-    "be pretty annoying when you want to stop VLC and no video window is " \
+    "be pretty annoying when you want to stop Heimdall and no video window is " \
     "open." )
 #endif
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname(N_("RC"))
     set_subcategory(SUBCAT_INTERFACE_MAIN)
     set_description(N_("Remote control interface"))
@@ -1085,4 +1086,4 @@ vlc_module_begin()
 
     set_callbacks(Activate, Deactivate)
     add_shortcut("cli", "rc", "oldrc")
-vlc_module_end()
+heimdall_module_end()

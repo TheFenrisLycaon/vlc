@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2024 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,8 +19,8 @@
 #ifndef WIN32WINDOWEFFECTS_MODULE_HPP
 #define WIN32WINDOWEFFECTS_MODULE_HPP
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
-int QtWin32WindowEffectsOpen(vlc_object_t* p_this);
+int QtWin32WindowEffectsOpen(heimdall_object_t* p_this);
 
 #endif // WIN32WINDOWEFFECTS_MODULE_HPP

@@ -2,7 +2,7 @@
 # Preparser serializer modules
 #
 
-vlc_modules += {
+heimdall_modules += {
     'name' : 'preparserserializer_json',
     'sources' : files(
         'json/serializer.c',
@@ -10,6 +10,6 @@ vlc_modules += {
         'json/fromjson.c',
         'json/tojson.c',
     ),
-    'link_with' : [vlc_json_lib],
+    'link_with' : [heimdall_json_lib],
     'plugin_dir' : 'misc',
 }

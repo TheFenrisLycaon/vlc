@@ -4,8 +4,9 @@
  * Copyright (C) 2008-2018 VLC authors and VideoLAN
  * Copyright (C) 2008 Laurent Aimar
  * Copyright (C) 2023-2025 Alexandre Janniaux <ajanni@videolabs.io>
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Laurent Aimar < fenrir _AT_ videolan _DOT_ org >
+ * Authors: Laurent Aimar < fenrir _AT_ lycaria _DOT_ org >
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,11 +23,11 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef LIBVLC_INPUT_CLOCK_H
-#define LIBVLC_INPUT_CLOCK_H 1
+#ifndef LIBHEIMDALL_INPUT_CLOCK_H
+#define LIBHEIMDALL_INPUT_CLOCK_H 1
 
-#include <vlc_common.h>
-#include <vlc_input.h> /* FIXME Needed for input_clock_t */
+#include <heimdall_common.h>
+#include <heimdall_input.h> /* FIXME Needed for input_clock_t */
 #include "clock.h"
 
 /** @struct input_clock_t
@@ -41,7 +42,7 @@ typedef struct input_clock_t input_clock_t;
  *
  * \see input_clock_AttachListener
  */
-struct vlc_input_clock_cbs {
+struct heimdall_input_clock_cbs {
     /**
      * Notify the listener that the buffering made progress.
      *
@@ -55,8 +56,8 @@ struct vlc_input_clock_cbs {
      * \return              how much time the playback has drifted from
      *                      the main clock
      */
-    vlc_tick_t (*update)(void *opaque, vlc_tick_t ck_system,
-                         vlc_tick_t ck_stream, double rate, bool discontinuity);
+    heimdall_tick_t (*update)(void *opaque, heimdall_tick_t ck_system,
+                         heimdall_tick_t ck_stream, double rate, bool discontinuity);
 
     /**
      * Notify the listener that the buffering needed a reset.
@@ -72,7 +73,7 @@ struct vlc_input_clock_cbs {
  *
  * You must use input_clock_Delete to delete it once unused.
  */
-input_clock_t *input_clock_New(struct vlc_logger *logger, float rate);
+input_clock_t *input_clock_New(struct heimdall_logger *logger, float rate);
 
 /**
  * This function attach a clock listener to the input clock
@@ -86,7 +87,7 @@ input_clock_t *input_clock_New(struct vlc_logger *logger, float rate);
  *
  */
 void input_clock_AttachListener(input_clock_t *clock,
-                                const struct vlc_input_clock_cbs *clock_listener,
+                                const struct heimdall_input_clock_cbs *clock_listener,
                                 void *opaque);
 
 /**
@@ -108,10 +109,10 @@ void input_clock_Delete(input_clock_t *);
  *
  * \return clock update delay
  */
-vlc_tick_t input_clock_Update(input_clock_t *clock,
+heimdall_tick_t input_clock_Update(input_clock_t *clock,
                             bool b_can_pace_control, bool b_buffering,
                             bool b_extra_buffering_allowed,
-                            vlc_tick_t i_clock, vlc_tick_t i_system );
+                            heimdall_tick_t i_clock, heimdall_tick_t i_system );
 
 /**
  * This function will reset the drift of a input_clock_t.
@@ -123,7 +124,7 @@ void input_clock_Reset( input_clock_t * );
 /**
  * This functions will return a deadline used to control the reading speed.
  */
-vlc_tick_t input_clock_GetWakeup( input_clock_t * );
+heimdall_tick_t input_clock_GetWakeup( input_clock_t * );
 
 /**
  * This functions allows changing the actual reading speed.
@@ -133,13 +134,13 @@ void input_clock_ChangeRate(input_clock_t *, float rate);
 /**
  * This function allows changing the pause status.
  */
-void input_clock_ChangePause(input_clock_t *, bool b_paused, vlc_tick_t i_date);
+void input_clock_ChangePause(input_clock_t *, bool b_paused, heimdall_tick_t i_date);
 
 /**
  * This function allows rebasing the original system value date (a valid
  * reference point must have been set).
  */
-void input_clock_ChangeSystemOrigin(input_clock_t *, vlc_tick_t i_system);
+void input_clock_ChangeSystemOrigin(input_clock_t *, heimdall_tick_t i_system);
 
 /**
  * This function returns the current rate.
@@ -147,12 +148,12 @@ void input_clock_ChangeSystemOrigin(input_clock_t *, vlc_tick_t i_system);
 float input_clock_GetRate( input_clock_t * );
 
 /**
- * This function returns current clock state or VLC_EGENERIC if there is not a
+ * This function returns current clock state or HEIMDALL_EGENERIC if there is not a
  * reference point.
  */
 int input_clock_GetState( input_clock_t *,
-                          vlc_tick_t *pi_stream_start, vlc_tick_t *pi_system_start,
-                          vlc_tick_t *pi_stream_duration, vlc_tick_t *pi_system_duration );
+                          heimdall_tick_t *pi_stream_start, heimdall_tick_t *pi_system_start,
+                          heimdall_tick_t *pi_stream_duration, heimdall_tick_t *pi_system_duration );
 
 /**
  * Return the duration of stream buffered as well as for how long the
@@ -164,27 +165,27 @@ int input_clock_GetState( input_clock_t *,
  */
 int input_clock_GetBufferingDuration(
     const input_clock_t *clock,
-    vlc_tick_t *stream_duration,
-    vlc_tick_t *system_duration);
+    heimdall_tick_t *stream_duration,
+    heimdall_tick_t *system_duration);
 
 /**
  * Return for how long the buffering would be running up to the system
  * reference given.
  */
-vlc_tick_t input_clock_GetSystemDuration(
+heimdall_tick_t input_clock_GetSystemDuration(
     const input_clock_t *clock,
-    vlc_tick_t system_reference);
+    heimdall_tick_t system_reference);
 
 /**
  * This function allows the set the minimal configuration for the jitter estimation algo.
  */
 void input_clock_SetJitter( input_clock_t *,
-                            vlc_tick_t i_pts_delay, int i_cr_average );
+                            heimdall_tick_t i_pts_delay, int i_cr_average );
 
 /**
  * This function returns an estimation of the pts_delay needed to avoid rebufferization.
  * XXX in the current implementation, the pts_delay will never be decreased.
  */
-vlc_tick_t input_clock_GetJitter( input_clock_t * );
+heimdall_tick_t input_clock_GetJitter( input_clock_t * );
 
 #endif

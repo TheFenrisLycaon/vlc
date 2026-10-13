@@ -2,6 +2,7 @@
  * upnp.hpp :  UPnP discovery module (libupnp) header
  *****************************************************************************
  * Copyright (C) 2004-2018 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Rémi Denis-Courmont (original plugin)
  *          Christian Henz <henz # c-lab.de>
@@ -31,10 +32,10 @@
 #include "../stream_out/dlna/dlna_common.hpp"
 #include "../control/upnp_server/upnp_server.hpp"
 
-#include <vlc_url.h>
-#include <vlc_interrupt.h>
-#include <vlc_threads.h>
-#include <vlc_cxx_helpers.hpp>
+#include <heimdall_url.h>
+#include <heimdall_interrupt.h>
+#include <heimdall_threads.h>
+#include <heimdall_cxx_helpers.hpp>
 
 namespace SD
 {
@@ -92,8 +93,8 @@ public:
     static int run( Upnp_EventType, UpnpEventPtr, void *);
 
 private:
-    vlc::threads::semaphore m_sem;
-    vlc::threads::mutex m_lock;
+    heimdall::threads::semaphore m_sem;
+    heimdall::threads::mutex m_lock;
     int             m_refCount;
     Upnp_FunPtr     m_callback;
     void*           m_cookie;
@@ -139,13 +140,13 @@ struct MediaRendererDesc
     std::string friendlyName;
     std::string base_url;               // base url of the renderer
     std::string location;               // device description url
-    vlc_renderer_item_t *inputItem;
+    heimdall_renderer_item_t *inputItem;
 };
 
 class MediaRendererList : public UpnpInstanceWrapper::Listener
 {
 public:
-    MediaRendererList( vlc_renderer_discovery_t *p_rd );
+    MediaRendererList( heimdall_renderer_discovery_t *p_rd );
     ~MediaRendererList();
 
     bool addRenderer(MediaRendererDesc *desc );
@@ -159,7 +160,7 @@ private:
     void parseNewRenderer( IXML_Document* doc, const std::string& location );
 
 private:
-    vlc_renderer_discovery_t* const m_rd;
+    heimdall_renderer_discovery_t* const m_rd;
     std::vector<MediaRendererDesc*> m_list;
 
 };

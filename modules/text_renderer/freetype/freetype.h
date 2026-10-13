@@ -2,6 +2,7 @@
  * freetype.h : Put text on the video, using freetype2
  *****************************************************************************
  * Copyright (C) 2015 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Sigmund Augdal Helberg <dnumgis@videolan.org>
  *          Gildas Bazin <gbazin@videolan.org>
@@ -24,8 +25,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_FREETYPE_H
-#define VLC_FREETYPE_H
+#ifndef HEIMDALL_FREETYPE_H
+#define HEIMDALL_FREETYPE_H
 
 /** \defgroup freetype Freetype text renderer
  * Freetype text rendering cross platform
@@ -38,9 +39,9 @@
 # include "config.h"
 #endif
 
-#include <vlc_text_style.h>                             /* text_style_t */
-#include <vlc_arrays.h>                                 /* vlc_dictionary_t */
-#include <vlc_vector.h>
+#include <heimdall_text_style.h>                             /* text_style_t */
+#include <heimdall_arrays.h>                                 /* heimdall_dictionary_t */
+#include <heimdall_vector.h>
 
 #include <ft2build.h>
 #include FT_FREETYPE_H
@@ -74,7 +75,7 @@ typedef uint32_t uni_char_t;
 
 #include "ftcache.h"
 
-typedef struct vlc_font_select_t vlc_font_select_t;
+typedef struct heimdall_font_select_t heimdall_font_select_t;
 
 /*****************************************************************************
  * filter_sys_t: freetype local data
@@ -82,11 +83,11 @@ typedef struct vlc_font_select_t vlc_font_select_t;
  * This structure is part of the video output thread descriptor.
  * It describes the freetype specific properties of an output thread.
  *****************************************************************************/
-typedef struct vlc_family_t vlc_family_t;
+typedef struct heimdall_family_t heimdall_family_t;
 typedef struct
 {
     FT_Library     p_library;       /* handle to library     */
-    vlc_face_id_t *p_faceid;        /* handle to face object */
+    heimdall_face_id_t *p_faceid;        /* handle to face object */
     FT_Stroker     p_stroker;       /* handle to path stroker object */
 
     text_style_t  *p_default_style;
@@ -108,10 +109,10 @@ typedef struct
     int               i_font_default_size;
     int               i_outline_thickness;
 
-    vlc_fourcc_t      i_forced_chroma;
+    heimdall_fourcc_t      i_forced_chroma;
 
-    vlc_font_select_t *fs;
-    vlc_ftcache_t     *ftcache;
+    heimdall_font_select_t *fs;
+    heimdall_ftcache_t     *ftcache;
 
 } filter_sys_t;
 
@@ -122,7 +123,7 @@ typedef struct
  * \param p_style the requested style (fonts can be different for italic or bold) [IN]
  * \param codepoint the codepoint needed [IN]
  */
-vlc_face_id_t * SelectAndLoadFace( filter_t *p_filter, const text_style_t *p_style,
+heimdall_face_id_t * SelectAndLoadFace( filter_t *p_filter, const text_style_t *p_style,
                                    uni_char_t codepoint );
 
 static inline void BBoxInit( FT_BBox *p_box )

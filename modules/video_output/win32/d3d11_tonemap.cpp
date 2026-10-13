@@ -3,6 +3,7 @@
  * d3d11_tonemap: Direct3D11 VideoProcessor to handle tonemapping
  *****************************************************************************
  * Copyright © 2024 Videolabs, VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Steve Lhomme <robux4@videolabs.io>
  *****************************************************************************/
@@ -30,7 +31,7 @@ struct d3d11_tonemapper
     picture_sys_d3d11_t                     picsys{};
 };
 
-d3d11_tonemapper *D3D11_TonemapperCreate(vlc_object_t *vd, d3d11_device_t *d3d_dev,
+d3d11_tonemapper *D3D11_TonemapperCreate(heimdall_object_t *vd, d3d11_device_t *d3d_dev,
                                          const video_format_t *in)
 {
     if (!is_d3d11_opaque(in->i_chroma))
@@ -178,8 +179,8 @@ d3d11_tonemapper *D3D11_TonemapperCreate(vlc_object_t *vd, d3d11_device_t *d3d_d
     _texture[1] = texture.Get();
     _texture[2] = texture.Get();
     _texture[3] = texture.Get();
-    if (D3D11_AllocateResourceView(vlc_object_logger(vd), d3d_dev->d3ddevice, d3d_fmt,
-                                   _texture, 0, tonemapProc->SRV.GetAddressOf()) != VLC_SUCCESS)
+    if (D3D11_AllocateResourceView(heimdall_object_logger(vd), d3d_dev->d3ddevice, d3d_fmt,
+                                   _texture, 0, tonemapProc->SRV.GetAddressOf()) != HEIMDALL_SUCCESS)
         goto error;
 
     {
@@ -220,7 +221,7 @@ picture_sys_d3d11_t *D3D11_TonemapperGetOutput(d3d11_tonemapper *tonemapProc)
     return &tonemapProc->picsys;
 }
 
-static HRESULT assert_ProcessorInput(vlc_object_t *vd, d3d11_tonemapper *tonemapProc, picture_sys_d3d11_t *p_sys_src)
+static HRESULT assert_ProcessorInput(heimdall_object_t *vd, d3d11_tonemapper *tonemapProc, picture_sys_d3d11_t *p_sys_src)
 {
     if (!p_sys_src->processorInput)
     {
@@ -248,7 +249,7 @@ static HRESULT assert_ProcessorInput(vlc_object_t *vd, d3d11_tonemapper *tonemap
     return S_OK;
 }
 
-HRESULT D3D11_TonemapperProcess(vlc_object_t *vd, d3d11_tonemapper *tonemapProc, picture_sys_d3d11_t *in)
+HRESULT D3D11_TonemapperProcess(heimdall_object_t *vd, d3d11_tonemapper *tonemapProc, picture_sys_d3d11_t *in)
 {
     HRESULT hr = assert_ProcessorInput(vd, tonemapProc, in);
     if (FAILED(hr))

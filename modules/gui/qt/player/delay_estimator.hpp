@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2023 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,16 +24,16 @@
 #include <QObject>
 #include <QEvent>
 #include "qt.hpp"
-#include "util/vlctick.hpp"
+#include "util/heimdalltick.hpp"
 
-class VLCDuration;
+class HeimdallDuration;
 
 class DelayEstimator : public QObject
 {
     Q_OBJECT
     Q_PROPERTY(bool isHeardTimeMarked READ isHeardTimeMarked NOTIFY heardTimeChanged FINAL)
     Q_PROPERTY(bool isSpottedTimeMarked READ isSpottedTimeMarked NOTIFY spottedTimeChanged FINAL)
-    Q_PROPERTY(VLCDuration delay READ getDelay NOTIFY delayChanged FINAL)
+    Q_PROPERTY(HeimdallDuration delay READ getDelay NOTIFY delayChanged FINAL)
 
 public:
     explicit DelayEstimator(QObject* parent = nullptr);
@@ -41,7 +42,7 @@ public:
     bool isHeardTimeMarked();
     bool isSpottedTimeMarked();
     void calculateDelay();
-    VLCDuration getDelay();
+    HeimdallDuration getDelay();
 
     Q_INVOKABLE void markHeardTime();
     Q_INVOKABLE void markSpottedTime();
@@ -53,9 +54,9 @@ signals:
     void delayChanged();
 
 private:
-    VLCTime m_heardTime;
-    VLCTime m_spottedTime;
-    VLCDuration m_delay;
+    HeimdallTime m_heardTime;
+    HeimdallTime m_spottedTime;
+    HeimdallDuration m_delay;
 };
 
 #endif

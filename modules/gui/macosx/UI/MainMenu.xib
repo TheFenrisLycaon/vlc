@@ -6,7 +6,7 @@
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <objects>
-        <customObject id="-2" userLabel="File's Owner" customClass="VLCMainMenu">
+        <customObject id="-2" userLabel="File's Owner" customClass="HeimdallMainMenu">
             <connections>
                 <outlet property="AtoBloop" destination="5409" id="O0F-8Q-FgA"/>
                 <outlet property="about" destination="58" id="NEz-qR-atj"/>
@@ -197,10 +197,10 @@
         </customObject>
         <menu title="MainMenu" systemMenu="main" id="29" userLabel="MainMenu">
             <items>
-                <menuItem title="VLC" id="56">
-                    <menu key="submenu" title="VLC" systemMenu="apple" id="57">
+                <menuItem title="Heimdall" id="56">
+                    <menu key="submenu" title="Heimdall" systemMenu="apple" id="57">
                         <items>
-                            <menuItem title="About VLC media player..." id="58">
+                            <menuItem title="About Heimdall media player..." id="58">
                                 <modifierMask key="keyEquivalentModifierMask"/>
                                 <connections>
                                     <action selector="showAbout:" target="-2" id="nAj-Kc-NFC"/>
@@ -241,7 +241,7 @@
                             <menuItem isSeparatorItem="YES" id="1948">
                                 <modifierMask key="keyEquivalentModifierMask" command="YES"/>
                             </menuItem>
-                            <menuItem title="Hide VLC" keyEquivalent="h" id="134">
+                            <menuItem title="Hide Heimdall" keyEquivalent="h" id="134">
                                 <connections>
                                     <action selector="hide:" target="-3" id="izh-hP-ZVE"/>
                                 </connections>
@@ -260,7 +260,7 @@
                             <menuItem isSeparatorItem="YES" id="149">
                                 <modifierMask key="keyEquivalentModifierMask" command="YES"/>
                             </menuItem>
-                            <menuItem title="Quit VLC" keyEquivalent="q" id="136">
+                            <menuItem title="Quit Heimdall" keyEquivalent="q" id="136">
                                 <connections>
                                     <action selector="terminate:" target="-3" id="GFp-cr-7zd"/>
                                 </connections>
@@ -820,7 +820,7 @@
                 <menuItem title="Help" id="1134">
                     <menu key="submenu" title="Help" id="1135">
                         <items>
-                            <menuItem title="VLC media player Help" keyEquivalent="?" id="2825">
+                            <menuItem title="Heimdall media player Help" keyEquivalent="?" id="2825">
                                 <connections>
                                     <action selector="showHelp:" target="-2" id="Tuw-ca-6xj"/>
                                 </connections>
@@ -851,7 +851,7 @@
                             <menuItem isSeparatorItem="YES" id="1140">
                                 <modifierMask key="keyEquivalentModifierMask" command="YES"/>
                             </menuItem>
-                            <menuItem title="VideoLAN Website" id="1137">
+                            <menuItem title="Lycaria Website" id="1137">
                                 <connections>
                                     <action selector="openWebsite:" target="-2" id="Bap-Xg-FsL"/>
                                 </connections>
@@ -1045,7 +1045,7 @@
                 <constraint firstAttribute="trailing" secondItem="4597" secondAttribute="trailing" constant="18" id="0mI-WU-Hft"/>
                 <constraint firstItem="4597" firstAttribute="leading" secondItem="4615" secondAttribute="leading" id="3eU-xF-bKw"/>
                 <constraint firstItem="4600" firstAttribute="centerY" secondItem="4598" secondAttribute="centerY" id="5aF-Lp-phm"/>
-                <constraint firstItem="4597" firstAttribute="top" secondItem="4601" secondAttribute="bottom" constant="-8" id="5k1-Co-uGX" customClass="VLCSpacingConstraint">
+                <constraint firstItem="4597" firstAttribute="top" secondItem="4601" secondAttribute="bottom" constant="-8" id="5k1-Co-uGX" customClass="HeimdallSpacingConstraint">
                     <userDefinedRuntimeAttributes>
                         <userDefinedRuntimeAttribute type="number" keyPath="spacingToken">
                             <integer value="2"/>
@@ -1053,7 +1053,7 @@
                     </userDefinedRuntimeAttributes>
                 </constraint>
                 <constraint firstItem="4615" firstAttribute="top" secondItem="4596" secondAttribute="top" id="7KB-Mh-tpE"/>
-                <constraint firstItem="4597" firstAttribute="top" secondItem="4615" secondAttribute="bottom" constant="16" id="8kk-M5-VKI" customClass="VLCSpacingConstraint">
+                <constraint firstItem="4597" firstAttribute="top" secondItem="4615" secondAttribute="bottom" constant="16" id="8kk-M5-VKI" customClass="HeimdallSpacingConstraint">
                     <userDefinedRuntimeAttributes>
                         <userDefinedRuntimeAttribute type="number" keyPath="spacingToken">
                             <integer value="3"/>
@@ -1063,7 +1063,7 @@
                 <constraint firstItem="4617" firstAttribute="centerY" secondItem="4615" secondAttribute="centerY" id="Qtz-HV-35I"/>
                 <constraint firstItem="4615" firstAttribute="leading" secondItem="4596" secondAttribute="leading" constant="21" id="Zdw-tm-Z6L"/>
                 <constraint firstItem="4600" firstAttribute="centerY" secondItem="4599" secondAttribute="centerY" id="acy-Wj-eHh"/>
-                <constraint firstItem="4617" firstAttribute="leading" relation="greaterThanOrEqual" secondItem="4615" secondAttribute="trailing" constant="8" id="adv-PY-Nfr" customClass="VLCSpacingConstraint">
+                <constraint firstItem="4617" firstAttribute="leading" relation="greaterThanOrEqual" secondItem="4615" secondAttribute="trailing" constant="8" id="adv-PY-Nfr" customClass="HeimdallSpacingConstraint">
                     <userDefinedRuntimeAttributes>
                         <userDefinedRuntimeAttribute type="number" keyPath="spacingToken">
                             <integer value="2"/>
@@ -1072,7 +1072,7 @@
                 </constraint>
                 <constraint firstItem="4617" firstAttribute="trailing" secondItem="4597" secondAttribute="trailing" id="d6x-PQ-pfq"/>
                 <constraint firstItem="4598" firstAttribute="centerX" secondItem="4597" secondAttribute="centerX" id="dVp-4U-EiF"/>
-                <constraint firstItem="4598" firstAttribute="left" relation="greaterThanOrEqual" secondItem="4600" secondAttribute="right" constant="8" id="fky-PP-mvL" customClass="VLCSpacingConstraint">
+                <constraint firstItem="4598" firstAttribute="left" relation="greaterThanOrEqual" secondItem="4600" secondAttribute="right" constant="8" id="fky-PP-mvL" customClass="HeimdallSpacingConstraint">
                     <userDefinedRuntimeAttributes>
                         <userDefinedRuntimeAttribute type="number" keyPath="spacingToken">
                             <integer value="2"/>
@@ -1080,14 +1080,14 @@
                     </userDefinedRuntimeAttributes>
                 </constraint>
                 <constraint firstItem="4601" firstAttribute="centerX" secondItem="4597" secondAttribute="centerX" id="gAy-Wg-VLj"/>
-                <constraint firstAttribute="bottom" secondItem="4597" secondAttribute="bottom" constant="4" id="h79-fh-FBi" customClass="VLCSpacingConstraint">
+                <constraint firstAttribute="bottom" secondItem="4597" secondAttribute="bottom" constant="4" id="h79-fh-FBi" customClass="HeimdallSpacingConstraint">
                     <userDefinedRuntimeAttributes>
                         <userDefinedRuntimeAttribute type="number" keyPath="spacingToken">
                             <integer value="1"/>
                         </userDefinedRuntimeAttribute>
                     </userDefinedRuntimeAttributes>
                 </constraint>
-                <constraint firstItem="4599" firstAttribute="left" relation="greaterThanOrEqual" secondItem="4598" secondAttribute="right" constant="8" id="haf-NR-a54" customClass="VLCSpacingConstraint">
+                <constraint firstItem="4599" firstAttribute="left" relation="greaterThanOrEqual" secondItem="4598" secondAttribute="right" constant="8" id="haf-NR-a54" customClass="HeimdallSpacingConstraint">
                     <userDefinedRuntimeAttributes>
                         <userDefinedRuntimeAttribute type="number" keyPath="spacingToken">
                             <integer value="2"/>
@@ -1136,7 +1136,7 @@
                 <constraint firstItem="5550" firstAttribute="height" secondItem="5548" secondAttribute="height" id="ARP-iB-hpr"/>
                 <constraint firstAttribute="trailing" relation="greaterThanOrEqual" secondItem="5550" secondAttribute="trailing" constant="17" id="AjR-Ja-Kwu"/>
                 <constraint firstAttribute="trailing" relation="greaterThanOrEqual" secondItem="5548" secondAttribute="trailing" constant="17" id="QDr-TS-Anv"/>
-                <constraint firstAttribute="trailing" secondItem="5555" secondAttribute="trailing" constant="16" id="WG2-ZC-N9x" customClass="VLCSpacingConstraint">
+                <constraint firstAttribute="trailing" secondItem="5555" secondAttribute="trailing" constant="16" id="WG2-ZC-N9x" customClass="HeimdallSpacingConstraint">
                     <userDefinedRuntimeAttributes>
                         <userDefinedRuntimeAttribute type="number" keyPath="spacingToken">
                             <integer value="3"/>
@@ -1202,7 +1202,7 @@
                 </textField>
             </subviews>
             <constraints>
-                <constraint firstItem="bMX-Y8-2vL" firstAttribute="top" secondItem="Vem-jM-Vb3" secondAttribute="bottom" constant="-8" id="0bg-Km-JNT" customClass="VLCSpacingConstraint">
+                <constraint firstItem="bMX-Y8-2vL" firstAttribute="top" secondItem="Vem-jM-Vb3" secondAttribute="bottom" constant="-8" id="0bg-Km-JNT" customClass="HeimdallSpacingConstraint">
                     <userDefinedRuntimeAttributes>
                         <userDefinedRuntimeAttribute type="number" keyPath="spacingToken">
                             <integer value="2"/>
@@ -1210,7 +1210,7 @@
                     </userDefinedRuntimeAttributes>
                 </constraint>
                 <constraint firstItem="Vem-jM-Vb3" firstAttribute="centerX" secondItem="bMX-Y8-2vL" secondAttribute="centerX" id="31A-hu-zHO"/>
-                <constraint firstAttribute="bottom" secondItem="bMX-Y8-2vL" secondAttribute="bottom" constant="4" id="54h-q1-adq" customClass="VLCSpacingConstraint">
+                <constraint firstAttribute="bottom" secondItem="bMX-Y8-2vL" secondAttribute="bottom" constant="4" id="54h-q1-adq" customClass="HeimdallSpacingConstraint">
                     <userDefinedRuntimeAttributes>
                         <userDefinedRuntimeAttribute type="number" keyPath="spacingToken">
                             <integer value="1"/>
@@ -1220,7 +1220,7 @@
                 <constraint firstItem="S6g-As-Drf" firstAttribute="right" secondItem="bMX-Y8-2vL" secondAttribute="right" id="5a8-fp-fQO"/>
                 <constraint firstAttribute="trailing" secondItem="bMX-Y8-2vL" secondAttribute="trailing" constant="18" id="7yN-xS-oYm"/>
                 <constraint firstItem="DE3-cs-bVc" firstAttribute="left" secondItem="bMX-Y8-2vL" secondAttribute="left" id="8a5-cN-2yz"/>
-                <constraint firstItem="uVr-yv-xcp" firstAttribute="leading" relation="greaterThanOrEqual" secondItem="Jqh-Tt-S94" secondAttribute="trailing" constant="8" id="ACe-IL-9DG" customClass="VLCSpacingConstraint">
+                <constraint firstItem="uVr-yv-xcp" firstAttribute="leading" relation="greaterThanOrEqual" secondItem="Jqh-Tt-S94" secondAttribute="trailing" constant="8" id="ACe-IL-9DG" customClass="HeimdallSpacingConstraint">
                     <userDefinedRuntimeAttributes>
                         <userDefinedRuntimeAttribute type="number" keyPath="spacingToken">
                             <integer value="2"/>
@@ -1233,7 +1233,7 @@
                 <constraint firstItem="Jqh-Tt-S94" firstAttribute="leading" secondItem="GSo-om-Xt7" secondAttribute="leading" constant="21" id="cYQ-Os-xxJ"/>
                 <constraint firstItem="uVr-yv-xcp" firstAttribute="trailing" secondItem="bMX-Y8-2vL" secondAttribute="trailing" id="eoR-UG-pdH"/>
                 <constraint firstItem="uVr-yv-xcp" firstAttribute="centerY" secondItem="Jqh-Tt-S94" secondAttribute="centerY" id="s3X-tb-Ora"/>
-                <constraint firstItem="bMX-Y8-2vL" firstAttribute="top" secondItem="Jqh-Tt-S94" secondAttribute="bottom" constant="16" id="ybL-Ac-zUJ" customClass="VLCSpacingConstraint">
+                <constraint firstItem="bMX-Y8-2vL" firstAttribute="top" secondItem="Jqh-Tt-S94" secondAttribute="bottom" constant="16" id="ybL-Ac-zUJ" customClass="HeimdallSpacingConstraint">
                     <userDefinedRuntimeAttributes>
                         <userDefinedRuntimeAttribute type="number" keyPath="spacingToken">
                             <integer value="3"/>

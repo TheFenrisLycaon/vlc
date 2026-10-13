@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,9 +19,9 @@
 import QtQuick
 
 
-import VLC.Widgets as Widgets
-import VLC.Style
-import VLC.Player
+import Heimdall.Widgets as Widgets
+import Heimdall.Style
+import Heimdall.Player
 
 Widgets.ComboBoxExt {
     id: combo
@@ -32,8 +33,8 @@ Widgets.ComboBoxExt {
         combo.popup.close()
     }
 
-    width: VLCStyle.combobox_width_normal
-    height: VLCStyle.combobox_height_normal
+    width: HeimdallStyle.combobox_width_normal
+    height: HeimdallStyle.combobox_height_normal
     textRole: "display"
     model: Player.aspectRatio
     currentIndex: -1

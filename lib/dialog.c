@@ -1,7 +1,8 @@
 /*****************************************************************************
- * dialog.c: libvlc dialog API
+ * dialog.c: libheimdall dialog API
  *****************************************************************************
  * Copyright © 2016 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -24,100 +25,100 @@
 
 #include <assert.h>
 
-#include <vlc/libvlc.h>
-#include <vlc/libvlc_dialog.h>
+#include <heimdall/libheimdall.h>
+#include <heimdall/libheimdall_dialog.h>
 
-#include <vlc_common.h>
-#include <vlc_dialog.h>
+#include <heimdall_common.h>
+#include <heimdall_dialog.h>
 
-#include "libvlc_internal.h"
+#include "libheimdall_internal.h"
 
-static libvlc_dialog_question_type
-vlc_to_libvlc_dialog_question_type(vlc_dialog_question_type i_type)
+static libheimdall_dialog_question_type
+heimdall_to_libheimdall_dialog_question_type(heimdall_dialog_question_type i_type)
 {
     switch (i_type)
     {
-    case VLC_DIALOG_QUESTION_NORMAL: return LIBVLC_DIALOG_QUESTION_NORMAL;
-    case VLC_DIALOG_QUESTION_WARNING: return LIBVLC_DIALOG_QUESTION_WARNING;
-    case VLC_DIALOG_QUESTION_CRITICAL: return LIBVLC_DIALOG_QUESTION_CRITICAL;
-    default: vlc_assert_unreachable();
+    case HEIMDALL_DIALOG_QUESTION_NORMAL: return LIBHEIMDALL_DIALOG_QUESTION_NORMAL;
+    case HEIMDALL_DIALOG_QUESTION_WARNING: return LIBHEIMDALL_DIALOG_QUESTION_WARNING;
+    case HEIMDALL_DIALOG_QUESTION_CRITICAL: return LIBHEIMDALL_DIALOG_QUESTION_CRITICAL;
+    default: heimdall_assert_unreachable();
     }
 }
 
 static void
-display_login_cb(void *p_data, vlc_dialog_id *p_id, const char *psz_title,
+display_login_cb(void *p_data, heimdall_dialog_id *p_id, const char *psz_title,
                  const char *psz_text, const char *psz_default_username,
                  bool b_ask_store)
 {
-    libvlc_instance_t *p_instance = p_data;
+    libheimdall_instance_t *p_instance = p_data;
 
     p_instance->dialog.cbs.pf_display_login(p_instance->dialog.data,
-                                            (libvlc_dialog_id *) p_id,
+                                            (libheimdall_dialog_id *) p_id,
                                             psz_title, psz_text,
                                             psz_default_username, b_ask_store);
 }
 
 static void
-display_question_cb(void *p_data, vlc_dialog_id *p_id, const char *psz_title,
-                    const char *psz_text, vlc_dialog_question_type i_type,
+display_question_cb(void *p_data, heimdall_dialog_id *p_id, const char *psz_title,
+                    const char *psz_text, heimdall_dialog_question_type i_type,
                     const char *psz_cancel, const char *psz_action1,
                     const char *psz_action2)
 {
-    libvlc_instance_t *p_instance = p_data;
-    const libvlc_dialog_question_type i_ltype =
-        vlc_to_libvlc_dialog_question_type(i_type);
+    libheimdall_instance_t *p_instance = p_data;
+    const libheimdall_dialog_question_type i_ltype =
+        heimdall_to_libheimdall_dialog_question_type(i_type);
 
     p_instance->dialog.cbs.pf_display_question(p_instance->dialog.data,
-                                               (libvlc_dialog_id *) p_id,
+                                               (libheimdall_dialog_id *) p_id,
                                                psz_title, psz_text, i_ltype,
                                                psz_cancel,
                                                psz_action1, psz_action2);
 }
 
 static void
-display_progress_cb(void *p_data, vlc_dialog_id *p_id, const char *psz_title,
+display_progress_cb(void *p_data, heimdall_dialog_id *p_id, const char *psz_title,
                     const char *psz_text, bool b_indeterminate,
                     float f_position, const char *psz_cancel)
 {
-    libvlc_instance_t *p_instance = p_data;
+    libheimdall_instance_t *p_instance = p_data;
 
     p_instance->dialog.cbs.pf_display_progress(p_instance->dialog.data,
-                                               (libvlc_dialog_id *) p_id,
+                                               (libheimdall_dialog_id *) p_id,
                                                psz_title, psz_text,
                                                b_indeterminate, f_position,
                                                psz_cancel);
 }
 
 static void
-cancel_cb(void *p_data, vlc_dialog_id *p_id)
+cancel_cb(void *p_data, heimdall_dialog_id *p_id)
 {
-    libvlc_instance_t *p_instance = p_data;
+    libheimdall_instance_t *p_instance = p_data;
     p_instance->dialog.cbs.pf_cancel(p_instance->dialog.data,
-                                     (libvlc_dialog_id *)p_id);
+                                     (libheimdall_dialog_id *)p_id);
 }
 
 static void
-update_progress_cb(void *p_data, vlc_dialog_id *p_id, float f_position,
+update_progress_cb(void *p_data, heimdall_dialog_id *p_id, float f_position,
                    const char *psz_text)
 {
-    libvlc_instance_t *p_instance = p_data;
+    libheimdall_instance_t *p_instance = p_data;
     p_instance->dialog.cbs.pf_update_progress(p_instance->dialog.data,
-                                              (libvlc_dialog_id *) p_id,
+                                              (libheimdall_dialog_id *) p_id,
                                               f_position, psz_text);
 }
 
 void
-libvlc_dialog_set_callbacks(libvlc_instance_t *p_instance,
-                            const libvlc_dialog_cbs *p_cbs, void *p_data)
+libheimdall_dialog_set_callbacks(libheimdall_instance_t *p_instance,
+                            const libheimdall_dialog_cbs *p_cbs, void *p_data)
 {
-    libvlc_int_t *p_libvlc = p_instance->p_libvlc_int;
+    libheimdall_int_t *p_libheimdall = p_instance->p_libheimdall_int;
 
     if (p_cbs != NULL)
     {
         /* No different versions to handle for now */
         assert(p_cbs->version <= 0);
 
-        const vlc_dialog_cbs dialog_cbs = {
+        const heimdall_dialog_cbs dialog_cbs = {
             .pf_display_login = p_cbs->pf_display_login ?
                                 display_login_cb : NULL,
             .pf_display_question = p_cbs->pf_display_question != NULL ?
@@ -132,51 +133,51 @@ libvlc_dialog_set_callbacks(libvlc_instance_t *p_instance,
         p_instance->dialog.cbs = *p_cbs;
         p_instance->dialog.data = p_data;
 
-        vlc_dialog_provider_set_callbacks(p_libvlc, &dialog_cbs, p_instance);
+        heimdall_dialog_provider_set_callbacks(p_libheimdall, &dialog_cbs, p_instance);
     }
     else
-        vlc_dialog_provider_set_callbacks(p_libvlc, NULL, NULL);
+        heimdall_dialog_provider_set_callbacks(p_libheimdall, NULL, NULL);
 }
 
 void
-libvlc_dialog_set_error_callback(libvlc_instance_t *p_instance,
-                                 libvlc_dialog_error_cbs p_cbs, void *p_data)
+libheimdall_dialog_set_error_callback(libheimdall_instance_t *p_instance,
+                                 libheimdall_dialog_error_cbs p_cbs, void *p_data)
 {
-    libvlc_int_t *p_libvlc = p_instance->p_libvlc_int;
-    vlc_dialog_provider_set_error_callback(p_libvlc, p_cbs, p_data);
+    libheimdall_int_t *p_libheimdall = p_instance->p_libheimdall_int;
+    heimdall_dialog_provider_set_error_callback(p_libheimdall, p_cbs, p_data);
 }
 
 void
-libvlc_dialog_set_context(libvlc_dialog_id *p_id, void *p_context)
+libheimdall_dialog_set_context(libheimdall_dialog_id *p_id, void *p_context)
 {
-    vlc_dialog_id_set_context((vlc_dialog_id *)p_id, p_context);
+    heimdall_dialog_id_set_context((heimdall_dialog_id *)p_id, p_context);
 }
 
 void *
-libvlc_dialog_get_context(libvlc_dialog_id *p_id)
+libheimdall_dialog_get_context(libheimdall_dialog_id *p_id)
 {
-    return vlc_dialog_id_get_context((vlc_dialog_id *)p_id);
+    return heimdall_dialog_id_get_context((heimdall_dialog_id *)p_id);
 }
 
 int
-libvlc_dialog_post_login(libvlc_dialog_id *p_id, const char *psz_username,
+libheimdall_dialog_post_login(libheimdall_dialog_id *p_id, const char *psz_username,
                          const char *psz_password, bool b_store)
 {
-    int i_ret = vlc_dialog_id_post_login((vlc_dialog_id *)p_id, psz_username,
+    int i_ret = heimdall_dialog_id_post_login((heimdall_dialog_id *)p_id, psz_username,
                                          psz_password, b_store);
-    return i_ret == VLC_SUCCESS ? 0 : -1;
+    return i_ret == HEIMDALL_SUCCESS ? 0 : -1;
 }
 
 int
-libvlc_dialog_post_action(libvlc_dialog_id *p_id, int i_action)
+libheimdall_dialog_post_action(libheimdall_dialog_id *p_id, int i_action)
 {
-    int i_ret = vlc_dialog_id_post_action((vlc_dialog_id *)p_id, i_action);
-    return i_ret == VLC_SUCCESS ? 0 : -1;
+    int i_ret = heimdall_dialog_id_post_action((heimdall_dialog_id *)p_id, i_action);
+    return i_ret == HEIMDALL_SUCCESS ? 0 : -1;
 }
 
 int
-libvlc_dialog_dismiss(libvlc_dialog_id *p_id)
+libheimdall_dialog_dismiss(libheimdall_dialog_id *p_id)
 {
-    int i_ret = vlc_dialog_id_dismiss((vlc_dialog_id *)p_id);
-    return i_ret == VLC_SUCCESS ? 0 : -1;
+    int i_ret = heimdall_dialog_id_dismiss((heimdall_dialog_id *)p_id);
+    return i_ret == HEIMDALL_SUCCESS ? 0 : -1;
 }

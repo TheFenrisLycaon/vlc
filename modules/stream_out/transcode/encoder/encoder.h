@@ -2,6 +2,7 @@
  * encoder.h: transcoding encoders header
  *****************************************************************************
  * Copyright (C) 2018 VideoLabs, VideoLAN and VLC authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -25,7 +26,7 @@ typedef struct transcode_encoder_t transcode_encoder_t;
 
 typedef struct
 {
-    vlc_fourcc_t i_codec; /* (0 if not transcode) */
+    heimdall_fourcc_t i_codec; /* (0 if not transcode) */
     char         *psz_name;
     char         *psz_lang;
     config_chain_t *p_config_chain;
@@ -38,7 +39,7 @@ typedef struct
             unsigned int    i_width, i_maxwidth;
             unsigned int    i_height, i_maxheight;
             bool            b_hurry_up;
-            vlc_rational_t  fps;
+            heimdall_rational_t  fps;
             struct
             {
                 unsigned int i_count;
@@ -81,14 +82,14 @@ int transcode_encoder_drain( transcode_encoder_t *, block_t ** );
 int transcode_encoder_test( encoder_t *p_encoder,
                             const transcode_encoder_config_t *p_cfg,
                             const es_format_t *p_dec_fmtin,
-                            vlc_fourcc_t i_codec_in,
+                            heimdall_fourcc_t i_codec_in,
                             es_format_t *p_enc_wanted_in );
 
-void transcode_encoder_video_configure( vlc_object_t *p_obj,
+void transcode_encoder_video_configure( heimdall_object_t *p_obj,
                                         const video_format_t *p_dec_out,
                                         const transcode_encoder_config_t *p_cfg,
                                         const video_format_t *p_src,
-                                        vlc_video_context *vctx_in,
+                                        heimdall_video_context *vctx_in,
                                         transcode_encoder_t *p_enc );
 
 void transcode_encoder_video_set_src( encoder_t *, const video_format_t *,

@@ -2,6 +2,7 @@
  * rootbind.c: bind to reserved ports through the root wrapper
  *****************************************************************************
  * Copyright © 2005-2008 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -117,12 +118,12 @@ static int recv_fd (int p)
 int rootwrap_bind (int family, int socktype, int protocol,
                    const struct sockaddr *addr, size_t alen)
 {
-    /* can't use libvlc */
+    /* can't use libheimdall */
     static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
     struct sockaddr_storage ss;
     int fd, sock = -1;
 
-    const char *sockenv = getenv ("VLC_ROOTWRAP_SOCK");
+    const char *sockenv = getenv ("HEIMDALL_ROOTWRAP_SOCK");
     if (sockenv != NULL)
         sock = atoi (sockenv);
     if (sock == -1)

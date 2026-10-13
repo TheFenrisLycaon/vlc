@@ -2,6 +2,7 @@
  * android/dynamicsprocessing_jni.h: Android DynamicsProcessing
  *****************************************************************************
  * Copyright © 2012-2023 VLC authors and VideoLAN, VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Thomas Guillem <thomas@gllm.fr>
  *
@@ -21,26 +22,26 @@
  *****************************************************************************/
 
 int
-DynamicsProcessing_InitJNI(vlc_object_t *obj);
+DynamicsProcessing_InitJNI(heimdall_object_t *obj);
 
 jobject
-DynamicsProcessing_New(vlc_object_t *obj, int32_t session_id);
+DynamicsProcessing_New(heimdall_object_t *obj, int32_t session_id);
 #define DynamicsProcessing_New(o, s) \
-    (DynamicsProcessing_New)(VLC_OBJECT(o), s)
+    (DynamicsProcessing_New)(HEIMDALL_OBJECT(o), s)
 
 int
-DynamicsProcessing_SetVolume(vlc_object_t *obj, jobject dp, float volume);
+DynamicsProcessing_SetVolume(heimdall_object_t *obj, jobject dp, float volume);
 #define DynamicsProcessing_SetVolume(o, dp, v) \
-    (DynamicsProcessing_SetVolume)(VLC_OBJECT(o), dp, v)
+    (DynamicsProcessing_SetVolume)(HEIMDALL_OBJECT(o), dp, v)
 
 void
-DynamicsProcessing_Disable(vlc_object_t *obj, jobject dp);
+DynamicsProcessing_Disable(heimdall_object_t *obj, jobject dp);
 #define DynamicsProcessing_Disable(o, dp) \
-    (DynamicsProcessing_Disable)(VLC_OBJECT(o), dp)
+    (DynamicsProcessing_Disable)(HEIMDALL_OBJECT(o), dp)
 
 void
-DynamicsProcessing_Delete(vlc_object_t *obj, jobject dp);
+DynamicsProcessing_Delete(heimdall_object_t *obj, jobject dp);
 #define DynamicsProcessing_Delete(o, dp) \
-    (DynamicsProcessing_Delete)(VLC_OBJECT(o), dp)
+    (DynamicsProcessing_Delete)(HEIMDALL_OBJECT(o), dp)
 
 

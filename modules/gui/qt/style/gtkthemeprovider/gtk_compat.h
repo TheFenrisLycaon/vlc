@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2022 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,38 +25,38 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_picture.h>
+#include <heimdall_common.h>
+#include <heimdall_picture.h>
 
 #include <algorithm>
 
 #include <gtk/gtk.h>
 
-class VLCPicturePtr
+class HeimdallPicturePtr
 {
 public:
-    VLCPicturePtr()
+    HeimdallPicturePtr()
     {
     }
 
-    VLCPicturePtr(vlc_fourcc_t i_chroma, int i_width, int i_height)
+    HeimdallPicturePtr(heimdall_fourcc_t i_chroma, int i_width, int i_height)
     {
         m_picture = picture_New(i_chroma, i_width, i_height, 1, 1);
     }
 
-    VLCPicturePtr(const VLCPicturePtr& o)
+    HeimdallPicturePtr(const HeimdallPicturePtr& o)
         : m_picture(o.m_picture)
     {
         Ref();
     }
 
-    VLCPicturePtr(VLCPicturePtr&& o)
+    HeimdallPicturePtr(HeimdallPicturePtr&& o)
         : m_picture(o.m_picture)
     {
         o.m_picture = nullptr;
     }
 
-    VLCPicturePtr& operator=(const VLCPicturePtr& o)
+    HeimdallPicturePtr& operator=(const HeimdallPicturePtr& o)
     {
         Unref();
         m_picture = o.m_picture;
@@ -63,7 +64,7 @@ public:
         return *this;
     }
 
-    VLCPicturePtr& operator=(VLCPicturePtr&& o)
+    HeimdallPicturePtr& operator=(HeimdallPicturePtr&& o)
     {
         Unref();
         m_picture = o.m_picture;
@@ -71,7 +72,7 @@ public:
         return *this;
     }
 
-    ~VLCPicturePtr()
+    ~HeimdallPicturePtr()
     {
         Unref();
     }

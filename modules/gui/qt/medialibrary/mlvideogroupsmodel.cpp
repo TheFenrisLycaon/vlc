@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Benjamin Arnaud <bunjee@omega.gg>
  *
@@ -24,12 +25,12 @@
 
 #include "mlvideogroupsmodel.hpp"
 
-// VLC includes
-#include <vlc_media_library.h>
+// Heimdall includes
+#include <heimdall_media_library.h>
 
 // Util includes
 #include "util/covergenerator.hpp"
-#include "util/vlctick.hpp"
+#include "util/heimdalltick.hpp"
 
 // MediaLibrary includes
 #include "mlcustomcover.hpp"
@@ -79,7 +80,7 @@ QVariant MLVideoGroupsModel::itemRoleData(const MLItem * item, const int role) c
     if (item == nullptr)
         return QVariant();
 
-    if (item->getId().type == VLC_ML_PARENT_GROUP)
+    if (item->getId().type == HEIMDALL_ML_PARENT_GROUP)
     {
         auto group = static_cast<const MLGroup *> (item);
 
@@ -142,13 +143,13 @@ QVariant MLVideoGroupsModel::itemRoleData(const MLItem * item, const int role) c
     }
 }
 
-vlc_ml_sorting_criteria_t MLVideoGroupsModel::nameToCriteria(QByteArray name) const /* override */
+heimdall_ml_sorting_criteria_t MLVideoGroupsModel::nameToCriteria(QByteArray name) const /* override */
 {
-    return QHash<QByteArray, vlc_ml_sorting_criteria_t> {
-        { QByteArrayLiteral("title"),    VLC_ML_SORTING_ALPHA         },
-        { QByteArrayLiteral("duration"), VLC_ML_SORTING_DURATION      },
-        { QByteArrayLiteral("date"),     VLC_ML_SORTING_INSERTIONDATE },
-    }.value(name, VLC_ML_SORTING_DEFAULT);
+    return QHash<QByteArray, heimdall_ml_sorting_criteria_t> {
+        { QByteArrayLiteral("title"),    HEIMDALL_ML_SORTING_ALPHA         },
+        { QByteArrayLiteral("duration"), HEIMDALL_ML_SORTING_DURATION      },
+        { QByteArrayLiteral("date"),     HEIMDALL_ML_SORTING_INSERTIONDATE },
+    }.value(name, HEIMDALL_ML_SORTING_DEFAULT);
 }
 
 std::unique_ptr<MLListCacheLoader> MLVideoGroupsModel::createMLLoader() const /* override */
@@ -156,47 +157,47 @@ std::unique_ptr<MLListCacheLoader> MLVideoGroupsModel::createMLLoader() const /*
     return std::make_unique<MLListCacheLoader>(m_mediaLib, std::make_shared<MLVideoGroupsModel::Loader>(*this));
 }
 
-void MLVideoGroupsModel::onVlcMlEvent(const MLEvent & event) /* override */
+void MLVideoGroupsModel::onHeimdallMlEvent(const MLEvent & event) /* override */
 {
     int type = event.i_type;
 
     switch (type)
     {
-    case VLC_ML_EVENT_GROUP_ADDED:
+    case HEIMDALL_ML_EVENT_GROUP_ADDED:
     {
         emit resetRequested();
         return;
     }
-    case VLC_ML_EVENT_MEDIA_ADDED:
+    case HEIMDALL_ML_EVENT_MEDIA_ADDED:
     {
-        if (event.creation.media.i_type == VLC_ML_MEDIA_TYPE_VIDEO)
+        if (event.creation.media.i_type == HEIMDALL_ML_MEDIA_TYPE_VIDEO)
         {
             emit resetRequested();
             return;
         }
         break;
     }
-    case VLC_ML_EVENT_GROUP_UPDATED:
+    case HEIMDALL_ML_EVENT_GROUP_UPDATED:
     {
-        MLItemId itemId(event.modification.i_entity_id, VLC_ML_PARENT_GROUP);
+        MLItemId itemId(event.modification.i_entity_id, HEIMDALL_ML_PARENT_GROUP);
         updateItemInCache(itemId);
         return;
     }
-    case VLC_ML_EVENT_MEDIA_UPDATED:
+    case HEIMDALL_ML_EVENT_MEDIA_UPDATED:
     {
-        MLItemId itemId(event.modification.i_entity_id, VLC_ML_PARENT_UNKNOWN);
+        MLItemId itemId(event.modification.i_entity_id, HEIMDALL_ML_PARENT_UNKNOWN);
         updateItemInCache(itemId);
         return;
     }
-    case VLC_ML_EVENT_GROUP_DELETED:
+    case HEIMDALL_ML_EVENT_GROUP_DELETED:
     {
-        MLItemId itemId(event.deletion.i_entity_id, VLC_ML_PARENT_GROUP);
+        MLItemId itemId(event.deletion.i_entity_id, HEIMDALL_ML_PARENT_GROUP);
         deleteItemInCache(itemId);
         return;
     }
-    case VLC_ML_EVENT_MEDIA_DELETED:
+    case HEIMDALL_ML_EVENT_MEDIA_DELETED:
     {
-        MLItemId itemId(event.deletion.i_entity_id, VLC_ML_PARENT_UNKNOWN);
+        MLItemId itemId(event.deletion.i_entity_id, HEIMDALL_ML_PARENT_UNKNOWN);
         deleteItemInCache(itemId);
         return;
     }
@@ -204,37 +205,37 @@ void MLVideoGroupsModel::onVlcMlEvent(const MLEvent & event) /* override */
         break;
     }
 
-    MLBaseModel::onVlcMlEvent(event);
+    MLBaseModel::onHeimdallMlEvent(event);
 }
 
 //=================================================================================================
 // Loader
 //=================================================================================================
 
-size_t MLVideoGroupsModel::Loader::count(vlc_medialibrary_t* ml, const vlc_ml_query_params_t* queryParams) const /* override */
+size_t MLVideoGroupsModel::Loader::count(heimdall_medialibrary_t* ml, const heimdall_ml_query_params_t* queryParams) const /* override */
 {
-    return vlc_ml_count_groups(ml, queryParams);
+    return heimdall_ml_count_groups(ml, queryParams);
 }
 
 std::vector<std::unique_ptr<MLItem>>
-MLVideoGroupsModel::Loader::load(vlc_medialibrary_t* ml,
-                                const vlc_ml_query_params_t* queryParams) const /* override */
+MLVideoGroupsModel::Loader::load(heimdall_medialibrary_t* ml,
+                                const heimdall_ml_query_params_t* queryParams) const /* override */
 {
-    ml_unique_ptr<vlc_ml_group_list_t> list(vlc_ml_list_groups(ml, queryParams));
+    ml_unique_ptr<heimdall_ml_group_list_t> list(heimdall_ml_list_groups(ml, queryParams));
 
     if (list == nullptr)
         return {};
 
     std::vector<std::unique_ptr<MLItem>> result;
 
-    for (const vlc_ml_group_t & group : ml_range_iterate<vlc_ml_group_t>(list))
+    for (const heimdall_ml_group_t & group : ml_range_iterate<heimdall_ml_group_t>(list))
     {
         // NOTE: When it's a group of one we convert it to a MLVideo.
         if (group.i_nb_total_media == 1)
         {
-            vlc_ml_query_params_t query = vlc_ml_query_params_create();
+            heimdall_ml_query_params_t query = heimdall_ml_query_params_create();
 
-            ml_unique_ptr<vlc_ml_media_list_t> list(vlc_ml_list_group_media(ml,
+            ml_unique_ptr<heimdall_ml_media_list_t> list(heimdall_ml_list_group_media(ml,
                                                                             &query, group.i_id));
 
             // NOTE: Do we really need to check 'i_nb_items' here ?
@@ -254,25 +255,25 @@ MLVideoGroupsModel::Loader::load(vlc_medialibrary_t* ml,
 
 
 std::unique_ptr<MLItem>
-MLVideoGroupsModel::Loader::loadItemById(vlc_medialibrary_t* ml, MLItemId itemId) const
+MLVideoGroupsModel::Loader::loadItemById(heimdall_medialibrary_t* ml, MLItemId itemId) const
 {
-    if (itemId.type == VLC_ML_PARENT_UNKNOWN)
+    if (itemId.type == HEIMDALL_ML_PARENT_UNKNOWN)
     {
-        ml_unique_ptr<vlc_ml_media_t> media(vlc_ml_get_media(ml, itemId.id));
+        ml_unique_ptr<heimdall_ml_media_t> media(heimdall_ml_get_media(ml, itemId.id));
         if (!media)
             return nullptr;
         return std::make_unique<MLVideo>(media.get());
     }
-    else if (itemId.type == VLC_ML_PARENT_GROUP)
+    else if (itemId.type == HEIMDALL_ML_PARENT_GROUP)
     {
-        ml_unique_ptr<vlc_ml_group_t> group(vlc_ml_get_group(ml, itemId.id));
+        ml_unique_ptr<heimdall_ml_group_t> group(heimdall_ml_get_group(ml, itemId.id));
         if (!group)
             return nullptr;
         return std::make_unique<MLGroup>(group.get());
     }
     else
     {
-        vlc_assert_unreachable();
+        heimdall_assert_unreachable();
         return nullptr;
     }
 

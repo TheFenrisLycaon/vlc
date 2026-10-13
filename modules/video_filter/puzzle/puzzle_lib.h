@@ -3,9 +3,10 @@
  *****************************************************************************
  * Copyright (C) 2005-2009 VLC authors and VideoLAN
  * Copyright (C) 2013      Vianney Boyer
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Antoine Cellerier <dionoea -at- videolan -dot- org>
- *          Vianney Boyer <vlcvboyer -at- gmail -dot- com>
+ * Authors: Antoine Cellerier <dionoea -at- lycaria -dot- org>
+ *          Vianney Boyer <heimdallvboyer -at- gmail -dot- com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,8 +23,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_LIB_PUZZLE_H
-#define VLC_LIB_PUZZLE_H 1
+#ifndef HEIMDALL_LIB_PUZZLE_H
+#define HEIMDALL_LIB_PUZZLE_H 1
 
 
 /*****************************************************************************
@@ -35,10 +36,10 @@
 #endif
 #include <math.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_rand.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_rand.h>
 
 #include "puzzle.h"
 
@@ -49,7 +50,7 @@ void puzzle_draw_sign(picture_t *p_pic_out, int32_t i_x, int32_t i_y, int32_t i_
 void puzzle_draw_rectangle(picture_t *p_pic_out, int32_t x, int32_t y, int32_t i_w, int32_t i_h, uint8_t Y, uint8_t U, uint8_t V );
 void puzzle_fill_rectangle(picture_t *p_pic_out, int32_t x, int32_t y, int32_t i_w, int32_t i_h, uint8_t Y, uint8_t U, uint8_t V );
 static inline int32_t init_countdown(int32_t init_val) {
-    return ( ( __MAX( 1, 30000 - init_val)/20 ) / 2 + ((unsigned) vlc_mrand48() ) % ( __MAX( 1, ((30000 - init_val)/20) ) ) ); }
+    return ( ( __MAX( 1, 30000 - init_val)/20 ) / 2 + ((unsigned) heimdall_mrand48() ) % ( __MAX( 1, ((30000 - init_val)/20) ) ) ); }
 
 #define SHUFFLE_WIDTH 81
 #define SHUFFLE_LINES 13

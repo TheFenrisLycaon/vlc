@@ -1,5 +1,6 @@
 ﻿/*****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,13 +20,13 @@ import QtQuick
 import QtQml.Models
 import QtQuick.Layouts
 
-import VLC.MainInterface
-import VLC.MediaLibrary
+import Heimdall.MainInterface
+import Heimdall.MediaLibrary
 
-import VLC.Util
-import VLC.Widgets as Widgets
-import VLC.Style
-import VLC.Menus
+import Heimdall.Util
+import Heimdall.Widgets as Widgets
+import Heimdall.Style
+import Heimdall.Menus
 
 Widgets.PageExt {
     id: root
@@ -43,7 +44,7 @@ Widgets.PageExt {
     property alias currentIndex: artistList.currentIndex
     property alias currentAlbumIndex: albumSubView.currentIndex
 
-    property bool isScreenSmall: VLCStyle.isScreenSmall
+    property bool isScreenSmall: HeimdallStyle.isScreenSmall
 
     //padding is handled internally
     leftPadding: 0
@@ -69,12 +70,12 @@ Widgets.PageExt {
     onInitialIndexChanged: resetFocus()
 
     onIsScreenSmallChanged: {
-        if (VLCStyle.isScreenSmall)
+        if (HeimdallStyle.isScreenSmall)
             resetFocus()
     }
 
     function resetFocus() {
-        if (VLCStyle.isScreenSmall) {
+        if (HeimdallStyle.isScreenSmall) {
             albumSubView.setCurrentItemFocus(Qt.OtherFocusReason)
             return
         }
@@ -87,7 +88,7 @@ Widgets.PageExt {
     }
 
     function setCurrentItemFocus(reason) {
-        if (VLCStyle.isScreenSmall) {
+        if (HeimdallStyle.isScreenSmall) {
             albumSubView.setCurrentItemFocus(reason);
         } else {
             artistList.setCurrentItemFocus(reason);
@@ -164,7 +165,7 @@ Widgets.PageExt {
             property bool _sidebarInitialyPositioned: false
 
             property int maximumWidth: root.width / 2
-            property int minimumWidth: VLCStyle.colWidth(1) + VLCStyle.column_spacing
+            property int minimumWidth: HeimdallStyle.colWidth(1) + HeimdallStyle.column_spacing
 
             model: artistModel
             selectionModel: root.selectionModel
@@ -172,11 +173,11 @@ Widgets.PageExt {
             z: 1
             Layout.fillHeight: true
 
-            Layout.preferredWidth: VLCStyle.isScreenSmall
+            Layout.preferredWidth: HeimdallStyle.isScreenSmall
                                    ? 0
                                    : Helpers.clamp(resizeHandle.requestedWidth, minimumWidth, maximumWidth)
-            visible: !VLCStyle.isScreenSmall && (artistModel.count > 0)
-            focus: !VLCStyle.isScreenSmall && (artistModel.count > 0)
+            visible: !HeimdallStyle.isScreenSmall && (artistModel.count > 0)
+            focus: !HeimdallStyle.isScreenSmall && (artistModel.count > 0)
 
             displayMarginBeginning: root.displayMarginBeginning
             displayMarginEnd: root.displayMarginEnd
@@ -216,8 +217,8 @@ Widgets.PageExt {
 
                 visible: view.count > 0
 
-                leftPadding: VLCStyle.margin_normal
-                bottomPadding: VLCStyle.margin_small
+                leftPadding: HeimdallStyle.margin_normal
+                bottomPadding: HeimdallStyle.margin_small
 
                 text: qsTr("Artists")
             }
@@ -259,7 +260,7 @@ Widgets.PageExt {
                 minimumWidth: artistList.minimumWidth
                 maximumWidth: artistList.maximumWidth
 
-                visible: !VLCStyle.isScreenSmall
+                visible: !HeimdallStyle.isScreenSmall
 
                 onRequestedWidthChanged: {
                     if (!_inhibitMainCtxUpdate)
@@ -290,7 +291,7 @@ Widgets.PageExt {
         Rectangle {
             Layout.fillHeight: true
 
-            implicitWidth: VLCStyle.border
+            implicitWidth: HeimdallStyle.border
             color: artistList.colorContext.separator
             visible: artistList.visible
         }
@@ -317,7 +318,7 @@ Widgets.PageExt {
             focus: true
             initialIndex: root.initialAlbumIndex
             Navigation.parentItem: root
-            Navigation.leftItem: VLCStyle.isScreenSmall ? null : artistList
+            Navigation.leftItem: HeimdallStyle.isScreenSmall ? null : artistList
         }
     }
 

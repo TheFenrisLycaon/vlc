@@ -1,8 +1,9 @@
 --[[
 
  Copyright © 2010 VideoLAN and AUTHORS
+ Copyright (C) 2026 TheFenrisLycaon
 
- Authors: Fabio Ritrovato <sephiroth87 at videolan dot org>
+ Authors: Fabio Ritrovato <sephiroth87 at lycaria dot org>
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -24,7 +25,7 @@ function descriptor()
 end
 
 function main()
-    node = vlc.sd.add_node( {title="Canal +"} )
+    node = heimdall.sd.add_node( {title="Canal +"} )
     node:add_subitem( {title="Le SAV des émissions ",path="http://www.canalplus.fr/index.php?pid=1782",options={"http-forward-cookies"}} )
     node:add_subitem( {title="Les Guignols",path="http://www.canalplus.fr/index.php?pid=1784",options={"http-forward-cookies"}} )
     node:add_subitem( {title="La Météo de Pauline Lefevre",path="http://www.canalplus.fr/index.php?pid=2834",options={"http-forward-cookies"}} )

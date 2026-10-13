@@ -2,6 +2,7 @@
  * emjsfile.c: emscripten js file access plugin
  *****************************************************************************
  * Copyright (C) 2022 VLC authors Videolabs, and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -23,10 +24,10 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_access.h>
-#include <vlc_threads.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_access.h>
+#include <heimdall_threads.h>
 #include <stdalign.h>
 #include <assert.h>
 
@@ -52,8 +53,8 @@ static ssize_t Read (stream_t *p_access, void *buffer, size_t size) {
         const offset = $0;
         const buffer = $1;
         const size = $2;
-        const blob = Module.vlcAccess[$3].worker_js_file.slice(offset, offset + size);
-        HEAPU8.set(new Uint8Array(Module.vlcAccess[$3].reader.readAsArrayBuffer(blob)), buffer);
+        const blob = Module.heimdallAccess[$3].worker_js_file.slice(offset, offset + size);
+        HEAPU8.set(new Uint8Array(Module.heimdallAccess[$3].reader.readAsArrayBuffer(blob)), buffer);
     }, offset, buffer, size, p_access);
     p_sys->offset += size;
     return size;
@@ -63,7 +64,7 @@ static int Seek (stream_t *p_access, uint64_t offset) {
     access_sys_t *p_sys = p_access->p_sys;
 
     p_sys->offset = offset;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int get_js_file_size(stream_t *p_access, uint64_t *value) {
@@ -76,20 +77,20 @@ static int get_js_file_size(stream_t *p_access, uint64_t *value) {
     return (EM_ASM_INT({
         try {
             var v = new BigUint64Array(wasmMemory.buffer, $0, 1);
-            v[0] = BigInt(Module.vlcAccess[$1].worker_js_file.size);
+            v[0] = BigInt(Module.heimdallAccess[$1].worker_js_file.size);
             return 0;
         }
         catch (error) {
             console.error("get_js_file_size error: " + error);
             return 1;
         }
-    }, value, p_access) == 0) ? VLC_SUCCESS: VLC_EGENERIC;
+    }, value, p_access) == 0) ? HEIMDALL_SUCCESS: HEIMDALL_EGENERIC;
 }
 
 static int Control( stream_t *p_access, int i_query, va_list args )
 {
     bool    *pb_bool;
-    vlc_tick_t *pi_64;
+    heimdall_tick_t *pi_64;
     access_sys_t *p_sys = p_access->p_sys;
 
     switch( i_query )
@@ -113,8 +114,8 @@ static int Control( stream_t *p_access, int i_query, va_list args )
         }
 
         case STREAM_GET_PTS_DELAY:
-            pi_64 = va_arg( args, vlc_tick_t * );
-            *pi_64 = VLC_TICK_FROM_MS(
+            pi_64 = va_arg( args, heimdall_tick_t * );
+            *pi_64 = HEIMDALL_TICK_FROM_MS(
                 var_InheritInteger (p_access, "file-caching") );
             break;
 
@@ -122,10 +123,10 @@ static int Control( stream_t *p_access, int i_query, va_list args )
             break;
 
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 EM_ASYNC_JS(int, init_js_file, (stream_t *p_access, long id), {
@@ -135,22 +136,22 @@ EM_ASYNC_JS(int, init_js_file, (stream_t *p_access, long id), {
             if (msg.type === 'FileResult') {
                 self.removeEventListener('message', handleFileResult);
                 if (msg.file !== undefined) {
-                    Module.vlcAccess[p_access].worker_js_file = msg.file;
-                    Module.vlcAccess[p_access].reader = new FileReaderSync();
+                    Module.heimdallAccess[p_access].worker_js_file = msg.file;
+                    Module.heimdallAccess[p_access].reader = new FileReaderSync();
                     resolve();
                 }
                 else {
                     reject("error: sent an undefined File object from the main thread");
                 }
             }
-            else if (msg.type === 'ErrorVLCAccessFileUndefined') {
-                reject("error: vlc_access_file object is not defined");
+            else if (msg.type === 'ErrorHeimdallAccessFileUndefined') {
+                reject("error: heimdall_access_file object is not defined");
             }
             else if (msg.type === 'ErrorRequestFileMessageWithoutId') {
                 reject("error: request file message send without an id");
             }
             else if (msg.type === 'ErrorMissingFile') {
-                reject("error: missing file, bad id or vlc_access_file[id] is not defined");
+                reject("error: missing file, bad id or heimdall_access_file[id] is not defined");
             }
         }
         self.addEventListener('message', handleFileResult);
@@ -166,40 +167,40 @@ EM_ASYNC_JS(int, init_js_file, (stream_t *p_access, long id), {
     try {
         let value = await Promise.race(promises);
         if (value === 'timeout') {
-            console.error("vlc_access timeout: could not get file!");
+            console.error("heimdall_access timeout: could not get file!");
             return_value = 1;
         }
     }
     catch(error) {
-        console.error("vlc_access error in init_js_file(): ", error);
+        console.error("heimdall_access error in init_js_file(): ", error);
         return_value = 1;
     }
     clearTimeout(timer);
     return return_value;
 });
 
-static void EmFileClose (vlc_object_t * p_this) {
+static void EmFileClose (heimdall_object_t * p_this) {
     stream_t *p_access = (stream_t*)p_this;
     EM_ASM({
-            Module.vlcAccess[$0].worker_js_file = undefined;
-            Module.vlcAccess[$0].reader = undefined;
+            Module.heimdallAccess[$0].worker_js_file = undefined;
+            Module.heimdallAccess[$0].reader = undefined;
         }, p_access);
 }
 
-static int EmFileOpen( vlc_object_t *p_this ) {
+static int EmFileOpen( heimdall_object_t *p_this ) {
     stream_t *p_access = (stream_t*)p_this;
 
-    /* init per worker module.vlcAccess object */
+    /* init per worker module.heimdallAccess object */
     EM_ASM({
-            if (Module.vlcAccess === undefined) {
-                Module.vlcAccess = {};
+            if (Module.heimdallAccess === undefined) {
+                Module.heimdallAccess = {};
             }
-            (Module.vlcAccess[$0] = {worker_js_file: undefined, reader: undefined});
+            (Module.heimdallAccess[$0] = {worker_js_file: undefined, reader: undefined});
     }, p_access);
 
     /*
       This block will run in the main thread, to access the DOM.
-      When the user selects a file, it is assigned to the Module.vlc_access_file
+      When the user selects a file, it is assigned to the Module.heimdall_access_file
       array.
       
       We listen to 'message' events so that when the file is requested by the
@@ -212,10 +213,10 @@ static int EmFileOpen( vlc_object_t *p_this ) {
             const msg = e.data;
             if (msg.type === "requestFile") {
                 w.removeEventListener('message', handleFileRequest);
-                if (Module.vlc_access_file === undefined) {
-                    console.error("vlc_access_file property missing!");
+                if (Module.heimdall_access_file === undefined) {
+                    console.error("heimdall_access_file property missing!");
                     w.postMessage({ cmd: "customCmd",
-                            type: "ErrorVLCAccessFileUndefined"
+                            type: "ErrorHeimdallAccessFileUndefined"
                         });
                     return ;
                 }
@@ -226,7 +227,7 @@ static int EmFileOpen( vlc_object_t *p_this ) {
                         });
                     return ;
                 }
-                if (Module.vlc_access_file[msg.id] === undefined) {
+                if (Module.heimdall_access_file[msg.id] === undefined) {
                     console.error("error file missing!");
                     w.postMessage({ cmd: "customCmd",
                             type: "ErrorMissingFile"
@@ -240,7 +241,7 @@ static int EmFileOpen( vlc_object_t *p_this ) {
                 */
                 w.postMessage({ cmd: "customCmd",
                     type: "FileResult",
-                    file: Module.vlc_access_file[msg.id]
+                    file: Module.heimdall_access_file[msg.id]
                 });
             }
         }
@@ -251,23 +252,23 @@ static int EmFileOpen( vlc_object_t *p_this ) {
     long id = strtol(p_access->psz_location, &endPtr, 10);
     if ((endPtr == p_access->psz_location) || (*endPtr != '\0')) {
         msg_Err(p_access, "error: failed init uri has invalid id!");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    access_sys_t *p_sys = vlc_obj_malloc(p_this, sizeof (*p_sys));
+    access_sys_t *p_sys = heimdall_obj_malloc(p_this, sizeof (*p_sys));
     if (unlikely(p_sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     /*
       Request the file from the main thread.
       If it was not selected, it will return an error.
 
-      To open a file, we need to call libvlc_media_new_location with
+      To open a file, we need to call libheimdall_media_new_location with
       the following uri : emjsfile://<id>
     */
     if (init_js_file(p_access, id)) {
         msg_Err(p_access, "EMJsFile error: failed init!");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     p_access->pf_read = Read;
@@ -280,17 +281,17 @@ static int EmFileOpen( vlc_object_t *p_this ) {
     if (get_js_file_size(p_access, &p_sys->js_file_size)) {
         msg_Err(p_access, "EMJsFile error: could not get file size!");
         EmFileClose(p_this);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("Emscripten module to allow reading local files from the DOM's <input>") )
     set_shortname( N_("Emscripten Local File Input") )
     set_subcategory( SUBCAT_INPUT_ACCESS )
     set_capability( "access", 0 )
     add_shortcut( "emjsfile" )
     set_callbacks( EmFileOpen, EmFileClose )
-vlc_module_end()
+heimdall_module_end()

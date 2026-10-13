@@ -1,0 +1,4 @@
+{
+    global: heimdall_entry*;
+    local: *;
+};

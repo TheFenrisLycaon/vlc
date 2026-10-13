@@ -1,8 +1,9 @@
 --[[
 
  Copyright © 2010 VideoLAN and AUTHORS
+ Copyright (C) 2026 TheFenrisLycaon
 
- Authors: Fabio Ritrovato <sephiroth87 at videolan dot org>
+ Authors: Fabio Ritrovato <sephiroth87 at lycaria dot org>
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -28,7 +29,7 @@ function main()
     local tree = simplexml.parse_url("http://www.archive.org/download/freemusiccharts.songs/fmc.xml")
     for _, show_node in ipairs( tree.children ) do
         simplexml.add_name_maps( show_node )
-        local node = vlc.sd.add_node( {title=show_node.children_map["description"][1].children[1]} )
+        local node = heimdall.sd.add_node( {title=show_node.children_map["description"][1].children[1]} )
         if tonumber( show_node.children_map["songcount"][1].children[1] ) > 0 then
             local songs_node = node:add_node( {title="Songs"} )
             for _, song_node in ipairs( show_node.children_map["songs"][1].children ) do

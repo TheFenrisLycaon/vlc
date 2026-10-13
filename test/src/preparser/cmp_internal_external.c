@@ -2,6 +2,7 @@
  * thumbnail.c: test thumbnailing API
  *****************************************************************************
  * Copyright (C) 2018 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -18,43 +19,43 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#include "../../libvlc/test.h"
-#include "../lib/libvlc_internal.h"
-#include "vlc_vector.h"
+#include "../../libheimdall/test.h"
+#include "../lib/libheimdall_internal.h"
+#include "heimdall_vector.h"
 
-#include <vlc_common.h>
-#include <vlc_preparser.h>
-#include <vlc_input_item.h>
-#include <vlc_picture.h>
+#include <heimdall_common.h>
+#include <heimdall_preparser.h>
+#include <heimdall_input_item.h>
+#include <heimdall_picture.h>
 
 #include <errno.h>
 
-#define MOCK_DURATION VLC_TICK_FROM_SEC( 5 * 60 )
+#define MOCK_DURATION HEIMDALL_TICK_FROM_SEC( 5 * 60 )
 
 const struct {
     /*global*/
-    vlc_tick_t length;
+    heimdall_tick_t length;
     uint32_t audio_track_count;
     uint32_t video_track_count;
     uint32_t sub_track_count;
     /*audio*/
     uint32_t audio_channels;
-    vlc_fourcc_t audio_format;
+    heimdall_fourcc_t audio_format;
     uint32_t audio_rate;
     /*video*/
-    vlc_fourcc_t video_chorma;
+    heimdall_fourcc_t video_chorma;
     uint32_t video_width;
     uint32_t video_height;
     uint32_t video_frame_rate;
     uint32_t video_orientation;
     /*sub*/
-    vlc_fourcc_t sub_format;
+    heimdall_fourcc_t sub_format;
 } test_params[] = {
     {
         /*global*/ MOCK_DURATION, 999, 999, 999,
-        /*audio*/ 9, VLC_CODEC_F32L, 400000,
-        /*video*/ VLC_CODEC_I444_16L, 1920, 1080, 2000, ORIENT_TRANSPOSED,
-        /*sub*/ VLC_CODEC_SUBT,
+        /*audio*/ 9, HEIMDALL_CODEC_F32L, 400000,
+        /*video*/ HEIMDALL_CODEC_I444_16L, 1920, 1080, 2000, ORIENT_TRANSPOSED,
+        /*sub*/ HEIMDALL_CODEC_SUBT,
     },
 };
 
@@ -133,67 +134,67 @@ end_vec:
 
 struct test_ctx
 {
-    vlc_cond_t cond;
-    vlc_mutex_t lock;
+    heimdall_cond_t cond;
+    heimdall_mutex_t lock;
     int status;
     bool done;
 };
 
-static void preparser_callback(struct vlc_preparser_req *req, int status, void *userdata)
+static void preparser_callback(struct heimdall_preparser_req *req, int status, void *userdata)
 {
     (void)req;
     struct test_ctx *ctx = userdata;
-    vlc_mutex_lock(&ctx->lock);
+    heimdall_mutex_lock(&ctx->lock);
     ctx->status = status;
     ctx->done = true;
-    vlc_cond_signal(&ctx->cond);
-    vlc_mutex_unlock(&ctx->lock);
+    heimdall_cond_signal(&ctx->cond);
+    heimdall_mutex_unlock(&ctx->lock);
 }
 
-static input_item_t *test_preparser(vlc_object_t *obj, const char *mrl, vlc_tick_t timeout, bool external)
+static input_item_t *test_preparser(heimdall_object_t *obj, const char *mrl, heimdall_tick_t timeout, bool external)
 {
     struct test_ctx ctx;
-    vlc_cond_init(&ctx.cond);
-    vlc_mutex_init(&ctx.lock);
+    heimdall_cond_init(&ctx.cond);
+    heimdall_mutex_init(&ctx.lock);
 
-    ctx.status = VLC_EGENERIC;
+    ctx.status = HEIMDALL_EGENERIC;
     ctx.done = false;
 
-    const struct vlc_preparser_cfg cfg = {
-        .types = VLC_PREPARSER_TYPE_PARSE| VLC_PREPARSER_TYPE_FETCHMETA_LOCAL,
+    const struct heimdall_preparser_cfg cfg = {
+        .types = HEIMDALL_PREPARSER_TYPE_PARSE| HEIMDALL_PREPARSER_TYPE_FETCHMETA_LOCAL,
         .timeout = timeout,
         .external_process = external,
     };
 
-    vlc_preparser_t* preparser = vlc_preparser_New(obj, &cfg);
+    heimdall_preparser_t* preparser = heimdall_preparser_New(obj, &cfg);
     assert(preparser != NULL);
 
     input_item_t *item = input_item_New(mrl, "mock item");
     assert(item != NULL);
 
-    vlc_mutex_lock(&ctx.lock);
+    heimdall_mutex_lock(&ctx.lock);
 
-    struct vlc_preparser_req *req;
-    static const struct vlc_preparser_cbs cbs = {
+    struct heimdall_preparser_req *req;
+    static const struct heimdall_preparser_cbs cbs = {
         .on_ended = preparser_callback,
         .on_attachments_added = NULL,
         .on_subtree_added = NULL,
     };
 
-    int options = VLC_PREPARSER_TYPE_PARSE | VLC_PREPARSER_TYPE_FETCHMETA_LOCAL;
-    req = vlc_preparser_req_NewParse(preparser, item, options, &cbs, &ctx);
+    int options = HEIMDALL_PREPARSER_TYPE_PARSE | HEIMDALL_PREPARSER_TYPE_FETCHMETA_LOCAL;
+    req = heimdall_preparser_req_NewParse(preparser, item, options, &cbs, &ctx);
     assert(req != NULL);
-    assert(vlc_preparser_Submit(preparser, req) == VLC_SUCCESS);
-    vlc_preparser_req_Release(req);
+    assert(heimdall_preparser_Submit(preparser, req) == HEIMDALL_SUCCESS);
+    heimdall_preparser_req_Release(req);
 
     while (!ctx.done)
-        vlc_cond_wait(&ctx.cond, &ctx.lock);
+        heimdall_cond_wait(&ctx.cond, &ctx.lock);
 
-    assert(ctx.status == VLC_SUCCESS);
+    assert(ctx.status == HEIMDALL_SUCCESS);
 
-    vlc_mutex_unlock(&ctx.lock);
+    heimdall_mutex_unlock(&ctx.lock);
 
-    vlc_preparser_Delete(preparser);
+    heimdall_preparser_Delete(preparser);
     return item;
 }
 
@@ -202,11 +203,11 @@ static char *test_create_mock(int i)
     assert(i >= 0 && i < (int)ARRAY_SIZE(test_params));
 
     char audio_format[5] = {0};
-    vlc_fourcc_to_char(test_params[i].audio_format, audio_format);
+    heimdall_fourcc_to_char(test_params[i].audio_format, audio_format);
     char video_chroma[5] = {0};
-    vlc_fourcc_to_char(test_params[i].video_chorma, video_chroma);
+    heimdall_fourcc_to_char(test_params[i].video_chorma, video_chroma);
     char sub_format[5] = {0};
-    vlc_fourcc_to_char(test_params[i].sub_format, sub_format);
+    heimdall_fourcc_to_char(test_params[i].sub_format, sub_format);
 
     char *mrl = NULL;
     int ret = asprintf(&mrl, "mock://"
@@ -240,14 +241,14 @@ static char *test_create_mock(int i)
     return mrl;
 }
 
-static void test_preparser_cmp(vlc_object_t *obj, int i)
+static void test_preparser_cmp(heimdall_object_t *obj, int i)
 {
     assert(obj != NULL);
     assert(i >= 0 && i < (int)ARRAY_SIZE(test_params));
 
     char *mrl = test_create_mock(i);
-    input_item_t *inter = test_preparser(obj, mrl, VLC_TICK_INVALID, false);
-    input_item_t *exter = test_preparser(obj, mrl, VLC_TICK_INVALID, true);
+    input_item_t *inter = test_preparser(obj, mrl, HEIMDALL_TICK_INVALID, false);
+    input_item_t *exter = test_preparser(obj, mrl, HEIMDALL_TICK_INVALID, true);
     free(mrl);
 
     assert(cmp_item(inter, exter, i));
@@ -255,7 +256,7 @@ static void test_preparser_cmp(vlc_object_t *obj, int i)
 
 int main( void )
 {
-#if !defined(HAVE_VLC_PROCESS_SPAWN)
+#if !defined(HAVE_HEIMDALL_PROCESS_SPAWN)
     return 77;
 #else
     test_init();
@@ -264,13 +265,13 @@ int main( void )
         "-v",
         "--ignore-config",
     };
-    libvlc_instance_t *vlc = libvlc_new(ARRAY_SIZE(argv), argv);
-    assert(vlc);
+    libheimdall_instance_t *heimdall = libheimdall_new(ARRAY_SIZE(argv), argv);
+    assert(heimdall);
 
     for (size_t i = 0; i < ARRAY_SIZE(test_params); ++i) {
-        test_preparser_cmp(VLC_OBJECT(vlc->p_libvlc_int), i);
+        test_preparser_cmp(HEIMDALL_OBJECT(heimdall->p_libheimdall_int), i);
     }
 
-    libvlc_release( vlc );
+    libheimdall_release( heimdall );
 #endif
 }

@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,10 +19,10 @@
 import QtQuick
 import QtQml.Models
 
-import VLC.Widgets as Widgets
-import VLC.Network
-import VLC.Style
-import VLC.Util
+import Heimdall.Widgets as Widgets
+import Heimdall.Network
+import Heimdall.Style
+import Heimdall.Util
 
 Widgets.GridItem {
     id: root
@@ -29,8 +30,8 @@ Widgets.GridItem {
     property var model: ({})
     property int index: -1
 
-    pictureWidth: VLCStyle.gridCover_network_width
-    pictureHeight: VLCStyle.gridCover_network_height
+    pictureWidth: HeimdallStyle.gridCover_network_width
+    pictureHeight: HeimdallStyle.gridCover_network_height
 
     playCoverShowPlay: {
         switch (model.type) {
@@ -72,7 +73,7 @@ Widgets.GridItem {
         if ((type === NetworkMediaModel.TYPE_NODE
             || type === NetworkMediaModel.TYPE_DIRECTORY
             || type === NetworkMediaModel.TYPE_PLAYLIST)
-            && (mrl === "vlc://nop"))
+            && (mrl === "heimdall://nop"))
             return defaultTxt
 
         return mrl || defaultTxt

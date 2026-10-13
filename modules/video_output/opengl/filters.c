@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
  * Copyright (C) 2020 Videolabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Alexandre Janniaux <ajanni@videolabs.io>
  *
@@ -27,9 +28,9 @@
 
 #include "filters.h"
 
-#include <vlc_common.h>
-#include <vlc_ancillary.h>
-#include <vlc_list.h>
+#include <heimdall_common.h>
+#include <heimdall_ancillary.h>
+#include <heimdall_list.h>
 
 #include "filter_priv.h"
 #include "importer_priv.h"
@@ -116,19 +117,19 @@
  *     +- draw               msaa_level=0
  */
 
-struct vlc_gl_filters {
-    struct vlc_gl_t *gl;
-    const struct vlc_gl_api *api;
+struct heimdall_gl_filters {
+    struct heimdall_gl_t *gl;
+    const struct heimdall_gl_api *api;
 
     /**
      * Interop to use for the input picture.
      */
-    struct vlc_gl_interop *interop;
-    struct vlc_gl_importer *importer;
+    struct heimdall_gl_interop *interop;
+    struct heimdall_gl_importer *importer;
 
-    struct vlc_list list; /**< list of vlc_gl_filter.node */
+    struct heimdall_list list; /**< list of heimdall_gl_filter.node */
 
-    struct vlc_gl_filters_viewport {
+    struct heimdall_gl_filters_viewport {
         int x;
         int y;
         unsigned width;
@@ -137,30 +138,30 @@ struct vlc_gl_filters {
 
     struct {
         /** Last updated picture PTS */
-        vlc_tick_t pts;
+        heimdall_tick_t pts;
 
         /** Dolby Vision RPU metadata for the last picture, if any */
-        vlc_video_dovi_metadata_t dovi_rpu;
+        heimdall_video_dovi_metadata_t dovi_rpu;
         int has_dovi;
     } pic;
 
-    struct vlc_gl_extension_vt extension_vt;
+    struct heimdall_gl_extension_vt extension_vt;
 
     bool can_blit;
     GLenum draw_framebuffer_target;
     video_orientation_t orientation;
 };
 
-struct vlc_gl_filters *
-vlc_gl_filters_New(struct vlc_gl_t *gl, const struct vlc_gl_api *api,
-                   struct vlc_gl_interop *interop,
+struct heimdall_gl_filters *
+heimdall_gl_filters_New(struct heimdall_gl_t *gl, const struct heimdall_gl_api *api,
+                   struct heimdall_gl_interop *interop,
                    video_orientation_t orientation)
 {
-    struct vlc_gl_filters *filters = malloc(sizeof(*filters));
+    struct heimdall_gl_filters *filters = malloc(sizeof(*filters));
     if (!filters)
         return NULL;
 
-    filters->importer = vlc_gl_importer_New(interop);
+    filters->importer = heimdall_gl_importer_New(interop);
     if (!filters->importer)
     {
         free(filters);
@@ -171,18 +172,18 @@ vlc_gl_filters_New(struct vlc_gl_t *gl, const struct vlc_gl_api *api,
     filters->api = api;
     filters->interop = interop;
     filters->orientation = orientation;
-    vlc_list_init(&filters->list);
+    heimdall_list_init(&filters->list);
 
     memset(&filters->viewport, 0, sizeof(filters->viewport));
-    filters->pic.pts = VLC_TICK_INVALID;
+    filters->pic.pts = HEIMDALL_TICK_INVALID;
     filters->pic.has_dovi = 0;
 
-    vlc_gl_LoadExtensionFunctions(filters->gl, &filters->extension_vt);
+    heimdall_gl_LoadExtensionFunctions(filters->gl, &filters->extension_vt);
 
     /* MSAA requires glBlitFramebuffer to resolve the samples, which is
      * available starting with OpenGL ES 3 or OpenGL 3, and only available as an
      * extension otherwise (ANGLE, NV). */
-    filters->can_blit = vlc_gl_GetVersionMajor(&filters->extension_vt) >= 3;
+    filters->can_blit = heimdall_gl_GetVersionMajor(&filters->extension_vt) >= 3;
 
     /* GL_DRAW_FRAMEBUFFER doesn't exist when OpenGL or OpenGL ES is < 3, and
      * some needed extensions are not found, resulting in GL_INVALID_ENUM */
@@ -196,35 +197,35 @@ vlc_gl_filters_New(struct vlc_gl_t *gl, const struct vlc_gl_api *api,
 }
 
 void
-vlc_gl_filters_Delete(struct vlc_gl_filters *filters)
+heimdall_gl_filters_Delete(struct heimdall_gl_filters *filters)
 {
-    struct vlc_gl_filter_priv *priv;
-    vlc_list_foreach(priv, &filters->list, node)
+    struct heimdall_gl_filter_priv *priv;
+    heimdall_list_foreach(priv, &filters->list, node)
     {
-        struct vlc_gl_filter *filter = &priv->filter;
-        vlc_gl_filter_Delete(filter);
+        struct heimdall_gl_filter *filter = &priv->filter;
+        heimdall_gl_filter_Delete(filter);
     }
 
-    vlc_gl_importer_Delete(filters->importer);
+    heimdall_gl_importer_Delete(filters->importer);
     free(filters);
 }
 
-static struct vlc_gl_filter_priv *
-vlc_gl_filters_CreateNewFilter(struct vlc_gl_filters *filters,
-                               struct vlc_gl_filter_priv *prev_filter,
+static struct heimdall_gl_filter_priv *
+heimdall_gl_filters_CreateNewFilter(struct heimdall_gl_filters *filters,
+                               struct heimdall_gl_filter_priv *prev_filter,
                                const char *name,
                                const config_chain_t *config)
 {
-    struct vlc_gl_filter *filter = vlc_gl_filter_New(filters->gl);
+    struct heimdall_gl_filter *filter = heimdall_gl_filter_New(filters->gl);
     if (!filter)
         return NULL;
     filter->gl = filters->gl;
 
-    struct vlc_gl_filter_priv *priv = vlc_gl_filter_PRIV(filter);
-    vlc_list_init(&priv->blend_subfilters);
+    struct heimdall_gl_filter_priv *priv = heimdall_gl_filter_PRIV(filter);
+    heimdall_list_init(&priv->blend_subfilters);
 
-    struct vlc_gl_tex_size size_in;
-    struct vlc_gl_format *glfmt = &priv->glfmt_in;
+    struct heimdall_gl_tex_size size_in;
+    struct heimdall_gl_format *glfmt = &priv->glfmt_in;
 
     if (!prev_filter)
     {
@@ -240,9 +241,9 @@ vlc_gl_filters_CreateNewFilter(struct vlc_gl_filters *filters,
 
         /* If the previous filter operated on planes, then its output chroma is
          * the same as its input chroma. Otherwise, it's RGBA. */
-        vlc_fourcc_t chroma = prev_filter->filter.config.filter_planes
+        heimdall_fourcc_t chroma = prev_filter->filter.config.filter_planes
                             ? prev_filter->glfmt_in.fmt.i_chroma
-                            : VLC_CODEC_RGBA;
+                            : HEIMDALL_CODEC_RGBA;
 
         video_format_t *fmt = &glfmt->fmt;
         video_format_Init(fmt, chroma);
@@ -262,25 +263,25 @@ vlc_gl_filters_CreateNewFilter(struct vlc_gl_filters *filters,
     priv->size_out = size_in;
 
     /* Create a sampler for this filter from the input format */
-    struct vlc_gl_sampler *sampler =
-        vlc_gl_sampler_New(filters->gl, glfmt, false);
+    struct heimdall_gl_sampler *sampler =
+        heimdall_gl_sampler_New(filters->gl, glfmt, false);
     if (!sampler)
     {
         msg_Err(filters->gl, "Could not create sampler for filter '%s'", name);
         filter->ops = NULL;
-        vlc_gl_filter_Delete(filter);
+        heimdall_gl_filter_Delete(filter);
         return NULL;
     }
     filter->sampler = sampler;
 
-    int ret = vlc_gl_filter_LoadModule(filters->gl, name, filter, config,
+    int ret = heimdall_gl_filter_LoadModule(filters->gl, name, filter, config,
                                        sampler, &priv->size_out);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
     {
         /* Creation failed, do not call close() */
         msg_Err(filters->gl, "Could not load OpenGL filter '%s'", name);
         filter->ops = NULL;
-        vlc_gl_filter_Delete(filter);
+        heimdall_gl_filter_Delete(filter);
         return NULL;
     }
 
@@ -294,27 +295,27 @@ vlc_gl_filters_CreateNewFilter(struct vlc_gl_filters *filters,
 
     /* A filter operating on planes may not use anti-aliasing. */
     assert(!filter->config.filter_planes || !filter->config.msaa_level);
-    vlc_gl_filter_InitPlaneSizes(filter);
+    heimdall_gl_filter_InitPlaneSizes(filter);
 
     return priv;
 }
 
-struct vlc_gl_filter *
-vlc_gl_filters_Append(struct vlc_gl_filters *filters, const char *name,
+struct heimdall_gl_filter *
+heimdall_gl_filters_Append(struct heimdall_gl_filters *filters, const char *name,
                       const config_chain_t *config)
 {
-    struct vlc_gl_filter *filter = vlc_gl_filter_New(filters->gl);
+    struct heimdall_gl_filter *filter = heimdall_gl_filter_New(filters->gl);
     if (!filter)
         return NULL;
     filter->gl = filters->gl;
 
-    struct vlc_gl_filter_priv *priv = vlc_gl_filter_PRIV(filter);
+    struct heimdall_gl_filter_priv *priv = heimdall_gl_filter_PRIV(filter);
 
-    struct vlc_gl_tex_size size_in;
-    struct vlc_gl_format *glfmt = &priv->glfmt_in;
+    struct heimdall_gl_tex_size size_in;
+    struct heimdall_gl_format *glfmt = &priv->glfmt_in;
 
-    struct vlc_gl_filter_priv *prev_filter =
-        vlc_list_last_entry_or_null(&filters->list, struct vlc_gl_filter_priv,
+    struct heimdall_gl_filter_priv *prev_filter =
+        heimdall_list_last_entry_or_null(&filters->list, struct heimdall_gl_filter_priv,
                                     node);
     if (!prev_filter)
     {
@@ -330,9 +331,9 @@ vlc_gl_filters_Append(struct vlc_gl_filters *filters, const char *name,
 
         /* If the previous filter operated on planes, then its output chroma is
          * the same as its input chroma. Otherwise, it's RGBA. */
-        vlc_fourcc_t chroma = prev_filter->filter.config.filter_planes
+        heimdall_fourcc_t chroma = prev_filter->filter.config.filter_planes
                             ? prev_filter->glfmt_in.fmt.i_chroma
-                            : VLC_CODEC_RGBA;
+                            : HEIMDALL_CODEC_RGBA;
 
         video_format_t *fmt = &glfmt->fmt;
         video_format_Init(fmt, chroma);
@@ -352,25 +353,25 @@ vlc_gl_filters_Append(struct vlc_gl_filters *filters, const char *name,
     priv->size_out = size_in;
 
     /* Create a sampler for this filter from the input format */
-    struct vlc_gl_sampler *sampler =
-        vlc_gl_sampler_New(filters->gl, glfmt, false);
+    struct heimdall_gl_sampler *sampler =
+        heimdall_gl_sampler_New(filters->gl, glfmt, false);
     if (!sampler)
     {
         msg_Err(filters->gl, "Could not create sampler for filter '%s'", name);
         filter->ops = NULL;
-        vlc_gl_filter_Delete(filter);
+        heimdall_gl_filter_Delete(filter);
         return NULL;
     }
     filter->sampler = sampler;
 
-    int ret = vlc_gl_filter_LoadModule(filters->gl, name, filter, config,
+    int ret = heimdall_gl_filter_LoadModule(filters->gl, name, filter, config,
                                        sampler, &priv->size_out);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
     {
         /* Creation failed, do not call close() */
         msg_Err(filters->gl, "Could not load OpenGL filter '%s'", name);
         filter->ops = NULL;
-        vlc_gl_filter_Delete(filter);
+        heimdall_gl_filter_Delete(filter);
         return NULL;
     }
 
@@ -391,68 +392,68 @@ vlc_gl_filters_Append(struct vlc_gl_filters *filters, const char *name,
         {
             /* We cannot blend with nothing, so insert a "draw" filter to draw
              * the input picture to blend with. */
-            struct vlc_gl_filter *draw =
-                vlc_gl_filters_Append(filters, "draw", NULL);
+            struct heimdall_gl_filter *draw =
+                heimdall_gl_filters_Append(filters, "draw", NULL);
             if (!draw)
             {
-                vlc_gl_filter_Delete(filter);
+                heimdall_gl_filter_Delete(filter);
                 return NULL;
             }
         }
 
         /* Append as a subfilter of a non-blend filter */
-        struct vlc_gl_filter_priv *last_filter =
-            vlc_list_last_entry_or_null(&filters->list,
-                                        struct vlc_gl_filter_priv, node);
+        struct heimdall_gl_filter_priv *last_filter =
+            heimdall_list_last_entry_or_null(&filters->list,
+                                        struct heimdall_gl_filter_priv, node);
         assert(last_filter);
-        vlc_list_append(&priv->node, &last_filter->blend_subfilters);
+        heimdall_list_append(&priv->node, &last_filter->blend_subfilters);
     }
     else
     {
-        vlc_gl_filter_InitPlaneSizes(filter);
+        heimdall_gl_filter_InitPlaneSizes(filter);
 
         /* Append to the main filter list */
-        vlc_list_append(&priv->node, &filters->list);
+        heimdall_list_append(&priv->node, &filters->list);
     }
 
     return filter;
 }
 
-struct vlc_gl_filter *
-vlc_gl_filters_Replace(struct vlc_gl_filters *filters, struct vlc_gl_filter *old_filter,
+struct heimdall_gl_filter *
+heimdall_gl_filters_Replace(struct heimdall_gl_filters *filters, struct heimdall_gl_filter *old_filter,
                        const char *name, const config_chain_t *config)
 {
-    struct vlc_gl_filter_priv *old_priv = vlc_gl_filter_PRIV(old_filter);
-    struct vlc_gl_filter *prev_filter = NULL;
-    struct vlc_gl_filter_priv *priv_prev = vlc_gl_filter_PRIV(prev_filter);
+    struct heimdall_gl_filter_priv *old_priv = heimdall_gl_filter_PRIV(old_filter);
+    struct heimdall_gl_filter *prev_filter = NULL;
+    struct heimdall_gl_filter_priv *priv_prev = heimdall_gl_filter_PRIV(prev_filter);
 
-    struct vlc_gl_filter_priv *new_filter = vlc_gl_filters_CreateNewFilter(filters, priv_prev, name, config);
+    struct heimdall_gl_filter_priv *new_filter = heimdall_gl_filters_CreateNewFilter(filters, priv_prev, name, config);
     if (new_filter == NULL)
         return NULL;
 
     assert(!new_filter->filter.config.blend && !old_filter->config.blend);
-    vlc_gl_filter_InitPlaneSizes(old_filter);
+    heimdall_gl_filter_InitPlaneSizes(old_filter);
 
     /* Move previous subfilter to the new filter */
-    struct vlc_gl_filter_priv *subfilter;
-    vlc_list_foreach(subfilter, &old_priv->blend_subfilters, node)
+    struct heimdall_gl_filter_priv *subfilter;
+    heimdall_list_foreach(subfilter, &old_priv->blend_subfilters, node)
     {
-        vlc_list_remove(&subfilter->node);
-        vlc_list_append(&subfilter->node, &new_filter->blend_subfilters);
+        heimdall_list_remove(&subfilter->node);
+        heimdall_list_append(&subfilter->node, &new_filter->blend_subfilters);
     }
 
     /* Append to the main filter list */
-    vlc_list_replace(&old_priv->node, &new_filter->node);
-    vlc_gl_filter_Delete(old_filter);
+    heimdall_list_replace(&old_priv->node, &new_filter->node);
+    heimdall_gl_filter_Delete(old_filter);
 
     return &new_filter->filter;
 }
 
 int
-vlc_gl_filters_InitFramebuffers(struct vlc_gl_filters *filters)
+heimdall_gl_filters_InitFramebuffers(struct heimdall_gl_filters *filters)
 {
-    struct vlc_gl_filter_priv *priv = NULL;
-    struct vlc_gl_filter_priv *subfilter_priv;
+    struct heimdall_gl_filter_priv *priv = NULL;
+    struct heimdall_gl_filter_priv *subfilter_priv;
 
     const opengl_vtable_t *vt = &filters->api->vt;
 
@@ -462,14 +463,14 @@ vlc_gl_filters_InitFramebuffers(struct vlc_gl_filters *filters)
     vt->GetIntegerv(GL_RENDERBUFFER_BINDING, &renderbuffer);
     vt->GetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &draw_framebuffer);
 
-    vlc_list_foreach(priv, &filters->list, node)
+    heimdall_list_foreach(priv, &filters->list, node)
     {
         /* Compute the highest msaa_level among the filter and its subfilters */
         unsigned msaa_level = 0;
         if (filters->can_blit && filters->api->supports_multisample)
         {
             msaa_level = priv->filter.config.msaa_level;
-            vlc_list_foreach(subfilter_priv, &priv->blend_subfilters, node)
+            heimdall_list_foreach(subfilter_priv, &priv->blend_subfilters, node)
             {
                 if (subfilter_priv->filter.config.msaa_level > msaa_level)
                     msaa_level = subfilter_priv->filter.config.msaa_level;
@@ -479,7 +480,7 @@ vlc_gl_filters_InitFramebuffers(struct vlc_gl_filters *filters)
         /* Update the actual msaa_level used to create the MSAA framebuffer */
         priv->filter.config.msaa_level = msaa_level;
         /* Also update the actual msaa_level for subfilters, just for info */
-        vlc_list_foreach(subfilter_priv, &priv->blend_subfilters, node)
+        heimdall_list_foreach(subfilter_priv, &priv->blend_subfilters, node)
             subfilter_priv->filter.config.msaa_level = msaa_level;
     }
 
@@ -495,23 +496,23 @@ vlc_gl_filters_InitFramebuffers(struct vlc_gl_filters *filters)
         priv->filter.config.filter_planes;
     if (insert_draw)
     {
-        struct vlc_gl_filter *draw =
-            vlc_gl_filters_Append(filters, "draw", NULL);
+        struct heimdall_gl_filter *draw =
+            heimdall_gl_filters_Append(filters, "draw", NULL);
         if (!draw)
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 
-    vlc_list_foreach(priv, &filters->list, node)
+    heimdall_list_foreach(priv, &filters->list, node)
     {
-        struct vlc_gl_filter *filter = &priv->filter;
+        struct heimdall_gl_filter *filter = &priv->filter;
 
-        bool is_last = vlc_list_is_last(&priv->node, &filters->list);
+        bool is_last = heimdall_list_is_last(&priv->node, &filters->list);
         /* Every non-blend filter needs its own framebuffer, except the last
          * one */
         bool has_out = !is_last;
-        int ret = vlc_gl_filter_InitFramebuffers(filter, has_out);
+        int ret = heimdall_gl_filter_InitFramebuffers(filter, has_out);
         GL_ASSERT_NOERROR(vt);
-        if (ret != VLC_SUCCESS)
+        if (ret != HEIMDALL_SUCCESS)
             return ret;
     }
 
@@ -519,64 +520,64 @@ vlc_gl_filters_InitFramebuffers(struct vlc_gl_filters *filters)
     vt->BindFramebuffer(filters->draw_framebuffer_target, draw_framebuffer);
     vt->BindRenderbuffer(GL_RENDERBUFFER, renderbuffer);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 int
-vlc_gl_filters_UpdatePicture(struct vlc_gl_filters *filters,
+heimdall_gl_filters_UpdatePicture(struct heimdall_gl_filters *filters,
                              picture_t *picture)
 {
-    assert(!vlc_list_is_empty(&filters->list));
+    assert(!heimdall_list_is_empty(&filters->list));
 
-    struct vlc_gl_importer *importer = filters->importer;
-    int ret = vlc_gl_importer_Update(importer, picture);
-    if (ret != VLC_SUCCESS)
+    struct heimdall_gl_importer *importer = filters->importer;
+    int ret = heimdall_gl_importer_Update(importer, picture);
+    if (ret != HEIMDALL_SUCCESS)
         return ret;
 
     filters->pic.pts = picture->date;
 
-    struct vlc_ancillary *dovi = picture_GetAncillary(picture, VLC_ANCILLARY_ID_DOVI);
+    struct heimdall_ancillary *dovi = picture_GetAncillary(picture, HEIMDALL_ANCILLARY_ID_DOVI);
     filters->pic.has_dovi = !!dovi;
     if (dovi) {
-        memcpy(&filters->pic.dovi_rpu, vlc_ancillary_GetData(dovi),
+        memcpy(&filters->pic.dovi_rpu, heimdall_ancillary_GetData(dovi),
                sizeof(filters->pic.dovi_rpu));
     }
 
-    struct vlc_gl_filter_priv *first_filter =
-        vlc_list_first_entry_or_null(&filters->list, struct vlc_gl_filter_priv,
+    struct heimdall_gl_filter_priv *first_filter =
+        heimdall_list_first_entry_or_null(&filters->list, struct heimdall_gl_filter_priv,
                                      node);
 
     assert(first_filter);
     first_filter->has_picture = true;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 int
-vlc_gl_filters_Draw(struct vlc_gl_filters *filters)
+heimdall_gl_filters_Draw(struct heimdall_gl_filters *filters)
 {
     const opengl_vtable_t *vt = &filters->api->vt;
-    struct vlc_gl_importer *importer = filters->importer;
+    struct heimdall_gl_importer *importer = filters->importer;
 
     GLint value;
     vt->GetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &value);
     GLuint draw_framebuffer = value; /* as GLuint */
 
-    struct vlc_gl_input_meta meta = {
+    struct heimdall_gl_input_meta meta = {
         .pts = filters->pic.pts,
         .plane = 0,
         .dovi_rpu = filters->pic.has_dovi ? &filters->pic.dovi_rpu : NULL,
     };
 
-    struct vlc_gl_picture direct_pic;
-    const struct vlc_gl_picture *pic;
+    struct heimdall_gl_picture direct_pic;
+    const struct heimdall_gl_picture *pic;
 
-    struct vlc_gl_filter_priv *priv;
-    vlc_list_foreach(priv, &filters->list, node)
+    struct heimdall_gl_filter_priv *priv;
+    heimdall_list_foreach(priv, &filters->list, node)
     {
-        struct vlc_gl_filter_priv *previous =
-            vlc_list_prev_entry_or_null(&filters->list, priv,
-                                        struct vlc_gl_filter_priv, node);
+        struct heimdall_gl_filter_priv *previous =
+            heimdall_list_prev_entry_or_null(&filters->list, priv,
+                                        struct heimdall_gl_filter_priv, node);
         if (previous)
         {
             memcpy(direct_pic.textures, previous->textures_out,
@@ -597,7 +598,7 @@ vlc_gl_filters_Draw(struct vlc_gl_filters *filters)
             pic = &importer->pic;
         }
 
-        struct vlc_gl_filter *filter = &priv->filter;
+        struct heimdall_gl_filter *filter = &priv->filter;
 
         if (filter->config.filter_planes)
         {
@@ -609,11 +610,11 @@ vlc_gl_filters_Draw(struct vlc_gl_filters *filters)
                 GLuint draw_fb = priv->framebuffers_out[i];
                 vt->BindFramebuffer(filters->draw_framebuffer_target, draw_fb);
 
-                assert(!vlc_list_is_last(&priv->node, &filters->list));
+                assert(!heimdall_list_is_last(&priv->node, &filters->list));
                 vt->Viewport(0, 0, priv->tex_widths[i], priv->tex_heights[i]);
 
                 int ret = filter->ops->draw(filter, pic, &meta);
-                if (ret != VLC_SUCCESS)
+                if (ret != HEIMDALL_SUCCESS)
                     return ret;
             }
         }
@@ -630,10 +631,10 @@ vlc_gl_filters_Draw(struct vlc_gl_filters *filters)
 
             vt->BindFramebuffer(filters->draw_framebuffer_target, draw_fb);
 
-            if (vlc_list_is_last(&priv->node, &filters->list))
+            if (heimdall_list_is_last(&priv->node, &filters->list))
             {
                 /* The output viewport must be applied on the last filter */
-                struct vlc_gl_filters_viewport *vp = &filters->viewport;
+                struct heimdall_gl_filters_viewport *vp = &filters->viewport;
                 vt->Viewport(vp->x, vp->y, vp->width, vp->height);
             }
             else
@@ -641,24 +642,24 @@ vlc_gl_filters_Draw(struct vlc_gl_filters *filters)
 
             meta.plane = 0;
             meta.orientation = ORIENT_NORMAL;
-            if (vlc_list_is_last(&priv->node, &filters->list))
+            if (heimdall_list_is_last(&priv->node, &filters->list))
                 meta.orientation = filters->orientation;
 
             int ret = filter->ops->draw(filter, pic, &meta);
-            if (ret != VLC_SUCCESS)
+            if (ret != HEIMDALL_SUCCESS)
                 return ret;
 
             /* Draw blend subfilters */
-            struct vlc_gl_filter_priv *subfilter_priv;
-            vlc_list_foreach(subfilter_priv, &priv->blend_subfilters, node)
+            struct heimdall_gl_filter_priv *subfilter_priv;
+            heimdall_list_foreach(subfilter_priv, &priv->blend_subfilters, node)
             {
                 /* Reset the draw buffer, in case it has been changed from a
                  * filter draw() callback */
                 vt->BindFramebuffer(filters->draw_framebuffer_target, draw_fb);
 
-                struct vlc_gl_filter *subfilter = &subfilter_priv->filter;
+                struct heimdall_gl_filter *subfilter = &subfilter_priv->filter;
                 ret = subfilter->ops->draw(subfilter, NULL, &meta);
-                if (ret != VLC_SUCCESS)
+                if (ret != HEIMDALL_SUCCESS)
                     return ret;
             }
 
@@ -683,11 +684,11 @@ vlc_gl_filters_Draw(struct vlc_gl_filters *filters)
         }
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 void
-vlc_gl_filters_SetViewport(struct vlc_gl_filters *filters, int x, int y,
+heimdall_gl_filters_SetViewport(struct heimdall_gl_filters *filters, int x, int y,
                            unsigned width, unsigned height)
 {
     filters->viewport.x = x;
@@ -697,34 +698,34 @@ vlc_gl_filters_SetViewport(struct vlc_gl_filters *filters, int x, int y,
 }
 
 int
-vlc_gl_filters_SetOutputSize(struct vlc_gl_filters *filters, unsigned width,
+heimdall_gl_filters_SetOutputSize(struct heimdall_gl_filters *filters, unsigned width,
                              unsigned height)
 {
     bool resized = false;
-    struct vlc_gl_tex_size req = { width, height };
+    struct heimdall_gl_tex_size req = { width, height };
 
-    struct vlc_gl_filter *next = NULL;
+    struct heimdall_gl_filter *next = NULL;
 
-    struct vlc_gl_filter_priv *priv;
-    vlc_list_reverse_foreach(priv, &filters->list, node)
+    struct heimdall_gl_filter_priv *priv;
+    heimdall_list_reverse_foreach(priv, &filters->list, node)
     {
-        struct vlc_gl_filter *filter = &priv->filter;
+        struct heimdall_gl_filter *filter = &priv->filter;
         if (!filter->ops->request_output_size) {
             /* Could not propagate further */
             break;
         }
 
-        struct vlc_gl_tex_size optimal_in = {0};
+        struct heimdall_gl_tex_size optimal_in = {0};
         int ret =
             filter->ops->request_output_size(filter, &req, &optimal_in);
-        if (ret != VLC_SUCCESS)
+        if (ret != HEIMDALL_SUCCESS)
             break;
 
         /* The filter may have modified the requested size */
         priv->size_out = req;
 
         /* Recreate the framebuffers/textures with the new size */
-        vlc_gl_filter_ApplyOutputSize(filter);
+        heimdall_gl_filter_ApplyOutputSize(filter);
 
         resized = true;
 
@@ -745,5 +746,5 @@ vlc_gl_filters_SetOutputSize(struct vlc_gl_filters *filters, unsigned width,
         next = filter;
     }
 
-    return resized ? VLC_SUCCESS : VLC_EGENERIC;
+    return resized ? HEIMDALL_SUCCESS : HEIMDALL_EGENERIC;
 }

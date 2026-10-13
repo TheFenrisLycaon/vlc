@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright © 2009-2012 Rémi Denis-Courmont
  * Copyright © 2007-2012 Rafaël Carré
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -32,11 +33,11 @@
 
 #include <dbus/dbus.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_inhibit.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_inhibit.h>
 
-enum vlc_inhibit_api
+enum heimdall_inhibit_api
 {
     FDO_SS, /**< KDE >= 4 and GNOME >= 3.10 */
     FDO_PM, /**< KDE and GNOME <= 2.26 and Xfce */
@@ -78,18 +79,18 @@ static const char dbus_method_uninhibit[][10] =
     [GNOME]  = "Uninhibit",
 };
 
-struct vlc_inhibit_sys
+struct heimdall_inhibit_sys
 {
     DBusConnection *conn;
     DBusPendingCall *pending;
     dbus_uint32_t cookie;
-    enum vlc_inhibit_api api;
+    enum heimdall_inhibit_api api;
 };
 
-static void Inhibit(vlc_inhibit_t *ih, unsigned flags)
+static void Inhibit(heimdall_inhibit_t *ih, unsigned flags)
 {
-    vlc_inhibit_sys_t *sys = ih->p_sys;
-    enum vlc_inhibit_api type = sys->api;
+    heimdall_inhibit_sys_t *sys = ih->p_sys;
+    enum heimdall_inhibit_api type = sys->api;
 
     /* Receive reply from previous request, possibly hours later ;-) */
     if (sys->pending != NULL)
@@ -133,9 +134,9 @@ static void Inhibit(vlc_inhibit_t *ih, unsigned flags)
     if (flags)
     {
         const char *app = PACKAGE;
-        const char *reason = (flags & VLC_INHIBIT_VIDEO) ? N_("Playing video")
+        const char *reason = (flags & HEIMDALL_INHIBIT_VIDEO) ? N_("Playing video")
                                                          : N_("Playing audio");
-        reason = vlc_gettext(reason);
+        reason = heimdall_gettext(reason);
         assert(sys->cookie == 0);
 
         switch (type)
@@ -176,14 +177,14 @@ static void Inhibit(vlc_inhibit_t *ih, unsigned flags)
     dbus_message_unref(msg);
 }
 
-static void Close(vlc_object_t *obj);
+static void Close(heimdall_object_t *obj);
 
-static int Open (vlc_object_t *obj)
+static int Open (heimdall_object_t *obj)
 {
-    vlc_inhibit_t *ih = (vlc_inhibit_t *)obj;
-    vlc_inhibit_sys_t *sys = malloc (sizeof (*sys));
+    heimdall_inhibit_t *ih = (heimdall_inhibit_t *)obj;
+    heimdall_inhibit_sys_t *sys = malloc (sizeof (*sys));
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     DBusError err;
     dbus_error_init(&err);
@@ -194,7 +195,7 @@ static int Open (vlc_object_t *obj)
         msg_Err(ih, "cannot connect to session bus: %s", err.message);
         dbus_error_free(&err);
         free(sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     sys->pending = NULL;
@@ -208,20 +209,20 @@ static int Open (vlc_object_t *obj)
             msg_Dbg(ih, "found service %s", dbus_service[i]);
             sys->api = i;
             ih->inhibit = Inhibit;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
 
         msg_Dbg(ih, "cannot find service %s", dbus_service[i]);
     }
 
     Close(obj);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
-static void Close (vlc_object_t *obj)
+static void Close (heimdall_object_t *obj)
 {
-    vlc_inhibit_t *ih = (vlc_inhibit_t *)obj;
-    vlc_inhibit_sys_t *sys = ih->p_sys;
+    heimdall_inhibit_t *ih = (heimdall_inhibit_t *)obj;
+    heimdall_inhibit_sys_t *sys = ih->p_sys;
 
     if (sys->pending != NULL)
     {
@@ -236,10 +237,10 @@ static void Close (vlc_object_t *obj)
 /*
  * Module descriptor
  */
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname (N_("D-Bus screensaver"))
     set_description (N_("D-Bus screen saver inhibition"))
     set_subcategory (SUBCAT_ADVANCED_MISC)
     set_capability ("inhibit", 20)
     set_callbacks (Open, Close)
-vlc_module_end ()
+heimdall_module_end ()

@@ -2,6 +2,7 @@
  * audio.c: audio decoder using libavcodec library
  *****************************************************************************
  * Copyright (C) 1999-2003 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *          Gildas Bazin <gbazin@videolan.org>
@@ -30,10 +31,10 @@
 
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_aout.h>
-#include <vlc_codec.h>
-#include <vlc_avcodec.h>
+#include <heimdall_common.h>
+#include <heimdall_aout.h>
+#include <heimdall_codec.h>
+#include <heimdall_avcodec.h>
 
 #include "avcodec.h"
 #include "../../demux/xiph.h"
@@ -89,7 +90,7 @@ static void InitDecoderConfig( decoder_t *p_dec, AVCodecContext *p_context )
         int i_offset = 0;
         int i_size = p_dec->fmt_in->i_extra;
 
-        if( p_dec->fmt_in->i_codec == VLC_CODEC_ALAC )
+        if( p_dec->fmt_in->i_codec == HEIMDALL_CODEC_ALAC )
         {
             static const uint8_t p_pattern[] = { 0, 0, 0, 36, 'a', 'l', 'a', 'c' };
             /* Find alac atom XXX it is a bit ugly */
@@ -102,7 +103,7 @@ static void InitDecoderConfig( decoder_t *p_dec, AVCodecContext *p_context )
             if( i_size < 36 )
                 i_size = 0;
         }
-        else if( p_dec->fmt_in->i_codec == VLC_CODEC_OPUS &&
+        else if( p_dec->fmt_in->i_codec == HEIMDALL_CODEC_OPUS &&
                  i_size > 21 && !memcmp( &p_src[2], "OpusHead", 8 ) )
         {
             /* see opus.c decoder */
@@ -182,22 +183,22 @@ typedef struct
 {
     block_t self;
     AVFrame *frame;
-} vlc_av_frame_t;
+} heimdall_av_frame_t;
 
-static void vlc_av_frame_Release(block_t *block)
+static void heimdall_av_frame_Release(block_t *block)
 {
-    vlc_av_frame_t *b = (void *)block;
+    heimdall_av_frame_t *b = (void *)block;
 
     av_frame_free(&b->frame);
     free(b);
 }
 
-static const struct vlc_block_callbacks vlc_av_frame_cbs =
+static const struct heimdall_block_callbacks heimdall_av_frame_cbs =
 {
-    vlc_av_frame_Release,
+    heimdall_av_frame_Release,
 };
 
-static block_t *vlc_av_frame_Wrap(AVFrame *frame)
+static block_t *heimdall_av_frame_Wrap(AVFrame *frame)
 {
     for (unsigned i = 1; i < AV_NUM_DATA_POINTERS; i++)
         assert(frame->linesize[i] == 0); /* only packed frame supported */
@@ -205,13 +206,13 @@ static block_t *vlc_av_frame_Wrap(AVFrame *frame)
     if (av_frame_make_writable(frame)) /* TODO: read-only block_t */
         return NULL;
 
-    vlc_av_frame_t *b = malloc(sizeof (*b));
+    heimdall_av_frame_t *b = malloc(sizeof (*b));
     if (unlikely(b == NULL))
         return NULL;
 
     block_t *block = &b->self;
 
-    block_Init(block, &vlc_av_frame_cbs,
+    block_Init(block, &heimdall_av_frame_cbs,
                frame->extended_data[0], frame->linesize[0]);
     block->i_nb_samples = frame->nb_samples;
     b->frame = frame;
@@ -224,7 +225,7 @@ static block_t *vlc_av_frame_Wrap(AVFrame *frame)
  * This function is called when the thread ends after a successful
  * initialization.
  *****************************************************************************/
-void EndAudioDec( vlc_object_t *obj )
+void EndAudioDec( heimdall_object_t *obj )
 {
     decoder_t *p_dec = (decoder_t *)obj;
     decoder_sys_t *sys = p_dec->p_sys;
@@ -239,20 +240,20 @@ void EndAudioDec( vlc_object_t *obj )
  *****************************************************************************
  * The avcodec codec will be opened, some memory allocated.
  *****************************************************************************/
-int InitAudioDec( vlc_object_t *obj )
+int InitAudioDec( heimdall_object_t *obj )
 {
     decoder_t *p_dec = (decoder_t *)obj;
     const AVCodec *codec;
     AVCodecContext *avctx = ffmpeg_AllocContext( p_dec, &codec, false );
     if( avctx == NULL )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* Allocate the memory needed to store the decoder's structure */
     decoder_sys_t *p_sys = malloc(sizeof(*p_sys));
     if( unlikely(p_sys == NULL) )
     {
         avcodec_free_context( &avctx );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     p_dec->p_sys = p_sys;
@@ -267,7 +268,7 @@ int InitAudioDec( vlc_object_t *obj )
     {
         free( p_sys );
         avcodec_free_context( &avctx );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     p_sys->i_reject_count = 0;
@@ -289,7 +290,7 @@ int InitAudioDec( vlc_object_t *obj )
     p_dec->pf_decode = DecodeAudio;
     p_dec->pf_flush  = Flush;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -302,7 +303,7 @@ static void Flush( decoder_t *p_dec )
 
     if( avcodec_is_open( ctx ) )
         avcodec_flush_buffers( ctx );
-    date_Set( &p_sys->end_date, VLC_TICK_INVALID );
+    date_Set( &p_sys->end_date, HEIMDALL_TICK_INVALID );
 
     if( ctx->codec_id == AV_CODEC_ID_MP2 ||
         ctx->codec_id == AV_CODEC_ID_MP3 )
@@ -329,7 +330,7 @@ static int DecodeBlock( decoder_t *p_dec, block_t **pp_block )
         {
             if( pp_block != NULL && *pp_block != NULL )
                 block_Release( *pp_block );
-            return VLCDEC_ECRITICAL;
+            return HEIMDALLDEC_ECRITICAL;
         }
     }
 
@@ -360,12 +361,12 @@ static int DecodeBlock( decoder_t *p_dec, block_t **pp_block )
 
         if( p_block->i_flags & BLOCK_FLAG_DISCONTINUITY )
         {
-            date_Set( &p_sys->end_date, VLC_TICK_INVALID );
+            date_Set( &p_sys->end_date, HEIMDALL_TICK_INVALID );
         }
 
         /* We've just started the stream, wait for the first PTS. */
-        if( p_block->i_pts == VLC_TICK_INVALID &&
-            date_Get( &p_sys->end_date ) == VLC_TICK_INVALID )
+        if( p_block->i_pts == HEIMDALL_TICK_INVALID &&
+            date_Get( &p_sys->end_date ) == HEIMDALL_TICK_INVALID )
             goto drop;
 
         if( p_block->i_buffer <= 0 )
@@ -501,7 +502,7 @@ static int DecodeBlock( decoder_t *p_dec, block_t **pp_block )
         p_sys->discontinuity = true;
     }
 
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 
 end:
     b_error = true;
@@ -518,7 +519,7 @@ drop:
     if( frame != NULL )
         av_frame_free( &frame );
 
-    return (b_error) ? VLCDEC_ECRITICAL : VLCDEC_SUCCESS;
+    return (b_error) ? HEIMDALLDEC_ECRITICAL : HEIMDALLDEC_SUCCESS;
 }
 
 static int DecodeAudio( decoder_t *p_dec, block_t *p_block )
@@ -529,7 +530,7 @@ static int DecodeAudio( decoder_t *p_dec, block_t *p_block )
     {
         i_ret = DecodeBlock( p_dec, pp_block );
     }
-    while( i_ret == VLCDEC_SUCCESS && pp_block && *pp_block );
+    while( i_ret == HEIMDALLDEC_SUCCESS && pp_block && *pp_block );
 
     return i_ret;
 }
@@ -558,7 +559,7 @@ static block_t * ConvertAVFrame( decoder_t *p_dec, AVFrame *frame )
     }
     else
     {
-        p_block = vlc_av_frame_Wrap(frame);
+        p_block = heimdall_av_frame_Wrap(frame);
         frame = NULL;
     }
 
@@ -586,23 +587,23 @@ static block_t * ConvertAVFrame( decoder_t *p_dec, AVFrame *frame )
  *
  *****************************************************************************/
 
-vlc_fourcc_t GetVlcAudioFormat( int fmt )
+heimdall_fourcc_t GetHeimdallAudioFormat( int fmt )
 {
-    static const vlc_fourcc_t fcc[] = {
-        [AV_SAMPLE_FMT_U8]    = VLC_CODEC_U8,
-        [AV_SAMPLE_FMT_S16]   = VLC_CODEC_S16N,
-        [AV_SAMPLE_FMT_S32]   = VLC_CODEC_S32N,
-        [AV_SAMPLE_FMT_FLT]   = VLC_CODEC_FL32,
-        [AV_SAMPLE_FMT_DBL]   = VLC_CODEC_FL64,
-        [AV_SAMPLE_FMT_U8P]   = VLC_CODEC_U8,
-        [AV_SAMPLE_FMT_S16P]  = VLC_CODEC_S16N,
-        [AV_SAMPLE_FMT_S32P]  = VLC_CODEC_S32N,
-        [AV_SAMPLE_FMT_FLTP]  = VLC_CODEC_FL32,
-        [AV_SAMPLE_FMT_DBLP]  = VLC_CODEC_FL64,
+    static const heimdall_fourcc_t fcc[] = {
+        [AV_SAMPLE_FMT_U8]    = HEIMDALL_CODEC_U8,
+        [AV_SAMPLE_FMT_S16]   = HEIMDALL_CODEC_S16N,
+        [AV_SAMPLE_FMT_S32]   = HEIMDALL_CODEC_S32N,
+        [AV_SAMPLE_FMT_FLT]   = HEIMDALL_CODEC_FL32,
+        [AV_SAMPLE_FMT_DBL]   = HEIMDALL_CODEC_FL64,
+        [AV_SAMPLE_FMT_U8P]   = HEIMDALL_CODEC_U8,
+        [AV_SAMPLE_FMT_S16P]  = HEIMDALL_CODEC_S16N,
+        [AV_SAMPLE_FMT_S32P]  = HEIMDALL_CODEC_S32N,
+        [AV_SAMPLE_FMT_FLTP]  = HEIMDALL_CODEC_FL32,
+        [AV_SAMPLE_FMT_DBLP]  = HEIMDALL_CODEC_FL64,
     };
     if( ARRAY_SIZE(fcc) > (unsigned)fmt )
         return fcc[fmt];
-    return VLC_CODEC_S16N;
+    return HEIMDALL_CODEC_S16N;
 }
 
 static const uint64_t pi_channels_map[][2] =
@@ -634,7 +635,7 @@ static void SetupOutputFormat( decoder_t *p_dec, bool b_trust )
 {
     decoder_sys_t *p_sys = p_dec->p_sys;
 
-    p_dec->fmt_out.i_codec = GetVlcAudioFormat( p_sys->p_context->sample_fmt );
+    p_dec->fmt_out.i_codec = GetHeimdallAudioFormat( p_sys->p_context->sample_fmt );
     p_dec->fmt_out.audio.channel_type = p_dec->fmt_in->audio.channel_type;
     p_dec->fmt_out.audio.i_format = p_dec->fmt_out.i_codec;
     p_dec->fmt_out.audio.i_rate = p_sys->p_context->sample_rate;
@@ -716,7 +717,7 @@ static void SetupOutputFormat( decoder_t *p_dec, bool b_trust )
 
         /* No reordering for Ambisonic order 1 channels encoded in AAC... */
         if (p_dec->fmt_out.audio.channel_type == AUDIO_CHANNEL_TYPE_AMBISONICS
-            && p_dec->fmt_in->i_codec == VLC_CODEC_MP4A
+            && p_dec->fmt_in->i_codec == HEIMDALL_CODEC_MP4A
             && i_channels_src == 4)
             p_sys->b_extract = false;
 

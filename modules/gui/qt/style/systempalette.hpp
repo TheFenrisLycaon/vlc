@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,8 +16,8 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
-#ifndef VLC_SYSTEMPALETTE_H
-#define VLC_SYSTEMPALETTE_H
+#ifndef HEIMDALL_SYSTEMPALETTE_H
+#define HEIMDALL_SYSTEMPALETTE_H
 
 #include <QObject>
 #include <QColor>
@@ -70,13 +71,13 @@ public:
 
     bool isThemeDark() const;
 
-    QImage getCSDImage(vlc_qt_theme_csd_button_type type, vlc_qt_theme_csd_button_state state, bool maximized, bool active, int bannerHeight);
+    QImage getCSDImage(heimdall_qt_theme_csd_button_type type, heimdall_qt_theme_csd_button_state state, bool maximized, bool active, int bannerHeight);
     CSDMetrics* getCSDMetrics() const;
 
     bool hasCSDImages() const;
 
     int update();
-    void updateMetrics(vlc_qt_theme_image_type type);
+    void updateMetrics(heimdall_qt_theme_image_type type);
 
 signals:
     void paletteChanged();
@@ -86,7 +87,7 @@ public:
     SystemPalette& m_palette;
     MainCtx* m_ctx = nullptr;
     module_t* m_module = nullptr;
-    vlc_qt_theme_provider_t* m_provider = nullptr;
+    heimdall_qt_theme_provider_t* m_provider = nullptr;
     std::unique_ptr<CSDMetrics> m_csdMetrics;
 };
 
@@ -139,7 +140,7 @@ public:
     SystemPalette(QObject* parent = nullptr);
 
     ColorSchemeModel::ColorScheme source() const;
-    QImage getCSDImage(vlc_qt_theme_csd_button_type type, vlc_qt_theme_csd_button_state state, bool maximized, bool active, int bannerHeight);
+    QImage getCSDImage(heimdall_qt_theme_csd_button_type type, heimdall_qt_theme_csd_button_state state, bool maximized, bool active, int bannerHeight);
     CSDMetrics* getCSDMetrics() const;
 
     inline MainCtx* getCtx() const { return m_ctx; }
@@ -188,4 +189,4 @@ private:
 #undef COLOR_PROPERTY
 #undef COLOR_DEFINITION
 
-#endif // VLC_SYSTEMPALETTE_H
+#endif // HEIMDALL_SYSTEMPALETTE_H

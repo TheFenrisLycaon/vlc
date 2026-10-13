@@ -1,10 +1,11 @@
 /*****************************************************************************
- * rawvid.c : raw video input module for vlc
+ * rawvid.c : raw video input module for heimdall
  *****************************************************************************
  * Copyright (C) 2007 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gildas Bazin <gbazin@videolan.org>
- *          Antoine Cellerier <dionoea at videolan d.t org>
+ *          Antoine Cellerier <dionoea at lycaria d.t org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -29,15 +30,15 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_demux.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_demux.h>
 
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  Open ( vlc_object_t * );
-static void Close( vlc_object_t * );
+static int  Open ( heimdall_object_t * );
+static void Close( heimdall_object_t * );
 
 #define FPS_TEXT N_("Frames per Second")
 #define FPS_LONGTEXT N_("This is the desired frame rate when " \
@@ -58,7 +59,7 @@ static void Close( vlc_object_t * );
 #define ASPECT_RATIO_LONGTEXT N_( \
     "Aspect ratio (4:3, 16:9). Default assumes square pixels." )
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( "Raw Video" )
     set_description( N_("Raw video demuxer") )
     set_capability( "demux", 10 )
@@ -71,7 +72,7 @@ vlc_module_begin ()
     add_string( "rawvid-chroma", NULL, CHROMA_TEXT, CHROMA_LONGTEXT )
     add_string( "rawvid-aspect-ratio", NULL,
                 ASPECT_RATIO_TEXT, ASPECT_RATIO_LONGTEXT )
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * Definitions of structures used by this plugin
@@ -103,37 +104,37 @@ struct preset_t
     unsigned u_fps_den;
     unsigned u_ar_num;
     unsigned u_ar_den;
-    vlc_fourcc_t i_chroma;
+    heimdall_fourcc_t i_chroma;
 };
 
 static const struct preset_t p_presets[] =
 {
-    { "sqcif", 128, 96, 30000, 1001, 4,3, VLC_CODEC_YV12 },
-    { "qcif", 176, 144, 30000, 1001, 4,3, VLC_CODEC_YV12 },
-    { "cif", 352, 288, 30000, 1001, 4,3, VLC_CODEC_YV12 },
-    { "4cif", 704, 576, 30000, 1001, 4,3, VLC_CODEC_YV12 },
-    { "16cif", 1408, 1152, 30000, 1001, 4,3, VLC_CODEC_YV12 },
-    { "yuv", 176, 144, 25, 1, 4,3, VLC_CODEC_YV12 },
+    { "sqcif", 128, 96, 30000, 1001, 4,3, HEIMDALL_CODEC_YV12 },
+    { "qcif", 176, 144, 30000, 1001, 4,3, HEIMDALL_CODEC_YV12 },
+    { "cif", 352, 288, 30000, 1001, 4,3, HEIMDALL_CODEC_YV12 },
+    { "4cif", 704, 576, 30000, 1001, 4,3, HEIMDALL_CODEC_YV12 },
+    { "16cif", 1408, 1152, 30000, 1001, 4,3, HEIMDALL_CODEC_YV12 },
+    { "yuv", 176, 144, 25, 1, 4,3, HEIMDALL_CODEC_YV12 },
     { NULL, 0, 0, 0, 0, 0,0, 0 }
 };
 
 /*****************************************************************************
  * Open: initializes raw DV demux structures
  *****************************************************************************/
-static int Open( vlc_object_t * p_this )
+static int Open( heimdall_object_t * p_this )
 {
     demux_t     *p_demux = (demux_t*)p_this;
     demux_sys_t *p_sys;
     int i_width=-1, i_height=-1;
     unsigned u_fps_num, u_fps_den;
-    vlc_fourcc_t i_chroma = 0;
+    heimdall_fourcc_t i_chroma = 0;
     unsigned int i_sar_num;
     unsigned int i_sar_den;
     const struct preset_t *p_preset = NULL;
     const uint8_t *p_peek;
     bool b_y4m = false;
 
-    if( vlc_stream_Peek( p_demux->s, &p_peek, 9 ) == 9 )
+    if( heimdall_stream_Peek( p_demux->s, &p_peek, 9 ) == 9 )
     {
         /* http://wiki.multimedia.cx/index.php?title=YUV4MPEG2 */
         if( !strncmp( (char *)p_peek, "YUV4MPEG2", 9 ) )
@@ -147,11 +148,11 @@ static int Open( vlc_object_t * p_this )
     {
         /* guess preset based on file extension */
         if( !p_demux->psz_filepath )
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
         const char *psz_ext = strrchr( p_demux->psz_filepath, '.' );
         if( !psz_ext )
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         psz_ext++;
 
         for( unsigned i = 0; p_presets[i].psz_ext ; i++ )
@@ -162,12 +163,12 @@ static int Open( vlc_object_t * p_this )
                 goto valid;
             }
         }
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 valid:
     p_demux->p_sys      = p_sys = malloc( sizeof( demux_sys_t ) );
     if( !p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_sys->b_y4m = b_y4m;
 
@@ -187,7 +188,7 @@ valid:
     if( b_y4m )
     {
         /* The string should start with "YUV4MPEG2" */
-        char *psz = vlc_stream_ReadLine( p_demux->s );
+        char *psz = heimdall_stream_ReadLine( p_demux->s );
         char *psz_buf;
         int a = 1;
         int b = 1;
@@ -233,14 +234,14 @@ valid:
         psz_buf = strstr( psz+9, " C" );
         if( psz_buf )
         {
-            static const struct { const char *psz_name; vlc_fourcc_t i_fcc; } formats[] =
+            static const struct { const char *psz_name; heimdall_fourcc_t i_fcc; } formats[] =
             {
-                { "420jpeg",    VLC_CODEC_I420 },
-                { "420paldv",   VLC_CODEC_I420 },
-                { "420",        VLC_CODEC_I420 },
-                { "422",        VLC_CODEC_I422 },
-                { "444",        VLC_CODEC_I444 },
-                { "mono",       VLC_CODEC_GREY },
+                { "420jpeg",    HEIMDALL_CODEC_I420 },
+                { "420paldv",   HEIMDALL_CODEC_I420 },
+                { "420",        HEIMDALL_CODEC_I420 },
+                { "422",        HEIMDALL_CODEC_I422 },
+                { "444",        HEIMDALL_CODEC_I444 },
+                { "mono",       HEIMDALL_CODEC_GREY },
                 { NULL, 0 }
             };
             bool b_found = false;
@@ -333,15 +334,15 @@ valid:
                         i_width, i_height, i_width, i_height,
                         i_sar_num, i_sar_den );
 
-    vlc_ureduce( &p_sys->fmt_video.video.i_frame_rate,
+    heimdall_ureduce( &p_sys->fmt_video.video.i_frame_rate,
                  &p_sys->fmt_video.video.i_frame_rate_base,
                  u_fps_num, u_fps_den, 0);
     date_Init( &p_sys->pcr, p_sys->fmt_video.video.i_frame_rate,
                p_sys->fmt_video.video.i_frame_rate_base );
-    date_Set( &p_sys->pcr, VLC_TICK_0 );
+    date_Set( &p_sys->pcr, HEIMDALL_TICK_0 );
 
-    const vlc_chroma_description_t *dsc =
-            vlc_fourcc_GetChromaDescription(p_sys->fmt_video.video.i_chroma);
+    const heimdall_chroma_description_t *dsc =
+            heimdall_fourcc_GetChromaDescription(p_sys->fmt_video.video.i_chroma);
     if (unlikely(dsc == NULL))
         goto error;
     if (dsc->plane_count == 0)
@@ -365,17 +366,17 @@ valid:
 
     p_demux->pf_demux   = Demux;
     p_demux->pf_control = Control;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     free( p_sys );
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /*****************************************************************************
  * Close: frees unused data
  *****************************************************************************/
-static void Close( vlc_object_t *p_this )
+static void Close( heimdall_object_t *p_this )
 {
     demux_t     *p_demux = (demux_t*)p_this;
     demux_sys_t *p_sys  = p_demux->p_sys;
@@ -391,7 +392,7 @@ static int Demux( demux_t *p_demux )
 {
     demux_sys_t *p_sys  = p_demux->p_sys;
     block_t     *p_block;
-    vlc_tick_t i_pcr = date_Get( &p_sys->pcr );
+    heimdall_tick_t i_pcr = date_Get( &p_sys->pcr );
 
     /* Call the pace control */
     es_out_SetPCR( p_demux->out, i_pcr );
@@ -400,29 +401,29 @@ static int Demux( demux_t *p_demux )
     {
         /* Skip the frame header */
         /* Skip "FRAME" */
-        if( vlc_stream_Read( p_demux->s, NULL, 5 ) != 5 )
-            return VLC_DEMUXER_EOF;
+        if( heimdall_stream_Read( p_demux->s, NULL, 5 ) != 5 )
+            return HEIMDALL_DEMUXER_EOF;
         /* Find \n */
         for( ;; )
         {
             uint8_t b;
-            if( vlc_stream_Read( p_demux->s, &b, 1 ) < 1 )
-                return VLC_DEMUXER_EOF;
+            if( heimdall_stream_Read( p_demux->s, &b, 1 ) < 1 )
+                return HEIMDALL_DEMUXER_EOF;
             if( b == 0x0a )
                 break;
         }
     }
 
-    p_block = vlc_stream_Block( p_demux->s, p_sys->frame_size );
+    p_block = heimdall_stream_Block( p_demux->s, p_sys->frame_size );
     if( p_block == NULL )
-        return VLC_DEMUXER_EOF;
+        return HEIMDALL_DEMUXER_EOF;
 
     p_block->i_dts = p_block->i_pts = i_pcr;
     es_out_Send( p_demux->out, p_sys->p_es_video, p_block );
 
     date_Increment( &p_sys->pcr, 1 );
 
-    return VLC_DEMUXER_SUCCESS;
+    return HEIMDALL_DEMUXER_SUCCESS;
 }
 
 /*****************************************************************************

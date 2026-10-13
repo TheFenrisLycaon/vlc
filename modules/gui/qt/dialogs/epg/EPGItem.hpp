@@ -2,6 +2,7 @@
  * EPGItem.hpp : EPGItem
  ****************************************************************************
  * Copyright © 2009-2010 VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Ludovic Fauvet <etix@l0cal.com>
  *
@@ -25,7 +26,7 @@
 
 #include "qt.hpp"
 
-#include <vlc_epg.h>
+#include <heimdall_epg.h>
 #include <QGraphicsItem>
 #include <QDateTime>
 
@@ -37,7 +38,7 @@ class EPGProgram;
 class EPGItem : public QGraphicsItem
 {
 public:
-    EPGItem( const vlc_epg_event_t *data, EPGView *view, EPGProgram * );
+    EPGItem( const heimdall_epg_event_t *data, EPGView *view, EPGProgram * );
 
     QRectF boundingRect() const override;
     void paint( QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget = 0 ) override;
@@ -50,7 +51,7 @@ public:
     const QString& name() const { return m_name; }
     QString description() const;
     int rating() const { return m_rating; }
-    bool setData( const vlc_epg_event_t * );
+    bool setData( const heimdall_epg_event_t * );
     void setDuration( uint32_t duration );
     void setRating( uint8_t i_rating );
     void updatePos();

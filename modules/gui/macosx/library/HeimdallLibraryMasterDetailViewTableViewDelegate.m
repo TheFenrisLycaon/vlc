@@ -1,0 +1,78 @@
+/*****************************************************************************
+ * HeimdallLibraryMasterDetailViewTableViewDelegate.m MacOS X interface module
+ *****************************************************************************
+ * Copyright (C) 2024 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
+ *
+ * Authors: Claudio Cambra <developer@claudiocambra.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
+ *****************************************************************************/
+
+#import "HeimdallLibraryMasterDetailViewTableViewDelegate.h"
+
+#import "library/HeimdallLibraryMasterDetailViewTableViewDataSource.h"
+#import "library/HeimdallLibraryRepresentedItem.h"
+
+#import "library/HeimdallLibraryHeaderView.h"
+
+@implementation HeimdallLibraryMasterDetailViewTableViewDelegate
+
+- (void)tableViewSelectionDidChange:(NSNotification *)notification
+{
+    NSParameterAssert(notification);
+    NSTableView * const tableView = (NSTableView *)notification.object;
+    NSAssert(tableView, @"Must be a valid table view");
+
+    if (![tableView.dataSource conformsToProtocol:@protocol(HeimdallLibraryMasterDetailViewTableViewDataSource)]) {
+        return;
+    }
+
+    NSObject<HeimdallLibraryMasterDetailViewTableViewDataSource> * const masterDetailViewDataSource =
+        (NSObject<HeimdallLibraryMasterDetailViewTableViewDataSource> *)tableView.dataSource;
+
+    if (tableView == masterDetailViewDataSource.masterTableView) {
+        [masterDetailViewDataSource.detailTableView reloadData];
+        if ([masterDetailViewDataSource respondsToSelector:@selector(updateHeaderInTableView:forMasterSelection:)]) {
+            [masterDetailViewDataSource updateHeaderInTableView:masterDetailViewDataSource.detailTableView forMasterSelection:tableView];
+        }
+    }
+}
+
+#pragma mark - HeimdallLibraryGroupHeaderDelegate
+
+- (void)updateHeaderForTableView:(NSTableView *)tableView
+             withRepresentedItem:(nullable HeimdallLibraryRepresentedItem *)representedItem
+                   fallbackTitle:(NSString *)fallbackTitle
+                  fallbackDetail:(NSString *)fallbackDetail
+{
+    if (![tableView.dataSource conformsToProtocol:@protocol(HeimdallLibraryMasterDetailViewTableViewDataSource)]) {
+        return;
+    }
+
+    NSObject<HeimdallLibraryMasterDetailViewTableViewDataSource> * const masterDetailViewDataSource =
+        (NSObject<HeimdallLibraryMasterDetailViewTableViewDataSource> *)tableView.dataSource;
+
+    if (tableView != masterDetailViewDataSource.detailTableView) {
+        return;
+    }
+
+    [self.detailTableHeaderView updateWithRepresentedItem:representedItem
+                                            fallbackTitle:fallbackTitle
+                                           fallbackDetail:fallbackDetail];
+}
+
+
+@end

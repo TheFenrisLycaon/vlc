@@ -37,7 +37,7 @@ qtshadertools: qtshadertools-everywhere-src-$(QTSHADERTOOLS_VERSION).tar.xz .sum
 	$(UNPACK)
 	$(MOVE)
 
-.qtshadertools-tools: BUILD_DIR=$</vlc_native
+.qtshadertools-tools: BUILD_DIR=$</heimdall_native
 .qtshadertools-tools: qtshadertools
 	$(CMAKECLEAN)
 	$(BUILDVARS) $(CMAKE_NATIVE) $(QT_SHADETOOLS_NATIVE_CONFIG)

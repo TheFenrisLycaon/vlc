@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,8 +21,8 @@ import QtQuick
 import QtQuick.Layouts
 
 
-import VLC.Widgets as Widgets
-import VLC.Style
+import Heimdall.Widgets as Widgets
+import Heimdall.Style
 
 ButtonExt {
     id: control
@@ -53,14 +54,14 @@ ButtonExt {
             property: "backgroundColor"
             from: theme.bg.primary
             to: theme.accent
-            duration: VLCStyle.duration_long
+            duration: HeimdallStyle.duration_long
         }
         ColorAnimation {
             target: control.background
             property: "backgroundColor"
             from: theme.accent
             to: theme.bg.primary
-            duration: VLCStyle.duration_long
+            duration: HeimdallStyle.duration_long
         }
     }
 }

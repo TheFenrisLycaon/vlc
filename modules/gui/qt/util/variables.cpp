@@ -1,7 +1,8 @@
 /*****************************************************************************
- * variables.cpp : VLC variable class
+ * variables.cpp : Heimdall variable class
  ****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,22 +26,22 @@
 #include "qt.hpp"
 #include "variables.hpp"
 
-void QVLCBool::setValue(bool value)
+void QHeimdallBool::setValue(bool value)
 {
     setValueInternal(value);
 }
 
-void QVLCString::setValue(const QString &value)
+void QHeimdallString::setValue(const QString &value)
 {
     setValueInternal(value);
 }
 
-void QVLCFloat::setValue(float value)
+void QHeimdallFloat::setValue(float value)
 {
     setValueInternal(value);
 }
 
-void QVLCInteger::setValue(int64_t value)
+void QHeimdallInteger::setValue(int64_t value)
 {
     setValueInternal(value);
 }

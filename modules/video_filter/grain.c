@@ -2,8 +2,9 @@
  * grain.c: add film grain
  *****************************************************************************
  * Copyright (C) 2010 Laurent Aimar
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Laurent Aimar <fenrir _AT_ videolan _DOT_ org>
+ * Authors: Laurent Aimar <fenrir _AT_ lycaria _DOT_ org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -30,12 +31,12 @@
 #include <assert.h>
 #include <math.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_cpu.h>
-#include <vlc_picture.h>
-#include <vlc_rand.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_cpu.h>
+#include <heimdall_picture.h>
+#include <heimdall_rand.h>
 
 /*****************************************************************************
  * Module descriptor
@@ -59,7 +60,7 @@ VIDEO_FILTER_WRAPPER_CLOSE(Filter, Close)
 #define PERIOD_MAX_TEXT     N_("Maximal period")
 #define PERIOD_MAX_LONGTEXT N_("Maximal period of the noise grain in pixel")
 
-vlc_module_begin()
+heimdall_module_begin()
     set_description(N_("Grain video filter"))
     set_shortname( N_("Grain"))
     set_help(N_("Adds filtered gaussian noise"))
@@ -71,7 +72,7 @@ vlc_module_begin()
     add_integer_with_range(CFG_PREFIX "period-max", 3*PERIOD_MAX/4, PERIOD_MIN, PERIOD_MAX,
                            PERIOD_MAX_TEXT, PERIOD_MAX_LONGTEXT)
     set_callback_video_filter(Open)
-vlc_module_end()
+heimdall_module_end()
 
 /*****************************************************************************
  * Local prototypes
@@ -93,7 +94,7 @@ typedef struct
                   const int16_t *noise);
 
     struct {
-        vlc_mutex_t lock;
+        heimdall_mutex_t lock;
         double      variance;
     } cfg;
 } filter_sys_t;
@@ -137,7 +138,7 @@ static void BlockBlend(uint8_t *dst, size_t dst_pitch,
     for (int y = 0; y < h; y++) {
         for (int x = 0; x < w; x++) {
             dst[y * dst_pitch + x] =
-                clip_uint8_vlc(src[y * src_pitch + x] + noise[y * BANK_SIZE +x]);
+                clip_uint8_heimdall(src[y * src_pitch + x] + noise[y * BANK_SIZE +x]);
         }
     }
 }
@@ -153,7 +154,7 @@ static void BlockBlendC(uint8_t *dst, size_t dst_pitch,
 #ifdef CAN_COMPILE_SSE2
 #define STRING_EXPAND(x) #x
 #define STRING(x) STRING_EXPAND(x)
-VLC_SSE
+HEIMDALL_SSE
 static void BlockBlendSse2(uint8_t *dst, size_t dst_pitch,
                            const uint8_t *src, size_t src_pitch,
                            const int16_t *noise)
@@ -244,9 +245,9 @@ static void Filter(filter_t *filter, picture_t *src, picture_t *dst)
 {
     filter_sys_t *sys = filter->p_sys;
 
-    vlc_mutex_lock(&sys->cfg.lock);
-    const double variance = VLC_CLIP(sys->cfg.variance, VARIANCE_MIN, VARIANCE_MAX);
-    vlc_mutex_unlock(&sys->cfg.lock);
+    heimdall_mutex_lock(&sys->cfg.lock);
+    const double variance = HEIMDALL_CLIP(sys->cfg.variance, VARIANCE_MIN, VARIANCE_MAX);
+    heimdall_mutex_unlock(&sys->cfg.lock);
 
     const int scale = 256 * sqrt(variance);
     if (scale != sys->scale) {
@@ -278,7 +279,7 @@ static int Generate(int16_t *bank, int h_min, int h_max, int v_min, int v_max)
     const int N = BANK_SIZE;
     double *workspace = calloc(3 * N * N, sizeof(*workspace));
     if (!workspace)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     double *gn        = &workspace[0 * N * N];
     double *cij       = &workspace[1 * N * N];
@@ -315,7 +316,7 @@ static int Generate(int16_t *bank, int h_min, int h_max, int v_min, int v_max)
         }
     }
 
-    //vlc_tick_t tmul_0 = vlc_tick_now();
+    //heimdall_tick_t tmul_0 = heimdall_tick_now();
     for (int i = 0; i < N; i++) {
         for (int j = 0; j < N; j++) {
             double v = 0.0;
@@ -335,70 +336,70 @@ static int Generate(int16_t *bank, int h_min, int h_max, int v_min, int v_max)
                 vq =  (int)( v * correction * 127 + 0.5);
             else
                 vq = -(int)(-v * correction * 127 + 0.5);
-            bank[i * N + j] = VLC_CLIP(vq, INT16_MIN, INT16_MAX);
+            bank[i * N + j] = HEIMDALL_CLIP(vq, INT16_MIN, INT16_MAX);
         }
     }
-    //vlc_tick_t mul_duration = vlc_tick_now() - tmul_0;
+    //heimdall_tick_t mul_duration = heimdall_tick_now() - tmul_0;
     //fprintf(stderr, "IDCT took %d ms\n", (int)(mul_duration / 1000));
 
     free(workspace);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int Callback(vlc_object_t *object, char const *cmd,
-                    vlc_value_t oldval, vlc_value_t newval, void *data)
+static int Callback(heimdall_object_t *object, char const *cmd,
+                    heimdall_value_t oldval, heimdall_value_t newval, void *data)
 {
     filter_t     *filter = (filter_t *)object;
     filter_sys_t *sys = filter->p_sys;
-    VLC_UNUSED(cmd); VLC_UNUSED(oldval); VLC_UNUSED(data);
+    HEIMDALL_UNUSED(cmd); HEIMDALL_UNUSED(oldval); HEIMDALL_UNUSED(data);
 
-    vlc_mutex_lock(&sys->cfg.lock);
+    heimdall_mutex_lock(&sys->cfg.lock);
     sys->cfg.variance = newval.f_float;
-    vlc_mutex_unlock(&sys->cfg.lock);
+    heimdall_mutex_unlock(&sys->cfg.lock);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int Open(filter_t *filter)
 {
-    const vlc_chroma_description_t *chroma =
-        vlc_fourcc_GetChromaDescription(filter->fmt_in.video.i_chroma);
+    const heimdall_chroma_description_t *chroma =
+        heimdall_fourcc_GetChromaDescription(filter->fmt_in.video.i_chroma);
     assert( chroma != NULL );
     if (chroma->plane_count < 3 || chroma->pixel_size != 1) {
         msg_Err(filter, "Unsupported chroma (%4.4s)", (char*)&chroma->fcc);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     filter_sys_t *sys = malloc(sizeof(*sys));
     if (!sys)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     sys->is_uv_filtered = true;
     sys->scale          = -1;
     sys->seed           = URAND_SEED;
 
     int cutoff_low = BANK_SIZE - var_InheritInteger(filter, CFG_PREFIX "period-max");
     int cutoff_high= BANK_SIZE - var_InheritInteger(filter, CFG_PREFIX "period-min");
-    cutoff_low  = VLC_CLIP(cutoff_low, 1, BANK_SIZE - 1);
-    cutoff_high = VLC_CLIP(cutoff_high, 1, BANK_SIZE - 1);
+    cutoff_low  = HEIMDALL_CLIP(cutoff_low, 1, BANK_SIZE - 1);
+    cutoff_high = HEIMDALL_CLIP(cutoff_high, 1, BANK_SIZE - 1);
     if (Generate(sys->bank, cutoff_low, cutoff_high, cutoff_low, cutoff_high)) {
         free(sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     sys->blend = BlockBlendC;
 #if defined(CAN_COMPILE_SSE2)
-    if (vlc_CPU_SSE2()) {
+    if (heimdall_CPU_SSE2()) {
         sys->blend = BlockBlendSse2;
     }
 #endif
 
-    vlc_mutex_init(&sys->cfg.lock);
+    heimdall_mutex_init(&sys->cfg.lock);
     sys->cfg.variance = var_CreateGetFloatCommand(filter, CFG_PREFIX "variance");
     var_AddCallback(filter, CFG_PREFIX "variance", Callback, NULL);
 
     filter->p_sys = sys;
     filter->ops   = &Filter_ops;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void Close(filter_t *filter)

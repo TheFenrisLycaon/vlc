@@ -5,9 +5,10 @@
  * Copyright © 2007-2011 Mirsal Ennaime
  * Copyright © 2009-2011 The VideoLAN team
  * Copyright © 2013      Alex Merry
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors:    Mirsal Ennaime <mirsal at mirsal fr>
- *             Rafaël Carré <funman at videolanorg>
+ *             Rafaël Carré <funman at lycariaorg>
  *             Alex Merry <dev at randomguy3 me uk>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -25,8 +26,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_DBUS_DBUS_INTROSPECT_H_
-#define VLC_DBUS_DBUS_INTROSPECT_H_
+#ifndef HEIMDALL_DBUS_DBUS_INTROSPECT_H_
+#define HEIMDALL_DBUS_DBUS_INTROSPECT_H_
 
 #include "dbus_common.h"
 
@@ -150,7 +151,7 @@ static const char* psz_introspection_xml =
 /* Handle incoming dbus messages */
 DBUS_METHOD( handle_introspect )
 {
-    VLC_UNUSED(p_this);
+    HEIMDALL_UNUSED(p_this);
     REPLY_INIT;
     OUT_ARGUMENTS;
     ADD_STRING( &psz_introspection_xml );

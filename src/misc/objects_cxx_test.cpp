@@ -1,7 +1,8 @@
 /*****************************************************************************
- * objects_cxx_test.cpp: vlc_object_t helper tests
+ * objects_cxx_test.cpp: heimdall_object_t helper tests
  *****************************************************************************
  * Copyright (C) 2023 Videlabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Alexandre Janniaux <ajanni@videolabs.io>
  *
@@ -25,17 +26,17 @@
 # include <config.h>
 #endif
 
-#include <vlc_common.h>
-#include <vlc_objects.h>
+#include <heimdall_common.h>
+#include <heimdall_objects.h>
 
-#include "../libvlc.h"
+#include "../libheimdall.h"
 
 extern "C" {
-    void var_DestroyAll(vlc_object_t *) { /* stub */ }
+    void var_DestroyAll(heimdall_object_t *) { /* stub */ }
 }
 
 struct ObjectType {
-    vlc_object_t obj;
+    heimdall_object_t obj;
     int value = 5;
     ~ObjectType() { destructor_called = true; }
     static bool destructor_called;
@@ -46,11 +47,11 @@ int main(int argc, char **argv)
 {
     (void)argc; (void)argv;
 
-    vlc_object_t *root = new vlc_object_t {};
-    int ret = vlc_object_init(root, nullptr, "root");
+    heimdall_object_t *root = new heimdall_object_t {};
+    int ret = heimdall_object_init(root, nullptr, "root");
     assert(ret == 0);
 
-    struct ObjectType *child = vlc_object_create<ObjectType>(root);
+    struct ObjectType *child = heimdall_object_create<ObjectType>(root);
 
     /* Ensure default constructor have been called. */
     assert(child->value == 5);
@@ -60,17 +61,17 @@ int main(int argc, char **argv)
     assert(child->obj.priv != NULL);
 
     /* Ensure destructor have been called. */
-    vlc_object_delete(child);
+    heimdall_object_delete(child);
     assert(ObjectType::destructor_called == true);
     ObjectType::destructor_called = false;
 
     /* Ensure it's not called for C objects. */
-    ObjectType *child_c = static_cast<ObjectType*>(vlc_object_create(root, sizeof(ObjectType)));
+    ObjectType *child_c = static_cast<ObjectType*>(heimdall_object_create(root, sizeof(ObjectType)));
     assert(child_c->value == 0);
-    vlc_object_delete(VLC_OBJECT(child_c));
+    heimdall_object_delete(HEIMDALL_OBJECT(child_c));
     assert(ObjectType::destructor_called == false);
 
-    vlc_object_deinit(root);
+    heimdall_object_deinit(root);
     delete(root);
 
     return 0;

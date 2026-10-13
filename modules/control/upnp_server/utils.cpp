@@ -2,6 +2,7 @@
  * Clients.cpp
  *****************************************************************************
  * Copyright © 2024 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Alaric Senat <alaric@videolabs.io>
  *
@@ -41,15 +42,15 @@
 #include <sys/socket.h>
 #endif
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
-#include <vlc_configuration.h>
+#include <heimdall_configuration.h>
 
 #include "utils.hpp"
 
 namespace utils
 {
-MimeType get_mimetype(vlc_ml_media_type_t type, const std::string &file_extension) noexcept
+MimeType get_mimetype(heimdall_ml_media_type_t type, const std::string &file_extension) noexcept
 {
     const char *mime_end = file_extension.c_str();
     // special case for the transcode muxer to be widely accepted by a majority of players.
@@ -59,13 +60,13 @@ MimeType get_mimetype(vlc_ml_media_type_t type, const std::string &file_extensio
         mime_end = "mpeg";
     switch (type)
     {
-        case VLC_ML_MEDIA_TYPE_AUDIO:
+        case HEIMDALL_ML_MEDIA_TYPE_AUDIO:
             return {"audio", mime_end};
-        case VLC_ML_MEDIA_TYPE_UNKNOWN: // Intended pass through
-        case VLC_ML_MEDIA_TYPE_VIDEO:
+        case HEIMDALL_ML_MEDIA_TYPE_UNKNOWN: // Intended pass through
+        case HEIMDALL_ML_MEDIA_TYPE_VIDEO:
             return {"video", mime_end};
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 }
 
@@ -89,7 +90,7 @@ std::string get_root_dir()
 {
     std::stringstream ret;
 
-    char *path = config_GetSysPath(VLC_PKG_DATA_DIR, NULL);
+    char *path = config_GetSysPath(HEIMDALL_PKG_DATA_DIR, NULL);
     assert(path);
 
     ret << path << "/upnp_server/";
@@ -115,7 +116,7 @@ std::string addr_to_string(const sockaddr_storage *addr)
     return buff;
 }
 
-std::vector<MediaTrackRef> get_media_tracks(const vlc_ml_media_t &media, vlc_ml_track_type_t type)
+std::vector<MediaTrackRef> get_media_tracks(const heimdall_ml_media_t &media, heimdall_ml_track_type_t type)
 {
     std::vector<MediaTrackRef> ret;
 
@@ -130,7 +131,7 @@ std::vector<MediaTrackRef> get_media_tracks(const vlc_ml_media_t &media, vlc_ml_
     return ret;
 }
 
-std::vector<MediaFileRef> get_media_files(const vlc_ml_media_t &media, vlc_ml_file_type_t type)
+std::vector<MediaFileRef> get_media_files(const heimdall_ml_media_t &media, heimdall_ml_file_type_t type)
 {
     std::vector<MediaFileRef> ret;
 
@@ -145,20 +146,20 @@ std::vector<MediaFileRef> get_media_files(const vlc_ml_media_t &media, vlc_ml_fi
     return ret;
 }
 
-std::string album_thumbnail_url(const vlc_ml_album_t &album)
+std::string album_thumbnail_url(const heimdall_ml_album_t &album)
 {
-    const auto &thumbnail = album.thumbnails[VLC_ML_THUMBNAIL_SMALL];
-    if (thumbnail.i_status != VLC_ML_THUMBNAIL_STATUS_AVAILABLE)
+    const auto &thumbnail = album.thumbnails[HEIMDALL_ML_THUMBNAIL_SMALL];
+    if (thumbnail.i_status != HEIMDALL_ML_THUMBNAIL_STATUS_AVAILABLE)
         return "";
     const auto thumbnail_extension = file_extension(std::string(thumbnail.psz_mrl));
     return get_server_url() + "thumbnail/small/album/" + std::to_string(album.i_id) + "." +
            thumbnail_extension;
 }
 
-std::string thumbnail_url(const vlc_ml_media_t &media, vlc_ml_thumbnail_size_t size)
+std::string thumbnail_url(const heimdall_ml_media_t &media, heimdall_ml_thumbnail_size_t size)
 {
     std::stringstream ss;
-    const std::string s_size = size == VLC_ML_THUMBNAIL_SMALL ? "small" : "banner";
+    const std::string s_size = size == HEIMDALL_ML_THUMBNAIL_SMALL ? "small" : "banner";
     const auto &thumbnail = media.thumbnails[size];
 
     const auto thumbnail_extension = file_extension(std::string(thumbnail.psz_mrl));

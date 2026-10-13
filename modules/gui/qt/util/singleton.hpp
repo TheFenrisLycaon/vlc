@@ -2,6 +2,7 @@
  * singleton.hpp: Generic Singleton pattern implementation
  ****************************************************************************
  * Copyright (C) 2009 VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Hugo Beauzée-Luyssen <hugo@beauzee.fr>
  *
@@ -20,12 +21,12 @@
  * 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_QT_SINGLETON_HPP_
-#define VLC_QT_SINGLETON_HPP_
+#ifndef HEIMDALL_QT_SINGLETON_HPP_
+#define HEIMDALL_QT_SINGLETON_HPP_
 
 #include <stdlib.h>
-#include <vlc_threads.h>
-#include <vlc_cxx_helpers.hpp>
+#include <heimdall_threads.h>
+#include <heimdall_cxx_helpers.hpp>
 
 #include "qt.hpp"
 
@@ -37,14 +38,14 @@ public:
     template <bool create, class = typename std::enable_if<!create>::type>
     static T* getInstance( void )
     {
-        vlc::threads::mutex_locker lock( m_mutex );
+        heimdall::threads::mutex_locker lock( m_mutex );
         return m_instance;
     }
 
     template <class T2 = T, typename... Args>
     static T* getInstance( Args&&... args )
     {
-        vlc::threads::mutex_locker lock( m_mutex );
+        heimdall::threads::mutex_locker lock( m_mutex );
         if ( !m_instance )
           m_instance = new T2( std::forward<Args>( args )... );
         return m_instance;
@@ -52,7 +53,7 @@ public:
 
     static void killInstance()
     {
-        vlc::threads::mutex_locker lock( m_mutex );
+        heimdall::threads::mutex_locker lock( m_mutex );
         delete m_instance;
         m_instance = nullptr;
     }
@@ -67,11 +68,11 @@ protected:
 
 private:
     static T* m_instance;
-    static vlc::threads::mutex m_mutex;
+    static heimdall::threads::mutex m_mutex;
 };
 template <typename T>
 T* Singleton<T>::m_instance = nullptr;
 template <typename T>
-vlc::threads::mutex Singleton<T>::m_mutex;
+heimdall::threads::mutex Singleton<T>::m_mutex;
 
 #endif // include-guard

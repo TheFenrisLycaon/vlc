@@ -2,6 +2,7 @@
  * ts_scte.c: TS Demux SCTE section decoders/handlers
  *****************************************************************************
  * Copyright (C) 2004-2016 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -20,9 +21,9 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_demux.h>
-#include <vlc_es.h>
+#include <heimdall_common.h>
+#include <heimdall_demux.h>
+#include <heimdall_es.h>
 
 #ifndef _DVBPSI_DVBPSI_H_
  #include <dvbpsi/dvbpsi.h>
@@ -76,11 +77,11 @@ void SCTE27_Section_Callback( demux_t *p_demux,
                               const uint8_t *p_payloaddata, size_t i_payloaddata,
                               void *p_pes_cb_data )
 {
-    VLC_UNUSED(p_payloaddata); VLC_UNUSED(i_payloaddata);
+    HEIMDALL_UNUSED(p_payloaddata); HEIMDALL_UNUSED(i_payloaddata);
     ts_stream_t *p_pes = (ts_stream_t *) p_pes_cb_data;
-    assert( p_pes->p_es->fmt.i_codec == VLC_CODEC_SCTE_27 );
+    assert( p_pes->p_es->fmt.i_codec == HEIMDALL_CODEC_SCTE_27 );
     ts_pmt_t *p_pmt = p_pes->p_es->p_program;
-    vlc_tick_t i_date = p_pmt->pcr.i_current;
+    heimdall_tick_t i_date = p_pmt->pcr.i_current;
 
     block_t *p_content = block_Alloc( i_sectiondata );
     if( unlikely(!p_content) || unlikely(!p_pes->p_es->id) )
@@ -101,7 +102,7 @@ void SCTE27_Section_Callback( demux_t *p_demux,
         bool is_immediate = p_content->p_buffer[i_offset + 3] & 0x40;
         if( !is_immediate )
         {
-            vlc_tick_t i_display_in = FROM_SCALE(GetDWBE( &p_content->p_buffer[i_offset + 4] ));
+            heimdall_tick_t i_display_in = FROM_SCALE(GetDWBE( &p_content->p_buffer[i_offset + 4] ));
             if( i_display_in < i_date )
                 i_date = i_display_in + FROM_SCALE_NZ(1ll << 32);
             else

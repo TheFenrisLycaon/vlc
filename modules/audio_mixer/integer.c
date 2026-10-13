@@ -2,6 +2,7 @@
  * integer.c: integer software volume
  *****************************************************************************
  * Copyright (C) 2011 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -25,19 +26,19 @@
 #include <math.h>
 #include <limits.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_aout.h>
-#include <vlc_aout_volume.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_aout.h>
+#include <heimdall_aout_volume.h>
 
-static int Activate (vlc_object_t *);
+static int Activate (heimdall_object_t *);
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_subcategory (SUBCAT_AUDIO_AFILTER)
     set_description (N_("Integer audio volume"))
     set_capability ("audio volume", 9)
     set_callback(Activate)
-vlc_module_end ()
+heimdall_module_end ()
 
 static void FilterS32N (audio_volume_t *vol, block_t *block, float volume)
 {
@@ -102,19 +103,19 @@ static void FilterU8 (audio_volume_t *vol, block_t *block, float volume)
     (void) vol;
 }
 
-static int Activate (vlc_object_t *obj)
+static int Activate (heimdall_object_t *obj)
 {
     audio_volume_t *vol = (audio_volume_t *)obj;
 
     switch (vol->format)
     {
-        case VLC_CODEC_S32N:
+        case HEIMDALL_CODEC_S32N:
             vol->amplify = FilterS32N;
             break;
-        case VLC_CODEC_S16N:
+        case HEIMDALL_CODEC_S16N:
             vol->amplify = FilterS16N;
             break;
-        case VLC_CODEC_U8:
+        case HEIMDALL_CODEC_U8:
             vol->amplify = FilterU8;
             break;
         default:

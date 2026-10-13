@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,12 +36,12 @@
 class MLPlaylistMedia : public MLMedia
 {
 public:
-    MLPlaylistMedia( const vlc_ml_media_t * data);
+    MLPlaylistMedia( const heimdall_ml_media_t * data);
 
 public: // Interface
     bool isNew() const;
 
-    void setSmallCover(const QString& thumbnail, vlc_ml_thumbnail_status_t status);
+    void setSmallCover(const QString& thumbnail, heimdall_ml_thumbnail_status_t status);
 
     QString getResolutionName() const;
 

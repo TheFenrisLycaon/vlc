@@ -2,8 +2,9 @@
  * croppadd.c: Crop/Padd image filter
  *****************************************************************************
  * Copyright (C) 2008 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Antoine Cellerier <dionoea @t videolan dot org>
+ * Authors: Antoine Cellerier <dionoea @t lycaria dot org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -29,11 +30,11 @@
 
 #include <limits.h> /* INT_MAX */
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_picture.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
 
 /****************************************************************************
  * Local prototypes
@@ -73,7 +74,7 @@ VIDEO_FILTER_WRAPPER(Filter)
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( N_("Croppadd") )
     set_description( N_("Video cropping filter") )
     set_callback_video_filter( OpenFilter )
@@ -99,7 +100,7 @@ vlc_module_begin ()
                                 PADDLEFT_TEXT, PADDLEFT_LONGTEXT )
         add_integer_with_range( CFG_PREFIX "paddright", 0, 0, INT_MAX,
                                 PADDRIGHT_TEXT, PADDRIGHT_LONGTEXT )
-vlc_module_end ()
+heimdall_module_end ()
 
 static const char *const ppsz_filter_options[] = {
     "croptop", "cropbottom", "cropleft", "cropright",
@@ -151,7 +152,7 @@ static int OpenFilter( filter_t *p_filter )
     if( !p_filter->b_allow_fmt_out_change )
     {
         msg_Err( p_filter, "Picture format change isn't allowed" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( !video_format_IsSameChroma( &p_filter->fmt_in.video,
@@ -160,20 +161,20 @@ static int OpenFilter( filter_t *p_filter )
         msg_Err( p_filter, "Input and output chromas don't match" );
         /* In fact we don't really care about this since we're allowed
          * to change the output format ... FIXME? */
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    const vlc_chroma_description_t *p_chroma =
-        vlc_fourcc_GetChromaDescription( p_filter->fmt_in.video.i_chroma );
+    const heimdall_chroma_description_t *p_chroma =
+        heimdall_fourcc_GetChromaDescription( p_filter->fmt_in.video.i_chroma );
     assert( p_chroma != NULL );
     if( p_chroma->plane_count == 0 )
     {
         msg_Err( p_filter, "Unsupported input chroma %4.4s", (char*)&p_chroma->fcc );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    p_filter->p_sys = vlc_obj_malloc( VLC_OBJECT(p_filter), sizeof( filter_sys_t ) );
-    if( unlikely(!p_filter->p_sys) ) return VLC_ENOMEM;
+    p_filter->p_sys = heimdall_obj_malloc( HEIMDALL_OBJECT(p_filter), sizeof( filter_sys_t ) );
+    if( unlikely(!p_filter->p_sys) ) return HEIMDALL_ENOMEM;
 
     config_ChainParse( p_filter, CFG_PREFIX, ppsz_filter_options,
                        p_filter->p_cfg );
@@ -235,7 +236,7 @@ static int OpenFilter( filter_t *p_filter )
              p_filter->fmt_out.video.i_width,
              p_filter->fmt_out.video.i_height );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /****************************************************************************

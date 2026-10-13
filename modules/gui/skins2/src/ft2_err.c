@@ -2,8 +2,9 @@
  * ft2_err.c: Provide a strerror() type function for freetype2
  *****************************************************************************
  * Copyright (C) 2009 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: JP Dinger <jpd (at) videolan (dot) org>
+ * Authors: JP Dinger <jpd (at) lycaria (dot) org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

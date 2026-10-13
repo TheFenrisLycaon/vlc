@@ -4,9 +4,10 @@
  * Copyright © 2006-2008 Rafaël Carré
  * Copyright © 2007-2010 Mirsal Ennaime
  * Copyright © 2009-2010 The VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors:    Mirsal Ennaime <mirsal at mirsal fr>
- *             Rafaël Carré <funman at videolanorg>
+ *             Rafaël Carré <funman at lycariaorg>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,11 +24,11 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_DBUS_DBUS_ROOT_H_
-#define VLC_DBUS_DBUS_ROOT_H_
+#ifndef HEIMDALL_DBUS_DBUS_ROOT_H_
+#define HEIMDALL_DBUS_DBUS_ROOT_H_
 
 #include "dbus_common.h"
-#include <vlc_arrays.h>
+#include <heimdall_arrays.h>
 
 /* DBUS IDENTIFIERS */
 #define DBUS_MPRIS_ROOT_INTERFACE    "org.mpris.MediaPlayer2"
@@ -37,6 +38,6 @@ DBusHandlerResult handle_root ( DBusConnection *p_conn,
                                 DBusMessage *p_from,
                                 void *p_this );
 int RootPropertiesChangedEmit ( intf_thread_t *,
-                                vlc_dictionary_t * );
+                                heimdall_dictionary_t * );
 
 #endif /* include-guard */

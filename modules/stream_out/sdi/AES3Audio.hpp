@@ -2,6 +2,7 @@
  * AES3Buffer.hpp: AES3 audio buffer
  *****************************************************************************
  * Copyright © 2018 VideoLabs, VideoLAN and VideoLAN Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -20,11 +21,11 @@
 #ifndef AES3AUDIO_HPP
 #define AES3AUDIO_HPP
 
-#include <vlc_common.h>
-#include <vlc_threads.h>
-#include <vlc_block.h>
-#include <vlc_block_helper.h>
-#include <vlc_es.h>
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
+#include <heimdall_block.h>
+#include <heimdall_block_helper.h>
+#include <heimdall_es.h>
 
 #define MAX_AES3_AUDIO_FRAMES     8
 #define MAX_AES3_AUDIO_SUBFRAMES (MAX_AES3_AUDIO_FRAMES * 2)
@@ -44,35 +45,35 @@ namespace sdi_sout
     class AES3AudioBuffer
     {
         public:
-            AES3AudioBuffer(vlc_object_t *, unsigned = 0);
+            AES3AudioBuffer(heimdall_object_t *, unsigned = 0);
             ~AES3AudioBuffer();
             void setSubFramesCount(uint8_t);
-            vlc_tick_t bufferStart() const;
-            unsigned availableVirtualSamples(vlc_tick_t) const;
-            unsigned alignedInterleaveInSamples(vlc_tick_t, unsigned) const;
+            heimdall_tick_t bufferStart() const;
+            unsigned availableVirtualSamples(heimdall_tick_t) const;
+            unsigned alignedInterleaveInSamples(heimdall_tick_t, unsigned) const;
             void push(block_t *);
-            unsigned read(void *, unsigned, vlc_tick_t,
+            unsigned read(void *, unsigned, heimdall_tick_t,
                           const AES3AudioSubFrameIndex &,
                           const AES3AudioSubFrameIndex &, unsigned);
             void flushConsumed();
-            void tagVirtualConsumed(vlc_tick_t, unsigned);
-            void forwardTo(vlc_tick_t);
-            void setCodec(vlc_fourcc_t);
-            vlc_fourcc_t getCodec() const;
+            void tagVirtualConsumed(heimdall_tick_t, unsigned);
+            void forwardTo(heimdall_tick_t);
+            void setCodec(heimdall_fourcc_t);
+            heimdall_fourcc_t getCodec() const;
 
         private:
-            vlc_object_t *obj;
+            heimdall_object_t *obj;
             void tagConsumed(unsigned);
             size_t   FramesToBytes(unsigned) const;
-            vlc_tick_t FramesToDuration(unsigned) const;
-            int OffsetToBufferStart(vlc_tick_t t) const;
+            heimdall_tick_t FramesToDuration(unsigned) const;
+            int OffsetToBufferStart(heimdall_tick_t t) const;
             unsigned BytesToFrames(size_t) const;
-            unsigned TicksDurationToFrames(vlc_tick_t) const;
+            unsigned TicksDurationToFrames(heimdall_tick_t) const;
             block_bytestream_t bytestream;
-            mutable vlc_mutex_t bytestream_mutex;
+            mutable heimdall_mutex_t bytestream_mutex;
             uint8_t buffersubframes;
             unsigned toconsume;
-            vlc_fourcc_t i_codec;
+            heimdall_fourcc_t i_codec;
     };
 
     class AES3AudioSubFrameSource
@@ -80,16 +81,16 @@ namespace sdi_sout
         public:
             AES3AudioSubFrameSource();
             AES3AudioSubFrameSource(AES3AudioBuffer *, AES3AudioSubFrameIndex);
-            vlc_tick_t bufferStartTime() const;
-            unsigned copy(void *, unsigned count, vlc_tick_t,
+            heimdall_tick_t bufferStartTime() const;
+            unsigned copy(void *, unsigned count, heimdall_tick_t,
                           const AES3AudioSubFrameIndex &, unsigned width);
             void flushConsumed();
-            void tagVirtualConsumed(vlc_tick_t, unsigned);
-            void forwardTo(vlc_tick_t t);
-            unsigned availableVirtualSamples(vlc_tick_t) const;
-            unsigned alignedInterleaveInSamples(vlc_tick_t, unsigned) const;
+            void tagVirtualConsumed(heimdall_tick_t, unsigned);
+            void forwardTo(heimdall_tick_t t);
+            unsigned availableVirtualSamples(heimdall_tick_t) const;
+            unsigned alignedInterleaveInSamples(heimdall_tick_t, unsigned) const;
             bool available() const;
-            vlc_fourcc_t getCodec() const;
+            heimdall_fourcc_t getCodec() const;
 
         private:
             AES3AudioBuffer *aes3AudioBuffer;
@@ -100,13 +101,13 @@ namespace sdi_sout
     {
         public:
             AES3AudioFrameSource();
-            vlc_tick_t bufferStartTime() const;
-            unsigned samplesUpToTime(vlc_tick_t) const;
-            unsigned availableVirtualSamples(vlc_tick_t) const;
-            unsigned alignedInterleaveInSamples(vlc_tick_t, unsigned) const;
+            heimdall_tick_t bufferStartTime() const;
+            unsigned samplesUpToTime(heimdall_tick_t) const;
+            unsigned availableVirtualSamples(heimdall_tick_t) const;
+            unsigned alignedInterleaveInSamples(heimdall_tick_t, unsigned) const;
             void flushConsumed();
-            void tagVirtualConsumed(vlc_tick_t, unsigned);
-            void forwardTo(vlc_tick_t t);
+            void tagVirtualConsumed(heimdall_tick_t, unsigned);
+            void forwardTo(heimdall_tick_t t);
             AES3AudioSubFrameSource subframe0;
             AES3AudioSubFrameSource subframe1;
     };

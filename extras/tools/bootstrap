@@ -1,5 +1,6 @@
 #!/bin/sh
 # Copyright © 2011 Rafaël Carré
+# Copyright (C) 2026 TheFenrisLycaon
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -341,7 +342,7 @@ $TARGET_NEEDED: \$\$(subst .,.build,\$\$@)
 	touch \$@
 
 all: $TARGETS
-	@echo "You are ready to build VLC and its contribs"
+	@echo "You are ready to build Heimdall and its contribs"
 
 include \$(TOOLS)/tools.mak
 

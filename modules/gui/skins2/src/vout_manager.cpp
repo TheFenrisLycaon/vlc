@@ -2,6 +2,7 @@
  * vout_manager.cpp
  *****************************************************************************
  * Copyright (C) 2009 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Erwan Tulou <brezhoneg1 at yahoo.fr>
  *
@@ -25,7 +26,7 @@
 #endif
 
 #include "vout_manager.hpp"
-#include "vlcproc.hpp"
+#include "heimdallproc.hpp"
 #include "os_factory.hpp"
 
 
@@ -61,14 +62,14 @@ VoutManager::VoutManager( intf_thread_t *pIntf ): SkinObject( pIntf ),
     m_pVoutMainWindow->move( 0, 0 );
     m_pVoutMainWindow->resize( width, height );
 
-    VarBool &rFullscreen = VlcProc::instance( getIntf() )->getFullscreenVar();
+    VarBool &rFullscreen = HeimdallProc::instance( getIntf() )->getFullscreenVar();
     rFullscreen.addObserver( this );
 }
 
 
 VoutManager::~VoutManager( )
 {
-    VarBool &rFullscreen = VlcProc::instance( getIntf() )->getFullscreenVar();
+    VarBool &rFullscreen = HeimdallProc::instance( getIntf() )->getFullscreenVar();
     rFullscreen.delObserver( this );
 
     delete m_pVoutMainWindow;
@@ -189,7 +190,7 @@ CtrlVideo* VoutManager::getBestCtrlVideo( )
 // Functions called by window provider
 // ///////////////////////////////////
 
-void VoutManager::acceptWnd( vlc_window_t* pWnd, int width, int height )
+void VoutManager::acceptWnd( heimdall_window_t* pWnd, int width, int height )
 {
     // Creation of a dedicated Window per vout thread
     VoutWindow* pVoutWindow = new VoutWindow( getIntf(), pWnd, width, height,
@@ -216,7 +217,7 @@ void VoutManager::acceptWnd( vlc_window_t* pWnd, int width, int height )
 }
 
 
-void VoutManager::releaseWnd( vlc_window_t* pWnd )
+void VoutManager::releaseWnd( heimdall_window_t* pWnd )
 {
     // remove vout thread from savedVec
     std::vector<SavedWnd>::iterator it;
@@ -241,11 +242,11 @@ void VoutManager::releaseWnd( vlc_window_t* pWnd )
     }
 
     // force fullscreen to false so that user regains control
-    VlcProc::instance( getIntf() )->setFullscreenVar( false );
+    HeimdallProc::instance( getIntf() )->setFullscreenVar( false );
 }
 
 
-void VoutManager::setSizeWnd( vlc_window_t *pWnd, int width, int height )
+void VoutManager::setSizeWnd( heimdall_window_t *pWnd, int width, int height )
 {
    msg_Dbg( pWnd, "setSize (%ix%i) received from vout thread",
                   width, height );
@@ -271,7 +272,7 @@ void VoutManager::setSizeWnd( vlc_window_t *pWnd, int width, int height )
 }
 
 
-void VoutManager::setFullscreenWnd( vlc_window_t *pWnd, bool b_fullscreen )
+void VoutManager::setFullscreenWnd( heimdall_window_t *pWnd, bool b_fullscreen )
 {
     msg_Dbg( pWnd, "setFullscreen (%i) received from vout thread",
                    b_fullscreen );
@@ -292,11 +293,11 @@ void VoutManager::setFullscreenWnd( vlc_window_t *pWnd, bool b_fullscreen )
     }
 
     // set fullscreen
-    VlcProc::instance( getIntf() )->setFullscreenVar( b_fullscreen );
+    HeimdallProc::instance( getIntf() )->setFullscreenVar( b_fullscreen );
 }
 
 
-void VoutManager::hideMouseWnd( vlc_window_t *pWnd, bool hide )
+void VoutManager::hideMouseWnd( heimdall_window_t *pWnd, bool hide )
 {
     msg_Dbg( pWnd, "hide mouse (%i) received from vout thread", hide );
     OSFactory *pOsFactory = OSFactory::instance( getIntf() );
@@ -310,7 +311,7 @@ void VoutManager::hideMouseWnd( vlc_window_t *pWnd, bool hide )
 void VoutManager::onUpdate( Subject<VarBool> &rVariable, void *arg )
 {
     (void)arg;
-    VarBool &rFullscreen = VlcProc::instance( getIntf() )->getFullscreenVar();
+    VarBool &rFullscreen = HeimdallProc::instance( getIntf() )->getFullscreenVar();
     if( &rVariable == &rFullscreen )
     {
         if( rFullscreen.get() )

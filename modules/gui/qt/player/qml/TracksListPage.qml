@@ -1,6 +1,7 @@
 
 /*****************************************************************************
  * Copyright (C) 2023 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,12 +23,12 @@ import QtQuick.Layouts
 import QtQml.Models
 
 
-import VLC.MainInterface
-import VLC.Style
-import VLC.Player
-import VLC.Widgets as Widgets
-import VLC.Util
-import VLC.Dialogs
+import Heimdall.MainInterface
+import Heimdall.Style
+import Heimdall.Player
+import Heimdall.Widgets as Widgets
+import Heimdall.Util
+import Heimdall.Dialogs
 
 RowLayout {
     id: root
@@ -58,13 +59,13 @@ RowLayout {
 
         T.ToolTip.visible: (hovered || visualFocus)
         T.ToolTip.text: qsTr("Playback Speed")
-        T.ToolTip.delay: VLCStyle.delayToolTipAppear
+        T.ToolTip.delay: HeimdallStyle.delayToolTipAppear
 
         Navigation.parentItem: root
         Navigation.rightItem: row
 
         Layout.alignment: Qt.AlignTop | Qt.AlignLeft
-        Layout.margins: VLCStyle.margin_large
+        Layout.margins: HeimdallStyle.margin_large
     }
 
     Widgets.NavigableRow {
@@ -78,7 +79,7 @@ RowLayout {
         TrackColumn {
             title: qsTr("Subtitle")
             tracksModel: Player.subtitleTracks
-            menuIcon: VLCIcons.expand
+            menuIcon: HeimdallIcons.expand
             menuText: qsTr("Menu")
             onMenuAction: (menuPos)  => {
                 menuSubtitle.popup(menuPos)
@@ -88,7 +89,7 @@ RowLayout {
         TrackColumn {
             title: qsTr("Audio")
             tracksModel: Player.audioTracks
-            menuIcon: VLCIcons.expand
+            menuIcon: HeimdallIcons.expand
             menuText: qsTr("Menu")
             onMenuAction: (menuPos)  => {
                 menuAudio.popup(menuPos)
@@ -98,7 +99,7 @@ RowLayout {
         TrackColumn {
             title: qsTr("Video Tracks")
             tracksModel: Player.videoTracks
-            menuIcon: VLCIcons.add
+            menuIcon: HeimdallIcons.add
             menuText: qsTr("Add")
             onMenuAction: (menuPos) => {
                 DialogsProvider.loadVideoFile()
@@ -149,7 +150,7 @@ RowLayout {
 
                    x: 0
                    y: 0
-                   width: VLCStyle.margin_xxxsmall
+                   width: HeimdallStyle.margin_xxxsmall
 
                    height: tracksListContainer.height
                    color: theme.border
@@ -162,10 +163,10 @@ RowLayout {
                 width: tracksListContainer.width
                 height: implicitHeight
 
-                padding: VLCStyle.margin_xsmall
+                padding: HeimdallStyle.margin_xsmall
 
-                topPadding: VLCStyle.margin_large
-                leftPadding: VLCStyle.margin_xxlarge + separator.width
+                topPadding: HeimdallStyle.margin_large
+                leftPadding: HeimdallStyle.margin_xxlarge + separator.width
 
                 focus: true
 
@@ -184,7 +185,7 @@ RowLayout {
                 Widgets.IconTrackButton {
                     id: button
 
-                    font.pixelSize: VLCStyle.icon_track
+                    font.pixelSize: HeimdallStyle.icon_track
 
                     focus: true
 
@@ -226,8 +227,8 @@ RowLayout {
 
                     focus: true
                     text: model.display
-                    width: tracksListContainer.width - VLCStyle.margin_xxxsmall
-                    height: VLCStyle.dp(40, VLCStyle.scale)
+                    width: tracksListContainer.width - HeimdallStyle.margin_xxxsmall
+                    height: HeimdallStyle.dp(40, HeimdallStyle.scale)
                     opacity: hovered || activeFocus || checked ? 1 : .6
                     font.weight: hovered
                                  || activeFocus ? Font.DemiBold : Font.Normal

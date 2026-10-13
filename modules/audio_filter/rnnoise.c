@@ -2,6 +2,7 @@
  * rnnoise.c : Recurrent neural network for audio noise reduction
  *****************************************************************************
  * Copyright © 2019 Tristan Matthews
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,10 +23,10 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_aout.h>
-#include <vlc_filter.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_aout.h>
+#include <heimdall_filter.h>
+#include <heimdall_plugin.h>
 
 #include <rnnoise.h>
 
@@ -135,47 +136,47 @@ static void Close( filter_t *obj )
     free(p_sys->p_scratch_buffer);
 }
 
-static int Open (vlc_object_t *obj)
+static int Open (heimdall_object_t *obj)
 {
     filter_t *p_filter = (filter_t *)obj;
 
-    filter_sys_t *p_sys = p_filter->p_sys = vlc_obj_malloc(VLC_OBJECT(p_filter), sizeof(*p_sys));
+    filter_sys_t *p_sys = p_filter->p_sys = heimdall_obj_malloc(HEIMDALL_OBJECT(p_filter), sizeof(*p_sys));
     if(unlikely(!p_sys))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_sys->b_first = true;
 
     int i_channels = p_filter->fmt_in.audio.i_channels;
     p_sys->p_sts = init_denoise_state(i_channels);
     if (unlikely(!p_sys->p_sts)) {
-        vlc_obj_free(VLC_OBJECT(p_filter), p_sys);
-        return VLC_ENOMEM;
+        heimdall_obj_free(HEIMDALL_OBJECT(p_filter), p_sys);
+        return HEIMDALL_ENOMEM;
     }
 
     p_sys->p_scratch_buffer = malloc(FRAME_SIZE * i_channels * sizeof(*p_sys->p_scratch_buffer));
     if (unlikely(!p_sys->p_scratch_buffer)) {
         Flush(p_filter);
-        vlc_obj_free(VLC_OBJECT(p_filter), p_sys);
-        return VLC_ENOMEM;
+        heimdall_obj_free(HEIMDALL_OBJECT(p_filter), p_sys);
+        return HEIMDALL_ENOMEM;
     }
 
-    p_filter->fmt_in.audio.i_format = VLC_CODEC_FL32;
+    p_filter->fmt_in.audio.i_format = HEIMDALL_CODEC_FL32;
     aout_FormatPrepare(&p_filter->fmt_in.audio);
     p_filter->fmt_out.audio = p_filter->fmt_in.audio;
 
-    static const struct vlc_filter_operations filter_ops =
+    static const struct heimdall_filter_operations filter_ops =
     {
         .filter_audio = Process, .flush = Flush, .close = Close,
     };
     p_filter->ops = &filter_ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname (N_("RNNoise"))
     set_description (N_("RNNoise filter"))
     set_subcategory (SUBCAT_AUDIO_AFILTER)
     set_capability ("audio filter", 0)
     set_callback( Open )
-vlc_module_end ()
+heimdall_module_end ()

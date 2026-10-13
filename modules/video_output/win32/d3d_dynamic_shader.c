@@ -2,6 +2,7 @@
  * d3d_dynamic_shader.c: Direct3D Shader APIs
  *****************************************************************************
  * Copyright (C) 2017-2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Steve Lhomme <robux4@gmail.com>
  *
@@ -27,7 +28,7 @@
 #include <windows.h>
 #include <assert.h>
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
 #define COBJMACROS
 #include <d3dcompiler.h>
@@ -317,7 +318,7 @@ static void ID3D10BlobtoBlob(ID3D10Blob *d3dblob, d3d_shader_blob *blob)
 }
 
 
-static HRESULT CompileShader(vlc_object_t *obj,
+static HRESULT CompileShader(heimdall_object_t *obj,
                              D3D_FEATURE_LEVEL feature_level,
                              const char *psz_shader, bool pixelShader,
                              const D3D_SHADER_MACRO *defines,
@@ -380,7 +381,7 @@ static HRESULT CompileShader(vlc_object_t *obj,
     return S_OK;
 }
 
-static HRESULT CompilePixelShaderBlob(vlc_object_t *o,
+static HRESULT CompilePixelShaderBlob(heimdall_object_t *o,
                                    D3D_FEATURE_LEVEL feature_level,
                                    const char *psz_sampler,
                                    const char *psz_shader_resource_views,
@@ -413,7 +414,7 @@ static HRESULT CompilePixelShaderBlob(vlc_object_t *o,
                          defines, pPSBlob);
 }
 
-HRESULT (D3D_CompilePixelShader)(vlc_object_t *o,
+HRESULT (D3D_CompilePixelShader)(heimdall_object_t *o,
                                  D3D_FEATURE_LEVEL feature_level,
                                  const display_info_t *display,
                                  video_transfer_func_t transfer,
@@ -459,7 +460,7 @@ HRESULT (D3D_CompilePixelShader)(vlc_object_t *o,
         case DXGI_FORMAT_UNKNOWN:
             switch (dxgi_fmt->fourcc)
             {
-            case VLC_CODEC_YUVA:
+            case HEIMDALL_CODEC_YUVA:
                 /* Y */
                 psz_sampler[0] = "SAMPLE_PLANAR_YUVA_TO_NV_Y";
                 psz_shader_resource_views[0] = "4"; shader_views[0] = 4;
@@ -468,11 +469,11 @@ HRESULT (D3D_CompilePixelShader)(vlc_object_t *o,
                 psz_shader_resource_views[1] = "4"; shader_views[1] = 4;
                 break;
             default:
-                vlc_assert_unreachable();
+                heimdall_assert_unreachable();
             }
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
         }
     }
     else
@@ -492,7 +493,7 @@ HRESULT (D3D_CompilePixelShader)(vlc_object_t *o,
                 psz_shader_resource_views[0] = "4"; shader_views[0] = 4;
                 break;
             default:
-                vlc_assert_unreachable();
+                heimdall_assert_unreachable();
             }
             break;
         case DXGI_FORMAT_YUY2:
@@ -526,30 +527,30 @@ HRESULT (D3D_CompilePixelShader)(vlc_object_t *o,
         case DXGI_FORMAT_UNKNOWN:
             switch (dxgi_fmt->fourcc)
             {
-            case VLC_CODEC_I420_10L:
+            case HEIMDALL_CODEC_I420_10L:
                 psz_sampler[0] = "SAMPLE_TRIPLANAR10_TO_YUVA";
                 psz_shader_resource_views[0] = "3"; shader_views[0] = 3;
                 break;
-            case VLC_CODEC_I444_16L:
-            case VLC_CODEC_I444_12L:
-            case VLC_CODEC_I444_10L:
-            case VLC_CODEC_I444:
-            case VLC_CODEC_I422_10L:
-            case VLC_CODEC_I420:
+            case HEIMDALL_CODEC_I444_16L:
+            case HEIMDALL_CODEC_I444_12L:
+            case HEIMDALL_CODEC_I444_10L:
+            case HEIMDALL_CODEC_I444:
+            case HEIMDALL_CODEC_I422_10L:
+            case HEIMDALL_CODEC_I420:
                 psz_sampler[0] = "SAMPLE_TRIPLANAR_TO_YUVA";
                 psz_shader_resource_views[0] = "3"; shader_views[0] = 3;
                 break;
-            case VLC_CODEC_YUVA:
-            case VLC_CODEC_YUV420A:
+            case HEIMDALL_CODEC_YUVA:
+            case HEIMDALL_CODEC_YUV420A:
                 psz_sampler[0] = "SAMPLE_PLANAR_YUVA_TO_YUVA";
                 psz_shader_resource_views[0] = "4"; shader_views[0] = 4;
                 break;
             default:
-                vlc_assert_unreachable();
+                heimdall_assert_unreachable();
             }
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
         }
     }
 
@@ -650,7 +651,7 @@ HRESULT (D3D_CompilePixelShader)(vlc_object_t *o,
     return hr;
 }
 
-HRESULT D3D_CompileVertexShader(vlc_object_t *obj,
+HRESULT D3D_CompileVertexShader(heimdall_object_t *obj,
                                 D3D_FEATURE_LEVEL feature_level, bool flat,
                                 d3d_shader_blob *blob)
 {

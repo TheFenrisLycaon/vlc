@@ -2,6 +2,7 @@
  * Keyring.cpp
  *****************************************************************************
  * Copyright (C) 2019 VideoLabs, VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -26,16 +27,16 @@
 #include "../tools/Retrieve.hpp"
 #include "../http/Chunk.h"
 
-#include <vlc_block.h>
+#include <heimdall_block.h>
 
 #include <algorithm>
 
 using namespace adaptive::encryption;
 
-Keyring::Keyring(vlc_object_t *obj_)
+Keyring::Keyring(heimdall_object_t *obj_)
 {
     obj = obj_;
-    vlc_mutex_init(&lock);
+    heimdall_mutex_init(&lock);
 }
 
 Keyring::~Keyring()
@@ -46,7 +47,7 @@ KeyringKey Keyring::getKey(SharedResources *resources, const std::string &uri)
 {
     KeyringKey key;
 
-    vlc_mutex_locker locker(&lock);
+    heimdall_mutex_locker locker(&lock);
     std::map<std::string, KeyringKey>::iterator it = keys.find(uri);
     if(it == keys.end())
     {

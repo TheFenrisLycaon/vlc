@@ -2,6 +2,7 @@
  * flac.h: fLAC audio headers
  *****************************************************************************
  * Copyright (C) 2001-2018 VLC authors, VideoLabs and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -17,7 +18,7 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
 #define FLAC_HEADER_SIZE_MIN 9
 #define FLAC_HEADER_SIZE_MAX 16
@@ -36,7 +37,7 @@ struct flac_stream_info
 
 struct flac_header_info
 {
-    vlc_tick_t i_pts;
+    heimdall_tick_t i_pts;
     unsigned i_rate;
     unsigned i_channels;
     unsigned i_bits_per_sample;
@@ -47,10 +48,10 @@ static inline void FLAC_ParseStreamInfo( const uint8_t *p_buf,
                                          struct flac_stream_info *stream_info )
 {
     stream_info->min_blocksize = GetWBE( &p_buf[0] );
-    stream_info->min_blocksize = VLC_CLIP( stream_info->min_blocksize, 16, 65535 );
+    stream_info->min_blocksize = HEIMDALL_CLIP( stream_info->min_blocksize, 16, 65535 );
 
     stream_info->max_blocksize = GetWBE( &p_buf[2] );
-    stream_info->max_blocksize = VLC_CLIP( stream_info->max_blocksize, 16, 65535 );
+    stream_info->max_blocksize = HEIMDALL_CLIP( stream_info->max_blocksize, 16, 65535 );
 
     stream_info->min_framesize = GetDWBE( &p_buf[3] ) & 0x00FFFFFF;
     stream_info->min_framesize = __MAX( stream_info->min_framesize, FLAC_FRAME_SIZE_MIN );
@@ -299,10 +300,10 @@ static inline int FLAC_ParseSyncInfo(const uint8_t *p_buf, unsigned i_buf,
     if ( (p_buf[1] & 0x01) == 0  ) /* Fixed blocksize stream / Frames */
     {
         const unsigned fixedblocksize = stream_info ? stream_info->min_blocksize : blocksize;
-        h->i_pts = VLC_TICK_0 + vlc_tick_from_samples(fixedblocksize * i_fsnumber, samplerate);
+        h->i_pts = HEIMDALL_TICK_0 + heimdall_tick_from_samples(fixedblocksize * i_fsnumber, samplerate);
     }
     else /* Variable blocksize stream / Samples */
-        h->i_pts = VLC_TICK_0 + vlc_tick_from_samples(i_fsnumber, samplerate);
+        h->i_pts = HEIMDALL_TICK_0 + heimdall_tick_from_samples(i_fsnumber, samplerate);
 
     h->i_bits_per_sample = bits_per_sample;
     h->i_rate = samplerate;

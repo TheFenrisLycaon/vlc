@@ -1,8 +1,9 @@
 /*****************************************************************************
- * filter.h : DirectShow access module for vlc:
+ * filter.h : DirectShow access module for heimdall:
  * CapturePin, CaptureFilter, CaptureEnumPins implementations
  *****************************************************************************
  * Copyright (C) 2002-2004, 2008 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Gildas Bazin <gbazin@videolan.org>
  *
@@ -29,10 +30,10 @@
 
 namespace dshow {
 
-struct VLCMediaSample
+struct HeimdallMediaSample
 {
     ComPtr<IMediaSample> p_sample;
-    vlc_tick_t i_timestamp;
+    heimdall_tick_t i_timestamp;
 };
 
 /* */
@@ -40,7 +41,7 @@ void WINAPI FreeMediaType( AM_MEDIA_TYPE& mt );
 HRESULT WINAPI CopyMediaType( AM_MEDIA_TYPE *pmtTarget,
                               const AM_MEDIA_TYPE *pmtSource );
 
-vlc_fourcc_t GetFourCCFromMediaType(const AM_MEDIA_TYPE &media_type);
+heimdall_fourcc_t GetFourCCFromMediaType(const AM_MEDIA_TYPE &media_type);
 
 /****************************************************************************
  * Declaration of our dummy directshow filter pin class
@@ -50,7 +51,7 @@ class CapturePin: public IPin, public IMemInputPin
 {
     friend class CaptureEnumMediaTypes;
 
-    vlc_object_t *p_input;
+    heimdall_object_t *p_input;
     access_sys_t *p_sys;
     // Don't store this filter as a ComPtr to avoid a circular reference.
     // p_filter is the parent filter, and already has a refcounter pointer to this CapturePin
@@ -64,12 +65,12 @@ class CapturePin: public IPin, public IMemInputPin
 
     AM_MEDIA_TYPE cx_media_type;
 
-    std::deque<VLCMediaSample> samples_queue;
+    std::deque<HeimdallMediaSample> samples_queue;
 
     long i_ref;
 
   public:
-    CapturePin( vlc_object_t *_p_input, access_sys_t *p_sys,
+    CapturePin( heimdall_object_t *_p_input, access_sys_t *p_sys,
                 CaptureFilter* _p_filter,
                 AM_MEDIA_TYPE *mt, size_t mt_count );
 
@@ -108,8 +109,8 @@ class CapturePin: public IPin, public IMemInputPin
     STDMETHODIMP ReceiveCanBlock( void );
 
     /* Custom methods */
-    HRESULT CustomGetSample( VLCMediaSample * );
-    HRESULT CustomGetSamples( std::deque<VLCMediaSample> &external_queue );
+    HRESULT CustomGetSample( HeimdallMediaSample * );
+    HRESULT CustomGetSamples( std::deque<HeimdallMediaSample> &external_queue );
 
     AM_MEDIA_TYPE &CustomGetMediaType();
 
@@ -124,7 +125,7 @@ class CaptureFilter : public IBaseFilter
 {
     friend class CapturePin;
 
-    vlc_object_t   *p_input;
+    heimdall_object_t   *p_input;
     ComPtr<CapturePin>   p_pin;
     ComPtr<IFilterGraph> p_graph;
     //AM_MEDIA_TYPE  media_type;
@@ -133,7 +134,7 @@ class CaptureFilter : public IBaseFilter
     long i_ref;
 
   public:
-    CaptureFilter( vlc_object_t *_p_input, access_sys_t *p_sys,
+    CaptureFilter( heimdall_object_t *_p_input, access_sys_t *p_sys,
                    AM_MEDIA_TYPE *mt, size_t mt_count );
 
     /* IUnknown methods */
@@ -171,14 +172,14 @@ private:
  ****************************************************************************/
 class CaptureEnumPins : public IEnumPins
 {
-    vlc_object_t *p_input;
+    heimdall_object_t *p_input;
     ComPtr<CaptureFilter> p_filter;
 
     int i_position;
     long i_ref;
 
 public:
-    CaptureEnumPins( vlc_object_t *_p_input, ComPtr<CaptureFilter> _p_filter,
+    CaptureEnumPins( heimdall_object_t *_p_input, ComPtr<CaptureFilter> _p_filter,
                      ComPtr<CaptureEnumPins> pEnumPins );
 
     // IUnknown
@@ -201,7 +202,7 @@ private:
  ****************************************************************************/
 class CaptureEnumMediaTypes : public IEnumMediaTypes
 {
-    vlc_object_t *p_input;
+    heimdall_object_t *p_input;
     ComPtr<CapturePin> p_pin;
     AM_MEDIA_TYPE cx_media_type;
 
@@ -209,7 +210,7 @@ class CaptureEnumMediaTypes : public IEnumMediaTypes
     long i_ref;
 
 public:
-    CaptureEnumMediaTypes( vlc_object_t *_p_input, ComPtr<CapturePin> _p_pin,
+    CaptureEnumMediaTypes( heimdall_object_t *_p_input, ComPtr<CapturePin> _p_pin,
                            CaptureEnumMediaTypes *pEnumMediaTypes );
 
     // IUnknown

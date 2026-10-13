@@ -2,6 +2,7 @@
  * android.c: Android logger using logcat
  *****************************************************************************
  * Copyright © 2015 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -31,12 +32,12 @@
 #include <stdarg.h>
 #include <stdio.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
 
 static const int ptr_width = 2 * /* hex digits */ sizeof (uintptr_t);
 
-static void AndroidPrintMsg(void *opaque, int type, const vlc_log_t *p_item,
+static void AndroidPrintMsg(void *opaque, int type, const heimdall_log_t *p_item,
                             const char *format, va_list ap)
 {
     int prio;
@@ -51,42 +52,42 @@ static void AndroidPrintMsg(void *opaque, int type, const vlc_log_t *p_item,
                  p_item->psz_object_type, format) < 0)
         return;
     switch (type) {
-        case VLC_MSG_INFO:
+        case HEIMDALL_MSG_INFO:
             prio = ANDROID_LOG_INFO;
             break;
-        case VLC_MSG_ERR:
+        case HEIMDALL_MSG_ERR:
             prio = ANDROID_LOG_ERROR;
             break;
-        case VLC_MSG_WARN:
+        case HEIMDALL_MSG_WARN:
             prio = ANDROID_LOG_WARN;
             break;
         default:
-        case VLC_MSG_DBG:
+        case HEIMDALL_MSG_DBG:
             prio = ANDROID_LOG_DEBUG;
     }
-    __android_log_vprint(prio, "VLC", format2, ap);
+    __android_log_vprint(prio, "Heimdall", format2, ap);
     free(format2);
 }
 
-static const struct vlc_logger_operations ops = { AndroidPrintMsg, NULL };
+static const struct heimdall_logger_operations ops = { AndroidPrintMsg, NULL };
 
-static const struct vlc_logger_operations *Open(vlc_object_t *obj, void **sysp)
+static const struct heimdall_logger_operations *Open(heimdall_object_t *obj, void **sysp)
 {
     int verbosity = var_InheritInteger(obj, "verbose");
 
     if (verbosity < 0)
         return NULL;
 
-    verbosity += VLC_MSG_ERR;
+    verbosity += HEIMDALL_MSG_ERR;
     *sysp = (void *)(uintptr_t)verbosity;
 
     return &ops;
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname(N_("Android log"))
     set_description(N_("Android log using logcat"))
     set_subcategory(SUBCAT_ADVANCED_MISC)
     set_capability("logger", 30)
     set_callback(Open)
-vlc_module_end ()
+heimdall_module_end ()

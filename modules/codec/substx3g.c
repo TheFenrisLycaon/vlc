@@ -2,6 +2,7 @@
  * substx3g.c : MP4 tx3g subtitles decoder
  *****************************************************************************
  * Copyright (C) 2014 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,11 +23,11 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
-#include <vlc_sout.h>
-#include <vlc_charset.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
+#include <heimdall_sout.h>
+#include <heimdall_charset.h>
 
 #include "substext.h"
 #include "../demux/mp4/minibox.h"
@@ -34,15 +35,15 @@
 /*****************************************************************************
  * Module descriptor.
  *****************************************************************************/
-static int OpenDecoder ( vlc_object_t * );
-static void CloseDecoder ( vlc_object_t * );
+static int OpenDecoder ( heimdall_object_t * );
+static void CloseDecoder ( heimdall_object_t * );
 static int Decode( decoder_t *, block_t * );
 #ifdef ENABLE_SOUT
-static int OpenEncoder ( vlc_object_t * );
+static int OpenEncoder ( heimdall_object_t * );
 static block_t * Encode( encoder_t *, subpicture_t * );
 #endif
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("tx3g subtitles decoder") )
     set_shortname( N_("tx3g subtitles") )
     set_capability( "spu decoder", 100 )
@@ -55,7 +56,7 @@ vlc_module_begin ()
         set_capability( "spu encoder", 101 )
         set_callback( OpenEncoder )
 #endif
-vlc_module_end ()
+heimdall_module_end ()
 
 /****************************************************************************
  * Local structs
@@ -69,16 +70,16 @@ vlc_module_end ()
 #define FONT_FACE_ITALIC    0x2
 #define FONT_FACE_UNDERLINE 0x4
 
-static int ConvertToVLCFlags( int i_atomflags )
+static int ConvertToHeimdallFlags( int i_atomflags )
 {
-    int i_vlcstyles_flags = 0;
+    int i_heimdallstyles_flags = 0;
     if ( i_atomflags & FONT_FACE_BOLD )
-        i_vlcstyles_flags |= STYLE_BOLD;
+        i_heimdallstyles_flags |= STYLE_BOLD;
     if ( i_atomflags & FONT_FACE_ITALIC )
-        i_vlcstyles_flags |= STYLE_ITALIC;
+        i_heimdallstyles_flags |= STYLE_ITALIC;
     if ( i_atomflags & FONT_FACE_UNDERLINE )
-        i_vlcstyles_flags |= STYLE_UNDERLINE;
-    return i_vlcstyles_flags;
+        i_heimdallstyles_flags |= STYLE_UNDERLINE;
+    return i_heimdallstyles_flags;
 }
 
 static size_t str8len( const char *psz_string )
@@ -299,13 +300,13 @@ static int Decode( decoder_t *p_dec, block_t *p_block )
     subpicture_t  *p_spu = NULL;
 
     if( p_block == NULL ) /* No Drain */
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
 
     if( ( p_block->i_flags & (BLOCK_FLAG_CORRUPTED) ) ||
           p_block->i_buffer < 2U )
     {
         block_Release( p_block );
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
     }
 
     /* Read our raw string and create the styled segment for HTML */
@@ -313,7 +314,7 @@ static int Decode( decoder_t *p_dec, block_t *p_block )
     if( p_block->i_buffer < i_psz_bytelength + 2U )
     {
         block_Release( p_block );
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
     }
 
     const uint8_t *p_pszstart = p_block->p_buffer + 2U;
@@ -328,7 +329,7 @@ static int Decode( decoder_t *p_dec, block_t *p_block )
     if ( !psz_subtitle )
     {
         block_Release( p_block );
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
     }
 
     for( size_t i=0; psz_subtitle[i] != '\0'; i++ )
@@ -343,7 +344,7 @@ static int Decode( decoder_t *p_dec, block_t *p_block )
         text_segment_Delete( p_segment3g->s );
         free( p_segment3g );
         block_Release( p_block );
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
     }
 
     /* Create the subpicture unit */
@@ -353,7 +354,7 @@ static int Decode( decoder_t *p_dec, block_t *p_block )
         text_segment_Delete( p_segment3g->s );
         free( p_segment3g );
         block_Release( p_block );
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
     }
 
     subtext_updater_sys_t *p_spu_sys = p_spu->updater.sys;
@@ -363,13 +364,13 @@ static int Decode( decoder_t *p_dec, block_t *p_block )
     mp4_box_iterator_Init( &it, p_block->p_buffer + 2U + i_psz_bytelength,
                            p_block->i_buffer - (2U + i_psz_bytelength) );
     /* Parse our styles */
-    if( p_dec->fmt_in->i_codec != VLC_CODEC_QTXT )
+    if( p_dec->fmt_in->i_codec != HEIMDALL_CODEC_QTXT )
     while( mp4_box_iterator_Next( &it ) )
     {
         switch( it.i_type )
         {
 
-        case VLC_FOURCC('s','t','y','l'):
+        case HEIMDALL_FOURCC('s','t','y','l'):
         {
             if( it.i_payload < 14 )
                 break;
@@ -384,12 +385,12 @@ static int Decode( decoder_t *p_dec, block_t *p_block )
                 uint16_t i_end =  GetWBE(it.p_payload + 2); /* index is past last char */
                 if( i_start < i_end )
                 {
-                    i_end = VLC_CLIP( i_end - 1, i_start, i_psz_bytelength - 1 );
+                    i_end = HEIMDALL_CLIP( i_end - 1, i_start, i_psz_bytelength - 1 );
 
                     text_style_t *p_style = text_style_Create( STYLE_NO_DEFAULTS );
                     if( p_style )
                     {
-                        if( (p_style->i_style_flags = ConvertToVLCFlags( it.p_payload[6] )) )
+                        if( (p_style->i_style_flags = ConvertToHeimdallFlags( it.p_payload[6] )) )
                             p_style->i_features |= STYLE_HAS_FLAGS;
                         p_style->i_font_size = it.p_payload[7];
                         p_style->i_font_color = GetDWBE(&it.p_payload[8]) >> 8;// RGBA -> RGB
@@ -441,7 +442,7 @@ static int Decode( decoder_t *p_dec, block_t *p_block )
     block_Release( p_block );
 
     decoder_QueueSub( p_dec, p_spu );
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }
 
 /*****************************************************************************
@@ -466,7 +467,7 @@ static void ParseExtradataTx3g( decoder_t *p_dec )
     /* BoxRecord @10 */
 
     /* StyleRecord @18 */
-    p_style->i_style_flags = ConvertToVLCFlags( p_extra[24] );
+    p_style->i_style_flags = ConvertToHeimdallFlags( p_extra[24] );
     if( p_style->i_style_flags )
         p_style->i_features |= STYLE_HAS_FLAGS;
     p_style->i_font_size = p_extra[25];
@@ -515,7 +516,7 @@ static void ParseExtradataTextMedia( decoder_t *p_dec )
     /* Font # @30 */
 
     /* Font Face @32 */
-    p_style->i_style_flags |= ConvertToVLCFlags( GetWBE(&p_extra[32]) );
+    p_style->i_style_flags |= ConvertToHeimdallFlags( GetWBE(&p_extra[32]) );
     if( p_style->i_style_flags )
         p_style->i_features |= STYLE_HAS_FLAGS;
     /* Reserved 8 @34 */
@@ -531,38 +532,38 @@ static void ParseExtradataTextMedia( decoder_t *p_dec )
 /*****************************************************************************
  * Decoder entry/exit points
  *****************************************************************************/
-static void CloseDecoder( vlc_object_t *p_this )
+static void CloseDecoder( heimdall_object_t *p_this )
 {
     decoder_t     *p_dec = (decoder_t *) p_this;
     text_style_Delete( (text_style_t *) p_dec->p_sys );
 }
 
-static int OpenDecoder( vlc_object_t *p_this )
+static int OpenDecoder( heimdall_object_t *p_this )
 {
     decoder_t     *p_dec = (decoder_t *) p_this;
 
-    if( p_dec->fmt_in->i_codec != VLC_CODEC_TX3G &&
-        p_dec->fmt_in->i_codec != VLC_CODEC_QTXT )
-        return VLC_EGENERIC;
+    if( p_dec->fmt_in->i_codec != HEIMDALL_CODEC_TX3G &&
+        p_dec->fmt_in->i_codec != HEIMDALL_CODEC_QTXT )
+        return HEIMDALL_EGENERIC;
 
     p_dec->pf_decode = Decode;
 
     p_dec->p_sys = text_style_Create( STYLE_NO_DEFAULTS );
     if( !p_dec->p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     text_style_t *p_default_style = p_dec->p_sys;
     p_default_style->i_style_flags |= STYLE_BACKGROUND;
     p_default_style->i_features |= STYLE_HAS_FLAGS;
 
-    if( p_dec->fmt_in->i_codec == VLC_CODEC_TX3G )
+    if( p_dec->fmt_in->i_codec == HEIMDALL_CODEC_TX3G )
         ParseExtradataTx3g( p_dec );
     else
         ParseExtradataTextMedia( p_dec );
 
-    p_dec->fmt_out.i_codec = VLC_CODEC_TEXT;
+    p_dec->fmt_out.i_codec = HEIMDALL_CODEC_TEXT;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -603,28 +604,28 @@ static void FillExtradataTx3g(void **pp_extra, size_t *pi_extra)
     }
 }
 
-static int OpenEncoder( vlc_object_t *p_this )
+static int OpenEncoder( heimdall_object_t *p_this )
 {
     encoder_t *p_enc = (encoder_t *)p_this;
 
-    if( p_enc->fmt_out.i_codec != VLC_CODEC_TX3G )
-        return VLC_EGENERIC;
+    if( p_enc->fmt_out.i_codec != HEIMDALL_CODEC_TX3G )
+        return HEIMDALL_EGENERIC;
 
-    p_enc->fmt_in.i_codec = VLC_CODEC_TEXT;
+    p_enc->fmt_in.i_codec = HEIMDALL_CODEC_TEXT;
 
     if( !p_enc->fmt_out.i_extra )
         FillExtradataTx3g( &p_enc->fmt_out.p_extra, &p_enc->fmt_out.i_extra );
 
-    static const struct vlc_encoder_operations ops =
+    static const struct heimdall_encoder_operations ops =
     {
         .encode_sub = Encode,
     };
     p_enc->ops = &ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int ConvertFromVLCFlags( const text_style_t *p_style )
+static int ConvertFromHeimdallFlags( const text_style_t *p_style )
 {
     int i_atomflags = 0;
     if( p_style->i_features & STYLE_HAS_FLAGS )
@@ -639,7 +640,7 @@ static int ConvertFromVLCFlags( const text_style_t *p_style )
     return i_atomflags;
 }
 
-static uint32_t ConvertFromVLCColor( const text_style_t *p_style )
+static uint32_t ConvertFromHeimdallColor( const text_style_t *p_style )
 {
     uint32_t rgba;
     if( p_style->i_features & STYLE_HAS_FONT_COLOR )
@@ -690,9 +691,9 @@ static block_t *GetStylBlock( const text_segment_t *p_segment, size_t i_styles )
                 SetWBE( &p[0], i_start );
                 SetWBE( &p[2], i_start + i_len );
                 SetWBE( &p[4], 0 );
-                p[6] = ConvertFromVLCFlags( p_segment->style );
+                p[6] = ConvertFromHeimdallFlags( p_segment->style );
                 p[7] = STYLE_DEFAULT_FONT_SIZE;
-                SetDWBE(&p[8], ConvertFromVLCColor( p_segment->style ) );
+                SetDWBE(&p[8], ConvertFromHeimdallColor( p_segment->style ) );
                 p_styl->i_buffer += 12;
             }
             i_start += i_len;
@@ -703,9 +704,9 @@ static block_t *GetStylBlock( const text_segment_t *p_segment, size_t i_styles )
 
 static block_t * Encode( encoder_t *p_enc, subpicture_t *p_spu )
 {
-    VLC_UNUSED(p_enc);
+    HEIMDALL_UNUSED(p_enc);
     subpicture_region_t *p_region =
-        vlc_spu_regions_first_or_null(&p_spu->regions);
+        heimdall_spu_regions_first_or_null(&p_spu->regions);
     const text_segment_t *p_segments = p_region ? p_region->p_text : NULL;
     size_t i_len = 0;
     size_t i_styles = 0;

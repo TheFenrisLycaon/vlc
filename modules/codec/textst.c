@@ -5,6 +5,7 @@
  *
  * Adapted from libluray textst_decode.c
  * Copyright (C) 2013  Petri Hintukainen <phintuka@users.sourceforge.net>
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -28,9 +29,9 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
 
 #include "../demux/mpeg/timestamps.h"
 
@@ -39,19 +40,19 @@
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  Open (vlc_object_t *);
+static int  Open (heimdall_object_t *);
 
 typedef struct
 {
     uint32_t palette[256];
 } decoder_sys_t;
 
-vlc_module_begin()
+heimdall_module_begin()
     set_description(N_("HDMV TextST subtitles decoder"))
     set_subcategory(SUBCAT_INPUT_SCODEC)
     set_capability("spu decoder", 10)
     set_callback(Open)
-vlc_module_end()
+heimdall_module_end()
 
 #define BD_TEXTST_DATA_STRING      1
 #define BD_TEXTST_DATA_FONT_ID     2
@@ -231,7 +232,7 @@ static int Decode(decoder_t *p_dec, block_t *p_block)
 {
     subpicture_t *p_sub = NULL;
     if (p_block == NULL) /* No Drain */
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
 
     if (p_block->i_buffer > 18 &&
         (p_block->i_flags & BLOCK_FLAG_CORRUPTED) == 0 &&
@@ -254,24 +255,24 @@ static int Decode(decoder_t *p_dec, block_t *p_block)
     }
 
     block_Release(p_block);
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }
 
-static int Open(vlc_object_t *object)
+static int Open(heimdall_object_t *object)
 {
     decoder_t *p_dec = (decoder_t*)object;
 
-    if (p_dec->fmt_in->i_codec != VLC_CODEC_BD_TEXT)
-        return VLC_EGENERIC;
+    if (p_dec->fmt_in->i_codec != HEIMDALL_CODEC_BD_TEXT)
+        return HEIMDALL_EGENERIC;
 
-    decoder_sys_t *p_sys = vlc_obj_malloc(object, sizeof(decoder_sys_t));
+    decoder_sys_t *p_sys = heimdall_obj_malloc(object, sizeof(decoder_sys_t));
     if(!p_sys)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     memset(p_sys->palette, 0xFF, sizeof(p_sys->palette));
 
     p_dec->p_sys = p_sys;
     p_dec->pf_decode = Decode;
     p_dec->fmt_out.i_codec = 0;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

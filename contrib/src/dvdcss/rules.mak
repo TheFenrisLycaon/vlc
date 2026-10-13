@@ -1,7 +1,7 @@
 # DVDCSS
 DVDCSS_VERSION := 1.6.0
-DVDCSS_URL := $(VIDEOLAN_GIT)/videolan/libdvdcss/-/archive/$(DVDCSS_VERSION)/libdvdcss-$(DVDCSS_VERSION).tar.bz2
-LIBDVDCSS_GITURL:=$(VIDEOLAN_GIT)/videolan/libdvdcss.git
+DVDCSS_URL := $(LYCARIA_GIT)/lycaria/libdvdcss/-/archive/$(DVDCSS_VERSION)/libdvdcss-$(DVDCSS_VERSION).tar.bz2
+LIBDVDCSS_GITURL:=$(LYCARIA_GIT)/lycaria/libdvdcss.git
 LIBDVDCSS_BRANCH:=master
 LIBDVDCSS_GITVERSION:=236350672911500999b1577f98c4740224999777
 

@@ -2,8 +2,9 @@
  * xiph_metadata.h: Vorbis Comment parser
  *****************************************************************************
  * Copyright © 2008-2013 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Laurent Aimar <fenrir _AT_ videolan _DOT_ org>
+ * Authors: Laurent Aimar <fenrir _AT_ lycaria _DOT_ org>
  *          Jean-Baptiste Kempf <jb@videolan.org>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -27,12 +28,12 @@
 
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_arrays.h>
-#include <vlc_charset.h>
-#include <vlc_strings.h>
-#include <vlc_arrays.h>
-#include <vlc_input.h>
+#include <heimdall_common.h>
+#include <heimdall_arrays.h>
+#include <heimdall_charset.h>
+#include <heimdall_strings.h>
+#include <heimdall_arrays.h>
+#include <heimdall_input.h>
 #include "xiph_metadata.h"
 #include "../meta_engine/ID3Pictures.h"
 
@@ -109,7 +110,7 @@ input_attachment_t* ParseFlacPicture( const uint8_t *p_data, size_t size,
     else if( !strcasecmp( mime, "image/png" ) )
         strcat( name, ".png" );
 
-    p_attachment = vlc_input_attachment_New( name, mime, description, p_data,
+    p_attachment = heimdall_input_attachment_New( name, mime, description, p_data,
                                              size /* XXX: len instead? */ );
 
     if( type < ARRAY_SIZE(ID3v2_cover_scores) &&
@@ -162,7 +163,7 @@ static seekpoint_t * getChapterEntry( unsigned int i_index, chapters_array_t *p_
         }
     }
     if ( !p_array->pp_chapters[i_index] )
-        p_array->pp_chapters[i_index] = vlc_seekpoint_New();
+        p_array->pp_chapters[i_index] = heimdall_seekpoint_New();
     return p_array->pp_chapters[i_index];
 }
 
@@ -231,13 +232,13 @@ static char * xiph_ExtractCueSheetMeta( const char *psz_line,
     return NULL;
 }
 
-static void xiph_ParseCueSheetMeta( unsigned *pi_flags, vlc_meta_t *p_meta,
+static void xiph_ParseCueSheetMeta( unsigned *pi_flags, heimdall_meta_t *p_meta,
                                     const char *psz_line,
                                     int *pi_seekpoint, seekpoint_t ***ppp_seekpoint,
                                     seekpoint_t **pp_tmppoint, bool *pb_valid )
 {
-    VLC_UNUSED(pi_seekpoint);
-    VLC_UNUSED(ppp_seekpoint);
+    HEIMDALL_UNUSED(pi_seekpoint);
+    HEIMDALL_UNUSED(ppp_seekpoint);
 
     seekpoint_t *p_seekpoint = *pp_tmppoint;
     char *psz_string;
@@ -246,7 +247,7 @@ static void xiph_ParseCueSheetMeta( unsigned *pi_flags, vlc_meta_t *p_meta,
     if( !(*pi_flags & XIPHMETA_##var) &&\
          ( psz_string = xiph_ExtractCueSheetMeta( psz_line, string, sizeof(string) - 1, quoted ) ) )\
     {\
-        vlc_meta_Set( p_meta, vlc_meta_##var, psz_string );\
+        heimdall_meta_Set( p_meta, heimdall_meta_##var, psz_string );\
         free( psz_string );\
         *pi_flags |= XIPHMETA_##var;\
     }
@@ -262,17 +263,17 @@ static void xiph_ParseCueSheetMeta( unsigned *pi_flags, vlc_meta_t *p_meta,
             if( *pb_valid )
                 TAB_APPEND( *pi_seekpoint, *ppp_seekpoint, p_seekpoint );
             else
-                vlc_seekpoint_Delete( p_seekpoint );
+                heimdall_seekpoint_Delete( p_seekpoint );
             *pb_valid = false;
         }
-        *pp_tmppoint = p_seekpoint = vlc_seekpoint_New();
+        *pp_tmppoint = p_seekpoint = heimdall_seekpoint_New();
     }
     else if( p_seekpoint && !strncasecmp( psz_line, "    INDEX 01 ", 13 ) )
     {
         unsigned m, s, f;
         if( sscanf( &psz_line[13], "%u:%u:%u", &m, &s, &f ) == 3 )
         {
-            p_seekpoint->i_time_offset = vlc_tick_from_sec(m * 60 + s) + vlc_tick_from_samples(f, 75);
+            p_seekpoint->i_time_offset = heimdall_tick_from_sec(m * 60 + s) + heimdall_tick_from_samples(f, 75);
             *pb_valid = true;
         }
     }
@@ -282,7 +283,7 @@ static void xiph_ParseCueSheetMeta( unsigned *pi_flags, vlc_meta_t *p_meta,
     }
 }
 
-static void xiph_ParseCueSheet( unsigned *pi_flags, vlc_meta_t *p_meta,
+static void xiph_ParseCueSheet( unsigned *pi_flags, heimdall_meta_t *p_meta,
                                 const char *p_data, int i_data,
                                 int *pi_seekpoint, seekpoint_t ***ppp_seekpoint )
 {
@@ -319,11 +320,11 @@ static void xiph_ParseCueSheet( unsigned *pi_flags, vlc_meta_t *p_meta,
         if( b_valid )
             TAB_APPEND( *pi_seekpoint, *ppp_seekpoint, p_seekpoint );
         else
-            vlc_seekpoint_Delete( p_seekpoint );
+            heimdall_seekpoint_Delete( p_seekpoint );
     }
 }
 
-void vorbis_ParseComment( es_format_t *p_fmt, vlc_meta_t **pp_meta,
+void vorbis_ParseComment( es_format_t *p_fmt, heimdall_meta_t **pp_meta,
         const uint8_t *p_data, size_t i_data,
         int *i_attachments, input_attachment_t ***attachments,
         int *i_cover_score, int *i_cover_idx,
@@ -348,9 +349,9 @@ void vorbis_ParseComment( es_format_t *p_fmt, vlc_meta_t **pp_meta,
         return; /* invalid length */
 
     /* */
-    vlc_meta_t *p_meta = *pp_meta;
+    heimdall_meta_t *p_meta = *pp_meta;
     if( !p_meta )
-        *pp_meta = p_meta = vlc_meta_New();
+        *pp_meta = p_meta = heimdall_meta_New();
 
     if( unlikely( !p_meta ) )
         return;
@@ -383,17 +384,17 @@ void vorbis_ParseComment( es_format_t *p_fmt, vlc_meta_t **pp_meta,
     { \
         size_t key_length = strlen(txt); \
         EnsureUTF8( psz_comment + key_length ); \
-        const char *oldval = vlc_meta_Get( p_meta, vlc_meta_ ## var ); \
+        const char *oldval = heimdall_meta_Get( p_meta, heimdall_meta_ ## var ); \
         if( oldval && (hasMetaFlags & XIPHMETA_##var)) \
         { \
             char * newval; \
             if( asprintf( &newval, "%s,%s", oldval, &psz_comment[key_length] ) == -1 ) \
                 newval = NULL; \
-            vlc_meta_Set( p_meta, vlc_meta_ ## var, newval ); \
+            heimdall_meta_Set( p_meta, heimdall_meta_ ## var, newval ); \
             free( newval ); \
         } \
         else \
-            vlc_meta_Set( p_meta, vlc_meta_ ## var, &psz_comment[key_length] ); \
+            heimdall_meta_Set( p_meta, heimdall_meta_ ## var, &psz_comment[key_length] ); \
         hasMetaFlags |= XIPHMETA_##var; \
     }
 
@@ -407,7 +408,7 @@ void vorbis_ParseComment( es_format_t *p_fmt, vlc_meta_t **pp_meta,
         } \
         if (isnum) \
         { \
-            vlc_meta_Set( p_meta, vlc_meta_ ## var, num_str ); \
+            heimdall_meta_Set( p_meta, heimdall_meta_ ## var, num_str ); \
             hasMetaFlags |= XIPHMETA_##var; \
         } \
     }
@@ -427,12 +428,12 @@ void vorbis_ParseComment( es_format_t *p_fmt, vlc_meta_t **pp_meta,
             {
                 char str[6];
                 snprintf(str, 6, "%u", u_track);
-                vlc_meta_Set( p_meta, vlc_meta_TrackNumber, str );
+                heimdall_meta_Set( p_meta, heimdall_meta_TrackNumber, str );
                 hasMetaFlags |= XIPHMETA_TrackNum;
                 if( nb_values >= 2 )
                 {
                     snprintf(str, 6, "%u", u_total);
-                    vlc_meta_Set( p_meta, vlc_meta_TrackTotal, str );
+                    heimdall_meta_Set( p_meta, heimdall_meta_TrackTotal, str );
                     hasMetaFlags |= XIPHMETA_TrackTotal;
                 }
             }
@@ -461,7 +462,7 @@ void vorbis_ParseComment( es_format_t *p_fmt, vlc_meta_t **pp_meta,
                 goto next_comment;
 
             uint8_t *p_picture;
-            size_t i_size = vlc_b64_decode_binary( &p_picture, &psz_comment[strlen("METADATA_BLOCK_PICTURE=")]);
+            size_t i_size = heimdall_b64_decode_binary( &p_picture, &psz_comment[strlen("METADATA_BLOCK_PICTURE=")]);
             input_attachment_t *p_attachment = ParseFlacPicture( p_picture,
                 i_size, *i_attachments, i_cover_score, i_cover_idx );
             free( p_picture );
@@ -498,7 +499,7 @@ void vorbis_ParseComment( es_format_t *p_fmt, vlc_meta_t **pp_meta,
                 {
                     p_seekpoint = getChapterEntry( i_chapt, &chapters_array );
                     if ( ! p_seekpoint ) goto next_comment;
-                    p_seekpoint->i_time_offset = vlc_tick_from_sec(h * 3600 + m * 60 + s) + VLC_TICK_FROM_MS(ms);
+                    p_seekpoint->i_time_offset = heimdall_tick_from_sec(h * 3600 + m * 60 + s) + HEIMDALL_TICK_FROM_MS(ms);
                 }
             }
         }
@@ -520,7 +521,7 @@ void vorbis_ParseComment( es_format_t *p_fmt, vlc_meta_t **pp_meta,
                 if( psz_comment[i] >= 'a' && psz_comment[i] <= 'z' )
                     psz_comment[i] -= 'a' - 'A';
 
-            vlc_meta_SetExtra( p_meta, psz_comment, p );
+            heimdall_meta_SetExtra( p_meta, psz_comment, p );
         }
 #undef IF_EXTRACT
 next_comment:

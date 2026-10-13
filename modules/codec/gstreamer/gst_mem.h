@@ -1,7 +1,8 @@
 /*****************************************************************************
- * gst_mem.h: GStreamer Memory picture context for VLC
+ * gst_mem.h: GStreamer Memory picture context for Heimdall
  *****************************************************************************
  * Copyright (C) 2022 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Yann Lochet <yann@l0chet.fr>
  *
@@ -20,10 +21,10 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_GST_MEM_H
-#define VLC_GST_MEM_H
+#ifndef HEIMDALL_GST_MEM_H
+#define HEIMDALL_GST_MEM_H
 
-#include <vlc_picture.h>
+#include <heimdall_picture.h>
 
 #include <gst/gst.h>
 #include <gst/video/video.h>

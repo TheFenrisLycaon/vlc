@@ -2,6 +2,7 @@
  * limiter.c: Peak limiter module
  *****************************************************************************
  * Copyright (C) 2026 VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Brandon Li <brandonli2006ma@gmail.com>
  *
@@ -24,8 +25,8 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
 
 #include "dynamics.h"
 
@@ -34,22 +35,22 @@ static float LimiterGain( float f_env,
                           float f_kn_lo, float f_kn_hi,
                           filter_sys_t *p_sys )
 {
-    VLC_UNUSED(f_rs);
+    HEIMDALL_UNUSED(f_rs);
 
     if( f_env <= f_kn_lo )
         return 1.0f;
 
-    const float f_env_db    = vlc_dynamics_Lin2Db( f_env, p_sys );
+    const float f_env_db    = heimdall_dynamics_Lin2Db( f_env, p_sys );
     const float f_excess_db = f_env_db - f_threshold;
 
     if( f_env >= f_kn_hi )
-        return vlc_dynamics_Db2Lin( -f_excess_db, p_sys );
+        return heimdall_dynamics_Db2Lin( -f_excess_db, p_sys );
 
     const float f_x = ( f_env_db - ( f_threshold - f_knee ) ) / ( 2.0f * f_knee );
-    return vlc_dynamics_Db2Lin( -f_excess_db * f_x * f_x, p_sys );
+    return heimdall_dynamics_Db2Lin( -f_excess_db * f_x * f_x, p_sys );
 }
 
-static const vlc_dynamics_varnames_t limiter_varnames = {
+static const heimdall_dynamics_varnames_t limiter_varnames = {
     .rms_peak    = "limiter-rms-peak",
     .attack      = "limiter-attack",
     .release     = "limiter-release",
@@ -59,12 +60,12 @@ static const vlc_dynamics_varnames_t limiter_varnames = {
     .makeup_gain = "limiter-makeup-gain",
 };
 
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
-    return vlc_dynamics_OpenCommon( (filter_t*)p_this, &limiter_varnames, LimiterGain, -60.0f );
+    return heimdall_dynamics_OpenCommon( (filter_t*)p_this, &limiter_varnames, LimiterGain, -60.0f );
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname( N_("Limiter") )
     set_description( N_("Peak limiter") )
     set_capability( "audio filter", 0 )
@@ -78,4 +79,4 @@ vlc_module_begin()
     add_float_with_range( limiter_varnames.makeup_gain, 0.0, 0.0, 24.0, MAKEUP_GAIN_TEXT, MAKEUP_GAIN_LONGTEXT )
     set_callback( Open )
     add_shortcut( "limiter" )
-vlc_module_end()
+heimdall_module_end()

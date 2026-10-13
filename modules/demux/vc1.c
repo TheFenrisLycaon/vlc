@@ -2,6 +2,7 @@
  * vc1.c : VC1 Video demuxer
  *****************************************************************************
  * Copyright (C) 2002-2004 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *
@@ -28,21 +29,21 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_demux.h>
-#include <vlc_codec.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_demux.h>
+#include <heimdall_codec.h>
 
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  Open ( vlc_object_t * );
-static void Close( vlc_object_t * );
+static int  Open ( heimdall_object_t * );
+static void Close( heimdall_object_t * );
 
 #define FPS_TEXT N_("Frames per Second")
 #define FPS_LONGTEXT N_("Desired frame rate for the VC-1 stream.")
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( "VC-1")
     set_subcategory( SUBCAT_INPUT_DEMUX )
     set_description( N_("VC1 video demuxer" ) )
@@ -50,14 +51,14 @@ vlc_module_begin ()
     add_float( "vc1-fps", 25.0, FPS_TEXT, FPS_LONGTEXT )
     set_callbacks( Open, Close )
     add_shortcut( "vc1" )
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * Local prototypes
  *****************************************************************************/
 typedef struct
 {
-    vlc_tick_t  i_dts;
+    heimdall_tick_t  i_dts;
     es_out_id_t *p_es;
 
     float       f_fps;
@@ -72,14 +73,14 @@ static int Control( demux_t *, int, va_list );
 /*****************************************************************************
  * Open: initializes demux structures
  *****************************************************************************/
-static int Open( vlc_object_t * p_this )
+static int Open( heimdall_object_t * p_this )
 {
     demux_t     *p_demux = (demux_t*)p_this;
     demux_sys_t *p_sys;
     const uint8_t *p_peek;
     es_format_t fmt;
 
-    if( vlc_stream_Peek( p_demux->s, &p_peek, 4 ) < 4 ) return VLC_EGENERIC;
+    if( heimdall_stream_Peek( p_demux->s, &p_peek, 4 ) < 4 ) return HEIMDALL_EGENERIC;
 
     if( p_peek[0] != 0x00 || p_peek[1] != 0x00 ||
         p_peek[2] != 0x01 || p_peek[3] != 0x0f ) /* Sequence header */
@@ -87,7 +88,7 @@ static int Open( vlc_object_t * p_this )
         if( !p_demux->obj.force )
         {
             msg_Warn( p_demux, "vc-1 module discarded (no startcode)" );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         msg_Err( p_demux, "this doesn't look like a VC-1 ES stream, "
@@ -96,7 +97,7 @@ static int Open( vlc_object_t * p_this )
 
     p_sys = malloc( sizeof( demux_sys_t ) );
     if( unlikely(p_sys == NULL) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_demux->pf_demux  = Demux;
     p_demux->pf_control= Control;
@@ -108,20 +109,20 @@ static int Open( vlc_object_t * p_this )
         p_sys->f_fps = 0.0f;
 
     /* Load the packetizer */
-    es_format_Init( &fmt, VIDEO_ES, VLC_CODEC_VC1 );
-    p_sys->p_packetizer = demux_PacketizerNew( VLC_OBJECT(p_demux), &fmt, "VC-1" );
+    es_format_Init( &fmt, VIDEO_ES, HEIMDALL_CODEC_VC1 );
+    p_sys->p_packetizer = demux_PacketizerNew( HEIMDALL_OBJECT(p_demux), &fmt, "VC-1" );
     if( !p_sys->p_packetizer )
     {
         free( p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * Close: frees unused data
  *****************************************************************************/
-static void Close( vlc_object_t * p_this )
+static void Close( heimdall_object_t * p_this )
 {
     demux_t     *p_demux = (demux_t*)p_this;
     demux_sys_t *p_sys = p_demux->p_sys;
@@ -141,7 +142,7 @@ static int Demux( demux_t *p_demux)
     block_t *p_block_in, *p_block_out;
     bool b_eof = false;
 
-    p_block_in = vlc_stream_Block( p_demux->s, VC1_PACKET_SIZE );
+    p_block_in = heimdall_stream_Block( p_demux->s, VC1_PACKET_SIZE );
     if( p_block_in == NULL )
     {
         b_eof = true;
@@ -149,7 +150,7 @@ static int Demux( demux_t *p_demux)
     else
     {
         /*  */
-        p_block_in->i_dts = p_sys->i_dts != VLC_TICK_INVALID ? p_sys->i_dts : VLC_TICK_0;
+        p_block_in->i_dts = p_sys->i_dts != HEIMDALL_TICK_INVALID ? p_sys->i_dts : HEIMDALL_TICK_0;
         p_block_in->i_pts = p_block_in->i_dts;
     }
 
@@ -169,9 +170,9 @@ static int Demux( demux_t *p_demux)
                 p_sys->p_es = es_out_Add( p_demux->out, &p_sys->p_packetizer->fmt_out);
             }
 
-            es_out_SetPCR( p_demux->out, VLC_TICK_0 + p_sys->i_dts );
-            p_block_out->i_dts = VLC_TICK_0 + p_sys->i_dts;
-            p_block_out->i_pts = VLC_TICK_0 + p_sys->i_dts;
+            es_out_SetPCR( p_demux->out, HEIMDALL_TICK_0 + p_sys->i_dts );
+            p_block_out->i_dts = HEIMDALL_TICK_0 + p_sys->i_dts;
+            p_block_out->i_pts = HEIMDALL_TICK_0 + p_sys->i_dts;
 
             if( likely(p_sys->p_es) )
                 es_out_Send( p_demux->out, p_sys->p_es, p_block_out );
@@ -185,17 +186,17 @@ static int Demux( demux_t *p_demux)
 
             if( p_sys->p_packetizer->fmt_out.video.i_frame_rate > 0 &&
                 p_sys->p_packetizer->fmt_out.video.i_frame_rate_base > 0 )
-                p_sys->i_dts += vlc_tick_from_samples(
+                p_sys->i_dts += heimdall_tick_from_samples(
                     p_sys->p_packetizer->fmt_out.video.i_frame_rate_base,
                     p_sys->p_packetizer->fmt_out.video.i_frame_rate );
             else if( p_sys->f_fps > 0.001f )
-                p_sys->i_dts += (vlc_tick_t)((float) CLOCK_FREQ / p_sys->f_fps);
+                p_sys->i_dts += (heimdall_tick_t)((float) CLOCK_FREQ / p_sys->f_fps);
             else
-                p_sys->i_dts += VLC_TICK_FROM_MS(40);
+                p_sys->i_dts += HEIMDALL_TICK_FROM_MS(40);
         }
     }
 
-    return b_eof ? VLC_DEMUXER_EOF : VLC_DEMUXER_SUCCESS;
+    return b_eof ? HEIMDALL_DEMUXER_EOF : HEIMDALL_DEMUXER_SUCCESS;
 }
 
 /*****************************************************************************
@@ -206,7 +207,7 @@ static int Control( demux_t *p_demux, int i_query, va_list args )
     /* demux_sys_t *p_sys  = p_demux->p_sys; */
     /* FIXME calculate the bitrate */
     if( i_query == DEMUX_SET_TIME )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     else
         return demux_vaControlHelper( p_demux->s,
                                        0, -1,

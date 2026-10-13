@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,14 +19,14 @@
 import QtQuick
 import QtQuick.Layouts
 
-import VLC.Style
-import VLC.MainInterface
-import VLC.Widgets as Widgets
-import VLC.Playlist
-import VLC.Player
+import Heimdall.Style
+import Heimdall.MainInterface
+import Heimdall.Widgets as Widgets
+import Heimdall.Playlist
+import Heimdall.Player
 
-import VLC.Util
-import VLC.Dialogs
+import Heimdall.Util
+import Heimdall.Dialogs
 
 FocusScope {
     id: g_mainDisplay
@@ -49,7 +50,7 @@ FocusScope {
         var size = miniPlayer.y + miniPlayer.sliderY
 
         if (MainCtx.pinVideoControls)
-            return size - VLCStyle.margin_xxxsmall
+            return size - HeimdallStyle.margin_xxxsmall
         else
             return size
     }
@@ -108,23 +109,23 @@ FocusScope {
         {
             name: "home",
             url: MainCtx.mediaLibraryAvailable ?
-                 "qrc:///qt/qml/VLC/MediaLibrary/HomeDisplay.qml" :
-                 "qrc:///qt/qml/VLC/MainInterface/NoMedialibHome.qml"
+                 "qrc:///qt/qml/Heimdall/MediaLibrary/HomeDisplay.qml" :
+                 "qrc:///qt/qml/Heimdall/MainInterface/NoMedialibHome.qml"
         }, {
             name: "video",
-            url: "qrc:///qt/qml/VLC/MediaLibrary/VideoDisplay.qml"
+            url: "qrc:///qt/qml/Heimdall/MediaLibrary/VideoDisplay.qml"
         }, {
             name: "music",
-            url: "qrc:///qt/qml/VLC/MediaLibrary/MusicDisplay.qml"
+            url: "qrc:///qt/qml/Heimdall/MediaLibrary/MusicDisplay.qml"
         }, {
             name: "network",
-            url: "qrc:///qt/qml/VLC/Network/BrowseDisplay.qml"
+            url: "qrc:///qt/qml/Heimdall/Network/BrowseDisplay.qml"
         }, {
             name: "discover",
-            url: "qrc:///qt/qml/VLC/Network/DiscoverDisplay.qml"
+            url: "qrc:///qt/qml/Heimdall/Network/DiscoverDisplay.qml"
         }, {
             name: "mlsettings",
-            url: "qrc:///qt/qml/VLC/MediaLibrary/MLFoldersSettings.qml"
+            url: "qrc:///qt/qml/Heimdall/MediaLibrary/MLFoldersSettings.qml"
         }
     ]
 
@@ -203,7 +204,7 @@ FocusScope {
 
     ColorContext {
         id: theme
-        palette: VLCStyle.palette
+        palette: HeimdallStyle.palette
         colorSet: ColorContext.View
     }
 
@@ -211,7 +212,7 @@ FocusScope {
         id: voronoiSnowLoader
 
         z: 3.5
-        source: "qrc:///qt/qml/VLC/Widgets/VoronoiSnow.qml"
+        source: "qrc:///qt/qml/Heimdall/Widgets/VoronoiSnow.qml"
         anchors.fill: parent
         active: false
 
@@ -259,9 +260,9 @@ FocusScope {
             right: parent.right
         }
 
-        leftPadding: VLCStyle.applicationHorizontalMargin
-        rightPadding: VLCStyle.applicationHorizontalMargin
-        topPadding: menuTopbar.visible ? 0 : VLCStyle.applicationVerticalMargin
+        leftPadding: HeimdallStyle.applicationHorizontalMargin
+        rightPadding: HeimdallStyle.applicationHorizontalMargin
+        topPadding: menuTopbar.visible ? 0 : HeimdallStyle.applicationVerticalMargin
 
         plListView: {
             if (playlistLoader.active)
@@ -411,7 +412,7 @@ FocusScope {
 
                     ColorContext {
                         id: frostedTheme
-                        palette: VLCStyle.palette
+                        palette: HeimdallStyle.palette
                         colorSet: ColorContext.Window
                     }
 
@@ -446,23 +447,23 @@ FocusScope {
                 focus: true
 
                 anchors.fill: parent
-                anchors.leftMargin: (sidebar.visible && (VLCStyle.isScreenSmall ? (sidebar.state === "") : true)) ? sidebar.width : 0.0
-                anchors.rightMargin: (playlistLoader.shown && !VLCStyle.isScreenSmall)
+                anchors.leftMargin: (sidebar.visible && (HeimdallStyle.isScreenSmall ? (sidebar.state === "") : true)) ? sidebar.width : 0.0
+                anchors.rightMargin: (playlistLoader.shown && !HeimdallStyle.isScreenSmall)
                                      ? playlistLoader.width
                                      : 0
                 anchors.bottomMargin: g_mainDisplay.displayMargin
 
                 // Prevent animating x on collapse with overlayed side navigation bar:
                 Binding on anchors.leftMargin {
-                    when: (VLCStyle.isScreenSmall && sidebar.state === "" && sidebarTransition.running)
+                    when: (HeimdallStyle.isScreenSmall && sidebar.state === "" && sidebarTransition.running)
                     value: 0.0
                 }
 
                 pageModel: g_mainDisplay.pageModel
 
-                leftPadding: sidebar.visible  ? 0 : VLCStyle.applicationHorizontalMargin
+                leftPadding: sidebar.visible  ? 0 : HeimdallStyle.applicationHorizontalMargin
 
-                rightPadding: playlistLoader.shown ? 0 : VLCStyle.applicationHorizontalMargin
+                rightPadding: playlistLoader.shown ? 0 : HeimdallStyle.applicationHorizontalMargin
 
                 // Top-left corner rounding:
                 Widgets.AcrylicBackground {
@@ -492,7 +493,7 @@ FocusScope {
 
                         color: stackViewParent.color
 
-                        property real implicitTopLeftRadius: VLCStyle.mainView_topLeftRadius
+                        property real implicitTopLeftRadius: HeimdallStyle.mainView_topLeftRadius
 
                         Component.onCompleted: {
                             if (stackViewTopLeftRadiusRectangle.topLeftRadius !== undefined) // TODO: Directly set when minimum Qt is 6.7
@@ -535,7 +536,7 @@ FocusScope {
 
             height: parent.height - g_mainDisplay.displayMargin
 
-            visible: VLCStyle.isScreenSmall && (playlistLoader.shown || (sidebar.visible && (sidebar.state === "expanded")))
+            visible: HeimdallStyle.isScreenSmall && (playlistLoader.shown || (sidebar.visible && (sidebar.state === "expanded")))
             color: "black"
             opacity: 0.4
 
@@ -561,9 +562,9 @@ FocusScope {
                 left: parent.left
             }
 
-            width: VLCStyle.isScreenReallySmall ? 0.0 : collapsedWidth
+            width: HeimdallStyle.isScreenReallySmall ? 0.0 : collapsedWidth
 
-            property real collapsedWidth: VLCStyle.icon_normal + VLCStyle.margin_small + VLCStyle.margin_xsmall + VLCStyle.applicationHorizontalMargin
+            property real collapsedWidth: HeimdallStyle.icon_normal + HeimdallStyle.margin_small + HeimdallStyle.margin_xsmall + HeimdallStyle.applicationHorizontalMargin
 
             delegateShowText: (state === "expanded")
 
@@ -576,11 +577,11 @@ FocusScope {
             topPadding: 0
             leftPadding: 0
             rightPadding: sidebarResizeHandle.visible ? sidebarResizeHandle.visualBorder.width : 0.0
-            bottomPadding: VLCStyle.applicationVerticalMargin + VLCStyle.margin_small
+            bottomPadding: HeimdallStyle.applicationVerticalMargin + HeimdallStyle.margin_small
 
-            safeAreaLeftMargin: VLCStyle.applicationHorizontalMargin
+            safeAreaLeftMargin: HeimdallStyle.applicationHorizontalMargin
 
-            useAcrylic: (VLCStyle.isScreenSmall ? (sidebar.state === "") : true) // See `694d51a7` for the reasoning.
+            useAcrylic: (HeimdallStyle.isScreenSmall ? (sidebar.state === "") : true) // See `694d51a7` for the reasoning.
 
             NavigationBarContextMenu {
                 id: navigationBarContextMenu
@@ -658,7 +659,7 @@ FocusScope {
 
                 NumberAnimation {
                     property: "width"
-                    duration: VLCStyle.duration_short
+                    duration: HeimdallStyle.duration_short
                     easing.type: Easing.InOutSine
                 }
             }
@@ -672,7 +673,7 @@ FocusScope {
                 panelObject: MainCtx.navigationPanel
                 atRight: true
 
-                resizeHandle.visible: (sidebar.state === "expanded") && !VLCStyle.isScreenSmall
+                resizeHandle.visible: (sidebar.state === "expanded") && !HeimdallStyle.isScreenSmall
                 visualBorder.visible: !topLeftCornerBackground.visible
 
                 minimumWidth: sidebar.minimumWidth
@@ -738,7 +739,7 @@ FocusScope {
 
                     NumberAnimation {
                         property: "width"
-                        duration: VLCStyle.duration_short
+                        duration: HeimdallStyle.duration_short
                         easing.type: Easing.InOutSine
                     }
                 }
@@ -755,11 +756,11 @@ FocusScope {
                 focus: true
 
                 leftPadding: playqueueResizeHandle.visualBorder.width
-                rightPadding: VLCStyle.applicationHorizontalMargin
-                bottomPadding: Math.max(VLCStyle.applicationVerticalMargin - g_mainDisplay.displayMargin, 0)
-                topPadding: VLCStyle.layoutTitle_top_padding
+                rightPadding: HeimdallStyle.applicationHorizontalMargin
+                bottomPadding: Math.max(HeimdallStyle.applicationVerticalMargin - g_mainDisplay.displayMargin, 0)
+                topPadding: HeimdallStyle.layoutTitle_top_padding
 
-                useAcrylic: !VLCStyle.isScreenSmall
+                useAcrylic: !HeimdallStyle.isScreenSmall
 
                 view.fadingEdge.pixelAlignedForDPR: !miniPlayer.visible
 
@@ -867,11 +868,11 @@ FocusScope {
 
             NumberAnimation {
                 easing.type: Easing.InOutSine
-                duration: VLCStyle.duration_long
+                duration: HeimdallStyle.duration_long
             }
         }
 
-        source: "qrc:///qt/qml/VLC/MainInterface/UpdatePane.qml"
+        source: "qrc:///qt/qml/Heimdall/MainInterface/UpdatePane.qml"
 
         Navigation.parentItem: g_mainDisplay
         Navigation.upItem: mainRow
@@ -881,10 +882,10 @@ FocusScope {
         onLoaded: {
             item.background.visible = Qt.binding(function() { return !stackViewParent.layer.enabled })
 
-            item.leftPadding = Qt.binding(function() { return VLCStyle.margin_large + VLCStyle.applicationHorizontalMargin })
-            item.rightPadding = Qt.binding(function() { return VLCStyle.margin_large + VLCStyle.applicationHorizontalMargin })
-            item.bottomPadding = Qt.binding(function() { return VLCStyle.margin_small + (miniPlayer.visible ? 0
-                                                                                                            : VLCStyle.applicationVerticalMargin) })
+            item.leftPadding = Qt.binding(function() { return HeimdallStyle.margin_large + HeimdallStyle.applicationHorizontalMargin })
+            item.rightPadding = Qt.binding(function() { return HeimdallStyle.margin_large + HeimdallStyle.applicationHorizontalMargin })
+            item.bottomPadding = Qt.binding(function() { return HeimdallStyle.margin_small + (miniPlayer.visible ? 0
+                                                                                                            : HeimdallStyle.applicationVerticalMargin) })
 
             item.dismissRequested.connect(loaderUpdatePane, loaderUpdatePane.dismiss)
 
@@ -909,13 +910,13 @@ FocusScope {
         }
 
         onShowNavigationChanged: {
-            if (VLCStyle.isScreenSmall && pannelVisiblity.showPlayqueue && MainCtx.playqueuePanel.docked && pannelVisiblity.showNavigation) {
+            if (HeimdallStyle.isScreenSmall && pannelVisiblity.showPlayqueue && MainCtx.playqueuePanel.docked && pannelVisiblity.showNavigation) {
                 pannelVisiblity.showPlayqueue = false
             }
         }
 
         onShowPlayqueueChanged: {
-            if (VLCStyle.isScreenSmall && pannelVisiblity.showPlayqueue && MainCtx.playqueuePanel.docked && pannelVisiblity.showNavigation) {
+            if (HeimdallStyle.isScreenSmall && pannelVisiblity.showPlayqueue && MainCtx.playqueuePanel.docked && pannelVisiblity.showNavigation) {
                 pannelVisiblity.showNavigation = false
             }
         }
@@ -941,7 +942,7 @@ FocusScope {
 
         function onIsScreenSmallChanged() {
             //when screen becomes small hide side panels
-            if (VLCStyle.isScreenSmall) {
+            if (HeimdallStyle.isScreenSmall) {
                 pannelVisiblity.showNavigation = false
                 pannelVisiblity.showPlayqueue = MainCtx.playqueuePanel.visible
             } else {
@@ -952,7 +953,7 @@ FocusScope {
         }
 
         Connections {
-            target: VLCStyle
+            target: HeimdallStyle
 
             function onIsScreenSmallChanged() {
                 pannelVisiblity.onIsScreenSmallChanged()
@@ -984,12 +985,12 @@ FocusScope {
             anchors {
                 bottom: loaderUpdatePane.top
                 left: parent.left
-                bottomMargin: VLCStyle.margin_normal
-                leftMargin: VLCStyle.margin_normal + VLCStyle.applicationHorizontalMargin
+                bottomMargin: HeimdallStyle.margin_normal
+                leftMargin: HeimdallStyle.margin_normal + HeimdallStyle.applicationHorizontalMargin
             }
 
-            width: VLCStyle.dp(320, VLCStyle.scale)
-            height: VLCStyle.dp(180, VLCStyle.scale)
+            width: HeimdallStyle.dp(320, HeimdallStyle.scale)
+            height: HeimdallStyle.dp(180, HeimdallStyle.scale)
             z: 4
             visible: g_mainDisplay._showMiniPlayer && MainCtx.hasEmbededVideo
             enabled: g_mainDisplay._showMiniPlayer && MainCtx.hasEmbededVideo
@@ -1005,8 +1006,8 @@ FocusScope {
                 Qt.callLater(() => { visibleBinding.when = true })
             }
 
-            dragXMin: VLCStyle.applicationHorizontalMargin
-            dragXMax: g_mainDisplay.width - playerPip.width - VLCStyle.applicationHorizontalMargin
+            dragXMin: HeimdallStyle.applicationHorizontalMargin
+            dragXMax: g_mainDisplay.width - playerPip.width - HeimdallStyle.applicationHorizontalMargin
             dragYMin: localTopbar.y + localTopbar.height
             dragYMax: loaderUpdatePane.y - playerPip.height
 
@@ -1044,7 +1045,7 @@ FocusScope {
             bottom: miniPlayer.top
             left: parent.left
             right: parent.right
-            margins: VLCStyle.margin_large
+            margins: HeimdallStyle.margin_large
         }
     }
 
@@ -1057,8 +1058,8 @@ FocusScope {
 
         z: 3
 
-        horizontalPadding: VLCStyle.applicationHorizontalMargin
-        bottomPadding: VLCStyle.applicationVerticalMargin + VLCStyle.margin_xsmall
+        horizontalPadding: HeimdallStyle.applicationHorizontalMargin
+        bottomPadding: HeimdallStyle.applicationVerticalMargin + HeimdallStyle.margin_xsmall
 
         background.visible: !stackViewParent.layer.enabled
 
@@ -1106,7 +1107,7 @@ FocusScope {
                 right: resizeHandle.atRight ? parent.right: undefined
             }
 
-            width: VLCStyle.border
+            width: HeimdallStyle.border
             color: theme.separator
         }
 
@@ -1125,7 +1126,7 @@ FocusScope {
             atRight: false
             currentWidth: target.width
 
-            visible: !VLCStyle.isScreenSmall
+            visible: !HeimdallStyle.isScreenSmall
 
             onRequestedWidthChanged: {
                 if (!_inhibitMainInterfaceUpdate)

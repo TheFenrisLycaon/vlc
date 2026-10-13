@@ -2,6 +2,7 @@
  * input_clock.c: tests for the input buffering code
  *****************************************************************************
  * Copyright (C) 2023-2025 Alexandre Janniaux <ajanni@videolabs.io>
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,31 +23,31 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_modules.h>
-#include <vlc_messages.h>
-#include <vlc_tick.h>
+#include <heimdall_common.h>
+#include <heimdall_modules.h>
+#include <heimdall_messages.h>
+#include <heimdall_tick.h>
 
-#include <vlc/libvlc.h>
+#include <heimdall/libheimdall.h>
 
 #include "../../../src/clock/input_clock.h"
 #include "../../../src/clock/clock.h"
 #include "../../../src/clock/clock_internal.h"
 
-const char vlc_module_name[] = "test_input_clock";
+const char heimdall_module_name[] = "test_input_clock";
 
-static void LoggerLog(void *data, int type, const vlc_log_t *item,
+static void LoggerLog(void *data, int type, const heimdall_log_t *item,
         const char *fmt, va_list args)
 {
     (void)data; (void)type; (void)item;
     vfprintf(stderr, fmt, args);
 }
 
-static const struct vlc_logger_operations logger_ops =
+static const struct heimdall_logger_operations logger_ops =
 {
     .log = LoggerLog,
 };
-static struct vlc_logger logger = { &logger_ops };
+static struct heimdall_logger logger = { &logger_ops };
 
 static void test_clock_update(void)
 {
@@ -54,25 +55,25 @@ static void test_clock_update(void)
     assert(clock != NULL);
 
     {
-        vlc_tick_t system_now = VLC_TICK_0;
-        vlc_tick_t system_duration = input_clock_GetSystemDuration(clock, system_now);
+        heimdall_tick_t system_now = HEIMDALL_TICK_0;
+        heimdall_tick_t system_duration = input_clock_GetSystemDuration(clock, system_now);
         assert(system_duration == 0);
     }
 
     bool can_pace_control = true;
     bool buffering_allowed = true;
-    vlc_tick_t date_stream = VLC_TICK_0;
-    vlc_tick_t date_system = VLC_TICK_0;
+    heimdall_tick_t date_stream = HEIMDALL_TICK_0;
+    heimdall_tick_t date_system = HEIMDALL_TICK_0;
     input_clock_Update(clock, can_pace_control, buffering_allowed, false, date_stream, date_system);
 
-    vlc_tick_t stream_duration, system_duration;
+    heimdall_tick_t stream_duration, system_duration;
     input_clock_GetBufferingDuration(clock, &stream_duration, &system_duration);
     fprintf(stderr, "system_duration=%" PRId64 " stream_duration=%" PRId64 "\n",
             system_duration, stream_duration);
     assert(stream_duration == 0);
     assert(system_duration == 0);
 
-    vlc_tick_t system_now = VLC_TICK_0;
+    heimdall_tick_t system_now = HEIMDALL_TICK_0;
     system_duration = input_clock_GetSystemDuration(clock, system_now);
     assert(system_duration == 0);
 
@@ -82,7 +83,7 @@ static void test_clock_update(void)
 }
 
 static void clock_update_abort(
-    vlc_tick_t system_ts, vlc_tick_t ts, double rate,
+    heimdall_tick_t system_ts, heimdall_tick_t ts, double rate,
     unsigned frame_rate, unsigned frame_rate_base, void *data)
 {
     (void)system_ts; (void)ts; (void)rate;
@@ -91,7 +92,7 @@ static void clock_update_abort(
     assert(!"No clock update should happen");
 }
 
-static const struct vlc_clock_cbs clock_abort_ops =
+static const struct heimdall_clock_cbs clock_abort_ops =
 {
     .on_update = clock_update_abort,
 };
@@ -99,13 +100,13 @@ static const struct vlc_clock_cbs clock_abort_ops =
 struct clock_validate {
     bool validate;
     struct {
-        vlc_tick_t system;
-        vlc_tick_t stream;
+        heimdall_tick_t system;
+        heimdall_tick_t stream;
     } expected;
 };
 
 static void clock_update_validate(
-    vlc_tick_t system_ts, vlc_tick_t ts, double rate,
+    heimdall_tick_t system_ts, heimdall_tick_t ts, double rate,
     unsigned frame_rate, unsigned frame_rate_base, void *data)
 {
     (void)system_ts; (void)ts; (void)rate;
@@ -119,25 +120,25 @@ static void clock_update_validate(
     assert(validate->expected.system == system_ts);
     assert(validate->expected.stream == ts);
 }
-static const struct vlc_clock_cbs clock_validate_ops =
+static const struct heimdall_clock_cbs clock_validate_ops =
 {
     .on_update = clock_update_validate,
 };
 
 struct clock_listener_switch {
-    const struct vlc_clock_cbs *cbs;
+    const struct heimdall_clock_cbs *cbs;
     void *opaque;
 };
 
 static void clock_update_switch(
-    vlc_tick_t system_ts, vlc_tick_t ts, double rate,
+    heimdall_tick_t system_ts, heimdall_tick_t ts, double rate,
     unsigned frame_rate, unsigned frame_rate_base, void *data)
 {
     struct clock_listener_switch *listener = data;
     listener->cbs->on_update(system_ts, ts, rate, frame_rate, frame_rate_base, listener->opaque);
 }
 
-static const struct vlc_clock_cbs clock_switch_ops = {
+static const struct heimdall_clock_cbs clock_switch_ops = {
     .on_update = clock_update_switch,
 };
 

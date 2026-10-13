@@ -2,9 +2,10 @@
  * auhal.c: AUHAL and Coreaudio output plugin
  *****************************************************************************
  * Copyright (C) 2005 - 2017 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Derk-Jan Hartman <hartman at videolan dot org>
- *          Felix Paul Kühne <fkuehne at videolan dot org>
+ * Authors: Derk-Jan Hartman <hartman at lycaria dot org>
+ *          Felix Paul Kühne <fkuehne at lycaria dot org>
  *          David Fuhrmann <david dot fuhrmann at googlemail dot com>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -26,11 +27,11 @@
 
 #include "coreaudio_common.h"
 
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_threads.h>
-#include <vlc_dialog.h>                      // vlc_dialog_display_error
-#include <vlc_charset.h>                     // FromCFString
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_threads.h>
+#include <heimdall_dialog.h>                      // heimdall_dialog_display_error
+#include <heimdall_charset.h>                     // FromCFString
 
 #include <CoreAudio/CoreAudio.h>             // AudioDeviceID
 #include <CoreServices/CoreServices.h>
@@ -44,10 +45,10 @@
 #define VOLUME_TEXT N_("Audio volume")
 #define DEVICE_TEXT N_("Last audio device")
 
-static int      Open                    (vlc_object_t *);
-static void     Close                   (vlc_object_t *);
+static int      Open                    (heimdall_object_t *);
+static void     Close                   (heimdall_object_t *);
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname("auhal")
     set_description(N_("HAL AudioUnit output"))
     set_capability("audio output", 101)
@@ -59,7 +60,7 @@ vlc_module_begin ()
     add_string("auhal-audio-device", "", DEVICE_TEXT, NULL)
     add_string("auhal-warned-devices", "", NULL, NULL)
     change_private()
-vlc_module_end ()
+heimdall_module_end ()
 
 #pragma mark -
 #pragma mark private declarations
@@ -107,13 +108,13 @@ typedef struct
 
     CFArrayRef                  device_list;
     /* protects access to device_list */
-    vlc_mutex_t                 device_list_lock;
+    heimdall_mutex_t                 device_list_lock;
 
-    /* Synchronizes access to i_selected_dev. This is only needed between VLCs
+    /* Synchronizes access to i_selected_dev. This is only needed between Heimdalls
      * audio thread and the core audio callback thread. The value is only
      * changed in Start, further access to this variable within the audio
      * thread (start, stop, close) needs no protection. */
-    vlc_mutex_t                 selected_device_lock;
+    heimdall_mutex_t                 selected_device_lock;
 
     float                       f_volume;
 
@@ -140,7 +141,7 @@ AoGetProperty(audio_output_t *p_aout, AudioObjectID id,
         msg_Err(p_aout, "AudioObjectGetPropertyDataSize failed, device id: %i, "
                 "prop: [%4.4s], OSStatus: %d", id, (const char *) &p_address[0],
                 (int)err);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     size_t i_nb_elms = i_out_size / i_elm_size;
@@ -150,17 +151,17 @@ AoGetProperty(audio_output_t *p_aout, AudioObjectID id,
     if (i_nb_expected_elms != -1 && (size_t)i_nb_expected_elms != i_nb_elms)
     {
         msg_Err(p_aout, "AoGetProperty error: expected elements don't match");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if (pp_out_data == NULL && p_allocated_out_data == NULL)
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
     if (i_out_size == 0)
     {
         if (pp_out_data != NULL)
             *pp_out_data = NULL;
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
     /* Alloc data or use pre-allocated one */
@@ -171,7 +172,7 @@ AoGetProperty(audio_output_t *p_aout, AudioObjectID id,
 
         *pp_out_data = malloc(i_out_size);
         if (*pp_out_data == NULL)
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         p_out_data = *pp_out_data;
     }
     else
@@ -191,10 +192,10 @@ AoGetProperty(audio_output_t *p_aout, AudioObjectID id,
 
         if (pp_out_data != NULL)
             free(*pp_out_data);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     assert(p_nb_elms == NULL || *p_nb_elms == (i_out_size / i_elm_size));
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /* Get Audio Object Property data: pp_out_data will be allocated by this MACRO
@@ -246,9 +247,9 @@ AoSetProperty(audio_output_t *p_aout, AudioObjectID id,
         msg_Err(p_aout, "AudioObjectSetPropertyData failed, device id: %i, "
                  "prop: [%4.4s], OSStatus: %d", id, (const char *)&p_address[0],
                  (int)err);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 #define AO_SETPROP(id, i_data, p_data, a1, a2) \
@@ -270,9 +271,9 @@ AoUpdateListener(audio_output_t *p_aout, bool add, AudioObjectID id,
         msg_Err(p_aout, "AudioObject%sPropertyListener failed, device id %i, "
                 "prop: [%4.4s], OSStatus: %d", add ? "Add" : "Remove", id,
                 (const char *)&p_address[0], (int)err);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 #define AO_UPDATELISTENER(id, add, listener, data, a1, a2) \
@@ -313,7 +314,7 @@ ManageAudioStreamsCallback(audio_output_t *p_aout, AudioDeviceID i_dev_id,
     int ret = AO_GETPROP(i_dev_id, AudioStreamID, &i_streams, &p_streams,
                           kAudioDevicePropertyStreams,
                           kAudioObjectPropertyScopeOutput);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
         return ret;
 
     for (size_t i = 0; i < i_streams; i++)
@@ -325,7 +326,7 @@ ManageAudioStreamsCallback(audio_output_t *p_aout, AudioDeviceID i_dev_id,
     }
 
     free(p_streams);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*
@@ -344,7 +345,7 @@ AudioStreamSupportsDigital(audio_output_t *p_aout, AudioStreamID i_stream_id)
                           &p_format_list,
                           kAudioStreamPropertyAvailablePhysicalFormats,
                           kAudioObjectPropertyScopeGlobal);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
         return false;
 
     for (size_t i = 0; i < i_formats; i++)
@@ -373,7 +374,7 @@ AudioDeviceSupportsDigital(audio_output_t *p_aout, AudioDeviceID i_dev_id)
     int ret = AO_GETPROP(i_dev_id, AudioStreamID, &i_streams, &p_streams,
                           kAudioDevicePropertyStreams,
                           kAudioObjectPropertyScopeOutput);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
         return false;
 
     for (size_t i = 0; i < i_streams; i++)
@@ -405,7 +406,7 @@ ReportDevice(audio_output_t *p_aout, UInt32 i_id, const char *name)
 static bool
 AudioDeviceIsAHeadphone(audio_output_t *p_aout, AudioDeviceID i_dev_id)
 {
-    VLC_UNUSED(p_aout);
+    HEIMDALL_UNUSED(p_aout);
     UInt32 defaultSize = sizeof(AudioDeviceID);
 
     const AudioObjectPropertyAddress defaultAddr = {
@@ -445,7 +446,7 @@ AudioDeviceHasOutput(audio_output_t *p_aout, AudioDeviceID i_dev_id)
     int ret = AO_GETPROP(i_dev_id, AudioStreamID, &i_streams, NULL,
                           kAudioDevicePropertyStreams,
                           kAudioObjectPropertyScopeOutput);
-    if (ret != VLC_SUCCESS || i_streams == 0)
+    if (ret != HEIMDALL_SUCCESS || i_streams == 0)
         return FALSE;
 
     return TRUE;
@@ -467,7 +468,7 @@ RebuildDeviceList(audio_output_t * p_aout, UInt32 *p_id_exists)
                          &p_devices, kAudioHardwarePropertyDevices,
                          kAudioObjectPropertyScopeGlobal);
 
-    if (ret != VLC_SUCCESS || i_devices == 0)
+    if (ret != HEIMDALL_SUCCESS || i_devices == 0)
     {
         msg_Err(p_aout, "No audio output devices found.");
         return;
@@ -496,7 +497,7 @@ RebuildDeviceList(audio_output_t * p_aout, UInt32 *p_id_exists)
         int ret = AO_GET1PROP(i_id, CFStringRef, &device_name_ref,
                               kAudioObjectPropertyName,
                               kAudioObjectPropertyScopeGlobal);
-        if (ret != VLC_SUCCESS)
+        if (ret != HEIMDALL_SUCCESS)
         {
             msg_Dbg(p_aout, "failed to get name for device %i", i_id);
             continue;
@@ -552,7 +553,7 @@ RebuildDeviceList(audio_output_t * p_aout, UInt32 *p_id_exists)
         free(psz_name);
     }
 
-    vlc_mutex_lock(&p_sys->device_list_lock);
+    heimdall_mutex_lock(&p_sys->device_list_lock);
     CFIndex count = 0;
     if (p_sys->device_list)
         count = CFArrayGetCount(p_sys->device_list);
@@ -588,7 +589,7 @@ RebuildDeviceList(audio_output_t * p_aout, UInt32 *p_id_exists)
     p_sys->device_list = CFArrayCreateCopy(kCFAllocatorDefault,
                                            currentListOfDevices);
     CFRelease(currentListOfDevices);
-    vlc_mutex_unlock(&p_sys->device_list_lock);
+    heimdall_mutex_unlock(&p_sys->device_list_lock);
 
     free(p_devices);
 }
@@ -601,9 +602,9 @@ DeviceAliveListener(AudioObjectID inObjectID,  UInt32 inNumberAddresses,
                     const AudioObjectPropertyAddress inAddresses[],
                     void *inClientData)
 {
-    VLC_UNUSED(inObjectID);
-    VLC_UNUSED(inNumberAddresses);
-    VLC_UNUSED(inAddresses);
+    HEIMDALL_UNUSED(inObjectID);
+    HEIMDALL_UNUSED(inNumberAddresses);
+    HEIMDALL_UNUSED(inAddresses);
 
     audio_output_t *p_aout = (audio_output_t *)inClientData;
     if (!p_aout)
@@ -623,9 +624,9 @@ DefaultDeviceChangedListener(AudioObjectID inObjectID, UInt32 inNumberAddresses,
                              const AudioObjectPropertyAddress inAddresses[],
                              void *inClientData)
 {
-    VLC_UNUSED(inObjectID);
-    VLC_UNUSED(inNumberAddresses);
-    VLC_UNUSED(inAddresses);
+    HEIMDALL_UNUSED(inObjectID);
+    HEIMDALL_UNUSED(inNumberAddresses);
+    HEIMDALL_UNUSED(inAddresses);
 
     audio_output_t *p_aout = (audio_output_t *)inClientData;
     if (!p_aout)
@@ -641,7 +642,7 @@ DefaultDeviceChangedListener(AudioObjectID inObjectID, UInt32 inNumberAddresses,
                           &defaultDeviceID,
                           kAudioHardwarePropertyDefaultOutputDevice,
                           kAudioObjectPropertyScopeOutput);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
         return -1;
 
     msg_Dbg(p_aout, "default device changed to %i", defaultDeviceID);
@@ -654,14 +655,14 @@ DefaultDeviceChangedListener(AudioObjectID inObjectID, UInt32 inNumberAddresses,
         return noErr;
     }
 
-    vlc_mutex_lock(&p_sys->selected_device_lock);
+    heimdall_mutex_lock(&p_sys->selected_device_lock);
     /* Also ignore events which announce the same device id */
     if (defaultDeviceID != p_sys->i_selected_dev)
     {
         msg_Dbg(p_aout, "default device actually changed, resetting aout");
         aout_RestartRequest(p_aout, true);
     }
-    vlc_mutex_unlock(&p_sys->selected_device_lock);
+    heimdall_mutex_unlock(&p_sys->selected_device_lock);
 
     return noErr;
 }
@@ -674,8 +675,8 @@ StreamsChangedListener(AudioObjectID inObjectID, UInt32 inNumberAddresses,
                        const AudioObjectPropertyAddress inAddresses[],
                        void *inClientData)
 {
-    VLC_UNUSED(inNumberAddresses);
-    VLC_UNUSED(inAddresses);
+    HEIMDALL_UNUSED(inNumberAddresses);
+    HEIMDALL_UNUSED(inAddresses);
 
     audio_output_t *p_aout = (audio_output_t *)inClientData;
     if (!p_aout)
@@ -688,12 +689,12 @@ StreamsChangedListener(AudioObjectID inObjectID, UInt32 inNumberAddresses,
     msg_Dbg(p_aout, "available physical formats for audio device changed");
     RebuildDeviceList(p_aout, NULL);
 
-    vlc_mutex_lock(&p_sys->selected_device_lock);
+    heimdall_mutex_lock(&p_sys->selected_device_lock);
     /* In this case audio has not yet started. Below code will not work and is
      * not needed here. */
     if (p_sys->i_selected_dev == 0)
     {
-        vlc_mutex_unlock(&p_sys->selected_device_lock);
+        heimdall_mutex_unlock(&p_sys->selected_device_lock);
         return 0;
     }
 
@@ -705,12 +706,12 @@ StreamsChangedListener(AudioObjectID inObjectID, UInt32 inNumberAddresses,
     int ret = AO_GETPROP(p_sys->i_selected_dev, AudioStreamID, &i_streams,
                          &p_streams, kAudioDevicePropertyStreams,
                          kAudioObjectPropertyScopeOutput);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
     {
-        vlc_mutex_unlock(&p_sys->selected_device_lock);
+        heimdall_mutex_unlock(&p_sys->selected_device_lock);
         return ret;
     }
-    vlc_mutex_unlock(&p_sys->selected_device_lock);
+    heimdall_mutex_unlock(&p_sys->selected_device_lock);
 
     for (size_t i = 0; i < i_streams; i++)
     {
@@ -734,9 +735,9 @@ DevicesListener(AudioObjectID inObjectID, UInt32 inNumberAddresses,
                 const AudioObjectPropertyAddress inAddresses[],
                 void *inClientData)
 {
-    VLC_UNUSED(inObjectID);
-    VLC_UNUSED(inNumberAddresses);
-    VLC_UNUSED(inAddresses);
+    HEIMDALL_UNUSED(inObjectID);
+    HEIMDALL_UNUSED(inNumberAddresses);
+    HEIMDALL_UNUSED(inAddresses);
 
     audio_output_t *p_aout = (audio_output_t *)inClientData;
     if (!p_aout)
@@ -746,8 +747,8 @@ DevicesListener(AudioObjectID inObjectID, UInt32 inNumberAddresses,
     msg_Dbg(p_aout, "audio device configuration changed, resetting cache");
     RebuildDeviceList(p_aout, NULL);
 
-    vlc_mutex_lock(&p_sys->selected_device_lock);
-    vlc_mutex_lock(&p_sys->device_list_lock);
+    heimdall_mutex_lock(&p_sys->selected_device_lock);
+    heimdall_mutex_lock(&p_sys->device_list_lock);
     CFNumberRef selectedDevice =
         CFNumberCreate(kCFAllocatorDefault, kCFNumberSInt32Type,
                        &p_sys->i_selected_dev);
@@ -755,8 +756,8 @@ DevicesListener(AudioObjectID inObjectID, UInt32 inNumberAddresses,
     if (!CFArrayContainsValue(p_sys->device_list, range, selectedDevice))
         aout_RestartRequest(p_aout, true);
     CFRelease(selectedDevice);
-    vlc_mutex_unlock(&p_sys->device_list_lock);
-    vlc_mutex_unlock(&p_sys->selected_device_lock);
+    heimdall_mutex_unlock(&p_sys->device_list_lock);
+    heimdall_mutex_unlock(&p_sys->selected_device_lock);
 
     return noErr;
 }
@@ -770,19 +771,19 @@ StreamListener(AudioObjectID inObjectID, UInt32 inNumberAddresses,
                void *inClientData)
 {
     OSStatus err = noErr;
-    struct { vlc_mutex_t lock; vlc_cond_t cond; } * w = inClientData;
+    struct { heimdall_mutex_t lock; heimdall_cond_t cond; } * w = inClientData;
 
-    VLC_UNUSED(inObjectID);
+    HEIMDALL_UNUSED(inObjectID);
 
     for (unsigned int i = 0; i < inNumberAddresses; i++)
     {
         if (inAddresses[i].mSelector == kAudioStreamPropertyPhysicalFormat)
         {
-            int canc = vlc_savecancel();
-            vlc_mutex_lock(&w->lock);
-            vlc_cond_signal(&w->cond);
-            vlc_mutex_unlock(&w->lock);
-            vlc_restorecancel(canc);
+            int canc = heimdall_savecancel();
+            heimdall_mutex_lock(&w->lock);
+            heimdall_cond_signal(&w->cond);
+            heimdall_mutex_unlock(&w->lock);
+            heimdall_restorecancel(canc);
             break;
         }
     }
@@ -799,21 +800,21 @@ AudioStreamChangeFormat(audio_output_t *p_aout, AudioStreamID i_stream_id,
 {
     int retValue = false;
 
-    struct { vlc_mutex_t lock; vlc_cond_t cond; } w;
+    struct { heimdall_mutex_t lock; heimdall_cond_t cond; } w;
 
     msg_Dbg(p_aout, STREAM_FORMAT_MSG("setting stream format: ", change_format));
 
     /* Condition because SetProperty is asynchronous */
-    vlc_cond_init(&w.cond);
-    vlc_mutex_init(&w.lock);
-    vlc_mutex_lock(&w.lock);
+    heimdall_cond_init(&w.cond);
+    heimdall_mutex_init(&w.lock);
+    heimdall_mutex_lock(&w.lock);
 
     /* Install the callback */
     int ret = AO_UPDATELISTENER(i_stream_id, true, StreamListener, &w,
                                 kAudioStreamPropertyPhysicalFormat,
                                 kAudioObjectPropertyScopeGlobal);
 
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
     {
         retValue = false;
         goto out;
@@ -823,7 +824,7 @@ AudioStreamChangeFormat(audio_output_t *p_aout, AudioStreamID i_stream_id,
     ret = AO_SETPROP(i_stream_id, sizeof(AudioStreamBasicDescription),
                      &change_format, kAudioStreamPropertyPhysicalFormat,
                      kAudioObjectPropertyScopeGlobal);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
     {
         retValue = false;
         goto out;
@@ -839,8 +840,8 @@ AudioStreamChangeFormat(audio_output_t *p_aout, AudioStreamID i_stream_id,
          * set. */
         if (i > 0)
         {
-            vlc_tick_t timeout = vlc_tick_now() + VLC_TICK_FROM_MS(500);
-            if (vlc_cond_timedwait(&w.cond, &w.lock, timeout))
+            heimdall_tick_t timeout = heimdall_tick_now() + HEIMDALL_TICK_FROM_MS(500);
+            if (heimdall_cond_timedwait(&w.cond, &w.lock, timeout))
                 msg_Dbg(p_aout, "reached timeout");
         }
 
@@ -850,7 +851,7 @@ AudioStreamChangeFormat(audio_output_t *p_aout, AudioStreamID i_stream_id,
                               kAudioStreamPropertyPhysicalFormat,
                               kAudioObjectPropertyScopeGlobal);
 
-        if (ret != VLC_SUCCESS)
+        if (ret != HEIMDALL_SUCCESS)
             continue;
 
         msg_Dbg(p_aout, STREAM_FORMAT_MSG("actual format in use: ",
@@ -868,13 +869,13 @@ AudioStreamChangeFormat(audio_output_t *p_aout, AudioStreamID i_stream_id,
     }
 
 out:
-    vlc_mutex_unlock(&w.lock);
+    heimdall_mutex_unlock(&w.lock);
 
     /* Removing the property listener */
     ret = AO_UPDATELISTENER(i_stream_id, false, StreamListener, &w,
                             kAudioStreamPropertyPhysicalFormat,
                             kAudioObjectPropertyScopeGlobal);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
         retValue = false;
 
     return retValue;
@@ -903,7 +904,7 @@ VolumeSet(audio_output_t * p_aout, float volume)
     OSStatus err;
 
     if (p_sys->b_digital)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     p_sys->f_volume = volume;
     aout_VolumeReport(p_aout, volume);
@@ -919,7 +920,7 @@ VolumeSet(audio_output_t * p_aout, float volume)
     if (var_InheritBool(p_aout, "volume-save"))
         config_PutInt("auhal-volume", lroundf(volume * AOUT_VOLUME_DEFAULT));
 
-    return (err == noErr) ? VLC_SUCCESS : VLC_EGENERIC;
+    return (err == noErr) ? HEIMDALL_SUCCESS : HEIMDALL_EGENERIC;
 }
 
 static int
@@ -928,7 +929,7 @@ MuteSet(audio_output_t * p_aout, bool mute)
     ca_MuteSet(p_aout, mute);
     aout_MuteReport(p_aout, mute);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 #pragma mark -
@@ -944,11 +945,11 @@ RenderCallbackSPDIF(AudioDeviceID inDevice, const AudioTimeStamp * inNow,
                     AudioBufferList * outOutputData,
                     const AudioTimeStamp * inOutputTime, void *p_data)
 {
-    VLC_UNUSED(inNow);
-    VLC_UNUSED(inDevice);
-    VLC_UNUSED(inInputData);
-    VLC_UNUSED(inInputTime);
-    VLC_UNUSED(inOutputTime);
+    HEIMDALL_UNUSED(inNow);
+    HEIMDALL_UNUSED(inDevice);
+    HEIMDALL_UNUSED(inInputData);
+    HEIMDALL_UNUSED(inInputTime);
+    HEIMDALL_UNUSED(inOutputTime);
 
     audio_output_t * p_aout = p_data;
     aout_sys_t *p_sys = p_aout->sys;
@@ -1001,13 +1002,13 @@ WarnConfiguration(audio_output_t *p_aout)
     if (!dev_is_warned)
     {
         msg_Warn(p_aout, "You should configure your speaker layout with "
-                "Audio Midi Setup in /Applications/Utilities. VLC will "
+                "Audio Midi Setup in /Applications/Utilities. Heimdall will "
                 "output Stereo only.");
-        vlc_dialog_display_error(p_aout,
+        heimdall_dialog_display_error(p_aout,
             _("Audio device is not configured"), "%s",
             _("You should configure your speaker layout with "
             "\"Audio Midi Setup\" in /Applications/"
-            "Utilities. VLC will output Stereo only."));
+            "Utilities. Heimdall will output Stereo only."));
 
         /* Don't save too many devices */
         if (dev_count >= 10)
@@ -1036,7 +1037,7 @@ WarnConfiguration(audio_output_t *p_aout)
  */
 static int
 StartAnalog(audio_output_t *p_aout, audio_sample_format_t *fmt,
-            vlc_tick_t latency_us)
+            heimdall_tick_t latency_us)
 {
     aout_sys_t                  *p_sys = p_aout->sys;
     OSStatus                    err = noErr;
@@ -1044,11 +1045,11 @@ StartAnalog(audio_output_t *p_aout, audio_sample_format_t *fmt,
     AudioChannelLayout          *layout = NULL;
 
     if (aout_FormatNbChannels(fmt) == 0)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     p_sys->au_unit = au_NewOutputInstance(p_aout, kAudioUnitSubType_HALOutput);
     if (p_sys->au_unit == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     p_aout->current_sink_info.headphones = AudioDeviceIsAHeadphone(p_aout, p_sys->i_selected_dev);
 
@@ -1064,7 +1065,7 @@ StartAnalog(audio_output_t *p_aout, audio_sample_format_t *fmt,
         goto error;
     }
 
-    /* Get the channel layout of the device side of the unit (vlc -> unit ->
+    /* Get the channel layout of the device side of the unit (heimdall -> unit ->
      * device) */
     err = AudioUnitGetPropertyInfo(p_sys->au_unit,
                                    kAudioDevicePropertyPreferredChannelLayout,
@@ -1088,11 +1089,11 @@ StartAnalog(audio_output_t *p_aout, audio_sample_format_t *fmt,
         ca_LogWarn("device driver does not support "
                    "kAudioDevicePropertyPreferredChannelLayout - using stereo");
 
-    /* Do the last VLC aout setups */
+    /* Do the last Heimdall aout setups */
     bool warn_configuration;
     int ret = au_Initialize(p_aout, p_sys->au_unit, fmt, layout, latency_us,
                             NULL, &warn_configuration);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
         goto error;
 
     err = AudioOutputUnitStart(p_sys->au_unit);
@@ -1112,12 +1113,12 @@ StartAnalog(audio_output_t *p_aout, audio_sample_format_t *fmt,
     if (warn_configuration)
         WarnConfiguration(p_aout);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 error:
     AudioComponentInstanceDispose(p_sys->au_unit);
     p_sys->au_unit = NULL;
     free(layout);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /*
@@ -1133,13 +1134,13 @@ StartSPDIF(audio_output_t * p_aout, audio_sample_format_t *fmt)
     if (!AudioDeviceSupportsDigital(p_aout, p_sys->i_selected_dev))
     {
         msg_Dbg(p_aout, "Audio device supports PCM mode only");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     ret = AO_GET1PROP(p_sys->i_selected_dev, pid_t, &p_sys->i_hog_pid,
                       kAudioDevicePropertyHogMode,
                       kAudioObjectPropertyScopeOutput);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
     {
         /* This is not a fatal error. Some drivers simply don't support this
          * property */
@@ -1150,10 +1151,10 @@ StartSPDIF(audio_output_t * p_aout, audio_sample_format_t *fmt)
     {
         msg_Err(p_aout, "Selected audio device is exclusively in use by another"
                 " program.");
-        vlc_dialog_display_error(p_aout, _("Audio output failed"), "%s",
+        heimdall_dialog_display_error(p_aout, _("Audio output failed"), "%s",
             _("The selected audio output device is exclusively in "
             "use by another program."));
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     AudioStreamBasicDescription desired_stream_format;
@@ -1176,7 +1177,7 @@ StartSPDIF(audio_output_t * p_aout, audio_sample_format_t *fmt)
                      kAudioObjectPropertyScopeOutput);
     p_sys->b_ignore_streams_changed_callback = false;
 
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
         return ret;
 
     if (AO_HASPROP(p_sys->i_selected_dev, kAudioDevicePropertySupportsMixing,
@@ -1191,7 +1192,7 @@ StartSPDIF(audio_output_t * p_aout, audio_sample_format_t *fmt)
         ret = AO_GET1PROP(p_sys->i_selected_dev, UInt32, &b_mix,
                           kAudioDevicePropertySupportsMixing,
                           kAudioObjectPropertyScopeGlobal);
-        if (ret == VLC_SUCCESS && b_writeable)
+        if (ret == HEIMDALL_SUCCESS && b_writeable)
         {
             b_mix = 0;
             ret = AO_SETPROP(p_sys->i_selected_dev, sizeof(UInt32), &b_mix,
@@ -1200,7 +1201,7 @@ StartSPDIF(audio_output_t * p_aout, audio_sample_format_t *fmt)
             p_sys->b_changed_mixing = true;
         }
 
-        if (ret != VLC_SUCCESS)
+        if (ret != HEIMDALL_SUCCESS)
         {
             msg_Err(p_aout, "failed to set mixmode");
             return ret;
@@ -1213,7 +1214,7 @@ StartSPDIF(audio_output_t * p_aout, audio_sample_format_t *fmt)
     ret = AO_GETPROP(p_sys->i_selected_dev, AudioStreamID, &i_streams,
                      &p_streams, kAudioDevicePropertyStreams,
                      kAudioObjectPropertyScopeOutput);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
         return ret;
 
     for (unsigned i = 0; i < i_streams && p_sys->i_stream_index < 0 ; i++)
@@ -1228,7 +1229,7 @@ StartSPDIF(audio_output_t * p_aout, audio_sample_format_t *fmt)
                              &i_formats, &p_format_list,
                              kAudioStreamPropertyAvailablePhysicalFormats,
                              kAudioObjectPropertyScopeGlobal);
-        if (ret != VLC_SUCCESS)
+        if (ret != HEIMDALL_SUCCESS)
             continue;
 
         /* Check if one of the supported formats is a digital format */
@@ -1258,7 +1259,7 @@ StartSPDIF(audio_output_t * p_aout, audio_sample_format_t *fmt)
                                       &current_streamformat,
                                       kAudioStreamPropertyPhysicalFormat,
                                       kAudioObjectPropertyScopeGlobal);
-                if (ret != VLC_SUCCESS)
+                if (ret != HEIMDALL_SUCCESS)
                     continue;
 
                 /*
@@ -1341,14 +1342,14 @@ StartSPDIF(audio_output_t * p_aout, audio_sample_format_t *fmt)
     if (!AudioStreamChangeFormat(p_aout, p_sys->i_stream_id, desired_stream_format))
     {
         msg_Err(p_aout, "failed to change stream format for SPDIF output");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Set the format flags */
     if (desired_stream_format.mFormatFlags & kAudioFormatFlagIsBigEndian)
-        fmt->i_format = VLC_CODEC_SPDIFB;
+        fmt->i_format = HEIMDALL_CODEC_SPDIFB;
     else
-        fmt->i_format = VLC_CODEC_SPDIFL;
+        fmt->i_format = HEIMDALL_CODEC_SPDIFL;
     fmt->i_bytes_per_frame = AOUT_SPDIF_SIZE;
     fmt->i_frame_length = A52_FRAME_NB;
     fmt->i_rate = (unsigned int)desired_stream_format.mSampleRate;
@@ -1362,14 +1363,14 @@ StartSPDIF(audio_output_t * p_aout, audio_sample_format_t *fmt)
     if (err != noErr)
     {
         ca_LogErr("Failed to create Process ID");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     ret = ca_Initialize(p_aout, fmt, 0, NULL);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
     {
         AudioDeviceDestroyIOProcID(p_sys->i_selected_dev, p_sys->i_procID);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Start device */
@@ -1382,11 +1383,11 @@ StartSPDIF(audio_output_t * p_aout, audio_sample_format_t *fmt)
         if (err != noErr)
             ca_LogErr("Failed to destroy process ID");
 
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     msg_Dbg(p_aout, "Using audio device for digital output");
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void
@@ -1436,7 +1437,7 @@ Stop(audio_output_t *p_aout)
             int ret = AO_GET1PROP(p_sys->i_selected_dev, UInt32, &b_mix,
                                   kAudioDevicePropertySupportsMixing,
                                   kAudioObjectPropertyScopeOutput);
-            if (ret == VLC_SUCCESS && b_writeable)
+            if (ret == HEIMDALL_SUCCESS && b_writeable)
             {
                 msg_Dbg(p_aout, "mixable is: %d", b_mix);
                 b_mix = 1;
@@ -1446,7 +1447,7 @@ Stop(audio_output_t *p_aout)
                                  kAudioObjectPropertyScopeOutput);
             }
 
-            if (ret != VLC_SUCCESS)
+            if (ret != HEIMDALL_SUCCESS)
                 msg_Err(p_aout, "failed to re-set mixmode");
         }
         ca_Uninitialize(p_aout);
@@ -1476,20 +1477,20 @@ Stop(audio_output_t *p_aout)
                       kAudioObjectPropertyScopeGlobal);
 }
 
-static vlc_tick_t
+static heimdall_tick_t
 GetLatency(audio_output_t *p_aout, const audio_sample_format_t *fmt)
 {
     aout_sys_t *p_sys = p_aout->sys;
 
     UInt32 i_latency_samples;
-    vlc_tick_t i_latency_us, i_device_latency_us = 0, i_device_offset_us = 0,
+    heimdall_tick_t i_latency_us, i_device_latency_us = 0, i_device_offset_us = 0,
                i_stream_latency_us = 0;
     /* Get device latency */
     int ret = AO_GET1PROP(p_sys->i_selected_dev, UInt32, &i_latency_samples,
                           kAudioDevicePropertyLatency,
                           kAudioObjectPropertyScopeOutput);
-    if (ret == VLC_SUCCESS)
-        i_device_latency_us = vlc_tick_from_samples(i_latency_samples, fmt->i_rate);
+    if (ret == HEIMDALL_SUCCESS)
+        i_device_latency_us = heimdall_tick_from_samples(i_latency_samples, fmt->i_rate);
     else
         msg_Warn(p_aout, "failed to get kAudioDevicePropertyLatency");
 
@@ -1497,8 +1498,8 @@ GetLatency(audio_output_t *p_aout, const audio_sample_format_t *fmt)
     ret = AO_GET1PROP(p_sys->i_selected_dev, UInt32, &i_latency_samples,
                       kAudioDevicePropertySafetyOffset,
                       kAudioObjectPropertyScopeOutput);
-    if (ret == VLC_SUCCESS)
-        i_device_offset_us = vlc_tick_from_samples(i_latency_samples, fmt->i_rate);
+    if (ret == HEIMDALL_SUCCESS)
+        i_device_offset_us = heimdall_tick_from_samples(i_latency_samples, fmt->i_rate);
     else
         msg_Warn(p_aout, "failed to get kAudioDevicePropertySafetyOffset");
 
@@ -1506,13 +1507,13 @@ GetLatency(audio_output_t *p_aout, const audio_sample_format_t *fmt)
     /* Get stream latency */
     ret = AO_GET1PROP(p_sys->i_selected_dev, AudioStreamID, &sid,
                       kAudioDevicePropertyStreams, kAudioObjectPropertyScopeOutput);
-    if (ret == VLC_SUCCESS)
+    if (ret == HEIMDALL_SUCCESS)
     {
         ret = AO_GET1PROP(sid, UInt32, &i_latency_samples,
                           kAudioStreamPropertyLatency,
                           kAudioObjectPropertyScopeOutput);
-        if (ret == VLC_SUCCESS)
-            i_stream_latency_us = vlc_tick_from_samples(i_latency_samples, fmt->i_rate);
+        if (ret == HEIMDALL_SUCCESS)
+            i_stream_latency_us = heimdall_tick_from_samples(i_latency_samples, fmt->i_rate);
         else
             msg_Warn(p_aout, "failed to get kAudioStreamPropertyLatency");
     }
@@ -1538,21 +1539,21 @@ Start(audio_output_t *p_aout, audio_sample_format_t *restrict fmt)
     int                     b_alive = false;
 
     if (AOUT_FMT_HDMI(fmt))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     p_sys = p_aout->sys;
     p_sys->i_stream_index = -1;
     p_sys->b_revert = false;
     p_sys->b_changed_mixing = false;
 
-    vlc_mutex_lock(&p_sys->selected_device_lock);
+    heimdall_mutex_lock(&p_sys->selected_device_lock);
     bool do_spdif;
     if (AOUT_FMT_SPDIF (fmt))
     {
         if (!(p_sys->i_new_selected_dev & AOUT_VAR_SPDIF_FLAG))
         {
-            vlc_mutex_unlock(&p_sys->selected_device_lock);
-            return VLC_EGENERIC;
+            heimdall_mutex_unlock(&p_sys->selected_device_lock);
+            return HEIMDALL_EGENERIC;
         }
         do_spdif = true;
     }
@@ -1561,7 +1562,7 @@ Start(audio_output_t *p_aout, audio_sample_format_t *restrict fmt)
 
     p_sys->i_selected_dev = p_sys->i_new_selected_dev & ~AOUT_VAR_SPDIF_FLAG;
 
-    aout_FormatPrint(p_aout, "VLC is looking for:", fmt);
+    aout_FormatPrint(p_aout, "Heimdall is looking for:", fmt);
 
     msg_Dbg(p_aout, "attempting to use device %i", p_sys->i_selected_dev);
 
@@ -1583,7 +1584,7 @@ Start(audio_output_t *p_aout, audio_sample_format_t *restrict fmt)
             int ret = AO_GET1PROP(p_sys->i_selected_dev, int, &b_alive,
                                   kAudioDevicePropertyDeviceIsAlive,
                                   kAudioObjectPropertyScopeGlobal);
-            if (ret != VLC_SUCCESS)
+            if (ret != HEIMDALL_SUCCESS)
                 b_alive = false; /* Be tolerant */
 
             if (!b_alive)
@@ -1609,41 +1610,41 @@ Start(audio_output_t *p_aout, audio_sample_format_t *restrict fmt)
                               &defaultDeviceID,
                               kAudioHardwarePropertyDefaultOutputDevice,
                               kAudioObjectPropertyScopeOutput);
-        if (ret != VLC_SUCCESS)
+        if (ret != HEIMDALL_SUCCESS)
         {
-            vlc_mutex_unlock(&p_sys->selected_device_lock);
-            return VLC_EGENERIC;
+            heimdall_mutex_unlock(&p_sys->selected_device_lock);
+            return HEIMDALL_EGENERIC;
         }
         else
             msg_Dbg(p_aout, "using default audio device %i", defaultDeviceID);
 
         p_sys->i_selected_dev = defaultDeviceID;
     }
-    vlc_mutex_unlock(&p_sys->selected_device_lock);
+    heimdall_mutex_unlock(&p_sys->selected_device_lock);
 
     /* add a callback to see if the device dies later on */
     AO_UPDATELISTENER(p_sys->i_selected_dev, true, DeviceAliveListener, p_aout,
                       kAudioDevicePropertyDeviceIsAlive,
                       kAudioObjectPropertyScopeGlobal);
 
-    vlc_tick_t i_latency_us = GetLatency(p_aout, fmt);
+    heimdall_tick_t i_latency_us = GetLatency(p_aout, fmt);
 
     /* Check for Digital mode or Analog output mode */
     if (do_spdif)
     {
-        if (StartSPDIF(p_aout, fmt) == VLC_SUCCESS)
+        if (StartSPDIF(p_aout, fmt) == HEIMDALL_SUCCESS)
         {
             msg_Dbg(p_aout, "digital output successfully opened");
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
     }
     else
     {
-        if (StartAnalog(p_aout, fmt, i_latency_us) == VLC_SUCCESS)
+        if (StartAnalog(p_aout, fmt, i_latency_us) == HEIMDALL_SUCCESS)
         {
             msg_Dbg(p_aout, "analog output successfully opened");
             fmt->channel_type = AUDIO_CHANNEL_TYPE_BITMAP;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
     }
 
@@ -1651,10 +1652,10 @@ Start(audio_output_t *p_aout, audio_sample_format_t *restrict fmt)
     AO_UPDATELISTENER(p_sys->i_selected_dev, false, DeviceAliveListener, p_aout,
                       kAudioDevicePropertyDeviceIsAlive,
                       kAudioObjectPropertyScopeGlobal);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
-static void Close(vlc_object_t *obj)
+static void Close(heimdall_object_t *obj)
 {
     audio_output_t *p_aout = (audio_output_t *)obj;
     aout_sys_t *p_sys = p_aout->sys;
@@ -1676,9 +1677,9 @@ static void Close(vlc_object_t *obj)
      * created here.  In rare cases, this can lead to missing
      * StreamsChangedListener callback deregistration (TODO).
      */
-    vlc_mutex_lock(&p_sys->device_list_lock);
+    heimdall_mutex_lock(&p_sys->device_list_lock);
     CFArrayRef device_list_cpy = CFArrayCreateCopy(NULL, p_sys->device_list);
-    vlc_mutex_unlock(&p_sys->device_list_lock);
+    heimdall_mutex_unlock(&p_sys->device_list_lock);
 
     /* remove streams callbacks */
     CFIndex count = CFArrayGetCount(device_list_cpy);
@@ -1708,22 +1709,22 @@ static void Close(vlc_object_t *obj)
     free(p_sys);
 }
 
-static int Open(vlc_object_t *obj)
+static int Open(heimdall_object_t *obj)
 {
     audio_output_t *p_aout = (audio_output_t *)obj;
 
     aout_sys_t *p_sys = p_aout->sys = calloc(1, sizeof (*p_sys));
     if (unlikely(p_sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    if (ca_Open(p_aout) != VLC_SUCCESS)
+    if (ca_Open(p_aout) != HEIMDALL_SUCCESS)
     {
         free(p_sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    vlc_mutex_init(&p_sys->device_list_lock);
-    vlc_mutex_init(&p_sys->selected_device_lock);
+    heimdall_mutex_init(&p_sys->device_list_lock);
+    heimdall_mutex_init(&p_sys->selected_device_lock);
     p_sys->b_digital = false;
     p_sys->au_unit = NULL;
     p_sys->b_ignore_streams_changed_callback = false;
@@ -1792,5 +1793,5 @@ static int Open(vlc_object_t *obj)
     aout_VolumeReport(p_aout, p_sys->f_volume);
     MuteSet(p_aout, var_InheritBool(p_aout, "mute"));
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

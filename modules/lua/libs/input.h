@@ -2,8 +2,9 @@
  * input.h
  *****************************************************************************
  * Copyright (C) 2007-2008 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Antoine Cellerier <dionoea at videolan tod org>
+ * Authors: Antoine Cellerier <dionoea at lycaria tod org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,13 +21,13 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_LUA_INPUT_H
-#define VLC_LUA_INPUT_H
+#ifndef HEIMDALL_LUA_INPUT_H
+#define HEIMDALL_LUA_INPUT_H
 
-#include "../vlc.h"
+#include "../heimdall.h"
 
-vlc_player_t *vlclua_get_player_internal(lua_State *);
-vout_thread_t *vlclua_get_vout_internal(lua_State *L);
-audio_output_t *vlclua_get_aout_internal(lua_State *L);
+heimdall_player_t *heimdalllua_get_player_internal(lua_State *);
+vout_thread_t *heimdalllua_get_vout_internal(lua_State *L);
+audio_output_t *heimdalllua_get_aout_internal(lua_State *L);
 
 #endif

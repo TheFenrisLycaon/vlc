@@ -1,8 +1,9 @@
 /*****************************************************************************
- * yuv_rgb.c : ARM NEONv1 YUV to RGB32 chroma conversion for VLC
+ * yuv_rgb.c : ARM NEONv1 YUV to RGB32 chroma conversion for Heimdall
  *****************************************************************************
  * Copyright (C) 2011 Sébastien Toque
  *                    Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -23,31 +24,31 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_picture.h>
-#include <vlc_chroma_probe.h>
-#include <vlc_cpu.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
+#include <heimdall_chroma_probe.h>
+#include <heimdall_cpu.h>
 #include "chroma_neon.h"
 
 static int Open (filter_t *);
 
-static void ProbeChroma(vlc_chroma_conv_vec *vec)
+static void ProbeChroma(heimdall_chroma_conv_vec *vec)
 {
-    vlc_chroma_conv_add(vec, 0.75, VLC_CODEC_I420, VLC_CODEC_RGB565LE, false);
-    vlc_chroma_conv_add(vec, 0.75, VLC_CODEC_I420, VLC_CODEC_XBGR, false);
-    vlc_chroma_conv_add(vec, 0.75, VLC_CODEC_YV12, VLC_CODEC_XBGR, false);
-    vlc_chroma_conv_add(vec, 0.75, VLC_CODEC_NV21, VLC_CODEC_XBGR, false);
-    vlc_chroma_conv_add(vec, 0.75, VLC_CODEC_NV12, VLC_CODEC_XBGR, false);
+    heimdall_chroma_conv_add(vec, 0.75, HEIMDALL_CODEC_I420, HEIMDALL_CODEC_RGB565LE, false);
+    heimdall_chroma_conv_add(vec, 0.75, HEIMDALL_CODEC_I420, HEIMDALL_CODEC_XBGR, false);
+    heimdall_chroma_conv_add(vec, 0.75, HEIMDALL_CODEC_YV12, HEIMDALL_CODEC_XBGR, false);
+    heimdall_chroma_conv_add(vec, 0.75, HEIMDALL_CODEC_NV21, HEIMDALL_CODEC_XBGR, false);
+    heimdall_chroma_conv_add(vec, 0.75, HEIMDALL_CODEC_NV12, HEIMDALL_CODEC_XBGR, false);
 }
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description (N_("ARM NEON video chroma YUV->RGBA"))
     set_callback_video_converter(Open, 250)
     add_submodule()
         set_callback_chroma_conv_probe(ProbeChroma)
-vlc_module_end ()
+heimdall_module_end ()
 
 /*
 static int CoefY[256];
@@ -144,51 +145,51 @@ VIDEO_FILTER_WRAPPER (NV12_RGBA)
 
 static int Open (filter_t *filter)
 {
-    if (!vlc_CPU_ARM_NEON())
-        return VLC_EGENERIC;
+    if (!heimdall_CPU_ARM_NEON())
+        return HEIMDALL_EGENERIC;
 
     if (((filter->fmt_in.video.i_width | filter->fmt_in.video.i_height) & 1)
      || (filter->fmt_in.video.i_width != filter->fmt_out.video.i_width)
      || (filter->fmt_in.video.i_height != filter->fmt_out.video.i_height)
      || (filter->fmt_in.video.orientation != filter->fmt_out.video.orientation))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     switch (filter->fmt_out.video.i_chroma)
     {
-        case VLC_CODEC_RGB565LE:
+        case HEIMDALL_CODEC_RGB565LE:
             switch (filter->fmt_in.video.i_chroma)
             {
-                case VLC_CODEC_I420:
+                case HEIMDALL_CODEC_I420:
                     filter->ops = &I420_RV16_ops;
                     break;
                 default:
-                    return VLC_EGENERIC;
+                    return HEIMDALL_EGENERIC;
             }
             break;
 
-        case VLC_CODEC_XBGR:
+        case HEIMDALL_CODEC_XBGR:
 
             switch (filter->fmt_in.video.i_chroma)
             {
-                case VLC_CODEC_I420:
+                case HEIMDALL_CODEC_I420:
                     filter->ops = &I420_RGBA_ops;
                     break;
-                case VLC_CODEC_YV12:
+                case HEIMDALL_CODEC_YV12:
                     filter->ops = &YV12_RGBA_ops;
                     break;
-                case VLC_CODEC_NV21:
+                case HEIMDALL_CODEC_NV21:
                     filter->ops = &NV21_RGBA_ops;
                     break;
-                case VLC_CODEC_NV12:
+                case HEIMDALL_CODEC_NV12:
                     filter->ops = &NV12_RGBA_ops;
                     break;
                 default:
-                    return VLC_EGENERIC;
+                    return HEIMDALL_EGENERIC;
             }
             break;
 
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 
     //precompute some values for the C version
@@ -210,5 +211,5 @@ static int Open (filter_t *filter)
             (char*)&filter->fmt_in.video.i_chroma, filter->fmt_in.video.i_visible_width, filter->fmt_in.video.i_visible_height,
             (char*)&filter->fmt_out.video.i_chroma, filter->fmt_out.video.i_visible_width, filter->fmt_out.video.i_visible_height);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

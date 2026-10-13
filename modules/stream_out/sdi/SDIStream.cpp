@@ -1,7 +1,8 @@
 /*****************************************************************************
- * SDIStream.cpp: SDI sout module for vlc
+ * SDIStream.cpp: SDI sout module for heimdall
  *****************************************************************************
  * Copyright © 2018 VideoLabs, VideoLAN and VideoLAN Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -24,10 +25,10 @@
 #include "SDIStream.hpp"
 #include "sdiout.hpp"
 
-#include <vlc_modules.h>
-#include <vlc_meta.h>
-#include <vlc_block.h>
-#include <vlc_threads.h>
+#include <heimdall_modules.h>
+#include <heimdall_meta.h>
+#include <heimdall_block.h>
+#include <heimdall_threads.h>
 
 #include <sstream>
 
@@ -44,7 +45,7 @@ AbstractStreamOutputBuffer::~AbstractStreamOutputBuffer()
 AbstractQueueStreamOutputBuffer::AbstractQueueStreamOutputBuffer()
 {
     b_draining = false;
-    vlc_mutex_init(&buffer_mutex);
+    heimdall_mutex_init(&buffer_mutex);
 }
 
 AbstractQueueStreamOutputBuffer::~AbstractQueueStreamOutputBuffer()
@@ -54,14 +55,14 @@ AbstractQueueStreamOutputBuffer::~AbstractQueueStreamOutputBuffer()
 
 void AbstractQueueStreamOutputBuffer::Enqueue(void *p)
 {
-    vlc_mutex_locker locker(&buffer_mutex);
+    heimdall_mutex_locker locker(&buffer_mutex);
     queued.push(p);
 }
 
 void *AbstractQueueStreamOutputBuffer::Dequeue()
 {
     void *p = NULL;
-    vlc_mutex_locker locker(&buffer_mutex);
+    heimdall_mutex_locker locker(&buffer_mutex);
     if(!queued.empty())
     {
         p = queued.front();
@@ -72,13 +73,13 @@ void *AbstractQueueStreamOutputBuffer::Dequeue()
 
 void AbstractQueueStreamOutputBuffer::Drain()
 {
-    vlc_mutex_locker locker(&buffer_mutex);
+    heimdall_mutex_locker locker(&buffer_mutex);
     b_draining = true;
 }
 
 bool AbstractQueueStreamOutputBuffer::isEOS()
 {
-    vlc_mutex_locker locker(&buffer_mutex);
+    heimdall_mutex_locker locker(&buffer_mutex);
     return b_draining && queued.empty();
 }
 
@@ -104,7 +105,7 @@ void BlockStreamOutputBuffer::FlushQueued()
 PictureStreamOutputBuffer::PictureStreamOutputBuffer()
     : AbstractQueueStreamOutputBuffer()
 {
-    vlc_sem_init(&pool_semaphore, 16);
+    heimdall_sem_init(&pool_semaphore, 16);
 }
 
 PictureStreamOutputBuffer::~PictureStreamOutputBuffer()
@@ -115,14 +116,14 @@ void * PictureStreamOutputBuffer::Dequeue()
 {
     void *p = AbstractQueueStreamOutputBuffer::Dequeue();
     if(p)
-        vlc_sem_post(&pool_semaphore);
+        heimdall_sem_post(&pool_semaphore);
     return p;
 }
 
 void PictureStreamOutputBuffer::Enqueue(void *p)
 {
     if(p)
-        vlc_sem_wait(&pool_semaphore);
+        heimdall_sem_wait(&pool_semaphore);
     AbstractQueueStreamOutputBuffer::Enqueue(p);
 }
 
@@ -133,14 +134,14 @@ void PictureStreamOutputBuffer::FlushQueued()
         picture_Release(p);
 }
 
-vlc_tick_t PictureStreamOutputBuffer::NextPictureTime()
+heimdall_tick_t PictureStreamOutputBuffer::NextPictureTime()
 {
-    vlc_tick_t t;
-    vlc_mutex_locker locker(&buffer_mutex);
+    heimdall_tick_t t;
+    heimdall_mutex_locker locker(&buffer_mutex);
     if(!queued.empty())
         t = reinterpret_cast<picture_t *>(queued.front())->date;
     else
-        t = VLC_TICK_INVALID;
+        t = HEIMDALL_TICK_INVALID;
     return t;
 }
 
@@ -184,7 +185,7 @@ bool StreamID::operator==(const StreamID &other) const
         return stream_id == other.stream_id;
 }
 
-AbstractStream::AbstractStream(vlc_object_t *p_obj,
+AbstractStream::AbstractStream(heimdall_object_t *p_obj,
                                const StreamID &id,
                                AbstractStreamOutputBuffer *buffer)
     : id(id)
@@ -211,21 +212,21 @@ struct decoder_owner
     bool b_error;
     es_format_t last_fmt_update;
     es_format_t decoder_out;
-    vlc_decoder_device *dec_dev;
+    heimdall_decoder_device *dec_dev;
 };
 
-AbstractDecodedStream::AbstractDecodedStream(vlc_object_t *p_obj,
+AbstractDecodedStream::AbstractDecodedStream(heimdall_object_t *p_obj,
                                              const StreamID &id,
                                              AbstractStreamOutputBuffer *buffer)
     : AbstractStream(p_obj, id, buffer)
 {
     p_decoder = NULL;
     es_format_Init(&requestedoutput, 0, 0);
-    vlc_mutex_init(&inputLock);
-    vlc_cond_init(&inputWait);
+    heimdall_mutex_init(&inputLock);
+    heimdall_cond_init(&inputWait);
     threadEnd = false;
     status = DECODING;
-    pcr = VLC_TICK_INVALID;
+    pcr = HEIMDALL_TICK_INVALID;
 }
 
 AbstractDecodedStream::~AbstractDecodedStream()
@@ -240,11 +241,11 @@ void AbstractDecodedStream::deinit()
     if(p_decoder)
     {
         Flush();
-        vlc_mutex_lock(&inputLock);
-        vlc_cond_signal(&inputWait);
+        heimdall_mutex_lock(&inputLock);
+        heimdall_cond_signal(&inputWait);
         threadEnd = true;
-        vlc_mutex_unlock(&inputLock);
-        vlc_join(thread, NULL);
+        heimdall_mutex_unlock(&inputLock);
+        heimdall_join(thread, NULL);
         ReleaseDecoder();
     }
 }
@@ -255,7 +256,7 @@ bool AbstractDecodedStream::init(const es_format_t *p_fmt)
         return false;
 
     /* Create decoder object */
-    auto p_owner = vlc_object_create<decoder_owner>(p_stream);
+    auto p_owner = heimdall_object_create<decoder_owner>(p_stream);
     if(!p_owner)
         return false;
 
@@ -278,7 +279,7 @@ bool AbstractDecodedStream::init(const es_format_t *p_fmt)
         return false;
     }
 
-    if(vlc_clone(&thread, decoderThreadCallback, this))
+    if(heimdall_clone(&thread, decoderThreadCallback, this))
     {
         ReleaseDecoder();
         return false;
@@ -289,7 +290,7 @@ bool AbstractDecodedStream::init(const es_format_t *p_fmt)
 
 void * AbstractDecodedStream::decoderThreadCallback(void *me)
 {
-    vlc_thread_set_name("vlc-SDI");
+    heimdall_thread_set_name("heimdall-SDI");
 
     reinterpret_cast<AbstractDecodedStream *>(me)->decoderThread();
     return NULL;
@@ -300,15 +301,15 @@ void AbstractDecodedStream::decoderThread()
     struct decoder_owner *p_owner =
             container_of(p_decoder, struct decoder_owner, dec);
 
-    vlc_savecancel();
-    vlc_mutex_lock(&inputLock);
+    heimdall_savecancel();
+    heimdall_mutex_lock(&inputLock);
     for(;;)
     {
         while(inputQueue.empty() && !threadEnd)
-            vlc_cond_wait(&inputWait, &inputLock);
+            heimdall_cond_wait(&inputWait, &inputLock);
         if(threadEnd)
         {
-            vlc_mutex_unlock(&inputLock);
+            heimdall_mutex_unlock(&inputLock);
             break;
         }
 
@@ -316,29 +317,29 @@ void AbstractDecodedStream::decoderThread()
         inputQueue.pop();
 
         bool b_draincall = (status == DRAINING) && (p_block == NULL);
-        vlc_mutex_unlock(&inputLock);
+        heimdall_mutex_unlock(&inputLock);
 
         if(!p_owner->b_error)
         {
             int ret = p_decoder->pf_decode(p_decoder, p_block);
             switch(ret)
             {
-                case VLCDEC_SUCCESS:
+                case HEIMDALLDEC_SUCCESS:
                     break;
-                case VLCDEC_ECRITICAL:
+                case HEIMDALLDEC_ECRITICAL:
                     p_owner->b_error = true;
                     break;
-                case VLCDEC_RELOAD:
+                case HEIMDALLDEC_RELOAD:
                     p_owner->b_error = true;
                     if(p_block)
                         block_Release(p_block);
                     break;
                 default:
-                    vlc_assert_unreachable();
+                    heimdall_assert_unreachable();
             }
         }
 
-        vlc_mutex_lock(&inputLock);
+        heimdall_mutex_lock(&inputLock);
         if(p_owner->b_error)
         {
             status = FAILED;
@@ -355,22 +356,22 @@ void AbstractDecodedStream::decoderThread()
 int AbstractDecodedStream::Send(block_t *p_block)
 {
     assert(p_decoder);
-    vlc_mutex_locker locker(&inputLock);
+    heimdall_mutex_locker locker(&inputLock);
     inputQueue.push(p_block);
     if(p_block)
     {
-        vlc_tick_t t = std::min(p_block->i_dts, p_block->i_pts);
-        if(t == VLC_TICK_INVALID)
+        heimdall_tick_t t = std::min(p_block->i_dts, p_block->i_pts);
+        if(t == HEIMDALL_TICK_INVALID)
             t = std::max(p_block->i_dts, p_block->i_pts);
         pcr = std::max(pcr, t);
     }
-    vlc_cond_signal(&inputWait);
-    return VLC_SUCCESS;
+    heimdall_cond_signal(&inputWait);
+    return HEIMDALL_SUCCESS;
 }
 
 void AbstractDecodedStream::Flush()
 {
-    vlc_mutex_locker locker(&inputLock);
+    heimdall_mutex_locker locker(&inputLock);
     while(!inputQueue.empty())
     {
         if(inputQueue.front())
@@ -382,22 +383,22 @@ void AbstractDecodedStream::Flush()
 void AbstractDecodedStream::Drain()
 {
     Send(NULL);
-    vlc_mutex_locker locker(&inputLock);
+    heimdall_mutex_locker locker(&inputLock);
     if(status != FAILED && status != DRAINED)
         status = DRAINING;
 }
 
 bool AbstractDecodedStream::isEOS()
 {
-    vlc_mutex_locker locker(&inputLock);
+    heimdall_mutex_locker locker(&inputLock);
     bool b = (status == FAILED || status == DRAINED);
     return b;
 }
 
-bool AbstractDecodedStream::ReachedPlaybackTime(vlc_tick_t t)
+bool AbstractDecodedStream::ReachedPlaybackTime(heimdall_tick_t t)
 {
-    vlc_mutex_locker locker(&inputLock);
-    bool b = (pcr != VLC_TICK_INVALID) && t < pcr;
+    heimdall_mutex_locker locker(&inputLock);
+    bool b = (pcr != HEIMDALL_TICK_INVALID) && t < pcr;
     b |= (status == DRAINED) || (status == FAILED);
     return b;
 }
@@ -410,7 +411,7 @@ void AbstractDecodedStream::ReleaseDecoder()
     es_format_Clean(&p_owner->decoder_out);
     es_format_Clean(&p_owner->last_fmt_update);
     es_format_Clean(&p_owner->fmt_in);
-    vlc_object_delete(p_decoder);
+    heimdall_object_delete(p_decoder);
     p_decoder = NULL;
 }
 
@@ -420,7 +421,7 @@ void AbstractDecodedStream::setOutputFormat(const es_format_t *p_fmt)
     es_format_Copy(&requestedoutput, p_fmt);
 }
 
-VideoDecodedStream::VideoDecodedStream(vlc_object_t *p_obj,
+VideoDecodedStream::VideoDecodedStream(heimdall_object_t *p_obj,
                                        const StreamID &id,
                                        AbstractStreamOutputBuffer *buffer)
     :AbstractDecodedStream(p_obj, id, buffer)
@@ -468,7 +469,7 @@ void VideoDecodedStream::VideoDecCallback_queue_cc(decoder_t *p_dec, block_t *p_
     static_cast<VideoDecodedStream *>(p_owner->id)->QueueCC(p_block);
 }
 
-vlc_decoder_device * VideoDecodedStream::VideoDecCallback_get_device(decoder_t *p_dec)
+heimdall_decoder_device * VideoDecodedStream::VideoDecCallback_get_device(decoder_t *p_dec)
 {
     if( !var_InheritBool( p_dec, "hw-dec" ) )
         return NULL;
@@ -477,9 +478,9 @@ vlc_decoder_device * VideoDecodedStream::VideoDecCallback_get_device(decoder_t *
     p_owner = container_of(p_dec, struct decoder_owner, dec);
     if (p_owner->dec_dev == NULL)
     {
-        p_owner->dec_dev = vlc_decoder_device_Create(&p_dec->obj, NULL);
+        p_owner->dec_dev = heimdall_decoder_device_Create(&p_dec->obj, NULL);
     }
-    return p_owner->dec_dev ? vlc_decoder_device_Hold(p_owner->dec_dev) : NULL;
+    return p_owner->dec_dev ? heimdall_decoder_device_Hold(p_owner->dec_dev) : NULL;
 }
 
 void VideoDecodedStream::ReleaseDecoder()
@@ -488,7 +489,7 @@ void VideoDecodedStream::ReleaseDecoder()
     p_owner = container_of(p_decoder, struct decoder_owner, dec);
     if (p_owner->dec_dev)
     {
-        vlc_decoder_device_Release(p_owner->dec_dev);
+        heimdall_decoder_device_Release(p_owner->dec_dev);
         p_owner->dec_dev = NULL;
     }
 
@@ -496,7 +497,7 @@ void VideoDecodedStream::ReleaseDecoder()
 }
 
 int VideoDecodedStream::VideoDecCallback_update_format(decoder_t *p_dec,
-                                                       vlc_video_context *)
+                                                       heimdall_video_context *)
 {
     struct decoder_owner *p_owner;
     p_owner = container_of(p_dec, struct decoder_owner, dec);
@@ -504,7 +505,7 @@ int VideoDecodedStream::VideoDecCallback_update_format(decoder_t *p_dec,
     es_format_Clean(&p_owner->last_fmt_update);
     es_format_Copy(&p_owner->last_fmt_update, &p_dec->fmt_out);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static picture_t *transcode_video_filter_buffer_new(filter_t *p_filter)
@@ -518,7 +519,7 @@ static const struct filter_video_callbacks transcode_filter_video_cbs =
     transcode_video_filter_buffer_new, NULL,
 };
 
-filter_chain_t * VideoDecodedStream::VideoFilterCreate(const es_format_t *p_srcfmt, vlc_video_context *vctx)
+filter_chain_t * VideoDecodedStream::VideoFilterCreate(const es_format_t *p_srcfmt, heimdall_video_context *vctx)
 {
     filter_chain_t *p_chain;
     filter_owner_t owner;
@@ -532,7 +533,7 @@ filter_chain_t * VideoDecodedStream::VideoFilterCreate(const es_format_t *p_srcf
 
     if(!video_format_IsSameChroma( &p_srcfmt->video, &requestedoutput.video))
     {
-        if(filter_chain_AppendConverter(p_chain, &requestedoutput) != VLC_SUCCESS)
+        if(filter_chain_AppendConverter(p_chain, &requestedoutput) != HEIMDALL_SUCCESS)
         {
             filter_chain_Delete(p_chain);
             return NULL;
@@ -584,7 +585,7 @@ void VideoDecodedStream::QueueCC(block_t *p_block)
     captionsOutputBuffer->Enqueue(p_block);
 }
 
-AudioDecodedStream::AudioDecodedStream(vlc_object_t *p_obj,
+AudioDecodedStream::AudioDecodedStream(heimdall_object_t *p_obj,
                                        const StreamID &id,
                                        AbstractStreamOutputBuffer *buffer)
     :AbstractDecodedStream(p_obj, id, buffer)
@@ -657,7 +658,7 @@ int AudioDecodedStream::AudioDecCallback_update_format(decoder_t *p_dec)
     p_owner = container_of(p_dec, struct decoder_owner, dec);
 
     if( !AOUT_FMT_LINEAR(&p_dec->fmt_out.audio) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* fixup */
     p_dec->fmt_out.audio.i_format = p_dec->fmt_out.i_codec;
@@ -668,7 +669,7 @@ int AudioDecodedStream::AudioDecCallback_update_format(decoder_t *p_dec)
 
     p_owner->last_fmt_update.audio.i_format = p_owner->last_fmt_update.i_codec;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 void AudioDecodedStream::setCallbacks()
@@ -681,13 +682,13 @@ void AudioDecodedStream::setCallbacks()
 }
 
 
-AbstractRawStream::AbstractRawStream(vlc_object_t *p_obj, const StreamID &id,
+AbstractRawStream::AbstractRawStream(heimdall_object_t *p_obj, const StreamID &id,
                                AbstractStreamOutputBuffer *buffer)
     : AbstractStream(p_obj, id, buffer)
 {
-    pcr = VLC_TICK_INVALID;
+    pcr = HEIMDALL_TICK_INVALID;
     b_draining = false;
-    vlc_mutex_init(&buffer_mutex);
+    heimdall_mutex_init(&buffer_mutex);
 }
 
 AbstractRawStream::~AbstractRawStream()
@@ -697,16 +698,16 @@ AbstractRawStream::~AbstractRawStream()
 
 int AbstractRawStream::Send(block_t *p_block)
 {
-    vlc_tick_t t = std::min(p_block->i_dts, p_block->i_pts);
-    if(t == VLC_TICK_INVALID)
+    heimdall_tick_t t = std::min(p_block->i_dts, p_block->i_pts);
+    if(t == HEIMDALL_TICK_INVALID)
         t = std::max(p_block->i_dts, p_block->i_pts);
     if(p_block->i_buffer)
         outputbuffer->Enqueue(p_block);
     else
         block_Release(p_block);
-    vlc_mutex_locker locker(&buffer_mutex);
+    heimdall_mutex_locker locker(&buffer_mutex);
     pcr = std::max(pcr, t);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 void AbstractRawStream::Flush()
@@ -716,21 +717,21 @@ void AbstractRawStream::Flush()
 
 void AbstractRawStream::Drain()
 {
-    vlc_mutex_locker locker(&buffer_mutex);
+    heimdall_mutex_locker locker(&buffer_mutex);
     b_draining = true;
 }
 
-bool AbstractRawStream::ReachedPlaybackTime(vlc_tick_t t)
+bool AbstractRawStream::ReachedPlaybackTime(heimdall_tick_t t)
 {
-    vlc_mutex_locker locker(&buffer_mutex);
-    bool b = (pcr != VLC_TICK_INVALID) && t < pcr;
+    heimdall_mutex_locker locker(&buffer_mutex);
+    bool b = (pcr != HEIMDALL_TICK_INVALID) && t < pcr;
     b |= b_draining;
     return b;
 }
 
 bool AbstractRawStream::isEOS()
 {
-    vlc_mutex_locker locker(&buffer_mutex);
+    heimdall_mutex_locker locker(&buffer_mutex);
     return b_draining;
 }
 
@@ -742,7 +743,7 @@ void AbstractRawStream::FlushQueued()
 }
 
 
-AbstractReorderedStream::AbstractReorderedStream(vlc_object_t *p_obj, const StreamID &id,
+AbstractReorderedStream::AbstractReorderedStream(heimdall_object_t *p_obj, const StreamID &id,
                                                  AbstractStreamOutputBuffer *buffer)
     : AbstractRawStream(p_obj, id, buffer)
 {
@@ -761,7 +762,7 @@ int AbstractReorderedStream::Send(block_t *p_block)
     {
         for(; it != reorder.end(); ++it)
         {
-            if((*it)->i_pts == VLC_TICK_INVALID)
+            if((*it)->i_pts == HEIMDALL_TICK_INVALID)
                 continue;
             if(p_block->i_pts < (*it)->i_pts)
             {
@@ -776,7 +777,7 @@ int AbstractReorderedStream::Send(block_t *p_block)
         reorder.insert(it, p_block);
 
         if(reorder.size() <= reorder_depth + 1)
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
 
         p_block = reorder.front();
         reorder.pop_front();
@@ -806,7 +807,7 @@ void AbstractReorderedStream::setReorder(size_t r)
     do_reorder = true;
 }
 
-AudioCompressedStream::AudioCompressedStream(vlc_object_t *p_obj, const StreamID &id,
+AudioCompressedStream::AudioCompressedStream(heimdall_object_t *p_obj, const StreamID &id,
                                              AbstractStreamOutputBuffer *buffer)
     : AbstractRawStream(p_obj, id, buffer)
 {
@@ -822,7 +823,7 @@ int AudioCompressedStream::Send(block_t *p_block)
     const size_t i_pad = (p_block->i_buffer & 1) ? 1 : 0;
     p_block = block_Realloc(p_block, 12, p_block->i_buffer + i_pad);
     if(!p_block)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     /* Convert to AES3 Payload */
     SetWBE(&p_block->p_buffer[0], 0x0000); /* Extra 0000 */
     SetWBE(&p_block->p_buffer[2], 0x0000); /* see S337 Annex B */
@@ -837,10 +838,10 @@ int AudioCompressedStream::Send(block_t *p_block)
 
 bool AudioCompressedStream::init(const es_format_t *fmt)
 {
-    return (fmt->i_codec == VLC_CODEC_A52);
+    return (fmt->i_codec == HEIMDALL_CODEC_A52);
 }
 
-CaptionsStream::CaptionsStream(vlc_object_t *p_obj, const StreamID &id,
+CaptionsStream::CaptionsStream(heimdall_object_t *p_obj, const StreamID &id,
                                AbstractStreamOutputBuffer *buffer)
     : AbstractReorderedStream(p_obj, id, buffer)
 {
@@ -855,6 +856,6 @@ bool CaptionsStream::init(const es_format_t *fmt)
 {
     if(fmt->subs.cc.i_reorder_depth >= 0)
         setReorder(fmt->subs.cc.i_reorder_depth);
-    return (fmt->i_codec == VLC_CODEC_CEA608);
+    return (fmt->i_codec == HEIMDALL_CODEC_CEA608);
 }
 

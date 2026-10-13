@@ -2,6 +2,7 @@
  * xdg-screensaver.c
  *****************************************************************************
  * Copyright (C) 2008 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,65 +23,65 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_threads.h>
-#include <vlc_plugin.h>
-#include <vlc_inhibit.h>
-#include <vlc_spawn.h>
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
+#include <heimdall_plugin.h>
+#include <heimdall_inhibit.h>
+#include <heimdall_spawn.h>
 
-static int Open (vlc_object_t *);
-static void Close (vlc_object_t *);
+static int Open (heimdall_object_t *);
+static void Close (heimdall_object_t *);
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname (N_("XDG-screensaver") )
     set_description (N_("XDG screen saver inhibition") )
     set_capability ("inhibit", 10 )
     set_callbacks (Open, Close)
     set_subcategory (SUBCAT_ADVANCED_MISC)
-vlc_module_end ()
+heimdall_module_end ()
 
 static void Timer (void *data)
 {
     static const char *const argv[] = { "xdg-screensaver", "reset", NULL };
     static const int fdv[] = { -1, STDERR_FILENO, STDERR_FILENO, -1 };
-    vlc_inhibit_t *ih = data;
+    heimdall_inhibit_t *ih = data;
     pid_t pid;
 
-    int err = vlc_spawnp(&pid, argv[0], fdv, argv);
+    int err = heimdall_spawnp(&pid, argv[0], fdv, argv);
 
     if (err == 0)
-        vlc_waitpid(pid);
+        heimdall_waitpid(pid);
     else
         msg_Warn (ih, "error starting xdg-screensaver: %s",
-                  vlc_strerror_c(err));
+                  heimdall_strerror_c(err));
 }
 
-static void Inhibit (vlc_inhibit_t *ih, unsigned mask)
+static void Inhibit (heimdall_inhibit_t *ih, unsigned mask)
 {
-    vlc_timer_t timer = (void *)ih->p_sys;
-    bool suspend = (mask & VLC_INHIBIT_DISPLAY) != 0;
-    vlc_tick_t delay = suspend ? VLC_TICK_FROM_SEC(30): VLC_TIMER_DISARM;
+    heimdall_timer_t timer = (void *)ih->p_sys;
+    bool suspend = (mask & HEIMDALL_INHIBIT_DISPLAY) != 0;
+    heimdall_tick_t delay = suspend ? HEIMDALL_TICK_FROM_SEC(30): HEIMDALL_TIMER_DISARM;
 
-    vlc_timer_schedule(timer, false, delay, delay);
+    heimdall_timer_schedule(timer, false, delay, delay);
 }
 
-static int Open (vlc_object_t *obj)
+static int Open (heimdall_object_t *obj)
 {
-    vlc_inhibit_t *ih = (vlc_inhibit_t *)obj;
-    vlc_timer_t timer;
+    heimdall_inhibit_t *ih = (heimdall_inhibit_t *)obj;
+    heimdall_timer_t timer;
 
-    if (vlc_timer_create(&timer, Timer, ih))
-        return VLC_ENOMEM;
+    if (heimdall_timer_create(&timer, Timer, ih))
+        return HEIMDALL_ENOMEM;
 
     ih->p_sys = (void *)timer;
     ih->inhibit = Inhibit;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void Close (vlc_object_t *obj)
+static void Close (heimdall_object_t *obj)
 {
-    vlc_inhibit_t *ih = (vlc_inhibit_t *)obj;
-    vlc_timer_t timer = (void *)ih->p_sys;
+    heimdall_inhibit_t *ih = (heimdall_inhibit_t *)obj;
+    heimdall_timer_t timer = (void *)ih->p_sys;
 
-    vlc_timer_destroy(timer);
+    heimdall_timer_destroy(timer);
 }

@@ -2,6 +2,7 @@
  * d3d9_fmt.c : D3D9 helper calls
  *****************************************************************************
  * Copyright © 2017 VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Steve Lhomme <robux4@gmail.com>
  *
@@ -25,11 +26,11 @@
 
 #include <assert.h>
 
-#include <vlc/libvlc.h>
-#include <vlc/libvlc_picture.h>
-#include <vlc/libvlc_media.h>
-#include <vlc/libvlc_renderer_discoverer.h>
-#include <vlc/libvlc_media_player.h>
+#include <heimdall/libheimdall.h>
+#include <heimdall/libheimdall_picture.h>
+#include <heimdall/libheimdall_media.h>
+#include <heimdall/libheimdall_renderer_discoverer.h>
+#include <heimdall/libheimdall_media_player.h>
 
 #include <initguid.h>
 #include "d3d9_fmt.h"
@@ -47,7 +48,7 @@ picture_sys_d3d9_t *ActiveD3D9PictureSys(picture_t *pic)
 
 typedef struct {
     void                            *opaque;
-    libvlc_video_output_cleanup_cb  cleanupDeviceCb;
+    libheimdall_video_output_cleanup_cb  cleanupDeviceCb;
 
     d3d9_decoder_device_t           dec_device;
 } d3d9_decoder_device;
@@ -72,7 +73,7 @@ static void FillPresentationParameters(D3DPRESENT_PARAMETERS *d3dpp)
     d3dpp->BackBufferHeight       = GetSystemMetrics(SM_CYVIRTUALSCREEN);
 }
 
-int D3D9_ResetDevice(vlc_object_t *o, d3d9_decoder_device_t *dec_dev)
+int D3D9_ResetDevice(heimdall_object_t *o, d3d9_decoder_device_t *dec_dev)
 {
     D3DPRESENT_PARAMETERS d3dpp;
     FillPresentationParameters(&d3dpp);
@@ -86,9 +87,9 @@ int D3D9_ResetDevice(vlc_object_t *o, d3d9_decoder_device_t *dec_dev)
     }
     if (FAILED(hr)) {
         msg_Err(o, "IDirect3DDevice9_Reset failed! (hr=0x%lX)", hr);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void D3D9_Destroy(d3d9_handle_t *hd3d)
@@ -103,7 +104,7 @@ static void D3D9_Destroy(d3d9_handle_t *hd3d)
 /**
  * It initializes an instance of Direct3D9
  */
-static int D3D9_Create(vlc_object_t *o, d3d9_handle_t *hd3d)
+static int D3D9_Create(heimdall_object_t *o, d3d9_handle_t *hd3d)
 {
     /* Create the D3D object. */
     hd3d->use_ex = false;
@@ -121,10 +122,10 @@ static int D3D9_Create(vlc_object_t *o, d3d9_handle_t *hd3d)
             goto error;
         }
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 error:
     D3D9_Destroy( hd3d );
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 static void D3D9_CloneExternal(d3d9_handle_t *hd3d, IDirect3D9 *dev)
@@ -138,12 +139,12 @@ static void D3D9_CloneExternal(d3d9_handle_t *hd3d, IDirect3D9 *dev)
         IDirect3D9Ex_Release((IDirect3D9Ex*) pv);
 }
 
-d3d9_decoder_device_t *(D3D9_CreateDevice)(vlc_object_t *o)
+d3d9_decoder_device_t *(D3D9_CreateDevice)(heimdall_object_t *o)
 {
     HRESULT hr;
     D3DDEVTYPE DeviceType = D3DDEVTYPE_HAL;
 
-    d3d9_decoder_device *sys = vlc_obj_malloc(o, sizeof(*sys));
+    d3d9_decoder_device *sys = heimdall_obj_malloc(o, sizeof(*sys));
     if (unlikely(sys==NULL))
         return NULL;
 
@@ -153,17 +154,17 @@ d3d9_handle_t *hd3d = &sys->dec_device.hd3d;
     int AdapterToUse;
 
     sys->cleanupDeviceCb = NULL;
-    libvlc_video_engine_t engineType = var_InheritInteger( o, "vout-cb-type" );
-    libvlc_video_output_setup_cb setupDeviceCb = NULL;
-    if (engineType == libvlc_video_engine_d3d9)
+    libheimdall_video_engine_t engineType = var_InheritInteger( o, "vout-cb-type" );
+    libheimdall_video_output_setup_cb setupDeviceCb = NULL;
+    if (engineType == libheimdall_video_engine_d3d9)
         setupDeviceCb = var_InheritAddress( o, "vout-cb-setup" );
     if ( setupDeviceCb != NULL)
     {
         /* external rendering */
-        libvlc_video_setup_device_info_t extern_out = { .u.d3d9.adapter = -1 };
+        libheimdall_video_setup_device_info_t extern_out = { .u.d3d9.adapter = -1 };
         sys->opaque          = var_InheritAddress( o, "vout-cb-opaque" );
         sys->cleanupDeviceCb = var_InheritAddress( o, "vout-cb-cleanup" );
-        libvlc_video_setup_device_cfg_t cfg = {
+        libheimdall_video_setup_device_cfg_t cfg = {
             .hardware_decoding = true, /* ignored anyway */
         };
         if (!setupDeviceCb( &sys->opaque, &cfg, &extern_out ))
@@ -172,12 +173,12 @@ d3d9_handle_t *hd3d = &sys->dec_device.hd3d;
         D3D9_CloneExternal( hd3d, (IDirect3D9 *) extern_out.u.d3d9.device );
         AdapterToUse = extern_out.u.d3d9.adapter;
     }
-    else if ( engineType == libvlc_video_engine_disable ||
-              engineType == libvlc_video_engine_d3d9 ||
-              engineType == libvlc_video_engine_opengl )
+    else if ( engineType == libheimdall_video_engine_disable ||
+              engineType == libheimdall_video_engine_d3d9 ||
+              engineType == libheimdall_video_engine_opengl )
     {
         /* internal rendering */
-        if (D3D9_Create(o, hd3d) != VLC_SUCCESS)
+        if (D3D9_Create(o, hd3d) != HEIMDALL_SUCCESS)
         {
             msg_Err( o, "Direct3D9 could not be initialized" );
             goto error;
@@ -271,7 +272,7 @@ d3d9_handle_t *hd3d = &sys->dec_device.hd3d;
 error:
     if ( sys->cleanupDeviceCb )
         sys->cleanupDeviceCb( sys->opaque );
-    vlc_obj_free( o, sys );
+    heimdall_obj_free( o, sys );
     return NULL;
 }
 
@@ -285,7 +286,7 @@ void D3D9_ReleaseDevice(d3d9_decoder_device_t *dec_dev)
         sys->cleanupDeviceCb( sys->opaque );
 }
 
-const struct vlc_video_context_operations d3d9_vctx_ops = {
+const struct heimdall_video_context_operations d3d9_vctx_ops = {
     NULL,
 };
 
@@ -302,28 +303,28 @@ picture_context_t *d3d9_pic_context_copy(picture_context_t *ctx)
     if (unlikely(pic_ctx==NULL))
         return NULL;
     *pic_ctx = *D3D9_PICCONTEXT_FROM_PICCTX(ctx);
-    vlc_video_context_Hold(pic_ctx->s.vctx);
+    heimdall_video_context_Hold(pic_ctx->s.vctx);
     AcquireD3D9PictureSys(&pic_ctx->picsys);
     return &pic_ctx->s;
 }
 
 /* XXX Preferred format must come first */
 static const d3d9_format_t d3d_formats[] = {
-    { "YV12",      MAKEFOURCC('Y','V','1','2'),    VLC_CODEC_YV12 },
-    { "NV12",      MAKEFOURCC('N','V','1','2'),    VLC_CODEC_NV12 },
-    //{ "IMC3",      MAKEFOURCC('I','M','C','3'),    VLC_CODEC_YV12 },
-    { "P010",      MAKEFOURCC('P','0','1','0'),    VLC_CODEC_P010 },
-    { "AYUV",      MAKEFOURCC('A','Y','U','V'),    VLC_CODEC_YUVA },
-    { "YUY2",      MAKEFOURCC('Y','U','Y','2'),    VLC_CODEC_YUYV },
-    { "Y410",      MAKEFOURCC('Y','4','1','0'),    VLC_CODEC_Y410 },
-    { "Y210",      MAKEFOURCC('Y','2','1','0'),    VLC_CODEC_Y210 },
-    { "UYVY",      D3DFMT_UYVY,                    VLC_CODEC_UYVY },
-    { "YUY2",      D3DFMT_YUY2,                    VLC_CODEC_YUYV },
-    { "X8R8G8B8",  D3DFMT_X8R8G8B8,                VLC_CODEC_BGRX },
-    { "A8R8G8B8",  D3DFMT_A8R8G8B8,                VLC_CODEC_BGRA },
-    { "R8G8B8",    D3DFMT_R8G8B8,                  VLC_CODEC_BGR24 },
-    { "R5G6B5",    D3DFMT_R5G6B5,                  VLC_CODEC_RGB565LE },
-    { "X1R5G5B5",  D3DFMT_X1R5G5B5,                VLC_CODEC_RGB555LE },
+    { "YV12",      MAKEFOURCC('Y','V','1','2'),    HEIMDALL_CODEC_YV12 },
+    { "NV12",      MAKEFOURCC('N','V','1','2'),    HEIMDALL_CODEC_NV12 },
+    //{ "IMC3",      MAKEFOURCC('I','M','C','3'),    HEIMDALL_CODEC_YV12 },
+    { "P010",      MAKEFOURCC('P','0','1','0'),    HEIMDALL_CODEC_P010 },
+    { "AYUV",      MAKEFOURCC('A','Y','U','V'),    HEIMDALL_CODEC_YUVA },
+    { "YUY2",      MAKEFOURCC('Y','U','Y','2'),    HEIMDALL_CODEC_YUYV },
+    { "Y410",      MAKEFOURCC('Y','4','1','0'),    HEIMDALL_CODEC_Y410 },
+    { "Y210",      MAKEFOURCC('Y','2','1','0'),    HEIMDALL_CODEC_Y210 },
+    { "UYVY",      D3DFMT_UYVY,                    HEIMDALL_CODEC_UYVY },
+    { "YUY2",      D3DFMT_YUY2,                    HEIMDALL_CODEC_YUYV },
+    { "X8R8G8B8",  D3DFMT_X8R8G8B8,                HEIMDALL_CODEC_BGRX },
+    { "A8R8G8B8",  D3DFMT_A8R8G8B8,                HEIMDALL_CODEC_BGRA },
+    { "R8G8B8",    D3DFMT_R8G8B8,                  HEIMDALL_CODEC_BGR24 },
+    { "R5G6B5",    D3DFMT_R5G6B5,                  HEIMDALL_CODEC_RGB565LE },
+    { "X1R5G5B5",  D3DFMT_X1R5G5B5,                HEIMDALL_CODEC_RGB555LE },
 };
 
 const d3d9_format_t *D3D9FormatFourcc(D3DFORMAT d3dfmt)

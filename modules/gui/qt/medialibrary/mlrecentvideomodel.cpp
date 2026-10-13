@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,32 +35,32 @@ MLRecentVideoModel::createMLLoader() const
 
 // Private MLVideoModel reimplementation
 
-void MLRecentVideoModel::onVlcMlEvent(const MLEvent & event) /* override */
+void MLRecentVideoModel::onHeimdallMlEvent(const MLEvent & event) /* override */
 {
     switch (event.i_type)
     {
-        case VLC_ML_EVENT_HISTORY_CHANGED:
+        case HEIMDALL_ML_EVENT_HISTORY_CHANGED:
             emit resetRequested();
             return;
         default:
             break;
     }
 
-    MLVideoModel::onVlcMlEvent(event);
+    MLVideoModel::onHeimdallMlEvent(event);
 }
 
 // Loader
 
-size_t MLRecentVideoModel::Loader::count(vlc_medialibrary_t* ml, const vlc_ml_query_params_t* queryParams) const /* override */
+size_t MLRecentVideoModel::Loader::count(heimdall_medialibrary_t* ml, const heimdall_ml_query_params_t* queryParams) const /* override */
 {
-    return vlc_ml_count_video_history(ml, queryParams);
+    return heimdall_ml_count_video_history(ml, queryParams);
 }
 
 std::vector<std::unique_ptr<MLItem>>
-MLRecentVideoModel::Loader::load(vlc_medialibrary_t* ml, const vlc_ml_query_params_t* queryParams) const /* override */
+MLRecentVideoModel::Loader::load(heimdall_medialibrary_t* ml, const heimdall_ml_query_params_t* queryParams) const /* override */
 {
-    ml_unique_ptr<vlc_ml_media_list_t> media_list {
-        vlc_ml_list_video_history(ml, queryParams)
+    ml_unique_ptr<heimdall_ml_media_list_t> media_list {
+        heimdall_ml_list_video_history(ml, queryParams)
     };
 
     if (media_list == nullptr)
@@ -67,7 +68,7 @@ MLRecentVideoModel::Loader::load(vlc_medialibrary_t* ml, const vlc_ml_query_para
 
     std::vector<std::unique_ptr<MLItem>> res;
 
-    for (const vlc_ml_media_t & media : ml_range_iterate<vlc_ml_media_t>(media_list))
+    for (const heimdall_ml_media_t & media : ml_range_iterate<heimdall_ml_media_t>(media_list))
     {
         res.emplace_back( std::make_unique<MLVideo>(&media));
     }
@@ -76,10 +77,10 @@ MLRecentVideoModel::Loader::load(vlc_medialibrary_t* ml, const vlc_ml_query_para
 }
 
 std::unique_ptr<MLItem>
-MLRecentVideoModel::Loader::loadItemById(vlc_medialibrary_t* ml, MLItemId itemId) const
+MLRecentVideoModel::Loader::loadItemById(heimdall_medialibrary_t* ml, MLItemId itemId) const
 {
-    assert(itemId.type == VLC_ML_PARENT_UNKNOWN);
-    ml_unique_ptr<vlc_ml_media_t> media(vlc_ml_get_media(ml, itemId.id));
+    assert(itemId.type == HEIMDALL_ML_PARENT_UNKNOWN);
+    ml_unique_ptr<heimdall_ml_media_t> media(heimdall_ml_get_media(ml, itemId.id));
     if (!media)
         return nullptr;
     return std::make_unique<MLVideo>(media.get());

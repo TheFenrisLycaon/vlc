@@ -2,6 +2,7 @@
  * directx_va.c: DirectX Generic Video Acceleration helpers
  *****************************************************************************
  * Copyright © 2018 VLC authors and VideoLAN, VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Steve Lhomme <robux4@gmail.com>
  *
@@ -157,7 +158,7 @@ static struct {
     { .vendor = GPU_MANUFACTURER_INTEL, .devices = IntelDevices },
 };
 
-bool directx_va_canUseDecoder(vlc_va_t *va, UINT VendorId, UINT DeviceId, const GUID *pCodec, UINT driverBuild)
+bool directx_va_canUseDecoder(heimdall_va_t *va, UINT VendorId, UINT DeviceId, const GUID *pCodec, UINT driverBuild)
 {
     if (va->obj.force)
         return true;

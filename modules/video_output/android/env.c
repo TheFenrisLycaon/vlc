@@ -2,6 +2,7 @@
  * env.c: shared code between Android modules.
  *****************************************************************************
  * Copyright (C) 2014-2015 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Felix Abecassis <felix.abecassis@gmail.com>
  *          Thomas Guillem <thomas@gllm.fr>
@@ -60,7 +61,7 @@ static void jni_env_key_create()
 }
 
 JNIEnv *
-android_getEnvCommon(vlc_object_t *p_obj, JavaVM *jvm, const char *psz_name)
+android_getEnvCommon(heimdall_object_t *p_obj, JavaVM *jvm, const char *psz_name)
 {
     assert((p_obj && !jvm) || (!p_obj && jvm));
 

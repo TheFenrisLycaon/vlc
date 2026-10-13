@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2024 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,7 +33,7 @@
 #include "networkdevicemodel.hpp"
 #include "mediatreelistener.hpp"
 #include "util/shared_input_item.hpp"
-#include "vlcmediasourcewrapper.hpp"
+#include "heimdallmediasourcewrapper.hpp"
 #include "util/singleton.hpp"
 
 static inline std::size_t qHash(const SharedInputItem& item, size_t seed = 0) noexcept
@@ -82,7 +83,7 @@ typedef QSharedPointer<MediaSourceModel> SharedMediaSourceModel;
 class MediaSourceCache : public Singleton<MediaSourceCache>
 {
 public:
-    SharedMediaSourceModel getMediaSourceModel(vlc_media_source_provider_t* provider, const char* name);
+    SharedMediaSourceModel getMediaSourceModel(heimdall_media_source_provider_t* provider, const char* name);
 
 private:
     MediaSourceCache() = default;

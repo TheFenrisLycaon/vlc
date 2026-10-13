@@ -2,6 +2,7 @@
  * udisks.c: file system services discovery module
  *****************************************************************************
  * Copyright © 2022 VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Juliane de Sartiges <jill@videolabs.io>
  *
@@ -26,15 +27,15 @@
 
 #include <stdbit.h>
 
-#include <vlc_common.h>
-#include <vlc_arrays.h>
-#include <vlc_threads.h>
-#include <vlc_poll.h>
-#include <vlc_plugin.h>
-#include <vlc_modules.h>
-#include <vlc_configuration.h>
-#include <vlc_services_discovery.h>
-#include <vlc_url.h>
+#include <heimdall_common.h>
+#include <heimdall_arrays.h>
+#include <heimdall_threads.h>
+#include <heimdall_poll.h>
+#include <heimdall_plugin.h>
+#include <heimdall_modules.h>
+#include <heimdall_configuration.h>
+#include <heimdall_services_discovery.h>
+#include <heimdall_url.h>
 
 #include <poll.h>
 
@@ -74,8 +75,8 @@ struct discovery_sys
     sd_bus *bus;
     sd_bus_slot *interface_added_slot;
     sd_bus_slot *interface_removed_slot;
-    vlc_thread_t thread;
-    vlc_dictionary_t entries;
+    heimdall_thread_t thread;
+    heimdall_dictionary_t entries;
 };
 
 static const char * const binary_prefixes[] = { N_("B"), N_("KiB"), N_("MiB"), N_("GiB"), N_("TiB") };
@@ -128,12 +129,12 @@ static input_item_t *input_item_NewDrive(const char *drive_label, const char *pa
     char *uri = NULL;
     char *label = NULL;
 
-    uri = vlc_path2uri(path, "file");
+    uri = heimdall_path2uri(path, "file");
     if(!uri)
         return NULL;
 
     int prefix = human(&size);
-    r = asprintf(&label, "%s (%" PRIu64 " %s)", print_label(drive_label, removable), size, vlc_gettext(binary_prefixes[prefix]));
+    r = asprintf(&label, "%s (%" PRIu64 " %s)", print_label(drive_label, removable), size, heimdall_gettext(binary_prefixes[prefix]));
     if(r == -1)
     {
         free(uri);
@@ -147,7 +148,7 @@ static input_item_t *input_item_NewDrive(const char *drive_label, const char *pa
 
 static int fs_properties_changed(sd_bus_message *m, void *userdata, sd_bus_error *err)
 {
-    VLC_UNUSED(err);
+    HEIMDALL_UNUSED(err);
     int r;
     struct fs_properties_changed_param *param = userdata;
     services_discovery_t *sd = param->sd;
@@ -192,7 +193,7 @@ static int fs_properties_changed(sd_bus_message *m, void *userdata, sd_bus_error
     mount_path = path;
     if(r < 0)
         return r;
-    struct device_info *info = vlc_dictionary_value_for_key(&p_sys->entries, param->object_path);
+    struct device_info *info = heimdall_dictionary_value_for_key(&p_sys->entries, param->object_path);
     if(!info)
         return -1;
     if(mount_path_len)
@@ -362,7 +363,7 @@ static void FreeEntries(void *p_value, void *p_obj)
 
 static int interfaces_added_cb(sd_bus_message *m, void *userdata, sd_bus_error *ret_error)
 {
-    VLC_UNUSED(ret_error);
+    HEIMDALL_UNUSED(ret_error);
     int r;
     services_discovery_t *sd = userdata;
     struct discovery_sys *p_sys = sd->p_sys;
@@ -382,7 +383,7 @@ static int interfaces_added_cb(sd_bus_message *m, void *userdata, sd_bus_error *
     }
     if(!info)
         return 0;
-    vlc_dictionary_insert(&p_sys->entries, path, info);
+    heimdall_dictionary_insert(&p_sys->entries, path, info);
     if(info->item)
         services_discovery_AddItem(sd, info->item);
     return 1;
@@ -390,7 +391,7 @@ static int interfaces_added_cb(sd_bus_message *m, void *userdata, sd_bus_error *
 
 static int interfaces_removed_cb(sd_bus_message *m, void *userdata, sd_bus_error *ret_error)
 {
-    VLC_UNUSED(ret_error);
+    HEIMDALL_UNUSED(ret_error);
     int r;
     services_discovery_t *sd = userdata;
     struct discovery_sys *p_sys = sd->p_sys;
@@ -400,17 +401,17 @@ static int interfaces_removed_cb(sd_bus_message *m, void *userdata, sd_bus_error
         return r;
     if(strncmp(path, DBUS_PATH_UDISKS2_BLOCK_DEV, strlen(DBUS_PATH_UDISKS2_BLOCK_DEV)) != 0)
         return 0;
-    struct device_info *info = vlc_dictionary_value_for_key(&p_sys->entries, path);
+    struct device_info *info = heimdall_dictionary_value_for_key(&p_sys->entries, path);
     if(!info)
         return 0;
-    vlc_dictionary_remove_value_for_key(&p_sys->entries, path, FreeEntries, sd);
+    heimdall_dictionary_remove_value_for_key(&p_sys->entries, path, FreeEntries, sd);
     return 1;
 }
 
 static void *Run(void *p_obj)
 {
     int r;
-    int canc = vlc_savecancel();
+    int canc = heimdall_savecancel();
     services_discovery_t *sd = p_obj;
     struct discovery_sys *p_sys = sd->p_sys;
     sd_bus *bus = p_sys->bus;
@@ -441,11 +442,11 @@ static void *Run(void *p_obj)
 
     for(;;)
     {
-        vlc_restorecancel(canc);
+        heimdall_restorecancel(canc);
 
         while(poll(ufd, 1, -1) < 0);
 
-        canc = vlc_savecancel();
+        canc = heimdall_savecancel();
 
         sd_bus_message *msg = NULL;
         r = sd_bus_process(bus, &msg);
@@ -460,17 +461,17 @@ static void *Run(void *p_obj)
     return NULL;
 }
 
-static int Open(vlc_object_t *p_obj)
+static int Open(heimdall_object_t *p_obj)
 {
     services_discovery_t *sd = (services_discovery_t *)p_obj;
-    struct discovery_sys *p_sys = vlc_obj_calloc(p_obj, 1, sizeof(struct discovery_sys));
+    struct discovery_sys *p_sys = heimdall_obj_calloc(p_obj, 1, sizeof(struct discovery_sys));
     struct device_info *info = NULL;
     if (!p_sys)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     sd->p_sys = p_sys;
 
     sd->description = _("Local drives discovery");
-    vlc_dictionary_init(&p_sys->entries, 0);
+    heimdall_dictionary_init(&p_sys->entries, 0);
 
     int r;
 
@@ -505,20 +506,20 @@ static int Open(vlc_object_t *p_obj)
             goto error;
         if(!info)
             continue;
-        vlc_dictionary_insert(&p_sys->entries, block_path, info);
+        heimdall_dictionary_insert(&p_sys->entries, block_path, info);
         if(info->item)
             services_discovery_AddItem(sd, info->item);
     }
     sd_bus_message_unref(reply);
 
-    if (vlc_clone(&p_sys->thread, Run, sd))
+    if (heimdall_clone(&p_sys->thread, Run, sd))
         goto error;
     sd_bus_error_free(&err);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 error:
     if(info)
         release_device_info(sd, info);
-    vlc_dictionary_clear(&p_sys->entries, FreeEntries, sd);
+    heimdall_dictionary_clear(&p_sys->entries, FreeEntries, sd);
     if(p_sys->bus)
     {
         sd_bus_flush(p_sys->bus);
@@ -526,34 +527,34 @@ error:
         sd_bus_unref(p_sys->bus);
     }
     sd_bus_error_free(&err);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
-static void Close(vlc_object_t *p_obj)
+static void Close(heimdall_object_t *p_obj)
 {
     services_discovery_t *sd = (services_discovery_t *)p_obj;
     struct discovery_sys *p_sys = sd->p_sys;
     sd_bus_flush(p_sys->bus);
-    vlc_cancel(p_sys->thread);
-    vlc_join(p_sys->thread, NULL);
+    heimdall_cancel(p_sys->thread);
+    heimdall_join(p_sys->thread, NULL);
     sd_bus_close(p_sys->bus);
     sd_bus_slot_unref(p_sys->interface_removed_slot);
     sd_bus_slot_unref(p_sys->interface_added_slot);
     sd_bus_unref(p_sys->bus);
-    vlc_dictionary_clear(&p_sys->entries, FreeEntries, sd);
+    heimdall_dictionary_clear(&p_sys->entries, FreeEntries, sd);
 }
 
-VLC_SD_PROBE_HELPER("udisks", N_("UDisks2"), SD_CAT_DEVICES)
+HEIMDALL_SD_PROBE_HELPER("udisks", N_("UDisks2"), SD_CAT_DEVICES)
 
 /*
  * Module descriptor
  */
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname( "UDisks" )
     set_description( N_( "Local Drives (UDisks)" ) )
     set_subcategory( SUBCAT_PLAYLIST_SD )
     set_capability( "services_discovery", 0 )
     set_callbacks( Open, Close )
     add_shortcut( "udisks" )
-    VLC_SD_PROBE_SUBMODULE
-vlc_module_end ()
+    HEIMDALL_SD_PROBE_SUBMODULE
+heimdall_module_end ()

@@ -2,6 +2,7 @@
  * d3d11_fmt.cpp : D3D11 helper calls
  *****************************************************************************
  * Copyright © 2017 VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Steve Lhomme <robux4@gmail.com>
  *
@@ -42,15 +43,15 @@
 #endif
 #endif
 
-#include <vlc_common.h>
-#include <vlc_picture.h>
-#include <vlc_charset.h>
+#include <heimdall_common.h>
+#include <heimdall_picture.h>
+#include <heimdall_charset.h>
 
-#include <vlc/libvlc.h>
-#include <vlc/libvlc_picture.h>
-#include <vlc/libvlc_media.h>
-#include <vlc/libvlc_renderer_discoverer.h>
-#include <vlc/libvlc_media_player.h>
+#include <heimdall/libheimdall.h>
+#include <heimdall/libheimdall_picture.h>
+#include <heimdall/libheimdall_media.h>
+#include <heimdall/libheimdall_renderer_discoverer.h>
+#include <heimdall/libheimdall_media_player.h>
 
 #include <initguid.h>
 #include <d3d11.h>
@@ -104,7 +105,7 @@ void ReleaseD3D11PictureSys(picture_sys_d3d11_t *p_sys)
 }
 
 /* map texture planes to resource views */
-int D3D11_AllocateResourceView(struct vlc_logger *obj, ID3D11Device *d3ddevice,
+int D3D11_AllocateResourceView(struct heimdall_logger *obj, ID3D11Device *d3ddevice,
                               const d3d_format_t *format,
                               ID3D11Texture2D *p_texture[DXGI_MAX_SHADER_VIEW], UINT slice_index,
                               ID3D11ShaderResourceView *renderSrc[DXGI_MAX_SHADER_VIEW])
@@ -138,7 +139,7 @@ int D3D11_AllocateResourceView(struct vlc_logger *obj, ID3D11Device *d3ddevice,
         {
             hr = d3ddevice->CreateShaderResourceView(p_texture[i], &resviewDesc, &renderSrc[i]);
             if (FAILED(hr)) {
-                vlc_error(obj, "Could not Create the Texture ResourceView %d slice %d. (hr=0x%lX)", i, slice_index, hr);
+                heimdall_error(obj, "Could not Create the Texture ResourceView %d slice %d. (hr=0x%lX)", i, slice_index, hr);
                 break;
             }
         }
@@ -151,13 +152,13 @@ int D3D11_AllocateResourceView(struct vlc_logger *obj, ID3D11Device *d3ddevice,
             renderSrc[i]->Release();
             renderSrc[i] = NULL;
         }
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static LARGE_INTEGER D3D11_GetSystemDriver(vlc_object_t *obj, d3d11_device_t *d3d_dev)
+static LARGE_INTEGER D3D11_GetSystemDriver(heimdall_object_t *obj, d3d11_device_t *d3d_dev)
 {
     HRESULT hr;
     LARGE_INTEGER result = {};
@@ -285,7 +286,7 @@ done:
     return result;
 }
 
-static void D3D11_GetDriverVersion(vlc_object_t *obj, d3d11_device_t *d3d_dev, IDXGIAdapter *pAdapter)
+static void D3D11_GetDriverVersion(heimdall_object_t *obj, d3d11_device_t *d3d_dev, IDXGIAdapter *pAdapter)
 {
     int wddm, d3d_features, revision, build;
     HRESULT hr;
@@ -379,7 +380,7 @@ struct dxgi_debug_handle_t
 typedef struct {
     struct {
         void                            *opaque;
-        libvlc_video_output_cleanup_cb  cleanupDeviceCb;
+        libheimdall_video_output_cleanup_cb  cleanupDeviceCb;
     } external;
 
 #ifdef HAVE_DXGI_DEBUG
@@ -418,7 +419,7 @@ void D3D11_ReleaseDevice(d3d11_decoder_device_t *dev_sys)
 #endif
 }
 
-static HRESULT D3D11_CreateDeviceExternal(vlc_object_t *obj, ID3D11DeviceContext *d3d11ctx,
+static HRESULT D3D11_CreateDeviceExternal(heimdall_object_t *obj, ID3D11DeviceContext *d3d11ctx,
                                           HANDLE context_lock, d3d11_device_t *out)
 {
     if (unlikely(d3d11ctx == NULL))
@@ -465,7 +466,7 @@ static HRESULT D3D11_CreateDeviceExternal(vlc_object_t *obj, ID3D11DeviceContext
     return S_OK;
 }
 
-static HRESULT CreateDevice(vlc_object_t *obj,
+static HRESULT CreateDevice(heimdall_object_t *obj,
                             IDXGIAdapter *adapter,
                             bool hw_decoding, d3d11_device_t *out)
 {
@@ -550,11 +551,11 @@ static HRESULT CreateDevice(vlc_object_t *obj,
     return hr;
 }
 
-d3d11_decoder_device_t *(D3D11_CreateDevice)(vlc_object_t *obj,
+d3d11_decoder_device_t *(D3D11_CreateDevice)(heimdall_object_t *obj,
                                       IDXGIAdapter *adapter,
                                       bool hw_decoding, bool forced)
 {
-    d3d11_decoder_device *sys = static_cast<d3d11_decoder_device*>(vlc_obj_malloc(obj, sizeof(*sys)));
+    d3d11_decoder_device *sys = static_cast<d3d11_decoder_device*>(heimdall_obj_malloc(obj, sizeof(*sys)));
     if (unlikely(sys==NULL))
         return NULL;
 
@@ -565,19 +566,19 @@ d3d11_decoder_device_t *(D3D11_CreateDevice)(vlc_object_t *obj,
     sys->external.cleanupDeviceCb = NULL;
     HRESULT hr = E_FAIL;
     {
-        libvlc_video_engine_t engineType = (libvlc_video_engine_t)var_InheritInteger( obj, "vout-cb-type" );
-        libvlc_video_output_setup_cb setupDeviceCb = NULL;
-        if (engineType == libvlc_video_engine_d3d11)
-            setupDeviceCb = (libvlc_video_output_setup_cb)var_InheritAddress( obj, "vout-cb-setup" );
+        libheimdall_video_engine_t engineType = (libheimdall_video_engine_t)var_InheritInteger( obj, "vout-cb-type" );
+        libheimdall_video_output_setup_cb setupDeviceCb = NULL;
+        if (engineType == libheimdall_video_engine_d3d11)
+            setupDeviceCb = (libheimdall_video_output_setup_cb)var_InheritAddress( obj, "vout-cb-setup" );
         if ( setupDeviceCb != NULL)
         {
             /* decoder device coming from the external app */
             sys->external.opaque          = var_InheritAddress( obj, "vout-cb-opaque" );
-            sys->external.cleanupDeviceCb = (libvlc_video_output_cleanup_cb)var_InheritAddress( obj, "vout-cb-cleanup" );
-            libvlc_video_setup_device_cfg_t cfg = {
+            sys->external.cleanupDeviceCb = (libheimdall_video_output_cleanup_cb)var_InheritAddress( obj, "vout-cb-cleanup" );
+            libheimdall_video_setup_device_cfg_t cfg = {
                 .hardware_decoding = true, /* always favor hardware decoding */
             };
-            libvlc_video_setup_device_info_t out{};
+            libheimdall_video_setup_device_info_t out{};
             if (!setupDeviceCb( &sys->external.opaque, &cfg, &out ))
             {
                 if (sys->external.cleanupDeviceCb)
@@ -588,8 +589,8 @@ d3d11_decoder_device_t *(D3D11_CreateDevice)(vlc_object_t *obj,
             hr = D3D11_CreateDeviceExternal(obj, static_cast<ID3D11DeviceContext*>(out.u.d3d11.device_context), out.u.d3d11.context_mutex,
                                             &sys->dec_device.d3d_dev);
         }
-        else if ( engineType == libvlc_video_engine_disable ||
-                  engineType == libvlc_video_engine_d3d11 )
+        else if ( engineType == libheimdall_video_engine_disable ||
+                  engineType == libheimdall_video_engine_d3d11 )
         {
             /* internal decoder device */
 #if !BUILD_FOR_UAP
@@ -624,7 +625,7 @@ error:
         sys->dxgi_debug.LogResource();
         sys->dxgi_debug.Release();
 #endif
-        vlc_obj_free( obj, sys );
+        heimdall_obj_free( obj, sys );
         return NULL;
     }
     return &sys->dec_device;
@@ -668,42 +669,42 @@ bool isXboxHardware([[maybe_unused]] const d3d11_device_t *d3ddev)
 int D3D11CheckDriverVersion(const d3d11_device_t *d3d_dev, UINT vendorId, const struct wddm_version *min_ver)
 {
     if (vendorId && d3d_dev->adapterDesc.VendorId != vendorId)
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
     if (min_ver->wddm)
     {
         if (d3d_dev->WDDM.wddm > min_ver->wddm)
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         if (d3d_dev->WDDM.wddm != min_ver->wddm)
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
     if (min_ver->d3d_features)
     {
         if (d3d_dev->WDDM.d3d_features > min_ver->d3d_features)
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         if (d3d_dev->WDDM.d3d_features != min_ver->d3d_features)
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
     if (min_ver->revision)
     {
         if (d3d_dev->WDDM.revision > min_ver->revision)
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         if (d3d_dev->WDDM.revision != min_ver->revision)
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
     if (min_ver->build)
     {
         if (d3d_dev->WDDM.build > min_ver->build)
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         if (d3d_dev->WDDM.build != min_ver->build)
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /* test formats that should work but sometimes have issues on some platforms */
-static bool CanReallyUseFormat(vlc_object_t *obj, d3d11_device_t *d3d_dev,
-                               vlc_fourcc_t i_chroma, DXGI_FORMAT dxgi)
+static bool CanReallyUseFormat(heimdall_object_t *obj, d3d11_device_t *d3d_dev,
+                               heimdall_fourcc_t i_chroma, DXGI_FORMAT dxgi)
 {
     bool result = true;
     if (dxgi == DXGI_FORMAT_UNKNOWN)
@@ -744,7 +745,7 @@ static bool CanReallyUseFormat(vlc_object_t *obj, d3d11_device_t *d3d_dev,
 
     if (dxgi == DXGI_FORMAT_YUY2)
     {
-        const vlc_chroma_description_t *p_chroma_desc = vlc_fourcc_GetChromaDescription( i_chroma );
+        const heimdall_chroma_description_t *p_chroma_desc = heimdall_fourcc_GetChromaDescription( i_chroma );
         if( !p_chroma_desc )
         {
             msg_Err(obj, "No pixel format for %4.4s", (const char*)&i_chroma);
@@ -777,9 +778,9 @@ bool D3D11_DeviceSupportsFormat(d3d11_device_t *d3d_dev, DXGI_FORMAT format, UIN
 }
 
 
-const d3d_format_t *(FindD3D11Format)(vlc_object_t *o,
+const d3d_format_t *(FindD3D11Format)(heimdall_object_t *o,
                                     d3d11_device_t *d3d_dev,
-                                    vlc_fourcc_t i_src_chroma,
+                                    heimdall_fourcc_t i_src_chroma,
                                     int rgb_yuv,
                                     uint8_t bits_per_channel,
                                     uint8_t widthDenominator,
@@ -799,7 +800,7 @@ const d3d_format_t *(FindD3D11Format)(vlc_object_t *o,
         int cpu_gpu_fmt = is_d3d11_opaque(output_format->fourcc) ? DXGI_CHROMA_GPU : DXGI_CHROMA_CPU;
         if ((cpu_gpu & cpu_gpu_fmt)==0)
             continue;
-        int format = vlc_fourcc_IsYUV(output_format->fourcc) ? DXGI_YUV_FORMAT : DXGI_RGB_FORMAT;
+        int format = heimdall_fourcc_IsYUV(output_format->fourcc) ? DXGI_YUV_FORMAT : DXGI_RGB_FORMAT;
         if ((rgb_yuv & format)==0)
             continue;
         if (widthDenominator && widthDenominator < output_format->widthDenominator)
@@ -834,7 +835,7 @@ void D3D11_PictureAttach(picture_t *pic, ID3D11Texture2D *slicedTexture, const d
     {
         const video_format_t *fmt = &pic->format;
 
-        const vlc_chroma_description_t *p_chroma_desc = vlc_fourcc_GetChromaDescription( fmt->i_chroma );
+        const heimdall_chroma_description_t *p_chroma_desc = heimdall_fourcc_GetChromaDescription( fmt->i_chroma );
         if( !p_chroma_desc )
             return;
 
@@ -865,7 +866,7 @@ void D3D11_PictureAttach(picture_t *pic, ID3D11Texture2D *slicedTexture, const d
 }
 
 #undef AllocateTextures
-int AllocateTextures( vlc_object_t *obj, d3d11_device_t *d3d_dev,
+int AllocateTextures( heimdall_object_t *obj, d3d11_device_t *d3d_dev,
                       const d3d_format_t *cfg, const video_format_t *fmt, bool shared,
                       ID3D11Texture2D *textures[],
                       plane_t out_planes[] )
@@ -891,15 +892,15 @@ int AllocateTextures( vlc_object_t *obj, d3d11_device_t *d3d_dev,
         texDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
     }
 
-    const vlc_chroma_description_t *p_chroma_desc = vlc_fourcc_GetChromaDescription( fmt->i_chroma );
+    const heimdall_chroma_description_t *p_chroma_desc = heimdall_fourcc_GetChromaDescription( fmt->i_chroma );
     if( !p_chroma_desc )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if (cfg->formatTexture == DXGI_FORMAT_UNKNOWN) {
         if (p_chroma_desc->plane_count == 0)
         {
             msg_Dbg(obj, "failed to get the pixel format planes for %4.4s", (char *)&fmt->i_chroma);
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
         assert(p_chroma_desc->plane_count <= DXGI_MAX_SHADER_VIEW);
         plane_count = p_chroma_desc->plane_count;
@@ -963,13 +964,13 @@ int AllocateTextures( vlc_object_t *obj, d3d11_device_t *d3d_dev,
 
     if (slicedTexture)
         slicedTexture->Release();
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 error:
     if (slicedTexture)
         slicedTexture->Release();
     for (unsigned j = 0; j < plane; j++)
         textures[j]->Release();
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 void D3D11_LogResources([[maybe_unused]] d3d11_decoder_device_t *dev_sys)
@@ -980,13 +981,13 @@ void D3D11_LogResources([[maybe_unused]] d3d11_decoder_device_t *dev_sys)
 #endif
 }
 
-const struct vlc_video_context_operations d3d11_vctx_ops = {
+const struct heimdall_video_context_operations d3d11_vctx_ops = {
     NULL,
 };
 
-vlc_video_context *D3D11CreateVideoContext(vlc_decoder_device *dec_dev, DXGI_FORMAT vctx_fmt, DXGI_FORMAT alpha)
+heimdall_video_context *D3D11CreateVideoContext(heimdall_decoder_device *dec_dev, DXGI_FORMAT vctx_fmt, DXGI_FORMAT alpha)
 {
-    vlc_video_context *vctx = vlc_video_context_Create( dec_dev, VLC_VIDEO_CONTEXT_D3D11VA,
+    heimdall_video_context *vctx = heimdall_video_context_Create( dec_dev, HEIMDALL_VIDEO_CONTEXT_D3D11VA,
                                           sizeof(d3d11_video_context_t), &d3d11_vctx_ops );
     if (unlikely(vctx == NULL))
         return NULL;
@@ -1012,32 +1013,32 @@ picture_context_t *d3d11_pic_context_copy(picture_context_t *ctx)
     if (unlikely(pic_ctx==NULL))
         return NULL;
     *pic_ctx = *D3D11_PICCONTEXT_FROM_PICCTX(ctx);
-    vlc_video_context_Hold(pic_ctx->s.vctx);
+    heimdall_video_context_Hold(pic_ctx->s.vctx);
     AcquireD3D11PictureSys(&pic_ctx->picsys);
     return &pic_ctx->s;
 }
 
-int D3D11_PictureFill(vlc_object_t *obj, picture_t *pic,
-                      vlc_video_context *vctx_out,
+int D3D11_PictureFill(heimdall_object_t *obj, picture_t *pic,
+                      heimdall_video_context *vctx_out,
                       bool shared, const d3d_format_t *cfg)
 {
     if (unlikely(cfg == NULL))
-        return VLC_EINVAL;
+        return HEIMDALL_EINVAL;
 
     d3d11_pic_context *pic_ctx = static_cast<d3d11_pic_context*>(calloc(1, sizeof(*pic_ctx)));
     if (unlikely(pic_ctx == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     pic_ctx->picsys.sharedHandle = INVALID_HANDLE_VALUE;
 
     d3d11_decoder_device_t *dev_sys = GetD3D11OpaqueContext(vctx_out);
     if (AllocateTextures(obj, &dev_sys->d3d_dev, cfg,
-                         &pic->format, shared, pic_ctx->picsys.texture, NULL) != VLC_SUCCESS)
+                         &pic->format, shared, pic_ctx->picsys.texture, NULL) != HEIMDALL_SUCCESS)
     {
         free(pic_ctx);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    D3D11_AllocateResourceView(vlc_object_logger(obj), dev_sys->d3d_dev.d3ddevice, cfg, pic_ctx->picsys.texture, 0, pic_ctx->picsys.renderSrc);
+    D3D11_AllocateResourceView(heimdall_object_logger(obj), dev_sys->d3d_dev.d3ddevice, cfg, pic_ctx->picsys.texture, 0, pic_ctx->picsys.renderSrc);
 
     if (shared)
     {
@@ -1056,21 +1057,21 @@ int D3D11_PictureFill(vlc_object_t *obj, picture_t *pic,
 
     pic_ctx->s = (picture_context_t) {
         d3d11_pic_context_destroy, d3d11_pic_context_copy,
-        vlc_video_context_Hold(vctx_out),
+        heimdall_video_context_Hold(vctx_out),
     };
     pic->context = &pic_ctx->s;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-picture_t *D3D11_AllocPicture(vlc_object_t *obj,
-                              const video_format_t *fmt, vlc_video_context *vctx_out,
+picture_t *D3D11_AllocPicture(heimdall_object_t *obj,
+                              const video_format_t *fmt, heimdall_video_context *vctx_out,
                               bool shared, const d3d_format_t *cfg)
 {
     picture_t *pic = picture_NewFromFormat( fmt );
     if (unlikely(pic == NULL))
         return NULL;
 
-    if (D3D11_PictureFill(obj, pic, vctx_out, shared, cfg) != VLC_SUCCESS)
+    if (D3D11_PictureFill(obj, pic, vctx_out, shared, cfg) != HEIMDALL_SUCCESS)
     {
         picture_Release(pic);
         return NULL;

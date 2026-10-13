@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,8 +17,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_QT_PLAYLIST_NEW_MODEL_HPP_
-#define VLC_QT_PLAYLIST_NEW_MODEL_HPP_
+#ifndef HEIMDALL_QT_PLAYLIST_NEW_MODEL_HPP_
+#define HEIMDALL_QT_PLAYLIST_NEW_MODEL_HPP_
 
 #ifdef HAVE_CONFIG_H
 # include "config.h"
@@ -25,11 +26,11 @@
 
 #include "playlist_common.hpp"
 #include "playlist_item.hpp"
-#include "util/vlctick.hpp"
+#include "util/heimdalltick.hpp"
 
 #include <QAbstractListModel>
 
-namespace vlc {
+namespace heimdall {
 namespace playlist {
 
 class PlaylistListModelPrivate;
@@ -39,7 +40,7 @@ class PlaylistListModel : public QAbstractListModel
     Q_PROPERTY(Playlist playlist READ getPlaylist WRITE setPlaylist NOTIFY playlistChanged FINAL)
     Q_PROPERTY(int currentIndex READ getCurrentIndex NOTIFY currentIndexChanged FINAL)
     Q_PROPERTY(int count READ rowCount NOTIFY countChanged FINAL)
-    Q_PROPERTY(VLCDuration duration READ getDuration NOTIFY countChanged FINAL)
+    Q_PROPERTY(HeimdallDuration duration READ getDuration NOTIFY countChanged FINAL)
 
 public:
     enum Roles
@@ -57,12 +58,12 @@ public:
     Q_ENUM(Roles);
 
     PlaylistListModel(QObject *parent = nullptr);
-    PlaylistListModel(vlc_playlist_t *playlist, QObject *parent = nullptr);
+    PlaylistListModel(heimdall_playlist_t *playlist, QObject *parent = nullptr);
     ~PlaylistListModel();
 
     QHash<int, QByteArray> roleNames() const override;
     int rowCount(const QModelIndex &parent = {}) const override;
-    VLCDuration getDuration() const;
+    HeimdallDuration getDuration() const;
     QVariant data(const QModelIndex &index,
                   int role = Qt::DisplayRole) const override;
 
@@ -80,7 +81,7 @@ public:
 public slots:
     Playlist getPlaylist() const;
     void setPlaylist(const Playlist& playlist);
-    void setPlaylist(vlc_playlist_t* playlist);
+    void setPlaylist(heimdall_playlist_t* playlist);
 
 signals:
     void playlistChanged(const Playlist&);
@@ -98,6 +99,6 @@ private:
 
 
   } // namespace playlist
-} // namespace vlc
+} // namespace heimdall
 
 #endif

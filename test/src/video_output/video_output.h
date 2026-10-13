@@ -2,6 +2,7 @@
  * video_output.h: test for the video output pipeline
  *****************************************************************************
  * Copyright (C) 2021 VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Alexandre Janniaux <ajanni@videolabs.io>
  *
@@ -20,8 +21,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#include <vlc_fourcc.h>
-#include <vlc_vout_display.h>
+#include <heimdall_fourcc.h>
+#include <heimdall_vout_display.h>
 
 
 #define TEST_FLAG_CONVERTER 0x01
@@ -32,7 +33,7 @@ struct vout_scenario {
     void (*decoder_setup)(decoder_t *);
     void (*decoder_decode)(decoder_t *, block_t *);
     int  (*display_setup)(vout_display_t *, video_format_t *,
-                          struct vlc_video_context *);
+                          struct heimdall_video_context *);
     void (*display_prepare)(vout_display_t *, picture_t *);
     void (*display_display)(vout_display_t *, picture_t *);
     void (*filter_setup)(filter_t *);

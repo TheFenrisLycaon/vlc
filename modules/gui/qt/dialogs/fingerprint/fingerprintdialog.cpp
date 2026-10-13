@@ -2,6 +2,7 @@
  * fingerprintdialog.cpp: Fingerprinter Dialog
  *****************************************************************************
  * Copyright (C) 2012 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -25,7 +26,7 @@
 
 #include "dialogs/fingerprint/chromaprint.hpp"
 
-#include <vlc_fingerprinter.h>
+#include <heimdall_fingerprinter.h>
 
 #include <QLabel>
 #include <QListWidgetItem>
@@ -79,7 +80,7 @@ void FingerprintDialog::handleResults()
         return;
     }
 
-    if ( vlc_array_count( & p_r->results.metas_array ) == 0 )
+    if ( heimdall_array_count( & p_r->results.metas_array ) == 0 )
     {
         fingerprint_request_Delete( p_r );
         p_r = nullptr;
@@ -89,19 +90,19 @@ void FingerprintDialog::handleResults()
 
     ui->stackedWidget->setCurrentWidget( ui->results );
 
-    for ( size_t i = 0; i< vlc_array_count( & p_r->results.metas_array ) ; i++ )
+    for ( size_t i = 0; i< heimdall_array_count( & p_r->results.metas_array ) ; i++ )
     {
-        vlc_meta_t *p_meta =
-                (vlc_meta_t *) vlc_array_item_at_index( & p_r->results.metas_array, i );
+        heimdall_meta_t *p_meta =
+                (heimdall_meta_t *) heimdall_array_item_at_index( & p_r->results.metas_array, i );
         QListWidgetItem *item = new QListWidgetItem();
         ui->recordsList->addItem( item );
-        QString mb_id( vlc_meta_GetExtra( p_meta, "musicbrainz-id" ) );
+        QString mb_id( heimdall_meta_GetExtra( p_meta, "musicbrainz-id" ) );
         QLabel *label = new QLabel(
                     QString( "<h3 style=\"margin: 0\"><a style=\"text-decoration:none\" href=\"%1\">%2</a></h3>"
                              "<span style=\"padding-left:20px\">%3</span>" )
                     .arg( QString( "https://mb.videolan.org/recording/%1" ).arg( mb_id ) )
-                    .arg( qfu( vlc_meta_Get( p_meta, vlc_meta_Title ) ) )
-                    .arg( qfu( vlc_meta_Get( p_meta, vlc_meta_Artist ) ) )
+                    .arg( qfu( heimdall_meta_Get( p_meta, heimdall_meta_Title ) ) )
+                    .arg( qfu( heimdall_meta_Get( p_meta, heimdall_meta_Artist ) ) )
         );
         label->setSizePolicy( QSizePolicy::Expanding, QSizePolicy::Preferred );
         label->setOpenExternalLinks( true );

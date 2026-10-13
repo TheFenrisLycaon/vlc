@@ -2,6 +2,7 @@
  * scte18.c : SCTE-18 EAS decoder
  *****************************************************************************
  * Copyright (C) 2016 - VideoLAN Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -21,9 +22,9 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
 
 #include "atsc_a65.h"
 #include "scte18.h"
@@ -34,16 +35,16 @@
 /*****************************************************************************
  * Module descriptor.
  *****************************************************************************/
-static int  Open (vlc_object_t *);
-static void Close(vlc_object_t *);
+static int  Open (heimdall_object_t *);
+static void Close(heimdall_object_t *);
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description(N_("SCTE-18 decoder"))
     set_shortname(N_("SCTE-18"))
     set_capability( "spu decoder", 51)
     set_subcategory(SUBCAT_INPUT_SCODEC)
     set_callbacks(Open, Close)
-vlc_module_end ()
+heimdall_module_end ()
 
 typedef struct
 {
@@ -171,7 +172,7 @@ error:
 static int Decode( decoder_t *p_dec, block_t *p_block )
 {
     if ( p_block == NULL ) /* No Drain */
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
     subpicture_t *p_spu = NULL;
 
     if (p_block->i_flags & (BLOCK_FLAG_CORRUPTED))
@@ -189,9 +190,9 @@ static int Decode( decoder_t *p_dec, block_t *p_block )
 
             p_spu->i_start = p_block->i_pts;
             if( p_cea->alert_message_time_remaining )
-                p_spu->i_stop = p_spu->i_start + vlc_tick_from_sec( p_cea->alert_message_time_remaining );
+                p_spu->i_stop = p_spu->i_start + heimdall_tick_from_sec( p_cea->alert_message_time_remaining );
             else
-                p_spu->i_stop = VLC_TICK_INVALID;
+                p_spu->i_stop = HEIMDALL_TICK_INVALID;
 
             p_spu->b_ephemer  = true;
 
@@ -214,35 +215,35 @@ static int Decode( decoder_t *p_dec, block_t *p_block )
 
 exit:
     block_Release( p_block );
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }
 
-static int Open( vlc_object_t *object )
+static int Open( heimdall_object_t *object )
 {
     decoder_t *dec = (decoder_t *)object;
 
-    if ( dec->fmt_in->i_codec != VLC_CODEC_SCTE_18 )
-        return VLC_EGENERIC;
+    if ( dec->fmt_in->i_codec != HEIMDALL_CODEC_SCTE_18 )
+        return HEIMDALL_EGENERIC;
 
     decoder_sys_t *p_sys = malloc( sizeof(decoder_sys_t) );
     if( unlikely(!p_sys) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_sys->p_handle = atsc_a65_handle_New( NULL );
     if( !p_sys->p_handle )
     {
         free( p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     dec->p_sys = p_sys;
     dec->pf_decode = Decode;
     dec->fmt_out.i_codec = 0;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void Close( vlc_object_t *p_object )
+static void Close( heimdall_object_t *p_object )
 {
     decoder_t *p_dec = (decoder_t *)p_object;
     decoder_sys_t *p_sys = (decoder_sys_t *) p_dec->p_sys;

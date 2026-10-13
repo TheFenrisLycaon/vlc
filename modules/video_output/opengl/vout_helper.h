@@ -3,13 +3,14 @@
  *****************************************************************************
  * Copyright (C) 2004-2016 VLC authors and VideoLAN
  * Copyright (C) 2009 Laurent Aimar
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Laurent Aimar <fenrir _AT_ videolan _DOT_ org>
+ * Authors: Laurent Aimar <fenrir _AT_ lycaria _DOT_ org>
  *          Rémi Denis-Courmont
  *          Jean-Baptiste Kempf <jb@videolan.org>
  *          Ilkka Ollakka <ileoo@videolan.org>
- *          Felix Paul Kühne <fkuehne at videolan dot org>
- *          Rafaël Carré <funman@videolanorg>
+ *          Felix Paul Kühne <fkuehne at lycaria dot org>
+ *          Rafaël Carré <funman@lycariaorg>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -26,8 +27,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_OPENGL_VOUT_HELPER_H
-#define VLC_OPENGL_VOUT_HELPER_H
+#ifndef HEIMDALL_OPENGL_VOUT_HELPER_H
+#define HEIMDALL_OPENGL_VOUT_HELPER_H
 
 #include "gl_common.h"
 #include "gl_scale.h"
@@ -48,13 +49,13 @@
 typedef struct vout_display_opengl_t vout_display_opengl_t;
 
 vout_display_opengl_t *vout_display_opengl_New(video_format_t *fmt,
-                                               const vlc_fourcc_t **subpicture_chromas,
-                                               vlc_gl_t *gl,
-                                               const vlc_viewpoint_t *viewpoint,
-                                               vlc_video_context *context);
+                                               const heimdall_fourcc_t **subpicture_chromas,
+                                               heimdall_gl_t *gl,
+                                               const heimdall_viewpoint_t *viewpoint,
+                                               heimdall_video_context *context);
 void vout_display_opengl_Delete(vout_display_opengl_t *vgl);
 
-int vout_display_opengl_SetViewpoint(vout_display_opengl_t *vgl, const vlc_viewpoint_t*);
+int vout_display_opengl_SetViewpoint(vout_display_opengl_t *vgl, const heimdall_viewpoint_t*);
 
 void vout_display_opengl_SetOutputSize(vout_display_opengl_t *vgl,
                                        unsigned width, unsigned height);
@@ -64,17 +65,17 @@ void vout_display_opengl_Viewport(vout_display_opengl_t *vgl, int x, int y,
 
 int vout_display_opengl_Prepare(vout_display_opengl_t *vgl,
                                 picture_t *picture,
-                                const struct vlc_render_subpicture *subpicture);
+                                const struct heimdall_render_subpicture *subpicture);
 int vout_display_opengl_Display(vout_display_opengl_t *vgl);
 
 int vout_display_opengl_UpdateFormat(vout_display_opengl_t *vgl,
                                      const video_format_t *fmt,
-                                     vlc_video_context *vctx);
+                                     heimdall_video_context *vctx);
 
 int vout_display_opengl_ChangeProjection(vout_display_opengl_t *vgl,
                                          video_projection_mode_t projection);
 
 int vout_display_opengl_ChangeStereoMode(vout_display_opengl_t *vgl,
-                                         vlc_stereoscopic_mode_t projection);
+                                         heimdall_stereoscopic_mode_t projection);
 
 #endif

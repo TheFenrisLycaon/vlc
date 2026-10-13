@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,16 +26,16 @@
 
 #include <QQmlEngine>
 
-MediaLib::MediaLib(qt_intf_t *_intf, vlc::playlist::PlaylistController* playlistController, QObject *_parent)
+MediaLib::MediaLib(qt_intf_t *_intf, heimdall::playlist::PlaylistController* playlistController, QObject *_parent)
     : QObject( _parent )
     , m_intf( _intf )
     , m_playlistController(playlistController)
-    , m_ml( vlc_ml_instance_get( _intf ) )
-    , m_event_cb( nullptr, [this](vlc_ml_event_callback_t* cb ) {
-        vlc_ml_event_unregister_callback( m_ml, cb );
+    , m_ml( heimdall_ml_instance_get( _intf ) )
+    , m_event_cb( nullptr, [this](heimdall_ml_event_callback_t* cb ) {
+        heimdall_ml_event_unregister_callback( m_ml, cb );
       })
 {
-    m_event_cb.reset( vlc_ml_event_register_callback( m_ml, MediaLib::onMediaLibraryEvent,
+    m_event_cb.reset( heimdall_ml_event_register_callback( m_ml, MediaLib::onMediaLibraryEvent,
                                                       this ) );
     m_runner = new ThreadRunner();
 }
@@ -44,47 +45,47 @@ MediaLib::~MediaLib()
     m_runner->destroy();
 }
 
-static void convertMLItemToPlaylistMedias(vlc_medialibrary_t* ml, const MLItemId & itemId, const QStringList &options, QVector<vlc::playlist::Media>& medias)
+static void convertMLItemToPlaylistMedias(heimdall_medialibrary_t* ml, const MLItemId & itemId, const QStringList &options, QVector<heimdall::playlist::Media>& medias)
 {
     //invalid item
     if (itemId.id == 0)
         return;
 
-    if (itemId.type == VLC_ML_PARENT_UNKNOWN)
+    if (itemId.type == HEIMDALL_ML_PARENT_UNKNOWN)
     {
-        SharedInputItem item( vlc_ml_get_input_item( ml, itemId.id ), false );
+        SharedInputItem item( heimdall_ml_get_input_item( ml, itemId.id ), false );
         if (item)
-            medias.push_back(vlc::playlist::Media(item.get(), options));
+            medias.push_back(heimdall::playlist::Media(item.get(), options));
     }
     else
     {
-        vlc_ml_query_params_t query = vlc_ml_query_params_create();
-        ml_unique_ptr<vlc_ml_media_list_t> media_list(vlc_ml_list_media_of( ml, &query, itemId.type, itemId.id));
+        heimdall_ml_query_params_t query = heimdall_ml_query_params_create();
+        ml_unique_ptr<heimdall_ml_media_list_t> media_list(heimdall_ml_list_media_of( ml, &query, itemId.type, itemId.id));
         if (media_list == nullptr || media_list->i_nb_items == 0)
             return;
 
-        auto mediaRange = ml_range_iterate<vlc_ml_media_t>( media_list );
-        std::transform(mediaRange.begin(), mediaRange.end(), std::back_inserter(medias), [&](vlc_ml_media_t& m) {
-            SharedInputItem item(vlc_ml_get_input_item( ml, m.i_id ), false);
-            return vlc::playlist::Media(item.get(), options);
+        auto mediaRange = ml_range_iterate<heimdall_ml_media_t>( media_list );
+        std::transform(mediaRange.begin(), mediaRange.end(), std::back_inserter(medias), [&](heimdall_ml_media_t& m) {
+            SharedInputItem item(heimdall_ml_get_input_item( ml, m.i_id ), false);
+            return heimdall::playlist::Media(item.get(), options);
         });
     }
 }
 
-static void convertQUrlToPlaylistMedias(QUrl mrl, const QStringList& options, QVector<vlc::playlist::Media>& medias)
+static void convertQUrlToPlaylistMedias(QUrl mrl, const QStringList& options, QVector<heimdall::playlist::Media>& medias)
 {
-    vlc::playlist::Media media{ mrl.toString(QUrl::FullyEncoded), mrl.fileName(), options };
+    heimdall::playlist::Media media{ mrl.toString(QUrl::FullyEncoded), mrl.fileName(), options };
     medias.push_back(media);
 }
 
-static void convertQStringToPlaylistMedias(const QString &mrl, const QStringList& options, QVector<vlc::playlist::Media>& medias)
+static void convertQStringToPlaylistMedias(const QString &mrl, const QStringList& options, QVector<heimdall::playlist::Media>& medias)
 {
-    vlc::playlist::Media media{ mrl, mrl, options };
+    heimdall::playlist::Media media{ mrl, mrl, options };
     medias.push_back(media);
 }
 
 
-static void convertQVariantListToPlaylistMedias(vlc_medialibrary_t* ml, QVariantList itemIdList, const QStringList& options, QVector<vlc::playlist::Media>& medias)
+static void convertQVariantListToPlaylistMedias(heimdall_medialibrary_t* ml, QVariantList itemIdList, const QStringList& options, QVector<heimdall::playlist::Media>& medias)
 {
     for (const QVariant& varValue: itemIdList)
     {
@@ -113,14 +114,14 @@ MLItemId MediaLib::deserializeMlItemIdFromString(const QString& serialized_id) {
 
 void MediaLib::addToPlaylist(const QString& mrl, const QStringList &options)
 {
-    QVector<vlc::playlist::Media> medias;
+    QVector<heimdall::playlist::Media> medias;
     convertQStringToPlaylistMedias(mrl, options, medias);
     m_playlistController->append(medias, false);
 }
 
 void MediaLib::addToPlaylist(const QUrl& mrl, const QStringList &options)
 {
-    QVector<vlc::playlist::Media> medias;
+    QVector<heimdall::playlist::Media> medias;
     convertQUrlToPlaylistMedias(mrl, options, medias);
     m_playlistController->append(medias, false);
 }
@@ -129,12 +130,12 @@ void MediaLib::addToPlaylist(const QUrl& mrl, const QStringList &options)
 void MediaLib::addToPlaylist(const MLItemId & itemId, const QStringList &options)
 {
     struct Context {
-        QVector<vlc::playlist::Media> medias;
+        QVector<heimdall::playlist::Media> medias;
     };
     runOnMLThread<Context>(this,
     //ML thread
     [itemId, options]
-    (vlc_medialibrary_t* ml, Context& ctx){
+    (heimdall_medialibrary_t* ml, Context& ctx){
         convertMLItemToPlaylistMedias(ml, itemId, options, ctx.medias);
     },
     //UI thread
@@ -147,12 +148,12 @@ void MediaLib::addToPlaylist(const MLItemId & itemId, const QStringList &options
 void MediaLib::addToPlaylist(const QVariantList& itemIdList, const QStringList &options)
 {
     struct Context {
-        QVector<vlc::playlist::Media> medias;
+        QVector<heimdall::playlist::Media> medias;
     };
     runOnMLThread<Context>(this,
     //ML thread
     [itemIdList, options]
-    (vlc_medialibrary_t* ml, Context& ctx)
+    (heimdall_medialibrary_t* ml, Context& ctx)
     {
         convertQVariantListToPlaylistMedias(ml, itemIdList, options, ctx.medias);
     },
@@ -168,12 +169,12 @@ void MediaLib::addToPlaylist(const QVariantList& itemIdList, const QStringList &
 void MediaLib::addAndPlay(const MLItemId & itemId, const QStringList &options )
 {
     struct Context {
-        QVector<vlc::playlist::Media> medias;
+        QVector<heimdall::playlist::Media> medias;
     };
     runOnMLThread<Context>(this,
     //ML thread
     [itemId, options]
-    (vlc_medialibrary_t* ml, Context& ctx)
+    (heimdall_medialibrary_t* ml, Context& ctx)
     {
         convertMLItemToPlaylistMedias(ml, itemId, options, ctx.medias);
     },
@@ -188,26 +189,26 @@ void MediaLib::addAndPlay(const MLItemId & itemId, const QStringList &options )
 
 void MediaLib::addAndPlay(const QString& mrl, const QStringList &options)
 {
-    vlc::playlist::Media media{ mrl, mrl, options };
-    m_playlistController->append( QVector<vlc::playlist::Media>{media}, true );
+    heimdall::playlist::Media media{ mrl, mrl, options };
+    m_playlistController->append( QVector<heimdall::playlist::Media>{media}, true );
 }
 
 void MediaLib::addAndPlay(const QUrl& mrl, const QStringList &options)
 {
-    vlc::playlist::Media media{ mrl.toString(QUrl::FullyEncoded), mrl.fileName(), options };
-    m_playlistController->append( QVector<vlc::playlist::Media>{media}, true );
+    heimdall::playlist::Media media{ mrl.toString(QUrl::FullyEncoded), mrl.fileName(), options };
+    m_playlistController->append( QVector<heimdall::playlist::Media>{media}, true );
 }
 
 
 void MediaLib::addAndPlay(const QVariantList& itemIdList, const QStringList &options)
 {
     struct Context {
-        QVector<vlc::playlist::Media> medias;
+        QVector<heimdall::playlist::Media> medias;
     };
     runOnMLThread<Context>(this,
     //ML thread
     [itemIdList, options]
-    (vlc_medialibrary_t* ml, Context& ctx)
+    (heimdall_medialibrary_t* ml, Context& ctx)
     {
         convertQVariantListToPlaylistMedias(ml, itemIdList, options, ctx.medias);
     },
@@ -221,12 +222,12 @@ void MediaLib::addAndPlay(const QVariantList& itemIdList, const QStringList &opt
 void MediaLib::insertIntoPlaylist(const size_t index, const QVariantList &itemIdList, const QStringList &options)
 {
     struct Context {
-        QVector<vlc::playlist::Media> medias;
+        QVector<heimdall::playlist::Media> medias;
     };
     runOnMLThread<Context>(this,
     //ML thread
     [itemIdList, options]
-    (vlc_medialibrary_t* ml, Context& ctx )
+    (heimdall_medialibrary_t* ml, Context& ctx )
     {
         convertQVariantListToPlaylistMedias(ml, itemIdList, options, ctx.medias);
     },
@@ -242,8 +243,8 @@ void MediaLib::reload()
 {
     runOnMLThread(this,
     //ML thread
-    [](vlc_medialibrary_t* ml){
-        vlc_ml_reload_folder(ml, nullptr);
+    [](heimdall_medialibrary_t* ml){
+        heimdall_ml_reload_folder(ml, nullptr);
     });
 }
 
@@ -292,27 +293,27 @@ void MediaLib::mlInputItem(const QVector<MLItemId>& itemIdVector, QJSValue callb
 
     runOnMLThread<Ctx>(this,
     //ML thread
-    [itemIdVector](vlc_medialibrary_t* ml, Ctx& ctx){
+    [itemIdVector](heimdall_medialibrary_t* ml, Ctx& ctx){
         for (auto mlId : itemIdVector)
         {
             // NOTE: When we have a parent it's a collection of media(s).
-            if (mlId.type == VLC_ML_PARENT_UNKNOWN)
+            if (mlId.type == HEIMDALL_ML_PARENT_UNKNOWN)
             {
-                ctx.items.emplace_back(vlc_ml_get_input_item(ml, mlId.id), false);
+                ctx.items.emplace_back(heimdall_ml_get_input_item(ml, mlId.id), false);
             }
             else
             {
-                ml_unique_ptr<vlc_ml_media_list_t> list;
+                ml_unique_ptr<heimdall_ml_media_list_t> list;
 
-                vlc_ml_query_params_t query = vlc_ml_query_params_create();
+                heimdall_ml_query_params_t query = heimdall_ml_query_params_create();
 
-                list.reset(vlc_ml_list_media_of(ml, &query, mlId.type, mlId.id));
+                list.reset(heimdall_ml_list_media_of(ml, &query, mlId.type, mlId.id));
 
                 if (list == nullptr)
                     continue;
 
-                for (const vlc_ml_media_t & media : ml_range_iterate<vlc_ml_media_t>(list))
-                    ctx.items.emplace_back(vlc_ml_get_input_item(ml, media.i_id), false);
+                for (const heimdall_ml_media_t & media : ml_range_iterate<heimdall_ml_media_t>(list))
+                    ctx.items.emplace_back(heimdall_ml_get_input_item(ml, media.i_id), false);
             }
         }
     },
@@ -341,22 +342,22 @@ void MediaLib::mlInputItem(const QVector<MLItemId>& itemIdVector, QJSValue callb
     });
 }
 
-vlc_ml_event_callback_t* MediaLib::registerEventListener( void (*callback)(void*, const vlc_ml_event_t*), void* data)
+heimdall_ml_event_callback_t* MediaLib::registerEventListener( void (*callback)(void*, const heimdall_ml_event_t*), void* data)
 {
-    return vlc_ml_event_register_callback( m_ml , callback , data ) ;
+    return heimdall_ml_event_register_callback( m_ml , callback , data ) ;
 }
 
-void MediaLib::unregisterEventListener(vlc_ml_event_callback_t* cb)
+void MediaLib::unregisterEventListener(heimdall_ml_event_callback_t* cb)
 {
-    vlc_ml_event_unregister_callback( m_ml , cb );
+    heimdall_ml_event_unregister_callback( m_ml , cb );
 }
 
-void MediaLib::onMediaLibraryEvent( void* data, const vlc_ml_event_t* event )
+void MediaLib::onMediaLibraryEvent( void* data, const heimdall_ml_event_t* event )
 {
     MediaLib* self = static_cast<MediaLib*>( data );
     switch ( event->i_type )
     {
-        case VLC_ML_EVENT_PARSING_PROGRESS_UPDATED:
+        case HEIMDALL_ML_EVENT_PARSING_PROGRESS_UPDATED:
         {
             int percent =  event->parsing_progress.i_percent;
             QMetaObject::invokeMethod(self, [self, percent]() {
@@ -365,7 +366,7 @@ void MediaLib::onMediaLibraryEvent( void* data, const vlc_ml_event_t* event )
             });
             break;
         }
-        case VLC_ML_EVENT_DISCOVERY_STARTED:
+        case HEIMDALL_ML_EVENT_DISCOVERY_STARTED:
         {
             QMetaObject::invokeMethod(self, [self]() {
                 self->m_discoveryPending = true;
@@ -374,7 +375,7 @@ void MediaLib::onMediaLibraryEvent( void* data, const vlc_ml_event_t* event )
             });
             break;
         }
-        case VLC_ML_EVENT_DISCOVERY_PROGRESS:
+        case HEIMDALL_ML_EVENT_DISCOVERY_PROGRESS:
         {
             const QUrl entryPoint{ event->discovery_progress.psz_entry_point };
             const QString entryPointStr = entryPoint.isLocalFile()
@@ -387,7 +388,7 @@ void MediaLib::onMediaLibraryEvent( void* data, const vlc_ml_event_t* event )
             });
             break;
         }
-        case VLC_ML_EVENT_DISCOVERY_COMPLETED:
+        case HEIMDALL_ML_EVENT_DISCOVERY_COMPLETED:
         {
             QMetaObject::invokeMethod(self, [self]() {
                 self->m_discoveryPending = false;
@@ -396,7 +397,7 @@ void MediaLib::onMediaLibraryEvent( void* data, const vlc_ml_event_t* event )
             });
             break;
         }
-        case VLC_ML_EVENT_BACKGROUND_IDLE_CHANGED:
+        case HEIMDALL_ML_EVENT_BACKGROUND_IDLE_CHANGED:
         {
             bool idle = event->background_idle_changed.b_idle;
             QMetaObject::invokeMethod(self, [self, idle]() {
@@ -411,7 +412,7 @@ void MediaLib::onMediaLibraryEvent( void* data, const vlc_ml_event_t* event )
 }
 
 quint64 MediaLib::runOnMLThread(const QObject* obj,
-                std::function< void(vlc_medialibrary_t* ml)> mlCb,
+                std::function< void(heimdall_medialibrary_t* ml)> mlCb,
                 std::function< void()> uiCb,
                 const char* queue)
 {
@@ -427,7 +428,7 @@ quint64 MediaLib::runOnMLThread(const QObject* obj,
 }
 
 quint64 MediaLib::runOnMLThread(const QObject* obj,
-                std::function< void(vlc_medialibrary_t* ml)> mlCb,
+                std::function< void(heimdall_medialibrary_t* ml)> mlCb,
                 std::function< void(quint64)> uiCb, const char* queue)
 {
     struct NoCtx{};
@@ -442,7 +443,7 @@ quint64 MediaLib::runOnMLThread(const QObject* obj,
 }
 
 quint64 MediaLib::runOnMLThread(const QObject* obj,
-                std::function< void(vlc_medialibrary_t* ml)> mlCb,
+                std::function< void(heimdall_medialibrary_t* ml)> mlCb,
                 const char* queue)
 {
     struct NoCtx{};

@@ -2,6 +2,7 @@
  * decoder_helpers.c: Functions for the management of decoders
  *****************************************************************************
  * Copyright (C) 1999-2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Christophe Massiot <massiot@via.ecp.fr>
  *          Gildas Bazin <gbazin@videolan.org>
@@ -26,13 +27,13 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_codec.h>
-#include <vlc_atomic.h>
-#include <vlc_meta.h>
-#include <vlc_modules.h>
-#include <vlc_picture.h>
-#include "../libvlc.h"
+#include <heimdall_common.h>
+#include <heimdall_codec.h>
+#include <heimdall_atomic.h>
+#include <heimdall_meta.h>
+#include <heimdall_modules.h>
+#include <heimdall_picture.h>
+#include "../libheimdall.h"
 
 #include <stdckdint.h>
 
@@ -87,7 +88,7 @@ int decoder_LoadModule(decoder_t *dec, bool packetizer,
     else
         dec->p_module = module_need(dec, type, NULL, false);
 
-    return dec->p_module == NULL ? VLC_ENOENT : VLC_SUCCESS;
+    return dec->p_module == NULL ? HEIMDALL_ENOENT : HEIMDALL_SUCCESS;
 }
 
 void decoder_Clean( decoder_t *p_dec )
@@ -102,7 +103,7 @@ void decoder_Clean( decoder_t *p_dec )
 
     if ( p_dec->p_description )
     {
-        vlc_meta_Delete(p_dec->p_description);
+        heimdall_meta_Delete(p_dec->p_description);
         p_dec->p_description = NULL;
     }
 }
@@ -112,15 +113,15 @@ int decoder_UpdateVideoFormat( decoder_t *dec )
     return decoder_UpdateVideoOutput( dec, NULL );
 }
 
-int decoder_UpdateVideoOutput( decoder_t *dec, vlc_video_context *vctx_out )
+int decoder_UpdateVideoOutput( decoder_t *dec, heimdall_video_context *vctx_out )
 {
-    vlc_assert( dec->fmt_in->i_cat == VIDEO_ES && dec->cbs != NULL );
+    heimdall_assert( dec->fmt_in->i_cat == VIDEO_ES && dec->cbs != NULL );
     if ( unlikely(dec->fmt_in->i_cat != VIDEO_ES || dec->cbs == NULL) )
         return -1;
 
     /* */
-    const vlc_chroma_description_t *dsc =
-        vlc_fourcc_GetChromaDescription(dec->fmt_out.i_codec);
+    const heimdall_chroma_description_t *dsc =
+        heimdall_fourcc_GetChromaDescription(dec->fmt_out.i_codec);
     if (unlikely(dsc == NULL))
         // the "codec" must be a valid picture chroma
         return -1;
@@ -144,11 +145,11 @@ int decoder_UpdateVideoOutput( decoder_t *dec, vlc_video_context *vctx_out )
         dec->fmt_out.video.i_sar_den = 1;
     }
 
-    vlc_ureduce( &dec->fmt_out.video.i_sar_num, &dec->fmt_out.video.i_sar_den,
+    heimdall_ureduce( &dec->fmt_out.video.i_sar_num, &dec->fmt_out.video.i_sar_den,
                     dec->fmt_out.video.i_sar_num, dec->fmt_out.video.i_sar_den, 50000 );
 
     unsigned int v;
-    if( vlc_fourcc_IsYUV( dec->fmt_out.video.i_chroma ) )
+    if( heimdall_fourcc_IsYUV( dec->fmt_out.video.i_chroma ) )
     {
         for( unsigned int i = 0; dsc && i < dsc->plane_count; i++ )
         {
@@ -214,23 +215,23 @@ int decoder_UpdateVideoOutput( decoder_t *dec, vlc_video_context *vctx_out )
 
 picture_t *decoder_NewPicture( decoder_t *dec )
 {
-    vlc_assert( dec->fmt_in->i_cat == VIDEO_ES && dec->cbs != NULL );
+    heimdall_assert( dec->fmt_in->i_cat == VIDEO_ES && dec->cbs != NULL );
     if (dec->cbs->video.buffer_new == NULL)
         return picture_NewFromFormat( &dec->fmt_out.video );
     return dec->cbs->video.buffer_new( dec );
 }
 
 /** encoder **/
-vlc_decoder_device *vlc_encoder_GetDecoderDevice( encoder_t *enc )
+heimdall_decoder_device *heimdall_encoder_GetDecoderDevice( encoder_t *enc )
 {
-    vlc_assert( enc->fmt_in.i_cat == VIDEO_ES && enc->cbs != NULL );
+    heimdall_assert( enc->fmt_in.i_cat == VIDEO_ES && enc->cbs != NULL );
     if ( unlikely(enc->fmt_in.i_cat != VIDEO_ES || enc->cbs == NULL ) )
         return NULL;
 
     return enc->cbs->video.get_device( enc );
 }
 
-void vlc_encoder_Destroy(encoder_t *encoder)
+void heimdall_encoder_Destroy(encoder_t *encoder)
 {
     if (encoder->ops != NULL && encoder->ops->close != NULL)
         encoder->ops->close(encoder);
@@ -238,6 +239,6 @@ void vlc_encoder_Destroy(encoder_t *encoder)
     es_format_Clean(&encoder->fmt_in);
     es_format_Clean(&encoder->fmt_out);
 
-    vlc_objres_clear(VLC_OBJECT(encoder));
-    vlc_object_delete(encoder);
+    heimdall_objres_clear(HEIMDALL_OBJECT(encoder));
+    heimdall_object_delete(encoder);
 }

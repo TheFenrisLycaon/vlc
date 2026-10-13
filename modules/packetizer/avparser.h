@@ -2,6 +2,7 @@
  * avparser.h
  *****************************************************************************
  * Copyright (C) 2015 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Denis Charmet <typx@videolan.org>
  *
@@ -28,10 +29,10 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
-#include <vlc_block.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
+#include <heimdall_block.h>
 
 #include "../codec/avcodec/avcodec.h"
 #include "../codec/avcodec/avcommon.h"
@@ -39,8 +40,8 @@
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-int  avparser_OpenPacketizer ( vlc_object_t * );
-void avparser_ClosePacketizer( vlc_object_t * );
+int  avparser_OpenPacketizer ( heimdall_object_t * );
+void avparser_ClosePacketizer( heimdall_object_t * );
 
 #define AVPARSER_MODULE \
     set_subcategory( SUBCAT_SOUT_PACKETIZER )           \

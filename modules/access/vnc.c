@@ -2,6 +2,7 @@
  * vnc.c: libVNC access
  *****************************************************************************
  * Copyright (C) 2013 VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *****************************************************************************
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -36,13 +37,13 @@
 #include <assert.h>
 #include <limits.h>
 
-#include <vlc_common.h>
-#include <vlc_threads.h>
-#include <vlc_plugin.h>
-#include <vlc_demux.h>
-#include <vlc_url.h>
-#include <vlc_meta.h>
-#include <vlc_fourcc.h>
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
+#include <heimdall_plugin.h>
+#include <heimdall_demux.h>
+#include <heimdall_url.h>
+#include <heimdall_meta.h>
+#include <heimdall_fourcc.h>
 
 #include <rfb/rfbconfig.h>
 #include <rfb/rfbclient.h>
@@ -75,10 +76,10 @@ const char *const rgb_chromas_v[] = { "RV32", "RV24", "RV16", "RGB8" };
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  Open ( vlc_object_t * );
-static void Close( vlc_object_t * );
+static int  Open ( heimdall_object_t * );
+static void Close( heimdall_object_t * );
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname( N_("VNC") )
     add_shortcut( "vnc" )
     set_subcategory( SUBCAT_INPUT_ACCESS )
@@ -112,12 +113,12 @@ vlc_module_begin()
         change_safe()
 
     set_callbacks( Open, Close )
-vlc_module_end()
+heimdall_module_end()
 
 typedef struct
 {
-    vlc_thread_t thread;
-    vlc_sem_t closing;
+    heimdall_thread_t thread;
+    heimdall_sem_t closing;
 
     rfbClient* p_client;
     size_t i_framebuffersize;
@@ -125,7 +126,7 @@ typedef struct
 
     float f_fps;
     int i_frame_interval;
-    vlc_tick_t i_starttime;
+    heimdall_tick_t i_starttime;
 
     es_out_id_t *es;
 } demux_sys_t;
@@ -138,7 +139,7 @@ static void *DemuxThread( void *p_data );
 
 static rfbBool mallocFrameBufferHandler( rfbClient* p_client )
 {
-    vlc_fourcc_t i_chroma;
+    heimdall_fourcc_t i_chroma;
     demux_t *p_demux = (demux_t *) rfbClientGetClientData( p_client, DemuxThread );
     demux_sys_t *p_sys = p_demux->p_sys;
 
@@ -159,18 +160,18 @@ static rfbBool mallocFrameBufferHandler( rfbClient* p_client )
 
     if (p_client->format.depth <= 8 &&
             !strstr(p_client->appData.encodingsString, "tight")) // libvnc does not support tight at 8 bpp
-        i_chroma = VLC_CODEC_BGR233;
+        i_chroma = HEIMDALL_CODEC_BGR233;
     else if (p_client->format.depth <= 16)
-        i_chroma = VLC_CODEC_RGB565LE;
+        i_chroma = HEIMDALL_CODEC_RGB565LE;
     else // skip 24 bpp pixfmt since rfb protocol forbids 24 bpp pixfmts
-        i_chroma = VLC_CODEC_BGRX;
+        i_chroma = HEIMDALL_CODEC_BGRX;
 
     p_client->format.bigEndian = 0; // we expect LE byte order regardless of native endianness
     p_client->format.trueColour = 1; // we do not support color maps
 
     switch( i_chroma )
     {
-        case VLC_CODEC_BGR233:
+        case HEIMDALL_CODEC_BGR233:
             p_client->format.depth = p_client->format.bitsPerPixel = 8;
             p_client->format.redShift   =  0;
             p_client->format.greenShift =  3;
@@ -179,7 +180,7 @@ static rfbBool mallocFrameBufferHandler( rfbClient* p_client )
             p_client->format.greenMax   = 0x7;
             p_client->format.blueMax    = 0x3;
             break;
-        case VLC_CODEC_RGB565LE:
+        case HEIMDALL_CODEC_RGB565LE:
             p_client->format.depth = p_client->format.bitsPerPixel = 16;
             p_client->format.redShift   = 11;
             p_client->format.greenShift =  5;
@@ -188,7 +189,7 @@ static rfbBool mallocFrameBufferHandler( rfbClient* p_client )
             p_client->format.greenMax   = 0x3f;
             p_client->format.blueMax    = 0x1f;
             break;
-        case VLC_CODEC_BGRX:
+        case HEIMDALL_CODEC_BGRX:
             p_client->format.depth = 24;
             p_client->format.bitsPerPixel = 32;
             p_client->format.redShift   = 16;
@@ -298,7 +299,7 @@ static int Control( demux_t *p_demux, int i_query, va_list args )
     demux_sys_t *p_sys = p_demux->p_sys;
     bool *pb;
     double *p_dbl;
-    vlc_meta_t *p_meta;
+    heimdall_meta_t *p_meta;
 
     switch( i_query )
     {
@@ -309,38 +310,38 @@ static int Control( demux_t *p_demux, int i_query, va_list args )
         case DEMUX_HAS_UNSUPPORTED_META:
             pb = va_arg( args, bool * );
             *pb = false;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
 
         case DEMUX_CAN_RECORD:
             pb = va_arg( args, bool * );
             *pb = true;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
 
         case DEMUX_GET_PTS_DELAY:
-            *va_arg( args, vlc_tick_t * ) =
-                VLC_TICK_FROM_MS(var_InheritInteger( p_demux, "network-caching" ));
-            return VLC_SUCCESS;
+            *va_arg( args, heimdall_tick_t * ) =
+                HEIMDALL_TICK_FROM_MS(var_InheritInteger( p_demux, "network-caching" ));
+            return HEIMDALL_SUCCESS;
 
         case DEMUX_GET_TIME:
-            *va_arg( args, vlc_tick_t * ) = vlc_tick_now() - p_sys->i_starttime;
-            return VLC_SUCCESS;
+            *va_arg( args, heimdall_tick_t * ) = heimdall_tick_now() - p_sys->i_starttime;
+            return HEIMDALL_SUCCESS;
 
         case DEMUX_GET_LENGTH:
-            *va_arg( args, vlc_tick_t * ) = 0;
-            return VLC_SUCCESS;
+            *va_arg( args, heimdall_tick_t * ) = 0;
+            return HEIMDALL_SUCCESS;
 
         case DEMUX_GET_FPS:
             p_dbl = va_arg( args, double * );
             *p_dbl = p_sys->f_fps;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
 
         case DEMUX_GET_META:
-            p_meta = va_arg( args, vlc_meta_t * );
-            vlc_meta_Set( p_meta, vlc_meta_Title, p_demux->psz_location );
-            return VLC_SUCCESS;
+            p_meta = va_arg( args, heimdall_meta_t * );
+            heimdall_meta_Set( p_meta, heimdall_meta_Title, p_demux->psz_location );
+            return HEIMDALL_SUCCESS;
 
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 }
 
@@ -352,10 +353,10 @@ static void *DemuxThread( void *p_data )
 {
     demux_t *p_demux = (demux_t *) p_data;
     demux_sys_t  *p_sys = p_demux->p_sys;
-    vlc_tick_t i_next_frame_date = vlc_tick_now() + p_sys->i_frame_interval;
+    heimdall_tick_t i_next_frame_date = heimdall_tick_now() + p_sys->i_frame_interval;
     int i_status;
 
-    vlc_thread_set_name("vlc-vnc");
+    heimdall_thread_set_name("heimdall-vnc");
 
     for(;;)
     {
@@ -363,7 +364,7 @@ static void *DemuxThread( void *p_data )
 
         /* Ensure we're not building frames too fast */
         /* as WaitForMessage takes only a maximum wait */
-        if( vlc_sem_timedwait( &p_sys->closing, i_next_frame_date ) == 0 )
+        if( heimdall_sem_timedwait( &p_sys->closing, i_next_frame_date ) == 0 )
             break;
 
         i_next_frame_date += p_sys->i_frame_interval;
@@ -385,7 +386,7 @@ static void *DemuxThread( void *p_data )
                 block_t *p_block = block_Duplicate( p_sys->p_block );
                 if ( p_block ) /* drop frame/content if no next block */
                 {
-                    p_sys->p_block->i_dts = p_sys->p_block->i_pts = vlc_tick_now();
+                    p_sys->p_block->i_dts = p_sys->p_block->i_pts = heimdall_tick_now();
                     es_out_SetPCR( p_demux->out, p_sys->p_block->i_pts );
                     if ( p_sys->es )
                         es_out_Send( p_demux->out, p_sys->es, p_sys->p_block );
@@ -402,35 +403,35 @@ static void *DemuxThread( void *p_data )
 /*****************************************************************************
  * Open:
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     demux_t      *p_demux = (demux_t*)p_this;
     demux_sys_t  *p_sys;
 
     if (p_demux->out == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    p_sys = vlc_obj_calloc( p_this, 1, sizeof(demux_sys_t) );
-    if( !p_sys ) return VLC_ENOMEM;
+    p_sys = heimdall_obj_calloc( p_this, 1, sizeof(demux_sys_t) );
+    if( !p_sys ) return HEIMDALL_ENOMEM;
 
     p_sys->f_fps = var_InheritFloat( p_demux, CFG_PREFIX "fps" );
     if ( p_sys->f_fps <= 0 ) p_sys->f_fps = 1.0;
-    p_sys->i_frame_interval = vlc_tick_rate_duration( p_sys->f_fps );
+    p_sys->i_frame_interval = heimdall_tick_rate_duration( p_sys->f_fps );
 
     char *psz_chroma = var_InheritString( p_demux, CFG_PREFIX "chroma" );
-    vlc_fourcc_t i_chroma = vlc_fourcc_GetCodecFromString( VIDEO_ES, psz_chroma );
+    heimdall_fourcc_t i_chroma = heimdall_fourcc_GetCodecFromString( VIDEO_ES, psz_chroma );
     free( psz_chroma );
-    if ( !i_chroma || vlc_fourcc_IsYUV( i_chroma ) )
+    if ( !i_chroma || heimdall_fourcc_IsYUV( i_chroma ) )
     {
         msg_Err( p_demux, "Only RGB chroma are supported" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    const vlc_chroma_description_t *p_chroma_desc = vlc_fourcc_GetChromaDescription( i_chroma );
+    const heimdall_chroma_description_t *p_chroma_desc = heimdall_fourcc_GetChromaDescription( i_chroma );
     if ( !p_chroma_desc )
     {
         msg_Err( p_demux, "Unable to get RGB chroma description" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
 #ifdef NDEBUG
@@ -443,12 +444,12 @@ static int Open( vlc_object_t *p_this )
     if ( ! p_sys->p_client )
     {
         msg_Dbg( p_demux, "Unable to set up client for %s",
-                 vlc_fourcc_GetDescription( VIDEO_ES, i_chroma ) );
-        return VLC_EGENERIC;
+                 heimdall_fourcc_GetDescription( VIDEO_ES, i_chroma ) );
+        return HEIMDALL_EGENERIC;
     }
 
     msg_Dbg( p_demux, "set up client for %s %d %d %d",
-             vlc_fourcc_GetDescription( VIDEO_ES, i_chroma ),
+             heimdall_fourcc_GetDescription( VIDEO_ES, i_chroma ),
              p_chroma_desc->pixel_bits / 3, 3, p_chroma_desc->pixel_size );
 
     p_sys->p_client->MallocFrameBuffer = mallocFrameBufferHandler;
@@ -463,8 +464,8 @@ static int Open( vlc_object_t *p_this )
             var_InheritInteger( p_demux, CFG_PREFIX "quality-level" );
 
     /* Parse uri params */
-    vlc_url_t url;
-    vlc_UrlParse( &url, p_demux->psz_url );
+    heimdall_url_t url;
+    heimdall_UrlParse( &url, p_demux->psz_url );
 
     if ( !EMPTY_STR(url.psz_host) )
         p_sys->p_client->serverHost = strdup( url.psz_host );
@@ -479,7 +480,7 @@ static int Open( vlc_object_t *p_this )
              p_sys->p_client->serverHost,
              p_sys->p_client->serverPort );
 
-    vlc_UrlClean( &url );
+    heimdall_UrlClean( &url );
 
     /* make demux available for callback handlers */
     rfbClientSetClientData( p_sys->p_client, DemuxThread, p_demux );
@@ -488,34 +489,34 @@ static int Open( vlc_object_t *p_this )
     if( !rfbInitClient( p_sys->p_client, NULL, NULL ) )
     {
         msg_Err( p_demux, "can't connect to RFB server" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    p_sys->i_starttime = vlc_tick_now();
-    vlc_sem_init( &p_sys->closing, 0 );
+    p_sys->i_starttime = heimdall_tick_now();
+    heimdall_sem_init( &p_sys->closing, 0 );
 
-    if ( vlc_clone( &p_sys->thread, DemuxThread, p_demux ) != VLC_SUCCESS )
+    if ( heimdall_clone( &p_sys->thread, DemuxThread, p_demux ) != HEIMDALL_SUCCESS )
     {
         msg_Err( p_demux, "can't spawn thread" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     p_demux->pf_demux = NULL;
     p_demux->pf_control = Control;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * Close:
  *****************************************************************************/
-static void Close( vlc_object_t *p_this )
+static void Close( heimdall_object_t *p_this )
 {
     demux_t     *p_demux = (demux_t*)p_this;
     demux_sys_t *p_sys = p_demux->p_sys;
 
-    vlc_sem_post( &p_sys->closing );
-    vlc_join( p_sys->thread, NULL );
+    heimdall_sem_post( &p_sys->closing );
+    heimdall_join( p_sys->thread, NULL );
 
     if ( p_sys->es )
         es_out_Del( p_demux->out, p_sys->es );

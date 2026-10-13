@@ -2,6 +2,7 @@
  * variant_maps.h
  *****************************************************************************
  * Copyright (C) 2023 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -27,7 +28,7 @@
  */
 struct hls_variant_stream_map
 {
-    struct VLC_VECTOR(char *) es_list;
+    struct HEIMDALL_VECTOR(char *) es_list;
     /**
      * Reference on the playlist associated with this list of ES. Having a
      * reference here after the playlist creation ease subsequent searches of
@@ -36,7 +37,7 @@ struct hls_variant_stream_map
     struct hls_playlist *playlist_ref;
 };
 
-typedef struct VLC_VECTOR(struct hls_variant_stream_map *)
+typedef struct HEIMDALL_VECTOR(struct hls_variant_stream_map *)
     hls_variant_stream_maps_t;
 
 int hls_variant_maps_Parse(const char *in, hls_variant_stream_maps_t *out);

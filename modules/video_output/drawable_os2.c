@@ -1,9 +1,10 @@
 /**
  * @file drawable_os2.c
- * @brief Legacy monolithic LibVLC video window provider
+ * @brief Legacy monolithic LibHeimdall video window provider
  */
 /*****************************************************************************
  * Copyright © 2009 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -27,23 +28,23 @@
 #include <stdarg.h>
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_window.h>
-#include <vlc_threads.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_window.h>
+#include <heimdall_threads.h>
 
 #define HWND_TEXT N_("Window handle (HWND)")
 #define HWND_LONGTEXT N_( \
     "Video will be embedded in this pre-existing window. " \
     "If zero, a new window will be created.")
 
-static int Open(vlc_window_t *);
-static void Close(vlc_window_t *);
+static int Open(heimdall_window_t *);
+static void Close(heimdall_window_t *);
 
 /*
  * Module descriptor
  */
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname (N_("Drawable"))
     set_description (N_("Embedded window video"))
     set_subcategory (SUBCAT_VIDEO_VOUT)
@@ -53,14 +54,14 @@ vlc_module_begin ()
 
     add_integer ("drawable-hwnd", 0, HWND_TEXT, HWND_LONGTEXT)
         change_volatile ()
-vlc_module_end ()
+heimdall_module_end ()
 
 /* Keep a list of busy drawables, so we don't overlap videos if there are
  * more than one video track in the stream. */
-static vlc_mutex_t serializer = VLC_STATIC_MUTEX;
+static heimdall_mutex_t serializer = HEIMDALL_STATIC_MUTEX;
 static uintptr_t *used = NULL;
 
-static const struct vlc_window_operations ops = {
+static const struct heimdall_window_operations ops = {
     .destroy = Close,
 };
 
@@ -69,7 +70,7 @@ static void RemoveDrawable(uintptr_t val)
     size_t n = 0;
 
     /* Remove this drawable from the list of busy ones */
-    vlc_mutex_lock (&serializer);
+    heimdall_mutex_lock (&serializer);
     assert (used != NULL);
     while (used[n] != val)
     {
@@ -85,22 +86,22 @@ static void RemoveDrawable(uintptr_t val)
         free (used);
         used = NULL;
     }
-    vlc_mutex_unlock (&serializer);
+    heimdall_mutex_unlock (&serializer);
 }
 
 /**
- * Find the drawable set by libvlc application.
+ * Find the drawable set by libheimdall application.
  */
-static int Open(vlc_window_t *wnd)
+static int Open(heimdall_window_t *wnd)
 {
     uintptr_t val = var_InheritInteger (wnd, "drawable-hwnd");
     if (val == 0)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     uintptr_t *tab;
     size_t n = 0;
 
-    vlc_mutex_lock (&serializer);
+    heimdall_mutex_lock (&serializer);
     if (used != NULL)
         for (/*n = 0*/; used[n]; n++)
             if (used[n] == val)
@@ -120,22 +121,22 @@ static int Open(vlc_window_t *wnd)
     else
         val = 0;
 skip:
-    vlc_mutex_unlock (&serializer);
+    heimdall_mutex_unlock (&serializer);
 
     if (val == 0)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    wnd->type = VLC_WINDOW_TYPE_HWND;
+    wnd->type = HEIMDALL_WINDOW_TYPE_HWND;
     wnd->handle.hwnd = (void *)val;
     wnd->ops = &ops;
     wnd->sys = (void *)val;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /**
  * Release the drawable.
  */
-static void Close (vlc_window_t *wnd)
+static void Close (heimdall_window_t *wnd)
 {
     uintptr_t val = (uintptr_t)wnd->sys;
 

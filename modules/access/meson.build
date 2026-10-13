@@ -3,7 +3,7 @@
 #
 
 # Data URL-scheme access
-vlc_modules += {
+heimdall_modules += {
     'name' : 'data',
     'sources' : files('data.c'),
     'plugin_dir' : 'access',
@@ -29,9 +29,9 @@ if contrib_dir != ''
         decklink_dep = disabler()
     endif
 endif
-vlc_modules += {
+heimdall_modules += {
     'name' : 'decklink',
-    'sources' : files('decklink.cpp', 'sdi.c', 'sdi.h', 'vlc_decklink.h'),
+    'sources' : files('decklink.cpp', 'sdi.c', 'sdi.h', 'heimdall_decklink.h'),
     'dependencies' : [dl_lib, decklink_dep],
     'cpp_args' : decklink_cpp_args,
     'enabled' : decklink_dep.found(),
@@ -40,21 +40,21 @@ vlc_modules += {
 endif
 
 # Filesystem access module
-vlc_modules += {
+heimdall_modules += {
     'name' : 'filesystem',
     'sources' : files('file.c', 'directory.c', 'fs.c'),
     'plugin_dir' : 'access',
 }
 
 # Dummy access module
-vlc_modules += {
+heimdall_modules += {
     'name' : 'idummy',
     'sources' : files('idummy.c'),
     'plugin_dir' : 'access',
 }
 
 # In-memory bitstream input module
-vlc_modules += {
+heimdall_modules += {
     'name' : 'imem',
     'sources' : files('imem-access.c'),
     'dependencies' : [m_lib],
@@ -62,7 +62,7 @@ vlc_modules += {
 }
 
 # Memory input module
-vlc_modules += {
+heimdall_modules += {
     'name' : 'access_imem',
     'sources' : files('imem.c'),
     'shortname' : 'a_imem',
@@ -70,21 +70,21 @@ vlc_modules += {
 }
 
 # Fake sdp:// scheme input module
-vlc_modules += {
+heimdall_modules += {
     'name' : 'sdp',
     'sources' : files('sdp.c'),
     'plugin_dir' : 'access',
 }
 
 # Timecode sub-picture generator module
-vlc_modules += {
+heimdall_modules += {
     'name' : 'timecode',
     'sources' : files('timecode.c'),
     'plugin_dir' : 'access',
 }
 
 # VDR recordings access module
-vlc_modules += {
+heimdall_modules += {
     'name' : 'vdr',
     'sources' : files('vdr.c'),
     'plugin_dir' : 'access',
@@ -94,7 +94,7 @@ vlc_modules += {
 
 # Alsa capture access
 if alsa_dep.found()
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'access_alsa',
         'sources' : files('alsa.c'),
         'dependencies' : [alsa_dep],
@@ -110,7 +110,7 @@ if get_option('oss').disable_auto_if(
 endif
 
 # JACK input module
-vlc_modules += {
+heimdall_modules += {
     'name' : 'access_jack',
     'sources' : files('jack.c'),
     'dependencies' : [jack_dep],
@@ -119,27 +119,27 @@ vlc_modules += {
 }
 
 # PipeWire module
-vlc_modules += {
+heimdall_modules += {
     'name' : 'pipewiresrc',
     'sources' : files('pipewire.c'),
     'dependencies' : [pipewire_dep],
-    'link_with' : [libvlc_pipewire],
+    'link_with' : [libheimdall_pipewire],
     'plugin_dir' : 'access',
     'enabled' : pipewire_dep.found(),
 }
 
 # Pulseaudio module
-vlc_modules += {
+heimdall_modules += {
     'name' : 'pulsesrc',
     'sources' : files('pulse.c'),
     'dependencies' : [pulse_dep],
-    'link_with' : [libvlc_pulse],
+    'link_with' : [libheimdall_pulse],
     'plugin_dir' : 'access',
     'enabled' : pulse_dep.found(),
 }
 
 # AVFoundation audio capture access
-vlc_modules += {
+heimdall_modules += {
     'name' : 'avaudiocapture',
     'sources' : files('avaudiocapture.m'),
     'objc_args' : ['-fobjc-arc'],
@@ -153,7 +153,7 @@ vlc_modules += {
 }
 
 # WASAPI access
-vlc_modules += {
+heimdall_modules += {
     'name' : 'access_wasapi',
     'sources' : files('wasapi.c'),
     'dependencies' : [ksuser_lib],
@@ -170,7 +170,7 @@ vlc_modules += {
 if (get_option('macosx_avfoundation')
     .require(have_osx and host_system == 'darwin', error_message: 'AVCapture requires macOS')
     .allowed())
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'avcapture',
         'sources' : files('avcapture.m'),
         'objc_args' : ['-fobjc-arc'],
@@ -187,7 +187,7 @@ endif
 # IIDC FireWire input
 libdc1394_dep = dependency('libdc1394-2', version: '>= 2.1.0', required: get_option('dc1394'))
 if libdc1394_dep.found()
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'dc1394',
         'sources' : files('dc1394.c'),
         'dependencies' : [libdc1394_dep],
@@ -199,7 +199,7 @@ endif
 libraw1394_dep = dependency('libraw1394', version: '>= 2.0.1', required: get_option('dv1394'))
 libavc1394_dep = dependency('libavc1394', version: '>= 0.5.3', required: get_option('dv1394'))
 if libraw1394_dep.found() and libavc1394_dep.found()
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'dv1394',
         'sources' : files('dv.c'),
         'dependencies' : [libraw1394_dep, libavc1394_dep, threads_dep],
@@ -214,7 +214,7 @@ if use_zvbi
 else
     v4l2_zvbi_dep = declare_dependency()
 endif
-vlc_modules += {
+heimdall_modules += {
     'name' : 'v4l2',
     'sources' : files('v4l2/v4l2.c',
                       'v4l2/buffers.c',
@@ -243,7 +243,7 @@ vlc_modules += {
 if (get_option('linsys')
     .require(host_system == 'linux', error_message: 'Linsys requires Linux')
     .allowed())
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'linsys_hdsdi',
         'sources' : files('linsys/linsys_hdsdi.c'),
         'dependencies' : [threads_dep],
@@ -251,7 +251,7 @@ if (get_option('linsys')
     }
 
     if zvbi_dep.found()
-        vlc_modules += {
+        heimdall_modules += {
             'name' : 'linsys_sdi',
             'sources' : files('linsys/linsys_sdi.c'),
             'dependencies' : [zvbi_dep],
@@ -262,7 +262,7 @@ endif
 
 live555_dep = dependency('live555', version: '>= 2011.12.23', required: get_option('live555'))
 # TODO support without pkg-config
-vlc_modules += {
+heimdall_modules += {
     'name' : 'live555',
     'sources' : files('live555.cpp', 'live555_dtsgen.h',
                       'mms/asf.c', 'mms/asf.h',
@@ -274,7 +274,7 @@ vlc_modules += {
 }
 
 # Shared memory frame buffer capture
-vlc_modules += {
+heimdall_modules += {
     'name' : 'shm',
     'sources' : files('shm.c'),
     'dependencies' : [m_lib],
@@ -283,7 +283,7 @@ vlc_modules += {
 
 # libnoidea
 libnoidea_dep = dependency('libnoidea', required: get_option('ndi'))
-vlc_modules += {
+heimdall_modules += {
     'name' : 'noidea',
     'sources' : files('ndi.c'),
     'dependencies' : [libnoidea_dep, socket_libs],
@@ -299,7 +299,7 @@ subdir('screen')
 # RDP/Remote Client Desktop capture
 freerdp_dep = dependency('freerdp2', required: get_option('freerdp'))
 if freerdp_dep.found()
-    vlc_modules += {
+    heimdall_modules += {
     'name' : 'rdp',
     'sources' : files('rdp.c'),
     'dependencies' : [freerdp_dep],
@@ -310,7 +310,7 @@ endif
 # VNC capture
 vncclient_dep = dependency('libvncclient', required: get_option('vnc'))
 if vncclient_dep.found()
-    vlc_modules += {
+    heimdall_modules += {
     'name' : 'vnc',
     'sources' : files('vnc.c'),
     'dependencies' : [vncclient_dep],
@@ -346,7 +346,7 @@ if get_option('vcd_module')
             vcd_cdda_darwin_deps = [iokit_dep, corefoundation_dep]
         endif
 
-        vlc_modules += {
+        heimdall_modules += {
             'name' : 'cdda',
             'sources' : files(
                 'cdda.c',
@@ -354,12 +354,12 @@ if get_option('vcd_module')
                 '../misc/webservices/musicbrainz.c',
             ),
             'c_args' : vcd_cdda_flags,
-            'link_with' : vlc_json_lib,
+            'link_with' : heimdall_json_lib,
             'dependencies' : [vcd_cdda_darwin_deps, gcrypt_dep],
             'plugin_dir' : 'access',
         }
 
-        vlc_modules += {
+        heimdall_modules += {
             'name' : 'vcd',
             'sources' : files(
                 'vcd/vcd.c',
@@ -376,7 +376,7 @@ endif
 # DVD with navigation (dvdnav) access
 dvdnav_dep = dependency('dvdnav', version: '>= 6.0.0', required: get_option('dvdnav'))
 if dvdnav_dep.found()
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'dvdnav',
         'sources' : files('dvdnav.c'),
         'dependencies' : [
@@ -390,7 +390,7 @@ endif
 # DVD access
 dvdread_dep = dependency('dvdread', version: '>= 6.0.0', required: get_option('dvdread'))
 if dvdread_dep.found()
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'dvdread',
         'sources' : files('dvdread.c', 'dvdread_video.c', 'dvdread_audio.c', 'dvdread_vr.c'),
         'dependencies' : [
@@ -404,7 +404,7 @@ endif
 # Blu-ray access
 libbluray_dep = dependency('libbluray', version: '>= 1.1.0', required: get_option('bluray'))
 if libbluray_dep.found()
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'libbluray',
         'sources' : files('bluray.c'),
         'dependencies' : [libbluray_dep],
@@ -441,7 +441,7 @@ if host_system == 'linux'
     )
     if (has_linux_dvb_5_1)
         message('Has Linux DVB 5.1 or higher: YES')
-        vlc_modules += {
+        heimdall_modules += {
             'name' : 'dtv',
             'sources' : [
                 dtv_common_sources,
@@ -457,7 +457,7 @@ endif
 
 if host_system == 'windows' and have_win_desktop
     strmiids_lib = cc.find_library('strmiids', required: true)
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'dtv',
         'sources' : [
             dtv_common_sources,
@@ -468,7 +468,7 @@ if host_system == 'windows' and have_win_desktop
         'plugin_dir' : 'access',
     }
 
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'dshow',
         'sources' : files(
             'dshow/dshow.cpp',
@@ -482,11 +482,11 @@ if host_system == 'windows' and have_win_desktop
     }
 endif
 
-# vlc_access_cache helper lib
-vlc_access_cache_lib = static_library(
-    'vlc_access_cache',
+# heimdall_access_cache helper lib
+heimdall_access_cache_lib = static_library(
+    'heimdall_access_cache',
     files('cache.c',),
-    include_directories: [vlc_include_dirs],
+    include_directories: [heimdall_include_dirs],
     pic: true,
     install: false
 )
@@ -495,17 +495,17 @@ vlc_access_cache_lib = static_library(
 
 # Smb v1
 libdsm_dep = dependency('libdsm', version: '>= 0.2.0', required: get_option('dsm'))
-vlc_modules += {
+heimdall_modules += {
     'name' : 'dsm',
     'sources' : files('dsm/access.c', 'dsm/sd.c', 'smb_common.h'),
     'dependencies' : [libdsm_dep],
-    'link_with' : [vlc_access_cache_lib],
+    'link_with' : [heimdall_access_cache_lib],
     'plugin_dir' : 'access',
     'enabled' : libdsm_dep.found(),
 }
 
 smbclient_dep = dependency('smbclient',  required: get_option('smbclient'))
-vlc_modules += {
+heimdall_modules += {
     'name' : 'smbc',
     'sources' : files('samba.c', 'smb_common.h'),
     'dependencies' : [smbclient_dep],
@@ -520,18 +520,18 @@ if (libdsm_dep.found())
     smb2_dependencies += [libdsm_dep]
     smb2_flags += '-DHAVE_DSM"'
 endif
-vlc_modules += {
+heimdall_modules += {
     'name' : 'smb2',
     'sources' : files('smb2.c', 'smb_common.h'),
     'c_args' :  smb2_flags,
     'dependencies' : smb2_dependencies,
-    'link_with' : [vlc_access_cache_lib],
+    'link_with' : [heimdall_access_cache_lib],
     'plugin_dir' : 'access',
     'enabled' : libsmb2_dep.found(),
 }
 
 # FTP
-vlc_modules += {
+heimdall_modules += {
     'name' : 'ftp',
     'sources' : files('ftp.c'),
     'dependencies' : [socket_libs],
@@ -540,7 +540,7 @@ vlc_modules += {
 
 # SFTP
 libssh2_dep = dependency('libssh2', required: get_option('libssh2'))
-vlc_modules += {
+heimdall_modules += {
     'name' : 'sftp',
     'sources' : files('sftp.c'),
     'dependencies' : [libssh2_dep],
@@ -549,7 +549,7 @@ vlc_modules += {
 }
 
 # Gopher
-vlc_modules += {
+heimdall_modules += {
     'name' : 'gopher',
     'sources' : files('gopher.c'),
     'dependencies' : [socket_libs],
@@ -557,7 +557,7 @@ vlc_modules += {
 }
 
 # Old HTTP
-vlc_modules += {
+heimdall_modules += {
     'name' : 'http',
     'sources' : files('http.c'),
     'dependencies' : [socket_libs],
@@ -569,7 +569,7 @@ subdir('http')
 
 # Network file sharing
 nfs_dep = dependency('libnfs', version: '>= 1.10.0', required: get_option('nfs'))
-vlc_modules += {
+heimdall_modules += {
     'name' : 'nfs',
     'sources' : files('nfs.c'),
     'dependencies' : [nfs_dep, socket_libs],
@@ -578,7 +578,7 @@ vlc_modules += {
 }
 
 # TCP
-vlc_modules += {
+heimdall_modules += {
     'name' : 'tcp',
     'sources' : files('tcp.c'),
     'dependencies' : [socket_libs],
@@ -586,7 +586,7 @@ vlc_modules += {
 }
 
 # UDP
-vlc_modules += {
+heimdall_modules += {
     'name' : 'udp',
     'sources' : files('udp.c'),
     'dependencies' : [socket_libs],
@@ -594,7 +594,7 @@ vlc_modules += {
 }
 
 # AMT
-vlc_modules += {
+heimdall_modules += {
     'name' : 'amt',
     'sources' : files('amt.c'),
     'dependencies' : [socket_libs],
@@ -606,7 +606,7 @@ if host_system == 'windows' and not have_win_store
     mpr_lib = cc.find_library('mpr', required: true)
     netapi32_lib = cc.find_library('netapi32', required: true)
 
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'unc',
         'sources' : files('unc.c'),
         'dependencies' : [mpr_lib, netapi32_lib],
@@ -616,7 +616,7 @@ endif
 
 # AVIO access module
 if avformat_dep.found()
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'avio',
         'sources' : files('avio.c'),
         'dependencies' : [avutil_dep, avformat_dep, m_lib],
@@ -627,7 +627,7 @@ if avformat_dep.found()
 endif
 
 # SAT>IP
-vlc_modules += {
+heimdall_modules += {
     'name' : 'satip',
     'sources' : files('satip.c'),
     'dependencies' : [socket_libs, threads_dep],
@@ -635,7 +635,7 @@ vlc_modules += {
 }
 
 # MMS
-vlc_modules += {
+heimdall_modules += {
     'name' : 'access_mms',
     'sources' : files(
         'mms/mms.c',
@@ -651,7 +651,7 @@ vlc_modules += {
 
 ## Misc
 
-vlc_modules += {
+heimdall_modules += {
     'name' : 'access_concat',
     'sources' : files('concat.c'),
     'shortname' : 'a_concat',
@@ -660,7 +660,7 @@ vlc_modules += {
 
 # Media Transfer Protocol (MTP)
 if mtp_dep.found()
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'access_mtp',
         'sources' : files('mtp.c'),
         'dependencies' : [mtp_dep],
@@ -671,7 +671,7 @@ endif
 
 # SRT
 if srt_dep.found()
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'access_srt',
         'sources' : files('srt.c', 'srt_common.c'),
         'dependencies' : [srt_dep],
@@ -682,7 +682,7 @@ endif
 
 # RIST
 if librist_dep.found()
-    vlc_modules += {
+    heimdall_modules += {
         'name' : 'rist',
         'sources' : files('rist.c'),
         'dependencies' : [socket_libs, librist_dep],
@@ -700,7 +700,7 @@ if asdcp_dep.found()
         asdcp_extra_cppargs += ['-DASDCPLIB_FACTORY=0']
     endif
 endif
-vlc_modules += {
+heimdall_modules += {
     'name' : 'dcp',
     'sources' : files('dcp/dcp.cpp', 'dcp/dcpparser.cpp', 'dcp/dcpdecrypt.cpp'),
     'dependencies' : [asdcp_dep, gcrypt_dep],

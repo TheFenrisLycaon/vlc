@@ -2,6 +2,7 @@
  * os_window.hpp
  *****************************************************************************
  * Copyright (C) 2003 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cyril Deguet     <asmax@via.ecp.fr>
  *          Olivier Teulière <ipkiss@via.ecp.fr>
@@ -56,7 +57,7 @@ public:
     virtual void toggleOnTop( bool onTop ) const = 0;
 
     /// getter for handler
-    virtual void setOSHandle( struct vlc_window *pWnd ) const = 0;
+    virtual void setOSHandle( struct heimdall_window *pWnd ) const = 0;
 
     /// reparent the window
     virtual void reparent( OSWindow *window,

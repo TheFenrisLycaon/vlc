@@ -2,6 +2,7 @@
  * xmlent.c: Test for XML entities
  *****************************************************************************
  * Copyright (C) 2006, 2008 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -26,10 +27,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <vlc_common.h>
-#include <vlc_strings.h>
+#include <heimdall_common.h>
+#include <heimdall_strings.h>
 
-const char vlc_module_name[] = "test_xmlent";
+const char heimdall_module_name[] = "test_xmlent";
 
 static void decode (const char *in, const char *out)
 {
@@ -37,7 +38,7 @@ static void decode (const char *in, const char *out)
 
     printf ("\"%s\" -> \"%s\" ?\n", in, out);
     strcpy (buf, in);
-    vlc_xml_decode (buf);
+    heimdall_xml_decode (buf);
 
     if (strcmp (buf, out))
     {
@@ -51,7 +52,7 @@ static void encode (const char *in, const char *out)
     char *buf;
 
     printf ("\"%s\" -> \"%s\" ?\n", in, out);
-    buf = vlc_xml_encode (in);
+    buf = heimdall_xml_encode (in);
 
     if (buf == NULL)
     {

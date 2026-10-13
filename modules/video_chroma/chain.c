@@ -2,8 +2,9 @@
  * chain.c : chain multiple video filter modules as a last resort solution
  *****************************************************************************
  * Copyright (C) 2007-2017 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Antoine Cellerier <dionoea at videolan dot org>
+ * Authors: Antoine Cellerier <dionoea at lycaria dot org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -28,12 +29,12 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_mouse.h>
-#include <vlc_picture.h>
-#include <vlc_chroma_probe.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_mouse.h>
+#include <heimdall_picture.h>
+#include <heimdall_chroma_probe.h>
 
 /*****************************************************************************
  * Module descriptor
@@ -42,19 +43,19 @@ static int       ActivateConverter  ( filter_t * );
 static int       ActivateFilter     ( filter_t * );
 static void      Destroy            ( filter_t * );
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("Video filtering using a chain of video filter modules") )
     set_callback_video_converter( ActivateConverter, 1 )
     add_submodule ()
         set_callback_video_filter( ActivateFilter )
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * Local prototypes.
  *****************************************************************************/
 static picture_t *Chain         ( filter_t *, picture_t * );
 static void Flush               ( filter_t * );
-static int ChainMouse           ( filter_t *p_filter, vlc_mouse_t *p_mouse, const vlc_mouse_t *p_old );
+static int ChainMouse           ( filter_t *p_filter, heimdall_mouse_t *p_mouse, const heimdall_mouse_t *p_old );
 
 static int BuildTransformChain( filter_t *p_filter );
 static int BuildChromaChain( filter_t *p_filter );
@@ -72,14 +73,14 @@ typedef struct
 } filter_sys_t;
 
 /* Restart filter callback */
-static int RestartFilterCallback( vlc_object_t *obj, char const *psz_name,
-                                  vlc_value_t oldval, vlc_value_t newval,
+static int RestartFilterCallback( heimdall_object_t *obj, char const *psz_name,
+                                  heimdall_value_t oldval, heimdall_value_t newval,
                                   void *p_data )
-{ VLC_UNUSED(obj); VLC_UNUSED(psz_name); VLC_UNUSED(oldval);
-    VLC_UNUSED(newval);
+{ HEIMDALL_UNUSED(obj); HEIMDALL_UNUSED(psz_name); HEIMDALL_UNUSED(oldval);
+    HEIMDALL_UNUSED(newval);
 
-    var_TriggerCallback( (vlc_object_t *)p_data, "video-filter" );
-    return VLC_SUCCESS;
+    var_TriggerCallback( (heimdall_object_t *)p_data, "video-filter" );
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -95,9 +96,9 @@ static picture_t *BufferChainNew( filter_t *p_filter )
 
 #define CHAIN_LEVEL_MAX 2
 
-static vlc_decoder_device * HoldChainDecoderDevice(vlc_object_t *o, void *sys)
+static heimdall_decoder_device * HoldChainDecoderDevice(heimdall_object_t *o, void *sys)
 {
-    VLC_UNUSED(o);
+    HEIMDALL_UNUSED(o);
     filter_t *p_chain_parent = sys;
     return filter_HoldDecoderDevice( p_chain_parent );
 }
@@ -107,7 +108,7 @@ static const struct filter_video_callbacks filter_video_chain_cbs =
     BufferChainNew, HoldChainDecoderDevice,
 };
 
-static const struct vlc_filter_operations filter_ops = {
+static const struct heimdall_filter_operations filter_ops = {
     .filter_video = Chain, .flush = Flush, .video_mouse=ChainMouse, .close = Destroy,
 };
 
@@ -119,11 +120,11 @@ static const struct vlc_filter_operations filter_ops = {
 static int Activate( filter_t *p_filter, int (*pf_build)(filter_t *) )
 {
     filter_sys_t *p_sys;
-    int i_ret = VLC_EGENERIC;
+    int i_ret = HEIMDALL_EGENERIC;
 
     p_sys = p_filter->p_sys = calloc( 1, sizeof( *p_sys ) );
     if( !p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     filter_owner_t owner = {
         .video = &filter_video_chain_cbs,
@@ -134,7 +135,7 @@ static int Activate( filter_t *p_filter, int (*pf_build)(filter_t *) )
     if( !p_sys->p_chain )
     {
         free( p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     i_ret = pf_build( p_filter );
@@ -147,7 +148,7 @@ static int Activate( filter_t *p_filter, int (*pf_build)(filter_t *) )
                                       RestartFilterCallback );
         filter_chain_Delete( p_sys->p_chain );
         free( p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     if( p_filter->b_allow_fmt_out_change )
     {
@@ -159,7 +160,7 @@ static int Activate( filter_t *p_filter, int (*pf_build)(filter_t *) )
     assert(p_filter->vctx_out == filter_chain_GetVideoCtxOut( p_sys->p_chain ));
     /* */
     p_filter->ops = &filter_ops;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int ActivateConverter( filter_t *p_filter )
@@ -168,11 +169,11 @@ static int ActivateConverter( filter_t *p_filter )
     const bool b_transform = p_filter->fmt_in.video.orientation != p_filter->fmt_out.video.orientation;
 
     if( !b_chroma && !b_transform )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    if( var_Type( vlc_object_parent(p_filter), "chain-level" ) != 0 )
-        return VLC_EGENERIC;
-    var_Create( p_filter, "chain-level", VLC_VAR_INTEGER );
+    if( var_Type( heimdall_object_parent(p_filter), "chain-level" ) != 0 )
+        return HEIMDALL_EGENERIC;
+    var_Create( p_filter, "chain-level", HEIMDALL_VAR_INTEGER );
 
     int ret = Activate( p_filter, b_transform ? BuildTransformChain :
                         BuildChromaChain );
@@ -184,11 +185,11 @@ static int ActivateConverter( filter_t *p_filter )
 static int ActivateFilter( filter_t *p_filter )
 {
     if( !p_filter->b_allow_fmt_out_change || p_filter->psz_name == NULL )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    if( var_Type( vlc_object_parent(p_filter), "chain-level" ) != 0 )
-        return VLC_EGENERIC;
-    var_Create( p_filter, "chain-level", VLC_VAR_INTEGER );
+    if( var_Type( heimdall_object_parent(p_filter), "chain-level" ) != 0 )
+        return HEIMDALL_EGENERIC;
+    var_Create( p_filter, "chain-level", HEIMDALL_VAR_INTEGER );
 
     int ret = Activate( p_filter, BuildFilterChain );
 
@@ -238,8 +239,8 @@ static int BuildTransformChain( filter_t *p_filter )
     video_format_TransformTo(&fmt_mid.video, p_filter->fmt_out.video.orientation);
     i_ret = CreateChain( p_filter, &fmt_mid );
     es_format_Clean( &fmt_mid );
-    if( i_ret == VLC_SUCCESS )
-        return VLC_SUCCESS;
+    if( i_ret == HEIMDALL_SUCCESS )
+        return HEIMDALL_SUCCESS;
 
     /* Lets try resize+chroma first, then transform */
     msg_Dbg( p_filter, "Trying to build chroma+resize" );
@@ -249,7 +250,7 @@ static int BuildTransformChain( filter_t *p_filter )
     return i_ret;
 }
 
-static int AppendChromaChain( filter_t *p_filter, const vlc_fourcc_t *chromas,
+static int AppendChromaChain( filter_t *p_filter, const heimdall_fourcc_t *chromas,
                               size_t chroma_count, const es_format_t *last_fmt )
 {
     filter_sys_t *p_sys = p_filter->p_sys;
@@ -271,24 +272,24 @@ static int AppendChromaChain( filter_t *p_filter, const vlc_fourcc_t *chromas,
 
         int i_ret = filter_chain_AppendConverter( p_sys->p_chain, &fmt_mid );
         es_format_Clean( &fmt_mid );
-        if ( i_ret != VLC_SUCCESS )
+        if ( i_ret != HEIMDALL_SUCCESS )
             return i_ret;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int BuildChromaChain( filter_t *p_filter )
 {
     filter_sys_t *p_sys = p_filter->p_sys;
-    int i_ret = VLC_EGENERIC;
+    int i_ret = HEIMDALL_EGENERIC;
 
     const bool resize = p_filter->fmt_in.video.i_width  != p_filter->fmt_out.video.i_width ||
                         p_filter->fmt_in.video.i_height != p_filter->fmt_out.video.i_height;
 
     size_t res_count;
-    struct vlc_chroma_conv_result *results =
-        vlc_chroma_conv_Probe( p_filter->fmt_in.video.i_chroma,
+    struct heimdall_chroma_conv_result *results =
+        heimdall_chroma_conv_Probe( p_filter->fmt_in.video.i_chroma,
                                p_filter->fmt_out.video.i_chroma,
                                p_filter->fmt_in.video.i_width,
                                p_filter->fmt_in.video.i_height, 1,
@@ -299,11 +300,11 @@ static int BuildChromaChain( filter_t *p_filter )
     /* Now try chroma format list */
     for( size_t i = 0; i < res_count; ++i )
     {
-        const struct vlc_chroma_conv_result *res = &results[i];
-        char *res_str = vlc_chroma_conv_result_ToString( res );
+        const struct heimdall_chroma_conv_result *res = &results[i];
+        char *res_str = heimdall_chroma_conv_result_ToString( res );
         if( res_str == NULL )
         {
-            i_ret = VLC_ENOMEM;
+            i_ret = HEIMDALL_ENOMEM;
             break;
         }
         msg_Info( p_filter, "Trying to use chroma_chain: %s...", res_str);
@@ -315,7 +316,7 @@ static int BuildChromaChain( filter_t *p_filter )
         /* Try the one-pass chain: the last converter handles chroma+resize. */
         i_ret = AppendChromaChain( p_filter, &res->chain[1], res->chain_count - 1,
                                    &p_filter->fmt_out );
-        if( i_ret != VLC_SUCCESS && resize )
+        if( i_ret != HEIMDALL_SUCCESS && resize )
         {
             msg_Warn( p_filter, "one-pass chain failed, trying chroma chain, "
                       "then resize");
@@ -324,12 +325,12 @@ static int BuildChromaChain( filter_t *p_filter )
 
             i_ret = AppendChromaChain( p_filter, &res->chain[1],
                                        res->chain_count - 1, NULL );
-            if( i_ret == VLC_SUCCESS )
+            if( i_ret == HEIMDALL_SUCCESS )
                 i_ret = filter_chain_AppendConverter( p_sys->p_chain,
                                                       &p_filter->fmt_out );
         }
 
-        if( i_ret == VLC_SUCCESS )
+        if( i_ret == HEIMDALL_SUCCESS )
         {
             p_filter->vctx_out = filter_chain_GetVideoCtxOut( p_sys->p_chain );
             msg_Info( p_filter, "success");
@@ -341,17 +342,17 @@ static int BuildChromaChain( filter_t *p_filter )
     return i_ret;
 }
 
-static int ChainMouse( filter_t *p_filter, vlc_mouse_t *p_mouse,
-                       const vlc_mouse_t *p_old )
+static int ChainMouse( filter_t *p_filter, heimdall_mouse_t *p_mouse,
+                       const heimdall_mouse_t *p_old )
 {
     filter_sys_t *p_sys = p_filter->p_sys;
     return filter_chain_MouseFilter( p_sys->p_chain, p_mouse, p_old );
 }
 
 static bool
-CheckFilterChroma( filter_t *p_filter, vlc_fourcc_t chroma, const char *name )
+CheckFilterChroma( filter_t *p_filter, heimdall_fourcc_t chroma, const char *name )
 {
-    filter_t *test = vlc_object_create( p_filter, sizeof(filter_t) );
+    filter_t *test = heimdall_object_create( p_filter, sizeof(filter_t) );
     if (test == NULL)
         return false;
 
@@ -361,23 +362,23 @@ CheckFilterChroma( filter_t *p_filter, vlc_fourcc_t chroma, const char *name )
     test->fmt_out = fmt;
     test->psz_name = name;
 
-    test->p_module = vlc_filter_LoadModule( test, "video filter", name, true );
+    test->p_module = heimdall_filter_LoadModule( test, "video filter", name, true );
     bool success = test->p_module != NULL;
-    vlc_filter_Delete( test );
+    heimdall_filter_Delete( test );
     return success;
 }
 
 static int BuildFilterChain( filter_t *p_filter )
 {
     filter_sys_t *p_sys = p_filter->p_sys;
-    int i_ret = VLC_EGENERIC;
+    int i_ret = HEIMDALL_EGENERIC;
 
     assert( p_filter->b_allow_fmt_out_change );
 
     /* Search for in -> x conversion */
     size_t res_count;
-    struct vlc_chroma_conv_result *results =
-        vlc_chroma_conv_Probe( p_filter->fmt_in.video.i_chroma, 0,
+    struct heimdall_chroma_conv_result *results =
+        heimdall_chroma_conv_Probe( p_filter->fmt_in.video.i_chroma, 0,
                                p_filter->fmt_in.video.i_width,
                                p_filter->fmt_in.video.i_height, 1,
                                0, &res_count );
@@ -386,7 +387,7 @@ static int BuildFilterChain( filter_t *p_filter )
 
     for( size_t i = 0; i < res_count; ++i )
     {
-        const struct vlc_chroma_conv_result *res = &results[i];
+        const struct heimdall_chroma_conv_result *res = &results[i];
         assert(res->chain_count >= 2);
 
         /* Check first if the filter could accept the new output format. This
@@ -396,10 +397,10 @@ static int BuildFilterChain( filter_t *p_filter )
                                 p_filter->psz_name ) )
             continue;
 
-        char *res_str = vlc_chroma_conv_result_ToString( res );
+        char *res_str = heimdall_chroma_conv_result_ToString( res );
         if( res_str == NULL )
         {
-            i_ret = VLC_ENOMEM;
+            i_ret = HEIMDALL_ENOMEM;
             break;
         }
 
@@ -413,7 +414,7 @@ static int BuildFilterChain( filter_t *p_filter )
 
         i_ret = AppendChromaChain( p_filter, &res->chain[1],
                                    res->chain_count - 1, NULL );
-        if( i_ret != VLC_SUCCESS )
+        if( i_ret != HEIMDALL_SUCCESS )
             continue;
 
         p_sys->p_video_filter =
@@ -422,7 +423,7 @@ static int BuildFilterChain( filter_t *p_filter )
                                        filter_chain_GetFmtOut( p_sys->p_chain ) );
         if( p_sys->p_video_filter == NULL)
         {
-            i_ret = VLC_EGENERIC;
+            i_ret = HEIMDALL_EGENERIC;
             continue;
         }
 
@@ -435,7 +436,7 @@ static int BuildFilterChain( filter_t *p_filter )
     }
     free( results );
 
-    if( i_ret != VLC_SUCCESS )
+    if( i_ret != HEIMDALL_SUCCESS )
         filter_chain_Reset( p_sys->p_chain, &p_filter->fmt_in, p_filter->vctx_in, &p_filter->fmt_out );
 
     return i_ret;
@@ -450,19 +451,19 @@ static int CreateChain( filter_t *p_filter, const es_format_t *p_fmt_mid )
     filter_chain_Reset( p_sys->p_chain, &p_filter->fmt_in, p_filter->vctx_in, &p_filter->fmt_out );
 
     int i_ret = filter_chain_AppendConverter( p_sys->p_chain, p_fmt_mid );
-    if ( i_ret != VLC_SUCCESS )
+    if ( i_ret != HEIMDALL_SUCCESS )
         return i_ret;
 
     i_ret = filter_chain_AppendConverter( p_sys->p_chain, &p_filter->fmt_out );
-    if ( i_ret != VLC_SUCCESS )
+    if ( i_ret != HEIMDALL_SUCCESS )
         goto error;
 
     p_filter->vctx_out = filter_chain_GetVideoCtxOut( p_sys->p_chain );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 error:
     //Clean up.
     filter_chain_Clear( p_sys->p_chain );
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 static void EsFormatMergeSize( es_format_t *p_dst,

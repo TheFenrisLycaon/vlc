@@ -2,6 +2,7 @@
  * upnp-wrapper.hpp :  UPnP Instance Wrapper class header
  *****************************************************************************
  * Copyright © 2004-2018 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Rémi Denis-Courmont (original plugin)
  *          Christian Henz <henz # c-lab.de>
@@ -27,10 +28,10 @@
 #ifndef UPNP_WRAPPER_H
 #define UPNP_WRAPPER_H
 
-#include <vlc_common.h>
-#include <vlc_threads.h>
-#include <vlc_cxx_helpers.hpp>
-#include <vlc_charset.h>
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
+#include <heimdall_cxx_helpers.hpp>
+#include <heimdall_charset.h>
 
 #include <memory>
 #include <vector>
@@ -68,7 +69,7 @@ public:
 
 private:
     static UpnpInstanceWrapper* s_instance;
-    static vlc::threads::mutex s_lock;
+    static heimdall::threads::mutex s_lock;
     UpnpClient_Handle m_handle;
     int m_refcount;
     typedef std::shared_ptr<Listener> ListenerPtr;
@@ -77,7 +78,7 @@ private:
 
 public:
     // This increases the refcount before returning the instance
-    static UpnpInstanceWrapper* get( vlc_object_t* p_obj );
+    static UpnpInstanceWrapper* get( heimdall_object_t* p_obj );
     void release();
     UpnpClient_Handle handle() const;
     void addListener(ListenerPtr listener);

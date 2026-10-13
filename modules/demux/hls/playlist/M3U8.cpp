@@ -2,6 +2,7 @@
  * M3U8.cpp
  *****************************************************************************
  * Copyright © 2015 - VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -28,10 +29,10 @@
 
 using namespace hls::playlist;
 
-M3U8::M3U8 (vlc_object_t *p_object) :
+M3U8::M3U8 (heimdall_object_t *p_object) :
     BasePlaylist(p_object)
 {
-    minUpdatePeriod = VLC_TICK_FROM_SEC(5);
+    minUpdatePeriod = HEIMDALL_TICK_FROM_SEC(5);
 }
 
 M3U8::~M3U8()

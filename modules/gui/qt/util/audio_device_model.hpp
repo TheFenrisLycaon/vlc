@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,9 +25,9 @@
 #include "qt.hpp"
 
 extern "C" {
-    typedef struct vlc_player_aout_listener_id vlc_player_aout_listener_id;
+    typedef struct heimdall_player_aout_listener_id heimdall_player_aout_listener_id;
     typedef struct audio_output audio_output_t;
-    typedef struct vlc_player_t vlc_player_t;
+    typedef struct heimdall_player_t heimdall_player_t;
 }
 
 class AudioDeviceModel : public QAbstractListModel
@@ -34,7 +35,7 @@ class AudioDeviceModel : public QAbstractListModel
     Q_OBJECT
 
 public:
-    AudioDeviceModel(vlc_player_t *player, QObject *parent = nullptr);
+    AudioDeviceModel(heimdall_player_t *player, QObject *parent = nullptr);
 
     ~AudioDeviceModel();
 
@@ -55,9 +56,9 @@ private:
     char **m_names = nullptr;
     char **m_ids = nullptr;
     QString m_current;
-    vlc_player_aout_listener_id* m_player_aout_listener = nullptr;
+    heimdall_player_aout_listener_id* m_player_aout_listener = nullptr;
     audio_output_t* m_aout = nullptr;
-    vlc_player_t *m_player;
+    heimdall_player_t *m_player;
 };
 
 #endif // AUDIO_DEVICE_MODEL_HPP

@@ -2,8 +2,9 @@
  * va.h: Video Acceleration API for avcodec
  *****************************************************************************
  * Copyright (C) 2009 Laurent Aimar
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Laurent Aimar <fenrir_AT_ videolan _DOT_ org>
+ * Authors: Laurent Aimar <fenrir_AT_ lycaria _DOT_ org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -20,17 +21,17 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_AVCODEC_VA_H
-#define VLC_AVCODEC_VA_H 1
+#ifndef HEIMDALL_AVCODEC_VA_H
+#define HEIMDALL_AVCODEC_VA_H 1
 
 #include "avcommon_compat.h"
 #include <libavutil/pixdesc.h>
 
-typedef struct vlc_va_t vlc_va_t;
-typedef struct vlc_decoder_device vlc_decoder_device;
-typedef struct vlc_video_context vlc_video_context;
+typedef struct heimdall_va_t heimdall_va_t;
+typedef struct heimdall_decoder_device heimdall_decoder_device;
+typedef struct heimdall_video_context heimdall_video_context;
 
-struct vlc_va_cfg
+struct heimdall_va_cfg
 {
     /**
      * AVContext to set the hwaccel_context on.
@@ -46,11 +47,11 @@ struct vlc_va_cfg
     /**  Description of the hardware fornat */
     const AVPixFmtDescriptor *desc;
 
-    /** VLC format of the content to decode */
+    /** Heimdall format of the content to decode */
     const es_format_t *fmt_in;
 
     /** Decoder device that will be used to create the video context */
-    vlc_decoder_device *dec_device;
+    heimdall_decoder_device *dec_device;
 
     /**
      * Resulting Video format
@@ -66,7 +67,7 @@ struct vlc_va_cfg
     * This context can be re-used (held, and set to vctx_out) if the internal
     * format/size matches the new cfg.
     */
-    vlc_video_context *vctx_prev;
+    heimdall_video_context *vctx_prev;
 
     /**
      * Pointer to the used video context
@@ -74,7 +75,7 @@ struct vlc_va_cfg
      * The video context must be allocated from the dec_device, filled and set
      * to this pointer.
      */
-    vlc_video_context *vctx_out;
+    heimdall_video_context *vctx_out;
 
     /**
      * Indicate if the module is using the new AVHWFramesContext API
@@ -91,23 +92,23 @@ struct vlc_va_cfg
     unsigned extra_pictures;
 };
 
-struct vlc_va_operations {
-    int (*get)(vlc_va_t *, picture_t *pic, AVCodecContext *ctx, AVFrame *frame);
-    void (*close)(vlc_va_t *, AVCodecContext* ctx);
+struct heimdall_va_operations {
+    int (*get)(heimdall_va_t *, picture_t *pic, AVCodecContext *ctx, AVFrame *frame);
+    void (*close)(heimdall_va_t *, AVCodecContext* ctx);
 };
 
-struct vlc_va_t {
-    struct vlc_object_t obj;
+struct heimdall_va_t {
+    struct heimdall_object_t obj;
 
     void *sys;
-    const struct vlc_va_operations *ops;
+    const struct heimdall_va_operations *ops;
 };
 
-typedef int (*vlc_va_open)(vlc_va_t *, struct vlc_va_cfg *cfg);
+typedef int (*heimdall_va_open)(heimdall_va_t *, struct heimdall_va_cfg *cfg);
 
 #define set_va_callback(activate, priority) \
     { \
-        vlc_va_open open__ = activate; \
+        heimdall_va_open open__ = activate; \
         (void) open__; \
         set_callback(activate) \
     } \
@@ -119,15 +120,15 @@ typedef int (*vlc_va_open)(vlc_va_t *, struct vlc_va_cfg *cfg);
  * @param hwfmt the hardware acceleration pixel format
  * @return true if the hardware acceleration should be supported
  */
-bool vlc_va_MightDecode(enum AVPixelFormat hwfmt);
+bool heimdall_va_MightDecode(enum AVPixelFormat hwfmt);
 
 /**
  * Creates an accelerated video decoding back-end for libavcodec.
- * @param obj parent VLC object
+ * @param obj parent Heimdall object
  * @param cfg pointer to a configuration struct
- * @return a new VLC object on success, NULL on error.
+ * @return a new Heimdall object on success, NULL on error.
  */
-vlc_va_t *vlc_va_New(vlc_object_t *obj, struct vlc_va_cfg *cfg);
+heimdall_va_t *heimdall_va_New(heimdall_object_t *obj, struct heimdall_va_cfg *cfg);
 
 /**
  * Get a hardware video surface for a libavcodec frame.
@@ -140,15 +141,15 @@ vlc_va_t *vlc_va_New(vlc_object_t *obj, struct vlc_va_cfg *cfg);
  * AV_PIX_FMT_VDPAU       - VdpVideoSurface
  * AV_PIX_FMT_VAAPI       - VASurfaceID
  *
- * @param pic pointer to VLC picture containing the surface [IN/OUT]
+ * @param pic pointer to Heimdall picture containing the surface [IN/OUT]
  * @param ctx pointer to the current AVCodecContext [IN]
  * @param frame pointer to the AVFrame [IN]
  *
  * @note This function needs not be reentrant.
  *
- * @return VLC_SUCCESS on success, otherwise an error code.
+ * @return HEIMDALL_SUCCESS on success, otherwise an error code.
  */
-static inline int vlc_va_Get(vlc_va_t *va, picture_t *pic, AVCodecContext *ctx,
+static inline int heimdall_va_Get(heimdall_va_t *va, picture_t *pic, AVCodecContext *ctx,
                              AVFrame *frame)
 {
     return va->ops->get(va, pic, ctx, frame);
@@ -160,6 +161,6 @@ static inline int vlc_va_Get(vlc_va_t *va, picture_t *pic, AVCodecContext *ctx,
  *
  * @param avctx pointer to the current AVCodecContext if it needs to be cleaned, NULL otherwise [IN]
  */
-void vlc_va_Delete(vlc_va_t *, AVCodecContext * avctx);
+void heimdall_va_Delete(heimdall_va_t *, AVCodecContext * avctx);
 
 #endif

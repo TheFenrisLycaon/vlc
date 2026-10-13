@@ -2,9 +2,10 @@
  * extended_panels.cpp : Extended controls panels
  ****************************************************************************
  * Copyright (C) 2006-2013 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Clément Stenac <zorglub@videolan.org>
- *          Antoine Cellerier <dionoea .t videolan d@t org>
+ *          Antoine Cellerier <dionoea .t lycaria d@t org>
  *          Jean-Baptiste Kempf <jb@videolan.org>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -52,14 +53,14 @@
 #include "util/qt_dirs.hpp"
 #include "widgets/native/customwidgets.hpp"
 #include "dialogs/dialogs_provider.hpp"
-#include "util/vlctick.hpp"
+#include "util/heimdalltick.hpp"
 
 #include "../../../../audio_filter/equalizer_presets.h"
-#include <vlc_configuration.h>
-#include <vlc_modules.h>
-#include <vlc_plugin.h>
-#include <vlc_player.h>
-#include <vlc_interface.h>
+#include <heimdall_configuration.h>
+#include <heimdall_modules.h>
+#include <heimdall_plugin.h>
+#include <heimdall_player.h>
+#include <heimdall_interface.h>
 
 static bool filterIsPresent( const QString &filters, const QString &filter )
 {
@@ -208,7 +209,7 @@ ExtVideo::ExtVideo( qt_intf_t *_p_intf, QTabWidget *_parent ) :
     SETUP_VFILTER_OPTION( transformTypeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged) )
 
     SETUP_VFILTER_gb( rotate )
-    SETUP_VFILTER_OPTION( rotateAngleDial, &VLCQDial::valueChanged )
+    SETUP_VFILTER_OPTION( rotateAngleDial, &HeimdallQDial::valueChanged )
     ui.rotateAngleDial->setWrapping( true );
     ui.rotateAngleDial->setNotchesVisible( true );
 
@@ -443,14 +444,14 @@ void ExtVideo::setWidgetValue( QObject *widget )
     QString option = OptionFromWidgetName( widget );
     //std::cout << "Option name: " << option.toStdString() << std::endl;
 
-    vlc_value_t val;
-    int i_type = config_GetType( qtu( option ) ) & VLC_VAR_CLASS;
+    heimdall_value_t val;
+    int i_type = config_GetType( qtu( option ) ) & HEIMDALL_VAR_CLASS;
     switch( i_type )
     {
-        case VLC_VAR_INTEGER:
-        case VLC_VAR_BOOL:
-        case VLC_VAR_FLOAT:
-        case VLC_VAR_STRING:
+        case HEIMDALL_VAR_INTEGER:
+        case HEIMDALL_VAR_BOOL:
+        case HEIMDALL_VAR_FLOAT:
+        case HEIMDALL_VAR_STRING:
             break;
         default:
             msg_Err( p_intf,
@@ -458,7 +459,7 @@ void ExtVideo::setWidgetValue( QObject *widget )
                      qtu( module ), qtu( option ), i_type );
             return;
     }
-    if( var_Create( p_intf, qtu( option ), i_type | VLC_VAR_DOINHERIT ) )
+    if( var_Create( p_intf, qtu( option ), i_type | HEIMDALL_VAR_DOINHERIT ) )
         return;
     if( var_GetChecked( p_intf, qtu( option ), i_type, &val ) )
         return;
@@ -469,11 +470,11 @@ void ExtVideo::setWidgetValue( QObject *widget )
     QCheckBox      *checkbox      = qobject_cast<QCheckBox*>     ( widget );
     QSpinBox       *spinbox       = qobject_cast<QSpinBox*>      ( widget );
     QDoubleSpinBox *doublespinbox = qobject_cast<QDoubleSpinBox*>( widget );
-    VLCQDial       *dial          = qobject_cast<VLCQDial*>      ( widget );
+    HeimdallQDial       *dial          = qobject_cast<HeimdallQDial*>      ( widget );
     QLineEdit      *lineedit      = qobject_cast<QLineEdit*>     ( widget );
     QComboBox      *combobox      = qobject_cast<QComboBox*>     ( widget );
 
-    if( i_type == VLC_VAR_INTEGER || i_type == VLC_VAR_BOOL )
+    if( i_type == HEIMDALL_VAR_INTEGER || i_type == HEIMDALL_VAR_BOOL )
     {
         if( slider )        slider->setValue( val.i_int );
         else if( checkbox ) checkbox->setCheckState( val.i_int? Qt::Checked
@@ -490,14 +491,14 @@ void ExtVideo::setWidgetValue( QObject *widget )
                             combobox->findData( qlonglong(val.i_int) ) );
         else msg_Warn( p_intf, "Could not find the correct Integer widget" );
     }
-    else if( i_type == VLC_VAR_FLOAT )
+    else if( i_type == HEIMDALL_VAR_FLOAT )
     {
         if( slider ) slider->setValue( ( int )( val.f_float*( double )slider->tickInterval() ) ); /* hack alert! */
         else if( doublespinbox ) doublespinbox->setValue( val.f_float );
         else if( dial ) dial->setValue( (360 - lroundf(val.f_float)) % 360 );
         else msg_Warn( p_intf, "Could not find the correct Float widget" );
     }
-    else if( i_type == VLC_VAR_STRING )
+    else if( i_type == HEIMDALL_VAR_STRING )
     {
         if( lineedit ) lineedit->setText( qfu( val.psz_string ) );
         else if( combobox ) combobox->setCurrentIndex(
@@ -530,22 +531,22 @@ void ExtVideo::setFilterOption( const char *psz_module, const char *psz_option,
     if( i_type == 0 )
         i_type = config_GetType( psz_option );
 
-    vlc_value_t val;
-    i_type &= VLC_VAR_CLASS;
-    if( i_type == VLC_VAR_INTEGER || i_type == VLC_VAR_BOOL )
+    heimdall_value_t val;
+    i_type &= HEIMDALL_VAR_CLASS;
+    if( i_type == HEIMDALL_VAR_INTEGER || i_type == HEIMDALL_VAR_BOOL )
     {
         emit configChanged( qfu( psz_option ), QVariant( i_int ) );
-        if( i_type == VLC_VAR_INTEGER )
+        if( i_type == HEIMDALL_VAR_INTEGER )
             val.i_int = i_int;
         else
             val.b_bool = i_int;
     }
-    else if( i_type == VLC_VAR_FLOAT )
+    else if( i_type == HEIMDALL_VAR_FLOAT )
     {
         emit configChanged( qfu( psz_option ), QVariant( f_float ) );
         val.f_float = f_float;
     }
-    else if( i_type == VLC_VAR_STRING )
+    else if( i_type == HEIMDALL_VAR_STRING )
     {
         if( psz_string == NULL )
             psz_string = "";
@@ -578,7 +579,7 @@ void ExtVideo::updateFilterOptions()
     QCheckBox      *checkbox      = qobject_cast<QCheckBox*>     ( sender() );
     QSpinBox       *spinbox       = qobject_cast<QSpinBox*>      ( sender() );
     QDoubleSpinBox *doublespinbox = qobject_cast<QDoubleSpinBox*>( sender() );
-    VLCQDial       *dial          = qobject_cast<VLCQDial*>      ( sender() );
+    HeimdallQDial       *dial          = qobject_cast<HeimdallQDial*>      ( sender() );
     QLineEdit      *lineedit      = qobject_cast<QLineEdit*>     ( sender() );
     QComboBox      *combobox      = qobject_cast<QComboBox*>     ( sender() );
 
@@ -619,7 +620,7 @@ ExtV4l2::ExtV4l2( qt_intf_t *_p_intf, QWidget *_parent )
 {
     QVBoxLayout *layout = new QVBoxLayout( this );
     help = new QLabel( qtr("No v4l2 instance found.\n"
-      "Please check that the device has been opened with VLC and is playing.\n\n"
+      "Please check that the device has been opened with Heimdall and is playing.\n\n"
       "Controls will automatically appear here.")
       , this );
     help->setAlignment( Qt::AlignHCenter | Qt::AlignVCenter );
@@ -636,8 +637,8 @@ void ExtV4l2::showEvent( QShowEvent *event )
 
 void ExtV4l2::Refresh( void )
 {
-    vlc_player_Lock(p_intf->p_player);
-    vlc_object_t *p_obj = vlc_player_GetV4l2Object(p_intf->p_player);
+    heimdall_player_Lock(p_intf->p_player);
+    heimdall_object_t *p_obj = heimdall_player_GetV4l2Object(p_intf->p_player);
     help->hide();
     if( box )
     {
@@ -648,11 +649,11 @@ void ExtV4l2::Refresh( void )
 
     if( p_obj != NULL )
     {
-        vlc_value_t *val;
+        heimdall_value_t *val;
         char **text;
         size_t count;
 
-        int i_ret = var_Change( p_obj, "controls", VLC_VAR_GETCHOICES,
+        int i_ret = var_Change( p_obj, "controls", HEIMDALL_VAR_GETCHOICES,
                                 &count, &val, &text );
         if( i_ret < 0 )
         {
@@ -671,7 +672,7 @@ void ExtV4l2::Refresh( void )
             char *vartext, *psz_var = text[i];
             QString name;
 
-            if( !var_Change( p_obj, psz_var, VLC_VAR_GETTEXT, &vartext ) )
+            if( !var_Change( p_obj, psz_var, HEIMDALL_VAR_GETTEXT, &vartext ) )
             {
                 name = qfut(vartext);
                 free(vartext);
@@ -683,24 +684,24 @@ void ExtV4l2::Refresh( void )
                      val[i].i_int, psz_var, qtu( name ) );
 
             int i_type = var_Type( p_obj, psz_var );
-            switch( i_type & VLC_VAR_TYPE )
+            switch( i_type & HEIMDALL_VAR_TYPE )
             {
-                case VLC_VAR_INTEGER:
+                case HEIMDALL_VAR_INTEGER:
                 {
                     QLabel *label = new QLabel( name, box );
                     QHBoxLayout *hlayout = new QHBoxLayout();
                     hlayout->addWidget( label );
                     int i_val = var_GetInteger( p_obj, psz_var );
-                    if( i_type & VLC_VAR_HASCHOICE )
+                    if( i_type & HEIMDALL_VAR_HASCHOICE )
                     {
                         QComboBox *combobox = new QComboBox( box );
                         combobox->setObjectName( qfu( psz_var ) );
 
-                        vlc_value_t *val2;
+                        heimdall_value_t *val2;
                         char **text2;
                         size_t count2;
 
-                        var_Change( p_obj, psz_var, VLC_VAR_GETCHOICES,
+                        var_Change( p_obj, psz_var, HEIMDALL_VAR_GETCHOICES,
                                     &count2, &val2, &text2 );
                         for( size_t j = 0; j < count2; j++ )
                         {
@@ -722,16 +723,16 @@ void ExtV4l2::Refresh( void )
                         QSlider *slider = new QSlider( box );
                         slider->setObjectName( qfu( psz_var ) );
                         slider->setOrientation( Qt::Horizontal );
-                        vlc_value_t val2;
-                        var_Change( p_obj, psz_var, VLC_VAR_GETMIN, &val2 );
+                        heimdall_value_t val2;
+                        var_Change( p_obj, psz_var, HEIMDALL_VAR_GETMIN, &val2 );
                         if( val2.i_int < INT_MIN )
                             val2.i_int = INT_MIN; /* FIXME */
                         slider->setMinimum( val2.i_int );
-                        var_Change( p_obj, psz_var, VLC_VAR_GETMAX, &val2 );
+                        var_Change( p_obj, psz_var, HEIMDALL_VAR_GETMAX, &val2 );
                         if( val2.i_int > INT_MAX )
                             val2.i_int = INT_MAX; /* FIXME */
                         slider->setMaximum( val2.i_int );
-                        if( !var_Change( p_obj, psz_var, VLC_VAR_GETSTEP,
+                        if( !var_Change( p_obj, psz_var, HEIMDALL_VAR_GETSTEP,
                                          &val2 ) )
                             slider->setSingleStep( val2.i_int );
                         slider->setValue( i_val );
@@ -742,7 +743,7 @@ void ExtV4l2::Refresh( void )
                     layout->addLayout( hlayout );
                     break;
                 }
-                case VLC_VAR_BOOL:
+                case HEIMDALL_VAR_BOOL:
                 {
                     QCheckBox *button = new QCheckBox( name, box );
                     button->setObjectName( qfu( psz_var ) );
@@ -753,9 +754,9 @@ void ExtV4l2::Refresh( void )
                     layout->addWidget( button );
                     break;
                 }
-                case VLC_VAR_VOID:
+                case HEIMDALL_VAR_VOID:
                 {
-                    if( i_type & VLC_VAR_ISCOMMAND )
+                    if( i_type & HEIMDALL_VAR_ISCOMMAND )
                     {
                         QPushButton *button = new QPushButton( name, box );
                         button->setObjectName( qfu( psz_var ) );
@@ -787,7 +788,7 @@ void ExtV4l2::Refresh( void )
         if ( isVisible() )
             QTimer::singleShot( 2000, this, &ExtV4l2::Refresh );
     }
-    vlc_player_Unlock(p_intf->p_player);
+    heimdall_player_Unlock(p_intf->p_player);
 }
 
 void ExtV4l2::ValueChange( bool value )
@@ -798,34 +799,34 @@ void ExtV4l2::ValueChange( bool value )
 void ExtV4l2::ValueChange( int value )
 {
     QObject *s = sender();
-    vlc_player_Lock(p_intf->p_player);
-    vlc_object_t *p_obj = vlc_player_GetV4l2Object(p_intf->p_player);
+    heimdall_player_Lock(p_intf->p_player);
+    heimdall_object_t *p_obj = heimdall_player_GetV4l2Object(p_intf->p_player);
     if( p_obj )
     {
         QString var = s->objectName();
         int i_type = var_Type( p_obj, qtu( var ) );
-        switch( i_type & VLC_VAR_TYPE )
+        switch( i_type & HEIMDALL_VAR_TYPE )
         {
-            case VLC_VAR_INTEGER:
-                if( i_type & VLC_VAR_HASCHOICE )
+            case HEIMDALL_VAR_INTEGER:
+                if( i_type & HEIMDALL_VAR_HASCHOICE )
                 {
                     QComboBox *combobox = qobject_cast<QComboBox*>( s );
                     value = combobox->itemData( value ).toInt();
                 }
                 var_SetInteger( p_obj, qtu( var ), value );
                 break;
-            case VLC_VAR_BOOL:
+            case HEIMDALL_VAR_BOOL:
                 var_SetBool( p_obj, qtu( var ), value );
                 break;
-            case VLC_VAR_VOID:
+            case HEIMDALL_VAR_VOID:
                 var_TriggerCallback( p_obj, qtu( var ) );
                 break;
         }
-        vlc_player_Unlock(p_intf->p_player);
+        heimdall_player_Unlock(p_intf->p_player);
     }
     else
     {
-        vlc_player_Unlock(p_intf->p_player);
+        heimdall_player_Unlock(p_intf->p_player);
         msg_Warn( p_intf, "Oops, v4l2 object isn't available anymore" );
         Refresh();
     }
@@ -988,7 +989,7 @@ void AudioFilterControlWidget::enable( bool b_enable )
     QString result = ChangeFiltersString( p_intf, "audio-filter", qtu(name),
                                           b_enable );
     emit configChanged( qfu("audio-filter"), result );
-    vlc_player_aout_EnableFilter( p_intf->p_player, qtu(name), b_enable );
+    heimdall_player_aout_EnableFilter( p_intf->p_player, qtu(name), b_enable );
 }
 
 /**********************************************************************
@@ -1021,7 +1022,7 @@ QStringList EqualizerSliderData::getBandsFromAout() const
     QStringList bands;
     if( p_aout )
     {
-        if ( var_Type( p_aout.get(), qtu(p_data->name) ) == VLC_VAR_STRING )
+        if ( var_Type( p_aout.get(), qtu(p_data->name) ) == HEIMDALL_VAR_STRING )
         {
             char *psz_bands = var_GetString( p_aout.get(), qtu(p_data->name) );
             if ( psz_bands )
@@ -1122,9 +1123,9 @@ Equalizer::Equalizer( qt_intf_t *p_intf, QWidget *parent )
     : AudioFilterControlWidget( p_intf, parent, "equalizer" )
 {
     i_smallfont = -3;
-    bool b_vlcBands = var_InheritBool( p_intf, "equalizer-vlcfreqs" );
+    bool b_heimdallBands = var_InheritBool( p_intf, "equalizer-heimdallfreqs" );
 
-    const FilterSliderData::slider_data_t vlc_bands[10] =
+    const FilterSliderData::slider_data_t heimdall_bands[10] =
     {
         { "equalizer-bands", qtr("60 Hz"),  qtr("dB"), -20.0f, 20.0f, 0.0f, 0.1f, 1.0 },
         { "equalizer-bands", qtr("170 Hz"), qtr("dB"), -20.0f, 20.0f, 0.0f, 0.1f, 1.0 },
@@ -1153,7 +1154,7 @@ Equalizer::Equalizer( qt_intf_t *p_intf, QWidget *parent )
     const FilterSliderData::slider_data_t preamp_vals =
         { "equalizer-preamp", qtr("Preamp"),  qtr("dB"), -20.0f, 20.0f, 0.0f, 0.1f, 1.0 };
 
-    for( int i=0; i<10 ;i++ ) controls.append( (b_vlcBands) ? vlc_bands[i] : iso_bands[i] );
+    for( int i=0; i<10 ;i++ ) controls.append( (b_heimdallBands) ? heimdall_bands[i] : iso_bands[i] );
     preamp_values = preamp_vals;
     build();
 }
@@ -1471,7 +1472,7 @@ void SyncWidget::setValue( double d )
 SyncControls::SyncControls( qt_intf_t *_p_intf, QWidget *_parent )
     : QWidget( _parent )
     , p_intf( _p_intf )
-    , m_SubsDelayCfgFactor(VLC_OBJECT(p_intf->intf), SUBSDELAY_CFG_FACTOR)
+    , m_SubsDelayCfgFactor(HEIMDALL_OBJECT(p_intf->intf), SUBSDELAY_CFG_FACTOR)
 {
     QGroupBox *AVBox, *subsBox;
     QToolButton *updateButton;
@@ -1557,23 +1558,23 @@ SyncControls::SyncControls( qt_intf_t *_p_intf, QWidget *_parent )
     connect( subSpeedSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &SyncControls::adjustSubsSpeed);
     connect( subDurationSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &SyncControls::adjustSubsDuration);
 
-    connect( THEMIM, &PlayerController::subtitleDelayChanged, [this](VLCDuration value) {
+    connect( THEMIM, &PlayerController::subtitleDelayChanged, [this](HeimdallDuration value) {
         b_userAction = false;
         subsSpin->setValue(value.toSecf());
         b_userAction = true;
     });
-    connect( THEMIM, &PlayerController::secondarySubtitleDelayChanged, [this](VLCDuration value) {
+    connect( THEMIM, &PlayerController::secondarySubtitleDelayChanged, [this](HeimdallDuration value) {
         b_userAction = false;
         secondarySubsSpin->setValue(value.toSecf());
         b_userAction = true;
     });
-    connect( THEMIM, &PlayerController::audioDelayChanged, [this](VLCDuration value) {
+    connect( THEMIM, &PlayerController::audioDelayChanged, [this](HeimdallDuration value) {
         b_userAction = false;
         AVSpin->setValue(value.toSecf());
         b_userAction = true;
     });
     connect( THEMIM, &PlayerController::subtitleFPSChanged, subSpeedSpin, &QDoubleSpinBox::setValue );
-    connect( &m_SubsDelayCfgFactor, &QVLCFloat::valueChanged, subDurationSpin, &QDoubleSpinBox::setValue);
+    connect( &m_SubsDelayCfgFactor, &QHeimdallFloat::valueChanged, subDurationSpin, &QDoubleSpinBox::setValue);
 
     initSubsDuration();
 
@@ -1615,7 +1616,7 @@ void SyncControls::advanceAudio( double f_advance )
 {
     if( THEMIM->getInput() && b_userAction )
     {
-        vlc_tick_t i_delay = vlc_tick_from_sec( f_advance );
+        heimdall_tick_t i_delay = heimdall_tick_from_sec( f_advance );
         THEMIM->setAudioDelay( i_delay );
     }
 }
@@ -1624,7 +1625,7 @@ void SyncControls::advanceSubs( double f_advance )
 {
     if( THEMIM->getInput() && b_userAction )
     {
-        vlc_tick_t i_delay = vlc_tick_from_sec( f_advance );
+        heimdall_tick_t i_delay = heimdall_tick_from_sec( f_advance );
         THEMIM->setSubtitleDelay( i_delay );
     }
 }
@@ -1633,7 +1634,7 @@ void SyncControls::advanceSecondarySubs( double f_advance )
 {
     if( THEMIM->getInput() && b_userAction )
     {
-        vlc_tick_t i_delay = vlc_tick_from_sec( f_advance );
+        heimdall_tick_t i_delay = heimdall_tick_from_sec( f_advance );
         THEMIM->setSecondarySubtitleDelay( i_delay );
     }
 }

@@ -1,8 +1,9 @@
 /*****************************************************************************
- * alsa.c : alsa plugin for vlc
+ * alsa.c : alsa plugin for heimdall
  *****************************************************************************
  * Copyright (C) 2000-2010 VLC authors and VideoLAN
  * Copyright (C) 2009-2011 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Henri Fallon <henri@videolan.org> - Original Author
  *          Jeffrey Baker <jwbaker@acm.org> - Port to ALSA 1.0 API
@@ -35,32 +36,32 @@
 #include <assert.h>
 #include <stdbit.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_dialog.h>
-#include <vlc_aout.h>
-#include <vlc_cpu.h>
-#include <vlc_fs.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_dialog.h>
+#include <heimdall_aout.h>
+#include <heimdall_cpu.h>
+#include <heimdall_fs.h>
 
 #include <alsa/asoundlib.h>
 #include <alsa/version.h>
 
-/** Helper for ALSA -> VLC debugging output */
-static void DumpPost(struct vlc_logger *log, snd_output_t *output,
+/** Helper for ALSA -> Heimdall debugging output */
+static void DumpPost(struct heimdall_logger *log, snd_output_t *output,
                      const char *msg, int val)
 {
     char *str;
 
     if (val)
     {
-        vlc_warning(log, "cannot get info: %s", snd_strerror(val));
+        heimdall_warning(log, "cannot get info: %s", snd_strerror(val));
         return;
     }
 
     size_t len = snd_output_buffer_string (output, &str);
     if (len > 0 && str[len - 1])
         len--; /* strip trailing newline */
-    vlc_debug(log, "%s%.*s", msg, (int)len, str);
+    heimdall_debug(log, "%s%.*s", msg, (int)len, str);
     snd_output_close (output);
 }
 
@@ -72,7 +73,7 @@ static void DumpPost(struct vlc_logger *log, snd_output_t *output,
             DumpPost(o, output, m, (cb)(p, output)); \
     } while (0)
 
-static void DumpDevice(struct vlc_logger *log, snd_pcm_t *pcm)
+static void DumpDevice(struct heimdall_logger *log, snd_pcm_t *pcm)
 {
     snd_pcm_info_t *info;
 
@@ -80,14 +81,14 @@ static void DumpDevice(struct vlc_logger *log, snd_pcm_t *pcm)
     snd_pcm_info_alloca (&info);
     if (snd_pcm_info (pcm, info) == 0)
     {
-        vlc_debug(log, " device name   : %s", snd_pcm_info_get_name (info));
-        vlc_debug(log, " device ID     : %s", snd_pcm_info_get_id (info));
-        vlc_debug(log, " subdevice name: %s",
+        heimdall_debug(log, " device name   : %s", snd_pcm_info_get_name (info));
+        heimdall_debug(log, " device ID     : %s", snd_pcm_info_get_id (info));
+        heimdall_debug(log, " subdevice name: %s",
                   snd_pcm_info_get_subdevice_name (info));
     }
 }
 
-static void DumpDeviceStatus(struct vlc_logger *log, snd_pcm_t *pcm)
+static void DumpDeviceStatus(struct heimdall_logger *log, snd_pcm_t *pcm)
 {
     snd_pcm_status_t *status;
 
@@ -108,7 +109,7 @@ typedef struct
 {
     snd_pcm_t *pcm;
     unsigned rate; /**< Sample rate */
-    vlc_fourcc_t format; /**< Sample format */
+    heimdall_fourcc_t format; /**< Sample format */
     uint8_t chans_table[AOUT_CHAN_MAX]; /**< Channels order table */
     uint8_t chans_to_reorder; /**< Number of channels to reorder */
 
@@ -116,23 +117,23 @@ typedef struct
     float soft_gain;
     char *device;
 
-    vlc_thread_t thread;
+    heimdall_thread_t thread;
     pb_state_t state;
     bool started;
     bool draining;
     bool unrecoverable_error;
-    vlc_mutex_t lock;
-    vlc_sem_t init_sem;
+    heimdall_mutex_t lock;
+    heimdall_sem_t init_sem;
     int wakefd[2];
-    vlc_frame_t *frame_chain;
-    vlc_frame_t **frame_last;
+    heimdall_frame_t *frame_chain;
+    heimdall_frame_t **frame_last;
     uint64_t queued_samples;
 
     bool starting;
     struct {
-        vlc_tick_t start_date;
-        vlc_tick_t first_pts;
-        vlc_tick_t next_update;
+        heimdall_tick_t start_date;
+        heimdall_tick_t first_pts;
+        heimdall_tick_t next_update;
         uint64_t injected_samples;
     } time;
 } aout_sys_t;
@@ -250,14 +251,14 @@ static void * InjectionThread(void * data)
     snd_pcm_t *pcm = sys->pcm;
 
     int64_t silence_buffer_frames =
-        samples_from_vlc_tick(AOUT_MIN_PREPARE_TIME, sys->rate);
+        samples_from_heimdall_tick(AOUT_MIN_PREPARE_TIME, sys->rate);
     size_t silence_buffer_bytes = snd_pcm_frames_to_bytes(pcm, silence_buffer_frames);
 
     uint8_t *silence_buffer = malloc(silence_buffer_bytes);
     if (silence_buffer == NULL)
     {
         sys->unrecoverable_error = true;
-        vlc_sem_post(&sys->init_sem);
+        heimdall_sem_post(&sys->init_sem);
         return NULL;
     }
     memset(silence_buffer, 0, silence_buffer_bytes);
@@ -271,7 +272,7 @@ static void * InjectionThread(void * data)
     {
         free(silence_buffer);
         sys->unrecoverable_error = true;
-        vlc_sem_post(&sys->init_sem);
+        heimdall_sem_post(&sys->init_sem);
         return NULL;
     }
     int pfds_count = 2;
@@ -279,9 +280,9 @@ static void * InjectionThread(void * data)
     pfds[0].fd = sys->wakefd[0];
     pfds[0].events = POLLIN;
 
-    vlc_sem_post(&sys->init_sem);
+    heimdall_sem_post(&sys->init_sem);
 
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     while (sys->started)
     {
         int cnt = fill_pfds_from_state_locked(aout, &pfds, &pfds_count);
@@ -290,11 +291,11 @@ static void * InjectionThread(void * data)
         else if (unlikely(cnt == 0))
             continue;
 
-        vlc_mutex_unlock(&sys->lock);
+        heimdall_mutex_unlock(&sys->lock);
 
         cnt = poll(pfds, cnt, -1);
 
-        vlc_mutex_lock(&sys->lock);
+        heimdall_mutex_lock(&sys->lock);
         if (unlikely(cnt < 0))
         {
             if (errno == -EINTR)
@@ -368,18 +369,18 @@ static void * InjectionThread(void * data)
 
         if (sys->starting)
         {
-            vlc_tick_t now = vlc_tick_now();
+            heimdall_tick_t now = heimdall_tick_now();
             snd_pcm_sframes_t delay_frames;
             int val = snd_pcm_delay(sys->pcm, &delay_frames);
-            vlc_tick_t delay_ticks =
-                (val == 0) ? vlc_tick_from_samples(delay_frames, sys->rate) : 0;
-            vlc_tick_t silence_ticks = sys->time.start_date - now - delay_ticks;
+            heimdall_tick_t delay_ticks =
+                (val == 0) ? heimdall_tick_from_samples(delay_frames, sys->rate) : 0;
+            heimdall_tick_t silence_ticks = sys->time.start_date - now - delay_ticks;
             if (silence_ticks > 0)
             {
-                vlc_tick_t write_silence_ticks =
+                heimdall_tick_t write_silence_ticks =
                     silence_ticks > AOUT_MIN_PREPARE_TIME ? AOUT_MIN_PREPARE_TIME
                                                           : silence_ticks;
-                int64_t silence_frames = samples_from_vlc_tick(write_silence_ticks,
+                int64_t silence_frames = samples_from_heimdall_tick(write_silence_ticks,
                                                                sys->rate);
 
                 assert(silence_frames <= silence_buffer_frames);
@@ -405,7 +406,7 @@ static void * InjectionThread(void * data)
 
         assert(!sys->starting);
 
-        vlc_frame_t * f = sys->frame_chain;
+        heimdall_frame_t * f = sys->frame_chain;
         snd_pcm_sframes_t frames = PcmWrite(aout, pcm, f->p_buffer, f->i_nb_samples);
         if (frames >= 0)
         {
@@ -421,7 +422,7 @@ static void * InjectionThread(void * data)
                 sys->frame_chain = f->p_next;
                 if (sys->frame_chain == NULL)
                     sys->frame_last = &sys->frame_chain;
-                vlc_frame_Release(f);
+                heimdall_frame_Release(f);
             }
         }
         else if (frames == -EAGAIN)
@@ -429,19 +430,19 @@ static void * InjectionThread(void * data)
         else
             break;
 
-        vlc_tick_t now = vlc_tick_now();
-        if (sys->time.first_pts != VLC_TICK_INVALID && now > sys->time.next_update)
+        heimdall_tick_t now = heimdall_tick_now();
+        if (sys->time.first_pts != HEIMDALL_TICK_INVALID && now > sys->time.next_update)
         {
-            sys->time.next_update = now + VLC_TICK_FROM_SEC(1);
+            sys->time.next_update = now + HEIMDALL_TICK_FROM_SEC(1);
             int val = snd_pcm_delay(sys->pcm, &frames);
             if (val != 0)
             {
                 msg_Err(aout, "cannot estimate delay: %s", snd_strerror(val));
                 continue;
             }
-            vlc_tick_t delay = vlc_tick_from_samples(frames, sys->rate);
-            vlc_tick_t injected_samples_ticks =
-                vlc_tick_from_samples(sys->time.injected_samples, sys->rate);
+            heimdall_tick_t delay = heimdall_tick_from_samples(frames, sys->rate);
+            heimdall_tick_t injected_samples_ticks =
+                heimdall_tick_from_samples(sys->time.injected_samples, sys->rate);
             aout_TimingReport(aout, now + delay,
                               sys->time.first_pts + injected_samples_ticks);
         }
@@ -453,14 +454,14 @@ static void * InjectionThread(void * data)
         msg_Err(aout, "Unhandled error in injection thread, requesting aout restart");
         aout_RestartRequest(aout, false);
     }
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
     return NULL;
 }
 
 /**
  * Queues one audio buffer to the hardware.
  */
-static void Play(audio_output_t *aout, block_t *block, vlc_tick_t date)
+static void Play(audio_output_t *aout, block_t *block, heimdall_tick_t date)
 {
     aout_sys_t *sys = aout->sys;
 
@@ -469,45 +470,45 @@ static void Play(audio_output_t *aout, block_t *block, vlc_tick_t date)
                             sys->chans_to_reorder, sys->chans_table,
                             sys->format);
 
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     if (unlikely(sys->unrecoverable_error))
     {
-        vlc_frame_Release(block);
-        vlc_mutex_unlock(&sys->lock);
+        heimdall_frame_Release(block);
+        heimdall_mutex_unlock(&sys->lock);
         return;
     }
-    if (sys->time.start_date == VLC_TICK_INVALID)
+    if (sys->time.start_date == HEIMDALL_TICK_INVALID)
     {
         sys->starting = true;
-        sys->time.next_update = VLC_TICK_0;
+        sys->time.next_update = HEIMDALL_TICK_0;
         sys->time.first_pts = block->i_pts;
     }
     if (sys->starting)
         sys->time.start_date = date
-                             - vlc_tick_from_samples(sys->queued_samples, sys->rate);
+                             - heimdall_tick_from_samples(sys->queued_samples, sys->rate);
     if (sys->frame_chain == NULL)
         wake_poll(sys);
-    vlc_frame_ChainLastAppend(&sys->frame_last, block);
+    heimdall_frame_ChainLastAppend(&sys->frame_last, block);
     sys->queued_samples += block->i_nb_samples;
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
 
     (void) date;
 }
 
-static void PauseDummy(audio_output_t *aout, bool pause, vlc_tick_t date)
+static void PauseDummy(audio_output_t *aout, bool pause, heimdall_tick_t date)
 {
     aout_sys_t *sys = aout->sys;
     snd_pcm_t *pcm = sys->pcm;
 
     /* Stupid device cannot pause. Discard samples. */
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     if (pause)
     {
         sys->state = PAUSED;
         sys->starting = false;
-        sys->time.start_date = VLC_TICK_INVALID;
-        sys->time.first_pts = VLC_TICK_INVALID;
-        sys->time.next_update = VLC_TICK_0;
+        sys->time.start_date = HEIMDALL_TICK_INVALID;
+        sys->time.first_pts = HEIMDALL_TICK_INVALID;
+        sys->time.next_update = HEIMDALL_TICK_0;
         sys->time.injected_samples = 0;
         snd_pcm_drop(pcm);
     }
@@ -517,7 +518,7 @@ static void PauseDummy(audio_output_t *aout, bool pause, vlc_tick_t date)
         snd_pcm_prepare(pcm);
     }
     wake_poll(sys);
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
 
     (void) date;
 }
@@ -525,7 +526,7 @@ static void PauseDummy(audio_output_t *aout, bool pause, vlc_tick_t date)
 /**
  * Pauses/resumes the audio playback.
  */
-static void Pause(audio_output_t *aout, bool pause, vlc_tick_t date)
+static void Pause(audio_output_t *aout, bool pause, heimdall_tick_t date)
 {
     aout_sys_t *sys = aout->sys;
     snd_pcm_t *pcm = sys->pcm;
@@ -536,10 +537,10 @@ static void Pause(audio_output_t *aout, bool pause, vlc_tick_t date)
         PauseDummy(aout, pause, date);
         return;
     }
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     sys->state = pause? PAUSED: PLAYING;
     wake_poll(sys);
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
 }
 
 /**
@@ -550,22 +551,22 @@ static void Flush (audio_output_t *aout)
     aout_sys_t *sys = aout->sys;
     snd_pcm_t *pcm = sys->pcm;
 
-    vlc_mutex_lock(&sys->lock);
-    vlc_frame_ChainRelease(sys->frame_chain);
+    heimdall_mutex_lock(&sys->lock);
+    heimdall_frame_ChainRelease(sys->frame_chain);
     sys->frame_chain = NULL;
     sys->frame_last = &sys->frame_chain;
     sys->queued_samples = 0;
     sys->draining = false;
     sys->starting = false;
-    sys->time.start_date = VLC_TICK_INVALID;
-    sys->time.first_pts = VLC_TICK_INVALID;
-    sys->time.next_update = VLC_TICK_0;
+    sys->time.start_date = HEIMDALL_TICK_INVALID;
+    sys->time.first_pts = HEIMDALL_TICK_INVALID;
+    sys->time.next_update = HEIMDALL_TICK_0;
     sys->time.injected_samples = 0;
 
     if (sys->state == IDLE)
         sys->state = PLAYING;
     wake_poll(sys);
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
 
     snd_pcm_drop(pcm);
     snd_pcm_prepare(pcm);
@@ -578,10 +579,10 @@ static void Drain (audio_output_t *aout)
 {
     aout_sys_t *sys = aout->sys;
 
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     sys->draining = true;
     wake_poll(sys);
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
 }
 
 /**
@@ -592,25 +593,25 @@ static void Stop (audio_output_t *aout)
     aout_sys_t *sys = aout->sys;
     snd_pcm_t *pcm = sys->pcm;
 
-    vlc_mutex_lock(&sys->lock);
+    heimdall_mutex_lock(&sys->lock);
     sys->started = false;
     sys->state = IDLE;
     sys->draining = false;
-    vlc_frame_ChainRelease(sys->frame_chain);
+    heimdall_frame_ChainRelease(sys->frame_chain);
     sys->frame_chain = NULL;
     sys->frame_last = &sys->frame_chain;
     sys->queued_samples = 0;
     wake_poll(sys);
     snd_pcm_drop(pcm);
-    vlc_mutex_unlock(&sys->lock);
+    heimdall_mutex_unlock(&sys->lock);
 
-    vlc_join(sys->thread, NULL);
+    heimdall_join(sys->thread, NULL);
 
     snd_pcm_close(pcm);
 }
 
 #if (SND_LIB_VERSION >= 0x01001B)
-static const uint16_t vlc_chans[] = {
+static const uint16_t heimdall_chans[] = {
     [SND_CHMAP_MONO] = AOUT_CHAN_CENTER,
     [SND_CHMAP_FL]   = AOUT_CHAN_LEFT,
     [SND_CHMAP_FR]   = AOUT_CHAN_RIGHT,
@@ -624,34 +625,34 @@ static const uint16_t vlc_chans[] = {
 };
 static_assert(AOUT_CHAN_MAX == 9, "Missing channel entries");
 
-static int Map2Mask (vlc_object_t *obj, const snd_pcm_chmap_t *restrict map)
+static int Map2Mask (heimdall_object_t *obj, const snd_pcm_chmap_t *restrict map)
 {
     uint16_t mask = 0;
 
     for (unsigned i = 0; i < map->channels; i++)
     {
         const unsigned pos = map->pos[i];
-        uint_fast16_t vlc_chan = 0;
+        uint_fast16_t heimdall_chan = 0;
 
-        if (pos < ARRAY_SIZE(vlc_chans))
-            vlc_chan = vlc_chans[pos];
-        if (vlc_chan == 0)
+        if (pos < ARRAY_SIZE(heimdall_chans))
+            heimdall_chan = heimdall_chans[pos];
+        if (heimdall_chan == 0)
         {
             msg_Dbg (obj, " %s channel %u position %u", "unsupported", i, pos);
             return -1;
         }
-        if (mask & vlc_chan)
+        if (mask & heimdall_chan)
         {
             msg_Dbg (obj, " %s channel %u position %u", "duplicate", i, pos);
             return -1;
         }
-        mask |= vlc_chan;
+        mask |= heimdall_chan;
     }
     return mask;
 }
 
 /**
- * Compares a fixed ALSA channels map with the VLC channels order.
+ * Compares a fixed ALSA channels map with the Heimdall channels order.
  */
 static unsigned SetupChannelsFixed(const snd_pcm_chmap_t *restrict map,
                                uint16_t *restrict maskp, uint8_t *restrict tab)
@@ -661,10 +662,10 @@ static unsigned SetupChannelsFixed(const snd_pcm_chmap_t *restrict map,
 
     for (unsigned i = 0; i < map->channels; i++)
     {
-        uint_fast16_t vlc_chan = vlc_chans[map->pos[i]];
+        uint_fast16_t heimdall_chan = heimdall_chans[map->pos[i]];
 
-        chans_out[i] = vlc_chan;
-        mask |= vlc_chan;
+        chans_out[i] = heimdall_chan;
+        mask |= heimdall_chan;
     }
 
     *maskp = mask;
@@ -674,7 +675,7 @@ static unsigned SetupChannelsFixed(const snd_pcm_chmap_t *restrict map,
 /**
  * Negotiate channels mapping.
  */
-static unsigned SetupChannels (vlc_object_t *obj, snd_pcm_t *pcm,
+static unsigned SetupChannels (heimdall_object_t *obj, snd_pcm_t *pcm,
                                uint16_t *restrict mask, uint8_t *restrict tab)
 {
     snd_pcm_chmap_query_t **maps = snd_pcm_query_chmaps (pcm);
@@ -749,30 +750,30 @@ enum {
 /** Initializes an ALSA playback stream */
 static int Start (audio_output_t *aout, audio_sample_format_t *restrict fmt)
 {
-    struct vlc_logger *log = aout->obj.logger;
+    struct heimdall_logger *log = aout->obj.logger;
     aout_sys_t *sys = aout->sys;
     snd_pcm_format_t pcm_format; /* ALSA sample format */
     unsigned channels;
     int passthrough = PASSTHROUGH_NONE;
 
     if (aout_FormatNbChannels(fmt) == 0)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     switch (fmt->i_format)
     {
-        case VLC_CODEC_FL64:
+        case HEIMDALL_CODEC_FL64:
             pcm_format = SND_PCM_FORMAT_FLOAT64;
             break;
-        case VLC_CODEC_FL32:
+        case HEIMDALL_CODEC_FL32:
             pcm_format = SND_PCM_FORMAT_FLOAT;
             break;
-        case VLC_CODEC_S32N:
+        case HEIMDALL_CODEC_S32N:
             pcm_format = SND_PCM_FORMAT_S32;
             break;
-        case VLC_CODEC_S16N:
+        case HEIMDALL_CODEC_S16N:
             pcm_format = SND_PCM_FORMAT_S16;
             break;
-        case VLC_CODEC_U8:
+        case HEIMDALL_CODEC_U8:
             pcm_format = SND_PCM_FORMAT_U8;
             break;
         default:
@@ -791,18 +792,18 @@ static int Start (audio_output_t *aout, audio_sample_format_t *restrict fmt)
 
             if (passthrough != PASSTHROUGH_NONE)
             {
-                fmt->i_format = VLC_CODEC_SPDIFL;
+                fmt->i_format = HEIMDALL_CODEC_SPDIFL;
                 pcm_format = SND_PCM_FORMAT_S16;
             }
             else
             if (HAVE_FPU)
             {
-                fmt->i_format = VLC_CODEC_FL32;
+                fmt->i_format = HEIMDALL_CODEC_FL32;
                 pcm_format = SND_PCM_FORMAT_FLOAT;
             }
             else
             {
-                fmt->i_format = VLC_CODEC_S16N;
+                fmt->i_format = HEIMDALL_CODEC_S16N;
                 pcm_format = SND_PCM_FORMAT_S16;
             }
     }
@@ -856,18 +857,18 @@ static int Start (audio_output_t *aout, audio_sample_format_t *restrict fmt)
                       IEC958_AES0_CON_EMPHASIS_NONE | IEC958_AES0_NONAUDIO,
                       IEC958_AES1_CON_ORIGINAL | IEC958_AES1_CON_PCM_CODER,
                       0, aes3) == -1)
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         device = devbuf;
 #else
        /* SALSA-lib lacks many AES definitions, but it does not matter much,
         * as it does note support parametric device names either. */
-       return VLC_ENOTSUP;
+       return HEIMDALL_ENOTSUP;
 #endif
     }
 
     /* Open the device */
     snd_pcm_t *pcm;
-    /* VLC always has a resampler. No need for ALSA's. */
+    /* Heimdall always has a resampler. No need for ALSA's. */
     const int mode = SND_PCM_NO_AUTO_RESAMPLE | SND_PCM_NONBLOCK;
 
     int val = snd_pcm_open (&pcm, device, SND_PCM_STREAM_PLAYBACK, mode);
@@ -875,11 +876,11 @@ static int Start (audio_output_t *aout, audio_sample_format_t *restrict fmt)
     {
         msg_Err (aout, "cannot open ALSA device \"%s\": %s", device,
                  snd_strerror (val));
-        vlc_dialog_display_error (aout, _("Audio output failed"),
+        heimdall_dialog_display_error (aout, _("Audio output failed"),
             _("The audio device \"%s\" could not be used:\n%s."),
             sys->device, snd_strerror (val));
         free (devbuf);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     sys->pcm = pcm;
 
@@ -917,19 +918,19 @@ static int Start (audio_output_t *aout, audio_sample_format_t *restrict fmt)
     else
     if (snd_pcm_hw_params_test_format (pcm, hw, SND_PCM_FORMAT_FLOAT) == 0)
     {
-        fmt->i_format = VLC_CODEC_FL32;
+        fmt->i_format = HEIMDALL_CODEC_FL32;
         pcm_format = SND_PCM_FORMAT_FLOAT;
     }
     else
     if (snd_pcm_hw_params_test_format (pcm, hw, SND_PCM_FORMAT_S32) == 0)
     {
-        fmt->i_format = VLC_CODEC_S32N;
+        fmt->i_format = HEIMDALL_CODEC_S32N;
         pcm_format = SND_PCM_FORMAT_S32;
     }
     else
     if (snd_pcm_hw_params_test_format (pcm, hw, SND_PCM_FORMAT_S16) == 0)
     {
-        fmt->i_format = VLC_CODEC_S16N;
+        fmt->i_format = HEIMDALL_CODEC_S16N;
         pcm_format = SND_PCM_FORMAT_S16;
     }
     else
@@ -950,7 +951,7 @@ static int Start (audio_output_t *aout, audio_sample_format_t *restrict fmt)
     {
         uint16_t map = var_InheritInteger (aout, "alsa-audio-channels");
 
-        sys->chans_to_reorder = SetupChannels (VLC_OBJECT(aout), pcm, &map,
+        sys->chans_to_reorder = SetupChannels (HEIMDALL_OBJECT(aout), pcm, &map,
                                                sys->chans_table);
         fmt->i_physical_channels = map;
         channels = stdc_count_ones(map);
@@ -961,7 +962,7 @@ static int Start (audio_output_t *aout, audio_sample_format_t *restrict fmt)
     /* By default, ALSA plug will pad missing channels with zeroes, which is
      * usually fine. However, it will also discard extraneous channels, which
      * is not acceptable. Thus the user must configure the physically
-     * available channels, and VLC will downmix if needed. */
+     * available channels, and Heimdall will downmix if needed. */
     val = snd_pcm_hw_params_set_channels (pcm, hw, channels);
     if (val)
     {
@@ -1084,24 +1085,24 @@ static int Start (audio_output_t *aout, audio_sample_format_t *restrict fmt)
     sys->state = PLAYING;
     sys->unrecoverable_error = false;
     sys->starting = false;
-    sys->time.start_date = VLC_TICK_INVALID;
-    sys->time.first_pts = VLC_TICK_INVALID;
-    sys->time.next_update = VLC_TICK_0;
+    sys->time.start_date = HEIMDALL_TICK_INVALID;
+    sys->time.first_pts = HEIMDALL_TICK_INVALID;
+    sys->time.next_update = HEIMDALL_TICK_0;
     sys->time.injected_samples = 0;
-    if (vlc_clone(&sys->thread, InjectionThread, aout))
+    if (heimdall_clone(&sys->thread, InjectionThread, aout))
         goto error;
 
-    vlc_sem_wait(&sys->init_sem);
+    heimdall_sem_wait(&sys->init_sem);
     if (sys->unrecoverable_error)
     {
-        vlc_join(sys->thread, NULL);
+        heimdall_join(sys->thread, NULL);
         goto error;
     }
     return 0;
 
 error:
     snd_pcm_close (pcm);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /**
@@ -1160,7 +1161,7 @@ static int EnumDevices(char const *varname,
     return n;
 }
 
-VLC_CONFIG_STRING_ENUM(EnumDevices)
+HEIMDALL_CONFIG_STRING_ENUM(EnumDevices)
 
 static int DeviceSelect (audio_output_t *aout, const char *id)
 {
@@ -1177,13 +1178,13 @@ static int DeviceSelect (audio_output_t *aout, const char *id)
     return 0;
 }
 
-static int Open(vlc_object_t *obj)
+static int Open(heimdall_object_t *obj)
 {
     audio_output_t *aout = (audio_output_t *)obj;
     aout_sys_t *sys = malloc (sizeof (*sys));
 
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
 #ifdef HAVE_EVENTFD
     sys->wakefd[0] = eventfd(0, EFD_CLOEXEC);
@@ -1191,7 +1192,7 @@ static int Open(vlc_object_t *obj)
     if (sys->wakefd[0] < 0)
       goto error;
 #else
-    if (vlc_pipe(sys->wakefd))
+    if (heimdall_pipe(sys->wakefd))
     {
       sys->wakefd[0] = sys->wakefd[1] = -1;
       goto error;
@@ -1228,36 +1229,36 @@ static int Open(vlc_object_t *obj)
     }
 
     sys->state = IDLE;
-    vlc_mutex_init(&sys->lock);
+    heimdall_mutex_init(&sys->lock);
     sys->frame_chain = NULL;
     sys->frame_last = &sys->frame_chain;
-    vlc_sem_init(&sys->init_sem, 0);
+    heimdall_sem_init(&sys->init_sem, 0);
 
     aout->play = Play;
     aout->flush = Flush;
     aout->drain = Drain;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 error:
     if (sys->wakefd[0] >= 0)
     {
       if (sys->wakefd[1] != sys->wakefd[0])
-        vlc_close(sys->wakefd[1]);
-      vlc_close(sys->wakefd[0]);
+        heimdall_close(sys->wakefd[1]);
+      heimdall_close(sys->wakefd[0]);
     }
     free (sys);
-    return VLC_ENOMEM;
+    return HEIMDALL_ENOMEM;
 }
 
-static void Close(vlc_object_t *obj)
+static void Close(heimdall_object_t *obj)
 {
     audio_output_t *aout = (audio_output_t *)obj;
     aout_sys_t *sys = aout->sys;
 
     free (sys->device);
     if (sys->wakefd[1] != sys->wakefd[0])
-      vlc_close(sys->wakefd[1]);
-    vlc_close(sys->wakefd[0]);
+      heimdall_close(sys->wakefd[1]);
+    heimdall_close(sys->wakefd[0]);
     free (sys);
 }
 
@@ -1285,7 +1286,7 @@ static const char *const passthrough_modes_text[] = {
     N_("None"), N_("S/PDIF"), N_("HDMI"),
 };
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname("ALSA")
     set_description(N_("ALSA audio output"))
     set_subcategory(SUBCAT_AUDIO_AOUT)
@@ -1300,4 +1301,4 @@ vlc_module_begin()
     add_sw_gain()
     set_capability("audio output", 150)
     set_callbacks(Open, Close)
-vlc_module_end()
+heimdall_module_end()

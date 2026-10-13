@@ -2,6 +2,7 @@
  * AdaptationSet.h
  *****************************************************************************
  * Copyright (C) 2010 - 2011 Klagenfurt University
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Created on: Aug 10, 2010
  * Authors: Christopher Mueller <christopher.mueller@itec.uni-klu.ac.at>
@@ -62,7 +63,7 @@ namespace adaptive
                 void                            addRepresentation( BaseRepresentation *rep );
                 const std::string&              getLang() const;
                 void                            setLang( const std::string &lang );
-                void                            debug(vlc_object_t *,int = 0) const;
+                void                            debug(heimdall_object_t *,int = 0) const;
                 std::string                     description;
 
             protected:

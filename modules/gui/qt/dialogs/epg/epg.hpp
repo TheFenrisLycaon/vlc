@@ -2,6 +2,7 @@
  * epg.hpp : EPG Viewer dialog
  ****************************************************************************
  * Copyright © 2010 VideoLAN and AUTHORS
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors:    Jean-Baptiste Kempf <jb@videolan.org>
  *
@@ -20,10 +21,10 @@
  * 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef QVLC_EPG_DIALOG_H_
-#define QVLC_EPG_DIALOG_H_ 1
+#ifndef QHEIMDALL_EPG_DIALOG_H_
+#define QHEIMDALL_EPG_DIALOG_H_ 1
 
-#include "widgets/native/qvlcframe.hpp"
+#include "widgets/native/qheimdallframe.hpp"
 
 class QLabel;
 class QTextEdit;
@@ -31,7 +32,7 @@ class QTimer;
 class EPGItem;
 class EPGWidget;
 
-class EpgDialog : public QVLCFrame
+class EpgDialog : public QHeimdallFrame
 {
     Q_OBJECT
 public:

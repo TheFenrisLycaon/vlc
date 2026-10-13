@@ -1,9 +1,10 @@
 /**
  * @file x11.c
- * @brief X C Bindings video output module for VLC media player
+ * @brief X C Bindings video output module for Heimdall media player
  */
 /*****************************************************************************
  * Copyright © 2009 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -30,10 +31,10 @@
 #include <xcb/xcb.h>
 #include <xcb/shm.h>
 
-#include <vlc_common.h>
-#include <vlc_fs.h>
-#include <vlc_plugin.h>
-#include <vlc_vout_display.h>
+#include <heimdall_common.h>
+#include <heimdall_fs.h>
+#include <heimdall_plugin.h>
+#include <heimdall_vout_display.h>
 
 #include "pictures.h"
 #include "events.h"
@@ -50,8 +51,8 @@ typedef struct vout_display_sys_t
 } vout_display_sys_t;
 
 static void Prepare(vout_display_t *vd, picture_t *pic,
-                    const struct vlc_render_subpicture *subpic,
-                    vlc_tick_t date)
+                    const struct heimdall_render_subpicture *subpic,
+                    heimdall_tick_t date)
 {
     vout_display_sys_t *sys = vd->sys;
     const picture_buffer_t *buf = pic->p_sys;
@@ -64,7 +65,7 @@ static void Prepare(vout_display_t *vd, picture_t *pic,
     if (buf->fd == -1)
         return; /* not a shareable picture buffer */
 
-    int fd = vlc_dup(buf->fd);
+    int fd = heimdall_dup(buf->fd);
     if (fd == -1)
         return;
 
@@ -91,7 +92,7 @@ static void Display (vout_display_t *vd, picture_t *pic)
     xcb_shm_seg_t segment = sys->segment;
     xcb_void_cookie_t ck;
 
-    vlc_xcb_Manage(vd->obj.logger, sys->conn);
+    heimdall_xcb_Manage(vd->obj.logger, sys->conn);
 
     /* Black out the borders */
     xcb_rectangle_t rectv[4], *rect;
@@ -170,7 +171,7 @@ static void Display (vout_display_t *vd, picture_t *pic)
     /* Wait for reply. This makes sure that the X server gets CPU time to
      * display the picture. xcb_flush() is *not* sufficient: especially
      * with shared memory the PUT requests are so short that many of them
-     * can fit in X11 socket output buffer before the kernel preempts VLC.
+     * can fit in X11 socket output buffer before the kernel preempts Heimdall.
      */
    xcb_generic_error_t *e = xcb_request_check(conn, ck);
    if (e != NULL) {
@@ -198,27 +199,27 @@ static int ResetPictures(vout_display_t *vd, video_format_t *restrict f)
     f->i_visible_height = vd->place->height;
     f->i_x_offset = src.i_x_offset * vd->place->width / src.i_visible_width;
     f->i_y_offset = src.i_y_offset * vd->place->height / src.i_visible_height;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int PlacementChanged(vout_display_t *vd, const vout_display_place_t *place)
 {
-    VLC_UNUSED(place);
+    HEIMDALL_UNUSED(place);
     if (place->width  != vd->fmt->i_visible_width
      || place->height != vd->fmt->i_visible_height)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int AspectChanged(vout_display_t *vd, const video_format_t *source)
 {
-    VLC_UNUSED(source);
+    HEIMDALL_UNUSED(source);
     if (vd->place->width  != vd->fmt->i_visible_width
      || vd->place->height != vd->fmt->i_visible_height)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int SetDisplaySize(vout_display_t *vd, unsigned width, unsigned height)
@@ -234,9 +235,9 @@ static int SetDisplaySize(vout_display_t *vd, unsigned width, unsigned height)
 
     if (vd->place->width  != vd->fmt->i_visible_width ||
         vd->place->height != vd->fmt->i_visible_height)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /**
@@ -259,7 +260,7 @@ static xcb_visualid_t DepthToFormat(const xcb_setup_t *setup,
     const xcb_visualtype_t *vt = xcb_depth_visuals(depth);
 
     for (int i = xcb_depth_visuals_length(depth); i > 0; i--, vt++)
-        if (vlc_xcb_VisualToFormat(setup, depth->depth, vt, f))
+        if (heimdall_xcb_VisualToFormat(setup, depth->depth, vt, f))
             return vt->visual_id;
 
     return 0;
@@ -298,7 +299,7 @@ static xcb_visualid_t ScreenToFormat(const xcb_setup_t *setup,
     return visual;
 }
 
-static const struct vlc_display_operations ops = {
+static const struct heimdall_display_operations ops = {
     .close = Close,
     .prepare = Prepare,
     .display = Display,
@@ -313,20 +314,20 @@ static const struct vlc_display_operations ops = {
  * Probe the X server.
  */
 static int Open (vout_display_t *vd,
-                 video_format_t *fmtp, vlc_video_context *context)
+                 video_format_t *fmtp, heimdall_video_context *context)
 {
     vout_display_sys_t *sys = malloc (sizeof (*sys));
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     vd->sys = sys;
 
     /* Get window, connect to X server */
-    struct vlc_logger *log = vd->obj.logger;
+    struct heimdall_logger *log = vd->obj.logger;
     xcb_connection_t *conn;
     const xcb_screen_t *scr;
-    int ret = vlc_xcb_parent_Create(log, vd->cfg->window, &conn, &scr);
-    if (ret != VLC_SUCCESS)
+    int ret = heimdall_xcb_parent_Create(log, vd->cfg->window, &conn, &scr);
+    if (ret != HEIMDALL_SUCCESS)
     {
         free (sys);
         return ret;
@@ -389,7 +390,7 @@ static int Open (vout_display_t *vd,
     msg_Dbg (vd, "using X11 window %08"PRIx32, sys->window);
     msg_Dbg (vd, "using X11 graphic context %08"PRIx32, sys->gc);
 
-    if (XCB_shm_Check (VLC_OBJECT(vd), conn))
+    if (XCB_shm_Check (HEIMDALL_OBJECT(vd), conn))
         sys->segment = xcb_generate_id(conn);
     else
         sys->segment = 0;
@@ -399,20 +400,20 @@ static int Open (vout_display_t *vd,
     vd->ops = &ops;
 
     (void) context;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     Close (vd);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /*
  * Module descriptor
  */
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname(N_("X11"))
     set_description(N_("X11 video output (XCB)"))
     set_subcategory(SUBCAT_VIDEO_VOUT)
     set_callback_display(Open, 100)
     add_shortcut("xcb-x11", "x11")
-vlc_module_end()
+heimdall_module_end()

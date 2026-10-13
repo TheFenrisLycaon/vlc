@@ -4,6 +4,7 @@
  * Copyright (C) 2006-2009 the VideoLAN team
  * Copyright (C) 2007 Société des arts technologiques
  * Copyright (C) 2007 Savoir-faire Linux
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Clément Stenac <zorglub@videolan.org>
  *          Jean-Baptiste Kempf <jb@videolan.org>
@@ -24,8 +25,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_QT_OPEN_PANELS_HPP_
-#define VLC_QT_OPEN_PANELS_HPP_
+#ifndef HEIMDALL_QT_OPEN_PANELS_HPP_
+#define HEIMDALL_QT_OPEN_PANELS_HPP_
 
 #ifdef HAVE_CONFIG_H
 # include "config.h"

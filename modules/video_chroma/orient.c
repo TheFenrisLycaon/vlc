@@ -4,9 +4,10 @@
  * Copyright (C) 2000-2006 VLC authors and VideoLAN
  * Copyright (C) 2010 Laurent Aimar
  * Copyright (C) 2012 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Samuel Hocevar <sam@zoy.org>
- *          Laurent Aimar <fenrir _AT_ videolan _DOT_ org>
+ *          Laurent Aimar <fenrir _AT_ lycaria _DOT_ org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -29,12 +30,12 @@
 #include <limits.h>
 #include <stdbit.h>
 
-#include <vlc_common.h>
-#include <vlc_cpu.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_mouse.h>
-#include <vlc_picture.h>
+#include <heimdall_common.h>
+#include <heimdall_cpu.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_mouse.h>
+#include <heimdall_picture.h>
 
 #include "orient.h"
 
@@ -206,10 +207,10 @@ static picture_t *Filter(filter_t *filter, picture_t *src)
     return dst;
 }
 
-static int Mouse(filter_t *filter, vlc_mouse_t *mouse,
-                 const vlc_mouse_t *mold)
+static int Mouse(filter_t *filter, heimdall_mouse_t *mouse,
+                 const heimdall_mouse_t *mold)
 {
-    VLC_UNUSED( mold );
+    HEIMDALL_UNUSED( mold );
 
     const video_format_t *fmt = &filter->fmt_out.video;
     const filter_sys_t   *sys = filter->p_sys;
@@ -235,7 +236,7 @@ static int Mouse(filter_t *filter, vlc_mouse_t *mouse,
             sx = dh - 1 - dy;
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 
     switch (sys->transform) {
@@ -256,12 +257,12 @@ static int Mouse(filter_t *filter, vlc_mouse_t *mouse,
             sy = dw - 1 - dx;
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 
     mouse->i_x = sx;
     mouse->i_y = sy;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int Open(filter_t *filter)
@@ -272,7 +273,7 @@ static int Open(filter_t *filter)
                                                             dst->orientation);
 
     if (transform == TRANSFORM_IDENTITY)
-        return VLC_ENOTSUP; /* Nothing for this module to work at */
+        return HEIMDALL_ENOTSUP; /* Nothing for this module to work at */
 
     video_format_t src_trans = *src;
     video_format_TransformBy(&src_trans, transform);
@@ -284,20 +285,20 @@ static int Open(filter_t *filter)
         dst->i_visible_height != src_trans.i_visible_height ||
         dst->i_x_offset       != src_trans.i_x_offset ||
         dst->i_y_offset       != src_trans.i_y_offset)
-        return VLC_ENOTSUP; /* This module cannot rescale or change chroma */
+        return HEIMDALL_ENOTSUP; /* This module cannot rescale or change chroma */
 
-    const vlc_chroma_description_t *chroma =
-        vlc_fourcc_GetChromaDescription(src->i_chroma);
+    const heimdall_chroma_description_t *chroma =
+        heimdall_fourcc_GetChromaDescription(src->i_chroma);
     if (chroma == NULL)
-        return VLC_ENOTSUP;
+        return HEIMDALL_ENOTSUP;
 
     if (ORIENT_IS_SWAP(transform)) /* Cannot transform non-square samples */
         for (unsigned i = 0; i < chroma->plane_count; i++)
             if (chroma->p[i].w.num * chroma->p[i].h.den
              != chroma->p[i].h.num * chroma->p[i].w.den)
-                return VLC_ENOTSUP;
+                return HEIMDALL_ENOTSUP;
 
-    vlc_CPU_functions_init_once("video transform", &transforms);
+    heimdall_CPU_functions_init_once("video transform", &transforms);
 
     switch (chroma->pixel_size) {
         case 1:
@@ -306,12 +307,12 @@ static int Open(filter_t *filter)
         case 8:
             break;
         default:
-            return VLC_ENOTSUP;
+            return HEIMDALL_ENOTSUP;
     }
 
-    filter_sys_t *sys = vlc_obj_malloc(VLC_OBJECT(filter), sizeof(*sys));
+    filter_sys_t *sys = heimdall_obj_malloc(HEIMDALL_OBJECT(filter), sizeof(*sys));
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     int order = stdc_trailing_zeros(chroma->pixel_size);
 
@@ -321,32 +322,32 @@ static int Open(filter_t *filter)
 
     /* Deal with weird packed formats */
     switch (src->i_chroma) {
-        case VLC_CODEC_NV12:
-        case VLC_CODEC_NV21:
-        case VLC_CODEC_NV16:
-        case VLC_CODEC_NV61:
-        case VLC_CODEC_NV24:
-        case VLC_CODEC_NV42:
-        case VLC_CODEC_P010:
-        case VLC_CODEC_P016:
+        case HEIMDALL_CODEC_NV12:
+        case HEIMDALL_CODEC_NV21:
+        case HEIMDALL_CODEC_NV16:
+        case HEIMDALL_CODEC_NV61:
+        case HEIMDALL_CODEC_NV24:
+        case HEIMDALL_CODEC_NV42:
+        case HEIMDALL_CODEC_P010:
+        case HEIMDALL_CODEC_P016:
             /* Double-size samples on second plane */
             sys->plane_size_order[1]++;
             break;
     }
 
-    static const struct vlc_filter_operations filter_ops =
+    static const struct heimdall_filter_operations filter_ops =
     {
         .filter_video = Filter,
         .video_mouse = Mouse,
     };
     filter->ops = &filter_ops;
     filter->p_sys           = sys;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_description(N_("Video reorientation"))
     set_shortname(N_("Reorient"))
     set_subcategory(SUBCAT_VIDEO_VFILTER)
     set_callback_video_converter(Open, 200)
-vlc_module_end()
+heimdall_module_end()

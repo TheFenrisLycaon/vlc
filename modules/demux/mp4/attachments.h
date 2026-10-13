@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 2001-2015 VLC authors and VideoLAN
  *               2019 VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -18,12 +19,12 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
-#ifndef VLC_MP4_ATTACHMENTS_H_
-#define VLC_MP4_ATTACHMENTS_H_
+#ifndef HEIMDALL_MP4_ATTACHMENTS_H_
+#define HEIMDALL_MP4_ATTACHMENTS_H_
 
 size_t MP4_GetAttachments( const MP4_Box_t *, input_attachment_t *** );
 const MP4_Box_t *MP4_GetMetaRoot( const MP4_Box_t *, const char ** );
 int MP4_GetCoverMetaURI( const MP4_Box_t *,  const MP4_Box_t *,
-                         const char *, vlc_meta_t * );
+                         const char *, heimdall_meta_t * );
 
 #endif

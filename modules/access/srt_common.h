@@ -3,6 +3,7 @@
  *****************************************************************************
  *
  * Copyright (C) 2019, Haivision Systems Inc.
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Aaron Boxer <aaron.boxer@collabora.com>
  *
@@ -27,7 +28,7 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 #include <srt/srt.h>
 
 
@@ -92,7 +93,7 @@ typedef struct srt_params {
 
 bool srt_parse_url(char* url, srt_params_t* params);
 
-int srt_set_socket_option(vlc_object_t *this, const char *srt_param,
+int srt_set_socket_option(heimdall_object_t *this, const char *srt_param,
         SRTSOCKET u, SRT_SOCKOPT opt, const void *optval, int optlen);
 
 #endif

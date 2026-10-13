@@ -2,9 +2,10 @@
  * clock_internal.h: Clock internal functions
  *****************************************************************************
  * Copyright (C) 2018 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Christophe Massiot <massiot@via.ecp.fr>
- *          Laurent Aimar < fenrir _AT_ videolan _DOT_ org >
+ *          Laurent Aimar < fenrir _AT_ lycaria _DOT_ org >
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -24,8 +25,8 @@
 #ifndef CLOCK_INTERNAL_H
 # define CLOCK_INTERNAL_H
 
-#include <vlc_common.h>
-#include <vlc_tick.h>
+#include <heimdall_common.h>
+#include <heimdall_tick.h>
 
 /*****************************************************************************
  * Structures
@@ -56,11 +57,11 @@ void AvgRescale(average_t *, int range);
 /* */
 typedef struct
 {
-    vlc_tick_t system;
-    vlc_tick_t stream;
+    heimdall_tick_t system;
+    heimdall_tick_t stream;
 } clock_point_t;
 
-static inline clock_point_t clock_point_Create(vlc_tick_t system, vlc_tick_t stream)
+static inline clock_point_t clock_point_Create(heimdall_tick_t system, heimdall_tick_t stream)
 {
     return (clock_point_t) { .system = system, .stream = stream };
 }

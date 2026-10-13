@@ -2,8 +2,9 @@
  * resource.c
  *****************************************************************************
  * Copyright (C) 2008 Laurent Aimar
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Laurent Aimar < fenrir _AT_ videolan _DOT_ org >
+ * Authors: Laurent Aimar < fenrir _AT_ lycaria _DOT_ org >
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -29,14 +30,14 @@
 
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_atomic.h>
-#include <vlc_decoder.h>
-#include <vlc_vout.h>
-#include <vlc_spu.h>
-#include <vlc_aout.h>
-#include <vlc_sout.h>
-#include "../libvlc.h"
+#include <heimdall_common.h>
+#include <heimdall_atomic.h>
+#include <heimdall_decoder.h>
+#include <heimdall_vout.h>
+#include <heimdall_spu.h>
+#include <heimdall_aout.h>
+#include <heimdall_sout.h>
+#include "../libheimdall.h"
 #include "../stream_output/stream_output.h"
 #include "../audio_output/aout_internal.h"
 #include "../video_output/vout_internal.h"
@@ -47,22 +48,22 @@
 struct vout_resource
 {
     vout_thread_t *vout;
-    enum vlc_vout_order order;
+    enum heimdall_vout_order order;
     bool started;
     char *psz_prev_title;
 
-    struct vlc_list node;
+    struct heimdall_list node;
 };
 
 struct input_resource_t
 {
-    vlc_atomic_rc_t rc;
+    heimdall_atomic_rc_t rc;
 
-    vlc_object_t   *p_parent;
+    heimdall_object_t   *p_parent;
 
     /* This lock is used to serialize request and protect
      * our variables */
-    vlc_mutex_t    lock;
+    heimdall_mutex_t    lock;
 
     /* */
     input_thread_t *p_input;
@@ -76,29 +77,29 @@ struct input_resource_t
      * It is a special case because of embed video (possible deadlock
      * between vout window request and vout holds in some(qt) interface)
      */
-    vlc_mutex_t    lock_hold;
+    heimdall_mutex_t    lock_hold;
 
     /* You need lock+lock_hold to write to the following variables and
      * only lock or lock_hold to read them */
-    struct vlc_list vout_rscs;
+    struct heimdall_list vout_rscs;
 
     bool            b_aout_busy;
     audio_output_t *p_aout;
 };
 
 #define resource_GetFirstVoutRsc(resource) \
-    vlc_list_first_entry_or_null(&resource->vout_rscs, struct vout_resource, node)
+    heimdall_list_first_entry_or_null(&resource->vout_rscs, struct vout_resource, node)
 
 static inline struct vout_resource *
 resource_GetVoutRsc(input_resource_t *resource, vout_thread_t *vout)
 {
     struct vout_resource *vout_rsc;
 
-    vlc_list_foreach(vout_rsc, &resource->vout_rscs, node)
+    heimdall_list_foreach(vout_rsc, &resource->vout_rscs, node)
         if (vout_rsc->vout == vout)
             return vout_rsc;
 
-    vlc_assert_unreachable();
+    heimdall_assert_unreachable();
 }
 
 static inline struct vout_resource *
@@ -117,13 +118,13 @@ vout_resource_Create(vout_thread_t *vout)
 static inline void
 vout_resource_Add(struct vout_resource *vout_rsc, input_resource_t *resource)
 {
-    vlc_list_append(&vout_rsc->node, &resource->vout_rscs);
+    heimdall_list_append(&vout_rsc->node, &resource->vout_rscs);
 }
 
 static inline vout_thread_t *
 vout_resource_Remove(struct vout_resource *vout_rsc)
 {
-    vlc_list_remove(&vout_rsc->node);
+    heimdall_list_remove(&vout_rsc->node);
     vout_thread_t *vout = vout_rsc->vout;
     free(vout_rsc->psz_prev_title);
     free(vout_rsc);
@@ -147,14 +148,14 @@ static void DestroySout( input_resource_t *p_resource )
 /* */
 static void DestroyVout( input_resource_t *p_resource )
 {
-    assert( vlc_list_is_empty( &p_resource->vout_rscs )
+    assert( heimdall_list_is_empty( &p_resource->vout_rscs )
          || p_resource->vout_rsc_free == resource_GetFirstVoutRsc( p_resource ) );
 
     if( p_resource->vout_rsc_free )
     {
-        vlc_mutex_lock(&p_resource->lock_hold);
+        heimdall_mutex_lock(&p_resource->lock_hold);
         vout_thread_t *vout = vout_resource_Remove( p_resource->vout_rsc_free );
-        vlc_mutex_unlock(&p_resource->lock_hold);
+        heimdall_mutex_unlock(&p_resource->lock_hold);
 
         vout_Close( vout );
         p_resource->vout_rsc_free = NULL;
@@ -224,19 +225,19 @@ audio_output_t *input_resource_GetAout( input_resource_t *p_resource )
 {
     audio_output_t *p_aout;
 
-    vlc_mutex_lock( &p_resource->lock_hold );
+    heimdall_mutex_lock( &p_resource->lock_hold );
     p_aout = p_resource->p_aout;
 
     if( p_aout == NULL || p_resource->b_aout_busy )
     {
         msg_Dbg( p_resource->p_parent, "creating audio output" );
-        vlc_mutex_unlock( &p_resource->lock_hold );
+        heimdall_mutex_unlock( &p_resource->lock_hold );
 
         p_aout = aout_New( p_resource->p_parent );
         if( p_aout == NULL )
             return NULL; /* failed */
 
-        vlc_mutex_lock( &p_resource->lock_hold );
+        heimdall_mutex_lock( &p_resource->lock_hold );
         if( p_resource->p_aout == NULL )
             p_resource->p_aout = p_aout;
     }
@@ -248,7 +249,7 @@ audio_output_t *input_resource_GetAout( input_resource_t *p_resource )
         assert( !p_resource->b_aout_busy );
         p_resource->b_aout_busy = true;
     }
-    vlc_mutex_unlock( &p_resource->lock_hold );
+    heimdall_mutex_unlock( &p_resource->lock_hold );
     return p_aout;
 }
 
@@ -257,7 +258,7 @@ void input_resource_PutAout( input_resource_t *p_resource,
 {
     assert( p_aout != NULL );
 
-    vlc_mutex_lock( &p_resource->lock_hold );
+    heimdall_mutex_lock( &p_resource->lock_hold );
     if( p_aout == p_resource->p_aout )
     {
         assert( p_resource->b_aout_busy );
@@ -267,7 +268,7 @@ void input_resource_PutAout( input_resource_t *p_resource,
     }
     else
         msg_Dbg( p_resource->p_parent, "destroying extra audio output" );
-    vlc_mutex_unlock( &p_resource->lock_hold );
+    heimdall_mutex_unlock( &p_resource->lock_hold );
 
     if( p_aout != NULL )
         aout_Release( p_aout );
@@ -277,11 +278,11 @@ audio_output_t *input_resource_HoldAout( input_resource_t *p_resource )
 {
     audio_output_t *p_aout;
 
-    vlc_mutex_lock( &p_resource->lock_hold );
+    heimdall_mutex_lock( &p_resource->lock_hold );
     p_aout = p_resource->p_aout;
     if( p_aout != NULL )
         aout_Hold(p_aout);
-    vlc_mutex_unlock( &p_resource->lock_hold );
+    heimdall_mutex_unlock( &p_resource->lock_hold );
 
     return p_aout;
 }
@@ -290,20 +291,20 @@ void input_resource_ResetAout( input_resource_t *p_resource )
 {
     audio_output_t *p_aout = NULL;
 
-    vlc_mutex_lock( &p_resource->lock_hold );
+    heimdall_mutex_lock( &p_resource->lock_hold );
     if( !p_resource->b_aout_busy )
         p_aout = p_resource->p_aout;
 
     p_resource->p_aout = NULL;
     p_resource->b_aout_busy = false;
-    vlc_mutex_unlock( &p_resource->lock_hold );
+    heimdall_mutex_unlock( &p_resource->lock_hold );
 
     if( p_aout != NULL )
         aout_Release( p_aout );
 }
 
 /* Common */
-input_resource_t *input_resource_New( vlc_object_t *p_parent )
+input_resource_t *input_resource_New( heimdall_object_t *p_parent )
 {
     input_resource_t *p_resource = calloc( 1, sizeof(*p_resource) );
     if( !p_resource )
@@ -316,18 +317,18 @@ input_resource_t *input_resource_New( vlc_object_t *p_parent )
         return NULL;
     }
 
-    vlc_list_init( &p_resource->vout_rscs );
+    heimdall_list_init( &p_resource->vout_rscs );
 
-    vlc_atomic_rc_init( &p_resource->rc );
+    heimdall_atomic_rc_init( &p_resource->rc );
     p_resource->p_parent = p_parent;
-    vlc_mutex_init( &p_resource->lock );
-    vlc_mutex_init( &p_resource->lock_hold );
+    heimdall_mutex_init( &p_resource->lock );
+    heimdall_mutex_init( &p_resource->lock_hold );
     return p_resource;
 }
 
 void input_resource_Release( input_resource_t *p_resource )
 {
-    if( !vlc_atomic_rc_dec( &p_resource->rc ) )
+    if( !heimdall_atomic_rc_dec( &p_resource->rc ) )
         return;
 
     DestroySout( p_resource );
@@ -341,22 +342,22 @@ void input_resource_Release( input_resource_t *p_resource )
 
 input_resource_t *input_resource_Hold( input_resource_t *p_resource )
 {
-    vlc_atomic_rc_inc( &p_resource->rc );
+    heimdall_atomic_rc_inc( &p_resource->rc );
     return p_resource;
 }
 
 void input_resource_SetInput( input_resource_t *p_resource, input_thread_t *p_input )
 {
-    vlc_mutex_lock( &p_resource->lock );
+    heimdall_mutex_lock( &p_resource->lock );
 
     if( p_resource->p_input && !p_input )
-        assert( vlc_list_is_empty( &p_resource->vout_rscs )
+        assert( heimdall_list_is_empty( &p_resource->vout_rscs )
              || p_resource->vout_rsc_free == resource_GetFirstVoutRsc( p_resource ) );
 
     /* */
     p_resource->p_input = p_input;
 
-    vlc_mutex_unlock( &p_resource->lock );
+    heimdall_mutex_unlock( &p_resource->lock );
 }
 
 static void input_resource_PutVoutLocked(input_resource_t *p_resource,
@@ -388,9 +389,9 @@ static void input_resource_PutVoutLocked(input_resource_t *p_resource,
     {
         msg_Dbg(p_resource->p_parent, "destroying vout (already one saved or active)");
 
-        vlc_mutex_lock(&p_resource->lock_hold);
+        heimdall_mutex_lock(&p_resource->lock_hold);
         vout_resource_Remove(vout_rsc);
-        vlc_mutex_unlock(&p_resource->lock_hold);
+        heimdall_mutex_unlock(&p_resource->lock_hold);
 
         vout_Stop(vout);
         vout_Close(vout);
@@ -401,9 +402,9 @@ void input_resource_PutVout(input_resource_t *p_resource,
                             vout_thread_t *vout,
                             enum input_resource_vout_state *vout_state)
 {
-    vlc_mutex_lock( &p_resource->lock );
+    heimdall_mutex_lock( &p_resource->lock );
     input_resource_PutVoutLocked( p_resource, vout, vout_state );
-    vlc_mutex_unlock( &p_resource->lock );
+    heimdall_mutex_unlock( &p_resource->lock );
 }
 
 static struct vout_resource *
@@ -424,8 +425,8 @@ RequestVoutRsc(input_resource_t *p_resource)
         /* Use the dummy vout as the parent of the future main vout. This
          * will allow the future vout to inherit all parameters
          * pre-configured on this dummy vout. */
-        vlc_object_t *parent = vlc_list_is_empty( &p_resource->vout_rscs ) ?
-            VLC_OBJECT(p_resource->p_vout_dummy) : p_resource->p_parent;
+        heimdall_object_t *parent = heimdall_list_is_empty( &p_resource->vout_rscs ) ?
+            HEIMDALL_OBJECT(p_resource->p_vout_dummy) : p_resource->p_parent;
         vout_thread_t *vout = vout_Create(parent);
         if (vout == NULL)
             return NULL;
@@ -437,24 +438,24 @@ RequestVoutRsc(input_resource_t *p_resource)
             return NULL;
         }
 
-        vout_rsc->order = vlc_list_is_empty( &p_resource->vout_rscs ) ?
-            VLC_VOUT_ORDER_PRIMARY : VLC_VOUT_ORDER_SECONDARY;
+        vout_rsc->order = heimdall_list_is_empty( &p_resource->vout_rscs ) ?
+            HEIMDALL_VOUT_ORDER_PRIMARY : HEIMDALL_VOUT_ORDER_SECONDARY;
 
-        vlc_mutex_lock(&p_resource->lock_hold);
+        heimdall_mutex_lock(&p_resource->lock_hold);
         vout_resource_Add(vout_rsc, p_resource);
-        vlc_mutex_unlock(&p_resource->lock_hold);
+        heimdall_mutex_unlock(&p_resource->lock_hold);
     }
 
     return vout_rsc;
 }
 
 vout_thread_t *input_resource_RequestVout(input_resource_t *p_resource,
-                                          vlc_video_context *vctx,
+                                          heimdall_video_context *vctx,
                                           const vout_configuration_t *cfg,
-                                          enum vlc_vout_order *order,
+                                          enum heimdall_vout_order *order,
                                           enum input_resource_vout_state *vout_state)
 {
-    vlc_mutex_lock( &p_resource->lock );
+    heimdall_mutex_lock( &p_resource->lock );
     struct vout_resource *vout_rsc = NULL;
 
     if (vout_state != NULL)
@@ -466,7 +467,7 @@ vout_thread_t *input_resource_RequestVout(input_resource_t *p_resource,
         vout_rsc = RequestVoutRsc(p_resource);
         if (vout_rsc == NULL)
         {
-            vlc_mutex_unlock( &p_resource->lock );
+            heimdall_mutex_unlock( &p_resource->lock );
             return NULL;
         }
         dcfg.vout = vout_rsc->vout;
@@ -488,7 +489,7 @@ vout_thread_t *input_resource_RequestVout(input_resource_t *p_resource,
     {
         /* A NULL fmt means that only the vout creation is requested, do not
          * start it with vout_Request(). */
-        vlc_mutex_unlock(&p_resource->lock);
+        heimdall_mutex_unlock(&p_resource->lock);
         return dcfg.vout;
     }
 
@@ -498,7 +499,7 @@ vout_thread_t *input_resource_RequestVout(input_resource_t *p_resource,
 
         vout_rsc->started = false;
         input_resource_PutVoutLocked(p_resource, dcfg.vout, NULL);
-        vlc_mutex_unlock(&p_resource->lock);
+        heimdall_mutex_unlock(&p_resource->lock);
         return NULL;
     }
 
@@ -518,21 +519,21 @@ vout_thread_t *input_resource_RequestVout(input_resource_t *p_resource,
                               &param);
         }
     }
-    vlc_mutex_unlock( &p_resource->lock );
+    heimdall_mutex_unlock( &p_resource->lock );
 
     return dcfg.vout;
 }
 
 vout_thread_t *input_resource_HoldVout( input_resource_t *p_resource )
 {
-    vlc_mutex_lock( &p_resource->lock_hold );
+    heimdall_mutex_lock( &p_resource->lock_hold );
 
     struct vout_resource *vout_rsc = resource_GetFirstVoutRsc( p_resource );
     vout_thread_t *p_vout = vout_rsc != NULL ? vout_rsc->vout : NULL;
     if( p_vout )
         vout_Hold(p_vout);
 
-    vlc_mutex_unlock( &p_resource->lock_hold );
+    heimdall_mutex_unlock( &p_resource->lock_hold );
 
     return p_vout;
 }
@@ -550,17 +551,17 @@ void input_resource_HoldVouts( input_resource_t *p_resource, vout_thread_t ***pp
     *pi_vout = 0;
     *ppp_vout = NULL;
 
-    vlc_mutex_lock( &p_resource->lock_hold );
+    heimdall_mutex_lock( &p_resource->lock_hold );
 
-    if( vlc_list_is_empty( &p_resource->vout_rscs ) )
+    if( heimdall_list_is_empty( &p_resource->vout_rscs ) )
         goto exit;
 
     size_t count = 0;
     struct vout_resource *vout_rsc;
-    vlc_list_foreach( vout_rsc, &p_resource->vout_rscs, node )
+    heimdall_list_foreach( vout_rsc, &p_resource->vout_rscs, node )
         count ++;
 
-    pp_vout = vlc_alloc( count, sizeof(*pp_vout) );
+    pp_vout = heimdall_alloc( count, sizeof(*pp_vout) );
     if( !pp_vout )
         goto exit;
 
@@ -568,22 +569,22 @@ void input_resource_HoldVouts( input_resource_t *p_resource, vout_thread_t ***pp
     *pi_vout = count;
 
     count = 0;
-    vlc_list_foreach( vout_rsc, &p_resource->vout_rscs, node )
+    heimdall_list_foreach( vout_rsc, &p_resource->vout_rscs, node )
         pp_vout[count++] = vout_Hold( vout_rsc->vout );
 
 exit:
-    vlc_mutex_unlock( &p_resource->lock_hold );
+    heimdall_mutex_unlock( &p_resource->lock_hold );
 }
 
 void input_resource_StopFreeVout(input_resource_t *p_resource)
 {
-    vlc_mutex_lock(&p_resource->lock);
+    heimdall_mutex_lock(&p_resource->lock);
     if (p_resource->vout_rsc_free != NULL)
     {
         msg_Dbg(p_resource->vout_rsc_free->vout, "stop free vout");
         vout_Stop(p_resource->vout_rsc_free->vout);
     }
-    vlc_mutex_unlock(&p_resource->lock);
+    heimdall_mutex_unlock(&p_resource->lock);
 }
 
 /* */
@@ -592,7 +593,7 @@ sout_stream_t *input_resource_RequestSout( input_resource_t *p_resource, const c
     sout_stream_t *sout;
 
     assert(psz_sout != NULL);
-    vlc_mutex_lock( &p_resource->lock );
+    heimdall_mutex_lock( &p_resource->lock );
     /* Check the validity of the sout */
     if (p_resource->p_sout != NULL
      && strcmp(p_resource->psz_sout, psz_sout) != 0)
@@ -621,7 +622,7 @@ sout_stream_t *input_resource_RequestSout( input_resource_t *p_resource, const c
                 free(p_resource->psz_sout);
         }
     }
-    vlc_mutex_unlock( &p_resource->lock );
+    heimdall_mutex_unlock( &p_resource->lock );
     return sout;
 }
 
@@ -633,15 +634,15 @@ void input_resource_PutSout(input_resource_t *resource, sout_stream_t *sout)
         return;
     }
 
-    vlc_mutex_lock(&resource->lock);
+    heimdall_mutex_lock(&resource->lock);
     assert(resource->p_sout == NULL);
     resource->p_sout = sout;
-    vlc_mutex_unlock(&resource->lock);
+    heimdall_mutex_unlock(&resource->lock);
 }
 
 void input_resource_TerminateSout( input_resource_t *p_resource )
 {
-    vlc_mutex_lock( &p_resource->lock );
+    heimdall_mutex_lock( &p_resource->lock );
     DestroySout(p_resource);
-    vlc_mutex_unlock( &p_resource->lock );
+    heimdall_mutex_unlock( &p_resource->lock );
 }

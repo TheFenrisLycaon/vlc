@@ -2,6 +2,7 @@
  * resource.h: HTTP resource common code
  *****************************************************************************
  * Copyright (C) 2015 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -18,8 +19,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_HTTP_RESOURCE_H
-#define VLC_HTTP_RESOURCE_H 1
+#ifndef HEIMDALL_HTTP_RESOURCE_H
+#define HEIMDALL_HTTP_RESOURCE_H 1
 
 /**
  * \defgroup http_res Resources
@@ -28,23 +29,23 @@
  * @{
  */
 
-struct vlc_http_msg;
-struct vlc_http_mgr;
-struct vlc_http_resource;
+struct heimdall_http_msg;
+struct heimdall_http_mgr;
+struct heimdall_http_resource;
 
-struct vlc_http_resource_cbs
+struct heimdall_http_resource_cbs
 {
-    int (*request_format)(const struct vlc_http_resource *,
-                          struct vlc_http_msg *, void *);
-    int (*response_validate)(const struct vlc_http_resource *,
-                             const struct vlc_http_msg *, void *);
+    int (*request_format)(const struct heimdall_http_resource *,
+                          struct heimdall_http_msg *, void *);
+    int (*response_validate)(const struct heimdall_http_resource *,
+                             const struct heimdall_http_msg *, void *);
 };
 
-struct vlc_http_resource
+struct heimdall_http_resource
 {
-    const struct vlc_http_resource_cbs *cbs;
-    struct vlc_http_msg *response;
-    struct vlc_http_mgr *manager;
+    const struct heimdall_http_resource_cbs *cbs;
+    struct heimdall_http_msg *response;
+    struct heimdall_http_mgr *manager;
     bool secure;
     bool negotiate;
     bool failure;
@@ -58,9 +59,9 @@ struct vlc_http_resource
     char *referrer;
 };
 
-int vlc_http_res_init(struct vlc_http_resource *,
-                      const struct vlc_http_resource_cbs *cbs,
-                      struct vlc_http_mgr *mgr,
+int heimdall_http_res_init(struct heimdall_http_resource *,
+                      const struct heimdall_http_resource_cbs *cbs,
+                      struct heimdall_http_mgr *mgr,
                       const char *uri, const char *ua, const char *ref);
 
 /**
@@ -69,10 +70,10 @@ int vlc_http_res_init(struct vlc_http_resource *,
  * Releases all underlying resources allocated or held by the HTTP resource
  * object.
  */
-void vlc_http_res_destroy(struct vlc_http_resource *);
+void heimdall_http_res_destroy(struct heimdall_http_resource *);
 
-struct vlc_http_msg *vlc_http_res_open(struct vlc_http_resource *res, void *);
-int vlc_http_res_get_status(struct vlc_http_resource *res);
+struct heimdall_http_msg *heimdall_http_res_open(struct heimdall_http_resource *res, void *);
+int heimdall_http_res_get_status(struct heimdall_http_resource *res);
 
 /**
  * Gets redirection URL.
@@ -82,23 +83,23 @@ int vlc_http_res_get_status(struct vlc_http_resource *res);
  *
  * @return Heap-allocated URL or NULL if no redirection.
  */
-char *vlc_http_res_get_redirect(struct vlc_http_resource *);
+char *heimdall_http_res_get_redirect(struct heimdall_http_resource *);
 
 /**
  * Gets MIME type.
  *
  * @return Heap-allocated MIME type string, or NULL if unknown.
  */
-char *vlc_http_res_get_type(struct vlc_http_resource *);
+char *heimdall_http_res_get_type(struct heimdall_http_resource *);
 
 /**
  * Reads data.
  */
-block_t *vlc_http_res_read(struct vlc_http_resource *);
+block_t *heimdall_http_res_read(struct heimdall_http_resource *);
 
-int vlc_http_res_set_login(struct vlc_http_resource *res,
+int heimdall_http_res_set_login(struct heimdall_http_resource *res,
                            const char *username, const char *password);
-char *vlc_http_res_get_basic_realm(struct vlc_http_resource *res);
+char *heimdall_http_res_get_basic_realm(struct heimdall_http_resource *res);
 
 /** @} */
 #endif

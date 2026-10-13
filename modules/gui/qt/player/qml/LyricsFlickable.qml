@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2026 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,9 +18,9 @@
  *****************************************************************************/
 import QtQuick
 import QtQuick.Templates as T
-import VLC.Player
-import VLC.Widgets as Widgets
-import VLC.Style
+import Heimdall.Player
+import Heimdall.Widgets as Widgets
+import Heimdall.Style
 
 Flickable {
     id: lyricsFlickable
@@ -45,7 +46,7 @@ Flickable {
     boundsBehavior: Flickable.StopAtBounds
     clip: !fadingEdge.implicitClipping && (height < implicitHeight)
 
-    // TODO: `vlcTime` type can not be used due to Qt 6.2:
+    // TODO: `heimdallTime` type can not be used due to Qt 6.2:
     signal playerPositionChangeRequested(var time)
 
     function snapToCurrentLyric() {
@@ -79,8 +80,8 @@ Flickable {
     Behavior on contentY {
         enabled: animationsEnabled && lyricsSyncToPlayback
         SmoothedAnimation {
-            velocity: VLCStyle.dp(300, VLCStyle.scale)
-            duration: VLCStyle.duration_veryLong
+            velocity: HeimdallStyle.dp(300, HeimdallStyle.scale)
+            duration: HeimdallStyle.duration_veryLong
         }
     }
 
@@ -116,7 +117,7 @@ Flickable {
                 height: (index === (lyricsRepeater.count - 1))
                     ? Math.max(implicitHeight, lyricsFlickable.height / 2)
                     : implicitHeight
-                padding: VLCStyle.margin_small
+                padding: HeimdallStyle.margin_small
 
                 text: modelData.text
 
@@ -126,23 +127,23 @@ Flickable {
                 // Use a single pixel size and rely on `scale` to differentiate
                 // the current line; this is cheaper than re-rasterizing the
                 // font on every animation frame.
-                font.pixelSize: VLCStyle.fontSize_xlarge
+                font.pixelSize: HeimdallStyle.fontSize_xlarge
                 font.weight: isCurrent ? Font.Bold : Font.Normal
 
                 color: lyricsFlickable.colorContext.fg.primary
                 opacity: isCurrent ? 1.0 : 0.45
-                scale: isCurrent ? 1.0 : (VLCStyle.fontSize_large / VLCStyle.fontSize_xlarge)
+                scale: isCurrent ? 1.0 : (HeimdallStyle.fontSize_large / HeimdallStyle.fontSize_xlarge)
 
                 Behavior on scale {
                     // Native text rendering does not handle scaled glyphs
                     // gracefully, so skip the animation in that case.
                     enabled: lyricsFlickable.animationsEnabled
                              && lyricDelegate.renderType !== Text.NativeRendering
-                    NumberAnimation { duration: VLCStyle.duration_long }
+                    NumberAnimation { duration: HeimdallStyle.duration_long }
                 }
                 Behavior on opacity {
                     enabled: lyricsFlickable.animationsEnabled
-                    OpacityAnimator { duration: VLCStyle.duration_long }
+                    OpacityAnimator { duration: HeimdallStyle.duration_long }
                 }
 
                 TapHandler {
@@ -172,7 +173,7 @@ Flickable {
 
         // Scale the fade with the lyrics' default (non-current) line size,
         // similar to how list views derive it from delegate height.
-        fadeSize: VLCStyle.fontSize_large / 2
+        fadeSize: HeimdallStyle.fontSize_large / 2
 
         // `fadingEdgeEnabled` is the master toggle; the per-edge disabler
         // Bindings below override these when the view is scrolled to the

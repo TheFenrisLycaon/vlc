@@ -2,6 +2,7 @@
  * win32_loop.cpp
  *****************************************************************************
  * Copyright (C) 2003 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cyril Deguet     <asmax@via.ecp.fr>
  *          Olivier Teulière <ipkiss@via.ecp.fr>
@@ -33,7 +34,7 @@
 #include "../events/evt_mouse.hpp"
 #include "../events/evt_refresh.hpp"
 #include "../events/evt_scroll.hpp"
-#include <vlc_actions.h>
+#include <heimdall_actions.h>
 
 
 // XXX: Cygwin (at least) doesn't define these macros. Too bad...
@@ -46,57 +47,57 @@
 Win32Loop::Win32Loop( intf_thread_t *pIntf ): OSLoop( pIntf )
 {
     // Initialize the map
-    virtKeyToVlcKey[VK_F1] = KEY_F1;
-    virtKeyToVlcKey[VK_F2] = KEY_F2;
-    virtKeyToVlcKey[VK_F3] = KEY_F3;
-    virtKeyToVlcKey[VK_F4] = KEY_F4;
-    virtKeyToVlcKey[VK_F5] = KEY_F5;
-    virtKeyToVlcKey[VK_F6] = KEY_F6;
-    virtKeyToVlcKey[VK_F7] = KEY_F7;
-    virtKeyToVlcKey[VK_F8] = KEY_F8;
-    virtKeyToVlcKey[VK_F9] = KEY_F9;
-    virtKeyToVlcKey[VK_F10] = KEY_F10;
-    virtKeyToVlcKey[VK_F11] = KEY_F11;
-    virtKeyToVlcKey[VK_F12] = KEY_F12;
-    virtKeyToVlcKey[VK_F13] = KEY_F(13);
-    virtKeyToVlcKey[VK_F14] = KEY_F(14);
-    virtKeyToVlcKey[VK_F15] = KEY_F(15);
-    virtKeyToVlcKey[VK_F16] = KEY_F(16);
-    virtKeyToVlcKey[VK_F17] = KEY_F(17);
-    virtKeyToVlcKey[VK_F18] = KEY_F(18);
-    virtKeyToVlcKey[VK_F19] = KEY_F(19);
-    virtKeyToVlcKey[VK_F20] = KEY_F(20);
-    virtKeyToVlcKey[VK_F21] = KEY_F(21);
-    virtKeyToVlcKey[VK_F22] = KEY_F(22);
-    virtKeyToVlcKey[VK_F23] = KEY_F(23);
-    virtKeyToVlcKey[VK_F24] = KEY_F(24);
-    virtKeyToVlcKey[VK_RETURN] = KEY_ENTER;
-    virtKeyToVlcKey[VK_SPACE] = ' ';
-    virtKeyToVlcKey[VK_ESCAPE] = KEY_ESC;
-    virtKeyToVlcKey[VK_LEFT] = KEY_LEFT;
-    virtKeyToVlcKey[VK_RIGHT] = KEY_RIGHT;
-    virtKeyToVlcKey[VK_UP] = KEY_UP;
-    virtKeyToVlcKey[VK_DOWN] = KEY_DOWN;
-    virtKeyToVlcKey[VK_INSERT] = KEY_INSERT;
-    virtKeyToVlcKey[VK_DELETE] = KEY_DELETE;
-    virtKeyToVlcKey[VK_HOME] = KEY_HOME;
-    virtKeyToVlcKey[VK_END] = KEY_END;
-    virtKeyToVlcKey[VK_PRIOR] = KEY_PAGEUP;
-    virtKeyToVlcKey[VK_NEXT] = KEY_PAGEDOWN;
-    virtKeyToVlcKey[VK_BROWSER_BACK] = KEY_BROWSER_BACK;
-    virtKeyToVlcKey[VK_BROWSER_FORWARD] = KEY_BROWSER_FORWARD;
-    virtKeyToVlcKey[VK_BROWSER_REFRESH] = KEY_BROWSER_REFRESH;
-    virtKeyToVlcKey[VK_BROWSER_STOP] = KEY_BROWSER_STOP;
-    virtKeyToVlcKey[VK_BROWSER_SEARCH] = KEY_BROWSER_SEARCH;
-    virtKeyToVlcKey[VK_BROWSER_FAVORITES] = KEY_BROWSER_FAVORITES;
-    virtKeyToVlcKey[VK_BROWSER_HOME] = KEY_BROWSER_HOME;
-    virtKeyToVlcKey[VK_VOLUME_MUTE] = KEY_VOLUME_MUTE;
-    virtKeyToVlcKey[VK_VOLUME_DOWN] = KEY_VOLUME_DOWN;
-    virtKeyToVlcKey[VK_VOLUME_UP] = KEY_VOLUME_UP;
-    virtKeyToVlcKey[VK_MEDIA_NEXT_TRACK] = KEY_MEDIA_NEXT_TRACK;
-    virtKeyToVlcKey[VK_MEDIA_PREV_TRACK] = KEY_MEDIA_PREV_TRACK;
-    virtKeyToVlcKey[VK_MEDIA_STOP] = KEY_MEDIA_STOP;
-    virtKeyToVlcKey[VK_MEDIA_PLAY_PAUSE] = KEY_MEDIA_PLAY_PAUSE;
+    virtKeyToHeimdallKey[VK_F1] = KEY_F1;
+    virtKeyToHeimdallKey[VK_F2] = KEY_F2;
+    virtKeyToHeimdallKey[VK_F3] = KEY_F3;
+    virtKeyToHeimdallKey[VK_F4] = KEY_F4;
+    virtKeyToHeimdallKey[VK_F5] = KEY_F5;
+    virtKeyToHeimdallKey[VK_F6] = KEY_F6;
+    virtKeyToHeimdallKey[VK_F7] = KEY_F7;
+    virtKeyToHeimdallKey[VK_F8] = KEY_F8;
+    virtKeyToHeimdallKey[VK_F9] = KEY_F9;
+    virtKeyToHeimdallKey[VK_F10] = KEY_F10;
+    virtKeyToHeimdallKey[VK_F11] = KEY_F11;
+    virtKeyToHeimdallKey[VK_F12] = KEY_F12;
+    virtKeyToHeimdallKey[VK_F13] = KEY_F(13);
+    virtKeyToHeimdallKey[VK_F14] = KEY_F(14);
+    virtKeyToHeimdallKey[VK_F15] = KEY_F(15);
+    virtKeyToHeimdallKey[VK_F16] = KEY_F(16);
+    virtKeyToHeimdallKey[VK_F17] = KEY_F(17);
+    virtKeyToHeimdallKey[VK_F18] = KEY_F(18);
+    virtKeyToHeimdallKey[VK_F19] = KEY_F(19);
+    virtKeyToHeimdallKey[VK_F20] = KEY_F(20);
+    virtKeyToHeimdallKey[VK_F21] = KEY_F(21);
+    virtKeyToHeimdallKey[VK_F22] = KEY_F(22);
+    virtKeyToHeimdallKey[VK_F23] = KEY_F(23);
+    virtKeyToHeimdallKey[VK_F24] = KEY_F(24);
+    virtKeyToHeimdallKey[VK_RETURN] = KEY_ENTER;
+    virtKeyToHeimdallKey[VK_SPACE] = ' ';
+    virtKeyToHeimdallKey[VK_ESCAPE] = KEY_ESC;
+    virtKeyToHeimdallKey[VK_LEFT] = KEY_LEFT;
+    virtKeyToHeimdallKey[VK_RIGHT] = KEY_RIGHT;
+    virtKeyToHeimdallKey[VK_UP] = KEY_UP;
+    virtKeyToHeimdallKey[VK_DOWN] = KEY_DOWN;
+    virtKeyToHeimdallKey[VK_INSERT] = KEY_INSERT;
+    virtKeyToHeimdallKey[VK_DELETE] = KEY_DELETE;
+    virtKeyToHeimdallKey[VK_HOME] = KEY_HOME;
+    virtKeyToHeimdallKey[VK_END] = KEY_END;
+    virtKeyToHeimdallKey[VK_PRIOR] = KEY_PAGEUP;
+    virtKeyToHeimdallKey[VK_NEXT] = KEY_PAGEDOWN;
+    virtKeyToHeimdallKey[VK_BROWSER_BACK] = KEY_BROWSER_BACK;
+    virtKeyToHeimdallKey[VK_BROWSER_FORWARD] = KEY_BROWSER_FORWARD;
+    virtKeyToHeimdallKey[VK_BROWSER_REFRESH] = KEY_BROWSER_REFRESH;
+    virtKeyToHeimdallKey[VK_BROWSER_STOP] = KEY_BROWSER_STOP;
+    virtKeyToHeimdallKey[VK_BROWSER_SEARCH] = KEY_BROWSER_SEARCH;
+    virtKeyToHeimdallKey[VK_BROWSER_FAVORITES] = KEY_BROWSER_FAVORITES;
+    virtKeyToHeimdallKey[VK_BROWSER_HOME] = KEY_BROWSER_HOME;
+    virtKeyToHeimdallKey[VK_VOLUME_MUTE] = KEY_VOLUME_MUTE;
+    virtKeyToHeimdallKey[VK_VOLUME_DOWN] = KEY_VOLUME_DOWN;
+    virtKeyToHeimdallKey[VK_VOLUME_UP] = KEY_VOLUME_UP;
+    virtKeyToHeimdallKey[VK_MEDIA_NEXT_TRACK] = KEY_MEDIA_NEXT_TRACK;
+    virtKeyToHeimdallKey[VK_MEDIA_PREV_TRACK] = KEY_MEDIA_PREV_TRACK;
+    virtKeyToHeimdallKey[VK_MEDIA_STOP] = KEY_MEDIA_STOP;
+    virtKeyToHeimdallKey[VK_MEDIA_PLAY_PAUSE] = KEY_MEDIA_PLAY_PAUSE;
 }
 
 OSLoop *Win32Loop::instance( intf_thread_t *pIntf )
@@ -260,8 +261,8 @@ LRESULT CALLBACK Win32Loop::processEvent( HWND hwnd, UINT msg,
             // into WM_CHAR events because we need to know the status of
             // the modifier keys.
 
-            // Get VLC key code from the virtual key code
-            int key = virtKeyToVlcKey[wParam];
+            // Get Heimdall key code from the virtual key code
+            int key = virtKeyToHeimdallKey[wParam];
             if( !key )
             {
                 // This appears to be a "normal" (ascii) key

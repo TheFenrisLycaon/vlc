@@ -2,6 +2,7 @@
  * dwrite.cpp : DirectWrite font functions
  *****************************************************************************
  * Copyright (C) 2016 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Salah-Eddin Shaban <salah@videolan.org>
  *
@@ -24,9 +25,9 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_filter.h>
-#include <vlc_charset.h>
+#include <heimdall_common.h>
+#include <heimdall_filter.h>
+#include <heimdall_charset.h>
 
 #include <dwrite_2.h>
 #include <wrl/client.h>
@@ -104,7 +105,7 @@ static const char *DWrite_TranslateGenericFamily( const char *psz_family )
     return psz_family;
 }
 
-static inline void AppendFamily( vlc_family_t **pp_list, vlc_family_t *p_family )
+static inline void AppendFamily( heimdall_family_t **pp_list, heimdall_family_t *p_family )
 {
     while( *pp_list )
         pp_list = &( *pp_list )->p_next;
@@ -112,7 +113,7 @@ static inline void AppendFamily( vlc_family_t **pp_list, vlc_family_t *p_family 
     *pp_list = p_family;
 }
 
-extern "C" int InitDWrite( vlc_font_select_t *fs )
+extern "C" int InitDWrite( heimdall_font_select_t *fs )
 {
     dw_sys_t *p_dw_sys;
 
@@ -124,33 +125,33 @@ extern "C" int InitDWrite( vlc_font_select_t *fs )
     {
         msg_Err( fs->p_obj, "InitDWrite(): %s", e.what() );
 
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     fs->p_dw_sys = p_dw_sys;
     msg_Dbg( fs->p_obj, "Using DWrite backend" );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-extern "C" int ReleaseDWrite( vlc_font_select_t *fs )
+extern "C" int ReleaseDWrite( heimdall_font_select_t *fs )
 {
     dw_sys_t *p_dw_sys = ( dw_sys_t * ) fs->p_dw_sys;
 
     delete p_dw_sys;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-extern "C" int DWrite_GetFontStream( vlc_font_select_t *fs, int i_index, FT_Stream *pp_stream )
+extern "C" int DWrite_GetFontStream( heimdall_font_select_t *fs, int i_index, FT_Stream *pp_stream )
 {
     dw_sys_t *p_dw_sys = ( dw_sys_t * ) fs->p_dw_sys;
 
     if( i_index < 0 || i_index >= ( int ) p_dw_sys->streams.size() )
-        return VLC_EINVAL;
+        return HEIMDALL_EINVAL;
 
     *pp_stream = p_dw_sys->streams.at( i_index );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static inline void ToUTF16( uint32_t i_codepoint, wchar_t *p_out, uint32_t *i_length )
@@ -314,7 +315,7 @@ static wstring SanitizeName( const wstring &name )
  * Also used for face names, in which case Thin will match Thin,
  * Thin Italic, Thin Oblique...
  */
-static bool DWrite_PartialMatch( vlc_font_select_t *fs, const wstring &full_name,
+static bool DWrite_PartialMatch( heimdall_font_select_t *fs, const wstring &full_name,
                                  const wstring &partial_name, wstring *p_unmatched = nullptr )
 {
     auto pattern = wstring{ L"^" } + SanitizeName( partial_name ) + wstring{ L"\\s*(.*)$" };
@@ -338,7 +339,7 @@ static bool DWrite_PartialMatch( vlc_font_select_t *fs, const wstring &full_name
  * The 3 locales tested are en-US and the user and system default locales. b_partial determines
  * which parameter has the partial string, p_names or name.
  */
-static bool DWrite_PartialMatch( vlc_font_select_t *fs, ComPtr< IDWriteLocalizedStrings > &p_names,
+static bool DWrite_PartialMatch( heimdall_font_select_t *fs, ComPtr< IDWriteLocalizedStrings > &p_names,
                                  const wstring &name, bool b_partial, wstring *p_unmatched = nullptr )
 {
     wchar_t buff_sys[ LOCALE_NAME_MAX_LENGTH ] = {};
@@ -392,7 +393,7 @@ static bool DWrite_PartialMatch( vlc_font_select_t *fs, ComPtr< IDWriteLocalized
     return false;
 }
 
-static vector< ComPtr< IDWriteFont > > DWrite_GetFonts( vlc_font_select_t *fs, IDWriteFontFamily *p_dw_family,
+static vector< ComPtr< IDWriteFont > > DWrite_GetFonts( heimdall_font_select_t *fs, IDWriteFontFamily *p_dw_family,
                                                         const wstring &face_name )
 {
     vector< ComPtr< IDWriteFont > > result;
@@ -449,8 +450,8 @@ static vector< ComPtr< IDWriteFont > > DWrite_GetFonts( vlc_font_select_t *fs, I
     return result;
 }
 
-static void DWrite_ParseFamily( vlc_font_select_t *fs, IDWriteFontFamily *p_dw_family, const wstring &face_name,
-                                vlc_family_t *p_family, vector< FT_Stream > &streams )
+static void DWrite_ParseFamily( heimdall_font_select_t *fs, IDWriteFontFamily *p_dw_family, const wstring &face_name,
+                                heimdall_family_t *p_family, vector< FT_Stream > &streams )
 {
     vector< ComPtr< IDWriteFont > > fonts = DWrite_GetFonts( fs, p_dw_family, face_name );
 
@@ -506,9 +507,9 @@ static void DWrite_ParseFamily( vlc_font_select_t *fs, IDWriteFontFamily *p_dw_f
 
         int i_flags = 0;
         if( i & 1 )
-            i_flags |= VLC_FONT_FLAG_BOLD;
+            i_flags |= HEIMDALL_FONT_FLAG_BOLD;
         if( i & 2 )
-            i_flags |= VLC_FONT_FLAG_ITALIC;
+            i_flags |= HEIMDALL_FONT_FLAG_ITALIC;
 
         if( p_dw_font->CreateFontFace( &p_dw_face ) )
             throw runtime_error( "CreateFontFace() failed" );
@@ -559,8 +560,8 @@ static void DWrite_ParseFamily( vlc_font_select_t *fs, IDWriteFontFamily *p_dw_f
     }
 }
 
-extern "C" int DWrite_GetFamily( vlc_font_select_t *fs, const char *psz_lcname,
-                                 const vlc_family_t **pp_result )
+extern "C" int DWrite_GetFamily( heimdall_font_select_t *fs, const char *psz_lcname,
+                                 const heimdall_family_t **pp_result )
 {
     dw_sys_t                     *p_dw_sys     = ( dw_sys_t * ) fs->p_dw_sys;
     ComPtr< IDWriteFontFamily >   p_dw_family;
@@ -570,20 +571,20 @@ extern "C" int DWrite_GetFamily( vlc_font_select_t *fs, const char *psz_lcname,
 
     psz_lcname = DWrite_TranslateGenericFamily( psz_lcname );
 
-    vlc_family_t *p_family =
-        ( vlc_family_t * ) vlc_dictionary_value_for_key( &fs->family_map, psz_lcname );
+    heimdall_family_t *p_family =
+        ( heimdall_family_t * ) heimdall_dictionary_value_for_key( &fs->family_map, psz_lcname );
 
     if( p_family )
     {
         *pp_result = p_family;
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
     p_family = NewFamily( fs, psz_lcname, &fs->p_families,
                           &fs->family_map, psz_lcname );
 
     if( unlikely( !p_family ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     msg_Dbg( fs->p_obj, "DWrite_GetFamily(): family name: %s", psz_lcname );
 
@@ -669,10 +670,10 @@ extern "C" int DWrite_GetFamily( vlc_font_select_t *fs, const char *psz_lcname,
 done:
     free( pwsz_family );
     *pp_result = p_family;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static char *DWrite_Fallback( vlc_font_select_t *fs, const char *psz_lcname,
+static char *DWrite_Fallback( heimdall_font_select_t *fs, const char *psz_lcname,
                               uni_char_t codepoint )
 {
     dw_sys_t                         *p_dw_sys          = ( dw_sys_t * ) fs->p_dw_sys;
@@ -725,7 +726,7 @@ static char *DWrite_Fallback( vlc_font_select_t *fs, const char *psz_lcname,
         goto done;
     }
 
-    pwsz_buffer = ( wchar_t * ) vlc_alloc( ( i_string_length + 1 ), sizeof( *pwsz_buffer ) );
+    pwsz_buffer = ( wchar_t * ) heimdall_alloc( ( i_string_length + 1 ), sizeof( *pwsz_buffer ) );
     if( unlikely( !pwsz_buffer ) )
         goto done;
 
@@ -745,15 +746,15 @@ done:
     return psz_result;
 }
 
-extern "C" int DWrite_GetFallbacks( vlc_font_select_t *fs, const char *psz_lcname,
-                                    uni_char_t codepoint, vlc_family_t **pp_result )
+extern "C" int DWrite_GetFallbacks( heimdall_font_select_t *fs, const char *psz_lcname,
+                                    uni_char_t codepoint, heimdall_family_t **pp_result )
 {
-    vlc_family_t  *p_family      = NULL;
-    vlc_family_t  *p_fallbacks   = NULL;
+    heimdall_family_t  *p_family      = NULL;
+    heimdall_family_t  *p_fallbacks   = NULL;
     char          *psz_fallback  = NULL;
-    int            i_ret         = VLC_EGENERIC;
+    int            i_ret         = HEIMDALL_EGENERIC;
 
-    p_fallbacks = ( vlc_family_t * ) vlc_dictionary_value_for_key( &fs->fallback_map, psz_lcname );
+    p_fallbacks = ( heimdall_family_t * ) heimdall_dictionary_value_for_key( &fs->fallback_map, psz_lcname );
 
     if( p_fallbacks )
         p_family = SearchFallbacks( fs, p_fallbacks, codepoint );
@@ -771,14 +772,14 @@ extern "C" int DWrite_GetFallbacks( vlc_font_select_t *fs, const char *psz_lcnam
         if( !psz_fallback )
             goto done;
 
-        const vlc_family_t *p_fallback = NULL;
-        if( DWrite_GetFamily( fs, psz_fallback, &p_fallback ) != VLC_SUCCESS )
+        const heimdall_family_t *p_fallback = NULL;
+        if( DWrite_GetFamily( fs, psz_fallback, &p_fallback ) != HEIMDALL_SUCCESS )
             goto done;
 
         if( !p_fallback || !p_fallback->p_fonts ||
            !CheckFace( fs, p_fallback->p_fonts, codepoint ) )
         {
-            i_ret = VLC_SUCCESS;
+            i_ret = HEIMDALL_SUCCESS;
             goto done;
         }
 
@@ -792,11 +793,11 @@ extern "C" int DWrite_GetFallbacks( vlc_font_select_t *fs, const char *psz_lcnam
         if( p_fallbacks )
             AppendFamily( &p_fallbacks, p_family );
         else
-            vlc_dictionary_insert( &fs->fallback_map,
+            heimdall_dictionary_insert( &fs->fallback_map,
                                    psz_lcname, p_family );
     }
 
-    i_ret = VLC_SUCCESS;
+    i_ret = HEIMDALL_SUCCESS;
 
 done:
     free( psz_fallback );

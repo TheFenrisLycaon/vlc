@@ -2,6 +2,7 @@
  * vt_utils.h: videotoolbox/cvpx utility functions
  *****************************************************************************
  * Copyright (C) 2017 VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -18,11 +19,11 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_CODEC_VTUTILS_H_
-#define VLC_CODEC_VTUTILS_H_
+#ifndef HEIMDALL_CODEC_VTUTILS_H_
+#define HEIMDALL_CODEC_VTUTILS_H_
 
 #include <VideoToolbox/VideoToolbox.h>
-#include <vlc_picture.h>
+#include <heimdall_picture.h>
 
 CFMutableDictionaryRef cfdict_create(CFIndex capacity);
 
@@ -32,10 +33,10 @@ void cfdict_set_int32(CFMutableDictionaryRef dict, CFStringRef key, int value);
  * Attach a cvpx buffer to a picture
  *
  * The cvpx ref will be released when the picture is released
- * @return VLC_SUCCESS or VLC_ENOMEM
+ * @return HEIMDALL_SUCCESS or HEIMDALL_ENOMEM
  */
-int cvpxpic_attach(picture_t *p_pic, CVPixelBufferRef cvpx, vlc_video_context *vctx,
-                   void (*on_released_cb)(vlc_video_context *vctx, unsigned));
+int cvpxpic_attach(picture_t *p_pic, CVPixelBufferRef cvpx, heimdall_video_context *vctx,
+                   void (*on_released_cb)(heimdall_video_context *vctx, unsigned));
 
 /*
  * Get the cvpx buffer attached to a picture
@@ -45,40 +46,40 @@ CVPixelBufferRef cvpxpic_get_ref(picture_t *pic);
 /*
  * Create a picture mapped to a cvpx buffer
  *
- * @param fmt i_chroma must be VLC_CODEC_UYVY, VLC_CODEC_NV12 or VLC_CODEC_I420
+ * @param fmt i_chroma must be HEIMDALL_CODEC_UYVY, HEIMDALL_CODEC_NV12 or HEIMDALL_CODEC_I420
  * @param cvpx buffer to map
  * @param readonly true to map read-only, false otherwise
  * @return a valid picture, call picture_Release() or cvpxpic_unmap() to free
  * the picture and unmap the cvpx buffer.
  */
 picture_t *cvpxpic_create_mapped(const video_format_t *fmt,
-                                 CVPixelBufferRef cvpx, vlc_video_context *vctx,
+                                 CVPixelBufferRef cvpx, heimdall_video_context *vctx,
                                  bool readonly);
 
 /*
  * Create a picture attached to an unmapped cvpx buffer
  *
  * @param mapped_pic must be a picture created with cvpxpic_create_mapped()
- * @return a valid picture, the pic chroma will one of VLC_CODEC_CVPX_* chromas
+ * @return a valid picture, the pic chroma will one of HEIMDALL_CODEC_CVPX_* chromas
  */
 picture_t *cvpxpic_unmap(picture_t *mapped_pic);
 
 /*
  * Create a cvpx pool
  *
- * @param fmt i_chroma must be one of VLC_CODEC_CVPX_* chromas
+ * @param fmt i_chroma must be one of HEIMDALL_CODEC_CVPX_* chromas
  * @param count number of pictures to alloc
  * @return a valid cvpx pool or NULL, release it with CVPixelBufferPoolRelease()
  */
 CVPixelBufferPoolRef cvpxpool_create(const video_format_t *fmt, unsigned count);
 
 /**
- * @brief Get a Core Video pixel format corresponding to a VLC CVPX chroma
+ * @brief Get a Core Video pixel format corresponding to a Heimdall CVPX chroma
  *
- * @param chroma one of the VLC_CODEC_CVPX_* chromas
+ * @param chroma one of the HEIMDALL_CODEC_CVPX_* chromas
  * @return a Core Video pixel format or 0 if the chroma is not supported
  */
-OSType cvpx_map_vlc_chroma_to_cv_pixel_format(vlc_fourcc_t chroma);
+OSType cvpx_map_heimdall_chroma_to_cv_pixel_format(heimdall_fourcc_t chroma);
 
 /*
  * Get a cvpx buffer from a pool
@@ -157,16 +158,16 @@ enum cvpx_video_context_type
  * The private data of a subtype (VIDEOTOOLBOX, CIFILTERS) if only compatible
  * for this subtype
  */
-vlc_video_context *
-vlc_video_context_CreateCVPX(vlc_decoder_device *device,
+heimdall_video_context *
+heimdall_video_context_CreateCVPX(heimdall_decoder_device *device,
                              enum cvpx_video_context_type type, size_t type_size,
-                             const struct vlc_video_context_operations *ops);
+                             const struct heimdall_video_context_operations *ops);
 
 /*
  * Get the video context sub private data
  */
 void *
-vlc_video_context_GetCVPXPrivate(vlc_video_context *vctx,
+heimdall_video_context_GetCVPXPrivate(heimdall_video_context *vctx,
                                  enum cvpx_video_context_type type);
 
 #endif

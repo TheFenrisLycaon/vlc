@@ -2,10 +2,11 @@
  * ID3Genres.h: list of genres for id3 genre tags
  *****************************************************************************
  * Copyright (C) 2002-2003 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Sigmund Augdal Helberg <dnumgis@videolan.org>
  *         list found at http://www.id3.org/id3v2.4.0-frames.txt
- * Author: John Freed <okvlc@johnfreed.com>
+ * Author: John Freed <okheimdall@johnfreed.com>
  *         updated with extensions to conform to real-world files
  *         see http://www.id3.org/Compliance_Issues and
  *             http://www.id3.org/id3v2.3.0

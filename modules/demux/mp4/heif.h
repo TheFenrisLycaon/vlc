@@ -2,6 +2,7 @@
  * heif.h : ISO/IEC 23008-12 HEIF still picture demuxer
  *****************************************************************************
  * Copyright (C) 2018 Videolabs, VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -20,5 +21,5 @@
 
 #define HEIF_DEFAULT_DURATION 10.0
 
-int  OpenHEIF ( vlc_object_t * );
-void CloseHEIF( vlc_object_t * );
+int  OpenHEIF ( heimdall_object_t * );
+void CloseHEIF( heimdall_object_t * );

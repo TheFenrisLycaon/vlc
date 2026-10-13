@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2024 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Leon Vitanos <leon.vitanos@gmail.com>
  *
@@ -20,9 +21,9 @@
 
 import QtQuick
 
-import VLC.Util as Util
-import VLC.Widgets as Widgets
-import VLC.Style
+import Heimdall.Util as Util
+import Heimdall.Widgets as Widgets
+import Heimdall.Style
 
 Widgets.ExpandGridView {
     id: root

@@ -2,6 +2,7 @@
  * interop_gst_mem.c: OpenGL GStreamer Memory opaque converter
  *****************************************************************************
  * Copyright (C) 2022 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Yann Lochet <yann@l0chet.fr>
  * Heavily inspired by interop_vaapi.c
@@ -35,10 +36,10 @@
 #include <gst/video/video-format.h>
 #include <gst/allocators/gstdmabuf.h>
 
-#include <vlc_common.h>
-#include <vlc_window.h>
-#include <vlc_codec.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_window.h>
+#include <heimdall_codec.h>
+#include <heimdall_plugin.h>
 
 #include "gl_util.h"
 #include "interop.h"
@@ -70,14 +71,14 @@ struct priv
 };
 
 static void
-egl_image_destroy(const struct vlc_gl_interop *interop, EGLImageKHR image)
+egl_image_destroy(const struct heimdall_gl_interop *interop, EGLImageKHR image)
 {
     struct priv *priv = interop->priv;
     priv->egl.destroyImageKHR(priv->egl.display, image);
 }
 
 static int
-egl_update(const struct vlc_gl_interop *interop, uint32_t textures[],
+egl_update(const struct heimdall_gl_interop *interop, uint32_t textures[],
            const int32_t tex_width[], const int32_t tex_height[],
            picture_t *pic, const size_t *plane_offset)
 {
@@ -117,7 +118,7 @@ egl_update(const struct vlc_gl_interop *interop, uint32_t textures[],
             egl_color_range = EGL_YUV_NARROW_RANGE_EXT;
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 
     const EGLint attribs[] = {
@@ -152,14 +153,14 @@ egl_update(const struct vlc_gl_interop *interop, uint32_t textures[],
 
     egl_image_destroy(interop, egl_image);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 static void
-Close(struct vlc_gl_interop *interop)
+Close(struct heimdall_gl_interop *interop)
 {
     struct priv *priv = interop->priv;
 
@@ -167,14 +168,14 @@ Close(struct vlc_gl_interop *interop)
 }
 
 static int
-Open(struct vlc_gl_interop *interop)
+Open(struct heimdall_gl_interop *interop)
 {
     struct priv *priv = NULL;
 
     if (interop->vctx == NULL)
-        return VLC_EGENERIC;
-    vlc_decoder_device *dec_device = vlc_video_context_HoldDevice(interop->vctx);
-    if (dec_device->type != VLC_DECODER_DEVICE_GSTDECODE)
+        return HEIMDALL_EGENERIC;
+    heimdall_decoder_device *dec_device = heimdall_video_context_HoldDevice(interop->vctx);
+    if (dec_device->type != HEIMDALL_DECODER_DEVICE_GSTDECODE)
         goto error;
 
     priv = interop->priv = calloc(1, sizeof(struct priv));
@@ -183,9 +184,9 @@ Open(struct vlc_gl_interop *interop)
 
     switch (interop->fmt_in.i_chroma)
     {
-        case VLC_CODEC_GST_MEM_OPAQUE:
+        case HEIMDALL_CODEC_GST_MEM_OPAQUE:
             interop->tex_count = 1;
-            interop->texs[0] = (struct vlc_gl_tex_cfg) {
+            interop->texs[0] = (struct heimdall_gl_tex_cfg) {
                 .w = {1, 1},
                 .h = {1, 1},
                 .internal = GL_RGBA,
@@ -193,20 +194,20 @@ Open(struct vlc_gl_interop *interop)
                 .type = GL_UNSIGNED_BYTE,
             };
 
-            priv->drm_fourccs[0] = VLC_FOURCC('N', 'V', '1', '2');
+            priv->drm_fourccs[0] = HEIMDALL_FOURCC('N', 'V', '1', '2');
             break;
         default:
             goto error;
     }
 
-    struct vlc_gl_extension_vt extension_vt;
-    vlc_gl_LoadExtensionFunctions(interop->gl, &extension_vt);
+    struct heimdall_gl_extension_vt extension_vt;
+    heimdall_gl_LoadExtensionFunctions(interop->gl, &extension_vt);
 
     /* GL_OES_EGL_image_external is required for GL_TEXTURE_EXTERNAL_OES */
-    if (!vlc_gl_HasExtension(&extension_vt, "GL_OES_EGL_image_external"))
+    if (!heimdall_gl_HasExtension(&extension_vt, "GL_OES_EGL_image_external"))
         goto error;
 
-    priv->egl.getCurrentDisplay = vlc_gl_GetProcAddress(interop->gl, "eglGetCurrentDisplay");
+    priv->egl.getCurrentDisplay = heimdall_gl_GetProcAddress(interop->gl, "eglGetCurrentDisplay");
     if (priv->egl.getCurrentDisplay == EGL_NO_DISPLAY)
         goto error;
 
@@ -214,32 +215,32 @@ Open(struct vlc_gl_interop *interop)
     if (priv->egl.display == EGL_NO_DISPLAY)
         goto error;
 
-    priv->egl.queryString = vlc_gl_GetProcAddress(interop->gl, "eglQueryString");
+    priv->egl.queryString = heimdall_gl_GetProcAddress(interop->gl, "eglQueryString");
     if (priv->egl.queryString == NULL)
         goto error;
 
     /* EGL_EXT_image_dma_buf_import implies EGL_KHR_image_base */
     const char *eglexts = priv->egl.queryString(priv->egl.display, EGL_EXTENSIONS);
-    if (eglexts == NULL || !vlc_gl_StrHasToken(eglexts, "EGL_EXT_image_dma_buf_import"))
+    if (eglexts == NULL || !heimdall_gl_StrHasToken(eglexts, "EGL_EXT_image_dma_buf_import"))
         goto error;
 
     priv->egl.createImageKHR =
-        vlc_gl_GetProcAddress(interop->gl, "eglCreateImageKHR");
+        heimdall_gl_GetProcAddress(interop->gl, "eglCreateImageKHR");
     if (priv->egl.createImageKHR == NULL)
         goto error;
 
     priv->egl.destroyImageKHR =
-        vlc_gl_GetProcAddress(interop->gl, "eglDestroyImageKHR");
+        heimdall_gl_GetProcAddress(interop->gl, "eglDestroyImageKHR");
     if (priv->egl.destroyImageKHR == NULL)
         goto error;
 
     priv->glEGLImageTargetTexture2DOES =
-        vlc_gl_GetProcAddress(interop->gl, "glEGLImageTargetTexture2DOES");
+        heimdall_gl_GetProcAddress(interop->gl, "glEGLImageTargetTexture2DOES");
     if (priv->glEGLImageTargetTexture2DOES == NULL)
         goto error;
 
     priv->gl.BindTexture =
-        vlc_gl_GetProcAddress(interop->gl, "glBindTexture");
+        heimdall_gl_GetProcAddress(interop->gl, "glBindTexture");
     if (priv->gl.BindTexture == NULL)
         goto error;
 
@@ -247,29 +248,29 @@ Open(struct vlc_gl_interop *interop)
     video_format_TransformBy(&interop->fmt_out, TRANSFORM_VFLIP);
 
     interop->tex_target = GL_TEXTURE_EXTERNAL_OES;
-    interop->fmt_out.i_chroma = VLC_CODEC_RGBA;
+    interop->fmt_out.i_chroma = HEIMDALL_CODEC_RGBA;
     interop->fmt_out.space = COLOR_SPACE_UNDEF;
 
-    static const struct vlc_gl_interop_ops ops = {
+    static const struct heimdall_gl_interop_ops ops = {
         .update_textures = egl_update,
         .close = Close,
     };
     interop->ops = &ops;
 
-    vlc_decoder_device_Release(dec_device);
+    heimdall_decoder_device_Release(dec_device);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
-    vlc_decoder_device_Release(dec_device);
+    heimdall_decoder_device_Release(dec_device);
     free(priv);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description("GST_MEM OpenGL surface converter")
     set_capability("glinterop", 1)
     set_callback(Open)
     set_subcategory(SUBCAT_VIDEO_VOUT)
     add_shortcut("gst_mem")
-vlc_module_end ()
+heimdall_module_end ()

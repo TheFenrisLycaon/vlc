@@ -2,6 +2,7 @@
  * dts.c: parse DTS audio sync info and packetize the stream
  *****************************************************************************
  * Copyright (C) 2001-2016 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gildas Bazin <gbazin@videolan.org>
  *          Thomas Guillem <thomas@gllm.fr>
@@ -30,25 +31,25 @@
 
 #include <stdbit.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
-#include <vlc_block_helper.h>
-#include <vlc_modules.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
+#include <heimdall_block_helper.h>
+#include <heimdall_modules.h>
 
 #include "dts_header.h"
 
 #include "packetizer_helper.h"
 
-static int  Open( vlc_object_t * );
-static void Close( vlc_object_t * );
+static int  Open( heimdall_object_t * );
+static void Close( heimdall_object_t * );
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_subcategory( SUBCAT_SOUT_PACKETIZER )
     set_description( N_("DTS audio packetizer") )
     set_capability( "audio packetizer", 10 )
     set_callbacks( Open, Close )
-vlc_module_end ()
+heimdall_module_end ()
 
 typedef struct
 {
@@ -66,10 +67,10 @@ typedef struct
     date_t  end_date;
     bool    b_date_set;
 
-    vlc_tick_t i_pts;
+    heimdall_tick_t i_pts;
     bool    b_discontinuity;
 
-    vlc_dts_header_t first, second;
+    heimdall_dts_header_t first, second;
     size_t  i_input_size;
 } decoder_sys_t;
 
@@ -84,7 +85,7 @@ static void PacketizeFlush( decoder_t *p_dec )
     decoder_sys_t *p_sys = p_dec->p_sys;
 
     p_sys->b_discontinuity = true;
-    date_Set( &p_sys->end_date, VLC_TICK_INVALID );
+    date_Set( &p_sys->end_date, HEIMDALL_TICK_INVALID );
     p_sys->i_state = STATE_NOSYNC;
     block_BytestreamEmpty( &p_sys->bytestream );
 }
@@ -132,7 +133,7 @@ static block_t *GetOutBuffer( decoder_t *p_dec )
 static block_t *PacketizeBlock( decoder_t *p_dec, block_t **pp_block )
 {
     decoder_sys_t *p_sys = p_dec->p_sys;
-    uint8_t p_header[VLC_DTS_HEADER_SIZE];
+    uint8_t p_header[HEIMDALL_DTS_HEADER_SIZE];
     block_t *p_out_buffer;
 
     block_t *p_block = pp_block ? *pp_block : NULL;
@@ -153,8 +154,8 @@ static block_t *PacketizeBlock( decoder_t *p_dec, block_t **pp_block )
             }
         }
 
-        if ( p_block->i_pts == VLC_TICK_INVALID &&
-             date_Get( &p_sys->end_date ) == VLC_TICK_INVALID ) {
+        if ( p_block->i_pts == HEIMDALL_TICK_INVALID &&
+             date_Get( &p_sys->end_date ) == HEIMDALL_TICK_INVALID ) {
             /* We've just started the stream, wait for the first PTS. */
             block_Release( p_block );
             return NULL;
@@ -169,9 +170,9 @@ static block_t *PacketizeBlock( decoder_t *p_dec, block_t **pp_block )
         {
         case STATE_NOSYNC:
             while( block_PeekBytes( &p_sys->bytestream, p_header, 6 )
-                   == VLC_SUCCESS )
+                   == HEIMDALL_SUCCESS )
             {
-                if( vlc_dts_header_IsSync( p_header, 6 ) )
+                if( heimdall_dts_header_IsSync( p_header, 6 ) )
                 {
                     p_sys->i_state = STATE_SYNC;
                     break;
@@ -190,7 +191,7 @@ static block_t *PacketizeBlock( decoder_t *p_dec, block_t **pp_block )
         case STATE_SYNC:
             /* New frame, set the Presentation Time Stamp */
             p_sys->i_pts = p_sys->bytestream.p_block->i_pts;
-            if( p_sys->i_pts != VLC_TICK_INVALID &&
+            if( p_sys->i_pts != HEIMDALL_TICK_INVALID &&
                 p_sys->i_pts != date_Get( &p_sys->end_date ) )
             {
                 date_Set( &p_sys->end_date, p_sys->i_pts );
@@ -199,17 +200,17 @@ static block_t *PacketizeBlock( decoder_t *p_dec, block_t **pp_block )
             /* fallthrough */
 
         case STATE_HEADER:
-            /* Get DTS frame header (VLC_DTS_HEADER_SIZE bytes) */
+            /* Get DTS frame header (HEIMDALL_DTS_HEADER_SIZE bytes) */
             if( block_PeekBytes( &p_sys->bytestream, p_header,
-                                 VLC_DTS_HEADER_SIZE ) != VLC_SUCCESS )
+                                 HEIMDALL_DTS_HEADER_SIZE ) != HEIMDALL_SUCCESS )
             {
                 /* Need more data */
                 return NULL;
             }
 
             /* Check if frame is valid and get frame info */
-            if( vlc_dts_header_Parse( &p_sys->first, p_header,
-                                      VLC_DTS_HEADER_SIZE ) != VLC_SUCCESS
+            if( heimdall_dts_header_Parse( &p_sys->first, p_header,
+                                      HEIMDALL_DTS_HEADER_SIZE ) != HEIMDALL_SUCCESS
              || p_sys->first.i_frame_size == 0 )
             {
                 msg_Dbg( p_dec, "emulated sync word" );
@@ -230,15 +231,15 @@ static block_t *PacketizeBlock( decoder_t *p_dec, block_t **pp_block )
             if( block_PeekOffsetBytes( &p_sys->bytestream,
                                        p_sys->first.i_substream_header_size,
                                        p_header,
-                                       VLC_DTS_HEADER_SIZE ) != VLC_SUCCESS )
+                                       HEIMDALL_DTS_HEADER_SIZE ) != HEIMDALL_SUCCESS )
             {
                 /* Need more data */
                 return NULL;
             }
 
-            vlc_dts_header_t xssheader;
-            if( vlc_dts_header_Parse( &xssheader, p_header,
-                                      VLC_DTS_HEADER_SIZE ) != VLC_SUCCESS )
+            heimdall_dts_header_t xssheader;
+            if( heimdall_dts_header_Parse( &xssheader, p_header,
+                                      HEIMDALL_DTS_HEADER_SIZE ) != HEIMDALL_SUCCESS )
             {
                 msg_Dbg( p_dec, "emulated substream sync word, can't find extension" );
                 block_SkipByte( &p_sys->bytestream );
@@ -268,7 +269,7 @@ static block_t *PacketizeBlock( decoder_t *p_dec, block_t **pp_block )
             p_sys->i_state = STATE_NOSYNC;
             p_dec->fmt_out.i_profile = PROFILE_DTS;
             if( block_SkipBytes( &p_sys->bytestream,
-                                 p_sys->first.i_frame_size ) != VLC_SUCCESS )
+                                 p_sys->first.i_frame_size ) != HEIMDALL_SUCCESS )
                 return NULL;
             break;
 
@@ -278,8 +279,8 @@ static block_t *PacketizeBlock( decoder_t *p_dec, block_t **pp_block )
             {
                 if( block_PeekOffsetBytes( &p_sys->bytestream,
                                            p_sys->i_next_offset, p_header,
-                                           VLC_DTS_HEADER_SIZE )
-                                           != VLC_SUCCESS )
+                                           HEIMDALL_DTS_HEADER_SIZE )
+                                           != HEIMDALL_SUCCESS )
                 {
                     if( p_block == NULL ) /* drain */
                     {
@@ -297,18 +298,18 @@ static block_t *PacketizeBlock( decoder_t *p_dec, block_t **pp_block )
                     continue;
                 }
 
-                if( !vlc_dts_header_IsSync( p_header, VLC_DTS_HEADER_SIZE ) )
+                if( !heimdall_dts_header_IsSync( p_header, HEIMDALL_DTS_HEADER_SIZE ) )
                 {
                     /* Even frame size is likely incorrect FSIZE #18166 */
                     if( (p_sys->first.i_frame_size % 2) && p_sys->i_next_offset > 0 &&
                         block_PeekOffsetBytes( &p_sys->bytestream,
                                                p_sys->i_next_offset - 1, p_header,
-                                               VLC_DTS_HEADER_SIZE ) == 0 &&
-                         vlc_dts_header_IsSync( p_header, VLC_DTS_HEADER_SIZE ) )
+                                               HEIMDALL_DTS_HEADER_SIZE ) == 0 &&
+                         heimdall_dts_header_IsSync( p_header, HEIMDALL_DTS_HEADER_SIZE ) )
                     {
                         p_sys->i_input_size = p_sys->i_next_offset = p_sys->first.i_frame_size - 1;
                         assert(p_sys->i_input_size);
-                        if(p_sys->i_input_size >= VLC_DTS_HEADER_SIZE)
+                        if(p_sys->i_input_size >= HEIMDALL_DTS_HEADER_SIZE)
                             break; /* reenter */
                     }
                     msg_Dbg( p_dec, "emulated sync word "
@@ -321,8 +322,8 @@ static block_t *PacketizeBlock( decoder_t *p_dec, block_t **pp_block )
                 /* Check if a DTS substream packet is located just after
                  * the core packet */
                 if( p_sys->i_next_offset == p_sys->first.i_frame_size &&
-                    vlc_dts_header_Parse( &p_sys->second,
-                                          p_header, VLC_DTS_HEADER_SIZE ) == VLC_SUCCESS &&
+                    heimdall_dts_header_Parse( &p_sys->second,
+                                          p_header, HEIMDALL_DTS_HEADER_SIZE ) == HEIMDALL_SUCCESS &&
                     p_sys->second.syncword == DTS_SYNC_SUBSTREAM )
                 {
                     p_sys->i_state = STATE_NEXT_SYNC_SUBSTREAM_EXTENSIONS;
@@ -353,7 +354,7 @@ static block_t *PacketizeBlock( decoder_t *p_dec, block_t **pp_block )
         case STATE_GET_DATA:
             /* Make sure we have enough data. */
             if( block_WaitBytes( &p_sys->bytestream,
-                                 p_sys->i_input_size ) != VLC_SUCCESS )
+                                 p_sys->i_input_size ) != HEIMDALL_SUCCESS )
             {
                 /* Need more data */
                 return NULL;
@@ -374,7 +375,7 @@ static block_t *PacketizeBlock( decoder_t *p_dec, block_t **pp_block )
 
             /* Make sure we don't reuse the same pts twice */
             if( p_sys->i_pts == p_sys->bytestream.p_block->i_pts )
-                p_sys->i_pts = p_sys->bytestream.p_block->i_pts = VLC_TICK_INVALID;
+                p_sys->i_pts = p_sys->bytestream.p_block->i_pts = HEIMDALL_TICK_INVALID;
 
             if( p_sys->b_discontinuity )
             {
@@ -393,7 +394,7 @@ static block_t *PacketizeBlock( decoder_t *p_dec, block_t **pp_block )
     }
 }
 
-static void Close( vlc_object_t *p_this )
+static void Close( heimdall_object_t *p_this )
 {
     decoder_t *p_dec = (decoder_t*)p_this;
     decoder_sys_t *p_sys = p_dec->p_sys;
@@ -403,26 +404,26 @@ static void Close( vlc_object_t *p_this )
     free( p_sys );
 }
 
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     decoder_t *p_dec = (decoder_t*)p_this;
     decoder_sys_t *p_sys;
 
-    if( p_dec->fmt_in->i_codec != VLC_CODEC_DTS )
-        return VLC_EGENERIC;
+    if( p_dec->fmt_in->i_codec != HEIMDALL_CODEC_DTS )
+        return HEIMDALL_EGENERIC;
 
     /* Allocate the memory needed to store the decoder's structure */
     if( ( p_dec->p_sys = p_sys = malloc(sizeof(decoder_sys_t)) ) == NULL )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     /* Misc init */
     p_sys->i_state = STATE_NOSYNC;
-    date_Set( &p_sys->end_date, VLC_TICK_INVALID );
-    p_sys->i_pts = VLC_TICK_INVALID;
+    date_Set( &p_sys->end_date, HEIMDALL_TICK_INVALID );
+    p_sys->i_pts = HEIMDALL_TICK_INVALID;
     p_sys->b_date_set = false;
     p_sys->b_discontinuity = false;
-    memset(&p_sys->first, 0, sizeof(vlc_dts_header_t));
-    memset(&p_sys->second, 0, sizeof(vlc_dts_header_t));
+    memset(&p_sys->first, 0, sizeof(heimdall_dts_header_t));
+    memset(&p_sys->second, 0, sizeof(heimdall_dts_header_t));
     block_BytestreamInit( &p_sys->bytestream );
 
     /* Set output properties (passthrough only) */
@@ -433,5 +434,5 @@ static int Open( vlc_object_t *p_this )
     p_dec->pf_packetize = PacketizeBlock;
     p_dec->pf_flush     = PacketizeFlush;
     p_dec->pf_get_cc    = NULL;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

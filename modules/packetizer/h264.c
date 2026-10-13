@@ -2,11 +2,12 @@
  * h264.c: h264/avc video packetizer
  *****************************************************************************
  * Copyright (C) 2001, 2002, 2006 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *          Eric Petit <titer@videolan.org>
  *          Gildas Bazin <gbazin@videolan.org>
- *          Derk-Jan Hartman <hartman at videolan dot org>
+ *          Derk-Jan Hartman <hartman at lycaria dot org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -31,14 +32,14 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_sout.h>
-#include <vlc_codec.h>
-#include <vlc_block.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_sout.h>
+#include <heimdall_codec.h>
+#include <heimdall_block.h>
 
-#include <vlc_block_helper.h>
-#include <vlc_bits.h>
+#include <heimdall_block_helper.h>
+#include <heimdall_bits.h>
 #include "h264_nal.h"
 #include "h264_slice.h"
 #include "hxxx_nal.h"
@@ -52,15 +53,15 @@
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  Open ( vlc_object_t * );
-static void Close( vlc_object_t * );
+static int  Open ( heimdall_object_t * );
+static void Close( heimdall_object_t * );
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_subcategory( SUBCAT_SOUT_PACKETIZER )
     set_description( N_("H.264 video packetizer") )
     set_capability( "video packetizer", 50 )
     set_callbacks( Open, Close )
-vlc_module_end ()
+heimdall_module_end ()
 
 
 /****************************************************************************
@@ -121,12 +122,12 @@ typedef struct
     h264_poc_context_t pocctx;
     struct
     {
-        vlc_tick_t pts;
+        heimdall_tick_t pts;
         int num;
     } prevdatedpoc;
 
-    vlc_tick_t i_frame_pts;
-    vlc_tick_t i_frame_dts;
+    heimdall_tick_t i_frame_pts;
+    heimdall_tick_t i_frame_dts;
 
     date_t dts;
 
@@ -284,30 +285,30 @@ static void DropStoredNAL( decoder_sys_t *p_sys )
  * When opening after demux, the packetizer is only loaded AFTER the decoder
  * That means that what you set in fmt_out is ignored by the decoder in this special case
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     decoder_t     *p_dec = (decoder_t*)p_this;
     decoder_sys_t *p_sys;
     int i;
 
-    const bool b_avc = (p_dec->fmt_in->i_original_fourcc == VLC_FOURCC( 'a', 'v', 'c', '1' ));
+    const bool b_avc = (p_dec->fmt_in->i_original_fourcc == HEIMDALL_FOURCC( 'a', 'v', 'c', '1' ));
 
-    if( p_dec->fmt_in->i_codec != VLC_CODEC_H264 )
-        return VLC_EGENERIC;
+    if( p_dec->fmt_in->i_codec != HEIMDALL_CODEC_H264 )
+        return HEIMDALL_EGENERIC;
     if( b_avc && p_dec->fmt_in->i_extra < 7 )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* Allocate the memory needed to store the decoder's structure */
     if( ( p_dec->p_sys = p_sys = malloc( sizeof(decoder_sys_t) ) ) == NULL )
     {
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     p_sys->p_ccs = cc_storage_new();
     if( unlikely(!p_sys->p_ccs) )
     {
         free( p_sys );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     packetizer_Init( &p_sys->packetizer,
@@ -343,19 +344,19 @@ static int Open( vlc_object_t *p_this )
     p_sys->i_next_block_flags = 0;
     p_sys->b_recovered = false;
     p_sys->i_recoveryfnum = UINT_MAX;
-    p_sys->i_frame_dts = VLC_TICK_INVALID;
-    p_sys->i_frame_pts = VLC_TICK_INVALID;
+    p_sys->i_frame_dts = HEIMDALL_TICK_INVALID;
+    p_sys->i_frame_pts = HEIMDALL_TICK_INVALID;
     p_sys->i_dpb_output_delay = 0;
 
     /* POC */
     h264_poc_context_init( &p_sys->pocctx );
-    p_sys->prevdatedpoc.pts = VLC_TICK_INVALID;
+    p_sys->prevdatedpoc.pts = HEIMDALL_TICK_INVALID;
 
     date_Init( &p_sys->dts, 30000 * 2, 1001 );
 
     /* Setup properties */
     es_format_Copy( &p_dec->fmt_out, p_dec->fmt_in );
-    p_dec->fmt_out.i_codec = VLC_CODEC_H264;
+    p_dec->fmt_out.i_codec = HEIMDALL_CODEC_H264;
     p_dec->fmt_out.b_packetized = true;
 
     if( p_dec->fmt_in->video.i_frame_rate_base &&
@@ -382,7 +383,7 @@ static int Open( vlc_object_t *p_this )
             {
                 msg_Err( p_dec, "Invalid AVC extradata");
                 Close( p_this );
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             }
             free( p_dec->fmt_out.p_extra );
             p_dec->fmt_out.p_extra = p_newextra;
@@ -393,7 +394,7 @@ static int Open( vlc_object_t *p_this )
         {
             msg_Err( p_dec, "Invalid or missing AVC extradata");
             Close( p_this );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         /* Set callback */
@@ -424,7 +425,7 @@ static int Open( vlc_object_t *p_this )
             msg_Err( p_dec, "Invalid or missing SPS %d or PPS %d in AVC extradata",
                      p_sys->b_new_sps, p_sys->b_new_pps );
             Close( p_this );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         msg_Dbg( p_dec, "Packetizer fed with AVC, nal length size=%d",
@@ -435,13 +436,13 @@ static int Open( vlc_object_t *p_this )
     p_dec->pf_get_cc = GetCc;
     p_dec->pf_flush = PacketizeFlush;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * Close: clean up the packetizer
  *****************************************************************************/
-static void Close( vlc_object_t *p_this )
+static void Close( heimdall_object_t *p_this )
 {
     decoder_t *p_dec = (decoder_t*)p_this;
     decoder_sys_t *p_sys = p_dec->p_sys;
@@ -506,8 +507,8 @@ static block_t *GetCc( decoder_t *p_dec, decoder_cc_desc_t *p_desc )
  ****************************************************************************/
 static void ResetOutputVariables( decoder_sys_t *p_sys )
 {
-    p_sys->i_frame_dts = VLC_TICK_INVALID;
-    p_sys->i_frame_pts = VLC_TICK_INVALID;
+    p_sys->i_frame_dts = HEIMDALL_TICK_INVALID;
+    p_sys->i_frame_pts = HEIMDALL_TICK_INVALID;
     if( p_sys->p_slice )
         h264_slice_release( p_sys->p_slice );
     p_sys->p_slice = NULL;
@@ -534,10 +535,10 @@ static void PacketizeReset( void *p_private, bool b_flush )
         p_sys->i_recoveryfnum = UINT_MAX;
         /* POC */
         h264_poc_context_init( &p_sys->pocctx );
-        p_sys->prevdatedpoc.pts = VLC_TICK_INVALID;
+        p_sys->prevdatedpoc.pts = HEIMDALL_TICK_INVALID;
     }
     p_sys->i_next_block_flags = BLOCK_FLAG_DISCONTINUITY;
-    date_Set( &p_sys->dts, VLC_TICK_INVALID );
+    date_Set( &p_sys->dts, HEIMDALL_TICK_INVALID );
 }
 static block_t *PacketizeParse( void *p_private, bool *pb_ts_used, block_t *p_block )
 {
@@ -551,9 +552,9 @@ static block_t *PacketizeParse( void *p_private, bool *pb_ts_used, block_t *p_bl
 }
 static int PacketizeValidate( void *p_private, block_t *p_au )
 {
-    VLC_UNUSED(p_private);
-    VLC_UNUSED(p_au);
-    return VLC_SUCCESS;
+    HEIMDALL_UNUSED(p_private);
+    HEIMDALL_UNUSED(p_au);
+    return HEIMDALL_SUCCESS;
 }
 
 static block_t * PacketizeDrain( void *p_private )
@@ -584,8 +585,8 @@ static block_t *ParseNALBlock( decoder_t *p_dec, bool *pb_ts_used, block_t *p_fr
     block_t *p_pic = NULL;
 
     const enum h264_nal_unit_type_e i_nal_type = h264_getNALType( &p_frag->p_buffer[4] );
-    const vlc_tick_t i_frag_dts = p_frag->i_dts;
-    const vlc_tick_t i_frag_pts = p_frag->i_pts;
+    const heimdall_tick_t i_frag_dts = p_frag->i_dts;
+    const heimdall_tick_t i_frag_pts = p_frag->i_pts;
     bool b_au_end = p_frag->i_flags & BLOCK_FLAG_AU_END;
     p_frag->i_flags &= ~BLOCK_FLAG_AU_END;
 
@@ -728,13 +729,13 @@ static block_t *ParseNALBlock( decoder_t *p_dec, bool *pb_ts_used, block_t *p_fr
     }
 
     *pb_ts_used = false;
-    if( p_sys->i_frame_dts == VLC_TICK_INVALID &&
-        p_sys->i_frame_pts == VLC_TICK_INVALID )
+    if( p_sys->i_frame_dts == HEIMDALL_TICK_INVALID &&
+        p_sys->i_frame_pts == HEIMDALL_TICK_INVALID )
     {
         p_sys->i_frame_dts = i_frag_dts;
         p_sys->i_frame_pts = i_frag_pts;
         *pb_ts_used = true;
-        if( i_frag_dts != VLC_TICK_INVALID )
+        if( i_frag_dts != HEIMDALL_TICK_INVALID )
             date_Set( &p_sys->dts, i_frag_dts );
     }
 
@@ -899,16 +900,16 @@ static block_t *OutputPicture( decoder_t *p_dec )
     p_pic->i_pts = p_sys->i_frame_pts;
 
     /* Fixup missing timestamps after split (multiple AU/block)*/
-    if( p_pic->i_dts == VLC_TICK_INVALID )
+    if( p_pic->i_dts == HEIMDALL_TICK_INVALID )
         p_pic->i_dts = date_Get( &p_sys->dts );
 
     if( h264_get_slice_type( p_sys->p_slice ) == H264_SLICE_TYPE_I )
-        p_sys->prevdatedpoc.pts = VLC_TICK_INVALID;
+        p_sys->prevdatedpoc.pts = HEIMDALL_TICK_INVALID;
 
-    if( p_pic->i_pts == VLC_TICK_INVALID )
+    if( p_pic->i_pts == HEIMDALL_TICK_INVALID )
     {
-        if( p_sys->prevdatedpoc.pts != VLC_TICK_INVALID &&
-            date_Get( &p_sys->dts ) != VLC_TICK_INVALID )
+        if( p_sys->prevdatedpoc.pts != HEIMDALL_TICK_INVALID &&
+            date_Get( &p_sys->dts ) != HEIMDALL_TICK_INVALID )
         {
             date_t pts = p_sys->dts;
             date_Set( &pts, p_sys->prevdatedpoc.pts );
@@ -930,7 +931,7 @@ static block_t *OutputPicture( decoder_t *p_dec )
             p_pic->i_pts = p_pic->i_dts;
         }
         else if( h264_get_slice_type( p_sys->p_slice ) == H264_SLICE_TYPE_I &&
-                 date_Get( &p_sys->dts ) != VLC_TICK_INVALID )
+                 date_Get( &p_sys->dts ) != HEIMDALL_TICK_INVALID )
         {
             /* Hell no PTS on IDR. We're totally blind */
             date_t pts = p_sys->dts;
@@ -938,15 +939,15 @@ static block_t *OutputPicture( decoder_t *p_dec )
             p_pic->i_pts = date_Get( &pts );
         }
     }
-    else if( p_pic->i_dts == VLC_TICK_INVALID &&
+    else if( p_pic->i_dts == HEIMDALL_TICK_INVALID &&
              h264_CanSwapPTSWithDTS( p_sys->p_slice, p_sps ) )
     {
         p_pic->i_dts = p_pic->i_pts;
-        if( date_Get( &p_sys->dts ) == VLC_TICK_INVALID )
+        if( date_Get( &p_sys->dts ) == HEIMDALL_TICK_INVALID )
             date_Set( &p_sys->dts, p_pic->i_pts );
     }
 
-    if( p_pic->i_pts != VLC_TICK_INVALID )
+    if( p_pic->i_pts != HEIMDALL_TICK_INVALID )
     {
         p_sys->prevdatedpoc.pts = p_pic->i_pts;
         p_sys->prevdatedpoc.num = PictureOrderCount;
@@ -965,14 +966,14 @@ static block_t *OutputPicture( decoder_t *p_dec )
                     h264_get_slice_type(p_sys->p_slice), p_sys->b_recovered, p_pic->i_flags,
                     h264_get_nal_ref_idc(p_sys->p_slice), h264_get_frame_num(p_sys->p_slice),
                     h264_is_field_pic(p_sys->p_slice),
-                    p_pic->i_pts - p_pic->i_dts, p_pic->i_pts % VLC_TICK_FROM_SEC(100), p_pic->i_length);
+                    p_pic->i_pts - p_pic->i_dts, p_pic->i_pts % HEIMDALL_TICK_FROM_SEC(100), p_pic->i_length);
 #endif
 
     /* save for next pic fixups */
-    if( date_Get( &p_sys->dts ) != VLC_TICK_INVALID )
+    if( date_Get( &p_sys->dts ) != HEIMDALL_TICK_INVALID )
     {
         if( p_sys->i_next_block_flags & BLOCK_FLAG_DISCONTINUITY )
-            date_Set( &p_sys->dts, VLC_TICK_INVALID );
+            date_Set( &p_sys->dts, HEIMDALL_TICK_INVALID );
         else
             date_Increment( &p_sys->dts, i_num_clock_ts );
     }

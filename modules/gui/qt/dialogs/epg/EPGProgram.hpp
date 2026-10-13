@@ -2,6 +2,7 @@
  * EPGProgram.hpp:
  ****************************************************************************
  * Copyright © 2016 VideoLAN Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,7 +23,7 @@
 
 #include "qt.hpp"
 
-#include <vlc_epg.h>
+#include <heimdall_epg.h>
 #include <QObject>
 #include <QMap>
 #include <QHash>
@@ -36,11 +37,11 @@ class EPGProgram : public QObject
     Q_OBJECT
 
     public:
-        EPGProgram( EPGView *, const vlc_epg_t * );
+        EPGProgram( EPGView *, const heimdall_epg_t * );
         virtual ~EPGProgram();
 
         void pruneEvents( const QDateTime & );
-        void updateEvents( const vlc_epg_event_t * const *, size_t, const vlc_epg_event_t *,
+        void updateEvents( const heimdall_epg_event_t * const *, size_t, const heimdall_epg_event_t *,
                            QDateTime * );
         void updateEventPos();
         size_t getPosition() const;

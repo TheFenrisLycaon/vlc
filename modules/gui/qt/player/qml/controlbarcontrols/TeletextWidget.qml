@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,10 +22,10 @@ import QtQuick.Layouts
 import QtQuick.Templates as T
 
 
-import VLC.MainInterface
-import VLC.Widgets as Widgets
-import VLC.Player
-import VLC.Style
+import Heimdall.MainInterface
+import Heimdall.Widgets as Widgets
+import Heimdall.Player
+import Heimdall.Style
 
 T.Pane {
     id: root
@@ -58,11 +59,11 @@ T.Pane {
     Column {
         id: column
 
-        spacing: VLCStyle.margin_small
+        spacing: HeimdallStyle.margin_small
 
         Item {
             // NOTE: This makes sure that we can deal with long translations for our itemText.
-            width: Math.max(itemText.implicitWidth + teleActivateBtn.width + VLCStyle.margin_small,
+            width: Math.max(itemText.implicitWidth + teleActivateBtn.width + HeimdallStyle.margin_small,
                             parent.width)
 
             height: teleActivateBtn.height
@@ -97,7 +98,7 @@ T.Pane {
             anchors.left: parent.left
             anchors.right: parent.right
 
-            spacing: VLCStyle.margin_small
+            spacing: HeimdallStyle.margin_small
 
             Widgets.IconToolButton {
                 id: teleTransparencyBtn
@@ -106,7 +107,7 @@ T.Pane {
 
                 checked: Player.teletextTransparency
 
-                text: VLCIcons.transparency
+                text: HeimdallIcons.transparency
                 description: qsTr("Teletext transparency")
 
                 Navigation.parentItem: root
@@ -167,7 +168,7 @@ T.Pane {
         }
 
         Row {
-            spacing: VLCStyle.margin_small
+            spacing: HeimdallStyle.margin_small
 
             Widgets.IconToolButton {
                 id: indexKeyBtn
@@ -176,7 +177,7 @@ T.Pane {
 
                 enabled: teleActivateBtn.checked
 
-                text: VLCIcons.home
+                text: HeimdallIcons.home
                 description: qsTr("Index key")
 
                 Navigation.parentItem: root

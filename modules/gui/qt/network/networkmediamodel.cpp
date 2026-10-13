@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -241,12 +242,12 @@ public:
                 const QString uri = item->uri;
                 m_mediaLib->runOnMLThread<Ctx>(q,
                     //ML thread
-                    [uri](vlc_medialibrary_t* ml, Ctx& ctx){
+                    [uri](heimdall_medialibrary_t* ml, Ctx& ctx){
                         // Medialibrary requires folders uri to be terminated with '/'
                         const QString mlURI = uri + "/";
 
-                        auto ret = vlc_ml_is_indexed( ml, qtu( mlURI ), &ctx.isIndexed );
-                        ctx.succeed = (ret == VLC_SUCCESS);
+                        auto ret = heimdall_ml_is_indexed( ml, qtu( mlURI ), &ctx.isIndexed );
+                        ctx.succeed = (ret == HEIMDALL_SUCCESS);
                     },
                     //UI thread
                     [this, uri](quint64, Ctx& ctx){
@@ -390,9 +391,9 @@ public:
                 };
                 m_mediaLib->runOnMLThread<Ctx>(q,
                     //ML thread
-                    [uri](vlc_medialibrary_t* ml, Ctx& ctx){
-                        auto ret = vlc_ml_is_indexed( ml, uri.constData(), &ctx.isIndexed );
-                        ctx.succeed = (ret == VLC_SUCCESS);
+                    [uri](heimdall_medialibrary_t* ml, Ctx& ctx){
+                        auto ret = heimdall_ml_is_indexed( ml, uri.constData(), &ctx.isIndexed );
+                        ctx.succeed = (ret == HEIMDALL_SUCCESS);
                     },
                     //ML thread
                     [this](quint64,Ctx& ctx){
@@ -409,15 +410,15 @@ public:
             input_item_node_t* mediaNode = nullptr;
             input_item_node_t* parent = nullptr;
             std::vector<SharedInputItem> itemList;
-            /* vlc_preparser_Cancel can call the callback from this thread so the mutex
+            /* heimdall_preparser_Cancel can call the callback from this thread so the mutex
                must be unlocked */
             if (m_parserReq != NULL)
-                vlc_preparser_Cancel( parser, m_parserReq );
+                heimdall_preparser_Cancel( parser, m_parserReq );
 
             {
                 MediaTreeLocker lock{tree};
                 m_path = {QVariant::fromValue(PathNode(m_treeItem, m_name))};
-                if (vlc_media_tree_Find( tree.get(), m_treeItem.media.get(), &mediaNode, &parent))
+                if (heimdall_media_tree_Find( tree.get(), m_treeItem.media.get(), &mediaNode, &parent))
                 {
                     itemList.reserve(mediaNode->i_children);
                     for (int i = 0; i < mediaNode->i_children; i++)
@@ -430,7 +431,7 @@ public:
                             parent->p_item->psz_name)));
                         input_item_node_t *node = nullptr;
                         input_item_node_t *grandParent = nullptr;
-                        if (!vlc_media_tree_Find( tree.get(), parent->p_item, &node, &grandParent)) {
+                        if (!heimdall_media_tree_Find( tree.get(), parent->p_item, &node, &grandParent)) {
                             break;
                         }
                         parent = grandParent;
@@ -445,10 +446,10 @@ public:
         m_preparseSem.acquire();
         if (m_parserReq != NULL)
         {
-            vlc_preparser_req_Release( m_parserReq );
+            heimdall_preparser_req_Release( m_parserReq );
             m_parserReq = NULL;
         }
-        m_parserReq = vlc_media_tree_Preparse( tree.get(), parser, m_treeItem.media.get() );
+        m_parserReq = heimdall_media_tree_Preparse( tree.get(), parser, m_treeItem.media.get() );
 
         m_listener = std::move( l );
 
@@ -491,7 +492,7 @@ public:
 
     struct ListenerCb;
 private:
-    vlc_preparser_req *m_parserReq;
+    heimdall_preparser_req *m_parserReq;
 };
 
 // NetworkMediaModel::ListenerCb implementation
@@ -524,7 +525,7 @@ NetworkMediaModel::~NetworkMediaModel()
         if (likely(parser != NULL))
         {
             if (d->m_parserReq != NULL)
-                vlc_preparser_Cancel( parser, d->m_parserReq );
+                heimdall_preparser_Cancel( parser, d->m_parserReq );
             //wait for the callback call on cancel
             d->m_preparseSem.acquire();
         }
@@ -532,7 +533,7 @@ NetworkMediaModel::~NetworkMediaModel()
 
     if (d->m_parserReq != NULL)
     {
-        vlc_preparser_req_Release( d->m_parserReq );
+        heimdall_preparser_req_Release( d->m_parserReq );
         d->m_parserReq = NULL;
     }
 }
@@ -588,7 +589,7 @@ QVariant NetworkMediaModel::data( const QModelIndex& index, int role ) const
         {
             if (item->media.valid())
             {
-                const VLCDuration duration = item->media.duration();
+                const HeimdallDuration duration = item->media.duration();
                 return !duration.valid() ? QVariant {} : QVariant::fromValue(duration);
             }
 
@@ -654,18 +655,18 @@ bool NetworkMediaModel::setData( const QModelIndex& idx, const QVariant& value, 
     d->m_mediaLib->runOnMLThread<Ctx>(this,
     //ML thread
     [enabled, uri]
-    (vlc_medialibrary_t* ml, Ctx& ctx){
+    (heimdall_medialibrary_t* ml, Ctx& ctx){
         int res;
 
         // Medialibrary requires folders uri to be terminated with '/'
         const QString mlURI = uri + "/";
 
         if ( enabled )
-            res = vlc_ml_add_folder( ml, qtu( mlURI ) );
+            res = heimdall_ml_add_folder( ml, qtu( mlURI ) );
         else
-            res = vlc_ml_remove_folder( ml, qtu( mlURI ) );
+            res = heimdall_ml_remove_folder( ml, qtu( mlURI ) );
 
-        ctx.succeed = res == VLC_SUCCESS;
+        ctx.succeed = res == HEIMDALL_SUCCESS;
     },
     //UI thread
     [this, uri, enabled](qint64, Ctx& ctx){
@@ -693,14 +694,14 @@ void NetworkMediaModel::setIndexed(bool indexed)
     };
     d->m_mediaLib->runOnMLThread<Ctx>(this,
     //ML thread
-    [url, indexed](vlc_medialibrary_t* ml, Ctx& ctx)
+    [url, indexed](heimdall_medialibrary_t* ml, Ctx& ctx)
     {
         int res;
         if ( indexed )
-            res = vlc_ml_add_folder(  ml, qtu( url ) );
+            res = heimdall_ml_add_folder(  ml, qtu( url ) );
         else
-            res = vlc_ml_remove_folder( ml, qtu( url ) );
-        ctx.success = (res == VLC_SUCCESS);
+            res = heimdall_ml_remove_folder( ml, qtu( url ) );
+        ctx.success = (res == HEIMDALL_SUCCESS);
     },
     //UI thread
     [this, indexed](quint64, Ctx& ctx){
@@ -756,7 +757,7 @@ bool NetworkMediaModel::insertIntoPlaylist(const QModelIndexList &itemIdList, co
     Q_D(NetworkMediaModel);
     if (!(d->m_ctx && d->m_hasTree))
         return false;
-    QVector<vlc::playlist::Media> medias;
+    QVector<heimdall::playlist::Media> medias;
     medias.reserve( itemIdList.size() );
     for ( const QModelIndex &id : itemIdList )
     {
@@ -767,7 +768,7 @@ bool NetworkMediaModel::insertIntoPlaylist(const QModelIndexList &itemIdList, co
         if (!item)
             continue;
 
-        medias.append( vlc::playlist::Media {item->tree.media.get()} );
+        medias.append( heimdall::playlist::Media {item->tree.media.get()} );
     }
     if (medias.isEmpty())
         return false;
@@ -784,8 +785,8 @@ bool NetworkMediaModel::addToPlaylist(const int index)
     if (!item)
         return false;
 
-    vlc::playlist::Media media{ item->tree.media.get() };
-    d->m_ctx->getIntf()->p_mainPlaylistController->append( QVector<vlc::playlist::Media>{ media }, false);
+    heimdall::playlist::Media media{ item->tree.media.get() };
+    d->m_ctx->getIntf()->p_mainPlaylistController->append( QVector<heimdall::playlist::Media>{ media }, false);
     return true;
 }
 
@@ -830,8 +831,8 @@ bool NetworkMediaModel::addAndPlay(int index)
     if (!item)
         return false;
 
-    vlc::playlist::Media media{ item->tree.media.get() };
-    d->m_ctx->getIntf()->p_mainPlaylistController->append( QVector<vlc::playlist::Media>{ media }, true);
+    heimdall::playlist::Media media{ item->tree.media.get() };
+    d->m_ctx->getIntf()->p_mainPlaylistController->append( QVector<heimdall::playlist::Media>{ media }, true);
     return true;
 }
 
@@ -984,7 +985,7 @@ void NetworkMediaModelPrivate::ListenerCb::onItemCleared( MediaTreePtr tree, inp
 
         {
             MediaTreeLocker lock{ d->m_treeItem.tree };
-            bool found = vlc_media_tree_Find( d->m_treeItem.tree.get(), d->m_treeItem.media.get(),
+            bool found = heimdall_media_tree_Find( d->m_treeItem.tree.get(), d->m_treeItem.media.get(),
                                              &res, &parent );
             if (!found)
                 return;

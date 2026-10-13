@@ -2,6 +2,7 @@
  * DASHStream.hpp
  *****************************************************************************
  * Copyright (C) 2015 - VideoLAN and VLC authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -32,7 +33,7 @@ namespace dash
             DASHStream(demux_t *);
 
         protected:
-            AbstractDemuxer * newDemux(vlc_object_t *, const StreamFormat &,
+            AbstractDemuxer * newDemux(heimdall_object_t *, const StreamFormat &,
                                        es_out_t *, AbstractSourceStream *) const override;
     };
 

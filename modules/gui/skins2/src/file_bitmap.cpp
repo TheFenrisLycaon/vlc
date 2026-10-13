@@ -2,6 +2,7 @@
  * file_bitmap.cpp
  *****************************************************************************
  * Copyright (C) 2003 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cyril Deguet     <asmax@via.ecp.fr>
  *          Olivier Teulière <ipkiss@via.ecp.fr>
@@ -25,9 +26,9 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_image.h>
-#include <vlc_url.h>
+#include <heimdall_common.h>
+#include <heimdall_image.h>
+#include <heimdall_url.h>
 #include "file_bitmap.hpp"
 
 FileBitmap::FileBitmap( intf_thread_t *pIntf, image_handler_t *pImageHandler,
@@ -40,13 +41,13 @@ FileBitmap::FileBitmap( intf_thread_t *pIntf, image_handler_t *pImageHandler,
     picture_t *pPic;
     unsigned size;
 
-    video_format_Init( &fmt_out, VLC_CODEC_RGBA );
+    video_format_Init( &fmt_out, HEIMDALL_CODEC_RGBA );
 
     std::string uriName = fileName;
 
     if( strstr( fileName.c_str(), "://" ) == NULL )
     {
-        char *psz_uri = vlc_path2uri( fileName.c_str(), NULL );
+        char *psz_uri = heimdall_path2uri( fileName.c_str(), NULL );
         if( !psz_uri )
             return;
         uriName = psz_uri;

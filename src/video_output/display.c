@@ -2,8 +2,9 @@
  * display.c: "vout display" management
  *****************************************************************************
  * Copyright (C) 2009 Laurent Aimar
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Laurent Aimar <fenrir _AT_ videolan _DOT_ org>
+ * Authors: Laurent Aimar <fenrir _AT_ lycaria _DOT_ org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -29,16 +30,16 @@
 #include <assert.h>
 #include <stdatomic.h>
 
-#include <vlc_common.h>
-#include <vlc_vout_display.h>
-#include <vlc_vout.h>
-#include <vlc_block.h>
-#include <vlc_modules.h>
-#include <vlc_filter.h>
-#include <vlc_picture_pool.h>
-#include <vlc_codec.h>
+#include <heimdall_common.h>
+#include <heimdall_vout_display.h>
+#include <heimdall_vout.h>
+#include <heimdall_block.h>
+#include <heimdall_modules.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture_pool.h>
+#include <heimdall_codec.h>
 
-#include "../libvlc.h"
+#include "../libheimdall.h"
 
 #include "display.h"
 #include "vout_internal.h"
@@ -86,7 +87,7 @@ static void vout_display_PlaceRotatedPicture(vout_display_place_t *restrict plac
     unsigned display_width;
     unsigned display_height;
 
-    if (dp->fitting != VLC_VIDEO_FIT_NONE) {
+    if (dp->fitting != HEIMDALL_VIDEO_FIT_NONE) {
         display_width  = dp->width;
         display_height = dp->height;
     } else
@@ -106,18 +107,18 @@ static void vout_display_PlaceRotatedPicture(vout_display_place_t *restrict plac
         bool fit_height;
 
         switch (dp->fitting) {
-            case VLC_VIDEO_FIT_NONE:
-            case VLC_VIDEO_FIT_SMALLER:
+            case HEIMDALL_VIDEO_FIT_NONE:
+            case HEIMDALL_VIDEO_FIT_SMALLER:
                 /* We keep the solution fitting within the display */
                 fit_height = scaled_width <= dp->width;
                 break;
-            case VLC_VIDEO_FIT_LARGER:
+            case HEIMDALL_VIDEO_FIT_LARGER:
                 fit_height = scaled_width >= dp->width;
                 break;
-            case VLC_VIDEO_FIT_WIDTH:
+            case HEIMDALL_VIDEO_FIT_WIDTH:
                 fit_height = false;
                 break;
-            case VLC_VIDEO_FIT_HEIGHT:
+            case HEIMDALL_VIDEO_FIT_HEIGHT:
                 fit_height = true;
                 break;
         }
@@ -138,10 +139,10 @@ static void vout_display_PlaceRotatedPicture(vout_display_place_t *restrict plac
 
     /*  Compute position */
     switch (dp->align.horizontal) {
-    case VLC_VIDEO_ALIGN_LEFT:
+    case HEIMDALL_VIDEO_ALIGN_LEFT:
         place->x = 0;
         break;
-    case VLC_VIDEO_ALIGN_RIGHT:
+    case HEIMDALL_VIDEO_ALIGN_RIGHT:
         place->x = dp->width - place->width;
         break;
     default:
@@ -150,10 +151,10 @@ static void vout_display_PlaceRotatedPicture(vout_display_place_t *restrict plac
     }
 
     switch (dp->align.vertical) {
-    case VLC_VIDEO_ALIGN_TOP:
+    case HEIMDALL_VIDEO_ALIGN_TOP:
         place->y = 0;
         break;
-    case VLC_VIDEO_ALIGN_BOTTOM:
+    case HEIMDALL_VIDEO_ALIGN_BOTTOM:
         place->y = dp->height - place->height;
         break;
     default:
@@ -224,7 +225,7 @@ void vout_display_TranslateCoordinates(int *restrict xp, int *restrict yp,
             y = place.width - wx;
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 
     x = source_rot.i_x_offset
@@ -248,10 +249,10 @@ typedef struct {
     struct vout_crop crop;
 
     /* */
-    vlc_rational_t dar;
+    heimdall_rational_t dar;
     video_format_t source;          // format coming from the decoder
     video_format_t display_fmt;     // format required on the input of the display module
-    vlc_video_context *src_vctx;
+    heimdall_video_context *src_vctx;
 
     vout_display_place_t src_place;
 
@@ -283,12 +284,12 @@ static picture_t *SourceConverterBuffer(filter_t *filter)
     return picture_pool_Get(osys->converter->pool);
 }
 
-static vlc_decoder_device * DisplayHoldDecoderDevice(vlc_object_t *o, void *sys)
+static heimdall_decoder_device * DisplayHoldDecoderDevice(heimdall_object_t *o, void *sys)
 {
-    VLC_UNUSED(o);
+    HEIMDALL_UNUSED(o);
     vout_display_t *vd = sys;
     vout_display_priv_t *osys = container_of(vd, vout_display_priv_t, display);
-    return osys->src_vctx ? vlc_video_context_HoldDevice(osys->src_vctx) : NULL;
+    return osys->src_vctx ? heimdall_video_context_HoldDevice(osys->src_vctx) : NULL;
 }
 
 static const struct filter_video_callbacks vout_display_filter_cbs = {
@@ -301,10 +302,10 @@ static void VoutConverterRelease(struct pooled_filter_chain *conv)
     free(conv);
 }
 
-static struct pooled_filter_chain *VoutSetupConverter(vlc_object_t *o,
+static struct pooled_filter_chain *VoutSetupConverter(heimdall_object_t *o,
                               filter_owner_t *owner,
                               const video_format_t *fmt_in,
-                              vlc_video_context *vctx_in,
+                              heimdall_video_context *vctx_in,
                               const video_format_t *fmt_out)
 {
     struct pooled_filter_chain *conv = malloc(sizeof(*conv));
@@ -344,7 +345,7 @@ static struct pooled_filter_chain *VoutSetupConverter(vlc_object_t *o,
     es_format_Clean(&dst);
     es_format_Clean(&src);
 
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
     {
         VoutConverterRelease(conv);
         return NULL;
@@ -370,18 +371,18 @@ static int VoutConverterCreate(vout_display_t *vd)
 
     const bool convert = memcmp(&v_src, &v_dst, sizeof(v_src)) != 0;
     if (!convert)
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
     msg_Dbg(vd, "A filter to adapt decoder %4.4s to display %4.4s is needed",
             (const char *)&v_src.i_chroma, (const char *)&v_dst.i_chroma);
 
-    osys->converter = VoutSetupConverter(VLC_OBJECT(vd), &owner,
+    osys->converter = VoutSetupConverter(HEIMDALL_OBJECT(vd), &owner,
                                  &v_src, osys->src_vctx, &osys->display_fmt);
     if (osys->converter == NULL) {
         msg_Err(vd, "Failed to adapt decoder format to display");
-        return VLC_ENOTSUP;
+        return HEIMDALL_ENOTSUP;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void VoutDisplayCropRatio(unsigned *left, unsigned *top, unsigned *right, unsigned *bottom,
@@ -420,7 +421,7 @@ picture_t *vout_ConvertForDisplay(vout_display_t *vd, picture_t *picture)
 }
 
 picture_t *vout_display_Prepare(vout_display_t *vd, picture_t *picture,
-                                const vlc_render_subpicture *subpic, vlc_tick_t date)
+                                const heimdall_render_subpicture *subpic, heimdall_tick_t date)
 {
     assert(subpic == NULL); /* TODO */
     picture = vout_ConvertForDisplay(vd, picture);
@@ -449,8 +450,8 @@ static void vout_display_Reset(vout_display_t *vd)
     }
 
     assert(vd->ops->reset_pictures);
-    if (vd->ops->reset_pictures(vd, &osys->display_fmt) != VLC_SUCCESS
-     || VoutConverterCreate(vd) != VLC_SUCCESS)
+    if (vd->ops->reset_pictures(vd, &osys->display_fmt) != HEIMDALL_SUCCESS
+     || VoutConverterCreate(vd) != HEIMDALL_SUCCESS)
         msg_Err(vd, "Failed to adjust render format");
 }
 
@@ -458,9 +459,9 @@ static int vout_UpdateSourceCrop(vout_display_t *vd)
 {
     vout_display_priv_t *osys = container_of(vd, vout_display_priv_t, display);
     unsigned left, top, right, bottom;
-    int err1 = VLC_SUCCESS, err2;
+    int err1 = HEIMDALL_SUCCESS, err2;
 
-    video_format_Print(VLC_OBJECT(vd), "SOURCE ", &osys->source);
+    video_format_Print(HEIMDALL_OBJECT(vd), "SOURCE ", &osys->source);
 
     switch (osys->crop.mode) {
         case VOUT_CROP_NONE:
@@ -486,7 +487,7 @@ static int vout_UpdateSourceCrop(vout_display_t *vd)
             break;
         default:
             /* left/top/right/bottom must be initialized */
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 
     if (left >= right)
@@ -502,7 +503,7 @@ static int vout_UpdateSourceCrop(vout_display_t *vd)
     osys->source.i_y_offset += top;
     osys->source.i_visible_width = right - left;
     osys->source.i_visible_height = bottom - top;
-    video_format_Print(VLC_OBJECT(vd), "CROPPED ", &osys->source);
+    video_format_Print(HEIMDALL_OBJECT(vd), "CROPPED ", &osys->source);
 
     err1 = UpdateSourceSAR(vd, vd->source);
 
@@ -511,14 +512,14 @@ static int vout_UpdateSourceCrop(vout_display_t *vd)
     if (vd->ops->set_source_crop != NULL)
     {
         err2 = vd->ops->set_source_crop(vd, vd->source);
-        if (err2 != VLC_SUCCESS)
+        if (err2 != HEIMDALL_SUCCESS)
             err1 = err2;
     }
 
     if (place_changed && vd->ops->video_place_changed != NULL)
     {
         err2 = vd->ops->video_place_changed(vd, vd->place);
-        if (err2 != VLC_SUCCESS)
+        if (err2 != HEIMDALL_SUCCESS)
             err1 = err2;
     }
     return err1;
@@ -528,7 +529,7 @@ static int vout_SetSourceAspect(vout_display_t *vd,
                                 unsigned sar_num, unsigned sar_den)
 {
     vout_display_priv_t *osys = container_of(vd, vout_display_priv_t, display);
-    int err1 = VLC_SUCCESS, err2;
+    int err1 = HEIMDALL_SUCCESS, err2;
 
     assert(sar_num > 0 && sar_den > 0);
     if (osys->source.i_sar_num * sar_den == osys->source.i_sar_den * sar_num)
@@ -543,7 +544,7 @@ static int vout_SetSourceAspect(vout_display_t *vd,
     if (vd->ops->set_source_aspect != NULL)
     {
         err2 = vd->ops->set_source_aspect(vd, vd->source);
-        if (err2 != VLC_SUCCESS)
+        if (err2 != HEIMDALL_SUCCESS)
             err1 = err2;
     }
 
@@ -551,14 +552,14 @@ static int vout_SetSourceAspect(vout_display_t *vd,
     if (osys->crop.mode != VOUT_CROP_NONE)
     {
         err2 = vout_UpdateSourceCrop(vd);
-        if (err2 != VLC_SUCCESS)
+        if (err2 != HEIMDALL_SUCCESS)
             err1 = err2;
     }
 
     if (place_changed && vd->ops->video_place_changed != NULL)
     {
         err2 = vd->ops->video_place_changed(vd, vd->place);
-        if (err2 != VLC_SUCCESS)
+        if (err2 != HEIMDALL_SUCCESS)
             err1 = err2;
     }
 
@@ -567,7 +568,7 @@ static int vout_SetSourceAspect(vout_display_t *vd,
 
 void VoutFixFormatAR(video_format_t *fmt)
 {
-    vlc_ureduce( &fmt->i_sar_num, &fmt->i_sar_den,
+    heimdall_ureduce( &fmt->i_sar_num, &fmt->i_sar_den,
                  fmt->i_sar_num,  fmt->i_sar_den, 50000 );
     if (fmt->i_sar_num <= 0 || fmt->i_sar_den <= 0) {
         fmt->i_sar_num = 1;
@@ -578,11 +579,11 @@ void VoutFixFormatAR(video_format_t *fmt)
 void vout_UpdateDisplaySourceProperties(vout_display_t *vd, const video_format_t *source)
 {
     vout_display_priv_t *osys = container_of(vd, vout_display_priv_t, display);
-    int err1 = VLC_SUCCESS, err2;
+    int err1 = HEIMDALL_SUCCESS, err2;
 
-    if (VLC_DAR_IS_FROM_SOURCE(osys->dar)) {
+    if (HEIMDALL_DAR_IS_FROM_SOURCE(osys->dar)) {
         err2 = UpdateSourceSAR(vd, source);
-        if (err2 != VLC_SUCCESS)
+        if (err2 != HEIMDALL_SUCCESS)
             err1 = err2;
     }
     if (source->i_x_offset       != osys->source.i_x_offset ||
@@ -595,18 +596,18 @@ void vout_UpdateDisplaySourceProperties(vout_display_t *vd, const video_format_t
         /* Force the vout to reapply the current user crop settings
          * over the new decoder crop settings. */
         err2 = vout_UpdateSourceCrop(vd);
-        if (err2 != VLC_SUCCESS)
+        if (err2 != HEIMDALL_SUCCESS)
             err1 = err2;
     }
 
-    if (err1 != VLC_SUCCESS)
+    if (err1 != HEIMDALL_SUCCESS)
         vout_display_Reset(vd);
 }
 
 void vout_display_SetSize(vout_display_t *vd, unsigned width, unsigned height)
 {
     vout_display_priv_t *osys = container_of(vd, vout_display_priv_t, display);
-    int err1 = VLC_SUCCESS, err2;
+    int err1 = HEIMDALL_SUCCESS, err2;
 
     osys->cfg.display.width  = width;
     osys->cfg.display.height = height;
@@ -615,23 +616,23 @@ void vout_display_SetSize(vout_display_t *vd, unsigned width, unsigned height)
 
     bool place_changed = PlaceVideoInDisplay(osys);
 
-    err2 = vd->ops->set_display_size == NULL ? VLC_SUCCESS :
+    err2 = vd->ops->set_display_size == NULL ? HEIMDALL_SUCCESS :
         vd->ops->set_display_size(vd, vd->cfg->display.width, vd->cfg->display.height);
-    if (err2 != VLC_SUCCESS)
+    if (err2 != HEIMDALL_SUCCESS)
         err1 = err2;
 
     if (place_changed && vd->ops->video_place_changed != NULL)
     {
         err2 = vd->ops->video_place_changed(vd, vd->place);
-        if (err2 != VLC_SUCCESS)
+        if (err2 != HEIMDALL_SUCCESS)
             err1 = err2;
     }
 
-    if (err1 != VLC_SUCCESS)
+    if (err1 != HEIMDALL_SUCCESS)
         vout_display_Reset(vd);
 }
 
-void vout_SetDisplayFitting(vout_display_t *vd, enum vlc_video_fitting fit)
+void vout_SetDisplayFitting(vout_display_t *vd, enum heimdall_video_fitting fit)
 {
     vout_display_priv_t *osys = container_of(vd, vout_display_priv_t, display);
 
@@ -644,7 +645,7 @@ void vout_SetDisplayFitting(vout_display_t *vd, enum vlc_video_fitting fit)
     if (place_changed && vd->ops->video_place_changed != NULL)
     {
         int err1 = vd->ops->video_place_changed(vd, vd->place);
-        if (err1 != VLC_SUCCESS)
+        if (err1 != HEIMDALL_SUCCESS)
             vout_display_Reset(vd);
     }
 }
@@ -658,7 +659,7 @@ void vout_SetDisplayZoom(vout_display_t *vd, unsigned num, unsigned den)
     osys->cfg.display.zoom.num = num;
     osys->cfg.display.zoom.den = den;
 
-    if (osys->cfg.display.fitting != VLC_VIDEO_FIT_NONE)
+    if (osys->cfg.display.fitting != HEIMDALL_VIDEO_FIT_NONE)
         return; /* zoom has no effects */
     if (onum * den == num * oden)
         return; /* zoom has not changed */
@@ -667,7 +668,7 @@ void vout_SetDisplayZoom(vout_display_t *vd, unsigned num, unsigned den)
     if (place_changed && vd->ops->video_place_changed != NULL)
     {
         int err1 = vd->ops->video_place_changed(vd, vd->place);
-        if (err1 != VLC_SUCCESS)
+        if (err1 != HEIMDALL_SUCCESS)
             vout_display_Reset(vd);
     }
 }
@@ -677,21 +678,21 @@ static int UpdateSourceSAR(vout_display_t *vd, const video_format_t *source)
     vout_display_priv_t *osys = container_of(vd, vout_display_priv_t, display);
     unsigned sar_num, sar_den;
 
-    if (VLC_DAR_IS_FROM_SOURCE(osys->dar)) {
+    if (HEIMDALL_DAR_IS_FROM_SOURCE(osys->dar)) {
         video_format_t fixed_src = *source;
         VoutFixFormatAR( &fixed_src );
         sar_num = fixed_src.i_sar_num;
         sar_den = fixed_src.i_sar_den;
-    } else if (VLC_DAR_IS_FILL_DISPLAY(osys->dar)) {
+    } else if (HEIMDALL_DAR_IS_FILL_DISPLAY(osys->dar)) {
         // trick vout_display_PlacePicture to fill the display
-        vlc_ureduce(&sar_num, &sar_den,
+        heimdall_ureduce(&sar_num, &sar_den,
                     (uint64_t)osys->cfg.display.width  * osys->source.i_visible_height,
                     (uint64_t)osys->cfg.display.height * osys->source.i_visible_width, 0);
     } else if (unlikely(osys->dar.num == 0 || osys->dar.den == 0)) {
         // bogus values should be filtered in GetAspectRatio()
-        vlc_assert_unreachable();
+        heimdall_assert_unreachable();
     } else {
-        vlc_ureduce(&sar_num, &sar_den,
+        heimdall_ureduce(&sar_num, &sar_den,
                     (uint64_t)osys->dar.num * osys->source.i_visible_height,
                     (uint64_t)osys->dar.den * osys->source.i_visible_width, 0);
     }
@@ -699,13 +700,13 @@ static int UpdateSourceSAR(vout_display_t *vd, const video_format_t *source)
     return vout_SetSourceAspect(vd, sar_num, sar_den);
 }
 
-void vout_SetDisplayAspect(vout_display_t *vd, vlc_rational_t dar)
+void vout_SetDisplayAspect(vout_display_t *vd, heimdall_rational_t dar)
 {
     vout_display_priv_t *osys = container_of(vd, vout_display_priv_t, display);
     osys->dar = dar;
 
     int err1 = UpdateSourceSAR(vd, vd->source);
-    if (err1 != VLC_SUCCESS)
+    if (err1 != HEIMDALL_SUCCESS)
         vout_display_Reset(vd);
 }
 
@@ -718,16 +719,16 @@ void vout_SetDisplayCrop(vout_display_t *vd,
         osys->crop = *crop;
 
         int err1 = vout_UpdateSourceCrop(vd);
-        if (err1 != VLC_SUCCESS)
+        if (err1 != HEIMDALL_SUCCESS)
             vout_display_Reset(vd);
     }
 }
 
 void vout_SetDisplayViewpoint(vout_display_t *vd,
-                              const vlc_viewpoint_t *p_viewpoint)
+                              const heimdall_viewpoint_t *p_viewpoint)
 {
     vout_display_priv_t *osys = container_of(vd, vout_display_priv_t, display);
-    vlc_viewpoint_t old_vp = osys->cfg.viewpoint;
+    heimdall_viewpoint_t old_vp = osys->cfg.viewpoint;
     osys->cfg.viewpoint = *p_viewpoint;
 
     if (vd->ops->set_viewpoint)
@@ -740,23 +741,23 @@ void vout_SetDisplayViewpoint(vout_display_t *vd,
 }
 
 void vout_SetDisplayIccProfile(vout_display_t *vd,
-                               const vlc_icc_profile_t *profile)
+                               const heimdall_icc_profile_t *profile)
 {
     vout_display_priv_t *osys = container_of(vd, vout_display_priv_t, display);
 
-    osys->cfg.icc_profile = (vlc_icc_profile_t *) profile;
+    osys->cfg.icc_profile = (heimdall_icc_profile_t *) profile;
     if (vd->ops->set_icc_profile)
         vd->ops->set_icc_profile(vd, profile);
 }
 
 int vout_SetDisplayFormat(vout_display_t *vd, const video_format_t *fmt,
-                          vlc_video_context *vctx)
+                          heimdall_video_context *vctx)
 {
     if (!vd->ops->update_format)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     int ret = vd->ops->update_format(vd, fmt, vctx);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
         return ret;
 
     vout_display_priv_t *osys = container_of(vd, vout_display_priv_t, display);
@@ -766,9 +767,9 @@ int vout_SetDisplayFormat(vout_display_t *vd, const video_format_t *fmt,
     video_format_Clean(&osys->source);
     osys->source = *fmt;
     if (vctx)
-        vlc_video_context_Hold(vctx);
+        heimdall_video_context_Hold(vctx);
     if (osys->src_vctx)
-        vlc_video_context_Release(osys->src_vctx);
+        heimdall_video_context_Release(osys->src_vctx);
     osys->src_vctx = vctx;
 
     /* On update_format success, the vout display accepts the target format, so
@@ -783,18 +784,18 @@ int vout_SetDisplayFormat(vout_display_t *vd, const video_format_t *fmt,
     if (place_changed && vd->ops->video_place_changed != NULL)
     {
         int ret = vd->ops->video_place_changed(vd, &osys->src_place);
-        if (ret != VLC_SUCCESS)
+        if (ret != HEIMDALL_SUCCESS)
         {
             msg_Dbg(vd, "update format update place change failed");
             return ret;
         }
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 int vout_display_SetFormat(vout_display_t *vd, const video_format_t *fmt,
-                            vlc_video_context *vctx)
+                            heimdall_video_context *vctx)
 {
     return vout_SetDisplayFormat(vd, fmt, vctx);
 }
@@ -807,7 +808,7 @@ void vout_SetDisplayProjection(vout_display_t *vd,
     vout_display_ChangeProjection(vd, projection);
 }
 
-void vout_SetDisplayStereo(vout_display_t *vd, vlc_stereoscopic_mode_t mode)
+void vout_SetDisplayStereo(vout_display_t *vd, heimdall_stereoscopic_mode_t mode)
 {
     vout_display_priv_t *osys = container_of(vd, vout_display_priv_t, display);
 
@@ -817,22 +818,22 @@ void vout_SetDisplayStereo(vout_display_t *vd, vlc_stereoscopic_mode_t mode)
         if (vd->ops->set_stereo)
             err = vd->ops->set_stereo(vd, mode);
         else
-            err = VLC_ENOTSUP; // not handled, we need to do it in the core
-        if (err != VLC_SUCCESS)
+            err = HEIMDALL_ENOTSUP; // not handled, we need to do it in the core
+        if (err != HEIMDALL_SUCCESS)
         {
             msg_Err(vd, "Failed to change multiview display mode");
         }
     }
 }
 
-vout_display_t *vout_display_New(vlc_object_t *parent,
+vout_display_t *vout_display_New(heimdall_object_t *parent,
                                  const video_format_t *source,
-                                 vlc_video_context *vctx,
+                                 heimdall_video_context *vctx,
                                  const vout_display_cfg_t *cfg,
                                  const char *module,
                                  const vout_display_owner_t *owner)
 {
-    vout_display_priv_t *osys = vlc_custom_create(parent, sizeof (*osys),
+    vout_display_priv_t *osys = heimdall_custom_create(parent, sizeof (*osys),
                                                   "vout display");
     if (unlikely(osys == NULL))
         return NULL;
@@ -852,7 +853,7 @@ vout_display_t *vout_display_New(vlc_object_t *parent,
     video_format_Copy(&osys->source, source);
     osys->crop.mode = VOUT_CROP_NONE;
 
-    osys->src_vctx = vctx ? vlc_video_context_Hold( vctx ) : NULL;
+    osys->src_vctx = vctx ? heimdall_video_context_Hold( vctx ) : NULL;
 
     osys->cfg.stereo_mode = cfg->stereo_mode;
 
@@ -875,13 +876,13 @@ vout_display_t *vout_display_New(vlc_object_t *parent,
 
     module_t **mods;
     size_t strict;
-    ssize_t n = vlc_module_match("vout display", module, true, &mods, &strict);
+    ssize_t n = heimdall_module_match("vout display", module, true, &mods, &strict);
 
     msg_Dbg(vd, "looking for %s module matching \"%s\": %zd candidates",
             "vout display", module, n);
 
     for (ssize_t i = 0; i < n; i++) {
-        vout_display_open_cb cb = vlc_module_map(vlc_object_logger(vd),
+        vout_display_open_cb cb = heimdall_module_map(heimdall_object_logger(vd),
                                                  mods[i]);
         if (cb == NULL)
             continue;
@@ -891,9 +892,9 @@ vout_display_t *vout_display_New(vlc_object_t *parent,
         vd->obj.force = i < (ssize_t)strict; /* TODO: pass to cb() instead? */
 
         int ret = cb(vd, &osys->display_fmt, vctx);
-        if (ret == VLC_SUCCESS) {
+        if (ret == HEIMDALL_SUCCESS) {
             assert(vd->ops->prepare != NULL || vd->ops->display != NULL);
-            if (VoutConverterCreate(vd) == VLC_SUCCESS) {
+            if (VoutConverterCreate(vd) == HEIMDALL_SUCCESS) {
                 msg_Dbg(vd, "using %s module \"%s\"", "vout display",
                         module_get_object(mods[i]));
                 free(mods);
@@ -904,7 +905,7 @@ vout_display_t *vout_display_New(vlc_object_t *parent,
                 vd->ops->close(vd);
         }
 
-        vlc_objres_clear(VLC_OBJECT(vd));
+        heimdall_objres_clear(HEIMDALL_OBJECT(vd));
         video_format_Clean(&osys->display_fmt);
         osys->display.info = (vout_display_info_t){};
     }
@@ -912,7 +913,7 @@ vout_display_t *vout_display_New(vlc_object_t *parent,
     msg_Dbg(vd, "no %s modules matched with name %s", "vout display", module);
     free(mods);
     video_format_Clean(&osys->source);
-    vlc_object_delete(vd);
+    heimdall_object_delete(vd);
     return NULL;
 }
 
@@ -922,7 +923,7 @@ void vout_display_Delete(vout_display_t *vd)
 
     if (osys->src_vctx)
     {
-        vlc_video_context_Release( osys->src_vctx );
+        heimdall_video_context_Release( osys->src_vctx );
         osys->src_vctx = NULL;
     }
 
@@ -933,9 +934,9 @@ void vout_display_Delete(vout_display_t *vd)
 
     if (vd->ops->close != NULL)
         vd->ops->close(vd);
-    vlc_objres_clear(VLC_OBJECT(vd));
+    heimdall_objres_clear(HEIMDALL_OBJECT(vd));
 
     video_format_Clean(&osys->source);
     video_format_Clean(&osys->display_fmt);
-    vlc_object_delete(vd);
+    heimdall_object_delete(vd);
 }

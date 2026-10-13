@@ -1,7 +1,8 @@
 /*****************************************************************************
- * posterize.c : Posterize video plugin for vlc
+ * posterize.c : Posterize video plugin for heimdall
  *****************************************************************************
  * Copyright (C) 2010 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Branko Kokanovic <branko.kokanovic@gmail.com>
  *
@@ -31,11 +32,11 @@
 #include <assert.h>
 #include <stdatomic.h>
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_picture.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
 #include "filter_picture.h"
 
 /*****************************************************************************
@@ -63,7 +64,7 @@ static const char *const ppsz_filter_options[] = {
 
 #define CFG_PREFIX "posterize-"
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("Posterize video filter") )
     set_shortname( N_("Posterize" ) )
     set_help( N_("Posterize video by lowering the number of colors") )
@@ -71,13 +72,13 @@ vlc_module_begin ()
     add_integer_with_range( CFG_PREFIX "level", 6, 2, 256,
                            POSTERIZE_LEVEL_TEXT, POSTERIZE_LEVEL_LONGTEXT )
     set_callback_video_filter( Create )
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * callback prototypes
  *****************************************************************************/
-static int FilterCallback( vlc_object_t *, char const *,
-                           vlc_value_t, vlc_value_t, void * );
+static int FilterCallback( heimdall_object_t *, char const *,
+                           heimdall_value_t, heimdall_value_t, void * );
 
 /*****************************************************************************
  * filter_sys_t: adjust filter method descriptor
@@ -102,28 +103,28 @@ static int Create( filter_t *p_filter )
             break;
         CASE_PACKED_YUV_422
             break;
-        case VLC_CODEC_RGB24:
-        case VLC_CODEC_BGR24:
+        case HEIMDALL_CODEC_RGB24:
+        case HEIMDALL_CODEC_BGR24:
             break;
         CASE_PACKED_RGB32
             break;
         default:
             msg_Err( p_filter, "Unsupported input chroma (%4.4s)",
                      (char*)&(p_filter->fmt_in.video.i_chroma) );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 
     if( !video_format_IsSameChroma( &p_filter->fmt_in.video,
                                     &p_filter->fmt_out.video ) )
     {
         msg_Err( p_filter, "Input and output chromas don't match" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Allocate structure */
     p_sys = p_filter->p_sys = malloc( sizeof( filter_sys_t ) );
     if( p_filter->p_sys == NULL )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     config_ChainParse( p_filter, CFG_PREFIX, ppsz_filter_options,
                        p_filter->p_cfg );
@@ -134,7 +135,7 @@ static int Create( filter_t *p_filter )
 
     p_filter->ops = &Filter_ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -164,8 +165,8 @@ static void Filter( filter_t *p_filter, picture_t *p_pic, picture_t *p_outpic )
 
     switch( p_pic->format.i_chroma )
     {
-        case VLC_CODEC_RGB24:
-        case VLC_CODEC_BGR24:
+        case HEIMDALL_CODEC_RGB24:
+        case HEIMDALL_CODEC_BGR24:
             RVPosterize( p_pic, p_outpic, false, level );
             break;
         CASE_PACKED_RGB32
@@ -178,7 +179,7 @@ static void Filter( filter_t *p_filter, picture_t *p_pic, picture_t *p_outpic )
             PackedYUVPosterize( p_pic, p_outpic, level );
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 }
 
@@ -275,32 +276,32 @@ static void PackedYUVPosterize( picture_t *p_pic, picture_t *p_outpic, int i_lev
             /* extract proper pixel values */
             switch( p_pic->format.i_chroma )
             {
-                case VLC_CODEC_UYVY:
+                case HEIMDALL_CODEC_UYVY:
                     u = *p_in++;
                     y1 = *p_in++;
                     v = *p_in++;
                     y2 = *p_in++;
                     break;
-                case VLC_CODEC_VYUY:
+                case HEIMDALL_CODEC_VYUY:
                     v = *p_in++;
                     y1 = *p_in++;
                     u = *p_in++;
                     y2 = *p_in++;
                     break;
-                case VLC_CODEC_YUYV:
+                case HEIMDALL_CODEC_YUYV:
                     y1 = *p_in++;
                     u = *p_in++;
                     y2 = *p_in++;
                     v = *p_in++;
                     break;
-                case VLC_CODEC_YVYU:
+                case HEIMDALL_CODEC_YVYU:
                     y1 = *p_in++;
                     v = *p_in++;
                     y2 = *p_in++;
                     u = *p_in++;
                     break;
                 default:
-                    vlc_assert_unreachable();
+                    heimdall_assert_unreachable();
             }
             /* do posterization */
             YuvPosterization( &posterized_y1, &posterized_y2, &posterized_u,
@@ -308,32 +309,32 @@ static void PackedYUVPosterize( picture_t *p_pic, picture_t *p_outpic, int i_lev
             /* put posterized values in proper place */
             switch( p_pic->format.i_chroma )
             {
-                case VLC_CODEC_UYVY:
+                case HEIMDALL_CODEC_UYVY:
                     *p_out++ = posterized_u;
                     *p_out++ = posterized_y1;
                     *p_out++ = posterized_v;
                     *p_out++ = posterized_y2;
                     break;
-                case VLC_CODEC_VYUY:
+                case HEIMDALL_CODEC_VYUY:
                     *p_out++ = posterized_v;
                     *p_out++ = posterized_y1;
                     *p_out++ = posterized_u;
                     *p_out++ = posterized_y2;
                     break;
-                case VLC_CODEC_YUYV:
+                case HEIMDALL_CODEC_YUYV:
                     *p_out++ = posterized_y1;
                     *p_out++ = posterized_u;
                     *p_out++ = posterized_y2;
                     *p_out++ = posterized_v;
                     break;
-                case VLC_CODEC_YVYU:
+                case HEIMDALL_CODEC_YVYU:
                     *p_out++ = posterized_y1;
                     *p_out++ = posterized_v;
                     *p_out++ = posterized_y2;
                     *p_out++ = posterized_u;
                     break;
                 default:
-                    vlc_assert_unreachable();
+                    heimdall_assert_unreachable();
             }
         }
         p_in += p_pic->p[0].i_pitch - p_pic->p[0].i_visible_pitch;
@@ -418,8 +419,8 @@ static void YuvPosterization( uint8_t* posterized_y1, uint8_t* posterized_y2,
     *posterized_v = ( ( 112 * r3 -  94 * g3 -  18 * b3 + 128 ) >> 8 ) + 128;
 }
 
-static int FilterCallback ( vlc_object_t *p_this, char const *psz_var,
-                            vlc_value_t oldval, vlc_value_t newval, void *p_data )
+static int FilterCallback ( heimdall_object_t *p_this, char const *psz_var,
+                            heimdall_value_t oldval, heimdall_value_t newval, void *p_data )
 {
     (void)p_this; (void)oldval;
     filter_sys_t *p_sys = p_data;
@@ -427,5 +428,5 @@ static int FilterCallback ( vlc_object_t *p_this, char const *psz_var,
     if( !strcmp( psz_var, CFG_PREFIX "level" ) )
         atomic_store( &p_sys->i_level, newval.i_int );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

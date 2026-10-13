@@ -22,6 +22,7 @@
 */
 
 // Copyright (c) 2010 Spotify AB
+ Copyright (C) 2026 TheFenrisLycaon
 #import "SPMediaKeyTap.h"
 
 // Define to enable app list debug output
@@ -175,8 +176,8 @@ static CGEventRef tapEventCallback(CGEventTapProxy proxy, CGEventType type, CGEv
     dispatch_once(&onceToken, ^{
         NSString *ourIdentifier = [[NSBundle mainBundle] bundleIdentifier];
         if (ourIdentifier == nil) {
-            NSLog(@"SPMediaKeyTap: Bundle identifier unexpectedly nil, falling back to org.videolan.vlc");
-            ourIdentifier = @"org.videolan.vlc";
+            NSLog(@"SPMediaKeyTap: Bundle identifier unexpectedly nil, falling back to com.lycaria.heimdall");
+            ourIdentifier = @"com.lycaria.heimdall";
         }
         bundleIdentifiers = @[
             ourIdentifier, // your app
@@ -187,7 +188,7 @@ static CGEventRef tapEventCallback(CGEventTapProxy proxy, CGEventType type, CGEv
             @"com.apple.quicktimeplayer",
             @"com.apple.iWork.Keynote",
             @"com.apple.iPhoto",
-            @"org.videolan.vlc",
+            @"com.lycaria.heimdall",
             @"com.apple.Aperture",
             @"com.plexsquared.Plex",
             @"com.soundcloud.desktop",

@@ -2,6 +2,7 @@
  * d3d11_deinterlace.c: D3D11 deinterlacing filter
  *****************************************************************************
  * Copyright (C) 2017 Videolabs SAS
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Steve Lhomme <robux4@gmail.com>
  *
@@ -27,9 +28,9 @@
 #include <stdlib.h>
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_filter.h>
-#include <vlc_picture.h>
+#include <heimdall_common.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
 
 #define COBJMACROS
 #include <d3d11.h>
@@ -76,7 +77,7 @@ static void Flush(filter_t *filter)
 static int RenderPic( filter_t *p_filter, picture_t *p_outpic, picture_t *p_pic,
                       int order, int i_field )
 {
-    VLC_UNUSED(order);
+    HEIMDALL_UNUSED(order);
     HRESULT hr;
     filter_sys_t *p_sys = p_filter->p_sys;
     picture_sys_d3d11_t *p_out_sys = ActiveD3D11PictureSys(p_outpic);
@@ -101,17 +102,17 @@ static int RenderPic( filter_t *p_filter, picture_t *p_outpic, picture_t *p_pic,
     {
         picture_sys_d3d11_t *picsys_next = ActiveD3D11PictureSys(p_next);
         if ( unlikely(!picsys_next) || FAILED(D3D11_Assert_ProcessorInput(p_filter, &p_sys->d3d_proc, picsys_next) ))
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
         picture_sys_d3d11_t *picsys_cur = ActiveD3D11PictureSys(p_cur);
         if ( unlikely(!picsys_cur) || FAILED( D3D11_Assert_ProcessorInput(p_filter, &p_sys->d3d_proc, picsys_cur) ))
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
         if ( p_prev )
         {
             picture_sys_d3d11_t *picsys_prev = ActiveD3D11PictureSys(p_prev);
             if ( unlikely(!picsys_prev) || FAILED( D3D11_Assert_ProcessorInput(p_filter, &p_sys->d3d_proc, picsys_prev) ))
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
 
             stream.pInputSurface    = picsys_cur->processorInput;
             stream.ppFutureSurfaces = &picsys_next->processorInput;
@@ -132,7 +133,7 @@ static int RenderPic( filter_t *p_filter, picture_t *p_outpic, picture_t *p_pic,
     {
         picture_sys_d3d11_t *p_sys_src = ActiveD3D11PictureSys(p_pic);
         if ( unlikely(!p_sys_src) || FAILED( D3D11_Assert_ProcessorInput(p_filter, &p_sys->d3d_proc, p_sys_src) ))
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
         /* first single frame */
         stream.pInputSurface = p_sys_src->processorInput;
@@ -152,9 +153,9 @@ static int RenderPic( filter_t *p_filter, picture_t *p_outpic, picture_t *p_pic,
                                               p_out_sys->processorOutput,
                                               0, 1, &stream);
     if (FAILED(hr))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int RenderSinglePic( filter_t *p_filter, picture_t *p_outpic, picture_t *p_pic )
@@ -192,7 +193,7 @@ picture_t *AllocPicture( filter_t *p_filter )
 {
     filter_sys_t *p_sys = p_filter->p_sys;
 
-    picture_t *pic = D3D11_AllocPicture(VLC_OBJECT(p_filter), &p_filter->fmt_out.video,
+    picture_t *pic = D3D11_AllocPicture(HEIMDALL_OBJECT(p_filter), &p_filter->fmt_out.video,
                                         p_filter->vctx_out, false, p_sys->output_format);
     if (pic == NULL)
         return NULL;
@@ -224,12 +225,12 @@ static void D3D11CloseDeinterlace(filter_t *filter)
     filter_sys_t *sys = filter->p_sys;
     Flush(filter);
     D3D11_ReleaseProcessor( &sys->d3d_proc );
-    vlc_video_context_Release(filter->vctx_out);
+    heimdall_video_context_Release(filter->vctx_out);
 
     free(sys);
 }
 
-static const struct vlc_filter_operations filter_ops = {
+static const struct heimdall_filter_operations filter_ops = {
     .filter_video = Deinterlace, .flush = Flush, .close = D3D11CloseDeinterlace,
 };
 
@@ -238,17 +239,17 @@ int D3D11OpenDeinterlace(filter_t *filter)
     HRESULT hr;
 
     if (!is_d3d11_opaque(filter->fmt_in.video.i_chroma))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     if ( GetD3D11ContextPrivate(filter->vctx_in) == NULL )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     if (!video_format_IsSimilar(&filter->fmt_in.video, &filter->fmt_out.video))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     d3d11_video_context_t *vctx_sys = GetD3D11ContextPrivate( filter->vctx_in );
 
     filter_sys_t *sys = malloc(sizeof (*sys));
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     memset(sys, 0, sizeof (*sys));
 
     d3d11_decoder_device_t *dev_sys = GetD3D11OpaqueContext( filter->vctx_in );
@@ -261,7 +262,7 @@ int D3D11OpenDeinterlace(filter_t *filter)
     d3d11_device_lock(sys->d3d_dev);
 
     if (D3D11_CreateProcessor(filter, sys->d3d_dev, D3D11_VIDEO_FRAME_FORMAT_INTERLACED_TOP_FIELD_FIRST,
-                              &filter->fmt_out.video, &filter->fmt_out.video, &sys->d3d_proc) != VLC_SUCCESS)
+                              &filter->fmt_out.video, &filter->fmt_out.video, &sys->d3d_proc) != HEIMDALL_SUCCESS)
         goto error;
 
     UINT flags;
@@ -354,15 +355,15 @@ int D3D11OpenDeinterlace(filter_t *filter)
     d3d11_device_unlock(sys->d3d_dev);
 
     filter->fmt_out.video   = out_fmt;
-    filter->vctx_out        = vlc_video_context_Hold(filter->vctx_in);
+    filter->vctx_out        = heimdall_video_context_Hold(filter->vctx_in);
     filter->ops             = &filter_ops;
     filter->p_sys = sys;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 error:
     D3D11_ReleaseProcessor(&sys->d3d_proc);
     d3d11_device_unlock(sys->d3d_dev);
     free(sys);
 
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }

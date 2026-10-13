@@ -2,6 +2,7 @@
  * playlist/item.c
  *****************************************************************************
  * Copyright (C) 2018 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -24,17 +25,17 @@
 
 #include "item.h"
 
-#include <vlc_playlist.h>
-#include <vlc_input_item.h>
+#include <heimdall_playlist.h>
+#include <heimdall_input_item.h>
 
-vlc_playlist_item_t *
-vlc_playlist_item_New(input_item_t *media, uint64_t id)
+heimdall_playlist_item_t *
+heimdall_playlist_item_New(input_item_t *media, uint64_t id)
 {
-    vlc_playlist_item_t *item = malloc(sizeof(*item));
+    heimdall_playlist_item_t *item = malloc(sizeof(*item));
     if (unlikely(!item))
         return NULL;
 
-    vlc_atomic_rc_init(&item->rc);
+    heimdall_atomic_rc_init(&item->rc);
     item->id = id;
     item->preparser_req = NULL;
     item->media = media;
@@ -43,31 +44,31 @@ vlc_playlist_item_New(input_item_t *media, uint64_t id)
 }
 
 void
-vlc_playlist_item_Hold(vlc_playlist_item_t *item)
+heimdall_playlist_item_Hold(heimdall_playlist_item_t *item)
 {
-    vlc_atomic_rc_inc(&item->rc);
+    heimdall_atomic_rc_inc(&item->rc);
 }
 
 void
-vlc_playlist_item_Release(vlc_playlist_item_t *item)
+heimdall_playlist_item_Release(heimdall_playlist_item_t *item)
 {
-    if (vlc_atomic_rc_dec(&item->rc))
+    if (heimdall_atomic_rc_dec(&item->rc))
     {
         if (item->preparser_req != NULL)
-            vlc_preparser_req_Release(item->preparser_req);
+            heimdall_preparser_req_Release(item->preparser_req);
         input_item_Release(item->media);
         free(item);
     }
 }
 
 input_item_t *
-vlc_playlist_item_GetMedia(vlc_playlist_item_t *item)
+heimdall_playlist_item_GetMedia(heimdall_playlist_item_t *item)
 {
     return item->media;
 }
 
 uint64_t
-vlc_playlist_item_GetId(vlc_playlist_item_t *item)
+heimdall_playlist_item_GetId(heimdall_playlist_item_t *item)
 {
     return item->id;
 }

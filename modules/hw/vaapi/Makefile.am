@@ -8,7 +8,7 @@ vaapi_LTLIBRARIES += $(vaapi_PLUGINS)
 endif
 
 libdecdev_vaapi_wl_plugin_la_SOURCES = hw/vaapi/decoder_device.c \
-	hw/vaapi/vlc_vaapi.c hw/vaapi/vlc_vaapi.h
+	hw/vaapi/heimdall_vaapi.c hw/vaapi/heimdall_vaapi.h
 libdecdev_vaapi_wl_plugin_la_CFLAGS = $(AM_CFLAGS) $(GL_CFLAGS) -DHAVE_VA_WL $(LIBVA_WL_CFLAGS)
 libdecdev_vaapi_wl_plugin_la_LIBADD = $(LIBVA_LIBS) $(LIBVA_WL_LIBS)
 
@@ -21,7 +21,7 @@ libdecdev_vaapi_drm_plugin_la_CFLAGS = $(AM_CFLAGS) $(LIBVA_CFLAGS) -DHAVE_VA_DR
 libdecdev_vaapi_drm_plugin_la_LIBADD = $(LIBVA_LIBS) $(LIBVA_DRM_LIBS)
 
 libvaapi_filters_plugin_la_SOURCES = hw/vaapi/filters.c hw/vaapi/filters.h \
-	hw/vaapi/vlc_vaapi.c hw/vaapi/vlc_vaapi.h \
+	hw/vaapi/heimdall_vaapi.c hw/vaapi/heimdall_vaapi.h \
 	hw/vaapi/chroma.c
 
 libvaapi_filters_plugin_la_CPPFLAGS = $(AM_CPPFLAGS)

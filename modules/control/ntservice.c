@@ -2,6 +2,7 @@
  * ntservice.c: Windows NT/2K/XP service interface
  *****************************************************************************
  * Copyright (C) 2004 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gildas Bazin <gbazin@videolan.org>
  *
@@ -27,21 +28,21 @@
 # include "config.h"
 #endif
 
-#define VLC_MODULE_LICENSE VLC_LICENSE_GPL_2_PLUS
-#include <vlc_common.h>
-#include <vlc_threads.h>
-#include <vlc_plugin.h>
-#include <vlc_interface.h>
-#include <vlc_charset.h>
-#include <vlc_memstream.h>
+#define HEIMDALL_MODULE_LICENSE HEIMDALL_LICENSE_GPL_2_PLUS
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
+#include <heimdall_plugin.h>
+#include <heimdall_interface.h>
+#include <heimdall_charset.h>
+#include <heimdall_memstream.h>
 
-#define VLCSERVICENAME "VLC media player"
+#define HEIMDALLSERVICENAME "Heimdall media player"
 
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  Activate( vlc_object_t * );
-static void Close   ( vlc_object_t * );
+static int  Activate( heimdall_object_t * );
+static void Close   ( heimdall_object_t * );
 
 #define INSTALL_TEXT N_( "Install Windows Service" )
 #define INSTALL_LONGTEXT N_( \
@@ -64,7 +65,7 @@ static void Close   ( vlc_object_t * );
     "properly configured. Use a comma separated list of interface modules. " \
     "(common values are: logger, sap, rc, http)")
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( N_("NT Service"))
     set_description( N_("Windows Service interface") )
     set_subcategory( SUBCAT_INTERFACE_CONTROL )
@@ -72,7 +73,7 @@ vlc_module_begin ()
               INSTALL_TEXT, INSTALL_LONGTEXT )
     add_bool( "ntservice-uninstall", false,
               UNINSTALL_TEXT, UNINSTALL_LONGTEXT )
-    add_string ( "ntservice-name", VLCSERVICENAME,
+    add_string ( "ntservice-name", HEIMDALLSERVICENAME,
                  NAME_TEXT, NAME_LONGTEXT )
     add_string ( "ntservice-options", NULL,
                  OPTIONS_TEXT, OPTIONS_LONGTEXT )
@@ -81,14 +82,14 @@ vlc_module_begin ()
 
     set_capability( "interface", 0 )
     set_callbacks( Activate, Close )
-vlc_module_end ()
+heimdall_module_end ()
 
 struct intf_sys_t
 {
     SERVICE_STATUS_HANDLE hStatus;
     SERVICE_STATUS status;
     char *psz_service;
-    vlc_thread_t thread;
+    heimdall_thread_t thread;
 };
 
 /*****************************************************************************
@@ -106,30 +107,30 @@ static intf_thread_t *p_global_intf;
 /*****************************************************************************
  * Activate: initialize and create stuff
  *****************************************************************************/
-static int Activate( vlc_object_t *p_this )
+static int Activate( heimdall_object_t *p_this )
 {
     intf_thread_t *p_intf = (intf_thread_t*)p_this;
     intf_sys_t *p_sys = malloc( sizeof( *p_sys ) );
     if( unlikely(p_sys == NULL) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_intf->p_sys = p_sys;
 
-    if( vlc_clone( &p_sys->thread, Run, p_intf ) )
-        return VLC_ENOMEM;
+    if( heimdall_clone( &p_sys->thread, Run, p_intf ) )
+        return HEIMDALL_ENOMEM;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * Close: destroy interface
  *****************************************************************************/
-void Close( vlc_object_t *p_this )
+void Close( heimdall_object_t *p_this )
 {
     intf_thread_t *p_intf = (intf_thread_t*)p_this;
     intf_sys_t *p_sys = p_intf->p_sys;
 
-    vlc_join( p_sys->thread, NULL );
+    heimdall_join( p_sys->thread, NULL );
     free( p_sys );
 }
 
@@ -141,16 +142,16 @@ static void *Run( void *data )
     intf_thread_t *p_intf = data;
     const SERVICE_TABLE_ENTRYA dispatchTable[] =
     {
-        { (LPSTR)VLCSERVICENAME, (LPSERVICE_MAIN_FUNCTIONA) &ServiceDispatch },
+        { (LPSTR)HEIMDALLSERVICENAME, (LPSERVICE_MAIN_FUNCTIONA) &ServiceDispatch },
         { NULL, NULL }
     };
 
-    vlc_thread_set_name("vlc-ntservice");
+    heimdall_thread_set_name("heimdall-ntservice");
 
     p_global_intf = p_intf;
     p_intf->p_sys->psz_service = var_InheritString( p_intf, "ntservice-name" );
     p_intf->p_sys->psz_service = p_intf->p_sys->psz_service ?
-        p_intf->p_sys->psz_service : strdup(VLCSERVICENAME);
+        p_intf->p_sys->psz_service : strdup(HEIMDALLSERVICENAME);
 
     if( var_InheritBool( p_intf, "ntservice-install" ) )
     {
@@ -174,7 +175,7 @@ static void *Run( void *data )
     free( p_intf->p_sys->psz_service );
 
     /* Make sure we exit (In case other interfaces have been spawned) */
-    libvlc_Quit( vlc_object_instance(p_intf) );
+    libheimdall_Quit( heimdall_object_instance(p_intf) );
     return NULL;
 }
 
@@ -185,7 +186,7 @@ static int NTServiceInstall( intf_thread_t *p_intf )
 {
     intf_sys_t *p_sys  = p_intf->p_sys;
     char *psz_extra;
-    struct vlc_memstream path_stream;
+    struct heimdall_memstream path_stream;
     char psz_pathtmp[MAX_PATH];
 
     SC_HANDLE handle = OpenSCManager( NULL, NULL, SC_MANAGER_ALL_ACCESS );
@@ -193,13 +194,13 @@ static int NTServiceInstall( intf_thread_t *p_intf )
     {
         msg_Err( p_intf,
                  "could not connect to Services Control Manager database" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    if( vlc_memstream_open(&path_stream) != 0 )
+    if( heimdall_memstream_open(&path_stream) != 0 )
     {
         CloseServiceHandle( handle );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     /* Find out the filename of ourselves so we can install it to the
@@ -208,24 +209,24 @@ static int NTServiceInstall( intf_thread_t *p_intf )
     if ( read == 0 || read == ARRAY_SIZE(psz_pathtmp) )
     {
         CloseServiceHandle( handle );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
-    vlc_memstream_printf( &path_stream, "\"%s\" -I ntservice", psz_pathtmp );
+    heimdall_memstream_printf( &path_stream, "\"%s\" -I ntservice", psz_pathtmp );
 
     psz_extra = var_InheritString( p_intf, "ntservice-extraintf" );
     if( psz_extra && *psz_extra )
-        vlc_memstream_printf( &path_stream, " --ntservice-extraintf %s", psz_extra );
+        heimdall_memstream_printf( &path_stream, " --ntservice-extraintf %s", psz_extra );
     free( psz_extra );
 
     psz_extra = var_InheritString( p_intf, "ntservice-options" );
     if( psz_extra && *psz_extra )
-        vlc_memstream_printf( &path_stream, " %s", psz_extra );
+        heimdall_memstream_printf( &path_stream, " %s", psz_extra );
     free( psz_extra );
 
-    if ( vlc_memstream_close( &path_stream ) != 0 )
+    if ( heimdall_memstream_close( &path_stream ) != 0 )
     {
         CloseServiceHandle( handle );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     SC_HANDLE service =
@@ -242,7 +243,7 @@ static int NTServiceInstall( intf_thread_t *p_intf )
                      p_sys->psz_service, path_stream.ptr );
             free( path_stream.ptr );
             CloseServiceHandle( handle );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
         else
         {
@@ -260,7 +261,7 @@ static int NTServiceInstall( intf_thread_t *p_intf )
     if( service ) CloseServiceHandle( service );
     CloseServiceHandle( handle );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int NTServiceUninstall( intf_thread_t *p_intf )
@@ -272,7 +273,7 @@ static int NTServiceUninstall( intf_thread_t *p_intf )
     {
         msg_Err( p_intf,
                  "could not connect to Services Control Manager database" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* First, open a handle to the service */
@@ -281,7 +282,7 @@ static int NTServiceUninstall( intf_thread_t *p_intf )
     {
         msg_Err( p_intf, "could not open service" );
         CloseServiceHandle( handle );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Remove the service */
@@ -298,7 +299,7 @@ static int NTServiceUninstall( intf_thread_t *p_intf )
     CloseServiceHandle( service );
     CloseServiceHandle( handle );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void WINAPI ServiceDispatch( DWORD numArgs, char **args )
@@ -342,7 +343,7 @@ static void WINAPI ServiceDispatch( DWORD numArgs, char **args )
         if( asprintf( &psz_temp, "%s,none", psz_module ) != -1 )
         {
             /* Try to create the interface */
-            if( intf_Create( vlc_object_instance(p_intf), psz_temp ) )
+            if( intf_Create( heimdall_object_instance(p_intf), psz_temp ) )
             {
                 msg_Err( p_intf, "interface \"%s\" initialization failed",
                          psz_temp );

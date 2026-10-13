@@ -2,6 +2,7 @@
  * upnp_server.cpp : UPnP server module
  *****************************************************************************
  * Copyright © 2024 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Hamza Parnica <hparnica@gmail.com>
  *          Alaric Senat <alaric@videolabs.io>
@@ -28,11 +29,11 @@
 #include <cstring>
 #include <services_discovery/upnp-wrapper.hpp>
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
-#include <vlc_addons.h>
-#include <vlc_interface.h>
-#include <vlc_rand.h>
+#include <heimdall_addons.h>
+#include <heimdall_interface.h>
+#include <heimdall_rand.h>
 
 #include "FileHandler.hpp"
 #include "cds/Container.hpp"
@@ -50,7 +51,7 @@
 struct intf_sys_t
 {
     ml::MediaLibraryContext p_ml;
-    std::unique_ptr<vlc_ml_event_callback_t, std::function<void(vlc_ml_event_callback_t *)>>
+    std::unique_ptr<heimdall_ml_event_callback_t, std::function<void(heimdall_ml_event_callback_t *)>>
         ml_callback_handle;
 
     std::unique_ptr<char, std::function<void(void *)>> uuid;
@@ -69,28 +70,28 @@ struct intf_sys_t
     bool extra_verbose;
 };
 
-static void medialibrary_event_callback(void *p_data, const struct vlc_ml_event_t *p_event)
+static void medialibrary_event_callback(void *p_data, const struct heimdall_ml_event_t *p_event)
 {
     intf_thread_t *p_intf = (intf_thread_t *)p_data;
     intf_sys_t *p_sys = p_intf->p_sys;
 
     switch (p_event->i_type)
     {
-        case VLC_ML_EVENT_MEDIA_ADDED:
-        case VLC_ML_EVENT_MEDIA_UPDATED:
-        case VLC_ML_EVENT_MEDIA_DELETED:
-        case VLC_ML_EVENT_ARTIST_ADDED:
-        case VLC_ML_EVENT_ARTIST_UPDATED:
-        case VLC_ML_EVENT_ARTIST_DELETED:
-        case VLC_ML_EVENT_ALBUM_ADDED:
-        case VLC_ML_EVENT_ALBUM_UPDATED:
-        case VLC_ML_EVENT_ALBUM_DELETED:
-        case VLC_ML_EVENT_PLAYLIST_ADDED:
-        case VLC_ML_EVENT_PLAYLIST_UPDATED:
-        case VLC_ML_EVENT_PLAYLIST_DELETED:
-        case VLC_ML_EVENT_GENRE_ADDED:
-        case VLC_ML_EVENT_GENRE_UPDATED:
-        case VLC_ML_EVENT_GENRE_DELETED:
+        case HEIMDALL_ML_EVENT_MEDIA_ADDED:
+        case HEIMDALL_ML_EVENT_MEDIA_UPDATED:
+        case HEIMDALL_ML_EVENT_MEDIA_DELETED:
+        case HEIMDALL_ML_EVENT_ARTIST_ADDED:
+        case HEIMDALL_ML_EVENT_ARTIST_UPDATED:
+        case HEIMDALL_ML_EVENT_ARTIST_DELETED:
+        case HEIMDALL_ML_EVENT_ALBUM_ADDED:
+        case HEIMDALL_ML_EVENT_ALBUM_UPDATED:
+        case HEIMDALL_ML_EVENT_ALBUM_DELETED:
+        case HEIMDALL_ML_EVENT_PLAYLIST_ADDED:
+        case HEIMDALL_ML_EVENT_PLAYLIST_UPDATED:
+        case HEIMDALL_ML_EVENT_PLAYLIST_DELETED:
+        case HEIMDALL_ML_EVENT_GENRE_ADDED:
+        case HEIMDALL_ML_EVENT_GENRE_UPDATED:
+        case HEIMDALL_ML_EVENT_GENRE_DELETED:
             p_sys->upnp_update_id++;
             break;
     }
@@ -251,7 +252,7 @@ static void handle_action_request(UpnpActionRequest *p_request, intf_thread_t *p
             char *psz_update_id;
             if (asprintf(&psz_update_id, "%d", sys->upnp_update_id.load()) == -1)
                 return;
-            auto up_update_id = vlc::wrap_cptr(psz_update_id);
+            auto up_update_id = heimdall::wrap_cptr(psz_update_id);
             UpnpAddToActionResponse(&action_result, action_name, cds_type, "Id", psz_update_id);
             UpnpActionRequest_set_ActionResult(p_request, action_result);
         }
@@ -363,7 +364,7 @@ open_cb(const char *url, enum UpnpOpenFileMode, const void *void_intf, const voi
     if (ret == nullptr)
         return nullptr;
 
-    if (!ret->open(VLC_OBJECT(intf)))
+    if (!ret->open(HEIMDALL_OBJECT(intf)))
     {
         msg_Err(intf, "Failed to open %s", url);
         delete ret;
@@ -459,17 +460,17 @@ static xml::Document make_server_identity(const char *uuid, const char *server_n
                                ret.create_text_node("urn:schemas-upnp-org:device:MediaServer:1")),
             ret.create_element("presentationUrl", ret.create_text_node(url.c_str())),
             ret.create_element("friendlyName", ret.create_text_node(server_name)),
-            ret.create_element("manufacturer", ret.create_text_node("VideoLAN")),
+            ret.create_element("manufacturer", ret.create_text_node("Lycaria")),
             ret.create_element("manufacturerURL", ret.create_text_node("https://videolan.org")),
-            ret.create_element("modelDescription", ret.create_text_node("VLC UPNP Media Server")),
-            ret.create_element("modelName", ret.create_text_node("VLC")),
+            ret.create_element("modelDescription", ret.create_text_node("Heimdall UPNP Media Server")),
+            ret.create_element("modelName", ret.create_text_node("Heimdall")),
             ret.create_element("modelNumber", ret.create_text_node(PACKAGE_VERSION)),
             ret.create_element("modelURL", ret.create_text_node("https://videolan.org/vlc/")),
             ret.create_element("serialNumber", ret.create_text_node("1")),
             ret.create_element("UDN", ret.create_text_node(uuid_attr.c_str())),
             ret.create_element("iconList",
-                               icon_elem("/vlc.png", "32", "32"),
-                               icon_elem("/vlc512x512.png", "512", "512")),
+                               icon_elem("/heimdall.png", "32", "32"),
+                               icon_elem("/heimdall512x512.png", "512", "512")),
             ret.create_element(
                 "serviceList",
                 service_elem("ConnectionManager"),
@@ -503,8 +504,8 @@ static bool init_upnp(intf_thread_t *intf)
     intf_sys_t *sys = intf->p_sys;
 
     addon_uuid_t uuid;
-    vlc_rand_bytes(uuid, sizeof(uuid));
-    sys->uuid = vlc::wrap_cptr(addons_uuid_to_psz(&uuid), &free);
+    heimdall_rand_bytes(uuid, sizeof(uuid));
+    sys->uuid = heimdall::wrap_cptr(addons_uuid_to_psz(&uuid), &free);
 
     int res = UpnpEnableWebserver(true);
     if (res != UPNP_E_SUCCESS)
@@ -526,7 +527,7 @@ static bool init_upnp(intf_thread_t *intf)
         return false;
     }
 
-    const auto server_name = vlc::wrap_cptr(var_InheritString(intf, SERVER_PREFIX "name"), &free);
+    const auto server_name = heimdall::wrap_cptr(var_InheritString(intf, SERVER_PREFIX "name"), &free);
     assert(server_name);
     const auto presentation_doc = make_server_identity(sys->uuid.get(), server_name.get());
     const auto up_presentation_str = presentation_doc.to_wrapped_cstr();
@@ -575,31 +576,31 @@ static bool init_upnp(intf_thread_t *intf)
 namespace Server
 {
 
-int open(vlc_object_t *p_this)
+int open(heimdall_object_t *p_this)
 {
     intf_thread_t *intf = container_of(p_this, intf_thread_t, obj);
     intf_sys_t *sys = new (std::nothrow) intf_sys_t;
     if (unlikely(sys == nullptr))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     intf->p_sys = sys;
 
     const bool share_private_media = var_InheritBool(p_this, SERVER_PREFIX "share-private-media");
-    sys->p_ml = ml::MediaLibraryContext{vlc_ml_instance_get(p_this), share_private_media};
+    sys->p_ml = ml::MediaLibraryContext{heimdall_ml_instance_get(p_this), share_private_media};
     if (!sys->p_ml.handle)
     {
         msg_Err(intf, "Medialibrary not initialized");
         delete sys;
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    vlc_ml_event_callback_t *cb =
-        vlc_ml_event_register_callback(sys->p_ml.handle, medialibrary_event_callback, intf);
-    const auto release_cb = [sys](vlc_ml_event_callback_t *cb) {
-        vlc_ml_event_unregister_callback(sys->p_ml.handle, cb);
+    heimdall_ml_event_callback_t *cb =
+        heimdall_ml_event_register_callback(sys->p_ml.handle, medialibrary_event_callback, intf);
+    const auto release_cb = [sys](heimdall_ml_event_callback_t *cb) {
+        heimdall_ml_event_unregister_callback(sys->p_ml.handle, cb);
     };
     sys->ml_callback_handle = {cb, release_cb};
 
-    sys->upnp = vlc::wrap_cptr(UpnpInstanceWrapper::get(p_this),
+    sys->upnp = heimdall::wrap_cptr(UpnpInstanceWrapper::get(p_this),
                                [](UpnpInstanceWrapper *p_upnp) { p_upnp->release(); });
 
     sys->obj_hierarchy = cds::init_hierarchy(sys->p_ml);
@@ -608,13 +609,13 @@ int open(vlc_object_t *p_this)
     if (!init_upnp(intf))
     {
         delete sys;
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-void close(vlc_object_t *p_this)
+void close(heimdall_object_t *p_this)
 {
     intf_thread_t *intf = container_of(p_this, intf_thread_t, obj);
     intf_sys_t *sys = intf->p_sys;

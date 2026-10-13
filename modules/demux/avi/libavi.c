@@ -2,6 +2,7 @@
  * libavi.c : LibAVI
  *****************************************************************************
  * Copyright (C) 2001 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -24,9 +25,9 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_demux.h>                                   /* stream_*, *_ES */
-#include <vlc_codecs.h>                            /* VLC_BITMAPINFOHEADER */
+#include <heimdall_common.h>
+#include <heimdall_demux.h>                                   /* stream_*, *_ES */
+#include <heimdall_codecs.h>                            /* HEIMDALL_BITMAPINFOHEADER */
 
 #include "libavi.h"
 
@@ -39,9 +40,9 @@
 #define __EVEN( x ) (((x) + 1) & ~1)
 #define AVI_MAX_DEPTH 32
 
-static vlc_fourcc_t GetFOURCC( const uint8_t *p_buff )
+static heimdall_fourcc_t GetFOURCC( const uint8_t *p_buff )
 {
-    return VLC_FOURCC( p_buff[0], p_buff[1], p_buff[2], p_buff[3] );
+    return HEIMDALL_FOURCC( p_buff[0], p_buff[1], p_buff[2], p_buff[3] );
 }
 
 static uint64_t AVI_ChunkSize( const avi_chunk_t *p_ck )
@@ -66,15 +67,15 @@ static int AVI_ChunkReadCommon( stream_t *s, avi_chunk_t *p_chk,
 
     AVI_ChunkInit( p_chk, i_depth );
 
-    const uint64_t i_pos = vlc_stream_Tell( s );
-    if( vlc_stream_Peek( s, &p_peek, 8 ) < 8 )
+    const uint64_t i_pos = heimdall_stream_Tell( s );
+    if( heimdall_stream_Peek( s, &p_peek, 8 ) < 8 )
     {
         uint64_t i_size;
-        if( vlc_stream_GetSize( s, &i_size ) == VLC_SUCCESS && i_size > i_pos )
+        if( heimdall_stream_GetSize( s, &i_size ) == HEIMDALL_SUCCESS && i_size > i_pos )
             msg_Warn( s, "can't peek at %"PRIu64, i_pos );
         else
             msg_Dbg( s, "no more data at %"PRIu64, i_pos );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     p_chk->common.i_chunk_fourcc = GetFOURCC( p_peek );
@@ -84,7 +85,7 @@ static int AVI_ChunkReadCommon( stream_t *s, avi_chunk_t *p_chk,
     if( p_chk->common.i_chunk_size >= UINT64_MAX - 8 ||
         p_chk->common.i_chunk_pos > UINT64_MAX - 8 ||
         UINT64_MAX - p_chk->common.i_chunk_pos - 8 < __EVEN(p_chk->common.i_chunk_size) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if( p_father && AVI_ChunkEnd( p_chk ) > AVI_ChunkEnd( p_father ) )
     {
@@ -95,7 +96,7 @@ static int AVI_ChunkReadCommon( stream_t *s, avi_chunk_t *p_chk,
         if( p_father->common.i_chunk_fourcc != AVIFOURCC_RIFF ||
             p_father->common.p_father == NULL ||
             p_father->common.p_father->common.p_father != NULL ) /* Root > RIFF only */
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 
 #ifdef AVI_DEBUG
@@ -105,21 +106,21 @@ static int AVI_ChunkReadCommon( stream_t *s, avi_chunk_t *p_chk,
              p_chk->common.i_chunk_size,
              p_chk->common.i_chunk_pos );
 #endif
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int AVI_GotoNextChunk( stream_t *s, const avi_chunk_t *p_chk )
 {
     bool b_seekable = false;
     const uint64_t i_offset = AVI_ChunkEnd( p_chk );
-    if ( !vlc_stream_Control(s, STREAM_CAN_SEEK, &b_seekable) && b_seekable )
+    if ( !heimdall_stream_Control(s, STREAM_CAN_SEEK, &b_seekable) && b_seekable )
     {
-        return vlc_stream_Seek( s, i_offset );
+        return heimdall_stream_Seek( s, i_offset );
     }
-    ssize_t i_read = i_offset - vlc_stream_Tell( s );
+    ssize_t i_read = i_offset - heimdall_stream_Tell( s );
     if (i_read < 0)
-        return VLC_EGENERIC;
-    return vlc_stream_Read( s, NULL, i_read ) != i_read ? VLC_EGENERIC : VLC_SUCCESS;
+        return HEIMDALL_EGENERIC;
+    return heimdall_stream_Read( s, NULL, i_read ) != i_read ? HEIMDALL_EGENERIC : HEIMDALL_SUCCESS;
 }
 
 static int AVI_NextChunk( stream_t *s, avi_chunk_t *p_chk )
@@ -130,7 +131,7 @@ static int AVI_NextChunk( stream_t *s, avi_chunk_t *p_chk )
     {
         if( AVI_ChunkReadCommon( s, &chk, NULL, 0 ) )
         {
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
         p_chk = &chk;
     }
@@ -148,21 +149,21 @@ static int AVI_ChunkRead_list( stream_t *s, avi_chunk_t *p_container )
     avi_chunk_t *p_chk;
     const uint8_t *p_peek;
     bool b_seekable;
-    int i_ret = VLC_SUCCESS;
+    int i_ret = HEIMDALL_SUCCESS;
 
     if( p_container->common.i_chunk_size > 0 && p_container->common.i_chunk_size < 4 )
     {
         /* empty box */
         msg_Warn( s, "empty list chunk" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
-    if( vlc_stream_Peek( s, &p_peek, 12 ) < 12 )
+    if( heimdall_stream_Peek( s, &p_peek, 12 ) < 12 )
     {
         msg_Warn( s, "unexpected end of file while reading list chunk" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    vlc_stream_Control( s, STREAM_CAN_SEEK, &b_seekable );
+    heimdall_stream_Control( s, STREAM_CAN_SEEK, &b_seekable );
 
     p_container->list.i_type = GetFOURCC( p_peek + 8 );
 
@@ -177,15 +178,15 @@ static int AVI_ChunkRead_list( stream_t *s, avi_chunk_t *p_container )
         p_container->list.i_type == AVIFOURCC_movi )
     {
         if( !b_seekable )
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         msg_Dbg( s, "skipping movi chunk" );
         return AVI_NextChunk( s, p_container ); /* points at beginning of LIST-movi if not seekable */
     }
 
-    if( vlc_stream_Read( s, NULL, 12 ) != 12 )
+    if( heimdall_stream_Read( s, NULL, 12 ) != 12 )
     {
         msg_Warn( s, "cannot enter chunk" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
 #ifdef AVI_DEBUG
@@ -200,7 +201,7 @@ static int AVI_ChunkRead_list( stream_t *s, avi_chunk_t *p_container )
     {
         p_chk = calloc( 1, sizeof( avi_chunk_t ) );
         if( !p_chk )
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
         i_ret = AVI_ChunkRead( s, p_chk, p_container );
         if( i_ret )
@@ -220,7 +221,7 @@ static int AVI_ChunkRead_list( stream_t *s, avi_chunk_t *p_container )
         }
 
         if( p_container->common.i_chunk_size > 0 &&
-            vlc_stream_Tell( s ) >= AVI_ChunkEnd( p_container ) )
+            heimdall_stream_Tell( s ) >= AVI_ChunkEnd( p_container ) )
         {
             break;
         }
@@ -240,7 +241,7 @@ static int AVI_ChunkRead_list( stream_t *s, avi_chunk_t *p_container )
     if( i_ret == AVI_ZERO_FOURCC || i_ret == AVI_ZEROSIZED_CHUNK )
         return AVI_GotoNextChunk( s, p_container );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /* Allow to append indexes after starting playback */
@@ -248,16 +249,16 @@ int AVI_ChunkFetchIndexes( stream_t *s, avi_chunk_t *p_riff )
 {
     avi_chunk_t *p_movi = AVI_ChunkFind( p_riff, AVIFOURCC_movi, 0, true );
     if ( !p_movi )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     avi_chunk_t *p_chk;
     const uint64_t i_indexpos = AVI_ChunkEnd( p_movi );
     bool b_seekable = false;
-    int i_ret = VLC_SUCCESS;
+    int i_ret = HEIMDALL_SUCCESS;
 
-    vlc_stream_Control( s, STREAM_CAN_SEEK, &b_seekable );
-    if ( !b_seekable || vlc_stream_Seek( s, i_indexpos ) )
-        return VLC_EGENERIC;
+    heimdall_stream_Control( s, STREAM_CAN_SEEK, &b_seekable );
+    if ( !b_seekable || heimdall_stream_Seek( s, i_indexpos ) )
+        return HEIMDALL_EGENERIC;
 
     avi_chunk_t **pp_append = &p_riff->common.p_first;
     for( ; ; )
@@ -265,7 +266,7 @@ int AVI_ChunkFetchIndexes( stream_t *s, avi_chunk_t *p_riff )
         p_chk = calloc( 1, sizeof( avi_chunk_t ) );
         if( !p_chk )
         {
-            i_ret = VLC_EGENERIC;
+            i_ret = HEIMDALL_EGENERIC;
             break;
         }
 
@@ -282,7 +283,7 @@ int AVI_ChunkFetchIndexes( stream_t *s, avi_chunk_t *p_riff )
             pp_append = &((*pp_append)->common.p_next);
 
         if( p_chk->common.p_father->common.i_chunk_size > 0 &&
-           ( vlc_stream_Tell( s ) >
+           ( heimdall_stream_Tell( s ) >
              p_chk->common.p_father->common.i_chunk_pos +
              __EVEN( p_chk->common.p_father->common.i_chunk_size ) ) )
         {
@@ -306,18 +307,18 @@ int AVI_ChunkFetchIndexes( stream_t *s, avi_chunk_t *p_riff )
     if( i_read > 100000000 || i_read < 0 ) \
     { \
         msg_Err( s, "Invalid chunk size ignored" ); \
-        return VLC_EGENERIC; \
+        return HEIMDALL_EGENERIC; \
     } \
     uint8_t  *p_read, *p_buff;    \
     if( !( p_read = p_buff = malloc(i_read ) ) ) \
     { \
-        return VLC_EGENERIC; \
+        return HEIMDALL_EGENERIC; \
     } \
-    i_read = vlc_stream_Read( s, p_read, i_read ); \
+    i_read = heimdall_stream_Read( s, p_read, i_read ); \
     if( i_read < (int64_t)__EVEN(p_chk->common.i_chunk_size ) + 8 ) \
     { \
         free( p_buff ); \
-        return VLC_EGENERIC; \
+        return HEIMDALL_EGENERIC; \
     }\
     p_read += 8; \
     i_read -= 8
@@ -325,7 +326,7 @@ int AVI_ChunkFetchIndexes( stream_t *s, avi_chunk_t *p_riff )
 #define AVI_READ( res, func, size ) \
     if( i_read < size ) { \
         free( p_buff); \
-        return VLC_EGENERIC; \
+        return HEIMDALL_EGENERIC; \
     } \
     i_read -= size; \
     res = func( p_read ); \
@@ -386,7 +387,7 @@ static int AVI_ChunkRead_avih( stream_t *s, avi_chunk_t *p_chk )
              p_chk->avih.i_flags&AVIF_TRUSTCKTYPE?" TRUST_CKTYPE":"",
              p_chk->avih.i_width, p_chk->avih.i_height );
 #endif
-    AVI_READCHUNK_EXIT( VLC_SUCCESS );
+    AVI_READCHUNK_EXIT( HEIMDALL_SUCCESS );
 }
 
 static int AVI_ChunkRead_strh( stream_t *s, avi_chunk_t *p_chk )
@@ -415,7 +416,7 @@ static int AVI_ChunkRead_strh( stream_t *s, avi_chunk_t *p_chk )
                 (float)p_chk->strh.i_rate / (float)p_chk->strh.i_scale : -1) );
 #endif
 
-    AVI_READCHUNK_EXIT( VLC_SUCCESS );
+    AVI_READCHUNK_EXIT( HEIMDALL_SUCCESS );
 }
 
 static int AVI_ChunkRead_strf( stream_t *s, avi_chunk_t *p_chk )
@@ -426,12 +427,12 @@ static int AVI_ChunkRead_strf( stream_t *s, avi_chunk_t *p_chk )
     if( p_chk->common.p_father == NULL )
     {
         msg_Err( s, "malformed avi file" );
-        AVI_READCHUNK_EXIT( VLC_EGENERIC );
+        AVI_READCHUNK_EXIT( HEIMDALL_EGENERIC );
     }
     if( !( p_strh = AVI_ChunkFind( p_chk->common.p_father, AVIFOURCC_strh, 0, false ) ) )
     {
         msg_Err( s, "malformed avi file" );
-        AVI_READCHUNK_EXIT( p_chk->common.i_chunk_size > 0  ? VLC_EGENERIC : AVI_ZEROSIZED_CHUNK );
+        AVI_READCHUNK_EXIT( p_chk->common.i_chunk_size > 0  ? HEIMDALL_EGENERIC : AVI_ZEROSIZED_CHUNK );
     }
 
     switch( p_strh->strh.i_type )
@@ -441,7 +442,7 @@ static int AVI_ChunkRead_strf( stream_t *s, avi_chunk_t *p_chk )
             p_chk->strf.auds.p_wf = malloc( __MAX( p_chk->common.i_chunk_size, sizeof( WAVEFORMATEX ) ) );
             if ( !p_chk->strf.auds.p_wf )
             {
-                AVI_READCHUNK_EXIT( VLC_ENOMEM );
+                AVI_READCHUNK_EXIT( HEIMDALL_ENOMEM );
             }
             AVI_READ2BYTES( p_chk->strf.auds.p_wf->wFormatTag );
             AVI_READ2BYTES( p_chk->strf.auds.p_wf->nChannels );
@@ -495,7 +496,7 @@ static int AVI_ChunkRead_strf( stream_t *s, avi_chunk_t *p_chk )
                                          sizeof( *p_chk->strf.vids.p_bih ) ) );
             if ( !p_chk->strf.vids.p_bih )
             {
-                AVI_READCHUNK_EXIT( VLC_ENOMEM );
+                AVI_READCHUNK_EXIT( HEIMDALL_ENOMEM );
             }
             AVI_READ4BYTES( p_chk->strf.vids.p_bih->biSize );
             AVI_READ4BYTES( p_chk->strf.vids.p_bih->biWidth );
@@ -512,13 +513,13 @@ static int AVI_ChunkRead_strf( stream_t *s, avi_chunk_t *p_chk )
             {
                 p_chk->strf.vids.p_bih->biSize = p_chk->common.i_chunk_size;
             }
-            if ( p_chk->common.i_chunk_size > sizeof(VLC_BITMAPINFOHEADER) )
+            if ( p_chk->common.i_chunk_size > sizeof(HEIMDALL_BITMAPINFOHEADER) )
             {
-                uint64_t i_extrasize = p_chk->common.i_chunk_size - sizeof(VLC_BITMAPINFOHEADER);
+                uint64_t i_extrasize = p_chk->common.i_chunk_size - sizeof(HEIMDALL_BITMAPINFOHEADER);
 
-                /* There's a color palette appended, set up VLC_BITMAPINFO */
+                /* There's a color palette appended, set up HEIMDALL_BITMAPINFO */
                 memcpy( &p_chk->strf.vids.p_bih[1],
-                        p_buff + 8 + sizeof(VLC_BITMAPINFOHEADER), /* 8=fourrc+size */
+                        p_buff + 8 + sizeof(HEIMDALL_BITMAPINFOHEADER), /* 8=fourrc+size */
                         i_extrasize );
 
                 if ( !p_chk->strf.vids.p_bih->biClrUsed )
@@ -538,7 +539,7 @@ static int AVI_ChunkRead_strf( stream_t *s, avi_chunk_t *p_chk )
                                    p_chk->strf.vids.p_bih->biClrUsed );
                 }
 
-                /* stay within VLC's limits */
+                /* stay within Heimdall's limits */
                 p_chk->strf.vids.p_bih->biClrUsed =
                     __MIN( VIDEO_PALETTE_COLORS_MAX, p_chk->strf.vids.p_bih->biClrUsed );
             }
@@ -567,7 +568,7 @@ static int AVI_ChunkRead_strf( stream_t *s, avi_chunk_t *p_chk )
             p_chk->strf.common.i_cat = UNKNOWN_ES;
             break;
     }
-    AVI_READCHUNK_EXIT( VLC_SUCCESS );
+    AVI_READCHUNK_EXIT( HEIMDALL_SUCCESS );
 }
 static void AVI_ChunkFree_strf( avi_chunk_t *p_chk )
 {
@@ -594,7 +595,7 @@ static int AVI_ChunkRead_strd( stream_t *s, avi_chunk_t *p_chk )
     p_chk->strd.p_data = malloc( p_chk->common.i_chunk_size );
     if( p_chk->strd.p_data )
         memcpy( p_chk->strd.p_data, p_buff + 8, p_chk->common.i_chunk_size );
-    AVI_READCHUNK_EXIT( p_chk->strd.p_data ? VLC_SUCCESS : VLC_EGENERIC );
+    AVI_READCHUNK_EXIT( p_chk->strd.p_data ? HEIMDALL_SUCCESS : HEIMDALL_EGENERIC );
 }
 
 static void AVI_ChunkFree_strd( avi_chunk_t *p_chk )
@@ -616,7 +617,7 @@ static int AVI_ChunkRead_idx1( stream_t *s, avi_chunk_t *p_chk )
     {
         p_chk->idx1.entry = calloc( i_count, sizeof( idx1_entry_t ) );
         if( !p_chk->idx1.entry )
-            AVI_READCHUNK_EXIT( VLC_EGENERIC );
+            AVI_READCHUNK_EXIT( HEIMDALL_EGENERIC );
 
         for( i_index = 0; i_index < i_count ; i_index++ )
         {
@@ -633,7 +634,7 @@ static int AVI_ChunkRead_idx1( stream_t *s, avi_chunk_t *p_chk )
 #ifdef AVI_DEBUG
     msg_Dbg( s, "idx1: index entry:%d", i_count );
 #endif
-    AVI_READCHUNK_EXIT( VLC_SUCCESS );
+    AVI_READCHUNK_EXIT( HEIMDALL_SUCCESS );
 }
 
 static void AVI_ChunkFree_idx1( avi_chunk_t *p_chk )
@@ -648,9 +649,9 @@ static void AVI_ChunkFree_idx1( avi_chunk_t *p_chk )
 static int AVI_ChunkRead_indx( stream_t *s, avi_chunk_t *p_chk )
 {
     unsigned int i_count, i;
-    int          i_ret = VLC_SUCCESS;
+    int          i_ret = HEIMDALL_SUCCESS;
     int32_t      i_dummy;
-    VLC_UNUSED(i_dummy);
+    HEIMDALL_UNUSED(i_dummy);
     avi_chunk_indx_t *p_indx = (avi_chunk_indx_t*)p_chk;
 
     AVI_READCHUNK_ENTER;
@@ -681,7 +682,7 @@ static int AVI_ChunkRead_indx( stream_t *s, avi_chunk_t *p_chk )
                 AVI_READ4BYTES( p_indx->idx.std[i].i_size );
             }
         }
-        else i_ret = VLC_EGENERIC;
+        else i_ret = HEIMDALL_EGENERIC;
     }
     else if( p_indx->i_indextype == AVI_INDEX_OF_CHUNKS && p_indx->i_indexsubtype == AVI_INDEX_2FIELD )
     {
@@ -700,7 +701,7 @@ static int AVI_ChunkRead_indx( stream_t *s, avi_chunk_t *p_chk )
                 AVI_READ4BYTES( p_indx->idx.field[i].i_offsetfield2 );
             }
         }
-        else i_ret = VLC_EGENERIC;
+        else i_ret = HEIMDALL_EGENERIC;
     }
     else if( p_indx->i_indextype == AVI_INDEX_OF_INDEXES )
     {
@@ -721,7 +722,7 @@ static int AVI_ChunkRead_indx( stream_t *s, avi_chunk_t *p_chk )
                 AVI_READ4BYTES( p_indx->idx.super[i].i_duration );
             }
         }
-        else i_ret = VLC_EGENERIC;
+        else i_ret = HEIMDALL_EGENERIC;
     }
     else
     {
@@ -774,7 +775,7 @@ static int AVI_ChunkRead_vprp( stream_t *s, avi_chunk_t *p_chk )
     msg_Dbg( s, "vprp: format:%d standard:%d",
              p_vprp->i_video_format_token, p_vprp->i_video_standard );
 #endif
-    AVI_READCHUNK_EXIT( VLC_SUCCESS );
+    AVI_READCHUNK_EXIT( HEIMDALL_SUCCESS );
 }
 
 static int AVI_ChunkRead_dmlh( stream_t *s, avi_chunk_t *p_chk )
@@ -789,12 +790,12 @@ static int AVI_ChunkRead_dmlh( stream_t *s, avi_chunk_t *p_chk )
     msg_Dbg( s, "dmlh: dwTotalFrames %d",
              p_dmlh->dwTotalFrames );
 #endif
-    AVI_READCHUNK_EXIT( VLC_SUCCESS );
+    AVI_READCHUNK_EXIT( HEIMDALL_SUCCESS );
 }
 
 static const struct
 {
-    vlc_fourcc_t i_fourcc;
+    heimdall_fourcc_t i_fourcc;
     const char *psz_type;
 } AVI_strz_type[] =
 {
@@ -870,7 +871,7 @@ static int AVI_ChunkRead_strz( stream_t *s, avi_chunk_t *p_chk )
     {
         free( p_strz->p_type );
         free( p_strz->p_str );
-        AVI_READCHUNK_EXIT( VLC_EGENERIC );
+        AVI_READCHUNK_EXIT( HEIMDALL_EGENERIC );
     }
     memcpy( p_strz->p_str, p_read, p_strz->i_chunk_size );
     p_strz->p_str[p_strz->i_chunk_size] = 0;
@@ -879,7 +880,7 @@ static int AVI_ChunkRead_strz( stream_t *s, avi_chunk_t *p_chk )
     msg_Dbg( s, "%4.4s: %s : %s",
              (char*)&p_strz->i_chunk_fourcc, p_strz->p_type, p_strz->p_str);
 #endif
-    AVI_READCHUNK_EXIT( VLC_SUCCESS );
+    AVI_READCHUNK_EXIT( HEIMDALL_SUCCESS );
 }
 static void AVI_ChunkFree_strz( avi_chunk_t *p_chk )
 {
@@ -894,12 +895,12 @@ static int AVI_ChunkRead_nothing( stream_t *s, avi_chunk_t *p_chk )
 }
 static void AVI_ChunkFree_nothing( avi_chunk_t *p_chk )
 {
-    VLC_UNUSED( p_chk );
+    HEIMDALL_UNUSED( p_chk );
 }
 
 static const struct
 {
-    vlc_fourcc_t i_fourcc;
+    heimdall_fourcc_t i_fourcc;
     int   (*AVI_ChunkRead_function)( stream_t *s, avi_chunk_t *p_chk );
     void  (*AVI_ChunkFree_function)( avi_chunk_t *p_chk );
 } AVI_Chunk_Function [] =
@@ -975,7 +976,7 @@ static const struct
     { 0,           NULL,               NULL }
 };
 
-static int AVI_ChunkFunctionFind( vlc_fourcc_t i_fourcc )
+static int AVI_ChunkFunctionFind( heimdall_fourcc_t i_fourcc )
 {
     unsigned int i_index;
     for( i_index = 0; ; i_index++ )
@@ -994,18 +995,18 @@ int  AVI_ChunkRead( stream_t *s, avi_chunk_t *p_chk, avi_chunk_t *p_father )
 
     unsigned i_depth = p_father ? p_father->common.i_depth + 1 : 0;
     if( i_depth >= AVI_MAX_DEPTH )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if( !p_chk )
     {
         msg_Warn( s, "cannot read null chunk" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( AVI_ChunkReadCommon( s, p_chk, p_father, i_depth ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    if( p_chk->common.i_chunk_fourcc == VLC_FOURCC( 0, 0, 0, 0 ) )
+    if( p_chk->common.i_chunk_fourcc == HEIMDALL_FOURCC( 0, 0, 0, 0 ) )
     {
         msg_Warn( s, "found null fourcc chunk (corrupted file?)" );
         return AVI_ZERO_FOURCC;
@@ -1077,7 +1078,7 @@ void AVI_ChunkInit( avi_chunk_t *p_chk, unsigned i_depth )
     p_chk->common.i_depth = i_depth;
 }
 
-static void AVI_ChunkDumpDebug_level( vlc_object_t *p_obj,
+static void AVI_ChunkDumpDebug_level( heimdall_object_t *p_obj,
                                       avi_chunk_t  *p_chk, unsigned i_level )
 {
     avi_chunk_t *p_child;
@@ -1127,7 +1128,7 @@ int AVI_ChunkReadRoot( stream_t *s, avi_chunk_t *p_root )
     avi_chunk_t      *p_chk;
     bool b_seekable;
 
-    vlc_stream_Control( s, STREAM_CAN_SEEK, &b_seekable );
+    heimdall_stream_Control( s, STREAM_CAN_SEEK, &b_seekable );
 
     p_list->i_chunk_pos  = 0;
     p_list->i_chunk_size = ((UINT64_MAX - 12) >> 1) << 1;
@@ -1137,16 +1138,16 @@ int AVI_ChunkReadRoot( stream_t *s, avi_chunk_t *p_root )
     p_list->p_first = NULL;
     p_list->i_depth = 0;
 
-    p_list->i_type = VLC_FOURCC( 'r', 'o', 'o', 't' );
+    p_list->i_type = HEIMDALL_FOURCC( 'r', 'o', 'o', 't' );
 
     avi_chunk_t **pp_append = &p_root->common.p_first;
     for( ; ; )
     {
         p_chk = calloc( 1, sizeof( avi_chunk_t ) );
         if( !p_chk )
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
-        if( AVI_ChunkRead( s, p_chk, p_root ) != VLC_SUCCESS )
+        if( AVI_ChunkRead( s, p_chk, p_root ) != HEIMDALL_SUCCESS )
         {
             AVI_ChunkClean( s, p_chk );
             free( p_chk );
@@ -1157,7 +1158,7 @@ int AVI_ChunkReadRoot( stream_t *s, avi_chunk_t *p_root )
         while( *pp_append )
             pp_append = &((*pp_append)->common.p_next);
 
-        if( vlc_stream_Tell( s ) >=
+        if( heimdall_stream_Tell( s ) >=
                  p_chk->common.p_father->common.i_chunk_pos +
                  __EVEN( p_chk->common.p_father->common.i_chunk_size ) )
         {
@@ -1172,11 +1173,11 @@ int AVI_ChunkReadRoot( stream_t *s, avi_chunk_t *p_root )
         }
     }
 
-    if( vlc_stream_GetSize( s, &p_list->i_chunk_size ) != VLC_SUCCESS )
+    if( heimdall_stream_GetSize( s, &p_list->i_chunk_size ) != HEIMDALL_SUCCESS )
         p_list->i_chunk_size = 0;
 
-    AVI_ChunkDumpDebug_level( VLC_OBJECT(s), p_root, 0 );
-    return VLC_SUCCESS;
+    AVI_ChunkDumpDebug_level( HEIMDALL_OBJECT(s), p_root, 0 );
+    return HEIMDALL_SUCCESS;
 }
 
 void AVI_ChunkFreeRoot( stream_t *s,
@@ -1186,7 +1187,7 @@ void AVI_ChunkFreeRoot( stream_t *s,
 }
 
 
-int  AVI_ChunkCount_( avi_chunk_t *p_chk, vlc_fourcc_t i_fourcc, bool b_list )
+int  AVI_ChunkCount_( avi_chunk_t *p_chk, heimdall_fourcc_t i_fourcc, bool b_list )
 {
     if( !p_chk )
         return 0;
@@ -1209,7 +1210,7 @@ int  AVI_ChunkCount_( avi_chunk_t *p_chk, vlc_fourcc_t i_fourcc, bool b_list )
 }
 
 void *AVI_ChunkFind_( avi_chunk_t *p_chk,
-                      vlc_fourcc_t i_fourcc, int i_number, bool b_list )
+                      heimdall_fourcc_t i_fourcc, int i_number, bool b_list )
 {
     if( !p_chk )
         return NULL;

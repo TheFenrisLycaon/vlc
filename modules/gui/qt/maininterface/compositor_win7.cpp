@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,16 +24,16 @@
 #include "mainctx_win32.hpp"
 #include "mainui.hpp"
 
-#include <vlc_window.h>
+#include <heimdall_window.h>
 
 #include <dwmapi.h>
 
-using namespace vlc;
+using namespace heimdall;
 
-int CompositorWin7::windowEnable(const vlc_window_cfg_t *)
+int CompositorWin7::windowEnable(const heimdall_window_cfg_t *)
 {
     commonWindowEnable();
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 void CompositorWin7::windowDisable()
@@ -132,7 +133,7 @@ void CompositorWin7::unloadGUI()
     commonGUIDestroy();
 }
 
-bool CompositorWin7::setupVoutWindow(vlc_window_t *p_wnd, VoutDestroyCb destroyCb)
+bool CompositorWin7::setupVoutWindow(heimdall_window_t *p_wnd, VoutDestroyCb destroyCb)
 {
     if (m_wnd)
         return false;
@@ -146,7 +147,7 @@ bool CompositorWin7::setupVoutWindow(vlc_window_t *p_wnd, VoutDestroyCb destroyC
         return false;
 
     commonSetupVoutWindow(p_wnd, destroyCb);
-    p_wnd->type = VLC_WINDOW_TYPE_HWND;
+    p_wnd->type = HEIMDALL_WINDOW_TYPE_HWND;
     p_wnd->handle.hwnd = (HWND)m_stable->winId();
     p_wnd->display.x11 = nullptr;
     return true;

@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright © 2014-2016 VideoLAN and VideoLAN Authors
  *             2018-2019 VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -21,14 +22,14 @@
 #ifndef DBMHELPER_HPP
 #define DBMHELPER_HPP
 
-#include "../../access/vlc_decklink.h"
+#include "../../access/heimdall_decklink.h"
 
 namespace Decklink
 {
     class Helper
     {
         public:
-            static IDeckLinkDisplayMode * MatchDisplayMode(vlc_object_t *,
+            static IDeckLinkDisplayMode * MatchDisplayMode(heimdall_object_t *,
                                                            IDeckLinkOutput *,
                                                            const video_format_t *,
                                                            BMDDisplayMode = bmdModeUnknown);

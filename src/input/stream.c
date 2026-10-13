@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 1999-2004 VLC authors and VideoLAN
  * Copyright 2008-2015 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *
@@ -33,14 +34,14 @@
 #include <limits.h>
 #include <errno.h>
 
-#include <vlc_common.h>
-#include <vlc_block.h>
-#include <vlc_access.h>
-#include <vlc_interrupt.h>
-#include <vlc_charset.h>
-#include <vlc_stream_extractor.h>
+#include <heimdall_common.h>
+#include <heimdall_block.h>
+#include <heimdall_access.h>
+#include <heimdall_interrupt.h>
+#include <heimdall_charset.h>
+#include <heimdall_stream_extractor.h>
 
-#include "../libvlc.h"
+#include "../libheimdall.h"
 #include "stream.h"
 #include "mrl_helpers.h"
 
@@ -55,7 +56,7 @@ typedef struct stream_priv_t
 
     /* UTF-16 and UTF-32 file reading */
     struct {
-        vlc_iconv_t   conv;
+        heimdall_iconv_t   conv;
         unsigned char char_width;
         bool          little_endian;
     } text;
@@ -64,13 +65,13 @@ typedef struct stream_priv_t
 } stream_priv_t;
 
 /**
- * Allocates a VLC stream object
+ * Allocates a Heimdall stream object
  */
-stream_t *vlc_stream_CustomNew(vlc_object_t *parent,
+stream_t *heimdall_stream_CustomNew(heimdall_object_t *parent,
                                void (*destroy)(stream_t *), size_t size,
                                const char *type_name)
 {
-    stream_priv_t *priv = vlc_custom_create(parent, sizeof (*priv) + size,
+    stream_priv_t *priv = heimdall_custom_create(parent, sizeof (*priv) + size,
                                             type_name);
     if (unlikely(priv == NULL))
         return NULL;
@@ -101,7 +102,7 @@ stream_t *vlc_stream_CustomNew(vlc_object_t *parent,
     priv->eof = false;
 
     /* UTF16 and UTF32 text file conversion */
-    priv->text.conv = (vlc_iconv_t)(-1);
+    priv->text.conv = (heimdall_iconv_t)(-1);
     priv->text.char_width = 1;
     priv->text.little_endian = false;
 
@@ -110,23 +111,23 @@ stream_t *vlc_stream_CustomNew(vlc_object_t *parent,
 
 #define stream_priv(s) container_of(s, stream_priv_t, stream)
 
-void *vlc_stream_Private(stream_t *stream)
+void *heimdall_stream_Private(stream_t *stream)
 {
     return stream_priv(stream)->private_data;
 }
 
-stream_t *vlc_stream_CommonNew(vlc_object_t *parent,
+stream_t *heimdall_stream_CommonNew(heimdall_object_t *parent,
                                void (*destroy)(stream_t *))
 {
-    return vlc_stream_CustomNew(parent, destroy, 0, "stream");
+    return heimdall_stream_CustomNew(parent, destroy, 0, "stream");
 }
 
 void stream_CommonDelete(stream_t *s)
 {
     stream_priv_t *priv = stream_priv(s);
 
-    if (priv->text.conv != (vlc_iconv_t)(-1))
-        vlc_iconv_close(priv->text.conv);
+    if (priv->text.conv != (heimdall_iconv_t)(-1))
+        heimdall_iconv_close(priv->text.conv);
 
     if (priv->peek != NULL)
         block_Release(priv->peek);
@@ -134,13 +135,13 @@ void stream_CommonDelete(stream_t *s)
         block_Release(priv->block);
 
     free(s->psz_url);
-    vlc_object_delete(s);
+    heimdall_object_delete(s);
 }
 
 /**
  * Destroy a stream
  */
-void vlc_stream_Delete(stream_t *s)
+void heimdall_stream_Delete(stream_t *s)
 {
     stream_priv_t *priv = stream_priv(s);
 
@@ -151,7 +152,7 @@ void vlc_stream_Delete(stream_t *s)
     stream_CommonDelete(s);
 }
 
-stream_t *(vlc_stream_NewURL)(vlc_object_t *p_parent, const char *psz_url)
+stream_t *(heimdall_stream_NewURL)(heimdall_object_t *p_parent, const char *psz_url)
 {
     if( !psz_url )
         return NULL;
@@ -164,9 +165,9 @@ stream_t *(vlc_stream_NewURL)(vlc_object_t *p_parent, const char *psz_url)
     return s;
 }
 
-stream_t *(vlc_stream_NewMRL)(vlc_object_t* parent, const char* mrl )
+stream_t *(heimdall_stream_NewMRL)(heimdall_object_t* parent, const char* mrl )
 {
-    stream_t* stream = vlc_stream_NewURL( parent, mrl );
+    stream_t* stream = heimdall_stream_NewURL( parent, mrl );
 
     if( stream == NULL )
         return NULL;
@@ -180,7 +181,7 @@ stream_t *(vlc_stream_NewMRL)(vlc_object_t* parent, const char* mrl )
     mrl_info_Init( &mrli );
     if( mrl_FragmentSplit( &mrli, anchor + 1 ) )
     {
-        vlc_stream_Delete( stream );
+        heimdall_stream_Delete( stream );
         mrl_info_Clean( &mrli );
         return NULL;
     }
@@ -188,7 +189,7 @@ stream_t *(vlc_stream_NewMRL)(vlc_object_t* parent, const char* mrl )
     if( stream_extractor_AttachParsed( &stream, &mrli ) )
     {
         msg_Err( parent, "unable to open %s", mrl );
-        vlc_stream_Delete( stream );
+        heimdall_stream_Delete( stream );
         mrl_info_Clean( &mrli );
         return NULL;
     }
@@ -208,7 +209,7 @@ stream_t *(vlc_stream_NewMRL)(vlc_object_t* parent, const char* mrl )
  */
 #define STREAM_PROBE_LINE 2048
 #define STREAM_LINE_MAX (2048*100)
-char *vlc_stream_ReadLine( stream_t *s )
+char *heimdall_stream_ReadLine( stream_t *s )
 {
     stream_priv_t *priv = stream_priv(s);
 
@@ -218,18 +219,18 @@ char *vlc_stream_ReadLine( stream_t *s )
         return NULL;
 
     /* BOM detection */
-    if( vlc_stream_Tell( s ) == 0 )
+    if( heimdall_stream_Tell( s ) == 0 )
     {
         const uint8_t *p_data;
-        ssize_t i_data = vlc_stream_Peek( s, &p_data, 2 );
+        ssize_t i_data = heimdall_stream_Peek( s, &p_data, 2 );
 
         if( i_data <= 0 )
             return NULL;
 
-        if( unlikely(priv->text.conv != (vlc_iconv_t)-1) )
+        if( unlikely(priv->text.conv != (heimdall_iconv_t)-1) )
         {   /* seek back to beginning? reset */
-            vlc_iconv_close( priv->text.conv );
-            priv->text.conv = (vlc_iconv_t)-1;
+            heimdall_iconv_close( priv->text.conv );
+            priv->text.conv = (heimdall_iconv_t)-1;
         }
         priv->text.char_width = 1;
         priv->text.little_endian = false;
@@ -253,8 +254,8 @@ char *vlc_stream_ReadLine( stream_t *s )
             if( psz_encoding != NULL )
             {
                 msg_Dbg( s, "UTF-16 BOM detected" );
-                priv->text.conv = vlc_iconv_open( "UTF-8", psz_encoding );
-                if( unlikely(priv->text.conv == (vlc_iconv_t)-1) )
+                priv->text.conv = heimdall_iconv_open( "UTF-8", psz_encoding );
+                if( unlikely(priv->text.conv == (heimdall_iconv_t)-1) )
                 {
                     msg_Err( s, "iconv_open failed" );
                     return NULL;
@@ -274,7 +275,7 @@ char *vlc_stream_ReadLine( stream_t *s )
                                     : __MIN( i_line * 2, STREAM_LINE_MAX );
 
         /* Probe more data */
-        ssize_t i_data = vlc_stream_Peek( s, &p_data, i_peek );
+        ssize_t i_data = heimdall_stream_Peek( s, &p_data, i_peek );
         if( i_data <= 0 )
             return NULL;
 
@@ -284,7 +285,7 @@ char *vlc_stream_ReadLine( stream_t *s )
         {
             assert( priv->text.char_width == 2 );
             uint8_t inc;
-            ssize_t i_inc = vlc_stream_Read( s, &inc, 1 );
+            ssize_t i_inc = heimdall_stream_Read( s, &inc, 1 );
             if( i_inc > 0 )
                 msg_Err( s, "discarding incomplete UTF-16 sequence at EOF: 0x%02x", inc );
             return NULL;
@@ -378,13 +379,13 @@ char *vlc_stream_ReadLine( stream_t *s )
         const char * p_in = (char *) p_data;
         char * p_out = p_line;
 
-        if( vlc_iconv( priv->text.conv, &p_in, &i_in, &p_out, &i_out ) == VLC_ICONV_ERR )
+        if( heimdall_iconv( priv->text.conv, &p_in, &i_in, &p_out, &i_out ) == HEIMDALL_ICONV_ERR )
         {
-            msg_Err( s, "conversion error: %s", vlc_strerror_c( errno ) );
+            msg_Err( s, "conversion error: %s", heimdall_strerror_c( errno ) );
             msg_Dbg( s, "original: %zu, in %zu, out %zu", i_line, i_in, i_out );
             /* Reset state */
-            size_t r = vlc_iconv( priv->text.conv, NULL, NULL, NULL, NULL );
-            VLC_UNUSED( r );
+            size_t r = heimdall_iconv( priv->text.conv, NULL, NULL, NULL, NULL );
+            HEIMDALL_UNUSED( r );
             /* FIXME: the rest of the line is discarded and lost */
         }
 
@@ -392,7 +393,7 @@ char *vlc_stream_ReadLine( stream_t *s )
         p_read = NULL; /* Line already read, only need to advance the stream */
     }
 
-    ssize_t i_data = vlc_stream_Read( s, p_read, i_line );
+    ssize_t i_data = heimdall_stream_Read( s, p_read, i_line );
     assert( i_data > 0 && (size_t) i_data == i_line );
     if( i_data <= 0 )
     {
@@ -414,7 +415,7 @@ char *vlc_stream_ReadLine( stream_t *s )
     return p_line;
 }
 
-static ssize_t vlc_stream_CopyBlock(block_t **restrict pp,
+static ssize_t heimdall_stream_CopyBlock(block_t **restrict pp,
                                     void *buf, size_t len)
 {
     block_t *block = *pp;
@@ -440,14 +441,14 @@ static ssize_t vlc_stream_CopyBlock(block_t **restrict pp,
     return likely(len > 0) ? (ssize_t)len : -1;
 }
 
-static ssize_t vlc_stream_ReadRaw(stream_t *s, void *buf, size_t len)
+static ssize_t heimdall_stream_ReadRaw(stream_t *s, void *buf, size_t len)
 {
     stream_priv_t *priv = stream_priv(s);
     ssize_t ret;
 
     assert(len <= SSIZE_MAX);
 
-    if (vlc_killed())
+    if (heimdall_killed())
         return 0;
 
     if ((s->ops != NULL && s->ops->stream.read != NULL) || (s->ops == NULL && s->pf_read != NULL))
@@ -466,7 +467,7 @@ static ssize_t vlc_stream_ReadRaw(stream_t *s, void *buf, size_t len)
         return ret;
     }
 
-    ret = vlc_stream_CopyBlock(&priv->block, buf, len);
+    ret = heimdall_stream_CopyBlock(&priv->block, buf, len);
     if (ret >= 0)
         return ret;
 
@@ -475,7 +476,7 @@ static ssize_t vlc_stream_ReadRaw(stream_t *s, void *buf, size_t len)
         bool eof = false;
 
         priv->block = (s->ops != NULL ? s->ops->stream.block : s->pf_block)(s, &eof);
-        ret = vlc_stream_CopyBlock(&priv->block, buf, len);
+        ret = heimdall_stream_CopyBlock(&priv->block, buf, len);
         if (ret >= 0)
             return ret;
         return eof ? 0 : -1;
@@ -484,12 +485,12 @@ static ssize_t vlc_stream_ReadRaw(stream_t *s, void *buf, size_t len)
     return 0;
 }
 
-ssize_t vlc_stream_ReadPartial(stream_t *s, void *buf, size_t len)
+ssize_t heimdall_stream_ReadPartial(stream_t *s, void *buf, size_t len)
 {
     stream_priv_t *priv = stream_priv(s);
     ssize_t ret;
 
-    ret = vlc_stream_CopyBlock(&priv->peek, buf, len);
+    ret = heimdall_stream_CopyBlock(&priv->peek, buf, len);
     if (ret >= 0)
     {
         priv->offset += ret;
@@ -497,7 +498,7 @@ ssize_t vlc_stream_ReadPartial(stream_t *s, void *buf, size_t len)
         return ret;
     }
 
-    ret = vlc_stream_ReadRaw(s, buf, len);
+    ret = heimdall_stream_ReadRaw(s, buf, len);
     if (ret > 0)
         priv->offset += ret;
     if (ret == 0)
@@ -506,13 +507,13 @@ ssize_t vlc_stream_ReadPartial(stream_t *s, void *buf, size_t len)
     return ret;
 }
 
-ssize_t vlc_stream_Read(stream_t *s, void *buf, size_t len)
+ssize_t heimdall_stream_Read(stream_t *s, void *buf, size_t len)
 {
     size_t copied = 0;
 
     while (len > 0)
     {
-        ssize_t ret = vlc_stream_ReadPartial(s, buf, len);
+        ssize_t ret = heimdall_stream_ReadPartial(s, buf, len);
         if (ret < 0)
             continue;
         if (ret == 0)
@@ -528,7 +529,7 @@ ssize_t vlc_stream_Read(stream_t *s, void *buf, size_t len)
     return copied;
 }
 
-ssize_t vlc_stream_Peek(stream_t *s, const uint8_t **restrict bufp, size_t len)
+ssize_t heimdall_stream_Peek(stream_t *s, const uint8_t **restrict bufp, size_t len)
 {
     stream_priv_t *priv = stream_priv(s);
     block_t *peek;
@@ -545,7 +546,7 @@ ssize_t vlc_stream_Peek(stream_t *s, const uint8_t **restrict bufp, size_t len)
     {
         peek = block_Alloc(len);
         if (unlikely(peek == NULL))
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
 
         peek->i_buffer = 0;
     }
@@ -556,7 +557,7 @@ ssize_t vlc_stream_Peek(stream_t *s, const uint8_t **restrict bufp, size_t len)
 
         peek = block_TryRealloc(peek, 0, len);
         if (unlikely(peek == NULL))
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
 
         peek->i_buffer = avail;
     }
@@ -569,7 +570,7 @@ ssize_t vlc_stream_Peek(stream_t *s, const uint8_t **restrict bufp, size_t len)
         size_t avail = peek->i_buffer;
         ssize_t ret;
 
-        ret = vlc_stream_ReadRaw(s, peek->p_buffer + avail, len - avail);
+        ret = heimdall_stream_ReadRaw(s, peek->p_buffer + avail, len - avail);
         if (ret < 0)
             continue;
 
@@ -582,12 +583,12 @@ ssize_t vlc_stream_Peek(stream_t *s, const uint8_t **restrict bufp, size_t len)
     return len;
 }
 
-block_t *vlc_stream_ReadBlock(stream_t *s)
+block_t *heimdall_stream_ReadBlock(stream_t *s)
 {
     stream_priv_t *priv = stream_priv(s);
     block_t *block;
 
-    if (vlc_killed())
+    if (heimdall_killed())
     {
         priv->eof = true;
         return NULL;
@@ -632,21 +633,21 @@ block_t *vlc_stream_ReadBlock(stream_t *s)
     return block;
 }
 
-uint64_t vlc_stream_Tell(const stream_t *s)
+uint64_t heimdall_stream_Tell(const stream_t *s)
 {
     const stream_priv_t *priv = stream_priv(s);
 
     return priv->offset;
 }
 
-bool vlc_stream_Eof(const stream_t *s)
+bool heimdall_stream_Eof(const stream_t *s)
 {
     const stream_priv_t *priv = stream_priv(s);
 
     return priv->eof;
 }
 
-int vlc_stream_Seek(stream_t *s, uint64_t offset)
+int heimdall_stream_Seek(stream_t *s, uint64_t offset)
 {
     stream_priv_t *priv = stream_priv(s);
 
@@ -670,13 +671,13 @@ int vlc_stream_Seek(stream_t *s, uint64_t offset)
                 block_Release(peek);
             }
 
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
     }
     else
     {
         if (priv->offset == offset)
-            return VLC_SUCCESS; /* Nothing to do! */
+            return HEIMDALL_SUCCESS; /* Nothing to do! */
     }
 
     int ret;
@@ -685,10 +686,10 @@ int vlc_stream_Seek(stream_t *s, uint64_t offset)
     } else if (s->ops != NULL && s->ops->stream.seek != NULL) {
         ret = s->ops->stream.seek(s, offset);
     } else {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
         return ret;
 
     priv->offset = offset;
@@ -705,15 +706,15 @@ int vlc_stream_Seek(stream_t *s, uint64_t offset)
         priv->block = NULL;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /**
  * Use to control the "stream_t *". Look at #stream_query_e for
- * possible "i_query" value and format arguments.  Return VLC_SUCCESS
- * if ... succeed ;) and VLC_EGENERIC if failed or unimplemented
+ * possible "i_query" value and format arguments.  Return HEIMDALL_SUCCESS
+ * if ... succeed ;) and HEIMDALL_EGENERIC if failed or unimplemented
  */
-int vlc_stream_vaControl(stream_t *s, int cmd, va_list args)
+int heimdall_stream_vaControl(stream_t *s, int cmd, va_list args)
 {
     stream_priv_t *priv = stream_priv(s);
 
@@ -734,7 +735,7 @@ int vlc_stream_vaControl(stream_t *s, int cmd, va_list args)
                 ret = s->pf_control(s, cmd, args);
             }
 
-            if (ret != VLC_SUCCESS)
+            if (ret != HEIMDALL_SUCCESS)
                 return ret;
 
             priv->offset = 0;
@@ -751,7 +752,7 @@ int vlc_stream_vaControl(stream_t *s, int cmd, va_list args)
                 priv->block = NULL;
             }
 
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
     }
 
@@ -767,7 +768,7 @@ int vlc_stream_vaControl(stream_t *s, int cmd, va_list args)
             } else {
                 *can_seek = false;
             }
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
         case STREAM_CAN_FASTSEEK:
         {
@@ -777,7 +778,7 @@ int vlc_stream_vaControl(stream_t *s, int cmd, va_list args)
             } else {
                 *can_fastseek = false;
             }
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
         case STREAM_CAN_PAUSE:
         {
@@ -787,7 +788,7 @@ int vlc_stream_vaControl(stream_t *s, int cmd, va_list args)
             } else {
                 *can_pause = false;
             }
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
         case STREAM_CAN_CONTROL_PACE:
         {
@@ -797,29 +798,29 @@ int vlc_stream_vaControl(stream_t *s, int cmd, va_list args)
             } else {
                 *can_control_pace = false;
             }
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
         case STREAM_GET_SIZE:
             if (s->ops->stream.get_size != NULL) {
                 uint64_t *size = va_arg(args, uint64_t *);
                 return s->ops->stream.get_size(s, size);
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         case STREAM_GET_MTIME:
             if (s->ops->stream.get_mtime != NULL) {
                 uint64_t *mtime = va_arg(args, uint64_t *);
                 return s->ops->stream.get_mtime(s, mtime);
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         case STREAM_GET_PTS_DELAY:
         {
-            vlc_tick_t *pts_delay = va_arg(args, vlc_tick_t *);
+            heimdall_tick_t *pts_delay = va_arg(args, heimdall_tick_t *);
             if (s->ops->stream.get_pts_delay != NULL) {
                 *pts_delay = s->ops->stream.get_pts_delay(s);
             } else {
                 *pts_delay = DEFAULT_PTS_DELAY;
             }
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
         case STREAM_GET_TITLE_INFO:
             if (s->ops->stream.get_title_info != NULL) {
@@ -827,63 +828,63 @@ int vlc_stream_vaControl(stream_t *s, int cmd, va_list args)
                 int *unk = va_arg(args, int *);
                 return s->ops->stream.get_title_info(s, title_info, unk);
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         case STREAM_GET_TITLE:
             if (s->ops->stream.get_title != NULL) {
                 unsigned *title = va_arg(args, unsigned *);
                 return s->ops->stream.get_title(s, title);
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         case STREAM_GET_SEEKPOINT:
             if (s->ops->stream.get_seekpoint != NULL) {
                 unsigned *seekpoint = va_arg(args, unsigned *);
                 return s->ops->stream.get_seekpoint(s, seekpoint);
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         case STREAM_GET_META:
             if (s->ops->get_meta != NULL) {
-                vlc_meta_t *meta = va_arg(args, vlc_meta_t *);
+                heimdall_meta_t *meta = va_arg(args, heimdall_meta_t *);
                 return s->ops->get_meta(s, meta);
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         case STREAM_GET_CONTENT_TYPE:
             if (s->ops->stream.get_content_type != NULL) {
                 char **content_type = va_arg(args, char **);
                 return s->ops->stream.get_content_type(s, content_type);
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         case STREAM_GET_SIGNAL:
             if (s->ops->get_signal != NULL) {
                 double *quality = va_arg(args, double *);
                 double *strength = va_arg(args, double *);
                 return s->ops->get_signal(s, quality, strength);
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         case STREAM_GET_TAGS:
             if (s->ops->stream.get_tags != NULL) {
                 const block_t **block = va_arg(args, const block_t **);
                 return s->ops->stream.get_tags(s, block);
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         case STREAM_GET_TYPE:
             if (s->ops->get_type != NULL) {
                 int *type = va_arg(args, int *);
                 return s->ops->get_type(s, type);
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         case STREAM_GET_PRIVATE_ID_STATE:
             if (s->ops->stream.get_private_id_state != NULL) {
                 int priv_data = va_arg(args, int);
                 bool *selected = va_arg(args, bool *);
                 return s->ops->stream.get_private_id_state(s, priv_data, selected);
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         case STREAM_SET_PAUSE_STATE:
             if (s->ops->set_pause_state != NULL) {
                 bool pause_state = (bool)va_arg(args, int);
                 return s->ops->set_pause_state(s, pause_state);
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         case STREAM_SET_RECORD_STATE:
             if (s->ops->stream.set_record_state != NULL) {
                 bool record_state = (bool)va_arg(args, int);
@@ -895,22 +896,22 @@ int vlc_stream_vaControl(stream_t *s, int cmd, va_list args)
                 }
                 return s->ops->stream.set_record_state(s, record_state, dir_path, ext);
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         case STREAM_SET_PRIVATE_ID_STATE:
             if (s->ops->stream.set_private_id_state != NULL) {
                 int priv_data = va_arg(args, int);
                 bool selected = (bool)va_arg(args, int);
                 return s->ops->stream.set_private_id_state(s, priv_data, selected);
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         case STREAM_SET_PRIVATE_ID_CA:
             if (s->ops->stream.set_private_id_ca != NULL) {
                 void *payload = va_arg(args, void *);
                 return s->ops->stream.set_private_id_ca(s, payload);
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 }
 
@@ -923,7 +924,7 @@ int vlc_stream_vaControl(stream_t *s, int cmd, va_list args)
  @ note The block size may be shorter than requested if the end-of-stream was
  * reached.
  */
-block_t *vlc_stream_Block( stream_t *s, size_t size )
+block_t *heimdall_stream_Block( stream_t *s, size_t size )
 {
     if( unlikely(size > SSIZE_MAX) )
         return NULL;
@@ -932,7 +933,7 @@ block_t *vlc_stream_Block( stream_t *s, size_t size )
     if( unlikely(block == NULL) )
         return NULL;
 
-    ssize_t val = vlc_stream_Read( s, block->p_buffer, size );
+    ssize_t val = heimdall_stream_Read( s, block->p_buffer, size );
     if( val <= 0 )
     {
         block_Release( block );
@@ -943,7 +944,7 @@ block_t *vlc_stream_Block( stream_t *s, size_t size )
     return block;
 }
 
-int vlc_stream_ReadDir( stream_t *s, input_item_node_t *p_node )
+int heimdall_stream_ReadDir( stream_t *s, input_item_node_t *p_node )
 {
     assert(s->pf_readdir != NULL || (s->ops != NULL && s->ops->stream.readdir != NULL));
     return (s->ops != NULL ? s->ops->stream.readdir : s->pf_readdir)( s, p_node );

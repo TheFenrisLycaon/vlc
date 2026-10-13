@@ -1,7 +1,8 @@
 /*****************************************************************************
- * win32.c: Global-Hotkey _WIN32 handling for vlc
+ * win32.c: Global-Hotkey _WIN32 handling for heimdall
  *****************************************************************************
  * Copyright (C) 2008-2009 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Domani Hannes <ssbssa at yahoo dot de>
  *
@@ -26,31 +27,31 @@
 
 #include <ctype.h>
 
-#define VLC_MODULE_LICENSE VLC_LICENSE_GPL_2_PLUS
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_interface.h>
-#include <vlc_actions.h>
+#define HEIMDALL_MODULE_LICENSE HEIMDALL_LICENSE_GPL_2_PLUS
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_interface.h>
+#include <heimdall_actions.h>
 
 #include <windows.h>
 
 /*****************************************************************************
  * Local prototypes
  *****************************************************************************/
-static int Open( vlc_object_t *p_this );
-static void Close( vlc_object_t *p_this );
+static int Open( heimdall_object_t *p_this );
+static void Close( heimdall_object_t *p_this );
 static void *Thread( void *p_data );
 LRESULT CALLBACK WMHOTKEYPROC( HWND, UINT, WPARAM, LPARAM );
 
-static void AutoRun(libvlc_int_t *libvlc)
+static void AutoRun(libheimdall_int_t *libheimdall)
 {
-    intf_Create(libvlc, MODULE_STRING);
+    intf_Create(libheimdall, MODULE_STRING);
 }
 
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname( N_("Global Hotkeys") )
     set_subcategory( SUBCAT_INTERFACE_HOTKEYS )
     set_description( N_("Global Hotkeys interface") )
@@ -61,60 +62,60 @@ vlc_module_begin()
     add_submodule()
     set_capability("autorun", 10)
     set_callback(AutoRun)
-vlc_module_end()
+heimdall_module_end()
 
 struct intf_sys_t
 {
-    vlc_thread_t thread;
+    heimdall_thread_t thread;
     HWND hotkeyWindow;
-    vlc_mutex_t lock;
-    vlc_sem_t wait;
+    heimdall_mutex_t lock;
+    heimdall_sem_t wait;
 };
 
 /*****************************************************************************
  * Open: initialize interface
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     intf_thread_t *p_intf = (intf_thread_t *)p_this;
-    intf_sys_t *p_sys = vlc_obj_malloc( p_this, sizeof (intf_sys_t) );
+    intf_sys_t *p_sys = heimdall_obj_malloc( p_this, sizeof (intf_sys_t) );
 
     if( p_sys == NULL )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_intf->p_sys = p_sys;
-    vlc_mutex_init( &p_sys->lock );
-    vlc_sem_init( &p_sys->wait, 0 );
+    heimdall_mutex_init( &p_sys->lock );
+    heimdall_sem_init( &p_sys->wait, 0 );
 
-    if( vlc_clone( &p_sys->thread, Thread, p_intf ) )
-        return VLC_ENOMEM;
+    if( heimdall_clone( &p_sys->thread, Thread, p_intf ) )
+        return HEIMDALL_ENOMEM;
 
-    vlc_sem_wait( &p_sys->wait );
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_sem_wait( &p_sys->wait );
+    heimdall_mutex_lock( &p_sys->lock );
     bool fail = p_sys->hotkeyWindow == NULL;
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 
     if( fail )
-        vlc_join( p_sys->thread, NULL );
+        heimdall_join( p_sys->thread, NULL );
 
-    return fail ? VLC_ENOMEM : VLC_SUCCESS;
+    return fail ? HEIMDALL_ENOMEM : HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * Close: destroy interface
  *****************************************************************************/
-static void Close( vlc_object_t *p_this )
+static void Close( heimdall_object_t *p_this )
 {
     intf_thread_t *p_intf = (intf_thread_t *)p_this;
     intf_sys_t *p_sys = p_intf->p_sys;
 
     /* stop hotkey window */
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     if( p_sys->hotkeyWindow != NULL )
         PostMessage( p_sys->hotkeyWindow, WM_CLOSE, 0, 0 );
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 
-    vlc_join( p_sys->thread, NULL );
+    heimdall_join( p_sys->thread, NULL );
 }
 
 /*****************************************************************************
@@ -124,7 +125,7 @@ static void *Thread( void *p_data )
 {
     MSG message;
 
-    vlc_thread_set_name("vlc-hotkeys-win");
+    heimdall_thread_set_name("heimdall-hotkeys-win");
 
     intf_thread_t *p_intf = p_data;
     intf_sys_t *p_sys = p_intf->p_sys;
@@ -132,7 +133,7 @@ static void *Thread( void *p_data )
     /* Window which receives Hotkeys */
     p_sys->hotkeyWindow =
         (void*)CreateWindow( TEXT("STATIC"),         /* name of window class */
-                TEXT("VLC ghk ") TEXT(VERSION),     /* window title bar text */
+                TEXT("Heimdall ghk ") TEXT(VERSION),     /* window title bar text */
                 0,                                           /* window style */
                 0,                                   /* default X coordinate */
                 0,                                   /* default Y coordinate */
@@ -142,7 +143,7 @@ static void *Thread( void *p_data )
                 NULL,                              /* no menu in this window */
                 GetModuleHandle(NULL),    /* handle of this program instance */
                 NULL );                                 /* sent to WM_CREATE */
-    vlc_sem_post( &p_sys->wait );
+    heimdall_sem_post( &p_sys->wait );
 
     if( p_sys->hotkeyWindow == NULL )
         return NULL;
@@ -153,11 +154,11 @@ static void *Thread( void *p_data )
             (LONG_PTR)p_intf );
 
     /* Registering of Hotkeys */
-    for( const char* const* ppsz_keys = vlc_actions_get_key_names( p_intf );
+    for( const char* const* ppsz_keys = heimdall_actions_get_key_names( p_intf );
          *ppsz_keys != NULL; ppsz_keys++ )
     {
         uint_fast32_t *p_keys;
-        size_t i_nb_keys = vlc_actions_get_keycodes( p_intf, *ppsz_keys, true,
+        size_t i_nb_keys = heimdall_actions_get_keycodes( p_intf, *ppsz_keys, true,
                                                      &p_keys );
         for( size_t i = 0; i < i_nb_keys; ++i )
         {
@@ -247,7 +248,7 @@ static void *Thread( void *p_data )
         DispatchMessage( &message );
 
     /* Unregistering of Hotkeys */
-    for( const char* const* ppsz_keys = vlc_actions_get_key_names( p_intf );
+    for( const char* const* ppsz_keys = heimdall_actions_get_key_names( p_intf );
          *ppsz_keys != NULL; ppsz_keys++ )
     {
         ATOM atom = GlobalFindAtomA( *ppsz_keys );
@@ -258,10 +259,10 @@ static void *Thread( void *p_data )
     }
 
     /* close window */
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     DestroyWindow( p_sys->hotkeyWindow );
     p_sys->hotkeyWindow = NULL;
-    vlc_mutex_unlock( &p_sys->lock );
+    heimdall_mutex_unlock( &p_sys->lock );
 
     return NULL;
 }
@@ -287,11 +288,11 @@ LRESULT CALLBACK WMHOTKEYPROC( HWND hwnd, UINT uMsg, WPARAM wParam,
                         sizeof( psz_atomName ) - 4 ) )
                     return 0;
 
-                /* search for key associated with VLC */
-                vlc_action_id_t action = vlc_actions_get_id( psz_atomName );
+                /* search for key associated with Heimdall */
+                heimdall_action_id_t action = heimdall_actions_get_id( psz_atomName );
                 if( action != ACTIONID_NONE )
                 {
-                    var_SetInteger( vlc_object_instance(p_intf),
+                    var_SetInteger( heimdall_object_instance(p_intf),
                             "key-action", action );
                     return 1;
                 }

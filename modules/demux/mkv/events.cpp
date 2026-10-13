@@ -2,6 +2,7 @@
  * events.cpp : matroska demuxer
  *****************************************************************************
  * Copyright (C) 2003-2004 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *          Steve Lhomme <steve.lhomme@free.fr>
@@ -26,7 +27,7 @@
 #include "events.hpp"
 #include "chapter_command_dvd.hpp"
 
-#include <vlc_threads.h>
+#include <heimdall_threads.h>
 
 #include <algorithm>
 
@@ -34,8 +35,8 @@ namespace mkv {
 
 event_thread_t::event_thread_t(demux_t *p_demux) : p_demux(p_demux)
 {
-    vlc_mutex_init( &lock );
-    vlc_cond_init( &wait );
+    heimdall_mutex_init( &lock );
+    heimdall_cond_init( &wait );
     is_running = false;
 }
 event_thread_t::~event_thread_t()
@@ -62,7 +63,7 @@ void event_thread_t::EnsureThreadLocked()
     if (is_running || b_abort)
         return;
 
-    is_running = !vlc_clone( &thread, EventThread, this );
+    is_running = !heimdall_clone( &thread, EventThread, this );
 }
 
 void event_thread_t::AbortThread()
@@ -71,12 +72,12 @@ void event_thread_t::AbortThread()
         return;
 
     {
-        vlc_mutex_locker lock_guard(&lock);
+        heimdall_mutex_locker lock_guard(&lock);
         b_abort = true;
-        vlc_cond_signal( &wait );
+        heimdall_cond_signal( &wait );
     }
 
-    vlc_join( thread, NULL );
+    heimdall_join( thread, NULL );
     is_running = false;
 }
 
@@ -94,24 +95,24 @@ int event_thread_t::SendEventNav( demux_query_e nav_query )
     case DEMUX_NAV_POPUP:    key = NavivationKey::POPUP; break;
     default:
         assert(false); // invalid navigation query received
-        return VLC_ENOTSUP;
+        return HEIMDALL_ENOTSUP;
     }
 
     if( !is_running )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if ( !HandleKeyEvent( key ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-void event_thread_t::EventMouse( vlc_mouse_t const* new_state, void* userdata )
+void event_thread_t::EventMouse( heimdall_mouse_t const* new_state, void* userdata )
 {
     ESInfo* info = static_cast<ESInfo*>( userdata );
 
     if( !new_state )
-        return vlc_mouse_Init( &info->mouse_state );
+        return heimdall_mouse_Init( &info->mouse_state );
 
     info->owner.QueueEvent( EventInfo{ info->mouse_state, *new_state } );
     info->mouse_state = *new_state;
@@ -119,14 +120,14 @@ void event_thread_t::EventMouse( vlc_mouse_t const* new_state, void* userdata )
 
 void event_thread_t::EventThread()
 {
-    vlc_thread_set_name("vlc-mkv-events");
+    heimdall_thread_set_name("heimdall-mkv-events");
 
-    int canc = vlc_savecancel ();
+    int canc = heimdall_savecancel ();
 
-    for( vlc_mutex_locker guard( &lock );; )
+    for( heimdall_mutex_locker guard( &lock );; )
     {
         while( !b_abort && pending_events.empty() )
-            vlc_cond_wait( &wait, &lock );
+            heimdall_cond_wait( &wait, &lock );
 
         if( b_abort )
             break;
@@ -139,7 +140,7 @@ void event_thread_t::EventThread()
             if(es_list.empty())
                 break;
 
-            vlc_mutex_unlock( &lock );
+            heimdall_mutex_unlock( &lock );
             switch( ev.type )
             {
                 case EventInfo::ESMouseEvent:
@@ -150,11 +151,11 @@ void event_thread_t::EventThread()
                     HandleButtonData( ev );
                     break;
             }
-            vlc_mutex_lock( &lock );
+            heimdall_mutex_lock( &lock );
         }
     }
 
-    vlc_restorecancel (canc);
+    heimdall_restorecancel (canc);
 }
 
 void *event_thread_t::EventThread(void *data)
@@ -167,7 +168,7 @@ bool event_thread_t::HandleKeyEvent( NavivationKey key )
 {
     demux_sys_t* p_sys = (demux_sys_t*)p_demux->p_sys;
 
-    vlc_mutex_locker demux_lock ( &p_sys->lock_demuxer );
+    heimdall_mutex_locker demux_lock ( &p_sys->lock_demuxer );
 
     auto interpretor = p_sys->GetDVDInterpretor();
     if (!interpretor)
@@ -182,12 +183,12 @@ void event_thread_t::HandleMouseEvent( EventInfo const& event )
     int x = event.mouse.state_new.i_x;
     int y = event.mouse.state_new.i_y;
 
-    if( vlc_mouse_HasPressed( &event.mouse.state_old, &event.mouse.state_new,
+    if( heimdall_mouse_HasPressed( &event.mouse.state_old, &event.mouse.state_new,
                               MOUSE_BUTTON_LEFT ) )
     {
         HandleMousePressed( (unsigned)x, (unsigned)y );
     }
-    else if( vlc_mouse_HasMoved( &event.mouse.state_old, &event.mouse.state_new ) )
+    else if( heimdall_mouse_HasMoved( &event.mouse.state_old, &event.mouse.state_new ) )
     {
 //                dvdnav_mouse_select( NULL, pci, x, y );
     }
@@ -202,7 +203,7 @@ void event_thread_t::HandleButtonData( block_t *p_block )
 {
     demux_sys_t* p_sys = (demux_sys_t*)p_demux->p_sys;
 
-    vlc_mutex_locker demux_lock ( &p_sys->lock_demuxer );
+    heimdall_mutex_locker demux_lock ( &p_sys->lock_demuxer );
 
     auto interpretor = p_sys->GetDVDInterpretor();
     if (!interpretor)
@@ -217,7 +218,7 @@ void event_thread_t::HandleMousePressed( unsigned x, unsigned y )
 
     msg_Dbg( p_demux, "Handle Mouse Event: Mouse clicked x(%d)*y(%d)", x, y);
 
-    vlc_mutex_locker demux_lock ( &p_sys->lock_demuxer );
+    heimdall_mutex_locker demux_lock ( &p_sys->lock_demuxer );
 
     auto interpretor = p_sys->GetDVDInterpretor();
     if (!interpretor)
@@ -226,7 +227,7 @@ void event_thread_t::HandleMousePressed( unsigned x, unsigned y )
     interpretor->HandleMousePressed( x, y );
 }
 
-void event_thread_t::SetHighlight( vlc_spu_highlight_t & spu_hl )
+void event_thread_t::SetHighlight( heimdall_spu_highlight_t & spu_hl )
 {
     /* TODO: only control relevant SPU_ES given who fired the event */
     for( auto it : es_list )
@@ -243,7 +244,7 @@ bool event_thread_t::AddTrack( mkv_track_t & track )
     es_out_id_t* es = track.p_es;
     int category = track.fmt.i_cat;
 
-    vlc_mutex_locker lock_guard( &lock );
+    heimdall_mutex_locker lock_guard( &lock );
 
     es_list.push_front( ESInfo( track, *this ) );
     es_list_t::iterator info = es_list.begin();
@@ -251,7 +252,7 @@ bool event_thread_t::AddTrack( mkv_track_t & track )
     if( category == VIDEO_ES )
     {
         if( es_out_Control( p_demux->out, ES_OUT_VOUT_SET_MOUSE_EVENT,
-                            es, static_cast<vlc_mouse_event>(EventMouse),
+                            es, static_cast<heimdall_mouse_event>(EventMouse),
                             static_cast<void*>( &*info ) ) )
         {
             msg_Warn( p_demux, "Unable to subscribe to mouse events" );
@@ -264,7 +265,7 @@ bool event_thread_t::AddTrack( mkv_track_t & track )
 
 void event_thread_t::DelTrack( mkv_track_t &track )
 {
-    vlc_mutex_locker lock_guard( &lock );
+    heimdall_mutex_locker lock_guard( &lock );
     es_list_t::iterator info = std::find( es_list.begin(), es_list.end(), track );
     if( info != es_list.end() )
         es_list.erase( info );

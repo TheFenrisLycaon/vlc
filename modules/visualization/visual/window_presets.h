@@ -2,6 +2,7 @@
  * window_presets.h : Variable names and strings of FFT window presets
  *****************************************************************************
  * Copyright (C) 2014 Ronald Wright
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Ronald Wright <logiconcepts819@gmail.com>
  *
@@ -20,10 +21,10 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_VISUAL_WINDOW_PRESETS_H_
-#define VLC_VISUAL_WINDOW_PRESETS_H_
+#ifndef HEIMDALL_VISUAL_WINDOW_PRESETS_H_
+#define HEIMDALL_VISUAL_WINDOW_PRESETS_H_
 
-/* Window functions supported by VLC. These are the typical window types used
+/* Window functions supported by Heimdall. These are the typical window types used
  * in spectrum analyzers. */
 #define NB_WINDOWS 5
 static const char * const window_list[NB_WINDOWS] = {

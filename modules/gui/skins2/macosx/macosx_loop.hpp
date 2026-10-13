@@ -2,6 +2,7 @@
  * macosx_loop.hpp
  *****************************************************************************
  * Copyright (C) 2026 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Fletcher Holt <fletcherholt649@gmail.com>
  *          Felix Paul Kühne <fkuehne@videolan.org>
@@ -58,7 +59,7 @@ private:
     id m_pMonitor;
 
     /// Date and position of the last left-click
-    vlc_tick_t m_lastClickTime;
+    heimdall_tick_t m_lastClickTime;
     int m_lastClickPosX, m_lastClickPosY;
 
     /// Maximum interval between clicks for a double-click (in microsec)
@@ -67,11 +68,11 @@ private:
     /// Handle an NSEvent
     void handleEvent( void *pEvent );
 
-    /// Convert NSEvent modifiers to VLC key modifiers
+    /// Convert NSEvent modifiers to Heimdall key modifiers
     static int cocoaModToMod( unsigned int flags );
 
-    /// Convert a unicode character to VLC key code
-    static int cocoaCharToVlcKey( unichar c );
+    /// Convert a unicode character to Heimdall key code
+    static int cocoaCharToHeimdallKey( unichar c );
 };
 
 #endif

@@ -1,8 +1,9 @@
 /*****************************************************************************
- * media_player_internal.h : Definition of opaque structures for libvlc exported API
+ * media_player_internal.h : Definition of opaque structures for libheimdall exported API
  * Also contains some internal utility functions
  *****************************************************************************
  * Copyright (C) 2005-2009 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Clément Stenac <zorglub@videolan.org>
  *
@@ -21,44 +22,44 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef _LIBVLC_MEDIA_PLAYER_INTERNAL_H
-#define _LIBVLC_MEDIA_PLAYER_INTERNAL_H 1
+#ifndef _LIBHEIMDALL_MEDIA_PLAYER_INTERNAL_H
+#define _LIBHEIMDALL_MEDIA_PLAYER_INTERNAL_H 1
 
-#include <vlc/vlc.h>
-#include <vlc/libvlc_media.h>
-#include <vlc_input.h>
-#include <vlc_player.h>
-#include <vlc_viewpoint.h>
+#include <heimdall/heimdall.h>
+#include <heimdall/libheimdall_media.h>
+#include <heimdall_input.h>
+#include <heimdall_player.h>
+#include <heimdall_viewpoint.h>
 #include "media_internal.h"
 
 #include "../modules/audio_filter/equalizer_presets.h"
 
-typedef void (*libvlc_media_player_vout_detach_cb)(libvlc_media_player_t *player);
-struct libvlc_media_player_t
+typedef void (*libheimdall_media_player_vout_detach_cb)(libheimdall_media_player_t *player);
+struct libheimdall_media_player_t
 {
-    struct vlc_object_t obj;
-    vlc_atomic_rc_t    rc;
+    struct heimdall_object_t obj;
+    heimdall_atomic_rc_t    rc;
 
-    const struct libvlc_media_player_cbs *cbs;
+    const struct libheimdall_media_player_cbs *cbs;
     void *cbs_opaque;
 
-    vlc_player_t *player;
-    vlc_player_listener_id *listener;
-    vlc_player_aout_listener_id *aout_listener;
-    vlc_cond_t wait;
+    heimdall_player_t *player;
+    heimdall_player_listener_id *listener;
+    heimdall_player_aout_listener_id *aout_listener;
+    heimdall_cond_t wait;
 
-    struct libvlc_instance_t * p_libvlc_instance; /* Parent instance */
+    struct libheimdall_instance_t * p_libheimdall_instance; /* Parent instance */
 
     struct {
-        vlc_player_timer_id *id;
-        const struct libvlc_media_player_watch_time_cbs *cbs;
+        heimdall_player_timer_id *id;
+        const struct libheimdall_media_player_watch_time_cbs *cbs;
         void *cbs_data;
         bool seeking;
     } timer;
 
     struct {
         /*
-         * Tracks the active libvlc window/output integration and the default
+         * Tracks the active libheimdall window/output integration and the default
          * values to restore when switching integrations. Each setter installs
          * a detach callback that resets the variables it touched (vout, gl,
          * gles2, dec-dev, window, vmem-*, vout-cb-*). The next setter calls the
@@ -66,7 +67,7 @@ struct libvlc_media_player_t
          * can safely switch between window providers and output/video callbacks
          * without leaving stale configuration behind.
          */
-        libvlc_media_player_vout_detach_cb window_detach;
+        libheimdall_media_player_vout_detach_cb window_detach;
         char *default_dec_dev;
         char *default_vout;
         char *default_gl;
@@ -77,7 +78,7 @@ struct libvlc_media_player_t
 /**
  * Internal equalizer structure.
  */
-struct libvlc_equalizer_t
+struct libheimdall_equalizer_t
 {
     float f_preamp;
     float f_amp[EQZ_BANDS_MAX];

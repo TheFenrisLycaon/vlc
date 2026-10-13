@@ -2,6 +2,7 @@
  * simple.c : simple channel mixer plug-in
  *****************************************************************************
  * Copyright (C) 2002, 2004, 2006-2009 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gildas Bazin <gbazin@videolan.org>
  *
@@ -27,23 +28,23 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_aout.h>
-#include <vlc_filter.h>
-#include <vlc_block.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_aout.h>
+#include <heimdall_filter.h>
+#include <heimdall_block.h>
 
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  OpenFilter( vlc_object_t * );
+static int  OpenFilter( heimdall_object_t * );
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("Audio filter for simple channel mixing") )
     set_subcategory( SUBCAT_AUDIO_AFILTER )
     set_capability( "audio converter", 10 )
     set_callback( OpenFilter )
-vlc_module_end ()
+heimdall_module_end ()
 
 static block_t *Filter( filter_t *, block_t * );
 
@@ -65,7 +66,7 @@ static void DoWork_7_x_to_2_0( filter_t * p_filter,  block_t * p_in_buf, block_t
 static void DoWork_6_1_to_2_0( filter_t *p_filter, block_t *p_in_buf,
                                block_t *p_out_buf )
 {
-    VLC_UNUSED(p_filter);
+    HEIMDALL_UNUSED(p_filter);
     float *p_dest = (float *)p_out_buf->p_buffer;
     const float *p_src = (const float *)p_in_buf->p_buffer;
     for( int i = p_in_buf->i_nb_samples; i--; )
@@ -96,7 +97,7 @@ static void DoWork_5_x_to_2_0( filter_t * p_filter,  block_t * p_in_buf, block_t
 }
 
 static void DoWork_4_0_to_2_0( filter_t * p_filter,  block_t * p_in_buf, block_t * p_out_buf ) {
-    VLC_UNUSED(p_filter);
+    HEIMDALL_UNUSED(p_filter);
     float *p_dest = (float *)p_out_buf->p_buffer;
     const float *p_src = (const float *)p_in_buf->p_buffer;
     for( int i = p_in_buf->i_nb_samples; i--; )
@@ -149,7 +150,7 @@ static void DoWork_5_x_to_1_0( filter_t * p_filter,  block_t * p_in_buf, block_t
 }
 
 static void DoWork_4_0_to_1_0( filter_t * p_filter,  block_t * p_in_buf, block_t * p_out_buf ) {
-    VLC_UNUSED(p_filter);
+    HEIMDALL_UNUSED(p_filter);
     float *p_dest = (float *)p_out_buf->p_buffer;
     const float *p_src = (const float *)p_in_buf->p_buffer;
     for( int i = p_in_buf->i_nb_samples; i--; )
@@ -173,7 +174,7 @@ static void DoWork_3_x_to_1_0( filter_t * p_filter,  block_t * p_in_buf, block_t
 }
 
 static void DoWork_2_x_to_1_0( filter_t * p_filter,  block_t * p_in_buf, block_t * p_out_buf ) {
-    VLC_UNUSED(p_filter);
+    HEIMDALL_UNUSED(p_filter);
     float *p_dest = (float *)p_out_buf->p_buffer;
     const float *p_src = (const float *)p_in_buf->p_buffer;
     for( int i = p_in_buf->i_nb_samples; i--; )
@@ -238,7 +239,7 @@ static void DoWork_7_x_to_5_x( filter_t * p_filter,  block_t * p_in_buf, block_t
 }
 
 static void DoWork_6_1_to_5_x( filter_t * p_filter,  block_t * p_in_buf, block_t * p_out_buf ) {
-    VLC_UNUSED(p_filter);
+    HEIMDALL_UNUSED(p_filter);
     float *p_dest = (float *)p_out_buf->p_buffer;
     const float *p_src = (const float *)p_in_buf->p_buffer;
     for( int i = p_in_buf->i_nb_samples; i--; )
@@ -266,23 +267,23 @@ static void DoWork_6_1_to_5_x( filter_t * p_filter,  block_t * p_in_buf, block_t
 /*****************************************************************************
  * OpenFilter:
  *****************************************************************************/
-static int OpenFilter( vlc_object_t *p_this )
+static int OpenFilter( heimdall_object_t *p_this )
 {
     filter_t *p_filter = (filter_t *)p_this;
     void (*do_work)(filter_t *, block_t *, block_t *) = NULL;
 
-    if( p_filter->fmt_in.audio.i_format != VLC_CODEC_FL32 ||
+    if( p_filter->fmt_in.audio.i_format != HEIMDALL_CODEC_FL32 ||
         p_filter->fmt_in.audio.i_format != p_filter->fmt_out.audio.i_format ||
         p_filter->fmt_in.audio.i_rate != p_filter->fmt_out.audio.i_rate ||
         aout_FormatNbChannels( &p_filter->fmt_in.audio) < 2 )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     uint32_t input = p_filter->fmt_in.audio.i_physical_channels;
     uint32_t output = p_filter->fmt_out.audio.i_physical_channels;
 
     /* Short circuit the common case of not remixing */
     if( input == output )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     const bool b_input_6_1 = input == AOUT_CHANS_6_1_MIDDLE;
     const bool b_input_4_center_rear = input == AOUT_CHANS_4_CENTER_REAR;
@@ -342,14 +343,14 @@ static int OpenFilter( vlc_object_t *p_this )
     }
 
     if( do_work == NULL )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    static const struct vlc_filter_operations filter_ops =
+    static const struct heimdall_filter_operations filter_ops =
         { .filter_audio = Filter };
 
     p_filter->ops = &filter_ops;
     p_filter->p_sys = do_work;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************

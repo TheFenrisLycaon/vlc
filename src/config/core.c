@@ -2,6 +2,7 @@
  * core.c management of the modules configuration
  *****************************************************************************
  * Copyright (C) 2001-2007 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gildas Bazin <gbazin@videolan.org>
  *
@@ -25,13 +26,13 @@
 #endif
 
 #include <stdatomic.h>
-#include <vlc_common.h>
-#include <vlc_actions.h>
-#include <vlc_modules.h>
-#include <vlc_plugin.h>
-#include <vlc_threads.h>
+#include <heimdall_common.h>
+#include <heimdall_actions.h>
+#include <heimdall_modules.h>
+#include <heimdall_plugin.h>
+#include <heimdall_threads.h>
 
-#include "vlc_configuration.h"
+#include "heimdall_configuration.h"
 
 #include <errno.h>
 #include <assert.h>
@@ -40,22 +41,22 @@
 #include "modules/modules.h"
 #include "misc/rcu.h"
 
-static vlc_mutex_t config_lock = VLC_STATIC_MUTEX;
+static heimdall_mutex_t config_lock = HEIMDALL_STATIC_MUTEX;
 static atomic_bool config_dirty = false;
 
 void config_Lock(void)
 {
-    vlc_mutex_lock(&config_lock);
+    heimdall_mutex_lock(&config_lock);
 }
 
 void config_Unlock(void)
 {
-    vlc_mutex_unlock(&config_lock);
+    heimdall_mutex_unlock(&config_lock);
 }
 
 int config_GetType(const char *name)
 {
-    const struct vlc_param *param = vlc_param_Find(name);
+    const struct heimdall_param *param = heimdall_param_Find(name);
 
     if (param == NULL)
         return 0;
@@ -63,13 +64,13 @@ int config_GetType(const char *name)
     switch (CONFIG_CLASS(param->item.i_type))
     {
         case CONFIG_ITEM_FLOAT:
-            return VLC_VAR_FLOAT;
+            return HEIMDALL_VAR_FLOAT;
         case CONFIG_ITEM_INTEGER:
-            return VLC_VAR_INTEGER;
+            return HEIMDALL_VAR_INTEGER;
         case CONFIG_ITEM_BOOL:
-            return VLC_VAR_BOOL;
+            return HEIMDALL_VAR_BOOL;
         case CONFIG_ITEM_STRING:
-            return VLC_VAR_STRING;
+            return HEIMDALL_VAR_STRING;
         default:
             return 0;
     }
@@ -77,14 +78,14 @@ int config_GetType(const char *name)
 
 bool config_IsSafe( const char *name )
 {
-    const struct vlc_param *param = vlc_param_Find(name);
+    const struct heimdall_param *param = heimdall_param_Find(name);
 
     return (param != NULL) ? param->safe : false;
 }
 
 int64_t config_GetInt(const char *name)
 {
-    const struct vlc_param *param = vlc_param_Find(name);
+    const struct heimdall_param *param = heimdall_param_Find(name);
 
     /* sanity checks */
     assert(param != NULL);
@@ -95,7 +96,7 @@ int64_t config_GetInt(const char *name)
 
 float config_GetFloat(const char *name)
 {
-    const struct vlc_param *param = vlc_param_Find(name);
+    const struct heimdall_param *param = heimdall_param_Find(name);
 
     /* sanity checks */
     assert(param != NULL);
@@ -106,7 +107,7 @@ float config_GetFloat(const char *name)
 
 char *config_GetPsz(const char *name)
 {
-    const struct vlc_param *param = vlc_param_Find(name);
+    const struct heimdall_param *param = heimdall_param_Find(name);
     char *str;
 
     /* sanity checks */
@@ -114,15 +115,15 @@ char *config_GetPsz(const char *name)
     assert(IsConfigStringType(param->item.i_type));
 
     /* return a copy of the string */
-    vlc_rcu_read_lock();
+    heimdall_rcu_read_lock();
     str = atomic_load_explicit(&param->value.str, memory_order_acquire);
     if (str != NULL)
         str = strdup(str);
-    vlc_rcu_read_unlock();
+    heimdall_rcu_read_unlock();
     return str;
 }
 
-int vlc_param_SetString(struct vlc_param *param, const char *value)
+int heimdall_param_SetString(struct heimdall_param *param, const char *value)
 {
     char *str = NULL, *oldstr;
 
@@ -138,22 +139,22 @@ int vlc_param_SetString(struct vlc_param *param, const char *value)
     oldstr = atomic_load_explicit(&param->value.str, memory_order_relaxed);
     atomic_store_explicit(&param->value.str, str, memory_order_release);
     param->item.value.psz = str;
-    vlc_rcu_synchronize();
+    heimdall_rcu_synchronize();
     free(oldstr);
     return 0;
 }
 
 void config_PutPsz(const char *psz_name, const char *psz_value)
 {
-    vlc_mutex_lock(&config_lock);
-    vlc_param_SetString(vlc_param_Find(psz_name), psz_value);
-    vlc_mutex_unlock(&config_lock);
+    heimdall_mutex_lock(&config_lock);
+    heimdall_param_SetString(heimdall_param_Find(psz_name), psz_value);
+    heimdall_mutex_unlock(&config_lock);
     atomic_store_explicit(&config_dirty, true, memory_order_release);
 }
 
 void config_PutInt(const char *name, int64_t i_value)
 {
-    struct vlc_param *param = vlc_param_Find(name);
+    struct heimdall_param *param = heimdall_param_Find(name);
     module_config_t *p_config = &param->item;
 
     /* sanity checks */
@@ -166,15 +167,15 @@ void config_PutInt(const char *name, int64_t i_value)
         i_value = p_config->max.i;
 
     atomic_store_explicit(&param->value.i, i_value, memory_order_relaxed);
-    vlc_mutex_lock(&config_lock);
+    heimdall_mutex_lock(&config_lock);
     p_config->value.i = i_value;
-    vlc_mutex_unlock(&config_lock);
+    heimdall_mutex_unlock(&config_lock);
     atomic_store_explicit(&config_dirty, true, memory_order_release);
 }
 
 void config_PutFloat(const char *name, float f_value)
 {
-    struct vlc_param *param = vlc_param_Find(name);
+    struct heimdall_param *param = heimdall_param_Find(name);
     module_config_t *p_config = &param->item;
 
     /* sanity checks */
@@ -190,9 +191,9 @@ void config_PutFloat(const char *name, float f_value)
         f_value = p_config->max.f;
 
     atomic_store_explicit(&param->value.f, f_value, memory_order_relaxed);
-    vlc_mutex_lock(&config_lock);
+    heimdall_mutex_lock(&config_lock);
     p_config->value.f = f_value;
-    vlc_mutex_unlock(&config_lock);
+    heimdall_mutex_unlock(&config_lock);
     atomic_store_explicit(&config_dirty, true, memory_order_release);
 }
 
@@ -202,7 +203,7 @@ ssize_t config_GetIntChoices(const char *name,
     *values = NULL;
     *texts = NULL;
 
-    struct vlc_param *param = vlc_param_Find(name);
+    struct heimdall_param *param = heimdall_param_Find(name);
     if (param == NULL)
     {
         errno = ENOENT;
@@ -215,15 +216,15 @@ ssize_t config_GetIntChoices(const char *name,
     {
         int (*cb)(const char *, int64_t **, char ***);
 
-        cb = vlc_plugin_Symbol(NULL, param->owner, "vlc_entry_cfg_int_enum");
+        cb = heimdall_plugin_Symbol(NULL, param->owner, "heimdall_entry_cfg_int_enum");
         if (cb == NULL)
             return 0;
 
         return cb(name, values, texts);
     }
 
-    int64_t *vals = vlc_alloc (count, sizeof (*vals));
-    char **txts = vlc_alloc (count, sizeof (*txts));
+    int64_t *vals = heimdall_alloc (count, sizeof (*vals));
+    char **txts = heimdall_alloc (count, sizeof (*txts));
     if (vals == NULL || txts == NULL)
     {
         errno = ENOMEM;
@@ -235,7 +236,7 @@ ssize_t config_GetIntChoices(const char *name,
         vals[i] = cfg->list.i[i];
         /* FIXME: use module_gettext() instead */
         txts[i] = strdup ((cfg->list_text[i] != NULL)
-                                       ? vlc_gettext (cfg->list_text[i]) : "");
+                                       ? heimdall_gettext (cfg->list_text[i]) : "");
         if (unlikely(txts[i] == NULL))
         {
             for (int j = i - 1; j >= 0; --j)
@@ -313,7 +314,7 @@ ssize_t config_GetPszChoices(const char *name,
 {
     *values = *texts = NULL;
 
-    struct vlc_param *param = vlc_param_Find(name);
+    struct heimdall_param *param = heimdall_param_Find(name);
     if (param == NULL)
     {
         errno = ENOENT;
@@ -339,7 +340,7 @@ ssize_t config_GetPszChoices(const char *name,
     {
         int (*cb)(const char *, char ***, char ***);
 
-        cb = vlc_plugin_Symbol(NULL, param->owner, "vlc_entry_cfg_str_enum");
+        cb = heimdall_plugin_Symbol(NULL, param->owner, "heimdall_entry_cfg_str_enum");
         if (cb == NULL)
             return 0;
 
@@ -362,7 +363,7 @@ ssize_t config_GetPszChoices(const char *name,
         vals[i] = strdup ((cfg->list.psz[i] != NULL) ? cfg->list.psz[i] : "");
         /* FIXME: use module_gettext() instead */
         txts[i] = strdup ((cfg->list_text[i] != NULL)
-                                       ? vlc_gettext (cfg->list_text[i]) : "");
+                                       ? heimdall_gettext (cfg->list_text[i]) : "");
         if (!vals[i] || !txts[i])
             goto error;
     }
@@ -385,21 +386,21 @@ error:
 
 static int confcmp (const void *a, const void *b)
 {
-    const struct vlc_param *const *ca = a, *const *cb = b;
+    const struct heimdall_param *const *ca = a, *const *cb = b;
 
     return strcmp ((*ca)->item.psz_name, (*cb)->item.psz_name);
 }
 
 static int confnamecmp (const void *key, const void *elem)
 {
-    const struct vlc_param *const *conf = elem;
+    const struct heimdall_param *const *conf = elem;
 
     return strcmp (key, (*conf)->item.psz_name);
 }
 
 static struct
 {
-    struct vlc_param **list;
+    struct heimdall_param **list;
     size_t count;
 } config = { NULL, 0 };
 
@@ -408,22 +409,22 @@ static struct
  */
 int config_SortConfig (void)
 {
-    vlc_plugin_t *p;
+    heimdall_plugin_t *p;
     size_t nconf = 0;
 
-    for (p = vlc_plugins; p != NULL; p = p->next)
+    for (p = heimdall_plugins; p != NULL; p = p->next)
         nconf += p->conf.count;
 
-    struct vlc_param **clist = vlc_alloc(nconf, sizeof (*clist));
+    struct heimdall_param **clist = heimdall_alloc(nconf, sizeof (*clist));
     if (unlikely(clist == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     size_t index = 0;
-    for (p = vlc_plugins; p != NULL; p = p->next)
+    for (p = heimdall_plugins; p != NULL; p = p->next)
     {
         for (size_t i = 0; i < p->conf.size; i++)
         {
-            struct vlc_param *param = p->conf.params + i;
+            struct heimdall_param *param = p->conf.params + i;
             module_config_t *item = &param->item;
 
             if (!CONFIG_ITEM(item->i_type))
@@ -437,12 +438,12 @@ int config_SortConfig (void)
 
     config.list = clist;
     config.count = nconf;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 void config_UnsortConfig (void)
 {
-    struct vlc_param **clist;
+    struct heimdall_param **clist;
 
     clist = config.list;
     config.list = NULL;
@@ -451,9 +452,9 @@ void config_UnsortConfig (void)
     free (clist);
 }
 
-struct vlc_param *vlc_param_Find(const char *name)
+struct heimdall_param *heimdall_param_Find(const char *name)
 {
-    struct vlc_param *const *p;
+    struct heimdall_param *const *p;
 
     assert(name != NULL);
     p = bsearch (name, config.list, config.count, sizeof (*p), confnamecmp);
@@ -465,7 +466,7 @@ module_config_t *config_FindConfig(const char *name)
     if (unlikely(name == NULL))
         return NULL;
 
-    struct vlc_param *param = vlc_param_Find(name);
+    struct heimdall_param *param = heimdall_param_Find(name);
 
     return (param != NULL) ? &param->item : NULL;
 }
@@ -475,11 +476,11 @@ module_config_t *config_FindConfig(const char *name)
  * \param tab start of array of items
  * \param confsize number of items in the array
  */
-void config_Free(struct vlc_param *tab, size_t confsize)
+void config_Free(struct heimdall_param *tab, size_t confsize)
 {
     for (size_t j = 0; j < confsize; j++)
     {
-        struct vlc_param *param = &tab[j];
+        struct heimdall_param *param = &tab[j];
         module_config_t *p_item = &param->item;
 
         if (IsConfigStringType (p_item->i_type))
@@ -498,12 +499,12 @@ void config_Free(struct vlc_param *tab, size_t confsize)
 
 void config_ResetAll(void)
 {
-    vlc_mutex_lock(&config_lock);
-    for (vlc_plugin_t *p = vlc_plugins; p != NULL; p = p->next)
+    heimdall_mutex_lock(&config_lock);
+    for (heimdall_plugin_t *p = heimdall_plugins; p != NULL; p = p->next)
     {
         for (size_t i = 0; i < p->conf.size; i++ )
         {
-            struct vlc_param *param = p->conf.params + i;
+            struct heimdall_param *param = p->conf.params + i;
             module_config_t *p_config = &param->item;
 
             if (IsConfigIntegerType (p_config->i_type))
@@ -521,15 +522,15 @@ void config_ResetAll(void)
             }
             else
             if (IsConfigStringType (p_config->i_type))
-                vlc_param_SetString(param, p_config->orig.psz);
+                heimdall_param_SetString(param, p_config->orig.psz);
         }
     }
-    vlc_mutex_unlock(&config_lock);
+    heimdall_mutex_unlock(&config_lock);
     atomic_store_explicit(&config_dirty, true, memory_order_release);
 }
 
 
-int config_AutoSaveConfigFile( libvlc_int_t *p_this )
+int config_AutoSaveConfigFile( libheimdall_int_t *p_this )
 {
     assert( p_this );
 

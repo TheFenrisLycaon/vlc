@@ -2,6 +2,7 @@
  * mkv.hpp : matroska demuxer
  *****************************************************************************
  * Copyright (C) 2003-2005, 2008 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *          Steve Lhomme <steve.lhomme@free.fr>
@@ -21,8 +22,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_MKV_MKV_HPP_
-#define VLC_MKV_MKV_HPP_
+#ifndef HEIMDALL_MKV_MKV_HPP_
+#define HEIMDALL_MKV_MKV_HPP_
 
 /*****************************************************************************
  * Preamble
@@ -32,13 +33,13 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
 
-#include <vlc_meta.h>
-#include <vlc_input.h>
-#include <vlc_demux.h>
-#include <vlc_aout.h> /* For reordering */
+#include <heimdall_meta.h>
+#include <heimdall_input.h>
+#include <heimdall_demux.h>
+#include <heimdall_aout.h> /* For reordering */
 
 #include <iostream>
 #include <cassert>
@@ -166,7 +167,7 @@ struct matroska_stream_c
 
     bool isUsed() const;
 
-    vlc_stream_io_callback io_callback;
+    heimdall_stream_io_callback io_callback;
     matroska_iostream_c    estream;
 
     std::vector<matroska_segment_c*> segments;
@@ -209,16 +210,16 @@ class mkv_track_t
         bool         b_pts_only;
 
         bool         b_no_duration;
-        vlc_tick_t   i_default_duration;
+        heimdall_tick_t   i_default_duration;
         float        f_timecodescale;
-        vlc_tick_t   i_last_dts;
+        heimdall_tick_t   i_last_dts;
         uint64_t     i_skip_until_fpos; /*< any block before this fpos should be ignored */
 
         /* video */
         es_format_t fmt;
         float       f_fps;
         es_out_id_t *p_es;
-        vlc_fourcc_t uncompressed_fourcc = 0;
+        heimdall_fourcc_t uncompressed_fourcc = 0;
 
         /* audio */
         unsigned int i_original_rate;
@@ -241,8 +242,8 @@ class mkv_track_t
         KaxContentCompSettings *p_compression_data;
 
         /* Matroska 4 new elements used by Opus */
-        vlc_tick_t i_seek_preroll;
-        vlc_tick_t i_codec_delay;
+        heimdall_tick_t i_seek_preroll;
+        heimdall_tick_t i_codec_delay;
 };
 
 } // namespace

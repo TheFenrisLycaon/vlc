@@ -2,6 +2,7 @@
  * equalizer.c
  *****************************************************************************
  * Copyright (C) 2011 VideoLAN and VLC authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Akash Mehrotra < mehrotra <dot> akash <at> gmail <dot> com >
  *
@@ -31,15 +32,15 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_aout.h>
-#include <vlc_charset.h>
-#include <vlc_playlist.h>
-#include <vlc_player.h>
+#include <heimdall_common.h>
+#include <heimdall_aout.h>
+#include <heimdall_charset.h>
+#include <heimdall_playlist.h>
+#include <heimdall_player.h>
 
 #include "input.h"
 #include "../libs.h"
-#include "../vlc.h"
+#include "../heimdall.h"
 #include "../../audio_filter/equalizer_presets.h"
 
 #if !defined _WIN32
@@ -57,9 +58,9 @@
 /*****************************************************************************
 * Get the preamp level
 *****************************************************************************/
-static int vlclua_preamp_get( lua_State *L )
+static int heimdalllua_preamp_get( lua_State *L )
 {
-    audio_output_t *p_aout = vlclua_get_aout_internal(L);
+    audio_output_t *p_aout = heimdalllua_get_aout_internal(L);
     if( p_aout == NULL )
         return 0;
 
@@ -81,9 +82,9 @@ static int vlclua_preamp_get( lua_State *L )
 /*****************************************************************************
 * Set the preamp level
 *****************************************************************************/
-static int vlclua_preamp_set( lua_State *L )
+static int heimdalllua_preamp_set( lua_State *L )
 {
-    audio_output_t *p_aout = vlclua_get_aout_internal(L);
+    audio_output_t *p_aout = heimdalllua_get_aout_internal(L);
     if( p_aout == NULL )
         return 0;
 
@@ -118,11 +119,11 @@ Band 9: 16 kHz
 /*****************************************************************************
 * Return EQ level for all bands as a Table
 *****************************************************************************/
-static int vlclua_equalizer_get( lua_State *L )
+static int heimdalllua_equalizer_get( lua_State *L )
 {
     const unsigned bands = 10;
 
-    audio_output_t *p_aout = vlclua_get_aout_internal(L);
+    audio_output_t *p_aout = heimdalllua_get_aout_internal(L);
     if( p_aout == NULL )
         return 0;
 
@@ -181,13 +182,13 @@ static int vlclua_equalizer_get( lua_State *L )
 /*****************************************************************************
 * Set the equalizer level for the specified band
 *****************************************************************************/
-static int vlclua_equalizer_set( lua_State *L )
+static int heimdalllua_equalizer_set( lua_State *L )
 {
     int bandid = luaL_checknumber( L, 1 );
     if( bandid < 0 || bandid > 9)
         return 0;
 
-    audio_output_t *p_aout = vlclua_get_aout_internal(L);
+    audio_output_t *p_aout = heimdalllua_get_aout_internal(L);
     if( p_aout == NULL )
         return 0;
 
@@ -237,13 +238,13 @@ static int vlclua_equalizer_set( lua_State *L )
 /*****************************************************************************
 * Set the preset specified by preset id
 *****************************************************************************/
-static int vlclua_equalizer_setpreset( lua_State *L )
+static int heimdalllua_equalizer_setpreset( lua_State *L )
 {
     int presetid = luaL_checknumber( L, 1 );
     if( presetid >= NB_PRESETS || presetid < 0 )
         return 0;
 
-    audio_output_t *p_aout = vlclua_get_aout_internal(L);
+    audio_output_t *p_aout = heimdalllua_get_aout_internal(L);
     if( p_aout == NULL )
         return 0;
 
@@ -262,10 +263,10 @@ static int vlclua_equalizer_setpreset( lua_State *L )
 /****************************************************************************
 * Enable/disable Equalizer
 *****************************************************************************/
-static int vlclua_equalizer_enable(lua_State *L)
+static int heimdalllua_equalizer_enable(lua_State *L)
 {
     bool state = luaL_checkboolean(L , 1);
-    audio_output_t *aout = vlclua_get_aout_internal(L);
+    audio_output_t *aout = heimdalllua_get_aout_internal(L);
     if (aout)
     {
         aout_EnableFilter(aout, "equalizer", state);
@@ -276,7 +277,7 @@ static int vlclua_equalizer_enable(lua_State *L)
 /*****************************************************************************
 * Get preset names
 *****************************************************************************/
-static int vlclua_equalizer_get_presets( lua_State *L )
+static int heimdalllua_equalizer_get_presets( lua_State *L )
 {
     lua_newtable( L );
     char *str;
@@ -290,14 +291,14 @@ static int vlclua_equalizer_get_presets( lua_State *L )
     }
     return 1;
 }
-static const luaL_Reg vlclua_equalizer_reg[] = {
-    { "preampget", vlclua_preamp_get },
-    { "preampset", vlclua_preamp_set },
-    { "equalizerget", vlclua_equalizer_get },
-    { "equalizerset", vlclua_equalizer_set },
-    { "enable", vlclua_equalizer_enable },
-    { "presets",vlclua_equalizer_get_presets },
-    { "setpreset", vlclua_equalizer_setpreset },
+static const luaL_Reg heimdalllua_equalizer_reg[] = {
+    { "preampget", heimdalllua_preamp_get },
+    { "preampset", heimdalllua_preamp_set },
+    { "equalizerget", heimdalllua_equalizer_get },
+    { "equalizerset", heimdalllua_equalizer_set },
+    { "enable", heimdalllua_equalizer_enable },
+    { "presets",heimdalllua_equalizer_get_presets },
+    { "setpreset", heimdalllua_equalizer_setpreset },
     { NULL, NULL }
 };
 
@@ -305,6 +306,6 @@ static const luaL_Reg vlclua_equalizer_reg[] = {
 void luaopen_equalizer( lua_State *L )
 {
     lua_newtable( L );
-    luaL_register( L, NULL, vlclua_equalizer_reg );
+    luaL_register( L, NULL, heimdalllua_equalizer_reg );
     lua_setfield( L, -2, "equalizer" );
 }

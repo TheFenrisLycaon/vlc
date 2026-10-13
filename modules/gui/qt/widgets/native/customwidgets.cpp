@@ -2,6 +2,7 @@
  * customwidgets.cpp: Custom widgets
  ****************************************************************************
  * Copyright (C) 2006-2011 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Clément Stenac <zorglub@videolan.org>
  *
@@ -48,7 +49,7 @@ void QFramelessButton::paintEvent( QPaintEvent * )
 
 }
 
-QString QVLCDebugLevelSpinBox::textFromValue( int v ) const
+QString QHeimdallDebugLevelSpinBox::textFromValue( int v ) const
 {
     QString const texts[] = {
     /* Note that min level 0 is 'errors' in Qt Ui
@@ -64,12 +65,12 @@ QString QVLCDebugLevelSpinBox::textFromValue( int v ) const
     return QString( "%1 (%2)" ).arg( v ).arg( texts[v] );
 }
 
-VLCQDial::VLCQDial( QWidget *parent ) : QDial( parent )
+HeimdallQDial::HeimdallQDial( QWidget *parent ) : QDial( parent )
 {
 
 }
 
-void VLCQDial::paintEvent( QPaintEvent *event )
+void HeimdallQDial::paintEvent( QPaintEvent *event )
 {
     QDial::paintEvent( event );
     QPainter painter( this );

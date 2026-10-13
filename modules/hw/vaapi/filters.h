@@ -1,7 +1,8 @@
 /*****************************************************************************
- * filters.h: VAAPI filters helper for VLC
+ * filters.h: VAAPI filters helper for Heimdall
  *****************************************************************************
  * Copyright (C) 2017 VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Thomas Guillem <thomas@gllm.fr>
  *          Petri Hintukainen <phintuka@gmail.com>
@@ -22,13 +23,13 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_VAAPI_FILTERS_H
-# define VLC_VAAPI_FILTERS_H
+#ifndef HEIMDALL_VAAPI_FILTERS_H
+# define HEIMDALL_VAAPI_FILTERS_H
 
-#include "vlc_vaapi.h"
+#include "heimdall_vaapi.h"
 
 /* chroma filters callbacks */
-int  vlc_vaapi_OpenChroma(filter_t *);
-void vlc_vaapi_CloseChroma(filter_t *);
+int  heimdall_vaapi_OpenChroma(filter_t *);
+void heimdall_vaapi_CloseChroma(filter_t *);
 
-#endif /* VLC_VAAPI_FILTERS_H */
+#endif /* HEIMDALL_VAAPI_FILTERS_H */

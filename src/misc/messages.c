@@ -1,9 +1,10 @@
 /*****************************************************************************
  * messages.c: messages interface
  * This library provides an interface to the message queue to be used by other
- * modules, especially intf modules. See vlc_config.h for output configuration.
+ * modules, especially intf modules. See heimdall_config.h for output configuration.
  *****************************************************************************
  * Copyright (C) 1998-2005 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Vincent Seguin <seguin@via.ecp.fr>
  *          Samuel Hocevar <sam@zoy.org>
@@ -36,13 +37,13 @@
 #include <unistd.h>
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_threads.h>
-#include <vlc_interface.h>
-#include <vlc_charset.h>
-#include <vlc_modules.h>
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
+#include <heimdall_interface.h>
+#include <heimdall_charset.h>
+#include <heimdall_modules.h>
 #include "rcu.h"
-#include "../libvlc.h"
+#include "../libheimdall.h"
 
 #ifndef CONFIGURE_LINE
 // generated C file
@@ -52,7 +53,7 @@ extern const char CONFIGURE_LINE[];
 #ifdef _WIN32
 static const char msg_type[4][9] = { "", " error", " warning", " debug" };
 
-static void Win32DebugOutputMsg (int type, const vlc_log_t *p_item,
+static void Win32DebugOutputMsg (int type, const heimdall_log_t *p_item,
                                  const char *format, va_list dol)
 {
     char *msg = NULL;
@@ -78,17 +79,17 @@ static void Win32DebugOutputMsg (int type, const vlc_log_t *p_item,
 }
 #endif
 
-static void vlc_LogSpam(vlc_object_t *obj)
+static void heimdall_LogSpam(heimdall_object_t *obj)
 {
     /* Announce who we are */
-    msg_Dbg(obj, "VLC media player - %s", VERSION_MESSAGE);
+    msg_Dbg(obj, "Heimdall media player - %s", VERSION_MESSAGE);
     msg_Dbg(obj, "%s", COPYRIGHT_MESSAGE);
-    msg_Dbg(obj, "revision %s", psz_vlc_changeset);
+    msg_Dbg(obj, "revision %s", psz_heimdall_changeset);
     msg_Dbg(obj, "configured with %s", CONFIGURE_LINE);
 }
 
-static void vlc_vaLogCallback(vlc_logger_t *logger, int type,
-                              const vlc_log_t *item, const char *format,
+static void heimdall_vaLogCallback(heimdall_logger_t *logger, int type,
+                              const heimdall_log_t *item, const char *format,
                               va_list ap)
 {
     if (logger != NULL) {
@@ -100,29 +101,29 @@ static void vlc_vaLogCallback(vlc_logger_t *logger, int type,
         va_end (dol);
 #endif
 
-        int canc = vlc_savecancel();
+        int canc = heimdall_savecancel();
 
         logger->ops->log(logger, type, item, format, ap);
-        vlc_restorecancel(canc);
+        heimdall_restorecancel(canc);
     }
 }
 
-static void vlc_LogCallback(vlc_logger_t *logger, int type,
-                            const vlc_log_t *item, const char *format, ...)
+static void heimdall_LogCallback(heimdall_logger_t *logger, int type,
+                            const heimdall_log_t *item, const char *format, ...)
 {
     va_list ap;
 
     va_start(ap, format);
-    vlc_vaLogCallback(logger, type, item, format, ap);
+    heimdall_vaLogCallback(logger, type, item, format, ap);
     va_end(ap);
 }
 
-void vlc_vaLog(struct vlc_logger *const *loggerp, int type,
+void heimdall_vaLog(struct heimdall_logger *const *loggerp, int type,
                const char *typename, const char *module,
                const char *file, unsigned line, const char *func,
                const char *format, va_list args)
 {
-    struct vlc_logger *logger = *loggerp;
+    struct heimdall_logger *logger = *loggerp;
     if (logger == NULL)
         // nothing to do
         return;
@@ -143,7 +144,7 @@ void vlc_vaLog(struct vlc_logger *const *loggerp, int type,
     }
 
     /* Fill message information fields */
-    vlc_log_t msg;
+    heimdall_log_t msg;
 
     msg.i_object_id = (uintptr_t)(void *)loggerp;
     msg.psz_object_type = typename;
@@ -152,13 +153,13 @@ void vlc_vaLog(struct vlc_logger *const *loggerp, int type,
     msg.file = file;
     msg.line = line;
     msg.func = func;
-    msg.tid = vlc_thread_id();
+    msg.tid = heimdall_thread_id();
 
     /* Pass message to the callback */
-    vlc_vaLogCallback(logger, type, &msg, format, args);
+    heimdall_vaLogCallback(logger, type, &msg, format, args);
 }
 
-void vlc_Log(struct vlc_logger *const *logger, int type,
+void heimdall_Log(struct heimdall_logger *const *logger, int type,
              const char *typename, const char *module,
              const char *file, unsigned line, const char *func,
              const char *format, ... )
@@ -166,7 +167,7 @@ void vlc_Log(struct vlc_logger *const *logger, int type,
     va_list ap;
 
     va_start(ap, format);
-    vlc_vaLog(logger, type, typename, module, file, line, func, format, ap);
+    heimdall_vaLog(logger, type, typename, module, file, line, func, format, ap);
     va_end(ap);
 }
 
@@ -175,30 +176,30 @@ void vlc_Log(struct vlc_logger *const *logger, int type,
  *
  * A message log that stores messages in memory until another log is available.
  */
-typedef struct vlc_log_early_t
+typedef struct heimdall_log_early_t
 {
-    struct vlc_log_early_t *next;
+    struct heimdall_log_early_t *next;
     int type;
-    vlc_log_t meta;
+    heimdall_log_t meta;
     char *msg;
-} vlc_log_early_t;
+} heimdall_log_early_t;
 
-typedef struct vlc_logger_early {
-    vlc_mutex_t lock;
-    vlc_log_early_t *head;
-    vlc_log_early_t **tailp;
-    vlc_logger_t *sink;
-    struct vlc_logger logger;
-} vlc_logger_early_t;
+typedef struct heimdall_logger_early {
+    heimdall_mutex_t lock;
+    heimdall_log_early_t *head;
+    heimdall_log_early_t **tailp;
+    heimdall_logger_t *sink;
+    struct heimdall_logger logger;
+} heimdall_logger_early_t;
 
-static void vlc_vaLogEarly(void *d, int type, const vlc_log_t *item,
+static void heimdall_vaLogEarly(void *d, int type, const heimdall_log_t *item,
                            const char *format, va_list ap)
 {
-    struct vlc_logger *logger = d;
-    struct vlc_logger_early *early =
-        container_of(logger, struct vlc_logger_early, logger);
+    struct heimdall_logger *logger = d;
+    struct heimdall_logger_early *early =
+        container_of(logger, struct heimdall_logger_early, logger);
 
-    vlc_log_early_t *log = malloc(sizeof (*log));
+    heimdall_log_early_t *log = malloc(sizeof (*log));
     if (unlikely(log == NULL))
         return;
 
@@ -216,25 +217,25 @@ static void vlc_vaLogEarly(void *d, int type, const vlc_log_t *item,
     if (vasprintf(&log->msg, format, ap) == -1)
         log->msg = NULL;
 
-    vlc_mutex_lock(&early->lock);
+    heimdall_mutex_lock(&early->lock);
     assert(early->tailp != NULL);
     assert(*(early->tailp) == NULL);
     *(early->tailp) = log;
     early->tailp = &log->next;
-    vlc_mutex_unlock(&early->lock);
+    heimdall_mutex_unlock(&early->lock);
 }
 
-static void vlc_LogEarlyClose(void *d)
+static void heimdall_LogEarlyClose(void *d)
 {
-    struct vlc_logger *logger = d;
-    struct vlc_logger_early *early =
-        container_of(logger, struct vlc_logger_early, logger);
-    vlc_logger_t *sink = early->sink;
+    struct heimdall_logger *logger = d;
+    struct heimdall_logger_early *early =
+        container_of(logger, struct heimdall_logger_early, logger);
+    heimdall_logger_t *sink = early->sink;
 
     /* Drain early log messages */
-    for (vlc_log_early_t *log = early->head, *next; log != NULL; log = next)
+    for (heimdall_log_early_t *log = early->head, *next; log != NULL; log = next)
     {
-        vlc_LogCallback(sink, log->type, &log->meta, "%s",
+        heimdall_LogCallback(sink, log->type, &log->meta, "%s",
                         (log->msg != NULL) ? log->msg : "message lost");
         free(log->msg);
         free((char*)log->meta.psz_header); // local copy
@@ -245,90 +246,90 @@ static void vlc_LogEarlyClose(void *d)
     free(early);
 }
 
-static const struct vlc_logger_operations early_ops = {
-    vlc_vaLogEarly,
-    vlc_LogEarlyClose,
+static const struct heimdall_logger_operations early_ops = {
+    heimdall_vaLogEarly,
+    heimdall_LogEarlyClose,
 };
 
-static struct vlc_logger *vlc_LogEarlyOpen(struct vlc_logger *logger)
+static struct heimdall_logger *heimdall_LogEarlyOpen(struct heimdall_logger *logger)
 {
-    vlc_logger_early_t *early = malloc(sizeof (*early));
+    heimdall_logger_early_t *early = malloc(sizeof (*early));
     if (unlikely(early == NULL))
         return NULL;
 
     early->logger.ops = &early_ops;
-    vlc_mutex_init(&early->lock);
+    heimdall_mutex_init(&early->lock);
     early->head = NULL;
     early->tailp = &early->head;
     early->sink = logger;
     return &early->logger;
 }
 
-static void vlc_vaLogDiscard(void *d, int type, const vlc_log_t *item,
+static void heimdall_vaLogDiscard(void *d, int type, const heimdall_log_t *item,
                              const char *format, va_list ap)
 {
     (void) d; (void) type; (void) item; (void) format; (void) ap;
 }
 
-static void vlc_LogDiscardClose(void *d)
+static void heimdall_LogDiscardClose(void *d)
 {
     (void) d;
 }
 
-static const struct vlc_logger_operations discard_ops = {
-    vlc_vaLogDiscard,
-    vlc_LogDiscardClose,
+static const struct heimdall_logger_operations discard_ops = {
+    heimdall_vaLogDiscard,
+    heimdall_LogDiscardClose,
 };
 
-static struct vlc_logger discard_log = { &discard_ops };
+static struct heimdall_logger discard_log = { &discard_ops };
 
 /**
  * Switchable message log.
  *
  * A message log that can be redirected live.
  */
-struct vlc_logger_switch {
-    struct vlc_logger *_Atomic backend;
-    struct vlc_logger frontend;
+struct heimdall_logger_switch {
+    struct heimdall_logger *_Atomic backend;
+    struct heimdall_logger frontend;
 };
 
-static void vlc_vaLogSwitch(void *d, int type, const vlc_log_t *item,
+static void heimdall_vaLogSwitch(void *d, int type, const heimdall_log_t *item,
                             const char *format, va_list ap)
 {
-    struct vlc_logger *logger = d;
-    struct vlc_logger_switch *logswitch =
-        container_of(logger, struct vlc_logger_switch, frontend);
-    struct vlc_logger *backend;
+    struct heimdall_logger *logger = d;
+    struct heimdall_logger_switch *logswitch =
+        container_of(logger, struct heimdall_logger_switch, frontend);
+    struct heimdall_logger *backend;
 
-    vlc_rcu_read_lock();
+    heimdall_rcu_read_lock();
     backend = atomic_load_explicit(&logswitch->backend, memory_order_acquire);
     backend->ops->log(backend, type, item, format, ap);
-    vlc_rcu_read_unlock();
+    heimdall_rcu_read_unlock();
 }
 
-static void vlc_LogSwitch(vlc_logger_t *logger, vlc_logger_t *new_logger);
+static void heimdall_LogSwitch(heimdall_logger_t *logger, heimdall_logger_t *new_logger);
 
-static void vlc_LogSwitchClose(void *d)
+static void heimdall_LogSwitchClose(void *d)
 {
-    struct vlc_logger *logger = d;
-    struct vlc_logger_switch *logswitch =
-        container_of(logger, struct vlc_logger_switch, frontend);
+    struct heimdall_logger *logger = d;
+    struct heimdall_logger_switch *logswitch =
+        container_of(logger, struct heimdall_logger_switch, frontend);
 
     /* Discard any further messages. */
-    vlc_LogSwitch(logger, &discard_log);
+    heimdall_LogSwitch(logger, &discard_log);
     free(logswitch);
 }
 
-static const struct vlc_logger_operations switch_ops = {
-    vlc_vaLogSwitch,
-    vlc_LogSwitchClose,
+static const struct heimdall_logger_operations switch_ops = {
+    heimdall_vaLogSwitch,
+    heimdall_LogSwitchClose,
 };
 
-static void vlc_LogSwitch(vlc_logger_t *logger, vlc_logger_t *new_logger)
+static void heimdall_LogSwitch(heimdall_logger_t *logger, heimdall_logger_t *new_logger)
 {
-    struct vlc_logger_switch *logswitch =
-        container_of(logger, struct vlc_logger_switch, frontend);
-    struct vlc_logger *old_logger;
+    struct heimdall_logger_switch *logswitch =
+        container_of(logger, struct heimdall_logger_switch, frontend);
+    struct heimdall_logger *old_logger;
 
     assert(logger->ops == &switch_ops);
 
@@ -337,13 +338,13 @@ static void vlc_LogSwitch(vlc_logger_t *logger, vlc_logger_t *new_logger)
 
     old_logger = atomic_exchange_explicit(&logswitch->backend, new_logger,
                                           memory_order_acq_rel);
-    vlc_rcu_synchronize();
+    heimdall_rcu_synchronize();
     old_logger->ops->destroy(old_logger);
 }
 
-static struct vlc_logger *vlc_LogSwitchCreate(void)
+static struct heimdall_logger *heimdall_LogSwitchCreate(void)
 {
-    struct vlc_logger_switch *logswitch = malloc(sizeof (*logswitch));
+    struct heimdall_logger_switch *logswitch = malloc(sizeof (*logswitch));
     if (unlikely(logswitch == NULL))
         return NULL;
 
@@ -355,63 +356,63 @@ static struct vlc_logger *vlc_LogSwitchCreate(void)
 /**
  * Module-based message log.
  */
-struct vlc_logger_module {
-    struct vlc_object_t obj;
-    struct vlc_logger frontend;
-    const struct vlc_logger_operations *ops;
+struct heimdall_logger_module {
+    struct heimdall_object_t obj;
+    struct heimdall_logger frontend;
+    const struct heimdall_logger_operations *ops;
     void *opaque;
 };
 
-static int vlc_logger_load(void *func, bool forced, va_list ap)
+static int heimdall_logger_load(void *func, bool forced, va_list ap)
 {
-    const struct vlc_logger_operations *(*activate)(vlc_object_t *,
+    const struct heimdall_logger_operations *(*activate)(heimdall_object_t *,
                                                     void **) = func;
-    struct vlc_logger_module *module = va_arg(ap, struct vlc_logger_module *);
+    struct heimdall_logger_module *module = va_arg(ap, struct heimdall_logger_module *);
 
     (void) forced;
-    module->ops = activate(VLC_OBJECT(module), &module->opaque);
-    return (module->ops != NULL) ? VLC_SUCCESS : VLC_EGENERIC;
+    module->ops = activate(HEIMDALL_OBJECT(module), &module->opaque);
+    return (module->ops != NULL) ? HEIMDALL_SUCCESS : HEIMDALL_EGENERIC;
 }
 
-static void vlc_vaLogModule(void *d, int type, const vlc_log_t *item,
+static void heimdall_vaLogModule(void *d, int type, const heimdall_log_t *item,
                             const char *format, va_list ap)
 {
-    struct vlc_logger *logger = d;
-    struct vlc_logger_module *module =
-        container_of(logger, struct vlc_logger_module, frontend);
+    struct heimdall_logger *logger = d;
+    struct heimdall_logger_module *module =
+        container_of(logger, struct heimdall_logger_module, frontend);
 
     module->ops->log(module->opaque, type, item, format, ap);
 }
 
-static void vlc_LogModuleClose(void *d)
+static void heimdall_LogModuleClose(void *d)
 {
-    struct vlc_logger *logger = d;
-    struct vlc_logger_module *module =
-        container_of(logger, struct vlc_logger_module, frontend);
+    struct heimdall_logger *logger = d;
+    struct heimdall_logger_module *module =
+        container_of(logger, struct heimdall_logger_module, frontend);
 
     if (module->ops->destroy != NULL)
         module->ops->destroy(module->opaque);
 
-    vlc_object_delete(VLC_OBJECT(module));
+    heimdall_object_delete(HEIMDALL_OBJECT(module));
 }
 
-static const struct vlc_logger_operations module_ops = {
-    vlc_vaLogModule,
-    vlc_LogModuleClose,
+static const struct heimdall_logger_operations module_ops = {
+    heimdall_vaLogModule,
+    heimdall_LogModuleClose,
 };
 
-static struct vlc_logger *vlc_LogModuleCreate(vlc_object_t *parent)
+static struct heimdall_logger *heimdall_LogModuleCreate(heimdall_object_t *parent)
 {
-    struct vlc_logger_module *module;
+    struct heimdall_logger_module *module;
 
-    module = vlc_custom_create(parent, sizeof (*module), "logger");
+    module = heimdall_custom_create(parent, sizeof (*module), "logger");
     if (unlikely(module == NULL))
         return NULL;
 
     /* TODO: module configuration item */
-    if (vlc_module_load(vlc_object_logger(module), "logger", NULL, false,
-                        vlc_logger_load, module) == NULL) {
-        vlc_object_delete(VLC_OBJECT(module));
+    if (heimdall_module_load(heimdall_object_logger(module), "logger", NULL, false,
+                        heimdall_logger_load, module) == NULL) {
+        heimdall_object_delete(HEIMDALL_OBJECT(module));
         return NULL;
     }
 
@@ -423,35 +424,35 @@ static struct vlc_logger *vlc_LogModuleCreate(vlc_object_t *parent)
  * Initializes the messages logging subsystem and drain the early messages to
  * the configured log.
  */
-void vlc_LogInit(libvlc_int_t *vlc)
+void heimdall_LogInit(libheimdall_int_t *heimdall)
 {
-    struct vlc_logger *logger = vlc_LogModuleCreate(VLC_OBJECT(vlc));
+    struct heimdall_logger *logger = heimdall_LogModuleCreate(HEIMDALL_OBJECT(heimdall));
     if (logger == NULL)
         logger = &discard_log;
 
-    vlc_LogSwitch(vlc->obj.logger, logger);
+    heimdall_LogSwitch(heimdall->obj.logger, logger);
 }
 
 /**
  * Performs preinitialization of the messages logging subsystem.
  *
  * Early log messages will be stored in memory until the subsystem is fully
- * initialized with vlc_LogInit(). This enables logging before the
+ * initialized with heimdall_LogInit(). This enables logging before the
  * configuration and modules bank are ready.
  *
  * \return 0 on success, -1 on error.
  */
-int vlc_LogPreinit(libvlc_int_t *vlc)
+int heimdall_LogPreinit(libheimdall_int_t *heimdall)
 {
-    vlc_logger_t *logger = vlc_LogSwitchCreate();
+    heimdall_logger_t *logger = heimdall_LogSwitchCreate();
     if (unlikely(logger == NULL))
         return -1;
-    vlc->obj.logger = logger;
+    heimdall->obj.logger = logger;
 
-    struct vlc_logger *early = vlc_LogEarlyOpen(logger);
+    struct heimdall_logger *early = heimdall_LogEarlyOpen(logger);
     if (early != NULL) {
-        vlc_LogSwitch(logger, early);
-        vlc_LogSpam(VLC_OBJECT(vlc));
+        heimdall_LogSwitch(logger, early);
+        heimdall_LogSpam(HEIMDALL_OBJECT(heimdall));
     }
     return 0;
 }
@@ -459,38 +460,38 @@ int vlc_LogPreinit(libvlc_int_t *vlc)
 /**
  * Message log with "header".
  */
-struct vlc_logger_header {
-    struct vlc_logger logger;
-    struct vlc_logger *parent;
+struct heimdall_logger_header {
+    struct heimdall_logger logger;
+    struct heimdall_logger *parent;
     char header[];
 };
 
-static void vlc_vaLogHeader(void *d, int type, const vlc_log_t *item,
+static void heimdall_vaLogHeader(void *d, int type, const heimdall_log_t *item,
                             const char *format, va_list ap)
 {
-    struct vlc_logger *logger = d;
-    struct vlc_logger_header *header =
-        container_of(logger, struct vlc_logger_header, logger);
-    struct vlc_logger *parent = header->parent;
-    vlc_log_t hitem = *item;
+    struct heimdall_logger *logger = d;
+    struct heimdall_logger_header *header =
+        container_of(logger, struct heimdall_logger_header, logger);
+    struct heimdall_logger *parent = header->parent;
+    heimdall_log_t hitem = *item;
 
     hitem.psz_header = header->header;
     parent->ops->log(parent, type, &hitem, format, ap);
 }
 
-static const struct vlc_logger_operations header_ops = {
-    vlc_vaLogHeader,
+static const struct heimdall_logger_operations header_ops = {
+    heimdall_vaLogHeader,
     free,
 };
 
-struct vlc_logger *vlc_LogHeaderCreate(struct vlc_logger *parent,
+struct heimdall_logger *heimdall_LogHeaderCreate(struct heimdall_logger *parent,
                                        const char *str)
 {
     if (parent == NULL)
         return NULL;
 
     size_t len = strlen(str) + 1;
-    struct vlc_logger_header *header = malloc(sizeof (*header) + len);
+    struct heimdall_logger_header *header = malloc(sizeof (*header) + len);
     if (unlikely(header == NULL))
         return NULL;
 
@@ -503,38 +504,38 @@ struct vlc_logger *vlc_LogHeaderCreate(struct vlc_logger *parent,
 /**
  * External custom log callback
  */
-struct vlc_logger_external {
-    struct vlc_logger logger;
-    const struct vlc_logger_operations *ops;
+struct heimdall_logger_external {
+    struct heimdall_logger logger;
+    const struct heimdall_logger_operations *ops;
     void *opaque;
 };
 
-static void vlc_vaLogExternal(void *d, int type, const vlc_log_t *item,
+static void heimdall_vaLogExternal(void *d, int type, const heimdall_log_t *item,
                               const char *format, va_list ap)
 {
-    struct vlc_logger_external *ext = d;
+    struct heimdall_logger_external *ext = d;
 
     ext->ops->log(ext->opaque, type, item, format, ap);
 }
 
-static void vlc_LogExternalClose(void *d)
+static void heimdall_LogExternalClose(void *d)
 {
-    struct vlc_logger_external *ext = d;
+    struct heimdall_logger_external *ext = d;
 
     if (ext->ops->destroy != NULL)
         ext->ops->destroy(ext->opaque);
     free(ext);
 }
 
-static const struct vlc_logger_operations external_ops = {
-    vlc_vaLogExternal,
-    vlc_LogExternalClose,
+static const struct heimdall_logger_operations external_ops = {
+    heimdall_vaLogExternal,
+    heimdall_LogExternalClose,
 };
 
-static struct vlc_logger *
-vlc_LogExternalCreate(const struct vlc_logger_operations *ops, void *opaque)
+static struct heimdall_logger *
+heimdall_LogExternalCreate(const struct heimdall_logger_operations *ops, void *opaque)
 {
-    struct vlc_logger_external *ext = malloc(sizeof (*ext));
+    struct heimdall_logger_external *ext = malloc(sizeof (*ext));
     if (unlikely(ext == NULL))
         return NULL;
 
@@ -547,28 +548,28 @@ vlc_LogExternalCreate(const struct vlc_logger_operations *ops, void *opaque)
 /**
  * Sets the message logging callback.
  *
- * \param vlc the libvlc private instance to replace the logger for
+ * \param heimdall the libheimdall private instance to replace the logger for
  * \param ops message callback, or NULL to clear
  * \param opaque data pointer for the message callback
  */
-void vlc_LogSet(libvlc_int_t *vlc, const struct vlc_logger_operations *ops,
+void heimdall_LogSet(libheimdall_int_t *heimdall, const struct heimdall_logger_operations *ops,
                 void *opaque)
 {
-    struct vlc_logger *logger;
+    struct heimdall_logger *logger;
 
     if (ops != NULL)
-        logger = vlc_LogExternalCreate(ops, opaque);
+        logger = heimdall_LogExternalCreate(ops, opaque);
     else
         logger = NULL;
 
     if (logger == NULL)
         logger = &discard_log;
 
-    vlc_LogSwitch(vlc->obj.logger, logger);
-    vlc_LogSpam(VLC_OBJECT(vlc));
+    heimdall_LogSwitch(heimdall->obj.logger, logger);
+    heimdall_LogSpam(HEIMDALL_OBJECT(heimdall));
 }
 
-void vlc_LogDestroy(vlc_logger_t *logger)
+void heimdall_LogDestroy(heimdall_logger_t *logger)
 {
     logger->ops->destroy(logger);
 }

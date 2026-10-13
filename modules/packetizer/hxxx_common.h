@@ -2,6 +2,7 @@
  * hxxx_common.h: AVC/HEVC packetizers shared code
  *****************************************************************************
  * Copyright (C) 2001-2015 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -20,7 +21,7 @@
 #ifndef HXXX_COMMON_H
 #define HXXX_COMMON_H
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
 /* */
 typedef struct cc_storage_t cc_storage_t;
@@ -39,7 +40,7 @@ block_t * cc_storage_get_current( cc_storage_t *p_ccs, decoder_cc_desc_t * );
 
 typedef block_t * (*pf_annexb_nal_parse)(void *, bool *, block_t *);
 typedef block_t * (*pf_annexb_nal_drain)(void *);
-block_t *PacketizeXXC1( void *, struct vlc_logger *,
+block_t *PacketizeXXC1( void *, struct heimdall_logger *,
                        uint8_t, block_t **,
                        pf_annexb_nal_parse, pf_annexb_nal_drain );
 

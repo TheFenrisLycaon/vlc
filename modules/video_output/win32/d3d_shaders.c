@@ -2,6 +2,7 @@
  * d3d_shaders.c: Direct3D Shader APIs
  *****************************************************************************
  * Copyright (C) 2017-2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Steve Lhomme <robux4@gmail.com>
  *
@@ -24,7 +25,7 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
 #include <assert.h>
 
@@ -38,7 +39,7 @@
 #define nbLatBands SPHERE_SLICES
 #define nbLonBands SPHERE_SLICES
 
-float (D3D_GetFormatLuminance)(vlc_object_t *o, const video_format_t *fmt)
+float (D3D_GetFormatLuminance)(heimdall_object_t *o, const video_format_t *fmt)
 {
     switch (fmt->transfer)
     {
@@ -318,7 +319,7 @@ static void MultMat43(FLOAT dst[4*3], const FLOAT left[4*3], const FLOAT right[4
     // dst[3*4 + 3] = (right[0*4 + 3] * x) + (right[1*4 + 3] * y) + (right[2*4 + 3] * z) + (right[3*4 + 3] * w);
 }
 
-void D3D_SetupQuad(vlc_object_t *o, const video_format_t *fmt, d3d_quad_t *quad,
+void D3D_SetupQuad(heimdall_object_t *o, const video_format_t *fmt, d3d_quad_t *quad,
                    const display_info_t *displayFormat)
 {
     quad->shaderConstants->LuminanceScale = (float)displayFormat->luminance_peak / D3D_GetFormatLuminance(o, fmt);
@@ -1002,7 +1003,7 @@ static float UpdateZ(float f_fovx, float f_fovy)
     return f_z;
 }
 
-void D3D_UpdateViewpoint(d3d_quad_t *quad, const vlc_viewpoint_t *viewpoint, float f_sar)
+void D3D_UpdateViewpoint(d3d_quad_t *quad, const heimdall_viewpoint_t *viewpoint, float f_sar)
 {
     // Convert degree into radian
     float f_fovx = viewpoint->fov * (float)M_PI / 180.f;
@@ -1015,10 +1016,10 @@ void D3D_UpdateViewpoint(d3d_quad_t *quad, const vlc_viewpoint_t *viewpoint, flo
 
     getZoomMatrix(SPHERE_RADIUS * f_z, quad->vertexConstants->Zoom);
     getProjectionMatrix(f_sar, f_fovy, quad->vertexConstants->Projection);
-    vlc_viewpoint_to_4x4(viewpoint, quad->vertexConstants->View);
+    heimdall_viewpoint_to_4x4(viewpoint, quad->vertexConstants->View);
 }
 
-bool D3D_QuadSetupBuffers(vlc_object_t *o, d3d_quad_t *quad, video_projection_mode_t projection)
+bool D3D_QuadSetupBuffers(heimdall_object_t *o, d3d_quad_t *quad, video_projection_mode_t projection)
 {
     switch (projection)
     {
@@ -1045,7 +1046,7 @@ bool D3D_QuadSetupBuffers(vlc_object_t *o, d3d_quad_t *quad, video_projection_mo
     return true;
 }
 
-bool D3D_SetupQuadData(vlc_object_t *o, d3d_quad_t *quad, const RECT *output, d3d_vertex_t*dst_data,
+bool D3D_SetupQuadData(heimdall_object_t *o, d3d_quad_t *quad, const RECT *output, d3d_vertex_t*dst_data,
                        void *pData, video_transform_t orientation)
 {
     switch (quad->projection)

@@ -19,6 +19,7 @@
 // original code from the Chromium project
 
 // Copyright 2017 The Chromium Authors. All rights reserved.
+ * Copyright (C) 2026 TheFenrisLycaon
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -40,18 +41,18 @@ public:
 
     // views::NavButtonProvider:
     void RedrawImages(int top_area_height, bool maximized, bool active);
-    VLCPicturePtr GetImage(vlc_qt_theme_csd_button_type type,
-                            vlc_qt_theme_csd_button_state state) const;
+    HeimdallPicturePtr GetImage(heimdall_qt_theme_csd_button_type type,
+                            heimdall_qt_theme_csd_button_state state) const;
     MyInset GetNavButtonMargin(
-        vlc_qt_theme_csd_button_type type) const;
+        heimdall_qt_theme_csd_button_type type) const;
     MyInset GetTopAreaSpacing() const;
     int GetInterNavButtonSpacing() const;
 
 private:
-    std::map<vlc_qt_theme_csd_button_type,
-             std::map<vlc_qt_theme_csd_button_state, VLCPicturePtr>>
+    std::map<heimdall_qt_theme_csd_button_type,
+             std::map<heimdall_qt_theme_csd_button_state, HeimdallPicturePtr>>
         button_images_;
-    std::map<vlc_qt_theme_csd_button_type, MyInset>
+    std::map<heimdall_qt_theme_csd_button_type, MyInset>
         button_margins_;
     MyInset top_area_spacing_;
     int inter_button_spacing_;

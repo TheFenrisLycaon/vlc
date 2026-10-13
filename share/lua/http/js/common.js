@@ -15,7 +15,7 @@ var audio_types = [
 ];
 var playlist_types = [
         "asx", "b4s", "cue", "ifo", "m3u", "m3u8", "pls", "ram", "rar",
-        "sdp", "vlc", "xspf", "zip", "conf"
+        "sdp", "heimdall", "xspf", "zip", "conf"
 ];
 
 var stream_server = window.location.hostname;

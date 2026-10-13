@@ -2,6 +2,7 @@
  * decoder_prevframe.c: decoder previous frame helpers
  *****************************************************************************
  * Copyright (C) 2025 VLC authors, VideoLAN and Videolabs SAS
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -21,7 +22,7 @@
  # include "config.h"
  #endif
 
-#include <vlc_picture.h>
+#include <heimdall_picture.h>
 #include "decoder_prevframe.h"
 
 void
@@ -69,9 +70,9 @@ decoder_prevframe_Request(struct decoder_prevframe *pf, int *seek_steps)
 
 picture_t *
 decoder_prevframe_AddPic(struct decoder_prevframe *pf, picture_t *pic,
-                         vlc_tick_t *inout_pts, int *seek_steps)
+                         heimdall_tick_t *inout_pts, int *seek_steps)
 {
-    vlc_tick_t pts = *inout_pts;
+    heimdall_tick_t pts = *inout_pts;
     *seek_steps = DEC_PF_SEEK_STEPS_NONE;
 
     if (pf->flushing)

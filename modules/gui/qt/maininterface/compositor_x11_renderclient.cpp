@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,12 +16,12 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
-#include <vlc_cxx_helpers.hpp>
+#include <heimdall_cxx_helpers.hpp>
 #include "compositor_x11_renderclient.hpp"
 
 #define _NET_WM_BYPASS_COMPOSITOR_NAME "_NET_WM_BYPASS_COMPOSITOR"
 
-using namespace vlc;
+using namespace heimdall;
 
 CompositorX11RenderClient::CompositorX11RenderClient(qt_intf_t* p_intf, xcb_connection_t* conn,  xcb_window_t wid, QObject *parent)
     : QObject(parent)

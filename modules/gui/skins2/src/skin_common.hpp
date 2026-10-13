@@ -2,6 +2,7 @@
  * skin_common.hpp
  *****************************************************************************
  * Copyright (C) 2003 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cyril Deguet     <asmax@via.ecp.fr>
  *          Olivier Teulière <ipkiss@via.ecp.fr>
@@ -28,12 +29,12 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_interface.h>
-#include <vlc_playlist.h>
-#include <vlc_player.h>
-#include <vlc_fs.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_interface.h>
+#include <heimdall_playlist.h>
+#include <heimdall_player.h>
+#include <heimdall_fs.h>
 
 #include <string>
 #include <memory>
@@ -45,7 +46,7 @@ class Interpreter;
 class OSFactory;
 class OSLoop;
 class VarManager;
-class VlcProc;
+class HeimdallProc;
 class VoutManager;
 class ArtManager;
 class Theme;
@@ -82,8 +83,8 @@ struct intf_sys_t
     std::unique_ptr<OSLoop> p_osLoop;
     /// Variable manager
     VarManager *p_varManager;
-    /// VLC state handler
-    VlcProc *p_vlcProc;
+    /// Heimdall state handler
+    HeimdallProc *p_heimdallProc;
     /// Vout manager
     VoutManager *p_voutManager;
     /// Art manager
@@ -95,8 +96,8 @@ struct intf_sys_t
     std::unique_ptr<Theme> p_theme;
 
     /// synchronisation at start of interface
-    vlc_thread_t thread;
-    vlc_sem_t    init_wait;
+    heimdall_thread_t thread;
+    heimdall_sem_t    init_wait;
     bool         b_error;
 };
 
@@ -111,8 +112,8 @@ public:
     /// Getter (public because it is used in C callbacks in the win32
     /// interface)
     intf_thread_t *getIntf() const { return m_pIntf; }
-    vlc_playlist_t *getPL() const
-        { return vlc_intf_GetMainPlaylist( m_pIntf ); }
+    heimdall_playlist_t *getPL() const
+        { return heimdall_intf_GetMainPlaylist( m_pIntf ); }
 
 private:
     intf_thread_t *m_pIntf;

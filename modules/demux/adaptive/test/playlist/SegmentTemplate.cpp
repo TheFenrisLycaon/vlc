@@ -2,6 +2,7 @@
  *
  *****************************************************************************
  * Copyright (C) 2020 VideoLabs, VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -74,7 +75,7 @@ int SegmentTemplate_test()
         //Expect(templ->getMediaSegment(11) == nullptr);
         uint64_t number;
         Expect(templ->getSegmentNumberByTime(timescale.ToTime(0), &number) == false);
-        vlc_tick_t time, duration;
+        heimdall_tick_t time, duration;
         //Expect(templ->getPlaybackTimeDurationBySegmentNumber(11, &time, &duration) == false);
         Expect(templ->getMinAheadTime(11) == 0);
 
@@ -88,7 +89,7 @@ int SegmentTemplate_test()
         Expect(templ->getMediaSegment(11 + 2) != nullptr);
 
         /* start/end, duration known */
-        vlc_tick_t now = timescale.ToTime(1000000);
+        heimdall_tick_t now = timescale.ToTime(1000000);
         pl->availabilityStartTime = now;
         pl->availabilityEndTime = now + timescale.ToTime(100 * 20);
         Expect(templ->getLiveTemplateNumber(now, true) == templ->getStartSegmentNumber());

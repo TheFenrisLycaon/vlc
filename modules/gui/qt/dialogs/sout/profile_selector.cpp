@@ -2,6 +2,7 @@
  * profile_selector.cpp : A small profile selector and editor
  ****************************************************************************
  * Copyright (C) 2009 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Jean-Baptiste Kempf <jb@videolan.org>
  *
@@ -39,13 +40,13 @@
 #include <QFontMetrics>
 
 #include <cassert>
-#include <vlc_modules.h>
+#include <heimdall_modules.h>
 
 #define CATPROP2NAME( val ) QString("valueholder_%1").arg( val )
 #define CATANDPROP( cat, prop ) QString("%1_%2").arg( cat ).arg( prop )
 #define OLDFORMAT "^\\w+;\\d+;\\d+;\\d+;"
 
-VLCProfileSelector::VLCProfileSelector( QWidget *_parent ): QWidget( _parent )
+HeimdallProfileSelector::HeimdallProfileSelector( QWidget *_parent ): QWidget( _parent )
 {
     QHBoxLayout *layout = new QHBoxLayout( this );
 
@@ -70,17 +71,17 @@ VLCProfileSelector::VLCProfileSelector( QWidget *_parent ): QWidget( _parent )
     newButton->setToolTip( qtr( "Create a new profile" ) );
     layout->addWidget(newButton);
 
-    BUTTONACT( newButton, &VLCProfileSelector::newProfile );
-    BUTTONACT( editButton, &VLCProfileSelector::editProfile );
-    BUTTONACT( deleteButton, &VLCProfileSelector::deleteProfile );
+    BUTTONACT( newButton, &HeimdallProfileSelector::newProfile );
+    BUTTONACT( editButton, &HeimdallProfileSelector::editProfile );
+    BUTTONACT( deleteButton, &HeimdallProfileSelector::deleteProfile );
     fillProfilesCombo();
 
     connect( profileBox, QOverload<int>::of(&QComboBox::activated),
-             this, &VLCProfileSelector::updateOptions );
+             this, &HeimdallProfileSelector::updateOptions );
     updateOptions( qMax(profileBox->currentIndex(), 0) );
 }
 
-VLCProfileSelector::~VLCProfileSelector()
+HeimdallProfileSelector::~HeimdallProfileSelector()
 {
     QSettings settings(
 #ifdef _WIN32
@@ -88,12 +89,12 @@ VLCProfileSelector::~VLCProfileSelector()
 #else
             QSettings::NativeFormat,
 #endif
-            QSettings::UserScope, "vlc", "vlc-qt-interface" );
+            QSettings::UserScope, "heimdall", "heimdall-qt-interface" );
     ;
     settings.setValue( "codecs-profiles-selected", profileBox->currentText() );
 }
 
-inline void VLCProfileSelector::fillProfilesCombo()
+inline void HeimdallProfileSelector::fillProfilesCombo()
 {
     QSettings settings(
 #ifdef _WIN32
@@ -101,7 +102,7 @@ inline void VLCProfileSelector::fillProfilesCombo()
 #else
             QSettings::NativeFormat,
 #endif
-            QSettings::UserScope, "vlc", "vlc-qt-interface" );
+            QSettings::UserScope, "heimdall", "heimdall-qt-interface" );
 
     int i_size = settings.beginReadArray( "codecs-profiles" );
 
@@ -128,23 +129,23 @@ inline void VLCProfileSelector::fillProfilesCombo()
 
 }
 
-void VLCProfileSelector::newProfile()
+void HeimdallProfileSelector::newProfile()
 {
     editProfilePrivate( "", "" );
 }
 
-void VLCProfileSelector::editProfile()
+void HeimdallProfileSelector::editProfile()
 {
     editProfilePrivate( profileBox->currentText(),
                  profileBox->itemData( profileBox->currentIndex() ).toString() );
 }
 
-void VLCProfileSelector::editProfilePrivate( const QString& qs, const QString& value )
+void HeimdallProfileSelector::editProfilePrivate( const QString& qs, const QString& value )
 {
     /* Create the Profile Editor */
     QWidget* windowWidget = window();
     QWindow* parentWindow = windowWidget ? windowWidget->windowHandle() : nullptr;
-    VLCProfileEditor *editor = new VLCProfileEditor( qs, value,  parentWindow );
+    HeimdallProfileEditor *editor = new HeimdallProfileEditor( qs, value,  parentWindow );
 
     /* Show it */
     if( QDialog::Accepted == editor->exec() )
@@ -170,13 +171,13 @@ void VLCProfileSelector::editProfilePrivate( const QString& qs, const QString& v
     emit optionsChanged();
 }
 
-void VLCProfileSelector::deleteProfile()
+void HeimdallProfileSelector::deleteProfile()
 {
     profileBox->removeItem( profileBox->currentIndex() );
     saveProfiles();
 }
 
-void VLCProfileSelector::saveProfiles()
+void HeimdallProfileSelector::saveProfiles()
 {
     QSettings settings(
 #ifdef _WIN32
@@ -184,7 +185,7 @@ void VLCProfileSelector::saveProfiles()
 #else
             QSettings::NativeFormat,
 #endif
-            QSettings::UserScope, "vlc", "vlc-qt-interface" );
+            QSettings::UserScope, "heimdall", "heimdall-qt-interface" );
 
     settings.remove( "codecs-profiles" ); /* Erase old profiles to be rewritten */
     settings.beginWriteArray( "codecs-profiles" );
@@ -197,7 +198,7 @@ void VLCProfileSelector::saveProfiles()
     settings.endArray();
 }
 
-void VLCProfileSelector::updateOptions( int i )
+void HeimdallProfileSelector::updateOptions( int i )
 {
     QString options = profileBox->itemData( i ).toString();
     QRegularExpression rx(QStringLiteral(OLDFORMAT));
@@ -386,7 +387,7 @@ void VLCProfileSelector::updateOptions( int i )
     emit optionsChanged();
 }
 
-void VLCProfileSelector::updateOptionsOldFormat( int i )
+void HeimdallProfileSelector::updateOptionsOldFormat( int i )
 {
     QStringList options = profileBox->itemData( i ).toString().split( ";" );
     if( options.count() < 16 )
@@ -442,11 +443,11 @@ void VLCProfileSelector::updateOptionsOldFormat( int i )
 
 
 /**
- * VLCProfileEditor
+ * HeimdallProfileEditor
  **/
-VLCProfileEditor::VLCProfileEditor( const QString& qs_name, const QString& value,
+HeimdallProfileEditor::HeimdallProfileEditor( const QString& qs_name, const QString& value,
         QWindow *_parent )
-                 : QVLCDialog( _parent, NULL )
+                 : QHeimdallDialog( _parent, NULL )
 {
     ui.setupUi( this );
     ui.buttonGroup->setObjectName( CATPROP2NAME( CATANDPROP( "muxer", "mux" ) ) );
@@ -462,23 +463,23 @@ VLCProfileEditor::VLCProfileEditor( const QString& qs_name, const QString& value
     QPushButton *saveButton = new QPushButton(
                 ( qs_name.isEmpty() ) ? qtr( "Create" ) : qtr( "Save" ) );
     ui.buttonBox->addButton( saveButton, QDialogButtonBox::AcceptRole );
-    connect( ui.buttonBox, &QDialogButtonBox::accepted, this, &VLCProfileEditor::accept );
+    connect( ui.buttonBox, &QDialogButtonBox::accepted, this, &HeimdallProfileEditor::accept );
     QPushButton *cancelButton = new QPushButton( qtr( "Cancel" ) );
     ui.buttonBox->addButton( cancelButton, QDialogButtonBox::RejectRole );
-    connect( ui.buttonBox, &QDialogButtonBox::rejected, this, &VLCProfileEditor::reject );
+    connect( ui.buttonBox, &QDialogButtonBox::rejected, this, &HeimdallProfileEditor::reject );
 
     connect( ui.valueholder_video_copy, &QtCheckboxChanged,
-             this, &VLCProfileEditor::activatePanels );
+             this, &HeimdallProfileEditor::activatePanels );
     connect( ui.valueholder_audio_copy, &QtCheckboxChanged,
-             this, &VLCProfileEditor::activatePanels );
+             this, &HeimdallProfileEditor::activatePanels );
     connect( ui.valueholder_subtitles_overlay, &QtCheckboxChanged,
-             this, &VLCProfileEditor::activatePanels );
+             this, &HeimdallProfileEditor::activatePanels );
     connect( ui.valueholder_vcodec_bitrate, &QSpinBox::editingFinished,
-             this, &VLCProfileEditor::fixBirateState );
+             this, &HeimdallProfileEditor::fixBirateState );
     connect( ui.valueholder_vcodec_qp, &QSpinBox::editingFinished,
-             this, &VLCProfileEditor::fixQPState );
+             this, &HeimdallProfileEditor::fixQPState );
     connect( ui.valueholder_video_codec, QOverload<int>::of(&QComboBox::currentIndexChanged),
-             this, &VLCProfileEditor::codecSelected );
+             this, &HeimdallProfileEditor::codecSelected );
     reset();
 
     fillProfile( value );
@@ -486,7 +487,7 @@ VLCProfileEditor::VLCProfileEditor( const QString& qs_name, const QString& value
     codecSelected();
 }
 
-void VLCProfileEditor::loadCapabilities()
+void HeimdallProfileEditor::loadCapabilities()
 {
     size_t count;
     module_t **p_all = module_list_get (&count);
@@ -504,7 +505,7 @@ void VLCProfileEditor::loadCapabilities()
     module_list_free (p_all);
 }
 
-inline void VLCProfileEditor::registerFilters()
+inline void HeimdallProfileEditor::registerFilters()
 {
     size_t count;
     module_t **p_all = module_list_get (&count);
@@ -537,7 +538,7 @@ inline void VLCProfileEditor::registerFilters()
     ui.valueholder_audio_filters->sortItems();
 }
 
-inline void VLCProfileEditor::registerCodecs()
+inline void HeimdallProfileEditor::registerCodecs()
 {
 #define SETMUX( button, val, mod, vid, aud, men, sub, stream, chaps ) \
     ui.button->setProperty( "sout", val );\
@@ -548,7 +549,7 @@ inline void VLCProfileEditor::registerCodecs()
     ui.button->setProperty( "capsubs", sub );\
     ui.button->setProperty( "capstream", stream );\
     ui.button->setProperty( "capchaps", chaps );\
-    connect( ui.button, &QRadioButton::clicked, this, &VLCProfileEditor::muxSelected );
+    connect( ui.button, &QRadioButton::clicked, this, &HeimdallProfileEditor::muxSelected );
     SETMUX( PSMux, "ps", "ps",  true, true, false, true, false, true )
     SETMUX( TSMux, "ts", "ts",  true, true, false, true, true, false )
     SETMUX( WEBMux, "webm", "avformat", true, true, false, false, true, false )
@@ -627,7 +628,7 @@ inline void VLCProfileEditor::registerCodecs()
 #undef ADD_SCODEC
 }
 
-void VLCProfileEditor::muxSelected()
+void HeimdallProfileEditor::muxSelected()
 {
     QRadioButton *current =
             qobject_cast<QRadioButton *>( ui.buttonGroup->checkedButton() );
@@ -647,7 +648,7 @@ void VLCProfileEditor::muxSelected()
     if( current->property("module").toString() == "avformat" )
         ui.muxerwarning->setText(
                     QString( "<img src=\":/menu/info.svg\" width=%2 height=%2/> %1" )
-                    .arg( qtr( "This muxer is not provided directly by VLC: It could be missing." ) )
+                    .arg( qtr( "This muxer is not provided directly by Heimdall: It could be missing." ) )
                     .arg(textsize)
                     );
     else if ( !caps["muxers"].contains( current->property("module").toString() ) &&
@@ -664,7 +665,7 @@ void VLCProfileEditor::muxSelected()
 #undef SETYESNOSTATE
 }
 
-void VLCProfileEditor::codecSelected()
+void HeimdallProfileEditor::codecSelected()
 {
     /* Enable quality preset */
     QString currentcodec = ui.valueholder_video_codec->
@@ -672,7 +673,7 @@ void VLCProfileEditor::codecSelected()
     ui.valueholder_vcodec_qp->setEnabled( qpcodecsList.contains( currentcodec ) );
 }
 
-void VLCProfileEditor::fillProfile( const QString& qs )
+void HeimdallProfileEditor::fillProfile( const QString& qs )
 {
     QRegularExpression rx(QStringLiteral(OLDFORMAT));
     if ( rx.match( qs ).hasMatch() ) return fillProfileOldFormat( qs );
@@ -748,7 +749,7 @@ void VLCProfileEditor::fillProfile( const QString& qs )
     }
 }
 
-void VLCProfileEditor::fillProfileOldFormat( const QString& qs )
+void HeimdallProfileEditor::fillProfileOldFormat( const QString& qs )
 {
     QStringList options = qs.split( ";" );
     if( options.count() < 16 )
@@ -795,7 +796,7 @@ void VLCProfileEditor::fillProfileOldFormat( const QString& qs )
     ui.valueholder_subtitles_overlay->setChecked( options[15].toInt() );
 }
 
-void VLCProfileEditor::accept()
+void HeimdallProfileEditor::accept()
 {
     if( ui.profileLine->text().isEmpty() )
     {
@@ -806,12 +807,12 @@ void VLCProfileEditor::accept()
     }
     name = ui.profileLine->text();
 
-    QVLCDialog::accept();
+    QHeimdallDialog::accept();
 }
 
 #define currentData( box ) box->itemData( box->currentIndex() )
 
-QString VLCProfileEditor::transcodeValue()
+QString HeimdallProfileEditor::transcodeValue()
 {
     QList<QObject *> allwidgets = findChildren<QObject *>();
     QStringList configuration;
@@ -887,7 +888,7 @@ QString VLCProfileEditor::transcodeValue()
     return configuration.join( ";" );
 }
 
-void VLCProfileEditor::reset()
+void HeimdallProfileEditor::reset()
 {
     /* reset to default state as we can only check/enable existing values */
     ui.valueholder_video_copy->setChecked( false );
@@ -900,20 +901,20 @@ void VLCProfileEditor::reset()
     ui.valueholder_subtitles_enable->setChecked( false );
 }
 
-void VLCProfileEditor::activatePanels()
+void HeimdallProfileEditor::activatePanels()
 {
     ui.transcodevideo->setEnabled( ! ui.valueholder_video_copy->isChecked() );
     ui.transcodeaudio->setEnabled( ! ui.valueholder_audio_copy->isChecked() );
     ui.valueholder_subtitles_codec->setEnabled( ! ui.valueholder_subtitles_overlay->isChecked() );
 }
 
-void VLCProfileEditor::fixBirateState()
+void HeimdallProfileEditor::fixBirateState()
 {
     /* exclusive bitrate choice */
     ui.valueholder_vcodec_qp->setValue( 0 );
 }
 
-void VLCProfileEditor::fixQPState()
+void HeimdallProfileEditor::fixQPState()
 {
     /* exclusive bitrate choice */
     ui.valueholder_vcodec_bitrate->setValue( 0 );

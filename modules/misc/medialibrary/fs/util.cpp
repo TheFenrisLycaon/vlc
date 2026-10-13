@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,7 +25,7 @@
 
 #include <stdexcept>
 
-namespace vlc {
+namespace heimdall {
   namespace medialibrary {
     namespace utils {
 
@@ -62,4 +63,4 @@ directory(const std::string &filePath)
 }
     } /* namespace utils */
   } /* namespace medialibrary */
-} /* namespace vlc */
+} /* namespace heimdall */

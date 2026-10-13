@@ -2,11 +2,12 @@
  * http_auth.c: HTTP authentication for clients as per RFC2617
  *****************************************************************************
  * Copyright (C) 2001-2008 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *          Christophe Massiot <massiot@via.ecp.fr>
  *          Rémi Denis-Courmont
- *          Antoine Cellerier <dionoea at videolan dot org>
+ *          Antoine Cellerier <dionoea at lycaria dot org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -30,13 +31,13 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_http.h>
-#include <vlc_hash.h>
-#include <vlc_rand.h>
-#include <vlc_strings.h>
+#include <heimdall_common.h>
+#include <heimdall_http.h>
+#include <heimdall_hash.h>
+#include <heimdall_rand.h>
+#include <heimdall_strings.h>
 
-#include "../libvlc.h"
+#include "../libheimdall.h"
 
 
 /*****************************************************************************
@@ -86,32 +87,32 @@ static char *GenerateCnonce(void)
 {
     char ps_random[32];
     char *md5_hex;
-    vlc_hash_md5_t md5;
+    heimdall_hash_md5_t md5;
 
-    md5_hex = malloc( VLC_HASH_MD5_DIGEST_HEX_SIZE );
+    md5_hex = malloc( HEIMDALL_HASH_MD5_DIGEST_HEX_SIZE );
     if (unlikely( md5_hex == NULL ))
         return NULL;
 
-    vlc_rand_bytes( ps_random, sizeof( ps_random ) );
+    heimdall_rand_bytes( ps_random, sizeof( ps_random ) );
 
-    vlc_hash_md5_Init( &md5 );
-    vlc_hash_md5_Update( &md5, ps_random, sizeof( ps_random ) );
+    heimdall_hash_md5_Init( &md5 );
+    heimdall_hash_md5_Update( &md5, ps_random, sizeof( ps_random ) );
 
-    vlc_hash_FinishHex( &md5, md5_hex );
+    heimdall_hash_FinishHex( &md5, md5_hex );
     return md5_hex;
 }
 
-static char *AuthDigest( vlc_object_t *p_this, vlc_http_auth_t *p_auth,
+static char *AuthDigest( heimdall_object_t *p_this, heimdall_http_auth_t *p_auth,
                          const char *psz_method, const char *psz_path,
                          const char *psz_username, const char *psz_password )
 {
-    char psz_HA1[VLC_HASH_MD5_DIGEST_HEX_SIZE];
-    char psz_HA2[VLC_HASH_MD5_DIGEST_HEX_SIZE];
-    char psz_ent[VLC_HASH_MD5_DIGEST_HEX_SIZE];
+    char psz_HA1[HEIMDALL_HASH_MD5_DIGEST_HEX_SIZE];
+    char psz_HA2[HEIMDALL_HASH_MD5_DIGEST_HEX_SIZE];
+    char psz_ent[HEIMDALL_HASH_MD5_DIGEST_HEX_SIZE];
     char *psz_result = NULL;
     char psz_inonce[9];
-    vlc_hash_md5_t md5;
-    vlc_hash_md5_t ent;
+    heimdall_hash_md5_t md5;
+    heimdall_hash_md5_t ent;
 
     if ( p_auth->psz_realm == NULL )
     {
@@ -127,24 +128,24 @@ static char *AuthDigest( vlc_object_t *p_this, vlc_http_auth_t *p_auth,
     }
     else
     {
-        vlc_hash_md5_Init( &md5 );
-        vlc_hash_md5_Update( &md5, psz_username, strlen( psz_username ) );
-        vlc_hash_md5_Update( &md5, ":", 1 );
-        vlc_hash_md5_Update( &md5, p_auth->psz_realm, strlen( p_auth->psz_realm ) );
-        vlc_hash_md5_Update( &md5, ":", 1 );
-        vlc_hash_md5_Update( &md5, psz_password, strlen( psz_password ) );
-        vlc_hash_FinishHex( &md5, psz_HA1 );
+        heimdall_hash_md5_Init( &md5 );
+        heimdall_hash_md5_Update( &md5, psz_username, strlen( psz_username ) );
+        heimdall_hash_md5_Update( &md5, ":", 1 );
+        heimdall_hash_md5_Update( &md5, p_auth->psz_realm, strlen( p_auth->psz_realm ) );
+        heimdall_hash_md5_Update( &md5, ":", 1 );
+        heimdall_hash_md5_Update( &md5, psz_password, strlen( psz_password ) );
+        heimdall_hash_FinishHex( &md5, psz_HA1 );
 
         if ( p_auth->psz_algorithm &&
              strcmp( p_auth->psz_algorithm, "MD5-sess" ) == 0 )
         {
-            vlc_hash_md5_Init( &md5 );
-            vlc_hash_md5_Update( &md5, psz_HA1, sizeof(psz_HA1) - 1 );
-            vlc_hash_md5_Update( &md5, ":", 1 );
-            vlc_hash_md5_Update( &md5, p_auth->psz_nonce, strlen( p_auth->psz_nonce ) );
-            vlc_hash_md5_Update( &md5, ":", 1 );
-            vlc_hash_md5_Update( &md5, p_auth->psz_cnonce, strlen( p_auth->psz_cnonce ) );
-            vlc_hash_FinishHex( &md5, psz_HA1 );
+            heimdall_hash_md5_Init( &md5 );
+            heimdall_hash_md5_Update( &md5, psz_HA1, sizeof(psz_HA1) - 1 );
+            heimdall_hash_md5_Update( &md5, ":", 1 );
+            heimdall_hash_md5_Update( &md5, p_auth->psz_nonce, strlen( p_auth->psz_nonce ) );
+            heimdall_hash_md5_Update( &md5, ":", 1 );
+            heimdall_hash_md5_Update( &md5, p_auth->psz_cnonce, strlen( p_auth->psz_cnonce ) );
+            heimdall_hash_FinishHex( &md5, psz_HA1 );
 
             p_auth->psz_HA1 = strdup( psz_HA1 );
             if ( p_auth->psz_HA1 == NULL )
@@ -153,51 +154,51 @@ static char *AuthDigest( vlc_object_t *p_this, vlc_http_auth_t *p_auth,
     }
 
     /* H(A2) */
-    vlc_hash_md5_Init( &md5 );
+    heimdall_hash_md5_Init( &md5 );
     if ( *psz_method )
-        vlc_hash_md5_Update( &md5, psz_method, strlen( psz_method ) );
-    vlc_hash_md5_Update( &md5, ":", 1 );
+        heimdall_hash_md5_Update( &md5, psz_method, strlen( psz_method ) );
+    heimdall_hash_md5_Update( &md5, ":", 1 );
     if ( psz_path )
-        vlc_hash_md5_Update( &md5, psz_path, strlen( psz_path ) );
+        heimdall_hash_md5_Update( &md5, psz_path, strlen( psz_path ) );
     else
-        vlc_hash_md5_Update( &md5, "/", 1 );
+        heimdall_hash_md5_Update( &md5, "/", 1 );
     if ( p_auth->psz_qop && strcmp( p_auth->psz_qop, "auth-int" ) == 0 )
     {
-        vlc_hash_md5_Init( &ent );
+        heimdall_hash_md5_Init( &ent );
         /* TODO: Support for "qop=auth-int" */
-        vlc_hash_md5_Update( &ent, "", 0 );
-        vlc_hash_FinishHex( &ent, psz_ent );
-        vlc_hash_md5_Update( &md5, ":", 1 );
-        vlc_hash_md5_Update( &md5, psz_ent, sizeof(psz_ent) - 1 );
+        heimdall_hash_md5_Update( &ent, "", 0 );
+        heimdall_hash_FinishHex( &ent, psz_ent );
+        heimdall_hash_md5_Update( &md5, ":", 1 );
+        heimdall_hash_md5_Update( &md5, psz_ent, sizeof(psz_ent) - 1 );
     }
 
-    vlc_hash_FinishHex( &md5, psz_HA2 );
+    heimdall_hash_FinishHex( &md5, psz_HA2 );
 
     /* Request digest */
-    vlc_hash_md5_Init( &md5 );
-    vlc_hash_md5_Update( &md5, psz_HA1, sizeof(psz_HA1) - 1 );
-    vlc_hash_md5_Update( &md5, ":", 1 );
-    vlc_hash_md5_Update( &md5, p_auth->psz_nonce, strlen( p_auth->psz_nonce ) );
-    vlc_hash_md5_Update( &md5, ":", 1 );
+    heimdall_hash_md5_Init( &md5 );
+    heimdall_hash_md5_Update( &md5, psz_HA1, sizeof(psz_HA1) - 1 );
+    heimdall_hash_md5_Update( &md5, ":", 1 );
+    heimdall_hash_md5_Update( &md5, p_auth->psz_nonce, strlen( p_auth->psz_nonce ) );
+    heimdall_hash_md5_Update( &md5, ":", 1 );
     if ( p_auth->psz_qop &&
          ( strcmp( p_auth->psz_qop, "auth" ) == 0 ||
            strcmp( p_auth->psz_qop, "auth-int" ) == 0 ) )
     {
         snprintf( psz_inonce, sizeof( psz_inonce ), "%08x", p_auth->i_nonce );
-        vlc_hash_md5_Update( &md5, psz_inonce, 8 );
-        vlc_hash_md5_Update( &md5, ":", 1 );
-        vlc_hash_md5_Update( &md5, p_auth->psz_cnonce, strlen( p_auth->psz_cnonce ) );
-        vlc_hash_md5_Update( &md5, ":", 1 );
-        vlc_hash_md5_Update( &md5, p_auth->psz_qop, strlen( p_auth->psz_qop ) );
-        vlc_hash_md5_Update( &md5, ":", 1 );
+        heimdall_hash_md5_Update( &md5, psz_inonce, 8 );
+        heimdall_hash_md5_Update( &md5, ":", 1 );
+        heimdall_hash_md5_Update( &md5, p_auth->psz_cnonce, strlen( p_auth->psz_cnonce ) );
+        heimdall_hash_md5_Update( &md5, ":", 1 );
+        heimdall_hash_md5_Update( &md5, p_auth->psz_qop, strlen( p_auth->psz_qop ) );
+        heimdall_hash_md5_Update( &md5, ":", 1 );
     }
-    vlc_hash_md5_Update( &md5, psz_HA2, sizeof(psz_HA2) - 1 );
+    heimdall_hash_md5_Update( &md5, psz_HA2, sizeof(psz_HA2) - 1 );
 
-    psz_result = malloc(VLC_HASH_MD5_DIGEST_HEX_SIZE);
+    psz_result = malloc(HEIMDALL_HASH_MD5_DIGEST_HEX_SIZE);
     if (psz_result == NULL)
         return NULL;
 
-    vlc_hash_FinishHex( &md5, psz_result );
+    heimdall_hash_FinishHex( &md5, psz_result );
     return psz_result;
 }
 
@@ -207,8 +208,8 @@ static char *AuthDigest( vlc_object_t *p_this, vlc_http_auth_t *p_auth,
  * acceptable Authorization header is not sent, the server responds with a "401
  * Unauthorized" status code, and a WWW-Authenticate header [...]
  */
-void vlc_http_auth_ParseWwwAuthenticateHeader(
-        vlc_object_t *p_this, vlc_http_auth_t *p_auth,
+void heimdall_http_auth_ParseWwwAuthenticateHeader(
+        heimdall_object_t *p_this, heimdall_http_auth_t *p_auth,
         const char *psz_header )
 {
     static const char psz_basic_prefix[] = "Basic ";
@@ -285,8 +286,8 @@ void vlc_http_auth_ParseWwwAuthenticateHeader(
  * The Authentication-Info header is used by the server to communicate some
  * information regarding the successful authentication in the response.
  */
-int vlc_http_auth_ParseAuthenticationInfoHeader(
-        vlc_object_t *p_this, vlc_http_auth_t *p_auth,
+int heimdall_http_auth_ParseAuthenticationInfoHeader(
+        heimdall_object_t *p_this, heimdall_http_auth_t *p_auth,
         const char *psz_header, const char *psz_method, const char *psz_path,
         const char *psz_username, const char *psz_password )
 {
@@ -296,7 +297,7 @@ int vlc_http_auth_ParseAuthenticationInfoHeader(
     char *psz_cnonce = AuthGetParam( psz_header, "cnonce" );
     char *psz_nc = AuthGetParamNoQuotes( psz_header, "nc" );
     char *psz_digest = NULL;
-    int i_err = VLC_SUCCESS;
+    int i_err = HEIMDALL_SUCCESS;
     int i_nonce;
 
     if ( psz_cnonce )
@@ -305,7 +306,7 @@ int vlc_http_auth_ParseAuthenticationInfoHeader(
         {
             msg_Err( p_this, "HTTP Digest Access Authentication: server "
                              "replied with a different client nonce value." );
-            i_err = VLC_EGENERIC;
+            i_err = HEIMDALL_EGENERIC;
             goto error;
         }
 
@@ -318,7 +319,7 @@ int vlc_http_auth_ParseAuthenticationInfoHeader(
                 msg_Err( p_this, "HTTP Digest Access Authentication: server "
                                  "replied with a different nonce count "
                                  "value." );
-                i_err = VLC_EGENERIC;
+                i_err = HEIMDALL_EGENERIC;
                 goto error;
             }
         }
@@ -341,7 +342,7 @@ int vlc_http_auth_ParseAuthenticationInfoHeader(
             msg_Err( p_this, "HTTP Digest Access Authentication: server "
                              "replied with an invalid response digest "
                              "(expected value: %s).", psz_digest );
-            i_err = VLC_EGENERIC;
+            i_err = HEIMDALL_EGENERIC;
             goto error;
         }
     }
@@ -364,8 +365,8 @@ error:
     return i_err;
 }
 
-char *vlc_http_auth_FormatAuthorizationHeader(
-        vlc_object_t *p_this, vlc_http_auth_t *p_auth,
+char *heimdall_http_auth_FormatAuthorizationHeader(
+        heimdall_object_t *p_this, heimdall_http_auth_t *p_auth,
         const char *psz_method, const char *psz_path,
         const char *psz_username, const char *psz_password )
 {
@@ -449,7 +450,7 @@ char *vlc_http_auth_FormatAuthorizationHeader(
         if ( i_rc < 0 )
             goto error;
 
-        psz_base64 = vlc_b64_encode( psz_buffer );
+        psz_base64 = heimdall_b64_encode( psz_buffer );
         if ( psz_base64 == NULL )
             goto error;
 
@@ -465,12 +466,12 @@ error:
     return psz_result;
 }
 
-void vlc_http_auth_Init( vlc_http_auth_t *p_auth )
+void heimdall_http_auth_Init( heimdall_http_auth_t *p_auth )
 {
     memset( p_auth, 0, sizeof( *p_auth ) );
 }
 
-void vlc_http_auth_Deinit( vlc_http_auth_t *p_auth )
+void heimdall_http_auth_Deinit( heimdall_http_auth_t *p_auth )
 {
     free( p_auth->psz_realm );
     free( p_auth->psz_domain );

@@ -2,8 +2,9 @@
  * copy.h: Fast YV12/NV12 copy
  *****************************************************************************
  * Copyright (C) 2009 Laurent Aimar
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Laurent Aimar <fenrir_AT_ videolan _DOT_ org>
+ * Authors: Laurent Aimar <fenrir_AT_ lycaria _DOT_ org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -20,8 +21,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_VIDEOCHROMA_COPY_H_
-#define VLC_VIDEOCHROMA_COPY_H_
+#ifndef HEIMDALL_VIDEOCHROMA_COPY_H_
+#define HEIMDALL_VIDEOCHROMA_COPY_H_
 
 #include <assert.h>
 

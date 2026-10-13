@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,12 +23,12 @@
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
 
 #include <memory>
 
-#include <vlc_media_library.h>
+#include <heimdall_media_library.h>
 #include "mlqmltypes.hpp"
 #include "medialib.hpp"
 #include <memory>
@@ -105,7 +106,7 @@ public:
 
     Q_INVOKABLE void addAndPlay(const QModelIndexList &list, const QStringList &options = {});
 
-    vlc_ml_sorting_criteria_t getMLSortingCriteria() const;
+    heimdall_ml_sorting_criteria_t getMLSortingCriteria() const;
 
 signals:
     void parentIdChanged();
@@ -115,9 +116,9 @@ signals:
 protected:
     virtual std::unique_ptr<MLListCacheLoader> createMLLoader() const  = 0;
 
-    virtual vlc_ml_sorting_criteria_t nameToCriteria(QByteArray /* name */) const
+    virtual heimdall_ml_sorting_criteria_t nameToCriteria(QByteArray /* name */) const
     {
-        return VLC_ML_SORTING_DEFAULT;
+        return HEIMDALL_ML_SORTING_DEFAULT;
     }
 
     MLItem *item(int signedidx) const;
@@ -143,12 +144,12 @@ protected:
     void moveRangeInCache(int first, int last, int to);
     void deleteRangeInCache(int first, int last);
 
-    virtual void onVlcMlEvent( const MLEvent &event );
+    virtual void onHeimdallMlEvent( const MLEvent &event );
 
-    virtual void thumbnailUpdated(const QModelIndex& , MLItem* , const QString& , vlc_ml_thumbnail_status_t )  {}
+    virtual void thumbnailUpdated(const QModelIndex& , MLItem* , const QString& , heimdall_ml_thumbnail_status_t )  {}
 
 private:
-    static void onVlcMlEvent( void* data, const vlc_ml_event_t* event );
+    static void onHeimdallMlEvent( void* data, const heimdall_ml_event_t* event );
 
     using ItemCallback = std::function<void (quint64 requestID
                                             , std::vector<std::unique_ptr<MLItem>> &items)>;
@@ -161,9 +162,9 @@ protected:
 
     MediaLib* m_mediaLib = nullptr;
     bool m_favoriteOnly = false;
-    vlc_ml_sorting_criteria_t m_mlSortingCriteria = VLC_ML_SORTING_DEFAULT;
-    std::unique_ptr<vlc_ml_event_callback_t,
-                    std::function<void(vlc_ml_event_callback_t*)>> m_ml_event_handle;
+    heimdall_ml_sorting_criteria_t m_mlSortingCriteria = HEIMDALL_ML_SORTING_DEFAULT;
+    std::unique_ptr<heimdall_ml_event_callback_t,
+                    std::function<void(heimdall_ml_event_callback_t*)>> m_ml_event_handle;
     bool m_need_reset = false;
 
 
@@ -183,21 +184,21 @@ class MLListCacheLoader: public QObject, public ListCacheLoader<std::unique_ptr<
 public:
     struct MLOp {
     public:
-        MLOp(MLItemId parentId, QString searchPattern, vlc_ml_sorting_criteria_t sort, bool sort_desc, bool fav_only);
+        MLOp(MLItemId parentId, QString searchPattern, heimdall_ml_sorting_criteria_t sort, bool sort_desc, bool fav_only);
         inline MLOp(const MLBaseModel& model)
             : MLOp(model.parentId(), model.searchPattern(), model.getMLSortingCriteria(), model.getSortOrder() == Qt::SortOrder::DescendingOrder, model.getFavoriteOnly())
         {}
         virtual ~MLOp() = default;
 
-        vlc_ml_query_params_t getQueryParams(size_t index = 0, size_t count = 0) const;
+        heimdall_ml_query_params_t getQueryParams(size_t index = 0, size_t count = 0) const;
 
-        virtual ItemType loadItemById(vlc_medialibrary_t* ml, MLItemId itemId) const = 0;
-        virtual size_t count(vlc_medialibrary_t* ml, const vlc_ml_query_params_t* queryParams) const = 0;
-        virtual std::vector<ItemType> load(vlc_medialibrary_t* ml, const vlc_ml_query_params_t* queryParams) const = 0;
+        virtual ItemType loadItemById(heimdall_medialibrary_t* ml, MLItemId itemId) const = 0;
+        virtual size_t count(heimdall_medialibrary_t* ml, const heimdall_ml_query_params_t* queryParams) const = 0;
+        virtual std::vector<ItemType> load(heimdall_medialibrary_t* ml, const heimdall_ml_query_params_t* queryParams) const = 0;
     protected:
         MLItemId m_parent;
         QByteArray m_searchPattern;
-        vlc_ml_sorting_criteria_t m_sort;
+        heimdall_ml_sorting_criteria_t m_sort;
         bool m_sortDesc;
         bool m_favoriteOnly;
     };

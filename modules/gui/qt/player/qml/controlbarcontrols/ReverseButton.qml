@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2022 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Benjamin Arnaud <bunjee@omega.gg>
  *
@@ -21,15 +22,15 @@
 import QtQuick
 
 
-import VLC.Widgets as Widgets
-import VLC.Player
-import VLC.Style
-import VLC.Util
+import Heimdall.Widgets as Widgets
+import Heimdall.Player
+import Heimdall.Style
+import Heimdall.Util
 
 Widgets.IconToolButton {
     enabled: Player.rewindable
 
-    text: VLCIcons.play_reverse
+    text: HeimdallIcons.play_reverse
     description: qsTr("Reverse")
 
     AccessibleCompat.id: "reverseButton"

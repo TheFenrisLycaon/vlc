@@ -1,7 +1,8 @@
 /*****************************************************************************
- * buffer.c : DirectMedia Object decoder module for vlc
+ * buffer.c : DirectMedia Object decoder module for heimdall
  *****************************************************************************
  * Copyright (C) 2002, 2003 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Gildas Bazin <gbazin@videolan.org>
  *
@@ -28,8 +29,8 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_codec.h>
+#include <heimdall_common.h>
+#include <heimdall_codec.h>
 
 #ifndef _WIN32
 #    define LOADER

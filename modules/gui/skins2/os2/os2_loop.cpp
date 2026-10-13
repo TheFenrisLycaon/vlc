@@ -2,6 +2,7 @@
  * os2_loop.cpp
  *****************************************************************************
  * Copyright (C) 2003, 2013 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cyril Deguet      <asmax@via.ecp.fr>
  *          Olivier Teulière <ipkiss@via.ecp.fr>
@@ -34,7 +35,7 @@
 #include "../events/evt_mouse.hpp"
 #include "../events/evt_refresh.hpp"
 #include "../events/evt_scroll.hpp"
-#include <vlc_actions.h>
+#include <heimdall_actions.h>
 
 
 #define GET_X_MP( mp ) ( SHORT1FROMMP( mp ))
@@ -47,32 +48,32 @@
 OS2Loop::OS2Loop( intf_thread_t *pIntf ): OSLoop( pIntf )
 {
     // Initialize the map
-    virtKeyToVlcKey[VK_F1] = KEY_F1;
-    virtKeyToVlcKey[VK_F2] = KEY_F2;
-    virtKeyToVlcKey[VK_F3] = KEY_F3;
-    virtKeyToVlcKey[VK_F4] = KEY_F4;
-    virtKeyToVlcKey[VK_F5] = KEY_F5;
-    virtKeyToVlcKey[VK_F6] = KEY_F6;
-    virtKeyToVlcKey[VK_F7] = KEY_F7;
-    virtKeyToVlcKey[VK_F8] = KEY_F8;
-    virtKeyToVlcKey[VK_F9] = KEY_F9;
-    virtKeyToVlcKey[VK_F10] = KEY_F10;
-    virtKeyToVlcKey[VK_F11] = KEY_F11;
-    virtKeyToVlcKey[VK_F12] = KEY_F12;
-    virtKeyToVlcKey[VK_ENTER] = KEY_ENTER;
-    virtKeyToVlcKey[VK_NEWLINE] = KEY_ENTER;
-    virtKeyToVlcKey[VK_SPACE] = ' ';
-    virtKeyToVlcKey[VK_ESC] = KEY_ESC;
-    virtKeyToVlcKey[VK_LEFT] = KEY_LEFT;
-    virtKeyToVlcKey[VK_RIGHT] = KEY_RIGHT;
-    virtKeyToVlcKey[VK_UP] = KEY_UP;
-    virtKeyToVlcKey[VK_DOWN] = KEY_DOWN;
-    virtKeyToVlcKey[VK_INSERT] = KEY_INSERT;
-    virtKeyToVlcKey[VK_DELETE] = KEY_DELETE;
-    virtKeyToVlcKey[VK_HOME] = KEY_HOME;
-    virtKeyToVlcKey[VK_END] = KEY_END;
-    virtKeyToVlcKey[VK_PAGEUP] = KEY_PAGEUP;
-    virtKeyToVlcKey[VK_PAGEDOWN] = KEY_PAGEDOWN;
+    virtKeyToHeimdallKey[VK_F1] = KEY_F1;
+    virtKeyToHeimdallKey[VK_F2] = KEY_F2;
+    virtKeyToHeimdallKey[VK_F3] = KEY_F3;
+    virtKeyToHeimdallKey[VK_F4] = KEY_F4;
+    virtKeyToHeimdallKey[VK_F5] = KEY_F5;
+    virtKeyToHeimdallKey[VK_F6] = KEY_F6;
+    virtKeyToHeimdallKey[VK_F7] = KEY_F7;
+    virtKeyToHeimdallKey[VK_F8] = KEY_F8;
+    virtKeyToHeimdallKey[VK_F9] = KEY_F9;
+    virtKeyToHeimdallKey[VK_F10] = KEY_F10;
+    virtKeyToHeimdallKey[VK_F11] = KEY_F11;
+    virtKeyToHeimdallKey[VK_F12] = KEY_F12;
+    virtKeyToHeimdallKey[VK_ENTER] = KEY_ENTER;
+    virtKeyToHeimdallKey[VK_NEWLINE] = KEY_ENTER;
+    virtKeyToHeimdallKey[VK_SPACE] = ' ';
+    virtKeyToHeimdallKey[VK_ESC] = KEY_ESC;
+    virtKeyToHeimdallKey[VK_LEFT] = KEY_LEFT;
+    virtKeyToHeimdallKey[VK_RIGHT] = KEY_RIGHT;
+    virtKeyToHeimdallKey[VK_UP] = KEY_UP;
+    virtKeyToHeimdallKey[VK_DOWN] = KEY_DOWN;
+    virtKeyToHeimdallKey[VK_INSERT] = KEY_INSERT;
+    virtKeyToHeimdallKey[VK_DELETE] = KEY_DELETE;
+    virtKeyToHeimdallKey[VK_HOME] = KEY_HOME;
+    virtKeyToHeimdallKey[VK_END] = KEY_END;
+    virtKeyToHeimdallKey[VK_PAGEUP] = KEY_PAGEUP;
+    virtKeyToHeimdallKey[VK_PAGEDOWN] = KEY_PAGEDOWN;
 }
 
 
@@ -221,9 +222,9 @@ MRESULT EXPENTRY OS2Loop::processEvent( HWND hwnd, ULONG msg,
             USHORT usCh    = SHORT1FROMMP( mp2 );
             USHORT usVk    = SHORT2FROMMP( mp2 );
 
-            // Get VLC key code from the virtual key code
+            // Get Heimdall key code from the virtual key code
             int key = ( fsFlags & KC_VIRTUALKEY ) ?
-                            virtKeyToVlcKey[ usVk ] : 0;
+                            virtKeyToHeimdallKey[ usVk ] : 0;
             if( !key )
             {
                 // This appears to be a "normal" (ascii) key

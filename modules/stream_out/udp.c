@@ -2,6 +2,7 @@
  * udp.c: standard stream output module
  *****************************************************************************
  * Copyright (C) 2003-2011 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -30,14 +31,14 @@
 #include <arpa/inet.h>
 #endif
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_block.h>
-#include <vlc_plugin.h>
-#include <vlc_sout.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_block.h>
+#include <heimdall_plugin.h>
+#include <heimdall_sout.h>
 
-#include <vlc_network.h>
-#include <vlc_memstream.h>
+#include <heimdall_network.h>
+#include <heimdall_memstream.h>
 #include "sdp_helper.h"
 
 struct sout_stream_udp
@@ -81,9 +82,9 @@ static void Flush(sout_stream_t *stream, void *id)
 
 #define SOUT_CFG_PREFIX "sout-udp-"
 
-static session_descriptor_t *CreateSDP(vlc_object_t *obj, int fd)
+static session_descriptor_t *CreateSDP(heimdall_object_t *obj, int fd)
 {
-    vlc_sockaddr src, dst;
+    heimdall_sockaddr src, dst;
     socklen_t srclen = sizeof (src), dstlen = sizeof (dst);
     char dhost[INET6_ADDRSTRLEN];
     unsigned short dport;
@@ -92,7 +93,7 @@ static session_descriptor_t *CreateSDP(vlc_object_t *obj, int fd)
      || getpeername(fd, &dst.sa, &dstlen)) {
         int val = errno;
 
-        msg_Err(obj, "cannot format SDP: %s", vlc_strerror_c(val));
+        msg_Err(obj, "cannot format SDP: %s", heimdall_strerror_c(val));
         return NULL;
     }
 
@@ -109,15 +110,15 @@ static session_descriptor_t *CreateSDP(vlc_object_t *obj, int fd)
             return NULL;
     }
 
-    struct vlc_memstream sdp;
+    struct heimdall_memstream sdp;
 
-    if (vlc_sdp_Start(&sdp, obj, SOUT_CFG_PREFIX,
+    if (heimdall_sdp_Start(&sdp, obj, SOUT_CFG_PREFIX,
                       &src.sa, srclen, &dst.sa, dstlen))
         return NULL;
 
-    vlc_memstream_printf(&sdp, "m=video %d udp mpeg\r\n", ntohs(dport));
+    heimdall_memstream_printf(&sdp, "m=video %d udp mpeg\r\n", ntohs(dport));
 
-    if (vlc_memstream_close(&sdp) != 0)
+    if (heimdall_memstream_close(&sdp) != 0)
         return NULL;
 
     /* Register the SDP with the SAP thread */
@@ -137,11 +138,11 @@ static int Control(sout_stream_t *stream, int query, va_list args)
             break;
 
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 
     (void) stream;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static ssize_t AccessOutWrite(sout_access_out_t *access, block_t *block)
@@ -174,7 +175,7 @@ static ssize_t AccessOutWrite(sout_access_out_t *access, block_t *block)
         ssize_t val = sendmsg(sys->fd, &hdr, 0);
 
         if (val < 0)
-            msg_Err(access, "send error: %s", vlc_strerror_c(errno));
+            msg_Err(access, "send error: %s", heimdall_strerror_c(errno));
         else
             total += val;
 
@@ -218,7 +219,7 @@ static const char *const chain_options[] = {
 
 #define DEFAULT_PORT 1234
 
-static int Open(vlc_object_t *obj)
+static int Open(heimdall_object_t *obj)
 {
     sout_stream_t *stream = (sout_stream_t *)obj;
     sout_access_out_t *access = NULL;
@@ -235,9 +236,9 @@ static int Open(vlc_object_t *obj)
                  break;
 
         if (c == NULL || c->psz_value == NULL) /* default is file, not for us */
-            return VLC_ENOTSUP;
+            return HEIMDALL_ENOTSUP;
         if (strcmp(c->psz_value, "udp"))
-            return VLC_ENOTSUP;
+            return HEIMDALL_ENOTSUP;
 
         msg_Info(stream, "\"#standard{access=udp,mux=ts,...}\" is deprecated. "
                  "Use \"#udp{...}\" instead.");
@@ -248,7 +249,7 @@ static int Open(vlc_object_t *obj)
     char *dst = var_GetNonEmptyString(stream, SOUT_CFG_PREFIX "dst");
     if (dst == NULL) {
         msg_Err(stream, "missing required destination");
-        return VLC_EINVAL;
+        return HEIMDALL_EINVAL;
     }
 
     const char *dhost;
@@ -276,26 +277,26 @@ static int Open(vlc_object_t *obj)
     if (fd == -1) {
         int val = errno;
 
-        msg_Err(stream, "cannot reach destination: %s", vlc_strerror_c(val));
-        return val ? -val : VLC_EGENERIC;
+        msg_Err(stream, "cannot reach destination: %s", heimdall_strerror_c(val));
+        return val ? -val : HEIMDALL_EGENERIC;
     }
 
     if (var_GetBool(stream, SOUT_CFG_PREFIX "avformat")
      && var_Create(stream, "sout-avformat-mux",
-                   VLC_VAR_STRING) == VLC_SUCCESS) {
+                   HEIMDALL_VAR_STRING) == HEIMDALL_SUCCESS) {
         var_SetString(stream, "sout-avformat-mux", "mpegts");
         muxmod = "avformat";
     }
 
     struct sout_stream_udp *sys = malloc(sizeof (*sys));
     if (unlikely(sys == NULL)) {
-        ret = VLC_ENOMEM;
+        ret = HEIMDALL_ENOMEM;
         goto error;
     }
 
-    access = vlc_object_create(stream, sizeof (*access));
+    access = heimdall_object_create(stream, sizeof (*access));
     if (unlikely(access == NULL)) {
-        ret = VLC_ENOMEM;
+        ret = HEIMDALL_ENOMEM;
         goto error;
     }
 
@@ -314,19 +315,19 @@ static int Open(vlc_object_t *obj)
 
     sout_mux_t *mux = sout_MuxNew(access, muxmod);
     if (mux == NULL) {
-        ret = VLC_ENOTSUP;
+        ret = HEIMDALL_ENOTSUP;
         goto error;
     }
     sys->mux = mux;
 
     if (var_GetBool(stream, SOUT_CFG_PREFIX "sap"))
-        sys->sap = CreateSDP(VLC_OBJECT(stream), fd);
+        sys->sap = CreateSDP(HEIMDALL_OBJECT(stream), fd);
     else
         sys->sap = NULL;
 
     stream->p_sys = sys;
     stream->ops = &ops;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     if (access != NULL)
@@ -350,7 +351,7 @@ error:
 #define DESC_LONGTEXT N_( \
     "Short description of the stream that will be announced with SAP.")
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname(N_("UDP"))
     set_description(N_("UDP stream output"))
     set_capability("sout output", 40)
@@ -364,4 +365,4 @@ vlc_module_begin()
     add_string(SOUT_CFG_PREFIX "description", "", DESC_TEXT, DESC_LONGTEXT)
 
     set_callback(Open)
-vlc_module_end()
+heimdall_module_end()

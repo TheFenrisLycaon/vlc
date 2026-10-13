@@ -33,7 +33,7 @@ OPTIONS="
       --enable-libxml2
       --enable-libgcrypt
       --enable-gnutls
-      --enable-vlc
+      --enable-heimdall
 "
 
 export ARCHFLAGS=${ARCHFLAGS-"-march=i686"}

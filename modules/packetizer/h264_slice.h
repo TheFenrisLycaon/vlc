@@ -2,6 +2,7 @@
  * h264_slice.c: h264 slice parser
  *****************************************************************************
  * Copyright (C) 2001-17 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -17,8 +18,8 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
-#ifndef VLC_H264_SLICE_H
-#define VLC_H264_SLICE_H
+#ifndef HEIMDALL_H264_SLICE_H
+#define HEIMDALL_H264_SLICE_H
 
 enum h264_slice_type_e
 {

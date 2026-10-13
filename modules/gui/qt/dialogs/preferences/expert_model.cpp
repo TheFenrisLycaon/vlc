@@ -2,6 +2,7 @@
  * expert_model.cpp : Detailed preferences overview - model
  *****************************************************************************
  * Copyright (C) 2019-2022 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Lyndon Brown <jnqnfe@gmail.com>
  *
@@ -40,8 +41,8 @@
 #include "expert_model.hpp"
 #include "preferences_widgets.hpp"
 
-#include <vlc_config_cat.h>
-#include <vlc_modules.h>
+#include <heimdall_config_cat.h>
+#include <heimdall_modules.h>
 
 #define COLUMN_COUNT 4
 
@@ -129,7 +130,7 @@ void ExpertPrefsTableItem::updateMatchesDefault()
             break;
         }
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
             break;
     }
 }
@@ -240,7 +241,7 @@ ExpertPrefsTableModel::ExpertPrefsTableModel( module_t **mod_list, size_t mod_co
         QString mod_name = module_get_object( mod );
         QString mod_name_pretty = is_core ? qtr( "Core" ) : module_GetShortName( mod );
 
-        enum vlc_config_subcat subcat = SUBCAT_UNKNOWN;
+        enum heimdall_config_subcat subcat = SUBCAT_UNKNOWN;
 
         for( size_t j = 0; j < confsize; j++ )
         {
@@ -248,7 +249,7 @@ ExpertPrefsTableModel::ExpertPrefsTableModel( module_t **mod_list, size_t mod_co
 
             if( cfg_item->i_type == CONFIG_SUBCATEGORY )
             {
-                subcat = (enum vlc_config_subcat) cfg_item->value.i;
+                subcat = (enum heimdall_config_subcat) cfg_item->value.i;
                 continue;
             }
             if( subcat == SUBCAT_UNKNOWN || subcat == SUBCAT_HIDDEN )

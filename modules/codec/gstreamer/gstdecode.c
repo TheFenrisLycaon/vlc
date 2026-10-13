@@ -2,6 +2,7 @@
  * gstdecode.c: Decoder module making use of gstreamer
  *****************************************************************************
  * Copyright (C) 2014-2016 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Vikram Fugro <vikram.fugro@gmail.com>
  *
@@ -27,10 +28,10 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_threads.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
 
 #include <gst/gst.h>
 #include <gst/video/video.h>
@@ -40,8 +41,8 @@
 #include <gst/app/gstappsrc.h>
 #include <gst/gstatomicqueue.h>
 
-#include "gstvlcpictureplaneallocator.h"
-#include "gstvlcvideosink.h"
+#include "gstheimdallpictureplaneallocator.h"
+#include "gstheimdallvideosink.h"
 #include "gstcopypicture.h"
 #include "gst_mem.h"
 
@@ -52,7 +53,7 @@ typedef struct
     GstElement *p_decode_in;
     GstElement *p_decode_out;
 
-    GstVlcPicturePlaneAllocator *p_allocator;
+    GstHeimdallPicturePlaneAllocator *p_allocator;
 
     GstBus *p_bus;
 
@@ -61,7 +62,7 @@ typedef struct
     bool b_prerolled;
     bool b_running;
 
-    vlc_video_context *vctx;
+    heimdall_video_context *vctx;
 } decoder_sys_t;
 
 typedef struct
@@ -73,11 +74,11 @@ typedef struct
 /*****************************************************************************
  * Local prototypes
  *****************************************************************************/
-static int  OpenDecoder( vlc_object_t* );
-static void CloseDecoder( vlc_object_t* );
+static int  OpenDecoder( heimdall_object_t* );
+static void CloseDecoder( heimdall_object_t* );
 static int  DecodeBlock( decoder_t*, block_t* );
 static void Flush( decoder_t * );
-static int OpenDecoderDevice( vlc_decoder_device*, vlc_window_t* );
+static int OpenDecoderDevice( heimdall_decoder_device*, heimdall_window_t* );
 
 #define MODULE_DESCRIPTION N_( "Uses GStreamer framework's plugins " \
         "to decode the media codecs" )
@@ -90,14 +91,14 @@ static int OpenDecoderDevice( vlc_decoder_device*, vlc_window_t* );
     "more info such as codec profile, level and other attributes, " \
     "in the form of GstCaps (Stream Capabilities) to decoder." )
 
-#define USEVLCPOOL_TEXT "Use VLCPool"
-#define USEVLCPOOL_LONGTEXT \
+#define USEHEIMDALLPOOL_TEXT "Use HeimdallPool"
+#define USEHEIMDALLPOOL_LONGTEXT \
     "Allow the gstreamer decoders to directly decode (direct render) " \
-    "into the buffers provided and managed by the (downstream)VLC modules " \
+    "into the buffers provided and managed by the (downstream)Heimdall modules " \
     "that follow. Note: Currently this feature is unstable, enable it at " \
     "your own risk."
 
-vlc_module_begin( )
+heimdall_module_begin( )
     set_shortname( "GstDecode" )
     add_shortcut( "gstdecode" )
     set_subcategory( SUBCAT_INPUT_VCODEC )
@@ -109,12 +110,12 @@ vlc_module_begin( )
     set_callbacks( OpenDecoder, CloseDecoder )
     add_bool( "use-decodebin", true, USEDECODEBIN_TEXT,
         USEDECODEBIN_LONGTEXT )
-    add_bool( "use-vlcpool", false, USEVLCPOOL_TEXT,
-        USEVLCPOOL_LONGTEXT )
+    add_bool( "use-heimdallpool", false, USEHEIMDALLPOOL_TEXT,
+        USEHEIMDALLPOOL_LONGTEXT )
     add_submodule( )
         set_callback_dec_device( OpenDecoderDevice, 1 )
         add_shortcut( "gstdecode" )
-vlc_module_end( )
+heimdall_module_end( )
 
 static void gst_mem_pic_context_Destroy( struct picture_context_t *ctx )
 {
@@ -136,13 +137,13 @@ static picture_context_t *gst_mem_pic_context_Copy(
         return NULL;
 
     *gst_mem_ctx_copy = *gst_mem_ctx;
-    vlc_video_context_Hold( gst_mem_ctx_copy->s.vctx );
+    heimdall_video_context_Hold( gst_mem_ctx_copy->s.vctx );
     gst_buffer_ref( gst_mem_ctx_copy->p_buf );
 
     return &gst_mem_ctx_copy->s;
 }
 
-void gst_vlc_dec_ensure_empty_queue( decoder_t *p_dec )
+void gst_heimdall_dec_ensure_empty_queue( decoder_t *p_dec )
 {
     decoder_sys_t *p_sys = p_dec->p_sys;
     int i_count = 0;
@@ -155,7 +156,7 @@ void gst_vlc_dec_ensure_empty_queue( decoder_t *p_dec )
     while( p_sys->b_running && i_count < 60 &&
             gst_atomic_queue_length( p_sys->p_que ))
     {
-        vlc_tick_sleep ( VLC_TICK_FROM_MS(15) );
+        heimdall_tick_sleep ( HEIMDALL_TICK_FROM_MS(15) );
         i_count++;
     }
 
@@ -174,11 +175,11 @@ void gst_vlc_dec_ensure_empty_queue( decoder_t *p_dec )
 /* Emitted by appsrc when serving a seek request.
  * Seek over here is only used for flushing the buffers.
  * Returns TRUE always, as the 'real' seek will be
- * done by VLC framework */
+ * done by Heimdall framework */
 static gboolean seek_data_cb( GstAppSrc *p_src, guint64 l_offset,
         gpointer p_data )
 {
-    VLC_UNUSED( p_src );
+    HEIMDALL_UNUSED( p_src );
     decoder_t *p_dec = p_data;
     msg_Dbg( p_dec, "appsrc seeking to %"G_GUINT64_FORMAT, l_offset );
     return TRUE;
@@ -191,7 +192,7 @@ static gboolean autoplug_query_cb( GstElement *p_bin, GstPad *p_pad,
                                    GstElement *p_element, GstQuery *p_query,
                                    gpointer p_data )
 {
-    VLC_UNUSED( p_bin );
+    HEIMDALL_UNUSED( p_bin );
     decoder_t *p_dec = p_data;
     decoder_sys_t *p_sys = p_dec->p_sys;
 
@@ -200,7 +201,7 @@ static gboolean autoplug_query_cb( GstElement *p_bin, GstPad *p_pad,
     {
         switch( GST_QUERY_TYPE ( p_query ) ){
         case GST_QUERY_CAPS:
-            return gst_vlc_video_sink_query_caps( p_query );
+            return gst_heimdall_video_sink_query_caps( p_query );
         case GST_QUERY_ALLOCATION: {
             GstBaseSink *p_bsink = GST_BASE_SINK_CAST( p_sys->p_decode_out );
             GstBaseSinkClass *p_bclass = GST_BASE_SINK_GET_CLASS( p_bsink );
@@ -214,12 +215,12 @@ static gboolean autoplug_query_cb( GstElement *p_bin, GstPad *p_pad,
     return FALSE;
 }
 
-/* Emitted by decodebin and links decodebin to vlcvideosink.
+/* Emitted by decodebin and links decodebin to heimdallvideosink.
  * Since only one elementary codec stream is fed to decodebin,
  * this signal cannot be emitted more than once. */
 static void pad_added_cb( GstElement *p_ele, GstPad *p_pad, gpointer p_data )
 {
-    VLC_UNUSED( p_ele );
+    HEIMDALL_UNUSED( p_ele );
     decoder_t *p_dec = p_data;
     decoder_sys_t *p_sys = p_dec->p_sys;
 
@@ -242,14 +243,14 @@ static void pad_added_cb( GstElement *p_ele, GstPad *p_pad, gpointer p_data )
     {
         msg_Err( p_dec, "decodebin src pad has no caps" );
         GST_ELEMENT_ERROR( p_sys->p_decoder, STREAM, FAILED,
-                ( "vlc stream error" ), NULL );
+                ( "heimdall stream error" ), NULL );
     }
 }
 
 static gboolean caps_handoff_cb( GstElement* p_ele, GstCaps *p_caps,
         gpointer p_data )
 {
-    VLC_UNUSED( p_ele );
+    HEIMDALL_UNUSED( p_ele );
     decoder_t *p_dec = p_data;
     decoder_sys_t *p_sys = p_dec->p_sys;
     GstVideoAlignment align;
@@ -262,18 +263,18 @@ static gboolean caps_handoff_cb( GstElement* p_ele, GstCaps *p_caps,
         return FALSE;
     }
 
-    gst_vlc_dec_ensure_empty_queue( p_dec );
+    gst_heimdall_dec_ensure_empty_queue( p_dec );
     gst_video_alignment_reset( &align );
 
-    return gst_vlc_set_vout_fmt( &p_sys->vinfo, &align, p_caps, p_dec );
+    return gst_heimdall_set_vout_fmt( &p_sys->vinfo, &align, p_caps, p_dec );
 }
 
-/* Emitted by vlcvideosink for every buffer,
+/* Emitted by heimdallvideosink for every buffer,
  * Adds the buffer to the queue */
 static void frame_handoff_cb( GstElement *p_ele, GstBuffer *p_buf,
         gpointer p_data )
 {
-    VLC_UNUSED( p_ele );
+    HEIMDALL_UNUSED( p_ele );
     decoder_t *p_dec = p_data;
     decoder_sys_t *p_sys = p_dec->p_sys;
 
@@ -351,43 +352,43 @@ static bool default_msg_handler( decoder_t *p_dec, GstMessage *p_msg )
     return err;
 }
 
-static gboolean vlc_gst_plugin_init( GstPlugin *p_plugin )
+static gboolean heimdall_gst_plugin_init( GstPlugin *p_plugin )
 {
-    if( !gst_element_register( p_plugin, "vlcvideosink", GST_RANK_NONE,
-                GST_TYPE_VLC_VIDEO_SINK ))
+    if( !gst_element_register( p_plugin, "heimdallvideosink", GST_RANK_NONE,
+                GST_TYPE_HEIMDALL_VIDEO_SINK ))
         return FALSE;
 
     return TRUE;
 }
 
 
-static void vlc_gst_init_once(void *data)
+static void heimdall_gst_init_once(void *data)
 {
     bool *registered = data;
 
     gst_init( NULL, NULL );
-    *registered = gst_plugin_register_static( 1, 0, "videolan",
-                "VLC Gstreamer plugins", vlc_gst_plugin_init,
-                "1.0.0", "LGPL", "NA", "vlc", "NA" );
+    *registered = gst_plugin_register_static( 1, 0, "lycaria",
+                "Heimdall Gstreamer plugins", heimdall_gst_plugin_init,
+                "1.0.0", "LGPL", "NA", "heimdall", "NA" );
 }
 
 /* gst_init( ) is not thread-safe, hence a thread-safe wrapper */
-static bool vlc_gst_init( void )
+static bool heimdall_gst_init( void )
 {
-    static vlc_once_t once = VLC_STATIC_ONCE;
-    static bool vlc_gst_registered;
+    static heimdall_once_t once = HEIMDALL_STATIC_ONCE;
+    static bool heimdall_gst_registered;
 
-    vlc_once(&once, vlc_gst_init_once, &vlc_gst_registered);
-    return vlc_gst_registered;
+    heimdall_once(&once, heimdall_gst_init_once, &heimdall_gst_registered);
+    return heimdall_gst_registered;
 }
 
-static GstStructure* vlc_to_gst_fmt( const es_format_t *p_fmt )
+static GstStructure* heimdall_to_gst_fmt( const es_format_t *p_fmt )
 {
     const video_format_t *p_vfmt = &p_fmt->video;
     GstStructure *p_str = NULL;
 
     switch( p_fmt->i_codec ){
-    case VLC_CODEC_H264:
+    case HEIMDALL_CODEC_H264:
         p_str = gst_structure_new_empty( "video/x-h264" );
         gst_structure_set( p_str, "alignment", G_TYPE_STRING, "au", NULL );
         if( p_fmt->i_extra )
@@ -397,54 +398,54 @@ static GstStructure* vlc_to_gst_fmt( const es_format_t *p_fmt )
             gst_structure_set( p_str, "stream-format", G_TYPE_STRING,
                     "byte-stream", NULL );
         break;
-    case VLC_CODEC_HEVC:
+    case HEIMDALL_CODEC_HEVC:
         p_str = gst_structure_new_empty( "video/x-h265" );
         gst_structure_set( p_str, "alignment", G_TYPE_STRING, "au",
                 "stream-format", G_TYPE_STRING, "hvc1", NULL );
         break;
-    case VLC_CODEC_MP4V:
+    case HEIMDALL_CODEC_MP4V:
         p_str = gst_structure_new_empty( "video/mpeg" );
         gst_structure_set( p_str, "mpegversion", G_TYPE_INT, 4,
                 "systemstream", G_TYPE_BOOLEAN, FALSE, NULL );
         break;
-    case VLC_CODEC_VP8:
+    case HEIMDALL_CODEC_VP8:
         if (es_format_HasVpxAlpha(p_fmt)) // contains alpha extradata
             return NULL;
         p_str = gst_structure_new_empty( "video/x-vp8" );
         break;
-    case VLC_CODEC_VP9:
+    case HEIMDALL_CODEC_VP9:
         if (es_format_HasVpxAlpha(p_fmt)) // contains alpha extradata
             return NULL;
         p_str = gst_structure_new_empty( "video/x-vp9" );
         break;
-    case VLC_CODEC_AV1:
+    case HEIMDALL_CODEC_AV1:
         p_str = gst_structure_new_empty( "video/x-av1" );
         break;
-    case VLC_CODEC_MPGV:
+    case HEIMDALL_CODEC_MPGV:
         p_str = gst_structure_new_empty( "video/mpeg" );
         gst_structure_set( p_str, "mpegversion", G_TYPE_INT, 2,
                 "systemstream", G_TYPE_BOOLEAN, FALSE, NULL );
         break;
-    case VLC_CODEC_FLV1:
+    case HEIMDALL_CODEC_FLV1:
         p_str = gst_structure_new_empty( "video/x-flash-video" );
         gst_structure_set( p_str, "flvversion", G_TYPE_INT, 1, NULL );
         break;
-    case VLC_CODEC_WMV1:
+    case HEIMDALL_CODEC_WMV1:
         p_str = gst_structure_new_empty( "video/x-wmv" );
         gst_structure_set( p_str, "wmvversion", G_TYPE_INT, 1,
                 "format", G_TYPE_STRING, "WMV1", NULL );
         break;
-    case VLC_CODEC_WMV2:
+    case HEIMDALL_CODEC_WMV2:
         p_str = gst_structure_new_empty( "video/x-wmv" );
         gst_structure_set( p_str, "wmvversion", G_TYPE_INT, 2,
                 "format", G_TYPE_STRING, "WMV2", NULL );
         break;
-    case VLC_CODEC_WMV3:
+    case HEIMDALL_CODEC_WMV3:
         p_str = gst_structure_new_empty( "video/x-wmv" );
         gst_structure_set( p_str, "wmvversion", G_TYPE_INT, 3,
                 "format", G_TYPE_STRING, "WMV3", NULL );
         break;
-    case VLC_CODEC_VC1:
+    case HEIMDALL_CODEC_VC1:
         p_str = gst_structure_new_empty( "video/x-wmv" );
         gst_structure_set( p_str, "wmvversion", G_TYPE_INT, 3,
                 "format", G_TYPE_STRING, "WVC1", NULL );
@@ -492,7 +493,7 @@ static GstStructure* vlc_to_gst_fmt( const es_format_t *p_fmt )
 /*****************************************************************************
  * OpenDecoder: probe the decoder and return score
  *****************************************************************************/
-static int OpenDecoder( vlc_object_t *p_this )
+static int OpenDecoder( heimdall_object_t *p_this )
 {
     decoder_t *p_dec = ( decoder_t* )p_this;
     decoder_sys_t *p_sys;
@@ -501,29 +502,29 @@ static int OpenDecoder( vlc_object_t *p_this )
     sink_src_caps_t caps = { NULL, NULL };
     GstStructure *p_str;
     GstAppSrcCallbacks cb;
-    int i_rval = VLC_SUCCESS;
+    int i_rval = HEIMDALL_SUCCESS;
     GList *p_list;
-    bool dbin, vlc_pool;
+    bool dbin, heimdall_pool;
 
-#define VLC_GST_CHECK( r, v, s, t ) \
+#define HEIMDALL_GST_CHECK( r, v, s, t ) \
     { if( r == v ){ msg_Err( p_dec, s ); i_rval = t; goto fail; } }
 
-    if( !vlc_gst_init( ))
+    if( !heimdall_gst_init( ))
     {
-        msg_Err( p_dec, "failed to register vlcvideosink" );
-        return VLC_EGENERIC;
+        msg_Err( p_dec, "failed to register heimdallvideosink" );
+        return HEIMDALL_EGENERIC;
     }
 
-    p_str = vlc_to_gst_fmt( p_dec->fmt_in );
+    p_str = heimdall_to_gst_fmt( p_dec->fmt_in );
     if( !p_str )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* Allocate the memory needed to store the decoder's structure */
     p_sys = p_dec->p_sys = calloc( 1, sizeof( *p_sys ) );
     if( p_sys == NULL )
     {
         gst_structure_free( p_str );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     dbin = var_CreateGetBool( p_dec, "use-decodebin" );
@@ -543,12 +544,12 @@ static int OpenDecoder( vlc_object_t *p_this )
         /* Sort them as per ranks */
         p_list = g_list_sort( p_list, gst_plugin_feature_rank_compare_func );
         p_l = g_list_find_custom( p_list, &caps, find_decoder_func );
-        VLC_GST_CHECK( p_l, NULL, "no suitable decoder found", VLC_ENOTSUP );
+        HEIMDALL_GST_CHECK( p_l, NULL, "no suitable decoder found", HEIMDALL_ENOTSUP );
         /* create the decoder with highest rank */
         p_sys->p_decode_in = gst_element_factory_create(
                 ( GstElementFactory* )p_l->data, NULL );
-        VLC_GST_CHECK( p_sys->p_decode_in, NULL,
-                "failed to create decoder", VLC_ENOMEM );
+        HEIMDALL_GST_CHECK( p_sys->p_decode_in, NULL,
+                "failed to create decoder", HEIMDALL_ENOMEM );
     }
     else
     {
@@ -556,7 +557,7 @@ static int OpenDecoder( vlc_object_t *p_this )
         /* Just check if any suitable decoder exists, rest will be
          * handled by decodebin */
         p_l = g_list_find_custom( p_list, &caps, find_decoder_func );
-        VLC_GST_CHECK( p_l, NULL, "no suitable decoder found", VLC_ENOTSUP );
+        HEIMDALL_GST_CHECK( p_l, NULL, "no suitable decoder found", HEIMDALL_ENOTSUP );
     }
     gst_plugin_feature_list_free( p_list );
     p_list = NULL;
@@ -571,7 +572,7 @@ static int OpenDecoder( vlc_object_t *p_this )
     p_sys->p_que = gst_atomic_queue_new( 0 );
 
     p_sys->p_decode_src = gst_element_factory_make( "appsrc", NULL );
-    VLC_GST_CHECK( p_sys->p_decode_src, NULL, "appsrc not found", VLC_ENOMEM );
+    HEIMDALL_GST_CHECK( p_sys->p_decode_src, NULL, "appsrc not found", HEIMDALL_ENOMEM );
     g_object_set( G_OBJECT( p_sys->p_decode_src ), "caps", caps.p_sinkcaps,
             "emit-signals", TRUE, "format", GST_FORMAT_BYTES,
             "stream-type", GST_APP_STREAM_TYPE_SEEKABLE,
@@ -592,8 +593,8 @@ static int OpenDecoder( vlc_object_t *p_this )
     if( dbin )
     {
         p_sys->p_decode_in = gst_element_factory_make( "decodebin", NULL );
-        VLC_GST_CHECK( p_sys->p_decode_in, NULL, "decodebin not found",
-                       VLC_ENOMEM );
+        HEIMDALL_GST_CHECK( p_sys->p_decode_in, NULL, "decodebin not found",
+                       HEIMDALL_ENOMEM );
         //g_object_set( G_OBJECT( p_sys->p_decode_in ),
         //"max-size-buffers", 2, NULL );
         //g_signal_connect( G_OBJECT( p_sys->p_decode_in ), "no-more-pads",
@@ -606,17 +607,17 @@ static int OpenDecoder( vlc_object_t *p_this )
     }
 
     /* videosink: will emit signal for every available buffer */
-    p_sys->p_decode_out = gst_element_factory_make( "vlcvideosink", NULL );
-    VLC_GST_CHECK( p_sys->p_decode_out, NULL, "vlcvideosink not found",
-                   VLC_ENOMEM );
+    p_sys->p_decode_out = gst_element_factory_make( "heimdallvideosink", NULL );
+    HEIMDALL_GST_CHECK( p_sys->p_decode_out, NULL, "heimdallvideosink not found",
+                   HEIMDALL_ENOMEM );
 
-    vlc_pool = var_CreateGetBool( p_dec, "use-vlcpool" );
-    msg_Dbg( p_dec, "Using vlc pool? %s", vlc_pool ? "yes ":"no" );
+    heimdall_pool = var_CreateGetBool( p_dec, "use-heimdallpool" );
+    msg_Dbg( p_dec, "Using heimdall pool? %s", heimdall_pool ? "yes ":"no" );
 
-    p_sys->p_allocator = gst_vlc_picture_plane_allocator_new(
+    p_sys->p_allocator = gst_heimdall_picture_plane_allocator_new(
             (gpointer) p_dec );
     g_object_set( G_OBJECT( p_sys->p_decode_out ), "sync", FALSE, "allocator",
-            p_sys->p_allocator, "id", (gpointer) p_dec, "use-pool", vlc_pool, NULL );
+            p_sys->p_allocator, "id", (gpointer) p_dec, "use-pool", heimdall_pool, NULL );
     g_signal_connect( G_OBJECT( p_sys->p_decode_out ), "new-buffer",
             G_CALLBACK( frame_handoff_cb ), p_dec );
 
@@ -625,13 +626,13 @@ static int OpenDecoder( vlc_object_t *p_this )
     g_signal_connect( G_OBJECT( p_sys->p_decode_out ), "new-caps",
             G_CALLBACK( caps_handoff_cb ), p_dec );
 #else
-    GST_VLC_VIDEO_SINK( p_sys->p_decode_out )->new_caps = caps_handoff_cb;
+    GST_HEIMDALL_VIDEO_SINK( p_sys->p_decode_out )->new_caps = caps_handoff_cb;
 #endif
 
     p_sys->p_decoder = GST_ELEMENT( gst_bin_new( "decoder" ) );
-    VLC_GST_CHECK( p_sys->p_decoder, NULL, "bin not found", VLC_ENOMEM );
+    HEIMDALL_GST_CHECK( p_sys->p_decoder, NULL, "bin not found", HEIMDALL_ENOMEM );
     p_sys->p_bus = gst_bus_new( );
-    VLC_GST_CHECK( p_sys->p_bus, NULL, "failed to create bus", VLC_ENOMEM );
+    HEIMDALL_GST_CHECK( p_sys->p_bus, NULL, "failed to create bus", HEIMDALL_ENOMEM );
     gst_element_set_bus( p_sys->p_decoder, p_sys->p_bus );
 
     gst_bin_add_many( GST_BIN( p_sys->p_decoder ),
@@ -642,41 +643,41 @@ static int OpenDecoder( vlc_object_t *p_this )
     gst_object_ref( p_sys->p_decode_out );
 
     b_ret = gst_element_link( p_sys->p_decode_src, p_sys->p_decode_in );
-    VLC_GST_CHECK( b_ret, FALSE, "failed to link src <-> in",
-            VLC_EGENERIC );
+    HEIMDALL_GST_CHECK( b_ret, FALSE, "failed to link src <-> in",
+            HEIMDALL_EGENERIC );
 
     if( !dbin )
     {
         b_ret = gst_element_link( p_sys->p_decode_in, p_sys->p_decode_out );
-        VLC_GST_CHECK( b_ret, FALSE, "failed to link in <-> out",
-                VLC_EGENERIC );
+        HEIMDALL_GST_CHECK( b_ret, FALSE, "failed to link in <-> out",
+                HEIMDALL_EGENERIC );
     }
 
     /* set the pipeline to playing */
     i_ret = gst_element_set_state( p_sys->p_decoder, GST_STATE_PLAYING );
-    VLC_GST_CHECK( i_ret, GST_STATE_CHANGE_FAILURE,
-            "set state failure", VLC_EGENERIC );
+    HEIMDALL_GST_CHECK( i_ret, GST_STATE_CHANGE_FAILURE,
+            "set state failure", HEIMDALL_EGENERIC );
     p_sys->b_running = true;
 
     /* Set callbacks */
     p_dec->pf_decode = DecodeBlock;
     p_dec->pf_flush  = Flush;
 
-    vlc_decoder_device *dec_device = decoder_GetDecoderDevice( p_dec );
+    heimdall_decoder_device *dec_device = decoder_GetDecoderDevice( p_dec );
     if( dec_device == NULL )
     {
         msg_Err( p_dec, "failed to get a decoder device" );
         goto fail;
     }
-    p_sys->vctx = vlc_video_context_Create( dec_device, VLC_VIDEO_CONTEXT_GSTDECODE, 0, NULL );
-    vlc_decoder_device_Release( dec_device );
+    p_sys->vctx = heimdall_video_context_Create( dec_device, HEIMDALL_VIDEO_CONTEXT_GSTDECODE, 0, NULL );
+    heimdall_decoder_device_Release( dec_device );
     if( unlikely( p_sys->vctx == NULL ) )
     {
         msg_Err( p_dec, "failed to create a video context" );
         goto fail;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 fail:
     if( caps.p_sinkcaps )
@@ -685,7 +686,7 @@ fail:
         gst_caps_unref( caps.p_srccaps );
     if( p_list )
         gst_plugin_feature_list_free( p_list );
-    CloseDecoder( ( vlc_object_t* )p_dec );
+    CloseDecoder( ( heimdall_object_t* )p_dec );
     return i_rval;
 }
 
@@ -719,7 +720,7 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
     GstMessage *p_msg;
 
     if( !p_block ) /* No Drain */
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
 
     if( unlikely( p_block->i_flags & (BLOCK_FLAG_DISCONTINUITY |
                     BLOCK_FLAG_CORRUPTED ) ) )
@@ -746,20 +747,20 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
         {
             msg_Err( p_dec, "failed to create input gstbuffer" );
             block_Release( p_block );
-            return VLCDEC_ECRITICAL;
+            return HEIMDALLDEC_ECRITICAL;
         }
 
-        if( p_block->i_dts != VLC_TICK_INVALID )
+        if( p_block->i_dts != HEIMDALL_TICK_INVALID )
             GST_BUFFER_DTS( p_buf ) = gst_util_uint64_scale( p_block->i_dts,
                     GST_SECOND, GST_MSECOND );
 
-        if( p_block->i_pts == VLC_TICK_INVALID )
+        if( p_block->i_pts == HEIMDALL_TICK_INVALID )
             GST_BUFFER_PTS( p_buf ) = GST_BUFFER_DTS( p_buf );
         else
             GST_BUFFER_PTS( p_buf ) = gst_util_uint64_scale( p_block->i_pts,
                     GST_SECOND, GST_MSECOND );
 
-        if( p_block->i_length != VLC_TICK_INVALID )
+        if( p_block->i_length != HEIMDALL_TICK_INVALID )
             GST_BUFFER_DURATION( p_buf ) = gst_util_uint64_scale(
                     p_block->i_length, GST_SECOND, GST_MSECOND );
 
@@ -771,12 +772,12 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
 
         /* Give the input buffer to GStreamer Bin.
          *
-         *  libvlc                      libvlc
+         *  libheimdall                      libheimdall
          *    \ (i/p)              (o/p) ^
          *     \                        /
          *   ___v____GSTREAMER BIN_____/____
          *  |                               |
-         *  |   appsrc-->decode-->vlcsink   |
+         *  |   appsrc-->decode-->heimdallsink   |
          *  |_______________________________|
          *
          * * * * * * * * * * * * * * * * * * * * */
@@ -787,7 +788,7 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
             /* block will be released internally,
              * when gst_buffer_unref() is called */
             msg_Err( p_dec, "failed to push buffer" );
-            return VLCDEC_ECRITICAL;
+            return HEIMDALLDEC_ECRITICAL;
         }
     }
     else
@@ -815,7 +816,7 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
             if( default_msg_handler( p_dec, p_msg ) )
             {
                 gst_message_unref( p_msg );
-                return VLCDEC_ECRITICAL;
+                return HEIMDALLDEC_ECRITICAL;
             }
             break;
         }
@@ -833,21 +834,21 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
         bool b_copy_picture = true;
 
         if( p_mem &&
-            GST_IS_VLC_PICTURE_PLANE_ALLOCATOR( p_mem->allocator ))
+            GST_IS_HEIMDALL_PICTURE_PLANE_ALLOCATOR( p_mem->allocator ))
         {
             b_copy_picture = false;
-            p_pic = picture_Hold(( (GstVlcPicturePlane*) p_mem )->p_pic );
+            p_pic = picture_Hold(( (GstHeimdallPicturePlane*) p_mem )->p_pic );
         }
         else if( p_mem && gst_is_dmabuf_memory(p_mem) )
         {
             b_copy_picture = false;
 
             switch( p_dec->fmt_out.video.i_chroma ) {
-            case VLC_CODEC_NV12:
+            case HEIMDALL_CODEC_NV12:
                 p_dec->fmt_out.video.i_chroma = p_dec->fmt_out.i_codec =
-                    VLC_CODEC_GST_MEM_OPAQUE;
+                    HEIMDALL_CODEC_GST_MEM_OPAQUE;
                 break;
-            case VLC_CODEC_GST_MEM_OPAQUE:
+            case HEIMDALL_CODEC_GST_MEM_OPAQUE:
                 break;
             /* fallback */
             default:
@@ -873,14 +874,14 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
                 if( unlikely( pctx == NULL ) )
                 {
                     gst_buffer_unref( p_buf );
-                    return VLCDEC_ECRITICAL;
+                    return HEIMDALLDEC_ECRITICAL;
                 }
 
                 pctx->s = ( picture_context_t ) {
                     gst_mem_pic_context_Destroy, gst_mem_pic_context_Copy,
                     p_sys->vctx,
                 };
-                vlc_video_context_Hold( pctx->s.vctx );
+                heimdall_video_context_Hold( pctx->s.vctx );
 
                 pctx->p_buf = p_buf;
                 gst_buffer_ref( p_buf );
@@ -912,7 +913,7 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
             {
                 msg_Err( p_dec, "failed to map gst video frame" );
                 gst_buffer_unref( p_buf );
-                return VLCDEC_ECRITICAL;
+                return HEIMDALLDEC_ECRITICAL;
             }
 
             gst_CopyPicture( p_pic, &frame );
@@ -935,11 +936,11 @@ static int DecodeBlock( decoder_t *p_dec, block_t *p_block )
 done:
     if( p_pic != NULL )
         decoder_QueueVideo( p_dec, p_pic );
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }
 
 /* Close the decoder instance */
-static void CloseDecoder( vlc_object_t *p_this )
+static void CloseDecoder( heimdall_object_t *p_this )
 {
     decoder_t *p_dec = ( decoder_t* )p_this;
     decoder_sys_t *p_sys = p_dec->p_sys;
@@ -1012,21 +1013,21 @@ static void CloseDecoder( vlc_object_t *p_this )
         gst_object_unref( p_sys->p_decoder );
 
     if( p_sys->vctx )
-        vlc_video_context_Release( p_sys->vctx );
+        heimdall_video_context_Release( p_sys->vctx );
 
     free( p_sys );
 }
 
-static const struct vlc_decoder_device_operations gstdecode_device_ops = {
+static const struct heimdall_decoder_device_operations gstdecode_device_ops = {
     .close = NULL,
 };
 
-static int OpenDecoderDevice(vlc_decoder_device *device, vlc_window_t *window)
+static int OpenDecoderDevice(heimdall_decoder_device *device, heimdall_window_t *window)
 {
-    VLC_UNUSED(window);
+    HEIMDALL_UNUSED(window);
 
     device->ops = &gstdecode_device_ops;
-    device->type = VLC_DECODER_DEVICE_GSTDECODE;
+    device->type = HEIMDALL_DECODER_DEVICE_GSTDECODE;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

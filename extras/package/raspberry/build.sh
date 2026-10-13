@@ -14,7 +14,7 @@ usage()
 cat << EOF
 usage: $0 [options]
 
-Build vlc in the current directory
+Build heimdall in the current directory
 
 OPTIONS:
    -h            Show some help
@@ -135,8 +135,8 @@ export LDFLAGS="$LDFLAGS -L/usr/$TRIPLET/lib $VC_LDFLAGS"
 
 # Rebuild the contribs or use the prebuilt ones
 if [ "$PREBUILT" = "yes" ]; then
-    if [ -n "$VLC_PREBUILT_CONTRIBS_URL" ]; then
-        make prebuilt PREBUILT_URL="$VLC_PREBUILT_CONTRIBS_URL" || PREBUILT_FAILED=yes
+    if [ -n "$HEIMDALL_PREBUILT_CONTRIBS_URL" ]; then
+        make prebuilt PREBUILT_URL="$HEIMDALL_PREBUILT_CONTRIBS_URL" || PREBUILT_FAILED=yes
     else
         make prebuilt || PREBUILT_FAILED=yes
     fi
@@ -157,11 +157,11 @@ cd ../..
 
 info "Bootstrapping"
 if ! [ -e ${SCRIPT_PATH}/../../../configure ]; then
-    echo "Bootstraping vlc"
+    echo "Bootstraping heimdall"
     ${SCRIPT_PATH}/../../../bootstrap
 fi
 
-info "Configuring VLC"
+info "Configuring Heimdall"
 mkdir $SHORTARCH || true
 cd $SHORTARCH
 

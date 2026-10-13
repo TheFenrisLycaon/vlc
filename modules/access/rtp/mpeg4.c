@@ -3,6 +3,7 @@
  */
 /*****************************************************************************
  * Copyright (C) 2024 VideoLabs, VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License
@@ -29,9 +30,9 @@
 #include "../../packetizer/mpeg4audio.h"
 #include "../../packetizer/mpeg4systems.h"
 
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
-#include <vlc_bits.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
+#include <heimdall_bits.h>
 
 struct mpeg4_pt_opaque
 {
@@ -49,10 +50,10 @@ struct mpeg4_pt_opaque
     uint8_t object_id;
     // unsigned profile_level_id;
     block_t *config;
-    vlc_object_t *obj;
+    heimdall_object_t *obj;
 };
 
-static void *rtp_mpeg4_init(struct vlc_rtp_pt *pt, es_format_t *fmt)
+static void *rtp_mpeg4_init(struct heimdall_rtp_pt *pt, es_format_t *fmt)
 {
     struct mpeg4_pt_opaque *opaque = pt->opaque;
     block_t *config = opaque->config;
@@ -69,22 +70,22 @@ static void *rtp_mpeg4_init(struct vlc_rtp_pt *pt, es_format_t *fmt)
         return NULL;
     }
 
-    sys->es = vlc_rtp_pt_request_es(pt, &sys->p_packetizer->fmt_out);
+    sys->es = heimdall_rtp_pt_request_es(pt, &sys->p_packetizer->fmt_out);
     if(config && es_cat == VIDEO_ES)
         sys->xps = block_Duplicate(config);
 
     return sys;
 }
 
-static void *rtp_mpeg4v_init(struct vlc_rtp_pt *pt)
+static void *rtp_mpeg4v_init(struct heimdall_rtp_pt *pt)
 {
     es_format_t fmt;
-    es_format_Init (&fmt, VIDEO_ES, VLC_CODEC_MP4V);
+    es_format_Init (&fmt, VIDEO_ES, HEIMDALL_CODEC_MP4V);
     fmt.b_packetized = false;
     return rtp_mpeg4_init(pt, &fmt);
 }
 
-static vlc_fourcc_t audioObjectTypeToCodec(uint8_t objectType)
+static heimdall_fourcc_t audioObjectTypeToCodec(uint8_t objectType)
 {
     switch(objectType)
     {
@@ -102,16 +103,16 @@ static vlc_fourcc_t audioObjectTypeToCodec(uint8_t objectType)
     case MPEG4_AOT_ER_BSAC:
     case MPEG4_AOT_ER_AAC_LD:
     case MPEG4_AOT_ER_AAC_ELD:
-        return VLC_CODEC_MP4A;
+        return HEIMDALL_CODEC_MP4A;
     case MPEG4_AOT_CELP:
     case MPEG4_AOT_ER_CELP:
-        return VLC_CODEC_QCELP;
+        return HEIMDALL_CODEC_QCELP;
     default:
         return 0;
     }
 }
 
-static void *rtp_mpeg4a_init(struct vlc_rtp_pt *pt)
+static void *rtp_mpeg4a_init(struct heimdall_rtp_pt *pt)
 {
     struct mpeg4_pt_opaque *opaque = pt->opaque;
     es_format_t fmt;
@@ -121,7 +122,7 @@ static void *rtp_mpeg4a_init(struct vlc_rtp_pt *pt)
     if(!opaque->sizeLength && !opaque->constantSize) // RFC 6416 is MP4A-LATM
     {
         fmt.i_codec = audioObjectTypeToCodec(opaque->object_id);
-        fmt.i_original_fourcc = VLC_FOURCC('L','A','T','M');
+        fmt.i_original_fourcc = HEIMDALL_FOURCC('L','A','T','M');
     }
     else // RFC 3640 MPEG4-GENERIC
     {
@@ -131,38 +132,38 @@ static void *rtp_mpeg4a_init(struct vlc_rtp_pt *pt)
             bs_t bs;
             bs_init(&bs, config->p_buffer, config->i_buffer);
             MPEG4_asc_t cfg = {0};
-            if(MPEG4_read_AudioSpecificConfig(&bs, &cfg, false) == VLC_SUCCESS)
+            if(MPEG4_read_AudioSpecificConfig(&bs, &cfg, false) == HEIMDALL_SUCCESS)
             {
                 fmt.i_codec = audioObjectTypeToCodec(cfg.i_object_type);
                 fmt.audio.i_rate = cfg.i_samplerate;
             }
-            else fmt.i_codec = VLC_CODEC_MP4A;
+            else fmt.i_codec = HEIMDALL_CODEC_MP4A;
         }
         else
         {
-            fmt.i_codec = VLC_CODEC_MP4A;
+            fmt.i_codec = HEIMDALL_CODEC_MP4A;
         }
     }
 
     return rtp_mpeg4_init(pt, &fmt);
 }
 
-static void rtp_mpeg4_destroy(struct vlc_rtp_pt *pt, void *data)
+static void rtp_mpeg4_destroy(struct heimdall_rtp_pt *pt, void *data)
 {
-    VLC_UNUSED(pt);
+    HEIMDALL_UNUSED(pt);
     struct rtp_h26x_sys *sys = data;
     if(sys)
     {
         if(sys->p_packetizer)
             demux_PacketizerDestroy(sys->p_packetizer);
-        vlc_rtp_es_destroy(sys->es);
+        heimdall_rtp_es_destroy(sys->es);
         rtp_h26x_clear(sys);
         free(sys);
     }
 }
 
-static void rtp_mpeg4_decode(struct vlc_rtp_pt *pt, void *data, block_t *block,
-                             const struct vlc_rtp_pktinfo *restrict info)
+static void rtp_mpeg4_decode(struct heimdall_rtp_pt *pt, void *data, block_t *block,
+                             const struct heimdall_rtp_pktinfo *restrict info)
 {
     struct mpeg4_pt_opaque *opaque = pt->opaque;
     struct rtp_h26x_sys *sys = data;
@@ -210,7 +211,7 @@ static void rtp_mpeg4_decode(struct vlc_rtp_pt *pt, void *data, block_t *block,
                     auIndex = bs_read(&bs, opaque->indexLength);
                 else
                     auDeltaIndex = bs_read(&bs, opaque->indexDeltaLength);
-                VLC_UNUSED(auDeltaIndex); // for when we'll reorder
+                HEIMDALL_UNUSED(auDeltaIndex); // for when we'll reorder
             }
 
             uint32_t CTSDelta = 0, DTSDelta = 0, RAPFlag = 0;
@@ -232,9 +233,9 @@ static void rtp_mpeg4_decode(struct vlc_rtp_pt *pt, void *data, block_t *block,
             {
                 memcpy(au->p_buffer, data_section, auSize);
                 if(CTSDelta)
-                    block->i_pts += vlc_tick_from_samples(CTSDelta, pt->frequency);
+                    block->i_pts += heimdall_tick_from_samples(CTSDelta, pt->frequency);
                 if(DTSDelta)
-                    block->i_dts = block->i_pts - vlc_tick_from_samples(DTSDelta, pt->frequency);
+                    block->i_dts = block->i_pts - heimdall_tick_from_samples(DTSDelta, pt->frequency);
                 if(RAPFlag)
                     block->i_flags |= BLOCK_FLAG_TYPE_I;
                 h26x_output(sys, au, block->i_pts, true, info->m);
@@ -257,7 +258,7 @@ drop:
     block_Release(block);
 }
 
-static void rtp_mpeg4_release(struct vlc_rtp_pt *pt)
+static void rtp_mpeg4_release(struct heimdall_rtp_pt *pt)
 {
     struct mpeg4_pt_opaque *opaque = pt->opaque;
     if(opaque->config)
@@ -265,11 +266,11 @@ static void rtp_mpeg4_release(struct vlc_rtp_pt *pt)
     free(opaque);
 }
 
-static const struct vlc_rtp_pt_operations rtp_mpeg4v_ops = {
+static const struct heimdall_rtp_pt_operations rtp_mpeg4v_ops = {
     rtp_mpeg4_release, rtp_mpeg4v_init, rtp_mpeg4_destroy, rtp_mpeg4_decode,
 };
 
-static const struct vlc_rtp_pt_operations rtp_mpeg4a_ops = {
+static const struct heimdall_rtp_pt_operations rtp_mpeg4a_ops = {
     rtp_mpeg4_release, rtp_mpeg4a_init, rtp_mpeg4_destroy, rtp_mpeg4_decode,
 };
 
@@ -303,23 +304,23 @@ static block_t * mpeg4_decode_config(const char *psz, size_t len)
     return config;
 }
 
-static int rtp_mpeg4_open(vlc_object_t *obj, struct vlc_rtp_pt *pt,
-                          const struct vlc_sdp_pt *desc)
+static int rtp_mpeg4_open(heimdall_object_t *obj, struct heimdall_rtp_pt *pt,
+                          const struct heimdall_sdp_pt *desc)
 {
-    VLC_UNUSED(obj);
+    HEIMDALL_UNUSED(obj);
     size_t sprop_len;
     const char *sprop;
     struct mpeg4_pt_opaque tmpOpaque = {0};
 
     /* IETF RFC 6416 */
-    if (vlc_ascii_strcasecmp(desc->name, "MP4V-ES") == 0)
+    if (heimdall_ascii_strcasecmp(desc->name, "MP4V-ES") == 0)
         pt->ops = &rtp_mpeg4v_ops;
-    else if (vlc_ascii_strcasecmp(desc->name, "MP4A-LATM") == 0)
+    else if (heimdall_ascii_strcasecmp(desc->name, "MP4A-LATM") == 0)
         pt->ops = &rtp_mpeg4a_ops;
     /* IETF RFC 3640 */
-    else if (vlc_ascii_strcasecmp(desc->name, "MPEG4-GENERIC") == 0)
+    else if (heimdall_ascii_strcasecmp(desc->name, "MPEG4-GENERIC") == 0)
     {
-        sprop = vlc_sdp_fmtp_get_str(desc, "streamType", &sprop_len);
+        sprop = heimdall_sdp_fmtp_get_str(desc, "streamType", &sprop_len);
         if (sprop && sprop_len)
         {
             tmpOpaque.streamType = strtod(sprop, NULL);
@@ -328,44 +329,44 @@ static int rtp_mpeg4_open(vlc_object_t *obj, struct vlc_rtp_pt *pt,
             else if(tmpOpaque.streamType == MPEG4_ST_AUDIO_STREAM)
                 pt->ops = &rtp_mpeg4a_ops;
             else
-                return VLC_ENOTSUP;
+                return HEIMDALL_ENOTSUP;
         }
         /* FFmpeg does not set the streamType accordingly */
         else pt->ops = &rtp_mpeg4a_ops;
 
         /* Get variables for our AU header */
-        vlc_sdp_fmtp_get(desc, "sizeLength", &tmpOpaque.sizeLength);
+        heimdall_sdp_fmtp_get(desc, "sizeLength", &tmpOpaque.sizeLength);
         if (tmpOpaque.sizeLength)
         {
-            vlc_sdp_fmtp_get(desc, "indexLength", &tmpOpaque.indexLength);
-            vlc_sdp_fmtp_get(desc, "indexDeltaLength", &tmpOpaque.indexDeltaLength);
+            heimdall_sdp_fmtp_get(desc, "indexLength", &tmpOpaque.indexLength);
+            heimdall_sdp_fmtp_get(desc, "indexDeltaLength", &tmpOpaque.indexDeltaLength);
         }
         else
         {
-            vlc_sdp_fmtp_get(desc, "constantSize", &tmpOpaque.constantSize);
+            heimdall_sdp_fmtp_get(desc, "constantSize", &tmpOpaque.constantSize);
         }
 
-        vlc_sdp_fmtp_get(desc, "CTSDeltaLength", &tmpOpaque.CTSDeltaLength);
-        vlc_sdp_fmtp_get(desc, "DTSDeltaLength", &tmpOpaque.DTSDeltaLength);
-        vlc_sdp_fmtp_get(desc, "randomAccessIndication", &tmpOpaque.randomAccessIndication);
-        vlc_sdp_fmtp_get(desc, "auxiliaryDataSizeLength", &tmpOpaque.auxiliaryDataSizeLength);
+        heimdall_sdp_fmtp_get(desc, "CTSDeltaLength", &tmpOpaque.CTSDeltaLength);
+        heimdall_sdp_fmtp_get(desc, "DTSDeltaLength", &tmpOpaque.DTSDeltaLength);
+        heimdall_sdp_fmtp_get(desc, "randomAccessIndication", &tmpOpaque.randomAccessIndication);
+        heimdall_sdp_fmtp_get(desc, "auxiliaryDataSizeLength", &tmpOpaque.auxiliaryDataSizeLength);
 
         // if(!tmpOpaque.constantSize && !tmpOpaque.sizeLength)
-        //     return VLC_EINVAL;
+        //     return HEIMDALL_EINVAL;
     }
     else
-        return VLC_ENOTSUP;
+        return HEIMDALL_ENOTSUP;
 
     struct mpeg4_pt_opaque *opaque = calloc(1, sizeof(*opaque));
     if(!opaque)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     pt->opaque = opaque;
 
     *opaque = tmpOpaque;
     opaque->obj = obj;
 
-    // vlc_sdp_fmtp_get(desc, "profile-level-id", &opaque->profile_level_id);
-    vlc_sdp_fmtp_get(desc, "object", &opaque->object_id);
+    // heimdall_sdp_fmtp_get(desc, "profile-level-id", &opaque->profile_level_id);
+    heimdall_sdp_fmtp_get(desc, "object", &opaque->object_id);
 
     /*
      * Video:
@@ -375,17 +376,17 @@ static int rtp_mpeg4_open(vlc_object_t *obj, struct vlc_rtp_pt *pt,
      *  - RFC 3640: AudioSpecificConfig() element
      *  - RFC 6416: StreamMuxConfig() element
      */
-    sprop = vlc_sdp_fmtp_get_str(desc, "config", &sprop_len);
+    sprop = heimdall_sdp_fmtp_get_str(desc, "config", &sprop_len);
     if (sprop && sprop_len)
         opaque->config = mpeg4_decode_config(sprop, sprop_len);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname(N_("RTP MPEG-4"))
     set_description(N_("RTP MPEG-4 Visual and Audio payload parser"))
     set_subcategory(SUBCAT_INPUT_DEMUX)
     set_rtp_parser_callback(rtp_mpeg4_open)
     add_shortcut("video/MP4V-ES", "audio/MP4A-LATM", "video/MPEG4-GENERIC", "audio/MPEG4-GENERIC")
-    vlc_module_end()
+    heimdall_module_end()

@@ -2,6 +2,7 @@
  * stream_output.c : stream output module
  *****************************************************************************
  * Copyright (C) 2002-2007 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Christophe Massiot <massiot@via.ecp.fr>
  *          Laurent Aimar <fenrir@via.ecp.fr>
@@ -32,23 +33,23 @@
 
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_arrays.h>
-#include <vlc_configuration.h>
+#include <heimdall_common.h>
+#include <heimdall_arrays.h>
+#include <heimdall_configuration.h>
 
 #include <stdlib.h>                                                /* free() */
 #include <stdio.h>                                              /* sprintf() */
 #include <string.h>
 
-#include <vlc_sout.h>
+#include <heimdall_sout.h>
 
 #include "stream_output.h"
 
-#include <vlc_meta.h>
-#include <vlc_block.h>
-#include <vlc_frame.h>
-#include <vlc_codec.h>
-#include <vlc_modules.h>
+#include <heimdall_meta.h>
+#include <heimdall_block.h>
+#include <heimdall_frame.h>
+#include <heimdall_codec.h>
+#include <heimdall_modules.h>
 
 #include "input/input_interface.h"
 
@@ -82,7 +83,7 @@ static void mrl_Clean( mrl_t *p_mrl );
 /*****************************************************************************
  * sout_NewInstance: creates a new stream output instance
  *****************************************************************************/
-sout_stream_t *sout_NewInstance( vlc_object_t *p_parent, const char *psz_dest )
+sout_stream_t *sout_NewInstance( heimdall_object_t *p_parent, const char *psz_dest )
 {
     sout_stream_t *p_sout;
     char *psz_chain;
@@ -161,7 +162,7 @@ int sout_InputDelete( sout_stream_t *p_sout,
     sout_StreamIdDel( p_sout, p_input->id );
     free( p_input );
 
-    return( VLC_SUCCESS);
+    return( HEIMDALL_SUCCESS);
 }
 
 static int sout_InputControlVa( sout_stream_t *p_sout,
@@ -170,11 +171,11 @@ static int sout_InputControlVa( sout_stream_t *p_sout,
 {
     if( i_query == SOUT_INPUT_SET_SPU_HIGHLIGHT )
     {
-        const vlc_spu_highlight_t *spu_hl = va_arg( args, const vlc_spu_highlight_t * );
+        const heimdall_spu_highlight_t *spu_hl = va_arg( args, const heimdall_spu_highlight_t * );
         return sout_StreamControl( p_sout, SOUT_STREAM_ID_SPU_HIGHLIGHT,
                                    p_input->id, spu_hl );
     }
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 int sout_InputControl( sout_stream_t *p_sout,
@@ -201,11 +202,11 @@ void sout_InputFlush( sout_stream_t *p_sout,
  *****************************************************************************/
 int sout_InputSendBuffer( sout_stream_t *p_sout,
                           sout_packetizer_input_t *p_input,
-                          vlc_frame_t *frame )
+                          heimdall_frame_t *frame )
 {
     if( p_input->b_flushed )
     {
-        frame->i_flags |= VLC_FRAME_FLAG_DISCONTINUITY;
+        frame->i_flags |= HEIMDALL_FRAME_FLAG_DISCONTINUITY;
         p_input->b_flushed = false;
     }
     return sout_StreamIdSend( p_sout, p_input->id, frame );
@@ -215,13 +216,13 @@ int sout_InputSendBuffer( sout_stream_t *p_sout,
 /*****************************************************************************
  * sout_AccessOutNew: allocate a new access out
  *****************************************************************************/
-sout_access_out_t *sout_AccessOutNew( vlc_object_t *p_sout,
+sout_access_out_t *sout_AccessOutNew( heimdall_object_t *p_sout,
                                       const char *psz_access, const char *psz_name )
 {
     sout_access_out_t *p_access;
     char              *psz_next;
 
-    p_access = vlc_custom_create( p_sout, sizeof( *p_access ), "access out" );
+    p_access = heimdall_custom_create( p_sout, sizeof( *p_access ), "access out" );
     if( !p_access )
         return NULL;
 
@@ -246,7 +247,7 @@ sout_access_out_t *sout_AccessOutNew( vlc_object_t *p_sout,
         free( p_access->psz_path );
 error:
         free( p_access->psz_access );
-        vlc_object_delete(p_access);
+        heimdall_object_delete(p_access);
         return( NULL );
     }
 
@@ -267,7 +268,7 @@ void sout_AccessOutDelete( sout_access_out_t *p_access )
 
     free( p_access->psz_path );
 
-    vlc_object_delete(p_access);
+    heimdall_object_delete(p_access);
 }
 
 /*****************************************************************************
@@ -276,7 +277,7 @@ void sout_AccessOutDelete( sout_access_out_t *p_access )
 int sout_AccessOutSeek( sout_access_out_t *p_access, uint64_t i_pos )
 {
     if (p_access->pf_seek == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     return p_access->pf_seek( p_access, i_pos );
 }
 
@@ -286,7 +287,7 @@ int sout_AccessOutSeek( sout_access_out_t *p_access, uint64_t i_pos )
 ssize_t sout_AccessOutRead( sout_access_out_t *p_access, block_t *p_buffer )
 {
     return( p_access->pf_read ?
-            p_access->pf_read( p_access, p_buffer ) : VLC_EGENERIC );
+            p_access->pf_read( p_access, p_buffer ) : HEIMDALL_EGENERIC );
 }
 
 /*****************************************************************************
@@ -309,7 +310,7 @@ int sout_AccessOutControl (sout_access_out_t *access, int query, ...)
     if (access->pf_control)
         ret = access->pf_control (access, query, ap);
     else
-        ret = VLC_EGENERIC;
+        ret = HEIMDALL_EGENERIC;
     va_end (ap);
     return ret;
 }
@@ -322,7 +323,7 @@ sout_mux_t *sout_MuxNew( sout_access_out_t *p_access, const char *psz_mux )
     sout_mux_t *p_mux;
     char       *psz_next;
 
-    p_mux = vlc_custom_create( p_access, sizeof( *p_mux ), "mux" );
+    p_mux = heimdall_custom_create( p_access, sizeof( *p_mux ), "mux" );
     if( p_mux == NULL )
         return NULL;
 
@@ -342,7 +343,7 @@ sout_mux_t *sout_MuxNew( sout_access_out_t *p_access, const char *psz_mux )
 
     p_mux->b_add_stream_any_time = false;
     p_mux->b_waiting_stream = true;
-    p_mux->i_add_stream_start = VLC_TICK_INVALID;
+    p_mux->i_add_stream_start = HEIMDALL_TICK_INVALID;
 
     p_mux->p_module =
         module_need( p_mux, "sout mux", p_mux->psz_mux, true );
@@ -351,7 +352,7 @@ sout_mux_t *sout_MuxNew( sout_access_out_t *p_access, const char *psz_mux )
     {
         FREENULL( p_mux->psz_mux );
 
-        vlc_object_delete(p_mux);
+        heimdall_object_delete(p_mux);
         return NULL;
     }
 
@@ -390,7 +391,7 @@ void sout_MuxDelete( sout_mux_t *p_mux )
 
     config_ChainDestroy( p_mux->p_cfg );
 
-    vlc_object_delete(p_mux);
+    heimdall_object_delete(p_mux);
 }
 
 /*****************************************************************************
@@ -475,22 +476,22 @@ void sout_MuxDeleteStream( sout_mux_t *p_mux, sout_input_t *p_input )
 int sout_MuxSendBuffer( sout_mux_t *p_mux, sout_input_t *p_input,
                          block_t *p_buffer )
 {
-    vlc_tick_t i_dts = p_buffer->i_dts;
+    heimdall_tick_t i_dts = p_buffer->i_dts;
     block_FifoPut( p_input->p_fifo, p_buffer );
 
-    if( i_dts == VLC_TICK_INVALID )
+    if( i_dts == HEIMDALL_TICK_INVALID )
         i_dts = p_buffer->i_pts;
 
-    if( p_mux->b_waiting_stream && i_dts != VLC_TICK_INVALID )
+    if( p_mux->b_waiting_stream && i_dts != HEIMDALL_TICK_INVALID )
     {
-        const vlc_tick_t i_caching = VLC_TICK_FROM_MS(var_InheritInteger( p_mux, "sout-mux-caching" ));
+        const heimdall_tick_t i_caching = HEIMDALL_TICK_FROM_MS(var_InheritInteger( p_mux, "sout-mux-caching" ));
 
-        if( p_mux->i_add_stream_start == VLC_TICK_INVALID )
+        if( p_mux->i_add_stream_start == HEIMDALL_TICK_INVALID )
             p_mux->i_add_stream_start = i_dts;
 
         /* Wait until we have enough data before muxing */
         if( llabs( i_dts - p_mux->i_add_stream_start ) < i_caching )
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         p_mux->b_waiting_stream = false;
     }
     return p_mux->pf_mux( p_mux );
@@ -498,16 +499,16 @@ int sout_MuxSendBuffer( sout_mux_t *p_mux, sout_input_t *p_input,
 
 void sout_MuxFlush( sout_mux_t *p_mux, sout_input_t *p_input )
 {
-    VLC_UNUSED(p_mux);
+    HEIMDALL_UNUSED(p_mux);
     block_FifoEmpty( p_input->p_fifo );
 }
 
 /*****************************************************************************
  * sout_MuxGetStream: find stream to be muxed
  *****************************************************************************/
-int sout_MuxGetStream( sout_mux_t *p_mux, unsigned i_blocks, vlc_tick_t *pi_dts )
+int sout_MuxGetStream( sout_mux_t *p_mux, unsigned i_blocks, heimdall_tick_t *pi_dts )
 {
-    vlc_tick_t i_dts = VLC_TICK_MAX;
+    heimdall_tick_t i_dts = HEIMDALL_TICK_MAX;
     int     i_stream = -1;
 
     assert( i_blocks > 0 );
@@ -657,7 +658,7 @@ static int mrl_Parse( mrl_t *p_mrl, const char *psz_mrl )
     p_mrl->psz_name   = strdup( psz_name );
 
     free( psz_dup );
-    return( VLC_SUCCESS );
+    return( HEIMDALL_SUCCESS );
 }
 
 
@@ -680,13 +681,13 @@ static void mrl_Clean( mrl_t *p_mrl )
 
 struct sout_stream_private {
     sout_stream_t stream;
-    vlc_mutex_t lock;
+    heimdall_mutex_t lock;
 };
 
-struct vlc_sout_clock_bus {
+struct heimdall_sout_clock_bus {
     struct {
-        vlc_clock_main_t *bus;
-        vlc_clock_t *input;
+        heimdall_clock_main_t *bus;
+        heimdall_clock_t *input;
     } clocks;
 };
 
@@ -695,12 +696,12 @@ struct vlc_sout_clock_bus {
 
 static void sout_StreamLock(sout_stream_t *s)
 {
-    vlc_mutex_lock(&sout_stream_priv(s)->lock);
+    heimdall_mutex_lock(&sout_stream_priv(s)->lock);
 }
 
 static void sout_StreamUnlock(sout_stream_t *s)
 {
-    vlc_mutex_unlock(&sout_stream_priv(s)->lock);
+    heimdall_mutex_unlock(&sout_stream_priv(s)->lock);
 }
 
 void *sout_StreamIdAdd(sout_stream_t *s, const es_format_t *fmt, const char *es_id)
@@ -722,7 +723,7 @@ void sout_StreamIdDel(sout_stream_t *s, void *id)
     sout_StreamUnlock(s);
 }
 
-int sout_StreamIdSend(sout_stream_t *s, void *id, vlc_frame_t *f)
+int sout_StreamIdSend(sout_stream_t *s, void *id, heimdall_frame_t *f)
 {
     int val;
 
@@ -744,7 +745,7 @@ void sout_StreamFlush(sout_stream_t *s, void *id)
     }
 }
 
-void sout_StreamSetPCR(sout_stream_t *s, vlc_tick_t pcr)
+void sout_StreamSetPCR(sout_stream_t *s, heimdall_tick_t pcr)
 {
     if (s->ops->set_pcr != NULL)
     {
@@ -756,7 +757,7 @@ void sout_StreamSetPCR(sout_stream_t *s, vlc_tick_t pcr)
 
 int sout_StreamControlVa(sout_stream_t *s, int i_query, va_list args)
 {
-    int val = VLC_EGENERIC;
+    int val = HEIMDALL_EGENERIC;
 
     if (s->ops->control != NULL)
     {
@@ -782,65 +783,65 @@ static void sout_StreamDelete( sout_stream_t *p_stream )
     config_ChainDestroy( p_stream->p_cfg );
 
     msg_Dbg( p_stream, "destroying chain done" );
-    vlc_objres_clear(VLC_OBJECT(p_stream));
-    vlc_object_delete(p_stream);
+    heimdall_objres_clear(HEIMDALL_OBJECT(p_stream));
+    heimdall_object_delete(p_stream);
 }
 
-struct vlc_sout_clock_bus *sout_ClockMainCreate(sout_stream_t *p_stream)
+struct heimdall_sout_clock_bus *sout_ClockMainCreate(sout_stream_t *p_stream)
 {
-    struct vlc_tracer *tracer = vlc_object_get_tracer( &p_stream->obj );
+    struct heimdall_tracer *tracer = heimdall_object_get_tracer( &p_stream->obj );
 
-    struct vlc_sout_clock_bus *bus = malloc(sizeof *bus);
+    struct heimdall_sout_clock_bus *bus = malloc(sizeof *bus);
     if (bus == NULL)
         return NULL;
 
-    bus->clocks.bus = vlc_clock_main_New(p_stream->obj.logger, tracer);
+    bus->clocks.bus = heimdall_clock_main_New(p_stream->obj.logger, tracer);
     if (bus->clocks.bus == NULL)
         goto error_bus;
 
-    vlc_clock_main_Lock(bus->clocks.bus);
-    bus->clocks.input = vlc_clock_main_CreateInputSlave(bus->clocks.bus);
-    vlc_clock_main_Unlock(bus->clocks.bus);
+    heimdall_clock_main_Lock(bus->clocks.bus);
+    bus->clocks.input = heimdall_clock_main_CreateInputSlave(bus->clocks.bus);
+    heimdall_clock_main_Unlock(bus->clocks.bus);
     if (bus->clocks.input == NULL)
         goto error_input;
 
     return bus;
 
 error_input:
-    vlc_clock_main_Delete(bus->clocks.bus);
+    heimdall_clock_main_Delete(bus->clocks.bus);
 error_bus:
     free(bus);
     return NULL;
 }
 
-void sout_ClockMainDelete(struct vlc_sout_clock_bus *bus)
+void sout_ClockMainDelete(struct heimdall_sout_clock_bus *bus)
 {
-    vlc_clock_Delete(bus->clocks.input);
-    vlc_clock_main_Delete(bus->clocks.bus);
+    heimdall_clock_Delete(bus->clocks.input);
+    heimdall_clock_main_Delete(bus->clocks.bus);
 }
 
-void sout_ClockMainSetFirstPcr(struct vlc_sout_clock_bus *bus, vlc_tick_t pcr )
+void sout_ClockMainSetFirstPcr(struct heimdall_sout_clock_bus *bus, heimdall_tick_t pcr )
 {
-    vlc_clock_main_Lock(bus->clocks.bus);
-    vlc_clock_main_Reset(bus->clocks.bus);
-    vlc_clock_main_SetFirstPcr(bus->clocks.bus, vlc_tick_now(), pcr);
-    vlc_clock_main_Unlock(bus->clocks.bus);
+    heimdall_clock_main_Lock(bus->clocks.bus);
+    heimdall_clock_main_Reset(bus->clocks.bus);
+    heimdall_clock_main_SetFirstPcr(bus->clocks.bus, heimdall_tick_now(), pcr);
+    heimdall_clock_main_Unlock(bus->clocks.bus);
 }
 
-vlc_clock_t *sout_ClockCreate(struct vlc_sout_clock_bus *bus,
+heimdall_clock_t *sout_ClockCreate(struct heimdall_sout_clock_bus *bus,
                               const es_format_t *fmt)
 {
-    vlc_clock_main_Lock(bus->clocks.bus);
-    vlc_clock_t *clock =
-        vlc_clock_main_CreateSlave(bus->clocks.bus, NULL, fmt->i_cat,
+    heimdall_clock_main_Lock(bus->clocks.bus);
+    heimdall_clock_t *clock =
+        heimdall_clock_main_CreateSlave(bus->clocks.bus, NULL, fmt->i_cat,
                                    NULL, NULL);
-    vlc_clock_main_Unlock(bus->clocks.bus);
+    heimdall_clock_main_Unlock(bus->clocks.bus);
     return clock;
 }
 
-void sout_ClockDelete( vlc_clock_t *clock )
+void sout_ClockDelete( heimdall_clock_t *clock )
 {
-    vlc_clock_Delete( clock );
+    heimdall_clock_Delete( clock );
 }
 
 /* Destroy a "stream_out" modules chain
@@ -861,16 +862,16 @@ void sout_StreamChainDelete(sout_stream_t *p_first, sout_stream_t *end)
     }
 }
 
-static sout_stream_t *sout_StreamNewEmpty(vlc_object_t *parent, char *name)
+static sout_stream_t *sout_StreamNewEmpty(heimdall_object_t *parent, char *name)
 {
     assert(name != NULL);
 
     struct sout_stream_private *priv =
-        vlc_custom_create(parent, sizeof(*priv), "stream out");
+        heimdall_custom_create(parent, sizeof(*priv), "stream out");
     if (unlikely(priv == NULL))
         return NULL;
 
-    vlc_mutex_init(&priv->lock);
+    heimdall_mutex_init(&priv->lock);
     priv->stream.psz_name = name;
     priv->stream.p_cfg = NULL;
     priv->stream.p_next = NULL;
@@ -880,7 +881,7 @@ static sout_stream_t *sout_StreamNewEmpty(vlc_object_t *parent, char *name)
     return &priv->stream;
 }
 
-sout_stream_t *sout_StreamNew(vlc_object_t *parent, const char *config)
+sout_stream_t *sout_StreamNew(heimdall_object_t *parent, const char *config)
 {
     assert(config != NULL);
 
@@ -902,7 +903,7 @@ sout_stream_t *sout_StreamNew(vlc_object_t *parent, const char *config)
 /*
  * XXX name and p_cfg are used (-> do NOT free them)
  */
-static sout_stream_t *sout_StreamNewModule( vlc_object_t *parent, char *psz_name,
+static sout_stream_t *sout_StreamNewModule( heimdall_object_t *parent, char *psz_name,
                                config_chain_t *p_cfg, sout_stream_t *p_next)
 {
     const char *cap = (p_next != NULL) ? "sout filter" : "sout output";
@@ -930,7 +931,7 @@ static sout_stream_t *sout_StreamNewModule( vlc_object_t *parent, char *psz_name
     return p_stream;
 }
 
-sout_stream_t *sout_StreamChainNew(vlc_object_t *parent, const char *psz_chain,
+sout_stream_t *sout_StreamChainNew(heimdall_object_t *parent, const char *psz_chain,
                                    sout_stream_t *sink)
 {
     if(!psz_chain || !*psz_chain)
@@ -942,9 +943,9 @@ sout_stream_t *sout_StreamChainNew(vlc_object_t *parent, const char *psz_chain,
     if(!psz_parser)
         return NULL;
 
-    vlc_array_t cfg, name;
-    vlc_array_init(&cfg);
-    vlc_array_init(&name);
+    heimdall_array_t cfg, name;
+    heimdall_array_init(&cfg);
+    heimdall_array_init(&name);
 
     /* parse chain */
     while(psz_parser)
@@ -955,21 +956,21 @@ sout_stream_t *sout_StreamChainNew(vlc_object_t *parent, const char *psz_chain,
         free( psz_parser );
         psz_parser = psz_rest_chain;
 
-        vlc_array_append_or_abort(&cfg, p_cfg);
-        vlc_array_append_or_abort(&name, psz_name);
+        heimdall_array_append_or_abort(&cfg, p_cfg);
+        heimdall_array_append_or_abort(&name, psz_name);
     }
 
     /* Instantiate modules from back to front of chain */
     sout_stream_t *front = sink;
-    size_t i = vlc_array_count(&name);
+    size_t i = heimdall_array_count(&name);
 
     while(i--)
     {
         sout_stream_t *prev;
 
         prev = sout_StreamNewModule(parent,
-                                    vlc_array_item_at_index(&name, i),
-                                    vlc_array_item_at_index(&cfg, i),
+                                    heimdall_array_item_at_index(&name, i),
+                                    heimdall_array_item_at_index(&cfg, i),
                                     front);
         if (prev == NULL)
             goto error;
@@ -977,8 +978,8 @@ sout_stream_t *sout_StreamChainNew(vlc_object_t *parent, const char *psz_chain,
         front = prev;
     }
 
-    vlc_array_clear(&name);
-    vlc_array_clear(&cfg);
+    heimdall_array_clear(&name);
+    heimdall_array_clear(&cfg);
 
     return front;
 
@@ -999,11 +1000,11 @@ error:
      * sout_StreamDelete */
     while(i--)
     {
-        free(vlc_array_item_at_index(&name, i));
-        config_ChainDestroy(vlc_array_item_at_index(&cfg, i));
+        free(heimdall_array_item_at_index(&name, i));
+        config_ChainDestroy(heimdall_array_item_at_index(&cfg, i));
     }
-    vlc_array_clear(&name);
-    vlc_array_clear(&cfg);
+    heimdall_array_clear(&name);
+    heimdall_array_clear(&cfg);
 
     return NULL;
 }
@@ -1069,8 +1070,8 @@ rtp:
 }
 
 #undef sout_EncoderCreate
-encoder_t *sout_EncoderCreate( vlc_object_t *p_this, size_t owner_size )
+encoder_t *sout_EncoderCreate( heimdall_object_t *p_this, size_t owner_size )
 {
     assert( owner_size >= sizeof(encoder_t) );
-    return vlc_custom_create( p_this, owner_size, "encoder" );
+    return heimdall_custom_create( p_this, owner_size, "encoder" );
 }

@@ -2,6 +2,7 @@
  * Demuxer.hpp
  *****************************************************************************
  * Copyright © 2015 - VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -22,8 +23,8 @@
 
 #include "../tools/Macros.hpp"
 
-#include <vlc_common.h>
-#include <vlc_tick.h>
+#include <heimdall_common.h>
+#include <heimdall_tick.h>
 #include <string>
 
 namespace adaptive
@@ -45,7 +46,7 @@ namespace adaptive
             };
             AbstractDemuxer();
             virtual ~AbstractDemuxer();
-            virtual Status demux(vlc_tick_t) = 0;
+            virtual Status demux(heimdall_tick_t) = 0;
             virtual void drain() = 0;
             virtual bool create() = 0;
             virtual void destroy() = 0;
@@ -67,16 +68,16 @@ namespace adaptive
     class Demuxer : public AbstractDemuxer
     {
         public:
-            Demuxer(vlc_object_t *, const std::string &, es_out_t *, AbstractSourceStream *);
+            Demuxer(heimdall_object_t *, const std::string &, es_out_t *, AbstractSourceStream *);
             virtual ~Demuxer();
-            Status demux(vlc_tick_t) override;
+            Status demux(heimdall_tick_t) override;
             void drain() override;
             bool create() override;
             void destroy() override;
 
         protected:
             AbstractSourceStream *sourcestream;
-            vlc_object_t *p_obj;
+            heimdall_object_t *p_obj;
             demux_t *p_demux;
             std::string name;
             es_out_t *p_es_out;
@@ -86,13 +87,13 @@ namespace adaptive
     class SlaveDemuxer : public Demuxer
     {
         public:
-            SlaveDemuxer(vlc_object_t *, const std::string &, es_out_t *, AbstractSourceStream *);
+            SlaveDemuxer(heimdall_object_t *, const std::string &, es_out_t *, AbstractSourceStream *);
             virtual ~SlaveDemuxer();
             bool create() override;
-            Status demux(vlc_tick_t) override;
+            Status demux(heimdall_tick_t) override;
 
         private:
-            vlc_tick_t length;
+            heimdall_tick_t length;
     };
 
     class DemuxerFactoryInterface
@@ -100,7 +101,7 @@ namespace adaptive
         PREREQ_INTERFACE(DemuxerFactoryInterface);
 
         public:
-            virtual AbstractDemuxer * newDemux(vlc_object_t *, const StreamFormat &,
+            virtual AbstractDemuxer * newDemux(heimdall_object_t *, const StreamFormat &,
                                                es_out_t *, AbstractSourceStream *) const = 0;
     };
 }

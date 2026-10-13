@@ -1,7 +1,8 @@
 /*****************************************************************************
- * player.c : remote control stdin/stdout module for vlc
+ * player.c : remote control stdin/stdout module for heimdall
  *****************************************************************************
  * Copyright (C) 2004-2009 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Peter Surda <shurdeek@panorama.sth.ac.at>
  *         Jean-Paul Saman <jpsaman #_at_# m2x _replaceWith#dot_ nl>
@@ -29,19 +30,19 @@
 #include <math.h>
 #include <stdbit.h>
 
-#include <vlc_common.h>
-#include <vlc_interface.h>
-#include <vlc_aout.h>
-#include <vlc_vout.h>
-#include <vlc_playlist.h>
-#include <vlc_player.h>
+#include <heimdall_common.h>
+#include <heimdall_interface.h>
+#include <heimdall_aout.h>
+#include <heimdall_vout.h>
+#include <heimdall_playlist.h>
+#include <heimdall_player.h>
 
 #include "cli.h"
 
 struct player_cli {
     intf_thread_t *intf;
-    vlc_player_listener_id *player_listener;
-    vlc_player_aout_listener_id *player_aout_listener;
+    heimdall_player_listener_id *player_listener;
+    heimdall_player_aout_listener_id *player_aout_listener;
     long position;
     bool input_buffering;
     bool show_position;
@@ -52,7 +53,7 @@ struct player_cli {
  ********************************************************************/
 
 static void
-player_on_media_changed(vlc_player_t *player, input_item_t *item, void *data)
+player_on_media_changed(heimdall_player_t *player, input_item_t *item, void *data)
 {
     struct player_cli *pc = data;
 
@@ -60,29 +61,29 @@ player_on_media_changed(vlc_player_t *player, input_item_t *item, void *data)
 
     if (item != NULL)
     {
-        vlc_mutex_lock(&item->lock);
+        heimdall_mutex_lock(&item->lock);
         msg_print(pc->intf, STATUS_CHANGE "( new input: %s )", item->psz_uri);
-        vlc_mutex_unlock(&item->lock);
+        heimdall_mutex_unlock(&item->lock);
     }
 }
 
 static void
-player_on_state_changed(vlc_player_t *player,
-                        enum vlc_player_state state, void *data)
-{ VLC_UNUSED(player);
+player_on_state_changed(heimdall_player_t *player,
+                        enum heimdall_player_state state, void *data)
+{ HEIMDALL_UNUSED(player);
     struct player_cli *pc = data;
 
     char const *psz_cmd;
     switch (state)
     {
-    case VLC_PLAYER_STATE_STOPPING:
-    case VLC_PLAYER_STATE_STOPPED:
+    case HEIMDALL_PLAYER_STATE_STOPPING:
+    case HEIMDALL_PLAYER_STATE_STOPPED:
         psz_cmd = "stop";
         break;
-    case VLC_PLAYER_STATE_PLAYING:
+    case HEIMDALL_PLAYER_STATE_PLAYING:
         psz_cmd = "play";
         break;
-    case VLC_PLAYER_STATE_PAUSED:
+    case HEIMDALL_PLAYER_STATE_PAUSED:
         psz_cmd = "pause";
         break;
     default:
@@ -94,32 +95,32 @@ player_on_state_changed(vlc_player_t *player,
 }
 
 static void
-player_on_buffering_changed(vlc_player_t *player,
+player_on_buffering_changed(heimdall_player_t *player,
                             float new_buffering, void *data)
-{ VLC_UNUSED(player); VLC_UNUSED(new_buffering);
+{ HEIMDALL_UNUSED(player); HEIMDALL_UNUSED(new_buffering);
     struct player_cli *pc = data;
 
     pc->input_buffering = true;
 }
 
 static void
-player_on_rate_changed(vlc_player_t *player, float new_rate, void *data)
-{ VLC_UNUSED(player);
+player_on_rate_changed(heimdall_player_t *player, float new_rate, void *data)
+{ HEIMDALL_UNUSED(player);
     struct player_cli *pc = data;
 
     msg_print(pc->intf, STATUS_CHANGE "( new rate: %.3f )", new_rate);
 }
 
 static void
-player_on_position_changed(vlc_player_t *player,
-                           vlc_tick_t new_time, double new_pos, void *data)
-{ VLC_UNUSED(player);
+player_on_position_changed(heimdall_player_t *player,
+                           heimdall_tick_t new_time, double new_pos, void *data)
+{ HEIMDALL_UNUSED(player);
     struct player_cli *pc = data;
 
     if (pc->input_buffering)
     {
         msg_print(pc->intf, STATUS_CHANGE "( time: %"PRId64"s )",
-                  SEC_FROM_VLC_TICK(new_time));
+                  SEC_FROM_HEIMDALL_TICK(new_time));
         pc->input_buffering = false;
     }
 
@@ -132,7 +133,7 @@ player_on_position_changed(vlc_player_t *player,
     }
 }
 
-static const struct vlc_player_cbs player_cbs =
+static const struct heimdall_player_cbs player_cbs =
 {
     .on_current_media_changed = player_on_media_changed,
     .on_state_changed = player_on_state_changed,
@@ -143,13 +144,13 @@ static const struct vlc_player_cbs player_cbs =
 
 static void
 player_aout_on_volume_changed(audio_output_t *aout, float volume, void *data)
-{ VLC_UNUSED(aout);
+{ HEIMDALL_UNUSED(aout);
     struct player_cli *pc = data;
 
     msg_print(pc->intf, STATUS_CHANGE "( audio volume: %f )", volume);
 }
 
-static const struct vlc_player_aout_cbs player_aout_cbs =
+static const struct heimdall_player_aout_cbs player_aout_cbs =
 {
     .on_volume_changed = player_aout_on_volume_changed,
 };
@@ -162,31 +163,31 @@ static int ParseFloat(const char *str, float *out)
         return -EINVAL; /* No valid data parsed. */
     if (unlikely(!isfinite(*out)))
         return -EINVAL; /* Invalid values in this context. */
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 
 static int PlayerDoVoid(struct cli_client *cl, void *data,
-                        void (*cb)(vlc_player_t *))
+                        void (*cb)(heimdall_player_t *))
 {
-    vlc_player_t *player = data;
+    heimdall_player_t *player = data;
 
-    vlc_player_Lock(player);
+    heimdall_player_Lock(player);
     cb(player);
-    vlc_player_Unlock(player);
+    heimdall_player_Unlock(player);
     (void) cl;
     return 0;
 }
 
 static int PlayerDoFloat(struct cli_client *cl, const char *const *args,
                          size_t count, void *data,
-                         void (*setter)(vlc_player_t *, float),
-                         float (*getter)(vlc_player_t *))
+                         void (*setter)(heimdall_player_t *, float),
+                         float (*getter)(heimdall_player_t *))
 {
-    vlc_player_t *player = data;
+    heimdall_player_t *player = data;
     int ret = 0;
 
-    vlc_player_Lock(player);
+    heimdall_player_Lock(player);
     switch (count)
     {
         case 1:
@@ -196,14 +197,14 @@ static int PlayerDoFloat(struct cli_client *cl, const char *const *args,
         {
             float v;
             ret = ParseFloat(args[1], &v);
-            if (ret == VLC_SUCCESS)
+            if (ret == HEIMDALL_SUCCESS)
                 setter(player, v);
             break;
         }
         default:
-            ret = VLC_EGENERIC; /* EINVAL */
+            ret = HEIMDALL_EGENERIC; /* EINVAL */
     }
-    vlc_player_Unlock(player);
+    heimdall_player_Unlock(player);
     return ret;
 }
 
@@ -211,29 +212,29 @@ static int PlayerPause(struct cli_client *cl, const char *const *args,
                        size_t count, void *data)
 {
     (void) args; (void) count;
-    return PlayerDoVoid(cl, data, vlc_player_TogglePause);
+    return PlayerDoVoid(cl, data, heimdall_player_TogglePause);
 }
 
 static int PlayerFastForward(struct cli_client *cl, const char *const *args,
                              size_t count, void *data)
 {
-    vlc_player_t *player = data;
+    heimdall_player_t *player = data;
 
-    vlc_player_Lock(player);
-    if (vlc_player_CanChangeRate(player))
+    heimdall_player_Lock(player);
+    if (heimdall_player_CanChangeRate(player))
     {
-        float rate = vlc_player_GetRate(player);
-        vlc_player_ChangeRate(player,
+        float rate = heimdall_player_GetRate(player);
+        heimdall_player_ChangeRate(player,
                               isgreater(rate, 0.f) ? rate * 2.f : -rate);
     }
     else
     {
         int secs = var_InheritInteger(cl->intf, "extrashort-jump-size");
-        vlc_tick_t t = vlc_player_GetTime(player) + vlc_tick_from_sec(secs);
+        heimdall_tick_t t = heimdall_player_GetTime(player) + heimdall_tick_from_sec(secs);
 
-        vlc_player_SetTime(player, t);
+        heimdall_player_SetTime(player, t);
     }
-    vlc_player_Unlock(player);
+    heimdall_player_Unlock(player);
     (void) args; (void) count;
     return 0;
 }
@@ -241,22 +242,22 @@ static int PlayerFastForward(struct cli_client *cl, const char *const *args,
 static int PlayerRewind(struct cli_client *cl, const char *const *args,
                          size_t count, void *data)
 {
-    vlc_player_t *player = data;
+    heimdall_player_t *player = data;
 
-    vlc_player_Lock(player);
-    if (vlc_player_CanRewind(player))
+    heimdall_player_Lock(player);
+    if (heimdall_player_CanRewind(player))
     {
-        float rate = vlc_player_GetRate(player);
-        vlc_player_ChangeRate(player, isless(rate, 0.f) ? rate * 2.f : -rate);
+        float rate = heimdall_player_GetRate(player);
+        heimdall_player_ChangeRate(player, isless(rate, 0.f) ? rate * 2.f : -rate);
     }
     else
     {
         int secs = var_InheritInteger(cl->intf, "extrashort-jump-size");
-        vlc_tick_t t = vlc_player_GetTime(player) - vlc_tick_from_sec(secs);
+        heimdall_tick_t t = heimdall_player_GetTime(player) - heimdall_tick_from_sec(secs);
 
-        vlc_player_SetTime(player, t);
+        heimdall_player_SetTime(player, t);
     }
-    vlc_player_Unlock(player);
+    heimdall_player_Unlock(player);
     (void) args; (void) count;
     return 0;
 }
@@ -265,19 +266,19 @@ static int PlayerFaster(struct cli_client *cl, const char *const *args,
                         size_t count, void *data)
 {
     (void) args; (void) count;
-    return PlayerDoVoid(cl, data, vlc_player_IncrementRate);
+    return PlayerDoVoid(cl, data, heimdall_player_IncrementRate);
 }
 
 static int PlayerSlower(struct cli_client *cl, const char *const *args,
                         size_t count, void *data)
 {
     (void) args; (void) count;
-    return PlayerDoVoid(cl, data, vlc_player_DecrementRate);
+    return PlayerDoVoid(cl, data, heimdall_player_DecrementRate);
 }
 
-static void PlayerDoNormal(vlc_player_t *player)
+static void PlayerDoNormal(heimdall_player_t *player)
 {
-    vlc_player_ChangeRate(player, 1.f);
+    heimdall_player_ChangeRate(player, 1.f);
 }
 
 static int PlayerNormal(struct cli_client *cl, const char *const *args,
@@ -290,54 +291,54 @@ static int PlayerNormal(struct cli_client *cl, const char *const *args,
 static int PlayerRate(struct cli_client *cl, const char *const *args, size_t n,
                       void *data)
 {
-    return PlayerDoFloat(cl, args, n, data, vlc_player_ChangeRate,
-                         vlc_player_GetRate);
+    return PlayerDoFloat(cl, args, n, data, heimdall_player_ChangeRate,
+                         heimdall_player_GetRate);
 }
 
 static int PlayerFrame(struct cli_client *cl, const char *const *args,
                        size_t count, void *data)
 {
     (void) args; (void) count;
-    return PlayerDoVoid(cl, data, vlc_player_NextVideoFrame);
+    return PlayerDoVoid(cl, data, heimdall_player_NextVideoFrame);
 }
 
 static int PlayerChapterPrev(struct cli_client *cl, const char *const *args,
                              size_t count, void *data)
 {
     (void) args; (void) count;
-    return PlayerDoVoid(cl, data, vlc_player_SelectPrevChapter);
+    return PlayerDoVoid(cl, data, heimdall_player_SelectPrevChapter);
 }
 
 static int PlayerChapterNext(struct cli_client *cl, const char *const *args,
                              size_t count, void *data)
 {
     (void) args; (void) count;
-    return PlayerDoVoid(cl, data, vlc_player_SelectNextChapter);
+    return PlayerDoVoid(cl, data, heimdall_player_SelectNextChapter);
 }
 
 static int PlayerTitlePrev(struct cli_client *cl, const char *const *args,
                            size_t count, void *data)
 {
     (void) args; (void) count;
-    return PlayerDoVoid(cl, data, vlc_player_SelectPrevTitle);
+    return PlayerDoVoid(cl, data, heimdall_player_SelectPrevTitle);
 }
 
 static int PlayerTitleNext(struct cli_client *cl, const char *const *args,
                            size_t count, void *data)
 {
     (void) args; (void) count;
-    return PlayerDoVoid(cl, data, vlc_player_SelectNextTitle);
+    return PlayerDoVoid(cl, data, heimdall_player_SelectNextTitle);
 }
 
 static int PlayerSeek(struct cli_client *cl, const char *const *args,
                       size_t count, void *data)
 {
-    vlc_player_t *player = data;
+    heimdall_player_t *player = data;
 
     if (count != 2)
     {
         cli_printf(cl, "%s expects one parameter", args[0]);
-        return VLC_EGENERIC; /* EINVAL */
+        return HEIMDALL_EGENERIC; /* EINVAL */
     }
 
     char *end;
@@ -345,94 +346,94 @@ static int PlayerSeek(struct cli_client *cl, const char *const *args,
     bool relative = args[1][0] == '-' || args[1][0] == '+';
     bool pct = *end == '%';
 
-    vlc_player_Lock(player);
+    heimdall_player_Lock(player);
     if (relative)
     {
         if (pct)
-            value += vlc_player_GetPosition(player) * 100.;
+            value += heimdall_player_GetPosition(player) * 100.;
         else
-            value += secf_from_vlc_tick(vlc_player_GetTime(player));
+            value += secf_from_heimdall_tick(heimdall_player_GetTime(player));
     }
 
     if (pct)
-        vlc_player_SetPosition(player, value / 100.);
+        heimdall_player_SetPosition(player, value / 100.);
     else
-        vlc_player_SetTime(player, vlc_tick_from_sec(value));
-    vlc_player_Unlock(player);
+        heimdall_player_SetTime(player, heimdall_tick_from_sec(value));
+    heimdall_player_Unlock(player);
     return 0;
 }
 
 static int PlayerSetChapter(struct cli_client *cl, const char *const *args,
                             size_t count, void *data)
 {
-    vlc_player_t *player = data;
+    heimdall_player_t *player = data;
     int ret = 0;
 
-    vlc_player_Lock(player);
+    heimdall_player_Lock(player);
 
     if (count > 1)
-        vlc_player_SelectChapterIdx(player, atoi(args[1]));
+        heimdall_player_SelectChapterIdx(player, atoi(args[1]));
     else
     {
-        struct vlc_player_title const *title = vlc_player_GetSelectedTitle(player);
+        struct heimdall_player_title const *title = heimdall_player_GetSelectedTitle(player);
         ssize_t chapter = -1;
         if (title != NULL)
-            chapter = vlc_player_GetSelectedChapterIdx(player);
+            chapter = heimdall_player_GetSelectedChapterIdx(player);
         if (chapter != -1)
             cli_printf(cl, "Currently playing chapter %zd/%zu.",
                        chapter, title->chapter_count);
         else
         {
             cli_printf(cl, "No chapter selected.");
-            ret = VLC_ENOENT;
+            ret = HEIMDALL_ENOENT;
         }
     }
-    vlc_player_Unlock(player);
+    heimdall_player_Unlock(player);
     return ret;
 }
 
 static int PlayerSetTitle(struct cli_client *cl, const char *const *args,
                           size_t count, void *data)
 {
-    vlc_player_t *player = data;
+    heimdall_player_t *player = data;
     int ret = 0;
 
-    vlc_player_Lock(player);
+    heimdall_player_Lock(player);
 
     if (count > 1)
     {
         int idx = atoi(args[1]);
         if (idx >= 0)
-            vlc_player_SelectTitleIdx(player, (size_t)idx);
+            heimdall_player_SelectTitleIdx(player, (size_t)idx);
     }
     else
     {
-        ssize_t title = vlc_player_GetSelectedTitleIdx(player);
-            vlc_player_title_list *titles =
-        vlc_player_GetTitleList(player);
+        ssize_t title = heimdall_player_GetSelectedTitleIdx(player);
+            heimdall_player_title_list *titles =
+        heimdall_player_GetTitleList(player);
         size_t title_count = 0;
         if (titles != NULL)
-            title_count = vlc_player_title_list_GetCount(titles);
+            title_count = heimdall_player_title_list_GetCount(titles);
         if (title != -1 && title_count != 0)
             cli_printf(cl, "Currently playing title %zd/%zu.", title,
                        title_count);
         else
         {
             cli_printf(cl, "No title selected.");
-            ret = VLC_ENOENT;
+            ret = HEIMDALL_ENOENT;
         }
     }
-    vlc_player_Unlock(player);
+    heimdall_player_Unlock(player);
     return ret;
 }
 
 static int PlayerSetTrack(struct cli_client *cl, const char *const *args,
                           size_t count, void *data)
 {
-    vlc_player_t *player = data;
+    heimdall_player_t *player = data;
     const char *psz_cmd = args[0];
     enum es_format_category_e cat;
-    int ret = VLC_EGENERIC; /* EINVAL */
+    int ret = HEIMDALL_EGENERIC; /* EINVAL */
 
     switch (psz_cmd[0])
     {
@@ -446,7 +447,7 @@ static int PlayerSetTrack(struct cli_client *cl, const char *const *args,
             cat = SPU_ES;
     }
 
-    vlc_player_Lock(player);
+    heimdall_player_Lock(player);
 
     if (count > 1)
     {
@@ -455,36 +456,36 @@ static int PlayerSetTrack(struct cli_client *cl, const char *const *args,
         {
             if (idx == -1)
             {
-                vlc_player_UnselectTrackCategory(player, cat);
+                heimdall_player_UnselectTrackCategory(player, cat);
                 ret = 0;
             }
             goto out;
         }
 
-        size_t track_count = vlc_player_GetTrackCount(player, cat);
+        size_t track_count = heimdall_player_GetTrackCount(player, cat);
         if ((unsigned)idx >= track_count)
             goto out;
 
-        struct vlc_player_track const *track =
-            vlc_player_GetTrackAt(player, cat, (size_t)idx);
+        struct heimdall_player_track const *track =
+            heimdall_player_GetTrackAt(player, cat, (size_t)idx);
         if (track != NULL)
         {
-            vlc_player_SelectTrack(player, track, VLC_PLAYER_SELECT_EXCLUSIVE);
+            heimdall_player_SelectTrack(player, track, HEIMDALL_PLAYER_SELECT_EXCLUSIVE);
             ret = 0;
         }
     }
     else
     {
-        struct vlc_player_track const *cur_track =
-            vlc_player_GetSelectedTrack(player, cat);
+        struct heimdall_player_track const *cur_track =
+            heimdall_player_GetSelectedTrack(player, cat);
         char const *name = cur_track ? cur_track->name : psz_cmd;
-        size_t track_count = vlc_player_GetTrackCount(player, cat);
+        size_t track_count = heimdall_player_GetTrackCount(player, cat);
 
         cli_printf(cl, "+----[ %s ]", name);
         for (size_t i = 0; i < track_count; ++i)
         {
-            struct vlc_player_track const *track =
-                    vlc_player_GetTrackAt(player, cat, i);
+            struct heimdall_player_track const *track =
+                    heimdall_player_GetTrackAt(player, cat, i);
             cli_printf(cl, "| %zu - %s%s",
                        i, track->name, track == cur_track ? " *" : "");
         }
@@ -492,18 +493,18 @@ static int PlayerSetTrack(struct cli_client *cl, const char *const *args,
         ret = 0;
     }
 out:
-    vlc_player_Unlock(player);
+    heimdall_player_Unlock(player);
     return ret;
 }
 
 static int PlayerRecord(struct cli_client *cl, const char *const *args,
                         size_t count, void *data)
 {
-    vlc_player_t *player = data;
+    heimdall_player_t *player = data;
 
-    vlc_player_Lock(player);
+    heimdall_player_Lock(player);
 
-    bool cur_value = vlc_player_IsRecording(player);
+    bool cur_value = heimdall_player_IsRecording(player);
     bool new_value = !cur_value;
 
     if (count > 1)
@@ -515,8 +516,8 @@ static int PlayerRecord(struct cli_client *cl, const char *const *args,
     }
 
     if (cur_value != new_value)
-        vlc_player_SetRecordingEnabled(player, new_value, NULL);
-    vlc_player_Unlock(player);
+        heimdall_player_SetRecordingEnabled(player, new_value, NULL);
+    heimdall_player_Unlock(player);
     (void) cl;
     return 0;
 }
@@ -524,16 +525,16 @@ static int PlayerRecord(struct cli_client *cl, const char *const *args,
 static int PlayerGetTime(struct cli_client *cl, const char *const *args,
                          size_t count, void *data)
 {
-    vlc_player_t *player = data;
-    vlc_tick_t t;
+    heimdall_player_t *player = data;
+    heimdall_tick_t t;
 
-    vlc_player_Lock(player);
-    t = vlc_player_GetTime(player);
-    vlc_player_Unlock(player);
-    if (t == VLC_TICK_INVALID)
-        return VLC_ENOENT;
+    heimdall_player_Lock(player);
+    t = heimdall_player_GetTime(player);
+    heimdall_player_Unlock(player);
+    if (t == HEIMDALL_TICK_INVALID)
+        return HEIMDALL_ENOENT;
 
-    cli_printf(cl, "%"PRIu64, SEC_FROM_VLC_TICK(t));
+    cli_printf(cl, "%"PRIu64, SEC_FROM_HEIMDALL_TICK(t));
     (void) args; (void) count;
     return 0;
 }
@@ -541,17 +542,17 @@ static int PlayerGetTime(struct cli_client *cl, const char *const *args,
 static int PlayerGetLength(struct cli_client *cl, const char *const *args,
                            size_t count, void *data)
 {
-    vlc_player_t *player = data;
-    vlc_tick_t l;
+    heimdall_player_t *player = data;
+    heimdall_tick_t l;
 
-    vlc_player_Lock(player);
-    l = vlc_player_GetLength(player);
-    vlc_player_Unlock(player);
+    heimdall_player_Lock(player);
+    l = heimdall_player_GetLength(player);
+    heimdall_player_Unlock(player);
 
-    if (l == VLC_TICK_INVALID)
-        return VLC_ENOENT;
+    if (l == HEIMDALL_TICK_INVALID)
+        return HEIMDALL_ENOENT;
 
-    cli_printf(cl, "%"PRIu64, SEC_FROM_VLC_TICK(l));
+    cli_printf(cl, "%"PRIu64, SEC_FROM_HEIMDALL_TICK(l));
     (void) args; (void) count;
     return 0;
 }
@@ -559,29 +560,29 @@ static int PlayerGetLength(struct cli_client *cl, const char *const *args,
 static int PlayerGetTitle(struct cli_client *cl, const char *const *args,
                           size_t count, void *data)
 {
-    vlc_player_t *player = data;
-    const struct vlc_player_title *title;
+    heimdall_player_t *player = data;
+    const struct heimdall_player_title *title;
 
-    vlc_player_Lock(player);
-    title = vlc_player_GetSelectedTitle(player);
+    heimdall_player_Lock(player);
+    title = heimdall_player_GetSelectedTitle(player);
     cli_printf(cl, "%s", (title != NULL) ? title->name : "");
-    vlc_player_Unlock(player);
+    heimdall_player_Unlock(player);
     (void) args; (void) count;
-    return (title != NULL) ? 0 : VLC_ENOENT;
+    return (title != NULL) ? 0 : HEIMDALL_ENOENT;
 }
 
 static int PlayerVoutSnapshot(struct cli_client *cl, const char *const *args,
                               size_t count, void *data)
 {
     (void) args; (void) count;
-    return PlayerDoVoid(cl, data, vlc_player_vout_Snapshot);
+    return PlayerDoVoid(cl, data, heimdall_player_vout_Snapshot);
 }
 
 static int PlayerFullscreen(struct cli_client *cl, const char *const *args,
                             size_t count, void *data)
 {
-    vlc_player_t *player = data;
-    bool fs = !vlc_player_vout_IsFullscreen(player);
+    heimdall_player_t *player = data;
+    bool fs = !heimdall_player_vout_IsFullscreen(player);
 
     if (count > 1)
     {
@@ -591,7 +592,7 @@ static int PlayerFullscreen(struct cli_client *cl, const char *const *args,
             fs = false;
     }
 
-    vlc_player_vout_SetFullscreen(player, fs);
+    heimdall_player_vout_SetFullscreen(player, fs);
     (void) cl;
     return 0;
 }
@@ -599,13 +600,13 @@ static int PlayerFullscreen(struct cli_client *cl, const char *const *args,
 static int Volume(struct cli_client *cl, const char *const *args, size_t count,
                   void *data)
 {
-    vlc_player_t *player = data;
+    heimdall_player_t *player = data;
 
     if (count == 2)
     {
         /* NOTE: For unfortunate hysterical raisins, integer value above 1 are
          * interpreted in a scale of 256 parts. Floating point values are taken
-         * as ratio as usual in the VLC code.
+         * as ratio as usual in the Heimdall code.
          * Yes, this sucks (hopefully nobody uses volume 1/256).
          */
         char *end;
@@ -620,29 +621,29 @@ static int Volume(struct cli_client *cl, const char *const *args, size_t count,
         else
         {
             const int result = ParseFloat(args[1], &volume);
-            if (result != VLC_SUCCESS)
+            if (result != HEIMDALL_SUCCESS)
                 return result;
             if (volume < 0.f || volume > 2.f )
                 return -EINVAL;
         }
 
-        vlc_player_Lock(player);
-        vlc_player_aout_SetVolume(player, volume);
+        heimdall_player_Lock(player);
+        heimdall_player_aout_SetVolume(player, volume);
     }
     else
     {
-        vlc_player_Lock(player);
+        heimdall_player_Lock(player);
         cli_printf(cl, STATUS_CHANGE "( audio volume: %f )",
-                   vlc_player_aout_GetVolume(player));
+                   heimdall_player_aout_GetVolume(player));
     }
-    vlc_player_Unlock(player);
+    heimdall_player_Unlock(player);
     return 0;
 }
 
 static int VolumeMove(struct cli_client *cl, const char *const *args,
                       size_t count, void *data)
 {
-    vlc_player_t *player = data;
+    heimdall_player_t *player = data;
     const char *psz_cmd = args[0];
     const char *arg = count > 1 ? args[1] : "";
 
@@ -651,9 +652,9 @@ static int VolumeMove(struct cli_client *cl, const char *const *args,
     if( !strcmp(psz_cmd, "voldown") )
         i_nb_steps *= -1;
 
-    vlc_player_Lock(player);
-    vlc_player_aout_IncrementVolume(player, i_nb_steps, NULL);
-    vlc_player_Unlock(player);
+    heimdall_player_Lock(player);
+    heimdall_player_aout_IncrementVolume(player, i_nb_steps, NULL);
+    heimdall_player_Unlock(player);
     (void) cl;
     return 0;
 }
@@ -661,8 +662,8 @@ static int VolumeMove(struct cli_client *cl, const char *const *args,
 static int VideoConfig(struct cli_client *cl, const char *const *args,
                        size_t n_args, void *data)
 {
-    vlc_player_t *player = data;
-    vout_thread_t *p_vout = vlc_player_vout_Hold(player);
+    heimdall_player_t *player = data;
+    vout_thread_t *p_vout = heimdall_player_vout_Hold(player);
     const char * psz_variable = NULL;
     const char *psz_cmd = args[0];
     const char *arg = n_args > 1 ? args[1] : "";
@@ -675,7 +676,7 @@ static int VideoConfig(struct cli_client *cl, const char *const *args,
         psz_variable = "zoom";
     else
         /* This case can't happen */
-        vlc_assert_unreachable();
+        heimdall_assert_unreachable();
 
     if (n_args > 1)
     {
@@ -684,7 +685,7 @@ static int VideoConfig(struct cli_client *cl, const char *const *args,
         {
             float f_float;
             const int r = ParseFloat( arg, &f_float );
-            if( r != VLC_SUCCESS )
+            if( r != HEIMDALL_SUCCESS )
             {
                 vout_Release( p_vout );
                 return r;
@@ -699,7 +700,7 @@ static int VideoConfig(struct cli_client *cl, const char *const *args,
     {
         /* get */
         char *name;
-        vlc_value_t *val;
+        heimdall_value_t *val;
         char **text;
         float f_value = 0.f;
         char *psz_value = NULL;
@@ -713,20 +714,20 @@ static int VideoConfig(struct cli_client *cl, const char *const *args,
             if( psz_value == NULL )
             {
                 vout_Release(p_vout);
-                return VLC_ENOENT;
+                return HEIMDALL_ENOENT;
             }
         }
 
-        if ( var_Change( p_vout, psz_variable, VLC_VAR_GETCHOICES,
+        if ( var_Change( p_vout, psz_variable, HEIMDALL_VAR_GETCHOICES,
                          &count, &val, &text ) < 0 )
         {
             vout_Release(p_vout);
             free( psz_value );
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         }
 
         /* Get the descriptive name of the variable */
-        var_Change( p_vout, psz_variable, VLC_VAR_GETTEXT, &name );
+        var_Change( p_vout, psz_variable, HEIMDALL_VAR_GETTEXT, &name );
         if( !name ) name = strdup(psz_variable);
 
         cli_printf(cl, "+----[ %s ]", name);
@@ -773,18 +774,18 @@ static int AudioDevice(struct cli_client *cl, const char *const *args,
 {
     const char *cmd = args[0];
     const char *arg = count > 1 ? args[1] : "";
-    vlc_player_t *player = data;
-    audio_output_t *aout = vlc_player_aout_Hold(player);
+    heimdall_player_t *player = data;
+    audio_output_t *aout = heimdall_player_aout_Hold(player);
     int ret = 0;
 
     if (aout == NULL)
-        return VLC_ENOENT;
+        return HEIMDALL_ENOENT;
 
     char **ids, **names;
     int n = aout_DevicesList(aout, &ids, &names);
     if (n < 0)
     {
-        ret = VLC_ENOMEM;
+        ret = HEIMDALL_ENOMEM;
         goto out;
     }
 
@@ -797,7 +798,7 @@ static int AudioDevice(struct cli_client *cl, const char *const *args,
         for (int i = 0; i < n; ++i)
         {
             if (!strcmp(arg, ids[i]))
-                vlc_player_osd_Message(player,
+                heimdall_player_osd_Message(player,
                                        _("Audio device: %s"), names[i]);
 
             free(names[i]);
@@ -837,24 +838,24 @@ static int AudioChannel(struct cli_client *cl, const char *const *args,
 {
     const char *cmd = args[0];
     const char *arg = n_args > 1 ? args[1] : "";
-    vlc_player_t *player = data;
-    audio_output_t *p_aout = vlc_player_aout_Hold(player);
+    heimdall_player_t *player = data;
+    audio_output_t *p_aout = heimdall_player_aout_Hold(player);
     int ret = 0;
 
     if ( p_aout == NULL )
-         return VLC_ENOENT;
+         return HEIMDALL_ENOENT;
 
     if ( !*arg )
     {
         /* Retrieve all registered ***. */
-        vlc_value_t *val;
+        heimdall_value_t *val;
         char **text;
         size_t count;
 
-        if ( var_Change( p_aout, "stereo-mode", VLC_VAR_GETCHOICES,
+        if ( var_Change( p_aout, "stereo-mode", HEIMDALL_VAR_GETCHOICES,
                          &count, &val, &text ) < 0 )
         {
-            ret = VLC_EACCES;
+            ret = HEIMDALL_EACCES;
             goto out;
         }
 
@@ -885,16 +886,16 @@ out:
 static int Statistics(struct cli_client *cl, const char *const *args,
                       size_t count, void *data)
 {
-    vlc_player_t *player = data;
+    heimdall_player_t *player = data;
     input_item_t *item;
 
-    vlc_player_Lock(player);
-    item = vlc_player_GetCurrentMedia(player);
+    heimdall_player_Lock(player);
+    item = heimdall_player_GetCurrentMedia(player);
 
     if (item != NULL)
     {
         cli_printf(cl, "+----[ begin of statistical info ]");
-        vlc_mutex_lock(&item->lock);
+        heimdall_mutex_lock(&item->lock);
 
         /* Input */
         cli_printf(cl, _("+-[Incoming]"));
@@ -934,25 +935,25 @@ static int Statistics(struct cli_client *cl, const char *const *args,
                    item->p_stats->i_lost_abuffers);
         cli_printf(cl, "|");
 
-        vlc_mutex_unlock(&item->lock);
+        heimdall_mutex_unlock(&item->lock);
         cli_printf(cl,  "+----[ end of statistical info ]" );
     }
-    vlc_player_Unlock(player);
+    heimdall_player_Unlock(player);
     (void) args; (void) count;
-    return (item != NULL) ? 0 : VLC_ENOENT;
+    return (item != NULL) ? 0 : HEIMDALL_ENOENT;
 }
 
 static int IsPlaying(struct cli_client *cl, const char *const *args,
                      size_t count, void *data)
 {
-    vlc_player_t *player = data;
-    enum vlc_player_state state;
+    heimdall_player_t *player = data;
+    enum heimdall_player_state state;
 
-    vlc_player_Lock(player);
-    state = vlc_player_GetState(player);
-    cli_printf(cl, "%d", state == VLC_PLAYER_STATE_PLAYING
-                      || state == VLC_PLAYER_STATE_PAUSED);
-    vlc_player_Unlock(player);
+    heimdall_player_Lock(player);
+    state = heimdall_player_GetState(player);
+    cli_printf(cl, "%d", state == HEIMDALL_PLAYER_STATE_PLAYING
+                      || state == HEIMDALL_PLAYER_STATE_PAUSED);
+    heimdall_player_Unlock(player);
     (void) args; (void) count;
     return 0;
 }
@@ -960,11 +961,11 @@ static int IsPlaying(struct cli_client *cl, const char *const *args,
 static int PlayerStatus(struct cli_client *cl, const char *const *args,
                         size_t count, void *data)
 {
-    vlc_player_t *player = data;
+    heimdall_player_t *player = data;
 
-    vlc_player_Lock(player);
+    heimdall_player_Lock(player);
 
-    input_item_t *item = vlc_player_GetCurrentMedia(player);
+    input_item_t *item = heimdall_player_GetCurrentMedia(player);
     if (item != NULL)
     {
         char *uri = input_item_GetURI(item);
@@ -975,30 +976,30 @@ static int PlayerStatus(struct cli_client *cl, const char *const *args,
         }
     }
 
-    float volume = vlc_player_aout_GetVolume(player);
+    float volume = heimdall_player_aout_GetVolume(player);
     if (isgreaterequal(volume, 0.f))
         cli_printf(cl, STATUS_CHANGE "( audio volume: %ld )",
                   lroundf(volume * 100.f));
 
-    enum vlc_player_state state = vlc_player_GetState(player);
+    enum heimdall_player_state state = heimdall_player_GetState(player);
 
-    vlc_player_Unlock(player);
+    heimdall_player_Unlock(player);
 
     int stnum = -1;
     const char *stname = "unknown";
 
     switch (state)
     {
-        case VLC_PLAYER_STATE_STOPPING:
-        case VLC_PLAYER_STATE_STOPPED:
+        case HEIMDALL_PLAYER_STATE_STOPPING:
+        case HEIMDALL_PLAYER_STATE_STOPPED:
             stnum = 5;
             stname = "stop";
             break;
-        case VLC_PLAYER_STATE_PLAYING:
+        case HEIMDALL_PLAYER_STATE_PLAYING:
             stnum = 3;
             stname = "play";
             break;
-        case VLC_PLAYER_STATE_PAUSED:
+        case HEIMDALL_PLAYER_STATE_PAUSED:
             stnum = 4;
             stname = "pause";
             break;
@@ -1062,8 +1063,8 @@ static const struct cli_handler cmds[] =
 
 void *RegisterPlayer(intf_thread_t *intf)
 {
-    vlc_playlist_t *playlist = vlc_intf_GetMainPlaylist(intf);
-    vlc_player_t *player = vlc_playlist_GetPlayer(playlist);
+    heimdall_playlist_t *playlist = heimdall_intf_GetMainPlaylist(intf);
+    heimdall_player_t *player = heimdall_playlist_GetPlayer(playlist);
     struct player_cli *pc = malloc(sizeof (*pc));
 
     if (unlikely(pc == NULL))
@@ -1076,40 +1077,40 @@ void *RegisterPlayer(intf_thread_t *intf)
 
     RegisterHandlers(intf, cmds, ARRAY_SIZE(cmds), player);
 
-    vlc_player_Lock(player);
-    pc->player_listener = vlc_player_AddListener(player, &player_cbs, pc);
+    heimdall_player_Lock(player);
+    pc->player_listener = heimdall_player_AddListener(player, &player_cbs, pc);
 
     if (unlikely(pc->player_listener == NULL))
         goto error;
 
     pc->player_aout_listener =
-        vlc_player_aout_AddListener(player, &player_aout_cbs, pc);
+        heimdall_player_aout_AddListener(player, &player_aout_cbs, pc);
 
     if (pc->player_aout_listener == NULL)
     {
-        vlc_player_RemoveListener(player, pc->player_listener);
+        heimdall_player_RemoveListener(player, pc->player_listener);
         goto error;
     }
 
-    vlc_player_Unlock(player);
+    heimdall_player_Unlock(player);
     return pc;
 
 error:
-    vlc_player_Unlock(player);
+    heimdall_player_Unlock(player);
     free(pc);
     return NULL;
 }
 
 void DeregisterPlayer(intf_thread_t *intf, void *data)
 {
-    vlc_playlist_t *playlist = vlc_intf_GetMainPlaylist(intf);
-    vlc_player_t *player = vlc_playlist_GetPlayer(playlist);
+    heimdall_playlist_t *playlist = heimdall_intf_GetMainPlaylist(intf);
+    heimdall_player_t *player = heimdall_playlist_GetPlayer(playlist);
     struct player_cli *pc = data;
 
-    vlc_player_Lock(player);
-    vlc_player_aout_RemoveListener(player, pc->player_aout_listener);
-    vlc_player_RemoveListener(player, pc->player_listener);
-    vlc_player_Unlock(player);
+    heimdall_player_Lock(player);
+    heimdall_player_aout_RemoveListener(player, pc->player_aout_listener);
+    heimdall_player_RemoveListener(player, pc->player_listener);
+    heimdall_player_Unlock(player);
     free(pc);
     (void) intf;
 }

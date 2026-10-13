@@ -1,13 +1,14 @@
 #! /bin/sh
-# Interface alias build script for VLC
+# Interface alias build script for Heimdall
 # Copyright © 2007 Rémi Denis-Courmont.
+# Copyright (C) 2026 TheFenrisLycaon
 
 OUT="$1"
 IFACE="$2"
 
 cat > "$OUT.tmp" << EOF
 #! /bin/sh
-exec $bindir/`echo "$program_prefix"vlc"$program_suffix" | sed -e "$transform"` -I "$IFACE" "\$@"
+exec $bindir/`echo "$program_prefix"heimdall"$program_suffix" | sed -e "$transform"` -I "$IFACE" "\$@"
 EOF
 
 chmod +x "$OUT.tmp"

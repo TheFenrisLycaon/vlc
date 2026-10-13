@@ -2,6 +2,7 @@
  * fingerprinter.c: Fingerprinter creator and destructor
  *****************************************************************************
  * Copyright (C) 2012 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,17 +23,17 @@
 #include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_fingerprinter.h>
-#include <vlc_modules.h>
-#include "../libvlc.h"
+#include <heimdall_common.h>
+#include <heimdall_fingerprinter.h>
+#include <heimdall_modules.h>
+#include "../libheimdall.h"
 
-fingerprinter_thread_t *fingerprinter_Create( vlc_object_t *p_this )
+fingerprinter_thread_t *fingerprinter_Create( heimdall_object_t *p_this )
 {
     fingerprinter_thread_t *p_fingerprint;
 
     p_fingerprint = ( fingerprinter_thread_t * )
-            vlc_custom_create( p_this, sizeof( *p_fingerprint ), "fingerprinter" );
+            heimdall_custom_create( p_this, sizeof( *p_fingerprint ), "fingerprinter" );
     if( !p_fingerprint )
     {
         msg_Err( p_this, "unable to create fingerprinter" );
@@ -43,7 +44,7 @@ fingerprinter_thread_t *fingerprinter_Create( vlc_object_t *p_this )
                                            NULL, false );
     if( !p_fingerprint->p_module )
     {
-        vlc_object_delete(p_fingerprint);
+        heimdall_object_delete(p_fingerprint);
         msg_Err( p_this, "AcoustID fingerprinter not found" );
         return NULL;
     }
@@ -54,5 +55,5 @@ fingerprinter_thread_t *fingerprinter_Create( vlc_object_t *p_this )
 void fingerprinter_Destroy( fingerprinter_thread_t *p_fingerprint )
 {
     module_unneed( p_fingerprint, p_fingerprint->p_module );
-    vlc_object_delete(p_fingerprint);
+    heimdall_object_delete(p_fingerprint);
 }

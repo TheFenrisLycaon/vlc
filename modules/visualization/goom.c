@@ -2,6 +2,7 @@
  * goom.c: based on libgoom (see http://ios.free.fr/?page=projet&quoi=1)
  *****************************************************************************
  * Copyright (C) 2003-2011 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *          Gildas Bazin <gbazin@videolan.org>
@@ -29,13 +30,13 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_threads.h>
-#include <vlc_plugin.h>
-#include <vlc_aout.h>            /* aout_FormatNbChannels, AOUT_FMTS_SIMILAR */
-#include <vlc_vout.h>              /* vout_*Picture, aout_filter_..tVout */
-#include <vlc_filter.h>
-#include <vlc_picture_pool.h>
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
+#include <heimdall_plugin.h>
+#include <heimdall_aout.h>            /* aout_FormatNbChannels, AOUT_FMTS_SIMILAR */
+#include <heimdall_vout.h>              /* vout_*Picture, aout_filter_..tVout */
+#include <heimdall_filter.h>
+#include <heimdall_picture_pool.h>
 
 #ifndef WORDS_BIGENDIAN
 #define WORDS_BIGENDIAN 0
@@ -51,7 +52,7 @@
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  Open         ( vlc_object_t * );
+static int  Open         ( heimdall_object_t * );
 static void Close        ( filter_t * );
 
 #define WIDTH_TEXT N_("Goom display width")
@@ -65,7 +66,7 @@ static void Close        ( filter_t * );
 
 #define MAX_SPEED 10
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( N_("Goom"))
     set_description( N_("Goom effect") )
     set_subcategory( SUBCAT_AUDIO_VISUAL )
@@ -78,25 +79,25 @@ vlc_module_begin ()
                  SPEED_TEXT, SPEED_LONGTEXT )
     set_callback( Open )
     add_shortcut( "goom" )
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * Local prototypes
  *****************************************************************************/
 #define MAX_BLOCKS 100
-#define GOOM_DELAY VLC_TICK_FROM_MS(400)
+#define GOOM_DELAY HEIMDALL_TICK_FROM_MS(400)
 
 typedef struct
 {
-    vlc_thread_t  thread;
+    heimdall_thread_t  thread;
     video_format_t fmt;
 
     vout_thread_t *p_vout;
     picture_pool_t *pool;
     int           i_speed;
 
-    vlc_mutex_t   lock;
-    vlc_cond_t    wait;
+    heimdall_mutex_t   lock;
+    heimdall_cond_t    wait;
     bool          b_exit;
 
     /* Audio properties */
@@ -115,7 +116,7 @@ static void Flush( filter_t * );
 
 static void *Thread( void * );
 
-static const struct vlc_filter_operations filter_ops = {
+static const struct heimdall_filter_operations filter_ops = {
     .filter_audio = DoWork,
     .flush = Flush,
     .close = Close,
@@ -124,7 +125,7 @@ static const struct vlc_filter_operations filter_ops = {
 /*****************************************************************************
  * Open: open a scope effect plugin
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     filter_t       *p_filter = (filter_t *)p_this;
     goom_thread_t  *p_thread;
@@ -135,7 +136,7 @@ static int Open( vlc_object_t *p_this )
     const int width  = var_InheritInteger( p_filter, "goom-width" );
     const int height = var_InheritInteger( p_filter, "goom-height" );
 
-    vlc_fourcc_t chroma = VLC_CODEC_XRGB;
+    heimdall_fourcc_t chroma = HEIMDALL_CODEC_XRGB;
     video_format_Init(&p_thread->fmt, chroma);
     p_thread->fmt.i_width = p_thread->fmt.i_visible_width = width;
     p_thread->fmt.i_height = p_thread->fmt.i_visible_height = height;
@@ -148,7 +149,7 @@ static int Open( vlc_object_t *p_this )
     {
         video_format_Clean(&p_thread->fmt);
         free(p_thread);
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     p_thread->p_vout = aout_filter_GetVout( p_filter, &p_thread->fmt );
@@ -158,35 +159,35 @@ static int Open( vlc_object_t *p_this )
         picture_pool_Release(p_thread->pool);
         video_format_Clean(&p_thread->fmt);
         free( p_thread );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     p_thread->i_speed = MAX_SPEED - var_InheritInteger( p_filter, "goom-speed" );
     if( p_thread->i_speed < 0 )
         p_thread->i_speed = 0;
 
-    vlc_mutex_init( &p_thread->lock );
-    vlc_cond_init( &p_thread->wait );
+    heimdall_mutex_init( &p_thread->lock );
+    heimdall_cond_init( &p_thread->wait );
 
     p_thread->i_blocks = 0;
     date_Init( &p_thread->date, p_filter->fmt_in.audio.i_rate, 1 );
-    date_Set( &p_thread->date, VLC_TICK_0 );
+    date_Set( &p_thread->date, HEIMDALL_TICK_0 );
     p_thread->i_channels = aout_FormatNbChannels( &p_filter->fmt_in.audio );
 
-    if( vlc_clone( &p_thread->thread, Thread, p_thread ) )
+    if( heimdall_clone( &p_thread->thread, Thread, p_thread ) )
     {
         msg_Err( p_filter, "cannot launch goom thread" );
         vout_Close( p_thread->p_vout );
         picture_pool_Release(p_thread->pool);
         video_format_Clean(&p_thread->fmt);
         free( p_thread );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    p_filter->fmt_in.audio.i_format = VLC_CODEC_FL32;
+    p_filter->fmt_in.audio.i_format = HEIMDALL_CODEC_FL32;
     p_filter->fmt_out.audio = p_filter->fmt_in.audio;
     p_filter->ops = &filter_ops;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -200,17 +201,17 @@ static block_t *DoWork( filter_t *p_filter, block_t *p_in_buf )
     block_t *p_block;
 
     /* Queue sample */
-    vlc_mutex_lock( &p_thread->lock );
+    heimdall_mutex_lock( &p_thread->lock );
     if( p_thread->i_blocks == MAX_BLOCKS )
     {
-        vlc_mutex_unlock( &p_thread->lock );
+        heimdall_mutex_unlock( &p_thread->lock );
         return p_in_buf;
     }
 
     p_block = block_Alloc( p_in_buf->i_buffer );
     if( !p_block )
     {
-        vlc_mutex_unlock( &p_thread->lock );
+        heimdall_mutex_unlock( &p_thread->lock );
         return p_in_buf;
     }
     memcpy( p_block->p_buffer, p_in_buf->p_buffer, p_in_buf->i_buffer );
@@ -218,8 +219,8 @@ static block_t *DoWork( filter_t *p_filter, block_t *p_in_buf )
 
     p_thread->pp_blocks[p_thread->i_blocks++] = p_block;
 
-    vlc_cond_signal( &p_thread->wait );
-    vlc_mutex_unlock( &p_thread->lock );
+    heimdall_cond_signal( &p_thread->wait );
+    heimdall_mutex_unlock( &p_thread->lock );
 
     return p_in_buf;
 }
@@ -255,19 +256,19 @@ static int FillBuffer( int16_t *p_data, int *pi_data,
 
     while( *pi_data < 512 )
     {
-        if( !p_this->i_blocks ) return VLC_EGENERIC;
+        if( !p_this->i_blocks ) return HEIMDALL_EGENERIC;
 
         p_block = p_this->pp_blocks[0];
         i_samples = __MIN( (unsigned)(512 - *pi_data),
                 p_block->i_buffer / sizeof(float) / p_this->i_channels );
 
         /* Date management */
-        if( p_block->i_pts != VLC_TICK_INVALID &&
+        if( p_block->i_pts != HEIMDALL_TICK_INVALID &&
             p_block->i_pts != date_Get( pi_date_end ) )
         {
            date_Set( pi_date_end, p_block->i_pts );
         }
-        p_block->i_pts = VLC_TICK_INVALID;
+        p_block->i_pts = HEIMDALL_TICK_INVALID;
 
         date_Increment( pi_date_end, i_samples );
 
@@ -297,7 +298,7 @@ static int FillBuffer( int16_t *p_data, int *pi_data,
 
     *pi_date = *pi_date_end;
     *pi_data = 0;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -305,14 +306,14 @@ static int FillBuffer( int16_t *p_data, int *pi_data,
  *****************************************************************************/
 static void *Thread( void *p_thread_data )
 {
-    vlc_thread_set_name("vlc-goom");
+    heimdall_thread_set_name("heimdall-goom");
 
     goom_thread_t *p_thread = (goom_thread_t*)p_thread_data;
     date_t i_pts;
     int16_t p_data[2][512];
     int i_data = 0, i_count = 0;
     PluginInfo *p_plugin_info;
-    int canc = vlc_savecancel ();
+    int canc = heimdall_savecancel ();
 
     p_plugin_info = goom_init( p_thread->fmt.i_width, p_thread->fmt.i_height );
 
@@ -335,13 +336,13 @@ static void *Thread( void *p_thread_data )
          * nor the time at which each frame is displayed (not smooth)
          */
         /* goom_update is damn slow, so just copy data and release the lock */
-        vlc_mutex_lock( &p_thread->lock );
+        heimdall_mutex_lock( &p_thread->lock );
         if( !p_thread->b_exit &&
             FillBuffer( (int16_t *)p_data, &i_data,
-                        &i_pts, &p_thread->date, p_thread ) != VLC_SUCCESS )
-            vlc_cond_wait( &p_thread->wait, &p_thread->lock );
+                        &i_pts, &p_thread->date, p_thread ) != HEIMDALL_SUCCESS )
+            heimdall_cond_wait( &p_thread->wait, &p_thread->lock );
         bool b_exit = p_thread->b_exit;
-        vlc_mutex_unlock( &p_thread->lock );
+        heimdall_mutex_unlock( &p_thread->lock );
 
         if( b_exit )
             break;
@@ -350,7 +351,7 @@ static void *Thread( void *p_thread_data )
         if( p_thread->i_speed && (++i_count % (p_thread->i_speed+1)) ) continue;
 
         /* Frame dropping if necessary */
-        if( date_Get( &i_pts ) + GOOM_DELAY <= vlc_tick_now() ) continue;
+        if( date_Get( &i_pts ) + GOOM_DELAY <= heimdall_tick_now() ) continue;
 
         plane = goom_update( p_plugin_info, p_data, 0, 0.0,
                              NULL, NULL );
@@ -368,7 +369,7 @@ static void *Thread( void *p_thread_data )
     }
 
     goom_close( p_plugin_info );
-    vlc_restorecancel (canc);
+    heimdall_restorecancel (canc);
     return NULL;
 }
 
@@ -380,12 +381,12 @@ static void Close( filter_t *p_filter )
     goom_thread_t *p_thread = p_filter->p_sys;
 
     /* Stop Goom Thread */
-    vlc_mutex_lock( &p_thread->lock );
+    heimdall_mutex_lock( &p_thread->lock );
     p_thread->b_exit = true;
-    vlc_cond_signal( &p_thread->wait );
-    vlc_mutex_unlock( &p_thread->lock );
+    heimdall_cond_signal( &p_thread->wait );
+    heimdall_mutex_unlock( &p_thread->lock );
 
-    vlc_join( p_thread->thread, NULL );
+    heimdall_join( p_thread->thread, NULL );
 
     /* Free data */
     while( p_thread->i_blocks-- )

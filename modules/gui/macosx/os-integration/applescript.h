@@ -2,6 +2,7 @@
  * applescript.h: MacOS X AppleScript support
  *****************************************************************************
  * Copyright (C) 2002-2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Derk-Jan Hartman <thedj@users.sourceforge.net>
  *
@@ -29,9 +30,9 @@
 @end
 
 /*****************************************************************************
- * VLControlScriptCommand interface
+ * HeimdallontrolScriptCommand interface
  *****************************************************************************/
-@interface VLControlScriptCommand : NSScriptCommand
+@interface HeimdallontrolScriptCommand : NSScriptCommand
 @end
 
 /*****************************************************************************

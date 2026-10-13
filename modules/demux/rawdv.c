@@ -1,7 +1,8 @@
 /*****************************************************************************
- * rawdv.c : raw DV input module for vlc
+ * rawdv.c : raw DV input module for heimdall
  *****************************************************************************
  * Copyright (C) 2001-2007 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gildas Bazin <gbazin@netcourrier.com>
  *          Paul Corke <paul dot corke at datatote dot co dot uk>
@@ -29,9 +30,9 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_demux.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_demux.h>
 
 #include "rawdv.h"
 
@@ -42,10 +43,10 @@
 #define HURRYUP_LONGTEXT N_( "The demuxer will advance timestamps if the " \
                 "input can't keep up with the rate." )
 
-static int  Open ( vlc_object_t * );
-static void Close( vlc_object_t * );
+static int  Open ( heimdall_object_t * );
+static void Close( heimdall_object_t * );
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( "DV" )
     set_description( N_("DV (Digital Video) demuxer") )
     set_capability( "demux", 0 )
@@ -58,7 +59,7 @@ vlc_module_begin ()
      * it is possible to force this demux. */
     add_shortcut( "rawdv" )
     add_file_extension("dv")
-vlc_module_end ()
+heimdall_module_end ()
 
 
 /*****************************************************************************
@@ -111,7 +112,7 @@ typedef struct
     int    i_bitrate;
 
     /* program clock reference (in units of 90kHz) */
-    vlc_tick_t i_pcr;
+    heimdall_tick_t i_pcr;
     bool b_hurry_up;
 } demux_sys_t;
 
@@ -124,7 +125,7 @@ static int Control( demux_t *, int i_query, va_list args );
 /*****************************************************************************
  * Open: initializes raw DV demux structures
  *****************************************************************************/
-static int Open( vlc_object_t * p_this )
+static int Open( heimdall_object_t * p_this )
 {
     demux_t     *p_demux = (demux_t*)p_this;
     demux_sys_t *p_sys;
@@ -135,9 +136,9 @@ static int Open( vlc_object_t * p_this )
     dv_header_t dv_header;
     dv_id_t     dv_id;
 
-    if( vlc_stream_Peek( p_demux->s, &p_peek, DV_PAL_FRAME_SIZE ) <
+    if( heimdall_stream_Peek( p_demux->s, &p_peek, DV_PAL_FRAME_SIZE ) <
         DV_NTSC_FRAME_SIZE )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     p_peek_backup = p_peek;
 
@@ -155,7 +156,7 @@ static int Open( vlc_object_t * p_this )
     if( dv_id.sct != 0 )
     {
         msg_Warn( p_demux, "not a raw DV stream header" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* fill in the dv_header_t structure */
@@ -164,7 +165,7 @@ static int Open( vlc_object_t * p_this )
     if( i_dword >> (32 - 1) ) /* incorrect bit */
     {
         msg_Warn( p_demux, "incorrect bit" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     i_dword = GetDWBE( p_peek ); p_peek += 4;
@@ -187,7 +188,7 @@ static int Open( vlc_object_t * p_this )
 
     p_demux->p_sys      = p_sys = malloc( sizeof( demux_sys_t ) );
     if( !p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_sys->b_hurry_up = var_CreateGetBool( p_demux, "rawdv-hurry-up" );
     msg_Dbg( p_demux, "Realtime DV Source: %s", (p_sys->b_hurry_up)?"Yes":"No" );
@@ -203,7 +204,7 @@ static int Open( vlc_object_t * p_this )
 
     p_sys->i_bitrate = 0;
 
-    es_format_Init( &p_sys->fmt_video, VIDEO_ES, VLC_CODEC_DV );
+    es_format_Init( &p_sys->fmt_video, VIDEO_ES, HEIMDALL_CODEC_DV );
     p_sys->fmt_video.video.i_width = 720;
     p_sys->fmt_video.video.i_height= dv_header.dsf ? 576 : 480;
     p_sys->fmt_video.video.i_visible_width = p_sys->fmt_video.video.i_width;
@@ -221,13 +222,13 @@ static int Open( vlc_object_t * p_this )
 
     p_demux->pf_demux   = Demux;
     p_demux->pf_control = Control;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * Close: frees unused data
  *****************************************************************************/
-static void Close( vlc_object_t *p_this )
+static void Close( heimdall_object_t *p_this )
 {
     demux_t     *p_demux = (demux_t*)p_this;
     demux_sys_t *p_sys  = p_demux->p_sys;
@@ -249,17 +250,17 @@ static int Demux( demux_t *p_demux )
     if( p_sys->b_hurry_up )
     {
          /* 3 frames */
-        p_sys->i_pcr = vlc_tick_now() + (p_sys->i_dsf ? VLC_TICK_FROM_MS(120) : VLC_TICK_FROM_MS(90));
+        p_sys->i_pcr = heimdall_tick_now() + (p_sys->i_dsf ? HEIMDALL_TICK_FROM_MS(120) : HEIMDALL_TICK_FROM_MS(90));
     }
 
     /* Call the pace control */
-    es_out_SetPCR( p_demux->out, VLC_TICK_0 + p_sys->i_pcr );
-    p_block = vlc_stream_Block( p_demux->s, p_sys->frame_size );
+    es_out_SetPCR( p_demux->out, HEIMDALL_TICK_0 + p_sys->i_pcr );
+    p_block = heimdall_stream_Block( p_demux->s, p_sys->frame_size );
     if( p_block == NULL )
-        return VLC_DEMUXER_EOF;
+        return HEIMDALL_DEMUXER_EOF;
 
     p_block->i_dts =
-    p_block->i_pts = VLC_TICK_0 + p_sys->i_pcr;
+    p_block->i_pts = HEIMDALL_TICK_0 + p_sys->i_pcr;
 
     if( likely(p_sys->p_es_audio) )
     {
@@ -281,10 +282,10 @@ static int Demux( demux_t *p_demux )
 
     if( !p_sys->b_hurry_up )
     {
-        p_sys->i_pcr += vlc_tick_rate_duration( p_sys->f_rate );
+        p_sys->i_pcr += heimdall_tick_rate_duration( p_sys->f_rate );
     }
 
-    return VLC_DEMUXER_SUCCESS;
+    return HEIMDALL_DEMUXER_SUCCESS;
 }
 
 /*****************************************************************************

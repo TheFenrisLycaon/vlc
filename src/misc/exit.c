@@ -1,7 +1,8 @@
 /*****************************************************************************
- * exit.c: LibVLC termination event
+ * exit.c: LibHeimdall termination event
  *****************************************************************************
  * Copyright (C) 2009-2010 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,45 +23,45 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_interface.h>
-#include "../libvlc.h"
-#include "../lib/libvlc_internal.h"
+#include <heimdall_common.h>
+#include <heimdall_interface.h>
+#include "../libheimdall.h"
+#include "../lib/libheimdall_internal.h"
 
-void vlc_ExitInit( vlc_exit_t *exit )
+void heimdall_ExitInit( heimdall_exit_t *exit )
 {
-    vlc_mutex_init( &exit->lock );
+    heimdall_mutex_init( &exit->lock );
     exit->handler = NULL;
     exit->opaque = NULL;
 }
 
 /**
- * Registers a callback for the LibVLC exit event.
+ * Registers a callback for the LibHeimdall exit event.
  */
-void libvlc_SetExitHandler( libvlc_int_t *p_libvlc, void (*handler) (void *),
+void libheimdall_SetExitHandler( libheimdall_int_t *p_libheimdall, void (*handler) (void *),
                             void *opaque )
 {
-    vlc_exit_t *exit = &libvlc_priv( p_libvlc )->exit;
+    heimdall_exit_t *exit = &libheimdall_priv( p_libheimdall )->exit;
 
-    vlc_mutex_lock( &exit->lock );
+    heimdall_mutex_lock( &exit->lock );
     exit->handler = handler;
     exit->opaque = opaque;
-    vlc_mutex_unlock( &exit->lock );
+    heimdall_mutex_unlock( &exit->lock );
 }
 
 /**
- * Posts an exit signal to LibVLC instance.
+ * Posts an exit signal to LibHeimdall instance.
  * This function should only be called on behalf of the user.
  */
-void libvlc_Quit( libvlc_int_t *p_libvlc )
+void libheimdall_Quit( libheimdall_int_t *p_libheimdall )
 {
-    vlc_exit_t *exit = &libvlc_priv( p_libvlc )->exit;
+    heimdall_exit_t *exit = &libheimdall_priv( p_libheimdall )->exit;
 
-    msg_Dbg( p_libvlc, "exiting" );
-    vlc_mutex_lock( &exit->lock );
+    msg_Dbg( p_libheimdall, "exiting" );
+    heimdall_mutex_lock( &exit->lock );
     if( exit->handler != NULL )
         exit->handler( exit->opaque );
     else
-        msg_Dbg( p_libvlc, "no exit handler" );
-    vlc_mutex_unlock( &exit->lock );
+        msg_Dbg( p_libheimdall, "no exit handler" );
+    heimdall_mutex_unlock( &exit->lock );
 }

@@ -2,6 +2,7 @@
  * musicbrainz.h : Musicbrainz API lookup
  *****************************************************************************
  * Copyright (C) 2019 VideoLabs, VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -17,8 +18,8 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
-#ifndef VLC_MUSICBRAINZ_H_
-#define VLC_MUSICBRAINZ_H_
+#ifndef HEIMDALL_MUSICBRAINZ_H_
+#define HEIMDALL_MUSICBRAINZ_H_
 
 #define MUSICBRAINZ_DEFAULT_SERVER "musicbrainz.org"
 #define COVERARTARCHIVE_DEFAULT_SERVER "coverartarchive.org"
@@ -52,7 +53,7 @@ typedef struct
 
 typedef struct
 {
-    vlc_object_t *obj;
+    heimdall_object_t *obj;
     char *psz_mb_server;
     char *psz_coverart_server;
 } musicbrainz_config_t;

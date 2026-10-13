@@ -2,8 +2,9 @@
  * blend2.cpp: Blend one picture with alpha onto another picture
  *****************************************************************************
  * Copyright (C) 2012 Laurent Aimar
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Laurent Aimar <fenrir _AT_ videolan _DOT_ org>
+ * Authors: Laurent Aimar <fenrir _AT_ lycaria _DOT_ org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -27,10 +28,10 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_picture.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
 #include "filter_picture.h"
 
 /*****************************************************************************
@@ -39,10 +40,10 @@
 static int  Open (filter_t *);
 static void Close(filter_t *);
 
-vlc_module_begin()
+heimdall_module_begin()
     set_description(N_("Video pictures blending"))
     set_callback_video_blending(Open, 100)
-vlc_module_end()
+heimdall_module_end()
 
 static inline unsigned div255(unsigned v)
 {
@@ -267,7 +268,7 @@ class CPictureRGBX : public CPicture {
 public:
     CPictureRGBX(const CPicture &cfg) : CPicture(cfg)
     {
-        if (GetPackedRgbIndexes(fmt->i_chroma, &offset_r, &offset_g, &offset_b, &offset_a) != VLC_SUCCESS) {
+        if (GetPackedRgbIndexes(fmt->i_chroma, &offset_r, &offset_g, &offset_b, &offset_a) != HEIMDALL_SUCCESS) {
             /* at least init to something on error to silence compiler warnings */
             offset_r = 0;
             offset_g = 1;
@@ -339,32 +340,32 @@ public:
         data = CPicture::getLine<1>(0);
         switch (fmt->i_chroma)
         {
-        case VLC_CODEC_RGB565:
+        case HEIMDALL_CODEC_RGB565:
             rmask = 0xf800;
             gmask = 0x07e0;
             bmask = 0x001f;
             break;
-        case VLC_CODEC_BGR565:
+        case HEIMDALL_CODEC_BGR565:
             bmask = 0xf800;
             gmask = 0x07e0;
             rmask = 0x001f;
             break;
-        case VLC_CODEC_RGB555:
+        case HEIMDALL_CODEC_RGB555:
             rmask = 0x7c00;
             gmask = 0x03e0;
             bmask = 0x001f;
             break;
-        case VLC_CODEC_BGR555:
+        case HEIMDALL_CODEC_BGR555:
             bmask = 0x7c00;
             gmask = 0x03e0;
             rmask = 0x001f;
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
         }
-        rshift = vlc_ctz(rmask);
-        gshift = vlc_ctz(gmask);
-        bshift = vlc_ctz(bmask);
+        rshift = heimdall_ctz(rmask);
+        gshift = heimdall_ctz(gmask);
+        bshift = heimdall_ctz(bmask);
     }
     void get(CPixel *px, unsigned dx, bool = true) const
     {
@@ -487,32 +488,32 @@ struct convertRgbToRgbSmall {
         uint32_t rmask, gmask, bmask;
         switch (dst->i_chroma)
         {
-        case VLC_CODEC_RGB565:
+        case HEIMDALL_CODEC_RGB565:
             rmask = 0xf800;
             gmask = 0x07e0;
             bmask = 0x001f;
             break;
-        case VLC_CODEC_BGR565:
+        case HEIMDALL_CODEC_BGR565:
             bmask = 0xf800;
             gmask = 0x07e0;
             rmask = 0x001f;
             break;
-        case VLC_CODEC_RGB555:
+        case HEIMDALL_CODEC_RGB555:
             rmask = 0x7c00;
             gmask = 0x03e0;
             bmask = 0x001f;
             break;
-        case VLC_CODEC_BGR555:
+        case HEIMDALL_CODEC_BGR555:
             bmask = 0x7c00;
             gmask = 0x03e0;
             rmask = 0x001f;
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
         }
-        rshift = 8 - vlc_popcount(rmask);
-        bshift = 8 - vlc_popcount(bmask);
-        gshift = 8 - vlc_popcount(gmask);
+        rshift = 8 - heimdall_popcount(rmask);
+        bshift = 8 - heimdall_popcount(bmask);
+        gshift = 8 - heimdall_popcount(gmask);
     }
     void operator()(CPixel &p)
     {
@@ -610,78 +611,78 @@ typedef void (*blend_function_t)(const CPicture &dst_data, const CPicture &src_d
 namespace {
 
 static const struct {
-    vlc_fourcc_t     dst;
-    vlc_fourcc_t     src;
+    heimdall_fourcc_t     dst;
+    heimdall_fourcc_t     src;
     blend_function_t blend;
 } blends[] = {
 #undef RGB
 #undef YUV
 #define RGB(csp, picture, cvt) \
-    { csp, VLC_CODEC_YUVA, Blend<picture, CPictureYUVA, compose<cvt, convertYuv8ToRgb> > }, \
-    { csp, VLC_CODEC_RGBA, Blend<picture, CPictureRGBA, compose<cvt, convertNone> > }, \
-    { csp, VLC_CODEC_YUVP, Blend<picture, CPictureYUVP, compose<cvt, convertYuvpToRgba> > }
+    { csp, HEIMDALL_CODEC_YUVA, Blend<picture, CPictureYUVA, compose<cvt, convertYuv8ToRgb> > }, \
+    { csp, HEIMDALL_CODEC_RGBA, Blend<picture, CPictureRGBA, compose<cvt, convertNone> > }, \
+    { csp, HEIMDALL_CODEC_YUVP, Blend<picture, CPictureYUVP, compose<cvt, convertYuvpToRgba> > }
 #define YUV(csp, picture, cvt) \
-    { csp, VLC_CODEC_YUVA, Blend<picture, CPictureYUVA, compose<cvt, convertNone> > }, \
-    { csp, VLC_CODEC_RGBA, Blend<picture, CPictureRGBA, compose<cvt, convertRgbToYuv8> > }, \
-    { csp, VLC_CODEC_YUVP, Blend<picture, CPictureYUVP, compose<cvt, convertYuvpToYuva8> > }
+    { csp, HEIMDALL_CODEC_YUVA, Blend<picture, CPictureYUVA, compose<cvt, convertNone> > }, \
+    { csp, HEIMDALL_CODEC_RGBA, Blend<picture, CPictureRGBA, compose<cvt, convertRgbToYuv8> > }, \
+    { csp, HEIMDALL_CODEC_YUVP, Blend<picture, CPictureYUVP, compose<cvt, convertYuvpToYuva8> > }
 
-    RGB(VLC_CODEC_RGB555,   CPictureRGB16,    convertRgbToRgbSmall),
-    RGB(VLC_CODEC_BGR555,   CPictureRGB16,    convertRgbToRgbSmall),
-    RGB(VLC_CODEC_RGB565,   CPictureRGB16,    convertRgbToRgbSmall),
-    RGB(VLC_CODEC_BGR565,   CPictureRGB16,    convertRgbToRgbSmall),
-    RGB(VLC_CODEC_RGB24,    CPictureRGB24,    convertNone),
-    RGB(VLC_CODEC_BGR24,    CPictureRGB24,    convertNone),
-    RGB(VLC_CODEC_RGBA,     CPictureRGBA,     convertNone),
-    RGB(VLC_CODEC_ARGB,     CPictureRGBA,     convertNone),
-    RGB(VLC_CODEC_BGRA,     CPictureBGRA,     convertNone),
-    RGB(VLC_CODEC_ABGR,     CPictureBGRA,     convertNone),
-    RGB(VLC_CODEC_RGBX,     CPictureRGB32,    convertAddOpaque),
-    RGB(VLC_CODEC_XRGB,     CPictureRGB32,    convertAddOpaque),
-    RGB(VLC_CODEC_BGRX,     CPictureRGB32,    convertAddOpaque),
-    RGB(VLC_CODEC_XBGR,     CPictureRGB32,    convertAddOpaque),
+    RGB(HEIMDALL_CODEC_RGB555,   CPictureRGB16,    convertRgbToRgbSmall),
+    RGB(HEIMDALL_CODEC_BGR555,   CPictureRGB16,    convertRgbToRgbSmall),
+    RGB(HEIMDALL_CODEC_RGB565,   CPictureRGB16,    convertRgbToRgbSmall),
+    RGB(HEIMDALL_CODEC_BGR565,   CPictureRGB16,    convertRgbToRgbSmall),
+    RGB(HEIMDALL_CODEC_RGB24,    CPictureRGB24,    convertNone),
+    RGB(HEIMDALL_CODEC_BGR24,    CPictureRGB24,    convertNone),
+    RGB(HEIMDALL_CODEC_RGBA,     CPictureRGBA,     convertNone),
+    RGB(HEIMDALL_CODEC_ARGB,     CPictureRGBA,     convertNone),
+    RGB(HEIMDALL_CODEC_BGRA,     CPictureBGRA,     convertNone),
+    RGB(HEIMDALL_CODEC_ABGR,     CPictureBGRA,     convertNone),
+    RGB(HEIMDALL_CODEC_RGBX,     CPictureRGB32,    convertAddOpaque),
+    RGB(HEIMDALL_CODEC_XRGB,     CPictureRGB32,    convertAddOpaque),
+    RGB(HEIMDALL_CODEC_BGRX,     CPictureRGB32,    convertAddOpaque),
+    RGB(HEIMDALL_CODEC_XBGR,     CPictureRGB32,    convertAddOpaque),
 
-    YUV(VLC_CODEC_I410,     CPictureI410_8,   convertNone),
+    YUV(HEIMDALL_CODEC_I410,     CPictureI410_8,   convertNone),
 
-    YUV(VLC_CODEC_I411,     CPictureI411_8,   convertNone),
+    YUV(HEIMDALL_CODEC_I411,     CPictureI411_8,   convertNone),
 
-    YUV(VLC_CODEC_YV12,     CPictureYV12,     convertNone),
-    YUV(VLC_CODEC_NV12,     CPictureNV12,     convertNone),
-    YUV(VLC_CODEC_NV21,     CPictureNV21,     convertNone),
-    YUV(VLC_CODEC_I420,     CPictureI420_8,   convertNone),
+    YUV(HEIMDALL_CODEC_YV12,     CPictureYV12,     convertNone),
+    YUV(HEIMDALL_CODEC_NV12,     CPictureNV12,     convertNone),
+    YUV(HEIMDALL_CODEC_NV21,     CPictureNV21,     convertNone),
+    YUV(HEIMDALL_CODEC_I420,     CPictureI420_8,   convertNone),
 #ifdef WORDS_BIGENDIAN
-    YUV(VLC_CODEC_I420_9B,  CPictureI420_16,  convert8To9Bits),
-    YUV(VLC_CODEC_I420_10B, CPictureI420_16,  convert8To10Bits),
+    YUV(HEIMDALL_CODEC_I420_9B,  CPictureI420_16,  convert8To9Bits),
+    YUV(HEIMDALL_CODEC_I420_10B, CPictureI420_16,  convert8To10Bits),
 #else
-    YUV(VLC_CODEC_I420_9L,  CPictureI420_16,  convert8To9Bits),
-    YUV(VLC_CODEC_I420_10L, CPictureI420_16,  convert8To10Bits),
+    YUV(HEIMDALL_CODEC_I420_9L,  CPictureI420_16,  convert8To9Bits),
+    YUV(HEIMDALL_CODEC_I420_10L, CPictureI420_16,  convert8To10Bits),
 #endif
 
-    YUV(VLC_CODEC_I422,     CPictureI422_8,   convertNone),
+    YUV(HEIMDALL_CODEC_I422,     CPictureI422_8,   convertNone),
 #ifdef WORDS_BIGENDIAN
-    YUV(VLC_CODEC_I422_9B,  CPictureI422_16,  convert8To9Bits),
-    YUV(VLC_CODEC_I422_10B, CPictureI422_16,  convert8To10Bits),
-    YUV(VLC_CODEC_I422_16B, CPictureI422_16,  convert8To16Bits),
+    YUV(HEIMDALL_CODEC_I422_9B,  CPictureI422_16,  convert8To9Bits),
+    YUV(HEIMDALL_CODEC_I422_10B, CPictureI422_16,  convert8To10Bits),
+    YUV(HEIMDALL_CODEC_I422_16B, CPictureI422_16,  convert8To16Bits),
 #else
-    YUV(VLC_CODEC_I422_9L,  CPictureI422_16,  convert8To9Bits),
-    YUV(VLC_CODEC_I422_10L, CPictureI422_16,  convert8To10Bits),
-    YUV(VLC_CODEC_I422_16L, CPictureI422_16,  convert8To16Bits),
+    YUV(HEIMDALL_CODEC_I422_9L,  CPictureI422_16,  convert8To9Bits),
+    YUV(HEIMDALL_CODEC_I422_10L, CPictureI422_16,  convert8To10Bits),
+    YUV(HEIMDALL_CODEC_I422_16L, CPictureI422_16,  convert8To16Bits),
 #endif
 
-    YUV(VLC_CODEC_I444,     CPictureI444_8,   convertNone),
+    YUV(HEIMDALL_CODEC_I444,     CPictureI444_8,   convertNone),
 #ifdef WORDS_BIGENDIAN
-    YUV(VLC_CODEC_I444_9B,  CPictureI444_16,  convert8To9Bits),
-    YUV(VLC_CODEC_I444_10B, CPictureI444_16,  convert8To10Bits),
-    YUV(VLC_CODEC_I444_16B, CPictureI444_16,  convert8To16Bits),
+    YUV(HEIMDALL_CODEC_I444_9B,  CPictureI444_16,  convert8To9Bits),
+    YUV(HEIMDALL_CODEC_I444_10B, CPictureI444_16,  convert8To10Bits),
+    YUV(HEIMDALL_CODEC_I444_16B, CPictureI444_16,  convert8To16Bits),
 #else
-    YUV(VLC_CODEC_I444_9L,  CPictureI444_16,  convert8To9Bits),
-    YUV(VLC_CODEC_I444_10L, CPictureI444_16,  convert8To10Bits),
-    YUV(VLC_CODEC_I444_16L, CPictureI444_16,  convert8To16Bits),
+    YUV(HEIMDALL_CODEC_I444_9L,  CPictureI444_16,  convert8To9Bits),
+    YUV(HEIMDALL_CODEC_I444_10L, CPictureI444_16,  convert8To10Bits),
+    YUV(HEIMDALL_CODEC_I444_16L, CPictureI444_16,  convert8To16Bits),
 #endif
 
-    YUV(VLC_CODEC_YUYV,     CPictureYUYV,     convertNone),
-    YUV(VLC_CODEC_UYVY,     CPictureUYVY,     convertNone),
-    YUV(VLC_CODEC_YVYU,     CPictureYVYU,     convertNone),
-    YUV(VLC_CODEC_VYUY,     CPictureVYUY,     convertNone),
+    YUV(HEIMDALL_CODEC_YUYV,     CPictureYUYV,     convertNone),
+    YUV(HEIMDALL_CODEC_UYVY,     CPictureUYVY,     convertNone),
+    YUV(HEIMDALL_CODEC_YVYU,     CPictureYVYU,     convertNone),
+    YUV(HEIMDALL_CODEC_VYUY,     CPictureVYUY,     convertNone),
 
 #undef RGB
 #undef YUV
@@ -728,7 +729,7 @@ static void DoBlend(filter_t *filter,
 }
 
 static const struct FilterOperationInitializer {
-    struct vlc_filter_operations ops {};
+    struct heimdall_filter_operations ops {};
     FilterOperationInitializer()
     {
         ops.blend_video = DoBlend;
@@ -738,8 +739,8 @@ static const struct FilterOperationInitializer {
 
 static int Open(filter_t *filter)
 {
-    const vlc_fourcc_t src = filter->fmt_in.video.i_chroma;
-    const vlc_fourcc_t dst = filter->fmt_out.video.i_chroma;
+    const heimdall_fourcc_t src = filter->fmt_in.video.i_chroma;
+    const heimdall_fourcc_t dst = filter->fmt_out.video.i_chroma;
 
     filter_sys_t *sys = new filter_sys_t();
     for (size_t i = 0; i < sizeof(blends) / sizeof(*blends); i++) {
@@ -751,12 +752,12 @@ static int Open(filter_t *filter)
        msg_Err(filter, "no matching alpha blending routine (chroma: %4.4s -> %4.4s)",
                (char *)&src, (char *)&dst);
         delete sys;
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     filter->ops = &filter_ops.ops;
     filter->p_sys          = sys;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void Close(filter_t *filter)

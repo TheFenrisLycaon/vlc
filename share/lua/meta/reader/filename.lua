@@ -2,6 +2,7 @@
  Gets an artwork for french TV channels
 
  Copyright © 2007 the VideoLAN team
+ Copyright (C) 2026 TheFenrisLycaon
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -27,7 +28,7 @@ function trim (s)
 end
 
 function read_meta()
-    local metas = vlc.item:metas()
+    local metas = heimdall.item:metas()
 
     -- Don't do anything if there is already a title
     if metas["title"] then
@@ -48,8 +49,8 @@ function read_meta()
 
     -- Remove . in showName
     showName = trim(string.gsub(showName, "%.", " "))
-    vlc.item:set_meta("title", showName.." S"..seasonNumber.."E"..episodeNumber)
-    vlc.item:set_meta("showName", showName)
-    vlc.item:set_meta("episodeNumber", episodeNumber)
-    vlc.item:set_meta("seasonNumber", seasonNumber)
+    heimdall.item:set_meta("title", showName.." S"..seasonNumber.."E"..episodeNumber)
+    heimdall.item:set_meta("showName", showName)
+    heimdall.item:set_meta("episodeNumber", episodeNumber)
+    heimdall.item:set_meta("seasonNumber", seasonNumber)
 end

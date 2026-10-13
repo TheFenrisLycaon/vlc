@@ -3,21 +3,22 @@
  * fromjson.c: functions to translate json to object.
  *****************************************************************************
  * Copyright © 2025 Videolabs, VideoLAN and VLC authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gabriel Lafond Thenaille <gabriel@videolabs.io>
  *****************************************************************************/
 
-#include "vlc_input.h"
+#include "heimdall_input.h"
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif
 
-#include <vlc_common.h>
-#include <vlc_es.h>
-#include <vlc_input_item.h>
-#include <vlc_preparser.h>
-#include <vlc_preparser_ipc.h>
-#include <vlc_strings.h>
+#include <heimdall_common.h>
+#include <heimdall_es.h>
+#include <heimdall_input_item.h>
+#include <heimdall_preparser.h>
+#include <heimdall_preparser_ipc.h>
+#include <heimdall_strings.h>
 
 #include <assert.h>
 #include <float.h>
@@ -30,8 +31,8 @@
  * Helpers
  */
 
-/* Translate a `const char *` fourcc to its `vlc_fourcc_t` version. */
-static inline vlc_fourcc_t vlc_fourcc_from_char(const char *fourcc)
+/* Translate a `const char *` fourcc to its `heimdall_fourcc_t` version. */
+static inline heimdall_fourcc_t heimdall_fourcc_from_char(const char *fourcc)
 {
     assert(fourcc != NULL);
 
@@ -40,11 +41,11 @@ static inline vlc_fourcc_t vlc_fourcc_from_char(const char *fourcc)
     while (*fourcc != '\0' && i < 4) {
         if (*fourcc == '\\') {
             if (strlen(fourcc) < 4 || fourcc[1] != 'x') {
-                return VLC_CODEC_UNKNOWN;
+                return HEIMDALL_CODEC_UNKNOWN;
             }
             char hex[3] = {fourcc[2], fourcc[3], 0};
             if (sscanf(hex, "%2"SCNx8, &f[i++]) != 1) {
-                return VLC_CODEC_UNKNOWN;
+                return HEIMDALL_CODEC_UNKNOWN;
             }
             fourcc += 4;
         } else {
@@ -52,9 +53,9 @@ static inline vlc_fourcc_t vlc_fourcc_from_char(const char *fourcc)
         }
     }
     if (*fourcc != '\0') {
-        return VLC_CODEC_UNKNOWN;
+        return HEIMDALL_CODEC_UNKNOWN;
     }
-    return VLC_FOURCC(f[0], f[1], f[2], f[3]);
+    return HEIMDALL_FOURCC(f[0], f[1], f[2], f[3]);
 }
 
 /* Get value in `obj` with the key `name` and check if it's a number and if
@@ -484,7 +485,7 @@ static void fromJSON_audio_format(struct serdes_sys *sys,
     assert(audio != NULL);
     assert(error != NULL);
 
-    VLC_UNUSED(sys);
+    HEIMDALL_UNUSED(sys);
 
     bool err = false;
 
@@ -513,7 +514,7 @@ static void fromJSON_audio_replay_gain(struct serdes_sys *sys,
     assert(ar != NULL);
     assert(error != NULL);
 
-    VLC_UNUSED(sys);
+    HEIMDALL_UNUSED(sys);
 
     bool err = false;
 
@@ -537,7 +538,7 @@ static void fromJSON_video_palette(struct serdes_sys *sys,
     assert(palette != NULL);
     assert(error != NULL);
 
-    VLC_UNUSED(sys);
+    HEIMDALL_UNUSED(sys);
 
     bool err = false;
 
@@ -592,7 +593,7 @@ static void fromJSON_video_format(struct serdes_sys *sys,
 
     char *chroma = NULL;
     json_object_to_string(obj, "i_chroma", &chroma, &err);
-    video->i_chroma = chroma != NULL ? vlc_fourcc_from_char(chroma) : 0;
+    video->i_chroma = chroma != NULL ? heimdall_fourcc_from_char(chroma) : 0;
     free(chroma);
     json_object_to_uint(obj, "i_width", &video->i_width, &err);
     json_object_to_uint(obj, "i_height", &video->i_height, &err);
@@ -701,7 +702,7 @@ static void fromJSON_subs_format(struct serdes_sys *sys,
     assert(sub != NULL);
     assert(error != NULL);
 
-    VLC_UNUSED(sys);
+    HEIMDALL_UNUSED(sys);
 
     bool err = false;
 
@@ -760,11 +761,11 @@ static void fromJSON_es_format(struct serdes_sys *sys,
 
     char *fourcc = NULL;
     json_object_to_string(obj, "i_codec", &fourcc, &err);
-    es->i_codec = fourcc != NULL ? vlc_fourcc_from_char(fourcc) : 0;
+    es->i_codec = fourcc != NULL ? heimdall_fourcc_from_char(fourcc) : 0;
     free(fourcc);
     fourcc = NULL;
     json_object_to_string(obj, "i_original_fourcc", &fourcc, &err);
-    es->i_original_fourcc = fourcc != NULL ? vlc_fourcc_from_char(fourcc) : 0;
+    es->i_original_fourcc = fourcc != NULL ? heimdall_fourcc_from_char(fourcc) : 0;
     free(fourcc);
 
     json_object_to_integer(obj, "i_id", &es->i_id, &err, -1, INT_MAX);
@@ -776,8 +777,8 @@ static void fromJSON_es_format(struct serdes_sys *sys,
 
     unsigned int elvec_size = 0;
     json_object_to_uint(obj, "i_extra_languages", &elvec_size, &err);
-    struct VLC_VECTOR(extra_languages_t) el_vec = VLC_VECTOR_INITIALIZER;
-    vlc_vector_init(&el_vec);
+    struct HEIMDALL_VECTOR(extra_languages_t) el_vec = HEIMDALL_VECTOR_INITIALIZER;
+    heimdall_vector_init(&el_vec);
 
     struct json_value *v;
     json_array_foreach_ref(obj, "p_extra_languages", v, &err) {
@@ -791,7 +792,7 @@ static void fromJSON_es_format(struct serdes_sys *sys,
                               &err);
 
         if (!err) {
-            err = !vlc_vector_push(&el_vec, el);
+            err = !heimdall_vector_push(&el_vec, el);
         }
         if (err) {
             free(el.psz_language);
@@ -801,14 +802,14 @@ static void fromJSON_es_format(struct serdes_sys *sys,
     if (elvec_size == el_vec.size) {
         es->p_extra_languages = el_vec.data;
         es->i_extra_languages = el_vec.size;
-        vlc_vector_init(&el_vec);
+        heimdall_vector_init(&el_vec);
     } else {
         extra_languages_t *el;
-        vlc_vector_foreach_ref(el, &el_vec) {
+        heimdall_vector_foreach_ref(el, &el_vec) {
             free(el->psz_language);
             free(el->psz_description);
         }
-        vlc_vector_clear(&el_vec);
+        heimdall_vector_clear(&el_vec);
         err = true;
     }
 
@@ -859,14 +860,14 @@ static void fromJSON_input_item_es(struct serdes_sys *sys,
 }
 
 static void fromJSON_meta(struct serdes_sys *sys,
-                          const struct json_object *obj, vlc_meta_t *meta,
+                          const struct json_object *obj, heimdall_meta_t *meta,
                           bool *error)
 {
     assert(obj != NULL);
     assert(meta != NULL);
     assert(error != NULL);
 
-    VLC_UNUSED(sys);
+    HEIMDALL_UNUSED(sys);
 
     bool err = false;
 
@@ -878,10 +879,10 @@ static void fromJSON_meta(struct serdes_sys *sys,
             err = true; \
             break; \
         } \
-        vlc_meta_priority_t p_##type = VLC_META_PRIORITY_BASIC;\
+        heimdall_meta_priority_t p_##type = HEIMDALL_META_PRIORITY_BASIC;\
         json_object_to_enum(o_##type, "priority", &p_##type, &err,\
-                            VLC_META_PRIORITY_BASIC,\
-                            VLC_META_PRIORITY_INBAND);\
+                            HEIMDALL_META_PRIORITY_BASIC,\
+                            HEIMDALL_META_PRIORITY_INBAND);\
         char *v_##type = NULL;\
         json_object_to_string(o_##type, "value", &v_##type, &err); \
         if (err) { \
@@ -889,7 +890,7 @@ static void fromJSON_meta(struct serdes_sys *sys,
             err = true; \
             break; \
         } \
-        vlc_meta_SetWithPriority(meta, vlc_meta_##type, v_##type, p_##type); \
+        heimdall_meta_SetWithPriority(meta, heimdall_meta_##type, v_##type, p_##type); \
         free(v_##type); \
     } while (0)
 
@@ -933,18 +934,18 @@ static void fromJSON_meta(struct serdes_sys *sys,
         json_object_to_string(&v->object, "key", &key, &err);
         char *value = NULL;
         json_object_to_string(&v->object, "value", &value, &err);
-        vlc_meta_priority_t priority = VLC_META_PRIORITY_BASIC;
+        heimdall_meta_priority_t priority = HEIMDALL_META_PRIORITY_BASIC;
         json_object_to_enum(&v->object, "priority", &priority, &err,
-                            VLC_META_PRIORITY_BASIC, VLC_META_PRIORITY_INBAND);
+                            HEIMDALL_META_PRIORITY_BASIC, HEIMDALL_META_PRIORITY_INBAND);
         if (err == false) {
-            vlc_meta_SetExtraWithPriority(meta, key, value, priority);
+            heimdall_meta_SetExtraWithPriority(meta, key, value, priority);
         }
         free(key);
         free(value);
     }
     int status = 0;
     json_object_to_int(obj, "i_status", &status, &err);
-    vlc_meta_SetStatus(meta, status);
+    heimdall_meta_SetStatus(meta, status);
 
     *error |= err;
 }
@@ -958,7 +959,7 @@ static void fromJSON_input_item_slave(struct serdes_sys *sys,
     assert(slave != NULL);
     assert(error != NULL);
 
-    VLC_UNUSED(sys);
+    HEIMDALL_UNUSED(sys);
 
     bool err = false;
 
@@ -1007,7 +1008,7 @@ static void fromJSON_input_item(struct serdes_sys *sys,
 
     /* Iterate over the json es_vec array, fill an input_item_es struct and
      * push it to the es_vec vector. */
-    vlc_vector_clear(&i->es_vec);
+    heimdall_vector_clear(&i->es_vec);
     struct json_value *v;
     json_array_foreach_ref(obj, "es_vec", v, &err) {
         if (v->type != JSON_OBJECT) {
@@ -1016,7 +1017,7 @@ static void fromJSON_input_item(struct serdes_sys *sys,
         struct input_item_es item_es = {0};
         fromJSON_input_item_es(sys, &v->object, &item_es, &err);
         if (!err) {
-            err = !vlc_vector_push(&i->es_vec, item_es);
+            err = !heimdall_vector_push(&i->es_vec, item_es);
         }
 
         if (err) {
@@ -1026,7 +1027,7 @@ static void fromJSON_input_item(struct serdes_sys *sys,
 
     /* Create a new meta object and fill it with p_meta json object. */
     if (i->p_meta == NULL) {
-        i->p_meta = vlc_meta_New();
+        i->p_meta = heimdall_meta_New();
     }
     err |= i->p_meta == NULL;
     if (!err) {
@@ -1086,7 +1087,7 @@ fromJSON_input_attachment(struct serdes_sys *sys,
     }
 
     if (!err) {
-        *a = vlc_input_attachment_New(name, mime, description, NULL, 0);
+        *a = heimdall_input_attachment_New(name, mime, description, NULL, 0);
         if (*a == NULL) {
             err = true;
         }
@@ -1119,7 +1120,7 @@ fromJSON_input_attachment(struct serdes_sys *sys,
     }
     *error = true;
     free(data);
-    vlc_input_attachment_Release(*a);
+    heimdall_input_attachment_Release(*a);
 }
 
 static void
@@ -1295,23 +1296,23 @@ fromJSON_picture(struct serdes_sys *sys, const struct json_object *obj,
 }
 
 static void
-fromJSON_vlc_thumbnailer_output(struct serdes_sys *sys,
+fromJSON_heimdall_thumbnailer_output(struct serdes_sys *sys,
                                 const struct json_object *obj,
-                                struct vlc_thumbnailer_output *out,
+                                struct heimdall_thumbnailer_output *out,
                                 bool *error)
 {
     assert(obj != NULL);
     assert(out != NULL);
     assert(error != NULL);
 
-    VLC_UNUSED(sys);
+    HEIMDALL_UNUSED(sys);
 
     bool err = false;
 
 
     json_object_to_enum(obj, "format", &out->format, &err,
-                        VLC_THUMBNAILER_FORMAT_PNG,
-                        VLC_THUMBNAILER_FORMAT_JPEG);
+                        HEIMDALL_THUMBNAILER_FORMAT_PNG,
+                        HEIMDALL_THUMBNAILER_FORMAT_JPEG);
     json_object_to_int(obj, "width", &out->width, &err);
     json_object_to_int(obj, "height", &out->height, &err);
     json_object_to_boolean(obj, "crop", &out->crop, &err);
@@ -1321,9 +1322,9 @@ fromJSON_vlc_thumbnailer_output(struct serdes_sys *sys,
 }
 
 static void
-fromJSON_vlc_preparser_msg_req(struct serdes_sys *sys,
+fromJSON_heimdall_preparser_msg_req(struct serdes_sys *sys,
                                const struct json_object *obj,
-                               struct vlc_preparser_msg_req *req, bool *error)
+                               struct heimdall_preparser_msg_req *req, bool *error)
 {
     assert(obj != NULL);
     assert(req != NULL);
@@ -1334,16 +1335,16 @@ fromJSON_vlc_preparser_msg_req(struct serdes_sys *sys,
     const struct json_value *v = NULL;
 
     json_object_to_enum(obj, "type", &req->type, &err,
-                        VLC_PREPARSER_MSG_REQ_TYPE_PARSE,
-                        VLC_PREPARSER_MSG_REQ_TYPE_THUMBNAIL_TO_FILES);
+                        HEIMDALL_PREPARSER_MSG_REQ_TYPE_PARSE,
+                        HEIMDALL_PREPARSER_MSG_REQ_TYPE_THUMBNAIL_TO_FILES);
     if (err) {
         *error = true;
         return;
     }
-    if (req->type == VLC_PREPARSER_MSG_REQ_TYPE_PARSE) {
+    if (req->type == HEIMDALL_PREPARSER_MSG_REQ_TYPE_PARSE) {
         json_object_to_int(obj, "options", &req->options, &err);
     } else {
-        if (req->type == VLC_PREPARSER_MSG_REQ_TYPE_THUMBNAIL_TO_FILES) {
+        if (req->type == HEIMDALL_PREPARSER_MSG_REQ_TYPE_THUMBNAIL_TO_FILES) {
             json_array_foreach_ref(obj, "outputs", v, &err) {
                 if (v->type != JSON_OBJECT) {
                     err = true;
@@ -1352,7 +1353,7 @@ fromJSON_vlc_preparser_msg_req(struct serdes_sys *sys,
                 char *ptr = NULL;
                 json_object_to_string(&v->object, "file_path", &ptr, &err);
                 if (!err) {
-                    vlc_vector_push(&req->outputs_path, ptr);
+                    heimdall_vector_push(&req->outputs_path, ptr);
                 }
             }
             json_array_foreach_ref(obj, "outputs", v, &err) {
@@ -1360,20 +1361,20 @@ fromJSON_vlc_preparser_msg_req(struct serdes_sys *sys,
                     err = true;
                     break;
                 }
-                struct vlc_thumbnailer_output out;
-                fromJSON_vlc_thumbnailer_output(sys, &v->object, &out, &err);
+                struct heimdall_thumbnailer_output out;
+                fromJSON_heimdall_thumbnailer_output(sys, &v->object, &out, &err);
                 size_t i = req->outputs.size;
                 err |= i >= req->outputs_path.size;
                 if (!err) {
                     out.file_path = req->outputs_path.data[i];
-                    vlc_vector_push(&req->outputs, out);
+                    heimdall_vector_push(&req->outputs, out);
                 }
             }
         }
         json_object_to_enum(obj, "seek.type", &req->arg.seek.type, &err,
-                            VLC_THUMBNAILER_SEEK_NONE,
-                            VLC_THUMBNAILER_SEEK_POS);
-        if (req->arg.seek.type == VLC_THUMBNAILER_SEEK_TIME) {
+                            HEIMDALL_THUMBNAILER_SEEK_NONE,
+                            HEIMDALL_THUMBNAILER_SEEK_POS);
+        if (req->arg.seek.type == HEIMDALL_THUMBNAILER_SEEK_TIME) {
             json_object_to_int(obj, "seek.time", &req->arg.seek.time,
                                  &err);
         } else {
@@ -1381,8 +1382,8 @@ fromJSON_vlc_preparser_msg_req(struct serdes_sys *sys,
                                   &err);
         }
         json_object_to_enum(obj, "seek.speed", &req->arg.seek.speed,
-                            &err, VLC_THUMBNAILER_SEEK_PRECISE,
-                            VLC_THUMBNAILER_SEEK_FAST);
+                            &err, HEIMDALL_THUMBNAILER_SEEK_PRECISE,
+                            HEIMDALL_THUMBNAILER_SEEK_FAST);
         json_object_to_boolean(obj, "hw_dec", &req->arg.hw_dec, &err);
     }
     json_object_to_string(obj, "uri", &req->uri, &err);
@@ -1391,9 +1392,9 @@ fromJSON_vlc_preparser_msg_req(struct serdes_sys *sys,
 }
 
 static void
-fromJSON_vlc_preparser_msg_res(struct serdes_sys *sys,
+fromJSON_heimdall_preparser_msg_res(struct serdes_sys *sys,
                                const struct json_object *obj,
-                               struct vlc_preparser_msg_res *res, bool *error)
+                               struct heimdall_preparser_msg_res *res, bool *error)
 {
     assert(obj != NULL);
     assert(res != NULL);
@@ -1404,10 +1405,10 @@ fromJSON_vlc_preparser_msg_res(struct serdes_sys *sys,
     const struct json_value *v = NULL;
 
     json_object_to_enum(obj, "type", &res->type, &err,
-                        VLC_PREPARSER_MSG_REQ_TYPE_PARSE,
-                        VLC_PREPARSER_MSG_REQ_TYPE_THUMBNAIL_TO_FILES);
+                        HEIMDALL_PREPARSER_MSG_REQ_TYPE_PARSE,
+                        HEIMDALL_PREPARSER_MSG_REQ_TYPE_THUMBNAIL_TO_FILES);
     switch (res->type) {
-        case VLC_PREPARSER_MSG_REQ_TYPE_PARSE:
+        case HEIMDALL_PREPARSER_MSG_REQ_TYPE_PARSE:
             json_array_foreach_ref(obj, "attachments", v, &err) {
                 if (v->type != JSON_OBJECT) {
                     err = true;
@@ -1416,27 +1417,27 @@ fromJSON_vlc_preparser_msg_res(struct serdes_sys *sys,
                 input_attachment_t *a;
                 fromJSON_input_attachment(sys, &v->object, &a, &err);
                 if (!err) {
-                    vlc_vector_push(&res->attachments, a);
+                    heimdall_vector_push(&res->attachments, a);
                 }
             }
             json_object_from_name(sys, obj, "subtree", &res->subtree, err,
                                   true, fromJSON_input_item_node);
             break;
-        case VLC_PREPARSER_MSG_REQ_TYPE_THUMBNAIL:
+        case HEIMDALL_PREPARSER_MSG_REQ_TYPE_THUMBNAIL:
             json_object_from_name(sys, obj, "pic", &res->pic, err, true,
                                   fromJSON_picture);
             break;
-        case VLC_PREPARSER_MSG_REQ_TYPE_THUMBNAIL_TO_FILES:
+        case HEIMDALL_PREPARSER_MSG_REQ_TYPE_THUMBNAIL_TO_FILES:
             json_array_foreach_ref(obj, "result", v, &err) {
                 if (v->type != JSON_BOOLEAN) {
                     err = true;
                     break;
                 }
-                vlc_vector_push(&res->result, v->boolean);
+                heimdall_vector_push(&res->result, v->boolean);
             }
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
     json_object_to_int(obj, "status", &res->status, &err);
 
@@ -1448,8 +1449,8 @@ fromJSON_vlc_preparser_msg_res(struct serdes_sys *sys,
 }
 
 bool
-fromJSON_vlc_preparser_msg(struct serdes_sys *sys,
-                           struct vlc_preparser_msg *msg,
+fromJSON_heimdall_preparser_msg(struct serdes_sys *sys,
+                           struct heimdall_preparser_msg *msg,
                            const struct json_object *obj)
 {
     assert(sys != NULL);
@@ -1460,26 +1461,26 @@ fromJSON_vlc_preparser_msg(struct serdes_sys *sys,
 
     int msg_type = 0;
     json_object_to_enum(obj, "type", &msg_type, &err,
-                        VLC_PREPARSER_MSG_TYPE_REQ,
-                        VLC_PREPARSER_MSG_TYPE_RES);
+                        HEIMDALL_PREPARSER_MSG_TYPE_REQ,
+                        HEIMDALL_PREPARSER_MSG_TYPE_RES);
 
     int req_type = 0;
     json_object_to_enum(obj, "req_type", &req_type, &err,
-                        VLC_PREPARSER_MSG_REQ_TYPE_PARSE,
-                        VLC_PREPARSER_MSG_REQ_TYPE_THUMBNAIL_TO_FILES);
+                        HEIMDALL_PREPARSER_MSG_REQ_TYPE_PARSE,
+                        HEIMDALL_PREPARSER_MSG_REQ_TYPE_THUMBNAIL_TO_FILES);
 
-    vlc_preparser_msg_Init(msg, msg_type, req_type);
+    heimdall_preparser_msg_Init(msg, msg_type, req_type);
 
-    if (msg_type == VLC_PREPARSER_MSG_TYPE_REQ) {
+    if (msg_type == HEIMDALL_PREPARSER_MSG_TYPE_REQ) {
         json_object_from_name(sys, obj, "req", &msg->req, err, false,
-                              fromJSON_vlc_preparser_msg_req);
+                              fromJSON_heimdall_preparser_msg_req);
     } else {
         json_object_from_name(sys, obj, "res", &msg->res, err, false,
-                              fromJSON_vlc_preparser_msg_res);
+                              fromJSON_heimdall_preparser_msg_res);
     }
 
     if (err) {
-        vlc_preparser_msg_Clean(msg);
+        heimdall_preparser_msg_Clean(msg);
     }
     return err;
 }

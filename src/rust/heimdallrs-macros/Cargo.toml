@@ -1,0 +1,17 @@
+[package]
+name = "heimdallrs-macros"
+edition = "2021"
+version.workspace = true
+license.workspace = true
+
+[lib]
+proc-macro = true
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(heimdall_static_plugins)'] }
+
+[dependencies]
+heimdallrs-core = { path = "../heimdallrs-core" }
+quote = "1.0"
+syn = { version = "1.0", features = ["full"] }
+proc-macro2 = "1.0"

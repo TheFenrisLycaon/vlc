@@ -2,9 +2,10 @@
  * screen.c: Screen capture module.
  *****************************************************************************
  * Copyright (C) 2004-2008 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gildas Bazin <gbazin@videolan.org>
- *          Antoine Cellerier <dionoea at videolan dot org>
+ *          Antoine Cellerier <dionoea at lycaria dot org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -29,13 +30,13 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_url.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_url.h>
 #include "screen.h"
 #ifdef SCREEN_MOUSE
-#   include <vlc_image.h>
+#   include <heimdall_image.h>
 #endif
 
 /*****************************************************************************
@@ -86,8 +87,8 @@
     "Index of screen (1, 2, 3, ...). Alternative to Display ID." )
 #endif
 
-static int  Open ( vlc_object_t * );
-static void Close( vlc_object_t * );
+static int  Open ( heimdall_object_t * );
+static void Close( heimdall_object_t * );
 
 #ifdef _WIN32
 #   define SCREEN_FPS 1
@@ -95,7 +96,7 @@ static void Close( vlc_object_t * );
 #   define SCREEN_FPS 5
 #endif
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("Screen Input") )
     set_shortname( N_("Screen" ))
     set_subcategory( SUBCAT_INPUT_ACCESS )
@@ -128,7 +129,7 @@ vlc_module_begin ()
     set_capability( "access", 0 )
     add_shortcut( "screen" )
     set_callbacks( Open, Close )
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * Local prototypes
@@ -139,23 +140,23 @@ static int Demux  ( demux_t * );
 /*****************************************************************************
  * DemuxOpen:
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     demux_t     *p_demux = (demux_t*)p_this;
     demux_sys_t *p_sys;
 
     if (p_demux->out == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* Fill p_demux field */
     p_demux->pf_demux = Demux;
     p_demux->pf_control = Control;
     p_demux->p_sys = p_sys = calloc( 1, sizeof( demux_sys_t ) );
     if( !p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_sys->f_fps = var_CreateGetFloat( p_demux, "screen-fps" );
-    p_sys->i_incr = vlc_tick_rate_duration( p_sys->f_fps );
+    p_sys->i_incr = heimdall_tick_rate_duration( p_sys->f_fps );
     p_sys->i_next_date = 0;
 
 #ifdef SCREEN_SUBSCREEN
@@ -165,15 +166,15 @@ static int Open( vlc_object_t *p_this )
     p_sys->i_height = var_CreateGetInteger( p_demux, "screen-height" );
 #endif
 
-    if( screen_InitCapture( p_demux ) != VLC_SUCCESS )
+    if( screen_InitCapture( p_demux ) != HEIMDALL_SUCCESS )
     {
         free( p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     msg_Dbg( p_demux, "screen width: %i, height: %i, depth: %i",
              p_sys->fmt.video.i_width, p_sys->fmt.video.i_height,
-             vlc_fourcc_GetChromaBPP(p_sys->fmt.video.i_chroma) );
+             heimdall_fourcc_GetChromaBPP(p_sys->fmt.video.i_chroma) );
 
 #ifdef SCREEN_SUBSCREEN
     if( p_sys->i_left >= p_sys->fmt.video.i_width
@@ -181,7 +182,7 @@ static int Open( vlc_object_t *p_this )
     {
         msg_Err( p_demux, "subscreen left/top out of range" );
         free( p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( p_sys->i_width == 0 )
@@ -194,7 +195,7 @@ static int Open( vlc_object_t *p_this )
     {
         msg_Err( p_demux, "subscreen region overflows the screen" );
         free( p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     else
     {
@@ -215,14 +216,14 @@ static int Open( vlc_object_t *p_this )
 
 #ifdef SCREEN_MOUSE
     char *mousefile = var_InheritString( p_demux, "screen-mouse-image" );
-    char *mouseurl = mousefile ? vlc_path2uri( mousefile, NULL ) : NULL;
+    char *mouseurl = mousefile ? heimdall_path2uri( mousefile, NULL ) : NULL;
     free( mousefile );
     if( mouseurl )
     {
         image_handler_t *p_image;
         video_format_t fmt_out;
         msg_Dbg( p_demux, "Using %s for the mouse pointer image", mouseurl );
-        video_format_Init( &fmt_out, VLC_CODEC_RGBA );
+        video_format_Init( &fmt_out, HEIMDALL_CODEC_RGBA );
         p_image = image_HandlerCreate( p_demux );
         if( p_image )
         {
@@ -240,15 +241,15 @@ static int Open( vlc_object_t *p_this )
 
     p_sys->es = es_out_Add( p_demux->out, &p_sys->fmt );
 
-    p_sys->i_start = vlc_tick_now();
+    p_sys->i_start = heimdall_tick_now();
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * Close:
  *****************************************************************************/
-static void Close( vlc_object_t *p_this )
+static void Close( heimdall_object_t *p_this )
 {
     demux_t     *p_demux = (demux_t*)p_this;
     demux_sys_t *p_sys = p_demux->p_sys;
@@ -270,14 +271,14 @@ static int Demux( demux_t *p_demux )
     demux_sys_t *p_sys = p_demux->p_sys;
     block_t *p_block;
 
-    if( !p_sys->i_next_date ) p_sys->i_next_date = vlc_tick_now();
+    if( !p_sys->i_next_date ) p_sys->i_next_date = heimdall_tick_now();
 
     /* Frame skipping if necessary */
     int64_t extra_frames;
-    extra_frames = (vlc_tick_now() - p_sys->i_next_date) / p_sys->i_incr;
+    extra_frames = (heimdall_tick_now() - p_sys->i_next_date) / p_sys->i_incr;
     p_sys->i_next_date += extra_frames * p_sys->i_incr;
 
-    vlc_tick_wait( p_sys->i_next_date );
+    heimdall_tick_wait( p_sys->i_next_date );
     p_block = p_sys->ops->capture( p_demux );
     if( !p_block )
     {
@@ -286,7 +287,7 @@ static int Demux( demux_t *p_demux )
     }
 
     // ensure the output DTS matches our ticks if the capture took too long
-    extra_frames = (vlc_tick_now() - p_sys->i_next_date) / p_sys->i_incr;
+    extra_frames = (heimdall_tick_now() - p_sys->i_next_date) / p_sys->i_incr;
     p_sys->i_next_date += extra_frames * p_sys->i_incr;
 
     p_block->i_dts = p_block->i_pts = p_sys->i_next_date;
@@ -316,20 +317,20 @@ static int Control( demux_t *p_demux, int i_query, va_list args )
             /* TODO */
             pb = va_arg( args, bool * );
             *pb = false;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
 
         case DEMUX_GET_PTS_DELAY:
-            *va_arg( args, vlc_tick_t * ) =
-                VLC_TICK_FROM_MS(var_InheritInteger( p_demux, "live-caching" ));
-            return VLC_SUCCESS;
+            *va_arg( args, heimdall_tick_t * ) =
+                HEIMDALL_TICK_FROM_MS(var_InheritInteger( p_demux, "live-caching" ));
+            return HEIMDALL_SUCCESS;
 
         case DEMUX_GET_TIME:
-            *va_arg( args, vlc_tick_t * ) = vlc_tick_now() - p_sys->i_start;
-            return VLC_SUCCESS;
+            *va_arg( args, heimdall_tick_t * ) = heimdall_tick_now() - p_sys->i_start;
+            return HEIMDALL_SUCCESS;
 
         /* TODO implement others */
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 }
 

@@ -2,6 +2,7 @@
  * errno.c
  *****************************************************************************
  * Copyright (C) 2007-2018 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Hugo Beauzée-Luyssen <hugo@beauzee.fr>
  *
@@ -26,7 +27,7 @@
 
 #include <errno.h>
 
-#include "../vlc.h"
+#include "../heimdall.h"
 #include "../libs.h"
 
 void luaopen_errno( lua_State *L )

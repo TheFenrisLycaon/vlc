@@ -2,11 +2,12 @@
  * video.c: transcoding stream output module (video)
  *****************************************************************************
  * Copyright (C) 2003-2009 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *          Gildas Bazin <gbazin@videolan.org>
  *          Jean-Paul Saman <jpsaman #_at_# m2x dot nl>
- *          Antoine Cellerier <dionoea at videolan dot org>
+ *          Antoine Cellerier <dionoea at lycaria dot org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -30,11 +31,11 @@
 #include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_meta.h>
-#include <vlc_spu.h>
-#include <vlc_modules.h>
-#include <vlc_sout.h>
+#include <heimdall_common.h>
+#include <heimdall_meta.h>
+#include <heimdall_spu.h>
+#include <heimdall_modules.h>
+#include <heimdall_sout.h>
 
 #include "transcode.h"
 
@@ -46,11 +47,11 @@ struct encoder_owner
     sout_stream_id_sys_t *id;
 };
 
-static vlc_decoder_device *TranscodeHoldDecoderDevice(vlc_object_t *o, sout_stream_id_sys_t *id)
+static heimdall_decoder_device *TranscodeHoldDecoderDevice(heimdall_object_t *o, sout_stream_id_sys_t *id)
 {
     if (id->dec_dev == NULL)
-        id->dec_dev = vlc_decoder_device_Create( o, NULL );
-    return id->dec_dev ? vlc_decoder_device_Hold(id->dec_dev) : NULL;
+        id->dec_dev = heimdall_decoder_device_Create( o, NULL );
+    return id->dec_dev ? heimdall_decoder_device_Hold(id->dec_dev) : NULL;
 }
 
 static inline struct encoder_owner *enc_get_owner( encoder_t *p_enc )
@@ -58,20 +59,20 @@ static inline struct encoder_owner *enc_get_owner( encoder_t *p_enc )
     return container_of( p_enc, struct encoder_owner, enc );
 }
 
-static vlc_decoder_device *video_get_encoder_device( encoder_t *enc )
+static heimdall_decoder_device *video_get_encoder_device( encoder_t *enc )
 {
     struct encoder_owner *p_owner = enc_get_owner( enc );
     if (p_owner->id->dec_dev == NULL)
-        p_owner->id->dec_dev = vlc_decoder_device_Create( &enc->obj, NULL );
+        p_owner->id->dec_dev = heimdall_decoder_device_Create( &enc->obj, NULL );
 
-    return p_owner->id->dec_dev ? vlc_decoder_device_Hold(p_owner->id->dec_dev) : NULL;
+    return p_owner->id->dec_dev ? heimdall_decoder_device_Hold(p_owner->id->dec_dev) : NULL;
 }
 
 static const struct encoder_owner_callbacks encoder_video_transcode_cbs = {
     .video.get_device = video_get_encoder_device
 };
 
-static vlc_decoder_device * video_get_decoder_device( decoder_t *p_dec )
+static heimdall_decoder_device * video_get_decoder_device( decoder_t *p_dec )
 {
     if( !var_InheritBool( p_dec, "hw-dec" ) )
         return NULL;
@@ -80,7 +81,7 @@ static vlc_decoder_device * video_get_decoder_device( decoder_t *p_dec )
     return TranscodeHoldDecoderDevice(&p_dec->obj, p_owner->id);
 }
 
-static void debug_format( vlc_object_t *p_obj, const es_format_t *fmt )
+static void debug_format( heimdall_object_t *p_obj, const es_format_t *fmt )
 {
     msg_Dbg( p_obj, "format now %4.4s/%4.4s %dx%d(%dx%d) ø%d",
              (const char *) &fmt->i_codec,
@@ -96,7 +97,7 @@ static picture_t *transcode_video_filter_buffer_new( filter_t *p_filter )
     return picture_NewFromFormat( &p_filter->fmt_out.video );
 }
 
-static vlc_decoder_device * transcode_video_filter_hold_device(vlc_object_t *o, void *sys)
+static heimdall_decoder_device * transcode_video_filter_hold_device(heimdall_object_t *o, void *sys)
 {
     sout_stream_id_sys_t *id = sys;
     return TranscodeHoldDecoderDevice(o, id);
@@ -110,24 +111,24 @@ static const struct filter_video_callbacks transcode_filter_video_cbs =
 static int transcode_video_filters_init( sout_stream_t *p_stream,
                                          const sout_filters_config_t *p_cfg,
                                          const es_format_t *p_src,
-                                         vlc_video_context *src_ctx,
+                                         heimdall_video_context *src_ctx,
                                          const es_format_t *p_dst,
                                          sout_stream_id_sys_t *id );
 
-static int video_update_format_decoder( decoder_t *p_dec, vlc_video_context *vctx )
+static int video_update_format_decoder( decoder_t *p_dec, heimdall_video_context *vctx )
 {
     struct decoder_owner *p_owner = dec_get_owner( p_dec );
     sout_stream_id_sys_t *id = p_owner->id;
 
     if( atomic_load_explicit(&id->b_error, memory_order_acquire) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    vlc_mutex_lock(&id->fifo.lock);
+    heimdall_mutex_lock(&id->fifo.lock);
     if( id->encoder != NULL && transcode_encoder_opened( id->encoder ) )
     {
         if( video_format_IsSimilar( &p_dec->fmt_out.video, &id->decoder_out.video ) )
         {
-            vlc_mutex_unlock(&id->fifo.lock);
+            heimdall_mutex_unlock(&id->fifo.lock);
             goto end;
         }
 
@@ -138,19 +139,19 @@ static int video_update_format_decoder( decoder_t *p_dec, vlc_video_context *vct
     else if( id->encoder == NULL )
     {
         struct encoder_owner *p_enc_owner =
-           (struct encoder_owner *)sout_EncoderCreate( VLC_OBJECT(p_owner->p_stream), sizeof(struct encoder_owner) );
+           (struct encoder_owner *)sout_EncoderCreate( HEIMDALL_OBJECT(p_owner->p_stream), sizeof(struct encoder_owner) );
         if ( unlikely(p_enc_owner == NULL))
         {
-            vlc_mutex_unlock(&id->fifo.lock);
-            return VLC_EGENERIC;
+            heimdall_mutex_unlock(&id->fifo.lock);
+            return HEIMDALL_EGENERIC;
         }
 
         id->encoder = transcode_encoder_new( &p_enc_owner->enc, &p_dec->fmt_out );
         if( !id->encoder )
         {
-            vlc_object_delete( &p_enc_owner->enc );
-            vlc_mutex_unlock(&id->fifo.lock);
-            return VLC_EGENERIC;
+            heimdall_object_delete( &p_enc_owner->enc );
+            heimdall_mutex_unlock(&id->fifo.lock);
+            return HEIMDALL_EGENERIC;
         }
 
         p_enc_owner->id = id;
@@ -167,13 +168,13 @@ static int video_update_format_decoder( decoder_t *p_dec, vlc_video_context *vct
                   id->p_filterscfg,
                   &id->decoder_out,
                   vctx,
-                  &id->decoder_out, id) != VLC_SUCCESS )
+                  &id->decoder_out, id) != HEIMDALL_SUCCESS )
     {
         msg_Err(p_dec, "Could not update transcode chain to new format");
         goto error;
     }
 
-    struct vlc_video_context *enc_vctx = NULL;
+    struct heimdall_video_context *enc_vctx = NULL;
     const es_format_t *out_fmt;
 
     if( id->p_uf_chain )
@@ -194,14 +195,14 @@ static int video_update_format_decoder( decoder_t *p_dec, vlc_video_context *vct
 
     if( !transcode_encoder_opened( id->encoder ) )
     {
-        transcode_encoder_video_configure( VLC_OBJECT(p_owner->p_stream),
+        transcode_encoder_video_configure( HEIMDALL_OBJECT(p_owner->p_stream),
                    &id->p_decoder->fmt_out.video,
                    id->p_enccfg,
                    &out_fmt->video,
                    enc_vctx,
                    id->encoder);
 
-        if( transcode_encoder_open( id->encoder, id->p_enccfg ) != VLC_SUCCESS )
+        if( transcode_encoder_open( id->encoder, id->p_enccfg ) != HEIMDALL_SUCCESS )
             goto error;
     }
 
@@ -221,10 +222,10 @@ static int video_update_format_decoder( decoder_t *p_dec, vlc_video_context *vct
                out_fmt,
                enc_vctx,
                encoder_fmt);
-         if( filter_chain_AppendConverter( id->p_final_conv_static, NULL ) != VLC_SUCCESS )
+         if( filter_chain_AppendConverter( id->p_final_conv_static, NULL ) != HEIMDALL_SUCCESS )
              goto error;
     }
-    vlc_mutex_unlock(&id->fifo.lock);
+    heimdall_mutex_unlock(&id->fifo.lock);
 
     if( !id->downstream_id )
         id->downstream_id =
@@ -235,14 +236,14 @@ static int video_update_format_decoder( decoder_t *p_dec, vlc_video_context *vct
 
     if( id->downstream_id == NULL )
     {
-        vlc_mutex_lock( &id->fifo.lock );
+        heimdall_mutex_lock( &id->fifo.lock );
         goto error;
     }
 
     msg_Info( p_dec, "video format update success" );
 
 end:
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
 
@@ -256,9 +257,9 @@ error:
     transcode_remove_filters( &id->p_uf_chain );
     transcode_remove_filters( &id->p_f_chain );
 
-    vlc_mutex_unlock( &id->fifo.lock );
+    heimdall_mutex_unlock( &id->fifo.lock );
 
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 static picture_t *video_new_buffer_encoder( transcode_encoder_t *p_enc )
@@ -280,19 +281,19 @@ static void decoder_queue_video( decoder_t *p_dec, picture_t *p_pic )
     if( p_block == NULL )
         return;
 
-    if( ret != VLC_SUCCESS )
+    if( ret != HEIMDALL_SUCCESS )
         atomic_store_explicit( &id->b_error, true, memory_order_release );
 
-    vlc_fifo_Lock( id->output_fifo );
+    heimdall_fifo_Lock( id->output_fifo );
     if( atomic_load_explicit( &id->b_error, memory_order_acquire ) )
     {
-        vlc_fifo_Unlock( id->output_fifo );
+        heimdall_fifo_Unlock( id->output_fifo );
         block_ChainRelease( p_block );
         return;
     }
 
-    vlc_fifo_QueueUnlocked( id->output_fifo, p_block );
-    vlc_fifo_Unlock( id->output_fifo );
+    heimdall_fifo_QueueUnlocked( id->output_fifo, p_block );
+    heimdall_fifo_Unlock( id->output_fifo );
 }
 
 int transcode_video_init( sout_stream_t *p_stream, const es_format_t *p_fmt,
@@ -304,7 +305,7 @@ int transcode_video_init( sout_stream_t *p_stream, const es_format_t *p_fmt,
 
     id->output_fifo = block_FifoNew();
     if( id->output_fifo == NULL )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     id->b_transcode = true;
     es_format_Init( &id->decoder_out, VIDEO_ES, 0 );
@@ -332,7 +333,7 @@ int transcode_video_init( sout_stream_t *p_stream, const es_format_t *p_fmt,
     {
         msg_Err( p_stream, "cannot find video decoder" );
         es_format_Clean( &id->decoder_out );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     if( id->decoder_out.i_codec == 0 ) /* format_update can happen on open() */
     {
@@ -340,13 +341,13 @@ int transcode_video_init( sout_stream_t *p_stream, const es_format_t *p_fmt,
         es_format_Copy( &id->decoder_out, &id->p_decoder->fmt_out );
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int transcode_video_filters_init( sout_stream_t *p_stream,
                                          const sout_filters_config_t *p_cfg,
                                          const es_format_t *p_src,
-                                         vlc_video_context *src_ctx,
+                                         heimdall_video_context *src_ctx,
                                          const es_format_t *p_dst,
                                          sout_stream_id_sys_t *id )
 {
@@ -357,7 +358,7 @@ static int transcode_video_filters_init( sout_stream_t *p_stream,
     };
     id->p_f_chain = filter_chain_NewVideo( p_stream, false, &owner );
     if( !id->p_f_chain )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     filter_chain_Reset( id->p_f_chain, p_src, src_ctx, p_src );
 
     /* Deinterlace */
@@ -392,11 +393,11 @@ static int transcode_video_filters_init( sout_stream_t *p_stream,
         msg_Dbg( p_stream, "adding user filters" );
         id->p_uf_chain = filter_chain_NewVideo( p_stream, true, &owner );
         if(!id->p_uf_chain)
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         filter_chain_Reset( id->p_uf_chain, p_src, src_ctx, p_dst );
         filter_chain_AppendFromString( id->p_uf_chain, p_cfg->psz_filters );
         p_src = filter_chain_GetFmtOut( id->p_uf_chain );
-        debug_format( VLC_OBJECT(p_stream), p_src );
+        debug_format( HEIMDALL_OBJECT(p_stream), p_src );
    }
 
     /* Update encoder so it matches filters output */
@@ -409,7 +410,7 @@ static int transcode_video_filters_init( sout_stream_t *p_stream,
             spu_ChangeSources( id->p_spu, p_cfg->video.psz_spu_sources );
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 void transcode_video_flush( sout_stream_id_sys_t *id )
@@ -439,7 +440,7 @@ void transcode_video_clean( sout_stream_id_sys_t *id )
     if( id->p_spu )
         spu_Destroy( id->p_spu );
     if ( id->dec_dev )
-        vlc_decoder_device_Release( id->dec_dev );
+        heimdall_decoder_device_Release( id->dec_dev );
 
     block_FifoRelease(id->output_fifo);
 }
@@ -458,11 +459,11 @@ void transcode_video_push_spu( sout_stream_t *p_stream, sout_stream_id_sys_t *id
 int transcode_video_get_output_dimensions( sout_stream_id_sys_t *id,
                                            unsigned *w, unsigned *h )
 {
-    vlc_mutex_lock( &id->fifo.lock );
+    heimdall_mutex_lock( &id->fifo.lock );
     *w = id->decoder_out.video.i_visible_width;
     *h = id->decoder_out.video.i_visible_height;
-    vlc_mutex_unlock( &id->fifo.lock );
-    return (*w && *h) ? VLC_SUCCESS : VLC_EGENERIC;
+    heimdall_mutex_unlock( &id->fifo.lock );
+    return (*w && *h) ? HEIMDALL_SUCCESS : HEIMDALL_EGENERIC;
 }
 
 static picture_t * RenderSubpictures( sout_stream_id_sys_t *id, picture_t *p_pic )
@@ -472,9 +473,9 @@ static picture_t * RenderSubpictures( sout_stream_id_sys_t *id, picture_t *p_pic
 
     /* Check if we have a subpicture to overlay */
     video_format_t fmt, outfmt;
-    vlc_mutex_lock( &id->fifo.lock );
+    heimdall_mutex_lock( &id->fifo.lock );
     video_format_Copy( &outfmt, &id->decoder_out.video );
-    vlc_mutex_unlock( &id->fifo.lock );
+    heimdall_mutex_unlock( &id->fifo.lock );
     video_format_Copy( &fmt, &p_pic->format );
     if( fmt.i_visible_width <= 0 || fmt.i_visible_height <= 0 )
     {
@@ -485,8 +486,8 @@ static picture_t * RenderSubpictures( sout_stream_id_sys_t *id, picture_t *p_pic
     }
     fmt.i_sar_den = fmt.i_sar_num = 1;
 
-    vlc_render_subpicture *p_subpic = spu_Render( id->p_spu, NULL, &fmt,
-                                         &outfmt, false, NULL, vlc_tick_now(), p_pic->date,
+    heimdall_render_subpicture *p_subpic = spu_Render( id->p_spu, NULL, &fmt,
+                                         &outfmt, false, NULL, heimdall_tick_now(), p_pic->date,
                                          false );
 
     /* Overlay subpicture */
@@ -505,10 +506,10 @@ static picture_t * RenderSubpictures( sout_stream_id_sys_t *id, picture_t *p_pic
             }
         }
         if( unlikely( !id->p_spu_blender ) )
-            id->p_spu_blender = filter_NewBlend( VLC_OBJECT( id->p_spu ), &fmt );
+            id->p_spu_blender = filter_NewBlend( HEIMDALL_OBJECT( id->p_spu ), &fmt );
         if( likely( id->p_spu_blender ) )
             picture_BlendSubpicture( p_pic, id->p_spu_blender, p_subpic );
-        vlc_render_subpicture_Delete( p_subpic );
+        heimdall_render_subpicture_Delete( p_subpic );
     }
     video_format_Clean( &fmt );
     video_format_Clean( &outfmt );
@@ -571,7 +572,7 @@ static int transcode_process_picture( sout_stream_id_sys_t *id,
         }
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 int transcode_video_process( sout_stream_t *p_stream, sout_stream_id_sys_t *id,
@@ -582,37 +583,37 @@ int transcode_video_process( sout_stream_t *p_stream, sout_stream_id_sys_t *id,
     bool b_eos = in && (in->i_flags & BLOCK_FLAG_END_OF_SEQUENCE);
 
     int ret = id->p_decoder->pf_decode( id->p_decoder, in );
-    if( ret != VLCDEC_SUCCESS )
-        return VLC_EGENERIC;
+    if( ret != HEIMDALLDEC_SUCCESS )
+        return HEIMDALL_EGENERIC;
 
     /*
      * Encoder creation depends on decoder's update_format which is only
      * created once a few frames have been passed to the decoder.
      */
     if( id->encoder == NULL )
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
     /* drained blocks must be appended after already output (pending)
      * blocks. */
     block_t *drained = NULL;
-    vlc_fifo_Lock( id->output_fifo );
+    heimdall_fifo_Lock( id->output_fifo );
     const bool has_error = atomic_load_explicit( &id->b_error, memory_order_acquire );
     if( unlikely( !has_error && in == NULL ) && transcode_encoder_opened( id->encoder ) )
     {
         msg_Dbg( p_stream, "Draining thread and waiting for that");
-        if (transcode_encoder_drain(id->encoder, &drained) == VLC_SUCCESS)
+        if (transcode_encoder_drain(id->encoder, &drained) == HEIMDALL_SUCCESS)
             msg_Dbg( p_stream, "Draining done");
         else
             msg_Warn( p_stream, "Draining failed");
     }
     if( !has_error )
     {
-        vlc_frame_t *pendings = vlc_fifo_DequeueAllUnlocked( id->output_fifo );
+        heimdall_frame_t *pendings = heimdall_fifo_DequeueAllUnlocked( id->output_fifo );
         block_ChainAppend(out, pendings);
         block_ChainAppend(out, drained);
         drained = NULL;
     }
-    vlc_fifo_Unlock( id->output_fifo );
+    heimdall_fifo_Unlock( id->output_fifo );
 
     if (drained != NULL)
         block_ChainRelease(drained);
@@ -620,5 +621,5 @@ int transcode_video_process( sout_stream_t *p_stream, sout_stream_id_sys_t *id,
     if( b_eos )
         tag_last_block_with_flag( out, BLOCK_FLAG_END_OF_SEQUENCE );
 
-    return has_error ? VLC_EGENERIC : VLC_SUCCESS;
+    return has_error ? HEIMDALL_EGENERIC : HEIMDALL_SUCCESS;
 }

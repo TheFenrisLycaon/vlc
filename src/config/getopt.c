@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 1987-1997 Free Software Foundation, Inc.
  * Copyright (C) 2005-2010 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,12 +23,12 @@
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
 #include <stdio.h>
 #include <string.h>
 
-#include "vlc_getopt.h"
+#include "heimdall_getopt.h"
 
 /* Exchange two adjacent subsequences of ARGV.
    One subsequence is elements [first_nonopt,last_nonopt)
@@ -38,7 +39,7 @@
    `first_nonopt' and `last_nonopt' are relocated so that they describe
    the new indices of the non-options in ARGV after they are moved.  */
 
-static void exchange(char **argv, vlc_getopt_t *restrict state)
+static void exchange(char **argv, heimdall_getopt_t *restrict state)
 {
     int bottom = state->first_nonopt;
     int middle = state->last_nonopt;
@@ -142,10 +143,10 @@ static void exchange(char **argv, vlc_getopt_t *restrict state)
    It is only valid when a long-named option has been found by the most
    recent call.  */
 
-int vlc_getopt_long(int argc, char *const *argv,
+int heimdall_getopt_long(int argc, char *const *argv,
                     const char *optstring,
-                    const struct vlc_option *restrict longopts, int *longind,
-                    vlc_getopt_t *restrict state)
+                    const struct heimdall_option *restrict longopts, int *longind,
+                    heimdall_getopt_t *restrict state)
 {
     state->arg = NULL;
 
@@ -242,8 +243,8 @@ int vlc_getopt_long(int argc, char *const *argv,
     if (argv[state->ind][1] == '-')
     {
         char *nameend;
-        const struct vlc_option *p;
-        const struct vlc_option *pfound = NULL;
+        const struct heimdall_option *p;
+        const struct heimdall_option *pfound = NULL;
         int exact = 0;
         int ambig = 0;
         int indfound = -1;
@@ -348,8 +349,8 @@ int vlc_getopt_long(int argc, char *const *argv,
         if (temp[0] == 'W' && temp[1] == ';')
         {
             char *nameend;
-            const struct vlc_option *p;
-            const struct vlc_option *pfound = NULL;
+            const struct heimdall_option *p;
+            const struct heimdall_option *pfound = NULL;
             int exact = 0;
             int ambig = 0;
             int indfound = 0;

@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,7 +24,7 @@
 #include <xcb/render.h>
 #include <xcb/composite.h>
 
-namespace vlc {
+namespace heimdall {
 
 template<typename T, typename R, R RELEASE>
 class X11Resource {

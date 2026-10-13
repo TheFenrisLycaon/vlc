@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,8 +17,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_FIRSTRUNWIZARD_H
-#define VLC_FIRSTRUNWIZARD_H
+#ifndef HEIMDALL_FIRSTRUNWIZARD_H
+#define HEIMDALL_FIRSTRUNWIZARD_H
 
 #include "ui_firstrunwizard.h"
 
@@ -63,4 +64,4 @@ private slots:
     void imageLayoutClick( QAbstractButton* );
 };
 
-#endif // VLC_FIRSTRUNWIZARD_H
+#endif // HEIMDALL_FIRSTRUNWIZARD_H

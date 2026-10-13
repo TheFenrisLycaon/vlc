@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,8 +21,8 @@ import QtQuick
 import QtQuick.Window
 
 
-import VLC.MainInterface
-import VLC.Style
+import Heimdall.MainInterface
+import Heimdall.Style
 
 
 Window {
@@ -70,6 +71,6 @@ Window {
         focus: true
         anchors.fill: parent
 
-        colorContext.palette: VLCStyle.palette
+        colorContext.palette: HeimdallStyle.palette
     }
 }

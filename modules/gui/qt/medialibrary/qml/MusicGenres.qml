@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,12 +20,12 @@ import QtQuick
 import QtQuick.Templates as T
 import QtQml.Models
 
-import VLC.MediaLibrary
+import Heimdall.MediaLibrary
 
-import VLC.Util
-import VLC.Widgets as Widgets
-import VLC.MainInterface
-import VLC.Style
+import Heimdall.Util
+import Heimdall.Widgets as Widgets
+import Heimdall.MainInterface
+import Heimdall.Style
 
 MainViewLoader {
     id: root
@@ -68,7 +69,7 @@ MainViewLoader {
         id: genreModel
         ml: MediaLib
 
-        coverDefault: VLCStyle.noArtAlbumCover
+        coverDefault: HeimdallStyle.noArtAlbumCover
 
         onCountChanged: {
             if (genreModel.count > 0 && !selectionModel.hasSelection) {
@@ -125,8 +126,8 @@ MainViewLoader {
         Widgets.ExpandGridItemView {
             id: gridView_id
 
-            basePictureWidth: VLCStyle.gridCover_video_width
-            basePictureHeight: VLCStyle.gridCover_video_width / 2
+            basePictureWidth: HeimdallStyle.gridCover_video_width
+            basePictureHeight: HeimdallStyle.gridCover_video_width / 2
             titleHeight: 0
             subtitleHeight: 0
 
@@ -153,7 +154,7 @@ MainViewLoader {
                 image: model.cover || ""
                 cacheImage: true // for this view, we generate custom covers, cache it
 
-                fallbackImage: VLCStyle.noArtAlbumCover
+                fallbackImage: HeimdallStyle.noArtAlbumCover
 
                 dragItem: genreDragItem
 
@@ -176,7 +177,7 @@ MainViewLoader {
                     Rectangle {
                         anchors.fill: parent
 
-                        radius: VLCStyle.gridCover_radius
+                        radius: HeimdallStyle.gridCover_radius
 
                         gradient: Gradient {
                             GradientStop { position: 0.0; color: Qt.rgba(0, 0, 0, 0.3) }
@@ -191,7 +192,7 @@ MainViewLoader {
                         T.Label {
                             width: overlay.width
                             elide: Text.ElideRight
-                            font.pixelSize: VLCStyle.fontSize_large
+                            font.pixelSize: HeimdallStyle.fontSize_large
                             font.weight: Font.DemiBold
                             text: model.name || qsTr("Unknown genre")
                             color: "white"
@@ -263,7 +264,7 @@ MainViewLoader {
 
             model: genreModel
 
-            sortModel: (_availableRowWidth < VLCStyle.colWidth(4)) ? _modelSmall
+            sortModel: (_availableRowWidth < HeimdallStyle.colWidth(4)) ? _modelSmall
                                                                    : _modelMedium
 
             selectionModel: root.selectionModel
@@ -271,7 +272,7 @@ MainViewLoader {
             onActionForSelection: (selection) => _actionAtIndex(selection)
             Navigation.parentItem: root
             dragItem: genreDragItem
-            rowHeight: VLCStyle.tableCoverRow_height
+            rowHeight: HeimdallStyle.tableCoverRow_height
 
             displayMarginBeginning: root.displayMarginBeginning
             displayMarginEnd: root.displayMarginEnd
@@ -298,9 +299,9 @@ MainViewLoader {
 
                 showCriterias: (tableView_id.sortModel === tableView_id._modelSmall)
 
-                titleCover_height: VLCStyle.listAlbumCover_height
-                titleCover_width: VLCStyle.listAlbumCover_width
-                titleCover_radius: VLCStyle.listAlbumCover_radius
+                titleCover_height: HeimdallStyle.listAlbumCover_height
+                titleCover_width: HeimdallStyle.listAlbumCover_width
+                titleCover_radius: HeimdallStyle.listAlbumCover_radius
             }
         }
     }
@@ -312,7 +313,7 @@ MainViewLoader {
         Widgets.EmptyLabelButton {
             text: qsTr("No genres found\nPlease try adding sources")
             Navigation.parentItem: root
-            cover: VLCStyle.noArtAlbumCover
+            cover: HeimdallStyle.noArtAlbumCover
         }
     }
 }

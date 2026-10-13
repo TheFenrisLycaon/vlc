@@ -1,9 +1,10 @@
 /*****************************************************************************
- * libs.h: VLC Lua wrapper libraries
+ * libs.h: Heimdall Lua wrapper libraries
  *****************************************************************************
  * Copyright (C) 2008 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Antoine Cellerier <dionoea at videolan tod org>
+ * Authors: Antoine Cellerier <dionoea at lycaria tod org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,10 +21,10 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_LUA_LIBS_H
-#define VLC_LUA_LIBS_H
+#ifndef HEIMDALL_LUA_LIBS_H
+#define HEIMDALL_LUA_LIBS_H
 
-#include "vlc.h"
+#include "heimdall.h"
 
 void luaopen_config( lua_State * );
 void luaopen_dialog( lua_State *, void * );
@@ -46,7 +47,7 @@ void luaopen_gettext( lua_State * );
 void luaopen_input_item( lua_State *L, input_item_t *item );
 void luaopen_xml( lua_State *L );
 void luaopen_equalizer( lua_State *L );
-void luaopen_vlcio( lua_State *L );
+void luaopen_heimdallio( lua_State *L );
 void luaopen_errno( lua_State *L );
 void luaopen_rand( lua_State *L );
 void luaopen_rd( lua_State *L );
@@ -55,9 +56,9 @@ void luaopen_ml( lua_State *L );
 void luaopen_win( lua_State *L );
 #endif
 
-int vlclua_url_parse( lua_State *L );
-int vlclua_input_item_get( lua_State *L, input_item_t *p_item );
+int heimdalllua_url_parse( lua_State *L );
+int heimdalllua_input_item_get( lua_State *L, input_item_t *p_item );
 
-int net_ConnectTCP(vlc_object_t *, const char *, int);
+int net_ConnectTCP(heimdall_object_t *, const char *, int);
 
 #endif

@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,12 +24,12 @@
 #include <QRunnable>
 #include <QPointer>
 #include "qt.hpp"
-#include "util/vlchotkeyconverter.hpp"
+#include "util/heimdallhotkeyconverter.hpp"
 
-#include <vlc_threads.h>
+#include <heimdall_threads.h>
 
 extern "C" {
-    typedef struct vlc_window vlc_window_t;
+    typedef struct heimdall_window heimdall_window_t;
 }
 
 Q_MOC_INCLUDE( "maininterface/mainctx.hpp")
@@ -46,7 +47,7 @@ public:
     VideoSurfaceProvider(bool threadedSurfaceUpdates = false, QObject* parent = nullptr);
     virtual ~VideoSurfaceProvider() {}
 
-    void enable(vlc_window_t* voutWindow);
+    void enable(heimdall_window_t* voutWindow);
     void disable();
     bool isEnabled();
 
@@ -68,18 +69,18 @@ signals:
 
 public slots:
     void onWindowClosed();
-    void onMousePressed( int vlcButton );
-    void onMouseReleased( int vlcButton );
-    void onMouseDoubleClick( int vlcButton );
+    void onMousePressed( int heimdallButton );
+    void onMouseReleased( int heimdallButton );
+    void onMouseDoubleClick( int heimdallButton );
     void onMouseMoved( float x, float y );
-    void onMouseWheeled(int vlcButton);
+    void onMouseWheeled(int heimdallButton);
     void onKeyPressed(int key, Qt::KeyboardModifiers modifiers);
     void onSurfacePropertiesChanged(const std::optional<QSizeF>& size,
                                     const std::optional<QPointF>& position,
                                     const std::optional<qreal>& scale);
 
 protected:
-    vlc_window_t* m_voutWindow = nullptr;
+    heimdall_window_t* m_voutWindow = nullptr;
     bool m_videoEmbed = false;
     bool m_threadedSurfaceUpdates = false;
 };
@@ -100,7 +101,7 @@ public:
 protected:
     QSGNode *updatePaintNode(QSGNode *, UpdatePaintNodeData *) override;
 
-    int qtMouseButton2VLC( Qt::MouseButton qtButton );
+    int qtMouseButton2Heimdall( Qt::MouseButton qtButton );
 
     void mousePressEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
@@ -121,9 +122,9 @@ signals:
                                   const std::optional<QPointF>& position,
                                   const std::optional<qreal>& scale);
 
-    void mousePressed( int vlcButton );
-    void mouseReleased( int vlcButton );
-    void mouseDblClicked( int vlcButton );
+    void mousePressed( int heimdallButton );
+    void mouseReleased( int heimdallButton );
+    void mouseDblClicked( int heimdallButton );
     void mouseMoved( float x, float y );
     void keyPressed(int key, Qt::KeyboardModifiers modifier);
 
@@ -135,7 +136,7 @@ protected slots:
 private:
     QPointF m_oldHoverPos;
 
-    WheelToVLCConverter m_wheelEventConverter;
+    WheelToHeimdallConverter m_wheelEventConverter;
 
     QPointer<VideoSurfaceProvider> m_provider;
 

@@ -2,6 +2,7 @@
  * vc1.c
  *****************************************************************************
  * Copyright (C) 2001, 2002, 2006 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *          Gildas Bazin <gbazin@videolan.org>
@@ -29,13 +30,13 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
-#include <vlc_block.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
+#include <heimdall_block.h>
 
-#include <vlc_bits.h>
-#include <vlc_block_helper.h>
+#include <heimdall_bits.h>
+#include <heimdall_block_helper.h>
 #include "../codec/cc.h"
 #include "packetizer_helper.h"
 #include "hxxx_nal.h"
@@ -46,15 +47,15 @@
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  Open ( vlc_object_t * );
-static void Close( vlc_object_t * );
+static int  Open ( heimdall_object_t * );
+static void Close( heimdall_object_t * );
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_subcategory( SUBCAT_SOUT_PACKETIZER )
     set_description( N_("VC-1 packetizer") )
     set_capability( "video packetizer", 50 )
     set_callbacks( Open, Close )
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * Local prototypes
@@ -87,8 +88,8 @@ typedef struct
     bool  b_frame;
 
     /* Current frame being built */
-    vlc_tick_t i_frame_dts;
-    vlc_tick_t i_frame_pts;
+    heimdall_tick_t i_frame_dts;
+    heimdall_tick_t i_frame_pts;
     block_t    *p_frame;
     block_t    **pp_last;
     date_t     dts;
@@ -98,8 +99,8 @@ typedef struct
 
     /* */
     uint32_t i_cc_flags;
-    vlc_tick_t i_cc_pts;
-    vlc_tick_t i_cc_dts;
+    heimdall_tick_t i_cc_pts;
+    heimdall_tick_t i_cc_dts;
     cc_data_t cc;
 
     cc_data_t cc_next;
@@ -139,17 +140,17 @@ static const uint8_t p_vc1_startcode[3] = { 0x00, 0x00, 0x01 };
  * Tries to launch a decoder and return score so that the interface is able
  * to choose.
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     decoder_t     *p_dec = (decoder_t*)p_this;
     decoder_sys_t *p_sys;
 
-    if( p_dec->fmt_in->i_codec !=  VLC_CODEC_VC1 )
-        return VLC_EGENERIC;
+    if( p_dec->fmt_in->i_codec !=  HEIMDALL_CODEC_VC1 )
+        return HEIMDALL_EGENERIC;
 
     p_dec->p_sys = p_sys = malloc( sizeof( decoder_sys_t ) );
     if( unlikely( !p_sys ) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     /* Create the output format */
     es_format_Copy( &p_dec->fmt_out, p_dec->fmt_in );
@@ -168,8 +169,8 @@ static int Open( vlc_object_t *p_this )
     p_sys->b_entry_point = false;
     p_sys->ep.p_ep = NULL;
 
-    p_sys->i_frame_dts = VLC_TICK_INVALID;
-    p_sys->i_frame_pts = VLC_TICK_INVALID;
+    p_sys->i_frame_dts = HEIMDALL_TICK_INVALID;
+    p_sys->i_frame_pts = HEIMDALL_TICK_INVALID;
 
     p_sys->b_frame = false;
     p_sys->p_frame = NULL;
@@ -200,19 +201,19 @@ static int Open( vlc_object_t *p_this )
     }
 
     /* */
-    p_sys->i_cc_pts = VLC_TICK_INVALID;
-    p_sys->i_cc_dts = VLC_TICK_INVALID;
+    p_sys->i_cc_pts = HEIMDALL_TICK_INVALID;
+    p_sys->i_cc_dts = HEIMDALL_TICK_INVALID;
     p_sys->i_cc_flags = 0;
     cc_Init( &p_sys->cc );
     cc_Init( &p_sys->cc_next );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * Close:
  *****************************************************************************/
-static void Close( vlc_object_t *p_this )
+static void Close( heimdall_object_t *p_this )
 {
     decoder_t     *p_dec = (decoder_t*)p_this;
     decoder_sys_t *p_sys = p_dec->p_sys;
@@ -292,9 +293,9 @@ static void PacketizeReset( void *p_private, bool b_flush )
         p_sys->b_frame = false;
     }
 
-    p_sys->i_frame_dts = VLC_TICK_INVALID;
-    p_sys->i_frame_pts = VLC_TICK_INVALID;
-    date_Set( &p_sys->dts, VLC_TICK_INVALID );
+    p_sys->i_frame_dts = HEIMDALL_TICK_INVALID;
+    p_sys->i_frame_pts = HEIMDALL_TICK_INVALID;
+    date_Set( &p_sys->dts, HEIMDALL_TICK_INVALID );
 }
 
 static int PacketizeValidate( void *p_private, block_t *p_au )
@@ -302,13 +303,13 @@ static int PacketizeValidate( void *p_private, block_t *p_au )
     decoder_t *p_dec = p_private;
     decoder_sys_t *p_sys = p_dec->p_sys;
 
-    if( date_Get( &p_sys->dts ) == VLC_TICK_INVALID )
+    if( date_Get( &p_sys->dts ) == HEIMDALL_TICK_INVALID )
     {
         msg_Dbg( p_dec, "need a starting pts/dts" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
-    VLC_UNUSED(p_au);
-    return VLC_SUCCESS;
+    HEIMDALL_UNUSED(p_au);
+    return HEIMDALL_SUCCESS;
 }
 
 static block_t * PacketizeDrain( void *p_private )
@@ -356,8 +357,8 @@ static block_t *OutputFrame( decoder_t *p_dec )
         p_sys->p_frame = p_list;
     }
 
-    vlc_tick_t i_dts = p_sys->i_frame_dts;
-    vlc_tick_t i_pts = p_sys->i_frame_pts;
+    heimdall_tick_t i_dts = p_sys->i_frame_dts;
+    heimdall_tick_t i_pts = p_sys->i_frame_pts;
 
     /* */
     block_t *p_pic = block_ChainGather( p_sys->p_frame );
@@ -368,12 +369,12 @@ static block_t *OutputFrame( decoder_t *p_dec )
     }
 
     /* */
-    if( i_dts == VLC_TICK_INVALID )
+    if( i_dts == HEIMDALL_TICK_INVALID )
         i_dts = date_Get( &p_sys->dts );
     else
         date_Set( &p_sys->dts, i_dts );
 
-    if( i_pts == VLC_TICK_INVALID )
+    if( i_pts == HEIMDALL_TICK_INVALID )
     {
         if( !p_sys->sh.b_has_bframe || (i_pic_flags & BLOCK_FLAG_TYPE_B ) )
             i_pts = i_dts;
@@ -406,8 +407,8 @@ static block_t *OutputFrame( decoder_t *p_dec )
 
     /* Reset context */
     p_sys->b_frame = false;
-    p_sys->i_frame_dts = VLC_TICK_INVALID;
-    p_sys->i_frame_pts = VLC_TICK_INVALID;
+    p_sys->i_frame_dts = HEIMDALL_TICK_INVALID;
+    p_sys->i_frame_pts = HEIMDALL_TICK_INVALID;
     p_sys->p_frame = NULL;
     p_sys->pp_last = &p_sys->p_frame;
 
@@ -449,7 +450,7 @@ static block_t *ParseIDU( void *p_private, bool *pb_ts_used, block_t *p_frag )
     }
 
     /*  */
-    if( p_sys->i_frame_dts == VLC_TICK_INVALID && p_sys->i_frame_pts == VLC_TICK_INVALID )
+    if( p_sys->i_frame_dts == HEIMDALL_TICK_INVALID && p_sys->i_frame_pts == HEIMDALL_TICK_INVALID )
     {
         p_sys->i_frame_dts = p_frag->i_dts;
         p_sys->i_frame_pts = p_frag->i_pts;
@@ -563,7 +564,7 @@ static block_t *ParseIDU( void *p_private, bool *pb_ts_used, block_t *p_frag )
                         i_ar_w = p_ar[i_ar][0];
                         i_ar_h = p_ar[i_ar][1];
                     }
-                    vlc_ureduce( &i_ar_w, &i_ar_h, i_ar_w, i_ar_h, 0 );
+                    heimdall_ureduce( &i_ar_w, &i_ar_h, i_ar_w, i_ar_h, 0 );
                     if( !p_sys->b_sequence_header )
                         msg_Dbg( p_dec, "aspect ratio %d:%d", i_ar_w, i_ar_h );
                 }
@@ -603,7 +604,7 @@ static block_t *ParseIDU( void *p_private, bool *pb_ts_used, block_t *p_frag )
                    (p_dec->fmt_in->video.i_frame_rate == 0 ||
                     p_dec->fmt_in->video.i_frame_rate_base == 0) )
                 {
-                    vlc_ureduce( &p_es->video.i_frame_rate, &p_es->video.i_frame_rate_base, i_fps_num, i_fps_den, 0 );
+                    heimdall_ureduce( &p_es->video.i_frame_rate, &p_es->video.i_frame_rate_base, i_fps_num, i_fps_den, 0 );
 
                     if( !p_sys->b_sequence_header )
                     {
@@ -615,9 +616,9 @@ static block_t *ParseIDU( void *p_private, bool *pb_ts_used, block_t *p_frag )
             if( bs_read1( &s ) && /* Color Format */
                 p_dec->fmt_in->video.primaries == COLOR_PRIMARIES_UNDEF )
             {
-                p_es->video.primaries = iso_23001_8_cp_to_vlc_primaries( bs_read( &s, 8 ) );
-                p_es->video.transfer = iso_23001_8_tc_to_vlc_xfer( bs_read( &s, 8 ) );
-                p_es->video.space = iso_23001_8_mc_to_vlc_coeffs( bs_read( &s, 8 ) );
+                p_es->video.primaries = iso_23001_8_cp_to_heimdall_primaries( bs_read( &s, 8 ) );
+                p_es->video.transfer = iso_23001_8_tc_to_heimdall_xfer( bs_read( &s, 8 ) );
+                p_es->video.space = iso_23001_8_mc_to_heimdall_coeffs( bs_read( &s, 8 ) );
             }
         }
         else

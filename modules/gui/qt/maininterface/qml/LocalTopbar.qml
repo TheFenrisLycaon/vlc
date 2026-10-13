@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,12 +24,12 @@ import QtQml.Models
 import QtQuick.Window
 
 
-import VLC.MainInterface
-import VLC.Style
-import VLC.Playlist
-import VLC.Widgets as Widgets
-import VLC.Menus as Menus
-import VLC.Util
+import Heimdall.MainInterface
+import Heimdall.Style
+import Heimdall.Playlist
+import Heimdall.Widgets as Widgets
+import Heimdall.Menus as Menus
+import Heimdall.Util
 
 T.ToolBar {
     id: root
@@ -73,10 +74,10 @@ T.ToolBar {
 
     contentItem: Item {
 
-        implicitHeight: VLCStyle.globalToolbar_height
+        implicitHeight: HeimdallStyle.globalToolbar_height
         implicitWidth: navigationButtons.implicitWidth
                      + playqueueButtonsTop.implicitWidth
-                     + VLCStyle.margin_xsmall * 2
+                     + HeimdallStyle.margin_xsmall * 2
 
         Item {
             id: navigationButtons
@@ -87,7 +88,7 @@ T.ToolBar {
                 left: parent.left
                 top: parent.top
                 bottom: parent.bottom
-                leftMargin: VLCStyle.margin_xsmall
+                leftMargin: HeimdallStyle.margin_xsmall
             }
 
             Navigation.parentItem: root
@@ -96,7 +97,7 @@ T.ToolBar {
                 id: navigationButtonsRow
 
                 anchors.verticalCenter: parent.verticalCenter
-                spacing: VLCStyle.margin_normal
+                spacing: HeimdallStyle.margin_normal
 
                 Navigation.parentItem: root
                 Navigation.rightItem: playqueueButtonsTop
@@ -106,14 +107,14 @@ T.ToolBar {
 
                     focus: true
 
-                    text: VLCIcons.panel_left
+                    text: HeimdallIcons.panel_left
                     description: qsTr("Show navigation menu")
 
                     AccessibleCompat.id: "sidebarToggleButton"
 
-                    font.pixelSize: VLCStyle.icon_banner
-                    height: VLCStyle.bannerButton_height
-                    width: VLCStyle.bannerButton_width
+                    font.pixelSize: HeimdallStyle.icon_banner
+                    height: HeimdallStyle.bannerButton_height
+                    width: HeimdallStyle.bannerButton_width
 
                     onClicked: root.toggleNavigationVisibility()
 
@@ -124,14 +125,14 @@ T.ToolBar {
                 Widgets.IconToolButton {
                     id: historyBack
 
-                    font.pixelSize: VLCStyle.icon_banner
-                    text: VLCIcons.back
+                    font.pixelSize: HeimdallStyle.icon_banner
+                    text: HeimdallIcons.back
                     description: qsTr("Previous")
 
                     AccessibleCompat.id: "historyBackButton"
 
-                    height: VLCStyle.bannerButton_height
-                    width: VLCStyle.bannerButton_width
+                    height: HeimdallStyle.bannerButton_height
+                    width: HeimdallStyle.bannerButton_width
 
                     onClicked: History.previous()
                     enabled: !History.previousEmpty
@@ -149,8 +150,8 @@ T.ToolBar {
                 Widgets.BannerCone {
                     id: logo
 
-                    sourceSize.width: VLCStyle.bannerButton_height
-                    sourceSize.height: VLCStyle.bannerButton_height
+                    sourceSize.width: HeimdallStyle.bannerButton_height
+                    sourceSize.height: HeimdallStyle.bannerButton_height
                     color: theme.accent
                 }
             }
@@ -166,7 +167,7 @@ T.ToolBar {
                 top: parent.top
                 bottom: parent.bottom
                 //put the buttons below the CSD if we have enough space
-                rightMargin: VLCStyle.margin_xsmall
+                rightMargin: HeimdallStyle.margin_xsmall
                     + ((root._showCSD && root.topPadding < csdButtons.height)
                         ? Math.max(csdButtons.width - root.rightPadding, 0)
                         : 0)
@@ -178,7 +179,7 @@ T.ToolBar {
                 id: playqueueButtonsTopRow
 
                 anchors.verticalCenter: parent.verticalCenter
-                spacing: VLCStyle.margin_normal
+                spacing: HeimdallStyle.margin_normal
 
                 Navigation.parentItem: root
                 Navigation.leftItem: navigationButtons
@@ -199,11 +200,11 @@ T.ToolBar {
                     id: menuBtn
 
                     visible: !MainCtx.hasToolbarMenu
-                    font.pixelSize: VLCStyle.icon_banner
-                    text: VLCIcons.more
+                    font.pixelSize: HeimdallStyle.icon_banner
+                    text: HeimdallIcons.more
                     description: qsTr("Menu")
-                    width: VLCStyle.bannerButton_width
-                    height: VLCStyle.bannerButton_height
+                    width: HeimdallStyle.bannerButton_width
+                    height: HeimdallStyle.bannerButton_height
                     checked: contextMenu.shown
 
                     Navigation.parentItem: playqueueButtonsTop
@@ -239,10 +240,10 @@ T.ToolBar {
             top: parent.top
         }
 
-        height: VLCStyle.globalToolbar_height
+        height: HeimdallStyle.globalToolbar_height
         active: root._showCSD
-        source: VLCStyle.palette.hasCSDImage
-                  ? "qrc:///qt/qml/VLC/Widgets/CSDThemeButtonSet.qml"
-                  : "qrc:///qt/qml/VLC/Widgets/CSDWindowButtonSet.qml"
+        source: HeimdallStyle.palette.hasCSDImage
+                  ? "qrc:///qt/qml/Heimdall/Widgets/CSDThemeButtonSet.qml"
+                  : "qrc:///qt/qml/Heimdall/Widgets/CSDWindowButtonSet.qml"
     }
 }

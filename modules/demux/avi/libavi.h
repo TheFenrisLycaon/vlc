@@ -2,6 +2,7 @@
  * libavi.h : LibAVI library
  ******************************************************************************
  * Copyright (C) 2001-2003 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -43,7 +44,7 @@
 typedef union avi_chunk_u avi_chunk_t;
 
 #define AVI_CHUNK_COMMON           \
-    vlc_fourcc_t i_chunk_fourcc;   \
+    heimdall_fourcc_t i_chunk_fourcc;   \
     uint64_t i_chunk_size;         \
     uint64_t i_chunk_pos;          \
     avi_chunk_t *p_next;           \
@@ -55,7 +56,7 @@ typedef union avi_chunk_u avi_chunk_t;
 
 typedef struct
 {
-    vlc_fourcc_t i_fourcc;
+    heimdall_fourcc_t i_fourcc;
     uint32_t i_flags;
     uint32_t i_pos;
     uint32_t i_length;
@@ -70,7 +71,7 @@ typedef struct
 typedef struct
 {
     AVI_CHUNK_COMMON
-    vlc_fourcc_t i_type;
+    heimdall_fourcc_t i_type;
 } avi_chunk_list_t;
 
 typedef struct
@@ -105,7 +106,7 @@ typedef struct
 typedef struct
 {
     AVI_CHUNK_COMMON
-    vlc_fourcc_t i_type;
+    heimdall_fourcc_t i_type;
     uint32_t i_handler;
     uint32_t i_flags;
     uint32_t i_reserved1;    /* wPriority wLanguage */
@@ -130,7 +131,7 @@ typedef struct
 {
     AVI_CHUNK_COMMON
     int                     i_cat;
-    VLC_BITMAPINFOHEADER    *p_bih;
+    HEIMDALL_BITMAPINFOHEADER    *p_bih;
 } avi_chunk_strf_vids_t;
 
 typedef union
@@ -217,7 +218,7 @@ typedef struct
     int8_t   i_indexsubtype;
     int8_t   i_indextype;
     uint32_t i_entriesinuse;
-    vlc_fourcc_t i_id;
+    heimdall_fourcc_t i_id;
 
     uint64_t i_baseoffset;
 
@@ -259,8 +260,8 @@ int     AVI_ChunkRead( stream_t *,
 void    AVI_ChunkClean( stream_t *, avi_chunk_t * );
 void    AVI_ChunkInit( avi_chunk_t *, unsigned );
 
-int     AVI_ChunkCount_( avi_chunk_t *, vlc_fourcc_t, bool );
-void   *AVI_ChunkFind_ ( avi_chunk_t *, vlc_fourcc_t, int, bool );
+int     AVI_ChunkCount_( avi_chunk_t *, heimdall_fourcc_t, bool );
+void   *AVI_ChunkFind_ ( avi_chunk_t *, heimdall_fourcc_t, int, bool );
 
 int     AVI_ChunkReadRoot( stream_t *, avi_chunk_t *p_root );
 void    AVI_ChunkFreeRoot( stream_t *, avi_chunk_t *p_chk  );
@@ -273,120 +274,120 @@ int     AVI_ChunkFetchIndexes( stream_t *, avi_chunk_t *p_riff );
 
 /* *** avi stuff *** */
 
-#define AVIFOURCC_RIFF         VLC_FOURCC('R','I','F','F')
-#define AVIFOURCC_ON2          VLC_FOURCC('O','N','2',' ')
-#define AVIFOURCC_LIST         VLC_FOURCC('L','I','S','T')
-#define AVIFOURCC_JUNK         VLC_FOURCC('J','U','N','K')
-#define AVIFOURCC_AVI          VLC_FOURCC('A','V','I',' ')
-#define AVIFOURCC_AVIX         VLC_FOURCC('A','V','I','X')
-#define AVIFOURCC_ON2f         VLC_FOURCC('O','N','2','f')
-#define AVIFOURCC_WAVE         VLC_FOURCC('W','A','V','E')
-#define AVIFOURCC_INFO         VLC_FOURCC('I','N','F','O')
+#define AVIFOURCC_RIFF         HEIMDALL_FOURCC('R','I','F','F')
+#define AVIFOURCC_ON2          HEIMDALL_FOURCC('O','N','2',' ')
+#define AVIFOURCC_LIST         HEIMDALL_FOURCC('L','I','S','T')
+#define AVIFOURCC_JUNK         HEIMDALL_FOURCC('J','U','N','K')
+#define AVIFOURCC_AVI          HEIMDALL_FOURCC('A','V','I',' ')
+#define AVIFOURCC_AVIX         HEIMDALL_FOURCC('A','V','I','X')
+#define AVIFOURCC_ON2f         HEIMDALL_FOURCC('O','N','2','f')
+#define AVIFOURCC_WAVE         HEIMDALL_FOURCC('W','A','V','E')
+#define AVIFOURCC_INFO         HEIMDALL_FOURCC('I','N','F','O')
 
-#define AVIFOURCC_avih         VLC_FOURCC('a','v','i','h')
-#define AVIFOURCC_ON2h         VLC_FOURCC('O','N','2','h')
-#define AVIFOURCC_hdrl         VLC_FOURCC('h','d','r','l')
-#define AVIFOURCC_movi         VLC_FOURCC('m','o','v','i')
-#define AVIFOURCC_idx1         VLC_FOURCC('i','d','x','1')
+#define AVIFOURCC_avih         HEIMDALL_FOURCC('a','v','i','h')
+#define AVIFOURCC_ON2h         HEIMDALL_FOURCC('O','N','2','h')
+#define AVIFOURCC_hdrl         HEIMDALL_FOURCC('h','d','r','l')
+#define AVIFOURCC_movi         HEIMDALL_FOURCC('m','o','v','i')
+#define AVIFOURCC_idx1         HEIMDALL_FOURCC('i','d','x','1')
 
-#define AVIFOURCC_strl         VLC_FOURCC('s','t','r','l')
-#define AVIFOURCC_strh         VLC_FOURCC('s','t','r','h')
-#define AVIFOURCC_strf         VLC_FOURCC('s','t','r','f')
-#define AVIFOURCC_strd         VLC_FOURCC('s','t','r','d')
-#define AVIFOURCC_strn         VLC_FOURCC('s','t','r','n')
-#define AVIFOURCC_indx         VLC_FOURCC('i','n','d','x')
-#define AVIFOURCC_vprp         VLC_FOURCC('v','p','r','p')
-#define AVIFOURCC_dmlh         VLC_FOURCC('d','m','l','h')
+#define AVIFOURCC_strl         HEIMDALL_FOURCC('s','t','r','l')
+#define AVIFOURCC_strh         HEIMDALL_FOURCC('s','t','r','h')
+#define AVIFOURCC_strf         HEIMDALL_FOURCC('s','t','r','f')
+#define AVIFOURCC_strd         HEIMDALL_FOURCC('s','t','r','d')
+#define AVIFOURCC_strn         HEIMDALL_FOURCC('s','t','r','n')
+#define AVIFOURCC_indx         HEIMDALL_FOURCC('i','n','d','x')
+#define AVIFOURCC_vprp         HEIMDALL_FOURCC('v','p','r','p')
+#define AVIFOURCC_dmlh         HEIMDALL_FOURCC('d','m','l','h')
 
-#define AVIFOURCC_rec          VLC_FOURCC('r','e','c',' ')
-#define AVIFOURCC_auds         VLC_FOURCC('a','u','d','s')
-#define AVIFOURCC_vids         VLC_FOURCC('v','i','d','s')
-#define AVIFOURCC_txts         VLC_FOURCC('t','x','t','s')
-#define AVIFOURCC_mids         VLC_FOURCC('m','i','d','s')
-#define AVIFOURCC_iavs         VLC_FOURCC('i','a','v','s')
-#define AVIFOURCC_ivas         VLC_FOURCC('i','v','a','s')
+#define AVIFOURCC_rec          HEIMDALL_FOURCC('r','e','c',' ')
+#define AVIFOURCC_auds         HEIMDALL_FOURCC('a','u','d','s')
+#define AVIFOURCC_vids         HEIMDALL_FOURCC('v','i','d','s')
+#define AVIFOURCC_txts         HEIMDALL_FOURCC('t','x','t','s')
+#define AVIFOURCC_mids         HEIMDALL_FOURCC('m','i','d','s')
+#define AVIFOURCC_iavs         HEIMDALL_FOURCC('i','a','v','s')
+#define AVIFOURCC_ivas         HEIMDALL_FOURCC('i','v','a','s')
 
-#define AVIFOURCC_IARL         VLC_FOURCC('I','A','R','L')
-#define AVIFOURCC_IART         VLC_FOURCC('I','A','R','T')
-#define AVIFOURCC_ICMS         VLC_FOURCC('I','C','M','S')
-#define AVIFOURCC_ICMT         VLC_FOURCC('I','C','M','T')
-#define AVIFOURCC_ICOP         VLC_FOURCC('I','C','O','P')
-#define AVIFOURCC_ICRD         VLC_FOURCC('I','C','R','D')
-#define AVIFOURCC_ICRP         VLC_FOURCC('I','C','R','P')
-#define AVIFOURCC_IDIM         VLC_FOURCC('I','D','I','M')
-#define AVIFOURCC_IDPI         VLC_FOURCC('I','D','P','I')
-#define AVIFOURCC_IENG         VLC_FOURCC('I','E','N','G')
-#define AVIFOURCC_IGNR         VLC_FOURCC('I','G','N','R')
-#define AVIFOURCC_ISGN         VLC_FOURCC('I','S','G','N')
-#define AVIFOURCC_IKEY         VLC_FOURCC('I','K','E','Y')
-#define AVIFOURCC_ILGT         VLC_FOURCC('I','L','G','T')
-#define AVIFOURCC_IMED         VLC_FOURCC('I','M','E','D')
-#define AVIFOURCC_INAM         VLC_FOURCC('I','N','A','M')
-#define AVIFOURCC_IPLT         VLC_FOURCC('I','P','L','T')
-#define AVIFOURCC_IPRD         VLC_FOURCC('I','P','R','D')
-#define AVIFOURCC_ISBJ         VLC_FOURCC('I','S','B','J')
-#define AVIFOURCC_ISFT         VLC_FOURCC('I','S','F','T')
-#define AVIFOURCC_ISHP         VLC_FOURCC('I','S','H','P')
-#define AVIFOURCC_ISRC         VLC_FOURCC('I','S','R','C')
-#define AVIFOURCC_ISRF         VLC_FOURCC('I','S','R','F')
-#define AVIFOURCC_ITCH         VLC_FOURCC('I','T','C','H')
-#define AVIFOURCC_ISMP         VLC_FOURCC('I','S','M','P')
-#define AVIFOURCC_IDIT         VLC_FOURCC('I','D','I','T')
-#define AVIFOURCC_ILNG         VLC_FOURCC('I','L','N','G')
-#define AVIFOURCC_IRTD         VLC_FOURCC('I','R','T','D')
-#define AVIFOURCC_IWEB         VLC_FOURCC('I','W','E','B')
-#define AVIFOURCC_IPRT         VLC_FOURCC('I','P','R','T')
-#define AVIFOURCC_IWRI         VLC_FOURCC('I','W','R','I')
-#define AVIFOURCC_IPRO         VLC_FOURCC('I','P','R','O')
-#define AVIFOURCC_ICNM         VLC_FOURCC('I','C','N','M')
-#define AVIFOURCC_IPDS         VLC_FOURCC('I','P','D','S')
-#define AVIFOURCC_IEDT         VLC_FOURCC('I','E','D','T')
-#define AVIFOURCC_ICDS         VLC_FOURCC('I','C','D','S')
-#define AVIFOURCC_IMUS         VLC_FOURCC('I','M','U','S')
-#define AVIFOURCC_ISTD         VLC_FOURCC('I','S','T','D')
-#define AVIFOURCC_IDST         VLC_FOURCC('I','D','S','T')
-#define AVIFOURCC_ICNT         VLC_FOURCC('I','C','N','T')
-#define AVIFOURCC_ISTR         VLC_FOURCC('I','S','T','R')
-#define AVIFOURCC_IFRM         VLC_FOURCC('I','F','R','M')
+#define AVIFOURCC_IARL         HEIMDALL_FOURCC('I','A','R','L')
+#define AVIFOURCC_IART         HEIMDALL_FOURCC('I','A','R','T')
+#define AVIFOURCC_ICMS         HEIMDALL_FOURCC('I','C','M','S')
+#define AVIFOURCC_ICMT         HEIMDALL_FOURCC('I','C','M','T')
+#define AVIFOURCC_ICOP         HEIMDALL_FOURCC('I','C','O','P')
+#define AVIFOURCC_ICRD         HEIMDALL_FOURCC('I','C','R','D')
+#define AVIFOURCC_ICRP         HEIMDALL_FOURCC('I','C','R','P')
+#define AVIFOURCC_IDIM         HEIMDALL_FOURCC('I','D','I','M')
+#define AVIFOURCC_IDPI         HEIMDALL_FOURCC('I','D','P','I')
+#define AVIFOURCC_IENG         HEIMDALL_FOURCC('I','E','N','G')
+#define AVIFOURCC_IGNR         HEIMDALL_FOURCC('I','G','N','R')
+#define AVIFOURCC_ISGN         HEIMDALL_FOURCC('I','S','G','N')
+#define AVIFOURCC_IKEY         HEIMDALL_FOURCC('I','K','E','Y')
+#define AVIFOURCC_ILGT         HEIMDALL_FOURCC('I','L','G','T')
+#define AVIFOURCC_IMED         HEIMDALL_FOURCC('I','M','E','D')
+#define AVIFOURCC_INAM         HEIMDALL_FOURCC('I','N','A','M')
+#define AVIFOURCC_IPLT         HEIMDALL_FOURCC('I','P','L','T')
+#define AVIFOURCC_IPRD         HEIMDALL_FOURCC('I','P','R','D')
+#define AVIFOURCC_ISBJ         HEIMDALL_FOURCC('I','S','B','J')
+#define AVIFOURCC_ISFT         HEIMDALL_FOURCC('I','S','F','T')
+#define AVIFOURCC_ISHP         HEIMDALL_FOURCC('I','S','H','P')
+#define AVIFOURCC_ISRC         HEIMDALL_FOURCC('I','S','R','C')
+#define AVIFOURCC_ISRF         HEIMDALL_FOURCC('I','S','R','F')
+#define AVIFOURCC_ITCH         HEIMDALL_FOURCC('I','T','C','H')
+#define AVIFOURCC_ISMP         HEIMDALL_FOURCC('I','S','M','P')
+#define AVIFOURCC_IDIT         HEIMDALL_FOURCC('I','D','I','T')
+#define AVIFOURCC_ILNG         HEIMDALL_FOURCC('I','L','N','G')
+#define AVIFOURCC_IRTD         HEIMDALL_FOURCC('I','R','T','D')
+#define AVIFOURCC_IWEB         HEIMDALL_FOURCC('I','W','E','B')
+#define AVIFOURCC_IPRT         HEIMDALL_FOURCC('I','P','R','T')
+#define AVIFOURCC_IWRI         HEIMDALL_FOURCC('I','W','R','I')
+#define AVIFOURCC_IPRO         HEIMDALL_FOURCC('I','P','R','O')
+#define AVIFOURCC_ICNM         HEIMDALL_FOURCC('I','C','N','M')
+#define AVIFOURCC_IPDS         HEIMDALL_FOURCC('I','P','D','S')
+#define AVIFOURCC_IEDT         HEIMDALL_FOURCC('I','E','D','T')
+#define AVIFOURCC_ICDS         HEIMDALL_FOURCC('I','C','D','S')
+#define AVIFOURCC_IMUS         HEIMDALL_FOURCC('I','M','U','S')
+#define AVIFOURCC_ISTD         HEIMDALL_FOURCC('I','S','T','D')
+#define AVIFOURCC_IDST         HEIMDALL_FOURCC('I','D','S','T')
+#define AVIFOURCC_ICNT         HEIMDALL_FOURCC('I','C','N','T')
+#define AVIFOURCC_ISTR         HEIMDALL_FOURCC('I','S','T','R')
+#define AVIFOURCC_IFRM         HEIMDALL_FOURCC('I','F','R','M')
 
-#define AVIFOURCC_IAS1         VLC_FOURCC('I','A','S','1')
-#define AVIFOURCC_IAS2         VLC_FOURCC('I','A','S','2')
-#define AVIFOURCC_IAS3         VLC_FOURCC('I','A','S','3')
-#define AVIFOURCC_IAS4         VLC_FOURCC('I','A','S','4')
-#define AVIFOURCC_IAS5         VLC_FOURCC('I','A','S','5')
-#define AVIFOURCC_IAS6         VLC_FOURCC('I','A','S','6')
-#define AVIFOURCC_IAS7         VLC_FOURCC('I','A','S','7')
-#define AVIFOURCC_IAS8         VLC_FOURCC('I','A','S','8')
-#define AVIFOURCC_IAS9         VLC_FOURCC('I','A','S','9')
+#define AVIFOURCC_IAS1         HEIMDALL_FOURCC('I','A','S','1')
+#define AVIFOURCC_IAS2         HEIMDALL_FOURCC('I','A','S','2')
+#define AVIFOURCC_IAS3         HEIMDALL_FOURCC('I','A','S','3')
+#define AVIFOURCC_IAS4         HEIMDALL_FOURCC('I','A','S','4')
+#define AVIFOURCC_IAS5         HEIMDALL_FOURCC('I','A','S','5')
+#define AVIFOURCC_IAS6         HEIMDALL_FOURCC('I','A','S','6')
+#define AVIFOURCC_IAS7         HEIMDALL_FOURCC('I','A','S','7')
+#define AVIFOURCC_IAS8         HEIMDALL_FOURCC('I','A','S','8')
+#define AVIFOURCC_IAS9         HEIMDALL_FOURCC('I','A','S','9')
 
-#define AVITWOCC_wb            VLC_TWOCC('w','b')
-#define AVITWOCC_db            VLC_TWOCC('d','b')
-#define AVITWOCC_dc            VLC_TWOCC('d','c')
-#define AVITWOCC_pc            VLC_TWOCC('p','c')
-#define AVITWOCC_AC            VLC_TWOCC('A','C')
-#define AVITWOCC_tx            VLC_TWOCC('t','x')
-#define AVITWOCC_sb            VLC_TWOCC('s','b')
+#define AVITWOCC_wb            HEIMDALL_TWOCC('w','b')
+#define AVITWOCC_db            HEIMDALL_TWOCC('d','b')
+#define AVITWOCC_dc            HEIMDALL_TWOCC('d','c')
+#define AVITWOCC_pc            HEIMDALL_TWOCC('p','c')
+#define AVITWOCC_AC            HEIMDALL_TWOCC('A','C')
+#define AVITWOCC_tx            HEIMDALL_TWOCC('t','x')
+#define AVITWOCC_sb            HEIMDALL_TWOCC('s','b')
 
 /* *** codex stuff ***  */
 
 /* DivX */
-#define FOURCC_DXSB         VLC_FOURCC('D','X','S','B') /* xsub */
-#define FOURCC_XVID         VLC_FOURCC('X','V','I','D')
+#define FOURCC_DXSB         HEIMDALL_FOURCC('D','X','S','B') /* xsub */
+#define FOURCC_XVID         HEIMDALL_FOURCC('X','V','I','D')
 
 /* DV */
-#define FOURCC_dvsd         VLC_FOURCC('d','v','s','d')
-#define FOURCC_dvhd         VLC_FOURCC('d','v','h','d')
-#define FOURCC_dvsl         VLC_FOURCC('d','v','s','l')
-#define FOURCC_dv25         VLC_FOURCC('d','v','2','5')
-#define FOURCC_dv50         VLC_FOURCC('d','v','5','0')
+#define FOURCC_dvsd         HEIMDALL_FOURCC('d','v','s','d')
+#define FOURCC_dvhd         HEIMDALL_FOURCC('d','v','h','d')
+#define FOURCC_dvsl         HEIMDALL_FOURCC('d','v','s','l')
+#define FOURCC_dv25         HEIMDALL_FOURCC('d','v','2','5')
+#define FOURCC_dv50         HEIMDALL_FOURCC('d','v','5','0')
 
 /* QNap */
-#define QNAP_FCC_w264       VLC_FOURCC('w','2','6','4')
-#define QNAP_FCC_q264       VLC_FOURCC('q','2','6','4')
-#define QNAP_FCC_Q264       VLC_FOURCC('Q','2','6','4')
-#define QNAP_FCC_wMP4       VLC_FOURCC('w','M','P','4')
-#define QNAP_FCC_qMP4       VLC_FOURCC('q','M','P','4')
-#define QNAP_FCC_QMP4       VLC_FOURCC('Q','M','P','4')
-#define QNAP_FCC_wIVG       VLC_FOURCC('w','I','V','G')
-#define QNAP_FCC_qIVG       VLC_FOURCC('q','I','V','G')
-#define QNAP_FCC_QIVG       VLC_FOURCC('Q','I','V','G')
+#define QNAP_FCC_w264       HEIMDALL_FOURCC('w','2','6','4')
+#define QNAP_FCC_q264       HEIMDALL_FOURCC('q','2','6','4')
+#define QNAP_FCC_Q264       HEIMDALL_FOURCC('Q','2','6','4')
+#define QNAP_FCC_wMP4       HEIMDALL_FOURCC('w','M','P','4')
+#define QNAP_FCC_qMP4       HEIMDALL_FOURCC('q','M','P','4')
+#define QNAP_FCC_QMP4       HEIMDALL_FOURCC('Q','M','P','4')
+#define QNAP_FCC_wIVG       HEIMDALL_FOURCC('w','I','V','G')
+#define QNAP_FCC_qIVG       HEIMDALL_FOURCC('q','I','V','G')
+#define QNAP_FCC_QIVG       HEIMDALL_FOURCC('Q','I','V','G')

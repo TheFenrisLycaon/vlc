@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,11 +22,11 @@ import QtQuick.Templates as T
 import QtQuick.Layouts
 
 
-import VLC.MainInterface
-import VLC.Player
-import VLC.Style
-import VLC.Widgets as Widgets
-import VLC.Util
+import Heimdall.MainInterface
+import Heimdall.Player
+import Heimdall.Style
+import Heimdall.Widgets as Widgets
+import Heimdall.Util
 
 ColumnLayout {
     id: root
@@ -60,7 +61,7 @@ ColumnLayout {
     Layout.fillWidth: true
     Layout.fillHeight: true
 
-    spacing: VLCStyle.margin_normal
+    spacing: HeimdallStyle.margin_normal
 
     // Events
 
@@ -166,7 +167,7 @@ ColumnLayout {
 
             color: theme.fg.primary
 
-            font.pixelSize: VLCStyle.fontSize_normal
+            font.pixelSize: HeimdallStyle.fontSize_normal
         }
 
         Widgets.CaptionLabel {
@@ -178,7 +179,7 @@ ColumnLayout {
 
             color: theme.fg.primary
 
-            font.pixelSize: VLCStyle.fontSize_normal
+            font.pixelSize: HeimdallStyle.fontSize_normal
         }
     }
 
@@ -189,7 +190,7 @@ ColumnLayout {
 
         topPadding: 0
 
-        // NOTE: These values come from the VLC 3.x implementation.
+        // NOTE: These values come from the Heimdall 3.x implementation.
         from: -34
         to: 34
 
@@ -230,7 +231,7 @@ ColumnLayout {
 
             parent: slider.background
             x: parent.width * .5
-            width: VLCStyle.dp(1, VLCStyle.scale)
+            width: HeimdallStyle.dp(1, HeimdallStyle.scale)
             height: parent.height
             visible: root.sliderToSpeed(slider.value) !== 1
             color: {
@@ -253,8 +254,8 @@ ColumnLayout {
         rows: radioButtonRepeater.count / 2 // two columns
         flow: GridLayout.TopToBottom
 
-        rowSpacing: VLCStyle.margin_small
-        columnSpacing: VLCStyle.margin_small
+        rowSpacing: HeimdallStyle.margin_small
+        columnSpacing: HeimdallStyle.margin_small
 
         ButtonGroup {
             id: buttonGroup

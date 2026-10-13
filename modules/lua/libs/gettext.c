@@ -2,8 +2,9 @@
  * gettext.c
  *****************************************************************************
  * Copyright (C) 2009 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Antoine Cellerier <dionoea at videolan tod org>
+ * Authors: Antoine Cellerier <dionoea at lycaria tod org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,19 +32,19 @@
 # include "config.h"
 #endif
 
-#include "../vlc.h"
+#include "../heimdall.h"
 #include "../libs.h"
 
 /*****************************************************************************
- * Libvlc gettext support
+ * Libheimdall gettext support
  *****************************************************************************/
-static int vlclua_gettext( lua_State *L )
+static int heimdalllua_gettext( lua_State *L )
 {
     lua_pushstring( L, _( luaL_checkstring( L, 1 ) ) );
     return 1;
 }
 
-static int vlclua_gettext_noop( lua_State *L )
+static int heimdalllua_gettext_noop( lua_State *L )
 {
     lua_settop( L, 1 );
     return 1;
@@ -52,9 +53,9 @@ static int vlclua_gettext_noop( lua_State *L )
 /*****************************************************************************
  *
  *****************************************************************************/
-static const luaL_Reg vlclua_gettext_reg[] = {
-    { "_", vlclua_gettext },
-    { "N_", vlclua_gettext_noop },
+static const luaL_Reg heimdalllua_gettext_reg[] = {
+    { "_", heimdalllua_gettext },
+    { "N_", heimdalllua_gettext_noop },
 
     { NULL, NULL }
 };
@@ -62,6 +63,6 @@ static const luaL_Reg vlclua_gettext_reg[] = {
 void luaopen_gettext( lua_State *L )
 {
     lua_newtable( L );
-    luaL_register( L, NULL, vlclua_gettext_reg );
+    luaL_register( L, NULL, heimdalllua_gettext_reg );
     lua_setfield( L, -2, "gettext" );
 }

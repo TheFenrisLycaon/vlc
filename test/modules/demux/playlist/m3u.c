@@ -2,6 +2,7 @@
  * m3u.c: M3U unit testing
  *****************************************************************************
  * Copyright (C) 2021 VideoLabs, VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -21,15 +22,15 @@
 # include "config.h"
 #endif
 
-#include <vlc/vlc.h>
-#include "../../../../lib/libvlc_internal.h"
-#include "../../../libvlc/test.h"
+#include <heimdall/heimdall.h>
+#include "../../../../lib/libheimdall_internal.h"
+#include "../../../libheimdall/test.h"
 
-#include <vlc_common.h>
-#include <vlc_modules.h>
-#include <vlc_demux.h>
-#include <vlc_meta.h>
-#include <vlc_input_item.h>
+#include <heimdall_common.h>
+#include <heimdall_modules.h>
+#include <heimdall_demux.h>
+#include <heimdall_meta.h>
+#include <heimdall_input_item.h>
 
 #define BAILOUT(run) { fprintf(stderr, "failed %s line %d\n", run, __LINE__); \
                         return 1; }
@@ -38,18 +39,18 @@
 #define NOPURI(n) INPUT_ITEM_URI_NOP "/" NOPFIL(n)
 
 static int runtest(const char *run,
-                   libvlc_instance_t *vlc,
+                   libheimdall_instance_t *heimdall,
                    const char *data, size_t datasz,
                    int(*checkfunc)(const char *, const input_item_node_t *))
 {
-    stream_t *s = vlc_stream_MemoryNew(vlc->p_libvlc_int, (uint8_t *)data, datasz, true);
+    stream_t *s = heimdall_stream_MemoryNew(heimdall->p_libheimdall_int, (uint8_t *)data, datasz, true);
     if(!s)
         BAILOUT(run);
 
-    demux_t *pl = demux_New(VLC_OBJECT(vlc->p_libvlc_int), "m3u", INPUT_ITEM_URI_NOP, s, NULL);
+    demux_t *pl = demux_New(HEIMDALL_OBJECT(heimdall->p_libheimdall_int), "m3u", INPUT_ITEM_URI_NOP, s, NULL);
     if(!pl || !pl->pf_readdir)
     {
-        vlc_stream_Delete(s);
+        heimdall_stream_Delete(s);
         BAILOUT(run);
     }
 
@@ -127,12 +128,12 @@ static int check1(const char *run, const input_item_node_t *p_node)
     const input_item_t *p_item = p_node->pp_children[0]->p_item;
     EXPECT(p_item->psz_name && p_item->psz_uri);
     EXPECT(!strcmp(NOPFIL(0), p_item->psz_name));
-    EXPECT(p_item->i_duration == vlc_tick_from_sec(1));
+    EXPECT(p_item->i_duration == heimdall_tick_from_sec(1));
 
     p_item = p_node->pp_children[1]->p_item;
     EXPECT(p_item->psz_name && p_item->psz_uri);
     EXPECT(!strcmp(NOPURI(1), p_item->psz_name));
-    EXPECT(p_item->i_duration == vlc_tick_from_sec(1.11));
+    EXPECT(p_item->i_duration == heimdall_tick_from_sec(1.11));
 
     p_item = p_node->pp_children[2]->p_item;
     EXPECT(p_item->psz_name && p_item->psz_uri);
@@ -144,18 +145,18 @@ static int check1(const char *run, const input_item_node_t *p_node)
     EXPECT(p_item->psz_name && p_item->psz_uri);
     EXPECT(!strcmp(NOPURI(3), p_item->psz_uri));
     EXPECT(!strcmp("name3", p_item->psz_name));
-    const char *p = vlc_meta_Get(p_item->p_meta, vlc_meta_Artist);
+    const char *p = heimdall_meta_Get(p_item->p_meta, heimdall_meta_Artist);
     EXPECT(p && !strcmp("artist3", p));
 
     p_item = p_node->pp_children[4]->p_item;
     EXPECT(p_item->psz_name && p_item->psz_uri);
     EXPECT(!strcmp("name4", p_item->psz_name));
-    EXPECT(vlc_meta_Get(p_item->p_meta, vlc_meta_Artist) == NULL);
+    EXPECT(heimdall_meta_Get(p_item->p_meta, heimdall_meta_Artist) == NULL);
 
     p_item = p_node->pp_children[5]->p_item;
     EXPECT(p_item->psz_name && p_item->psz_uri);
     EXPECT(!strcmp("name5", p_item->psz_name));
-    p = vlc_meta_Get(p_item->p_meta, vlc_meta_Artist);
+    p = heimdall_meta_Get(p_item->p_meta, heimdall_meta_Artist);
     EXPECT(p && !strcmp("artist5", p));
 
     return 0;
@@ -175,29 +176,29 @@ NOPURI(2)"\n";
 static int check2(const char *run, const input_item_node_t *p_node)
 {
     EXPECT(p_node->i_children == 3);
-    const char *p = vlc_meta_Get(p_node->p_item->p_meta, vlc_meta_Title);
+    const char *p = heimdall_meta_Get(p_node->p_item->p_meta, heimdall_meta_Title);
     EXPECT(p && !strcmp(p, "playlist0"));
 
     const input_item_t *p_item = p_node->pp_children[0]->p_item;
     EXPECT(p_item->psz_name && p_item->psz_uri);
     EXPECT(!strcmp(NOPURI(0), p_item->psz_uri));
     EXPECT(!strcmp("name0", p_item->psz_name));
-    p = vlc_meta_Get(p_item->p_meta, vlc_meta_Publisher);
+    p = heimdall_meta_Get(p_item->p_meta, heimdall_meta_Publisher);
     EXPECT(p && !strcmp("group0", p));
-    p = vlc_meta_Get(p_item->p_meta, vlc_meta_ArtworkURL);
+    p = heimdall_meta_Get(p_item->p_meta, heimdall_meta_ArtworkURL);
 
     p_item = p_node->pp_children[1]->p_item;
     EXPECT(p_item->psz_name && p_item->psz_uri);
     EXPECT(!strcmp(NOPURI(1), p_item->psz_uri));
     EXPECT(!strcmp("name1", p_item->psz_name));
-    p = vlc_meta_Get(p_item->p_meta, vlc_meta_Publisher);
+    p = heimdall_meta_Get(p_item->p_meta, heimdall_meta_Publisher);
     EXPECT(p && !strcmp("group1", p));
 
     p_item = p_node->pp_children[2]->p_item;
     EXPECT(p_item->psz_name && p_item->psz_uri);
     EXPECT(!strcmp(NOPURI(2), p_item->psz_uri));
     EXPECT(!strcmp("name2", p_item->psz_name));
-    p = vlc_meta_Get(p_item->p_meta, vlc_meta_Publisher);
+    p = heimdall_meta_Get(p_item->p_meta, heimdall_meta_Publisher);
     EXPECT(p && !strcmp("group1", p));
 
     return 0;
@@ -208,16 +209,16 @@ int main(void)
 {
     test_init();
 
-    libvlc_instance_t *vlc = libvlc_new(0, NULL);
-    if(!vlc)
+    libheimdall_instance_t *heimdall = libheimdall_new(0, NULL);
+    if(!heimdall)
         return 1;
 
-    int ret = runtest("run0", vlc, m3uplaylist0, sizeof(m3uplaylist0), check0);
+    int ret = runtest("run0", heimdall, m3uplaylist0, sizeof(m3uplaylist0), check0);
     if(!ret)
-        ret = runtest("run1", vlc, m3uplaylist1, sizeof(m3uplaylist1), check1);
+        ret = runtest("run1", heimdall, m3uplaylist1, sizeof(m3uplaylist1), check1);
     if(!ret)
-        ret = runtest("run2", vlc, m3uplaylist2, sizeof(m3uplaylist2), check2);
+        ret = runtest("run2", heimdall, m3uplaylist2, sizeof(m3uplaylist2), check2);
 
-    libvlc_release(vlc);
+    libheimdall_release(heimdall);
     return ret;
 }

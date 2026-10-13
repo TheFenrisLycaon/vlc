@@ -2,6 +2,7 @@
  * d3d9_filters.h : D3D9 filters module callbacks
  *****************************************************************************
  * Copyright © 2017 VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Steve Lhomme <robux4@gmail.com>
  *
@@ -20,11 +21,11 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_D3D9_FILTERS_H
-#define VLC_D3D9_FILTERS_H
+#ifndef HEIMDALL_D3D9_FILTERS_H
+#define HEIMDALL_D3D9_FILTERS_H
 
-#include <vlc_common.h>
-#include <vlc_vout_display.h>
+#include <heimdall_common.h>
+#include <heimdall_vout_display.h>
 
 #include "../../video_chroma/d3d9_fmt.h"
 
@@ -32,6 +33,6 @@ int  D3D9OpenDeinterlace(filter_t *);
 int  D3D9OpenConverter(filter_t *);
 int  D3D9OpenCPUConverter(filter_t *);
 
-int D3D9OpenDecoderDevice(vlc_decoder_device *, vlc_window_t *);
+int D3D9OpenDecoderDevice(heimdall_decoder_device *, heimdall_window_t *);
 
-#endif /* VLC_D3D9_FILTERS_H */
+#endif /* HEIMDALL_D3D9_FILTERS_H */

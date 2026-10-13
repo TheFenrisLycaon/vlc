@@ -3,6 +3,7 @@
  * timers.c: timers player test
  *****************************************************************************
  * Copyright (C) 2018-2025 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *****************************************************************************/
 
 #include "common.h"
@@ -10,11 +11,11 @@
 
 static void
 test_timers_assert_smpte(struct timer_state *timer,
-                         vlc_tick_t duration, unsigned fps, bool drop_frame,
+                         heimdall_tick_t duration, unsigned fps, bool drop_frame,
                          unsigned frame_resolution)
 {
     /* This test doesn't support drop frame handling */
-    assert(duration < VLC_TICK_FROM_SEC(60));
+    assert(duration < HEIMDALL_TICK_FROM_SEC(60));
 
     vec_report_timer *vec = &timer->vec;
 
@@ -44,7 +45,7 @@ test_timers_assert_smpte(struct timer_state *timer,
         assert(report->tc.frame_resolution == frame_resolution);
         prev_report = report;
     }
-    assert(prev_report->tc.frames + 1 == fps * duration / VLC_TICK_FROM_SEC(1));
+    assert(prev_report->tc.frames + 1 == fps * duration / HEIMDALL_TICK_FROM_SEC(1));
 }
 
 static void
@@ -117,14 +118,14 @@ test_timers_assert_smpte_dropframe(struct timer_state *timer, unsigned minute,
 #define REGULAR_DELAY_TIMER_IDX 1
 #define SMPTE_TIMER_IDX 2
 #define TIMER_COUNT 3
-#define SOURCE_DELAY_TIMER_VALUE (VLC_TICK_FROM_MS(2))
+#define SOURCE_DELAY_TIMER_VALUE (HEIMDALL_TICK_FROM_MS(2))
 
 static void
 test_timers_playback(struct ctx *ctx, struct timer_state timers[],
-                     size_t track_count, vlc_tick_t length, unsigned fps,
+                     size_t track_count, heimdall_tick_t length, unsigned fps,
                      unsigned rate)
 {
-#define SAMPLE_LENGTH VLC_TICK_FROM_MS(1)
+#define SAMPLE_LENGTH HEIMDALL_TICK_FROM_MS(1)
 #define MAX_UPDATE_COUNT (size_t)(length / SAMPLE_LENGTH)
 
     struct media_params params = DEFAULT_MEDIA_PARAMS(length);
@@ -140,8 +141,8 @@ test_timers_playback(struct ctx *ctx, struct timer_state timers[],
     player_set_rate(ctx, rate);
     player_start(ctx);
 
-    wait_state(ctx, VLC_PLAYER_STATE_STARTED);
-    wait_state(ctx, VLC_PLAYER_STATE_STOPPED);
+    wait_state(ctx, HEIMDALL_PLAYER_STATE_STARTED);
+    wait_state(ctx, HEIMDALL_PLAYER_STATE_STOPPED);
 
     /* Common for regular timers */
     for (size_t timer_idx = 0; timer_idx < SMPTE_TIMER_IDX; ++timer_idx)
@@ -166,7 +167,7 @@ test_timers_playback(struct ctx *ctx, struct timer_state timers[],
                 assert(report->type == REPORT_TIMER_POINT);
                 /* ts/position should increase, rate should stay to 1.f */
                 assert(report->point.ts >= prev_report->point.ts);
-                assert(report->point.system_date != VLC_TICK_INVALID);
+                assert(report->point.system_date != HEIMDALL_TICK_INVALID);
                 assert(report->point.position >= prev_report->point.position);
                 assert(report->point.rate == rate);
                 assert(report->point.length == length);
@@ -174,7 +175,7 @@ test_timers_playback(struct ctx *ctx, struct timer_state timers[],
             else
             {
                 assert(report->type == REPORT_TIMER_PAUSED);
-                assert(report->paused_date == VLC_TICK_INVALID);
+                assert(report->paused_date == HEIMDALL_TICK_INVALID);
             }
         }
     }
@@ -208,7 +209,7 @@ test_timers_playback(struct ctx *ctx, struct timer_state timers[],
                 }
             }
             assert(vec->data[vec->size - 2].point.ts
-                == length - SAMPLE_LENGTH + VLC_TICK_0);
+                == length - SAMPLE_LENGTH + HEIMDALL_TICK_0);
             assert(point_count == MAX_UPDATE_COUNT);
         }
 
@@ -251,7 +252,7 @@ test_timers_playback(struct ctx *ctx, struct timer_state timers[],
     for (size_t i = 0; i < TIMER_COUNT; ++i)
     {
         struct timer_state *timer = &timers[i];
-        vlc_vector_clear(&timer->vec);
+        heimdall_vector_clear(&timer->vec);
     }
 }
 
@@ -261,31 +262,31 @@ test_timers(struct ctx *ctx)
     test_log("timers%s\n",
         (ctx->flags & CLOCK_MASTER_MONOTONIC) ? " (monotonic)" : "");
 
-    vlc_player_t *player = ctx->player;
+    heimdall_player_t *player = ctx->player;
 
     /* Configure timers */
     struct timer_state timers[TIMER_COUNT];
 
     /* Receive all clock update points */
-    timers[REGULAR_TIMER_IDX].delay = VLC_TICK_INVALID;
+    timers[REGULAR_TIMER_IDX].delay = HEIMDALL_TICK_INVALID;
 
     /* Filter some points in order to not be flooded */
     timers[REGULAR_DELAY_TIMER_IDX].delay = SOURCE_DELAY_TIMER_VALUE;
-    timers[SMPTE_TIMER_IDX].delay = VLC_TICK_INVALID;
+    timers[SMPTE_TIMER_IDX].delay = HEIMDALL_TICK_INVALID;
 
     /* Create all timers */
     for (size_t i = 0; i < ARRAY_SIZE(timers); ++i)
     {
-        vlc_vector_init(&timers[i].vec);
+        heimdall_vector_init(&timers[i].vec);
         bool smpte = i == SMPTE_TIMER_IDX;
         player_add_timer(player, &timers[i], smpte, timers[i].delay);
     }
 
     /* Test all timers using valid tracks */
-    test_timers_playback(ctx, timers, 1, VLC_TICK_FROM_MS(200), 120, 1);
+    test_timers_playback(ctx, timers, 1, HEIMDALL_TICK_FROM_MS(200), 120, 1);
 
     /* Test all timers without valid tracks */
-    test_timers_playback(ctx, timers, 0, VLC_TICK_FROM_MS(5000), 24, 16);
+    test_timers_playback(ctx, timers, 0, HEIMDALL_TICK_FROM_MS(5000), 24, 16);
 
     /* Test SMPTE 29.97DF and 59.94DF arround 1 minute and 10 minutes to check
      * if timecodes are dropped every minutes */
@@ -298,11 +299,11 @@ test_timers(struct ctx *ctx)
         for (size_t j = 0; j < ARRAY_SIZE(df_min_test_list); ++j)
         {
             unsigned minute = df_min_test_list[j];
-            vlc_tick_t check_duration = VLC_TICK_FROM_SEC(2);
+            heimdall_tick_t check_duration = HEIMDALL_TICK_FROM_SEC(2);
 
             struct media_params params =
-                DEFAULT_MEDIA_PARAMS(minute * VLC_TICK_FROM_SEC(60)
-                                     + VLC_TICK_FROM_MS(400));
+                DEFAULT_MEDIA_PARAMS(minute * HEIMDALL_TICK_FROM_SEC(60)
+                                     + HEIMDALL_TICK_FROM_MS(400));
             params.track_count[VIDEO_ES] = 1;
             params.track_count[AUDIO_ES] = 0;
             params.track_count[SPU_ES] = 0;
@@ -316,19 +317,19 @@ test_timers(struct ctx *ctx)
             player_set_current_mock_media(ctx, "media1", &params, false);
             player_set_rate(ctx, 24);
 
-            vlc_player_SetTime(player, params.length - check_duration);
+            heimdall_player_SetTime(player, params.length - check_duration);
 
             player_start(ctx);
 
-            wait_state(ctx, VLC_PLAYER_STATE_STARTED);
-            wait_state(ctx, VLC_PLAYER_STATE_STOPPED);
+            wait_state(ctx, HEIMDALL_PLAYER_STATE_STARTED);
+            wait_state(ctx, HEIMDALL_PLAYER_STATE_STOPPED);
 
             test_timers_assert_smpte_dropframe(&timers[SMPTE_TIMER_IDX], minute,
                                                fps);
 
             test_end(ctx);
 
-            vlc_vector_clear(&timers[SMPTE_TIMER_IDX].vec);
+            heimdall_vector_clear(&timers[SMPTE_TIMER_IDX].vec);
         }
     }
 

@@ -2,6 +2,7 @@
  * direct3d9.c: Windows Direct3D9 video output module
  *****************************************************************************
  * Copyright (C) 2006-2014 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Martell Malone <martellmalone@gmail.com>,
  *          Damien Fouilleul <damienf@videolan.org>,
@@ -39,16 +40,16 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_vout_display.h>
-#include <vlc_fs.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_vout_display.h>
+#include <heimdall_fs.h>
 
-#include <vlc/libvlc.h>
-#include <vlc/libvlc_picture.h>
-#include <vlc/libvlc_media.h>
-#include <vlc/libvlc_renderer_discoverer.h>
-#include <vlc/libvlc_media_player.h>
+#include <heimdall/libheimdall.h>
+#include <heimdall/libheimdall_picture.h>
+#include <heimdall/libheimdall_media.h>
+#include <heimdall/libheimdall_renderer_discoverer.h>
+#include <heimdall/libheimdall_media_player.h>
 
 #include <windows.h>
 #include <d3d9.h>
@@ -68,7 +69,7 @@
  * Module descriptor
  *****************************************************************************/
 static int  Open(vout_display_t *,
-                 video_format_t *, vlc_video_context *);
+                 video_format_t *, heimdall_video_context *);
 static void Close(vout_display_t *);
 
 #define DESKTOP_LONGTEXT N_(\
@@ -92,7 +93,7 @@ static void Close(vout_display_t *);
 
 #define D3D9_HELP N_("Recommended video output for Windows Vista and later versions")
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname("Direct3D9")
     set_description(N_("Direct3D9 video output"))
     set_help(D3D9_HELP)
@@ -109,13 +110,13 @@ vlc_module_begin ()
 
     add_shortcut("direct3d9", "direct3d")
     set_callback_display(Open, 280)
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * Local prototypes.
  *****************************************************************************/
-static const vlc_fourcc_t d3d_subpicture_chromas[] = {
-    VLC_CODEC_RGBA,
+static const heimdall_fourcc_t d3d_subpicture_chromas[] = {
+    HEIMDALL_CODEC_RGBA,
     0
 };
 
@@ -128,7 +129,7 @@ typedef struct vout_display_sys_t
 
     // core objects
     d3d9_decoder_device_t  *d3d9_device;
-    vlc_decoder_device     *dec_device; // if d3d9_decoder comes from a decoder device
+    heimdall_decoder_device     *dec_device; // if d3d9_decoder comes from a decoder device
 
     D3DFORMAT               BufferFormat;
 
@@ -155,9 +156,9 @@ typedef struct vout_display_sys_t
 
     /* outside rendering */
     void *outside_opaque;
-    libvlc_video_update_output_cb            updateOutputCb;
-    libvlc_video_swap_cb                     swapCb;
-    libvlc_video_makeCurrent_cb              startEndRenderingCb;
+    libheimdall_video_update_output_cb            updateOutputCb;
+    libheimdall_video_swap_cb                     swapCb;
+    libheimdall_video_makeCurrent_cb              startEndRenderingCb;
 
     /* range converter */
     struct {
@@ -345,7 +346,7 @@ static int Direct3D9ImportPicture(vout_display_t *vd,
 
     if (!source) {
         msg_Dbg(vd, "no surface to render?");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* retrieve texture top-level surface */
@@ -353,7 +354,7 @@ static int Direct3D9ImportPicture(vout_display_t *vd,
     hr = IDirect3DTexture9_GetSurfaceLevel(sys->sceneTexture, 0, &destination);
     if (FAILED(hr)) {
         msg_Dbg(vd, "Failed IDirect3DTexture9_GetSurfaceLevel: 0x%lX", hr);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Copy picture surface into texture surface
@@ -410,13 +411,13 @@ static int Direct3D9ImportPicture(vout_display_t *vd,
     }
     IDirect3DSurface9_Release(destination);
     if (FAILED(hr))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* */
     region->texture = sys->sceneTexture;
     Direct3D9SetupVertices(region->vertex, &texture_visible_rect, vd->source,
                            vd->place, 255, vd->source->orientation);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void Direct3D9DeleteRegions(size_t count, d3d_region_t *region)
@@ -482,24 +483,24 @@ static void Direct3D9DestroyResources(vout_display_t *vd)
 }
 
 static int UpdateOutput(vout_display_t *vd, const video_format_t *fmt,
-                        libvlc_video_output_cfg_t *out)
+                        libheimdall_video_output_cfg_t *out)
 {
     vout_display_sys_t *sys = vd->sys;
-    libvlc_video_render_cfg_t cfg;
+    libheimdall_video_render_cfg_t cfg;
     cfg.width  = vd->cfg->display.width;
     cfg.height = vd->cfg->display.height;
 
     switch (fmt->i_chroma)
     {
-    case VLC_CODEC_D3D9_OPAQUE:
+    case HEIMDALL_CODEC_D3D9_OPAQUE:
         cfg.bitdepth = 8;
         break;
-    case VLC_CODEC_D3D9_OPAQUE_10B:
+    case HEIMDALL_CODEC_D3D9_OPAQUE_10B:
         cfg.bitdepth = 10;
         break;
     default:
         {
-            const vlc_chroma_description_t *p_format = vlc_fourcc_GetChromaDescription(fmt->i_chroma);
+            const heimdall_chroma_description_t *p_format = heimdall_fourcc_GetChromaDescription(fmt->i_chroma);
             if (p_format == NULL)
             {
                 cfg.bitdepth = 8;
@@ -514,22 +515,22 @@ static int UpdateOutput(vout_display_t *vd, const video_format_t *fmt,
     }
 
     cfg.full_range = fmt->color_range == COLOR_RANGE_FULL;
-    cfg.primaries  = (libvlc_video_color_primaries_t) fmt->primaries;
-    cfg.colorspace = (libvlc_video_color_space_t) fmt->space;
-    cfg.transfer   = (libvlc_video_transfer_func_t) fmt->transfer;
+    cfg.primaries  = (libheimdall_video_color_primaries_t) fmt->primaries;
+    cfg.colorspace = (libheimdall_video_color_space_t) fmt->space;
+    cfg.transfer   = (libheimdall_video_transfer_func_t) fmt->transfer;
 
     cfg.device = sys->d3d9_device->d3ddev.dev;
 
-    libvlc_video_output_cfg_t local_out;
+    libheimdall_video_output_cfg_t local_out;
     if (out == NULL)
         out = &local_out;
     if (!sys->updateOutputCb( sys->outside_opaque, &cfg, out ))
     {
         msg_Err(vd, "Failed to set the external render size");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /**
@@ -565,7 +566,7 @@ static int Direct3D9CreateScene(vout_display_t *vd, const video_format_t *fmt)
                                         NULL);
     if (FAILED(hr)) {
         msg_Err(vd, "Failed to create texture. (hr=0x%lX)", hr);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
 #ifndef NDEBUG
@@ -586,7 +587,7 @@ static int Direct3D9CreateScene(vout_display_t *vd, const video_format_t *fmt)
         msg_Err(vd, "Failed to create vertex buffer. (hr=0x%lX)", hr);
         IDirect3DTexture9_Release(sys->sceneTexture);
         sys->sceneTexture = NULL;
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     // we use FVF instead of vertex shader
@@ -662,7 +663,7 @@ static int Direct3D9CreateScene(vout_display_t *vd, const video_format_t *fmt)
 
     msg_Dbg(vd, "Direct3D9 scene created successfully");
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 #ifdef HAVE_D3DX9EFFECT_H
@@ -686,7 +687,7 @@ static int Direct3D9CompileShader(vout_display_t *vd, const char *shader_source,
     OurD3DXCompileShader = (OurD3DXCompileShader_ptr)GetProcAddress(sys->hxdll, "D3DXCompileShader");
     if (!OurD3DXCompileShader) {
         msg_Warn(vd, "Cannot locate reference to D3DXCompileShader; pixel shading will be disabled");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     LPD3DXBUFFER error_msgs = NULL;
@@ -702,7 +703,7 @@ static int Direct3D9CompileShader(vout_display_t *vd, const char *shader_source,
             msg_Warn(vd, "HLSL Compilation Error: %s", (char*)ID3DXBuffer_GetBufferPointer(error_msgs));
             ID3DXBuffer_Release(error_msgs);
     }
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     hr = IDirect3DDevice9_CreatePixelShader(sys->d3d9_device->d3ddev.dev,
@@ -716,9 +717,9 @@ static int Direct3D9CompileShader(vout_display_t *vd, const char *shader_source,
 
     if (FAILED(hr)) {
         msg_Warn(vd, "IDirect3DDevice9_CreatePixelShader error (hr=0x%lX)", hr);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 #endif
 
@@ -729,12 +730,12 @@ static int Direct3D9CreateShaders(vout_display_t *vd)
     vout_display_sys_t *sys = vd->sys;
 
     if (!sys->hxdll)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* Find which shader was selected in the list. */
     char *selected_shader = var_InheritString(vd, "direct3d9-shader");
     if (!selected_shader)
-        return VLC_SUCCESS; /* Nothing to do */
+        return HEIMDALL_SUCCESS; /* Nothing to do */
 
 #ifdef HAVE_D3DX9EFFECT_H
     const char *shader_source_builtin = NULL;
@@ -761,7 +762,7 @@ static int Direct3D9CreateShaders(vout_display_t *vd)
         if (!filepath)
             goto error;
         /* Open file, find its size with fseek/ftell and read its content in a buffer. */
-        fs = vlc_fopen(filepath, "rb");
+        fs = heimdall_fopen(filepath, "rb");
         free(filepath);
         if (!fs)
             goto error;
@@ -772,7 +773,7 @@ static int Direct3D9CreateShaders(vout_display_t *vd)
         if (length == -1 || length >= MAX_SHADER_FILE_SIZE)
             goto error;
         rewind(fs);
-        shader_source_file = vlc_alloc(length, sizeof(*shader_source_file));
+        shader_source_file = heimdall_alloc(length, sizeof(*shader_source_file));
         if (!shader_source_file)
             goto error;
         ret = fread(shader_source_file, length, 1, fs);
@@ -787,7 +788,7 @@ static int Direct3D9CreateShaders(vout_display_t *vd)
     free(shader_source_file);
     fclose(fs);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     free(shader_source_file);
@@ -796,7 +797,7 @@ error:
 #endif // HAVE_D3DX9EFFECT_H
     Direct3D9DestroyShaders(vd);
     free(selected_shader);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /**
@@ -808,7 +809,7 @@ static int Direct3D9CreateResources(vout_display_t *vd, const video_format_t *fm
 
     if (Direct3D9CreateScene(vd, fmt)) {
         msg_Err(vd, "Direct3D scene initialization failed !");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     if (Direct3D9CreateShaders(vd)) {
         /* Failing to initialize shaders is not fatal. */
@@ -841,11 +842,11 @@ static int Direct3D9CreateResources(vout_display_t *vd, const video_format_t *fm
                                                           NULL);
         if (FAILED(hr)) {
            msg_Err(vd, "Failed to allocate offscreen surface (hr=0x%lX)", hr);
-           return VLC_EGENERIC;
+           return HEIMDALL_EGENERIC;
         }
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /**
@@ -855,27 +856,27 @@ static int Direct3D9Reset(vout_display_t *vd, const video_format_t *fmtp)
 {
     vout_display_sys_t *sys = vd->sys;
 
-    int res = D3D9_ResetDevice( VLC_OBJECT(vd), sys->d3d9_device );
-    if (res != VLC_SUCCESS)
+    int res = D3D9_ResetDevice( HEIMDALL_OBJECT(vd), sys->d3d9_device );
+    if (res != HEIMDALL_SUCCESS)
         return res;
 
     /* release all D3D objects */
     Direct3D9DestroyResources(vd);
 
-    if (UpdateOutput(vd, fmtp, NULL) != VLC_SUCCESS)
-        return VLC_EGENERIC;
+    if (UpdateOutput(vd, fmtp, NULL) != HEIMDALL_SUCCESS)
+        return HEIMDALL_EGENERIC;
 
     /* re-create them */
     if (Direct3D9CreateResources(vd, fmtp)) {
         msg_Dbg(vd, "Direct3D9CreateResources failed !");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void Direct3D9ImportSubpicture(vout_display_t *vd,
                                      size_t *count_ptr, d3d_region_t **region,
-                                     const vlc_render_subpicture *subpicture)
+                                     const heimdall_render_subpicture *subpicture)
 {
     vout_display_sys_t *sys = vd->sys;
 
@@ -890,7 +891,7 @@ static void Direct3D9ImportSubpicture(vout_display_t *vd,
     }
 
     int i = 0;
-    vlc_vector_foreach(r, &subpicture->regions) {
+    heimdall_vector_foreach(r, &subpicture->regions) {
         d3d_region_t *d3dr = &(*region)[i];
         HRESULT hr;
 
@@ -1106,9 +1107,9 @@ static void Direct3D9RenderScene(vout_display_t *vd,
 }
 
 static void Prepare(vout_display_t *vd, picture_t *picture,
-                    const vlc_render_subpicture *subpicture, vlc_tick_t date)
+                    const heimdall_render_subpicture *subpicture, heimdall_tick_t date)
 {
-    VLC_UNUSED(date);
+    HEIMDALL_UNUSED(date);
     vout_display_sys_t *sys = vd->sys;
 
     /* Position Change */
@@ -1125,8 +1126,8 @@ static void Prepare(vout_display_t *vd, picture_t *picture,
         {
             msg_Dbg(vd, "resizing device back buffers to (%lux%lu)", width, height);
             // need to reset D3D device to resize back buffer
-            if (VLC_SUCCESS != Direct3D9ResetDevice(vd, width, height))
-                return VLC_EGENERIC;
+            if (HEIMDALL_SUCCESS != Direct3D9ResetDevice(vd, width, height))
+                return HEIMDALL_EGENERIC;
         }
 #endif
         UpdateOutput(vd, vd->fmt, NULL);
@@ -1178,7 +1179,7 @@ static void Prepare(vout_display_t *vd, picture_t *picture,
         picture_UpdatePlanes(&fake_pic, d3drect.pBits, d3drect.Pitch);
 
         /* The dx/d3d buffer is always allocated as YV12 */
-        if (fake_pic.format.i_chroma == VLC_CODEC_I420)
+        if (fake_pic.format.i_chroma == HEIMDALL_CODEC_I420)
             picture_SwapUV( &fake_pic );
 
         picture_CopyPixels(&fake_pic, picture);
@@ -1257,7 +1258,7 @@ static void Swap(vout_display_t *vd)
 
 static void Display(vout_display_t *vd, picture_t *picture)
 {
-    VLC_UNUSED(picture);
+    HEIMDALL_UNUSED(picture);
     vout_display_sys_t *sys = vd->sys;
 
     if (sys->lost_not_ready)
@@ -1276,7 +1277,7 @@ static void Direct3D9Destroy(vout_display_sys_t *sys)
         IDXVAHD_VideoProcessor_Release(sys->processor.proc);
     }
     if (sys->dec_device)
-        vlc_decoder_device_Release(sys->dec_device);
+        heimdall_decoder_device_Release(sys->dec_device);
     else if (sys->d3d9_device)
     {
         D3D9_ReleaseDevice(sys->d3d9_device);
@@ -1305,29 +1306,29 @@ static int Direct3D9CheckConversion(vout_display_t *vd, D3DFORMAT src)
     if (!SUCCEEDED(hr)) {
         if (D3DERR_NOTAVAILABLE != hr)
             msg_Err(vd, "Could not query adapter supported formats. (hr=0x%lX)", hr);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static const d3d9_format_t d3d_formats[] = {
     /* YV12 is always used for planar 420, the planes are then swapped in Lock() */
-    { "YV12",       MAKEFOURCC('Y','V','1','2'),    VLC_CODEC_YV12 },
-    { "YV12",       MAKEFOURCC('Y','V','1','2'),    VLC_CODEC_I420 },
-    { "NV12",       MAKEFOURCC('N','V','1','2'),    VLC_CODEC_NV12 },
-    { "DXA9",       MAKEFOURCC('N','V','1','2'),    VLC_CODEC_D3D9_OPAQUE },
-    { "DXA9_422",   MAKEFOURCC('Y','U','Y','2'),    VLC_CODEC_D3D9_OPAQUE },
-    { "DXA9_444",   MAKEFOURCC('A','Y','U','V'),    VLC_CODEC_D3D9_OPAQUE },
-    { "DXA9_10",    MAKEFOURCC('P','0','1','0'),    VLC_CODEC_D3D9_OPAQUE_10B },
-    { "DXA9_10_422", MAKEFOURCC('Y','2','1','0'),   VLC_CODEC_D3D9_OPAQUE_10B },
-    { "DXA9_10_444", MAKEFOURCC('Y','4','1','0'),   VLC_CODEC_D3D9_OPAQUE_10B },
-    { "UYVY",       D3DFMT_UYVY,    VLC_CODEC_UYVY },
-    { "YUY2",       D3DFMT_YUY2,    VLC_CODEC_YUYV },
-    { "X8R8G8B8",   D3DFMT_X8R8G8B8,VLC_CODEC_BGRX },
-    { "A8R8G8B8",   D3DFMT_A8R8G8B8,VLC_CODEC_BGRA },
-    { "R8G8B8",     D3DFMT_R8G8B8,  VLC_CODEC_BGR24 },
-    { "R5G6B5",     D3DFMT_R5G6B5,  VLC_CODEC_RGB565LE },
-    { "X1R5G5B5",   D3DFMT_X1R5G5B5,VLC_CODEC_RGB555LE },
+    { "YV12",       MAKEFOURCC('Y','V','1','2'),    HEIMDALL_CODEC_YV12 },
+    { "YV12",       MAKEFOURCC('Y','V','1','2'),    HEIMDALL_CODEC_I420 },
+    { "NV12",       MAKEFOURCC('N','V','1','2'),    HEIMDALL_CODEC_NV12 },
+    { "DXA9",       MAKEFOURCC('N','V','1','2'),    HEIMDALL_CODEC_D3D9_OPAQUE },
+    { "DXA9_422",   MAKEFOURCC('Y','U','Y','2'),    HEIMDALL_CODEC_D3D9_OPAQUE },
+    { "DXA9_444",   MAKEFOURCC('A','Y','U','V'),    HEIMDALL_CODEC_D3D9_OPAQUE },
+    { "DXA9_10",    MAKEFOURCC('P','0','1','0'),    HEIMDALL_CODEC_D3D9_OPAQUE_10B },
+    { "DXA9_10_422", MAKEFOURCC('Y','2','1','0'),   HEIMDALL_CODEC_D3D9_OPAQUE_10B },
+    { "DXA9_10_444", MAKEFOURCC('Y','4','1','0'),   HEIMDALL_CODEC_D3D9_OPAQUE_10B },
+    { "UYVY",       D3DFMT_UYVY,    HEIMDALL_CODEC_UYVY },
+    { "YUY2",       D3DFMT_YUY2,    HEIMDALL_CODEC_YUYV },
+    { "X8R8G8B8",   D3DFMT_X8R8G8B8,HEIMDALL_CODEC_BGRX },
+    { "A8R8G8B8",   D3DFMT_A8R8G8B8,HEIMDALL_CODEC_BGRA },
+    { "R8G8B8",     D3DFMT_R8G8B8,  HEIMDALL_CODEC_BGR24 },
+    { "R5G6B5",     D3DFMT_R5G6B5,  HEIMDALL_CODEC_RGB565LE },
+    { "X1R5G5B5",   D3DFMT_X1R5G5B5,HEIMDALL_CODEC_RGB555LE },
 
     { NULL, 0, 0 }
 };
@@ -1347,7 +1348,7 @@ static const d3d9_format_t *FindBufferFormat(D3DFORMAT fmt)
 
 /**
  * It returns the format (closest to chroma) that can be converted to target */
-static const d3d9_format_t *Direct3DFindFormat(vout_display_t *vd, const video_format_t *fmt, vlc_video_context *vctx)
+static const d3d9_format_t *Direct3DFindFormat(vout_display_t *vd, const video_format_t *fmt, heimdall_video_context *vctx)
 {
     vout_display_sys_t *sys = vd->sys;
     bool hardware_scale_ok = !(fmt->i_visible_width & 1) && !(fmt->i_visible_height & 1);
@@ -1355,9 +1356,9 @@ static const d3d9_format_t *Direct3DFindFormat(vout_display_t *vd, const video_f
         msg_Warn( vd, "Disabling hardware chroma conversion due to odd dimensions" );
 
     for (unsigned pass = 0; pass < 2; pass++) {
-        const vlc_fourcc_t *list = NULL;
-        vlc_fourcc_t *fallback_list = NULL;
-        const vlc_fourcc_t dxva_chroma[] = {fmt->i_chroma, 0};
+        const heimdall_fourcc_t *list = NULL;
+        heimdall_fourcc_t *fallback_list = NULL;
+        const heimdall_fourcc_t dxva_chroma[] = {fmt->i_chroma, 0};
         D3DFORMAT decoder_format = D3DFMT_UNKNOWN;
 
         if (pass == 0 && is_d3d9_opaque(fmt->i_chroma))
@@ -1368,10 +1369,10 @@ static const d3d9_format_t *Direct3DFindFormat(vout_display_t *vd, const video_f
             decoder_format = vctx_sys->format;
             msg_Dbg(vd, "favor decoder format: %4.4s (%d)", (const char*)&decoder_format, decoder_format);
         }
-        else if (pass == 0 && hardware_scale_ok && sys->allow_hw_yuv && vlc_fourcc_IsYUV(fmt->i_chroma))
-            list = fallback_list = vlc_fourcc_GetYUVFallback(fmt->i_chroma);
+        else if (pass == 0 && hardware_scale_ok && sys->allow_hw_yuv && heimdall_fourcc_IsYUV(fmt->i_chroma))
+            list = fallback_list = heimdall_fourcc_GetYUVFallback(fmt->i_chroma);
         else if (pass == 1)
-            list = fallback_list = vlc_fourcc_GetRGBFallback(fmt->i_chroma);
+            list = fallback_list = heimdall_fourcc_GetRGBFallback(fmt->i_chroma);
 
         if (list == NULL)
             continue;
@@ -1380,7 +1381,7 @@ static const d3d9_format_t *Direct3DFindFormat(vout_display_t *vd, const video_f
             for (unsigned j = 0; d3d_formats[j].name; j++) {
                 const d3d9_format_t *format = &d3d_formats[j];
 
-                if (format->vlc_chroma != list[i])
+                if (format->heimdall_chroma != list[i])
                     continue;
                 if (decoder_format != D3DFMT_UNKNOWN && format->format != decoder_format)
                     continue; // not the Hardware format we prefer
@@ -1451,7 +1452,7 @@ static void GetFrameRate(DXVAHD_RATIONAL *r, const video_format_t *fmt)
 }
 
 static int InitRangeProcessor(vout_display_t *vd, const d3d9_format_t *d3dfmt,
-                              const libvlc_video_output_cfg_t *render_out)
+                              const libheimdall_video_output_cfg_t *render_out)
 {
     vout_display_sys_t *sys = vd->sys;
 
@@ -1490,7 +1491,7 @@ static int InitRangeProcessor(vout_display_t *vd, const d3d9_format_t *d3dfmt,
         goto error;
     }
 
-    formatsList = vlc_alloc(devcaps.InputFormatCount, sizeof(*formatsList));
+    formatsList = heimdall_alloc(devcaps.InputFormatCount, sizeof(*formatsList));
     if (unlikely(formatsList == NULL))
     {
         msg_Dbg(vd, "Failed to allocate %u input formats", devcaps.InputFormatCount);
@@ -1511,7 +1512,7 @@ static int InitRangeProcessor(vout_display_t *vd, const d3d9_format_t *d3dfmt,
     }
 
     free(formatsList);
-    formatsList = vlc_alloc(devcaps.OutputFormatCount, sizeof(*formatsList));
+    formatsList = heimdall_alloc(devcaps.OutputFormatCount, sizeof(*formatsList));
     if (unlikely(formatsList == NULL))
     {
         msg_Dbg(vd, "Failed to allocate %u output formats", devcaps.OutputFormatCount);
@@ -1530,7 +1531,7 @@ static int InitRangeProcessor(vout_display_t *vd, const d3d9_format_t *d3dfmt,
         goto error;
     }
 
-    capsList = vlc_alloc(devcaps.VideoProcessorCount, sizeof(*capsList));
+    capsList = heimdall_alloc(devcaps.VideoProcessorCount, sizeof(*capsList));
     if (unlikely(capsList == NULL))
     {
         msg_Dbg(vd, "Failed to allocate %u video processors", devcaps.VideoProcessorCount);
@@ -1560,30 +1561,30 @@ static int InitRangeProcessor(vout_display_t *vd, const d3d9_format_t *d3dfmt,
         .Usage = 0, // playback
         .RGB_Range = render_out->full_range ? 0 : 1,
         .YCbCr_xvYCC = render_out->full_range ? 1 : 0,
-        .YCbCr_Matrix = render_out->colorspace == libvlc_video_colorspace_BT601 ? 0 : 1,
+        .YCbCr_Matrix = render_out->colorspace == libheimdall_video_colorspace_BT601 ? 0 : 1,
     };
     hr = IDXVAHD_VideoProcessor_SetVideoProcessBltState( sys->processor.proc, DXVAHD_BLT_STATE_OUTPUT_COLOR_SPACE, sizeof(colorspace), &colorspace);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     free(capsList);
     free(formatsList);
     if (hd_device)
         IDXVAHD_Device_Release(hd_device);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /**
  * It creates a Direct3D9 device and the associated resources.
  */
-static int Direct3D9Open(vout_display_t *vd, video_format_t *fmt, vlc_video_context *vctx)
+static int Direct3D9Open(vout_display_t *vd, video_format_t *fmt, heimdall_video_context *vctx)
 {
     vout_display_sys_t *sys = vd->sys;
 
-    libvlc_video_output_cfg_t render_out;
-    if (UpdateOutput(vd, vd->source, &render_out) != VLC_SUCCESS)
-        return VLC_EGENERIC;
+    libheimdall_video_output_cfg_t render_out;
+    if (UpdateOutput(vd, vd->source, &render_out) != HEIMDALL_SUCCESS)
+        return HEIMDALL_EGENERIC;
 
     sys->BufferFormat = render_out.u.d3d9_format;
     const d3d9_format_t *dst_format = FindBufferFormat(sys->BufferFormat);
@@ -1603,12 +1604,12 @@ static int Direct3D9Open(vout_display_t *vd, video_format_t *fmt, vlc_video_cont
     bool force_dxva_hd = var_InheritBool(vd, "direct3d9-dxvahd");
     if (force_dxva_hd || (dst_format && vd->source->color_range != COLOR_RANGE_FULL &&
                           sys->d3d9_device->d3ddev.identifier.VendorId == GPU_MANUFACTURER_NVIDIA &&
-                          !vlc_fourcc_IsYUV(dst_format->vlc_chroma) && vlc_fourcc_IsYUV(d3dfmt->vlc_chroma)))
+                          !heimdall_fourcc_IsYUV(dst_format->heimdall_chroma) && heimdall_fourcc_IsYUV(d3dfmt->heimdall_chroma)))
     {
         // NVIDIA bug, YUV to RGB internal conversion in StretchRect always converts from limited to limited range
         msg_Dbg(vd, "init DXVA-HD processor from %s to %s", d3dfmt->name, dst_format?dst_format->name:"unknown");
         int err = InitRangeProcessor( vd, d3dfmt, &render_out );
-        if (err != VLC_SUCCESS)
+        if (err != HEIMDALL_SUCCESS)
             force_dxva_hd = false;
     }
     if (!force_dxva_hd)
@@ -1628,7 +1629,7 @@ static int Direct3D9Open(vout_display_t *vd, video_format_t *fmt, vlc_video_cont
 
     /* */
     *fmt = *vd->source;
-    fmt->i_chroma = d3dfmt->vlc_chroma;
+    fmt->i_chroma = d3dfmt->heimdall_chroma;
     sys->sw_texture_fmt = d3dfmt;
 
     if (Direct3D9CreateResources(vd, fmt)) {
@@ -1637,10 +1638,10 @@ static int Direct3D9Open(vout_display_t *vd, video_format_t *fmt, vlc_video_cont
     }
 
     msg_Dbg(vd, "Direct3D9 display adapter successfully initialized");
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /**
@@ -1653,18 +1654,18 @@ static void Direct3D9Close(vout_display_t *vd)
 
 static int SetDisplaySize(vout_display_t *vd, unsigned width, unsigned height)
 {
-    VLC_UNUSED(width); VLC_UNUSED(height);
+    HEIMDALL_UNUSED(width); HEIMDALL_UNUSED(height);
     vout_display_sys_t *sys = vd->sys;
     CommonDisplaySizeChanged(sys->video_wnd);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int PlacementChanged(vout_display_t *vd, const vout_display_place_t *place)
 {
     vout_display_sys_t *sys = vd->sys;
-    VLC_UNUSED(place);
+    HEIMDALL_UNUSED(place);
     sys->place_changed = true;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 typedef struct
@@ -1692,7 +1693,7 @@ static void ListShaders(enum_context_t *ctx)
 /* Populate the list of available shader techniques in the options */
 static int FindShadersCallback(const char *name, char ***values, char ***descs)
 {
-    VLC_UNUSED(name);
+    HEIMDALL_UNUSED(name);
 
     enum_context_t ctx = { NULL, NULL, 0 };
 
@@ -1704,11 +1705,11 @@ static int FindShadersCallback(const char *name, char ***values, char ***descs)
 
 }
 
-VLC_CONFIG_STRING_ENUM(FindShadersCallback)
+HEIMDALL_CONFIG_STRING_ENUM(FindShadersCallback)
 
-static bool LocalSwapchainUpdateOutput( void *opaque, const libvlc_video_render_cfg_t *cfg, libvlc_video_output_cfg_t *out )
+static bool LocalSwapchainUpdateOutput( void *opaque, const libheimdall_video_render_cfg_t *cfg, libheimdall_video_output_cfg_t *out )
 {
-    VLC_UNUSED(cfg);
+    HEIMDALL_UNUSED(cfg);
     vout_display_t *vd = opaque;
     vout_display_sys_t *sys = vd->sys;
 
@@ -1719,10 +1720,10 @@ static bool LocalSwapchainUpdateOutput( void *opaque, const libvlc_video_render_
 
     out->u.d3d9_format = d3ddm.Format;
     out->full_range  = true;
-    out->colorspace  = libvlc_video_colorspace_BT709;
-    out->primaries   = libvlc_video_primaries_BT709;
-    out->transfer    = libvlc_video_transfer_func_SRGB;
-    out->orientation = libvlc_video_orient_top_left;
+    out->colorspace  = libheimdall_video_colorspace_BT709;
+    out->primaries   = libheimdall_video_primaries_BT709;
+    out->transfer    = libheimdall_video_transfer_func_SRGB;
+    out->orientation = libheimdall_video_orient_top_left;
 
     return true;
 }
@@ -1733,7 +1734,7 @@ static void LocalSwapchainSwap( void *opaque )
     Swap( vd );
 }
 
-static const struct vlc_display_operations ops = {
+static const struct heimdall_display_operations ops = {
     .close = Close,
     .prepare = Prepare,
     .display = Display,
@@ -1745,20 +1746,20 @@ static const struct vlc_display_operations ops = {
  * It creates a Direct3D vout display.
  */
 static int Open(vout_display_t *vd,
-                video_format_t *fmtp, vlc_video_context *context)
+                video_format_t *fmtp, heimdall_video_context *context)
 {
     vout_display_sys_t *sys;
 
     if ( !vd->obj.force && vd->source->projection_mode != PROJECTION_MODE_RECTANGULAR)
-        return VLC_EGENERIC; /* let a module who can handle it do it */
+        return HEIMDALL_EGENERIC; /* let a module who can handle it do it */
 
     if ( !vd->obj.force && vd->source->mastering.max_luminance != 0)
-        return VLC_EGENERIC; /* let a module who can handle it do it */
+        return HEIMDALL_EGENERIC; /* let a module who can handle it do it */
 
     /* Allocate structure */
     vd->sys = sys = calloc(1, sizeof(vout_display_sys_t));
     if (!sys)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     sys->place_changed = false;
     sys->video_wnd = NULL;
@@ -1780,13 +1781,13 @@ static int Open(vout_display_t *vd,
         sys->startEndRenderingCb = NULL;
     }
 
-    sys->dec_device = context ? vlc_video_context_HoldDevice(context) : NULL;
+    sys->dec_device = context ? heimdall_video_context_HoldDevice(context) : NULL;
     sys->d3d9_device = GetD3D9OpaqueDevice(sys->dec_device);
     if ( sys->d3d9_device == NULL )
     {
         if (sys->dec_device)
         {
-            vlc_decoder_device_Release(sys->dec_device);
+            heimdall_decoder_device_Release(sys->dec_device);
             sys->dec_device = NULL;
         }
 
@@ -1841,15 +1842,15 @@ static int Open(vout_display_t *vd,
     vd->ops = &ops;
 
     /* Change the window title bar text */
-    vlc_window_SetTitle(vd->cfg->window, VOUT_TITLE " (Direct3D9 output)");
+    heimdall_window_SetTitle(vd->cfg->window, VOUT_TITLE " (Direct3D9 output)");
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 error:
     Direct3D9Close(vd);
     CommonWindowClean(sys->video_wnd);
     Direct3D9Destroy(sys);
     free(vd->sys);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /**

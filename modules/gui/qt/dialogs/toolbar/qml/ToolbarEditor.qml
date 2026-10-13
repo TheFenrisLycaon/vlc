@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,11 +21,11 @@ import QtQuick.Layouts
 import QtQml.Models
 
 
-import VLC.MainInterface
-import VLC.Style
-import VLC.Widgets as Widgets
-import VLC.Util
-import VLC.PlayerControls
+import Heimdall.MainInterface
+import Heimdall.Style
+import Heimdall.Widgets as Widgets
+import Heimdall.Util
+import Heimdall.PlayerControls
 
 Item {
     id: root
@@ -65,7 +66,7 @@ Item {
 
                     selected: index === bar.currentIndex
 
-                    implicitWidth: VLCStyle.button_width_large
+                    implicitWidth: HeimdallStyle.button_width_large
 
                     text: {
                         const text = modelData.name
@@ -84,25 +85,25 @@ Item {
         }
 
         Item {
-            Layout.preferredHeight: VLCStyle.controlLayoutHeight * 1.5
+            Layout.preferredHeight: HeimdallStyle.controlLayoutHeight * 1.5
             Layout.fillWidth: true
 
             TextMetrics {
                 id: leftMetric
                 text: qsTr("L   E   F   T")
-                font.pixelSize: VLCStyle.fontSize_xxlarge
+                font.pixelSize: HeimdallStyle.fontSize_xxlarge
             }
 
             TextMetrics {
                 id: centerMetric
                 text: qsTr("C   E   N   T   E   R")
-                font.pixelSize: VLCStyle.fontSize_xxlarge
+                font.pixelSize: HeimdallStyle.fontSize_xxlarge
             }
 
             TextMetrics {
                 id: rightMetric
                 text: qsTr("R   I   G   H   T")
-                font.pixelSize: VLCStyle.fontSize_xxlarge
+                font.pixelSize: HeimdallStyle.fontSize_xxlarge
             }
 
             Repeater {
@@ -130,7 +131,7 @@ Item {
                             return null
                     }
 
-                    spacing: VLCStyle.margin_small
+                    spacing: HeimdallStyle.margin_small
 
                     Repeater {
                         id: repeater
@@ -193,7 +194,7 @@ Item {
                                 color: theme.bg.primary
 
                                 border.color: theme.border
-                                border.width: VLCStyle.border
+                                border.width: HeimdallStyle.border
                                 border.pixelAligned: (radius < Number.EPSILON)
 
                                 property alias count: dndView.count
@@ -239,7 +240,7 @@ Item {
 
                                         text: repeater.getMetric(index).text
                                         verticalAlignment: Text.AlignVCenter
-                                        font.pixelSize: VLCStyle.fontSize_xxlarge
+                                        font.pixelSize: HeimdallStyle.fontSize_xxlarge
                                         color: theme.fg.secondary
                                         horizontalAlignment: Text.AlignHCenter
                                         visible: (count === 0)
@@ -255,18 +256,18 @@ Item {
         Rectangle {
             Layout.fillHeight: true
             Layout.fillWidth: true
-            Layout.topMargin: VLCStyle.margin_xxsmall
+            Layout.topMargin: HeimdallStyle.margin_xxsmall
 
             color: buttonList.colorContext.bg.primary
             border.color: theme.border
-            border.width: VLCStyle.border
+            border.width: HeimdallStyle.border
             border.pixelAligned: (radius < Number.EPSILON)
 
             ColumnLayout {
                 anchors.fill: parent
 
                 Widgets.MenuCaption {
-                    Layout.margins: VLCStyle.margin_xxsmall
+                    Layout.margins: HeimdallStyle.margin_xxsmall
                     text: qsTr("Drag items below to add them above: ")
                     color: buttonList.colorContext.fg.primary
                 }
@@ -276,7 +277,7 @@ Item {
 
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    Layout.margins: VLCStyle.margin_xxsmall
+                    Layout.margins: HeimdallStyle.margin_xxsmall
 
                     Component.onCompleted: {
                         controlDragStarted.connect(root.dragStarted)

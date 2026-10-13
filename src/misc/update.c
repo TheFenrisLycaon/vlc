@@ -1,11 +1,12 @@
 /*****************************************************************************
- * update.c: VLC update checking and downloading
+ * update.c: Heimdall update checking and downloading
  *****************************************************************************
  * Copyright © 2005-2008 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Antoine Cellerier <dionoea -at- videolan -dot- org>
+ * Authors: Antoine Cellerier <dionoea -at- lycaria -dot- org>
  *          Rémi Duraffort <ivoire at via.ecp.fr>
-            Rafaël Carré <funman@videolanorg>
+            Rafaël Carré <funman@lycariaorg>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -24,7 +25,7 @@
 
 /**
  *   \file
- *   This file contains functions related to VLC update management
+ *   This file contains functions related to Heimdall update management
  */
 
 /*****************************************************************************
@@ -35,28 +36,28 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_threads.h>
-#include <vlc_update.h>
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
+#include <heimdall_update.h>
 
 #include <assert.h>
 
-#include <vlc_pgpkey.h>
-#include <vlc_stream.h>
-#include <vlc_strings.h>
-#include <vlc_fs.h>
-#include <vlc_dialog.h>
-#include <vlc_interface.h>
-#include <vlc_charset.h>
+#include <heimdall_pgpkey.h>
+#include <heimdall_stream.h>
+#include <heimdall_strings.h>
+#include <heimdall_fs.h>
+#include <heimdall_dialog.h>
+#include <heimdall_interface.h>
+#include <heimdall_charset.h>
 
 #include <gcrypt.h>
-#include <vlc_gcrypt.h>
+#include <heimdall_gcrypt.h>
 #ifdef _WIN32
 #include <windows.h>
 #include <shellapi.h>
 #endif
 #include "update.h"
-#include "../libvlc.h"
+#include "../libheimdall.h"
 
 /*****************************************************************************
  * Misc defines
@@ -75,13 +76,13 @@
  */
 
 #ifndef NDEBUG
-# define UPDATE_VLC_STATUS_URL "https://update-test.videolan.org/vlc/status"
+# define UPDATE_HEIMDALL_STATUS_URL "https://update-test.videolan.org/vlc/status"
 #else
-# define UPDATE_VLC_STATUS_URL "https://update.videolan.org/vlc/status"
+# define UPDATE_HEIMDALL_STATUS_URL "https://update.videolan.org/vlc/status"
 #endif
 
 #define dialog_FatalWait( p_obj, psz_title, psz_fmt, ... ) \
-    vlc_dialog_wait_question( p_obj, VLC_DIALOG_QUESTION_CRITICAL, "OK", NULL, \
+    heimdall_dialog_wait_question( p_obj, HEIMDALL_DIALOG_QUESTION_CRITICAL, "OK", NULL, \
                               NULL, psz_title, psz_fmt, ##__VA_ARGS__ );
 
 /*****************************************************************************
@@ -90,12 +91,12 @@
 
 #undef update_New
 /**
- * Create a new update VLC struct
+ * Create a new update Heimdall struct
  *
- * \param p_this the calling vlc_object
+ * \param p_this the calling heimdall_object
  * \return pointer to new update_t or NULL
  */
-update_t *update_New( vlc_object_t *p_this )
+update_t *update_New( heimdall_object_t *p_this )
 {
     update_t *p_update;
     assert( p_this );
@@ -103,9 +104,9 @@ update_t *update_New( vlc_object_t *p_this )
     p_update = (update_t *)malloc( sizeof( update_t ) );
     if( !p_update ) return NULL;
 
-    vlc_mutex_init( &p_update->lock );
+    heimdall_mutex_init( &p_update->lock );
 
-    p_update->p_libvlc = vlc_object_instance(p_this);
+    p_update->p_libheimdall = heimdall_object_instance(p_this);
 
     p_update->release.psz_url = NULL;
     p_update->release.psz_desc = NULL;
@@ -114,7 +115,7 @@ update_t *update_New( vlc_object_t *p_this )
     p_update->p_check = NULL;
 
     p_update->p_pkey = NULL;
-    vlc_gcrypt_init();
+    heimdall_gcrypt_init();
 
     return p_update;
 }
@@ -130,15 +131,15 @@ void update_Delete( update_t *p_update )
 
     if( p_update->p_check )
     {
-        vlc_join( p_update->p_check->thread, NULL );
+        heimdall_join( p_update->p_check->thread, NULL );
         free( p_update->p_check );
     }
 
     if( p_update->p_download )
     {
         atomic_store( &p_update->p_download->aborted, true );
-        vlc_join( p_update->p_download->thread, NULL );
-        vlc_object_delete(p_update->p_download);
+        heimdall_join( p_update->p_download->thread, NULL );
+        heimdall_object_delete(p_update->p_download);
     }
 
     free( p_update->release.psz_url );
@@ -173,12 +174,12 @@ static void EmptyRelease( update_t *p_update )
 static bool GetUpdateFile( update_t *p_update )
 {
 #if defined(_WIN32) && (defined(__aarch64__) || defined(_M_ARM64))
-    static const char url[] = UPDATE_VLC_STATUS_URL "-win-arm64";
+    static const char url[] = UPDATE_HEIMDALL_STATUS_URL "-win-arm64";
 #elif defined(_WIN64)
-    static const char url[] = UPDATE_VLC_STATUS_URL "-win-x64";
+    static const char url[] = UPDATE_HEIMDALL_STATUS_URL "-win-x64";
 #elif defined(_WIN32)
     static const char *urls[] = {
-        UPDATE_VLC_STATUS_URL "-win-x86", UPDATE_VLC_STATUS_URL "-win-x64"
+        UPDATE_HEIMDALL_STATUS_URL "-win-x86", UPDATE_HEIMDALL_STATUS_URL "-win-x64"
     };
     BOOL sixtyfour;
 
@@ -187,24 +188,24 @@ static bool GetUpdateFile( update_t *p_update )
 
     const char *url = urls[sixtyfour != FALSE];
 #else
-    static const char url[] = UPDATE_VLC_STATUS_URL;
+    static const char url[] = UPDATE_HEIMDALL_STATUS_URL;
 #endif
     stream_t *p_stream = NULL;
     char *psz_version_line = NULL;
     char *psz_update_data = NULL;
 
-    p_stream = vlc_stream_NewURL( p_update->p_libvlc, url );
+    p_stream = heimdall_stream_NewURL( p_update->p_libheimdall, url );
     if( !p_stream )
     {
-        msg_Err( p_update->p_libvlc, "Failed to open %s for reading",
-                 UPDATE_VLC_STATUS_URL );
+        msg_Err( p_update->p_libheimdall, "Failed to open %s for reading",
+                 UPDATE_HEIMDALL_STATUS_URL );
         goto error;
     }
 
     uint64_t i_read;
-    if( vlc_stream_GetSize( p_stream, &i_read ) || i_read >= UINT16_MAX )
+    if( heimdall_stream_GetSize( p_stream, &i_read ) || i_read >= UINT16_MAX )
     {
-        msg_Err(p_update->p_libvlc, "Status file too large");
+        msg_Err(p_update->p_libheimdall, "Status file too large");
         goto error;
     }
 
@@ -212,16 +213,16 @@ static bool GetUpdateFile( update_t *p_update )
     if( !psz_update_data )
         goto error;
 
-    if( vlc_stream_Read( p_stream, psz_update_data,
+    if( heimdall_stream_Read( p_stream, psz_update_data,
                          i_read ) != (ssize_t)i_read )
     {
-        msg_Err( p_update->p_libvlc, "Couldn't download update file %s",
-                UPDATE_VLC_STATUS_URL );
+        msg_Err( p_update->p_libheimdall, "Couldn't download update file %s",
+                UPDATE_HEIMDALL_STATUS_URL );
         goto error;
     }
     psz_update_data[i_read] = '\0';
 
-    vlc_stream_Delete( p_stream );
+    heimdall_stream_Delete( p_stream );
     p_stream = NULL;
 
     /* first line : version number */
@@ -242,7 +243,7 @@ static bool GetUpdateFile( update_t *p_update )
                     &p_update->release.i_revision, &p_update->release.i_extra);
     if( ret != 3 && ret != 4 )
     {
-            msg_Err( p_update->p_libvlc, "Update version false formatted" );
+            msg_Err( p_update->p_libheimdall, "Update version false formatted" );
             goto error;
     }
 
@@ -250,8 +251,8 @@ static bool GetUpdateFile( update_t *p_update )
     i_len = strcspn( psz_update_data_parser, "\r\n" );
     if( i_len == 0 )
     {
-        msg_Err( p_update->p_libvlc, "Update file %s is corrupted: URL missing",
-                 UPDATE_VLC_STATUS_URL );
+        msg_Err( p_update->p_libheimdall, "Update file %s is corrupted: URL missing",
+                 UPDATE_HEIMDALL_STATUS_URL );
 
         goto error;
     }
@@ -269,9 +270,9 @@ static bool GetUpdateFile( update_t *p_update )
     i_len = strlen( psz_update_data_parser );
     if( i_len == 0 )
     {
-        msg_Err( p_update->p_libvlc,
+        msg_Err( p_update->p_libheimdall,
                 "Update file %s is corrupted: description missing",
-                UPDATE_VLC_STATUS_URL );
+                UPDATE_HEIMDALL_STATUS_URL );
         goto error;
     }
 
@@ -283,16 +284,16 @@ static bool GetUpdateFile( update_t *p_update )
     /* Now that we know the status is valid, we must download its signature
      * to authenticate it */
     signature_packet_t sign;
-    if( download_signature( VLC_OBJECT( p_update->p_libvlc ), &sign,
-            UPDATE_VLC_STATUS_URL ) != VLC_SUCCESS )
+    if( download_signature( HEIMDALL_OBJECT( p_update->p_libheimdall ), &sign,
+            UPDATE_HEIMDALL_STATUS_URL ) != HEIMDALL_SUCCESS )
     {
-        msg_Err( p_update->p_libvlc, "Couldn't download signature of status file" );
+        msg_Err( p_update->p_libheimdall, "Couldn't download signature of status file" );
         goto error;
     }
 
     if( sign.type != BINARY_SIGNATURE && sign.type != TEXT_SIGNATURE )
     {
-        msg_Err( p_update->p_libvlc, "Invalid signature type" );
+        msg_Err( p_update->p_libheimdall, "Invalid signature type" );
         goto error;
     }
 
@@ -300,25 +301,25 @@ static bool GetUpdateFile( update_t *p_update )
     if( !p_update->p_pkey )
         goto error;
 
-    if( parse_public_key( videolan_public_key, sizeof( videolan_public_key ),
-                        p_update->p_pkey, NULL ) != VLC_SUCCESS )
+    if( parse_public_key( lycaria_public_key, sizeof( lycaria_public_key ),
+                        p_update->p_pkey, NULL ) != HEIMDALL_SUCCESS )
     {
-        msg_Err( p_update->p_libvlc, "Couldn't parse embedded public key, something went really wrong..." );
+        msg_Err( p_update->p_libheimdall, "Couldn't parse embedded public key, something went really wrong..." );
         FREENULL( p_update->p_pkey );
         goto error;
     }
 
-    memcpy( p_update->p_pkey->longid, videolan_public_key_longid, 8 );
+    memcpy( p_update->p_pkey->longid, lycaria_public_key_longid, 8 );
 
     if( memcmp( sign.issuer_longid, p_update->p_pkey->longid , 8 ) != 0 )
     {
-        msg_Dbg( p_update->p_libvlc, "Need to download the GPG key" );
+        msg_Dbg( p_update->p_libheimdall, "Need to download the GPG key" );
         public_key_t *p_new_pkey = download_key(
-                VLC_OBJECT(p_update->p_libvlc),
-                sign.issuer_longid, videolan_public_key_longid );
+                HEIMDALL_OBJECT(p_update->p_libheimdall),
+                sign.issuer_longid, lycaria_public_key_longid );
         if( !p_new_pkey )
         {
-            msg_Err( p_update->p_libvlc, "Couldn't download GPG key" );
+            msg_Err( p_update->p_libheimdall, "Couldn't download GPG key" );
             FREENULL( p_update->p_pkey );
             goto error;
         }
@@ -326,24 +327,24 @@ static bool GetUpdateFile( update_t *p_update )
         uint8_t *p_hash = hash_from_public_key( p_new_pkey );
         if( !p_hash )
         {
-            msg_Err( p_update->p_libvlc, "Failed to hash signature" );
+            msg_Err( p_update->p_libheimdall, "Failed to hash signature" );
             free( p_new_pkey );
             FREENULL( p_update->p_pkey );
             goto error;
         }
 
         if( verify_signature( &p_new_pkey->sig,
-                    &p_update->p_pkey->key, p_hash ) == VLC_SUCCESS )
+                    &p_update->p_pkey->key, p_hash ) == HEIMDALL_SUCCESS )
         {
             free( p_hash );
-            msg_Info( p_update->p_libvlc, "Key authenticated" );
+            msg_Info( p_update->p_libheimdall, "Key authenticated" );
             free( p_update->p_pkey );
             p_update->p_pkey = p_new_pkey;
         }
         else
         {
             free( p_hash );
-            msg_Err( p_update->p_libvlc, "Key signature invalid !" );
+            msg_Err( p_update->p_libheimdall, "Key signature invalid !" );
             goto error;
         }
     }
@@ -351,29 +352,29 @@ static bool GetUpdateFile( update_t *p_update )
     uint8_t *p_hash = hash_from_text( psz_update_data, &sign );
     if( !p_hash )
     {
-        msg_Warn( p_update->p_libvlc, "Can't compute hash for status file" );
+        msg_Warn( p_update->p_libheimdall, "Can't compute hash for status file" );
         goto error;
     }
 
     else if( p_hash[0] != sign.hash_verification[0] ||
         p_hash[1] != sign.hash_verification[1] )
     {
-        msg_Warn( p_update->p_libvlc, "Bad hash for status file" );
+        msg_Warn( p_update->p_libheimdall, "Bad hash for status file" );
         free( p_hash );
         goto error;
     }
 
     else if( verify_signature( &sign, &p_update->p_pkey->key, p_hash )
-            != VLC_SUCCESS )
+            != HEIMDALL_SUCCESS )
     {
-        msg_Err( p_update->p_libvlc, "BAD SIGNATURE for status file" );
+        msg_Err( p_update->p_libheimdall, "BAD SIGNATURE for status file" );
         free( p_hash );
         goto error;
     }
 
     else
     {
-        msg_Info( p_update->p_libvlc, "Status file authenticated" );
+        msg_Info( p_update->p_libheimdall, "Status file authenticated" );
         free( p_hash );
         free( psz_version_line );
         free( psz_update_data );
@@ -382,7 +383,7 @@ static bool GetUpdateFile( update_t *p_update )
 
 error:
     if( p_stream )
-        vlc_stream_Delete( p_stream );
+        heimdall_stream_Delete( p_stream );
     free( psz_version_line );
     free( psz_update_data );
     return false;
@@ -404,7 +405,7 @@ void update_Check( update_t *p_update, void (*pf_callback)( void*, bool ), void 
     // If the object already exist, destroy it
     if( p_update->p_check )
     {
-        vlc_join( p_update->p_check->thread, NULL );
+        heimdall_join( p_update->p_check->thread, NULL );
         free( p_update->p_check );
     }
 
@@ -416,28 +417,28 @@ void update_Check( update_t *p_update, void (*pf_callback)( void*, bool ), void 
     p_uct->pf_callback = pf_callback;
     p_uct->p_data = p_data;
 
-    vlc_clone( &p_uct->thread, update_CheckReal, p_uct );
+    heimdall_clone( &p_uct->thread, update_CheckReal, p_uct );
 }
 
 void* update_CheckReal( void *obj )
 {
-    vlc_thread_set_name("vlc-updater-chk");
+    heimdall_thread_set_name("heimdall-updater-chk");
 
     update_check_thread_t *p_uct = (update_check_thread_t *)obj;
     bool b_ret;
     int canc;
 
-    canc = vlc_savecancel ();
-    vlc_mutex_lock( &p_uct->p_update->lock );
+    canc = heimdall_savecancel ();
+    heimdall_mutex_lock( &p_uct->p_update->lock );
 
     EmptyRelease( p_uct->p_update );
     b_ret = GetUpdateFile( p_uct->p_update );
-    vlc_mutex_unlock( &p_uct->p_update->lock );
+    heimdall_mutex_unlock( &p_uct->p_update->lock );
 
     if( p_uct->pf_callback )
         (p_uct->pf_callback)( p_uct->p_data, b_ret );
 
-    vlc_restorecancel (canc);
+    heimdall_restorecancel (canc);
     return NULL;
 }
 
@@ -514,12 +515,12 @@ void update_Download( update_t *p_update, const char *psz_destdir )
     if( p_update->p_download )
     {
         atomic_store( &p_update->p_download->aborted, true );
-        vlc_join( p_update->p_download->thread, NULL );
-        vlc_object_delete(p_update->p_download);
+        heimdall_join( p_update->p_download->thread, NULL );
+        heimdall_object_delete(p_update->p_download);
     }
 
     update_download_thread_t *p_udt =
-        vlc_custom_create( p_update->p_libvlc, sizeof( *p_udt ),
+        heimdall_custom_create( p_update->p_libheimdall, sizeof( *p_udt ),
                            "update download" );
     if( !p_udt )
         return;
@@ -529,12 +530,12 @@ void update_Download( update_t *p_update, const char *psz_destdir )
     p_udt->psz_destdir = psz_destdir ? strdup( psz_destdir ) : NULL;
 
     atomic_store(&p_udt->aborted, false);
-    vlc_clone( &p_udt->thread, update_DownloadReal, p_udt );
+    heimdall_clone( &p_udt->thread, update_DownloadReal, p_udt );
 }
 
 static void* update_DownloadReal( void *obj )
 {
-    vlc_thread_set_name("vlc-updater-dl");
+    heimdall_thread_set_name("heimdall-updater-dl");
 
     update_download_thread_t *p_udt = (update_download_thread_t *)obj;
     uint64_t l_size;
@@ -551,15 +552,15 @@ static void* update_DownloadReal( void *obj )
     int i_read;
     int canc;
 
-    vlc_dialog_id *p_dialog_id = NULL;
+    heimdall_dialog_id *p_dialog_id = NULL;
     update_t *p_update = p_udt->p_update;
     char *psz_destdir = p_udt->psz_destdir;
 
     msg_Dbg( p_udt, "Opening Stream '%s'", p_update->release.psz_url );
-    canc = vlc_savecancel ();
+    canc = heimdall_savecancel ();
 
     /* Open the stream */
-    p_stream = vlc_stream_NewURL( p_udt, p_update->release.psz_url );
+    p_stream = heimdall_stream_NewURL( p_udt, p_update->release.psz_url );
     if( !p_stream )
     {
         msg_Err( p_udt, "Failed to open %s for reading", p_update->release.psz_url );
@@ -567,7 +568,7 @@ static void* update_DownloadReal( void *obj )
     }
 
     /* Get the stream size */
-    if( vlc_stream_GetSize( p_stream, &l_size ) || l_size == 0 )
+    if( heimdall_stream_GetSize( p_stream, &l_size ) || l_size == 0 )
         goto end;
 
     /* Get the file name and open it*/
@@ -585,7 +586,7 @@ static void* update_DownloadReal( void *obj )
         goto end;
     }
 
-    p_file = vlc_fopen( psz_destfile, "w" );
+    p_file = heimdall_fopen( psz_destfile, "w" );
     if( !p_file )
     {
         msg_Err( p_udt, "Failed to open %s for writing", psz_destfile );
@@ -605,7 +606,7 @@ static void* update_DownloadReal( void *obj )
     psz_size = size_str( l_size );
 
     p_dialog_id =
-        vlc_dialog_display_progress( p_udt, false, 0.0, _("Cancel"),
+        heimdall_dialog_display_progress( p_udt, false, 0.0, _("Cancel"),
                                      ( "Downloading..."),
                                      _("%s\nDownloading... %s/%s %.1f%% done"),
                                      p_update->release.psz_url, "0.0", psz_size,
@@ -615,8 +616,8 @@ static void* update_DownloadReal( void *obj )
         goto end;
 
     while( !atomic_load( &p_udt->aborted ) &&
-           ( i_read = vlc_stream_Read( p_stream, p_buffer, 1 << 10 ) ) &&
-           !vlc_dialog_is_cancelled( p_udt, p_dialog_id ) )
+           ( i_read = heimdall_stream_Read( p_stream, p_buffer, 1 << 10 ) ) &&
+           !heimdall_dialog_is_cancelled( p_udt, p_dialog_id ) )
     {
         if( fwrite( p_buffer, i_read, 1, p_file ) < 1 )
         {
@@ -628,7 +629,7 @@ static void* update_DownloadReal( void *obj )
         psz_downloaded = size_str( l_downloaded );
         f_progress = (float)l_downloaded/(float)l_size;
 
-        vlc_dialog_update_progress_text( p_udt, p_dialog_id, f_progress,
+        heimdall_dialog_update_progress_text( p_udt, p_dialog_id, f_progress,
                                          "%s\nDownloading... %s/%s - %.1f%% done",
                                          p_update->release.psz_url,
                                          psz_downloaded, psz_size,
@@ -641,22 +642,22 @@ static void* update_DownloadReal( void *obj )
     p_file = NULL;
 
     if( !atomic_load( &p_udt->aborted ) &&
-        !vlc_dialog_is_cancelled( p_udt, p_dialog_id ) )
+        !heimdall_dialog_is_cancelled( p_udt, p_dialog_id ) )
     {
-        vlc_dialog_release( p_udt, p_dialog_id );
+        heimdall_dialog_release( p_udt, p_dialog_id );
         p_dialog_id = NULL;
     }
     else
     {
-        vlc_unlink( psz_destfile );
+        heimdall_unlink( psz_destfile );
         goto end;
     }
 
     signature_packet_t sign;
-    if( download_signature( VLC_OBJECT( p_udt ), &sign,
-            p_update->release.psz_url ) != VLC_SUCCESS )
+    if( download_signature( HEIMDALL_OBJECT( p_udt ), &sign,
+            p_update->release.psz_url ) != HEIMDALL_SUCCESS )
     {
-        vlc_unlink( psz_destfile );
+        heimdall_unlink( psz_destfile );
 
         dialog_FatalWait( p_udt, _("File could not be verified"),
             _("It was not possible to download a cryptographic signature for "
@@ -668,7 +669,7 @@ static void* update_DownloadReal( void *obj )
 
     if( memcmp( sign.issuer_longid, p_update->p_pkey->longid, 8 ) )
     {
-        vlc_unlink( psz_destfile );
+        heimdall_unlink( psz_destfile );
         msg_Err( p_udt, "Invalid signature issuer" );
         dialog_FatalWait( p_udt, _("Invalid signature"),
             _("The cryptographic signature for the downloaded file \"%s\" was "
@@ -680,7 +681,7 @@ static void* update_DownloadReal( void *obj )
 
     if( sign.type != BINARY_SIGNATURE )
     {
-        vlc_unlink( psz_destfile );
+        heimdall_unlink( psz_destfile );
         msg_Err( p_udt, "Invalid signature type" );
         dialog_FatalWait( p_udt, _("Invalid signature"),
             _("The cryptographic signature for the downloaded file \"%s\" was "
@@ -694,7 +695,7 @@ static void* update_DownloadReal( void *obj )
     if( !p_hash )
     {
         msg_Err( p_udt, "Unable to hash %s", psz_destfile );
-        vlc_unlink( psz_destfile );
+        heimdall_unlink( psz_destfile );
         dialog_FatalWait( p_udt, _("File not verifiable"),
             _("It was not possible to securely verify the downloaded file"
               " \"%s\". Thus, it was deleted."),
@@ -706,7 +707,7 @@ static void* update_DownloadReal( void *obj )
     if( p_hash[0] != sign.hash_verification[0] ||
         p_hash[1] != sign.hash_verification[1] )
     {
-        vlc_unlink( psz_destfile );
+        heimdall_unlink( psz_destfile );
         dialog_FatalWait( p_udt, _("File corrupted"),
             _("Downloaded file \"%s\" was corrupted. Thus, it was deleted."),
              psz_destfile );
@@ -716,9 +717,9 @@ static void* update_DownloadReal( void *obj )
     }
 
     if( verify_signature( &sign, &p_update->p_pkey->key, p_hash )
-            != VLC_SUCCESS )
+            != HEIMDALL_SUCCESS )
     {
-        vlc_unlink( psz_destfile );
+        heimdall_unlink( psz_destfile );
         dialog_FatalWait( p_udt, _("File corrupted"),
             _("Downloaded file \"%s\" was corrupted. Thus, it was deleted."),
              psz_destfile );
@@ -733,10 +734,10 @@ static void* update_DownloadReal( void *obj )
 #ifdef _WIN32
     const char *psz_msg =
         _("The new version was successfully downloaded. "
-          "Do you want to close VLC and install it now?");
-    int answer = vlc_dialog_wait_question( p_udt, VLC_DIALOG_QUESTION_NORMAL,
+          "Do you want to close Heimdall and install it now?");
+    int answer = heimdall_dialog_wait_question( p_udt, HEIMDALL_DIALOG_QUESTION_NORMAL,
                                            _("Cancel"), _("Install"), NULL,
-                                           _("Update VLC media player"), "%s",
+                                           _("Update Heimdall media player"), "%s",
                                            psz_msg );
     if(answer == 1)
     {
@@ -745,7 +746,7 @@ static void* update_DownloadReal( void *obj )
         if (likely(psz_wdestfile != NULL))
         {
             if((intptr_t)(void*)ShellExecuteW( NULL, L"open", psz_wdestfile, NULL, NULL, SW_SHOW) > 32)
-                libvlc_Quit(vlc_object_instance(p_udt));
+                libheimdall_Quit(heimdall_object_instance(p_udt));
             free(psz_wdestfile);
         }
 #endif
@@ -753,9 +754,9 @@ static void* update_DownloadReal( void *obj )
 #endif
 end:
     if( p_dialog_id != NULL )
-        vlc_dialog_release( p_udt, p_dialog_id );
+        heimdall_dialog_release( p_udt, p_dialog_id );
     if( p_stream )
-        vlc_stream_Delete( p_stream );
+        heimdall_stream_Delete( p_stream );
     if( p_file )
         fclose( p_file );
     free( psz_destdir );
@@ -763,7 +764,7 @@ end:
     free( p_buffer );
     free( psz_size );
 
-    vlc_restorecancel( canc );
+    heimdall_restorecancel( canc );
     return NULL;
 }
 

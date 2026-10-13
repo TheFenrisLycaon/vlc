@@ -2,8 +2,9 @@
  * tta.c : The Lossless True Audio parser
  *****************************************************************************
  * Copyright (C) 2006 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Derk-Jan Hartman <hartman at videolan dot org>
+ * Authors: Derk-Jan Hartman <hartman at lycaria dot org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -27,20 +28,20 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_demux.h>
-#include <vlc_codec.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_demux.h>
+#include <heimdall_codec.h>
 #include <math.h>
 #include <limits.h>
 
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  Open  ( vlc_object_t * );
-static void Close ( vlc_object_t * );
+static int  Open  ( heimdall_object_t * );
+static void Close ( heimdall_object_t * );
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( "TTA" )
     set_description( N_("TTA demuxer") )
     set_subcategory( SUBCAT_INPUT_DEMUX )
@@ -48,7 +49,7 @@ vlc_module_begin ()
 
     set_callbacks( Open, Close )
     add_shortcut( "tta" )
-vlc_module_end ()
+heimdall_module_end ()
 
 #define TTA_FRAMETIME 1.04489795918367346939
 
@@ -71,14 +72,14 @@ typedef struct
     int      i_framelength;
 
     /* */
-    vlc_meta_t     *p_meta;
+    heimdall_meta_t     *p_meta;
     int64_t        i_start;
 } demux_sys_t;
 
 /*****************************************************************************
  * Open: initializes ES structures
  *****************************************************************************/
-static int Open( vlc_object_t * p_this )
+static int Open( heimdall_object_t * p_this )
 {
     demux_t     *p_demux = (demux_t*)p_this;
     demux_sys_t *p_sys;
@@ -90,33 +91,33 @@ static int Open( vlc_object_t * p_this )
     //char        psz_info[4096];
     //module_t    *p_id3;
 
-    if( vlc_stream_Peek( p_demux->s, &p_peek, 4 ) < 4 )
-        return VLC_EGENERIC;
+    if( heimdall_stream_Peek( p_demux->s, &p_peek, 4 ) < 4 )
+        return HEIMDALL_EGENERIC;
 
     if( memcmp( p_peek, "TTA1", 4 ) )
     {
         if( !p_demux->obj.force )
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
         /* User forced */
         msg_Err( p_demux, "this doesn't look like a true-audio stream, "
                  "continuing anyway" );
     }
 
-    if( vlc_stream_Read( p_demux->s, p_header, 22 ) < 22 )
-        return VLC_EGENERIC;
+    if( heimdall_stream_Read( p_demux->s, p_header, 22 ) < 22 )
+        return HEIMDALL_EGENERIC;
 
     /* Fill p_demux fields */
     p_demux->pf_demux = Demux;
     p_demux->pf_control = Control;
     p_demux->p_sys = p_sys = malloc( sizeof( demux_sys_t ) );
     if( !p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_sys->pi_seektable = NULL;
 
     /* Read the metadata */
-    es_format_Init( &fmt, AUDIO_ES, VLC_CODEC_TTA );
+    es_format_Init( &fmt, AUDIO_ES, HEIMDALL_CODEC_TTA );
     fmt.audio.i_channels = GetWLE( &p_header[6] );
     fmt.audio.i_bitspersample = GetWLE( &p_header[8] );
     fmt.audio.i_rate = GetDWLE( &p_header[10] );
@@ -149,7 +150,7 @@ static int Open( vlc_object_t * p_this )
 
     memcpy( p_fullheader, p_header, 22 );
     p_fullheader += 22;
-    if( vlc_stream_Read( p_demux->s, p_fullheader, i_seektable_size )
+    if( heimdall_stream_Read( p_demux->s, p_fullheader, i_seektable_size )
              != i_seektable_size )
         goto error;
 
@@ -162,7 +163,7 @@ static int Open( vlc_object_t * p_this )
         p_fullheader += 4;
     }
 
-    if( 4 != vlc_stream_Read( p_demux->s, p_fullheader, 4 ) ) /* CRC */
+    if( 4 != heimdall_stream_Read( p_demux->s, p_fullheader, 4 ) ) /* CRC */
         goto error;
     p_fullheader += 4;
 
@@ -173,17 +174,17 @@ static int Open( vlc_object_t * p_this )
     p_sys->i_start = p_fullheader - (uint8_t *)fmt.p_extra;
     es_format_Clean( &fmt );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 error:
     es_format_Clean( &fmt );
     Close( p_this );
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /*****************************************************************************
  * Close: frees unused data
  *****************************************************************************/
-static void Close( vlc_object_t * p_this )
+static void Close( heimdall_object_t * p_this )
 {
     demux_t        *p_demux = (demux_t*)p_this;
     demux_sys_t    *p_sys = p_demux->p_sys;
@@ -203,13 +204,13 @@ static int Demux( demux_t *p_demux )
     block_t     *p_data;
 
     if( p_sys->i_currentframe >= p_sys->i_totalframes )
-        return VLC_DEMUXER_EOF;
+        return HEIMDALL_DEMUXER_EOF;
 
-    p_data = vlc_stream_Block( p_demux->s,
+    p_data = heimdall_stream_Block( p_demux->s,
                                p_sys->pi_seektable[p_sys->i_currentframe] );
     if( p_data == NULL )
-        return VLC_DEMUXER_EOF;
-    p_data->i_dts = p_data->i_pts = VLC_TICK_0 + vlc_tick_from_sec( p_sys->i_currentframe * TTA_FRAMETIME );
+        return HEIMDALL_DEMUXER_EOF;
+    p_data->i_dts = p_data->i_pts = HEIMDALL_TICK_0 + heimdall_tick_from_sec( p_sys->i_currentframe * TTA_FRAMETIME );
 
     p_sys->i_currentframe++;
 
@@ -217,7 +218,7 @@ static int Demux( demux_t *p_demux )
     if( p_sys->p_es )
         es_out_Send( p_demux->out, p_sys->p_es, p_data );
 
-    return VLC_DEMUXER_SUCCESS;
+    return HEIMDALL_DEMUXER_SUCCESS;
 }
 
 /*****************************************************************************
@@ -232,20 +233,20 @@ static int Control( demux_t *p_demux, int i_query, va_list args )
     switch( i_query )
     {
         case DEMUX_CAN_SEEK:
-            return vlc_stream_vaControl( p_demux->s, i_query, args );
+            return heimdall_stream_vaControl( p_demux->s, i_query, args );
 
         case DEMUX_GET_POSITION:
             pf = va_arg( args, double * );
             i64 = stream_Size( p_demux->s ) - p_sys->i_start;
             if( i64 > 0 )
             {
-                *pf = (double)(vlc_stream_Tell( p_demux->s ) - p_sys->i_start )/ (double)i64;
+                *pf = (double)(heimdall_stream_Tell( p_demux->s ) - p_sys->i_start )/ (double)i64;
             }
             else
             {
                 *pf = 0.0;
             }
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
 
         case DEMUX_SET_POSITION:
             f = va_arg( args, double );
@@ -258,21 +259,21 @@ static int Control( demux_t *p_demux, int i_query, va_list args )
                 {
                     tmp += p_sys->pi_seektable[i];
                 }
-                if( vlc_stream_Seek( p_demux->s, tmp+p_sys->i_start ) )
-                    return VLC_EGENERIC;
+                if( heimdall_stream_Seek( p_demux->s, tmp+p_sys->i_start ) )
+                    return HEIMDALL_EGENERIC;
                 p_sys->i_currentframe = i;
-                return VLC_SUCCESS;
+                return HEIMDALL_SUCCESS;
             }
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
         case DEMUX_GET_LENGTH:
-            *va_arg( args, vlc_tick_t * ) =
-                vlc_tick_from_sec( p_sys->i_totalframes * TTA_FRAMETIME );
-            return VLC_SUCCESS;
+            *va_arg( args, heimdall_tick_t * ) =
+                heimdall_tick_from_sec( p_sys->i_totalframes * TTA_FRAMETIME );
+            return HEIMDALL_SUCCESS;
 
         case DEMUX_GET_TIME:
-            *va_arg( args, vlc_tick_t * ) = vlc_tick_from_sec( p_sys->i_currentframe * TTA_FRAMETIME );
-            return VLC_SUCCESS;
+            *va_arg( args, heimdall_tick_t * ) = heimdall_tick_from_sec( p_sys->i_currentframe * TTA_FRAMETIME );
+            return HEIMDALL_SUCCESS;
 
         case DEMUX_CAN_PAUSE:
         case DEMUX_SET_PAUSE_STATE:
@@ -282,7 +283,7 @@ static int Control( demux_t *p_demux, int i_query, va_list args )
                                           0, p_sys->i_framelength, i_query, args );
 
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 }
 

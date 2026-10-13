@@ -1,6 +1,6 @@
     /* This list MUST be in XK_* incremental order (see keysymdef.h),
      * so that binary search works.
-     * Multiple X keys can match the same VLC key.
+     * Multiple X keys can match the same Heimdall key.
      * X key symbols must be in the first column of the struct. */
         { XK_BackSpace,     KEY_BACKSPACE, },
         { XK_Tab,           KEY_TAB, },

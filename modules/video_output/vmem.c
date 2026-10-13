@@ -1,8 +1,9 @@
 /*****************************************************************************
- * vmem.c: memory video driver for vlc
+ * vmem.c: memory video driver for heimdall
  *****************************************************************************
  * Copyright (C) 2008 VLC authors and VideoLAN
  * Copyright (C) 2010 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Sam Hocevar <sam@zoy.org>
  *
@@ -31,9 +32,9 @@
 
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_vout_display.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_vout_display.h>
 
 /*****************************************************************************
  * Module descriptor
@@ -52,10 +53,10 @@
                       "string, eg. \"RV32\".")
 
 static int Open(vout_display_t *vd,
-                video_format_t *fmtp, vlc_video_context *context);
+                video_format_t *fmtp, heimdall_video_context *context);
 static void Close(vout_display_t *vd);
 
-vlc_module_begin()
+heimdall_module_begin()
     set_description(N_("Video memory output"))
     set_shortname(N_("Video memory"))
 
@@ -71,7 +72,7 @@ vlc_module_begin()
         change_private()
 
     set_callback_display(Open, 0)
-vlc_module_end()
+heimdall_module_end()
 
 /*****************************************************************************
  * Local prototypes
@@ -81,7 +82,7 @@ typedef struct
     void *id;
 } picture_sys_t;
 
-/* NOTE: the callback prototypes must match those of LibVLC */
+/* NOTE: the callback prototypes must match those of LibHeimdall */
 typedef struct vout_display_sys_t {
     void *opaque;
     void *pic_opaque;
@@ -94,13 +95,13 @@ typedef struct vout_display_sys_t {
     unsigned lines[PICTURE_PLANE_MAX];
 } vout_display_sys_t;
 
-typedef unsigned (*vlc_format_cb)(void **, char *, unsigned *, unsigned *,
+typedef unsigned (*heimdall_format_cb)(void **, char *, unsigned *, unsigned *,
                                   unsigned *, unsigned *);
 
-static void           Prepare(vout_display_t *, picture_t *, const struct vlc_render_subpicture *, vlc_tick_t);
+static void           Prepare(vout_display_t *, picture_t *, const struct heimdall_render_subpicture *, heimdall_tick_t);
 static void           Display(vout_display_t *, picture_t *);
 
-static const struct vlc_display_operations ops = {
+static const struct heimdall_display_operations ops = {
     .close = Close,
     .prepare = Prepare,
     .display = Display,
@@ -112,20 +113,20 @@ static const struct vlc_display_operations ops = {
  * This function allocates and initializes a vout method.
  *****************************************************************************/
 static int Open(vout_display_t *vd,
-                video_format_t *fmtp, vlc_video_context *context)
+                video_format_t *fmtp, heimdall_video_context *context)
 {
     vout_display_sys_t *sys = malloc(sizeof(*sys));
     if (unlikely(!sys))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     /* Get the callbacks */
-    vlc_format_cb setup = var_InheritAddress(vd, "vmem-setup");
+    heimdall_format_cb setup = var_InheritAddress(vd, "vmem-setup");
 
     sys->lock = var_InheritAddress(vd, "vmem-lock");
     if (sys->lock == NULL) {
         msg_Err(vd, "missing lock callback");
         free(sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     sys->unlock = var_InheritAddress(vd, "vmem-unlock");
     sys->display = var_InheritAddress(vd, "vmem-display");
@@ -155,15 +156,15 @@ static int Open(vout_display_t *vd,
                            sys->pitches, sys->lines) == 0) {
             msg_Err(vd, "video format setup failure (no pictures)");
             free(sys);
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
-        fmt.i_chroma = vlc_fourcc_GetCodecFromString(VIDEO_ES, chroma);
+        fmt.i_chroma = heimdall_fourcc_GetCodecFromString(VIDEO_ES, chroma);
         fmt.i_width = widths[0];
         fmt.i_height = heights[0];
 
     } else {
         char *chroma = var_InheritString(vd, "vmem-chroma");
-        fmt.i_chroma = vlc_fourcc_GetCodecFromString(VIDEO_ES, chroma);
+        fmt.i_chroma = heimdall_fourcc_GetCodecFromString(VIDEO_ES, chroma);
         free(chroma);
 
         fmt.i_width  = var_InheritInteger(vd, "vmem-width");
@@ -184,7 +185,7 @@ static int Open(vout_display_t *vd,
     if (!fmt.i_chroma) {
         msg_Err(vd, "vmem-chroma should be 4 characters long");
         free(sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* */
@@ -194,7 +195,7 @@ static int Open(vout_display_t *vd,
     vd->ops     = &ops;
 
     (void) context;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void Close(vout_display_t *vd)
@@ -207,10 +208,10 @@ static void Close(vout_display_t *vd)
 }
 
 static void Prepare(vout_display_t *vd, picture_t *pic,
-                    const struct vlc_render_subpicture *subpic,
-                    vlc_tick_t date)
+                    const struct heimdall_render_subpicture *subpic,
+                    heimdall_tick_t date)
 {
-    VLC_UNUSED(date);
+    HEIMDALL_UNUSED(date);
     vout_display_sys_t *sys = vd->sys;
     picture_resource_t rsc = { .p_sys = NULL };
     void *planes[PICTURE_PLANE_MAX];
@@ -238,7 +239,7 @@ static void Prepare(vout_display_t *vd, picture_t *pic,
 static void Display(vout_display_t *vd, picture_t *pic)
 {
     vout_display_sys_t *sys = vd->sys;
-    VLC_UNUSED(pic);
+    HEIMDALL_UNUSED(pic);
 
     if (sys->display != NULL)
         sys->display(sys->opaque, sys->pic_opaque);

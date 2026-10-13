@@ -2,6 +2,7 @@
  * Inheritables.cpp
  *****************************************************************************
  * Copyright (C) 2016-2020 VideoLabs, VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -162,11 +163,11 @@ Timescale AttrsNode::inheritTimescale() const
         return Timescale(1);
 }
 
-vlc_tick_t AttrsNode::inheritAvailabilityTimeOffset() const
+heimdall_tick_t AttrsNode::inheritAvailabilityTimeOffset() const
 {
     const AbstractAttr *p = inheritAttribute(Type::AvailabilityTimeOffset);
     if(p && p->isValid())
-        return (const vlc_tick_t &) *(static_cast<const AvailabilityTimeOffsetAttr *>(p));
+        return (const heimdall_tick_t &) *(static_cast<const AvailabilityTimeOffsetAttr *>(p));
     return 0;
 }
 

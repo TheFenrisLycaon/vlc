@@ -2,6 +2,7 @@
  * pls.c : PLS playlist format import
  *****************************************************************************
  * Copyright (C) 2004 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Clément Stenac <zorglub@videolan.org>
  * Authors: Sigmund Augdal Helberg <dnumgis@videolan.org>
@@ -28,9 +29,9 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_access.h>
-#include <vlc_charset.h>
+#include <heimdall_common.h>
+#include <heimdall_access.h>
+#include <heimdall_charset.h>
 
 #include "playlist.h"
 
@@ -42,25 +43,25 @@ static int ReadDir( stream_t *, input_item_node_t * );
 /*****************************************************************************
  * Import_PLS: main import function
  *****************************************************************************/
-int Import_PLS( vlc_object_t *p_this )
+int Import_PLS( heimdall_object_t *p_this )
 {
     stream_t *p_demux = (stream_t *)p_this;
     const uint8_t *p_peek;
 
-    if( vlc_stream_Peek( p_demux->s, &p_peek, 10 ) < 10 ) {
+    if( heimdall_stream_Peek( p_demux->s, &p_peek, 10 ) < 10 ) {
         msg_Dbg( p_demux, "not enough data" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( strncasecmp( (const char *)p_peek, "[playlist]", 10 )
      && !stream_HasExtension( p_demux, ".pls" ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     msg_Dbg( p_demux, "found valid PLS playlist file");
     p_demux->pf_readdir = ReadDir;
     p_demux->pf_control = PlaylistControl;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int ReadDir( stream_t *p_demux, input_item_node_t *p_subitems )
@@ -76,7 +77,7 @@ static int ReadDir( stream_t *p_demux, input_item_node_t *p_subitems )
     bool ascii = true;
     bool unicode = true;
 
-    while( ( psz_line = vlc_stream_ReadLine( p_demux->s ) ) )
+    while( ( psz_line = heimdall_stream_ReadLine( p_demux->s ) ) )
     {
         if (ascii && !IsASCII(psz_line))
         {
@@ -186,5 +187,5 @@ static int ReadDir( stream_t *p_demux, input_item_node_t *p_subitems )
     free( psz_name );
     psz_name = NULL;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

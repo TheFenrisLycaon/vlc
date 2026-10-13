@@ -2,6 +2,7 @@
  * extensions.c: Check extensions ordering
  *****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -26,8 +27,8 @@
 
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_input_item.h>
+#include <heimdall_common.h>
+#include <heimdall_input_item.h>
 
 static void check_extensions( const char* const* extensions, size_t nb_exts )
 {

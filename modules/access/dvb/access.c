@@ -2,9 +2,10 @@
  * access.c: DVB card input v4l2 only
  *****************************************************************************
  * Copyright (C) 1998-2010 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Johan Bilien <jobi@via.ecp.fr>
- *          Jean-Paul Saman <jpsaman _at_ videolan _dot_ org>
+ *          Jean-Paul Saman <jpsaman _at_ lycaria _dot_ org>
  *          Christophe Massiot <massiot@via.ecp.fr>
  *          Laurent Aimar <fenrir@via.ecp.fr>
  *          David Kaplan <david@2of1.org>
@@ -32,11 +33,11 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_access.h>
-#include <vlc_interrupt.h>
-#include <vlc_dialog.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_access.h>
+#include <heimdall_interrupt.h>
+#include <heimdall_dialog.h>
 
 #include <sys/types.h>
 #include <poll.h>
@@ -59,8 +60,8 @@ typedef struct
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  Open( vlc_object_t *p_this );
-static void Close( vlc_object_t *p_this );
+static int  Open( heimdall_object_t *p_this );
+static void Close( heimdall_object_t *p_this );
 
 #define PROBE_TEXT N_("Probe DVB card for capabilities")
 #define PROBE_LONGTEXT N_("Some DVB cards do not like to be probed for their capabilities, you can disable this feature if you experience some trouble.")
@@ -74,7 +75,7 @@ static void Close( vlc_object_t *p_this );
 
 #define SCAN_NIT_TEXT N_("Use NIT for scanning services")
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( N_("DVB") )
     set_description( N_("DVB input with v4l2 support") )
     set_subcategory( SUBCAT_INPUT_ACCESS )
@@ -93,7 +94,7 @@ vlc_module_begin ()
 
     set_callbacks( Open, Close )
 
-vlc_module_end ()
+heimdall_module_end ()
 
 
 /*****************************************************************************
@@ -103,7 +104,7 @@ static int Control( stream_t *, int, va_list );
 
 static block_t *BlockScan( stream_t *, bool * );
 
-#define DVB_SCAN_MAX_LOCK_TIME VLC_TICK_FROM_SEC(2)
+#define DVB_SCAN_MAX_LOCK_TIME HEIMDALL_TICK_FROM_SEC(2)
 
 static void FilterUnset( stream_t *, int i_max );
 static void FilterSet( stream_t *, int i_pid, int i_type );
@@ -119,17 +120,17 @@ static int ScanReadCallback( scan_t *, void *,  unsigned, size_t, uint8_t *, siz
 /*****************************************************************************
  * Open: open the frontend device
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     stream_t     *p_access = (stream_t*)p_this;
     access_sys_t *p_sys;
 
     if( p_access->b_preparsing )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     p_access->p_sys = p_sys = calloc( 1, sizeof( access_sys_t ) );
     if( !p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     /* Create all variables */
     VarInit( p_access );
@@ -138,7 +139,7 @@ static int Open( vlc_object_t *p_this )
     if( ParseMRL( p_access ) )
     {
         free( p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     bool b_scan_mode = var_GetInteger( p_access, "dvb-frequency" ) == 0;
@@ -150,14 +151,14 @@ static int Open( vlc_object_t *p_this )
     else
     {
         free( p_sys );
-        return VLC_EGENERIC; /* let the DTV plugin do the work */
+        return HEIMDALL_EGENERIC; /* let the DTV plugin do the work */
     }
 
     /* Getting frontend info */
     if( FrontendOpen( p_this, &p_sys->dvb, p_access->psz_name ) )
     {
         free( p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Opening DVR device */
@@ -165,7 +166,7 @@ static int Open( vlc_object_t *p_this )
     {
         FrontendClose( p_this, &p_sys->dvb );
         free( p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     scan_parameter_t parameter;
@@ -176,7 +177,7 @@ static int Open( vlc_object_t *p_this )
     parameter.b_use_nit = var_InheritBool( p_access, "dvb-scan-nit" );
 
     if( FrontendFillScanParameter( p_this, &p_sys->dvb, &parameter ) ||
-            (p_scan = scan_New( VLC_OBJECT(p_access), &parameter,
+            (p_scan = scan_New( HEIMDALL_OBJECT(p_access), &parameter,
                                 ScanFrontendTuningHandler,
                                 ScanStatsCallback,
                                 ScanFilterHandler,
@@ -184,8 +185,8 @@ static int Open( vlc_object_t *p_this )
                                 p_access )) == NULL )
     {
         scan_parameter_Clean( &parameter );
-        Close( VLC_OBJECT(p_access) );
-        return VLC_EGENERIC;
+        Close( HEIMDALL_OBJECT(p_access) );
+        return HEIMDALL_EGENERIC;
     }
 
     scan_parameter_Clean( &parameter );
@@ -195,13 +196,13 @@ static int Open( vlc_object_t *p_this )
     /* Set up access */
     p_access->pf_control = Control;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * Close : Close the device
  *****************************************************************************/
-static void Close( vlc_object_t *p_this )
+static void Close( heimdall_object_t *p_this )
 {
     stream_t     *p_access = (stream_t*)p_this;
     access_sys_t *p_sys = p_access->p_sys;
@@ -220,7 +221,7 @@ static int ScanFrontendTuningHandler( scan_t *p_scan, void *p_privdata,
 {
     stream_t *p_access = (stream_t *) p_privdata;
     access_sys_t *sys = p_access->p_sys;
-    VLC_UNUSED(p_scan);
+    HEIMDALL_UNUSED(p_scan);
 
     var_SetInteger( p_access, "dvb-frequency", p_cfg->i_frequency );
     var_SetInteger( p_access, "dvb-bandwidth", p_cfg->i_bandwidth );
@@ -235,40 +236,40 @@ static int ScanFrontendTuningHandler( scan_t *p_scan, void *p_privdata,
     msg_Dbg( p_access, " bandwidth %d", p_cfg->i_bandwidth );
 
     /* Setting frontend parameters for tuning the hardware */
-    if( FrontendSet( VLC_OBJECT(p_access), &sys->dvb ) < 0 )
+    if( FrontendSet( HEIMDALL_OBJECT(p_access), &sys->dvb ) < 0 )
     {
         msg_Err( p_access, "Failed to tune the frontend" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int ScanStatsCallback( scan_t *p_scan, void *p_privdata, int *pi_snr )
 {
     stream_t *p_access = (stream_t *) p_privdata;
     access_sys_t *sys = p_access->p_sys;
-    VLC_UNUSED(p_scan);
+    HEIMDALL_UNUSED(p_scan);
 
     frontend_statistic_t stat;
     if( !FrontendGetStatistic( &sys->dvb, &stat ) )
     {
         *pi_snr = stat.i_snr;
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 static int ScanFilterHandler( scan_t *p_scan, void *p_privdata, uint16_t i_pid, bool b_set )
 {
     stream_t *p_access = (stream_t *) p_privdata;
-    VLC_UNUSED(p_scan);
+    HEIMDALL_UNUSED(p_scan);
 
     if( b_set )
         FilterSet( p_access, i_pid, OTHER_TYPE );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int ScanReadCallback( scan_t *p_scan, void *p_privdata,
@@ -291,47 +292,47 @@ static int ScanReadCallback( scan_t *p_scan, void *p_privdata,
     FrontendGetStatus( &p_sys->dvb, &status );
     bool b_has_lock = status.b_has_lock;
 
-    vlc_tick_t i_scan_start = vlc_tick_now();
+    heimdall_tick_t i_scan_start = heimdall_tick_now();
 
     for( ; *pi_count == 0; )
     {
         /* Find if some data is available */
         int i_ret;
 
-        vlc_tick_t i_timeout = b_has_lock ? i_probe_timeout:
+        heimdall_tick_t i_timeout = b_has_lock ? i_probe_timeout:
                                          DVB_SCAN_MAX_LOCK_TIME;
 
         do
         {
-            vlc_tick_t i_poll_timeout = i_scan_start - vlc_tick_now() + i_timeout;
+            heimdall_tick_t i_poll_timeout = i_scan_start - heimdall_tick_now() + i_timeout;
 
             i_ret = 0;
 
-            if( vlc_killed() || scan_IsCancelled( p_scan ) )
+            if( heimdall_killed() || scan_IsCancelled( p_scan ) )
                 break;
 
             if( i_poll_timeout >= 0 )
-                i_ret = vlc_poll_i11e( ufds, 2, i_poll_timeout / 1000 );
+                i_ret = heimdall_poll_i11e( ufds, 2, i_poll_timeout / 1000 );
         }
         while( i_ret < 0 && errno == EINTR );
 
         if( i_ret < 0 )
         {
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
         else if( i_ret == 0 )
         {
-            return VLC_ENOENT;
+            return HEIMDALL_ENOENT;
         }
 
         if( ufds[1].revents )
         {
-            FrontendPoll( VLC_OBJECT(p_access), &p_sys->dvb );
+            FrontendPoll( HEIMDALL_OBJECT(p_access), &p_sys->dvb );
 
             FrontendGetStatus( &p_sys->dvb, &status );
             if( status.b_has_lock && !b_has_lock )
             {
-                i_scan_start = vlc_tick_now();
+                i_scan_start = heimdall_tick_now();
                 b_has_lock = true;
             }
         }
@@ -341,7 +342,7 @@ static int ScanReadCallback( scan_t *p_scan, void *p_privdata,
             ssize_t i_read = read( p_sys->dvb.i_handle, p_packet, TS_PACKET_SIZE * i_packets_max );
             if( i_read < 0 )
             {
-                msg_Warn( p_access, "read failed: %s", vlc_strerror_c(errno) );
+                msg_Warn( p_access, "read failed: %s", heimdall_strerror_c(errno) );
                 break;
             }
             else
@@ -351,7 +352,7 @@ static int ScanReadCallback( scan_t *p_scan, void *p_privdata,
         }
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -363,7 +364,7 @@ static block_t *BlockScan( stream_t *p_access, bool *restrict eof )
     scan_t *p_scan = p_sys->scan;
     block_t *p_block = NULL;
 
-    if( scan_Run( p_scan ) != VLC_SUCCESS )
+    if( scan_Run( p_scan ) != HEIMDALL_SUCCESS )
     {
         if( !p_sys->done )
         {
@@ -399,10 +400,10 @@ static int Control( stream_t *p_access, int i_query, va_list args )
 
         case STREAM_GET_CONTENT_TYPE:
             *va_arg( args, char** ) = strdup("application/vnd.apple.mpegurl"); // m3u8
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
 
         case STREAM_GET_PTS_DELAY:
-            *va_arg( args, vlc_tick_t * ) = DEFAULT_PTS_DELAY;
+            *va_arg( args, heimdall_tick_t * ) = DEFAULT_PTS_DELAY;
             break;
 
         case STREAM_GET_SIGNAL:
@@ -418,10 +419,10 @@ static int Control( stream_t *p_access, int i_query, va_list args )
             break;
 
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -448,7 +449,7 @@ static void FilterSet( stream_t *p_access, int i_pid, int i_type )
         return;
     }
 
-    if( DMXSetFilter( VLC_OBJECT(p_access), i_pid,
+    if( DMXSetFilter( HEIMDALL_OBJECT(p_access), i_pid,
                            &p_sys->p_demux_handles[i].i_handle, i_type ) )
     {
         msg_Err( p_access, "DMXSetFilter failed" );
@@ -466,7 +467,7 @@ static void FilterUnset( stream_t *p_access, int i_max )
     {
         if( p_sys->p_demux_handles[i].i_type )
         {
-            DMXUnsetFilter( VLC_OBJECT(p_access), p_sys->p_demux_handles[i].i_handle );
+            DMXUnsetFilter( HEIMDALL_OBJECT(p_access), p_sys->p_demux_handles[i].i_handle );
             p_sys->p_demux_handles[i].i_type = 0;
         }
     }
@@ -477,27 +478,27 @@ static void FilterUnset( stream_t *p_access, int i_max )
  *****************************************************************************/
 static void VarInit( stream_t *p_access )
 {
-    var_Create( p_access, "dvb-adapter", VLC_VAR_INTEGER | VLC_VAR_DOINHERIT );
-    var_Create( p_access, "dvb-device", VLC_VAR_INTEGER | VLC_VAR_DOINHERIT );
-    var_Create( p_access, "dvb-frequency", VLC_VAR_INTEGER | VLC_VAR_DOINHERIT );
-    var_Create( p_access, "dvb-inversion", VLC_VAR_INTEGER | VLC_VAR_DOINHERIT );
-    var_Create( p_access, "dvb-probe", VLC_VAR_BOOL | VLC_VAR_DOINHERIT );
+    var_Create( p_access, "dvb-adapter", HEIMDALL_VAR_INTEGER | HEIMDALL_VAR_DOINHERIT );
+    var_Create( p_access, "dvb-device", HEIMDALL_VAR_INTEGER | HEIMDALL_VAR_DOINHERIT );
+    var_Create( p_access, "dvb-frequency", HEIMDALL_VAR_INTEGER | HEIMDALL_VAR_DOINHERIT );
+    var_Create( p_access, "dvb-inversion", HEIMDALL_VAR_INTEGER | HEIMDALL_VAR_DOINHERIT );
+    var_Create( p_access, "dvb-probe", HEIMDALL_VAR_BOOL | HEIMDALL_VAR_DOINHERIT );
 
     /* */
-    var_Create( p_access, "dvb-satellite", VLC_VAR_STRING | VLC_VAR_DOINHERIT );
-    var_Create( p_access, "dvb-satno", VLC_VAR_INTEGER | VLC_VAR_DOINHERIT );
-    var_Create( p_access, "dvb-voltage", VLC_VAR_INTEGER | VLC_VAR_DOINHERIT );
-    var_Create( p_access, "dvb-high-voltage", VLC_VAR_BOOL | VLC_VAR_DOINHERIT );
-    var_Create( p_access, "dvb-tone", VLC_VAR_INTEGER | VLC_VAR_DOINHERIT );
-    var_Create( p_access, "dvb-srate", VLC_VAR_INTEGER | VLC_VAR_DOINHERIT );
-    var_Create( p_access, "dvb-lnb-lof1", VLC_VAR_INTEGER );
-    var_Create( p_access, "dvb-lnb-lof2", VLC_VAR_INTEGER );
-    var_Create( p_access, "dvb-lnb-slof", VLC_VAR_INTEGER );
+    var_Create( p_access, "dvb-satellite", HEIMDALL_VAR_STRING | HEIMDALL_VAR_DOINHERIT );
+    var_Create( p_access, "dvb-satno", HEIMDALL_VAR_INTEGER | HEIMDALL_VAR_DOINHERIT );
+    var_Create( p_access, "dvb-voltage", HEIMDALL_VAR_INTEGER | HEIMDALL_VAR_DOINHERIT );
+    var_Create( p_access, "dvb-high-voltage", HEIMDALL_VAR_BOOL | HEIMDALL_VAR_DOINHERIT );
+    var_Create( p_access, "dvb-tone", HEIMDALL_VAR_INTEGER | HEIMDALL_VAR_DOINHERIT );
+    var_Create( p_access, "dvb-srate", HEIMDALL_VAR_INTEGER | HEIMDALL_VAR_DOINHERIT );
+    var_Create( p_access, "dvb-lnb-lof1", HEIMDALL_VAR_INTEGER );
+    var_Create( p_access, "dvb-lnb-lof2", HEIMDALL_VAR_INTEGER );
+    var_Create( p_access, "dvb-lnb-slof", HEIMDALL_VAR_INTEGER );
 
     /* */
-    var_Create( p_access, "dvb-bandwidth", VLC_VAR_INTEGER | VLC_VAR_DOINHERIT );
-    var_Create( p_access, "dvb-transmission", VLC_VAR_INTEGER | VLC_VAR_DOINHERIT );
-    var_Create( p_access, "dvb-hierarchy", VLC_VAR_INTEGER | VLC_VAR_DOINHERIT );
+    var_Create( p_access, "dvb-bandwidth", HEIMDALL_VAR_INTEGER | HEIMDALL_VAR_DOINHERIT );
+    var_Create( p_access, "dvb-transmission", HEIMDALL_VAR_INTEGER | HEIMDALL_VAR_DOINHERIT );
+    var_Create( p_access, "dvb-hierarchy", HEIMDALL_VAR_INTEGER | HEIMDALL_VAR_DOINHERIT );
 }
 
 /* */
@@ -505,7 +506,7 @@ static int ParseMRL( stream_t *p_access )
 {
     char *psz_dup = strdup( p_access->psz_location );
     char *psz_parser = psz_dup;
-    vlc_value_t         val;
+    heimdall_value_t         val;
 
 #define GET_OPTION_INT( option )                                            \
     if ( !strncmp( psz_parser, option "=", strlen(option "=") ) )           \
@@ -571,7 +572,7 @@ static int ParseMRL( stream_t *p_access )
             {
                 msg_Warn( p_access, "illegal polarization %c", *psz_parser );
                 free( psz_dup );
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             }
             var_Set( p_access, "dvb-voltage", val );
         }
@@ -579,7 +580,7 @@ static int ParseMRL( stream_t *p_access )
         {
             msg_Warn( p_access, "unknown option (%s)", psz_parser );
             free( psz_dup );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         if ( *psz_parser )
@@ -590,6 +591,6 @@ static int ParseMRL( stream_t *p_access )
 #undef GET_OPTION_STRING
 
     free( psz_dup );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 

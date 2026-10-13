@@ -5,9 +5,10 @@
  * Copyright © 2007-2011 Mirsal Ennaime
  * Copyright © 2009-2011 The VideoLAN team
  * Copyright © 2013      Alex Merry
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors:    Mirsal Ennaime <mirsal at mirsal fr>
- *             Rafaël Carré <funman at videolanorg>
+ *             Rafaël Carré <funman at lycariaorg>
  *             Alex Merry <dev at randomguy3 me uk>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -29,8 +30,8 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_interface.h>
+#include <heimdall_common.h>
+#include <heimdall_interface.h>
 
 #include <math.h>
 
@@ -43,16 +44,16 @@ MarshalPosition( intf_thread_t *p_intf, DBusMessageIter *container )
     /* returns time in microseconds */
     dbus_int64_t i_pos;
 
-    vlc_player_t *player = vlc_playlist_GetPlayer(p_intf->p_sys->playlist);
-    vlc_player_Lock(player);
-    i_pos = vlc_player_GetTime(player);
-    vlc_player_Unlock(player);
-    i_pos = i_pos == VLC_TICK_INVALID ? 0 : US_FROM_VLC_TICK(i_pos);
+    heimdall_player_t *player = heimdall_playlist_GetPlayer(p_intf->p_sys->playlist);
+    heimdall_player_Lock(player);
+    i_pos = heimdall_player_GetTime(player);
+    heimdall_player_Unlock(player);
+    i_pos = i_pos == HEIMDALL_TICK_INVALID ? 0 : US_FROM_HEIMDALL_TICK(i_pos);
 
     if( !dbus_message_iter_append_basic( container, DBUS_TYPE_INT64, &i_pos ) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 DBUS_METHOD( SetPosition )
@@ -74,7 +75,7 @@ DBUS_METHOD( SetPosition )
 
     if( dbus_error_is_set( &error ) )
     {
-        msg_Err( (vlc_object_t*) p_this, "D-Bus message reading : %s",
+        msg_Err( (heimdall_object_t*) p_this, "D-Bus message reading : %s",
                 error.message );
         dbus_error_free( &error );
         return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
@@ -83,15 +84,15 @@ DBUS_METHOD( SetPosition )
     if( sscanf( psz_trackid, MPRIS_TRACKID_FORMAT, &i_id ) < 1 )
         return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 
-    vlc_playlist_t *playlist = PL;
-    vlc_playlist_Lock(playlist);
-    i_item_id = vlc_playlist_GetCurrentIndex( playlist );
+    heimdall_playlist_t *playlist = PL;
+    heimdall_playlist_Lock(playlist);
+    i_item_id = heimdall_playlist_GetCurrentIndex( playlist );
     if (i_item_id != -1 && (size_t)i_item_id == i_id)
     {
-        vlc_player_t *player = vlc_playlist_GetPlayer(playlist);
-        vlc_player_SetTime(player, VLC_TICK_FROM_US(i_pos));
+        heimdall_player_t *player = heimdall_playlist_GetPlayer(playlist);
+        heimdall_player_SetTime(player, HEIMDALL_TICK_FROM_US(i_pos));
     }
-    vlc_playlist_Unlock(playlist);
+    heimdall_playlist_Unlock(playlist);
 
     REPLY_SEND;
 }
@@ -110,16 +111,16 @@ DBUS_METHOD( Seek )
 
     if( dbus_error_is_set( &error ) )
     {
-        msg_Err( (vlc_object_t*) p_this, "D-Bus message reading : %s",
+        msg_Err( (heimdall_object_t*) p_this, "D-Bus message reading : %s",
                 error.message );
         dbus_error_free( &error );
         return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
     }
 
-    vlc_player_t *player = vlc_playlist_GetPlayer(PL);
-    vlc_player_Lock(player);
-    vlc_player_JumpTime(player, VLC_TICK_FROM_US(i_step));
-    vlc_player_Unlock(player);
+    heimdall_player_t *player = heimdall_playlist_GetPlayer(PL);
+    heimdall_player_Lock(player);
+    heimdall_player_JumpTime(player, HEIMDALL_TICK_FROM_US(i_step));
+    heimdall_player_Unlock(player);
 
     REPLY_SEND;
 }
@@ -127,15 +128,15 @@ DBUS_METHOD( Seek )
 static int
 MarshalVolume( intf_thread_t *p_intf, DBusMessageIter *container )
 {
-    vlc_player_t *player = vlc_playlist_GetPlayer(p_intf->p_sys->playlist);
-    double vol = vlc_player_aout_GetVolume(player);
+    heimdall_player_t *player = heimdall_playlist_GetPlayer(p_intf->p_sys->playlist);
+    double vol = heimdall_player_aout_GetVolume(player);
     if( vol < .0f )
         vol = .0f;
 
     if( !dbus_message_iter_append_basic( container, DBUS_TYPE_DOUBLE, &vol ) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 DBUS_METHOD( VolumeSet )
@@ -143,11 +144,11 @@ DBUS_METHOD( VolumeSet )
     REPLY_INIT;
     double d_dbus_vol;
 
-    if( VLC_SUCCESS != DemarshalSetPropertyValue( p_from, &d_dbus_vol ) )
+    if( HEIMDALL_SUCCESS != DemarshalSetPropertyValue( p_from, &d_dbus_vol ) )
         return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 
-    vlc_player_t *player = vlc_playlist_GetPlayer(PL);
-    vlc_player_aout_SetVolume(player, fmaxf(d_dbus_vol, .0f));
+    heimdall_player_t *player = heimdall_playlist_GetPlayer(PL);
+    heimdall_player_aout_SetVolume(player, fmaxf(d_dbus_vol, .0f));
 
     REPLY_SEND;
 }
@@ -155,63 +156,63 @@ DBUS_METHOD( VolumeSet )
 DBUS_METHOD( Next )
 { /* next playlist item */
     REPLY_INIT;
-    vlc_playlist_t *playlist = PL;
-    vlc_playlist_Lock(playlist);
-    vlc_playlist_Next(playlist);
-    vlc_playlist_Unlock(playlist);
+    heimdall_playlist_t *playlist = PL;
+    heimdall_playlist_Lock(playlist);
+    heimdall_playlist_Next(playlist);
+    heimdall_playlist_Unlock(playlist);
     REPLY_SEND;
 }
 
 DBUS_METHOD( Prev )
 { /* previous playlist item */
     REPLY_INIT;
-    vlc_playlist_t *playlist = PL;
-    vlc_playlist_Lock(playlist);
-    vlc_playlist_Prev(playlist);
-    vlc_playlist_Unlock(playlist);
+    heimdall_playlist_t *playlist = PL;
+    heimdall_playlist_Lock(playlist);
+    heimdall_playlist_Prev(playlist);
+    heimdall_playlist_Unlock(playlist);
     REPLY_SEND;
 }
 
 DBUS_METHOD( Stop )
 { /* stop playing */
     REPLY_INIT;
-    vlc_playlist_t *playlist = PL;
-    vlc_playlist_Lock(playlist);
-    vlc_playlist_Stop(playlist);
-    vlc_playlist_Unlock(playlist);
+    heimdall_playlist_t *playlist = PL;
+    heimdall_playlist_Lock(playlist);
+    heimdall_playlist_Stop(playlist);
+    heimdall_playlist_Unlock(playlist);
     REPLY_SEND;
 }
 
 DBUS_METHOD( Play )
 {
     REPLY_INIT;
-    vlc_player_t *player = vlc_playlist_GetPlayer(PL);
-    vlc_player_Lock(player);
-    if (vlc_player_IsPaused(player))
-        vlc_player_Resume(player);
+    heimdall_player_t *player = heimdall_playlist_GetPlayer(PL);
+    heimdall_player_Lock(player);
+    if (heimdall_player_IsPaused(player))
+        heimdall_player_Resume(player);
     else
-        vlc_player_Start(player);
-    vlc_player_Unlock(player);
+        heimdall_player_Start(player);
+    heimdall_player_Unlock(player);
     REPLY_SEND;
 }
 
 DBUS_METHOD( Pause )
 {
     REPLY_INIT;
-    vlc_playlist_t *playlist = PL;
-    vlc_playlist_Lock(playlist);
-    vlc_playlist_Pause(playlist);
-    vlc_playlist_Unlock(playlist);
+    heimdall_playlist_t *playlist = PL;
+    heimdall_playlist_Lock(playlist);
+    heimdall_playlist_Pause(playlist);
+    heimdall_playlist_Unlock(playlist);
     REPLY_SEND;
 }
 
 DBUS_METHOD( PlayPause )
 {
     REPLY_INIT;
-    vlc_player_t *player = vlc_playlist_GetPlayer(PL);
-    vlc_player_Lock(player);
-    vlc_player_TogglePause(player);
-    vlc_player_Unlock(player);
+    heimdall_player_t *player = heimdall_playlist_GetPlayer(PL);
+    heimdall_player_Lock(player);
+    heimdall_player_TogglePause(player);
+    heimdall_player_Unlock(player);
     REPLY_SEND;
 }
 
@@ -229,7 +230,7 @@ DBUS_METHOD( OpenUri )
 
     if( dbus_error_is_set( &error ) )
     {
-        msg_Err( (vlc_object_t*) p_this, "D-Bus message reading : %s",
+        msg_Err( (heimdall_object_t*) p_this, "D-Bus message reading : %s",
                 error.message );
         dbus_error_free( &error );
         return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
@@ -239,12 +240,12 @@ DBUS_METHOD( OpenUri )
     if (!item)
         return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 
-    vlc_playlist_t *playlist = PL;
-    vlc_playlist_Lock(playlist);
-    size_t count = vlc_playlist_Count(playlist);
-    vlc_playlist_InsertOne(playlist, count, item);
-    vlc_playlist_PlayAt(playlist, count);
-    vlc_playlist_Unlock(playlist);
+    heimdall_playlist_t *playlist = PL;
+    heimdall_playlist_Lock(playlist);
+    size_t count = heimdall_playlist_Count(playlist);
+    heimdall_playlist_InsertOne(playlist, count, item);
+    heimdall_playlist_PlayAt(playlist, count);
+    heimdall_playlist_Unlock(playlist);
 
     input_item_Release(item);
 
@@ -254,110 +255,110 @@ DBUS_METHOD( OpenUri )
 static int
 MarshalCanGoNext( intf_thread_t *p_intf, DBusMessageIter *container )
 {
-    vlc_playlist_t *playlist = p_intf->p_sys->playlist;
-    vlc_playlist_Lock(playlist);
-    bool has_next = vlc_playlist_HasNext(playlist);
-    vlc_playlist_Unlock(playlist);
+    heimdall_playlist_t *playlist = p_intf->p_sys->playlist;
+    heimdall_playlist_Lock(playlist);
+    bool has_next = heimdall_playlist_HasNext(playlist);
+    heimdall_playlist_Unlock(playlist);
 
     dbus_bool_t b_can_go_next = has_next;
 
     if( !dbus_message_iter_append_basic( container, DBUS_TYPE_BOOLEAN,
                                          &b_can_go_next ) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int
 MarshalCanGoPrevious( intf_thread_t *p_intf, DBusMessageIter *container )
 {
-    vlc_playlist_t *playlist = p_intf->p_sys->playlist;
-    vlc_playlist_Lock(playlist);
-    bool has_prev = vlc_playlist_HasPrev(playlist);
-    vlc_playlist_Unlock(playlist);
+    heimdall_playlist_t *playlist = p_intf->p_sys->playlist;
+    heimdall_playlist_Lock(playlist);
+    bool has_prev = heimdall_playlist_HasPrev(playlist);
+    heimdall_playlist_Unlock(playlist);
 
     dbus_bool_t b_can_go_previous = has_prev;
 
     if( !dbus_message_iter_append_basic( container, DBUS_TYPE_BOOLEAN,
                                          &b_can_go_previous ) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int
 MarshalCanPlay( intf_thread_t *p_intf, DBusMessageIter *container )
 {
-    vlc_playlist_t *playlist = p_intf->p_sys->playlist;
-    vlc_playlist_Lock(playlist);
-    dbus_bool_t b_can_play = vlc_playlist_Count(playlist) != 0;
-    vlc_playlist_Unlock(playlist);
+    heimdall_playlist_t *playlist = p_intf->p_sys->playlist;
+    heimdall_playlist_Lock(playlist);
+    dbus_bool_t b_can_play = heimdall_playlist_Count(playlist) != 0;
+    heimdall_playlist_Unlock(playlist);
 
     if( !dbus_message_iter_append_basic( container, DBUS_TYPE_BOOLEAN,
                                          &b_can_play ) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int
 MarshalCanPause( intf_thread_t *p_intf, DBusMessageIter *container )
 {
-    vlc_player_t *player = vlc_playlist_GetPlayer(p_intf->p_sys->playlist);
-    vlc_player_Lock(player);
-    dbus_bool_t b_can_pause = vlc_player_CanPause(player);
-    vlc_player_Unlock(player);
+    heimdall_player_t *player = heimdall_playlist_GetPlayer(p_intf->p_sys->playlist);
+    heimdall_player_Lock(player);
+    dbus_bool_t b_can_pause = heimdall_player_CanPause(player);
+    heimdall_player_Unlock(player);
 
     if( !dbus_message_iter_append_basic( container, DBUS_TYPE_BOOLEAN,
                                          &b_can_pause ) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int
 MarshalCanControl( intf_thread_t *p_intf, DBusMessageIter *container )
 {
-    VLC_UNUSED( p_intf );
+    HEIMDALL_UNUSED( p_intf );
     dbus_bool_t b_can_control = TRUE;
 
     if( !dbus_message_iter_append_basic( container, DBUS_TYPE_BOOLEAN,
                                          &b_can_control ) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int
 MarshalCanSeek( intf_thread_t *p_intf, DBusMessageIter *container )
 {
-    vlc_player_t *player = vlc_playlist_GetPlayer(p_intf->p_sys->playlist);
-    vlc_player_Lock(player);
-    dbus_bool_t b_can_seek = vlc_player_CanSeek(player);
-    vlc_player_Unlock(player);
+    heimdall_player_t *player = heimdall_playlist_GetPlayer(p_intf->p_sys->playlist);
+    heimdall_player_Lock(player);
+    dbus_bool_t b_can_seek = heimdall_player_CanSeek(player);
+    heimdall_player_Unlock(player);
 
     if( !dbus_message_iter_append_basic( container, DBUS_TYPE_BOOLEAN,
                                          &b_can_seek ) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int
 MarshalShuffle( intf_thread_t *p_intf, DBusMessageIter *container )
 {
-    vlc_playlist_t *playlist = p_intf->p_sys->playlist;
-    vlc_playlist_Lock(playlist);
-    enum vlc_playlist_playback_order order_mode =
-        vlc_playlist_GetPlaybackOrder(playlist);
-    vlc_playlist_Unlock(playlist);
+    heimdall_playlist_t *playlist = p_intf->p_sys->playlist;
+    heimdall_playlist_Lock(playlist);
+    enum heimdall_playlist_playback_order order_mode =
+        heimdall_playlist_GetPlaybackOrder(playlist);
+    heimdall_playlist_Unlock(playlist);
 
-    dbus_bool_t b_shuffle = order_mode == VLC_PLAYLIST_PLAYBACK_ORDER_RANDOM;
+    dbus_bool_t b_shuffle = order_mode == HEIMDALL_PLAYLIST_PLAYBACK_ORDER_RANDOM;
     if( !dbus_message_iter_append_basic( container, DBUS_TYPE_BOOLEAN,
                                          &b_shuffle ))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 DBUS_METHOD( ShuffleSet )
@@ -365,15 +366,15 @@ DBUS_METHOD( ShuffleSet )
     REPLY_INIT;
     dbus_bool_t b_shuffle;
 
-    if( VLC_SUCCESS != DemarshalSetPropertyValue( p_from, &b_shuffle ) )
+    if( HEIMDALL_SUCCESS != DemarshalSetPropertyValue( p_from, &b_shuffle ) )
         return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 
-    vlc_playlist_t *playlist = PL;
-    vlc_playlist_Lock(playlist);
-    vlc_playlist_SetPlaybackOrder(playlist, b_shuffle == TRUE
-            ? VLC_PLAYLIST_PLAYBACK_ORDER_RANDOM
-            : VLC_PLAYLIST_PLAYBACK_ORDER_NORMAL);
-    vlc_playlist_Unlock(playlist);
+    heimdall_playlist_t *playlist = PL;
+    heimdall_playlist_Lock(playlist);
+    heimdall_playlist_SetPlaybackOrder(playlist, b_shuffle == TRUE
+            ? HEIMDALL_PLAYLIST_PLAYBACK_ORDER_RANDOM
+            : HEIMDALL_PLAYLIST_PLAYBACK_ORDER_NORMAL);
+    heimdall_playlist_Unlock(playlist);
 
     REPLY_SEND;
 }
@@ -381,19 +382,19 @@ DBUS_METHOD( ShuffleSet )
 static int
 MarshalPlaybackStatus( intf_thread_t *p_intf, DBusMessageIter *container )
 {
-    vlc_player_t *player = vlc_playlist_GetPlayer(p_intf->p_sys->playlist);
-    vlc_player_Lock(player);
-    enum vlc_player_state state = vlc_player_GetState(player);
-    vlc_player_Unlock(player);
+    heimdall_player_t *player = heimdall_playlist_GetPlayer(p_intf->p_sys->playlist);
+    heimdall_player_Lock(player);
+    enum heimdall_player_state state = heimdall_player_GetState(player);
+    heimdall_player_Unlock(player);
 
     const char *psz_playback_status;
     switch (state)
     {
-        case VLC_PLAYER_STATE_STARTED:
-        case VLC_PLAYER_STATE_PLAYING:
+        case HEIMDALL_PLAYER_STATE_STARTED:
+        case HEIMDALL_PLAYER_STATE_PLAYING:
             psz_playback_status = PLAYBACK_STATUS_PLAYING;
             break;
-        case VLC_PLAYER_STATE_PAUSED:
+        case HEIMDALL_PLAYER_STATE_PAUSED:
             psz_playback_status = PLAYBACK_STATUS_PAUSED;
             break;
         default:
@@ -402,24 +403,24 @@ MarshalPlaybackStatus( intf_thread_t *p_intf, DBusMessageIter *container )
 
     if( !dbus_message_iter_append_basic( container, DBUS_TYPE_STRING,
                                          &psz_playback_status ) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int
 MarshalRate( intf_thread_t *p_intf, DBusMessageIter *container )
 {
-    vlc_player_t *player = vlc_playlist_GetPlayer(p_intf->p_sys->playlist);
-    vlc_player_Lock(player);
-    double d_rate = vlc_player_GetRate(player);
-    vlc_player_Unlock(player);
+    heimdall_player_t *player = heimdall_playlist_GetPlayer(p_intf->p_sys->playlist);
+    heimdall_player_Lock(player);
+    double d_rate = heimdall_player_GetRate(player);
+    heimdall_player_Unlock(player);
 
     if( !dbus_message_iter_append_basic( container, DBUS_TYPE_DOUBLE,
                                          &d_rate ) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 DBUS_METHOD( RateSet )
@@ -428,13 +429,13 @@ DBUS_METHOD( RateSet )
 
     double d_rate;
 
-    if( VLC_SUCCESS != DemarshalSetPropertyValue( p_from, &d_rate ) )
+    if( HEIMDALL_SUCCESS != DemarshalSetPropertyValue( p_from, &d_rate ) )
         return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 
-    vlc_player_t *player = vlc_playlist_GetPlayer(PL);
-    vlc_player_Lock(player);
-    vlc_player_ChangeRate(player, d_rate);
-    vlc_player_Unlock(player);
+    heimdall_player_t *player = heimdall_playlist_GetPlayer(PL);
+    heimdall_player_Lock(player);
+    heimdall_player_ChangeRate(player, d_rate);
+    heimdall_player_Unlock(player);
 
     REPLY_SEND;
 }
@@ -442,57 +443,57 @@ DBUS_METHOD( RateSet )
 static int
 MarshalMinimumRate( intf_thread_t *p_intf, DBusMessageIter *container )
 {
-    VLC_UNUSED( p_intf );
+    HEIMDALL_UNUSED( p_intf );
     double d_min_rate = INPUT_RATE_MIN;
 
     if( !dbus_message_iter_append_basic( container, DBUS_TYPE_DOUBLE, &d_min_rate ) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int
 MarshalMaximumRate( intf_thread_t *p_intf, DBusMessageIter *container )
 {
-    VLC_UNUSED( p_intf );
+    HEIMDALL_UNUSED( p_intf );
     double d_max_rate = INPUT_RATE_MAX;
 
     if( !dbus_message_iter_append_basic( container, DBUS_TYPE_DOUBLE, &d_max_rate ) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int
 MarshalLoopStatus( intf_thread_t *p_intf, DBusMessageIter *container )
 {
-    vlc_playlist_t *playlist = p_intf->p_sys->playlist;
-    vlc_playlist_Lock(playlist);
-    enum vlc_playlist_playback_repeat repeat_mode =
-        vlc_playlist_GetPlaybackRepeat(playlist);
-    vlc_playlist_Unlock(playlist);
+    heimdall_playlist_t *playlist = p_intf->p_sys->playlist;
+    heimdall_playlist_Lock(playlist);
+    enum heimdall_playlist_playback_repeat repeat_mode =
+        heimdall_playlist_GetPlaybackRepeat(playlist);
+    heimdall_playlist_Unlock(playlist);
 
     const char *psz_loop_status;
     switch (repeat_mode)
     {
-        case VLC_PLAYLIST_PLAYBACK_REPEAT_ALL:
+        case HEIMDALL_PLAYLIST_PLAYBACK_REPEAT_ALL:
             psz_loop_status = LOOP_STATUS_PLAYLIST;
             break;
-        case VLC_PLAYLIST_PLAYBACK_REPEAT_CURRENT:
+        case HEIMDALL_PLAYLIST_PLAYBACK_REPEAT_CURRENT:
             psz_loop_status = LOOP_STATUS_TRACK;
             break;
-        case VLC_PLAYLIST_PLAYBACK_REPEAT_NONE:
+        case HEIMDALL_PLAYLIST_PLAYBACK_REPEAT_NONE:
             psz_loop_status = LOOP_STATUS_NONE;
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 
     if( !dbus_message_iter_append_basic( container, DBUS_TYPE_STRING,
                                          &psz_loop_status ) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 DBUS_METHOD( LoopStatusSet )
@@ -500,23 +501,23 @@ DBUS_METHOD( LoopStatusSet )
     REPLY_INIT;
     char *psz_loop_status;
 
-    if( VLC_SUCCESS != DemarshalSetPropertyValue( p_from, &psz_loop_status ) )
+    if( HEIMDALL_SUCCESS != DemarshalSetPropertyValue( p_from, &psz_loop_status ) )
         return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 
-    enum vlc_playlist_playback_repeat repeat_mode;
+    enum heimdall_playlist_playback_repeat repeat_mode;
     if (!strcmp(psz_loop_status, LOOP_STATUS_NONE))
-        repeat_mode = VLC_PLAYLIST_PLAYBACK_REPEAT_NONE;
+        repeat_mode = HEIMDALL_PLAYLIST_PLAYBACK_REPEAT_NONE;
     else if (!strcmp(psz_loop_status, LOOP_STATUS_TRACK))
-        repeat_mode = VLC_PLAYLIST_PLAYBACK_REPEAT_CURRENT;
+        repeat_mode = HEIMDALL_PLAYLIST_PLAYBACK_REPEAT_CURRENT;
     else if (!strcmp(psz_loop_status, LOOP_STATUS_PLAYLIST))
-        repeat_mode = VLC_PLAYLIST_PLAYBACK_REPEAT_ALL;
+        repeat_mode = HEIMDALL_PLAYLIST_PLAYBACK_REPEAT_ALL;
     else
         return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 
-    vlc_playlist_t *playlist = PL;
-    vlc_playlist_Lock(playlist);
-    vlc_playlist_SetPlaybackRepeat(playlist, repeat_mode);
-    vlc_playlist_Unlock(playlist);
+    heimdall_playlist_t *playlist = PL;
+    heimdall_playlist_Lock(playlist);
+    heimdall_playlist_SetPlaybackRepeat(playlist, repeat_mode);
+    heimdall_playlist_Unlock(playlist);
 
     REPLY_SEND;
 }
@@ -524,21 +525,21 @@ DBUS_METHOD( LoopStatusSet )
 static int
 MarshalMetadata( intf_thread_t *p_intf, DBusMessageIter *container )
 {
-    int result = VLC_SUCCESS;
+    int result = HEIMDALL_SUCCESS;
 
-    vlc_playlist_item_t *plitem = NULL;
-    vlc_playlist_t *playlist = p_intf->p_sys->playlist;
-    vlc_playlist_Lock(playlist);
-    ssize_t id = vlc_playlist_GetCurrentIndex(playlist);
+    heimdall_playlist_item_t *plitem = NULL;
+    heimdall_playlist_t *playlist = p_intf->p_sys->playlist;
+    heimdall_playlist_Lock(playlist);
+    ssize_t id = heimdall_playlist_GetCurrentIndex(playlist);
     if (id != -1) {
-        plitem = vlc_playlist_Get(playlist, id);
-        vlc_playlist_item_Hold(plitem);
+        plitem = heimdall_playlist_Get(playlist, id);
+        heimdall_playlist_item_Hold(plitem);
     }
-    vlc_playlist_Unlock(playlist);
+    heimdall_playlist_Unlock(playlist);
     if(plitem)
     {
         result = GetInputMeta(plitem, container);
-        vlc_playlist_item_Release(plitem);
+        heimdall_playlist_item_Release(plitem);
     }
     else
     {   // avoid breaking the type marshalling
@@ -546,7 +547,7 @@ MarshalMetadata( intf_thread_t *p_intf, DBusMessageIter *container )
         if( !dbus_message_iter_open_container( container, DBUS_TYPE_ARRAY,
                                                "{sv}", &a ) ||
             !dbus_message_iter_close_container( container, &a ) )
-            result = VLC_ENOMEM;
+            result = HEIMDALL_ENOMEM;
     }
     return result;
 }
@@ -565,11 +566,11 @@ DBUS_SIGNAL( SeekedSignal )
 
     dbus_int64_t i_pos = 0;
     intf_thread_t *p_intf = (intf_thread_t*) p_data;
-    vlc_player_t *player = vlc_playlist_GetPlayer(p_intf->p_sys->playlist);
-    vlc_player_Lock(player);
-    i_pos = vlc_player_GetTime(player);
-    vlc_player_Unlock(player);
-    i_pos = i_pos == VLC_TICK_INVALID ? 0 : US_FROM_VLC_TICK(i_pos);
+    heimdall_player_t *player = heimdall_playlist_GetPlayer(p_intf->p_sys->playlist);
+    heimdall_player_Lock(player);
+    i_pos = heimdall_player_GetTime(player);
+    heimdall_player_Unlock(player);
+    i_pos = i_pos == HEIMDALL_TICK_INVALID ? 0 : US_FROM_HEIMDALL_TICK(i_pos);
 
     ADD_INT64( &i_pos );
     SIGNAL_SEND;
@@ -580,7 +581,7 @@ DBUS_SIGNAL( SeekedSignal )
     if( !strcmp( psz_property_name,  #prop ) ) { \
         if( !dbus_message_iter_open_container( &args, DBUS_TYPE_VARIANT, signature, &v ) ) \
             return DBUS_HANDLER_RESULT_NEED_MEMORY; \
-        if( VLC_SUCCESS != Marshal##prop( p_this, &v ) ) { \
+        if( HEIMDALL_SUCCESS != Marshal##prop( p_this, &v ) ) { \
             dbus_message_iter_abandon_container( &args, &v ); \
             return DBUS_HANDLER_RESULT_NEED_MEMORY; \
         } \
@@ -608,13 +609,13 @@ DBUS_METHOD( GetProperty )
 
     if( dbus_error_is_set( &error ) )
     {
-        msg_Err( (vlc_object_t*) p_this, "D-Bus message reading : %s",
+        msg_Err( (heimdall_object_t*) p_this, "D-Bus message reading : %s",
                                          error.message );
         dbus_error_free( &error );
         return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
     }
 
-    msg_Dbg( (vlc_object_t*) p_this, "Getting property %s",
+    msg_Dbg( (heimdall_object_t*) p_this, "Getting property %s",
                                      psz_property_name );
 
     if( strcmp( psz_interface_name, DBUS_MPRIS_PLAYER_INTERFACE ) ) {
@@ -661,7 +662,7 @@ DBUS_METHOD( SetProperty )
 
     if( dbus_error_is_set( &error ) )
     {
-        msg_Err( (vlc_object_t*) p_this, "D-Bus message reading : %s",
+        msg_Err( (heimdall_object_t*) p_this, "D-Bus message reading : %s",
                                          error.message );
         dbus_error_free( &error );
         return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
@@ -681,10 +682,10 @@ DBUS_METHOD( SetProperty )
 #undef PROPERTY_MAPPING_END
 
 #define ADD_PROPERTY( prop, signature ) \
-    if( VLC_SUCCESS != AddProperty( (intf_thread_t*) p_this, \
+    if( HEIMDALL_SUCCESS != AddProperty( (intf_thread_t*) p_this, \
                 &dict, #prop, signature, Marshal##prop ) ) { \
         dbus_message_iter_abandon_container( &args, &dict ); \
-        return VLC_ENOMEM; \
+        return HEIMDALL_ENOMEM; \
     }
 
 DBUS_METHOD( GetAllProperties )
@@ -704,7 +705,7 @@ DBUS_METHOD( GetAllProperties )
 
     if( dbus_error_is_set( &error ) )
     {
-        msg_Err( (vlc_object_t*) p_this, "D-Bus message reading : %s",
+        msg_Err( (heimdall_object_t*) p_this, "D-Bus message reading : %s",
                                          error.message );
         dbus_error_free( &error );
         return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
@@ -772,17 +773,17 @@ handle_player ( DBusConnection *p_conn, DBusMessage *p_from, void *p_this )
 int SeekedEmit( intf_thread_t * p_intf )
 {
     if( p_intf->p_sys->b_dead )
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
     SeekedSignal( p_intf->p_sys->p_conn, p_intf );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 #define PROPERTY_MAPPING_BEGIN if( 0 ) {}
 #define PROPERTY_ENTRY( prop, signature ) \
     else if( !strcmp( ppsz_properties[i], #prop ) ) \
     { \
-        if( VLC_SUCCESS != AddProperty( (intf_thread_t*) p_intf, \
+        if( HEIMDALL_SUCCESS != AddProperty( (intf_thread_t*) p_intf, \
                     &changed_properties, #prop, signature, Marshal##prop ) ) \
             { \
                 for( ; ppsz_properties[i]; ++i ) free( ppsz_properties[i] ); \
@@ -805,7 +806,7 @@ int SeekedEmit( intf_thread_t * p_intf )
  */
 static DBusHandlerResult
 PropertiesChangedSignal( intf_thread_t    *p_intf,
-                         vlc_dictionary_t *p_changed_properties )
+                         heimdall_dictionary_t *p_changed_properties )
 {
     DBusConnection  *p_conn = p_intf->p_sys->p_conn;
     DBusMessageIter changed_properties, invalidated_properties;
@@ -823,7 +824,7 @@ PropertiesChangedSignal( intf_thread_t    *p_intf,
                                            &changed_properties ) )
         return DBUS_HANDLER_RESULT_NEED_MEMORY;
 
-    ppsz_properties = vlc_dictionary_all_keys( p_changed_properties );
+    ppsz_properties = heimdall_dictionary_all_keys( p_changed_properties );
 
     if( unlikely(!ppsz_properties) )
     {
@@ -873,11 +874,11 @@ PropertiesChangedSignal( intf_thread_t    *p_intf,
  * PropertiesChangedEmit: Emits the Seeked signal
  *****************************************************************************/
 int PlayerPropertiesChangedEmit( intf_thread_t    * p_intf,
-                                 vlc_dictionary_t * p_changed_properties )
+                                 heimdall_dictionary_t * p_changed_properties )
 {
     if( p_intf->p_sys->b_dead )
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
     PropertiesChangedSignal( p_intf, p_changed_properties );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

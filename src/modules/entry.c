@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 2007 VLC authors and VideoLAN
  * Copyright © 2007-2008 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -24,9 +25,9 @@
 #endif
 
 #include <stdatomic.h>
-#include <vlc_common.h>
-#include <vlc_arrays.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_arrays.h>
+#include <heimdall_plugin.h>
 #include <assert.h>
 #include <stdarg.h>
 #include <limits.h>
@@ -37,9 +38,9 @@
 
 #include "modules/modules.h"
 #include "config/configuration.h"
-#include "../libvlc.h"
+#include "../libheimdall.h"
 
-module_t *vlc_module_create(vlc_plugin_t *plugin)
+module_t *heimdall_module_create(heimdall_plugin_t *plugin)
 {
     module_t *module = malloc (sizeof (*module));
     if (module == NULL)
@@ -82,7 +83,7 @@ module_t *vlc_module_create(vlc_plugin_t *plugin)
 /**
  * Destroys a module.
  */
-void vlc_module_destroy (module_t *module)
+void heimdall_module_destroy (module_t *module)
 {
     while (module != NULL)
     {
@@ -94,9 +95,9 @@ void vlc_module_destroy (module_t *module)
     }
 }
 
-vlc_plugin_t *vlc_plugin_create(void)
+heimdall_plugin_t *heimdall_plugin_create(void)
 {
-    vlc_plugin_t *plugin = malloc(sizeof (*plugin));
+    heimdall_plugin_t *plugin = malloc(sizeof (*plugin));
     if (unlikely(plugin == NULL))
         return NULL;
 
@@ -122,7 +123,7 @@ vlc_plugin_t *vlc_plugin_create(void)
  * @warning If the plug-in was dynamically loaded in memory, the library handle
  * and associated memory mappings and linker resources will be leaked.
  */
-void vlc_plugin_destroy(vlc_plugin_t *plugin)
+void heimdall_plugin_destroy(heimdall_plugin_t *plugin)
 {
     assert(plugin != NULL);
 #ifdef HAVE_DYNAMIC_PLUGINS
@@ -130,7 +131,7 @@ void vlc_plugin_destroy(vlc_plugin_t *plugin)
 #endif
 
     if (plugin->module != NULL)
-        vlc_module_destroy(plugin->module);
+        heimdall_module_destroy(plugin->module);
 
     config_Free(plugin->conf.params, plugin->conf.size);
 #ifdef HAVE_DYNAMIC_PLUGINS
@@ -140,14 +141,14 @@ void vlc_plugin_destroy(vlc_plugin_t *plugin)
     free(plugin);
 }
 
-static struct vlc_param *vlc_config_create(vlc_plugin_t *plugin, int type)
+static struct heimdall_param *heimdall_config_create(heimdall_plugin_t *plugin, int type)
 {
     unsigned confsize = plugin->conf.size;
-    struct vlc_param *tab = plugin->conf.params;
+    struct heimdall_param *tab = plugin->conf.params;
 
     if ((confsize & 0xf) == 0)
     {
-        tab = vlc_reallocarray( tab, (confsize + 17), sizeof (*tab) );
+        tab = heimdall_reallocarray( tab, (confsize + 17), sizeof (*tab) );
         if (unlikely(tab == NULL))
             return NULL;
 
@@ -156,7 +157,7 @@ static struct vlc_param *vlc_config_create(vlc_plugin_t *plugin, int type)
 
     memset (tab + confsize, 0, sizeof (tab[confsize]));
 
-    struct vlc_param *param = tab + confsize;
+    struct heimdall_param *param = tab + confsize;
     struct module_config_t *item = &param->item;
 
     param->owner = plugin;
@@ -192,9 +193,9 @@ static struct vlc_param *vlc_config_create(vlc_plugin_t *plugin, int type)
  * This callback populates modules, configuration items and properties of a
  * plug-in from the plug-in descriptor.
  */
-static int vlc_plugin_desc_cb(void *ctx, void *tgt, int propid, ...)
+static int heimdall_plugin_desc_cb(void *ctx, void *tgt, int propid, ...)
 {
-    vlc_plugin_t *plugin = ctx;
+    heimdall_plugin_t *plugin = ctx;
     module_t *module = tgt;
     va_list ap;
     int ret = 0;
@@ -202,10 +203,10 @@ static int vlc_plugin_desc_cb(void *ctx, void *tgt, int propid, ...)
     va_start (ap, propid);
     switch (propid)
     {
-        case VLC_MODULE_CREATE:
+        case HEIMDALL_MODULE_CREATE:
         {
             module_t *super = plugin->module;
-            module_t *submodule = vlc_module_create(plugin);
+            module_t *submodule = heimdall_module_create(plugin);
             if (unlikely(submodule == NULL))
             {
                 ret = -1;
@@ -227,18 +228,18 @@ static int vlc_plugin_desc_cb(void *ctx, void *tgt, int propid, ...)
             break;
         }
 
-        case VLC_CONFIG_CREATE:
+        case HEIMDALL_CONFIG_CREATE:
         {
             int type = va_arg (ap, int);
-            struct vlc_param *param = vlc_config_create(plugin, type);
+            struct heimdall_param *param = heimdall_config_create(plugin, type);
 
-            *va_arg(ap, struct vlc_param **)= param;
+            *va_arg(ap, struct heimdall_param **)= param;
             if (unlikely(param == NULL))
                 ret = -1;
             break;
         }
 
-        case VLC_MODULE_SHORTCUT:
+        case HEIMDALL_MODULE_SHORTCUT:
         {
             unsigned i_shortcuts = va_arg (ap, unsigned);
             unsigned index = module->i_shortcuts;
@@ -261,31 +262,31 @@ static int vlc_plugin_desc_cb(void *ctx, void *tgt, int propid, ...)
             break;
         }
 
-        case VLC_MODULE_CAPABILITY:
+        case HEIMDALL_MODULE_CAPABILITY:
             module->psz_capability = va_arg (ap, const char *);
             break;
 
-        case VLC_MODULE_SCORE:
+        case HEIMDALL_MODULE_SCORE:
             module->i_score = va_arg (ap, int);
             break;
 
-        case VLC_MODULE_CB_OPEN:
+        case HEIMDALL_MODULE_CB_OPEN:
             module->activate_name = va_arg(ap, const char *);
             module->pf_activate = va_arg (ap, void *);
             break;
 
-        case VLC_MODULE_CB_CLOSE:
+        case HEIMDALL_MODULE_CB_CLOSE:
             module->deactivate_name = va_arg(ap, const char *);
-            module->deactivate = va_arg(ap, vlc_deactivate_cb);
+            module->deactivate = va_arg(ap, heimdall_deactivate_cb);
             break;
 
-        case VLC_MODULE_NO_UNLOAD:
+        case HEIMDALL_MODULE_NO_UNLOAD:
 #ifdef HAVE_DYNAMIC_PLUGINS
             plugin->unloadable = false;
 #endif
             break;
 
-        case VLC_MODULE_NAME:
+        case HEIMDALL_MODULE_NAME:
         {
             const char *value = va_arg (ap, const char *);
 
@@ -299,30 +300,30 @@ static int vlc_plugin_desc_cb(void *ctx, void *tgt, int propid, ...)
             break;
         }
 
-        case VLC_MODULE_SHORTNAME:
+        case HEIMDALL_MODULE_SHORTNAME:
             module->psz_shortname = va_arg (ap, const char *);
             break;
 
-        case VLC_MODULE_DESCRIPTION:
-            // TODO: do not set this in VLC_MODULE_NAME
+        case HEIMDALL_MODULE_DESCRIPTION:
+            // TODO: do not set this in HEIMDALL_MODULE_NAME
             module->psz_longname = va_arg (ap, const char *);
             break;
 
-        case VLC_MODULE_HELP:
+        case HEIMDALL_MODULE_HELP:
             module->psz_help = va_arg (ap, const char *);
             break;
 
-        case VLC_MODULE_HELP_HTML:
+        case HEIMDALL_MODULE_HELP_HTML:
             module->psz_help_html = va_arg (ap, const char *);
             break;
 
-        case VLC_MODULE_TEXTDOMAIN:
+        case HEIMDALL_MODULE_TEXTDOMAIN:
             plugin->textdomain = va_arg(ap, const char *);
             break;
 
-        case VLC_CONFIG_NAME:
+        case HEIMDALL_CONFIG_NAME:
         {
-            struct vlc_param *param = tgt;
+            struct heimdall_param *param = tgt;
             const char *name = va_arg (ap, const char *);
 
             assert (name != NULL);
@@ -330,9 +331,9 @@ static int vlc_plugin_desc_cb(void *ctx, void *tgt, int propid, ...)
             break;
         }
 
-        case VLC_CONFIG_VALUE:
+        case HEIMDALL_CONFIG_VALUE:
         {
-            struct vlc_param *param = tgt;
+            struct heimdall_param *param = tgt;
             module_config_t *item = &param->item;
 
             if (IsConfigIntegerType(item->i_type)
@@ -356,14 +357,14 @@ static int vlc_plugin_desc_cb(void *ctx, void *tgt, int propid, ...)
             {
                 const char *value = va_arg (ap, const char *);
                 item->orig.psz = (char *)value;
-                vlc_param_SetString(param, value);
+                heimdall_param_SetString(param, value);
             }
             break;
         }
 
-        case VLC_CONFIG_RANGE:
+        case HEIMDALL_CONFIG_RANGE:
         {
-            struct vlc_param *param = tgt;
+            struct heimdall_param *param = tgt;
             module_config_t *item = &param->item;
 
             if (IsConfigFloatType (item->i_type))
@@ -379,41 +380,41 @@ static int vlc_plugin_desc_cb(void *ctx, void *tgt, int propid, ...)
             break;
         }
 
-        case VLC_CONFIG_VOLATILE:
+        case HEIMDALL_CONFIG_VOLATILE:
         {
-            struct vlc_param *param = tgt;
+            struct heimdall_param *param = tgt;
 
             param->unsaved = true;
             break;
         }
 
-        case VLC_CONFIG_PRIVATE:
+        case HEIMDALL_CONFIG_PRIVATE:
         {
-            struct vlc_param *param = tgt;
+            struct heimdall_param *param = tgt;
 
             param->internal = true;
             break;
         }
 
-        case VLC_CONFIG_REMOVED:
+        case HEIMDALL_CONFIG_REMOVED:
         {
-            struct vlc_param *param = tgt;
+            struct heimdall_param *param = tgt;
 
             param->obsolete = true;
             break;
         }
 
-        case VLC_CONFIG_CAPABILITY:
+        case HEIMDALL_CONFIG_CAPABILITY:
         {
-            struct vlc_param *param = tgt;
+            struct heimdall_param *param = tgt;
 
             param->item.psz_type = va_arg(ap, const char *);
             break;
         }
 
-        case VLC_CONFIG_SHORTCUT:
+        case HEIMDALL_CONFIG_SHORTCUT:
         {
-            struct vlc_param *param = tgt;
+            struct heimdall_param *param = tgt;
 
             char c = va_arg(ap, int);
             assert(c != '\0' && c != '?' && c != ':');
@@ -421,26 +422,26 @@ static int vlc_plugin_desc_cb(void *ctx, void *tgt, int propid, ...)
             break;
         }
 
-        case VLC_CONFIG_SAFE:
+        case HEIMDALL_CONFIG_SAFE:
         {
-            struct vlc_param *param = tgt;
+            struct heimdall_param *param = tgt;
 
             param->safe = true;
             break;
         }
 
-        case VLC_CONFIG_DESC:
+        case HEIMDALL_CONFIG_DESC:
         {
-            struct vlc_param *param = tgt;
+            struct heimdall_param *param = tgt;
 
             param->item.psz_text = va_arg(ap, const char *);
             param->item.psz_longtext = va_arg(ap, const char *);
             break;
         }
 
-        case VLC_CONFIG_LIST:
+        case HEIMDALL_CONFIG_LIST:
         {
-            struct vlc_param *param = tgt;
+            struct heimdall_param *param = tgt;
             module_config_t *item = &param->item;
             size_t len = va_arg (ap, size_t);
 
@@ -474,8 +475,8 @@ static int vlc_plugin_desc_cb(void *ctx, void *tgt, int propid, ...)
         }
 
         default:
-            fprintf (stderr, "LibVLC: unknown module property %d\n", propid);
-            fprintf (stderr, "LibVLC: too old to use this module?\n");
+            fprintf (stderr, "LibHeimdall: unknown module property %d\n", propid);
+            fprintf (stderr, "LibHeimdall: too old to use this module?\n");
             ret = -1;
             break;
     }
@@ -489,29 +490,29 @@ static int vlc_plugin_desc_cb(void *ctx, void *tgt, int propid, ...)
  *
  * This loads the plug-in meta-data in memory.
  */
-vlc_plugin_t *vlc_plugin_describe(vlc_plugin_cb entry)
+heimdall_plugin_t *heimdall_plugin_describe(heimdall_plugin_cb entry)
 {
-    vlc_plugin_t *plugin = vlc_plugin_create();
+    heimdall_plugin_t *plugin = heimdall_plugin_create();
     if (unlikely(plugin == NULL))
         return NULL;
 
-    if (entry(vlc_plugin_desc_cb, plugin) != 0)
+    if (entry(heimdall_plugin_desc_cb, plugin) != 0)
     {
-        vlc_plugin_destroy(plugin); /* partially initialized plug-in... */
+        heimdall_plugin_destroy(plugin); /* partially initialized plug-in... */
         plugin = NULL;
     }
     return plugin;
 }
 
-struct vlc_plugin_symbol
+struct heimdall_plugin_symbol
 {
     const char *name;
     void *addr;
 };
 
-static int vlc_plugin_symbol_compare(const void *a, const void *b)
+static int heimdall_plugin_symbol_compare(const void *a, const void *b)
 {
-    const struct vlc_plugin_symbol *sa = a , *sb = b;
+    const struct heimdall_plugin_symbol *sa = a , *sb = b;
 
     return strcmp(sa->name, sb->name);
 }
@@ -522,7 +523,7 @@ static int vlc_plugin_symbol_compare(const void *a, const void *b)
  * This callback generates a mapping of plugin symbol names to symbol
  * addresses.
  */
-static int vlc_plugin_gpa_cb(void *ctx, void *tgt, int propid, ...)
+static int heimdall_plugin_gpa_cb(void *ctx, void *tgt, int propid, ...)
 {
     void **rootp = ctx;
     const char *name;
@@ -532,7 +533,7 @@ static int vlc_plugin_gpa_cb(void *ctx, void *tgt, int propid, ...)
 
     switch (propid)
     {
-        case VLC_MODULE_CB_OPEN:
+        case HEIMDALL_MODULE_CB_OPEN:
         {
             va_list ap;
 
@@ -542,13 +543,13 @@ static int vlc_plugin_gpa_cb(void *ctx, void *tgt, int propid, ...)
             va_end (ap);
             break;
         }
-        case VLC_MODULE_CB_CLOSE:
+        case HEIMDALL_MODULE_CB_CLOSE:
         {
             va_list ap;
 
             va_start(ap, propid);
             name = va_arg(ap, const char *);
-            addr = va_arg(ap, vlc_deactivate_cb);
+            addr = va_arg(ap, heimdall_deactivate_cb);
             va_end(ap);
             break;
         }
@@ -556,12 +557,12 @@ static int vlc_plugin_gpa_cb(void *ctx, void *tgt, int propid, ...)
             return 0;
     }
 
-    struct vlc_plugin_symbol *sym = malloc(sizeof (*sym));
+    struct heimdall_plugin_symbol *sym = malloc(sizeof (*sym));
 
     sym->name = name;
     sym->addr = addr;
 
-    void **symp = tsearch(sym, rootp, vlc_plugin_symbol_compare);
+    void **symp = tsearch(sym, rootp, heimdall_plugin_symbol_compare);
     if (unlikely(symp == NULL))
     {   /* Memory error */
         free(sym);
@@ -571,7 +572,7 @@ static int vlc_plugin_gpa_cb(void *ctx, void *tgt, int propid, ...)
     if (*symp != sym)
     {   /* Duplicate symbol */
 #ifndef NDEBUG
-        const struct vlc_plugin_symbol *oldsym = *symp;
+        const struct heimdall_plugin_symbol *oldsym = *symp;
         assert(oldsym->addr == sym->addr);
 #endif
         free(sym);
@@ -583,17 +584,17 @@ static int vlc_plugin_gpa_cb(void *ctx, void *tgt, int propid, ...)
  * Gets the symbols of a plugin.
  *
  * This function generates a list of symbol names and addresses for a given
- * plugin descriptor. The result can be used with vlc_plugin_get_symbol()
+ * plugin descriptor. The result can be used with heimdall_plugin_get_symbol()
  * to resolve a symbol name to an address.
  *
- * The result must be freed with vlc_plugin_free_symbols(). The result is only
+ * The result must be freed with heimdall_plugin_free_symbols(). The result is only
  * meaningful until the plugin is unloaded.
  */
-static void *vlc_plugin_get_symbols(vlc_plugin_cb entry)
+static void *heimdall_plugin_get_symbols(heimdall_plugin_cb entry)
 {
     void *root = NULL;
 
-    if (entry(vlc_plugin_gpa_cb, &root))
+    if (entry(heimdall_plugin_gpa_cb, &root))
     {
         tdestroy(root, free);
         return NULL;
@@ -602,12 +603,12 @@ static void *vlc_plugin_get_symbols(vlc_plugin_cb entry)
     return root;
 }
 
-static void vlc_plugin_free_symbols(void *root)
+static void heimdall_plugin_free_symbols(void *root)
 {
     tdestroy(root, free);
 }
 
-static int vlc_plugin_get_symbol(void *root, const char *name,
+static int heimdall_plugin_get_symbol(void *root, const char *name,
                                  void **restrict addrp)
 {
     if (name == NULL)
@@ -616,20 +617,20 @@ static int vlc_plugin_get_symbol(void *root, const char *name,
         return 0;
     }
 
-    const void **symp = tfind(&name, &root, vlc_plugin_symbol_compare);
+    const void **symp = tfind(&name, &root, heimdall_plugin_symbol_compare);
 
     if (symp == NULL)
         return -1;
 
-    const struct vlc_plugin_symbol *sym = *symp;
+    const struct heimdall_plugin_symbol *sym = *symp;
 
     *addrp = sym->addr;
     return 0;
 }
 
-int vlc_plugin_resolve(vlc_plugin_t *plugin, vlc_plugin_cb entry)
+int heimdall_plugin_resolve(heimdall_plugin_t *plugin, heimdall_plugin_cb entry)
 {
-    void *syms = vlc_plugin_get_symbols(entry);
+    void *syms = heimdall_plugin_get_symbols(entry);
     int ret = 0;
 
     /* Resolve modules activate/deactivate callbacks */
@@ -639,9 +640,9 @@ int vlc_plugin_resolve(vlc_plugin_t *plugin, vlc_plugin_cb entry)
     {
         void *deactivate;
 
-        if (vlc_plugin_get_symbol(syms, module->activate_name,
+        if (heimdall_plugin_get_symbol(syms, module->activate_name,
                                   &module->pf_activate)
-         || vlc_plugin_get_symbol(syms, module->deactivate_name, &deactivate))
+         || heimdall_plugin_get_symbol(syms, module->deactivate_name, &deactivate))
         {
             ret = -1;
             break;
@@ -650,6 +651,6 @@ int vlc_plugin_resolve(vlc_plugin_t *plugin, vlc_plugin_cb entry)
         module->deactivate = deactivate;
     }
 
-    vlc_plugin_free_symbols(syms);
+    heimdall_plugin_free_symbols(syms);
     return ret;
 }

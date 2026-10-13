@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,18 +27,18 @@
 // MediaLibrary includes
 #include "mlqmltypes.hpp"
 
-class VLCDuration;
+class HeimdallDuration;
 
 class MLPlaylist : public MLItem
 {
 public:
-    MLPlaylist(const vlc_ml_playlist_t * data);
+    MLPlaylist(const heimdall_ml_playlist_t * data);
 
 public: // Interface
     QString getName() const;
     void setName(const QString & name);
 
-    VLCDuration getDuration() const;
+    HeimdallDuration getDuration() const;
 
     unsigned int getCount() const;
     unsigned int getNbAudio() const;

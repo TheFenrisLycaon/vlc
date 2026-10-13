@@ -2,9 +2,10 @@
  * coreaudio_common.c: Common AudioUnit code for iOS and macOS
  *****************************************************************************
  * Copyright (C) 2005 - 2017 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Derk-Jan Hartman <hartman at videolan dot org>
- *          Felix Paul Kühne <fkuehne at videolan dot org>
+ * Authors: Derk-Jan Hartman <hartman at lycaria dot org>
+ *          Felix Paul Kühne <fkuehne at lycaria dot org>
  *          David Fuhrmann <david dot fuhrmann at googlemail dot com>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -26,7 +27,7 @@
 #include "channel_layout.h"
 #include <CoreAudio/CoreAudioTypes.h>
 
-#define TIMING_REPORT_DELAY_TICKS VLC_TICK_FROM_MS(1000)
+#define TIMING_REPORT_DELAY_TICKS HEIMDALL_TICK_FROM_MS(1000)
 
 static inline uint64_t
 BytesToFrames(struct aout_sys_common *p_sys, size_t i_bytes)
@@ -34,13 +35,13 @@ BytesToFrames(struct aout_sys_common *p_sys, size_t i_bytes)
     return i_bytes * p_sys->i_frame_length / p_sys->i_bytes_per_frame;
 }
 
-static inline vlc_tick_t
+static inline heimdall_tick_t
 FramesToTicks(struct aout_sys_common *p_sys, int64_t i_nb_frames)
 {
-    return vlc_tick_from_samples(i_nb_frames, p_sys->i_rate);
+    return heimdall_tick_from_samples(i_nb_frames, p_sys->i_rate);
 }
 
-static inline vlc_tick_t
+static inline heimdall_tick_t
 BytesToTicks(struct aout_sys_common *p_sys, size_t i_bytes)
 {
     return FramesToTicks(p_sys, BytesToFrames(p_sys, i_bytes));
@@ -53,28 +54,28 @@ FramesToBytes(struct aout_sys_common *p_sys, uint64_t i_frames)
 }
 
 static inline int64_t
-TicksToFrames(struct aout_sys_common *p_sys, vlc_tick_t i_ticks)
+TicksToFrames(struct aout_sys_common *p_sys, heimdall_tick_t i_ticks)
 {
-    return samples_from_vlc_tick(i_ticks, p_sys->i_rate);
+    return samples_from_heimdall_tick(i_ticks, p_sys->i_rate);
 }
 
 static inline size_t
-TicksToBytes(struct aout_sys_common *p_sys, vlc_tick_t i_ticks)
+TicksToBytes(struct aout_sys_common *p_sys, heimdall_tick_t i_ticks)
 {
     return FramesToBytes(p_sys, TicksToFrames(p_sys, i_ticks));
 }
 
 /**
- * Convert a relative audio host time to vlc_ticks
+ * Convert a relative audio host time to heimdall_ticks
  *
  * \warning  This function may only be used to convert relative
- *           host times to ticks, as vlc_ticks do not have the
+ *           host times to ticks, as heimdall_ticks do not have the
  *           same clock origin as the audio host clock!
  */
-static inline vlc_tick_t
+static inline heimdall_tick_t
 HostTimeToTick(struct aout_sys_common *p_sys, int64_t i_host_time)
 {
-    return VLC_TICK_FROM_NS(i_host_time * p_sys->tinfo.numer / p_sys->tinfo.denom);
+    return HEIMDALL_TICK_FROM_NS(i_host_time * p_sys->tinfo.numer / p_sys->tinfo.denom);
 }
 
 static void
@@ -93,7 +94,7 @@ lock_init(struct aout_sys_common *p_sys)
     if (likely(os_unfair_lock_lock))
         p_sys->lock.unfair = OS_UNFAIR_LOCK_INIT;
     else
-        vlc_mutex_init(&p_sys->lock.mutex);
+        heimdall_mutex_init(&p_sys->lock.mutex);
 }
 
 static inline void
@@ -102,7 +103,7 @@ lock_lock(struct aout_sys_common *p_sys)
     if (likely(os_unfair_lock_lock))
         os_unfair_lock_lock(&p_sys->lock.unfair);
     else
-        vlc_mutex_lock(&p_sys->lock.mutex);
+        heimdall_mutex_lock(&p_sys->lock.mutex);
 }
 
 static inline void
@@ -111,7 +112,7 @@ lock_unlock(struct aout_sys_common *p_sys)
     if (likely(os_unfair_lock_lock))
         os_unfair_lock_unlock(&p_sys->lock.unfair);
     else
-        vlc_mutex_unlock(&p_sys->lock.mutex);
+        heimdall_mutex_unlock(&p_sys->lock.mutex);
 }
 
 int
@@ -120,7 +121,7 @@ ca_Open(audio_output_t *p_aout)
     struct aout_sys_common *p_sys = (struct aout_sys_common *) p_aout->sys;
 
     if (mach_timebase_info(&p_sys->tinfo) != KERN_SUCCESS)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     assert(p_sys->tinfo.denom != 0 && p_sys->tinfo.numer != 0);
 
@@ -133,15 +134,15 @@ ca_Open(audio_output_t *p_aout)
     p_aout->pause = ca_Pause;
     p_aout->flush = ca_Flush;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static vlc_tick_t
+static heimdall_tick_t
 GetLatency(audio_output_t *p_aout)
 {
     struct aout_sys_common *p_sys = (struct aout_sys_common *) p_aout->sys;
 
-    vlc_tick_t dev_latency_ticks =
+    heimdall_tick_t dev_latency_ticks =
         p_sys->get_latency != NULL ? p_sys->get_latency(p_aout)
                                    : p_sys->i_dev_latency_ticks;
 
@@ -156,17 +157,17 @@ ca_Render(audio_output_t *p_aout, uint64_t host_time,
 {
     struct aout_sys_common *p_sys = (struct aout_sys_common *) p_aout->sys;
 
-    vlc_tick_t host_delay_ticks = 0;
+    heimdall_tick_t host_delay_ticks = 0;
     if (host_time != 0)
     {
         uint64_t now_nsec = clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
         host_delay_ticks = HostTimeToTick(p_sys, host_time)
-                         - VLC_TICK_FROM_NS(now_nsec);
+                         - HEIMDALL_TICK_FROM_NS(now_nsec);
     }
-    const vlc_tick_t bytes_ticks = BytesToTicks(p_sys, bytes);
+    const heimdall_tick_t bytes_ticks = BytesToTicks(p_sys, bytes);
 
-    const vlc_tick_t now_ticks = vlc_tick_now();
-    const vlc_tick_t end_ticks = now_ticks + bytes_ticks + host_delay_ticks;
+    const heimdall_tick_t now_ticks = heimdall_tick_now();
+    const heimdall_tick_t end_ticks = now_ticks + bytes_ticks + host_delay_ticks;
 
     lock_lock(p_sys);
 
@@ -183,12 +184,12 @@ ca_Render(audio_output_t *p_aout, uint64_t host_time,
     {
         size_t tocopy;
 
-        if (p_sys->first_play_date == VLC_TICK_INVALID)
+        if (p_sys->first_play_date == HEIMDALL_TICK_INVALID)
             tocopy = bytes;
         else
         {
             /* Write silence to reach the first play date */
-            vlc_tick_t silence_ticks = p_sys->first_play_date - end_ticks
+            heimdall_tick_t silence_ticks = p_sys->first_play_date - end_ticks
                                      - GetLatency(p_aout) + bytes_ticks;
             if (silence_ticks > 0)
             {
@@ -221,7 +222,7 @@ ca_Render(audio_output_t *p_aout, uint64_t host_time,
 
     while (bytes > 0)
     {
-        vlc_frame_t *f = p_sys->p_out_chain;
+        heimdall_frame_t *f = p_sys->p_out_chain;
         if (f == NULL)
         {
             p_sys->i_underrun_size += bytes;
@@ -273,7 +274,7 @@ ca_Render(audio_output_t *p_aout, uint64_t host_time,
         p_sys->timing_report_delay_bytes =
             TicksToBytes(p_sys, TIMING_REPORT_DELAY_TICKS);
 
-        vlc_tick_t pos_ticks = BytesToTicks(p_sys, p_sys->i_total_bytes)
+        heimdall_tick_t pos_ticks = BytesToTicks(p_sys, p_sys->i_total_bytes)
                              + p_sys->first_pts;
         aout_TimingReport(p_aout, end_ticks + GetLatency(p_aout), pos_ticks);
     }
@@ -292,8 +293,8 @@ ca_Flush(audio_output_t *p_aout)
     p_sys->started = false;
     p_sys->i_out_size = 0;
     p_sys->i_total_bytes = 0;
-    p_sys->first_play_date = VLC_TICK_INVALID;
-    p_sys->first_pts = VLC_TICK_INVALID;
+    p_sys->first_play_date = HEIMDALL_TICK_INVALID;
+    p_sys->first_pts = HEIMDALL_TICK_INVALID;
     p_sys->timing_report_delay_bytes =
     p_sys->timing_report_last_written_bytes = 0;
 
@@ -304,10 +305,10 @@ ca_Flush(audio_output_t *p_aout)
 }
 
 void
-ca_Pause(audio_output_t * p_aout, bool pause, vlc_tick_t date)
+ca_Pause(audio_output_t * p_aout, bool pause, heimdall_tick_t date)
 {
     struct aout_sys_common *p_sys = (struct aout_sys_common *) p_aout->sys;
-    VLC_UNUSED(date);
+    HEIMDALL_UNUSED(date);
 
     lock_lock(p_sys);
     p_sys->b_paused = pause;
@@ -326,7 +327,7 @@ ca_MuteSet(audio_output_t * p_aout, bool muted)
 }
 
 void
-ca_Play(audio_output_t * p_aout, block_t * p_block, vlc_tick_t date)
+ca_Play(audio_output_t * p_aout, block_t * p_block, heimdall_tick_t date)
 {
     struct aout_sys_common *p_sys = (struct aout_sys_common *) p_aout->sys;
 
@@ -334,14 +335,14 @@ ca_Play(audio_output_t * p_aout, block_t * p_block, vlc_tick_t date)
     if (p_sys->chans_to_reorder)
        aout_ChannelReorder(p_block->p_buffer, p_block->i_buffer,
                            p_sys->chans_to_reorder, p_sys->chan_table,
-                           VLC_CODEC_FL32);
+                           HEIMDALL_CODEC_FL32);
 
     lock_lock(p_sys);
 
     if (!p_sys->started)
     {
-        vlc_tick_t now = vlc_tick_now();
-        if (p_sys->first_pts == VLC_TICK_INVALID)
+        heimdall_tick_t now = heimdall_tick_now();
+        if (p_sys->first_pts == HEIMDALL_TICK_INVALID)
             p_sys->first_pts = p_block->i_pts;
         p_sys->first_play_date = date - BytesToTicks(p_sys, p_sys->i_out_size);
 
@@ -371,7 +372,7 @@ ca_Play(audio_output_t * p_aout, block_t * p_block, vlc_tick_t date)
 
 int
 ca_Initialize(audio_output_t *p_aout, const audio_sample_format_t *fmt,
-              vlc_tick_t i_dev_latency_ticks, get_latency_cb get_latency)
+              heimdall_tick_t i_dev_latency_ticks, get_latency_cb get_latency)
 {
     struct aout_sys_common *p_sys = (struct aout_sys_common *) p_aout->sys;
 
@@ -382,8 +383,8 @@ ca_Initialize(audio_output_t *p_aout, const audio_sample_format_t *fmt,
     p_sys->b_muted = false;
     p_sys->i_out_size = 0;
     p_sys->i_total_bytes = 0;
-    p_sys->first_play_date = VLC_TICK_INVALID;
-    p_sys->first_pts = VLC_TICK_INVALID;
+    p_sys->first_play_date = HEIMDALL_TICK_INVALID;
+    p_sys->first_pts = HEIMDALL_TICK_INVALID;
 
     p_sys->i_rate = fmt->i_rate;
     p_sys->i_bytes_per_frame = fmt->i_bytes_per_frame;
@@ -399,7 +400,7 @@ ca_Initialize(audio_output_t *p_aout, const audio_sample_format_t *fmt,
     ca_ClearOutBuffers(p_aout);
     p_sys->b_played = false;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 void
@@ -470,15 +471,15 @@ RenderCallback(void *p_data, AudioUnitRenderActionFlags *ioActionFlags,
                const AudioTimeStamp *inTimeStamp, UInt32 inBusNumber,
                UInt32 inNumberFrames, AudioBufferList *ioData)
 {
-    VLC_UNUSED(ioActionFlags);
-    VLC_UNUSED(inTimeStamp);
-    VLC_UNUSED(inBusNumber);
+    HEIMDALL_UNUSED(ioActionFlags);
+    HEIMDALL_UNUSED(inTimeStamp);
+    HEIMDALL_UNUSED(inBusNumber);
 
     audio_output_t * p_aout = p_data;
     struct aout_sys_common *p_sys = (struct aout_sys_common *) p_aout->sys;
 
     assert(inNumberFrames == BytesToFrames(p_sys, ioData->mBuffers[0].mDataByteSize));
-    VLC_UNUSED(inNumberFrames);
+    HEIMDALL_UNUSED(inNumberFrames);
 
     uint64_t i_host_time = (inTimeStamp->mFlags & kAudioTimeStampHostTimeValid)
                          ? inTimeStamp->mHostTime : 0;
@@ -535,9 +536,9 @@ GetLayoutDescription(audio_output_t *p_aout,
 }
 
 static unsigned
-AudioChannelLabelToVlcChan(AudioChannelLabel chan, bool swap_rear_surround)
+AudioChannelLabelToHeimdallChan(AudioChannelLabel chan, bool swap_rear_surround)
 {
-    /* maps auhal channels to vlc ones */
+    /* maps auhal channels to heimdall ones */
     switch (chan)
     {
         case kAudioChannelLabel_Left:
@@ -576,7 +577,7 @@ MapOutputLayout(audio_output_t *p_aout, audio_sample_format_t *fmt,
                 const AudioChannelLayout *outlayout, bool *warn_configuration)
 {
     struct aout_sys_common *p_sys = (struct aout_sys_common *) p_aout->sys;
-    /* Fill VLC physical_channels from output layout */
+    /* Fill Heimdall physical_channels from output layout */
     uint32_t i_original = fmt->i_physical_channels;
     fmt->i_physical_channels = 0;
     AudioChannelLayout *reslayout = NULL;
@@ -587,7 +588,7 @@ MapOutputLayout(audio_output_t *p_aout, audio_sample_format_t *fmt,
     {
         reslayout = GetLayoutDescription(p_aout, outlayout);
         if (reslayout == NULL)
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         outlayout = reslayout;
     }
 
@@ -642,7 +643,7 @@ MapOutputLayout(audio_output_t *p_aout, audio_sample_format_t *fmt,
             msg_Dbg(p_aout, "this is channel: %d", (int) chan);
 #endif
             unsigned mapped_chan =
-                AudioChannelLabelToVlcChan(chan, swap_rear_surround == 2);
+                AudioChannelLabelToHeimdallChan(chan, swap_rear_surround == 2);
             if (mapped_chan != 0)
             {
                 chans_out[chans_out_idx++] = mapped_chan;
@@ -672,14 +673,14 @@ MapOutputLayout(audio_output_t *p_aout, audio_sample_format_t *fmt,
     free(reslayout);
     aout_FormatPrepare(fmt);
 
-    msg_Dbg(p_aout, "VLC will output: %s", aout_FormatPrintChannels(fmt));
+    msg_Dbg(p_aout, "Heimdall will output: %s", aout_FormatPrintChannels(fmt));
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 int
 au_Initialize(audio_output_t *p_aout, AudioUnit au, audio_sample_format_t *fmt,
-              const AudioChannelLayout *outlayout, vlc_tick_t i_dev_latency_ticks,
+              const AudioChannelLayout *outlayout, heimdall_tick_t i_dev_latency_ticks,
               get_latency_cb get_latency, bool *warn_configuration)
 {
     struct aout_sys_common *p_sys = (struct aout_sys_common *) p_aout->sys;
@@ -696,19 +697,19 @@ au_Initialize(audio_output_t *p_aout, AudioUnit au, audio_sample_format_t *fmt,
     if (aout_BitsPerSample(fmt->i_format) != 0)
     {
         /* PCM */
-        fmt->i_format = VLC_CODEC_FL32;
+        fmt->i_format = HEIMDALL_CODEC_FL32;
         if (outlayout != NULL)
         {
             ret = MapOutputLayout(p_aout, fmt, outlayout, warn_configuration);
-            if (ret != VLC_SUCCESS)
+            if (ret != HEIMDALL_SUCCESS)
                 return ret;
         }
         else
         {
             aout_FormatPrepare(fmt);
-            ret = channel_layout_MapFromVLC(p_aout, fmt, &inlayout_buf,
+            ret = channel_layout_MapFromHeimdall(p_aout, fmt, &inlayout_buf,
                                             &inlayout_size);
-            if (ret != VLC_SUCCESS)
+            if (ret != HEIMDALL_SUCCESS)
                 return ret;
             inlayout = inlayout_buf;
         }
@@ -720,7 +721,7 @@ au_Initialize(audio_output_t *p_aout, AudioUnit au, audio_sample_format_t *fmt,
     else if (AOUT_FMT_SPDIF(fmt))
     {
         /* Passthrough */
-        fmt->i_format = VLC_CODEC_SPDIFL;
+        fmt->i_format = HEIMDALL_CODEC_SPDIFL;
         fmt->i_bytes_per_frame = 4;
         fmt->i_frame_length = 1;
 
@@ -736,7 +737,7 @@ au_Initialize(audio_output_t *p_aout, AudioUnit au, audio_sample_format_t *fmt,
         desc.mBitsPerChannel = 16;
     }
     else
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     desc.mSampleRate = fmt->i_rate;
     desc.mFormatID = kAudioFormatLinearPCM;
@@ -751,7 +752,7 @@ au_Initialize(audio_output_t *p_aout, AudioUnit au, audio_sample_format_t *fmt,
     {
         ca_LogErr("failed to set stream format");
         free(inlayout_buf);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     msg_Dbg(p_aout, STREAM_FORMAT_MSG("Current AU format: " , desc));
 
@@ -763,7 +764,7 @@ au_Initialize(audio_output_t *p_aout, AudioUnit au, audio_sample_format_t *fmt,
     {
         ca_LogErr("failed to set stream format");
         free(inlayout_buf);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Set the IOproc callback */
@@ -779,12 +780,12 @@ au_Initialize(audio_output_t *p_aout, AudioUnit au, audio_sample_format_t *fmt,
     {
         ca_LogErr("failed to setup render callback");
         free(inlayout_buf);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if (inlayout != NULL)
     {
-        /* Set the input_layout as the layout VLC will use to feed the AU unit.
+        /* Set the input_layout as the layout Heimdall will use to feed the AU unit.
          * Yes, it must be the INPUT scope */
         err = AudioUnitSetProperty(au, kAudioUnitProperty_AudioChannelLayout,
                                    kAudioUnitScope_Input, 0, inlayout,
@@ -793,7 +794,7 @@ au_Initialize(audio_output_t *p_aout, AudioUnit au, audio_sample_format_t *fmt,
         if (err != noErr)
         {
             ca_LogErr("failed to setup input layout");
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
 
@@ -803,14 +804,14 @@ au_Initialize(audio_output_t *p_aout, AudioUnit au, audio_sample_format_t *fmt,
     if (err != noErr)
     {
         ca_LogErr("AudioUnitInitialize failed");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     ret = ca_Initialize(p_aout, fmt, i_dev_latency_ticks, get_latency);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
     {
         AudioUnitUninitialize(au);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     Float64 unit_s;
@@ -818,11 +819,11 @@ au_Initialize(audio_output_t *p_aout, AudioUnit au, audio_sample_format_t *fmt,
                              kAudioUnitScope_Global, 0, &unit_s,
                              &(UInt32) { sizeof(unit_s) }) == noErr)
     {
-        p_sys->au_latency_ticks = vlc_tick_from_sec(unit_s);
+        p_sys->au_latency_ticks = heimdall_tick_from_sec(unit_s);
         msg_Dbg(p_aout, "AudioUnit latency: %" PRId64 "us", p_sys->au_latency_ticks);
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 void

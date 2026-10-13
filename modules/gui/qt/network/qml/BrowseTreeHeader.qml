@@ -1,6 +1,7 @@
 
 /*****************************************************************************
  * Copyright (C) 2023 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,11 +23,11 @@ import QtQuick.Layouts
 import QtQuick.Templates as T
 
 
-import VLC.Util
-import VLC.Widgets as Widgets
-import VLC.Style
-import VLC.Network
-import VLC.MainInterface
+import Heimdall.Util
+import Heimdall.Widgets as Widgets
+import Heimdall.Style
+import Heimdall.Network
+import Heimdall.MainInterface
 
 T.Pane {
     id: root
@@ -47,13 +48,13 @@ T.Pane {
         colorSet: ColorContext.View
     }
 
-    topPadding: VLCStyle.layoutTitle_top_padding
-    bottomPadding: VLCStyle.layoutTitle_bottom_padding
+    topPadding: HeimdallStyle.layoutTitle_top_padding
+    bottomPadding: HeimdallStyle.layoutTitle_bottom_padding
 
     // FIXME: `GridItem`'s background extends beyond its
     //        bounding rect, violating the hypothetical
     //        clip test (see 7e6b23db).
-    bottomInset: MainCtx.gridView ? VLCStyle.gridItemSelectedBorder : undefined
+    bottomInset: MainCtx.gridView ? HeimdallStyle.gridItemSelectedBorder : undefined
 
     height: implicitHeight
     implicitHeight: layout.implicitHeight + topPadding + bottomPadding
@@ -98,13 +99,13 @@ T.Pane {
 
             focus: true
 
-            iconTxt: root.providerModel.indexed ? VLCIcons.medialibrary_remove : VLCIcons.medialibrary_add
+            iconTxt: root.providerModel.indexed ? HeimdallIcons.medialibrary_remove : HeimdallIcons.medialibrary_add
 
             text: root.providerModel.indexed
                   ? qsTr("Remove from medialibrary")
                   : qsTr("Add to medialibrary")
 
-            display: VLCStyle.isScreenSmall ?  T.AbstractButton.IconOnly  : T.AbstractButton.TextBesideIcon
+            display: HeimdallStyle.isScreenSmall ?  T.AbstractButton.IconOnly  : T.AbstractButton.TextBesideIcon
 
             visible: root.providerModel.canBeIndexed ?? false
 

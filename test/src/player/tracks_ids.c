@@ -3,6 +3,7 @@
  * tracks_ids.c: tracks IDs player test
  *****************************************************************************
  * Copyright (C) 2018-2025 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *****************************************************************************/
 
 #include "common.h"
@@ -12,10 +13,10 @@ test_tracks_ids(struct ctx *ctx)
 {
     test_log("tracks_ids\n");
 
-    vlc_player_t *player = ctx->player;
+    heimdall_player_t *player = ctx->player;
 
     /* Long duration but this test doesn't wait for EOS */
-    struct media_params params = DEFAULT_MEDIA_PARAMS(VLC_TICK_FROM_SEC(100));
+    struct media_params params = DEFAULT_MEDIA_PARAMS(HEIMDALL_TICK_FROM_SEC(100));
     params.track_count[VIDEO_ES] = 9;
     params.track_count[AUDIO_ES] = 9;
     params.track_count[SPU_ES] = 9;
@@ -30,16 +31,16 @@ test_tracks_ids(struct ctx *ctx)
 
     unsigned selected_video_tracks = 3;
     unsigned first_video_track_idx = 4;
-    vlc_player_SelectTracksByStringIds(player, VIDEO_ES,
+    heimdall_player_SelectTracksByStringIds(player, VIDEO_ES,
                                        "video/4,video/5,video/6");
 
     unsigned selected_audio_tracks = 0;
     unsigned first_audio_track_idx = 0;
-    vlc_player_SelectTracksByStringIds(player, AUDIO_ES, "invalid");
+    heimdall_player_SelectTracksByStringIds(player, AUDIO_ES, "invalid");
 
     unsigned selected_sub_tracks = 2;
     unsigned first_sub_track_idx = 0;
-    vlc_player_SelectTracksByStringIds(player, SPU_ES, "spu/0,spu/1");
+    heimdall_player_SelectTracksByStringIds(player, SPU_ES, "spu/0,spu/1");
 
     unsigned selected_tracks = selected_video_tracks + selected_audio_tracks
                              + selected_sub_tracks;
@@ -49,9 +50,9 @@ test_tracks_ids(struct ctx *ctx)
     /* Wait that all tracks are added */
     {
         vec_on_track_list_changed *vec = &ctx->report.on_track_list_changed;
-        while (vec_on_track_list_get_action_count(vec, VLC_PLAYER_LIST_ADDED)
+        while (vec_on_track_list_get_action_count(vec, HEIMDALL_PLAYER_LIST_ADDED)
                != track_count)
-            vlc_player_CondWait(player, &ctx->wait);
+            heimdall_player_CondWait(player, &ctx->wait);
     }
 
     /* Wait that video and spu are selected */
@@ -63,15 +64,15 @@ test_tracks_ids(struct ctx *ctx)
         vec_on_track_selection_changed *vec =
             &ctx->report.on_track_selection_changed;
         while (vec->size != selected_tracks)
-            vlc_player_CondWait(player, &ctx->wait);
+            heimdall_player_CondWait(player, &ctx->wait);
         for (size_t i = 0; i < vec->size; ++i)
         {
             assert(!vec->data[i].unselected_id);
             assert(vec->data[i].selected_id);
 
-            vlc_es_id_t *es_id = vec->data[i].selected_id;
-            const struct vlc_player_track *track =
-                vlc_player_GetTrack(player, es_id);
+            heimdall_es_id_t *es_id = vec->data[i].selected_id;
+            const struct heimdall_player_track *track =
+                heimdall_player_GetTrack(player, es_id);
             assert(track);
             assert(track->fmt.i_cat != AUDIO_ES);
             if (track->fmt.i_cat == VIDEO_ES)
@@ -84,7 +85,7 @@ test_tracks_ids(struct ctx *ctx)
                 assert(sub_track_idx < 10);
                 sprintf(cat_id, "spu/%u", sub_track_idx++);
             }
-            assert(strcmp(vlc_es_id_GetStrId(es_id), cat_id) == 0);
+            assert(strcmp(heimdall_es_id_GetStrId(es_id), cat_id) == 0);
         }
     }
 
@@ -94,13 +95,13 @@ test_tracks_ids(struct ctx *ctx)
 
     /* Should remove the track preferences but not disable the current tracks */
     selected_video_tracks = 0;
-    vlc_player_SelectTracksByStringIds(player, VIDEO_ES, NULL);
+    heimdall_player_SelectTracksByStringIds(player, VIDEO_ES, NULL);
     /* Should select the first track */
     selected_audio_tracks = 1;
     first_audio_track_idx = 1;
-    vlc_player_SelectTracksByStringIds(player, AUDIO_ES, "audio/1");
+    heimdall_player_SelectTracksByStringIds(player, AUDIO_ES, "audio/1");
     /* Should disable all tracks */
-    vlc_player_SelectTracksByStringIds(player, SPU_ES, "");
+    heimdall_player_SelectTracksByStringIds(player, SPU_ES, "");
 
     unsigned new_selected_tracks = selected_tracks +
                                  + selected_video_tracks + selected_audio_tracks
@@ -115,13 +116,13 @@ test_tracks_ids(struct ctx *ctx)
         vec_on_track_selection_changed *vec =
             &ctx->report.on_track_selection_changed;
         while (vec->size != new_selected_tracks)
-            vlc_player_CondWait(player, &ctx->wait);
+            heimdall_player_CondWait(player, &ctx->wait);
         for (size_t i = selected_tracks; i < vec->size; ++i)
         {
-            vlc_es_id_t *es_id = vec->data[i].unselected_id ?
+            heimdall_es_id_t *es_id = vec->data[i].unselected_id ?
                 vec->data[i].unselected_id : vec->data[i].selected_id;
-            const struct vlc_player_track *track =
-                vlc_player_GetTrack(player, es_id);
+            const struct heimdall_player_track *track =
+                heimdall_player_GetTrack(player, es_id);
             assert(track);
 
             assert(track->fmt.i_cat != VIDEO_ES);
@@ -148,7 +149,7 @@ test_tracks_ids(struct ctx *ctx)
                 assert(sub_track_idx < 10);
                 sprintf(cat_id, "spu/%u", sub_track_idx++);
             }
-            assert(strcmp(vlc_es_id_GetStrId(es_id), cat_id) == 0);
+            assert(strcmp(heimdall_es_id_GetStrId(es_id), cat_id) == 0);
         }
     }
 
@@ -166,9 +167,9 @@ test_tracks_ids(struct ctx *ctx)
     /* Wait that all tracks are added */
     {
         vec_on_track_list_changed *vec = &ctx->report.on_track_list_changed;
-        while (vec_on_track_list_get_action_count(vec, VLC_PLAYER_LIST_ADDED)
+        while (vec_on_track_list_get_action_count(vec, HEIMDALL_PLAYER_LIST_ADDED)
                != track_count)
-            vlc_player_CondWait(player, &ctx->wait);
+            heimdall_player_CondWait(player, &ctx->wait);
     }
 
     /* Wait for the new selection: video/0 and audio/0 */
@@ -180,16 +181,16 @@ test_tracks_ids(struct ctx *ctx)
         vec_on_track_selection_changed *vec =
             &ctx->report.on_track_selection_changed;
         while (vec->size != 2)
-            vlc_player_CondWait(player, &ctx->wait);
+            heimdall_player_CondWait(player, &ctx->wait);
 
         for (size_t i = 0; i < vec->size; ++i)
         {
             assert(!vec->data[i].unselected_id);
             assert(vec->data[i].selected_id);
 
-            vlc_es_id_t *es_id = vec->data[i].selected_id;
-            const struct vlc_player_track *track =
-                vlc_player_GetTrack(player, es_id);
+            heimdall_es_id_t *es_id = vec->data[i].selected_id;
+            const struct heimdall_player_track *track =
+                heimdall_player_GetTrack(player, es_id);
             assert(track);
             assert(track->fmt.i_cat != SPU_ES);
             if (track->fmt.i_cat == VIDEO_ES)
@@ -202,7 +203,7 @@ test_tracks_ids(struct ctx *ctx)
                 assert(audio_track_idx < 1);
                 sprintf(cat_id, "audio/%u", audio_track_idx++);
             }
-            assert(strcmp(vlc_es_id_GetStrId(es_id), cat_id) == 0);
+            assert(strcmp(heimdall_es_id_GetStrId(es_id), cat_id) == 0);
         }
     }
 

@@ -2,6 +2,7 @@
  * ts_pes.c: MPEG PES assembly tests
  *****************************************************************************
  * Copyright (C) 2020 VideoLabs, VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -21,21 +22,21 @@
 # include <config.h>
 #endif
 
-#include <vlc_common.h>
-#include <vlc_block.h>
+#include <heimdall_common.h>
+#include <heimdall_block.h>
 
 #include "../../../modules/demux/mpeg/ts_streams.h"
 #include "../../../modules/demux/mpeg/ts_pid_fwd.h"
 #include "../../../modules/demux/mpeg/ts_streams_private.h"
 #include "../../../modules/demux/mpeg/ts_pes.h"
 
-#include "../../libvlc/test.h"
+#include "../../libheimdall/test.h"
 
-static void Parse(vlc_object_t *obj, void *priv, block_t *data,
+static void Parse(heimdall_object_t *obj, void *priv, block_t *data,
                   uint32_t i_flags, ts_90khz_t t)
 {
-    VLC_UNUSED(obj);
-    VLC_UNUSED(t);
+    HEIMDALL_UNUSED(obj);
+    HEIMDALL_UNUSED(t);
     block_t **pp_append = (block_t **) priv;
     fprintf(stderr, "recv: ");
     data = block_ChainGather(data);

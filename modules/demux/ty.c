@@ -1,8 +1,9 @@
 /*****************************************************************************
- * ty.c - TiVo ty stream video demuxer for VLC
+ * ty.c - TiVo ty stream video demuxer for Heimdall
  *****************************************************************************
  * Copyright (C) 2005 VLC authors and VideoLAN
  * Copyright (C) 2005 by Neal Symms (tivo@freakinzoo.com) - February 2005
+ * Copyright (C) 2026 TheFenrisLycaon
  * based on code by Christopher Wingert for tivo-mplayer
  * tivo(at)wingert.org, February 2003
  *
@@ -27,7 +28,7 @@
  * v1.0.2 - 26-Feb-2005 - No longer require "seekable" input stream - Neal
  * v2.0.0 - 21-Mar-2005 - Series 2 support!  No AC-3 on S2 DTivo yet.
  * v2.1.0 - 22-Mar-2005 - Support for AC-3 on S2 DTivo (long ac3 packets)
- * v3.0.0 - 14-Jul-2005 - Support for skipping fwd/back via VLC hotkeys
+ * v3.0.0 - 14-Jul-2005 - Support for skipping fwd/back via Heimdall hotkeys
  *****************************************************************************/
 
 /*****************************************************************************
@@ -40,12 +41,12 @@
 
 #include <limits.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_demux.h>
-#include <vlc_codec.h>
-#include <vlc_meta.h>
-#include <vlc_input_item.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_demux.h>
+#include <heimdall_codec.h>
+#include <heimdall_meta.h>
+#include <heimdall_input_item.h>
 #include "../codec/cc.h"
 
 #include "mpeg/pes.h"
@@ -55,10 +56,10 @@
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  Open ( vlc_object_t * );
-static void Close( vlc_object_t * );
+static int  Open ( heimdall_object_t * );
+static void Close( heimdall_object_t * );
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( N_("TY") )
     set_description(N_("TY Stream audio/video demux"))
     set_subcategory( SUBCAT_INPUT_DEMUX )
@@ -71,7 +72,7 @@ vlc_module_begin ()
     add_shortcut("ty", "tivo")
     add_file_extension("ty")
     add_file_extension("ty+")
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * Local prototypes
@@ -244,14 +245,14 @@ typedef struct
   unsigned        i_pes_buf_cnt;      /* how many bytes in our buffer */
   size_t          l_ac3_pkt_size;     /* len of ac3 pkt we've seen so far */
   uint64_t        l_last_ty_pts;      /* last TY timestamp we've seen */
-  //vlc_tick_t      l_last_ty_pts_sync; /* audio PTS at time of last TY PTS */
+  //heimdall_tick_t      l_last_ty_pts_sync; /* audio PTS at time of last TY PTS */
   uint64_t        l_first_ty_pts;     /* first TY PTS in this master chunk */
   uint64_t        l_final_ty_pts;     /* final TY PTS in this master chunk */
   unsigned        i_seq_table_size;   /* number of entries in SEQ table */
   unsigned        i_bits_per_seq_entry; /* # of bits in SEQ table bitmask */
 
-  vlc_tick_t      lastAudioPTS;
-  vlc_tick_t      lastVideoPTS;
+  heimdall_tick_t      lastAudioPTS;
+  heimdall_tick_t      lastVideoPTS;
 
   ty_rec_hdr_t    *rec_hdrs;          /* record headers array */
   size_t          i_cur_rec;          /* current record in this chunk */
@@ -263,7 +264,7 @@ typedef struct
 } demux_sys_t;
 
 static int get_chunk_header(demux_t *);
-static vlc_tick_t get_pts( const uint8_t *buf );
+static heimdall_tick_t get_pts( const uint8_t *buf );
 static int find_es_header( const uint8_t *header,
                            const uint8_t *buffer, size_t buffer_len, size_t i_search_len );
 static int ty_stream_seek_pct(demux_t *p_demux, double seek_pct);
@@ -292,11 +293,11 @@ static void XdsExit( xds_t * );
  * here's what we do:
  * 1. peek at the first 12 bytes of the stream for the
  *    magic TiVo PART header & stream type & chunk size
- * 2. if it's not there, error with VLC_EGENERIC
+ * 2. if it's not there, error with HEIMDALL_EGENERIC
  * 3. set up video (mpgv) codec
- * 4. return VLC_SUCCESS
+ * 4. return HEIMDALL_SUCCESS
  */
-static int Open(vlc_object_t *p_this)
+static int Open(heimdall_object_t *p_this)
 {
     demux_t *p_demux = (demux_t *)p_this;
     demux_sys_t *p_sys;
@@ -306,15 +307,15 @@ static int Open(vlc_object_t *p_this)
 
     /* peek at the first 12 bytes. */
     /* for TY streams, they're always the same */
-    if( vlc_stream_Peek( p_demux->s, &p_peek, 12 ) < 12 )
-        return VLC_EGENERIC;
+    if( heimdall_stream_Peek( p_demux->s, &p_peek, 12 ) < 12 )
+        return HEIMDALL_EGENERIC;
 
     if ( U32_AT(p_peek) != TIVO_PES_FILEID ||
          U32_AT(&p_peek[4]) != 0x02 ||
          U32_AT(&p_peek[8]) != CHUNK_SIZE )
     {
         if( !p_demux->obj.force )
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         msg_Warn( p_demux, "this does not look like a TY file, "
                            "continuing anyway..." );
     }
@@ -324,7 +325,7 @@ static int Open(vlc_object_t *p_this)
 
     p_sys = calloc(1, sizeof(demux_sys_t));
     if( unlikely(p_sys == NULL) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     /* Set exported functions */
     p_demux->pf_demux = Demux;
@@ -336,8 +337,8 @@ static int Open(vlc_object_t *p_this)
     /* set up our struct (most were zero'd out with the memset above) */
     p_sys->b_first_chunk = true;
     p_sys->b_have_master = (U32_AT(p_peek) == TIVO_PES_FILEID);
-    p_sys->lastAudioPTS  = VLC_TICK_INVALID;
-    p_sys->lastVideoPTS  = VLC_TICK_INVALID;
+    p_sys->lastAudioPTS  = HEIMDALL_TICK_INVALID;
+    p_sys->lastVideoPTS  = HEIMDALL_TICK_INVALID;
     p_sys->i_stream_size = stream_Size(p_demux->s);
     p_sys->tivo_type = TIVO_TYPE_UNKNOWN;
     p_sys->audio_type = TIVO_AUDIO_UNKNOWN;
@@ -347,12 +348,12 @@ static int Open(vlc_object_t *p_this)
     p_sys->l_ac3_pkt_size = 0;
 
     /* see if this stream is seekable */
-    vlc_stream_Control( p_demux->s, STREAM_CAN_SEEK, &p_sys->b_seekable );
+    heimdall_stream_Control( p_demux->s, STREAM_CAN_SEEK, &p_sys->b_seekable );
 
-    if (probe_stream(p_demux) != VLC_SUCCESS) {
+    if (probe_stream(p_demux) != HEIMDALL_SUCCESS) {
         //TyClose(p_demux);
         free(p_sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if (!p_sys->b_have_master)
@@ -360,16 +361,16 @@ static int Open(vlc_object_t *p_this)
 
     /* register the proper audio codec */
     if (p_sys->audio_type == TIVO_AUDIO_MPEG) {
-        es_format_Init( &fmt, AUDIO_ES, VLC_CODEC_MPGA );
+        es_format_Init( &fmt, AUDIO_ES, HEIMDALL_CODEC_MPGA );
     } else {
-        es_format_Init( &fmt, AUDIO_ES, VLC_CODEC_A52 );
+        es_format_Init( &fmt, AUDIO_ES, HEIMDALL_CODEC_A52 );
     }
     fmt.i_group = TY_ES_GROUP;
     fmt.b_packetized = false;
     p_sys->p_audio = es_out_Add( p_demux->out, &fmt );
 
     /* register the video stream */
-    es_format_Init( &fmt, VIDEO_ES, VLC_CODEC_MPGV );
+    es_format_Init( &fmt, VIDEO_ES, HEIMDALL_CODEC_MPGV );
     fmt.i_group = TY_ES_GROUP;
     fmt.b_packetized = false;
     p_sys->p_video = es_out_Add( p_demux->out, &fmt );
@@ -381,7 +382,7 @@ static int Open(vlc_object_t *p_this)
 
     XdsInit( &p_sys->xds );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /* =========================================================================== */
@@ -403,15 +404,15 @@ static int Demux( demux_t *p_demux )
 
     /* did we hit EOF earlier? */
     if( p_sys->eof )
-        return VLC_DEMUXER_EOF;
+        return HEIMDALL_DEMUXER_EOF;
 
     /*
      * what we do (1 record now.. maybe more later):
-    * - use vlc_stream_Read() to read the chunk header & record headers
+    * - use heimdall_stream_Read() to read the chunk header & record headers
     * - discard entire chunk if it is a PART header chunk
     * - parse all the headers into record header array
     * - keep a pointer of which record we're on
-    * - use vlc_stream_Block() to fetch each record
+    * - use heimdall_stream_Block() to fetch each record
     * - parse out PTS from PES headers
     * - set PTS for data packets
     * - pass the data on to the proper codec via es_out_Send()
@@ -423,7 +424,7 @@ static int Demux( demux_t *p_demux )
     if( p_sys->b_first_chunk || p_sys->i_cur_rec >= p_sys->i_num_recs )
     {
         if( get_chunk_header(p_demux) == 0 || p_sys->i_num_recs == 0 )
-            return VLC_DEMUXER_EOF;
+            return HEIMDALL_DEMUXER_EOF;
     }
 
     /*======================================================================
@@ -442,22 +443,22 @@ static int Demux( demux_t *p_demux )
         {
             /* no data in payload; we're done */
             p_sys->i_cur_rec++;
-            return VLC_DEMUXER_SUCCESS;
+            return HEIMDALL_DEMUXER_SUCCESS;
         }
 
         /* read in this record's payload */
-        if( !( p_block_in = vlc_stream_Block( p_demux->s, l_rec_size ) ) )
-            return VLC_DEMUXER_EOF;
+        if( !( p_block_in = heimdall_stream_Block( p_demux->s, l_rec_size ) ) )
+            return HEIMDALL_DEMUXER_EOF;
         if (p_block_in->i_buffer != (unsigned long) l_rec_size)
         {
             msg_Err(p_demux, "Unexpected EOF");
             block_Release(p_block_in);
-            return VLC_DEMUXER_EOF;
+            return HEIMDALL_DEMUXER_EOF;
         }
 
         /* set these as 'unknown' for now */
         p_block_in->i_pts =
-        p_block_in->i_dts = VLC_TICK_INVALID;
+        p_block_in->i_dts = HEIMDALL_TICK_INVALID;
     }
     /*else
     {
@@ -471,7 +472,7 @@ static int Demux( demux_t *p_demux )
     {
         case 0xe0: /* video */
             if( DemuxRecVideo( p_demux, p_rec, p_block_in ) )
-                return VLC_DEMUXER_EGENERIC;
+                return HEIMDALL_DEMUXER_EGENERIC;
 
             break;
 
@@ -483,7 +484,7 @@ static int Demux( demux_t *p_demux )
         case 0x02:
             /* closed captions/XDS */
             if (!DemuxRecCc( p_demux, p_rec, p_block_in ))
-                return VLC_DEMUXER_EGENERIC;
+                return HEIMDALL_DEMUXER_EGENERIC;
             break;
 
         default:
@@ -498,7 +499,7 @@ static int Demux( demux_t *p_demux )
 
     /* */
     p_sys->i_cur_rec++;
-    return VLC_DEMUXER_SUCCESS;
+    return HEIMDALL_DEMUXER_SUCCESS;
 }
 
 /* Control */
@@ -512,17 +513,17 @@ static int Control(demux_t *p_demux, int i_query, va_list args)
     {
     case DEMUX_CAN_SEEK:
         *va_arg( args, bool * ) = p_sys->b_seekable;
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
     case DEMUX_GET_POSITION:
         /* arg is 0.0 - 1.0 percent of overall file position */
         if( p_sys->i_stream_size != 0 )
         {
             pf = va_arg( args, double* );
-            *pf = ((double)1.0) * vlc_stream_Tell( p_demux->s ) / (double) p_sys->i_stream_size;
-            return VLC_SUCCESS;
+            *pf = ((double)1.0) * heimdall_stream_Tell( p_demux->s ) / (double) p_sys->i_stream_size;
+            return HEIMDALL_SUCCESS;
         }
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     case DEMUX_SET_POSITION:
         /* arg is 0.0 - 1.0 percent of overall file position */
@@ -530,21 +531,21 @@ static int Control(demux_t *p_demux, int i_query, va_list args)
         /* msg_Dbg(p_demux, "Control - set position to %2.3f", f); */
         if (p_sys->i_stream_size != 0)
             return ty_stream_seek_pct(p_demux, f);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     case DEMUX_GET_TIME:
         /* return TiVo timestamp */
         //*p_i64 = p_sys->lastAudioPTS - p_sys->firstAudioPTS;
         //*p_i64 = (p_sys->l_last_ty_pts / 1000) + (p_sys->lastAudioPTS -
         //    p_sys->l_last_ty_pts_sync);
-        *va_arg(args, vlc_tick_t *) = VLC_TICK_FROM_NS(p_sys->l_last_ty_pts);
-        return VLC_SUCCESS;
+        *va_arg(args, heimdall_tick_t *) = HEIMDALL_TICK_FROM_NS(p_sys->l_last_ty_pts);
+        return HEIMDALL_SUCCESS;
     case DEMUX_GET_LENGTH:    /* length of program in microseconds, 0 if unk */
         /* size / bitrate */
-        *va_arg(args, vlc_tick_t *) = 0;
-        return VLC_SUCCESS;
+        *va_arg(args, heimdall_tick_t *) = 0;
+        return HEIMDALL_SUCCESS;
     case DEMUX_SET_TIME:      /* arg is time in microsecs */
         return ty_stream_seek_time(p_demux,
-                                   NS_FROM_VLC_TICK(va_arg( args, vlc_tick_t )));
+                                   NS_FROM_HEIMDALL_TICK(va_arg( args, heimdall_tick_t )));
     case DEMUX_CAN_PAUSE:
     case DEMUX_SET_PAUSE_STATE:
     case DEMUX_CAN_CONTROL_PACE:
@@ -552,12 +553,12 @@ static int Control(demux_t *p_demux, int i_query, va_list args)
         return demux_vaControlHelper( p_demux->s, 0, -1, 0, 1, i_query, args );
     case DEMUX_GET_FPS:
     default:
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 }
 
 /* Close */
-static void Close( vlc_object_t *p_this )
+static void Close( heimdall_object_t *p_this )
 {
     demux_t *p_demux = (demux_t*)p_this;
     demux_sys_t *p_sys = p_demux->p_sys;
@@ -573,7 +574,7 @@ static void Close( vlc_object_t *p_this )
 /* =========================================================================== */
 /* Compute Presentation Time Stamp (PTS)
  * Assume buf points to beginning of PTS */
-static vlc_tick_t get_pts( const uint8_t *buf )
+static heimdall_tick_t get_pts( const uint8_t *buf )
 {
     ts_90khz_t i_pts = GetPESTimestamp( buf );
     return FROM_SCALE_NZ(i_pts); /* convert PTS (90Khz clock) to microseconds */
@@ -641,7 +642,7 @@ static int check_sync_pes( demux_t *p_demux, block_t *p_block, int32_t offset )
         return -1;
 
     /* full PES header present, extract PTS */
-    p_sys->lastAudioPTS = VLC_TICK_0 + get_pts( &p_block->p_buffer[ offset +
+    p_sys->lastAudioPTS = HEIMDALL_TICK_0 + get_pts( &p_block->p_buffer[ offset +
                                    p_sys->i_Pts_Offset ] );
     p_block->i_pts = p_sys->lastAudioPTS;
     /*msg_Dbg(p_demux, "Audio PTS %"PRId64, p_sys->lastAudioPTS );*/
@@ -708,7 +709,7 @@ static int DemuxRecVideo( demux_t *p_demux, ty_rec_hdr_t *rec_hdr, block_t *p_bl
                 block_Release(p_block_in);
                 return -1;
             }
-            p_sys->lastVideoPTS = VLC_TICK_0 + get_pts(
+            p_sys->lastVideoPTS = HEIMDALL_TICK_0 + get_pts(
                     &p_block_in->p_buffer[ esOffset1 + VIDEO_PTS_OFFSET ] );
             /*msg_Dbg(p_demux, "Video rec %d PTS %"PRId64, p_sys->i_cur_rec,
                         p_sys->lastVideoPTS );*/
@@ -765,13 +766,13 @@ static int DemuxRecVideo( demux_t *p_demux, ty_rec_hdr_t *rec_hdr, block_t *p_bl
             //p_sys->l_last_ty_pts += 33366667;
         }
         /* set PTS for this block before we send */
-        if (p_sys->lastVideoPTS != VLC_TICK_INVALID)
+        if (p_sys->lastVideoPTS != HEIMDALL_TICK_INVALID)
         {
             p_block_in->i_pts = p_sys->lastVideoPTS;
             /* PTS gets used ONCE.
              * Any subsequent frames we get BEFORE next PES
              * header will have their PTS computed in the codec */
-            p_sys->lastVideoPTS = VLC_TICK_INVALID;
+            p_sys->lastVideoPTS = HEIMDALL_TICK_INVALID;
         }
     }
 
@@ -792,16 +793,16 @@ static int DemuxRecVideo( demux_t *p_demux, ty_rec_hdr_t *rec_hdr, block_t *p_bl
         es_format_t fmt;
 
 
-        es_format_Init( &fmt, SPU_ES, VLC_CODEC_CEA608 );
+        es_format_Init( &fmt, SPU_ES, HEIMDALL_CODEC_CEA608 );
         fmt.subs.cc.i_channel = i;
-        fmt.psz_description = strdup( vlc_gettext(ppsz_description[i]) );
+        fmt.psz_description = strdup( heimdall_gettext(ppsz_description[i]) );
         fmt.i_group = TY_ES_GROUP;
         p_sys->p_cc[i] = es_out_Add( p_demux->out, &fmt );
         es_format_Clean( &fmt );
 
     }
     /* Send the CC data */
-    if( p_block_in->i_pts != VLC_TICK_INVALID && p_sys->cc.i_data > 0 )
+    if( p_block_in->i_pts != HEIMDALL_TICK_INVALID && p_sys->cc.i_data > 0 )
     {
         for( i = 0; i < 4; i++ )
         {
@@ -893,7 +894,7 @@ static int DemuxRecAudio( demux_t *p_demux, ty_rec_hdr_t *rec_hdr, block_t *p_bl
             }
             else
             {
-                p_sys->lastAudioPTS = VLC_TICK_0 + get_pts(
+                p_sys->lastAudioPTS = HEIMDALL_TICK_0 + get_pts(
                     &p_sys->pes_buffer[ esOffset1 + p_sys->i_Pts_Offset ] );
                 p_block_in->i_pts = p_sys->lastAudioPTS;
             }
@@ -932,7 +933,7 @@ static int DemuxRecAudio( demux_t *p_demux, ty_rec_hdr_t *rec_hdr, block_t *p_bl
         /* ================================================ */
         if ( ( esOffset1 == 0 ) && ( p_block_in->i_buffer == REC_SIZE ) )
         {
-            p_sys->lastAudioPTS = VLC_TICK_0 + get_pts( &p_block_in->p_buffer[
+            p_sys->lastAudioPTS = HEIMDALL_TICK_0 + get_pts( &p_block_in->p_buffer[
                         SA_PTS_OFFSET ] );
 
             block_Release(p_block_in);
@@ -971,7 +972,7 @@ static int DemuxRecAudio( demux_t *p_demux, ty_rec_hdr_t *rec_hdr, block_t *p_bl
         /*msg_Dbg(p_demux,
                 "Adding SA Audio Packet Size %ld", l_rec_size ); */
 
-        if (p_sys->lastAudioPTS != VLC_TICK_INVALID )
+        if (p_sys->lastAudioPTS != HEIMDALL_TICK_INVALID )
             p_block_in->i_pts = p_sys->lastAudioPTS;
     }
     else if( subrec_type == 0x09 )
@@ -1021,7 +1022,7 @@ static int DemuxRecAudio( demux_t *p_demux, ty_rec_hdr_t *rec_hdr, block_t *p_bl
     }
 
     /* set PCR before we send (if PTS found) */
-    if( p_block_in->i_pts != VLC_TICK_INVALID )
+    if( p_block_in->i_pts != HEIMDALL_TICK_INVALID )
         es_out_SetPCR( p_demux->out, p_block_in->i_pts );
 
     /* Send data */
@@ -1063,24 +1064,24 @@ static int ty_stream_seek_pct(demux_t *p_demux, double seek_pct)
 
     /* if we're not seekable, there's nothing to do */
     if (!p_sys->b_seekable)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* figure out which part & chunk we want & go there */
     p_sys->i_cur_chunk = seek_pos / CHUNK_SIZE;
 
     /* try to read the part header (master chunk) if it's there */
-    if (vlc_stream_Seek( p_demux->s, (seek_pos / TIVO_PART_LENGTH) * TIVO_PART_LENGTH ) ||
-        parse_master(p_demux) != VLC_SUCCESS)
+    if (heimdall_stream_Seek( p_demux->s, (seek_pos / TIVO_PART_LENGTH) * TIVO_PART_LENGTH ) ||
+        parse_master(p_demux) != HEIMDALL_SUCCESS)
     {
         /* can't seek stream */
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* now for the actual chunk */
-    if ( vlc_stream_Seek( p_demux->s, p_sys->i_cur_chunk * CHUNK_SIZE))
+    if ( heimdall_stream_Seek( p_demux->s, p_sys->i_cur_chunk * CHUNK_SIZE))
     {
         /* can't seek stream */
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     /* load the chunk */
     p_sys->i_stuff_cnt = 0;
@@ -1098,13 +1099,13 @@ static int ty_stream_seek_pct(demux_t *p_demux, double seek_pct)
     l_skip_amt = 0;
     for ( size_t i=0; i<p_sys->i_cur_rec; i++)
         l_skip_amt += p_sys->rec_hdrs[i].l_rec_size;
-    if( vlc_stream_Seek(p_demux->s, ((p_sys->i_cur_chunk ? p_sys->i_cur_chunk - 1 : 0) * CHUNK_SIZE) +
-                        (p_sys->i_num_recs * REC_SIZE) + l_skip_amt + 4) != VLC_SUCCESS )
-        return VLC_EGENERIC;
+    if( heimdall_stream_Seek(p_demux->s, ((p_sys->i_cur_chunk ? p_sys->i_cur_chunk - 1 : 0) * CHUNK_SIZE) +
+                        (p_sys->i_num_recs * REC_SIZE) + l_skip_amt + 4) != HEIMDALL_SUCCESS )
+        return HEIMDALL_EGENERIC;
 
     /* to hell with syncing any audio or video, just start reading records... :) */
-    /*p_sys->lastAudioPTS = p_sys->lastVideoPTS = VLC_TICK_INVALID;*/
-    return VLC_SUCCESS;
+    /*p_sys->lastAudioPTS = p_sys->lastVideoPTS = HEIMDALL_TICK_INVALID;*/
+    return HEIMDALL_SUCCESS;
 }
 
 /* XDS decoder */
@@ -1436,36 +1437,36 @@ static void DemuxDecodeXds( demux_t *p_demux, uint8_t d1, uint8_t d2 )
     if( p_sys->xds.b_meta_changed )
     {
         xds_meta_t *m = &p_sys->xds.meta;
-        vlc_meta_t *p_meta;
+        heimdall_meta_t *p_meta;
 
         /* Channel meta data */
-        p_meta = vlc_meta_New();
+        p_meta = heimdall_meta_New();
         if( m->psz_channel_name )
-            vlc_meta_SetPublisher( p_meta, m->psz_channel_name );
+            heimdall_meta_SetPublisher( p_meta, m->psz_channel_name );
         if( m->psz_channel_call_letter )
-            vlc_meta_SetTitle( p_meta, m->psz_channel_call_letter );
+            heimdall_meta_SetTitle( p_meta, m->psz_channel_call_letter );
         if( m->psz_channel_number )
-            vlc_meta_SetExtra( p_meta, "Channel number", m->psz_channel_number );
+            heimdall_meta_SetExtra( p_meta, "Channel number", m->psz_channel_number );
         es_out_Control( p_demux->out, ES_OUT_SET_GROUP_META, TY_ES_GROUP, p_meta );
-        vlc_meta_Delete( p_meta );
+        heimdall_meta_Delete( p_meta );
 
         /* Event meta data (current/future) */
         if( m->current.psz_name )
         {
-            vlc_epg_t *p_epg = vlc_epg_New( TY_ES_GROUP, TY_ES_GROUP );
+            heimdall_epg_t *p_epg = heimdall_epg_New( TY_ES_GROUP, TY_ES_GROUP );
             if ( p_epg )
             {
-                vlc_epg_event_t *p_evt = vlc_epg_event_New( 0, 0, 0 );
+                heimdall_epg_event_t *p_evt = heimdall_epg_event_New( 0, 0, 0 );
                 if ( p_evt )
                 {
                     if( m->current.psz_name )
                         p_evt->psz_name = strdup( m->current.psz_name );
-                    if( !vlc_epg_AddEvent( p_epg, p_evt ) )
-                        vlc_epg_event_Delete( p_evt );
+                    if( !heimdall_epg_AddEvent( p_epg, p_evt ) )
+                        heimdall_epg_event_Delete( p_evt );
                 }
                 //if( m->current.psz_rating )
-                //  TODO but VLC cannot yet handle rating per epg event
-                vlc_epg_SetCurrent( p_epg, 0 );
+                //  TODO but Heimdall cannot yet handle rating per epg event
+                heimdall_epg_SetCurrent( p_epg, 0 );
 
                 if( m->future.psz_name )
                 {
@@ -1473,7 +1474,7 @@ static void DemuxDecodeXds( demux_t *p_demux, uint8_t d1, uint8_t d2 )
                 if( p_epg->i_event > 0 )
                     es_out_Control( p_demux->out, ES_OUT_SET_GROUP_EPG,
                                     TY_ES_GROUP, p_epg );
-                vlc_epg_Delete( p_epg );
+                heimdall_epg_Delete( p_epg );
             }
         }
     }
@@ -1489,14 +1490,14 @@ static int ty_stream_seek_time(demux_t *p_demux, uint64_t l_seek_time)
     unsigned i_seq_entry = 0;
     unsigned i;
     int i_skip_cnt;
-    uint64_t l_cur_pos = vlc_stream_Tell(p_demux->s);
+    uint64_t l_cur_pos = heimdall_stream_Tell(p_demux->s);
     unsigned i_cur_part = l_cur_pos / TIVO_PART_LENGTH;
     uint64_t l_seek_secs = l_seek_time / 1000000000;
     uint64_t l_fwd_stamp = 1;
 
     /* if we're not seekable, there's nothing to do */
     if (!p_sys->b_seekable || !p_sys->b_have_master)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     msg_Dbg(p_demux, "Skipping to time %02"PRIu64":%02"PRIu64":%02"PRIu64,
             l_seek_secs / 3600, (l_seek_secs / 60) % 60, l_seek_secs % 60);
@@ -1507,15 +1508,15 @@ static int ty_stream_seek_time(demux_t *p_demux, uint64_t l_seek_time)
         msg_Dbg(p_demux, "skipping to prior segment.");
         /* load previous part */
         if (i_cur_part == 0) {
-            p_sys->eof = (vlc_stream_Seek(p_demux->s, l_cur_pos) != VLC_SUCCESS);
+            p_sys->eof = (heimdall_stream_Seek(p_demux->s, l_cur_pos) != HEIMDALL_SUCCESS);
             msg_Err(p_demux, "Attempt to seek past BOF");
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
-        if(vlc_stream_Seek(p_demux->s, (i_cur_part - 1) * TIVO_PART_LENGTH) != VLC_SUCCESS)
-            return VLC_EGENERIC;
+        if(heimdall_stream_Seek(p_demux->s, (i_cur_part - 1) * TIVO_PART_LENGTH) != HEIMDALL_SUCCESS)
+            return HEIMDALL_EGENERIC;
         i_cur_part--;
-        if(parse_master(p_demux) != VLC_SUCCESS)
-            return VLC_EGENERIC;
+        if(parse_master(p_demux) != HEIMDALL_SUCCESS)
+            return HEIMDALL_EGENERIC;
     }
     /* maybe we need to go forward */
     while (l_seek_time > p_sys->l_final_ty_pts) {
@@ -1523,15 +1524,15 @@ static int ty_stream_seek_time(demux_t *p_demux, uint64_t l_seek_time)
         /* load next part */
         if ((i_cur_part + 1) * TIVO_PART_LENGTH > p_sys->i_stream_size) {
             /* error; restore previous file position */
-            p_sys->eof = (vlc_stream_Seek(p_demux->s, l_cur_pos) != VLC_SUCCESS);
+            p_sys->eof = (heimdall_stream_Seek(p_demux->s, l_cur_pos) != HEIMDALL_SUCCESS);
             msg_Err(p_demux, "seek error");
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
-        if(vlc_stream_Seek(p_demux->s, (i_cur_part + 1) * TIVO_PART_LENGTH) != VLC_SUCCESS)
-            return VLC_EGENERIC;
+        if(heimdall_stream_Seek(p_demux->s, (i_cur_part + 1) * TIVO_PART_LENGTH) != HEIMDALL_SUCCESS)
+            return HEIMDALL_EGENERIC;
         i_cur_part++;
-        if(parse_master(p_demux) != VLC_SUCCESS)
-            return VLC_EGENERIC;
+        if(parse_master(p_demux) != HEIMDALL_SUCCESS)
+            return HEIMDALL_EGENERIC;
     }
 
     /* our target is somewhere within this part;
@@ -1555,15 +1556,15 @@ static int ty_stream_seek_time(demux_t *p_demux, uint64_t l_seek_time)
     if (i == p_sys->i_seq_table_size) {
         if ((i_cur_part + 1) * TIVO_PART_LENGTH > p_sys->i_stream_size) {
             /* error; restore previous file position */
-            p_sys->eof = (vlc_stream_Seek(p_demux->s, l_cur_pos) != VLC_SUCCESS);
+            p_sys->eof = (heimdall_stream_Seek(p_demux->s, l_cur_pos) != HEIMDALL_SUCCESS);
             msg_Err(p_demux, "seek error");
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
-        if(vlc_stream_Seek(p_demux->s, (i_cur_part + 1) * TIVO_PART_LENGTH) != VLC_SUCCESS)
-            return VLC_EGENERIC;
+        if(heimdall_stream_Seek(p_demux->s, (i_cur_part + 1) * TIVO_PART_LENGTH) != HEIMDALL_SUCCESS)
+            return HEIMDALL_EGENERIC;
         i_cur_part++;
-        if(parse_master(p_demux) != VLC_SUCCESS)
-            return VLC_EGENERIC;
+        if(parse_master(p_demux) != HEIMDALL_SUCCESS)
+            return HEIMDALL_EGENERIC;
         i_seq_entry = 0;
     }
 
@@ -1581,9 +1582,9 @@ static int ty_stream_seek_time(demux_t *p_demux, uint64_t l_seek_time)
             /* check this chunk's SEQ header timestamp */
             msg_Dbg(p_demux, "has SEQ. seeking to chunk at 0x%"PRIu64,
                 (i_cur_part * TIVO_PART_LENGTH) + l_chunk_offset);
-            if(vlc_stream_Seek(p_demux->s, (i_cur_part * TIVO_PART_LENGTH) +
-                l_chunk_offset) != VLC_SUCCESS)
-                return VLC_EGENERIC;
+            if(heimdall_stream_Seek(p_demux->s, (i_cur_part * TIVO_PART_LENGTH) +
+                l_chunk_offset) != HEIMDALL_SUCCESS)
+                return HEIMDALL_EGENERIC;
             // TODO: we don't have to parse the full header set;
             // just test the seq_rec entry for its timestamp
             p_sys->i_stuff_cnt = 0;
@@ -1592,11 +1593,11 @@ static int ty_stream_seek_time(demux_t *p_demux, uint64_t l_seek_time)
             if (p_sys->i_seq_rec >= p_sys->i_num_recs) {
                 msg_Err(p_demux, "no SEQ hdr in chunk; table had one.");
                 /* Seek to beginning of original chunk & reload it */
-                if(vlc_stream_Seek(p_demux->s, (l_cur_pos / CHUNK_SIZE) * CHUNK_SIZE) != VLC_SUCCESS)
+                if(heimdall_stream_Seek(p_demux->s, (l_cur_pos / CHUNK_SIZE) * CHUNK_SIZE) != HEIMDALL_SUCCESS)
                     p_sys->eof = true;
                 p_sys->i_stuff_cnt = 0;
                 get_chunk_header(p_demux);
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             }
             l_seek_secs = p_sys->rec_hdrs[p_sys->i_seq_rec].l_ty_pts /
                 1000000000;
@@ -1626,13 +1627,13 @@ static int ty_stream_seek_time(demux_t *p_demux, uint64_t l_seek_time)
     i_skip_cnt = 0;
     for (size_t j=0; j<p_sys->i_seq_rec; j++)
         i_skip_cnt += p_sys->rec_hdrs[j].l_rec_size;
-    if(vlc_stream_Read(p_demux->s, NULL, i_skip_cnt) != i_skip_cnt)
-        return VLC_EGENERIC;
+    if(heimdall_stream_Read(p_demux->s, NULL, i_skip_cnt) != i_skip_cnt)
+        return HEIMDALL_EGENERIC;
     p_sys->i_cur_rec = p_sys->i_seq_rec;
     //p_sys->l_last_ty_pts = p_sys->rec_hdrs[p_sys->i_seq_rec].l_ty_pts;
     //p_sys->l_last_ty_pts_sync = p_sys->lastAudioPTS;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 
@@ -1643,7 +1644,7 @@ static int parse_master(demux_t *p_demux)
 {
     demux_sys_t *p_sys = p_demux->p_sys;
     uint8_t mst_buf[32];
-    uint64_t i_save_pos = vlc_stream_Tell(p_demux->s);
+    uint64_t i_save_pos = heimdall_stream_Tell(p_demux->s);
     int64_t i_pts_secs;
 
     /* Note that the entries in the SEQ table in the stream may have
@@ -1657,27 +1658,27 @@ static int parse_master(demux_t *p_demux)
     p_sys->seq_table = NULL;
 
     /* parse header info */
-    if( vlc_stream_Read(p_demux->s, mst_buf, 32) != 32 )
-        return VLC_EGENERIC;
+    if( heimdall_stream_Read(p_demux->s, mst_buf, 32) != 32 )
+        return HEIMDALL_EGENERIC;
 
     uint32_t i_map_size = U32_AT(&mst_buf[20]);  /* size of bitmask, in bytes */
     uint32_t i = U32_AT(&mst_buf[28]);   /* size of SEQ table, in bytes */
 
     if( i_save_pos + 32 + i > p_sys->i_stream_size )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if(i_map_size > UINT32_MAX / 8)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     p_sys->i_bits_per_seq_entry = i_map_size * 8U;
     p_sys->i_seq_table_size = i / (8 + i_map_size);
 
     if(p_sys->i_seq_table_size == 0)
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
 #if (UINT32_MAX > SSIZE_MAX)
     if (i_map_size > SSIZE_MAX)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 #endif
 
     /* parse all the entries */
@@ -1685,20 +1686,20 @@ static int parse_master(demux_t *p_demux)
     if (p_sys->seq_table == NULL)
     {
         p_sys->i_seq_table_size = 0;
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
     for (unsigned j=0; j<p_sys->i_seq_table_size; j++) {
-        if(vlc_stream_Read(p_demux->s, mst_buf, 8) != 8)
-            return VLC_EGENERIC;
+        if(heimdall_stream_Read(p_demux->s, mst_buf, 8) != 8)
+            return HEIMDALL_EGENERIC;
         p_sys->seq_table[j].l_timestamp = U64_AT(&mst_buf[0]);
         if (i_map_size > 8) {
             msg_Err(p_demux, "Unsupported SEQ bitmap size in master chunk");
-            if (vlc_stream_Read(p_demux->s, NULL, i_map_size) != i_map_size )
-                return VLC_EGENERIC;
+            if (heimdall_stream_Read(p_demux->s, NULL, i_map_size) != i_map_size )
+                return HEIMDALL_EGENERIC;
         } else {
-            if (vlc_stream_Read(p_demux->s, mst_buf + 8, i_map_size)
+            if (heimdall_stream_Read(p_demux->s, mst_buf + 8, i_map_size)
                                               < (ssize_t)i_map_size)
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             memcpy(p_sys->seq_table[j].chunk_bitmask, &mst_buf[8], i_map_size);
         }
     }
@@ -1719,7 +1720,7 @@ static int parse_master(demux_t *p_demux)
              i_pts_secs / 3600, (i_pts_secs / 60) % 60, i_pts_secs % 60 );
 
     /* seek past this chunk */
-    return vlc_stream_Seek(p_demux->s, i_save_pos + CHUNK_SIZE);
+    return heimdall_stream_Seek(p_demux->s, i_save_pos + CHUNK_SIZE);
 }
 
 
@@ -1738,18 +1739,18 @@ static int probe_stream(demux_t *p_demux)
     bool b_probe_error = false;
 
     /* we need CHUNK_PEEK_COUNT chunks of data, first one might be a Part header, so ... */
-    if (vlc_stream_Peek( p_demux->s, &p_buf, CHUNK_PEEK_COUNT * CHUNK_SIZE ) <
+    if (heimdall_stream_Peek( p_demux->s, &p_buf, CHUNK_PEEK_COUNT * CHUNK_SIZE ) <
             CHUNK_PEEK_COUNT * CHUNK_SIZE) {
         msg_Err(p_demux, "Can't peek %d chunks", CHUNK_PEEK_COUNT);
         /* TODO: if seekable, then loop reading chunks into a temp buffer */
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* the real work: analyze this chunk */
     for (i = 0; i < CHUNK_PEEK_COUNT; i++) {
         int ret = analyze_chunk(p_demux, p_buf);
         if (ret != 0)
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
         if (p_sys->tivo_series != TIVO_SERIES_UNKNOWN &&
             p_sys->audio_type  != TIVO_AUDIO_UNKNOWN &&
@@ -1771,7 +1772,7 @@ static int probe_stream(demux_t *p_demux)
         msg_Err(p_demux, "Can't determine Tivo Type (SA/DTivo).");
         b_probe_error = true;
     }
-    return b_probe_error?VLC_EGENERIC:VLC_SUCCESS;
+    return b_probe_error?HEIMDALL_EGENERIC:HEIMDALL_SUCCESS;
 }
 
 
@@ -1788,14 +1789,14 @@ static int analyze_chunk(demux_t *p_demux, const uint8_t *p_chunk)
 
     /* skip if it's a Part header */
     if( U32_AT( &p_chunk[ 0 ] ) == TIVO_PES_FILEID )
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
     /* number of records in chunk (we ignore high order byte;
      * rarely are there > 256 chunks & we don't need that many anyway) */
     i_num_recs = p_chunk[0];
     if (i_num_recs < 5 || i_num_recs >= MAX_NUM_RECS) {
         /* try again with the next chunk.  Sometimes there are dead ones */
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
     p_chunk += CHUNK_HEADER_SIZE;       /* skip past rec count & SEQ bytes */
@@ -1803,7 +1804,7 @@ static int analyze_chunk(demux_t *p_demux, const uint8_t *p_chunk)
     //msg_Dbg(p_demux, "probe: chunk has %d recs", i_num_recs);
     p_hdrs = parse_chunk_headers(p_chunk, i_num_recs, &i_payload_size);
     if (unlikely(p_hdrs == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     /* scan headers.
      * 1. check video packets.  Presence of 0x6e0 means S1.
      *    No 6e0 but have be0 means S2.
@@ -1894,7 +1895,7 @@ static int analyze_chunk(demux_t *p_demux, const uint8_t *p_chunk)
         }
     }
     free(p_hdrs);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 
@@ -1912,13 +1913,13 @@ static int get_chunk_header(demux_t *p_demux)
 
     /* if we have left-over filler space from the last chunk, get that */
     if (p_sys->i_stuff_cnt > 0) {
-        if(vlc_stream_Read(p_demux->s, NULL, p_sys->i_stuff_cnt) != p_sys->i_stuff_cnt)
+        if(heimdall_stream_Read(p_demux->s, NULL, p_sys->i_stuff_cnt) != p_sys->i_stuff_cnt)
             return 0;
         p_sys->i_stuff_cnt = 0;
     }
 
     /* read the TY packet header */
-    i_readSize = vlc_stream_Peek( p_demux->s, &p_peek, 4 );
+    i_readSize = heimdall_stream_Peek( p_demux->s, &p_peek, 4 );
     p_sys->i_cur_chunk++;
 
     if ( (i_readSize < 4) || ( U32_AT(&p_peek[ 0 ] ) == 0 ))
@@ -1932,7 +1933,7 @@ static int get_chunk_header(demux_t *p_demux)
     if( U32_AT( &p_peek[ 0 ] ) == TIVO_PES_FILEID )
     {
         /* parse master chunk */
-        if(parse_master(p_demux) != VLC_SUCCESS)
+        if(parse_master(p_demux) != HEIMDALL_SUCCESS)
             return 0;
         return get_chunk_header(p_demux);
     }
@@ -1967,14 +1968,14 @@ static int get_chunk_header(demux_t *p_demux)
     p_sys->rec_hdrs = NULL;
 
     /* skip past the 4 bytes we "peeked" earlier */
-    if(vlc_stream_Read(p_demux->s, NULL, 4) != 4)
+    if(heimdall_stream_Read(p_demux->s, NULL, 4) != 4)
         return 0;
 
     /* read the record headers into a temp buffer */
     p_hdr_buf = malloc(i_num_recs * REC_SIZE);
     if (p_hdr_buf == NULL)
-        return VLC_ENOMEM;
-    if (vlc_stream_Read(p_demux->s, p_hdr_buf, i_num_recs * REC_SIZE) < (ssize_t)(i_num_recs * REC_SIZE)) {
+        return HEIMDALL_ENOMEM;
+    if (heimdall_stream_Read(p_demux->s, p_hdr_buf, i_num_recs * REC_SIZE) < (ssize_t)(i_num_recs * REC_SIZE)) {
         free( p_hdr_buf );
         p_sys->eof = true;
         return 0;
@@ -1985,7 +1986,7 @@ static int get_chunk_header(demux_t *p_demux)
     if (unlikely(p_sys->rec_hdrs == NULL))
     {
         p_sys->i_num_recs = 0;
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     p_sys->i_stuff_cnt = CHUNK_SIZE - 4 -
@@ -2004,7 +2005,7 @@ static ty_rec_hdr_t *parse_chunk_headers( const uint8_t *p_buf,
     ty_rec_hdr_t *p_hdrs, *p_rec_hdr;
 
     *pi_payload_size = 0;
-    p_hdrs = vlc_alloc(i_num_recs, sizeof(ty_rec_hdr_t));
+    p_hdrs = heimdall_alloc(i_num_recs, sizeof(ty_rec_hdr_t));
     if (unlikely(p_hdrs == NULL))
         return NULL;
 

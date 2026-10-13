@@ -2,6 +2,7 @@
  * chapter_command.hpp : matroska demuxer
  *****************************************************************************
  * Copyright (C) 2003-2004 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *          Steve Lhomme <steve.lhomme@free.fr>
@@ -21,14 +22,14 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_MKV_CHAPTER_COMMAND_HPP_
-#define VLC_MKV_CHAPTER_COMMAND_HPP_
+#ifndef HEIMDALL_MKV_CHAPTER_COMMAND_HPP_
+#define HEIMDALL_MKV_CHAPTER_COMMAND_HPP_
 
 #include "mkv.hpp"
 
 #include <memory>
 
-struct vlc_spu_highlight_t;
+struct heimdall_spu_highlight_t;
 
 #if LIBMATROSKA_VERSION < 0x010700
 typedef enum {
@@ -54,7 +55,7 @@ public:
     virtual virtual_chapter_c *BrowseCodecPrivate( enum chapter_codec_id,
                                                    chapter_cmd_match match,
                                                    virtual_segment_c * & p_vsegment_found ) = 0;
-    virtual void SetHighlight( vlc_spu_highlight_t & ) = 0;
+    virtual void SetHighlight( heimdall_spu_highlight_t & ) = 0;
 };
 
 enum NavivationKey {
@@ -64,7 +65,7 @@ enum NavivationKey {
 class chapter_codec_cmds_c
 {
 public:
-    chapter_codec_cmds_c( struct vlc_logger *log, chapter_codec_vm & vm_, enum chapter_codec_id codec_id)
+    chapter_codec_cmds_c( struct heimdall_logger *log, chapter_codec_vm & vm_, enum chapter_codec_id codec_id)
     :i_codec_id( codec_id )
     ,l( log )
     ,vm( vm_ )
@@ -95,7 +96,7 @@ protected:
     ChapterProcess during_cmds;
     ChapterProcess leave_cmds;
 
-    struct vlc_logger *l;
+    struct heimdall_logger *l;
     chapter_codec_vm & vm;
 };
 } // namespace

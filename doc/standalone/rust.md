@@ -1,10 +1,10 @@
-# Rust bindings for vlccore #{rust_bindings}
+# Rust bindings for heimdallcore #{rust_bindings}
 
-_libvlccore_ provide [Rust] bindings so as to interface with the core
-implementation in C and implement VLC plugins in [Rust] as a crate.
+_libheimdallcore_ provide [Rust] bindings so as to interface with the core
+implementation in C and implement Heimdall plugins in [Rust] as a crate.
 
 The bindings are located in the `src/rust/` folder for everything which
-is mapping headers from `include/vlc_*.h`. There's no module-specific
+is mapping headers from `include/heimdall_*.h`. There's no module-specific
 crate for now, but those would be located in `modules/`.
 
 [Rust]: https://www.rust-lang.org/
@@ -12,8 +12,8 @@ crate for now, but those would be located in `modules/`.
 ## Creating a new core crate
 
 New core crate needs to be placed into the `src/rust/` directory. They
-usually match with another C `vlc_*.h` header. For instance `vlc_tick.h`
-will match with the `src/rust/vlcrs-tick` crate.
+usually match with another C `heimdall_*.h` header. For instance `heimdall_tick.h`
+will match with the `src/rust/heimdallrs-tick` crate.
 
 Cargo manifest for the workspace at `src/rust/Cargo.toml` needs to be
 updated to account for the new crate.
@@ -26,14 +26,14 @@ index b1a9555a23..72ca86951d 100644
 @@ -1,5 +1,6 @@
  [workspace]
  members = [
-+    "vlcrs-newcrate",
-     "vlcrs-messages",
-     "vlcrs-sys-generator"
++    "heimdallrs-newcrate",
+     "heimdallrs-messages",
+     "heimdallrs-sys-generator"
  ]
 ```
 
 A core crate might depend on another core crate, in particular when a
-`vlc_*.h` header is depending on another header or uses forward
+`heimdall_*.h` header is depending on another header or uses forward
 declarations.
 
 In that case, the Cargo.toml from this crate should directly reference
@@ -41,13 +41,13 @@ the other crate using a path locator.
 
 ```toml
 [package]
-name = "vlcrs-messages"
+name = "heimdallrs-messages"
 edition = "2021"
 version.workspace = true
 license.workspace = true
 
 [dependencies]
-vlcrs-utils = { path = "../vlcrs-utils" }
+heimdallrs-utils = { path = "../heimdallrs-utils" }
 ```
 
 Finally, if the new crate is meant to be available from modules, it
@@ -61,8 +61,8 @@ resolver = "2"
 members = ["/*-rs"]
 
 [workspace.dependencies]
-vlcrs-tick = { path = "../src/rust/vlcrs-tick" }
-vlcrs-messages = { path = "../src/rust/vlcrs-messages" }
+heimdallrs-tick = { path = "../src/rust/heimdallrs-tick" }
+heimdallrs-messages = { path = "../src/rust/heimdallrs-messages" }
 # ...
 ```
 
@@ -70,7 +70,7 @@ vlcrs-messages = { path = "../src/rust/vlcrs-messages" }
 
 To create a new module, create a new crate inside the relevant
 `moduledir` folder from `modules/` folder using Cargo, ending with `-rs`
-and without version control creation given that VLC sources are already
+and without version control creation given that Heimdall sources are already
 versioned:
 
 ```bash
@@ -93,7 +93,7 @@ edition = "2021"
 version = "0.1.0"
 
 [dependencies]
-vlcrs-messages.workspace = true
+heimdallrs-messages.workspace = true
 ```
 
 The module will need to be listed into `modules/Cargo.toml` members:
@@ -126,11 +126,11 @@ moduledir_PLUGINS += libmynewmodule_rs_plugin.la
 endif
 ```
 
-For meson, you will use the `vlc_rust_modules` dictionary from the
+For meson, you will use the `heimdall_rust_modules` dictionary from the
 parent meson.build file:
 
 ```
-vlc_rust_modules += {
+heimdall_rust_modules += {
     'name' : 'mynewmodule_rs',
     'sources' : files('mynewmodule-rs/src/lib.rs'),
     'cargo_toml' : files('mynewmodule-rs/Cargo.toml'),
@@ -142,8 +142,8 @@ expose the different modules from there. This is done through the
 `module!{}` macro:
 
 ```rust
-use vlcrs_plugin::module;
-use vlcrs_video_filter::FilterModule;
+use heimdallrs_plugin::module;
+use heimdallrs_video_filter::FilterModule;
 
 pub struct MyNewModule {};
 

@@ -2,8 +2,9 @@
  * CompatibilityFixes.h: MacOS X interface module
  *****************************************************************************
  * Copyright (C) 2011-2018 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Felix Paul Kühne <fkuehne -at- videolan -dot- org>
+ * Authors: Felix Paul Kühne <fkuehne -at- lycaria -dot- org>
  *          Marvin Scholz <epirat07 -at- gmail -dot- com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -50,7 +51,7 @@ enum {
 
 #ifndef MAC_OS_VERSION_14_0
 
-@interface NSView (VLCCompatibility)
+@interface NSView (HeimdallCompatibility)
 
 @property BOOL clipsToBounds;
 

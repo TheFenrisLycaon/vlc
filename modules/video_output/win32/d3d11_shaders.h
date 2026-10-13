@@ -2,6 +2,7 @@
  * d3d11_shaders.h: Direct3D11 Shaders
  *****************************************************************************
  * Copyright (C) 2017-2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Steve Lhomme <robux4@gmail.com>
  *
@@ -20,8 +21,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_D3D11_SHADERS_H
-#define VLC_D3D11_SHADERS_H
+#ifndef HEIMDALL_D3D11_SHADERS_H
+#define HEIMDALL_D3D11_SHADERS_H
 
 #include "d3d_shaders.h"
 #include "d3d_dynamic_shader.h"
@@ -70,22 +71,22 @@ struct d3d11_quad_t
     VS_PROJECTION_CONST       vConstants;
 };
 
-HRESULT D3D11_CompilePixelShaderBlob(vlc_object_t *,
+HRESULT D3D11_CompilePixelShaderBlob(heimdall_object_t *,
                                  d3d11_device_t *, const display_info_t *,
                                  video_transfer_func_t,
                                  bool src_full_range,
                                  const d3d11_quad_t *, d3d_shader_blob pPSBlob[DXGI_MAX_RENDER_TARGET]);
 #define D3D11_CompilePixelShaderBlob(a,b,c,d,e,f,g) \
-    D3D11_CompilePixelShaderBlob(VLC_OBJECT(a),b,c,d,e,f,g)
-HRESULT D3D11_SetQuadPixelShader(vlc_object_t *, d3d11_device_t *,
+    D3D11_CompilePixelShaderBlob(HEIMDALL_OBJECT(a),b,c,d,e,f,g)
+HRESULT D3D11_SetQuadPixelShader(heimdall_object_t *, d3d11_device_t *,
                                  bool sharp,
                                  d3d11_quad_t *quad, d3d_shader_blob pPSBlob[DXGI_MAX_RENDER_TARGET]);
 
-HRESULT D3D11_CompileVertexShaderBlob(vlc_object_t *,
+HRESULT D3D11_CompileVertexShaderBlob(heimdall_object_t *,
                                       d3d11_device_t *, bool flat, d3d_shader_blob *);
 
-HRESULT D3D11_CreateVertexShader(vlc_object_t *, d3d_shader_blob *, d3d11_device_t *, d3d11_vertex_shader_t *);
-#define D3D11_CreateVertexShader(a,b,c,d) D3D11_CreateVertexShader(VLC_OBJECT(a),b,c,d)
+HRESULT D3D11_CreateVertexShader(heimdall_object_t *, d3d_shader_blob *, d3d11_device_t *, d3d11_vertex_shader_t *);
+#define D3D11_CreateVertexShader(a,b,c,d) D3D11_CreateVertexShader(HEIMDALL_OBJECT(a),b,c,d)
 
 HRESULT D3D11_CreateRenderTargets(d3d11_device_t *, ID3D11Resource *, const d3d_format_t *,
                                   Microsoft::WRL::ComPtr<ID3D11RenderTargetView> output[DXGI_MAX_RENDER_TARGET]);
@@ -95,4 +96,4 @@ void D3D11_ClearRenderTargets(d3d11_device_t *, const d3d_format_t *,
 
 void D3D11_ReleaseVertexShader(d3d11_vertex_shader_t *);
 
-#endif /* VLC_D3D11_SHADERS_H */
+#endif /* HEIMDALL_D3D11_SHADERS_H */

@@ -2,6 +2,7 @@
  * common.c: Windows video output common code
  *****************************************************************************
  * Copyright (C) 2001-2009 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gildas Bazin <gbazin@videolan.org>
  *          Martell Malone <martellmalone@gmail.com>
@@ -31,8 +32,8 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_vout_display.h>
+#include <heimdall_common.h>
+#include <heimdall_vout_display.h>
 
 #include <windows.h>
 #include <assert.h>
@@ -47,16 +48,16 @@ int CommonWindowInit(vout_display_t *vd, struct event_thread_t **event,
 {
     *event = NULL;
     if (unlikely(vd->cfg->window == NULL))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* */
-    *event = EventThreadCreate(VLC_OBJECT(vd), vd->cfg->window,
+    *event = EventThreadCreate(HEIMDALL_OBJECT(vd), vd->cfg->window,
                                &vd->cfg->display,
                                projection_gestures ? &vd->owner : NULL);
     if (!*event)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 HWND CommonVideoHWND(const struct event_thread_t *event)

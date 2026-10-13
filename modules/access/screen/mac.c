@@ -2,11 +2,12 @@
  * mac.c: Screen capture module for the Mac.
  *****************************************************************************
  * Copyright (C) 2004 - 2013 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: FUJISAWA Tooru <arai_a@mac.com>
- *          Derk-Jan Hartman <hartman at videolan dot org>
- *          Pierre d'Herbemont <pdherbemont # videolan org>
- *          Felix Paul Kühne <fkuehne # videolan org>
+ *          Derk-Jan Hartman <hartman at lycaria dot org>
+ *          Pierre d'Herbemont <pdherbemont # lycaria org>
+ *          Felix Paul Kühne <fkuehne # lycaria org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -31,8 +32,8 @@
 # include "config.h"
 #endif
 
-#import <vlc_common.h>
-#import <vlc_block.h>
+#import <heimdall_common.h>
+#import <heimdall_block.h>
 
 #import "screen.h"
 
@@ -88,7 +89,7 @@ int screen_InitCapture(demux_t *p_demux)
 
     p_sys->p_data = p_data = calloc(1, sizeof(screen_data_t));
     if (!p_data)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     i_display_id = var_CreateGetInteger( p_demux, "screen-display-id" );
     i_screen_index = var_CreateGetInteger( p_demux, "screen-index" );
@@ -101,7 +102,7 @@ int screen_InitCapture(demux_t *p_demux)
     returnedError = CGGetOnlineDisplayList(0, NULL, &displayCount);
     if (!returnedError) {
         CGDirectDisplayID *ids;
-        ids = vlc_alloc(displayCount, sizeof(CGDirectDisplayID));
+        ids = heimdall_alloc(displayCount, sizeof(CGDirectDisplayID));
         returnedError = CGGetOnlineDisplayList(displayCount, ids, &displayCount);
         if (!returnedError) {
             if (i_display_id > 0) {
@@ -135,12 +136,12 @@ int screen_InitCapture(demux_t *p_demux)
     }
 
     /* setup format */
-    es_format_Init(&p_sys->fmt, VIDEO_ES, VLC_CODEC_XRGB);
+    es_format_Init(&p_sys->fmt, VIDEO_ES, HEIMDALL_CODEC_XRGB);
     p_sys->fmt.video.i_visible_width   =
     p_sys->fmt.video.i_width           = rect.size.width;
     p_sys->fmt.video.i_visible_height  =
     p_sys->fmt.video.i_height          = rect.size.height;
-    p_sys->fmt.video.i_chroma          = VLC_CODEC_XRGB;
+    p_sys->fmt.video.i_chroma          = HEIMDALL_CODEC_XRGB;
     p_sys->fmt.video.i_sar_num         =
     p_sys->fmt.video.i_sar_den         = 1;
     p_sys->fmt.video.i_frame_rate      = 1000 * p_data->rate;
@@ -151,7 +152,7 @@ int screen_InitCapture(demux_t *p_demux)
     };
     p_sys->ops = &ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void screen_CloseCapture(void *opaque)

@@ -5,6 +5,7 @@
 #
 # Copyright (C) 2011-2012 Ludovic Fauvet <etix@videolan.org>
 #                         Jean-Baptiste Kempf <jb@videolan.org>
+# Copyright (C) 2026 TheFenrisLycaon
 #
 # Everyone is permitted to copy and distribute verbatim or modified
 # copies of this license document, and changing it is allowed as long
@@ -32,14 +33,14 @@
 #
 #####################################################################
 
-VLC_VERSION         = "2.0.3"
-VLC_BIN             = "/home/videolan/vlc/" + VLC_VERSION + "/vlc-" VLC_VERSION + "/vlc.exe"
-VLC_BASE_DIR        = "/home/videolan/vlc/" + VLC_VERSION + "/vlc-" + VLC_VERSION + "/"
-VLC_SYMBOLS_DIR     = "/home/videolan/vlc/" + VLC_VERSION + "/symbols-" + VLC_VERSION + "/"
+HEIMDALL_VERSION         = "2.0.3"
+HEIMDALL_BIN             = "/home/lycaria/heimdall/" + HEIMDALL_VERSION + "/heimdall-" HEIMDALL_VERSION + "/heimdall.exe"
+HEIMDALL_BASE_DIR        = "/home/lycaria/heimdall/" + HEIMDALL_VERSION + "/heimdall-" + HEIMDALL_VERSION + "/"
+HEIMDALL_SYMBOLS_DIR     = "/home/lycaria/heimdall/" + HEIMDALL_VERSION + "/symbols-" + HEIMDALL_VERSION + "/"
 WORKDIR             = "/srv/ftp/crashes-win32"
 FILE_MATCH          = r"^\d{14}$"
 FILE_MAX_SIZE       = 10000
-GDB_CMD             = "gdb --exec=%(VLC_BIN)s --symbols=%(VLC_SYMBOLS_DIR)s%(DBG_FILE)s.dbg --batch -x %(BATCH_FILE)s"
+GDB_CMD             = "gdb --exec=%(HEIMDALL_BIN)s --symbols=%(HEIMDALL_SYMBOLS_DIR)s%(DBG_FILE)s.dbg --batch -x %(BATCH_FILE)s"
 
 EMAIL_TO            = "bugreporter -- videolan.org"
 EMAIL_FROM          = "crashes@crash.videolan.org"
@@ -78,9 +79,9 @@ def processFile(filename):
         os.remove(filename)
         return
 
-    # Check if VLC version match
+    # Check if Heimdall version match
     if not isValidVersion(content):
-        print("Invalid VLC version")
+        print("Invalid Heimdall version")
         moveFile(filename, outdated = True)
         return
 
@@ -116,7 +117,7 @@ def processFile(filename):
     moveFile(filename, outdated = False)
 
 def isValidVersion(content):
-    pattern = re.compile(r"^VLC=%s " % VLC_VERSION, re.MULTILINE)
+    pattern = re.compile(r"^Heimdall=%s " % HEIMDALL_VERSION, re.MULTILINE)
     res = pattern.search(content)
     return True if res else False
 
@@ -137,7 +138,7 @@ def getDiffAddress(content, name):
 
     tmp_index = name.rfind('plugins\\')
     libname = name[tmp_index :].replace("\\", "/")
-    full_path = VLC_BASE_DIR + libname
+    full_path = HEIMDALL_BASE_DIR + libname
 
     if not os.path.isfile(full_path):
         return None
@@ -206,7 +207,7 @@ def findSymbols(sortedEIP):
         batchfile.flush()
 
         # Generate the command line
-        cmd = GDB_CMD % {"VLC_BIN": VLC_BIN, "VLC_SYMBOLS_DIR": VLC_SYMBOLS_DIR, "DBG_FILE": k, "BATCH_FILE": batchfile.name}
+        cmd = GDB_CMD % {"HEIMDALL_BIN": HEIMDALL_BIN, "HEIMDALL_SYMBOLS_DIR": HEIMDALL_SYMBOLS_DIR, "DBG_FILE": k, "BATCH_FILE": batchfile.name}
         args = shlex.split(cmd)
 
         # Start GDB and get result

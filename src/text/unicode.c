@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 2005-2006 VLC authors and VideoLAN
  * Copyright © 2005-2010 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Rémi Denis-Courmont
  *
@@ -28,10 +29,10 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
-#include "../libvlc.h"
-#include <vlc_charset.h>
+#include "../libheimdall.h"
+#include <heimdall_charset.h>
 
 #include <assert.h>
 
@@ -112,7 +113,7 @@ int utf8_fprintf( FILE *stream, const char *fmt, ... )
     return res;
 }
 
-ssize_t vlc_towc (const char *str, uint32_t *restrict pwc)
+ssize_t heimdall_towc (const char *str, uint32_t *restrict pwc)
 {
     assert (str != NULL);
 
@@ -188,7 +189,7 @@ ssize_t vlc_towc (const char *str, uint32_t *restrict pwc)
  * @return a pointer to the first occurrence of the needle within the haystack,
  * or NULL if no occurrence were found.
  */
-char *vlc_strcasestr (const char *haystack, const char *needle)
+char *heimdall_strcasestr (const char *haystack, const char *needle)
 {
     ssize_t s;
 
@@ -200,20 +201,20 @@ char *vlc_strcasestr (const char *haystack, const char *needle)
         {
             uint32_t cph, cpn;
 
-            s = vlc_towc (n, &cpn);
+            s = heimdall_towc (n, &cpn);
             if (s == 0)
                 return (char *)haystack;
             if (unlikely(s < 0))
                 return NULL;
             n += s;
 
-            s = vlc_towc (h, &cph);
+            s = heimdall_towc (h, &cph);
             if (s <= 0 || towlower (cph) != towlower (cpn))
                 break;
             h += s;
         }
 
-        s = vlc_towc (haystack, &(uint32_t) { 0 });
+        s = heimdall_towc (haystack, &(uint32_t) { 0 });
         if (unlikely(s < 0))
             return NULL;
         haystack += s;
@@ -231,8 +232,8 @@ char *vlc_strcasestr (const char *haystack, const char *needle)
  */
 char *FromCharset(const char *charset, const void *data, size_t data_size)
 {
-    vlc_iconv_t handle = vlc_iconv_open ("UTF-8", charset);
-    if (handle == (vlc_iconv_t)(-1))
+    heimdall_iconv_t handle = heimdall_iconv_open ("UTF-8", charset);
+    if (handle == (heimdall_iconv_t)(-1))
         return NULL;
 
     char *out = NULL;
@@ -245,7 +246,7 @@ char *FromCharset(const char *charset, const void *data, size_t data_size)
         if (!out)
             break;
 
-        if (vlc_iconv (handle, &in, &in_size, &tmp, &out_max) != (size_t)(-1)) {
+        if (heimdall_iconv (handle, &in, &in_size, &tmp, &out_max) != (size_t)(-1)) {
             *tmp = '\0';
             break;
         }
@@ -255,7 +256,7 @@ char *FromCharset(const char *charset, const void *data, size_t data_size)
         if (errno != E2BIG)
             break;
     }
-    vlc_iconv_close(handle);
+    heimdall_iconv_close(handle);
     return out;
 }
 
@@ -273,8 +274,8 @@ char *FromCharset(const char *charset, const void *data, size_t data_size)
  */
 void *ToCharset(const char *charset, const char *in, size_t *outsize)
 {
-    vlc_iconv_t hd = vlc_iconv_open (charset, "UTF-8");
-    if (hd == (vlc_iconv_t)(-1))
+    heimdall_iconv_t hd = heimdall_iconv_open (charset, "UTF-8");
+    if (hd == (heimdall_iconv_t)(-1))
         return NULL;
 
     const size_t inlen = strlen (in);
@@ -292,12 +293,12 @@ void *ToCharset(const char *charset, const char *in, size_t *outsize)
         size_t inb = inlen;
         size_t outb = outlen - mul;
 
-        if (vlc_iconv (hd, &inp, &inb, &outp, &outb) != (size_t)(-1))
+        if (heimdall_iconv (hd, &inp, &inb, &outp, &outb) != (size_t)(-1))
         {
             *outsize = outlen - mul - outb;
             outb += mul;
             inb = 1; /* append nul terminator if possible */
-            if (vlc_iconv (hd, &inp, &inb, &outp, &outb) != (size_t)(-1))
+            if (heimdall_iconv (hd, &inp, &inb, &outp, &outb) != (size_t)(-1))
                 break;
             if (errno == EILSEQ) /* cannot translate nul terminator!? */
                 break;
@@ -308,6 +309,6 @@ void *ToCharset(const char *charset, const char *in, size_t *outsize)
         if (errno != E2BIG) /* conversion failure */
             break;
     }
-    vlc_iconv_close (hd);
+    heimdall_iconv_close (hd);
     return res;
 }

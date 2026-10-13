@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 2003-2004 VLC authors and VideoLAN
  * Copyright (C) 2019-2020 Vincenzo "KatolaZ" Nicosia
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Vincenzo "KatolaZ" Nicosia <katolaz@freaknet.org>
  *
@@ -27,34 +28,34 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_access.h>
-#include <vlc_messages.h>
-#include <vlc_url.h>
-#include <vlc_tls.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_access.h>
+#include <heimdall_messages.h>
+#include <heimdall_url.h>
+#include <heimdall_tls.h>
 
 #include <stdio.h>
 #include <string.h>
 
 /* Forward declarations */
-static int Open(vlc_object_t *);
-static void Close(vlc_object_t *);
+static int Open(heimdall_object_t *);
+static void Close(heimdall_object_t *);
 
 /* Module descriptor */
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("Gopher input") )
     set_capability( "access", 0 )
     set_shortname( "gopher" )
     set_subcategory( SUBCAT_INPUT_ACCESS )
     add_shortcut( "gopher")
     set_callbacks( Open, Close )
-vlc_module_end ()
+heimdall_module_end ()
 
 
 static ssize_t Read(stream_t *access, void *buf, size_t len)
 {
-    return vlc_tls_Read(access->p_sys, buf, len, false);
+    return heimdall_tls_Read(access->p_sys, buf, len, false);
 }
 
 static int Control( stream_t *p_access, int i_query, va_list args )
@@ -78,8 +79,8 @@ static int Control( stream_t *p_access, int i_query, va_list args )
             break;
 
         case STREAM_GET_PTS_DELAY:
-            *va_arg( args, vlc_tick_t * ) =
-                VLC_TICK_FROM_MS(var_InheritInteger( p_access, "network-caching" ));
+            *va_arg( args, heimdall_tick_t * ) =
+                HEIMDALL_TICK_FROM_MS(var_InheritInteger( p_access, "network-caching" ));
             break;
 
         case STREAM_SET_PAUSE_STATE:
@@ -87,39 +88,39 @@ static int Control( stream_t *p_access, int i_query, va_list args )
             break;
 
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 
 
-static int Open(vlc_object_t *obj)
+static int Open(heimdall_object_t *obj)
 {
     char *psz_path = NULL;
     stream_t *access = (stream_t *)obj;
-    vlc_tls_t *sock;
-    vlc_url_t url;
+    heimdall_tls_t *sock;
+    heimdall_url_t url;
 
 
-    if (vlc_UrlParse(&url, access->psz_url) || url.psz_host == NULL) 
+    if (heimdall_UrlParse(&url, access->psz_url) || url.psz_host == NULL) 
     {
         msg_Err(access, "invalid location: %s", access->psz_location);
-        vlc_UrlClean(&url);
-        return VLC_EGENERIC;
+        heimdall_UrlClean(&url);
+        return HEIMDALL_EGENERIC;
     }
 
     if (url.i_port == 0)
     {
         url.i_port = 70;
     }
-    sock = vlc_tls_SocketOpenTCP(obj, url.psz_host, url.i_port);
+    sock = heimdall_tls_SocketOpenTCP(obj, url.psz_host, url.i_port);
 
     if (unlikely(sock == NULL))
     {
         msg_Err(access, "cannot connect to %s:%d", url.psz_host, url.i_port);
-        vlc_UrlClean(&url);
-        return VLC_EGENERIC;
+        heimdall_UrlClean(&url);
+        return HEIMDALL_EGENERIC;
     }
 
     if (url.psz_path == NULL || strlen(url.psz_path) <= 3)
@@ -127,22 +128,22 @@ static int Open(vlc_object_t *obj)
         /* If no resource type is specified, look for the root resource */
         if (asprintf(&psz_path, "\r\n") == -1)
         {
-            vlc_UrlClean(&url);
-            vlc_tls_SessionDelete(sock);
-            return VLC_EGENERIC;
+            heimdall_UrlClean(&url);
+            heimdall_tls_SessionDelete(sock);
+            return HEIMDALL_EGENERIC;
         }
         msg_Info(access, "path set to root resource");
     }
     else { /* strip resource type from URL */
         if(asprintf(&psz_path, "%s\r\n", url.psz_path+2) == -1)
         {
-            vlc_UrlClean(&url);
-            vlc_tls_SessionDelete(sock);
-            return VLC_EGENERIC;
+            heimdall_UrlClean(&url);
+            heimdall_tls_SessionDelete(sock);
+            return HEIMDALL_EGENERIC;
         }
         msg_Info(access, "stripped resource type from path");
     }
-    vlc_UrlClean(&url);
+    heimdall_UrlClean(&url);
 
     access->p_sys = sock;
     access->pf_read = Read;
@@ -151,22 +152,22 @@ static int Open(vlc_object_t *obj)
     access->pf_seek = NULL;
 
     msg_Dbg(access, "requesting resource: %s", psz_path);
-    if (vlc_tls_Write(access->p_sys, psz_path, strlen(psz_path)) < 0)
+    if (heimdall_tls_Write(access->p_sys, psz_path, strlen(psz_path)) < 0)
     {
-        vlc_tls_SessionDelete(access->p_sys);
+        heimdall_tls_SessionDelete(access->p_sys);
         free(psz_path);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     free(psz_path);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void Close( vlc_object_t *p_this )
+static void Close( heimdall_object_t *p_this )
 {
     stream_t *access = (stream_t *)p_this;
 
-    vlc_tls_SessionDelete(access->p_sys);
+    heimdall_tls_SessionDelete(access->p_sys);
 }
 
 

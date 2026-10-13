@@ -2,9 +2,10 @@
  * intf.m: macOS minimal interface module
  *****************************************************************************
  * Copyright (C) 2002-2017 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Pierre d'Herbemont <pdherbemont # videolan.org>
- *          Felix Paul Kühne <fkuehne at videolan dot org>
+ *          Felix Paul Kühne <fkuehne at lycaria dot org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -32,11 +33,11 @@
 # import "config.h"
 #endif
 
-#import <vlc_common.h>
-#import <vlc_interface.h>
-#import <vlc_window.h>
+#import <heimdall_common.h>
+#import <heimdall_interface.h>
+#import <heimdall_window.h>
 
-#import "VLCMinimalVoutWindow.h"
+#import "HeimdallMinimalVoutWindow.h"
 
 /*****************************************************************************
  * Local prototypes.
@@ -46,7 +47,7 @@ static void Run (intf_thread_t *p_intf);
 /*****************************************************************************
  * OpenIntf: initialize interface
  *****************************************************************************/
-int OpenIntf (vlc_object_t *p_this)
+int OpenIntf (heimdall_object_t *p_this)
 {
     intf_thread_t *p_intf = (intf_thread_t*) p_this;
     msg_Dbg(p_intf, "Using minimal macosx interface");
@@ -55,13 +56,13 @@ int OpenIntf (vlc_object_t *p_this)
 
     Run(p_intf);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * CloseIntf: destroy interface
  *****************************************************************************/
-void CloseIntf (vlc_object_t *p_this)
+void CloseIntf (heimdall_object_t *p_this)
 {
     intf_thread_t *p_intf = (intf_thread_t*) p_this;
 
@@ -91,7 +92,7 @@ static void Run(intf_thread_t *p_intf)
         if (!CPSGetCurrentProcess(&PSN) && !CPSEnableForegroundOperation(&PSN,0x03,0x3C,0x2C,0x1103) && !CPSSetFrontProcess(&PSN)) {
             application = NSApplication.sharedApplication;
         } else {
-            msg_Err(p_intf, "Failed to start VLC minimal interface");
+            msg_Err(p_intf, "Failed to start Heimdall minimal interface");
             return;
         }
     }
@@ -101,20 +102,20 @@ static void Run(intf_thread_t *p_intf)
  * Vout window management
  *****************************************************************************/
 
-static int WindowEnable(vlc_window_t *p_wnd, const vlc_window_cfg_t *cfg)
+static int WindowEnable(heimdall_window_t *p_wnd, const heimdall_window_cfg_t *cfg)
 {
     @autoreleasepool {
-        VLCMinimalVoutWindow __block *o_window;
+        HeimdallMinimalVoutWindow __block *o_window;
         NSRect proposedVideoViewPosition = NSMakeRect(cfg->x, cfg->y, cfg->width, cfg->height);
 
         dispatch_sync(dispatch_get_main_queue(), ^{
-            o_window = [[VLCMinimalVoutWindow alloc] initWithContentRect:proposedVideoViewPosition];
+            o_window = [[HeimdallMinimalVoutWindow alloc] initWithContentRect:proposedVideoViewPosition];
             [o_window makeKeyAndOrderFront:nil];
         });
 
         if (!o_window) {
             msg_Err(p_wnd, "window creation failed");
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         msg_Dbg(p_wnd, "returning video window with proposed position x=%i, y=%i, width=%i, height=%i", cfg->x, cfg->y, cfg->width, cfg->height);
@@ -122,11 +123,11 @@ static int WindowEnable(vlc_window_t *p_wnd, const vlc_window_cfg_t *cfg)
     }
 
     if (cfg->is_fullscreen)
-        vlc_window_SetFullScreen(p_wnd, NULL);
-    return VLC_SUCCESS;
+        heimdall_window_SetFullScreen(p_wnd, NULL);
+    return HEIMDALL_SUCCESS;
 }
 
-static void WindowDisable(vlc_window_t *p_wnd)
+static void WindowDisable(heimdall_window_t *p_wnd)
 {
     @autoreleasepool {
         NSWindow * o_window = [(__bridge id)p_wnd->handle.nsobject window];
@@ -135,7 +136,7 @@ static void WindowDisable(vlc_window_t *p_wnd)
     }
 }
 
-static void WindowResize(vlc_window_t *p_wnd,
+static void WindowResize(heimdall_window_t *p_wnd,
                          unsigned i_width, unsigned i_height)
 {
     NSWindow* o_window = [(__bridge id)p_wnd->handle.nsobject window];
@@ -150,36 +151,36 @@ static void WindowResize(vlc_window_t *p_wnd,
     }
 }
 
-static void WindowSetState(vlc_window_t *p_wnd, unsigned state)
+static void WindowSetState(heimdall_window_t *p_wnd, unsigned state)
 {
     NSWindow* o_window = [(__bridge id)p_wnd->handle.nsobject window];
 
     [o_window setLevel:state];
 }
 
-static void WindowUnsetFullscreen(vlc_window_t *p_wnd)
+static void WindowUnsetFullscreen(heimdall_window_t *p_wnd)
 {
     NSWindow* o_window = [(__bridge id)p_wnd->handle.nsobject window];
 
     @autoreleasepool {
         dispatch_sync(dispatch_get_main_queue(), ^{
-            [(VLCMinimalVoutWindow*)o_window leaveFullscreen];
+            [(HeimdallMinimalVoutWindow*)o_window leaveFullscreen];
         });
     }
 }
 
-static void WindowSetFullscreen(vlc_window_t *p_wnd, const char *psz_id)
+static void WindowSetFullscreen(heimdall_window_t *p_wnd, const char *psz_id)
 {
     NSWindow* o_window = [(__bridge id)p_wnd->handle.nsobject window];
 
     @autoreleasepool {
         dispatch_sync(dispatch_get_main_queue(), ^{
-            [(VLCMinimalVoutWindow*)o_window enterFullscreen];
+            [(HeimdallMinimalVoutWindow*)o_window enterFullscreen];
         });
     }
 }
 
-static const struct vlc_window_operations ops = {
+static const struct heimdall_window_operations ops = {
     .enable = WindowEnable,
     .disable = WindowDisable,
     .resize = WindowResize,
@@ -188,9 +189,9 @@ static const struct vlc_window_operations ops = {
     .set_fullscreen = WindowSetFullscreen,
 };
 
-int WindowOpen(vlc_window_t *p_wnd)
+int WindowOpen(heimdall_window_t *p_wnd)
 {
-    p_wnd->type = VLC_WINDOW_TYPE_NSOBJECT;
+    p_wnd->type = HEIMDALL_WINDOW_TYPE_NSOBJECT;
     p_wnd->ops = &ops;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

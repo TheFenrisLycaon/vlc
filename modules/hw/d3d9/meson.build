@@ -3,7 +3,7 @@
 #
 
 if have_win_desktop
-vlc_modules += {
+heimdall_modules += {
     'name' : 'direct3d9_filters',
     'sources' : files(
         'd3d9_filters.c',
@@ -13,7 +13,7 @@ vlc_modules += {
         ),
     'link_with' : [ d3d9_common_lib, chroma_copy_lib, deinterlacecommon_lib ],
     'dependencies' : [ cc.find_library('dxva2') ],
-    'include_directories' : [vlc_include_dirs],
+    'include_directories' : [heimdall_include_dirs],
     'plugin_dir' : 'd3d9',
     'enabled' : get_option('directx').allowed()
 }

@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright © 2014-2016 VideoLAN and VideoLAN Authors
  *                  2018 VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -23,9 +24,9 @@
 
 #include "SDIOutput.hpp"
 
-#include <vlc_es.h>
-#include <vlc_threads.h>
-#include "../../access/vlc_decklink.h"
+#include <heimdall_es.h>
+#include <heimdall_threads.h>
+#include "../../access/heimdall_decklink.h"
 
 namespace sdi_sout
 {
@@ -57,22 +58,22 @@ namespace sdi_sout
 
             BMDTimeScale timescale;
             BMDTimeValue frameduration;
-            vlc_tick_t lasttimestamp;
+            heimdall_tick_t lasttimestamp;
             /* XXX: workaround card clock drift */
             struct
             {
-                vlc_tick_t offset; /* > 0 if clock card is slower */
-                vlc_tick_t system_reference;
+                heimdall_tick_t offset; /* > 0 if clock card is slower */
+                heimdall_tick_t system_reference;
                 BMDTimeValue hardware_reference;
             } clock;
             bool b_running;
-            vlc_tick_t streamStartTime;
+            heimdall_tick_t streamStartTime;
             int StartPlayback();
             struct
             {
-                vlc_mutex_t lock; /* Driver calls callback... until buffer is empty :/ */
-                vlc_cond_t cond;
-                vlc_thread_t thread;
+                heimdall_mutex_t lock; /* Driver calls callback... until buffer is empty :/ */
+                heimdall_cond_t cond;
+                heimdall_thread_t thread;
                 bool canceled;
             } feeder;
             static void *feederThreadCallback(void *);
@@ -80,7 +81,7 @@ namespace sdi_sout
             int doSchedule();
             int doProcessVideo(picture_t *, block_t *);
             int FeedOneFrame();
-            int FeedAudio(vlc_tick_t, vlc_tick_t, bool);
+            int FeedAudio(heimdall_tick_t, heimdall_tick_t, bool);
             void checkClockDrift();
             bool isDrained();
     };

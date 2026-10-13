@@ -2,8 +2,9 @@
  * stl.c: EBU STL decoder
  *****************************************************************************
  * Copyright (C) 2010 Laurent Aimar
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Laurent Aimar <fenrir _AT_ videolan _DOT_ org>
+ * Authors: Laurent Aimar <fenrir _AT_ lycaria _DOT_ org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -28,25 +29,25 @@
 #endif
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
-#include <vlc_charset.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
+#include <heimdall_charset.h>
 
 #include "substext.h" /* required for font scaling / updater */
 
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  Open (vlc_object_t *);
-static void Close(vlc_object_t *);
+static int  Open (heimdall_object_t *);
+static void Close(heimdall_object_t *);
 
-vlc_module_begin()
+heimdall_module_begin()
     set_description(N_("EBU STL subtitles decoder"))
     set_subcategory(SUBCAT_INPUT_SCODEC)
     set_capability("spu decoder", 10)
     set_callbacks(Open, Close)
-vlc_module_end()
+heimdall_module_end()
 
 /*****************************************************************************
  * Local definitions/prototypes
@@ -85,8 +86,8 @@ typedef struct
 {
     uint8_t i_accumulating;
     uint8_t i_justify;
-    vlc_tick_t i_start;
-    vlc_tick_t i_end;
+    heimdall_tick_t i_start;
+    heimdall_tick_t i_end;
     text_style_t *p_style;
     text_segment_t *p_segment;
     text_segment_t **pp_segment_last;
@@ -244,9 +245,9 @@ static void GroupApplyStyle(stl_sg_t *p_group, uint8_t code)
     }
 }
 
-static vlc_tick_t ParseTimeCode(const uint8_t *data, double fps)
+static heimdall_tick_t ParseTimeCode(const uint8_t *data, double fps)
 {
-    return vlc_tick_from_sec( data[0] * 3600 +
+    return heimdall_tick_from_sec( data[0] * 3600 +
                          data[1] *   60 +
                          data[2] *    1 +
                          data[3] /  fps);
@@ -371,8 +372,8 @@ static void ResetGroups(decoder_sys_t *p_sys)
         }
 
         p_group->i_accumulating = false;
-        p_group->i_end = VLC_TICK_INVALID;
-        p_group->i_start = VLC_TICK_INVALID;
+        p_group->i_end = HEIMDALL_TICK_INVALID;
+        p_group->i_start = HEIMDALL_TICK_INVALID;
         p_group->i_justify = 0;
     }
 }
@@ -380,7 +381,7 @@ static void ResetGroups(decoder_sys_t *p_sys)
 static int Decode(decoder_t *p_dec, block_t *p_block)
 {
     if (p_block == NULL) /* No Drain */
-        return VLCDEC_SUCCESS;
+        return HEIMDALLDEC_SUCCESS;
 
     decoder_sys_t *p_sys = p_dec->p_sys;
 
@@ -394,7 +395,7 @@ static int Decode(decoder_t *p_dec, block_t *p_block)
         if(p_block->i_flags & BLOCK_FLAG_CORRUPTED)
         {
             block_Release(p_block);
-            return VLCDEC_SUCCESS;
+            return HEIMDALLDEC_SUCCESS;
         }
     }
 
@@ -411,10 +412,10 @@ static int Decode(decoder_t *p_dec, block_t *p_block)
             {
                 FillSubpictureUpdater(p_group, p_sub->updater.sys );
 
-                if(p_group->i_end != VLC_TICK_INVALID && p_group->i_start >= p_block->i_dts)
+                if(p_group->i_end != HEIMDALL_TICK_INVALID && p_group->i_start >= p_block->i_dts)
                 {
-                    p_sub->i_start = VLC_TICK_0 + p_group->i_start;
-                    p_sub->i_stop =  VLC_TICK_0 + p_group->i_end;
+                    p_sub->i_start = HEIMDALL_TICK_0 + p_group->i_start;
+                    p_sub->i_stop =  HEIMDALL_TICK_0 + p_group->i_end;
                 }
                 else
                 {
@@ -430,7 +431,7 @@ static int Decode(decoder_t *p_dec, block_t *p_block)
     ResetGroups(p_sys);
 
     block_Release(p_block);
-    return VLCDEC_SUCCESS;
+    return HEIMDALLDEC_SUCCESS;
 }
 
 static int ParseGSI(decoder_t *dec, decoder_sys_t *p_sys)
@@ -438,12 +439,12 @@ static int ParseGSI(decoder_t *dec, decoder_sys_t *p_sys)
     uint8_t *header = dec->fmt_in->p_extra;
     if (!header) {
         msg_Err(dec, "NULL EBU header (GSI block)\n");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if (GSI_BLOCK_SIZE != dec->fmt_in->i_extra) {
         msg_Err(dec, "EBU header is not in expected size (%zu)\n", dec->fmt_in->i_extra);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     char dfc_fps_str[] = { header[6], header[7], '\0' };
@@ -456,29 +457,29 @@ static int ParseGSI(decoder_t *dec, decoder_sys_t *p_sys)
     int cct = (header[12] << 8) | header[13];
     if (CCT_BEGIN > cct || CCT_END < cct) {
         msg_Err(dec, "EBU header contains illegal CCT (0x%x)\n", cct);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     msg_Dbg(dec, "DFC fps=%d, CCT=0x%x", fps, cct);
     p_sys->i_fps = fps;
     p_sys->cct = cct;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int Open(vlc_object_t *object)
+static int Open(heimdall_object_t *object)
 {
     decoder_t *dec = (decoder_t*)object;
 
-    if (dec->fmt_in->i_codec != VLC_CODEC_EBU_STL)
-        return VLC_EGENERIC;
+    if (dec->fmt_in->i_codec != HEIMDALL_CODEC_EBU_STL)
+        return HEIMDALL_EGENERIC;
 
     decoder_sys_t *sys = calloc(1, sizeof(*sys));
     if (!sys)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     int rc = ParseGSI(dec, sys);
-    if (VLC_SUCCESS != rc) {
+    if (HEIMDALL_SUCCESS != rc) {
         free(sys);
         return rc;
     }
@@ -489,10 +490,10 @@ static int Open(vlc_object_t *object)
     dec->p_sys = sys;
     dec->pf_decode = Decode;
     dec->fmt_out.i_codec = 0;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void Close(vlc_object_t *object)
+static void Close(heimdall_object_t *object)
 {
     decoder_t *dec = (decoder_t*)object;
     decoder_sys_t *p_sys = dec->p_sys;

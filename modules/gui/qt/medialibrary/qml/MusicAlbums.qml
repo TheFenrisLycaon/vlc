@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,12 +18,12 @@
  *****************************************************************************/
 import QtQuick
 
-import VLC.MediaLibrary
+import Heimdall.MediaLibrary
 
-import VLC.Util
-import VLC.Widgets as Widgets
-import VLC.MainInterface
-import VLC.Style
+import Heimdall.Util
+import Heimdall.Widgets as Widgets
+import Heimdall.MainInterface
+import Heimdall.Style
 
 MainViewLoader {
     id: root
@@ -86,7 +87,7 @@ MainViewLoader {
         indexes: indexesFlat ? selectionModel.selectedIndexesFlat
                              : selectionModel.selectedIndexes
         indexesFlat: !!selectionModel.selectedIndexesFlat
-        defaultCover: VLCStyle.noArtAlbumCover
+        defaultCover: HeimdallStyle.noArtAlbumCover
     }
 
     MLContextMenu {
@@ -101,8 +102,8 @@ MainViewLoader {
         Widgets.ExpandGridItemView {
             id: gridView_id
 
-            basePictureWidth: VLCStyle.gridCover_music_width
-            basePictureHeight: VLCStyle.gridCover_music_height
+            basePictureWidth: HeimdallStyle.gridCover_music_width
+            basePictureHeight: HeimdallStyle.gridCover_music_height
 
             activeFocusOnTab:true
 
@@ -140,7 +141,7 @@ MainViewLoader {
 
                 Behavior on opacity {
                     OpacityAnimator {
-                        duration: VLCStyle.duration_short
+                        duration: HeimdallStyle.duration_short
                     }
                 }
             }
@@ -204,7 +205,7 @@ MainViewLoader {
                     headerDelegate: tableColumns.titleHeaderDelegate,
                     colDelegate: tableColumns.titleDelegate,
 
-                    placeHolder: VLCStyle.noArtAlbumCover
+                    placeHolder: HeimdallStyle.noArtAlbumCover
                 })
             }]
 
@@ -219,7 +220,7 @@ MainViewLoader {
                     headerDelegate: tableColumns.titleHeaderDelegate,
                     colDelegate: tableColumns.titleDelegate,
 
-                    placeHolder: VLCStyle.noArtAlbumCover
+                    placeHolder: HeimdallStyle.noArtAlbumCover
                 }
             }, {
                 weight: 1,
@@ -251,11 +252,11 @@ MainViewLoader {
             section.property: "title_first_symbol"
             preferredHeader: root.header
             dragItem: albumDragItem
-            rowHeight: VLCStyle.tableCoverRow_height
+            rowHeight: HeimdallStyle.tableCoverRow_height
 
             rowContextMenu: contextMenu
 
-            sortModel: (_availableRowWidth < VLCStyle.colWidth(4)) ? _modelSmall
+            sortModel: (_availableRowWidth < HeimdallStyle.colWidth(4)) ? _modelSmall
                                                                    : _modelMedium
 
             displayMarginBeginning: root.displayMarginBeginning
@@ -297,7 +298,7 @@ MainViewLoader {
         Widgets.EmptyLabelButton {
             text: qsTr("No albums found\nPlease try adding sources")
             Navigation.parentItem: root
-            cover: VLCStyle.noArtAlbumCover
+            cover: HeimdallStyle.noArtAlbumCover
         }
     }
 }

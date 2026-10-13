@@ -2,6 +2,7 @@
  * AuthStorage.hpp
  *****************************************************************************
  * Copyright (C) 2017 - VideoLabs and VideoLAN Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -20,8 +21,8 @@
 #ifndef AUTHSTORAGE_HPP_
 #define AUTHSTORAGE_HPP_
 
-#include <vlc_common.h>
-#include <vlc_http.h>
+#include <heimdall_common.h>
+#include <heimdall_http.h>
 
 #include <string>
 
@@ -34,14 +35,14 @@ namespace adaptive
         class AuthStorage
         {
             public:
-                AuthStorage(vlc_object_t *p_obj);
+                AuthStorage(heimdall_object_t *p_obj);
                 ~AuthStorage();
                 void addCookie( const std::string &cookie, const ConnectionParams & );
                 std::string getCookie( const ConnectionParams &, bool secure );
-                vlc_http_cookie_jar_t *getJar() const;
+                heimdall_http_cookie_jar_t *getJar() const;
 
             private:
-                vlc_http_cookie_jar_t *p_cookies_jar;
+                heimdall_http_cookie_jar_t *p_cookies_jar;
         };
     }
 }

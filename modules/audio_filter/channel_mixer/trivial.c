@@ -2,6 +2,7 @@
  * trivial.c : trivial channel mixer plug-in (drops unwanted channels)
  *****************************************************************************
  * Copyright (C) 2002, 2006, 2014 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Christophe Massiot <massiot@via.ecp.fr>
  *
@@ -30,19 +31,19 @@
 
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_aout.h>
-#include <vlc_filter.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_aout.h>
+#include <heimdall_filter.h>
 
-static int Create( vlc_object_t * );
+static int Create( heimdall_object_t * );
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("Audio filter for trivial channel mixing") )
     set_capability( "audio converter", 1 )
     set_subcategory( SUBCAT_AUDIO_AFILTER )
     set_callback( Create )
-vlc_module_end ()
+heimdall_module_end ()
 
 typedef struct
 {
@@ -166,33 +167,33 @@ static block_t *Extract( filter_t *p_filter, block_t *p_in_buf )
 /**
  * Probes the trivial channel mixer
  */
-static int Create( vlc_object_t *p_this )
+static int Create( heimdall_object_t *p_this )
 {
     filter_t *p_filter = (filter_t *)p_this;
     const audio_format_t *infmt = &p_filter->fmt_in.audio;
     const audio_format_t *outfmt = &p_filter->fmt_out.audio;
 
-    static const struct vlc_filter_operations equal_filter_ops =
+    static const struct heimdall_filter_operations equal_filter_ops =
         { .filter_audio = Equals };
 
-    static const struct vlc_filter_operations extract_filter_ops =
+    static const struct heimdall_filter_operations extract_filter_ops =
         { .filter_audio = Extract };
 
-    static const struct vlc_filter_operations upmix_filter_ops =
+    static const struct heimdall_filter_operations upmix_filter_ops =
         { .filter_audio = Upmix };
 
-    static const struct vlc_filter_operations downmix_filter_ops =
+    static const struct heimdall_filter_operations downmix_filter_ops =
         { .filter_audio = Downmix };
 
     if( infmt->i_physical_channels == 0 )
     {
         assert( infmt->i_channels > 0 );
         if( outfmt->i_physical_channels == 0 )
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         if( aout_FormatNbChannels( outfmt ) == infmt->i_channels )
         {
             p_filter->ops = &equal_filter_ops;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
         else
         {
@@ -200,21 +201,21 @@ static int Create( vlc_object_t *p_this )
                 msg_Info(p_filter, "%d channels will be dropped.",
                          infmt->i_channels - AOUT_CHAN_MAX);
             p_filter->ops = &extract_filter_ops;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
     }
 
     if( infmt->i_format != outfmt->i_format
      || infmt->i_rate != outfmt->i_rate
-     || infmt->i_format != VLC_CODEC_FL32 )
-        return VLC_EGENERIC;
+     || infmt->i_format != HEIMDALL_CODEC_FL32 )
+        return HEIMDALL_EGENERIC;
 
     /* trivial is the lowest priority converter: if chan_mode are different
      * here, this filter will still need to convert channels (and ignore
      * chan_mode). */
     if( infmt->i_physical_channels == outfmt->i_physical_channels
      && infmt->i_chan_mode == outfmt->i_chan_mode )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     p_filter->p_sys = NULL;
 
@@ -222,7 +223,7 @@ static int Create( vlc_object_t *p_this )
       && aout_FormatNbChannels( infmt ) == 1 )
     {
         p_filter->ops = &equal_filter_ops;
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
     /* Setup channel order */
@@ -233,14 +234,14 @@ static int Create( vlc_object_t *p_this )
     int i_src_idx = 0;
     int src_chans[AOUT_CHAN_MAX];
     for( unsigned i = 0; i < AOUT_CHAN_MAX; ++i )
-        src_chans[i] = pi_vlc_chan_order_wg4[i] & i_in_physical_channels ?
+        src_chans[i] = pi_heimdall_chan_order_wg4[i] & i_in_physical_channels ?
                        i_src_idx++ : -1;
 
     unsigned i_dst_idx = 0;
     int channel_map[AOUT_CHAN_MAX];
     for( unsigned i = 0; i < AOUT_CHAN_MAX; ++i )
     {
-        const uint32_t i_chan = pi_vlc_chan_order_wg4[i];
+        const uint32_t i_chan = pi_heimdall_chan_order_wg4[i];
         if( !( i_chan & i_out_physical_channels ) )
             continue; /* Output channel not present */
 
@@ -265,7 +266,7 @@ static int Create( vlc_object_t *p_this )
             {
                 /* Use Rear chans as Middle chans if Rear chans are not used */
                 assert( i + 2 < AOUT_CHAN_MAX );
-                assert( pi_vlc_chan_order_wg4[i + 2] & AOUT_CHANS_REAR );
+                assert( pi_heimdall_chan_order_wg4[i + 2] & AOUT_CHANS_REAR );
                 channel_map[i_dst_idx] = src_chans[i + 2];
             }
             else if( ( i_chan & AOUT_CHANS_REAR )
@@ -273,7 +274,7 @@ static int Create( vlc_object_t *p_this )
             {
                 /* Use Middle chans as Rear chans if Middle chans are not used */
                 assert( (int) i - 2 >= 0 );
-                assert( pi_vlc_chan_order_wg4[i - 2] & AOUT_CHANS_MIDDLE );
+                assert( pi_heimdall_chan_order_wg4[i - 2] & AOUT_CHANS_MIDDLE );
                 channel_map[i_dst_idx] = src_chans[i - 2];
             }
             else
@@ -304,13 +305,13 @@ static int Create( vlc_object_t *p_this )
         if( b_equals )
         {
             p_filter->ops = &equal_filter_ops;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
     }
 
-    filter_sys_t *p_sys = vlc_obj_malloc( VLC_OBJECT(p_filter), sizeof(*p_sys) );
+    filter_sys_t *p_sys = heimdall_obj_malloc( HEIMDALL_OBJECT(p_filter), sizeof(*p_sys) );
     if( unlikely(!p_sys) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     p_filter->p_sys = p_sys;
     memcpy( p_sys->channel_map, channel_map, sizeof(channel_map) );
 
@@ -319,5 +320,5 @@ static int Create( vlc_object_t *p_this )
     else
         p_filter->ops = &downmix_filter_ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

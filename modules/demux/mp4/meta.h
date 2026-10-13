@@ -2,6 +2,7 @@
  * meta.h: mp4 meta handling
  *****************************************************************************
  * Copyright (C) 2001-2004, 2010, 2014 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -17,8 +18,8 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
-#ifndef VLC_MP4_META_H_
-#define VLC_MP4_META_H_
+#ifndef HEIMDALL_MP4_META_H_
+#define HEIMDALL_MP4_META_H_
 
 struct qt_itunes_triplet_data
 {
@@ -51,7 +52,7 @@ struct qt_itunes_triplet_data
 
 typedef void (*qt_itunes_callback)(const struct qt_itunes_triplet_data *, void *);
 
-void SetupMeta( vlc_meta_t *p_meta, const MP4_Box_t *p_udta,
+void SetupMeta( heimdall_meta_t *p_meta, const MP4_Box_t *p_udta,
                 qt_itunes_callback, void *priv );
 
 

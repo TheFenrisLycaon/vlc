@@ -3,6 +3,7 @@
  */
 /*****************************************************************************
  * Copyright (C) 2022 VideoLabs, VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License
@@ -29,17 +30,17 @@
 
 #define FLAG_DONL 1
 
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
 
 struct h265_pt_opaque
 {
     block_t *sdpxps;
     bool b_donl;
-    vlc_object_t *obj;
+    heimdall_object_t *obj;
 };
 
-static void *rtp_h265_init(struct vlc_rtp_pt *pt)
+static void *rtp_h265_init(struct heimdall_rtp_pt *pt)
 {
     struct h265_pt_opaque *opaque = pt->opaque;
     struct rtp_h26x_sys *sys = malloc(sizeof(*sys));
@@ -48,7 +49,7 @@ static void *rtp_h265_init(struct vlc_rtp_pt *pt)
     rtp_h26x_init(sys);
 
     es_format_t fmt;
-    es_format_Init (&fmt, VIDEO_ES, VLC_CODEC_HEVC);
+    es_format_Init (&fmt, VIDEO_ES, HEIMDALL_CODEC_HEVC);
     fmt.b_packetized = false;
 
     sys->p_packetizer = demux_PacketizerNew(opaque->obj, &fmt, "rtp packetizer");
@@ -58,7 +59,7 @@ static void *rtp_h265_init(struct vlc_rtp_pt *pt)
         return NULL;
     }
 
-    sys->es = vlc_rtp_pt_request_es(pt, &sys->p_packetizer->fmt_out);
+    sys->es = heimdall_rtp_pt_request_es(pt, &sys->p_packetizer->fmt_out);
     if(opaque->sdpxps)
         sys->xps = block_Duplicate(opaque->sdpxps);
     if(opaque->b_donl)
@@ -67,15 +68,15 @@ static void *rtp_h265_init(struct vlc_rtp_pt *pt)
     return sys;
 }
 
-static void rtp_h265_destroy(struct vlc_rtp_pt *pt, void *data)
+static void rtp_h265_destroy(struct heimdall_rtp_pt *pt, void *data)
 {
-    VLC_UNUSED(pt);
+    HEIMDALL_UNUSED(pt);
     struct rtp_h26x_sys *sys = data;
     if(sys)
     {
         if(sys->p_packetizer)
             demux_PacketizerDestroy(sys->p_packetizer);
-        vlc_rtp_es_destroy(sys->es);
+        heimdall_rtp_es_destroy(sys->es);
         rtp_h26x_clear(sys);
         free(sys);
     }
@@ -154,10 +155,10 @@ static block_t * h265_deaggregate_AP(block_t *block, bool b_donl, bool b_annexb)
     return block;
 }
 
-static void rtp_h265_decode (struct vlc_rtp_pt *pt, void *data, block_t *block,
-                             const struct vlc_rtp_pktinfo *restrict info)
+static void rtp_h265_decode (struct heimdall_rtp_pt *pt, void *data, block_t *block,
+                             const struct heimdall_rtp_pktinfo *restrict info)
 {
-    VLC_UNUSED(pt);
+    HEIMDALL_UNUSED(pt);
     struct rtp_h26x_sys *sys = data;
     const bool b_au_end = info->m;
 
@@ -170,7 +171,7 @@ static void rtp_h265_decode (struct vlc_rtp_pt *pt, void *data, block_t *block,
     const uint8_t type = (block->p_buffer[0] & 0x7E) >> 1;
     const uint8_t layerID = ((block->p_buffer[0] & 0x01) << 5) | (block->p_buffer[1] >> 3);
     const uint8_t temporalID = block->p_buffer[1] & 0x07;
-    const vlc_tick_t pts = block->i_pts;
+    const heimdall_tick_t pts = block->i_pts;
 
     switch(type)
     {
@@ -270,7 +271,7 @@ drop:
         block_Release(block);
 }
 
-static void rtp_h265_release(struct vlc_rtp_pt *pt)
+static void rtp_h265_release(struct heimdall_rtp_pt *pt)
 {
     struct h265_pt_opaque *opaque = pt->opaque;
     if(opaque->sdpxps)
@@ -278,34 +279,34 @@ static void rtp_h265_release(struct vlc_rtp_pt *pt)
     free(opaque);
 }
 
-static const struct vlc_rtp_pt_operations rtp_h265_ops = {
+static const struct heimdall_rtp_pt_operations rtp_h265_ops = {
     rtp_h265_release, rtp_h265_init, rtp_h265_destroy, rtp_h265_decode,
 };
 
-static int rtp_h265_open(vlc_object_t *obj, struct vlc_rtp_pt *pt,
-                         const struct vlc_sdp_pt *desc)
+static int rtp_h265_open(heimdall_object_t *obj, struct heimdall_rtp_pt *pt,
+                         const struct heimdall_sdp_pt *desc)
 {
-    if (vlc_ascii_strcasecmp(desc->name, "H265") == 0)
+    if (heimdall_ascii_strcasecmp(desc->name, "H265") == 0)
         pt->ops = &rtp_h265_ops;
     else
-        return VLC_ENOTSUP;
+        return HEIMDALL_ENOTSUP;
 
     struct h265_pt_opaque *opaque = calloc(1, sizeof(*opaque));
     if(!opaque)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     pt->opaque = opaque;
 
     opaque->obj = obj;
 
     uint16_t don_diff;
-    if(!vlc_sdp_fmtp_get(desc, "sprop-max-don-diff", &don_diff))
+    if(!heimdall_sdp_fmtp_get(desc, "sprop-max-don-diff", &don_diff))
         opaque->b_donl = (don_diff > 0);
 
     block_t **append = &opaque->sdpxps;
     const char *props[] = { "sprop-vps", "sprop-sps", "sprop-pps" };
     for(size_t i=0; i<ARRAY_SIZE(props); i++) {
         size_t len;
-        const char *value = vlc_sdp_fmtp_get_str(desc, props[i], &len);
+        const char *value = heimdall_sdp_fmtp_get_str(desc, props[i], &len);
         if(!value || len == 0)
             continue;
         block_t *xps = h26x_fillextradata(value);
@@ -315,13 +316,13 @@ static int rtp_h265_open(vlc_object_t *obj, struct vlc_rtp_pt *pt,
     if(opaque->sdpxps)
         opaque->sdpxps = block_ChainGather(opaque->sdpxps);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname(N_("RTP H265"))
     set_description(N_("RTP H265 payload parser"))
     set_subcategory(SUBCAT_INPUT_DEMUX)
     set_rtp_parser_callback(rtp_h265_open)
     add_shortcut("video/H265")
-vlc_module_end()
+heimdall_module_end()

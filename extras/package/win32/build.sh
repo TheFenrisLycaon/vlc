@@ -15,7 +15,7 @@ usage()
 cat << EOF
 usage: $0 [options]
 
-Build vlc in the current directory
+Build heimdall in the current directory
 
 OPTIONS:
    -h            Show some help
@@ -29,14 +29,14 @@ OPTIONS:
    -s            Interactive shell (get correct environment variables for build)
    -b <url>      Enable breakpad support and send crash reports to this URL
    -d            Create PDB files during the build
-   -D <win_path> Create PDB files during the build, map the VLC sources to <win_path>
-                 e.g.: -D c:/sources/vlc
+   -D <win_path> Create PDB files during the build, map the Heimdall sources to <win_path>
+                 e.g.: -D c:/sources/heimdall
    -t            Link Time Optimization (LTO)
    -x            Add extra checks when compiling
    -S <sdkver>   Use maximum Windows API version (0x06010000 Windows 7 by default)
    -u            Use the Universal C Runtime (instead of msvcrt)
    -w            Restrict to Windows Store APIs
-   -z            Build without GUI (libvlc only)
+   -z            Build without GUI (libheimdall only)
    -o <path>     Install the built binaries in the absolute path
    -m            Build with Meson rather than autotools
    -g <g|l|a>    Select the license of contribs
@@ -155,7 +155,7 @@ fi
 #####
 
 SCRIPT_PATH="$( cd "$(dirname "$0")" ; pwd -P )"
-VLC_ROOT_PATH="$( cd "${SCRIPT_PATH}/../../.." ; pwd -P )"
+HEIMDALL_ROOT_PATH="$( cd "${SCRIPT_PATH}/../../.." ; pwd -P )"
 
 : ${JOBS:=$(getconf _NPROCESSORS_ONLN 2>&1)}
 TRIPLET=$ARCH-w64-mingw32
@@ -184,7 +184,7 @@ fi
 info "Building extra tools"
 mkdir -p extras/tools
 cd extras/tools
-export VLC_TOOLS="$PWD/build"
+export HEIMDALL_TOOLS="$PWD/build"
 
 export PATH="$PWD/build/bin":"$PATH"
 
@@ -197,12 +197,12 @@ elif [ -n "$WITH_LTO" ] && [ ! -d "libtool" ]; then
 fi
 # bootstrap only if needed in interactive mode
 if [ "$INTERACTIVE" != "yes" ] || [ ! -f ./Makefile ]; then
-    NEEDED="$FORCED_TOOLS" ${VLC_ROOT_PATH}/extras/tools/bootstrap
+    NEEDED="$FORCED_TOOLS" ${HEIMDALL_ROOT_PATH}/extras/tools/bootstrap
 fi
 make -j$JOBS
 
 # avoid installing wine on WSL
-# wine is needed to build Qt with shaders or running vlc-cache-gen
+# wine is needed to build Qt with shaders or running heimdall-cache-gen
 if test -z "$(command -v wine)"; then
     if test -n "$(command -v wsl.exe)"; then
         echo "Using wsl.exe to replace wine"
@@ -223,9 +223,9 @@ fi
 HOST="$(cc -dumpmachine)"
 HOST_ARCH="${HOST%%-*}"
 if [ "$HOST_ARCH" = "$ARCH" ]; then
-    VLC_EXE_WRAPPER="wine"
+    HEIMDALL_EXE_WRAPPER="wine"
 elif [ "$HOST_ARCH" = "x86_64" ] && [ "$ARCH" = "i686" ]; then
-    VLC_EXE_WRAPPER="wine"
+    HEIMDALL_EXE_WRAPPER="wine"
 fi
 
 cd ../../
@@ -290,22 +290,22 @@ else
 fi
 fi
 
-VLC_CFLAGS="$CFLAGS"
+HEIMDALL_CFLAGS="$CFLAGS"
 unset CFLAGS
-VLC_CXXFLAGS="$CXXFLAGS"
+HEIMDALL_CXXFLAGS="$CXXFLAGS"
 unset CXXFLAGS
-VLC_CPPFLAGS="$CPPFLAGS"
+HEIMDALL_CPPFLAGS="$CPPFLAGS"
 unset CPPFLAGS
-VLC_LDFLAGS="$LDFLAGS"
+HEIMDALL_LDFLAGS="$LDFLAGS"
 unset LDFLAGS
 
 if [ -n "$BUILD_UCRT" ]; then
-    VLC_CPPFLAGS="$VLC_CPPFLAGS -D__MSVCRT_VERSION__=0xE00 -D_UCRT"
+    HEIMDALL_CPPFLAGS="$HEIMDALL_CPPFLAGS -D__MSVCRT_VERSION__=0xE00 -D_UCRT"
 
     if [ -n "$WINSTORE" ]; then
         SHORTARCH="$SHORTARCH-uwp"
         TRIPLET=${TRIPLET}uwp
-        VLC_CPPFLAGS="$VLC_CPPFLAGS -DWINAPI_FAMILY=WINAPI_FAMILY_APP -D_UNICODE -DUNICODE"
+        HEIMDALL_CPPFLAGS="$HEIMDALL_CPPFLAGS -DWINAPI_FAMILY=WINAPI_FAMILY_APP -D_UNICODE -DUNICODE"
 
         if [ -z "$NTDDI" ]; then
             WINVER=0x0A00
@@ -317,30 +317,30 @@ if [ -n "$BUILD_UCRT" ]; then
         fi
 
         if [ "${COMPILING_WITH_CLANG14}" = "1" ]; then
-            VLC_LDFLAGS="$VLC_LDFLAGS --start-no-unused-arguments"
-            VLC_CFLAGS="$VLC_CFLAGS --start-no-unused-arguments"
-            VLC_CXXFLAGS="$VLC_CXXFLAGS --start-no-unused-arguments"
+            HEIMDALL_LDFLAGS="$HEIMDALL_LDFLAGS --start-no-unused-arguments"
+            HEIMDALL_CFLAGS="$HEIMDALL_CFLAGS --start-no-unused-arguments"
+            HEIMDALL_CXXFLAGS="$HEIMDALL_CXXFLAGS --start-no-unused-arguments"
         fi
-        VLC_LDFLAGS="$VLC_LDFLAGS -Wl,-lwindowsapp"
-        VLC_CFLAGS="$VLC_CFLAGS -Wl,-lwindowsapp"
-        VLC_CXXFLAGS="$VLC_CXXFLAGS -Wl,-lwindowsapp"
+        HEIMDALL_LDFLAGS="$HEIMDALL_LDFLAGS -Wl,-lwindowsapp"
+        HEIMDALL_CFLAGS="$HEIMDALL_CFLAGS -Wl,-lwindowsapp"
+        HEIMDALL_CXXFLAGS="$HEIMDALL_CXXFLAGS -Wl,-lwindowsapp"
         if [ "${COMPILING_WITH_CLANG14}" = "1" ]; then
-            VLC_LDFLAGS="$VLC_LDFLAGS --end-no-unused-arguments"
-            VLC_CFLAGS="$VLC_CFLAGS --end-no-unused-arguments"
-            VLC_CXXFLAGS="$VLC_CXXFLAGS --end-no-unused-arguments"
+            HEIMDALL_LDFLAGS="$HEIMDALL_LDFLAGS --end-no-unused-arguments"
+            HEIMDALL_CFLAGS="$HEIMDALL_CFLAGS --end-no-unused-arguments"
+            HEIMDALL_CXXFLAGS="$HEIMDALL_CXXFLAGS --end-no-unused-arguments"
         fi
     else
         SHORTARCH="$SHORTARCH-ucrt"
     fi
 
-    VLC_LDFLAGS="$VLC_LDFLAGS -lucrt"
+    HEIMDALL_LDFLAGS="$HEIMDALL_LDFLAGS -lucrt"
     if [ ! "$COMPILING_WITH_CLANG" -gt 0 ]; then
         # assume gcc
         NEWSPECFILE="$(pwd)/specfile-$SHORTARCH"
         # tell gcc to replace msvcrt with ucrtbase+ucrt
         $CC -dumpspecs | sed -e "s/-lmsvcrt/-lucrt/" > $NEWSPECFILE
-        VLC_CFLAGS="$VLC_CFLAGS -specs=$NEWSPECFILE"
-        VLC_CXXFLAGS="$VLC_CXXFLAGS -specs=$NEWSPECFILE"
+        HEIMDALL_CFLAGS="$HEIMDALL_CFLAGS -specs=$NEWSPECFILE"
+        HEIMDALL_CXXFLAGS="$HEIMDALL_CXXFLAGS -specs=$NEWSPECFILE"
 
         if [ -n "$WINSTORE" ]; then
             # trick to provide these libraries instead of -ladvapi32 -lshell32 -luser32 -lkernel32
@@ -352,21 +352,21 @@ if [ -n "$BUILD_UCRT" ]; then
     fi
 else
     # use the regular msvcrt
-    VLC_CPPFLAGS="$VLC_CPPFLAGS -D__MSVCRT_VERSION__=0x700"
+    HEIMDALL_CPPFLAGS="$HEIMDALL_CPPFLAGS -D__MSVCRT_VERSION__=0x700"
 fi
 
 if [ -n "$NTDDI" ]; then
     WINVER=$(echo ${NTDDI} |cut -c 1-6)
-    VLC_CPPFLAGS="$VLC_CPPFLAGS -DNTDDI_VERSION=$NTDDI"
+    HEIMDALL_CPPFLAGS="$HEIMDALL_CPPFLAGS -DNTDDI_VERSION=$NTDDI"
 fi
 if [ -z "$WINVER" ]; then
-    # The current minimum for VLC is Windows 7
+    # The current minimum for Heimdall is Windows 7
     WINVER=0x0601
 fi
-VLC_CPPFLAGS="$VLC_CPPFLAGS -D_WIN32_WINNT=${WINVER} -DWINVER=${WINVER}"
+HEIMDALL_CPPFLAGS="$HEIMDALL_CPPFLAGS -D_WIN32_WINNT=${WINVER} -DWINVER=${WINVER}"
 
-VLC_CFLAGS="$VLC_CPPFLAGS $VLC_CFLAGS"
-VLC_CXXFLAGS="$VLC_CPPFLAGS $VLC_CXXFLAGS"
+HEIMDALL_CFLAGS="$HEIMDALL_CPPFLAGS $HEIMDALL_CFLAGS"
+HEIMDALL_CXXFLAGS="$HEIMDALL_CPPFLAGS $HEIMDALL_CXXFLAGS"
 
 info "Building contribs"
 echo $PATH
@@ -375,25 +375,25 @@ mkdir -p contrib/contrib-$SHORTARCH && cd contrib/contrib-$SHORTARCH
 if [ -n "$WITH_PDB" ]; then
     CONTRIBFLAGS="$CONTRIBFLAGS --enable-pdb"
     if [ "${COMPILING_WITH_CLANG14}" = "1" ]; then
-        VLC_CFLAGS="$VLC_CFLAGS --start-no-unused-arguments"
-        VLC_CXXFLAGS="$VLC_CXXFLAGS --start-no-unused-arguments"
-        VLC_LDFLAGS="$VLC_LDFLAGS --start-no-unused-arguments"
+        HEIMDALL_CFLAGS="$HEIMDALL_CFLAGS --start-no-unused-arguments"
+        HEIMDALL_CXXFLAGS="$HEIMDALL_CXXFLAGS --start-no-unused-arguments"
+        HEIMDALL_LDFLAGS="$HEIMDALL_LDFLAGS --start-no-unused-arguments"
     fi
-    VLC_CFLAGS="$VLC_CFLAGS -g -gcodeview"
-    VLC_CXXFLAGS="$VLC_CXXFLAGS -g -gcodeview"
-    VLC_LDFLAGS="$VLC_LDFLAGS -Wl,-pdb="
+    HEIMDALL_CFLAGS="$HEIMDALL_CFLAGS -g -gcodeview"
+    HEIMDALL_CXXFLAGS="$HEIMDALL_CXXFLAGS -g -gcodeview"
+    HEIMDALL_LDFLAGS="$HEIMDALL_LDFLAGS -Wl,-pdb="
     if [ -n "$PDB_MAP" ]; then
-        VLC_CFLAGS="$VLC_CFLAGS -fdebug-prefix-map='$VLC_ROOT_PATH'='$PDB_MAP'"
-        VLC_CXXFLAGS="$VLC_CXXFLAGS -fdebug-prefix-map='$VLC_ROOT_PATH'='$PDB_MAP'"
+        HEIMDALL_CFLAGS="$HEIMDALL_CFLAGS -fdebug-prefix-map='$HEIMDALL_ROOT_PATH'='$PDB_MAP'"
+        HEIMDALL_CXXFLAGS="$HEIMDALL_CXXFLAGS -fdebug-prefix-map='$HEIMDALL_ROOT_PATH'='$PDB_MAP'"
     fi
     if [ "${COMPILING_WITH_CLANG14}" = "1" ]; then
-        VLC_CFLAGS="$VLC_CFLAGS --end-no-unused-arguments"
-        VLC_CXXFLAGS="$VLC_CXXFLAGS --end-no-unused-arguments"
-        VLC_LDFLAGS="$VLC_LDFLAGS --end-no-unused-arguments"
+        HEIMDALL_CFLAGS="$HEIMDALL_CFLAGS --end-no-unused-arguments"
+        HEIMDALL_CXXFLAGS="$HEIMDALL_CXXFLAGS --end-no-unused-arguments"
+        HEIMDALL_LDFLAGS="$HEIMDALL_LDFLAGS --end-no-unused-arguments"
     fi
 else
-    VLC_CFLAGS="$VLC_CFLAGS -g"
-    VLC_CXXFLAGS="$VLC_CXXFLAGS -g"
+    HEIMDALL_CFLAGS="$HEIMDALL_CFLAGS -g"
+    HEIMDALL_CXXFLAGS="$HEIMDALL_CXXFLAGS -g"
 fi
 if [ -n "$BREAKPAD" ]; then
      CONTRIBFLAGS="$CONTRIBFLAGS --enable-breakpad"
@@ -409,24 +409,24 @@ CONTRIBFLAGS="$CONTRIBFLAGS --enable-sections"
 
 if [ "$COMPILING_WITH_CLANG" -gt 0 ]; then
     # avoid using gcc-ar with the clang toolchain, if both are installed
-    VLC_AR="$TRIPLET-ar"
+    HEIMDALL_AR="$TRIPLET-ar"
     # avoid using gcc-ranlib with the clang toolchain, if both are installed
-    VLC_RANLIB="$TRIPLET-ranlib"
+    HEIMDALL_RANLIB="$TRIPLET-ranlib"
     # force linking with the static C++ runtime of LLVM
     if [ "${COMPILING_WITH_CLANG14}" = "1" ]; then
-        VLC_CXXFLAGS="$VLC_CXXFLAGS --start-no-unused-arguments"
-        VLC_LDFLAGS="$VLC_LDFLAGS --start-no-unused-arguments"
+        HEIMDALL_CXXFLAGS="$HEIMDALL_CXXFLAGS --start-no-unused-arguments"
+        HEIMDALL_LDFLAGS="$HEIMDALL_LDFLAGS --start-no-unused-arguments"
     fi
-    VLC_LDFLAGS="$VLC_LDFLAGS -Wl,-l:libunwind.a -Wl,-l:libpthread.a -static-libstdc++"
-    VLC_CXXFLAGS="$VLC_CXXFLAGS -Wl,-l:libunwind.a"
+    HEIMDALL_LDFLAGS="$HEIMDALL_LDFLAGS -Wl,-l:libunwind.a -Wl,-l:libpthread.a -static-libstdc++"
+    HEIMDALL_CXXFLAGS="$HEIMDALL_CXXFLAGS -Wl,-l:libunwind.a"
     if [ "${COMPILING_WITH_CLANG14}" = "1" ]; then
-        VLC_CXXFLAGS="$VLC_CXXFLAGS --end-no-unused-arguments"
-        VLC_LDFLAGS="$VLC_LDFLAGS --end-no-unused-arguments"
+        HEIMDALL_CXXFLAGS="$HEIMDALL_CXXFLAGS --end-no-unused-arguments"
+        HEIMDALL_LDFLAGS="$HEIMDALL_LDFLAGS --end-no-unused-arguments"
     fi
     if [ "${COMPILING_WITH_CLANG16}" = "1" ]; then
-        VLC_CFLAGS="$VLC_CFLAGS -mguard=cf"
-        VLC_CXXFLAGS="$VLC_CXXFLAGS -mguard=cf"
-        VLC_LDFLAGS="$VLC_LDFLAGS -mguard=cf"
+        HEIMDALL_CFLAGS="$HEIMDALL_CFLAGS -mguard=cf"
+        HEIMDALL_CXXFLAGS="$HEIMDALL_CXXFLAGS -mguard=cf"
+        HEIMDALL_LDFLAGS="$HEIMDALL_LDFLAGS -mguard=cf"
     fi
 fi
 
@@ -434,17 +434,17 @@ if [ -z "$PKG_CONFIG" ]; then
     if [ "$(unset PKG_CONFIG_LIBDIR; $TRIPLET-pkg-config --version 1>/dev/null 2>/dev/null || echo FAIL)" = "FAIL" ]; then
         # $TRIPLET-pkg-config DOESNT WORK
         # on Debian it pretends it works to autoconf
-        VLC_PKG_CONFIG="pkg-config"
+        HEIMDALL_PKG_CONFIG="pkg-config"
         if [ -z "$PKG_CONFIG_LIBDIR" ]; then
-            VLC_PKG_CONFIG_LIBDIR="/usr/$TRIPLET/lib/pkgconfig:/usr/lib/$TRIPLET/pkgconfig"
+            HEIMDALL_PKG_CONFIG_LIBDIR="/usr/$TRIPLET/lib/pkgconfig:/usr/lib/$TRIPLET/pkgconfig"
         else
-            VLC_PKG_CONFIG_LIBDIR="$PKG_CONFIG_LIBDIR:/usr/$TRIPLET/lib/pkgconfig:/usr/lib/$TRIPLET/pkgconfig"
+            HEIMDALL_PKG_CONFIG_LIBDIR="$PKG_CONFIG_LIBDIR:/usr/$TRIPLET/lib/pkgconfig:/usr/lib/$TRIPLET/pkgconfig"
         fi
     else
-        VLC_PKG_CONFIG="$TRIPLET-pkg-config"
+        HEIMDALL_PKG_CONFIG="$TRIPLET-pkg-config"
     fi
 else
-    VLC_PKG_CONFIG="$PKG_CONFIG"
+    HEIMDALL_PKG_CONFIG="$PKG_CONFIG"
 fi
 
 # generate the config.mak for contribs
@@ -452,38 +452,38 @@ test -e config.mak && unlink config.mak
 exec 3>config.mak || return $?
 
 printf '# This file was automatically generated!\n\n' >&3
-if [ -n "$VLC_CPPFLAGS" ]; then
-    printf '%s := %s\n' "CPPFLAGS" "${VLC_CPPFLAGS}" >&3
+if [ -n "$HEIMDALL_CPPFLAGS" ]; then
+    printf '%s := %s\n' "CPPFLAGS" "${HEIMDALL_CPPFLAGS}" >&3
 fi
-if [ -n "$VLC_CFLAGS" ]; then
-    printf '%s := %s\n' "CFLAGS" "${VLC_CFLAGS}" >&3
+if [ -n "$HEIMDALL_CFLAGS" ]; then
+    printf '%s := %s\n' "CFLAGS" "${HEIMDALL_CFLAGS}" >&3
 fi
-if [ -n "$VLC_CXXFLAGS" ]; then
-    printf '%s := %s\n' "CXXFLAGS" "${VLC_CXXFLAGS}" >&3
+if [ -n "$HEIMDALL_CXXFLAGS" ]; then
+    printf '%s := %s\n' "CXXFLAGS" "${HEIMDALL_CXXFLAGS}" >&3
 fi
-if [ -n "$VLC_LDFLAGS" ]; then
-    printf '%s := %s\n' "LDFLAGS" "${VLC_LDFLAGS}" >&3
+if [ -n "$HEIMDALL_LDFLAGS" ]; then
+    printf '%s := %s\n' "LDFLAGS" "${HEIMDALL_LDFLAGS}" >&3
 fi
-if [ -n "$VLC_AR" ]; then
-    printf '%s := %s\n' "AR" "${VLC_AR}" >&3
+if [ -n "$HEIMDALL_AR" ]; then
+    printf '%s := %s\n' "AR" "${HEIMDALL_AR}" >&3
 fi
-if [ -n "$VLC_RANLIB" ]; then
-    printf '%s := %s\n' "RANLIB" "${VLC_RANLIB}" >&3
+if [ -n "$HEIMDALL_RANLIB" ]; then
+    printf '%s := %s\n' "RANLIB" "${HEIMDALL_RANLIB}" >&3
 fi
-if [ -n "$VLC_PKG_CONFIG" ]; then
-    printf '%s := %s\n' "PKG_CONFIG" "${VLC_PKG_CONFIG}" >&3
+if [ -n "$HEIMDALL_PKG_CONFIG" ]; then
+    printf '%s := %s\n' "PKG_CONFIG" "${HEIMDALL_PKG_CONFIG}" >&3
 fi
-if [ -n "$VLC_PKG_CONFIG_LIBDIR" ]; then
-    printf '%s := %s\n' "PKG_CONFIG_LIBDIR" "${VLC_PKG_CONFIG_LIBDIR}" >&3
+if [ -n "$HEIMDALL_PKG_CONFIG_LIBDIR" ]; then
+    printf '%s := %s\n' "PKG_CONFIG_LIBDIR" "${HEIMDALL_PKG_CONFIG_LIBDIR}" >&3
 fi
 
 
-${VLC_ROOT_PATH}/contrib/bootstrap --host=$TRIPLET --prefix=../$CONTRIB_PREFIX $CONTRIBFLAGS
+${HEIMDALL_ROOT_PATH}/contrib/bootstrap --host=$TRIPLET --prefix=../$CONTRIB_PREFIX $CONTRIBFLAGS
 
 # Rebuild the contribs or use the prebuilt ones
 if [ "$PREBUILT" = "yes" ]; then
-    if [ -n "$VLC_PREBUILT_CONTRIBS_URL" ]; then
-        make prebuilt PREBUILT_URL="$VLC_PREBUILT_CONTRIBS_URL" || PREBUILT_FAILED=yes
+    if [ -n "$HEIMDALL_PREBUILT_CONTRIBS_URL" ]; then
+        make prebuilt PREBUILT_URL="$HEIMDALL_PREBUILT_CONTRIBS_URL" || PREBUILT_FAILED=yes
     else
         make prebuilt || PREBUILT_FAILED=yes
     fi
@@ -537,8 +537,8 @@ if [ -n "$EXTRA_CHECKS" ]; then
     MCONFIGFLAGS="$MCONFIGFLAGS -Dextra_checks=true"
 fi
 if [ -n "$WITH_LTO" ]; then
-    VLC_CFLAGS="$VLC_CFLAGS -flto"
-    VLC_CXXFLAGS="$VLC_CXXFLAGS -flto"
+    HEIMDALL_CFLAGS="$HEIMDALL_CFLAGS -flto"
+    HEIMDALL_CXXFLAGS="$HEIMDALL_CXXFLAGS -flto"
     MCONFIGFLAGS="$MCONFIGFLAGS -Db_lto=true"
 fi
 if [ -n "$DISABLEGUI" ]; then
@@ -577,15 +577,15 @@ fi
 
 if [ -n "$BUILD_MESON" ]; then
     # disable alarm() calls in tests. The timeout is handled by meson
-    VLC_CFLAGS="$VLC_CFLAGS -Dalarm="
-    VLC_CXXFLAGS="$VLC_CXXFLAGS -Dalarm="
+    HEIMDALL_CFLAGS="$HEIMDALL_CFLAGS -Dalarm="
+    HEIMDALL_CXXFLAGS="$HEIMDALL_CXXFLAGS -Dalarm="
 
     mkdir -p $SHORTARCH-meson
     echo "*" > $SHORTARCH-meson/.gitignore
     rm -rf $SHORTARCH-meson/meson-private
 
     if [ -n "$WITH_PDB" ]; then
-        VLC_LDFLAGS="$VLC_LDFLAGS -Wl,-pdb="
+        HEIMDALL_LDFLAGS="$HEIMDALL_LDFLAGS -Wl,-pdb="
     fi
 
     if [ "$INSTALLER" = "n" ] || [ "$INSTALLER" = "r" ] || [ "$INSTALLER" = "u" ]; then
@@ -602,19 +602,19 @@ if [ -n "$BUILD_MESON" ]; then
     printf '[binaries]\n' >&3
     printf 'c = '"'"'%s'"'"'\n' "$(command -v ${CC})" >&3
     printf 'cpp = '"'"'%s'"'"'\n' "$(command -v ${CXX:-$TRIPLET-g++})" >&3
-    if [ -n "$VLC_AR" ]; then
-        printf 'ar = '"'"'%s'"'"'\n' "$(command -v ${VLC_AR})" >&3
+    if [ -n "$HEIMDALL_AR" ]; then
+        printf 'ar = '"'"'%s'"'"'\n' "$(command -v ${HEIMDALL_AR})" >&3
     fi
-    if [ -n "$VLC_RANLIB" ]; then
-        printf 'ranlib = '"'"'%s'"'"'\n' "$(command -v ${VLC_RANLIB})" >&3
+    if [ -n "$HEIMDALL_RANLIB" ]; then
+        printf 'ranlib = '"'"'%s'"'"'\n' "$(command -v ${HEIMDALL_RANLIB})" >&3
     fi
     printf 'strip = '"'"'%s'"'"'\n' "$(command -v ${TRIPLET}-strip)" >&3
-    if [ -n "$VLC_PKG_CONFIG" ]; then
-        printf 'pkg-config = '"'"'%s'"'"'\n' "$(command -v ${VLC_PKG_CONFIG})" >&3
+    if [ -n "$HEIMDALL_PKG_CONFIG" ]; then
+        printf 'pkg-config = '"'"'%s'"'"'\n' "$(command -v ${HEIMDALL_PKG_CONFIG})" >&3
     fi
     printf 'windres = '"'"'%s'"'"'\n' "$(command -v ${TRIPLET}-windres)" >&3
-    if [ -n "$VLC_EXE_WRAPPER" ]; then
-        printf 'exe_wrapper = '"'"'%s'"'"'\n' "$(command -v ${VLC_EXE_WRAPPER})" >&3
+    if [ -n "$HEIMDALL_EXE_WRAPPER" ]; then
+        printf 'exe_wrapper = '"'"'%s'"'"'\n' "$(command -v ${HEIMDALL_EXE_WRAPPER})" >&3
     fi
     printf 'cmake = '"'"'%s'"'"'\n' "$(command -v cmake)" >&3
     if [ -z "$DISABLEGUI" ]; then
@@ -642,16 +642,16 @@ if [ -n "$BUILD_MESON" ]; then
     if [ -n "$INSTALL_PATH" ]; then
         MDESTDIR="$INSTALL_PATH"
     else
-        MDESTDIR="${BUILD_PATH}/$SHORTARCH-meson/vlc-$SHORTARCH"
+        MDESTDIR="${BUILD_PATH}/$SHORTARCH-meson/heimdall-$SHORTARCH"
     fi
     # we don't want to install in <destdir>/usr/local, just <destdir>
     MCONFIGFLAGS="$MCONFIGFLAGS --prefix=$MDESTDIR"
 
 
-    info "Configuring VLC"
-    cd ${VLC_ROOT_PATH}
+    info "Configuring Heimdall"
+    cd ${HEIMDALL_ROOT_PATH}
     meson setup ${BUILD_PATH}/$SHORTARCH-meson \
-        -Dc_args="${VLC_CFLAGS}" -Dc_link_args="${VLC_LDFLAGS}" -Dcpp_args="${VLC_CXXFLAGS}" -Dcpp_link_args="${VLC_LDFLAGS}" \
+        -Dc_args="${HEIMDALL_CFLAGS}" -Dc_link_args="${HEIMDALL_LDFLAGS}" -Dcpp_args="${HEIMDALL_CXXFLAGS}" -Dcpp_link_args="${HEIMDALL_LDFLAGS}" \
         -Dcmake_prefix_path="${BUILD_PATH}/contrib/$CONTRIB_PREFIX" \
         $MCONFIGFLAGS \
         --cross-file ${BUILD_PATH}/$SHORTARCH-meson/crossfile.meson \
@@ -663,7 +663,7 @@ if [ -n "$BUILD_MESON" ]; then
     MINSTALLFLAGS="--strip --no-rebuild $MINSTALLFLAGS"
 
     if [ "$INSTALLER" = "n" ]; then
-        VLC_GIT_TAG="$(git describe --tags --long --match '?.*.*' --always)"
+        HEIMDALL_GIT_TAG="$(git describe --tags --long --match '?.*.*' --always)"
 
         meson install -C ${BUILD_PATH}/$SHORTARCH-meson ${MINSTALLFLAGS}
         if [ -z "$WINSTORE" ]; then
@@ -673,9 +673,9 @@ if [ -n "$BUILD_MESON" ]; then
             ninja -C ${BUILD_PATH}/$SHORTARCH-meson package-msi
         fi
 
-        rm -rf ${BUILD_PATH}/$SHORTARCH-meson/vlc-$SHORTARCH-$VLC_GIT_TAG-debug.7z
+        rm -rf ${BUILD_PATH}/$SHORTARCH-meson/heimdall-$SHORTARCH-$HEIMDALL_GIT_TAG-debug.7z
         cd ${BUILD_PATH}/$SHORTARCH-meson && \
-            7z a -t7z -m0=lzma -mx=9 -mfb=64 -md=32m -ms=on vlc-$SHORTARCH-$VLC_GIT_TAG-debug.7z vlc-$SHORTARCH
+            7z a -t7z -m0=lzma -mx=9 -mfb=64 -md=32m -ms=on heimdall-$SHORTARCH-$HEIMDALL_GIT_TAG-debug.7z heimdall-$SHORTARCH
     elif [ "$INSTALLER" = "r" ]; then
         meson dist -C ${BUILD_PATH}/$SHORTARCH-meson -j$JOBS --no-tests
         meson install -C ${BUILD_PATH}/$SHORTARCH-meson ${MINSTALLFLAGS}
@@ -698,39 +698,39 @@ if [ -n "$BUILD_MESON" ]; then
     fi
 else
     info "Bootstrapping"
-    ${VLC_ROOT_PATH}/bootstrap
+    ${HEIMDALL_ROOT_PATH}/bootstrap
 
     mkdir -p $SHORTARCH
     echo "*" > $SHORTARCH/.gitignore
     cd $SHORTARCH
 
     # set environment that will be kept in config.status
-    if [ -n "$VLC_CPPFLAGS" ]; then
-        export CPPFLAGS="$VLC_CPPFLAGS"
+    if [ -n "$HEIMDALL_CPPFLAGS" ]; then
+        export CPPFLAGS="$HEIMDALL_CPPFLAGS"
     fi
-    if [ -n "$VLC_CFLAGS" ]; then
-        export CFLAGS="$VLC_CFLAGS"
+    if [ -n "$HEIMDALL_CFLAGS" ]; then
+        export CFLAGS="$HEIMDALL_CFLAGS"
     fi
-    if [ -n "$VLC_CXXFLAGS" ]; then
-        export CXXFLAGS="$VLC_CXXFLAGS"
+    if [ -n "$HEIMDALL_CXXFLAGS" ]; then
+        export CXXFLAGS="$HEIMDALL_CXXFLAGS"
     fi
-    if [ -n "$VLC_LDFLAGS" ]; then
-        export LDFLAGS="$VLC_LDFLAGS"
+    if [ -n "$HEIMDALL_LDFLAGS" ]; then
+        export LDFLAGS="$HEIMDALL_LDFLAGS"
     fi
-    if [ -n "$VLC_AR" ]; then
-        export AR="$VLC_AR"
+    if [ -n "$HEIMDALL_AR" ]; then
+        export AR="$HEIMDALL_AR"
     fi
-    if [ -n "$VLC_RANLIB" ]; then
-        export RANLIB="$VLC_RANLIB"
+    if [ -n "$HEIMDALL_RANLIB" ]; then
+        export RANLIB="$HEIMDALL_RANLIB"
     fi
-    if [ -n "$VLC_PKG_CONFIG" ]; then
-        export PKG_CONFIG="$VLC_PKG_CONFIG"
+    if [ -n "$HEIMDALL_PKG_CONFIG" ]; then
+        export PKG_CONFIG="$HEIMDALL_PKG_CONFIG"
     fi
-    if [ -n "$VLC_PKG_CONFIG_LIBDIR" ]; then
-        export PKG_CONFIG_LIBDIR="$VLC_PKG_CONFIG_LIBDIR"
+    if [ -n "$HEIMDALL_PKG_CONFIG_LIBDIR" ]; then
+        export PKG_CONFIG_LIBDIR="$HEIMDALL_PKG_CONFIG_LIBDIR"
     fi
 
-    info "Configuring VLC"
+    info "Configuring Heimdall"
     ${SCRIPT_PATH}/configure.sh --host=$TRIPLET --with-contrib=../contrib/$CONTRIB_PREFIX --with-wix="$WIXPATH" $CONFIGFLAGS LTCFLAGS=-O0
 
     info "Compiling"
@@ -743,9 +743,9 @@ else
         make package-win32
     elif [ "$INSTALLER" = "u" ]; then
         make -j$JOBS package-win32-release package-win32-exe package-msi
-        sha512sum vlc-*-release.7z
-        sha512sum vlc-*-*.exe
-        sha512sum vlc-*-*.msi
+        sha512sum heimdall-*-release.7z
+        sha512sum heimdall-*-*.exe
+        sha512sum heimdall-*-*.msi
     elif [ "$INSTALLER" = "m" ]; then
         make package-msi
     elif [ -n "$INSTALL_PATH" ]; then

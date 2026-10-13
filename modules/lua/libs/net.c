@@ -2,8 +2,9 @@
  * net.c: Network related functions
  *****************************************************************************
  * Copyright (C) 2007-2008 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Antoine Cellerier <dionoea at videolan tod org>
+ * Authors: Antoine Cellerier <dionoea at lycaria tod org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,31 +38,31 @@
 #endif
 #include <sys/stat.h>
 
-#include <vlc_common.h>
-#include <vlc_network.h>
-#include <vlc_url.h>
-#include <vlc_fs.h>
-#include <vlc_interrupt.h>
+#include <heimdall_common.h>
+#include <heimdall_network.h>
+#include <heimdall_url.h>
+#include <heimdall_fs.h>
+#include <heimdall_interrupt.h>
 
-#include "../vlc.h"
+#include "../heimdall.h"
 #include "../libs.h"
 #include "misc.h"
 
-static vlclua_dtable_t *vlclua_get_dtable( lua_State *L )
+static heimdalllua_dtable_t *heimdalllua_get_dtable( lua_State *L )
 {
-    return vlclua_get_object( L, vlclua_get_dtable );
+    return heimdalllua_get_object( L, heimdalllua_get_dtable );
 }
 
-vlc_interrupt_t *vlclua_set_interrupt( lua_State *L )
+heimdall_interrupt_t *heimdalllua_set_interrupt( lua_State *L )
 {
-    vlclua_dtable_t *dt = vlclua_get_dtable( L );
-    return vlc_interrupt_set( dt->interrupt );
+    heimdalllua_dtable_t *dt = heimdalllua_get_dtable( L );
+    return heimdall_interrupt_set( dt->interrupt );
 }
 
-/** Maps an OS file descriptor to a VLC Lua file descriptor */
-static int vlclua_fd_map( lua_State *L, int fd )
+/** Maps an OS file descriptor to a Heimdall Lua file descriptor */
+static int heimdalllua_fd_map( lua_State *L, int fd )
 {
-    vlclua_dtable_t *dt = vlclua_get_dtable( L );
+    heimdalllua_dtable_t *dt = heimdalllua_get_dtable( L );
 
     if( (unsigned)fd < 3u )
         return -1;
@@ -94,18 +95,18 @@ static int vlclua_fd_map( lua_State *L, int fd )
     return fd;
 }
 
-static int vlclua_fd_map_safe( lua_State *L, int fd )
+static int heimdalllua_fd_map_safe( lua_State *L, int fd )
 {
-    int luafd = vlclua_fd_map( L, fd );
+    int luafd = heimdalllua_fd_map( L, fd );
     if( luafd == -1 )
         net_Close( fd );
     return luafd;
 }
 
-/** Gets the OS file descriptor mapped to a VLC Lua file descriptor */
-static int vlclua_fd_get( lua_State *L, unsigned idx )
+/** Gets the OS file descriptor mapped to a Heimdall Lua file descriptor */
+static int heimdalllua_fd_get( lua_State *L, unsigned idx )
 {
-    vlclua_dtable_t *dt = vlclua_get_dtable( L );
+    heimdalllua_dtable_t *dt = heimdalllua_get_dtable( L );
 
     if( idx < 3u )
         return idx;
@@ -113,10 +114,10 @@ static int vlclua_fd_get( lua_State *L, unsigned idx )
     return (idx < dt->fdc) ? dt->fdv[idx] : -1;
 }
 
-/** Gets the VLC Lua file descriptor mapped from an OS file descriptor */
-static int vlclua_fd_get_lua( lua_State *L, int fd )
+/** Gets the Heimdall Lua file descriptor mapped from an OS file descriptor */
+static int heimdalllua_fd_get_lua( lua_State *L, int fd )
 {
-    vlclua_dtable_t *dt = vlclua_get_dtable( L );
+    heimdalllua_dtable_t *dt = heimdalllua_get_dtable( L );
 
     if( (unsigned)fd < 3u )
         return fd;
@@ -126,10 +127,10 @@ static int vlclua_fd_get_lua( lua_State *L, int fd )
     return -1;
 }
 
-/** Unmaps an OS file descriptor from VLC Lua */
-static void vlclua_fd_unmap( lua_State *L, unsigned idx )
+/** Unmaps an OS file descriptor from Heimdall Lua */
+static void heimdalllua_fd_unmap( lua_State *L, unsigned idx )
 {
-    vlclua_dtable_t *dt = vlclua_get_dtable( L );
+    heimdalllua_dtable_t *dt = heimdalllua_get_dtable( L );
     int fd;
 
     if( idx < 3u )
@@ -152,11 +153,11 @@ static void vlclua_fd_unmap( lua_State *L, unsigned idx )
 #endif
 }
 
-static void vlclua_fd_unmap_safe( lua_State *L, unsigned idx )
+static void heimdalllua_fd_unmap_safe( lua_State *L, unsigned idx )
 {
-    int fd = vlclua_fd_get( L, idx );
+    int fd = heimdalllua_fd_get( L, idx );
 
-    vlclua_fd_unmap( L, idx );
+    heimdalllua_fd_unmap( L, idx );
     if( fd != -1 )
         net_Close( fd );
 }
@@ -164,19 +165,19 @@ static void vlclua_fd_unmap_safe( lua_State *L, unsigned idx )
 /*****************************************************************************
  * Net listen
  *****************************************************************************/
-static int vlclua_net_listen_close( lua_State * );
-static int vlclua_net_accept( lua_State * );
-static int vlclua_net_fds( lua_State * );
+static int heimdalllua_net_listen_close( lua_State * );
+static int heimdalllua_net_accept( lua_State * );
+static int heimdalllua_net_fds( lua_State * );
 
-static const luaL_Reg vlclua_net_listen_reg[] = {
-    { "accept", vlclua_net_accept },
-    { "fds", vlclua_net_fds },
+static const luaL_Reg heimdalllua_net_listen_reg[] = {
+    { "accept", heimdalllua_net_accept },
+    { "fds", heimdalllua_net_fds },
     { NULL, NULL }
 };
 
-static int vlclua_net_listen_tcp( lua_State *L )
+static int heimdalllua_net_listen_tcp( lua_State *L )
 {
-    vlc_object_t *p_this = vlclua_get_this( L );
+    heimdall_object_t *p_this = heimdalllua_get_this( L );
     const char *psz_host = luaL_checkstring( L, 1 );
     int i_port = luaL_checkinteger( L, 2 );
     int *pi_fd = net_ListenTCP( p_this, psz_host, i_port );
@@ -184,10 +185,10 @@ static int vlclua_net_listen_tcp( lua_State *L )
         return luaL_error( L, "Cannot listen on %s:%d", psz_host, i_port );
 
     for( unsigned i = 0; pi_fd[i] != -1; i++ )
-        if( vlclua_fd_map( L, pi_fd[i] ) == -1 )
+        if( heimdalllua_fd_map( L, pi_fd[i] ) == -1 )
         {
             while( i > 0 )
-                vlclua_fd_unmap( L, vlclua_fd_get_lua( L, pi_fd[--i] ) );
+                heimdalllua_fd_unmap( L, heimdalllua_fd_get_lua( L, pi_fd[--i] ) );
 
             net_ListenClose( pi_fd );
             return luaL_error( L, "Cannot listen on %s:%d", psz_host, i_port );
@@ -199,9 +200,9 @@ static int vlclua_net_listen_tcp( lua_State *L )
     if( luaL_newmetatable( L, "net_listen" ) )
     {
         lua_newtable( L );
-        luaL_register( L, NULL, vlclua_net_listen_reg );
+        luaL_register( L, NULL, heimdalllua_net_listen_reg );
         lua_setfield( L, -2, "__index" );
-        lua_pushcfunction( L, vlclua_net_listen_close );
+        lua_pushcfunction( L, heimdalllua_net_listen_close );
         lua_setfield( L, -2, "__gc" );
     }
 
@@ -209,75 +210,75 @@ static int vlclua_net_listen_tcp( lua_State *L )
     return 1;
 }
 
-static int vlclua_net_listen_close( lua_State *L )
+static int heimdalllua_net_listen_close( lua_State *L )
 {
     int **ppi_fd = (int**)luaL_checkudata( L, 1, "net_listen" );
     int *pi_fd = *ppi_fd;
 
     for( unsigned i = 0; pi_fd[i] != -1; i++ )
-        vlclua_fd_unmap( L, vlclua_fd_get_lua( L, pi_fd[i] ) );
+        heimdalllua_fd_unmap( L, heimdalllua_fd_get_lua( L, pi_fd[i] ) );
 
     net_ListenClose( pi_fd );
     return 0;
 }
 
-static int vlclua_net_fds( lua_State *L )
+static int heimdalllua_net_fds( lua_State *L )
 {
     int **ppi_fd = (int**)luaL_checkudata( L, 1, "net_listen" );
     int *pi_fd = *ppi_fd;
 
     int i_count = 0;
     while( pi_fd[i_count] != -1 )
-        lua_pushinteger( L, vlclua_fd_get_lua( L, pi_fd[i_count++] ) );
+        lua_pushinteger( L, heimdalllua_fd_get_lua( L, pi_fd[i_count++] ) );
 
     return i_count;
 }
 
-static int vlclua_net_accept( lua_State *L )
+static int heimdalllua_net_accept( lua_State *L )
 {
-    vlc_object_t *p_this = vlclua_get_this( L );
+    heimdall_object_t *p_this = heimdalllua_get_this( L );
     int **ppi_fd = (int**)luaL_checkudata( L, 1, "net_listen" );
     int i_fd = net_Accept( p_this, *ppi_fd );
 
-    lua_pushinteger( L, vlclua_fd_map_safe( L, i_fd ) );
+    lua_pushinteger( L, heimdalllua_fd_map_safe( L, i_fd ) );
     return 1;
 }
 
 /*****************************************************************************
  *
  *****************************************************************************/
-static int vlclua_net_connect_tcp( lua_State *L )
+static int heimdalllua_net_connect_tcp( lua_State *L )
 {
-    vlc_object_t *p_this = vlclua_get_this( L );
+    heimdall_object_t *p_this = heimdalllua_get_this( L );
     const char *psz_host = luaL_checkstring( L, 1 );
     int i_port = luaL_checkinteger( L, 2 );
     int i_fd = net_ConnectTCP( p_this, psz_host, i_port );
-    lua_pushinteger( L, vlclua_fd_map_safe( L, i_fd ) );
+    lua_pushinteger( L, heimdalllua_fd_map_safe( L, i_fd ) );
     return 1;
 }
 
-static int vlclua_net_close( lua_State *L )
+static int heimdalllua_net_close( lua_State *L )
 {
     int i_fd = luaL_checkinteger( L, 1 );
-    vlclua_fd_unmap_safe( L, i_fd );
+    heimdalllua_fd_unmap_safe( L, i_fd );
     return 0;
 }
 
-static int vlclua_net_send( lua_State *L )
+static int heimdalllua_net_send( lua_State *L )
 {
-    int fd = vlclua_fd_get( L, luaL_checkinteger( L, 1 ) );
+    int fd = heimdalllua_fd_get( L, luaL_checkinteger( L, 1 ) );
     size_t i_len;
     const char *psz_buffer = luaL_checklstring( L, 2, &i_len );
 
     i_len = (size_t)luaL_optinteger( L, 3, i_len );
     lua_pushinteger( L,
-        (fd != -1) ? vlc_send( fd, psz_buffer, i_len, 0 ) : -1 );
+        (fd != -1) ? heimdall_send( fd, psz_buffer, i_len, 0 ) : -1 );
     return 1;
 }
 
-static int vlclua_net_recv( lua_State *L )
+static int heimdalllua_net_recv( lua_State *L )
 {
-    int fd = vlclua_fd_get( L, luaL_checkinteger( L, 1 ) );
+    int fd = heimdalllua_fd_get( L, luaL_checkinteger( L, 1 ) );
     size_t i_len = (size_t)luaL_optinteger( L, 2, 1 );
     char psz_buffer[i_len];
 
@@ -293,7 +294,7 @@ static int vlclua_net_recv( lua_State *L )
  *
  *****************************************************************************/
 /* Takes a { fd : events } table as first arg and modifies it to { fd : revents } */
-static int vlclua_net_poll( lua_State *L )
+static int heimdalllua_net_poll( lua_State *L )
 {
     luaL_checktype( L, 1, LUA_TTABLE );
 
@@ -312,24 +313,24 @@ static int vlclua_net_poll( lua_State *L )
     for( int i = 0; lua_next( L, 1 ); i++ )
     {
         luafds[i] = luaL_checkinteger( L, -2 );
-        p_fds[i].fd = vlclua_fd_get( L, luafds[i] );
+        p_fds[i].fd = heimdalllua_fd_get( L, luafds[i] );
         p_fds[i].events = luaL_checkinteger( L, -1 );
         p_fds[i].events &= POLLIN | POLLOUT | POLLPRI;
         lua_pop( L, 1 );
     }
 
-    vlc_interrupt_t *oint = vlclua_set_interrupt( L );
+    heimdall_interrupt_t *oint = heimdalllua_set_interrupt( L );
     int ret = 1, val = -1;
 
     do
     {
-        if( vlc_killed() )
+        if( heimdall_killed() )
             break;
-        val = vlc_poll_i11e( p_fds, i_fds, -1 );
+        val = heimdall_poll_i11e( p_fds, i_fds, -1 );
     }
     while( val == -1 && errno == EINTR );
 
-    vlc_interrupt_set( oint );
+    heimdall_interrupt_set( oint );
 
     for( int i = 0; i < i_fds; i++ )
     {
@@ -351,26 +352,26 @@ static int vlclua_net_poll( lua_State *L )
  *
  *****************************************************************************/
 /*
-static int vlclua_fd_open( lua_State *L )
+static int heimdalllua_fd_open( lua_State *L )
 {
 }
 */
 
 #ifndef _WIN32
-static int vlclua_fd_write( lua_State *L )
+static int heimdalllua_fd_write( lua_State *L )
 {
-    int fd = vlclua_fd_get( L, luaL_checkinteger( L, 1 ) );
+    int fd = heimdalllua_fd_get( L, luaL_checkinteger( L, 1 ) );
     size_t i_len;
     const char *psz_buffer = luaL_checklstring( L, 2, &i_len );
 
     i_len = (size_t)luaL_optinteger( L, 3, i_len );
-    lua_pushinteger( L, (fd != -1) ? vlc_write( fd, psz_buffer, i_len ) : -1 );
+    lua_pushinteger( L, (fd != -1) ? heimdall_write( fd, psz_buffer, i_len ) : -1 );
     return 1;
 }
 
-static int vlclua_fd_read( lua_State *L )
+static int heimdalllua_fd_read( lua_State *L )
 {
-    int fd = vlclua_fd_get( L, luaL_checkinteger( L, 1 ) );
+    int fd = heimdalllua_fd_get( L, luaL_checkinteger( L, 1 ) );
     size_t i_len = (size_t)luaL_optinteger( L, 2, 1 );
     char psz_buffer[i_len];
 
@@ -386,11 +387,11 @@ static int vlclua_fd_read( lua_State *L )
 /*****************************************************************************
  *
  *****************************************************************************/
-static int vlclua_stat( lua_State *L )
+static int heimdalllua_stat( lua_State *L )
 {
     const char *psz_path = luaL_checkstring( L, 1 );
     struct stat s;
-    if( vlc_stat( psz_path, &s ) )
+    if( heimdall_stat( psz_path, &s ) )
         return 0;
         //return luaL_error( L, "Couldn't stat %s.", psz_path );
     lua_newtable( L );
@@ -438,54 +439,54 @@ static int vlclua_stat( lua_State *L )
     return 1;
 }
 
-static int vlclua_opendir( lua_State *L )
+static int heimdalllua_opendir( lua_State *L )
 {
     const char *psz_dir = luaL_checkstring( L, 1 );
-    vlc_DIR *p_dir;
+    heimdall_DIR *p_dir;
     int i = 0;
 
-    if( ( p_dir = vlc_opendir( psz_dir ) ) == NULL )
+    if( ( p_dir = heimdall_opendir( psz_dir ) ) == NULL )
         return luaL_error( L, "cannot open directory `%s'.", psz_dir );
 
     lua_newtable( L );
     for( ;; )
     {
-        const char *psz_filename = vlc_readdir( p_dir );
+        const char *psz_filename = heimdall_readdir( p_dir );
         if( !psz_filename ) break;
         i++;
         lua_pushstring( L, psz_filename );
         lua_rawseti( L, -2, i );
     }
-    vlc_closedir( p_dir );
+    heimdall_closedir( p_dir );
     return 1;
 }
 
 /*****************************************************************************
  *
  *****************************************************************************/
-static const luaL_Reg vlclua_net_intf_reg[] = {
-    { "listen_tcp", vlclua_net_listen_tcp },
-    { "connect_tcp", vlclua_net_connect_tcp },
-    { "close", vlclua_net_close },
-    { "send", vlclua_net_send },
-    { "recv", vlclua_net_recv },
-    { "poll", vlclua_net_poll },
+static const luaL_Reg heimdalllua_net_intf_reg[] = {
+    { "listen_tcp", heimdalllua_net_listen_tcp },
+    { "connect_tcp", heimdalllua_net_connect_tcp },
+    { "close", heimdalllua_net_close },
+    { "send", heimdalllua_net_send },
+    { "recv", heimdalllua_net_recv },
+    { "poll", heimdalllua_net_poll },
 #ifndef _WIN32
-    { "read", vlclua_fd_read },
-    { "write", vlclua_fd_write },
+    { "read", heimdalllua_fd_read },
+    { "write", heimdalllua_fd_write },
 #endif
     /* The following functions do not depend on intf_thread_t and do not really
      * belong in net.* but are left here for backward compatibility: */
-    { "url_parse", vlclua_url_parse /* deprecated since 3.0.0 */ },
-    { "stat", vlclua_stat }, /* Not really "net" */
-    { "opendir", vlclua_opendir }, /* Not really "net" */
+    { "url_parse", heimdalllua_url_parse /* deprecated since 3.0.0 */ },
+    { "stat", heimdalllua_stat }, /* Not really "net" */
+    { "opendir", heimdalllua_opendir }, /* Not really "net" */
     { NULL, NULL }
 };
 
 static void luaopen_net_intf( lua_State *L )
 {
     lua_newtable( L );
-    luaL_register( L, NULL, vlclua_net_intf_reg );
+    luaL_register( L, NULL, heimdalllua_net_intf_reg );
 #define ADD_CONSTANT( value )    \
     lua_pushinteger( L, POLL##value ); \
     lua_setfield( L, -2, "POLL"#value );
@@ -498,29 +499,29 @@ static void luaopen_net_intf( lua_State *L )
     lua_setfield( L, -2, "net" );
 }
 
-int vlclua_fd_init( lua_State *L, vlclua_dtable_t *dt )
+int heimdalllua_fd_init( lua_State *L, heimdalllua_dtable_t *dt )
 {
-    dt->interrupt = vlc_interrupt_create();
+    dt->interrupt = heimdall_interrupt_create();
     if( unlikely(dt->interrupt == NULL) )
         return -1;
     dt->fdv = NULL;
     dt->fdc = 0;
-    vlclua_set_object( L, vlclua_get_dtable, dt );
+    heimdalllua_set_object( L, heimdalllua_get_dtable, dt );
     luaopen_net_intf( L );
     return 0;
 }
 
-void vlclua_fd_interrupt( vlclua_dtable_t *dt )
+void heimdalllua_fd_interrupt( heimdalllua_dtable_t *dt )
 {
-    vlc_interrupt_kill( dt->interrupt );
+    heimdall_interrupt_kill( dt->interrupt );
 }
 
-/** Releases all (leaked) VLC Lua file descriptors. */
-void vlclua_fd_cleanup( vlclua_dtable_t *dt )
+/** Releases all (leaked) Heimdall Lua file descriptors. */
+void heimdalllua_fd_cleanup( heimdalllua_dtable_t *dt )
 {
     for( unsigned i = 0; i < dt->fdc; i++ )
         if( dt->fdv[i] != -1 )
             net_Close( dt->fdv[i] );
     free( dt->fdv );
-    vlc_interrupt_destroy(dt->interrupt);
+    heimdall_interrupt_destroy(dt->interrupt);
 }

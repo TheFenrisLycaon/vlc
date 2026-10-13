@@ -2,6 +2,7 @@
  * segments.c
  *****************************************************************************
  * Copyright (C) 2023 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -23,12 +24,12 @@
 
 #include <assert.h>
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
-#include <vlc_block.h>
-#include <vlc_httpd.h>
-#include <vlc_list.h>
-#include <vlc_tick.h>
+#include <heimdall_block.h>
+#include <heimdall_httpd.h>
+#include <heimdall_list.h>
+#include <heimdall_tick.h>
 
 #include "hls.h"
 #include "segments.h"
@@ -55,7 +56,7 @@ hls_segment_queue_GetFileExtension(enum hls_playlist_type type)
         case HLS_PLAYLIST_TYPE_WEBVTT:
             return "vtt";
     }
-    vlc_assert_unreachable();
+    heimdall_assert_unreachable();
 }
 
 static const char *hls_segment_queue_GetMIME(enum hls_playlist_type type)
@@ -69,7 +70,7 @@ static const char *hls_segment_queue_GetMIME(enum hls_playlist_type type)
         case HLS_PLAYLIST_TYPE_WEBVTT:
             return "text/vtt";
     }
-    vlc_assert_unreachable();
+    heimdall_assert_unreachable();
 }
 
 void hls_segment_queue_Init(hls_segment_queue_t *queue,
@@ -88,7 +89,7 @@ void hls_segment_queue_Init(hls_segment_queue_t *queue,
 
     queue->hls_config = hls_config;
 
-    vlc_list_init(&queue->segments);
+    heimdall_list_init(&queue->segments);
 }
 
 void hls_segment_queue_Clear(hls_segment_queue_t *queue)
@@ -99,7 +100,7 @@ void hls_segment_queue_Clear(hls_segment_queue_t *queue)
 
 int hls_segment_queue_NewSegment(hls_segment_queue_t *queue,
                                  block_t *content,
-                                 vlc_tick_t length)
+                                 heimdall_tick_t length)
 {
     hls_segment_t *segment = malloc(sizeof(*segment));
     if (unlikely(segment == NULL))
@@ -152,13 +153,13 @@ int hls_segment_queue_NewSegment(hls_segment_queue_t *queue,
     {
         hls_segment_t *old = hls_segment_GetFirst(queue);
         assert(old != NULL);
-        vlc_list_remove(&old->priv_node);
+        heimdall_list_remove(&old->priv_node);
         hls_segment_Destroy(old);
     }
 
     ++queue->total_segments;
-    vlc_list_append(&segment->priv_node, &queue->segments);
-    return VLC_SUCCESS;
+    heimdall_list_append(&segment->priv_node, &queue->segments);
+    return HEIMDALL_SUCCESS;
 nomem:
     ret = -ENOMEM;
 err:

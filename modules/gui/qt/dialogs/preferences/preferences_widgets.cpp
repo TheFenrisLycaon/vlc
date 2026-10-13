@@ -2,6 +2,7 @@
  * preferences_widgets.cpp : Widgets for preferences displays
  ****************************************************************************
  * Copyright (C) 2006-2011 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Clément Stenac <zorglub@videolan.org>
  *          Antoine Cellerier <dionoea@videolan.org>
@@ -32,11 +33,11 @@
 
 #include "dialogs/preferences/preferences_widgets.hpp"
 #include "widgets/native/searchlineedit.hpp"
-#include "util/vlchotkeyconverter.hpp"
+#include "util/heimdallhotkeyconverter.hpp"
 #include "util/qt_dirs.hpp"
-#include <vlc_intf_strings.h>
-#include <vlc_modules.h>
-#include <vlc_plugin.h>
+#include <heimdall_intf_strings.h>
+#include <heimdall_modules.h>
+#include <heimdall_plugin.h>
 
 #include <QWidget>
 #include <QString>
@@ -353,10 +354,10 @@ void FileConfigControl::updateField()
 
     if (p_item->i_type == CONFIG_ITEM_SAVEFILE)
         file = QFileDialog::getSaveFileName( NULL, qtr( "Save File" ),
-                                             QVLCUserDir( VLC_HOME_DIR ) );
+                                             QHeimdallUserDir( HEIMDALL_HOME_DIR ) );
     else
         file = QFileDialog::getOpenFileName( NULL, qtr( "Select File" ),
-                                             QVLCUserDir( VLC_HOME_DIR ) );
+                                             QHeimdallUserDir( HEIMDALL_HOME_DIR ) );
 
     if( file.isNull() ) return;
     text->setText( toNativeSeparators( file ) );
@@ -406,7 +407,7 @@ void DirectoryConfigControl::updateField()
     QString dir = QFileDialog::getExistingDirectory( NULL,
                       qfut( I_OP_SEL_DIR ),
                       text->text().isEmpty() ?
-                        QVLCUserDir( VLC_HOME_DIR ) : text->text(),
+                        QHeimdallUserDir( HEIMDALL_HOME_DIR ) : text->text(),
                   QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks );
 
     if( dir.isNull() ) return;
@@ -559,7 +560,7 @@ QString StringListConfigControl::getValue() const
     return combo->itemData( combo->currentIndex() ).toString();
 }
 
-void setfillVLCConfigCombo( const char *configname, QComboBox *combo )
+void setfillHeimdallConfigCombo( const char *configname, QComboBox *combo )
 {
     module_config_t *p_config = config_FindConfig( configname );
     if( p_config == NULL )
@@ -1075,7 +1076,7 @@ BoolConfigControl::BoolConfigControl( module_config_t *_p_item,
     VIntConfigControl( _p_item )
 {
     checkbox = _checkbox;
-    VLC_UNUSED( _label );
+    HEIMDALL_UNUSED( _label );
     finish();
 }
 
@@ -1481,9 +1482,9 @@ void KeySelectorControl::selectKey( KeyTableItem *item, enum ColumnIndex column 
     {
         /* In case of conflict, reset other keys*/
         if( d->conflicts )
-            reassign_key( item, d->vlckey, column );
+            reassign_key( item, d->heimdallkey, column );
         else
-            item->set_keys( d->vlckey, column );
+            item->set_keys( d->heimdallkey, column );
     }
     else if( d->result() == 2 )
         unset( item, column );
@@ -1764,11 +1765,11 @@ KeyInputDialog::KeyInputDialog( QTreeWidget *table_,
     conflicts = false;
     existingkeys = NULL;
 
-    wheelConverter = new WheelToVLCConverter(this);
-    connect(wheelConverter, &WheelToVLCConverter::vlcWheelKey, this, [this](int i_vlck){
-        vlckey = VLCKeyToString( i_vlck, false );
-        vlckey_tr = VLCKeyToString( i_vlck, true );
-        selected->setText( qtr( "Key: <b>%1</b>" ).arg( vlckey_tr ) );
+    wheelConverter = new WheelToHeimdallConverter(this);
+    connect(wheelConverter, &WheelToHeimdallConverter::heimdallWheelKey, this, [this](int i_heimdallk){
+        heimdallkey = HeimdallKeyToString( i_heimdallk, false );
+        heimdallkey_tr = HeimdallKeyToString( i_heimdallk, true );
+        selected->setText( qtr( "Key: <b>%1</b>" ).arg( heimdallkey_tr ) );
         checkForConflicts( QString() );
     });
 
@@ -1776,7 +1777,7 @@ KeyInputDialog::KeyInputDialog( QTreeWidget *table_,
 
     setWindowTitle( global ? qtr( "Global Hotkey change" )
                            : qtr( "Hotkey change" ) );
-    setWindowRole( "vlc-key-input" );
+    setWindowRole( "heimdall-key-input" );
 
     QVBoxLayout *vLayout = new QVBoxLayout( this );
     selected = new QLabel( qtr( "Press the new key or combination for <b>%1</b>" )
@@ -1816,13 +1817,13 @@ void KeyInputDialog::setExistingkeysSet( const QSet<QString> *keyset )
 void KeyInputDialog::checkForConflicts( const QString &sequence )
 {
     conflicts = false;
-    if ( vlckey == "" )
+    if ( heimdallkey == "" )
     {
         accept();
         return;
     }
 
-    KeyTableItem *conflict = KeySelectorControl::find_conflict( table, vlckey, keyItem, column );
+    KeyTableItem *conflict = KeySelectorControl::find_conflict( table, heimdallkey, keyItem, column );
     if( conflict != nullptr )
     {
         warning->setText(
@@ -1861,11 +1862,11 @@ void KeyInputDialog::keyPressEvent( QKeyEvent *e )
         e->key() == Qt::Key_Alt ||
         e->key() == Qt::Key_AltGr )
         return;
-    int i_vlck = qtEventToVLCKey( e );
+    int i_heimdallk = qtEventToHeimdallKey( e );
     QKeySequence sequence( e->key() | e->modifiers() );
-    vlckey = VLCKeyToString( i_vlck, false );
-    vlckey_tr = VLCKeyToString( i_vlck, true );
-    selected->setText( qtr( "Key or combination: <b>%1</b>" ).arg( vlckey_tr ) );
+    heimdallkey = HeimdallKeyToString( i_heimdallk, false );
+    heimdallkey_tr = HeimdallKeyToString( i_heimdallk, true );
+    selected->setText( qtr( "Key or combination: <b>%1</b>" ).arg( heimdallkey_tr ) );
     checkForConflicts( sequence.toString() );
 }
 
@@ -1886,7 +1887,7 @@ KeyConflictDialog::KeyConflictDialog( QTreeWidget *table, KeyTableItem * item,
 
     setWindowTitle( global ? qtr( "Global Hotkey assignment conflict" )
                            : qtr( "Hotkey assignment conflict" ) );
-    setWindowRole( "vlc-key-conflict" );
+    setWindowRole( "heimdall-key-conflict" );
 
     QVBoxLayout *vLayout = new QVBoxLayout( this );
     QLabel *warning = new QLabel;

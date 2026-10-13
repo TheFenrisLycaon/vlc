@@ -2,6 +2,7 @@
  * stream_fifo.c
  *****************************************************************************
  * Copyright (C) 2016 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -27,40 +28,40 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
-#include <vlc_common.h>
-#include <vlc_block.h>
-#include <vlc_queue.h>
-#include <vlc_stream.h>
+#include <heimdall_common.h>
+#include <heimdall_block.h>
+#include <heimdall_queue.h>
+#include <heimdall_stream.h>
 
 #include "stream.h"
 
-struct vlc_stream_fifo {
-    vlc_queue_t queue;
+struct heimdall_stream_fifo {
+    heimdall_queue_t queue;
     bool eof;
 };
 
-struct vlc_stream_fifo_private {
-    vlc_stream_fifo_t *writer;
+struct heimdall_stream_fifo_private {
+    heimdall_stream_fifo_t *writer;
 };
 
-static vlc_stream_fifo_t *vlc_stream_fifo_Writer(stream_t *s)
+static heimdall_stream_fifo_t *heimdall_stream_fifo_Writer(stream_t *s)
 {
-    struct vlc_stream_fifo_private *sys = vlc_stream_Private(s);
+    struct heimdall_stream_fifo_private *sys = heimdall_stream_Private(s);
 
     return sys->writer;
 }
 
-static void vlc_stream_fifo_Destroy(stream_t *s)
+static void heimdall_stream_fifo_Destroy(stream_t *s)
 {
-    struct vlc_stream_fifo *writer = vlc_stream_fifo_Writer(s);
+    struct heimdall_stream_fifo *writer = heimdall_stream_fifo_Writer(s);
     block_t *block;
     bool closed;
 
-    vlc_queue_Lock(&writer->queue);
-    block = vlc_queue_DequeueAllUnlocked(&writer->queue);
+    heimdall_queue_Lock(&writer->queue);
+    block = heimdall_queue_DequeueAllUnlocked(&writer->queue);
     closed = writer->eof;
     writer->eof = true;
-    vlc_queue_Unlock(&writer->queue);
+    heimdall_queue_Unlock(&writer->queue);
 
     block_ChainRelease(block);
 
@@ -69,10 +70,10 @@ static void vlc_stream_fifo_Destroy(stream_t *s)
         free(writer);
 }
 
-static block_t *vlc_stream_fifo_Block(stream_t *s, bool *restrict eof)
+static block_t *heimdall_stream_fifo_Block(stream_t *s, bool *restrict eof)
 {
-    struct vlc_stream_fifo *sys = vlc_stream_fifo_Writer(s);
-    block_t *block = vlc_queue_DequeueKillable(&sys->queue, &sys->eof);
+    struct heimdall_stream_fifo *sys = heimdall_stream_fifo_Writer(s);
+    block_t *block = heimdall_queue_DequeueKillable(&sys->queue, &sys->eof);
 
     if (block == NULL)
         *eof = true;
@@ -80,7 +81,7 @@ static block_t *vlc_stream_fifo_Block(stream_t *s, bool *restrict eof)
     return block;
 }
 
-static int vlc_stream_fifo_Control(stream_t *s, int query, va_list ap)
+static int heimdall_stream_fifo_Control(stream_t *s, int query, va_list ap)
 {
     (void) s;
 
@@ -94,50 +95,50 @@ static int vlc_stream_fifo_Control(stream_t *s, int query, va_list ap)
             break;
 
         case STREAM_GET_PTS_DELAY:
-            *va_arg(ap, vlc_tick_t *) = DEFAULT_PTS_DELAY;
+            *va_arg(ap, heimdall_tick_t *) = DEFAULT_PTS_DELAY;
             break;
 
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-vlc_stream_fifo_t *vlc_stream_fifo_New(vlc_object_t *parent, stream_t **reader)
+heimdall_stream_fifo_t *heimdall_stream_fifo_New(heimdall_object_t *parent, stream_t **reader)
 {
-    struct vlc_stream_fifo *writer = malloc(sizeof (*writer));
+    struct heimdall_stream_fifo *writer = malloc(sizeof (*writer));
     if (unlikely(writer == NULL))
         return NULL;
 
-    vlc_queue_Init(&writer->queue, offsetof (block_t, p_next));
+    heimdall_queue_Init(&writer->queue, offsetof (block_t, p_next));
     writer->eof = false;
 
-    struct vlc_stream_fifo_private *sys;
-    stream_t *s = vlc_stream_CustomNew(parent, vlc_stream_fifo_Destroy,
+    struct heimdall_stream_fifo_private *sys;
+    stream_t *s = heimdall_stream_CustomNew(parent, heimdall_stream_fifo_Destroy,
                                        sizeof (*sys), "stream");
     if (unlikely(s == NULL)) {
         free(writer);
         return NULL;
     }
 
-    sys = vlc_stream_Private(s);
+    sys = heimdall_stream_Private(s);
     sys->writer = writer;
-    s->pf_block = vlc_stream_fifo_Block;
+    s->pf_block = heimdall_stream_fifo_Block;
     s->pf_seek = NULL;
-    s->pf_control = vlc_stream_fifo_Control;
+    s->pf_control = heimdall_stream_fifo_Control;
     *reader = s;
     return writer;
 }
 
-int vlc_stream_fifo_Queue(vlc_stream_fifo_t *writer, block_t *block)
+int heimdall_stream_fifo_Queue(heimdall_stream_fifo_t *writer, block_t *block)
 {
-    vlc_queue_Lock(&writer->queue);
+    heimdall_queue_Lock(&writer->queue);
     if (likely(!writer->eof))
     {
-        vlc_queue_EnqueueUnlocked(&writer->queue, block);
+        heimdall_queue_EnqueueUnlocked(&writer->queue, block);
         block = NULL;
     }
-    vlc_queue_Unlock(&writer->queue);
+    heimdall_queue_Unlock(&writer->queue);
 
     if (unlikely(block != NULL))
     {
@@ -148,7 +149,7 @@ int vlc_stream_fifo_Queue(vlc_stream_fifo_t *writer, block_t *block)
     return 0;
 }
 
-ssize_t vlc_stream_fifo_Write(vlc_stream_fifo_t *writer,
+ssize_t heimdall_stream_fifo_Write(heimdall_stream_fifo_t *writer,
                               const void *buf, size_t len)
 {
     block_t *block = block_Alloc(len);
@@ -156,18 +157,18 @@ ssize_t vlc_stream_fifo_Write(vlc_stream_fifo_t *writer,
         return -1;
 
     memcpy(block->p_buffer, buf, len);
-    return vlc_stream_fifo_Queue(writer, block) ? -1 : (ssize_t)len;
+    return heimdall_stream_fifo_Queue(writer, block) ? -1 : (ssize_t)len;
 }
 
-void vlc_stream_fifo_Close(vlc_stream_fifo_t *writer)
+void heimdall_stream_fifo_Close(heimdall_stream_fifo_t *writer)
 {
     bool closed;
 
-    vlc_queue_Lock(&writer->queue);
+    heimdall_queue_Lock(&writer->queue);
     closed = writer->eof;
     writer->eof = true;
-    vlc_queue_Signal(&writer->queue);
-    vlc_queue_Unlock(&writer->queue);
+    heimdall_queue_Signal(&writer->queue);
+    heimdall_queue_Unlock(&writer->queue);
 
     if (closed)
         /* Destroy shared state if read end is already closed */

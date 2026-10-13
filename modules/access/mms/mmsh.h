@@ -2,6 +2,7 @@
  * mmsh.h:
  *****************************************************************************
  * Copyright (C) 2001, 2002 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *
@@ -20,8 +21,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_MMS_MMSH_H_
-#define VLC_MMS_MMSH_H_
+#ifndef HEIMDALL_MMS_MMSH_H_
+#define HEIMDALL_MMS_MMSH_H_
 
 typedef struct
 {
@@ -43,11 +44,11 @@ typedef struct
 {
     int             i_proto;
 
-    struct vlc_tls *stream;
-    vlc_url_t       url;
+    struct heimdall_tls *stream;
+    heimdall_url_t       url;
 
     bool      b_proxy;
-    vlc_url_t       proxy;
+    heimdall_url_t       proxy;
 
     int             i_request_context;
 
@@ -67,7 +68,7 @@ typedef struct
     uint64_t        i_position;
 
     asf_header_t    asfh;
-    vlc_guid_t          guid;
+    heimdall_guid_t          guid;
 } access_sys_t;
 
 #endif

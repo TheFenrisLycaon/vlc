@@ -1,7 +1,8 @@
 /*****************************************************************************
- * mirror.c : Mirror video plugin for vlc
+ * mirror.c : Mirror video plugin for heimdall
  *****************************************************************************
  * Copyright (C) 2009 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Branko Kokanovic <branko.kokanovic@gmail.com>
  *
@@ -31,11 +32,11 @@
 #include <assert.h>
 #include <stdatomic.h>
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_picture.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
 #include "filter_picture.h"
 
 /*****************************************************************************
@@ -75,7 +76,7 @@ static const char *const ppsz_direction_descriptions[] = {
 
 #define CFG_PREFIX "mirror-"
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("Mirror video filter") )
     set_shortname( N_("Mirror video" ))
     set_help( N_("Splits video in two same parts, like in a mirror") )
@@ -88,13 +89,13 @@ vlc_module_begin ()
                 DIRECTION_LONGTEXT )
         change_integer_list( pi_direction_values, ppsz_direction_descriptions )
     set_callback_video_filter( Create )
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * callback prototypes
  *****************************************************************************/
-static int FilterCallback( vlc_object_t *, char const *,
-                           vlc_value_t, vlc_value_t, void * );
+static int FilterCallback( heimdall_object_t *, char const *,
+                           heimdall_value_t, heimdall_value_t, void * );
 
 /*****************************************************************************
  * filter_sys_t: adjust filter method descriptor
@@ -122,27 +123,27 @@ static int Create( filter_t *p_filter )
             break;
         CASE_PACKED_RGB32
             break;
-        case VLC_CODEC_RGB24:
-        case VLC_CODEC_BGR24:
+        case HEIMDALL_CODEC_RGB24:
+        case HEIMDALL_CODEC_BGR24:
             break;
 
         default:
             msg_Err( p_filter, "Unsupported input chroma (%4.4s)",
                      (char*)&(p_filter->fmt_in.video.i_chroma) );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 
     if( !video_format_IsSameChroma( &p_filter->fmt_in.video,
                                     &p_filter->fmt_out.video ) )
     {
         msg_Err( p_filter, "Input and output chromas don't match" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Allocate structure */
     p_sys = p_filter->p_sys = malloc( sizeof( filter_sys_t ) );
     if( p_filter->p_sys == NULL )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     config_ChainParse( p_filter, CFG_PREFIX, ppsz_filter_options,
                        p_filter->p_cfg );
@@ -157,7 +158,7 @@ static int Create( filter_t *p_filter )
 
     p_filter->ops = &Filter_ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -212,22 +213,22 @@ static void VerticalMirror( picture_t *p_pic, picture_t *p_outpic, int i_plane,
         CASE_PLANAR_YUV_SQUARE
             PlanarVerticalMirror( p_pic, p_outpic, i_plane, b_left_to_right );
             break;
-        case VLC_CODEC_YUYV:
-        case VLC_CODEC_YVYU:
+        case HEIMDALL_CODEC_YUYV:
+        case HEIMDALL_CODEC_YVYU:
             YUV422VerticalMirror( p_pic, p_outpic, i_plane, b_left_to_right,
                                  true );
             break;
-        case VLC_CODEC_UYVY:
+        case HEIMDALL_CODEC_UYVY:
             break;
-        case VLC_CODEC_RGB24:
-        case VLC_CODEC_BGR24:
+        case HEIMDALL_CODEC_RGB24:
+        case HEIMDALL_CODEC_BGR24:
             RV24VerticalMirror( p_pic, p_outpic, i_plane, b_left_to_right );
             break;
         CASE_PACKED_RGB32
             RV32VerticalMirror( p_pic, p_outpic, i_plane, b_left_to_right );
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 }
 
@@ -569,8 +570,8 @@ static void HorizontalMirror( picture_t *p_pic, picture_t *p_outpic, int i_plane
     }
 }
 
-static int FilterCallback ( vlc_object_t *p_this, char const *psz_var,
-                            vlc_value_t oldval, vlc_value_t newval, void *p_data )
+static int FilterCallback ( heimdall_object_t *p_this, char const *psz_var,
+                            heimdall_value_t oldval, heimdall_value_t newval, void *p_data )
 {
     (void) p_this; (void)oldval;
     filter_sys_t *p_sys = p_data;
@@ -580,5 +581,5 @@ static int FilterCallback ( vlc_object_t *p_this, char const *psz_var,
     else /* CFG_PREFIX "direction" */
         atomic_store( &p_sys->i_direction, newval.i_int );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

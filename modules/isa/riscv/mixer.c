@@ -2,6 +2,7 @@
  * mixer.c: RISC-V V audio volume mixer module
  *****************************************************************************
  * Copyright (C) 2012, 2022 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -26,11 +27,11 @@
 #include <math.h>
 #include <stdint.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_cpu.h>
-#include <vlc_aout.h>
-#include <vlc_aout_volume.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_cpu.h>
+#include <heimdall_aout.h>
+#include <heimdall_aout_volume.h>
 
 void rvv_amplify_f32(void *, const void *, size_t, float);
 void rvv_amplify_f64(void *, const void *, size_t, double);
@@ -91,44 +92,44 @@ static void AmplifyByte(audio_volume_t *volume, block_t *block, float amp)
     (void) volume;
 }
 
-static int Probe(vlc_object_t *obj)
+static int Probe(heimdall_object_t *obj)
 {
     audio_volume_t *volume = (audio_volume_t *)obj;
 
-    if (!vlc_CPU_RV_V() || !vlc_CPU_RV_B())
-        return VLC_ENOTSUP;
+    if (!heimdall_CPU_RV_V() || !heimdall_CPU_RV_B())
+        return HEIMDALL_ENOTSUP;
 
     switch (volume->format) {
-        case VLC_CODEC_FL32:
+        case HEIMDALL_CODEC_FL32:
             volume->amplify = AmplifyFloat;
             break;
 
-        case VLC_CODEC_FL64:
+        case HEIMDALL_CODEC_FL64:
             volume->amplify = AmplifyDouble;
             break;
 
-        case VLC_CODEC_S16N:
+        case HEIMDALL_CODEC_S16N:
             volume->amplify = AmplifyShort;
             break;
 
-        case VLC_CODEC_S32N:
+        case HEIMDALL_CODEC_S32N:
             volume->amplify = AmplifyInt;
             break;
 
-        case VLC_CODEC_U8:
+        case HEIMDALL_CODEC_U8:
             volume->amplify = AmplifyByte;
             break;
 
         default:
-            return VLC_ENOTSUP;
+            return HEIMDALL_ENOTSUP;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_subcategory(SUBCAT_AUDIO_AFILTER)
     set_description("RISC-V V optimisation for audio volume")
     set_capability("audio volume", 20)
     set_callback(Probe)
-vlc_module_end()
+heimdall_module_end()

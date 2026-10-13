@@ -1,7 +1,8 @@
 /*****************************************************************************
- * invert.c : Invert video plugin for vlc
+ * invert.c : Invert video plugin for heimdall
  *****************************************************************************
  * Copyright (C) 2000-2006 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Samuel Hocevar <sam@zoy.org>
  *
@@ -28,10 +29,10 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_picture.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
 
 /*****************************************************************************
  * Local prototypes
@@ -43,13 +44,13 @@ VIDEO_FILTER_WRAPPER(Filter)
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("Invert video filter") )
     set_shortname( N_("Color inversion" ))
     set_subcategory( SUBCAT_VIDEO_VFILTER )
     add_shortcut( "invert" )
     set_callback_video_filter( Create )
-vlc_module_end ()
+heimdall_module_end ()
 
 /*****************************************************************************
  * Create: allocates Invert video thread output method
@@ -58,22 +59,22 @@ vlc_module_end ()
  *****************************************************************************/
 static int Create( filter_t *p_filter )
 {
-    vlc_fourcc_t fourcc = p_filter->fmt_in.video.i_chroma;
+    heimdall_fourcc_t fourcc = p_filter->fmt_in.video.i_chroma;
 
-    if( fourcc == VLC_CODEC_YUVP || fourcc == VLC_CODEC_RGBP
-     || fourcc == VLC_CODEC_RGBA || fourcc == VLC_CODEC_ARGB
-     || fourcc == VLC_CODEC_BGRA || fourcc == VLC_CODEC_ABGR )
-        return VLC_EGENERIC;
+    if( fourcc == HEIMDALL_CODEC_YUVP || fourcc == HEIMDALL_CODEC_RGBP
+     || fourcc == HEIMDALL_CODEC_RGBA || fourcc == HEIMDALL_CODEC_ARGB
+     || fourcc == HEIMDALL_CODEC_BGRA || fourcc == HEIMDALL_CODEC_ABGR )
+        return HEIMDALL_EGENERIC;
 
-    const vlc_chroma_description_t *p_chroma =
-        vlc_fourcc_GetChromaDescription( fourcc );
+    const heimdall_chroma_description_t *p_chroma =
+        heimdall_fourcc_GetChromaDescription( fourcc );
     assert( p_chroma != NULL );
     if( p_chroma->plane_count == 0
      || p_chroma->pixel_size * 8 != p_chroma->pixel_bits )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     p_filter->ops = &Filter_ops;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -85,10 +86,10 @@ static int Create( filter_t *p_filter )
  *****************************************************************************/
 static void Filter( filter_t *p_filter, picture_t *p_pic, picture_t *p_outpic )
 {
-    VLC_UNUSED(p_filter);
+    HEIMDALL_UNUSED(p_filter);
     int i_planes;
 
-    if( p_pic->format.i_chroma == VLC_CODEC_YUVA )
+    if( p_pic->format.i_chroma == HEIMDALL_CODEC_YUVA )
     {
         /* We don't want to invert the alpha plane */
         i_planes = p_pic->i_planes - 1;

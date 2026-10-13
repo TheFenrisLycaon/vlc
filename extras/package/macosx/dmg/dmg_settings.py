@@ -3,7 +3,7 @@ from __future__ import unicode_literals
 import os
 
 # Configuration file for the dmgbuild tool, used to build
-# a fancy DMG for VLC, with background image and aligned
+# a fancy DMG for Heimdall, with background image and aligned
 # icons.
 #
 # This is python, so make sure to write valid python,
@@ -14,13 +14,13 @@ import os
 #    make package-macosx
 #
 # To use directly, use this:
-#    dmgbuild -s dmgsettings.py "VLC Media Player" VLC.dmg
+#    dmgbuild -s dmgsettings.py "Heimdall Media Player" Heimdall.dmg
 #
 # To specify a different App location:
 #    dmgbuild -s dmgsettings.py -D app=/path/to/My.app "My Application" MyApp.dmg
 
 # Application settings
-application = defines.get('app', 'VLC.app')
+application = defines.get('app', 'Heimdall.app')
 appname = os.path.basename(application)
 
 # Volume format (see hdiutil create -help)

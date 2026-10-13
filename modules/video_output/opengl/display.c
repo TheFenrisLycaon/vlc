@@ -4,6 +4,7 @@
  */
 /*****************************************************************************
  * Copyright © 2010-2011 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -27,17 +28,17 @@
 #include <stdlib.h>
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_vout_display.h>
-#include <vlc_opengl.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_vout_display.h>
+#include <heimdall_opengl.h>
 #include "vout_helper.h"
 
 #include "renderer.h"
 
 /* Plugin callbacks */
 static int Open(vout_display_t *vd,
-                video_format_t *fmtp, vlc_video_context *context);
+                video_format_t *fmtp, heimdall_video_context *context);
 static void Close(vout_display_t *vd);
 
 #define GL_TEXT N_("OpenGL extension")
@@ -45,10 +46,10 @@ static void Close(vout_display_t *vd);
 #define PROVIDER_LONGTEXT N_( \
     "Extension through which to use the Open Graphics Library (OpenGL).")
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_subcategory (SUBCAT_VIDEO_VOUT)
 #if defined (USE_OPENGL_ES2)
-# define API VLC_OPENGL_ES2
+# define API HEIMDALL_OPENGL_ES2
 # define MODULE_VARNAME "gles2"
     set_shortname (N_("OpenGL ES2"))
     set_description (N_("OpenGL for Embedded Systems 2 video output"))
@@ -58,7 +59,7 @@ vlc_module_begin ()
 
 #else
 
-# define API VLC_OPENGL
+# define API HEIMDALL_OPENGL
 # define MODULE_VARNAME "gl"
     set_shortname (N_("OpenGL"))
     set_description (N_("OpenGL video output"))
@@ -69,51 +70,51 @@ vlc_module_begin ()
     add_glopts ()
 
     add_opengl_submodule_renderer()
-vlc_module_end ()
+heimdall_module_end ()
 
 typedef struct vout_display_sys_t
 {
     vout_display_opengl_t *vgl;
-    vlc_gl_t *gl;
+    heimdall_gl_t *gl;
     vout_display_place_t place;
     bool place_changed;
     bool is_dirty;
     bool restart_renderer;
 
     struct {
-        vlc_stereoscopic_mode_t mode;
+        heimdall_stereoscopic_mode_t mode;
         bool changed;
     } stereo;
 
     struct {
         PFNGLFLUSHPROC Flush;
     } vt;
-    vlc_viewpoint_t viewpoint;
+    heimdall_viewpoint_t viewpoint;
 } vout_display_sys_t;
 
 /* Display callbacks */
-static void PictureRender (vout_display_t *, picture_t *, const vlc_render_subpicture *, vlc_tick_t);
+static void PictureRender (vout_display_t *, picture_t *, const heimdall_render_subpicture *, heimdall_tick_t);
 static void PictureDisplay (vout_display_t *, picture_t *);
 
-static int SetViewpoint(vout_display_t *vd, const vlc_viewpoint_t *vp)
+static int SetViewpoint(vout_display_t *vd, const heimdall_viewpoint_t *vp)
 {
     vout_display_sys_t *sys = vd->sys;
     int ret = vout_display_opengl_SetViewpoint(sys->vgl, vp);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
         return ret;
 
     sys->viewpoint = *vp;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int
 UpdateFormat(vout_display_t *vd, const video_format_t *fmt,
-             vlc_video_context *vctx)
+             heimdall_video_context *vctx)
 {
     vout_display_sys_t *sys = vd->sys;
 
-    int ret = vlc_gl_MakeCurrent(sys->gl);
-    if (ret != VLC_SUCCESS)
+    int ret = heimdall_gl_MakeCurrent(sys->gl);
+    if (ret != HEIMDALL_SUCCESS)
         return ret;
 
     ret = vout_display_opengl_UpdateFormat(sys->vgl, fmt, vctx);
@@ -121,7 +122,7 @@ UpdateFormat(vout_display_t *vd, const video_format_t *fmt,
     /* Force to recompute the viewport on next picture */
     sys->place_changed = true;
 
-    vlc_gl_ReleaseCurrent(sys->gl);
+    heimdall_gl_ReleaseCurrent(sys->gl);
 
     return ret;
 }
@@ -167,44 +168,44 @@ static int SetDisplaySize(vout_display_t *vd, unsigned width, unsigned height)
     vout_display_sys_t *sys = vd->sys;
 
     PlacePicture(vd, &sys->place, vd->cfg->display);
-    vlc_gl_Resize (sys->gl, width, height);
-    return VLC_SUCCESS;
+    heimdall_gl_Resize (sys->gl, width, height);
+    return HEIMDALL_SUCCESS;
 }
 
 static int ChangeSourceProjection(vout_display_t *vd, video_projection_mode_t projection)
 {
-    VLC_UNUSED(projection);
+    HEIMDALL_UNUSED(projection);
     vout_display_sys_t *sys = vd->sys;
     PlacePicture(vd, &sys->place, vd->cfg->display);
     sys->restart_renderer = true;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int SetStereoMode(vout_display_t *vd, vlc_stereoscopic_mode_t mode)
+static int SetStereoMode(vout_display_t *vd, heimdall_stereoscopic_mode_t mode)
 {
     vout_display_sys_t *sys = vd->sys;
     PlacePicture(vd, &sys->place, vd->cfg->display);
     sys->stereo.mode = mode;
     sys->stereo.changed = true;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int PlacementChanged(vout_display_t *vd, const vout_display_place_t *place)
 {
     vout_display_sys_t *sys = vd->sys;
-    VLC_UNUSED(place);
+    HEIMDALL_UNUSED(place);
 
     PlacePicture(vd, &sys->place, vd->cfg->display);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int AspectChanged(vout_display_t *vd, const video_format_t *source)
 {
-    VLC_UNUSED(source);
+    HEIMDALL_UNUSED(source);
     return PlacementChanged(vd, NULL);
 }
 
-static const struct vlc_display_operations ops = {
+static const struct heimdall_display_operations ops = {
     .close = Close,
     .prepare = PictureRender,
     .display = PictureDisplay,
@@ -222,35 +223,35 @@ static const struct vlc_display_operations ops = {
  * Allocates a surface and an OpenGL context for video output.
  */
 static int Open(vout_display_t *vd,
-                video_format_t *fmt, vlc_video_context *context)
+                video_format_t *fmt, heimdall_video_context *context)
 {
 #if defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
-    if (fmt->i_chroma == VLC_CODEC_CVPX_P010)
-        return VLC_EGENERIC;
+    if (fmt->i_chroma == HEIMDALL_CODEC_CVPX_P010)
+        return HEIMDALL_EGENERIC;
 #endif
     vout_display_sys_t *sys = malloc (sizeof (*sys));
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     sys->gl = NULL;
     sys->is_dirty = false;
 
-    vlc_window_t *surface = vd->cfg->window;
+    heimdall_window_t *surface = vd->cfg->window;
     char *gl_name = var_InheritString(surface, MODULE_VARNAME);
 
     /* VDPAU/NVDEC GL interop works only with GLX. Override the "gl" option to force
      * it. */
 #ifndef USE_OPENGL_ES2
-    if (surface->type == VLC_WINDOW_TYPE_XID)
+    if (surface->type == HEIMDALL_WINDOW_TYPE_XID)
     {
         switch (vd->source->i_chroma)
         {
-            case VLC_CODEC_VDPAU_VIDEO:
-            case VLC_CODEC_NVDEC_OPAQUE:
-            case VLC_CODEC_NVDEC_OPAQUE_10B:
-            case VLC_CODEC_NVDEC_OPAQUE_16B:
-            case VLC_CODEC_NVDEC_OPAQUE_444:
-            case VLC_CODEC_NVDEC_OPAQUE_444_16B:
+            case HEIMDALL_CODEC_VDPAU_VIDEO:
+            case HEIMDALL_CODEC_NVDEC_OPAQUE:
+            case HEIMDALL_CODEC_NVDEC_OPAQUE_10B:
+            case HEIMDALL_CODEC_NVDEC_OPAQUE_16B:
+            case HEIMDALL_CODEC_NVDEC_OPAQUE_444:
+            case HEIMDALL_CODEC_NVDEC_OPAQUE_444_16B:
             {
                 /* Force the option only if it was not previously set */
                 if (gl_name == NULL || gl_name[0] == 0
@@ -267,7 +268,7 @@ static int Open(vout_display_t *vd,
     }
 #endif
 
-    sys->gl = vlc_gl_Create(vd->cfg, API, gl_name, NULL);
+    sys->gl = heimdall_gl_Create(vd->cfg, API, gl_name, NULL);
     free(gl_name);
     if (sys->gl == NULL)
         goto error;
@@ -276,24 +277,24 @@ static int Open(vout_display_t *vd,
     struct vout_display_placement dp = vd->cfg->display;
     PlacePicture(vd, &sys->place, dp);
     sys->stereo.changed = false;
-    vlc_gl_Resize (sys->gl, vd->cfg->display.width, vd->cfg->display.height);
+    heimdall_gl_Resize (sys->gl, vd->cfg->display.width, vd->cfg->display.height);
 
     /* Initialize video display */
-    const vlc_fourcc_t *spu_chromas;
+    const heimdall_fourcc_t *spu_chromas;
 
-    if (vlc_gl_MakeCurrent (sys->gl))
+    if (heimdall_gl_MakeCurrent (sys->gl))
         goto error;
 
-    sys->vt.Flush = vlc_gl_GetProcAddress(sys->gl, "glFlush");
+    sys->vt.Flush = heimdall_gl_GetProcAddress(sys->gl, "glFlush");
     if (sys->vt.Flush == NULL)
     {
-        vlc_gl_ReleaseCurrent (sys->gl);
+        heimdall_gl_ReleaseCurrent (sys->gl);
         goto error;
     }
 
     sys->vgl = vout_display_opengl_New (fmt, &spu_chromas, sys->gl,
                                         &vd->cfg->viewpoint, context);
-    vlc_gl_ReleaseCurrent (sys->gl);
+    heimdall_gl_ReleaseCurrent (sys->gl);
 
     if (sys->vgl == NULL)
         goto error;
@@ -302,14 +303,14 @@ static int Open(vout_display_t *vd,
 
     vd->info.subpicture_chromas = spu_chromas;
     vd->ops = &ops;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     if (sys->gl != NULL)
-        vlc_gl_Delete(sys->gl);
+        heimdall_gl_Delete(sys->gl);
     free (sys);
     vd->sys = NULL;
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /**
@@ -318,24 +319,24 @@ error:
 static void Close(vout_display_t *vd)
 {
     vout_display_sys_t *sys = vd->sys;
-    vlc_gl_t *gl = sys->gl;
+    heimdall_gl_t *gl = sys->gl;
 
-    vlc_gl_MakeCurrent (gl);
+    heimdall_gl_MakeCurrent (gl);
     vout_display_opengl_Delete (sys->vgl);
-    vlc_gl_ReleaseCurrent (gl);
+    heimdall_gl_ReleaseCurrent (gl);
 
-    vlc_gl_Delete(gl);
+    heimdall_gl_Delete(gl);
     free (sys);
 }
 
 static void PictureRender (vout_display_t *vd, picture_t *pic,
-                           const vlc_render_subpicture *subpicture,
-                           vlc_tick_t date)
+                           const heimdall_render_subpicture *subpicture,
+                           heimdall_tick_t date)
 {
-    VLC_UNUSED(date);
+    HEIMDALL_UNUSED(date);
     vout_display_sys_t *sys = vd->sys;
 
-    if (vlc_gl_MakeCurrent (sys->gl) == VLC_SUCCESS)
+    if (heimdall_gl_MakeCurrent (sys->gl) == HEIMDALL_SUCCESS)
     {
         if (sys->stereo.changed)
         {
@@ -362,7 +363,7 @@ static void PictureRender (vout_display_t *vd, picture_t *pic,
         vout_display_opengl_Display(sys->vgl);
 
         sys->vt.Flush();
-        vlc_gl_ReleaseCurrent (sys->gl);
+        heimdall_gl_ReleaseCurrent (sys->gl);
         sys->is_dirty = true;
     }
 }
@@ -370,9 +371,9 @@ static void PictureRender (vout_display_t *vd, picture_t *pic,
 static void PictureDisplay (vout_display_t *vd, picture_t *pic)
 {
     vout_display_sys_t *sys = vd->sys;
-    VLC_UNUSED(pic);
+    HEIMDALL_UNUSED(pic);
 
     /* Present on screen */
     if (sys->is_dirty)
-        vlc_gl_Swap(sys->gl);
+        heimdall_gl_Swap(sys->gl);
 }

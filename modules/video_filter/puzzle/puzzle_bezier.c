@@ -2,8 +2,9 @@
  * puzzle_bezier.c : Bezier curves management
  *****************************************************************************
  * Copyright (C) 2013 Vianney Boyer
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Author:  Vianney Boyer <vlcvboyer -at- gmail -dot- com>
+ * Author:  Vianney Boyer <heimdallvboyer -at- gmail -dot- com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -29,8 +30,8 @@
 #endif
 #include <math.h>
 
-#include <vlc_common.h>
-#include <vlc_rand.h>
+#include <heimdall_common.h>
+#include <heimdall_rand.h>
 
 #include "puzzle_bezier.h"
 
@@ -314,13 +315,13 @@ point_t *puzzle_rand_bezier(uint8_t i_pts_nbr)
 
     /* random shape */
     uint8_t i_last_pt = (3 * (i_pts_nbr-1) + 1);
-    uint8_t i_item = ((uint16_t) vlc_mrand48()) %  NB_PRIM;
+    uint8_t i_item = ((uint16_t) heimdall_mrand48()) %  NB_PRIM;
 
     point_t *ps_new_pt = malloc( sizeof( point_t ) * i_last_pt );
     if (ps_new_pt == NULL)
         return NULL;
 
-    if ((vlc_mrand48() & 1) == 1)
+    if ((heimdall_mrand48() & 1) == 1)
         for (uint8_t i=0; i < i_last_pt; i++) {
             ps_new_pt[i].f_x = ps_pt[i_item][i].f_x;
             ps_new_pt[i].f_y = ps_pt[i_item][i].f_y;
@@ -332,7 +333,7 @@ point_t *puzzle_rand_bezier(uint8_t i_pts_nbr)
         }
 
     /* random shape size */
-    float f_current_scale = 0.7 + ( (float) (vlc_mrand48() %  1001 ) / 1000 )*0.3;
+    float f_current_scale = 0.7 + ( (float) (heimdall_mrand48() %  1001 ) / 1000 )*0.3;
     for (uint8_t i_p = 0; i_p < i_last_pt; i_p++) {
         if ( i_p != 0 && i_p != 1 && i_p != i_last_pt - 2 && i_p != i_last_pt - 1 )
             ps_new_pt[i_p].f_x = ps_new_pt[i_p].f_x * f_current_scale;
@@ -340,7 +341,7 @@ point_t *puzzle_rand_bezier(uint8_t i_pts_nbr)
     }
 
     /* random shape shift */
-    float f_offset = ( ( (float) (vlc_mrand48() %  1001 ) / 1000 ) - 0.5 ) * 0.2;
+    float f_offset = ( ( (float) (heimdall_mrand48() %  1001 ) / 1000 ) - 0.5 ) * 0.2;
     for (uint8_t i=1; i < i_pts_nbr - 1; i++) {
         ps_new_pt[i*3-1].f_x += f_offset;
         ps_new_pt[i*3].f_x   += f_offset;

@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2022 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,7 +25,7 @@
 
 ThumbnailCollector::ThumbnailCollector(QObject *parent)
     : QObject(parent)
-    , m_ml_event_handle(nullptr, [this](vlc_ml_event_callback_t *cb)
+    , m_ml_event_handle(nullptr, [this](heimdall_ml_event_callback_t *cb)
     {
         assert(m_ml);
         QMutexLocker lock(&m_mut);
@@ -37,27 +38,27 @@ void ThumbnailCollector::start(MediaLib *ml, const QSet<int64_t> &mlIds)
 {
     assert(!m_ml); // class object is only one time usable
     m_ml = ml;
-    m_ml_event_handle.reset(ml->registerEventListener(&onVlcMLEvent, this));
+    m_ml_event_handle.reset(ml->registerEventListener(&onHeimdallMLEvent, this));
 
     m_pending = mlIds;
-    m_ml->runOnMLThread(this, [ids = mlIds](vlc_medialibrary_t* ml)
+    m_ml->runOnMLThread(this, [ids = mlIds](heimdall_medialibrary_t* ml)
     {
         for (const auto id : ids)
-            vlc_ml_media_generate_thumbnail(ml, id, VLC_ML_THUMBNAIL_SMALL, 512, 320, .15);
+            heimdall_ml_media_generate_thumbnail(ml, id, HEIMDALL_ML_THUMBNAIL_SMALL, 512, 320, .15);
     });
 }
 
-void ThumbnailCollector::onVlcMLEvent(void *data, const vlc_ml_event_t *event)
+void ThumbnailCollector::onHeimdallMLEvent(void *data, const heimdall_ml_event_t *event)
 {
-    static const auto mediaID = [](const vlc_ml_event_t *event)
+    static const auto mediaID = [](const heimdall_ml_event_t *event)
     {
-        return (event->i_type == VLC_ML_EVENT_MEDIA_DELETED)
+        return (event->i_type == HEIMDALL_ML_EVENT_MEDIA_DELETED)
                    ? event->deletion.i_entity_id
                    : event->media_thumbnail_generated.p_media->i_id;
     };
 
-    if ((event->i_type != VLC_ML_EVENT_MEDIA_DELETED)
-        && (event->i_type != VLC_ML_EVENT_MEDIA_THUMBNAIL_GENERATED))
+    if ((event->i_type != HEIMDALL_ML_EVENT_MEDIA_DELETED)
+        && (event->i_type != HEIMDALL_ML_EVENT_MEDIA_THUMBNAIL_GENERATED))
         return;
 
     const auto self = reinterpret_cast<ThumbnailCollector *>(data);
@@ -69,10 +70,10 @@ void ThumbnailCollector::onVlcMLEvent(void *data, const vlc_ml_event_t *event)
 
     self->m_pending.remove(id);
 
-    if (event->i_type == VLC_ML_EVENT_MEDIA_THUMBNAIL_GENERATED)
+    if (event->i_type == HEIMDALL_ML_EVENT_MEDIA_THUMBNAIL_GENERATED)
     {
         const auto media = event->media_thumbnail_generated.p_media;
-        const auto url = toValidLocalFile(media->thumbnails[VLC_ML_THUMBNAIL_SMALL].psz_mrl);
+        const auto url = toValidLocalFile(media->thumbnails[HEIMDALL_ML_THUMBNAIL_SMALL].psz_mrl);
 
         if (event->media_thumbnail_generated.b_success && !url.isEmpty()) {
             self->m_thumbnails.insert(id, url);

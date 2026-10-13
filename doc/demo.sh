@@ -1,15 +1,15 @@
 #!/bin/sh
 
 ########################################################################
-# VLC demo command line generator
+# Heimdall demo command line generator
 # $Id$
 ########################################################################
 
 #TODO: change on Max OS X
 if test ".`uname -s`" = ".Darwin"; then
-  VLC="./VLC.app/Contents/MacOS/VLC --quiet --color "
+  Heimdall="./Heimdall.app/Contents/MacOS/Heimdall --quiet --color "
 else
-  VLC="./vlc --quiet --color "
+  Heimdall="./heimdall --quiet --color "
 fi
 CMD=""
 
@@ -18,7 +18,7 @@ pyschedelic()
   echo -e "\n- Psychedelic demo -\nconfiguration\n"
   echo -en "Please choose an input. Live camera feeds are best.\ninput? "
   read input
-  echo -e "\n$VLC --sub-source marq --marq-position 8 --marq-size 30 --marq-color 16776960 --marq-marquee \"VLC - Psychedelic video filter\" --vout-filter distort --distort-mode psychedelic $input"
+  echo -e "\n$Heimdall --sub-source marq --marq-position 8 --marq-size 30 --marq-color 16776960 --marq-marquee \"Heimdall - Psychedelic video filter\" --vout-filter distort --distort-mode psychedelic $input"
 }
 
 gradient()
@@ -33,7 +33,7 @@ setup a input $input
 setup a output #duplicate{dst=mosaic-bridge,select=video}
 control a play" > "`pwd`/demo.vlm"
   echo "VLM batch file saved to `pwd`/demo.vlm"
-  echo -e "\n$VLC --sub-source mosaic:marq:logo --mosaic-width 120 --mosaic-height 90 --mosaic-cols 1 --mosaic-rows 1 --marq-position 8 --marq-size 30 --marq-color 65280 --marq-marquee \"VLC - Gradient video filter\" --logo-file $logofile --vout-filter distort --distort-mode gradient --extraintf telnet --telnet-host localhost --vlm-conf `pwd`/demo.vlm $input"
+  echo -e "\n$Heimdall --sub-source mosaic:marq:logo --mosaic-width 120 --mosaic-height 90 --mosaic-cols 1 --mosaic-rows 1 --marq-position 8 --marq-size 30 --marq-color 65280 --marq-marquee \"Heimdall - Gradient video filter\" --logo-file $logofile --vout-filter distort --distort-mode gradient --extraintf telnet --telnet-host localhost --vlm-conf `pwd`/demo.vlm $input"
 }
 
 mosaic()
@@ -48,7 +48,7 @@ setup a input $vid
 setup a output #duplicate{dst=mosaic-bridge,select=video}
 control a play" > "`pwd`/demo.vlm"
   echo "VLM batch file saved to `pwd`/demo.vlm"
-  echo -e "\n$VLC --sub-source mosaic:marq --marq-marque \"VLC - mosaic\" --marq-position 6 --mosaic-width 120 --mosaic-height 90 --mosaic-rows 1 --mosaic-cols 1 --mosaic-alpha 150 --extraintf telnet --telnet-host localhost --vlm-conf `pwd`/demo.vlm $bg"
+  echo -e "\n$Heimdall --sub-source mosaic:marq --marq-marque \"Heimdall - mosaic\" --marq-position 6 --mosaic-width 120 --mosaic-height 90 --mosaic-rows 1 --mosaic-cols 1 --mosaic-alpha 150 --extraintf telnet --telnet-host localhost --vlm-conf `pwd`/demo.vlm $bg"
 }
 
 wall()
@@ -60,18 +60,18 @@ wall()
   read rot
   case "$rot" in
     "y"|"Y"|"yes")
-      echo -e "\nLeft hand side:\n$VLC --vout-filter wall:transform --transform-type 90 --wall-cols 2 --wall-rows 1 --wall-active 0 $input"
-      echo -e "\nRight hand side:\n$VLC --vout-filter wall:transform --transform-type 90 --wall-cols 2 --wall-rows 1 --wall-active 1 --sub-source marq --marq-marquee \"VLC - Video wall\" $input"
+      echo -e "\nLeft hand side:\n$Heimdall --vout-filter wall:transform --transform-type 90 --wall-cols 2 --wall-rows 1 --wall-active 0 $input"
+      echo -e "\nRight hand side:\n$Heimdall --vout-filter wall:transform --transform-type 90 --wall-cols 2 --wall-rows 1 --wall-active 1 --sub-source marq --marq-marquee \"Heimdall - Video wall\" $input"
       ;;
     *)
-      echo -e "\nLeft hand side:\n$VLC --vout-filter wall --wall-cols 2 --wall-rows 1 --wall-active 0 --sub-source marq --marq-marquee \"VLC - Video wall\" $input"
-      echo -e "\nRight hand side:\n$VLC --vout-filter wall --wall-cols 2 --wall-rows 1 --wall-active 1 $input"
+      echo -e "\nLeft hand side:\n$Heimdall --vout-filter wall --wall-cols 2 --wall-rows 1 --wall-active 0 --sub-source marq --marq-marquee \"Heimdall - Video wall\" $input"
+      echo -e "\nRight hand side:\n$Heimdall --vout-filter wall --wall-cols 2 --wall-rows 1 --wall-active 1 $input"
       ;;
   esac
 }
 
 cat << EOF
-VLC cool demos script
+Heimdall cool demos script
  1. psychedelic video filter
  2. gradient video filter
  3. mosaic

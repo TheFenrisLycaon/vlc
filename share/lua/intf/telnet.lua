@@ -2,6 +2,7 @@
  telnet.lua: wrapper for legacy telnet configuration
 --[==========================================================================[
  Copyright (C) 2011 the VideoLAN team
+ Copyright (C) 2026 TheFenrisLycaon
 
  Authors: Pierre Ynard
 
@@ -37,7 +38,7 @@ else
                 else
                     newhost = string.gsub(host, "^%s*.-://", "telnet://")
                 end
-                --vlc.msg.warn("Replacing host `"..host.."' with `"..newhost.."'")
+                --heimdall.msg.warn("Replacing host `"..host.."' with `"..newhost.."'")
                 config.hosts[i] = newhost
             end
         end
@@ -45,7 +46,7 @@ else
 end
 
 --[[ Launch vlm ]]
-vlm = vlc.vlm()
+vlm = heimdall.vlm()
 
 dofile(wrapped_file)
 

@@ -2,6 +2,7 @@
  * playlist.c :  Playlist import module
  *****************************************************************************
  * Copyright (C) 2004 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Clément Stenac <zorglub@videolan.org>
  *
@@ -27,11 +28,11 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_demux.h>
-#include <vlc_url.h>
-#include <vlc_access.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_demux.h>
+#include <heimdall_url.h>
+#include <heimdall_access.h>
 
 #if defined( _WIN32 ) || defined( __OS2__ )
 # include <ctype.h>                          /* isalpha */
@@ -51,7 +52,7 @@
 #define SKIP_ADS_LONGTEXT N_( "Use playlist options usually used to prevent " \
     "ads skipping to detect ads and prevent adding them to the playlist." )
 
-vlc_module_begin ()
+heimdall_module_begin ()
     add_shortcut( "playlist" )
     set_subcategory( SUBCAT_INPUT_DEMUX )
 
@@ -129,7 +130,7 @@ vlc_module_begin ()
         add_shortcut( "wpl" )
         set_capability( "demux", 10 )
         set_callbacks( Import_WPL, Close_WPL )
-vlc_module_end ()
+heimdall_module_end ()
 
 /**
  * Resolves a playlist location.
@@ -150,7 +151,7 @@ char *ProcessMRL(const char *str, const char *base)
     /* Drive letter prefix? */
      || (isalpha((unsigned char)str[0]) && str[1] == ':'))
         /* Assume this an absolute file path - usually true */
-        return vlc_path2uri(str, NULL);
+        return heimdall_path2uri(str, NULL);
     /* TODO: drive-relative path: if (str[0] == '\\') */
 #endif
 
@@ -172,18 +173,18 @@ char *ProcessMRL(const char *str, const char *base)
      * cases where the input is a Unix-style file path, but not all.
      * It fails miserably if the playlist character encoding is misdetected.
      */
-    char *rel = vlc_uri_fixup(str);
+    char *rel = heimdall_uri_fixup(str);
     if (rel != NULL)
         str = rel;
 
-    char *abs = vlc_uri_resolve(base, str);
+    char *abs = heimdall_uri_resolve(base, str);
     free(rel);
 
     if (abs == NULL)
     {
         /** If the input is not a valid URL, see if there is a scheme:// where
          * the scheme itself consists solely of valid scheme-characters
-         * (including the VLC's scheme-extension). If it does, fall back to
+         * (including the Heimdall's scheme-extension). If it does, fall back to
          * allowing the URI in order to not break back-compatibility.
          */
         char const* scheme_end = strstr( orig, "://" );
@@ -207,7 +208,7 @@ int PlaylistControl( stream_t *p_access, int i_query, va_list args )
         case STREAM_GET_TYPE:
         {
             *va_arg( args, int* ) = ITEM_TYPE_PLAYLIST;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
         default:
             return access_vaDirectoryControlHelper( p_access, i_query, args );

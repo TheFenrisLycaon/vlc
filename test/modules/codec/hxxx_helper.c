@@ -2,6 +2,7 @@
  * hxxx_helper.c: hxxx_helper packetizer unit testing
  *****************************************************************************
  * Copyright (C) 2021 VideoLabs, VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -21,9 +22,9 @@
 # include "config.h"
 #endif
 
-#include "../../libvlc/test.h"
+#include "../../libheimdall/test.h"
 
-const char vlc_module_name[] = "hxxx_helper";
+const char heimdall_module_name[] = "hxxx_helper";
 
 #include "../../../modules/packetizer/hxxx_nal.h"
 #include "../../../modules/codec/hxxx_helper.h"
@@ -132,7 +133,7 @@ static void dump_hex(const char *s, const uint8_t *p, size_t sz)
     fprintf(stderr, "\n");
 }
 
-static int test_extrainit(vlc_fourcc_t codec,
+static int test_extrainit(heimdall_fourcc_t codec,
                           const uint8_t *p_annexb, size_t i_annexb,
                           const uint8_t *p_xvc, size_t i_xvc)
 {
@@ -167,7 +168,7 @@ static int test_extrainit(vlc_fourcc_t codec,
     return 0;
 }
 
-static int test_configuration_change(vlc_fourcc_t codec,
+static int test_configuration_change(heimdall_fourcc_t codec,
                                      const uint8_t *p_annexb, size_t i_annexb,
                                      size_t i_borkoffset)
 {
@@ -288,39 +289,39 @@ static int test_annexb(void)
     int ret;
     fprintf(stderr,"H264\n");
     fprintf(stderr,"AnnexB -> AnnexB\n");
-    RUN_TEST(VLC_CODEC_H264, h264_annexb, 0, h264_annexb, 0);
+    RUN_TEST(HEIMDALL_CODEC_H264, h264_annexb, 0, h264_annexb, 0);
     fprintf(stderr,"AVC1 -> AVC1\n");
-    RUN_TEST(VLC_CODEC_H264, h264_avc1, 4, h264_avc1, 4);
+    RUN_TEST(HEIMDALL_CODEC_H264, h264_avc1, 4, h264_avc1, 4);
     fprintf(stderr,"AVC1 -> AnnexB\n");
-    RUN_TEST(VLC_CODEC_H264, h264_avc1, 4, h264_annexb, 0);
+    RUN_TEST(HEIMDALL_CODEC_H264, h264_avc1, 4, h264_annexb, 0);
     fprintf(stderr,"AnnexB -> AVC1\n");
-    RUN_TEST(VLC_CODEC_H264, h264_annexb, 0, h264_avc1, 4);
+    RUN_TEST(HEIMDALL_CODEC_H264, h264_annexb, 0, h264_avc1, 4);
 
-    ret = test_extrainit(VLC_CODEC_H264,
+    ret = test_extrainit(HEIMDALL_CODEC_H264,
                 test_extradata_raw_h264_annexb, sizeof(test_extradata_raw_h264_annexb),
                 test_extradata_raw_h264_avc1, sizeof(test_extradata_raw_h264_avc1));
     if(ret) return ret;
 
     fprintf(stderr,"HEVC\n");
     fprintf(stderr,"AnnexB -> AnnexB\n");
-    RUN_TEST(VLC_CODEC_HEVC, h265_annexb, 0, h265_annexb, 0);
+    RUN_TEST(HEIMDALL_CODEC_HEVC, h265_annexb, 0, h265_annexb, 0);
     fprintf(stderr,"HVC1 -> HVC1\n");
-    RUN_TEST(VLC_CODEC_HEVC, h265_hvc1, 4, h265_hvc1, 4);
+    RUN_TEST(HEIMDALL_CODEC_HEVC, h265_hvc1, 4, h265_hvc1, 4);
     fprintf(stderr,"HVC1 -> AnnexB\n");
-    RUN_TEST(VLC_CODEC_HEVC, h265_hvc1, 4, h265_annexb, 0);
+    RUN_TEST(HEIMDALL_CODEC_HEVC, h265_hvc1, 4, h265_annexb, 0);
     fprintf(stderr,"AnnexB -> HVC1\n");
-    RUN_TEST(VLC_CODEC_HEVC, h265_annexb, 0, h265_hvc1, 4);
+    RUN_TEST(HEIMDALL_CODEC_HEVC, h265_annexb, 0, h265_hvc1, 4);
 
-    ret = test_extrainit(VLC_CODEC_HEVC,
+    ret = test_extrainit(HEIMDALL_CODEC_HEVC,
                 test_extradata_raw_h265_annexb, sizeof(test_extradata_raw_h265_annexb),
                 test_extradata_raw_h265_hvc1, sizeof(test_extradata_raw_h265_hvc1));
     if(ret) return ret;
 
-    ret = test_configuration_change(VLC_CODEC_H264,
+    ret = test_configuration_change(HEIMDALL_CODEC_H264,
                 test_samples_raw_h264_annexb, sizeof(test_samples_raw_h264_annexb), 4+2); // poke constraints
     if(ret) return ret;
 
-    ret = test_configuration_change(VLC_CODEC_HEVC,
+    ret = test_configuration_change(HEIMDALL_CODEC_HEVC,
                 test_samples_raw_h265_annexb, sizeof(test_samples_raw_h265_annexb), 4+2); // poke profiletieridc
     if(ret) return ret;
 

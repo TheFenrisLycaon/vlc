@@ -2,6 +2,7 @@
  * ts_strings.h : Descriptions for TS known values
  *****************************************************************************
  * Copyright (C) 2015-2016 - VideoLAN Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -16,8 +17,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
-#ifndef VLC_TS_STRINGS
-#define VLC_TS_STRINGS
+#ifndef HEIMDALL_TS_STRINGS
+#define HEIMDALL_TS_STRINGS
 
 static const char * const ISO13818_1_other_descs[] =
 {

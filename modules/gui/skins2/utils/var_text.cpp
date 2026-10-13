@@ -2,6 +2,7 @@
  * var_text.cpp
  *****************************************************************************
  * Copyright (C) 2003 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cyril Deguet     <asmax@via.ecp.fr>
  *          Olivier Teulière <ipkiss@via.ecp.fr>
@@ -22,7 +23,7 @@
  *****************************************************************************/
 
 #include "var_text.hpp"
-#include "../src/vlcproc.hpp"
+#include "../src/heimdallproc.hpp"
 #include "../src/var_manager.hpp"
 #include "../vars/time.hpp"
 #include "../vars/volume.hpp"
@@ -56,7 +57,7 @@ const UString VarText::get() const
     }
 
     uint32_t pos;
-    VlcProc *pVlcProc = VlcProc::instance( getIntf() );
+    HeimdallProc *pHeimdallProc = HeimdallProc::instance( getIntf() );
 
     // Fill a temporary UString object, and replace the escape characters
     // ($H for help, $T for current time, $L for time left, $D for duration,
@@ -74,57 +75,57 @@ const UString VarText::get() const
     while( (pos = temp.find( "$T" )) != UString::npos )
     {
         temp.replace( pos, 2,
-                      pVlcProc->getTimeVar().getAsStringCurrTime().c_str() );
+                      pHeimdallProc->getTimeVar().getAsStringCurrTime().c_str() );
     }
     while( (pos = temp.find( "$t" )) != UString::npos )
     {
         temp.replace( pos, 2,
-                      pVlcProc->getTimeVar().getAsStringCurrTime(true).c_str() );
+                      pHeimdallProc->getTimeVar().getAsStringCurrTime(true).c_str() );
     }
     while( (pos = temp.find( "$L" )) != UString::npos )
     {
         temp.replace( pos, 2,
-                      pVlcProc->getTimeVar().getAsStringTimeLeft().c_str() );
+                      pHeimdallProc->getTimeVar().getAsStringTimeLeft().c_str() );
     }
     while( (pos = temp.find( "$l" )) != UString::npos )
     {
         temp.replace( pos, 2,
-                      pVlcProc->getTimeVar().getAsStringTimeLeft(true).c_str() );
+                      pHeimdallProc->getTimeVar().getAsStringTimeLeft(true).c_str() );
     }
     while( (pos = temp.find( "$D" )) != UString::npos )
     {
         temp.replace( pos, 2,
-                      pVlcProc->getTimeVar().getAsStringDuration().c_str() );
+                      pHeimdallProc->getTimeVar().getAsStringDuration().c_str() );
     }
     while( (pos = temp.find( "$d" )) != UString::npos )
     {
         temp.replace( pos, 2,
-                      pVlcProc->getTimeVar().getAsStringDuration(true).c_str() );
+                      pHeimdallProc->getTimeVar().getAsStringDuration(true).c_str() );
     }
     while( (pos = temp.find( "$V" )) != UString::npos )
     {
         temp.replace( pos, 2,
-                      pVlcProc->getVolumeVar().getAsStringPercent().c_str() );
+                      pHeimdallProc->getVolumeVar().getAsStringPercent().c_str() );
     }
     while( (pos = temp.find( "$N" )) != UString::npos )
     {
-        temp.replace( pos, 2, pVlcProc->getStreamNameVar().get() );
+        temp.replace( pos, 2, pHeimdallProc->getStreamNameVar().get() );
     }
     while( (pos = temp.find( "$F" )) != UString::npos )
     {
-        temp.replace( pos, 2, pVlcProc->getStreamURIVar().get() );
+        temp.replace( pos, 2, pHeimdallProc->getStreamURIVar().get() );
     }
     while( (pos = temp.find( "$B" )) != UString::npos )
     {
-        temp.replace( pos, 2, pVlcProc->getStreamBitRateVar().get() );
+        temp.replace( pos, 2, pHeimdallProc->getStreamBitRateVar().get() );
     }
     while( (pos = temp.find( "$S" )) != UString::npos )
     {
-        temp.replace( pos, 2, pVlcProc->getStreamSampleRateVar().get() );
+        temp.replace( pos, 2, pHeimdallProc->getStreamSampleRateVar().get() );
     }
     while( (pos = temp.find( "$R" )) != UString::npos )
     {
-        temp.replace( pos, 2, pVlcProc->getSpeedVar().get() );
+        temp.replace( pos, 2, pHeimdallProc->getSpeedVar().get() );
     }
 
     return temp;
@@ -146,7 +147,7 @@ void VarText::set( const UString &rText )
         // Stop observing other variables
         delObservers();
 
-        VlcProc *pVlcProc = VlcProc::instance( getIntf() );
+        HeimdallProc *pHeimdallProc = HeimdallProc::instance( getIntf() );
         VarManager *pVarManager = VarManager::instance( getIntf() );
 
         // Observe needed variables
@@ -161,31 +162,31 @@ void VarText::set( const UString &rText )
             m_text.find( "$D" ) != UString::npos ||
             m_text.find( "$d" ) != UString::npos )
         {
-            pVlcProc->getTimeVar().addObserver( this );
+            pHeimdallProc->getTimeVar().addObserver( this );
         }
         if( m_text.find( "$V" ) != UString::npos )
         {
-            pVlcProc->getVolumeVar().addObserver( this );
+            pHeimdallProc->getVolumeVar().addObserver( this );
         }
         if( m_text.find( "$N" ) != UString::npos )
         {
-            pVlcProc->getStreamNameVar().addObserver( this );
+            pHeimdallProc->getStreamNameVar().addObserver( this );
         }
         if( m_text.find( "$F" ) != UString::npos )
         {
-            pVlcProc->getStreamURIVar().addObserver( this );
+            pHeimdallProc->getStreamURIVar().addObserver( this );
         }
         if( m_text.find( "$B" ) != UString::npos )
         {
-            pVlcProc->getStreamBitRateVar().addObserver( this );
+            pHeimdallProc->getStreamBitRateVar().addObserver( this );
         }
         if( m_text.find( "$S" ) != UString::npos )
         {
-            pVlcProc->getStreamSampleRateVar().addObserver( this );
+            pHeimdallProc->getStreamSampleRateVar().addObserver( this );
         }
         if( m_text.find( "$R" ) != UString::npos )
         {
-            pVlcProc->getSpeedVar().addObserver( this );
+            pHeimdallProc->getSpeedVar().addObserver( this );
         }
     }
 
@@ -223,18 +224,18 @@ void VarText::delObservers()
 {
     // Stop observing other variables
 
-    VlcProc *pVlcProc = getIntf()->p_sys->p_vlcProc;
+    HeimdallProc *pHeimdallProc = getIntf()->p_sys->p_heimdallProc;
     VarManager *pVarManager = getIntf()->p_sys->p_varManager;
 
-    if( pVlcProc )
+    if( pHeimdallProc )
     {
-        pVlcProc->getTimeVar().delObserver( this );
-        pVlcProc->getVolumeVar().delObserver( this );
-        pVlcProc->getSpeedVar().delObserver( this );
-        pVlcProc->getStreamNameVar().delObserver( this );
-        pVlcProc->getStreamURIVar().delObserver( this );
-        pVlcProc->getStreamBitRateVar().delObserver( this );
-        pVlcProc->getStreamSampleRateVar().delObserver( this );
+        pHeimdallProc->getTimeVar().delObserver( this );
+        pHeimdallProc->getVolumeVar().delObserver( this );
+        pHeimdallProc->getSpeedVar().delObserver( this );
+        pHeimdallProc->getStreamNameVar().delObserver( this );
+        pHeimdallProc->getStreamURIVar().delObserver( this );
+        pHeimdallProc->getStreamBitRateVar().delObserver( this );
+        pHeimdallProc->getStreamSampleRateVar().delObserver( this );
     }
 
     if( pVarManager )

@@ -2,6 +2,7 @@
  * memstream.c: heap-based output streams
  *****************************************************************************
  * Copyright (C) 2016 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -24,17 +25,17 @@
 
 #include <stdckdint.h>
 
-#include <vlc_common.h>
-#include <vlc_memstream.h>
+#include <heimdall_common.h>
+#include <heimdall_memstream.h>
 
 #ifdef HAVE_OPEN_MEMSTREAM
-int vlc_memstream_open(struct vlc_memstream *ms)
+int heimdall_memstream_open(struct heimdall_memstream *ms)
 {
     ms->stream = open_memstream(&ms->ptr, &ms->length);
     return likely(ms->stream != NULL) ? 0 : EOF;
 }
 
-int vlc_memstream_flush(struct vlc_memstream *ms)
+int heimdall_memstream_flush(struct heimdall_memstream *ms)
 {
     if (unlikely(ms->stream == NULL))
         return EOF;
@@ -45,7 +46,7 @@ int vlc_memstream_flush(struct vlc_memstream *ms)
     return fflush(ms->stream);
 }
 
-int vlc_memstream_close(struct vlc_memstream *ms)
+int heimdall_memstream_close(struct heimdall_memstream *ms)
 {
     FILE *stream = ms->stream;
     int ret;
@@ -76,7 +77,7 @@ int vlc_memstream_close(struct vlc_memstream *ms)
     return 0;
 } 
 
-size_t vlc_memstream_write(struct vlc_memstream *ms, const void *ptr,
+size_t heimdall_memstream_write(struct heimdall_memstream *ms, const void *ptr,
                            size_t len)
 {
     if (unlikely(ms->stream == NULL))
@@ -88,7 +89,7 @@ size_t vlc_memstream_write(struct vlc_memstream *ms, const void *ptr,
     return fwrite(ptr, 1, len, ms->stream);
 }
 
-int vlc_memstream_putc(struct vlc_memstream *ms, int c)
+int heimdall_memstream_putc(struct heimdall_memstream *ms, int c)
 {
     if (unlikely(ms->stream == NULL))
         return EOF;
@@ -96,7 +97,7 @@ int vlc_memstream_putc(struct vlc_memstream *ms, int c)
     return fputc(c, ms->stream);
 }
 
-int (vlc_memstream_puts)(struct vlc_memstream *ms, const char *str)
+int (heimdall_memstream_puts)(struct heimdall_memstream *ms, const char *str)
 {
     if (unlikely(ms->stream == NULL))
         return EOF;
@@ -104,7 +105,7 @@ int (vlc_memstream_puts)(struct vlc_memstream *ms, const char *str)
     return fputs(str, ms->stream);
 }
 
-int vlc_memstream_vprintf(struct vlc_memstream *ms, const char *fmt,
+int heimdall_memstream_vprintf(struct heimdall_memstream *ms, const char *fmt,
                           va_list args)
 {
     if (unlikely(ms->stream == NULL))
@@ -116,7 +117,7 @@ int vlc_memstream_vprintf(struct vlc_memstream *ms, const char *fmt,
 #else
 #include <stdlib.h>
 
-int vlc_memstream_open(struct vlc_memstream *ms)
+int heimdall_memstream_open(struct heimdall_memstream *ms)
 {
     ms->ptr = calloc(1, 1);
     if (unlikely(ms->ptr == NULL))
@@ -128,12 +129,12 @@ int vlc_memstream_open(struct vlc_memstream *ms)
     return 0;
 }
 
-int vlc_memstream_flush(struct vlc_memstream *ms)
+int heimdall_memstream_flush(struct heimdall_memstream *ms)
 {
     return ms->length == SIZE_MAX ? EOF : 0;
 }
 
-int vlc_memstream_close(struct vlc_memstream *ms)
+int heimdall_memstream_close(struct heimdall_memstream *ms)
 {
     if (ms->length == SIZE_MAX)
     {
@@ -144,7 +145,7 @@ int vlc_memstream_close(struct vlc_memstream *ms)
     return 0;
 }
 
-size_t vlc_memstream_write(struct vlc_memstream *ms, const void *ptr,
+size_t heimdall_memstream_write(struct heimdall_memstream *ms, const void *ptr,
                            size_t len)
 {
     size_t newlen;
@@ -171,18 +172,18 @@ error:
     return 0;
 }
 
-int vlc_memstream_putc(struct vlc_memstream *ms, int c)
+int heimdall_memstream_putc(struct heimdall_memstream *ms, int c)
 {
-    return (vlc_memstream_write(ms, &(unsigned char){ c }, 1u) == 1) ? c : EOF;
+    return (heimdall_memstream_write(ms, &(unsigned char){ c }, 1u) == 1) ? c : EOF;
 }
 
-int (vlc_memstream_puts)(struct vlc_memstream *ms, const char *str)
+int (heimdall_memstream_puts)(struct heimdall_memstream *ms, const char *str)
 {
     size_t len = strlen(str);
-    return (vlc_memstream_write(ms, str, len) == len) ? 0 : EOF;
+    return (heimdall_memstream_write(ms, str, len) == len) ? 0 : EOF;
 }
 
-int vlc_memstream_vprintf(struct vlc_memstream *ms, const char *fmt,
+int heimdall_memstream_vprintf(struct heimdall_memstream *ms, const char *fmt,
                           va_list args)
 {
     va_list ap;
@@ -214,13 +215,13 @@ error:
 }
 #endif
 
-int vlc_memstream_printf(struct vlc_memstream *ms, const char *fmt, ...)
+int heimdall_memstream_printf(struct heimdall_memstream *ms, const char *fmt, ...)
 {
     va_list ap;
     int ret;
 
     va_start(ap, fmt);
-    ret = vlc_memstream_vprintf(ms, fmt, ap);
+    ret = heimdall_memstream_vprintf(ms, fmt, ap);
     va_end(ap);
     return ret;
 }

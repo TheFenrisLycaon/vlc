@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2023 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,12 +32,12 @@
 #include <QtGui/qpa/qplatformwindow_p.h>
 #endif
 
-#include <vlc_window.h>
-#include <vlc_modules.h>
+#include <heimdall_window.h>
+#include <heimdall_modules.h>
 
 #include "compositor_wayland_module.h"
 
-namespace vlc {
+namespace heimdall {
 
 static qreal dprForWindow(QQuickWindow* window)
 {
@@ -72,7 +73,7 @@ bool CompositorWayland::init()
      * without requiring Qt module to be directly linked to wayland
      */
     assert(!m_waylandImpl);
-    m_waylandImpl = static_cast<qtwayland_t*>(vlc_object_create(m_intf, sizeof(qtwayland_t)));
+    m_waylandImpl = static_cast<qtwayland_t*>(heimdall_object_create(m_intf, sizeof(qtwayland_t)));
     if (!m_waylandImpl)
         return false;
 
@@ -81,7 +82,7 @@ bool CompositorWayland::init()
     {
         msg_Err(m_intf, "the qtwayland module is not available, wayland"
                         "embedded video output will not be possible");
-        vlc_object_delete(m_waylandImpl);
+        heimdall_object_delete(m_waylandImpl);
         m_waylandImpl = nullptr;
 
         return false;
@@ -200,13 +201,13 @@ QQuickItem * CompositorWayland::activeFocusItem() const
 
 // vout functions
 
-bool CompositorWayland::setupVoutWindow(vlc_window_t* p_wnd, VoutDestroyCb destroyCb)
+bool CompositorWayland::setupVoutWindow(heimdall_window_t* p_wnd, VoutDestroyCb destroyCb)
 {
     if (m_wnd)
         return false;
 
     int ret = m_waylandImpl->setupVoutWindow(m_waylandImpl, p_wnd);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
         return false;
 
     commonSetupVoutWindow(p_wnd, destroyCb);
@@ -220,11 +221,11 @@ void CompositorWayland::windowDestroy()
     CompositorVideo::windowDestroy();
 }
 
-int CompositorWayland::windowEnable(const vlc_window_cfg_t * cfg)
+int CompositorWayland::windowEnable(const heimdall_window_cfg_t * cfg)
 {
     m_waylandImpl->enable(m_waylandImpl, cfg);
     commonWindowEnable();
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 void CompositorWayland::windowDisable()
@@ -286,7 +287,7 @@ bool CompositorWayland::unloadWaylandModule()
             m_waylandImpl->close(m_waylandImpl);
             module_unneed(m_waylandImpl, m_waylandImpl->p_module);
         }
-        vlc_object_delete(m_waylandImpl);
+        heimdall_object_delete(m_waylandImpl);
         m_waylandImpl = nullptr;
         return true;
     }

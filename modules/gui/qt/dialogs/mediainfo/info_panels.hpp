@@ -2,6 +2,7 @@
  * info_panels.hpp : Panels for the information dialogs
  ****************************************************************************
  * Copyright (C) 2006-2007 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Clément Stenac <zorglub@videolan.org>
  *          Jean-Baptiste Kempf <jb@videolan.org>
@@ -22,8 +23,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_QT_INFO_PANELS_HPP_
-#define VLC_QT_INFO_PANELS_HPP_
+#ifndef HEIMDALL_QT_INFO_PANELS_HPP_
+#define HEIMDALL_QT_INFO_PANELS_HPP_
 
 #ifdef HAVE_CONFIG_H
 # include "config.h"
@@ -32,7 +33,7 @@
 #include "qt.hpp"
 #include "util/shared_input_item.hpp"
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 #include <QWidget>
 
 class QTreeWidget;
@@ -42,7 +43,7 @@ class QLineEdit;
 class CoverArtLabel;
 class QTextEdit;
 class QLabel;
-class VLCStatsView;
+class HeimdallStatsView;
 class QPushButton;
 
 class MetaPanel: public QWidget
@@ -139,7 +140,7 @@ private:
     QTreeWidgetItem *aplayed_stat;
     QTreeWidgetItem *alost_stat;
 
-    VLCStatsView *statsView;
+    HeimdallStatsView *statsView;
 public slots:
     void update(const input_stats_t &stats );
     void clear();

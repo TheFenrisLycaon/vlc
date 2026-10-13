@@ -2,8 +2,9 @@
  * qtl.c: QuickTime Media Link Importer
  *****************************************************************************
  * Copyright (C) 2006 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Antoine Cellerier <dionoea -@t- videolan -Dot- org>
+ * Authors: Antoine Cellerier <dionoea -@t- lycaria -Dot- org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -51,12 +52,12 @@ volume - 0 (mute) - 100 (max)
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_access.h>
+#include <heimdall_common.h>
+#include <heimdall_access.h>
 
 #include "playlist.h"
-#include <vlc_xml.h>
-#include <vlc_strings.h>
+#include <heimdall_xml.h>
+#include <heimdall_strings.h>
 
 typedef enum { FULLSCREEN_NORMAL,
                FULLSCREEN_DOUBLE,
@@ -79,18 +80,18 @@ static int ReadDir( stream_t *, input_item_node_t * );
 /*****************************************************************************
  * Import_QTL: main import function
  *****************************************************************************/
-int Import_QTL( vlc_object_t *p_this )
+int Import_QTL( heimdall_object_t *p_this )
 {
     stream_t *p_demux = (stream_t *)p_this;
 
     if( !stream_HasExtension( p_demux, ".qtl" ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     p_demux->pf_readdir = ReadDir;
     p_demux->pf_control = PlaylistControl;
     msg_Dbg( p_demux, "using QuickTime Media Link reader" );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int ReadDir( stream_t *p_demux, input_item_node_t *p_subitems )
@@ -205,26 +206,26 @@ static int ReadDir( stream_t *p_demux, input_item_node_t *p_subitems )
                      attrname, value );
     }
 
-    msg_Dbg( p_demux, "autoplay: %s (unused by VLC)",
+    msg_Dbg( p_demux, "autoplay: %s (unused by Heimdall)",
              b_autoplay ? "true": "false" );
-    msg_Dbg( p_demux, "controller: %s (unused by VLC)",
+    msg_Dbg( p_demux, "controller: %s (unused by Heimdall)",
              b_controller ? "true": "false" );
-    msg_Dbg( p_demux, "fullscreen: %s (unused by VLC)",
+    msg_Dbg( p_demux, "fullscreen: %s (unused by Heimdall)",
              ppsz_fullscreen[fullscreen] );
     msg_Dbg( p_demux, "href: %s", psz_href );
-    msg_Dbg( p_demux, "kioskmode: %s (unused by VLC)",
+    msg_Dbg( p_demux, "kioskmode: %s (unused by Heimdall)",
              b_kioskmode ? "true":"false" );
-    msg_Dbg( p_demux, "loop: %s (unused by VLC)", ppsz_loop[loop] );
-    msg_Dbg( p_demux, "movieid: %d (unused by VLC)", i_movieid );
+    msg_Dbg( p_demux, "loop: %s (unused by Heimdall)", ppsz_loop[loop] );
+    msg_Dbg( p_demux, "movieid: %d (unused by Heimdall)", i_movieid );
     msg_Dbg( p_demux, "moviename: %s", psz_moviename );
-    msg_Dbg( p_demux, "playeverframe: %s (unused by VLC)",
+    msg_Dbg( p_demux, "playeverframe: %s (unused by Heimdall)",
              b_playeveryframe ? "true":"false" );
     msg_Dbg( p_demux, "qtnext: %s", psz_qtnext );
-    msg_Dbg( p_demux, "quitwhendone: %s (unused by VLC)",
+    msg_Dbg( p_demux, "quitwhendone: %s (unused by Heimdall)",
              b_quitwhendone ? "true":"false" );
     msg_Dbg( p_demux, "src: %s", psz_src );
     msg_Dbg( p_demux, "mimetype: %s", psz_mimetype );
-    msg_Dbg( p_demux, "volume: %d (unused by VLC)", i_volume );
+    msg_Dbg( p_demux, "volume: %d (unused by Heimdall)", i_volume );
 
 
     if( !psz_src )
@@ -242,7 +243,7 @@ static int ReadDir( stream_t *p_demux, input_item_node_t *p_subitems )
         input_item_Release( p_input );
         if( psz_qtnext )
         {
-            vlc_xml_decode( psz_qtnext );
+            heimdall_xml_decode( psz_qtnext );
             p_input = input_item_New( psz_qtnext, NULL );
             input_item_node_AppendItem( p_subitems, p_input );
             input_item_Release( p_input );

@@ -2,6 +2,7 @@
  * inhibit.h: screen saver inhibition
  *****************************************************************************
  * Copyright (C) 2009 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -18,11 +19,11 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef LIBVLC_VIDEO_OUTPUT_INHIBIT_H_
-#define LIBVLC_VIDEO_OUTPUT_INHIBIT_H_
+#ifndef LIBHEIMDALL_VIDEO_OUTPUT_INHIBIT_H_
+#define LIBHEIMDALL_VIDEO_OUTPUT_INHIBIT_H_
 
-# include <vlc_inhibit.h>
+# include <heimdall_inhibit.h>
 
-vlc_inhibit_t *vlc_inhibit_Create (vlc_object_t *);
-void vlc_inhibit_Destroy (vlc_inhibit_t *);
+heimdall_inhibit_t *heimdall_inhibit_Create (heimdall_object_t *);
+void heimdall_inhibit_Destroy (heimdall_inhibit_t *);
 #endif

@@ -2,6 +2,7 @@
  * avcodec.c: video and audio decoder and encoder using libavcodec
  *****************************************************************************
  * Copyright (C) 1999-2008 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *          Gildas Bazin <gbazin@videolan.org>
@@ -28,12 +29,12 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
-#include <vlc_demux.h>
-#include <vlc_avcodec.h>
-#include <vlc_cpu.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
+#include <heimdall_demux.h>
+#include <heimdall_avcodec.h>
+#include <heimdall_cpu.h>
 
 #include <libavcodec/avcodec.h>
 
@@ -77,7 +78,7 @@ static const char *const enc_hq_list_text[] = {
         "delivered by the FFmpeg library. This includes (MS)MPEG4, DivX, SV1,"\
         "H261, H263, H264, WMV, WMA, AAC, AMR, DV, MJPEG and other codecs")
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( "FFmpeg")
     set_subcategory( SUBCAT_INPUT_VCODEC )
     /* decoder main module */
@@ -219,7 +220,7 @@ vlc_module_begin ()
     add_submodule ()
         AVPARSER_MODULE
 #endif
-vlc_module_end ()
+heimdall_module_end ()
 
 static const AVCodec *FindHwCapableDecoder(enum AVCodecID codec_id)
 {
@@ -254,7 +255,7 @@ AVCodecContext *ffmpeg_AllocContext( decoder_t *p_dec,
     msg_Dbg( p_dec, "using %s", LIBAVCODEC_IDENT );
 
     /* Initialization must be done before avcodec_find_decoder() */
-    vlc_init_avcodec(VLC_OBJECT(p_dec));
+    heimdall_init_avcodec(HEIMDALL_OBJECT(p_dec));
 
     /* *** ask ffmpeg for a decoder *** */
     char *psz_decoder = var_InheritString( p_dec, "avcodec-codec" );
@@ -304,13 +305,13 @@ int ffmpeg_OpenCodec( decoder_t *p_dec, AVCodecContext *ctx,
     int ret;
 
     if (psz_opts) {
-        vlc_av_get_options(psz_opts, &options);
+        heimdall_av_get_options(psz_opts, &options);
         free(psz_opts);
     }
 
-    vlc_avcodec_lock();
+    heimdall_avcodec_lock();
     ret = avcodec_open2( ctx, codec, options ? &options : NULL );
-    vlc_avcodec_unlock();
+    heimdall_avcodec_unlock();
 
     AVDictionaryEntry *t = NULL;
     while ((t = av_dict_get(options, "", t, AV_DICT_IGNORE_SUFFIX))) {
@@ -321,9 +322,9 @@ int ffmpeg_OpenCodec( decoder_t *p_dec, AVCodecContext *ctx,
     if( ret < 0 )
     {
         msg_Err( p_dec, "cannot start codec (%s)", codec->name );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     msg_Dbg( p_dec, "codec (%s) started", codec->name );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

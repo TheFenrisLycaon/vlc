@@ -2,6 +2,7 @@
  * volume.c : ARM NEON audio volume
  *****************************************************************************
  * Copyright (C) 2012 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -24,34 +25,34 @@
 
 #include <assert.h>
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_cpu.h>
-#include <vlc_aout.h>
-#include <vlc_aout_volume.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_cpu.h>
+#include <heimdall_aout.h>
+#include <heimdall_aout_volume.h>
 
-static int Probe(vlc_object_t *);
+static int Probe(heimdall_object_t *);
 
-vlc_module_begin()
+heimdall_module_begin()
     set_subcategory(SUBCAT_AUDIO_AFILTER)
     set_description(N_("ARM NEON audio volume"))
     set_capability("audio volume", 10)
     set_callback(Probe)
-vlc_module_end()
+heimdall_module_end()
 
 static void AmplifyFloat(audio_volume_t *, block_t *, float);
 
-static int Probe(vlc_object_t *obj)
+static int Probe(heimdall_object_t *obj)
 {
     audio_volume_t *volume = (audio_volume_t *)obj;
 
-    if (!vlc_CPU_ARM_NEON())
-        return VLC_EGENERIC;
-    if (volume->format == VLC_CODEC_FL32)
+    if (!heimdall_CPU_ARM_NEON())
+        return HEIMDALL_EGENERIC;
+    if (volume->format == HEIMDALL_CODEC_FL32)
         volume->amplify = AmplifyFloat;
     else
-        return VLC_EGENERIC;
-    return VLC_SUCCESS;
+        return HEIMDALL_EGENERIC;
+    return HEIMDALL_SUCCESS;
 }
 
 void amplify_float_arm_neon(float *, const float *, size_t, float) asm("amplify_float_arm_neon");

@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2022 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,9 +23,9 @@
 #include "config.h"
 #endif
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
-int WindowsThemeProviderOpen(vlc_object_t* p_this);
-int SystemPaletteThemeProviderOpen(vlc_object_t* p_this);
+int WindowsThemeProviderOpen(heimdall_object_t* p_this);
+int SystemPaletteThemeProviderOpen(heimdall_object_t* p_this);
 
 #endif // WINDOWSTHEMEPROVIDER_HPP

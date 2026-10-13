@@ -2,6 +2,7 @@
  * vout_scenario.c: testflight for video output pipeline
  *****************************************************************************
  * Copyright (C) 2021 VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Alexandre Janniaux <ajanni@videolabs.io>
  *
@@ -24,25 +25,25 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 #include "video_output.h"
 
-#include <vlc_filter.h>
-#include <vlc_vout_display.h>
+#include <heimdall_filter.h>
+#include <heimdall_vout_display.h>
 
 static struct scenario_data
 {
-    vlc_sem_t wait_stop;
-    struct vlc_video_context *decoder_vctx;
+    heimdall_sem_t wait_stop;
+    struct heimdall_video_context *decoder_vctx;
     unsigned display_picture_count;
     bool converter_opened;
     bool display_opened;
     bool test_finished;
 
-    vlc_fourcc_t display_chroma;
+    heimdall_fourcc_t display_chroma;
 } scenario_data;
 
-static void decoder_fixed_size(decoder_t *dec, vlc_fourcc_t chroma,
+static void decoder_fixed_size(decoder_t *dec, heimdall_fourcc_t chroma,
         unsigned width, unsigned height)
 {
     dec->fmt_out.video.i_chroma
@@ -57,17 +58,17 @@ static void decoder_fixed_size(decoder_t *dec, vlc_fourcc_t chroma,
 }
 
 static void decoder_rgba_800_600(decoder_t *dec)
-    { decoder_fixed_size(dec, VLC_CODEC_RGBA, 800, 600); }
+    { decoder_fixed_size(dec, HEIMDALL_CODEC_RGBA, 800, 600); }
 
 static void decoder_decode_change_chroma(decoder_t *dec, block_t *block)
 {
     if (scenario_data.test_finished)
         goto end;
 
-    static const vlc_fourcc_t chroma_list[] = {
-        VLC_CODEC_RGBA,
-        VLC_CODEC_I420,
-        VLC_CODEC_NV12,
+    static const heimdall_fourcc_t chroma_list[] = {
+        HEIMDALL_CODEC_RGBA,
+        HEIMDALL_CODEC_I420,
+        HEIMDALL_CODEC_NV12,
     };
 
     size_t index = 0;
@@ -91,7 +92,7 @@ static void decoder_decode_change_chroma(decoder_t *dec, block_t *block)
     if (ret != 0)
     {
         scenario_data.test_finished = true;
-        vlc_sem_post(&scenario_data.wait_stop);
+        heimdall_sem_post(&scenario_data.wait_stop);
         goto end;
     }
 
@@ -111,7 +112,7 @@ end:
 }
 
 static int display_fixed_size(vout_display_t *vd, video_format_t *fmtp,
-        struct vlc_video_context *vctx, vlc_fourcc_t chroma,
+        struct heimdall_video_context *vctx, heimdall_fourcc_t chroma,
         unsigned width, unsigned height)
 {
     (void)fmtp; (void)vctx;
@@ -119,21 +120,21 @@ static int display_fixed_size(vout_display_t *vd, video_format_t *fmtp,
              (const char *)&chroma, width, height);
 
     scenario_data.display_opened = true;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int display_fail_second_time(vout_display_t *vd, video_format_t *fmtp,
-        struct vlc_video_context *vctx, unsigned width, unsigned height)
+        struct heimdall_video_context *vctx, unsigned width, unsigned height)
 {
     (void)vctx;
 
-    vlc_fourcc_t chroma = fmtp->i_chroma;
+    heimdall_fourcc_t chroma = fmtp->i_chroma;
     if (scenario_data.display_opened)
     {
         msg_Info(vd, "Failing the display %4.4s: %ux%u",
                  (const char *)&chroma, width, height);
         scenario_data.test_finished = true;
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     return display_fixed_size(vd, fmtp, vctx, chroma, 800, 600);
@@ -141,7 +142,7 @@ static int display_fail_second_time(vout_display_t *vd, video_format_t *fmtp,
 
 static int display_800_600_fail_second_time(
         vout_display_t *vd, video_format_t *fmtp,
-        struct vlc_video_context *vctx)
+        struct heimdall_video_context *vctx)
     { return display_fail_second_time(vd, fmtp, vctx, 800, 600); }
 
 const char source_800_600[] = "mock://video_track_count=1;length=100000000000;video_width=800;video_height=600";
@@ -161,12 +162,12 @@ void vout_scenario_init(void)
     scenario_data.converter_opened = false;
     scenario_data.display_opened = false;
     scenario_data.test_finished = false;
-    vlc_sem_init(&scenario_data.wait_stop, 0);
+    heimdall_sem_init(&scenario_data.wait_stop, 0);
 }
 
 void vout_scenario_wait(struct vout_scenario *scenario)
 {
-    vlc_sem_wait(&scenario_data.wait_stop);
+    heimdall_sem_wait(&scenario_data.wait_stop);
     if (scenario->converter_setup != NULL)
         assert(scenario_data.converter_opened);
 

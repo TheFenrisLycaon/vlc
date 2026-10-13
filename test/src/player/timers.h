@@ -3,10 +3,11 @@
  * common.h: common helpers for the player test
  *****************************************************************************
  * Copyright (C) 2018-2025 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *****************************************************************************/
 
-#include <vlc_common.h>
-#include <vlc_player.h>
+#include <heimdall_common.h>
+#include <heimdall_player.h>
 
 struct report_timer
 {
@@ -19,29 +20,29 @@ struct report_timer
     } type;
     union
     {
-        struct vlc_player_timer_point point;
-        struct vlc_player_timer_smpte_timecode tc;
-        vlc_tick_t paused_date;
+        struct heimdall_player_timer_point point;
+        struct heimdall_player_timer_smpte_timecode tc;
+        heimdall_tick_t paused_date;
         struct {
-            struct vlc_player_timer_point point;
+            struct heimdall_player_timer_point point;
             bool finished;
         } seek;
     };
 };
-typedef struct VLC_VECTOR(struct report_timer) vec_report_timer;
+typedef struct HEIMDALL_VECTOR(struct report_timer) vec_report_timer;
 
 struct timer_state
 {
-    vlc_player_timer_id *id;
-    vlc_tick_t delay;
+    heimdall_player_timer_id *id;
+    heimdall_tick_t delay;
     vec_report_timer vec;
     size_t last_report_idx;
-    vlc_mutex_t lock;
-    vlc_cond_t wait;
+    heimdall_mutex_t lock;
+    heimdall_cond_t wait;
 };
 
 static inline void
-timers_on_update(const struct vlc_player_timer_point *point, void *data)
+timers_on_update(const struct heimdall_player_timer_point *point, void *data)
 {
     struct timer_state *timer = data;
     struct report_timer report =
@@ -49,15 +50,15 @@ timers_on_update(const struct vlc_player_timer_point *point, void *data)
         .type = REPORT_TIMER_POINT,
         .point = *point,
     };
-    vlc_mutex_lock(&timer->lock);
-    bool success = vlc_vector_push(&timer->vec, report);
-    vlc_cond_signal(&timer->wait);
-    vlc_mutex_unlock(&timer->lock);
+    heimdall_mutex_lock(&timer->lock);
+    bool success = heimdall_vector_push(&timer->vec, report);
+    heimdall_cond_signal(&timer->wait);
+    heimdall_mutex_unlock(&timer->lock);
     assert(success);
 }
 
 static inline void
-timers_on_paused(vlc_tick_t system_date, void *data)
+timers_on_paused(heimdall_tick_t system_date, void *data)
 {
     struct timer_state *timer = data;
     struct report_timer report =
@@ -65,15 +66,15 @@ timers_on_paused(vlc_tick_t system_date, void *data)
         .type = REPORT_TIMER_PAUSED,
         .paused_date = system_date,
     };
-    vlc_mutex_lock(&timer->lock);
-    bool success = vlc_vector_push(&timer->vec, report);
-    vlc_cond_signal(&timer->wait);
-    vlc_mutex_unlock(&timer->lock);
+    heimdall_mutex_lock(&timer->lock);
+    bool success = heimdall_vector_push(&timer->vec, report);
+    heimdall_cond_signal(&timer->wait);
+    heimdall_mutex_unlock(&timer->lock);
     assert(success);
 }
 
 static inline void
-timers_on_seek(const struct vlc_player_timer_point *point, void *data)
+timers_on_seek(const struct heimdall_player_timer_point *point, void *data)
 {
     struct timer_state *timer = data;
     struct report_timer report =
@@ -83,15 +84,15 @@ timers_on_seek(const struct vlc_player_timer_point *point, void *data)
     report.seek.finished = point == NULL;
     if (!report.seek.finished)
         report.seek.point = *point;
-    vlc_mutex_lock(&timer->lock);
-    bool success = vlc_vector_push(&timer->vec, report);
-    vlc_cond_signal(&timer->wait);
-    vlc_mutex_unlock(&timer->lock);
+    heimdall_mutex_lock(&timer->lock);
+    bool success = heimdall_vector_push(&timer->vec, report);
+    heimdall_cond_signal(&timer->wait);
+    heimdall_mutex_unlock(&timer->lock);
     assert(success);
 }
 
 static inline void
-timers_smpte_on_update(const struct vlc_player_timer_smpte_timecode *tc,
+timers_smpte_on_update(const struct heimdall_player_timer_smpte_timecode *tc,
                        void *data)
 {
     struct timer_state *timer = data;
@@ -100,69 +101,69 @@ timers_smpte_on_update(const struct vlc_player_timer_smpte_timecode *tc,
         .type = REPORT_TIMER_TC,
         .tc = *tc,
     };
-    vlc_mutex_lock(&timer->lock);
-    bool success = vlc_vector_push(&timer->vec, report);
-    vlc_cond_signal(&timer->wait);
-    vlc_mutex_unlock(&timer->lock);
+    heimdall_mutex_lock(&timer->lock);
+    bool success = heimdall_vector_push(&timer->vec, report);
+    heimdall_cond_signal(&timer->wait);
+    heimdall_mutex_unlock(&timer->lock);
     assert(success);
 }
 
 static inline void
-player_add_timer(vlc_player_t *player, struct timer_state *timer, bool smpte,
-                 vlc_tick_t delay)
+player_add_timer(heimdall_player_t *player, struct timer_state *timer, bool smpte,
+                 heimdall_tick_t delay)
 {
-    static const struct vlc_player_timer_cbs cbs =
+    static const struct heimdall_player_timer_cbs cbs =
     {
         .on_update = timers_on_update,
         .on_paused = timers_on_paused,
         .on_seek = timers_on_seek,
     };
 
-    static const struct vlc_player_timer_smpte_cbs smpte_cbs =
+    static const struct heimdall_player_timer_smpte_cbs smpte_cbs =
     {
         .on_update = timers_smpte_on_update,
         .on_paused = timers_on_paused,
         .on_seek = timers_on_seek,
     };
 
-    vlc_vector_init(&timer->vec);
-    vlc_mutex_init(&timer->lock);
-    vlc_cond_init(&timer->wait);
+    heimdall_vector_init(&timer->vec);
+    heimdall_mutex_init(&timer->lock);
+    heimdall_cond_init(&timer->wait);
     timer->last_report_idx = 0;
     timer->delay = delay;
     if (smpte)
-        timer->id = vlc_player_AddSmpteTimer(player, &smpte_cbs, timer);
+        timer->id = heimdall_player_AddSmpteTimer(player, &smpte_cbs, timer);
     else
-        timer->id = vlc_player_AddTimer(player, timer->delay, &cbs, timer);
+        timer->id = heimdall_player_AddTimer(player, timer->delay, &cbs, timer);
     assert(timer->id);
 }
 
 static inline void
-player_remove_timer(vlc_player_t *player, struct timer_state *timer)
+player_remove_timer(heimdall_player_t *player, struct timer_state *timer)
 {
-    vlc_vector_clear(&timer->vec);
-    vlc_player_RemoveTimer(player, timer->id);
+    heimdall_vector_clear(&timer->vec);
+    heimdall_player_RemoveTimer(player, timer->id);
 }
 
 static inline void
-player_lock_timer(vlc_player_t *player, struct timer_state *timer)
+player_lock_timer(heimdall_player_t *player, struct timer_state *timer)
 {
-    vlc_player_Unlock(player);
-    vlc_mutex_lock(&timer->lock);
+    heimdall_player_Unlock(player);
+    heimdall_mutex_lock(&timer->lock);
 }
 
 static inline void
-player_unlock_timer(vlc_player_t *player, struct timer_state *timer)
+player_unlock_timer(heimdall_player_t *player, struct timer_state *timer)
 {
-    vlc_mutex_unlock(&timer->lock);
-    vlc_player_Lock(player);
+    heimdall_mutex_unlock(&timer->lock);
+    heimdall_player_Lock(player);
 }
 
 static inline struct report_timer *
 timer_state_wait_next_report(struct timer_state *timer)
 {
     while (timer->vec.size < timer->last_report_idx + 1)
-        vlc_cond_wait(&timer->wait, &timer->lock);
+        heimdall_cond_wait(&timer->wait, &timer->lock);
     struct report_timer *r = &timer->vec.data[timer->last_report_idx];
     timer->last_report_idx++;
     return r;

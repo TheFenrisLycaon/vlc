@@ -2,6 +2,7 @@
  * SegmentList.cpp
  *****************************************************************************
  * Copyright (C) 2010 - 2012 Klagenfurt University
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Created on: Jan 27, 2012
  * Authors: Christopher Mueller <christopher.mueller@itec.uni-klu.ac.at>
@@ -144,7 +145,7 @@ void SegmentList::updateWith(AbstractMultipleSegmentBaseType *updated_,
     }
 }
 
-void SegmentList::pruneByPlaybackTime(vlc_tick_t time)
+void SegmentList::pruneByPlaybackTime(heimdall_tick_t time)
 {
     const Timescale timescale = inheritTimescale();
     uint64_t num = findSegmentNumberByScaledTime(segments, timescale.ToScaled(time));
@@ -169,7 +170,7 @@ void SegmentList::pruneBySegmentNumber(uint64_t tobelownum)
 }
 
 bool SegmentList::getPlaybackTimeDurationBySegmentNumber(uint64_t number,
-                                                         vlc_tick_t *time, vlc_tick_t *dur) const
+                                                         heimdall_tick_t *time, heimdall_tick_t *dur) const
 {
     if(number == std::numeric_limits<uint64_t>::max())
         return false;
@@ -242,7 +243,7 @@ bool SegmentList::hasRelativeMediaTimes() const
     return b_relative_mediatimes;
 }
 
-vlc_tick_t SegmentList::getMinAheadTime(uint64_t curnum) const
+heimdall_tick_t SegmentList::getMinAheadTime(uint64_t curnum) const
 {
     const SegmentTimeline *timeline = inheritSegmentTimeline();
     if( timeline )
@@ -251,7 +252,7 @@ vlc_tick_t SegmentList::getMinAheadTime(uint64_t curnum) const
         return timescale.ToTime(timeline->getMinAheadScaledTime(curnum));
     }
 
-    vlc_tick_t minTime = 0;
+    heimdall_tick_t minTime = 0;
     const Timescale timescale = inheritTimescale();
     std::vector<Segment *>::const_iterator it;
     for(it = segments.begin(); it != segments.end(); ++it)
@@ -300,7 +301,7 @@ uint64_t SegmentList::getStartSegmentNumber() const
     return !segments.empty() ? segments.front()->getSequenceNumber() : inheritStartNumber();
 }
 
-bool SegmentList::getSegmentNumberByTime(vlc_tick_t time, uint64_t *ret) const
+bool SegmentList::getSegmentNumberByTime(heimdall_tick_t time, uint64_t *ret) const
 {
     const SegmentTimeline *timeline = inheritSegmentTimeline();
     if(timeline)
@@ -319,7 +320,7 @@ bool SegmentList::getSegmentNumberByTime(vlc_tick_t time, uint64_t *ret) const
     return *ret != std::numeric_limits<uint64_t>::max();
 }
 
-void SegmentList::debug(vlc_object_t *obj, int indent) const
+void SegmentList::debug(heimdall_object_t *obj, int indent) const
 {
     AbstractSegmentBaseType::debug(obj, indent);
     std::vector<Segment *>::const_iterator it;

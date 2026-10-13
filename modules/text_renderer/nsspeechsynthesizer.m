@@ -2,8 +2,9 @@
  * nsspeechsynthesizer.m: Simple text to Speech renderer for Mac OS X
  *****************************************************************************
  * Copyright (C) 2015 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Felix Paul Kühne <fkuehne # videolan # org>
+ * Authors: Felix Paul Kühne <fkuehne # lycaria # org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -28,10 +29,10 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_subpicture.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_subpicture.h>
 
 #import <Cocoa/Cocoa.h>
 
@@ -39,14 +40,14 @@ static int Create (filter_t *);
 static void Destroy(filter_t *);
 static subpicture_region_t *RenderText(filter_t *,
                       const subpicture_region_t *,
-                      const vlc_fourcc_t *);
+                      const heimdall_fourcc_t *);
 
-vlc_module_begin ()
+heimdall_module_begin ()
 set_description(N_("Speech synthesis for Mac OS X"))
 set_subcategory(SUBCAT_VIDEO_SUBPIC)
 
 set_callback_text_renderer(Create, 0)
-vlc_module_end ()
+heimdall_module_end ()
 
 typedef struct filter_sys_t
 {
@@ -55,7 +56,7 @@ typedef struct filter_sys_t
     NSString *lastString;
 } filter_sys_t;
 
-static const struct vlc_filter_operations filter_ops = {
+static const struct heimdall_filter_operations filter_ops = {
     .render = RenderText, .close = Destroy,
 };
 
@@ -65,14 +66,14 @@ static int  Create (filter_t *p_filter)
 
     p_filter->p_sys = p_sys = malloc(sizeof(filter_sys_t));
     if (!p_sys)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_sys->currentLocale = p_sys->lastString = @"";
     p_sys->speechSynthesizer = [[NSSpeechSynthesizer alloc] init];
 
     p_filter->ops = &filter_ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void Destroy(filter_t *p_filter)
@@ -98,7 +99,7 @@ static NSString * languageCodeForString(NSString *string) {
 
 static subpicture_region_t *RenderText(filter_t *p_filter,
                       const subpicture_region_t *p_region_in,
-                      const vlc_fourcc_t *p_chroma_list)
+                      const heimdall_fourcc_t *p_chroma_list)
 {
     @autoreleasepool {
         filter_sys_t *p_sys = p_filter->p_sys;

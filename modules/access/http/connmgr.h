@@ -1,7 +1,8 @@
 /*****************************************************************************
- * connmgr.h: HTTP/TLS VLC connection manager declaration
+ * connmgr.h: HTTP/TLS Heimdall connection manager declaration
  *****************************************************************************
  * Copyright © 2015 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -29,9 +30,9 @@
  * \file connmgr.h
  */
 
-struct vlc_http_mgr;
-struct vlc_http_msg;
-struct vlc_http_cookie_jar_t;
+struct heimdall_http_mgr;
+struct heimdall_http_msg;
+struct heimdall_http_cookie_jar_t;
 
 /**
  * Sends an HTTP request
@@ -50,30 +51,30 @@ struct vlc_http_cookie_jar_t;
  *
  * @return The initial HTTP response header, or NULL in case of failure.
  */
-struct vlc_http_msg *vlc_http_mgr_request(struct vlc_http_mgr *mgr, bool https,
+struct heimdall_http_msg *heimdall_http_mgr_request(struct heimdall_http_mgr *mgr, bool https,
                                           const char *host, unsigned port,
-                                          const struct vlc_http_msg *req,
+                                          const struct heimdall_http_msg *req,
                                           bool idempotent, bool payload);
 
-struct vlc_http_cookie_jar_t *vlc_http_mgr_get_jar(struct vlc_http_mgr *);
+struct heimdall_http_cookie_jar_t *heimdall_http_mgr_get_jar(struct heimdall_http_mgr *);
 
 /**
  * Creates an HTTP connection manager
  *
  * Allocates an HTTP client connections manager.
  *
- * @param obj parent VLC object
+ * @param obj parent Heimdall object
  * @param jar HTTP cookies jar (NULL to disable cookies)
  */
-struct vlc_http_mgr *vlc_http_mgr_create(vlc_object_t *obj,
-                                         struct vlc_http_cookie_jar_t *jar);
+struct heimdall_http_mgr *heimdall_http_mgr_create(heimdall_object_t *obj,
+                                         struct heimdall_http_cookie_jar_t *jar);
 
 /**
  * Destroys an HTTP connection manager
  *
  * Deallocates an HTTP client connections manager created by
- * vlc_http_msg_destroy(). Any remaining connection is closed and destroyed.
+ * heimdall_http_msg_destroy(). Any remaining connection is closed and destroyed.
  */
-void vlc_http_mgr_destroy(struct vlc_http_mgr *mgr);
+void heimdall_http_mgr_destroy(struct heimdall_http_mgr *mgr);
 
 /** @} */

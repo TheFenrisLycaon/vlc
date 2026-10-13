@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2023 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,8 +22,8 @@
 #endif
 
 #include "compositor_wayland_module.h"
-#include <vlc_common.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
 #include <wayland-client.h>
 
 #ifdef QT_HAS_WAYLAND_FRACTIONAL_SCALING
@@ -96,9 +97,9 @@ static void registry_global_cb(void* data, struct wl_registry* registry,
 
 static void registry_global_remove_cb(void* data, struct wl_registry* registry, uint32_t id)
 {
-    VLC_UNUSED(data);
-    VLC_UNUSED(registry);
-    VLC_UNUSED(id);
+    HEIMDALL_UNUSED(data);
+    HEIMDALL_UNUSED(registry);
+    HEIMDALL_UNUSED(id);
 }
 
 static const struct wl_registry_listener registry_cbs = {
@@ -237,23 +238,23 @@ static int SetupInterface(qtwayland_t* obj, void* qpni_interface_surface, double
     qtwayland_priv_t* sys = (qtwayland_priv_t*)obj->p_sys;
 
     if (! qpni_interface_surface)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     sys->interface_surface = (struct wl_surface*)qpni_interface_surface;
 
     SetScale(obj, scale);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 
-static int SetupVoutWindow(qtwayland_t* obj, vlc_window_t* wnd)
+static int SetupVoutWindow(qtwayland_t* obj, heimdall_window_t* wnd)
 {
     qtwayland_priv_t* sys = (qtwayland_priv_t*)obj->p_sys;
 
     sys->video_surface = wl_compositor_create_surface(sys->compositor);
     if (!sys->video_surface)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     CommitScale(obj, true);
 
@@ -262,7 +263,7 @@ static int SetupVoutWindow(qtwayland_t* obj, vlc_window_t* wnd)
     {
         wl_surface_destroy(sys->video_surface);
         sys->video_surface = NULL;
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     wl_region_add(region, 0, 0, 0, 0);
     wl_surface_set_input_region(sys->video_surface, region);
@@ -271,11 +272,11 @@ static int SetupVoutWindow(qtwayland_t* obj, vlc_window_t* wnd)
     CommitSurface(obj);
 
     //setup vout window
-    wnd->type = VLC_WINDOW_TYPE_WAYLAND;
+    wnd->type = HEIMDALL_WINDOW_TYPE_WAYLAND;
     wnd->handle.wl = sys->video_surface;
     wnd->display.wl = sys->display;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static void TeardownVoutWindow(struct qtwayland_t* obj)
@@ -290,20 +291,20 @@ static void TeardownVoutWindow(struct qtwayland_t* obj)
     }
 #endif
 
-    vlc_assert(sys->video_surface);
+    heimdall_assert(sys->video_surface);
     wl_surface_destroy(sys->video_surface);
     sys->video_surface = NULL;
 }
 
-static void Enable(qtwayland_t* obj, const vlc_window_cfg_t * conf)
+static void Enable(qtwayland_t* obj, const heimdall_window_cfg_t * conf)
 {
-    VLC_UNUSED(conf);
+    HEIMDALL_UNUSED(conf);
 
     qtwayland_priv_t* sys = (qtwayland_priv_t*)obj->p_sys;
 
-    vlc_assert(sys->video_subsurface == NULL);
-    vlc_assert(sys->video_surface);
-    vlc_assert(sys->interface_surface);
+    heimdall_assert(sys->video_subsurface == NULL);
+    heimdall_assert(sys->video_surface);
+    heimdall_assert(sys->interface_surface);
 
     sys->video_subsurface = wl_subcompositor_get_subsurface(sys->subcompositor, sys->video_surface, sys->interface_surface);
     wl_subsurface_place_below(sys->video_subsurface, sys->interface_surface);
@@ -318,7 +319,7 @@ static void Enable(qtwayland_t* obj, const vlc_window_cfg_t * conf)
 static void Disable(qtwayland_t* obj)
 {
     qtwayland_priv_t* sys = (qtwayland_priv_t*)obj->p_sys;
-    vlc_assert(sys->video_subsurface);
+    heimdall_assert(sys->video_subsurface);
 
     wl_subsurface_destroy(sys->video_subsurface);
     sys->video_subsurface = NULL;
@@ -473,7 +474,7 @@ error:
     return false;
 }
 
-int OpenCompositor(vlc_object_t* p_this)
+int OpenCompositor(heimdall_object_t* p_this)
 {
     qtwayland_t* obj = (qtwayland_t*)p_this;
 
@@ -481,14 +482,14 @@ int OpenCompositor(vlc_object_t* p_this)
     if( dpy == NULL )
     {
         //not using wayland
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     wl_display_disconnect( dpy );
 
-    qtwayland_priv_t* sys = (qtwayland_priv_t*)vlc_obj_calloc(p_this, 1, sizeof(qtwayland_priv_t));
+    qtwayland_priv_t* sys = (qtwayland_priv_t*)heimdall_obj_calloc(p_this, 1, sizeof(qtwayland_priv_t));
     if (!sys)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     sys->x = -1;
     sys->y = -1;
@@ -512,5 +513,5 @@ int OpenCompositor(vlc_object_t* p_this)
 
     obj->p_sys = sys;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

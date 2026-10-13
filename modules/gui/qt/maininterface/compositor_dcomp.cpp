@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2020 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,7 +25,7 @@
 
 #include "maininterface/mainctx_win32.hpp"
 
-#include <vlc_window.h>
+#include <heimdall_window.h>
 
 #ifndef QT_GUI_PRIVATE
 #warning "QRhiD3D11 and QRhi headers are required for DirectComposition compositor."
@@ -54,9 +55,9 @@
 #include <memory>
 #include <type_traits>
 
-namespace vlc {
+namespace heimdall {
 
-int CompositorDirectComposition::windowEnable(const vlc_window_cfg_t *)
+int CompositorDirectComposition::windowEnable(const heimdall_window_cfg_t *)
 {
     assert(m_dcompDevice);
     assert(m_rootVisual);
@@ -69,9 +70,9 @@ int CompositorDirectComposition::windowEnable(const vlc_window_cfg_t *)
     m_dcompDevice->Commit();
 
     if (ret == S_OK)
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     else
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 }
 
 void CompositorDirectComposition::windowDisable()
@@ -425,7 +426,7 @@ void CompositorDirectComposition::unloadGUI()
     commonGUIDestroy();
 }
 
-bool CompositorDirectComposition::setupVoutWindow(vlc_window_t *p_wnd, VoutDestroyCb destroyCb)
+bool CompositorDirectComposition::setupVoutWindow(heimdall_window_t *p_wnd, VoutDestroyCb destroyCb)
 {
     if (m_wnd)
         return false;
@@ -455,7 +456,7 @@ bool CompositorDirectComposition::setupVoutWindow(vlc_window_t *p_wnd, VoutDestr
     }
 
     commonSetupVoutWindow(p_wnd, destroyCb);
-    p_wnd->type = VLC_WINDOW_TYPE_DCOMP;
+    p_wnd->type = HEIMDALL_WINDOW_TYPE_DCOMP;
 
     p_wnd->display.dcomp_device = m_dcompDevice;
     p_wnd->handle.dcomp_visual = m_videoVisual.Get();

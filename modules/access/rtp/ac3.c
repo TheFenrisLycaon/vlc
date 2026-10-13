@@ -4,6 +4,7 @@
  */
 /*****************************************************************************
  * Copyright © 2021 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License
@@ -27,17 +28,17 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include <vlc_common.h>
-#include <vlc_block.h>
-#include <vlc_es.h>
-#include <vlc_plugin.h>
-#include <vlc_strings.h>
+#include <heimdall_common.h>
+#include <heimdall_block.h>
+#include <heimdall_es.h>
+#include <heimdall_plugin.h>
+#include <heimdall_strings.h>
 
 #include "rtp.h"
 #include "../../packetizer/a52.h"
 
 struct rtp_ac3 {
-    struct vlc_logger *logger;
+    struct heimdall_logger *logger;
     bool enhanced;
 };
 
@@ -45,10 +46,10 @@ struct rtp_ac3_source {
     block_t *frags;
     block_t **frag_end;
     unsigned char missing;
-    struct vlc_rtp_es *es;
+    struct heimdall_rtp_es *es;
 };
 
-static void *rtp_ac3_begin(struct vlc_rtp_pt *pt)
+static void *rtp_ac3_begin(struct heimdall_rtp_pt *pt)
 {
     struct rtp_ac3 *sys = pt->opaque;
     struct rtp_ac3_source *src = malloc(sizeof (*src));
@@ -60,33 +61,33 @@ static void *rtp_ac3_begin(struct vlc_rtp_pt *pt)
 
     es_format_t fmt;
 
-    es_format_Init(&fmt, AUDIO_ES, sys->enhanced ? VLC_CODEC_EAC3
-                                                 : VLC_CODEC_A52);
+    es_format_Init(&fmt, AUDIO_ES, sys->enhanced ? HEIMDALL_CODEC_EAC3
+                                                 : HEIMDALL_CODEC_A52);
     fmt.audio.i_rate = pt->frequency;
     if (!sys->enhanced)
         fmt.audio.i_channels = pt->channel_count ? pt->channel_count : 6;
-    src->es = vlc_rtp_pt_request_es(pt, &fmt);
+    src->es = heimdall_rtp_pt_request_es(pt, &fmt);
     return src;
 }
 
-static void rtp_ac3_end(struct vlc_rtp_pt *pt, void *data)
+static void rtp_ac3_end(struct heimdall_rtp_pt *pt, void *data)
 {
     struct rtp_ac3_source *src = data;
 
     if (unlikely(src == NULL))
         return;
 
-    vlc_rtp_es_destroy(src->es);
+    heimdall_rtp_es_destroy(src->es);
     block_ChainRelease(src->frags);
     free(src);
     (void) pt;
 }
 
-static void rtp_ac3_decode_compound(struct vlc_logger *log, bool enhanced,
+static void rtp_ac3_decode_compound(struct heimdall_logger *log, bool enhanced,
                                     struct rtp_ac3_source *src,
                                     block_t *block, unsigned int frames)
 {
-    vlc_a52_header_t hdr;
+    heimdall_a52_header_t hdr;
 
     if (frames == 0) {
         block_Release(block);
@@ -94,10 +95,10 @@ static void rtp_ac3_decode_compound(struct vlc_logger *log, bool enhanced,
     }
 
     while (frames > 1) {
-        if (vlc_a52_header_Parse(&hdr, block->p_buffer, block->i_buffer)
+        if (heimdall_a52_header_Parse(&hdr, block->p_buffer, block->i_buffer)
          || (hdr.b_eac3 && !enhanced)
          || hdr.i_size > block->i_buffer) {
-            vlc_warning(log, "corrupt packet: %u frames, %zu bytes remaining",
+            heimdall_warning(log, "corrupt packet: %u frames, %zu bytes remaining",
                         frames, block->i_buffer);
             block_Release(block);
             return;
@@ -108,17 +109,17 @@ static void rtp_ac3_decode_compound(struct vlc_logger *log, bool enhanced,
         if (likely(frame != NULL)) {
             memcpy(frame->p_buffer, block->p_buffer, hdr.i_size);
             frame->i_pts = block->i_pts;
-            vlc_rtp_es_send(src->es, frame);
+            heimdall_rtp_es_send(src->es, frame);
         }
 
         block->p_buffer += hdr.i_size;
         block->i_buffer -= hdr.i_size;
-        block->i_pts = VLC_TICK_INVALID;
+        block->i_pts = HEIMDALL_TICK_INVALID;
         frames--;
     }
 
     /* Send the last frame, no need to copy */
-    vlc_rtp_es_send(src->es, block);
+    heimdall_rtp_es_send(src->es, block);
 }
 
 static void rtp_ac3_send(struct rtp_ac3_source *src)
@@ -127,7 +128,7 @@ static void rtp_ac3_send(struct rtp_ac3_source *src)
     block_t *frame = block_ChainGather(frags);
 
     if (likely(frame != NULL))
-        vlc_rtp_es_send(src->es, frame);
+        heimdall_rtp_es_send(src->es, frame);
     else
         block_ChainRelease(frags);
 
@@ -135,12 +136,12 @@ static void rtp_ac3_send(struct rtp_ac3_source *src)
     src->frag_end = &src->frags;
 }
 
-static void rtp_ac3_decode(struct vlc_rtp_pt *pt, void *data, block_t *block,
-                           const struct vlc_rtp_pktinfo *restrict info)
+static void rtp_ac3_decode(struct heimdall_rtp_pt *pt, void *data, block_t *block,
+                           const struct heimdall_rtp_pktinfo *restrict info)
 {
     struct rtp_ac3 *sys = pt->opaque;
     struct rtp_ac3_source *src = data;
-    struct vlc_logger *log = sys->logger;
+    struct heimdall_logger *log = sys->logger;
 
     if (unlikely(src == NULL)) {
 drop:   block_Release(block);
@@ -148,7 +149,7 @@ drop:   block_Release(block);
     }
 
     if (block->i_buffer < 2) {
-        vlc_warning(log, "corrupt packet (%zu bytes)", block->i_buffer);
+        heimdall_warning(log, "corrupt packet (%zu bytes)", block->i_buffer);
         goto drop;
     }
 
@@ -164,7 +165,7 @@ drop:   block_Release(block);
         /* Missed end of previous frame. */
         src->frags->i_flags |= BLOCK_FLAG_CORRUPTED;
         rtp_ac3_send(src);
-        vlc_warning(log, "reassembly error: %hhu missing fragments",
+        heimdall_warning(log, "reassembly error: %hhu missing fragments",
                     src->missing);
     }
 
@@ -178,7 +179,7 @@ drop:   block_Release(block);
             /* Missed start of current frame. Not much to do without header. */
             assert(!sys->enhanced);
             block_Release(block);
-            vlc_warning(log, "reassembly error: missing initial fragment");
+            heimdall_warning(log, "reassembly error: missing initial fragment");
             return;
         }
 
@@ -199,53 +200,53 @@ drop:   block_Release(block);
     if (info->m) {
         if (src->missing != 0) {
             src->frags->i_flags |= BLOCK_FLAG_CORRUPTED;
-            vlc_warning(log, "reassembly error: %hhu missing fragments",
+            heimdall_warning(log, "reassembly error: %hhu missing fragments",
                         src->missing);
         }
         rtp_ac3_send(src);
     }
 }
 
-static void rtp_ac3_destroy(struct vlc_rtp_pt *pt)
+static void rtp_ac3_destroy(struct heimdall_rtp_pt *pt)
 {
     struct rtp_ac3 *sys = pt->opaque;
 
     free(sys);
 }
 
-static const struct vlc_rtp_pt_operations rtp_ac3_ops = {
+static const struct heimdall_rtp_pt_operations rtp_ac3_ops = {
     rtp_ac3_destroy, rtp_ac3_begin, rtp_ac3_end, rtp_ac3_decode,
 };
 
 
-static int rtp_ac3_open(vlc_object_t *obj, struct vlc_rtp_pt *pt,
-                        const struct vlc_sdp_pt *desc)
+static int rtp_ac3_open(heimdall_object_t *obj, struct heimdall_rtp_pt *pt,
+                        const struct heimdall_sdp_pt *desc)
 {
     bool enhanced;
 
-    if (vlc_ascii_strcasecmp(desc->name, "ac3") == 0) /* RFC4184 */
+    if (heimdall_ascii_strcasecmp(desc->name, "ac3") == 0) /* RFC4184 */
         enhanced = false;
     else
-    if (vlc_ascii_strcasecmp(desc->name, "eac3") == 0) /* RFC4598 */
+    if (heimdall_ascii_strcasecmp(desc->name, "eac3") == 0) /* RFC4598 */
         enhanced = true;
     else
-        return VLC_ENOTSUP;
+        return HEIMDALL_ENOTSUP;
 
     struct rtp_ac3 *sys = malloc(sizeof (*sys));
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    sys->logger = vlc_object_logger(obj);
+    sys->logger = heimdall_object_logger(obj);
     sys->enhanced = enhanced;
     pt->opaque = sys;
     pt->ops = &rtp_ac3_ops;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname(N_("RTP AC3"))
     set_description(N_("RTP AC-3 payload parser"))
     set_subcategory(SUBCAT_INPUT_DEMUX)
     set_rtp_parser_callback(rtp_ac3_open)
     add_shortcut("audio/ac3", "audio/eac3")
-vlc_module_end()
+heimdall_module_end()

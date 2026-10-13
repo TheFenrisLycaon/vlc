@@ -2,6 +2,7 @@
  * item.c: input_item management
  *****************************************************************************
  * Copyright (C) 1998-2004 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Clément Stenac <zorglub@videolan.org>
  *
@@ -28,16 +29,16 @@
 #include <limits.h>
 #include <ctype.h>
 
-#include <vlc_common.h>
-#include <vlc_arrays.h>
-#include <vlc_url.h>
-#include <vlc_strings.h>
+#include <heimdall_common.h>
+#include <heimdall_arrays.h>
+#include <heimdall_url.h>
+#include <heimdall_strings.h>
 
 #include "item.h"
 #include "info.h"
 #include "input_internal.h"
 
-#include <vlc_charset.h>
+#include <heimdall_charset.h>
 
 struct input_item_opaque
 {
@@ -50,60 +51,60 @@ static enum input_item_type_e GuessType( const input_item_t *p_item, bool *p_net
 
 void input_item_SetPreparsed( input_item_t *p_i )
 {
-    vlc_mutex_lock( &p_i->lock );
+    heimdall_mutex_lock( &p_i->lock );
 
-    int status = vlc_meta_GetStatus(p_i->p_meta);
+    int status = heimdall_meta_GetStatus(p_i->p_meta);
     int new_status = status | ITEM_PREPARSED;
     if( status != new_status )
-        vlc_meta_SetStatus(p_i->p_meta, new_status);
+        heimdall_meta_SetStatus(p_i->p_meta, new_status);
 
-    vlc_mutex_unlock( &p_i->lock );
+    heimdall_mutex_unlock( &p_i->lock );
 }
 
 void input_item_SetArtNotFound( input_item_t *p_i, bool b_not_found )
 {
-    vlc_mutex_lock( &p_i->lock );
+    heimdall_mutex_lock( &p_i->lock );
 
-    int status = vlc_meta_GetStatus(p_i->p_meta);
+    int status = heimdall_meta_GetStatus(p_i->p_meta);
 
     if( b_not_found )
         status |= ITEM_ART_NOTFOUND;
     else
         status &= ~ITEM_ART_NOTFOUND;
 
-    vlc_meta_SetStatus(p_i->p_meta, status);
+    heimdall_meta_SetStatus(p_i->p_meta, status);
 
-    vlc_mutex_unlock( &p_i->lock );
+    heimdall_mutex_unlock( &p_i->lock );
 }
 
 void input_item_SetArtFetched( input_item_t *p_i, bool b_art_fetched )
 {
-    vlc_mutex_lock( &p_i->lock );
+    heimdall_mutex_lock( &p_i->lock );
 
-    int status = vlc_meta_GetStatus(p_i->p_meta);
+    int status = heimdall_meta_GetStatus(p_i->p_meta);
 
     if( b_art_fetched )
         status |= ITEM_ART_FETCHED;
     else
         status &= ~ITEM_ART_FETCHED;
 
-    vlc_meta_SetStatus(p_i->p_meta, status);
+    heimdall_meta_SetStatus(p_i->p_meta, status);
 
-    vlc_mutex_unlock( &p_i->lock );
+    heimdall_mutex_unlock( &p_i->lock );
 }
 
-void input_item_SetMeta( input_item_t *p_i, vlc_meta_type_t meta_type, const char *psz_val )
+void input_item_SetMeta( input_item_t *p_i, heimdall_meta_type_t meta_type, const char *psz_val )
 {
-    vlc_mutex_lock( &p_i->lock );
-    vlc_meta_Set( p_i->p_meta, meta_type, psz_val );
-    vlc_mutex_unlock( &p_i->lock );
+    heimdall_mutex_lock( &p_i->lock );
+    heimdall_meta_Set( p_i->p_meta, meta_type, psz_val );
+    heimdall_mutex_unlock( &p_i->lock );
 }
 
 void input_item_SetMetaExtra( input_item_t *p_i, const char *psz_name, const char *psz_value )
 {
-    vlc_mutex_lock( &p_i->lock );
-    vlc_meta_SetExtra( p_i->p_meta, psz_name, psz_value );
-    vlc_mutex_unlock( &p_i->lock );
+    heimdall_mutex_lock( &p_i->lock );
+    heimdall_meta_SetExtra( p_i->p_meta, psz_name, psz_value );
+    heimdall_mutex_unlock( &p_i->lock );
 }
 
 void input_item_CopyOptions( input_item_t *p_child,
@@ -115,13 +116,13 @@ void input_item_CopyOptions( input_item_t *p_child,
     char **optv_realloc = NULL;
     uint8_t *flagv_realloc = NULL;
 
-    vlc_mutex_lock( &p_parent->lock );
+    heimdall_mutex_lock( &p_parent->lock );
 
     if( p_parent->i_options > 0 )
     {
-        optv = vlc_alloc( p_parent->i_options, sizeof (*optv) );
+        optv = heimdall_alloc( p_parent->i_options, sizeof (*optv) );
         if( likely(optv) )
-            flagv = vlc_alloc( p_parent->i_options, sizeof (*flagv) );
+            flagv = heimdall_alloc( p_parent->i_options, sizeof (*flagv) );
 
         if( likely(flagv) )
         {
@@ -137,11 +138,11 @@ void input_item_CopyOptions( input_item_t *p_child,
         }
     }
 
-    vlc_mutex_unlock( &p_parent->lock );
+    heimdall_mutex_unlock( &p_parent->lock );
 
     if( likely(optv && flagv && optc ) )
     {
-        vlc_mutex_lock( &p_child->lock );
+        heimdall_mutex_lock( &p_child->lock );
 
         if( INT_MAX - p_child->i_options >= optc &&
             SIZE_MAX / sizeof (*flagv) >= (size_t) (p_child->i_options + optc) )
@@ -165,7 +166,7 @@ void input_item_CopyOptions( input_item_t *p_child,
             }
         }
 
-        vlc_mutex_unlock( &p_child->lock );
+        heimdall_mutex_unlock( &p_child->lock );
     }
 
     if( unlikely(!flagv_realloc || !optv_realloc) )
@@ -180,56 +181,56 @@ void input_item_CopyOptions( input_item_t *p_child,
 }
 
 bool input_item_MetaMatch( input_item_t *p_i,
-                           vlc_meta_type_t meta_type, const char *psz )
+                           heimdall_meta_type_t meta_type, const char *psz )
 {
-    vlc_mutex_lock( &p_i->lock );
+    heimdall_mutex_lock( &p_i->lock );
 
-    const char *psz_meta = vlc_meta_Get( p_i->p_meta, meta_type );
+    const char *psz_meta = heimdall_meta_Get( p_i->p_meta, meta_type );
     bool b_ret = psz_meta && strcasestr( psz_meta, psz );
 
-    vlc_mutex_unlock( &p_i->lock );
+    heimdall_mutex_unlock( &p_i->lock );
 
     return b_ret;
 }
 
 const char *input_item_GetMetaLocked(input_item_t *item,
-                                     vlc_meta_type_t meta_type)
+                                     heimdall_meta_type_t meta_type)
 {
-    vlc_mutex_assert(&item->lock);
+    heimdall_mutex_assert(&item->lock);
 
-    return vlc_meta_Get(item->p_meta, meta_type);
+    return heimdall_meta_Get(item->p_meta, meta_type);
 }
 
-char *input_item_GetMeta( input_item_t *p_i, vlc_meta_type_t meta_type )
+char *input_item_GetMeta( input_item_t *p_i, heimdall_meta_type_t meta_type )
 {
-    vlc_mutex_lock( &p_i->lock );
+    heimdall_mutex_lock( &p_i->lock );
     const char *value = input_item_GetMetaLocked( p_i, meta_type );
     char *psz = value ? strdup( value ) : NULL;
-    vlc_mutex_unlock( &p_i->lock );
+    heimdall_mutex_unlock( &p_i->lock );
     return psz;
 }
 
 static const char *input_item_GetMetaExtraLocked( input_item_t *item, const char *psz_name )
 {
-    vlc_mutex_assert( &item->lock );
-    return vlc_meta_GetExtra( item->p_meta, psz_name );
+    heimdall_mutex_assert( &item->lock );
+    return heimdall_meta_GetExtra( item->p_meta, psz_name );
 }
 
 char *input_item_GetMetaExtra( input_item_t *p_i, const char *psz_name )
 {
-    vlc_mutex_lock( &p_i->lock );
+    heimdall_mutex_lock( &p_i->lock );
     const char *value = input_item_GetMetaExtraLocked( p_i, psz_name );
     char *psz = value ? strdup( value ) : NULL;
-    vlc_mutex_unlock( &p_i->lock );
+    heimdall_mutex_unlock( &p_i->lock );
     return psz;
 }
 
 unsigned input_item_GetMetaExtraNames( input_item_t *p_i, char ***pppsz_names )
 {
-    vlc_mutex_lock( &p_i->lock );
-    unsigned count = vlc_meta_GetExtraCount( p_i->p_meta );
-    *pppsz_names = vlc_meta_CopyExtraNames( p_i->p_meta );
-    vlc_mutex_unlock( &p_i->lock );
+    heimdall_mutex_lock( &p_i->lock );
+    unsigned count = heimdall_meta_GetExtraCount( p_i->p_meta );
+    *pppsz_names = heimdall_meta_CopyExtraNames( p_i->p_meta );
+    heimdall_mutex_unlock( &p_i->lock );
     return count;
 }
 
@@ -237,44 +238,44 @@ unsigned input_item_GetMetaExtraNames( input_item_t *p_i, char ***pppsz_names )
 char *input_item_GetTitleFbName( input_item_t *p_item )
 {
     char *psz_ret;
-    vlc_mutex_lock( &p_item->lock );
+    heimdall_mutex_lock( &p_item->lock );
 
-    const char *psz_title = vlc_meta_Get( p_item->p_meta, vlc_meta_Title );
+    const char *psz_title = heimdall_meta_Get( p_item->p_meta, heimdall_meta_Title );
     if( !EMPTY_STR( psz_title ) )
         psz_ret = strdup( psz_title );
     else
         psz_ret = p_item->psz_name ? strdup( p_item->psz_name ) : NULL;
 
-    vlc_mutex_unlock( &p_item->lock );
+    heimdall_mutex_unlock( &p_item->lock );
     return psz_ret;
 }
 
 char *input_item_GetName( input_item_t *p_item )
 {
-    vlc_mutex_lock( &p_item->lock );
+    heimdall_mutex_lock( &p_item->lock );
 
     char *psz_name = p_item->psz_name ? strdup( p_item->psz_name ) : NULL;
 
-    vlc_mutex_unlock( &p_item->lock );
+    heimdall_mutex_unlock( &p_item->lock );
     return psz_name;
 }
 void input_item_SetName( input_item_t *p_item, const char *psz_name )
 {
-    vlc_mutex_lock( &p_item->lock );
+    heimdall_mutex_lock( &p_item->lock );
 
     free( p_item->psz_name );
     p_item->psz_name = strdup( psz_name );
 
-    vlc_mutex_unlock( &p_item->lock );
+    heimdall_mutex_unlock( &p_item->lock );
 }
 
 char *input_item_GetURI( input_item_t *p_i )
 {
-    vlc_mutex_lock( &p_i->lock );
+    heimdall_mutex_lock( &p_i->lock );
 
     char *psz_s = p_i->psz_uri ? strdup( p_i->psz_uri ) : NULL;
 
-    vlc_mutex_unlock( &p_i->lock );
+    heimdall_mutex_unlock( &p_i->lock );
     return psz_s;
 }
 
@@ -287,7 +288,7 @@ void input_item_SetURI( input_item_t *p_i, const char *psz_uri )
         fprintf( stderr, "Warning: %s(\"%s\"): file path instead of URL.\n",
                  __func__, psz_uri );
 #endif
-    vlc_mutex_lock( &p_i->lock );
+    heimdall_mutex_lock( &p_i->lock );
     free( p_i->psz_uri );
     p_i->psz_uri = strdup( psz_uri );
 
@@ -308,16 +309,16 @@ void input_item_SetURI( input_item_t *p_i, const char *psz_uri )
         /* Make the name more readable */
         if( p_i->psz_name )
         {
-            vlc_uri_decode( p_i->psz_name );
+            heimdall_uri_decode( p_i->psz_name );
             EnsureUTF8( p_i->psz_name );
         }
     }
     else
     {   /* Strip login and password from title */
         int r;
-        vlc_url_t url;
+        heimdall_url_t url;
 
-        vlc_UrlParse( &url, psz_uri );
+        heimdall_UrlParse( &url, psz_uri );
         if( url.psz_protocol )
         {
             if( url.i_port > 0 )
@@ -338,21 +339,21 @@ void input_item_SetURI( input_item_t *p_i, const char *psz_uri )
                 r=asprintf( &p_i->psz_name, "%s%s", url.psz_host,
                           url.psz_path ? url.psz_path : "" );
         }
-        vlc_UrlClean( &url );
+        heimdall_UrlClean( &url );
         if( -1==r )
             p_i->psz_name=NULL; /* recover from undefined value */
     }
 
-    vlc_mutex_unlock( &p_i->lock );
+    heimdall_mutex_unlock( &p_i->lock );
 }
 
-vlc_tick_t input_item_GetDuration( input_item_t *p_i )
+heimdall_tick_t input_item_GetDuration( input_item_t *p_i )
 {
-    vlc_mutex_lock( &p_i->lock );
+    heimdall_mutex_lock( &p_i->lock );
 
-    vlc_tick_t i_duration = p_i->i_duration;
+    heimdall_tick_t i_duration = p_i->i_duration;
 
-    vlc_mutex_unlock( &p_i->lock );
+    heimdall_mutex_unlock( &p_i->lock );
     if (i_duration == INPUT_DURATION_INDEFINITE)
         i_duration = 0;
     else if (i_duration == INPUT_DURATION_UNSET)
@@ -360,21 +361,21 @@ vlc_tick_t input_item_GetDuration( input_item_t *p_i )
     return i_duration;
 }
 
-void input_item_SetDuration( input_item_t *p_i, vlc_tick_t i_duration )
+void input_item_SetDuration( input_item_t *p_i, heimdall_tick_t i_duration )
 {
-    vlc_mutex_lock( &p_i->lock );
+    heimdall_mutex_lock( &p_i->lock );
     if( p_i->i_duration != i_duration )
         p_i->i_duration = i_duration;
-    vlc_mutex_unlock( &p_i->lock );
+    heimdall_mutex_unlock( &p_i->lock );
 }
 
 char *input_item_GetNowPlayingFb( input_item_t *p_item )
 {
-    char *psz_meta = input_item_GetMeta( p_item, vlc_meta_NowPlaying );
+    char *psz_meta = input_item_GetMeta( p_item, heimdall_meta_NowPlaying );
     if( !psz_meta || strlen( psz_meta ) == 0 )
     {
         free( psz_meta );
-        return input_item_GetMeta( p_item, vlc_meta_ESNowPlaying );
+        return input_item_GetMeta( p_item, heimdall_meta_ESNowPlaying );
     }
 
     return psz_meta;
@@ -382,18 +383,18 @@ char *input_item_GetNowPlayingFb( input_item_t *p_item )
 
 bool input_item_IsPreparsed( input_item_t *p_item )
 {
-    vlc_mutex_lock( &p_item->lock );
-    bool b_preparsed = vlc_meta_GetStatus(p_item->p_meta) & ITEM_PREPARSED;
-    vlc_mutex_unlock( &p_item->lock );
+    heimdall_mutex_lock( &p_item->lock );
+    bool b_preparsed = heimdall_meta_GetStatus(p_item->p_meta) & ITEM_PREPARSED;
+    heimdall_mutex_unlock( &p_item->lock );
 
     return b_preparsed;
 }
 
 bool input_item_IsArtFetched( input_item_t *p_item )
 {
-    vlc_mutex_lock( &p_item->lock );
-    bool b_fetched = vlc_meta_GetStatus(p_item->p_meta) & ITEM_ART_FETCHED;
-    vlc_mutex_unlock( &p_item->lock );
+    heimdall_mutex_lock( &p_item->lock );
+    bool b_fetched = heimdall_meta_GetStatus(p_item->p_meta) & ITEM_ART_FETCHED;
+    heimdall_mutex_unlock( &p_item->lock );
 
     return b_fetched;
 }
@@ -402,42 +403,42 @@ input_item_t *input_item_Hold( input_item_t *p_item )
 {
     input_item_owner_t *owner = item_owner(p_item);
 
-    vlc_atomic_rc_inc( &owner->rc );
+    heimdall_atomic_rc_inc( &owner->rc );
     return p_item;
 }
 
 void *
-input_item_GetLibvlcOwner(input_item_t *item)
+input_item_GetLibheimdallOwner(input_item_t *item)
 {
     input_item_owner_t *owner = item_owner(item);
 
-    return owner->libvlc_owner;
+    return owner->libheimdall_owner;
 }
 
 void
-input_item_SetLibvlcOwner(input_item_t *item, void *libvlc_owner,
+input_item_SetLibheimdallOwner(input_item_t *item, void *libheimdall_owner,
                           void (*release)(void *))
 {
     input_item_owner_t *owner = item_owner(item);
 
-    owner->libvlc_owner = libvlc_owner;
-    owner->libvlc_owner_release = release;
+    owner->libheimdall_owner = libheimdall_owner;
+    owner->libheimdall_owner_release = release;
 }
 
 void input_item_Release( input_item_t *p_item )
 {
     input_item_owner_t *owner = item_owner(p_item);
 
-    if( !vlc_atomic_rc_dec( &owner->rc ) )
+    if( !heimdall_atomic_rc_dec( &owner->rc ) )
         return;
 
-    if( owner->libvlc_owner_release != NULL )
-        owner->libvlc_owner_release( owner->libvlc_owner );
+    if( owner->libheimdall_owner_release != NULL )
+        owner->libheimdall_owner_release( owner->libheimdall_owner );
 
     free( p_item->psz_name );
     free( p_item->psz_uri );
     free( p_item->p_stats );
-    vlc_meta_Delete( p_item->p_meta );
+    heimdall_meta_Delete( p_item->p_meta );
 
     for( input_item_opaque_t *o = p_item->opaques, *next; o != NULL; o = next )
     {
@@ -456,14 +457,14 @@ void input_item_Release( input_item_t *p_item )
         es_format_Clean( &item_es->es );
         free( item_es->id );
     }
-    vlc_vector_destroy( &p_item->es_vec );
+    heimdall_vector_destroy( &p_item->es_vec );
 
     for( int i = 0; i < p_item->i_epg; i++ )
-        vlc_epg_Delete( p_item->pp_epg[i] );
+        heimdall_epg_Delete( p_item->pp_epg[i] );
     TAB_CLEAN( p_item->i_epg, p_item->pp_epg );
 
     info_category_t *cat;
-    vlc_list_foreach( cat, &p_item->categories, node )
+    heimdall_list_foreach( cat, &p_item->categories, node )
         info_category_Delete( cat );
 
     for( int i = 0; i < p_item->i_slaves; i++ )
@@ -476,13 +477,13 @@ void input_item_Release( input_item_t *p_item )
 int input_item_AddOption( input_item_t *p_input, const char *psz_option,
                           unsigned flags )
 {
-    int err = VLC_SUCCESS;
+    int err = HEIMDALL_SUCCESS;
 
     if( psz_option == NULL )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    vlc_mutex_lock( &p_input->lock );
-    if (flags & VLC_INPUT_OPTION_UNIQUE)
+    heimdall_mutex_lock( &p_input->lock );
+    if (flags & HEIMDALL_INPUT_OPTION_UNIQUE)
     {
         for (int i = 0 ; i < p_input->i_options; i++)
             if( !strcmp( p_input->ppsz_options[i], psz_option ) )
@@ -492,7 +493,7 @@ int input_item_AddOption( input_item_t *p_input, const char *psz_option,
     uint8_t *flagv = realloc (p_input->optflagv, p_input->optflagc + 1);
     if (flagv == NULL)
     {
-        err = VLC_ENOMEM;
+        err = HEIMDALL_ENOMEM;
         goto out;
     }
 
@@ -501,7 +502,7 @@ int input_item_AddOption( input_item_t *p_input, const char *psz_option,
     char* psz_option_dup = strdup( psz_option );
     if( unlikely( !psz_option_dup ) )
     {
-        err = VLC_ENOMEM;
+        err = HEIMDALL_ENOMEM;
         goto out;
     }
 
@@ -510,7 +511,7 @@ int input_item_AddOption( input_item_t *p_input, const char *psz_option,
     flagv[p_input->optflagc++] = flags;
 
 out:
-    vlc_mutex_unlock( &p_input->lock );
+    heimdall_mutex_unlock( &p_input->lock );
     return err;
 }
 
@@ -518,8 +519,8 @@ int input_item_AddOptions( input_item_t *p_item, int i_options,
                            const char *const *ppsz_options,
                            unsigned i_flags )
 {
-    int i_ret = VLC_SUCCESS;
-    for( int i = 0; i < i_options && i_ret == VLC_SUCCESS; i++ )
+    int i_ret = HEIMDALL_SUCCESS;
+    for( int i = 0; i < i_options && i_ret == HEIMDALL_SUCCESS; i++ )
         i_ret = input_item_AddOption( p_item, ppsz_options[i], i_flags );
     return i_ret;
 }
@@ -531,34 +532,34 @@ int input_item_AddOpaque(input_item_t *item, const char *name, void *value)
     size_t namelen = strlen(name);
     input_item_opaque_t *entry = malloc(sizeof (*entry) + namelen);
     if (unlikely(entry == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     memcpy(entry->name, name, namelen + 1);
     entry->value = value;
 
-    vlc_mutex_lock(&item->lock);
+    heimdall_mutex_lock(&item->lock);
     entry->next = item->opaques;
     item->opaques = entry;
-    vlc_mutex_unlock(&item->lock);
-    return VLC_SUCCESS;
+    heimdall_mutex_unlock(&item->lock);
+    return HEIMDALL_SUCCESS;
 }
 
-void input_item_ApplyOptions(vlc_object_t *obj, input_item_t *item)
+void input_item_ApplyOptions(heimdall_object_t *obj, input_item_t *item)
 {
-    vlc_mutex_lock(&item->lock);
+    heimdall_mutex_lock(&item->lock);
     assert(item->optflagc == (unsigned)item->i_options);
 
     for (unsigned i = 0; i < (unsigned)item->i_options; i++)
         var_OptionParse(obj, item->ppsz_options[i],
-                        !!(item->optflagv[i] & VLC_INPUT_OPTION_TRUSTED));
+                        !!(item->optflagv[i] & HEIMDALL_INPUT_OPTION_TRUSTED));
 
     for (const input_item_opaque_t *o = item->opaques; o != NULL; o = o->next)
     {
-        var_Create(obj, o->name, VLC_VAR_ADDRESS);
+        var_Create(obj, o->name, HEIMDALL_VAR_ADDRESS);
         var_SetAddress(obj, o->name, o->value);
     }
 
-    vlc_mutex_unlock(&item->lock);
+    heimdall_mutex_unlock(&item->lock);
 }
 
 static int bsearch_strcmp_cb(const void *a, const void *b)
@@ -632,25 +633,25 @@ int input_item_AddSlave(input_item_t *p_item, input_item_slave_t *p_slave)
 {
     if( p_item == NULL || p_slave == NULL
      || p_slave->i_priority < SLAVE_PRIORITY_MATCH_NONE )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    vlc_mutex_lock( &p_item->lock );
+    heimdall_mutex_lock( &p_item->lock );
 
     TAB_APPEND(p_item->i_slaves, p_item->pp_slaves, p_slave);
 
-    vlc_mutex_unlock( &p_item->lock );
-    return VLC_SUCCESS;
+    heimdall_mutex_unlock( &p_item->lock );
+    return HEIMDALL_SUCCESS;
 }
 
 static info_category_t *InputItemFindCat( input_item_t *p_item,
                                           const char *psz_cat )
 {
-    vlc_mutex_assert( &p_item->lock );
+    heimdall_mutex_assert( &p_item->lock );
     if( !psz_cat )
         return NULL;
 
     info_category_t *p_cat;
-    vlc_list_foreach( p_cat, &p_item->categories, node )
+    heimdall_list_foreach( p_cat, &p_item->categories, node )
     {
         if( !strcmp( p_cat->psz_name, psz_cat ) )
             return p_cat;
@@ -682,11 +683,11 @@ char *input_item_GetInfo( input_item_t *p_i,
                           const char *psz_cat,
                           const char *psz_name )
 {
-    vlc_mutex_lock( &p_i->lock );
+    heimdall_mutex_lock( &p_i->lock );
 
     char * result = input_item_GetInfoLocked( p_i, psz_cat, psz_name );
 
-    vlc_mutex_unlock( &p_i->lock );
+    heimdall_mutex_unlock( &p_i->lock );
 
     return result;
 }
@@ -695,7 +696,7 @@ char *input_item_GetInfoLocked( input_item_t *p_i,
                                 const char *psz_cat,
                                 const char *psz_name )
 {
-    vlc_mutex_assert( &p_i->lock );
+    heimdall_mutex_assert( &p_i->lock );
 
     info_category_t *p_cat = InputItemFindCat( p_i, psz_cat );
     if( p_cat )
@@ -716,20 +717,20 @@ static int InputItemVaAddInfo( input_item_t *p_i,
                                const char *psz_name,
                                const char *psz_format, va_list args )
 {
-    vlc_mutex_assert( &p_i->lock );
+    heimdall_mutex_assert( &p_i->lock );
 
     info_category_t *p_cat = InputItemFindCat( p_i, psz_cat );
     if( !p_cat )
     {
         p_cat = info_category_New( psz_cat );
         if( !p_cat )
-            return VLC_ENOMEM;
-        vlc_list_append( &p_cat->node, &p_i->categories );
+            return HEIMDALL_ENOMEM;
+        heimdall_list_append( &p_cat->node, &p_i->categories );
     }
     info_t *p_info = info_category_VaAddInfo( p_cat, psz_name, psz_format, args );
     if( !p_info || !p_info->psz_value )
-        return VLC_EGENERIC;
-    return VLC_SUCCESS;
+        return HEIMDALL_EGENERIC;
+    return HEIMDALL_SUCCESS;
 }
 
 int input_item_AddInfo( input_item_t *p_i,
@@ -739,13 +740,13 @@ int input_item_AddInfo( input_item_t *p_i,
 {
     va_list args;
 
-    vlc_mutex_lock( &p_i->lock );
+    heimdall_mutex_lock( &p_i->lock );
 
     va_start( args, psz_format );
     const int i_ret = InputItemVaAddInfo( p_i, psz_cat, psz_name, psz_format, args );
     va_end( args );
 
-    vlc_mutex_unlock( &p_i->lock );
+    heimdall_mutex_unlock( &p_i->lock );
 
     return i_ret;
 }
@@ -754,12 +755,12 @@ int input_item_DelInfo( input_item_t *p_i,
                         const char *psz_cat,
                         const char *psz_name )
 {
-    vlc_mutex_lock( &p_i->lock );
+    heimdall_mutex_lock( &p_i->lock );
     info_category_t *p_cat = InputItemFindCat( p_i, psz_cat );
     if( !p_cat )
     {
-        vlc_mutex_unlock( &p_i->lock );
-        return VLC_EGENERIC;
+        heimdall_mutex_unlock( &p_i->lock );
+        return HEIMDALL_EGENERIC;
     }
 
     if( psz_name )
@@ -768,38 +769,38 @@ int input_item_DelInfo( input_item_t *p_i,
         int i_ret = info_category_DeleteInfo( p_cat, psz_name );
         if( i_ret )
         {
-            vlc_mutex_unlock( &p_i->lock );
-            return VLC_EGENERIC;
+            heimdall_mutex_unlock( &p_i->lock );
+            return HEIMDALL_EGENERIC;
         }
     }
     else
     {
         /* Remove the complete categorie */
-        vlc_list_remove( &p_cat->node );
+        heimdall_list_remove( &p_cat->node );
         info_category_Delete( p_cat );
     }
-    vlc_mutex_unlock( &p_i->lock );
+    heimdall_mutex_unlock( &p_i->lock );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 void input_item_ReplaceInfos( input_item_t *p_item, info_category_t *p_cat )
 {
-    vlc_mutex_lock( &p_item->lock );
+    heimdall_mutex_lock( &p_item->lock );
     info_category_t *p_old = InputItemFindCat( p_item, p_cat->psz_name );
     if( p_old )
     {
-        vlc_list_add_after( &p_cat->node, &p_old->node );
-        vlc_list_remove( &p_old->node );
+        heimdall_list_add_after( &p_cat->node, &p_old->node );
+        heimdall_list_remove( &p_old->node );
         info_category_Delete( p_old );
     }
     else
-        vlc_list_append( &p_cat->node, &p_item->categories );
-    vlc_mutex_unlock( &p_item->lock );
+        heimdall_list_append( &p_cat->node, &p_item->categories );
+    heimdall_mutex_unlock( &p_item->lock );
 }
 
 void input_item_MergeInfos( input_item_t *p_item, info_category_t *p_cat )
 {
-    vlc_mutex_lock( &p_item->lock );
+    heimdall_mutex_lock( &p_item->lock );
     info_category_t *p_old = InputItemFindCat( p_item, p_cat->psz_name );
     if( p_old )
     {
@@ -807,39 +808,39 @@ void input_item_MergeInfos( input_item_t *p_item, info_category_t *p_cat )
 
         info_foreach(info, &p_cat->infos)
             info_category_ReplaceInfo( p_old, info );
-        vlc_list_init( &p_cat->infos );
+        heimdall_list_init( &p_cat->infos );
         info_category_Delete( p_cat );
     }
     else
-        vlc_list_append( &p_cat->node, &p_item->categories );
-    vlc_mutex_unlock( &p_item->lock );
+        heimdall_list_append( &p_cat->node, &p_item->categories );
+    heimdall_mutex_unlock( &p_item->lock );
 }
 
-void input_item_SetEpgEvent( input_item_t *p_item, const vlc_epg_event_t *p_epg_evt )
+void input_item_SetEpgEvent( input_item_t *p_item, const heimdall_epg_event_t *p_epg_evt )
 {
-    vlc_mutex_lock( &p_item->lock );
+    heimdall_mutex_lock( &p_item->lock );
 
     for( int i = 0; i < p_item->i_epg; i++ )
     {
-        vlc_epg_t *p_epg = p_item->pp_epg[i];
+        heimdall_epg_t *p_epg = p_item->pp_epg[i];
         for( size_t j = 0; j < p_epg->i_event; j++ )
         {
             /* Same event can exist in more than one table */
             if( p_epg->pp_event[j]->i_id == p_epg_evt->i_id )
             {
-                vlc_epg_event_t *p_dup = vlc_epg_event_Duplicate( p_epg_evt );
+                heimdall_epg_event_t *p_dup = heimdall_epg_event_Duplicate( p_epg_evt );
                 if( p_dup )
                 {
                     if( p_epg->p_current == p_epg->pp_event[j] )
                         p_epg->p_current = p_dup;
-                    vlc_epg_event_Delete( p_epg->pp_event[j] );
+                    heimdall_epg_event_Delete( p_epg->pp_event[j] );
                     p_epg->pp_event[j] = p_dup;
                 }
                 break;
             }
         }
     }
-    vlc_mutex_unlock( &p_item->lock );
+    heimdall_mutex_unlock( &p_item->lock );
 }
 
 //#define EPG_DEBUG
@@ -859,16 +860,16 @@ static int InputItemAddInfo( input_item_t *p_i,
 }
 #endif
 
-void input_item_SetEpg( input_item_t *p_item, const vlc_epg_t *p_update, bool b_current_source )
+void input_item_SetEpg( input_item_t *p_item, const heimdall_epg_t *p_update, bool b_current_source )
 {
-    vlc_epg_t *p_epg = vlc_epg_Duplicate( p_update );
+    heimdall_epg_t *p_epg = heimdall_epg_Duplicate( p_update );
     if( !p_epg )
         return;
 
-    vlc_mutex_lock( &p_item->lock );
+    heimdall_mutex_lock( &p_item->lock );
 
     /* */
-    vlc_epg_t **pp_epg = NULL;
+    heimdall_epg_t **pp_epg = NULL;
     for( int i = 0; i < p_item->i_epg; i++ )
     {
         if( p_item->pp_epg[i]->i_source_id == p_update->i_source_id &&
@@ -882,7 +883,7 @@ void input_item_SetEpg( input_item_t *p_item, const vlc_epg_t *p_update, bool b_
     /* replace with new version */
     if( pp_epg )
     {
-        vlc_epg_Delete( *pp_epg );
+        heimdall_epg_Delete( *pp_epg );
         if( *pp_epg == p_item->p_epg_table ) /* current table can have changed */
             p_item->p_epg_table = NULL;
         *pp_epg = p_epg;
@@ -895,7 +896,7 @@ void input_item_SetEpg( input_item_t *p_item, const vlc_epg_t *p_update, bool b_
     if( b_current_source && p_epg->b_present )
         p_item->p_epg_table = p_epg;
 
-    vlc_mutex_unlock( &p_item->lock );
+    heimdall_mutex_unlock( &p_item->lock );
 
 #ifdef EPG_DEBUG
     char *psz_epg;
@@ -904,10 +905,10 @@ void input_item_SetEpg( input_item_t *p_item, const vlc_epg_t *p_update, bool b_
 
     input_item_DelInfo( p_item, psz_epg, NULL );
 
-    vlc_mutex_lock( &p_item->lock );
+    heimdall_mutex_lock( &p_item->lock );
     for( size_t i = 0; i < p_epg->i_event; i++ )
     {
-        const vlc_epg_event_t *p_evt = p_epg->pp_event[i];
+        const heimdall_epg_event_t *p_evt = p_epg->pp_event[i];
         time_t t_start = (time_t)p_evt->i_start;
         struct tm tm_start;
         char psz_start[128];
@@ -928,14 +929,14 @@ void input_item_SetEpg( input_item_t *p_item, const vlc_epg_t *p_update, bool b_
                               p_evt->psz_name,
                               p_evt->i_duration/60/60, (p_evt->i_duration/60)%60 );
     }
-    vlc_mutex_unlock( &p_item->lock );
+    heimdall_mutex_unlock( &p_item->lock );
     free( psz_epg );
 #endif
 }
 
 void input_item_ChangeEPGSource( input_item_t *p_item, int i_source_id )
 {
-    vlc_mutex_lock( &p_item->lock );
+    heimdall_mutex_lock( &p_item->lock );
     p_item->p_epg_table = NULL;
     if( i_source_id > 0 )
     {
@@ -950,14 +951,14 @@ void input_item_ChangeEPGSource( input_item_t *p_item, int i_source_id )
             }
         }
     }
-    vlc_mutex_unlock( &p_item->lock );
+    heimdall_mutex_unlock( &p_item->lock );
 }
 
 void input_item_SetEpgTime( input_item_t *p_item, int64_t i_time )
 {
-    vlc_mutex_lock( &p_item->lock );
+    heimdall_mutex_lock( &p_item->lock );
     p_item->i_epg_time = i_time;
-    vlc_mutex_unlock( &p_item->lock );
+    heimdall_mutex_unlock( &p_item->lock );
 }
 
 void input_item_SetEpgOffline( input_item_t *p_item )
@@ -965,18 +966,18 @@ void input_item_SetEpgOffline( input_item_t *p_item )
     input_item_ChangeEPGSource( p_item, -1 );
 
 #ifdef EPG_DEBUG
-    vlc_mutex_lock( &p_item->lock );
+    heimdall_mutex_lock( &p_item->lock );
     const int i_epg_info = p_item->i_epg;
     if( i_epg_info > 0 )
     {
         char *ppsz_epg_info[i_epg_info];
         for( int i = 0; i < p_item->i_epg; i++ )
         {
-            const vlc_epg_t *p_epg = p_item->pp_epg[i];
+            const heimdall_epg_t *p_epg = p_item->pp_epg[i];
             if( asprintf( &ppsz_epg_info[i], "EPG %s", p_epg->psz_name ? p_epg->psz_name : "unknown" ) < 0 )
                 ppsz_epg_info[i] = NULL;
         }
-        vlc_mutex_unlock( &p_item->lock );
+        heimdall_mutex_unlock( &p_item->lock );
 
         for( int i = 0; i < i_epg_info; i++ )
         {
@@ -987,32 +988,32 @@ void input_item_SetEpgOffline( input_item_t *p_item )
         }
     }
     else
-        vlc_mutex_unlock( &p_item->lock );
+        heimdall_mutex_unlock( &p_item->lock );
 #endif
 }
 
 input_item_t *
 input_item_NewExt( const char *psz_uri, const char *psz_name,
-                   vlc_tick_t duration, enum input_item_type_e type, enum input_item_net_type i_net )
+                   heimdall_tick_t duration, enum input_item_type_e type, enum input_item_net_type i_net )
 {
     input_item_owner_t *owner = calloc( 1, sizeof( *owner ) );
     if( unlikely(owner == NULL) )
         return NULL;
 
-    vlc_atomic_rc_init( &owner->rc );
-    owner->libvlc_owner = NULL;
-    owner->libvlc_owner_release = NULL;
+    heimdall_atomic_rc_init( &owner->rc );
+    owner->libheimdall_owner = NULL;
+    owner->libheimdall_owner_release = NULL;
 
     input_item_t *p_input = &owner->item;
 
-    p_input->p_meta = vlc_meta_New();
+    p_input->p_meta = heimdall_meta_New();
     if( unlikely(p_input->p_meta == NULL) )
     {
         free(owner);
         return NULL;
     }
 
-    vlc_mutex_init( &p_input->lock );
+    heimdall_mutex_init( &p_input->lock );
 
     p_input->psz_name = NULL;
     if( psz_name )
@@ -1033,8 +1034,8 @@ input_item_NewExt( const char *psz_uri, const char *psz_name,
     p_input->opaques = NULL;
 
     p_input->i_duration = duration;
-    vlc_list_init( &p_input->categories );
-    vlc_vector_init( &p_input->es_vec );
+    heimdall_list_init( &p_input->categories );
+    heimdall_vector_init( &p_input->es_vec );
     p_input->p_stats = NULL;
     TAB_INIT( p_input->i_epg, p_input->pp_epg );
     TAB_INIT( p_input->i_slaves, p_input->pp_slaves );
@@ -1051,18 +1052,18 @@ input_item_t *input_item_Copy( input_item_t *p_input )
 {
     input_item_t *item;
 
-    vlc_mutex_lock( &p_input->lock );
+    heimdall_mutex_lock( &p_input->lock );
 
     item = input_item_NewExt( p_input->psz_uri, p_input->psz_name,
                               p_input->i_duration, p_input->i_type,
                               ITEM_NET_UNKNOWN );
     if( unlikely(item == NULL) )
     {
-        vlc_mutex_unlock( &p_input->lock );
+        heimdall_mutex_unlock( &p_input->lock );
         return NULL;
     }
 
-    vlc_meta_Merge( item->p_meta, p_input->p_meta );
+    heimdall_meta_Merge( item->p_meta, p_input->p_meta );
     item->b_net = p_input->b_net;
 
     if( p_input->i_slaves > 0 )
@@ -1082,31 +1083,31 @@ input_item_t *input_item_Copy( input_item_t *p_input )
 
     struct input_item_es item_es;
     struct input_item_es cpy_item_es;
-    vlc_vector_foreach(item_es, &p_input->es_vec) {
+    heimdall_vector_foreach(item_es, &p_input->es_vec) {
         cpy_item_es.id_stable = item_es.id_stable;
         cpy_item_es.id = strdup(item_es.id);
         if (cpy_item_es.id == NULL) {
             goto error;
         }
         es_format_Init(&cpy_item_es.es, UNKNOWN_ES, 0);
-        if (es_format_Copy(&cpy_item_es.es, &item_es.es) != VLC_SUCCESS) {
+        if (es_format_Copy(&cpy_item_es.es, &item_es.es) != HEIMDALL_SUCCESS) {
             /* es_format_Copy didn't stop if an allocation fail so we need to
              * clear all memory allocated */
             es_format_Clean(&cpy_item_es.es);
             free(cpy_item_es.id);
             goto error;
         }
-        vlc_vector_push(&item->es_vec, cpy_item_es);
+        heimdall_vector_push(&item->es_vec, cpy_item_es);
     }
 
-    vlc_mutex_unlock( &p_input->lock );
+    heimdall_mutex_unlock( &p_input->lock );
 
     /* No need to lock; no other thread has seen this new item yet. */
     input_item_CopyOptions( item, p_input );
     return item;
 
 error:
-    vlc_mutex_unlock(&p_input->lock);
+    heimdall_mutex_unlock(&p_input->lock);
     input_item_Release(item);
     return NULL;
 }
@@ -1117,15 +1118,15 @@ int input_item_Update(input_item_t *dst, input_item_t *src)
     assert(src != NULL);
 
     if (strcmp(dst->psz_uri, src->psz_uri)) {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     input_item_t *tmp = input_item_Copy(src);
     if (tmp == NULL) {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    vlc_mutex_lock(&dst->lock);
+    heimdall_mutex_lock(&dst->lock);
     if (dst->psz_name == NULL) {
         dst->psz_name = tmp->psz_name;
         tmp->psz_name = NULL;
@@ -1133,17 +1134,17 @@ int input_item_Update(input_item_t *dst, input_item_t *src)
     dst->i_duration = tmp->i_duration;
 
     struct input_item_es item_es;
-    vlc_vector_foreach(item_es, &dst->es_vec) {
+    heimdall_vector_foreach(item_es, &dst->es_vec) {
         free(item_es.id);
         es_format_Clean(&item_es.es);
     }
-    vlc_vector_clear(&dst->es_vec);
+    heimdall_vector_clear(&dst->es_vec);
     dst->es_vec = tmp->es_vec;
-    vlc_vector_init(&tmp->es_vec);
+    heimdall_vector_init(&tmp->es_vec);
 
     if (tmp->p_meta != NULL) {
         if (dst->p_meta != NULL) {
-            vlc_meta_Merge(dst->p_meta, tmp->p_meta);
+            heimdall_meta_Merge(dst->p_meta, tmp->p_meta);
         } else {
             dst->p_meta = tmp->p_meta;
             tmp->p_meta = NULL;
@@ -1157,10 +1158,10 @@ int input_item_Update(input_item_t *dst, input_item_t *src)
     tmp->i_slaves = 0;
     dst->pp_slaves = tmp->pp_slaves;
     tmp->pp_slaves = NULL;
-    vlc_mutex_unlock(&dst->lock);
+    heimdall_mutex_unlock(&dst->lock);
 
     input_item_Release(tmp);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 struct item_type_entry
@@ -1242,7 +1243,7 @@ static enum input_item_type_e GuessType( const input_item_t *p_item, bool *p_net
         { "v4l",    ITEM_TYPE_CARD, false },
         { "vcd",    ITEM_TYPE_DISC, false },
         { "vdr",    ITEM_TYPE_STREAM, true },
-        { "vlctest_",ITEM_TYPE_FILE, false },
+        { "heimdalltest_",ITEM_TYPE_FILE, false },
         { "wasapi", ITEM_TYPE_CARD, false },
         { "window", ITEM_TYPE_CARD, false },
     };
@@ -1322,7 +1323,7 @@ void input_item_UpdateTracksInfo(input_item_t *item, const es_format_t *fmt,
                                  const char *es_id, bool es_id_stable)
 {
     assert( es_id != NULL );
-    vlc_mutex_lock( &item->lock );
+    heimdall_mutex_lock( &item->lock );
 
     for( size_t i = 0; i < item->es_vec.size; ++i )
     {
@@ -1333,19 +1334,19 @@ void input_item_UpdateTracksInfo(input_item_t *item, const es_format_t *fmt,
         /* We've found the right ES, replace it */
         es_format_Clean(&item_es->es);
         es_format_Copy(&item_es->es, fmt);
-        vlc_mutex_unlock( &item->lock );
+        heimdall_mutex_unlock( &item->lock );
         return;
     }
 
     char *es_id_dup = strdup( es_id );
     if( es_id_dup == NULL )
     {
-        vlc_mutex_unlock( &item->lock );
+        heimdall_mutex_unlock( &item->lock );
         return;
     }
 
     /* ES not found, insert it */
-    if (vlc_vector_push_hole( &item->es_vec, 1 ))
+    if (heimdall_vector_push_hole( &item->es_vec, 1 ))
     {
         struct input_item_es *item_es = &item->es_vec.data[item->es_vec.size - 1];
         item_es->id = es_id_dup;
@@ -1355,7 +1356,7 @@ void input_item_UpdateTracksInfo(input_item_t *item, const es_format_t *fmt,
     else
         free( es_id_dup );
 
-    vlc_mutex_unlock( &item->lock );
+    heimdall_mutex_unlock( &item->lock );
 }
 
 char *input_item_CreateFilename(input_item_t *item,
@@ -1399,7 +1400,7 @@ static int rdh_compar_filename(const void *a, const void *b)
     if (i_ret != 0)
         return i_ret;
 
-    return vlc_filenamecmp(ia->psz_name, ib->psz_name);
+    return heimdall_filenamecmp(ia->psz_name, ib->psz_name);
 }
 
 static void rdh_sort(input_item_node_t *p_node)
@@ -1447,7 +1448,7 @@ static bool rdh_file_has_ext(const char *psz_filename,
     return false;
 }
 
-static bool rdh_file_is_ignored(struct vlc_readdir_helper *p_rdh,
+static bool rdh_file_is_ignored(struct heimdall_readdir_helper *p_rdh,
                                 const char *psz_filename)
 {
     return (psz_filename[0] == '\0'
@@ -1558,7 +1559,7 @@ done:
     return i_priority;
 }
 
-static int rdh_should_match_idx(struct vlc_readdir_helper *p_rdh,
+static int rdh_should_match_idx(struct heimdall_readdir_helper *p_rdh,
                                 struct rdh_slave *p_rdh_sub)
 {
     char *psz_ext = strrchr(p_rdh_sub->psz_filename, '.');
@@ -1597,7 +1598,7 @@ static int rdh_should_match_idx(struct vlc_readdir_helper *p_rdh,
     return false;
 }
 
-static void rdh_attach_slaves(struct vlc_readdir_helper *p_rdh,
+static void rdh_attach_slaves(struct heimdall_readdir_helper *p_rdh,
                               input_item_node_t *p_parent_node)
 {
     if (p_rdh->i_sub_autodetect_fuzzy == 0)
@@ -1643,7 +1644,7 @@ static void rdh_attach_slaves(struct vlc_readdir_helper *p_rdh,
             if (p_slave == NULL)
                 break;
 
-            if (input_item_AddSlave(p_item, p_slave) != VLC_SUCCESS)
+            if (input_item_AddSlave(p_item, p_slave) != HEIMDALL_SUCCESS)
             {
                 input_item_slave_Delete(p_slave);
                 break;
@@ -1667,7 +1668,7 @@ static void rdh_attach_slaves(struct vlc_readdir_helper *p_rdh,
         rdh_attach_slaves(p_rdh, p_parent_node->pp_children[i]);
 }
 
-static int rdh_unflatten(struct vlc_readdir_helper *p_rdh,
+static int rdh_unflatten(struct heimdall_readdir_helper *p_rdh,
                          input_item_node_t **pp_node, const char *psz_path,
                          int i_net)
 {
@@ -1697,7 +1698,7 @@ static int rdh_unflatten(struct vlc_readdir_helper *p_rdh,
             struct rdh_dir *p_rdh_dir =
                 malloc(sizeof(struct rdh_dir) + 1 + i_sub_path_len);
             if (p_rdh_dir == NULL)
-                return VLC_ENOMEM;
+                return HEIMDALL_ENOMEM;
             strncpy(p_rdh_dir->psz_path, psz_path, i_sub_path_len);
             p_rdh_dir->psz_path[i_sub_path_len] = 0;
 
@@ -1713,7 +1714,7 @@ static int rdh_unflatten(struct vlc_readdir_helper *p_rdh,
             if (p_item == NULL)
             {
                 free(p_rdh_dir);
-                return VLC_ENOMEM;
+                return HEIMDALL_ENOMEM;
             }
             input_item_CopyOptions(p_item, (*pp_node)->p_item);
             *pp_node = input_item_node_AppendItem(*pp_node, p_item);
@@ -1721,7 +1722,7 @@ static int rdh_unflatten(struct vlc_readdir_helper *p_rdh,
             if (*pp_node == NULL)
             {
                 free(p_rdh_dir);
-                return VLC_ENOMEM;
+                return HEIMDALL_ENOMEM;
             }
             p_rdh_dir->p_node = *pp_node;
             TAB_APPEND(p_rdh->i_dirs, p_rdh->pp_dirs, p_rdh_dir);
@@ -1730,18 +1731,18 @@ static int rdh_unflatten(struct vlc_readdir_helper *p_rdh,
             *pp_node = p_subnode;
         psz_subpaths++;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-#undef vlc_readdir_helper_init
-void vlc_readdir_helper_init(struct vlc_readdir_helper *p_rdh,
-                             vlc_object_t *p_obj, input_item_node_t *p_node)
+#undef heimdall_readdir_helper_init
+void heimdall_readdir_helper_init(struct heimdall_readdir_helper *p_rdh,
+                             heimdall_object_t *p_obj, input_item_node_t *p_node)
 {
-    /* Read options from the parent item. This allows vlc_stream_ReadDir()
-     * users to specify options without affecting any existing vlc_object_t.
+    /* Read options from the parent item. This allows heimdall_stream_ReadDir()
+     * users to specify options without affecting any existing heimdall_object_t.
      * Apply options on a temporary object in order to not apply options (which
      * can be insecure) to the current object. */
-    vlc_object_t *p_var_obj = vlc_object_create(p_obj, sizeof(vlc_object_t));
+    heimdall_object_t *p_var_obj = heimdall_object_create(p_obj, sizeof(heimdall_object_t));
     if (p_var_obj != NULL)
     {
         input_item_ApplyOptions(p_var_obj, p_node->p_item);
@@ -1759,10 +1760,10 @@ void vlc_readdir_helper_init(struct vlc_readdir_helper *p_rdh,
     TAB_INIT(p_rdh->i_dirs, p_rdh->pp_dirs);
 
     if (p_var_obj != NULL)
-        vlc_object_delete(p_var_obj);
+        heimdall_object_delete(p_var_obj);
 }
 
-void vlc_readdir_helper_finish(struct vlc_readdir_helper *p_rdh, bool b_success)
+void heimdall_readdir_helper_finish(struct heimdall_readdir_helper *p_rdh, bool b_success)
 {
     if (b_success)
     {
@@ -1789,7 +1790,7 @@ void vlc_readdir_helper_finish(struct vlc_readdir_helper *p_rdh, bool b_success)
     TAB_CLEAN(p_rdh->i_dirs, p_rdh->pp_dirs);
 }
 
-int vlc_readdir_helper_additem(struct vlc_readdir_helper *p_rdh,
+int heimdall_readdir_helper_additem(struct heimdall_readdir_helper *p_rdh,
                                const char *psz_uri, const char *psz_flatpath,
                                const char *psz_filename, int i_type, int i_net,
                                input_item_t **restrict created_item)
@@ -1821,7 +1822,7 @@ int vlc_readdir_helper_additem(struct vlc_readdir_helper *p_rdh,
     {
         p_rdh_slave = malloc(sizeof(*p_rdh_slave));
         if (!p_rdh_slave)
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
 
         p_rdh_slave->p_node = NULL;
         p_rdh_slave->psz_filename = strdup(psz_filename);
@@ -1831,7 +1832,7 @@ int vlc_readdir_helper_additem(struct vlc_readdir_helper *p_rdh,
         {
             free(p_rdh_slave->psz_filename);
             free(p_rdh_slave);
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         }
 
         TAB_APPEND(p_rdh->i_slaves, p_rdh->pp_slaves, p_rdh_slave);
@@ -1841,7 +1842,7 @@ int vlc_readdir_helper_additem(struct vlc_readdir_helper *p_rdh,
     {
         if (created_item != NULL)
             *created_item = NULL;
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
     input_item_node_t *p_node = p_rdh->p_node;
@@ -1849,20 +1850,20 @@ int vlc_readdir_helper_additem(struct vlc_readdir_helper *p_rdh,
     if (psz_flatpath != NULL)
     {
         int i_ret = rdh_unflatten(p_rdh, &p_node, psz_flatpath, i_net);
-        if (i_ret != VLC_SUCCESS)
+        if (i_ret != HEIMDALL_SUCCESS)
             return i_ret;
     }
 
     input_item_t *p_item = input_item_NewExt(psz_uri, psz_filename, INPUT_DURATION_UNSET, i_type,
                                              i_net);
     if (p_item == NULL)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     input_item_CopyOptions(p_item, p_node->p_item);
     p_node = input_item_node_AppendItem(p_node, p_item);
     input_item_Release(p_item);
     if (p_node == NULL)
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     /* A slave can also be an item. If there is a match, this item will be
      * removed from the parent node. This is not a common case, since most
@@ -1872,5 +1873,5 @@ int vlc_readdir_helper_additem(struct vlc_readdir_helper *p_rdh,
 
     if (created_item != NULL)
         *created_item = p_item;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

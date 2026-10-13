@@ -2,6 +2,7 @@
  * extradata.c: Muxing extradata builder/gatherer
  *****************************************************************************
  * Copyright (C) 2018 VideoLabs, VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -21,8 +22,8 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_codec.h>
+#include <heimdall_common.h>
+#include <heimdall_codec.h>
 
 #include "extradata.h"
 #include "../packetizer/av1_obu.h"
@@ -39,11 +40,11 @@ struct mux_extradata_builder_cb
 struct mux_extradata_builder_t
 {
     struct mux_extradata_builder_cb cb;
-    vlc_object_t *obj;
+    heimdall_object_t *obj;
     void *priv;
     uint8_t *p_extra;
     size_t i_extra;
-    vlc_fourcc_t fcc;
+    heimdall_fourcc_t fcc;
 };
 
 static void generic_free_extra_Deinit(mux_extradata_builder_t *m)
@@ -54,13 +55,13 @@ static void generic_free_extra_Deinit(mux_extradata_builder_t *m)
 static void ac3_extradata_builder_Feed(mux_extradata_builder_t *m,
                                        const uint8_t *p_data, size_t i_data)
 {
-    if(m->i_extra || i_data < VLC_A52_MIN_HEADER_SIZE ||
+    if(m->i_extra || i_data < HEIMDALL_A52_MIN_HEADER_SIZE ||
        p_data[0] != 0x0B || p_data[1] != 0x77)
         return;
 
-    struct vlc_a52_bitstream_info bsi;
-    if(vlc_a52_ParseAc3BitstreamInfo(&bsi, &p_data[4], /* start code + CRC */
-                                     VLC_A52_MIN_HEADER_SIZE - 4 ) != VLC_SUCCESS)
+    struct heimdall_a52_bitstream_info bsi;
+    if(heimdall_a52_ParseAc3BitstreamInfo(&bsi, &p_data[4], /* start code + CRC */
+                                     HEIMDALL_A52_MIN_HEADER_SIZE - 4 ) != HEIMDALL_SUCCESS)
         return;
 
     m->p_extra = malloc(3);
@@ -89,13 +90,13 @@ const struct mux_extradata_builder_cb ac3_cb =
 static void eac3_extradata_builder_Feed(mux_extradata_builder_t *m,
                                         const uint8_t *p_data, size_t i_data)
 {
-    if(m->i_extra || i_data < VLC_A52_MIN_HEADER_SIZE ||
+    if(m->i_extra || i_data < HEIMDALL_A52_MIN_HEADER_SIZE ||
        p_data[0] != 0x0B || p_data[1] != 0x77)
         return;
 
-    struct vlc_a52_bitstream_info bsi;
-    if(vlc_a52_ParseEac3BitstreamInfo(&bsi, &p_data[2], /* start code */
-                                      i_data - 2) != VLC_SUCCESS)
+    struct heimdall_a52_bitstream_info bsi;
+    if(heimdall_a52_ParseEac3BitstreamInfo(&bsi, &p_data[2], /* start code */
+                                      i_data - 2) != HEIMDALL_SUCCESS)
         return;
 
     m->p_extra = malloc(5);
@@ -207,18 +208,18 @@ void mux_extradata_builder_Delete(mux_extradata_builder_t *m)
 static const struct
 {
     enum mux_extradata_type_e type;
-    vlc_fourcc_t fcc;
+    heimdall_fourcc_t fcc;
     const struct mux_extradata_builder_cb *cb;
 } mappings[] = {
-    { EXTRADATA_ISOBMFF, VLC_CODEC_AV1,  &av1_cb },
-    { EXTRADATA_ISOBMFF, VLC_CODEC_A52,  &ac3_cb },
-    { EXTRADATA_ISOBMFF, VLC_CODEC_EAC3, &eac3_cb },
-    { EXTRADATA_ISOBMFF, VLC_CODEC_H264, &hxxx_cb },
-    { EXTRADATA_ISOBMFF, VLC_CODEC_HEVC, &hxxx_cb },
+    { EXTRADATA_ISOBMFF, HEIMDALL_CODEC_AV1,  &av1_cb },
+    { EXTRADATA_ISOBMFF, HEIMDALL_CODEC_A52,  &ac3_cb },
+    { EXTRADATA_ISOBMFF, HEIMDALL_CODEC_EAC3, &eac3_cb },
+    { EXTRADATA_ISOBMFF, HEIMDALL_CODEC_H264, &hxxx_cb },
+    { EXTRADATA_ISOBMFF, HEIMDALL_CODEC_HEVC, &hxxx_cb },
 };
 
-mux_extradata_builder_t * mux_extradata_builder_New(vlc_object_t *obj,
-                                                    vlc_fourcc_t fcc,
+mux_extradata_builder_t * mux_extradata_builder_New(heimdall_object_t *obj,
+                                                    heimdall_fourcc_t fcc,
                                                     enum mux_extradata_type_e type)
 {
     const struct mux_extradata_builder_cb *cb = NULL;

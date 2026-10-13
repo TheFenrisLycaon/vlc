@@ -2,6 +2,7 @@
  * soxr.c: resampler/converter using The SoX Resampler library
  *****************************************************************************
  * Copyright (C) 2015 VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Thomas Guillem <thomas@gllm.fr>
  *
@@ -28,10 +29,10 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_aout.h>
-#include <vlc_filter.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_aout.h>
+#include <heimdall_filter.h>
+#include <heimdall_plugin.h>
 
 #include <assert.h>
 #include <math.h>
@@ -40,8 +41,8 @@
 #define SOXR_QUALITY_TEXT N_( "Resampling quality" )
 #define SOXR_QUALITY_LONGTEXT N_( "Resampling quality, from worst to best" )
 
-static const int soxr_resampler_quality_vlclist[] = { 0, 1, 2, 3, 4 };
-static const char *const soxr_resampler_quality_vlctext[] =
+static const int soxr_resampler_quality_heimdalllist[] = { 0, 1, 2, 3, 4 };
+static const char *const soxr_resampler_quality_heimdalltext[] =
 {
      /* Note: Skip translation - too technical */
      "Quick cubic interpolation",
@@ -60,17 +61,17 @@ static const soxr_datatype_t soxr_resampler_quality_list[] =
 };
 #define MAX_SOXR_QUALITY 4
 
-static int OpenConverter( vlc_object_t * );
-static int OpenResampler( vlc_object_t * );
+static int OpenConverter( heimdall_object_t * );
+static int OpenResampler( heimdall_object_t * );
 static void Close( filter_t * );
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( N_("SoX Resampler") )
     set_subcategory( SUBCAT_AUDIO_RESAMPLER )
     add_integer( "soxr-resampler-quality", 2,
                 SOXR_QUALITY_TEXT, NULL )
-        change_integer_list( soxr_resampler_quality_vlclist,
-                             soxr_resampler_quality_vlctext )
+        change_integer_list( soxr_resampler_quality_heimdalllist,
+                             soxr_resampler_quality_heimdalltext )
     set_capability ( "audio converter", 51 )
     set_callback( OpenConverter )
 
@@ -78,7 +79,7 @@ vlc_module_begin ()
     set_capability( "audio resampler", 51 )
     set_callback( OpenResampler )
     add_shortcut( "soxr" )
-vlc_module_end ()
+heimdall_module_end ()
 
 typedef struct
 {
@@ -87,7 +88,7 @@ typedef struct
     soxr_t  last_soxr;
     double  f_fixed_ratio;
     size_t  i_last_olen;
-    vlc_tick_t i_next_pts;
+    heimdall_tick_t i_next_pts;
 } filter_sys_t;
 
 static block_t *Resample( filter_t *, block_t * );
@@ -96,20 +97,20 @@ static block_t *Drain( filter_t * );
 static void     Flush( filter_t * );
 
 static bool
-SoXR_GetFormat( vlc_fourcc_t i_format, soxr_datatype_t *p_type )
+SoXR_GetFormat( heimdall_fourcc_t i_format, soxr_datatype_t *p_type )
 {
     switch( i_format )
     {
-        case VLC_CODEC_FL64:
+        case HEIMDALL_CODEC_FL64:
             *p_type = SOXR_FLOAT64_I;
             return true;
-        case VLC_CODEC_FL32:
+        case HEIMDALL_CODEC_FL32:
             *p_type = SOXR_FLOAT32_I;
             return true;
-        case VLC_CODEC_S32N:
+        case HEIMDALL_CODEC_S32N:
             *p_type = SOXR_INT32_I;
             return true;
-        case VLC_CODEC_S16N:
+        case HEIMDALL_CODEC_S16N:
             *p_type = SOXR_INT16_I;
             return true;
         default:
@@ -118,33 +119,33 @@ SoXR_GetFormat( vlc_fourcc_t i_format, soxr_datatype_t *p_type )
 }
 
 static int
-Open( vlc_object_t *p_obj, bool b_change_ratio )
+Open( heimdall_object_t *p_obj, bool b_change_ratio )
 {
     filter_t *p_filter = (filter_t *)p_obj;
 
     /* Cannot remix */
     if( p_filter->fmt_in.audio.i_channels != p_filter->fmt_out.audio.i_channels )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     /* Get SoXR input/output format */
     soxr_datatype_t i_itype, i_otype;
     if( !SoXR_GetFormat( p_filter->fmt_in.audio.i_format, &i_itype )
      || !SoXR_GetFormat( p_filter->fmt_out.audio.i_format, &i_otype ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     filter_sys_t *p_sys = calloc( 1, sizeof( filter_sys_t ) );
     if( unlikely( p_sys == NULL ) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    p_sys->i_next_pts = VLC_TICK_INVALID;
+    p_sys->i_next_pts = HEIMDALL_TICK_INVALID;
 
     /* Setup SoXR */
-    int64_t i_vlc_q = var_InheritInteger( p_obj, "soxr-resampler-quality" );
-    if( i_vlc_q < 0 )
-        i_vlc_q = 0;
-    else if( i_vlc_q > MAX_SOXR_QUALITY )
-        i_vlc_q = MAX_SOXR_QUALITY;
-    const unsigned long i_recipe = soxr_resampler_quality_list[i_vlc_q];
+    int64_t i_heimdall_q = var_InheritInteger( p_obj, "soxr-resampler-quality" );
+    if( i_heimdall_q < 0 )
+        i_heimdall_q = 0;
+    else if( i_heimdall_q > MAX_SOXR_QUALITY )
+        i_heimdall_q = MAX_SOXR_QUALITY;
+    const unsigned long i_recipe = soxr_resampler_quality_list[i_heimdall_q];
     const unsigned i_channels = p_filter->fmt_in.audio.i_channels;
     const double f_ratio = p_filter->fmt_out.audio.i_rate
                            / (double) p_filter->fmt_in.audio.i_rate;
@@ -162,7 +163,7 @@ Open( vlc_object_t *p_obj, bool b_change_ratio )
     {
         msg_Err( p_filter, "soxr_create failed: %s", soxr_strerror( error ) );
         free( p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Create a 'variable-rate' SoXR if needed: it is slower than the fixed
@@ -178,27 +179,27 @@ Open( vlc_object_t *p_obj, bool b_change_ratio )
             msg_Err( p_filter, "soxr_create failed: %s", soxr_strerror( error ) );
             soxr_delete( p_sys->soxr );
             free( p_sys );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
         soxr_set_io_ratio( p_sys->vr_soxr, 1 / f_ratio, 0 );
     }
 
     msg_Dbg( p_filter, "Using SoX Resampler with '%s' engine and '%s' quality "
              "to convert %4.4s/%dHz to %4.4s/%dHz.",
-             soxr_engine( p_sys->soxr ), soxr_resampler_quality_vlctext[i_vlc_q],
+             soxr_engine( p_sys->soxr ), soxr_resampler_quality_heimdalltext[i_heimdall_q],
              (const char *)&p_filter->fmt_in.audio.i_format,
              p_filter->fmt_in.audio.i_rate,
              (const char *)&p_filter->fmt_out.audio.i_format,
              p_filter->fmt_out.audio.i_rate );
 
-    static const struct vlc_filter_operations filter_ops =
+    static const struct heimdall_filter_operations filter_ops =
     {
         .filter_audio = Resample,
         .drain_audio = Drain,
         .flush = Flush,
         .close = Close,
     };
-    static const struct vlc_filter_operations fixed_filter_ops =
+    static const struct heimdall_filter_operations fixed_filter_ops =
     {
         .filter_audio = FixedResample,
         .drain_audio = Drain,
@@ -208,29 +209,29 @@ Open( vlc_object_t *p_obj, bool b_change_ratio )
 
     p_filter->ops = b_change_ratio ? &filter_ops : &fixed_filter_ops;
     p_filter->p_sys = p_sys;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int
-OpenResampler( vlc_object_t *p_obj )
+OpenResampler( heimdall_object_t *p_obj )
 {
     filter_t *p_filter = (filter_t *)p_obj;
 
     /* A resampler doesn't convert the format */
     if( p_filter->fmt_in.audio.i_format != p_filter->fmt_out.audio.i_format )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     return Open( p_obj, true );
 }
 
 static int
-OpenConverter( vlc_object_t *p_obj )
+OpenConverter( heimdall_object_t *p_obj )
 {
     filter_t *p_filter = (filter_t *)p_obj;
 
     /* Don't use SoXR to convert format. Prefer to use converter/format.c that
      * has better performances */
     if( p_filter->fmt_in.audio.i_rate == p_filter->fmt_out.audio.i_rate )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     return Open( p_obj, false );
 }
 
@@ -282,7 +283,7 @@ SoXR_Resample( filter_t *p_filter, soxr_t soxr, block_t *p_in, size_t i_olen )
 
     p_out->i_buffer = i_odone * i_oframesize;
     p_out->i_nb_samples = i_odone;
-    p_out->i_length = vlc_tick_from_samples(i_odone, p_filter->fmt_out.audio.i_rate);
+    p_out->i_length = heimdall_tick_from_samples(i_odone, p_filter->fmt_out.audio.i_rate);
 
     if( p_in )
     {
@@ -316,7 +317,7 @@ static block_t *
 Resample( filter_t *p_filter, block_t *p_in )
 {
     filter_sys_t *p_sys = p_filter->p_sys;
-    const vlc_tick_t i_pts = p_in->i_pts;
+    const heimdall_tick_t i_pts = p_in->i_pts;
     assert( p_sys->vr_soxr != NULL );
 
     /* "audio resampler" with variable ratio: use the fixed resampler when
@@ -389,7 +390,7 @@ FixedResample( filter_t *p_filter, block_t *p_in )
 {
     /* "audio converter" with fixed ratio */
     filter_sys_t *p_sys = p_filter->p_sys;
-    const vlc_tick_t i_pts = p_in->i_pts;
+    const heimdall_tick_t i_pts = p_in->i_pts;
     assert( p_sys->vr_soxr == NULL );
 
     const size_t i_olen = SoXR_GetOutLen( p_in->i_nb_samples,
@@ -411,7 +412,7 @@ Drain( filter_t *p_filter )
                                         p_sys->i_last_olen );
         if( p_out != NULL )
         {
-            assert( p_sys->i_next_pts != VLC_TICK_INVALID );
+            assert( p_sys->i_next_pts != HEIMDALL_TICK_INVALID );
             p_out->i_pts = p_sys->i_next_pts;
         }
         return p_out;
@@ -431,5 +432,5 @@ Flush( filter_t *p_filter )
         p_sys->i_last_olen = 0;
         p_sys->last_soxr = NULL;
     }
-    p_sys->i_next_pts = VLC_TICK_INVALID;
+    p_sys->i_next_pts = HEIMDALL_TICK_INVALID;
 }

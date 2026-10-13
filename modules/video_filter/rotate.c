@@ -2,8 +2,9 @@
  * rotate.c : video rotation filter
  *****************************************************************************
  * Copyright (C) 2000-2008 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Antoine Cellerier <dionoea -at- videolan -dot- org>
+ * Authors: Antoine Cellerier <dionoea -at- lycaria -dot- org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,13 +32,13 @@
 #include <math.h>                                            /* sin(), cos() */
 #include <stdatomic.h>
 
-#define VLC_MODULE_LICENSE VLC_LICENSE_GPL_2_PLUS
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_mouse.h>
-#include <vlc_picture.h>
+#define HEIMDALL_MODULE_LICENSE HEIMDALL_LICENSE_GPL_2_PLUS
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_mouse.h>
+#include <heimdall_picture.h>
 #include "filter_picture.h"
 #include "../control/motionlib.h"
 
@@ -46,13 +47,13 @@
  *****************************************************************************/
 static int  Create    ( filter_t * );
 
-static int Mouse( filter_t *p_filter, vlc_mouse_t *p_mouse,
-                  const vlc_mouse_t *p_old );
+static int Mouse( filter_t *p_filter, heimdall_mouse_t *p_mouse,
+                  const heimdall_mouse_t *p_old );
 static picture_t *FilterPacked( filter_t *, picture_t * );
 VIDEO_FILTER_WRAPPER_CLOSE(Filter, Destroy)
 
-static int RotateCallback( vlc_object_t *p_this, char const *psz_var,
-                           vlc_value_t oldval, vlc_value_t newval,
+static int RotateCallback( heimdall_object_t *p_this, char const *psz_var,
+                           heimdall_value_t oldval, heimdall_value_t newval,
                            void *p_data );
 
 #define ANGLE_TEXT N_("Angle in degrees")
@@ -66,7 +67,7 @@ static int RotateCallback( vlc_object_t *p_this, char const *psz_var,
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("Rotate video filter") )
     set_shortname( N_( "Rotate" ))
     set_subcategory( SUBCAT_VIDEO_VFILTER )
@@ -77,7 +78,7 @@ vlc_module_begin ()
 
     add_shortcut( "rotate" )
     set_callback_video_filter( Create )
-vlc_module_end ()
+heimdall_module_end ()
 
 static const char *const ppsz_filter_options[] = {
     "angle", "use-motion", NULL
@@ -105,7 +106,7 @@ static void store_trigo( filter_sys_t *sys, float f_angle )
     atomic_store_explicit(&sys->sincos, sincos, memory_order_relaxed);
 }
 
-static const struct vlc_filter_operations packed_filter_ops =
+static const struct heimdall_filter_operations packed_filter_ops =
 {
     .filter_video = FilterPacked, .video_mouse = Mouse, .close = Destroy,
 };
@@ -121,7 +122,7 @@ static int Create( filter_t *p_filter )
                                     &p_filter->fmt_out.video ) )
     {
         msg_Err( p_filter, "Input and output chromas don't match" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     switch( p_filter->fmt_in.video.i_chroma )
@@ -137,13 +138,13 @@ static int Create( filter_t *p_filter )
         default:
             msg_Err( p_filter, "Unsupported input chroma (%4.4s)",
                      (char*)&(p_filter->fmt_in.video.i_chroma) );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 
     /* Allocate structure */
     p_filter->p_sys = malloc( sizeof( filter_sys_t ) );
     if( p_filter->p_sys == NULL )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     p_sys = p_filter->p_sys;
 
     config_ChainParse( p_filter, FILTER_PREFIX, ppsz_filter_options,
@@ -151,11 +152,11 @@ static int Create( filter_t *p_filter )
 
     if( var_InheritBool( p_filter, FILTER_PREFIX "use-motion" ) )
     {
-        p_sys->p_motion = motion_create( VLC_OBJECT( p_filter ) );
+        p_sys->p_motion = motion_create( HEIMDALL_OBJECT( p_filter ) );
         if( p_sys->p_motion == NULL )
         {
             free( p_sys );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
     else
@@ -168,7 +169,7 @@ static int Create( filter_t *p_filter )
         p_sys->p_motion = NULL;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -191,10 +192,10 @@ static void Destroy( filter_t *p_filter )
 /*****************************************************************************
  *
  *****************************************************************************/
-static int Mouse( filter_t *p_filter, vlc_mouse_t *p_mouse,
-                  const vlc_mouse_t *p_old )
+static int Mouse( filter_t *p_filter, heimdall_mouse_t *p_mouse,
+                  const heimdall_mouse_t *p_old )
 {
-    VLC_UNUSED( p_old );
+    HEIMDALL_UNUSED( p_old );
 
     const video_format_t *p_fmt = &p_filter->fmt_out.video;
     filter_sys_t *p_sys = p_filter->p_sys;
@@ -218,7 +219,7 @@ static int Mouse( filter_t *p_filter, vlc_mouse_t *p_mouse,
     p_mouse->i_x += ( ( i_rx * sc.cos - i_ry * sc.sin )>> 12 );
     p_mouse->i_y += ( ( i_rx * sc.sin + i_ry * sc.cos )>> 12 );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -349,7 +350,7 @@ static picture_t *FilterPacked( filter_t *p_filter, picture_t *p_pic )
     int i_u_offset, i_v_offset, i_y_offset;
 
     if( GetPackedYuvOffsets( p_pic->format.i_chroma, &i_y_offset,
-                             &i_u_offset, &i_v_offset ) != VLC_SUCCESS )
+                             &i_u_offset, &i_v_offset ) != HEIMDALL_SUCCESS )
     {
         msg_Warn( p_filter, "Unsupported input chroma (%4.4s)",
                   (char*)&(p_pic->format.i_chroma) );
@@ -445,12 +446,12 @@ static picture_t *FilterPacked( filter_t *p_filter, picture_t *p_pic )
 /*****************************************************************************
  * Angle modification callback.
  *****************************************************************************/
-static int RotateCallback( vlc_object_t *p_this, char const *psz_var,
-                           vlc_value_t oldval, vlc_value_t newval, void *data )
+static int RotateCallback( heimdall_object_t *p_this, char const *psz_var,
+                           heimdall_value_t oldval, heimdall_value_t newval, void *data )
 {
     filter_sys_t *p_sys = data;
 
     store_trigo( p_sys, newval.f_float );
     (void) p_this; (void) psz_var; (void) oldval;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }

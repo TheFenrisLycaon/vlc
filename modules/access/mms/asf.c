@@ -2,6 +2,7 @@
  * asf.c: MMS access plug-in
  *****************************************************************************
  * Copyright (C) 2001-2004 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *
@@ -24,26 +25,26 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_rand.h>
+#include <heimdall_common.h>
+#include <heimdall_rand.h>
 
 #include "asf.h"
 #include "buffer.h"
 #include "../../demux/asf/libasf_guid.h"
 
-void  GenerateGuid ( vlc_guid_t *p_guid )
+void  GenerateGuid ( heimdall_guid_t *p_guid )
 {
     p_guid->Data1 = 0xbabac001;
-    vlc_rand_bytes(&p_guid->Data2, sizeof(p_guid->Data2));
-    vlc_rand_bytes(&p_guid->Data3, sizeof(p_guid->Data3));
-    vlc_rand_bytes(p_guid->Data4, sizeof(p_guid->Data4));
+    heimdall_rand_bytes(&p_guid->Data2, sizeof(p_guid->Data2));
+    heimdall_rand_bytes(&p_guid->Data3, sizeof(p_guid->Data3));
+    heimdall_rand_bytes(p_guid->Data4, sizeof(p_guid->Data4));
 }
 
 void  asf_HeaderParse ( asf_header_t *hdr,
                             uint8_t *p_header, int i_header )
 {
     var_buffer_t buffer;
-    vlc_guid_t  guid;
+    heimdall_guid_t  guid;
     uint64_t    i_size;
 
     hdr->i_file_size = 0;
@@ -157,7 +158,7 @@ void  asf_HeaderParse ( asf_header_t *hdr,
                 return;
 
             int     i_stream_id;
-            vlc_guid_t  stream_type;
+            heimdall_guid_t  stream_type;
 
             var_buffer_getguid( &buffer, &stream_type );
             var_buffer_getmemory( &buffer, NULL, 32 );

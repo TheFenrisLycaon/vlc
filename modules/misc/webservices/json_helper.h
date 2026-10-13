@@ -2,6 +2,7 @@
  * json_helper.h:
  *****************************************************************************
  * Copyright (C) 2012-2019 VLC authors, VideoLabs and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -20,9 +21,9 @@
 #ifndef JSON_HELPER_H
 #define JSON_HELPER_H
 
-#include <vlc_common.h>
-#include <vlc_arrays.h>
-#include <vlc_stream.h>
+#include <heimdall_common.h>
+#include <heimdall_arrays.h>
+#include <heimdall_stream.h>
 
 #include <limits.h>
 
@@ -36,17 +37,17 @@ char * json_dupstring(const struct json_object *obj, const char *key)
 }
 
 static inline
-void * json_retrieve_document(vlc_object_t *p_obj, const char *psz_url, size_t *buf_size)
+void * json_retrieve_document(heimdall_object_t *p_obj, const char *psz_url, size_t *buf_size)
 {
     bool saved_no_interact = p_obj->no_interact;
     p_obj->no_interact = true;
-    stream_t *p_stream = vlc_stream_NewURL(p_obj, psz_url);
+    stream_t *p_stream = heimdall_stream_NewURL(p_obj, psz_url);
 
     p_obj->no_interact = saved_no_interact;
     if (p_stream == NULL)
         return NULL;
 
-    stream_t *p_chain = vlc_stream_FilterNew(p_stream, "inflate");
+    stream_t *p_chain = heimdall_stream_FilterNew(p_stream, "inflate");
     if(p_chain)
         p_stream = p_chain;
 
@@ -64,25 +65,25 @@ void * json_retrieve_document(vlc_object_t *p_obj, const char *psz_url, size_t *
         if(unlikely(rbuffer == NULL))
         {
             free(p_buffer);
-            vlc_stream_Delete(p_stream);
+            heimdall_stream_Delete(p_stream);
             return NULL;
         }
         p_buffer = rbuffer;
 
-        i_read = vlc_stream_Read(p_stream, &p_buffer[*buf_size], i_read);
+        i_read = heimdall_stream_Read(p_stream, &p_buffer[*buf_size], i_read);
         if(i_read <= 0)
             break;
 
         *buf_size += i_read;
     }
-    vlc_stream_Delete(p_stream);
+    heimdall_stream_Delete(p_stream);
     p_buffer[*buf_size++] = '\0';
 
     return p_buffer;
 }
 
 struct json_helper_sys {
-    struct vlc_logger *logger;
+    struct heimdall_logger *logger;
     const char *buffer;
     size_t size;
 };
@@ -91,7 +92,7 @@ void json_parse_error(void *data, const char *msg)
 {
     struct json_helper_sys *sys = data;
 
-    vlc_error(sys->logger, "%s", msg);
+    heimdall_error(sys->logger, "%s", msg);
 }
 
 size_t json_read(void *data, void *buf, size_t size)

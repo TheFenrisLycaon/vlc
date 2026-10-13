@@ -2,6 +2,7 @@
  * xmlparser.hpp
  *****************************************************************************
  * Copyright (C) 2004 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Cyril Deguet     <asmax@via.ecp.fr>
  *
@@ -24,9 +25,9 @@
 #define XMLPARSER_HPP
 
 #include "../src/skin_common.hpp"
-#include <vlc_block.h>
-#include <vlc_stream.h>
-#include <vlc_xml.h>
+#include <heimdall_block.h>
+#include <heimdall_stream.h>
+#include <heimdall_xml.h>
 #include <map>
 
 // Current DTD version

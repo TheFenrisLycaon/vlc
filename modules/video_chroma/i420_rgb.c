@@ -1,7 +1,8 @@
 /*****************************************************************************
- * i420_rgb.c : YUV to bitmap RGB conversion module for vlc
+ * i420_rgb.c : YUV to bitmap RGB conversion module for heimdall
  *****************************************************************************
  * Copyright (C) 2000, 2001, 2004, 2008 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Sam Hocevar <sam@zoy.org>
  *          Damien Fouilleul <damienf@videolan.org>
@@ -29,12 +30,12 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_filter.h>
-#include <vlc_picture.h>
-#include <vlc_cpu.h>
-#include <vlc_chroma_probe.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_filter.h>
+#include <heimdall_picture.h>
+#include <heimdall_cpu.h>
+#include <heimdall_chroma_probe.h>
 
 #include "i420_rgb.h"
 #include "../video_filter/filter_picture.h"
@@ -59,16 +60,16 @@ static void Set8bppPalette( filter_t *, uint8_t * );
 static int  Activate   ( filter_t * );
 static void Deactivate ( filter_t * );
 
-static void ProbeChroma(vlc_chroma_conv_vec *vec)
+static void ProbeChroma(heimdall_chroma_conv_vec *vec)
 {
-#define OUT_CHROMAS_COMMON VLC_CODEC_RGB565, VLC_CODEC_RGB555, VLC_CODEC_XRGB, \
-    VLC_CODEC_RGBX, VLC_CODEC_BGRX, VLC_CODEC_XBGR
+#define OUT_CHROMAS_COMMON HEIMDALL_CODEC_RGB565, HEIMDALL_CODEC_RGB555, HEIMDALL_CODEC_XRGB, \
+    HEIMDALL_CODEC_RGBX, HEIMDALL_CODEC_BGRX, HEIMDALL_CODEC_XBGR
 
 #ifndef PLUGIN_PLAIN
 #define OUT_CHROMAS OUT_CHROMAS_COMMON
 #else
-#define OUT_CHROMAS OUT_CHROMAS_COMMON, VLC_CODEC_RGB233, VLC_CODEC_RGB332, \
-    VLC_CODEC_BGR233, VLC_CODEC_BGR565, VLC_CODEC_BGR555
+#define OUT_CHROMAS OUT_CHROMAS_COMMON, HEIMDALL_CODEC_RGB233, HEIMDALL_CODEC_RGB332, \
+    HEIMDALL_CODEC_BGR233, HEIMDALL_CODEC_BGR565, HEIMDALL_CODEC_BGR555
 #endif
 
 #if defined (PLUGIN_SSE2)
@@ -77,25 +78,25 @@ static void ProbeChroma(vlc_chroma_conv_vec *vec)
 #define COST 1
 #endif
 
-    vlc_chroma_conv_add_in_outlist(vec, COST, VLC_CODEC_YV12, OUT_CHROMAS);
-    vlc_chroma_conv_add_in_outlist(vec, COST, VLC_CODEC_I420, OUT_CHROMAS);
+    heimdall_chroma_conv_add_in_outlist(vec, COST, HEIMDALL_CODEC_YV12, OUT_CHROMAS);
+    heimdall_chroma_conv_add_in_outlist(vec, COST, HEIMDALL_CODEC_I420, OUT_CHROMAS);
 }
 
-vlc_module_begin ()
+heimdall_module_begin ()
 #if defined (PLUGIN_SSE2)
     set_description( N_( "SSE2 I420,IYUV,YV12 to "
                         "RV15,RV16,RV24,RV32 conversions") )
     set_callback_video_converter( Activate, 120 )
-# define vlc_CPU_capable() vlc_CPU_SSE2()
+# define heimdall_CPU_capable() heimdall_CPU_SSE2()
 #else
     set_description( N_("I420,IYUV,YV12 to "
                        "RGB8,RV15,RV16,RV24,RV32 conversions") )
     set_callback_video_converter( Activate, 80 )
-# define vlc_CPU_capable() (true)
+# define heimdall_CPU_capable() (true)
 #endif
     add_submodule()
         set_callback_chroma_conv_probe(ProbeChroma)
-vlc_module_end ()
+heimdall_module_end ()
 
 #ifndef PLUGIN_PLAIN
 VIDEO_FILTER_WRAPPER_CLOSE_EXT( I420_R5G5B5, Deactivate )
@@ -117,66 +118,66 @@ VIDEO_FILTER_WRAPPER_CLOSE_EXT( I420_RGB32, Deactivate )
  *****************************************************************************/
 static int Activate( filter_t *p_filter )
 {
-    if( !vlc_CPU_capable() )
-        return VLC_EGENERIC;
+    if( !heimdall_CPU_capable() )
+        return HEIMDALL_EGENERIC;
     if( p_filter->fmt_out.video.i_width & 1
      || p_filter->fmt_out.video.i_height & 1 )
     {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( p_filter->fmt_in.video.orientation != p_filter->fmt_out.video.orientation )
     {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     switch( p_filter->fmt_in.video.i_chroma )
     {
-        case VLC_CODEC_YV12:
-        case VLC_CODEC_I420:
+        case HEIMDALL_CODEC_YV12:
+        case HEIMDALL_CODEC_I420:
             switch( p_filter->fmt_out.video.i_chroma )
             {
 #ifndef PLUGIN_PLAIN
-                case VLC_CODEC_RGB565:
+                case HEIMDALL_CODEC_RGB565:
                     /* R5G6B5 pixel format */
                     msg_Dbg(p_filter, "RGB pixel format is R5G6B5");
                     p_filter->ops = &I420_R5G6B5_ops;
                     break;
-                case VLC_CODEC_RGB555:
+                case HEIMDALL_CODEC_RGB555:
                     /* R5G5B5 pixel format */
                     msg_Dbg(p_filter, "RGB pixel format is R5G5B5");
                     p_filter->ops = &I420_R5G5B5_ops;
                     break;
-                case VLC_CODEC_XRGB:
+                case HEIMDALL_CODEC_XRGB:
                     /* A8R8G8B8 pixel format */
                     msg_Dbg(p_filter, "RGB pixel format is XBGR");
                     p_filter->ops = &I420_A8R8G8B8_ops;
                     break;
-                case VLC_CODEC_RGBX:
+                case HEIMDALL_CODEC_RGBX:
                     /* R8G8B8A8 pixel format */
                     msg_Dbg(p_filter, "RGB pixel format is RGBX");
                     p_filter->ops = &I420_R8G8B8A8_ops;
                     break;
-                case VLC_CODEC_BGRX:
+                case HEIMDALL_CODEC_BGRX:
                     /* B8G8R8A8 pixel format */
                     msg_Dbg(p_filter, "RGB pixel format is BGRX");
                     p_filter->ops = &I420_B8G8R8A8_ops;
                     break;
-                case VLC_CODEC_XBGR:
+                case HEIMDALL_CODEC_XBGR:
                     /* A8B8G8R8 pixel format */
                     msg_Dbg(p_filter, "RGB pixel format is XBGR");
                     p_filter->ops = &I420_A8B8G8R8_ops;
                     break;
 #else
-                case VLC_CODEC_RGB233:
-                case VLC_CODEC_RGB332:
-                case VLC_CODEC_BGR233:
+                case HEIMDALL_CODEC_RGB233:
+                case HEIMDALL_CODEC_RGB332:
+                case HEIMDALL_CODEC_BGR233:
                     p_filter->ops = &I420_RGB8_ops;
                     break;
-                case VLC_CODEC_RGB565:
-                case VLC_CODEC_BGR565:
-                case VLC_CODEC_RGB555:
-                case VLC_CODEC_BGR555:
+                case HEIMDALL_CODEC_RGB565:
+                case HEIMDALL_CODEC_BGR565:
+                case HEIMDALL_CODEC_RGB555:
+                case HEIMDALL_CODEC_BGR555:
                     p_filter->ops = &I420_RGB16_ops;
                     break;
                 CASE_PACKED_RGBX
@@ -184,17 +185,17 @@ static int Activate( filter_t *p_filter )
                     break;
 #endif
                 default:
-                    return VLC_EGENERIC;
+                    return HEIMDALL_EGENERIC;
             }
             break;
 
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 
     filter_sys_t *p_sys = malloc( sizeof( filter_sys_t ) );
     if( p_sys == NULL )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     p_filter->p_sys = p_sys;
 
     p_sys->i_buffer_size = 0;
@@ -202,9 +203,9 @@ static int Activate( filter_t *p_filter )
     switch( p_filter->fmt_out.video.i_chroma )
     {
 #ifdef PLUGIN_PLAIN
-        case VLC_CODEC_RGB233:
-        case VLC_CODEC_RGB332:
-        case VLC_CODEC_BGR233:
+        case HEIMDALL_CODEC_RGB233:
+        case HEIMDALL_CODEC_RGB332:
+        case HEIMDALL_CODEC_BGR233:
             p_sys->i_bytespp = 1;
             break;
 #endif
@@ -212,13 +213,13 @@ static int Activate( filter_t *p_filter )
             p_sys->i_bytespp = 2;
             break;
         CASE_PACKED_RGBX
-        case VLC_CODEC_RGB24:
-        case VLC_CODEC_BGR24:
+        case HEIMDALL_CODEC_RGB24:
+        case HEIMDALL_CODEC_BGR24:
             p_sys->i_bytespp = 4;
             break;
         default:
             free( p_sys );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 
     p_sys->p_offset = malloc( p_filter->fmt_out.video.i_width
@@ -227,7 +228,7 @@ static int Activate( filter_t *p_filter )
     if( p_sys->p_offset == NULL )
     {
         free( p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
 #ifdef PLUGIN_PLAIN
@@ -276,30 +277,30 @@ static void SetYUV( filter_t *p_filter )
 
     switch (p_filter->fmt_out.video.i_chroma)
     {
-        case VLC_CODEC_XRGB:
-        case VLC_CODEC_RGB24:
+        case HEIMDALL_CODEC_XRGB:
+        case HEIMDALL_CODEC_RGB24:
             i_lrshift = 16;
             i_lgshift =  8;
             i_lbshift =  0;
             break;
-        case VLC_CODEC_XBGR:
-        case VLC_CODEC_BGR24:
+        case HEIMDALL_CODEC_XBGR:
+        case HEIMDALL_CODEC_BGR24:
             i_lbshift = 16;
             i_lgshift =  8;
             i_lrshift =  0;
             break;
-        case VLC_CODEC_RGBX:
+        case HEIMDALL_CODEC_RGBX:
             i_lrshift = 24;
             i_lgshift = 16;
             i_lbshift =  8;
             break;
-        case VLC_CODEC_BGRX:
+        case HEIMDALL_CODEC_BGRX:
             i_lbshift = 24;
             i_lgshift = 16;
             i_lrshift =  8;
             break;
-        case VLC_CODEC_RGB565BE:
-        case VLC_CODEC_RGB565LE:
+        case HEIMDALL_CODEC_RGB565BE:
+        case HEIMDALL_CODEC_RGB565LE:
             i_lrshift = 11;
             i_lgshift = 6;
             i_lbshift = 0;
@@ -307,8 +308,8 @@ static void SetYUV( filter_t *p_filter )
             i_rgshift = 2;
             i_rbshift = 3;
             break;
-        case VLC_CODEC_BGR565BE:
-        case VLC_CODEC_BGR565LE:
+        case HEIMDALL_CODEC_BGR565BE:
+        case HEIMDALL_CODEC_BGR565LE:
             i_lbshift = 11;
             i_lgshift = 6;
             i_lrshift = 0;
@@ -316,8 +317,8 @@ static void SetYUV( filter_t *p_filter )
             i_rgshift = 2;
             i_rrshift = 3;
             break;
-        case VLC_CODEC_RGB555BE:
-        case VLC_CODEC_RGB555LE:
+        case HEIMDALL_CODEC_RGB555BE:
+        case HEIMDALL_CODEC_RGB555LE:
             i_lrshift = 10;
             i_lgshift = 5;
             i_lbshift = 0;
@@ -325,8 +326,8 @@ static void SetYUV( filter_t *p_filter )
             i_rgshift = 3;
             i_rbshift = 3;
             break;
-        case VLC_CODEC_BGR555BE:
-        case VLC_CODEC_BGR555LE:
+        case HEIMDALL_CODEC_BGR555BE:
+        case HEIMDALL_CODEC_BGR555LE:
             i_lbshift = 10;
             i_lgshift = 5;
             i_lrshift = 0;
@@ -334,7 +335,7 @@ static void SetYUV( filter_t *p_filter )
             i_rgshift = 3;
             i_rrshift = 3;
             break;
-        case VLC_CODEC_RGB233:
+        case HEIMDALL_CODEC_RGB233:
             i_lrshift = 6;
             i_lgshift = 3;
             i_lbshift = 0;
@@ -342,7 +343,7 @@ static void SetYUV( filter_t *p_filter )
             i_rgshift = 5;
             i_rbshift = 5;
             break;
-        case VLC_CODEC_BGR233:
+        case HEIMDALL_CODEC_BGR233:
             i_lbshift = 6;
             i_lgshift = 3;
             i_lrshift = 0;
@@ -350,7 +351,7 @@ static void SetYUV( filter_t *p_filter )
             i_rgshift = 5;
             i_rrshift = 5;
             break;
-        case VLC_CODEC_RGB332:
+        case HEIMDALL_CODEC_RGB332:
             i_lrshift = 5;
             i_lgshift = 2;
             i_lbshift = 0;
@@ -359,7 +360,7 @@ static void SetYUV( filter_t *p_filter )
             i_rbshift = 6;
             break;
         default:
-            vlc_assert_unreachable();
+            heimdall_assert_unreachable();
     }
 
     /*
@@ -369,9 +370,9 @@ static void SetYUV( filter_t *p_filter )
     /* Color: build red, green and blue tables */
     switch( p_filter->fmt_out.video.i_chroma )
     {
-    case VLC_CODEC_RGB233:
-    case VLC_CODEC_RGB332:
-    case VLC_CODEC_BGR233:
+    case HEIMDALL_CODEC_RGB233:
+    case HEIMDALL_CODEC_RGB332:
+    case HEIMDALL_CODEC_BGR233:
         p_sys->p_rgb8 = (uint8_t *)p_sys->p_base;
         Set8bppPalette( p_filter, p_sys->p_rgb8 );
         break;
@@ -402,8 +403,8 @@ static void SetYUV( filter_t *p_filter )
         break;
 
     CASE_PACKED_RGBX
-    case VLC_CODEC_RGB24:
-    case VLC_CODEC_BGR24:
+    case HEIMDALL_CODEC_RGB24:
+    case HEIMDALL_CODEC_BGR24:
         p_sys->p_rgb32 = (uint32_t *)p_sys->p_base;
         for( unsigned i_index = 0; i_index < RED_MARGIN; i_index++ )
         {

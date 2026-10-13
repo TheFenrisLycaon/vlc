@@ -3,6 +3,7 @@
  *            (using libtwolame from http://www.twolame.org/)
  *****************************************************************************
  * Copyright (C) 2004-2005 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Christophe Massiot <massiot@via.ecp.fr>
  *          Gildas Bazin
@@ -29,10 +30,10 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
 
 #include <twolame.h>
 
@@ -42,7 +43,7 @@
 /****************************************************************************
  * Local prototypes
  ****************************************************************************/
-static int OpenEncoder   ( vlc_object_t * );
+static int OpenEncoder   ( heimdall_object_t * );
 static void CloseEncoder ( encoder_t * );
 static block_t *Encode   ( encoder_t *, block_t * );
 
@@ -70,7 +71,7 @@ static const char *const ppsz_stereo_descriptions[] =
 { N_("Stereo"), N_("Dual mono"), N_("Joint stereo") };
 
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( "Twolame")
     set_description( N_("Libtwolame audio encoder") )
     set_capability( "audio encoder", 120 )
@@ -86,7 +87,7 @@ vlc_module_begin ()
               ENC_VBR_LONGTEXT )
     add_integer( ENC_CFG_PREFIX "psy", 3, ENC_PSY_TEXT,
                  ENC_PSY_LONGTEXT )
-vlc_module_end ()
+heimdall_module_end ()
 
 static const char *const ppsz_enc_options[] = {
     "quality", "mode", "vbr", "psy", NULL
@@ -102,7 +103,7 @@ typedef struct
      */
     int16_t p_buffer[MPEG_FRAME_SIZE * 2];
     int i_nb_samples;
-    vlc_tick_t i_pts;
+    heimdall_tick_t i_pts;
 
     /*
      * libtwolame properties
@@ -123,24 +124,24 @@ static const uint16_t mpa_bitrate_tab[2][15] =
 static const uint16_t mpa_freq_tab[6] =
 { 44100, 48000, 32000, 22050, 24000, 16000 };
 
-static int OpenEncoder( vlc_object_t *p_this )
+static int OpenEncoder( heimdall_object_t *p_this )
 {
     encoder_t *p_enc = (encoder_t *)p_this;
     encoder_sys_t *p_sys;
     int i_frequency;
 
-    if( p_enc->fmt_out.i_codec != VLC_CODEC_MP2 &&
-        p_enc->fmt_out.i_codec != VLC_CODEC_MPGA &&
-        p_enc->fmt_out.i_codec != VLC_FOURCC( 'm', 'p', '2', 'a' ) &&
+    if( p_enc->fmt_out.i_codec != HEIMDALL_CODEC_MP2 &&
+        p_enc->fmt_out.i_codec != HEIMDALL_CODEC_MPGA &&
+        p_enc->fmt_out.i_codec != HEIMDALL_FOURCC( 'm', 'p', '2', 'a' ) &&
         !p_enc->obj.force )
     {
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     if( p_enc->fmt_in.audio.i_channels > 2 )
     {
         msg_Err( p_enc, "doesn't support > 2 channels" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     for ( i_frequency = 0; i_frequency < 6; i_frequency++ )
@@ -152,15 +153,15 @@ static int OpenEncoder( vlc_object_t *p_this )
     {
         msg_Err( p_enc, "MPEG audio doesn't support frequency=%d",
                  p_enc->fmt_out.audio.i_rate );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* Allocate the memory needed to store the decoder's structure */
     if( ( p_sys = (encoder_sys_t *)malloc(sizeof(encoder_sys_t)) ) == NULL )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
-    p_enc->fmt_in.i_codec = VLC_CODEC_S16N;
-    p_enc->fmt_out.i_codec = VLC_CODEC_MPGA;
+    p_enc->fmt_in.i_codec = HEIMDALL_CODEC_S16N;
+    p_enc->fmt_out.i_codec = HEIMDALL_CODEC_MPGA;
 
     config_ChainParse( p_enc, ENC_CFG_PREFIX, ppsz_enc_options, p_enc->p_cfg );
 
@@ -233,7 +234,7 @@ static int OpenEncoder( vlc_object_t *p_this )
         goto error;
     }
 
-    static const struct vlc_encoder_operations ops =
+    static const struct heimdall_encoder_operations ops =
     {
         .close = CloseEncoder,
         .encode_audio = Encode,
@@ -243,11 +244,11 @@ static int OpenEncoder( vlc_object_t *p_this )
 
     p_sys->i_nb_samples = 0;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 error:
     twolame_close( &p_sys->p_twolame );
     free(p_sys);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /****************************************************************************
@@ -295,7 +296,7 @@ static block_t *Encode( encoder_t *p_enc, block_t *p_aout_buf )
         if( !p_block )
             return NULL;
         memcpy( p_block->p_buffer, p_sys->p_out_buffer, i_used );
-        p_block->i_length = vlc_tick_from_samples( MPEG_FRAME_SIZE,
+        p_block->i_length = heimdall_tick_from_samples( MPEG_FRAME_SIZE,
                                                    p_enc->fmt_out.audio.i_rate );
         p_block->i_dts = p_block->i_pts = p_sys->i_pts;
         p_sys->i_pts += p_block->i_length;
@@ -307,7 +308,7 @@ static block_t *Encode( encoder_t *p_enc, block_t *p_aout_buf )
     int i_nb_samples = p_aout_buf->i_nb_samples;
 
     p_sys->i_pts = p_aout_buf->i_pts -
-                vlc_tick_from_samples( p_sys->i_nb_samples,
+                heimdall_tick_from_samples( p_sys->i_nb_samples,
                                        p_enc->fmt_out.audio.i_rate );
 
     while ( p_sys->i_nb_samples + i_nb_samples >= MPEG_FRAME_SIZE )
@@ -338,7 +339,7 @@ static block_t *Encode( encoder_t *p_enc, block_t *p_aout_buf )
             return NULL;
         }
         memcpy( p_block->p_buffer, p_sys->p_out_buffer, i_used );
-        p_block->i_length = vlc_tick_from_samples( MPEG_FRAME_SIZE,
+        p_block->i_length = heimdall_tick_from_samples( MPEG_FRAME_SIZE,
                                                    p_enc->fmt_out.audio.i_rate );
         p_block->i_dts = p_block->i_pts = p_sys->i_pts;
         p_sys->i_pts += p_block->i_length;

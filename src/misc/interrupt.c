@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 2015 Rémi Denis-Courmont
  * Copyright (C) 2023 Videolabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Rémi Denis-Courmont
  *          Alexandre Janniaux <ajanni@videolabs.io>
@@ -40,33 +41,33 @@
 # include <sys/eventfd.h>
 #endif
 
-#include <vlc_common.h>
-#include <vlc_threads.h>
-#include <vlc_poll.h>
-#include <vlc_fs.h> /* vlc_pipe */
-#include <vlc_network.h> /* vlc_accept */
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
+#include <heimdall_poll.h>
+#include <heimdall_fs.h> /* heimdall_pipe */
+#include <heimdall_network.h> /* heimdall_accept */
 
 #include "interrupt.h"
-#include "../libvlc.h"
+#include "../libheimdall.h"
 
-static thread_local vlc_interrupt_t *vlc_interrupt_var;
+static thread_local heimdall_interrupt_t *heimdall_interrupt_var;
 
 /**
  * Initializes an interruption context.
  */
-void vlc_interrupt_init(vlc_interrupt_t *ctx)
+void heimdall_interrupt_init(heimdall_interrupt_t *ctx)
 {
-    vlc_mutex_init(&ctx->lock);
+    heimdall_mutex_init(&ctx->lock);
     ctx->interrupted = false;
     atomic_init(&ctx->killed, false);
     ctx->callback = NULL;
 }
 
-vlc_interrupt_t *vlc_interrupt_create(void)
+heimdall_interrupt_t *heimdall_interrupt_create(void)
 {
-    vlc_interrupt_t *ctx = malloc(sizeof (*ctx));
+    heimdall_interrupt_t *ctx = malloc(sizeof (*ctx));
     if (likely(ctx != NULL))
-        vlc_interrupt_init(ctx);
+        heimdall_interrupt_init(ctx);
     return ctx;
 }
 
@@ -74,19 +75,19 @@ vlc_interrupt_t *vlc_interrupt_create(void)
  * Deinitializes an interruption context.
  * The context shall no longer be used by any thread.
  */
-void vlc_interrupt_deinit(vlc_interrupt_t *ctx)
+void heimdall_interrupt_deinit(heimdall_interrupt_t *ctx)
 {
     assert(ctx->callback == NULL);
 }
 
-void vlc_interrupt_destroy(vlc_interrupt_t *ctx)
+void heimdall_interrupt_destroy(heimdall_interrupt_t *ctx)
 {
     assert(ctx != NULL);
-    vlc_interrupt_deinit(ctx);
+    heimdall_interrupt_deinit(ctx);
     free(ctx);
 }
 
-void vlc_interrupt_raise(vlc_interrupt_t *ctx)
+void heimdall_interrupt_raise(heimdall_interrupt_t *ctx)
 {
     assert(ctx != NULL);
 
@@ -94,18 +95,18 @@ void vlc_interrupt_raise(vlc_interrupt_t *ctx)
      * reentrant. The lock ensures that all calls to the callback for a given
      * context are serialized. The lock also protects against invalid memory
      * accesses to the callback pointer proper, and the interrupted flag. */
-    vlc_mutex_lock(&ctx->lock);
+    heimdall_mutex_lock(&ctx->lock);
     ctx->interrupted = true;
     if (ctx->callback != NULL)
         ctx->callback(ctx->data);
-    vlc_mutex_unlock(&ctx->lock);
+    heimdall_mutex_unlock(&ctx->lock);
 }
 
-vlc_interrupt_t *vlc_interrupt_set(vlc_interrupt_t *newctx)
+heimdall_interrupt_t *heimdall_interrupt_set(heimdall_interrupt_t *newctx)
 {
-    vlc_interrupt_t *oldctx = vlc_interrupt_var;
+    heimdall_interrupt_t *oldctx = heimdall_interrupt_var;
 
-    vlc_interrupt_var = newctx;
+    heimdall_interrupt_var = newctx;
     return oldctx;
 }
 
@@ -117,27 +118,27 @@ vlc_interrupt_t *vlc_interrupt_set(vlc_interrupt_t *newctx)
  * @param data opaque data pointer for the callback
  *
  * @note Any <b>successful</b> call <b>must</b> be paired with a call to
- * vlc_interrupt_finish().
+ * heimdall_interrupt_finish().
  */
-static void vlc_interrupt_prepare(vlc_interrupt_t *ctx,
+static void heimdall_interrupt_prepare(heimdall_interrupt_t *ctx,
                                   void (*cb)(void *), void *data)
 {
     assert(ctx != NULL);
-    assert(ctx == vlc_interrupt_var);
+    assert(ctx == heimdall_interrupt_var);
 
-    vlc_mutex_lock(&ctx->lock);
+    heimdall_mutex_lock(&ctx->lock);
     assert(ctx->callback == NULL);
     ctx->callback = cb;
     ctx->data = data;
 
     if (unlikely(ctx->interrupted))
         cb(data);
-    vlc_mutex_unlock(&ctx->lock);
+    heimdall_mutex_unlock(&ctx->lock);
 }
 
 /**
  * Cleans up after an interruptible wait: waits for any pending invocations of
- * the callback previously registered with vlc_interrupt_prepare(), and rechecks
+ * the callback previously registered with heimdall_interrupt_prepare(), and rechecks
  * for any pending interruption.
  *
  * @warning As this function waits for ongoing callback invocation to complete,
@@ -146,145 +147,145 @@ static void vlc_interrupt_prepare(vlc_interrupt_t *ctx,
  *
  * @return EINTR if an interruption occurred, zero otherwise
  */
-static int vlc_interrupt_finish(vlc_interrupt_t *ctx)
+static int heimdall_interrupt_finish(heimdall_interrupt_t *ctx)
 {
     int ret = 0;
 
     assert(ctx != NULL);
-    assert(ctx == vlc_interrupt_var);
+    assert(ctx == heimdall_interrupt_var);
 
     /* Wait for pending callbacks to prevent access by other threads. */
-    vlc_mutex_lock(&ctx->lock);
+    heimdall_mutex_lock(&ctx->lock);
     ctx->callback = NULL;
     if (ctx->interrupted)
     {
         ret = EINTR;
         ctx->interrupted = false;
     }
-    vlc_mutex_unlock(&ctx->lock);
+    heimdall_mutex_unlock(&ctx->lock);
     return ret;
 }
 
-void vlc_interrupt_register(void (*cb)(void *), void *opaque)
+void heimdall_interrupt_register(void (*cb)(void *), void *opaque)
 {
-    vlc_interrupt_t *ctx = vlc_interrupt_var;
+    heimdall_interrupt_t *ctx = heimdall_interrupt_var;
     if (ctx != NULL)
-        vlc_interrupt_prepare(ctx, cb, opaque);
+        heimdall_interrupt_prepare(ctx, cb, opaque);
 }
 
-int vlc_interrupt_unregister(void)
+int heimdall_interrupt_unregister(void)
 {
-    vlc_interrupt_t *ctx = vlc_interrupt_var;
-    return (ctx != NULL) ? vlc_interrupt_finish(ctx) : 0;
+    heimdall_interrupt_t *ctx = heimdall_interrupt_var;
+    return (ctx != NULL) ? heimdall_interrupt_finish(ctx) : 0;
 }
 
-static void vlc_interrupt_cleanup(void *opaque)
+static void heimdall_interrupt_cleanup(void *opaque)
 {
-    vlc_interrupt_finish(opaque);
+    heimdall_interrupt_finish(opaque);
 }
 
-void vlc_interrupt_kill(vlc_interrupt_t *ctx)
+void heimdall_interrupt_kill(heimdall_interrupt_t *ctx)
 {
     assert(ctx != NULL);
 
     atomic_store(&ctx->killed, true);
-    vlc_interrupt_raise(ctx);
+    heimdall_interrupt_raise(ctx);
 }
 
-bool vlc_killed(void)
+bool heimdall_killed(void)
 {
-    vlc_interrupt_t *ctx = vlc_interrupt_var;
+    heimdall_interrupt_t *ctx = heimdall_interrupt_var;
 
     return (ctx != NULL) && atomic_load(&ctx->killed);
 }
 
-static void vlc_interrupt_sem(void *opaque)
+static void heimdall_interrupt_sem(void *opaque)
 {
-    vlc_sem_post(opaque);
+    heimdall_sem_post(opaque);
 }
 
-int vlc_sem_wait_i11e(vlc_sem_t *sem)
+int heimdall_sem_wait_i11e(heimdall_sem_t *sem)
 {
-    vlc_interrupt_t *ctx = vlc_interrupt_var;
+    heimdall_interrupt_t *ctx = heimdall_interrupt_var;
     if (ctx == NULL)
-        return vlc_sem_wait(sem), 0;
+        return heimdall_sem_wait(sem), 0;
 
-    vlc_interrupt_prepare(ctx, vlc_interrupt_sem, sem);
+    heimdall_interrupt_prepare(ctx, heimdall_interrupt_sem, sem);
 
-    vlc_cleanup_push(vlc_interrupt_cleanup, ctx);
-    vlc_sem_wait(sem);
-    vlc_cleanup_pop();
+    heimdall_cleanup_push(heimdall_interrupt_cleanup, ctx);
+    heimdall_sem_wait(sem);
+    heimdall_cleanup_pop();
 
-    return vlc_interrupt_finish(ctx);
+    return heimdall_interrupt_finish(ctx);
 }
 
-static void vlc_mwait_i11e_wake(void *opaque)
+static void heimdall_mwait_i11e_wake(void *opaque)
 {
-    vlc_cond_signal(opaque);
+    heimdall_cond_signal(opaque);
 }
 
-static void vlc_mwait_i11e_cleanup(void *opaque)
+static void heimdall_mwait_i11e_cleanup(void *opaque)
 {
-    vlc_interrupt_t *ctx = opaque;
+    heimdall_interrupt_t *ctx = opaque;
 
-    vlc_mutex_unlock(&ctx->lock);
-    vlc_interrupt_finish(ctx);
+    heimdall_mutex_unlock(&ctx->lock);
+    heimdall_interrupt_finish(ctx);
 }
 
-int vlc_mwait_i11e(vlc_tick_t deadline)
+int heimdall_mwait_i11e(heimdall_tick_t deadline)
 {
-    vlc_interrupt_t *ctx = vlc_interrupt_var;
+    heimdall_interrupt_t *ctx = heimdall_interrupt_var;
     if (ctx == NULL)
-        return vlc_tick_wait(deadline), 0;
+        return heimdall_tick_wait(deadline), 0;
 
-    vlc_cond_t wait;
-    vlc_cond_init(&wait);
+    heimdall_cond_t wait;
+    heimdall_cond_init(&wait);
 
-    vlc_interrupt_prepare(ctx, vlc_mwait_i11e_wake, &wait);
+    heimdall_interrupt_prepare(ctx, heimdall_mwait_i11e_wake, &wait);
 
-    vlc_mutex_lock(&ctx->lock);
-    vlc_cleanup_push(vlc_mwait_i11e_cleanup, ctx);
+    heimdall_mutex_lock(&ctx->lock);
+    heimdall_cleanup_push(heimdall_mwait_i11e_cleanup, ctx);
     while (!ctx->interrupted
-        && vlc_cond_timedwait(&wait, &ctx->lock, deadline) == 0);
-    vlc_cleanup_pop();
-    vlc_mutex_unlock(&ctx->lock);
+        && heimdall_cond_timedwait(&wait, &ctx->lock, deadline) == 0);
+    heimdall_cleanup_pop();
+    heimdall_mutex_unlock(&ctx->lock);
 
-    return vlc_interrupt_finish(ctx);
+    return heimdall_interrupt_finish(ctx);
 }
 
-static void vlc_interrupt_forward_wake(void *opaque)
+static void heimdall_interrupt_forward_wake(void *opaque)
 {
     void **data = opaque;
-    vlc_interrupt_t *to = data[0];
-    vlc_interrupt_t *from = data[1];
+    heimdall_interrupt_t *to = data[0];
+    heimdall_interrupt_t *from = data[1];
 
-    (atomic_load(&from->killed) ? vlc_interrupt_kill
-                                : vlc_interrupt_raise)(to);
+    (atomic_load(&from->killed) ? heimdall_interrupt_kill
+                                : heimdall_interrupt_raise)(to);
 }
 
-void vlc_interrupt_forward_start(vlc_interrupt_t *to, void *data[2])
+void heimdall_interrupt_forward_start(heimdall_interrupt_t *to, void *data[2])
 {
     data[0] = data[1] = NULL;
 
-    vlc_interrupt_t *from = vlc_interrupt_var;
+    heimdall_interrupt_t *from = heimdall_interrupt_var;
     if (from == NULL)
         return;
 
     assert(from != to);
     data[0] = to;
     data[1] = from;
-    vlc_interrupt_prepare(from, vlc_interrupt_forward_wake, data);
+    heimdall_interrupt_prepare(from, heimdall_interrupt_forward_wake, data);
 }
 
-int vlc_interrupt_forward_stop(void *const data[2])
+int heimdall_interrupt_forward_stop(void *const data[2])
 {
-    vlc_interrupt_t *from = data[1];
+    heimdall_interrupt_t *from = data[1];
     if (from == NULL)
         return 0;
 
-    assert(from->callback == vlc_interrupt_forward_wake);
+    assert(from->callback == heimdall_interrupt_forward_wake);
     assert(from->data == data);
-    return vlc_interrupt_finish(from);
+    return heimdall_interrupt_finish(from);
 }
 
 #ifndef _WIN32
@@ -294,35 +295,35 @@ int vlc_interrupt_forward_stop(void *const data[2])
 #  include <sys/socket.h>
 # endif
 
-static void vlc_poll_i11e_wake(void *opaque)
+static void heimdall_poll_i11e_wake(void *opaque)
 {
     uint64_t value = 1;
     int *fd = opaque;
     int canc;
 
-    canc = vlc_savecancel();
+    canc = heimdall_savecancel();
     while (write(fd[1], &value, sizeof (value)) == -1)
     {
         /* Only EINTR can happen here, so ignore the error.
          * We still need to ensure we really wrote the value to trigger
          * the interruption check though. */
     }
-    vlc_restorecancel(canc);
+    heimdall_restorecancel(canc);
 }
 
-static void vlc_poll_i11e_cleanup(void *opaque)
+static void heimdall_poll_i11e_cleanup(void *opaque)
 {
-    vlc_interrupt_t *ctx = opaque;
+    heimdall_interrupt_t *ctx = opaque;
     int *fd = ctx->data;
 
-    vlc_interrupt_finish(ctx);
+    heimdall_interrupt_finish(ctx);
     if (fd[1] != fd[0])
-        vlc_close(fd[1]);
-    vlc_close(fd[0]);
+        heimdall_close(fd[1]);
+    heimdall_close(fd[0]);
 }
 
-static int vlc_poll_i11e_inner(struct pollfd *restrict fds, unsigned nfds,
-                               int timeout, vlc_interrupt_t *ctx,
+static int heimdall_poll_i11e_inner(struct pollfd *restrict fds, unsigned nfds,
+                               int timeout, heimdall_interrupt_t *ctx,
                                struct pollfd *restrict ufd)
 {
     int fd[2];
@@ -331,16 +332,16 @@ static int vlc_poll_i11e_inner(struct pollfd *restrict fds, unsigned nfds,
 
     /* TODO: cache this */
 # if defined (HAVE_EVENTFD) && defined (EFD_CLOEXEC)
-    canc = vlc_savecancel();
+    canc = heimdall_savecancel();
     fd[0] = eventfd(0, EFD_CLOEXEC);
-    vlc_restorecancel(canc);
+    heimdall_restorecancel(canc);
     if (fd[0] != -1)
         fd[1] = fd[0];
     else
 # endif
-    if (vlc_pipe(fd))
+    if (heimdall_pipe(fd))
     {
-        vlc_testcancel();
+        heimdall_testcancel();
         errno = ENOMEM;
         return -1;
     }
@@ -353,9 +354,9 @@ static int vlc_poll_i11e_inner(struct pollfd *restrict fds, unsigned nfds,
     ufd[nfds].fd = fd[0];
     ufd[nfds].events = POLLIN;
 
-    vlc_interrupt_prepare(ctx, vlc_poll_i11e_wake, fd);
+    heimdall_interrupt_prepare(ctx, heimdall_poll_i11e_wake, fd);
 
-    vlc_cleanup_push(vlc_poll_i11e_cleanup, ctx);
+    heimdall_cleanup_push(heimdall_poll_i11e_cleanup, ctx);
     ret = poll(ufd, nfds + 1, timeout);
 
     for (unsigned i = 0; i < nfds; i++)
@@ -373,25 +374,25 @@ static int vlc_poll_i11e_inner(struct pollfd *restrict fds, unsigned nfds,
         }
         ret--;
     }
-    vlc_cleanup_pop();
+    heimdall_cleanup_pop();
 
-    if (vlc_interrupt_finish(ctx))
+    if (heimdall_interrupt_finish(ctx))
     {
         errno = EINTR;
         ret = -1;
     }
 
-    canc = vlc_savecancel();
+    canc = heimdall_savecancel();
     if (fd[1] != fd[0])
-        vlc_close(fd[1]);
-    vlc_close(fd[0]);
-    vlc_restorecancel(canc);
+        heimdall_close(fd[1]);
+    heimdall_close(fd[0]);
+    heimdall_restorecancel(canc);
     return ret;
 }
 
-int vlc_poll_i11e(struct pollfd *fds, unsigned nfds, int timeout)
+int heimdall_poll_i11e(struct pollfd *fds, unsigned nfds, int timeout)
 {
-    vlc_interrupt_t *ctx = vlc_interrupt_var;
+    heimdall_interrupt_t *ctx = heimdall_interrupt_var;
     if (ctx == NULL)
         return poll(fds, nfds, timeout);
 
@@ -401,62 +402,62 @@ int vlc_poll_i11e(struct pollfd *fds, unsigned nfds, int timeout)
     {   /* Fast path with stack allocation */
         struct pollfd ufd[nfds + 1];
 
-        ret = vlc_poll_i11e_inner(fds, nfds, timeout, ctx, ufd);
+        ret = heimdall_poll_i11e_inner(fds, nfds, timeout, ctx, ufd);
     }
     else
     {   /* Slow path but poll() is slow with large nfds anyway. */
-        struct pollfd *ufd = vlc_alloc(nfds + 1, sizeof (*ufd));
+        struct pollfd *ufd = heimdall_alloc(nfds + 1, sizeof (*ufd));
         if (unlikely(ufd == NULL))
             return -1; /* ENOMEM */
 
-        vlc_cleanup_push(free, ufd);
-        ret = vlc_poll_i11e_inner(fds, nfds, timeout, ctx, ufd);
-        vlc_cleanup_pop();
+        heimdall_cleanup_push(free, ufd);
+        ret = heimdall_poll_i11e_inner(fds, nfds, timeout, ctx, ufd);
+        heimdall_cleanup_pop();
         free(ufd);
     }
     return ret;
 }
 
-static int vlc_poll_file(int fd, unsigned int mask)
+static int heimdall_poll_file(int fd, unsigned int mask)
 {
     struct pollfd ufd;
 
     ufd.fd = fd;
     ufd.events = mask;
-    return vlc_poll_i11e(&ufd, 1, -1);
+    return heimdall_poll_i11e(&ufd, 1, -1);
 }
 
-static int vlc_poll_sock(int sock, unsigned int mask)
+static int heimdall_poll_sock(int sock, unsigned int mask)
 {
-    return vlc_poll_file(sock, mask);
+    return heimdall_poll_file(sock, mask);
 }
 
 #else /* !_WIN32 */
-static void CALLBACK vlc_poll_i11e_wake_self(ULONG_PTR data)
+static void CALLBACK heimdall_poll_i11e_wake_self(ULONG_PTR data)
 {
     (void) data; /* Nothing to do */
 }
 
-static void vlc_poll_i11e_wake(void *opaque)
+static void heimdall_poll_i11e_wake(void *opaque)
 {
     HANDLE th = opaque;
-    QueueUserAPC(vlc_poll_i11e_wake_self, th, 0);
+    QueueUserAPC(heimdall_poll_i11e_wake_self, th, 0);
 }
 
-static void vlc_poll_i11e_cleanup(void *opaque)
+static void heimdall_poll_i11e_cleanup(void *opaque)
 {
-    vlc_interrupt_t *ctx = opaque;
+    heimdall_interrupt_t *ctx = opaque;
     HANDLE th = ctx->data;
 
-    vlc_interrupt_finish(ctx);
+    heimdall_interrupt_finish(ctx);
     CloseHandle(th);
 }
 
-int vlc_poll_i11e(struct pollfd *fds, unsigned nfds, int timeout)
+int heimdall_poll_i11e(struct pollfd *fds, unsigned nfds, int timeout)
 {
-    vlc_interrupt_t *ctx = vlc_interrupt_var;
+    heimdall_interrupt_t *ctx = heimdall_interrupt_var;
     if (ctx == NULL)
-        return vlc_poll(fds, nfds, timeout);
+        return heimdall_poll(fds, nfds, timeout);
 
     int ret = -1;
     HANDLE th;
@@ -469,13 +470,13 @@ int vlc_poll_i11e(struct pollfd *fds, unsigned nfds, int timeout)
         return -1;
     }
 
-    vlc_interrupt_prepare(ctx, vlc_poll_i11e_wake, th);
+    heimdall_interrupt_prepare(ctx, heimdall_poll_i11e_wake, th);
 
-    vlc_cleanup_push(vlc_poll_i11e_cleanup, ctx);
-    ret = vlc_poll(fds, nfds, timeout);
-    vlc_cleanup_pop();
+    heimdall_cleanup_push(heimdall_poll_i11e_cleanup, ctx);
+    ret = heimdall_poll(fds, nfds, timeout);
+    heimdall_cleanup_pop();
 
-    if (vlc_interrupt_finish(ctx))
+    if (heimdall_interrupt_finish(ctx))
     {
         errno = EINTR;
         ret = -1;
@@ -485,19 +486,19 @@ int vlc_poll_i11e(struct pollfd *fds, unsigned nfds, int timeout)
     return ret;
 }
 
-static int vlc_poll_file(int fd, unsigned int mask)
+static int heimdall_poll_file(int fd, unsigned int mask)
 {
     (void) fd; (void) mask;
     return 1;
 }
 
-static int vlc_poll_sock(int sock, unsigned int mask)
+static int heimdall_poll_sock(int sock, unsigned int mask)
 {
     struct pollfd ufd;
 
     ufd.fd = sock;
     ufd.events = mask;
-    return vlc_poll_i11e(&ufd, 1, -1);
+    return heimdall_poll_i11e(&ufd, 1, -1);
 }
 #endif /* _WIN32 */
 
@@ -510,56 +511,56 @@ static int vlc_poll_sock(int sock, unsigned int mask)
  */
 
 /**
- * Wrapper for readv() that returns the EINTR error upon VLC I/O interruption.
+ * Wrapper for readv() that returns the EINTR error upon Heimdall I/O interruption.
  * @warning This function ignores the non-blocking file flag.
  */
-ssize_t vlc_readv_i11e(int fd, struct iovec *iov, int count)
+ssize_t heimdall_readv_i11e(int fd, struct iovec *iov, int count)
 {
-    if (vlc_poll_file(fd, POLLIN) < 0)
+    if (heimdall_poll_file(fd, POLLIN) < 0)
         return -1;
     return readv(fd, iov, count);
 }
 
 /**
- * Wrapper for writev() that returns the EINTR error upon VLC I/O interruption.
+ * Wrapper for writev() that returns the EINTR error upon Heimdall I/O interruption.
  *
  * @note Like writev(), once some but not all bytes are written, the function
  * might wait for write completion, regardless of signals and interruptions.
  * @warning This function ignores the non-blocking file flag.
  */
-ssize_t vlc_writev_i11e(int fd, const struct iovec *iov, int count)
+ssize_t heimdall_writev_i11e(int fd, const struct iovec *iov, int count)
 {
-    if (vlc_poll_file(fd, POLLOUT) < 0)
+    if (heimdall_poll_file(fd, POLLOUT) < 0)
         return -1;
-    return vlc_writev(fd, iov, count);
+    return heimdall_writev(fd, iov, count);
 }
 
 /**
- * Wrapper for read() that returns the EINTR error upon VLC I/O interruption.
+ * Wrapper for read() that returns the EINTR error upon Heimdall I/O interruption.
  * @warning This function ignores the non-blocking file flag.
  */
-ssize_t vlc_read_i11e(int fd, void *buf, size_t count)
+ssize_t heimdall_read_i11e(int fd, void *buf, size_t count)
 {
     struct iovec iov = { .iov_base = buf, .iov_len = count };
-    return vlc_readv_i11e(fd, &iov, 1);
+    return heimdall_readv_i11e(fd, &iov, 1);
 }
 
 /**
- * Wrapper for write() that returns the EINTR error upon VLC I/O interruption.
+ * Wrapper for write() that returns the EINTR error upon Heimdall I/O interruption.
  *
  * @note Like write(), once some but not all bytes are written, the function
  * might wait for write completion, regardless of signals and interruptions.
  * @warning This function ignores the non-blocking file flag.
  */
-ssize_t vlc_write_i11e(int fd, const void *buf, size_t count)
+ssize_t heimdall_write_i11e(int fd, const void *buf, size_t count)
 {
     struct iovec iov = { .iov_base = (void*)buf, .iov_len = count };
-    return vlc_writev_i11e(fd, &iov, 1);
+    return heimdall_writev_i11e(fd, &iov, 1);
 }
 
-ssize_t vlc_recvmsg_i11e(int fd, struct msghdr *msg, int flags)
+ssize_t heimdall_recvmsg_i11e(int fd, struct msghdr *msg, int flags)
 {
-    if (vlc_poll_sock(fd, POLLIN) < 0)
+    if (heimdall_poll_sock(fd, POLLIN) < 0)
         return -1;
     /* NOTE: MSG_OOB and MSG_PEEK should work fine here.
      * MSG_WAITALL is not supported at this point. */
@@ -567,7 +568,7 @@ ssize_t vlc_recvmsg_i11e(int fd, struct msghdr *msg, int flags)
 }
 
 #ifndef _WIN32
-ssize_t vlc_recvfrom_i11e(int fd, void *buf, size_t len, int flags,
+ssize_t heimdall_recvfrom_i11e(int fd, void *buf, size_t len, int flags,
                         struct sockaddr *addr, socklen_t *addrlen)
 {
     struct iovec iov = { .iov_base = buf, .iov_len = len };
@@ -578,23 +579,23 @@ ssize_t vlc_recvfrom_i11e(int fd, void *buf, size_t len, int flags,
         .msg_iovlen = 1,
     };
 
-    ssize_t ret = vlc_recvmsg_i11e(fd, &msg, flags);
+    ssize_t ret = heimdall_recvmsg_i11e(fd, &msg, flags);
     if (ret >= 0 && addrlen != NULL)
         *addrlen = msg.msg_namelen;
     return ret;
 }
 #endif
 
-ssize_t vlc_sendmsg_i11e(int fd, const struct msghdr *msg, int flags)
+ssize_t heimdall_sendmsg_i11e(int fd, const struct msghdr *msg, int flags)
 {
-    if (vlc_poll_sock(fd, POLLOUT) < 0)
+    if (heimdall_poll_sock(fd, POLLOUT) < 0)
         return -1;
     /* NOTE: MSG_EOR and MSG_OOB should all work fine here. */
-    return vlc_sendmsg(fd, msg, flags);
+    return heimdall_sendmsg(fd, msg, flags);
 }
 
 #ifndef _WIN32
-ssize_t vlc_sendto_i11e(int fd, const void *buf, size_t len, int flags,
+ssize_t heimdall_sendto_i11e(int fd, const void *buf, size_t len, int flags,
                       const struct sockaddr *addr, socklen_t addrlen)
 {
     struct iovec iov = { .iov_base = (void *)buf, .iov_len = len };
@@ -605,15 +606,15 @@ ssize_t vlc_sendto_i11e(int fd, const void *buf, size_t len, int flags,
         .msg_iovlen = 1,
     };
 
-    return vlc_sendmsg_i11e(fd, &msg, flags);
+    return heimdall_sendmsg_i11e(fd, &msg, flags);
 }
 
 #else /* _WIN32 */
 
-ssize_t vlc_recvfrom_i11e(int fd, void *buf, size_t len, int flags,
+ssize_t heimdall_recvfrom_i11e(int fd, void *buf, size_t len, int flags,
                         struct sockaddr *addr, socklen_t *addrlen)
 {
-    if (vlc_poll_sock(fd, POLLIN) < 0)
+    if (heimdall_poll_sock(fd, POLLIN) < 0)
         return -1;
 
     ssize_t ret = recvfrom(fd, buf, len, flags, addr, addrlen);
@@ -622,10 +623,10 @@ ssize_t vlc_recvfrom_i11e(int fd, void *buf, size_t len, int flags,
     return ret;
 }
 
-ssize_t vlc_sendto_i11e(int fd, const void *buf, size_t len, int flags,
+ssize_t heimdall_sendto_i11e(int fd, const void *buf, size_t len, int flags,
                       const struct sockaddr *addr, socklen_t addrlen)
 {
-    if (vlc_poll_sock(fd, POLLOUT) < 0)
+    if (heimdall_poll_sock(fd, POLLOUT) < 0)
         return -1;
 
     ssize_t ret = sendto(fd, buf, len, flags, addr, addrlen);
@@ -636,10 +637,10 @@ ssize_t vlc_sendto_i11e(int fd, const void *buf, size_t len, int flags,
 
 #endif
 
-int vlc_accept_i11e(int fd, struct sockaddr *addr, socklen_t *addrlen,
+int heimdall_accept_i11e(int fd, struct sockaddr *addr, socklen_t *addrlen,
                   bool nonblock)
 {
-    if (vlc_poll_sock(fd, POLLIN) < 0)
+    if (heimdall_poll_sock(fd, POLLIN) < 0)
         return -1;
-    return vlc_accept(fd, addr, addrlen, nonblock);
+    return heimdall_accept(fd, addr, addrlen, nonblock);
 }

@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2022 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,8 +18,8 @@
  *****************************************************************************/
 import QtQuick
 
-import VLC.Style
-import VLC.Util
+import Heimdall.Style
+import Heimdall.Util
 
 FadingEdge {
     id: root
@@ -43,7 +44,7 @@ FadingEdge {
 
     fadeSize: delegateItem ? (orientation === Qt.Vertical ? delegateItem.height
                                                           : delegateItem.width) / 2
-                           : (VLCStyle.margin_large * 2)
+                           : (HeimdallStyle.margin_large * 2)
 
     readonly property bool transitionsRunning: (itemView.add?.running ||
                                                 itemView.addDisplaced?.running ||
@@ -59,7 +60,7 @@ FadingEdge {
 
 
     readonly property bool _fadeRectEnoughSize: (orientation === Qt.Vertical ? itemView.height
-                                                                             : itemView.width) > (fadeSize * 2 + VLCStyle.dp(25, VLCStyle.scale))
+                                                                             : itemView.width) > (fadeSize * 2 + HeimdallStyle.dp(25, HeimdallStyle.scale))
 
     readonly property rect _currentItemMappedRect: itemView.currentItem ? Qt.rect(itemView.currentItem.x - sourceX,
                                                                                   itemView.currentItem.y - sourceY,

@@ -2,6 +2,7 @@
  * fs.h: file system access plug-in common header
  *****************************************************************************
  * Copyright (C) 2009 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -18,11 +19,11 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#include <vlc_fs.h>
+#include <heimdall_fs.h>
 
-int FileOpen (vlc_object_t *);
-void FileClose (vlc_object_t *);
+int FileOpen (heimdall_object_t *);
+void FileClose (heimdall_object_t *);
 
-int DirOpen (vlc_object_t *);
-int DirInit (stream_t *p_access, vlc_DIR *handle);
-void DirClose (vlc_object_t *);
+int DirOpen (heimdall_object_t *);
+int DirInit (stream_t *p_access, heimdall_DIR *handle);
+void DirClose (heimdall_object_t *);

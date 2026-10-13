@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,12 +26,12 @@
 
 #include <QMetaType>
 
-#include <vlc_common.h>
-#include <vlc_input_item.h>
-#include <vlc_cxx_helpers.hpp>
+#include <heimdall_common.h>
+#include <heimdall_input_item.h>
+#include <heimdall_cxx_helpers.hpp>
 
 
-using SharedInputItem = ::vlc::vlc_shared_data_ptr<input_item_t,
+using SharedInputItem = ::heimdall::heimdall_shared_data_ptr<input_item_t,
                                                    &input_item_Hold,
                                                    &input_item_Release>;
 

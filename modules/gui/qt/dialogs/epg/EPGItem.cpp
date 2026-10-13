@@ -2,6 +2,7 @@
  * EPGItem.cpp: EPGItem
  ****************************************************************************
  * Copyright © 2009-2010 VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Ludovic Fauvet <etix@l0cal.com>
  *
@@ -35,7 +36,7 @@
 
 #include "qt.hpp"
 
-EPGItem::EPGItem( const vlc_epg_event_t *data, EPGView *view, EPGProgram *prog )
+EPGItem::EPGItem( const heimdall_epg_event_t *data, EPGView *view, EPGProgram *prog )
     : QGraphicsItem()
 {
     m_view = view;
@@ -150,7 +151,7 @@ uint16_t EPGItem::eventID() const
     return m_id;
 }
 
-bool EPGItem::setData( const vlc_epg_event_t *data )
+bool EPGItem::setData( const heimdall_epg_event_t *data )
 {
     QDateTime newtime = QDateTime::fromSecsSinceEpoch( data->i_start, QTimeZone::systemTimeZone() );
     QString newname = qfu( data->psz_name );

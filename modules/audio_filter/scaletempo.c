@@ -2,6 +2,7 @@
  * scaletempo.c: Scale audio tempo while maintaining pitch
  *****************************************************************************
  * Copyright © 2008 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Rov Juvano <rovjuvano@users.sourceforge.net>
  *
@@ -27,11 +28,11 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_aout.h>
-#include <vlc_filter.h>
-#include <vlc_modules.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_aout.h>
+#include <heimdall_filter.h>
+#include <heimdall_modules.h>
 
 #include <stdatomic.h>
 #include <string.h> /* for memset */
@@ -40,12 +41,12 @@
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  Open( vlc_object_t * );
+static int  Open( heimdall_object_t * );
 static void Close( filter_t * );
 static block_t *DoWork( filter_t *, block_t * );
 
 #ifdef PITCH_SHIFTER
-static int  OpenPitch( vlc_object_t * );
+static int  OpenPitch( heimdall_object_t * );
 static void ClosePitch( filter_t * );
 static block_t *DoPitchWork( filter_t *, block_t * );
 # define MODULE_DESC N_("Pitch Shifter")
@@ -55,7 +56,7 @@ static block_t *DoPitchWork( filter_t *, block_t * );
 # define MODULES_SHORTNAME N_("Scaletempo")
 #endif
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( MODULE_DESC )
     set_shortname( MODULES_SHORTNAME )
     set_capability( "audio filter", 0 )
@@ -75,7 +76,7 @@ vlc_module_begin ()
     set_callback( Open )
 #endif
 
-vlc_module_end ()
+heimdall_module_end ()
 
 /*
  * Scaletempo works by producing audio in constant sized chunks (a "stride") but
@@ -91,7 +92,7 @@ vlc_module_end ()
  * NOTE:
  * sample: a single audio sample for one channel
  * frame: a single set of samples, one for each channel
- * VLC uses these terms differently
+ * Heimdall uses these terms differently
  */
 typedef struct
 {
@@ -312,10 +313,10 @@ static int reinit_buffers( filter_t *p_filter )
         p->samples_overlap  = frames_overlap * p->samples_per_frame;
         p->bytes_standing   = p->bytes_stride - p->bytes_overlap;
         p->samples_standing = p->bytes_standing / p->bytes_per_sample;
-        p->buf_overlap      = vlc_alloc( 1, p->bytes_overlap );
-        p->table_blend      = vlc_alloc( 4, p->samples_overlap ); /* sizeof (int32|float) */
+        p->buf_overlap      = heimdall_alloc( 1, p->bytes_overlap );
+        p->table_blend      = heimdall_alloc( 4, p->samples_overlap ); /* sizeof (int32|float) */
         if( !p->buf_overlap || !p->table_blend )
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         if( p->bytes_overlap > prev_overlap )
             memset( (uint8_t *)p->buf_overlap + prev_overlap, 0, p->bytes_overlap - prev_overlap );
 
@@ -342,7 +343,7 @@ static int reinit_buffers( filter_t *p_filter )
         p->buf_pre_corr = malloc( bytes_pre_corr );
         p->table_window = malloc( bytes_pre_corr );
         if( ! p->buf_pre_corr || ! p->table_window )
-            return VLC_ENOMEM;
+            return HEIMDALL_ENOMEM;
         float *pw = p->table_window;
         for( i = 1; i<frames_overlap; i++ )
         {
@@ -374,12 +375,12 @@ static int reinit_buffers( filter_t *p_filter )
     p->bytes_queue_max = new_size;
     p->buf_queue = malloc( p->bytes_queue_max );
     if( ! p->buf_queue )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p->bytes_stride_scaled  = p->bytes_stride * p->scale;
     p->frames_stride_scaled = p->bytes_stride_scaled / p->bytes_per_frame;
 
-    msg_Dbg( VLC_OBJECT(p_filter),
+    msg_Dbg( HEIMDALL_OBJECT(p_filter),
              "%.3f scale, %.3f stride_in, %i stride_out, %i standing, %i overlap, %i search, %i queue, %s mode",
              p->scale,
              p->frames_stride_scaled,
@@ -390,20 +391,20 @@ static int reinit_buffers( filter_t *p_filter )
              (int)( p->bytes_queue_max / p->bytes_per_frame ),
              "fl32");
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * Open: initialize as "audio filter"
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     filter_t     *p_filter = (filter_t *)p_this;
 
     /* Allocate structure */
     filter_sys_t *p_sys = p_filter->p_sys = malloc( sizeof(*p_sys) );
     if( ! p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_sys->scale             = 1.0;
     p_sys->sample_rate       = p_filter->fmt_in.audio.i_rate;
@@ -434,22 +435,22 @@ static int Open( vlc_object_t *p_this )
     p_sys->bytes_to_slide = 0;
     p_sys->frames_stride_error = 0;
 
-    if( reinit_buffers( p_filter ) != VLC_SUCCESS )
+    if( reinit_buffers( p_filter ) != HEIMDALL_SUCCESS )
     {
         Close( p_filter );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    p_filter->fmt_in.audio.i_format = VLC_CODEC_FL32;
+    p_filter->fmt_in.audio.i_format = HEIMDALL_CODEC_FL32;
     aout_FormatPrepare(&p_filter->fmt_in.audio);
     p_filter->fmt_out.audio = p_filter->fmt_in.audio;
-    static const struct vlc_filter_operations filter_ops =
+    static const struct heimdall_filter_operations filter_ops =
     {
         .filter_audio = DoWork, .close = Close,
     };
     p_filter->ops = &filter_ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 #ifdef PITCH_SHIFTER
@@ -459,21 +460,21 @@ static inline void PitchSetRateShift( filter_sys_t *p_sys, float pitch_shift )
                   p_sys->sample_rate / powf(2, pitch_shift / 12) );
 }
 
-static int PitchCallback( vlc_object_t *p_this, char const *psz_var,
-                          vlc_value_t oldval, vlc_value_t newval, void *p_data )
+static int PitchCallback( heimdall_object_t *p_this, char const *psz_var,
+                          heimdall_value_t oldval, heimdall_value_t newval, void *p_data )
 {
-    VLC_UNUSED( p_this );
-    VLC_UNUSED( oldval );
-    VLC_UNUSED( psz_var );
+    HEIMDALL_UNUSED( p_this );
+    HEIMDALL_UNUSED( oldval );
+    HEIMDALL_UNUSED( psz_var );
 
     PitchSetRateShift( p_data, newval.f_float );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static filter_t *ResamplerCreate(filter_t *p_filter)
 {
-    filter_t *p_resampler = vlc_object_create( p_filter, sizeof (filter_t) );
+    filter_t *p_resampler = heimdall_object_create( p_filter, sizeof (filter_t) );
     if( unlikely( p_resampler == NULL ) )
         return NULL;
 
@@ -488,21 +489,21 @@ static filter_t *ResamplerCreate(filter_t *p_filter)
     if( p_resampler->p_module == NULL )
     {
         msg_Err( p_filter, "Could not load resampler" );
-        vlc_object_delete(p_resampler);
+        heimdall_object_delete(p_resampler);
         return NULL;
     }
     assert( p_resampler->ops != NULL );
     return p_resampler;
 }
 
-static int OpenPitch( vlc_object_t *p_this )
+static int OpenPitch( heimdall_object_t *p_this )
 {
     int err = Open( p_this );
     if( err )
         return err;
 
     filter_t     *p_filter = (filter_t *)p_this;
-    vlc_object_t *p_aout = vlc_object_parent(p_filter);
+    heimdall_object_t *p_aout = heimdall_object_parent(p_filter);
     filter_sys_t *p_sys = p_filter->p_sys;
 
     float pitch_shift  = var_CreateGetFloat( p_aout, "pitch-shift" );
@@ -511,15 +512,15 @@ static int OpenPitch( vlc_object_t *p_this )
 
     p_sys->resampler = ResamplerCreate(p_filter);
     if( !p_sys->resampler )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    static const struct vlc_filter_operations filter_ops =
+    static const struct heimdall_filter_operations filter_ops =
     {
         .filter_audio = DoPitchWork, .close = ClosePitch,
     };
     p_filter->ops = &filter_ops;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 #endif
 
@@ -538,10 +539,10 @@ static void Close( filter_t *p_filter )
 static void ClosePitch( filter_t *p_filter )
 {
     filter_sys_t *p_sys = p_filter->p_sys;
-    vlc_object_t *p_aout = vlc_object_parent(p_filter);
+    heimdall_object_t *p_aout = heimdall_object_parent(p_filter);
     var_DelCallback( p_aout, "pitch-shift", PitchCallback, p_sys );
     var_Destroy( p_aout, "pitch-shift" );
-    vlc_filter_Delete( p_sys->resampler );
+    heimdall_filter_Delete( p_sys->resampler );
     Close( p_filter );
 }
 #endif
@@ -593,7 +594,7 @@ static block_t *DoWork( filter_t * p_filter, block_t * p_in_buf )
         p_out_buf->i_nb_samples = bytes_out / p->bytes_per_frame;
         p_out_buf->i_dts        = p_in_buf->i_dts;
         p_out_buf->i_pts        = p_in_buf->i_pts;
-        p_out_buf->i_length = vlc_tick_from_samples(p_out_buf->i_nb_samples,
+        p_out_buf->i_length = heimdall_tick_from_samples(p_out_buf->i_nb_samples,
                                                     p_filter->fmt_out.audio.i_rate);
     }
 

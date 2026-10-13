@@ -2,6 +2,7 @@
  * dummy.c
  *****************************************************************************
  * Copyright (C) 2001, 2002, 2004 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *
@@ -28,24 +29,24 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_sout.h>
-#include <vlc_block.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_sout.h>
+#include <heimdall_block.h>
 
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
-static int  Open ( vlc_object_t * );
+static int  Open ( heimdall_object_t * );
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description( N_("Dummy stream output") )
     set_shortname( N_( "Dummy" ))
     set_capability( "sout access", 0 )
     set_subcategory( SUBCAT_SOUT_ACO )
     add_shortcut( "dummy" )
     set_callback( Open )
-vlc_module_end ()
+heimdall_module_end ()
 
 
 /*****************************************************************************
@@ -56,13 +57,13 @@ static ssize_t Write( sout_access_out_t *, block_t * );
 /*****************************************************************************
  * Open: open the file
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
     sout_access_out_t   *p_access = (sout_access_out_t*)p_this;
 
     p_access->pf_write = Write;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************

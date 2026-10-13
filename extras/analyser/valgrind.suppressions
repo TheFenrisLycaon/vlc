@@ -1,5 +1,5 @@
 #############################################################################
-# Valgrind suppressions file for VLC
+# Valgrind suppressions file for Heimdall
 #
 # Some of these errors are legitimate and should not be ignored forever ...
 # A good part of the suppressed leaks is not a real problem as it is memory
@@ -27,7 +27,7 @@
    obj:/lib/tls/libc-2.3.5.so
    obj:/lib/tls/libc-2.3.5.so
    fun:iconv_open
-   fun:vlc_iconv_open
+   fun:heimdall_iconv_open
 }
 {
    Iconv2
@@ -46,7 +46,7 @@
    obj:/lib/tls/libc-2.3.5.so
    obj:/lib/tls/libc-2.3.5.so
    fun:iconv_open
-   fun:vlc_iconv_open
+   fun:heimdall_iconv_open
 }
 {
    Iconv3
@@ -62,9 +62,9 @@
    obj:/lib/tls/libc-2.3.5.so
    obj:/lib/tls/libc-2.3.5.so
    fun:iconv_open
-   fun:vlc_iconv_open
+   fun:heimdall_iconv_open
    fun:LocaleInit
-   fun:VLC_Init
+   fun:Heimdall_Init
    fun:main
 }
 
@@ -180,7 +180,7 @@
    fun:getpwuid
    fun:GetDir
    fun:config_GetHomeDir
-   fun:VLC_Init
+   fun:Heimdall_Init
 }
 
 {
@@ -219,9 +219,9 @@
    obj:/lib/tls/libc-2.3.5.so
    obj:/lib/tls/libc-2.3.5.so
    fun:iconv_open
-   fun:vlc_iconv_open
+   fun:heimdall_iconv_open
    fun:LocaleInit
-   fun:VLC_Init
+   fun:Heimdall_Init
 }
 
 ## AllocatePlugin
@@ -265,10 +265,10 @@
    PluginsCache5
    Memcheck:Leak
    fun:malloc
-   fun:__vlc_object_create
+   fun:__heimdall_object_create
    fun:CacheLoad
    fun:__module_LoadPlugins
-   fun:VLC_Init
+   fun:Heimdall_Init
    fun:main
 }
 
@@ -277,10 +277,10 @@
    Memcheck:Leak
    fun:malloc
    fun:realloc
-   fun:__vlc_object_attach
+   fun:__heimdall_object_attach
    fun:CacheLoad
    fun:__module_LoadPlugins
-   fun:VLC_Init
+   fun:Heimdall_Init
    fun:main
 }
 
@@ -288,10 +288,10 @@
    PluginsCache3
    Memcheck:Leak
    fun:realloc
-   fun:__vlc_object_attach
+   fun:__heimdall_object_attach
    fun:CacheLoad
    fun:__module_LoadPlugins
-   fun:VLC_Init
+   fun:Heimdall_Init
    fun:main
 }
 
@@ -301,7 +301,7 @@
    fun:malloc
    fun:CacheLoad
    fun:__module_LoadPlugins
-   fun:VLC_Init
+   fun:Heimdall_Init
    fun:main
 }
 
@@ -312,7 +312,7 @@
    fun:CacheLoadConfig
    fun:CacheLoad
    fun:__module_LoadPlugins
-   fun:VLC_Init
+   fun:Heimdall_Init
    fun:main
 }
 
@@ -324,7 +324,7 @@
    fun:malloc
    fun:strdup
    fun:__module_LoadPlugins
-   fun:VLC_Init
+   fun:Heimdall_Init
    fun:main
 }
 {
@@ -332,16 +332,16 @@
    Memcheck:Leak
    fun:malloc
    fun:__module_LoadPlugins
-   fun:VLC_Init
+   fun:Heimdall_Init
    fun:main
 }
 {
    LoadPlugins2
    Memcheck:Leak
    fun:malloc
-   fun:__vlc_object_create
+   fun:__heimdall_object_create
    fun:__module_LoadPlugins
-   fun:VLC_Init
+   fun:Heimdall_Init
    fun:main
 }
 
@@ -358,7 +358,7 @@
    fun:getpwuid
    fun:GetDir
    fun:config_GetHomeDir
-   fun:VLC_Init
+   fun:Heimdall_Init
    fun:main
 }
 {
@@ -372,7 +372,7 @@
    fun:getpwuid
    fun:GetDir
    fun:config_GetHomeDir
-   fun:VLC_Init
+   fun:Heimdall_Init
    fun:main
 }
 {
@@ -387,7 +387,7 @@
    fun:getpwuid
    fun:GetDir
    fun:config_GetHomeDir
-   fun:VLC_Init
+   fun:Heimdall_Init
    fun:main
 }
 
@@ -399,7 +399,7 @@
 #  Memcheck:Leak
 #  fun:malloc
 #  fun:config_Duplicate
-#  fun:vlc_entry__main
+#  fun:heimdall_entry__main
 #  fun:AllocateBuiltinModule
 #}
 #{
@@ -600,7 +600,7 @@
   Memcheck:Leak
   fun:malloc
   fun:__var_Create
-  fun:vlc_entry__0_8_4
+  fun:heimdall_entry__0_8_4
   fun:AllocatePlugin
 }
 {
@@ -616,7 +616,7 @@
   Memcheck:Leak
   fun:malloc
   fun:realloc
-  fun:vlc_entry__0_8_4
+  fun:heimdall_entry__0_8_4
   fun:AllocatePlugin
 }
 {
@@ -708,7 +708,7 @@
    fun:AllocatePluginDir
    fun:AllocatePluginDir
    fun:__module_LoadPlugins
-   fun:VLC_Init
+   fun:Heimdall_Init
    fun:main
 }
 

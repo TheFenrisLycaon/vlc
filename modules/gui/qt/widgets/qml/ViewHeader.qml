@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2024 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Leon Vitanos <leon.vitanos@gmail.com>
  *
@@ -23,9 +24,9 @@ import QtQuick.Layouts
 import QtQuick.Templates as T
 
 
-import VLC.MainInterface
-import VLC.Style
-import VLC.Util
+import Heimdall.MainInterface
+import Heimdall.Style
+import Heimdall.Util
 
 T.Pane {
     id: root
@@ -36,8 +37,8 @@ T.Pane {
     leftPadding: view?.contentLeftMargin ?? 0
     rightPadding: view?.contentRightMargin ?? 0
 
-    bottomPadding: VLCStyle.layoutTitle_bottom_padding
-    topPadding: VLCStyle.layoutTitle_top_padding
+    bottomPadding: HeimdallStyle.layoutTitle_bottom_padding
+    topPadding: HeimdallStyle.layoutTitle_top_padding
 
     // Aliases
 
@@ -107,7 +108,7 @@ T.Pane {
 
             text: qsTr("See All")
 
-            font.pixelSize: VLCStyle.fontSize_large
+            font.pixelSize: HeimdallStyle.fontSize_large
 
             Navigation.parentItem: root
 

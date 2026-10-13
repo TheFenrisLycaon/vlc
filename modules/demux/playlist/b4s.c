@@ -2,6 +2,7 @@
  * b4s.c : B4S playlist format import
  *****************************************************************************
  * Copyright (C) 2005-2009 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Sigmund Augdal Helberg <dnumgis@videolan.org>
  *
@@ -28,10 +29,10 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_access.h>
-#include <vlc_xml.h>
-#include <vlc_strings.h>
+#include <heimdall_common.h>
+#include <heimdall_access.h>
+#include <heimdall_xml.h>
+#include <heimdall_strings.h>
 
 #include "playlist.h"
 
@@ -44,17 +45,17 @@ static bool IsWhitespace( const char *psz_string );
 /*****************************************************************************
  * Import_B4S: main import function
  *****************************************************************************/
-int Import_B4S( vlc_object_t *p_this )
+int Import_B4S( heimdall_object_t *p_this )
 {
     stream_t *demux = (stream_t *)p_this;
 
     if( !stream_HasExtension( demux, ".b4s" ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     demux->pf_readdir = ReadDir;
     demux->pf_control = PlaylistControl;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int ReadDir( stream_t *p_demux, input_item_node_t *p_subitems )
@@ -70,7 +71,7 @@ static int ReadDir( stream_t *p_demux, input_item_node_t *p_subitems )
 
     input_item_t *p_current_input = GetCurrentItem(p_demux);
 
-    free( vlc_stream_ReadLine( p_demux->s ) );
+    free( heimdall_stream_ReadLine( p_demux->s ) );
 
     p_xml_reader = xml_ReaderCreate( p_demux, p_demux->s );
     if( !p_xml_reader )
@@ -186,7 +187,7 @@ static int ReadDir( stream_t *p_demux, input_item_node_t *p_subitems )
                 // Read the element name
                 if( !strcmp( node, "entry" ) )
                 {
-                    vlc_xml_decode( psz_mrl );
+                    heimdall_xml_decode( psz_mrl );
                     p_input = input_item_New( psz_mrl, psz_title );
                     if( psz_now )
                         input_item_SetNowPlaying( p_input, psz_now );

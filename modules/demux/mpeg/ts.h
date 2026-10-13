@@ -1,7 +1,8 @@
 /*****************************************************************************
- * ts.h: Transport Stream input module for VLC.
+ * ts.h: Transport Stream input module for Heimdall.
  *****************************************************************************
  * Copyright (C) 2004-2016 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -17,10 +18,10 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
-#ifndef VLC_TS_H
-#define VLC_TS_H
+#ifndef HEIMDALL_TS_H
+#define HEIMDALL_TS_H
 
-#include <vlc_arrays.h>
+#include <heimdall_arrays.h>
 
 #ifdef HAVE_ARIBB24
     typedef struct arib_instance_t arib_instance_t;
@@ -55,7 +56,7 @@ struct demux_sys_t
     int         current_title;
     int         current_seekpoint;
     unsigned    updates;
-    vlc_mutex_t     csa_lock;
+    heimdall_mutex_t     csa_lock;
 
     /* TS packet size (188, 192, 204) */
     unsigned    i_packet_size;
@@ -124,7 +125,7 @@ struct demux_sys_t
 
     struct
     {
-        vlc_tick_t i_first_dts;     /* first dts encountered for the stream */
+        heimdall_tick_t i_first_dts;     /* first dts encountered for the stream */
         int     i_timesourcepid; /* which pid we saved the dts from */
         bool    b_pcrhasnopcrfield;
         enum { PAT_WAITING = 0, PAT_MISSING, PAT_FIXTRIED } status; /* set if we haven't seen PAT within MIN_PAT_INTERVAL */
@@ -133,7 +134,7 @@ struct demux_sys_t
     vdr_info_t  vdr;
 
     /* downloadable content */
-    vlc_dictionary_t attachments;
+    heimdall_dictionary_t attachments;
 
     /* */
     bool        b_start_record;

@@ -2,6 +2,7 @@
  * HTTPConnection.cpp
  *****************************************************************************
  * Copyright (C) 2014-2015 - VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -30,8 +31,8 @@
 #include <optional>
 #include <cstdlib>
 
-#include <vlc_stream.h>
-#include <vlc_keystore.h>
+#include <heimdall_stream.h>
+#include <heimdall_keystore.h>
 
 extern "C"
 {
@@ -43,7 +44,7 @@ extern "C"
 
 using namespace adaptive::http;
 
-AbstractConnection::AbstractConnection(vlc_object_t *p_object_)
+AbstractConnection::AbstractConnection(heimdall_object_t *p_object_)
 {
     p_object = p_object_;
     available = true;
@@ -86,27 +87,27 @@ const ConnectionParams & AbstractConnection::getRedirection() const
     return locationparams;
 }
 
-class adaptive::http::LibVLCHTTPSource : public adaptive::BlockStreamInterface
+class adaptive::http::LibHeimdallHTTPSource : public adaptive::BlockStreamInterface
 {
      public:
-        LibVLCHTTPSource(vlc_object_t *p_object_, struct vlc_http_cookie_jar_t *jar)
+        LibHeimdallHTTPSource(heimdall_object_t *p_object_, struct heimdall_http_cookie_jar_t *jar)
         {
             p_object = p_object_;
-            http_mgr = vlc_http_mgr_create(p_object, jar);
+            http_mgr = heimdall_http_mgr_create(p_object, jar);
             http_res = nullptr;
             totalRead = 0;
         }
-        virtual ~LibVLCHTTPSource()
+        virtual ~LibHeimdallHTTPSource()
         {
             if(http_mgr)
-                vlc_http_mgr_destroy(http_mgr);
+                heimdall_http_mgr_destroy(http_mgr);
         }
         block_t *readNextBlock() override
         {
             if(http_res == nullptr)
                 return nullptr;
-            block_t *b = vlc_http_res_read(http_res);
-            if(b == vlc_http_error)
+            block_t *b = heimdall_http_res_read(http_res);
+            if(b == heimdall_http_error)
                 return nullptr;
             if(b)
                 totalRead += b->i_buffer;
@@ -116,7 +117,7 @@ class adaptive::http::LibVLCHTTPSource : public adaptive::BlockStreamInterface
         {
             if(http_res)
             {
-                vlc_http_res_destroy(http_res);
+                heimdall_http_res_destroy(http_res);
                 http_res = nullptr;
                 totalRead = 0;
             }
@@ -125,26 +126,26 @@ class adaptive::http::LibVLCHTTPSource : public adaptive::BlockStreamInterface
     private:
         struct restuple
         {
-            struct vlc_http_resource resource;
-            LibVLCHTTPSource *source;
+            struct heimdall_http_resource resource;
+            LibHeimdallHTTPSource *source;
         };
 
-        int formatRequest(const struct vlc_http_resource *,
-                          struct vlc_http_msg *req)
+        int formatRequest(const struct heimdall_http_resource *,
+                          struct heimdall_http_msg *req)
         {
-            vlc_http_msg_add_header(req, "Accept-Encoding", "deflate, gzip");
-            vlc_http_msg_add_header(req, "Cache-Control", "no-cache");
+            heimdall_http_msg_add_header(req, "Accept-Encoding", "deflate, gzip");
+            heimdall_http_msg_add_header(req, "Cache-Control", "no-cache");
             if(range.isValid())
             {
                 if(range.getEndByte() > 0)
                 {
-                    if (vlc_http_msg_add_header(req, "Range", "bytes=%zu-%zu",
+                    if (heimdall_http_msg_add_header(req, "Range", "bytes=%zu-%zu",
                                                 range.getStartByte(), range.getEndByte()))
                         return -1;
                 }
                 else
                 {
-                    if (vlc_http_msg_add_header(req, "Range", "bytes=%zu-",
+                    if (heimdall_http_msg_add_header(req, "Range", "bytes=%zu-",
                                                 range.getStartByte()))
                         return -1;
                 }
@@ -152,11 +153,11 @@ class adaptive::http::LibVLCHTTPSource : public adaptive::BlockStreamInterface
             return 0;
         }
 
-        int validateResponse(const struct vlc_http_resource *, const struct vlc_http_msg *resp)
+        int validateResponse(const struct heimdall_http_resource *, const struct heimdall_http_msg *resp)
         {
-            if (vlc_http_msg_get_status(resp) == 206)
+            if (heimdall_http_msg_get_status(resp) == 206)
             {
-                const char *str = vlc_http_msg_get_header(resp, "Content-Range");
+                const char *str = heimdall_http_msg_get_header(resp, "Content-Range");
                 if (str == NULL)
                     /* A multipart/byteranges response. This is not what we asked for
                      * and we do not support it. */
@@ -173,24 +174,24 @@ class adaptive::http::LibVLCHTTPSource : public adaptive::BlockStreamInterface
             return 0;
         }
 
-        static int formatrequest_handler(const struct vlc_http_resource *res,
-                                         struct vlc_http_msg *req, void *opaque)
+        static int formatrequest_handler(const struct heimdall_http_resource *res,
+                                         struct heimdall_http_msg *req, void *opaque)
         {
-            return (*static_cast<LibVLCHTTPSource **>(opaque))->formatRequest(res, req);
+            return (*static_cast<LibHeimdallHTTPSource **>(opaque))->formatRequest(res, req);
         }
 
-        static int validateresponse_handler(const struct vlc_http_resource *res,
-                                            const struct vlc_http_msg *resp, void *opaque)
+        static int validateresponse_handler(const struct heimdall_http_resource *res,
+                                            const struct heimdall_http_msg *resp, void *opaque)
         {
-            return (*static_cast<LibVLCHTTPSource **>(opaque))->validateResponse(res, resp);
+            return (*static_cast<LibHeimdallHTTPSource **>(opaque))->validateResponse(res, resp);
         }
 
-        vlc_object_t *p_object;
-        static const struct vlc_http_resource_cbs callbacks;
+        heimdall_object_t *p_object;
+        static const struct heimdall_http_resource_cbs callbacks;
         size_t totalRead;
-        struct vlc_http_mgr *http_mgr;
+        struct heimdall_http_mgr *http_mgr;
         BytesRange range;
-        struct vlc_http_resource *http_res;
+        struct heimdall_http_resource *http_res;
         std::optional<std::string> username;
         std::optional<std::string> password;
         ConnectionParams lastparams;
@@ -213,7 +214,7 @@ class adaptive::http::LibVLCHTTPSource : public adaptive::BlockStreamInterface
 
         const char * getResponseHeader(const char *key) const
         {
-            return vlc_http_msg_get_header(http_res->response, key);
+            return heimdall_http_msg_get_header(http_res->response, key);
         }
 
         const ConnectionParams & getFinalLocation() const
@@ -223,7 +224,7 @@ class adaptive::http::LibVLCHTTPSource : public adaptive::BlockStreamInterface
 
         size_t getSize() const
         {
-            return vlc_http_msg_get_size(http_res->response);
+            return heimdall_http_msg_get_size(http_res->response);
         }
 
         int create(const ConnectionParams &params,const std::string &ua,
@@ -237,7 +238,7 @@ class adaptive::http::LibVLCHTTPSource : public adaptive::BlockStreamInterface
             tpl->source = this;
             this->range = range;
             this->lastparams = params;
-            if (vlc_http_res_init(&tpl->resource, &this->callbacks, http_mgr,
+            if (heimdall_http_res_init(&tpl->resource, &this->callbacks, http_mgr,
                                   params.getUrl().c_str(),
                                   ua.empty() ? nullptr : ua.c_str(),
                                   ref.empty() ? nullptr : ref.c_str()))
@@ -255,34 +256,34 @@ class adaptive::http::LibVLCHTTPSource : public adaptive::BlockStreamInterface
                 return RequestStatus::GenericError;
 
             if (username.has_value() || password.has_value())
-                vlc_http_res_set_login(http_res,
+                heimdall_http_res_set_login(http_res,
                                        username.has_value() ? username->c_str() : nullptr,
                                        password.has_value() ? password->c_str() : nullptr);
 
-            int status = vlc_http_res_get_status(http_res);
+            int status = heimdall_http_res_get_status(http_res);
             if (status < 0)
                 return RequestStatus::GenericError;
 
             if (status == 401) /* authentication */
             {
-                char *psz_realm = vlc_http_res_get_basic_realm(http_res);
+                char *psz_realm = heimdall_http_res_get_basic_realm(http_res);
                 if (psz_realm)
                 {
-                    struct vlc_credential crd;
-                    struct vlc_url_t crd_url;
-                    vlc_credential_init(&crd, &crd_url);
-                    vlc_UrlParse(&crd_url, lastparams.getUrl().c_str());
+                    struct heimdall_credential crd;
+                    struct heimdall_url_t crd_url;
+                    heimdall_credential_init(&crd, &crd_url);
+                    heimdall_UrlParse(&crd_url, lastparams.getUrl().c_str());
 
                     crd.psz_authtype = "Basic";
                     crd.psz_realm = psz_realm;
-                    if (vlc_credential_get(&crd, p_object, NULL, NULL,
+                    if (heimdall_credential_get(&crd, p_object, NULL, NULL,
                                            _("HTTP authentication"),
                                            _("Please enter a valid login name and a "
                                              "password for realm %s."), psz_realm) == 0)
                     {
                         setCredentials(crd.psz_username, crd.psz_password);
                         if(!abortandlogin())
-                            status = vlc_http_res_get_status(http_res);
+                            status = heimdall_http_res_get_status(http_res);
                     }
 
                     if (status > 0 && status < 400 && crd.psz_realm &&
@@ -291,11 +292,11 @@ class adaptive::http::LibVLCHTTPSource : public adaptive::BlockStreamInterface
                         /* Force caching into memory keystore */
                         crd.b_from_keystore = false;
                         crd.b_store = false;
-                        vlc_credential_store(&crd, p_object);
+                        heimdall_credential_store(&crd, p_object);
                     }
 
-                    vlc_credential_clean(&crd);
-                    vlc_UrlClean(&crd_url);
+                    heimdall_credential_clean(&crd);
+                    heimdall_UrlClean(&crd_url);
                     free(psz_realm);
                 }
             }
@@ -306,7 +307,7 @@ class adaptive::http::LibVLCHTTPSource : public adaptive::BlockStreamInterface
             if (status >= 400)
                 return RequestStatus::GenericError;
 
-            char *psz_redir = vlc_http_res_get_redirect(http_res);
+            char *psz_redir = heimdall_http_res_get_redirect(http_res);
             if (psz_redir)
             {
                 ConnectionParams loc = ConnectionParams(psz_redir);
@@ -331,28 +332,28 @@ class adaptive::http::LibVLCHTTPSource : public adaptive::BlockStreamInterface
             free(http_res->password);
             http_res->password = password.has_value() ? strdup(password->c_str()) : nullptr;
 
-            struct vlc_http_msg *resp = vlc_http_res_open(http_res, &http_res[1]);
+            struct heimdall_http_msg *resp = heimdall_http_res_open(http_res, &http_res[1]);
             if (resp == nullptr)
                 return -1;
 
             if (http_res->response != nullptr)
-                vlc_http_msg_destroy(http_res->response);
+                heimdall_http_msg_destroy(http_res->response);
 
             http_res->response = resp;
             return 0;
         }
 };
 
-const struct vlc_http_resource_cbs LibVLCHTTPSource::callbacks =
+const struct heimdall_http_resource_cbs LibHeimdallHTTPSource::callbacks =
 {
-    LibVLCHTTPSource::formatrequest_handler,
-    LibVLCHTTPSource::validateresponse_handler,
+    LibHeimdallHTTPSource::formatrequest_handler,
+    LibHeimdallHTTPSource::validateresponse_handler,
 };
 
-LibVLCHTTPConnection::LibVLCHTTPConnection(vlc_object_t *p_object_, AuthStorage *auth)
+LibHeimdallHTTPConnection::LibHeimdallHTTPConnection(heimdall_object_t *p_object_, AuthStorage *auth)
     : AbstractConnection( p_object_ )
 {
-    source = new adaptive::http::LibVLCHTTPSource(p_object_, auth->getJar());
+    source = new adaptive::http::LibHeimdallHTTPSource(p_object_, auth->getJar());
     sourceStream = new ChunksSourceStream(p_object, source);
     stream = nullptr;
     char *psz_useragent = var_InheritString(p_object_, "http-user-agent");
@@ -369,20 +370,20 @@ LibVLCHTTPConnection::LibVLCHTTPConnection(vlc_object_t *p_object_, AuthStorage 
     }
 }
 
-LibVLCHTTPConnection::~LibVLCHTTPConnection()
+LibHeimdallHTTPConnection::~LibHeimdallHTTPConnection()
 {
     reset();
     delete sourceStream;
     delete source;
 }
 
-void LibVLCHTTPConnection::reset()
+void LibHeimdallHTTPConnection::reset()
 {
     source->reset();
     sourceStream->Reset();
     if(stream)
     {
-        vlc_stream_Delete(stream);
+        heimdall_stream_Delete(stream);
         stream = nullptr;
     }
     bytesRange = BytesRange();
@@ -391,7 +392,7 @@ void LibVLCHTTPConnection::reset()
     contentLength = 0;
 }
 
-bool LibVLCHTTPConnection::canReuse(const ConnectionParams &params_) const
+bool LibHeimdallHTTPConnection::canReuse(const ConnectionParams &params_) const
 {
     if(!available)
         return false;
@@ -400,7 +401,7 @@ bool LibVLCHTTPConnection::canReuse(const ConnectionParams &params_) const
             params.getPort() == params_.getPort());
 }
 
-RequestStatus LibVLCHTTPConnection::request(const std::string &path,
+RequestStatus LibHeimdallHTTPConnection::request(const std::string &path,
                                             const BytesRange &range)
 {
     if(!source->isInitialized())
@@ -421,15 +422,15 @@ RequestStatus LibVLCHTTPConnection::request(const std::string &path,
         return RequestStatus::GenericError;
 
     /* Set credentials from URL. Deprecated warning will follow */
-    struct vlc_credential crd;
-    struct vlc_url_t crd_url;
-    vlc_UrlParse(&crd_url, params.getUrl().c_str());
-    vlc_credential_init(&crd, &crd_url);
-    int ret = vlc_credential_get(&crd, p_object, NULL, NULL, NULL, NULL);
+    struct heimdall_credential crd;
+    struct heimdall_url_t crd_url;
+    heimdall_UrlParse(&crd_url, params.getUrl().c_str());
+    heimdall_credential_init(&crd, &crd_url);
+    int ret = heimdall_credential_get(&crd, p_object, NULL, NULL, NULL, NULL);
     if (ret == 0)
         source->setCredentials(crd.psz_username, crd.psz_password);
-    vlc_credential_clean(&crd);
-    vlc_UrlClean(&crd_url);
+    heimdall_credential_clean(&crd);
+    heimdall_UrlClean(&crd_url);
     if (ret == -EINTR)
         return RequestStatus::GenericError;
 
@@ -455,7 +456,7 @@ RequestStatus LibVLCHTTPConnection::request(const std::string &path,
     s = source->getResponseHeader("Content-Encoding");
     if(s && stream && (strstr(s, "deflate") || strstr(s, "gzip")))
     {
-        stream_t *decomp = vlc_stream_FilterNew(stream, "inflate");
+        stream_t *decomp = heimdall_stream_FilterNew(stream, "inflate");
         if(decomp)
         {
             stream = decomp;
@@ -466,21 +467,21 @@ RequestStatus LibVLCHTTPConnection::request(const std::string &path,
     return RequestStatus::Success;
 }
 
-ssize_t LibVLCHTTPConnection::read(void *p_buffer, size_t len)
+ssize_t LibHeimdallHTTPConnection::read(void *p_buffer, size_t len)
 {
-    ssize_t read = vlc_stream_Read(stream, p_buffer, len);
+    ssize_t read = heimdall_stream_Read(stream, p_buffer, len);
     bytesRead = source->getTotalRead();
     return read;
 }
 
-void LibVLCHTTPConnection::setUsed( bool b )
+void LibHeimdallHTTPConnection::setUsed( bool b )
 {
     available = !b;
     if(available)
        reset();
 }
 
-StreamUrlConnection::StreamUrlConnection(vlc_object_t *p_object)
+StreamUrlConnection::StreamUrlConnection(heimdall_object_t *p_object)
     : AbstractConnection(p_object)
 {
     p_streamurl = nullptr;
@@ -496,7 +497,7 @@ StreamUrlConnection::~StreamUrlConnection()
 void StreamUrlConnection::reset()
 {
     if(p_streamurl)
-        vlc_stream_Delete(p_streamurl);
+        heimdall_stream_Delete(p_streamurl);
     p_streamurl = nullptr;
     bytesRead = 0;
     contentLength = 0;
@@ -524,7 +525,7 @@ RequestStatus StreamUrlConnection::request(const std::string &path,
     msg_Dbg(p_object, "Retrieving %s @%zu", params.getUrl().c_str(),
                       range.isValid() ? range.getStartByte() : 0);
 
-    p_streamurl = vlc_stream_NewURL(p_object, params.getUrl().c_str());
+    p_streamurl = heimdall_stream_NewURL(p_object, params.getUrl().c_str());
     if(!p_streamurl)
         return RequestStatus::GenericError;
 
@@ -535,15 +536,15 @@ RequestStatus StreamUrlConnection::request(const std::string &path,
         free(psz_type);
     }
 
-    stream_t *p_chain = vlc_stream_FilterNew( p_streamurl, "inflate" );
+    stream_t *p_chain = heimdall_stream_FilterNew( p_streamurl, "inflate" );
     if( p_chain )
         p_streamurl = p_chain;
 
     if(range.isValid() && range.getEndByte() > 0)
     {
-        if(vlc_stream_Seek(p_streamurl, range.getStartByte()) != VLC_SUCCESS)
+        if(heimdall_stream_Seek(p_streamurl, range.getStartByte()) != HEIMDALL_SUCCESS)
         {
-            vlc_stream_Delete(p_streamurl);
+            heimdall_stream_Delete(p_streamurl);
             return RequestStatus::GenericError;
         }
         bytesRange = range;
@@ -551,7 +552,7 @@ RequestStatus StreamUrlConnection::request(const std::string &path,
     }
 
     uint64_t i_size;
-    if(vlc_stream_GetSize(p_streamurl, &i_size) == VLC_SUCCESS)
+    if(heimdall_stream_GetSize(p_streamurl, &i_size) == HEIMDALL_SUCCESS)
     {
         if(!range.isValid() || contentLength > (size_t) i_size)
             contentLength = (size_t) i_size;
@@ -562,19 +563,19 @@ RequestStatus StreamUrlConnection::request(const std::string &path,
 ssize_t StreamUrlConnection::read(void *p_buffer, size_t len)
 {
     if( !p_streamurl )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     if(len == 0)
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
     const size_t toRead = (contentLength) ? contentLength - bytesRead : len;
     if (toRead == 0)
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
     if(len > toRead)
         len = toRead;
 
-    ssize_t ret = vlc_stream_Read(p_streamurl, p_buffer, len);
+    ssize_t ret = heimdall_stream_Read(p_streamurl, p_buffer, len);
     if(ret >= 0)
         bytesRead += ret;
 
@@ -595,19 +596,19 @@ void StreamUrlConnection::setUsed( bool b )
        reset();
 }
 
-LibVLCHTTPConnectionFactory::LibVLCHTTPConnectionFactory( AuthStorage *auth )
+LibHeimdallHTTPConnectionFactory::LibHeimdallHTTPConnectionFactory( AuthStorage *auth )
     : AbstractConnectionFactory()
 {
     authStorage = auth;
 }
 
-AbstractConnection * LibVLCHTTPConnectionFactory::createConnection(vlc_object_t *p_object,
+AbstractConnection * LibHeimdallHTTPConnectionFactory::createConnection(heimdall_object_t *p_object,
                                                                   const ConnectionParams &params)
 {
     if((params.getScheme() != "http" && params.getScheme() != "https") ||
        params.getHostname().empty())
         return nullptr;
-    return new LibVLCHTTPConnection(p_object, authStorage);
+    return new LibHeimdallHTTPConnection(p_object, authStorage);
 }
 
 StreamUrlConnectionFactory::StreamUrlConnectionFactory()
@@ -616,7 +617,7 @@ StreamUrlConnectionFactory::StreamUrlConnectionFactory()
 
 }
 
-AbstractConnection * StreamUrlConnectionFactory::createConnection(vlc_object_t *p_object,
+AbstractConnection * StreamUrlConnectionFactory::createConnection(heimdall_object_t *p_object,
                                                                   const ConnectionParams &)
 {
     return new (std::nothrow) StreamUrlConnection(p_object);

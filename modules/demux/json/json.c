@@ -2,6 +2,7 @@
  * json/json.c: JSON parsing library
  *****************************************************************************
  * Copyright © 2020 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -27,8 +28,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include <vlc_common.h>
-#include <vlc_charset.h>
+#include <heimdall_common.h>
+#include <heimdall_charset.h>
 #include "json.h"
 
 #ifdef WORDS_BIGENDIAN
@@ -48,18 +49,18 @@ char *json_unescape(const char *in, size_t inlen)
     if (unlikely(buf == NULL))
         return NULL;
 
-    vlc_iconv_t hd = vlc_iconv_open(ENDIAN("UTF-16") , "UTF-8");
+    heimdall_iconv_t hd = heimdall_iconv_open(ENDIAN("UTF-16") , "UTF-8");
 
-    if (unlikely(hd == (vlc_iconv_t)-1)) {
+    if (unlikely(hd == (heimdall_iconv_t)-1)) {
         free(buf);
         return NULL;
     }
 
     char *out = buf;
     size_t outlen = buflen;
-    size_t val = vlc_iconv(hd, &in, &inlen, &out, &outlen);
+    size_t val = heimdall_iconv(hd, &in, &inlen, &out, &outlen);
 
-    vlc_iconv_close(hd);
+    heimdall_iconv_close(hd);
 
     if (val == (size_t)-1) {
         free(buf);
@@ -103,14 +104,14 @@ char *json_unescape(const char *in, size_t inlen)
 
                     /* Tokeniser requires 4 hex-digits, so this cannot fail. */
                     if (sscanf(hex, "%4"SCNx16, &c) != 1)
-                        vlc_assert_unreachable();
+                        heimdall_assert_unreachable();
 
                     in2 += 4;
                     break;
                 }
                 default:
                     /* Invalid escape is not allowed by tokeniser. */
-                    vlc_assert_unreachable();
+                    heimdall_assert_unreachable();
             }
 	}
 

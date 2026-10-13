@@ -1,13 +1,13 @@
-## Generic instructions about VLC Lua meta scripts.
+## Generic instructions about Heimdall Lua meta scripts.
 
 There are 3 types of Lua meta modules: art, fetcher and reader.
 See their respective README.txt for documentation.
 
-See lua/README.txt for generic documentation about Lua usage in VLC.
+See lua/README.txt for generic documentation about Lua usage in Heimdall.
 
 ## API
 
-VLC Lua meta modules should define a descriptor function:
+Heimdall Lua meta modules should define a descriptor function:
   * descriptor(): returns a table with information about the module.
     This table has the following member:
       .scope: Search scope of the script. Can be "network" or "local".

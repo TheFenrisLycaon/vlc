@@ -2,6 +2,7 @@
  * scan.h : functions to ease DVB scanning
  *****************************************************************************
  * Copyright (C) 2008,2010 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@videolan.org>
  *          David Kaplan <david@2of1.org>
@@ -169,7 +170,7 @@ const char * scan_service_GetNetworkName( const scan_service_t *s );
 void scan_parameter_Init( scan_parameter_t * );
 void scan_parameter_Clean( scan_parameter_t * );
 
-scan_t *scan_New( vlc_object_t *p_obj, const scan_parameter_t *p_parameter,
+scan_t *scan_New( heimdall_object_t *p_obj, const scan_parameter_t *p_parameter,
                   scan_frontend_tune_cb,
                   scan_frontend_stats_cb,
                   scan_demux_filter_cb,

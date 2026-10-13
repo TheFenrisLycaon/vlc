@@ -2,6 +2,7 @@
  * ntservice.c: Windows NT/2K/XP service interface
  *****************************************************************************
  * Copyright (C) 2001-2004, 2010 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Samuel Hocevar <sam@zoy.org>
  *          Gildas Bazin <gbazin@videolan.org>
@@ -25,13 +26,13 @@
 # include "config.h"
 #endif
 
-#define VLC_MODULE_LICENSE VLC_LICENSE_GPL_2_PLUS
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_interface.h>
-#include <vlc_playlist.h>
-#include <vlc_url.h> // FIXME: move URL generation to calling process
-#include <vlc_input_item.h>
+#define HEIMDALL_MODULE_LICENSE HEIMDALL_LICENSE_GPL_2_PLUS
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_interface.h>
+#include <heimdall_playlist.h>
+#include <heimdall_url.h> // FIXME: move URL generation to calling process
+#include <heimdall_input_item.h>
 
 #include <windows.h>
 
@@ -39,7 +40,7 @@ struct intf_sys_t
 {
     HWND window;
     HANDLE ready;
-    vlc_thread_t thread;
+    heimdall_thread_t thread;
 };
 
 /* Must be same as in src/win32/specific.c */
@@ -48,24 +49,24 @@ typedef struct
     int argc;
     int enqueue;
     char data[];
-} vlc_ipc_data_t;
+} heimdall_ipc_data_t;
 
 static void add_to_playlist(intf_thread_t *intf, const char *uri,
                             bool play_now, int options_count,
                             const char *const *options)
 {
-    vlc_playlist_t *playlist = vlc_intf_GetMainPlaylist(intf);
+    heimdall_playlist_t *playlist = heimdall_intf_GetMainPlaylist(intf);
 
     input_item_t *media = input_item_New(uri, NULL);
     if (!media)
         return;
-    input_item_AddOptions(media, options_count, options, VLC_INPUT_OPTION_TRUSTED);
+    input_item_AddOptions(media, options_count, options, HEIMDALL_INPUT_OPTION_TRUSTED);
 
-    vlc_playlist_Lock(playlist);
-    vlc_playlist_AppendOne(playlist, media);
+    heimdall_playlist_Lock(playlist);
+    heimdall_playlist_AppendOne(playlist, media);
     if (play_now)
-        vlc_playlist_Start(playlist);
-    vlc_playlist_Unlock(playlist);
+        heimdall_playlist_Start(playlist);
+    heimdall_playlist_Unlock(playlist);
     input_item_Release(media);
 }
 
@@ -89,12 +90,12 @@ static LRESULT CALLBACK WMCOPYWNDPROC(HWND hwnd, UINT uMsg,
         if( pwm_data->lpData )
         {
             char **ppsz_argv;
-            vlc_ipc_data_t *p_data = (vlc_ipc_data_t *)pwm_data->lpData;
+            heimdall_ipc_data_t *p_data = (heimdall_ipc_data_t *)pwm_data->lpData;
             size_t i_data = 0;
             size_t i_len;
             int i_argc = p_data->argc, i_opt, i_options;
 
-            ppsz_argv = vlc_alloc( i_argc, sizeof(char *) );
+            ppsz_argv = heimdall_alloc( i_argc, sizeof(char *) );
             for( i_opt = 0; i_opt < i_argc; i_opt++ )
             {
                 memcpy( &i_len, &p_data->data[i_data], sizeof(size_t) );
@@ -114,11 +115,11 @@ static LRESULT CALLBACK WMCOPYWNDPROC(HWND hwnd, UINT uMsg,
                 }
 
 #warning URI conversion must be done in calling process instead!
-                /* FIXME: This breaks relative paths if calling vlc.exe is
+                /* FIXME: This breaks relative paths if calling heimdall.exe is
                  * started from a different working directory. */
                 char *psz_URI = NULL;
                 if( strstr( ppsz_argv[i_opt], "://" ) == NULL )
-                    psz_URI = vlc_path2uri( ppsz_argv[i_opt], NULL );
+                    psz_URI = heimdall_path2uri( ppsz_argv[i_opt], NULL );
                 add_to_playlist(intf, (psz_URI != NULL) ? psz_URI : ppsz_argv[i_opt],
                                 (i_opt == 0 && !p_data->enqueue), i_options,
                                 (char const **)( i_options ? &ppsz_argv[i_opt+1] : NULL ));
@@ -138,11 +139,11 @@ static void *HelperThread(void *data)
     intf_thread_t *intf = data;
     intf_sys_t *sys = intf->p_sys;
 
-    vlc_thread_set_name("vlc-ctrl-win");
+    heimdall_thread_set_name("heimdall-ctrl-win");
 
     HWND ipcwindow =
         CreateWindow(L"STATIC",                      /* name of window class */
-                  L"VLC ipc " TEXT(VERSION),        /* window title bar text */
+                  L"Heimdall ipc " TEXT(VERSION),        /* window title bar text */
                   0,                                         /* window style */
                   0,                                 /* default X coordinate */
                   0,                                 /* default Y coordinate */
@@ -170,46 +171,46 @@ static void *HelperThread(void *data)
     return NULL;
 }
 
-static int Open(vlc_object_t *obj)
+static int Open(heimdall_object_t *obj)
 {
     intf_thread_t *intf = (intf_thread_t *)obj;
     intf_sys_t *sys = malloc(sizeof (*sys));
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     intf->p_sys = sys;
 
     /* Run the helper thread */
     sys->ready = CreateEvent(NULL, FALSE, FALSE, NULL);
 
-    if (vlc_clone(&sys->thread, HelperThread, intf))
+    if (heimdall_clone(&sys->thread, HelperThread, intf))
     {
         free(sys);
         msg_Err(intf, "one instance mode DISABLED "
                  "(IPC helper thread couldn't be created)");
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     WaitForSingleObject(sys->ready, INFINITE);
     CloseHandle(sys->ready);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void Close(vlc_object_t *obj)
+static void Close(heimdall_object_t *obj)
 {
     intf_thread_t *intf = (intf_thread_t *)obj;
     intf_sys_t *sys = intf->p_sys;
 
     SendMessage(sys->window, WM_QUIT, 0, 0);
-    vlc_join(sys->thread, NULL);
+    heimdall_join(sys->thread, NULL);
     free(sys);
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname(N_("WinMsg"))
     set_description(N_("Windows messages interface"))
     set_subcategory(SUBCAT_INTERFACE_CONTROL)
     set_capability("interface", 0)
     set_callbacks(Open, Close)
-vlc_module_end()
+heimdall_module_end()

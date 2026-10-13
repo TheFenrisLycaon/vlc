@@ -2,6 +2,7 @@
  * Streams.hpp
  *****************************************************************************
  * Copyright (C) 2014 - VideoLAN and VLC authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -20,7 +21,7 @@
 #ifndef STREAM_HPP
 #define STREAM_HPP
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 #include "StreamFormat.hpp"
 #include "BlockStreamInterface.hpp"
 #include "SegmentTracker.hpp"
@@ -65,7 +66,7 @@ namespace adaptive
 
         void setLanguage(const std::string &);
         void setDescription(const std::string &);
-        vlc_tick_t getMinAheadTime() const;
+        heimdall_tick_t getMinAheadTime() const;
         Times getFirstTimes() const;
         int esCount() const;
         bool isSelected() const;
@@ -85,11 +86,11 @@ namespace adaptive
             Ongoing,
             Lessthanmin,
         };
-        BufferingStatus bufferize(Times, vlc_tick_t, vlc_tick_t,
-                                  vlc_tick_t, bool = false);
-        BufferingStatus getBufferAndStatus(const Times &, vlc_tick_t, vlc_tick_t, vlc_tick_t *);
-        vlc_tick_t getDemuxedAmount(Times) const;
-        bool isBufferingSufficient(Times, vlc_tick_t) const;
+        BufferingStatus bufferize(Times, heimdall_tick_t, heimdall_tick_t,
+                                  heimdall_tick_t, bool = false);
+        BufferingStatus getBufferAndStatus(const Times &, heimdall_tick_t, heimdall_tick_t, heimdall_tick_t *);
+        heimdall_tick_t getDemuxedAmount(Times) const;
+        bool isBufferingSufficient(Times, heimdall_tick_t) const;
         Status dequeue(Times, Times *);
 
         class StreamPosition
@@ -102,8 +103,8 @@ namespace adaptive
         };
         virtual bool reactivate(const StreamPosition &);
         virtual bool setPosition(const StreamPosition &, bool);
-        bool getMediaPlaybackTimes(vlc_tick_t *, vlc_tick_t *, vlc_tick_t *) const;
-        bool getMediaAdvanceAmount(vlc_tick_t *) const;
+        bool getMediaPlaybackTimes(heimdall_tick_t *, heimdall_tick_t *, heimdall_tick_t *) const;
+        bool getMediaAdvanceAmount(heimdall_tick_t *) const;
         bool runUpdates(bool = false);
 
         /* Used by demuxers fake streams */
@@ -118,13 +119,13 @@ namespace adaptive
         void setDisabled(bool);
         virtual block_t *checkBlock(block_t *, bool);
         AbstractDemuxer * createDemux(const StreamFormat &);
-        AbstractDemuxer * newDemux(vlc_object_t *, const StreamFormat &,
+        AbstractDemuxer * newDemux(heimdall_object_t *, const StreamFormat &,
                                    es_out_t *, AbstractSourceStream *) const  override;
         virtual bool startDemux();
         virtual bool restartDemux();
 
         virtual void prepareRestart(bool = true);
-        bool resetForNewPosition(vlc_tick_t);
+        bool resetForNewPosition(heimdall_tick_t);
 
         bool contiguous;
         bool segmentgap;
@@ -156,20 +157,20 @@ namespace adaptive
         FakeESOut::LockedFakeEsOut fakeEsOut();
         FakeESOut::LockedFakeEsOut fakeEsOut() const;
         FakeESOut *fakeesout; /* to intercept/proxy what is sent from demuxstream */
-        mutable vlc_mutex_t lock; /* lock for everything accessed by dequeuing */
+        mutable heimdall_mutex_t lock; /* lock for everything accessed by dequeuing */
 
         SegmentTimes startTimeContext;
         SegmentTimes currentTimeContext;
         SegmentTimes prevEndTimeContext;
-        vlc_tick_t currentDuration;
+        heimdall_tick_t currentDuration;
         uint64_t currentSequence;
 
         SrcID nextSrcID = SrcID::dummy();
 
     private:
         void declaredCodecs();
-        BufferingStatus doBufferize(Times, vlc_tick_t, vlc_tick_t,
-                                    vlc_tick_t, bool);
+        BufferingStatus doBufferize(Times, heimdall_tick_t, heimdall_tick_t,
+                                    heimdall_tick_t, bool);
         BufferingStatus last_buffer_status;
         bool valid;
         bool disabled;

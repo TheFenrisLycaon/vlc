@@ -1,7 +1,8 @@
 /*****************************************************************************
- * keystore.c: test vlc_credential API
+ * keystore.c: test heimdall_credential API
  *****************************************************************************
  * Copyright © 2016 VLC authors, VideoLAN and VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -21,18 +22,18 @@
 #ifdef HAVE_CONFIG_H
 # include "config.h"
 #endif
-#include <vlc/vlc.h>
+#include <heimdall/heimdall.h>
 
-#include "../../libvlc/test.h"
-#include "../../../lib/libvlc_internal.h"
+#include "../../libheimdall/test.h"
+#include "../../../lib/libheimdall_internal.h"
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_interrupt.h>
-#include <vlc_keystore.h>
-#include <vlc_dialog.h>
-#include <vlc_url.h>
-#include <vlc_fs.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_interrupt.h>
+#include <heimdall_keystore.h>
+#include <heimdall_dialog.h>
+#include <heimdall_url.h>
+#include <heimdall_fs.h>
 
 #include <assert.h>
 
@@ -225,7 +226,7 @@ struct dialog_ctx
 };
 
 static void
-display_login_cb(void *p_data, vlc_dialog_id *p_id, const char *psz_title,
+display_login_cb(void *p_data, heimdall_dialog_id *p_id, const char *psz_title,
                  const char *psz_text, const char *psz_default_username,
                  bool b_ask_store)
 {
@@ -241,23 +242,23 @@ display_login_cb(void *p_data, vlc_dialog_id *p_id, const char *psz_title,
     if (!p_dialog_ctx->b_abort && psz_user != NULL
      && p_testcase->dialog.psz_pwd != NULL)
     {
-        vlc_dialog_id_post_login(p_id, psz_user, p_testcase->dialog.psz_pwd,
+        heimdall_dialog_id_post_login(p_id, psz_user, p_testcase->dialog.psz_pwd,
                                  p_testcase->b_dialog_store);
         p_dialog_ctx->b_abort = true;
     }
     else
-        vlc_dialog_id_dismiss(p_id);
+        heimdall_dialog_id_dismiss(p_id);
 }
 
 static void
-cancel_cb(void *p_data, vlc_dialog_id *p_id)
+cancel_cb(void *p_data, heimdall_dialog_id *p_id)
 {
     (void) p_data;
-    vlc_dialog_id_dismiss(p_id);
+    heimdall_dialog_id_dismiss(p_id);
 }
 
 static void
-test(vlc_object_t *p_obj, unsigned int i_id, const struct testcase *p_test)
+test(heimdall_object_t *p_obj, unsigned int i_id, const struct testcase *p_test)
 {
     printf("test(%u): url %s%s%s%s (%sexpected: %s:%s)\n", i_id, p_test->psz_url,
            p_test->psz_realm != NULL ? " (realm: " : "",
@@ -266,7 +267,7 @@ test(vlc_object_t *p_obj, unsigned int i_id, const struct testcase *p_test)
            p_test->b_found ? "" : "not ", p_test->result.psz_user,
            p_test->result.psz_pwd);
 
-    const vlc_dialog_cbs cbs = {
+    const heimdall_dialog_cbs cbs = {
         .pf_display_login = display_login_cb,
         .pf_cancel = cancel_cb,
     };
@@ -274,7 +275,7 @@ test(vlc_object_t *p_obj, unsigned int i_id, const struct testcase *p_test)
         .b_abort = false,
         .p_test = p_test,
     };
-    vlc_dialog_provider_set_callbacks(p_obj, &cbs, &dialog_ctx);
+    heimdall_dialog_provider_set_callbacks(p_obj, &cbs, &dialog_ctx);
 
     const char *psz_opt_user = NULL, *psz_opt_pwd = NULL;
     if (p_test->opt.psz_user != NULL)
@@ -288,16 +289,16 @@ test(vlc_object_t *p_obj, unsigned int i_id, const struct testcase *p_test)
         var_SetString(p_obj, psz_opt_pwd, p_test->opt.psz_pwd);
     }
 
-    vlc_url_t url;
-    vlc_UrlParse(&url, p_test->psz_url);
+    heimdall_url_t url;
+    heimdall_UrlParse(&url, p_test->psz_url);
 
-    vlc_credential credential;
-    vlc_credential_init(&credential, &url);
+    heimdall_credential credential;
+    heimdall_credential_init(&credential, &url);
     credential.psz_realm = p_test->psz_realm;
     credential.psz_authtype = p_test->psz_authtype;
 
     bool b_found = false;
-    while (vlc_credential_get(&credential, p_obj, psz_opt_user, psz_opt_pwd,
+    while (heimdall_credential_get(&credential, p_obj, psz_opt_user, psz_opt_pwd,
                               "test authentication", "this a test") == 0)
     {
         bool realm_match = !p_test->result.psz_realm
@@ -316,27 +317,27 @@ test(vlc_object_t *p_obj, unsigned int i_id, const struct testcase *p_test)
         }
     }
     assert(b_found == p_test->b_found);
-    vlc_credential_store(&credential, p_obj);
+    heimdall_credential_store(&credential, p_obj);
 
-    vlc_UrlClean(&url);
-    vlc_credential_clean(&credential);
+    heimdall_UrlClean(&url);
+    heimdall_credential_clean(&credential);
 
-    vlc_dialog_provider_set_callbacks(p_obj, NULL, NULL);
+    heimdall_dialog_provider_set_callbacks(p_obj, NULL, NULL);
 }
 
-static libvlc_instance_t *
-create_libvlc(int i_vlc_argc, const char *const *ppsz_vlc_argv)
+static libheimdall_instance_t *
+create_libheimdall(int i_heimdall_argc, const char *const *ppsz_heimdall_argv)
 {
-    libvlc_instance_t *p_libvlc = libvlc_new(i_vlc_argc, ppsz_vlc_argv);
-    assert(p_libvlc != NULL);
+    libheimdall_instance_t *p_libheimdall = libheimdall_new(i_heimdall_argc, ppsz_heimdall_argv);
+    assert(p_libheimdall != NULL);
 
     int i_ret;
-    i_ret = var_Create(p_libvlc->p_libvlc_int, "test-user", VLC_VAR_STRING);
-    assert(i_ret == VLC_SUCCESS);
-    i_ret = var_Create(p_libvlc->p_libvlc_int, "test-pwd", VLC_VAR_STRING);
-    assert(i_ret == VLC_SUCCESS);
+    i_ret = var_Create(p_libheimdall->p_libheimdall_int, "test-user", HEIMDALL_VAR_STRING);
+    assert(i_ret == HEIMDALL_SUCCESS);
+    i_ret = var_Create(p_libheimdall->p_libheimdall_int, "test-pwd", HEIMDALL_VAR_STRING);
+    assert(i_ret == HEIMDALL_SUCCESS);
 
-    return p_libvlc;
+    return p_libheimdall;
 }
 
 int
@@ -345,34 +346,34 @@ main(void)
     test_init();
 
     printf("creating tmp plaintext keystore file\n");
-    char psz_tmp_path[] = "/tmp/libvlc_XXXXXX";
+    char psz_tmp_path[] = "/tmp/libheimdall_XXXXXX";
     int i_tmp_fd = -1;
-    i_tmp_fd = vlc_mkstemp(psz_tmp_path);
+    i_tmp_fd = heimdall_mkstemp(psz_tmp_path);
     assert(i_tmp_fd != -1);
 
-    int i_vlc_argc = 4;
-    const char *ppsz_vlc_argv[i_vlc_argc];
-    ppsz_vlc_argv[0] = "--keystore";
-    ppsz_vlc_argv[1] = "file_plaintext,none";
-    ppsz_vlc_argv[2] = "--keystore-file";
-    ppsz_vlc_argv[3] = psz_tmp_path;
+    int i_heimdall_argc = 4;
+    const char *ppsz_heimdall_argv[i_heimdall_argc];
+    ppsz_heimdall_argv[0] = "--keystore";
+    ppsz_heimdall_argv[1] = "file_plaintext,none";
+    ppsz_heimdall_argv[2] = "--keystore-file";
+    ppsz_heimdall_argv[3] = psz_tmp_path;
 
-    libvlc_instance_t *p_libvlc = create_libvlc(i_vlc_argc, ppsz_vlc_argv);
+    libheimdall_instance_t *p_libheimdall = create_libheimdall(i_heimdall_argc, ppsz_heimdall_argv);
 
     for (unsigned int i = 0; i < ARRAY_SIZE(testcases); ++i)
     {
         if (testcases[i].psz_url == NULL)
         {
             printf("test(%u): wiping memory keystore\n", i);
-            libvlc_release(p_libvlc);
-            p_libvlc = create_libvlc(i_vlc_argc, ppsz_vlc_argv);
+            libheimdall_release(p_libheimdall);
+            p_libheimdall = create_libheimdall(i_heimdall_argc, ppsz_heimdall_argv);
         }
         else
-            test(VLC_OBJECT(p_libvlc->p_libvlc_int), i, &testcases[i]);
+            test(HEIMDALL_OBJECT(p_libheimdall->p_libheimdall_int), i, &testcases[i]);
     }
 
-    libvlc_release(p_libvlc);
-    vlc_close(i_tmp_fd);
+    libheimdall_release(p_libheimdall);
+    heimdall_close(i_tmp_fd);
 
     return 0;
 }

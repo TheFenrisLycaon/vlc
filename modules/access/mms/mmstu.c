@@ -2,6 +2,7 @@
  * mmstu.c: MMS access plug-in
  *****************************************************************************
  * Copyright (C) 2001, 2002 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *
@@ -28,9 +29,9 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_threads.h>
-#include <vlc_access.h>
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
+#include <heimdall_access.h>
 
 #include <errno.h>
 #include <assert.h>
@@ -42,11 +43,11 @@
 #   include <poll.h>
 #endif
 
-#include <vlc_network.h>
-#include <vlc_charset.h>
-#include <vlc_url.h>
-#include <vlc_interrupt.h>
-#include <vlc_es.h>
+#include <heimdall_network.h>
+#include <heimdall_charset.h>
+#include <heimdall_url.h>
+#include <heimdall_interrupt.h>
+#include <heimdall_es.h>
 #include "asf.h"
 #include "buffer.h"
 
@@ -71,7 +72,7 @@ static block_t *Block( stream_t *, bool * );
 static int Seek( stream_t *, uint64_t );
 static int Control( stream_t *, int, va_list );
 
-static int  MMSOpen ( stream_t *, vlc_url_t *, int );
+static int  MMSOpen ( stream_t *, heimdall_url_t *, int );
 static int  MMSStart( stream_t *, uint32_t );
 static int  MMSStop ( stream_t * );
 static void MMSClose( stream_t * );
@@ -100,20 +101,20 @@ int  MMSTUOpen( stream_t *p_access )
     p_access->pf_seek = Seek;
 
     p_access->p_sys = p_sys = calloc( 1, sizeof( access_sys_t ) );
-    if( !p_sys ) return VLC_ENOMEM;
+    if( !p_sys ) return HEIMDALL_ENOMEM;
 
     p_sys->i_timeout = var_CreateGetInteger( p_access, "mms-timeout" );
 
-    vlc_mutex_init( &p_sys->lock_netwrite );
+    heimdall_mutex_init( &p_sys->lock_netwrite );
 
     /* *** Parse URL and get server addr/port and path *** */
-    vlc_UrlParse( &p_sys->url, p_access->psz_url );
+    heimdall_UrlParse( &p_sys->url, p_access->psz_url );
     if( p_sys->url.psz_host == NULL || *p_sys->url.psz_host == '\0' )
     {
         msg_Err( p_access, "invalid server name" );
-        vlc_UrlClean( &p_sys->url );
+        heimdall_UrlClean( &p_sys->url );
         free( p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     if( p_sys->url.i_port <= 0 )
     {
@@ -147,9 +148,9 @@ int  MMSTUOpen( stream_t *p_access )
     if( i_status )
     {
         msg_Err( p_access, "cannot connect to server" );
-        vlc_UrlClean( &p_sys->url );
+        heimdall_UrlClean( &p_sys->url );
         free( p_sys );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     msg_Dbg( p_access, "connected to %s:%d", p_sys->url.psz_host, p_sys->url.i_port );
@@ -181,10 +182,10 @@ int  MMSTUOpen( stream_t *p_access )
     {
         msg_Err( p_access, "cannot start stream" );
         MMSTUClose ( p_access );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -200,7 +201,7 @@ void MMSTUClose( stream_t *p_access )
     MMSClose( p_access );
 
     /* free memory */
-    vlc_UrlClean( &p_sys->url );
+    heimdall_UrlClean( &p_sys->url );
 
     free( p_sys );
 }
@@ -244,13 +245,13 @@ static int Control( stream_t *p_access, int i_query, va_list args )
 
         case STREAM_GET_SIZE:
             if( !p_sys->b_seekable )
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             *va_arg( args, uint64_t * ) = p_sys->i_size;
             break;
 
         case STREAM_GET_PTS_DELAY:
-            *va_arg( args, vlc_tick_t * ) =
-                VLC_TICK_FROM_MS(var_InheritInteger( p_access, "network-caching" ));
+            *va_arg( args, heimdall_tick_t * ) =
+                HEIMDALL_TICK_FROM_MS(var_InheritInteger( p_access, "network-caching" ));
             break;
 
         case STREAM_GET_PRIVATE_ID_STATE:
@@ -258,7 +259,7 @@ static int Control( stream_t *p_access, int i_query, va_list args )
             pb_bool = va_arg( args, bool * );
 
             if( i_int < 0 || i_int > 127 )
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             *pb_bool =  p_sys->asfh.stream[i_int].i_selected ? true : false;
             break;
 
@@ -268,14 +269,14 @@ static int Control( stream_t *p_access, int i_query, va_list args )
             b_bool = (bool)va_arg( args, int );
             int i_cat;
             if( i_int > 127 )
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             else if ( i_int < 0 )
             {
                 /* Deselecting all ES in this category */
                 assert( !b_bool );
                 i_cat = -1 * i_int;
                 if ( i_cat > ES_CATEGORY_COUNT )
-                    return VLC_EGENERIC;
+                    return HEIMDALL_EGENERIC;
             }
             else
             {
@@ -296,7 +297,7 @@ static int Control( stream_t *p_access, int i_query, va_list args )
 
             MMSStop( p_access );
             Seek( p_access, p_sys->i_position );
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
 
         case STREAM_SET_PAUSE_STATE:
@@ -314,9 +315,9 @@ static int Control( stream_t *p_access, int i_query, va_list args )
             break;
 
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -336,7 +337,7 @@ static int Seek( stream_t * p_access, uint64_t i_pos )
             /* no need to restart stream, it was already one
              * or no stream was yet read */
             p_sys->i_position = i_pos;
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
         else
         {
@@ -350,7 +351,7 @@ static int Seek( stream_t * p_access, uint64_t i_pos )
         i_offset = ( i_pos - p_sys->i_header ) % p_sys->i_packet_length;
     }
     if( p_sys->b_seekable && i_packet >= p_sys->i_packet_count )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     msg_Dbg( p_access, "seeking to %"PRIu64 " (packet:%u)", i_pos, i_packet );
 
@@ -379,7 +380,7 @@ static int Seek( stream_t * p_access, uint64_t i_pos )
         if( mms_HeaderMediaRead( p_access, MMS_PACKET_CMD ) < 0 )
         {
             p_sys->b_eof = true;
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         if( p_sys->i_command == 0x1e )
@@ -394,7 +395,7 @@ static int Seek( stream_t * p_access, uint64_t i_pos )
         if( mms_HeaderMediaRead( p_access, MMS_PACKET_CMD ) < 0 )
         {
             p_sys->b_eof = true;
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
         if( p_sys->i_command == 0x05 )
         {
@@ -407,7 +408,7 @@ static int Seek( stream_t * p_access, uint64_t i_pos )
     if( mms_HeaderMediaRead( p_access, MMS_PACKET_MEDIA ) < 0 )
     {
         p_sys->b_eof = true;
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     msg_Dbg( p_access, "Streaming restarted" );
@@ -415,7 +416,7 @@ static int Seek( stream_t * p_access, uint64_t i_pos )
     p_sys->i_media_used += i_offset;
     p_sys->i_position = i_pos;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -474,7 +475,7 @@ static block_t *Block( stream_t *p_access, bool *restrict eof )
 /****************************************************************************
  * MMSOpen : Open a connection with the server over mmst or mmsu
  ****************************************************************************/
-static int MMSOpen( stream_t  *p_access, vlc_url_t *p_url, int  i_proto )
+static int MMSOpen( stream_t  *p_access, heimdall_url_t *p_url, int  i_proto )
 {
     access_sys_t *p_sys = p_access->p_sys;
     int           b_udp = ( i_proto == MMS_PROTO_UDP ) ? 1 : 0;
@@ -498,7 +499,7 @@ static int MMSOpen( stream_t  *p_access, vlc_url_t *p_url, int  i_proto )
     if( p_sys->i_handle_tcp < 0 )
     {
         msg_Err( p_access, "failed to open a connection (tcp)" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     msg_Dbg( p_access,
              "connection(tcp) with \"%s:%d\" successful",
@@ -512,16 +513,16 @@ static int MMSOpen( stream_t  *p_access, vlc_url_t *p_url, int  i_proto )
                                 NULL ) )
         {
             net_Close( p_sys->i_handle_tcp );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
-        p_sys->i_handle_udp = net_ListenUDP1( VLC_OBJECT(p_access), p_sys->sz_bind_addr,
+        p_sys->i_handle_udp = net_ListenUDP1( HEIMDALL_OBJECT(p_access), p_sys->sz_bind_addr,
                                               7000 );
         if( p_sys->i_handle_udp < 0 )
         {
             msg_Err( p_access, "failed to open a connection (udp)" );
             net_Close( p_sys->i_handle_tcp );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
         msg_Dbg( p_access,
                  "connection(udp) at \"%s:%d\" successful",
@@ -563,7 +564,7 @@ static int MMSOpen( stream_t  *p_access, vlc_url_t *p_url, int  i_proto )
     {
         var_buffer_free( &buffer );
         net_Close( p_sys->i_handle_tcp );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
 
     var_buffer_addUTF16( p_access, &buffer, tmp );
@@ -580,7 +581,7 @@ static int MMSOpen( stream_t  *p_access, vlc_url_t *p_url, int  i_proto )
     {
         var_buffer_free( &buffer );
         MMSClose( p_access );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     i_server_version = GetDWLE( p_sys->p_cmd + MMS_CMD_HEADERSIZE + 32 );
@@ -597,7 +598,7 @@ do \
     {\
         var_buffer_free( &buffer );\
         MMSClose( p_access );\
-        return VLC_EINVAL;\
+        return HEIMDALL_EINVAL;\
     }\
     char *str = FromCharset( "UTF-16LE", p, (size) * 2 ); \
     p += (size) * 2; \
@@ -630,7 +631,7 @@ do \
         {
             var_buffer_free( &buffer );
             MMSClose( p_access );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
     else
@@ -639,7 +640,7 @@ do \
         {
             var_buffer_free( &buffer );
             MMSClose( p_access );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
     var_buffer_addUTF16( p_access, &buffer, tmp );
@@ -661,7 +662,7 @@ do \
                  "%s protocol selection failed", b_udp ? "UDP" : "TCP" );
         var_buffer_free( &buffer );
         MMSClose( p_access );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     else if( p_sys->i_command != 0x02 )
     {
@@ -697,7 +698,7 @@ do \
         /*  FIXME */
         var_buffer_free( &buffer );
         MMSClose( p_access );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     if( p_sys->i_command != 0x06 ) // MID: 0x00040006
     {
@@ -713,7 +714,7 @@ do \
     {
         var_buffer_free( &buffer );
         MMSClose( p_access );
-        return VLC_EINVAL;
+        return HEIMDALL_EINVAL;
     }
 
     /*  1 for file ok, 2 for authen ok */
@@ -731,7 +732,7 @@ do \
                  GetDWLE( p_sys->p_cmd + MMS_CMD_HEADERSIZE ) );
         var_buffer_free( &buffer );
         MMSClose( p_access );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     p_sys->i_flags_broadcast =
@@ -763,7 +764,7 @@ do \
         msg_Err( p_access, "invalid values detected" );
         var_buffer_free( &buffer );
         MMSClose( p_access );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     /* *** send command 15 *** */
@@ -807,7 +808,7 @@ do \
             msg_Err( p_access, "cannot receive header" );
             var_buffer_free( &buffer );
             MMSClose( p_access );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
         if( p_sys->i_header >= p_sys->i_header_size )
         {
@@ -885,7 +886,7 @@ do \
         msg_Err( p_access, "cannot find any stream" );
         var_buffer_free( &buffer );
         MMSClose( p_access );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     mms_CommandSend( p_access, 0x33,
                      i_streams,
@@ -900,7 +901,7 @@ do \
                  p_sys->i_command );
         var_buffer_free( &buffer );
         MMSClose( p_access );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
 
@@ -908,7 +909,7 @@ do \
 
     msg_Info( p_access, "connection successful" );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /****************************************************************************
@@ -1042,20 +1043,20 @@ static int mms_CommandSend( stream_t *p_access, int i_command,
     var_buffer_add64( &buffer, 0 );
 
     /* send it */
-    vlc_mutex_lock( &p_sys->lock_netwrite );
+    heimdall_mutex_lock( &p_sys->lock_netwrite );
     i_ret = net_Write( p_access, p_sys->i_handle_tcp, buffer.p_data,
                        buffer.i_data - ( 8 - ( i_data - i_data_old ) ) );
-    vlc_mutex_unlock( &p_sys->lock_netwrite );
+    heimdall_mutex_unlock( &p_sys->lock_netwrite );
 
     if( i_ret != buffer.i_data - ( 8 - ( i_data - i_data_old ) ) )
     {
         var_buffer_free( &buffer );
         msg_Err( p_access, "failed to send command" );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     var_buffer_free( &buffer );
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int NetFillBuffer( stream_t *p_access )
@@ -1110,10 +1111,10 @@ static int NetFillBuffer( stream_t *p_access )
 
     do
     {
-        if( vlc_killed() )
+        if( heimdall_killed() )
             return -1;
 
-        i_ret = vlc_poll_i11e(ufd, nfd, timeout);
+        i_ret = heimdall_poll_i11e(ufd, nfd, timeout);
     }
     while( i_ret < 0 && errno == EINTR ); /* FIXME: recompute timeout */
 
@@ -1125,7 +1126,7 @@ static int NetFillBuffer( stream_t *p_access )
 
     if( i_ret < 0 )
     {
-        msg_Err( p_access, "network poll error: %s", vlc_strerror_c(errno) );
+        msg_Err( p_access, "network poll error: %s", heimdall_strerror_c(errno) );
         return -1;
     }
 
@@ -1452,7 +1453,7 @@ static int mms_ReceiveCommand( stream_t *p_access )
         if( NetFillBuffer( p_access ) < 0 )
         {
             msg_Warn( p_access, "cannot fill buffer" );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
         if( p_sys->i_buffer_tcp > 0 )
         {
@@ -1467,7 +1468,7 @@ static int mms_ReceiveCommand( stream_t *p_access )
 
             if( i_status < 0 )
             {
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             }
 
             if( p_sys->i_command == 0x1b )
@@ -1481,11 +1482,11 @@ static int mms_ReceiveCommand( stream_t *p_access )
         }
         else
         {
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 #define MMS_RETRY_MAX       10
@@ -1506,12 +1507,12 @@ static int mms_CommandRead( stream_t *p_access, int i_command1,
         }
         else if( i_command1 == 0 && i_command2 == 0)
         {
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
         else if( p_sys->i_command == i_command1 ||
                  p_sys->i_command == i_command2 )
         {
-            return VLC_SUCCESS;
+            return HEIMDALL_SUCCESS;
         }
         else
         {
@@ -1520,11 +1521,11 @@ static int mms_CommandRead( stream_t *p_access, int i_command1,
                 case 0x03:
                     msg_Warn( p_access, "socket closed by server" );
                     p_sys->b_eof = true;
-                    return VLC_EGENERIC;
+                    return HEIMDALL_EGENERIC;
                 case 0x1e:
                     msg_Warn( p_access, "end of media stream" );
                     p_sys->b_eof = true;
-                    return VLC_EGENERIC;
+                    return HEIMDALL_EGENERIC;
                 default:
                     break;
             }
@@ -1533,7 +1534,7 @@ static int mms_CommandRead( stream_t *p_access, int i_command1,
     p_sys->b_eof = true;
     msg_Warn( p_access, "failed to receive command (aborting)" );
 
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 
@@ -1594,12 +1595,12 @@ static void *KeepAliveThread( void *p_data )
     stream_t *p_access = p_data;
     access_sys_t *p_sys = p_access->p_sys;
 
-    vlc_thread_set_name("vlc-mms-keep");
+    heimdall_thread_set_name("heimdall-mms-keep");
 
     do  /* Send keep-alive every ten seconds */
         mms_CommandSend( p_access, 0x1b, 0, 0, NULL, 0 );
-    while (vlc_sem_timedwait( &p_sys->keep_alive.sem,
-                              vlc_tick_now() + VLC_TICK_FROM_SEC(10) ));
+    while (heimdall_sem_timedwait( &p_sys->keep_alive.sem,
+                              heimdall_tick_now() + HEIMDALL_TICK_FROM_SEC(10) ));
 
     return NULL;
 }
@@ -1610,8 +1611,8 @@ static void KeepAliveStart( stream_t *p_access )
     if( p_sys->b_keep_alive )
         return;
 
-    vlc_sem_init( &p_sys->keep_alive.sem, 0 );
-    p_sys->b_keep_alive = !vlc_clone( &p_sys->keep_alive.thread,
+    heimdall_sem_init( &p_sys->keep_alive.sem, 0 );
+    p_sys->b_keep_alive = !heimdall_clone( &p_sys->keep_alive.thread,
                                       KeepAliveThread, p_access );
 }
 
@@ -1621,7 +1622,7 @@ static void KeepAliveStop( stream_t *p_access )
     if( !p_sys->b_keep_alive )
         return;
 
-    vlc_sem_post( &p_sys->keep_alive.sem );
-    vlc_join( p_sys->keep_alive.thread, NULL );
+    heimdall_sem_post( &p_sys->keep_alive.sem );
+    heimdall_join( p_sys->keep_alive.thread, NULL );
     p_sys->b_keep_alive = false;
 }

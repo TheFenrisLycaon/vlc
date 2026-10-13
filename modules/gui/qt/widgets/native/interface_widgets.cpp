@@ -2,10 +2,11 @@
  * interface_widgets.cpp : Custom widgets for the main interface
  ****************************************************************************
  * Copyright (C) 2006-2010 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Clément Stenac <zorglub@videolan.org>
  *          Jean-Baptiste Kempf <jb@videolan.org>
- *          Rafaël Carré <funman@videolanorg>
+ *          Rafaël Carré <funman@lycariaorg>
  *          Ilkka Ollakka <ileoo@videolan.org>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -41,7 +42,7 @@
 #include <math.h>
 #include <cassert>
 
-#include <vlc_player.h>
+#include <heimdall_player.h>
 
 CoverArtLabel::CoverArtLabel( QWidget *parent, qt_intf_t *_p_i )
     : QLabel( parent ), p_intf( _p_i )

@@ -2,6 +2,7 @@
  * hxxx.c tests NAL conversions
  *****************************************************************************
  * Copyright (C) 2015 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -27,8 +28,8 @@
 #endif
 
 #include <assert.h>
-#include <vlc_common.h>
-#include <vlc_block.h>
+#include <heimdall_common.h>
+#include <heimdall_block.h>
 #include "../modules/packetizer/hxxx_nal.h"
 #include "../modules/packetizer/hxxx_nal.c"
 

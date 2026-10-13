@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright (C) 2014-2015 VLC authors and VideoLAN
  *                    2018 VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -18,7 +19,7 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
-#include <vlc_bits.h>
+#include <heimdall_bits.h>
 
 static inline const uint8_t *hxxx_ep3b_to_rbsp( const uint8_t *p, const uint8_t *end, unsigned *pi_prev, size_t i_count )
 {
@@ -66,7 +67,7 @@ static inline uint8_t * hxxx_ep3b_to_rbsp(const uint8_t *p_src, size_t i_src, si
 }
 #endif
 
-/* vlc_bits's bs_t forward callback for stripping emulation prevention three bytes */
+/* heimdall_bits's bs_t forward callback for stripping emulation prevention three bytes */
 struct hxxx_bsfw_ep3b_ctx_s
 {
     unsigned i_prev;

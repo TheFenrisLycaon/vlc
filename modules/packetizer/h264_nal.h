@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright © 2010-2014 VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Jean-Baptiste Kempf <jb@videolan.org>
  *
@@ -20,9 +21,9 @@
 #ifndef H264_NAL_H
 # define H264_NAL_H
 
-# include <vlc_common.h>
-# include <vlc_es.h>
-# include <vlc_bits.h>
+# include <heimdall_common.h>
+# include <heimdall_es.h>
+# include <heimdall_bits.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -37,7 +38,7 @@ extern "C" {
 #define PROFILE_H264_HIGH_444             144
 #define PROFILE_H264_HIGH_444_PREDICTIVE  244
 
-#define PROFILE_H264_CAVLC_INTRA          44
+#define PROFILE_H264_CAHEIMDALL_INTRA          44
 #define PROFILE_H264_SVC_BASELINE         83
 #define PROFILE_H264_SVC_HIGH             86
 #define PROFILE_H264_MVC_STEREO_HIGH      128

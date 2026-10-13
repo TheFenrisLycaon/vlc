@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2021 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,7 +34,7 @@
 #include "compositor_x11_uisurface.hpp"
 #include "compositor_common.hpp"
 
-using namespace vlc;
+using namespace heimdall;
 
 CompositorX11UISurface::CompositorX11UISurface(QWindow* window, QScreen* screen)
     : QWindow(screen)

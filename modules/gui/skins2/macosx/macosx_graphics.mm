@@ -2,6 +2,7 @@
  * macosx_graphics.mm
  *****************************************************************************
  * Copyright (C) 2026 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Fletcher Holt <fletcherholt649@gmail.com>
  *          Felix Paul Kühne <fkuehne@videolan.org>
@@ -34,7 +35,7 @@
 
 #include <cstring>
 
-@protocol VLCHitTestGraphics
+@protocol HeimdallHitTestGraphics
 - (void)setHitTestGraphics:(const MacOSXGraphics *)pGraphics;
 @end
 
@@ -320,7 +321,7 @@ void MacOSXGraphics::applyMaskToWindow( OSWindow &rWindow )
 {
     @autoreleasepool {
         MacOSXWindow &rMacWindow = static_cast<MacOSXWindow&>(rWindow);
-        NSWindow<VLCHitTestGraphics> *nsWindow = (NSWindow<VLCHitTestGraphics> *)rMacWindow.getNSWindow();
+        NSWindow<HeimdallHitTestGraphics> *nsWindow = (NSWindow<HeimdallHitTestGraphics> *)rMacWindow.getNSWindow();
         if( nsWindow && [nsWindow respondsToSelector:@selector(setHitTestGraphics:)] )
         {
             [nsWindow setHitTestGraphics:this];

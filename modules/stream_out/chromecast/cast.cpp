@@ -1,7 +1,8 @@
 /*****************************************************************************
- * cast.cpp: Chromecast sout module for vlc
+ * cast.cpp: Chromecast sout module for heimdall
  *****************************************************************************
  * Copyright © 2014-2015 VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Adrien Maglo <magsoft@videolan.org>
  *          Jean-Baptiste Kempf <jb@videolan.org>
@@ -32,13 +33,13 @@
 
 #include "../renderer_common.hpp"
 #include "chromecast.h"
-#include <vlc_configuration.h>
-#include <vlc_dialog.h>
+#include <heimdall_configuration.h>
+#include <heimdall_dialog.h>
 
-#include <vlc_sout.h>
-#include <vlc_block.h>
-#include <vlc_modules.h>
-#include <vlc_httpd.h>
+#include <heimdall_sout.h>
+#include <heimdall_block.h>
+#include <heimdall_modules.h>
+#include <heimdall_httpd.h>
 
 #include <cassert>
 
@@ -53,7 +54,7 @@
 
 namespace {
 
-static constexpr vlc_tick_t CHROMECAST_HANDOFF_ATTACH_TIMEOUT = VLC_TICK_FROM_SEC(5);
+static constexpr heimdall_tick_t CHROMECAST_HANDOFF_ATTACH_TIMEOUT = HEIMDALL_TICK_FROM_SEC(5);
 
 struct sout_access_out_sys_t
 {
@@ -65,7 +66,7 @@ struct sout_access_out_sys_t
     void prepare(sout_stream_t *p_stream, const std::string &mime);
     int url_cb(httpd_client_t *cl, httpd_message_t *answer, const httpd_message_t *query);
     void fifo_put_back(block_t *);
-    bool waitForClient(vlc_tick_t timeout, bool drained = false);
+    bool waitForClient(heimdall_tick_t timeout, bool drained = false);
     ssize_t write(sout_access_out_t *p_access, block_t *p_block);
     void close();
 
@@ -79,7 +80,7 @@ private:
     intf_sys_t * const m_intf;
     httpd_url_t       *m_url;
     httpd_client_t    *m_client;
-    vlc_fifo_t        *m_fifo;
+    heimdall_fifo_t        *m_fifo;
     block_t           *m_header;
     block_t           *m_copy_chain;
     block_t           **m_copy_last;
@@ -112,7 +113,7 @@ struct sout_stream_sys_t
         , out_streams_added( 0 )
     {
         assert(p_intf != NULL);
-        vlc_mutex_init(&lock);
+        heimdall_mutex_init(&lock);
     }
 
     ~sout_stream_sys_t()
@@ -120,7 +121,7 @@ struct sout_stream_sys_t
     }
 
     bool canDecodeVideo( const es_format_t * ) const;
-    bool canDecodeAudio( sout_stream_t* p_stream, vlc_fourcc_t i_codec,
+    bool canDecodeAudio( sout_stream_t* p_stream, heimdall_fourcc_t i_codec,
                          const audio_format_t* p_fmt ) const;
     bool startSoutChain(sout_stream_t* p_stream,
                         const std::vector<sout_stream_id_sys_t*> &new_streams,
@@ -137,14 +138,14 @@ struct sout_stream_sys_t
     sout_stream_t     *p_out;
     std::string        mime;
 
-    vlc_mutex_t        lock; /* for input events cb */
+    heimdall_mutex_t        lock; /* for input events cb */
 
     intf_sys_t * const p_intf;
     const bool b_supports_video;
     const int i_port;
 
     sout_stream_id_sys_t *             video_proxy_id;
-    vlc_tick_t                         first_video_keyframe_pts;
+    heimdall_tick_t                         first_video_keyframe_pts;
 
     bool                               es_changed;
     bool                               cc_has_input;
@@ -161,7 +162,7 @@ struct sout_stream_sys_t
     unsigned int                       spu_streams_count;
 
 private:
-    std::string GetAcodecOption( sout_stream_t *, vlc_fourcc_t *, const audio_format_t *, int );
+    std::string GetAcodecOption( sout_stream_t *, heimdall_fourcc_t *, const audio_format_t *, int );
     bool UpdateOutput( sout_stream_t * );
 };
 
@@ -184,11 +185,11 @@ static const char DEFAULT_MUXER_WEBM[] = "avformat{mux=webm,options={live=1},res
 /*****************************************************************************
  * Local prototypes
  *****************************************************************************/
-static int Open(vlc_object_t *);
+static int Open(heimdall_object_t *);
 static void Close(sout_stream_t *);
-static int ProxyOpen(vlc_object_t *);
-static int AccessOpen(vlc_object_t *);
-static void AccessClose(vlc_object_t *);
+static int ProxyOpen(heimdall_object_t *);
+static int AccessOpen(heimdall_object_t *);
+static void AccessClose(heimdall_object_t *);
 
 static const char *const ppsz_sout_options[] = {
     "ip", "port", "http-port", "video", "device-name", NULL
@@ -213,7 +214,7 @@ static const char *const ppsz_sout_options[] = {
 #define HTTPD_BUFFER_MAX INT64_C(32 * 1024 * 1024) /* 32 MB */
 #define HTTPD_BUFFER_COPY_MAX INT64_C(10 * 1024 * 1024) /* 10 MB */
 
-vlc_module_begin ()
+heimdall_module_begin ()
 
     set_shortname(N_("Chromecast"))
     set_description(N_("Chromecast stream output"))
@@ -245,7 +246,7 @@ vlc_module_begin ()
         add_shortcut("chromecast-http")
         set_capability("sout access", 0)
         set_callbacks(AccessOpen, AccessClose)
-vlc_module_end ()
+heimdall_module_end ()
 
 static void *ProxyAdd(sout_stream_t *p_stream, const es_format_t *p_fmt, const char* es_id)
 {
@@ -293,12 +294,12 @@ static int ProxySend(sout_stream_t *p_stream, void *_id, block_t *p_buffer)
              || p_sys->first_video_keyframe_pts == -1)
             {
                 block_ChainRelease(p_buffer);
-                return VLC_SUCCESS;
+                return HEIMDALL_SUCCESS;
             }
         }
 
         int ret = sout_StreamIdSend(p_stream->p_next, id, p_buffer);
-        if (ret == VLC_SUCCESS && !p_sys->cc_has_input)
+        if (ret == HEIMDALL_SUCCESS && !p_sys->cc_has_input)
         {
             /* Start the chromecast only when all streams are added into the
              * last sout (the http one) */
@@ -310,7 +311,7 @@ static int ProxySend(sout_stream_t *p_stream, void *_id, block_t *p_buffer)
     else
     {
         block_ChainRelease(p_buffer);
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 }
 
@@ -328,17 +329,17 @@ static const struct sout_stream_operations proxy_ops = [] {
     return ops;
 }();
 
-static int ProxyOpen(vlc_object_t *p_this)
+static int ProxyOpen(heimdall_object_t *p_this)
 {
     sout_stream_t *p_stream = reinterpret_cast<sout_stream_t*>(p_this);
     sout_stream_sys_t *p_sys = (sout_stream_sys_t *) var_InheritAddress(p_this, SOUT_CFG_PREFIX "sys");
     if (p_sys == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     p_stream->p_sys = (sout_stream_sys_t *) p_sys;
     p_sys->out_streams_added = 0;
     p_stream->ops = &proxy_ops;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int httpd_url_cb(httpd_callback_sys_t *data, httpd_client_t *cl,
@@ -378,7 +379,7 @@ sout_access_out_sys_t::~sout_access_out_sys_t()
 
 void sout_access_out_sys_t::clearUnlocked()
 {
-    block_ChainRelease(vlc_fifo_DequeueAllUnlocked(m_fifo));
+    block_ChainRelease(heimdall_fifo_DequeueAllUnlocked(m_fifo));
     if (m_header)
     {
         block_Release(m_header);
@@ -427,48 +428,48 @@ void sout_access_out_sys_t::restoreCopy()
 
 void sout_access_out_sys_t::clear()
 {
-    vlc_fifo_Lock(m_fifo);
+    heimdall_fifo_Lock(m_fifo);
     clearUnlocked();
-    vlc_fifo_Unlock(m_fifo);
-    vlc_fifo_Signal(m_fifo);
+    heimdall_fifo_Unlock(m_fifo);
+    heimdall_fifo_Signal(m_fifo);
 }
 
 void sout_access_out_sys_t::stop()
 {
-    vlc_fifo_Lock(m_fifo);
+    heimdall_fifo_Lock(m_fifo);
     clearUnlocked();
     m_intf->setPacing(false);
     m_client = NULL;
-    vlc_fifo_Unlock(m_fifo);
-    vlc_fifo_Signal(m_fifo);
+    heimdall_fifo_Unlock(m_fifo);
+    heimdall_fifo_Signal(m_fifo);
 }
 
 void sout_access_out_sys_t::prepare(sout_stream_t *p_stream, const std::string &mime)
 {
     var_SetAddress(p_stream, SOUT_CFG_PREFIX "access-out-sys", this);
 
-    vlc_fifo_Lock(m_fifo);
+    heimdall_fifo_Lock(m_fifo);
     clearUnlocked();
     m_intf->setPacing(false);
     m_mime = mime;
     m_eof = false;
-    vlc_fifo_Unlock(m_fifo);
+    heimdall_fifo_Unlock(m_fifo);
 }
 
 void sout_access_out_sys_t::fifo_put_back(block_t *p_block)
 {
-    block_t *p_fifo = vlc_fifo_DequeueAllUnlocked(m_fifo);
-    vlc_fifo_QueueUnlocked(m_fifo, p_block);
-    vlc_fifo_QueueUnlocked(m_fifo, p_fifo);
+    block_t *p_fifo = heimdall_fifo_DequeueAllUnlocked(m_fifo);
+    heimdall_fifo_QueueUnlocked(m_fifo, p_block);
+    heimdall_fifo_QueueUnlocked(m_fifo, p_fifo);
 }
 
 int sout_access_out_sys_t::url_cb(httpd_client_t *cl, httpd_message_t *answer,
                                   const httpd_message_t *query)
 {
     if (!answer || !query || !cl)
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
-    vlc_fifo_Lock(m_fifo);
+    heimdall_fifo_Lock(m_fifo);
 
     if (!answer->i_body_offset)
     {
@@ -481,19 +482,19 @@ int sout_access_out_sys_t::url_cb(httpd_client_t *cl, httpd_message_t *answer,
 
     /* Send data per 512kB minimum */
     size_t i_min_buffer = 524288;
-    while (m_client && vlc_fifo_GetBytes(m_fifo) < i_min_buffer && !m_eof)
-        vlc_fifo_Wait(m_fifo);
+    while (m_client && heimdall_fifo_GetBytes(m_fifo) < i_min_buffer && !m_eof)
+        heimdall_fifo_Wait(m_fifo);
 
     block_t *p_block = NULL;
-    if (m_client && vlc_fifo_GetBytes(m_fifo) > 0)
+    if (m_client && heimdall_fifo_GetBytes(m_fifo) > 0)
     {
         /* if less data is available, then we must be EOF */
-        if (vlc_fifo_GetBytes(m_fifo) < i_min_buffer)
+        if (heimdall_fifo_GetBytes(m_fifo) < i_min_buffer)
         {
             assert(m_eof);
-            i_min_buffer = vlc_fifo_GetBytes(m_fifo);
+            i_min_buffer = heimdall_fifo_GetBytes(m_fifo);
         }
-        block_t *p_first = vlc_fifo_DequeueUnlocked(m_fifo);
+        block_t *p_first = heimdall_fifo_DequeueUnlocked(m_fifo);
 
         assert(p_first);
         size_t i_total_size = p_first->i_buffer;
@@ -501,7 +502,7 @@ int sout_access_out_sys_t::url_cb(httpd_client_t *cl, httpd_message_t *answer,
 
         while (i_total_size < i_min_buffer)
         {
-            p_next = vlc_fifo_DequeueUnlocked(m_fifo);
+            p_next = heimdall_fifo_DequeueUnlocked(m_fifo);
             assert(p_next);
             i_total_size += p_next->i_buffer;
             p_cur->p_next = p_next;
@@ -519,7 +520,7 @@ int sout_access_out_sys_t::url_cb(httpd_client_t *cl, httpd_message_t *answer,
         else
             p_block = p_first;
 
-        if (vlc_fifo_GetBytes(m_fifo) < HTTPD_BUFFER_PACE)
+        if (heimdall_fifo_GetBytes(m_fifo) < HTTPD_BUFFER_PACE)
             m_intf->setPacing(false);
     }
 
@@ -561,23 +562,23 @@ int sout_access_out_sys_t::url_cb(httpd_client_t *cl, httpd_message_t *answer,
     if (!answer->i_body)
         httpd_MsgAdd(answer, "Connection", "close");
 
-    vlc_fifo_Unlock(m_fifo);
-    return VLC_SUCCESS;
+    heimdall_fifo_Unlock(m_fifo);
+    return HEIMDALL_SUCCESS;
 }
 
-bool sout_access_out_sys_t::waitForClient(vlc_tick_t timeout, bool drained)
+bool sout_access_out_sys_t::waitForClient(heimdall_tick_t timeout, bool drained)
 {
-    const vlc_tick_t deadline = vlc_tick_now() + timeout;
-    while (vlc_tick_now() < deadline)
+    const heimdall_tick_t deadline = heimdall_tick_now() + timeout;
+    while (heimdall_tick_now() < deadline)
     {
-        vlc_fifo_Lock(m_fifo);
-        const bool has_client = m_client != NULL && (!drained || vlc_fifo_GetBytes(m_fifo) == 0);
-        vlc_fifo_Unlock(m_fifo);
+        heimdall_fifo_Lock(m_fifo);
+        const bool has_client = m_client != NULL && (!drained || heimdall_fifo_GetBytes(m_fifo) == 0);
+        heimdall_fifo_Unlock(m_fifo);
 
         if (has_client)
             return true;
 
-        vlc_tick_sleep(VLC_TICK_FROM_MS(100));
+        heimdall_tick_sleep(HEIMDALL_TICK_FROM_MS(100));
     }
     return false;
 }
@@ -586,7 +587,7 @@ ssize_t sout_access_out_sys_t::write(sout_access_out_t *p_access, block_t *p_blo
 {
     size_t i_len = p_block->i_buffer;
 
-    vlc_fifo_Lock(m_fifo);
+    heimdall_fifo_Lock(m_fifo);
 
     if (p_block->i_flags & BLOCK_FLAG_HEADER)
     {
@@ -597,7 +598,7 @@ ssize_t sout_access_out_sys_t::write(sout_access_out_t *p_access, block_t *p_blo
     else
     {
         /* Drop buffer is the fifo is really full */
-        if (vlc_fifo_GetBytes(m_fifo) >= HTTPD_BUFFER_PACE)
+        if (heimdall_fifo_GetBytes(m_fifo) >= HTTPD_BUFFER_PACE)
         {
             /* XXX: Hackisk way to pace between the sout (controlled by the
              * decoder thread) and the demux filter (controlled by the input
@@ -610,31 +611,31 @@ ssize_t sout_access_out_sys_t::write(sout_access_out_t *p_access, block_t *p_blo
 
             m_intf->setPacing(true);
 
-            while (vlc_fifo_GetBytes(m_fifo) >= HTTPD_BUFFER_MAX)
+            while (heimdall_fifo_GetBytes(m_fifo) >= HTTPD_BUFFER_MAX)
             {
-                block_t *p_drop = vlc_fifo_DequeueUnlocked(m_fifo);
+                block_t *p_drop = heimdall_fifo_DequeueUnlocked(m_fifo);
                 msg_Warn(p_access, "httpd buffer full: dropping %zuB", p_drop->i_buffer);
                 block_Release(p_drop);
             }
         }
-        vlc_fifo_QueueUnlocked(m_fifo, p_block);
+        heimdall_fifo_QueueUnlocked(m_fifo, p_block);
     }
 
     m_eof = false;
 
-    vlc_fifo_Unlock(m_fifo);
-    vlc_fifo_Signal(m_fifo);
+    heimdall_fifo_Unlock(m_fifo);
+    heimdall_fifo_Signal(m_fifo);
 
     return i_len;
 }
 
 void sout_access_out_sys_t::close()
 {
-    vlc_fifo_Lock(m_fifo);
+    heimdall_fifo_Lock(m_fifo);
     m_eof = true;
     m_intf->setPacing(false);
-    vlc_fifo_Unlock(m_fifo);
-    vlc_fifo_Signal(m_fifo);
+    heimdall_fifo_Unlock(m_fifo);
+    heimdall_fifo_Signal(m_fifo);
 }
 
 ssize_t AccessWrite(sout_access_out_t *p_access, block_t *p_block)
@@ -653,28 +654,28 @@ static int AccessControl(sout_access_out_t *p_access, int i_query, va_list args)
             *va_arg(args, bool *) = true;
             break;
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int AccessOpen(vlc_object_t *p_this)
+static int AccessOpen(heimdall_object_t *p_this)
 {
     sout_access_out_t *p_access = (sout_access_out_t*)p_this;
 
     sout_access_out_sys_t *p_sys = (sout_access_out_sys_t *)
         var_InheritAddress(p_access, SOUT_CFG_PREFIX "access-out-sys");
     if (p_sys == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     p_access->pf_write       = AccessWrite;
     p_access->pf_control     = AccessControl;
     p_access->p_sys          = p_sys;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static void AccessClose(vlc_object_t *p_this)
+static void AccessClose(heimdall_object_t *p_this)
 {
     sout_access_out_t *p_access = (sout_access_out_t*)p_this;
     sout_access_out_sys_t *p_sys = reinterpret_cast<sout_access_out_sys_t *>( p_access->p_sys );
@@ -688,7 +689,7 @@ static void AccessClose(vlc_object_t *p_this)
 static void *Add(sout_stream_t *p_stream, const es_format_t *p_fmt, const char *es_id)
 {
     sout_stream_sys_t *p_sys = reinterpret_cast<sout_stream_sys_t *>( p_stream->p_sys );
-    vlc_mutex_locker locker(&p_sys->lock);
+    heimdall_mutex_locker locker(&p_sys->lock);
 
     if (!p_sys->b_supports_video)
     {
@@ -770,7 +771,7 @@ static void Del(sout_stream_t *p_stream, void *_id)
     sout_stream_sys_t *p_sys = reinterpret_cast<sout_stream_sys_t *>( p_stream->p_sys );
     sout_stream_id_sys_t *id = reinterpret_cast<sout_stream_id_sys_t *>( _id );
 
-    vlc_mutex_locker locker(&p_sys->lock);
+    heimdall_mutex_locker locker(&p_sys->lock);
     DelInternal(p_stream, id, true);
 }
 
@@ -802,17 +803,17 @@ bool sout_stream_sys_t::canDecodeVideo( const es_format_t *es ) const
 
     switch( es->i_codec )
     {
-        case VLC_CODEC_HEVC:
+        case HEIMDALL_CODEC_HEVC:
             if (original_chromecast) 
                 // Original Chromecasts do not support HEVC
                 return false;
-        case VLC_CODEC_H264:
+        case HEIMDALL_CODEC_H264:
             return true;
-        case VLC_CODEC_VP8:
+        case HEIMDALL_CODEC_VP8:
             if (es_format_HasVpxAlpha(es)) // contains alpha extradata
                 return false;
             return true;
-        case VLC_CODEC_VP9:
+        case HEIMDALL_CODEC_VP9:
             if (es_format_HasVpxAlpha(es)) // contains alpha extradata
                 return false;
             return true;
@@ -822,26 +823,26 @@ bool sout_stream_sys_t::canDecodeVideo( const es_format_t *es ) const
 }
 
 bool sout_stream_sys_t::canDecodeAudio( sout_stream_t *p_stream,
-                                        vlc_fourcc_t i_codec,
+                                        heimdall_fourcc_t i_codec,
                                         const audio_format_t* p_fmt ) const
 {
     if( transcoding_state & TRANSCODING_AUDIO )
         return false;
     switch( i_codec )
     {
-        case VLC_CODEC_A52:
-        case VLC_CODEC_EAC3:
+        case HEIMDALL_CODEC_A52:
+        case HEIMDALL_CODEC_EAC3:
             return var_InheritBool( p_stream, SOUT_CFG_PREFIX "audio-passthrough" );
-        case VLC_FOURCC('h', 'a', 'a', 'c'):
-        case VLC_FOURCC('l', 'a', 'a', 'c'):
-        case VLC_FOURCC('s', 'a', 'a', 'c'):
-        case VLC_CODEC_MP4A:
+        case HEIMDALL_FOURCC('h', 'a', 'a', 'c'):
+        case HEIMDALL_FOURCC('l', 'a', 'a', 'c'):
+        case HEIMDALL_FOURCC('s', 'a', 'a', 'c'):
+        case HEIMDALL_CODEC_MP4A:
             return p_fmt->i_channels <= 2;
-        case VLC_CODEC_VORBIS:
-        case VLC_CODEC_OPUS:
-        case VLC_CODEC_MP3:
-        case VLC_CODEC_MP2:
-        case VLC_CODEC_MPGA:
+        case HEIMDALL_CODEC_VORBIS:
+        case HEIMDALL_CODEC_OPUS:
+        case HEIMDALL_CODEC_MP3:
+        case HEIMDALL_CODEC_MP2:
+        case HEIMDALL_CODEC_MPGA:
             return true;
         default:
             return false;
@@ -885,7 +886,7 @@ bool sout_stream_sys_t::startSoutChain(sout_stream_t *p_stream,
 
     access_out_live.prepare( p_stream, mime );
 
-    p_out = sout_StreamChainNew(VLC_OBJECT(p_stream), sout.c_str(), NULL);
+    p_out = sout_StreamChainNew(HEIMDALL_OBJECT(p_stream), sout.c_str(), NULL);
     if (p_out == NULL) {
         msg_Dbg(p_stream, "could not create sout chain:%s", sout.c_str());
         out_streams.clear();
@@ -944,7 +945,7 @@ bool sout_stream_sys_t::transcodingCanFallback() const
 }
 
 std::string
-sout_stream_sys_t::GetAcodecOption( sout_stream_t *p_stream, vlc_fourcc_t *p_codec_audio,
+sout_stream_sys_t::GetAcodecOption( sout_stream_t *p_stream, heimdall_fourcc_t *p_codec_audio,
                                     const audio_format_t *p_aud, int i_quality )
 {
     std::stringstream ssout;
@@ -971,23 +972,23 @@ sout_stream_sys_t::GetAcodecOption( sout_stream_t *p_stream, vlc_fourcc_t *p_cod
 
     if ( !b_audio_mp3
       && p_aud->i_channels > 2 && module_exists( "vorbis" ) )
-        *p_codec_audio = VLC_CODEC_VORBIS;
+        *p_codec_audio = HEIMDALL_CODEC_VORBIS;
     else
-        *p_codec_audio = VLC_CODEC_MP3;
+        *p_codec_audio = HEIMDALL_CODEC_MP3;
 
     msg_Dbg( p_stream, "Converting audio to %.4s", (const char*)p_codec_audio );
 
     ssout << "acodec=";
     char fourcc[5];
-    vlc_fourcc_to_char( *p_codec_audio, fourcc );
+    heimdall_fourcc_to_char( *p_codec_audio, fourcc );
     fourcc[4] = '\0';
     ssout << fourcc << ',';
 
     /* XXX: higher vorbis qualities can cause glitches on some CC
      * devices (Chromecast 1 & 2) */
-    if( *p_codec_audio == VLC_CODEC_VORBIS )
+    if( *p_codec_audio == HEIMDALL_CODEC_VORBIS )
         ssout << "aenc=vorbis{quality=4},";
-    else if( *p_codec_audio == VLC_CODEC_MP3 )
+    else if( *p_codec_audio == HEIMDALL_CODEC_MP3 )
         ssout << "ab=320,";
     return ssout.str();
 }
@@ -1002,7 +1003,7 @@ bool sout_stream_sys_t::UpdateOutput( sout_stream_t *p_stream )
     es_changed = false;
 
     bool canRemux = true;
-    vlc_fourcc_t i_codec_video = 0, i_codec_audio = 0;
+    heimdall_fourcc_t i_codec_video = 0, i_codec_audio = 0;
     const es_format_t *p_original_audio = NULL;
     const es_format_t *p_original_video = NULL;
     const es_format_t *p_original_spu = NULL;
@@ -1086,8 +1087,8 @@ bool sout_stream_sys_t::UpdateOutput( sout_stream_t *p_stream )
         if ( !perf_warning_shown && i_codec_video == 0 && p_original_video
           && var_InheritInteger( p_stream, RENDERER_CFG_PREFIX "show-perf-warning" ) )
         {
-            int res = vlc_dialog_wait_question( p_stream,
-                          VLC_DIALOG_QUESTION_WARNING,
+            int res = heimdall_dialog_wait_question( p_stream,
+                          HEIMDALL_DIALOG_QUESTION_WARNING,
                          _("Cancel"), _("OK"), _("OK, don't warn me again"),
                          _("Performance warning"),
                          _("Casting this video requires conversion. "
@@ -1113,8 +1114,8 @@ bool sout_stream_sys_t::UpdateOutput( sout_stream_t *p_stream )
         if ( i_codec_video == 0 && p_original_video )
         {
             try {
-                ssout << vlc_sout_renderer_GetVcodecOption( p_stream,
-                                        { VLC_CODEC_H264, VLC_CODEC_VP8 },
+                ssout << heimdall_sout_renderer_GetVcodecOption( p_stream,
+                                        { HEIMDALL_CODEC_H264, HEIMDALL_CODEC_VP8 },
                                         &i_codec_video,
                                         &p_original_video->video, i_quality );
                 new_transcoding_state |= TRANSCODING_VIDEO;
@@ -1127,10 +1128,10 @@ bool sout_stream_sys_t::UpdateOutput( sout_stream_t *p_stream )
         ssout << "}:";
     }
 
-    const bool is_webm = ( i_codec_audio == VLC_CODEC_VORBIS ||
-                           i_codec_audio == VLC_CODEC_OPUS ) &&
-                         ( i_codec_video == VLC_CODEC_VP8 ||
-                           i_codec_video == VLC_CODEC_VP9 );
+    const bool is_webm = ( i_codec_audio == HEIMDALL_CODEC_VORBIS ||
+                           i_codec_audio == HEIMDALL_CODEC_OPUS ) &&
+                         ( i_codec_video == HEIMDALL_CODEC_VP8 ||
+                           i_codec_video == HEIMDALL_CODEC_VP9 );
 
     if ( !p_original_video )
     {
@@ -1205,23 +1206,23 @@ static int Send(sout_stream_t *p_stream, void *_id, block_t *p_buffer)
 {
     sout_stream_sys_t *p_sys = reinterpret_cast<sout_stream_sys_t *>( p_stream->p_sys );
     sout_stream_id_sys_t *id = reinterpret_cast<sout_stream_id_sys_t *>( _id );
-    vlc_mutex_locker locker(&p_sys->lock);
+    heimdall_mutex_locker locker(&p_sys->lock);
 
     if( p_sys->isFlushing( p_stream ) || p_sys->cc_eof )
     {
         block_ChainRelease( p_buffer );
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
     sout_stream_id_sys_t *next_id = p_sys->GetSubId( p_stream, id );
     if ( next_id == NULL )
     {
         block_ChainRelease( p_buffer );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     int ret = sout_StreamIdSend(p_sys->p_out, next_id, p_buffer);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
         DelInternal(p_stream, id, false);
 
     return ret;
@@ -1231,7 +1232,7 @@ static void Flush( sout_stream_t *p_stream, void *_id )
 {
     sout_stream_sys_t *p_sys = reinterpret_cast<sout_stream_sys_t *>( p_stream->p_sys );
     sout_stream_id_sys_t *id = reinterpret_cast<sout_stream_id_sys_t *>( _id );
-    vlc_mutex_locker locker(&p_sys->lock);
+    heimdall_mutex_locker locker(&p_sys->lock);
 
     sout_stream_id_sys_t *next_id = p_sys->GetSubId( p_stream, id, false );
     if ( next_id == NULL )
@@ -1260,7 +1261,7 @@ static void on_input_event_cb(void *data, enum cc_input_event event, union cc_in
     sout_stream_t *p_stream = reinterpret_cast<sout_stream_t*>(data);
     sout_stream_sys_t *p_sys = reinterpret_cast<sout_stream_sys_t *>( p_stream->p_sys );
 
-    vlc_mutex_locker locker(&p_sys->lock);
+    heimdall_mutex_locker locker(&p_sys->lock);
     switch (event)
     {
         case CC_INPUT_EVENT_EOF:
@@ -1300,9 +1301,9 @@ static const struct sout_stream_operations ops = [] {
 /*****************************************************************************
  * Open: connect to the Chromecast and initialize the sout
  *****************************************************************************/
-static int Open(vlc_object_t *p_this)
+static int Open(heimdall_object_t *p_this)
 {
-    vlc_object_t *parent = vlc_object_parent(p_this);
+    heimdall_object_t *parent = heimdall_object_parent(p_this);
     sout_stream_t *p_stream = reinterpret_cast<sout_stream_t*>(p_this);
     sout_stream_sys_t *p_sys = NULL;
     intf_sys_t *p_intf = NULL;
@@ -1325,11 +1326,11 @@ static int Open(vlc_object_t *p_this)
     i_device_port = var_InheritInteger(p_stream, SOUT_CFG_PREFIX "port");
     i_local_server_port = var_InheritInteger(p_stream, SOUT_CFG_PREFIX "http-port");
 
-    var_Create(p_stream, "http-port", VLC_VAR_INTEGER);
+    var_Create(p_stream, "http-port", HEIMDALL_VAR_INTEGER);
     var_SetInteger(p_stream, "http-port", i_local_server_port);
-    var_Create(p_stream, "http-host", VLC_VAR_STRING);
+    var_Create(p_stream, "http-host", HEIMDALL_VAR_STRING);
     var_SetString(p_stream, "http-host", "");
-    httpd_host = vlc_http_HostNew(VLC_OBJECT(p_stream));
+    httpd_host = heimdall_http_HostNew(HEIMDALL_OBJECT(p_stream));
     if (httpd_host == NULL)
         goto error;
 
@@ -1366,13 +1367,13 @@ static int Open(vlc_object_t *p_this)
     p_intf->setOnInputEventCb(on_input_event_cb, p_stream);
 
     /* prevent sout-mux-caching since chromecast-proxy is already doing it */
-    var_Create(parent, "sout-mux-caching", VLC_VAR_INTEGER);
+    var_Create(parent, "sout-mux-caching", HEIMDALL_VAR_INTEGER);
     var_SetInteger(parent, "sout-mux-caching", 0);
 
-    var_Create(parent, SOUT_CFG_PREFIX "sys", VLC_VAR_ADDRESS);
+    var_Create(parent, SOUT_CFG_PREFIX "sys", HEIMDALL_VAR_ADDRESS);
     var_SetAddress(parent, SOUT_CFG_PREFIX "sys", p_sys );
 
-    var_Create(p_stream, SOUT_CFG_PREFIX "access-out-sys", VLC_VAR_ADDRESS);
+    var_Create(p_stream, SOUT_CFG_PREFIX "access-out-sys", HEIMDALL_VAR_ADDRESS);
 
     // Set the sout callbacks.
     p_stream->ops = &ops;
@@ -1380,7 +1381,7 @@ static int Open(vlc_object_t *p_this)
 
     free(psz_ip);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     delete p_intf;
@@ -1388,7 +1389,7 @@ error:
         httpd_HostDelete(httpd_host);
     free(psz_ip);
     delete p_sys;
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 /*****************************************************************************
@@ -1396,7 +1397,7 @@ error:
  *****************************************************************************/
 static void Close(sout_stream_t *p_stream)
 {
-    vlc_object_t *parent = vlc_object_parent(p_stream);
+    heimdall_object_t *parent = heimdall_object_parent(p_stream);
     sout_stream_sys_t *p_sys = reinterpret_cast<sout_stream_sys_t *>( p_stream->p_sys );
 
     assert(p_sys->out_streams.empty() && p_sys->streams.empty());

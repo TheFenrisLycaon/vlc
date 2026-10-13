@@ -2,6 +2,7 @@
  * utf8.c: Test for UTF-8 encoding/decoding stuff
  *****************************************************************************
  * Copyright (C) 2006 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -22,8 +23,8 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_charset.h>
+#include <heimdall_common.h>
+#include <heimdall_charset.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -39,7 +40,7 @@ static void test_towc(const char *in, ssize_t want_len, uint32_t want_cp)
     else
         printf("Invalid sequence of %zu bytes\n", strlen(in));
 
-    len = vlc_towc(in, &cp);
+    len = heimdall_towc(in, &cp);
 
     if (len != want_len)
     {
@@ -97,7 +98,7 @@ static void test_strcasestr (const char *h, const char *n, ssize_t offset)
     printf ("\"%s\" should %sbe found in \"%s\"...\n", n,
             (offset != -1) ? "" : "not ", h);
 
-    const char *ret = vlc_strcasestr (h, n);
+    const char *ret = heimdall_strcasestr (h, n);
     if (offset == -1)
     {
         if (ret != NULL)

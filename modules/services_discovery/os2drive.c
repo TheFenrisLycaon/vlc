@@ -1,9 +1,10 @@
 /**
  * @file os2drive.c
- * @brief List of disc drives for VLC media player for OS/2
+ * @brief List of disc drives for Heimdall media player for OS/2
  */
 /*****************************************************************************
  * Copyright (C) 2012 KO Myung-Hun <komh@chollian.net>
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -24,21 +25,21 @@
 # include <config.h>
 #endif
 
-#include <vlc_common.h>
-#include <vlc_services_discovery.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_services_discovery.h>
+#include <heimdall_plugin.h>
 
 #define IOCTL_CDROMDISK2        0x82
 #define CDROMDISK2_DRIVELETTERS 0x60
 
-static int Open (vlc_object_t *);
+static int Open (heimdall_object_t *);
 
-VLC_SD_PROBE_HELPER("disc", N_("Discs"), SD_CAT_DEVICES)
+HEIMDALL_SD_PROBE_HELPER("disc", N_("Discs"), SD_CAT_DEVICES)
 
 /*
  * Module descriptor
  */
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname (N_("Discs"))
     set_description (N_("Discs"))
     set_subcategory (SUBCAT_PLAYLIST_SD)
@@ -46,14 +47,14 @@ vlc_module_begin ()
     set_callback(Open)
     add_shortcut ("disc")
 
-    VLC_SD_PROBE_SUBMODULE
+    HEIMDALL_SD_PROBE_SUBMODULE
 
-vlc_module_end ()
+heimdall_module_end ()
 
 /**
  * Probes and initializes.
  */
-static int Open (vlc_object_t *obj)
+static int Open (heimdall_object_t *obj)
 {
     services_discovery_t *sd = (services_discovery_t *)obj;
 
@@ -69,7 +70,7 @@ static int Open (vlc_object_t *obj)
     if (DosOpen ((PSZ)"CD-ROM2$", (PHFILE)&hcd2, &ulAction, 0, FILE_NORMAL,
                  OPEN_ACTION_OPEN_IF_EXISTS | OPEN_ACTION_FAIL_IF_NEW,
                  OPEN_ACCESS_READONLY | OPEN_SHARE_DENYNONE, NULL))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     rc = DosDevIOCtl (hcd2, IOCTL_CDROMDISK2, CDROMDISK2_DRIVELETTERS,
                       NULL, 0, &ulParamLen, &ulData, sizeof(ulData), &ulDataLen);
@@ -99,5 +100,5 @@ static int Open (vlc_object_t *obj)
 
     DosClose (hcd2);
 
-    return rc ? VLC_EGENERIC : VLC_SUCCESS;
+    return rc ? HEIMDALL_EGENERIC : HEIMDALL_SUCCESS;
 }

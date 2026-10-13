@@ -2,6 +2,7 @@
  * ytdl.c:
  *****************************************************************************
  * Copyright (C) 2019-2020 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -34,19 +35,19 @@
 #endif
 
 #include "json/json.h"
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_demux.h>
-#include <vlc_stream.h>
-#include <vlc_fs.h>
-#include <vlc_input_item.h>
-#include <vlc_plugin.h>
-#include <vlc_spawn.h>
-#include <vlc_strings.h>
-#include <vlc_interrupt.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_demux.h>
+#include <heimdall_stream.h>
+#include <heimdall_fs.h>
+#include <heimdall_input_item.h>
+#include <heimdall_plugin.h>
+#include <heimdall_spawn.h>
+#include <heimdall_strings.h>
+#include <heimdall_interrupt.h>
 
 struct ytdl_json {
-    struct vlc_logger *logger;
+    struct heimdall_logger *logger;
     int fd;
 };
 
@@ -54,15 +55,15 @@ void json_parse_error(void *data, const char *msg)
 {
     struct ytdl_json *sys = data;
 
-    vlc_error(sys->logger, "%s", msg);
+    heimdall_error(sys->logger, "%s", msg);
 }
 
 size_t json_read(void *data, void *buf, size_t size)
 {
     struct ytdl_json *sys = data;
 
-    while (!vlc_killed()) {
-        ssize_t val = vlc_read_i11e(sys->fd, buf, size);
+    while (!heimdall_killed()) {
+        ssize_t val = heimdall_read_i11e(sys->fd, buf, size);
 
         if (val >= 0)
             return val;
@@ -75,16 +76,16 @@ static int ytdl_popen(pid_t *restrict pid, const char *argv[])
 {
     int fds[2];
 
-    if (vlc_pipe(fds))
+    if (heimdall_pipe(fds))
         return -1;
 
     int fdv[] = { -1, fds[1], STDERR_FILENO, -1 };
-    int val = vlc_spawnp(pid, argv[0], fdv, argv);
+    int val = heimdall_spawnp(pid, argv[0], fdv, argv);
 
-    vlc_close(fds[1]);
+    heimdall_close(fds[1]);
 
     if (val) {
-        vlc_close(fds[0]);
+        heimdall_close(fds[0]);
         errno = val;
         return -1;
     }
@@ -93,7 +94,7 @@ static int ytdl_popen(pid_t *restrict pid, const char *argv[])
 }
 
 #ifdef _WIN32
-static int vlc_kill(pid_t pid, int signum)
+static int heimdall_kill(pid_t pid, int signum)
 {
     HANDLE h = OpenProcess(PROCESS_TERMINATE, FALSE, pid);
     BOOL res;
@@ -117,7 +118,7 @@ static int vlc_kill(pid_t pid, int signum)
 
     return 0;
 }
-#define kill(p, s) vlc_kill(p, s)
+#define kill(p, s) heimdall_kill(p, s)
 #endif
 
 struct ytdl_playlist {
@@ -216,23 +217,23 @@ static const char *PickArt(const struct json_object *entry)
     return json_get_str(&v->object, "url");
 }
 
-static void GetMeta(vlc_meta_t *meta, const struct json_object *json)
+static void GetMeta(heimdall_meta_t *meta, const struct json_object *json)
 {
     const char *title = json_get_str(json, "title");
     if (title != NULL)
-        vlc_meta_Set(meta, vlc_meta_Title, title);
+        heimdall_meta_Set(meta, heimdall_meta_Title, title);
 
     const char *desc = json_get_str(json, "description");
     if (desc != NULL)
-        vlc_meta_Set(meta, vlc_meta_Description, desc);
+        heimdall_meta_Set(meta, heimdall_meta_Description, desc);
 
     const char *author = json_get_str(json, "uploader");
     if (author != NULL)
-        vlc_meta_Set(meta, vlc_meta_Artist, author);
+        heimdall_meta_Set(meta, heimdall_meta_Artist, author);
 
     const char *arturl = PickArt(json);
     if (arturl != NULL)
-        vlc_meta_Set(meta, vlc_meta_ArtworkURL, arturl);
+        heimdall_meta_Set(meta, heimdall_meta_ArtworkURL, arturl);
 }
 
 static int ReadItem(stream_t *s, input_item_node_t *node,
@@ -241,37 +242,37 @@ static int ReadItem(stream_t *s, input_item_node_t *node,
     const struct json_object *fmt = PickFormat(s, json);
 
     if (fmt == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     const char *url = json_get_str(fmt, "url");
 
     if (url == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     const char *title = json_get_str(json, "title");
     double duration = json_get_num(json, "duration");
-    vlc_tick_t ticks = isnan(duration) ? INPUT_DURATION_UNSET
+    heimdall_tick_t ticks = isnan(duration) ? INPUT_DURATION_UNSET
                                        : lround(duration * CLOCK_FREQ);
     char *wrapurl;
 
     if (title == NULL)
         title = url;
     if (unlikely(asprintf(&wrapurl, "ytdl://%s", url) == -1))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     input_item_t *item = input_item_NewStream(wrapurl, title, ticks);
 
     free(wrapurl);
 
     if (unlikely(item == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     /* Don't care to lock, the item is still private. */
     GetMeta(item->p_meta, json);
     input_item_node_AppendItem(node, item);
     input_item_Release(item);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int ReadDir(stream_t *s, input_item_node_t *node)
@@ -284,7 +285,7 @@ static int ReadDir(stream_t *s, input_item_node_t *node)
 
     /* Playlist: parse each entry */
     if (v->type != JSON_ARRAY)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     for (size_t i = 0; i < v->array.size; i++) {
          const struct json_value *e = &v->array.entries[i];
@@ -293,7 +294,7 @@ static int ReadDir(stream_t *s, input_item_node_t *node)
              ReadItem(s, node, &e->object);
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int Control(stream_t *s, int query, va_list args)
@@ -312,16 +313,16 @@ static int Control(stream_t *s, int query, va_list args)
             break;
 
         case STREAM_GET_PTS_DELAY:
-            *va_arg(args, vlc_tick_t *) =
-                 VLC_TICK_FROM_MS(var_InheritInteger(s, "network-caching"));
+            *va_arg(args, heimdall_tick_t *) =
+                 HEIMDALL_TICK_FROM_MS(var_InheritInteger(s, "network-caching"));
             break;
 
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
 
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int DemuxNested(stream_t *s)
@@ -337,7 +338,7 @@ static int ControlNested(stream_t *s, int query, va_list args)
 
     switch (query) {
         case DEMUX_GET_META: {
-            vlc_meta_t *meta = va_arg(args, vlc_meta_t *);
+            heimdall_meta_t *meta = va_arg(args, heimdall_meta_t *);
 
             GetMeta(meta, &sys->json);
             return demux_Control(sys->source, query, meta);
@@ -348,10 +349,10 @@ static int ControlNested(stream_t *s, int query, va_list args)
     }
 }
 
-static stream_t *vlc_demux_NewURL(vlc_object_t *obj, const char *url,
+static stream_t *heimdall_demux_NewURL(heimdall_object_t *obj, const char *url,
                                   es_out_t *out)
 {
-    stream_t *stream = vlc_stream_NewURL(obj, url);
+    stream_t *stream = heimdall_stream_NewURL(obj, url);
 
     if (stream != NULL) {
         demux_t *demux = demux_New(obj, "any", url, stream, out);
@@ -359,34 +360,34 @@ static stream_t *vlc_demux_NewURL(vlc_object_t *obj, const char *url,
         if (demux != NULL)
             return demux;
 
-        vlc_stream_Delete(stream);
+        heimdall_stream_Delete(stream);
     }
 
     return NULL;
 }
 
-static void Close(vlc_object_t *obj)
+static void Close(heimdall_object_t *obj)
 {
     stream_t *s = (stream_t *)obj;
     struct ytdl_playlist *sys = s->p_sys;
 
     if (sys->source != NULL)
-        vlc_stream_Delete(sys->source);
+        heimdall_stream_Delete(sys->source);
 
     json_free(&sys->json);
 }
 
-static int OpenCommon(vlc_object_t *obj, const char *src_url)
+static int OpenCommon(heimdall_object_t *obj, const char *src_url)
 {
     stream_t *s = (stream_t *)obj;
 
-    struct ytdl_playlist *sys = vlc_obj_malloc(obj, sizeof (*sys));
+    struct ytdl_playlist *sys = heimdall_obj_malloc(obj, sizeof (*sys));
     if (unlikely(sys == NULL))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     char *path = var_InheritString(obj, "ytdl-path");
     if (unlikely(path == NULL))
-        return VLC_EINVAL;
+        return HEIMDALL_EINVAL;
 
     struct ytdl_json jsdata;
     pid_t pid;
@@ -398,9 +399,9 @@ static int OpenCommon(vlc_object_t *obj, const char *src_url)
     jsdata.fd = ytdl_popen(&pid, argv);
 
     if (jsdata.fd == -1) {
-        msg_Dbg(obj, "cannot start %s: %s", path, vlc_strerror_c(errno));
+        msg_Dbg(obj, "cannot start %s: %s", path, heimdall_strerror_c(errno));
         free(path);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     free(path);
@@ -408,13 +409,13 @@ static int OpenCommon(vlc_object_t *obj, const char *src_url)
     int val = json_parse(&jsdata, &sys->json);
 
     kill(pid, SIGTERM);
-    vlc_close(jsdata.fd);
-    vlc_waitpid(pid);
+    heimdall_close(jsdata.fd);
+    heimdall_waitpid(pid);
 
     if (val) {
         /* Location not handled */
         msg_Dbg(s, "cannot extract infos");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     s->p_sys = sys;
@@ -424,7 +425,7 @@ static int OpenCommon(vlc_object_t *obj, const char *src_url)
         /* Playlist */
         s->pf_readdir = ReadDir;
         s->pf_control = Control;
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
     /* Redirect if there is a single URL, so that we can refresh it every
@@ -437,8 +438,8 @@ static int OpenCommon(vlc_object_t *obj, const char *src_url)
         const char *url = json_get_str(fmt, "url");
 
         if (url != NULL) {
-            var_Create(obj, "ytdl", VLC_VAR_BOOL);
-            demux = vlc_demux_NewURL(obj, url, s->out);
+            var_Create(obj, "ytdl", HEIMDALL_VAR_BOOL);
+            demux = heimdall_demux_NewURL(obj, url, s->out);
 
             if (demux == NULL)
                 msg_Err(s, "cannot open URL: %s", url);
@@ -449,44 +450,44 @@ static int OpenCommon(vlc_object_t *obj, const char *src_url)
 
     if (demux == NULL) {
         json_free(&sys->json);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     s->pf_demux = DemuxNested;
     s->pf_control = ControlNested;
     sys->source = demux;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int OpenFilter(vlc_object_t *obj)
+static int OpenFilter(heimdall_object_t *obj)
 {
     stream_t *s = (stream_t *)obj;
 
     if (s->psz_url == NULL)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     if (strncasecmp(s->psz_url, "http:", 5)
      && strncasecmp(s->psz_url, "https:", 6))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     if (!var_InheritBool(obj, "ytdl"))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     return OpenCommon(obj, s->psz_url);
 }
 
-static int OpenAccess(vlc_object_t *obj)
+static int OpenAccess(heimdall_object_t *obj)
 {
     stream_t *s = (stream_t *)obj;
     const char *url = s->psz_url;
 
     assert(url != NULL);
 
-    if (vlc_ascii_strncasecmp(url, "ytdl://", 7) == 0)
+    if (heimdall_ascii_strncasecmp(url, "ytdl://", 7) == 0)
         url += 7;
 
     return OpenCommon(obj, url);
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname("YT-DL")
     set_description("YT-DL extractor")
     set_subcategory(SUBCAT_INPUT_STREAM_FILTER)
@@ -501,4 +502,4 @@ vlc_module_begin()
     set_capability("access", 0)
     add_shortcut("ytdl")
     set_callbacks(OpenAccess, Close)
-vlc_module_end()
+heimdall_module_end()

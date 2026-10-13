@@ -2,6 +2,7 @@
  * hx.c : raw video / audio IP cam demuxer
  *****************************************************************************
  * Copyright (C) 2022 - VideoLabs, VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -21,10 +22,10 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_arrays.h>
-#include <vlc_plugin.h>
-#include <vlc_demux.h>
+#include <heimdall_common.h>
+#include <heimdall_arrays.h>
+#include <heimdall_plugin.h>
+#include <heimdall_demux.h>
 
 /* All Marker formats:
  * [tag.4][size.4][tag dependant.8] */
@@ -47,9 +48,9 @@ typedef struct
 {
     es_out_id_t *p_es_video;
     es_out_id_t *p_es_audio;
-    vlc_tick_t video_pts;
-    vlc_tick_t audio_pts;
-    vlc_tick_t pcr;
+    heimdall_tick_t video_pts;
+    heimdall_tick_t audio_pts;
+    heimdall_tick_t pcr;
     uint32_t video_pts_offset;
     uint32_t audio_pts_offset;
     uint32_t duration;
@@ -68,19 +69,19 @@ static int LoadIndex(demux_t *p_demux)
      */
 
     uint64_t size;
-    if(vlc_stream_GetSize(p_demux->s, &size) != VLC_SUCCESS ||
+    if(heimdall_stream_GetSize(p_demux->s, &size) != HEIMDALL_SUCCESS ||
        size < HX_INDEX_SIZE + HX_HEADER_SIZE)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
-    if(vlc_stream_Seek(p_demux->s, size - HX_INDEX_SIZE - HX_HEADER_SIZE) != VLC_SUCCESS)
-        return VLC_EGENERIC;
+    if(heimdall_stream_Seek(p_demux->s, size - HX_INDEX_SIZE - HX_HEADER_SIZE) != HEIMDALL_SUCCESS)
+        return HEIMDALL_EGENERIC;
 
     uint8_t temp[HX_HEADER_SIZE];
-    if(vlc_stream_Read(p_demux->s, temp, HX_HEADER_SIZE) != HX_HEADER_SIZE ||
+    if(heimdall_stream_Read(p_demux->s, temp, HX_HEADER_SIZE) != HX_HEADER_SIZE ||
        memcmp(temp, HXFI, 4))
     {
         msg_Warn(p_demux, "Could not find index at expected location");
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
     p_sys->duration = GetDWLE(temp + 8);
@@ -89,7 +90,7 @@ static int LoadIndex(demux_t *p_demux)
     uint32_t prevtime = UINT32_MAX;
     for(;;)
     {
-        if(vlc_stream_Read(p_demux->s, temp, 8) != 8)
+        if(heimdall_stream_Read(p_demux->s, temp, 8) != 8)
             break;
         struct hxfi_index entry;
         entry.offset = GetDWLE(temp);
@@ -103,7 +104,7 @@ static int LoadIndex(demux_t *p_demux)
         }
     }
     msg_Dbg(p_demux, "Using %d entries from HXFI index", p_sys->index.i_size);
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static struct hxfi_index LookupIndex(hx_sys_t *p_sys, uint32_t time)
@@ -139,11 +140,11 @@ static int Demux(demux_t *p_demux)
     hx_sys_t *p_sys  = p_demux->p_sys;
 
     uint8_t header[HX_HEADER_SIZE];
-    if(vlc_stream_Read(p_demux->s, header, HX_HEADER_SIZE) != HX_HEADER_SIZE)
-        return VLC_DEMUXER_EOF;
+    if(heimdall_stream_Read(p_demux->s, header, HX_HEADER_SIZE) != HX_HEADER_SIZE)
+        return HEIMDALL_DEMUXER_EOF;
 
     es_out_id_t *es = NULL;
-    vlc_tick_t *ppts;
+    heimdall_tick_t *ppts;
     uint32_t *ppts_offset;
 
     if(!memcmp(header, HXVF, 4))
@@ -160,33 +161,33 @@ static int Demux(demux_t *p_demux)
     }
     else if(!memcmp(header, HXVS, 4) || !memcmp(header, HXVT, 4))
     {
-        return VLC_DEMUXER_SUCCESS;
+        return HEIMDALL_DEMUXER_SUCCESS;
     }
     else
     {
         msg_Dbg(p_demux, "EOF on %4.4s", (const char *) header);
-        return VLC_DEMUXER_EOF;
+        return HEIMDALL_DEMUXER_EOF;
     }
 
     uint32_t sz = GetDWLE(header + 4);
-    int i_ret = VLC_DEMUXER_SUCCESS;
+    int i_ret = HEIMDALL_DEMUXER_SUCCESS;
 
     if(es)
     {
         /* [HXAF.4][size.4][pts.4][?.4] */
         /* [HXVF.4][size.4][pts.4][?.4] */
-        *ppts = VLC_TICK_0;
+        *ppts = HEIMDALL_TICK_0;
         if(*ppts_offset != UINT32_MAX)
-            *ppts += VLC_TICK_FROM_MS(GetDWLE(&header[8]) - *ppts_offset);
+            *ppts += HEIMDALL_TICK_FROM_MS(GetDWLE(&header[8]) - *ppts_offset);
         else
             *ppts_offset = GetDWLE(&header[8]);
 
-        block_t *p_block = vlc_stream_Block(p_demux->s, sz);
+        block_t *p_block = heimdall_stream_Block(p_demux->s, sz);
         if(p_block == NULL)
-            return VLC_DEMUXER_EOF;
+            return HEIMDALL_DEMUXER_EOF;
 
         if(p_block->i_buffer < sz)
-            i_ret = VLC_DEMUXER_EOF;
+            i_ret = HEIMDALL_DEMUXER_EOF;
 
         if(p_sys->p_es_audio == es)
         {
@@ -206,7 +207,7 @@ static int Demux(demux_t *p_demux)
             }
         }
 
-        if(p_sys->pcr == VLC_TICK_INVALID)
+        if(p_sys->pcr == HEIMDALL_TICK_INVALID)
         {
             p_sys->pcr = *ppts;
             es_out_SetPCR(p_demux->out, p_sys->pcr);
@@ -226,8 +227,8 @@ static int Demux(demux_t *p_demux)
     }
     else
     {
-        if(vlc_stream_Read(p_demux->s, NULL, sz) != sz)
-            i_ret = VLC_DEMUXER_EOF;
+        if(heimdall_stream_Read(p_demux->s, NULL, sz) != sz)
+            i_ret = HEIMDALL_DEMUXER_EOF;
     }
 
     return i_ret;
@@ -238,16 +239,16 @@ static int SeekUsingIndex(demux_t *p_demux, uint32_t time, bool b_precise)
     hx_sys_t *p_sys  = p_demux->p_sys;
     struct hxfi_index idx = LookupIndex(p_sys, time);
     if(idx.offset == 0)
-        return VLC_EGENERIC;
-    int ret = vlc_stream_Seek(p_demux->s, idx.offset);
-    if(ret == VLC_SUCCESS)
+        return HEIMDALL_EGENERIC;
+    int ret = heimdall_stream_Seek(p_demux->s, idx.offset);
+    if(ret == HEIMDALL_SUCCESS)
     {
-        p_sys->pcr = VLC_TICK_0 + VLC_TICK_FROM_MS(idx.time);
-        p_sys->audio_pts = VLC_TICK_INVALID;
-        p_sys->video_pts = VLC_TICK_INVALID;
+        p_sys->pcr = HEIMDALL_TICK_0 + HEIMDALL_TICK_FROM_MS(idx.time);
+        p_sys->audio_pts = HEIMDALL_TICK_INVALID;
+        p_sys->video_pts = HEIMDALL_TICK_INVALID;
         if(b_precise)
             es_out_Control(p_demux->out, ES_OUT_SET_NEXT_DISPLAY_TIME,
-                           VLC_TICK_0 + VLC_TICK_FROM_MS(time));
+                           HEIMDALL_TICK_0 + HEIMDALL_TICK_FROM_MS(time));
     }
     return ret;
 }
@@ -259,39 +260,39 @@ static int Control(demux_t *p_demux, int i_query, va_list args)
     {
         case DEMUX_GET_TIME:
         {
-            *va_arg(args, vlc_tick_t *) = p_sys->pcr;
-            return VLC_SUCCESS;
+            *va_arg(args, heimdall_tick_t *) = p_sys->pcr;
+            return HEIMDALL_SUCCESS;
         }
         case DEMUX_GET_LENGTH:
         {
-            *va_arg(args, vlc_tick_t *) = VLC_TICK_FROM_MS(p_sys->duration);
-            return VLC_SUCCESS;
+            *va_arg(args, heimdall_tick_t *) = HEIMDALL_TICK_FROM_MS(p_sys->duration);
+            return HEIMDALL_SUCCESS;
         }
         case DEMUX_GET_POSITION:
         {
             if(!p_sys->duration)
-                return VLC_EGENERIC;
-            *va_arg(args, double *) = MS_FROM_VLC_TICK(p_sys->pcr) / p_sys->duration;
-            return VLC_SUCCESS;
+                return HEIMDALL_EGENERIC;
+            *va_arg(args, double *) = MS_FROM_HEIMDALL_TICK(p_sys->pcr) / p_sys->duration;
+            return HEIMDALL_SUCCESS;
         }
         case DEMUX_SET_TIME:
         {
-            vlc_tick_t time = va_arg(args, vlc_tick_t);
+            heimdall_tick_t time = va_arg(args, heimdall_tick_t);
             bool b_precise = va_arg(args, int);
-            return SeekUsingIndex(p_demux, MS_FROM_VLC_TICK(time), b_precise);
+            return SeekUsingIndex(p_demux, MS_FROM_HEIMDALL_TICK(time), b_precise);
         }
         case DEMUX_SET_POSITION:
         {
             double pos = va_arg(args, double);
             bool b_precise = va_arg(args, int);
             if(p_sys->index.i_size == 0)
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             return SeekUsingIndex(p_demux, pos * p_sys->duration, b_precise);
         }
         case DEMUX_CAN_SEEK:
         {
             if(p_sys->index.i_size == 0)
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             /* fallthrough */
         }
         default:
@@ -301,7 +302,7 @@ static int Control(demux_t *p_demux, int i_query, va_list args)
     return demux_vaControlHelper(p_demux->s, 0, -1, 0, 1, i_query, args);
 }
 
-static void Close(vlc_object_t *p_this)
+static void Close(heimdall_object_t *p_this)
 {
     demux_t     *p_demux = (demux_t*)p_this;
     hx_sys_t *p_sys  = p_demux->p_sys;
@@ -309,23 +310,23 @@ static void Close(vlc_object_t *p_this)
     free(p_sys);
 }
 
-static int Open(vlc_object_t * p_this)
+static int Open(heimdall_object_t * p_this)
 {
     demux_t     *p_demux = (demux_t*)p_this;
     hx_sys_t *p_sys;
     const uint8_t *p_peek;
 
-    if(vlc_stream_Peek(p_demux->s, &p_peek, 20) != 20 ||
+    if(heimdall_stream_Peek(p_demux->s, &p_peek, 20) != 20 ||
        (memcmp(p_peek, HXVS, 4) && memcmp(p_peek, HXVT, 4)) ||
         memcmp(p_peek + 16, HXVF, 4))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     p_demux->p_sys = p_sys = malloc(sizeof(hx_sys_t));
     if(!p_sys)
-        return VLC_ENOMEM;
-    p_sys->audio_pts = VLC_TICK_INVALID;
-    p_sys->video_pts = VLC_TICK_INVALID;
-    p_sys->pcr = VLC_TICK_INVALID;
+        return HEIMDALL_ENOMEM;
+    p_sys->audio_pts = HEIMDALL_TICK_INVALID;
+    p_sys->video_pts = HEIMDALL_TICK_INVALID;
+    p_sys->pcr = HEIMDALL_TICK_INVALID;
     p_sys->audio_pts_offset = UINT32_MAX;
     p_sys->video_pts_offset = UINT32_MAX;
     p_sys->p_es_audio = NULL;
@@ -334,23 +335,23 @@ static int Open(vlc_object_t * p_this)
     ARRAY_INIT(p_sys->index);
 
     bool b_seekable;
-    if(vlc_stream_Control(p_demux->s, STREAM_CAN_SEEK, &b_seekable) != VLC_SUCCESS)
+    if(heimdall_stream_Control(p_demux->s, STREAM_CAN_SEEK, &b_seekable) != HEIMDALL_SUCCESS)
         b_seekable = false;
 
-    vlc_fourcc_t vcodec = memcmp(p_peek, HXVT, 4) ? VLC_CODEC_H264 : VLC_CODEC_HEVC;
+    heimdall_fourcc_t vcodec = memcmp(p_peek, HXVT, 4) ? HEIMDALL_CODEC_H264 : HEIMDALL_CODEC_HEVC;
     unsigned width = GetDWLE(p_peek + 4);
     unsigned height = GetDWLE(p_peek + 8);
 
     if(b_seekable)
     {
-        uint64_t origin = vlc_stream_Tell(p_demux->s);
-        if(LoadIndex(p_demux) != VLC_SUCCESS)
+        uint64_t origin = heimdall_stream_Tell(p_demux->s);
+        if(LoadIndex(p_demux) != HEIMDALL_SUCCESS)
             msg_Err(p_demux, "Failed to load index");
-        if(vlc_stream_Seek(p_demux->s, origin) != VLC_SUCCESS)
+        if(heimdall_stream_Seek(p_demux->s, origin) != HEIMDALL_SUCCESS)
         {
             msg_Err(p_demux, "Failed to seek after loading index, giving up");
             Close(p_this);
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
     }
 
@@ -364,7 +365,7 @@ static int Open(vlc_object_t * p_this)
     p_sys->p_es_video = es_out_Add(p_demux->out, &fmt);
     es_format_Clean(&fmt);
 
-    es_format_Init(&fmt, AUDIO_ES, VLC_CODEC_ALAW);
+    es_format_Init(&fmt, AUDIO_ES, HEIMDALL_CODEC_ALAW);
     fmt.audio.i_rate = 8000;
     fmt.audio.i_channels = 1;
     p_sys->p_es_audio = es_out_Add(p_demux->out, &fmt);
@@ -373,14 +374,14 @@ static int Open(vlc_object_t * p_this)
     p_demux->pf_demux   = Demux;
     p_demux->pf_control = Control;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname("HX")
     set_description(N_("HX video demuxer"))
     set_capability("demux", 10)
     set_subcategory(SUBCAT_INPUT_DEMUX)
     set_callbacks(Open, Close)
     add_shortcut("hx")
-vlc_module_end ()
+heimdall_module_end ()

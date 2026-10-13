@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2024 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,14 +22,14 @@ import QtQml.Models
 import QtQuick.Window
 import QtQuick.Templates as T
 
-import VLC.MainInterface
-import VLC.Style
-import VLC.Widgets as Widgets
-import VLC.Playlist
-import VLC.Player
-import VLC.PlayerControls
-import VLC.Dialogs
-import VLC.Util
+import Heimdall.MainInterface
+import Heimdall.Style
+import Heimdall.Widgets as Widgets
+import Heimdall.Playlist
+import Heimdall.Player
+import Heimdall.PlayerControls
+import Heimdall.Dialogs
+import Heimdall.Util
 
 FocusScope {
     id: rootPlayer
@@ -45,14 +46,14 @@ FocusScope {
             Player.artwork.toString())
             return Player.artwork
         else if (Player.hasVideoOutput)
-            return VLCStyle.noArtVideoCover
+            return HeimdallStyle.noArtVideoCover
         else
-            return VLCStyle.noArtAlbumCover
+            return HeimdallStyle.noArtAlbumCover
     }
 
     // Only applicable in video mode:
     property bool displayFadeRectangles: !_controlsUnderVideo && (height > (implicitFadeRectangleHeight * 3))
-    property real implicitFadeRectangleHeight: VLCStyle.dp(206, VLCStyle.scale)
+    property real implicitFadeRectangleHeight: HeimdallStyle.dp(206, HeimdallStyle.scale)
 
     // Private
 
@@ -126,8 +127,8 @@ FocusScope {
 
         // NOTE: We force the night theme when playing a video.
         palette: (MainCtx.hasEmbededVideo && MainCtx.pinVideoControls === false)
-                 ? VLCStyle.darkPalette
-                 : VLCStyle.palette
+                 ? HeimdallStyle.darkPalette
+                 : HeimdallStyle.palette
 
         colorSet: ColorContext.Window
     }
@@ -205,28 +206,28 @@ FocusScope {
 
             target: null
 
-            dragThreshold: VLCStyle.margin_normal
+            dragThreshold: HeimdallStyle.margin_normal
 
             property vector2d lastActiveTranslation
 
             // TODO: Use `createComponent()` and load directly from module instead, since
             //       it is pointless to keep the `QQmlComponent` around for this object.
-            readonly property Component wheelToVLCConverterComponent: Component { WheelToVLCConverter { } }
+            readonly property Component wheelToHeimdallConverterComponent: Component { WheelToHeimdallConverter { } }
 
-            property WheelToVLCConverter wheelToVLCConverter
+            property WheelToHeimdallConverter wheelToHeimdallConverter
 
             // We synthesize wheel event with pixel delta. It is a to-do to handle
             // touch properly with precision adjustment, like on Android:
             onActiveTranslationChanged: {
                 if (active) {
-                    console.assert(wheelToVLCConverter)
+                    console.assert(wheelToHeimdallConverter)
 
                     const delta = Qt.point(activeTranslation.x - lastActiveTranslation.x,
                                            activeTranslation.y - lastActiveTranslation.y)
 
-                    // WheelToVLCConverter can not handle sole pixel delta now, so we also
+                    // WheelToHeimdallConverter can not handle sole pixel delta now, so we also
                     // use angle delta. This is similar to wheel events on some platforms:
-                    wheelToVLCConverter.customWheelEvent(delta,
+                    wheelToHeimdallConverter.customWheelEvent(delta,
                                                          delta,
                                                          Qt.NoButton,
                                                          Qt.NoModifier,
@@ -238,9 +239,9 @@ FocusScope {
 
             onActiveChanged: {
                 if (active) {
-                    if (!wheelToVLCConverter) {
-                        wheelToVLCConverter = wheelToVLCConverterComponent.createObject(touchDragHandler)
-                        wheelToVLCConverter.vlcWheelKey.connect(MainCtx, MainCtx.sendVLCHotkey)
+                    if (!wheelToHeimdallConverter) {
+                        wheelToHeimdallConverter = wheelToHeimdallConverterComponent.createObject(touchDragHandler)
+                        wheelToHeimdallConverter.heimdallWheelKey.connect(MainCtx, MainCtx.sendHeimdallHotkey)
                     }
                 } else {
                     lastActiveTranslation = Qt.vector2d(0, 0)
@@ -362,7 +363,7 @@ FocusScope {
                 readonly property bool lyricsMode: MainCtx.lyricsMode
                 readonly property bool lyricsLayoutActive: lyricsMode
                                                         && Player.hasLyrics
-                                                        && centerContent.width > VLCStyle.colWidth(6)
+                                                        && centerContent.width > HeimdallStyle.colWidth(6)
 
                 // Reset sync when entering lyrics mode
                 onLyricsModeChanged: {
@@ -440,7 +441,7 @@ FocusScope {
                         id: liveTimer
 
                         repeat: false
-                        interval: VLCStyle.duration_humanMoment
+                        interval: HeimdallStyle.duration_humanMoment
 
                         function transientTurnOnLive() {
                             if (!blurredBackground.sourceTextureIsValid)
@@ -464,22 +465,22 @@ FocusScope {
                     }
 
                     anchors.fill: parent
-                    anchors.topMargin: VLCStyle.margin_xsmall + audioFocusScope.topPadding
-                    anchors.bottomMargin: VLCStyle.margin_xsmall + audioFocusScope.bottomPadding
+                    anchors.topMargin: HeimdallStyle.margin_xsmall + audioFocusScope.topPadding
+                    anchors.bottomMargin: HeimdallStyle.margin_xsmall + audioFocusScope.bottomPadding
 
                     onWheel: (wheel) => {
                         wheel.accepted = true
-                        wheelToVlc.qmlWheelEvent(wheel)
+                        wheelToHeimdall.qmlWheelEvent(wheel)
                     }
 
                     TouchDragHandler {
-                        wheelToVLCConverter: wheelToVlc
+                        wheelToHeimdallConverter: wheelToHeimdall
                     }
 
-                    WheelToVLCConverter {
-                        id: wheelToVlc
+                    WheelToHeimdallConverter {
+                        id: wheelToHeimdall
 
-                        onVlcWheelKey: (key) => MainCtx.sendVLCHotkey(key)
+                        onHeimdallWheelKey: (key) => MainCtx.sendHeimdallHotkey(key)
                     }
 
                     // ── Two-panel lyrics layout ────────────────────────
@@ -496,7 +497,7 @@ FocusScope {
                             enabled: false
 
                             NumberAnimation {
-                                duration: VLCStyle.duration_long
+                                duration: HeimdallStyle.duration_long
 
                                 easing.type: Easing.InOutSine
                             }
@@ -508,7 +509,7 @@ FocusScope {
                         }
 
                         anchors.top: parent.top
-                        anchors.topMargin: VLCStyle.margin_large
+                        anchors.topMargin: HeimdallStyle.margin_large
                         anchors.bottom: parent.bottom
                         anchors.left: parent.left
 
@@ -520,7 +521,7 @@ FocusScope {
                             enabled: false
 
                             NumberAnimation {
-                                duration: VLCStyle.duration_long
+                                duration: HeimdallStyle.duration_long
 
                                 easing.type: Easing.InOutSine
                             }
@@ -574,7 +575,7 @@ FocusScope {
                         visible: leftSideParent.visible
 
                         anchors.top: parent.top
-                        anchors.topMargin: VLCStyle.margin_large
+                        anchors.topMargin: HeimdallStyle.margin_large
                         anchors.right: parent.right
                         anchors.bottom: parent.bottom
                         anchors.left: leftSideParent.right
@@ -607,7 +608,7 @@ FocusScope {
 
                                 readonly property real eDPR: MainCtx.effectiveDevicePixelRatio(Window.window)
 
-                                readonly property url targetSource: VLCAccessImage.uri(rootPlayer.coverSource)
+                                readonly property url targetSource: HeimdallAccessImage.uri(rootPlayer.coverSource)
 
                                 anchors.top: parent.top
                                 anchors.bottom: parent.bottom
@@ -628,7 +629,7 @@ FocusScope {
 
                                 onStatusChanged: {
                                     if (status === Image.Error) {
-                                        cover.source = VLCStyle.noArtAlbumCover
+                                        cover.source = HeimdallStyle.noArtAlbumCover
                                     }
                                 }
 
@@ -655,14 +656,14 @@ FocusScope {
 
                                 Widgets.RoundedRectangleShadow {
                                     color: Qt.rgba(0, 0, 0, .18)
-                                    yOffset: VLCStyle.dp(24, VLCStyle.scale)
-                                    blurRadius: VLCStyle.dp(54, VLCStyle.scale)
+                                    yOffset: HeimdallStyle.dp(24, HeimdallStyle.scale)
+                                    blurRadius: HeimdallStyle.dp(54, HeimdallStyle.scale)
                                 }
 
                                 Widgets.RoundedRectangleShadow {
                                     color: Qt.rgba(0, 0, 0, .22)
-                                    yOffset: VLCStyle.dp(5, VLCStyle.scale)
-                                    blurRadius: VLCStyle.dp(14, VLCStyle.scale)
+                                    yOffset: HeimdallStyle.dp(5, HeimdallStyle.scale)
+                                    blurRadius: HeimdallStyle.dp(14, HeimdallStyle.scale)
                                 }
                             }
                         }
@@ -671,7 +672,7 @@ FocusScope {
                             id: albumLabel
 
                             Layout.alignment: Qt.AlignHCenter
-                            Layout.topMargin: VLCStyle.margin_xxlarge
+                            Layout.topMargin: HeimdallStyle.margin_xxlarge
 
                             Binding on visible {
                                 delayed: true
@@ -680,7 +681,7 @@ FocusScope {
                             }
 
                             text: Player.album
-                            font.pixelSize: VLCStyle.fontSize_xxlarge
+                            font.pixelSize: HeimdallStyle.fontSize_xxlarge
                             horizontalAlignment: Text.AlignHCenter
                             color: centerTheme.fg.primary
                             Accessible.description: qsTr("album")
@@ -696,7 +697,7 @@ FocusScope {
                             id: artistLabel
 
                             Layout.alignment: Qt.AlignHCenter
-                            Layout.topMargin: VLCStyle.margin_small
+                            Layout.topMargin: HeimdallStyle.margin_small
 
                             Binding on visible {
                                 delayed: true
@@ -721,13 +722,13 @@ FocusScope {
                             id: lyricsLabel
 
                             Layout.alignment: Qt.AlignHCenter
-                            Layout.topMargin: VLCStyle.margin_large
+                            Layout.topMargin: HeimdallStyle.margin_large
                             // Pin width and height so the surrounding centered
                             // column does not shift when the current lyric
                             // changes between empty / 1 line / 2 lines. Text
                             // exceeding two lines wraps then elides on line 2.
-                            Layout.preferredWidth: parent.parent.width - VLCStyle.margin_xlarge * 2
-                            Layout.preferredHeight: (lyricsLabelTextMetrics.height * 2) + VLCStyle.margin_xxxsmall
+                            Layout.preferredWidth: parent.parent.width - HeimdallStyle.margin_xlarge * 2
+                            Layout.preferredHeight: (lyricsLabelTextMetrics.height * 2) + HeimdallStyle.margin_xxxsmall
 
                             visible: false
 
@@ -751,7 +752,7 @@ FocusScope {
                             elide: Text.ElideRight
 
                             text: Player.currentLyric.text
-                            font.pixelSize: VLCStyle.fontSize_xlarge
+                            font.pixelSize: HeimdallStyle.fontSize_xlarge
                             font.weight: Font.DemiBold
                             horizontalAlignment: Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
@@ -782,7 +783,7 @@ FocusScope {
                             id: audioControls
 
                             Layout.alignment: Qt.AlignHCenter
-                            Layout.topMargin: VLCStyle.margin_large
+                            Layout.topMargin: HeimdallStyle.margin_large
 
                             Binding on visible {
                                 delayed: true
@@ -791,7 +792,7 @@ FocusScope {
                             }
 
                             focus: true
-                            spacing: VLCStyle.margin_xxsmall
+                            spacing: HeimdallStyle.margin_xxsmall
                             Navigation.parentItem: rootPlayer
                             Navigation.upItem: topBar
                             Navigation.downItem: syncToPlaybackCheckBox
@@ -803,8 +804,8 @@ FocusScope {
                             }
 
                             Widgets.IconToolButton {
-                                text: VLCIcons.skip_back
-                                font.pixelSize: VLCStyle.icon_audioPlayerButton
+                                text: HeimdallIcons.skip_back
+                                font.pixelSize: HeimdallStyle.icon_audioPlayerButton
                                 onClicked: Player.jumpBwd()
                                 description: qsTr("Step back")
 
@@ -812,8 +813,8 @@ FocusScope {
                             }
 
                             Widgets.IconToolButton {
-                                text: VLCIcons.visualization
-                                font.pixelSize: VLCStyle.icon_audioPlayerButton
+                                text: HeimdallIcons.visualization
+                                font.pixelSize: HeimdallStyle.icon_audioPlayerButton
                                 onClicked: Player.toggleVisualization()
                                 description: qsTr("Visualization")
 
@@ -821,8 +822,8 @@ FocusScope {
                             }
 
                             Widgets.IconToolButton {
-                                text: VLCIcons.topbar_music
-                                font.pixelSize: VLCStyle.icon_audioPlayerButton
+                                text: HeimdallIcons.topbar_music
+                                font.pixelSize: HeimdallStyle.icon_audioPlayerButton
                                 checked: MainCtx.lyricsMode
                                 onClicked: MainCtx.lyricsMode = !MainCtx.lyricsMode
                                 description: qsTr("Lyrics")
@@ -833,8 +834,8 @@ FocusScope {
                             }
 
                             Widgets.IconToolButton{
-                                text: VLCIcons.skip_for
-                                font.pixelSize: VLCStyle.icon_audioPlayerButton
+                                text: HeimdallIcons.skip_for
+                                font.pixelSize: HeimdallStyle.icon_audioPlayerButton
                                 onClicked: Player.jumpFwd()
                                 description: qsTr("Step forward")
 
@@ -847,7 +848,7 @@ FocusScope {
                             id: syncToPlaybackCheckBox
 
                             Layout.alignment: Qt.AlignHCenter
-                            Layout.topMargin: VLCStyle.margin_small
+                            Layout.topMargin: HeimdallStyle.margin_small
 
                             visible: false
 
@@ -894,8 +895,8 @@ FocusScope {
                         anchors.right: parent.right
                         anchors.top: parent.top
 
-                        anchors.rightMargin: VLCStyle.margin_normal
-                        anchors.topMargin: VLCStyle.margin_xxsmall
+                        anchors.rightMargin: HeimdallStyle.margin_normal
+                        anchors.topMargin: HeimdallStyle.margin_xxsmall
 
                         visible: false
 
@@ -918,7 +919,7 @@ FocusScope {
 
                             PropertyAction { target: labelVolume; property: "visible"; value: true }
 
-                            PauseAnimation { duration: VLCStyle.duration_humanMoment }
+                            PauseAnimation { duration: HeimdallStyle.duration_humanMoment }
 
                             PropertyAction { target: labelVolume; property: "visible"; value: false }
                         }
@@ -938,8 +939,8 @@ FocusScope {
 
         z: 1
 
-        topMargin: VLCStyle.applicationVerticalMargin
-        sideMargin: VLCStyle.applicationHorizontalMargin
+        topMargin: HeimdallStyle.applicationVerticalMargin
+        sideMargin: HeimdallStyle.applicationHorizontalMargin
 
         textWidth: playlistVisibility.isPlaylistVisible
                  ? rootPlayer.width - playlistpopup.width
@@ -1087,7 +1088,7 @@ FocusScope {
 
                 NumberAnimation {
                     property: "width"
-                    duration: VLCStyle.duration_short
+                    duration: HeimdallStyle.duration_short
                     easing.type: Easing.InOutSine
                 }
             }
@@ -1108,10 +1109,10 @@ FocusScope {
 
             wheelEnabled: true
 
-            rightPadding: VLCStyle.applicationHorizontalMargin
+            rightPadding: HeimdallStyle.applicationHorizontalMargin
             topPadding:  {
                 if (rootPlayer._controlsUnderVideo)
-                    return VLCStyle.margin_normal
+                    return HeimdallStyle.margin_normal
                 else
                     // NOTE: We increase the padding accordingly to avoid overlapping the TopBar.
                     return topBar.reservedHeight
@@ -1195,7 +1196,7 @@ FocusScope {
             right: parent.right
 
             bottomMargin: (rootPlayer._controlsUnderVideo || !controlBar.visible)
-                          ? 0 : - VLCStyle.margin_large
+                          ? 0 : - HeimdallStyle.margin_large
         }
     }
 
@@ -1213,8 +1214,8 @@ FocusScope {
                     && (interactiveAutoHideTimer.running
                     || navBox.hovered || !MainCtx.hasEmbededVideo)
 
-        x: rootPlayer.x + VLCStyle.margin_normal + VLCStyle.applicationHorizontalMargin
-        y: controlBar.y - navBox.height - VLCStyle.margin_normal
+        x: rootPlayer.x + HeimdallStyle.margin_normal + HeimdallStyle.applicationHorizontalMargin
+        y: controlBar.y - navBox.height - HeimdallStyle.margin_normal
 
         dragXMin: 0
         dragXMax: rootPlayer.width - navBox.width
@@ -1256,8 +1257,8 @@ FocusScope {
             bottom: controlBar.state === "hidden" ? parent.bottom : controlBar.top
             horizontalCenter: parent.horizontalCenter
         }
-        iconSize: VLCStyle.icon_large
-        iconTxt: controlBar.state === "hidden" ? VLCIcons.expand_inverted : VLCIcons.expand
+        iconSize: HeimdallStyle.icon_large
+        iconTxt: controlBar.state === "hidden" ? HeimdallIcons.expand_inverted : HeimdallIcons.expand
 
         Navigation.parentItem: rootPlayer
         Navigation.upItem: playlistVisibility.isPlaylistVisible ? playlistpopup : (MainCtx.hasEmbededVideo ? playerSpecializationLoader : topBar)
@@ -1275,7 +1276,7 @@ FocusScope {
             bottom: controlBar.top
             left: parent.left
             right: parent.right
-            margins: VLCStyle.margin_large
+            margins: HeimdallStyle.margin_large
         }
     }
 
@@ -1292,9 +1293,9 @@ FocusScope {
 
         focus: true
 
-        rightPadding: VLCStyle.applicationHorizontalMargin
-        leftPadding: VLCStyle.applicationHorizontalMargin
-        bottomPadding: VLCStyle.applicationVerticalMargin + VLCStyle.margin_xsmall
+        rightPadding: HeimdallStyle.applicationHorizontalMargin
+        leftPadding: HeimdallStyle.applicationHorizontalMargin
+        bottomPadding: HeimdallStyle.applicationVerticalMargin + HeimdallStyle.margin_xsmall
 
         textPosition: (MainCtx.pinVideoControls)
                       ? ControlBar.TimeTextPosition.LeftRightSlider

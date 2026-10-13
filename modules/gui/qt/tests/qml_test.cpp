@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2023 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -46,8 +47,8 @@ int main(int argc, char **argv)
     // Stand-ins for the C++ singletons that MainUI registers in the app,
     // so player QML files can be loaded on their own.
     const QString fakes = QStringLiteral(QUICK_TEST_SOURCE_DIR "/fakes/");
-    qmlRegisterSingletonType(QUrl::fromLocalFile(fakes + "MainCtx.qml"), "VLC.MainInterface", 1, 0, "MainCtx");
-    qmlRegisterSingletonType(QUrl::fromLocalFile(fakes + "Player.qml"), "VLC.Player", 1, 0, "Player");
+    qmlRegisterSingletonType(QUrl::fromLocalFile(fakes + "MainCtx.qml"), "Heimdall.MainInterface", 1, 0, "MainCtx");
+    qmlRegisterSingletonType(QUrl::fromLocalFile(fakes + "Player.qml"), "Heimdall.Player", 1, 0, "Player");
 
     //run tests offscreen as the CI doesn't have a desktop environment
     qputenv("QT_QPA_PLATFORM", "offscreen");

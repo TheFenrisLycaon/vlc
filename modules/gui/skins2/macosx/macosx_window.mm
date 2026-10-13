@@ -2,6 +2,7 @@
  * macosx_window.mm
  *****************************************************************************
  * Copyright (C) 2026 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Fletcher Holt <fletcherholt649@gmail.com>
  *          Felix Paul Kühne <fkuehne@videolan.org>
@@ -36,13 +37,13 @@
 #include "../events/evt_refresh.hpp"
 
 // Forward declaration of the window delegate protocol handler
-@class VLCSkinsWindowDelegate;
+@class HeimdallSkinsWindowDelegate;
 
-/// Custom NSWindow subclass for VLC Skins
-@interface VLCSkinsWindow : NSWindow
+/// Custom NSWindow subclass for Heimdall Skins
+@interface HeimdallSkinsWindow : NSWindow
 {
     MacOSXWindow *m_pOwner;
-    VLCSkinsWindowDelegate *m_delegate;
+    HeimdallSkinsWindowDelegate *m_delegate;
     const MacOSXGraphics *m_pHitTestGraphics;
 }
 - (instancetype)initWithOwner:(MacOSXWindow *)owner
@@ -54,14 +55,14 @@
 - (void)setHitTestGraphics:(const MacOSXGraphics *)pGraphics;
 @end
 
-@interface VLCSkinsWindowDelegate : NSObject <NSWindowDelegate>
+@interface HeimdallSkinsWindowDelegate : NSObject <NSWindowDelegate>
 {
     MacOSXWindow *m_pOwner;
 }
 - (instancetype)initWithOwner:(MacOSXWindow *)owner;
 @end
 
-@interface VLCSkinsContentView : NSImageView
+@interface HeimdallSkinsContentView : NSImageView
 {
     const MacOSXGraphics *m_pGraphics;
     NSTrackingArea *m_trackingArea;
@@ -69,7 +70,7 @@
 - (void)setHitTestGraphics:(const MacOSXGraphics *)pGraphics;
 @end
 
-@implementation VLCSkinsContentView
+@implementation HeimdallSkinsContentView
 
 - (void)setHitTestGraphics:(const MacOSXGraphics *)pGraphics
 {
@@ -107,7 +108,7 @@
 
 @end
 
-@implementation VLCSkinsWindowDelegate
+@implementation HeimdallSkinsWindowDelegate
 
 - (instancetype)initWithOwner:(MacOSXWindow *)owner
 {
@@ -145,7 +146,7 @@
 
 @end
 
-@implementation VLCSkinsWindow
+@implementation HeimdallSkinsWindow
 
 - (instancetype)initWithOwner:(MacOSXWindow *)owner
                   contentRect:(NSRect)contentRect
@@ -160,7 +161,7 @@
     if( self )
     {
         m_pOwner = owner;
-        m_delegate = [[VLCSkinsWindowDelegate alloc] initWithOwner:owner];
+        m_delegate = [[HeimdallSkinsWindowDelegate alloc] initWithOwner:owner];
         [self setDelegate:m_delegate];
 
         // Configure for skinned appearance
@@ -171,7 +172,7 @@
 
         // Create layer-backed content view for smooth compositing
         NSRect bounds = NSMakeRect( 0, 0, contentRect.size.width, contentRect.size.height );
-        VLCSkinsContentView *contentView = [[VLCSkinsContentView alloc] initWithFrame:bounds];
+        HeimdallSkinsContentView *contentView = [[HeimdallSkinsContentView alloc] initWithFrame:bounds];
         [contentView setImageScaling:NSImageScaleNone];
         [contentView setImageAlignment:NSImageAlignTopLeft];
         [contentView setWantsLayer:YES];
@@ -189,7 +190,7 @@
 - (void)setHitTestGraphics:(const MacOSXGraphics *)pGraphics
 {
     m_pHitTestGraphics = pGraphics;
-    VLCSkinsContentView *view = (VLCSkinsContentView *)[self contentView];
+    HeimdallSkinsContentView *view = (HeimdallSkinsContentView *)[self contentView];
     [view setHitTestGraphics:pGraphics];
 }
 
@@ -262,7 +263,7 @@ MacOSXWindow::MacOSXWindow( intf_thread_t *pIntf, GenericWindow &rWindow,
                 }
 
                 // Create the window
-                m_pWindow = [[VLCSkinsWindow alloc]
+                m_pWindow = [[HeimdallSkinsWindow alloc]
                     initWithOwner:this
                       contentRect:contentRect
                         styleMask:styleMask
@@ -483,20 +484,20 @@ void MacOSXWindow::toggleOnTop( bool onTop ) const
 }
 
 
-void MacOSXWindow::setOSHandle( vlc_window_t *pWnd ) const
+void MacOSXWindow::setOSHandle( heimdall_window_t *pWnd ) const
 {
     if( !pWnd )
         return;
 
     if( m_pVoutView )
     {
-        pWnd->type = VLC_WINDOW_TYPE_NSOBJECT;
+        pWnd->type = HEIMDALL_WINDOW_TYPE_NSOBJECT;
         pWnd->info.has_double_click = true;
         pWnd->handle.nsobject = (__bridge void *)m_pVoutView;
     }
     else if( m_pWindow )
     {
-        pWnd->type = VLC_WINDOW_TYPE_NSOBJECT;
+        pWnd->type = HEIMDALL_WINDOW_TYPE_NSOBJECT;
         pWnd->info.has_double_click = true;
         pWnd->handle.nsobject = (__bridge void *)[m_pWindow contentView];
     }

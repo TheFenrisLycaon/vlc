@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2024 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,7 +23,7 @@
 #include "util/csdmenu_wayland.h"
 #endif
 
-vlc_module_begin()
+heimdall_module_begin()
     set_shortname(N_("QtWayland"))
     set_description(N_(" calls for compositing with Qt"))
     set_capability("qtwayland", 10)
@@ -32,4 +33,4 @@ add_submodule()
     set_capability("qtcsdmenu", 10)
     set_callbacks(WaylandCSDMenuOpen, WaylandCSDMenuClose)
 #endif
-vlc_module_end()
+heimdall_module_end()

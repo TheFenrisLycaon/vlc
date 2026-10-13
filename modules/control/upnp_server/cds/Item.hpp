@@ -2,6 +2,7 @@
  * Item.hpp : CDS Item interface
  *****************************************************************************
  * Copyright © 2024 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Alaric Senat <alaric@videolabs.io>
  *
@@ -26,7 +27,7 @@
 #include "config.h"
 #endif
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 
 #include "../ml.hpp"
 #include "Object.hpp"
@@ -43,7 +44,7 @@ class Item : public Object
     void dump_metadata(xml::Element &, const Object::ExtraId &) const final;
 
     static void dump_mlobject_metadata(xml::Element &dest,
-                                       const vlc_ml_media_t &media,
+                                       const heimdall_ml_media_t &media,
                                        const ml::MediaLibraryContext &ml);
 
   private:

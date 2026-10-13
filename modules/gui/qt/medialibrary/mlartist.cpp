@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,11 +20,11 @@
 #include <cassert>
 #include "mlartist.hpp"
 
-MLArtist::MLArtist(const vlc_ml_artist_t* _data)
-    : MLItem    ( MLItemId( _data->i_id, VLC_ML_PARENT_ARTIST ) )
+MLArtist::MLArtist(const heimdall_ml_artist_t* _data)
+    : MLItem    ( MLItemId( _data->i_id, HEIMDALL_ML_PARENT_ARTIST ) )
     , m_name    ( QString::fromUtf8( _data->psz_name ) )
     , m_shortBio( QString::fromUtf8( _data->psz_shortbio ) )
-    , m_cover   ( QString::fromUtf8( _data->thumbnails[VLC_ML_THUMBNAIL_SMALL].psz_mrl ) )
+    , m_cover   ( QString::fromUtf8( _data->thumbnails[HEIMDALL_ML_THUMBNAIL_SMALL].psz_mrl ) )
     , m_nbAlbums( _data->i_nb_album )
     , m_nbTracks( _data->i_nb_tracks )
 {

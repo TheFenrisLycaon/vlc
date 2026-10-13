@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,19 +20,19 @@
 #include <cassert>
 #include "mlaudio.hpp"
 #include "mlhelper.hpp"
-#include "util/vlctick.hpp"
+#include "util/heimdalltick.hpp"
 
-MLAudio::MLAudio(vlc_medialibrary_t* _ml, const vlc_ml_media_t *_data)
+MLAudio::MLAudio(heimdall_medialibrary_t* _ml, const heimdall_ml_media_t *_data)
     : MLMedia( _data )
     , m_trackNumber( _data->album_track.i_track_nb )
     , m_discNumber ( _data->album_track.i_disc_nb )
 {
     assert( _data );
-    assert( _data->i_type == VLC_ML_MEDIA_TYPE_AUDIO );
+    assert( _data->i_type == HEIMDALL_ML_MEDIA_TYPE_AUDIO );
 
     if ( _data->album_track.i_album_id != 0 )
     {
-        ml_unique_ptr<vlc_ml_album_t> album(vlc_ml_get_album(_ml, _data->album_track.i_album_id));
+        ml_unique_ptr<heimdall_ml_album_t> album(heimdall_ml_get_album(_ml, _data->album_track.i_album_id));
         if (album) {
             m_albumId =  album->i_id;
             m_albumTitle =  album->psz_title;
@@ -40,14 +41,14 @@ MLAudio::MLAudio(vlc_medialibrary_t* _ml, const vlc_ml_media_t *_data)
 
     if ( _data->album_track.i_artist_id != 0 )
     {
-        ml_unique_ptr<vlc_ml_artist_t> artist(vlc_ml_get_artist(_ml, _data->album_track.i_artist_id));
+        ml_unique_ptr<heimdall_ml_artist_t> artist(heimdall_ml_get_artist(_ml, _data->album_track.i_artist_id));
         if (artist)
             m_artist =  artist->psz_name;
     }
 }
 
 MLItemId MLAudio::getAlbumId() const {
-    return {m_albumId, VLC_ML_PARENT_ALBUM};
+    return {m_albumId, HEIMDALL_ML_PARENT_ALBUM};
 }
 
 

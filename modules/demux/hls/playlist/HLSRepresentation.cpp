@@ -2,6 +2,7 @@
  * HLSRepresentation.cpp
  *****************************************************************************
  * Copyright © 2015 - VideoLAN and VLC Authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -87,7 +88,7 @@ Url HLSRepresentation::getPlaylistUrl() const
     }
 }
 
-void HLSRepresentation::debug(vlc_object_t *obj, int indent) const
+void HLSRepresentation::debug(heimdall_object_t *obj, int indent) const
 {
     BaseRepresentation::debug(obj, indent);
     if(!b_loaded)
@@ -107,20 +108,20 @@ void HLSRepresentation::scheduleNextUpdate(uint64_t, bool b_updated)
     if(!b_updated)
     {
         /* Ensure we don't update-loop if it failed */
-        //lastUpdateTime = vlc_tick_now();
+        //lastUpdateTime = heimdall_tick_now();
         return;
     }
 
-    const vlc_tick_t now = vlc_tick_now();
+    const heimdall_tick_t now = heimdall_tick_now();
     const BasePlaylist *playlist = getPlaylist();
 
-    msg_Dbg(playlist->getVLCObject(), "Updated playlist ID %s, after %" PRId64 "s",
+    msg_Dbg(playlist->getHeimdallObject(), "Updated playlist ID %s, after %" PRId64 "s",
             getID().str().c_str(),
-            lastUpdateTime ? SEC_FROM_VLC_TICK(now - lastUpdateTime) : 0);
+            lastUpdateTime ? SEC_FROM_HEIMDALL_TICK(now - lastUpdateTime) : 0);
 
     lastUpdateTime = now;
 
-    debug(playlist->getVLCObject(), 0);
+    debug(playlist->getHeimdallObject(), 0);
 }
 
 bool HLSRepresentation::needsUpdate(uint64_t number) const
@@ -131,11 +132,11 @@ bool HLSRepresentation::needsUpdate(uint64_t number) const
         return true;
     if(isLive())
     {
-        const vlc_tick_t now = vlc_tick_now();
-        const vlc_tick_t elapsed = now - lastUpdateTime;
-        vlc_tick_t duration = targetDuration
-                            ? vlc_tick_from_sec(targetDuration)
-                            : VLC_TICK_FROM_SEC(2);
+        const heimdall_tick_t now = heimdall_tick_now();
+        const heimdall_tick_t elapsed = now - lastUpdateTime;
+        heimdall_tick_t duration = targetDuration
+                            ? heimdall_tick_from_sec(targetDuration)
+                            : HEIMDALL_TICK_FROM_SEC(2);
         if(updateFailureCount)
             duration /= 2;
         if(elapsed < duration)
@@ -144,7 +145,7 @@ bool HLSRepresentation::needsUpdate(uint64_t number) const
         if(number == std::numeric_limits<uint64_t>::max())
             return true;
 
-        vlc_tick_t minbuffer = getMinAheadTime(number);
+        heimdall_tick_t minbuffer = getMinAheadTime(number);
         return ( minbuffer < duration );
     }
     return false;
@@ -154,13 +155,13 @@ bool HLSRepresentation::runLocalUpdates(SharedResources *res)
 {
     BasePlaylist *playlist = getPlaylist();
     M3U8Parser parser(res);
-    if(!parser.appendSegmentsFromPlaylistURI(playlist->getVLCObject(), this))
+    if(!parser.appendSegmentsFromPlaylistURI(playlist->getHeimdallObject(), this))
     {
-        msg_Warn(playlist->getVLCObject(), "Failed to update %u/%u playlist ID %s",
+        msg_Warn(playlist->getHeimdallObject(), "Failed to update %u/%u playlist ID %s",
                  updateFailureCount, MAX_UPDATE_FAILED_UPDATE_COUNT,
                  getID().str().c_str());
         updateFailureCount++;
-        lastUpdateTime = vlc_tick_now();
+        lastUpdateTime = heimdall_tick_now();
         return false;
     }
     else

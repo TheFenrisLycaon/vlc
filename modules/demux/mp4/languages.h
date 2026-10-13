@@ -2,6 +2,7 @@
  * languages.h: Quicktime language codes and ISO-639-2/T conversion
  *****************************************************************************
  * Copyright (C) 2014 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -17,8 +18,8 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
-#ifndef VLC_MP4_LANGUAGES_H_
-#define VLC_MP4_LANGUAGES_H_
+#ifndef HEIMDALL_MP4_LANGUAGES_H_
+#define HEIMDALL_MP4_LANGUAGES_H_
 
 static bool decodeQtLanguageCode( uint16_t i_language_code, char *psz_iso,
                                   bool *b_mactables )

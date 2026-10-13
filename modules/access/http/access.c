@@ -1,7 +1,8 @@
 /*****************************************************************************
- * access.c: HTTP/TLS VLC access plug-in
+ * access.c: HTTP/TLS Heimdall access plug-in
  *****************************************************************************
  * Copyright © 2015 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -30,11 +31,11 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include <vlc_common.h>
-#include <vlc_access.h>
-#include <vlc_keystore.h>
-#include <vlc_plugin.h>
-#include <vlc_url.h>
+#include <heimdall_common.h>
+#include <heimdall_access.h>
+#include <heimdall_keystore.h>
+#include <heimdall_plugin.h>
+#include <heimdall_url.h>
 
 #include "connmgr.h"
 #include "resource.h"
@@ -43,15 +44,15 @@
 
 typedef struct
 {
-    struct vlc_http_mgr *manager;
-    struct vlc_http_resource *resource;
+    struct heimdall_http_mgr *manager;
+    struct heimdall_http_resource *resource;
 } access_sys_t;
 
 static block_t *FileRead(stream_t *access, bool *restrict eof)
 {
     access_sys_t *sys = access->p_sys;
 
-    block_t *b = vlc_http_file_read(sys->resource);
+    block_t *b = heimdall_http_file_read(sys->resource);
     if (b == NULL)
         *eof = true;
     return b;
@@ -61,9 +62,9 @@ static int FileSeek(stream_t *access, uint64_t pos)
 {
     access_sys_t *sys = access->p_sys;
 
-    if (vlc_http_file_seek(sys->resource, pos))
-        return VLC_EGENERIC;
-    return VLC_SUCCESS;
+    if (heimdall_http_file_seek(sys->resource, pos))
+        return HEIMDALL_EGENERIC;
+    return HEIMDALL_SUCCESS;
 }
 
 static int FileControl(stream_t *access, int query, va_list args)
@@ -73,7 +74,7 @@ static int FileControl(stream_t *access, int query, va_list args)
     switch (query)
     {
         case STREAM_CAN_SEEK:
-            *va_arg(args, bool *) = vlc_http_file_can_seek(sys->resource);
+            *va_arg(args, bool *) = heimdall_http_file_can_seek(sys->resource);
             break;
 
         case STREAM_CAN_FASTSEEK:
@@ -88,38 +89,38 @@ static int FileControl(stream_t *access, int query, va_list args)
 
         case STREAM_GET_SIZE:
         {
-            uintmax_t val = vlc_http_file_get_size(sys->resource);
+            uintmax_t val = heimdall_http_file_get_size(sys->resource);
             if (val >= UINT64_MAX)
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
 
             *va_arg(args, uint64_t *) = val;
             break;
         }
 
         case STREAM_GET_PTS_DELAY:
-            *va_arg(args, vlc_tick_t *) = VLC_TICK_FROM_MS(
+            *va_arg(args, heimdall_tick_t *) = HEIMDALL_TICK_FROM_MS(
                 var_InheritInteger(access, "network-caching") );
             break;
 
         case STREAM_GET_CONTENT_TYPE:
-            *va_arg(args, char **) = vlc_http_file_get_type(sys->resource);
+            *va_arg(args, char **) = heimdall_http_file_get_type(sys->resource);
             break;
 
         case STREAM_SET_PAUSE_STATE:
             break;
 
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static block_t *LiveRead(stream_t *access, bool *restrict eof)
 {
     access_sys_t *sys = access->p_sys;
 
-    block_t *b = vlc_http_live_read(sys->resource);
-    if (b == NULL) /* TODO: loop instead of EOF, see vlc_http_live_read() */
+    block_t *b = heimdall_http_live_read(sys->resource);
+    if (b == NULL) /* TODO: loop instead of EOF, see heimdall_http_live_read() */
         *eof = true;
     return b;
 }
@@ -138,28 +139,28 @@ static int LiveControl(stream_t *access, int query, va_list args)
             break;
 
         case STREAM_GET_PTS_DELAY:
-            *va_arg(args, vlc_tick_t *) = VLC_TICK_FROM_MS(
+            *va_arg(args, heimdall_tick_t *) = HEIMDALL_TICK_FROM_MS(
                 var_InheritInteger(access, "network-caching") );
             break;
 
         case STREAM_GET_CONTENT_TYPE:
-            *va_arg(args, char **) = vlc_http_live_get_type(sys->resource);
+            *va_arg(args, char **) = heimdall_http_live_get_type(sys->resource);
             break;
 
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-static int Open(vlc_object_t *obj)
+static int Open(heimdall_object_t *obj)
 {
     stream_t *access = (stream_t *)obj;
     access_sys_t *sys = malloc(sizeof (*sys));
-    int ret = VLC_ENOMEM;
+    int ret = HEIMDALL_ENOMEM;
 
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     sys->manager = NULL;
     sys->resource = NULL;
@@ -168,14 +169,14 @@ static int Open(vlc_object_t *obj)
     if (var_InheritBool(obj, "http-forward-cookies"))
         jar = var_InheritAddress(obj, "http-cookies");
 
-    struct vlc_credential crd;
-    struct vlc_url_t crd_url;
+    struct heimdall_credential crd;
+    struct heimdall_url_t crd_url;
     char *psz_realm = NULL;
 
-    vlc_UrlParse(&crd_url, access->psz_url);
-    vlc_credential_init(&crd, &crd_url);
+    heimdall_UrlParse(&crd_url, access->psz_url);
+    heimdall_credential_init(&crd, &crd_url);
 
-    sys->manager = vlc_http_mgr_create(obj, jar);
+    sys->manager = heimdall_http_mgr_create(obj, jar);
     if (sys->manager == NULL)
         goto error;
 
@@ -183,7 +184,7 @@ static int Open(vlc_object_t *obj)
     char *referer = var_InheritString(obj, "http-referrer");
     bool live = var_InheritBool(obj, "http-continuous");
 
-    sys->resource = (live ? vlc_http_live_create : vlc_http_file_create)(
+    sys->resource = (live ? heimdall_http_live_create : heimdall_http_file_create)(
         sys->manager, access->psz_url, ua, referer);
     free(referer);
     free(ua);
@@ -191,34 +192,34 @@ static int Open(vlc_object_t *obj)
     if (sys->resource == NULL)
         goto error;
 
-    ret = vlc_credential_get(&crd, obj, NULL, NULL, NULL, NULL);
+    ret = heimdall_credential_get(&crd, obj, NULL, NULL, NULL, NULL);
     if (ret == 0)
-        vlc_http_res_set_login(sys->resource,
+        heimdall_http_res_set_login(sys->resource,
                                crd.psz_username, crd.psz_password);
     else if (ret == -EINTR)
         goto error;
 
-    ret = VLC_EGENERIC;
+    ret = HEIMDALL_EGENERIC;
 
-    int status = vlc_http_res_get_status(sys->resource);
+    int status = heimdall_http_res_get_status(sys->resource);
 
     while (status == 401) /* authentication */
     {
         crd.psz_authtype = "Basic";
         free(psz_realm);
-        psz_realm = vlc_http_res_get_basic_realm(sys->resource);
+        psz_realm = heimdall_http_res_get_basic_realm(sys->resource);
 
         if (psz_realm == NULL)
             break;
         crd.psz_realm = psz_realm;
-        if (vlc_credential_get(&crd, obj, NULL, NULL, _("HTTP authentication"),
+        if (heimdall_credential_get(&crd, obj, NULL, NULL, _("HTTP authentication"),
                                _("Please enter a valid login name and "
                                  "a password for realm %s."), crd.psz_realm) != 0)
             break;
 
-        vlc_http_res_set_login(sys->resource,
+        heimdall_http_res_set_login(sys->resource,
                                crd.psz_username, crd.psz_password);
-        status = vlc_http_res_get_status(sys->resource);
+        status = heimdall_http_res_get_status(sys->resource);
     }
 
     if (status < 0)
@@ -227,11 +228,11 @@ static int Open(vlc_object_t *obj)
         goto error;
     }
 
-    char *redir = vlc_http_res_get_redirect(sys->resource);
+    char *redir = heimdall_http_res_get_redirect(sys->resource);
     if (redir != NULL)
     {
         access->psz_url = redir;
-        ret = VLC_ACCESS_REDIRECT;
+        ret = HEIMDALL_ACCESS_REDIRECT;
         goto error;
     }
 
@@ -241,10 +242,10 @@ static int Open(vlc_object_t *obj)
         goto error;
     }
 
-    vlc_credential_store(&crd, obj);
+    heimdall_credential_store(&crd, obj);
     free(psz_realm);
-    vlc_credential_clean(&crd);
-    vlc_UrlClean(&crd_url);
+    heimdall_credential_clean(&crd);
+    heimdall_UrlClean(&crd_url);
 
     access->pf_read = NULL;
     if (live)
@@ -260,31 +261,31 @@ static int Open(vlc_object_t *obj)
         access->pf_control = FileControl;
     }
     access->p_sys = sys;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     if (sys->resource != NULL)
-        vlc_http_res_destroy(sys->resource);
+        heimdall_http_res_destroy(sys->resource);
     if (sys->manager != NULL)
-        vlc_http_mgr_destroy(sys->manager);
+        heimdall_http_mgr_destroy(sys->manager);
     free(psz_realm);
-    vlc_credential_clean(&crd);
-    vlc_UrlClean(&crd_url);
+    heimdall_credential_clean(&crd);
+    heimdall_UrlClean(&crd_url);
     free(sys);
     return ret;
 }
 
-static void Close(vlc_object_t *obj)
+static void Close(heimdall_object_t *obj)
 {
     stream_t *access = (stream_t *)obj;
     access_sys_t *sys = access->p_sys;
 
-    vlc_http_res_destroy(sys->resource);
-    vlc_http_mgr_destroy(sys->manager);
+    heimdall_http_res_destroy(sys->resource);
+    heimdall_http_mgr_destroy(sys->manager);
     free(sys);
 }
 
-vlc_module_begin()
+heimdall_module_begin()
     set_description(N_("HTTPS input"))
     set_shortname(N_("HTTPS"))
     set_subcategory(SUBCAT_INPUT_ACCESS)
@@ -308,4 +309,4 @@ vlc_module_begin()
                   "e.g. \"FooBar/1.2.3\"."))
         change_safe()
         change_private()
-vlc_module_end()
+heimdall_module_end()

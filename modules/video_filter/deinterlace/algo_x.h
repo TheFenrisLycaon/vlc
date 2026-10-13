@@ -1,7 +1,8 @@
 /*****************************************************************************
- * algo_x.h : "X" algorithm for vlc deinterlacer
+ * algo_x.h : "X" algorithm for heimdall deinterlacer
  *****************************************************************************
  * Copyright (C) 2000-2011 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Laurent Aimar <fenrir@videolan.org>
  *
@@ -20,8 +21,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_DEINTERLACE_ALGO_X_H
-#define VLC_DEINTERLACE_ALGO_X_H 1
+#ifndef HEIMDALL_DEINTERLACE_ALGO_X_H
+#define HEIMDALL_DEINTERLACE_ALGO_X_H 1
 
 /* Forward declarations */
 struct picture_t;

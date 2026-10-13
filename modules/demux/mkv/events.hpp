@@ -2,6 +2,7 @@
  * events.hpp : matroska demuxer
  *****************************************************************************
  * Copyright (C) 2003-2004 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *          Steve Lhomme <steve.lhomme@free.fr>
@@ -21,17 +22,17 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef VLC_MKV_DEMUX_EVENTS_HPP
-#define VLC_MKV_DEMUX_EVENTS_HPP
+#ifndef HEIMDALL_MKV_DEMUX_EVENTS_HPP
+#define HEIMDALL_MKV_DEMUX_EVENTS_HPP
 
-#include <vlc_common.h>
-#include <vlc_threads.h>
-#include <vlc_mouse.h>
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
+#include <heimdall_mouse.h>
 
 #include <list>
 #include <memory>
 
-struct vlc_spu_highlight_t;
+struct heimdall_spu_highlight_t;
 
 namespace mkv {
 
@@ -46,7 +47,7 @@ public:
     void SendData( mkv_track_t &, block_t * );
     void AbortThread();
     int SendEventNav( demux_query_e );
-    void SetHighlight( vlc_spu_highlight_t & spu_hl );
+    void SetHighlight( heimdall_spu_highlight_t & spu_hl );
 
     bool AddTrack( mkv_track_t & );
     void DelTrack( mkv_track_t & );
@@ -57,7 +58,7 @@ private:
             : track( track_ )
             , owner( owner )
         {
-            vlc_mouse_Init( &mouse_state );
+            heimdall_mouse_Init( &mouse_state );
         }
 
         bool operator==( const mkv_track_t & t ) const {
@@ -66,7 +67,7 @@ private:
 
         mkv_track_t & track;
         event_thread_t& owner;
-        vlc_mouse_t mouse_state;
+        heimdall_mouse_t mouse_state;
     };
 
     struct EventInfo {
@@ -75,7 +76,7 @@ private:
             ButtonDataEvent,
         } type;
 
-        EventInfo( const vlc_mouse_t & state_old, const vlc_mouse_t & state_new )
+        EventInfo( const heimdall_mouse_t & state_old, const heimdall_mouse_t & state_new )
             : type( ESMouseEvent )
             , mouse{ state_old, state_new }
         {
@@ -89,8 +90,8 @@ private:
 
         union {
             struct {
-                const vlc_mouse_t state_old;
-                const vlc_mouse_t state_new;
+                const heimdall_mouse_t state_old;
+                const heimdall_mouse_t state_new;
             } mouse;
 
             struct {
@@ -105,7 +106,7 @@ private:
     static void *EventThread(void *);
     void EnsureThreadLocked();
 
-    static void EventMouse( vlc_mouse_t const* state, void* userdata );
+    static void EventMouse( heimdall_mouse_t const* state, void* userdata );
 
     void HandleMouseEvent( EventInfo const& );
     void HandleButtonData( EventInfo const& );
@@ -113,10 +114,10 @@ private:
     demux_t      *p_demux;
 
     bool         is_running;
-    vlc_thread_t thread;
+    heimdall_thread_t thread;
 
-    vlc_mutex_t  lock;
-    vlc_cond_t   wait;
+    heimdall_mutex_t  lock;
+    heimdall_cond_t   wait;
     bool         b_abort = false;
 
     typedef std::list<ESInfo> es_list_t;
@@ -127,12 +128,12 @@ private:
 
     void QueueEvent(const EventInfo & e)
     {
-        vlc_mutex_locker lock_guard( &lock );
+        heimdall_mutex_locker lock_guard( &lock );
 
         EnsureThreadLocked();
 
         pending_events.push_back( e );
-        vlc_cond_signal( &wait );
+        heimdall_cond_signal( &wait );
     }
 
     bool HandleKeyEvent( NavivationKey key );

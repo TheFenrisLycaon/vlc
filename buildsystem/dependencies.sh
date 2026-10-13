@@ -1,6 +1,7 @@
 #!/bin/sh
 # SPDX-License-Identifier: LGPL-2.1-or-later
 # Copyright (C) 2021-2026 Alexandre Janniaux <ajanni@videolabs.io>
+# Copyright (C) 2026 TheFenrisLycaon
 #
 # Extract static or forwarded dependencies from a libtool .la archive.
 #
@@ -67,7 +68,7 @@ process_la_dep()
 
     # Only installed static archives (contribs) should be
     # merged. Build-tree libraries (installed=no with a
-    # libdir) like libvlccore.la, libvlc_pulse.la will be
+    # libdir) like libheimdallcore.la, libheimdall_pulse.la will be
     # available at final link so that the lib global state
     # is preserved for in-tree and out-of-tree plugins.
     _installed=$(parse_la_field "$_ladep" installed)

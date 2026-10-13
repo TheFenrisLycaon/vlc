@@ -1,7 +1,8 @@
 /*****************************************************************************
- * vbi.c : Video4Linux2 VBI input module for vlc
+ * vbi.c : Video4Linux2 VBI input module for heimdall
  *****************************************************************************
  * Copyright (C) 2012 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Author: Devin Heitmueller <dheitmueller at kernellabs dot com>
  *
@@ -27,11 +28,11 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <fcntl.h>
-#include <vlc_common.h>
-#include <vlc_threads.h>
-#include <vlc_block.h>
-#include <vlc_fs.h>
-#include <vlc_demux.h>
+#include <heimdall_common.h>
+#include <heimdall_threads.h>
+#include <heimdall_block.h>
+#include <heimdall_fs.h>
+#include <heimdall_demux.h>
 
 #include "v4l2.h"
 
@@ -39,23 +40,23 @@
 # include <libzvbi.h>
 # define VBI_NUM_CC_STREAMS 4
 
-struct vlc_v4l2_vbi
+struct heimdall_v4l2_vbi
 {
     vbi_capture *cap;
     es_out_id_t *es[VBI_NUM_CC_STREAMS];
 };
 
-vlc_v4l2_vbi_t *OpenVBI (demux_t *demux, const char *psz_device)
+heimdall_v4l2_vbi_t *OpenVBI (demux_t *demux, const char *psz_device)
 {
-    vlc_v4l2_vbi_t *vbi = malloc (sizeof (*vbi));
+    heimdall_v4l2_vbi_t *vbi = malloc (sizeof (*vbi));
     if (unlikely(vbi == NULL))
         return NULL;
 
-    int rawfd = vlc_open (psz_device, O_RDWR);
+    int rawfd = heimdall_open (psz_device, O_RDWR);
     if (rawfd == -1)
     {
         msg_Err (demux, "cannot open device '%s': %s", psz_device,
-                 vlc_strerror_c(errno));
+                 heimdall_strerror_c(errno));
         goto err;
     }
 
@@ -73,7 +74,7 @@ vlc_v4l2_vbi_t *OpenVBI (demux_t *demux, const char *psz_device)
     {
         msg_Err (demux, "cannot capture VBI data: %s", errstr);
         free (errstr);
-        vlc_close (rawfd);
+        heimdall_close (rawfd);
         goto err;
     }
 
@@ -81,7 +82,7 @@ vlc_v4l2_vbi_t *OpenVBI (demux_t *demux, const char *psz_device)
     {
         es_format_t fmt;
 
-        es_format_Init (&fmt, SPU_ES, VLC_FOURCC('c', 'c', '1' + i, ' '));
+        es_format_Init (&fmt, SPU_ES, HEIMDALL_FOURCC('c', 'c', '1' + i, ' '));
         if (asprintf (&fmt.psz_description, "Closed captions %d", i + 1) >= 0)
         {
             msg_Dbg (demux, "new spu es %4.4s", (char *)&fmt.i_codec);
@@ -99,21 +100,21 @@ err:
     return NULL;
 }
 
-int GetFdVBI (vlc_v4l2_vbi_t *vbi)
+int GetFdVBI (heimdall_v4l2_vbi_t *vbi)
 {
     return vbi_capture_fd(vbi->cap);
 }
 
-void GrabVBI (demux_t *p_demux, vlc_v4l2_vbi_t *vbi)
+void GrabVBI (demux_t *p_demux, heimdall_v4l2_vbi_t *vbi)
 {
     vbi_capture_buffer *sliced_bytes;
     struct timeval timeout={0,0}; /* poll */
-    int canc = vlc_savecancel ();
+    int canc = heimdall_savecancel ();
 
     int r = vbi_capture_pull_sliced (vbi->cap, &sliced_bytes, &timeout);
     switch (r) {
         case -1:
-            msg_Err (p_demux, "error reading VBI: %s", vlc_strerror_c(errno));
+            msg_Err (p_demux, "error reading VBI: %s", heimdall_strerror_c(errno));
         case  0: /* nothing avail */
             break;
         case  1: /* got data */
@@ -137,7 +138,7 @@ void GrabVBI (demux_t *p_demux, vlc_v4l2_vbi_t *vbi)
                 memcpy(data, sliced_array[field].data, sliced_size);
                 data += sliced_size;
             }
-            p_block->i_pts = vlc_tick_now();
+            p_block->i_pts = heimdall_tick_now();
 
             for (unsigned i = 0; i < VBI_NUM_CC_STREAMS; i++)
             {
@@ -151,12 +152,12 @@ void GrabVBI (demux_t *p_demux, vlc_v4l2_vbi_t *vbi)
             block_Release(p_block);
         }
     }
-    vlc_restorecancel (canc);
+    heimdall_restorecancel (canc);
 }
 
-void CloseVBI (vlc_v4l2_vbi_t *vbi)
+void CloseVBI (heimdall_v4l2_vbi_t *vbi)
 {
-    vlc_close (vbi_capture_fd (vbi->cap));
+    heimdall_close (vbi_capture_fd (vbi->cap));
     vbi_capture_delete (vbi->cap);
     free (vbi);
 }

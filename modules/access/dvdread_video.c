@@ -2,6 +2,7 @@
  * dvdread_video.c : DVD-Video support for the dvdread input module
  *****************************************************************************
  * Copyright (C) 2001-2025 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Stéphane Borel <stef@via.ecp.fr>
  *          Gildas Bazin <gbazin@videolan.org>
@@ -28,9 +29,9 @@
 
 #include "dvdread.h"
 #include <limits.h>
-#include <vlc_arrays.h>
+#include <heimdall_arrays.h>
 
-static vlc_tick_t dvdtime_to_time( const dvd_time_t *dtime )
+static heimdall_tick_t dvdtime_to_time( const dvd_time_t *dtime )
 {
 /* Macro to convert Binary Coded Decimal to Decimal */
 #define BCD2D(__x__) (((__x__ & 0xf0) >> 4) * 10 + (__x__ & 0x0f))
@@ -54,20 +55,20 @@ static vlc_tick_t dvdtime_to_time( const dvd_time_t *dtime )
         break;
     }
     f_ms = BCD2D(dtime->frame_u&0x3f) * 1000.0 / f_fps;
-    return vlc_tick_from_sec(sec) + VLC_TICK_FROM_MS(f_ms);
+    return heimdall_tick_from_sec(sec) + HEIMDALL_TICK_FROM_MS(f_ms);
 }
 
-/* total playback duration of the current title in vlc_tick_t
+/* total playback duration of the current title in heimdall_tick_t
  * for dvd-video sums per-cell playback_time across the active cell range
  * so angle-restricted titles report the correct length
  * falls back to pgc playback_time for other disc types */
-static vlc_tick_t DvdReadVideoTitleDuration( const demux_sys_t *p_sys )
+static heimdall_tick_t DvdReadVideoTitleDuration( const demux_sys_t *p_sys )
 {
     if( p_sys->p_cur_pgc && p_sys->p_cur_pgc->cell_playback &&
         p_sys->i_title_start_cell >= 0 &&
         p_sys->i_title_start_cell < p_sys->i_title_end_cell )
     {
-        vlc_tick_t dur = 0;
+        heimdall_tick_t dur = 0;
         for( int ci = p_sys->i_title_start_cell; ci <= p_sys->i_title_end_cell; ci++ )
         {
             dur += dvdtime_to_time( &p_sys->p_cur_pgc->cell_playback[ci].playback_time );
@@ -80,12 +81,12 @@ static vlc_tick_t DvdReadVideoTitleDuration( const demux_sys_t *p_sys )
     return 0;
 }
 
-static vlc_tick_t DvdReadTitleLength( const demux_sys_t *p_sys )
+static heimdall_tick_t DvdReadTitleLength( const demux_sys_t *p_sys )
 {
     return DvdReadVideoTitleDuration( p_sys );
 }
 
-static bool DvdReadTimelineBase( const demux_sys_t *p_sys, vlc_tick_t *base )
+static bool DvdReadTimelineBase( const demux_sys_t *p_sys, heimdall_tick_t *base )
 {
     const pgc_t *p_pgc = p_sys->p_cur_pgc;
     if( !p_pgc || !p_pgc->cell_playback ||
@@ -95,12 +96,12 @@ static bool DvdReadTimelineBase( const demux_sys_t *p_sys, vlc_tick_t *base )
         p_sys->i_title_start_cell > p_sys->i_cur_cell )
         return false;
 
-    vlc_tick_t cell_dvd_time = 0;
+    heimdall_tick_t cell_dvd_time = 0;
     for( int i = p_sys->i_title_start_cell; i < p_sys->i_cur_cell; i++ )
         cell_dvd_time += dvdtime_to_time( &p_pgc->cell_playback[i].playback_time );
 
     const cell_playback_t *p_cell = &p_pgc->cell_playback[p_sys->i_cur_cell];
-    vlc_tick_t cell_duration = dvdtime_to_time( &p_cell->playback_time );
+    heimdall_tick_t cell_duration = dvdtime_to_time( &p_cell->playback_time );
     const uint32_t cell_sectors = p_cell->last_sector - p_cell->first_sector + 1;
 
     if( cell_duration > 0 && cell_sectors > 0 )
@@ -112,7 +113,7 @@ static bool DvdReadTimelineBase( const demux_sys_t *p_sys, vlc_tick_t *base )
         else if( within_sectors >= (int64_t)cell_sectors )
             within_sectors = (int64_t)cell_sectors - 1;
 
-        vlc_tick_t scaled;
+        heimdall_tick_t scaled;
         if( !ckd_mul( &scaled, within_sectors, cell_duration ) )
             cell_dvd_time += scaled / cell_sectors;
     }
@@ -121,11 +122,11 @@ static bool DvdReadTimelineBase( const demux_sys_t *p_sys, vlc_tick_t *base )
     return true;
 }
 
-static uint32_t DvdReadTimeToSeekOffset( const demux_sys_t *p_sys, vlc_tick_t time,
+static uint32_t DvdReadTimeToSeekOffset( const demux_sys_t *p_sys, heimdall_tick_t time,
                                          uint32_t i_block_offset )
 {
-    VLC_UNUSED( p_sys );
-    VLC_UNUSED( time );
+    HEIMDALL_UNUSED( p_sys );
+    HEIMDALL_UNUSED( time );
     return i_block_offset;
 }
 
@@ -138,23 +139,23 @@ static uint32_t DvdReadCellAwareBlock( const demux_sys_t *p_sys,
         p_sys->i_title_blocks == 0 )
         return i_block_offset;
 
-    const vlc_tick_t length = DvdReadVideoTitleDuration( p_sys );
-    vlc_tick_t product;
+    const heimdall_tick_t length = DvdReadVideoTitleDuration( p_sys );
+    heimdall_tick_t product;
     if( ckd_mul( &product, i_block_offset, length ) )
         return i_block_offset;
-    const vlc_tick_t t = product / p_sys->i_title_blocks;
+    const heimdall_tick_t t = product / p_sys->i_title_blocks;
 
-    vlc_tick_t acc = 0;
+    heimdall_tick_t acc = 0;
     uint32_t block_acc = 0;
     for( int ci = p_sys->i_title_start_cell; ci <= p_sys->i_title_end_cell; ci++ )
     {
         const cell_playback_t *cell = &p_pgc->cell_playback[ci];
-        const vlc_tick_t dur = dvdtime_to_time( &cell->playback_time );
+        const heimdall_tick_t dur = dvdtime_to_time( &cell->playback_time );
         if( dur == 0 )
             continue;
         const uint32_t blocks = cell->last_sector - cell->first_sector + 1;
 
-        vlc_tick_t next_acc;
+        heimdall_tick_t next_acc;
         uint32_t next_block_acc;
         if( ckd_add( &next_acc, acc, dur ) ||
             ckd_add( &next_block_acc, block_acc, blocks ) )
@@ -162,7 +163,7 @@ static uint32_t DvdReadCellAwareBlock( const demux_sys_t *p_sys,
 
         if( next_acc > t )
         {
-            vlc_tick_t scaled;
+            heimdall_tick_t scaled;
             if( !ckd_mul( &scaled, t - acc, blocks ) )
                 return block_acc + (uint32_t)( scaled / dur );
             return i_block_offset;
@@ -180,8 +181,8 @@ static int DvdReadPsSource( void )
 
 static void DvdReadAdjustAnchor( demux_sys_t *p_sys, block_t *pkt )
 {
-    VLC_UNUSED( p_sys );
-    VLC_UNUSED( pkt );
+    HEIMDALL_UNUSED( p_sys );
+    HEIMDALL_UNUSED( pkt );
 }
 
 /*****************************************************************************
@@ -389,7 +390,7 @@ static int DvdReadSeek( demux_t *p_demux, uint32_t i_block_offset )
     if( i_cell > p_sys->i_title_end_cell )
     {
         msg_Err( p_demux, "couldn't find cell for block %u", i_block_offset );
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
     i_block += p_pgc->cell_playback[i_cell].first_sector;
     p_sys->i_title_offset = i_block_offset;
@@ -420,14 +421,14 @@ static int DvdReadSeek( demux_t *p_demux, uint32_t i_block_offset )
     /* see ifo_read.c / ifoRead_VOBU_ADMAP_internal for index count */
     if( unlikely( p_vts->vts_vobu_admap == NULL ||
                   p_vts->vts_vobu_admap->last_byte < VOBU_ADMAP_SIZE ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     size_t i_vobu = 1;
     const size_t i_vobu_sect_index_count =
             (p_vts->vts_vobu_admap->last_byte + 1 - VOBU_ADMAP_SIZE) /
             sizeof(*p_vts->vts_vobu_admap->vobu_start_sectors);
     if( unlikely( i_vobu_sect_index_count == 0 ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     for( size_t i=0; i<i_vobu_sect_index_count; i++ )
     {
         if( p_vts->vts_vobu_admap->vobu_start_sectors[i] > i_block )
@@ -474,7 +475,7 @@ static int DvdReadSeek( demux_t *p_demux, uint32_t i_block_offset )
     DvdReadResetCellTs( p_sys );
     es_out_Control( p_demux->out, ES_OUT_RESET_PCR );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -486,7 +487,7 @@ static int DvdReadSeek( demux_t *p_demux, uint32_t i_block_offset )
 static int DvdReadSetArea( demux_t *p_demux, int i_title, int i_chapter,
                            int i_angle )
 {
-    VLC_UNUSED( i_angle );
+    HEIMDALL_UNUSED( i_angle );
 
     demux_sys_t *p_sys = p_demux->p_sys;
     int pgc_id = 0, pgn = 0;
@@ -517,7 +518,7 @@ static int DvdReadSetArea( demux_t *p_demux, int i_title, int i_chapter,
                p_vmg->tt_srpt->title[i_title].title_set_nr ) ) )
         {
             msg_Err( p_demux, "fatal error in vts ifo" );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         const ifo_handle_t *p_vts = p_sys->p_vts_file;
@@ -534,7 +535,7 @@ static int DvdReadSetArea( demux_t *p_demux, int i_title, int i_chapter,
         if( p_pgc->cell_playback == NULL )
         {
             msg_Err( p_demux, "Invalid PGC (cell_playback_offset)" );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         p_sys->i_title_start_cell =
@@ -556,7 +557,7 @@ static int DvdReadSetArea( demux_t *p_demux, int i_title, int i_chapter,
                                          p_pgc->cell_playback[i].first_sector + 1;
             if(unlikely( cell_blocks == 0 || cell_blocks > INT_MAX ||
                  INT_MAX - p_sys->i_title_blocks < cell_blocks ))
-                return VLC_EGENERIC;
+                return HEIMDALL_EGENERIC;
             p_sys->i_title_blocks += cell_blocks;
         }
 
@@ -605,7 +606,7 @@ static int DvdReadSetArea( demux_t *p_demux, int i_title, int i_chapter,
         {
             msg_Err( p_demux, "cannot open title (VTS_%02d_1.VOB)",
                      p_vmg->tt_srpt->title[i_title].title_set_nr );
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
         //IfoPrintTitle( p_demux );
@@ -770,7 +771,7 @@ static int DvdReadSetArea( demux_t *p_demux, int i_title, int i_chapter,
     else if( i_title != -1 && i_title != p_sys->i_title )
 
     {
-        return VLC_EGENERIC; /* Couldn't set title */
+        return HEIMDALL_EGENERIC; /* Couldn't set title */
     }
 
     /*
@@ -788,7 +789,7 @@ static int DvdReadSetArea( demux_t *p_demux, int i_title, int i_chapter,
         const pgc_t *p_pgc =
             p_sys->p_cur_pgc = p_vts->vts_pgcit->pgci_srp[pgc_id - 1].pgc;
         if( p_pgc->cell_playback == NULL )
-            return VLC_EGENERIC; /* Couldn't set chapter */
+            return HEIMDALL_EGENERIC; /* Couldn't set chapter */
 
         p_sys->i_cur_cell = p_pgc->program_map[pgn - 1] - 1;
         p_sys->i_chapter = i_chapter;
@@ -814,10 +815,10 @@ static int DvdReadSetArea( demux_t *p_demux, int i_title, int i_chapter,
     else if( i_chapter != -1 )
 
     {
-        return VLC_EGENERIC; /* Couldn't set chapter */
+        return HEIMDALL_EGENERIC; /* Couldn't set chapter */
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /* the player copies seekpoints only once at open */
@@ -850,14 +851,14 @@ static void DvdReadFillTitleTimes( const ifo_handle_t *p_vts, int i_ttn,
     if( start_cell < 0 || start_cell > end_cell )
         return;
 
-    vlc_tick_t length = 0;
+    heimdall_tick_t length = 0;
     for( int ci = start_cell; ci <= end_cell; ci++ )
         length += dvdtime_to_time( &p_pgc->cell_playback[ci].playback_time );
     t->i_length = length;
 
     const int max_sp = __MIN( t->i_seekpoint, ptt->nr_of_ptts );
     int cell = start_cell;
-    vlc_tick_t offset = 0;
+    heimdall_tick_t offset = 0;
     for( int sj = 0; sj < max_sp; sj++ )
     {
         const uint16_t sj_pgn = ptt->ptt[sj].pgn;
@@ -880,7 +881,7 @@ static void DvdReadFillTitleTimes( const ifo_handle_t *p_vts, int i_ttn,
  *****************************************************************************/
 static void DvdReadDemuxTitles( demux_t *p_demux, int *pi_angle )
 {
-    VLC_UNUSED( pi_angle );
+    HEIMDALL_UNUSED( pi_angle );
 
     demux_sys_t *p_sys = p_demux->p_sys;
     input_title_t *t;
@@ -895,16 +896,16 @@ static void DvdReadDemuxTitles( demux_t *p_demux, int *pi_angle )
 
         msg_Dbg( p_demux, "title %d has %d chapters", i, i_chapters );
 
-        t = vlc_input_title_New();
+        t = heimdall_input_title_New();
         if( unlikely( !t ) )
             return;
 
         for( int j = 0; j < __MAX( i_chapters, 1 ); j++ )
         {
-            s = vlc_seekpoint_New();
+            s = heimdall_seekpoint_New();
             if( unlikely( !s ) )
             {
-                vlc_input_title_Delete( t );
+                heimdall_input_title_Delete( t );
                 return;
             }
             TAB_APPEND( t->i_seekpoint, t->seekpoint, s );

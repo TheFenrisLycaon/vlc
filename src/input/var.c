@@ -2,6 +2,7 @@
  * var.c: object variables for input thread
  *****************************************************************************
  * Copyright (C) 2004-2007 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Laurent Aimar <fenrir@via.ecp.fr>
  *
@@ -27,7 +28,7 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 #include <assert.h>
 
 #include "input_internal.h"
@@ -36,93 +37,93 @@
  * input_ConfigVarInit:
  *  Create all config object variables
  *****************************************************************************/
-void vlc_object_InitInputConfig(vlc_object_t *obj,
+void heimdall_object_InitInputConfig(heimdall_object_t *obj,
                                 bool playback, bool do_inherit)
 {
     /* Create Object Variables for private use only */
-    int inherit_flag = do_inherit ? VLC_VAR_DOINHERIT : 0;
+    int inherit_flag = do_inherit ? HEIMDALL_VAR_DOINHERIT : 0;
 
     if (playback)
     {
-        var_Create(obj, "video", VLC_VAR_BOOL | inherit_flag);
-        var_Create(obj, "audio", VLC_VAR_BOOL | inherit_flag);
-        var_Create(obj, "spu", VLC_VAR_BOOL | inherit_flag);
+        var_Create(obj, "video", HEIMDALL_VAR_BOOL | inherit_flag);
+        var_Create(obj, "audio", HEIMDALL_VAR_BOOL | inherit_flag);
+        var_Create(obj, "spu", HEIMDALL_VAR_BOOL | inherit_flag);
 
-        var_Create(obj, "video-track", VLC_VAR_INTEGER|inherit_flag);
-        var_Create(obj, "audio-track", VLC_VAR_INTEGER|inherit_flag);
-        var_Create(obj, "sub-track", VLC_VAR_INTEGER|inherit_flag);
+        var_Create(obj, "video-track", HEIMDALL_VAR_INTEGER|inherit_flag);
+        var_Create(obj, "audio-track", HEIMDALL_VAR_INTEGER|inherit_flag);
+        var_Create(obj, "sub-track", HEIMDALL_VAR_INTEGER|inherit_flag);
 
         var_Create(obj, "audio-language",
-                    VLC_VAR_STRING|inherit_flag);
+                    HEIMDALL_VAR_STRING|inherit_flag);
         var_Create(obj, "sub-language",
-                    VLC_VAR_STRING|inherit_flag);
+                    HEIMDALL_VAR_STRING|inherit_flag);
         var_Create(obj, "menu-language",
-                    VLC_VAR_STRING|inherit_flag);
+                    HEIMDALL_VAR_STRING|inherit_flag);
 
         var_Create(obj, "video-track-id",
-                    VLC_VAR_STRING|inherit_flag);
+                    HEIMDALL_VAR_STRING|inherit_flag);
         var_Create(obj, "audio-track-id",
-                    VLC_VAR_STRING|inherit_flag);
+                    HEIMDALL_VAR_STRING|inherit_flag);
         var_Create(obj, "sub-track-id",
-                    VLC_VAR_STRING|inherit_flag);
+                    HEIMDALL_VAR_STRING|inherit_flag);
 
-        var_Create(obj, "sub-file", VLC_VAR_STRING | inherit_flag);
-        var_Create(obj, "sub-autodetect-file", VLC_VAR_BOOL |
+        var_Create(obj, "sub-file", HEIMDALL_VAR_STRING | inherit_flag);
+        var_Create(obj, "sub-autodetect-file", HEIMDALL_VAR_BOOL |
                     inherit_flag);
-        var_Create(obj, "sub-autodetect-path", VLC_VAR_STRING |
+        var_Create(obj, "sub-autodetect-path", HEIMDALL_VAR_STRING |
                     inherit_flag);
-        var_Create(obj, "sub-autodetect-fuzzy", VLC_VAR_INTEGER |
+        var_Create(obj, "sub-autodetect-fuzzy", HEIMDALL_VAR_INTEGER |
                     inherit_flag);
 
-        var_Create(obj, "sout", VLC_VAR_STRING | inherit_flag);
-        var_Create(obj, "sout-all",   VLC_VAR_BOOL | inherit_flag);
-        var_Create(obj, "sout-audio", VLC_VAR_BOOL | inherit_flag);
-        var_Create(obj, "sout-video", VLC_VAR_BOOL | inherit_flag);
-        var_Create(obj, "sout-spu", VLC_VAR_BOOL | inherit_flag);
-        var_Create(obj, "sout-keep",  VLC_VAR_BOOL | inherit_flag);
+        var_Create(obj, "sout", HEIMDALL_VAR_STRING | inherit_flag);
+        var_Create(obj, "sout-all",   HEIMDALL_VAR_BOOL | inherit_flag);
+        var_Create(obj, "sout-audio", HEIMDALL_VAR_BOOL | inherit_flag);
+        var_Create(obj, "sout-video", HEIMDALL_VAR_BOOL | inherit_flag);
+        var_Create(obj, "sout-spu", HEIMDALL_VAR_BOOL | inherit_flag);
+        var_Create(obj, "sout-keep",  HEIMDALL_VAR_BOOL | inherit_flag);
 
-        var_Create(obj, "start-time", VLC_VAR_FLOAT|inherit_flag);
-        var_Create(obj, "stop-time", VLC_VAR_FLOAT|inherit_flag);
-        var_Create(obj, "run-time", VLC_VAR_FLOAT|inherit_flag);
-        var_Create(obj, "input-fast-seek", VLC_VAR_BOOL|inherit_flag);
+        var_Create(obj, "start-time", HEIMDALL_VAR_FLOAT|inherit_flag);
+        var_Create(obj, "stop-time", HEIMDALL_VAR_FLOAT|inherit_flag);
+        var_Create(obj, "run-time", HEIMDALL_VAR_FLOAT|inherit_flag);
+        var_Create(obj, "input-fast-seek", HEIMDALL_VAR_BOOL|inherit_flag);
 
         var_Create(obj, "input-slave",
-                    VLC_VAR_STRING | inherit_flag);
+                    HEIMDALL_VAR_STRING | inherit_flag);
 
         var_Create(obj, "audio-desync",
-                    VLC_VAR_INTEGER | inherit_flag);
+                    HEIMDALL_VAR_INTEGER | inherit_flag);
         var_Create(obj, "cr-average",
-                    VLC_VAR_INTEGER | inherit_flag);
+                    HEIMDALL_VAR_INTEGER | inherit_flag);
         var_Create(obj, "clock-synchro",
-                    VLC_VAR_INTEGER | inherit_flag);
+                    HEIMDALL_VAR_INTEGER | inherit_flag);
 
-        var_Create(obj, "bookmarks", VLC_VAR_STRING | inherit_flag);
-        var_Create(obj, "programs", VLC_VAR_STRING | inherit_flag);
-        var_Create(obj, "program", VLC_VAR_INTEGER | inherit_flag);
-        var_Create(obj, "rate", VLC_VAR_FLOAT | inherit_flag);
+        var_Create(obj, "bookmarks", HEIMDALL_VAR_STRING | inherit_flag);
+        var_Create(obj, "programs", HEIMDALL_VAR_STRING | inherit_flag);
+        var_Create(obj, "program", HEIMDALL_VAR_INTEGER | inherit_flag);
+        var_Create(obj, "rate", HEIMDALL_VAR_FLOAT | inherit_flag);
     }
 
     /* */
-    var_Create(obj, "input-record-native", VLC_VAR_BOOL | inherit_flag);
+    var_Create(obj, "input-record-native", HEIMDALL_VAR_BOOL | inherit_flag);
 
     /* */
-    var_Create(obj, "demux", VLC_VAR_STRING | inherit_flag);
-    var_Create(obj, "demux-filter", VLC_VAR_STRING | inherit_flag);
-    var_Create(obj, "stream-filter", VLC_VAR_STRING | inherit_flag);
+    var_Create(obj, "demux", HEIMDALL_VAR_STRING | inherit_flag);
+    var_Create(obj, "demux-filter", HEIMDALL_VAR_STRING | inherit_flag);
+    var_Create(obj, "stream-filter", HEIMDALL_VAR_STRING | inherit_flag);
 
     /* Meta */
-    var_Create(obj, "meta-title", VLC_VAR_STRING | inherit_flag);
-    var_Create(obj, "meta-author", VLC_VAR_STRING | inherit_flag);
-    var_Create(obj, "meta-artist", VLC_VAR_STRING | inherit_flag);
-    var_Create(obj, "meta-genre", VLC_VAR_STRING | inherit_flag);
-    var_Create(obj, "meta-copyright", VLC_VAR_STRING | inherit_flag);
-    var_Create(obj, "meta-description", VLC_VAR_STRING|inherit_flag);
-    var_Create(obj, "meta-date", VLC_VAR_STRING | inherit_flag);
-    var_Create(obj, "meta-url", VLC_VAR_STRING | inherit_flag);
+    var_Create(obj, "meta-title", HEIMDALL_VAR_STRING | inherit_flag);
+    var_Create(obj, "meta-author", HEIMDALL_VAR_STRING | inherit_flag);
+    var_Create(obj, "meta-artist", HEIMDALL_VAR_STRING | inherit_flag);
+    var_Create(obj, "meta-genre", HEIMDALL_VAR_STRING | inherit_flag);
+    var_Create(obj, "meta-copyright", HEIMDALL_VAR_STRING | inherit_flag);
+    var_Create(obj, "meta-description", HEIMDALL_VAR_STRING|inherit_flag);
+    var_Create(obj, "meta-date", HEIMDALL_VAR_STRING | inherit_flag);
+    var_Create(obj, "meta-url", HEIMDALL_VAR_STRING | inherit_flag);
 
     /* Inherited by demux/subtitle.c */
-    var_Create(obj, "sub-original-fps", VLC_VAR_FLOAT);
+    var_Create(obj, "sub-original-fps", HEIMDALL_VAR_FLOAT);
 
     /* used by Medialibrary */
-    var_Create(obj, "save-recentplay", VLC_VAR_BOOL | inherit_flag);
+    var_Create(obj, "save-recentplay", HEIMDALL_VAR_BOOL | inherit_flag);
 }

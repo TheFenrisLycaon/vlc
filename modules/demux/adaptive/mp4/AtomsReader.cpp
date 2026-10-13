@@ -2,6 +2,7 @@
  * AtomsReader.cpp
  *****************************************************************************
  * Copyright (C) 2014 - VideoLAN and VLC authors
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -26,7 +27,7 @@
 
 using namespace adaptive::mp4;
 
-AtomsReader::AtomsReader(vlc_object_t *object_)
+AtomsReader::AtomsReader(heimdall_object_t *object_)
 {
     object = object_;
     rootbox = nullptr;
@@ -48,13 +49,13 @@ bool AtomsReader::parseBlock(block_t *p_block)
     if(rootbox)
         clean();
 
-    stream_t *stream = vlc_stream_MemoryNew( object, p_block->p_buffer, p_block->i_buffer, true);
+    stream_t *stream = heimdall_stream_MemoryNew( object, p_block->p_buffer, p_block->i_buffer, true);
     if (stream)
     {
         rootbox = MP4_BoxNew(ATOM_root);
         if(!rootbox)
         {
-            vlc_stream_Delete(stream);
+            heimdall_stream_Delete(stream);
             return false;
         }
         memset(rootbox, 0, sizeof(*rootbox));
@@ -66,7 +67,7 @@ bool AtomsReader::parseBlock(block_t *p_block)
             MP4_BoxDumpStructure(object, rootbox);
 #endif
         }
-        vlc_stream_Delete(stream);
+        heimdall_stream_Delete(stream);
     }
 
     return true;

@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,12 +19,12 @@
 import QtQuick
 import QtQml.Models
 
-import VLC.MediaLibrary
+import Heimdall.MediaLibrary
 
-import VLC.Util
-import VLC.Widgets as Widgets
-import VLC.MainInterface
-import VLC.Style
+import Heimdall.Util
+import Heimdall.Widgets as Widgets
+import Heimdall.MainInterface
+import Heimdall.Style
 
 Widgets.TableViewExt {
     id: listView_id
@@ -39,9 +40,9 @@ Widgets.TableViewExt {
 
     property bool showGroupCountColumn: false
 
-    property real coverHeight: VLCStyle.listAlbumCover_height
-    property real coverWidth: VLCStyle.listAlbumCover_width
-    property real coverRadius: VLCStyle.listAlbumCover_radius
+    property real coverHeight: HeimdallStyle.listAlbumCover_height
+    property real coverWidth: HeimdallStyle.listAlbumCover_width
+    property real coverRadius: HeimdallStyle.listAlbumCover_radius
 
     //---------------------------------------------------------------------------------------------
     // Private
@@ -59,7 +60,7 @@ Widgets.TableViewExt {
 
             text: qsTr("Title"),
 
-            placeHolder: VLCStyle.noArtVideoCover,
+            placeHolder: HeimdallStyle.noArtVideoCover,
 
             headerDelegate: tableColumns.titleHeaderDelegate,
             colDelegate   : tableColumns.titleDelegate
@@ -80,7 +81,7 @@ Widgets.TableViewExt {
                 headerDelegate: tableColumns.titleHeaderDelegate,
                 colDelegate   : tableColumns.titleDelegate,
 
-                placeHolder: VLCStyle.noArtVideoCover
+                placeHolder: HeimdallStyle.noArtVideoCover
             })
         }]
 
@@ -116,12 +117,12 @@ Widgets.TableViewExt {
 
     // Settings
 
-    sortModel: (_availableRowWidth < VLCStyle.colWidth(4)) ? _modelSmall
+    sortModel: (_availableRowWidth < HeimdallStyle.colWidth(4)) ? _modelSmall
                                                            : _modelMedium
 
     section.property: "title_first_symbol"
 
-    rowHeight: VLCStyle.tableCoverRow_height
+    rowHeight: HeimdallStyle.tableCoverRow_height
 
     //---------------------------------------------------------------------------------------------
     // Childs

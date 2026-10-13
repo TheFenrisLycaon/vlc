@@ -1,7 +1,8 @@
 /*****************************************************************************
- * picture.c: VDPAU instance management for VLC
+ * picture.c: VDPAU instance management for Heimdall
  *****************************************************************************
  * Copyright (C) 2013 Rémi Denis-Courmont
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -26,22 +27,22 @@
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
-#include <vlc_common.h>
-#include <vlc_picture.h>
-#include <vlc_picture_pool.h>
-#include "vlc_vdpau.h"
+#include <heimdall_common.h>
+#include <heimdall_picture.h>
+#include <heimdall_picture_pool.h>
+#include "heimdall_vdpau.h"
 
 #pragma GCC visibility push(default)
 
-static_assert(offsetof (vlc_vdp_video_field_t, context) == 0,
+static_assert(offsetof (heimdall_vdp_video_field_t, context) == 0,
               "Cast assumption failure");
 
 static void VideoSurfaceDestroy(struct picture_context_t *ctx)
 {
-    struct vlc_vdp_device *device = GetVDPAUOpaqueContext(ctx->vctx);
-    vlc_vdp_video_field_t *field = container_of(ctx, vlc_vdp_video_field_t,
+    struct heimdall_vdp_device *device = GetVDPAUOpaqueContext(ctx->vctx);
+    heimdall_vdp_video_field_t *field = container_of(ctx, heimdall_vdp_video_field_t,
                                                 context);
-    vlc_vdp_video_frame_t *frame = field->frame;
+    heimdall_vdp_video_frame_t *frame = field->frame;
     VdpStatus err;
 
     /* Destroy field-specific infos */
@@ -60,14 +61,14 @@ static void VideoSurfaceDestroy(struct picture_context_t *ctx)
 
 static picture_context_t *VideoSurfaceCopy(picture_context_t *ctx)
 {
-    vlc_vdp_video_field_t *fold = container_of(ctx, vlc_vdp_video_field_t,
+    heimdall_vdp_video_field_t *fold = container_of(ctx, heimdall_vdp_video_field_t,
                                                context);
-    vlc_vdp_video_field_t *fnew = malloc(sizeof (*fnew));
+    heimdall_vdp_video_field_t *fnew = malloc(sizeof (*fnew));
     if (unlikely(fnew == NULL))
         return NULL;
 
     *fnew = *fold;
-    vlc_video_context_Hold(ctx->vctx);
+    heimdall_video_context_Hold(ctx->vctx);
     atomic_fetch_add(&fold->frame->refs, 1);
     return &fnew->context;
 }
@@ -81,15 +82,15 @@ static const VdpProcamp procamp_default =
     .hue = 0.f,
 };
 
-vlc_vdp_video_field_t *vlc_vdp_video_create(struct vlc_video_context *vctx,
+heimdall_vdp_video_field_t *heimdall_vdp_video_create(struct heimdall_video_context *vctx,
                                             VdpVideoSurface surface)
 {
-    struct vlc_vdp_device *device = GetVDPAUOpaqueContext(vctx);
-    vlc_vdp_video_field_t *field = malloc(sizeof (*field));
-    vlc_vdp_video_frame_t *frame = malloc(sizeof (*frame));
+    struct heimdall_vdp_device *device = GetVDPAUOpaqueContext(vctx);
+    heimdall_vdp_video_field_t *field = malloc(sizeof (*field));
+    heimdall_vdp_video_frame_t *frame = malloc(sizeof (*frame));
 
     if (device == NULL)
-        vlc_assert_unreachable();
+        heimdall_assert_unreachable();
     if (unlikely(field == NULL || frame == NULL))
     {
         free(frame);
@@ -98,7 +99,7 @@ vlc_vdp_video_field_t *vlc_vdp_video_create(struct vlc_video_context *vctx,
     }
 
     field->context = (picture_context_t) {
-        VideoSurfaceDestroy, VideoSurfaceCopy, vlc_video_context_Hold(vctx),
+        VideoSurfaceDestroy, VideoSurfaceCopy, heimdall_video_context_Hold(vctx),
     };
     field->frame = frame;
     field->structure = VDP_VIDEO_MIXER_PICTURE_STRUCTURE_FRAME;
@@ -110,36 +111,36 @@ vlc_vdp_video_field_t *vlc_vdp_video_create(struct vlc_video_context *vctx,
     return field;
 }
 
-VdpStatus vlc_vdp_video_attach(struct vlc_video_context *vctx,
+VdpStatus heimdall_vdp_video_attach(struct heimdall_video_context *vctx,
                                VdpVideoSurface surface, picture_t *pic)
 {
-    vlc_vdp_video_field_t *field = vlc_vdp_video_create(vctx, surface);
+    heimdall_vdp_video_field_t *field = heimdall_vdp_video_create(vctx, surface);
     if (unlikely(field == NULL))
         return VDP_STATUS_RESOURCES;
 
-    assert(pic->format.i_chroma == VLC_CODEC_VDPAU_VIDEO);
+    assert(pic->format.i_chroma == HEIMDALL_CODEC_VDPAU_VIDEO);
     assert(pic->context == NULL);
     pic->context = &field->context;
     return VDP_STATUS_OK;
 }
 
-static void vlc_vdp_output_surface_destroy(picture_t *pic)
+static void heimdall_vdp_output_surface_destroy(picture_t *pic)
 {
-    vlc_vdp_output_surface_t *sys = pic->p_sys;
-    struct vlc_vdp_device *device = GetVDPAUOpaqueContext(sys->vctx);
+    heimdall_vdp_output_surface_t *sys = pic->p_sys;
+    struct heimdall_vdp_device *device = GetVDPAUOpaqueContext(sys->vctx);
 
     vdp_output_surface_destroy(device->vdp, sys->surface);
-    vlc_video_context_Release(sys->vctx);
+    heimdall_video_context_Release(sys->vctx);
     free(sys);
 }
 
 static
-picture_t *vlc_vdp_output_surface_create(struct vlc_video_context *vctx,
+picture_t *heimdall_vdp_output_surface_create(struct heimdall_video_context *vctx,
                                          VdpRGBAFormat rgb_fmt,
                                          const video_format_t *restrict fmt)
 {
-    struct vlc_vdp_device *device = GetVDPAUOpaqueContext(vctx);
-    vlc_vdp_output_surface_t *sys = malloc(sizeof (*sys));
+    struct heimdall_vdp_device *device = GetVDPAUOpaqueContext(vctx);
+    heimdall_vdp_output_surface_t *sys = malloc(sizeof (*sys));
     if (unlikely(sys == NULL))
         return NULL;
 
@@ -157,7 +158,7 @@ error:
 
     picture_resource_t res = {
         .p_sys = sys,
-        .pf_destroy = vlc_vdp_output_surface_destroy,
+        .pf_destroy = heimdall_vdp_output_surface_destroy,
     };
 
     picture_t *pic = picture_NewFromResource(fmt, &res);
@@ -167,11 +168,11 @@ error:
         goto error;
     }
 
-    sys->vctx = vlc_video_context_Hold(vctx);
+    sys->vctx = heimdall_video_context_Hold(vctx);
     return pic;
 }
 
-picture_pool_t *vlc_vdp_output_pool_create(struct vlc_video_context *vctx,
+picture_pool_t *heimdall_vdp_output_pool_create(struct heimdall_video_context *vctx,
                                            VdpRGBAFormat rgb_fmt,
                                            const video_format_t *restrict fmt,
                                            unsigned requested_count)
@@ -181,7 +182,7 @@ picture_pool_t *vlc_vdp_output_pool_create(struct vlc_video_context *vctx,
 
     while (count < requested_count)
     {
-        pics[count] = vlc_vdp_output_surface_create(vctx, rgb_fmt, fmt);
+        pics[count] = heimdall_vdp_output_surface_create(vctx, rgb_fmt, fmt);
         if (pics[count] == NULL)
             break;
         count++;

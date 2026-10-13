@@ -2,9 +2,10 @@
  * clock_internal.c: Clock internal functions
  *****************************************************************************
  * Copyright (C) 2018 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Christophe Massiot <massiot@via.ecp.fr>
- *          Laurent Aimar < fenrir _AT_ videolan _DOT_ org >
+ *          Laurent Aimar < fenrir _AT_ lycaria _DOT_ org >
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -38,7 +39,7 @@ void AvgInit(average_t *avg, int range)
 
 void AvgClean(average_t * avg)
 {
-    VLC_UNUSED(avg);
+    HEIMDALL_UNUSED(avg);
 }
 
 void AvgReset(average_t *avg)

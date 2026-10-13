@@ -2,8 +2,9 @@
  * xspf.c : XSPF playlist import functions
  *******************************************************************************
  * Copyright (C) 2006-2017 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Daniel Stränger <vlc at schmaller dot de>
+ * Authors: Daniel Stränger <heimdall at schmaller dot de>
  *          Yoann Peronneau <yoann@videolan.org>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -29,13 +30,13 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_access.h>
+#include <heimdall_common.h>
+#include <heimdall_access.h>
 
-#include <vlc_xml.h>
-#include <vlc_arrays.h>
-#include <vlc_strings.h>
-#include <vlc_url.h>
+#include <heimdall_xml.h>
+#include <heimdall_arrays.h>
+#include <heimdall_strings.h>
+#include <heimdall_url.h>
 #include "playlist.h"
 
 #include <limits.h>
@@ -85,27 +86,27 @@ static int ReadDir(stream_t *, input_item_node_t *);
 /**
  * \brief XSPF submodule initialization function
  */
-int Import_xspf(vlc_object_t *p_this)
+int Import_xspf(heimdall_object_t *p_this)
 {
     stream_t *p_stream = (stream_t *)p_this;
 
     if( !stream_HasExtension( p_stream, ".xspf" )
      && !stream_IsMimeType( p_stream->s, "application/xspf+xml" ) )
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     xspf_sys_t *sys = calloc(1, sizeof (*sys));
     if (unlikely(sys == NULL))
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     msg_Dbg(p_stream, "using XSPF playlist reader");
     p_stream->p_sys = sys;
     p_stream->pf_readdir = ReadDir;
     p_stream->pf_control = PlaylistControl;
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
-void Close_xspf(vlc_object_t *p_this)
+void Close_xspf(heimdall_object_t *p_this)
 {
     stream_t *p_stream = (stream_t *)p_this;
     xspf_sys_t *p_sys = p_stream->p_sys;
@@ -323,7 +324,7 @@ static bool parse_playlist_node COMPLEX_INTERFACE
             if (strcmp(psz_value, "0") && strcmp(psz_value, "1"))
                 msg_Warn(p_stream, "unsupported XSPF version %s", psz_value);
         }
-        else if (!strcmp(psz_name, "xmlns") || !strcmp(psz_name, "xmlns:vlc"))
+        else if (!strcmp(psz_name, "xmlns") || !strcmp(psz_name, "xmlns:heimdall"))
             ;
         else if (!strcmp(psz_name, "xml:base"))
         {
@@ -364,7 +365,7 @@ static bool parse_playlist_node COMPLEX_INTERFACE
  */
 static bool parse_tracklist_node COMPLEX_INTERFACE
 {
-    VLC_UNUSED(psz_element);
+    HEIMDALL_UNUSED(psz_element);
 
     if(b_empty_node)
         return true;
@@ -384,7 +385,7 @@ static bool parse_tracklist_node COMPLEX_INTERFACE
  */
 static bool parse_location SIMPLE_INTERFACE
 {
-    VLC_UNUSED(psz_name);
+    HEIMDALL_UNUSED(psz_name);
     xspf_sys_t *p_sys = (xspf_sys_t *) opaque;
     char* psz_uri = ProcessMRL( psz_value, p_sys->psz_base );
     if(psz_uri)
@@ -510,7 +511,7 @@ static bool set_item_info SIMPLE_INTERFACE
     if (!psz_name || !psz_value || !p_input)
         return false;
 
-    vlc_xml_decode(psz_value);
+    heimdall_xml_decode(psz_value);
 
     /* handle each info element in a separate "if" clause */
     if (!strcmp(psz_name, "title"))
@@ -522,7 +523,7 @@ static bool set_item_info SIMPLE_INTERFACE
     else if (!strcmp(psz_name, "trackNum"))
         input_item_SetTrackNum(p_input, psz_value);
     else if (!strcmp(psz_name, "duration"))
-        p_input->i_duration = VLC_TICK_FROM_MS(atol(psz_value));
+        p_input->i_duration = HEIMDALL_TICK_FROM_MS(atol(psz_value));
     else if (!strcmp(psz_name, "annotation"))
         input_item_SetDescription(p_input, psz_value);
     else if (!strcmp(psz_name, "info"))
@@ -543,16 +544,16 @@ static bool set_item_info SIMPLE_INTERFACE
 }
 
 /**
- * \brief handles the <vlc:option> elements
+ * \brief handles the <heimdall:option> elements
  */
 static bool set_option SIMPLE_INTERFACE
 {
-    VLC_UNUSED(opaque);
+    HEIMDALL_UNUSED(opaque);
     /* exit if setting is impossible */
     if (!psz_name || !psz_value || !p_input)
         return false;
 
-    vlc_xml_decode(psz_value);
+    heimdall_xml_decode(psz_value);
 
     input_item_AddOption(p_input, psz_value, 0);
 
@@ -560,11 +561,11 @@ static bool set_option SIMPLE_INTERFACE
 }
 
 /**
- * \brief handles the <vlc:id> elements
+ * \brief handles the <heimdall:id> elements
  */
-static bool parse_vlcid SIMPLE_INTERFACE
+static bool parse_heimdallid SIMPLE_INTERFACE
 {
-    VLC_UNUSED(p_input); VLC_UNUSED(psz_name);
+    HEIMDALL_UNUSED(p_input); HEIMDALL_UNUSED(psz_name);
     xspf_sys_t *sys = (xspf_sys_t *) opaque;
     if(psz_value)
         sys->i_track_id = atoi(psz_value);
@@ -572,9 +573,9 @@ static bool parse_vlcid SIMPLE_INTERFACE
 }
 
 /**
- * \brief parse the vlc:node of a XSPF playlist
+ * \brief parse the heimdall:node of a XSPF playlist
  */
-static bool parse_vlcnode_node COMPLEX_INTERFACE
+static bool parse_heimdallnode_node COMPLEX_INTERFACE
 {
     input_item_t *p_input_item = p_input_node->p_item;
     char *psz_title = NULL;
@@ -588,13 +589,13 @@ static bool parse_vlcnode_node COMPLEX_INTERFACE
     {
         psz_title = strdup(psz_attr);
         if (likely(psz_title != NULL))
-            vlc_xml_decode(psz_title);
+            heimdall_xml_decode(psz_title);
     }
 
     /* attribute title is mandatory */
     if (!psz_title)
     {
-        msg_Warn(p_stream, "<vlc:node> requires \"title\" attribute");
+        msg_Warn(p_stream, "<heimdall:node> requires \"title\" attribute");
         return false;
     }
     input_item_t *p_new_input =
@@ -609,10 +610,10 @@ static bool parse_vlcnode_node COMPLEX_INTERFACE
 
     /* parse the child elements */
     static const xml_elem_hnd_t pl_elements[] =
-        { {"vlc:node",   {.cmplx = parse_vlcnode_node}, true },
-          {"vlc:item",   {.cmplx = parse_extitem_node}, true },
-          {"vlc:id",     {.smpl = parse_vlcid}, false },
-          {"vlc:option", {.smpl = set_option}, false },
+        { {"heimdall:node",   {.cmplx = parse_heimdallnode_node}, true },
+          {"heimdall:item",   {.cmplx = parse_extitem_node}, true },
+          {"heimdall:id",     {.smpl = parse_heimdallid}, false },
+          {"heimdall:option", {.smpl = set_option}, false },
         };
 
     bool b_ret = parse_node(p_stream, p_input_node, p_input_item,
@@ -641,7 +642,7 @@ static bool parse_extension_node COMPLEX_INTERFACE
         return false;
     }
 
-    /* Skip the extension if the application is not vlc
+    /* Skip the extension if the application is not heimdall
            This will skip all children of the current node */
     if (strcmp(psz_application, "http://www.videolan.org/vlc/playlist/0"))
     {
@@ -651,9 +652,9 @@ static bool parse_extension_node COMPLEX_INTERFACE
 
     /* parse the child elements */
     static const xml_elem_hnd_t pl_elements[] =
-        { {"vlc:node",   {.cmplx = parse_vlcnode_node}, true },
-          {"vlc:id",     {.smpl = parse_vlcid}, false },
-          {"vlc:option", {.smpl = set_option}, false },
+        { {"heimdall:node",   {.cmplx = parse_heimdallnode_node}, true },
+          {"heimdall:id",     {.smpl = parse_heimdallid}, false },
+          {"heimdall:option", {.smpl = set_option}, false },
         };
 
     return parse_node(p_stream, p_input_node, p_input_node->p_item,
@@ -667,7 +668,7 @@ static bool parse_extension_node COMPLEX_INTERFACE
 
 static bool parse_extitem_node COMPLEX_INTERFACE
 {
-    VLC_UNUSED(psz_element);
+    HEIMDALL_UNUSED(psz_element);
     xspf_sys_t *sys = p_stream->p_sys;
     input_item_t *p_new_input = NULL;
     int i_tid = -1;
@@ -683,7 +684,7 @@ static bool parse_extitem_node COMPLEX_INTERFACE
     /* attribute href is mandatory */
     if (!psz_tid || i_tid < 0)
     {
-        msg_Warn(p_stream, "<vlc:item> requires valid \"tid\" attribute");
+        msg_Warn(p_stream, "<heimdall:item> requires valid \"tid\" attribute");
         return false;
     }
 
@@ -706,7 +707,7 @@ static bool parse_extitem_node COMPLEX_INTERFACE
  */
 static bool skip_element COMPLEX_INTERFACE
 {
-    VLC_UNUSED(p_stream); VLC_UNUSED(p_input_node);
+    HEIMDALL_UNUSED(p_stream); HEIMDALL_UNUSED(p_input_node);
 
     if(b_empty_node)
         return true;

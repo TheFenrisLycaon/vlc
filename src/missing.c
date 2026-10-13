@@ -1,15 +1,16 @@
 /*****************************************************************************
- * missing.c: missing libvlccore symbols
+ * missing.c: missing libheimdallcore symbols
  *****************************************************************************
  * Copyright (C) 2008-2011 Rémi Denis-Courmont
  * Copyright (C) 2009-2014 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Rémi Denis-Courmont
  *          Pierre Ynard <linkfanel # yahoo fr>
  *          Toralf Niebuhr <gmthor85 # aim com>
- *          Felix Paul Kühne <fkuehne # videolan org>
- *          Jean-Paul Saman <jpsaman # videolan org>
- *          Antoine Cellerier <dionoea # videolan org>
+ *          Felix Paul Kühne <fkuehne # lycaria org>
+ *          Jean-Paul Saman <jpsaman # lycaria org>
+ *          Antoine Cellerier <dionoea # lycaria org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -34,64 +35,64 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
+#include <heimdall_common.h>
 #include <assert.h>
 
-#include <vlc_process.h>
+#include <heimdall_process.h>
 
 #ifndef ENABLE_VLM
-# include <vlc_vlm.h>
+# include <heimdall_vlm.h>
 
 _Noreturn int vlm_Control(vlm_t *vlm, int query, ...)
 {
-    VLC_UNUSED (query);
-    VLC_UNUSED (vlm);
-    vlc_assert_unreachable ();
+    HEIMDALL_UNUSED (query);
+    HEIMDALL_UNUSED (vlm);
+    heimdall_assert_unreachable ();
 }
 
 _Noreturn void vlm_Delete(vlm_t *vlm)
 {
-    VLC_UNUSED (vlm);
-    vlc_assert_unreachable ();
+    HEIMDALL_UNUSED (vlm);
+    heimdall_assert_unreachable ();
 }
 
 _Noreturn int vlm_ExecuteCommand(vlm_t *vlm, const char *cmd,
                                 vlm_message_t **pm)
 {
-    VLC_UNUSED (vlm);
-    VLC_UNUSED (cmd);
-    VLC_UNUSED (pm);
-    vlc_assert_unreachable ();
+    HEIMDALL_UNUSED (vlm);
+    HEIMDALL_UNUSED (cmd);
+    HEIMDALL_UNUSED (pm);
+    heimdall_assert_unreachable ();
 }
 
 _Noreturn vlm_message_t *vlm_MessageAdd(vlm_message_t *a, vlm_message_t *b)
 {
-    VLC_UNUSED (a);
-    VLC_UNUSED (b);
-    vlc_assert_unreachable ();
+    HEIMDALL_UNUSED (a);
+    HEIMDALL_UNUSED (b);
+    heimdall_assert_unreachable ();
 }
 
 _Noreturn void vlm_MessageDelete(vlm_message_t *m)
 {
-    VLC_UNUSED (m);
-    vlc_assert_unreachable ();
+    HEIMDALL_UNUSED (m);
+    heimdall_assert_unreachable ();
 }
 
 vlm_message_t *vlm_MessageSimpleNew (const char *a)
 {
-    VLC_UNUSED (a);
+    HEIMDALL_UNUSED (a);
     return NULL;
 }
 
 vlm_message_t *vlm_MessageNew (const char *a, const char *fmt, ...)
 {
-    VLC_UNUSED (a);
-    VLC_UNUSED (fmt);
+    HEIMDALL_UNUSED (a);
+    HEIMDALL_UNUSED (fmt);
     return vlm_MessageSimpleNew (a);
 }
 
 #undef vlm_New
-vlm_t *vlm_New (libvlc_int_t *obj, const char *file)
+vlm_t *vlm_New (libheimdall_int_t *obj, const char *file)
 {
      msg_Err (obj, "VLM not compiled-in!");
      (void) file;
@@ -100,9 +101,9 @@ vlm_t *vlm_New (libvlc_int_t *obj, const char *file)
 #endif /* !ENABLE_VLM */
 
 #ifndef UPDATE_CHECK
-# include <vlc_update.h>
+# include <heimdall_update.h>
 
-update_t *(update_New)(vlc_object_t *obj)
+update_t *(update_New)(heimdall_object_t *obj)
 {
     (void) obj;
     return NULL;
@@ -111,122 +112,122 @@ update_t *(update_New)(vlc_object_t *obj)
 _Noreturn void update_Delete(update_t *u)
 {
     (void) u;
-    vlc_assert_unreachable();
+    heimdall_assert_unreachable();
 }
 
 _Noreturn void update_Check(update_t *u, void (*cb)(void *, bool), void *opaque)
 {
     (void) u; (void) cb; (void) opaque;
-    vlc_assert_unreachable();
+    heimdall_assert_unreachable();
 }
 
 _Noreturn bool update_NeedUpgrade(update_t *u)
 {
     (void) u;
-    vlc_assert_unreachable();
+    heimdall_assert_unreachable();
 }
 
 _Noreturn void update_Download(update_t *u, const char *dir)
 {
     (void) u; (void) dir;
-    vlc_assert_unreachable();
+    heimdall_assert_unreachable();
 }
 
 _Noreturn update_release_t *update_GetRelease(update_t *u)
 {
     (void) u;
-    vlc_assert_unreachable();
+    heimdall_assert_unreachable();
 }
 #endif /* !UPDATE_CHECK */
 
-#include <vlc_threads.h>
-#if defined(LIBVLC_USE_PTHREAD_CLEANUP)
-_Noreturn void vlc_control_cancel (vlc_cleanup_t *cleaner)
+#include <heimdall_threads.h>
+#if defined(LIBHEIMDALL_USE_PTHREAD_CLEANUP)
+_Noreturn void heimdall_control_cancel (heimdall_cleanup_t *cleaner)
 {
     (void) cleaner;
-    vlc_assert_unreachable ();
+    heimdall_assert_unreachable ();
 }
 #endif
 
-#if !defined(_WIN32) // VLC_WEAK not supported
+#if !defined(_WIN32) // HEIMDALL_WEAK not supported
 # define HAVE_WEAK_SPAWNP
 #elif !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
 # define HAVE_WEAK_SPAWNP
 #endif
 
 #if defined(HAVE_WEAK_SPAWNP)
-#include <vlc_spawn.h>
-VLC_WEAK
-int vlc_spawn(pid_t *pid, const char *file, const int *fds,
+#include <heimdall_spawn.h>
+HEIMDALL_WEAK
+int heimdall_spawn(pid_t *pid, const char *file, const int *fds,
               const char *const *args)
 {
     (void) pid; (void) file; (void) fds; (void) args;
     return ENOSYS;
 }
 
-VLC_WEAK
-int vlc_spawnp(pid_t *pid, const char *path, const int *fds,
+HEIMDALL_WEAK
+int heimdall_spawnp(pid_t *pid, const char *path, const int *fds,
                const char *const *args)
 {
     (void) pid; (void) path; (void) fds; (void) args;
     return ENOSYS;
 }
 
-VLC_WEAK
-int vlc_waitpid(pid_t pid)
+HEIMDALL_WEAK
+int heimdall_waitpid(pid_t pid)
 {
     (void) pid;
-    vlc_assert_unreachable();
+    heimdall_assert_unreachable();
 }
 #endif
 
-#if !defined(HAVE_VLC_PROCESS_SPAWN)
-struct vlc_process *
-vlc_process_Spawn(const char *path, int argc, const char *const *argv)
+#if !defined(HAVE_HEIMDALL_PROCESS_SPAWN)
+struct heimdall_process *
+heimdall_process_Spawn(const char *path, int argc, const char *const *argv)
 {
-    VLC_UNUSED(path);
-    VLC_UNUSED(argc);
-    VLC_UNUSED(argv);
+    HEIMDALL_UNUSED(path);
+    HEIMDALL_UNUSED(argc);
+    HEIMDALL_UNUSED(argv);
     return NULL;
 }
 
 void
-vlc_process_Kill(struct vlc_process *process)
+heimdall_process_Kill(struct heimdall_process *process)
 {
-    VLC_UNUSED(process);
-    vlc_assert_unreachable();
+    HEIMDALL_UNUSED(process);
+    heimdall_assert_unreachable();
 }
 
 int
-vlc_process_Terminate(struct vlc_process *process, bool kill_process)
+heimdall_process_Terminate(struct heimdall_process *process, bool kill_process)
 {
-    VLC_UNUSED(process);
-    VLC_UNUSED(kill_process);
-    vlc_assert_unreachable();
+    HEIMDALL_UNUSED(process);
+    HEIMDALL_UNUSED(kill_process);
+    heimdall_assert_unreachable();
     return -1;
 }
 
 ssize_t
-vlc_process_fd_Read(struct vlc_process *process, uint8_t *buf, size_t size,
-                    vlc_tick_t timeout_ms)
+heimdall_process_fd_Read(struct heimdall_process *process, uint8_t *buf, size_t size,
+                    heimdall_tick_t timeout_ms)
 {
-    VLC_UNUSED(process);
-    VLC_UNUSED(buf);
-    VLC_UNUSED(size);
-    VLC_UNUSED(timeout_ms);
-    vlc_assert_unreachable();
+    HEIMDALL_UNUSED(process);
+    HEIMDALL_UNUSED(buf);
+    HEIMDALL_UNUSED(size);
+    HEIMDALL_UNUSED(timeout_ms);
+    heimdall_assert_unreachable();
     return -1;
 }
 
 ssize_t
-vlc_process_fd_Write(struct vlc_process *process, const uint8_t *buf, size_t size,
-                     vlc_tick_t timeout_ms)
+heimdall_process_fd_Write(struct heimdall_process *process, const uint8_t *buf, size_t size,
+                     heimdall_tick_t timeout_ms)
 {
-    VLC_UNUSED(process);
-    VLC_UNUSED(buf);
-    VLC_UNUSED(size);
-    VLC_UNUSED(timeout_ms);
-    vlc_assert_unreachable();
+    HEIMDALL_UNUSED(process);
+    HEIMDALL_UNUSED(buf);
+    HEIMDALL_UNUSED(size);
+    HEIMDALL_UNUSED(timeout_ms);
+    heimdall_assert_unreachable();
     return -1;
 }
 #endif

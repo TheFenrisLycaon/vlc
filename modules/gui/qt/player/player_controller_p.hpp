@@ -1,5 +1,6 @@
 /*****************************************************************************
  * Copyright (C) 2019 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,8 +17,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#ifndef QVLC_INPUT_MANAGER_P_H_
-#define QVLC_INPUT_MANAGER_P_H_
+#ifndef QHEIMDALL_INPUT_MANAGER_P_H_
+#define QHEIMDALL_INPUT_MANAGER_P_H_
 
 #include "player_controller.hpp"
 #include "util/variables.hpp"
@@ -38,7 +39,7 @@
 #include <QReadWriteLock>
 #endif
 
-typedef struct vlc_preparser_t vlc_preparser_t;
+typedef struct heimdall_preparser_t heimdall_preparser_t;
 
 class PlayerControllerPrivate {
     Q_DISABLE_COPY(PlayerControllerPrivate)
@@ -56,11 +57,11 @@ public:
     void UpdateMeta( input_item_t *p_item );
     void UpdateInfo( input_item_t *p_item );
     void UpdateStats( const input_stats_t& stats );
-    void UpdateProgram(vlc_player_list_action action, const vlc_player_program *prgm);
-    void UpdateVouts(vout_thread_t **vouts, size_t i_vouts, vlc_player_vout_action action);
-    void UpdateTrackSelection(vlc_es_id_t *trackid, bool selected);
-    void UpdateSpuOrder(vlc_es_id_t *es_id, enum vlc_vout_order spu_order);
-    int interpolateTime(vlc_tick_t system_now);
+    void UpdateProgram(heimdall_player_list_action action, const heimdall_player_program *prgm);
+    void UpdateVouts(vout_thread_t **vouts, size_t i_vouts, heimdall_player_vout_action action);
+    void UpdateTrackSelection(heimdall_es_id_t *trackid, bool selected);
+    void UpdateSpuOrder(heimdall_es_id_t *es_id, enum heimdall_vout_order spu_order);
+    int interpolateTime(heimdall_tick_t system_now);
     bool isCurrentItemSynced();
 
     // Lazily reads m_syltRaw (the raw sylt-data buffer captured during
@@ -90,13 +91,13 @@ public:
 
 public:
     qt_intf_t           *p_intf;
-    vlc_player_t            *m_player;
-    vlc_preparser_t         *m_preparser = nullptr;
+    heimdall_player_t            *m_player;
+    heimdall_preparser_t         *m_preparser = nullptr;
 
     //callbacks
-    vlc_player_listener_id* m_player_listener = nullptr;
-    vlc_player_aout_listener_id* m_player_aout_listener = nullptr;
-    vlc_player_vout_listener_id* m_player_vout_listener = nullptr;
+    heimdall_player_listener_id* m_player_listener = nullptr;
+    heimdall_player_aout_listener_id* m_player_aout_listener = nullptr;
+    heimdall_player_vout_listener_id* m_player_vout_listener = nullptr;
 
     //playback
     PlayerController::PlayingState m_playing_status = PlayerController::PLAYING_STATE_STOPPED;
@@ -104,18 +105,18 @@ public:
     float           m_buffering = 0.f;
     float           m_rate = 1.f;
 
-    VLCTime      m_time;
-    VLCDuration  m_remainingTime;
+    HeimdallTime      m_time;
+    HeimdallDuration  m_remainingTime;
     double       m_position = 0.f;
-    VLCDuration  m_length;
+    HeimdallDuration  m_length;
 
 #ifdef QT_HAS_LIBATOMIC
-    std::atomic<vlc_player_timer_smpte_timecode> m_highResolutionTime {{}};
+    std::atomic<heimdall_player_timer_smpte_timecode> m_highResolutionTime {{}};
 #else
-    vlc_player_timer_smpte_timecode m_highResolutionTime {};
+    heimdall_player_timer_smpte_timecode m_highResolutionTime {};
     mutable QReadWriteLock m_highResolutionTimeLock;
 #endif
-    mutable QPair<vlc_player_timer_smpte_timecode, QString> m_highResolutionTimeSample;
+    mutable QPair<heimdall_player_timer_smpte_timecode, QString> m_highResolutionTimeSample;
 
     unsigned m_smpteTimerRequestCount = 0;
 
@@ -129,17 +130,17 @@ public:
     TrackListModel m_audioTracks;
     TrackListModel m_subtitleTracks;
 
-    ::vlc::vlc_shared_data_ptr<vlc_es_id_t, &vlc_es_id_Hold, &vlc_es_id_Release> m_secondarySpuEsId;
+    ::heimdall::heimdall_shared_data_ptr<heimdall_es_id_t, &heimdall_es_id_Hold, &heimdall_es_id_Release> m_secondarySpuEsId;
 
-    VLCDuration  m_audioDelay;
-    VLCDuration  m_subtitleDelay;
-    VLCDuration  m_secondarySubtitleDelay;
+    HeimdallDuration  m_audioDelay;
+    HeimdallDuration  m_subtitleDelay;
+    HeimdallDuration  m_secondarySubtitleDelay;
     float        m_subtitleFPS = 1.0;
 
     //timer
-    vlc_player_timer_id* m_player_timer = nullptr;
-    vlc_player_timer_id* m_player_timer_smpte = nullptr;
-    struct vlc_player_timer_point m_player_time;
+    heimdall_player_timer_id* m_player_timer = nullptr;
+    heimdall_player_timer_id* m_player_timer_smpte = nullptr;
+    struct heimdall_player_timer_point m_player_time;
     bool seeking = false;
     QTimer m_position_timer;
     QTimer m_time_timer;
@@ -165,32 +166,32 @@ public:
     bool m_teletextTransparent = false;
 
     //vout properties
-    VLCVarChoiceModel m_videoStereoMode;
-    VLCVarChoiceModel m_zoom;
-    VLCVarChoiceModel m_aspectRatio;
-    VLCVarChoiceModel m_crop;
-    VLCVarChoiceModel m_fit;
-    VLCVarChoiceModel m_deinterlace;
-    VLCVarChoiceModel m_deinterlaceMode;
-    QVLCBool m_autoscale;
+    HeimdallVarChoiceModel m_videoStereoMode;
+    HeimdallVarChoiceModel m_zoom;
+    HeimdallVarChoiceModel m_aspectRatio;
+    HeimdallVarChoiceModel m_crop;
+    HeimdallVarChoiceModel m_fit;
+    HeimdallVarChoiceModel m_deinterlace;
+    HeimdallVarChoiceModel m_deinterlaceMode;
+    QHeimdallBool m_autoscale;
     bool            m_hasVideo = false;
     bool            m_fullscreen = false;
     bool            m_wallpaperMode = false;
     int m_vout_ref = 0;
 
     //aout properties
-    VLCVarChoiceModel m_audioStereoMode;
-    VLCVarChoiceModel m_audioMixMode;
+    HeimdallVarChoiceModel m_audioStereoMode;
+    HeimdallVarChoiceModel m_audioMixMode;
     float           m_volume = 0.f;
     bool            m_muted = false;
     AudioDeviceModel m_audioDeviceList;
-    VLCVarChoiceModel m_audioVisualization;
+    HeimdallVarChoiceModel m_audioVisualization;
 
     //misc
     bool            m_recording = false;
     PlayerController::ABLoopState m_ABLoopState = PlayerController::ABLOOP_STATE_NONE;
-    VLCTime m_ABLoopA;
-    VLCTime m_ABLoopB;
+    HeimdallTime m_ABLoopA;
+    HeimdallTime m_ABLoopB;
 
     //others
     QString         m_artUrl;
@@ -210,4 +211,4 @@ public:
     int m_currentLyricIndex = -1;
 };
 
-#endif /* QVLC_INPUT_MANAGER_P_H_ */
+#endif /* QHEIMDALL_INPUT_MANAGER_P_H_ */

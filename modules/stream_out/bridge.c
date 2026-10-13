@@ -2,9 +2,10 @@
  * bridge.c: bridge stream output module
  *****************************************************************************
  * Copyright (C) 2005-2008 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Christophe Massiot <massiot@via.ecp.fr>
- *          Antoine Cellerier <dionoea at videolan dot org>
+ *          Antoine Cellerier <dionoea at lycaria dot org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -29,11 +30,11 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_sout.h>
-#include <vlc_block.h>
+#include <heimdall_common.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_sout.h>
+#include <heimdall_block.h>
 
 /*****************************************************************************
  * Module descriptor
@@ -80,15 +81,15 @@
     "switching at the expense of a slightly longer delay, depending on " \
     "the frequence of I frames in the streams." )
 
-static int  OpenOut ( vlc_object_t * );
+static int  OpenOut ( heimdall_object_t * );
 static void CloseOut( sout_stream_t * );
-static int  OpenIn  ( vlc_object_t * );
+static int  OpenIn  ( heimdall_object_t * );
 static void CloseIn ( sout_stream_t * );
 
 #define SOUT_CFG_PREFIX_OUT "sout-bridge-out-"
 #define SOUT_CFG_PREFIX_IN "sout-bridge-in-"
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( N_("Bridge"))
     set_description( N_("Bridge stream output"))
     add_submodule ()
@@ -121,7 +122,7 @@ vlc_module_begin ()
               PLACEHOLDER_IFRAME_TEXT, PLACEHOLDER_IFRAME_LONGTEXT )
     set_callback( OpenIn )
 
-vlc_module_end ()
+heimdall_module_end ()
 
 
 /*****************************************************************************
@@ -149,7 +150,7 @@ typedef struct bridged_es_t
 
     /* bridge in part */
     sout_stream_id_sys_t *id;
-    vlc_tick_t i_last;
+    heimdall_tick_t i_last;
     bool b_changed;
 } bridged_es_t;
 
@@ -159,7 +160,7 @@ typedef struct bridge_t
     int i_es_num;
 } bridge_t;
 
-static vlc_mutex_t lock = VLC_STATIC_MUTEX;
+static heimdall_mutex_t lock = HEIMDALL_STATIC_MUTEX;
 
 /*
  * Bridge out
@@ -176,7 +177,7 @@ typedef struct out_sout_stream_sys_t
 
 static void *AddOut( sout_stream_t *p_stream, const es_format_t *p_fmt, const char *es_id )
 {
-    vlc_object_t *vlc = VLC_OBJECT(vlc_object_instance(p_stream));
+    heimdall_object_t *heimdall = HEIMDALL_OBJECT(heimdall_object_instance(p_stream));
     out_sout_stream_sys_t *p_sys = (out_sout_stream_sys_t *)p_stream->p_sys;
     bridge_t *p_bridge;
     bridged_es_t *p_es;
@@ -189,15 +190,15 @@ static void *AddOut( sout_stream_t *p_stream, const es_format_t *p_fmt, const ch
     }
     p_sys->b_inited = true;
 
-    vlc_mutex_lock( &lock );
+    heimdall_mutex_lock( &lock );
 
-    p_bridge = var_GetAddress( vlc, p_sys->psz_name );
+    p_bridge = var_GetAddress( heimdall, p_sys->psz_name );
     if ( p_bridge == NULL )
     {
         p_bridge = xmalloc( sizeof( bridge_t ) );
 
-        var_Create( vlc, p_sys->psz_name, VLC_VAR_ADDRESS );
-        var_SetAddress( vlc, p_sys->psz_name, p_bridge );
+        var_Create( heimdall, p_sys->psz_name, HEIMDALL_VAR_ADDRESS );
+        var_SetAddress( heimdall, p_sys->psz_name, p_bridge );
 
         p_bridge->i_es_num = 0;
         p_bridge->pp_es = NULL;
@@ -217,7 +218,7 @@ static void *AddOut( sout_stream_t *p_stream, const es_format_t *p_fmt, const ch
 
     if ( unlikely(bridged_es_id == NULL) )
     {
-        vlc_mutex_unlock( &lock );
+        heimdall_mutex_unlock( &lock );
         return NULL;
     }
 
@@ -238,27 +239,27 @@ static void *AddOut( sout_stream_t *p_stream, const es_format_t *p_fmt, const ch
     p_es->b_empty = false;
 
     p_es->id = NULL;
-    p_es->i_last = VLC_TICK_INVALID;
+    p_es->i_last = HEIMDALL_TICK_INVALID;
     p_es->b_changed = true;
 
     msg_Dbg( p_stream, "bridging out input codec=%4.4s id=%d pos=%d",
              (char*)&p_es->fmt.i_codec, p_es->fmt.i_id, i );
 
-    vlc_mutex_unlock( &lock );
+    heimdall_mutex_unlock( &lock );
 
     return p_sys;
 }
 
 static void DelOut( sout_stream_t *p_stream, void *id )
 {
-    VLC_UNUSED(id);
+    HEIMDALL_UNUSED(id);
     out_sout_stream_sys_t *p_sys = (out_sout_stream_sys_t *)p_stream->p_sys;
     bridged_es_t *p_es;
 
     if ( !p_sys->b_inited )
         return;
 
-    vlc_mutex_lock( &lock );
+    heimdall_mutex_lock( &lock );
 
     p_es = p_sys->p_es;
 
@@ -269,7 +270,7 @@ static void DelOut( sout_stream_t *p_stream, void *id )
     free( p_es->es_id );
 
     p_es->b_changed = true;
-    vlc_mutex_unlock( &lock );
+    heimdall_mutex_unlock( &lock );
 
     p_sys->b_inited = false;
 }
@@ -282,10 +283,10 @@ static int SendOut( sout_stream_t *p_stream, void *id, block_t *p_buffer )
     if ( (out_sout_stream_sys_t *)id != p_sys )
     {
         block_ChainRelease( p_buffer );
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
-    vlc_mutex_lock( &lock );
+    heimdall_mutex_lock( &lock );
 
     p_es = p_sys->p_es;
     *p_es->pp_last = p_buffer;
@@ -295,9 +296,9 @@ static int SendOut( sout_stream_t *p_stream, void *id, block_t *p_buffer )
         p_buffer = p_buffer->p_next;
     }
 
-    vlc_mutex_unlock( &lock );
+    heimdall_mutex_unlock( &lock );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int ControlCommon(sout_stream_t *stream, int query, va_list args)
@@ -311,10 +312,10 @@ static int ControlCommon(sout_stream_t *stream, int query, va_list args)
             break;
 
         default:
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static const struct sout_stream_operations ops_out = {
@@ -328,18 +329,18 @@ static const struct sout_stream_operations ops_out = {
 /*****************************************************************************
  * OpenOut:
  *****************************************************************************/
-static int OpenOut( vlc_object_t *p_this )
+static int OpenOut( heimdall_object_t *p_this )
 {
     sout_stream_t     *p_stream = (sout_stream_t *)p_this;
     out_sout_stream_sys_t *p_sys;
-    vlc_value_t val;
+    heimdall_value_t val;
 
     config_ChainParse( p_stream, SOUT_CFG_PREFIX_OUT, ppsz_sout_options_out,
                    p_stream->p_cfg );
 
     p_sys          = malloc( sizeof( out_sout_stream_sys_t ) );
     if( unlikely( !p_sys ) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     p_sys->b_inited = false;
 
     p_sys->new_id = var_GetNonEmptyString( p_stream, SOUT_CFG_PREFIX_OUT "id" );
@@ -350,13 +351,13 @@ static int OpenOut( vlc_object_t *p_this )
         free( val.psz_string );
         free( p_sys->new_id );
         free( p_sys );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
     free( val.psz_string );
 
     p_stream->ops = &ops_out;
     p_stream->p_sys     = p_sys;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
@@ -378,18 +379,18 @@ static void CloseOut( sout_stream_t *p_stream )
 typedef struct in_sout_stream_sys_t
 {
     int i_id_offset;
-    vlc_tick_t i_delay;
+    heimdall_tick_t i_delay;
 
     char *psz_name;
 
     bool b_placeholder;
     bool b_switch_on_iframe;
     int i_state;
-    vlc_tick_t i_placeholder_delay;
+    heimdall_tick_t i_placeholder_delay;
     sout_stream_id_sys_t *id_video;
-    vlc_tick_t i_last_video;
+    heimdall_tick_t i_last_video;
     sout_stream_id_sys_t *id_audio;
-    vlc_tick_t i_last_audio;
+    heimdall_tick_t i_last_audio;
 } in_sout_stream_sys_t;
 
 enum { placeholder_on, placeholder_off };
@@ -451,22 +452,22 @@ static void DelIn( sout_stream_t *p_stream, void *_id )
 
 static int SendIn( sout_stream_t *p_stream, void *_id, block_t *p_buffer )
 {
-    vlc_object_t *vlc = VLC_OBJECT(vlc_object_instance(p_stream));
+    heimdall_object_t *heimdall = HEIMDALL_OBJECT(heimdall_object_instance(p_stream));
     in_sout_stream_sys_t *p_sys = (in_sout_stream_sys_t *)p_stream->p_sys;
     sout_stream_id_sys_t *id = (sout_stream_id_sys_t *)_id;
     bridge_t *p_bridge;
     bool b_no_es = true;
     int i;
-    vlc_tick_t i_date = vlc_tick_now();
+    heimdall_tick_t i_date = heimdall_tick_now();
 
     /* First forward the packet for our own ES */
     if( !p_sys->b_placeholder )
         sout_StreamIdSend( p_stream->p_next, id->id, p_buffer );
 
     /* Then check all bridged streams */
-    vlc_mutex_lock( &lock );
+    heimdall_mutex_lock( &lock );
 
-    p_bridge = var_GetAddress( vlc, p_sys->psz_name );
+    p_bridge = var_GetAddress( heimdall, p_sys->psz_name );
 
     if( p_bridge )
     {
@@ -610,7 +611,7 @@ static int SendIn( sout_stream_t *p_stream, void *_id, block_t *p_buffer )
             free( p_bridge->pp_es[i] );
         free( p_bridge->pp_es );
         free( p_bridge );
-        var_Destroy( vlc, p_sys->psz_name );
+        var_Destroy( heimdall, p_sys->psz_name );
     }
     }
 
@@ -644,9 +645,9 @@ static int SendIn( sout_stream_t *p_stream, void *_id, block_t *p_buffer )
         }
     }
 
-    vlc_mutex_unlock( &lock );
+    heimdall_mutex_unlock( &lock );
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static const struct sout_stream_operations ops_in = {
@@ -660,15 +661,15 @@ static const struct sout_stream_operations ops_in = {
 /*****************************************************************************
  * OpenIn:
  *****************************************************************************/
-static int OpenIn( vlc_object_t *p_this )
+static int OpenIn( heimdall_object_t *p_this )
 {
     sout_stream_t     *p_stream = (sout_stream_t*)p_this;
     in_sout_stream_sys_t *p_sys;
-    vlc_value_t val;
+    heimdall_value_t val;
 
     p_sys          = malloc( sizeof( in_sout_stream_sys_t ) );
     if( unlikely( !p_sys ) )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     config_ChainParse( p_stream, SOUT_CFG_PREFIX_IN, ppsz_sout_options_in,
                    p_stream->p_cfg );
@@ -677,14 +678,14 @@ static int OpenIn( vlc_object_t *p_this )
     p_sys->i_id_offset = val.i_int;
 
     var_Get( p_stream, SOUT_CFG_PREFIX_IN "delay", &val );
-    p_sys->i_delay = VLC_TICK_FROM_MS(val.i_int);
+    p_sys->i_delay = HEIMDALL_TICK_FROM_MS(val.i_int);
 
     var_Get( p_stream, SOUT_CFG_PREFIX_IN "name", &val );
     if( asprintf( &p_sys->psz_name, "bridge-struct-%s", val.psz_string )<0 )
     {
         free( val.psz_string );
         free( p_sys );
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
     }
     free( val.psz_string );
 
@@ -697,16 +698,16 @@ static int OpenIn( vlc_object_t *p_this )
     p_sys->i_state = placeholder_on;
 
     var_Get( p_stream, SOUT_CFG_PREFIX_IN "placeholder-delay", &val );
-    p_sys->i_placeholder_delay = VLC_TICK_FROM_MS(val.i_int);
+    p_sys->i_placeholder_delay = HEIMDALL_TICK_FROM_MS(val.i_int);
 
-    p_sys->i_last_video = VLC_TICK_INVALID;
-    p_sys->i_last_audio = VLC_TICK_INVALID;
+    p_sys->i_last_video = HEIMDALL_TICK_INVALID;
+    p_sys->i_last_audio = HEIMDALL_TICK_INVALID;
     p_sys->id_video = NULL;
     p_sys->id_audio = NULL;
 
     p_stream->ops = &ops_in;
     p_stream->p_sys     = p_sys;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************

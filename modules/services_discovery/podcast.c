@@ -2,8 +2,9 @@
  * podcast.c:  Podcast services discovery module
  *****************************************************************************
  * Copyright (C) 2005-2009 the VideoLAN team
+ * Copyright (C) 2026 TheFenrisLycaon
  *
- * Authors: Antoine Cellerier <dionoea -at- videolan -dot- org>
+ * Authors: Antoine Cellerier <dionoea -at- lycaria -dot- org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,13 +29,13 @@
 # include "config.h"
 #endif
 
-#define VLC_MODULE_LICENSE VLC_LICENSE_GPL_2_PLUS
-#include <vlc_common.h>
-#include <vlc_arrays.h>
-#include <vlc_configuration.h>
-#include <vlc_plugin.h>
-#include <vlc_services_discovery.h>
-#include <vlc_network.h>
+#define HEIMDALL_MODULE_LICENSE HEIMDALL_LICENSE_GPL_2_PLUS
+#include <heimdall_common.h>
+#include <heimdall_arrays.h>
+#include <heimdall_configuration.h>
+#include <heimdall_plugin.h>
+#include <heimdall_services_discovery.h>
+#include <heimdall_network.h>
 
 #include <assert.h>
 #include <unistd.h>
@@ -48,16 +49,16 @@
  *****************************************************************************/
 
 /* Callbacks */
-static int  Open ( vlc_object_t * );
-static void Close( vlc_object_t * );
+static int  Open ( heimdall_object_t * );
+static void Close( heimdall_object_t * );
 
-VLC_SD_PROBE_HELPER("podcast", N_("Podcasts"), SD_CAT_INTERNET)
+HEIMDALL_SD_PROBE_HELPER("podcast", N_("Podcasts"), SD_CAT_INTERNET)
 
 #define URLS_TEXT N_("Podcast URLs list")
 #define URLS_LONGTEXT N_("Enter the list of podcasts to retrieve, " \
                          "separated by '|' (pipe)." )
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_shortname( "Podcast")
     set_description( N_("Podcasts") )
     set_subcategory( SUBCAT_PLAYLIST_SD )
@@ -68,9 +69,9 @@ vlc_module_begin ()
     set_capability( "services_discovery", 0 )
     set_callbacks( Open, Close )
 
-    VLC_SD_PROBE_SUBMODULE
+    HEIMDALL_SD_PROBE_SUBMODULE
 
-vlc_module_end ()
+heimdall_module_end ()
 
 
 /*****************************************************************************
@@ -85,9 +86,9 @@ typedef struct
     input_item_t **pp_items;
     int i_items;
 
-    vlc_thread_t thread;
-    vlc_mutex_t lock;
-    vlc_cond_t  wait;
+    heimdall_thread_t thread;
+    heimdall_mutex_t lock;
+    heimdall_cond_t  wait;
     bool dead;
     char *psz_request;
 } services_discovery_sys_t;
@@ -96,8 +97,8 @@ typedef struct
  * Local prototypes
  *****************************************************************************/
 static void *Run( void * );
-static int Request( vlc_object_t *, char const *, vlc_value_t,
-                       vlc_value_t, void * );
+static int Request( heimdall_object_t *, char const *, heimdall_value_t,
+                       heimdall_value_t, void * );
 static void ParseRequest( services_discovery_t *p_sd, char * );
 static void ParseUrls( services_discovery_t *p_sd, char *psz_urls );
 static void SaveUrls( services_discovery_t *p_sd );
@@ -105,22 +106,22 @@ static void SaveUrls( services_discovery_t *p_sd );
 /*****************************************************************************
  * Open: initialize and create stuff
  *****************************************************************************/
-static int Open( vlc_object_t *p_this )
+static int Open( heimdall_object_t *p_this )
 {
-    if( strcmp( vlc_object_typename(vlc_object_parent(p_this)), "media-source-provider" ) )
-        return VLC_EGENERIC; /* FIXME: support LibVLC SD too! */
+    if( strcmp( heimdall_object_typename(heimdall_object_parent(p_this)), "media-source-provider" ) )
+        return HEIMDALL_EGENERIC; /* FIXME: support LibHeimdall SD too! */
 
     services_discovery_t *p_sd = ( services_discovery_t* )p_this;
     services_discovery_sys_t *p_sys = malloc( sizeof( *p_sys ) );
     if( !p_sys )
-        return VLC_ENOMEM;
+        return HEIMDALL_ENOMEM;
 
     p_sys->i_urls = 0;
     p_sys->ppsz_urls = NULL;
     p_sys->pp_items = NULL;
     p_sys->i_items = 0;
-    vlc_mutex_init( &p_sys->lock );
-    vlc_cond_init( &p_sys->wait );
+    heimdall_mutex_init( &p_sys->lock );
+    heimdall_cond_init( &p_sys->wait );
     p_sys->dead = false;
     p_sys->psz_request = NULL;
 
@@ -128,36 +129,36 @@ static int Open( vlc_object_t *p_this )
     p_sd->description = _("Podcasts");
 
     /* Launch the callback associated with this variable */
-    vlc_object_t *pl = vlc_object_parent(p_sd);
+    heimdall_object_t *pl = heimdall_object_parent(p_sd);
 
-    var_Create( pl, "podcast-request", VLC_VAR_STRING );
+    var_Create( pl, "podcast-request", HEIMDALL_VAR_STRING );
     var_AddCallback( pl, "podcast-request", Request, p_sys );
 
-    if (vlc_clone (&p_sys->thread, Run, p_sd))
+    if (heimdall_clone (&p_sys->thread, Run, p_sd))
     {
         var_DelCallback( pl, "podcast-request", Request, p_sys );
         free (p_sys);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /*****************************************************************************
  * Close:
  *****************************************************************************/
-static void Close( vlc_object_t *p_this )
+static void Close( heimdall_object_t *p_this )
 {
     services_discovery_t *p_sd = ( services_discovery_t* )p_this;
     services_discovery_sys_t *p_sys = p_sd->p_sys;
-    vlc_object_t *pl = vlc_object_parent(p_sd);
+    heimdall_object_t *pl = heimdall_object_parent(p_sd);
 
     var_DelCallback( pl, "podcast-request", Request, p_sys );
 
-    vlc_mutex_lock(&p_sys->lock);
+    heimdall_mutex_lock(&p_sys->lock);
     p_sys->dead = true;
-    vlc_cond_signal(&p_sys->wait);
-    vlc_mutex_unlock(&p_sys->lock);
-    vlc_join (p_sys->thread, NULL);
+    heimdall_cond_signal(&p_sys->wait);
+    heimdall_mutex_unlock(&p_sys->lock);
+    heimdall_join (p_sys->thread, NULL);
 
     for( int i = 0; i < p_sys->i_urls; i++ )
          free( p_sys->ppsz_urls[i] );
@@ -175,7 +176,7 @@ static void Close( vlc_object_t *p_this )
  *****************************************************************************/
 static void *Run( void *data )
 {
-    vlc_thread_set_name("vlc-podcast");
+    heimdall_thread_set_name("heimdall-podcast");
 
     services_discovery_t *p_sd = data;
     services_discovery_sys_t *p_sys  = p_sd->p_sys;
@@ -188,13 +189,13 @@ static void *Run( void *data )
     {
         char *request;
 
-        vlc_mutex_lock( &p_sys->lock );
+        heimdall_mutex_lock( &p_sys->lock );
 
         while ((request = p_sys->psz_request) == NULL && !p_sys->dead)
-            vlc_cond_wait( &p_sys->wait, &p_sys->lock );
+            heimdall_cond_wait( &p_sys->wait, &p_sys->lock );
 
         p_sys->psz_request = NULL;
-        vlc_mutex_unlock( &p_sys->lock );
+        heimdall_mutex_unlock( &p_sys->lock );
 
         if (request == NULL)
             break;
@@ -206,21 +207,21 @@ static void *Run( void *data )
     return NULL;
 }
 
-static int Request( vlc_object_t *p_this, char const *psz_var,
-                       vlc_value_t oldval, vlc_value_t newval,
+static int Request( heimdall_object_t *p_this, char const *psz_var,
+                       heimdall_value_t oldval, heimdall_value_t newval,
                        void *p_data )
 {
-    VLC_UNUSED(p_this); VLC_UNUSED(psz_var); VLC_UNUSED(oldval);
+    HEIMDALL_UNUSED(p_this); HEIMDALL_UNUSED(psz_var); HEIMDALL_UNUSED(oldval);
     services_discovery_sys_t *p_sys = (services_discovery_sys_t *)p_data;
 
-    vlc_mutex_lock( &p_sys->lock );
+    heimdall_mutex_lock( &p_sys->lock );
     if( newval.psz_string && *newval.psz_string ) {
         free( p_sys->psz_request );
         p_sys->psz_request = strdup( newval.psz_string );
-        vlc_cond_signal( &p_sys->wait );
+        heimdall_cond_signal( &p_sys->wait );
     }
-    vlc_mutex_unlock( &p_sys->lock );
-    return VLC_SUCCESS;
+    heimdall_mutex_unlock( &p_sys->lock );
+    return HEIMDALL_SUCCESS;
 }
 
 static void ParseUrls( services_discovery_t *p_sd, char *psz_urls )

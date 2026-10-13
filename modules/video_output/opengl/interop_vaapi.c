@@ -2,6 +2,7 @@
  * converter_vaapi.c: OpenGL VAAPI opaque converter
  *****************************************************************************
  * Copyright (C) 2017 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -34,14 +35,14 @@
 # include <drm_fourcc.h>
 #endif
 
-#include <vlc_common.h>
-#include <vlc_window.h>
-#include <vlc_codec.h>
-#include <vlc_plugin.h>
+#include <heimdall_common.h>
+#include <heimdall_window.h>
+#include <heimdall_codec.h>
+#include <heimdall_plugin.h>
 
 #include "gl_util.h"
 #include "interop.h"
-#include "../../hw/vaapi/vlc_vaapi.h"
+#include "../../hw/vaapi/heimdall_vaapi.h"
 
 /* From https://www.khronos.org/registry/OpenGL/extensions/OES/OES_EGL_image.txt
  * The extension is an OpenGL ES extension but can (and usually is) available on
@@ -79,13 +80,13 @@ static const struct {
 struct plane_format
 {
     uint32_t drm_fourcc;
-    vlc_rational_t width;
-    vlc_rational_t height;
+    heimdall_rational_t width;
+    heimdall_rational_t height;
 };
 
 struct frame_format
 {
-    vlc_fourcc_t chroma;
+    heimdall_fourcc_t chroma;
     size_t plane_count;
     struct plane_format planes[INTEROP_MAX_PLANES];
 };
@@ -125,7 +126,7 @@ struct priv
 };
 
 static EGLImageKHR
-CreatePlaneImage(const struct vlc_gl_interop *interop, EGLint w, EGLint h,
+CreatePlaneImage(const struct heimdall_gl_interop *interop, EGLint w, EGLint h,
                  uint32_t drm_fourcc, EGLint fd, EGLint offset, EGLint pitch,
                  EGLuint64KHR modifier)
 {
@@ -147,7 +148,7 @@ CreatePlaneImage(const struct vlc_gl_interop *interop, EGLint w, EGLint h,
 }
 
 static void
-ReleaseLastPicture(const struct vlc_gl_interop *interop)
+ReleaseLastPicture(const struct heimdall_gl_interop *interop)
 {
     struct priv *priv = interop->priv;
 
@@ -161,13 +162,13 @@ ReleaseLastPicture(const struct vlc_gl_interop *interop)
 }
 
 static int
-tc_vaegl_update(const struct vlc_gl_interop *interop, uint32_t textures[],
+tc_vaegl_update(const struct heimdall_gl_interop *interop, uint32_t textures[],
                 const int32_t tex_width[], const int32_t tex_height[],
                 picture_t *pic, const size_t *plane_offset)
 {
     (void) plane_offset;
     struct priv *priv = interop->priv;
-    vlc_object_t *o = VLC_OBJECT(interop->gl);
+    heimdall_object_t *o = HEIMDALL_OBJECT(interop->gl);
 
     if (pic == priv->last.pic)
     {
@@ -177,7 +178,7 @@ tc_vaegl_update(const struct vlc_gl_interop *interop, uint32_t textures[],
             priv->glEGLImageTargetTexture2DOES(interop->tex_target,
                                                priv->last.egl_images[i]);
         }
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
     }
 
     VADRMPRIMESurfaceDescriptor va_surface_descriptor;
@@ -185,15 +186,15 @@ tc_vaegl_update(const struct vlc_gl_interop *interop, uint32_t textures[],
     unsigned num_planes = 0;
 
     {
-        VAStatus s = vaSyncSurface(priv->vadpy, vlc_vaapi_PicGetSurface(pic));
+        VAStatus s = vaSyncSurface(priv->vadpy, heimdall_vaapi_PicGetSurface(pic));
         if (s != VA_STATUS_SUCCESS) // non-fatal. ex: VA_STATUS_ERROR_DECODING_ERROR
             msg_Warn(o, "vaSyncSurface: 0x%x %s", s, vaErrorStr(s));
     }
-    if (vlc_vaapi_ExportSurfaceHandle(o, priv->vadpy, vlc_vaapi_PicGetSurface(pic),
+    if (heimdall_vaapi_ExportSurfaceHandle(o, priv->vadpy, heimdall_vaapi_PicGetSurface(pic),
                                       VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_2,
                                       VA_EXPORT_SURFACE_READ_ONLY | VA_EXPORT_SURFACE_SEPARATE_LAYERS,
                                       &va_surface_descriptor))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     num_planes = va_surface_descriptor.num_layers;
     for (unsigned i = 0; i < num_planes; ++i)
@@ -227,7 +228,7 @@ tc_vaegl_update(const struct vlc_gl_interop *interop, uint32_t textures[],
     for (unsigned i = 0; i < num_planes; ++i)
         priv->last.egl_images[i] = egl_images[i];
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 
 error:
     for (unsigned i = 0; i < INTEROP_MAX_PLANES && egl_images[i] != NULL; ++i)
@@ -236,11 +237,11 @@ error:
     for (unsigned i = 0; i < va_surface_descriptor.num_objects; ++i)
         close(va_surface_descriptor.objects[i].fd);
 
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
 static void
-Close(struct vlc_gl_interop *interop)
+Close(struct heimdall_gl_interop *interop)
 {
     struct priv *priv = interop->priv;
 
@@ -256,11 +257,11 @@ static int strcasecmp_void(const void *a, const void *b)
 }
 
 static int
-tc_va_check_interop_blacklist(const struct vlc_gl_interop *interop, VADisplay *vadpy)
+tc_va_check_interop_blacklist(const struct heimdall_gl_interop *interop, VADisplay *vadpy)
 {
     const char *vendor = vaQueryVendorString(vadpy);
     if (vendor == NULL)
-        return VLC_SUCCESS;
+        return HEIMDALL_SUCCESS;
 
 #define BL_SIZE_MAX 19
     static const char blacklist_prefix[][BL_SIZE_MAX] = {
@@ -278,33 +279,33 @@ tc_va_check_interop_blacklist(const struct vlc_gl_interop *interop, VADisplay *v
     if (found != NULL)
     {
         msg_Warn(interop->gl, "The '%s' driver is blacklisted: no interop", found);
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 static int
-tc_va_check_derive_image(const struct vlc_gl_interop *interop)
+tc_va_check_derive_image(const struct heimdall_gl_interop *interop)
 {
-    vlc_object_t *o = VLC_OBJECT(interop->gl);
+    heimdall_object_t *o = HEIMDALL_OBJECT(interop->gl);
     struct priv *priv = interop->priv;
     VASurfaceID *va_surface_ids;
 
-    picture_pool_t *pool = vlc_vaapi_PoolNew(o, interop->vctx, priv->vadpy, 1,
+    picture_pool_t *pool = heimdall_vaapi_PoolNew(o, interop->vctx, priv->vadpy, 1,
                                              &va_surface_ids,
                                              &interop->fmt_out);
     if (!pool)
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     VADRMPRIMESurfaceDescriptor desc;
 
-    int ret = vlc_vaapi_ExportSurfaceHandle(o, priv->vadpy, va_surface_ids[0],
+    int ret = heimdall_vaapi_ExportSurfaceHandle(o, priv->vadpy, va_surface_ids[0],
                                             VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_2,
                                             VA_EXPORT_SURFACE_READ_ONLY |
                                             VA_EXPORT_SURFACE_SEPARATE_LAYERS,
                                             &desc);
-    if (ret != VLC_SUCCESS)
+    if (ret != HEIMDALL_SUCCESS)
         goto done;
 
     for (unsigned i = 0; i < desc.num_layers; ++i)
@@ -313,7 +314,7 @@ tc_va_check_derive_image(const struct vlc_gl_interop *interop)
 
         if (desc.layers[i].num_planes > 1)
         {
-            ret = VLC_EGENERIC;
+            ret = HEIMDALL_EGENERIC;
             goto done_desc;
         }
 
@@ -327,13 +328,13 @@ tc_va_check_derive_image(const struct vlc_gl_interop *interop)
         if (egl_image == NULL)
         {
             msg_Warn(o, "Can't create Image KHR: kernel too old ?");
-            ret = VLC_EGENERIC;
+            ret = HEIMDALL_EGENERIC;
             goto done_desc;
         }
         priv->egl.destroyImageKHR(priv->egl.display, egl_image);
     }
 
-    ret = VLC_SUCCESS;
+    ret = HEIMDALL_SUCCESS;
 
 done_desc:
     for (unsigned i = 0; i < desc.num_objects; ++i)
@@ -346,18 +347,18 @@ done:
 }
 
 /**
- * Describe a VLC VAAPI fourcc for libva and how the planes are setup
+ * Describe a Heimdall VAAPI fourcc for libva and how the planes are setup
  */
 static int
-DescribeChroma(vlc_fourcc_t chroma, unsigned *va_fourcc,
+DescribeChroma(heimdall_fourcc_t chroma, unsigned *va_fourcc,
                struct frame_format *format)
 {
     switch (chroma)
     {
-        case VLC_CODEC_VAAPI_420:
+        case HEIMDALL_CODEC_VAAPI_420:
             *va_fourcc = VA_FOURCC_NV12;
             *format = (struct frame_format) {
-                .chroma = VLC_CODEC_NV12,
+                .chroma = HEIMDALL_CODEC_NV12,
                 .plane_count = 2,
                 .planes = {
                     { DRM_FORMAT_R8,   { 1, 1 }, { 1, 1 } },
@@ -365,13 +366,13 @@ DescribeChroma(vlc_fourcc_t chroma, unsigned *va_fourcc,
                 },
             };
             break;
-        case VLC_CODEC_VAAPI_420_10BPP:
-        case VLC_CODEC_VAAPI_420_12BPP:
-            *va_fourcc = chroma == VLC_CODEC_VAAPI_420_10BPP
+        case HEIMDALL_CODEC_VAAPI_420_10BPP:
+        case HEIMDALL_CODEC_VAAPI_420_12BPP:
+            *va_fourcc = chroma == HEIMDALL_CODEC_VAAPI_420_10BPP
                 ? VA_FOURCC_P010 : VA_FOURCC_P012;
             *format = (struct frame_format) {
-                .chroma = chroma == VLC_CODEC_VAAPI_420_10BPP
-                    ? VLC_CODEC_P010 : VLC_CODEC_P012,
+                .chroma = chroma == HEIMDALL_CODEC_VAAPI_420_10BPP
+                    ? HEIMDALL_CODEC_P010 : HEIMDALL_CODEC_P012,
                 .plane_count = 2,
                 .planes = {
                     { DRM_FORMAT_R16,    { 1, 1 }, { 1, 1 } },
@@ -379,37 +380,37 @@ DescribeChroma(vlc_fourcc_t chroma, unsigned *va_fourcc,
                 },
             };
             break;
-        case VLC_CODEC_VAAPI_422_10BPP:
-        case VLC_CODEC_VAAPI_422_12BPP:
-            *va_fourcc = chroma == VLC_CODEC_VAAPI_422_10BPP
+        case HEIMDALL_CODEC_VAAPI_422_10BPP:
+        case HEIMDALL_CODEC_VAAPI_422_12BPP:
+            *va_fourcc = chroma == HEIMDALL_CODEC_VAAPI_422_10BPP
                 ? VA_FOURCC_Y210 : VA_FOURCC_Y212;
             *format = (struct frame_format) {
-                .chroma = chroma == VLC_CODEC_VAAPI_422_10BPP
-                    ? VLC_CODEC_Y210 : VLC_CODEC_Y212,
+                .chroma = chroma == HEIMDALL_CODEC_VAAPI_422_10BPP
+                    ? HEIMDALL_CODEC_Y210 : HEIMDALL_CODEC_Y212,
                 .plane_count = 1,
                 .planes = {
                     { DRM_FORMAT_ABGR16161616, { 1, 2 }, { 1, 1 } },
                 },
             };
             break;
-        case VLC_CODEC_VAAPI_444:
+        case HEIMDALL_CODEC_VAAPI_444:
             *va_fourcc = VA_FOURCC_XYUV;
             *format = (struct frame_format) {
-                .chroma = VLC_CODEC_VUYX,
+                .chroma = HEIMDALL_CODEC_VUYX,
                 .plane_count = 1,
                 .planes = {
                     { DRM_FORMAT_XYUV8888, { 1, 1 }, { 1, 1 } },
                 },
             };
             break;
-        case VLC_CODEC_VAAPI_444_10BPP:
-        case VLC_CODEC_VAAPI_444_12BPP:
+        case HEIMDALL_CODEC_VAAPI_444_10BPP:
+        case HEIMDALL_CODEC_VAAPI_444_12BPP:
         {
-            const bool is10bit = chroma == VLC_CODEC_VAAPI_444_10BPP;
+            const bool is10bit = chroma == HEIMDALL_CODEC_VAAPI_444_10BPP;
 
             *va_fourcc = is10bit ? VA_FOURCC_Y410 : VA_FOURCC_Y412;
             *format = (struct frame_format) {
-                .chroma = is10bit ? VLC_CODEC_Y410 : VLC_CODEC_Y412,
+                .chroma = is10bit ? HEIMDALL_CODEC_Y410 : HEIMDALL_CODEC_Y412,
                 .plane_count = 1,
                 .planes = {
                     { is10bit ? DRM_FORMAT_Y410 : DRM_FORMAT_Y412,
@@ -420,21 +421,21 @@ DescribeChroma(vlc_fourcc_t chroma, unsigned *va_fourcc,
         }
         default:
             /* Not a vaapi chroma */
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
     }
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /**
  * Setup the interop texture sampling infos from the input frame format.
  */
 static int
-ConfigureTextures(struct vlc_gl_interop *interop,
+ConfigureTextures(struct heimdall_gl_interop *interop,
                   const struct frame_format *format)
 {
     if (format->plane_count > ARRAY_SIZE(interop->texs))
-        return VLC_EGENERIC;
+        return HEIMDALL_EGENERIC;
 
     for (size_t i = 0; i < format->plane_count; i++)
     {
@@ -450,10 +451,10 @@ ConfigureTextures(struct vlc_gl_interop *interop,
         {
             msg_Dbg(interop->gl, "no texture for a %4.4s plane",
                     (const char *)&plane->drm_fourcc);
-            return VLC_EGENERIC;
+            return HEIMDALL_EGENERIC;
         }
 
-        interop->texs[i] = (struct vlc_gl_tex_cfg) {
+        interop->texs[i] = (struct heimdall_gl_tex_cfg) {
             .w = plane->width,
             .h = plane->height,
             .internal = plane_tex_cfgs[j].internal,
@@ -463,21 +464,21 @@ ConfigureTextures(struct vlc_gl_interop *interop,
     }
 
     interop->tex_count = (unsigned)format->plane_count;
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 }
 
 /**
  * Whether we can allocate the textures at the requested precision
  */
 static bool
-CanAllocateTexture(struct vlc_gl_interop *interop)
+CanAllocateTexture(struct heimdall_gl_interop *interop)
 {
     for (unsigned i = 0; i < interop->tex_count; ++i)
     {
-        const struct vlc_gl_tex_cfg *tex = &interop->texs[i];
+        const struct heimdall_gl_tex_cfg *tex = &interop->texs[i];
 
         if (tex->type == GL_UNSIGNED_SHORT &&
-            vlc_gl_interop_GetTexFormatSize(interop, GL_TEXTURE_2D, tex->format,
+            heimdall_gl_interop_GetTexFormatSize(interop, GL_TEXTURE_2D, tex->format,
                                             tex->internal, tex->type) != 16)
             return false;
     }
@@ -486,20 +487,20 @@ CanAllocateTexture(struct vlc_gl_interop *interop)
 }
 
 static int
-Open(struct vlc_gl_interop *interop)
+Open(struct heimdall_gl_interop *interop)
 {
     struct priv *priv = NULL;
 
     if (interop->vctx == NULL)
-        return VLC_EGENERIC;
-    vlc_decoder_device *dec_device = vlc_video_context_HoldDevice(interop->vctx);
-    if (dec_device->type != VLC_DECODER_DEVICE_VAAPI)
+        return HEIMDALL_EGENERIC;
+    heimdall_decoder_device *dec_device = heimdall_video_context_HoldDevice(interop->vctx);
+    if (dec_device->type != HEIMDALL_DECODER_DEVICE_VAAPI)
         goto error;
 
-    struct vlc_gl_extension_vt extension_vt;
-    vlc_gl_LoadExtensionFunctions(interop->gl, &extension_vt);
+    struct heimdall_gl_extension_vt extension_vt;
+    heimdall_gl_LoadExtensionFunctions(interop->gl, &extension_vt);
 
-    if (!vlc_gl_HasExtension(&extension_vt, "GL_OES_EGL_image"))
+    if (!heimdall_gl_HasExtension(&extension_vt, "GL_OES_EGL_image"))
         goto error;
 
     priv = interop->priv = calloc(1, sizeof(struct priv));
@@ -508,16 +509,16 @@ Open(struct vlc_gl_interop *interop)
 
     /* Non-vaapi chroma are filtered out here */
     if (DescribeChroma(interop->fmt_in.i_chroma, &priv->va_fourcc,
-                       &priv->format) != VLC_SUCCESS)
+                       &priv->format) != HEIMDALL_SUCCESS)
         goto error;
 
-    if (ConfigureTextures(interop, &priv->format) != VLC_SUCCESS)
+    if (ConfigureTextures(interop, &priv->format) != HEIMDALL_SUCCESS)
         goto error;
 
     if (!CanAllocateTexture(interop))
         goto error;
 
-    priv->egl.getCurrentDisplay = vlc_gl_GetProcAddress(interop->gl, "eglGetCurrentDisplay");
+    priv->egl.getCurrentDisplay = heimdall_gl_GetProcAddress(interop->gl, "eglGetCurrentDisplay");
     if (priv->egl.getCurrentDisplay == EGL_NO_DISPLAY)
         goto error;
 
@@ -525,32 +526,32 @@ Open(struct vlc_gl_interop *interop)
     if (priv->egl.display == EGL_NO_DISPLAY)
         goto error;
 
-    priv->egl.queryString = vlc_gl_GetProcAddress(interop->gl, "eglQueryString");
+    priv->egl.queryString = heimdall_gl_GetProcAddress(interop->gl, "eglQueryString");
     if (priv->egl.queryString == NULL)
         goto error;
 
     /* EGL_EXT_image_dma_buf_import implies EGL_KHR_image_base */
     const char *eglexts = priv->egl.queryString(priv->egl.display, EGL_EXTENSIONS);
-    if (eglexts == NULL || !vlc_gl_StrHasToken(eglexts, "EGL_EXT_image_dma_buf_import"))
+    if (eglexts == NULL || !heimdall_gl_StrHasToken(eglexts, "EGL_EXT_image_dma_buf_import"))
         goto error;
 
     priv->egl.createImageKHR =
-        vlc_gl_GetProcAddress(interop->gl, "eglCreateImageKHR");
+        heimdall_gl_GetProcAddress(interop->gl, "eglCreateImageKHR");
     if (priv->egl.createImageKHR == NULL)
         goto error;
 
     priv->egl.destroyImageKHR =
-        vlc_gl_GetProcAddress(interop->gl, "eglDestroyImageKHR");
+        heimdall_gl_GetProcAddress(interop->gl, "eglDestroyImageKHR");
     if (priv->egl.destroyImageKHR == NULL)
         goto error;
 
     priv->glEGLImageTargetTexture2DOES =
-        vlc_gl_GetProcAddress(interop->gl, "glEGLImageTargetTexture2DOES");
+        heimdall_gl_GetProcAddress(interop->gl, "glEGLImageTargetTexture2DOES");
     if (priv->glEGLImageTargetTexture2DOES == NULL)
         goto error;
 
     priv->gl.BindTexture =
-        vlc_gl_GetProcAddress(interop->gl, "glBindTexture");
+        heimdall_gl_GetProcAddress(interop->gl, "glBindTexture");
     if (priv->gl.BindTexture == NULL)
         goto error;
 
@@ -570,25 +571,25 @@ Open(struct vlc_gl_interop *interop)
     interop->fmt_out.i_chroma = priv->format.chroma;
     interop->fmt_out.space = interop->fmt_in.space;
 
-    static const struct vlc_gl_interop_ops ops = {
+    static const struct heimdall_gl_interop_ops ops = {
         .update_textures = tc_vaegl_update,
         .close = Close,
     };
     interop->ops = &ops;
 
-    vlc_decoder_device_Release(dec_device);
+    heimdall_decoder_device_Release(dec_device);
 
-    return VLC_SUCCESS;
+    return HEIMDALL_SUCCESS;
 error:
-    vlc_decoder_device_Release(dec_device);
+    heimdall_decoder_device_Release(dec_device);
     free(priv);
-    return VLC_EGENERIC;
+    return HEIMDALL_EGENERIC;
 }
 
-vlc_module_begin ()
+heimdall_module_begin ()
     set_description("VA-API OpenGL surface converter")
     set_capability("glinterop", 1)
     set_callback(Open)
     set_subcategory(SUBCAT_VIDEO_VOUT)
     add_shortcut("vaapi")
-vlc_module_end ()
+heimdall_module_end ()

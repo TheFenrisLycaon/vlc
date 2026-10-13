@@ -3,6 +3,7 @@
  *****************************************************************************
  * Copyright © 2014-2016 VideoLAN and VideoLAN Authors
  *                  2018 VideoLabs
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -30,7 +31,7 @@ using namespace sdi;
 
 static inline uint16_t withparitybit(uint16_t v)
 {
-    return v | (vlc_parity(v) ? 0x100 : 0x200);
+    return v | (heimdall_parity(v) ? 0x100 : 0x200);
 }
 
 Ancillary::Data10bitPacket::Data10bitPacket(uint8_t did, uint8_t sdid,
@@ -135,7 +136,7 @@ Captions::Captions(const uint8_t *p, size_t s,
     cdp_counter = 0;
     p_data = p;
     i_data = s;
-    vlc_ureduce(&num, &den, num, den, 0);
+    heimdall_ureduce(&num, &den, num, den, 0);
     if (num == 24000 && den == 1001) {
         rate = 1;
     } else if (num == 24 && den == 1) {

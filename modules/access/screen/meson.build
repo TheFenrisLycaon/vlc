@@ -1,7 +1,7 @@
 if get_option('screen').allowed()
   # XCB screen grab
   if xcb_dep.found() and xcb_shm_dep.found() and xcb_composite_dep.found()
-      vlc_modules += {
+      heimdall_modules += {
           'name' : 'xcb_screen',
           'sources' : files('xcb.c'),
           'dependencies' : [xcb_dep, xcb_shm_dep, xcb_composite_dep],
@@ -37,7 +37,7 @@ if get_option('screen').allowed()
       screen_deps += [applicationservices_dep]
     endif
 
-    vlc_modules += {
+    heimdall_modules += {
         'name' : screen_name,
         'sources' : screen_files,
         'dependencies' : screen_deps,

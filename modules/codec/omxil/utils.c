@@ -2,6 +2,7 @@
  * utils.c: helper functions
  *****************************************************************************
  * Copyright (C) 2010 VLC authors and VideoLAN
+ * Copyright (C) 2026 TheFenrisLycaon
  *
  * Authors: Gildas Bazin <gbazin@videolan.org>
  *
@@ -27,11 +28,11 @@
 # include "config.h"
 #endif
 
-#include <vlc_common.h>
-#include <vlc_plugin.h>
-#include <vlc_codec.h>
-#include <vlc_block_helper.h>
-#include <vlc_cpu.h>
+#include <heimdall_common.h>
+#include <heimdall_plugin.h>
+#include <heimdall_codec.h>
+#include <heimdall_block_helper.h>
+#include <heimdall_cpu.h>
 
 #include "omxil.h"
 #include "qcom.h"
@@ -48,8 +49,8 @@
 void InitOmxEventQueue(OmxEventQueue *queue)
 {
     queue->pp_last_event = &queue->p_events;
-    vlc_mutex_init(&queue->mutex);
-    vlc_cond_init(&queue->cond);
+    heimdall_mutex_init(&queue->mutex);
+    heimdall_cond_init(&queue->cond);
 }
 
 void DeinitOmxEventQueue(OmxEventQueue *queue)
@@ -71,11 +72,11 @@ OMX_ERRORTYPE PostOmxEvent(OmxEventQueue *queue, OMX_EVENTTYPE event,
     p_event->event_data = event_data;
     p_event->next = 0;
 
-    vlc_mutex_lock(&queue->mutex);
+    heimdall_mutex_lock(&queue->mutex);
     *queue->pp_last_event = p_event;
     queue->pp_last_event = &p_event->next;
-    vlc_cond_signal(&queue->cond);
-    vlc_mutex_unlock(&queue->mutex);
+    heimdall_cond_signal(&queue->cond);
+    heimdall_mutex_unlock(&queue->mutex);
     return OMX_ErrorNone;
 }
 
@@ -83,12 +84,12 @@ OMX_ERRORTYPE WaitForOmxEvent(OmxEventQueue *queue, OMX_EVENTTYPE *event,
     OMX_U32 *data_1, OMX_U32 *data_2, OMX_PTR *event_data)
 {
     OmxEvent *p_event;
-    vlc_tick_t deadline = vlc_tick_now() + VLC_TICK_FROM_SEC(1);
+    heimdall_tick_t deadline = heimdall_tick_now() + HEIMDALL_TICK_FROM_SEC(1);
 
-    vlc_mutex_lock(&queue->mutex);
+    heimdall_mutex_lock(&queue->mutex);
 
     while ((p_event = queue->p_events) == NULL)
-        if (vlc_cond_timedwait(&queue->cond, &queue->mutex, deadline))
+        if (heimdall_cond_timedwait(&queue->cond, &queue->mutex, deadline))
             break;
 
     if(p_event)
@@ -97,7 +98,7 @@ OMX_ERRORTYPE WaitForOmxEvent(OmxEventQueue *queue, OMX_EVENTTYPE *event,
         if(!queue->p_events) queue->pp_last_event = &queue->p_events;
     }
 
-    vlc_mutex_unlock(&queue->mutex);
+    heimdall_mutex_unlock(&queue->mutex);
 
     if(p_event)
     {
@@ -118,7 +119,7 @@ OMX_ERRORTYPE WaitForSpecificOmxEvent(OmxEventQueue *queue,
 {
     OMX_ERRORTYPE status;
     OMX_EVENTTYPE event;
-    vlc_tick_t before =  vlc_tick_now();
+    heimdall_tick_t before =  heimdall_tick_now();
 
     while(1)
     {
@@ -126,13 +127,13 @@ OMX_ERRORTYPE WaitForSpecificOmxEvent(OmxEventQueue *queue,
         if(status != OMX_ErrorNone) return status;
 
         if(event == specific_event) break;
-        if(vlc_tick_now() - before > VLC_TICK_FROM_SEC(1)) return OMX_ErrorTimeout;
+        if(heimdall_tick_now() - before > HEIMDALL_TICK_FROM_SEC(1)) return OMX_ErrorTimeout;
     }
 
     return OMX_ErrorNone;
 }
 
-void PrintOmxEvent(vlc_object_t *p_this, OMX_EVENTTYPE event, OMX_U32 data_1,
+void PrintOmxEvent(heimdall_object_t *p_this, OMX_EVENTTYPE event, OMX_U32 data_1,
     OMX_U32 data_2, OMX_PTR event_data)
 {
     switch (event)
@@ -200,7 +201,7 @@ void CopyOmxPicture( int i_color_format, picture_t *p_pic,
     }
 }
 
-void CopyVlcPicture( decoder_t *p_dec, OMX_BUFFERHEADERTYPE *p_header,
+void CopyHeimdallPicture( decoder_t *p_dec, OMX_BUFFERHEADERTYPE *p_header,
                      picture_t *p_pic)
 {
     decoder_sys_t *p_sys = p_dec->p_sys;
@@ -292,7 +293,7 @@ struct str2quirks {
     int i_quirks;
 };
 
-int OMXCodec_GetQuirks( enum es_format_category_e i_cat, vlc_fourcc_t i_codec,
+int OMXCodec_GetQuirks( enum es_format_category_e i_cat, heimdall_fourcc_t i_codec,
                         const char *p_name, unsigned int i_name_len )
 {
     static const struct str2quirks quirks_prefix[] = {
@@ -329,8 +330,8 @@ int OMXCodec_GetQuirks( enum es_format_category_e i_cat, vlc_fourcc_t i_codec,
     {
         switch( i_codec )
         {
-        case VLC_CODEC_H264:
-        case VLC_CODEC_VC1:
+        case HEIMDALL_CODEC_H264:
+        case HEIMDALL_CODEC_VC1:
             i_quirks |= OMXCODEC_QUIRKS_NEED_CSD;
             break;
         }
@@ -338,8 +339,8 @@ int OMXCodec_GetQuirks( enum es_format_category_e i_cat, vlc_fourcc_t i_codec,
     {
         switch( i_codec )
         {
-        case VLC_CODEC_VORBIS:
-        case VLC_CODEC_MP4A:
+        case HEIMDALL_CODEC_VORBIS:
+        case HEIMDALL_CODEC_MP4A:
             i_quirks |= OMXCODEC_QUIRKS_NEED_CSD;
             break;
         }
@@ -489,87 +490,87 @@ const char *ErrorToString(OMX_ERRORTYPE error)
  *****************************************************************************/
 static const struct
 {
-    vlc_fourcc_t i_fourcc;
+    heimdall_fourcc_t i_fourcc;
     OMX_VIDEO_CODINGTYPE i_codec;
     const char *psz_role;
 
 } video_format_table[] =
 {
-    { VLC_CODEC_MPGV, OMX_VIDEO_CodingMPEG2, "video_decoder.mpeg2" },
-    { VLC_CODEC_MP4V, OMX_VIDEO_CodingMPEG4, "video_decoder.mpeg4" },
-    { VLC_CODEC_HEVC, OMX_VIDEO_CodingAutoDetect, "video_decoder.hevc" },
-    { VLC_CODEC_H264, OMX_VIDEO_CodingAVC,   "video_decoder.avc"   },
-    { VLC_CODEC_H263, OMX_VIDEO_CodingH263,  "video_decoder.h263"  },
-    { VLC_CODEC_WMV1, OMX_VIDEO_CodingWMV,   "video_decoder.wmv1"  },
-    { VLC_CODEC_WMV2, OMX_VIDEO_CodingWMV,   "video_decoder.wmv2"  },
-    { VLC_CODEC_WMV3, OMX_VIDEO_CodingWMV,   "video_decoder.wmv"   },
-    { VLC_CODEC_VC1,  OMX_VIDEO_CodingWMV,   "video_decoder.wmv"   },
-    { VLC_CODEC_MJPG, OMX_VIDEO_CodingMJPEG, "video_decoder.jpeg"  },
-    { VLC_CODEC_MJPG, OMX_VIDEO_CodingMJPEG, "video_decoder.mjpeg" },
-    { VLC_CODEC_RV10, OMX_VIDEO_CodingRV,    "video_decoder.rv"    },
-    { VLC_CODEC_RV20, OMX_VIDEO_CodingRV,    "video_decoder.rv"    },
-    { VLC_CODEC_RV30, OMX_VIDEO_CodingRV,    "video_decoder.rv"    },
-    { VLC_CODEC_RV40, OMX_VIDEO_CodingRV,    "video_decoder.rv"    },
-    { VLC_CODEC_VP8,  OMX_VIDEO_CodingAutoDetect, "video_decoder.vp8" },
-    { VLC_CODEC_VP9,  OMX_VIDEO_CodingAutoDetect, "video_decoder.vp9" },
+    { HEIMDALL_CODEC_MPGV, OMX_VIDEO_CodingMPEG2, "video_decoder.mpeg2" },
+    { HEIMDALL_CODEC_MP4V, OMX_VIDEO_CodingMPEG4, "video_decoder.mpeg4" },
+    { HEIMDALL_CODEC_HEVC, OMX_VIDEO_CodingAutoDetect, "video_decoder.hevc" },
+    { HEIMDALL_CODEC_H264, OMX_VIDEO_CodingAVC,   "video_decoder.avc"   },
+    { HEIMDALL_CODEC_H263, OMX_VIDEO_CodingH263,  "video_decoder.h263"  },
+    { HEIMDALL_CODEC_WMV1, OMX_VIDEO_CodingWMV,   "video_decoder.wmv1"  },
+    { HEIMDALL_CODEC_WMV2, OMX_VIDEO_CodingWMV,   "video_decoder.wmv2"  },
+    { HEIMDALL_CODEC_WMV3, OMX_VIDEO_CodingWMV,   "video_decoder.wmv"   },
+    { HEIMDALL_CODEC_VC1,  OMX_VIDEO_CodingWMV,   "video_decoder.wmv"   },
+    { HEIMDALL_CODEC_MJPG, OMX_VIDEO_CodingMJPEG, "video_decoder.jpeg"  },
+    { HEIMDALL_CODEC_MJPG, OMX_VIDEO_CodingMJPEG, "video_decoder.mjpeg" },
+    { HEIMDALL_CODEC_RV10, OMX_VIDEO_CodingRV,    "video_decoder.rv"    },
+    { HEIMDALL_CODEC_RV20, OMX_VIDEO_CodingRV,    "video_decoder.rv"    },
+    { HEIMDALL_CODEC_RV30, OMX_VIDEO_CodingRV,    "video_decoder.rv"    },
+    { HEIMDALL_CODEC_RV40, OMX_VIDEO_CodingRV,    "video_decoder.rv"    },
+    { HEIMDALL_CODEC_VP8,  OMX_VIDEO_CodingAutoDetect, "video_decoder.vp8" },
+    { HEIMDALL_CODEC_VP9,  OMX_VIDEO_CodingAutoDetect, "video_decoder.vp9" },
 };
 
 static const struct
 {
-    vlc_fourcc_t i_fourcc;
+    heimdall_fourcc_t i_fourcc;
     OMX_AUDIO_CODINGTYPE i_codec;
     const char *psz_role;
 
 } audio_format_table[] =
 {
-    { VLC_CODEC_AMR_NB, OMX_AUDIO_CodingAMR, "audio_decoder.amrnb" },
-    { VLC_CODEC_AMR_WB, OMX_AUDIO_CodingAMR, "audio_decoder.amrwb" },
-    { VLC_CODEC_MP4A,   OMX_AUDIO_CodingAAC, "audio_decoder.aac" },
-    { VLC_CODEC_S16N,   OMX_AUDIO_CodingPCM, "audio_decoder.pcm" },
-    { VLC_CODEC_MP3,    OMX_AUDIO_CodingMP3, "audio_decoder.mp3" },
+    { HEIMDALL_CODEC_AMR_NB, OMX_AUDIO_CodingAMR, "audio_decoder.amrnb" },
+    { HEIMDALL_CODEC_AMR_WB, OMX_AUDIO_CodingAMR, "audio_decoder.amrwb" },
+    { HEIMDALL_CODEC_MP4A,   OMX_AUDIO_CodingAAC, "audio_decoder.aac" },
+    { HEIMDALL_CODEC_S16N,   OMX_AUDIO_CodingPCM, "audio_decoder.pcm" },
+    { HEIMDALL_CODEC_MP3,    OMX_AUDIO_CodingMP3, "audio_decoder.mp3" },
 };
 
 static const struct
 {
-    vlc_fourcc_t i_fourcc;
+    heimdall_fourcc_t i_fourcc;
     OMX_VIDEO_CODINGTYPE i_codec;
     const char *psz_role;
 
 } video_enc_format_table[] =
 {
-    { VLC_CODEC_MPGV, OMX_VIDEO_CodingMPEG2, "video_encoder.mpeg2" },
-    { VLC_CODEC_MP4V, OMX_VIDEO_CodingMPEG4, "video_encoder.mpeg4" },
-    { VLC_CODEC_H264, OMX_VIDEO_CodingAVC,   "video_encoder.avc"   },
-    { VLC_CODEC_H263, OMX_VIDEO_CodingH263,  "video_encoder.h263"  },
-    { VLC_CODEC_WMV1, OMX_VIDEO_CodingWMV,   "video_encoder.wmv"   },
-    { VLC_CODEC_WMV2, OMX_VIDEO_CodingWMV,   "video_encoder.wmv"   },
-    { VLC_CODEC_WMV3, OMX_VIDEO_CodingWMV,   "video_encoder.wmv"   },
-    { VLC_CODEC_MJPG, OMX_VIDEO_CodingMJPEG, "video_encoder.jpeg"  },
-    { VLC_CODEC_RV10, OMX_VIDEO_CodingRV,    "video_encoder.rv"    },
-    { VLC_CODEC_RV20, OMX_VIDEO_CodingRV,    "video_encoder.rv"    },
-    { VLC_CODEC_RV30, OMX_VIDEO_CodingRV,    "video_encoder.rv"    },
-    { VLC_CODEC_RV40, OMX_VIDEO_CodingRV,    "video_encoder.rv"    },
+    { HEIMDALL_CODEC_MPGV, OMX_VIDEO_CodingMPEG2, "video_encoder.mpeg2" },
+    { HEIMDALL_CODEC_MP4V, OMX_VIDEO_CodingMPEG4, "video_encoder.mpeg4" },
+    { HEIMDALL_CODEC_H264, OMX_VIDEO_CodingAVC,   "video_encoder.avc"   },
+    { HEIMDALL_CODEC_H263, OMX_VIDEO_CodingH263,  "video_encoder.h263"  },
+    { HEIMDALL_CODEC_WMV1, OMX_VIDEO_CodingWMV,   "video_encoder.wmv"   },
+    { HEIMDALL_CODEC_WMV2, OMX_VIDEO_CodingWMV,   "video_encoder.wmv"   },
+    { HEIMDALL_CODEC_WMV3, OMX_VIDEO_CodingWMV,   "video_encoder.wmv"   },
+    { HEIMDALL_CODEC_MJPG, OMX_VIDEO_CodingMJPEG, "video_encoder.jpeg"  },
+    { HEIMDALL_CODEC_RV10, OMX_VIDEO_CodingRV,    "video_encoder.rv"    },
+    { HEIMDALL_CODEC_RV20, OMX_VIDEO_CodingRV,    "video_encoder.rv"    },
+    { HEIMDALL_CODEC_RV30, OMX_VIDEO_CodingRV,    "video_encoder.rv"    },
+    { HEIMDALL_CODEC_RV40, OMX_VIDEO_CodingRV,    "video_encoder.rv"    },
     { 0, 0, 0 }
 };
 
 static const struct
 {
-    vlc_fourcc_t i_fourcc;
+    heimdall_fourcc_t i_fourcc;
     OMX_AUDIO_CODINGTYPE i_codec;
     const char *psz_role;
 
 } audio_enc_format_table[] =
 {
-    { VLC_CODEC_AMR_NB, OMX_AUDIO_CodingAMR, "audio_encoder.amrnb" },
-    { VLC_CODEC_AMR_WB, OMX_AUDIO_CodingAMR, "audio_encoder.amrwb" },
-    { VLC_CODEC_MP4A,   OMX_AUDIO_CodingAAC, "audio_encoder.aac" },
-    { VLC_CODEC_S16N,   OMX_AUDIO_CodingPCM, "audio_encoder.pcm" },
+    { HEIMDALL_CODEC_AMR_NB, OMX_AUDIO_CodingAMR, "audio_encoder.amrnb" },
+    { HEIMDALL_CODEC_AMR_WB, OMX_AUDIO_CodingAMR, "audio_encoder.amrwb" },
+    { HEIMDALL_CODEC_MP4A,   OMX_AUDIO_CodingAAC, "audio_encoder.aac" },
+    { HEIMDALL_CODEC_S16N,   OMX_AUDIO_CodingPCM, "audio_encoder.pcm" },
     { 0, 0, 0 }
 };
 
 static const struct
 {
-    vlc_fourcc_t i_fourcc;
+    heimdall_fourcc_t i_fourcc;
     OMX_COLOR_FORMATTYPE i_codec;
     unsigned int i_size_mul;
     unsigned int i_line_mul;
@@ -577,17 +578,17 @@ static const struct
 
 } chroma_format_table[] =
 {
-    { VLC_CODEC_I420, OMX_COLOR_FormatYUV420Planar, 3, 1, 2 },
-    { VLC_CODEC_I420, OMX_COLOR_FormatYUV420PackedPlanar, 3, 1, 2 },
-    { VLC_CODEC_NV12, OMX_COLOR_FormatYUV420SemiPlanar, 3, 1, 1 },
-    { VLC_CODEC_NV21, OMX_QCOM_COLOR_FormatYVU420SemiPlanar, 3, 1, 1 },
-    { VLC_CODEC_NV12, OMX_TI_COLOR_FormatYUV420PackedSemiPlanar, 3, 1, 1 },
-    { VLC_CODEC_NV12, QOMX_COLOR_FormatYUV420PackedSemiPlanar64x32Tile2m8ka, 3, 1, 1 },
-    { VLC_CODEC_NV12, OMX_QCOM_COLOR_FormatYUV420PackedSemiPlanar32m, 3, 1, 1 },
-    { VLC_CODEC_YUYV, OMX_COLOR_FormatYCbYCr, 4, 2, 0 },
-    { VLC_CODEC_YVYU, OMX_COLOR_FormatYCrYCb, 4, 2, 0 },
-    { VLC_CODEC_UYVY, OMX_COLOR_FormatCbYCrY, 4, 2, 0 },
-    { VLC_CODEC_VYUY, OMX_COLOR_FormatCrYCbY, 4, 2, 0 },
+    { HEIMDALL_CODEC_I420, OMX_COLOR_FormatYUV420Planar, 3, 1, 2 },
+    { HEIMDALL_CODEC_I420, OMX_COLOR_FormatYUV420PackedPlanar, 3, 1, 2 },
+    { HEIMDALL_CODEC_NV12, OMX_COLOR_FormatYUV420SemiPlanar, 3, 1, 1 },
+    { HEIMDALL_CODEC_NV21, OMX_QCOM_COLOR_FormatYVU420SemiPlanar, 3, 1, 1 },
+    { HEIMDALL_CODEC_NV12, OMX_TI_COLOR_FormatYUV420PackedSemiPlanar, 3, 1, 1 },
+    { HEIMDALL_CODEC_NV12, QOMX_COLOR_FormatYUV420PackedSemiPlanar64x32Tile2m8ka, 3, 1, 1 },
+    { HEIMDALL_CODEC_NV12, OMX_QCOM_COLOR_FormatYUV420PackedSemiPlanar32m, 3, 1, 1 },
+    { HEIMDALL_CODEC_YUYV, OMX_COLOR_FormatYCbYCr, 4, 2, 0 },
+    { HEIMDALL_CODEC_YVYU, OMX_COLOR_FormatYCrYCb, 4, 2, 0 },
+    { HEIMDALL_CODEC_UYVY, OMX_COLOR_FormatCbYCrY, 4, 2, 0 },
+    { HEIMDALL_CODEC_VYUY, OMX_COLOR_FormatCrYCbY, 4, 2, 0 },
 };
 
 OMX_VIDEO_CODINGTYPE GetOmxVideoFormat( const es_format_t *es )
@@ -595,14 +596,14 @@ OMX_VIDEO_CODINGTYPE GetOmxVideoFormat( const es_format_t *es )
     if ( unlikely( es->i_cat != VIDEO_ES ) )
         return OMX_VIDEO_CodingUnused;
 
-    vlc_fourcc_t i_fourcc = vlc_fourcc_GetCodec( VIDEO_ES, es->i_codec );
+    heimdall_fourcc_t i_fourcc = heimdall_fourcc_GetCodec( VIDEO_ES, es->i_codec );
 
     for( size_t i = 0; i < ARRAY_SIZE(video_format_table); i++ )
         if( video_format_table[i].i_fourcc == i_fourcc )
         {
-            if (es->i_codec == VLC_CODEC_VP8 && es_format_HasVpxAlpha(es)) // contains alpha extradata
+            if (es->i_codec == HEIMDALL_CODEC_VP8 && es_format_HasVpxAlpha(es)) // contains alpha extradata
                 continue;
-            if (es->i_codec == VLC_CODEC_VP9 && es_format_HasVpxAlpha(es)) // contains alpha extradata
+            if (es->i_codec == HEIMDALL_CODEC_VP9 && es_format_HasVpxAlpha(es)) // contains alpha extradata
                 continue;
 
             return video_format_table[i].i_codec;
@@ -611,7 +612,7 @@ OMX_VIDEO_CODINGTYPE GetOmxVideoFormat( const es_format_t *es )
     return OMX_VIDEO_CodingUnused;
 }
 
-vlc_fourcc_t GetVlcVideoFormat( OMX_VIDEO_CODINGTYPE i_omx_codec )
+heimdall_fourcc_t GetHeimdallVideoFormat( OMX_VIDEO_CODINGTYPE i_omx_codec )
 {
     for( size_t i = 0; i < ARRAY_SIZE(video_format_table); i++ )
         if( video_format_table[i].i_codec == i_omx_codec )
@@ -625,14 +626,14 @@ static const char *GetOmxVideoRole( const es_format_t *es )
     if ( unlikely( es->i_cat != VIDEO_ES ) )
         return NULL;
 
-    vlc_fourcc_t i_fourcc = vlc_fourcc_GetCodec( VIDEO_ES, es->i_codec );
+    heimdall_fourcc_t i_fourcc = heimdall_fourcc_GetCodec( VIDEO_ES, es->i_codec );
 
     for( size_t i = 0; i < ARRAY_SIZE(video_format_table); i++ )
         if( video_format_table[i].i_fourcc == i_fourcc )
         {
-            if (es->i_codec == VLC_CODEC_VP8 && es->i_level != 0 && es->i_level != -1) // contains alpha extradata
+            if (es->i_codec == HEIMDALL_CODEC_VP8 && es->i_level != 0 && es->i_level != -1) // contains alpha extradata
                 continue;
-            if (es->i_codec == VLC_CODEC_VP9 && es->i_level != 0 && es->i_level != -1) // contains alpha extradata
+            if (es->i_codec == HEIMDALL_CODEC_VP9 && es->i_level != 0 && es->i_level != -1) // contains alpha extradata
                 continue;
 
             return video_format_table[i].psz_role;
@@ -641,11 +642,11 @@ static const char *GetOmxVideoRole( const es_format_t *es )
     return NULL;
 }
 
-static const char *GetOmxVideoEncRole( vlc_fourcc_t i_fourcc )
+static const char *GetOmxVideoEncRole( heimdall_fourcc_t i_fourcc )
 {
     unsigned int i;
 
-    i_fourcc = vlc_fourcc_GetCodec( VIDEO_ES, i_fourcc );
+    i_fourcc = heimdall_fourcc_GetCodec( VIDEO_ES, i_fourcc );
 
     for( i = 0; video_enc_format_table[i].i_codec != 0; i++ )
         if( video_enc_format_table[i].i_fourcc == i_fourcc ) break;
@@ -653,9 +654,9 @@ static const char *GetOmxVideoEncRole( vlc_fourcc_t i_fourcc )
     return video_enc_format_table[i].psz_role;
 }
 
-OMX_AUDIO_CODINGTYPE GetOmxAudioFormat( vlc_fourcc_t i_fourcc )
+OMX_AUDIO_CODINGTYPE GetOmxAudioFormat( heimdall_fourcc_t i_fourcc )
 {
-    i_fourcc = vlc_fourcc_GetCodec( AUDIO_ES, i_fourcc );
+    i_fourcc = heimdall_fourcc_GetCodec( AUDIO_ES, i_fourcc );
 
     for( size_t i = 0; i < ARRAY_SIZE(audio_format_table); i++ )
         if( audio_format_table[i].i_fourcc == i_fourcc )
@@ -664,7 +665,7 @@ OMX_AUDIO_CODINGTYPE GetOmxAudioFormat( vlc_fourcc_t i_fourcc )
     return OMX_AUDIO_CodingUnused;
 }
 
-vlc_fourcc_t OmxToVlcAudioFormat( OMX_AUDIO_CODINGTYPE i_omx_codec )
+heimdall_fourcc_t OmxToHeimdallAudioFormat( OMX_AUDIO_CODINGTYPE i_omx_codec )
 {
     for( size_t i = 0; i < ARRAY_SIZE(audio_format_table); i++ )
         if( audio_format_table[i].i_codec == i_omx_codec )
@@ -673,9 +674,9 @@ vlc_fourcc_t OmxToVlcAudioFormat( OMX_AUDIO_CODINGTYPE i_omx_codec )
     return 0;
 }
 
-static const char *GetOmxAudioRole( vlc_fourcc_t i_fourcc )
+static const char *GetOmxAudioRole( heimdall_fourcc_t i_fourcc )
 {
-    i_fourcc = vlc_fourcc_GetCodec( AUDIO_ES, i_fourcc );
+    i_fourcc = heimdall_fourcc_GetCodec( AUDIO_ES, i_fourcc );
 
     for( size_t i = 0; i < ARRAY_SIZE(audio_format_table); i++ )
         if( audio_format_table[i].i_fourcc == i_fourcc )
@@ -684,11 +685,11 @@ static const char *GetOmxAudioRole( vlc_fourcc_t i_fourcc )
     return NULL;
 }
 
-static const char *GetOmxAudioEncRole( vlc_fourcc_t i_fourcc )
+static const char *GetOmxAudioEncRole( heimdall_fourcc_t i_fourcc )
 {
     unsigned int i;
 
-    i_fourcc = vlc_fourcc_GetCodec( AUDIO_ES, i_fourcc );
+    i_fourcc = heimdall_fourcc_GetCodec( AUDIO_ES, i_fourcc );
 
     for( i = 0; audio_enc_format_table[i].i_codec != 0; i++ )
         if( audio_enc_format_table[i].i_fourcc == i_fourcc ) break;
@@ -707,9 +708,9 @@ const char *GetOmxRole( const es_format_t *es,
         GetOmxVideoRole( es ) : GetOmxAudioRole( es->i_codec );
 }
 
-OMX_COLOR_FORMATTYPE GetOmxChromaFormat( vlc_fourcc_t i_fourcc )
+OMX_COLOR_FORMATTYPE GetOmxChromaFormat( heimdall_fourcc_t i_fourcc )
 {
-    i_fourcc = vlc_fourcc_GetCodec( VIDEO_ES, i_fourcc );
+    i_fourcc = heimdall_fourcc_GetCodec( VIDEO_ES, i_fourcc );
 
     for( size_t i = 0; i < ARRAY_SIZE(chroma_format_table); i++ )
         if( chroma_format_table[i].i_fourcc == i_fourcc )
@@ -718,7 +719,7 @@ OMX_COLOR_FORMATTYPE GetOmxChromaFormat( vlc_fourcc_t i_fourcc )
     return OMX_COLOR_FormatUnused;
 }
 
-vlc_fourcc_t GetVlcChromaFormat( OMX_COLOR_FORMATTYPE i_omx_codec )
+heimdall_fourcc_t GetHeimdallChromaFormat( OMX_COLOR_FORMATTYPE i_omx_codec )
 {
     for( size_t i = 0; i < ARRAY_SIZE(chroma_format_table); i++ )
         if( chroma_format_table[i].i_codec == i_omx_codec )
@@ -727,14 +728,14 @@ vlc_fourcc_t GetVlcChromaFormat( OMX_COLOR_FORMATTYPE i_omx_codec )
     return 0;
 }
 
-int GetVlcChromaSizes( vlc_fourcc_t i_fourcc,
+int GetHeimdallChromaSizes( heimdall_fourcc_t i_fourcc,
                        unsigned int width, unsigned int height,
                        unsigned int *size, unsigned int *pitch,
                        unsigned int *chroma_pitch_div )
 {
     size_t i;
 
-    i_fourcc = vlc_fourcc_GetCodec( VIDEO_ES, i_fourcc );
+    i_fourcc = heimdall_fourcc_GetCodec( VIDEO_ES, i_fourcc );
 
     for( i = 0; i < ARRAY_SIZE(chroma_format_table); i++ )
         if( chroma_format_table[i].i_fourcc == i_fourcc ) break;
@@ -824,7 +825,7 @@ unsigned int GetAudioParamSize(OMX_INDEXTYPE index)
 
 OMX_ERRORTYPE SetAudioParameters(OMX_HANDLETYPE handle,
     OmxFormatParam *param, OMX_U32 i_port, OMX_AUDIO_CODINGTYPE encoding,
-    vlc_fourcc_t i_codec, uint8_t i_channels, unsigned int i_samplerate,
+    heimdall_fourcc_t i_codec, uint8_t i_channels, unsigned int i_samplerate,
     unsigned int i_bitrate, unsigned int i_bps, unsigned int i_blocksize)
 {
     OMX_INDEXTYPE index;
@@ -858,7 +859,7 @@ OMX_ERRORTYPE SetAudioParameters(OMX_HANDLETYPE handle,
         OMX_INIT_STRUCTURE(param->amr);
         param->amr.nChannels = i_channels;
         param->amr.nBitRate = i_bitrate;
-        if (i_codec == VLC_CODEC_AMR_WB)
+        if (i_codec == HEIMDALL_CODEC_AMR_WB)
             param->amr.eAMRBandMode = OMX_AUDIO_AMRBandModeWB0;
         else
             param->amr.eAMRBandMode = OMX_AUDIO_AMRBandModeNB0;
@@ -1066,7 +1067,7 @@ void PrintOmx(decoder_t *p_dec, OMX_HANDLETYPE omx_handle, OMX_U32 i_port)
             unsigned int i_bitspersample, i_blockalign;
             uint8_t i_channels;
             OmxFormatParam format_param;
-            vlc_fourcc_t i_fourcc;
+            heimdall_fourcc_t i_fourcc;
             const char *psz_name;
             OMX_CONFIG_RECTTYPE crop_rect;
 
@@ -1099,9 +1100,9 @@ void PrintOmx(decoder_t *p_dec, OMX_HANDLETYPE omx_handle, OMX_U32 i_port)
             case OMX_PortDomainVideo:
 
                 if(definition.format.video.eCompressionFormat)
-                    i_fourcc = GetVlcVideoFormat( definition.format.video.eCompressionFormat );
+                    i_fourcc = GetHeimdallVideoFormat( definition.format.video.eCompressionFormat );
                 else
-                    i_fourcc = GetVlcChromaFormat( definition.format.video.eColorFormat );
+                    i_fourcc = GetHeimdallChromaFormat( definition.format.video.eColorFormat );
 
                 OMX_INIT_STRUCTURE(crop_rect);
                 crop_rect.nPortIndex = definition.nPortIndex;
@@ -1113,7 +1114,7 @@ void PrintOmx(decoder_t *p_dec, OMX_HANDLETYPE omx_handle, OMX_U32 i_port)
                     crop_rect.nHeight = definition.format.video.nFrameHeight;
                 }
 
-                psz_name = vlc_fourcc_GetDescription( VIDEO_ES, i_fourcc );
+                psz_name = heimdall_fourcc_GetDescription( VIDEO_ES, i_fourcc );
 
                 msg_Dbg( p_dec, "  -> video %s %ix%i@%.2f (%i,%i) (%i,%i) (%i,%i,%i,%i)", psz_name,
                          (int)definition.format.video.nFrameWidth,
@@ -1129,7 +1130,7 @@ void PrintOmx(decoder_t *p_dec, OMX_HANDLETYPE omx_handle, OMX_U32 i_port)
 
             case OMX_PortDomainAudio:
 
-                i_fourcc = OmxToVlcAudioFormat( definition.format.audio.eEncoding );
+                i_fourcc = OmxToHeimdallAudioFormat( definition.format.audio.eEncoding );
 
                 GetAudioParameters(omx_handle, &format_param,
                                    definition.nPortIndex,
@@ -1137,7 +1138,7 @@ void PrintOmx(decoder_t *p_dec, OMX_HANDLETYPE omx_handle, OMX_U32 i_port)
                                    &i_channels, &i_samplerate, &i_bitrate,
                                    &i_bitspersample, &i_blockalign);
 
-                psz_name = vlc_fourcc_GetDescription( AUDIO_ES, i_fourcc );
+                psz_name = heimdall_fourcc_GetDescription( AUDIO_ES, i_fourcc );
 
                 msg_Dbg( p_dec, "  -> audio %s (%i) %i,%i,%i,%i,%i", psz_name,
                          (int)definition.format.audio.eEncoding,
@@ -1170,9 +1171,9 @@ static const struct omx_to_profile_idc avc_omx_to_profile_idc[] =
 
 static const struct omx_to_profile_idc hevc_omx_to_profile_idc[] =
 {
-    { 0x1 /* OMX_VIDEO_HEVCProfileMain */, VLC_HEVC_PROFILE_MAIN },
-    { 0x2 /* OMX_VIDEO_HEVCProfileMain10 */, VLC_HEVC_PROFILE_MAIN_10 },
-    { 0x1000 /* OMX_VIDEO_HEVCProfileMain10HDR10 */, VLC_HEVC_PROFILE_MAIN_10 },
+    { 0x1 /* OMX_VIDEO_HEVCProfileMain */, HEIMDALL_HEVC_PROFILE_MAIN },
+    { 0x2 /* OMX_VIDEO_HEVCProfileMain10 */, HEIMDALL_HEVC_PROFILE_MAIN_10 },
+    { 0x1000 /* OMX_VIDEO_HEVCProfileMain10HDR10 */, HEIMDALL_HEVC_PROFILE_MAIN_10 },
 };
 
 static const struct omx_to_profile_idc mpeg2_omx_to_profile_idc[] =
@@ -1185,22 +1186,22 @@ static const struct omx_to_profile_idc mpeg2_omx_to_profile_idc[] =
     { OMX_VIDEO_MPEG2Profile422, PROFILE_MPEG2_422 },
 };
 
-int convert_omx_to_profile_idc(vlc_fourcc_t codec, int profile_type)
+int convert_omx_to_profile_idc(heimdall_fourcc_t codec, int profile_type)
 {
     const struct omx_to_profile_idc *omx_to_profile_idc = NULL;
     size_t array_length;
     switch (codec)
     {
-        case VLC_CODEC_H264:
+        case HEIMDALL_CODEC_H264:
             omx_to_profile_idc = avc_omx_to_profile_idc;
             array_length = ARRAY_SIZE(avc_omx_to_profile_idc);
             break;
-        case VLC_CODEC_HEVC:
+        case HEIMDALL_CODEC_HEVC:
             omx_to_profile_idc = hevc_omx_to_profile_idc;
             array_length = ARRAY_SIZE(hevc_omx_to_profile_idc);
             break;
-        case VLC_CODEC_MPGV:
-        case VLC_CODEC_MP2V:
+        case HEIMDALL_CODEC_MPGV:
+        case HEIMDALL_CODEC_MP2V:
             omx_to_profile_idc = mpeg2_omx_to_profile_idc;
             array_length = ARRAY_SIZE(mpeg2_omx_to_profile_idc);
             break;
